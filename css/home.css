@@ -11,8 +11,8 @@
   text-transform: uppercase; color: var(--label2);
 }
 .dashboard .navbar__sub { color: var(--label); font-weight: 600; font-size: 0.941rem; }
-/* Roue des réglages : même couleur que le titre de l'accueil */
-.dashboard .navbar__icon { color: var(--label); }
+/* Roue des réglages : couleur d'action, la même sur l'accueil et sur Programme (panels de la vague 3 : noire ici, bleue
+   là-bas, pour le même bouton) */
 
 .home { padding: 8px 16px 24px; }
 
@@ -54,7 +54,9 @@
 .targets { margin-top: 14px; border-top: .5px solid var(--sep); }
 .targets__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 8px; }
 /* Très grand texte : « Modifier » passe sous le titre plutôt que de sortir de la carte */
-.targets__title { min-width: 0; overflow-wrap: anywhere; }
+/* Le titre se partage la ligne avec « Modifier » et revient à la ligne lui-même (iPhone SE : « Modifier » finissait seul
+   sur sa ligne, panels de la vague 3) ; il ne descend dessous qu'en très grand texte (moins de 10 em pour le titre) */
+.targets__title { min-width: 0; overflow-wrap: anywhere; flex: 1 1 10em; }
 .targets__edit {
   flex-shrink: 0; min-height: 44px; margin-right: -8px; padding: 0 8px; border: 0; background: none; cursor: pointer;
   font: inherit; font-size: var(--fs-subhead); color: var(--tint-on-fill);
@@ -99,9 +101,9 @@
   width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   background: var(--fill2);
 }
-.week__dot--done { background: var(--tint-fill); color: var(--on-tint); }
-.week__dot--today { background: none; box-shadow: inset 0 0 0 2px var(--tint); }
-.week__dot--done.week__dot--today { background: var(--tint-fill); box-shadow: none; }
+.week__dot--done { background: var(--check-on); color: var(--check-mark); }   /* jour fait : le vert de « fait », comme une série validée */
+.week__dot--today { background: none; box-shadow: inset 0 0 0 2px var(--label2); }   /* gris : le rond bleu, c'est « cocher » (Nutrition) */
+.week__dot--done.week__dot--today { background: var(--check-on); box-shadow: none; }
 .week__line {
   display: flex; align-items: center; gap: 4px; margin-top: 10px;
   font-size: var(--fs-footnote); color: var(--label2); white-space: nowrap;

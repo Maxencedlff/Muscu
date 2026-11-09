@@ -49,8 +49,8 @@ def t_seance(bench, eng, dev, theme):
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
         page.wait_for_timeout(200)
         R.check(page.evaluate('activeSession.exercises[0].sets[0].weight') in ('35.5', 35.5), f'{t} « 35,5 » enregistré 35.5')
-        bg = page.evaluate("getComputedStyle(document.querySelector('.toast')).backgroundColor")
-        R.check('rgba' not in bg or bg.endswith(', 1)'), f'{t} toast de séance opaque ({bg})')
+        # Vague 3 : aucun toast en séance, « Annuler » en ligne dans la série
+        R.check(page.locator('.toast').count() == 0 and page.locator('.ex-card[data-ei="0"] [data-action="sess-undo"]').count() == 1, f'{t} série validée : « Annuler » en ligne, pas de toast')
         skip_rest(page)
         d = page.locator('.ex-card[data-ei="0"] .ex-vol__delta')
         R.check(d.count() == 1 and 'ex-vol__delta--up' not in (d.get_attribute('class') or ''),

@@ -195,7 +195,7 @@ def t_eleve(bench, eng, dev, theme):
         page.wait_for_selector('.coach-join-view')
         txt = page.inner_text('.coach-join-view')
         R.check('max' in txt and 'ce que max verra' in txt.lower() and 'masquées' in txt and 'poids' in txt, f'{t} aperçu : coach et ce qu\'il verra')
-        R.check('Des messages' in txt and 'Effacés quand le suivi s\'arrête' in txt, f'{t} aperçu : le coach pourra écrire des messages')
+        R.check('Des messages' in txt and 'Effacés quand le coaching s\'arrête' in txt, f'{t} aperçu : le coach pourra écrire des messages')
         R.check(ccalls(page, 'coach_preview')[-1] == {'code': 'K7M2QX9P'} and not ccalls(page, 'coach_join'), f'{t} aperçu sans rien créer')
         layout(page, t, 'aperçu du coach')
         shot(page, LOT, f'2-apercu-{t}')
@@ -248,8 +248,9 @@ def t_eleve(bench, eng, dev, theme):
         R.check(page.evaluate("document.querySelector('.coach-cell').getBoundingClientRect().top < document.querySelector('.social-optional').getBoundingClientRect().top"), f'{t} cellule en haut')
         # Panel du 07/11 : avec un coach, les amis sont en plus, pas l'étape suivante (plus de gros « Activer » bleu)
         en = page.locator('[data-action="social-enable"]')
-        R.check(page.locator('.social-hero').count() == 0 and 'Amis (facultatif)' in page.text_content('#app') and en.inner_text().strip() == 'Ajouter aussi des amis'
+        R.check(page.locator('.social-hero').count() == 0 and 'Social (facultatif)' in page.text_content('#app') and en.inner_text().strip() == 'Ajouter aussi des amis'
                 and 'btn--secondary' in en.get_attribute('class'), f'{t} amis facultatifs : titre de groupe et bouton secondaire')
+        R.check(page.evaluate("getComputedStyle(document.querySelector('[data-action=social-enable]')).position") == 'static', f'{t} « Ajouter aussi des amis » : à sa place, pas collé sur le texte')
         layout(page, t, 'Social avec coach')
         shot(page, LOT, f'5-amis-cellule-{t}')
         cell.click()
@@ -504,10 +505,11 @@ def t_coach(bench, eng, dev, theme):
               if (tops.size > 1) out.push(m[0]); }
             return out; })""")
         R.check(broken == [], f'{t} Mes élèves : aucun mot coupé en deux {broken}')
-        R.check(row.locator('.progress-sig').count() == 1 and row.locator('.progress-sig').inner_text().strip() and ' '.join(row.locator('.coach-count').inner_text().split()) == '3 à voir', f'{t} signal de la semaine et nouvelles séances')
+        R.check(row.locator('.progress-sig').count() == 1 and row.locator('.progress-sig').inner_text().strip() and ' '.join(row.locator('.coach-count').inner_text().split()) == '3 nouvelles', f'{t} signal de la semaine et nouvelles séances')
         # Panel du 06/11 : pastille rouge « 3 » sans sens à côté de la bulle des messages ; désormais haltère + nombre
-        R.check(row.locator('.coach-count--sessions .icon').count() == 1 and 'nouvelles séances' in row.locator('.visually-hidden').first.text_content(), f'{t} pastille des séances : haltère, nombre et « à voir » écrit')
-        R.check('Aucune séance' in page.locator('.coach-student-row', has_text='tom').inner_text(), f'{t} élève sans séance')
+        R.check(row.locator('.coach-count--sessions .icon').count() == 1 and 'nouvelles séances' in row.locator('.visually-hidden').first.text_content(), f'{t} pastille des séances : haltère, nombre et « nouvelles » écrit')
+        tom = page.locator('.coach-student-row', has_text='tom').inner_text()
+        R.check(('Aucune séance' in tom) != ('Pas encore de séance' in tom), f'{t} élève sans séance : un seul message ({tom!r})')
         layout(page, t, 'Mes élèves')
         shot(page, LOT, f'11-mes-eleves-{t}')
         # Invitation : code créé et partagé, puis retiré ; double toucher : un seul code
@@ -552,7 +554,12 @@ def t_coach(bench, eng, dev, theme):
         miss = page.locator('.coach-session-view .review-ex--missing')
         R.check('3/11' in d and miss.count() == 1 and 'Pompes' in miss.inner_text() and 'pas fait' in miss.inner_text(), f'{t} séance de mon programme : séries faites sur prévues, exercice non fait grisé')
         R.check(page.locator('.coach-session-view .review-notes').count() == 1 and page.locator('.review-notes--pain').count() == 0, f'{t} notes en haut, sans encadré orange (« raide » n\'est pas un mot de douleur)')
-        R.check('1re séance Haut' in d, f'{t} 35 séances chargées, aucune autre Haut : « 1re séance Haut »')
+        # Aucune autre Haut, mais ses exercices ont un « avant » (séances Push) : pas de « 1re séance » qui les contredirait (panel t6)
+        R.check('1re séance' not in d and 'avant 40 kg × 8 · 7' in d, f'{t} exercices déjà faits : pas de « 1re séance Haut », « avant » par exercice')
+        R.check(page.locator('.coach-session-view .social-who').count() == 0 and 'Notes de' not in d,
+                f'{t} nom de l\'élève une seule fois (retour « ‹ lea »), notes titrées « Notes »')
+        lbls = page.locator('.coach-session-view .tile__lbl').all_inner_texts()
+        R.check(lbls[:3] == ['Durée', 'Volume', 'Séries prévues'], f'{t} tuiles dans l\'ordre du bilan : Durée, Volume, Séries ({lbls})')
         layout(page, t, 'séance d\'un élève')
         shot(page, LOT, f'14-seance-eleve-{t}')
         page.click('[data-action="coach-comment"]')
@@ -580,7 +587,7 @@ def t_coach(bench, eng, dev, theme):
         # Séance masquée aux abonnés : visible du coach, et dit
         page.click('.coach-sess[data-id="l01"]')
         page.wait_for_selector('.coach-session-view')
-        R.check('masquée à ses abonnés' in page.inner_text('.coach-session-view'), f'{t} séance masquée visible du coach')
+        R.check('masquée à ceux qui le suivent' in page.inner_text('.coach-session-view'), f'{t} séance masquée visible du coach')
         page.click('[data-action="back"]')
         page.wait_for_selector('.coach-sess')
         # Envoyer un programme avec consignes
@@ -692,18 +699,19 @@ def t_recap(bench, eng, dev, theme):
         R.check(page.evaluate("document.querySelector('.review-notes').compareDocumentPosition(document.querySelector('.tiles')) & Node.DOCUMENT_POSITION_FOLLOWING") > 0, f'{t} notes au-dessus des cases')
         tiles = [x.replace('\u202f', ' ').replace('\n', ' ') for x in page.locator('.coach-session-view .tile').all_inner_texts()]
         R.check(len(tiles) == 4, f'{t} 4 cases ({tiles})')
-        R.check(tiles[0].startswith('2,9 t') and '+6 %' in tiles[0] and page.locator('.tile__delta--up').count() == 1, f'{t} volume sans poids du corps, +6 % en vert ({tiles[0]!r})')
-        R.check('+23 %' in tiles[1], f'{t} durée : écart de plus de 20 % dit ({tiles[1]!r})')
+        R.check(tiles[1].startswith('2,9 t') and '+6 %' in tiles[1] and page.locator('.tile__delta--up').count() == 1, f'{t} volume (2e case, après la durée) sans poids du corps, +6 % en vert ({tiles[1]!r})')
+        R.check('+23 %' in tiles[0], f'{t} durée (1re case) : écart de plus de 20 % dit ({tiles[0]!r})')
         R.check('15' in tiles[2] and '4' in tiles[3], f'{t} séries et exercices ({tiles[2:]!r})')
         recs = page.locator('.coach-session-view .review-rec').all_inner_texts()
         R.check(len(recs) == 2 and 'Squat haltère' in recs[0] and 'avant 20 kg' in recs[0] and '22,5 kg' in recs[0], f'{t} record de charge nommé avec l\'ancienne valeur ({recs})')
         R.check(len(recs) == 2 and 'Squat poids du corps' in recs[1] and 'Record reps' in recs[1], f'{t} record de reps au poids du corps ({recs})')
         rows = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .review-ex').all_inner_texts()]
-        R.check('↑ +2,5 kg' in rows[0] and 'préc. 20 kg × 12 · 12 · 12 · 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
+        R.check('↑ +2,5 kg' in rows[0] and 'avant 20 kg × 12 · 12 · 12 · 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
         R.check('36 reps' in rows[1] and '↑ +6 reps' in rows[1], f'{t} poids du corps : « 36 reps » et +6 ({rows[1]!r})')
-        R.check('↑ +2 kg' in rows[2] and 'préc. 14 kg × 12' in rows[2], f'{t} référence par exercice : la Push du jour 4 ({rows[2]!r})')
-        R.check('=' in rows[3] and '↓' not in d, f'{t} égalité : « = » ({rows[3]!r})')
-        R.check(page.locator('.review-trend--up').count() == 3 and page.locator('.review-trend--same').count() == 1, f'{t} hausses en vert, égalité en gris')
+        R.check('↑ +2 kg' in rows[2] and 'avant 14 kg × 12' in rows[2], f'{t} référence par exercice : la Push du jour 4 ({rows[2]!r})')
+        eq = page.locator('.coach-session-view .review-ex').nth(3).text_content()
+        R.check('=' not in rows[3] and '↑' not in rows[3] and '↓' not in d and 'identique à la dernière fois' in eq, f'{t} égalité : rien à l\'écran, « identique » dit à VoiceOver ({rows[3]!r})')
+        R.check(page.locator('.review-trend--up').count() == 3 and page.locator('.review-trend--same').count() == 0, f'{t} hausses en vert, égalité sans signe')
         R.check('poids du corps non compté' in page.inner_text('.review-rule'), f'{t} règle du volume affichée')
         layout(page, t, 'relecture d\'une séance')
         shot(page, LOT, f'14b-relecture-{t}')
@@ -739,7 +747,7 @@ def t_rir(bench, eng, dev, theme):
         R.check('Reps en réserve : 2 · —' in d, f'{t} reps en réserve notées visibles ({d[:400]!r})')
         R.check('Échauffement 10 kg × 8' in d, f'{t} échauffement à part')
         tiles = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .tile').all_inner_texts()]
-        R.check(tiles[0].startswith('480') and tiles[2].startswith('2'), f'{t} échauffement hors volume et séries ({tiles})')
+        R.check(tiles[1].startswith('480') and tiles[2].startswith('2'), f'{t} échauffement hors volume et séries ({tiles})')
         rec = page.inner_text('.coach-session-view .review-rec').replace('\u202f', ' ')
         R.check('Record reps' in rec and 'avant 20 kg × 10' in rec and '20 kg × 12' in rec, f'{t} record noté ({rec!r})')
         R.check("sans l'échauffement" in page.inner_text('.review-rule'), f'{t} règle du volume à jour')

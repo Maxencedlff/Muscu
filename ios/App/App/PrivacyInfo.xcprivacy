@@ -122,6 +122,22 @@
 			</array>
 		</dict>
 		<dict>
+			<!-- Photos de bilan envoyées par l'élève lui-même à son coach (docs/PHOTOS_BILAN.md) : redessinées sans
+			     métadonnées puis chiffrées sur l'iPhone pour ce seul coach ; le serveur garde le fichier chiffré, le
+			     jour, la pose et la date de l'accord. Les photos du coffre restent sur l'iPhone. Même déclaration
+			     dans App Store Connect (Photos ou vidéos : Fonctionnalité de l'app) -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhotosorVideos</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
 			<!-- Messages entre un coach et son élève (chat_coach) -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeEmailsOrTextMessages</string>
@@ -174,6 +190,9 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Lecteur de code-barres (ScannerPlugin.swift, AVFoundation) : les images de la caméra restent sur l'iPhone,
+	     aucune API à raison déclarée. Seul le numéro lu part vers Open Food Facts (js/data/food-scan.js), sans
+	     identifiant ni compte : rien de lié à la personne, donc aucun type de donnée collectée à ajouter. -->
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>

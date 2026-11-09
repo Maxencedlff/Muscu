@@ -3,7 +3,9 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let statsMode = 'volume';   // 'volume' | 'charge' | '1rm'
+// Courbe d'un exercice : « Charge max » à l'ouverture depuis une liste, la grandeur de la tendance de la liste (panel Apple
+// du 08/11 : la liste disait +13 % de charge max, la fiche s'ouvrait sur le volume à +35 %)
+let statsMode = 'charge';   // 'charge' | 'volume' | '1rm' | 'effort'
 let ovMonth   = null; // { y, m } du calendrier de la vue d'ensemble
 
 // Mesures d'un exercice dans une séance
@@ -66,7 +68,7 @@ function exerciseIndex() {
 
 // Section d'un exercice : séance du programme actif, d'un autre programme, ou « Autres »
 function exSection(it) {
-  const match = (list) => (list || []).some(x => x.id === it.exId || (String(it.exId).startsWith('n:') && normName(x.name) === normName(it.name)));
+  const match = (list) => (list || []).some(x => x.id === it.exId || (String(it.exId).startsWith('n:') && sameExerciseName(x.name, it.name)));
   const pid = data.activeProgramme;
   for (const cat of sessionKeys(pid)) if (match(data.programmes[pid]?.exercises?.[cat])) return { key: pid + ':' + cat, cat, prog: pid };
   for (const [p, pd] of Object.entries(data.programmes)) {
@@ -81,23 +83,49 @@ function exSection(it) {
 function isBodyweight(it) { return it.points.every(p => !p.hasWeight); }
 function mainMetric(it, p) { return isBodyweight(it) ? p.maxReps : p.maxLoad; }
 
-// Tendance : moyenne des 3 dernières séances contre les 3 premières
+// Tendance « +13 % depuis mai » : du premier au dernier point de la courbe affichée, ce que l'œil lit (vague 3-t4 :
+// une moyenne des 3 dernières séances contre les 3 premières ne correspondait pas aux points montrés)
 function trendPct(vals) {
   const n = vals.length;
-  if (n < 2) return null;
-  const k = Math.min(3, Math.floor(n / 2));
-  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
-  const a = avg(vals.slice(0, k)), b = avg(vals.slice(-k));
-  if (!(a > 0)) return null;
-  return Math.round((b - a) / a * 100);
+  if (n < 2 || !(vals[0] > 0)) return null;
+  return Math.round((vals[n - 1] - vals[0]) / vals[0] * 100);
+}
+// Position horizontale de chaque point d'une courbe, de 0 à 1, selon sa date : deux séances à trois semaines d'écart
+// sont plus loin l'une de l'autre que deux séances à deux jours (panel Apple du 08/11 : points espacés selon leur
+// rang alors que l'axe porte des dates). Un seul point : au milieu ; toutes les dates égales : selon le rang.
+function chartXFracs(dates) {
+  const n = dates.length;
+  if (n === 1) return [0.5];
+  const t0 = dates[0], span = dates[n - 1] - t0;
+  return dates.map((t, i) => (span > 0 ? Math.min(1, Math.max(0, (t - t0) / span)) : i / (n - 1)));
+}
+// Graduations rondes d'un axe (pas de 1, 2, 2,5 ou 5 × 10^k ; 2 à 4 graduations), bornes arrondies vers l'extérieur :
+// « 20 / 25 / 30 » plutôt que « 20,5 / 24,6 / 28,6 » (panel Apple de la vague 3)
+function chartNiceTicks(lo, hi) {
+  if (!(hi > lo)) hi = lo + 1;
+  const raw = (hi - lo) / 3, p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * p).find(s => s >= raw);
+  const a = Math.floor(lo / step + 1e-9) * step, b = Math.ceil(hi / step - 1e-9) * step;
+  const out = [];
+  for (let v = a; v <= b + step / 2; v += step) out.push(Math.round(v * 1000) / 1000);
+  return out;
+}
+// « depuis mai », « depuis mai 2025 » : début de la période d'une tendance
+function sinceTxt(ts, now = Date.now()) {
+  const d = new Date(ts), opts = { month: 'long' };
+  if (d.getFullYear() !== new Date(now).getFullYear()) opts.year = 'numeric';
+  return `depuis ${d.toLocaleDateString('fr-FR', opts)}`;
 }
 function pctTxt(p) { return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)} %`; }
 
-function sparkline(vals) {
+// dates facultatives : points placés selon la date, comme la grande courbe de la fiche (chartXFracs), pour que les deux
+// tracés aient la même forme (panel t6 : la mini-courbe les plaçait au rang)
+function sparkline(vals, dates = null) {
   const W = 60, H = 24;
   if (vals.length < 2) return `<svg class="spark" width="${W}" height="${H}" aria-hidden="true"></svg>`;
   const min = Math.min(...vals), max = Math.max(...vals), r = (max - min) || 1;
-  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * (W - 4) + 2).toFixed(1)},${(H - 3 - (v - min) / r * (H - 6)).toFixed(1)}`);
+  const fx = dates && dates.length === vals.length ? chartXFracs(dates) : vals.map((_, i) => i / (vals.length - 1));
+  const pts = vals.map((v, i) => `${(fx[i] * (W - 4) + 2).toFixed(1)},${(H - 3 - (v - min) / r * (H - 6)).toFixed(1)}`);
   const last = pts[pts.length - 1].split(',');
   return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
     <polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
@@ -136,7 +164,8 @@ function statsSections(idx) {
   return sections;
 }
 
-// Cellule d'un exercice : dernière performance, courbe et tendance
+// Cellule d'un exercice : dernière performance, courbe et tendance, sur toutes ses séances comme la courbe « Charge max »
+// de sa fiche (même chiffre aux deux endroits ; la mini-courbe ne montrait que les 12 dernières)
 function statsRow(it) {
   const bw   = isBodyweight(it);
   const vals = it.points.map(p => mainMetric(it, p));
@@ -149,7 +178,7 @@ function statsRow(it) {
           <span class="cell__title prow__name">${esc(it.name)}</span>
           <span class="cell__sub num">${it.measure === 'cardio' ? cardioPointTxt(last, paceKind(it)) : bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best, { name: it.name })}</span>
         </span>
-        <span class="prow__spark ${cls}">${sparkline(vals.slice(-12))}</span>
+        <span class="prow__spark ${cls}">${sparkline(vals, it.points.map(p => p.date))}</span>
         <span class="prow__trend num ${cls}">${tp === null ? '' : pctTxt(tp)}</span>
         ${icon('chevron.right', 16)}
       </button>`;
@@ -220,6 +249,7 @@ registerActions({
     cardioMode = el.dataset.mode; render();
   },
   'open-stats-ex': (e, el) => {
+    statsMode = 'charge';
     navigate(makeRoute('stats-ex', el.dataset.ex));
   },
   'go-stats-overview': () => {

@@ -100,14 +100,14 @@ function foodMatchScore(key, words) {
 function searchFoods(query, { limit = 40, own = [] } = {}) {
   const words = foodKey(query).split(' ').filter(Boolean);
   if (!words.length) return [];
-  const mine = own.map(x => ({ food: { code: null, name: x.name, fam: x.fam, per: x.per, ownId: x.id }, own: true, score: foodMatchScore(foodKey(x.name), words) + 100000 }));
+  const mine = own.map(x => ({ food: dietOwnPick(x), own: true, score: foodMatchScore(foodKey(x.name), words) + 100000 }));
   const base = (foodDb?.foods || []).map(f => ({ food: f, own: false, score: foodMatchScore(f.key, words) }));
   return [...mine, ...base].filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.food.name.localeCompare(b.food.name, 'fr')).slice(0, limit);
 }
 // Aliment choisi → aliment du plan (valeurs pour 100 g recopiées)
 function foodToItem(food, g) {
   return cleanDietItem({ name: food.name, food: food.code || null, fam: food.fam, g, per: food.per,
-    src: food.code ? 'ciqual-2025' : 'perso', ecalc: food.ecalc === true });
+    src: food.code ? 'ciqual-2025' : food.src === 'off' ? 'off' : 'perso', ecalc: food.ecalc === true });
 }
 
 // ── Équivalences ────────────────────────────────────────────

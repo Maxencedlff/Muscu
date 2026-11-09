@@ -76,7 +76,8 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     "Curl incliné": 'curl:hand',
     "Curl poulie": 'curl:hand,tool',
     "Curl concentration": 'curl:hand',
-    "Extension triceps poulie": 'triceps:hand,tool',
+    "Extension triceps poulie haute": 'triceps:hand,tool',
+    "Extension triceps poulie basse": 'triceps:hand,tool',
     "Soulevé de terre roumain": 'deadlift:hand',
     "Développé au sol haltères": 'press:hand',
     "Rowing haltères buste penché": 'row:hand',
@@ -198,7 +199,7 @@ export default function ({ test, run, reset, sameJSON, assert }) {
 
   // Séance simulée sur les vraies fonctions (currentSet de js/features/session.js) ; écran, stockage et natif
   // remplacés le temps du test, puis rendus (restore) pour les tests suivants
-  const STUBBED = ['render', 'scrollToCurrent', 'haptic', 'persistSession', 'cancelEffort', 'showToast', 'save'];
+  const STUBBED = ['render', 'scrollToCurrent', 'haptic', 'persistSession', 'cancelEffort', 'showToast', 'sessionUndo', 'save'];
   const stub = () => run(`globalThis.__gripOrig ||= { ${STUBBED.map(k => `${k}: typeof ${k} === 'function' ? ${k} : undefined`).join(', ')} };
     if (typeof sessProg !== 'function') globalThis.sessProg = () => data.programmes[activeSession.programme];`);
   // Test qui remplace des fonctions : rendues même s'il échoue
@@ -209,6 +210,7 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     render = () => {}; scrollToCurrent = () => {}; haptic = () => {}; persistSession = () => {}; cancelEffort = () => { activeSession.effort = null; };
     syncNativeRest = () => { const c = currentSet(); nativeCalls.push(c ? activeSession.exercises[c.ei].name : null); };
     showToast = (msg, o) => { globalThis.lastToast = { msg, o }; };
+    sessionUndo = (msg, o) => { globalThis.lastToast = { msg, o }; };   // « Annuler » en ligne (js/features/session.js)
     activeSession = { category: 'pull', programme: 'ppl', startedAt: 1, exercises: ${list(specs)}, lastEi: ${lastEi} };
     editingSet = null;
   })()`); };
@@ -239,7 +241,8 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     run('sessionDoLater(1)');
     sameJSON(run('activeSession.exercises.map(e => e.name)'), ['A', 'C', 'D', 'B']);
     assert.equal(curName(), 'C S1');
-    assert.equal(run('lastToast.msg'), 'Mis en dernier');
+    assert.equal(run('lastToast.msg'), 'B mis en dernier');
+    assert.equal(run('lastToast.o.target.ex.name'), 'C');   // la ligne coiffe l'exercice qui prend la suite (celui qu'on voit)
     // Dernier bloc de la liste : on repart du premier qui reste à faire
     fakeSession([['A', 3, null, 3], ['B', 3], ['C', 3, null, 1]], 2);
     run('sessionDoLater(2)');
@@ -314,6 +317,7 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     assert.ok(values(xs, 1, 0).includes('now'));
     assert.ok(values(xs, 0, 0).includes('grip'), 'tirage : Prise');
     assert.ok(!values(xs, 1, 0).includes('grip') && !values(xs, 2, 0).includes('grip'), 'squat, curl marteau : pas de Prise');
-    assert.equal(values(xs, 0, 0)[0], 'later', 'en tête du menu');
+    const v = values(xs, 0, 0);
+    assert.ok(v.indexOf('later') > v.indexOf('grip') && v.indexOf('later') < v.indexOf('more'), `après l'exercice, avant « Plus d'options » ${v}`);
   });
 }

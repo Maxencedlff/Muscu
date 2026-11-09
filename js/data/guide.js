@@ -82,8 +82,8 @@ const GUIDE_SECTIONS = [
         steps: [
           'Tape la charge et les répétitions. Une case laissée vide prend la valeur grise affichée : ton objectif.',
           'Touche le rond à droite pour valider. Le repos démarre tout seul.',
-          'Une erreur ? [Annuler] reste quelques secondes en bas de l\'écran.',
-          'Touche une série validée pour la corriger. Glisse-la vers la gauche pour la [Supprimer].',
+          'Une erreur ? [Annuler] apparaît quelques secondes sur la ligne de la série, à la place de [Avant].',
+          'Touche une série validée pour la corriger. Glisse-la vers la gauche pour la [Supprimer] ; avec VoiceOver, le bouton [Supprimer] est juste avant la série.',
           'Le bouton [Série] sous l\'exercice ajoute une série.',
         ],
         related: ['charges', 'repos', 'records'],
@@ -249,7 +249,7 @@ const GUIDE_SECTIONS = [
         id: 'prise', title: 'Type de prise', icon: 'dumbbell', color: 'purple',
         lead: 'Tirages, rowings, tractions, développés, curls et soulevé de terre : précise la prise, pour toi ou pour ton élève.',
         steps: [
-          'Dans [Programme], touche la séance puis l\'exercice : rubrique [Prise]. Pendant la séance : ··· › [Prise].',
+          'Dans [Programme], touche la séance puis l\'exercice : rubrique [Prise]. Pendant la séance : ··· › [Choisir la prise].',
           '[Pronation] : paumes vers l\'avant ou vers le bas. [Supination] : paumes vers toi. [Neutre] : paumes face à face.',
           'Choisis aussi la largeur et la poignée quand l\'exercice en a. Touche à nouveau un choix pour le retirer.',
           'La prise s\'affiche sous le nom de l\'exercice pendant la séance. Si elle a changé depuis la dernière fois, l\'app te le rappelle.',
@@ -375,7 +375,7 @@ const GUIDE_SECTIONS = [
         lead: 'L\'onglet [Progrès] montre tes séances du mois et de l\'année, puis tous tes exercices.',
         steps: [
           'Chaque exercice affiche sa dernière performance, une mini-courbe et sa tendance en %.',
-          'Touche-le pour la courbe complète : [Volume], [Charge max] ou [1RM est.].',
+          'Touche-le pour la courbe complète, sur la même grandeur que sa tendance : [Charge max], puis [Volume] ou [1RM est.].',
           'Pose le doigt sur la courbe pour lire une séance.',
           'Un [Objectif] de charge, réglé dans la fiche de l\'exercice, ajoute une barre de progression.',
           '[Vue d\'ensemble] affiche le calendrier du mois, tes séances par semaine et ton total de séances.',
@@ -394,7 +394,7 @@ const GUIDE_SECTIONS = [
             'Tes photos sont dans le [Coffre à photos], ouvert avec Face ID ou le code de ton iPhone et refermé dès que tu quittes l\'app. Sa clé est dans ton trousseau iCloud : le coffre te suit sur un nouvel iPhone.',
             '[Ajouter une photo] ouvre la caméra ou la pellicule ; choisis [Face], [Profil] ou [Dos]. Elle est chiffrée dans le coffre, pas dans ta pellicule. [Avant / après] superpose deux dates sous un curseur.',
             'Tes mensurations restent sur ton iPhone et dans ta copie iCloud ; tes photos sur ton iPhone seulement, hors de l\'export. Rien n\'est montré à tes amis. [Supprimer toutes les données] efface les deux.',
-            'Ton coach ne voit une photo que si tu la lui envoies toi-même depuis le coffre, chiffrée pour lui seul. Retire-la quand tu veux dans [Mon coach] › [Photos de bilan].',
+            'Ton coach ne voit une photo que si tu la lui envoies toi-même depuis le coffre, chiffrée pour ton coach seulement. Retire-la quand tu veux dans [Mon coach] › [Photos de bilan].',
           ] : [
             'Tes mensurations restent sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs. Rien n\'est montré à tes amis ni à ton coach.',
             'L\'export contient tes mensurations. [Supprimer toutes les données] les efface.',
@@ -581,7 +581,7 @@ const GUIDE_SECTIONS = [
           '[Inviter un élève] crée un code valable 7 jours et ouvre le partage. Tes élèves ne se voient pas entre eux.',
           'Dans une séance, [Commenter] laisse un mot que l\'élève lit dans son historique.',
           '[Envoyer un programme] : choisis un de tes programmes, ajoute des consignes, puis envoie.',
-          '[Retirer l\'élève] arrête le suivi.',
+          '[Retirer l\'élève] arrête le coaching.',
         ],
         related: ['rejoindre-coach', 'programme-coach'],
         actions: ['coach-invite', 'coach-comment', 'coach-send', 'coach-remove'],

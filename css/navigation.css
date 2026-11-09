@@ -26,9 +26,9 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 .navbar {
   position: sticky; top: 0; z-index: 50;
   padding-top: env(safe-area-inset-top, 0px);
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  /* Fond plein (vague 3-t4, 9 experts) : à 96 % avec flou, le contenu se lisait encore en fantôme sous la barre ;
+     la lisibilité prime sur l'effet de verre */
+  background: var(--bg);
   box-shadow: inset 0 -0.5px 0 var(--sep);
   transition: box-shadow .2s, background-color .2s;
 }
@@ -42,6 +42,12 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
   column-gap: 8px; padding: 0 8px;
 }
 .navbar__side { display: flex; align-items: center; min-width: 0; }
+/* Retour entier plutôt que « Retour » : le titre quitte le centre de la barre, centré entre les deux côtés (fitBackLabel) */
+.navbar__bar--wide-back { grid-template-columns: max-content minmax(0, 1fr) max-content; }
+.navbar__bar--wide-back .navbar__title { max-width: none; }
+/* Chevron seul : il porte déjà sa marge (zone de 44 pt) ; écart réduit pour garder le titre entier sur 320 pt
+   (« Photos de bilan » entre le chevron et « Verrouiller », iPhone SE et Galaxy S9+) */
+.navbar__bar--wide-back:has(.navbar__back--icon) { column-gap: 4px; }
 /* « Annuler » / « OK » gardent leur largeur : c'est le titre qui se tronque (écrans étroits) */
 .navbar__side:has(> .navbar__text) { min-width: max-content; }
 .navbar__side--right { justify-content: flex-end; }
@@ -55,6 +61,18 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 }
 .navbar--large .navbar__title { opacity: 0; transition: opacity .15s; }
 .navbar--large.navbar--collapsed .navbar__title { opacity: 1; }
+/* Titre posé dans le contenu (observeLargeTitle, js/ui/navbar.js) : la barre le reprend quand il sort de l'écran */
+.navbar--echo .navbar__title { opacity: 0; transition: opacity .15s; }
+.navbar--echo.navbar--collapsed .navbar__title { opacity: 1; }
+/* Titre compact pas encore affiché : aussi caché (visibility, basculée à la fin du fondu) ; le retour garde son nom
+   entier tant qu'il est caché, sa colonne étroite le coupait sans qu'on le voie (contrôle « aucun texte coupé ») */
+:is(.navbar--large, .navbar--echo):not(.navbar--collapsed) .navbar__title { visibility: hidden; }
+:is(.navbar--large, .navbar--echo) .navbar__title { transition: opacity .15s, visibility .15s; }
+/* Grand titre ou titre du contenu repris par la barre : il s'efface en même temps, comme iOS (on lisait « Coach » dans la
+   barre au-dessus du bas du grand titre, coupé, panel t5) */
+.navbar__large, .scr [data-echo-title], .scr h1.scr-title, .scr h1.pv-title { transition: opacity .15s; }
+.navbar-echoed { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .navbar__large, .scr [data-echo-title], .scr h1.scr-title, .scr h1.pv-title { transition: none; } }
 /* Titre et sous-titre de la séance l'un sous l'autre, chacun terminé par « … » s'il est trop long. En flex
    colonne centré, un titre trop long débordait des deux côtés sans « … » (« a prise de mas », panel du 07/11) */
 .navbar__title-main, .navbar__title-sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -92,6 +110,11 @@ html.type-xl .navbar__large { font-size: min(2rem, 36px); }
 }
 .navbar__sub .icon { color: var(--label3); }
 .navbar__sub:active { opacity: .5; }
+/* Texte agrandi : sur deux lignes, aligné à gauche comme la date au-dessus, le chevron après le dernier mot (centré, son
+   chevron restait collé au bord droit, panel t5) */
+html.type-xl .navbar__sub { display: inline-block; text-align: left; padding: 10px 0; }
+html.type-xl .navbar__sub .icon { vertical-align: -.05em; margin-left: 2px; width: .7em; height: .7em; }   /* chevron à la taille du texte */
+.navbar__sub-end { white-space: nowrap; }   /* dernier mot et chevron jamais séparés (panel t6) */
 
 .navbar .progress-bar { height: 3px; background: var(--fill); }
 
@@ -101,9 +124,9 @@ html.type-xl .navbar__large { font-size: min(2rem, 36px); }
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   display: flex;
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  /* Fond plein (vague 3-t4, 9 experts) : à 96 % avec flou, le contenu se lisait encore en fantôme sous la barre ;
+     la lisibilité prime sur l'effet de verre */
+  background: var(--bg);
   box-shadow: inset 0 0.5px 0 var(--sep);
   view-transition-name: tabbar;
 }
@@ -148,8 +171,8 @@ body.light .livebar { background: var(--cell); }
 
 /* ── Avatar du compte dans la barre (accueil, onglet Social) : à la place de la roue, même zone de tap de 44 px ── */
 /* Le reste de l'accueil : css/home.css */
-.navbar__avatar .avatar--s { width: 32px; height: 32px; font-size: 1.118rem; }
-.navbar__avatar .avatar--s.avatar--initial { font-size: 0.941rem; }
+.navbar__avatar .avatar--s { width: 32px; height: 32px; font-size: min(1.118rem, 19px); }
+.navbar__avatar .avatar--s.avatar--initial { font-size: min(0.941rem, 16px); }
 
 /* ── Feuille modale ── */
 .sheet-root { position: fixed; inset: 0; z-index: 900; display: flex; align-items: flex-end; justify-content: center; }

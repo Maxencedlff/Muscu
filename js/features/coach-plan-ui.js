@@ -44,9 +44,11 @@ function planPhaseCardHtml(p, { uid = null, today = planToday() } = {}) {
   const status = phaseStatusText(p, today);
   const left = g.status === 'current' ? (g.daysLeft === 1 ? 'Dernier jour' : `Encore ${plural(g.daysLeft, 'jour', 'jours')}`) : '';
   const meta = [phaseRangeText(p), p.progName ? `Programme : ${p.progName}` : ''].filter(Boolean);
+  // Titre égal au type de phase (sans nom, ou nommée « Reprise ») : le point de couleur seul, pas une pastille qui le répète
+  const named = p.name && normName(p.name) !== normName(planGoal(p.goal).label);
   const inner = `
-          <span class="plan-card__top">${planGoalPill(p.goal)}<span class="plan-card__status num">${esc(status)}</span></span>
-          <span class="plan-card__title">${esc(phaseTitle(p))}</span>
+          <span class="plan-card__top">${named ? planGoalPill(p.goal) : ''}<span class="plan-card__status num">${esc(status)}</span></span>
+          <span class="plan-card__title">${named ? '' : `<span class="plan-pill__dot plan-card__dot" style="--plan-color:${planGoal(p.goal).color}" aria-hidden="true"></span>`}${esc(phaseTitle(p))}</span>
           ${planWeeksHtml(p, g)}
           <span class="plan-card__meta">${meta.map(esc).join('<br>')}${left ? `<br><span class="num">${esc(left)}</span>` : ''}</span>
           ${uid && p.note ? `<span class="plan-card__note">${esc(p.note)}</span>` : ''}`;
@@ -107,7 +109,7 @@ function coachPlanGroupHtml(uid) {
         ${cur ? planPhaseCardHtml(cur, { uid }) : ''}
         <div class="group${cur ? ' plan-after-card' : ''}">
           ${more}
-          <button class="cell cell--action" data-action="plan-add" data-uid="${esc(uid)}">${icon('plus', 20)}<span>${phases.length ? 'Ajouter une phase' : 'Planifier une phase'}</span></button>
+          <button class="cell cell--action" data-action="plan-add" data-uid="${esc(uid)}">${icon('plus', 20)}<span>Ajouter une phase</span></button>
         </div>`;
 }
 
@@ -115,7 +117,7 @@ function coachPlanGroupHtml(uid) {
 
 function renderCoachPlan(uid) {
   const p = coachStudent(uid);
-  const head = navBar({ title: 'Planning', large: false });
+  const head = navBar({ title: '' });   // la barre reprend le titre du contenu au défilement (observeLargeTitle)
   const view = body => `<div class="view view--grouped coach-plan-view">${head}<div class="scr">${body}</div></div>`;
   if (!p) return view(`<div class="empty-note">${coach.state ? 'Cette personne ne fait plus partie de tes élèves.' : 'Chargement…'}</div>`);
   if (!planAvailable()) return view(plan.coachError ? coachOfflineNote(plan.coachError, 'Pas d\'Internet. Le planning s\'affichera quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>');
@@ -139,7 +141,7 @@ SCREENS.set('coach-plan', { render: uid => renderCoachPlan(uid), enter: () => co
 // ── Coach : vue d'ensemble de tous les élèves ───────────────
 
 function renderCoachPlanning() {
-  const head = navBar({ title: 'Planning', large: false });
+  const head = navBar({ title: '' });   // la barre reprend le titre du contenu au défilement (observeLargeTitle)
   const view = body => `<div class="view view--grouped coach-planning-view">${head}<div class="scr">${body}</div></div>`;
   const st = coach.state;
   if (!st || !planAvailable()) return view(plan.coachError || coach.error ? coachOfflineNote(plan.coachError || coach.error, 'Pas d\'Internet. Le planning s\'affichera quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>');
@@ -153,8 +155,8 @@ function renderCoachPlanning() {
   const months = [];
   for (let n = from; n < to; n++) {
     const iso = planIsoOf(n);
-    // Début de la fenêtre : son mois seulement s'il en reste plus de 10 jours (sinon les deux noms se touchent)
-    if (iso.endsWith('-01') || (n === from && +iso.slice(8) <= 20)) months.push(`<span style="left:${pos(n)}%">${esc(fmtDate(planTs(iso), 'short').replace(/^\d+\s/, ''))}</span>`);
+    // Début de la fenêtre : son mois seulement s'il en reste plus de 3 semaines (sinon les deux noms se touchent sur SE)
+    if (iso.endsWith('-01') || (n === from && +iso.slice(8) <= 7)) months.push(`<span style="left:${pos(n)}%">${esc(fmtDate(planTs(iso), 'short').replace(/^\d+\s/, ''))}</span>`);
   }
   const counts = { current: 0 };
   const rows = st.students.map(s => {
@@ -165,12 +167,13 @@ function renderCoachPlanning() {
       const a = pos(planDayNum(p.start)), b = pos(planDayNum(p.start) + p.weeks * 7);
       return `<span class="plan-gantt__bar" style="left:${a}%;width:${b - a}%;--plan-color:${planGoal(p.goal).color}"></span>`;
     }).join('');
-    const line = cur ? `${phaseTitle(cur)} · sem. ${phaseProgress(cur, today).week}/${cur.weeks}` : next ? `${phaseTitle(next)}, ${phaseStatusText(next, today).toLowerCase()}` : 'Rien de planifié';
+    const line = cur ? `${phaseTitle(cur)}\u00a0· sem.\u00a0${phaseProgress(cur, today).week}/${cur.weeks}` : next ? `${phaseTitle(next)}, ${phaseStatusText(next, today).toLowerCase()}` : 'Rien de planifié';
     const spoken = `${personName(s)} : ${cur ? `${phaseTitle(cur)}, ${phaseStatusText(cur, today).toLowerCase()}` : next ? `prochaine phase ${phaseTitle(next)}, ${phaseStatusText(next, today).toLowerCase()}` : 'rien de planifié'}`;
     return `
           <button class="plan-gantt__row" data-action="plan-open" data-uid="${esc(s.user_id)}" aria-label="${esc(spoken)}">
             <span class="plan-gantt__who"><span class="plan-gantt__name">${esc(personName(s))}</span><span class="plan-gantt__sub${cur || next ? '' : ' is-empty'}">${esc(line)}</span></span>
             <span class="plan-gantt__track" aria-hidden="true">${bars}<span class="plan-gantt__now" style="left:${pos(t + 0.5)}%"></span></span>
+            ${icon('chevron.right', 16)}
           </button>`;
   }).join('');
   const legend = PLAN_GOALS.filter(g => st.students.some(s => (planOfStudent(s.user_id) || []).some(p => p.goal === g.goal)))
@@ -179,11 +182,11 @@ function renderCoachPlanning() {
         <h1 class="scr-title">Planning</h1>
         <p class="scr-sub">${counts.current ? `${plural(counts.current, 'élève', 'élèves')} en phase cette semaine` : 'Aucun élève en phase cette semaine'}</p>
         <div class="plan-gantt">
-          <div class="plan-gantt__head" aria-hidden="true"><span class="plan-gantt__who"></span><span class="plan-gantt__months">${months.join('')}</span></div>
+          <div class="plan-gantt__head" aria-hidden="true"><span class="plan-gantt__who"></span><span class="plan-gantt__months">${months.join('')}</span><span class="plan-gantt__chev"></span></div>
           ${rows}
         </div>
         ${legend ? `<div class="plan-legend">${legend}</div>` : ''}
-        <div class="group-foot">De ${esc(fmtDate(planTs(planIsoOf(from)), 'short'))} à ${esc(fmtDate(planTs(planIsoOf(to - 1)), 'short'))}, la ligne bleue est aujourd'hui. Touche un élève pour voir et modifier son planning.</div>`);
+        <div class="group-foot">Du ${esc(fmtDate(planTs(planIsoOf(from)), 'short'))} au ${esc(fmtDate(planTs(planIsoOf(to - 1)), 'short'))}, le trait vertical marque aujourd'hui.</div>`);
 }
 SCREENS.set('coach-planning', { render: () => renderCoachPlanning(), enter: () => coachPlanRefresh() });
 
@@ -233,7 +236,7 @@ async function planPhaseSheet(uid, phase = null) {
         <select id="planProg" class="plan-form__select"><option value="">Aucun</option>${progs}</select></label>
       <label class="plan-form__col"><span class="plan-form__label">Note</span>
         <textarea id="planNote" class="coach-textarea" rows="3" maxlength="${PLAN_NOTE_MAX}" placeholder="Facultatif" aria-describedby="planNoteHint">${esc(f.note || '')}</textarea>
-        <span class="plan-form__hint" id="planNoteHint">Visible par toi seul. N'y note pas de données de santé.</span></label>
+        <span class="plan-form__hint" id="planNoteHint">Visible par toi uniquement. N'y note pas de données de santé.</span></label>
       ${phase ? '<button type="button" class="plan-form__delete" id="planDelete">Supprimer la phase</button>' : ''}
     </div>`;
   const read = panel => ({

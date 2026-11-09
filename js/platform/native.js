@@ -48,6 +48,7 @@ const Native = (() => {
   const Shortcuts          = plugin('MdlfShortcuts'); // module Swift de l'app (ios/App/AppExtras/ShortcutsPlugin.swift), même build
   const Vault              = plugin('MdlfVault');     // module Swift de l'app (ios/App/App/VaultPlugin.swift), build qui suit la 31
   const AgeRange           = plugin('MdlfAgeRange');  // module Swift de l'app (ios/App/App/AgeRangePlugin.swift), build qui suit la 37
+  const Scanner            = plugin('MdlfScanner');   // module Swift de l'app (ios/App/App/ScannerPlugin.swift), build qui suit le 09/11/2026
   // Module présent dans la coquille installée (une mise à jour à chaud peut arriver avant la build qui l'apporte)
   const has          = name => isNative && !!cap.isPluginAvailable?.(name);
   const hasWatch     = has('MdlfWatch');
@@ -55,6 +56,7 @@ const Native = (() => {
   const hasShortcuts = has('MdlfShortcuts');
   const hasVault     = has('MdlfVault');
   const hasAgeRange  = has('MdlfAgeRange');
+  const hasScanner   = has('MdlfScanner');
 
   // Rejet de Share.share (@capacitor/share, SharePlugin.swift : completionWithItemsHandler) traduit
   // en résultat. « Share canceled » : feuille fermée sans choisir d'app. « Error sharing item » :
@@ -453,7 +455,8 @@ const Native = (() => {
     // (une mise à jour à chaud peut arriver avant la nouvelle build) : l'appelant garde alors le Web Audio.
     sound: {
       available: isNative && !!cap.isPluginAvailable?.('MdlfSound'),
-      play(notes) { if (isNative) quiet(Sound.play({ notes })); },
+      // alert : vrai pour la fin du repos seulement (audible en silencieux) ; ignoré par une build plus ancienne
+      play(notes, alert = false) { if (isNative) quiet(Sound.play({ notes, alert })); },
     },
 
     // Compte MDLF : connexion avec Apple ou Google et session gardée dans le Trousseau (js/data/account.js).
@@ -603,6 +606,28 @@ const Native = (() => {
         if (!hasAgeRange) return { status: 'unavailable' };
         try { return (await AgeRange.request()) || { status: 'unavailable' }; } catch { return { status: 'unavailable' }; }
       },
+    },
+
+    // Lecteur de code-barres d'un aliment (js/features/food-scan-ui.js) : plein écran natif, caméra arrière.
+    // scan() répond { code, type: 'ean13' | 'ean8' | 'upce' }, ou { canceled } (fermé sans lire), { denied }
+    // (caméra refusée dans Réglages), { failed } (le reste) ; jamais d'exception. available : faux dans le
+    // navigateur, sur Android et dans une coquille sans le module (la saisie du code à la main reste).
+    scanner: {
+      available: hasScanner,
+      async scan() {
+        if (!hasScanner) return { failed: true };
+        try {
+          const r = await Scanner.scan();
+          return typeof r?.code === 'string' ? { code: r.code, type: String(r.type || 'ean13') } : { failed: true };
+        } catch (e) {
+          return e?.code === 'CANCELED' ? { canceled: true } : e?.code === 'DENIED' ? { denied: true } : { failed: true };
+        }
+      },
+    },
+    // Version de l'app installée (CFBundleShortVersionString, ex. « 1.0 ») ; null hors app ou illisible
+    async appVersion() {
+      if (!isNative) return null;
+      try { const v = String((await AppInfo.getInfo()).version || ''); return /^[0-9][0-9.]{0,15}$/.test(v) ? v : null; } catch { return null; }
     },
 
     // App active ou non (@capacitor/app, appStateChange : false dès le sélecteur d'apps ou le Centre de

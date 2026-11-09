@@ -25,7 +25,7 @@ function restActivityTint(color) {
 
 // Série suivante : { exercise, set, load } avec load = « 80 kg × 8 », « 12 reps » au poids du
 // corps, '' sans reps prévues. null quand toutes les séries sont faites. cur peut être la sous-série
-// qui suit (techNextSub : { ei, si, label, set }) : « Squat · Reprise 1 », sa charge (l'écran iOS
+// qui suit (techNextSub : { ei, si, label, set }) : « Squat · Mini-série 1 », sa charge (l'écran iOS
 // écrit ensuite « série N », celle qu'elle prolonge)
 function restActivityNext(session, cur) {
   const ex = cur && session?.exercises?.[cur.ei];

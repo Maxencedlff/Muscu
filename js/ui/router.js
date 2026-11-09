@@ -252,7 +252,10 @@ function screenOf(name) { return SCREENS.get(name) || SCREENS.get('dashboard'); 
 // renvoyait VoiceOver en haut de l'écran (panel du 07/11). Boutons seulement : jamais un champ (clavier iOS)
 function focusedActionSelectors() {
   const el = document.activeElement;
-  if (!el || el.tagName !== 'BUTTON' || !el.dataset.action || !$('#app').contains(el)) return null;
+  if (!el || !$('#app').contains(el)) return null;
+  // Liste ou champ qui porte un id (dates du comparateur de photos) : retrouvé par son id, sinon VoiceOver repartait en haut
+  if ((el.tagName === 'SELECT' || el.tagName === 'INPUT') && el.id) return [`#${CSS.escape(el.id)}`];
+  if (el.tagName !== 'BUTTON' || !el.dataset.action) return null;
   const attr = ([k, v]) => `[data-${k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${CSS.escape(v)}"]`;
   const all = Object.entries(el.dataset);
   // Exact d'abord, puis la même action sur le même exercice (data-ei), puis la même action
@@ -274,6 +277,9 @@ function paint(scrollY = window.scrollY) {
   const screen = screenOf(name);
   const focusSels = renderedView === name ? focusedActionSelectors() : null;   // même écran redessiné seulement
   $('#app').innerHTML = screen.render(...routeParams(route));
+  // Typographie appliquée tout de suite, pas par l'observateur après coup : les espaces insécables changent les retours à la
+  // ligne, et la position rendue plus bas (retour arrière) glissait de quelques dizaines de pixels (panel t5)
+  frTypoNode($('#app'));
   updateChrome();
   observeLargeTitle();
   fitBackLabel();
@@ -293,7 +299,7 @@ function show(dir = 'none') {
   const target = (dir === 'pop' || dir === 'down' || dir === 'fade') ? (scrollMem[key] || 0) : 0;
   const name = currentView();
 
-  if (shownName && shownName !== name) screenOf(shownName).leave?.();
+  if (shownName && shownName !== name) { screenOf(shownName).leave?.(); dropScreenToast(); }
   shownName = name;
   screenOf(name).enter?.({ dir });
 

@@ -438,6 +438,15 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       } finally { account.user = user; Object.assign(coach, saved); localStorage.removeItem(COACH_SENT_KEY); }
     })()`);
     sameJSON(r, [['u_c:unused', 'u_b:used', 'u_a:unseen'], ['u_z:unused']]);
+    // Séance faite avec un programme pas marqué vu : il a bien été ouvert (« Vu », pas « Pas encore ouvert »)
+    const r2 = run(`(() => {
+      const user = account.user, saved = { ...coach };
+      try {
+        account.user = { id: 'c1' }; coach.userId = 'c1'; coach.state = ${JSON.stringify(st)};
+        return coachSentStatus('e', [{ doneAt: 1500, s: { programme: 'u_cc1_u_a' } }]).find(x => x.progId === 'u_a').state;
+      } finally { account.user = user; Object.assign(coach, saved); }
+    })()`);
+    assert.equal(r2, 'used');
   });
 
   test('synchro après la mise à jour : l\'ordre des séances ajouté au chargement ne fait pas gagner cet appareil', () => {

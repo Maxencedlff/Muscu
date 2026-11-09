@@ -14,6 +14,10 @@
 }
 .body-map__m--sec { background-color: var(--body-heat-sec); }
 .body-map__m--peak { background-color: var(--body-heat-max); }
+.body-map__m--t1 { background-color: var(--body-tier-1); }
+.body-map__m--t2 { background-color: var(--body-tier-2); }
+.body-map__m--t3 { background-color: var(--body-tier-3); }
+.body-map__m--t4 { background-color: var(--body-tier-4); }
 /* Muscle touché, bulle ouverte (js/ui/body-tip.js) : copie opaque du calque, éclaircie (pulsation
    douce de la luminosité), halo autour. Le halo (drop-shadow) est sur l'enveloppe : posé sur l'élément
    masqué, le masque le couperait. */
@@ -40,7 +44,7 @@
   font-size: var(--fs-footnote); line-height: 1.059rem; white-space: nowrap;
 }
 .mpill--main { background: color-mix(in srgb, var(--body-heat) 18%, transparent); color: var(--orange-text); font-weight: 600; }
-.mpill--sec { background: color-mix(in srgb, var(--body-heat-sec) 18%, transparent); color: var(--gold-text); }
+.mpill--sec { background: color-mix(in srgb, var(--body-heat-sec) 18%, transparent); color: var(--label2); }   /* plus de jaune (panel t6) */
 
 /* Ligne « Pectoraux · Triceps » sous le nom d'un exercice */
 .ex-muscles { color: var(--label2); }
@@ -65,11 +69,15 @@
 .mlegend__item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--label); }
 .mlegend__n { color: var(--label2); }
 /* Où en sont tes muscles (Progrès) : sous les paliers, avant l'unité */
-.mlegend__you { flex-basis: 100%; text-align: center; color: var(--label); font-weight: 600; }
+.mlegend__you { flex-basis: 100%; margin-top: 6px; text-align: center; color: var(--label); font-weight: 600; }
 .mlegend__dot { width: 10px; height: 10px; border-radius: 3px; background: var(--body-zone); position: relative; overflow: hidden; }
 .mlegend__dot::after { content: ''; position: absolute; inset: 0; background: var(--body-heat); opacity: var(--o, 0); }
 .mlegend__dot { flex-shrink: 0; }
 .mlegend__dot--peak::after { background: var(--body-heat-max); }
+.mlegend__dot--t1::after { background: var(--body-tier-1); }
+.mlegend__dot--t2::after { background: var(--body-tier-2); }
+.mlegend__dot--t3::after { background: var(--body-tier-3); }
+.mlegend__dot--t4::after { background: var(--body-tier-4); }
 .mlegend__unit { flex-basis: 100%; text-align: center; }
 
 /* ── Progrès › Séries par muscle ── */
@@ -80,6 +88,10 @@
 .mrow__bar { display: block; height: 6px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
 .mrow__bar i { display: block; height: 100%; min-width: 0; border-radius: 3px; background: var(--body-heat); opacity: var(--o, 0); }
 .mrow__bar i.is-peak { background: var(--body-heat-max); }
+.mrow__bar i.is-t1 { background: var(--body-tier-1); }
+.mrow__bar i.is-t2 { background: var(--body-tier-2); }
+.mrow__bar i.is-t3 { background: var(--body-tier-3); }
+.mrow__bar i.is-t4 { background: var(--body-tier-4); }
 
 /* ── Feuille « Muscles ciblés » ── */
 .mpick { background: var(--cell2); border-radius: var(--r-md); overflow: hidden; }

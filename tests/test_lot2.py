@@ -42,7 +42,7 @@ AUDIT_JS = r"""() => {
   };
   const inactive = el => {
     for (let e = el; e && e.nodeType === 1; e = e.parentElement) {
-      if (e.matches('[aria-hidden="true"], [disabled], canvas, .cat-badge, .toast, .timer-flash')) return true;
+      if (e.matches('[aria-hidden="true"], [disabled], canvas, .cat-badge, .toast, .timer-flash, .tsep-cut')) return true;   // .tsep-cut : « · » de fin de ligne rendu transparent exprès (frSepCheck)
       const cs = getComputedStyle(e);
       if (parseFloat(cs.opacity) < 1 || cs.visibility === 'hidden' || cs.display === 'none') return true;
     }

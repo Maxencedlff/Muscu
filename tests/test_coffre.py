@@ -221,10 +221,11 @@ def t_coffre(bench, eng, dev, theme):
         key = page.evaluate('id => __fakeKeychain.get(id)', vid)
         R.check(key and key not in meta and '"v":3' in meta and vid in meta and 'salt' not in meta, f'{t} réglages : identifiant et témoin, aucune clé')
 
-        # Deux photos : face aujourd'hui, dos le 1er septembre
+        # Deux photos de face : aujourd'hui et le 1er septembre (l'avant / après compare la même pose à deux dates)
         add_photo(page, face)
-        R.check(page.locator('.pcmp').count() == 0, f'{t} une photo : pas d\'avant / après')
-        add_photo(page, back, pose='back', date='2026-09-01')
+        R.check(page.locator('.pcmp').count() == 0 and 'Reprends une photo de face un autre jour' in page.inner_text('.view.photo-vault'),
+                f'{t} une photo : pas d\'avant / après, une phrase dit quoi faire')
+        add_photo(page, back, date='2026-09-01')
         raw = page.evaluate(RAW_ROWS)
         R.check(len(raw['rows']) == 2 and all(r['keys'] == ['date', 'enc', 'id', 'iv'] and not r['jpeg'] for r in raw['rows']),
                 f'{t} IndexedDB : lignes chiffrées, aucun JPEG en clair {raw["rows"]}')
@@ -544,4 +545,56 @@ def t_hauteur_se(bench):
             shot(page, LOT, f'verrouille-iPhone_SE-{theme}')
 
 
-run_main(R, [t_coffre], once=[t_interruptions, t_hauteur_se, t_verrouillages, t_migration, t_illisible, t_sans_code_ni_biometrie, t_sans_module, t_tout_supprimer])
+def t_panel_apple(bench):
+    """Panel Apple du 08/11 (iPhone SE) : titre repris par la barre au défilement."""
+    face = png_file('coffre-face.png', 300, 400, (200, 80, 80))
+    back = png_file('coffre-dos.png', 600, 800, (80, 80, 200), band=(230, 230, 230))
+    with bench.frozen_page(NOW, 'webkit', 'iPhone SE', 'light') as page:
+        shell(page)
+        open_vault(page, 'light')
+        create_vault(page)
+        # Coffre vide : les trois cases sur toute la largeur, sans la ligne « Ajouter une photo » en doublon, noms entiers
+        empty = page.evaluate("""() => { const row = document.querySelector('.pv-empty .pgal__row'), cell = document.querySelector('.pv-empty');
+            return { slots: [...document.querySelectorAll('.pv-slot')].map(b => { const s = b.querySelector('span'); return s.scrollWidth <= b.clientWidth - 8; }),
+                     full: row.getBoundingClientRect().width >= cell.getBoundingClientRect().width - 40, line: document.querySelectorAll('.cell--action[data-action=photo-add]').length }; }""")
+        R.check(empty['slots'] == [True, True, True] and empty['full'] and empty['line'] == 0, f'coffre vide : trois cases pleine largeur, pas de doublon {empty}')
+        add_photo(page, face, pose='face', date='2026-10-03')
+        add_photo(page, face, pose='face')
+        add_photo(page, back, pose='back')
+        # Une icône = un sens : « Verrouiller » en toutes lettres, le cadenas ne dit que l'état chiffré
+        lock = page.evaluate("() => { const b = document.querySelector('.navbar [data-action=pv-lock]'); return [b.textContent.trim(), b.querySelectorAll('.icon').length]; }")
+        R.check(lock == ['Verrouiller', 0] and page.locator('.view.photo-vault button .icon--lock').count() == 0,
+                f'coffre : « Verrouiller » en toutes lettres, aucun bouton au cadenas {lock}')
+        # Avant / après par défaut : Face du 3 octobre contre Face d'aujourd'hui, jamais Face contre Dos du même jour
+        sel = page.evaluate("() => [...document.querySelectorAll('.pcmp__sel')].map(s => [s.selectedOptions[0].textContent, s.scrollWidth <= s.clientWidth + 1])")
+        title = page.evaluate("[...document.querySelectorAll('.group-title')].map(e => e.textContent).find(x => x.startsWith('Avant'))")
+        R.check(len(sel) == 2 and title == 'Avant / après · Face' and all('·' not in s and fits for s, fits in sel) and '30 jours' in page.inner_text('.pcmp__gap'),
+                f'coffre : même pose à deux dates, la pose dans le titre, dates entières dans les menus (SE) {title!r} {sel} {page.inner_text(".pcmp__gap")!r}')
+        # Panel Apple vague 3 : choisir une autre date garde le focus sur le menu (VoiceOver ne repart pas en haut), l'écart est dit
+        opts = page.evaluate("[...document.querySelector('#pcmp-a').options].map(o => o.value)"); was = page.evaluate("document.querySelector('#pcmp-a').value")
+        page.focus('#pcmp-a'); page.select_option('#pcmp-a', opts[-1]); page.wait_for_timeout(250)
+        foc = page.evaluate("[document.activeElement?.id, document.getElementById('sr-polite')?.textContent]")
+        R.check(foc[0] == 'pcmp-a' and ('écart' in (foc[1] or '') or 'Même jour' in (foc[1] or '')),
+                f'coffre : date changée, focus gardé sur « Avant », écart annoncé {foc}')
+        page.select_option('#pcmp-a', was); page.wait_for_timeout(250)
+        # Menus Avant / Après : chevrons haut / bas, valeur en couleur d'action (pas un texte fixe)
+        sel = page.evaluate("""() => [...document.querySelectorAll('.pcmp__pick')].map(p => { const s = p.querySelector('select');
+            return [!!p.querySelector('.icon--chevron-up-chevron-down'), getComputedStyle(s).color === getComputedStyle(document.querySelector('.navbar__text')).color]; })""")
+        R.check(sel == [[True, True], [True, True]], f'coffre : menus Avant / Après avec chevrons, valeur en couleur d\'action {sel}')
+        foot = page.locator('.view.photo-vault .group-foot').first.inner_text()
+        R.check(foot.startswith('Tes photos restent sur ton iPhone, chiffrées.'), f'coffre : la promesse d\'abord, la technique ensuite ({foot!r})')
+        bar = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
+            return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity, cut: ti.scrollWidth > ti.clientWidth + 1 }; }""")
+        page.evaluate('window.scrollTo(0, 0)')
+        page.wait_for_timeout(400)
+        b = bar()
+        R.check(not b['collapsed'] and b['op'] == '0', f'coffre en haut : grand titre dans l\'écran, barre sans titre visible {b}')
+        page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+        page.wait_for_timeout(500)
+        b = bar()
+        R.check(b['collapsed'] and b['text'] == page.inner_text('#pvTitle') and float(b['op']) > .9 and not b['cut'], f'coffre défilé : titre replié = grand titre, entier, à côté de « Verrouiller » {b}')
+        shot(page, LOT, 'panel-titre-replie-iPhone_SE')
+        R.check(not page.errors, f'aucune erreur JS : {page.errors}')
+
+
+run_main(R, [t_coffre], once=[t_panel_apple, t_interruptions, t_hauteur_se, t_verrouillages, t_migration, t_illisible, t_sans_code_ni_biometrie, t_sans_module, t_tout_supprimer])

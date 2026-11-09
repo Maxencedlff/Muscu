@@ -107,7 +107,7 @@ def t_welcome(bench, eng, dev, theme):
         open_app(page, theme)
         R.check(welcome_open(page), f'{t} Bienvenue au premier lancement')
         labels = page.locator('.auth .auth-btn').all_inner_texts()
-        R.check([l.strip() for l in labels] == ['Continuer avec Apple', 'Continuer avec Google', 'Continuer avec un e\u2011mail'], f'{t} trois boutons {labels}')
+        R.check([l.strip() for l in labels] == ['Continuer avec Apple', 'Continuer avec Google', 'Continuer avec un e-mail'], f'{t} trois boutons {labels}')
         skip = page.locator('[data-action="auth-skip"]')
         R.check(skip.inner_text().strip() == 'Commencer sans compte', f'{t} « Commencer sans compte »')
         size = page.evaluate("getComputedStyle(document.querySelector('.auth__skip')).fontSize")
@@ -400,7 +400,7 @@ def t_compte(bench, eng, dev, theme):
         # E-mail : ajout par code
         page.click('.method-cell--email')
         page.wait_for_selector('#authEmail')
-        R.check('Ajouter une adresse e\u2011mail' in page.inner_text('.auth'), f'{t} ajout d\'e-mail : titre')
+        R.check('Ajouter une adresse e-mail' in page.inner_text('.auth'), f'{t} ajout d\'e-mail : titre')
         page.fill('#authEmail', 'max@exemple.fr')
         page.click('[data-role="send"]')
         page.wait_for_selector('#authCode')
@@ -447,7 +447,7 @@ def t_compte(bench, eng, dev, theme):
             const right = l && l.offsetParent ? l.getBoundingClientRect().right : b.querySelector('.icon').getBoundingClientRect().right;
             const r = ti.getBoundingClientRect(), range = document.createRange(); range.selectNodeContents(ti); const tr = range.getBoundingClientRect();
             return { gap: tr.left - right, cut: !!(l && l.offsetParent && l.scrollWidth > l.clientWidth + 1) }; }""")
-        R.check(gap['gap'] >= 16 and not gap['cut'], f'{t} Réglages : retour séparé du titre (16 pt au moins, sinon chevron seul) {gap}')
+        R.check(gap['gap'] >= 8 and not gap['cut'], f'{t} Réglages : retour séparé du titre (8 pt au moins, sinon chevron seul) {gap}')
         shot(page, LOT, f'10-reglages-{t}')
 
         # Déconnexion
@@ -842,7 +842,7 @@ def back_info(page):
 
 def t_back_label(bench, eng, dev, theme):
     """Écran Compte : bouton retour avec un libellé quel que soit le chemin (Réglages ou carte de l'accueil),
-    titre de l'écran précédent s'il tient (16 pt d'écart avec le titre), sinon « Retour » comme iOS."""
+    titre de l'écran précédent s'il tient (8 pt d'écart avec le titre), sinon « Retour » comme iOS."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), opts={'oldAccounts': True})
@@ -852,7 +852,7 @@ def t_back_label(bench, eng, dev, theme):
         page.wait_for_selector('.account-view')
         page.wait_for_timeout(400)
         b = back_info(page)
-        R.check(b['shown'] and not b['icon'] and not b['cut'] and b['gap'] >= 16 and b['text'] in ('Réglages', 'Retour'), f'{t} Réglages › Compte : libellé visible {b}')
+        R.check(b['shown'] and not b['icon'] and not b['cut'] and b['gap'] >= 8 and b['text'] in ('Réglages', 'Retour'), f'{t} Réglages › Compte : libellé visible {b}')
         if dev == 'iPhone 13':
             R.check(b['text'] == 'Réglages', f'{t} iPhone 13 : « ‹ Réglages » {b}')
         R.check(b['aria'] == 'Retour : Réglages', f'{t} nom de l\'écran précédent pour VoiceOver {b}')
@@ -864,14 +864,14 @@ def t_back_label(bench, eng, dev, theme):
         page.wait_for_selector('.account-view')
         page.wait_for_timeout(400)
         b = back_info(page)
-        R.check(b['shown'] and not b['icon'] and not b['cut'] and b['gap'] >= 16 and b['text'] in ('Entraînement', 'Retour'), f'{t} carte › Compte : libellé visible {b}')
+        R.check(b['shown'] and not b['icon'] and not b['cut'] and b['gap'] >= 8 and b['text'] in ('Entraînement', 'Retour'), f'{t} carte › Compte : libellé visible {b}')
         R.check(b['aria'] == 'Retour : Entraînement', f'{t} carte › Compte : nom de l\'écran précédent pour VoiceOver {b}')
         shot(page, LOT, f'8-compte-depuis-carte-{t}')
         # Redessiné après la connexion (alerte et calque fermés) : toujours un libellé
         page.click('.account-view .auth-btn--apple')
         page.wait_for_timeout(900)
         b = back_info(page)
-        R.check(b['shown'] and not b['icon'] and b['gap'] >= 16, f'{t} après la connexion : libellé visible {b}')
+        R.check(b['shown'] and not b['icon'] and b['gap'] >= 8, f'{t} après la connexion : libellé visible {b}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

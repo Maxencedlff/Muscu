@@ -17,13 +17,20 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | `+` | Ajouter l'objet de l'écran (série, exercice, séance, mesure, photo) | Jamais pour autre chose |
 | `⋯` | Menu des actions de l'objet à côté | Exercice en séance, conversation |
 | Chevron vers le bas (`chevron.down`) | Replier ou déplier : réduire la séance en cours (en haut à gauche), montrer la suite d'une carte (« Voir les exercices ») | Jamais pour déplacer quelque chose (« Plus tard » a sa flèche) |
-| Flèche vers une ligne (`arrow.down.to.line`) | Plus tard : repousser l'exercice en cours en fin de séance | Séance seulement |
+| Flèche qui tourne vers la droite (`arrow.turn.down.right`) | Plus tard : repousser l'exercice en cours en fin de séance (la flèche vers une ligne se lisait « Télécharger », panel Apple de la vague 3) | Séance seulement |
 | Deux feuilles (`doc.on.doc`) | Dupliquer (faire une copie à modifier) | « Dupliquer le plan » ; jamais `+`, réservé à l'ajout |
 | `ⓘ` | Comment faire (explication) | Après un nom d'exercice |
+| Disque (`plate`) | Disques à charger sur la barre : petit, à côté du numéro de la série à faire d'un exercice à barre (jamais à sa place) | Jamais l'haltère, réservée à l'onglet Entraînement |
+| Cadenas (`lock`) | État : c'est chiffré (coffre à photos, photos de bilan) | Jamais une action : « Verrouiller », « Refermer » s'écrivent en toutes lettres ; jamais devant un lien ou un bouton d'envoi |
 | Chevron `›` | Ouvre l'écran détaillé de la ligne | Fin de ligne |
 | `✕` | Fermer, écarter ou retirer d'une liste en cours (carte, feuille, suggestion, technique d'une série) | Jamais pour effacer une séance ou une donnée enregistrée (« Supprimer », en rouge) |
-| Partager (carré et flèche) | Envoyer à quelqu'un : une autre app (programme, récap, code coach) ou un élève (programme, plan diète) | Fiche d'un élève : « Envoyer un programme » et « Envoyer un plan diète » ont la même icône |
-| Coche | Choisir ou valider (série, programme actif, « Suivre ce plan ») | |
+| Partager (carré et flèche, `square.and.arrow.up`) | Ouvrir la feuille de partage d'iOS : envoyer vers une autre app (programme par message, séance, récap, code coach, invitation) | Jamais pour un envoi privé dans l'app |
+| Avion en papier (`paperplane`) | Envoi privé dans l'app, chiffré : à son coach (photos de bilan) ou à un élève (programme, plan diète) | Fiche d'un élève : « Envoyer un programme » et « Envoyer un plan diète » ont la même icône |
+| Code-barres dans un cadre (`barcode`) | Trouver un produit par son code-barres : « Scanner un code-barres » (caméra) ou « Saisir un code-barres » (sans caméra) | Feuille « Ajouter un aliment » seulement |
+| Coche | Choisir ou valider (série, programme actif, « Utiliser ce plan ») | |
+| Bulle à lignes (`text.bubble`) | Messages privés avec son coach ou un élève, et leur nombre de non-lus | Jamais pour un commentaire |
+| Bulle vide (`bubble.left`) | Commentaire sur une séance : « Commenter » (Social), « Commentée par ton coach » | Jamais pour les messages privés |
+| Silhouette dans un cercle (`person.crop.circle`) | Pas encore de compte : « Se connecter » (Réglages, Compte) | Jamais l'haltère, réservée à l'onglet Entraînement |
 
 Exception admise : l'avatar *dans une ligne qui porte son libellé* (ligne « Compte et sauvegarde » des
 Réglages, auteur d'un commentaire) illustre la ligne ; c'est le texte qui dit où elle mène.
@@ -63,6 +70,10 @@ Toujours le même mot pour la même chose, en français courant, au tutoiement, 
 | Social | l'onglet des amis et de leurs séances ; le segment du même contenu dans l'onglet Coach | Amis (comme nom d'onglet ou de section) |
 | Coach | l'onglet d'un compte coach (segments Élèves et Social) ; Réglages › Coach | |
 | Mon profil | sa page côté Social | |
+| Suivre ; ceux qui te suivent, les personnes que tu suis | la relation dans Social : « Séances des personnes que tu suis », « Masquée à ceux qui te suivent », Suivre, Ne plus suivre, et les deux listes de Mon profil (Te suivent, Suivis) | amis pour cette relation ; s'abonner, abonnés, abonnements (réservés à l'abonnement payant) |
+| Utiliser ce plan ; plan en cours | prendre un plan diète (le sien ou celui du coach) : « Utiliser ce plan », « Plan en cours : … » | Suivre, suivi (réservés à Social) |
+| Coaching | la relation entre un élève et son coach : « si le coaching s'arrête », « Quitter mon coach », « Retirer l'élève » | suivi, suivre ; jamais « il » ou « lui » pour le coach (« Ton coach », son pseudo) |
+| Ami | une personne de ta vie qu'on invite (« Inviter un ami », « Entraîne-toi avec tes amis ») | jamais pour dire qui voit tes séances |
 | Supprimer la séance | retirer une séance d'un programme | |
 | Supprimer de l'historique | effacer une séance faite (corbeille 30 jours) | |
 | Terminer | finir la séance en cours | pour arrêter un chrono : « Arrêter » |
@@ -78,13 +89,20 @@ qui citent le libellé (le test du guide échoue si un libellé cité n'existe p
 - Une famille de filtres = une ligne qui défile de côté (`.mf__row`, `.ax__equip`), jamais un pavé de puces.
 - Un texte trop long se coupe avec des points de suspension sur la partie la moins utile (le nom), jamais
   au milieu d'un nombre.
-- Toast : 60 signes au plus (40 à côté d'un bouton), sur deux lignes plutôt que coupé ; son bouton dit ce qu'il
-  défait (« Annuler la série » quand le texte parle aussi de la suite). Il ne cache jamais la série en cours ni
-  « + Série » / « Plus tard » de sa carte (il passe alors en haut), et un toast avec « Annuler » reste 6 s au moins,
-  retenu sous le doigt ou le focus de VoiceOver (js/core/dialogs.js).
+- Toast (vague 3) : en séance, jamais pour annuler. Ce qui s'annule en séance l'est EN LIGNE, à sa place, 6 s, puis disparaît :
+  « Annuler » dans la colonne « Avant » de la série validée, ou une ligne « Mis en dernier · Annuler »
+  juste au-dessus de la carte de l'exercice (Plus tard, Faire maintenant, remplacé, échauffement, mini-série, technique posée) ou à la place
+  d'une carte retirée ; VoiceOver annonce l'état (sessionUndo, js/features/session.js). Rien ne recouvre jamais rien.
+  En séance, un simple message prend la même ligne (au-dessus de la carte concernée, 3 s). Hors séance : UNE seule place, en bas, au-dessus de la barre d'onglets, de la
+  mini-barre ou du repos, fond opaque ; la page garde sous son contenu la hauteur du toast le temps qu'il est là ; il
+  disparaît au changement d'écran. 60 signes au plus (40 à côté d'un bouton), sur deux lignes plutôt que coupé ; son
+  bouton dit ce qu'il défait ; avec un bouton, 6 s au moins, retenu sous le doigt ou le focus de VoiceOver (js/core/dialogs.js).
 - Sombre : noir pur ; vérifier chaque écran en clair et en sombre, iPhone 13 et iPhone SE.
 
 ## 5. Ce qui va dans un menu avancé
+
+Menu `⋯` d'un exercice : lisible sans défiler sur iPhone SE. D'abord Remplacer, Choisir la prise, Comment faire ; puis
+Plus tard (ou Faire maintenant) et le superset ; le reste dans « Plus d'options… » ; « Retirer l'exercice » à part.
 
 À l'écran : ce qui sert à chaque séance (valider, charge, reps, repos, objectif). Dans le menu `⋯` ou les
 Réglages : ce qui sert rarement ou aux confirmés (tempo, échauffement auto, disques, superset, reps en

@@ -16,7 +16,7 @@ function techSubAt(ds) {
 }
 
 // Sous-série qui suit la dernière validation (pause d'un rest-pause ou d'un cluster, ou entre deux drops) :
-// { ei, si, k, label: « Reprise 1 », set: { weight, reps } } avec la charge proposée et l'objectif de reps ;
+// { ei, si, k, label: « Mini-série 1 », set: { weight, reps } } avec la charge proposée et l'objectif de reps ;
 // null sinon. La barre de repos, la notification de fin et la Live Activity l'annoncent (js/features/rest.js)
 function techNextSub() {
   const xs = activeSession?.exercises;
@@ -46,7 +46,7 @@ function techBlockHtml(ex, ei, s, si) {
   return `
     <div class="tech" role="group" aria-label="${T.label}, ${name}">
       <div class="tech__cap">
-        <span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span>
+        <span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span></span>
         ${add}
         <button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button>
       </div>
@@ -55,19 +55,23 @@ function techBlockHtml(ex, ei, s, si) {
 }
 
 function subRowHtml(ex, ei, s, si, x, k) {
-  const T = TECHS[setTech(s)], tag = `${T.short}${k + 1}`, kind = loadKind(ex);
+  // Numéro de la sous-série seul, sous le nom de la technique (« Rest-pause 15 s ») : un seul mot, « mini-série », partout ailleurs
+  const T = TECHS[setTech(s)], tag = `+${k + 1}`, kind = loadKind(ex);
   const spoken = `${T.subName} ${k + 1}, ${setSpokenName(ex, si).toLowerCase()}, ${esc(ex.name)}`;
   const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;× ' : ''}${esc(x.prev.reps)}` : '—';
   const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"`;
   if (x.done) {
     const w = hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '';
+    // « Annuler » dans la colonne Avant de la mini-série, comme pour une série (la bande au-dessus de la carte
+    // sortait de l'écran : panel de la vague 3)
+    const u = undoForSet(ex, si, k);
     return `
-      <div class="session-set session-set--done session-set--sub" data-action="sub-reopen" ${at} role="button" tabindex="0">
+      <div class="session-set session-set--done session-set--sub" data-action="sub-reopen" ${at} ${u ? '' : 'role="button" tabindex="0"'}>
         <span class="sr-text">${capitalize(spoken)} validé${T.fem ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}. Modifier</span>
         <span class="set-n tech-tag" aria-hidden="true">${tag}</span>
-        <span class="set-prev num" aria-hidden="true">${prev}</span>
-        <span class="set-val num" aria-hidden="true">${w || '—'}</span>
-        <span class="set-val num" aria-hidden="true">${esc(x.reps)}</span>
+        ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}
+        <span class="set-val set-val--w num" aria-hidden="true">${w || '—'}</span>
+        <span class="set-val set-val--r num" aria-hidden="true">${esc(x.reps)}</span>
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
       </div>`;
   }
@@ -125,7 +129,9 @@ function setTechOn(ei, si, t) {
   persistSession();
   render();
   const undo = () => { if (!activeSession) return; delete s.tech; delete s.sub; Object.assign(s, before.tech ? { tech: before.tech } : {}, before.sub ? { sub: before.sub } : {}); persistSession(); render(); };
-  showToast(t ? `${TECHS[t].label} · ${setSpokenName(ex, si)}` : 'Technique retirée', { action: 'Annuler', duration: 4000, onAction: undo });
+  // Ligne au-dessus de la carte (« Rest-pause · série 1 · Annuler ») : dans la colonne « Avant », un « Annuler » seul
+  // remplaçait la valeur d'avant à côté du × de la technique, sans dire ce qu'il annulait (panel t5)
+  sessionUndo(t ? `${TECHS[t].label} · ${setSpokenName(ex, si).toLowerCase()}` : `Technique retirée · ${setSpokenName(ex, si).toLowerCase()}`, { target: { ex }, onAction: undo });
 }
 
 // ── Validation d'une sous-série ──────────────────────────────
@@ -173,7 +179,7 @@ function validateSub(ds) {
   else requestAnimationFrame(focusCurrentSet);   // rattrapage : le ✓ touché a disparu, le focus va à la série à faire
   const done = `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}`;
   // Comme après une série (validateSet) : ce que « Annuler » défait d'abord, puis l'exercice qui suit
-  showToast(chain ? `${done} · enchaîne ${xs[chain.ei].name}` : done, { action: chain ? `Annuler ${T.fem ? 'la' : 'le'} ${T.subName}` : 'Annuler', duration: 4000, onAction: () => {
+  sessionUndo(chain ? `${done} · enchaîne ${xs[chain.ei].name}` : done, { target: { ex, si, k }, onAction: () => {
     if (!activeSession || !x.done) return;
     x.done = false; x.reps = wasReps;
     if (wasAuto) x.auto = true;

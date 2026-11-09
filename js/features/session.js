@@ -5,6 +5,94 @@
 
 let editingSet = null;  // { ei, si, weight?, reps? } — série validée rouverte en édition sur place, avec la saisie en cours
 let persistWarned = false; // un seul avertissement « stockage plein » par séance
+
+// ── Annuler en ligne : jamais de toast flottant en séance ───
+// Panels de la vague 3 (17 personas sur 20) : posé en haut, au milieu ou en bas, le toast couvrait toujours quelque
+// chose (nom de l'exercice, objectif, « + Série », la barre). En séance, ce qui s'annule l'est à sa place, 6 s :
+//  - une série (validée, modifiée, technique posée) : « Annuler » dans sa colonne « Avant » ;
+//  - un exercice (Plus tard, Faire maintenant, remplacé, échauffement ajouté, mini-série validée) : une ligne
+//    « Mis en cours · Annuler » juste au-dessus de sa carte (Plus tard : « <nom> mis en dernier », au-dessus de
+//    l'exercice qui prend la suite, celui que l'écran montre) ; retiré : la même ligne là où était sa carte.
+// Rien ne recouvre rien : la ligne prend sa place dans la liste. VoiceOver annonce l'état (announce, aria-live).
+// target : { ex, si } (série), { ex } (exercice), { at } (exercice retiré, sa position) ; sans onAction, le texte seul.
+const SESS_UNDO_MS = 6000;
+let sessUndo = null;
+function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, state = '', ms = onAction ? SESS_UNDO_MS : 3000, paint = true, assertive = false } = {}) {
+  clearTimeout(sessUndo?.timer);
+  document.querySelector('.toast')?.remove();
+  sessUndo = { ...target, text, label, onAction, state };
+  const inSession = () => typeof currentView === 'function' && currentView() === 'session';
+  // Retenu tant que VoiceOver (ou le clavier) est sur « Annuler » : encore 3 s après (WCAG 2.2.1)
+  const expire = () => {
+    if (document.activeElement?.dataset?.action === 'sess-undo') { sessUndo.timer = setTimeout(expire, 3000); return; }
+    sessUndo = null;
+    if (inSession()) collapseExUndo(render);
+  };
+  sessUndo.timer = setTimeout(expire, ms);
+  announce(onAction ? `${text}. ${label} disponible` : text, assertive);   // une erreur : annoncée en assertif, comme son toast
+  if (!inSession()) return;
+  // paint false (message d'une saisie refusée) : la ligne est posée sans redessiner, pour garder le champ signalé et le focus
+  const card = paint ? null : exCardOf(activeSession.exercises.indexOf(sessUndo.ex));
+  if (card) {
+    document.querySelectorAll('.ex-undo').forEach(e => e.remove());
+    card.insertAdjacentHTML('beforebegin', exUndoHtml(sessUndo));
+    // Ligne posée sous la barre (carte déjà défilée) : ramenée juste sous elle, le focus reste dans le champ (vague 3-t4 :
+    // « Reps entre 1 et 100 » invisible)
+    const band = card.previousElementSibling, barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
+    const top = band?.getBoundingClientRect().top;
+    if (top !== undefined && top < barH + 8) window.scrollBy({ top: top - barH - 8 });
+  }
+  else render();
+}
+// Tout autre message pendant la séance (« Exercice ajouté », « Valide d'abord la série 1 », « Tempo 3-1-1 »…) : pas de
+// toast flottant non plus, la même ligne au-dessus de la carte en cours, 3 s (showToast la délègue ici, js/core/dialogs.js).
+// Une feuille de la séance ouverte garde le toast (il passe au-dessus d'elle, en bas).
+function sessionNotice(msg, opts = {}) {
+  if (typeof currentView !== 'function' || currentView() !== 'session' || !activeSession) return false;
+  if (document.querySelector('.sess-sheet:not(.sess-sheet--out), .ios-dialog, .sheet-root')) return false;
+  // Série validée en cours de correction : le message va au-dessus de SA carte, pas de celle de la série à faire
+  const cur = editingSet || currentSet(), ex = activeSession.exercises[cur ? cur.ei : activeSession.exercises.length - 1];
+  if (!ex) return false;
+  sessionUndo(msg, { target: { ex }, onAction: opts.action ? opts.onAction : null, ms: opts.error ? 4000 : 3000, paint: false, assertive: !!opts.error });
+  return true;
+}
+// La ligne s'en va en se repliant (hauteur animée, 0,25 s), sans faire sauter la liste d'un coup (panel t7) ;
+// mouvement réduit : retirée tout de suite, comme avant
+function collapseExUndo(done) {
+  const el = document.querySelector('.ex-undo');
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!el || reduce || typeof el.animate !== 'function') { done(); return; }
+  const h = el.getBoundingClientRect().height, mb = getComputedStyle(el).marginBottom;
+  el.style.overflow = 'hidden'; el.style.minHeight = '0';
+  el.animate([{ height: `${h}px`, marginBottom: mb, opacity: 1 }, { height: '0px', marginBottom: '0px', opacity: 0 }],
+    { duration: 250, easing: 'ease-in-out', fill: 'forwards' });
+  setTimeout(done, 250);   // pas anim.finished : la ligne peut être redessinée entre-temps
+}
+function clearSessionUndo() { clearTimeout(sessUndo?.timer); sessUndo = null; }
+const undoForSet = (ex, si, k) => (sessUndo && sessUndo.ex === ex && sessUndo.si === si && sessUndo.k === k ? sessUndo : null);
+// Colonne « Avant » d'une série qui vient de changer : « Annuler » (ou l'état, « Modifiée »), à la même place à chaque fois
+function setUndoHtml(u) {
+  return u.onAction ? `<button class="set-undo" data-action="sess-undo" aria-label="${esc(u.text)}, annuler">Annuler</button>`
+    : `<span class="set-prev set-undo--state" aria-hidden="true">${esc(u.state || '')}</span>`;
+}
+// Ligne au-dessus de la carte d'un exercice (ou à la place d'une carte retirée)
+function exUndoHtml(u) {
+  return `<div class="ex-undo" role="status"><span class="ex-undo__text">${esc(u.text)}</span>${u.onAction ? `<button class="ex-undo__btn" data-action="sess-undo">${esc(u.label)}</button>` : ''}</div>`;
+}
+// Bloc (exercice ou superset) replié : toutes ses séries faites, aucune sous-série en attente, pas déplié à la main
+function blockCollapsed(block, xs) {
+  const ld = activeSession.lastDone;
+  return block.every(i => xs[i].sets.length > 0 && xs[i].sets.every(s => s.done) && !techPending(xs, ld, i)) && !openDone.has(xs[block[0]]);
+}
+function exUndoBefore(block, xs) {
+  const u = sessUndo;
+  if (!u) return '';
+  // « Annuler » d'une série : dans sa ligne ; si la dernière série referme la carte, la ligne passe au-dessus d'elle
+  if (u.si !== undefined) return u.ex && block.some(i => xs[i] === u.ex) && blockCollapsed(block, xs) ? exUndoHtml(u) : '';
+  if (u.ex && block.some(i => xs[i] === u.ex)) return exUndoHtml(u);
+  if (u.at !== undefined && !u.ex && block[0] === u.at) return exUndoHtml(u);
+  return '';
+}
 const openDone = new WeakSet(); // exercices terminés dépliés
 
 // Série à faire : charge et reps reprises de src, « Avant » : la même série la dernière fois
@@ -159,7 +247,7 @@ function nextSetParts() {
   // Sous-série sans objectif de reps (pas faite la dernière fois) : sa charge seule, « Reprise 1 · 70 kg »
   const load = String(s.reps ?? '') !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}`
     : sub && hasLoad(s.weight) ? ` · ${fmtW(s.weight, { plain: true })} ${unitLbl()}` : '';
-  const step = sub ? sub.label : `S${cur.si + 1}`;
+  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `S${setDisplayNo(ex.sets, cur.si)}`;   // compte des séries de travail, comme leur ligne
   return { name: ex.name, step, load, tail: step + load, sub: !!sub };
 }
 // « Développé incliné · S1 · 30 kg × 10 »
@@ -198,7 +286,8 @@ function renderSession() {
   const cur  = currentSet();
 
   const xs     = activeSession.exercises, tags = ssTags(xs);
-  const exHtml = ssBlocks(xs).map(b => (b.length > 1 ? renderGroupCard(b, cur, tags) : renderExerciseCard(xs[b[0]], b[0], cur))).join('');
+  const exHtml = ssBlocks(xs).map(b => exUndoBefore(b, xs) + (b.length > 1 ? renderGroupCard(b, cur, tags) : renderExerciseCard(xs[b[0]], b[0], cur))).join('')
+    + (sessUndo && sessUndo.at !== undefined && !sessUndo.ex && sessUndo.at >= xs.length ? exUndoHtml(sessUndo) : '');
 
   return `
     <div class="view session ${restActive ? 'session--resting' : ''}" style="--cat-color:${meta.color}">
@@ -260,14 +349,24 @@ function exGoalHtml(ex, cls = '') {
 }
 
 // Sous-titre de la carte : record, repos de l'exercice (modifiable), hausse de volume
+// Record de l'en-tête de carte : celui du programme, remplacé dès qu'une série du jour le bat (même règle que
+// js/data/store.js : charge plus lourde, ou mêmes kilos et plus de reps). Sans quoi l'en-tête affichait
+// l'ancien record sous une série marquée « Record » (panel de la vague 3)
+function liveHeadRecord(ex, pr) {
+  if (isAssisted(ex)) return pr;
+  return workSets(ex.sets).filter(s => s.done && (parseInt(s.reps) || 0) > 0).reduce((best, s) => {
+    const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0, bw = parseFloat(best?.weight) || 0, br = parseInt(best?.reps) || 0;
+    return !best || w > bw || (w === bw && r > br) ? { weight: s.weight, reps: s.reps } : best;
+  }, pr || null);
+}
 function exSubHtml(ex, ei, allDone) {
-  const pr   = measureOf(ex) === 'reps' ? sessExData(ex)?.pr : null;
+  const pr   = measureOf(ex) === 'reps' && sessExData(ex)?.pr ? liveHeadRecord(ex, sessExData(ex).pr) : null;
   const rest = fmtRest(exRest(ex));
   const tempo = parseTempo(ex.tempo) && measureOf(ex) === 'reps'
     ? `<span class="tempo-pill num" aria-label="Tempo ${esc(shortTempo(ex.tempo))}${ex.tempoGuide === true ? ', guidé au son' : ''}">${ex.tempoGuide === true ? icon('music', 12) : ''}Tempo ${esc(shortTempo(ex.tempo))}</span> `
     : '';
   const range = repRangeText(ex);
-  return `${tempo}${range ? `<span class="num">${range}</span> · ` : ''}${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${rest}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
+  return `${tempo}${range ? `<span class="num">${range}</span> · ` : ''}${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${fmtRestSpoken(exRest(ex))}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
 }
 
 function renderExerciseCard(ex, ei, cur) {
@@ -292,7 +391,7 @@ function renderExerciseCard(ex, ei, cur) {
         ${allDone
           ? `<button class="ex-card__name ex-card__name--btn" data-action="toggle-ex" data-ei="${ei}" aria-expanded="true">${esc(ex.name)}</button>`
           : howTo
-            ? `<h2 class="ex-card__name ex-card__name--howto"><button class="ex-howto" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${esc(ex.name)}${icon('info.circle', 15)}</span></button></h2>`
+            ? `<h2 class="ex-card__name ex-card__name--howto"><button class="ex-howto" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${howToNameHtml(ex.name)}</span></button></h2>`
             : `<h2 class="ex-card__name">${esc(ex.name)}</h2>`}
         ${chip}
         <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${ex.sets.length}</span><span class="visually-hidden">${doneN} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
@@ -311,7 +410,7 @@ function renderExerciseCard(ex, ei, cur) {
         </div>
         ${rows}
       </div>
-      <div class="ex-card__foot"${cur?.ei === ei ? ' data-toast-avoid' : ''}>
+      <div class="ex-card__foot">
         <button class="add-set-link" data-action="add-set" data-ei="${ei}" aria-label="Ajouter une série, ${esc(ex.name)}">${icon('plus', 16)} Série</button>
         ${orderBtnHtml(ei, cur)}
       </div>
@@ -356,7 +455,7 @@ function renderGroupCard(members, cur, tags) {
         <div class="ss-member">
           <span class="ss-tag" aria-hidden="true">${tags[ei]}</span>
           ${howTo
-            ? `<button class="ex-howto ss-member__name" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${esc(ex.name)}</span>${icon('info.circle', 15)}</button>`
+            ? `<button class="ex-howto ss-member__name" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${howToNameHtml(ex.name)}</span></button>`
             : `<span class="ss-member__name">${esc(ex.name)}</span>`}
           ${chip}
           <span class="ex-card__count num"><span aria-hidden="true">${n}/${ex.sets.length}</span><span class="visually-hidden">${n} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
@@ -380,7 +479,7 @@ function renderGroupCard(members, cur, tags) {
           : `<h2 class="ex-card__name">${kind}</h2>`}
         <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${total}</span><span class="visually-hidden">${doneN} sur ${plural(total, 'série validée', 'séries validées')}</span></span>
       </div>
-      <div class="ex-card__sub"><button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${members.at(-1)}" aria-label="Repos ${rest} après chaque tour, modifier">Repos ${rest} après chaque tour</button></div>
+      <div class="ex-card__sub"><button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${members.at(-1)}" aria-label="Repos ${fmtRestSpoken(exRest(xs[members.at(-1)]))} après chaque tour, modifier">Repos ${rest} après chaque tour</button></div>
       <div class="ss-members">${legend}</div>
       ${members.map(ei => gripLineHtml(xs[ei], ei, tags[ei])).join('')}
       ${members.map(ei => coachSessionTipHtml(xs[ei], tags[ei])).join('')}
@@ -392,7 +491,7 @@ function renderGroupCard(members, cur, tags) {
         </div>
         ${rounds}
       </div>
-      <div class="ex-card__foot"${members.includes(cur?.ei) ? ' data-toast-avoid' : ''}>
+      <div class="ex-card__foot">
         <button class="add-set-link" data-action="add-round" data-ei="${head}" aria-label="Ajouter un tour, ${esc(members.map(ei => xs[ei].name).join(', '))}">${icon('plus', 16)} Tour</button>
         ${orderBtnHtml(head, cur)}
       </div>
@@ -417,15 +516,18 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const last   = activeSession.lastDone?.ei === ei && activeSession.lastDone?.si === si;
   const rir    = m === 'reps' && !warm ? (last && rirShown() ? rirPickerHtml(ei, si, s, ex) : rirBadgeHtml(s)) : '';
   const rirSpoken = cleanRir(s.rir) !== null ? `, ${rirTxt(s.rir)} en réserve` : '';
+  // « Annuler » en ligne pendant 6 s : la ligne se corrige toujours au toucher, mais n'est plus annoncée comme un bouton
+  // (pas de bouton dans un bouton pour VoiceOver) ; « Annuler » a sa propre action
+  const u = undoForSet(ex, si);
   return `
       <div class="set-swipe">
         ${del}
-        <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0">
+        <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" ${u ? '' : 'role="button" tabindex="0"'}>
           <span class="sr-text">${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
-          <span class="set-prev num" aria-hidden="true">${prev}</span>
-          <span class="set-val num" aria-hidden="true">${first || '—'}</span>
-          <span class="set-val num" aria-hidden="true">${esc(s.reps)}</span>
+          ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}
+          <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
+          <span class="set-val set-val--r num" aria-hidden="true">${esc(s.reps)}</span>
           <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
           ${record || pace || mach ? `<span class="set-badge" aria-hidden="true">${record ? `<span class="pr-badge">${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
         </div>
@@ -447,10 +549,22 @@ function setRefName(ex, si) {
 // Sélecteur RIR d'une série validée : 0 à 4+, l'équivalent RPE à côté du choix ; un nouveau toucher sur le
 // même bouton efface. Facultatif : rien n'attend ce choix. Placé sous la ligne, hors de son bouton « Modifier »
 // (pas de boutons imbriqués dans un rôle bouton)
+// Le sens des « reps en réserve » dit tant que la personne n'en a jamais noté (panel de la vague 3 : sans phrase,
+// « 0 1 2 3 4+ » ne disait ni à quoi ils servent ni qu'on peut les laisser)
+let rirUsedCache = null;
+function rirEverUsed() {
+  const h = data.history || [];
+  if (activeSession?.exercises.some(e => e.sets.some(x => cleanRir(x.rir) !== null))) return true;
+  if (rirUsedCache?.h !== h || rirUsedCache.n !== h.length) {
+    rirUsedCache = { h, n: h.length, used: h.some(e => (e.exercises || []).some(x => (x.sets || []).some(y => cleanRir(y.rir) !== null))) };
+  }
+  return rirUsedCache.used;
+}
 function rirPickerHtml(ei, si, s, ex) {
   const r = cleanRir(s.rir);
   return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}">
-            <span class="rir__lbl" aria-hidden="true">Reps en réserve</span>
+            <span class="rir__lbl" aria-hidden="true">Reps en réserve</span>${rirEverUsed() ? '' : `
+            <span class="rir__help">Facultatif : combien tu aurais pu en faire de plus</span>`}
             <span class="rir__btns">${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}</span>
             <span class="rir__rpe num" aria-live="polite">${r === null ? '' : `RPE ${rirToRpe(r)}`}</span>
           </div>`;
@@ -495,11 +609,13 @@ function setNumHtml(ex, si, tag) {
 }
 
 // Disques (js/data/plates.js) : sur la série à faire d'un exercice à barre, le numéro laisse place à un
-// bouton qui ouvre la feuille « Disques » pour la charge de la série (ou celle de la dernière fois)
+// bouton qui ouvre la feuille « Disques » pour la charge de la série (ou celle de la dernière fois). Le numéro reste, un petit
+// disque (vu de face, avec ses trous de prise) à côté dit ce que le bouton ouvre : seul, il passait pour une cible ou un
+// « top set » (panels de la vague 3) ; l'haltère reste à l'onglet Entraînement
 function setPlatesHtml(ex, ei, s, si) {
   const kg = s.weight !== '' ? s.weight : s.prev?.weight;
   const load = kg !== '' && kg != null ? `${fmtW(kg, { plain: true })} ${unitLbl()}` : '';
-  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}, ${esc(ex.name)}">${icon('dumbbell', 18)}</button>`;
+  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}, ${esc(ex.name)}"><span class="num">${isWarmupSet(s) ? 'É' : setDisplayNo(ex.sets, si)}</span>${icon('plate', 16)}</button>`;   // échauffement : « É », comme sa ligne validée (jamais « 0 »)
 }
 
 // ▶ de la série à faire : chrono d'un maintien, série guidée au tempo, ou chrono d'une machine de cardio
@@ -510,7 +626,7 @@ function setPlayHtml(ex, ei, s, si) {
   const what = m === 'cardio' ? (live ? 'Rouvrir le chrono en cours' : 'Lancer le chrono et noter le réglage de la machine')
     : m === 'time' ? 'Lancer le chrono' : `Lancer la série guidée au tempo ${esc(ex.tempo)}`;
   const goal = s.reps && m !== 'cardio' ? `, ${esc(s.reps)} ${m === 'time' ? 'secondes' : 'répétitions'}` : '';
-  return `<button class="set-n set-play${live ? ' set-play--live' : ''}" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${what}, série ${si + 1}, ${esc(ex.name)}${goal}">${icon(live ? 'timer' : 'play', 16)}</button>`;
+  return `<button class="set-n set-play${live ? ' set-play--live' : ''}" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${what}, ${setSpokenName(ex, si).toLowerCase()}, ${esc(ex.name)}${goal}">${icon(live ? 'timer' : 'play', 16)}</button>`;
 }
 
 function renderSetRow(ex, ei, s, si, cur, tag) {
@@ -518,7 +634,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
   const prevF   = setFirstValue(s.prev, m);
   const prev    = s.prev ? `${prevF ? prevF + '&nbsp;× ' : ''}${esc(s.prev.reps)}` : '—';
   const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
-  const del     = `<button class="set-del" data-action="delete-set" data-ei="${ei}" data-si="${si}" tabindex="-1" aria-label="Supprimer la série ${si + 1}">Supprimer</button>`;
+  const del     = `<button class="set-del" data-action="delete-set" data-ei="${ei}" data-si="${si}" tabindex="-1" aria-label="Supprimer ${setRefName(ex, si)}, ${esc(ex.name)}">Supprimer</button>`;   // numéro affiché, échauffements à part
 
   if (s.done && !editing) return renderDoneSetRow(ex, ei, s, si, prev, del, tag);
 
@@ -554,7 +670,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''} ${warm ? 'session-set--warmup' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
         ${firstCol}
-        <span class="set-prev num">${s.prev ? '<span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>
+        ${undoForSet(ex, si) ? setUndoHtml(undoForSet(ex, si)) : `<span class="set-prev num">${s.prev ? '<span class="visually-hidden">La dernière fois </span><span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}</span>`}
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
                value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
@@ -598,6 +714,7 @@ function validateSet(ei, si, opts = {}) {
   s.reps = String(parseInt(s.reps));
 
   s.done = true;
+  ex.startedAt ??= Date.now();   // ordre réel de la séance dans l'historique (orderByStart, js/data/session-order.js)
   const prevLastEi = activeSession.lastEi, prevLastDone = activeSession.lastDone ?? null;
   const sameAgain  = prevLastEi === ei;   // même exercice deux fois de suite : fait seul
   activeSession.lastEi = ei;
@@ -634,8 +751,7 @@ function validateSet(ei, si, opts = {}) {
   // « Série 1 validée · puis rest-pause » (panel du 07/11). Retirer la technique : le × de son bloc.
   const doneTxt = `${setSpokenName(ex, si)} validé${isWarmupSet(s) ? '' : 'e'}`;
   const next = chain ? `enchaîne ${xs[chain.ei].name}` : techPause !== null ? `puis ${TECHS[setTech(s)].label.toLowerCase()}` : '';
-  showToast(next ? `${doneTxt} · ${next}` : doneTxt,
-    { action: next ? 'Annuler la série' : 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
+  sessionUndo(next ? `${doneTxt} · ${next}` : doneTxt, { target: { ex, si }, onAction: () => undoValidate(undo) });
 }
 
 // La série suivante garde sa valeur prévue, sauf si la charge vient d'être modifiée.
@@ -691,13 +807,36 @@ function scrollToCurrent(smooth = true, focus = false) {
     const row = currentSetRow();
     if (!row) return;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    row.scrollIntoView({ block: 'center', behavior: smooth && !reduce ? 'smooth' : 'auto' });
+    const behavior = smooth && !reduce ? 'smooth' : 'auto';
+    // Ligne « … · Annuler » au-dessus de la carte en cours (sessionUndo), ou toute première série d'un exercice : le haut
+    // de la carte (ou la ligne) juste sous la barre, pour que le nom et « Annuler » restent visibles (panel de la vague 3 :
+    // en texte agrandi, centrer la série cachait le nom ; la bande d'une mini-série sortait de l'écran) ; la série doit
+    // rester à l'écran, sinon elle est centrée comme avant
+    const card = row.closest('.ex-card');
+    // La ligne peut aussi coiffer la carte qui vient de se refermer, juste au-dessus de celle-ci
+    const any = $('.ex-undo');
+    const band = card?.previousElementSibling?.classList.contains('ex-undo') ? card.previousElementSibling
+      : any && card && any.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING ? any : null;
+    const top = band || (card && !card.querySelector('.session-set--done') ? card : null);
+    const barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
+    const room = window.innerHeight - barH - ($('.rest-mini')?.getBoundingClientRect().height || 0) - 24;
+    if (top && row.getBoundingClientRect().bottom - top.getBoundingClientRect().top <= room) {
+      window.scrollTo({ top: Math.max(0, top.getBoundingClientRect().top + window.scrollY - barH - 8), behavior });
+    } else if (top === card && card) {
+      // Première série trop basse pour tenir avec tout l'en-tête (texte agrandi sur SE) : on descend juste assez pour
+      // montrer la série, sans jamais passer le nom de l'exercice sous la barre (CI t6 : la centrer cachait le nom)
+      const name = card.querySelector('.ex-card__name') || card;
+      const y = window.scrollY, need = row.getBoundingClientRect().bottom + y - barH - room;
+      window.scrollTo({ top: Math.max(0, Math.min(need, name.getBoundingClientRect().top + y - barH - 8)), behavior });
+    } else row.scrollIntoView({ block: 'center', behavior });
     if (focus) focusCurrentSet();
   });
 }
 
 // Appelé par render() après l'affichage de la séance
 function afterSessionRender(entering) {
+  const mini = $('.rest-mini');
+  if (mini) document.documentElement.style.setProperty('--rest-h', `${Math.ceil(mini.getBoundingClientRect().height)}px`);
   // Consigne générale du coach (js/features/coach-ui.js) et aucune série faite : la séance s'ouvre en haut,
   // la consigne visible (sinon elle serait cachée sous la barre par le défilement vers le premier exercice)
   const tipFirst = entering && coachSessionProgTipHtml() && !activeSession.exercises.some(ex => ex.sets.some(s => s.done));
@@ -728,13 +867,15 @@ function saveEditedSet() {
   editingSet = null;
   document.activeElement?.blur?.();
   haptic();
-  render();
-  showToast('Série modifiée');
+  const ex = activeSession.exercises[ei];
+  sessionUndo(`${setSpokenName(ex, si)} modifiée`, { target: { ex, si }, state: 'Modifiée' });
   return true;
 }
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
+  // « Annuler » en ligne (sessionUndo)
+  'sess-undo': () => { const u = sessUndo; if (!u?.onAction) return; clearSessionUndo(); u.onAction(); },   // onAction redessine et place le focus
   'resume-session': () => {
     if (!activeSession) return;
     if (currentRoute() !== 'session') navigate('session');

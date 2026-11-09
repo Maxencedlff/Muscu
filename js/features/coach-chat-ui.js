@@ -61,8 +61,11 @@ function chatCountText(text) {
 function renderCoachChat(key) {
   const p = chatPartner(key);
   const name = p ? personName(p) : 'Messages';
+  // Ouverte depuis la fiche de cette personne (retour « ‹ lea ») : la barre dit « Messages », pas « lea » une 2e fois
+  const st = nav.stacks[nav.tab], prev = st.length > 1 ? routeTitle(st[st.length - 2], st.length - 2 === 0) : '';
+  const title = p && prev === name ? 'Messages' : name;
   const menu = p ? `<button class="navbar__icon" data-action="chat-menu" data-key="${esc(key)}" aria-label="Options de la conversation">${icon('ellipsis', 22)}</button>` : '';
-  const head = navBar({ title: esc(name), large: false, right: chatHiddenByAge() ? '' : menu });
+  const head = navBar({ title: esc(title), large: false, right: chatHiddenByAge() ? '' : menu });
   // Contrôle parental « Limites de communication » (js/data/age-range.js) : conversation fermée, dit sans bouton
   if (chatHiddenByAge()) return `<div class="view view--grouped coach-chat-view">${head}<div class="scr"><div class="empty-note">${coachErrorText('age_limited')}</div></div></div>`;
   if (!p) {
@@ -76,7 +79,7 @@ function renderCoachChat(key) {
       ${head}
       <div class="scr chat">
         <p class="chat-intro">${esc(key === CHAT_COACH ? `Messages avec ton coach ${name}. Vous seuls les lisez.` : `Messages avec ${name}. Vous seuls les lisez.`)}
-          Ils sont effacés si le suivi s'arrête.</p>
+          Ils sont effacés si le coaching s'arrête.</p>
         <div class="chat-list" id="chatList" role="log" aria-live="polite" aria-relevant="additions">${chatListHtml(key)}</div>
         <div class="chat-compose">
           <textarea id="chatInput" class="comment-compose__input chat-compose__input" data-key="${esc(key)}" rows="1"
@@ -178,8 +181,8 @@ async function chatMenu(key) {
   const r = await chatReport(key, reason);
   if (!r.ok) { showToast(r.kind === 'report_rate' ? socialErrorText(r.kind) : coachErrorText(r.kind), { error: true }); return; }
   haptic();
-  await dialog({ title: 'Signalement envoyé', message: `Merci. Il sera traité sous 24 heures. La copie des messages est gardée même si vous arrêtez le suivi. ${key === CHAT_COACH
-    ? 'Pour ne plus échanger avec ce coach, quitte-le dans Mon coach.' : 'Pour ne plus échanger avec cet élève, retire-le depuis sa fiche.'}`,
+  await dialog({ title: 'Signalement envoyé', message: `Merci. Il sera traité sous 24 heures. La copie des messages est gardée même si le coaching s'arrête. ${key === CHAT_COACH
+    ? 'Pour ne plus échanger avec ton coach : Mon coach › Quitter mon coach.' : 'Pour ne plus échanger avec cet élève, retire-le depuis sa fiche.'}`,
     actions: [{ label: 'OK', style: 'preferred' }] });
 }
 
@@ -228,7 +231,7 @@ function chatIntroHtml() {
   return `
         <div class="group">
           <div class="cell coach-lost chat-intro-note" role="status">
-            <span class="cell__body"><span class="cell__title">Ton coach peut t'écrire</span><span class="cell__sub">Messages texte seul, que vous seuls lisez, effacés quand le suivi s'arrête. Un message te gêne ? Signale-le depuis la conversation, ou quitte ton coach.</span></span>
+            <span class="cell__body"><span class="cell__title">Ton coach peut t'écrire</span><span class="cell__sub">Messages texte seul, que vous seuls lisez, effacés quand le coaching s'arrête. Un message te gêne ? Signale-le depuis la conversation, ou quitte ton coach.</span></span>
             <button class="social-x" data-action="chat-intro-ok" aria-label="OK, fermer">${icon('xmark', 14)}</button>
           </div>
         </div>`;

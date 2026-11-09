@@ -29,9 +29,10 @@ def saved_text(page, timeout=2500):
 
 
 def toast_text(page, timeout=2500):
+    """Texte du toast, ou en séance de la ligne qui le remplace au-dessus de la carte (vague 3 : pas de toast en séance)."""
     try:
-        page.wait_for_selector('.toast', timeout=timeout)
-        return page.locator('.toast').inner_text()
+        page.wait_for_selector('.toast, .ex-undo', timeout=timeout)
+        return page.locator('.toast').inner_text() if page.locator('.toast').count() else page.locator('.ex-undo').first.inner_text()
     except Exception:
         return ''
 
@@ -181,9 +182,15 @@ def t_bounds(bench, eng, dev, theme):
         t = tag(dev, theme)
         start(page)
         si, w, r, v = active_inputs(page)
+        # Carte déjà défilée (son haut sous la barre) : la ligne du message doit revenir à l'écran (vague 3-t4)
+        page.evaluate("(() => { const c = document.querySelector('.ex-card[data-ei=\"0\"]'), b = document.querySelector('#app .navbar').getBoundingClientRect().height; window.scrollTo(0, c.getBoundingClientRect().top + scrollY - b + 30); })()")
+        page.wait_for_timeout(200)
         r.fill('0'); v.click()
         txt = toast_text(page)
         R.check('Reps entre 1 et 100' in txt, f'{t} reps 0 refusées « {txt} »')
+        page.wait_for_timeout(200)
+        seen = page.evaluate("(() => { const u = document.querySelector('.ex-undo'); return !!u && u.getBoundingClientRect().top >= document.querySelector('#app .navbar').getBoundingClientRect().bottom - 1; })()")
+        R.check(seen, f'{t} reps 0 : le message est sous la barre, lisible')
         R.check(r.get_attribute('aria-invalid') == 'true' and 'set-input--error' in (r.get_attribute('class') or ''), f'{t} reps 0 : champ signalé')
         shot(page, LOT, f'erreur-reps-{t}')
         R.check(not page.evaluate('activeSession.exercises[0].sets[0].done'), f'{t} reps 0 : série non validée')
@@ -229,6 +236,8 @@ def t_bounds(bench, eng, dev, theme):
         # Fusion : on passe par le détail de la séance (lot 5)
         page.locator('.view.history [data-action="open-history"][data-id="hcs02"]').click()
         page.wait_for_selector('.view.history-detail')
+        lbls = page.locator('.view.history-detail .tile__lbl').all_inner_texts()
+        R.check(lbls[:2] == ['Durée', 'Volume'] and lbls[2] in ('Série', 'Séries'), f'{t} détail : Durée, Volume, Séries avec majuscule, comme le bilan {lbls}')
         page.locator('[data-action="edit-session"][data-id="hcs02"]').click()
         page.wait_for_selector('.view.add-session')
         R.check('Modifier la séance' in page.locator('.navbar__title').inner_text(), f'{t} séance Perso modifiable depuis PPL')

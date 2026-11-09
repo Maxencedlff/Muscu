@@ -31,12 +31,14 @@ function renderStatsOverview() {
   const monthCount = Object.values(byDay).reduce((a, l) => a + l.length, 0);
   const isCur = y === now.getFullYear() && m === now.getMonth();
 
-  // Séances par semaine sur 12 semaines (objectif : 3)
+  // Séances par semaine sur 12 semaines, face à l'objectif des Réglages (weeklyGoal) ; le nombre au-dessus de chaque
+  // barre, « 0 » compris (panel t6 : un trait sans valeur passait pour une donnée manquante), une semaine par élément de liste pour VoiceOver (role="img" sur le tout rendait les semaines muettes, panel t5)
+  const goal = weeklyGoal();
   const weeks = weeklySessionCounts(12);
-  const top = Math.max(4, ...weeks.map(w => w.n));
+  const top = Math.max(goal + 1, ...weeks.map(w => w.n));
   const bars = weeks.map(w => `
-      <span class="wk" role="img" aria-label="Semaine du ${fmtDate(w.start, 'short')} : ${plural(w.n, 'séance', 'séances')}">
-        <span class="wk__bar ${w.n >= 3 ? 'wk__bar--ok' : ''}" style="height:${w.n / top * 100}%"></span>
+      <span class="wk" role="listitem"><span class="visually-hidden">Semaine du ${fmtDate(w.start, 'short')} : ${plural(w.n, 'séance', 'séances')}</span>
+        <span class="wk__bar ${w.n >= goal ? 'wk__bar--ok' : ''}" style="height:${w.n / top * 100}%" aria-hidden="true"><span class="wk__n num">${w.n}</span></span>
       </span>`).join('');
 
   // Tuiles
@@ -49,9 +51,9 @@ function renderStatsOverview() {
       ${navBar({ title: 'Vue d\'ensemble' })}
       <div class="scr">
         <div class="tiles">
-          <div class="tile"><span class="tile__val num">${fmtVolume(vol)}</span><span class="tile__lbl">volume total</span></div>
-          <div class="tile"><span class="tile__val num">${avgD ? fmtDuration(avgD) : '—'}</span><span class="tile__lbl">durée moyenne</span></div>
-          <div class="tile"><span class="tile__val num">${hist.length}</span><span class="tile__lbl">${hist.length > 1 ? 'séances' : 'séance'} au total</span></div>
+          <div class="tile"><span class="tile__val num">${avgD ? fmtDuration(avgD) : '—'}</span><span class="tile__lbl">Durée moyenne</span></div>
+          <div class="tile"><span class="tile__val num">${fmtVolume(vol)}</span><span class="tile__lbl">Volume total</span></div>
+          <div class="tile"><span class="tile__val num">${hist.length}</span><span class="tile__lbl">${hist.length > 1 ? 'Séances' : 'Séance'} au total</span></div>
         </div>
         <div class="group group--pad cal" id="ovCal">
           <div class="cal__head">
@@ -66,8 +68,8 @@ function renderStatsOverview() {
         </div>
         <div class="group-title">Séances par semaine</div>
         <div class="group group--pad">
-          <div class="wks" role="img" aria-label="Séances par semaine sur 12 semaines, objectif 3">
-            <span class="wks__goal" style="bottom:${3 / top * 100}%"><span>3</span></span>
+          <div class="wks" role="list" aria-label="Séances par semaine sur 12 semaines, objectif ${goal}">
+            <span class="wks__goal" style="bottom:${goal / top * 100}%" aria-hidden="true"><span>${goal}</span></span>
             ${bars}
           </div>
           <div class="wks__axis"><span>il y a 12 sem.</span><span>cette semaine</span></div>

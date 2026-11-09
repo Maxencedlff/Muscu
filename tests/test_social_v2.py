@@ -140,6 +140,11 @@ def t_pratiquant(bench, eng, dev, theme):
         stats = [x.replace(' ', ' ').replace(' ', ' ') for x in card.locator('.feed-card__stat').all_inner_texts()]
         R.check(len(stats) == 3 and stats[0].startswith('58 min') and 'Durée' in stats[0] and 'Volume' in stats[1] and stats[2].startswith('5') and 'Séries' in stats[2],
                 f'{t} carte : durée, volume, 5 séries sans l\'échauffement ({stats})')
+        # Vague 3 : séance d'une amie, mêmes chiffres dans le même ordre et le même style que la carte
+        card.locator('.feed-card__main').click(); page.wait_for_selector('.social-session-view .session-stats')
+        lbls = page.locator('.session-stats .tile__lbl').all_inner_texts()
+        R.check(lbls[:3] == ['Durée', 'Volume', 'Séries'], f'{t} séance de l\'amie : Durée, Volume, Séries comme la carte ({lbls})')
+        page.go_back(); page.wait_for_selector('.feed-card[data-id="l0"]')
         rec = card.locator('.feed-card__rec').inner_text().replace(' ', ' ').replace(' ', ' ')
         R.check(rec.startswith('🏆 Record · ') and rec.endswith(' kg +1'),
                 f'{t} carte : record le plus marquant, et combien d\'autres ({rec!r})')
@@ -189,7 +194,7 @@ def t_fil_vide(bench, eng, dev, theme):
         open_tab(page)
         page.wait_for_selector('#friendsBody [data-action="social-invite"]')
         body = page.inner_text('#friendsBody')
-        R.check('Ton fil t\'attend' in body and 'max' in body and 'Séances de tes amis' not in body, f'{t} fil vide : accueil et mon pseudo ({body!r})')
+        R.check('Ton fil t\'attend' in body and 'max' in body and 'Séances des personnes que tu suis' not in body, f'{t} fil vide : accueil et mon pseudo ({body!r})')
         layout(page, t, 'fil vide')
         shot(page, LOT, f'4-fil-vide-{t}')
         page.evaluate("(() => { Native.shareText = async (text, title) => { window.__shared.push({ text, title }); return 'shared'; }; })()")   # feuille de partage d'iOS
@@ -231,6 +236,25 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.locator('.feed-card, #socialSearch').count() == 0, f'{t} Élèves : ni fil ni recherche')
         layout(page, t, 'Coach › Élèves')
         shot(page, LOT, f'5-coach-eleves-{t}')
+        # Panel Apple du 08/11 : petite hauteur (iPhone SE), résumé sur une ligne et Planning sous la liste : deux élèves
+        # au moins visibles sans défiler
+        if page.evaluate('innerHeight') <= 700:
+            page.evaluate('scrollTo(0, 0)')
+            page.wait_for_timeout(200)
+            vis = page.evaluate("""() => { const tab = document.querySelector('.tabbar').getBoundingClientRect().top;
+                return [...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => r.getBoundingClientRect().bottom <= tab + 1).length; }""")
+            plan = page.evaluate("""() => { const p = document.querySelector('.coach-team [data-action="plan-overview"]'), l = document.querySelector('.coach-team .coach-student-row');
+                return !p || p.getBoundingClientRect().top > l.getBoundingClientRect().top; }""")
+            R.check(vis >= 2 and plan, f'{t} petite hauteur : {vis} élèves visibles sans défiler, Planning sous la liste')
+        # Panel Apple de la vague 3 : sous-titres d'un élève sur deux lignes au plus ; sous 360 pt, pastilles sous le nom
+        lines = page.evaluate("""() => [...document.querySelectorAll('.coach-team .coach-student-row .social-row__text > .cell__sub')].map(e => {
+            const r = document.createRange(); r.selectNodeContents(e); const lh = parseFloat(getComputedStyle(e).lineHeight) || 16;
+            return Math.round(e.getBoundingClientRect().height / lh); })""")
+        R.check(lines and max(lines) <= 2, f'{t} sous-titres des élèves : deux lignes au plus {lines}')
+        if page.evaluate('innerWidth') <= 400:
+            under = page.evaluate("""() => [...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => r.querySelector('.cs-badges')).map(r =>
+                r.querySelector('.cs-badges').getBoundingClientRect().top >= r.querySelector('.social-row__name').getBoundingClientRect().bottom)""")
+            R.check(all(under), f'{t} moins de 400 pt : pastilles sous le nom {under}')
         # Fiche d'un élève : deux touchers
         page.evaluate("document.querySelector('.coach-student-row').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))")
         page.wait_for_timeout(300)
@@ -261,6 +285,20 @@ def t_coach(bench, eng, dev, theme):
         page.wait_for_timeout(600)
         R.check(page.evaluate('view') == 'friends' and page.evaluate('nav.stacks.friends.length') == 1 and page.locator('.coach-student-row').count() == 2,
                 f'{t} élève retiré : retour à Élèves ({page.evaluate("nav.stacks.friends")})')
+        page.click('.tabbar [data-tab="friends"]'); page.wait_for_selector('.coach-team .coach-student-row')
+        # Panel Apple de la vague 3 : plus de 8 élèves, un champ filtre la liste par pseudo (3 élèves ici : pas de champ)
+        R.check(page.locator('#coachSearch').count() == 0 and not page.locator('#coachSearchNone').is_visible(), f'{t} 3 élèves : pas de recherche, pas de « Aucun élève ne correspond »')
+        page.evaluate("""async () => { const me = __sb.meId(); for (let i = 0; i < 7; i++) { const u = __sb.addPerson({ username: 'eleve' + i, social: false }); __sb.link(me, u, Date.now() - 86400000); }
+            await coachRefresh(); render(); }""")
+        page.wait_for_selector('#coachSearch')
+        R.check(not page.locator('#coachSearchNone').is_visible(), f'{t} 10 élèves, recherche vide : pas de « Aucun élève ne correspond »')
+        page.fill('#coachSearch', 'zo')
+        page.wait_for_timeout(200)
+        vis = page.evaluate("[...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => !r.hidden).map(r => r.dataset.name)")
+        R.check(vis == ['zoe'], f'{t} recherche « zo » : seule zoe ({vis})')
+        page.fill('#coachSearch', 'zzz'); page.wait_for_timeout(200)
+        R.check(page.locator('#coachSearchNone').is_visible(), f'{t} recherche sans résultat : « Aucun élève ne correspond »')
+        page.fill('#coachSearch', ''); page.wait_for_timeout(200)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

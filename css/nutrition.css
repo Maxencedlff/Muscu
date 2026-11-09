@@ -33,7 +33,7 @@
 .diet-ring__arc { fill: none; stroke: var(--macro-kcal); stroke-linecap: round; transition: stroke-dashoffset .5s var(--nav-ease); }
 .diet-sum__kcal { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; line-height: 1.15; }
 .diet-sum__kcal b { font-family: var(--font-rounded); font-size: var(--fs-title2); font-weight: 700; }
-.diet-sum__kcal span { font-size: var(--fs-caption); color: var(--label2); max-width: 84px; }
+.diet-sum__kcal span { font-size: var(--fs-caption); color: var(--label2); max-width: 72px; }   /* 10 pt de marge dans l'anneau : « sur 2 000 » puis « kcal » (panel t5) */
 .diet-sum__bars { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .diet-bar__head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-size: var(--fs-footnote); }
 .diet-bar__label { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -54,13 +54,16 @@
 @media (max-width: 359px) { .diet-sum__main { flex-direction: column; align-items: stretch; } .diet-sum__ring { align-self: center; } }
 html.type-xl .diet-sum__main { flex-direction: column; align-items: stretch; }
 html.type-xl .diet-sum__ring { align-self: center; }
+html.type-xl .diet-sum__ring { width: 7.5em; height: 7.5em; }   /* l'anneau grandit avec « 0 sur 215 kcal » */
+html.type-xl .diet-ring { width: 100%; height: 100%; }
+html.type-xl .diet-sum__kcal span { max-width: 5.5em; }
 
 .diet-consigne { margin: 12px 4px 0; }
 
 /* Repas : carte, bouton rond à cocher ; coché : replié et atténué, le suivant passe devant */
 .diet-meals { display: flex; flex-direction: column; gap: 12px; }
 .diet-meal { background: var(--cell); border-radius: var(--r-lg); overflow: hidden; }
-.diet-meal--next { box-shadow: inset 0 0 0 1.5px var(--check-on); }
+.diet-meal--next { box-shadow: inset 0 0 0 1.5px var(--tint); }   /* le prochain en couleur d'action ; le vert ne dit que « fait » (vague 3-t4) */
 .diet-meal__head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 0; }
 .diet-meal__title {
   flex: 1; min-width: 0; min-height: 48px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -68,17 +71,23 @@ html.type-xl .diet-sum__ring { align-self: center; }
 }
 .diet-meal--done .diet-meal__title:active { opacity: .6; }
 div.diet-meal__title { cursor: default; }
-.diet-meal__eyebrow { font-size: var(--fs-caption); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--check-on); }
+.diet-meal__eyebrow { font-size: var(--fs-caption); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tint); }
 .diet-meal__name { font-size: var(--fs-body); font-weight: 600; overflow-wrap: anywhere; }
 .diet-meal__macros { margin-top: 2px; font-size: var(--fs-footnote); color: var(--label2); }
 .diet-meal--done .diet-meal__name { color: var(--label2); }
 .diet-check {
   flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  background: none; color: transparent; box-shadow: inset 0 0 0 2px var(--label3);
+  /* Pas encore coché : cercle vide en couleur d'action, le même sur l'accueil et dans le journal (en gris pâle, il passait
+     pour l'anneau vide des calories) ; la coche n'apparaît qu'une fois coché, comme en séance (panels de la vague 3) */
+  background: none; color: var(--tint); box-shadow: inset 0 0 0 2px var(--tint);
   transition: background-color .2s, box-shadow .2s, transform .2s;
 }
 .diet-check .icon { width: 22px; height: 22px; }
+/* Pas coché : contour et coche fine en bleu d'action, à plus de 4,5:1 (le rond seul passait pour l'anneau des kcal,
+   panel t5 ; la coche à 40 % d'opacité devenait un bleu marine invisible en sombre, panel t6). Coché : rond plein vert,
+   coche blanche, comme une série validée */
+.diet-check:not(.diet-check--on) .icon { width: 18px; height: 18px; }
 .diet-check:active { transform: scale(.92); }
 .diet-check--on { background: var(--check-on); color: var(--check-mark); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .diet-check, .diet-ring__arc, .diet-bar__fill { transition: none; } }
@@ -97,7 +106,7 @@ div.diet-meal__title { cursor: default; }
 .diet-item__sub { font-size: var(--fs-footnote); color: var(--label2); overflow-wrap: anywhere; }
 .diet-item__swapped { display: block; color: var(--tint); }
 .diet-item__swap { color: var(--tint); flex-shrink: 0; }
-.diet-foot { padding-top: 20px; }
+.diet-foot { padding-top: 20px; overflow-wrap: anywhere; }   /* le lien doi.org ne fait jamais défiler la page de côté */
 
 /* Aucun plan */
 .diet-empty { margin-top: 24px; background: var(--cell); border-radius: 20px; padding: 28px 20px 20px; text-align: center; }
@@ -119,8 +128,9 @@ div.diet-meal__title { cursor: default; }
 .diet-home__kcal b { color: var(--label); font-weight: 700; }
 .diet-home__next { display: flex; align-items: center; gap: 4px; font-size: var(--fs-subhead); font-weight: 600; overflow-wrap: anywhere; }
 .diet-home--complete .diet-home__next { color: var(--check-on); }
-/* Accueil : la coche se voit en gris avant d'être touchée, sinon le bouton ressemble à l'anneau des calories (panel du 06/11) */
-.diet-home .diet-check:not(.diet-check--on) { color: var(--label3); }
+/* Texte agrandi : sans l'anneau (« 0 sur 215 kcal » le dit), le texte garde la largeur et un seul rond reste, celui à
+   cocher (« NUTRITIO/N », deux ronds empilés, panel t5) */
+html.type-xl .diet-home__ring { display: none; }
 
 /* Feuilles : remplacer, rechercher, créer un aliment, objectifs */
 .diet-swap, .diet-pick, .diet-form { padding: 0; }
@@ -147,6 +157,34 @@ body.light .sheet .diet-cands, body.light .sheet .diet-pick__list, body.light .s
 .diet-cand--back, .diet-cand--new { margin-top: 10px; border-radius: var(--r-md); color: var(--tint); }
 .diet-cand--back .diet-cand__name, .diet-cand--new .diet-cand__name { color: var(--tint); }
 .diet-cand--new .icon { color: var(--tint); }
+/* « Scanner un code-barres » : en tête de la feuille « Ajouter un aliment », avant la recherche */
+.diet-cand--scan { margin-bottom: 10px; border-radius: var(--r-md); min-height: 52px; }
+.diet-cand--scan .diet-cand__name { color: var(--tint); font-weight: 600; }
+.diet-cand--scan .icon { flex-shrink: 0; color: var(--tint); }
+
+/* Fiche d'un produit scanné (js/features/food-scan-ui.js) */
+.fscan__state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0 4px; text-align: center; }
+.fscan__state .btn { margin-top: 4px; }
+.fscan__icon { color: var(--label2); }
+.fscan__title { margin: 0; font-size: var(--fs-body); font-weight: 600; overflow-wrap: anywhere; }
+.fscan__text { margin: 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); }
+.fscan__code { margin: 0; font-size: var(--fs-footnote); color: var(--label2); }
+.fscan__name { margin: 0; font-size: var(--fs-title3); font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+.fscan__prod { display: flex; flex-direction: column; gap: 4px; }
+.fscan__vals-title { margin: 16px 0 6px; font-size: var(--fs-footnote); color: var(--label2); text-transform: uppercase; letter-spacing: .02em; }
+.fscan__vals { background: var(--cell2); border-radius: var(--r-md); overflow: hidden; }
+body.light .fscan__vals { background: var(--cell); }
+.fscan__row { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; padding: 8px 14px; font-size: var(--fs-callout); }
+.fscan__row + .fscan__row::before { content: ''; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--sep); }
+.fscan__v { text-align: right; overflow-wrap: anywhere; }
+.fscan__qty { margin-top: 14px; }
+.fscan__total { margin: 8px 0 0; font-size: var(--fs-subhead); font-weight: 600; overflow-wrap: anywhere; }
+.fscan__total:empty { display: none; }
+.fscan__src { margin: 8px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
+.fscan__state .fscan__src { text-align: center; }
+.fscan__spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--fill); border-top-color: var(--tint); animation: fscanSpin .8s linear infinite; }
+@keyframes fscanSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fscan__spin { animation-duration: 2.4s; } }
 
 .diet-field { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; background: var(--cell); border-radius: var(--r-md); margin-top: 8px; }
 .diet-field__label { flex-shrink: 0; min-width: 84px; font-size: var(--fs-callout); }
@@ -179,3 +217,5 @@ body.light .sheet .diet-cands, body.light .sheet .diet-pick__list, body.light .s
 .diet-foot .group-foot + .group-foot { padding-top: 8px; }
 .diet-help { color: var(--label2); }
 .diet-field__select { appearance: none; -webkit-appearance: none; text-align: right; text-align-last: right; cursor: pointer; }
+/* Titres de la fiche : reçoivent le focus (VoiceOver les lit d'abord), sans anneau visible au doigt */
+.fscan__name:focus, .fscan__title:focus { outline: none; }

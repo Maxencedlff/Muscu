@@ -65,6 +65,26 @@ function photoDayGroups(list) {
 // Écart entre deux photos en jours du calendrier (« 62 jours d'écart ») : compter des tranches de 24 h se
 // trompait d'un jour le soir (photo du jour contre une date passée, posée à midi) et au changement d'heure
 function photoGapDays(a, b) { return Math.abs(daysAgo(a, b)); }
+// Avant / après par défaut : la même pose à deux dates, sa photo la plus ancienne contre la plus récente. Pose choisie :
+// la plus récemment photographiée parmi celles qui ont au moins deux jours différents (panel Apple du 08/11 : comparer
+// Face et Dos du même jour ne montre rien). Aucune : null, et le comparateur laisse place à photoCompareHint.
+function photoComparePair(list) {
+  const sorted = (list || []).slice().sort((a, b) => b.date - a.date);
+  const poses = [...new Set(sorted.map(p => p.pose))];
+  for (const pose of poses) {
+    const same = sorted.filter(p => p.pose === pose);
+    const oldest = same[same.length - 1];
+    if (localISO(oldest.date) !== localISO(same[0].date)) return { a: oldest.id, b: same[0].id };
+  }
+  return null;
+}
+// Pas encore de quoi comparer : la pose de la dernière photo, à reprendre un autre jour
+function photoCompareHint(list) {
+  const last = (list || []).slice().sort((a, b) => b.date - a.date)[0];
+  if (!last) return '';
+  const pose = { face: 'de face', side: 'de profil', back: 'de dos' }[last.pose] || 'de face';
+  return `Reprends une photo ${pose} un autre jour pour comparer.`;
+}
 function photosTotalBytes(list) { return (list || []).reduce((a, p) => a + (p.bytes || 0), 0); }
 
 // ── Disponibilité ───────────────────────────────────────────

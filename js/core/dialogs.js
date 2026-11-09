@@ -12,29 +12,34 @@ function announce(msg, assertive = false) {
   setTimeout(() => { el.textContent = msg; }, 30);
 }
 
-// Ce que le toast ne cache jamais : la série en cours (aria-current="step") et les boutons de sa carte
-// (« + Série », « Plus tard » : data-toast-avoid), ni « Reps en réserve » de la série validée (.rir : en haut, il
-// cachait son titre sur iPhone SE, panel du 07/11). S'il les couvre, il passe en haut de l'écran.
-const TOAST_AVOID = '[data-toast-avoid], [aria-current="step"], .rir';
+// ── Toast : une seule place, rien dessous ───────────────────
+// Règle (docs/ERGONOMIE.md §4, panels de la vague 3) : en séance, ce qui s'annule l'est en ligne, à sa place
+// (sessionUndo, js/features/session.js) ; il ne reste ici que des messages. Le toast a UNE place, en bas, au-dessus de la
+// barre d'onglets, de la mini-barre de séance ou du repos (css/navigation.css, css/session.css), fond opaque. Le temps
+// qu'il est là, la page garde sous son contenu la hauteur du toast (classe has-toast, --toast-room) : on peut toujours
+// faire défiler la fin de la page au-dessus de lui. Il part au changement d'écran.
 const TOAST_ACTION_MIN_MS = 6000;   // le temps de lire et de toucher « Annuler » (WCAG 2.2.1)
 const TOAST_RESUME_MS = 3000;       // après un toucher ou le focus de VoiceOver qui l'a retenu
-
-function toastCovers(el) {
-  const r = el.getBoundingClientRect();
-  return [...document.querySelectorAll(TOAST_AVOID)].some(a => {
-    const b = a.getBoundingClientRect();
-    return b.height > 0 && b.bottom > r.top && b.top < r.bottom && b.right > r.left && b.left < r.right;
-  });
+// Changement d'écran (js/ui/router.js) : le toast ne suit pas sur l'écran suivant. Celui qui naît pendant la navigation
+// même (supprimer puis revenir en arrière) est gardé : moins de 800 ms.
+function dropScreenToast() {
+  document.querySelectorAll('.toast').forEach(t => { if (Date.now() - Number(t.dataset.at || 0) > 800) removeToast(t); });
+}
+function removeToast(el) {
+  el?.remove();
+  if (!document.querySelector('.toast')) { document.body.classList.remove('has-toast'); document.body.style.removeProperty('--toast-room'); }
 }
 
 // toast simple, ou avec action : showToast('Import réussi', { action: 'Annuler', onAction, duration: 6000 })
 // { error: true } : annoncé en assertif et affiché au moins 4 s. Avec action : 6 s au moins, et retenu tant
 // qu'on le touche ou que VoiceOver est dessus (sinon « Annuler » disparaîtrait sous le doigt)
 function showToast(msg, opts = {}) {
-  const existing = $('.toast');
-  if (existing) existing.remove();
+  // En séance (hors feuille) : jamais de toast flottant, la confirmation en ligne (sessionNotice, js/features/session.js)
+  if (typeof sessionNotice === 'function' && sessionNotice(msg, opts)) return;
+  document.querySelectorAll('.toast').forEach(t => t.remove());
   const el = document.createElement('div');
   el.className = 'toast';
+  el.dataset.at = String(Date.now());
   const duration = Math.max(opts.duration || 2200, opts.error ? 4000 : 0, opts.action ? TOAST_ACTION_MIN_MS : 0);
   announce(opts.action ? `${msg}. ${opts.action} disponible` : msg, !!opts.error);
   el.style.setProperty('--toast-duration', duration + 'ms');
@@ -46,28 +51,14 @@ function showToast(msg, opts = {}) {
     const b = document.createElement('button');
     b.className = 'toast__action';
     b.textContent = opts.action;
-    b.addEventListener('click', ev => { ev.stopPropagation(); el.remove(); opts.onAction?.(); });
+    b.addEventListener('click', ev => { ev.stopPropagation(); removeToast(el); opts.onAction?.(); });
     el.appendChild(b);
   }
   document.body.appendChild(el);
-  // Placement : en bas d'habitude (css/session.css, css/navigation.css) ; en haut s'il cache la série en cours
-  // ou les boutons de sa carte, vérifié aussi pendant le défilement qui suit une validation (scrollToCurrent)
-  // Revu à chaque défilement dans les deux sens : passé en haut pendant le défilement, il y restait et
-  // cachait « Reps en réserve » une fois la série centrée, alors que le bas était redevenu libre (iPhone SE)
-  const place = () => {
-    if (!el.isConnected) return;
-    el.classList.remove('toast--top');
-    let top = false;
-    if (toastCovers(el)) { el.classList.add('toast--top'); top = !toastCovers(el); }
-    el.classList.toggle('toast--top', top);
-  };
-  place();
-  requestAnimationFrame(place);   // écran redessiné juste après le toast (render qui suit la validation)
-  // Retiré d'ailleurs (autre toast, dialogue, « Annuler ») : l'écouteur s'en va au défilement suivant
-  const onScroll = () => { if (!el.isConnected) window.removeEventListener('scroll', onScroll); else requestAnimationFrame(place); };
-  window.addEventListener('scroll', onScroll, { passive: true });
+  document.body.style.setProperty('--toast-room', `${Math.ceil(el.offsetHeight) + 16}px`);
+  document.body.classList.add('has-toast');
   let timer = 0;
-  const close = () => { el.remove(); window.removeEventListener('scroll', onScroll); };
+  const close = () => removeToast(el);
   const arm = ms => { clearTimeout(timer); timer = setTimeout(close, ms); };
   arm(duration);
   if (opts.action) {
@@ -95,13 +86,16 @@ function dialogInputLabel(input, title = '') {
   return u ? `${name}, en ${DIALOG_UNIT_SPOKEN[u] || u}` : name;
 }
 
-// actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred' }]
+// actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred', section, apart }]
 // type 'sheet' = feuille d'actions en bas, 'alert' = alerte centrée
+// Feuille seulement : section = titre du groupe de choix qui commence là (long menu rangé en sections) ; group = groupe
+// séparé du précédent par une bande, sans titre (menu court) ;
+// apart = choix posé dans son propre bloc, au-dessus d'« Annuler », hors de la liste qui défile (action destructive)
 function dialog({ type = 'alert', title = '', message = '', actions, input = null }) {
   return new Promise(resolve => {
     document.querySelector('.ios-dialog')?.remove();
     // Une alerte prend toute l'attention : un toast encore affiché (action précédente) disparaît
-    document.querySelector('.toast')?.remove();
+    removeToast(document.querySelector('.toast'));
     const root = document.createElement('div');
     root.className = `ios-dialog ios-dialog--${type}`;
     root.setAttribute('role', type === 'sheet' ? 'dialog' : 'alertdialog');
@@ -110,15 +104,23 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     if (title) root.setAttribute('aria-labelledby', dlgId + '-t');
     if (message) root.setAttribute('aria-describedby', dlgId + '-m');
 
-    const main   = actions.filter(a => a.style !== 'cancel');
+    const main   = actions.filter(a => a.style !== 'cancel' && !(type === 'sheet' && a.apart));
+    const apart  = type === 'sheet' ? actions.filter(a => a.apart && a.style !== 'cancel') : [];
     const cancel = actions.find(a => a.style === 'cancel');
     const btn = a => `<button class="ios-dialog__btn ios-dialog__btn--${a.style || 'default'}" data-i="${actions.indexOf(a)}">${esc(a.label)}</button>`;
+    // Titre de section avant le premier choix de chaque section (feuille), annoncé comme un en-tête
+    const sectioned = list => list.map((a, i) => (a.section && a.section !== list[i - 1]?.section
+      ? `<div class="ios-dialog__sect" role="heading" aria-level="3">${esc(a.section)}</div>`
+      : i && a.group && a.group !== list[i - 1]?.group ? '<div class="ios-dialog__band" aria-hidden="true"></div>' : '') + btn(a)).join('');
     const head = (title || message) ? `
       <div class="ios-dialog__head">
+        <div class="ios-dialog__text">
         ${title   ? `<div class="ios-dialog__title" id="${dlgId}-t" tabindex="-1">${esc(title)}</div>` : ''}
         ${message ? `<div class="ios-dialog__msg" id="${dlgId}-m">${esc(message)}</div>` : ''}
+        </div>
         ${input   ? `<div class="ios-dialog__field">
-            <input class="ios-dialog__input" ${input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"'
+            <input class="ios-dialog__input" ${input.digits ? 'type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="20"'   // code-barres : zéros de tête gardés
+              : input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"'
               : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off"'   // « 70,5 » : la virgule du clavier français
               : 'type="number" inputmode="numeric"'}
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}" aria-label="${esc(dialogInputLabel(input, title))}">
@@ -129,7 +131,8 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     root.innerHTML = type === 'sheet'
       ? `<div class="ios-dialog__backdrop"></div>
          <div class="ios-dialog__panel">
-           <div class="ios-dialog__group">${head}${main.map(btn).join('')}</div>
+           <div class="ios-dialog__group">${head}${sectioned(main)}</div>
+           ${apart.length ? `<div class="ios-dialog__group">${apart.map(btn).join('')}</div>` : ''}
            ${cancel ? `<div class="ios-dialog__group">${btn(cancel)}</div>` : ''}
          </div>`
       : `<div class="ios-dialog__backdrop"></div>
@@ -164,6 +167,10 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     root._close = () => close(null); // retour système : vaut « Annuler »
     document.addEventListener('keydown', onKey);
     document.body.appendChild(root);
+    // Alerte à deux boutons dont un libellé passe sur deux lignes (« J'ai 18 ans ou plus » sur iPhone SE) : boutons
+    // empilés, comme iOS, « Annuler » / le refus en bas (panels de la vague 3)
+    const row = type !== 'sheet' && root.querySelector('.ios-dialog__row:not(.ios-dialog__row--stack)');
+    if (row && [...row.children].some(b => b.scrollWidth > b.clientWidth + 1 || b.offsetHeight > 50)) row.classList.add('ios-dialog__row--stack', 'ios-dialog__row--wrapped');
     // Feuille plus haute que l'écran (menu ⋯ sur iPhone SE) : le bas des choix s'estompe tant qu'il en
     // reste sous le pli, pour dire qu'on peut défiler (panel du 07/11 : dernier choix coupé sans indice)
     const list = type === 'sheet' && root.querySelector('.ios-dialog__group');

@@ -143,10 +143,11 @@ function warmupSheetHtml(ei) {
   return `
     <div class="rs rs--warmup wu">
       <div class="rs__title">Échauffement · ${esc(ex.name)}</div>
-      <div class="wu__sub num">Avant ${fmtNum(base)} ${u}${goal ? ` × ${esc(goal)}` : ''}</div>
+      <div class="wu__sub num">Pour ta série de ${fmtNum(base)}\u00a0${u}${goal ? ` × ${esc(goal)}` : ''}</div>
       ${sets.length ? `<div class="wu__list" role="list">${rows}</div>` : '<div class="wu__empty">Charge trop légère pour un échauffement : commence directement.</div>'}
       ${sets.length ? `<p class="wu__note">${warmupNoteText(sets.length)}</p>` : ''}
       ${sets.length ? `<button class="rs__done rs__done--primary" data-action="wu-add">Ajouter ${plural(sets.length, 'série', 'séries')}</button>` : ''}
+      <button class="rs__done" data-action="sheet-done">${sets.length ? 'Annuler' : 'OK'}</button>
     </div>`;
 }
 
@@ -171,7 +172,7 @@ function addWarmup(ei) {
   haptic();
   persistSession();
   render();
-  showToast(`Échauffement ajouté : ${plural(added.length, 'série', 'séries')}`, { action: 'Annuler', duration: 5000, onAction: () => {
+  sessionUndo(`Échauffement ajouté\u202f: ${added.length}\u202f${added.length > 1 ? 'séries' : 'série'}`, { target: { ex }, onAction: () => {
     if (!activeSession || activeSession.exercises[ei] !== ex || added.some(s => s.done)) return;
     ex.sets = ex.sets.filter(s => !added.includes(s));
     persistSession();

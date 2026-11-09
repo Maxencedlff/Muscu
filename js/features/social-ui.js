@@ -2,7 +2,7 @@
 //  Social (Social V1, refait en V2 : docs/SOCIAL_V2.md), écrans : onglet Social (sans compte, activation,
 //  puis recherche, demandes et fil ; compte coach : onglet « Coach » à deux segments, Élèves et Social), séance
 //  d'un ami (détail des séries, réactions, Signaler) ou la mienne telle que mes abonnés la voient (qui a réagi),
-//  profil d'un autre (s'abonner, annuler la demande, se désabonner, Bloquer, Signaler), Gérer (demandes
+//  profil d'un autre (Suivre, annuler la demande, Ne plus suivre, Bloquer, Signaler), Gérer (demandes
 //  envoyées, bloqués, Désactiver le social), règles de la communauté, et dans Historique › Séance : « Visible
 //  sur mon profil », qui a réagi et les commentaires.
 //  Commentaires : js/features/comments-ui.js.
@@ -63,7 +63,8 @@ function feedRecordHtml(s) {
   const more = (s.records?.length || 0) - 1;
   return `<span class="feed-card__rec"><span aria-hidden="true">🏆 </span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num"> +${more}</span>` : ''}</span>`;
 }
-// Les trois chiffres de la carte : durée, volume, séries (sans l'échauffement) ; un chiffre absent est omis
+// Les trois chiffres de la carte : durée, volume, séries (sans l'échauffement) ; un chiffre absent est omis. Même ordre et
+// même style (valeur, puis libellé dessous, avec une capitale) dans la séance d'un ami, Mon profil et le bilan (vague 3)
 function feedStatsHtml(s) {
   const vol = reviewVolume(s.exercises), n = seriesCount(s);
   const stats = [s.duration ? [fmtDuration(s.duration), 'Durée'] : null, vol > 0 ? [fmtVolume(vol), 'Volume'] : null,
@@ -96,13 +97,14 @@ function feedCardHtml(row, { owner = true } = {}) {
       <div class="feed-card__foot">${mine
         ? `<span class="react-own">${reactionsSummary(row.reactions) ? reactionsSummaryHtml(row.reactions) : '<span class="react-own__none">Aucune réaction</span>'}</span>`
         : reactionBarHtml(row)}
-        <button class="feed-card__comment" data-action="social-open-comments" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}" aria-label="${esc(`Commenter la séance ${s.label} de ${personName(p)}`)}">${icon('text.bubble', 20)}<span aria-hidden="true">Commenter</span></button>
+        <button class="feed-card__comment" data-action="social-open-comments" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}" aria-label="${esc(`Commenter la séance ${s.label} de ${personName(p)}`)}">${icon('bubble.left', 20)}<span aria-hidden="true">Commenter</span></button>
       </div>
     </article>`;
 }
 
 // Liste de cartes d'un fil (fil principal '' ou profil), « Afficher plus », chargement, hors ligne
-function feedListHtml(key, { owner = true, empty }) {
+// quiet : pas de note « fil pas à jour » (une note au-dessus le dit déjà)
+function feedListHtml(key, { owner = true, empty, quiet = false }) {
   const f = socialFeed(key);
   const cards = f.rows.map(r => feedCardHtml(r, { owner })).join('');
   if (!f.rows.length) {
@@ -111,7 +113,7 @@ function feedListHtml(key, { owner = true, empty }) {
     return typeof empty === 'function' ? empty() : `<div class="empty-note">${empty}</div>`;
   }
   const more = !f.end ? `<button class="btn-more" data-action="social-more" data-key="${esc(key)}" ${f.loading ? 'disabled' : ''}>${f.loading ? 'Chargement…' : 'Afficher plus'}</button>` : '';
-  return `${feedErrorNote(f.error)}<div class="feed">${cards}</div>${more}`;
+  return `${quiet ? '' : feedErrorNote(f.error)}<div class="feed">${cards}</div>${more}`;
 }
 
 // Note au-dessus d'un fil déjà affiché quand le rafraîchissement échoue (hors ligne ou erreur) : le fil et
@@ -172,8 +174,8 @@ function searchHtml() {
   return `
         <div class="social-search">
           <span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
-          <input type="search" id="socialSearch" class="search social-search__input" placeholder="Rechercher un pseudo" value="${esc(socialQuery)}"
-                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Rechercher un ami par son pseudo">
+          <input type="search" id="socialSearch" class="search social-search__input" placeholder="Pseudo" value="${esc(socialQuery)}"
+                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Rechercher un pseudo">
         </div>`;
 }
 
@@ -193,7 +195,7 @@ function friendsBodyHtml(st = friendsState()) {
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>`;
   if (st === 'age') return ageHiddenHtml();
   if (st === 'loading') return '<div class="empty-note">Chargement…</div>';
-  if (st === 'error') return offlineNote(social.error === 'offline' ? 'Pas d\'Internet. Reconnecte-toi au réseau pour voir tes amis.' : socialErrorText(social.error));
+  if (st === 'error') return offlineNote(social.error === 'offline' ? 'Pas d\'Internet. Reconnecte-toi au réseau pour voir les séances des personnes que tu suis.' : socialErrorText(social.error));
   if (st === 'off') return activationHtml();
   return enabledBodyHtml();
 }
@@ -221,7 +223,7 @@ function activationHtml() {
   const coached = coachRole().hasCoach;
   const sub = 'Suis leurs séances et encourage-les d\'une réaction. Ton compte reste privé\u00a0: seules les personnes que tu acceptes voient tes séances.';
   return `
-        ${coached ? `<div class="group-title">Amis (facultatif)</div>
+        ${coached ? `<div class="group-title">Social (facultatif)</div>
         <p class="social-optional">${sub}</p>` : `
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
@@ -239,8 +241,8 @@ function activationHtml() {
             ${switchHtml(socialAgeOk)}
           </button>
         </div>
-        <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que tes amis voient.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à tes amis.${coachRole().hasCoach ? ' Ton coach, lui, voit tes séances et leurs notes, et ton poids si tu le partages avec lui.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
-        <button class="btn ${coached ? 'btn--secondary' : 'btn--primary'} btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>${coached ? 'Ajouter aussi des amis' : 'Activer'}</button>`;
+        <button class="btn ${coached ? 'btn--secondary' : 'btn--primary'} btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>${coached ? 'Ajouter aussi des amis' : 'Activer'}</button>
+        <div class="group-foot">${name ? 'On te trouve avec ce pseudo.' : 'Il faut un pseudo pour qu\'on te trouve.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que voient ceux qui te suivent.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à ceux qui te suivent.${coachRole().hasCoach ? ' Ton coach voit en plus tes séances et leurs notes, et ton poids si tu choisis de le partager.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>`;
 }
 
 function enabledBodyHtml() {
@@ -254,10 +256,16 @@ function enabledBodyHtml() {
           pill('social-accept', p.user_id, 'Accepter', { fill: true, aria: `Accepter ${personName(p)}` })
           + `<button class="social-x" data-action="social-refuse" data-uid="${esc(p.user_id)}" aria-label="${esc(`Refuser ${personName(p)}`)}">${icon('xmark', 14)}</button>`,
           '')).join('')}</div>` : '';
-  const stale = social.error && st ? `<p class="social-inline-error" role="status">${esc(social.error === 'offline' ? 'Pas d\'Internet : demandes pas à jour.' : socialErrorText(social.error))}</p>` : '';
-  return `${stale}${requests}
-        ${socialFeed('').rows.length ? '<div class="group-title">Séances de tes amis</div>' : ''}
-        ${feedListHtml('', { empty: feedEmptyHtml })}`;
+  // Hors ligne : un seul message (panel Apple du 08/11 : « demandes pas à jour » s'ajoutait au bloc « Pas d'Internet »
+  // du fil vide, alors qu'aucune demande n'était affichée). Demandes affichées : la note les cite, et le fil aussi
+  // s'il a des séances (sa propre note est alors tue) ; sans demande, le fil dit seul ce qu'il en est.
+  const feed = socialFeed('');
+  const stale = social.error && st && pending.length;
+  const both = stale && feed.error && feed.rows.length;
+  const note = stale ? `<p class="social-inline-error" role="status">${esc(social.error === 'offline' ? `Pas d'Internet : ${both ? 'demandes et fil pas à jour' : 'demandes pas à jour'}.` : socialErrorText(social.error))}</p>` : '';
+  return `${note}${requests}
+        ${feed.rows.length ? '<div class="group-title">Séances des personnes que tu suis</div>' : ''}
+        ${feedListHtml('', { empty: feedEmptyHtml, quiet: !!both })}`;
 }
 
 // Fil vide : accueil chaleureux, l'action qui le remplit (inviter un ami) et la recherche juste au-dessus
@@ -282,9 +290,9 @@ function searchResultsHtml(q) {
   if (!r.rows.length) return `<div class="empty-note">Aucun pseudo ne commence par « ${esc(q)} ».</div>`;
   return `<div class="group social-results">${r.rows.map(p => {
     const rel = socialRelation(p.user_id, social.state).status;
-    const status = rel === 'following' ? 'Abonné' : rel === 'requested' ? 'Demandé' : '';
+    const status = rel === 'following' ? 'Suivi' : rel === 'requested' ? 'Demandé' : '';
     const trailing = status ? `<span class="social-status">${status}</span>`
-      : pill('social-follow', p.user_id, 'S\'abonner', { fill: true, aria: `S'abonner à ${personName(p)}` });
+      : pill('social-follow', p.user_id, 'Suivre', { fill: true, aria: `Suivre ${personName(p)}` });
     return personRowHtml(p, trailing, p.relation === 'follows_you' ? 'Te suit' : '');
   }).join('')}</div>`;
 }
@@ -351,15 +359,15 @@ function renderSocialSession(owner, id) {
     <div class="view view--grouped social-session-view">
       ${navBar({ title: '' })}
       <div class="scr">
-        ${mine ? `<p class="social-who social-who--me">${personAvatar(p)}<span class="social-who__name">Vue par tes abonnés</span></p>`
+        ${mine ? `<p class="social-who social-who--me">${personAvatar(p)}<span class="social-who__name">Vue par ceux qui te suivent</span></p>`
           : `<button class="social-who" data-action="social-open-profile" data-uid="${esc(row.owner)}">${personAvatar(p)}<span class="social-who__name">${esc(personName(p))}</span></button>`}
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${publicSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
         <p class="scr-sub">${when}</p>
-        <div class="tiles tiles--4">
-          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">volume</span></div>
-          <div class="tile"><span class="tile__val num">${s.duration ? fmtDuration(s.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
-          <div class="tile"><span class="tile__val num">${n}</span><span class="tile__lbl">${n > 1 ? 'séries' : 'série'}</span></div>
-          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'exercices' : 'exercice'}</span></div>
+        <div class="tiles tiles--4 session-stats">
+          <div class="tile"><span class="tile__val num">${s.duration ? fmtDuration(s.duration) : '—'}</span><span class="tile__lbl">Durée</span></div>
+          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">Volume</span></div>
+          <div class="tile"><span class="tile__val num">${n}</span><span class="tile__lbl">${n > 1 ? 'Séries' : 'Série'}</span></div>
+          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'Exercices' : 'Exercice'}</span></div>
         </div>
         ${rec ? `<div class="group social-session__rec">${notedRecordCell(rec, { before: false })}</div>` : ''}
         <div class="group-title">Exercices</div>
@@ -430,12 +438,12 @@ function renderSocialProfile(uid) {
   const p = socialPerson(uid) || {};
   const rel = socialRelation(uid, social.state);
   const name = personName(p);
-  const sub = { following: rel.followsYou ? 'Vous vous suivez' : 'Abonné', requested: 'Demande envoyée', blocked: 'Bloqué' }[rel.status]
+  const sub = { following: rel.followsYou ? 'Vous vous suivez' : 'Suivi', requested: 'Demande envoyée', blocked: 'Bloqué' }[rel.status]
     || (rel.followsYou ? 'Te suit' : '');
   const main = {
-    none: `<button class="btn btn--primary btn--full" data-action="social-follow" data-uid="${esc(uid)}">S'abonner</button>`,
+    none: `<button class="btn btn--primary btn--full" data-action="social-follow" data-uid="${esc(uid)}">Suivre</button>`,
     requested: `<button class="btn btn--secondary btn--full" data-action="social-cancel" data-uid="${esc(uid)}">Annuler la demande</button>`,
-    following: `<button class="btn btn--secondary btn--full" data-action="social-unfollow" data-uid="${esc(uid)}">Se désabonner</button>`,
+    following: `<button class="btn btn--secondary btn--full" data-action="social-unfollow" data-uid="${esc(uid)}">Ne plus suivre</button>`,
     blocked: `<button class="btn btn--secondary btn--full" data-action="social-unblock" data-uid="${esc(uid)}">Débloquer</button>`,
   }[rel.status] || '';
   const incoming = rel.pendingIn && rel.status !== 'blocked' ? `
@@ -448,7 +456,7 @@ function renderSocialProfile(uid) {
   const sessions = rel.status === 'following'
     ? `<div class="group-title">Séances</div>${feedListHtml(uid, { owner: false, empty: 'Aucune séance visible pour l\'instant.' })}`
     : rel.status === 'blocked' ? ''
-    : `<div class="empty-note social-profile__locked">${rel.status === 'requested' ? 'Ses séances s\'afficheront ici quand ta demande sera acceptée.' : 'Abonne-toi pour voir ses séances, une fois ta demande acceptée.'}</div>`;
+    : `<div class="empty-note social-profile__locked">${rel.status === 'requested' ? 'Ses séances s\'afficheront ici quand ta demande sera acceptée.' : 'Suis cette personne pour voir ses séances, une fois ta demande acceptée.'}</div>`;
   return `
     <div class="view view--grouped social-profile-view">
       ${navBar({ title: esc(name), large: false })}
@@ -505,7 +513,7 @@ function renderSocialManage() {
         <div class="group">
           <button class="cell cell--destructive" data-action="social-disable">Désactiver le social</button>
         </div>
-        <div class="group-foot">Tu disparais de la recherche et tes abonnés ne voient plus tes séances. Tes abonnés et abonnements sont gardés si tu réactives.</div>
+        <div class="group-foot">Tu disparais de la recherche et ceux qui te suivent ne voient plus tes séances. Les personnes que tu suis et qui te suivent sont gardées si tu réactives.</div>
       </div>
     </div>`;
 }
@@ -571,7 +579,7 @@ function summarySocialGroup(h) {
         <div class="sum-section-title">Social</div>
         <div class="sum-list">
           <button class="sum-row sum-row--action" data-action="summary-visible" data-id="${esc(h.id)}" role="switch" aria-checked="${on}">
-            <div class="sum-row__main"><div class="sum-row__name">Visible sur mon profil</div><div class="sum-row__sub">Tes abonnés verront cette séance (jamais tes notes ni ton poids).</div></div>
+            <div class="sum-row__main"><div class="sum-row__name">Visible sur mon profil</div><div class="sum-row__sub">Ceux qui te suivent verront cette séance (jamais tes notes ni ton poids).</div></div>
             ${switchHtml(on)}
           </button>
         </div>`;
@@ -580,7 +588,7 @@ function summarySocialGroup(h) {
 // Liste de l'Historique : œil barré discret sur une séance masquée (social activé : sinon rien à masquer)
 function historyHiddenMark(h) {
   if (h.hidden !== true || !socialEnabled()) return '';
-  return `<span class="hidden-mark" role="img" aria-label="Masquée à tes abonnés">${icon('eye.slash', 14)}</span>`;
+  return `<span class="hidden-mark" role="img" aria-label="Masquée à ceux qui te suivent">${icon('eye.slash', 14)}</span>`;
 }
 
 // Groupe ajouté au détail d'une séance (js/features/history.js) quand le social est activé
@@ -596,8 +604,8 @@ function historySocialGroup(h) {
             ${switchHtml(!hidden)}
           </button>
         </div>
-        <div class="group-foot">${hidden ? 'Tes abonnés ne voient pas cette séance.'
-          : 'Tes abonnés voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.'}</div>
+        <div class="group-foot">${hidden ? 'Ceux qui te suivent ne voient pas cette séance.'
+          : 'Ceux qui te suivent voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.'}</div>
         ${historyWhoHtml(h)}
         ${historyCommentsHtml(h)}`;
 }
@@ -635,7 +643,7 @@ async function reportFlow(uid, ref) {
 
 async function blockFlow(uid, { confirm = true } = {}) {
   const name = personName(socialPerson(uid));
-  if (confirm && !(await confirmSheet(`Bloquer ${name} ?`, `${name} ne pourra plus te trouver ni voir tes séances, et tu ne verras plus les siennes. Vos abonnements sont retirés. Personne n'en est averti.`, 'Bloquer'))) return;
+  if (confirm && !(await confirmSheet(`Bloquer ${name} ?`, `${name} ne pourra plus te trouver ni voir tes séances, et tu ne verras plus les siennes. Vous ne vous suivez plus. Personne n'en est averti.`, 'Bloquer'))) return;
   const r = await socialBlock(uid);
   if (!socialToast(r, `${name} bloqué`)) return;
   if (currentView() === 'social-session') goBack();
@@ -665,7 +673,7 @@ registerActions({
     render();
   },
   'social-disable': async () => {
-    if (!(await confirmSheet('Désactiver le social ?', 'Tu disparais de la recherche et tes abonnés ne voient plus tes séances. Tes abonnés et abonnements sont gardés si tu réactives.', 'Désactiver'))) return;
+    if (!(await confirmSheet('Désactiver le social ?', 'Tu disparais de la recherche et ceux qui te suivent ne voient plus tes séances. Les personnes que tu suis et qui te suivent sont gardées si tu réactives.', 'Désactiver'))) return;
     const r = await socialDisable();
     if (!socialToast(r, 'Social désactivé')) return;
     socialAgeOk = false;
@@ -712,7 +720,7 @@ registerActions({
   },
   'social-unfollow': async (e, el) => {
     const name = personName(socialPerson(el.dataset.uid));
-    if (!(await confirmSheet(`Se désabonner de ${name} ?`, 'Ses séances ne seront plus dans ton fil. Pour le suivre à nouveau, il faudra une nouvelle demande.', 'Se désabonner'))) return;
+    if (!(await confirmSheet(`Ne plus suivre ${name} ?`, 'Ses séances ne seront plus dans ton fil. Pour le suivre à nouveau, il faudra une nouvelle demande.', 'Ne plus suivre'))) return;
     const r = await socialCancelFollow(el.dataset.uid);
     socialToast(r);
     render();

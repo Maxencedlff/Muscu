@@ -101,6 +101,9 @@ def t_home(bench, eng, dev, theme):
             today: d.classList.contains('week__dot--today'), check: !!d.querySelector('.icon--checkmark'), w: d.getBoundingClientRect().width }))""")
         ws = page.evaluate('weekStats()')
         R.check([d['done'] for d in dots] == [len(x) > 0 for x in ws['days']] and all(d['check'] == d['done'] for d in dots) and sum(d['today'] for d in dots) == 1 and min(d['w'] for d in dots) >= 20, f'{t} pastilles : faites cochées, aujourd\'hui marqué, 20 px au moins {dots}')
+        green = page.evaluate("""() => { const d = document.querySelector('.week__dot--done'); if (!d) return null; const p = document.createElement('i');
+            p.style.color = 'var(--check-on)'; document.body.appendChild(p); const g = getComputedStyle(p).color; p.remove(); return getComputedStyle(d).backgroundColor === g; }""")
+        R.check(green is not False, f'{t} jour fait : le vert de « fait », comme une série validée')
         count = page.inner_text('.week__count').replace('\u00a0', ' ')
         R.check(count == f"{ws['count']} sur {page.evaluate('weeklyGoal()')}", f'{t} « {count} »')
         line = page.locator('.week__line')
@@ -182,19 +185,18 @@ def t_back_stack(bench, eng, dev, theme):
         R.check(page.locator('.view.dashboard').count() == 1 and route(page) == '#train', f'{t} 2e retour → Entraînement')
         # Pile conservée par onglet ; toucher l'onglet actif revient à la racine
         page.click('[data-action="go-settings"]'); settle(page)
-        # Règle unique du retour (fitBackLabel), celle d'iOS : titre de l'écran précédent s'il laisse 16 pt
-        # avant le titre centré, sinon « Retour », sinon chevron seul ; l'aria-label garde le nom de l'écran
+        # Règle unique du retour (fitBackLabel), celle d'iOS : titre de l'écran précédent s'il laisse 8 pt avant le titre
+        # (décalé vers la droite s'il y a la place), sinon « Retour », sinon chevron seul ; l'aria-label garde le nom de l'écran
         back = page.evaluate("""() => { const b = document.querySelector('.navbar__back'), l = b.querySelector('.navbar__back-label');
             const ti = document.querySelector('.navbar__title'), r = document.createRange(); r.selectNodeContents(ti);
-            const shown = !!l.offsetParent, icon = b.classList.contains('navbar__back--icon'), text = l.textContent;
-            const gapOf = t => { l.textContent = t; return Math.round(r.getBoundingClientRect().left - (l.getBoundingClientRect().left + l.scrollWidth)); };
-            b.classList.remove('navbar__back--icon');   // écarts mesurés libellé affiché
-            const full = gapOf(l.dataset.full), short = gapOf('Retour');
-            l.textContent = text; b.classList.toggle('navbar__back--icon', icon);
-            return { aria: b.getAttribute('aria-label'), shown, text, full, short }; }""")
-        want = 'Entraînement' if back['full'] >= 16 else 'Retour' if back['short'] >= 16 else None
-        R.check(back['aria'] == 'Retour : Entraînement' and back['shown'] == (want is not None) and (want is None or back['text'] == want),
-                f'{t} retour « ‹ Entraînement », sinon « ‹ Retour », sinon chevron seul (16 pt avant le titre) {back}')
+            const shown = !!l.offsetParent, text = l.textContent;
+            const gap = shown ? Math.round(r.getBoundingClientRect().left - (l.getBoundingClientRect().left + l.scrollWidth)) : null;
+            const bar = b.closest('.navbar__bar').getBoundingClientRect(), tr = r.getBoundingClientRect();
+            return { aria: b.getAttribute('aria-label'), shown, text, gap, cut: l.scrollWidth > l.clientWidth + 1, inBar: tr.right <= bar.right }; }""")
+        R.check(back['aria'] == 'Retour : Entraînement' and (not back['shown'] or (back['gap'] >= 8 and not back['cut'] and back['text'] in ('Entraînement', 'Retour'))) and back['inBar'],
+                f'{t} retour « ‹ Entraînement », sinon « ‹ Retour », sinon chevron seul (8 pt avant le titre) {back}')
+        if dev == 'iPhone 13':   # panel Apple du 08/11 : « Entraînement » tient au-dessus de « Réglages »
+            R.check(back['text'] == 'Entraînement', f'{t} iPhone 13 : « ‹ Entraînement » et non « ‹ Retour » {back}')
         tab(page, 'progress')
         R.check(page.locator('.view.stats').count() == 1, f'{t} onglet Progrès')
         tab(page, 'train')

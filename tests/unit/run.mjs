@@ -85,6 +85,7 @@ const SCRIPTS = [
   'js/data/onboarding.js',
   'js/data/my-programmes.js',
   'js/data/food-swap.js',
+  'js/data/food-scan.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
   'js/ui/body-tip.js',
@@ -132,6 +133,7 @@ const sandbox = {
   document: { querySelector: () => null, getElementById: () => null },
   // Seule dépendance hors donnée : le toast « Stockage plein » de save() (js/core/dialogs.js)
   showToast: (msg, opts = {}) => { toasts.push({ msg, ...opts }); },
+  announce: () => {},   // annonces VoiceOver (js/core/dialogs.js, hors de ce contexte)
 };
 sandbox.window = sandbox;
 const ctx = vm.createContext(sandbox);
@@ -244,7 +246,7 @@ test('fmtVolume : kg, tonnes, lbs, milliers de lbs', () => {
   reset({ unit: 'lbs' });
   assert.equal(app.fmtVolume(0), '0 lbs');
   assert.equal(app.fmtVolume(100), '220 lbs');
-  assert.equal(app.fmtVolume(10000), '22 k lbs');
+  assert.equal(app.fmtVolume(10000), '22,0 k lbs');
 });
 
 test('setTxt / bestSet : meilleure série affichée', () => {
@@ -1512,6 +1514,25 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
   assert.equal(sent, null, 'sons coupés : rien');
 });
 
+test('sons : seule la fin du repos passe alert:true (audible en mode silencieux), le reste se coupe', async () => {
+  const alerts = {};
+  const box = { data: { soundOn: true }, navigator: {}, document: { addEventListener() {} },
+                Native: { haptic: () => true, sound: { available: true, play: (n, alert) => { box.last = alert; } } } };
+  const c = vm.createContext(box);
+  const src = fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8');
+  vm.runInContext(src + '\nthis.playMelody = playMelody; this.names = Object.keys(MELODIES);', c);
+  for (const name of c.names) { box.last = undefined; c.playMelody(name); alerts[name] = box.last; }
+  sameJSON(Object.keys(alerts).filter(k => alerts[k] === true).sort(), ['restCount', 'restGo', 'timer']);
+  assert.ok(Object.values(alerts).every(v => typeof v === 'boolean'), 'toujours un booléen');
+  // Jusqu'au module : le paramètre part bien vers iOS (faux par défaut)
+  const got = [];
+  const n = nativeContext({ available: ['MdlfSound'], plugins: { MdlfSound: { play: async o => { got.push(o.alert); } } } });
+  n.Native.sound.play([{ freq: 660, start: 0, dur: .1 }], true);
+  n.Native.sound.play([{ freq: 660, start: 0, dur: .1 }]);
+  await new Promise(r => setImmediate(r));
+  sameJSON(got, [true, false]);
+});
+
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 
 (await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert, ROOT });
@@ -1532,6 +1553,11 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
 // ── Séance libre (tests dans free-session.mjs) ─────────────
 
 (await import('./free-session.mjs')).default({ test, app, run, reset, assert });
+
+// ── Extension triceps poulie haute et basse (tests dans triceps-poulies.mjs) ──
+
+(await import('./triceps-poulies.mjs')).default({ test, run, reset, assert, sameJSON });
+(await import('./textes-affiches.mjs')).default({ test, assert, ROOT });
 
 // ── Récupération par muscle (tests dans recovery.mjs) ──────
 
@@ -1653,6 +1679,11 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./ergo.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Nutrition : plans bornés, macros, repas cochés, équivalences sur la vraie base Ciqual, plan du coach
 (await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// Scanner un aliment : codes-barres, réponse d'Open Food Facts, Mes aliments (tests dans food-scan.mjs)
+(await import('./food-scan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+
+// ── Panel d'ergonomie Apple, vague 3 : règles pures corrigées (tests dans panel-apple.mjs) ──
+(await import('./panel-apple.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

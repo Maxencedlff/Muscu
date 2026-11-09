@@ -169,8 +169,8 @@ def t_ordre(bench, eng, dev, theme):
         start = names(page)
         R.check(page.locator('[data-action="ex-later"]').count() == 1, f'{t} « Plus tard » seulement sur l\'exercice en cours')
         R.check(page.locator('.ex-card[data-ei="0"] [data-action="ex-later"]').inner_text().strip() == 'Plus tard', f'{t} libellé « Plus tard »')
-        R.check(page.locator('[data-action="ex-later"] .icon--arrow-down-to-line').count() == 1 and page.locator('[data-action="ex-later"] .icon--chevron-down').count() == 0,
-                f'{t} « Plus tard » : flèche vers la ligne, pas le chevron de « Réduire la séance »')
+        R.check(page.locator('[data-action="ex-later"] .icon--arrow-turn-down-right').count() == 1 and page.locator('[data-action="ex-later"] .icon--chevron-down').count() == 0,
+                f'{t} « Plus tard » : flèche qui tourne, pas le chevron de « Réduire la séance »')
         R.check(page.locator('[data-action="ex-now"]').count() == 0, f'{t} pas de « Faire maintenant » en bas des cartes')
         R.check(not small(page, '.order-link'), f'{t} bouton de 44 px {small(page, ".order-link")}')
         R.check(no_hscroll(page), f'{t} pas de défilement de côté')
@@ -180,7 +180,8 @@ def t_ordre(bench, eng, dev, theme):
         page.click('.ex-card__more[data-ei="3"]')
         page.wait_for_timeout(300)
         first = page.locator('.ios-dialog__btn').first.inner_text().strip()
-        R.check(first == 'Faire maintenant', f'{t} menu : « {first} » en tête')
+        now = page.evaluate("(() => { const b = [...document.querySelectorAll('.ios-dialog__btn')].find(x => x.textContent.trim() === 'Faire maintenant'); if (!b) return null; const r = b.getBoundingClientRect(), g = b.closest('.ios-dialog__group').getBoundingClientRect(); return r.top >= g.top && r.bottom <= g.bottom; })()")
+        R.check(first == "Remplacer l'exercice" and now, f'{t} menu : « {first} » en tête, « Faire maintenant » visible sans défiler ({now})')
         top = page.evaluate("document.querySelector('.ios-dialog__btn').getBoundingClientRect().top")
         R.check(top >= 0, f'{t} menu : premier choix visible, pas coupé en haut ({top})')
         # Panel du 07/11 (iPhone SE) : dernier choix coupé à mi-hauteur sans indice ; le bas s'estompe tant qu'il en reste
@@ -199,10 +200,9 @@ def t_ordre(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(names(page) == [start[3], start[0], start[1], start[2], start[4]], f'{t} maintenant : ordre {names(page)}')
         R.check(cur_name(page) == start[3] and current(page) == [0, 0], f'{t} maintenant : série en cours suivie ({cur_name(page)})')
-        R.check('Mis en cours' in page.locator('.toast').last.inner_text(), f'{t} maintenant : message')
+        R.check('Mis en cours' in sess_undo_text(page), f'{t} maintenant : ligne « Mis en cours · Annuler »')
         R.check(page.evaluate("(r => r && r.top > 60 && r.bottom < innerHeight)(document.querySelector('.session-set--current')?.getBoundingClientRect())"), f'{t} maintenant : série en cours visible')
-        page.locator('.toast button', has_text='Annuler').last.click()
-        page.wait_for_timeout(300)
+        sess_undo(page)
         R.check(names(page) == start and cur_name(page) == start[0], f'{t} Annuler : ordre d\'avant')
 
         # Une série faite, puis Plus tard : l'exercice passe en dernier avec sa série validée, le suivant prend la main
@@ -213,7 +213,11 @@ def t_ordre(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(names(page) == start[1:] + [start[0]], f'{t} plus tard : en dernier {names(page)}')
         R.check(cur_name(page) == start[1], f'{t} plus tard : le suivant est en cours ({cur_name(page)})')
-        R.check(page.locator('.toast').last.inner_text().startswith('Mis en dernier'), f'{t} plus tard : message')
+        R.check(sess_undo_text(page) == f'{start[0]} mis en dernier', f'{t} plus tard : ligne « <nom> mis en dernier · Annuler »')
+        page.wait_for_timeout(400)   # défilement doux vers le suivant
+        R.check(page.evaluate("""() => { const u = document.querySelector('.ex-undo'), bar = document.querySelector('#app .navbar');
+            const r = u && u.getBoundingClientRect(); return !!r && r.top >= (bar ? bar.getBoundingClientRect().bottom : 0) - 1 && r.bottom <= innerHeight; }"""),
+            f'{t} plus tard : la ligne reste à l\'écran, au-dessus du suivant')
         R.check(page.evaluate('activeSession.exercises.at(-1).sets[0].done'), f'{t} plus tard : série validée gardée')
         shot(page, LOT, f'{t}-8-ordre-plus-tard')
 
@@ -264,8 +268,8 @@ def t_ordre_sous_serie(bench, eng, dev, theme):
         R.check(vis, f'{t} plus tard : la série en cours est à l\'écran')
         R.check(page.evaluate("activeSession.exercises.at(-1).sets[1].sub.length === 1"), f'{t} plus tard : le drop reste à remplir')
         shot(page, LOT, f'{t}-10-ordre-plus-tard-drop')
-        page.locator('.toast button', has_text='Annuler').last.click()
-        page.wait_for_timeout(500)
+        sess_undo(page)
+        page.wait_for_timeout(200)
         R.check(names(page) == start and page.locator('.session-set--subcur').count() == 1, f'{t} Annuler : ordre et drop en attente rendus')
         R.check(not page.errors, f'{t} erreurs JS {page.errors}')
 

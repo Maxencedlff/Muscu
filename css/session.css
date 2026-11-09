@@ -6,7 +6,8 @@
 
 /* Bas : place pour le toast « Série validée · Annuler » (et la barre de repos au-dessus de lui) */
 .view.session .session-content { padding: 16px 16px calc(96px + env(safe-area-inset-bottom, 0px)); gap: 12px; }
-.view.session.session--resting .session-content { padding-bottom: calc(188px + env(safe-area-inset-bottom, 0px)); }
+/* --rest-h : hauteur mesurée de la mini-barre (afterSessionRender), pour que la série à faire défile au-dessus d'elle */
+.view.session.session--resting .session-content { padding-bottom: calc(var(--rest-h, 172px) + 16px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── Carte d'exercice ────────────────────────────── */
 .ex-card.exercise-block {
@@ -33,6 +34,8 @@
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
 }
 .ex-howto .icon { display: inline-block; vertical-align: -2px; margin-left: 5px; color: var(--label2); }
+/* Dernier mot et ⓘ ensemble : ⓘ ne passe jamais seul à la ligne (howToNameHtml, js/features/session-sheets.js) */
+.ex-howto__tail { white-space: nowrap; }
 .ex-howto:active .ex-howto__text { opacity: .5; }
 .ex-card__count { font-size: 0.882rem; color: var(--label2); flex-shrink: 0; }
 .ex-card__more {
@@ -43,7 +46,7 @@
 .ex-card__more:active { background: var(--fill); }
 .bump-chip {
   flex-shrink: 0; min-height: 32px; padding: 0 10px; border: 0; border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green-text);
+  background: var(--fill); color: var(--tint);   /* une action : le bleu, jamais le vert de « fait » (panel t5) */
   font-size: 0.765rem; font-weight: 600; white-space: nowrap; cursor: pointer; position: relative;
 }
 .bump-chip::after { content: ''; position: absolute; inset: -6px -2px; }
@@ -51,10 +54,11 @@
 
 /* ── Superset (js/features/session.js, renderGroupCard) : une carte, barre de couleur à gauche,
    une ligne par exercice en tête, puis les séries tour par tour ─────────────── */
-.ex-card.ss-card { border-left: 4px solid var(--cat-color, var(--tint)); padding-left: 10px; }
+/* Superset : bleu partout (séance, coach, Social), jamais la couleur d'une séance qui peut être verte (« fait ») */
+.ex-card.ss-card { border-left: 4px solid var(--tint); padding-left: 10px; }
 .ss-tag {
   display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 22px; padding: 0 5px;
-  border-radius: 6px; background: color-mix(in srgb, var(--cat-color, var(--tint)) 22%, transparent);
+  border-radius: 6px; background: color-mix(in srgb, var(--tint) 22%, transparent);
   color: var(--label); font-size: 0.765rem; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0;
 }
 .ss-tag--sm { min-width: 24px; height: 19px; font-size: 0.706rem; margin-right: 7px; vertical-align: 1px; }
@@ -64,10 +68,12 @@
   flex: 1; min-width: 0; font-size: 0.941rem; font-weight: 500; color: var(--label);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* Nom sur une ligne, points de suspension ; ⓘ toujours visible après le nom */
-.ss-member__name.ex-howto { display: flex; align-items: center; padding: 11px 0; margin: 0; }
-.ss-member__name .ex-howto__text { display: block; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ss-member__name.ex-howto .icon { flex-shrink: 0; }
+/* Nom sur deux lignes au plus, comme les cartes simples : sur une ligne, la fin qui distingue deux exercices
+   (« prise serrée », « prise large ») disparaissait (iPhone SE, panel Apple du 08/11) ; ⓘ toujours visible après */
+.ss-member__name { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; padding: 11px 0; }
+/* ⓘ collé au dernier mot, comme sur une carte simple (il était poussé à droite quand le nom tenait sur deux lignes, panel t5) */
+.ss-member__name.ex-howto { display: block; padding: 11px 0; margin: 0; min-height: 44px; }
+.ss-member__name .ex-howto__text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; white-space: normal; overflow: hidden; overflow-wrap: anywhere; }
 .ss-round + .ss-round { margin-top: 2px; }
 .ss-round__title {
   padding: 10px 0 2px; font-size: 0.706rem; font-weight: 600; letter-spacing: .04em;
@@ -85,8 +91,9 @@
 .ed-ss-btn:active { opacity: .5; }
 
 .ex-card__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin: 0 0 8px; }
-/* Objectif du jour (exGoalHtml) : sous le nom, couleur d'accent ; vert une fois battu */
-.ex-goal { display: flex; align-items: center; gap: 4px; margin: -2px 0 2px; font-size: 0.765rem; line-height: 1.059rem; font-weight: 600; color: var(--tint); }
+/* Objectif du jour (exGoalHtml) : sous le nom, en gras et en couleur de texte (ce n'est pas un bouton : le bleu d'action
+   le faisait passer pour « Repos 2:00 », juste dessous, panel Apple du 08/11) ; vert une fois battu */
+.ex-goal { display: flex; align-items: center; gap: 4px; margin: -2px 0 2px; font-size: 0.765rem; line-height: 1.059rem; font-weight: 600; color: var(--label); }
 .ex-goal--done { color: var(--green-text); }
 .ex-goal--member { margin: -8px 0 4px calc(28px + 8px); }   /* sous le nom, après la lettre A1 (.ss-tag) */
 .ex-rest-link {
@@ -118,12 +125,14 @@
   transition: transform .25s cubic-bezier(.2,.8,.2,1), background .2s;
   touch-action: pan-y;
 }
+/* Série à faire : toujours le bleu de « prochain », jamais la couleur de la séance (une séance verte la faisait passer
+   pour validée, le vert étant réservé à « fait », panel t5) */
 .session-set--current {
-  background: color-mix(in srgb, var(--cat-color) 8%, var(--cell));
-  box-shadow: inset 3px 0 0 var(--cat-color);
+  background: color-mix(in srgb, var(--tint) 8%, var(--cell));
+  box-shadow: inset 3px 0 0 var(--tint);
 }
 .session-set--go { animation: setGo .9s ease 2; }
-@keyframes setGo { 50% { background: color-mix(in srgb, var(--cat-color) 22%, var(--cell)); } }
+@keyframes setGo { 50% { background: color-mix(in srgb, var(--tint) 22%, var(--cell)); } }
 .session-set--done { cursor: pointer; }
 .session-set--done:active { background: var(--fill); }
 .session-set--editing { background: color-mix(in srgb, var(--tint) 8%, var(--cell)); }
@@ -138,7 +147,8 @@
   color: var(--label); font-size: 1.176rem; font-weight: 600; text-align: center;
   font-variant-numeric: tabular-nums; letter-spacing: -.2px;
 }
-.session-set .set-input::placeholder { color: var(--label3); }
+/* Objectif affiché dans le champ vide : l'info principale de la ligne, à 4,5:1 (en --label3 il tombait à 1,5:1, panel t6) */
+.session-set .set-input::placeholder { color: var(--label2); }
 .session-set .set-input:focus { outline: none; background: var(--fill); box-shadow: 0 0 0 2px var(--tint); }
 .session-set .set-input.set-input--error { box-shadow: 0 0 0 2px var(--red); }
 @media (max-width: 374px) { .session-set .set-input { font-size: 1.059rem; } }
@@ -150,12 +160,13 @@
 .set-check {
   width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: inset 0 0 0 2px var(--label3); color: var(--white);
+  box-shadow: inset 0 0 0 2px var(--set-ring); color: var(--white);
   transition: background .15s, transform .15s;
 }
 .set-check-zone:active .set-check { transform: scale(.9); }
-/* Série suivante d'une série pas encore faite : ✓ grisé (validation dans l'ordre) */
-.set-check-zone--wait .set-check { opacity: .35; }
+/* Série suivante d'une série pas encore faite : rond plus discret (validation dans l'ordre), mais toujours à 3:1
+   au moins sur la carte (WCAG 1.4.11 ; l'opacité .35 le laissait à 1,25:1 en sombre, panel t6) */
+.set-check-zone--wait .set-check { box-shadow: inset 0 0 0 2px var(--set-ring-wait); }
 .set-check-zone--wait:active .set-check { transform: none; }
 .set-check--done { background: var(--green); box-shadow: none; }
 .set-check--edit { background: var(--tint); box-shadow: none; }
@@ -174,13 +185,15 @@
 }
 .session-set .set-badge { display: flex; flex-wrap: wrap; gap: 4px; }
 
+/* Fermé : transparent et sous la ligne, mais présent pour VoiceOver, qui le trouve juste avant sa série (en
+   visibility: hidden, une série ne pouvait pas se supprimer sans le glissé, panel t5) */
 .set-del {
-  visibility: hidden;
+  opacity: 0; pointer-events: none;
   position: absolute; top: 0; right: 0; bottom: 0; width: 88px; z-index: 0;   /* = SWIPE_OPEN (session-gestures.js) */
   background: var(--red); color: var(--white); border: 0; padding: 0; font-size: 0.824rem; font-weight: 600; letter-spacing: -.2px; cursor: pointer;
 }
 
-.set-swipe--open .set-del, .set-swipe--swiping .set-del { visibility: visible; }
+.set-swipe--open .set-del, .set-swipe--swiping .set-del { opacity: 1; pointer-events: auto; }
 .add-set-link {
   display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 6px; margin-left: -6px;
   background: none; border: 0; color: var(--tint); font-size: 0.882rem; font-weight: 600; cursor: pointer; font-family: inherit;
@@ -196,7 +209,7 @@
 .ex-summary__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ex-summary__name { font-size: 1rem; line-height: 1.294rem; font-weight: 600; overflow-wrap: anywhere; }
 .ex-summary__line { font-size: 0.765rem; color: var(--label2); display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.ex-summary__line .medal { color: var(--yellow); }
+.ex-summary__line .medal { color: var(--medal); }
 .ex-summary__check { width: 28px; height: 28px; }
 
 .view.session .session-add-ex-btn {
@@ -239,6 +252,8 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
 .rest-mini .rest-mini__skip {
   display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--tint-on-fill);
 }
+/* En sombre, la mini-barre est sur --cell2 (plus clair que la cellule) : bleu éclairci pour 5:1 (4:1 avec #64AFFF) */
+body:not(.light) .rest-mini .rest-mini__skip { color: #8AC4FF; }
 .rest-mini__btn:active, .rest-mini .rest-mini__skip:active { opacity: .6; }
 /* « Ensuite : nom · S2 · 32,5 kg × 10 » : le nom se coupe (points de suspension), jamais la série */
 .rest-mini__next {
@@ -250,9 +265,19 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
 .rest-mini--done { animation: restGo 1s ease 2; }
 @keyframes restGo { 30% { background: color-mix(in srgb, var(--cat-color) 55%, var(--cell2)); } }
 .rest-mini__go { grid-column: 1 / -1; text-align: center; font-size: 1.294rem; font-weight: 700; color: var(--label); }
-/* Écrans étroits : « −15 » sans unité (l'aria-label la garde), puis anneau masqué */
-@media (max-width: 429px) { .rest-mini__u { display: none; } }
+/* « −15 » sans unité partout, comme la feuille Repos (l'aria-label la garde ; « −15 s » sur grand écran seulement faisait
+   deux libellés pour un bouton, panel t5) ; écrans étroits : anneau masqué */
 @media (max-width: 379px) { .rest-ring--small { display: none; } }
+/* Écran étroit : « S2 » part avant que le nom de l'exercice soit coupé (la charge et les reps restent) */
+@media (max-width: 379px) { .rest-mini__next .rest-mini__step { display: none; } }
+/* iPhone SE : le nom de l'exercice suivant entier (panel t6 : « Rowing haltère uni… », l'info utile pendant le repos),
+   la charge sur sa propre ligne, sans « · » en tête */
+@media (max-width: 359px) {
+  .rest-mini__next { flex-wrap: wrap; }
+  .rest-mini__name { white-space: normal; overflow: visible; }
+  .rest-mini__tail { flex-basis: 100%; }
+  .rest-mini__sep { display: none; }
+}
 @media (max-width: 359px) {
   .rest-mini { column-gap: 4px; padding-left: 12px; padding-right: 8px; }
   .rest-mini__btn, .rest-mini .rest-mini__skip { min-width: 44px; padding: 0 6px; }
@@ -260,14 +285,15 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
 
 /* Pendant la séance, les toasts passent en bas (au-dessus de la barre de repos) pour ne pas masquer l'exercice */
 /* fond opaque : le texte des cartes ne se lit pas à travers */
-body:has(.view.session) .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--dlg-solid); }
+body:has(.view.session) .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--toast-bg); }
 /* Bilan : en haut, le bouton « Terminé » reste lisible */
-body:has(.view.summary) .toast { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--dlg-solid); }
+body:has(.view.summary) .toast { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--toast-bg); }
 body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── Feuilles de la séance (variante non bloquante de .sheet, voir openSessSheet) ── */
 .sess-sheet { position: fixed; inset: 0; z-index: 400; }
 .sess-sheet__backdrop { position: absolute; inset: 0; background: var(--dimmer); animation: iosFade .25s ease; }
+.sess-sheet--tall .sess-sheet__backdrop { background: color-mix(in srgb, var(--bg) 92%, transparent); }   /* fond couvert (openSessSheet) */
 .sess-sheet__panel {
   position: absolute; left: 0; right: 0; bottom: 0;
   max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 16px);
@@ -286,20 +312,39 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .rs { padding: 4px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 16px; color: var(--label); }
 .rs__title { font-size: 1rem; font-weight: 600; text-align: center; max-width: 100%; overflow-wrap: anywhere; }
 .rs__ring { position: relative; width: 220px; height: 220px; }
+/* « Fin du repos à 18:32 » tient dans l'anneau (panels de la vague 3 : il débordait de l'anneau réduit) */
+.rs__resume { max-width: 168px; text-align: center; line-height: 1.2; }
 .rest-ring--big { width: 220px; height: 220px; }
 .rs__center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .rs__time { font-family: var(--font-rounded); font-size: 72px; line-height: 1; font-weight: 300; letter-spacing: 0; }
 .rs__resume { font-size: 0.882rem; color: var(--label2); }
+/* Annuler en ligne (sessionUndo, js/features/session.js) : dans la colonne « Avant » de la série, ou en ligne au-dessus de
+   la carte de l'exercice ; prend sa place, ne recouvre rien */
+.set-undo {
+  min-height: 44px; min-width: 44px; padding: 0 2px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 0.765rem; font-weight: 700; color: var(--tint); white-space: nowrap; position: relative; z-index: 1;
+}
+.set-undo:active { opacity: .5; }
+.set-undo--state { color: var(--green-text); font-weight: 600; }
+/* Texte agrandi : « Annuler » passe dessous quand la place manque, jamais de mot coupé en deux (panel t7) */
+.ex-undo {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 12px; min-height: 44px;
+  margin: 0 0 8px; padding: 0 4px 0 16px; border-radius: var(--r-md); background: var(--cell);
+  font-size: var(--fs-subhead); color: var(--label2);
+}
+.ex-undo__text { flex: 1 1 8em; min-width: 0; padding: 10px 0; overflow-wrap: break-word; }
+.ex-undo__btn { flex-shrink: 0; margin-left: auto; min-height: 44px; padding: 0 12px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--tint); cursor: pointer; }
+.ex-undo__btn:active { opacity: .5; }
 .rs__value { font-family: var(--font-rounded); font-size: 64px; line-height: 1; font-weight: 300; padding: 8px 0; }
 .rs-seg {
   display: grid; grid-template-columns: repeat(6, 1fr); width: 100%; max-width: 360px;
   background: var(--fill); border-radius: 9px; padding: 2px; gap: 2px;
 }
+/* Durées (1:00 à 5:00), barres des disques : 44 px de haut, la zone de toucher minimale (docs/ERGONOMIE.md §4) */
 .rs-seg__btn {
-  height: 32px; border: 0; border-radius: 7px; background: none; color: var(--label);
+  height: 44px; border: 0; border-radius: 7px; background: none; color: var(--label);
   font-size: 0.765rem; font-weight: 600; cursor: pointer; position: relative;
 }
-.rs-seg__btn::after { content: ''; position: absolute; inset: -6px 0; }
 .rs-seg__btn[aria-pressed="true"] { background: var(--segment-on); box-shadow: var(--shadow-seg); }
 .rs__adj { display: flex; align-items: center; justify-content: center; gap: 20px; }
 .rs__round {
@@ -368,24 +413,32 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .sum-date::first-letter { text-transform: uppercase; }
 /* Ligne de ce qui a progressé (summaryLine) ; médaille d'un record qui apparaît (0,6 → 1 en 300 ms) */
 .sum-line { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 0.941rem; line-height: 1.294rem; font-weight: 600; color: var(--label); }
-.sum-line .medal { color: var(--yellow); flex-shrink: 0; }
+.sum-line .medal { color: var(--medal); flex-shrink: 0; }
+html.type-xl .sum-line { align-items: flex-start; }   /* médaille sur la première ligne du texte, comme un Label (panel t5) */
+/* Médaille à la taille du texte (elle restait à 18 px à côté d'un texte AX33, panel t6), centrée sur la première ligne */
+html.type-xl .sum-line .medal { width: 1.2em; height: 1.2em; margin-top: .09em; }   /* ligne de 1,375 em */
+html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 40px); }
 .summary--pop .sum-line .medal, .summary--pop .sum-record .medal { animation: sum-medal .3s cubic-bezier(.2, .8, .2, 1.2) both; }
 @keyframes sum-medal { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .sum-tiles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
 .sum-tile { background: var(--cell); border-radius: var(--r-md); padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.sum-tile__label { font-size: 0.765rem; color: var(--label2); }
-.sum-tile__value { font-size: 1.294rem; line-height: 1.647rem; font-weight: 700; white-space: nowrap; }
-.sum-tile__unit { font-size: 0.765rem; font-weight: 600; white-space: nowrap; }
+/* Valeur puis libellé dessous, comme le fil, la séance d'un ami et Mon profil (même style partout, vague 3) */
+/* Même tuile que l'historique, le fil et Mon profil (.tile, css/screens.css) : unité au corps du chiffre, valeur qui suit la
+   largeur de l'écran, libellés sur une même ligne (panel t5 : unité en petit, « Séries » plus haut que ses voisins) */
+.sum-tile__label { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); order: 1; }
+.sum-tile__delta { order: 2; }
+.sum-tile__value { font-size: clamp(0.9rem, 5vw, 1.294rem); line-height: 1.2; font-weight: 700; white-space: nowrap; }
+.sum-tile__unit { white-space: nowrap; display: inline-block; }   /* bloc : la coupure avant lui est permise (WebKit ne coupait pas devant un span nowrap, « 19,6 k lbs » débordait sur l'iPhone Duo fermé) */
 /* « 19,6 k lbs » : l'unité passe dessous s'il le faut (espace simple) ; « 52 min », « 1 h 05 » restent d'un bloc */
 .sum-tile__value:has(.sum-tile__unit) { white-space: normal; }
-@media (max-width: 359px) { .sum-tile { padding: 12px 10px; } .sum-tile__value { font-size: 1.176rem; } }
-.sum-tile__delta { font-size: 0.765rem; color: var(--label2); font-weight: 600; white-space: nowrap; }
+.sum-tile__delta { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); font-weight: 600; }
+.sum-tile__delta-n { white-space: nowrap; }
 .sum-tile__delta--up { color: var(--green-text); }
 .sum-section-title { font-size: 0.765rem; color: var(--label2); text-transform: uppercase; padding: 24px 16px 6px; }
 .sum-list { background: var(--cell); border-radius: var(--r-md); overflow: hidden; }
 .sum-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 16px; position: relative; }
 .sum-row + .sum-row::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
-.sum-record .medal { color: var(--yellow); flex-shrink: 0; }
+.sum-record .medal { color: var(--medal); flex-shrink: 0; }
 .sum-row__main { flex: 1; min-width: 0; }
 .sum-row__name { font-size: 1rem; line-height: 1.294rem; overflow-wrap: anywhere; }
 .sum-row__sub { font-size: 0.765rem; color: var(--label2); }
@@ -564,8 +617,9 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .session-set--warmup .set-check--done { background: var(--label2); }
 /* Bouton « Disques » à la place du numéro de la série à faire (exercice à barre) : 44 px de zone de toucher */
 .set-plates {
-  position: relative; width: 32px; height: 32px; justify-self: center; border: 0; border-radius: 50%; cursor: pointer; padding: 0;
-  background: var(--fill); color: var(--tint-on-fill); display: inline-flex; align-items: center; justify-content: center;
+  position: relative; min-width: 0; height: 44px; justify-self: center; border: 0; border-radius: var(--r-pill); cursor: pointer; padding: 0 6px;
+  background: var(--fill); color: var(--tint-on-fill); display: inline-flex; align-items: center; justify-content: center; gap: 2px;
+  font: inherit; font-size: 0.882rem; font-weight: 600;
 }
 .set-plates::after { content: ''; position: absolute; inset: -6px; }
 .set-plates:active { opacity: .6; }
@@ -578,6 +632,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 }
 .rir__lbl, .rir__rpe { font-size: 0.765rem; font-weight: 600; color: var(--label2); white-space: nowrap; }
 .rir__btns { order: 2; flex-basis: 100%; display: flex; gap: 8px; }
+.rir__help { order: 1; flex-basis: 100%; font-size: 0.765rem; color: var(--label2); }
 .rir__btn {
   width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; flex-shrink: 0;
   background: var(--fill); color: var(--label); font-size: 0.882rem; font-weight: 600; font-family: inherit;
@@ -608,25 +663,28 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .set-tech-n:active { opacity: .6; }
 .tech { margin: -2px -6px 4px; }
 .tech__cap {
-  display: flex; align-items: center; gap: 12px; min-height: 44px; min-width: 0;
+  display: flex; align-items: center; gap: 16px; min-height: 52px; min-width: 0;
   padding: 0 6px 0 calc(28px + var(--set-gap)); border-left: 2px solid var(--sep);
 }
 .tech__name { font-size: 0.765rem; font-weight: 700; color: var(--label); white-space: nowrap; }
-.tech__hint { flex: 1; min-width: 0; font-size: 0.706rem; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tech__hint { flex: 0 0 auto; font-size: 0.706rem; color: var(--label2); white-space: nowrap; }   /* « 15 s », « sans repos » : courts, jamais coupés */
+.tech__label { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex: 1; }
+/* Étroit (iPhone SE) : la pause passe sous le nom de la technique, entière, plutôt que d'être coupée */
+@media (max-width: 374px) { .tech__label { flex-direction: column; align-items: flex-start; gap: 0; } }
 .tech__add, .tech__x {
-  position: relative; flex-shrink: 0; height: 32px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  position: relative; flex-shrink: 0; height: 36px; border: 0; border-radius: var(--r-pill); cursor: pointer;
   background: var(--fill); color: var(--tint-on-fill); font-family: inherit; font-size: 0.765rem; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center; gap: 2px;
 }
 .tech__add { padding: 0 10px 0 8px; }
 .tech__cap > button:first-of-type { margin-left: auto; }   /* boutons à droite, même sans le texte d'aide (petit écran) */
-.tech__x { width: 32px; color: var(--label2); }
-.tech__add::after, .tech__x::after { content: ''; position: absolute; inset: -6px; }   /* 44 px de zone de toucher */
+.tech__x { width: 36px; color: var(--label2); }
+.tech__add::after, .tech__x::after { content: ''; position: absolute; inset: -4px; }   /* 44 px de zone de toucher, 8 px libres entre les deux (panel de la vague 3) */
 .tech__add:active, .tech__x:active { opacity: .6; }
 .session-set--sub { min-height: 52px; margin-bottom: 2px; border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: inset 2px 0 0 var(--sep); }
-.session-set--subcur { background: color-mix(in srgb, var(--cat-color) 8%, var(--cell)); box-shadow: inset 3px 0 0 var(--cat-color); }
+.session-set--subcur { background: color-mix(in srgb, var(--tint) 8%, var(--cell)); box-shadow: inset 3px 0 0 var(--tint); }
 .tech-tag { font-size: 0.706rem; font-weight: 700; letter-spacing: .02em; }
-@media (max-width: 374px) { .tech__cap { padding-left: calc(24px + var(--set-gap)); } .tech__hint { display: none; } }
+@media (max-width: 374px) { .tech__cap { padding-left: calc(24px + var(--set-gap)); } }
 
 /* Historique : lignes « Échauffement … » et « Reps en réserve … » sous les séries */
 .hex__sets--note { color: var(--label3); }
@@ -641,6 +699,9 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .pl__collar { fill: var(--label2); }
 .pl__plate { fill: color-mix(in srgb, var(--cat-color, var(--tint)) 55%, var(--cell)); stroke: var(--cat-color, var(--tint)); stroke-width: 1.5; }
 .pl__pw { fill: var(--label); font-size: 13px; font-weight: 600; font-family: var(--font); }
+/* Texte agrandi : le poids sous chaque disque grandit aussi (13 px fixes en AX33, panel t6) ; deux lignes en quinconce
+   espacées de 16 unités : 19 au plus pour que les chiffres ne se touchent pas */
+html.type-xl .pl__pw { font-size: 19px; }
 .pl__result { font-size: 0.941rem; text-align: center; color: var(--label2); padding: 0 8px; }
 .pl__result b { color: var(--label); font-weight: 600; }
 .pl__warn { color: var(--orange-text); }
@@ -652,7 +713,10 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .pl__row { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 360px; }
 .pl__row--top { align-items: flex-start; }
 .pl__row--top .pl__lbl { padding-top: 9px; }
-.pl__lbl { width: 56px; flex-shrink: 0; font-size: 0.882rem; font-weight: 600; color: var(--label2); }
+.pl__lbl { min-width: 56px; flex-shrink: 0; white-space: nowrap; font-size: 0.882rem; font-weight: 600; color: var(--label2); }
+/* Texte agrandi : le libellé au-dessus de ses boutons, sur toute la largeur (« Barr/e », « Disq/ues » coupés, panel t5) */
+html.type-xl .pl__row { flex-direction: column; align-items: stretch; gap: 6px; }
+html.type-xl .pl__row--top .pl__lbl { padding-top: 0; }
 .pl__bars.rs-seg { grid-template-columns: repeat(3, 1fr); max-width: none; flex: 1; }
 .pl__bars .rs-seg__btn { height: 44px; }
 .pl__chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }

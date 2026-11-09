@@ -123,7 +123,7 @@ def t_chevrons(bench):
             seed(page, 'light', json.dumps(d, ensure_ascii=False))
             page.evaluate("r => navigate(r)", 'history')
             page.wait_for_timeout(250)
-            R.check(f'Programme {name}' in page.inner_text('#app'), f'{eng} historique : nom affiché tel quel')
+            R.check(f'· {name}' in page.inner_text('#app'), f'{eng} historique : nom du programme affiché tel quel')
             R.check(page.locator('hiver').count() == 0, f'{eng} historique : aucun élément <hiver>')
             page.evaluate("r => navigate(r)", 'history-detail:hb')
             page.wait_for_timeout(250)

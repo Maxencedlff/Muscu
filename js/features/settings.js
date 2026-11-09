@@ -91,6 +91,7 @@ ${renderAccessSettingsGroup()}
             ${switchHtml(data.vibrateOn !== false)}
           </button>
         </div>
+        <div class="group-foot">La fin du repos sonne même en mode silencieux.</div>
 ${renderAppleServicesGroup(switchHtml)}
 
         <div class="group-title">Apparence</div>

@@ -9,6 +9,8 @@ let restEditEi = null;  // exercice dont on règle le repos (feuille)
 // en direct (repos, ajout d'exercice). Fermée aussi par closeTransientUI() lors d'un changement d'écran.
 function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
   document.querySelector(`.sess-sheet${cls ? '.' + cls : ''}`)?.remove();
+  // Un simple message en ligne (sans « Annuler ») ne survit pas à l'ouverture d'une feuille : il réapparaissait après
+  if (sessUndo && !sessUndo.onAction) { clearSessionUndo(); document.querySelectorAll('.ex-undo').forEach(e => e.remove()); }
   const root = document.createElement('div');
   root.className = `sess-sheet ${full ? 'sess-sheet--full' : ''} ${cls}`;
   root.setAttribute('role', 'dialog');
@@ -56,6 +58,9 @@ function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
   panel.addEventListener('pointercancel', end);
 
   document.body.appendChild(root);
+  // Feuille presque aussi haute que l'écran : le fond est couvert, plus de titre de séance ni de « Terminer » coupés
+  // derrière la poignée (panel t5) ; mesure sans la transformation de l'animation
+  if (full || panel.offsetHeight > window.innerHeight - 120) root.classList.add('sess-sheet--tall');
   return root;
 }
 
@@ -71,9 +76,9 @@ function exRestSheetHtml(ei) {
   return `
     <div class="rs rs--ex">
       <div class="rs__title">Repos · ${ssGroupOf(activeSession.exercises, ei) ? 'après chaque tour' : esc(ex.name)}</div>
-      <div class="rs__value num" id="exRestValue">${fmtRest(v)}</div>
+      <div class="rs__value num" id="exRestValue" aria-label="${fmtRestSpoken(v)}">${fmtRest(v)}</div>
       <div class="rs-seg" role="group" aria-label="Durée du repos">
-        ${REST_PRESETS.map(p => `<button class="rs-seg__btn num" data-action="ex-rest-set" data-secs="${p}" aria-pressed="${v === p}">${fmtRest(p)}</button>`).join('')}
+        ${REST_PRESETS.map(p => `<button class="rs-seg__btn num" data-action="ex-rest-set" data-secs="${p}" aria-pressed="${v === p}" aria-label="${fmtRestSpoken(p)}">${fmtRest(p)}</button>`).join('')}
       </div>
       <div class="rs__adj">
         <button class="rs__round num" data-action="ex-rest-adj" data-d="-15" aria-label="Moins 15 secondes">−15</button>
@@ -96,7 +101,7 @@ function setExRest(ei, secs) {
   const exData = sessExData(ex);
   if (exData) { exData.rest = secs; save(); } else ex.rest = secs;
   const val = $('#exRestValue');
-  if (val) val.textContent = fmtRest(secs);
+  if (val) { val.textContent = fmtRest(secs); val.setAttribute('aria-label', fmtRestSpoken(secs)); }
   document.querySelectorAll('.sess-sheet--exrest .rs-seg__btn').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.secs === secs)));
   haptic();
 }
@@ -120,21 +125,23 @@ const AX_PARTIAL_MAX = 3;
 // bibliothèque filtrée (matériel, exclusions) dans l'ordre d'exerciseLibrary. Renvoie { recent, done, same, rest }.
 const AX_RECENT_MAX = 5, AX_SAME_MAX = 8;
 function axSections(names, around = [], history = data.history) {
-  const byKey = new Map(names.map(n => [normName(n), n]));
+  // Clé qui ignore les renommages : « Extension triceps poulie » fait avant le 09/11/2026 compte comme
+  // « Extension triceps poulie haute » (RENAMED_EXERCISES, js/data/exercise-catalogue.js)
+  const byKey = new Map(names.map(n => [exerciseNameKey(n), n]));
   const doneKeys = [];   // exercices faits, du plus récent au plus ancien
   (history || []).slice().sort((a, b) => b.date - a.date).forEach(h => (h.exercises || []).forEach(e => {
-    const k = normName(e.name);
+    const k = exerciseNameKey(e.name);
     if (byKey.has(k) && !doneKeys.includes(k)) doneKeys.push(k);
   }));
   const taken = new Set(doneKeys);
   const index = chosenMusclesIndex();
   const target = new Set(around.flatMap(n => exerciseMuscles({ name: n }, index).primary));
-  const same = target.size ? names.filter(n => !taken.has(normName(n)))
+  const same = target.size ? names.filter(n => !taken.has(exerciseNameKey(n)))
     .map(n => ({ n, common: exerciseMuscles({ name: n }, index).primary.filter(id => target.has(id)).length }))
     .filter(x => x.common).sort((a, b) => b.common - a.common || catalogueRank(a.n) - catalogueRank(b.n)).slice(0, AX_SAME_MAX).map(x => x.n) : [];
-  same.forEach(n => taken.add(normName(n)));
+  same.forEach(n => taken.add(exerciseNameKey(n)));
   const done = doneKeys.map(k => byKey.get(k));
-  return { recent: done.slice(0, AX_RECENT_MAX), done: done.slice(AX_RECENT_MAX), same, rest: names.filter(n => !taken.has(normName(n))) };
+  return { recent: done.slice(0, AX_RECENT_MAX), done: done.slice(AX_RECENT_MAX), same, rest: names.filter(n => !taken.has(exerciseNameKey(n))) };
 }
 function axSectionsHtml(names) {
   const { recent, done, same, rest } = axSections(names, ax.around);
@@ -149,7 +156,7 @@ function axListHtml(q) {
   const eq    = data.exEquip;
   // Toute la bibliothèque (pas de coupure : un exercice ne doit jamais être introuvable sans le chercher)
   // Les exercices créés par la personne (sans matériel connu) restent visibles quel que soit le filtre
-  const names = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (eq === 'all' || [eq, null].includes(equipmentOf(n)))
+  const names = exerciseLibrary().filter(n => !ax.exclude.has(exerciseNameKey(n)) && (eq === 'all' || [eq, null].includes(equipmentOf(n)))
     && muscleFilterMatch(exerciseMuscles({ name: n }), axMuscle));
   // « Créer » reste toujours proposé (en dernier) dès que le nom exact n'existe pas, même quand un alias
   // ou un exercice proche correspond : une variante comme « Tractions lestées » doit avoir son propre suivi
@@ -237,7 +244,7 @@ function muscleFilterTap(el, f) {
 // exclude : noms à ne pas proposer (par défaut, les exercices de la séance en cours)
 function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick = null } = {}) {
   const names = exclude ?? (activeSession?.exercises || []).map(e => e.name);
-  ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(normName)), around: names, onPick };
+  ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(exerciseNameKey)), around: names, onPick };
   const rep   = ax.replaceEi !== null ? activeSession.exercises[ax.replaceEi] : null;
   axMuscle    = NO_MUSCLE_FILTER;
   axSets      = rep ? Math.max(1, rep.sets.filter(s => !s.done).length) : 3;   // les séries qui restent à faire
@@ -249,7 +256,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
         <span class="ax__spacer"></span>
       </div>
       ${rep ? `<div class="ax__replacing">À la place de ${esc(rep.name)}</div>${axProgressionHtml(rep.name)}` : ''}
-      <input type="search" id="axSearch" class="ax__search" placeholder="Rechercher ou créer" autocomplete="off"
+      <input type="search" id="axSearch" class="ax__search" placeholder="${document.documentElement.classList.contains('type-xl') ? 'Rechercher' : 'Rechercher ou créer'}" autocomplete="off"
              autocapitalize="sentences" enterkeyhint="done" aria-label="Rechercher un exercice">
       ${axEquipHtml()}
       ${muscleFilterHtml('ax-muscle', axMuscle)}
@@ -279,7 +286,7 @@ function axPick(name) {
   if (!name) return;
   name = name.charAt(0).toUpperCase() + name.slice(1);  // nom créé en minuscules : « Hip thrust », pas « hip thrust »
   // Lu avant l'ajout, qui fait entrer le nom dans la bibliothèque
-  const created = !exerciseLibrary().some(n => normName(n) === normName(name));
+  const created = !exerciseLibrary().some(n => sameExerciseName(n, name));
   if (ax.target === 'programme') addExerciseToEditedSession(name);
   else if (ax.target === 'past') ax.onPick?.(name, axSets);
   else pickExercise(name);
@@ -295,7 +302,7 @@ function axPick(name) {
 function addExerciseToEditedSession(name) {
   const cat  = editorCatOf();
   const list = prog().exercises[cat] || (prog().exercises[cat] = []);
-  if (list.some(e => normName(e.name) === normName(name))) { showToast('Déjà dans cette séance'); return; }
+  if (list.some(e => sameExerciseName(e.name, name))) { showToast('Déjà dans cette séance'); return; }
   list.push(makeExercise(name, axSets));
   save();
   closeSessSheets();
@@ -309,10 +316,12 @@ function pickExercise(name) {
   if (!activeSession) return;
   const { programme: sp, category: sc } = activeSession;
   const list    = sessProg().exercises[sc] || (sessProg().exercises[sc] = []);
-  let inProg    = list.find(e => normName(e.name) === normName(name));
+  // Nom renommé de la bibliothèque : l'exercice du programme enregistré sous l'ancien nom est repris (même suivi)
+  let inProg    = list.find(e => sameExerciseName(e.name, name));
   const toProg  = $('#axToProg')?.checked;
+  let addedToProg = null;   // ajouté aussi au programme : « Annuler » l'en retire aussi
   if (toProg && !inProg && ax.replaceEi === null) {
-    inProg = makeExercise(name, axSets);
+    inProg = addedToProg = makeExercise(name, axSets);
     list.push(inProg);
     save();
   }
@@ -335,14 +344,19 @@ function pickExercise(name) {
       xs.splice(ax.replaceEi, 1, exObj); xs.splice(g[0], 0, old); target = ax.replaceEi + 1;
     } else if (done.length) { old.sets = done; xs.splice(ax.replaceEi + 1, 0, exObj); target = ax.replaceEi + 1; }
     else { activeSession.exercises.splice(ax.replaceEi, 1, exObj); target = ax.replaceEi; }
-    showToast(done.length ? `Remplacé, ${plural(done.length, 'série gardée', 'séries gardées')}` : 'Exercice remplacé', {
-      action: 'Annuler', duration: 5000,
-      onAction: () => restoreSessionExercises(before),
+    sessionUndo(done.length ? `Remplacé, ${plural(done.length, 'série gardée', 'séries gardées')}` : 'Exercice remplacé', {
+      target: { ex: exObj }, onAction: () => restoreSessionExercises(before),
     });
   } else {
+    const before = clone(activeSession.exercises);
     activeSession.exercises.push(exObj);
     target = activeSession.exercises.length - 1;
-    showToast(toProg ? 'Ajouté à la séance et au programme' : 'Ajouté à la séance');
+    // En ligne, au-dessus de sa carte, avec « Annuler » comme un remplacement ou un échauffement (panel t6 : même geste,
+    // même réponse)
+    sessionUndo(addedToProg ? 'Ajouté à la séance et au programme' : 'Ajouté à la séance', { target: { ex: exObj }, onAction: () => {
+      if (addedToProg) { const i = list.indexOf(addedToProg); if (i >= 0) { list.splice(i, 1); save(); } }
+      restoreSessionExercises(before);
+    } });
   }
   activeSession.lastEi = null; activeSession.lastDone = null;
   closeSessSheets();
@@ -404,6 +418,12 @@ async function chooseSessionTempo(ei) {
 
 // ── « Comment faire » d'un exercice : fiche de la bibliothèque, s'il y a des consignes, une animation ou une vidéo ──
 function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name) || exerciseVideo(ex.name)); }
+// Nom suivi de ⓘ : le dernier mot et ⓘ insécables, ⓘ ne tombe jamais seul au début d'une ligne (« Row » puis ⓘ
+// dessous, demande de Maxence avec le panel Apple du 08/11)
+function howToNameHtml(name) {
+  const s = String(name || '').trim(), i = s.lastIndexOf(' ');
+  return `${esc(i > 0 ? s.slice(0, i + 1) : '')}<span class="ex-howto__tail">${esc(i > 0 ? s.slice(i + 1) : s)}${icon('info.circle', 15)}</span>`;
+}
 // Nom tel que tapé : la fiche montre les muscles choisis pour lui (alias compris)
 function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 
@@ -411,36 +431,54 @@ function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 // Choix proposés pour l'exercice ei de la liste xs de la séance (curEi : exercice de la série en cours).
 // Faire maintenant, Plus tard (js/data/session-order.js), Monter et Descendre gardent les
 // supersets entiers (js/data/supersets.js) ; dans un groupe, le repos réglé est celui du tour.
+// Menu court, lisible sans défiler sur iPhone SE (panels du 08/11, vague 3) : ce qui sert en séance d'abord (Remplacer,
+// Choisir la prise, Comment faire), puis l'ordre (Plus tard ou Faire maintenant, superset), séparés par une bande ;
+// les réglages rares dans « Plus d'options… » (exerciseMoreActions). « Retirer l'exercice », seule action destructive,
+// dans son bloc au-dessus d'« Annuler », hors de la liste.
 function exerciseMenuActions(xs, ei, curEi = null) {
   const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei), order = orderChoiceFor(xs, ei, curEi);
+  const band = (group, list) => list.map(a => ({ ...a, group }));
   return [
-    ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
-    ...(order === 'later' ? [{ label: 'Plus tard', value: 'later' }] : []),
+    ...band('ex', [
+      { label: 'Remplacer l\'exercice', value: 'replace' },
+      // Prise (js/data/grips.js) : seulement pour les mouvements où elle compte
+      ...(gripOptionsFor(ex) ? [{ label: 'Choisir la prise', value: 'grip' }] : []),
+      ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
+    ]),
+    ...band('order', [
+      ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
+      ...(order === 'later' ? [{ label: 'Plus tard', value: 'later' }] : []),
+      ...(xs.length > 1 ? [{ label: inGroup ? 'Modifier le superset' : 'Superset avec…', value: 'superset' }] : []),
+    ]),
+    ...band('more', [{ label: 'Plus d\'options…', value: 'more' }]),
+    { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive', apart: true },
+    { label: 'Annuler', style: 'cancel' },
+  ];
+}
+// « Plus d'options… » : déplacer, réglages de séries et de repos, muscles
+function exerciseMoreActions(xs, ei) {
+  const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei);
+  return [
     ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
     ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
-    ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
-    ...(xs.length > 1 ? [{ label: inGroup ? 'Modifier le superset' : 'Superset avec…', value: 'superset' }] : []),
     ...(inGroup ? [{ label: 'Retirer du superset', value: 'ss-leave' }] : []),
-    { label: 'Remplacer l\'exercice', value: 'replace' },
     // Échauffement (js/data/warmup.js) : exercice à charge sans série faite, hors superset (les tours s'enchaînent)
     ...(!inGroup && canWarmup(ex) ? [{ label: 'Ajouter un échauffement', value: 'warmup' }] : []),
-    // Techniques d'intensification (js/features/session-intensif.js) : le drop set de la dernière série en un toucher
+    // Techniques d'intensification (js/features/session-intensif.js)
     ...techMenuActions(ex),
     ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
-    // Prise (js/data/grips.js) : seulement pour les mouvements où elle compte
-    ...(gripOptionsFor(ex) ? [{ label: 'Prise', value: 'grip' }] : []),
-    { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
-    { label: 'Muscles ciblés', value: 'muscles' },
+    { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
     { label: 'Relancer le repos', value: 'restart' },
-    { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive' },
+    { label: 'Muscles ciblés', value: 'muscles' },
     { label: 'Annuler', style: 'cancel' },
   ];
 }
 async function exerciseMenu(ei) {
   const ex = activeSession.exercises[ei];
   if (!ex) return;
-  const choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(activeSession.exercises, ei, currentSet()?.ei) });
+  let choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(activeSession.exercises, ei, currentSet()?.ei) });
+  if (choice === 'more' && activeSession?.exercises[ei] === ex) choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMoreActions(activeSession.exercises, ei) });
   if (!choice || !activeSession || activeSession.exercises[ei] !== ex) return;
   if (choice === 'now') { sessionDoNow(ei); return; }
   if (choice === 'later') { sessionDoLater(ei); return; }
@@ -490,7 +528,7 @@ async function exerciseMenu(ei) {
     activeSession.lastEi = null; activeSession.lastDone = null;
     editingSet = null;
     render();
-    showToast('Exercice retiré', { action: 'Annuler', duration: 5000, onAction: () => restoreSessionExercises(before) });
+    sessionUndo('Exercice retiré', { target: { at: ei }, onAction: () => restoreSessionExercises(before) });
   }
   persistSession();
 }

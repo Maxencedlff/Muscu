@@ -21,7 +21,8 @@ const DIET_MACROS = [
 
 const dietN = v => fmtNum(Math.round(v));
 // « 620 kcal · P 45 · G 70 · L 15 » et sa version dite par VoiceOver
-function dietMacroLine(m) { return `${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`; }
+// Lettre et chiffre insécables (« L\u00a01 » ne se coupe jamais, panel t6 : le « 1 » passait seul à la ligne)
+function dietMacroLine(m) { return `${dietN(m.kcal)}\u00a0kcal · P\u00a0${dietN(m.p)} · G\u00a0${dietN(m.c)} · L\u00a0${dietN(m.f)}`; }
 function dietMacroSpoken(m) { return `${dietN(m.kcal)} kilocalories, ${dietMacroGramsSpoken(m)}`; }
 function dietMacroGramsSpoken(m) { return `${dietN(m.p)} grammes de protéines, ${dietN(m.c)} de glucides, ${dietN(m.f)} de lipides`; }
 // Ligne abrégée à l'écran (« P 4 · G 47 »), dite en toutes lettres par VoiceOver (sinon « P 4 g » lettre par lettre)
@@ -149,7 +150,7 @@ function dietMealHtml(x, pr, day) {
         </article>`;
 }
 
-// Carte d'un plan reçu de mon coach (écran Nutrition, Mon coach) : nom, repas, « Suivre ce plan »
+// Carte d'un plan reçu de mon coach (écran Nutrition, Mon coach) : nom, repas, « Utiliser ce plan »
 // Sans l'accord « recevoir les plans de mon coach » : invitation, sans rien du contenu du plan
 function dietInviteCardHtml() {
   const who = esc(coachName());
@@ -174,10 +175,10 @@ function dietInboxCardHtml(item) {
   const eyebrow = status === 'update' ? `Mis à jour par ${who}` : status === 'new' ? `Nouveau plan diète ${elide('de', who)}` : `Reçu ${elide('de', who)}`;
   const total = item.meta ? null : dietPlanMacros(item.data);
   const btn = status === 'current' ? '<p class="coach-prog__done">C\'est ton plan</p>'
-    : `<button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">${status === 'update' ? 'Mettre à jour' : 'Suivre ce plan'}</button>`;
+    : `<button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">${status === 'update' ? 'Mettre à jour' : 'Utiliser ce plan'}</button>`;
   return `
         <article class="coach-prog diet-inbox">
-          <div class="coach-prog__eyebrow">${eyebrow}</div>
+          <div class="coach-prog__eyebrow">${eyebrow}${coachNewDotHtml(!item.seen)}</div>
           <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
           ${item.meta ? '<p class="coach-prog__meta">Détail disponible avec du réseau.</p>'
             : `<p class="coach-prog__meta num">${plural(item.data.meals.length, 'repas', 'repas')} · ${dietN(total.kcal)} kcal par jour</p>`}
@@ -211,11 +212,12 @@ function dietEmptyHtml() {
         </div>`;
 }
 
-// Source et licence (Licence Ouverte : source, version, date, pas d'aval de l'Anses), précaution ; sur l'écran
+// Source et licence (Licence Ouverte : source, version, date, pas d'aval de l'Anses ; ODbL : attribution d'Open Food Facts), précaution ; sur l'écran
 // Nutrition, la ligne d'écoute des troubles alimentaires, toujours visible
 function dietSourceFoot({ help = false } = {}) {
   return `<div class="diet-foot">
       <p class="group-foot">Source des valeurs : table Ciqual 2025 de l'Anses (version du 03/11/2025), doi.org/10.57745/RDMHWY, Licence Ouverte Etalab 2.0. Valeurs arrondies ; pour quelques aliments, l'énergie est calculée par l'app. L'Anses ne valide pas ces plans.</p>
+      <p class="group-foot">Produits scannés : Open Food Facts (openfoodfacts.org), © les contributeurs d'Open Food Facts, base libre sous licence ODbL (Open Database License) ; valeurs à vérifier sur l'étiquette.</p>
       <p class="group-foot">Ces chiffres sont des repères pour suivre un plan, pas un avis médical ni diététique. Pour un régime lié à une maladie, une grossesse ou un trouble alimentaire, parles-en à un médecin ou à un diététicien.</p>
       ${help ? '<p class="group-foot diet-help">Si manger, compter ou te peser devient une source d\'angoisse, tu peux en parler : Anorexie Boulimie Info Écoute, 0810 037 037 (lundi, mardi, jeudi et vendredi, de 16 h à 18 h).</p>' : ''}
     </div>`;
@@ -255,6 +257,7 @@ function renderNutrition(dayParam) {
         ${pending ? `<div class="coach-progs">${dietInboxCardHtml(pending)}</div>` : ''}
         ${dietWeekHtml(day)}
         ${dietSummaryHtml(pr)}
+        ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
         <div class="diet-meals">${meals}</div>
@@ -276,7 +279,7 @@ function nutritionHomeCard() {
         <h2 class="account-card__title" id="dietPendingTitle">${!ok ? `${esc(coachName())} veut t'envoyer un plan diète` : dietInboxStatus(pending).status === 'update' ? `Plan diète mis à jour par ${esc(coachName())}` : `Nouveau plan diète ${elide('de', esc(coachName()))}`}</h2>
         <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Accepte pour le recevoir'}</p>
       </div>
-      ${ok ? `<button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">Suivre</button>`
+      ${ok ? `<button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">Utiliser</button>`
         : '<button class="account-card__btn" data-action="diet-coach-accept">Accepter</button>'}
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
     </section>` : '';
@@ -324,9 +327,9 @@ function coachDietGroupHtml(uid) {
   const sent = coachDietSentStatus(uid);
   return `
         <div class="group">
-          <button class="cell cell--action" data-action="coach-send-diet" data-uid="${esc(uid)}">${icon('square.and.arrow.up', 20)}<span>Envoyer un plan diète</span></button>
+          <button class="cell cell--action" data-action="coach-send-diet" data-uid="${esc(uid)}">${icon('paperplane', 20)}<span>Envoyer un plan diète</span></button>
           ${sent.map(x => `
-          <div class="cell coach-sent" data-diet="${esc(x.id)}"><span class="cell__body"><span class="cell__title">${esc(x.name)}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.seen ? 'used' : 'unseen'}">${x.seen ? 'Vu' : 'Pas encore ouvert'}</span></span></div>`).join('')}
+          <div class="cell coach-sent" data-diet="${esc(x.id)}"><span class="cell__body"><span class="cell__title">${esc(x.name)}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}${x.gone ? ' · supprimé de tes plans' : ''}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.seen ? 'used' : 'unseen'}">${x.seen ? 'Vu' : 'Pas encore ouvert'}</span></span></div>`).join('')}
         </div>`;
 }
 
@@ -340,11 +343,14 @@ async function dietSwapSheet(itemId, day) {
   const e = dietDay(data, planId, day), current = e.swaps[itemId];
   const cands = swapCandidates(it, { own: data.dietFoods || [] });
   const ref = dietItemMacros(it), hide = data.dietHideNumbers === true;
+  // Écart des kcal affichées (arrondies), pas des valeurs exactes : 213 kcal face à 215 se lit moins 2 kcal, comme on le
+  // calcule de tête (panel t5)
+  const shownGap = c => -Math.round(ref.kcal) + Math.round(c.macros.kcal);
   const row = (c, i) => `
       <button class="diet-cand" data-swap="${i}">
         <span class="diet-cand__body"><span class="diet-cand__name">${esc(c.food.name)}</span>
           <span class="diet-cand__sub num">${hide ? `${c.g} g` : dietSrPair(`${c.g} g · ${dietMacroLine(c.macros)}`, `${c.g} grammes, ${dietMacroSpoken(c.macros)}`)}</span></span>
-        ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(c.delta.kcal, 'kilocalories')}">${swapDeltaText(c.delta.kcal, 'kcal')}</span>`}
+        ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(shownGap(c), 'kilocalories')}">${swapDeltaText(shownGap(c), 'kcal')}</span>`}
       </button>`;
   const body = `
     <div class="diet-swap">
@@ -391,7 +397,7 @@ registerActions({
     save();
     const pr = dietDayProgress(data, planId, day);
     haptic(on ? (pr.complete ? 'success' : 'medium') : 'light');
-    if (on && pr.complete) { try { validationSound(); } catch {} showToast('Journée complète, bravo'); }
+    if (on && pr.complete) { try { validationSound(); } catch {} announce('Journée complète, bravo'); }   // pas de toast : il couvrait la carte du repas ; « Journée complète » s'affiche déjà en haut, avec le son
     render();
     announce(on ? (pr.complete ? 'Journée complète' : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`) : 'Décoché');
   },
@@ -419,7 +425,7 @@ registerActions({
     save();
     haptic();
     coachMarkInboxSeen('programme', it.id);
-    showToast(`Plan suivi : ${it.data.name}`);
+    showToast(`Plan en cours : ${it.data.name}`);
     render();
   },
   'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
@@ -438,8 +444,12 @@ registerActions({
     // Relecture avant l'envoi, comme un programme (écran Envoyer, bouton « Envoyer à … ») : un plan diète
     // touche à la santé de l'élève, jamais envoyé au premier toucher (panel du 07/11)
     const plan = data.dietPlans[planId];
-    const ok = await dialog({ title: `Envoyer « ${plan.name} » à ${who} ?`,
-      message: `${plan.targets ? `Objectifs du jour : ${dietTargetsSpoken(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kilocalories prévues.${dietTargetGap(plan) ? ` ${dietTargetGap(plan)}` : ''}`,
+    // Texte court, unités abrégées comme à l'écran, l'écart avec l'objectif en premier (panel t5 : la phrase VoiceOver
+    // « 2 000 kilocalories, 150 grammes » s'affichait telle quelle, à côté de « 575 kcal »)
+    // ; l'élève voit le même écart sous le plan, dans sa Nutrition du jour : dit au coach (panel t7)
+    const gap = dietTargetGap(plan);
+    const ok = await dialog({ title: `Envoyer « ${plan.name} » à\u00a0${who}\u00a0?`,
+      message: `${gap ? `${gap} ` : ''}${plan.targets ? `Objectif du jour : ${dietTargetsLong(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kcal prévues.${gap ? ` ${who} verra le même écart sous le plan, dans sa Nutrition du jour.` : ''}`,
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
     if (ok !== true) return;
     el.disabled = true;

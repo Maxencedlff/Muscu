@@ -149,7 +149,13 @@
   background: var(--cell); border-radius: var(--r-md); padding: 12px; min-width: 0;
   display: flex; flex-direction: column; gap: 2px;
 }
-.tile__val { font-size: min(22px, 5vw); line-height: 1.647rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Trois tuiles par ligne : la valeur suit la largeur de l'écran (5vw) pour que « 54 min », « 181,9 t » ou « 1 h 00 »
+   tiennent entiers sur un iPhone SE ou un écran de 320 pt, sans jamais descendre sous 0,9 rem (toujours plus grande
+   que le libellé, 0,765 rem). En texte agrandi, une tuile par ligne : la valeur suit le texte (comme .sum-tile__value). */
+.tile__val { font-size: clamp(0.9rem, 5vw, 1.294rem); line-height: 1.2; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.type-xl .tiles, html.type-xl .tiles--4 { grid-template-columns: 1fr; }
+html.type-xl .tile__val { font-size: 1.294rem; white-space: normal; }
+html.type-xl .tile__lbl { overflow-wrap: normal; }
 .tile__lbl { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); }
 .tile__delta { font-size: 0.765rem; line-height: 0.941rem; font-weight: 600; color: var(--label2); white-space: nowrap; }
 .tile__delta--up { color: var(--green-text); }
@@ -189,10 +195,14 @@
 .hcell__date { font-size: 0.882rem; color: var(--label2); white-space: nowrap; flex-shrink: 0; }
 .hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; } /* sur 2 lignes si besoin plutôt que tronqué */
 .hcell__title + .hcell__date { margin-left: auto; }
+/* Le nom du programme prend seulement la place laissée par le nom de la séance et la date (base 0) : « Bras » jamais
+   « Br… » (panel t6 ; rétrécis ensemble, le titre perdait aussi quelques pixels, donc ses lettres) */
+.hcell__prog { flex: 1 1 0; min-width: 0; font-size: 1rem; line-height: 1.294rem; font-weight: 400; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hcell__prog + .hcell__date { margin-left: auto; }
 /* Ligne du bas : détails à gauche, pastille des records notés à droite (médaille et nombre) */
 .hcell__bot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hcell__rec { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; font-size: 0.765rem; font-weight: 600; color: var(--gold-text); }
-.hcell__rec .medal { color: var(--yellow); }
+.hcell__rec .medal { color: var(--medal); }
 .hrow__del {
   position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: none; background: var(--red); color: var(--white);
   font: 400 0.882rem -apple-system, system-ui, sans-serif; cursor: pointer;
@@ -211,9 +221,10 @@
 .prow__name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .prow__spark { display: flex; flex-shrink: 0; }
 .prow__trend { font-size: 0.765rem; min-width: 44px; text-align: right; flex-shrink: 0; }
-.chart-head { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 8px; }
+.chart-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; margin: 18px 0 8px; }   /* très grand texte : la période passe à la ligne */
 .chart-head__val { font-size: 1.647rem; line-height: 2rem; font-weight: 700; }
 .chart-head__trend { font-size: 0.882rem; font-weight: 600; }
+.chart-head__since { font-size: 0.882rem; color: var(--label2); min-width: 0; overflow-wrap: anywhere; }   /* « +13 % depuis mai » : la période de la tendance */
 .info-btn {
   margin-left: auto; width: 44px; height: 44px; border: none; background: none; color: var(--tint); cursor: pointer;
   font: italic 600 0.882rem Georgia, serif; position: relative;
@@ -249,12 +260,15 @@ html.type-xl .chart-bubble { white-space: normal; }
 .cal__d--today > .num { color: var(--bg); background: var(--label); font-weight: 600; /* neutre : rouge réservé au destructif, bleu à l'interactif */ border-radius: 50%; width: 26px; height: 26px; line-height: 1.529rem; margin-top: -3px; }
 .cal__dots { display: flex; gap: 2px; margin-top: 3px; height: 6px; }
 .cal__dots i { width: 6px; height: 6px; border-radius: 50%; display: block; }
-.wks { position: relative; display: flex; align-items: flex-end; gap: 6px; height: 120px; }
-.wk { flex: 1; height: 100%; display: flex; align-items: flex-end; }
-.wk__bar { width: 100%; min-height: 2px; background: var(--fill); border-radius: 4px 4px 0 0; }
+/* Barres sous l'objectif en gris système (3:1 au moins sur la carte, clair et sombre ; --fill faisait 1,2:1, panel t5),
+   le nombre de séances au-dessus de chaque barre */
+.wks { position: relative; display: flex; align-items: flex-end; gap: 6px; height: 120px; margin-top: 18px; padding-right: 20px; }   /* l'objectif à droite, hors des barres */
+.wk { flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end; }
+.wk__bar { position: relative; width: 100%; min-height: 2px; background: #8E8E93; border-radius: 4px 4px 0 0; }
+.wk__n { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); padding-bottom: 2px; font-size: 0.706rem; font-weight: 600; line-height: 1; color: var(--label2); }
 .wk__bar--ok { background: var(--green); }
 .wks__goal { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--label3); z-index: 1; }
-.wks__goal span { position: absolute; right: 0; top: -18px; font-size: 0.706rem; color: var(--label2); }   /* 12 px au moins */
+.wks__goal span { position: absolute; right: 0; top: -8px; font-size: 0.706rem; line-height: 16px; font-weight: 600; color: var(--label2); background: var(--cell); padding-left: 2px; }   /* 12 px au moins */
 .wks__axis { display: flex; justify-content: space-between; font-size: 0.706rem; color: var(--label2); margin-top: 6px; }
 
 /* ── Programme ── */
@@ -291,6 +305,10 @@ html.type-xl .chart-bubble { white-space: normal; }
 
 /* ═════════ Accessibilité et finitions de bord ═════════ */
 
+/* « · » qui finirait une ligne (frSepCheck, js/core/util.js) : rendu transparent, sa largeur gardée pour que rien ne bouge.
+   Pas visibility: hidden, qui le retirerait aussi du texte lu par VoiceOver (et d'innerText) : seul l'œil ne le voit plus */
+.tsep-cut { color: transparent; }
+
 /* Texte réservé aux lecteurs d'écran */
 .visually-hidden {
   position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
@@ -311,6 +329,8 @@ html.type-xl .chart-bubble { white-space: normal; }
 #app, .tabbar, .livebar {
   padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
 }
+/* Barre d'onglets : 4 pt au moins de chaque côté, « Entraînement » ne touche plus le bord de l'écran (experts Apple, vague 3) */
+.tabbar { padding-left: max(4px, env(safe-area-inset-left, 0px)); padding-right: max(4px, env(safe-area-inset-right, 0px)); }
 .sess-sheet__panel, .sheet, .ios-dialog--sheet .ios-dialog__panel {
   padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
 }
@@ -355,15 +375,164 @@ html.type-xl .session-set {
 }
 html.type-xl .session-set .set-n { grid-area: n; text-align: left; }
 html.type-xl .session-set .set-prev { grid-area: prev; text-align: left; }
-html.type-xl .session-set > :nth-child(3) { grid-area: w; }
-html.type-xl .session-set > :nth-child(4) { grid-area: r; }
+/* Empilée, la valeur d'avant n'a plus sa colonne « Avant » : elle est nommée (« Avant 32 × 9 »), on ne la prend plus
+   pour ce qu'il faut taper (panel t5) */
+.set-prev__lbl { display: none; }
+html.type-xl .set-prev__lbl { display: block; color: var(--label2); font-weight: 400; }   /* « Avant » au-dessus, la valeur entière dessous */
+html.type-xl .session-set .set-prev:has(.set-prev__lbl) { white-space: normal; overflow: visible; text-overflow: clip; }
+/* Superset : plus d'espace avant chaque membre que sous son nom, le compte et ⋯ restent avec leur exercice ; le repos
+   aligné à gauche comme le reste */
+html.type-xl .ss-member + .ss-member, html.type-xl .ex-goal--member + .ss-member { margin-top: 14px; }
+html.type-xl .ex-rest-link { text-align: left; }   /* un bouton centre son texte sur plusieurs lignes */
+/* Colonnes placées par classe, jamais par rang : une ligne validée commence par son texte pour VoiceOver, et le rang
+   décalait la charge sous « Reps » (panel de la vague 3, 3e tour) */
+html.type-xl .session-set .set-val--w, html.type-xl .session-set .set-input:not(.set-input--required) { grid-area: w; }
+html.type-xl .session-set .set-val--r, html.type-xl .session-set .set-input--required { grid-area: r; }
 html.type-xl .session-set .set-check-zone { grid-area: check; }
 html.type-xl .session-set .set-badge { grid-column: 1 / -1; }
+html.type-xl .session-set .set-undo { grid-area: prev; justify-self: start; }   /* « Annuler » en ligne à la place d'« Avant » */
+/* Très grand texte (Dynamic Type AX, vague 3) : noms d'exercice sur 4 lignes au plus au lieu de 2, « Ensuite » du repos
+   qui revient à la ligne */
+html.type-xl .ex-card__name, html.type-xl .ex-howto__text, html.type-xl .ss-member__name, html.type-xl .ss-member__name .ex-howto__text { -webkit-line-clamp: 4; line-clamp: 4; }
+html.type-xl .rest-mini__next { white-space: normal; flex-wrap: wrap; }
+html.type-xl .rest-mini__next > * { white-space: normal; overflow: visible; }
+/* Très grand texte (suite, captures « texte agrandi » de la vague 3) : rien ne déborde ni ne se coupe au milieu d'un
+   libellé ; les lignes reviennent à la ligne, les zones de toucher gardent 44 px */
+html.type-xl .session-set .set-check-zone { min-width: 44px; }
+html.type-xl .ex-card__foot { flex-wrap: wrap; row-gap: 4px; }
+html.type-xl .targets__target, html.type-xl .targets__gain, html.type-xl .targets__before, html.type-xl .recap-card__cta { white-space: normal; }
+html.type-xl .targets__val { flex-shrink: 1; min-width: 0; max-width: 100%; }
+html.type-xl .targets__now { flex-wrap: wrap; justify-content: flex-end; }
+html.type-xl .auth-btn { white-space: normal; }
+html.type-xl .auth-btn > span { overflow: visible; }
+
+html.type-xl .hcell__title, html.type-xl .social-row__name { white-space: normal; }
+/* La date passe sous le nom de la séance plutôt que de le réduire à une lettre (séance d'un autre programme, AX33) */
+html.type-xl .hcell__top { flex-wrap: wrap; }
+html.type-xl .chat-cell__last { -webkit-line-clamp: 3; line-clamp: 3; }
+html.type-xl .toast > span { -webkit-line-clamp: 6; line-clamp: 6; }   /* consigne lue en entier en AX33 sur SE (« Touche Utiliser pou… » à 4 lignes, panel t6) */
+html.type-xl .social-row__main { min-width: 44px; }
+/* Très grand texte, 3e tour : jamais de coupure au milieu d'un mot. Les textes passent à la ligne entre les mots, et
+   coupent un mot trop long seulement à une césure du français (hyphens) */
+html.type-xl body { overflow-wrap: normal; }
+html.type-xl .ex-card__name, html.type-xl .ex-howto__text, html.type-xl .ss-member__name, html.type-xl .ss-member__name .ex-howto__text,
+html.type-xl .sum-row__name, html.type-xl .chat-msg__bubble, html.type-xl .rs__title, html.type-xl .sheet__title, html.type-xl .hcell__title,
+html.type-xl .social-row__name, html.type-xl .targets__name { overflow-wrap: normal; word-break: normal; -webkit-hyphens: auto; hyphens: auto; }
+/* Mini-barre de repos : le chrono sur sa ligne, −15 / +15 dessous, puis Passer (le chrono disparaissait, « 2:0 ») */
+/* Vague 3-t4 : la mini-barre réduite au chrono et à Passer (elle couvrait la série suivante sur 4 rangées) ; −15 / +15
+   et « Ensuite » restent dans la feuille Repos, qu'ouvre le chrono */
+html.type-xl .rest-mini { grid-template-columns: minmax(0, 1fr) auto; }
+html.type-xl .rest-mini .rest-mini__btn, html.type-xl .rest-mini__next { display: none; }
+html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 0; padding: 0 12px; white-space: nowrap; }
+/* Feuille Repos : titre et « Réduire » l'un sous l'autre, durées sur deux rangées de trois */
+html.type-xl .rs__top { flex-wrap: wrap; justify-content: space-between; }
+html.type-xl .rs__top .rs__title { padding: 0; order: 2; flex-basis: 100%; }
+html.type-xl .rs__top .rs__collapse { position: static; margin-left: auto; }
+html.type-xl .rs__top .rs__collapse--left { margin-left: 0; margin-right: auto; }
+html.type-xl .rs-seg { grid-template-columns: repeat(3, 1fr); }
+/* Vague 3-t4 : −15 et +15 sur une ligne, Passer dessous en pleine largeur (la rangée débordait des deux bords) ;
+   l'heure de fin plafonnée comme dans un cercle iOS, pour que 1:59 ne touche pas l'anneau */
+html.type-xl .rs__adj { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; width: 100%; max-width: 360px; }
+html.type-xl .rs__adj .rs__skip { grid-column: 1 / -1; grid-row: 1; }
+html.type-xl .rs__adj .rs__round { grid-row: 2; }
+/* Panel t5 : « Passer », le geste le plus fréquent, était coupé en bas sur iPhone SE. En texte agrandi, Passer puis
+   −15 / +15 juste sous l'anneau, les durées ensuite ; anneau réduit sur un écran bas */
+html.type-xl .rs__adj { order: 1; }
+html.type-xl .rs-seg { order: 2; }
+html.type-xl .rs__next { order: 3; }
+@media (max-height: 700px) {
+  html.type-xl .rs__ring, html.type-xl .rest-ring--big { width: 168px; height: 168px; }
+  html.type-xl .rs .rs__resume { max-width: 128px; }
+  html.type-xl .rs .rs__time { font-size: 56px; }
+  html.type-xl .rs { gap: 12px; }
+}
+html.type-xl .rs__adj .rs__round { width: 100%; }
+html.type-xl .rs__resume { font-size: min(0.882rem, 15px); max-width: 150px; }
+html.type-xl .rs__time { font-size: min(72px, 3.4rem); }
+/* Superset : le compte et ⓘ passent sous le nom plutôt que de le couper */
+html.type-xl .ss-member { flex-wrap: wrap; }
+html.type-xl .ss-member__name { flex: 1 1 60%; min-width: 0; }   /* le nom (et son ⓘ) à côté de sa pastille A1, compte et ⋯ dessous */
+/* Carte : le nom sur toute la largeur, le compte et ⋯ dessous (« unilatéra » coupé, ⓘ invisible sur SE) */
+html.type-xl .ex-card__head { flex-wrap: wrap; }
+html.type-xl .ex-card__head > .ex-card__name { flex-basis: 100%; }
+/* Dernier mot et ⓘ insécables à toutes les tailles : le nom a toute la largeur (ⓘ seul sur sa ligne en AX2, panel t5) */
+/* « Modifiée » sur la largeur des deux premières colonnes, entier */
+html.type-xl .session-set .set-undo--state { grid-column: 1 / 3; grid-row: 1; justify-self: end; overflow: visible; text-overflow: clip; }
+/* Reps en réserve : pastilles à la taille de leur texte (« 4+ » passait sur deux lignes) */
+html.type-xl .rir__btns { flex-wrap: wrap; }
+html.type-xl .rir__btn { width: auto; min-width: 44px; height: auto; min-height: 44px; padding: 0 10px; border-radius: 22px; white-space: nowrap; }
+/* Bilan : une tuile par ligne, les lignes d'exercice et de record passent à la ligne */
+html.type-xl .sum-tiles { grid-template-columns: 1fr; }
+html.type-xl .sum-tile__value { font-size: 1.294rem; white-space: normal; }   /* comme .tile__val */
+html.type-xl .sum-row { flex-wrap: wrap; }
+html.type-xl .sum-row__main { flex-basis: 100%; }
+/* Feuilles : Annuler / OK en haut, le titre en entier dessous */
+html.type-xl .sheet__bar { display: flex; flex-wrap: wrap; justify-content: space-between; }
+html.type-xl .sheet__btn { font-size: min(1rem, 22px); }   /* plafonnés comme la barre de navigation : Annuler à gauche, l'action à droite, sur une ligne (panel t5) */
+html.type-xl .sheet__bar .sheet__title { order: 2; flex-basis: 100%; white-space: normal; text-align: left; padding: 4px 0 0; }
+/* Messages : l'heure sous la bulle, la bulle plus large */
+html.type-xl .chat-msg { flex-direction: column; align-items: flex-end; max-width: 92%; }
+html.type-xl .chat-msg--theirs { align-items: flex-start; }
+/* Très grand texte, 3e tour (experts Apple) : un mot n'est coupé que s'il ne tient pas seul sur une ligne. « anywhere »
+   (posé sur des titres et des noms pour les adresses longues) laissait une case flexible se réduire à une lettre :
+   « Se connec/ter », « to/m » ; « break-word » coupe le même mot trop long, sans écraser la case */
+html.type-xl body * { overflow-wrap: break-word; }
+/* Libellé et valeur (ou segment) : en texte agrandi, comme iOS, la valeur passe sous le libellé, à droite, plutôt que de
+   réduire le libellé à une lettre (« O/bj/ec/tif », « Vol/um/e » à côté du segment, panel t5) */
+html.type-xl .view--grouped .cell:is(:has(> .cell__value), .cell--ctl:has(> .segmented)):not(:has(> .cell__icon)) { flex-wrap: wrap; row-gap: 4px; }
+html.type-xl .view--grouped .cell:is(:has(> .cell__value), .cell--ctl:has(> .segmented)):not(:has(> .cell__icon)) > .cell__body { flex: 1 0 auto; max-width: 100%; }
+html.type-xl .view--grouped .cell:is(:has(> .cell__value), .cell--ctl:has(> .segmented)):not(:has(> .cell__icon)) > .cell__body + * { margin-left: auto; }
+/* Mon profil : pseudo sur plusieurs lignes, « Modifier » dessous, chiffres l'un sous l'autre */
+html.type-xl .athlete__id { flex-wrap: wrap; }
+html.type-xl .athlete__text { flex-basis: 100%; }
+html.type-xl .athlete__name { white-space: normal; overflow: visible; }
+html.type-xl .athlete__edit { margin-right: 0; }
+html.type-xl .me-stats { grid-template-columns: 1fr; }
+html.type-xl .me-stat + .me-stat { padding-left: 4px; border-top: .5px solid var(--sep); }
+html.type-xl .me-stat + .me-stat::before { display: none; }
+/* Accueil (Ensuite, listes) : le nom en entier, l'état dessous */
+html.type-xl .home-cell { flex-wrap: wrap; }
+html.type-xl .home-cell__text { flex-basis: calc(100% - 40px); }
+html.type-xl .home-cell__name { white-space: normal; overflow: visible; }
+html.type-xl .home-cell__right { flex-basis: 100%; flex-shrink: 1; justify-content: space-between; }
+html.type-xl .home-cell__right > :not(.icon) { flex: 1; min-width: 0; white-space: normal; }
+html.type-xl .home-cell { padding-right: 28px; }
+html.type-xl .home-cell > .icon:last-child { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }   /* chevron à droite, centré, jamais seul sur sa ligne */
+/* Social : une demande (pseudo, puis Accepter et ×) sur deux lignes */
+html.type-xl .cell.social-row { flex-wrap: wrap; row-gap: 4px; padding-bottom: 8px; }
+html.type-xl .cell.social-row .social-row__main { flex-basis: 100%; }
+/* Repos : −15 / +15 à la taille de leur texte (ils sortaient de leurs cercles) */
+html.type-xl .rs__round { width: auto; height: auto; min-width: 56px; min-height: 56px; padding: 8px 14px; border-radius: 28px; }
+/* Réglages › Se connecter : sans l'avatar de tête, « Se connecter » tient entier sur sa ligne (il était coupé « connec/ter ») */
+html.type-xl .account-cell > .avatar { display: none; }
+/* Photos envoyées : le texte sur toute la largeur, « Retirer » dessous, à gauche (il écrasait la ligne) */
+html.type-xl .cph-row { flex-wrap: wrap; }
+html.type-xl .cph-row > .cell__body { flex-basis: 100%; }
+html.type-xl .cell--action > .icon { width: 1.1em; height: 1.1em; }
+/* Élèves : le chevron à droite, centré, jamais seul sous l'avatar */
+html.type-xl .coach-student-row { position: relative; padding-right: 28px; }
+html.type-xl .coach-student-row > .icon { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+/* Ajouter un exercice : Annuler en haut, le titre en entier dessous */
+html.type-xl .ax__bar { display: flex; flex-wrap: wrap; justify-content: space-between; }
+html.type-xl .ax__title { order: 2; flex-basis: 100%; text-align: left; padding: 0 8px; white-space: normal; }
+html.type-xl .ax__opts { order: 1; }   /* Séries et « Ajouter au programme » après la liste : la recherche et ses résultats d'abord */
+/* Icônes : à la taille du texte qu'elles accompagnent */
+html.type-xl .cell__icon .icon, html.type-xl .home-cell > .icon, html.type-xl .cph-daybtn .icon { width: 1.1em; height: 1.1em; }
+/* Glyphes posés à côté d'un texte (ⓘ d'un nom, ⋯, ↑ d'un gain, haltère et bulles des compteurs, envoi d'un commentaire) :
+   à la taille du texte, plafonnés à 32 px pour tenir dans leur zone de toucher (ils restaient à 15 px, panel t5) */
+html.type-xl :is(.ex-howto, .ex-card__more, .targets__gain, .coach-count, .coach-mark, .feed-card__comment, .comment-compose__send, .chat-count) .icon {
+  width: min(1.1em, 32px); height: min(1.1em, 32px);
+}
+html.type-xl .comment-compose__send { width: auto; height: auto; min-width: 32px; min-height: 32px; padding: 4px; }
+/* Icône d'un bouton à libellé (Partager, Partager ma séance, Inviter un ami) : à la taille du libellé (panel t6) */
+html.type-xl :is(.btn, .recap__share) > .icon { width: min(1.2em, 36px); height: min(1.2em, 36px); flex-shrink: 0; }
+/* Boutons : ils n'héritent pas de la taille du texte, la mesure part du texte de la page (rem) */
+html.type-xl :is(.ex-card__more, .comment-compose__send) .icon { width: min(1.1rem, 32px); height: min(1.1rem, 32px); }
 
 /* Réduction des animations : couleur fixe en fin de repos, pas de point pulsé ni de transition */
 @media (prefers-reduced-motion: reduce) {
   .rest-mini--done { animation: none; background: color-mix(in srgb, var(--green) 20%, var(--cell)); }
-  .session-set--go { animation: none; background: color-mix(in srgb, var(--cat-color) 16%, var(--cell)); }
+  .session-set--go { animation: none; background: color-mix(in srgb, var(--tint) 16%, var(--cell)); }
   .livebar__dot, .toast { animation: none; }
 }
 .settings-view .segmented__btn { min-width: 44px; }
@@ -467,10 +636,10 @@ body.light .imp__ctl { background: var(--cell); }
 /* Galerie par date : trois vignettes par rangée (face, profil, dos), portrait */
 .pgal { display: flex; flex-direction: column; gap: 14px; width: 100%; padding: 2px 0; }
 .pgal__date { display: block; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin-bottom: 6px; }
-.pgal__row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pgal__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }   /* jamais plus large que l'écran en texte agrandi (352 px sur 320, panel t5) */
 .pgal__item { position: relative; aspect-ratio: 3 / 4; min-height: 44px; border-radius: var(--r-sm); overflow: hidden; background: var(--cell2); border: none; padding: 0; cursor: pointer; }
 .pgal__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: var(--fs-caption2); font-weight: 600; }
+.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: var(--fs-caption); font-weight: 600; }   /* 12 px au moins (ERGONOMIE §4), suit le texte agrandi */
 /* Avant / après : deux photos superposées, un curseur découvre celle d'avant (js/features/photo-vault-ui.js) */
 .pcmp__frame {
   position: relative; aspect-ratio: 3 / 4; max-height: 54dvh; max-width: 100%; margin: 0 auto; border-radius: var(--r-md); overflow: hidden;
@@ -490,12 +659,17 @@ body.light .imp__ctl { background: var(--cell); }
 .pcmp__tag--a { left: 10px; }
 .pcmp__tag--b { right: 10px; }
 .pcmp__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+@media (max-width: 340px) { .pcmp__cols { grid-template-columns: 1fr; } }   /* iPhone SE : chaque menu sur toute la largeur */
 .pcmp__col { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .pcmp__lbl { font-size: var(--fs-footnote); color: var(--label2); padding-left: 2px; }
+/* Menu déroulant : valeur en couleur d'action et chevrons haut / bas d'iOS, sinon il passe pour un texte fixe (panel du 08/11) */
+.pcmp__pick { position: relative; display: block; }
 .pcmp__sel {
-  width: 100%; min-height: 44px; border: none; border-radius: var(--r-sm); background: var(--fill2); color: var(--label);
-  padding: 0 10px; font-family: inherit; font-size: var(--fs-input); -webkit-appearance: none; appearance: none;
+  width: 100%; min-height: 44px; border: none; border-radius: var(--r-sm); background: var(--fill2); color: var(--tint);
+  padding: 0 30px 0 10px; font-family: inherit; font-size: var(--fs-input); -webkit-appearance: none; appearance: none;
+  text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
 }
+.pcmp__pick .icon { position: absolute; right: 10px; top: 50%; margin-top: -7px; color: var(--tint); pointer-events: none; }
 .pcmp__gap { text-align: center; color: var(--label2); font-size: var(--fs-footnote); padding-top: 10px; }
 /* Feuilles : nouvelle photo, photo ouverte */
 .pnew__img, .pview__img { display: block; max-width: 100%; max-height: 48vh; margin: 0 auto 12px; border-radius: var(--r-md); object-fit: contain; }
@@ -547,13 +721,18 @@ body.light .imp__ctl { background: var(--cell); }
 .pv-link--danger { color: var(--red-text); }
 /* Coffre ouvert */
 .pv-empty { flex-direction: column; align-items: stretch; gap: 10px; padding-top: 12px; padding-bottom: 12px; }
+/* Coffre vide : les trois cases sur toute la largeur, chaque nom de pose avec de l'air (panel Apple de la vague 3 :
+   rangée réduite à sa plus petite largeur, « Profil » touchait le cadre) */
+.pv-empty .pgal__row { width: 100%; }
 .pv-slot {
-  aspect-ratio: 3 / 4; min-height: 44px; border-radius: var(--r-sm); border: 1.5px dashed var(--label3); background: none;
+  aspect-ratio: 3 / 4; min-height: 44px; min-width: 0; padding: 0 8px; border-radius: var(--r-sm); border: 1.5px dashed var(--label3); background: none;
   color: var(--tint-on-fill); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   font-size: var(--fs-footnote); font-weight: 600; cursor: pointer;
 }
 .pv-slot:active { background: var(--fill2); }
 .pv-summary { display: flex; align-items: center; gap: 6px; margin: 0 0 18px; color: var(--label2); font-size: var(--fs-footnote); }
+html.type-xl .pv-summary { align-items: flex-start; }
+html.type-xl .pv-summary .icon { width: 1.1em; height: 1.1em; flex-shrink: 0; margin-top: .15em; }   /* cadenas à la taille du texte (panel t6) */
 /* Sélecteur d'apps, Centre de contrôle : rien du coffre ne reste visible */
 body.pv-shield .photo-vault .scr { filter: blur(30px); }
 body.pv-shield::after { content: ''; position: fixed; inset: 0; z-index: 10000; background: var(--bg); }

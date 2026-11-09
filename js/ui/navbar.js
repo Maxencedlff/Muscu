@@ -118,17 +118,29 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
 
 // Bouton retour : une seule règle partout (barres de l'app, parcours de connexion js/features/auth-flow.js),
 // celle de la barre de navigation d'iOS. Titre de l'écran précédent s'il tient en entier ET laisse au
-// moins BACK_LABEL_GAP pt avant le titre centré ; sinon « Retour » (« ‹ Entraînement » touche presque
-// « Compte » sur un iPhone 13) ; sinon chevron seul (iPhone SE étroit). L'aria-label du bouton garde le
-// nom de l'écran. Barre sans titre (connexion) : le libellé reste.
+// moins BACK_LABEL_GAP pt avant le titre centré ; sinon « Retour » ; sinon chevron seul (iPhone SE étroit, texte agrandi).
+// Le titre de l'écran passe toujours avant le libellé de retour (panel t6 : « Plans diè… », « Photos d… », « Aujourd… »
+// à côté d'un retour entier ; le panel t5 avait fait l'inverse).
+// L'aria-label du bouton garde le nom de l'écran. Barre sans titre (connexion) : le libellé reste.
+// Comme iOS, le titre quitte le centre de la barre (centré entre le retour et les boutons de droite, classe
+// navbar__bar--wide-back) plutôt que de raccourcir le retour, s'il tient ainsi en entier : sur un iPhone 13,
+// « ‹ Entraînement » au-dessus de « Réglages » devenait « ‹ Retour » alors que la droite était vide (panel Apple du
+// 08/11). Écart minimal : 8 pt.
 // Mesure refaite après la mise en page (image suivante), au changement de taille et une fois les
 // polices chargées : une mesure prise trop tôt (boîtes vides) donnait le chevron seul à tort.
-const BACK_LABEL_GAP = 16;
+const BACK_LABEL_GAP = 8;
 const BACK_FALLBACK = 'Retour';
 function backLabelFits(btn, label) {
-  if (label.scrollWidth > label.clientWidth + 1) return false;
+  // Sans tolérance : un libellé plus large d'un seul pixel s'affichait « Coa… » (iPhone SE, panel t6). Un faux « trop
+  // large » (arrondi) ne coûte rien : le titre se décale simplement entre le retour et la droite.
+  if (label.scrollWidth > label.clientWidth) return false;
   const title = btn.closest('.navbar__bar, .auth__bar')?.querySelector('.navbar__title');
   if (!title?.textContent.trim()) return true;
+  // Titre compact pas encore affiché (grand titre ou titre du contenu encore visibles) : il ne prend pas de place,
+  // comme sur iOS (panels de la vague 3 : chevron seul au lieu de « ‹ lea » sur les photos de bilan, iPhone SE).
+  // Revu quand le titre apparaît (observeLargeTitle).
+  if (title.closest('.navbar--echo:not(.navbar--collapsed), .navbar--large:not(.navbar--collapsed)')) return true;
+  if (title.scrollWidth > title.clientWidth + 1) return false;   // titre coupé : le retour prend trop de place
   // Bord gauche du texte du titre (pas de sa boîte) ; bord droit du libellé en entier
   const range = document.createRange();
   range.selectNodeContents(title);
@@ -141,12 +153,21 @@ function fitBackLabelNow(scope = document) {
     // Bouton hors de la page affichée (calque fermé, écran en train de partir) : rien à mesurer
     if (!btn.getClientRects().length) return;
     btn.classList.remove('navbar__back--icon');
+    const bar = btn.closest('.navbar__bar');
     const full = label.dataset.full || label.textContent;
     for (const text of full === BACK_FALLBACK ? [full] : [full, BACK_FALLBACK]) {
       if (label.textContent !== text) label.textContent = text;
+      bar?.classList.remove('navbar__bar--wide-back');
       if (backLabelFits(btn, label)) return;
+      // Titre centré entre le retour et la droite au lieu du centre de la barre
+      if (bar) { bar.classList.add('navbar__bar--wide-back'); if (backLabelFits(btn, label)) return; }
+      bar?.classList.remove('navbar__bar--wide-back');
     }
     btn.classList.add('navbar__back--icon');
+    // Chevron seul et titre encore coupé (« Photos de bilan » à côté de « Verrouiller », écran de 320 pt) : le titre se
+    // centre entre le chevron et la droite, comme iOS, plutôt que d'être tronqué
+    const title = bar?.querySelector('.navbar__title');
+    if (title && title.scrollWidth > title.clientWidth + 1) bar.classList.add('navbar__bar--wide-back');
   });
 }
 let backFitFrame = 0;
@@ -173,23 +194,43 @@ function routeTitle(route, isRoot) {
     friends: tabMeta('friends').label, 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
     'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil', strava: 'Strava',
     notifications: 'Notifications',
-    'social-people': routeParams(route)[0] === 'followers' ? 'Abonnés' : 'Abonnements',
+    'social-people': routeParams(route)[0] === 'followers' ? 'Te suivent' : 'Suivis',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
     paywall: 'Abonnement', subscription: 'Abonnement',
+    library: 'Bibliothèque', 'library-ex': 'Exercice', 'guide-topic': 'Guide', 'stats-muscles': 'Muscles', 'muscles-unknown': 'Sans muscles',
     nutrition: 'Nutrition', 'diet-plans': 'Plans diète', 'diet-settings': 'Réglages', 'diet-plan': data.dietPlans?.[routeParams(route)[0]]?.name || 'Plan',
   }[name] || 'Retour';
 }
 
-// Grand titre : quand il sort de l'écran, le titre compact et le filet apparaissent
+// Grand titre : quand il sort de l'écran, le titre compact et le filet apparaissent.
+// Écran dont le titre est posé dans le contenu (h1.scr-title ou h1.pv-title : coffre, photos de bilan, séance d'une
+// amie, séance de l'historique…) sous une barre sans titre : la barre reprend ce titre quand il sort de l'écran, comme
+// le grand titre d'iOS (panel Apple du 08/11 : barre restée vide au défilement). Le titre du contenu reste celui que
+// lit VoiceOver ; la copie de la barre lui est cachée. data-bar-title : version courte pour la barre.
 let largeObserver = null;
 function observeLargeTitle() {
   largeObserver?.disconnect();
-  const h1 = $('.navbar__large');
-  const bar = $('.navbar');
-  if (!h1 || !bar || !('IntersectionObserver' in window)) return;
+  const bar = $('#app .navbar');
+  if (!bar) return;
+  let h1 = bar.parentElement?.querySelector('.navbar__large');
+  if (!h1) {
+    const title = bar.querySelector('.navbar__title');
+    h1 = bar.parentElement?.querySelector('.scr h1.scr-title, .scr h1.pv-title[data-bar-title], .scr [data-echo-title]');   // titre d'un message centré (sans défilement) : seulement s'il a sa version courte
+    if (!h1 || !title || title.textContent.trim()) return;   // barre qui a déjà son titre : rien à reprendre
+    title.textContent = h1.dataset.barTitle || h1.textContent.trim();   // titre court si le long ne tient pas (« Coffre »)
+    title.setAttribute('aria-hidden', 'true');
+    bar.classList.add('navbar--echo');
+  }
+  if (!('IntersectionObserver' in window)) return;
   const top = bar.getBoundingClientRect().height;
+  // Repliée dès que le grand titre COMMENCE à passer sous la barre (experts Apple, vague 3-t4 : « Coach » coupé à
+  // mi-hauteur sous une barre sans titre) ; un titre coupé par le bas de l'écran ne compte pas
   largeObserver = new IntersectionObserver(([en]) => {
-    bar.classList.toggle('navbar--collapsed', !en.isIntersecting);
-  }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: 0 });
+    const under = en.intersectionRatio < 1 && en.boundingClientRect.top < (en.rootBounds?.top ?? top) + 1;
+    if (bar.classList.contains('navbar--collapsed') === under) return;
+    bar.classList.toggle('navbar--collapsed', under);
+    h1.classList.toggle('navbar-echoed', under);   // le grand titre s'efface quand la barre le reprend : jamais deux fois, dont un coupé (panel t5)
+    fitBackLabel(bar);   // le titre compact apparaît ou disparaît : le retour se raccourcit ou reprend son nom
+  }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: [0, 0.99, 1] });
   largeObserver.observe(h1);
 }

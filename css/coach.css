@@ -21,16 +21,39 @@
   flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 7px; border-radius: var(--r-pill);
   background: var(--red); color: var(--white); font-size: .765rem; line-height: 22px; font-weight: 600; text-align: center;
 }
-.coach-count--sessions { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 3px; width: min-content;
+/* « 3 nouvelles » sur une ligne partout (sur deux lignes au-delà de 400 pt, elle dépassait la pastille des messages, panel t5) */
+.coach-count--sessions { display: inline-flex; flex-wrap: nowrap; align-items: center; justify-content: center; column-gap: 3px; width: auto;
   height: auto; padding: 3px 6px; border-radius: 10px; line-height: 16px; background: var(--fill); color: var(--label); }
-.coach-count__sub { flex-basis: 100%; font-size: .706rem; font-weight: 600; line-height: 14px; color: var(--label2); white-space: nowrap; }
-/* Écran de 320 pt (iPhone SE, Galaxy S9+) : avec la pastille « 3 à voir », le signal (« Stable depuis 4 sem. »,
+.coach-count__sub { font-size: .706rem; font-weight: 600; line-height: 14px; color: var(--label2); white-space: nowrap; }
+/* Pastilles (séances, messages) groupées à droite de la ligne */
+.cs-badges { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+/* Sous-titres d'un élève : deux lignes au plus chacun */
+.coach-student-row .social-row__text > .cell__sub, .coach-student-row .social-row__text > .progress-sig {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+/* Moins de 400 pt (iPhone SE à iPhone 16) : les pastilles passent sous le nom, le texte prend toute la largeur (panels de la
+   vague 3 : sous-titre sur 5 lignes sur SE, 4 lignes à 390 pt, à côté de deux pastilles) */
+/* Deux pastilles (séances et messages) : sous le nom aussi jusqu'à 430 pt (panel t7 : à 402 pt, à côté d'elles, la
+   ligne de lea passait sur 4 lignes, celle de tom sur 2) ; le texte reste prioritaire */
+@media (max-width: 400px) {
+  .coach-student-row.social-row { flex-wrap: wrap; }
+  .coach-student-row .social-row__main { flex: 1 1 calc(100% - 30px); min-width: 0; }
+  .coach-student-row > .icon { order: 1; }
+  .coach-student-row .cs-badges { order: 2; margin: -6px 0 10px 40px; }
+}
+@media (min-width: 401px) and (max-width: 430px) {
+  .coach-student-row.social-row:has(.cs-badges .chat-count):has(.cs-badges .coach-count--sessions) { flex-wrap: wrap; }
+  .coach-student-row:has(.cs-badges .chat-count):has(.cs-badges .coach-count--sessions) .social-row__main { flex: 1 1 calc(100% - 30px); min-width: 0; }
+  .coach-student-row:has(.cs-badges .chat-count):has(.cs-badges .coach-count--sessions) > .icon { order: 1; }
+  .coach-student-row:has(.cs-badges .chat-count) .cs-badges:has(.coach-count--sessions) { order: 2; margin: -6px 0 10px 40px; }
+}
+/* Écran de 320 pt (iPhone SE, Galaxy S9+) : avec la pastille « 3 séances », le signal (« Stable depuis 4 sem. »,
    « ↑2 records cette sem. ») passait sur deux lignes, quatre lignes pour l'élève. La pastille garde « à voir » (le nombre
    seul ne dirait pas ce qu'il compte) ; avatar, écarts et marges de la pastille resserrés, sous-titres à 12 px. */
 @media (max-width: 340px) {
   .coach-student-row.social-row { gap: 6px; }
   .coach-student-row .social-row__main { gap: 8px; }
-  .coach-student-row .avatar--m { width: 32px; height: 32px; font-size: 1.235rem; }
+  .coach-student-row .avatar--m { width: 32px; height: 32px; font-size: min(1.235rem, 21px); }
   .coach-student-row .coach-count--sessions { padding-left: 4px; padding-right: 4px; }
   .coach-student-row .cell__sub { font-size: .706rem; }
 }
@@ -114,7 +137,13 @@
 }
 .coach-textarea::placeholder { color: var(--label3); }
 .coach-textarea--inline { margin: 8px 0 2px; }
-.group--pad .coach-textarea { background: transparent; padding: 0; min-height: 44px; }
+/* Consigne du programme : deux lignes d'emblée. Le texte d'exemple ne fait pas grandir le champ (field-sizing
+   l'ignore), il était coupé à mi-hauteur sur sa 2e ligne (panel t6) ; exemple raccourci à une ligne */
+.coach-textarea--prog { min-height: calc(2lh + 20px); }
+/* Consigne du programme : même champ que celles des exercices (gris, marge intérieure) ; au focus, un liseré teinté
+   à la place de l'anneau du navigateur collé au texte (panel t5) */
+.coach-textarea:focus, .coach-req-field__input:focus { outline: none; }
+.coach-textarea:focus { box-shadow: inset 0 0 0 2px var(--tint); }
 .coach-send-ex .cell__body { width: 100%; }
 .view--grouped .cell.coach-send-ex { padding-top: 10px; padding-bottom: 10px; }
 .coach-send-btn { margin-top: 24px; }
@@ -208,11 +237,22 @@
   .team-week__tile { padding: 10px 8px 8px; }
   .team-week__lbl { font-size: var(--fs-caption); }
 }
+/* Petite hauteur (iPhone SE) : les trois chiffres sur une ligne de texte, pour voir les élèves sans défiler (panel Apple
+   du 08/11 : l'en-tête prenait les deux tiers de l'écran). Même seuil que COACH_COMPACT (js/features/coach-ui.js). */
+@media (max-height: 700px) {
+  .team-week { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; margin: -2px 0 16px 16px; }
+  .team-week__tile { display: inline; padding: 0; border-radius: 0; background: none; white-space: nowrap; }
+  .team-week__val, .team-week__lbl { display: inline; font-size: var(--fs-footnote); line-height: 1.3; }
+  .team-week__tile:not(:last-child)::after { content: ' ·'; color: var(--label3); font-size: var(--fs-footnote); }
+}
+/* Texte agrandi : une valeur par ligne, sans « · » resté en bout de ligne (panel t5) */
+html.type-xl .team-week__tile::after { content: none !important; }
+@media (max-height: 700px) { html.type-xl .team-week { flex-direction: column; } }
 /* Segments Élèves | Social de l'onglet Coach : sous le grand titre, pleine largeur */
 .social-seg { margin: 2px 0 16px; }
 /* Programmes envoyés à un élève : état à droite */
 .coach-sent__state { color: var(--label); }
-.coach-sent__state--unseen { color: var(--orange-text); }
+.coach-sent__state--unseen { color: var(--label2); }   /* état normal juste après l'envoi : gris, jamais la couleur d'une alerte (panel t5) */
 
 /* ── Messages coach ↔ élève (js/features/coach-chat-ui.js) ── */
 .chat-cell__last { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
@@ -238,6 +278,8 @@
 .chat-msg--theirs .chat-msg__bubble { background: var(--bubble-in); color: var(--label); border-bottom-left-radius: 6px; }
 .chat-msg__time { flex-shrink: 0; font-size: var(--fs-caption2); color: var(--label2); margin-bottom: 4px; }
 /* Saisie collée en bas, au-dessus de la barre d'onglets (et de la mini-barre de séance) */
+/* Champ du message : 44 px de haut au moins, même en grand texte (zone de toucher) */
+.chat-compose .chat-compose__input { min-height: 44px; padding: 10px 0; box-sizing: border-box; }
 .chat-compose {
   position: sticky; bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); z-index: 2;
   display: flex; align-items: flex-end; gap: 8px; margin: 0 var(--gutter);
@@ -247,6 +289,11 @@
 body.has-tabbar.has-livebar .chat-compose { bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom, 0px)); }
 .chat-compose:focus-within { border-color: var(--tint); }
 body.has-tabbar .coach-chat-view { padding-bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); }
+/* Conversation courte : la saisie posée en bas de l'écran, juste au-dessus de la barre d'onglets, comme Messages (elle
+   flottait au milieu, sous les derniers messages, panel t5) */
+.coach-chat-view { display: flex; flex-direction: column; }
+.coach-chat-view > .scr.chat { flex: 1; display: flex; flex-direction: column; }
+.coach-chat-view .chat-list { flex: 1; }
 /* ── Devenir coach (js/features/coach-pro-ui.js) : champ sous son libellé (libellés longs, gros textes) ── */
 .coach-req-field { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding-top: 8px; padding-bottom: 4px; cursor: text; text-align: left; }
 .coach-req-field__label { align-self: flex-start; font-size: var(--fs-footnote); color: var(--label2); text-align: left; }
@@ -256,6 +303,10 @@ body.has-tabbar .coach-chat-view { padding-bottom: calc(var(--tabbar-h) + 8px + 
 }
 .coach-req-field__input::placeholder { color: var(--label3); }
 select.coach-req-field__input { appearance: none; -webkit-appearance: none; cursor: pointer; }
+/* Diplôme : le ⌃⌄ d'un menu de choix iOS, sinon « Choisir » gris se lisait comme l'exemple d'un champ à taper (panel t6) */
+.coach-req-field__pick { position: relative; display: block; }
+.coach-req-field__pick select.coach-req-field__input { padding-right: 24px; }
+.coach-req-field__pick > .icon { position: absolute; right: 0; top: 50%; transform: translateY(-50%); color: var(--label2); pointer-events: none; }
 select.coach-req-field__input:invalid { color: var(--label2); }
 .coach-req-field__input[aria-invalid="true"] { color: var(--red-text); }
 .coach-req-error { min-height: 1.2em; margin: 6px 16px 10px; font-size: var(--fs-footnote); color: var(--red-text); }
@@ -341,6 +392,12 @@ body.cph-shield::after { content: ''; position: fixed; inset: 0; z-index: 10000;
 /* Coffre : photo déjà envoyée au coach (photo-vault-ui.js), en haut à droite de la vignette, face à la pose */
 .pgal__sent { position: absolute; right: 6px; top: 6px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px;
   border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: var(--fs-caption2); font-weight: 600; }
+/* Texte agrandi : la coche seule (le mot débordait de la vignette ; VoiceOver lit « envoyée » sur la vignette),
+   et « Envoyer à mon coach » passe sous la date, sur plusieurs lignes au besoin (panel de la vague 3) */
+html.type-xl .pgal__sent { padding: 4px; }
+html.type-xl .pgal__sent-txt { display: none; }
+html.type-xl .cph-daybtn { flex-shrink: 1; min-width: 0; padding-left: 0; text-align: left; }
+html.type-xl .cph-daybtn span { white-space: normal; }
 /* Mon coach › Photos de bilan : la ligne ouvre la photo d'origine dans le coffre (« Voir dans le coffre ») */
 .cph-row__see { min-height: 44px; border: 0; background: none; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .cph-row__see:active { opacity: .6; }

@@ -13,6 +13,60 @@ import contextlib
 import datetime
 from zoneinfo import ZoneInfo
 
+# ── Typographie française de l'app (frTypo, js/core/util.js) ──
+# L'app pose une espace fine insécable (U+202F) avant ? ! ; : » et après «, autour de « × » et entre un nombre et
+# « kg » (et les autres unités, panel t5), et un trait d'union insécable (U+2011) dans « mois-ci ». Les textes lus par les tests sont ramenés à l'espace
+# et au trait d'union simples, SEULEMENT à ces places : un U+202F de séparateur de milliers (« 1 080 ») ou un U+00A0 (« 30 min ») restent tels quels, et les
+# vérifications gardent toute leur précision. typo_raw(page, js) lit un texte sans cette normalisation.
+# Panel t5 : aussi entre un nombre et son unité ou son nom (FR_TYPO_UNITS), après « ≈ » et « sem. », avant « · ».
+_TYPO_UNITS = ('kg|lb|min|h|j|s|t|g|kcal|km|cm|%|reps?|séances?|séries?|exercices?|jours?|semaines?|sem\\.|repas|records?'
+               '|janv\\.|févr\\.|mars|avr\\.|mai|juin|juil\\.|août|sept\\.|oct\\.|nov\\.|déc\\.')
+_TYPO_RE = re.compile('\u202f(?=[?!;:\u00bb])|(?<=\u00ab)\u202f|\u2011|\u202f\u00d7\u202f|(?<=\\d)\u202f(?=(?i:' + _TYPO_UNITS + '))'
+                      '|(?<=\u2248)\u202f|(?<=sem\\.)\u202f(?=\\d)|\u202f(?=\u00b7 )'
+                      # panel t6 : « L 1 », « 1 j 18 h », « repos 2:00 » ; mois en capitales (« 18 OCT. », text-transform lu par inner_text)
+                      '|(?:(?<=^[A-ZÀ-Ýj])|(?<=[\\s(][A-ZÀ-Ýj]))\u202f(?=\\d)|(?<=[^\\W\\d_])\u202f(?=\\d{1,2}:\\d\\d)')
+_TYPO_SUB = {'\u2011': '-', '\u202f\u00d7\u202f': ' \u00d7 '}
+
+
+def typo_norm(v):
+    """Ramène les espaces et traits d'union typographiques de frTypo à leur forme simple (récursif)."""
+    if isinstance(v, str):
+        return _TYPO_RE.sub(lambda m: _TYPO_SUB.get(m.group(0), ' '), v)
+    if isinstance(v, list):
+        return [typo_norm(x) for x in v]
+    if isinstance(v, tuple):
+        return tuple(typo_norm(x) for x in v)
+    if isinstance(v, dict):
+        return {k: typo_norm(x) for k, x in v.items()}
+    return v
+
+
+def _typo_patch():
+    from playwright.sync_api import Page, Locator, Frame, ElementHandle
+    for cls, names in ((Page, ('inner_text', 'text_content', 'evaluate', 'inner_html', 'content')),
+                       (Frame, ('inner_text', 'text_content', 'evaluate')),
+                       (Locator, ('inner_text', 'text_content', 'all_inner_texts', 'all_text_contents', 'evaluate', 'evaluate_all', 'inner_html')),
+                       (ElementHandle, ('inner_text', 'text_content', 'evaluate'))):
+        for n in names:
+            f = getattr(cls, n)
+            if getattr(f, '_typo', False):
+                continue
+            def wrap(f=f):
+                def g(*a, **k):
+                    return typo_norm(f(*a, **k))
+                g._typo, g._raw = True, f
+                return g
+            setattr(cls, n, wrap())
+
+
+def typo_raw(page, js, arg=None):
+    """page.evaluate sans normalisation typographique (pour vérifier les espaces insécables elles-mêmes)."""
+    from playwright.sync_api import Page
+    return Page.evaluate._raw(page, js, arg)
+
+
+_typo_patch()
+
 BASE_URL = os.environ.get('PPL_URL', 'http://localhost:8731/')
 SCRATCH = os.environ.get('PPL_SCRATCH', '/tmp/ppl-tests')
 SHOTS = os.path.join(SCRATCH, 'shots')
@@ -424,3 +478,16 @@ def run_main(R, tests, once=()):
                     R.check(False, f'{fn.__name__} : exception {str(e).splitlines()[0]}')
         bench.close()
     sys.exit(R.done())
+
+
+def sess_undo_text(page):
+    """« Annuler » en ligne en séance (sessionUndo) : texte de l'état (ligne au-dessus d'une carte, ou nom du bouton
+    « Annuler » dans la ligne de la série) ; '' sans rien à annuler."""
+    return page.evaluate("""(() => { const l = document.querySelector('.ex-undo__text'); if (l) return l.textContent;
+        const b = document.querySelector('[data-action="sess-undo"]'); return b ? b.getAttribute('aria-label') : ''; })()""")
+
+
+def sess_undo(page):
+    """Touche « Annuler » en ligne (séance)."""
+    page.locator('[data-action="sess-undo"]').first.click()
+    page.wait_for_timeout(300)

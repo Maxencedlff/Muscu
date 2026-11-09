@@ -28,7 +28,7 @@ function commentRowHtml(c, owner, id) {
             <div class="comment__main">
               <p class="comment__head"><b class="comment__name">${esc(name)}</b><span class="comment__at">${esc(fmtAgo(c.at))}</span></p>
               <p class="comment__body">${esc(c.body)}</p>
-              ${c.masked ? '<p class="comment__note">Masqué après des signalements : toi seul le vois.</p>' : ''}
+              ${c.masked ? '<p class="comment__note">Masqué après des signalements : visible par toi uniquement.</p>' : ''}
             </div>
             ${menu}
           </div>`;

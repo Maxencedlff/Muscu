@@ -22,6 +22,8 @@
 .ios-dialog__panel { position: relative; width: 100%; }
 .ios-dialog--alert .ios-dialog__panel {
   max-width: 270px; border-radius: 14px; overflow: hidden;
+  /* Plus haute que l'écran (texte agrandi) : le message défile, le titre, le champ et les boutons restent */
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px); display: flex; flex-direction: column;
   background: var(--dlg-bg); backdrop-filter: blur(30px) saturate(180%);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
   animation: iosPop .22s cubic-bezier(.2,.9,.3,1.2);
@@ -35,18 +37,27 @@
 .ios-dialog--sheet .ios-dialog__panel { max-height: calc(100% - env(safe-area-inset-top, 0px) - var(--sp-2)); }
 .ios-dialog--sheet .ios-dialog__group { flex-shrink: 0; }
 .ios-dialog--sheet .ios-dialog__group:first-child { flex-shrink: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-/* D'autres choix sous le pli (js/core/dialogs.js) : le bas s'estompe, comme une liste qui continue */
-.ios-dialog--sheet .ios-dialog__group--more {
-  -webkit-mask-image: linear-gradient(to bottom, var(--mask-solid) calc(100% - 44px), var(--mask-faint));
-  mask-image: linear-gradient(to bottom, var(--mask-solid) calc(100% - 44px), var(--mask-faint));
+/* D'autres choix sous le pli (js/core/dialogs.js) : le bas s'estompe vers le fond opaque de la feuille, sans jamais laisser
+   voir la séance derrière (un mask-image rendait le fond transparent, panels du 08/11) */
+.ios-dialog--sheet .ios-dialog__group--more::after {
+  content: ''; position: sticky; bottom: 0; display: block; height: 40px; margin-top: -40px; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--dlg-solid));
 }
+/* Feuille d'actions opaque : les textes de la séance ne se lisent pas au travers */
+.ios-dialog--sheet .ios-dialog__group { background: var(--dlg-solid); }
 .ios-dialog__group {
   border-radius: 14px; overflow: hidden; background: var(--dlg-bg);
   backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);
 }
 .ios-dialog__head { padding: var(--sp-4) var(--sp-4) 14px; text-align: center; }
+/* Alerte plus haute que l'écran : seuls le titre et le message défilent ; le champ et les boutons restent visibles */
+.ios-dialog--alert .ios-dialog__head { flex-shrink: 1; min-height: 0; display: flex; flex-direction: column; }
+.ios-dialog--alert .ios-dialog__text { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ios-dialog--alert .ios-dialog__field { flex-shrink: 0; }
+.ios-dialog--alert .ios-dialog__row { flex-shrink: 0; }
 .ios-dialog--sheet .ios-dialog__head { border-bottom: .5px solid var(--dlg-sep); padding: 14px var(--sp-4); }
 .ios-dialog__title { font-size: var(--fs-body); font-weight: 600; }
+.ios-dialog__title:focus { outline: none; }   /* focus posé pour VoiceOver, pas d'anneau à l'écran */
 .ios-dialog--sheet .ios-dialog__title { font-size: var(--fs-footnote); color: var(--label2); }
 .ios-dialog__msg { font-size: var(--fs-footnote); margin-top: var(--sp-1); line-height: 1.35; }
 .ios-dialog--sheet .ios-dialog__msg { color: var(--label2); }
@@ -65,14 +76,25 @@
 .ios-dialog__row .ios-dialog__btn + .ios-dialog__btn { border-left: .5px solid var(--dlg-sep); }
 .ios-dialog__row--stack { flex-direction: column; }
 .ios-dialog__row--stack .ios-dialog__btn + .ios-dialog__btn { border-left: none; border-top: .5px solid var(--dlg-sep); }
+/* Empilées faute de place (js/core/dialogs.js) : le refus ou « Annuler » passe en bas, comme iOS */
+.ios-dialog__row--wrapped .ios-dialog__btn--cancel { order: 1; border-top: .5px solid var(--dlg-sep); }
+.ios-dialog__row--wrapped .ios-dialog__btn--cancel + .ios-dialog__btn { border-top: none; }
 .ios-dialog__btn {
   flex: 1; display: block; width: 100%; min-height: 44px; padding: 11px 12px;
   background: none; border: none; color: var(--tint); font-size: var(--fs-body); cursor: pointer;
 }
 .ios-dialog--sheet .ios-dialog__btn { min-height: 57px; font-size: var(--fs-title3); }
 .ios-dialog--sheet .ios-dialog__group > .ios-dialog__btn + .ios-dialog__btn { border-top: .5px solid var(--dlg-sep); }
+/* Section d'un long menu (menu ⋯ d'un exercice) : petit titre gris, séparé du bloc d'avant par une bande */
+.ios-dialog__sect {
+  padding: 14px var(--sp-4) 6px; text-align: left; font-size: var(--fs-footnote); font-weight: 600; color: var(--label2);
+}
+.ios-dialog__group > .ios-dialog__btn + .ios-dialog__sect { border-top: 6px solid var(--dlg-sep); }
+.ios-dialog__band { height: 6px; background: var(--dlg-sep); }
 .ios-dialog__btn:active { background: var(--dlg-press); }
 .ios-dialog__btn--preferred, .ios-dialog__btn--cancel { font-weight: 600; }
+/* Alerte avec une action proposée : elle seule en gras, comme preferredAction d'iOS (panel t5) */
+.ios-dialog:not(.ios-dialog--sheet):has(.ios-dialog__btn--preferred) .ios-dialog__btn--cancel { font-weight: 400; }
 .ios-dialog__btn--destructive { color: var(--red-text); }
 .ios-dialog--out .ios-dialog__backdrop,
 .ios-dialog--out .ios-dialog__panel { animation: iosFadeOut .2s ease forwards; }
@@ -143,12 +165,12 @@
 
 /* Record noté (notedRecordCell, js/ui/medal.js) : Historique › Séance, séance d'un ami, séance d'un élève */
 .review-rec { gap: 12px; }
-.review-rec .medal { color: var(--yellow); flex-shrink: 0; }
+.review-rec .medal { color: var(--medal); flex-shrink: 0; }
 .review-rec .cell__body { min-width: 0; }
 .review-rec .cell__title { overflow-wrap: anywhere; }
 .review-rec__val { flex-shrink: 0; font-size: var(--fs-subhead); font-weight: 600; white-space: nowrap; }
 /* Progrès › Exercice : séance où un record a été battu */
-.stats-rec .medal { color: var(--yellow); vertical-align: -3px; }
+.stats-rec .medal { color: var(--medal); vertical-align: -3px; }
 /* Version minimale de l'app (js/app/updates.js, checkMinBuild) : écran plein qui ne se ferme pas, à la
    manière des écrans d'Apple : icône, titre et texte au centre, bouton en bas à portée du pouce */
 .min-build {

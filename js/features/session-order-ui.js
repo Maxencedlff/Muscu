@@ -11,7 +11,7 @@ function orderBtnHtml(ei, cur) {
   if (orderChoiceFor(xs, ei, cur?.ei) !== 'later') return '';
   const g = ssGroupOf(xs, ei);
   const what = g ? `${ssKind(g.length).toLowerCase()} ${g.map(k => esc(xs[k].name)).join(' et ')}` : esc(xs[ei].name);
-  return `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Plus tard : ${what}, passe en dernier">${icon('arrow.down.to.line', 14)}Plus tard</button>`;
+  return `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Plus tard : ${what}, passe en dernier">${icon('arrow.turn.down.right', 14)}Plus tard</button>`;
 }
 
 // Nouvelle liste de la séance (mêmes objets, autre ordre) : les positions (ei) gardées ailleurs suivent
@@ -27,7 +27,7 @@ function remapSessionOrder(next) {
 
 // focus : exercice du bloc qui devient celui en cours (null : le premier qui reste à faire).
 // Pendant un repos, la notification de fin et la Live Activity annoncent le nouvel exercice suivant.
-function applySessionOrder(next, focus, toast) {
+function applySessionOrder(next, focus, toast, moved = focus) {
   const s = activeSession;
   const undo = { xs: s.exercises, lastEi: s.lastEi ?? null, lastDone: s.lastDone ?? null };
   remapSessionOrder(next);
@@ -38,7 +38,7 @@ function applySessionOrder(next, focus, toast) {
   syncNativeRest();
   render();
   scrollToCurrent();   // la série en cours, au centre (sous la barre, jamais cachée par elle)
-  showToast(toast, { action: 'Annuler', duration: 4000, onAction: () => undoSessionOrder(undo, next) });
+  sessionUndo(toast, { target: { ex: moved }, onAction: () => undoSessionOrder(undo, next) });   // en ligne, au-dessus de la carte visée
 }
 
 // Sous-série en attente (drop set, rest-pause, cluster : js/data/intensif.js) hors du bloc désormais en cours :
@@ -81,7 +81,11 @@ function sessionDoLater(ei) {
   if (!xs?.[ei]) return;
   const next = orderDoLater(xs, ei);
   if (!next) return;
-  applySessionOrder(next, orderLaterFocus(xs, ei), 'Mis en dernier');
+  // La ligne « <nom> mis en dernier · Annuler » coiffe l'exercice qui prend la suite, là où l'écran défile
+  // (panel t7 : au-dessus de la carte déplacée, en bas, elle sortait de l'écran) ; sans suite, à l'ancienne place
+  const g = ssGroupOf(xs, ei), focus = orderLaterFocus(xs, ei);
+  const who = (g || [ei]).map(k => xs[k].name).join(' et ');
+  applySessionOrder(next, focus, `${who} mis en dernier`, focus || xs[ei]);
 }
 
 registerActions({

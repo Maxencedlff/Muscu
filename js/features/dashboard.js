@@ -311,6 +311,13 @@ function otherSessionHtml(cat) {
       </button>`;
 }
 
+
+// Libellé suivi du chevron : le dernier mot et le chevron ne se séparent jamais (chevron seul sur sa ligne en AX33, panel t6)
+function navSubWithChevron(text) {
+  const i = text.lastIndexOf(' ');
+  return `${esc(text.slice(0, i + 1))}<span class="navbar__sub-end">${esc(text.slice(i + 1))}\u00a0${icon('chevron.right', 12)}</span>`;
+}
+
 function renderDashboard() {
   const keys = sessionKeys();
   const pm   = progMeta();
@@ -330,7 +337,7 @@ function renderDashboard() {
   const date = fmtDate(Date.now(), 'day');
   const right = settingsButtonHtml();
   const from = coachFromLine(data.activeProgramme);   // programme reçu d'un coach (js/features/coach-ui.js)
-  const sub = `<button class="navbar__sub" data-action="go-my-programmes" aria-label="Programme ${esc(pm.name)}${from ? `, ${from}` : ''}, mes programmes">Programme ${esc(pm.name)} ${icon('chevron.right', 12)}</button>${from ? `<p class="coach-from coach-from--home">${from}</p>` : ''}`;
+  const sub = `<button class="navbar__sub" data-action="go-my-programmes" aria-label="Programme ${esc(pm.name)}${from ? `, ${from}` : ''}, mes programmes">${navSubWithChevron(`Programme ${pm.name}`)}</button>${from ? `<p class="coach-from coach-from--home">${from}</p>` : ''}`;
 
   return `
     <div class="view dashboard">

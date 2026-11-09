@@ -2,7 +2,7 @@
 dans la base Ciqual, quantité, objectifs), journée dans Entraînement › Nutrition (frise, anneau, repas
 cochés d'un toucher, repas suivant, remplacement d'un aliment pour la journée), carte de l'accueil
 (cocher le prochain repas sans ouvrir l'écran), plan envoyé par le coach (fiche de l'élève, canal des
-programmes) et reçu par l'élève (carte de l'accueil, « Suivre ce plan », Mon coach), base indisponible.
+programmes) et reçu par l'élève (carte de l'accueil, « Utiliser ce plan », Mon coach), base indisponible.
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py) : aucune requête ne sort. Captures :
 $PPL_SCRATCH/shots/lotnutrition/ (chaque écran, clair et sombre).
@@ -110,7 +110,15 @@ def t_journee(bench, eng, dev, theme):
         R.check(small_targets(page, '.diet-home button') == [], f'{t} carte : 44 pt')
         # Bouton à cocher : coche grise visible, jamais un deuxième anneau vide à côté de celui des calories
         col = page.evaluate("[getComputedStyle(document.querySelector('.diet-home .diet-check')).color, getComputedStyle(document.body).getPropertyValue('--label3')]")
-        R.check(col[0] not in ('rgba(0, 0, 0, 0)', 'transparent') and page.locator('.diet-home .diet-check .icon').count() == 1, f'{t} carte : coche grise visible avant de cocher ({col})')
+        R.check(page.locator('.diet-home .diet-check .icon').count() == 1, f'{t} carte : bouton Cocher présent ({col})')
+        # Panel Apple du 08/11 : contour et coche en couleur d'action, pas en gris pâle comme l'anneau des calories
+        tint = page.evaluate("""() => { const b = document.querySelector('.diet-home .diet-check'), s = getComputedStyle(b), probe = document.createElement('span');
+            probe.style.color = 'var(--tint)'; document.body.append(probe); const tint = getComputedStyle(probe).color; probe.remove();
+            return { color: s.color, ring: s.boxShadow, tint }; }""")
+        # Panel t5 : coche visible dans le rond (seul, il passait pour l'anneau des kcal) ; panel t6 : coche pleine en bleu
+        # d'action (à 40 % d'opacité, un bleu marine invisible en sombre)
+        op = page.evaluate("getComputedStyle(document.querySelector('.diet-home .diet-check .icon')).opacity")
+        R.check(float(op) == 1 and tint['color'] == tint['tint'] and tint['tint'] in tint['ring'], f'{t} carte : cercle et coche en couleur d\'action, coche lisible ({op}) {tint}')
         shot(page, LOT, f'1-accueil-{t}')
         card.scroll_into_view_if_needed()
         shot(page, LOT, f'1b-accueil-carte-{t}')
@@ -123,6 +131,11 @@ def t_journee(bench, eng, dev, theme):
         # Écran Nutrition
         page.click('.diet-home__open')
         page.wait_for_selector('.nutrition-view .diet-sum')
+        # Journal : même bouton Cocher que sur l'accueil, en couleur d'action (panels de la vague 3)
+        jc = page.evaluate("""() => { const b = document.querySelector('.nutrition-view .diet-check:not(.diet-check--on)'); if (!b) return null;
+            const p = document.createElement('span'); p.style.color = 'var(--tint)'; document.body.append(p); const tint = getComputedStyle(p).color; p.remove();
+            const s = getComputedStyle(b); return parseFloat(getComputedStyle(b.querySelector('.icon')).opacity) === 1 && s.color === tint && s.boxShadow.includes(tint); }""")
+        R.check(jc is True, f'{t} journal : pas coché = cercle et coche en couleur d\'action ({jc})')
         txt = page.inner_text('.nutrition-view')
         R.check("Aujourd'hui" in txt and 'Prise de masse' in txt, f'{t} Nutrition : titre et plan')
         R.check('sur 2 600 kcal' in txt.replace(' ', ' ').replace('\xa0', ' '), f'{t} Nutrition : objectif de calories du plan')
@@ -132,6 +145,9 @@ def t_journee(bench, eng, dev, theme):
         R.check(page.locator('.diet-week__day').count() == 7 and page.get_attribute('.diet-week__day--on', 'data-day') == '2026-11-05', f'{t} frise : 7 jours, aujourd\'hui choisi')
         R.check(page.locator('.diet-meal--done').count() == 1 and page.locator('.diet-meal--done .diet-item').count() == 0, f'{t} repas coché replié')
         R.check(page.locator('.diet-meal--next[data-meal="m2"]').count() == 1 and 'ensuite' in page.inner_text('.diet-meal--next').lower(), f'{t} déjeuner marqué « Ensuite »')
+        nx = page.evaluate("""() => { const e = document.querySelector('.diet-meal--next .diet-meal__eyebrow'), p = document.createElement('i');
+            p.style.color = 'var(--tint)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return getComputedStyle(e).color === c; }""")
+        R.check(nx, f'{t} « Ensuite » en couleur d\'action, pas le vert de « fait »')
         R.check('Pèse le riz cuit.' in txt, f'{t} consigne du repas')
         R.check('Ciqual 2025' in txt and 'Licence Ouverte Etalab 2.0' in txt and 'avis médical' in txt, f'{t} source, licence et précaution citées')
         R.check('0810 037 037' in txt, f'{t} ligne d\'écoute en bas de l\'écran')
@@ -236,9 +252,11 @@ def t_creer_plan(bench, eng, dev, theme):
         # VoiceOver : le champ de la quantité a un nom (avant : aucun), l'unité dite en toutes lettres
         lbl = page.get_attribute('.ios-dialog__input', 'aria-label') or ''
         R.check(lbl.endswith(', en grammes') and len(lbl) > len(', en grammes') and page.get_attribute('.ios-dialog__unit', 'aria-hidden') == 'true', f'{t} quantité : champ nommé ({lbl!r})')
-        # Panel du 07/11 : « P 2,5, G 31 » lu lettre par lettre ; le message est en toutes lettres
+        # Panel du 07/11 : « P 2,5, G 31 » lu lettre par lettre. Depuis le 09/11 (alerte courte en texte agrandi),
+        # le message ne redit plus les macros, déjà dans la liste : l'unité et les kcal pour 100 g, en toutes lettres
         msg = page.inner_text('.ios-dialog__msg')
-        R.check('g de protéines' in msg and 'g de glucides' in msg and 'g de lipides' in msg and ', P ' not in msg, f'{t} quantité : macros en toutes lettres ({msg!r})')
+        R.check(msg.startswith('Quantité en grammes.') and 'Pour 100 g : ' in msg and msg.endswith(' kcal.') and ', P ' not in msg and 'protéines' not in msg,
+                f'{t} quantité : message court, sans abréviation ({msg!r})')
         page.fill('.ios-dialog__input', '150')
         tap_dialog(page, 'OK')
         page.wait_for_timeout(300)
@@ -298,7 +316,7 @@ def t_creer_plan(bench, eng, dev, theme):
         shot(page, LOT, f'8-editeur-{t}')
         page.evaluate("goBack()")
         page.wait_for_selector('.diet-plans-view')
-        R.check('Suivi' in page.inner_text('.diet-plans-view'), f'{t} liste : plan suivi')
+        R.check('En cours' in page.inner_text('.diet-plans-view'), f'{t} liste : plan suivi')
         layout(page, t, 'Plans diète')
         shot(page, LOT, f'9-plans-{t}')
         # Accueil : la carte apparaît
@@ -331,7 +349,8 @@ def t_coach_eleve(bench, eng, dev, theme):
         # Panel du 07/11 : relecture avant l'envoi (nom, objectifs, Annuler), comme pour un programme
         page.wait_for_selector('.ios-dialog--alert')
         dlg = page.inner_text('.ios-dialog--alert').replace('\u00a0', ' ')
-        R.check('Envoyer « Sèche Léa » à lea ?' in dlg and 'kilocalories' in dlg and 'Annuler' in dlg, f'{t} coach : relecture avant l\'envoi ({dlg!r})')
+        # Panel t5 : unités abrégées comme à l'écran, l'écart avec l'objectif en tête
+        R.check('Envoyer « Sèche Léa » à lea ?' in dlg.replace('\u202f', ' ') and 'kcal de moins' in dlg and 'kilocalories' not in dlg and 'Annuler' in dlg, f'{t} coach : relecture avant l\'envoi ({dlg!r})')
         shot(page, LOT, f'8b-envoi-plan-relecture-{t}')
         tap_dialog(page, 'Annuler')
         page.wait_for_timeout(300)
@@ -356,6 +375,13 @@ def t_coach_eleve(bench, eng, dev, theme):
         g = page.inner_text('.coach-student-view')
         R.check('Sèche Léa' in g and 'Pas encore ouvert' in g, f'{t} fiche : plan envoyé, pas encore ouvert')
         R.check('diet_' not in g and 'Programme supprimé' not in g, f'{t} fiche : le plan n\'est pas listé comme un programme')
+        # Plan retiré de mes plans ensuite : la ligne garde le nom envoyé, « supprimé de tes plans » en complément
+        page.evaluate("window.__keep = data.dietPlans.d_lea00001; delete data.dietPlans.d_lea00001; render()")
+        page.wait_for_timeout(200)
+        row = page.inner_text('.coach-sent[data-diet="diet_lea00001"]')
+        R.check('Sèche Léa' in row and 'supprimé de tes plans' in row and 'Plan supprimé' not in row, f'{t} fiche : plan supprimé de mes plans, nom envoyé gardé ({row!r})')
+        page.evaluate("data.dietPlans.d_lea00001 = window.__keep; render()")
+        page.wait_for_timeout(200)
         layout(page, t, 'fiche de l\'élève')
         shot(page, LOT, f'10-coach-fiche-{t}')
         # Préparer le plan d'un 2e élève : dupliquer puis « Envoyer à un élève », depuis le plan
@@ -490,7 +516,8 @@ def t_plan_neuf_puis_coach(bench):
             R.check('Journée complète' in home and 'Déjeuner' not in home, f'{t} accueil : seul repas rempli coché, journée complète ({home!r})')
             R.check(pr['goal']['kcal'] == round(pr['eaten']['kcal']), f'{t} accueil : repère = prévu du jour ({round(pr["eaten"]["kcal"])} sur {pr["goal"]["kcal"]})')
             page.locator('.diet-home').scroll_into_view_if_needed()
-            page.wait_for_timeout(2600)   # toast « Journée complète, bravo » parti
+            R.check(page.locator('.toast').count() == 0, f'{t} journée complète : aucun toast posé sur la carte d\'un repas (le haut le dit déjà)')
+            page.wait_for_timeout(300)
             shot(page, LOT, f'16-plan-neuf-accueil-{t}')
             page.click('.diet-home__open')
             page.wait_for_selector('.nutrition-view .diet-sum')

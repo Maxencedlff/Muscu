@@ -513,7 +513,13 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     run(`coach.state = { students: [{ user_id: 's1', sent: [{ id: '${sid}', sentAt: 2, seen: false }, { id: 'u_abc', sentAt: 1, seen: true }] }] }`);
     sameJSON(run(`coachSentStatus('s1', []).map(x => x.progId)`), ['u_abc']);
     run(`data.dietPlans = { d_k7m2qx9p: { name: 'Sèche Léa', meals: [] } }`);
-    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.id, x.name, x.seen])`), [[sid, 'Sèche Léa', false]]);
+    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.id, x.name, x.seen, x.gone])`), [[sid, 'Sèche Léa', false, false]]);
+    // Plan supprimé de mes plans ensuite : le nom envoyé reste (gardé à l'envoi), « supprimé de tes plans » en complément
+    run(`coachRecordSent('s1', '${sid}', 2, 'Sèche Léa')`);
+    run(`data.dietPlans = {}`);
+    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.name, x.gone])`), [['Sèche Léa', true]]);
+    run(`localStorage.removeItem(COACH_SENT_KEY)`);
+    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.name, x.gone])`), [['Plan diète', true]], 'nom inconnu : « Plan diète », jamais « Plan supprimé »');
     run('coach.state = null');
   });
 
@@ -533,7 +539,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
 
   test('nutrition : fichiers listés (index.html, sw.js), aucune couleur en dur hors des tokens', () => {
     const html = read('index.html'), sw = read('sw.js');
-    for (const f of ['js/data/nutrition.js', 'js/data/food-swap.js', 'js/data/coach-diet.js', 'js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js', 'css/nutrition.css']) {
+    for (const f of ['js/data/nutrition.js', 'js/data/food-swap.js', 'js/data/food-scan.js', 'js/data/coach-diet.js', 'js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js', 'js/features/food-scan-ui.js', 'css/nutrition.css']) {
       assert.ok(html.includes(f), `index.html : ${f}`);
       assert.ok(sw.includes(`'/${f}'`), `sw.js : ${f}`);
     }
@@ -542,7 +548,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const css = read('css/nutrition.css');
     assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(css), 'couleurs : tokens de css/base.css seulement');
     // Aucune finalité médicale ni promesse dans l'interface ; source, licence et écoute présentes
-    const ui = ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js'].map(read).join('\n');
+    const ui = ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js', 'js/features/food-scan-ui.js'].map(read).join('\n');
     assert.ok(!/diab|obésit|plus sain|brûle|détox|detox|maigrir vite/i.test(ui), 'pas de finalité médicale ni de promesse');
     for (const t of ['table Ciqual 2025 de l\'Anses (version du 03/11/2025)', 'doi.org/10.57745/RDMHWY', 'Licence Ouverte Etalab 2.0', 'L\'Anses ne valide pas ces plans',
       '0810 037 037', 'réservent les régimes sous 1 200 kcal', 'Garder sur cet iPhone']) assert.ok(ui.includes(t), `texte : ${t}`);
@@ -550,7 +556,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const privacy = read('privacy.html');
     assert.ok(privacy.includes('id="nutrition"') && privacy.includes('href="#nutrition"') && privacy.includes('Your diet plans'), 'privacy.html : Nutrition FR et EN');
     // Textes de l'interface : sans tiret dans les phrases
-    for (const f of ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js']) {
+    for (const f of ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js', 'js/features/food-scan-ui.js']) {
       const strings = [...read(f).matchAll(/'([^'\n]*[A-Za-zéè][^'\n]*)'|`([^`]*)`/g)].map(m => m[1] || m[2]);
       for (const s of strings) assert.ok(!/\s[-–—]\s/.test(s.replace(/\$\{[^}]*\}/g, '')), `${f} : tiret dans « ${s.slice(0, 60)} »`);
     }

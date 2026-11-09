@@ -125,6 +125,8 @@ def t_tabbar_sans_compte(bench, eng, dev, theme):
         cut = page.evaluate("""[...document.querySelectorAll('.tabbar__label')].filter(l => l.scrollWidth > l.clientWidth + .5
             || l.getBoundingClientRect().width > l.parentElement.getBoundingClientRect().width).map(l => l.textContent)""")
         R.check(not cut, f'{t} libellés entiers {cut}')
+        edge = page.evaluate("[...document.querySelectorAll('.tabbar__label')].map(l => l.getBoundingClientRect()).map((r, i, a) => i ? innerWidth - a.at(-1).right : r.left)")
+        R.check(min(edge) >= 4, f'{t} « Entraînement » et « Social » à 4 pt au moins du bord {edge}')
         widths = [tabs.nth(i).bounding_box()['width'] for i in range(5)]
         R.check(min(widths) >= 44 and min(tabs.nth(i).bounding_box()['height'] for i in range(5)) >= 44, f'{t} onglets de 44 pt ({widths})')
         R.check(page.locator('.tabbar__badge').count() == 0, f'{t} sans compte : pas de badge')
@@ -156,8 +158,13 @@ def t_activation(bench, eng, dev, theme):
         age.click()
         R.check(page.locator('[data-action="social-age"]').get_attribute('aria-checked') == 'true', f'{t} case 15 ans cochée')
         R.check(page.locator('[data-action="social-enable"]').is_disabled(), f'{t} toujours grisé sans pseudo')
+        # Panels de la vague 3 : grisé, il reste à sa place et opaque, sans rien recouvrir (interrupteur, note)
+        g = page.evaluate("""() => { const b = document.querySelector('[data-action=social-enable]'), r = b.getBoundingClientRect(), cs = getComputedStyle(b);
+            const over = [...document.querySelectorAll('[data-action=social-age], .group-foot')].some(e => { const q = e.getBoundingClientRect(); return q.bottom > r.top + 1 && q.top < r.bottom - 1; });
+            return { pos: cs.position, op: cs.opacity, over }; }""")
+        R.check(g['pos'] == 'static' and g['op'] == '1' and not g['over'], f'{t} « Activer » grisé : à sa place, opaque, ne recouvre rien {g}')
         foot = page.inner_text('.group-foot:has(.link-inline[data-action="social-rules"])')
-        R.check('jamais montrés à tes amis' in foot and 'coach' not in foot, f'{t} pied : rien n\'est montré aux amis, sans coach ({foot!r})')
+        R.check('jamais montrés à ceux qui te suivent' in foot and 'coach' not in foot, f'{t} pied : rien n\'est montré aux amis, sans coach ({foot!r})')
         shot(page, LOT, f'2-activation-sans-pseudo-{t}')
         # Pseudo choisi par l'écran du pseudo (calque du compte)
         page.click('[data-action="social-choose-username"]')
@@ -173,15 +180,18 @@ def t_activation(bench, eng, dev, theme):
         R.check(page.locator('[data-action="social-enable"]').is_enabled(), f'{t} « Activer » actif')
         layout(page, t, 'activation')
         page.wait_for_timeout(2500)   # fin du toast « Pseudo enregistré »
-        # Depuis le panel du 07/11, « Rejoindre un coach » passe avant la carte des amis (facultatifs) : sur un
-        # petit écran, « Activer » peut finir sous le pli, mais il est atteint en un défilement
+        # Panel Apple du 08/11 : « Activer » collé au-dessus de la barre d'onglets, visible sans défiler (iPhone SE compris)
+        page.evaluate('scrollTo(0, 0)'); page.wait_for_timeout(300)
+        box = page.evaluate("(() => { const b = document.querySelector('[data-action=social-enable]').getBoundingClientRect(), t = document.querySelector('.tabbar').getBoundingClientRect(); return { top: b.top, bottom: b.bottom, tab: t.top }; })()")
+        R.check(box['top'] >= 0 and box['bottom'] <= box['tab'] + 1, f'{t} « Activer » visible sans défiler, au-dessus de la barre d\'onglets {box}')
+        shot(page, LOT, f'2b-activer-colle-{t}')
         page.evaluate("document.querySelector('[data-action=social-enable]').scrollIntoView({ block: 'center' })"); page.wait_for_timeout(300)
         R.check(page.evaluate("document.querySelector('[data-action=social-enable]').getBoundingClientRect().bottom <= document.querySelector('.tabbar').getBoundingClientRect().top"), f'{t} « Activer » atteint en défilant')
         # Élève suivi (panel du 06/11) : la phrase absolue était fausse, son coach voit les notes de séance
         page.evaluate("async () => { const c = __sb.addPerson({ username: 'max', social: false }); __sb.makeCoach(c); __sb.link(c, __sb.meId()); await coachRefresh(); render(); }")
         page.wait_for_timeout(400)
         foot = page.inner_text('.group-foot:has(.link-inline[data-action="social-rules"])')
-        R.check('jamais montrés à tes amis' in foot and 'Ton coach, lui, voit tes séances et leurs notes' in foot, f'{t} pied : ce que voit le coach dit ({foot!r})')
+        R.check('jamais montrés à ceux qui te suivent' in foot and 'Ton coach voit en plus tes séances et leurs notes' in foot, f'{t} pied : ce que voit le coach dit ({foot!r})')
         shot(page, LOT, f'2-activation-{t}')
         # Règles de la communauté
         page.click('#friendsBody [data-action="social-rules"]')
@@ -286,8 +296,8 @@ def t_fil(bench, eng, dev, theme):
         d = page.inner_text('.social-session-view')
         R.check('80 kg × 8 · 7' in d and 'Dips' in d and 'note privée' not in d, f'{t} détail des séries ({d[:120]!r})')
         # Volume : charge notée × reps, poids du corps non compté (Dips, Pompes) ; ni flèches ni notes
-        vol = page.locator('.social-session-view .tile').first.inner_text()
-        R.check('1,6 t' in vol and 'volume' in vol, f'{t} volume de la séance d\'un ami : 1 560 kg, soit 1,6 t ({vol!r})')
+        vol = page.locator('.social-session-view .tile').nth(1).inner_text()   # Durée, Volume, Séries (même ordre que le fil)
+        R.check('1,6 t' in vol and 'Volume' in vol, f'{t} volume de la séance d\'un ami : 1 560 kg, soit 1,6 t ({vol!r})')
         R.check(page.locator('.social-session-view .review-trend, .social-session-view .review-notes').count() == 0, f'{t} séance d\'un ami : ni flèches ni notes')
         R.check(any(c.get('only_user') == ids['lea'] for c in calls(page, 'feed')), f'{t} séances visibles de l\'ami chargées pour les records')
         R.check(page.locator('.social-session-view .review-rec').count() == 0, f'{t} plus de 20 séances visibles : aucun record annoncé sur une partie seulement')
@@ -324,7 +334,7 @@ def t_record_ami(bench, eng, dev, theme):
         page.locator('.feed-card[data-id="s1"] .feed-card__main').click()
         page.wait_for_selector('.social-session-view .review-rec')
         d = page.inner_text('.social-session-view')
-        R.check(page.locator('.social-session-view .tile').first.inner_text().startswith('1,1 t'), f'{t} volume sans poids du corps : 1 080 kg, soit 1,1 t ({d[:200]!r})')
+        R.check(page.locator('.social-session-view .tile').nth(1).inner_text().startswith('1,1 t'), f'{t} volume sans poids du corps : 1 080 kg, soit 1,1 t ({d[:200]!r})')
         rec = page.inner_text('.social-session-view .review-rec')
         R.check(page.locator('.social-session-view .review-rec').count() == 1 and 'Squat haltère' in rec and 'Record charge' in rec and '22,5 kg' in rec and 'avant' not in rec, f'{t} un record nommé, sans ancienne valeur ({rec!r})')
         R.check(page.locator('.social-session-view .review-trend').count() == 0, f'{t} aucune flèche')
@@ -362,7 +372,7 @@ def t_record_note(bench, eng, dev, theme):
         rec = page.inner_text('.social-session-view .review-rec')
         R.check('Squat' in rec and 'Record charge' in rec and '100 kg' in rec, f'{t} séance : record noté sans recalcul ({rec!r})')
         tiles = page.locator('.social-session-view .tile').all_inner_texts()
-        R.check(tiles[0].startswith('500') and tiles[2].startswith('1'), f'{t} échauffement hors du volume et des séries ({tiles})')
+        R.check(tiles[1].startswith('500') and tiles[2].startswith('1'), f'{t} échauffement hors du volume et des séries ({tiles})')   # Durée, Volume, Séries
         d = page.inner_text('.social-session-view')
         R.check('Échauffement 40 kg × 8' in d.replace('\u202f', ' ').replace('\u00a0', ' ') and 'RIR' not in d, f'{t} échauffement à part, RIR réservé au coach')
         shot(page, LOT, f'5c-seance-ami-record-note-{t}')
@@ -408,7 +418,7 @@ def t_profil(bench, eng, dev, theme):
         shot(page, LOT, f'7-profil-demande-{t}')
         page.click('[data-action="social-cancel"]')
         page.wait_for_timeout(400)
-        R.check(page.locator('[data-action="social-follow"]').inner_text().strip() == 'S\'abonner', f'{t} demande annulée : « S\'abonner »')
+        R.check(page.locator('[data-action="social-follow"]').inner_text().strip() == 'Suivre', f'{t} demande annulée : « Suivre »')
         # Signaler zoé : motif, envoi, proposition de bloquer
         page.click('[data-action="social-report"]')
         page.wait_for_timeout(300)
@@ -433,7 +443,7 @@ def t_profil(bench, eng, dev, theme):
         shot(page, LOT, f'9-profil-suivi-{t}')
         page.click('[data-action="social-unfollow"]')
         page.wait_for_timeout(300)
-        tap_dialog(page, 'Se désabonner')
+        tap_dialog(page, 'Ne plus suivre')
         page.wait_for_timeout(400)
         R.check(page.locator('[data-action="social-follow"]').count() == 1 and page.locator('.feed-card').count() == 0, f'{t} désabonné : séances retirées')
         # Bloquer léa
@@ -528,7 +538,7 @@ def t_masquer(bench, eng, dev, theme):
         page.wait_for_timeout(200)
         R.check(page.locator('[data-action="history-hide"]').get_attribute('aria-checked') == 'false' and page.evaluate('data.history[0].hidden') is True, f'{t} masquée')
         foot = page.locator('[data-action="history-hide"]').locator('xpath=../following-sibling::div[contains(@class,"group-foot")][1]').inner_text()
-        R.check(foot == 'Tes abonnés ne voient pas cette séance.', f'{t} masquée : note qui le dit ({foot!r})')
+        R.check(foot == 'Ceux qui te suivent ne voient pas cette séance.', f'{t} masquée : note qui le dit ({foot!r})')
         R.check('REÇUES AVANT DE LA MASQUER' in page.inner_text('.history-detail').upper() and page.locator('.who-list .social-row').count() == 2, f'{t} masquée : réactions d\'avant')
         layout(page, t, 'séance masquée')
         page.evaluate("document.querySelector('[data-action=history-hide]').scrollIntoView({ block: 'center' })")
@@ -584,7 +594,7 @@ def t_bilan_visible(bench, eng, dev, theme):
         sw = page.locator('[data-action="summary-visible"]')
         R.check(sw.count() == 1, f'{t} social activé : interrupteur au bilan')
         txt = sw.inner_text()
-        R.check('Visible sur mon profil' in txt and 'Tes abonnés verront cette séance (jamais tes notes ni ton poids).' in txt, f'{t} bilan : libellé et sous-texte ({txt!r})')
+        R.check('Visible sur mon profil' in txt and 'Ceux qui te suivent verront cette séance (jamais tes notes ni ton poids).' in txt, f'{t} bilan : libellé et sous-texte ({txt!r})')
         R.check(sw.get_attribute('aria-checked') == 'true' and sw.get_attribute('role') == 'switch', f'{t} bilan : allumé par défaut')
         sid = page.evaluate('lastSummary.id')
         R.check(page.evaluate(f"!('hidden' in data.history.find(h => h.id === '{sid}'))"), f'{t} bilan : séance visible par défaut (hidden absent)')
@@ -611,7 +621,7 @@ def t_bilan_visible(bench, eng, dev, theme):
         page.click('.tabbar [data-tab="history"]'); page.wait_for_timeout(300)
         row = page.locator(f'[data-action="open-history"][data-id="{sid}"]')
         mark = row.locator('.hidden-mark')
-        R.check(mark.count() == 1 and mark.get_attribute('aria-label') == 'Masquée à tes abonnés' and mark.get_attribute('role') == 'img', f'{t} Historique : œil barré et libellé VoiceOver')
+        R.check(mark.count() == 1 and mark.get_attribute('aria-label') == 'Masquée à ceux qui te suivent' and mark.get_attribute('role') == 'img', f'{t} Historique : œil barré et libellé VoiceOver')
         R.check(mark.locator('use').get_attribute('href') == '#i-eye.slash', f'{t} Historique : icône eye.slash du système d\'icônes')
         R.check(page.locator('.hidden-mark').count() == 1, f'{t} Historique : œil seulement sur la séance masquée')
         shot(page, LOT, f'14-historique-masquee-{t}')
@@ -671,6 +681,25 @@ def t_hors_ligne(bench, eng, dev, theme):
         page.locator('.feed-card').first.locator('.react').click()
         page.wait_for_timeout(300)
         R.check(page.locator('.feed-card').first.locator('.react').get_attribute('aria-pressed') == 'false' and 'Pas d\'Internet' in toast(page), f'{t} bravo hors ligne annulé ({toast(page)!r})')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+    # Panel Apple du 08/11 : social activé (état connu), fil vide, hors ligne : un seul message, pas « demandes pas à jour »
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, enable=True)
+        friends_tab(page)
+        page.wait_for_timeout(300)
+        page.evaluate('async () => { __sb.fail.social = "offline"; await Promise.allSettled([socialRefresh(), socialLoadFeed("")]); render(); }')
+        page.wait_for_timeout(300)
+        txt = page.inner_text('#friendsBody')
+        R.check(txt.count("Pas d'Internet") == 1 and 'demandes' not in txt and page.locator('[data-action="social-retry"]').count() == 1,
+                f'{t} hors ligne, fil vide : un seul message ({txt!r})')
+        # Une demande reçue affichée : la note la cite
+        page.evaluate("""async () => { __sb.fail.social = null; const tom = __sb.addPerson({ username: 'tom' }); __sb.follow(tom, __sb.meId(), 'pending');
+            await Promise.allSettled([socialRefresh(), socialLoadFeed('')]); __sb.fail.social = 'offline';
+            await Promise.allSettled([socialRefresh(), socialLoadFeed('')]); render(); }""")
+        page.wait_for_timeout(300)
+        txt = page.inner_text('#friendsBody')
+        R.check('demandes pas à jour' in txt and 'tom' in txt, f'{t} hors ligne avec une demande : la note la cite ({txt!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
     # Serveur qui ne répond pas : l'app reste utilisable, l'onglet garde l'état connu (cache de l'appareil)
     with bench.page(eng, dev, theme) as page:

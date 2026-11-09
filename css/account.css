@@ -176,7 +176,7 @@
 @media (max-width: 360px) {
   .auth__page--username { padding-top: 0; }
   .auth__page--username .auth__avatar { margin: 0 0 8px; }
-  .auth__page--username .auth__avatar .avatar--xl { width: 64px; height: 64px; font-size: 2.118rem; }
+  .auth__page--username .auth__avatar .avatar--xl { width: 64px; height: 64px; font-size: min(2.118rem, 36px); }
   .auth__page--username .auth__avatar-edit { display: none; }
   /* Titre centré : il peut mordre sur les marges latérales pour tenir sur une ligne */
   .auth__page--username .auth__title { font-size: 28px; white-space: nowrap; margin-inline: -10px; }
@@ -204,16 +204,16 @@
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   border-radius: 50%; background: var(--fill2); line-height: 1;
 }
-.avatar--l  { width: 60px; height: 60px; font-size: 2rem; }
-.avatar--xl { width: 92px; height: 92px; font-size: 3.059rem; }
+.avatar--l  { width: 60px; height: 60px; font-size: min(2rem, 34px); }
+.avatar--xl { width: 92px; height: 92px; font-size: min(3.059rem, 52px); }
 .avatar--empty { color: var(--label2); }
 /* Sans avatar : initiale du pseudo, blanche sur un disque gris dégradé (monogramme de Contacts) */
 .avatar--initial, .avatar-pick--initial {
   background: linear-gradient(#a5abb6, #858a95); color: #fff; font-weight: 600;
 }
-.avatar--initial.avatar--l  { font-size: 1.588rem; }
-.avatar--initial.avatar--xl { font-size: 2.471rem; }
-.avatar-pick--initial { font-size: 1.176rem; }
+.avatar--initial.avatar--l  { font-size: min(1.588rem, 27px); }
+.avatar--initial.avatar--xl { font-size: min(2.471rem, 42px); }
+.avatar-pick--initial { font-size: min(1.176rem, 20px); }
 .avatar-pick--initial .icon { color: #fff; }
 .avatar-pick--initial[aria-pressed="true"] { background: linear-gradient(#a5abb6, #858a95); }
 
@@ -328,4 +328,15 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
 .onb__actions {
   position: sticky; bottom: 0; margin: auto calc(-1 * var(--gutter)) -24px; padding: 16px var(--gutter) 8px;
   display: flex; flex-direction: column; background: var(--bg);
+  z-index: 2;   /* au-dessus des séparateurs de la liste (z-index 1) : ils barraient « Commencer » (Duo plié, vague 3) */
+}
+/* Accueil : la même disposition (bouton sous le titre) dès que la colonne fait moins de 19 fois la taille du texte, donc
+   aussi en texte agrandi sur iPhone 13 (« Nouvea / u plan » coupé à côté du bouton, panel t8). Les unités em d'une requête
+   de conteneur suivent la taille de texte du conteneur. */
+.dashboard .home { container: home / inline-size; }
+@container home (max-width: 19em) {
+  .account-card { display: grid; grid-template-columns: 1fr auto; align-items: start; column-gap: 4px; padding-top: 12px; padding-bottom: 2px; }
+  .account-card__text { grid-column: 1; grid-row: 1; padding-top: 2px; }
+  .account-card__close { grid-column: 2; grid-row: 1; margin-top: -9px; }
+  .account-card__btn { grid-column: 1 / -1; grid-row: 2; justify-self: start; padding: 0; }
 }

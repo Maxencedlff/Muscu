@@ -51,10 +51,12 @@ function photoVaultCellHtml() {
 }
 
 // ── Écran ───────────────────────────────────────────────────
-// Barre sans titre : le grand titre est dans l'écran (comme Mesures › une mesure), pas de doublon
+// Barre sans titre : le grand titre est dans l'écran (comme Mesures › une mesure), repris par la barre au défilement
+// (observeLargeTitle, js/ui/navbar.js)
 function renderPhotoVault() {
   const open = pv.phase === 'open';
-  const right = open ? `<button class="navbar__icon" data-action="pv-lock" aria-label="Verrouiller le coffre">${icon('lock', 22)}</button>` : '';
+  // Action en toutes lettres : le cadenas ne dit que l'état « chiffré » (une icône = un sens, docs/ERGONOMIE.md)
+  const right = open ? `<button class="navbar__text" data-action="pv-lock" aria-label="Verrouiller le coffre">Verrouiller</button>` : '';
   const body = open ? pvOpenHtml() : pv.phase === 'intro' ? pvIntroHtml() : pv.phase === 'locked' ? pvLockedHtml() : pvCenterHtml();
   return `
     <div class="view photo-vault ${open ? 'view--grouped' : 'pv-locked'}">
@@ -97,7 +99,7 @@ function pvIntroHtml() {
             ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, 'Pas de code en plus à retenir. Chiffrées sur ton iPhone, jusque dans ses sauvegardes.')}
             ${feat('timer', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
             ${feat('eye.slash', 'Rien ne sort sans toi', cphStudentShown() && cph.state?.ready
-              ? 'Ni dans ta pellicule, ni dans l\'export. Ton coach ne reçoit que les photos que tu choisis de lui envoyer, chiffrées pour lui seul.'
+              ? 'Ni dans ta pellicule, ni dans l\'export. Ton coach ne reçoit que les photos que tu choisis d\'envoyer, chiffrées pour ton coach seulement.'
               : 'Ni dans ta pellicule, ni dans l\'export, ni sur nos serveurs.')}
             ${feat('info.circle', 'Te suit sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour retrouver ton coffre sur un nouvel iPhone.')}
           </ul>
@@ -121,6 +123,7 @@ function pvLockedHtml() {
 
 function pvOpenHtml() {
   const list = photoCache || [];
+  // Coffre vide : les trois cases Face, Profil, Dos suffisent (la ligne « Ajouter une photo » faisait doublon)
   const add = `<button class="cell cell--action" data-action="photo-add">${icon('camera', 22)}<span class="cell__title">Ajouter une photo</span></button>`;
   const oldest = list[list.length - 1];
   const summary = list.length
@@ -131,39 +134,45 @@ function pvOpenHtml() {
               <div class="pgal__row">${g.photos.map(p => { const sent = cphStudentListed() && !!cphSentOf(p.id); return `
                 <button class="pgal__item" data-action="photo-open" data-id="${p.id}" aria-label="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}${sent ? ', envoyée à ton coach' : ''}">
                   <img src="${photoUrl(p)}" alt="" loading="lazy"><span class="pgal__pose">${photoPoseLabel(p.pose)}</span>${sent ? `
-                  <span class="pgal__sent" aria-hidden="true">${icon('checkmark', 10)}Envoyée</span>` : ''}
+                  <span class="pgal__sent" aria-hidden="true">${icon('checkmark', 10)}<span class="pgal__sent-txt">Envoyée</span></span>` : ''}
                 </button>`; }).join('')}</div>
             </div>`).join('');
   return `
-        <h1 class="scr-title" id="pvTitle" tabindex="-1">Coffre à photos</h1>
+        <h1 class="scr-title" id="pvTitle" tabindex="-1">Coffre</h1>
         <p class="pv-summary">${icon('lock', 14)}<span>${summary}</span></p>
         ${photoCompareHtml(list)}
-        <div class="group">${add}
+        <div class="group">${list.length ? add : ''}
           ${list.length ? `<div class="cell"><div class="pgal">${days}</div></div>` : `<div class="cell pv-empty">
             <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
             <p class="cell__sub">Une photo de temps en temps, pour voir ce que la balance ne dit pas.</p></div>`}
         </div>
-        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}, chiffrées sur ton iPhone. ` : ''}Hors de l'export et de la copie iCloud de l'app ; chiffrées dans la sauvegarde de l'iPhone. Sur un nouvel iPhone, elles se rouvrent grâce au trousseau iCloud. ${cphVaultFoot()}</div>`;
+        <div class="group-foot">Tes photos restent sur ton iPhone, chiffrées. ${cphVaultFoot()}</div>
+        <div class="group-foot">Elles ne sont ni dans l'export ni dans la copie iCloud de l'app ; elles sont chiffrées dans la sauvegarde de l'iPhone et se rouvrent sur un nouvel iPhone grâce au trousseau iCloud.</div>`;
 }
 
 // Avant / après : les deux photos superposées, un curseur découvre l'une sur l'autre.
-// Par défaut la plus ancienne et la plus récente de la même pose.
+// Par défaut la même pose à deux dates (photoComparePair, js/data/progress-photos.js) ; aucune pose prise deux jours
+// différents : pas de comparateur, une phrase dit quoi faire. Un choix fait dans les menus est gardé.
 function photoCompareHtml(list) {
-  if (list.length < 2) return '';
+  if (!list.length) return '';
   const byId = id => list.find(p => p.id === id);
   if (!byId(photoCmp.a) || !byId(photoCmp.b)) {
-    const newest = list[0];
-    const same = list.filter(p => p.pose === newest.pose);
-    const pool = same.length > 1 ? same : list;
-    photoCmp = { ...photoCmp, a: pool[pool.length - 1].id, b: newest.id };
+    const pair = photoComparePair(list);
+    if (!pair) return `
+        <div class="group-title">Avant / après</div>
+        <div class="group"><div class="cell"><span class="cell__sub pcmp__hint">${esc(photoCompareHint(list))}</span></div></div>`;
+    photoCmp = { ...photoCmp, ...pair };
   }
   const a = byId(photoCmp.a), b = byId(photoCmp.b);
+  // Même pose des deux côtés (le cas par défaut) : la pose dans le titre, la date seule dans les menus, lisible sur iPhone SE
+  // (panels de la vague 3 : « 21 oct. · F ») ; une photo d'une autre pose garde « date · pose »
+  const pose = a.pose === b.pose ? a.pose : null;
   const options = sel => list.slice().reverse().map(p =>
-    `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(fmtDate(p.date, 'short'))} · ${photoPoseLabel(p.pose)}</option>`).join('');
+    `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(fmtDate(p.date, 'short'))}${p.pose === pose ? '' : ` · ${photoPoseLabel(p.pose)}`}</option>`).join('');
   const days = photoGapDays(a.date, b.date);
   const pos = photoCmp.pos;
   return `
-        <div class="group-title">Avant / après</div>
+        <div class="group-title">Avant / après${pose ? ` · ${photoPoseLabel(pose)}` : ''}</div>
         <div class="group group--pad pcmp">
           <div class="pcmp__frame" style="--pos:${pos}%">
             <img class="pcmp__img" src="${photoUrl(b)}" alt="Après : ${photoPoseLabel(b.pose)}, ${esc(fmtDate(b.date))}">
@@ -174,7 +183,7 @@ function photoCompareHtml(list) {
           </div>
           <div class="pcmp__cols">${[['a', a, 'Avant'], ['b', b, 'Après']].map(([side, p, lbl]) => `
             <label class="pcmp__col"><span class="pcmp__lbl">${lbl}</span>
-              <select id="pcmp-${side}" class="pcmp__sel" data-side="${side}">${options(p.id)}</select>
+              <span class="pcmp__pick"><select id="pcmp-${side}" class="pcmp__sel" data-side="${side}">${options(p.id)}</select>${icon('chevron.up.chevron.down', 14)}</span>
             </label>`).join('')}
           </div>
           <div class="pcmp__gap">${days ? `${plural(days, 'jour', 'jours')} d'écart` : 'Même jour'}</div>
@@ -220,10 +229,14 @@ async function mountPhotoVault({ first } = {}) {
 // Photo à montrer une fois le coffre ouvert (Mon coach › Photos de bilan › « Voir »)
 let pvPendingPhoto = null;
 function pvShowPhoto(id) { pvPendingPhoto = id; navigate('photo-vault'); }
+// Feuille d'envoi au coach à ouvrir une fois le coffre ouvert (Mon coach › Photos de bilan › « Envoyer depuis mon coffre »)
+let pvPendingSend = false;
+function pvSendToCoach() { pvPendingSend = true; navigate('photo-vault'); }
 function leavePhotoVault() {
   vaultLock('leave');
   pvPendingFile = null;
   pvPendingPhoto = null;
+  pvPendingSend = false;
   pv.phase = 'loading';
   pvShownPhase = null;
 }
@@ -253,6 +266,7 @@ async function pvLoadPhotos() {
   pvPaint();
   if (pvPendingFile) { const f = pvPendingFile; pvPendingFile = null; newPhotoSheet(f); }
   else if (pvPendingPhoto) { const id = pvPendingPhoto; pvPendingPhoto = null; if (photoCache.some(x => x.id === id)) openPhotoSheet(id); }
+  else if (pvPendingSend) { pvPendingSend = false; cphSendLatestDay(); }
 }
 
 // Coffre refermé (js/data/photo-vault.js) : images libérées, feuilles de photo retirées sur-le-champ,
@@ -363,7 +377,7 @@ async function newPhotoSheet(file) {
     const rec = await photoFromFile(file, res);
     await vaultAddPhoto(rec);
     await pvLoadPhotos();
-    showToast(`Photo rangée dans le coffre · ${fmtBytes(rec.bytes)}`);
+    announce('Photo rangée dans le coffre');   // la photo apparaît dans la liste ; un toast couvrait les menus Avant / Après (panel t5)
   } catch {
     if (!vaultIsOpen()) { if (currentView() === 'photo-vault') { pvPendingFile = file; pvPaint(); } return; }   // refermé pendant la préparation
     showToast('Photo illisible ou stockage indisponible', { error: true });
@@ -375,7 +389,7 @@ async function openPhotoSheet(id) {
   if (!p) return;
   await sheet({ title: `${photoPoseLabel(p.pose)} · ${fmtDate(p.date)}`, cancel: 'Fermer', confirm: '', body: `
     <img class="pview__img" src="${photoUrl(p)}" alt="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}">
-    <p class="pview__meta">${p.w} × ${p.h} px · ${fmtBytes(p.bytes)}</p>
+    <p class="pview__meta">${p.w} × ${p.h} px</p>
     ${cphVaultPhotoHtml(p)}
     <button class="btn btn--danger btn--full" data-action="photo-delete" data-id="${p.id}">Supprimer cette photo</button>` });
 }
@@ -412,6 +426,7 @@ document.addEventListener('change', e => {
   if (el.classList?.contains('pcmp__sel')) {
     photoCmp = { ...photoCmp, [el.dataset.side]: el.value };
     pvPaint();
+    announce(document.querySelector('.pcmp__gap')?.textContent || '');   // l'écart dit après le choix d'une date
   }
 });
 document.addEventListener('input', e => { if (e.target.classList?.contains('pcmp__range')) pvSetComparePos(e.target.value); });

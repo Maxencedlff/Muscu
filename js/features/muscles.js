@@ -46,7 +46,7 @@ function exMusclesPanelHtml(m) {
 // ── Muscles vérifiés de la bibliothèque : modifier, rétablir ─
 
 // Exercice de la bibliothèque : muscles vérifiés par défaut, modifiables après confirmation, rétablis d'un toucher
-const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en orange, secondaires en jaune.';
+const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en orange vif, secondaires en orange atténué.';
 const MODIFIED_MUSCLES_FOOT = 'Muscles modifiés par toi : ils remplacent ceux de la bibliothèque dans Progrès et la récupération.';
 const RESET_MUSCLES_LABEL = 'Rétablir les muscles par défaut';
 
@@ -215,20 +215,21 @@ function spanSegmentedHtml() {
   </div>`;
 }
 
-// Pastille de couleur d'un palier (légende, bulle) : la teinte de la carte, la plus forte pour le dernier
+// Pastille de couleur d'un palier (légende, bulle) : la teinte et l'opacité de la carte (bodyTier, js/ui/body-map.js)
 function muscleLevelDot(lvl) {
-  return `<i class="mlegend__dot${lvl >= MUSCLE_LEVEL_MAX ? ' mlegend__dot--peak' : ''}" style="--o:${bodyHeatOpacity(lvl / MUSCLE_LEVEL_MAX)}"></i>`;
+  const tier = bodyTier(lvl / MUSCLE_LEVEL_MAX);
+  return `<i class="mlegend__dot${tier ? ` mlegend__dot--${tier.tone}` : ''}" style="--o:${tier ? tier.op : 0}"></i>`;
 }
 function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
 
-// Légende : chaque palier en mots, avec ses bornes ; en « 4 semaines », la couleur suit la moyenne par semaine.
+// Légende : l'unité en tête (panel t5), chaque palier en mots avec ses bornes ; en « 4 semaines », la moyenne par semaine.
 // load : avec la charge de la période, une ligne dit où en sont TES muscles (muscleLegendYou)
 function muscleLegendHtml(span = muscleSpan, load = null) {
   const you = load ? muscleLegendYou(load) : '';
   return `<div class="mlegend" aria-hidden="true">
+    <span class="mlegend__unit">${span === 'month' ? 'Séries en moyenne par semaine' : 'Séries par semaine'}</span>
     ${MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('')}
     ${you ? `<span class="mlegend__you num">${esc(you)}</span>` : ''}
-    <span class="mlegend__unit">${span === 'month' ? 'séries en moyenne par semaine' : 'séries par semaine'}</span>
   </div>`;
 }
 
@@ -268,7 +269,7 @@ function renderMuscleCard() {
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
-        ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true, peak: true, tap: true })}
+        ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true, tiers: true, tap: true })}
         ${muscleLegendHtml(muscleSpan, load)}
         ${muscleSrListHtml(load)}
       </div>
@@ -293,7 +294,7 @@ function renderStatsMuscles() {
       <div class="cell mrow${id === muscleFocus ? ' mrow--focus' : ''}" data-muscle="${id}">
         <span class="cell__body">
           <span class="mrow__top"><span class="cell__title">${label}</span><span class="cell__value num">${roundSets(load.sets[id])}</span></span>
-          <span class="mrow__bar" aria-hidden="true"><i${load.levels[id] >= MUSCLE_LEVEL_MAX ? ' class="is-peak"' : ''} style="width:${pct}%;--o:${bodyHeatOpacity(load.intensity[id]) || 0}"></i></span>
+          <span class="mrow__bar" aria-hidden="true"><i${(t => (t ? ` class="is-${t.tone}"` : ''))(bodyTier(load.intensity[id]))} style="width:${pct}%;--o:${bodyTier(load.intensity[id])?.op || 0}"></i></span>
           <span class="visually-hidden">${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</span>
         </span>
       </div>`;

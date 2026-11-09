@@ -56,7 +56,7 @@ function renderStatsExercise(exId) {
   if (cardio && !cModes.some(([m]) => m === cardioMode)) cardioMode = 'time';
   // Courbe « Effort » (RPE moyen, js/data/rir.js) : proposée dès qu'une séance a des RIR notés
   const hasRpe = !cardio && it.points.some(p => p.rpe != null);
-  if (statsMode === 'effort' && !hasRpe) statsMode = 'volume';
+  if (statsMode === 'effort' && !hasRpe) statsMode = 'charge';
   const effort = !cardio && statsMode === 'effort';
   // Courbe d'allure, de distance ou d'effort : seulement les séances qui en ont une
   const pts    = effort ? it.points.filter(p => p.rpe != null) : !cardio || cardioMode === 'time' ? it.points : it.points.filter(p => cardioMetric(p, cardioMode));
@@ -96,7 +96,7 @@ function renderStatsExercise(exId) {
         ${icon('chevron.right', 16)}
       </button>`).join('');
 
-  const modes = cardio ? cModes : [['volume', 'Volume'], ['charge', 'Charge max'], ['1rm', '1RM est.'], ...(hasRpe ? [['effort', 'Effort']] : [])];
+  const modes = cardio ? cModes : [['charge', 'Charge max'], ['volume', 'Volume'], ['1rm', '1RM est.'], ...(hasRpe ? [['effort', 'Effort']] : [])];
   const modeOn = cardio ? cardioMode : statsMode;
   // Cardio : meilleure allure (ou vitesse) et plus longue distance à la place du record de charge
   const paces = it.points.map(p => p.pace).filter(Boolean);
@@ -124,7 +124,7 @@ function renderStatsExercise(exId) {
         </div>
         <div class="chart-head">
           <span class="chart-head__val num">${fmtMetricVal(vals[vals.length - 1], bw)}</span>
-          ${tp === null ? '' : `<span class="chart-head__trend num ${better > 0 ? 'txt-up' : better < 0 ? 'txt-down' : 'txt-flat'}">${pctTxt(tp)}</span>`}
+          ${tp === null ? '' : `<span class="chart-head__trend num ${better > 0 ? 'txt-up' : better < 0 ? 'txt-down' : 'txt-flat'}">${pctTxt(tp)}</span><span class="chart-head__since">${esc(sinceTxt(pts[0].date))}</span>`}
           ${statsMode === '1rm' && !cardio ? `<button class="info-btn" data-action="info-1rm" aria-label="Comment est calculé le 1RM estimé ?">i</button>` : ''}
         </div>
         <div class="chart" id="exChart">
@@ -186,6 +186,14 @@ function resolveColor(el, c) {
   return v;
 }
 
+// Tracé en clair : la couleur de la séance assombrie (× 0,7) pour 3:1 au moins sur la carte blanche (l'orange de Push
+// faisait 2,2:1, WCAG 1.4.11, panel t5) ; en sombre, telle quelle
+function chartLineColor(rgb) {
+  if (!document.body.classList.contains('light')) return rgb;
+  const m = String(rgb).match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+  return m ? `rgb(${[m[1], m[2], m[3]].map(v => Math.round(v * 0.7)).join(', ')})` : rgb;
+}
+
 function axisFmt(v) {
   if (chartState.fmtVal) return (chartState.axisFmt || chartState.fmtVal)(v);
   if (chartState.effort) return fmtNum(Math.round(v * 10) / 10);
@@ -215,7 +223,7 @@ function drawCharts() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
 
-  const color = resolveColor(canvas, st.color);
+  const color = chartLineColor(resolveColor(canvas, st.color));
   const cs    = getComputedStyle(box);
   const sepC  = cs.getPropertyValue('--sep').trim() || 'rgba(128,128,128,.4)';
   const lblC  = cs.getPropertyValue('--label2').trim() || '#8e8e93';
@@ -230,23 +238,28 @@ function drawCharts() {
   let hi = vMax + (vMax - lo) * 0.08 || 1;
   // Effort : échelle RPE fixe de 6 (RIR 4 et plus) à 10, lisible d'une séance à l'autre
   if (st.effort) { lo = 5.8; hi = 10.2; }
-  const ticks = st.effort ? [6, 8, 10] : [lo, (lo + hi) / 2, hi];
+  // Graduations rondes (pas l'allure en m:ss, pas l'effort à échelle fixe) ; l'unité sur la plus haute
+  const ticks = st.effort ? [6, 8, 10] : st.cardio === 'pace' ? [lo, (lo + hi) / 2, hi] : chartNiceTicks(lo, hi);
+  if (!st.effort && st.cardio !== 'pace') { lo = ticks[0]; hi = ticks[ticks.length - 1]; }
+  const unitTop = st.effort || st.cardio || st.fmtVal || st.mode === 'volume' ? '' : ` ${st.bw ? chartUnit : unitLbl()}`;
+  const tickTxt = (t, i) => axisFmt(t) + (i === ticks.length - 1 ? unitTop : '');
   st.axisK = hi >= 1000;
   ctx.font = `11px ${font}`;
-  const tickW = Math.max(...ticks.map(t => ctx.measureText(axisFmt(t)).width));
+  const tickW = Math.max(...ticks.map((t, i) => ctx.measureText(tickTxt(t, i)).width));
   const pL = 4, pR = tickW + 10, pT = 44, pB = 22; // bande du haut réservée à la bulle
   const cW = W - pL - pR, cH = H - pT - pB;
-  const xp = i => pL + (n === 1 ? cW / 2 : i / (n - 1) * cW);
+  const fx = chartXFracs(dates);   // points placés selon leur date (js/features/progress.js)
+  const xp = i => pL + fx[i] * cW;
   const yp = v => pT + cH - (v - lo) / ((hi - lo) || 1) * cH;
   st.geom = { xp, yp, pL, pR, cW, W, H };
 
   // Grille et graduations à droite
   ctx.lineWidth = 0.5; ctx.strokeStyle = sepC; ctx.fillStyle = lblC;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ticks.forEach(t => {
+  ticks.forEach((t, i) => {
     const y = Math.round(yp(t)) + 0.25;
     ctx.beginPath(); ctx.moveTo(pL, y); ctx.lineTo(pL + cW, y); ctx.stroke();
-    ctx.fillText(axisFmt(t), pL + cW + 6, y);
+    ctx.fillText(tickTxt(t, i), pL + cW + 6, y);
   });
 
   // Courbe : segments droits
@@ -274,7 +287,7 @@ function drawCharts() {
 
   // Étiquettes X sans chevauchement (espacées d'au moins leur largeur + 6)
   ctx.fillStyle = lblC; ctx.textBaseline = 'alphabetic';
-  const lbl = i => fmtDate(dates[i], 'short').replace('.', '');
+  const lbl = i => fmtDate(dates[i], 'short');   // « 3 nov. » avec son point, comme partout dans l'app (panel t6)
   const rect = i => {
     const w = ctx.measureText(lbl(i)).width;
     const x = Math.max(pL, Math.min(pL + cW - w, xp(i) - w / 2));
@@ -314,7 +327,7 @@ function chartSelect(clientX) {
   const set  = st.bubble ? '' : st.bw ? `${p.maxReps} ${chartUnit}` : setTxt(p.best, chartEx);
   b.textContent = st.bubble ? st.bubble(p) : st.cardio ? `${date} · ${cardioPointTxt(p, st.paceKind)}`
     : st.effort ? `${date} · RPE ${fmtNum(p.rpe, 1)} · ${set}`
-    : `${date} · ${set} · ${st.bw ? `${p.totalReps} ${chartUnit}` : fmtVolume(p.volume)}`;
+    : `${date} · ${set} · ${st.bw ? `${p.totalReps} ${chartUnit} en tout` : `volume ${fmtVolume(p.volume)}`}`;   // le total nommé (« 806 kg » seul, panel t5)
   b.dataset.i = best;
   b.hidden = false;
   const bx = st.geom.xp(best);

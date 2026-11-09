@@ -24,16 +24,17 @@ function coachStudentRowsHtml(students) {
   const now = Date.now();
   return sortStudentsByProgress(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id)).map(({ st: s, pr }) => {
     const unread = chatUnreadOf(s.user_id);
-    const third = coachStudentPlanLine(s.user_id) || `<span class="cell__sub">${esc(studentLastLine(s))}</span>`;
+    // « Pas encore de séance » (signal) dit déjà ce que dirait « Aucune séance pour l'instant » : un seul message
+    // (panel Apple de la vague 3) ; la 3e ligne ne reste que pour un planning
+    const third = coachStudentPlanLine(s.user_id) || (pr.kind === 'never' ? '' : `<span class="cell__sub">${esc(studentLastLine(s))}</span>`);
     return `
-          <button class="cell cell--nav social-row coach-student-row" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}">
+          <button class="cell cell--nav social-row coach-student-row" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}" data-name="${esc(personName(s))}"${coachSearchQ && !normName(personName(s)).includes(normName(coachSearchQ)) ? ' hidden' : ''}>
             <span class="social-row__main">${personAvatar(s)}<span class="social-row__text">
               <span class="social-row__name">${esc(personName(s))}</span>
               ${pr.kind === 'new' && !coachStudentPlanLine(s.user_id) ? '' : progressSignalHtml(pr)}
               ${third}
             </span></span>
-            ${sessionsBadgeHtml(s.new_sessions)}
-            ${chatBadgeHtml(unread)}${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}
+            ${s.new_sessions || unread ? `<span class="cs-badges">${sessionsBadgeHtml(s.new_sessions)}${chatBadgeHtml(unread)}</span>` : ''}${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>`;
   }).join('');
@@ -78,7 +79,7 @@ function coachWeekSummaryHtml(uid) {
     ? `<div class="cell"><span class="cell__sub">Et ${plural(pr.records.length - PROGRESS_SUMMARY_RECORDS, 'autre record', 'autres records')}, dans ses séances</span></div>` : '';
   const sessions = progressSessionsCell(pr, planned);
   const row = coachSessions(uid).rows[0];
-  const lastTxt = st.last_session ? studentLastLine(st) : 'Aucune séance pour l\'instant';
+  const lastTxt = st.last_session ? studentLastLine(st) : 'Pas encore de séance';
   const last = row && st.last_session && row.doneAt === st.last_session.done_at
     ? `<button class="cell cell--nav" data-action="coach-open-session" data-uid="${esc(uid)}" data-id="${esc(row.id)}">
             <span class="cell__body"><span class="cell__title">Dernière séance</span><span class="cell__sub">${esc(lastTxt)}</span></span>
@@ -98,7 +99,7 @@ function coachTeamWeekHtml(students) {
   if (!students?.length) return '';
   const now = Date.now();
   const w = teamWeekSummary(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id));
-  const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? '↑ ' : ''}${val}</span><span class="team-week__lbl">${lbl}</span></span>`;
+  const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? '↑ ' : ''}${val}</span> <span class="team-week__lbl">${lbl}</span></span>`;
   const spoken = `Cette semaine : ${plural(w.records, 'record', 'records')}, ${plural(w.warn, 'élève', 'élèves')} à relancer, ${plural(w.fresh, 'nouveauté', 'nouveautés')} à lire.`;
   return `
         <div class="group-title">Cette semaine</div>

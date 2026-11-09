@@ -102,7 +102,7 @@ function recapRecords(sessions, history) {
   sessions.forEach(h => {
     entryRecords(h, history).forEach(r => {
       // L'exercice de la séance qui fait ce record (même nom), avec sa série
-      const ex = (h.exercises || []).find(e => normName(e.name) === normName(r.ex) && notedRecordSet(e, r));
+      const ex = (h.exercises || []).find(e => sameExerciseName(e.name, r.ex) && notedRecordSet(e, r));
       if (!ex) return;
       const k = normName(r.ex);
       if (!by.has(k)) by.set(k, []);

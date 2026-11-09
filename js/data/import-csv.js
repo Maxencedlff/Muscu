@@ -361,7 +361,7 @@ const IMPORT_ALIASES = [
   ['Curl incliné', 'incline curl dumbbell|incline bicep curl dumbbell'],
   ['Curl concentration', 'concentration curl dumbbell'],
   ['Curl inversé', 'reverse curl barbell|reverse curl dumbbell|reverse grip curl'],
-  ['Extension triceps poulie', 'triceps pushdown cable|triceps pushdown|tricep pushdown|triceps rope pushdown|triceps extension cable|triceps pushdown cable straight bar|triceps pushdown cable rope|rope pushdown cable'],
+  ['Extension triceps poulie haute', 'triceps pushdown cable|triceps pushdown|tricep pushdown|triceps rope pushdown|triceps extension cable|triceps pushdown cable straight bar|triceps pushdown cable rope|rope pushdown cable'],
   ['Extension triceps corde nuque', 'overhead triceps extension cable|triceps overhead extension cable'],
   ['Extension nuque', 'overhead triceps extension dumbbell|triceps extension dumbbell|seated triceps press dumbbell'],
   ['Barre au front', 'skullcrusher barbell|skull crusher barbell|skullcrusher|lying triceps extension barbell'],
@@ -658,7 +658,7 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
   // nom ailleurs (programmes, historique : même courbe de progrès), sinon une clé de nom
   for (const h of entries) {
     for (const e of h.exercises) {
-      const inProg = (pd.exercises[h.category] || []).find(x => normName(x.name) === normName(e.name));
+      const inProg = (pd.exercises[h.category] || []).find(x => sameExerciseName(x.name, e.name));
       e.exId = inProg ? inProg.id : importExId(e.name, exIds);
     }
     ssNormalize(h.exercises);
@@ -676,17 +676,17 @@ function importExIndex(d) {
   const idx = new Map();
   for (const p of Object.values(d.programmes || {})) {
     for (const list of Object.values(p.exercises || {})) {
-      for (const e of list || []) { const n = normName(e.name); if (e.id && !idx.has(n)) idx.set(n, e.id); }
+      for (const e of list || []) { const n = exerciseNameKey(e.name); if (e.id && !idx.has(n)) idx.set(n, e.id); }
     }
   }
   for (const h of d.history || []) {
-    for (const e of h.exercises || []) { const n = normName(e.name); if (e.exId && !idx.has(n)) idx.set(n, e.exId); }
+    for (const e of h.exercises || []) { const n = exerciseNameKey(e.name); if (e.exId && !idx.has(n)) idx.set(n, e.exId); }
   }
   return idx;
 }
 // Identifiant d'un exercice importé : celui du même nom dans un programme ou l'historique, sinon un nouveau
 function importExId(name, idx) {
-  const n = normName(name);
+  const n = exerciseNameKey(name);
   if (!idx.has(n)) idx.set(n, uid());
   return idx.get(n);
 }

@@ -73,10 +73,9 @@ def t_seance(bench, eng, dev, theme):
         validate(page, 0, 0)
         R.check(not resting(page), f'{t} pas de repos après A1')
         R.check(current(page) == [1, 0], f'{t} série courante A2 S1 ({current(page)})')
-        R.check('validée · enchaîne' in page.locator('.toast').last.inner_text(), f'{t} toast « Série 1 validée · enchaîne … »')
-        # « Annuler » puis revalider A1 : on enchaîne toujours
-        page.locator('.toast button', has_text='Annuler').last.click()
-        page.wait_for_timeout(300)
+        R.check('validée · enchaîne' in sess_undo_text(page), f'{t} « Série 1 validée · enchaîne … » ({sess_undo_text(page)!r})')
+        # « Annuler » (en ligne) puis revalider A1 : on enchaîne toujours
+        sess_undo(page)
         validate(page, 0, 0)
         R.check(not resting(page) and current(page) == [1, 0], f'{t} Annuler puis revalider : enchaîne ({current(page)})')
         validate(page, 1, 0)
@@ -103,6 +102,8 @@ def t_seance(bench, eng, dev, theme):
 
         # Retirer du superset : séance et programme
         page.click('.ss-member .ex-card__more[data-ei="0"]')
+        page.wait_for_timeout(300)
+        tap_dialog(page, "Plus d'options")
         page.wait_for_timeout(300)
         tap_dialog(page, 'Retirer du superset')
         page.wait_for_timeout(400)

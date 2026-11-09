@@ -108,8 +108,8 @@ def t_hevy(bench, eng, dev, theme):
         tab(page, 'history')
         titles = page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)")
         R.check(len(titles) == 7 and 'Push Day' in titles and 'Cardio' in titles, f'{t} historique : {titles}')
-        subs = page.evaluate("[...document.querySelectorAll('.hcell__sub')].map(e => e.textContent)")
-        R.check(any('Programme Hevy' in s for s in subs), f'{t} historique : mention du programme {subs[:2]}')
+        subs = page.evaluate("[...document.querySelectorAll('.hcell__prog')].map(e => e.textContent)")
+        R.check(any('Hevy' in s for s in subs), f'{t} historique : mention du programme après le titre {subs[:2]}')
         page.locator('.hcell', has_text='Push Day').first.click()
         page.wait_for_selector('.view.history-detail, .hdetail, .view')
         page.wait_for_timeout(300)
@@ -178,6 +178,11 @@ def t_strong(bench, eng, dev, theme):
         with page.expect_file_chooser() as fc:
             page.click('[data-action="import-other-app"]')
         fc.value.set_files(files=[{'name': 'x.csv', 'mimeType': 'text/csv', 'buffer': b'a,b\n1,2\n'}])
+        # Le toast « Import annulé » d'avant peut encore être là (machine lente) : on attend celui de ce fichier
+        try:
+            page.wait_for_function("!/Import annulé/.test(document.querySelector('.toast')?.innerText || 'Import annulé')", timeout=5000)
+        except Exception:
+            pass
         txt = toast_text(page)
         R.check(txt.startswith('Fichier non reconnu'), f'{t} fichier inconnu : « {txt} »')
         R.check(page.locator('.sheet-root').count() == 0, f'{t} fichier inconnu : pas de feuille')

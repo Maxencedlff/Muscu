@@ -26,14 +26,18 @@ function bestSetTrend(b, pb) {
 
 function buildSummary(entry) {
   const prevH = data.history.find(h => h !== entry && h.category === entry.category && entryProg(h) === entryProg(entry));
-  let cur = 0, prev = 0;
+  let cur = 0, prev = 0, curCommon = 0;
   const rows = [], e1rm = [];
   // Records notés dans la séance à l'enregistrement (sessionRecords, js/data/records.js)
   const noted = entryRecords(entry);
   const priorOf = sessionPriorOf(entry, data.history);   // séries d'avant la séance, pour le 1RM estimé
   entry.exercises.forEach(ex => {
     const pex = prevH?.exercises.find(e => sameEx(e, ex));
-    cur  += exVolume(ex, ex.sets, entryBodyKg(entry));
+    const v = exVolume(ex, ex.sets, entryBodyKg(entry));
+    cur  += v;
+    // Hausse sur le même périmètre que la dernière fois : un exercice ajouté aujourd'hui n'entre pas dans
+    // l'écart (sinon « ↑ 1,2 t » ne serait que le volume de l'exercice ajouté)
+    if (pex) curCommon += v;
     // Même nombre de séries de travail des deux côtés (échauffements retirés avant de couper : sinon
     // l'échauffement d'aujourd'hui ferait entrer une série de travail de plus de la dernière fois, ou
     // celui de la dernière fois en ferait sortir une)
@@ -53,7 +57,7 @@ function buildSummary(entry) {
   return {
     id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,
     duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + workSets(e.sets).length, 0),   // séries de travail
-    volume: cur, delta: prevH ? cur - prev : null, records, rows,
+    volume: cur, delta: prevH ? curCommon - prev : null, records, rows,
     recordCount: noted.length,   // « N records battus » : la règle de l'historique et de Progrès (recordCount), sans le 1RM estimé
     // Sans charge comptée (poids du corps inconnu, gainage…) : le total de reps remplace « 0 kg »
     reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + volumeSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),   // sous-séries comprises
@@ -81,7 +85,8 @@ function summaryLine(sm, weekCount = weekStats(sm.date).count) {
 const TREND_HTML = {
   up:   '<span class="sum-trend sum-trend--up" aria-label="en progrès">↑</span>',
   down: '<span class="sum-trend sum-trend--down" aria-label="en baisse">↓</span>',
-  same: '<span class="sum-trend" aria-label="identique">=</span>',
+  // Égal : rien à l'écran (un « = » gris ne se lisait pas, vague 3-t4), dit à VoiceOver
+  same: '<span class="sum-trend" aria-hidden="true"></span><span class="visually-hidden">, comme la dernière fois</span>',
 };
 const NO_TREND_HTML = '<span class="sum-trend" aria-hidden="true"></span>';
 
@@ -92,15 +97,19 @@ function summarySetTxt(r) {
 }
 
 // Volume : écart avec la dernière séance du même type, rien s'il n'y en a pas ou s'il est nul
-// Valeur d'une tuile du bilan : le nombre en grand, l'unité (« min », « h », « t », « kg ») en petit, pour
-// que « 52 min » ou « 12,5 t » tiennent dans un tiers d'iPhone SE (panel du 07/11 : « 52 min » débordait)
+// Valeur d'une tuile du bilan : l'unité (« min », « h », « t », « kg ») au corps du nombre, comme l'historique (panel t5) ;
+// elle peut passer dessous (« 19,6 k » puis « lbs ») pour tenir dans un tiers d'iPhone SE (panel du 07/11)
 function sumTileValueHtml(txt) {
   return esc(txt).replace(/[A-Za-z]+(?: [A-Za-z]+)?/g, u => `<span class="sum-tile__unit">${u}</span>`);
 }
 
-function summaryDeltaHtml(delta) {
-  if (delta === null || Math.round(delta) === 0) return '';
-  return `<span class="sum-tile__delta ${delta > 0 ? 'sum-tile__delta--up' : ''}">${delta > 0 ? '↑ ' : '↓ '}${fmtVolume(Math.abs(delta))}</span>`;
+// « ↑ 32 kg sur la dernière fois » : l'écart dit par rapport à quoi (panel t5 : « ↑ 32 kg » seul se lisait comme une
+// charge ou un record ; panel t6 : pas d'anglicisme « vs ») ; VoiceOver entend la phrase entière. Écart sous 1 % du
+// volume : rien (panel t6 : + 0,6 % mis en avant en vert gras comme un progrès)
+function summaryDeltaHtml(delta, volume = 0) {
+  if (delta === null || Math.round(delta) === 0 || Math.abs(delta) < volume * 0.01) return '';
+  const v = fmtVolume(Math.abs(delta)), up = delta > 0;
+  return `<span class="sum-tile__delta ${up ? 'sum-tile__delta--up' : ''}"><span aria-hidden="true"><span class="sum-tile__delta-n">${up ? '↑' : '↓'}\u00a0${v}</span> sur la dernière fois</span><span class="visually-hidden">, ${v} ${up ? 'de plus' : 'de moins'} que la dernière fois</span></span>`;
 }
 
 function summaryRecordsHtml(records) {
@@ -163,7 +172,7 @@ function renderSummary() {
         <div class="sum-tiles">
           <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${sumTileValueHtml(fmtDuration(sm.duration))}</div></div>
           ${sm.volume > 0 || !sm.reps
-            ? `<div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${sumTileValueHtml(fmtVolume(sm.volume))}</div>${summaryDeltaHtml(sm.delta)}</div>`
+            ? `<div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${sumTileValueHtml(fmtVolume(sm.volume))}</div>${summaryDeltaHtml(sm.delta, sm.volume)}</div>`
             : `<div class="sum-tile"><div class="sum-tile__label">Reps</div><div class="sum-tile__value num">${sm.reps}</div></div>`}
           <div class="sum-tile"><div class="sum-tile__label">Séries</div><div class="sum-tile__value num">${sm.sets}</div></div>
         </div>
@@ -238,7 +247,7 @@ function sessionHistoryEntry(sp, sc) {
     notes:      sessionNotes.trim(),
     ...(storableBodyKg() ? { bodyKg: storableBodyKg() } : {}),
     ...(newSessionHidden() ? { hidden: true } : {}),   // Réglages › Social et coach › Séances visibles par défaut éteint
-    exercises:  activeSession.exercises
+    exercises:  orderByStart(activeSession.exercises)   // ordre où les exercices ont été commencés
       .map(ex => ({
         exId: ex.exId || resolveExId(sp, sc, ex.name),
         name: ex.name,

@@ -173,13 +173,16 @@ function bumpLabel() { return data.unit === 'lbs' ? '5 lb' : '2,5 kg'; }
 function bumpStepKg() { return data.unit === 'lbs' ? 5 / KG_TO_LBS : 2.5; }
 
 // Volume (kg) : « 850 kg », « 12,4 t », « 1 874 lbs », « 27,3 k lbs »
+// Tonnes (milliers de lbs) toujours au dixième, partout la même précision : « 5,0 t » au bilan comme « 4,6 t » dans
+// l'historique (« 5 t » arrondi à la tonne cachait un écart de 32 kg, panel t5)
 function fmtVolume(kg) {
   if (kg === 0) return `0 ${unitLbl()}`;
+  const tenth = v => v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   if (data.unit === 'lbs') {
     const lbs = kg * KG_TO_LBS;
-    return lbs >= 1000 ? fmtNum(lbs / 1000, 1) + ' k lbs' : fmtNum(Math.round(lbs)) + ' lbs';
+    return lbs >= 1000 ? tenth(lbs / 1000) + ' k lbs' : fmtNum(Math.round(lbs)) + ' lbs';
   }
-  return kg >= 1000 ? fmtNum(kg / 1000, 1) + ' t' : fmtNum(Math.round(kg)) + ' kg';
+  return kg >= 1000 ? tenth(kg / 1000) + ' t' : fmtNum(Math.round(kg)) + ' kg';
 }
 
 function historyColor(h) {

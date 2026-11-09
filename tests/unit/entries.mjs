@@ -28,6 +28,20 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(s.rows[0].trend, 'up');
   });
 
+  test('buildSummary : la hausse de volume ne compte pas un exercice ajouté aujourd\'hui', () => {
+    reset();
+    const bench = w => ({ exId: 'bench', name: 'Développé couché', sets: [{ weight: w, reps: '8' }] });
+    const dead = { exId: 'dead', name: 'Soulevé de terre', sets: [{ weight: '100', reps: '12' }] };
+    const now = Date.now();
+    run(`data.history = ${JSON.stringify([
+      { id: 'new', category: 'push', date: now - DAY, exercises: [bench('62.5'), dead] },
+      { id: 'old', category: 'push', date: now - 4 * DAY, exercises: [bench('60')] },
+    ])}`);
+    const s = run('buildSummary(data.history[0], {})');
+    assert.equal(s.volume, 62.5 * 8 + 1200, 'le total compte tout');
+    assert.equal(s.delta, 20, 'l\'écart : les mêmes exercices des deux côtés');
+  });
+
   // ── Clés d'exercice : figées, l'historique et les records en dépendent ──
 
   test('exKey, recordKey, nameKey : clés produites inchangées', () => {

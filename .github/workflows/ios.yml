@@ -48,7 +48,10 @@ jobs:
   # Rien ne part sur TestFlight (ni ne consomme le quota macOS) si les tests du même commit
   # ne sont pas verts : workflow Tests (unitaires et Playwright), terminé avec succès
   # Lancée juste après un envoi, elle attend la fin des tests (jusqu'à 25 min) au lieu d'échouer
+  # Seulement pour TestFlight : le mode contrôle (simulateur, sans secret) compile tout de suite, pour
+  # voir une erreur Swift sans attendre des tests verts sur une branche de travail.
   gate:
+    if: ${{ inputs.testflight }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -70,6 +73,7 @@ jobs:
 
   build:
     needs: gate
+    if: ${{ always() && (needs.gate.result == 'success' || (needs.gate.result == 'skipped' && !inputs.testflight)) }}
     runs-on: macos-26
     timeout-minutes: 30
     steps:

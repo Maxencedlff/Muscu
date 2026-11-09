@@ -38,9 +38,10 @@ function historyCell(h) {
   const progId = entryProg(h);
   const meta   = sessionMeta(h.category, progId);
   const vol    = sessionVolume(h.exercises || [], entryBodyKg(h));
-  // Séance d'un autre programme : la mention remplace le nombre d'exercices (cellule sur 2 lignes)
+  // Séance d'un autre programme : son nom en gris après le titre (« Bras · Bras & épaules »), coupé par « … » s'il est long ;
+  // la ligne du dessous reste « N exercices · t · durée » partout (panel t5 : la mention remplaçait le nombre d'exercices)
   const other  = progId !== data.activeProgramme && progId !== FREE;
-  const parts  = [other ? `Programme ${esc(progMeta(progId).name)}` : plural((h.exercises || []).length, 'exercice', 'exercices')];
+  const parts  = [plural((h.exercises || []).length, 'exercice', 'exercices')];
   if (vol > 0) parts.push(fmtVolume(vol));
   if (h.duration) parts.push(fmtDuration(h.duration));
   // Records de la séance (recordCount, js/data/records.js : même règle que le bilan et Progrès) : médaille et nombre
@@ -52,7 +53,7 @@ function historyCell(h) {
       <button class="hcell" data-action="open-history" data-id="${esc(h.id)}">
         <span class="hcell__dot" style="background:${meta.color}"></span>
         <span class="hcell__body">
-          <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
+          <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span>${other ? `<span class="hcell__prog">· ${esc(progMeta(progId).name)}</span>` : ''}<span class="hcell__date">${fmtDate(h.date)}</span></span>
           <span class="hcell__bot"><span class="hcell__sub num">${parts.join(' · ')}</span>${recMark}</span>
         </span>
         ${icon('chevron.right', 16)}
@@ -164,9 +165,9 @@ function renderHistoryDetail(id) {
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${meta.color}"></span>${meta.label}</h1>
         <p class="scr-sub">${when}${progId !== data.activeProgramme && progId !== FREE ? ` · Programme ${esc(progMeta(progId).name)}` : ''}</p>
         <div class="tiles">
-          <div class="tile"><span class="tile__val num">${h.duration ? fmtDuration(h.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
-          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">volume</span></div>
-          <div class="tile"><span class="tile__val num">${nSets}</span><span class="tile__lbl">${nSets > 1 ? 'séries' : 'série'}</span></div>
+          <div class="tile"><span class="tile__val num">${h.duration ? fmtDuration(h.duration) : '—'}</span><span class="tile__lbl">Durée</span></div>
+          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">Volume</span></div>
+          <div class="tile"><span class="tile__val num">${nSets}</span><span class="tile__lbl">${nSets > 1 ? 'Séries' : 'Série'}</span></div>
         </div>
         <div class="group-title">Exercices</div>
         <div class="group">

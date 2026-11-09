@@ -199,6 +199,8 @@ def t_coach(bench, eng, dev, theme):
         page.click('.chat-cell')
         page.wait_for_selector('.coach-chat-view .chat-msg')
         page.wait_for_timeout(400)
+        bar = page.evaluate("[document.querySelector('#app .navbar__back-label')?.dataset.full, document.querySelector('#app .navbar__title').textContent.trim()]")
+        R.check(bar[1] == 'Messages' and bar[0] != bar[1], f'{t} conversation ouverte depuis la fiche : « ‹ lea · Messages », pas « lea » deux fois {bar}')
         # Un seul message (panel du 06/11) : l'intro ne passe pas sous la barre de titre
         top = page.evaluate("[document.querySelector('.chat-intro').getBoundingClientRect().top, document.querySelector('.coach-chat-view .navbar').getBoundingClientRect().bottom, scrollY]")
         R.check(top[0] >= top[1] - 1, f'{t} coach, conversation courte : intro visible sous la barre {top}')

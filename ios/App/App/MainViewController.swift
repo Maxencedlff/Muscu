@@ -2,7 +2,7 @@ import UIKit
 import Capacitor
 
 /// Contrôleur principal de l'app : la vue web Capacitor, plus les modules natifs propres à l'app
-/// (Santé, Apple Music, Live Activity du repos, icône de l'app, copie iCloud, bips, compte, abonnement, notifications push, Apple Watch, widget, Siri, coffre à photos, tranche d'âge), enregistrés ici car ils ne viennent
+/// (Santé, Apple Music, Live Activity du repos, icône de l'app, copie iCloud, bips, compte, abonnement, notifications push, Apple Watch, widget, Siri, coffre à photos, tranche d'âge, lecteur de code-barres), enregistrés ici car ils ne viennent
 /// pas d'un paquet npm. Un module absent de cette liste n'existe pas côté JS.
 class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
@@ -21,5 +21,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(ShortcutsPlugin())
         bridge?.registerPluginInstance(VaultPlugin())
         bridge?.registerPluginInstance(AgeRangePlugin())
+        bridge?.registerPluginInstance(ScannerPlugin())
     }
 }

@@ -58,6 +58,10 @@ def t_outils(bench, eng, dev, theme):
         R.check(page.locator('.ex-card[data-ei="0"] .set-plates').count() == 1, f'{t} bouton Disques sur la série courante du Squat barre')
         R.check(page.locator('.ex-card[data-ei="1"] .set-plates').count() == 0, f'{t} pas de Disques sur la presse à cuisses')
         R.check(not rects_ok(page, '.set-plates'), f'{t} bouton Disques ≥ 44 px')
+        # Panels de la vague 3 : le numéro de la série reste, le petit disque à côté
+        R.check(page.locator('.ex-card[data-ei="0"] .set-plates .num').inner_text().strip() == '1' and page.locator('.ex-card[data-ei="0"] .set-plates .icon--plate').count() == 1,
+                f'{t} Disques : numéro de la série gardé, disque à côté')
+        shot(page, LOT, f'{t}-disques-numero')
         page.click('.ex-card[data-ei="0"] .set-plates')
         page.wait_for_selector('.sess-sheet--plates')
         page.wait_for_timeout(350)
@@ -92,6 +96,7 @@ def t_outils(bench, eng, dev, theme):
 
         # ── Échauffement : depuis le menu ⋯ du Squat barre (barre 15, disques sans 1,25 : pas de 5 kg)
         page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); page.wait_for_timeout(300)
+        tap_dialog(page, "Plus d'options"); page.wait_for_timeout(300)
         labels = page.locator('.ios-dialog__btn').all_inner_texts()
         R.check('Ajouter un échauffement' in labels and 'Disques' in labels, f'{t} menu : échauffement et Disques ({labels})')
         tap_dialog(page, 'Ajouter un échauffement')
@@ -115,7 +120,7 @@ def t_outils(bench, eng, dev, theme):
         shot(page, LOT, f'{t}-04-echauffement-seance')
         # Valider l'échauffement 1 : pas de RIR (série d'échauffement), pas de volume, toast « Échauffement 1 validé »
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
-        R.check('Échauffement 1 validé' in page.locator('.toast').inner_text(), f'{t} toast échauffement')
+        R.check('Échauffement 1 validé' in sess_undo_text(page), f'{t} échauffement validé, « Annuler » en ligne')
         R.check(page.locator('.ex-card[data-ei="0"] .rir').count() == 0, f'{t} pas de sélecteur RIR sur un échauffement')
         R.check(page.locator('.ex-card[data-ei="0"] .ex-vol__delta').count() == 0, f'{t} échauffement sans volume comparé')
         skip_rest(page)
@@ -124,16 +129,18 @@ def t_outils(bench, eng, dev, theme):
 
         # ── RIR : après la 1re série de travail, un sélecteur facultatif (un seul tap pour valider reste inchangé)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="3"]'); page.wait_for_timeout(300)
-        R.check(page.evaluate("activeSession.exercises[0].sets[3].done") is True and 'Série 1 validée' in page.locator('.toast').inner_text(), f'{t} série 1 de travail validée en un tap')
+        R.check(page.evaluate("activeSession.exercises[0].sets[3].done") is True and 'Série 1 validée' in sess_undo_text(page), f'{t} série 1 de travail validée en un tap')
         skip_rest(page)
         rir = page.locator('.ex-card[data-ei="0"] .rir')
         R.check(rir.count() == 1 and page.locator('.rir__btn').count() == 5, f'{t} sélecteur RIR sous la série validée (5 choix)')
         R.check(page.locator('.rir__btn').all_inner_texts() == ['0', '1', '2', '3', '4+'], f'{t} choix 0 à 4+')
+        R.check(page.locator('.rir__help').inner_text() == 'Facultatif : combien tu aurais pu en faire de plus', f'{t} RIR jamais noté : son sens en une phrase')
         R.check(not rects_ok(page, '.rir__btn'), f'{t} boutons RIR ≥ 44 px {rects_ok(page, ".rir__btn")}')
         ov = page.evaluate("(() => { const r = document.querySelector('.rir').getBoundingClientRect(); return r.right <= innerWidth && r.left >= 0; })()")
         R.check(ov, f'{t} sélecteur RIR dans l\'écran')
         page.click('.rir__btn[data-rir="2"]'); page.wait_for_timeout(250)
         R.check(page.evaluate("activeSession.exercises[0].sets[3].rir") == 2, f'{t} RIR 2 enregistré')
+        R.check(page.locator('.rir__help').count() == 0, f'{t} un RIR noté : la phrase s\'en va')
         R.check(page.locator('.rir__rpe').inner_text() == 'RPE 8' and page.locator('.rir__btn[data-rir="2"]').get_attribute('aria-pressed') == 'true', f'{t} équivalence RPE 8 affichée')
         R.check(page.evaluate("JSON.parse(localStorage.getItem('ppl_active_session')).activeSession.exercises[0].sets[3].rir") == 2, f'{t} RIR sauvegardé avec la séance')
         page.evaluate("document.querySelector('.ex-card[data-ei=\"0\"] .rir').scrollIntoView({ block: 'center' })")

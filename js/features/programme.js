@@ -141,10 +141,11 @@ function renderMyProgrammes() {
       </div>`;
   };
   const editing = myProgEditing;
+  // Grand titre : « Mes programmes » compact ne laissait au retour que « Retour » (iPhone 13) ou le chevron (SE)
   const right = `<button class="navbar__text ${editing ? 'navbar__text--bold' : ''}" data-action="toggle-my-prog-edit">${editing ? 'OK' : 'Modifier'}</button>`;
   return `
     <div class="view my-programmes view--grouped">
-      ${navBar({ title: 'Mes programmes', right })}
+      ${navBar({ title: 'Mes programmes', right, large: true })}
       <div class="scr">
         <div class="group mp-list">${ids.map(editing ? editRow : row).join('')}</div>
         ${editing

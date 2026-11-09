@@ -98,6 +98,7 @@ def t_parcours(bench, eng, dev, theme):
         R.check(small_targets(page) == 0 and not overflowing(page) and no_hscroll(page), f'{t} résultat : 44 pt, rien de coupé {overflowing(page)}')
         R.check(page.evaluate("(() => { const r = document.querySelector('[data-action=\"onb-start\"]').getBoundingClientRect(); return r.bottom <= innerHeight; })()"),
                 f'{t} « Commencer » visible sans défiler')
+        R.check(int(page.evaluate("getComputedStyle(document.querySelector('.onb__actions')).zIndex") or 0) >= 2, f'{t} boutons du bas au-dessus des séparateurs de la liste')
         shot(page, LOT, f'2-resultat-{t}')
 
         # Application fermée avant la fin : les questions reviennent

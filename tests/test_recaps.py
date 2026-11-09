@@ -122,7 +122,7 @@ def t_semaine(bench, eng, dev, theme):
         # Record d'allure : « 4:51 » reste un seul nombre géant (l'unité « /km » de l'écran ne l'ampute pas)
         sv = page.evaluate("[recapSplitValue('4:51'), recapSplitValue('16,1\u00a0t'), recapSplitValue('1 min 15')]")
         R.check(sv[0]['num'] == '4:51' and sv[1]['num'] == '16,1' and sv[2]['num'] == '1', f'{t} chiffre géant : allure entière ({sv})')
-        txt = card.inner_text()
+        txt = card.inner_text().replace('\u202f', ' ').replace('\xa0', ' ')   # espaces insécables (« 18 oct. ») : texte comparé tel qu'il se lit
         R.check('ta semaine' in txt.lower() and '2 séances' in txt and '12 – 18 oct.' in txt.lower(), f'{t} carte : titre, semaine et chiffres réels ({txt.split(chr(10))[:3]})')
         m = page.evaluate("""() => {
           const card = document.querySelector('.recap-card'), c = document.querySelector('.recap-card__close').getBoundingClientRect();

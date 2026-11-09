@@ -39,7 +39,7 @@ const DIET_DEFAULT_MEALS = ['Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner
 // Repère de santé (NICE NG246, 2025) : sous 1 200 kcal par jour, un régime relève d'un suivi médical.
 // L'app le dit sans rien bloquer (dietLowKcal)
 const DIET_LOW_KCAL = 1200;
-const DIET_SRC = ['ciqual-2025', 'perso'];   // origine des valeurs d'un aliment du plan
+const DIET_SRC = ['ciqual-2025', 'perso', 'off'];   // origine des valeurs d'un aliment du plan (off : Open Food Facts, produit scanné)
 
 const dietIsObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
 const dietR1 = v => Math.round(v * 10) / 10;
@@ -133,7 +133,7 @@ function cleanDietPlans(v) {
   for (const k of [...alive, ...archived]) { const p = cleanDietPlan(v[k]); if (p) out[k] = p; }
   return out;
 }
-// Mes aliments perso : [{ id, name, fam, per }] (pour les retrouver dans la recherche)
+// Mes aliments perso : [{ id, name, fam, per, code?, src?, ecalc?, salt? }] (pour les retrouver dans la recherche)
 function cleanDietFoods(list) {
   if (!Array.isArray(list)) return [];
   const seen = new Set();
@@ -142,7 +142,13 @@ function cleanDietFoods(list) {
     const name = dietCutName(x.name), per = cleanDietPer(x.per);
     if (!name || !per || seen.has(normName(name))) return null;
     seen.add(normName(name));
-    return { id: typeof x.id === 'string' && DIET_PART_RE.test(x.id) ? x.id : uid(), name, fam: DIET_FAMS.includes(x.fam) ? x.fam : dietFamOf(per), per };
+    // code : code-barres du produit (js/data/food-scan.js), pour le retrouver au scan suivant sans réseau ;
+    // src 'off' : valeurs d'Open Food Facts ; salt : sel pour 100 g, affiché sur la fiche du produit
+    const code = typeof x.code === 'string' && /^\d{8}$|^\d{13}$/.test(x.code) ? x.code : null;
+    const salt = num(x.salt, 0, 100);
+    return { id: typeof x.id === 'string' && DIET_PART_RE.test(x.id) ? x.id : uid(), name, fam: DIET_FAMS.includes(x.fam) ? x.fam : dietFamOf(per), per,
+      ...(code ? { code } : {}), ...(code && x.src === 'off' ? { src: 'off' } : {}), ...(x.ecalc === true ? { ecalc: true } : {}),
+      ...(salt !== null && typeof x.salt === 'number' ? { salt: Math.round(salt * 100) / 100 } : {}) };
   }).filter(Boolean);
 }
 // Journal : { 'AAAA-MM-JJ': { plan, done: [id repas], swaps: { [id aliment]: aliment } } }, 120 jours au plus

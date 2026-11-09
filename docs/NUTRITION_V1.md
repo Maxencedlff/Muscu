@@ -56,16 +56,38 @@ menus.
   auraient eu 0 ou 2 kcal faute d'alcool connu). Les 51 aliments calculés portent `e = 1`, et l'app écrit
   « kcal (calculées) » à côté d'eux. Aliments infantiles écartés. Résultat : **3 110 aliments, 266 Ko**, en
   cache hors ligne (`sw.js`), lu à la première ouverture d'un écran de nutrition seulement.
-- Chaque aliment d'un plan garde `src` (`ciqual-2025` ou `perso`) et, le cas échéant, `ecalc: true`.
+- Chaque aliment d'un plan garde `src` (`ciqual-2025`, `perso` ou `off` pour un produit scanné) et, le cas échéant, `ecalc: true`.
 - **Absents de Ciqual** et courants en salle : skyr, whey, certaines marques. D'où l'**aliment perso**
   (nom et valeurs pour 100 g de l'étiquette, « recopie l'énergie de l'étiquette » ; vide, elle est calculée
   4/4/9, et l'écran dit que l'étiquette compte aussi fibres et alcool), gardé dans « mes aliments ».
-- **Open Food Facts** (codes-barres, marques) : **pas en V1**. Base sous ODbL ([texte](https://opendatacommons.org/licenses/odbl/1-0/)),
+- **Open Food Facts** (codes-barres, marques) : base sous ODbL ([texte](https://opendatacommons.org/licenses/odbl/1-0/)),
   fiches sous DbCL, photos sous CC BY-SA ([OFF](https://openfoodfacts.github.io/openfoodfacts-server/api/tutorials/license-be-on-the-legal-side)).
   Embarquer un extrait, c'est distribuer une base dérivée (§4.4) : elle reste sous ODbL et doit être
-  fournie (§4.6), avec « (c) Open Food Facts contributors » sur chaque écran qui l'affiche. Mélanger OFF et
-  nos données dans une même table la ferait passer sous ODbL. Si on l'ajoute : interrogation à la demande
-  (« Produced Work », §4.5) ou table séparée, jamais fusionnée.
+  fournie (§4.6). D'où le choix du 09/11/2026 : **interrogation à la demande** (« Produced Work », §4.5),
+  jamais d'extrait embarqué ni de table fusionnée. Seuls les produits que la personne scanne sont gardés,
+  un par un, dans ses aliments perso (`src: 'off'`, `code`), avec l'attribution « © les contributeurs
+  d'Open Food Facts, licence ODbL » sur la fiche du produit et au pied des écrans de nutrition.
+  Détail plus bas (« Scanner un produit »).
+
+## Scanner un produit (09/11/2026)
+
+- **Où** : feuille « Ajouter un aliment », bouton « Scanner un code-barres » en tête (icône `barcode`).
+  `dietChooseFood()` (recherche, scan ou création, puis grammes) sert à tout ajout d'aliment.
+- **Lecture** : module Swift maison `MdlfScanner` (ios/App/App/ScannerPlugin.swift, AVFoundation :
+  EAN-13, EAN-8, UPC-E ; UPC-A arrive en EAN-13). Pas de paquet npm : aucun SDK tiers, aucune collecte,
+  rien à ajouter au manifeste de confidentialité, compilé dans la cible App comme les autres modules.
+  Sans le module (navigateur, Android, build plus ancienne qu'une mise à jour à chaud), le même bouton
+  devient « Saisir un code-barres » : les chiffres tapés passent par le même chemin.
+- **Recherche** (js/data/food-scan.js) : `GET world.openfoodfacts.org/api/v2/product/{code}.json?fields=…`,
+  User-Agent « MDLF Training/<version> (iOS) » (doublé en X-User-Agent, qu'un navigateur ne peut pas
+  remplacer), sans cookie ni contact, 6 s au plus. Code vérifié (chiffre de contrôle) avant tout envoi.
+- **Analyse** : kcal pour 100 g, sinon kJ ÷ 4,184, sinon 4/4/9 (`ecalc`) ; kcal hors bornes (des kJ mis dans
+  le champ des kcal) : les kJ prennent le relais ; deux macros au moins (la troisième vaut 0) ; bornes de
+  `cleanDietPer`, sinon « valeurs incomplètes ». Sel (ou sodium × 2,5) affiché sur la fiche, jamais compté.
+- **Fiche** : nom « Marque · Nom », valeurs pour 100 g, quantité (100 g d'office) et ce qu'elle apporte,
+  source. Introuvable, incomplet ou hors ligne : « Créer l'aliment » (code gardé, nom prérempli si connu).
+  Un code déjà gardé est retrouvé sur l'appareil, sans réseau.
+- **Tests** : tests/unit/food-scan.mjs, tests/test_scan_aliment.py (module natif et Open Food Facts simulés).
 
 ## Équivalences : la règle (js/data/food-swap.js, testée par tests/unit/nutrition.mjs)
 
@@ -261,7 +283,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 
 ## Hors V1 (et pourquoi)
 
-- **Code-barres, Open Food Facts** : licence ODbL à isoler (voir plus haut) et module natif de lecture.
+- ~~**Code-barres, Open Food Facts**~~ : fait le 09/11/2026 (voir « Scanner un produit »).
 - **Photo d'un repas, reconnaissance par IA** : fiabilité des macros, coût, données envoyées à un tiers.
 - **Journal libre** (« j'ai mangé autre chose ») et portions en unités (« 3 œufs ») : V2 ; en V1, grammes.
 - **Coches visibles par le coach** : il faut le consentement de l'élève, donnée par donnée, comme le poids
