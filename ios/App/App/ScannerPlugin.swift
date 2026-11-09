@@ -106,7 +106,7 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         view.addSubview(frameView)
 
         let hint = UILabel()
-        hint.text = "Vise le code-barres du produit"
+        hint.text = "Vise le code-barres, à une vingtaine de centimètres"
         hint.textColor = .white
         hint.font = UIFont.preferredFont(forTextStyle: .headline)
         hint.adjustsFontForContentSizeCategory = true
@@ -152,7 +152,7 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         super.viewDidAppear(animated)
         guard configured else { close(.failed); return }
         sessionQueue.async { if !self.session.isRunning { self.session.startRunning() } }
-        UIAccessibility.post(notification: .screenChanged, argument: "Lecteur de code-barres. Vise le code-barres du produit.")
+        UIAccessibility.post(notification: .screenChanged, argument: "Lecteur de code-barres. Vise le code-barres, à une vingtaine de centimètres.")
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -181,9 +181,25 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         if (try? device.lockForConfiguration()) != nil {
             if device.isAutoFocusRangeRestrictionSupported { device.autoFocusRangeRestriction = .near }
             if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
+            // iPhone 13 Pro et suivants : l'objectif grand-angle ne fait pas la mise au point sous ~20 cm, un
+            // code-barres tenu près reste flou et n'est jamais lu (vu sur un pot de whey, 10/11/2026). Méthode
+            // d'Apple (exemple AVCamBarcode, WWDC21) : zoomer juste assez pour qu'un code de 20 mm remplisse la
+            // moitié de la largeur de l'image à la distance minimale de mise au point.
+            device.videoZoomFactor = Self.zoomForMinimumFocus(device)
             device.unlockForConfiguration()
         }
         return true
+    }
+
+    private static func zoomForMinimumFocus(_ device: AVCaptureDevice) -> CGFloat {
+        let minFocus = Float(device.minimumFocusDistance)   // millimètres ; -1 si inconnu
+        guard minFocus > 0 else { return 1 }
+        let fov = device.activeFormat.videoFieldOfView      // degrés, sur la largeur
+        let codeSize: Float = 20, fill: Float = 0.5
+        let distance = (codeSize / fill) / tan((fov / 2) * .pi / 180)
+        guard distance > 0, distance < minFocus else { return 1 }
+        let zoom = CGFloat(minFocus / distance)
+        return max(1, min(zoom, device.activeFormat.videoMaxZoomFactor, 4))
     }
 
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput objects: [AVMetadataObject], from connection: AVCaptureConnection) {
