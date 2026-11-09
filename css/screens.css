@@ -195,7 +195,9 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
 .hcell__date { font-size: 0.882rem; color: var(--label2); white-space: nowrap; flex-shrink: 0; }
 .hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; } /* sur 2 lignes si besoin plutôt que tronqué */
 .hcell__title + .hcell__date { margin-left: auto; }
-.hcell__prog { flex: 0 1 auto; min-width: 0; font-size: 1rem; line-height: 1.294rem; font-weight: 400; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Le nom du programme prend seulement la place laissée par le nom de la séance et la date (base 0) : « Bras » jamais
+   « Br… » (panel t6 ; rétrécis ensemble, le titre perdait aussi quelques pixels, donc ses lettres) */
+.hcell__prog { flex: 1 1 0; min-width: 0; font-size: 1rem; line-height: 1.294rem; font-weight: 400; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hcell__prog + .hcell__date { margin-left: auto; }
 /* Ligne du bas : détails à gauche, pastille des records notés à droite (médaille et nombre) */
 .hcell__bot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -303,6 +305,9 @@ html.type-xl .chart-bubble { white-space: normal; }
 
 /* ═════════ Accessibilité et finitions de bord ═════════ */
 
+/* « · » qui finirait une ligne (frSepCheck, js/core/util.js) : masqué, sa largeur gardée pour que rien ne bouge */
+.tsep-cut { visibility: hidden; }
+
 /* Texte réservé aux lecteurs d'écran */
 .visually-hidden {
   position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
@@ -401,8 +406,10 @@ html.type-xl .auth-btn { white-space: normal; }
 html.type-xl .auth-btn > span { overflow: visible; }
 
 html.type-xl .hcell__title, html.type-xl .social-row__name { white-space: normal; }
+/* La date passe sous le nom de la séance plutôt que de le réduire à une lettre (séance d'un autre programme, AX33) */
+html.type-xl .hcell__top { flex-wrap: wrap; }
 html.type-xl .chat-cell__last { -webkit-line-clamp: 3; line-clamp: 3; }
-html.type-xl .toast > span { -webkit-line-clamp: 4; line-clamp: 4; }
+html.type-xl .toast > span { -webkit-line-clamp: 6; line-clamp: 6; }   /* consigne lue en entier en AX33 sur SE (« Touche Utiliser pou… » à 4 lignes, panel t6) */
 html.type-xl .social-row__main { min-width: 44px; }
 /* Très grand texte, 3e tour : jamais de coupure au milieu d'un mot. Les textes passent à la ligne entre les mots, et
    coupent un mot trop long seulement à une césure du français (hyphens) */
@@ -516,6 +523,8 @@ html.type-xl :is(.ex-howto, .ex-card__more, .targets__gain, .coach-count, .coach
   width: min(1.1em, 32px); height: min(1.1em, 32px);
 }
 html.type-xl .comment-compose__send { width: auto; height: auto; min-width: 32px; min-height: 32px; padding: 4px; }
+/* Icône d'un bouton à libellé (Partager, Partager ma séance, Inviter un ami) : à la taille du libellé (panel t6) */
+html.type-xl :is(.btn, .recap__share) > .icon { width: min(1.2em, 36px); height: min(1.2em, 36px); flex-shrink: 0; }
 /* Boutons : ils n'héritent pas de la taille du texte, la mesure part du texte de la page (rem) */
 html.type-xl :is(.ex-card__more, .comment-compose__send) .icon { width: min(1.1rem, 32px); height: min(1.1rem, 32px); }
 
@@ -721,6 +730,8 @@ body.light .imp__ctl { background: var(--cell); }
 }
 .pv-slot:active { background: var(--fill2); }
 .pv-summary { display: flex; align-items: center; gap: 6px; margin: 0 0 18px; color: var(--label2); font-size: var(--fs-footnote); }
+html.type-xl .pv-summary { align-items: flex-start; }
+html.type-xl .pv-summary .icon { width: 1.1em; height: 1.1em; flex-shrink: 0; margin-top: .15em; }   /* cadenas à la taille du texte (panel t6) */
 /* Sélecteur d'apps, Centre de contrôle : rien du coffre ne reste visible */
 body.pv-shield .photo-vault .scr { filter: blur(30px); }
 body.pv-shield::after { content: ''; position: fixed; inset: 0; z-index: 10000; background: var(--bg); }

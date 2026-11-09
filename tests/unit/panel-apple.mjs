@@ -138,7 +138,11 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(app.frTypo('Échauffement ajouté : 3 séries'), 'Échauffement ajouté\u202f: 3\u202fséries');
     assert.equal(app.frTypo('« Gros record ! »'), '«\u202fGros record\u202f!\u202f»');
     assert.equal(app.frTypo('3 séances ce mois-ci'), '3\u202fséances ce mois\u2011ci');
-    assert.equal(app.frTypo('Repos 1:30 · 10:05'), 'Repos 1:30\u202f· 10:05', 'heures et chronos intacts, « · » jamais en début de ligne');
+    assert.equal(app.frTypo('Repos 1:30 · 10:05'), 'Repos\u202f1:30\u202f· 10:05', 'chronos intacts et collés à leur mot, « · » jamais en début de ligne');
+    // Panel t6 : lettre et chiffre des macros, « 1 j 18 h » jamais séparés
+    assert.equal(app.frTypo('P 5 · G 46 · L 1'), 'P\u202f5\u202f· G\u202f46\u202f· L\u202f1');
+    assert.equal(app.frTypo('encore 1 j 18 h'), 'encore 1\u202fj\u202f18\u202fh');
+    assert.equal(app.frTypo('La 3e séance'), 'La 3e séance', 'mot de plusieurs lettres devant un nombre : coupure permise');
     // Panel t5 : nombre et unité ou nom, date, « ≈ 60 », « sem. 2/2 », « 10 % » jamais séparés
     assert.equal(app.frTypo('5 exercices · ≈ 60 min'), '5\u202fexercices\u202f· ≈\u202f60\u202fmin');
     assert.equal(app.frTypo('ven. 30 oct.'), 'ven. 30\u202foct.');

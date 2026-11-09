@@ -21,7 +21,7 @@ function pad(n) { return String(n).padStart(2, '0'); }
 // Aussi : « 32 kg × 10 » jamais coupé autour de « × », ni entre un nombre et son unité ou son nom (kg, min, t, %,
 // séances, « 30 oct. »…), ni dans « ≈ 60 », « sem. 2/2 » ; « · » ne commence jamais une ligne (panel t5 : « min », « oct. »,
 // « séances » ou « · sem. 4/10 » seuls à la ligne). Échappements \u dans le code : aucun caractère invisible dans le source.
-const FR_TYPO_UNITS = 'kg|lb|min|h|s|t|g|kcal|km|cm|%|reps?|s\u00e9ances?|s\u00e9ries?|exercices?|jours?|semaines?|sem\\.|repas|records?'
+const FR_TYPO_UNITS = 'kg|lb|min|h|j|s|t|g|kcal|km|cm|%|reps?|s\u00e9ances?|s\u00e9ries?|exercices?|jours?|semaines?|sem\\.|repas|records?'
   + '|janv\\.|f\u00e9vr\\.|mars|avr\\.|mai|juin|juil\\.|ao\u00fbt|sept\\.|oct\\.|nov\\.|d\u00e9c\\.';
 const FR_TYPO_RE = new RegExp('[ \u00a0]([?!;:\u00bb])|(\u00ab)[ \u00a0]|(\\S)-(ci|l\u00e0)(?![\\p{L}])| \u00d7 (?=\\S)'
   + `|(\\d) (${FR_TYPO_UNITS})(?![\\p{L}])|(\u2248|sem\\.) (?=\\d)`, 'gu');
@@ -30,8 +30,10 @@ function frTypo(str) {
     before ? '\u202f' + before : open ? open + '\u202f' : w ? w + '\u2011' + tail : d ? d + '\u202f' + unit
       : lead ? lead + '\u202f' : '\u202f\u00d7\u202f')
     .replace(/ \u00b7 /g, '\u202f\u00b7 ')
+    .replace(FR_TYPO_GLUE_RE, '$1\u202f')   // « L 1 », « P 5 » (macros) et « repos 2:00 » jamais séparés (panel t6)
     .replace(/(\d)-(?=\d)/g, '$1\u2011');   // tempo « 3-1-1 » jamais coupé (« Ex. 3- » puis « 1-1 »)   // à part : « 1,3 t · 53 min » (l'unité vient d'être prise par la règle du dessus)
 }
+const FR_TYPO_GLUE_RE = /(?<=^|[\s(])(\p{Lu}|j|\p{L}{2,}(?= \d{1,2}:\d\d)) (?=\d)/gu;
 const FR_TYPO_SKIP = 'textarea, input, script, style, [contenteditable]';
 function frTypoNode(root) {
   if (!root) return;
@@ -40,16 +42,85 @@ function frTypoNode(root) {
   const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let n = walk.nextNode(); n; n = walk.nextNode()) frTypoText(n);
 }
-const FR_TYPO_TEST = new RegExp(`[ \u00a0][?!;:\u00bb]|\u00ab[ \u00a0]|-(ci|l\u00e0)| \u00d7 |\\d (${FR_TYPO_UNITS})|(\u2248|sem\\.) \\d| \u00b7 |\\d-\\d`, 'u');
+const FR_TYPO_TEST = new RegExp(`[ \u00a0][?!;:\u00bb]|\u00ab[ \u00a0]|-(ci|l\u00e0)| \u00d7 |\\d (${FR_TYPO_UNITS})|(\u2248|sem\\.) \\d| \u00b7 |\\d-\\d|(?:^|\\s)(?:\\p{Lu}|j) \\d|\\p{L} \\d{1,2}:\\d\\d`, 'u');
 function frTypoText(n) {
   const v = n.data;
-  if (!FR_TYPO_TEST.test(v) || n.parentElement?.closest(FR_TYPO_SKIP)) return;
-  const t = frTypo(v);
-  if (t !== v) n.data = t;
+  const has = FR_TYPO_TEST.test(v), sep = v.includes('\u00b7');
+  if ((!has && !sep) || n.parentElement?.closest(FR_TYPO_SKIP)) return;
+  if (has) { const t = frTypo(v); if (t !== v) n.data = t; }
+  if (n.data.includes(FR_SEP)) frSepQueue(n);
+}
+
+// ── « · » jamais en fin de ligne (panel t6) ──
+// frTypo colle le « · » au mot d'avant (espace fine insécable) et laisse couper après lui : « Record 32 × 9 · » puis
+// « Repos 2:00 » à la ligne. Quand la ligne casse juste là, le point est masqué (visibility : la largeur reste la même,
+// la mise en page ne bouge pas) ; il revient si la largeur change. Mesuré une fois par image, après le rendu, et
+// seulement sur les nœuds qui portent un séparateur (quelques dizaines par écran).
+const FR_SEP = '\u202f\u00b7';
+const frSepNodes = new Set();
+let frSepFrame = 0;
+function frSepQueue(n) {
+  frSepNodes.add(n);
+  if (!frSepFrame && typeof requestAnimationFrame === 'function') frSepFrame = requestAnimationFrame(frSepCheck);
+}
+// Rectangle du premier caractère visible après la position (n, i) : même nœud, ou nœuds de texte suivants
+function frNextCharRect(n, i, range) {
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  walk.currentNode = n;
+  for (let node = n, k = 0; node && k < 6; node = walk.nextNode(), i = 0, k++) {
+    const j = node.data.slice(i).search(/\S/);
+    if (j < 0) continue;
+    range.setStart(node, i + j); range.setEnd(node, i + j + 1);
+    return range.getClientRects()[0] || null;
+  }
+  return null;
+}
+function frSepCheck() {
+  frSepFrame = 0;
+  const nodes = [...frSepNodes];
+  frSepNodes.clear();
+  const range = document.createRange();
+  for (const n of nodes) {
+    if (!n.isConnected || n.parentElement?.classList.contains('tsep-cut')) continue;
+    const cuts = [];
+    for (let i = n.data.indexOf(FR_SEP); i >= 0; i = n.data.indexOf(FR_SEP, i + 2)) {
+      range.setStart(n, i + 1); range.setEnd(n, i + 2);
+      const dot = range.getClientRects()[0];
+      const next = dot && frNextCharRect(n, i + 2, range);
+      if (next && next.top >= dot.bottom - 2) cuts.push(i + 1);
+    }
+    if (!cuts.length) continue;
+    // Texte posé directement dans une boîte flex ou grille : découpé, il donnerait trois éléments côte à côte
+    // (« Petit-déjeuner » et « 215 kcal » en colonnes) ; il est d'abord enveloppé d'un seul span, qui garde la mise en page
+    if (/flex|grid/.test(getComputedStyle(n.parentElement).display)) {
+      const wrap = document.createElement('span');
+      n.replaceWith(wrap);
+      wrap.append(n);
+    }
+    // De la fin vers le début : chaque découpe raccourcit n, les positions d'avant restent justes
+    for (const at of cuts.reverse()) {
+      range.setStart(n, at); range.setEnd(n, at + 1);
+      const span = document.createElement('span');
+      span.className = 'tsep-cut';
+      range.surroundContents(span);
+    }
+  }
+}
+// Largeur changée (rotation, Duo ouvert, taille du texte) : points remis, puis mesurés de nouveau
+function frSepRecheck() {
+  document.querySelectorAll('.tsep-cut').forEach(s => { const p = s.parentNode; s.replaceWith(s.textContent); p?.normalize(); });
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) if (n.data.includes(FR_SEP)) frSepQueue(n);
 }
 if (typeof MutationObserver === 'function' && typeof document !== 'undefined' && document.documentElement) {
   new MutationObserver(list => list.forEach(m => m.addedNodes.forEach(frTypoNode)))
     .observe(document.documentElement, { childList: true, subtree: true });
+  let frSepW = window.innerWidth, frSepT = 0;
+  window.addEventListener('resize', () => {
+    if (window.innerWidth === frSepW) return;   // clavier ou barre d'adresse : hauteur seule, rien ne se recoupe
+    frSepW = window.innerWidth;
+    clearTimeout(frSepT); frSepT = setTimeout(frSepRecheck, 150);
+  });
 }
 
 // Échappe le texte saisi par l'utilisateur avant de l'injecter dans le HTML

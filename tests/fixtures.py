@@ -19,10 +19,12 @@ from zoneinfo import ZoneInfo
 # et au trait d'union simples, SEULEMENT à ces places : un U+202F de séparateur de milliers (« 1 080 ») ou un U+00A0 (« 30 min ») restent tels quels, et les
 # vérifications gardent toute leur précision. typo_raw(page, js) lit un texte sans cette normalisation.
 # Panel t5 : aussi entre un nombre et son unité ou son nom (FR_TYPO_UNITS), après « ≈ » et « sem. », avant « · ».
-_TYPO_UNITS = ('kg|lb|min|h|s|t|g|kcal|km|cm|%|reps?|séances?|séries?|exercices?|jours?|semaines?|sem\\.|repas|records?'
+_TYPO_UNITS = ('kg|lb|min|h|j|s|t|g|kcal|km|cm|%|reps?|séances?|séries?|exercices?|jours?|semaines?|sem\\.|repas|records?'
                '|janv\\.|févr\\.|mars|avr\\.|mai|juin|juil\\.|août|sept\\.|oct\\.|nov\\.|déc\\.')
-_TYPO_RE = re.compile('\u202f(?=[?!;:\u00bb])|(?<=\u00ab)\u202f|\u2011|\u202f\u00d7\u202f|(?<=\\d)\u202f(?=(?:' + _TYPO_UNITS + '))'
-                      '|(?<=\u2248)\u202f|(?<=sem\\.)\u202f(?=\\d)|\u202f(?=\u00b7 )')
+_TYPO_RE = re.compile('\u202f(?=[?!;:\u00bb])|(?<=\u00ab)\u202f|\u2011|\u202f\u00d7\u202f|(?<=\\d)\u202f(?=(?i:' + _TYPO_UNITS + '))'
+                      '|(?<=\u2248)\u202f|(?<=sem\\.)\u202f(?=\\d)|\u202f(?=\u00b7 )'
+                      # panel t6 : « L 1 », « 1 j 18 h », « repos 2:00 » ; mois en capitales (« 18 OCT. », text-transform lu par inner_text)
+                      '|(?:(?<=^[A-ZÀ-Ýj])|(?<=[\\s(][A-ZÀ-Ýj]))\u202f(?=\\d)|(?<=[^\\W\\d_])\u202f(?=\\d{1,2}:\\d\\d)')
 _TYPO_SUB = {'\u2011': '-', '\u202f\u00d7\u202f': ' \u00d7 '}
 
 

@@ -114,7 +114,8 @@ def small_targets(page, sel='#app button, .tabbar button, .sheet button'):
 
 def cut_texts(page):
     return page.evaluate("""() => [...document.querySelectorAll('#app *, .tabbar *, .sheet *')].filter(e => e.offsetParent && e.children.length === 0
-        && e.textContent.trim() && !e.matches('input, textarea, select, option, svg, use, .icon *, .visually-hidden') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        && e.textContent.trim() && !e.matches('input, textarea, select, option, svg, use, .icon *, .visually-hidden') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline'
+        && getComputedStyle(e).visibility !== 'hidden')   // titre compact de la barre pas encore affiché (grand titre visible) : rien à lire
         .map(e => e.textContent.trim().slice(0, 30))""")
 
 
