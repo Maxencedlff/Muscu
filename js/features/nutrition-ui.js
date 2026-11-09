@@ -326,7 +326,7 @@ function coachDietGroupHtml(uid) {
         <div class="group">
           <button class="cell cell--action" data-action="coach-send-diet" data-uid="${esc(uid)}">${icon('paperplane', 20)}<span>Envoyer un plan diète</span></button>
           ${sent.map(x => `
-          <div class="cell coach-sent" data-diet="${esc(x.id)}"><span class="cell__body"><span class="cell__title">${esc(x.name)}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.seen ? 'used' : 'unseen'}">${x.seen ? 'Vu' : 'Pas encore ouvert'}</span></span></div>`).join('')}
+          <div class="cell coach-sent" data-diet="${esc(x.id)}"><span class="cell__body"><span class="cell__title">${esc(x.name)}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}${x.gone ? ' · supprimé de tes plans' : ''}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.seen ? 'used' : 'unseen'}">${x.seen ? 'Vu' : 'Pas encore ouvert'}</span></span></div>`).join('')}
         </div>`;
 }
 

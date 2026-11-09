@@ -19,7 +19,11 @@ async function coachSendDiet(student, planId) {
   if (sentProgrammeBytes(payload) > COACH_PROG_BYTES) return { ok: false, kind: 'too_big' };
   const progId = dietSentId(planId);
   if (!COACH_PROG_ID_RE.test(progId)) return { ok: false, kind: 'server' };
-  return coachRpc('coach_send_programme', { student, prog_id: progId, data: payload });
+  const r = await coachRpc('coach_send_programme', { student, prog_id: progId, data: payload });
+  // Nom envoyé gardé sur l'appareil (coach_state ne renvoie que l'identifiant) : la ligne de l'envoi garde ce nom
+  // même si je supprime ou renomme mon plan ensuite
+  if (r?.ok) coachRecordSent(student, progId, Date.now(), payload.diet.name);
+  return r;
 }
 
 // Mes plans que je peux envoyer : les miens (pas ceux reçus d'un coach), non archivés, avec au moins un aliment
@@ -27,13 +31,17 @@ function coachSendableDiets(d = data) {
   return dietPlanIds(d).filter(id => !d.dietPlans[id].fromCoach && d.dietPlans[id].meals.some(m => m.items.length));
 }
 
-// Coach : plans envoyés à cet élève, d'après coach_state ({ id, sentAt, seen, name })
+// Coach : plans envoyés à cet élève, d'après coach_state ({ id, sentAt, seen }) : { …, planId, name, gone }.
+// Nom : celui de mon plan s'il existe encore, sinon celui gardé à l'envoi (coachRecordSent) ; gone : le plan n'est
+// plus dans mes plans (dit en complément discret, l'élève garde le sien)
 function coachDietSentStatus(student, d = data) {
   const st = coach.state?.students.find(s => s.user_id === student);
   const mine = Object.keys(d.dietPlans || {});
+  const kept = coachSentMap()[student] || {};
   return (st?.sent || []).filter(x => isDietSentId(x.id)).sort((a, b) => b.sentAt - a.sentAt).map(x => {
-    const id = mine.find(k => dietSentId(k) === x.id);
-    return { ...x, planId: id || null, name: id && !d.dietPlans[id].archived ? d.dietPlans[id].name : 'Plan supprimé' };
+    const id = mine.find(k => dietSentId(k) === x.id && !d.dietPlans[k].archived);
+    const name = id ? d.dietPlans[id].name : sentEntry(kept[x.id]).name || 'Plan diète';
+    return { ...x, planId: id || null, name, gone: !id };
   });
 }
 

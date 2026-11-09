@@ -369,6 +369,13 @@ def t_coach_eleve(bench, eng, dev, theme):
         g = page.inner_text('.coach-student-view')
         R.check('Sèche Léa' in g and 'Pas encore ouvert' in g, f'{t} fiche : plan envoyé, pas encore ouvert')
         R.check('diet_' not in g and 'Programme supprimé' not in g, f'{t} fiche : le plan n\'est pas listé comme un programme')
+        # Plan retiré de mes plans ensuite : la ligne garde le nom envoyé, « supprimé de tes plans » en complément
+        page.evaluate("window.__keep = data.dietPlans.d_lea00001; delete data.dietPlans.d_lea00001; render()")
+        page.wait_for_timeout(200)
+        row = page.inner_text('.coach-sent[data-diet="diet_lea00001"]')
+        R.check('Sèche Léa' in row and 'supprimé de tes plans' in row and 'Plan supprimé' not in row, f'{t} fiche : plan supprimé de mes plans, nom envoyé gardé ({row!r})')
+        page.evaluate("data.dietPlans.d_lea00001 = window.__keep; render()")
+        page.wait_for_timeout(200)
         layout(page, t, 'fiche de l\'élève')
         shot(page, LOT, f'10-coach-fiche-{t}')
         # Préparer le plan d'un 2e élève : dupliquer puis « Envoyer à un élève », depuis le plan

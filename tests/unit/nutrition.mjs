@@ -513,7 +513,13 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     run(`coach.state = { students: [{ user_id: 's1', sent: [{ id: '${sid}', sentAt: 2, seen: false }, { id: 'u_abc', sentAt: 1, seen: true }] }] }`);
     sameJSON(run(`coachSentStatus('s1', []).map(x => x.progId)`), ['u_abc']);
     run(`data.dietPlans = { d_k7m2qx9p: { name: 'Sèche Léa', meals: [] } }`);
-    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.id, x.name, x.seen])`), [[sid, 'Sèche Léa', false]]);
+    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.id, x.name, x.seen, x.gone])`), [[sid, 'Sèche Léa', false, false]]);
+    // Plan supprimé de mes plans ensuite : le nom envoyé reste (gardé à l'envoi), « supprimé de tes plans » en complément
+    run(`coachRecordSent('s1', '${sid}', 2, 'Sèche Léa')`);
+    run(`data.dietPlans = {}`);
+    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.name, x.gone])`), [['Sèche Léa', true]]);
+    run(`localStorage.removeItem(COACH_SENT_KEY)`);
+    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.name, x.gone])`), [['Plan diète', true]], 'nom inconnu : « Plan diète », jamais « Plan supprimé »');
     run('coach.state = null');
   });
 
