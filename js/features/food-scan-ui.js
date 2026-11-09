@@ -123,7 +123,7 @@ function fscanTotalText(food, g) {
 function foodScanSheet(code) {
   let food = null, busy = false;
   const body = `<div class="fscan" id="fscanBody">${fscanLoadingHtml(code)}</div>`;
-  const p = sheet({ title: 'Produit scanné', confirm: 'Ajouter', body, onConfirm: panel => {
+  const p = sheet({ title: 'Produit', confirm: 'Ajouter', body, onConfirm: panel => {
     if (!food) return false;
     const g = num($('#fscanG', panel).value, 1, DIET_G_MAX);
     if (g === null) { $('#fscanErr', panel).textContent = `Quantité : de 1 à ${fmtNum(DIET_G_MAX)} g.`; return false; }

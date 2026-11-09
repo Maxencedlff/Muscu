@@ -211,3 +211,5 @@ body.light .fscan__vals { background: var(--cell); }
 .diet-foot .group-foot + .group-foot { padding-top: 8px; }
 .diet-help { color: var(--label2); }
 .diet-field__select { appearance: none; -webkit-appearance: none; text-align: right; text-align-last: right; cursor: pointer; }
+/* Titres de la fiche : reçoivent le focus (VoiceOver les lit d'abord), sans anneau visible au doigt */
+.fscan__name:focus, .fscan__title:focus { outline: none; }
