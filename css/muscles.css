@@ -44,7 +44,7 @@
   font-size: var(--fs-footnote); line-height: 1.059rem; white-space: nowrap;
 }
 .mpill--main { background: color-mix(in srgb, var(--body-heat) 18%, transparent); color: var(--orange-text); font-weight: 600; }
-.mpill--sec { background: color-mix(in srgb, var(--body-heat-sec) 18%, transparent); color: var(--gold-text); }
+.mpill--sec { background: color-mix(in srgb, var(--body-heat-sec) 18%, transparent); color: var(--label2); }   /* plus de jaune (panel t6) */
 
 /* Ligne « Pectoraux · Triceps » sous le nom d'un exercice */
 .ex-muscles { color: var(--label2); }
