@@ -402,10 +402,6 @@ html.type-xl .rs__top .rs__title { padding: 0; order: 2; flex-basis: 100%; }
 html.type-xl .rs__top .rs__collapse { position: static; margin-left: auto; }
 html.type-xl .rs__top .rs__collapse--left { margin-left: 0; margin-right: auto; }
 html.type-xl .rs-seg { grid-template-columns: repeat(3, 1fr); }
-/* Superset : le compte et ⓘ passent sous le nom plutôt que de le couper */
-html.type-xl .ss-member { flex-wrap: wrap; }
-/* Bilan : une tuile par ligne, les lignes d'exercice et de record passent à la ligne */
-html.type-xl .sum-tiles { grid-template-columns: 1fr; }
 /* Vague 3-t4 : −15 et +15 sur une ligne, Passer dessous en pleine largeur (la rangée débordait des deux bords) ;
    l'heure de fin plafonnée comme dans un cercle iOS, pour que 1:59 ne touche pas l'anneau */
 html.type-xl .rs__adj { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; width: 100%; max-width: 360px; }
@@ -417,6 +413,20 @@ html.type-xl .sum-row { flex-wrap: wrap; }
 html.type-xl .sum-row__main { flex-basis: 100%; }
 /* Feuilles : Annuler / OK en haut, le titre en entier dessous */
 html.type-xl .sheet__bar { display: flex; flex-wrap: wrap; justify-content: space-between; }
+/* Superset : le compte et ⓘ passent sous le nom plutôt que de le couper */
+html.type-xl .ss-member { flex-wrap: wrap; }
+html.type-xl .ss-member__name { flex: 1 1 calc(100% - 48px); }   /* le nom prend la ligne, ⓘ, compte et ⋯ passent dessous */
+/* Carte : le nom sur toute la largeur, le compte et ⋯ dessous (« unilatéra » coupé, ⓘ invisible sur SE) */
+html.type-xl .ex-card__head { flex-wrap: wrap; }
+html.type-xl .ex-card__head > .ex-card__name { flex-basis: 100%; }
+html.type-xl .ex-howto__tail { white-space: normal; }   /* dernier mot et ⓘ : passent à la ligne plutôt que d'être rognés */
+/* « Modifiée » sur la largeur des deux premières colonnes, entier */
+html.type-xl .session-set .set-undo--state { grid-column: 1 / 3; grid-row: 1; justify-self: end; overflow: visible; text-overflow: clip; }
+/* Reps en réserve : pastilles à la taille de leur texte (« 4+ » passait sur deux lignes) */
+html.type-xl .rir__btns { flex-wrap: wrap; }
+html.type-xl .rir__btn { width: auto; min-width: 44px; height: auto; min-height: 44px; padding: 0 10px; border-radius: 22px; white-space: nowrap; }
+/* Bilan : une tuile par ligne, les lignes d'exercice et de record passent à la ligne */
+html.type-xl .sum-tiles { grid-template-columns: 1fr; }
 html.type-xl .sheet__bar .sheet__title { order: 2; flex-basis: 100%; white-space: normal; text-align: left; padding: 4px 0 0; }
 /* Messages : l'heure sous la bulle, la bulle plus large */
 html.type-xl .chat-msg { flex-direction: column; align-items: flex-end; max-width: 92%; }
