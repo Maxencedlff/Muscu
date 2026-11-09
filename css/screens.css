@@ -429,13 +429,15 @@ html.type-xl .me-stat + .me-stat::before { display: none; }
 html.type-xl .home-cell { flex-wrap: wrap; }
 html.type-xl .home-cell__text { flex-basis: calc(100% - 40px); }
 html.type-xl .home-cell__name { white-space: normal; overflow: visible; }
-html.type-xl .home-cell__right { flex-basis: 100%; flex-shrink: 1; flex-wrap: wrap; justify-content: flex-start; padding-left: 34px; }
-html.type-xl .home-cell__right > :not(.icon) { white-space: normal; }
+html.type-xl .home-cell__right { flex-basis: 100%; flex-shrink: 1; justify-content: space-between; }
+html.type-xl .home-cell__right > :not(.icon) { flex: 1; min-width: 0; white-space: normal; }
 /* Social : une demande (pseudo, puis Accepter et ×) sur deux lignes */
 html.type-xl .cell.social-row { flex-wrap: wrap; row-gap: 4px; padding-bottom: 8px; }
 html.type-xl .cell.social-row .social-row__main { flex-basis: 100%; }
 /* Repos : −15 / +15 à la taille de leur texte (ils sortaient de leurs cercles) */
 html.type-xl .rs__round { width: auto; height: auto; min-width: 56px; min-height: 56px; padding: 8px 14px; border-radius: 28px; }
+/* Réglages › Se connecter : sans l'avatar de tête, « Se connecter » tient entier sur sa ligne (il était coupé « connec/ter ») */
+html.type-xl .account-cell > .avatar { display: none; }
 /* Icônes : à la taille du texte qu'elles accompagnent */
 html.type-xl .cell__icon .icon, html.type-xl .home-cell > .icon, html.type-xl .cph-daybtn .icon { width: 1.1em; height: 1.1em; }
 
