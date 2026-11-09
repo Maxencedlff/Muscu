@@ -115,4 +115,14 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.match(src('js/features/session.js'), /data-action="open-plates"[^\n]*setDisplayNo\(ex\.sets, si\)[^\n]*icon\('plate'/, 'le numéro reste, le disque à côté');
     assert.match(src('index.html'), /<symbol id="i-plate"/);
   });
+
+  test('Disques d\'un échauffement : « É », jamais « 0 »', () => {
+    reset();
+    const warm = { warmup: true, weight: '40', reps: '8' }, work = { weight: '60', reps: '8' };
+    const ex = { name: 'Squat', sets: [warm, work] };
+    assert.match(app.setPlatesHtml(ex, 0, warm, 0), /<span class="num">É<\/span>/);
+    assert.match(app.setPlatesHtml(ex, 0, work, 1), /<span class="num">1<\/span>/);
+  });
+
+
 }

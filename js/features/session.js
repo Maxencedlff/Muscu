@@ -571,7 +571,7 @@ function setNumHtml(ex, si, tag) {
 function setPlatesHtml(ex, ei, s, si) {
   const kg = s.weight !== '' ? s.weight : s.prev?.weight;
   const load = kg !== '' && kg != null ? `${fmtW(kg, { plain: true })} ${unitLbl()}` : '';
-  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}, ${esc(ex.name)}"><span class="num">${setDisplayNo(ex.sets, si)}</span>${icon('plate', 12)}</button>`;
+  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}, ${esc(ex.name)}"><span class="num">${isWarmupSet(s) ? 'É' : setDisplayNo(ex.sets, si)}</span>${icon('plate', 12)}</button>`;   // échauffement : « É », comme sa ligne validée (jamais « 0 »)
 }
 
 // ▶ de la série à faire : chrono d'un maintien, série guidée au tempo, ou chrono d'une machine de cardio
