@@ -252,7 +252,10 @@ function screenOf(name) { return SCREENS.get(name) || SCREENS.get('dashboard'); 
 // renvoyait VoiceOver en haut de l'écran (panel du 07/11). Boutons seulement : jamais un champ (clavier iOS)
 function focusedActionSelectors() {
   const el = document.activeElement;
-  if (!el || el.tagName !== 'BUTTON' || !el.dataset.action || !$('#app').contains(el)) return null;
+  if (!el || !$('#app').contains(el)) return null;
+  // Liste ou champ qui porte un id (dates du comparateur de photos) : retrouvé par son id, sinon VoiceOver repartait en haut
+  if ((el.tagName === 'SELECT' || el.tagName === 'INPUT') && el.id) return [`#${CSS.escape(el.id)}`];
+  if (el.tagName !== 'BUTTON' || !el.dataset.action) return null;
   const attr = ([k, v]) => `[data-${k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${CSS.escape(v)}"]`;
   const all = Object.entries(el.dataset);
   // Exact d'abord, puis la même action sur le même exercice (data-ei), puis la même action

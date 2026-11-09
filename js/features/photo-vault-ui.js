@@ -426,6 +426,7 @@ document.addEventListener('change', e => {
   if (el.classList?.contains('pcmp__sel')) {
     photoCmp = { ...photoCmp, [el.dataset.side]: el.value };
     pvPaint();
+    announce(document.querySelector('.pcmp__gap')?.textContent || '');   // l'écart dit après le choix d'une date
   }
 });
 document.addEventListener('input', e => { if (e.target.classList?.contains('pcmp__range')) pvSetComparePos(e.target.value); });

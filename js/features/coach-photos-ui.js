@@ -455,6 +455,7 @@ document.addEventListener('change', e => {
   cphView[e.target.dataset.side] = e.target.value;
   cphPaint();
 });
+  announce(document.querySelector('.pcmp__gap')?.textContent || '');   // l'écart dit après le choix d'une date
 // Coach : l'état relu (clé, liste) redessine la fiche et l'écran des photos ; élève : Mon coach et le coffre
 onCoachChange(() => {
   const v = currentView();

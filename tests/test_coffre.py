@@ -570,6 +570,13 @@ def t_panel_apple(bench):
         title = page.evaluate("[...document.querySelectorAll('.group-title')].map(e => e.textContent).find(x => x.startsWith('Avant'))")
         R.check(len(sel) == 2 and title == 'Avant / après · Face' and all('·' not in s and fits for s, fits in sel) and '30 jours' in page.inner_text('.pcmp__gap'),
                 f'coffre : même pose à deux dates, la pose dans le titre, dates entières dans les menus (SE) {title!r} {sel} {page.inner_text(".pcmp__gap")!r}')
+        # Panel Apple vague 3 : choisir une autre date garde le focus sur le menu (VoiceOver ne repart pas en haut), l'écart est dit
+        opts = page.evaluate("[...document.querySelector('#pcmp-a').options].map(o => o.value)"); was = page.evaluate("document.querySelector('#pcmp-a').value")
+        page.focus('#pcmp-a'); page.select_option('#pcmp-a', opts[-1]); page.wait_for_timeout(250)
+        foc = page.evaluate("[document.activeElement?.id, document.getElementById('sr-polite')?.textContent]")
+        R.check(foc[0] == 'pcmp-a' and ('écart' in (foc[1] or '') or 'Même jour' in (foc[1] or '')),
+                f'coffre : date changée, focus gardé sur « Avant », écart annoncé {foc}')
+        page.select_option('#pcmp-a', was); page.wait_for_timeout(250)
         # Menus Avant / Après : chevrons haut / bas, valeur en couleur d'action (pas un texte fixe)
         sel = page.evaluate("""() => [...document.querySelectorAll('.pcmp__pick')].map(p => { const s = p.querySelector('select');
             return [!!p.querySelector('.icon--chevron-up-chevron-down'), getComputedStyle(s).color === getComputedStyle(document.querySelector('.navbar__text')).color]; })""")
