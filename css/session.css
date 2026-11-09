@@ -326,13 +326,14 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 }
 .set-undo:active { opacity: .5; }
 .set-undo--state { color: var(--green-text); font-weight: 600; }
+/* Texte agrandi : « Annuler » passe dessous quand la place manque, jamais de mot coupé en deux (panel t7) */
 .ex-undo {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 12px; min-height: 44px;
   margin: 0 0 8px; padding: 0 4px 0 16px; border-radius: var(--r-md); background: var(--cell);
   font-size: var(--fs-subhead); color: var(--label2);
 }
-.ex-undo__text { min-width: 0; overflow-wrap: anywhere; }
-.ex-undo__btn { flex-shrink: 0; min-height: 44px; padding: 0 12px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--tint); cursor: pointer; }
+.ex-undo__text { flex: 1 1 12em; min-width: 0; padding: 10px 0; overflow-wrap: break-word; }
+.ex-undo__btn { flex-shrink: 0; margin-left: auto; min-height: 44px; padding: 0 12px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--tint); cursor: pointer; }
 .ex-undo__btn:active { opacity: .5; }
 .rs__value { font-family: var(--font-rounded); font-size: 64px; line-height: 1; font-weight: 300; padding: 8px 0; }
 .rs-seg {
