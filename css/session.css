@@ -285,9 +285,9 @@ body:not(.light) .rest-mini .rest-mini__skip { color: #8AC4FF; }
 
 /* Pendant la séance, les toasts passent en bas (au-dessus de la barre de repos) pour ne pas masquer l'exercice */
 /* fond opaque : le texte des cartes ne se lit pas à travers */
-body:has(.view.session) .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--dlg-solid); }
+body:has(.view.session) .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--toast-bg); }
 /* Bilan : en haut, le bouton « Terminé » reste lisible */
-body:has(.view.summary) .toast { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--dlg-solid); }
+body:has(.view.summary) .toast { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--toast-bg); }
 body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── Feuilles de la séance (variante non bloquante de .sheet, voir openSessSheet) ── */
