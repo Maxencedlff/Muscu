@@ -83,15 +83,12 @@ function exSection(it) {
 function isBodyweight(it) { return it.points.every(p => !p.hasWeight); }
 function mainMetric(it, p) { return isBodyweight(it) ? p.maxReps : p.maxLoad; }
 
-// Tendance : moyenne des 3 dernières séances contre les 3 premières
+// Tendance « +13 % depuis mai » : du premier au dernier point de la courbe affichée, ce que l'œil lit (vague 3-t4 :
+// une moyenne des 3 dernières séances contre les 3 premières ne correspondait pas aux points montrés)
 function trendPct(vals) {
   const n = vals.length;
-  if (n < 2) return null;
-  const k = Math.min(3, Math.floor(n / 2));
-  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
-  const a = avg(vals.slice(0, k)), b = avg(vals.slice(-k));
-  if (!(a > 0)) return null;
-  return Math.round((b - a) / a * 100);
+  if (n < 2 || !(vals[0] > 0)) return null;
+  return Math.round((vals[n - 1] - vals[0]) / vals[0] * 100);
 }
 // Position horizontale de chaque point d'une courbe, de 0 à 1, selon sa date : deux séances à trois semaines d'écart
 // sont plus loin l'une de l'autre que deux séances à deux jours (panel Apple du 08/11 : points espacés selon leur

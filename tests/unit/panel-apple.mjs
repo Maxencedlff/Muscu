@@ -144,4 +144,9 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(app.frTypo('Objectif 32 kg × 10'), 'Objectif 32\u202fkg\u202f×\u202f10', '« 32 kg × 10 » insécable');
     assert.equal(app.frTypo('1\u202f080 kg'), '1\u202f080\u202fkg', 'nombre et unité liés');
   });
+  test('Tendance « depuis mai » : du premier au dernier point affiché', () => {
+    assert.equal(app.trendPct([100, 90, 120, 113]), 13);
+    assert.equal(app.trendPct([50, 40]), -20);
+    assert.equal(app.trendPct([80]), null);
+  });
 }
