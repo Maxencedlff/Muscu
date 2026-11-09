@@ -35,7 +35,7 @@
   --shadow-thumb: 0 3px 8px rgba(0,0,0,.15), 0 3px 1px rgba(0,0,0,.06);
   /* Texte coloré à partir d'une couleur de séance (--cat-color) : éclairci en sombre, assombri en clair */
   --cat-text-mix: 72%; --cat-text-base: #FFFFFF;
-  --cat-color: var(--green);     /* couleur de séance par défaut, redéfinie par écran */
+  --cat-color: var(--tint);      /* couleur de séance par défaut, redéfinie par écran (jamais le vert de « fait ») */
   /* Silhouette musculaire (js/ui/body-map.js) : corps, muscle au repos, muscle travaillé */
   --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: var(--orange);
   --body-heat-sec: var(--yellow); /* muscles secondaires d'un exercice (fiche) : autre teinte que les principaux */

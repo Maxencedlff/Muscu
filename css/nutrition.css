@@ -84,7 +84,9 @@ div.diet-meal__title { cursor: default; }
   transition: background-color .2s, box-shadow .2s, transform .2s;
 }
 .diet-check .icon { width: 22px; height: 22px; }
-.diet-check:not(.diet-check--on) .icon { visibility: hidden; }   /* pas coché : cercle vide, la coche n'existe qu'une fois coché */
+/* Pas coché : la coche en filigrane dit que le rond se coche (seul, il passait pour l'anneau des kcal ou le jour
+   « aujourd'hui » de la semaine, panel t5) ; pleine et verte une fois coché */
+.diet-check:not(.diet-check--on) .icon { opacity: .4; }
 .diet-check:active { transform: scale(.92); }
 .diet-check--on { background: var(--check-on); color: var(--check-mark); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .diet-check, .diet-ring__arc, .diet-bar__fill { transition: none; } }
@@ -125,6 +127,10 @@ div.diet-meal__title { cursor: default; }
 .diet-home__kcal b { color: var(--label); font-weight: 700; }
 .diet-home__next { display: flex; align-items: center; gap: 4px; font-size: var(--fs-subhead); font-weight: 600; overflow-wrap: anywhere; }
 .diet-home--complete .diet-home__next { color: var(--check-on); }
+/* Texte agrandi : le rond à cocher passe sous l'anneau et le texte, qui gardent toute la largeur (« NUTRITIO/N », panel t5) */
+html.type-xl .diet-home { flex-wrap: wrap; padding-right: 0; }
+html.type-xl .diet-home__open { flex-basis: 100%; }
+html.type-xl .diet-home > .diet-check { margin: 0 0 8px 16px; }
 
 /* Feuilles : remplacer, rechercher, créer un aliment, objectifs */
 .diet-swap, .diet-pick, .diet-form { padding: 0; }

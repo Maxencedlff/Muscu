@@ -46,7 +46,7 @@
 .ex-card__more:active { background: var(--fill); }
 .bump-chip {
   flex-shrink: 0; min-height: 32px; padding: 0 10px; border: 0; border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green-text);
+  background: var(--fill); color: var(--tint);   /* une action : le bleu, jamais le vert de « fait » (panel t5) */
   font-size: 0.765rem; font-weight: 600; white-space: nowrap; cursor: pointer; position: relative;
 }
 .bump-chip::after { content: ''; position: absolute; inset: -6px -2px; }
@@ -54,10 +54,11 @@
 
 /* ── Superset (js/features/session.js, renderGroupCard) : une carte, barre de couleur à gauche,
    une ligne par exercice en tête, puis les séries tour par tour ─────────────── */
-.ex-card.ss-card { border-left: 4px solid var(--cat-color, var(--tint)); padding-left: 10px; }
+/* Superset : bleu partout (séance, coach, Social), jamais la couleur d'une séance qui peut être verte (« fait ») */
+.ex-card.ss-card { border-left: 4px solid var(--tint); padding-left: 10px; }
 .ss-tag {
   display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 22px; padding: 0 5px;
-  border-radius: 6px; background: color-mix(in srgb, var(--cat-color, var(--tint)) 22%, transparent);
+  border-radius: 6px; background: color-mix(in srgb, var(--tint) 22%, transparent);
   color: var(--label); font-size: 0.765rem; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0;
 }
 .ss-tag--sm { min-width: 24px; height: 19px; font-size: 0.706rem; margin-right: 7px; vertical-align: 1px; }
@@ -124,12 +125,14 @@
   transition: transform .25s cubic-bezier(.2,.8,.2,1), background .2s;
   touch-action: pan-y;
 }
+/* Série à faire : toujours le bleu de « prochain », jamais la couleur de la séance (une séance verte la faisait passer
+   pour validée, le vert étant réservé à « fait », panel t5) */
 .session-set--current {
-  background: color-mix(in srgb, var(--cat-color) 8%, var(--cell));
-  box-shadow: inset 3px 0 0 var(--cat-color);
+  background: color-mix(in srgb, var(--tint) 8%, var(--cell));
+  box-shadow: inset 3px 0 0 var(--tint);
 }
 .session-set--go { animation: setGo .9s ease 2; }
-@keyframes setGo { 50% { background: color-mix(in srgb, var(--cat-color) 22%, var(--cell)); } }
+@keyframes setGo { 50% { background: color-mix(in srgb, var(--tint) 22%, var(--cell)); } }
 .session-set--done { cursor: pointer; }
 .session-set--done:active { background: var(--fill); }
 .session-set--editing { background: color-mix(in srgb, var(--tint) 8%, var(--cell)); }
@@ -657,7 +660,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .tech__add::after, .tech__x::after { content: ''; position: absolute; inset: -4px; }   /* 44 px de zone de toucher, 8 px libres entre les deux (panel de la vague 3) */
 .tech__add:active, .tech__x:active { opacity: .6; }
 .session-set--sub { min-height: 52px; margin-bottom: 2px; border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: inset 2px 0 0 var(--sep); }
-.session-set--subcur { background: color-mix(in srgb, var(--cat-color) 8%, var(--cell)); box-shadow: inset 3px 0 0 var(--cat-color); }
+.session-set--subcur { background: color-mix(in srgb, var(--tint) 8%, var(--cell)); box-shadow: inset 3px 0 0 var(--tint); }
 .tech-tag { font-size: 0.706rem; font-weight: 700; letter-spacing: .02em; }
 @media (max-width: 374px) { .tech__cap { padding-left: calc(24px + var(--set-gap)); } }
 
@@ -685,7 +688,10 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .pl__row { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 360px; }
 .pl__row--top { align-items: flex-start; }
 .pl__row--top .pl__lbl { padding-top: 9px; }
-.pl__lbl { width: 56px; flex-shrink: 0; font-size: 0.882rem; font-weight: 600; color: var(--label2); }
+.pl__lbl { min-width: 56px; flex-shrink: 0; white-space: nowrap; font-size: 0.882rem; font-weight: 600; color: var(--label2); }
+/* Texte agrandi : le libellé au-dessus de ses boutons, sur toute la largeur (« Barr/e », « Disq/ues » coupés, panel t5) */
+html.type-xl .pl__row { flex-direction: column; align-items: stretch; gap: 6px; }
+html.type-xl .pl__row--top .pl__lbl { padding-top: 0; }
 .pl__bars.rs-seg { grid-template-columns: repeat(3, 1fr); max-width: none; flex: 1; }
 .pl__bars .rs-seg__btn { height: 44px; }
 .pl__chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
