@@ -129,6 +129,9 @@
 }
 .coach-textarea::placeholder { color: var(--label3); }
 .coach-textarea--inline { margin: 8px 0 2px; }
+/* Consigne du programme : deux lignes d'emblée. Le texte d'exemple ne fait pas grandir le champ (field-sizing
+   l'ignore), il était coupé à mi-hauteur sur sa 2e ligne (panel t6) ; exemple raccourci à une ligne */
+.coach-textarea--prog { min-height: calc(2lh + 20px); }
 /* Consigne du programme : même champ que celles des exercices (gris, marge intérieure) ; au focus, un liseré teinté
    à la place de l'anneau du navigateur collé au texte (panel t5) */
 .coach-textarea:focus, .coach-req-field__input:focus { outline: none; }

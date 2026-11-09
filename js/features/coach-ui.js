@@ -350,7 +350,7 @@ function coachProgCardHtml(item) {
     : `<button class="btn btn--primary coach-prog__btn" data-action="coach-add-prog" data-id="${esc(item.id)}" aria-label="${status === 'update' ? `Mettre à jour ${esc(item.data.name)}` : `Ajouter ${esc(item.data.name)} à mes programmes`}">${status === 'update' ? 'Mettre à jour' : 'Ajouter à mes programmes'}</button>`;
   return `
         <article class="coach-prog">
-          <div class="coach-prog__eyebrow">${eyebrow}</div>
+          <div class="coach-prog__eyebrow">${eyebrow}${coachNewDotHtml(!item.seen)}</div>
           <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
           ${item.meta ? '<p class="coach-prog__meta">Détail disponible avec du réseau.</p>' : `<p class="coach-prog__meta">${plural(nS, 'séance', 'séances')}${nS ? ` : ${esc(item.data.sessions.map(s => s.label).join(', '))}` : ''}</p>`}
           ${item.data.consigne ? `<p class="coach-prog__consigne">${icon('info.circle', 14)}<span>${esc(item.data.consigne)}</span></p>` : ''}
@@ -969,7 +969,7 @@ function renderCoachSend(uid, progId) {
           <div class="cell coach-send-ex">
             <span class="cell__body">
               <span class="cell__title">${ssTagHtml(xs, i)}${esc(e.name)}</span>
-              <span class="cell__sub num">${[plural(e.sets, 'série', 'séries'), ...coachExPlanParts(e), ...(e.rest ? [`repos ${fmtRest(e.rest)}`] : []), ...(e.tempo ? [`tempo ${shortTempo(e.tempo)}`] : [])].map(esc).join(' · ')}</span>
+              <span class="cell__sub num">${[plural(e.sets, 'série', 'séries'), ...coachExPlanParts(e), ...(e.rest ? [`repos ${fmtRest(e.rest)}`] : []), ...(e.tempo ? [`tempo ${shortTempo(e.tempo)}`] : [])].map(esc).join(' · ')}</span>
               ${gripSubHtml(e)}
               ${ta(`data-cat="${esc(s.key)}" data-ex="${esc(e.id)}"`, dr.ex[s.key]?.[e.id] || '', `Consigne pour ${e.name}`, 'Consigne (facultative)')}
             </span>
@@ -983,7 +983,7 @@ function renderCoachSend(uid, progId) {
         <h1 class="scr-title">${esc(name)}</h1>
         <p class="scr-sub">Pour ${who} · ${plural(sessions.length, 'séance', 'séances')}</p>
         <div class="group-title">Consigne du programme</div>
-        <div class="group group--pad">${ta('data-prog="1"', dr.prog, 'Consigne du programme', 'Ex : 3 séances par semaine, une journée de repos entre deux')}</div>
+        <div class="group group--pad">${ta('data-prog="1"', dr.prog, 'Consigne du programme', 'Ex : 3 séances par semaine', 'coach-textarea--prog')}</div>
         <div class="group-foot">Les consignes sont facultatives et gardées pour tes prochains envois. ${who} les voit dans le programme et pendant la séance.</div>
         ${groups}
         <button class="btn btn--primary btn--full coach-send-btn" data-action="coach-send-go" data-uid="${esc(uid)}" data-prog="${esc(progId)}">Envoyer à ${who}</button>
