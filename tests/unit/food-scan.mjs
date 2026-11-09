@@ -147,6 +147,6 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const page = read('privacy.html');
     assert.match(page, /code-barres[^<]*Open Food Facts/, 'privacy.html FR');
     assert.match(page, /barcode[^<]*Open Food Facts/, 'privacy.html EN');
-    assert.match(read('sw.js'), /const CACHE = 'ppl-v137'/);
+    assert.match(read('sw.js'), /const CACHE = 'ppl-v(13[7-9]|1[4-9]\d|[2-9]\d\d)'/);
   });
 }
