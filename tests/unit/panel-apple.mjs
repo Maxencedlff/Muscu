@@ -135,10 +135,18 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
 
   test('Typographie française : espaces insécables avant ? ! ; :, guillemets, « mois\u2011ci »', () => {
     assert.equal(app.frTypo('Tout réinitialiser ?'), 'Tout réinitialiser\u202f?');
-    assert.equal(app.frTypo('Échauffement ajouté : 3 séries'), 'Échauffement ajouté\u202f: 3 séries');
+    assert.equal(app.frTypo('Échauffement ajouté : 3 séries'), 'Échauffement ajouté\u202f: 3\u202fséries');
     assert.equal(app.frTypo('« Gros record ! »'), '«\u202fGros record\u202f!\u202f»');
-    assert.equal(app.frTypo('3 séances ce mois-ci'), '3 séances ce mois\u2011ci');
-    assert.equal(app.frTypo('Repos 1:30 · 10:05'), 'Repos 1:30 · 10:05', 'heures et chronos intacts');
+    assert.equal(app.frTypo('3 séances ce mois-ci'), '3\u202fséances ce mois\u2011ci');
+    assert.equal(app.frTypo('Repos 1:30 · 10:05'), 'Repos 1:30\u202f· 10:05', 'heures et chronos intacts, « · » jamais en début de ligne');
+    // Panel t5 : nombre et unité ou nom, date, « ≈ 60 », « sem. 2/2 », « 10 % » jamais séparés
+    assert.equal(app.frTypo('5 exercices · ≈ 60 min'), '5\u202fexercices\u202f· ≈\u202f60\u202fmin');
+    assert.equal(app.frTypo('ven. 30 oct.'), 'ven. 30\u202foct.');
+    assert.equal(app.frTypo('+1 rep sur rowing'), '+1\u202frep sur rowing');
+    assert.equal(app.frTypo('Reprise · sem. 2/2'), 'Reprise\u202f· sem.\u202f2/2');
+    assert.equal(app.frTypo('baisse de 10 %'), 'baisse de 10\u202f%');
+    assert.equal(app.frTypo('Ex. 3-1-1'), 'Ex. 3\u20111\u20111', 'tempo insécable');
+    assert.equal(app.frTypo('3 secondes et 2 maisons'), '3 secondes et 2 maisons', 'un mot qui commence comme une unité reste intact');
     assert.equal(app.frTypo('https://x.fr/a?b=1 ; ok'), 'https://x.fr/a?b=1\u202f; ok', 'pas d\'espace ajoutée là où il n\'y en avait pas');
     assert.equal(app.frTypo('cinquante-cinq, ceci'), 'cinquante-cinq, ceci', 'autres traits d\'union intacts');
     assert.equal(app.frTypo('Objectif 32 kg × 10'), 'Objectif 32\u202fkg\u202f×\u202f10', '« 32 kg × 10 » insécable');

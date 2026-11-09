@@ -232,11 +232,14 @@
   .team-week__val, .team-week__lbl { display: inline; font-size: var(--fs-footnote); line-height: 1.3; }
   .team-week__tile:not(:last-child)::after { content: ' ·'; color: var(--label3); font-size: var(--fs-footnote); }
 }
+/* Texte agrandi : une valeur par ligne, sans « · » resté en bout de ligne (panel t5) */
+html.type-xl .team-week__tile::after { content: none !important; }
+@media (max-height: 700px) { html.type-xl .team-week { flex-direction: column; } }
 /* Segments Élèves | Social de l'onglet Coach : sous le grand titre, pleine largeur */
 .social-seg { margin: 2px 0 16px; }
 /* Programmes envoyés à un élève : état à droite */
 .coach-sent__state { color: var(--label); }
-.coach-sent__state--unseen { color: var(--orange-text); }
+.coach-sent__state--unseen { color: var(--label2); }   /* état normal juste après l'envoi : gris, jamais la couleur d'une alerte (panel t5) */
 
 /* ── Messages coach ↔ élève (js/features/coach-chat-ui.js) ── */
 .chat-cell__last { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }

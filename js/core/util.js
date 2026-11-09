@@ -18,12 +18,19 @@ function pad(n) { return String(n).padStart(2, '0'); }
 // Rien n'est jamais réécrit dans les données ni dans les champs : seuls les nœuds de texte affichés sont touchés
 // (MutationObserver ci-dessous), après chaque rendu, toast, feuille ou annonce. Un retour à la ligne ne laisse plus
 // « ? » ou « : » seuls en début de ligne (panels de la vague 3).
-// Aussi : « 32 kg × 10 » jamais coupé autour de « × », ni entre un nombre et son unité (kg, lb). Échappements \u
-// dans le code : aucun caractère invisible dans le source.
-const FR_TYPO_RE = /[ \u00a0]([?!;:\u00bb])|(\u00ab)[ \u00a0]|(\S)-(ci|l\u00e0)(?![\p{L}])| \u00d7 (?=\S)|(\d) (kg|lb)(?![\p{L}])/gu;
+// Aussi : « 32 kg × 10 » jamais coupé autour de « × », ni entre un nombre et son unité ou son nom (kg, min, t, %,
+// séances, « 30 oct. »…), ni dans « ≈ 60 », « sem. 2/2 » ; « · » ne commence jamais une ligne (panel t5 : « min », « oct. »,
+// « séances » ou « · sem. 4/10 » seuls à la ligne). Échappements \u dans le code : aucun caractère invisible dans le source.
+const FR_TYPO_UNITS = 'kg|lb|min|h|s|t|g|kcal|km|cm|%|reps?|s\u00e9ances?|s\u00e9ries?|exercices?|jours?|semaines?|sem\\.|repas|records?'
+  + '|janv\\.|f\u00e9vr\\.|mars|avr\\.|mai|juin|juil\\.|ao\u00fbt|sept\\.|oct\\.|nov\\.|d\u00e9c\\.';
+const FR_TYPO_RE = new RegExp('[ \u00a0]([?!;:\u00bb])|(\u00ab)[ \u00a0]|(\\S)-(ci|l\u00e0)(?![\\p{L}])| \u00d7 (?=\\S)'
+  + `|(\\d) (${FR_TYPO_UNITS})(?![\\p{L}])|(\u2248|sem\\.) (?=\\d)`, 'gu');
 function frTypo(str) {
-  return String(str ?? '').replace(FR_TYPO_RE, (m, before, open, w, tail, d, unit) =>
-    before ? '\u202f' + before : open ? open + '\u202f' : w ? w + '\u2011' + tail : d ? d + '\u202f' + unit : '\u202f\u00d7\u202f');
+  return String(str ?? '').replace(FR_TYPO_RE, (m, before, open, w, tail, d, unit, lead) =>
+    before ? '\u202f' + before : open ? open + '\u202f' : w ? w + '\u2011' + tail : d ? d + '\u202f' + unit
+      : lead ? lead + '\u202f' : '\u202f\u00d7\u202f')
+    .replace(/ \u00b7 /g, '\u202f\u00b7 ')
+    .replace(/(\d)-(?=\d)/g, '$1\u2011');   // tempo « 3-1-1 » jamais coupé (« Ex. 3- » puis « 1-1 »)   // à part : « 1,3 t · 53 min » (l'unité vient d'être prise par la règle du dessus)
 }
 const FR_TYPO_SKIP = 'textarea, input, script, style, [contenteditable]';
 function frTypoNode(root) {
@@ -33,7 +40,7 @@ function frTypoNode(root) {
   const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let n = walk.nextNode(); n; n = walk.nextNode()) frTypoText(n);
 }
-const FR_TYPO_TEST = /[ \u00a0][?!;:\u00bb]|\u00ab[ \u00a0]|-(ci|l\u00e0)| \u00d7 |\d (kg|lb)/u;
+const FR_TYPO_TEST = new RegExp(`[ \u00a0][?!;:\u00bb]|\u00ab[ \u00a0]|-(ci|l\u00e0)| \u00d7 |\\d (${FR_TYPO_UNITS})|(\u2248|sem\\.) \\d| \u00b7 |\\d-\\d`, 'u');
 function frTypoText(n) {
   const v = n.data;
   if (!FR_TYPO_TEST.test(v) || n.parentElement?.closest(FR_TYPO_SKIP)) return;
