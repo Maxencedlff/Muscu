@@ -195,7 +195,8 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
 .hcell__date { font-size: 0.882rem; color: var(--label2); white-space: nowrap; flex-shrink: 0; }
 .hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; } /* sur 2 lignes si besoin plutôt que tronqué */
 .hcell__title + .hcell__date { margin-left: auto; }
-.hcell__prog { flex: 0 1 auto; min-width: 0; font-size: 1rem; line-height: 1.294rem; font-weight: 400; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Le nom du programme cède avant celui de la séance (« Bras » jamais « Br… », panel t6) : facteur de rétrécissement 1000 contre 1 */
+.hcell__prog { flex: 0 1000 auto; min-width: 0; font-size: 1rem; line-height: 1.294rem; font-weight: 400; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hcell__prog + .hcell__date { margin-left: auto; }
 /* Ligne du bas : détails à gauche, pastille des records notés à droite (médaille et nombre) */
 .hcell__bot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -302,6 +303,9 @@ html.type-xl .chart-bubble { white-space: normal; }
 .color-swatch.is-on { box-shadow: 0 0 0 3px var(--cell), 0 0 0 5px var(--c); }
 
 /* ═════════ Accessibilité et finitions de bord ═════════ */
+
+/* « · » qui finirait une ligne (frSepCheck, js/core/util.js) : masqué, sa largeur gardée pour que rien ne bouge */
+.tsep-cut { visibility: hidden; }
 
 /* Texte réservé aux lecteurs d'écran */
 .visually-hidden {
