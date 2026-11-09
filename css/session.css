@@ -270,6 +270,12 @@ body:not(.light) .rest-mini .rest-mini__skip { color: #8AC4FF; }
 @media (max-width: 379px) { .rest-ring--small { display: none; } }
 /* Écran étroit : « S2 » part avant que le nom de l'exercice soit coupé (la charge et les reps restent) */
 @media (max-width: 379px) { .rest-mini__next .rest-mini__step { display: none; } }
+/* iPhone SE : le nom de l'exercice suivant passe sur deux lignes plutôt que d'être coupé (panel t6 : « Rowing haltère
+   uni… », l'info utile pendant le repos) ; la charge reste collée à lui */
+@media (max-width: 359px) {
+  .rest-mini__next { flex-wrap: wrap; }
+  .rest-mini__name { white-space: normal; overflow: visible; }
+}
 @media (max-width: 359px) {
   .rest-mini { column-gap: 4px; padding-left: 12px; padding-right: 8px; }
   .rest-mini__btn, .rest-mini .rest-mini__skip { min-width: 44px; padding: 0 6px; }
