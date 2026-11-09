@@ -62,6 +62,9 @@ cat sauvegarde/infos.txt
 
 ### 2a. Vérifier dans un Postgres local jetable (sans toucher la prod)
 
+Le chemin du dossier de la socket (`-k`) doit faire moins de ~100 caractères : travailler dans un
+dossier court comme `~/restauration`.
+
 ```sh
 B=/usr/lib/postgresql/17/bin; D=$PWD/pg
 $B/initdb -D $D/data -U postgres -A trust
