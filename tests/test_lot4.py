@@ -108,7 +108,9 @@ def t_flow(bench, eng, dev, theme):
         R.check(lay[0] <= lay[1], f'{t} chrono de la barre sans chevauchement {lay}')
         nxt = ' '.join(page.locator('.rest-mini__next').inner_text().split())
         narrow = page.evaluate('innerWidth < 380')   # écran étroit : « S2 » part avant que le nom soit coupé
-        R.check(nxt.startswith('Ensuite : Développé couché haltères · ' + ('' if narrow else 'S2 · ')) and ('S2' not in nxt) == narrow, f'{t} ligne « Ensuite » ({nxt!r})')
+        # iPhone SE (< 360) : la charge passe sur sa propre ligne, sans « · » en tête (7634698)
+        head = 'Ensuite : Développé couché haltères ' if page.evaluate('innerWidth < 360') else 'Ensuite : Développé couché haltères · '
+        R.check(nxt.startswith(head + ('' if narrow else 'S2 · ')) and ('S2' not in nxt) == narrow and ' kg × ' in nxt, f'{t} ligne « Ensuite » ({nxt!r})')
         # Ligne trop longue : le nom se coupe (points de suspension), jamais la série (« 32,5 kg × 10 » entier)
         tail = page.evaluate("(() => { const n = document.querySelector('.rest-mini__next'), t = n.querySelector('.rest-mini__tail').getBoundingClientRect(); return t.right <= n.getBoundingClientRect().right + 1; })()")
         R.check(tail, f'{t} série de la ligne « Ensuite » entière')
@@ -380,7 +382,12 @@ def t_focus(bench):
         page.keyboard.press('Enter'); page.wait_for_timeout(500)
         R.check(act() == 'validate-set 0 1', f'valider : focus sur le ✓ de la série 2 ({act()!r})')
         R.check(page.evaluate("document.activeElement.closest('.session-set--current') !== null"), 'focus sur la série mise en avant')
-        page.focus('[data-action="sess-undo"]'); page.keyboard.press('Enter'); page.wait_for_timeout(500)
+        page.focus('[data-action="sess-undo"]'); page.keyboard.press('Enter')
+        # Focus posé à l'image suivante (scrollToCurrent) : jusqu'à 3 s sur une machine de CI chargée (WebKit)
+        try:
+            page.wait_for_function("document.activeElement?.dataset?.action === 'validate-set'", timeout=3000)
+        except Exception:
+            pass
         R.check(act() == 'validate-set 0 0', f'Annuler : focus sur le ✓ de la série 1 ({act()!r})')
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(400)
         page.focus('.rest-mini__skip'); page.keyboard.press('Enter'); page.wait_for_timeout(400)

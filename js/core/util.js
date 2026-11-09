@@ -80,6 +80,9 @@ function frSepCheck() {
   const nodes = [...frSepNodes];
   frSepNodes.clear();
   const range = document.createRange();
+  // Deux passes : toutes les mesures d'abord, puis les découpes. Mesurer après une découpe forcerait un nouveau
+  // calcul de la mise en page à chaque nœud (longues listes : historique, élèves)
+  const todo = [];
   for (const n of nodes) {
     if (!n.isConnected || n.parentElement?.classList.contains('tsep-cut')) continue;
     const cuts = [];
@@ -89,10 +92,12 @@ function frSepCheck() {
       const next = dot && frNextCharRect(n, i + 2, range);
       if (next && next.top >= dot.bottom - 2) cuts.push(i + 1);
     }
-    if (!cuts.length) continue;
+    if (cuts.length) todo.push([n, cuts, /flex|grid/.test(getComputedStyle(n.parentElement).display)]);
+  }
+  for (const [n, cuts, inBox] of todo) {
     // Texte posé directement dans une boîte flex ou grille : découpé, il donnerait trois éléments côte à côte
     // (« Petit-déjeuner » et « 215 kcal » en colonnes) ; il est d'abord enveloppé d'un seul span, qui garde la mise en page
-    if (/flex|grid/.test(getComputedStyle(n.parentElement).display)) {
+    if (inBox) {
       const wrap = document.createElement('span');
       n.replaceWith(wrap);
       wrap.append(n);

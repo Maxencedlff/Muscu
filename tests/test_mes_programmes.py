@@ -52,7 +52,8 @@ def t_mes_programmes(bench, eng, dev, theme):
         R.check('Mes programmes' in page.inner_text('[data-action="go-my-programmes"]'), f'{t} onglet : ligne « Mes programmes »')
         R.check(page.locator('[data-action="new-programme"]').count() == 1, f'{t} onglet : « Créer un programme » toujours là')
         tap(page, '[data-action="go-my-programmes"]')
-        R.check(page.evaluate('view') == 'my-programmes' and page.locator('.navbar__title').inner_text().strip() == 'Mes programmes', f'{t} écran Mes programmes')
+        # Titre compact caché (visibility) tant que le grand titre est à l'écran (fd6000a) : lu par text_content
+        R.check(page.evaluate('view') == 'my-programmes' and (page.locator('.navbar__title').text_content() or '').strip() == 'Mes programmes', f'{t} écran Mes programmes')
         ids = page.evaluate("[...document.querySelectorAll('.mp-list [data-action=\"select-prog\"]')].map(b => b.dataset.id)")
         R.check(ids == ['ppl', 'custom'], f'{t} liste dans l\'ordre de data.myProgrammes {ids}')
         R.check(page.locator('[data-action="select-prog"][data-id="ppl"]').get_attribute('aria-pressed') == 'true', f'{t} coche sur l\'actif')

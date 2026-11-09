@@ -305,8 +305,9 @@ html.type-xl .chart-bubble { white-space: normal; }
 
 /* ═════════ Accessibilité et finitions de bord ═════════ */
 
-/* « · » qui finirait une ligne (frSepCheck, js/core/util.js) : masqué, sa largeur gardée pour que rien ne bouge */
-.tsep-cut { visibility: hidden; }
+/* « · » qui finirait une ligne (frSepCheck, js/core/util.js) : rendu transparent, sa largeur gardée pour que rien ne bouge.
+   Pas visibility: hidden, qui le retirerait aussi du texte lu par VoiceOver (et d'innerText) : seul l'œil ne le voit plus */
+.tsep-cut { color: transparent; }
 
 /* Texte réservé aux lecteurs d'écran */
 .visually-hidden {

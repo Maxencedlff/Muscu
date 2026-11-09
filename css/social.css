@@ -240,6 +240,9 @@ body.has-livebar .social-enable { bottom: calc(var(--tabbar-h) + 72px + env(safe
 .activity-row__text b { font-weight: 600; }
 .activity-row__new { flex-shrink: 0; width: 9px; height: 9px; margin-left: auto; border-radius: 50%; background: var(--tint); }
 .activity-row--group .stack { min-width: 44px; }
+/* Demande reçue sur 320 pt (iPhone SE, Galaxy S9+) : Accepter et la croix laissent 49 px au texte, « 30 sept. » (insécable)
+   débordait de 2 px ; écart de l'avatar resserré, comme une cellule iOS compacte */
+@media (max-width: 359px) { .activity-row .social-row__main { gap: 8px; } }
 
 /* Carte d'athlète : avatar, pseudo, membre depuis, trois chiffres touchables, régularité */
 .social-me-view .scr { padding-top: 12px; }

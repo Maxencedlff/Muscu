@@ -178,6 +178,11 @@ def t_strong(bench, eng, dev, theme):
         with page.expect_file_chooser() as fc:
             page.click('[data-action="import-other-app"]')
         fc.value.set_files(files=[{'name': 'x.csv', 'mimeType': 'text/csv', 'buffer': b'a,b\n1,2\n'}])
+        # Le toast « Import annulé » d'avant peut encore être là (machine lente) : on attend celui de ce fichier
+        try:
+            page.wait_for_function("!/Import annulé/.test(document.querySelector('.toast')?.innerText || 'Import annulé')", timeout=5000)
+        except Exception:
+            pass
         txt = toast_text(page)
         R.check(txt.startswith('Fichier non reconnu'), f'{t} fichier inconnu : « {txt} »')
         R.check(page.locator('.sheet-root').count() == 0, f'{t} fichier inconnu : pas de feuille')
