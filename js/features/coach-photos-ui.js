@@ -19,7 +19,6 @@ let cphView = { uid: null, phase: 'loading', msg: '', a: null, b: null, done: 0,
 let cphPicked = new Set();   // feuille d'envoi : photos du coffre cochées
 
 const cphCoachName = () => esc(coachName() || 'ton coach');
-const cphSize = n => (n ? fmtBytes(n) : '');
 const cphPoseDay = p => `${photoPoseLabel(p.pose)} · ${fmtDate(cphDayTs(p.takenOn), 'short')}`;
 // Code de la clé du coach (élève) : replié sous « Vérifier le code avec ton coach » (panel du 08/11 : au milieu du texte,
 // ce code inquiétait plus qu'il n'aidait). Ouvert : le chiffrement en une phrase et le code à comparer.
@@ -206,7 +205,7 @@ function renderCphMine() {
   const rows = cphDays(st.photos).map(g => g.photos.map(p => { const name = label(p), vid = vaultAvailable() ? cphVaultIdOf(p.id) : null; return `
           <div class="cell cph-row">
             ${vid ? '<button class="cell__body cph-row__see"' + ` data-action="cph-see" data-id="${esc(vid)}" aria-label="${esc(`${name}, voir dans le coffre`)}">` : '<span class="cell__body">'}<span class="cell__title">${esc(name)}</span>
-              <span class="cell__sub">${p.sentAt ? `Envoyée le ${esc(fmtDate(p.sentAt, 'short'))}` : 'Envoyée'}${cphSize(p.bytes) ? ` · ${esc(cphSize(p.bytes))}` : ''}</span>${vid ? `
+              <span class="cell__sub">${p.sentAt ? `Envoyée le ${esc(fmtDate(p.sentAt, 'short'))}` : 'Envoyée'}</span>${vid ? `
               <span class="cph-row__link">Voir dans le coffre</span></button>` : '</span>'}
             <button class="cph-remove" data-action="cph-remove" data-id="${esc(p.id)}" aria-label="Retirer la photo ${esc(name)}">Retirer</button>
           </div>`; }).join('')).join('');
@@ -241,7 +240,9 @@ async function cphRemoveFlow(id) {
   const r = await cphRemove(id);
   if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return; }
   document.querySelectorAll('.sheet-root').forEach(el => { if (el.querySelector('[data-action="cph-remove"]')) el._close?.(null); });
-  showToast('Photo retirée de chez ton coach');
+  // Déjà confirmé, et la ligne disparaît de la liste : pas de toast par-dessus le texte qui rassure (code de la clé), dit à
+  // VoiceOver seulement (panel t5)
+  announce('Photo retirée de chez ton coach');
   if (['photo-vault', 'coach-photos-mine'].includes(currentView())) render();
 }
 

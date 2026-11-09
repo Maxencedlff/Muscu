@@ -87,8 +87,8 @@ qui citent le libellé (le test du guide échoue si un libellé cité n'existe p
 - Un texte trop long se coupe avec des points de suspension sur la partie la moins utile (le nom), jamais
   au milieu d'un nombre.
 - Toast (vague 3) : en séance, jamais pour annuler. Ce qui s'annule en séance l'est EN LIGNE, à sa place, 6 s, puis disparaît :
-  « Annuler » dans la colonne « Avant » de la série (validée, technique posée), ou une ligne « Mis en dernier · Annuler »
-  juste au-dessus de la carte de l'exercice (Plus tard, Faire maintenant, remplacé, échauffement, mini-série) ou à la place
+  « Annuler » dans la colonne « Avant » de la série validée, ou une ligne « Mis en dernier · Annuler »
+  juste au-dessus de la carte de l'exercice (Plus tard, Faire maintenant, remplacé, échauffement, mini-série, technique posée) ou à la place
   d'une carte retirée ; VoiceOver annonce l'état (sessionUndo, js/features/session.js). Rien ne recouvre jamais rien.
   En séance, un simple message prend la même ligne (au-dessus de la carte concernée, 3 s). Hors séance : UNE seule place, en bas, au-dessus de la barre d'onglets, de la
   mini-barre ou du repos, fond opaque ; la page garde sous son contenu la hauteur du toast le temps qu'il est là ; il

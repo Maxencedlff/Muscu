@@ -129,7 +129,9 @@ function setTechOn(ei, si, t) {
   persistSession();
   render();
   const undo = () => { if (!activeSession) return; delete s.tech; delete s.sub; Object.assign(s, before.tech ? { tech: before.tech } : {}, before.sub ? { sub: before.sub } : {}); persistSession(); render(); };
-  sessionUndo(t ? `${TECHS[t].label}, ${setSpokenName(ex, si).toLowerCase()}` : 'Technique retirée', { target: { ex, si }, onAction: undo });
+  // Ligne au-dessus de la carte (« Rest-pause · série 1 · Annuler ») : dans la colonne « Avant », un « Annuler » seul
+  // remplaçait la valeur d'avant à côté du × de la technique, sans dire ce qu'il annulait (panel t5)
+  sessionUndo(t ? `${TECHS[t].label} · ${setSpokenName(ex, si).toLowerCase()}` : `Technique retirée · ${setSpokenName(ex, si).toLowerCase()}`, { target: { ex }, onAction: undo });
 }
 
 // ── Validation d'une sous-série ──────────────────────────────

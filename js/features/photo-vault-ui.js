@@ -147,7 +147,7 @@ function pvOpenHtml() {
             <p class="cell__sub">Une photo de temps en temps, pour voir ce que la balance ne dit pas.</p></div>`}
         </div>
         <div class="group-foot">Tes photos restent sur ton iPhone, chiffrées. ${cphVaultFoot()}</div>
-        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}. ` : ''}Elles ne sont ni dans l'export ni dans la copie iCloud de l'app ; elles sont chiffrées dans la sauvegarde de l'iPhone et se rouvrent sur un nouvel iPhone grâce au trousseau iCloud.</div>`;
+        <div class="group-foot">Elles ne sont ni dans l'export ni dans la copie iCloud de l'app ; elles sont chiffrées dans la sauvegarde de l'iPhone et se rouvrent sur un nouvel iPhone grâce au trousseau iCloud.</div>`;
 }
 
 // Avant / après : les deux photos superposées, un curseur découvre l'une sur l'autre.
@@ -377,7 +377,7 @@ async function newPhotoSheet(file) {
     const rec = await photoFromFile(file, res);
     await vaultAddPhoto(rec);
     await pvLoadPhotos();
-    showToast(`Photo rangée dans le coffre · ${fmtBytes(rec.bytes)}`);
+    announce('Photo rangée dans le coffre');   // la photo apparaît dans la liste ; un toast couvrait les menus Avant / Après (panel t5)
   } catch {
     if (!vaultIsOpen()) { if (currentView() === 'photo-vault') { pvPendingFile = file; pvPaint(); } return; }   // refermé pendant la préparation
     showToast('Photo illisible ou stockage indisponible', { error: true });
@@ -389,7 +389,7 @@ async function openPhotoSheet(id) {
   if (!p) return;
   await sheet({ title: `${photoPoseLabel(p.pose)} · ${fmtDate(p.date)}`, cancel: 'Fermer', confirm: '', body: `
     <img class="pview__img" src="${photoUrl(p)}" alt="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}">
-    <p class="pview__meta">${p.w} × ${p.h} px · ${fmtBytes(p.bytes)}</p>
+    <p class="pview__meta">${p.w} × ${p.h} px</p>
     ${cphVaultPhotoHtml(p)}
     <button class="btn btn--danger btn--full" data-action="photo-delete" data-id="${p.id}">Supprimer cette photo</button>` });
 }
