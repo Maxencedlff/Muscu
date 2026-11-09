@@ -1,0 +1,75 @@
+name: Tests complets
+
+# La batterie E2E complète (5 appareils × 2 thèmes + iPhone récents), répartie sur 11 machines GitHub
+# en parallèle (~30 min) au lieu d'un seul PC (~2 h 30). Lancée à chaque envoi sur une branche de
+# vague, ou à la main : gh workflow run tests-complet.yml --ref <branche>.
+# Les lots « unique » tournent dans chaque machine (doublon assumé : courts, et pas de code à part).
+on:
+  push:
+    branches: ['vague*', 'scan-*', 'triceps-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-complet-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { devices: 'iPhone 13', theme: dark }
+          - { devices: 'iPhone 13', theme: light }
+          - { devices: 'iPhone SE', theme: dark }
+          - { devices: 'iPhone SE', theme: light }
+          - { devices: 'Pixel 7', theme: dark }
+          - { devices: 'Pixel 7', theme: light }
+          - { devices: 'Galaxy S8', theme: dark }
+          - { devices: 'Galaxy S8', theme: light }
+          - { devices: 'Galaxy S9+', theme: dark }
+          - { devices: 'Galaxy S9+', theme: light }
+          - { devices: recents, theme: 'dark,light' }
+    name: ${{ matrix.devices }} · ${{ matrix.theme }}
+    env:
+      PLAYWRIGHT_VERSION: 1.62.0
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Navigateurs en cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+      - name: Playwright, WebKit et Chromium
+        run: |
+          pip install "playwright==$PLAYWRIGHT_VERSION" pillow==12.1.1
+          python -m playwright install --with-deps chromium webkit
+      - name: Serveur local de l'app
+        run: |
+          python -m http.server 8731 > /tmp/serveur.log 2>&1 &
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:8731/ && break; sleep 0.5; done
+      - name: Suite Playwright
+        env:
+          PPL_URL: http://localhost:8731/
+          PPL_DEVICES: ${{ matrix.devices }}
+          PPL_THEMES: ${{ matrix.theme }}
+          PPL_JOBS: '3'
+          PPL_SCRATCH: ${{ runner.temp }}/ppl-tests
+        run: cd tests && python -u run_all.py
+      - name: Captures en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: captures-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/ppl-tests/shots
+          retention-days: 7
