@@ -246,7 +246,7 @@ function sessionHistoryEntry(sp, sc) {
     notes:      sessionNotes.trim(),
     ...(storableBodyKg() ? { bodyKg: storableBodyKg() } : {}),
     ...(newSessionHidden() ? { hidden: true } : {}),   // Réglages › Social et coach › Séances visibles par défaut éteint
-    exercises:  activeSession.exercises
+    exercises:  orderByStart(activeSession.exercises)   // ordre où les exercices ont été commencés
       .map(ex => ({
         exId: ex.exId || resolveExId(sp, sc, ex.name),
         name: ex.name,

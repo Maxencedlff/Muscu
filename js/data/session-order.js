@@ -66,3 +66,14 @@ function orderFocusEi(xs, ei) {
   const k = b.indexOf(target);
   return k > 0 ? b[k - 1] : b.at(-1);
 }
+
+// Ordre réel de la séance, pour l'entrée d'historique (bilan, image partagée, Historique) : chaque bloc à la place
+// de sa première série validée (startedAt, posé à la validation : js/features/session.js). Un exercice commencé puis
+// mis « Plus tard » reste donc à sa place de départ (panel t6 : le Rowing fait en premier finissait en bas du bilan).
+// Bloc sans startedAt (séance d'une version précédente) : après les autres, dans l'ordre de la liste. Tri stable.
+function orderByStart(xs) {
+  const start = b => Math.min(...b.map(i => Number.isFinite(xs[i].startedAt) ? xs[i].startedAt : Infinity));
+  return ssBlocks(xs).map((b, k) => ({ b, k, t: start(b) }))
+    .sort((a, c) => (a.t === c.t ? 0 : a.t < c.t ? -1 : 1) || a.k - c.k)
+    .flatMap(({ b }) => b.map(i => xs[i]));
+}

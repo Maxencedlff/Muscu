@@ -127,4 +127,14 @@ export default function ({ test, run, reset, sameJSON, assert }) {
       { name: 'Curl', ss: 'k3', sets: [] }, { name: 'Triceps', ss: 'k3', sets: [] }, { name: 'X', ss: '<b>', sets: [] }] })`);
     sameJSON(s.exercises.map(e => e.ss ?? null), ['k3', 'k3', null]);
   });
+
+  test('ordre réel de la séance : chaque bloc à sa première série validée, superset jamais coupé', () => {
+    reset();
+    // A commencé en 1er puis mis « Plus tard » (en dernier dans la liste), superset B+C commencé en 2e, D jamais commencé
+    run(`globalThis.xs = [{ name: 'B', ss: 'g', startedAt: 20, sets: [] }, { name: 'C', ss: 'g', startedAt: 25, sets: [] },
+      { name: 'D', sets: [] }, { name: 'E', startedAt: 30, sets: [] }, { name: 'A', startedAt: 10, sets: [] }]`);
+    sameJSON(run('orderByStart(xs).map(e => e.name)'), ['A', 'B', 'C', 'E', 'D']);
+    // Séance d'avant (aucun startedAt) : ordre de la liste inchangé
+    sameJSON(run(`orderByStart([{ name: 'X', sets: [] }, { name: 'Y', sets: [] }]).map(e => e.name)`), ['X', 'Y']);
+  });
 }

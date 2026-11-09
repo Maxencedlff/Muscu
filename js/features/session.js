@@ -701,6 +701,7 @@ function validateSet(ei, si, opts = {}) {
   s.reps = String(parseInt(s.reps));
 
   s.done = true;
+  ex.startedAt ??= Date.now();   // ordre réel de la séance dans l'historique (orderByStart, js/data/session-order.js)
   const prevLastEi = activeSession.lastEi, prevLastDone = activeSession.lastDone ?? null;
   const sameAgain  = prevLastEi === ei;   // même exercice deux fois de suite : fait seul
   activeSession.lastEi = ei;
