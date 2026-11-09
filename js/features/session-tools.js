@@ -143,10 +143,11 @@ function warmupSheetHtml(ei) {
   return `
     <div class="rs rs--warmup wu">
       <div class="rs__title">Échauffement · ${esc(ex.name)}</div>
-      <div class="wu__sub num">Avant ${fmtNum(base)} ${u}${goal ? ` × ${esc(goal)}` : ''}</div>
+      <div class="wu__sub num">Pour ta série de ${fmtNum(base)}\u00a0${u}${goal ? ` × ${esc(goal)}` : ''}</div>
       ${sets.length ? `<div class="wu__list" role="list">${rows}</div>` : '<div class="wu__empty">Charge trop légère pour un échauffement : commence directement.</div>'}
       ${sets.length ? `<p class="wu__note">${warmupNoteText(sets.length)}</p>` : ''}
       ${sets.length ? `<button class="rs__done rs__done--primary" data-action="wu-add">Ajouter ${plural(sets.length, 'série', 'séries')}</button>` : ''}
+      <button class="rs__done" data-action="sheet-done">${sets.length ? 'Annuler' : 'OK'}</button>
     </div>`;
 }
 
