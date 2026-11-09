@@ -1,0 +1,133 @@
+name: Sauvegarde de la base
+
+# Sauvegarde quotidienne de la base Supabase de production (offre gratuite : aucune sauvegarde ni PITR
+# côté Supabase). Chaque nuit :
+#  1. pg_dump complet (schémas public, auth, storage, private… : comptes, données, métadonnées des
+#     fichiers) + rôles (pg_dumpall --roles-only, sans mots de passe), avec un pg_dump de la MÊME
+#     version majeure que le serveur (lue au lancement) ;
+#  2. restauration d'essai dans un Postgres jetable du runner et comparaison du nombre de lignes de
+#     chaque table avec la prod (une sauvegarde jamais relue ne compte pas) ;
+#  3. archive chiffrée (gpg symétrique AES-256, phrase secrète SAUVEGARDE_CLE) puis artefact privé
+#     gardé 90 jours. Rien n'est jamais stocké en clair : le dépôt peut redevenir public.
+# Restaurer : docs/SAUVEGARDES.md. Lancement à la main :  gh workflow run sauvegarde-base.yml -R Maxencedlff/Muscu
+# Connexion par le pooler Supabase en mode session (port 5432) : la connexion directe
+# db.<ref>.supabase.co n'existe qu'en IPv6, que les runners GitHub n'ont pas.
+on:
+  schedule:
+    - cron: '41 2 * * *' # 02:41 UTC, heure creuse (pas une heure pile : files d'attente GitHub)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sauvegarde-base
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PGHOST: aws-0-eu-west-1.pooler.supabase.com
+  PGPORT: '5432'
+  PGDATABASE: postgres
+  PGUSER: postgres.yopptmdjtnezmccdvaxf
+  PGSSLMODE: require
+
+jobs:
+  sauvegarde:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Version du serveur et pg_dump de la même version
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          MAJ=$(psql -Atc "select current_setting('server_version_num')::int / 10000")
+          echo "Serveur Postgres $MAJ"
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q "postgresql-$MAJ" "postgresql-client-$MAJ" > /dev/null
+          BIN="/usr/lib/postgresql/$MAJ/bin"
+          "$BIN/pg_dump" --version | grep -q " $MAJ\." || { echo "pg_dump n'est pas en version $MAJ"; exit 1; }
+          echo "PGBIN=$BIN" >> "$GITHUB_ENV"
+
+      - name: Dump de la base, des rôles et comptage des lignes
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p sauvegarde
+          cat > comptes.sql <<'SQL'
+          select table_schema || '.' || table_name,
+                 (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', table_schema, table_name), false, true, '')))[1]::text::bigint
+          from information_schema.tables
+          where table_type = 'BASE TABLE' and table_schema in ('public', 'auth', 'storage', 'private', 'coach_photo_rls')
+          order by 1;
+          SQL
+          "$PGBIN/pg_dump" -Fc -f sauvegarde/base.dump
+          "$PGBIN/pg_dumpall" --roles-only --no-role-passwords -f sauvegarde/roles.sql
+          psql -AtF ' ' -f comptes.sql > sauvegarde/comptes.txt
+          cp comptes.sql sauvegarde/
+          {
+            echo "date_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "serveur=$(psql -Atc 'show server_version')"
+            echo "pg_dump=$("$PGBIN/pg_dump" --version)"
+            echo "commit=${GITHUB_SHA}"
+          } > sauvegarde/infos.txt
+          echo "Tables : $(wc -l < sauvegarde/comptes.txt), lignes : $(awk '{s+=$2} END {print s}' sauvegarde/comptes.txt), dump : $(du -h sauvegarde/base.dump | cut -f1)"
+          test -s sauvegarde/base.dump && test "$(wc -l < sauvegarde/comptes.txt)" -gt 10
+
+      - name: Restauration d'essai dans un Postgres jetable
+        run: |
+          set -euo pipefail
+          D="$RUNNER_TEMP/pg"
+          "$PGBIN/initdb" -D "$D/data" -U postgres -A trust > /dev/null
+          "$PGBIN/pg_ctl" -D "$D/data" -o "-p 55432 -k $D -c listen_addresses=''" -l "$D/log" start > /dev/null
+          L=(env -u PGHOST -u PGUSER -u PGSSLMODE -u PGPASSWORD PGHOST="$D" PGPORT=55432 PGUSER=postgres PGDATABASE=postgres)
+          # Erreurs attendues ici (et seulement ici) : extensions propres à Supabase (pg_cron, pg_net,
+          # supabase_vault) absentes d'un Postgres nu, rôles réservés. Le comptage ci-dessous tranche.
+          "${L[@]}" psql -q -f sauvegarde/roles.sql > /dev/null 2>&1 || true
+          "${L[@]}" "$PGBIN/pg_restore" -d postgres sauvegarde/base.dump 2> restore.log || true
+          echo "Erreurs de restauration (attendues : extensions Supabase) : $(grep -c 'error:' restore.log || true)"
+          "${L[@]}" psql -AtF ' ' -f sauvegarde/comptes.sql > comptes-restaures.txt
+          # Une table vide ou absente alors qu'elle a des lignes en prod = sauvegarde ratée. Un petit
+          # écart reste possible (la prod vit entre le dump et le comptage) : affiché, pas bloquant.
+          python3 - <<'PY'
+          import sys
+          prod = dict(l.split() for l in open('sauvegarde/comptes.txt') if l.strip())
+          rest = dict(l.split() for l in open('comptes-restaures.txt') if l.strip())
+          ko = [t for t, n in prod.items() if int(n) > 0 and int(rest.get(t, 0)) == 0]
+          ecarts = [f'{t} : prod {n}, restauré {rest.get(t, "absente")}' for t, n in prod.items() if rest.get(t) != n]
+          print(f'{len(prod)} tables, {sum(map(int, prod.values()))} lignes en prod, {sum(map(int, rest.values()))} restaurées')
+          for e in ecarts: print('écart', e)
+          if ko:
+              print('ÉCHEC, tables perdues :', ', '.join(ko)); sys.exit(1)
+          PY
+          "$PGBIN/pg_ctl" -D "$D/data" stop -m fast > /dev/null
+
+      - name: Archive chiffrée
+        env:
+          SAUVEGARDE_CLE: ${{ secrets.SAUVEGARDE_CLE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$SAUVEGARDE_CLE" || { echo "Secret SAUVEGARDE_CLE manquant"; exit 1; }
+          NOM="mdlf-base-$(date -u +%Y%m%d-%H%M)"
+          tar -cf - sauvegarde | gpg --batch --yes --quiet --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+            --passphrase-fd 3 -o "$NOM.tar.gpg" 3<<< "$SAUVEGARDE_CLE"
+          rm -rf sauvegarde
+          # Relecture : l'archive se déchiffre bien avec la clé et contient le dump.
+          gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 -d "$NOM.tar.gpg" 3<<< "$SAUVEGARDE_CLE" | tar -tf - | grep -q 'sauvegarde/base.dump'
+          echo "NOM=$NOM" >> "$GITHUB_ENV"
+          ls -la "$NOM.tar.gpg"
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ env.NOM }}
+          path: ${{ env.NOM }}.tar.gpg
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0 # déjà compressé et chiffré
