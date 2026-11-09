@@ -795,7 +795,9 @@ const REVIEW_SPOKEN = { up: 'en hausse', down: 'en baisse', same: 'identique' };
 // Flèche d'un exercice : verte en hausse, grise sinon (jamais rouge)
 function reviewTrendHtml(tr) {
   if (!tr) return '';
-  const txt = tr.dir === 'same' ? '=' : `${REVIEW_ARROW[tr.dir]} ${tr.text}`;
+  // Égal : rien à l'écran (un « = » gris ne se lisait pas, vague 3-t4), « identique » dit à VoiceOver
+  if (tr.dir === 'same') return '<span class="visually-hidden">, identique à la dernière fois</span>';
+  const txt = `${REVIEW_ARROW[tr.dir]} ${tr.text}`;
   return `<span class="review-trend review-trend--${tr.dir} num" aria-hidden="true">${esc(txt)}</span><span class="visually-hidden">, ${REVIEW_SPOKEN[tr.dir]}${tr.dir === 'same' ? '' : ` : ${esc(tr.text)}`} depuis la dernière fois</span>`;
 }
 // Volume d'un exercice en petit gris ; sans charge comptée (poids du corps, charge non notée) : ses reps
@@ -852,7 +854,7 @@ function renderCoachSession(uid, id) {
   // Même ordre et même casse que le bilan, l'historique et la séance d'un ami : Durée, Volume, Séries
   const tiles = [
     reviewTile(s.duration ? fmtDuration(s.duration) : '—', 'Durée', s.duration && rv.durGap !== null ? fmtPct(rv.durGap) : null),
-    reviewTile(rv.volume > 0 ? fmtVolume(rv.volume) : '—', 'Volume', rv.volume > 0 && vd ? (vd.dir === 'same' ? '=' : fmtPct(vd.pct)) : null, vd?.dir === 'up'),
+    reviewTile(rv.volume > 0 ? fmtVolume(rv.volume) : '—', 'Volume', rv.volume > 0 && vd && vd.dir !== 'same' ? fmtPct(vd.pct) : null, vd?.dir === 'up'),
     reviewTile(plan ? `${plan.done}/${plan.total}` : n, plan ? 'Séries prévues' : n > 1 ? 'Séries' : 'Série'),
     reviewTile(s.exercises.length, s.exercises.length > 1 ? 'Exercices' : 'Exercice'),
   ].join('');

@@ -85,7 +85,8 @@ function summaryLine(sm, weekCount = weekStats(sm.date).count) {
 const TREND_HTML = {
   up:   '<span class="sum-trend sum-trend--up" aria-label="en progrès">↑</span>',
   down: '<span class="sum-trend sum-trend--down" aria-label="en baisse">↓</span>',
-  same: '<span class="sum-trend" aria-label="identique">=</span>',
+  // Égal : rien à l'écran (un « = » gris ne se lisait pas, vague 3-t4), dit à VoiceOver
+  same: '<span class="sum-trend" aria-hidden="true"></span><span class="visually-hidden">, comme la dernière fois</span>',
 };
 const NO_TREND_HTML = '<span class="sum-trend" aria-hidden="true"></span>';
 
