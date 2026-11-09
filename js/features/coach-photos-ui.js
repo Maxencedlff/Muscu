@@ -88,11 +88,11 @@ async function cphSendSheet(day) {
       return `<div class="cphs__one"><img class="cphs__img pview__img" src="${photoUrl(p)}" alt="${pose}, ${esc(fmtDate(p.date))}" draggable="false"></div>`;
     }
     return `<button type="button" class="cphs__item" role="checkbox" aria-checked="false" data-action="cph-pick" data-id="${esc(p.id)}" ${done ? 'disabled' : ''}
-      aria-label="${pose}, ${done ? 'déjà envoyée' : 'envoyer cette photo'}">
+      aria-label="${pose}, ${done ? 'déjà envoyée' : 'envoyer cette photo'}" ${done ? '' : `aria-describedby="cphs-ok-${esc(p.id)}"`}>
       <span class="cphs__thumb"><img class="cphs__img" src="${photoUrl(p)}" alt="" draggable="false"><span class="cphs__check" aria-hidden="true">${icon('checkmark', 14)}</span></span>
       <span class="cphs__body"><span class="cphs__pose">${pose}</span>
         <span class="cphs__sub">${done ? 'Déjà envoyée' : 'Touche pour la choisir'}</span>
-        <span class="cphs__ok">Ton coach verra cette photo. Tu peux la retirer quand tu veux.</span></span>
+        <span class="cphs__ok" id="cphs-ok-${esc(p.id)}">Ton coach verra cette photo. Tu peux la retirer quand tu veux.</span></span>
     </button>`;
   };
   const lead = single ? '<p class="cphs__lead">Ton coach verra cette photo. Tu peux la retirer quand tu veux.</p>'
@@ -114,6 +114,7 @@ function cphPickToggle(el) {
   const on = cphPicked.has(id);
   el.setAttribute('aria-checked', String(on));
   el.classList.toggle('cphs__item--on', on);
+  if (on) announce('Ton coach verra cette photo. Tu peux la retirer quand tu veux.');   // la phrase qui apparaît, dite aussi
   const go = $('.cphs__go', root);
   if (go) { go.disabled = !cphPicked.size; go.textContent = cphPicked.size ? `Envoyer ${plural(cphPicked.size, 'photo', 'photos')}` : 'Envoyer'; }
 }

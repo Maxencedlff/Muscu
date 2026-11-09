@@ -213,6 +213,9 @@ def t_envoi_complet(bench, eng, dev, theme):
         ok_txt = sp.locator('.sheet .cphs__item').first.locator('.cphs__ok')
         R.check(ok_txt.is_visible() and 'Ton coach verra cette photo. Tu peux la retirer quand tu veux.' in ok_txt.inner_text()
                 and not sp.locator('.sheet .cphs__item').nth(1).locator('.cphs__ok').is_visible(), f'{t} accord affiché sous la photo cochée seulement')
+        vo = sp.evaluate("""() => { const b = document.querySelector('.sheet .cphs__item'), d = document.getElementById(b.getAttribute('aria-describedby') || '-');
+            return [d && d.textContent, document.getElementById('sr-polite')?.textContent]; }""")
+        R.check(vo[0] and 'Tu peux la retirer' in vo[0] and 'Tu peux la retirer' in (vo[1] or ''), f'{t} VoiceOver : l\'accord lié à la case (aria-describedby) et dit en la cochant {vo}')
         sp.locator('.sheet .cphs__item').nth(1).click()
         R.check(go.inner_text() == 'Envoyer 2 photos', f'{t} bouton « Envoyer 2 photos » ({go.inner_text()!r})')
         layout(sp, t, 'Feuille d\'envoi')
