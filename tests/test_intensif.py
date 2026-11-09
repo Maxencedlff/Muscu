@@ -392,10 +392,10 @@ def t_pause_annonce(bench, eng, dev, theme):
             const b = t.getBoundingClientRect(), ls = [...document.querySelectorAll('.rir')].filter(e => e.getBoundingClientRect().height > 0);
             return ls.length + ':' + ls.every(e => { const r = e.getBoundingClientRect(); return r.bottom <= b.top || r.top >= b.bottom; }); })()""")
         R.check(rir == 'pas de toast' or rir.endswith(':true'), f'{t} rest-pause : toast jamais sur « Reps en réserve » ({rir})')
-        # « + reprise » et × : 32 px dessinés, 44 px réellement touchables (::after), sans empiéter l'un sur l'autre
+        # « + mini-série » et × : 36 px dessinés, 44 px réellement touchables (::after), sans empiéter l'un sur l'autre
         center(page, '.ex-card[data-ei="0"] .tech__cap')
         hits = page.evaluate("""() => ['.tech__add', '.tech__x'].map(sel => { const b = document.querySelector('.ex-card[data-ei="0"] ' + sel), r = b.getBoundingClientRect();
-            const cx = r.left + r.width / 2, cy = r.top + r.height / 2, h = 21, w = r.width / 2 + 5;   // 44 px à l'arrondi au pixel près (elementFromPoint)
+            const cx = r.left + r.width / 2, cy = r.top + r.height / 2, h = 21, w = r.width / 2 + 3;   // 44 px à l'arrondi au pixel près (elementFromPoint)
             return [[cx - w, cy], [cx + w, cy], [cx, cy - h], [cx, cy + h]].every(([x, y]) => document.elementFromPoint(x, y)?.closest(sel) === b)
                 && Math.round(r.height) + 12 >= 44; })""")
         R.check(hits == [True, True], f'{t} « + reprise » et × : zone de toucher réelle de 44 px ({hits})')

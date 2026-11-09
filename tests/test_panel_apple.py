@@ -363,7 +363,10 @@ def t_rest_pause_mots(bench):
             m = page.evaluate("""() => { const h = document.querySelector('.tech__hint'), tg = document.querySelector('.session-set--sub .tech-tag, .session-set--sub .set-n');
                 return { hint: h && h.textContent, shown: !!h && h.getBoundingClientRect().width > 0 && h.scrollWidth <= h.clientWidth + 1,
                          tag: tg && tg.textContent.trim(), add: document.querySelector('[data-action="tech-add-sub"]')?.textContent.trim() }; }""")
-            R.check(m['hint'] == '15 s' and m['shown'] and m['tag'] == '1' and 'mini-série' in (m['add'] or ''), f'{t} rest-pause : « 15 s » entier, « 1 », « + mini-série » {m}')
+            R.check(m['hint'] == '15 s' and m['shown'] and m['tag'] == '+1' and 'mini-série' in (m['add'] or ''), f'{t} rest-pause : « 15 s » entier, « +1 » (pas lu comme la série 1), « + mini-série » {m}')
+            g = page.evaluate("""() => { const a = document.querySelector('.tech__add').getBoundingClientRect(), x = document.querySelector('.tech__x').getBoundingClientRect();
+                return { h: Math.min(a.height, x.height), gap: Math.round(x.left - a.right) }; }""")
+            R.check(g['h'] >= 36 and g['gap'] >= 16, f'{t} « + mini-série » et × : 44 pt de toucher chacun, sans se toucher {g}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

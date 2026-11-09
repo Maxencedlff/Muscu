@@ -56,7 +56,7 @@ function techBlockHtml(ex, ei, s, si) {
 
 function subRowHtml(ex, ei, s, si, x, k) {
   // Numéro de la sous-série seul, sous le nom de la technique (« Rest-pause 15 s ») : un seul mot, « mini-série », partout ailleurs
-  const T = TECHS[setTech(s)], tag = `${k + 1}`, kind = loadKind(ex);
+  const T = TECHS[setTech(s)], tag = `+${k + 1}`, kind = loadKind(ex);
   const spoken = `${T.subName} ${k + 1}, ${setSpokenName(ex, si).toLowerCase()}, ${esc(ex.name)}`;
   const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;× ' : ''}${esc(x.prev.reps)}` : '—';
   const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"`;
