@@ -32,11 +32,11 @@ public class ScannerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            present(call)
+            presentScanner(call)
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { ok in
                 DispatchQueue.main.async {
-                    if ok { self.present(call) } else { call.reject("Caméra refusée", "DENIED") }
+                    if ok { self.presentScanner(call) } else { call.reject("Caméra refusée", "DENIED") }
                 }
             }
         default:
@@ -44,7 +44,7 @@ public class ScannerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func present(_ call: CAPPluginCall) {
+    private func presentScanner(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             guard self.current == nil, let host = self.bridge?.viewController else {
                 call.reject("Lecteur déjà ouvert", "FAILED")
@@ -121,8 +121,10 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         cfg.baseForegroundColor = .white
         cfg.cornerStyle = .capsule
         cfg.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 28, bottom: 14, trailing: 28)
-        cfg.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { a in
-            var a = a; a.font = UIFont.preferredFont(forTextStyle: .headline); return a
+        cfg.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var out = incoming
+            out.font = UIFont.preferredFont(forTextStyle: .headline)
+            return out
         }
         let cancel = UIButton(configuration: cfg)
         cancel.translatesAutoresizingMaskIntoConstraints = false
