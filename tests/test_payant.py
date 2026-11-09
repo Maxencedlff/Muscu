@@ -969,7 +969,7 @@ def t_tarifs(bench, eng, dev, theme):
                 and 'soit' not in pl[0], f'{t} particulier : mensuel, annuel « soit 8,5 mois » {pl}')
         R.check(page.locator('.pay-tabs').count() == 0 and '15,99' not in txt and 'élèves' not in ' '.join(pl),
                 f'{t} pas coach : aucun palier coach visible')
-        R.check('Tu es coach ?' in txt, f'{t} pas coach : lien vers la demande')
+        R.check('Tu es coach\u00a0?' in txt, f'{t} pas coach : lien vers la demande (espace insécable avant « ? »)')
         R.check('Essai gratuit de 3 mois, puis 6,49 € par mois ou 55,00 € par an' in txt and 'au moins 24 heures avant la fin de l\'essai' in txt
                 and 'Conditions d\'utilisation' in txt and 'Conditions de vente' in txt and 'Confidentialité' in txt, f'{t} particulier : mentions 3.1.2')
         layout(page, t, 'abonnement particulier')
@@ -998,7 +998,7 @@ def t_tarifs(bench, eng, dev, theme):
         # Onglet Particulier toujours là pour un coach
         page.click('[data-action="pay-tab"][data-tab="pro"]')
         page.wait_for_timeout(400)
-        R.check(len(plans_text(page)) == 2 and 'Tu es coach ?' not in page.inner_text('.pay-view'), f'{t} coach : onglet Particulier')
+        R.check(len(plans_text(page)) == 2 and 'Tu es coach' not in page.inner_text('.pay-view'), f'{t} coach : onglet Particulier')
         # 3. Palier plein : 10 élèves sur 10 → bandeau, palier suivant mis en avant, formule en cours marquée
         page.evaluate("""async (p) => { const me = __sb.meId(); __sb.setTier(me, p);
             for (let i = 0; i < 10; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));

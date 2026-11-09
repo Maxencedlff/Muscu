@@ -41,7 +41,7 @@ function renderCoachProGroup() {
     const st = coachPro.request?.status;
     const value = COACH_REQUEST_STATUS_TEXT[st] && st !== 'approved' ? COACH_REQUEST_STATUS_TEXT[st] : '';
     return `
-        <div class="group-title">Tu es coach ?</div>
+        <div class="group-title">Tu es coach&nbsp;?</div>
         <div class="group">
           <button class="cell cell--nav" data-action="coach-request-open">
             <span class="cell__body"><span class="cell__title">Devenir coach</span><span class="cell__sub">Pour les éducateurs sportifs diplômés</span></span>

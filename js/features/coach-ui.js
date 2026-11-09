@@ -122,7 +122,7 @@ function coachCellHtml() {
   } else if (!isCoach && !coachJoinHiddenByAge()) {   // moins de 15 ans possible (js/data/age-range.js) : rien
     rows.push(`<button class="cell cell--nav coach-cell coach-cell--join" data-action="coach-join-start">
         <span class="coach-cell__icon" aria-hidden="true">${icon('coach', 20)}</span>
-        <span class="cell__body"><span class="cell__title">Rejoindre un coach</span><span class="cell__sub">Tu as un code de ton coach ?</span></span>
+        <span class="cell__body"><span class="cell__title">Rejoindre un coach</span><span class="cell__sub">Tu as un code de ton coach&nbsp;?</span></span>
         ${icon('chevron.right', 16)}
       </button>`);
   }

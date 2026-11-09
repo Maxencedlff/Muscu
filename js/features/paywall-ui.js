@@ -333,7 +333,7 @@ function payCoachLinkHtml() {
   return `
         <div class="group">
           <button class="cell cell--nav" data-action="coach-request-open">
-            <span class="cell__body"><span class="cell__title">Tu es coach ?</span><span class="cell__sub">Éducateur sportif diplômé : fais vérifier ta carte</span></span>
+            <span class="cell__body"><span class="cell__title">Tu es coach&nbsp;?</span><span class="cell__sub">Éducateur sportif diplômé : fais vérifier ta carte</span></span>
             ${value ? `<span class="cell__value">${esc(value)}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>
