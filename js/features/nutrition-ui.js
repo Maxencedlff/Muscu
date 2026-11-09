@@ -341,9 +341,9 @@ async function dietSwapSheet(itemId, day) {
   const e = dietDay(data, planId, day), current = e.swaps[itemId];
   const cands = swapCandidates(it, { own: data.dietFoods || [] });
   const ref = dietItemMacros(it), hide = data.dietHideNumbers === true;
-  // Écart des kcal affichées (arrondies), pas des valeurs exactes : « 213 kcal » face à 215 se lit « −2 kcal », jamais
-  // « −1 » ni « = » (panel t5)
-  const shownGap = c => Math.round(c.macros.kcal) - Math.round(ref.kcal);
+  // Écart des kcal affichées (arrondies), pas des valeurs exactes : 213 kcal face à 215 se lit moins 2 kcal, comme on le
+  // calcule de tête (panel t5)
+  const shownGap = c => -Math.round(ref.kcal) + Math.round(c.macros.kcal);
   const row = (c, i) => `
       <button class="diet-cand" data-swap="${i}">
         <span class="diet-cand__body"><span class="diet-cand__name">${esc(c.food.name)}</span>
