@@ -79,7 +79,7 @@ function coachWeekSummaryHtml(uid) {
     ? `<div class="cell"><span class="cell__sub">Et ${plural(pr.records.length - PROGRESS_SUMMARY_RECORDS, 'autre record', 'autres records')}, dans ses séances</span></div>` : '';
   const sessions = progressSessionsCell(pr, planned);
   const row = coachSessions(uid).rows[0];
-  const lastTxt = st.last_session ? studentLastLine(st) : 'Aucune séance pour l\'instant';
+  const lastTxt = st.last_session ? studentLastLine(st) : 'Pas encore de séance';
   const last = row && st.last_session && row.doneAt === st.last_session.done_at
     ? `<button class="cell cell--nav" data-action="coach-open-session" data-uid="${esc(uid)}" data-id="${esc(row.id)}">
             <span class="cell__body"><span class="cell__title">Dernière séance</span><span class="cell__sub">${esc(lastTxt)}</span></span>

@@ -47,7 +47,7 @@ function sessionsBadgeHtml(n) {
 // « Push · ton programme · hier » (dernière séance d'un élève)
 function studentLastLine(st) {
   const ls = st.last_session;
-  if (!ls) return 'Aucune séance pour l\'instant';
+  if (!ls) return 'Pas encore de séance';
   const mine = coachOwnProgrammeName(ls.programme);
   return [ls.label, mine ? 'ton programme' : '', fmtDate(ls.done_at).toLowerCase()].filter(Boolean).join(' · ');
 }
@@ -727,7 +727,7 @@ function renderCoachStudent(uid) {
   if (!f.rows.length) {
     list = f.loading || (!f.loadedAt && !f.error) ? '<div class="empty-note">Chargement…</div>'
       : f.error ? coachOfflineNote(f.error, 'Pas d\'Internet. Ses séances s\'afficheront quand le réseau reviendra.')
-      : '<div class="empty-note">Aucune séance pour l\'instant.</div>';
+      : '<div class="empty-note">Pas encore de séance.</div>';
   } else {
     list = `<div class="group coach-sess-list">${f.rows.map(r => coachSessionCell(uid, r)).join('')}</div>
       ${f.end ? '' : `<button class="btn-more" data-action="coach-more" data-uid="${esc(uid)}" ${f.loading ? 'disabled' : ''}>${f.loading ? 'Chargement…' : 'Afficher plus'}</button>`}`;
@@ -816,7 +816,7 @@ function reviewExerciseCell(x, xs, i) {
                 ${techLinesHtml(e)}
                 ${reviewGripHtml(e)}
                 ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
-                ${x.prev ? `<span class="review-ex__prev num">préc. ${setsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
+                ${x.prev ? `<span class="review-ex__prev num">avant ${setsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
               </span>
             </div>`;
 }
@@ -843,11 +843,13 @@ function renderCoachSession(uid, id) {
   const who = esc(personName(p));
   let when = capitalize(fmtDate(row.doneAt, 'long'));
   if (s.duration) when += ` · ${fmtTime(row.doneAt)}`;
-  const vs = rv.prev ? `vs ${esc(rv.prev.s.label)} du ${esc(fmtDate(rv.prev.doneAt, 'short'))}` : f.end ? `1re séance ${esc(s.label)}` : '';
+  // « 1re séance Haut » seulement si rien n'a d'« avant » : sinon la ligne contredit les exercices (panel t6)
+  const vs = rv.prev ? `vs ${esc(rv.prev.s.label)} du ${esc(fmtDate(rv.prev.doneAt, 'short'))}`
+    : f.end && !rv.exercises.some(x => x.prev) ? `1re séance ${esc(s.label)}` : '';
   const pain = s.notes && painInNotes(s.notes);
   const notes = s.notes ? `
         <div class="review-notes ${pain ? 'review-notes--pain' : ''}">
-          <p class="review-notes__head">Notes ${elide('de', who)}${pain ? '<span class="review-notes__flag">À lire</span>' : ''}</p>
+          <p class="review-notes__head">Notes${pain ? '<span class="review-notes__flag">À lire</span>' : ''}</p>
           <p class="hnotes">${esc(s.notes)}</p>
         </div>` : '';
   const vd = rv.volDelta;
@@ -869,7 +871,6 @@ function renderCoachSession(uid, id) {
     <div class="view view--grouped coach-session-view">
       ${navBar({ title: '' })}
       <div class="scr">
-        <div class="social-who">${personAvatar(p)}<span class="social-who__name">${who}</span></div>
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${coachSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
         <p class="scr-sub">${when}</p>
         ${vs ? `<p class="review-vs">${vs}</p>` : ''}
