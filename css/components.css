@@ -93,6 +93,8 @@
 .ios-dialog__band { height: 6px; background: var(--dlg-sep); }
 .ios-dialog__btn:active { background: var(--dlg-press); }
 .ios-dialog__btn--preferred, .ios-dialog__btn--cancel { font-weight: 600; }
+/* Alerte avec une action proposée : elle seule en gras, comme preferredAction d'iOS (panel t5) */
+.ios-dialog:not(.ios-dialog--sheet):has(.ios-dialog__btn--preferred) .ios-dialog__btn--cancel { font-weight: 400; }
 .ios-dialog__btn--destructive { color: var(--red-text); }
 .ios-dialog--out .ios-dialog__backdrop,
 .ios-dialog--out .ios-dialog__panel { animation: iosFadeOut .2s ease forwards; }

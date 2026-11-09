@@ -186,6 +186,14 @@ function resolveColor(el, c) {
   return v;
 }
 
+// Tracé en clair : la couleur de la séance assombrie (× 0,7) pour 3:1 au moins sur la carte blanche (l'orange de Push
+// faisait 2,2:1, WCAG 1.4.11, panel t5) ; en sombre, telle quelle
+function chartLineColor(rgb) {
+  if (!document.body.classList.contains('light')) return rgb;
+  const m = String(rgb).match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+  return m ? `rgb(${[m[1], m[2], m[3]].map(v => Math.round(v * 0.7)).join(', ')})` : rgb;
+}
+
 function axisFmt(v) {
   if (chartState.fmtVal) return (chartState.axisFmt || chartState.fmtVal)(v);
   if (chartState.effort) return fmtNum(Math.round(v * 10) / 10);
@@ -215,7 +223,7 @@ function drawCharts() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
 
-  const color = resolveColor(canvas, st.color);
+  const color = chartLineColor(resolveColor(canvas, st.color));
   const cs    = getComputedStyle(box);
   const sepC  = cs.getPropertyValue('--sep').trim() || 'rgba(128,128,128,.4)';
   const lblC  = cs.getPropertyValue('--label2').trim() || '#8e8e93';

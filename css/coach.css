@@ -21,9 +21,10 @@
   flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 7px; border-radius: var(--r-pill);
   background: var(--red); color: var(--white); font-size: .765rem; line-height: 22px; font-weight: 600; text-align: center;
 }
-.coach-count--sessions { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 3px; width: min-content;
+/* « 3 nouvelles » sur une ligne partout (sur deux lignes au-delà de 400 pt, elle dépassait la pastille des messages, panel t5) */
+.coach-count--sessions { display: inline-flex; flex-wrap: nowrap; align-items: center; justify-content: center; column-gap: 3px; width: auto;
   height: auto; padding: 3px 6px; border-radius: 10px; line-height: 16px; background: var(--fill); color: var(--label); }
-.coach-count__sub { flex-basis: 100%; font-size: .706rem; font-weight: 600; line-height: 14px; color: var(--label2); white-space: nowrap; }
+.coach-count__sub { font-size: .706rem; font-weight: 600; line-height: 14px; color: var(--label2); white-space: nowrap; }
 /* Pastilles (séances, messages) groupées à droite de la ligne */
 .cs-badges { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 /* Sous-titres d'un élève : deux lignes au plus chacun */
@@ -37,8 +38,6 @@
   .coach-student-row .social-row__main { flex: 1 1 calc(100% - 30px); min-width: 0; }
   .coach-student-row > .icon { order: 1; }
   .coach-student-row .cs-badges { order: 2; margin: -6px 0 10px 40px; }
-  .cs-badges .coach-count--sessions { width: auto; flex-wrap: nowrap; }   /* sous le nom : « 1 séance » sur une ligne */
-  .cs-badges .coach-count__sub { flex-basis: auto; }
 }
 /* Écran de 320 pt (iPhone SE, Galaxy S9+) : avec la pastille « 3 séances », le signal (« Stable depuis 4 sem. »,
    « ↑2 records cette sem. ») passait sur deux lignes, quatre lignes pour l'élève. La pastille garde « à voir » (le nombre
