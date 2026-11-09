@@ -61,8 +61,11 @@ function chatCountText(text) {
 function renderCoachChat(key) {
   const p = chatPartner(key);
   const name = p ? personName(p) : 'Messages';
+  // Ouverte depuis la fiche de cette personne (retour « ‹ lea ») : la barre dit « Messages », pas « lea » une 2e fois
+  const st = nav.stacks[nav.tab], prev = st.length > 1 ? routeTitle(st[st.length - 2], st.length - 2 === 0) : '';
+  const title = p && prev === name ? 'Messages' : name;
   const menu = p ? `<button class="navbar__icon" data-action="chat-menu" data-key="${esc(key)}" aria-label="Options de la conversation">${icon('ellipsis', 22)}</button>` : '';
-  const head = navBar({ title: esc(name), large: false, right: chatHiddenByAge() ? '' : menu });
+  const head = navBar({ title: esc(title), large: false, right: chatHiddenByAge() ? '' : menu });
   // Contrôle parental « Limites de communication » (js/data/age-range.js) : conversation fermée, dit sans bouton
   if (chatHiddenByAge()) return `<div class="view view--grouped coach-chat-view">${head}<div class="scr"><div class="empty-note">${coachErrorText('age_limited')}</div></div></div>`;
   if (!p) {
