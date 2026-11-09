@@ -849,11 +849,12 @@ function renderCoachSession(uid, id) {
           <p class="hnotes">${esc(s.notes)}</p>
         </div>` : '';
   const vd = rv.volDelta;
+  // Même ordre et même casse que le bilan, l'historique et la séance d'un ami : Durée, Volume, Séries
   const tiles = [
-    reviewTile(rv.volume > 0 ? fmtVolume(rv.volume) : '—', 'volume', rv.volume > 0 && vd ? (vd.dir === 'same' ? '=' : fmtPct(vd.pct)) : null, vd?.dir === 'up'),
-    reviewTile(s.duration ? fmtDuration(s.duration) : '—', 'durée', s.duration && rv.durGap !== null ? fmtPct(rv.durGap) : null),
-    reviewTile(plan ? `${plan.done}/${plan.total}` : n, plan ? 'séries prévues' : n > 1 ? 'séries' : 'série'),
-    reviewTile(s.exercises.length, s.exercises.length > 1 ? 'exercices' : 'exercice'),
+    reviewTile(s.duration ? fmtDuration(s.duration) : '—', 'Durée', s.duration && rv.durGap !== null ? fmtPct(rv.durGap) : null),
+    reviewTile(rv.volume > 0 ? fmtVolume(rv.volume) : '—', 'Volume', rv.volume > 0 && vd ? (vd.dir === 'same' ? '=' : fmtPct(vd.pct)) : null, vd?.dir === 'up'),
+    reviewTile(plan ? `${plan.done}/${plan.total}` : n, plan ? 'Séries prévues' : n > 1 ? 'Séries' : 'Série'),
+    reviewTile(s.exercises.length, s.exercises.length > 1 ? 'Exercices' : 'Exercice'),
   ].join('');
   // Records notés par son app (toujours sûrs) ; séance d'une version d'avant : recalculés, seulement quand
   // toutes ses séances sont chargées (même règle que friendRecord, js/features/social-ui.js)

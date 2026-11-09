@@ -555,6 +555,8 @@ def t_coach(bench, eng, dev, theme):
         R.check('3/11' in d and miss.count() == 1 and 'Pompes' in miss.inner_text() and 'pas fait' in miss.inner_text(), f'{t} séance de mon programme : séries faites sur prévues, exercice non fait grisé')
         R.check(page.locator('.coach-session-view .review-notes').count() == 1 and page.locator('.review-notes--pain').count() == 0, f'{t} notes en haut, sans encadré orange (« raide » n\'est pas un mot de douleur)')
         R.check('1re séance Haut' in d, f'{t} 35 séances chargées, aucune autre Haut : « 1re séance Haut »')
+        lbls = page.locator('.coach-session-view .tile__lbl').all_inner_texts()
+        R.check(lbls[:3] == ['Durée', 'Volume', 'Séries prévues'], f'{t} tuiles dans l\'ordre du bilan : Durée, Volume, Séries ({lbls})')
         layout(page, t, 'séance d\'un élève')
         shot(page, LOT, f'14-seance-eleve-{t}')
         page.click('[data-action="coach-comment"]')
@@ -694,8 +696,8 @@ def t_recap(bench, eng, dev, theme):
         R.check(page.evaluate("document.querySelector('.review-notes').compareDocumentPosition(document.querySelector('.tiles')) & Node.DOCUMENT_POSITION_FOLLOWING") > 0, f'{t} notes au-dessus des cases')
         tiles = [x.replace('\u202f', ' ').replace('\n', ' ') for x in page.locator('.coach-session-view .tile').all_inner_texts()]
         R.check(len(tiles) == 4, f'{t} 4 cases ({tiles})')
-        R.check(tiles[0].startswith('2,9 t') and '+6 %' in tiles[0] and page.locator('.tile__delta--up').count() == 1, f'{t} volume sans poids du corps, +6 % en vert ({tiles[0]!r})')
-        R.check('+23 %' in tiles[1], f'{t} durée : écart de plus de 20 % dit ({tiles[1]!r})')
+        R.check(tiles[1].startswith('2,9 t') and '+6 %' in tiles[1] and page.locator('.tile__delta--up').count() == 1, f'{t} volume (2e case, après la durée) sans poids du corps, +6 % en vert ({tiles[1]!r})')
+        R.check('+23 %' in tiles[0], f'{t} durée (1re case) : écart de plus de 20 % dit ({tiles[0]!r})')
         R.check('15' in tiles[2] and '4' in tiles[3], f'{t} séries et exercices ({tiles[2:]!r})')
         recs = page.locator('.coach-session-view .review-rec').all_inner_texts()
         R.check(len(recs) == 2 and 'Squat haltère' in recs[0] and 'avant 20 kg' in recs[0] and '22,5 kg' in recs[0], f'{t} record de charge nommé avec l\'ancienne valeur ({recs})')
@@ -741,7 +743,7 @@ def t_rir(bench, eng, dev, theme):
         R.check('Reps en réserve : 2 · —' in d, f'{t} reps en réserve notées visibles ({d[:400]!r})')
         R.check('Échauffement 10 kg × 8' in d, f'{t} échauffement à part')
         tiles = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .tile').all_inner_texts()]
-        R.check(tiles[0].startswith('480') and tiles[2].startswith('2'), f'{t} échauffement hors volume et séries ({tiles})')
+        R.check(tiles[1].startswith('480') and tiles[2].startswith('2'), f'{t} échauffement hors volume et séries ({tiles})')
         rec = page.inner_text('.coach-session-view .review-rec').replace('\u202f', ' ')
         R.check('Record reps' in rec and 'avant 20 kg × 10' in rec and '20 kg × 12' in rec, f'{t} record noté ({rec!r})')
         R.check("sans l'échauffement" in page.inner_text('.review-rule'), f'{t} règle du volume à jour')
