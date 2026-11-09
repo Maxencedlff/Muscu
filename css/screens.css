@@ -200,7 +200,7 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
 /* Ligne du bas : détails à gauche, pastille des records notés à droite (médaille et nombre) */
 .hcell__bot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hcell__rec { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; font-size: 0.765rem; font-weight: 600; color: var(--gold-text); }
-.hcell__rec .medal { color: var(--yellow); }
+.hcell__rec .medal { color: var(--medal); }
 .hrow__del {
   position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: none; background: var(--red); color: var(--white);
   font: 400 0.882rem -apple-system, system-ui, sans-serif; cursor: pointer;

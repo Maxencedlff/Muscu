@@ -209,7 +209,7 @@
 .ex-summary__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ex-summary__name { font-size: 1rem; line-height: 1.294rem; font-weight: 600; overflow-wrap: anywhere; }
 .ex-summary__line { font-size: 0.765rem; color: var(--label2); display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.ex-summary__line .medal { color: var(--yellow); }
+.ex-summary__line .medal { color: var(--medal); }
 .ex-summary__check { width: 28px; height: 28px; }
 
 .view.session .session-add-ex-btn {
@@ -404,7 +404,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .sum-date::first-letter { text-transform: uppercase; }
 /* Ligne de ce qui a progressé (summaryLine) ; médaille d'un record qui apparaît (0,6 → 1 en 300 ms) */
 .sum-line { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 0.941rem; line-height: 1.294rem; font-weight: 600; color: var(--label); }
-.sum-line .medal { color: var(--yellow); flex-shrink: 0; }
+.sum-line .medal { color: var(--medal); flex-shrink: 0; }
 html.type-xl .sum-line { align-items: flex-start; }   /* médaille sur la première ligne du texte, comme un Label (panel t5) */
 html.type-xl .sum-line .medal { margin-top: .15em; }
 .summary--pop .sum-line .medal, .summary--pop .sum-record .medal { animation: sum-medal .3s cubic-bezier(.2, .8, .2, 1.2) both; }
@@ -427,7 +427,7 @@ html.type-xl .sum-line .medal { margin-top: .15em; }
 .sum-list { background: var(--cell); border-radius: var(--r-md); overflow: hidden; }
 .sum-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 16px; position: relative; }
 .sum-row + .sum-row::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
-.sum-record .medal { color: var(--yellow); flex-shrink: 0; }
+.sum-record .medal { color: var(--medal); flex-shrink: 0; }
 .sum-row__main { flex: 1; min-width: 0; }
 .sum-row__name { font-size: 1rem; line-height: 1.294rem; overflow-wrap: anywhere; }
 .sum-row__sub { font-size: 0.765rem; color: var(--label2); }
