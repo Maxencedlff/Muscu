@@ -22,8 +22,8 @@ const DIET_MACROS = [
 const dietN = v => fmtNum(Math.round(v));
 // Nom d'aliment à l'écran : « Oeuf dur » (Ciqual) → « Œuf dur », « boeuf » → « bœuf ». Affichage seulement,
 // les données gardent le nom d'origine (recherche, synchro)
-const foodName = n => String(n ?? '').replace(/\b([OoBb]?)([Oo])e(ufs?)\b/g, (m, b, o, r) => `${b}${o === 'O' ? 'Œ' : 'œ'}${r}`);
-const elideName = n => (n.length > 60 ? `${n.slice(0, 58)}…` : n);
+const foodName = n => String(n ?? '').replace(/\b([OoBb]?)([Oo])e(ufs?)\b/g, (m, b, o, r) => b + (o === 'O' ? 'Œ' : 'œ') + r);
+const elideName = n => (n.length > 60 ? n.slice(0, 58) + '…' : n);
 // « 620 kcal · P 45 · G 70 · L 15 » et sa version dite par VoiceOver
 // Lettre et chiffre insécables (« L\u00a01 » ne se coupe jamais, panel t6 : le « 1 » passait seul à la ligne)
 function dietMacroLine(m) { return `${dietN(m.kcal)}\u00a0kcal · P\u00a0${dietN(m.p)} · G\u00a0${dietN(m.c)} · L\u00a0${dietN(m.f)}`; }
