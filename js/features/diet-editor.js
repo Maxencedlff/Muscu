@@ -150,7 +150,7 @@ async function dietPickFood() {
   const body = `
     <div class="diet-pick">
       ${foodScanButtonHtml()}
-      <input type="search" id="dietFoodSearch" class="search" placeholder="Rechercher un aliment" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment">
+      <input type="search" id="dietFoodSearch" class="search" placeholder="Rechercher" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment">
       <div class="diet-pick__list" id="dietFoodList">${dietFoodResultsHtml('')}</div>
       <button class="diet-cand diet-cand--new" data-pick="new">${icon('plus', 18)}<span class="diet-cand__name">Créer un aliment</span></button>
     </div>`;
