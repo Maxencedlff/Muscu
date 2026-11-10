@@ -238,8 +238,9 @@ def t_pot(bench, eng, dev, theme):
         eq = page.text_content('.sheet-root #qtyEq [aria-hidden="true"]').replace('\u00a0', ' ').replace('\u202f', ' ')
         R.check(page.input_value('.sheet-root #qtyVal') == '1' and eq == '1 pot · 125 g · 75 kcal', f'{t} pot : 1 pot · 125 g ({eq!r})')
         R.check(page.text_content('.sheet-root #qtyEq .sr-text') == '1 pot, 125 grammes, 75 kilocalories', f'{t} pot : VoiceOver')
-        tot = page.inner_text('#fscanTotal').replace('\u00a0', ' ').replace('\u202f', ' ')
-        R.check('125 g : 75 kcal' in tot, f'{t} pot : total et macros ({tot!r})')
+        mac = page.text_content('.sheet-root #qtyMacros [aria-hidden="true"]').replace('\u00a0', ' ')
+        R.check(mac.startswith('Protéines ') and ' · Glucides ' in mac and page.text_content('#fscanTotal') == '' and page.text_content('.sheet-root #qtyHint') == '',
+                f'{t} pot : résumé et macros une seule fois, pas de note de portion (paquet) ({mac!r})')
         page.focus('.fscan__name')
         sheet_layout(page, t, 'yaourt à l\'unité')
         shot(page, LOT, f'6-yaourt-pot-{t}')

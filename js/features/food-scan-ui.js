@@ -145,8 +145,8 @@ function foodScanSheet(code) {
     const units = dietQtyUnits(f);
     show(fscanFoundHtml(f, units), '.fscan__name');
     ok.style.visibility = '';
-    // À l'unité : la ligne d'équivalence du contrôle donne déjà grammes et kcal ; le total redonne les macros
-    if (units.length) { readQty = dietQtyBind(box, units, dietQtyInit(units, null), f.per, r => { $('#fscanTotal', box).innerHTML = r ? fscanTotalText(f, r.g) : ''; }); return; }
+    // À l'unité : le contrôle donne résumé et macros, le total resterait une redite
+    if (units.length) { readQty = dietQtyBind(box, units, dietQtyInit(units, null), f.per); return; }
     readQty = null;
     const upd = () => { $('#fscanTotal', box).innerHTML = fscanTotalText(f, num($('#fscanG', box).value, 1, DIET_G_MAX)); };
     $('#fscanG', box).addEventListener('input', upd);

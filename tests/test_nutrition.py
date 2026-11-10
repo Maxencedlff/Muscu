@@ -10,6 +10,7 @@ Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_nutrition.py (ou run_al
 """
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -670,6 +671,11 @@ def t_unites(bench, eng, dev, theme):
         R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '2' and eq == '2 œufs · 100 g · 134 kcal', f'{t} œuf : + → « 2 œufs · 100 g · 134 kcal » ({eq!r})')
         R.check(page.text_content(f'{LIVE_SHEET} #qtyEq .sr-text') == '2 œufs, 100 grammes, 134 kilocalories', f'{t} œuf : VoiceOver en toutes lettres')
         R.check(nb(page.text_content(f'{LIVE_SHEET} #qtyUnit')) == 'œufs' and 'environ 50' in nb(page.text_content(f'{LIVE_SHEET} #qtyHint')), f'{t} œuf : unité accordée, poids moyen « environ »')
+        mac = nb(page.text_content(f'{LIVE_SHEET} #qtyMacros [aria-hidden="true"]'))
+        R.check(re.fullmatch(r'Protéines \d+ g · Glucides \d+ g · Lipides \d+ g', mac) and nb(page.text_content(f'{LIVE_SHEET} #qtyHint')) == '1 œuf : environ 50 g, poids moyen.',
+                f'{t} œuf : macros en toutes lettres, note du poids moyen ({mac!r})')
+        vis = page.evaluate("s => { const m = document.querySelector(s + ' #qtyMacros').getBoundingClientRect(), b = document.querySelector(s + ' .sheet__body').getBoundingClientRect(); return m.bottom <= b.bottom + 1 && m.top >= b.top; }", LIVE_SHEET)
+        R.check(vis, f'{t} œuf : ligne des macros visible sans défiler')
         R.check(page.get_attribute(f'{LIVE_SHEET} [data-qstep="1"]', 'aria-label') == '1 œuf de plus', f'{t} œuf : boutons nommés')
         st = small_targets(page, f'{LIVE_SHEET} button')
         R.check(not st, f'{t} feuille de quantité : cibles de 44 pt {st}')
@@ -744,7 +750,22 @@ def t_clavier(bench):
                 R.check(m['scrolls'] and page.evaluate("s => { const b = document.querySelector(s + ' .sheet__body'); b.scrollTop = 200; return b.scrollTop > 0; }", LIVE_SHEET),
                         f'{t} contenu de la feuille qui défile')
                 page.evaluate("s => { document.querySelector(s + ' .sheet__body').scrollTop = 0; }", LIVE_SHEET)
+                # Clavier simulé dessiné en gris (captures lisibles), transparent aux touches et à elementFromPoint
+                page.evaluate('''px => { const k = document.createElement('div'); k.id = 'fakeKb';
+                    k.style.cssText = `position:fixed;left:0;right:0;bottom:0;height:${px}px;background:#8e8e93;z-index:99999;pointer-events:none`;
+                    document.body.appendChild(k); }''', kb)
+                # Rien de la page dans la feuille, voile sur toute la zone visible, rien de la feuille sous son bord
+                leak = page.evaluate('''([sel, kb]) => { const root = document.querySelector(sel), s = root.querySelector('.sheet'), r = s.getBoundingClientRect(), bad = [];
+                    for (let y = 4; y < innerHeight; y += 12) for (let x = 4; x < innerWidth; x += 24) {
+                      if (y < r.top + 16 && (x < r.left + 16 || x > r.right - 16)) continue;   // coins arrondis
+                      const e = document.elementFromPoint(x, y), inSheet = s.contains(e), inRoot = root.contains(e);
+                      const want = y >= innerHeight - kb ? !inSheet : y < r.top ? inRoot && !inSheet : inSheet;
+                      if (!want) bad.push([x, y, e && (e.className || e.tagName)]);
+                    }
+                    return bad.slice(0, 4); }''', [LIVE_SHEET, kb])
+                R.check(not leak, f'{t} feuille coupée net, page couverte par le voile {leak}')
                 shot(page, LOT, f'k1-clavier-ouvert-{t}')
+                page.evaluate("() => document.getElementById('fakeKb').remove()")
                 page.evaluate('() => __kb(0)')
                 page.wait_for_timeout(200)
                 back = page.evaluate("s => [document.documentElement.classList.contains('kb-open'), Math.round(document.querySelector(s + ' .sheet').getBoundingClientRect().bottom), innerHeight]", LIVE_SHEET)

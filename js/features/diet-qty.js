@@ -4,7 +4,8 @@
 //
 //  - Contrôle segmenté « Grammes | œuf » (deux unités au plus : « c. à soupe | c. à café »), boutons − et + (pas
 //    de 1, ½ pour la baguette, 10 g en grammes) et champ que l'on peut aussi taper. Rien au pointerdown.
-//  - Ligne d'équivalence sous le champ : « 2 œufs · 100 g · 140 kcal », lue « 2 œufs, 100 grammes, 140 kilocalories ».
+//  - Sous le champ : résumé « 2 œufs · 100 g · 134 kcal » (lu « 2 œufs, 100 grammes, 134 kilocalories »), macros en
+//    toutes lettres, et la note « 1 œuf : environ 50 g, poids moyen. » seulement quand le poids est estimé.
 //  - Sert à la feuille de quantité (dietAskQty : plan, ajout du jour) et à la fiche d'un produit scanné.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -46,6 +47,7 @@ function dietQtyHtml(units, st) {
         <button type="button" class="qty__step" data-qstep="1">${icon('plus', 20)}</button>
       </div>
       <p class="qty__eq num" id="qtyEq" aria-live="polite"></p>
+      <p class="qty__macros num" id="qtyMacros"></p>
       <p class="qty__hint" id="qtyHint"></p>
       <p class="diet-form__err" id="qtyErr" role="alert"></p>
     </div>`;
@@ -84,13 +86,17 @@ function dietQtyBind(root, units, st, per, onChange = null) {
     const stepLabel = mode < 0 ? `${QTY_G_STEP} grammes` : u.half ? `une demie ${u.u}` : `1 ${u.u}`;
     $('[data-qstep="-1"]', box).setAttribute('aria-label', `${stepLabel} de moins`);
     $('[data-qstep="1"]', box).setAttribute('aria-label', `${stepLabel} de plus`);
-    $('#qtyHint', box).textContent = mode < 0 ? '' : `1 ${u.u}${u.about ? ' : environ' : ' :'} ${fmtNum(u.g)} g${u.about ? ', poids moyen.' : '.'}`;
+    // Note de portion seulement pour un poids estimé (table) ; celui d'un paquet est déjà dans le résumé
+    $('#qtyHint', box).textContent = mode >= 0 && u.about ? `1 ${u.u} : environ ${fmtNum(u.g)} g, poids moyen.` : '';
     $('#qtyErr', box).textContent = '';
-    if (r.err) { $('#qtyEq', box).textContent = ''; onChange?.(null); return; }
+    if (r.err) { $('#qtyEq', box).textContent = ''; $('#qtyMacros', box).textContent = ''; onChange?.(null); return; }
     const m = dietItemMacros({ g: r.g, per }), kcal = data.dietHideNumbers ? null : dietN(m.kcal);
     const shown = `${r.por ? `${portionText(r.por.n, r.por)} · ` : ''}${r.g} g${kcal !== null ? ` · ${kcal} kcal` : ''}`;
     const spoken = `${r.por ? `${portionSpoken(r.por.n, r.por)}, ` : ''}${r.g} grammes${kcal !== null ? `, ${kcal} kilocalories` : ''}`;
     $('#qtyEq', box).innerHTML = dietSrPair(esc(shown), esc(spoken));
+    // Macros en toutes lettres (« P/G/L » n'est pas compris d'une débutante), masquées avec les calories
+    $('#qtyMacros', box).innerHTML = kcal === null ? '' : dietSrPair(
+      `Protéines\u00a0${dietN(m.p)}\u00a0g · Glucides\u00a0${dietN(m.c)}\u00a0g · Lipides\u00a0${dietN(m.f)}\u00a0g`, dietMacroGramsSpoken(m));
     onChange?.(r);
   };
   box.addEventListener('click', ev => {
