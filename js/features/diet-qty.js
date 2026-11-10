@@ -138,7 +138,7 @@ async function dietAskQty(food, init = null) {
   }
   const st = dietQtyInit(units, init);
   let read = null;
-  const title = food.name.length > 60 ? `${food.name.slice(0, 58)}…` : food.name;
+  const title = elideName(foodName(food.name));
   const p = sheet({ title, confirm: 'OK', body: dietQtyHtml(units, st), onConfirm: () => read?.() || false });
   const root = [...document.querySelectorAll('.sheet-root')].pop();
   read = dietQtyBind(root, units, st, food.per);

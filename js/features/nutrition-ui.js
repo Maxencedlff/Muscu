@@ -20,6 +20,10 @@ const DIET_MACROS = [
 ];
 
 const dietN = v => fmtNum(Math.round(v));
+// Nom d'aliment à l'écran : « Oeuf dur » (Ciqual) → « Œuf dur », « boeuf » → « bœuf ». Affichage seulement,
+// les données gardent le nom d'origine (recherche, synchro)
+const foodName = n => String(n ?? '').replace(/\b([OoBb]?)([Oo])e(ufs?)\b/g, (m, b, o, r) => `${b}${o === 'O' ? 'Œ' : 'œ'}${r}`);
+const elideName = n => (n.length > 60 ? `${n.slice(0, 58)}…` : n);
 // « 620 kcal · P 45 · G 70 · L 15 » et sa version dite par VoiceOver
 // Lettre et chiffre insécables (« L\u00a01 » ne se coupe jamais, panel t6 : le « 1 » passait seul à la ligne)
 function dietMacroLine(m) { return `${dietN(m.kcal)}\u00a0kcal · P\u00a0${dietN(m.p)} · G\u00a0${dietN(m.c)} · L\u00a0${dietN(m.f)}`; }
@@ -120,10 +124,10 @@ function dietItemRowHtml(it, pr, day) {
   const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
   return `
             <button class="diet-item" data-action="diet-swap" data-item="${esc(it.id)}" data-day="${day}"
-              aria-label="${esc(eat.name)}, ${esc(dietQtySpoken(eat))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}${swap ? `, remplace ${esc(it.name)}` : ''}. Remplacer">
+              aria-label="${esc(foodName(eat.name))}, ${esc(dietQtySpoken(eat))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}${swap ? `, remplace ${esc(foodName(it.name))}` : ''}. Remplacer">
               <span class="diet-item__body">
-                <span class="diet-item__name">${esc(eat.name)}</span>
-                <span class="diet-item__sub num">${swap ? `<span class="diet-item__swapped">Remplace ${esc(it.name)}</span>` : ''}${esc(dietQtyText(eat))}${nums}</span>
+                <span class="diet-item__name">${esc(foodName(eat.name))}</span>
+                <span class="diet-item__sub num">${swap ? `<span class="diet-item__swapped">Remplace ${esc(foodName(it.name))}</span>` : ''}${esc(dietQtyText(eat))}${nums}</span>
               </span>
               <span class="diet-item__swap" aria-hidden="true">${icon('arrow.left.arrow.right', 18)}</span>
             </button>`;
@@ -135,9 +139,9 @@ function dietExtraRowHtml(it, meal, day) {
   const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
   return `
             <button class="diet-item diet-item--extra" data-action="diet-extra" data-meal="${esc(meal.id)}" data-extra="${esc(it.id)}" data-day="${day}"
-              aria-label="${esc(it.name)}, ${esc(dietQtySpoken(it))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}, ajouté ${when}, hors plan. Modifier">
+              aria-label="${esc(foodName(it.name))}, ${esc(dietQtySpoken(it))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}, ajouté ${when}, hors plan. Modifier">
               <span class="diet-item__body">
-                <span class="diet-item__name">${esc(it.name)}</span>
+                <span class="diet-item__name">${esc(foodName(it.name))}</span>
                 <span class="diet-item__sub num"><span class="diet-item__swapped">Ajouté ${when}</span>${esc(dietQtyText(it))}${nums}</span>
               </span>
               <span class="diet-item__swap" aria-hidden="true">${icon('ellipsis', 18)}</span>
@@ -363,15 +367,15 @@ async function dietSwapSheet(itemId, day) {
   const shownGap = c => -Math.round(ref.kcal) + Math.round(c.macros.kcal);
   const row = (c, i) => `
       <button class="diet-cand" data-swap="${i}">
-        <span class="diet-cand__body"><span class="diet-cand__name">${esc(c.food.name)}</span>
+        <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(c.food.name))}</span>
           <span class="diet-cand__sub num">${hide ? `${c.g} g` : dietSrPair(`${c.g} g · ${dietMacroLine(c.macros)}`, `${c.g} grammes, ${dietMacroSpoken(c.macros)}`)}</span></span>
         ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(shownGap(c), 'kilocalories')}">${swapDeltaText(shownGap(c), 'kcal')}</span>`}
       </button>`;
   const body = `
     <div class="diet-swap">
-      <p class="diet-swap__orig"><b>${esc(it.name)}</b><span class="num">${hide ? esc(dietQtyText(it)) : dietSrPair(`${esc(dietQtyText(it))} · ${dietMacroLine(ref)}`, `${esc(dietQtySpoken(it))}, ${dietMacroSpoken(ref)}`)}</span></p>
+      <p class="diet-swap__orig"><b>${esc(foodName(it.name))}</b><span class="num">${hide ? esc(dietQtyText(it)) : dietSrPair(`${esc(dietQtyText(it))} · ${dietMacroLine(ref)}`, `${esc(dietQtySpoken(it))}, ${dietMacroSpoken(ref)}`)}</span></p>
       <p class="diet-swap__rule">${swapRuleText(it)}, macros proches, même famille d'aliments.</p>
-      ${current ? `<button class="diet-cand diet-cand--back" data-swap="back"><span class="diet-cand__body"><span class="diet-cand__name">Remettre ${esc(it.name)}</span><span class="diet-cand__sub">Aujourd'hui, tu manges ${esc(current.name)}</span></span>${icon('arrow.clockwise', 18)}</button>` : ''}
+      ${current ? `<button class="diet-cand diet-cand--back" data-swap="back"><span class="diet-cand__body"><span class="diet-cand__name">Remettre ${esc(foodName(it.name))}</span><span class="diet-cand__sub">Aujourd'hui, tu manges ${esc(foodName(current.name))}</span></span>${icon('arrow.clockwise', 18)}</button>` : ''}
       ${cands.length ? `<div class="diet-cands">${cands.map(row).join('')}</div>`
         : `<p class="diet-swap__none">${foodDb ? 'Aucun équivalent assez proche dans la base pour cet aliment.' : 'Base d\'aliments indisponible pour l\'instant.'}</p>`}
       <p class="diet-swap__foot">Seulement pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ton plan ne change pas.</p>
@@ -381,12 +385,12 @@ async function dietSwapSheet(itemId, day) {
   root?.addEventListener('click', ev => { const b = ev.target.closest('[data-swap]'); if (b) root._close(b.dataset.swap); });
   const choice = await p;
   if (choice == null) return;
-  if (choice === 'back') { dietSetSwap(data, planId, itemId, null, day); showToast(`${it.name} remis`); }
+  if (choice === 'back') { dietSetSwap(data, planId, itemId, null, day); showToast(`${foodName(it.name)} remis`); }
   else {
     const c = cands[Number(choice)];
     if (!c) return;
     dietSetSwap(data, planId, itemId, { name: c.food.name, food: c.food.code, fam: c.food.fam, g: c.g, per: c.food.per }, day);
-    showToast(`Remplacé par ${c.food.name}`);
+    showToast(`Remplacé par ${foodName(c.food.name)}`);
   }
   haptic();
   save();
@@ -452,17 +456,17 @@ registerActions({
     const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
     const it = (dietDay(data, planId, day).extras[mealId] || []).find(x => x.id === el.dataset.extra);
     if (!it) return;
-    const choice = await dialog({ type: 'sheet', title: it.name, message: `${dietQtyText(it)}, ajouté pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ton plan ne change pas.`,
+    const choice = await dialog({ type: 'sheet', title: foodName(it.name), message: `${dietQtyText(it)}, ajouté pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ton plan ne change pas.`,
       actions: [{ label: 'Changer la quantité', value: 'g' }, { label: 'Retirer', value: 'del', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
     if (choice === 'g') {
       const q = await dietAskQty(it, it);
       if (!q || !dietSetExtra(data, planId, mealId, it.id, q, day)) return;
-      save(); haptic(); render(); announce(`${it.name} : ${dietQtySpoken(q)}`);
+      save(); haptic(); render(); announce(`${foodName(it.name)} : ${dietQtySpoken(q)}`);
     } else if (choice === 'del') {
       const before = { g: it.g, por: it.por };
       dietSetExtra(data, planId, mealId, it.id, null, day);
       save(); haptic('light'); render();
-      showToast(`Retiré : ${it.name}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      showToast(`Retiré : ${foodName(it.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
         dietAddExtra(data, planId, mealId, { ...it, ...before }, day); save(); render();
       } });
     }

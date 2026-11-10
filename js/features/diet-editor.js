@@ -62,7 +62,7 @@ function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), e
 
 function dietPlanItemCell(plan, meal, it, ro) {
   const m = dietItemMacros(it);
-  const inner = `<span class="cell__body"><span class="cell__title">${esc(it.name)}</span>
+  const inner = `<span class="cell__body"><span class="cell__title">${esc(foodName(it.name))}</span>
       <span class="cell__sub num">${dietSrPair(`${esc(dietQtyText(it))} · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`,
         `${esc(dietQtySpoken(it))}, ${dietN(m.kcal)} kilocalories${it.ecalc ? ' calculées' : ''}, ${dietMacroGramsSpoken(m)}`)}</span></span>`;
   return ro ? `<div class="cell">${inner}</div>`
@@ -138,7 +138,7 @@ function dietFoodResultsHtml(q) {
   if (!res.length) return `<p class="diet-pick__note">Rien pour « ${esc(q)} ». Crée ton aliment avec ses valeurs pour 100 g.</p>`;
   return res.map((x, i) => `
         <button class="diet-cand" data-pick="${i}">
-          <span class="diet-cand__body"><span class="diet-cand__name">${esc(x.food.name)}</span>
+          <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(x.food.name))}</span>
             <span class="diet-cand__sub num">${x.own ? 'Mon aliment · ' : ''}${dietSrPair(`100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · P ${fmtNum(x.food.per.p)} · G ${fmtNum(x.food.per.c)} · L ${fmtNum(x.food.per.f)}`,
               `pour 100 grammes, ${x.food.per.k} kilocalories${x.food.ecalc ? ' calculées' : ''}, ${dietMacroWords(x.food.per, fmtNum).replace(/ g /g, ' grammes ')}`)}</span></span>
         </button>`).join('');
@@ -232,7 +232,7 @@ async function dietNewFood(name = '', { code = null } = {}) {
 }
 
 async function dietAskGrams(food, value = 100) {
-  return askNumber({ title: food.name.length > 60 ? `${food.name.slice(0, 58)}…` : food.name,
+  return askNumber({ title: elideName(foodName(food.name)),
     message: `Quantité en grammes. Pour 100 g : ${food.per.k} kcal.`,   // macros déjà dans la liste : l'alerte reste courte en texte agrandi
     value: String(value), unit: 'g', min: 1, max: DIET_G_MAX });
 }
@@ -365,7 +365,7 @@ registerActions({
     const ed = dietEditedPlan(), meal = dietMealOf(ed?.plan, el.dataset.meal);
     const it = meal?.items.find(x => x.id === el.dataset.item);
     if (!it) return;
-    const choice = await dialog({ type: 'sheet', title: it.name, message: `${dietQtyText(it)} : ${dietN(dietItemMacros(it).kcal)} kcal, ${dietMacroWords(dietItemMacros(it))}`, actions: [
+    const choice = await dialog({ type: 'sheet', title: foodName(it.name), message: `${dietQtyText(it)} : ${dietN(dietItemMacros(it).kcal)} kcal, ${dietMacroWords(dietItemMacros(it))}`, actions: [
       { label: 'Changer la quantité', value: 'qty' },
       { label: 'Retirer du repas', value: 'remove', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' },

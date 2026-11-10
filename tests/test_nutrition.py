@@ -659,8 +659,9 @@ def t_unites(bench, eng, dev, theme):
         open_app(page, theme, with_plan(NOW))
         open_editor(page)
         page.locator('[data-action="diet-add-food"]').nth(2).click()   # Collation
-        pick_food(page, 'oeuf dur', 'Oeuf dur')
+        pick_food(page, 'oeuf dur', 'Œuf dur')   # « Oeuf dur » de Ciqual, écrit avec la ligature à l'écran
         page.wait_for_selector(f'{LIVE_SHEET} #qtyVal')
+        R.check(page.text_content(f'{LIVE_SHEET} .sheet__title') == 'Œuf dur', f'{t} œuf : titre « Œuf dur »')
         page.wait_for_timeout(350)
         seg = page.locator(f'{LIVE_SHEET} .qty__mode .segmented__btn').all_inner_texts()
         R.check(seg == ['Grammes', 'Œuf'] and page.get_attribute(f'{LIVE_SHEET} [data-qmode="0"]', 'aria-pressed') == 'true',

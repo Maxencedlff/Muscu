@@ -28,7 +28,7 @@
   --green-text: #30D158; --red-text: #FF453A; --orange-text: #FF9F0A; --gold-text: #FFD60A;
   --white: #FFFFFF; --black: #000000;
   --scrim: rgba(0,0,0,.55);      /* pastille de texte blanc posée sur une photo */
-  --segment-on: #636366;
+  --segment-on: #737378;      /* segment choisi nettement plus clair que le fond (texte blanc 4,7:1) */
   --dimmer: rgba(0,0,0,.5);      /* voile des surcouches */
   --dlg-bg: rgba(44,44,46,.97); --dlg-solid: #2C2C2E;   /* feuilles, alertes, toasts : lisibles même si le flou est faible */
   --toast-bg: var(--dlg-solid); --toast-shadow: var(--shadow-float);
@@ -207,7 +207,7 @@ input, textarea, select { font-family: inherit; }
      le contrôle garde ses 32 px et la pastille est dessinée par ::after */
   margin: -8px 0;
   padding: 0 var(--sp-3); background: none; border: none; border-radius: 7px;
-  color: var(--label); font-size: var(--fs-footnote); font-weight: 600;
+  color: var(--label); font-size: var(--fs-footnote); font-weight: 500;
   cursor: pointer; white-space: nowrap;
 }
 .segmented__btn::after {
@@ -220,6 +220,7 @@ input, textarea, select { font-family: inherit; }
 }
 .segmented__btn--active + .segmented__btn::before,
 .segmented__btn--active::before { opacity: 0; }
+.segmented__btn--active { font-weight: 700; }
 .segmented__btn--active::after { background: var(--segment-on); box-shadow: var(--shadow-seg); }
 
 /* Interrupteur (décoratif : l'état est porté par la cellule, role="switch") */

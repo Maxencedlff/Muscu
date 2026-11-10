@@ -243,6 +243,6 @@ body.light .fscan__vals { background: var(--cell); }
 body.light .sheet .qty__step { background: var(--cell); }
 .qty__step:active { opacity: .6; }
 .qty__eq { margin: 10px 0 0; font-size: var(--fs-subhead); font-weight: 600; text-align: center; overflow-wrap: anywhere; }
-.qty__macros { margin: 2px 0 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+.qty__macros { margin: 2px 0 0; font-size: var(--fs-footnote); color: var(--label); text-align: center; }
 .qty__eq:empty, .qty__macros:empty, .qty__hint:empty { display: none; }
 .qty__hint { margin: 4px 0 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }

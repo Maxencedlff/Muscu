@@ -94,7 +94,7 @@ function fscanFoundHtml(food, units = []) {
   const row = (label, shown, spoken) => `<div class="fscan__row" role="listitem"><span class="fscan__k">${label}</span><span class="fscan__v num">${dietSrPair(shown, spoken)}</span></div>`;
   const g1 = v => fmtNum(v, 1);
   return `<div class="fscan__prod">
-      <h3 class="fscan__name" tabindex="-1">${esc(food.name)}</h3>
+      <h3 class="fscan__name" tabindex="-1">${esc(foodName(food.name))}</h3>
       ${fscanCodeHtml(food.code)}
     </div>
     <div class="fscan__vals-title" aria-hidden="true">Pour 100 g</div>

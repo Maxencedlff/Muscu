@@ -189,6 +189,7 @@ body.light .livebar { background: var(--cell); }
 .kb-open .sheet { max-height: calc(var(--vv-h, 100dvh) - 12px); padding-bottom: 0; }
 .sheet__grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--label3); margin: 6px auto 0; flex-shrink: 0; }
 .sheet__bar { display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr); align-items: center; min-height: 44px; padding: 0 4px; flex-shrink: 0; }
+.sheet__title:focus, .sheet:focus { outline: none; }   /* focus posé pour VoiceOver (dialogs.js), pas d'anneau à l'écran */
 .sheet__title { font-size: 1rem; font-weight: 600; color: var(--label); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .sheet__btn {
   background: none; border: none; font: inherit; font-size: 1rem; color: var(--tint);
