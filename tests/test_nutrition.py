@@ -847,6 +847,7 @@ def t_jour_et_retirer(bench, eng, dev, theme):
         R.check(page.evaluate("data.dietPlans.d_masse01.meals[0].items.length") == 2, f'{t} le plan ne change pas')
         R.check("Retiré pour aujourd'hui" in toast(page), f'{t} toast avec Annuler ({toast(page)!r})')
         layout(page, t, 'aliment retiré')
+        page.evaluate("document.querySelector('.diet-meal[data-meal=\"m1\"]').scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'j3-aliment-retire-{t}')
         page.locator('.toast__action').click()
         page.wait_for_timeout(300)
