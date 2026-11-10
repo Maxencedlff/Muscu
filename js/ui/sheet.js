@@ -85,7 +85,11 @@ function sheet({ title = '', cancel = 'Annuler', confirm = 'OK', body = '', onCo
   const apply = () => {
     frame = 0;
     const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    if (kb > 40) {
+    // Clavier seulement : un champ de saisie a le focus et la zone visible a perdu au moins 150 px (une barre
+    // d'outils ou une loupe de navigateur ne doivent pas déplacer les feuilles)
+    const a = document.activeElement;
+    const typing = a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+    if (typing && kb > 150) {
       root.style.setProperty('--vv-top', `${Math.round(vv.offsetTop)}px`);
       root.style.setProperty('--vv-h', `${Math.round(vv.height)}px`);
       root.classList.add('kb-open');
@@ -97,4 +101,6 @@ function sheet({ title = '', cancel = 'Annuler', confirm = 'OK', body = '', onCo
   const queue = () => { if (!frame) frame = requestAnimationFrame(apply); };
   vv.addEventListener('resize', queue);
   vv.addEventListener('scroll', queue);
+  document.addEventListener('focusin', queue);
+  document.addEventListener('focusout', queue);
 })();
