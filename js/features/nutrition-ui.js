@@ -41,11 +41,33 @@ function dietDayTitle(day) {
   const s = fmtDate(t, 'day');
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
-// Jour affiché : celui de la route s'il est dans les 7 derniers jours, sinon aujourd'hui
-function dietRouteDay(day) {
-  const week = dietWeek(data).map(x => x.day);
-  return week.includes(day) ? day : dietDayKey();
+// Jour affiché : aujourd'hui, sauf un jour passé choisi dans la frise pendant la consultation en cours.
+// Le choix vit en mémoire seulement : rechargement, route restaurée (retour, historique), lendemain ou retour dans
+// l'app après DIET_PICK_MS : aujourd'hui (retour de Maxence du 10/11 : l'app rouverte le matin était restée sur
+// « Hier », ses ajouts partaient sur la veille)
+let dietPick = null;   // { day, today, at } : jour passé choisi, jour où il l'a été, quand (js/data/nutrition.js)
+function dietRouteDay(day) { return dietPickedDay(dietPick, day, dietWeek(data).map(x => x.day)); }
+// Écrans qui montrent la journée (Nutrition, carte de l'accueil) : redessinés au retour dans l'app et à minuit
+let dietShownDay = dietDayKey();
+function dietRefreshDay({ resumed = false } = {}) {
+  const today = dietDayKey(), changed = today !== dietShownDay;
+  dietShownDay = today;
+  if (resumed && dietPickStale(dietPick)) dietPick = null;
+  if (dietPick && dietPick.today !== today) dietPick = null;
+  const view = typeof currentView === 'function' ? currentView() : '';
+  if (view === 'nutrition' && routeParams(currentRoute())[0] && !dietPick) {
+    // Route d'un jour passé qui n'est plus choisi : remise sur aujourd'hui, sans animation
+    const next = navClone(nav);
+    next.stacks[next.tab][next.stacks[next.tab].length - 1] = 'nutrition';
+    navCommit(next, 'none', 'replace');
+  } else if (changed && (view === 'nutrition' || view === 'dashboard')) render();
 }
+document.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') dietRefreshDay({ resumed: true }); });
+window.addEventListener?.('pageshow', e => { if (e.persisted) dietRefreshDay({ resumed: true }); });
+// Passage de minuit écran ouvert : vérifié chaque minute (un minuteur jusqu'à minuit s'endort avec l'app)
+setInterval(() => { if (dietDayKey() !== dietShownDay) dietRefreshDay(); }, 60000);
+// Toast d'un ajout sur un jour passé : « Ajouté à hier · Dîner »
+function dietPastWord(day) { const t = dietDayTitle(day); return t === 'Hier' ? 'à hier' : `au ${t.charAt(0).toLowerCase()}${t.slice(1)}`; }
 // Part remplie d'une jauge : sur les nombres affichés (arrondis au gramme ou à la kcal), pour que « 4 / 4 g »
 // soit toujours une jauge pleine (panel du 07/11 : 3,6 sur 4,4 g affichés « 4 / 4 g », jauge aux 4/5)
 const dietRatio = (v, goal) => dietShownRatio(v, goal);
@@ -119,15 +141,29 @@ function dietCheckBtn(meal, done, day, extra = '') {
       aria-label="${done ? `${esc(meal.name)} coché, décocher` : `Cocher ${esc(meal.name)}`}"${extra}>${icon('checkmark', 20)}</button>`;
 }
 
+// Aliment du plan : un toucher ouvre la feuille (remplacer, changer la quantité, retirer pour aujourd'hui).
+// Retiré pour la journée : nom barré en gris, « Remettre » à droite (un toucher le remet)
+// day '' : aujourd'hui, lu au toucher (écran resté ouvert après minuit)
 function dietItemRowHtml(it, pr, day) {
-  const swap = pr.swaps[it.id], eat = swap || it, m = dietItemMacros(eat);
+  const when = !day || day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
+  if (pr.removed?.includes(it.id)) return `
+            <button class="diet-item diet-item--off" data-action="diet-restore" data-item="${esc(it.id)}" data-day="${day}"
+              aria-label="${esc(foodName(it.name))}, retiré ${when}. Remettre">
+              <span class="diet-item__body">
+                <span class="diet-item__name">${esc(foodName(it.name))}</span>
+                <span class="diet-item__sub num">Retiré ${when} · ${esc(dietQtyText(it))}</span>
+              </span>
+              <span class="diet-item__back">Remettre</span>
+            </button>`;
+  const swap = pr.swaps[it.id], eat = swap || it, m = dietItemMacros(eat), qty = dietIsQtyChange(it, swap);
   const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
+  const note = !swap ? '' : qty ? `Prévu : ${dietQtyText(it)}` : `Remplace ${foodName(it.name)}`;
   return `
             <button class="diet-item" data-action="diet-swap" data-item="${esc(it.id)}" data-day="${day}"
-              aria-label="${esc(foodName(eat.name))}, ${esc(dietQtySpoken(eat))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}${swap ? `, remplace ${esc(foodName(it.name))}` : ''}. Remplacer">
+              aria-label="${esc(foodName(eat.name))}, ${esc(dietQtySpoken(eat))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}${swap ? `, ${qty ? `prévu ${esc(dietQtySpoken(it))}` : `remplace ${esc(foodName(it.name))}`}` : ''}. Modifier">
               <span class="diet-item__body">
                 <span class="diet-item__name">${esc(foodName(eat.name))}</span>
-                <span class="diet-item__sub num">${swap ? `<span class="diet-item__swapped">Remplace ${esc(foodName(it.name))}</span>` : ''}${esc(dietQtyText(eat))}${nums}</span>
+                <span class="diet-item__sub num">${note ? `<span class="diet-item__swapped">${esc(note)}</span>` : ''}${esc(dietQtyText(eat))}${nums}</span>
               </span>
               <span class="diet-item__swap" aria-hidden="true">${icon('arrow.left.arrow.right', 18)}</span>
             </button>`;
@@ -135,7 +171,7 @@ function dietItemRowHtml(it, pr, day) {
 
 // Aliment ajouté pour la journée, hors plan : « Ajouté aujourd'hui » en couleur d'action ; ⋯ : quantité ou retirer
 function dietExtraRowHtml(it, meal, day) {
-  const m = dietItemMacros(it), when = day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
+  const m = dietItemMacros(it), when = !day || day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
   const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
   return `
             <button class="diet-item diet-item--extra" data-action="diet-extra" data-meal="${esc(meal.id)}" data-extra="${esc(it.id)}" data-day="${day}"
@@ -266,7 +302,9 @@ function renderNutrition(dayParam) {
   }
   const pr = dietDayProgress(data, data.dietActive, day);
   const from = plan.fromCoach ? `<p class="diet-plan-from">${esc(plan.name)} · ${elide('de', esc(plan.fromCoach.name || 'ton coach'))}</p>` : `<p class="diet-plan-from">${esc(plan.name)}</p>`;
-  const meals = pr.meals.length ? pr.meals.map(x => dietMealHtml(x, pr, day)).join('')
+  // Aujourd'hui : pas de jour figé dans les boutons, lu au toucher (écran resté ouvert après minuit)
+  const past = day !== dietDayKey(), attrDay = past ? day : '';
+  const meals = pr.meals.length ? pr.meals.map(x => dietMealHtml(x, pr, attrDay)).join('')
     : '<div class="empty-note">Ce plan n\'a aucun repas. Ajoute-les dans le plan.</div>';
   return `
     <div class="view view--grouped nutrition-view">
@@ -275,6 +313,7 @@ function renderNutrition(dayParam) {
         ${from}
         ${pending ? `<div class="coach-progs">${dietInboxCardHtml(pending)}</div>` : ''}
         ${dietWeekHtml(day)}
+        ${past ? '<button class="btn btn--secondary diet-today" data-action="diet-today">Revenir à aujourd\'hui</button>' : ''}
         ${dietSummaryHtml(pr)}
         ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
@@ -286,6 +325,10 @@ function renderNutrition(dayParam) {
     </div>`;
 }
 SCREENS.set('nutrition', { render: day => renderNutrition(day), enter: () => { loadFoods(); dietMaybeAskConsent(); } });
+function dietGoToday() {
+  dietPick = null;
+  if (currentView() === 'nutrition') navigate('nutrition', { replace: true });
+}
 
 // ── Accueil : carte du jour ─────────────────────────────────
 
@@ -359,7 +402,7 @@ async function dietSwapSheet(itemId, day) {
   const it = plan?.meals.flatMap(m => m.items).find(x => x.id === itemId);
   if (!it) return;
   await loadFoods();
-  const e = dietDay(data, planId, day), current = e.swaps[itemId];
+  const e = dietDay(data, planId, day), cur = e.swaps[itemId], current = dietIsQtyChange(it, cur) ? null : cur, eat = cur || it;
   const cands = swapCandidates(it, { own: data.dietFoods || [] });
   const ref = dietItemMacros(it), hide = data.dietHideNumbers === true;
   // Écart des kcal affichées (arrondies), pas des valeurs exactes : 213 kcal face à 215 se lit moins 2 kcal, comme on le
@@ -378,6 +421,10 @@ async function dietSwapSheet(itemId, day) {
       ${current ? `<button class="diet-cand diet-cand--back" data-swap="back"><span class="diet-cand__body"><span class="diet-cand__name">Remettre ${esc(foodName(it.name))}</span><span class="diet-cand__sub">Aujourd'hui, tu manges ${esc(foodName(current.name))}</span></span>${icon('arrow.clockwise', 18)}</button>` : ''}
       ${cands.length ? `<div class="diet-cands">${cands.map(row).join('')}</div>`
         : `<p class="diet-swap__none">${foodDb ? 'Aucun équivalent assez proche dans la base pour cet aliment.' : 'Base d\'aliments indisponible pour l\'instant.'}</p>`}
+      <div class="diet-swap__acts">
+        <button class="diet-cand" data-swap="qty"><span class="diet-cand__body"><span class="diet-cand__name">Changer la quantité</span><span class="diet-cand__sub num">${esc(dietQtyText(eat))}</span></span></button>
+        <button class="diet-cand diet-cand--off" data-swap="off"><span class="diet-cand__body"><span class="diet-cand__name">Retirer pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'}</span></span></button>
+      </div>
       <p class="diet-swap__foot">Seulement pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ton plan ne change pas.</p>
     </div>`;
   const p = sheet({ title: 'Remplacer', cancel: 'Annuler', confirm: '', body });
@@ -385,6 +432,13 @@ async function dietSwapSheet(itemId, day) {
   root?.addEventListener('click', ev => { const b = ev.target.closest('[data-swap]'); if (b) root._close(b.dataset.swap); });
   const choice = await p;
   if (choice == null) return;
+  if (choice === 'qty') {
+    const q = await dietAskQty(eat, eat);
+    if (!q || !dietSetPlanQty(data, planId, itemId, q, day)) return;
+    save(); haptic(); render(); announce(`${foodName(eat.name)} : ${dietQtySpoken(q)}`);
+    return;
+  }
+  if (choice === 'off') { dietRemovePlanItem(planId, it, day); return; }
   if (choice === 'back') { dietSetSwap(data, planId, itemId, null, day); showToast(`${foodName(it.name)} remis`); }
   else {
     const c = cands[Number(choice)];
@@ -397,12 +451,22 @@ async function dietSwapSheet(itemId, day) {
   render();
 }
 
+// Retirer pour la journée : la ligne reste, barrée, avec « Remettre » ; Annuler dans le toast
+function dietRemovePlanItem(planId, it, day) {
+  dietSetRemoved(data, planId, it.id, true, day);
+  save(); haptic('light'); render();
+  showToast(`Retiré pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ${foodName(it.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
+    dietSetRemoved(data, planId, it.id, false, day); save(); render(); announce(`Remis : ${foodName(it.name)}`);
+  } });
+}
+
 // ── Actions ─────────────────────────────────────────────────
 
 registerActions({
   'go-nutrition': () => navigate('nutrition'),
   'diet-day': (e, el) => {
-    const day = el.dataset.day;
+    const day = el.dataset.day, today = dietDayKey();
+    dietPick = day === today ? null : { day, today, at: Date.now() };
     const route = day === dietDayKey() ? 'nutrition' : makeRoute('nutrition', day);
     navigate(route, { replace: routeName(currentRoute()) === 'nutrition' });
   },
@@ -432,6 +496,14 @@ registerActions({
     render();
   },
   'diet-swap': async (e, el) => { await dietSwapSheet(el.dataset.item, el.dataset.day || dietDayKey()); },
+  'diet-today': () => { dietGoToday(); announce('Aujourd\'hui'); },
+  'diet-restore': (e, el) => {
+    const planId = data.dietActive, day = el.dataset.day || dietDayKey();
+    const it = dietActivePlan(data)?.meals.flatMap(m => m.items).find(x => x.id === el.dataset.item);
+    if (!it) return;
+    dietSetRemoved(data, planId, it.id, false, day);
+    save(); haptic(); render(); announce(`Remis : ${foodName(it.name)}`);
+  },
   // Ajouter un aliment à un repas pour la journée (recherche, code-barres ou création), coché ou non : il reste
   // dans son état, ses totaux et ceux du jour se recalculent ; le plan ne change pas
   'diet-day-add': async (e, el) => {
@@ -448,7 +520,7 @@ registerActions({
     save();
     haptic();
     render();
-    showToast(`Ajouté à ${meal.name} : ${added.name}`, { action: 'Annuler', duration: 5000, onAction: () => {
+    showToast(day === dietDayKey() ? `Ajouté à ${meal.name} : ${added.name}` : `Ajouté ${dietPastWord(day)} · ${meal.name}`, { action: 'Annuler', duration: 5000, onAction: () => {
       dietSetExtra(data, planId, mealId, added.id, null, day); save(); render(); announce(`Retiré : ${added.name}`);
     } });
   },

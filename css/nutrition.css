@@ -106,6 +106,11 @@ div.diet-meal__title { cursor: default; }
 .diet-item__sub { font-size: var(--fs-footnote); color: var(--label2); overflow-wrap: anywhere; }
 .diet-item__swapped { display: block; color: var(--tint); }
 .diet-item__swap { color: var(--tint); flex-shrink: 0; }
+/* Aliment du plan retiré pour la journée : barré, en gris ; « Remettre » en couleur d'action */
+.diet-item--off .diet-item__name { color: var(--label2); text-decoration: line-through; }
+.diet-item__back { flex-shrink: 0; font-size: var(--fs-subhead); font-weight: 600; color: var(--tint); }
+/* Jour passé affiché : retour à aujourd'hui, sous la frise */
+.diet-today { display: flex; width: 100%; min-height: 44px; margin: 0 0 12px; justify-content: center; }
 .diet-foot { padding-top: 20px; overflow-wrap: anywhere; }   /* le lien doi.org ne fait jamais défiler la page de côté */
 
 /* Aucun plan */
@@ -135,8 +140,8 @@ html.type-xl .diet-home__ring { display: none; }
 /* Feuilles : remplacer, rechercher, créer un aliment, objectifs */
 .diet-swap, .diet-pick, .diet-form { padding: 0; }
 /* Dans une feuille (fond --cell en sombre, --bg en clair) : listes et champs d'un cran plus clairs, comme .sheet-list */
-.sheet .diet-cands, .sheet .diet-pick__list, .sheet .diet-cand, .sheet .diet-field { background: var(--cell2); }
-body.light .sheet .diet-cands, body.light .sheet .diet-pick__list, body.light .sheet .diet-cand, body.light .sheet .diet-field { background: var(--cell); }
+.sheet .diet-cands, .sheet .diet-swap__acts, .sheet .diet-pick__list, .sheet .diet-cand, .sheet .diet-field { background: var(--cell2); }
+body.light .sheet .diet-cands, body.light .sheet .diet-swap__acts, body.light .sheet .diet-pick__list, body.light .sheet .diet-cand, body.light .sheet .diet-field { background: var(--cell); }
 .sheet .diet-cand:active { background: var(--cell3); }
 .diet-swap__orig { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-callout); overflow-wrap: anywhere; }
 .diet-swap__orig span { font-size: var(--fs-footnote); color: var(--label2); }
@@ -157,6 +162,9 @@ body.light .sheet .diet-cands, body.light .sheet .diet-pick__list, body.light .s
 .diet-cand--back, .diet-cand--new { margin-top: 10px; border-radius: var(--r-md); color: var(--tint); }
 .diet-cand--back .diet-cand__name, .diet-cand--new .diet-cand__name { color: var(--tint); }
 .diet-cand--new .icon { color: var(--tint); }
+/* Feuille d'un aliment du plan : « Changer la quantité », puis « Retirer pour aujourd'hui » en rouge, en bas (comme iOS) */
+.diet-swap__acts { margin-top: 16px; background: var(--cell); border-radius: var(--r-md); overflow: hidden; }
+.diet-cand--off .diet-cand__name { color: var(--red-text); }
 /* « Scanner un code-barres » : en tête de la feuille « Ajouter un aliment », avant la recherche */
 .diet-cand--scan { margin-bottom: 10px; border-radius: var(--r-md); min-height: 52px; }
 .diet-cand--scan .diet-cand__name { color: var(--tint); font-weight: 600; }

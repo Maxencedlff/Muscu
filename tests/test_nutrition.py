@@ -774,4 +774,129 @@ def t_clavier(bench):
                 R.check(not page.errors, f'{t} clavier : aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites], once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier])
+HIDE = """() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); }"""
+SHOW = """() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); }"""
+
+
+def big_title(page):
+    return page.inner_text('.navbar__large').strip()
+
+
+def t_jour_et_retirer(bench, eng, dev, theme):
+    """Retour de Maxence du 10/11 : l'app rouverte restait sur « Hier » (ses ajouts partaient sur la veille), et un
+    aliment du plan ne se retirait pas. Jour passé : « Revenir à aujourd'hui », toast « Ajouté à hier · Dîner », oublié au
+    retour dans l'app après quelques minutes et sur une route restaurée ; aliment du plan : retirer, remettre, quantité."""
+    t = tag(dev, theme) + '-jour'
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, with_plan(NOW))
+        page.click('.diet-home__open')
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        R.check(big_title(page) == "Aujourd'hui" and page.locator('[data-action="diet-today"]').count() == 0, f'{t} aujourd\'hui par défaut, sans bouton de retour')
+        # Hier, choisi dans la frise : titre, bouton « Revenir à aujourd'hui », ajout sur hier dit dans le toast
+        page.click('.diet-week__day[data-day="2026-11-04"]')
+        page.wait_for_timeout(300)
+        R.check(big_title(page) == 'Hier' and page.locator('[data-action="diet-today"]').is_visible(), f'{t} hier : titre et « Revenir à aujourd\'hui »')
+        layout(page, t, 'hier')
+        shot(page, LOT, f'j1-hier-{t}')
+        page.click('[data-action="diet-day-add"][data-meal="m4"]')
+        page.wait_for_selector('#dietFoodSearch')
+        page.fill('#dietFoodSearch', 'huile olive')
+        page.wait_for_timeout(200)
+        page.locator('#dietFoodList .diet-cand').first.click()
+        qty_grams(page, '10')
+        page.wait_for_timeout(400)
+        R.check('Ajouté à hier · Dîner' in toast(page), f'{t} toast « Ajouté à hier · Dîner » ({toast(page)!r})')
+        R.check(page.evaluate("!!data.dietLog['2026-11-04']?.extras?.m4 && !data.dietLog['2026-11-05']"), f'{t} ajout enregistré sur hier')
+        page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
+        page.click('[data-action="diet-today"]')
+        page.wait_for_timeout(300)
+        R.check(big_title(page) == "Aujourd'hui" and page.evaluate('currentRoute()') == 'nutrition', f'{t} « Revenir à aujourd\'hui »')
+        # Hier choisi, app quittée 6 minutes : aujourd'hui au retour (1 minute : hier gardé)
+        page.click('.diet-week__day[data-day="2026-11-04"]')
+        page.wait_for_timeout(300)
+        page.evaluate(HIDE)
+        page.clock.run_for(60_000)
+        page.evaluate(SHOW)
+        page.wait_for_timeout(200)
+        R.check(big_title(page) == 'Hier', f'{t} retour après 1 min : hier gardé')
+        page.evaluate(HIDE)
+        page.clock.run_for(5 * 60_000)
+        page.evaluate(SHOW)
+        page.wait_for_timeout(300)
+        R.check(big_title(page) == "Aujourd'hui" and page.evaluate('currentRoute()') == 'nutrition', f'{t} retour après 6 min : aujourd\'hui ({page.evaluate("currentRoute()")})')
+        # Route d'hier restaurée (retour système, historique) sans choix dans la frise : aujourd'hui
+        page.evaluate("navigate(makeRoute('nutrition', '2026-11-04'), { replace: true })")
+        page.wait_for_timeout(300)
+        R.check(big_title(page) == "Aujourd'hui", f'{t} route d\'hier restaurée : aujourd\'hui')
+        # Retirer l'œuf pour aujourd'hui : feuille de l'aliment, ligne barrée « Remettre », totaux recalculés, Annuler
+        page.click('.diet-meal[data-meal="m1"] .diet-item[data-item="i1"]')
+        page.wait_for_selector(f'{LIVE_SHEET} [data-swap="off"]')
+        sw = page.inner_text('.diet-swap')
+        R.check('Changer la quantité' in sw and "Retirer pour aujourd'hui" in sw, f'{t} feuille : quantité et retirer')
+        R.check(small_targets(page, '.sheet button.diet-cand') == [], f'{t} feuille : 44 pt')
+        page.locator(f'{LIVE_SHEET} [data-swap="off"]').scroll_into_view_if_needed()
+        shot(page, LOT, f'j2-feuille-aliment-{t}')
+        meal0 = page.evaluate("Math.round(dietDayProgress(data, data.dietActive).meals[0].macros.kcal)")
+        egg = page.evaluate("Math.round(dietItemMacros(data.dietPlans.d_masse01.meals[0].items[0]).kcal)")
+        page.click(f'{LIVE_SHEET} [data-swap="off"]')
+        page.wait_for_timeout(400)
+        row = page.locator('.diet-item--off[data-item="i1"]')
+        R.check(row.count() == 1 and 'Remettre' in row.inner_text() and 'Retiré aujourd' in row.inner_text(), f'{t} ligne barrée « Remettre »')
+        after = page.evaluate("Math.round(dietDayProgress(data, data.dietActive).meals[0].macros.kcal)")
+        R.check(abs(after - (meal0 - egg)) <= 1, f'{t} repas recalculé ({meal0} - {egg} = {after})')
+        R.check(page.evaluate("data.dietPlans.d_masse01.meals[0].items.length") == 2, f'{t} le plan ne change pas')
+        R.check("Retiré pour aujourd'hui" in toast(page), f'{t} toast avec Annuler ({toast(page)!r})')
+        layout(page, t, 'aliment retiré')
+        shot(page, LOT, f'j3-aliment-retire-{t}')
+        page.locator('.toast__action').click()
+        page.wait_for_timeout(300)
+        R.check(page.locator('.diet-item--off').count() == 0, f'{t} Annuler : remis')
+        page.click('.diet-meal[data-meal="m1"] .diet-item[data-item="i1"]')
+        page.click(f'{LIVE_SHEET} [data-swap="off"]')
+        page.wait_for_timeout(400)
+        page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
+        page.click('.diet-item--off[data-item="i1"]')
+        page.wait_for_timeout(300)
+        R.check(page.locator('.diet-item--off').count() == 0 and abs(page.evaluate("Math.round(dietDayProgress(data, data.dietActive).meals[0].macros.kcal)") - meal0) <= 1, f'{t} « Remettre » d\'un toucher')
+        # Changer la quantité de la banane : 60 g au lieu de 120, « Prévu : 120 g »
+        page.click('.diet-meal[data-meal="m1"] .diet-item[data-item="i2"]')
+        page.wait_for_selector(f'{LIVE_SHEET} [data-swap="qty"]')
+        page.click(f'{LIVE_SHEET} [data-swap="qty"]')
+        qty_grams(page, '60')
+        page.wait_for_timeout(400)
+        R.check(page.evaluate("dietDayProgress(data, data.dietActive).swaps.i2?.g") == 60, f'{t} quantité du jour : 60 g')
+        R.check('Prévu' in page.inner_text('.diet-item[data-item="i2"]') and page.evaluate("data.dietPlans.d_masse01.meals[0].items[1].g") == 120, f'{t} « Prévu : 120 g », plan inchangé')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+
+def t_minuit(bench):
+    """Écran Nutrition, puis carte de l'accueil, ouverts avant minuit : après minuit, la nouvelle journée, et ce qu'on coche y va."""
+    eng = dict((d, e) for e, d in ALL_DEVICES)['iPhone 13']
+    eve = local_ms(2026, 11, 5, 23, 58, tz=PARIS)
+    with bench.frozen_page(eve, eng, 'iPhone 13', 'dark') as page:
+        open_app(page, 'dark', with_plan(eve))
+        page.click('.diet-home__open')
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        page.click('.diet-meal[data-meal="m1"] [data-action="diet-check"]')
+        page.wait_for_timeout(200)
+        page.clock.run_for(150_000)   # 00 h 00 min 30, écran ouvert
+        page.wait_for_timeout(300)
+        day = page.get_attribute('.diet-week__day--on', 'data-day')
+        R.check(big_title(page) == "Aujourd'hui" and day == '2026-11-06' and page.locator('.diet-meal--done').count() == 0, f'minuit écran ouvert : nouvelle journée ({day})')
+        page.click('.diet-meal[data-meal="m1"] [data-action="diet-check"]')
+        page.wait_for_timeout(200)
+        R.check(page.evaluate("[data.dietLog['2026-11-05']?.done, data.dietLog['2026-11-06']?.done]") == [['m1'], ['m1']], 'coché après minuit : sur le nouveau jour, la veille intacte')
+        R.check(not page.errors, f'minuit : aucune erreur JS {page.errors[:2]}')
+    eve = local_ms(2026, 11, 5, 23, 59, tz=PARIS)
+    with bench.frozen_page(eve, eng, 'iPhone 13', 'light') as page:
+        open_app(page, 'light', with_plan(eve))
+        page.click('.diet-home [data-action="diet-check"]')
+        page.wait_for_timeout(200)
+        R.check('Déjeuner' in page.inner_text('.diet-home'), 'accueil 23 h 59 : petit-déjeuner coché')
+        page.clock.run_for(90_000)
+        page.wait_for_timeout(300)
+        R.check('Petit-déjeuner' in page.inner_text('.diet-home'), f'minuit : carte de l\'accueil sur la nouvelle journée ({page.inner_text(".diet-home")!r})')
+        R.check(not page.errors, f'minuit accueil : aucune erreur JS {page.errors[:2]}')
+
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer], once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier, t_minuit])

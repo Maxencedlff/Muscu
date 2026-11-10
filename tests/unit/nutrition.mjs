@@ -535,6 +535,71 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run('data.dietLog'), undefined, 'remis : rien de gardé');
   });
 
+  test('jour affiché : aujourd\'hui par défaut, jour passé seulement pendant la consultation (retour du 10/11)', () => {
+    reset();
+    const now = new Date(2026, 10, 10, 8, 30).getTime(), week = JSON.stringify(['2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08', '2026-11-09', '2026-11-10']);
+    assert.equal(run(`dietPickedDay(null, '2026-11-09', ${week}, ${now})`), '2026-11-10', 'route d\'hier restaurée sans choix : aujourd\'hui');
+    const pick = `{ day: '2026-11-09', today: '2026-11-10', at: ${now} }`;
+    assert.equal(run(`dietPickedDay(${pick}, '2026-11-09', ${week}, ${now})`), '2026-11-09', 'hier choisi dans la frise : hier');
+    assert.equal(run(`dietPickedDay(${pick}, '2026-11-08', ${week}, ${now})`), '2026-11-10', 'autre jour que celui choisi : aujourd\'hui');
+    const late = `{ day: '2026-11-09', today: '2026-11-09', at: ${now - 9 * 3600000} }`;
+    assert.equal(run(`dietPickedDay(${late}, '2026-11-09', ${week}, ${now})`), '2026-11-10', 'ouvert sur hier à 00 h 11… choisi la veille : aujourd\'hui');
+    assert.equal(run(`dietPickedDay(${pick}, '2026-10-01', ${week}, ${now})`), '2026-11-10', 'hors frise : aujourd\'hui');
+    assert.equal(run(`dietPickStale(${pick}, ${now + 60000})`), false, 'retour après 1 min : gardé');
+    assert.equal(run(`dietPickStale(${pick}, ${now + 6 * 60000})`), true, 'retour après 6 min : aujourd\'hui');
+    assert.equal(run(`dietPickStale({ day: '2026-11-08', today: '2026-11-09', at: ${new Date(2026, 10, 9, 23, 59).getTime()} }, ${new Date(2026, 10, 10, 0, 1).getTime()})`), true, 'minuit passé : aujourd\'hui');
+    assert.equal(run(`dietPickStale(null, ${now})`), false);
+  });
+
+  test('aliment du plan : retiré pour aujourd\'hui, remis, quantité changée ; le plan ne change pas', () => {
+    reset();
+    loadDb();
+    const riz = { ...item(RIZ_CUIT, 150), id: 'it1' }, poulet = { ...item(POULET_GRILLE, 100), id: 'it2' };
+    run(`data.dietPlans = { d_a: { name: 'P', meals: [{ id: 'm1', name: 'Midi', items: [${JSON.stringify(riz)}, ${JSON.stringify(poulet)}] }] } }; data.dietActive = 'd_a';`);
+    const D = '2026-11-05', full = run(`dietDayProgress(data, 'd_a', '${D}')`);
+    const kRiz = run(`dietItemMacros(data.dietPlans.d_a.meals[0].items[0]).kcal`), kPoulet = run(`dietItemMacros(data.dietPlans.d_a.meals[0].items[1]).kcal`);
+    run(`dietToggleMeal(data, 'd_a', 'm1', '${D}')`);
+    assert.equal(run(`dietSetRemoved(data, 'd_a', 'it1', true, '${D}')`), true);
+    let pr = run(`dietDayProgress(data, 'd_a', '${D}')`);
+    sameJSON(pr.removed, ['it1']);
+    assert.equal(Math.round(pr.eaten.kcal), Math.round(kPoulet), 'mangé : sans le riz retiré');
+    assert.equal(Math.round(pr.meals[0].macros.kcal), Math.round(kPoulet), 'repas : recalculé');
+    assert.equal(pr.goal.kcal, full.goal.kcal, 'repère : le plan, pas baissé');
+    assert.equal(Math.round(pr.planned.kcal), Math.round(kRiz + kPoulet));
+    assert.equal(run(`dietDayProgress(data, 'd_a', '2026-11-06').removed.length`), 0, 'le lendemain : plan normal');
+    // Journal relu (synchro, rechargement) : gardé ; id illisible ou en double écarté
+    run(`data.dietLog['${D}'].removed.push('it1', '<x>', 3); sanitizeDiet(data, ${new Date(2026, 10, 5, 12).getTime()})`);
+    sameJSON(run(`data.dietLog['${D}'].removed`), ['it1']);
+    // Ancien client : lit le journal sans removed, l'aliment y est simplement compté
+    assert.equal(run(`dietMealMacros(data.dietPlans.d_a.meals[0], {}).kcal`), kRiz + kPoulet);
+    // Remis : rien d'autre que la coche
+    run(`dietSetRemoved(data, 'd_a', 'it1', false, '${D}')`);
+    assert.equal(run(`'removed' in data.dietLog['${D}']`), false);
+    assert.equal(Math.round(run(`dietDayProgress(data, 'd_a', '${D}').eaten.kcal`)), Math.round(kRiz + kPoulet));
+    // Seul aliment retiré, rien coché : gardé ; remis : journal vide
+    run(`dietToggleMeal(data, 'd_a', 'm1', '${D}'); dietSetRemoved(data, 'd_a', 'it2', true, '${D}')`);
+    sameJSON(run(`data.dietLog['${D}'].removed`), ['it2']);
+    run(`dietSetRemoved(data, 'd_a', 'it2', false, '${D}')`);
+    assert.equal(run('data.dietLog'), undefined, 'remis : rien de gardé');
+    // Quantité changée : même aliment, autres grammes, comptée ; repère inchangé ; quantité prévue : plan remis
+    assert.equal(run(`dietSetPlanQty(data, 'd_a', 'it1', { g: 300, por: null }, '${D}')`), true);
+    pr = run(`dietDayProgress(data, 'd_a', '${D}')`);
+    assert.equal(pr.swaps.it1.g, 300);
+    assert.equal(pr.swaps.it1.name, riz.name);
+    assert.ok(run(`dietIsQtyChange(data.dietPlans.d_a.meals[0].items[0], dietDayProgress(data, 'd_a', '${D}').swaps.it1)`));
+    assert.equal(Math.round(pr.meals[0].macros.kcal), Math.round(kRiz * 2 + kPoulet), 'repas : riz doublé');
+    assert.equal(pr.goal.kcal, full.goal.kcal, 'repère : la quantité prévue');
+    assert.equal(run('data.dietPlans.d_a.meals[0].items[0].g'), 150, 'le plan ne change pas');
+    run(`dietSetPlanQty(data, 'd_a', 'it1', { g: 150, por: null }, '${D}')`);
+    assert.equal(run('data.dietLog'), undefined, 'quantité prévue : plan remis');
+    // Remplaçant puis quantité : garde le remplaçant
+    const c = run(`swapCandidates(data.dietPlans.d_a.meals[0].items[0])[0]`);
+    run(`dietSetSwap(data, 'd_a', 'it1', { name: ${JSON.stringify(c.food.name)}, food: ${c.food.code}, fam: 'f', g: ${c.g}, per: ${JSON.stringify(c.food.per)} }, '${D}')`);
+    run(`dietSetPlanQty(data, 'd_a', 'it1', { g: 80, por: null }, '${D}')`);
+    pr = run(`dietDayProgress(data, 'd_a', '${D}')`);
+    assert.ok(pr.swaps.it1.name === c.food.name && pr.swaps.it1.g === 80, 'remplaçant à 80 g');
+  });
+
   test('coach : plan envoyé par le canal des programmes, ignoré par une ancienne app, pris et mis à jour', () => {
     reset();
     loadDb();
