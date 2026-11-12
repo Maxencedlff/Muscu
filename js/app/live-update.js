@@ -40,7 +40,7 @@ function currentBuild() {
 
 // Adresse de paquet acceptée : préfixe exact, puis un seul nom de fichier « <version>.zip » fait de
 // caractères sûrs. Le contrôle porte sur le texte brut, sans le décoder : « % » (encodages),
-// « @ » (identifiants), « / » ou « \\ » (autre dossier, « // »), « ? » et « # » sont refusés d'office,
+// « @ » (identifiants), « / » ou « \ » (autre dossier, « // »), « ? » et « # » sont refusés d'office,
 // et un nom qui commence par « . » aussi (« .. »). Le nom de domaine est en minuscules dans le
 // préfixe : « MDLF-OTA… » ou un port (« :443 ») ne passent pas non plus.
 function otaBundleUrlAllowed(url) {
@@ -48,10 +48,6 @@ function otaBundleUrlAllowed(url) {
   return /^[0-9A-Za-z][0-9A-Za-z._-]*\.zip$/.test(url.slice(OTA_BUNDLE_PREFIX.length));
 }
 
-// Décision pure : faut-il télécharger ce manifeste ? Renvoie { download, reason }.
-//   build        : contenu en place { version, seq, runtime }
-//   shellRuntime : empreinte native de l'app installée
-//   failed       : versions déjà tentées et en échec (jamais retentées)
 // Empreinte du paquet, sous l'une des deux formes publiées par scripts/ota-bundle.py :
 //  - sans signature (builds sans publicKey) : SHA-256 en hexadécimal ;
 //  - signée (builds avec publicKey Capgo, docs/BUILD.md) : SHA-256 chiffré par la clé privée (base64)
@@ -64,6 +60,10 @@ function otaChecksumValid(manifest) {
     && new RegExp(`^${OTA_B64}:${OTA_B64}$`).test(manifest.sessionKey || '');
 }
 
+// Décision pure : faut-il télécharger ce manifeste ? Renvoie { download, reason }.
+//   build        : contenu en place { version, seq, runtime }
+//   shellRuntime : empreinte native de l'app installée
+//   failed       : versions déjà tentées et en échec (jamais retentées)
 function liveUpdateDecision(manifest, { build, shellRuntime, failed = [] }) {
   const no = reason => ({ download: false, reason });
   if (!build) return no('contenu sans informations de version');
