@@ -122,17 +122,13 @@ def t_home(bench, eng, dev, theme):
         R.check(before.inner_text().startswith('avant ') and before.evaluate('e => getComputedStyle(e).color') != row.locator('.targets__target').evaluate('e => getComputedStyle(e).color'), f'{t} dernière fois en gris « {before.inner_text()} »')
         edit = page.locator('.hero [data-action="go-editor"]')
         R.check(edit.count() == 1, f'{t} « Modifier » une seule fois dans la carte ({edit.count()})')
-        # Ordre de lecture = ordre affiché (WCAG 1.3.2) : grand écran, les cibles avant Démarrer dans le HTML
+        # Ordre de lecture = ordre affiché (WCAG 1.3.2) : Démarrer avant les cibles sur tous les écrans,
+        # dans le HTML comme à l'écran (heroBtnSpot, js/features/dashboard.js : même place en sombre et en clair)
         order = page.evaluate("""() => { const b = document.querySelector('.hero__btn'), g = document.querySelector('.hero .targets');
             const ty = g.getBoundingClientRect().top, by = b.getBoundingClientRect().top;
             return { dom: !!(g.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING), seen: ty < by,
-                     css: getComputedStyle(b).order + '/' + getComputedStyle(g).order, h: innerHeight,
-                     short: matchMedia('(max-height: 600px), (max-width: 340px) and (max-height: 700px)').matches }; }""")
-        # Même seuil que l'app (heroBtnSpot, js/features/dashboard.js) : petite hauteur, ou 320 pt de large et 700 au plus
-        if not order['short']:
-            R.check(order['dom'] and order['seen'] and order['css'] == '0/0', f'{t} cibles puis Démarrer, dans le HTML comme à l\'écran {order}')
-        else:
-            R.check(not order['dom'] and not order['seen'] and order['css'] == '0/0', f'{t} petit écran : Démarrer avant les cibles, dans le HTML comme à l\'écran {order}')
+                     css: getComputedStyle(b).order + '/' + getComputedStyle(g).order, h: innerHeight }; }""")
+        R.check(not order['dom'] and not order['seen'] and order['css'] == '0/0', f'{t} Démarrer avant les cibles, dans le HTML comme à l\'écran {order}')
         eb = edit.bounding_box()
         R.check(edit.inner_text().strip() == 'Modifier' and eb['width'] >= 44 and eb['height'] >= 44, f'{t} « Modifier » : 44 pt {eb}')
         # Noms coupés seulement entre deux mots, titre entier (iPhone SE compris)

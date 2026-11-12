@@ -15,9 +15,34 @@ const RING_SMALL = 2 * Math.PI * 17;
 const RING_BIG   = 2 * Math.PI * 100;
 const REST_PRESETS = [60, 90, 120, 180, 240, 300]; // préréglages proposés dans les feuilles de repos
 
-function restFraction() {
-  return restTotal > 0 ? Math.min(1, Math.max(0, restTimeLeft / restTotal)) : 0;
+// Part du repos qui reste à l'instant même, calculée sur l'heure de fin et non sur la seconde entière :
+// l'anneau se vide dès la première image (avant, il restait plein jusqu'au premier tic d'une seconde)
+function restFraction(now = Date.now()) {
+  if (!(restTotal > 0)) return 0;
+  const left = restEndTime ? (restEndTime - now) / 1000 : restTimeLeft;
+  return Math.min(1, Math.max(0, left / restTotal));
 }
+
+// Anneaux du repos redessinés à chaque image (requestAnimationFrame) : ils se vident en continu, sans
+// transition CSS qui retarderait l'anneau sur le chiffre. iOS suspend requestAnimationFrame app en
+// arrière-plan, rien ne tourne pour rien. Réduire les animations : l'anneau suit le tic (4 fois par seconde).
+let restRingRaf = 0;
+function restRingFrame() {
+  restRingRaf = 0;
+  if (!restActive) return;
+  setRestRings(restFraction());
+  restRingRaf = requestAnimationFrame(restRingFrame);
+}
+function setRestRings(f) {
+  document.querySelector('.rest-mini .rest-ring__bar')?.setAttribute('stroke-dashoffset', RING_SMALL * (1 - f));
+  document.querySelector('.sess-sheet--rest .rest-ring__bar')?.setAttribute('stroke-dashoffset', RING_BIG * (1 - f));
+}
+function startRestRings() {
+  if (restRingRaf || typeof requestAnimationFrame !== 'function') return;
+  try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch { /* sans matchMedia : animé */ }
+  restRingRaf = requestAnimationFrame(restRingFrame);
+}
+function stopRestRings() { if (restRingRaf) cancelAnimationFrame(restRingRaf); restRingRaf = 0; }
 
 function renderRestOverlay() {
   if (!restActive || !activeSession) return '';
@@ -96,13 +121,11 @@ function updateRestUI() {
     mini.textContent = t;
     $('.rest-mini__main')?.setAttribute('aria-label', restMiniLabel());
   }
-  const small = $('.rest-mini .rest-ring__bar');
-  if (small) small.setAttribute('stroke-dashoffset', RING_SMALL * (1 - f));
+  if (!restRingRaf) setRestRings(f);
   const sheet = $('.sess-sheet--rest');
   if (sheet) {
     const el = sheet.querySelector('.rs__time');
     if (el) { el.textContent = t; if (el.getAttribute('aria-label') !== restTimerLabel()) el.setAttribute('aria-label', restTimerLabel()); }
-    sheet.querySelector('.rest-ring__bar')?.setAttribute('stroke-dashoffset', RING_BIG * (1 - f));
     const ra = sheet.querySelector('.rs__resume');
     if (ra) ra.textContent = `Fin du repos à ${restResumeAt()}`;
     sheet.querySelectorAll('.rs-seg__btn').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.secs === restTotal)));
@@ -137,6 +160,7 @@ function restEndBody() {
 // Relance l'affichage du chrono sans toucher à l'heure de fin (retour au premier plan, restauration)
 function resumeRestCountdown() {
   clearInterval(restInterval);
+  startRestRings();
   let before = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
   restInterval = setInterval(() => {
     restTimeLeft = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
@@ -199,7 +223,7 @@ function resumeRest(saved) {
   syncNativeRest();
 }
 
-function clearRest() { clearInterval(restInterval); restInterval = null; }
+function clearRest() { clearInterval(restInterval); restInterval = null; stopRestRings(); }
 
 // Arrête le repos en cours (chrono et état) sans toucher à l'affichage
 function stopRest() { clearRest(); restActive = false; Native.cancelRestEnd(); endRestActivity(); }

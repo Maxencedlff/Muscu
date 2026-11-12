@@ -49,7 +49,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ctx, nativeC
     const st = run(`watchState(${json(s)}, { ei: 0, si: 1 }, { rest: { endTime: 1700000090000.4, total: 89.6 } })`);
     assert.equal(st.active, true);
     assert.equal(st.title, 'Push');
-    assert.equal(st.tint, 'orange');
+    assert.equal(st.tint, '#FF7A1A', 'orange MDLF unique');
     assert.equal(st.exercise, 'Développé couché haltères');
     assert.equal(st.setNo, 2);
     assert.equal(st.setCount, 2);
@@ -188,7 +188,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ctx, nativeC
 
   // ── Widget ─────────────────────────────────────────────────
 
-  test('widget : semaine (couleur par jour), objectif, prochaine séance prête, fin de semaine', () => {
+  test('widget : semaine (jour fait en vert), objectif, prochaine séance prête, fin de semaine', () => {
     reset();
     ctx.activeSession = null;
     const now = new Date();
@@ -201,7 +201,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ctx, nativeC
     assert.equal(snap.week.goal, 4);
     assert.equal(snap.week.days.length, 7);
     assert.equal(snap.week.days.filter(Boolean).length, 1);
-    assert.equal(snap.week.days.find(Boolean), 'orange');
+    assert.equal(snap.week.days.find(Boolean), 'green', 'jour fait : vert');
     assert.equal(snap.week.start, monday);
     assert.ok(snap.week.end > monday + 6 * D && snap.week.end <= monday + 7 * D + H, 'lundi suivant (changement d\'heure compris)');
     assert.equal(snap.next.title, run('rawLabel(nextSessionCat(sessionKeys()))'));
@@ -217,7 +217,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ctx, nativeC
     try {
       const snap = app.widgetSnapshot();
       assert.ok(snap.next.readyAt > Date.now(), 'muscles encore en récupération : heure où la séance sera prête');
-      sameJSON(snap.active, { title: 'Push', tint: 'orange', startedAt: 1_700_000_000_000 });
+      sameJSON(snap.active, { title: 'Push', tint: '#FF7A1A', startedAt: 1_700_000_000_000 });
     } finally { ctx.activeSession = null; }
   });
 

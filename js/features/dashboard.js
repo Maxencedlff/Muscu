@@ -279,26 +279,21 @@ function heroHtml(keys, next, liveHere) {
       ${spot === 'top' ? btn : ''}
       ${desc ? `<p class="hero__desc">${desc}</p>` : ''}
       ${info}
-      ${spot === 'mid' ? btn : ''}${targets}${spot === 'end' ? btn : ''}
+      ${spot === 'mid' ? btn : ''}${targets}
       ${edit}
     </section>`;
 }
 
 // Place de Démarrer dans la carte. Ordre de lecture = ordre affiché (WCAG 1.3.2) : c'est le HTML qui la
-// fixe, jamais CSS order (VoiceOver suit le DOM). Un seul ordre ne peut pas servir tous les écrans, d'où
-// un choix au rendu, refait quand l'écran change (écouteur ci-dessous, checkTypeSize de js/ui/theme.js) :
-//   'end' : grand écran, après les cibles ;
-//   'mid' : très petite hauteur (< 600 pt, iPhone SE 1re génération), ou écran étroit pas très haut (320 pt de
-//           large et 700 au plus, Galaxy S9+ : les cibles passent sur trois lignes et Démarrer finissait 3 pt sous
-//           la tab bar), avant les cibles, visible sans défiler (même seuil que css/social.css) ;
+// fixe, jamais CSS order (VoiceOver suit le DOM). Choix refait au rendu (checkTypeSize de js/ui/theme.js) :
+//   'mid' : partout, avant « À battre aujourd'hui » : le bouton est au même endroit sur tous les iPhone, en
+//           sombre comme en clair (vote de la direction sobre : il passait sous les cibles sur un grand écran
+//           et au-dessus sur un petit), et toujours visible sans défiler ;
 //   'top' : très grands caractères (type-xl), juste sous le nom : la description, les infos et l'attente
 //           remplissent déjà l'écran, Démarrer resterait sous la tab bar.
-const SHORT_SCREEN = window.matchMedia?.('(max-height: 600px), (max-width: 340px) and (max-height: 700px)');
 function heroBtnSpot() {
-  if (document.documentElement.classList.contains('type-xl')) return 'top';
-  return SHORT_SCREEN?.matches ? 'mid' : 'end';
+  return document.documentElement.classList.contains('type-xl') ? 'top' : 'mid';
 }
-SHORT_SCREEN?.addEventListener?.('change', () => { if (currentView() === 'dashboard') render(); });
 
 // « Ensuite » : les autres séances du programme, sans couleur de séance, leur état à droite
 function otherSessionHtml(cat) {

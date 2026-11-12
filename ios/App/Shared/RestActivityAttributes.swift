@@ -43,6 +43,6 @@ struct RestActivityAttributes: ActivityAttributes {
 
     /// Nom de la séance (« Push », « Haut du corps »…)
     var sessionTitle: String
-    /// Couleur de la séance : nom de couleur système (« orange », « indigo »…) ou « #RRGGBB »
+    /// Couleur de la séance : nom de couleur système (« orange »…) ou « #RRGGBB » ; l'app envoie l'orange MDLF « #FF7A1A »
     var tint: String
 }

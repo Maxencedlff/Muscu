@@ -9,19 +9,16 @@
 // Apple limite les données d'une Live Activity à 4 Ko (ActivityKit, « Displaying live data with
 // Live Activities ») : les textes sont donc bornés ici.
 
-// Couleurs de séance rendues par une couleur système d'iOS (claire ou sombre selon l'écran) :
-// les tokens de css/base.css reprennent exactement ces couleurs système.
-const REST_ACTIVITY_TINTS = ['orange', 'red', 'yellow', 'green', 'teal', 'blue', 'indigo', 'purple', 'pink'];
+// Teinte de la Live Activity, du widget et de la montre : l'orange MDLF, le même pour toutes les séances
+// (direction « sobre » : une seule couleur d'action, plus de couleur par séance, plus d'indigo).
+// Envoyé en « #RRGGBB » : les versions natives déjà installées savent dessiner un code hex (RestTint,
+// WatchTint), un nom inconnu les ferait retomber sur leur indigo d'avant. Les versions natives à jour
+// reconnaissent ce code et prennent la variante foncée (#C2410C) sur fond clair.
+const MDLF_TINT = '#FF7A1A';
 const REST_ACTIVITY_MAX   = { title: 40, exercise: 60 };
 
-// « var(--orange) » → 'orange', « #30b0c7 » → '#30B0C7', sinon la couleur de l'app ('indigo')
-function restActivityTint(color) {
-  const c = String(color ?? '').trim();
-  const token = /^var\(--([a-z]+)\)$/.exec(c)?.[1];
-  if (token && REST_ACTIVITY_TINTS.includes(token)) return token;
-  if (/^#[0-9a-f]{6}$/i.test(c)) return c.toUpperCase();
-  return 'indigo';
-}
+// Couleur de la séance ignorée : toutes les séances ont la teinte de l'app (l'argument reste pour les appelants)
+function restActivityTint(_color) { return MDLF_TINT; }
 
 // Série suivante : { exercise, set, load } avec load = « 80 kg × 8 », « 12 reps » au poids du
 // corps, '' sans reps prévues. null quand toutes les séries sont faites. cur peut être la sous-série

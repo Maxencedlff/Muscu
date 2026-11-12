@@ -35,7 +35,8 @@ function widgetSnapshot(now = Date.now()) {
     week: {
       count: ws.count,
       goal: weeklyGoal(),
-      days: ws.days.map(d => (d[0] ? tint(d[0].category, entryProg(d[0])) : null)),
+      // Jour fait : vert (fait = vert dans toute l'app), plus la couleur de la séance
+      days: ws.days.map(d => (d[0] ? 'green' : null)),
       start: monday,
       end: addDays(monday, 7),
     },

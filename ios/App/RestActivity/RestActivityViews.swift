@@ -7,8 +7,17 @@ import WidgetKit
 // Le temps n'est jamais calculé ici : Text(timerInterval:) et ProgressView(timerInterval:) sont
 // animés par le système à partir de l'heure de fin (WidgetKit, « Displaying dynamic dates »).
 
-/// Couleur de la séance : couleur système (claire ou sombre selon l'écran) ou « #RRGGBB »
+/// Couleur de la séance : l'orange MDLF (« #FF7A1A », restActivityTint de js/features/rest-activity.js),
+/// une couleur système, ou un autre « #RRGGBB ». L'orange MDLF a deux variantes, comme dans l'app :
+/// vif sur fond sombre, foncé sur fond clair (#C2410C, contraste AA). Plus d'indigo, y compris par défaut.
 enum RestTint {
+    static let brandHex = "#FF7A1A"
+    static let brand = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .light
+            ? UIColor(red: 0xC2 / 255, green: 0x41 / 255, blue: 0x0C / 255, alpha: 1)
+            : UIColor(red: 0xFF / 255, green: 0x7A / 255, blue: 0x1A / 255, alpha: 1)
+    })
+
     static func color(_ value: String) -> Color {
         switch value {
         case "orange": return Color(uiColor: .systemOrange)
@@ -19,10 +28,11 @@ enum RestTint {
         case "blue":   return Color(uiColor: .systemBlue)
         case "purple": return Color(uiColor: .systemPurple)
         case "pink":   return Color(uiColor: .systemPink)
-        case "indigo": return Color(uiColor: .systemIndigo)
+        case "indigo": return brand
         default:
+            if value.uppercased() == brandHex { return brand }
             guard value.count == 7, value.hasPrefix("#"), let rgb = UInt32(value.dropFirst(), radix: 16) else {
-                return Color(uiColor: .systemIndigo)
+                return brand
             }
             return Color(red: Double((rgb >> 16) & 0xFF) / 255,
                          green: Double((rgb >> 8) & 0xFF) / 255,
