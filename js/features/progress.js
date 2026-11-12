@@ -196,11 +196,19 @@ function statsRecordsHtml() {
   return recs.length ? `<div class="group-title">Derniers records</div><div class="group stats-records">${recordRowsHtml(recs)}</div>` : '';
 }
 
+// Progrès sans séance : l'invitation et le geste qui la suit (Entraînement), plutôt qu'un écran éteint à zéro
+function statsStartHtml() {
+  return `<div class="group stats-start">
+          <div class="cell stats-start__msg">${icon('chart', 22)}<p class="stats-empty">Fais ta première séance pour voir tes muscles travaillés ici.</p></div>
+          <button class="cell cell--action" data-action="go-home"><span class="cell__title">Démarrer une séance</span></button>
+        </div>`;
+}
+
 // Séances des 4 dernières semaines, en petites barres sous « ce mois-ci » (la plus récente à droite)
 function statsWeekBars() {
   const counts = weekCounts((data.history || []).map(h => new Date(h.date).getTime()));
   const bars = counts ? weekBarsSvg(counts) : '';
-  return bars ? `<span class="stat-pair__trend">${bars}<span>4 semaines</span></span>` : '';
+  return bars ? `<span class="stat-pair__trend">${bars}</span>` : '';
 }
 
 function renderStats() {
@@ -219,7 +227,7 @@ function renderStats() {
     <div class="view stats view--grouped">
       ${navBar({ title: 'Progrès' })}
       <div class="scr">
-        ${data.history?.length ? statsRecordsHtml() : '<p class="stats-empty">Fais ta première séance pour voir tes muscles travaillés ici.</p>'}
+        ${data.history?.length ? statsRecordsHtml() : statsStartHtml()}
         <div class="group stats-head">
           <div class="stat-pair">
             <div class="stat-pair__item"><span class="stat-pair__val num">${monthCount}</span><span class="stat-pair__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span>${statsWeekBars()}</div>

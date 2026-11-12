@@ -1,0 +1,115 @@
+/* ═══════════════════════════════════════════════
+   Direction « sobre et vivante » : Progrès, Historique, Programme, Bibliothèque (branche sobre-progres)
+   Mêmes règles et mêmes jetons que css/theme-sobre.css (chargé juste avant) :
+   - l'orange MDLF garde ses quatre usages (bouton principal, onglet actif, ligne en cours, liens d'action) ;
+     les courbes et la silhouette sont des données : la même teinte, pas une deuxième couleur ;
+   - vert = fait et progression, or = record (icône seulement), rouge = suppression ;
+   - aucun dégradé, aucune lueur, aucune tuile : listes groupées et chiffres à chasse fixe.
+   Le retirer = retirer une ligne d'index.html.
+═══════════════════════════════════════════════ */
+
+/* ── Silhouette des muscles : une seule rampe, du gris du muscle au repos à l'orange MDLF ──
+   Valeurs calculées (mélange de --body-zone et de --tint-fill à 30, 55, 78 et 100 %), en hex et non en color-mix :
+   js/ui/body-map.js lit ces jetons pour teinter le canvas, il lui faut une couleur résolue. Plus de pêche ni de jaune. */
+:root {
+  --body-heat: #FF7A1A; --body-heat-max: #FF7A1A; --body-heat-sec: #AD6430;
+  --body-tier-1: #7F573C; --body-tier-2: #AD6430; --body-tier-3: #D76F25; --body-tier-4: #FF7A1A;
+  --sp-chart-line: #FF7A1A;
+}
+body.light {
+  /* En clair, plus de séries = plus foncé, jusqu'à l'orange foncé (5,2:1 sur blanc) */
+  --body-heat: #C2410C; --body-heat-max: #C2410C; --body-heat-sec: #C47D62;
+  --body-tier-1: #C69F92; --body-tier-2: #C47D62; --body-tier-3: #C35E36; --body-tier-4: #C2410C;
+  /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #FF5E12 × 0,7 = #B2420D,
+     l'orange foncé de l'app (6:1 sur la carte blanche) */
+  --sp-chart-line: #FF5E12;
+}
+/* Muscle principal et secondaires d'un exercice : pastilles neutres, une puce de la couleur du personnage les relie */
+.mpill { display: inline-flex; align-items: center; gap: 6px; }
+.mpill::before { content: ''; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.mpill--main { background: var(--fill2); color: var(--label); }
+.mpill--main::before { background: var(--body-heat); }
+.mpill--sec { background: var(--fill2); color: var(--label2); }
+.mpill--sec::before { background: var(--body-heat-sec); }
+/* Muscle touché : copie éclaircie, sans halo ni pulsation */
+.body-map__hl { filter: none; }
+.body-map__hl > i { animation: none; filter: brightness(calc(var(--body-base-bright) * 1.25)); }
+
+/* ── Courbes (exercice, mesures, poids) : la ligne prend l'orange MDLF quelle que soit la séance ──
+   resolveColor (progress-chart.js) pose la couleur de séance en style en ligne sur le canvas puis lit la couleur
+   calculée : un !important de feuille l'emporte, sans toucher au dessin. */
+.chart canvas { color: var(--sp-chart-line) !important; }
+
+/* ── Semaine en barres (Progrès et fiche élève) : semaines vides au plancher, en gris ; « 4 sem. » dessous ── */
+.wkbars { flex-direction: column; align-items: flex-start; gap: 3px; height: auto; }
+.wkbars__bars { display: inline-flex; align-items: flex-end; gap: 4px; height: 28px; }
+.wkbars__b { width: 9px; min-height: 6px; border-radius: 2px; background: var(--label2); }
+.wkbars__b--vide { background: var(--chart-bar); opacity: .6; }   /* 9 × 6 px : un bloc, pas un tiret */
+.wkbars__b--now:not(.wkbars__b--vide) { background: var(--label); }
+.wkbars--up .wkbars__b--now:not(.wkbars__b--vide) { background: var(--green); }
+.wkbars__lbl { font-size: var(--fs-caption); line-height: 1; color: var(--label2); white-space: nowrap; }
+.stat-pair__trend { margin-top: 8px; }
+.progress-week__row .wkbars { align-items: center; margin-right: 12px; }
+
+/* ── Progrès sans séance : l'invitation et son geste, dans un groupe (plus de texte seul sur le fond) ── */
+.stats-start { margin-top: 4px; }
+.stats-start__msg { gap: 12px; align-items: flex-start; padding-top: 14px; padding-bottom: 14px; color: var(--label2); }
+.stats-start__msg .icon { flex-shrink: 0; margin-top: 1px; }
+.stats-start .stats-empty { margin: 0; color: var(--label); font-size: var(--fs-callout, 1rem); }
+
+/* ── Trois chiffres sur une ligne, sans tuiles (détail de séance, vue d'ensemble) : comme le bilan ── */
+.history-detail .tiles, .stats-overview .tiles {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0;
+  padding: 14px 0; margin-top: 12px; border-top: .5px solid var(--sep); border-bottom: .5px solid var(--sep);
+}
+.history-detail .tile, .stats-overview .tile { background: none; border-radius: 0; padding: 0 12px; gap: 2px; min-height: 0; }
+.history-detail .tile:first-child, .stats-overview .tile:first-child { padding-left: 4px; }
+.history-detail .tile + .tile, .stats-overview .tile + .tile { border-left: .5px solid var(--sep); }
+html:not(.type-xl) .history-detail .tile__val, html:not(.type-xl) .stats-overview .tile__val { font-size: clamp(1.2rem, 6vw, 1.647rem); line-height: 1.15; }
+html.type-xl .history-detail .tiles, html.type-xl .stats-overview .tiles { grid-template-columns: 1fr; row-gap: 10px; }
+html.type-xl .history-detail .tile + .tile, html.type-xl .stats-overview .tile + .tile { border-left: 0; padding: 10px 0 0 4px; border-top: .5px solid var(--sep); }
+.tiles + .group-title { padding-top: 22px; }
+
+/* ── Historique : plus de point de séance (il ne dit plus rien) ; l'entraînement venu de Santé garde son anneau ── */
+.hcell__dot:not(.hcell__dot--health), .hcell__dot--lg { display: none; }
+.hcell__rec { font-variant-numeric: tabular-nums; }
+
+/* ── Vue d'ensemble : points du calendrier neutres ; barres des semaines grises, vertes à l'objectif atteint ── */
+.cal__dots i { background: var(--label2) !important; }
+.wk__bar { background: var(--chart-bar); }
+.wk__bar--ok { background: var(--green); }
+
+/* ── Niveau de force : un état, pas une action ; segments pleins en couleur de texte ── */
+.strength-scale__fill { background: var(--label); }
+
+/* ── Mes programmes : le programme actif se coche en couleur de texte (une sélection, pas une action) ── */
+.my-programmes .cell__check .icon { color: var(--label); }
+/* Historique vide : le texte, puis son geste */
+.history .empty-note + .group { margin-top: -24px; }
+
+/* ── Programme : carré de programme en aplat neutre (la couleur de séance ne colore plus rien) ── */
+.psq { background: var(--fill2) !important; color: var(--label) !important; }
+/* Pastille grise devant chaque séance : elle ne distingue plus rien, le nom suffit */
+.programmes .ps-list .cat-badge, .prog-info .cat-badge { display: none; }
+
+/* ── Bibliothèque : cartes des groupes (branche design-muscles), nom à gauche, personnage à droite ──
+   Sans image (rendus pas encore livrés, ou image en erreur) : le texte prend toute la largeur. */
+.mcard { background: var(--cell) !important; }
+.mcard__title { color: var(--label); }
+.mcard:has(.mcard__img[data-missing]) .mcard__text, .mcard:not(:has(.mcard__img)) .mcard__text { width: 100%; }
+
+/* ═══════════════════════════════════════════════
+   Mouvement (vivant) : la courbe se trace, le personnage se colore, la liste arrive
+═══════════════════════════════════════════════ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Courbe : elle se dessine de gauche à droite, une fois, à l'ouverture et au changement de mesure */
+  .stats-ex .chart canvas, .body-measure .chart canvas { animation: spTrace .7s cubic-bezier(.3, .7, .2, 1) both; }
+  @keyframes spTrace { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  /* Silhouette : les muscles travaillés prennent leur couleur (fondu de 400 ms) */
+  .body-map__m { animation: vvFade .4s ease-out both; }
+  /* Barres « Séances par semaine » : elles montent */
+  .wk__bar { transform-origin: bottom; animation: vvGrow .45s cubic-bezier(.2, .8, .2, 1) both; }
+  /* Barre de l'objectif (fiche d'exercice) : elle se remplit */
+  .tbar__fill { transform-origin: left; animation: spFill .6s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes spFill { from { transform: scaleX(0); } }
+}

@@ -10,13 +10,18 @@
 const VV_REDUCED = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
 // Petites barres « 4 dernières semaines » (Progrès, fiche élève) : counts du plus ancien au plus récent,
-// décoratives (aria-hidden) : le chiffre et son libellé restent le texte lu par VoiceOver
+// décoratives (aria-hidden) : le chiffre et son libellé restent le texte lu par VoiceOver.
+// Semaine sans séance : barre grise au plancher (une absence se lit, elle ne disparaît pas) ; « 4 sem. » dessous.
+const WKBARS_H = 28, WKBARS_MIN = 6;
 function weekBarsSvg(counts) {
-  if (!Array.isArray(counts) || counts.length < 2 || !counts.some(n => n > 0)) return '';
-  const max = Math.max(...counts), last = counts[counts.length - 1];
+  if (!Array.isArray(counts) || counts.length < 2) return '';
+  const max = Math.max(1, ...counts), last = counts[counts.length - 1];
   const prev = counts.slice(0, -1), avg = prev.reduce((a, b) => a + b, 0) / prev.length;
-  const bars = counts.map((n, i) => `<span class="wkbars__b${i === counts.length - 1 ? ' wkbars__b--now' : ''}" style="height:${Math.max(2, Math.round(n / max * 22))}px"></span>`).join('');
-  return `<span class="wkbars${last > avg ? ' wkbars--up' : ''}" aria-hidden="true">${bars}</span>`;
+  const bars = counts.map((n, i) => {
+    const cls = `wkbars__b${n > 0 ? '' : ' wkbars__b--vide'}${i === counts.length - 1 ? ' wkbars__b--now' : ''}`;
+    return `<span class="${cls}" style="height:${n > 0 ? Math.max(10, Math.round(n / max * WKBARS_H)) : WKBARS_MIN}px"></span>`;
+  }).join('');
+  return `<span class="wkbars${last > avg ? ' wkbars--up' : ''}" aria-hidden="true"><span class="wkbars__bars">${bars}</span><span class="wkbars__lbl">4 sem.</span></span>`;
 }
 // Séances par semaine glissante (7 jours), 4 semaines, à partir d'horodatages ; null si la période
 // n'est pas entièrement couverte par les données (complete : false)
