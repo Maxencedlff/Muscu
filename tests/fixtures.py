@@ -375,10 +375,17 @@ class Bench:
         page = ctx.new_page()
         page.errors = []
         page.on('pageerror', lambda e: page.errors.append(str(e)))
+        # Violations de la Content-Security-Policy (journalisées par index.html) : tout test qui en provoque
+        # une échoue, pour qu'une CSP trop stricte ne casse jamais un écran en silence (audit du 12/11, m1).
+        # Un test qui en provoque à dessein vide page.csp_violations.
+        page.csp_violations = []
+        page.on('console', lambda m: m.text.startswith('[CSP]') and page.csp_violations.append(m.text))
         if clock is not None:
             freeze_clock(page, clock)
         try:
             yield page
+            if page.csp_violations:
+                raise AssertionError(f'violation de la CSP : {page.csp_violations[:3]}')
         finally:
             ctx.close()
 

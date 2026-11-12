@@ -75,6 +75,8 @@ Volume à surveiller (Supabase › Usage › Egress) : environ 3 à 5 Mo par vue
 5 Go de sortie par mois **partagés avec la base et l'authentification** (≈ 1 000 à 1 500 vues) ; l'offre Pro
 (25 $/mois) en inclut 250 Go. Au-delà, ou pour ne pas toucher au quota de la base : Cloudflare R2 (sortie
 gratuite, 10 Go de stockage offerts, nouveau compte), même manifeste, seule `base` change.
+**Changer d'hôte impose d'ajouter le nouveau à `img-src` et `media-src` de la Content-Security-Policy d'index.html**
+(et à `tests/unit/csp.mjs`), sinon les vidéos et affiches sont bloquées.
 
 **CSP / ATS** : `index.html` n'a pas de Content-Security-Policy et `Info.plist` ne déclare pas
 `NSAppTransportSecurity` : une adresse https externe est lue par l'app iOS sans changement natif (mise à jour
