@@ -27,14 +27,17 @@
   --font-num: ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
 }
 body.light {
-  --tint: #C2410C;              /* 5,2:1 sur blanc, 4,7:1 sur #F2F2F7 */
-  --tint-fill: #C2410C;         /* texte blanc 5,2:1 */
+  --tint: #C64000;              /* 5,1:1 sur blanc, 4,55:1 sur #F2F2F7 ; sans bleu, il ne tire plus sur le brun (vote du 12/11) */
+  --tint-fill: #C64000;         /* texte blanc 5,1:1 */
   --on-tint: #FFFFFF;
   --tint-on-fill: #A93A0B;      /* 5,6:1 sur --fill clair */
   --indigo: #0066CC; --purple: #8A6A45;
   --sb-macro-p: #0E7C93; --sb-macro-c: #0066CC; --sb-macro-f: #8A6A45;
 }
 :root, body.light { --macro-p: var(--sb-macro-p); --macro-c: var(--sb-macro-c); --macro-f: var(--sb-macro-f); }
+/* Jetons tirés d'un autre jeton : redéclarés sous body.light, sinon ils gardent la valeur du sombre (une variable se
+   résout là où elle est déclarée ; l'anneau du repos restait #FF8A3D en clair, à côté du bouton #C2410C) */
+:root, body.light { --sb-ring: var(--tint); --sb-burst: var(--medal); --cat-color: var(--tint); }
 
 /* La couleur de séance ne colore plus rien : une seule teinte, l'orange de l'action (style en ligne compris) */
 [style*="--cat-color"], .livebar, .session, .rest-mini, .summary { --cat-color: var(--tint) !important; }
