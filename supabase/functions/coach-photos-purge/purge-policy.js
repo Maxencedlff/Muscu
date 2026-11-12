@@ -5,14 +5,8 @@ export const PURGE_BATCH = 200;   // chemins pris par tour (l'API Storage en eff
 export const PURGE_ROUNDS = 5;    // tours au plus par appel (la planification repasse chaque heure)
 const PATH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-// Comparaison en temps constant du secret de la planification (même règle que push-send)
-export function sameSecret(a, b) {
-  const x = new TextEncoder().encode(String(a ?? '')), y = new TextEncoder().encode(String(b ?? ''));
-  if (!x.length || x.length !== y.length) return false;
-  let diff = 0;
-  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
-  return diff === 0;
-}
+// Comparaison en temps constant du secret de la planification (_shared/same-secret.js, commune à push-send)
+export { sameSecret } from '../_shared/same-secret.js';
 
 // Chemins rendus par srv_coach_photo_purge_claim : seulement « élève/photo » (deux UUID), sans doublon. Un
 // chemin d'une autre forme n'est jamais passé à l'API Storage (il ne peut viser que ce compartiment, mais rien
