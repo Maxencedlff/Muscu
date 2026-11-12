@@ -82,6 +82,18 @@ function dietRingSvg(ratio, size = 112, stroke = 12) {
     </svg>`;
 }
 
+// Journée du jour encore vide : un appel à cocher le premier repas, pour que l'écran à 0 dise quoi faire
+// (« Coche ton petit-déjeuner une fois mangé »). Repas nommé autrement : son nom entre guillemets.
+const DIET_CALL_NAMES = { 'petit-déjeuner': 'ton petit-déjeuner', 'déjeuner': 'ton déjeuner', 'dîner': 'ton dîner', 'collation': 'ta collation', 'goûter': 'ton goûter' };
+function dietCallText(name) {
+  const known = DIET_CALL_NAMES[String(name).trim().toLowerCase()];
+  return known ? `Coche ${known} une fois mangé` : `Coche « ${name} » une fois mangé`;
+}
+function dietCallHtml(pr) {
+  if (pr.nDone || !pr.next || pr.day !== dietDayKey()) return '';
+  return `<p class="diet-sum__call"><span class="diet-sum__call-dot" aria-hidden="true"></span><span>${esc(dietCallText(pr.next.meal.name))}</span></p>`;
+}
+
 // Bilan du jour : anneau (calories) et trois barres (macros), mangé sur repère
 function dietSummaryHtml(pr) {
   const { eaten, goal, own } = pr;
@@ -103,7 +115,8 @@ function dietSummaryHtml(pr) {
   const n = pr.nMeals;   // repas à cocher (ceux qui ont des aliments)
   const status = pr.complete ? `<span class="diet-sum__done">${icon('checkmark', 14)}Journée complète</span>`
     : `<span>${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${n}</span>`;
-  const line = `<p class="diet-sum__line">${status}${streak >= 2 ? `<span class="diet-sum__streak">${icon('flame', 14)}${streak} jours complets d'affilée</span>` : ''}</p>`;
+  const line = `<p class="diet-sum__line">${status}${streak >= 2 ? `<span class="diet-sum__streak">${icon('flame', 14)}${streak} jours complets d'affilée</span>` : ''}</p>
+        ${dietCallHtml(pr)}`;
   // Chiffres masqués (Réglages de la nutrition) : les repas cochés seulement
   if (hide) return `<section class="diet-sum diet-sum--plain${pr.complete ? ' diet-sum--complete' : ''}" aria-label="Bilan de la journée">${line}</section>`;
   return `

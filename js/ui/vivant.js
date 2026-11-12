@@ -142,18 +142,34 @@ function vvSummary() {
   if (medal) setTimeout(() => vvRecord(line, medal), 180);
 }
 
-// Anneaux de nutrition : ils partent de vide la première fois qu'on les voit
+// Anneaux et barres de nutrition : ils se remplissent. La première fois qu'on les voit, depuis vide ; ensuite
+// (repas coché, aliment remplacé : l'écran est redessiné), depuis leur valeur d'avant, à la même place
 const vvRings = new WeakSet();
+const vvGauge = new Map();
+function vvFillFrom(el, attr, from, to) {
+  el.style.transition = 'none';
+  if (attr === 'width') el.style.width = from; else el.setAttribute(attr, from);
+  void el.getBoundingClientRect();
+  el.style.transition = '';
+  el.classList.add('vv-ring');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (attr === 'width') el.style.width = to; else el.setAttribute(attr, to);
+  }));
+}
 function vvFillRings() {
-  document.querySelectorAll('.diet-ring__arc').forEach(arc => {
-    if (vvRings.has(arc)) return;
-    vvRings.add(arc);
-    const to = arc.getAttribute('stroke-dashoffset'), full = arc.getAttribute('stroke-dasharray');
-    if (!to || !full || Number(to) >= Number(full)) return;
-    arc.setAttribute('stroke-dashoffset', full);
-    void arc.getBoundingClientRect();
-    arc.classList.add('vv-ring');
-    requestAnimationFrame(() => requestAnimationFrame(() => arc.setAttribute('stroke-dashoffset', to)));
+  const route = typeof currentRoute === 'function' ? currentRoute() : '';
+  document.querySelectorAll('.diet-ring__arc, .diet-bar__fill').forEach((el, i) => {
+    if (vvRings.has(el)) return;
+    vvRings.add(el);
+    const ring = el.classList.contains('diet-ring__arc'), key = `${route}|${ring ? 'r' : 'b'}${i}`;
+    const attr = ring ? 'stroke-dashoffset' : 'width';
+    const to = ring ? el.getAttribute(attr) : el.style.width, empty = ring ? el.getAttribute('stroke-dasharray') : '0%';
+    const before = vvGauge.get(key);
+    vvGauge.set(key, to);
+    if (!to || !empty) return;
+    const from = before ?? empty;
+    if (from === to) return;
+    vvFillFrom(el, attr, from, to);
   });
 }
 
