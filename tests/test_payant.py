@@ -622,10 +622,10 @@ def t_verrou_serveur(bench, eng, dev, theme):
         page.click('.pay-banner')
         page.wait_for_timeout(500)
         R.check(page.evaluate("currentView()") == 'paywall', f'{t} verrou : le bandeau mène à l\'abonnement')
-        # Code cadeau accepté : la séance refusée repart toute seule
+        # Accès rendu par un code cadeau (saisi hors de l'app iOS, règle 3.1.1 : même appel au serveur) :
+        # la séance refusée repart toute seule
         page.evaluate("__st.addCode('K7M2QX9PR4TD', { kind: 'days', days: 30 }); null")
-        page.click('[data-action="pay-code"]')
-        code_sheet(page, 'K7M2QX9PR4TD')
+        R.check(page.evaluate("accessRedeemGiftCode('K7M2QX9PR4TD').then(r => r.ok)") is True, f'{t} code cadeau accepté par le serveur')
         page.wait_for_timeout(1500)
         R.check(page.evaluate('canWrite()') is True, f'{t} code accepté : droit rendu')
         R.check(page.evaluate("(__sb.upserted || []).some(r => r.id === 'apres-essai')"),
