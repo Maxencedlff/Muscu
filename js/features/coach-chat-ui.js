@@ -246,7 +246,8 @@ function chatCellHtml(key) {
   if (!chatAvailable()) return '';
   const th = chatThreadOf(key), n = chatUnreadOf(key);
   const last = th?.last ? `${th.last.mine ? 'Toi : ' : ''}${th.last.body.replace(/\s+/g, ' ')}` : 'Aucun message pour l\'instant';
-  const label = ['Messages', n ? plural(n, 'non lu', 'non lus') : ''].filter(Boolean).join(', ');
+  // Le dernier message, visible sous « Messages », est lu aussi par VoiceOver (l'aria-label remplace le texte du bouton)
+  const label = ['Messages', n ? plural(n, 'non lu', 'non lus') : '', last].filter(Boolean).join(', ');
   return `
         <div class="group">
           <button class="cell cell--nav chat-cell" data-action="chat-open" data-key="${esc(key)}" aria-label="${esc(label)}">

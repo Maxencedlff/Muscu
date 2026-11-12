@@ -9,7 +9,8 @@
 .tabbar__badge {
   position: absolute; top: 3px; left: calc(50% + 6px);
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill);
-  background: var(--red); color: var(--white); font-size: 12px; line-height: 18px; font-weight: 600; text-align: center;
+  /* Rouge foncé d'Apple (contraste renforcé) : blanc sur #D70015 à 5,6:1 ; sur --red il n'était qu'à 3,5:1 (WCAG 1.4.3 : 4,5) */
+  background: #D70015; color: var(--white); font-size: 12px; line-height: 18px; font-weight: 600; text-align: center;
 }
 /* Cinq onglets sur 320 pt : libellés entiers, un peu plus serrés */
 @media (max-width: 360px) { .tabbar__label { letter-spacing: -.2px; } }
