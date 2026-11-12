@@ -36,7 +36,7 @@ body.light {
 }
 :root, body.light { --macro-p: var(--sb-macro-p); --macro-c: var(--sb-macro-c); --macro-f: var(--sb-macro-f); }
 /* Jetons tirés d'un autre jeton : redéclarés sous body.light, sinon ils gardent la valeur du sombre (une variable se
-   résout là où elle est déclarée ; l'anneau du repos restait #FF8A3D en clair, à côté du bouton #C2410C) */
+   résout là où elle est déclarée ; l'anneau du repos restait #FF8A3D en clair, à côté du bouton orange foncé) */
 :root, body.light { --sb-ring: var(--tint); --sb-burst: var(--medal); --cat-color: var(--tint); }
 
 /* La couleur de séance ne colore plus rien : une seule teinte, l'orange de l'action (style en ligne compris) */

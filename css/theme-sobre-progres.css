@@ -18,8 +18,8 @@
 }
 body.light {
   /* En clair, plus de séries = plus foncé, jusqu'à l'orange foncé (5,2:1 sur blanc) */
-  --body-heat: #C2410C; --body-heat-max: #C2410C; --body-heat-sec: #C47D62;
-  --body-tier-1: #C69F92; --body-tier-2: #C47D62; --body-tier-3: #C35E36; --body-tier-4: #C2410C;
+  --body-heat: #C64000; --body-heat-max: #C64000; --body-heat-sec: #C47D62;
+  --body-tier-1: #C69F92; --body-tier-2: #C47D62; --body-tier-3: #C35E36; --body-tier-4: #C64000;
   /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #FF5E12 × 0,7 = #B2420D,
      l'orange foncé de l'app (6:1 sur la carte blanche) */
   --sp-chart-line: #FF5E12;

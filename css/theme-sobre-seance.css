@@ -11,7 +11,7 @@
    efforts chronométrés (tempo, gainage) gardent une transition courte, calée sur leur tic de 100-200 ms. */
 .rest-ring__bar { transition: stroke-dashoffset .2s linear; }
 /* Même orange en clair : --sb-ring (theme-sobre.css) est résolu sur :root, il restait l'orange vif du sombre
-   sur fond blanc ; l'anneau prend --tint là où il est dessiné, donc #C2410C en clair */
+   sur fond blanc ; l'anneau prend --tint là où il est dessiné, donc #C64000 en clair */
 .rest-ring__bar { stroke: var(--tint); }
 
 /* ── Carte d'exercice : l'orange reste aux actions qui font avancer la séance ──
