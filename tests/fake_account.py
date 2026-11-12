@@ -644,6 +644,23 @@ FAKE_ACCOUNT = r"""
   // key_id, taken_on, pose, epk, iv, state, bytes, created_at, sent_at } ; fichiers du compartiment { [chemin]: { b64,
   // owner, at } } (sb.objs) ; file de purge (sb.trash) ; URL signées demandées (sb.signed : [chemin, durée]).
   co.pkeys = {}; co.photos = []; co.adults = {}; sb.objs = {}; sb.trash = []; sb.signed = [];
+  // URL signées : même hôte que le vrai stockage ; le fetch de la page les sert depuis la mémoire, rien ne sort
+  const SIGNED_PREFIX = 'https://yopptmdjtnezmccdvaxf.supabase.co/storage/v1/object/sign/coach-photos/';
+  const signedBlobs = new Map();
+  // Blobs des URL blob: créées par la page (photos déchiffrées) : les tests les relisent sans fetch, que la CSP
+  // refuse sur blob: (connect-src)
+  const blobOf = new Map(), makeUrl = URL.createObjectURL.bind(URL);
+  URL.createObjectURL = b => { const u = makeUrl(b); blobOf.set(u, b); return u; };
+  window.__blobOf = u => blobOf.get(u);
+  const pageFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    const u = typeof input === 'string' ? input : input?.url;
+    if (u && u.startsWith(SIGNED_PREFIX)) {
+      const b = signedBlobs.get(u);
+      return Promise.resolve(b ? new Response(b, { status: 200 }) : new Response('not found', { status: 400 }));
+    }
+    return pageFetch(input, init);
+  };
   const PH_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   const PH_PUB = /^B[A-P][A-Za-z0-9+/]{84}[AEIMQUYcgkosw048]=$/;
   const phPath = p => `${p.student}/${p.id}`;
@@ -729,7 +746,10 @@ FAKE_ACCOUNT = r"""
       sb.signed.push([path, expiresIn]);
       const bin = atob(o.b64), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      return { data: { signedUrl: URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' })) }, error: null };
+      // Adresse du vrai stockage (permise par la CSP d'index.html), servie par le fetch de la page sans réseau
+      const url = SIGNED_PREFIX + encodeURIComponent(path) + '?token=faux-' + sb.signed.length;
+      signedBlobs.set(url, new Blob([bytes], { type: 'application/octet-stream' }));
+      return { data: { signedUrl: url }, error: null };
     },
     remove: async paths => {
       log('storage', 'remove', JSON.stringify(paths));

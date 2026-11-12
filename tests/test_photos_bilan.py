@@ -339,7 +339,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         cp.wait_for_function("() => document.querySelectorAll('.coach-photos-view .pgal__item img[src^=\"blob:\"]').length === 3", timeout=20000)
         cp.wait_for_timeout(400)
         dec = cp.evaluate("""async () => { const out = []; for (const u of cphUrls.values()) {
-            const b = new Uint8Array(await (await fetch(u)).arrayBuffer()); const s = String.fromCharCode(...b.subarray(0, 4096));
+            const b = new Uint8Array(await __blobOf(u).arrayBuffer()); const s = String.fromCharCode(...b.subarray(0, 4096));
             out.push({ free: jpegMetaFree(b), soi: b[0] === 0xFF && b[1] === 0xD8, exif: s.includes('Exif'), make: s.includes('FauxAppareil') }); } return out; }""")
         R.check(len(dec) == 3 and all(d['free'] and d['soi'] and not d['exif'] and not d['make'] for d in dec), f'{t} coach : photos déchiffrées, sans métadonnées {dec}')
         signed = cp.evaluate('__sb.signed')

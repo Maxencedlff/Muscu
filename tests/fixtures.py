@@ -339,6 +339,14 @@ def old_active_session(now_ms=None, with_rest=False):
 #  Outils Playwright
 # ─────────────────────────────────────────────────────────────
 
+_JS_FUNCTION = re.compile(r'^\s*(async\s+)?(function\b|\([^()]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)')
+
+
+def as_function(expr):
+    """Expression JS en chaîne → fonction fléchée ; une fonction est rendue telle quelle."""
+    return expr if not isinstance(expr, str) or _JS_FUNCTION.match(expr) else f'() => ({expr})'
+
+
 class Bench:
     """Lance un navigateur par moteur et fabrique des contextes (appareil, thème)."""
 
@@ -379,6 +387,10 @@ class Bench:
         # une échoue, pour qu'une CSP trop stricte ne casse jamais un écran en silence (audit du 12/11, m1).
         # Un test qui en provoque à dessein vide page.csp_violations.
         page.csp_violations = []
+        # Une expression en chaîne (« document.x > 2 ») est évaluée par Playwright avec eval, que la CSP refuse
+        # (pas de 'unsafe-eval') : elle devient une fonction, comme celles déjà écrites « () => … »
+        wait_fn = page.wait_for_function
+        page.wait_for_function = lambda expr, *a, **k: wait_fn(as_function(expr), *a, **k)
         page.on('console', lambda m: m.text.startswith('[CSP]') and page.csp_violations.append(m.text))
         if clock is not None:
             freeze_clock(page, clock)
