@@ -668,9 +668,11 @@ const Native = (() => {
         if (!isNative) return [];
         try { return (await Updater.list()).bundles || []; } catch { return []; }
       },
-      async download({ url, version, checksum }) {
+      // sessionKey : seulement pour un paquet signé (docs/BUILD.md, « Signature des mises à jour à chaud »)
+      async download({ url, version, checksum, sessionKey }) {
         if (!isNative) return null;
-        try { return await Updater.download({ url, version, checksum }); } catch { return null; }
+        const opts = sessionKey ? { url, version, checksum, sessionKey } : { url, version, checksum };
+        try { return await Updater.download(opts); } catch { return null; }
       },
       // Mise en file : installée quand les conditions de setMultiDelay sont remplies (voir
       // otaDelayConditions dans js/app/live-update.js), jamais pendant qu'on s'en sert

@@ -7,3 +7,7 @@ ios/App/build/
 ios/DerivedData/
 ota-site/
 supabase/.temp/
+
+# Clé privée Capgo (signature des mises à jour à chaud, docs/BUILD.md) : jamais dans le dépôt
+.capgo_key_v2
+.capgo_key_v2.pub

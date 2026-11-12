@@ -16,23 +16,75 @@ concurrency:
   group: ota
   cancel-in-progress: false
 
+# Aucun droit par défaut : chaque job reçoit seulement ce dont il a besoin
+permissions: {}
+
 defaults:
   run:
     shell: bash
 
 jobs:
-  publish:
+  # Rien n'est publié si le workflow Tests (unitaires, E2E Playwright, SQL, lint) n'est pas vert sur le
+  # commit exact qui sera publié (audit du 12/11/2026, M6 ; même garde que le job gate d'ios.yml).
+  # Lancé juste après un envoi sur main, il attend la fin des tests (jusqu'à 25 min) au lieu d'échouer.
+  # Le SHA vérifié est transmis au job publish, qui construit depuis ce commit et pas depuis « main »
+  # (qui a pu avancer entre-temps).
+  gate:
+    name: Tests verts sur le commit publié
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+    permissions:
+      actions: read   # lire l'état du workflow Tests sur ce commit
+    outputs:
+      sha: ${{ steps.tests.outputs.sha }}
+    steps:
+      - name: Tests verts pour ${{ github.sha }}
+        id: tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref }}
+        run: |
+          [ "$REF" = "refs/heads/main" ] || { echo "Mise à jour à chaud : seulement depuis main (lancé sur $REF)."; exit 1; }
+          for i in $(seq 1 50); do
+            R=$(gh api "repos/$REPO/actions/workflows/tests.yml/runs?head_sha=$SHA&per_page=1" -q '.workflow_runs[0] | "\(.status) \(.conclusion)"')
+            case "$R" in
+              "completed success") echo "Tests verts."; echo "sha=$SHA" >> "$GITHUB_OUTPUT"; exit 0 ;;
+              completed*) echo "Tests de $SHA en échec ($R) : rien n'est publié."; exit 1 ;;
+            esac
+            echo "Tests ${R:-pas encore lancés}, nouvel essai dans 30 s"; sleep 30
+          done
+          echo "Tests toujours pas terminés après 25 min : rien n'est publié."; exit 1
+
+  publish:
+    name: Publication
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Environnement GitHub « ota » : relecture obligatoire avant que les secrets de publication soient
+    # remis au job (création par Maxence : docs/BUILD.md, « Environnement ota »)
+    environment: ota
+    permissions:
+      contents: read   # extraire le commit testé
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: main
+          ref: ${{ needs.gate.outputs.sha }}
+          persist-credentials: false
 
+      # Pas de cache npm : un cache empoisonné par un autre workflow ne doit jamais entrer dans un paquet
+      # exécuté sur tous les iPhone
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
-          cache: npm
+
+      - name: Commit publié = commit testé
+        env:
+          SHA: ${{ needs.gate.outputs.sha }}
+        run: |
+          [ "$(git rev-parse HEAD)" = "$SHA" ] || { echo "Commit extrait différent de $SHA"; exit 1; }
+          echo "Publication de $SHA"
 
       - name: Tests (rien n'est publié s'ils échouent)
         run: |
@@ -57,7 +109,12 @@ jobs:
             echo "::warning::Pages juridiques incomplètes : acceptable sur TestFlight, bloquant dès MDLF_SORTIE=true."
           fi
 
-      - name: Contenu web et paquet signé (SHA-256)
+      # Empreinte d'intégrité seulement, pas une signature : la signature Capgo s'active avec le secret
+      # OTA_CAPGO_PRIVATE_KEY et la publicKey d'une nouvelle build (docs/BUILD.md). Tant que le secret
+      # n'existe pas, la variable est vide et le paquet part comme avant.
+      - name: Contenu web et empreinte SHA-256
+        env:
+          OTA_CAPGO_PRIVATE_KEY: ${{ secrets.OTA_CAPGO_PRIVATE_KEY }}
         run: |
           npm ci
           npm run web:build
@@ -78,9 +135,10 @@ jobs:
           # Texte libre saisi au lancement : passé par l'environnement, jamais injecté dans le script
           MOTIF: ${{ inputs.motif }}
         run: |
-          EXPECTED=$(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['checksum'])")
+          # fileSha256 : SHA-256 du fichier servi (chiffré si le paquet est signé)
+          EXPECTED=$(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['fileSha256'])")
           for i in 1 2 3 4 5 6; do
-            ONLINE=$(curl -fsS https://mdlf-ota.vercel.app/manifest.json | python3 -c "import json,sys; print(json.load(sys.stdin)['checksum'])" || true)
+            ONLINE=$(curl -fsS https://mdlf-ota.vercel.app/manifest.json | python3 -c "import json,sys; print(json.load(sys.stdin)['fileSha256'])" || true)
             [ "$ONLINE" = "$EXPECTED" ] && break
             sleep 5
           done
