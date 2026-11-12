@@ -56,6 +56,9 @@ def cut_texts(page, root):
 
 
 def layout(page, t, name, root):
+    # Mesures après les transitions d'ouverture : en plein glissement, un bouton mesuré en cours d'échelle
+    # passait sous 44 pt (instable sur le Duo paysage)
+    page.wait_for_function("() => document.getAnimations().every(a => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity)", timeout=5000)
     R.check(no_hscroll(page), f'{t} {name} : pas de défilement horizontal')
     st = small_targets(page, f'{root} button')
     R.check(not st, f'{t} {name} : cibles de 44 pt {st}')
