@@ -110,7 +110,7 @@ html:not(.type-xl) .stat-pair__val { font-size: 1.882rem; line-height: 2.2rem; }
 /* ── Coach › Élèves : une ligne de texte plutôt que trois tuiles ── */
 .team-week { display: block; margin: 0 0 20px; padding: 12px 16px; border-radius: 12px; background: var(--cell); font-size: var(--fs-callout); line-height: 1.35; color: var(--label2); }
 .team-week__tile { display: inline; padding: 0; background: none; border-radius: 0; box-shadow: none; white-space: normal; }
-.team-week__tile + .team-week__tile::before { content: ' · '; color: var(--label3); }
+.team-week__tile:not(:last-child)::after { content: ' ·' !important; color: var(--label3); font-size: inherit !important; }   /* le point reste en fin de ligne, jamais en tête */
 html:not(.type-xl) .team-week__val { font-size: inherit; line-height: inherit; }
 .team-week__val { display: inline; font-weight: 700; color: var(--label); }
 .team-week__lbl { display: inline; font-size: inherit; color: var(--label2); }
@@ -172,9 +172,8 @@ html:not(.type-xl) .team-week__val { font-size: inherit; line-height: inherit; }
 /* ── Retouches après le tour 1 de captures ── */
 /* Puces de filtre choisies : sélection neutre (inversée), l'orange reste aux actions */
 .ax__chip[aria-pressed="true"], .pl__chips .ax__chip[aria-pressed="true"] { background: var(--label); color: var(--bg); }
-/* Ligne du coach : un seul séparateur (celui du thème) */
-.team-week__tile:not(:last-child)::after { content: none !important; }
-html.type-xl .team-week__tile + .team-week__tile::before { content: none; }
+/* Très grand texte : un chiffre par ligne, sans séparateur */
+html.type-xl .team-week__tile::after { content: none !important; }
 html.type-xl .team-week__tile { display: block; }
 /* Un seul style de pastille : rouge à chiffre pour le non-lu */
 .chat-count { background: var(--sb-badge); color: var(--white); }   /* blanc 5,5:1 (le rouge vif ne tient que 3,4:1) */
