@@ -23,6 +23,7 @@
   --sb-ring: var(--tint);
   --sb-burst: var(--medal);
   --sb-badge: #D70015;          /* pastille de non-lu : texte blanc 5,5:1 */
+  --sb-avatar: #848489;
   --font-num: ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
 }
 body.light {
@@ -140,7 +141,9 @@ html:not(.type-xl) .team-week__val { font-size: inherit; line-height: inherit; }
 
   /* Record : la médaille arrive, un éclat d'or s'ouvre et s'efface (400 ms) */
   .vv-rec { position: relative; }
-  .vv-rec .medal, .pr-badge.vv-rec { animation: vvMedal .4s cubic-bezier(.2, .8, .2, 1.3) both; }
+  .vv-rec .medal { animation: vvMedal .4s cubic-bezier(.2, .8, .2, 1.3) both; }
+  .pr-badge.vv-rec { animation: vvPop .32s cubic-bezier(.2, .8, .2, 1.3) both; }
+  @keyframes vvPop { 0% { transform: scale(.7); opacity: 0; } 100% { transform: none; opacity: 1; } }
   .vv-burst {
     position: absolute; pointer-events: none; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
     border: 2px dotted var(--sb-burst); opacity: 0; animation: vvBurst .4s ease-out both;
@@ -180,3 +183,7 @@ html.type-xl .team-week__tile { display: block; }
 /* Nutrition : le prochain repas se signale par son surtitre seul, en casse de phrase ; plus de cadre orange */
 .diet-meal--next { box-shadow: none; }
 .diet-meal__eyebrow { text-transform: none; letter-spacing: 0; font-size: var(--fs-footnote); font-weight: 600; }
+/* Ligne du coach : chaque « chiffre libellé » reste d'un bloc, la ligne ne se coupe qu'entre eux */
+html:not(.type-xl) .team-week__tile { white-space: nowrap; }
+/* Monogramme (élève sans photo) : aplat gris, plus de dégradé ; blanc 3,6:1 sur un texte de 17 pt gras (grand texte) */
+.avatar--initial, .avatar-pick--initial[aria-pressed="true"] { background: var(--sb-avatar); }

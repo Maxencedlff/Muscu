@@ -112,7 +112,7 @@ function vvSetDone() {
   vvPending = null;
   row.querySelector('.set-check--done')?.classList.add('vv-fill');
   const badge = row.querySelector('.pr-badge');
-  if (badge) { badge.classList.add('vv-rec'); vvRecord(row, badge); }
+  if (badge) { badge.classList.add('vv-rec'); vvRecord(row, badge.querySelector('.medal') || badge); }
 }
 
 // Barre de progression de la séance : elle avance depuis sa valeur d'avant (l'écran est redessiné)
