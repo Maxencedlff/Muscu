@@ -233,7 +233,68 @@ def t_persist(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-TESTS = [t_outils, t_persist]
+def fold_rir_visible(page):
+    """Sélecteur des reps en réserve sous une carte repliée : présent et entier entre la barre du haut et celle du repos."""
+    return page.evaluate("""(() => { const p = document.querySelector('.ex-fold-rir .rir'); if (!p) return false;
+        const r = p.getBoundingClientRect(), nav = document.querySelector('#app .navbar').getBoundingClientRect().bottom;
+        const mini = document.querySelector('.rest-mini'), bottom = mini ? mini.getBoundingClientRect().top : innerHeight;
+        return r.top >= nav - 1 && r.bottom <= bottom + 1; })()""")
+
+
+def t_rir_derniere(bench, eng, dev, theme):
+    """Retour du 12/11 : « pour le RIR, c'est pas pratique sur la dernière série ». La carte se repliait et le
+    sélecteur partait avec elle ; il reste maintenant sous le résumé replié (exercice, superset, fin de séance)."""
+    t = f'{dev}-{theme} rir-derniere'
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        page.evaluate("data.rirOn = true; save()")
+        start(page, 'legs')
+        page.evaluate("""activeSession.exercises.splice(4); activeSession.exercises[1].ss = 'g'; activeSession.exercises[2].ss = 'g';
+            activeSession.exercises.forEach(e => { e.sets = e.sets.filter(s => !s.warmup).slice(0, 2); }); persistSession(); render()""")
+
+        def val(ei, si, rest=True):
+            b = page.locator(f'[data-action="validate-set"][data-ei="{ei}"][data-si="{si}"]')
+            b.scroll_into_view_if_needed(); b.click(); page.wait_for_timeout(700)
+            if rest:
+                skip_rest(page)
+
+        # ── Dernière série d'un exercice : carte repliée, sélecteur dessous, visible pendant le repos
+        val(0, 0); val(0, 1, rest=False)
+        R.check(page.locator('.ex-card--collapsed[data-ei="0"] .ex-fold-rir .rir__btn').count() == 5, f'{t} exercice fini : sélecteur sous le résumé replié')
+        R.check(page.locator('.rest-mini').count() == 1 and fold_rir_visible(page), f'{t} sélecteur visible au-dessus de la barre de repos')
+        R.check(page.locator('.ex-fold-rir .rir__lbl').inner_text() == 'Reps en réserve · S2', f'{t} libellé : la série notée')
+        shot(page, LOT, f'{t}-1-exercice')
+        page.click('.ex-fold-rir .rir__btn[data-rir="2"]'); page.wait_for_timeout(250)
+        R.check(page.evaluate("activeSession.exercises[0].sets[1].rir") == 2 and page.locator('.ex-fold-rir .rir__rpe').inner_text() == 'RPE 8', f'{t} un toucher : RIR 2 noté (RPE 8)')
+        R.check(page.locator('.rest-mini').count() == 1 and page.locator('.ex-card[data-ei="0"]').evaluate("c => c.classList.contains('ex-card--collapsed')"), f'{t} le repos continue, la carte reste repliée')
+        skip_rest(page)
+        # Série suivante validée ailleurs : le sélecteur s'en va
+        val(1, 0, rest=False)
+        R.check(page.locator('.ex-fold-rir').count() == 0, f'{t} série suivante validée : plus de sélecteur sous la carte repliée')
+
+        # ── Dernière série d'un superset : la lettre de l'exercice
+        val(2, 0); val(1, 1, rest=False); val(2, 1, rest=False)
+        R.check(page.locator('.ss-card.ex-card--collapsed .ex-fold-rir .rir__btn[data-ei="2"][data-si="1"]').count() == 5, f'{t} superset fini : sélecteur de A2 S2 sous le résumé')
+        R.check(page.locator('.ex-fold-rir .rir__lbl').inner_text() == 'Reps en réserve · A2 S2' and fold_rir_visible(page), f'{t} superset : libellé et visible')
+        shot(page, LOT, f'{t}-2-superset')
+        skip_rest(page)
+
+        # ── Dernière série de la séance : pas de repos, le sélecteur reste avant « Terminer »
+        val(3, 0); val(3, 1, rest=False)
+        R.check(page.locator('.rest-mini').count() == 0 and fold_rir_visible(page), f'{t} fin de séance : sélecteur visible')
+        page.click('.ex-fold-rir .rir__btn[data-rir="0"]'); page.wait_for_timeout(250)
+        foc = page.evaluate("(() => { const a = document.activeElement; return !!a && a.dataset.action === 'set-rir' && a.dataset.rir === '0'; })()")
+        R.check(foc, f'{t} RIR touché : le focus reste sur la pastille')
+        shot(page, LOT, f'{t}-3-seance')
+        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        tap_dialog(page, 'Enregistrer la séance')
+        page.wait_for_selector('.view.summary'); page.wait_for_timeout(300)
+        rirs = page.evaluate("data.history[0].exercises.filter(e => ['Squat barre', 'Leg curl machine'].includes(e.name)).map(e => e.sets.at(-1).rir ?? null)")
+        R.check(rirs == [2, 0], f'{t} historique : RIR des dernières séries enregistrés {rirs}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+TESTS = [t_outils, t_persist, t_rir_derniere]
 
 if __name__ == '__main__':
     run_main(R, TESTS, once=[t_reglage])
