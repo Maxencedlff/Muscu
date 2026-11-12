@@ -195,11 +195,13 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         let minFocus = Float(device.minimumFocusDistance)   // millimètres ; -1 si inconnu
         guard minFocus > 0 else { return 1 }
         let fov = device.activeFormat.videoFieldOfView      // degrés, sur la largeur
-        let codeSize: Float = 20, fill: Float = 0.5
+        // Code EAN-13 standard : 37 mm de large ; il occupe environ un tiers de la largeur de l'image. (Avec 20 mm
+        // et la moitié de l'image, le zoom montait à x3,5 : trop serré pour viser, signalé le 12/11/2026.)
+        let codeSize: Float = 37, fill: Float = 0.35
         let distance = (codeSize / fill) / tan((fov / 2) * .pi / 180)
         guard distance > 0, distance < minFocus else { return 1 }
         let zoom = CGFloat(minFocus / distance)
-        return max(1, min(zoom, device.activeFormat.videoMaxZoomFactor, 4))
+        return max(1, min(zoom, device.activeFormat.videoMaxZoomFactor, 2))
     }
 
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput objects: [AVMetadataObject], from connection: AVCaptureConnection) {
