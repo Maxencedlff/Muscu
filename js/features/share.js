@@ -30,7 +30,7 @@ function storyPalette(catColor) {
     label:    color('var(--label)'),
     label2:   color('var(--label2)'),
     sep:      color('var(--sep)'),
-    gold:     color('var(--yellow)'),
+    gold:     color('var(--medal)') || color('var(--yellow)'),   // or de la médaille : assombri en clair (3:1)
     goldText: color('var(--gold-text)'),
     // Plus de couleur de séance dans l'image (direction sobre) : l'orange de l'app ne sert qu'à
     // l'icône de secours de la signature ; catColor reste accepté pour les appelants

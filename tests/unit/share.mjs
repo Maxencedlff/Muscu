@@ -175,6 +175,29 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     assert.ok(at(names.long).text.endsWith('…'), 'puis tronqué');
   });
 
+  test('partage carré : tout tient au-dessus de la signature, « + N autres » si besoin, rien en capitales', () => {
+    const c = [235, 235, 245, 1];
+    const palette = { light: false, bg: c, label: c, label2: c, sep: c, cell: c, cat: c, gold: c, goldText: c, font: 'f', fontRounded: 'r' };
+    const row = i => ({ index: i, name: `Exercice ${i}`, value: '30 kg × 10', record: i === 0 ? 'Record charge' : null });
+    for (const [n, others, records] of [[3, 0, 0], [5, 0, 1], [14, 2, 2]]) {
+      const st = { title: 'Push', day: 'mercredi 4 novembre', time: '18:30', duration: '52 min', volume: '5,0 t', sets: 14,
+                   records, highlights: Array.from({ length: n }, (_, i) => row(i)), others };
+      const out = app.squareLayout(fakeCanvas2d(), palette, st);
+      assert.ok(out.at.list + out.listH <= out.sigTop - 40 + 0.5, `liste au-dessus de la signature (${n})`);
+      assert.ok(out.at.header >= 64, `rien au-dessus de la marge (${n})`);
+      assert.equal(out.more, out.rows < n + others, `« + N autres » seulement s'il en manque (${n})`);
+      const g = fakeCanvas2d();
+      const canvas = { getContext: () => g };
+      // Médaille (Path2D) absente de Node : dessin vérifié sans record
+      app.drawSquare(canvas, { ...st, records: 0, highlights: st.highlights.map(r => ({ ...r, record: null })) }, palette, {});
+      assert.equal(canvas.width, 1080); assert.equal(canvas.height, 1080);
+      const texts = g.drawn.map(d => d.text);
+      assert.ok(texts.includes('Mercredi 4 novembre · 18:30'), 'date en casse de phrase');
+      assert.ok(texts.includes('Exercices') && !texts.includes('EXERCICES'));
+      assert.ok(texts.includes('Durée') && texts.includes('52 min'));
+    }
+  });
+
   // Séance Push avec un superset (2) et un tri-set (3), un exercice sans série au milieu du tri-set
   function supersetHistory() {
     const { latest, older, pull } = pushHistory();

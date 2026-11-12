@@ -218,7 +218,7 @@ function drawTilesRow(ctx, p, st, y, h = STORY.TILES, left = STORY.SIDE, width =
   const k = h / STORY.TILES, w = width / 3, pad = Math.round(36 * k);
   drawRule(ctx, p, left, y, width, 2);
   drawRule(ctx, p, left, y + h - 2, width, 2);
-  const size = Math.round(84 * Math.min(1, k * 1.1)), gap = Math.round(48 * Math.min(1, k * 1.05));
+  const size = Math.round(84 * Math.min(1, k * 1.1)), gap = Math.round(58 * Math.min(1, k * 1.05));
   const top = y + Math.round((h - size * .8 - gap) / 2) - 4;
   storyTiles(st).forEach(([label, value], i) => {
     const x = left + i * w;
