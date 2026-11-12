@@ -27,16 +27,17 @@
 // cleanMyProgrammes (store.js) après la fusion. sessionVisibleDefault (Réglages › Social et coach) :
 // préremplit « Visible sur mon profil » à la fin d'une séance, même choix sur tous les appareils.
 // dietPlans, dietActive, dietFoods (js/data/nutrition.js) : plans diète (les miens et ceux reçus d'un coach),
-// plan suivi et aliments perso : seulement avec l'accord (SYNC_DIET_CONSENT_KEYS) ; dietConsent : cet accord daté.
+// plan suivi et aliments perso (dietFoodsGone : identifiants de ceux retirés de Mes aliments, pour qu'un autre appareil
+// ne les fasse pas revenir) : seulement avec l'accord (SYNC_DIET_CONSENT_KEYS) ; dietConsent : cet accord daté.
 // appVersion / appSeenAt (noteAppVersion) : version du contenu de l'app et date où elle a été vue,
 // pour savoir côté serveur qui a quelle version ; le dernier appareil lancé l'emporte, rien d'autre ne part.
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette', 'myProgrammes',
-  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods', 'dietConsent'];
+  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods', 'dietFoodsGone', 'dietConsent'];
 // Clés de nutrition copiées seulement avec l'accord de la personne (dietConsent.on, js/data/nutrition.js) :
 // sans accord, ou accord retiré, elles ne partent pas et le profil envoyé les efface du serveur. L'accord
 // lui-même ({ on, at }) part toujours : un refus fait sur un appareil vaut pour les autres.
-const SYNC_DIET_CONSENT_KEYS = ['dietPlans', 'dietActive', 'dietFoods'];
+const SYNC_DIET_CONSENT_KEYS = ['dietPlans', 'dietActive', 'dietFoods', 'dietFoodsGone'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
 // lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud).
 // rirOn (sélecteur RIR) et plates (barre et disques de la salle) : préférences d'affichage et de matériel,
@@ -311,7 +312,8 @@ function renoteMerged(merged, history) {
 // - accord donné : union des plans (aucun plan de l'iPhone n'est perdu, même sur un appareil sans séance ou
 //   quand l'accord arrive d'un autre appareil) ; en cas de même plan des deux côtés, le compte gagne si rien
 //   n'a changé ici (un plan supprimé, donc archivé, ailleurs le reste ici), sinon cet appareil gagne ;
-// - plan suivi : celui de l'iPhone s'il existe encore, sinon celui du compte.
+// - plan suivi : celui de l'iPhone s'il existe encore, sinon celui du compte ;
+// - aliments perso : union, sans ceux retirés de Mes aliments sur l'un ou l'autre appareil (dietFoodsGone).
 // local : valeurs d'avant la fusion ; remoteDoc : document brut du compte ; remoteFirst : le compte gagne par plan
 function dietConsentTime(c) {
   const t = c && typeof c === 'object' && typeof c.on === 'boolean' && typeof c.at === 'string' ? Date.parse(c.at) : NaN;
@@ -329,9 +331,12 @@ function mergeDietProfile(d, local, remoteDoc, remoteFirst) {
   const rp = take && isObj(remoteDoc.dietPlans) ? cleanDietPlans(remoteDoc.dietPlans) : null;
   const plans = lp && rp ? (remoteFirst ? { ...lp, ...rp } : { ...rp, ...lp }) : lp || rp || undefined;
   set('dietPlans', plans && Object.keys(plans).length ? plans : undefined);
+  // Aliments perso : union, sauf ceux retirés sur l'un ou l'autre appareil (dietFoodsGone, union lui aussi)
+  const gone = cleanDietFoodsGone([...(take && Array.isArray(remoteDoc.dietFoodsGone) ? remoteDoc.dietFoodsGone : []), ...(Array.isArray(local.dietFoodsGone) ? local.dietFoodsGone : [])]);
+  set('dietFoodsGone', gone.length ? gone : undefined);
   const lf = Array.isArray(local.dietFoods) ? local.dietFoods : [];
   const rf = take && Array.isArray(remoteDoc.dietFoods) ? remoteDoc.dietFoods : [];
-  const foods = cleanDietFoods(remoteFirst ? [...rf, ...lf] : [...lf, ...rf]);
+  const foods = cleanDietFoods((remoteFirst ? [...rf, ...lf] : [...lf, ...rf]).filter(x => !gone.includes(x?.id)));
   set('dietFoods', foods.length ? foods : undefined);
   const alive = id => typeof id === 'string' && plans?.[id] && !plans[id].archived;
   set('dietActive', alive(local.dietActive) ? local.dietActive : take && alive(remoteDoc.dietActive) ? remoteDoc.dietActive : undefined);

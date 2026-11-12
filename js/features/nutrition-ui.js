@@ -5,8 +5,8 @@
 //    jours, anneau des calories et barres des macros (mangé sur repère), repas du plan à cocher d'un
 //    toucher (un repas coché se replie, le suivant passe devant), aliment remplacé pour la journée par
 //    un équivalent (js/data/food-swap.js), série de jours complets.
-//  - Carte de l'accueil (nutritionHomeCard) : où en est la journée et le prochain repas, à cocher
-//    sans ouvrir l'écran. Plan reçu d'un coach : carte « Nouveau plan diète » (accueil, Nutrition, Mon coach).
+//  - Carte de l'accueil (nutritionHomeCard) : nom du plan, où en est la journée et tous les repas du jour
+//    (coché ou non, kcal), le prochain à cocher sans ouvrir l'écran. Plan reçu d'un coach : carte « Nouveau plan diète » (accueil, Nutrition, Mon coach).
 //  - Coach : groupe « Plan diète » de la fiche d'un élève (envoi, ouvert ou pas encore).
 //  - Plans et repas se préparent dans Programme › Plans diète (js/features/diet-editor.js).
 // ═══════════════════════════════════════════════════════════
@@ -33,6 +33,13 @@ function dietMacroGramsSpoken(m) { return `${dietN(m.p)} grammes de protéines, 
 function dietSrPair(visible, spoken) { return `<span aria-hidden="true">${visible}</span><span class="sr-text">${spoken}</span>`; }
 // Texte d'un dialogue (message lu tel quel) : en toutes lettres pour tous, « 4 g de protéines, 47 g de glucides… »
 function dietMacroWords(m, fmt = dietN) { return `${fmt(m.p)} g de protéines, ${fmt(m.c)} g de glucides, ${fmt(m.f)} g de lipides`; }
+// Légende des lettres, une fois par écran ou par feuille, au-dessus de la première ligne « P 7 · G 77 · L 1 » : les lignes
+// restent courtes (iPhone SE, texte agrandi), la débutante sait ce que veut dire chaque lettre (demande de Maxence,
+// vague 4). Cachée à VoiceOver : chaque ligne y est déjà dite en toutes lettres. Rien quand les chiffres sont masqués
+function dietMacroLegendHtml(extra = '') {
+  if (data.dietHideNumbers === true) return '';
+  return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k"><b>${m.short}</b>\u00a0${m.label.toLowerCase()}</span>`).join(' · ')}</p>`;
+}
 function dietDayTitle(day) {
   const today = dietDayKey();
   if (day === today) return 'Aujourd\'hui';
@@ -318,6 +325,7 @@ function renderNutrition(dayParam) {
         ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
+        ${pr.meals.length ? dietMacroLegendHtml() : ''}
         <div class="diet-meals">${meals}</div>
         ${dietSettingsCellHtml()}
         ${dietSourceFoot({ help: true })}
@@ -351,19 +359,38 @@ function nutritionHomeCard() {
   if (!pr.nMeals) return card;   // aucun repas rempli : rien à suivre aujourd'hui (pas de « 0 sur 0 kcal »)
   const next = pr.next;
   const hide = data.dietHideNumbers === true;
-  const line = pr.complete ? 'Journée complète' : next ? `${esc(next.meal.name)}${hide ? '' : ` · ${dietN(next.macros.kcal)} kcal`}` : '';
   const head = hide ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
+  // Tous les repas du jour (vague 4) : nom, kcal, coché ou non ; le prochain porte le bouton à cocher (un toucher).
+  // Plus de 4 repas : 3 autour du prochain et « et 2 autres ». Le reste de la carte ouvre Nutrition
+  const { shown, more } = dietHomeMeals(pr);
+  const kcalOf = x => (hide ? '' : `<span class="diet-home__mkcal num">${dietN(x.macros.kcal)}\u00a0kcal</span>`);
+  const rows = shown.map(x => {
+    const isNext = next?.meal.id === x.meal.id;
+    const state = x.done ? 'done' : isNext ? 'next' : 'todo';
+    return `
+        <div class="diet-home__meal diet-home__meal--${state}" data-meal="${esc(x.meal.id)}">
+          <span class="diet-home__mtext" aria-hidden="true"><span class="diet-home__mname">${esc(x.meal.name)}</span>${kcalOf(x)}</span>
+          <span class="diet-home__mstate">${x.done ? `<span class="diet-home__done" aria-hidden="true">${icon('checkmark', 12)}</span>` : isNext ? dietCheckBtn(x.meal, false, null) : ''}</span>
+        </div>`;
+  }).join('');
+  const moreText = more ? `et ${more} ${more > 1 ? 'autres' : 'autre'}` : '';
+  // VoiceOver : le bouton du haut dit tout (plan, calories, chaque repas) ; les lignes sont cachées, sauf le bouton à cocher
+  const spokenMeals = pr.meals.filter(x => x.meal.items.length)
+    .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
+  const spoken = `Nutrition, ${plan.name} : ${hide ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? ', journée complète' : ''}. ${spokenMeals}. Ouvrir`;
   return `${card}
     <section class="home-card diet-home${pr.complete ? ' diet-home--complete' : ''}">
-      <button class="diet-home__open" data-action="go-nutrition" aria-label="Nutrition : ${hide ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? ', journée complète' : next ? `, ensuite ${esc(next.meal.name)}` : ''}. Ouvrir">
+      <button class="diet-home__open" data-action="go-nutrition" aria-label="${esc(spoken)}">
         <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(hide ? pr.nDone / Math.max(1, pr.nMeals) : dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
         <span class="diet-home__text" aria-hidden="true">
-          <span class="home-card__title">Nutrition</span>
+          <span class="diet-home__title"><span class="home-card__title">Nutrition</span><span class="diet-home__plan">${esc(plan.name)}</span></span>
           <span class="diet-home__kcal num">${head}</span>
-          ${line ? `<span class="diet-home__next">${pr.complete ? icon('checkmark', 12) : ''}${line}</span>` : ''}
+          ${pr.complete ? `<span class="diet-home__next">${icon('checkmark', 12)}Journée complète</span>` : ''}
         </span>
       </button>
-      ${next && next.meal.items.length ? dietCheckBtn(next.meal, false, null) : ''}
+      <div class="diet-home__meals" data-action="go-nutrition">${rows}
+        ${moreText ? `<div class="diet-home__more" aria-hidden="true">${moreText}</div>` : ''}
+      </div>
     </section>`;
 }
 
@@ -418,6 +445,7 @@ async function dietSwapSheet(itemId, day) {
     <div class="diet-swap">
       <p class="diet-swap__orig"><b>${esc(foodName(it.name))}</b><span class="num">${hide ? esc(dietQtyText(it)) : dietSrPair(`${esc(dietQtyText(it))} · ${dietMacroLine(ref)}`, `${esc(dietQtySpoken(it))}, ${dietMacroSpoken(ref)}`)}</span></p>
       <p class="diet-swap__rule">${swapRuleText(it)}, macros proches, même famille d'aliments.</p>
+      ${dietMacroLegendHtml()}
       ${current ? `<button class="diet-cand diet-cand--back" data-swap="back"><span class="diet-cand__body"><span class="diet-cand__name">Remettre ${esc(foodName(it.name))}</span><span class="diet-cand__sub">Aujourd'hui, tu manges ${esc(foodName(current.name))}</span></span>${icon('arrow.clockwise', 18)}</button>` : ''}
       ${cands.length ? `<div class="diet-cands">${cands.map(row).join('')}</div>`
         : `<p class="diet-swap__none">${foodDb ? 'Aucun équivalent assez proche dans la base pour cet aliment.' : 'Base d\'aliments indisponible pour l\'instant.'}</p>`}

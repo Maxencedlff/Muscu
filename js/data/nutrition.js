@@ -6,7 +6,7 @@
 //    Ciqual au moment du choix (js/data/food-swap.js) ou saisies par la personne (aliment perso). Un plan
 //    reçu d'un coach s'affiche donc sans la base, et une nouvelle version de Ciqual ne le change pas.
 //  - data.dietPlans (fusion par union comme les programmes ; un plan supprimé est archivé, jamais effacé),
-//    data.dietActive (plan suivi), data.dietFoods (mes aliments perso) : copiés sur le compte SEULEMENT avec
+//    data.dietActive (plan suivi), data.dietFoods (mes aliments perso, dietFoodsGone : ceux retirés) : copiés sur le compte SEULEMENT avec
 //    l'accord de la personne (data.dietConsent = { on, at }, donnée de santé au sens de la CNIL : article 9 du
 //    RGPD), sinon sur l'iPhone seulement (profilePayload, js/data/sync.js). Retirer l'accord les efface du serveur.
 //  - data.dietLog (repas cochés et remplacements du jour) : sur l'appareil seulement (SYNC_LOCAL_ONLY).
@@ -28,6 +28,7 @@ const DIET_NOTE_MAX   = 300;     // consigne d'un repas (coach)
 const DIET_G_MAX      = 2000;    // quantité d'un aliment, en grammes
 const DIET_LOG_DAYS   = 120;     // jours de cochage gardés sur l'appareil
 const DIET_FOODS_MAX  = 200;     // aliments perso
+const DIET_FOODS_GONE_MAX = 300; // aliments perso retirés gardés (identifiants) : la synchro ne les fait pas revenir
 const DIET_ID_RE      = /^d[A-Za-z0-9_-]{1,44}$/;   // d_xxxxxxxx (créé ici), dc_<coach>_<envoi> (reçu)
 const DIET_PART_RE    = /^(?!(?:__proto__|constructor|prototype|toString|valueOf|hasOwnProperty)$)[A-Za-z0-9_-]{1,24}$/;   // repas ou aliment du plan (jamais un nom d'Object)
 const DIET_DAY_RE     = /^\d{4}-\d{2}-\d{2}$/;
@@ -143,7 +144,9 @@ function cleanDietPlans(v) {
   for (const k of [...alive, ...archived]) { const p = cleanDietPlan(v[k]); if (p) out[k] = p; }
   return out;
 }
-// Mes aliments perso : [{ id, name, fam, per, code?, src?, ecalc?, salt?, portion? }] (pour les retrouver dans la recherche)
+// Mes aliments perso : [{ id, name, fam, per, code?, src?, ecalc?, salt?, portion? }] (pour les retrouver dans la recherche).
+// DIET_FOODS_MAX : plafond de sécurité des données lues (synchro, sauvegarde). À l'ajout, jamais un aliment retiré en
+// silence : dietFoodsFull le dit avant, la personne choisit (Mes aliments, js/features/diet-foods.js)
 function cleanDietFoods(list) {
   if (!Array.isArray(list)) return [];
   const seen = new Set();
@@ -160,6 +163,53 @@ function cleanDietFoods(list) {
       ...(code ? { code } : {}), ...(code && x.src === 'off' ? { src: 'off' } : {}), ...(x.ecalc === true ? { ecalc: true } : {}),
       ...(salt !== null && typeof x.salt === 'number' ? { salt: Math.round(salt * 100) / 100 } : {}), ...(portion ? { portion } : {}) };
   }).filter(Boolean);
+}
+// Ajouter cet aliment à Mes aliments ferait-il partir le plus ancien ? Faux s'il en remplace un (même nom ou même
+// code-barres : mis à jour sur place)
+function dietFoodsFull(list, food) {
+  const l = Array.isArray(list) ? list : [];
+  if (l.length < DIET_FOODS_MAX) return false;
+  const n = normName(food?.name || '');
+  return !l.some(x => normName(x?.name || '') === n || (food?.code && x?.code === food.code));
+}
+// Retire un aliment de Mes aliments ; renvoie l'aliment retiré (pour Annuler) et sa place, ou null.
+// Les plans gardent leurs propres valeurs : rien n'y change
+// L'identifiant part dans d.dietFoodsGone : un autre appareil qui l'a encore ne le fait pas revenir (mergeDietProfile)
+function dietRemoveFood(d, id) {
+  const list = Array.isArray(d.dietFoods) ? d.dietFoods : [];
+  const i = list.findIndex(x => x?.id === id);
+  if (i < 0) return null;
+  const [food] = list.splice(i, 1);
+  if (!list.length) delete d.dietFoods;
+  d.dietFoodsGone = cleanDietFoodsGone([...(Array.isArray(d.dietFoodsGone) ? d.dietFoodsGone : []), id]);
+  return { food, index: i };
+}
+// Identifiants des aliments perso retirés : uniques, valides, les plus récents gardés (en fin de liste)
+function cleanDietFoodsGone(v) {
+  if (!Array.isArray(v)) return [];
+  const out = [];
+  for (const id of v) if (typeof id === 'string' && DIET_PART_RE.test(id) && !out.includes(id)) out.push(id);
+  return out.slice(-DIET_FOODS_GONE_MAX);
+}
+// Remet un aliment retiré à sa place (Annuler) ; false si Mes aliments s'est rempli entre-temps
+function dietRestoreFood(d, { food, index }) {
+  const list = Array.isArray(d.dietFoods) ? d.dietFoods : [];
+  if (dietFoodsFull(list, food)) return false;
+  const rest = list.filter(x => x.id !== food.id && normName(x.name) !== normName(food.name));
+  rest.splice(Math.min(index, rest.length), 0, food);
+  d.dietFoods = cleanDietFoods(rest);
+  const gone = cleanDietFoodsGone(d.dietFoodsGone).filter(id => id !== food.id);
+  if (gone.length) d.dietFoodsGone = gone; else delete d.dietFoodsGone;
+  return true;
+}
+// Repas de la carte de l'accueil : tous jusqu'à max (4), sinon max − 1 autour du prochain ; more : ceux qui ne sont
+// pas listés (« et 2 autres »). Seuls les repas qui ont des aliments (ceux qu'on coche)
+function dietHomeMeals(pr, max = 4) {
+  const list = (pr?.meals || []).filter(x => x.meal.items.length);
+  if (list.length <= max) return { shown: list, more: 0 };
+  const n = max - 1, i = pr.next ? list.indexOf(pr.next) : 0;
+  const start = Math.max(0, Math.min(i - 1, list.length - n));
+  return { shown: list.slice(start, start + n), more: list.length - n };
 }
 // Journal : { 'AAAA-MM-JJ': { plan, done: [id repas], swaps: { [id aliment]: aliment }, extras: { [id repas]: [aliment] }, removed: [id aliment] } },
 // 120 jours au plus. extras : aliments ajoutés à un repas pour ce jour seulement, hors plan (le plan ne change pas).
@@ -212,6 +262,7 @@ function sanitizeDiet(d, now = Date.now()) {
   const p = d.dietPlans?.[d.dietActive];
   if (d.dietActive !== undefined && (!p || p.archived)) delete d.dietActive;
   if (d.dietFoods !== undefined) { d.dietFoods = cleanDietFoods(d.dietFoods); if (!d.dietFoods.length) delete d.dietFoods; }
+  if (d.dietFoodsGone !== undefined) { d.dietFoodsGone = cleanDietFoodsGone(d.dietFoodsGone); if (!d.dietFoodsGone.length) delete d.dietFoodsGone; }
   if (d.dietLog !== undefined) { d.dietLog = cleanDietLog(d.dietLog, now); if (!Object.keys(d.dietLog).length) delete d.dietLog; }
   // Accord pour copier les plans sur le compte : { on, at (date ISO du choix) }, retiré s'il est illisible
   if (d.dietConsent !== undefined) {

@@ -219,6 +219,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     sameJSON(names('  '), [], 'recherche vide : rien');
     const own = [{ id: 'm1', name: 'Skyr nature', fam: 'v', per: { k: 63, p: 11, c: 4, f: 0.2 } }];
     assert.equal(names('skyr', own)[0], 'Skyr nature', 'aliment perso trouvé (absent de Ciqual)');
+    assert.ok(!names('riz blanc', own).includes('Skyr nature'), 'aliment perso qui ne correspond pas : pas listé');
     assert.ok(run(`searchFoods('riz', { limit: 5 }).length`) === 5, 'nombre de résultats borné');
   });
 
@@ -693,5 +694,130 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       const strings = [...read(f).matchAll(/'([^'\n]*[A-Za-zéè][^'\n]*)'|`([^`]*)`/g)].map(m => m[1] || m[2]);
       for (const s of strings) assert.ok(!/\s[-–—]\s/.test(s.replace(/\$\{[^}]*\}/g, '')), `${f} : tiret dans « ${s.slice(0, 60)} »`);
     }
+  });
+
+  // ── Vague 4 (nutrition) ───────────────────────────────────
+
+  test('vague 4 : étiquette « cru » / « cuit » d\'après le nom Ciqual ; « blé dur » n\'est pas un œuf dur', () => {
+    loadDb();
+    const tag = code => run(`foodCookTag(foodDb.byCode.get(${code}))`);
+    assert.equal(tag(9100), 'cru', 'Riz blanc, cru');
+    assert.equal(tag(9104), 'cuit', 'Riz blanc, cuit');
+    assert.equal(tag(9810), 'cru', 'Pâtes sèches, standard, crues');
+    assert.equal(tag(9811), 'cuit', 'Pâtes sèches, standard, cuites : « sèches » ne fait pas « cru »');
+    assert.equal(tag(36018), 'cuit', 'Poulet grillé/poêlé');
+    assert.equal(tag(6201), 'cru', 'Steak cru');
+    assert.equal(tag(20359), 'cru', 'Lentille sèche : un féculent sec se pèse cru');
+    assert.equal(tag(32140), null, 'Flocons d\'avoine : le nom ne dit rien');
+    const byName = n => run(`foodCookTag(foodDb.foods.find(f => f.name === ${JSON.stringify(n)}))`);
+    assert.equal(byName('Banane, chair sans peau, sèche'), null, 'une banane sèche n\'est pas « crue »');
+    assert.equal(byName('Semoule de blé dur, crue'), 'cru', '« blé dur » : pas la cuisson d\'un œuf');
+    assert.equal(run(`foodState('Blé dur complet, cru')`), 'cru', 'foodState corrigé (équivalences)');
+    assert.equal(run(`foodCookTag({ name: 'Whey', fam: 'v' })`), null);
+  });
+
+  test('vague 4 : version crue d\'un aliment cuit et l\'inverse (rappel « Pesé cuit ? »)', () => {
+    loadDb();
+    const twin = code => run(`foodCookTwin(foodDb.byCode.get(${code}))?.name ?? null`);
+    assert.equal(twin(9100), 'Riz blanc, cuit, sans sel ajouté');
+    assert.equal(twin(9104), 'Riz blanc, cru');
+    assert.equal(twin(9810), 'Pâtes sèches, standard, cuites, sans sel ajouté');
+    assert.equal(twin(36017), 'Poulet, filet sans peau grillé/poêlé');
+    assert.equal(twin(6250), 'Boeuf, steak haché 5% MG cuit', 'même taux de matière grasse');
+    assert.equal(twin(9341), 'Quinoa, cru');
+    assert.equal(twin(32140), null, 'sans cuisson dans le nom : pas de rappel');
+    assert.equal(twin(22010), null, 'œuf dur : pas de version crue du même nom');
+    assert.equal(run(`foodCookTwin({ name: 'Riz blanc, cru', fam: 'f', per: { k: 1, p: 0, c: 0, f: 0 } })`), null, 'aliment perso (sans code) : pas de rappel');
+  });
+
+  test('vague 4 : recherche « pile » (sinon « Créer « … » » en tête)', () => {
+    loadDb();
+    const exact = q => run(`foodSearchExact(${JSON.stringify(q)}, searchFoods(${JSON.stringify(q)}))`);
+    assert.equal(exact('quinoa'), true, '« Quinoa, cru »');
+    assert.equal(exact('huile olive'), true, 'chaque mot en entier : « Huile d\'olive… »');
+    assert.equal(exact('riz cuit'), true);
+    assert.equal(exact('riz blanc'), true);
+    assert.equal(exact('Riz blanc, cru'), true, 'nom entier');
+    assert.equal(exact('whey'), false, 'absent de Ciqual');
+    assert.equal(exact('riz bl'), false, 'mot pas fini : pas pile');
+    assert.equal(exact('  '), false);
+    const own = [{ id: 'm1', name: 'Whey vanille', fam: 'v', per: { k: 380, p: 78, c: 6, f: 5 } }];
+    assert.equal(run(`foodSearchExact('whey vanille', searchFoods('whey vanille', { own: ${JSON.stringify(own)} }))`), true, 'mon aliment trouvé pile');
+  });
+
+  test('vague 4 : Mes aliments plein (200) : dit avant, jamais le plus ancien retiré en silence ; retirer et Annuler', () => {
+    reset();
+    const per = { k: 100, p: 10, c: 10, f: 1 };
+    const list = Array.from({ length: 200 }, (_, i) => ({ id: `f${i}`, name: `Aliment ${i}`, fam: 'p', per, ...(i === 3 ? { code: '96385074' } : {}) }));
+    run(`data.dietFoods = ${JSON.stringify(list)}; sanitizeData(data)`);
+    assert.equal(run('data.dietFoods.length'), 200);
+    assert.equal(run(`dietFoodsFull(data.dietFoods, { name: 'Nouveau' })`), true, 'nouveau nom : plein');
+    assert.equal(run(`dietFoodsFull(data.dietFoods, { name: 'aliment 7' })`), false, 'même nom : remplacé sur place');
+    assert.equal(run(`dietFoodsFull(data.dietFoods, { name: 'Autre', code: '96385074' })`), false, 'même code-barres : remplacé');
+    assert.equal(run(`dietFoodsFull(data.dietFoods.slice(1), { name: 'Nouveau' })`), false, '199 : de la place');
+    assert.equal(run(`dietFoodsFull(undefined, { name: 'X' })`), false);
+    // Retirer : la place se libère, l'identifiant est noté (la synchro ne le fait pas revenir) ; Annuler le remet à sa place
+    const gone = run(`dietRemoveFood(data, 'f5')`);
+    assert.equal(gone.index, 5);
+    assert.equal(run('data.dietFoods.length'), 199);
+    sameJSON(run('data.dietFoodsGone'), ['f5']);
+    assert.equal(run(`dietRemoveFood(data, 'inconnu')`), null);
+    assert.equal(run(`dietRestoreFood(data, dietRemoveFood(data, 'f6') && { food: ${JSON.stringify(list[6])}, index: 6 })`), true);
+    assert.equal(run('data.dietFoods[6].id'), 'f6', 'remis à sa place');
+    sameJSON(run('data.dietFoodsGone'), ['f5'], 'remis : plus noté comme retiré');
+    // Plein entre-temps : Annuler ne fait rien partir
+    run(`data.dietFoods.push({ id: 'g1', name: 'Pris la place', fam: 'p', per: ${JSON.stringify(per)} })`);
+    assert.equal(run(`dietRestoreFood(data, { food: ${JSON.stringify(list[5])}, index: 5 })`), false);
+    assert.equal(run('data.dietFoods.length'), 200);
+    // Registre des retraits nettoyé et borné
+    sameJSON(run(`cleanDietFoodsGone(['a1', 'a1', '__proto__', 3, 'b 2', 'b2'])`), ['a1', 'b2']);
+    assert.equal(run(`cleanDietFoodsGone(Array.from({ length: 400 }, (_, i) => 'x' + i)).length`), 300);
+    assert.equal(run(`cleanDietFoodsGone(Array.from({ length: 400 }, (_, i) => 'x' + i)).at(-1)`), 'x399', 'les plus récents gardés');
+    assert.ok(run(`SYNC_PROFILE_KEYS.includes('dietFoodsGone') && SYNC_DIET_CONSENT_KEYS.includes('dietFoodsGone')`), 'copié avec l\'accord seulement');
+  });
+
+  test('vague 4 : synchro, un aliment retiré ici ne revient pas d\'un appareil qui l\'a encore', () => {
+    const per = { k: 63, p: 11, c: 4, f: 0.2 };
+    const consent = { on: true, at: '2026-11-01T10:00:00Z' };
+    const foods = [{ id: 'sk1', name: 'Skyr', fam: 'l', per }, { id: 'wh1', name: 'Whey', fam: 'v', per }];
+    // B a encore les deux aliments, rien changé ici ; A a retiré le skyr (registre envoyé avec le profil)
+    const B = run('(x => x)')({ history: [{ id: 'h', date: 1 }], unit: 'kg', dietConsent: consent, dietFoods: foods.map(x => ({ ...x })) });
+    const m = run('emptySyncMeta')('u'); const doc = run('profilePayload')(B);
+    m.profileHash = run('syncHash')(doc); m.profileCore = run('profileCoreHash')(doc); m.profileAt = '2026-11-01';
+    run('applyRemoteProfile')(B, { doc: { unit: 'kg', dietConsent: consent, dietFoods: [foods[1]], dietFoodsGone: ['sk1'] }, updated_at: '2026-11-02' }, m);
+    sameJSON(B.dietFoods.map(x => x.id), ['wh1'], 'skyr retiré ici aussi');
+    sameJSON(B.dietFoodsGone, ['sk1'], 'registre gardé (renvoyé au prochain envoi)');
+    // Conflit (modifié des deux côtés) : le retrait tient aussi
+    const C = run('(x => x)')({ history: [{ id: 'h', date: 1 }], unit: 'lbs', dietConsent: consent, dietFoods: foods.map(x => ({ ...x })), dietFoodsGone: ['old'] });
+    run('applyRemoteProfile')(C, { doc: { unit: 'kg', dietConsent: consent, dietFoods: foods, dietFoodsGone: ['wh1'] }, updated_at: '2026-11-02' }, run('emptySyncMeta')('u'));
+    sameJSON(C.dietFoods.map(x => x.id), ['sk1']);
+    sameJSON(C.dietFoodsGone.sort(), ['old', 'wh1']);
+  });
+
+  test('vague 4 : carte de l\'accueil, tous les repas jusqu\'à 4, sinon 3 autour du prochain et « et N autres »', () => {
+    const mk = (n, done = 0) => {
+      const meals = Array.from({ length: n }, (_, i) => ({ meal: { id: `m${i}`, name: `R${i}`, items: [{}] }, done: i < done }));
+      return { meals, next: meals.find(x => !x.done) || null };
+    };
+    const ids = r => r.shown.map(x => x.meal.id);
+    sameJSON(ids(run('dietHomeMeals')(mk(4, 1))), ['m0', 'm1', 'm2', 'm3']);
+    assert.equal(run('dietHomeMeals')(mk(4, 1)).more, 0);
+    sameJSON(ids(run('dietHomeMeals')(mk(6, 0))), ['m0', 'm1', 'm2'], 'rien de coché : les premiers');
+    sameJSON(ids(run('dietHomeMeals')(mk(6, 3))), ['m2', 'm3', 'm4'], 'le dernier coché, le prochain, le suivant');
+    sameJSON(ids(run('dietHomeMeals')(mk(6, 5))), ['m3', 'm4', 'm5'], 'fin de journée : les derniers');
+    sameJSON(ids(run('dietHomeMeals')(mk(6, 6))), ['m0', 'm1', 'm2'], 'journée complète');
+    assert.equal(run('dietHomeMeals')(mk(6, 3)).more, 3);
+    // Repas sans aliment (collation libre) : jamais listé, on ne le coche pas
+    const pr = mk(3, 0); pr.meals[1].meal.items = [];
+    sameJSON(ids(run('dietHomeMeals')(pr)), ['m0', 'm2']);
+  });
+
+  test('vague 4 : textes de l\'interface (légende des macros, Créer « … », rappel cru / cuit, Mes aliments)', () => {
+    const ui = ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js', 'js/features/food-scan-ui.js', 'js/features/diet-qty.js'].map(read).join('\n');
+    for (const t of ['Pesé cuit\\u00a0? Choisis la version cuite.', 'Pesé cru\\u00a0? Choisis la version crue.', 'Mes aliments est plein', 'Gérer Mes aliments',
+      'Ajouter sans le garder', 'Retirer de Mes aliments', 'Créer «\\u00a0']) assert.ok(ui.includes(t), `texte : ${t}`);
+    // Légende : une seule source (les libellés de DIET_MACROS), cachée à VoiceOver (lignes déjà dites en toutes lettres)
+    assert.match(read('js/features/nutrition-ui.js'), /function dietMacroLegendHtml[\s\S]{0,400}aria-hidden="true"/);
+    for (const f of ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js']) assert.ok(read(f).includes('dietMacroLegendHtml('), `légende : ${f}`);
   });
 }

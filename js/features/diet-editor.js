@@ -96,6 +96,7 @@ function renderDietPlan(id) {
         </div>
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <div class="group-title">Par jour</div>
+        ${dietMacroLegendHtml()}
         <div class="group">
           <div class="cell"><span class="cell__body"><span class="cell__title">Total prévu</span><span class="cell__sub num">${dietSrPair(`P\u00a0${dietN(total.p)}\u00a0g · G\u00a0${dietN(total.c)}\u00a0g · L\u00a0${dietN(total.f)}\u00a0g`, dietMacroGramsSpoken(total))}</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>
           ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsHtml(plan)}</span></span></div>`
@@ -131,22 +132,35 @@ function dietSaved() { const e = dietEditedPlan(); if (e) dietTouch(e.plan); sav
 
 // ── Feuille de recherche d'un aliment ───────────────────────
 
-function dietFoodResultsHtml(q) {
-  if (!foodDb && !(data.dietFoods || []).length) return '<p class="diet-pick__note">Base d\'aliments indisponible pour l\'instant. Tu peux créer ton aliment.</p>';
-  if (!q.trim()) return `<p class="diet-pick__note">Tape un aliment : « riz », « poulet », « skyr »… ${foodDb ? `${dietN(foodDb.foods.length)} aliments de la table Ciqual.` : ''}</p>`;
-  const res = searchFoods(q, { own: data.dietFoods || [] });
-  if (!res.length) return `<p class="diet-pick__note">Rien pour « ${esc(q)} ». Crée ton aliment avec ses valeurs pour 100 g.</p>`;
-  return res.map((x, i) => `
+// « Créer « whey » » en tête des résultats quand rien ne correspond pile à ce qui est tapé (vague 4) : le nom est
+// prérempli dans la feuille de création. Le bouton « Créer un aliment » du bas reste, vide
+function dietFoodCreateHtml(q) {
+  const t = dietCutName(q);
+  return t ? `<button class="diet-cand diet-cand--create" data-pick="create">${icon('plus', 18)}<span class="diet-cand__body"><span class="diet-cand__name">Créer «\u00a0${esc(t)}\u00a0»</span>
+      <span class="diet-cand__sub">Avec les valeurs de l'étiquette, pour 100 g</span></span></button>` : '';
+}
+// Ligne d'un résultat : étiquette « cru » ou « cuit » quand le nom Ciqual le dit, puis les valeurs pour 100 g
+function dietFoodRowHtml(x, i) {
+  const tag = foodCookTag(x.food);
+  return `
         <button class="diet-cand" data-pick="${i}">
           <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(x.food.name))}</span>
-            <span class="diet-cand__sub num">${x.own ? 'Mon aliment · ' : ''}${dietSrPair(`100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · P ${fmtNum(x.food.per.p)} · G ${fmtNum(x.food.per.c)} · L ${fmtNum(x.food.per.f)}`,
+            <span class="diet-cand__sub num">${tag ? `<span class="diet-tag" aria-hidden="true">${tag}</span>` : ''}${x.own ? 'Mon aliment · ' : ''}${dietSrPair(`100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · P ${fmtNum(x.food.per.p)} · G ${fmtNum(x.food.per.c)} · L ${fmtNum(x.food.per.f)}`,
               `pour 100 grammes, ${x.food.per.k} kilocalories${x.food.ecalc ? ' calculées' : ''}, ${dietMacroWords(x.food.per, fmtNum).replace(/ g /g, ' grammes ')}`)}</span></span>
-        </button>`).join('');
+        </button>`;
 }
-// Renvoie l'aliment choisi ({ food } de searchFoods), 'new' (créer un aliment), 'scan' (code-barres) ou null
+function dietFoodResultsHtml(q, res = searchFoods(q, { own: data.dietFoods || [] })) {
+  if (!foodDb && !(data.dietFoods || []).length) return `${dietFoodCreateHtml(q)}<p class="diet-pick__note">Base d'aliments indisponible pour l'instant. Tu peux créer ton aliment.</p>`;
+  if (!q.trim()) return `<p class="diet-pick__note">Tape un aliment : « riz », « poulet », « skyr »… ${foodDb ? `${dietN(foodDb.foods.length)} aliments de la table Ciqual.` : ''}</p>`;
+  const create = foodSearchExact(q, res) ? '' : dietFoodCreateHtml(q);
+  if (!res.length) return `${create}<p class="diet-pick__note">Rien pour « ${esc(q)} ». Crée ton aliment avec ses valeurs pour 100 g.</p>`;
+  return `${create}${dietMacroLegendHtml('diet-legend--list')}${res.map(dietFoodRowHtml).join('')}`;
+}
+// Renvoie l'aliment choisi ({ food } de searchFoods), 'new' (créer un aliment), { create: nom } (créer, nom tapé),
+// 'scan' (code-barres) ou null
 async function dietPickFood() {
   await loadFoods();
-  let results = [];
+  let results = [], query = '';
   const body = `
     <div class="diet-pick">
       ${foodScanButtonHtml()}
@@ -158,14 +172,15 @@ async function dietPickFood() {
   const root = [...document.querySelectorAll('.sheet-root')].pop();
   root?.addEventListener('input', ev => {
     if (ev.target.id !== 'dietFoodSearch') return;
-    results = searchFoods(ev.target.value, { own: data.dietFoods || [] });
-    $('#dietFoodList', root).innerHTML = dietFoodResultsHtml(ev.target.value);
+    query = ev.target.value;
+    results = searchFoods(query, { own: data.dietFoods || [] });
+    $('#dietFoodList', root).innerHTML = dietFoodResultsHtml(query, results);
   });
   root?.addEventListener('click', ev => {
     const b = ev.target.closest('[data-pick]');
     if (!b) return;
     const k = b.dataset.pick;
-    root._close(k === 'new' || k === 'scan' ? k : results[Number(k)] || null);
+    root._close(k === 'new' || k === 'scan' ? k : k === 'create' ? { create: dietCutName(query) } : results[Number(k)] || null);
   });
   return p;
 }
@@ -175,10 +190,12 @@ async function dietPickFood() {
 async function dietChooseFood() {
   const pick = await dietPickFood();
   if (pick === 'scan') return foodScanFlow();
-  const chosen = pick === 'new' ? await dietNewFood() : pick;
+  // Nom tapé repris avec une majuscule (« whey » → « Whey »), comme le clavier le ferait
+  const typed = pick?.create, chosen = pick === 'new' ? await dietNewFood() : typed !== undefined ? await dietNewFood(typed.charAt(0).toUpperCase() + typed.slice(1)) : pick;
   if (!chosen?.food) return null;
-  const q = await dietAskQty(chosen.food);
-  return q && { food: chosen.food, g: q.g, por: q.por };
+  // Rappel cru / cuit : la feuille de quantité peut rendre l'autre version (q.food)
+  const q = await dietAskQty(chosen.food, null, { twin: true });
+  return q && { food: q.food || chosen.food, g: q.g, por: q.por };
 }
 
 // Aliment perso : nom et valeurs pour 100 g (étiquette du paquet) ; gardé dans mes aliments.
@@ -226,9 +243,20 @@ async function dietNewFood(name = '', { code = null } = {}) {
     const famPick = $('#dietFoodFam', panel)?.value;
     const food = { id: uid(), name: nm, fam: DIET_FAMS.includes(famPick) ? famPick : dietFamOf(per), per, ...(code ? { code } : {}),
       ...(pg ? { portion: { u: 'portion', pl: 'portions', g: pg } } : {}) };
-    data.dietFoods = cleanDietFoods([food, ...(data.dietFoods || []).filter(x => normName(x.name) !== normName(nm) && !(code && x.code === code))]);
-    return { food: dietOwnPick(food) };
-  } });
+    return { made: food };
+  } }).then(r => (r?.made ? dietKeepFood(r.made) : null));
+}
+// Garde un aliment créé dans Mes aliments. Plein (200) : jamais le plus ancien retiré en silence (vague 4) ; la
+// personne choisit : l'ajouter quand même sans le garder, ou faire de la place dans Mes aliments
+async function dietKeepFood(food) {
+  if (dietFoodsFull(data.dietFoods, food)) {
+    const v = await dialog({ title: 'Mes aliments est plein', message: `${DIET_FOODS_MAX} aliments au plus. Retire ceux dont tu ne te sers plus pour garder celui-ci, ou ajoute-le sans le garder.`,
+      actions: [{ label: 'Ajouter sans le garder', value: 'once', style: 'preferred' }, { label: 'Gérer Mes aliments', value: 'manage' }, { label: 'Annuler', style: 'cancel' }] });
+    if (v === 'manage') dietOpenFoods();
+    return v === 'once' ? { food: dietOwnPick(food) } : null;
+  }
+  data.dietFoods = cleanDietFoods([food, ...(data.dietFoods || []).filter(x => normName(x.name) !== normName(food.name) && !(food.code && x.code === food.code))]);
+  return { food: dietOwnPick(food) };
 }
 
 async function dietAskGrams(food, value = 100) {
