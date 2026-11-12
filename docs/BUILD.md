@@ -140,6 +140,98 @@ Ordre (le serveur d'abord ; chaque étape seule ne casse rien) :
 Aucun changement natif : pas de build. Retour arrière : `supabase/rollback/20261031910000_notifications_messages_down.sql`
 (avant celui de `20261031900000`, `supabase/rollback/ORDRE.md`).
 
+## Mises à jour à chaud : garde, environnement `ota` et signature (audit du 12/11/2026, M1 et M6)
+
+Déjà en place sur la branche `audit-ota` (aucune action) :
+- `js/app/live-update.js` n'accepte un paquet que sous `https://mdlf-ota.vercel.app/bundles/<nom>.zip`
+  (texte brut : pas de `%`, `@`, `//`, `?`, `#`, `\`, port ni autre casse) ; l'adresse du manifeste est figée.
+- `ota.yml` : job `gate` qui attend le workflow Tests vert sur le commit publié (comme ios.yml), puis
+  construit depuis ce SHA exact ; aucun droit par défaut ; étape renommée « empreinte SHA-256 » (ce
+  n'est pas une signature) ; job `publish` derrière l'environnement GitHub `ota`.
+
+### Environnement `ota` (Maxence, une fois, AVANT le prochain lancement d'ota.yml)
+
+Sans cet environnement, GitHub le crée tout seul au premier lancement, **sans relecture** : le créer
+d'abord.
+
+1. GitHub › Maxencedlff/Muscu › Settings › Environments › **New environment**, nom exact `ota`.
+2. **Required reviewers** : cocher, ajouter `Maxencedlff`. Laisser décochée « Prevent self-review »
+   (tu es le seul relecteur : sinon personne ne peut approuver ce que tu lances).
+3. **Deployment branches and tags** : « Selected branches and tags », règle `main` seulement.
+4. Facultatif mais conseillé : déplacer dans l'environnement les secrets propres à l'OTA
+   (`VERCEL_OTA_PROJECT_ID`, puis un jeton Vercel limité au projet mdlf-ota, voir ci-dessous) pour qu'ils
+   ne soient remis qu'après approbation. `VERCEL_TOKEN` et `VERCEL_ORG_ID` restent au niveau du dépôt
+   tant que tests.yml s'en sert pour le site.
+
+En ligne de commande (même résultat ; la relecture se règle avec l'identifiant numérique du compte) :
+
+```bash
+ID=$(gh api user -q .id)
+gh api -X PUT repos/Maxencedlff/Muscu/environments/ota --input - <<JSON
+{ "prevent_self_review": false,
+  "reviewers": [{ "type": "User", "id": $ID }],
+  "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true } }
+JSON
+gh api -X POST repos/Maxencedlff/Muscu/environments/ota/deployment-branch-policies -f name=main -f type=branch
+```
+
+Ensuite, à chaque `gh workflow run ota.yml …` : le job `gate` attend Tests, puis le job « Publication »
+s'arrête sur « Waiting for review » ; Actions › le run › **Review deployments** › cocher `ota` ›
+**Approve and deploy**.
+
+Jeton Vercel propre à l'OTA (recommandé par l'audit) : vercel.com › Account Settings › Tokens ›
+Create, portée limitée à l'équipe du projet mdlf-ota, expiration ; le poser comme secret
+`VERCEL_TOKEN` **de l'environnement `ota`** (il masque celui du dépôt pour ce seul job), puis vérifier
+qu'un lancement publie toujours.
+
+### Signature Capgo (à faire AVEC la prochaine build native, pas avant)
+
+Pourquoi : aujourd'hui le SHA-256 vient du même manifeste que l'adresse du paquet ; c'est une empreinte
+d'intégrité, pas une signature. Avec une `publicKey` compilée dans l'app, le module natif refuse tout
+paquet sans clé de session valide et vérifie le SHA-256 chiffré par la clé privée.
+
+Ce qui est déjà prêt (inactif tant que le secret n'existe pas) :
+- `scripts/ota-bundle.py` lit `OTA_CAPGO_PRIVATE_KEY`. Les deux côtés vont ensemble : clé privée ET
+  `publicKey` → paquet chiffré par `@capgo/cli@8.98.6` (`bundle encrypt`), manifeste avec `checksum`
+  (SHA-256 chiffré) et `sessionKey`, et contrôle de la paire par `bundle decrypt` avec la `publicKey`
+  avant toute publication ; ni l'un ni l'autre → comme avant ; l'un sans l'autre → arrêt, rien n'est
+  publié. Testé le 12/11 avec une clé jetable (supprimée) : 5 cas (aucun, clé seule, publicKey seule,
+  paire valide, paire qui ne correspond pas).
+- `ota.yml` passe déjà `secrets.OTA_CAPGO_PRIVATE_KEY` à cette seule étape (vide tant qu'il n'existe pas).
+- `js/app/live-update.js` accepte un manifeste signé et transmet `sessionKey` à `Native.ota.download`.
+
+Étapes, dans l'ordre :
+
+1. Sur le PC, à la racine du dépôt (branche de la build) :
+   ```bash
+   npx @capgo/cli@8.98.6 key create --skip-capgo-app-id-prompt
+   ```
+   Crée `.capgo_key_v2` (clé privée) et `.capgo_key_v2.pub`, et écrit `publicKey` dans le bloc
+   `CapacitorUpdater` de `capacitor.config.json`. Répondre **non** à la question « sync Capacitor » si on
+   ne veut pas lancer `cap sync` tout de suite. Vérifier `git status` : seul `capacitor.config.json`
+   change ; les deux fichiers de clé ne doivent JAMAIS être commités (ils sont
+   déjà ignorés par `.gitignore`).
+2. Clé privée en secret GitHub de l'environnement `ota` (réservé à ota.yml, jamais au niveau du dépôt) :
+   ```bash
+   gh secret set OTA_CAPGO_PRIVATE_KEY -R Maxencedlff/Muscu --env ota < .capgo_key_v2
+   ```
+   Puis ranger `.capgo_key_v2` hors du dépôt dans le gestionnaire de mots de passe (perdre la clé = plus
+   aucune OTA possible pour cette build), et l'effacer du dossier.
+3. Commit de `capacitor.config.json` (l'empreinte `runtime` change : c'est une nouvelle build native),
+   Tests verts, puis build TestFlight (`ios.yml -f testflight=true`, section 6).
+4. Première OTA après cette build : le journal d'ota.yml doit montrer un manifeste avec `sessionKey`. Sur
+   l'iPhone de la nouvelle build, Réglages › « Rechercher une mise à jour » doit l'installer. Les builds
+   plus anciennes l'ignorent (empreinte différente) : elles restent sans vérification.
+5. Une fois la nouvelle build installée par tous (TestFlight puis App Store), relever `min_build` pour
+   retirer les anciennes builds non vérifiées (docs/PAYANT_V1.md, « Version minimale ») :
+   ```sql
+   update public.app_config set value = '<numéro de la build signée>'::jsonb, updated_at = now() where key = 'min_build';
+   ```
+
+Retour arrière : supprimer le secret (`gh secret delete OTA_CAPGO_PRIVATE_KEY --env ota`) ne suffit pas,
+`ota-bundle.py` s'arrête alors (publicKey sans clé) : il faut aussi une build sans `publicKey`. Une clé
+privée compromise se change de la même façon (nouvelle paire, nouvelle build, `min_build` relevé).
+
 ## À brancher plus tard
 
 - Réactions emoji (`lot3-reactions`) : une réaction ajoutée est une ligne `bravos` (déclencheur
