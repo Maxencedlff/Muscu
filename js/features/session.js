@@ -120,11 +120,11 @@ function buildSets(progKey, cat, exLike, n, fallback = {}) {
   });
 }
 
-// Reps reprises de la dernière fois, ramenées au haut de la fourchette quand il est réglé : un programme
-// passé à « 5 reps » ne propose plus les 8 reps d'avant (panel du 07/11). Le 12 par défaut (écrit par
+// Reps reprises de la dernière fois, ramenées aux reps fixes quand il y en a (fixedReps) : un programme
+// passé à « 5 × 5 » ne propose plus les 8 reps d'avant (panel du 07/11). Le 12 par défaut (écrit par
 // l'éditeur même sans réglage) ne coupe rien.
 function capReps(src, exLike) {
-  const max = measureOf(exLike) === 'reps' ? explicitRepMax(exLike) : null;
+  const max = measureOf(exLike) === 'reps' ? fixedReps(exLike) : null;
   return max && parseInt(src.reps) > max ? { ...src, reps: String(max) } : src;
 }
 
@@ -204,13 +204,18 @@ function setGoal(ex, s) {
   const d = sessExData(ex);
   return String(s?.prev?.reps || defaultGoal(measureOf(ex), d?.repMin ?? d?.repMax));
 }
-// Fourchette de reps du programme (« 8–12 reps ») si un bas est réglé, « 5 reps » si seul le haut l'est
-// (hors 12 par défaut : explicitRepMax), sinon '' ; même règle que l'écran du coach (coachExPlanParts)
+// Prescription de reps du programme : fourchette (« 8–12 reps ») si un bas est réglé, « 4 × 12 » en reps
+// fixes (fixedReps, js/data/goals.js), sinon '' ; même règle que l'écran du coach (coachExPlanParts)
 function repRangeText(ex) {
   const d = sessExData(ex);
   if (measureOf(ex) !== 'reps' || !d) return '';
   if (d.repMin) return `${d.repMin}–${d.repMax ?? 12} reps`;
-  return explicitRepMax(d) ? `${explicitRepMax(d)} reps` : '';
+  return fixedReps(d) ? setsRepsText({ ...d, measure: 'reps' }) : '';
+}
+// Même chose en HTML, « 4 séries de 12 reps » pour VoiceOver
+function repRangeHtml(ex) {
+  const d = sessExData(ex), txt = repRangeText(ex);
+  return txt && !d.repMin ? setsRepsHtml({ ...d, measure: 'reps' }) : esc(txt);
 }
 
 function exRest(ex) {
@@ -378,7 +383,7 @@ function exSubHtml(ex, ei, allDone) {
   const tempo = parseTempo(ex.tempo) && measureOf(ex) === 'reps'
     ? `<span class="tempo-pill num" aria-label="Tempo ${esc(shortTempo(ex.tempo))}${ex.tempoGuide === true ? ', guidé au son' : ''}">${ex.tempoGuide === true ? icon('music', 12) : ''}Tempo ${esc(shortTempo(ex.tempo))}</span> `
     : '';
-  const range = repRangeText(ex);
+  const range = repRangeHtml(ex);
   return `${tempo}${range ? `<span class="num">${range}</span> · ` : ''}${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${fmtRestSpoken(exRest(ex))}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
 }
 
@@ -1006,6 +1011,8 @@ registerActions({
     haptic();
     persistSession();
     render();
-    showToast(lo ? `Charge augmentée de ${bumpLabel()}, retour à ${lo} reps` : `Charge augmentée de ${bumpLabel()}`);
+    // Reps fixes : on garde le nombre (« toujours 12 reps ») ; fourchette : on repart du bas
+    const fixed = lo && fixedReps(sessExData(ex) || {});
+    showToast(!lo ? `Charge augmentée de ${bumpLabel()}` : fixed ? `Charge augmentée de ${bumpLabel()}, toujours ${lo} reps` : `Charge augmentée de ${bumpLabel()}, retour à ${lo} reps`);
   },
 });

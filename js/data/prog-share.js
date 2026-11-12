@@ -6,7 +6,7 @@
 'use strict';
 
 // Plan partageable du programme progId : { name, sessions: [{ label, ex: [{ n nom, s séries, r repos (s),
-// m mesure, t tempo }] }] }
+// m mesure, t tempo, f reps fixes }] }] }
 function programmeSharePayload(progId) {
   const sessions = sessionKeys(progId).map(cat => ({
     label: rawLabel(cat, progId),
@@ -15,6 +15,8 @@ function programmeSharePayload(progId) {
       if (e.rest) o.r = e.rest;
       if (e.measure) o.m = e.measure;
       if (e.tempo) o.t = e.tempo;
+      const f = measureOf(e) === 'reps' ? fixedReps(e) : null;   // « 4 × 12 » (js/data/goals.js)
+      if (f) o.f = f;
       return o;
     }),
   }));
@@ -24,7 +26,7 @@ function programmeSharePayload(progId) {
 // Message : le nom du programme, puis chaque séance et ses exercices
 function programmeShareText(payload) {
   const exLine = e => {
-    const bits = [`${e.s} série${e.s > 1 ? 's' : ''}`];
+    const bits = [e.f ? `${e.s}\u00a0×\u00a0${e.f}` : `${e.s} série${e.s > 1 ? 's' : ''}`];
     if (e.m === 'time') bits.push('en durée');
     else if (e.m === 'cardio') bits.push('cardio');
     if (e.t) bits.push(`tempo ${shortTempo(e.t)}`);

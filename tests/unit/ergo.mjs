@@ -235,11 +235,11 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       exercises: [{ exId: 'row', name: 'Rowing', measure: 'reps', sets: buildSets('ppl', 'pull', ${ex}, 5, ${ex}) }] }`);
     sameJSON(run('activeSession.exercises[0].sets.map(s => s.reps)'), ['5', '5', '5', '5', '5'], 'pas plus que le haut de la fourchette');
     sameJSON(run('activeSession.exercises[0].sets.map(s => s.prev.reps)'), ['8', '8', '8', '7', '7'], '« Avant » garde la dernière fois');
-    assert.equal(run('repRangeText(activeSession.exercises[0])'), '5 reps');
+    assert.equal(run('repRangeText(activeSession.exercises[0])'), '5\u00a0×\u00a05', 'reps fixes : « 5 × 5 »');
     assert.equal(run('bumpReady(activeSession.exercises[0])'), true);
     run(`actionHandlers.get('bump-weight')(null, { dataset: { ei: '0' } })`);
     sameJSON(run('activeSession.exercises[0].sets.map(s => s.weight + "×" + s.reps)'), Array(5).fill('75×5'), 'comme « Objectif 75 kg × 5 » et « 5 reps »');
-    assert.match(run('lastToast.msg'), /retour à 5 reps/);
+    assert.match(run('lastToast.msg'), /toujours 5 reps/);
     // Le 12 par défaut (écrit par l'éditeur) ne coupe rien et ne s'affiche pas
     const ex12 = seedRow([set('30', '15'), set('30', '14')], { repMax: 12 });
     sameJSON(run(`buildSets('ppl', 'pull', ${ex12}, 2, ${ex12}).map(s => s.reps)`), ['15', '14']);

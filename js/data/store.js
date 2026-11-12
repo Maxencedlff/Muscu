@@ -217,6 +217,8 @@ function sanitizeData(d) {
         if (ex.repMax !== undefined) { const r = num(ex.repMax, 1, 100, true); if (r === null) delete ex.repMax; else ex.repMax = r; }
         // Bas de fourchette (« 8 à 12 ») : facultatif, toujours sous le haut
         if (ex.repMin !== undefined) { const r = num(ex.repMin, 1, 99, true); if (r === null || r >= (ex.repMax ?? 12)) delete ex.repMin; else ex.repMin = r; }
+        // Reps fixes (« 4 × 12 », fixedReps de js/data/goals.js) : true ou rien, jamais avec un bas de fourchette
+        if (ex.repFixed !== undefined && (ex.repFixed !== true || ex.repMin !== undefined)) delete ex.repFixed;
         // Technique prescrite (js/data/intensif.js) : une clé connue ou rien
         if (ex.intens !== undefined) { const v = cleanIntens(ex.intens); if (v) ex.intens = v; else delete ex.intens; }
         if (ex.rest   != null) ex.rest   = num(ex.rest, 10, 600, true);

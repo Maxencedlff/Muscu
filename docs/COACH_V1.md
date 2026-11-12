@@ -143,7 +143,8 @@ Points que le tableau ne disait pas, tranchés côté serveur ; l'app doit les c
 
 ## Programme envoyé (`data`)
 Format de js/data/prog-share.js étendu, validé par l'app à la réception :
-`{ name, consigne?, sessions: [{ key, label, color, exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, ss?, consigne? }] }] }`.
+`{ name, consigne?, sessions: [{ key, label, color, exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, ss?, consigne? }] }] }`.
+- Reps : fourchette `repMin` à `repMax` (« 8 à 12 »), ou reps fixes `repFixed: true` avec le nombre dans `repMax` (« 4 × 12 », jamais avec `repMin`). Une appli d'avant `repFixed` ignore le champ et lit le seul haut : même hausse de charge quand toutes les séries l'atteignent ; seul l'objectif après la hausse diffère (4 sous le haut au lieu du même nombre).
 - `consigne` (programme ou exercice) : texte du coach, 500 caractères au plus.
 - À l'import, l'élève reçoit un programme perso (`userProgrammes`, id `u_c<8 premiers caractères alphanumériques de l'id du coach>_<prog_id>`, choix du 27/10 : deux coachs qui envoient le même `prog_id` ne s'écrasent jamais, et le coach reconnaît ses programmes ; un import plus ancien `u_c<prog_id>` du même coach garde sa place), marqué `fromCoach: { coachId, name, sentAt, hash, keptAt? }`. Un nouvel envoi du même `prog_id` met à jour le programme importé (exercices et consignes), en gardant les `id` d'exercices dont le nom ne change pas dans la même séance, pour garder l'historique et les records.
 - `order: [clés]` : ordre des séances de tout programme perso (pas seulement reçu), synchronisé dans le profil, parce que jsonb trie les clés d'un objet. Absent, l'ordre des clés de l'appareil fait foi (migration douce) ; une empreinte de profil d'avant ce champ compte comme « inchangé ici » à la synchro.
