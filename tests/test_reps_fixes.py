@@ -110,6 +110,7 @@ def t_reps_fixes(bench, eng, dev, theme):
         R.check(f'4{NB}×{NB}12' in card.inner_text(), f'{t} séance : « 4 × 12 » sur la carte')
         chip = card.locator('[data-action="bump-weight"]')
         R.check(chip.count() == 1, f'{t} séance : puce de charge (toutes les séries à 12 et plus)')
+        page.evaluate("document.querySelectorAll('.toast').forEach(e => e.remove())")   # message de l'étape « 1 rep refusée »
         shot(page, LOT, f'03-seance-{t}')
         if chip.count():
             chip.click()

@@ -269,6 +269,8 @@ def t_eleve(bench, eng, dev, theme):
         rw = page.locator('.coach-prog__preview li', has_text='Rowing').first
         R.check('Rowing haltère unilatéral · 4 × 12' in rw.inner_text().replace('\u00a0', ' ') and rw.locator('.coach-prog__ex-name ~ .num .visually-hidden').first.text_content() == '4 séries de 12 reps',
                 f'{t} aperçu : « 4 × 12 » du coach ({rw.inner_text()!r})')
+        rw.scroll_into_view_if_needed()
+        shot(page, LOT, f'6b-apercu-reps-fixes-{t}')
         R.check(page.evaluate("document.querySelector('.coach-prog__btn').getBoundingClientRect().height") < 60, f'{t} « Ajouter à mes programmes » sur une ligne')
         R.check(page.get_attribute('.coach-prog [data-action="coach-add-prog"]', 'aria-label') == 'Ajouter Force à mes programmes', f'{t} VoiceOver : bouton Ajouter nommé')
         layout(page, t, 'Mon coach')
@@ -612,6 +614,9 @@ def t_coach(bench, eng, dev, theme):
         rw = page.locator('.coach-send-ex', has_text='Rowing').first
         R.check('4 × 12' in rw.locator('.cell__sub').first.inner_text().replace('\u00a0', ' ') and rw.locator('.cell__sub .visually-hidden').first.text_content() == '4 séries de 12 reps',
                 f'{t} envoi : « 4 × 12 », lu « 4 séries de 12 reps » ({rw.inner_text()!r})')
+        rw.scroll_into_view_if_needed()
+        shot(page, LOT, f'16b-envoi-reps-fixes-{t}')
+        page.evaluate('window.scrollTo(0, 0)')
         layout(page, t, 'envoi d\'un programme')
         shot(page, LOT, f'16-envoi-{t}')
         page.click('[data-action="coach-send-go"]')
