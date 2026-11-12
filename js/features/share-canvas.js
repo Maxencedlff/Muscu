@@ -140,10 +140,10 @@ function drawMedal(ctx, p, x, y, size) {
   const k = size / 24;
   ctx.save();
   ctx.translate(x, y); ctx.scale(k, k);
-  ctx.fillStyle = rgbaCss(p.gold, .55); ctx.fill(new Path2D(MEDAL_PATHS.ribbon));
-  ctx.fillStyle = rgbaCss(p.gold);
-  ctx.beginPath(); ctx.arc(12, 15, 6, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = rgbaCss(p.cell); ctx.fill(new Path2D(MEDAL_PATHS.star));
+  ctx.strokeStyle = rgbaCss(p.gold); ctx.lineWidth = 1.75; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.stroke(new Path2D(MEDAL_PATHS.ribbon));
+  ctx.beginPath(); ctx.arc(12, 15, 6, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1.3; ctx.stroke(new Path2D(MEDAL_PATHS.star));
   ctx.restore();
 }
 

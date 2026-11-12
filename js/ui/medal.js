@@ -3,19 +3,20 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Dessinée sur une grille de 24 : ruban, disque, étoile. Les tracés servent à l'icône des écrans
+// Dessinée au trait sur une grille de 24 : ruban, disque, étoile. Les tracés servent à l'icône des écrans
 // (medalSvg) et à l'image partagée (share-canvas.js, drawMedal) : Path2D accepte la syntaxe des
 // chemins SVG (MDN, « Path2D() constructor »).
 const MEDAL_PATHS = {
-  ribbon: 'M7.5 2h3l1.5 4.5L13.5 2h3l-2.6 7.2A6 6 0 1 1 10.1 9.2z',
-  star:   'M12 11.8l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z',
+  ribbon: 'M8 2.75 10.6 9M16 2.75 13.4 9',
+  star:   'm12 12.1.9 1.8 2 .3-1.45 1.4.35 2L12 16.65l-1.8.95.35-2-1.45-1.4 2-.3z',
 };
 
 function medalSvg(size = 20) {
-  return `<svg class="medal" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">
-    <path d="${MEDAL_PATHS.ribbon}" fill="currentColor" opacity=".55"/>
-    <circle cx="12" cy="15" r="6" fill="currentColor"/>
-    <path d="${MEDAL_PATHS.star}" fill="var(--cell, #1c1c1e)"/>
+  // Au trait, comme le reste du jeu d'icônes (sprite d'index.html) ; l'or vient de la couleur du texte (--medal)
+  return `<svg class="medal" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="${MEDAL_PATHS.ribbon}"/>
+    <circle cx="12" cy="15" r="6"/>
+    <path d="${MEDAL_PATHS.star}" stroke-width="1.3"/>
   </svg>`;
 }
 

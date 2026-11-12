@@ -135,7 +135,7 @@ function recapPageHtml(page, i, st) {
   }
   if (page.caption) parts.push(`<div class="rp-caption">${esc(page.caption)}</div>`);
   if (page.note) parts.push(`<div class="rp-note">${esc(page.note)}</div>`);
-  if (page.mention) parts.push(`<div class="rp-mention">${icon('sparkles', 16)}<span>${esc(page.mention)}</span></div>`);
+  if (page.mention) parts.push(`<div class="rp-mention">${icon('chart', 16)}<span>${esc(page.mention)}</span></div>`);
   if (page.chips?.length) parts.push(`<div class="rp-chips">${page.chips.map(c => `<span class="rp-chip num">${esc(c)}</span>`).join('')}</div>`);
   if (page.lines?.length && page.id === 'profile') parts.push(`<dl class="rp-lines">${page.lines.map(([l, x]) => `<div><dt>${esc(l)}</dt><dd>${esc(x)}</dd></div>`).join('')}</dl>`);
   if (page.box) parts.push(`<div class="rp-box">${esc(page.box)}</div>`);

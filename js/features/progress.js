@@ -196,6 +196,13 @@ function statsRecordsHtml() {
   return recs.length ? `<div class="group-title">Derniers records</div><div class="group stats-records">${recordRowsHtml(recs)}</div>` : '';
 }
 
+// Séances des 4 dernières semaines, en petites barres sous « ce mois-ci » (la plus récente à droite)
+function statsWeekBars() {
+  const counts = weekCounts((data.history || []).map(h => new Date(h.date).getTime()));
+  const bars = counts ? weekBarsSvg(counts) : '';
+  return bars ? `<span class="stat-pair__trend">${bars}<span>4 semaines</span></span>` : '';
+}
+
 function renderStats() {
   const idx  = exerciseIndex();
   const now  = new Date();
@@ -215,7 +222,7 @@ function renderStats() {
         ${data.history?.length ? statsRecordsHtml() : '<p class="stats-empty">Fais ta première séance pour voir tes muscles travaillés ici.</p>'}
         <div class="group stats-head">
           <div class="stat-pair">
-            <div class="stat-pair__item"><span class="stat-pair__val num">${monthCount}</span><span class="stat-pair__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span></div>
+            <div class="stat-pair__item"><span class="stat-pair__val num">${monthCount}</span><span class="stat-pair__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span>${statsWeekBars()}</div>
             <div class="stat-pair__item"><span class="stat-pair__val num">${yearCount}</span><span class="stat-pair__lbl">${yearCount > 1 ? 'séances' : 'séance'} cette année</span></div>
           </div>
           <button class="cell cell--nav" data-action="go-stats-overview">
@@ -224,7 +231,7 @@ function renderStats() {
             ${icon('chevron.right', 16)}
           </button>
           <button class="cell cell--nav" data-action="go-recaps">
-            ${icon('sparkles', 22)}
+            ${icon('calendar', 22)}
             <span class="cell__body"><span class="cell__title">Récaps</span><span class="cell__sub">Ta semaine, ton mois, ton année</span></span>
             ${icon('chevron.right', 16)}
           </button>

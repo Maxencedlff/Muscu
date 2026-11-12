@@ -53,15 +53,24 @@ function progressPlannedOf(uid) {
 
 // Séances de la semaine : valeur courte à droite (« 3 sur 4 », « 2 ») et détail dessous
 // (« Prévues : Sèche 4 jours », « 3 d'habitude »)
-function progressSessionsCell(pr, planned) {
+function progressSessionsCell(pr, planned, bars = '') {
   const value = planned ? `${pr.n7} sur ${planned.n}` : String(pr.n7);
   const sub = planned ? `Prévues : ${planned.name}` : pr.habit !== null && pr.habit >= 1 ? `${fmtNum(pr.habit)} d'habitude` : '';
   const spoken = planned ? `${pr.n7} sur ${planned.n} prévues` : value;
   return `
           <div class="cell progress-week__row" aria-label="${esc(`Séances : ${spoken}${sub && !planned ? `, ${sub}` : planned ? `, programme ${planned.name}` : ''}`)}" role="group">
             <span class="cell__body"><span class="cell__title">Séances</span>${sub ? `<span class="cell__sub">${esc(sub)}</span>` : ''}</span>
-            <span class="cell__value num">${esc(value)}</span>
+            ${bars}<span class="cell__value num">${esc(value)}</span>
           </div>`;
+}
+
+// Ses séances des 4 dernières semaines (première page chargée), seulement si elle couvre toute la période
+function progressWeekBars(uid) {
+  const f = coachSessions(uid), now = Date.now();
+  const oldest = f.rows[f.rows.length - 1]?.doneAt;
+  const covered = f.end || (oldest && now - new Date(oldest).getTime() >= 28 * 864e5);
+  const counts = f.rows.length ? weekCounts(f.rows.map(r => new Date(r.doneAt).getTime()), now, 4, !!covered) : null;
+  return counts ? weekBarsSvg(counts) : '';
 }
 
 // Fiche d'un élève, en tête : « Cette semaine ». Le signal (seulement s'il dit autre chose que les lignes
@@ -77,7 +86,7 @@ function coachWeekSummaryHtml(uid) {
     ? '<div class="cell"><span class="cell__body"><span class="cell__title">Records</span></span><span class="cell__value">Aucun</span></div>' : '';
   const more = pr.records.length > PROGRESS_SUMMARY_RECORDS
     ? `<div class="cell"><span class="cell__sub">Et ${plural(pr.records.length - PROGRESS_SUMMARY_RECORDS, 'autre record', 'autres records')}, dans ses séances</span></div>` : '';
-  const sessions = progressSessionsCell(pr, planned);
+  const sessions = progressSessionsCell(pr, planned, progressWeekBars(uid));
   const row = coachSessions(uid).rows[0];
   const lastTxt = st.last_session ? studentLastLine(st) : 'Pas encore de séance';
   const last = row && st.last_session && row.doneAt === st.last_session.done_at
