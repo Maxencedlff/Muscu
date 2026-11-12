@@ -1,5 +1,6 @@
 """Vidéos d'exercices des coachs (docs/VIDEOS_EXERCICES.md) : fiche de la bibliothèque, aperçu d'un programme
-reçu du coach, manifeste vide ou absent, données cellulaires, hors ligne.
+reçu du coach, manifeste vide ou absent, données cellulaires, hors ligne. Animations 3D du personnage maison
+(js/data/exercise-anims.js) en repli sans vidéo : lecture automatique, « réduire les animations », cache du SW.
 
 La vidéo est une mire générée sur place par ffmpeg avec scripts/prepare-exercise-video.py (jamais une
 vidéo tierce), servie par une fausse adresse https interceptée (https://videos.mdlf.test/). Aucune requête
@@ -202,7 +203,8 @@ def t_affiche(bench, eng, dev, theme):
 
 
 def t_vide(bench, eng, dev, theme):
-    """Manifeste du dépôt (vide), puis absent : aucune différence visible, aucune requête vidéo."""
+    """Manifeste du dépôt (vide), puis absent : aucune vidéo de coach ni requête vers l'hébergement ; l'animation 3D
+    prend la place sur le squat, l'exercice sans animation garde sa fiche d'avant."""
     t = tag(dev, theme)
     for man, what in (('repo', 'vide'), (None, 'absent')):
         with bench.page(eng, dev, theme) as page:
@@ -210,7 +212,12 @@ def t_vide(bench, eng, dev, theme):
             open_app(page, theme, man)
             R.check(page.evaluate('exerciseVideos.size') == 0, f'{t} manifeste {what} : aucune vidéo')
             open_fiche(page)
-            R.check(page.locator('.exvideo').count() == 0 and page.locator('.howto').count() == 1, f'{t} manifeste {what} : fiche comme avant')
+            R.check(page.locator('.exvideo').count() == 1 and page.locator('.exvideo--3d').count() == 1
+                    and page.locator('.howto').count() == 1, f'{t} manifeste {what} : animation 3D à la place')
+            page.click('[data-action="back"]')
+            page.wait_for_timeout(300)
+            open_fiche(page, 'Curl marteau')
+            R.check(page.locator('.exvideo').count() == 0 and page.locator('.howto').count() == 1, f'{t} manifeste {what} : sans animation, fiche comme avant')
             R.check(not page.video_hits, f'{t} manifeste {what} : aucune requête vidéo')
             R.check(not page.errors, f'{t} manifeste {what} : aucune erreur JS {page.errors}')
 
@@ -271,14 +278,105 @@ def t_coach(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+ANIM_POSTER = 'img/anim/squat-barre.webp'
+PLAYING = "(() => { const v = document.querySelector('.exvideo--3d video'); return v && v.currentTime > 0.3 && !v.paused; })()"
+CAN_PLAY = """(() => { const v = document.createElement('video');
+    return v.canPlayType('video/mp4; codecs="avc1.64001F"') !== '' || v.canPlayType('video/webm; codecs="vp9"') !== ''; })()"""
+
+
+def t_anim3d(bench, eng, dev, theme):
+    """Animation 3D (sans vidéo de coach) : lecteur muet en boucle, carré, lecture automatique même en cellulaire
+    (fichier de l'app) ; « réduire les animations » : affiche et ▶, rien de chargé avant le toucher."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        serve_videos(page)
+        open_app(page, theme, 'repo', cellular=True)
+        open_fiche(page)
+        fig = page.locator('.howto .exvideo--3d')
+        R.check(fig.count() == 1 and page.locator('.howto__anim').count() == 0, f'{t} animation 3D dans « Comment faire »')
+        R.check(page.locator('.howto__cues li').count() >= 3, f'{t} consignes gardées sous l\'animation')
+        attrs = page.evaluate("""() => { const v = document.querySelector('.exvideo--3d video');
+            return { playsinline: v.hasAttribute('playsinline'), muted: v.muted, loop: v.loop, poster: v.getAttribute('poster'),
+                     label: v.getAttribute('aria-label') }; }""")
+        R.check(attrs['playsinline'] and attrs['muted'] and attrs['loop'], f'{t} playsinline, muet, en boucle {attrs}')
+        R.check(attrs['poster'] == ANIM_POSTER and attrs['label'] == f'Animation 3D de l\'exercice {EX}', f'{t} affiche et VoiceOver {attrs}')
+        R.check(page.inner_text('.exvideo--3d .exvideo__credit').strip() == 'Animation 3D', f'{t} légende « Animation 3D »')
+        ratio = page.evaluate("(() => { const r = document.querySelector('.exvideo--3d .exvideo__frame').getBoundingClientRect(); return [r.width, r.height]; })()")
+        R.check(abs(ratio[0] - ratio[1]) < 1 and ratio[0] <= 321, f'{t} carré, 320 pt au plus {ratio}')
+        page.wait_for_function("document.querySelector('.exvideo--3d video').getAttribute('src')", timeout=5000)
+        src = page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('src')")
+        R.check(src in ('img/anim/squat-barre.mp4', 'img/anim/squat-barre.webm'), f'{t} cellulaire : fichier de l\'app chargé quand même ({src})')
+        if page.evaluate(CAN_PLAY):
+            try:
+                page.wait_for_function(PLAYING, timeout=8000)
+                ok = True
+            except Exception:
+                ok = False
+            R.check(ok, f'{t} lecture automatique de l\'animation')
+            if ok:
+                R.check(page.get_attribute('.exvideo--3d .exvideo__play', 'aria-label') == 'Mettre l\'animation en pause', f'{t} bouton « Mettre l\'animation en pause »')
+                page.click('.exvideo--3d .exvideo__play')
+                page.wait_for_timeout(200)
+                R.check(page.evaluate("document.querySelector('.exvideo--3d video').paused"), f'{t} toucher : pause')
+                page.click('.exvideo--3d .exvideo__play')
+                page.wait_for_timeout(400)
+                R.check(not page.evaluate("document.querySelector('.exvideo--3d video').paused"), f'{t} toucher : reprise')
+        if dev in FULL_DEVICES:
+            page.locator('.exvideo--3d').scroll_into_view_if_needed()
+            shot(page, LOT, f'5-anim3d-lecture-{t}')
+        layout_ok(page, t, 'animation 3D')
+        R.check(not page.video_hits, f'{t} rien vers l\'hébergement des vidéos')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+    with bench.page(eng, dev, theme, reduced_motion='reduce') as page:
+        serve_videos(page)
+        open_app(page, theme, 'repo')
+        open_fiche(page, 'Développé couché barre')
+        page.wait_for_timeout(600)
+        R.check(page.locator('.exvideo--3d.exvideo--manual').count() == 1, f'{t} réduire les animations : pas de lecture automatique')
+        R.check(not page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('src')"), f'{t} réduire les animations : rien de chargé')
+        R.check(page.get_attribute('.exvideo--3d .exvideo__play', 'aria-label') == 'Lire l\'animation' and page.locator('.exvideo--3d .exvideo__btn').is_visible(), f'{t} affiche et ▶ « Lire l\'animation »')
+        R.check(page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('poster')") == 'img/anim/developpe-couche-barre.webp', f'{t} affiche du développé couché')
+        if dev in FULL_DEVICES:
+            shot(page, LOT, f'6-anim3d-affiche-{t}')
+        layout_ok(page, t, 'affiche 3D')
+        page.click('.exvideo--3d .exvideo__play')
+        page.wait_for_timeout(400)
+        R.check((page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('src')") or '').startswith('img/anim/developpe-couche-barre.'), f'{t} toucher : animation chargée')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_anim_sw(bench):
+    """Service worker (Chromium) : affiches de la version en cache, vidéo 3D mise en cache au premier visionnage
+    puis servie par plages (206) depuis le cache, sans réseau."""
+    with bench.page('chromium', 'Pixel 7', 'dark', service_workers='allow') as page:
+        seed(page, 'dark', ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
+        page.evaluate("Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('service worker jamais prêt')), 60000))])")
+        page.reload()
+        page.wait_for_selector('#app > *')
+        R.check(page.evaluate('!!navigator.serviceWorker.controller'), 'SW : page contrôlée')
+        R.check(page.evaluate(f"caches.match('/{ANIM_POSTER}').then(r => !!r)"), 'SW : affiche 3D en cache dès l\'installation')
+        page.wait_for_function('exerciseVideosLoaded === true')
+        open_fiche(page)
+        page.wait_for_function(PLAYING, timeout=8000)
+        src = page.evaluate("new URL(document.querySelector('.exvideo--3d video').src).pathname")
+        page.wait_for_function(f"caches.match('{src}').then(r => !!r)", timeout=5000)
+        page.context.set_offline(True)
+        res = page.evaluate(f"""fetch('{src}', {{ headers: {{ Range: 'bytes=100-299' }} }}).then(async r =>
+            ({{ status: r.status, len: (await r.arrayBuffer()).byteLength, range: r.headers.get('Content-Range') }}))""")
+        page.context.set_offline(False)
+        R.check(res['status'] == 206 and res['len'] == 200 and (res['range'] or '').startswith('bytes 100-299/'), f'SW : plage servie depuis le cache hors ligne {res}')
+        R.check(not page.errors, f'SW : aucune erreur JS {page.errors}')
+
+
 def t_sw(bench):
     """Service worker : manifeste dans le cache de la version, vidéos jamais."""
     sw = open(os.path.join(ROOT, 'sw.js'), encoding='utf-8').read()
     assets = sw[sw.index('const ASSETS'):sw.index('];', sw.index('const ASSETS'))]
     R.check("'/data/exercise-videos.json'" in assets and '.mp4' not in assets, 'sw.js : manifeste en cache, aucune vidéo')
     R.check("destination === 'video'" in sw and "headers.has('range')" in sw, 'sw.js : vidéos et plages laissées au réseau')
+    R.check(sw.index('ANIM_RE.test(url.pathname)') < sw.index("destination === 'video'"), 'sw.js : animations 3D de l\'app traitées avant la règle des vidéos de coach')
     build = open(os.path.join(ROOT, 'scripts', 'build-web.mjs'), encoding='utf-8').read()
     R.check("'data'" in build, 'build-web : dossier data/ embarqué dans l\'app')
 
 
-run_main(R, [t_fiche, t_affiche, t_vide, t_hors_ligne, t_coach], once=[t_sw])
+run_main(R, [t_fiche, t_affiche, t_vide, t_hors_ligne, t_coach, t_anim3d], once=[t_sw, t_anim_sw])
