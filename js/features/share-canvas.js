@@ -121,18 +121,12 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Carte : fond de cellule du thème, ombre douce en clair, fine bordure en sombre
+// Carte : fond de cellule du thème, sur le fond uni ; le contraste de surface suffit (ni ombre ni bordure,
+// direction « sobre », css/theme-sobre.css)
 function drawCard(ctx, p, x, y, w, h) {
-  ctx.save();
   roundRect(ctx, x, y, w, h, STORY.RADIUS);
-  if (p.light) { ctx.shadowColor = rgbaCss(p.label, .08); ctx.shadowBlur = 40; ctx.shadowOffsetY = 12; }
-  ctx.fillStyle = rgbaCss(p.cell, p.light ? 1 : .78);
+  ctx.fillStyle = rgbaCss(p.cell);
   ctx.fill();
-  ctx.restore();
-  if (!p.light) {
-    roundRect(ctx, x + 1, y + 1, w - 2, h - 2, STORY.RADIUS - 1);
-    ctx.strokeStyle = rgbaCss(p.label, .07); ctx.lineWidth = 2; ctx.stroke();
-  }
 }
 
 // Médaille de record (mêmes tracés que medalSvg, js/ui/medal.js), carrée de côté size
@@ -160,24 +154,17 @@ function drawMuscleMap(ctx, x, y, w, h, image) {
 
 function drawBackground(ctx, p) {
   const { W, H } = STORY;
+  // Fond uni du thème : plus de halo coloré (direction « sobre »)
   ctx.fillStyle = rgbaCss(p.bg); ctx.fillRect(0, 0, W, H);
-  // Halo de la couleur de la séance en haut à gauche, rappel plus discret en bas à droite
-  const glow = (cx, cy, r, a) => {
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0, rgbaCss(p.cat, a)); g.addColorStop(1, rgbaCss(p.cat, 0));
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  };
-  glow(W * .12, 180, 1150, p.light ? .30 : .52);
-  glow(W * .95, H * .80, 900, p.light ? .12 : .20);
 }
 
-// Surtitre « SAMEDI 17 OCTOBRE · 18:30 » (couleur de la séance), puis le nom de la séance en très grand
+// Surtitre « Samedi 17 octobre · 18:30 » (gris, casse de phrase), puis le nom de la séance en très grand
 function drawHeader(ctx, p, st, y, titleSize) {
   const { SIDE, W } = STORY, maxW = W - 2 * SIDE;
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = rgbaCss(p.catText);
-  ctx.font = storyFont(700, 34, false, p); setTracking(ctx, 5);
-  const kicker = [st.day, st.time].filter(Boolean).join(' · ').toLocaleUpperCase('fr-FR');
+  ctx.fillStyle = rgbaCss(p.label2);
+  ctx.font = storyFont(600, 34, false, p);
+  const day = String(st.day || ''), kicker = [day.charAt(0).toLocaleUpperCase('fr-FR') + day.slice(1), st.time].filter(Boolean).join(' · ');
   ctx.fillText(fitText(ctx, kicker, maxW), SIDE, y + 30);
   ctx.fillStyle = rgbaCss(p.label);
   ctx.font = storyFont(800, titleSize, false, p); setTracking(ctx, -titleSize * .02);
@@ -205,8 +192,8 @@ function storyTiles(st) {
 
 // Libellé en petites capitales espacées, valeur en SF Rounded (taille ajustée à la largeur)
 function drawStat(ctx, p, label, value, x, y, maxW, size, gap) {
-  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
-  ctx.fillText(label.toLocaleUpperCase('fr-FR'), x, y + 30); setTracking(ctx, 0);
+  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p);
+  ctx.fillText(label, x, y + 30);
   fitSize(ctx, value, maxW, size, 48, s => storyFont(700, s, true, p));
   ctx.fillStyle = rgbaCss(p.label);
   ctx.fillText(value, x - 2, y + 30 + gap);
@@ -232,8 +219,8 @@ function drawTilesWithMap(ctx, p, st, y, image) {
   storyTiles(st).forEach(([label, value], i) => {
     const base = y + 40 + i * step + 62;
     if (i) { ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(left, y + 40 + i * step, right - left, 2); }
-    ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
-    ctx.fillText(label.toLocaleUpperCase('fr-FR'), left, base); setTracking(ctx, 0);
+    ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p);
+    ctx.fillText(label, left, base);
     fitSize(ctx, value, colW - padX - 190, 58, 40, s => storyFont(700, s, true, p));
     ctx.fillStyle = rgbaCss(p.label); ctx.textAlign = 'right';
     ctx.fillText(value, right, base); ctx.textAlign = 'left';
@@ -301,8 +288,8 @@ function highlightsHeight(list, more, rowH = STORY.ROW, air = 1) {
 function drawGroup(ctx, p, u, ry, rowH, nameSize = null, air = 1) {
   const { SIDE, W } = STORY, padX = 44, g = groupMetrics(rowH, air);
   const x = SIDE + padX, tx = x + g.indent, maxW = W - 2 * SIDE - 2 * padX - g.indent;
-  ctx.fillStyle = rgbaCss(p.catText); ctx.font = storyFont(700, g.title, false, p); setTracking(ctx, 3);
-  ctx.fillText(u[0].kind.toLocaleUpperCase('fr-FR'), x, ry + g.titleBase); setTracking(ctx, 0);
+  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, g.title, false, p);
+  ctx.fillText(u[0].kind, x, ry + g.titleBase);
 
   // Crochet « [ » : du haut du premier nom au bas du dernier détail, avec ses retours en haut et en bas
   const top = ry + g.head + g.nameBase - g.name * 0.8;
@@ -311,7 +298,7 @@ function drawGroup(ctx, p, u, ry, rowH, nameSize = null, air = 1) {
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(bx + tick, top); ctx.lineTo(bx, top); ctx.lineTo(bx, bottom); ctx.lineTo(bx + tick, bottom);
-  ctx.strokeStyle = rgbaCss(p.cat); ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.strokeStyle = rgbaCss(p.label2); ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.stroke();
   ctx.restore();
 
@@ -337,8 +324,8 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
   // Avec des supersets, un nom n'est jamais réduit sous NAME_MIN (il est tronqué au-delà)
   const nameFloor = list.some(r => r.group != null || r.sets) ? STORY.NAME_MIN : 24;
   drawCard(ctx, p, SIDE, y, w, highlightsHeight(list, more, rowH, air));
-  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
-  ctx.fillText('EXERCICES', SIDE + padX, y + CARD_HEAD - 20); setTracking(ctx, 0);
+  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p);
+  ctx.fillText('Exercices', SIDE + padX, y + CARD_HEAD - 20);
 
   const compact = rowH < ROW;
   const size = Math.round(Math.min(40, rowH * 0.6)), base = Math.round(rowH * 0.66);

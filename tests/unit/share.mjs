@@ -276,7 +276,7 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
       const g = fakeCanvas2d();
       app.drawHighlights(g, palette, st, 0, 4, false, rowH);
       const texts = g.drawn.map(d => d.text);
-      assert.ok(texts.includes('TRI-SET'), 'titre du bloc');
+      assert.ok(texts.includes('Tri-set'), 'titre du bloc (casse de phrase)');
       assert.equal(texts.filter(t => t === grp.sets).length, 3, 'détail de chaque exercice');
       assert.equal(texts.filter(t => t === '100 kg × 8').length, 1, 'meilleure série seulement pour l\'exercice seul');
       assert.ok(!texts.some(t => /^[A-Z]\d$/.test(t)), 'aucune pastille A1');

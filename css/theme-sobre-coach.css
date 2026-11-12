@@ -1,0 +1,138 @@
+/* ═══════════════════════════════════════════════
+   Direction « sobre et vivante » : Coach, Social, Messages, Photos de bilan et coffre (branche sobre-coach)
+   Mêmes règles que css/theme-sobre.css (chargé juste avant, dont on reprend les jetons) :
+   - orange seulement pour le bouton principal, l'onglet actif, l'élément en cours et les liens d'action ;
+   - vert = fait et progression, rouge = suppression et non-lu, or = record (icône au trait seulement) ;
+   - icônes de liste, titres, pastilles d'état et sélections : neutres ;
+   - aucun dégradé, motif, lueur ou ombre de décor ; casse de phrase ; chiffres à chasse fixe.
+   Les avatars emoji des personnes ne sont pas touchés (choix du fondateur) : seul le monogramme change.
+═══════════════════════════════════════════════ */
+
+:root {
+  /* Monogramme (élève sans emoji) : gris neutre opaque, lettre au contraste du texte courant */
+  --sbc-mono: #48484A; --sbc-mono-text: #FFFFFF;          /* 9,3:1 */
+  /* Ma bulle de message : gris plus clair que la bulle reçue, plus de bulle orange (l'orange reste à l'action) */
+  --sbc-bubble-mine: #3A3A3C; --sbc-bubble-mine-text: #FFFFFF;
+  /* Phases du coach : une palette de catégories qui ne prend aucune couleur de sens (ni vert, ni rouge, ni or,
+     ni orange, ni violet) ; chaque phase garde aussi son nom dans la légende */
+  --sbc-ph-bulk: #C9A27A;     /* sable */
+  --sbc-ph-cut: #40C8E0;      /* bleu-vert */
+  --sbc-ph-mini: #409CFF;     /* bleu */
+  --sbc-ph-maintain: #8E9BB0; /* ardoise */
+  --sbc-ph-comeback: #E3D3B5; /* lin */
+  --sbc-ph-strength: #5E7FA8; /* acier */
+  --sbc-ph-prep: #A08A73;     /* taupe */
+  --sbc-ph-other: #AEAEB2;    /* gris */
+}
+body.light {
+  --sbc-mono: #D1D1D6; --sbc-mono-text: #000000;          /* 13,9:1 */
+  --sbc-bubble-mine: #D1D1D6; --sbc-bubble-mine-text: #000000;
+  --sbc-ph-bulk: #8A6A45; --sbc-ph-cut: #0E7C93; --sbc-ph-mini: #0066CC; --sbc-ph-maintain: #5B6B82;
+  --sbc-ph-comeback: #B59A68; --sbc-ph-strength: #2F4F78; --sbc-ph-prep: #6E5A47; --sbc-ph-other: #8E8E93;
+}
+
+/* ── Monogramme : gris neutre lisible, dans les deux thèmes (lignes d'élèves, fil, commentaires, profil) ── */
+.avatar--initial, .avatar-pick--initial[aria-pressed="true"] { background: var(--sbc-mono); color: var(--sbc-mono-text); }
+
+/* ── Icônes de liste et d'accueil : neutres (l'orange n'est pas une décoration d'icône) ── */
+.coach-cell__icon, .social-hero__icon, .pv-glyph, .pv-feat__icon { color: var(--label2); }
+.pv-entry__glyph { background: var(--chart-bar); color: var(--white); }
+
+/* ── Coach › Élèves : ligne « 0 record · 0 à relancer · 4 nouveautés » ──
+   Le point reste collé au chiffre qui le précède (css/theme-sobre.css) ; sur petite hauteur, la règle de coach.css
+   remettait des puces de taille différente : même taille partout. Texte agrandi : un chiffre par ligne. */
+@media (max-height: 700px) {
+  .team-week { display: block; margin: 0 0 16px; padding: 10px 16px; }
+  .team-week__tile:not(:last-child)::after { font-size: inherit; }
+}
+html.type-xl .team-week { padding: 10px 16px; }
+html.type-xl .team-week__tile + .team-week__tile { margin-top: 4px; }
+.team-week__tile--up .team-week__val { color: var(--green-text); }
+
+/* Pastilles d'un élève : séances à voir en gris (un état), non-lus en rouge (css/theme-sobre.css) */
+.coach-count--sessions { background: var(--fill2); }
+.coach-dot { background: var(--red); }                 /* nouveau = non-lu */
+.activity-row__new { background: var(--red); }
+
+/* Programmes et plans reçus : surtitre en casse de phrase, gris ; « Ton programme » neutre */
+.coach-prog__eyebrow { text-transform: none; letter-spacing: 0; color: var(--label2); }
+.coach-prog { border-radius: 12px; }
+.coach-tag { background: var(--fill); color: var(--label); }
+/* Notes d'une séance avec douleur : pastille rouge à lire, plus de cadre orange */
+.review-notes--pain { background: var(--cell); box-shadow: none; }
+.review-notes--pain .review-notes__head { color: var(--label2); }
+.review-notes__flag { background: var(--sb-badge); color: var(--white); font-weight: 600; }
+.review-trend, .review-ex__vol, .progress-week__row .cell__value, .coach-code, .plan-stepper output { font-variant-numeric: tabular-nums; }
+.review-trend--up { color: var(--green-text); }
+/* À relancer : un état, pas une alerte orange */
+.progress-sig--warn { color: var(--label); }
+/* Champs : liseré de focus neutre (la saisie n'est pas une action) */
+.coach-textarea:focus { box-shadow: inset 0 0 0 1.5px var(--label3); }
+.chat-compose:focus-within, .comment-compose:focus-within { border-color: var(--label3); }
+
+/* ── Planification : couleurs des phases sans couleur de sens, plus de hachures ── */
+[style*="--plan-color:var(--brown)"]     { --plan-color: var(--sbc-ph-bulk) !important; }
+[style*="--plan-color:var(--teal)"]      { --plan-color: var(--sbc-ph-cut) !important; }
+[style*="--plan-color:var(--indigo)"]    { --plan-color: var(--sbc-ph-mini) !important; }
+[style*="--plan-color:var(--green)"]     { --plan-color: var(--sbc-ph-maintain) !important; }
+[style*="--plan-color:var(--yellow)"]    { --plan-color: var(--sbc-ph-comeback) !important; }
+[style*="--plan-color:var(--red)"]       { --plan-color: var(--sbc-ph-strength) !important; }
+[style*="--plan-color:var(--purple)"]    { --plan-color: var(--sbc-ph-prep) !important; }
+[style*="--plan-color:var(--tint)"]      { --plan-color: var(--sbc-ph-other) !important; }
+/* Semaine en cours : à moitié pleine et entourée (un état, sans motif rayé) */
+.plan-weeks > .is-now { background: color-mix(in srgb, var(--plan-color) 45%, transparent); box-shadow: inset 0 0 0 1.5px var(--plan-color); }
+.plan-chip input:checked + span { background: var(--label); color: var(--bg); box-shadow: none; }
+.plan-chip input:checked + span::before { box-shadow: 0 0 0 1.5px var(--bg); }
+.plan-card, .plan-gantt { border-radius: 12px; }
+.plan-pill { background: var(--fill2); }
+
+/* ── Messages : bulles neutres, la mienne un cran plus claire ── */
+.chat-msg--mine .chat-msg__bubble { background: var(--sbc-bubble-mine); color: var(--sbc-bubble-mine-text); }
+.chat-msg__time { font-variant-numeric: tabular-nums; }
+.chat-compose { box-shadow: 0 -10px 0 var(--bg); }      /* masque le texte qui passe dessous, sans halo flou */
+
+/* ── Social : fil, carte de séance, profil ── */
+.feed-card { border-radius: 12px; }
+.feed-card__stat-val, .me-stat__val, .reg__val, .last__fact-val, .rec-row__val, .mysess__count, .react__count, .react-row__count { font-variant-numeric: tabular-nums; }
+/* Record : médaille au trait dorée, texte courant ; plus de pastille jaune */
+.feed-card__rec { display: inline-flex; align-items: center; gap: 6px; padding: 0; background: none; color: var(--label); font-weight: 600; }
+.feed-card__rec .medal { flex-shrink: 0; color: var(--medal); }
+.feed-card__rec-more { color: var(--label2); }
+/* Réaction : un bouton neutre ; donnée, elle s'inverse (sélection, pas action) */
+.react { color: var(--label); }
+.react--on { color: var(--bg); }
+.react--on::before { background: var(--label); }
+.react-row__btn--on { background: var(--fill); box-shadow: inset 0 0 0 1.5px var(--label2); }
+/* Régularité : semaine en cours en blanc / noir, comme les mini-barres de Progrès */
+.reg__bar--now { background: var(--label); }
+.athlete, .last { border-radius: 12px; }
+.stack .avatar--s { box-shadow: 0 0 0 2px var(--cell); }  /* découpe de pile, pas une ombre */
+.comment__note { color: var(--label2); }
+/* Collé en bas : masque net plutôt que halo flou */
+.social-enable { box-shadow: 0 10px 0 var(--bg), 0 -10px 0 var(--bg); }
+.social-enable:disabled { box-shadow: none; }
+
+/* ── Photos de bilan : sélection en orange (l'action en cours), séparateur net du comparateur ── */
+.cphs__item { border-radius: 12px; }
+.pcmp__handle { box-shadow: 0 0 0 .5px var(--scrim); }
+.pcmp__knob { box-shadow: 0 0 0 .5px var(--scrim); }
+.cph-pair__pose, .pgal__date { font-variant-numeric: tabular-nums; }
+
+/* ═══════════════════════════════════════════════
+   Mouvement (vivant) : seulement ce qui change de sens, coupé par « Réduire les animations »
+═══════════════════════════════════════════════ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Message nouveau (envoyé ou reçu) : la bulle monte depuis la saisie (js/ui/vivant-coach.js) */
+  .chat-msg.sbc-in { animation: sbcSend .26s cubic-bezier(.2, .8, .2, 1) both; }
+  .chat-msg--mine.sbc-in { transform-origin: right bottom; }
+  .chat-msg--theirs.sbc-in { transform-origin: left bottom; }
+  @keyframes sbcSend { from { opacity: 0; transform: translateY(10px) scale(.96); } }
+  /* Réaction qu'on vient de donner : un rebond */
+  .sbc-pop { animation: sbcPop .28s cubic-bezier(.2, .8, .2, 1.3) both; }
+  @keyframes sbcPop { 0% { transform: scale(.9); } 60% { transform: scale(1.06); } 100% { transform: none; } }
+  /* Photo cochée pour l'envoi : la coche se pose */
+  .cphs__item--on .cphs__check { animation: sbcPop .24s cubic-bezier(.2, .8, .2, 1.3) both; }
+  /* Planning ouvert : les phases se déroulent depuis leur début */
+  .sbc-grow .plan-gantt__bar, .sbc-grow .plan-line__seg { transform-origin: left; animation: sbcGrowX .5s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes sbcGrowX { from { transform: scaleX(0); } }
+}
