@@ -96,7 +96,7 @@ def t_eleve(bench, eng, dev, theme):
         note = page.locator('.chat-intro-note')
         R.check(note.count() == 1 and 'peut t\'écrire' in note.inner_text() and 'Signale' in note.inner_text(), f'{t} information sur les messages')
         cell = page.locator('.chat-cell')
-        R.check('Pense à t\'échauffer' in cell.inner_text() and cell.get_attribute('aria-label').startswith('Messages, 2 non lus, ') and 'Pense à t\'échauffer' in cell.get_attribute('aria-label'), f'{t} cellule Messages : dernier message et non-lus ({cell.get_attribute("aria-label")!r})')
+        R.check('Pense à t\'échauffer' in cell.inner_text() and cell.get_attribute('aria-label') is None and cell.locator('.sr-text').inner_text() == ', 2 non lus,', f'{t} cellule Messages : dernier message et non-lus ({cell.get_attribute("aria-label")!r})')
         shot(page, LOT, f'1-mon-coach-{t}')
         cell.click()
         page.wait_for_selector('.coach-chat-view .chat-msg')
