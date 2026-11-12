@@ -970,7 +970,12 @@ def t_vague4(bench, eng, dev, theme):
         cuits = [n for n, tg in tags if tg == 'cuit']
         R.check('Riz blanc, cru' in crus and 'Riz blanc, cuit, sans sel ajouté' in cuits, f'{t} v4 recherche : étiquettes cru et cuit ({len(crus)} cru, {len(cuits)} cuit)')
         R.check(page.locator('#dietFoodList .diet-legend').count() == 1, f'{t} v4 recherche : légende des macros')
+        # Barre de la feuille mesurée après son animation d'ouverture (en CI, mesurée pendant : « Annuler » à 40 pt)
+        page.wait_for_function("s => [...document.querySelectorAll(s)].every(e => !e.getAnimations().length)", arg=f'{LIVE_SHEET}, {LIVE_SHEET} *')
         st = small_targets(page, f'{LIVE_SHEET} button')
+        if st:   # détail pour comprendre un échec en CI (taille de chaque bouton trop petit, taille de la fenêtre)
+            st = page.evaluate("""s => [...document.querySelectorAll(s)].filter(e => e.offsetParent && !e.disabled).map(e => [e.textContent.trim().slice(0, 12), e.getBoundingClientRect()])
+                .filter(([, r]) => r.width < 44 || r.height < 44).map(([n, r]) => n + ' ' + Math.round(r.width) + 'x' + Math.round(r.height)).concat(['vue ' + innerWidth + 'x' + innerHeight])""", f'{LIVE_SHEET} button')
         R.check(not st, f'{t} v4 recherche : 44 pt {st}')
         ct = cut_texts(page, LIVE_SHEET)
         R.check(not ct, f'{t} v4 recherche : aucun texte coupé {ct}')
