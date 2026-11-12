@@ -23,7 +23,7 @@ function restActivityTint(color) {
   return 'indigo';
 }
 
-// Série suivante : { exercise, set, load } avec load = « 80 kg × 8 », « 12 reps » au poids du
+// Série suivante : { exercise, set, of, load } avec load = « 80 kg × 8 », « 12 reps » au poids du
 // corps, '' sans reps prévues. null quand toutes les séries sont faites. cur peut être la sous-série
 // qui suit (techNextSub : { ei, si, label, set }) : « Squat · Mini-série 1 », sa charge (l'écran iOS
 // écrit ensuite « série N », celle qu'elle prolonge)
@@ -40,7 +40,9 @@ function restActivityNext(session, cur) {
   const warm = !cur.label && isWarmupSet(s), no = setDisplayNo(ex.sets, cur.si);
   const name = cur.label ? `${ex.name} · ${cur.label}`
     : warm ? `${ex.name} · Échauffement ${ex.sets.slice(0, cur.si + 1).filter(isWarmupSet).length}` : String(ex.name);
-  return { exercise: name.slice(0, REST_ACTIVITY_MAX.exercise), set: warm ? no + 1 : Math.max(1, no), load };
+  // of : nombre de séries de travail (« série 3/4 » sur l'écran verrouillé, build 68 et suivantes ;
+  // une build plus ancienne l'ignore et écrit « série 3 »)
+  return { exercise: name.slice(0, REST_ACTIVITY_MAX.exercise), set: warm ? no + 1 : Math.max(1, no), of: workSets(ex.sets).length, load };
 }
 
 // Données envoyées au module natif (logique pure, testée dans tests/unit/run.mjs)

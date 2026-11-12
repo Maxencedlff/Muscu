@@ -121,16 +121,19 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - Données
 
-    /// endTime (ms depuis 1970), total (s), next { exercise, set, load } facultatif
+    /// endTime (ms depuis 1970), total (s), next { exercise, set, of?, load } facultatif
     private static func contentState(_ call: CAPPluginCall) -> RestActivityAttributes.ContentState? {
         guard let endMs = call.getDouble("endTime"), endMs > 0 else { return nil }
         let total = max(1, call.getInt("total") ?? 90)
         var next: RestActivityAttributes.NextSet?
         if let n = call.getObject("next"), let exercise = n["exercise"] as? String {
+            // of : nombre de séries de travail (« série 3/4 »), absent d'un JS plus ancien
+            let setCount: Int? = (n["of"] as? NSNumber)?.intValue
             next = RestActivityAttributes.NextSet(
                 exercise: String(exercise.prefix(60)),
                 set: (n["set"] as? NSNumber)?.intValue ?? 1,
-                load: String(((n["load"] as? String) ?? "").prefix(30)))
+                load: String(((n["load"] as? String) ?? "").prefix(30)),
+                of: setCount.map { (value: Int) -> Int in min(max(value, 0), 99) })
         }
         let phase = call.getString("phase") == "effort" ? "effort" : nil
         let label = call.getString("label").map { String($0.prefix(60)) }
@@ -183,7 +186,7 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             let background = UIApplication.shared.beginBackgroundTask(withName: "Démonstration Live Activity")
             let state = RestActivityAttributes.ContentState(
                 endDate: Date().addingTimeInterval(55), totalSeconds: 90,
-                next: .init(exercise: "Développé couché", set: 3, load: "80 kg × 8"))
+                next: .init(exercise: "Développé couché", set: 3, load: "80 kg × 8", of: 4))
             self.enqueue {
                 defer { Task { @MainActor in UIApplication.shared.endBackgroundTask(background) } }
                 do {
@@ -192,7 +195,7 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
                         content: Self.content(state), pushType: nil)
                     try? await Task.sleep(nanoseconds: 22_000_000_000)
                     await activity.update(Self.content(state), alertConfiguration: AlertConfiguration(
-                        title: "Repos", body: "Développé couché · série 3", sound: .default))
+                        title: "Repos", body: "Développé couché · série 3/4", sound: .default))
                 } catch {
                     print("⚡️ Live Activity de démonstration refusée : \(error)")
                 }
