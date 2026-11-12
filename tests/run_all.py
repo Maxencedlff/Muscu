@@ -10,6 +10,7 @@ PPL_JOBS (défaut 6) règle le nombre de processus simultanés. Garde-fou mémoi
 processus ne démarre tant que la mémoire disponible de WSL est sous 2,5 Go (évite de faire planter WSL).
 """
 import glob
+import json
 import os
 import re
 import subprocess
@@ -43,12 +44,31 @@ env_list = lambda k: [x.strip() for x in os.environ.get(k, '').split(',') if x.s
 devices = [d for _, d in selected_devices()]   # noms inconnus refusés (fixtures.selected_devices)
 themes = pick(env_list('PPL_THEMES'), THEMES, 'Thème') or THEMES
 
+
+def inventory(f):
+    """Nombre de tests par appareil et uniques d'un fichier (PPL_LIST : run_main compte sans lancer de navigateur)."""
+    r = subprocess.run([sys.executable, f], cwd=here, env={**os.environ, 'PPL_LIST': '1'},
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60)
+    m = re.search(r'^PPL_LIST (\{.*\})$', r.stdout, re.M)
+    if r.returncode != 0 or not m:
+        sys.exit(f'{os.path.basename(f)} : inventaire impossible (run_main absent ou erreur à l\'import)\n{r.stdout[-800:]}')
+    return json.loads(m.group(1))
+
+
+# Un processus n'est planifié que s'il a des tests : avant, ~37 processus sur 165 ne vérifiaient rien et
+# comptaient « OK » (audit du 12/11, m4). Un processus planifié qui ne vérifie rien échoue (Results.done).
+with ThreadPoolExecutor(8) as ex:
+    counts = dict(zip(files, ex.map(inventory, files)))
 jobs = []
 for f in files:
-    for dev in devices:
-        for theme in themes:
-            jobs.append((f, {'PPL_DEV': dev, 'PPL_THEME': theme}, f'{dev}-{theme}'))
-    jobs.append((f, {'PPL_ONCE': '1'}, 'unique'))
+    if counts[f]['tests']:
+        for dev in devices:
+            for theme in themes:
+                jobs.append((f, {'PPL_DEV': dev, 'PPL_THEME': theme}, f'{dev}-{theme}'))
+    if counts[f]['once']:
+        jobs.append((f, {'PPL_ONCE': '1'}, 'unique'))
+    if not counts[f]['tests'] and not counts[f]['once']:
+        sys.exit(f'{os.path.basename(f)} : aucun test déclaré dans run_main')
 
 
 def mem_available_mb():
@@ -91,21 +111,26 @@ def run_with_retry(job):
 
 t0 = time.time()
 failed, flaky = [], []
+checks = [0, 0]   # vérifications réussies, faites (lignes « Lot … : n/n »)
 with ThreadPoolExecutor(int(os.environ.get('PPL_JOBS', '6'))) as ex:
     for f, label, code, out, dt in ex.map(run_with_retry, jobs):
         name = os.path.basename(f)
+        for ok, total in re.findall(r'^Lot .* : (\d+)/(\d+) vérifications', out, re.M)[-1:]:
+            checks[0] += int(ok); checks[1] += int(total)
         if code != 0:
             failed.append(f'{name} [{label}]')
             sys.stdout.write(f'═══ {name} [{label}] : ÉCHEC ({dt:.0f} s)\n')
-            sys.stdout.write('\n'.join(l for l in out.splitlines() if 'KO' in l or 'ÉCHEC' in l or 'exception' in l or 'Traceback' in l) + '\n')
+            sys.stdout.write('\n'.join(l for l in out.splitlines() if 'KO' in l or 'ÉCHEC' in l or 'exception' in l or 'Traceback' in l or l.startswith('Lot ')) + '\n')
         elif 'INSTABLE' in label:
             flaky.append(f'{name} [{label.split(" INSTABLE")[0]}]')
             print(f'═══ {name} [{label}] ({dt:.0f} s)', flush=True)
             sys.stdout.write('\n'.join(l for l in out.splitlines() if 'ÉCHEC' in l or 'exception' in l) + '\n')
         else:
-            last = out.strip().splitlines()[-1] if out.strip() else ''
-            print(f'═══ {name} [{label}] : OK ({dt:.0f} s) {last}', flush=True)
+            # La ligne « Lot … : n/n vérifications », pas la dernière ligne (souvent un avertissement)
+            lot_line = [l for l in out.splitlines() if l.startswith('Lot ')]
+            print(f'═══ {name} [{label}] : OK ({dt:.0f} s) {lot_line[-1] if lot_line else ""}', flush=True)
 print()
+print(f'{checks[0]}/{checks[1]} vérifications OK au total')
 print(f'{len(jobs) - len(failed)}/{len(jobs)} processus OK en {time.time() - t0:.0f} s' + (f' ; échecs : {", ".join(failed)}' if failed else '')
       + (f' ; instables : {", ".join(flaky)}' if flaky else ''))
 sys.exit(1 if failed else 0)
