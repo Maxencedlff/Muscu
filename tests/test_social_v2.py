@@ -146,11 +146,12 @@ def t_pratiquant(bench, eng, dev, theme):
         R.check(lbls[:3] == ['Durée', 'Volume', 'Séries'], f'{t} séance de l\'amie : Durée, Volume, Séries comme la carte ({lbls})')
         page.go_back(); page.wait_for_selector('.feed-card[data-id="l0"]')
         rec = card.locator('.feed-card__rec').inner_text().replace(' ', ' ').replace(' ', ' ')
-        R.check(rec.startswith('🏆 Record · ') and rec.endswith(' kg +1'),
+        R.check(rec.startswith('Record · ') and rec.endswith(' kg +1') and card.locator('.feed-card__rec svg.medal').count() == 1,
                 f'{t} carte : record le plus marquant, et combien d\'autres ({rec!r})')
-        color = page.evaluate("getComputedStyle(document.querySelector('.feed-card__rec')).color")
-        gold = page.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--gold-text)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
-        R.check(color == gold, f'{t} record en or ({color} / {gold})')
+        # Direction sobre : l'or est réservé à la médaille au trait (jamais d'emoji), le texte reste en couleur courante
+        color = page.evaluate("getComputedStyle(document.querySelector('.feed-card__rec .medal')).color")
+        gold = page.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--medal)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
+        R.check(color == gold, f'{t} médaille du record en or ({color} / {gold})')
         chips = card.locator('.feed-card__chip').all_inner_texts()
         R.check(1 <= len(chips) <= 3 and 'Quadriceps' in chips, f'{t} carte : muscles travaillés ({chips})')
         R.check(card.locator('.react').count() == 1 and card.locator('[data-action="social-open-comments"]').count() == 1, f'{t} carte : réagir et commenter')
