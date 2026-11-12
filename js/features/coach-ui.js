@@ -138,11 +138,6 @@ function refreshCoachCell() {
   if (team) team.innerHTML = coachTeamHtml();
 }
 
-// Messages non lus de tous mes élèves (pastille « Mes élèves »)
-function coachChatUnreadStudents() {
-  return (coach.state?.students || []).reduce((a, s) => a + chatUnreadOf(s.user_id), 0);
-}
-
 // ── Réglages › Coach ────────────────────────────────────────
 
 function renderCoachSettings() {
