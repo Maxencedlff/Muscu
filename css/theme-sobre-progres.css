@@ -31,9 +31,8 @@ body.light {
 .mpill--main::before { background: var(--body-heat); }
 .mpill--sec { background: var(--fill2); color: var(--label2); }
 .mpill--sec::before { background: var(--body-heat-sec); }
-/* Muscle touché : copie éclaircie, sans halo ni pulsation */
+/* Muscle touché : la pulsation douce reste (elle dit « c'est celui-là », coupée par Réduire les animations) ; plus de halo */
 .body-map__hl { filter: none; }
-.body-map__hl > i { animation: none; filter: brightness(calc(var(--body-base-bright) * 1.25)); }
 
 /* ── Courbes (exercice, mesures, poids) : la ligne prend l'orange MDLF quelle que soit la séance ──
    resolveColor (progress-chart.js) pose la couleur de séance en style en ligne sur le canvas puis lit la couleur
