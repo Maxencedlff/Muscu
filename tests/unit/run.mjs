@@ -445,6 +445,34 @@ test('num : virgule, bornes, entiers, vide', () => {
   assert.equal(app.num('Infinity', 0, Infinity), null);
 });
 
+test('num : écriture décimale simple seulement (hexadécimal, exposant, séparateurs multiples refusés)', () => {
+  // Number() acceptait ces formes : « 0x14 » valait 20 kg, « 1e3 » 1000 kg (audit du 12/11, m3)
+  for (const bad of ['0x14', '1e3', '1E3', '2,5,5', '1.2.3', '12abc', '1 000', '--1', '0b101', '0o7', '½', '١٢'])
+    assert.equal(app.num(bad, 0, 1e6), null, bad);
+  assert.equal(app.num('1,000', 0, 1000), 1, 'virgule décimale à la française');
+  assert.equal(app.num(',5', 0, 10), 0.5);
+  assert.equal(app.num('12,', 0, 100), 12);
+  assert.equal(app.num('+3', 0, 10), 3);
+  assert.equal(app.num('-2,5', -10, 10), -2.5);
+  // Valeurs déjà numériques (données stockées, horodatages) : inchangées, bornes toujours appliquées
+  assert.equal(app.num(1_700_000_000_000, 1_577_836_800_000, 4_102_444_800_000, true), 1_700_000_000_000);
+  assert.equal(app.num(12.3456, 0, 100), 12.3456);
+  assert.equal(app.num(NaN, 0, 100), null);
+  assert.equal(app.num(Infinity, 0, Infinity), null);
+  assert.equal(app.num(8.5, 0, 100, true), null);
+});
+
+test('cleanReps : chiffres seuls (collage, clavier externe)', () => {
+  assert.equal(app.cleanReps('12'), '12');
+  assert.equal(app.cleanReps('abc'), '');
+  assert.equal(app.cleanReps('1e3'), '13');
+  assert.equal(app.cleanReps(' 1 0 '), '10');
+  assert.equal(app.cleanReps('8,5'), '85');
+  assert.equal(app.cleanReps('<img src=x>'), '');
+  assert.equal(app.cleanReps(null), '');
+  assert.equal(app.cleanReps('123456'), '1234', 'quatre chiffres au plus (3600 s)');
+});
+
 test('weightOk : vide accepté (poids du corps), plafond 1000 kg / 2205 lbs', () => {
   reset();
   assert.equal(app.weightOk(''), true);
@@ -454,6 +482,10 @@ test('weightOk : vide accepté (poids du corps), plafond 1000 kg / 2205 lbs', ()
   assert.equal(app.weightOk('1000,5'), false);
   assert.equal(app.weightOk('-1'), false);
   assert.equal(app.weightOk('abc'), false);
+  for (const bad of ['0x14', '1e3', '1,000', '2,5,5', '32,555', '10000', '1 0'])
+    assert.equal(app.weightOk(bad), false, `charge « ${bad} » refusée`);
+  assert.equal(app.weightOk('32,25'), true);
+  assert.equal(app.weightOk('0'), true);
   assert.equal(app.weightMsg(), 'Poids entre 0 et 1000 kg');
   reset({ unit: 'lbs' });
   assert.equal(app.weightOk('2205'), true);

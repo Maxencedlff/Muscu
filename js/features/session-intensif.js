@@ -197,7 +197,7 @@ document.addEventListener('input', e => {
   if (a !== 'sub-weight' && a !== 'sub-reps') return;
   const x = techSubAt(e.target.dataset)?.x;
   if (!x || x.done) return;
-  if (a === 'sub-weight') { x.weight = storeW(e.target.value); delete x.auto; } else x.reps = e.target.value;
+  if (a === 'sub-weight') { x.weight = storeW(e.target.value); delete x.auto; } else x.reps = repsInput(e.target);
   persistSession();
 });
 
