@@ -60,7 +60,7 @@ const SOUND_LEVELS = { fort: 0.9, normal: 0.6, bas: 0.35 };
 function soundVol() { return SOUND_LEVELS[data.soundLevel] ?? SOUND_LEVELS.fort; }
 
 // Mélodies : notes { freq (Hz), start (s depuis le début), dur (s) }. Jouées par iOS dans l'app
-// (Native.sound : par-dessus la musique ; la fin du repos seule audible en mode silencieux), sinon en Web Audio.
+// (Native.sound : par-dessus la musique, audibles en mode silencieux), sinon en Web Audio.
 const MELODIES = {
   timer:      [[880, 0, .12], [1100, .16, .12], [1320, .32, .35]],
   validation: [[660, 0, .1]],
@@ -75,16 +75,16 @@ const MELODIES = {
   tempoRep:   [[523, 0, .08], [1047, .1, .16]], // tempo : nouvelle répétition (deux notes, distincte des phases)
 };
 
-// Fin du repos (décompte et GO) : seuls sons qui passent outre le mode silencieux d'iOS (Réglages › Sons
-// le dit). Les autres (série validée, journée complète, bilan…) ne sont que des confirmations : coupés
-// par le bouton silencieux, comme ailleurs sur l'iPhone (panel t7).
-const ALERT_MELODIES = new Set(['timer', 'restCount', 'restGo']);
+// Tous les sons passent par la lecture iOS (.playback, audible en mode silencieux, par-dessus la musique).
+// Le passage des confirmations en .ambient (panel t7, build 67) rendait l'app muette, fin du repos comprise,
+// sur l'iPhone de Maxence (12/11/2026) : retour au réglage éprouvé, sans nouvelle build (le module natif
+// garde le choix ; il sera réessayé, testé sur un vrai iPhone).
 
 function playMelody(name) {
   if (data.soundOn === false) return;
   const vol = soundVol();
   const notes = MELODIES[name].map(([freq, start, dur]) => ({ freq, start, dur, vol }));
-  if (Native.sound.available) { Native.sound.play(notes, ALERT_MELODIES.has(name)); return; }
+  if (Native.sound.available) { Native.sound.play(notes, true); return; }
   notes.forEach(n => setTimeout(() => beep(n.freq, n.dur, n.vol), n.start * 1000));
 }
 

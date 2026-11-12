@@ -1515,7 +1515,7 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
   assert.equal(sent, null, 'sons coupés : rien');
 });
 
-test('sons : seule la fin du repos passe alert:true (audible en mode silencieux), le reste se coupe', async () => {
+test('sons : tous passent alert:true (lecture iOS audible en mode silencieux, réglage éprouvé)', async () => {
   const alerts = {};
   const box = { data: { soundOn: true }, navigator: {}, document: { addEventListener() {} },
                 Native: { haptic: () => true, sound: { available: true, play: (n, alert) => { box.last = alert; } } } };
@@ -1523,7 +1523,7 @@ test('sons : seule la fin du repos passe alert:true (audible en mode silencieux)
   const src = fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8');
   vm.runInContext(src + '\nthis.playMelody = playMelody; this.names = Object.keys(MELODIES);', c);
   for (const name of c.names) { box.last = undefined; c.playMelody(name); alerts[name] = box.last; }
-  sameJSON(Object.keys(alerts).filter(k => alerts[k] === true).sort(), ['restCount', 'restGo', 'timer']);
+  assert.ok(Object.values(alerts).every(v => v === true), 'tous les sons en lecture iOS');
   assert.ok(Object.values(alerts).every(v => typeof v === 'boolean'), 'toujours un booléen');
   // Jusqu'au module : le paramètre part bien vers iOS (faux par défaut)
   const got = [];
