@@ -310,7 +310,7 @@ function renderSession() {
 }
 
 // Exercice terminé : une ligne de résumé qui se déplie au tap
-function renderCollapsedExercise(ex, ei, records) {
+function renderCollapsedExercise(ex, ei, records, rir = '') {
   return `
       <div class="exercise-block ex-card ex-card--collapsed" data-ei="${ei}">
         <button class="ex-summary" data-action="toggle-ex" data-ei="${ei}" aria-expanded="false">
@@ -319,8 +319,21 @@ function renderCollapsedExercise(ex, ei, records) {
             <span class="ex-summary__line num">${doneSummary(ex)}${records ? ` · ${medalSvg(14)}` : ''}</span>
           </span>
           <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
-        </button>
+        </button>${rir}
       </div>`;
+}
+
+// Retour du 12/11 (« pour le RIR, c'est pas pratique sur la dernière série ») : la dernière série d'un exercice ou d'un
+// superset referme sa carte, et le sélecteur disparaissait avec elle (il fallait déplier la carte). Tant que cette
+// série est la dernière validée de la séance, ses reps en réserve se notent sous le résumé replié, sans rien
+// bloquer ; il s'en va à la série suivante validée ailleurs (activeSession.lastDone change).
+function foldedRirHtml(block) {
+  const ld = activeSession.lastDone;
+  if (!ld || !block.includes(ld.ei) || !rirShown()) return '';
+  const ex = activeSession.exercises[ld.ei], s = ex?.sets[ld.si];
+  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps') return '';
+  const tags = block.length > 1 ? ssTags(activeSession.exercises) : null;
+  return `<div class="ex-fold-rir">${rirPickerHtml(ld.ei, ld.si, s, ex, tags ? tags[ld.ei] : '')}</div>`;
 }
 
 // Volume comparé au même nombre de séries que la dernière fois : jamais rouge en cours de séance.
@@ -376,7 +389,7 @@ function renderExerciseCard(ex, ei, cur) {
 
   if (allDone && !openDone.has(ex)) {
     const records = liveExerciseBadges(ex, livePrior(ex)).size;   // js/data/records.js
-    return renderCollapsedExercise(ex, ei, records);
+    return renderCollapsedExercise(ex, ei, records, foldedRirHtml([ei]));
   }
 
   const howTo = !allDone && hasHowTo(ex);
@@ -443,7 +456,7 @@ function renderGroupCard(members, cur, tags) {
             ${members.map(ei => `<span class="ex-summary__line num"><span class="ss-tag ss-tag--sm">${tags[ei]}</span>${esc(xs[ei].name)} · ${doneSummary(xs[ei])}</span>`).join('')}
           </span>
           <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
-        </button>
+        </button>${foldedRirHtml(members)}
       </div>`;
   }
 
@@ -560,10 +573,11 @@ function rirEverUsed() {
   }
   return rirUsedCache.used;
 }
-function rirPickerHtml(ei, si, s, ex) {
-  const r = cleanRir(s.rir);
-  return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}">
-            <span class="rir__lbl" aria-hidden="true">Reps en réserve</span>${rirEverUsed() ? '' : `
+// tag : lettre du superset (A2) quand le sélecteur est sous le résumé replié de sa carte (foldedRirHtml)
+function rirPickerHtml(ei, si, s, ex, tag = null) {
+  const r = cleanRir(s.rir), folded = tag !== null;
+  return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}${folded ? `, ${esc(ex.name)}` : ''}">
+            <span class="rir__lbl" aria-hidden="true">Reps en réserve${folded ? ` · ${tag ? `${tag} ` : ''}S${setDisplayNo(ex.sets, si)}` : ''}</span>${rirEverUsed() ? '' : `
             <span class="rir__help">Facultatif : combien tu aurais pu en faire de plus</span>`}
             <span class="rir__btns">${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}</span>
             <span class="rir__rpe num" aria-live="polite">${r === null ? '' : `RPE ${rirToRpe(r)}`}</span>
@@ -817,11 +831,19 @@ function scrollToCurrent(smooth = true, focus = false) {
     const any = $('.ex-undo');
     const band = card?.previousElementSibling?.classList.contains('ex-undo') ? card.previousElementSibling
       : any && card && any.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING ? any : null;
-    const top = band || (card && !card.querySelector('.session-set--done') ? card : null);
+    // Reps en réserve de la dernière série sous une carte qui vient de se replier (foldedRirHtml) : pendant le repos, cette
+    // carte reste entière sous la barre, la série à faire vient en dessous autant que l'écran le permet (la barre de repos
+    // la nomme : « Ensuite : … ») ; à la fin du repos, la série à faire reprend la main
+    const fold = restActive ? $('.ex-fold-rir') : null;
+    const keep = fold && card && fold.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING ? fold.closest('.ex-card') : null;
+    const top = band || keep || (card && !card.querySelector('.session-set--done') ? card : null);
     const barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
     const room = window.innerHeight - barH - ($('.rest-mini')?.getBoundingClientRect().height || 0) - 24;
     if (top && row.getBoundingClientRect().bottom - top.getBoundingClientRect().top <= room) {
       window.scrollTo({ top: Math.max(0, top.getBoundingClientRect().top + window.scrollY - barH - 8), behavior });
+    } else if (keep) {
+      const y = window.scrollY, need = row.getBoundingClientRect().bottom + y - barH - room;
+      window.scrollTo({ top: Math.max(0, Math.min(need, (band || keep).getBoundingClientRect().top + y - barH - 8)), behavior });
     } else if (top === card && card) {
       // Première série trop basse pour tenir avec tout l'en-tête (texte agrandi sur SE) : on descend juste assez pour
       // montrer la série, sans jamais passer le nom de l'exercice sous la barre (CI t6 : la centrer cachait le nom)

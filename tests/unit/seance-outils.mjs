@@ -205,4 +205,34 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(p.rpe, 7.5);
     assert.equal(run(`exPoint({ date: 1, id: 'h' }, { name: 'DC', sets: [{ weight: '60', reps: '8' }] }).rpe`), null);
   });
+
+  // Retour du 12/11 : la dernière série d'un exercice referme sa carte ; ses reps en réserve se notent sous le résumé
+  test('RIR de la dernière série : sous la carte repliée (exercice, superset, fin de séance), jamais sur un échauffement', () => {
+    reset();
+    run(`data.rirOn = true;
+      activeSession = { exercises: [
+        { name: 'Squat barre', sets: [{ weight: '20', reps: '8', done: true, warmup: true }, { weight: '60', reps: '8', done: true }, { weight: '60', reps: '8', done: true, rir: 1 }] },
+        { name: 'Presse à cuisses', ss: 'g', sets: [{ weight: '100', reps: '10', done: true }] },
+        { name: 'Fentes marchées', ss: 'g', sets: [{ weight: '20', reps: '12', done: true }] },
+        { name: 'Gainage', measure: 'time', sets: [{ reps: '60', done: true }] }],
+        lastDone: { ei: 0, si: 2 } };`);
+    const html = run(`foldedRirHtml([0])`);
+    assert.match(html, /class="ex-fold-rir"/);
+    assert.match(html, /Reps en réserve · S2</, 'S2 : l\'échauffement ne compte pas');
+    assert.match(html, /data-action="set-rir" data-ei="0" data-si="2" data-rir="1" aria-pressed="true"/, 'RIR déjà noté : pastille enfoncée');
+    assert.match(html, /aria-label="Répétitions en réserve, [^"]*, Squat barre"/, 'VoiceOver : nom de l\'exercice sous le résumé');
+    assert.match(run(`renderCollapsedExercise(activeSession.exercises[0], 0, 0, foldedRirHtml([0]))`), /<\/button><div class="ex-fold-rir">/, 'sous le bouton du résumé, pas dedans');
+    assert.equal(run(`foldedRirHtml([1, 2])`), '', 'autre bloc : rien');
+    run(`activeSession.lastDone = { ei: 2, si: 0 };`);
+    assert.match(run(`foldedRirHtml([1, 2])`), /Reps en réserve · A2 S1</, 'superset : la lettre de l\'exercice');
+    run(`activeSession.lastDone = { ei: 3, si: 0 };`);
+    assert.equal(run(`foldedRirHtml([3])`), '', 'durée : pas de reps en réserve');
+    run(`activeSession.lastDone = { ei: 0, si: 0 };`);
+    assert.equal(run(`foldedRirHtml([0])`), '', 'échauffement : rien');
+    run(`activeSession.lastDone = { ei: 0, si: 2 }; data.rirOn = false;`);
+    assert.equal(run(`foldedRirHtml([0])`), '', 'réglage coupé : rien');
+    run(`activeSession.lastDone = null; data.rirOn = true;`);
+    assert.equal(run(`foldedRirHtml([0])`), '', 'aucune série validée : rien');
+    run(`activeSession = null;`);
+  });
 }
