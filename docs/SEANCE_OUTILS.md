@@ -1,6 +1,7 @@
 # Outils de la séance (lot 2) : disques, échauffement, RIR
 
-Mise à jour le 30 octobre 2026. Trois outils facultatifs pendant la séance, livrés par OTA. Rien n'est
+Mise à jour le 30 octobre 2026. Trois outils facultatifs pendant la séance, partis d'abord par mise à jour à chaud le
+30/10 (avant la règle du 12/11 : une fonction nouvelle passe par une build, IOS.md), puis embarqués dans la build 67. Rien n'est
 obligatoire : valider une série reste un seul toucher sur ✓.
 
 ## Fichiers

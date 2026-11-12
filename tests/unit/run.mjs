@@ -897,6 +897,82 @@ test('native : copie iCloud suivie quand il y avait des séances, sans renvoyer 
   assert.equal(n.calls.filter(c => c[0] === 'cloudSave').length, 1, 'un vieil iPhone juste ouvert n\'écrit rien');
 });
 
+// Règle 5.1.3(ii) de l'App Store (« may not store personal health information in iCloud ») : poids,
+// mensurations, repas cochés et sexe ne vont pas dans la copie iCloud clé-valeur (docs/REVUE_APPLE.md)
+const HEALTHY = { history: [{ id: 'a', date: 1, bodyKg: 82.5, exercises: [] }, { id: 'b', date: 2, exercises: [] }],
+  unit: 'kg', bodyWeightKg: 82, bodyWeightLog: [{ date: 1, kg: 82 }], bodyMeasures: { waist: [{ date: 1, cm: 80 }] },
+  dietLog: { '2026-11-12': { checked: ['m1'] } }, strengthSex: 'm', dietPlans: { p1: { name: 'Sèche' } } };
+
+test('native : copie iCloud sans poids, mensurations, repas ni sexe (règle 5.1.3(ii)), Documents complets', async () => {
+  const n = nativeContext({ localData: '{"history":[1]}' });
+  const full = JSON.stringify(HEALTHY);
+  n.Native.backup(full);
+  await tick();
+  assert.equal(n.file(), full, 'Documents de l\'app : copie complète (sauvegarde de l\'iPhone)');
+  const sent = JSON.parse(n.cloud.data);
+  for (const k of ['bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'dietLog', 'strengthSex']) assert.ok(!(k in sent), `${k} absent d'iCloud`);
+  assert.ok(sent.history.every(h => !('bodyKg' in h)), 'poids noté avec la séance absent d\'iCloud');
+  assert.equal(sent.history.length, 2, 'séances gardées');
+  sameJSON(sent.dietPlans, HEALTHY.dietPlans, 'le reste (plans diète, réglages) part comme avant');
+  assert.equal(sent.unit, 'kg');
+  sameJSON(n.calls.find(c => c[0] === 'cloudSave'), ['cloudSave', 2, false], 'nombre de séances inchangé (garde wouldErase)');
+});
+
+test('native : copie iCloud sans clé privée → texte envoyé tel quel (aucune réécriture)', async () => {
+  const n = nativeContext({ localData: '{"history":[1]}' });
+  n.Native.backup('{"history":[1,2],"unit":"kg"}');
+  await tick();
+  sameJSON(n.cloud.saved, ['{"history":[1,2],"unit":"kg"}']);
+});
+
+test('native : migration, une copie iCloud écrite AVANT le filtre est remplacée au premier enregistrement', async () => {
+  // Lancement d'avant : iCloud a reçu le JSON complet, son empreinte est retenue (ppl_cloud_sent)
+  const full = JSON.stringify(HEALTHY);
+  const storage = new MemoryStorage();
+  storage.setItem('ppl_v2', full);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < full.length; i++) { h ^= full.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  storage.setItem('ppl_cloud_sent', `${full.length}:${(h >>> 0).toString(16)}`);
+  storage.setItem('ppl_cloud_ready', '1');
+  const n = nativeContext({ storage, cloud: { data: full, sessions: 2 } });
+  n.Native.backup(full);                             // enregistrement du démarrage, même donnée
+  await tick();
+  assert.equal(n.cloud.saved?.length, 1, 'la copie iCloud est réécrite une fois');
+  assert.ok(!('bodyWeightLog' in JSON.parse(n.cloud.data)), 'les pesées ne sont plus dans iCloud');
+  n.Native.backup(full);
+  await tick();
+  assert.equal(n.cloud.saved.length, 1, 'puis plus rien : l\'empreinte est celle de la copie filtrée');
+});
+
+test('native : copie iCloud reprise sur un iPhone sans séance → poids et mesures de cet iPhone gardés', async () => {
+  const a = nativeContext();
+  await a.Native.boot();
+  a.storage.setItem('ppl_v2', JSON.stringify({ history: [], bodyWeightLog: [{ date: 5, kg: 80 }], strengthSex: 'f' }));
+  a.cloud.emit({ data: JSON.stringify({ history: [{ id: 'x' }], unit: 'kg' }) });
+  const d = JSON.parse(a.storage.getItem('ppl_v2'));
+  assert.equal(d.history.length, 1, 'séances d\'iCloud reprises');
+  sameJSON(d.bodyWeightLog, [{ date: 5, kg: 80 }], 'pesées de cet iPhone gardées');
+  assert.equal(d.strengthSex, 'f');
+  assert.equal(a.isReloaded(), true);
+  // Ancienne copie iCloud qui avait encore ses pesées : elles reviennent (c'est la donnée de la personne)
+  const b = nativeContext();
+  await b.Native.boot();
+  b.storage.setItem('ppl_v2', '{"history":[]}');
+  b.cloud.emit({ data: JSON.stringify({ history: [{ id: 'y' }], bodyWeightLog: [{ date: 1, kg: 70 }] }) });
+  sameJSON(JSON.parse(b.storage.getItem('ppl_v2')).bodyWeightLog, [{ date: 1, kg: 70 }]);
+});
+
+test('native : clés retirées d\'iCloud = clés jamais envoyées au serveur (SYNC_LOCAL_ONLY), connues de data', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
+  const keys = JSON.parse(src.match(/const CLOUD_PRIVATE_KEYS = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
+  const localOnly = run('SYNC_LOCAL_ONLY');
+  for (const k of keys) assert.ok(localOnly.includes(k), `${k} dans SYNC_LOCAL_ONLY`);
+  const store = fs.readFileSync(path.join(ROOT, 'js/data/store.js'), 'utf8') + fs.readFileSync(path.join(ROOT, 'js/data/body-measures.js'), 'utf8')
+    + fs.readFileSync(path.join(ROOT, 'js/data/nutrition.js'), 'utf8');
+  for (const k of [...keys, 'bodyKg']) assert.ok(new RegExp(`\\b${k}\\b`).test(store), `${k} : nom de clé encore utilisé par data`);
+  assert.match(fs.readFileSync(path.join(ROOT, 'docs/REVUE_APPLE.md'), 'utf8'), /5\.1\.3\(ii\)[\s\S]*cloudCopy/, 'choix justifié dans docs/REVUE_APPLE.md');
+});
+
 test('native : « Supprimer toutes les données » vide aussi la copie iCloud (et seulement là)', async () => {
   const n = nativeContext({ localData: '{"history":[1]}', cloud: { data: '{"history":[1]}', sessions: 1 } });
   n.Native.backup('{"history":[]}');                 // donnée vide sans demande explicite : refusée

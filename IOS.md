@@ -395,10 +395,24 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
 - Nouvelle version de l'app installée : retour au contenu d'origine (`resetWhenUpdate`).
 - Seul du code commité est publiable (version « -local » refusée).
 
-**Règle Apple (Guideline 2.5.2)** : une app ne doit pas télécharger de code qui « introduit ou
-modifie des fonctionnalités ». Les mises à jour à chaud sont donc **réservées aux corrections de
-bugs et aux petits ajustements** ; toute nouvelle fonctionnalité passe par une version soumise à
-Apple (ios.yml). C'est pourquoi la publication est **manuelle**, avec un motif obligatoire :
+**Règle Apple (2.5.2, 2.3.1(a), 2.5.19)** : une app ne doit pas « download, install, or execute code
+which introduces or changes features or functionality of the app » (2.5.2) ; toute fonction nouvelle
+doit être décrite dans la note d'examen (2.3.1(a)) ; aucune fonction cachée ou dormante (2.5.19).
+Règle du projet, sans exception :
+
+- **Mise à jour à chaud = corrections et contenus** d'une fonction déjà présente dans la dernière build
+  examinée par Apple : bug, texte, traduction, mise en page, accessibilité, vitesse, données (exercices,
+  aliments, pages juridiques).
+- **Toute fonction nouvelle, ou tout changement de ce que fait une fonction** (nouvel écran, nouvelle
+  action, nouveau bouton qui fait autre chose, nouvelle donnée collectée ou envoyée) = **build soumise**
+  (`ios.yml`, TestFlight externe puis App Store), décrite dans « What to Test » et la note d'examen
+  (docs/REVUE_APPLE.md). Le code peut être fusionné dans `main` avant, mais aucune mise à jour à chaud
+  ne part tant que la build qui l'apporte n'est pas approuvée.
+- Doute = build. Les interrupteurs du serveur (`app_config`) sont des réglages d'exploitation, jamais un
+  moyen de montrer à l'examen une app différente de celle des utilisateurs.
+
+Recensement du 12/11/2026 et garde `features.json` proposée : docs/REVUE_APPLE.md, section 6.2.
+La publication est **manuelle**, avec un motif obligatoire qui dit de quelle correction il s'agit :
 
 ```bash
 gh workflow run ota.yml -R Maxencedlff/Muscu -f motif="Correction : …"

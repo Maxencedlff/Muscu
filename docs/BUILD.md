@@ -21,6 +21,21 @@ Sur une build plus ancienne, le web reste sûr de toute façon : `saveWorkouts` 
 avant ; `sleep` absent → pas de ligne ; `MdlfPush` absent → « Mets l'app à jour » dans Réglages ›
 Notifications.
 
+## Mises à jour à chaud ou build : la règle
+
+Règles 2.5.2, 2.3.1(a) et 2.5.19 de l'App Store (texte cité dans IOS.md, « Règle Apple ») :
+
+| Changement | Voie |
+|---|---|
+| Correction de bug, texte, traduction, mise en page, accessibilité, vitesse | Mise à jour à chaud (`ota.yml`) |
+| Contenu d'une fonction existante (exercices, aliments, pages juridiques) | Mise à jour à chaud |
+| Fonction nouvelle, ou fonction qui change ce qu'elle fait (écran, action, bouton, donnée collectée ou envoyée) | **Build soumise** (`ios.yml`), décrite dans « What to Test » et la note d'examen |
+| Changement natif (Swift, Info.plist, droits, modules) | Build (l'empreinte `runtime` l'impose) |
+
+Une fonction nouvelle peut attendre dans `main`, mais aucune mise à jour à chaud ne part tant que la build
+qui l'apporte n'est pas approuvée. Doute = build. Recensement des fonctions parties par mise à jour à chaud
+depuis la build 67 et garde `features.json` proposée : docs/REVUE_APPLE.md, section 6.2.
+
 ## Ordre de mise en service
 
 ### 1. Compiler (contrôle, sans secret)

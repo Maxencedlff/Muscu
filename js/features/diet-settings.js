@@ -110,7 +110,7 @@ function renderDietSettings() {
           ${sw('diet-coach-toggle', dietCoachAccepted(), `Recevoir les plans diète ${elide('de', esc(coachName()))}`)}
         </div>
         <div class="group-foot">Les plans de ton coach sont gardés sur le serveur jusqu'à ce que tu retires ton accord ou que le coaching s'arrête ; ton coach voit seulement si tu les as ouverts.</div>` : ''}
-        <div class="group-foot diet-foot">Dans tous les cas, tes plans sont sur cet iPhone, dans la copie iCloud de l'app et dans tes exports. Les repas que tu coches et les aliments que tu remplaces n'en sortent jamais : ni serveur, ni coach.</div>
+        <div class="group-foot diet-foot">Dans tous les cas, tes plans sont sur cet iPhone, dans la copie iCloud de l'app et dans tes exports. Les repas que tu coches et les aliments que tu remplaces restent sur cet iPhone et dans tes exports : ni copie iCloud, ni serveur, ni coach.</div>
         <div class="group group--gap"><button class="cell cell--nav" data-action="diet-privacy">
           <span class="cell__body"><span class="cell__title">Confidentialité de la nutrition</span></span>${icon('chevron.right', 16)}</button></div>
       </div>

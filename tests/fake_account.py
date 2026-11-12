@@ -124,6 +124,8 @@ FAKE_ACCOUNT = r"""
   // ── Coquille iOS ──
   window.Capacitor = {
     isNativePlatform: () => true,
+    // 'ios' par défaut ; __fakeOpts.platform = 'android' pour la coquille Android (ex. code cadeau, règle 3.1.1)
+    getPlatform: () => opts.platform || 'ios',
     // MdlfAgeRange seulement avec __fakeOpts.ageRange (réponse d'AgeRangePlugin.swift) : sinon build sans le module
     isPluginAvailable: name => name === 'MdlfAccount' || (name === 'MdlfAgeRange' && !!opts.ageRange),
     registerPlugin: name => {

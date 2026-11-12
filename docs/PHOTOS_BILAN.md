@@ -14,7 +14,7 @@ styles en fin de `css/coach.css`. Serveur : `supabase/migrations/20261107000000_
 (fichiers effacés juste après le compte, `deleteAccountThenFiles`). Tests : `tests/unit/coach-photos.mjs`, `tests/unit/coach-photos-purge.mjs`,
 `tests/sql/photos_bilan_test.sql`, `tests/test_photos_bilan.py` (faux serveur et faux stockage dans `tests/fake_account.py`).
 
-## Décision : chiffrement de bout en bout, sans nouvelle build
+## Décision : chiffrement de bout en bout, sans changement natif
 
 | Question | Décision | Pourquoi |
 |---|---|---|
@@ -31,8 +31,8 @@ styles en fin de `css/coach.css`. Serveur : `supabase/migrations/20261107000000_
 | Consentement | **Photo par photo**, au moment de l'envoi, rien de coché d'avance ; la ligne du serveur est l'accord (horodatée) | RGPD 9.2.a (consentement explicite) [45], CNIL : consentement « contextuel » [51] ; Apple 5.1.2(i) [52]. |
 | Retrait | « Retirer » sur chaque photo, jamais limité ; ligne effacée (accès et moyen de déchiffrer perdus sur-le-champ), fichier effacé par l'iPhone puis, à défaut, par la purge | RGPD 7.3 (« aussi simple » que le donner) et 17 [46][48]. |
 | Lien rompu | Clé étrangère vers `coach_links` on delete cascade : quitter, être retiré, supprimer un compte efface tout | Même règle que le poids, les mensurations et les messages. |
-| Nouvelle build | **Aucune** : JS, SQL et une fonction serveur | Le module du coffre (trousseau iCloud, Face ID) suffit. |
-| Désactivation | **Interrupteur du serveur** `app_config.coach_photos_on`, sans build ni OTA (voir « Désactiver sans nouvelle build ») | Si l'App Review refuse la fonction, elle disparaît de l'app en une ligne SQL. |
+| Changement natif | **Aucun** : JS, SQL et une fonction serveur | Le module du coffre (trousseau iCloud, Face ID) suffit. C'est pourtant une **fonction nouvelle** : elle arrive aux utilisateurs par une build soumise et décrite dans la note d'examen, jamais par une mise à jour à chaud seule (règles 2.5.2 et 2.3.1(a), IOS.md). Elle est dans le paquet web de la build 67 et décrite dans la note d'examen (docs/REVUE_APPLE.md, section 2). |
+| Désactivation | **Interrupteur du serveur** `app_config.coach_photos_on`, sans build ni OTA (voir « Éteindre la fonction ») | Réglage d'exploitation : couper l'envoi en cas d'abus, d'incident de sécurité ou de panne du stockage, sans attendre une build. Allumé dans la build examinée et décrit dans la note d'examen ; jamais éteint pour l'examen seulement (règle 2.5.19). |
 
 ### Comparatif : bout en bout ou chiffrement côté serveur
 
@@ -182,9 +182,10 @@ politique ni GRANT.
 **Serveur pas à jour** (`PGRST202`) : rien ne s'affiche, ni chez l'élève ni chez le coach (nouvel essai après 10 min).
 **Coquille sans le module du coffre** (navigateur, Android) : rien côté coach ; côté élève, le coffre est déjà indisponible.
 
-## Désactiver sans nouvelle build
+## Éteindre la fonction
 
-Si l'App Store refuse la fonction (ou en cas de problème), un réglage du serveur la retire de l'app, sans build ni OTA.
+Réglage d'exploitation (abus, incident de sécurité, panne du stockage) : un réglage du serveur coupe l'envoi, sans build
+ni OTA. Il est décrit dans la note d'examen et reste allumé dans la build examinée (docs/REVUE_APPLE.md, section 6.2).
 Éditeur SQL du projet (rôle `postgres`) :
 
 ```sql
@@ -220,9 +221,10 @@ vrai projet Supabase »).
 4. `supabase functions deploy delete-account` (compte supprimé d'abord, puis ses fichiers : si la suppression échoue, rien
    n'est effacé, aucune photo « prête » ne reste sans fichier ; fichiers pas effacés : la purge s'en charge).
 5. Étiquette de confidentialité d'App Store Connect : ajouter « Photos or Videos » (liées à l'utilisateur, fonctionnement
-   de l'app, pas de suivi) **avant l'OTA** : dès que l'OTA est installée, l'app envoie des photos, l'étiquette doit déjà
+   de l'app, pas de suivi) **avant la build** : dès qu'elle est installée, l'app envoie des photos, l'étiquette doit déjà
    le dire.
-6. L'OTA. Une app d'avant sur ce serveur ne voit rien de nouveau ; cette app sur un serveur d'avant n'affiche rien.
+6. La build qui embarque la fonction (fonction nouvelle : jamais une mise à jour à chaud seule, IOS.md, « Règle Apple »), décrite dans
+   la note d'examen. Une app d'avant sur ce serveur ne voit rien de nouveau ; cette app sur un serveur d'avant n'affiche rien.
 7. Avant 1. : vérifier qu'aucune politique du tableau de bord sur `storage.objects` ne s'ajoute aux nôtres (les politiques permissives s'additionnent : une politique INSERT ou UPDATE sans filtre `bucket_id` rouvrirait le remplacement d'un fichier) :
    `select policyname, cmd, roles, qual, with_check from pg_policies where schemaname = 'storage' and tablename = 'objects';`
    et que les schémas exposés de l'API (tableau de bord, Data API) ne comprennent pas `coach_photo_rls`.
@@ -271,7 +273,7 @@ Les trois hypothèses de la relecture, vérifiées :
 3. **Suppression dans `vault.secrets`** : `postgres` a SELECT et DELETE ; le retour arrière retire bien
    `photos_purge_secret`.
 
-Rien d'autre n'a cassé ; l'essai a seulement conduit à ajouter l'interrupteur (« Désactiver sans nouvelle build »).
+Rien d'autre n'a cassé ; l'essai a seulement conduit à ajouter l'interrupteur (« Éteindre la fonction »).
 
 ## Tests
 

@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════
 //
 // Rien sur le serveur : mensurations dans data.bodyMeasures (js/data/body-measures.js, jamais
-// synchronisées, mais dans la copie iCloud de l'app et dans l'export), sauf si l'élève coche
+// synchronisées, mais dans l'export et la sauvegarde de l'iPhone, pas dans la copie iCloud de l'app : js/platform/native.js, cloudCopy), sauf si l'élève coche
 // « Mensurations » pour son coach (js/data/coach-share.js : copie dédiée, effacée en décochant ;
 // textes de cet écran adaptés, bmSharedWithCoach), photos dans IndexedDB
 // (js/data/progress-photos.js, sur l'appareil seulement), rangées dans le coffre à photos
@@ -11,7 +11,7 @@
 // l'écran Progrès lui-même (l'app s'ouvre en salle), seulement une ligne qui mène ici.
 'use strict';
 
-const BM_PRIVATE = 'Privé : reste sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs';
+const BM_PRIVATE = 'Privé : reste sur ton iPhone et dans sa sauvegarde, jamais sur nos serveurs';
 // Élève d'un coach : « rien n'est montré à ton coach » ne serait pas sûr pour l'écran, qui mène au coffre d'où partent
 // les photos de bilan, même avant que leur état soit relu du serveur (panels de la vague 3 : texte faux à l'arrivée)
 const bmPhotosToCoach = () => !!(account.user && coachRole().hasCoach) && !cphAgeBlocked() && !cphDisabled();

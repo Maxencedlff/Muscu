@@ -260,8 +260,9 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
       assert.ok(!/daysLeft\(|trial_days|apple_linked|trial_shared|appTransaction|accessLinkApple|verify-app-transaction/.test(src), `${f} : reste de l'essai maison`);
       // La plateforme n'est plus jamais déclarée au serveur par l'accès. native.js l'expose (Native.platform)
-      // pour Android (Health Connect, modules iOS coupés), ce qui n'a rien à voir avec l'essai.
-      if (f !== 'js/platform/native.js') assert.ok(!/Native\.platform/.test(src), `${f} : plateforme lue par l'accès`);
+      // pour Android (Health Connect, modules iOS coupés), ce qui n'a rien à voir avec l'essai. Seule lecture
+      // permise : où se saisit un code cadeau (giftCodeInApp, règle 3.1.1), jamais envoyée au serveur.
+      if (f !== 'js/platform/native.js') assert.ok(!/Native\.platform/.test(src.replaceAll('giftCodeInApp(Native.platform)', '')), `${f} : plateforme lue par l'accès`);
     }
   });
 
@@ -278,6 +279,24 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       assert.ok(!/ - | – /.test(txt), `${k} : sans tiret`);
     }
     assert.equal(run('accessErrorText("inconnu")'), run('ACCESS_ERROR_TEXT.server'));
+  });
+
+  test('accès : code cadeau maison jamais saisi dans l\'app iOS (règle 3.1.1), seulement ailleurs', () => {
+    assert.equal(run(`giftCodeInApp('ios')`), false, 'app iOS : pas de champ de code maison');
+    assert.equal(run(`giftCodeInApp('android')`), true, 'Android : le champ reste');
+    assert.equal(run(`giftCodeInApp('web')`), true, 'navigateur : le champ reste');
+    // L'écran ne montre « J'ai un code » et n'ouvre sa feuille que si giftCodeInApp le permet
+    const ui = fs.readFileSync(path.join(ROOT, 'js/features/paywall-ui.js'), 'utf8');
+    const cells = ui.slice(ui.indexOf('function payCodeCellsHtml'), ui.indexOf('function payCodeNoteHtml'));
+    assert.match(cells, /giftCodeInApp\(Native\.platform\) \? '<button class="cell cell--action" data-action="pay-code">/, 'bouton conditionné');
+    assert.equal((ui.match(/data-action="pay-code"/g) || []).length, 1, 'un seul bouton « J\'ai un code », celui conditionné');
+    const handler = ui.slice(ui.indexOf("'pay-code': async"), ui.indexOf("'pay-apple-code': async"));
+    assert.match(handler, /if \(!giftCodeInApp\(Native\.platform\)\) return;/, 'action refusée dans l\'app iOS');
+    // Le guide (sujet réservé à l'iPhone) ne promet plus un code MDLF
+    const topic = run(`guideTopic('abonnement-gerer')`);
+    assert.ok(!topic.steps.join(' ').includes("[J'ai un code]") && !topic.actions.includes('pay-code'), 'guide iPhone sans code maison');
+    // La décision est écrite pour l'examen
+    assert.match(fs.readFileSync(path.join(ROOT, 'docs/REVUE_APPLE.md'), 'utf8'), /3\.1\.1[\s\S]*giftCodeInApp/, 'docs/REVUE_APPLE.md');
   });
 
   test('accès : code cadeau, un refus n\'est pas une exception', async () => {

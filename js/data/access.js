@@ -357,6 +357,15 @@ function normalizeGiftCode(raw) {
   const c = String(raw ?? '').toUpperCase().replace(/[\s-]/g, '');
   return ACCESS_GIFT_CODE_RE.test(c) ? c : null;
 }
+// Où se saisit un code cadeau MDLF. Règle 3.1.1 de l'App Store : « Apps may not use their own mechanisms
+// to unlock content or functionality, such as license keys ». Dans l'app iOS, le champ « J'ai un code »
+// n'existe donc pas : seuls les codes d'offre d'Apple s'y saisissent (« J'ai un code d'offre Apple »).
+// Il reste dans le navigateur et sur Android. Toute coquille iOS est concernée, même une ancienne sans
+// StoreKit (rien ne s'y achète, mais un déblocage maison y serait le même mécanisme). Un code utilisé
+// ailleurs donne un accès lié au compte, que l'app iOS lit comme tout autre droit (règle 3.1.3(b)).
+// docs/REVUE_APPLE.md, « Codes cadeaux ».
+function giftCodeInApp(platform) { return platform !== 'ios'; }
+
 async function accessRedeemGiftCode(raw) {
   if (!sb || !account.user) return { ok: false, kind: 'signed_out' };
   const code = normalizeGiftCode(raw);

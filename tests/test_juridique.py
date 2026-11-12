@@ -221,4 +221,30 @@ def t_liens(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_newsletter, t_changement_compte, t_connexion_sur_compte, t_apple_seul, t_liens])
+def t_confidentialite(bench, eng, dev, theme):
+    """privacy.html telle que publiée sur mdlf.app : sauvegardes chiffrées de la base (90 jours chez GitHub,
+    copies locales), ce qui reste après la suppression du compte, copie iCloud sans donnée de santé,
+    en français puis en anglais, lisible sur téléphone (audit du 12/11/2026, docs/REVUE_APPLE.md 6.3 et 6.5)."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        page.goto(BASE_URL + 'privacy.html')
+        page.wait_for_selector('h1')
+        body = page.inner_text('body')
+        R.check('mise à jour le 12 novembre 2026' in body and 'updated November 12, 2026' in body, f'{t} date du 12/11 (FR et EN)')
+        fr, en = body.split('Data stored on your device')[0], body.split('Data stored on your device')[-1]
+        R.check('Sauvegardes de la base' in fr and '90 jours' in fr and 'GitHub' in fr and '30 dernières copies' in fr,
+                f'{t} FR : sauvegardes chiffrées, durée, GitHub, copies locales')
+        R.check('Database backups' in en and '90 days' in en and 'GitHub' in en and 'last 30 copies' in en,
+                f'{t} EN : encrypted backups, duration, GitHub, local copies')
+        R.check('restent seulement dans les sauvegardes chiffrées' in fr and 'remains only in the encrypted backups' in en,
+                f'{t} ce qui reste après la suppression du compte (FR et EN)')
+        R.check('Cette copie iCloud ne contient ni ton poids' in fr and 'This iCloud copy contains neither your body weight' in en,
+                f'{t} copie iCloud sans donnée de santé (FR et EN)')
+        R.check(page.locator('#sauvegardes').is_visible() and page.locator('#backups').count() == 1, f'{t} ancres des sauvegardes')
+        R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} confidentialité : pas de défilement horizontal')
+        page.locator('#sauvegardes').scroll_into_view_if_needed()
+        shot(page, LOT, f'4-confidentialite-sauvegardes-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_newsletter, t_changement_compte, t_connexion_sur_compte, t_apple_seul, t_liens, t_confidentialite])

@@ -8,9 +8,9 @@
 //    l'essai, prix et période après l'essai, renouvellement automatique, résiliation, liens Conditions
 //    et Confidentialité), et « Restaurer mes achats ».
 //  - DEUX SORTES DE CODES, jamais mélangées : « J'ai un code » ouvre un champ pour un code cadeau
-//    MDLF (vérifié par le serveur, `redeem_gift_code`) ; « J'ai un code d'offre Apple » ouvre la
-//    fenêtre d'Apple, qui n'accepte que les codes d'offre d'abonnement. On ne promet jamais qu'un
-//    code d'Apple se saisit dans l'app.
+//    MDLF (vérifié par le serveur, `redeem_gift_code`), hors app iOS seulement (règle 3.1.1 d'Apple,
+//    giftCodeInApp) ; « J'ai un code d'offre Apple » ouvre la fenêtre d'Apple, qui n'accepte que les
+//    codes d'offre d'abonnement. On ne promet jamais qu'un code d'Apple se saisit dans l'app.
 //  - Bandeau de l'accueil (accessBannerHtml, appelée par js/features/dashboard.js) seulement quand le
 //    verrou est allumé et l'écriture refusée : « Abonnement nécessaire pour enregistrer ».
 //  - Réglages › Abonnement (`subscription`) : état en clair, « Essai gratuit jusqu'au <date>, puis
@@ -43,6 +43,7 @@ const PAY_PLAN_LABEL  = { [ACCESS_MONTHLY_ID]: 'Mensuel', [ACCESS_YEARLY_ID]: 'A
 // Deux sortes de codes, jamais mélangées : le code cadeau MDLF se saisit dans l'app (« J'ai un
 // code »), le code d'offre d'abonnement d'Apple passe par la fenêtre d'Apple.
 const PAY_CODE_NOTE = 'Un code MDLF se saisit ici, avec « J\'ai un code ». Un code d\'offre reçu d\'Apple s\'ouvre dans la fenêtre d\'Apple.';
+const PAY_CODE_NOTE_IOS = 'Un code d\'offre reçu d\'Apple se saisit avec « J\'ai un code d\'offre Apple », dans la fenêtre d\'Apple.';
 
 let payBusy = false;   // un seul achat, une seule restauration à la fois
 
@@ -92,11 +93,16 @@ async function payTakenDialog() {
   if (choice === 'account') navigate('account');
 }
 
-// Les deux entrées de code : le code cadeau MDLF (champ dans l'app) et, dans l'app iOS seulement,
-// le code d'offre d'abonnement d'Apple (sa propre fenêtre)
+// Les entrées de code : le code cadeau MDLF (champ dans l'app), JAMAIS dans l'app iOS (règle 3.1.1,
+// giftCodeInApp) ; dans l'app iOS, le code d'offre d'abonnement d'Apple (sa propre fenêtre)
 function payCodeCellsHtml() {
-  return `<button class="cell cell--action" data-action="pay-code"><span class="cell__title">J'ai un code</span></button>
+  return `${giftCodeInApp(Native.platform) ? '<button class="cell cell--action" data-action="pay-code"><span class="cell__title">J\'ai un code</span></button>' : ''}
           ${Native.store.available ? '<button class="cell cell--action" data-action="pay-apple-code"><span class="cell__title">J\'ai un code d\'offre Apple</span></button>' : ''}`;
+}
+// Note sous les codes : dans l'app iOS, seul le code d'offre d'Apple existe
+function payCodeNoteHtml() {
+  const note = giftCodeInApp(Native.platform) ? PAY_CODE_NOTE : Native.store.available ? PAY_CODE_NOTE_IOS : '';
+  return note ? `<div class="group-foot">${note}</div>` : '';
 }
 
 // Feuille de saisie du code cadeau MDLF. L'erreur reste dans la feuille, la saisie est gardée (même
@@ -379,7 +385,7 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
           ${payCodeCellsHtml()}
         </div>
-        <div class="group-foot">${PAY_CODE_NOTE}</div>
+        ${payCodeNoteHtml()}
         ${forever ? '' : '<div class="group-foot">Un identifiant Apple n\'a droit qu\'à un seul essai gratuit, et un même abonnement ne peut servir qu\'à un compte MDLF.</div>'}
         ${coachTab ? '' : payCoachLinkHtml()}
         ${planned ? '' : payLegalHtml()}
@@ -452,7 +458,7 @@ function renderSubscription() {
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
           ${payCodeCellsHtml()}
         </div>
-        <div class="group-foot">${PAY_CODE_NOTE}</div>
+        ${payCodeNoteHtml()}
         <div class="group-foot">L'abonnement se gère dans les réglages de ton identifiant Apple : c'est là que tu peux changer de formule ou l'arrêter.</div>`;
   const stale = accessStale() ? `<p class="social-inline-error" role="status">${esc(access.error === 'offline' ? 'Pas d\'Internet : état pas à jour.' : 'État pas à jour.')}</p>` : '';
   return `
@@ -547,6 +553,7 @@ registerActions({
   },
   // Code cadeau MDLF : saisi dans l'app, vérifié par le serveur (redeem_gift_code)
   'pay-code': async () => {
+    if (!giftCodeInApp(Native.platform)) return;   // app iOS : pas de code maison (règle 3.1.1)
     const res = await payCodeSheet();
     if (!res) return;
     render();
