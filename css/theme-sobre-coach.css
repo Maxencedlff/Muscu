@@ -12,7 +12,7 @@
   /* Monogramme (élève sans emoji) : gris neutre opaque, lettre au contraste du texte courant */
   --sbc-mono: #48484A; --sbc-mono-text: #FFFFFF;          /* 9,3:1 */
   /* Ma bulle de message : gris plus clair que la bulle reçue, plus de bulle orange (l'orange reste à l'action) */
-  --sbc-bubble-mine: #3A3A3C; --sbc-bubble-mine-text: #FFFFFF;
+  --sbc-bubble-mine: #48484A; --sbc-bubble-mine-text: #FFFFFF;
   /* Phases du coach : une palette de catégories qui ne prend aucune couleur de sens (ni vert, ni rouge, ni or,
      ni orange, ni violet) ; chaque phase garde aussi son nom dans la légende */
   --sbc-ph-bulk: #C9A27A;     /* sable */
@@ -91,6 +91,15 @@ html.type-xl .team-week__tile + .team-week__tile { margin-top: 4px; }
 .chat-msg__time { font-variant-numeric: tabular-nums; }
 .chat-compose { box-shadow: 0 -10px 0 var(--bg); }      /* masque le texte qui passe dessous, sans halo flou */
 
+/* ── Séance d'un élève, d'un ami : quatre chiffres dans un seul groupe, filets entre eux (plus de tuiles) ── */
+.tiles--4 { gap: 0; background: var(--cell); border-radius: 12px; overflow: hidden; }
+.tiles--4 .tile { background: none; border-radius: 0; padding: 12px 16px; }
+.tiles--4 .tile:nth-child(even) { border-left: .5px solid var(--sep); }
+.tiles--4 .tile:nth-child(n+3) { border-top: .5px solid var(--sep); }
+html.type-xl .tiles--4 .tile:nth-child(even) { border-left: 0; }
+html.type-xl .tiles--4 .tile + .tile { border-top: .5px solid var(--sep); }
+.tile__val { font-variant-numeric: tabular-nums; }
+
 /* ── Social : fil, carte de séance, profil ── */
 .feed-card { border-radius: 12px; }
 .feed-card__stat-val, .me-stat__val, .reg__val, .last__fact-val, .rec-row__val, .mysess__count, .react__count, .react-row__count { font-variant-numeric: tabular-nums; }
@@ -117,6 +126,10 @@ html.type-xl .team-week__tile + .team-week__tile { margin-top: 4px; }
 .pcmp__handle { box-shadow: 0 0 0 .5px var(--scrim); }
 .pcmp__knob { box-shadow: 0 0 0 .5px var(--scrim); }
 .cph-pair__pose, .pgal__date { font-variant-numeric: tabular-nums; }
+/* « Voir dans le coffre » en gris : la ligne entière s'ouvre, l'orange reste à « Envoyer depuis mon coffre ». Les dates du
+   comparateur gardent l'orange (panel du 08/11 : en gris, le menu passait pour un texte fixe) */
+.cph-row__link { color: var(--label2); }
+.pcmp__sel { font-variant-numeric: tabular-nums; }
 
 /* ═══════════════════════════════════════════════
    Mouvement (vivant) : seulement ce qui change de sens, coupé par « Réduire les animations »

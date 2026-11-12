@@ -61,7 +61,7 @@ function feedRecordHtml(s) {
   const r = topNotedRecord(s.records);
   if (!r) return '';
   const more = (s.records?.length || 0) - 1;
-  return `<span class="feed-card__rec">${medalSvg(18)}<span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num"> +${more}</span>` : ''}</span>`;
+  return `<span class="feed-card__rec">${medalSvg(18)}<span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num"> +${more}</span>` : ''}</span></span>`;
 }
 // Les trois chiffres de la carte : durée, volume, séries (sans l'échauffement) ; un chiffre absent est omis. Même ordre et
 // même style (valeur, puis libellé dessous, avec une capitale) dans la séance d'un ami, Mon profil et le bilan (vague 3)
