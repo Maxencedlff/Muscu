@@ -219,4 +219,21 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(e1.weight, '90', 'meilleur 1RM estimé au-dessus de celui d\'avant');
     assert.equal(run(`e1rmRecordSet({ name: 'Squat barre', sets: [{ weight: '100', reps: '5' }] }, sessionPriorOf({ programme: 'ppl', category: 'legs', date: 5 * 86400000 }, ${JSON.stringify(H)})({ name: 'Squat barre' }))`), null, 'égaler : rien');
   });
+
+  test('legacyRecords : un parcours par séance type, mêmes records que sessionRecords séance par séance', () => {
+    reset();
+    // Même date (aucune n'est d'avant l'autre), exercice avec et sans identifiant, autre séance type mêlée, séance déjà notée
+    const H = [h(1, [['Squat barre', [[100, 5]]], ['Leg curl', [[30, 10]]]]), h(2, [['Squat barre', [[105, 5]]]], { category: 'push' }),
+      h(3, [['Squat barre', [[105, 5]], { exId: 'sq' }], ['Leg curl', [[32.5, 10]]]]), h(3, [['Squat barre', [[110, 3]]]]),
+      h(4, [['Squat barre', [[110, 4]], { exId: 'sq' }]], { records: [] }), h(5, [['Squat barre', [[110, 6]]], ['Leg curl', [[32.5, 12]]]]),
+      h(6, [['Squat barre', [[112.5, 5]], { exId: 'sq' }]])];
+    run(`globalThis.__h = ${JSON.stringify(H)}`);
+    const one = run('JSON.stringify(__h.map(x => sessionRecords(x, __h)))');
+    const batch = run('JSON.stringify(__h.map(x => Array.isArray(x.records) ? sessionRecords(x, __h) : legacyRecords(x, __h)))');
+    assert.equal(batch, one);
+    assert.ok(run('__h.slice(2).some(x => legacyRecords(x, __h).length > 0)'), 'le jeu a bien des records');
+    // Deux séances au même identifiant : pas de parcours groupé (sessionRecords les écarte l'une de l'autre)
+    run(`globalThis.__d = ${JSON.stringify([h(1, [['Squat barre', [[100, 5]]]], { id: 'x' }), h(2, [['Squat barre', [[110, 5]]]], { id: 'x' })])}`);
+    assert.equal(run('JSON.stringify(legacyRecords(__d[1], __d))'), run('JSON.stringify(sessionRecords(__d[1], __d))'));
+  });
 }

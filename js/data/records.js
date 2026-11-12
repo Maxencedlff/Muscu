@@ -408,9 +408,33 @@ function legacyRecords(h, history) {
   const key = `${dataVersion}:${history.length}:${history[0]?.id}:${history[0]?.date}:${data.unit}`;
   const hit = legacyRecordsCache.get(h);
   if (hit?.history === history && hit.key === key) return hit.recs;
+  if (legacyRecordsFill(h, history, key)) return legacyRecordsCache.get(h).recs;
   const recs = sessionRecords(h, history);
   legacyRecordsCache.set(h, { history, key, recs });
   return recs;
+}
+// Toute la séance type de h en un seul parcours chronologique (priorSetsIndex, comme renoteRecords) : mêmes
+// records que sessionRecords séance par séance, sans relire l'historique pour chacune. Les 60 séances lues par
+// « Derniers records » (Progrès) coûtaient 3,6 s avec 1 200 séances (Node, 12/11/2026). Faux (et rien n'est
+// gardé) dans les cas que le parcours ne tranche pas comme sessionRecords : h hors de l'historique, date
+// illisible, deux séances au même identifiant.
+function legacyRecordsFill(h, history, key) {
+  const prog = entryProg(h);
+  const same = history.filter(x => x && entryProg(x) === prog && x.category === h.category);
+  if (!same.includes(h) || same.some(x => !Number.isFinite(x.date)) || new Set(same.map(x => x.id)).size !== same.length) return false;
+  same.sort((a, b) => a.date - b.date);
+  const idx = priorSetsIndex();
+  for (let i = 0; i < same.length;) {
+    let j = i;
+    while (j < same.length && same[j].date === same[i].date) j++;
+    // Même date : aucune n'est « d'avant » l'autre ; elles entrent dans l'index ensemble, après
+    for (let k = i; k < j; k++) {
+      if (!Array.isArray(same[k].records)) legacyRecordsCache.set(same[k], { history, key, recs: notedFromPrior(same[k], (ex, m) => idx.prior(ex, m)) });
+    }
+    for (let k = i; k < j; k++) idx.add(same[k]);
+    i = j;
+  }
+  return true;
 }
 
 // Gain d'un record sur la valeur d'avant, sans signe (la flèche ↑ est dessinée à côté) : « 2,5 kg »,

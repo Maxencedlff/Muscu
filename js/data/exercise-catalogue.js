@@ -286,8 +286,15 @@ function catalogueAliasOf(name) {
 // Matériel d'un exercice de la bibliothèque (id d'EQUIPMENT), null pour un nom saisi librement
 function equipmentOf(name) { return CATALOGUE_BY_NAME.get(normName(name))?.equip ?? null; }
 // Fiche de la bibliothèque d'un nom (nom exact, alias, abréviation développée ou clé souple), null sinon
+// Mémorisée par nom : la bibliothèque ne change pas, et measureOf la demande pour chaque exercice de chaque séance
+const CATALOGUE_ENTRY_CACHE = new Map();
 function catalogueEntry(name) {
-  return CATALOGUE_BY_NAME.get(normName(name)) || CATALOGUE_BY_NAME.get(ruleKey(name)) || CATALOGUE_BY_LOOSE_KEY.get(looseKey(name)) || null;
+  const k = String(name ?? '');
+  if (CATALOGUE_ENTRY_CACHE.has(k)) return CATALOGUE_ENTRY_CACHE.get(k);
+  if (CATALOGUE_ENTRY_CACHE.size >= 5000) CATALOGUE_ENTRY_CACHE.clear();
+  const e = CATALOGUE_BY_NAME.get(normName(k)) || CATALOGUE_BY_NAME.get(ruleKey(k)) || CATALOGUE_BY_LOOSE_KEY.get(looseKey(k)) || null;
+  CATALOGUE_ENTRY_CACHE.set(k, e);
+  return e;
 }
 // Rang dans la bibliothèque, qui place le mouvement de référence d'une famille avant ses variantes
 // (« Tractions pronation » avant « Tractions archer ») ; -1 hors bibliothèque (exercice de la personne)

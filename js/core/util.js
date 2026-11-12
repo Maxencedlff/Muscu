@@ -239,8 +239,19 @@ function num(v, min, max, int = false) {
 // jamais la réponse visible d'un toucher
 function afterPaint(fn) { requestAnimationFrame(() => setTimeout(fn, 0)); }
 
+// Mémorisé : appelé des dizaines de milliers de fois pour quelques dizaines de noms (Progrès, records, historique :
+// 1 200 séances, 1,5 s sur 4 s de calcul passaient dans normalize('NFD')). Le cache est vidé s'il grossit trop
+// (recherche tapée lettre à lettre, noms importés).
+const NORM_NAME_CACHE = new Map();
 function normName(name) {
-  return String(name ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const s = String(name ?? '');
+  let v = NORM_NAME_CACHE.get(s);
+  if (v === undefined) {
+    if (NORM_NAME_CACHE.size >= 5000) NORM_NAME_CACHE.clear();
+    v = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    NORM_NAME_CACHE.set(s, v);
+  }
+  return v;
 }
 
 // Même exercice ? Par identifiant stable si les deux en ont un, sinon par nom normalisé.

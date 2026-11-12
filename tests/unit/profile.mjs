@@ -89,20 +89,21 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       entry('a', at(2026, 9, 21), { exercises: ex(100, 5) }),
     ]);
     const calls = run(`(() => {
-      const orig = sessionRecords, seen = [];
-      sessionRecords = (h, hist) => { seen.push(h.id); return orig(h, hist); };
-      try { recentRecords(data.history, 3); recentRecords(data.history, 3); } finally { sessionRecords = orig; }
-      return seen;
+      const orig = notedFromPrior, seen = [];
+      notedFromPrior = (h, p) => { seen.push(h.id); return orig(h, p); };
+      try { recentRecords(data.history, 3); recentRecords(data.history, 3); } finally { notedFromPrior = orig; }
+      return seen.sort();
     })()`);
-    sameJSON(calls, ['b', 'a'], 'séance notée jamais recalculée ; anciennes une seule fois pour deux affichages');
+    // Espion sur notedFromPrior : le calcul d'une séance, séance par séance (sessionRecords) ou par séance type (legacyRecordsFill)
+    sameJSON(calls, ['a', 'b'], 'séance notée jamais recalculée ; anciennes une seule fois pour deux affichages');
     const again = run(`(() => {
-      const orig = sessionRecords, seen = [];
-      sessionRecords = (h, hist) => { seen.push(h.id); return orig(h, hist); };
+      const orig = notedFromPrior, seen = [];
+      notedFromPrior = (h, p) => { seen.push(h.id); return orig(h, p); };
       try { data.history.unshift({ id: 'z', programme: 'ppl', category: 'push', date: ${at(2026, 9, 31)}, exercises: [], records: [] });
-        recentRecords(data.history, 3); } finally { sessionRecords = orig; }
-      return seen;
+        recentRecords(data.history, 3); } finally { notedFromPrior = orig; }
+      return seen.sort();
     })()`);
-    sameJSON(again, ['b', 'a'], 'historique changé : recalculées à nouveau');
+    sameJSON(again, ['a', 'b'], 'historique changé : recalculées à nouveau');
   });
 
   test('recentRecords : séance passée modifiée ou exercice renommé puis save() : cache invalidé', () => {
