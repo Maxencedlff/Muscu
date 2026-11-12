@@ -49,7 +49,7 @@ const SYNC_DIET_CONSENT_KEYS = ['dietPlans', 'dietActive', 'dietFoods'];
 // gardée sur l'appareil comme le poids du corps ; jamais envoyée au serveur
 // dietLog (repas cochés et aliments remplacés, js/data/nutrition.js) : ce que la personne a mangé, jour par
 // jour ; sur l'appareil seulement en V1 (le montrer au coach demandera son accord, docs/NUTRITION_V1.md)
-const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'soundLevel', 'vibrateOn',
+const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'soundLevel', 'duckMusic', 'vibrateOn',
   'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex', 'dietLog',
   'dietConsentAsked', 'dietHideNumbers', 'dietStreakOff', 'dietCoachConsent'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :

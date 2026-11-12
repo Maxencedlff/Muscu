@@ -138,6 +138,7 @@ function makeDefaultData() {
     unit: 'kg',
     soundOn: true,
     soundLevel: 'fort',   // volume des bips (js/core/haptics-audio.js, SOUND_LEVELS)
+    duckMusic: true,      // app iOS : musique baissée pendant le décompte de fin de repos (DUCKED_MELODIES)
     vibrateOn: true,
     healthOn: false,   // app iOS : Apple Santé
     bodyWeightKg: null, // app iOS : poids de secours pour les calories
@@ -517,6 +518,7 @@ function normalizeData(d, rawJson = null) {
   if (!d.unit)            d.unit = 'kg';
   if (d.soundOn   == null) d.soundOn   = true;
   if (!['fort', 'normal', 'bas'].includes(d.soundLevel)) d.soundLevel = 'fort';
+  d.duckMusic = d.duckMusic !== false;
   if (d.vibrateOn == null) d.vibrateOn = true;
   d.healthOn = d.healthOn === true;   // app iOS : Apple Santé (désactivé par défaut)
   // Poids de secours (kg) pour estimer les calories quand Santé n'a aucune pesée

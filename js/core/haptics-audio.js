@@ -54,8 +54,8 @@ function beep(freq, dur = .15, vol = .35) {
 }
 
 // Volume des bips (Réglages › Sons) : amplitude de chaque note. « Fort » par défaut depuis le 04/11/2026 :
-// à 0,35 (l'ancien réglage, devenu « Bas ») le bip disparaissait sous la musique. La musique n'est pas
-// baissée (session .mixWithOthers, ios/App/App/SoundPlugin.swift) : le bip doit porter seul.
+// à 0,35 (l'ancien réglage, devenu « Bas ») le bip disparaissait sous la musique. Hors fin de repos, la
+// musique n'est pas baissée (session .mixWithOthers, ios/App/App/SoundPlugin.swift) : le bip doit porter seul.
 const SOUND_LEVELS = { fort: 0.9, normal: 0.6, bas: 0.35 };
 function soundVol() { return SOUND_LEVELS[data.soundLevel] ?? SOUND_LEVELS.fort; }
 
@@ -80,11 +80,15 @@ const MELODIES = {
 // sur l'iPhone de Maxence (12/11/2026) : retour au réglage éprouvé, sans nouvelle build (le module natif
 // garde le choix ; il sera réessayé, testé sur un vrai iPhone).
 
+// Décompte 3-2-1 et GO de fin de repos : la musique baisse le temps des bips (Réglages › « Baisser la
+// musique », oui par défaut ; app iOS, build 68 et suivantes). iOS la remonte 1,2 s après le dernier bip.
+const DUCKED_MELODIES = ['restCount', 'restGo'];
+
 function playMelody(name) {
   if (data.soundOn === false) return;
   const vol = soundVol();
   const notes = MELODIES[name].map(([freq, start, dur]) => ({ freq, start, dur, vol }));
-  if (Native.sound.available) { Native.sound.play(notes, true); return; }
+  if (Native.sound.available) { Native.sound.play(notes, true, data.duckMusic !== false && DUCKED_MELODIES.includes(name)); return; }
   notes.forEach(n => setTimeout(() => beep(n.freq, n.dur, n.vol), n.start * 1000));
 }
 

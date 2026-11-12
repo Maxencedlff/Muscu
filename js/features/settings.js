@@ -86,6 +86,11 @@ ${renderAccessSettingsGroup()}
                 `<button class="segmented__btn ${data.soundLevel === v ? 'segmented__btn--active' : ''}" aria-pressed="${data.soundLevel === v}" data-action="setting-sound-level" data-val="${v}">${l}</button>`).join('')}
             </div>
           </div>` : ''}
+          ${data.soundOn !== false && Native.sound.canDuck ? `<button class="cell" data-action="setting-duck" role="switch" aria-checked="${data.duckMusic !== false}">
+            <span class="cell__body"><span class="cell__title">Baisser la musique</span>
+              <span class="cell__sub">Pendant le décompte de fin de repos</span></span>
+            ${switchHtml(data.duckMusic !== false)}
+          </button>` : ''}
           <button class="cell" data-action="setting-vibrate" role="switch" aria-checked="${data.vibrateOn !== false}">
             <span class="cell__body"><span class="cell__title">Vibrations</span></span>
             ${switchHtml(data.vibrateOn !== false)}
@@ -290,6 +295,9 @@ registerActions({
     if (!(el.dataset.val in SOUND_LEVELS)) return;
     data.soundLevel = el.dataset.val; save(); render();
     playMelody('restGo');   // on entend tout de suite le nouveau volume
+  },
+  'setting-duck': () => {
+    data.duckMusic = data.duckMusic === false; save(); render();
   },
   'setting-vibrate': () => {
     data.vibrateOn = !data.vibrateOn; save(); render();
