@@ -37,7 +37,7 @@ async function bodyPayload(req: Request): Promise<string> {
   try { const p = (await req.json())?.signedPayload; return typeof p === 'string' ? p.slice(0, 65536) : ''; } catch { return ''; }
 }
 
-Deno.serve(async (req) => {
+export async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
 
@@ -113,4 +113,7 @@ Deno.serve(async (req) => {
   // Jamais l'identifiant de transaction dans les journaux (donnée rattachable à une personne)
   else if (!out.matched) console.log('appstore-notify: transaction inconnue', decided.type);
   return json({ ok: true, handled: true, type: decided.type, matched: !!out.matched, duplicate: !!out.duplicate });
-});
+}
+
+// Toujours servi en production ; les tests Deno (tests/deno, MDLF_EDGE_TESTS=1) importent le handler sans serveur
+if (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);

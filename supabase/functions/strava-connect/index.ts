@@ -95,9 +95,12 @@ async function finish(url: URL) {
   return back('ok');
 }
 
-Deno.serve(async (req) => {
+export async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'POST') return start(req);
   if (req.method === 'GET') return finish(new URL(req.url));
   return json({ error: 'method' }, 405);
-});
+}
+
+// Toujours servi en production ; les tests Deno (tests/deno, MDLF_EDGE_TESTS=1) importent le handler sans serveur
+if (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);

@@ -43,6 +43,13 @@ function optionalText(v, max) {
 }
 
 // { ok: true, value: { target_user, kind, target_ref, reason, details } } ou { ok: false, error, field }
+/**
+ * Types lus par `deno check` (fonctions Edge) ; aucun effet à l'exécution.
+ * @param {any} body
+ * @param {string} [callerId]
+ * @returns {{ ok: false, error: 'invalid', field: string } | { ok: true, value: { target_user: string, kind: string,
+ *   target_ref: string | null, reason: string, details: string | null } }}
+ */
 export function validateReport(body, callerId) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false, error: 'invalid', field: 'body' };
   const target = body.target_user;
@@ -60,6 +67,11 @@ export function validateReport(body, callerId) {
 // Demande d'alerte : { ok: true, value: { report_id } } si body est exactement { report_id: entier > 0 },
 // null si body n'en est pas une (c'est alors un signalement complet, validateReport), sinon
 // { ok: false, error: 'invalid', field: 'report_id' }
+/**
+ * Types lus par `deno check` (fonctions Edge) ; aucun effet à l'exécution.
+ * @param {any} body
+ * @returns {null | { ok: false, error: 'invalid', field: 'report_id' } | { ok: true, value: { report_id: number } }}
+ */
 export function validateAlert(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body) || !own(body, 'report_id')) return null;
   const id = body.report_id;

@@ -84,7 +84,7 @@ async function freshTransaction(transactionId: string, environment: string, nowM
   }
 }
 
-Deno.serve(async (req) => {
+export async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   const who = await caller(req);
@@ -141,4 +141,7 @@ Deno.serve(async (req) => {
     if (payError) console.error('verify-purchase: paiement non noté', payError.code);
   }
   return json({ ok: true, access: data });
-});
+}
+
+// Toujours servi en production ; les tests Deno (tests/deno, MDLF_EDGE_TESTS=1) importent le handler sans serveur
+if (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);

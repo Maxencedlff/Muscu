@@ -9,11 +9,14 @@
 import { adminClient, caller, CORS, json } from '../_shared/http.ts';
 import { disconnectStrava } from '../_shared/strava.ts';
 
-Deno.serve(async (req) => {
+export async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   const who = await caller(req);
   if (!who) return json({ error: 'auth' }, 401);
   const r = await disconnectStrava(adminClient(), who.user.id);
   return r.ok ? json({ ok: true, revoked: r.revoked }) : json({ error: 'server' }, 500);
-});
+}
+
+// Toujours servi en production ; les tests Deno (tests/deno, MDLF_EDGE_TESTS=1) importent le handler sans serveur
+if (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);

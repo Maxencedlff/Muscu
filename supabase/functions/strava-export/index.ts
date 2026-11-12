@@ -16,7 +16,7 @@ import { adminClient, caller, CORS, json } from '../_shared/http.ts';
 import { activityIdFrom, hasWriteScope, validateExport } from '../_shared/strava-policy.js';
 import { createActivity, forgetLink, stravaAccess } from '../_shared/strava.ts';
 
-Deno.serve(async (req) => {
+export async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   const who = await caller(req);
@@ -63,4 +63,7 @@ Deno.serve(async (req) => {
   if (res.status === 0) return json({ error: 'strava_down' }, 503);
   console.error('strava-export: Strava a refusé l\'activité', res.status);
   return json({ error: 'strava' }, 502);
-});
+}
+
+// Toujours servi en production ; les tests Deno (tests/deno, MDLF_EDGE_TESTS=1) importent le handler sans serveur
+if (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);

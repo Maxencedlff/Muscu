@@ -4,7 +4,9 @@ name: Tests
 #  1. unit : syntaxe de tous les scripts, tests unitaires (dont le pont natif), contenu de l'app iOS ;
 #  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
 #     Playwright en thème sombre ;
-#  3. deploy : sur main seulement, et seulement si 1 et 2 sont verts, publication de web-public/ sur
+#  3. edge : les 11 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
+#     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
+#  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
 #     https://muscu-eta.vercel.app (la version web est arrêtée : seule l'app iOS reste). Vercel ne publie plus seul (vercel.json : git.deploymentEnabled).
 # Tout tourne sur Linux : aucun quota macOS.
 on:
@@ -105,9 +107,30 @@ jobs:
           path: ${{ runner.temp }}/ppl-tests/shots
           retention-days: 7
 
+  edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: 2.9.8
+      # --frozen : une dépendance (même transitive) absente de deno.lock ou d'empreinte différente fait échouer
+      - name: Types des fonctions Edge (deno check)
+        run: deno check --config supabase/functions/deno.json --frozen supabase/functions/*/index.ts
+      # Seule permission : les variables lues par les fonctions (liste de tests/deno/fake.ts, ENV_KEYS), que les
+      # tests remplissent de fausses valeurs. Ni réseau ni fichiers : fetch est un faux serveur (fake.ts).
+      - name: Tests de comportement des fonctions Edge (deno test)
+        env:
+          MDLF_EDGE_TESTS: '1'   # les index.ts importés ne lancent pas Deno.serve (aucun port ouvert)
+          EDGE_ENV: MDLF_EDGE_TESTS,SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_SECRET_KEYS,SUPABASE_PUBLISHABLE_KEYS,PUSH_CRON_SECRET,PHOTOS_PURGE_SECRET,APNS_KEY_P8,APNS_KEY_ID,APNS_TEAM_ID,APNS_TOPIC,RESEND_API_KEY,APPLE_PRIVATE_KEY,APPLE_KEY_ID,APPLE_TEAM_ID,APPLE_CLIENT_ID,APPLE_IAP_KEY_ID,APPLE_IAP_PRIVATE_KEY,APPLE_ISSUER_ID,STRAVA_CLIENT_ID,STRAVA_CLIENT_SECRET,STRAVA_TOKEN_KEY,STRAVA_RETURN_URL
+        run: deno test --config supabase/functions/deno.json --frozen --allow-env="$EDGE_ENV" tests/deno
+
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [unit, e2e]
+    needs: [unit, e2e, edge]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

@@ -114,6 +114,12 @@ function plausibleLocalDate(s, nowMs) {
 
 // Corps envoyé par l'app à strava-export → { ok: true, sessionId, fields } (champs du formulaire de
 // Strava) ou { ok: false, error: 'invalid', field }. Clés inconnues ignorées (jamais recopiées).
+/**
+ * Types lus par `deno check` (fonctions Edge) ; aucun effet à l'exécution.
+ * @param {any} body
+ * @param {number} [nowMs]
+ * @returns {{ ok: false, error: 'invalid', field: string } | { ok: true, sessionId: string, fields: Record<string, string> }}
+ */
 export function validateExport(body, nowMs = Date.now()) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false, error: 'invalid', field: 'body' };
   const bad = (field) => ({ ok: false, error: 'invalid', field });
