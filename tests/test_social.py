@@ -669,7 +669,7 @@ def t_hors_ligne(bench, eng, dev, theme):
         friends_tab(page)
         page.wait_for_timeout(300)
         txt = page.inner_text('#friendsBody')
-        R.check('Pas d\'Internet' in txt and page.locator('[data-action="social-retry"]').count() == 1, f'{t} hors ligne : message et « Réessayer » ({txt!r})')
+        R.check('Pas de connexion' in txt and 'Reconnecte-toi' in txt and page.locator('[data-action="social-retry"]').count() == 1, f'{t} hors ligne : message et « Réessayer » ({txt!r})')
         layout(page, t, 'hors ligne')
         shot(page, LOT, f'12-hors-ligne-{t}')
         page.evaluate('__sb.fail.social = null')

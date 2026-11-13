@@ -131,7 +131,9 @@ def t_fiche(bench, eng, dev, theme):
                      label: v.getAttribute('aria-label') }; }""")
         R.check(attrs['playsinline'] and attrs['muted'] and attrs['loop'], f'{t} playsinline, muet, en boucle {attrs}')
         R.check(attrs['poster'] == HOST + 'squat-barre.jpg', f'{t} affiche')
-        R.check(COACH in (attrs['label'] or '') and EX in attrs['label'], f'{t} VoiceOver : exercice et coach')
+        blabel = page.get_attribute('.exvideo__play', 'aria-label') or ''
+        R.check(attrs['label'] is None and page.get_attribute('.exvideo video', 'aria-hidden') == 'true' and COACH in blabel and EX in blabel,
+                f'{t} VoiceOver : un seul élément, le bouton, avec l\'exercice et le coach ({blabel!r})')
         # Crédit vérifié avant tout chargement : sans ffmpeg (CI), la lecture échoue vite et le crédit devient
         # « Vidéo indisponible… · @coach », testé plus bas
         credit = page.inner_text('.exvideo__credit').strip()
@@ -149,7 +151,8 @@ def t_fiche(bench, eng, dev, theme):
                 ok = False
             R.check(ok, f'{t} lecture automatique')
             if ok:
-                R.check('exvideo--playing' in fig.get_attribute('class') and page.get_attribute('.exvideo__play', 'aria-label') == 'Mettre la vidéo en pause', f'{t} en lecture : bouton « Mettre en pause »')
+                R.check('exvideo--playing' in fig.get_attribute('class') and page.get_attribute('.exvideo__play', 'aria-label').startswith('Mettre en pause la vidéo de'), f'{t} en lecture : bouton « Mettre en pause »')
+                R.check(page.locator('.exvideo__btn .icon--pause').is_visible(), f'{t} en lecture : ❚❚ visible dans le coin')
                 if dev in FULL_DEVICES:
                     shot(page, LOT, f'1-fiche-lecture-{t}')
                 # Toucher : pause voulue, pas relancée ; rien au pointerdown
@@ -159,7 +162,7 @@ def t_fiche(bench, eng, dev, theme):
                 R.check(page.evaluate("document.querySelector('.exvideo video').paused") == before, f'{t} rien au pointerdown')
                 page.click('.exvideo__play')
                 page.wait_for_timeout(200)
-                R.check(page.evaluate("document.querySelector('.exvideo video').paused") and page.get_attribute('.exvideo__play', 'aria-label') == 'Lire la vidéo', f'{t} toucher : pause')
+                R.check(page.evaluate("document.querySelector('.exvideo video').paused") and page.get_attribute('.exvideo__play', 'aria-label').startswith('Lire la vidéo de'), f'{t} toucher : pause')
                 page.click('.exvideo__play')
                 page.wait_for_timeout(400)
                 R.check(not page.evaluate("document.querySelector('.exvideo video').paused"), f'{t} toucher : reprise')
@@ -192,7 +195,7 @@ def t_affiche(bench, eng, dev, theme):
         R.check(page.locator('.exvideo--manual').count() == 1, f'{t} cellulaire : pas de lecture automatique')
         R.check(not page.evaluate("document.querySelector('.exvideo video').getAttribute('src')")
                 and not any(h[0] == 'squat-barre.mp4' for h in page.video_hits), f'{t} cellulaire : vidéo pas téléchargée')
-        R.check(page.get_attribute('.exvideo__play', 'aria-label') == 'Lire la vidéo' and page.locator('.exvideo__btn').is_visible(), f'{t} bouton ▶ « Lire la vidéo »')
+        R.check(page.get_attribute('.exvideo__play', 'aria-label').startswith('Lire la vidéo de') and page.locator('.exvideo__btn').is_visible(), f'{t} bouton ▶ « Lire la vidéo »')
         layout_ok(page, t, 'affiche')
         if dev in FULL_DEVICES:
             shot(page, LOT, f'2-fiche-affiche-{t}')
@@ -299,8 +302,11 @@ def t_anim3d(bench, eng, dev, theme):
             return { playsinline: v.hasAttribute('playsinline'), muted: v.muted, loop: v.loop, poster: v.getAttribute('poster'),
                      label: v.getAttribute('aria-label') }; }""")
         R.check(attrs['playsinline'] and attrs['muted'] and attrs['loop'], f'{t} playsinline, muet, en boucle {attrs}')
-        R.check(attrs['poster'] == ANIM_POSTER and attrs['label'] == f'Animation 3D de l\'exercice {EX}', f'{t} affiche et VoiceOver {attrs}')
-        R.check(page.inner_text('.exvideo--3d .exvideo__credit').strip() == 'Animation 3D', f'{t} légende « Animation 3D »')
+        blabel = page.get_attribute('.exvideo--3d .exvideo__play', 'aria-label')
+        R.check(attrs['poster'] == ANIM_POSTER and attrs['label'] is None
+                and blabel in (f'Lire l\'animation 3D de {EX}', f'Mettre en pause l\'animation 3D de {EX}'), f'{t} affiche et VoiceOver : le bouton seul, nommé {attrs} {blabel!r}')
+        # Panel v4 t1 : plus de légende « Animation 3D » sous l'image
+        R.check(not page.locator('.exvideo--3d .exvideo__credit').is_visible(), f'{t} pas de légende « Animation 3D »')
         ratio = page.evaluate("(() => { const r = document.querySelector('.exvideo--3d .exvideo__frame').getBoundingClientRect(); return [r.width, r.height]; })()")
         R.check(abs(ratio[0] - ratio[1]) < 1 and ratio[0] <= 321, f'{t} carré, 320 pt au plus {ratio}')
         page.wait_for_function("document.querySelector('.exvideo--3d video').getAttribute('src')", timeout=5000)
@@ -314,7 +320,13 @@ def t_anim3d(bench, eng, dev, theme):
                 ok = False
             R.check(ok, f'{t} lecture automatique de l\'animation')
             if ok:
-                R.check(page.get_attribute('.exvideo--3d .exvideo__play', 'aria-label') == 'Mettre l\'animation en pause', f'{t} bouton « Mettre l\'animation en pause »')
+                R.check(page.get_attribute('.exvideo--3d .exvideo__play', 'aria-label') == f'Mettre en pause l\'animation 3D de {EX}', f'{t} bouton « Mettre en pause »')
+                # Panel v4 t1 : ❚❚ visible pendant la lecture (le bouton devenait transparent), petit, dans le coin
+                pb = page.evaluate("""(() => { const b = document.querySelector('.exvideo--3d .exvideo__btn'), f = document.querySelector('.exvideo--3d .exvideo__frame');
+                    const r = b.getBoundingClientRect(), q = f.getBoundingClientRect(), cs = getComputedStyle(b);
+                    return { op: +cs.opacity, w: r.width, right: q.right - r.right, bottom: q.bottom - r.bottom,
+                             pause: getComputedStyle(b.querySelector('.icon--pause')).display }; })()""")
+                R.check(pb['op'] == 1 and pb['pause'] != 'none' and pb['w'] <= 40 and pb['right'] < 16 and pb['bottom'] < 16, f'{t} ❚❚ visible dans le coin {pb}')
                 page.click('.exvideo--3d .exvideo__play')
                 page.wait_for_timeout(200)
                 R.check(page.evaluate("document.querySelector('.exvideo--3d video').paused"), f'{t} toucher : pause')
@@ -334,7 +346,7 @@ def t_anim3d(bench, eng, dev, theme):
         page.wait_for_timeout(600)
         R.check(page.locator('.exvideo--3d.exvideo--manual').count() == 1, f'{t} réduire les animations : pas de lecture automatique')
         R.check(not page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('src')"), f'{t} réduire les animations : rien de chargé')
-        R.check(page.get_attribute('.exvideo--3d .exvideo__play', 'aria-label') == 'Lire l\'animation' and page.locator('.exvideo--3d .exvideo__btn').is_visible(), f'{t} affiche et ▶ « Lire l\'animation »')
+        R.check(page.get_attribute('.exvideo--3d .exvideo__play', 'aria-label') == 'Lire l\'animation 3D de Développé couché barre' and page.locator('.exvideo--3d .exvideo__btn').is_visible(), f'{t} affiche et ▶ « Lire l\'animation »')
         R.check(page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('poster')") == 'img/anim/developpe-couche-barre.webp', f'{t} affiche du développé couché')
         if dev in FULL_DEVICES:
             shot(page, LOT, f'6-anim3d-affiche-{t}')

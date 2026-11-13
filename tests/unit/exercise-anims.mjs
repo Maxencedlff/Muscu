@@ -50,7 +50,10 @@ export default function ({ test, run, assert, ROOT }) {
     assert.match(html, /data-local="1"/);
     assert.match(html, /playsinline muted loop preload="none"/);
     assert.match(html, /poster="img\/anim\/squat-barre\.webp"/);
-    assert.match(html, /aria-label="Animation 3D de l&#39;exercice Squat barre"|aria-label="Animation 3D de l'exercice Squat barre"/);
+    // VoiceOver : la vidéo cachée, seul le bouton parle, avec l'exercice ; plus de légende « Animation 3D » (panel v4 t1)
+    assert.match(html, /<video[^>]*aria-hidden="true"/);
+    assert.match(html, /aria-label="Lire l(&#39;|')animation 3D de Squat barre"/);
+    assert.match(html, /<figcaption class="exvideo__credit" hidden><\/figcaption>/);
     assert.equal(run('exerciseVideoHtml("Curl marteau")'), '', 'ni vidéo ni animation : rien');
     // Vidéo d'un coach pour le même exercice : elle passe devant l'animation
     run(`exerciseVideos = cleanVideoManifest({ version: 1, base: 'https://exemple.test/', videos: { 'Squat barre':

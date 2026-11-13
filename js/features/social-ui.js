@@ -153,9 +153,10 @@ function renderFriends() {
   friendsShown = st;
   friendsLayout = friendsLayoutKey();
   const right = st === 'on' ? meButtonHtml() : '';
+  // « Mes amis » plutôt que « Social » : la vie de pratiquant du coach, à part de ses élèves (panel v4 t1)
   const segs = coachTab ? `
         <div class="segmented seg-full social-seg" role="group" aria-label="Afficher">
-          ${[['students', 'Élèves'], ['friends', 'Social']].map(([k, l]) => `<button class="segmented__btn ${seg === k ? 'segmented__btn--active' : ''}" data-action="social-seg" data-seg="${k}" aria-pressed="${seg === k}">${l}</button>`).join('')}
+          ${[['students', 'Élèves'], ['friends', 'Mes amis']].map(([k, l]) => `<button class="segmented__btn ${seg === k ? 'segmented__btn--active' : ''}" data-action="social-seg" data-seg="${k}" aria-pressed="${seg === k}">${l}</button>`).join('')}
         </div>` : '';
   const body = seg === 'students'
     ? `<div id="studentsBody" class="coach-team">${coachTeamHtml()}</div>`
@@ -195,7 +196,14 @@ function friendsBodyHtml(st = friendsState()) {
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>`;
   if (st === 'age') return ageHiddenHtml();
   if (st === 'loading') return '<div class="empty-note">Chargement…</div>';
-  if (st === 'error') return offlineNote(social.error === 'offline' ? 'Pas d\'Internet. Reconnecte-toi au réseau pour voir les séances des personnes que tu suis.' : socialErrorText(social.error));
+  // Hors ligne : le gabarit des autres états vides (titre, texte, action), pas une ligne grise (panel v4 t1)
+  if (st === 'error') return social.error === 'offline' ? `
+        <div class="social-hero" role="status">
+          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <h2 class="social-hero__title">Pas de connexion</h2>
+          <p class="social-hero__sub">Reconnecte-toi au réseau pour voir les séances des personnes que tu suis.</p>
+        </div>
+        <button class="btn btn--secondary btn--full" data-action="social-retry">Réessayer</button>` : offlineNote(socialErrorText(social.error));
   if (st === 'off') return activationHtml();
   return enabledBodyHtml();
 }

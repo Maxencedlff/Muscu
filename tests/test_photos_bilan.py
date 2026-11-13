@@ -164,8 +164,10 @@ def t_envoi_complet(bench, eng, dev, theme):
         key = cp.evaluate(f"() => __sb.co.pkeys['{ids['max']}']")
         R.check(key and len(key['wrapped_key']) >= 40 and '"d"' not in json.dumps(key) and cp.evaluate('__vaultCalls').count('create') == 1,
                 f'{t} clé publiée, privée seulement chiffrée, Face ID demandé une fois')
-        R.check('Réception des photos activée' in toast(cp), f'{t} toast d\'activation ({toast(cp)!r})')
-        R.check('cph-setup' not in cp.evaluate('coachTeamHtml()'), f'{t} Coach › Élèves : plus proposé une fois activé')
+        cp.wait_for_function("document.getElementById('sr-polite').textContent.includes('Réception des photos activée')", timeout=3000)
+        R.check(toast(cp) == '', f'{t} activation annoncée, sans toast ({toast(cp)!r})')
+        team = cp.evaluate('coachTeamHtml()')
+        R.check('cph-setup' not in team and 'Activée' in team, f'{t} Coach › Élèves : plus proposé une fois activé, état « Activée » durable')
         layout(cp, t, 'Fiche : photos activées')
         shot(cp, LOT, f'02-fiche-activee-{t}')
 
@@ -268,7 +270,9 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check(sp.evaluate('currentView()') == 'photo-vault' and sp.inner_text('.sheet .cphs__day') == sp.evaluate('fmtDate(Date.now() - 14 * 86400000)'),
                 f'{t} feuille d\'envoi ouverte sur le jour qui reste ({sp.inner_text(".sheet .cphs__day")!r})')
         lead = sp.inner_text('.sheet .cphs__lead')
-        R.check('Ton coach verra cette photo. Tu peux la retirer quand tu veux.' in lead, f'{t} photo seule : accord affiché ({lead!r})')
+        # Panel v4 t1 : où va la photo, en tête (chiffrée avant l'envoi, ouverte par le coach seul)
+        R.check('Chiffrée avant l\'envoi : seul ton coach' in lead and 'Tu peux la retirer quand tu veux.' in lead and 'sur ton iPhone' not in sp.inner_text('.sheet'),
+                f'{t} photo seule : accord affiché ({lead!r})')
         sp.wait_for_timeout(400)   # feuille montée en entier (mesurée en pleine animation, « Annuler » paraissait petit)
         layout(sp, t, 'Feuille d\'envoi (une photo)')
         shot(sp, LOT, f'05-feuille-une-photo-{t}')

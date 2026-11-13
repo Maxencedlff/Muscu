@@ -423,8 +423,10 @@ def t_coach_eleve(bench, eng, dev, theme):
         # Panel du 07/11 : relecture avant l'envoi (nom, objectifs, Annuler), comme pour un programme
         page.wait_for_selector('.ios-dialog--alert')
         dlg = page.inner_text('.ios-dialog--alert').replace('\u00a0', ' ')
-        # Panel t5 : unités abrégées comme à l'écran, l'écart avec l'objectif en tête
-        R.check('Envoyer « Sèche Léa » à lea ?' in dlg.replace('\u202f', ' ') and 'kcal de moins' in dlg and 'kilocalories' not in dlg and 'Annuler' in dlg, f'{t} coach : relecture avant l\'envoi ({dlg!r})')
+        # Panel t5 : unités abrégées comme à l'écran. Panel v4 t1 : une seule ligne, l'écart entre parenthèses
+        msg = page.inner_text('.ios-dialog--alert .ios-dialog__msg').replace('\u00a0', ' ').replace('\u202f', ' ')
+        R.check('Envoyer « Sèche Léa » à lea ?' in dlg.replace('\u202f', ' ') and 'kcal prévues pour' in msg and '(−' in msg and 'kilocalories' not in dlg and 'Annuler' in dlg
+                and msg.count('.') <= 1, f'{t} coach : relecture avant l\'envoi, une ligne ({msg!r})')
         shot(page, LOT, f'8b-envoi-plan-relecture-{t}')
         tap_dialog(page, 'Annuler')
         page.wait_for_timeout(300)

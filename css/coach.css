@@ -121,8 +121,11 @@
 .review-rule { margin-top: 8px; }
 
 /* ── Codes d'invitation ── */
-.view--grouped .cell.coach-invite { padding-top: 8px; padding-bottom: 8px; gap: 4px; min-height: 60px; }
-.coach-invite .cell__body { min-width: 0; }
+.view--grouped .cell.coach-invite, .view--grouped .cell.coach-code-cell--main { padding-top: 8px; padding-bottom: 8px; gap: 4px; min-height: 60px; }
+.coach-invite .cell__body, .coach-code-cell--main .cell__body { min-width: 0; }
+.coach-code-cell--main .cell__sub { overflow-wrap: anywhere; }
+.coach-code-cell--main .coach-code { white-space: normal; }   /* petit écran, texte agrandi : passe à la ligne après un tiret */
+.coach-code-cell--main .coach-icon-btn + .coach-icon-btn { margin-left: -6px; }
 .coach-code { font-size: var(--fs-body); font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
 .coach-icon-btn {
   flex-shrink: 0; width: 44px; height: 44px; border: 0; background: none; color: var(--tint); cursor: pointer;
@@ -210,6 +213,8 @@
   display: block; width: 100%; min-height: 50px; padding: 10px 14px; border: 0; border-radius: var(--r-sm);
   background: var(--fill2); color: var(--label); font-size: var(--fs-title3); letter-spacing: 1px;
 }
+/* Focus : le liseré orange des autres champs (recherche, quantité), plus l'anneau bleu de WebKit (panel v4 t1) */
+.coach-code-input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--tint); }
 .coach-code-input[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--red); }
 .coach-sheet__hint { display: flex; justify-content: space-between; gap: 12px; }
 .coach-sheet__hint--bad { color: var(--red-text); }

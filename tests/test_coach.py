@@ -518,6 +518,15 @@ def t_coach(bench, eng, dev, theme):
         R.check(('Aucune séance' in tom) != ('Pas encore de séance' in tom), f'{t} élève sans séance : un seul message ({tom!r})')
         layout(page, t, 'Mes élèves')
         shot(page, LOT, f'11-mes-eleves-{t}')
+        # Panel v4 t1 : le code coach permanent (celui de la bio) en tête des invitations, avec Copier et Partager ;
+        # les codes de 7 jours en second
+        perm = page.evaluate('coachPro.code')
+        if perm:
+            main = page.locator('.coach-team .coach-code-cell--main')
+            R.check(main.count() == 1 and page.evaluate('formatCoachCode(coachPro.code)') in main.inner_text() and 'bio' in main.inner_text()
+                    and main.locator('[data-action="coach-copy-code"]').count() == 1 and main.locator('[data-action="coach-share-invite"]').count() == 1,
+                    f'{t} Invitations : code permanent en tête, Copier et Partager')
+            R.check('Créer un code de 7 jours' in page.inner_text('[data-action="coach-invite"]'), f'{t} Invitations : code de 7 jours en option')
         # Invitation : code créé et partagé, puis retiré ; double toucher : un seul code
         page.evaluate("(() => { const b = document.querySelector('[data-action=coach-invite]'); handleAction(null, b, 'coach-invite'); handleAction(null, b, 'coach-invite'); })()")
         page.wait_for_timeout(500)
@@ -526,6 +535,7 @@ def t_coach(bench, eng, dev, theme):
         R.check(len(ccalls(page, 'coach_create_invite')) == 1, f'{t} double toucher : un seul code créé ({len(ccalls(page, "coach_create_invite"))})')
         R.check('onglet Social › Rejoindre un coach' in page.evaluate(f"coachInviteText('{codes[0]}')") if codes else False, f'{t} invitation : dit où aller')
         layout(page, t, 'Mes élèves avec code')
+        page.locator('.coach-team [data-action="coach-invite"]').evaluate("e => e.scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'12-invitation-{t}')
         R.check(page.evaluate(f"coachInviteText('{codes[0]}')").count(codes[0]) == 1 and ' - ' not in page.evaluate(f"coachInviteText('{codes[0]}')"), f'{t} texte d\'invitation')
         page.click('[data-action="coach-revoke-invite"]')
@@ -556,12 +566,12 @@ def t_coach(bench, eng, dev, theme):
         page.click('.coach-sess[data-id="l00"]')
         page.wait_for_selector('.coach-session-view')
         d = page.inner_text('.coach-session-view')
-        R.check('Épaule un peu raide' in d and 'Ton programme' in d and 'Force' in d and '40 kg × 8 · 7' in d, f'{t} détail : séries, notes, programme ({d[:160]!r})')
+        R.check('Épaule un peu raide' in d and 'Ton programme' in d and 'Force' in d and '40 kg × 8, 7' in d, f'{t} détail : séries, notes, programme ({d[:160]!r})')
         miss = page.locator('.coach-session-view .review-ex--missing')
         R.check('3/11' in d and miss.count() == 1 and 'Pompes' in miss.inner_text() and 'pas fait' in miss.inner_text(), f'{t} séance de mon programme : séries faites sur prévues, exercice non fait grisé')
         R.check(page.locator('.coach-session-view .review-notes').count() == 1 and page.locator('.review-notes--pain').count() == 0, f'{t} notes en haut, sans encadré orange (« raide » n\'est pas un mot de douleur)')
         # Aucune autre Haut, mais ses exercices ont un « avant » (séances Push) : pas de « 1re séance » qui les contredirait (panel t6)
-        R.check('1re séance' not in d and 'avant 40 kg × 8 · 7' in d, f'{t} exercices déjà faits : pas de « 1re séance Haut », « avant » par exercice')
+        R.check('1re séance' not in d and 'avant 40 kg × 8, 7' in d, f'{t} exercices déjà faits : pas de « 1re séance Haut », « avant » par exercice')
         R.check(page.locator('.coach-session-view .social-who').count() == 0 and 'Notes de' not in d,
                 f'{t} nom de l\'élève une seule fois (retour « ‹ lea »), notes titrées « Notes »')
         lbls = page.locator('.coach-session-view .tile__lbl').all_inner_texts()
@@ -628,7 +638,9 @@ def t_coach(bench, eng, dev, theme):
         R.check(ok and p['sessions'][0]['exercises'][1].get('ss') == 'g1' and 'lastWeight' not in json.dumps(p), f'{t} supersets envoyés, sans charges')
         R.check(ok and p['sessions'][0]['exercises'][1].get('repFixed') is True and p['sessions'][0]['exercises'][1].get('repMax') == 12, f'{t} reps fixes envoyées (4 × 12)')
         R.check(page.evaluate("data.programmes.u_force.exercises.sA[0].consigne") == 'Coudes serrés.', f'{t} consignes gardées pour le prochain envoi')
-        R.check(page.evaluate('view') == 'coach-student' and 'envoyé à lea' in toast(page), f'{t} retour à l\'élève, toast ({toast(page)!r})')
+        # Confirmation sans bulle posée sur la fiche (« Programmes envoyés » la montre) : annoncée à VoiceOver
+        page.wait_for_function("document.getElementById('sr-polite').textContent.includes('envoyé à lea')", timeout=3000)
+        R.check(page.evaluate('view') == 'coach-student' and toast(page) == '', f'{t} retour à l\'élève, annonce sans toast ({toast(page)!r})')
         page.wait_for_timeout(300)
         page.wait_for_timeout(400)
         R.check(page.locator('.coach-sent[data-prog="u_force"] .coach-sent__state--unseen').inner_text() == 'Pas encore ouvert', f'{t} programme envoyé : « Pas encore ouvert » tout de suite')
@@ -719,7 +731,7 @@ def t_recap(bench, eng, dev, theme):
         R.check(len(recs) == 2 and 'Squat haltère' in recs[0] and 'avant 20 kg' in recs[0] and '22,5 kg' in recs[0], f'{t} record de charge nommé avec l\'ancienne valeur ({recs})')
         R.check(len(recs) == 2 and 'Squat poids du corps' in recs[1] and 'Record reps' in recs[1], f'{t} record de reps au poids du corps ({recs})')
         rows = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .review-ex').all_inner_texts()]
-        R.check('↑ +2,5 kg' in rows[0] and 'avant 20 kg × 12 · 12 · 12 · 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
+        R.check('↑ +2,5 kg' in rows[0] and 'avant 20 kg × 12, 12, 12, 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
         R.check('36 reps' in rows[1] and '↑ +6 reps' in rows[1], f'{t} poids du corps : « 36 reps » et +6 ({rows[1]!r})')
         R.check('↑ +2 kg' in rows[2] and 'avant 14 kg × 12' in rows[2], f'{t} référence par exercice : la Push du jour 4 ({rows[2]!r})')
         eq = page.locator('.coach-session-view .review-ex').nth(3).text_content()

@@ -99,6 +99,13 @@ def t_parcours(bench, eng, dev, theme):
         R.check(page.evaluate("(() => { const r = document.querySelector('[data-action=\"onb-start\"]').getBoundingClientRect(); return r.bottom <= innerHeight; })()"),
                 f'{t} « Commencer » visible sans défiler')
         R.check(int(page.evaluate("getComputedStyle(document.querySelector('.onb__actions')).zIndex") or 0) >= 2, f'{t} boutons du bas au-dessus des séparateurs de la liste')
+        # Panel v4 t1 : au moins une séance entière visible au-dessus de « Commencer » (SE : une demi-ligne), et rien de la
+        # liste sous les boutons (Duo en paysage : un bout de carte dans la safe area)
+        geo = page.evaluate("""(() => { const root = document.querySelector('.onb'); root.scrollTop = 0;
+            const a = document.querySelector('.onb__actions').getBoundingClientRect(), row = document.querySelector('.onb__group .cell').getBoundingClientRect();
+            return { rowBottom: row.bottom, actTop: a.top, actBottom: a.bottom, h: root.clientHeight, pb: getComputedStyle(root).paddingBottom }; })()""")
+        R.check(geo['rowBottom'] <= geo['actTop'] + 1, f'{t} première séance entière au-dessus de « Commencer » {geo}')
+        R.check(geo['pb'] == '0px' and geo['actBottom'] >= geo['h'] - 1, f'{t} bloc des boutons jusqu\'au bord bas, rien dessous {geo}')
         shot(page, LOT, f'2-resultat-{t}')
 
         # Application fermée avant la fin : les questions reviennent

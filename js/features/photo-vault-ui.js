@@ -99,7 +99,7 @@ function pvIntroHtml() {
             ${feat('timer', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
             ${feat('eye.slash', 'Rien ne sort sans toi', cphStudentShown() && cph.state?.ready
               ? 'Ni dans ta pellicule, ni dans l\'export. Ton coach ne reçoit que les photos que tu choisis d\'envoyer, chiffrées pour ton coach seulement.'
-              : 'Ni dans ta pellicule, ni dans l\'export, ni sur nos serveurs.')}
+              : 'Ni dans ta pellicule, ni dans l\'export, ni ailleurs sans toi.')}
             ${feat('info.circle', 'Te suit sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour retrouver ton coffre sur un nouvel iPhone.')}
           </ul>
           ${pv.legacy ? `<p class="pv-note">${plural(pv.legacy, 'photo déjà prise y sera rangée', 'photos déjà prises y seront rangées')}.</p>` : ''}

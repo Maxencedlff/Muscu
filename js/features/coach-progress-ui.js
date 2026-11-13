@@ -15,7 +15,8 @@ const PROGRESS_SORT_FOOT = 'En haut, les nouveautés à lire, puis les élèves 
 
 // Signal d'une ligne : « ↑ 2 records cette semaine » (vert), « Pas de séance depuis 9 jours » (orange)…
 function progressSignalHtml(pr) {
-  const arrow = pr.tone === 'up' ? '<span class="progress-sig__arrow" aria-hidden="true">↑</span>' : '';
+  // Record : la médaille au trait, comme la fiche et le bilan ; la flèche verte reste aux progressions (panel v4 t1)
+  const arrow = pr.tone === 'up' ? `<span class="progress-sig__arrow" aria-hidden="true">${medalSvg(14)}</span>` : '';
   return `<span class="cell__sub progress-sig progress-sig--${pr.tone}">${arrow}${esc(pr.text)}</span>`;
 }
 
@@ -64,13 +65,13 @@ function progressSessionsCell(pr, planned, bars = '') {
           </div>`;
 }
 
-// Ses séances des 4 dernières semaines du calendrier (première page chargée), seulement si elle couvre toute la période
-function progressWeekBars(uid) {
+// Ses séances des 4 dernières semaines du calendrier (première page chargée), seulement si elle couvre toute la
+// période ; null sinon. Les barres (weekBarsSvg) disent elles-mêmes les nombres à VoiceOver
+function progressWeekCounts(uid) {
   const f = coachSessions(uid), now = Date.now();
   const oldest = f.rows[f.rows.length - 1]?.doneAt;
   const covered = f.end || (oldest && new Date(oldest).getTime() <= weekStartMs(now, 3));
-  const counts = f.rows.length ? weekCounts(f.rows.map(r => new Date(r.doneAt).getTime()), now, 4, !!covered) : null;
-  return counts ? weekBarsSvg(counts) : '';
+  return f.rows.length ? weekCounts(f.rows.map(r => new Date(r.doneAt).getTime()), now, 4, !!covered) : null;
 }
 
 // Fiche d'un élève, en tête : « 7 derniers jours » (glissants, panel vague 4 : « Cette semaine » se confondait avec la
@@ -87,7 +88,8 @@ function coachWeekSummaryHtml(uid) {
     ? '<div class="cell"><span class="cell__body"><span class="cell__title">Records</span></span><span class="cell__value">Aucun</span></div>' : '';
   const more = pr.records.length > PROGRESS_SUMMARY_RECORDS
     ? `<div class="cell"><span class="cell__sub">Et ${plural(pr.records.length - PROGRESS_SUMMARY_RECORDS, 'autre record', 'autres records')}, dans ses séances</span></div>` : '';
-  const sessions = progressSessionsCell(pr, planned, progressWeekBars(uid));
+  const counts = progressWeekCounts(uid);
+  const sessions = progressSessionsCell(pr, planned, counts ? weekBarsSvg(counts) : '');
   const row = coachSessions(uid).rows[0];
   const lastTxt = st.last_session ? studentLastLine(st) : 'Pas encore de séance';
   const last = row && st.last_session && row.doneAt === st.last_session.done_at
@@ -109,7 +111,7 @@ function coachTeamWeekHtml(students) {
   if (!students?.length) return '';
   const now = Date.now();
   const w = teamWeekSummary(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id));
-  const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? '↑ ' : ''}${val}</span> <span class="team-week__lbl">${lbl}</span></span>`;
+  const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? `${medalSvg(14)} ` : ''}${val}</span> <span class="team-week__lbl">${lbl}</span></span>`;
   const spoken = `Cette semaine : ${plural(w.records, 'record', 'records')}, ${plural(w.warn, 'élève', 'élèves')} à relancer, ${plural(w.fresh, 'nouveauté', 'nouveautés')} à lire.`;
   return `
         <div class="group-title">Cette semaine</div>

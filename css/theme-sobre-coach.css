@@ -11,24 +11,25 @@
 :root {
   /* Monogramme (élève sans emoji) : gris neutre opaque, lettre au contraste du texte courant */
   --sbc-mono: #48484A; --sbc-mono-text: #FFFFFF;          /* 9,3:1 */
-  /* Ma bulle de message : gris plus clair que la bulle reçue, plus de bulle orange (l'orange reste à l'action) */
-  --sbc-bubble-mine: #48484A; --sbc-bubble-mine-text: #FFFFFF;
+  /* Ma bulle de message : claire sur la bulle reçue sombre, nettement différente d'un coup d'œil (panel v4 t1 : deux gris
+     presque identiques), toujours sans orange (l'orange reste à l'action) */
+  --sbc-bubble-mine: #E5E5EA; --sbc-bubble-mine-text: #000000;   /* 16,9:1 */
   /* Phases du coach : une palette de catégories qui ne prend aucune couleur de sens (ni vert, ni rouge, ni or,
      ni orange, ni violet) ; chaque phase garde aussi son nom dans la légende */
   --sbc-ph-bulk: #C9A27A;     /* sable */
   --sbc-ph-cut: #40C8E0;      /* bleu-vert */
-  --sbc-ph-mini: #409CFF;     /* bleu */
+  --sbc-ph-mini: #D9A3B5;     /* vieux rose (plus de bleu iOS vif, panel v4 t1) */
   --sbc-ph-maintain: #8E9BB0; /* ardoise */
-  --sbc-ph-comeback: #E3D3B5; /* lin */
+  --sbc-ph-comeback: #9FB3A0; /* sauge grisée : plus de beige voisin du sable de la prise de masse */
   --sbc-ph-strength: #5E7FA8; /* acier */
   --sbc-ph-prep: #A08A73;     /* taupe */
   --sbc-ph-other: #AEAEB2;    /* gris */
 }
 body.light {
   --sbc-mono: #D1D1D6; --sbc-mono-text: #000000;          /* 13,9:1 */
-  --sbc-bubble-mine: #D1D1D6; --sbc-bubble-mine-text: #000000;
-  --sbc-ph-bulk: #8A6A45; --sbc-ph-cut: #0E7C93; --sbc-ph-mini: #0066CC; --sbc-ph-maintain: #5B6B82;
-  --sbc-ph-comeback: #B59A68; --sbc-ph-strength: #2F4F78; --sbc-ph-prep: #6E5A47; --sbc-ph-other: #8E8E93;
+  --sbc-bubble-mine: #3A3A3C; --sbc-bubble-mine-text: #FFFFFF;   /* 11,4:1, sur la bulle reçue claire */
+  --sbc-ph-bulk: #8A6A45; --sbc-ph-cut: #0E7C93; --sbc-ph-mini: #A35C76; --sbc-ph-maintain: #5B6B82;
+  --sbc-ph-comeback: #6F8A72; --sbc-ph-strength: #2F4F78; --sbc-ph-prep: #6E5A47; --sbc-ph-other: #8E8E93;
 }
 
 /* ── Monogramme : gris neutre lisible, dans les deux thèmes (lignes d'élèves, fil, commentaires, profil) ── */
@@ -47,7 +48,9 @@ body.light {
 }
 html.type-xl .team-week { padding: 10px 16px; }
 html.type-xl .team-week__tile + .team-week__tile { margin-top: 4px; }
-.team-week__tile--up .team-week__val { color: var(--green-text); }
+/* Record : médaille or, chiffre au texte courant (or = record, le vert reste « fait et progression », panel v4 t1) */
+.team-week__tile--up .team-week__val, .progress-sig--up { color: var(--label); }
+.team-week__val .medal, .progress-sig__arrow .medal { color: var(--medal); vertical-align: -2px; }
 
 /* Pastilles d'un élève : séances à voir en gris (un état), non-lus en rouge (css/theme-sobre.css) */
 .coach-count--sessions { background: var(--fill2); }
@@ -86,7 +89,11 @@ html.type-xl .team-week__tile + .team-week__tile { margin-top: 4px; }
 .plan-card, .plan-gantt { border-radius: 12px; }
 .plan-pill { background: var(--fill2); }
 
-/* ── Messages : bulles neutres, la mienne un cran plus claire ── */
+/* Fiche élève : semaine en cours de la même couleur que dans Progrès (texte principal), plus de vert qui se lisait
+   « objectif atteint » (panel v4 t1) */
+.progress-week .wkbars--up .wkbars__b--now:not(.wkbars__b--vide) { background: var(--label); }
+
+/* ── Messages : bulles neutres, la mienne à l'opposé de la reçue (claire en sombre, foncée en clair) ── */
 .chat-msg--mine .chat-msg__bubble { background: var(--sbc-bubble-mine); color: var(--sbc-bubble-mine-text); }
 .chat-msg__time { font-variant-numeric: tabular-nums; }
 .chat-compose { box-shadow: 0 -10px 0 var(--bg); }      /* masque le texte qui passe dessous, sans halo flou */
@@ -128,7 +135,7 @@ html.type-xl .tiles--4 .tile + .tile { border-top: .5px solid var(--sep); }
 .cph-pair__pose, .pgal__date { font-variant-numeric: tabular-nums; }
 /* « Voir dans le coffre » en gris : la ligne entière s'ouvre, l'orange reste à « Envoyer depuis mon coffre ». Les dates du
    comparateur gardent l'orange (panel du 08/11 : en gris, le menu passait pour un texte fixe) */
-.cph-row__link { color: var(--label2); }
+.cph-row__link { color: var(--tint); }   /* un lien d'action : orange (panel v4 t1 : en gris gras, on le prenait pour un sous-titre) */
 .pcmp__sel { font-variant-numeric: tabular-nums; }
 
 /* ═══════════════════════════════════════════════
