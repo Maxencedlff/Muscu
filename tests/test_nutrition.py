@@ -164,9 +164,11 @@ def t_journee(bench, eng, dev, theme):
         R.check(page.locator('.diet-week__day').count() == 7 and page.get_attribute('.diet-week__day--on', 'data-day') == '2026-11-05', f'{t} frise : 7 jours, aujourd\'hui choisi')
         R.check(page.locator('.diet-meal--done').count() == 1 and page.locator('.diet-meal--done .diet-item').count() == 0, f'{t} repas coché replié')
         R.check(page.locator('.diet-meal--next[data-meal="m2"]').count() == 1 and 'ensuite' in page.inner_text('.diet-meal--next').lower(), f'{t} déjeuner marqué « Ensuite »')
+        # Panel Apple vague 4 : « Ensuite » est un état (la carte porte le contour orange), en gris secondaire, ni orange
+        # d'action ni vert de « fait »
         nx = page.evaluate("""() => { const e = document.querySelector('.diet-meal--next .diet-meal__eyebrow'), p = document.createElement('i');
-            p.style.color = 'var(--tint)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return getComputedStyle(e).color === c; }""")
-        R.check(nx, f'{t} « Ensuite » en couleur d\'action, pas le vert de « fait »')
+            p.style.color = 'var(--label2)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return getComputedStyle(e).color === c; }""")
+        R.check(nx, f'{t} « Ensuite » en gris secondaire (un état, pas une action)')
         R.check('Pèse le riz cuit.' in txt, f'{t} consigne du repas')
         R.check('Ciqual 2025' in txt and 'Licence Ouverte Etalab 2.0' in txt and 'avis médical' in txt, f'{t} source, licence et précaution citées')
         R.check('0810 037 037' in txt, f'{t} ligne d\'écoute en bas de l\'écran')
