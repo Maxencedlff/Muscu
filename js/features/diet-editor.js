@@ -82,7 +82,8 @@ function renderDietPlan(id) {
           ${ro ? (meal.items.length ? '' : '<div class="cell"><span class="cell__sub">Aucun aliment</span></div>')
             : `<button class="cell cell--action" data-action="diet-add-food" data-meal="${esc(meal.id)}">${icon('plus', 20)}<span>Ajouter un aliment</span></button>`}
         </div>
-        <div class="group-foot num">${meal.note ? `${esc(meal.note)} · ` : ''}${dietSrPair(dietMacroLine(dietMealMacros(meal)), dietMacroSpoken(dietMealMacros(meal)))}</div>`).join('');
+        ${meal.items.length ? `<div class="group-foot num">${meal.note ? `${esc(meal.note)} · ` : ''}${dietSrPair(dietMacroLine(dietMealMacros(meal)), dietMacroSpoken(dietMealMacros(meal)))}</div>`
+          : meal.note ? `<div class="group-foot">${esc(meal.note)}</div>` : ''}`).join('');   /* repas vide : pas de ligne de zéros (panel Apple vague 4) */
   return `
     <div class="view view--grouped diet-plan-view">
       ${navBar({ title: esc(plan.name), right, large: true })}

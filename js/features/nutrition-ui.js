@@ -102,6 +102,17 @@ function dietCallHtml(pr) {
   return `<p class="diet-sum__call">${esc(dietCallText(pr.next.meal.name))}</p>`;
 }
 
+// Repas vides du plan (rien de prévu, on y ajoute ce qu'on mange) : ils ne se cochent pas. Avec eux, l'état dit « repas
+// prévus » : « Journée complète » après le seul petit-déjeuner rempli, ou « 0 repas coché sur 1 » au-dessus de
+// quatre repas, faisaient croire la journée finie ou le compte faux (panel vague 4)
+const dietHasFreeMeals = pr => pr.meals.some(x => !x.meal.items.length);
+function dietStatusText(pr) {
+  const free = dietHasFreeMeals(pr);
+  if (pr.complete) return free ? (pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché') : 'Journée complète';
+  if (free) return `${pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché'} : ${pr.nDone} sur ${pr.nMeals}`;
+  return `${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${pr.nMeals}`;
+}
+
 // Bilan du jour : anneau (calories) et trois barres (macros), mangé sur repère
 function dietSummaryHtml(pr) {
   const { eaten, goal, own } = pr;
@@ -121,8 +132,7 @@ function dietSummaryHtml(pr) {
           </div>`).join('');
   const streak = data.dietStreakOff ? 0 : dietStreak(data);
   const n = pr.nMeals;   // repas à cocher (ceux qui ont des aliments)
-  const status = pr.complete ? `<span class="diet-sum__done">${icon('checkmark', 14)}Journée complète</span>`
-    : `<span>${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${n}</span>`;
+  const status = `<span${pr.complete ? ' class="diet-sum__done"' : ''}>${pr.complete ? icon('checkmark', 14) : ''}${dietStatusText(pr)}</span>`;
   const line = `<p class="diet-sum__line">${status}${streak >= 2 ? `<span class="diet-sum__streak">${icon('flame', 14)}${streak} jours complets d'affilée</span>` : ''}</p>
         ${dietCallHtml(pr)}`;
   // Chiffres masqués (Réglages de la nutrition) : les repas cochés seulement
@@ -214,7 +224,8 @@ function dietMealHtml(x, pr, day) {
   // Titre : un repas coché se déplie au toucher ; pas coché, il est déjà ouvert (simple texte)
   const title = `${isNext ? '<span class="diet-meal__eyebrow">Ensuite</span>' : ''}
               <span class="diet-meal__name">${esc(meal.name)}</span>
-              ${data.dietHideNumbers ? '' : `<span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`}`;
+              ${!meal.items.length && !extras.length ? '<span class="diet-meal__macros">Rien de prévu : ajoute ce que tu manges</span>'
+                : data.dietHideNumbers ? '' : `<span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`}`;
   return `
         <article class="diet-meal${done ? ' diet-meal--done' : ''}${isNext ? ' diet-meal--next' : ''}" data-meal="${esc(meal.id)}">
           <div class="diet-meal__head">
@@ -398,7 +409,7 @@ function nutritionHomeCard() {
   // VoiceOver : le bouton du haut dit tout (plan, calories, chaque repas) ; les lignes sont cachées, sauf le bouton à cocher
   const spokenMeals = pr.meals.filter(x => x.meal.items.length)
     .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
-  const spoken = `Nutrition, ${plan.name} : ${hide ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? ', journée complète' : ''}. ${spokenMeals}. Ouvrir`;
+  const spoken = `Nutrition, ${plan.name} : ${hide ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${spokenMeals}. Ouvrir`;
   return `${card}
     <section class="home-card diet-home${pr.complete ? ' diet-home--complete' : ''}">
       <button class="diet-home__open" data-action="go-nutrition" aria-label="${esc(spoken)}">
@@ -406,7 +417,7 @@ function nutritionHomeCard() {
         <span class="diet-home__text" aria-hidden="true">
           <span class="diet-home__title"><span class="home-card__title">Nutrition</span><span class="diet-home__plan">${esc(plan.name)}</span></span>
           <span class="diet-home__kcal num">${head}</span>
-          ${pr.complete ? `<span class="diet-home__next">${icon('checkmark', 12)}Journée complète</span>` : ''}
+          ${pr.complete ? `<span class="diet-home__next">${icon('checkmark', 12)}${dietStatusText(pr)}</span>` : ''}
         </span>
       </button>
       <div class="diet-home__meals" data-action="go-nutrition">${rows}
@@ -529,9 +540,9 @@ registerActions({
     save();
     const pr = dietDayProgress(data, planId, day);
     haptic(on ? (pr.complete ? 'success' : 'medium') : 'light');
-    if (on && pr.complete) { try { validationSound(); } catch {} announce('Journée complète, bravo'); }   // pas de toast : il couvrait la carte du repas ; « Journée complète » s'affiche déjà en haut, avec le son
+    if (on && pr.complete) { try { validationSound(); } catch {} }   // pas de toast : il couvrait la carte du repas ; « Journée complète » s'affiche déjà en haut, avec le son
     render();
-    if (on) { announce(pr.complete ? 'Journée complète' : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`); return; }
+    if (on) { announce(pr.complete ? dietStatusText(pr) : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`); return; }
     // Décoché par erreur : Annuler le recoche (le toast l'annonce à VoiceOver, « Annuler disponible »)
     const name = pr.meals.find(x => x.meal.id === meal)?.meal.name || 'Repas';
     showToast(`Décoché : ${name}`, { action: 'Annuler', duration: 5000, onAction: () => {

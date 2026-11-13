@@ -585,7 +585,8 @@ def t_plan_neuf_puis_coach(bench):
             page.wait_for_timeout(250)
             home = page.inner_text('.diet-home').replace('\u202f', ' ').replace('\xa0', ' ')
             pr = page.evaluate("dietDayProgress(data, data.dietActive)")
-            R.check('Journée complète' in home and 'Déjeuner' not in home, f'{t} accueil : seul repas rempli coché, journée complète ({home!r})')
+            # Panel vague 4 : trois repas vides restent à remplir, ce n'est pas « Journée complète »
+            R.check('Repas prévu coché' in home and 'Journée complète' not in home and 'Déjeuner' not in home, f'{t} accueil : seul repas rempli coché, repas prévu coché ({home!r})')
             R.check(pr['goal']['kcal'] == round(pr['eaten']['kcal']), f'{t} accueil : repère = prévu du jour ({round(pr["eaten"]["kcal"])} sur {pr["goal"]["kcal"]})')
             page.locator('.diet-home').scroll_into_view_if_needed()
             R.check(page.locator('.toast').count() == 0, f'{t} journée complète : aucun toast posé sur la carte d\'un repas (le haut le dit déjà)')
@@ -593,7 +594,9 @@ def t_plan_neuf_puis_coach(bench):
             shot(page, LOT, f'16-plan-neuf-accueil-{t}')
             page.click('.diet-home__open')
             page.wait_for_selector('.nutrition-view .diet-sum')
-            R.check('Journée complète' in page.inner_text('.diet-sum') and page.locator('.diet-meal--next').count() == 0, f'{t} Nutrition : journée complète, aucun repas vide « Ensuite »')
+            R.check('Repas prévu coché' in page.inner_text('.diet-sum') and page.locator('.diet-meal--next').count() == 0, f'{t} Nutrition : repas prévu coché, aucun repas vide « Ensuite »')
+            R.check('Rien de prévu' in page.inner_text('.diet-meal[data-meal="p2"]') and '0 kcal' not in page.inner_text('.diet-meal[data-meal="p2"]').replace('\xa0', ' '),
+                    f'{t} repas vide : « Rien de prévu », pas une ligne de zéros')
             R.check(page.locator('.diet-week__day[data-day="2026-11-05"] .diet-week__dot--done').count() == 1, f'{t} frise : aujourd\'hui vert, comme le bilan')
             # Plan du coach suivi le même jour : 0 coché, la frise d'aujourd'hui ne garde pas la coche de l'ancien plan
             page.evaluate("data.dietActive = 'dc_max_lea00001'; save(); render()")
