@@ -161,8 +161,10 @@ async function dietPickFood() {
   const body = `
     <div class="diet-pick">
       ${foodScanButtonHtml()}
-      <input type="search" id="dietFoodSearch" class="search" placeholder="Rechercher" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment">
+      <div class="social-search diet-pick__search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
+        <input type="search" id="dietFoodSearch" class="search social-search__input" placeholder="Rechercher" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment"></div>
       <div class="diet-pick__list" id="dietFoodList">${dietFoodResultsHtml('')}</div>
+      <p class="sr-text" id="dietFoodCount" aria-live="polite"></p>
       <button class="diet-cand diet-cand--new" data-pick="new">${icon('plus', 18)}<span class="diet-cand__name">Créer un aliment</span></button>
     </div>`;
   const p = sheet({ title: 'Ajouter un aliment', cancel: 'Annuler', confirm: '', body, focus: '#dietFoodSearch' });
@@ -172,6 +174,12 @@ async function dietPickFood() {
     query = ev.target.value;
     results = searchFoods(query, { own: data.dietFoods || [] });
     $('#dietFoodList', root).innerHTML = dietFoodResultsHtml(query, results);
+    // VoiceOver : nombre de résultats dit à chaque frappe (la liste changeait sans rien annoncer, panel vague 4)
+    clearTimeout(root._countT);
+    root._countT = setTimeout(() => {
+      const c = $('#dietFoodCount', root);
+      if (c) c.textContent = !query.trim() ? '' : results.length ? plural(results.length, 'résultat', 'résultats') : 'Aucun résultat';
+    }, 500);
   });
   root?.addEventListener('click', ev => {
     const b = ev.target.closest('[data-pick]');
