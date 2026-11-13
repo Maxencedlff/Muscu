@@ -78,7 +78,7 @@ function exMusclesGroupHtml(ex, title = 'Muscles ciblés', { textOnly = false } 
   const m = exerciseMuscles(ex);
   const c = musclesControlsHtml(m, ex.name, { pick: `data-action="declare-muscles" data-name="${esc(ex.name)}"`,
     reset: `data-action="reset-muscles" data-name="${esc(ex.name)}" data-ex="${esc(ex.exId || '')}"` });
-  const line = textOnly && m.primary.length && !m.secondary.length && `<div class="cell mline"><span class="cell__body"><span class="cell__title cell__title--reg">Muscles : ${esc([...new Set(m.primary.map(muscleLabel))].join(', '))}</span></span></div>`;
+  const line = textOnly && m.primary.length && !m.secondary.length && `<div class="cell mline"><span class="cell__body"><span class="cell__title cell__title--reg">${esc([...new Set(m.primary.map(muscleLabel))].join(', '))}</span></span></div>`;
   return `<div class="group-title">${title}</div>
     <div class="group">${line || exMusclesPanelHtml(m)}${c.rows}</div>
     ${c.foot ? `<div class="group-foot">${c.foot}</div>` : ''}`;

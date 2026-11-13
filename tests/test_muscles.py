@@ -811,8 +811,8 @@ def t_fiche(bench, eng, dev, theme):
         # Image du muscle en tête et aucun secondaire : une ligne de texte au lieu d'une deuxième silhouette
         page.evaluate("navigate(makeRoute('library-ex', 'Curl marteau'))")
         page.wait_for_selector('.library-ex .exhero__img')
-        R.check(page.locator('.library-ex .mpanel').count() == 0 and page.inner_text('.library-ex .mline').strip().startswith('Muscles : Brachial'),
-                f'{t} sans secondaire : « Muscles : … » sans silhouette ({page.locator(".library-ex .mline").all_inner_texts()})')
+        R.check(page.locator('.library-ex .mpanel').count() == 0 and page.inner_text('.library-ex .mline').strip().startswith('Brachial'),
+                f'{t} sans secondaire : liste des muscles sans silhouette ({page.locator(".library-ex .mline").all_inner_texts()})')
         R.check('\u00a0· ' in typo_raw(page, "() => document.querySelector('.exhead__sub').textContent"), f'{t} « · » collé au muscle d\'avant')
         # Texte agrandi : illustration plus petite, onglets sur deux rangées, rien de coupé
         page.add_style_tag(content='html { font-size: 28px !important; }')
