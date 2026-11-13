@@ -129,17 +129,13 @@ def t_journee(bench, eng, dev, theme):
         card = page.locator('.diet-home')
         R.check(card.count() == 1 and 'nutrition' in card.inner_text().lower() and 'Petit-déjeuner' in card.inner_text(), f'{t} accueil : carte Nutrition avec le prochain repas')
         R.check(small_targets(page, '.diet-home button') == [], f'{t} carte : 44 pt')
-        # Bouton à cocher : coche grise visible, jamais un deuxième anneau vide à côté de celui des calories
-        col = page.evaluate("[getComputedStyle(document.querySelector('.diet-home .diet-check')).color, getComputedStyle(document.body).getPropertyValue('--label3')]")
-        R.check(page.locator('.diet-home .diet-check .icon').count() == 1, f'{t} carte : bouton Cocher présent ({col})')
-        # Panel Apple du 08/11 : contour et coche en couleur d'action, pas en gris pâle comme l'anneau des calories
-        tint = page.evaluate("""() => { const b = document.querySelector('.diet-home .diet-check'), s = getComputedStyle(b), probe = document.createElement('span');
-            probe.style.color = 'var(--tint)'; document.body.append(probe); const tint = getComputedStyle(probe).color; probe.remove();
-            return { color: s.color, ring: s.boxShadow, tint }; }""")
-        # Panel t5 : coche visible dans le rond (seul, il passait pour l'anneau des kcal) ; panel t6 : coche pleine en bleu
-        # d'action (à 40 % d'opacité, un bleu marine invisible en sombre)
-        op = page.evaluate("getComputedStyle(document.querySelector('.diet-home .diet-check .icon')).opacity")
-        R.check(float(op) == 1 and tint['color'] == tint['tint'] and tint['tint'] in tint['ring'], f'{t} carte : cercle et coche en couleur d\'action, coche lisible ({op}) {tint}')
+        # Bouton à cocher (panel vague 4) : rond vide gris, le même qu'une série à valider en séance ; la coche n'est
+        # dessinée qu'une fois coché (rond orange avec sa coche : lu « déjà fait »)
+        ring = page.evaluate("""() => { const b = document.querySelector('.diet-home .diet-check'), probe = document.createElement('span');
+            probe.style.color = 'var(--set-ring)'; document.body.append(probe); const set = getComputedStyle(probe).color; probe.remove();
+            return { ring: getComputedStyle(b).boxShadow, set, op: getComputedStyle(b.querySelector('.icon')).opacity }; }""")
+        R.check(page.locator('.diet-home .diet-check').count() == 1 and float(ring['op']) == 0 and ring['set'] in ring['ring'],
+                f'{t} carte : rond vide gris comme en séance, sans coche avant de cocher {ring}')
         shot(page, LOT, f'1-accueil-{t}')
         card.scroll_into_view_if_needed()
         shot(page, LOT, f'1b-accueil-carte-{t}')
@@ -153,11 +149,11 @@ def t_journee(bench, eng, dev, theme):
         # Écran Nutrition
         page.click('.diet-home__open')
         page.wait_for_selector('.nutrition-view .diet-sum')
-        # Journal : même bouton Cocher que sur l'accueil, en couleur d'action (panels de la vague 3)
+        # Journal : même rond vide que sur l'accueil ; l'appel « Coche ton… » est du texte seul (plus de deuxième rond)
         jc = page.evaluate("""() => { const b = document.querySelector('.nutrition-view .diet-check:not(.diet-check--on)'); if (!b) return null;
-            const p = document.createElement('span'); p.style.color = 'var(--tint)'; document.body.append(p); const tint = getComputedStyle(p).color; p.remove();
-            const s = getComputedStyle(b); return parseFloat(getComputedStyle(b.querySelector('.icon')).opacity) === 1 && s.color === tint && s.boxShadow.includes(tint); }""")
-        R.check(jc is True, f'{t} journal : pas coché = cercle et coche en couleur d\'action ({jc})')
+            const p = document.createElement('span'); p.style.color = 'var(--set-ring)'; document.body.append(p); const set = getComputedStyle(p).color; p.remove();
+            return parseFloat(getComputedStyle(b.querySelector('.icon')).opacity) === 0 && getComputedStyle(b).boxShadow.includes(set); }""")
+        R.check(jc is True and page.locator('.diet-sum__call-dot').count() == 0, f'{t} journal : pas coché = rond vide gris, un seul dessin ({jc})')
         txt = page.inner_text('.nutrition-view')
         R.check("Aujourd'hui" in txt and 'Prise de masse' in txt, f'{t} Nutrition : titre et plan')
         R.check('sur 2 600 kcal' in txt.replace(' ', ' ').replace('\xa0', ' '), f'{t} Nutrition : objectif de calories du plan')

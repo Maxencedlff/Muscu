@@ -98,7 +98,8 @@ function dietCallText(name) {
 }
 function dietCallHtml(pr) {
   if (pr.nDone || !pr.next || pr.day !== dietDayKey()) return '';
-  return `<p class="diet-sum__call"><span class="diet-sum__call-dot" aria-hidden="true"></span><span>${esc(dietCallText(pr.next.meal.name))}</span></p>`;
+  // Texte seul : le rond à cocher est celui du repas, plus bas (un deuxième rond, plus petit, faisait deux dessins pour un geste)
+  return `<p class="diet-sum__call">${esc(dietCallText(pr.next.meal.name))}</p>`;
 }
 
 // Bilan du jour : anneau (calories) et trois barres (macros), mangé sur repère
@@ -154,7 +155,9 @@ function dietWeekHtml(day) {
   }).join('')}</div>`;
 }
 
-// Bouton rond à cocher (vert une fois coché) : un seul toucher, rien au pointerdown
+// Bouton rond à cocher : rond vide tant que le repas n'est pas coché, rond vert avec sa coche une fois coché, comme une
+// série en séance (panel vague 4 : la coche dessinée d'office se lisait « déjà fait »). L'icône reste dans le bouton,
+// invisible, pour l'animation qui la trace au moment de cocher. Un seul toucher, rien au pointerdown
 // day null (carte de l'accueil) : le jour est lu au toucher, jamais figé à l'affichage (carte restée ouverte après minuit)
 function dietCheckBtn(meal, done, day, extra = '') {
   return `<button class="diet-check${done ? ' diet-check--on' : ''}" data-action="diet-check" data-meal="${esc(meal.id)}"${day ? ` data-day="${day}"` : ''} aria-pressed="${done}"

@@ -64,7 +64,7 @@ html.type-xl .diet-sum__kcal span { max-width: 5.5em; }
 .diet-meals { display: flex; flex-direction: column; gap: 12px; }
 .diet-meal { background: var(--cell); border-radius: var(--r-lg); overflow: hidden; }
 .diet-meal--next { box-shadow: inset 0 0 0 1.5px var(--tint); }   /* le prochain en couleur d'action ; le vert ne dit que « fait » (vague 3-t4) */
-.diet-meal__head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 0; }
+.diet-meal__head { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 0; }   /* rond à 12 pt du bord + son anneau intérieur : aligné sur les 16 pt du texte */
 .diet-meal__title {
   flex: 1; min-width: 0; min-height: 48px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
   padding: 6px 0 6px 16px; border: none; background: none; font: inherit; color: var(--label); text-align: left; cursor: pointer;
@@ -78,16 +78,14 @@ div.diet-meal__title { cursor: default; }
 .diet-check {
   flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  /* Pas encore coché : cercle vide en couleur d'action, le même sur l'accueil et dans le journal (en gris pâle, il passait
-     pour l'anneau vide des calories) ; la coche n'apparaît qu'une fois coché, comme en séance (panels de la vague 3) */
-  background: none; color: var(--tint); box-shadow: inset 0 0 0 2px var(--tint);
+  /* Pas encore coché : rond vide gris, le même dessin qu'une série à valider en séance, sur l'accueil comme dans le
+     journal ; la coche n'apparaît qu'une fois coché (panel vague 4 : un rond orange avec sa coche se lisait « fait »).
+     Le repas suivant se repère à sa carte (contour orange, « Ensuite »), pas à son rond */
+  background: none; color: var(--set-ring); box-shadow: inset 0 0 0 2px var(--set-ring);
   transition: background-color .2s, box-shadow .2s, transform .2s;
 }
 .diet-check .icon { width: 22px; height: 22px; }
-/* Pas coché : contour et coche fine en bleu d'action, à plus de 4,5:1 (le rond seul passait pour l'anneau des kcal,
-   panel t5 ; la coche à 40 % d'opacité devenait un bleu marine invisible en sombre, panel t6). Coché : rond plein vert,
-   coche blanche, comme une série validée */
-.diet-check:not(.diet-check--on) .icon { width: 18px; height: 18px; }
+.diet-check:not(.diet-check--on) .icon { opacity: 0; }
 .diet-check:active { transform: scale(.92); }
 .diet-check--on { background: var(--check-on); color: var(--check-mark); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .diet-check, .diet-ring__arc, .diet-bar__fill { transition: none; } }
