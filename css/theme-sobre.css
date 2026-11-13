@@ -169,7 +169,7 @@ html:not(.type-xl) .team-week__val { font-size: inherit; line-height: inherit; }
 
 /* ── Retouches après le tour 1 de captures ── */
 /* Puces de filtre choisies : sélection neutre (inversée), l'orange reste aux actions */
-.ax__chip[aria-pressed="true"], .pl__chips .ax__chip[aria-pressed="true"] { background: var(--label); color: var(--bg); }
+.ax__chip[aria-pressed="true"], .pl__chips .ax__chip[aria-pressed="true"], .lib__equip-menu.is-on { background: var(--label); color: var(--bg); }
 /* Très grand texte : un chiffre par ligne, sans séparateur */
 html.type-xl .team-week__tile::after { content: none !important; }
 html.type-xl .team-week__tile { display: block; }

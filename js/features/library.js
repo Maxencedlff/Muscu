@@ -18,12 +18,23 @@ function libSection(e) {
 // Une ligne par exercice, même mise en page que les groupes : nom et détails à gauche, personnage 3D à
 // droite avec le muscle principal en rouge (retour de Maxence, 13/11 : « une liste, ce n'est ni pratique ni
 // joli »). Cardio ou muscle sans image : la ligne garde son texte seul.
+// Sous-titre sur une seule ligne, pour un rythme régulier (panel du 13/11) : deux muscles au plus et le
+// matériel en court, un seul muscle si c'est encore trop long, points de suspension en dernier recours (CSS).
+// Le muscle filtré passe devant. VoiceOver lit tout : nom, tous les muscles principaux, matériel entier.
+const LIB_SUB_MAX = 30;   // caractères qui tiennent sur une ligne à côté du personnage (iPhone 13 et SE)
+function libSubLine(m, equip) {
+  const line = n => [musclesLine(m, n), equip].filter(Boolean).join(' · ');
+  return line(2).length <= LIB_SUB_MAX ? line(2) : line(1);
+}
 function libRowHtml(e) {
-  const equip = EQUIPMENT.find(q => q.id === e.equip)?.label || '';
+  const q = EQUIPMENT.find(x => x.id === e.equip);
   const m = exerciseMuscles({ name: e.name }), id = m.primary?.[0];
-  return `<button class="cell mgc mgc--ex" data-action="open-library-ex" data-name="${esc(e.name)}">
+  const f = libMuscle.muscle, shown = f && m.primary.includes(f) ? { ...m, primary: [f, ...m.primary.filter(x => x !== f)] } : m;
+  const muscles = [...new Set(m.primary.map(muscleLabel))];
+  const label = [e.name, ...muscles, q?.label].filter(Boolean).join(', ');
+  return `<button class="cell mgc mgc--ex" data-action="open-library-ex" data-name="${esc(e.name)}" aria-label="${esc(label)}">
       <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
-        <span class="mgc__sub">${esc([musclesLine(m, 3), equip].filter(Boolean).join(' · '))}</span></span>
+        <span class="mgc__sub">${esc(libSubLine(shown, q?.short || q?.label || ''))}</span></span>
       ${isMuscleId(id) ? muscleImgHtml(id, true) : ''}
     </button>`;
 }
@@ -54,14 +65,22 @@ function muscleGroupsHtml(action) {
   }).join('');
   return `<div class="mf mgcs group" data-mf="${action}" role="group" aria-label="Groupes de muscles"${libQuery.trim() ? ' hidden' : ''}>${rows}</div>`;
 }
+// Groupe choisi : la rangée du matériel se replie en une pastille « Matériel : Tout » en tête des groupes
+// (trois rangées de pastilles mangeaient un tiers de l'écran, panel du 13/11) ; elle ouvre une feuille d'actions
+function libEquipLabel() { return libEquip === 'all' ? 'Tout' : EQUIPMENT.find(q => q.id === libEquip)?.label || 'Tout'; }
+function libEquipMenuChip() {
+  return `<button class="ax__chip lib__equip-menu${libEquip === 'all' ? '' : ' is-on'}" data-action="lib-equip-menu" aria-haspopup="dialog">Matériel : ${esc(libEquipLabel())}${icon('chevron.down', 12)}</button>`;
+}
 function libMuscleBoxHtml() {
-  return libMuscle.group ? muscleFilterHtml('lib-muscle', libMuscle) : muscleGroupsHtml('lib-muscle');
+  return libMuscle.group ? muscleFilterHtml('lib-muscle', libMuscle, libEquipMenuChip()) : muscleGroupsHtml('lib-muscle');
 }
 // focus : après un toucher, VoiceOver reste sur le choix (pastille du groupe, ou première ligne)
 function refreshLibMuscleBox(focus = false) {
   const box = $('.library .mf');
   if (!box) return;
   box.outerHTML = libMuscleBoxHtml();
+  const equip = $('.library .lib__equip');
+  if (equip) equip.hidden = !!libMuscle.group;
   if (!focus) return;
   const g = libMuscle.group;
   const target = g ? $(`.library .mf [data-group="${g}"]${libMuscle.muscle ? `[data-muscle="${libMuscle.muscle}"]` : ':not([data-muscle])'}`)
@@ -115,7 +134,7 @@ function renderLibrary() {
         <div class="hist-tools">
           <input type="search" id="libSearch" class="search" placeholder="Nom, muscle ou matériel" value="${esc(libQuery)}"
                  autocomplete="off" enterkeyhint="search" aria-label="Rechercher un exercice">
-          <div class="ax__equip lib__equip" role="group" aria-label="Matériel">
+          <div class="ax__equip lib__equip" role="group" aria-label="Matériel"${libMuscle.group ? ' hidden' : ''}>
             ${[{ id: 'all', label: 'Tout' }, ...EQUIPMENT].map(({ id, label }) =>
               `<button class="ax__chip" aria-pressed="${libEquip === id}" data-action="lib-equip" data-equip="${id}">${label}</button>`).join('')}
           </div>
@@ -175,6 +194,16 @@ document.addEventListener('input', e => {
   if (list) list.innerHTML = libListHtml();
 });
 
+// Nouveau matériel : pastilles de la rangée, pastille repliée, nombres des groupes et liste à jour
+function setLibEquip(id) {
+  libEquip = id;
+  document.querySelectorAll('[data-action="lib-equip"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.equip === id)));
+  refreshLibMuscleBox();
+  $('.library .mf__row--sub [aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const list = $('#libList');
+  if (list) list.innerHTML = libListHtml();
+}
+
 registerActions({
   // Ouverture depuis Programme : on repart des groupes musculaires (les filtres ne restent qu'en revenant d'une fiche)
   'go-library': () => { libQuery = ''; libEquip = 'all'; libMuscle = NO_MUSCLE_FILTER; navigate('library'); },
@@ -187,17 +216,19 @@ registerActions({
     if (list) list.innerHTML = libListHtml();
     // Groupe changé : la liste des groupes (haute) laisse place aux pastilles, la page raccourcit ; on remonte
     // en haut pour voir le titre du groupe, ses filtres et le 1er exercice (panel du 13/11 : liste déjà défilée)
-    if (libMuscle.group !== before) {
-      window.scrollTo({ top: 0, behavior: 'auto' });
-      $('.library .mf [aria-pressed="true"][data-group]:not([data-muscle])')?.scrollIntoView({ block: 'nearest', inline: 'center' });
-    }
+    if (libMuscle.group !== before) window.scrollTo({ top: 0, behavior: 'auto' });
+    // Le groupe choisi suit la pastille Matériel (début de ligne) ; le muscle précis reste visible dans la sienne
+    $('.library .mf__row--sub [aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   },
-  'lib-equip': (e, el) => {
-    libEquip = el.dataset.equip;
-    document.querySelectorAll('[data-action="lib-equip"]').forEach(b => b.setAttribute('aria-pressed', String(b === el)));
-    if (!libMuscle.group) refreshLibMuscleBox();   // nombres d'exercices des groupes
-    const list = $('#libList');
-    if (list) list.innerHTML = libListHtml();
-    haptic();
+  'lib-equip': (e, el) => { setLibEquip(el.dataset.equip); haptic(); },
+  // Feuille d'actions iOS (comme les autres choix de l'app) : le choix en cours en gras
+  'lib-equip-menu': async () => {
+    const choice = await dialog({ type: 'sheet', title: 'Matériel', actions: [
+      ...[{ id: 'all', label: 'Tout' }, ...EQUIPMENT].map(({ id, label }) => ({ label, value: id, style: libEquip === id ? 'preferred' : '' })),
+      { label: 'Annuler', style: 'cancel' },
+    ] });
+    if (!choice || !$('.library')) return;
+    setLibEquip(choice);
+    $('.library .lib__equip-menu')?.focus({ preventScroll: true });
   },
 });

@@ -28,10 +28,11 @@
 // Matériel nécessaire, pour filtrer la bibliothèque quand on s'entraîne sans salle (feuille d'ajout).
 // Chaque exercice a une seule catégorie : celle du matériel le plus lourd qu'il demande.
 // Ordre = ordre des filtres ; les identifiants sont repris tels quels par sanitizeData (store.js).
+// short : libellé des lignes de la Bibliothèque (sous-titre tenu sur une ligne), le libellé entier sinon
 const EQUIPMENT = [
   { id: 'aucun',    label: 'Sans matériel' },
-  { id: 'halteres', label: 'Haltères et banc' },
-  { id: 'barre',    label: 'Tractions et dips' },
+  { id: 'halteres', label: 'Haltères et banc', short: 'Haltères' },
+  { id: 'barre',    label: 'Tractions et dips', short: 'Barre fixe' },
   { id: 'elastique', label: 'Élastiques' },
   { id: 'kettlebell', label: 'Kettlebell' },
   { id: 'cardio',   label: 'Cardio' },

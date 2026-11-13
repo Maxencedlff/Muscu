@@ -517,6 +517,12 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 
 /* Bibliothèque : pastilles de matériel sous la recherche, ligne de bord à bord comme celles des muscles */
 .lib__equip { margin: 2px -16px 0; }
+.lib__equip[hidden] { display: none; }
+/* Groupe choisi : le matériel replié en une pastille en tête des groupes, qui ouvre une feuille d'actions ;
+   choisie (autre que Tout) comme une pastille choisie */
+.lib__equip-menu { display: inline-flex; align-items: center; gap: 4px; }
+.lib__equip-menu .icon { flex-shrink: 0; }
+.lib__equip-menu.is-on { background: var(--tint-fill); color: var(--on-tint); }
 
 /* Filtre par muscle (js/features/muscles.js, muscleFilterHtml) : groupes puis muscles du groupe choisi,
    chaque ligne défile de côté pour garder la hauteur de la liste. Feuille d'ajout : même marge que le matériel. */
