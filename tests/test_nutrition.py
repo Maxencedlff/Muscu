@@ -1,4 +1,4 @@
-"""Nutrition V1 (docs/NUTRITION_V1.md) : plan diète créé sans coach (Programme › Plans diète, recherche
+"""Nutrition V1 (docs/NUTRITION_V1.md) : plan de nutrition créé sans coach (Programme › Plans de nutrition, recherche
 dans la base Ciqual, quantité, objectifs), journée dans Entraînement › Nutrition (frise, anneau, repas
 cochés d'un toucher, repas suivant, remplacement d'un aliment pour la journée), carte de l'accueil
 (cocher le prochain repas sans ouvrir l'écran), plan envoyé par le coach (fiche de l'élève, canal des
@@ -294,12 +294,12 @@ def t_creer_plan(bench, eng, dev, theme):
         R.check(page.locator('.diet-home').count() == 0, f'{t} sans plan : pas de carte à l\'accueil')
         page.evaluate("navigate('nutrition')")
         page.wait_for_selector('.diet-empty')
-        R.check('Pas encore de plan diète' in page.inner_text('.diet-empty'), f'{t} Nutrition sans plan : état vide')
+        R.check('Pas encore de plan de nutrition' in page.inner_text('.diet-empty'), f'{t} Nutrition sans plan : état vide')
         layout(page, t, 'Nutrition vide')
         shot(page, LOT, f'5-nutrition-vide-{t}')
         page.click('.tabbar [data-tab="program"]')
         page.wait_for_selector('[data-action="go-diet-plans"]')
-        R.check('Aucun' in page.inner_text('[data-action="go-diet-plans"]'), f'{t} Programme : cellule Plans diète')
+        R.check('Aucun' in page.inner_text('[data-action="go-diet-plans"]'), f'{t} Programme : cellule Plans de nutrition')
         page.click('[data-action="go-diet-plans"]')
         page.wait_for_selector('.diet-plans-view')
         page.click('[data-action="diet-new-plan"]')
@@ -391,7 +391,7 @@ def t_creer_plan(bench, eng, dev, theme):
         page.evaluate("goBack()")
         page.wait_for_selector('.diet-plans-view')
         R.check('En cours' in page.inner_text('.diet-plans-view'), f'{t} liste : plan suivi')
-        layout(page, t, 'Plans diète')
+        layout(page, t, 'Plans de nutrition')
         shot(page, LOT, f'9-plans-{t}')
         # Accueil : la carte apparaît
         page.evaluate("switchTab('train', { reset: true })")
@@ -437,7 +437,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         page.wait_for_selector('.ios-dialog--alert')
         tap_dialog(page, 'Envoyer')
         page.wait_for_timeout(500)
-        R.check("Ton élève doit d'abord accepter les plans diète dans son app." in toast(page) and not page.evaluate("__sb.co.progs.length"), f'{t} coach : refus clair sans l\'accord de l\'élève')
+        R.check("Ton élève doit d'abord accepter les plans de nutrition dans son app." in toast(page) and not page.evaluate("__sb.co.progs.length"), f'{t} coach : refus clair sans l\'accord de l\'élève')
         page.evaluate(f"__sb.co.shares.push({{ student: '{uid}', coach: __sb.meId(), kind: 'diet', granted_at: new Date().toISOString() }})")
         page.click('[data-action="coach-send-diet"]')
         page.wait_for_selector('.ios-dialog')
@@ -494,7 +494,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         page.click('[data-action="diet-coach-toggle"]')
         page.wait_for_selector('.ios-dialog')
         dlg = page.inner_text('.ios-dialog')
-        R.check('Recevoir les plans diète de max' in dlg and 'En savoir plus' in dlg and dlg.count('.') <= 4, f'{t} accord du coach : court, « En savoir plus »')
+        R.check('Recevoir les plans de nutrition de max' in dlg and 'En savoir plus' in dlg and dlg.count('.') <= 4, f'{t} accord du coach : court, « En savoir plus »')
         shot(page, LOT, f'11a-accord-coach-{t}')
         tap_dialog(page, 'Accepter')
         page.wait_for_timeout(500)
@@ -505,8 +505,8 @@ def t_coach_eleve(bench, eng, dev, theme):
         page.wait_for_timeout(500)
         page.evaluate("switchTab('train', { reset: true })")
         page.wait_for_timeout(300)
-        home = page.locator('.coach-home', has_text='plan diète')
-        R.check(home.count() == 1 and 'Nouveau plan diète de max' in home.inner_text() and 'Sèche Léa' in home.inner_text(), f'{t} élève : carte « Nouveau plan diète de max »')
+        home = page.locator('.coach-home', has_text='plan de nutrition')
+        R.check(home.count() == 1 and 'Nouveau plan de nutrition de max' in home.inner_text() and 'Sèche Léa' in home.inner_text(), f'{t} élève : carte « Nouveau plan de nutrition de max »')
         R.check(page.locator('.coach-home', has_text='Nouveau programme').count() == 0, f'{t} élève : pas pris pour un programme')
         shot(page, LOT, f'11-eleve-accueil-{t}')
         home.locator('[data-action="diet-take"]').click()
@@ -632,9 +632,9 @@ def t_invitation(bench):
             page.wait_for_timeout(500)
             page.evaluate("routeTo('dashboard')")
             page.wait_for_timeout(300)
-            home = page.locator('.coach-home', has_text='plan diète')
+            home = page.locator('.coach-home', has_text='plan de nutrition')
             txt = home.inner_text() if home.count() else ''
-            R.check('max veut t\'envoyer un plan diète' in txt and 'Plan secret' not in txt, f'{theme} invitation sans le contenu du plan ({txt!r})')
+            R.check('max veut t\'envoyer un plan de nutrition' in txt and 'Plan secret' not in txt, f'{theme} invitation sans le contenu du plan ({txt!r})')
             page.evaluate("switchTab('friends'); navigate('coach-mine')")
             page.wait_for_selector('.diet-invite')
             R.check('Plan secret' not in page.inner_text('#app'), f'{theme} Mon coach : rien du plan sans accord')

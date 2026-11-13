@@ -24,10 +24,14 @@ let photoCmp = { a: null, b: null, pos: 50 };
 let photoNewPose = 'face';
 let photoAddPose = 'face';     // pose proposée par la case touchée (coffre vide : Face, Profil, Dos)
 
+// Textes propres à l'iPhone (Face ID, trousseau iCloud) seulement dans l'app iOS : le module du coffre
+// (MdlfVault) n'existe que là. Sur Android et dans le navigateur, le coffre est indisponible (vaultAvailable) ;
+// les textes restent neutres, sans rien promettre de ce que fait iOS.
+const pvIos = () => Native.platform === 'ios';
 // Nom de ce qui ouvre le coffre : « Face ID », « Touch ID », « Optic ID », ou le code de l'iPhone seul
-const bioLabel = () => ({ faceID: 'Face ID', touchID: 'Touch ID', opticID: 'Optic ID' })[pv.bioType] || '';
-const pvOpenLabel = () => (bioLabel() ? `Ouvrir avec ${bioLabel()}` : 'Ouvrir avec le code de l\'iPhone');
-const pvHowText = () => (bioLabel() ? `${bioLabel()} ou le code de ton iPhone` : 'le code de ton iPhone');
+const bioLabel = () => (pvIos() ? ({ faceID: 'Face ID', touchID: 'Touch ID', opticID: 'Optic ID' })[pv.bioType] || '' : '');
+const pvOpenLabel = () => (bioLabel() ? `Ouvrir avec ${bioLabel()}` : pvIos() ? 'Ouvrir avec le code de l\'iPhone' : 'Ouvrir le coffre');
+const pvHowText = () => (bioLabel() ? `${bioLabel()} ou le code de ton iPhone` : pvIos() ? 'le code de ton iPhone' : 'le verrouillage de ton appareil');
 
 function photoUrl(p) {
   if (!photoUrls.has(p.id)) photoUrls.set(p.id, URL.createObjectURL(p.blob));
@@ -43,7 +47,7 @@ function photoVaultCellHtml() {
           <button class="cell cell--nav pv-entry" data-action="go-photo-vault">
             <span class="pv-entry__glyph" aria-hidden="true">${icon('lock', 18)}</span>
             <span class="cell__body"><span class="cell__title">Coffre à photos</span>
-              <span class="cell__sub">Tes photos de progression, protégées par Face ID</span></span>
+              <span class="cell__sub">${pvIos() ? 'Tes photos de progression, protégées par Face ID' : 'Tes photos de progression, dans l\'app iPhone pour l\'instant'}</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
@@ -69,9 +73,10 @@ function pvCenterHtml() {
   const ph = pv.phase;
   if (ph === 'loading') return `<div class="pv-center"><p class="pv-sub">Ouverture…</p></div>`;
   const view = {
-    unavailable: { title: 'Coffre indisponible', text: Native.isNative
+    unavailable: { title: 'Coffre indisponible', text: pvIos()
       ? 'Le coffre arrive avec la prochaine version de l\'app. Tes photos déjà prises restent sur ton iPhone et y seront rangées.'
-      : 'Le coffre s\'ouvre avec Face ID ou le code de l\'iPhone : il n\'existe que dans l\'app iPhone.' },
+      : Native.isNative ? 'Le coffre n\'existe pour l\'instant que dans l\'app iPhone. Tes photos déjà prises restent sur ce téléphone.'
+      : 'Le coffre n\'existe que dans l\'app iPhone.' },
     error: { title: 'Coffre à photos', text: 'Le coffre ne s\'ouvre pas pour l\'instant.', retry: 'Réessayer' },
     nopasscode: { title: 'Code de l\'iPhone requis', text: 'Le coffre s\'ouvre avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code, puis reviens ici.', retry: 'Réessayer' },
     missing: { title: 'Coffre illisible pour l\'instant', text: `La clé de ton coffre n'est pas encore sur cet iPhone${pv.count ? ` (${plural(pv.count, 'photo', 'photos')})` : ''}. Sur un nouvel iPhone, elle arrive avec le trousseau iCloud, parfois après un moment : réessaie plus tard. Si le trousseau iCloud était désactivé sur l'ancien iPhone, la clé y est restée.`, retry: 'Réessayer', reset: true },
@@ -95,12 +100,13 @@ function pvIntroHtml() {
           <h1 class="pv-title" id="pvTitle" tabindex="-1">Coffre à photos</h1>
           <p class="pv-lead">Tes photos de progression, à l'abri des regards.</p>
           <ul class="pv-feats">
-            ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, 'Pas de code en plus à retenir. Chiffrées sur ton iPhone, jusque dans ses sauvegardes.')}
+            ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, pvIos() ? 'Pas de code en plus à retenir. Chiffrées sur ton iPhone, jusque dans ses sauvegardes.'
+              : 'Pas de code en plus à retenir. Chiffrées sur cet appareil.')}
             ${feat('timer', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
             ${feat('eye.slash', 'Rien ne sort sans toi', cphStudentShown() && cph.state?.ready
-              ? 'Ni dans ta pellicule, ni dans l\'export. Ton coach ne reçoit que les photos que tu choisis d\'envoyer, chiffrées pour ton coach seulement.'
-              : 'Ni dans ta pellicule, ni dans l\'export, ni ailleurs sans toi.')}
-            ${feat('info.circle', 'Te suit sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour retrouver ton coffre sur un nouvel iPhone.')}
+              ? `Ni dans ta ${pvIos() ? 'pellicule' : 'galerie'}, ni dans l'export. Ton coach ne reçoit que les photos que tu choisis d'envoyer, chiffrées pour ton coach seulement.`
+              : `Ni dans ta ${pvIos() ? 'pellicule' : 'galerie'}, ni dans l'export, ni ailleurs sans toi.`)}
+            ${pvIos() ? feat('info.circle', 'Te suit sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour retrouver ton coffre sur un nouvel iPhone.') : ''}
           </ul>
           ${pv.legacy ? `<p class="pv-note">${plural(pv.legacy, 'photo déjà prise y sera rangée', 'photos déjà prises y seront rangées')}.</p>` : ''}
           ${pv.err ? `<p class="pv-sub pv-sub--err" id="pvMsg" role="alert">${esc(pv.msg)}</p>` : ''}
@@ -145,8 +151,9 @@ function pvOpenHtml() {
             <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
             <p class="cell__sub">Une photo de temps en temps, pour voir ce que la balance ne dit pas.</p></div>`}
         </div>
-        <div class="group-foot">Tes photos restent sur ton iPhone, chiffrées. ${cphVaultFoot()}</div>
-        <div class="group-foot">Elles ne sont ni dans l'export ni dans la copie iCloud de l'app ; elles sont chiffrées dans la sauvegarde de l'iPhone et se rouvrent sur un nouvel iPhone grâce au trousseau iCloud.</div>`;
+        <div class="group-foot">Tes photos restent sur ${pvIos() ? 'ton iPhone' : 'cet appareil'}, chiffrées. ${cphVaultFoot()}</div>
+        <div class="group-foot">${pvIos() ? 'Elles ne sont ni dans l\'export ni dans la copie iCloud de l\'app ; elles sont chiffrées dans la sauvegarde de l\'iPhone et se rouvrent sur un nouvel iPhone grâce au trousseau iCloud.'
+          : 'Elles ne sont pas dans l\'export.'}</div>`;
 }
 
 // Avant / après : les deux photos superposées, un curseur découvre l'une sur l'autre.

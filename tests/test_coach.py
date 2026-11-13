@@ -202,7 +202,7 @@ def t_eleve(bench, eng, dev, theme):
         # Âge déclaré avant d'accepter (même règle que les amis)
         # Panel du 07/11 : « Jamais… ton poids » alors que le poids (et les mensurations) peuvent être partagés
         never = page.locator('.coach-join__item', has_text='Le reste').inner_text()
-        R.check('poids' not in never and 'Ton poids et tes mensurations' in txt and 'Partager avec mon coach' in txt and 'Des plans diète' in txt,
+        R.check('poids' not in never and 'Ton poids et tes mensurations' in txt and 'Partager avec mon coach' in txt and 'Des plans de nutrition' in txt,
                 f'{t} aperçu : poids et mensurations « seulement si tu le choisis », plans diète listés')
         R.check(page.locator('[data-action="coach-accept"]').is_disabled() and page.get_attribute('[data-action="coach-accept"]', 'aria-describedby') == 'coachAgeHint',
                 f'{t} « Accepter » grisé, décrit par l\'interrupteur 15 ans')

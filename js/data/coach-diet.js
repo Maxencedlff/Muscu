@@ -40,7 +40,7 @@ function coachDietSentStatus(student, d = data) {
   const kept = coachSentMap()[student] || {};
   return (st?.sent || []).filter(x => isDietSentId(x.id)).sort((a, b) => b.sentAt - a.sentAt).map(x => {
     const id = mine.find(k => dietSentId(k) === x.id && !d.dietPlans[k].archived);
-    const name = id ? d.dietPlans[id].name : sentEntry(kept[x.id]).name || 'Plan diète';
+    const name = id ? d.dietPlans[id].name : sentEntry(kept[x.id]).name || 'Plan de nutrition';
     return { ...x, planId: id || null, name, gone: !id };
   });
 }

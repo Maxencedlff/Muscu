@@ -34,7 +34,7 @@ const COACH_SHARE_KINDS = [
   { kind: 'measures',   label: 'Mensurations', open: true },
   // Plans diète du coach (migration 20261106200000) : accord à part, dans Nutrition (js/data/coach-diet.js),
   // jamais dans l'écran « Partager avec mon coach » (own : pas listé ici)
-  { kind: 'diet', label: 'Plans diète', open: false, own: true },
+  { kind: 'diet', label: 'Plans de nutrition', open: false, own: true },
 ];
 const COACH_SHARE_KIND_IDS = COACH_SHARE_KINDS.map(k => k.kind);
 // Bornes de date du serveur (student_share_weights, student_share_measures) : après le 1er janvier 2000,

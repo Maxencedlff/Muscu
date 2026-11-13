@@ -119,7 +119,7 @@ function cleanDietPlan(p) {
   const ids = new Set();
   const meals = (Array.isArray(p.meals) ? p.meals : []).slice(0, DIET_MEAL_MAX).map(cleanDietMeal).filter(Boolean)
     .map(m => { while (ids.has(m.id)) m.id = uid(); ids.add(m.id); return m; });
-  const out = { name: dietText(p.name, DIET_NAME_MAX) || 'Plan diète', meals };
+  const out = { name: dietText(p.name, DIET_NAME_MAX) || 'Plan de nutrition', meals };
   const targets = cleanDietTargets(p.targets);
   if (targets) out.targets = targets;
   const consigne = cleanConsigne(p.consigne);   // store.js (résolu à l'appel)
