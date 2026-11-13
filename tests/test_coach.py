@@ -129,7 +129,7 @@ COACH_PROG = {
         {'key': 'sA', 'label': 'Haut', 'color': '#FF9500', 'exercises': [
             {'name': 'Développé couché', 'sets': 4, 'rest': 120, 'tempo': '3-1-1-0', 'repMin': 8, 'repMax': 12, 'intens': 'drop-last',
              'grip': {'width': 'serree'}, 'consigne': 'Coudes serrés, descends en 3 secondes.'},
-            {'name': 'Rowing haltère unilatéral', 'sets': 4, 'ss': 'g1'},
+            {'name': 'Rowing haltère unilatéral', 'sets': 4, 'ss': 'g1', 'repMax': 12, 'repFixed': True},
             {'name': 'Pompes', 'sets': 3, 'ss': 'g1', 'consigne': 'Gainage serré.'}]},
         {'key': 'sB', 'label': 'Bas', 'color': '#34C759', 'exercises': [
             {'name': 'Squat barre', 'sets': 5, 'repMax': 5}]},
@@ -264,7 +264,13 @@ def t_eleve(bench, eng, dev, theme):
         R.check('8 à 12 reps' in pv and 'dernière en drop set' in pv and 'Prise serrée' in pv, f'{t} aperçu : fourchette, technique et prise ({pv!r})')
         # Panel du 07/11 : un 5 × 5 (seul le haut réglé) affichait « Squat barre · 5 séries » sans les reps
         sq = page.locator('.coach-prog__preview li', has_text='Squat barre').first.inner_text().replace('\u00a0', ' ')
-        R.check('5 séries · 5 reps' in sq, f'{t} aperçu : reps fixes du coach ({sq!r})')
+        R.check('Squat barre · 5 × 5' in sq, f'{t} aperçu : reps fixes, ancien format ({sq!r})')
+        # Vague 4 : 12 reps fixes (repFixed), distinctes du 12 par défaut, lues « 4 séries de 12 reps »
+        rw = page.locator('.coach-prog__preview li', has_text='Rowing').first
+        R.check('Rowing haltère unilatéral · 4 × 12' in rw.inner_text().replace('\u00a0', ' ') and rw.locator('.coach-prog__ex-name ~ .num .visually-hidden').first.text_content() == '4 séries de 12 reps',
+                f'{t} aperçu : « 4 × 12 » du coach ({rw.inner_text()!r})')
+        rw.scroll_into_view_if_needed()
+        shot(page, LOT, f'6b-apercu-reps-fixes-{t}')
         R.check(page.evaluate("document.querySelector('.coach-prog__btn').getBoundingClientRect().height") < 60, f'{t} « Ajouter à mes programmes » sur une ligne')
         R.check(page.get_attribute('.coach-prog [data-action="coach-add-prog"]', 'aria-label') == 'Ajouter Force à mes programmes', f'{t} VoiceOver : bouton Ajouter nommé')
         layout(page, t, 'Mon coach')
@@ -329,8 +335,8 @@ def t_eleve(bench, eng, dev, theme):
         card = page.locator('.ex-card[data-ei="0"]')
         goal = card.locator('.ex-goal').inner_text().replace('\u00a0', ' ').strip()
         reps = [card.locator(f'[data-action="set-reps"][data-si="{i}"]').input_value() for i in range(5)]
-        R.check(goal == 'Objectif 75 kg × 5' and '5 reps' in card.inner_text() and reps == ['5'] * 5,
-                f'{t} séance : objectif, « 5 reps » et cases d\'accord ({goal!r}, {reps})')
+        R.check(goal == 'Objectif 75 kg × 5' and '5 × 5' in card.inner_text().replace('\u00a0', ' ') and reps == ['5'] * 5,
+                f'{t} séance : objectif, « 5 × 5 » et cases d\'accord ({goal!r}, {reps})')
         page.click('.ex-card[data-ei="0"] [data-action="bump-weight"]')
         page.wait_for_timeout(200)
         w = page.evaluate("activeSession.exercises[0].sets.map(s => s.weight + '×' + s.reps)")
@@ -470,7 +476,7 @@ def setup_coach(page):
         data.userProgrammes.u_force = { name: 'Force', archived: false, sessions: {
           sA: { label: 'Haut', icon: '', desc: '', color: '#FF9500' }, sB: { label: 'Bas', icon: '', desc: '', color: '#34C759' } } };
         data.programmes.u_force = { timers: {}, cooldowns: {}, exercises: {
-          sA: [{ id: 'e1', name: 'Développé couché', sets: 4, rest: 120, lastWeight: '80', repMin: 8, repMax: 12, intens: 'rp-last', grip: { width: 'large' } }, { id: 'e2', name: 'Rowing', sets: 4, ss: 'g1' }, { id: 'e3', name: 'Pompes', sets: 3, ss: 'g1' }],
+          sA: [{ id: 'e1', name: 'Développé couché', sets: 4, rest: 120, lastWeight: '80', repMin: 8, repMax: 12, intens: 'rp-last', grip: { width: 'large' } }, { id: 'e2', name: 'Rowing', sets: 4, ss: 'g1', repMax: 12, repFixed: true }, { id: 'e3', name: 'Pompes', sets: 3, ss: 'g1' }],
           sB: [{ id: 'e4', name: 'Squat barre', sets: 5 }] } };
         data.myProgrammes.push('u_force'); save();
         return { me, lea, tom };
@@ -605,6 +611,12 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.input_value('.coach-textarea[data-prog]') == 'Trois séances par semaine.' and page.input_value('.coach-textarea[data-ex="e1"]') == 'Coudes serrés.', f'{t} brouillon des consignes gardé')
         sub = page.locator('.coach-send-ex').first.inner_text().replace('\u00a0', ' ')
         R.check('4 séries · 8 à 12 reps · dernière en rest-pause · repos' in sub and 'Prise large' in sub, f'{t} envoi : fourchette, technique et prise ({sub!r})')
+        rw = page.locator('.coach-send-ex', has_text='Rowing').first
+        R.check('4 × 12' in rw.locator('.cell__sub').first.inner_text().replace('\u00a0', ' ') and rw.locator('.cell__sub .visually-hidden').first.text_content() == '4 séries de 12 reps',
+                f'{t} envoi : « 4 × 12 », lu « 4 séries de 12 reps » ({rw.inner_text()!r})')
+        rw.scroll_into_view_if_needed()
+        shot(page, LOT, f'16b-envoi-reps-fixes-{t}')
+        page.evaluate('window.scrollTo(0, 0)')
         layout(page, t, 'envoi d\'un programme')
         shot(page, LOT, f'16-envoi-{t}')
         page.click('[data-action="coach-send-go"]')
@@ -614,6 +626,7 @@ def t_coach(bench, eng, dev, theme):
         p = progs[0]['data'] if progs else {}
         R.check(ok and p.get('consigne') == 'Trois séances par semaine.' and p['sessions'][0]['exercises'][0].get('consigne') == 'Coudes serrés.', f'{t} programme envoyé avec consignes')
         R.check(ok and p['sessions'][0]['exercises'][1].get('ss') == 'g1' and 'lastWeight' not in json.dumps(p), f'{t} supersets envoyés, sans charges')
+        R.check(ok and p['sessions'][0]['exercises'][1].get('repFixed') is True and p['sessions'][0]['exercises'][1].get('repMax') == 12, f'{t} reps fixes envoyées (4 × 12)')
         R.check(page.evaluate("data.programmes.u_force.exercises.sA[0].consigne") == 'Coudes serrés.', f'{t} consignes gardées pour le prochain envoi')
         R.check(page.evaluate('view') == 'coach-student' and 'envoyé à lea' in toast(page), f'{t} retour à l\'élève, toast ({toast(page)!r})')
         page.wait_for_timeout(300)

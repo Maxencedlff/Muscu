@@ -100,7 +100,7 @@ function cleanCoachSessionRow(r) {
 }
 
 // Programme envoyé, tel que l'app l'accepte : { name, consigne?, sessions: [{ key, label, color,
-// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, intens?, ss?, grip?, consigne? }] }] }, null s'il est
+// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, intens?, ss?, grip?, consigne? }] }] }, null s'il est
 // inutilisable. Mêmes bornes que la saisie (sanitizeData) ; clés de séance de SESSION_CAT_RE, uniques.
 function cleanSentProgramme(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -126,6 +126,8 @@ function cleanSentProgramme(raw) {
           if (rm !== null) o.repMax = rm;
           const rn = e.repMin == null ? null : num(e.repMin, 1, 99, true);
           if (rn !== null && rn < (o.repMax ?? 12)) o.repMin = rn;
+          // Reps fixes (« 4 × 12 ») : jamais avec un bas ; une ancienne appli l'ignore et lit le seul haut
+          if (e.repFixed === true && o.repMin === undefined) o.repFixed = true;
           if (ssId(e)) o.ss = e.ss;
           const it = cleanIntens(e.intens);   // technique prescrite (js/data/intensif.js)
           if (it) o.intens = it;
@@ -316,6 +318,7 @@ function programmeToSent(d, progId, over = null) {
         if (e.tempo) o.tempo = e.tempo;
         if (e.repMax) o.repMax = e.repMax;
         if (e.repMin) o.repMin = e.repMin;
+        if (e.repFixed === true) o.repFixed = true;
         if (cleanIntens(e.intens)) o.intens = e.intens;
         if (ssId(e)) o.ss = e.ss;
         if (cleanGrip(e.grip)) o.grip = cleanGrip(e.grip);
@@ -357,7 +360,7 @@ function coachProgrammeStatus(d, item, coachId = null) {
 // Exercices : celui de même nom DANS LA MÊME séance garde son identifiant et ses réglages propres à
 // l'élève (records, muscles choisis, objectif) ; un exercice qui change de séance repart d'un nouvel
 // identifiant (les records se calculent par séance du programme). Ce que le coach décide (séries,
-// repos, mesure, tempo, fourchette, superset, prise, consigne) est remplacé.
+// repos, mesure, tempo, fourchette ou reps fixes, superset, prise, consigne) est remplacé.
 // Séance retirée par le coach : gardée avec retired: true (nom et couleur des séances déjà faites dans
 // l'historique, rawLabel), mais absente de toutes les listes (sessionKeys). Renvoie l'identifiant local.
 function importCoachProgramme(d, item, coachPerson) {
@@ -375,7 +378,7 @@ function importCoachProgramme(d, item, coachPerson) {
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
-  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'intens', 'ss', 'grip', 'consigne'];
+  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'repFixed', 'intens', 'ss', 'grip', 'consigne'];
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };

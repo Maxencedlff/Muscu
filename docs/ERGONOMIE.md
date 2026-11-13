@@ -69,6 +69,7 @@ Toujours le même mot pour la même chose, en français courant, au tutoiement, 
 | Reps en réserve | RIR (« RIR » seulement si la place manque, avec un `aria-label` en toutes lettres) | RIR seul en libellé |
 | Objectif | la série à battre aujourd'hui, toujours avec ses reps (« 35 kg × 8 ») ; même calcul sur l'accueil et en séance (`exerciseGoal`, js/data/goals.js) | cible, target |
 | Record | une performance jamais faite, notée dans la séance ; comptée partout de la même façon (`recordCount`, js/data/records.js) | PR |
+| Fourchette ; reps fixes | la prescription des reps d'un exercice : « Fourchette » (de 8 à 12, la charge monte au haut puis on repart du bas) ou « Fixe » (« 4 × 12 », espaces insécables, lu « 4 séries de 12 reps » par VoiceOver : `setsRepsHtml`, js/data/goals.js ; la charge monte quand toutes les séries atteignent le nombre, qui ne change pas) | reps cibles, plage |
 | Volume | charge × reps (« +33 kg de volume », jamais « +33 kg » seul) | tonnage |
 | Échauffement | séries légères hors volume et hors records | |
 | Réglages | l'écran des réglages | Paramètres |

@@ -1852,6 +1852,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./exercise-videos.mjs')).default({ test, run, assert, ROOT });
 // ── Ergonomie : objectif en séance, ligne du bilan, derniers records (tests dans ergo.mjs) ──
 (await import('./ergo.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// ── Reps fixes « 4 × 12 » (tests dans reps-fixes.mjs) ──
+
+(await import('./reps-fixes.mjs')).default({ test, run, reset, assert, sameJSON });
 // Nutrition : plans bornés, macros, repas cochés, équivalences sur la vraie base Ciqual, plan du coach
 (await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Scanner un aliment : codes-barres, réponse d'Open Food Facts, Mes aliments (tests dans food-scan.mjs)

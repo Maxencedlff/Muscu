@@ -309,15 +309,13 @@ function coachExVideoBtn(name) {
 }
 
 // Aperçu des exercices d'un programme reçu (avant de l'ajouter)
-// Ce que le coach prescrit en plus des séries : fourchette (« 8 à 12 reps », exercice en répétitions avec un
-// bas de fourchette ; « 5 reps » avec le seul haut réglé, hors 12 par défaut : explicitRepMax) et technique d'intensification (« dernière en drop set », js/data/intensif.js). Écran
-// Envoyer et aperçu de l'élève ; la prise a sa ligne à elle (gripText)
+// Ce que le coach prescrit en plus des séries (« 4 séries » ou « 4 × 12 » en reps fixes : setsRepsText) :
+// fourchette (« 8 à 12 reps », exercice en répétitions avec un bas de fourchette) et technique
+// d'intensification (« dernière en drop set », js/data/intensif.js). Écran Envoyer et aperçu de l'élève ;
+// la prise a sa ligne à elle (gripText)
 function coachExPlanParts(e) {
   const out = [];
-  if (measureOf(e) === 'reps') {
-    if (e.repMin) out.push(`${e.repMin} à ${e.repMax ?? 12} reps`);
-    else if (explicitRepMax(e)) out.push(`${explicitRepMax(e)} reps`);
-  }
+  if (measureOf(e) === 'reps' && e.repMin) out.push(`${e.repMin} à ${e.repMax ?? 12} reps`);
   const it = INTENS_PLANS[cleanIntens(e.intens)];
   if (it) out.push(it.short);
   return out;
@@ -327,7 +325,7 @@ function coachProgPreviewHtml(item) {
   return `<div class="coach-prog__preview">${item.data.sessions.map(s => `
           <div class="coach-prog__sess">
             <div class="coach-prog__sess-name"><span class="hcell__dot" style="background:${esc(s.color)}" aria-hidden="true"></span>${esc(s.label)}</div>
-            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${plural(e.sets, 'série', 'séries')}</span>${coachExPlanParts(e).map(x => ` <span class="coach-prog__ex-plan num">· ${esc(x)}</span>`).join('')}${gripText(e.grip, e) ? ` <span class="coach-prog__ex-grip">· ${gripText(e.grip, e)}</span>` : ''}${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
+            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${setsRepsHtml(e)}</span>${coachExPlanParts(e).map(x => ` <span class="coach-prog__ex-plan num">· ${esc(x)}</span>`).join('')}${gripText(e.grip, e) ? ` <span class="coach-prog__ex-grip">· ${gripText(e.grip, e)}</span>` : ''}${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
           </div>`).join('')}</div>`;
 }
 
@@ -964,7 +962,7 @@ function renderCoachSend(uid, progId) {
           <div class="cell coach-send-ex">
             <span class="cell__body">
               <span class="cell__title">${ssTagHtml(xs, i)}${esc(e.name)}</span>
-              <span class="cell__sub num">${[plural(e.sets, 'série', 'séries'), ...coachExPlanParts(e), ...(e.rest ? [`repos ${fmtRest(e.rest)}`] : []), ...(e.tempo ? [`tempo ${shortTempo(e.tempo)}`] : [])].map(esc).join(' · ')}</span>
+              <span class="cell__sub num">${[setsRepsHtml(e), ...[...coachExPlanParts(e), ...(e.rest ? [`repos ${fmtRest(e.rest)}`] : []), ...(e.tempo ? [`tempo ${shortTempo(e.tempo)}`] : [])].map(esc)].join(' · ')}</span>
               ${gripSubHtml(e)}
               ${ta(`data-cat="${esc(s.key)}" data-ex="${esc(e.id)}"`, dr.ex[s.key]?.[e.id] || '', `Consigne pour ${e.name}`, 'Consigne (facultative)')}
             </span>

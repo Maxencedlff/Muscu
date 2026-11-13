@@ -24,8 +24,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, intens: cleanIntens(ex.intens), measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false, grip: cleanGrip(ex.grip) }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, intens: null, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false, grip: null };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, repFixed: fixedReps(ex) !== null, intens: cleanIntens(ex.intens), measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false, grip: cleanGrip(ex.grip) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, repFixed: false, intens: null, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false, grip: null };
   exDraft._init = exDraftSnapshot(exDraft);
   return exDraft;
 }
@@ -48,7 +48,7 @@ function renderEditor() {
     const last = lastPerf(data.activeProgramme, cat, ex);
     const best = last ? bestSet(last.ex.sets, ex) : null;
     const plan = canTech(ex) ? INTENS_PLANS[cleanIntens(ex.intens)]?.short : '';   // technique prescrite
-    const sub  = `${plural(ex.sets, 'série', 'séries')}${plan ? ` · ${plan}` : ''}${best ? ` · dernier ${setTxt(best, ex)}` : ''}`;
+    const sub  = `${setsRepsHtml(ex)}${plan ? ` · ${plan}` : ''}${best ? ` · dernier ${setTxt(best, ex)}` : ''}`;
     const tag  = ssTagHtml(list, i);
     if (editorEditing) {
       return `
@@ -169,8 +169,10 @@ function applyDraftMeasure(ex, draft) {
   if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) e.measure = measureOf(ex); });
 }
 
-// Progression selon la mesure. Répétitions : objectif de charge (courbe de Progrès) et haut de fourchette
-// (puce « +2,5 kg » de la séance). Durée : l'objectif de chaque série est la durée de la dernière fois,
+// Progression selon la mesure. Répétitions : objectif de charge (courbe de Progrès), puis Fourchette
+// (bas et haut, puce « +2,5 kg » de la séance au haut, retour au bas) ou Fixe (« 4 × 12 » : un seul
+// nombre, la charge monte quand toutes les séries l'atteignent ; repFixed, fixedReps de js/data/goals.js).
+// Les deux modes partagent le champ #exRepMax : passer de l'un à l'autre garde le nombre. Durée : l'objectif de chaque série est la durée de la dernière fois,
 // vers laquelle décompte le ▶ ; ni charge ni fourchette. Cardio : rien. target et repMax restent
 // enregistrés tels quels hors répétitions (save-ex), pour retrouver les réglages si l'on revient aux reps.
 function exProgressionHtml(d) {
@@ -190,6 +192,36 @@ function exProgressionHtml(d) {
   const target = d.targetText ?? (d.target ? fmtW(d.target) : '');
   const repMax = d.repMaxText ?? String(d.repMax ?? 12);
   const repMin = d.repMinText ?? (d.repMin ? String(d.repMin) : '');
+  const fixed = d.repFixed === true;
+  const minHint = Math.max(1, (num(repMax, 1, 100, true) ?? 12) - 4);   // bas laissé vide : 4 sous le haut
+  const modes = [[false, 'Fourchette'], [true, 'Fixe']].map(([f, label]) =>
+    `<button class="segmented__btn ${fixed === f ? 'segmented__btn--active' : ''}" aria-pressed="${fixed === f}" data-action="ex-rep-mode" data-fixed="${f}">${label}</button>`).join('');
+  const fields = fixed ? `
+          <label class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Reps par série</span></span>
+            <span class="field-suffix">
+              <input type="text" inputmode="numeric" id="exRepMax" class="field field--num" autocomplete="off"
+                     value="${esc(repMax)}" aria-label="Reps par série, toujours le même nombre">
+              <span>reps</span>
+            </span>
+          </label>` : `
+          <label class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Bas de fourchette</span></span>
+            <span class="field-suffix">
+              <input type="text" inputmode="numeric" id="exRepMin" class="field field--num" autocomplete="off"
+                     value="${esc(repMin)}" placeholder="${minHint}" aria-label="Bas de fourchette de reps">
+              <span>reps</span>
+            </span>
+          </label>
+          <label class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Haut de fourchette</span></span>
+            <span class="field-suffix">
+              <input type="text" inputmode="numeric" id="exRepMax" class="field field--num" autocomplete="off"
+                     value="${esc(repMax)}" aria-label="Haut de fourchette de reps">
+              <span>reps</span>
+            </span>
+          </label>`;
+  const sets = d.sets ?? 3, n = num(repMax, 1, 100, true) ?? 12;
   return `
         <div class="group-title">Progression</div>
         <div class="group">
@@ -201,24 +233,13 @@ function exProgressionHtml(d) {
               <span>${unitLbl()}</span>
             </span>
           </label>
-          <label class="cell cell--ctl">
-            <span class="cell__body"><span class="cell__title">Bas de fourchette</span></span>
-            <span class="field-suffix">
-              <input type="text" inputmode="numeric" id="exRepMin" class="field field--num" autocomplete="off"
-                     value="${esc(repMin)}" placeholder="—" aria-label="Bas de fourchette de reps">
-              <span>reps</span>
-            </span>
-          </label>
-          <label class="cell cell--ctl">
-            <span class="cell__body"><span class="cell__title">Haut de fourchette</span></span>
-            <span class="field-suffix">
-              <input type="text" inputmode="numeric" id="exRepMax" class="field field--num" autocomplete="off"
-                     value="${esc(repMax)}" aria-label="Haut de fourchette de reps">
-              <span>reps</span>
-            </span>
-          </label>
+          <div class="cell cell--ctl cell--wrap">
+            <div class="segmented seg-full" role="group" aria-label="Répétitions">${modes}</div>
+          </div>${fields}
         </div>
-        <div class="group-foot">Quand toutes tes séries atteignent le haut, l'app te propose d'augmenter la charge. Avec un bas (par exemple de 8 à 12), elle repart du bas avec la nouvelle charge.</div>`;
+        <div class="group-foot">${fixed
+    ? `Le même nombre à chaque série : <span class="num">${setsRepsHtml({ sets, repMax: n, repFixed: true, measure: 'reps' })}</span>. Quand toutes tes séries l'atteignent, l'app te propose d'augmenter la charge, toujours avec ce nombre.`
+    : 'Quand toutes tes séries atteignent le haut, l\'app te propose d\'augmenter la charge et repart du bas (par exemple de 8 à 12). Bas vide : 4 reps sous le haut.'}</div>`;
 }
 function refreshExProgression() {
   const box = $('#exProg');
@@ -453,6 +474,16 @@ registerActions({
     if (!exDraft) return;
     exDraft.sets = Math.max(1, Math.min(10, exDraft.sets + parseInt(el.dataset.d)));
     $('#exSetsVal').textContent = exDraft.sets;
+    if (exDraft.repFixed) refreshExProgression();   // « 4 × 12 » du bas de la rubrique
+    haptic();
+  },
+  // Reps en fourchette (« 8 à 12 ») ou fixes (« 4 × 12 ») : le nombre saisi est gardé d'un mode à l'autre
+  'ex-rep-mode': (e, el) => {
+    if (!exDraft) return;
+    const fixed = el.dataset.fixed === 'true';
+    if (exDraft.repFixed === fixed) return;
+    exDraft.repFixed = fixed;
+    refreshExProgression();
     haptic();
   },
   'ex-rest':      setDraftRest,
@@ -493,6 +524,7 @@ registerActions({
     const rest = exDraft?.rest ?? null;
     // Hors répétitions, la rubrique n'est pas affichée : objectif et fourchette gardent leur valeur
     let target = exDraft?.target ?? null, repMax = exDraft?.repMax ?? 12, repMin = exDraft?.repMin ?? null;
+    const repFixed = exDraft?.repFixed === true;   // reps fixes : un seul nombre, jamais de bas
     if (targetIn) {
       const targetRaw = targetIn.value.trim();
       if (targetRaw && (!weightOk(targetRaw) || !(parseFloat(storeW(targetRaw)) > 0))) { flagInvalid(targetIn, weightMsg()); return; }
@@ -503,10 +535,17 @@ registerActions({
       repMax = repRaw ? num(repRaw, 1, 100, true) : 12;
       if (repMax === null) { flagInvalid(repIn, 'Reps entre 1 et 100'); return; }
     }
-    if (repMinIn) {
+    if (repFixed) repMin = null;
+    else if (repMinIn) {
       const raw = repMinIn.value.trim();
       repMin = raw ? num(raw, 1, 99, true) : null;
       if (raw && (repMin === null || repMin >= repMax)) { flagInvalid(repMinIn, `Bas de fourchette sous ${repMax}`); return; }
+      // Bas vide : 4 sous le haut (le 12 par défaut garde son sens d'avant, de 8 à 12 sans rien écrire).
+      // Sans quoi un haut seul hors 12 se relirait en reps fixes (fixedReps, ancien format)
+      if (!raw && repMax !== 12) {
+        if (repMax < 2) { flagInvalid(repIn, 'Fourchette : 2 reps au moins'); return; }
+        repMin = Math.max(1, repMax - 4);
+      }
     }
     const tempoIn = $('#exTempoIn');
     if (tempoIn && exDraft) {
@@ -536,6 +575,7 @@ registerActions({
       ex.rest   = rest;
       ex.repMax = repMax;
       if (repMin) ex.repMin = repMin; else delete ex.repMin;
+      if (repFixed) ex.repFixed = true; else delete ex.repFixed;
       applyDraftMeasure(ex, exDraft);
       // Technique (js/data/intensif.js) : gardée en répétitions seulement, mesure tout juste appliquée
       if (exDraft?.intens && canTech(ex)) ex.intens = exDraft.intens; else delete ex.intens;
@@ -551,6 +591,7 @@ registerActions({
       ex.rest   = rest;
       ex.repMax = repMax;
       if (repMin) ex.repMin = repMin; else delete ex.repMin;
+      if (repFixed) ex.repFixed = true; else delete ex.repFixed;
       applyDraftMeasure(ex, exDraft);
       // Technique (js/data/intensif.js) : gardée en répétitions seulement, mesure tout juste appliquée
       if (exDraft?.intens && canTech(ex)) ex.intens = exDraft.intens; else delete ex.intens;
