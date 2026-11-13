@@ -315,7 +315,9 @@ function coachExVideoBtn(name) {
 // la prise a sa ligne à elle (gripText)
 function coachExPlanParts(e) {
   const out = [];
-  if (measureOf(e) === 'reps' && e.repMin) out.push(`${e.repMin} à ${e.repMax ?? 12} reps`);
+  // Fourchette, même sans bas réglé (4 sous le haut : repSpanOf) : plus de « Pompes · 3 séries » sans reps (panel vague 4)
+  const span = repSpanOf(e);
+  if (span) out.push(`${span[0]} à ${span[1]} reps`);
   const it = INTENS_PLANS[cleanIntens(e.intens)];
   if (it) out.push(it.short);
   return out;

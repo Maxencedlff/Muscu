@@ -84,6 +84,19 @@ function setsRepsHtml(ex) {
   return shown === spoken ? esc(shown) : `<span aria-hidden="true">${esc(shown)}</span><span class="visually-hidden">${esc(spoken)}</span>`;
 }
 
+// Liste d'une séance du programme : la prescription entière, fourchette comprise (« 3 × 8–12 », bas vide : 4 sous le
+// haut, comme goalRepsAfterBump), pour ne plus lire « 3 séries » sans reps à côté de « 4 × 10 » (panel vague 4)
+function repSpanOf(ex) {
+  if (measureOf(ex) !== 'reps' || fixedReps(ex)) return null;
+  const hi = parseInt(ex.repMax) || 12, lo = parseInt(ex.repMin) > 0 ? parseInt(ex.repMin) : Math.max(1, hi - 4);
+  return lo < hi ? [lo, hi] : null;
+}
+function setsRangeHtml(ex) {
+  const span = repSpanOf(ex);
+  if (!span) return setsRepsHtml(ex);
+  return `<span aria-hidden="true">${ex.sets}\u00a0×\u00a0${span[0]}–${span[1]}</span><span class="visually-hidden">${esc(`${plural(ex.sets, 'série', 'séries')} de ${span[0]} à ${span[1]} reps`)}</span>`;
+}
+
 function exerciseTarget(cat, ex) {
   const { text, gain, before } = exerciseGoal(cat, ex);
   return { text, gain, before };

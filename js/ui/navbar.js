@@ -62,8 +62,9 @@ function updateChrome() {
   ensureChrome();
   const route = currentRoute();
   const inSession = route === 'session' && !!activeSession;
-  // Séance, bilan et récap (story) en plein écran, sans tab bar
-  const full = inSession || route === 'summary' || routeName(route) === 'recap';
+  // Séance, bilan et récap (story) en plein écran, sans tab bar ; fiche Exercice du programme (Annuler / OK) : tâche
+  // modale, sans onglet qui la quitterait en perdant les changements (HIG Modality, panel vague 4)
+  const full = inSession || route === 'summary' || ['recap', 'ex-edit'].includes(routeName(route));
   const bar = $('.tabbar');
   bar.hidden = full;
   bar.querySelectorAll('.tabbar__btn').forEach(b => {

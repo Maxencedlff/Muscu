@@ -48,7 +48,7 @@ function renderEditor() {
     const last = lastPerf(data.activeProgramme, cat, ex);
     const best = last ? bestSet(last.ex.sets, ex) : null;
     const plan = canTech(ex) ? INTENS_PLANS[cleanIntens(ex.intens)]?.short : '';   // technique prescrite
-    const sub  = `${setsRepsHtml(ex)}${plan ? ` · ${plan}` : ''}${best ? ` · dernier ${setTxt(best, ex)}` : ''}`;
+    const sub  = `${setsRangeHtml(ex)}${plan ? ` · ${plan}` : ''}${best ? ` · dernier ${setTxt(best, ex)}` : ''}`;
     const tag  = ssTagHtml(list, i);
     if (editorEditing) {
       return `
@@ -140,7 +140,7 @@ function exTempoHtml(d) {
           <label class="cell cell--ctl">
             <span class="cell__body"><span class="cell__title">Personnalisé</span></span>
             <input type="text" id="exTempoIn" class="field field--num" autocomplete="off" inputmode="text" enterkeyhint="done"
-                   value="${esc(shortTempo(cur))}" placeholder="3-1-1" aria-label="Tempo personnalisé, par exemple 3-1-1">
+                   value="${esc(shortTempo(cur))}" placeholder="Ex. 3-1-1" aria-label="Tempo personnalisé, par exemple 3-1-1">
           </label>
           ${t ? `<div class="cell cell--ctl cell--wrap">
             <div class="segmented seg-full" role="group" aria-label="Pendant la série">
