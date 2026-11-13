@@ -735,6 +735,7 @@ function coachPlanOf(s) {
   return { done, total, missing };
 }
 
+// Chevron : la ligne s'ouvre, comme « Dernière séance » et l'historique (panel v4 t1)
 function coachSessionCell(uid, row) {
   const s = row.s, mine = coachOwnProgrammeName(s.programme), plan = coachPlanOf(s);
   return `
@@ -746,7 +747,7 @@ function coachSessionCell(uid, row) {
               ${mine || row.note ? `<span class="coach-sess__tags">${mine ? '<span class="coach-tag">Ton programme</span>' : ''}${row.note ? '<span class="coach-tag coach-tag--note">Commentée</span>' : ''}</span>` : ''}
             </span>
             ${icon('chevron.right', 16)}
-          </button>`;   // chevron : la ligne s'ouvre, comme « Dernière séance » et l'historique (panel v4 t1)
+          </button>`;
 }
 
 function renderCoachStudent(uid) {
