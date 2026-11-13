@@ -27,7 +27,8 @@
   --font-num: ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
 }
 body.light {
-  --tint: #C64000;              /* 5,1:1 sur blanc, 4,55:1 sur #F2F2F7 ; sans bleu, il ne tire plus sur le brun (vote du 12/11) */
+  --tint: #BA3B00;              /* texte et liens : 5,7:1 sur blanc, 5,1:1 sur #F2F2F7, 4,7:1 sur les feuilles et dialogues
+                                   (#C64000 tombait à 4,4:1 sur le dialogue et les dates du comparateur) */
   --tint-fill: #C64000;         /* texte blanc 5,1:1 */
   --on-tint: #FFFFFF;
   --tint-on-fill: #A93A0B;      /* 5,6:1 sur --fill clair */
@@ -49,7 +50,7 @@ body.light {
 .hero__btn, .sum-done, .btn--primary { box-shadow: none; }
 /* Mini-barre de repos : elle flotte, elle garde son matériau ; filet net plutôt que l'ombre en plus */
 .rest-mini { box-shadow: none; border: .5px solid var(--sep); }
-body:not(.light) .rest-mini .rest-mini__skip { color: var(--tint); }
+body:not(.light) .rest-mini .rest-mini__skip { color: #FFB27D; }   /* sur --fill de --cell2 : 5,2:1 (--tint y tombait à 3,9:1) */
 
 /* ── Typographie : casse de phrase, semi-gras gris, chiffres à chasse fixe ── */
 .group-title, .sum-section-title, .hero__eyebrow, .targets__title, .home-card__title, .home-list__title {
@@ -189,3 +190,9 @@ html.type-xl .team-week__tile { display: block; }
 html:not(.type-xl) .team-week__tile { white-space: nowrap; }
 /* Monogramme (élève sans photo) : aplat gris, plus de dégradé ; blanc 3,6:1 sur un texte de 17 pt gras (grand texte) */
 .avatar--initial, .avatar-pick--initial[aria-pressed="true"] { background: var(--sb-avatar); }
+
+/* Texte orange posé sur --fill (gris) : la variante foncée, 5,6:1 en clair (--tint y tombait à 4:1) */
+.bump-chip, .rs__done { color: var(--tint-on-fill); }
+/* Coche d'une série en correction : sur l'orange plein, la coche prend la couleur du texte des boutons
+   orange (noir en sombre : 8,4:1 ; blanc en clair : 5,1:1) au lieu du blanc fixe (2,3:1 en sombre) */
+.set-check--edit { background: var(--tint-fill); color: var(--on-tint); }
