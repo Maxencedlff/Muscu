@@ -315,7 +315,7 @@ def t_alias(bench, eng, dev, theme):
         page.wait_for_selector('.view.library-ex')
         note = page.locator('.library-ex .ex-alias').inner_text().strip()
         R.check(note.endswith('= Pec deck') or note == '= Pec deck', f'{t} fiche : {note!r}')
-        R.check(page.locator('.library-ex .navbar__title').inner_text().strip() == 'Pec fly', f'{t} fiche : titre = nom tapé')
+        R.check(page.locator('.library-ex .exhead__title').inner_text().strip() == 'Pec fly', f'{t} fiche : titre = nom tapé')
         shot(page, LOT, f'alias-fiche-{t}')
         page.evaluate("navigate(makeRoute('library-ex', 'Pec deck'))")
         page.wait_for_timeout(300)
