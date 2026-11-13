@@ -123,8 +123,8 @@ def t_fiche(bench, eng, dev, theme):
         open_app(page, theme, manifest())
         R.check(page.evaluate(f'exerciseVideo({json.dumps(EX)})?.coach') == COACH, f'{t} manifeste lu')
         open_fiche(page)
-        fig = page.locator('.howto .exvideo')
-        R.check(fig.count() == 1, f'{t} vidéo dans « Comment faire »')
+        fig = page.locator('.exhero .exvideo')
+        R.check(fig.count() == 1, f'{t} vidéo en tête de la fiche')
         R.check(page.locator('.howto__anim').count() == 0 and page.locator('.howto__cues li').count() >= 3, f'{t} mannequin remplacé, consignes gardées')
         attrs = page.evaluate("""() => { const v = document.querySelector('.exvideo video');
             return { playsinline: v.hasAttribute('playsinline'), muted: v.muted, loop: v.loop, poster: v.getAttribute('poster'),
@@ -295,8 +295,8 @@ def t_anim3d(bench, eng, dev, theme):
         serve_videos(page)
         open_app(page, theme, 'repo', cellular=True)
         open_fiche(page)
-        fig = page.locator('.howto .exvideo--3d')
-        R.check(fig.count() == 1 and page.locator('.howto__anim').count() == 0, f'{t} animation 3D dans « Comment faire »')
+        fig = page.locator('.exhero .exvideo--3d')
+        R.check(fig.count() == 1 and page.locator('.howto__anim').count() == 0, f'{t} animation 3D en tête de la fiche')
         R.check(page.locator('.howto__cues li').count() >= 3, f'{t} consignes gardées sous l\'animation')
         attrs = page.evaluate("""() => { const v = document.querySelector('.exvideo--3d video');
             return { playsinline: v.hasAttribute('playsinline'), muted: v.muted, loop: v.loop, poster: v.getAttribute('poster'),
@@ -307,8 +307,9 @@ def t_anim3d(bench, eng, dev, theme):
                 and blabel in (f'Lire l\'animation 3D de {EX}', f'Mettre en pause l\'animation 3D de {EX}'), f'{t} affiche et VoiceOver : le bouton seul, nommé {attrs} {blabel!r}')
         # Panel v4 t1 : plus de légende « Animation 3D » sous l'image
         R.check(not page.locator('.exvideo--3d .exvideo__credit').is_visible(), f'{t} pas de légende « Animation 3D »')
-        ratio = page.evaluate("(() => { const r = document.querySelector('.exvideo--3d .exvideo__frame').getBoundingClientRect(); return [r.width, r.height]; })()")
-        R.check(abs(ratio[0] - ratio[1]) < 1 and ratio[0] <= 321, f'{t} carré, 320 pt au plus {ratio}')
+        ratio = page.evaluate("""(() => { const r = document.querySelector('.exvideo--3d .exvideo__frame').getBoundingClientRect();
+            return [r.width, r.height, document.querySelector('.exhero').getBoundingClientRect().width, innerHeight]; })()""")
+        R.check(abs(ratio[0] - ratio[1]) < 1 and ratio[0] <= ratio[2] + 0.5 and ratio[1] <= ratio[3] * 0.56 + 1, f'{t} carré, dans la carte, 56 % de l\'écran au plus {ratio}')
         page.wait_for_function("document.querySelector('.exvideo--3d video').getAttribute('src')", timeout=5000)
         src = page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('src')")
         R.check(src in ('img/anim/squat-barre.mp4', 'img/anim/squat-barre.webm'), f'{t} cellulaire : fichier de l\'app chargé quand même ({src})')

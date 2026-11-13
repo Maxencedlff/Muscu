@@ -730,17 +730,84 @@ def t_muscle_filter(bench, eng, dev, theme):
         page.fill('#libSearch', 'curl')
         R.check(page.locator('.library .mgcs').is_hidden(), f'{t} recherche : groupes masqués')
         page.fill('#libSearch', '')
-        # Fiche sans vidéo ni animation 3D : muscle principal en tête ; avec l'animation 3D : pas d'en-tête
+        # Fiche sans vidéo ni animation 3D : le muscle principal en grande image ; avec l'animation 3D : l'animation (t_fiche)
         page.evaluate("navigate(makeRoute('library-ex', 'Pec deck'))")
-        page.wait_for_selector('.view.library-ex .mgc--hero')
-        R.check('Pectoraux' in page.inner_text('.view.library-ex .mgc--hero'), f'{t} fiche : en-tête au muscle principal')
-        page.evaluate("navigate(makeRoute('library-ex', 'Squat barre'))")
-        page.wait_for_selector('.view.library-ex .exvideo')
-        R.check(page.locator('.view.library-ex .mgc--hero').count() == 0, f'{t} fiche animée : pas d\'en-tête')
+        page.wait_for_selector('.view.library-ex .exhero__img')
+        R.check(page.get_attribute('.library-ex .exhero__img', 'src') == 'img/muscles/chest.webp', f'{t} fiche : image du muscle principal en tête')
         page.evaluate("navigate('library')")
         page.wait_for_selector('.view.library')
         R.check(no_hscroll(page), f'{t} pas de défilement horizontal de la page')
         shot(page, LOT, f'filtre-biblio-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def tab_ok(page):
+    """Onglets de la fiche : aucun nom coupé, aucun débordement"""
+    return page.evaluate("""() => [...document.querySelectorAll('.library-ex .extabs [role="tab"]')]
+        .every(b => b.scrollWidth <= b.clientWidth + 1 && b.getBoundingClientRect().right <= innerWidth)""")
+
+
+def fiche_tab(page, k):
+    page.click(f'.library-ex .extabs [data-tab="{k}"]')
+    page.wait_for_timeout(150)
+    return page.locator(f'#expanel-{k}')
+
+
+def t_fiche(bench, eng, dev, theme):
+    """Fiche d'un exercice : grande illustration en tête, titre, onglets À propos · Historique · Courbe · Records"""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        # Animation 3D en tête (sortie de « Comment faire »), bouton pause compris ; titre et « muscles · matériel » dessous
+        page.evaluate("navigate(makeRoute('library-ex', 'Squat barre'))")
+        page.wait_for_selector('.library-ex .exhero .exvideo--3d')
+        order = page.evaluate("""() => { const h = document.querySelector('.exhero'), t = document.querySelector('.exhead__title');
+            return !!(h.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) && h.getBoundingClientRect().width >= document.querySelector('.extabs').getBoundingClientRect().width - 1; }""")
+        R.check(order and page.locator('.howto .exvideo').count() == 0 and page.locator('.exhero .exvideo__play').count() == 1,
+                f'{t} animation 3D en tête, pleine largeur, avant le titre, avec son bouton')
+        R.check(page.inner_text('.exhead__title').strip() == 'Squat barre' and page.inner_text('.exhead__sub').strip() == 'Quadriceps, Fessiers · Salle',
+                f'{t} titre et ligne « muscles · matériel » ({page.inner_text(".exhead__sub")!r})')
+        # Onglets : tablist, À propos à l'ouverture, un seul panneau visible
+        tabs = page.locator('.library-ex .extabs[role="tablist"] [role="tab"]')
+        R.check([x.strip() for x in tabs.all_inner_texts()] == ['À propos', 'Historique', 'Courbe', 'Records'], f'{t} onglets {tabs.all_inner_texts()}')
+        R.check(page.get_attribute('#extab-about', 'aria-selected') == 'true' and page.locator('.expanel:not([hidden])').count() == 1, f'{t} À propos ouvert')
+        R.check(tab_ok(page), f'{t} onglets : aucun nom coupé')
+        # Conseil mis en avant, puis 2 consignes et « Plus » qui déplie le reste
+        R.check('Erreur fréquente' in page.inner_text('#expanel-about .extip'), f'{t} conseil en tête d\'À propos')
+        shown = lambda: page.locator('.howto__cues li:visible').count()
+        total = page.locator('.howto__cues li').count()
+        R.check(shown() == 2 and total > 2, f'{t} 2 consignes visibles sur {total}')
+        page.click('.howto__more')
+        R.check(shown() == total and page.locator('.howto__more').count() == 0, f'{t} « Plus » : toutes les consignes, bouton retiré')
+        # Exercice fait (fixtures) : séances avec leurs séries, records, courbe dessinée
+        hist = fiche_tab(page, 'history')
+        rows = hist.locator('[data-action="open-history"]')
+        R.check(rows.count() >= 1 and ' × ' in rows.first.inner_text() and hist.locator('[data-action="open-stats-ex"]').count() == 1,
+                f'{t} Historique : séances (date, séries kg × reps) et « Voir mes progrès »')
+        rec = fiche_tab(page, 'records').inner_text()
+        R.check(all(k in rec for k in ['Record', 'Record 1RM est.', 'Meilleures reps', 'Meilleur volume']), f'{t} Records : charge, 1RM, reps, volume')
+        fiche_tab(page, 'chart')
+        R.check(page.evaluate("document.querySelector('#exChart canvas').width > 0"), f'{t} Courbe dessinée')
+        # Onglet gardé quand la fiche est redessinée (choix de la courbe), À propos pour un autre exercice
+        page.click('#expanel-chart [data-mode="volume"]')
+        page.wait_for_timeout(200)
+        R.check(page.get_attribute('#extab-chart', 'aria-selected') == 'true', f'{t} onglet gardé après « Volume »')
+        page.evaluate("navigate(makeRoute('library-ex', 'Pec deck'))")
+        page.wait_for_selector('.library-ex .exhero__img')
+        R.check(page.get_attribute('#extab-about', 'aria-selected') == 'true', f'{t} autre exercice : retour à À propos')
+        R.check(page.get_attribute('.exhero__img', 'alt') == '', f'{t} image décorative (le titre dit tout)')
+        # Jamais fait : état vide utile dans Historique, Courbe et Records
+        for k in ['history', 'chart', 'records']:
+            R.check('Pas encore fait' in fiche_tab(page, k).inner_text(), f'{t} {k} vide : « Pas encore fait »')
+        R.check(no_hscroll(page), f'{t} fiche : pas de défilement horizontal')
+        # Texte agrandi : illustration plus petite, onglets sur deux rangées, rien de coupé
+        page.add_style_tag(content='html { font-size: 28px !important; }')
+        page.evaluate("window.dispatchEvent(new Event('resize'))")
+        page.wait_for_timeout(300)
+        if page.evaluate("document.documentElement.classList.contains('type-xl')"):
+            g = page.evaluate("""() => ({ hero: document.querySelector('.exhero').getBoundingClientRect().width,
+                tabs: document.querySelector('.extabs').getBoundingClientRect().width })""")
+            R.check(0 < g['hero'] < g['tabs'] and tab_ok(page) and no_hscroll(page), f'{t} type-xl : image réduite, onglets entiers {g}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -768,4 +835,4 @@ def once_static(bench):
         R.check(px and px['red'] > 2000 and px['gray'] > 20000, f'bodyMapImage : base grise et pectoraux teintés en rouge {px}')
 
 
-run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_muscle_filter, t_silhouette, t_tip], once=[once_static])
+run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_muscle_filter, t_fiche, t_silhouette, t_tip], once=[once_static])

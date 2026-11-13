@@ -160,7 +160,10 @@ body.light .mpick__auto { background: var(--cell); }
 .howto__anim--live .mv-ghost { display: none; }
 .howto__cues { margin: 0; padding-left: 20px; font-size: 0.941rem; line-height: 1.4; color: var(--label); }
 .howto__cues li + li { margin-top: 4px; }
-.howto__mistake { margin: 10px 0 0; font-size: var(--fs-footnote); color: var(--label2); line-height: 1.4; }
+/* « Plus » : les consignes après les 2 premières ; lien orange, zone de toucher de 44 pt */
+.howto__more { display: block; min-height: 44px; margin: 2px 0 -12px; padding: 0; border: 0; background: none;
+  font: inherit; font-size: var(--fs-callout); color: var(--tint); cursor: pointer; }
+.howto__more:active { opacity: .5; }
 /* Vidéo d'un coach partenaire (js/ui/exercise-video.js) : à la place du mannequin, proportions du fichier
    (--ar = largeur / hauteur), jamais plus haute que 60 % de l'écran ; bouton ▶ sur l'affiche à l'arrêt */
 .exvideo { margin: 0 0 12px; }
@@ -213,9 +216,6 @@ body.light .mpick__auto { background: var(--cell); }
 }
 .mgc__img[data-missing] { display: none; }
 .mgc:has(.mgc__img[data-missing]) .mgc__text { width: 100%; }
-.mgcs--hero { margin-bottom: 20px; }
-.view--grouped .mgc--hero { min-height: 7.5rem; }
-.mgc--hero .mgc__img { max-width: 58%; }
 /* Exercices de la Bibliothèque : même ligne illustrée, un peu plus basse, nom au corps de texte */
 .view--grouped .mgc--ex { min-height: 4.75rem; }
 .mgc--ex .mgc__title { font-size: var(--fs-body); }
@@ -231,11 +231,44 @@ body.light .mpick__auto { background: var(--cell); }
   .mgc--ex .mgc__text { width: 68%; }
   .mgc--ex .mgc__img { max-width: 34%; }
 }
-/* Texte agrandi (type-xl) : le nom passe avant l'image ; la liste redevient une liste de texte et l'en-tête
-   de la fiche (redit par la section Muscles) disparaît, plutôt qu'un nom coupé ou caché sous le personnage */
+/* Texte agrandi (type-xl) : le nom passe avant l'image ; la liste redevient une liste de texte plutôt qu'un nom
+   coupé ou caché sous le personnage */
 .type-xl .mgc__img { display: none; }
 .type-xl .mgc__text { width: 100%; }
 .type-xl .mgc--ex .mgc__sub { display: block; white-space: normal; }
 .type-xl .mgc--ex .mgc__mus, .type-xl .mgc--ex .mgc__eq { white-space: normal; }
 .type-xl .view--grouped .mgc { min-height: 44px; }
-.type-xl .mgcs--hero { display: none; }
+
+/* ── Fiche d'un exercice (js/features/library.js) ──
+   Grande illustration en tête, pleine largeur, coins arrondis, sur l'aplat de la carte : vidéo du coach ou animation 3D
+   (proportions du fichier, jamais plus de 56 % de la hauteur de l'écran), sinon le personnage 3D du muscle principal
+   (img/muscles/<id>.webp, 3:2, fond transparent). Puis le titre, « muscles · matériel » en gris, les onglets. */
+.exhero { margin-top: 8px; border-radius: var(--r-md); overflow: hidden; background: var(--cell); }
+.exhero__img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: contain; }
+.exhero .exvideo { margin: 0; }
+.exhero .exvideo__frame, .exhero .exvideo--3d .exvideo__frame { width: min(100%, calc(56vh * var(--ar, 1))); border-radius: 0; }
+.exhero:has(.exvideo--3d) { background: var(--black); }   /* animation sur noir pur : la carte prend le même fond */
+.exhero .exvideo__credit { margin: 0; padding: 6px 12px 8px; }
+.exhero .exvideo__credit[hidden] { display: none; }
+.exhead__title { margin: 14px 0 2px; }
+.exhead__sub { margin: 0 0 12px; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }
+.extabs { margin: 4px 0 4px; }
+/* Largeur de chaque onglet selon son nom : « Historique » tient sur iPhone SE sans toucher ses voisins */
+.extabs .segmented__btn { flex: 1 1 auto; }
+.expanel[hidden] { display: none; }
+.expanel > .group:first-child, .expanel > .exempty:first-child { margin-top: 20px; }
+.expanel > .segmented:first-child { margin-top: 20px; }
+/* Conseil mis en avant : une cellule, l'icône en gris, aucune couleur d'alerte */
+.extip .cell { align-items: flex-start; gap: 12px; }
+.extip__icon { flex: none; display: flex; padding-top: 2px; color: var(--label2); }
+.extip .cell__title { line-height: 1.35; }
+/* Historique, Courbe ou Records d'un exercice jamais fait */
+.exempty { padding: 32px 16px; text-align: center; color: var(--label2); }
+.exempty .icon { color: var(--label3); }
+.exempty__title { margin: 8px 0 4px; font-size: var(--fs-body); font-weight: 600; color: var(--label); }
+.exempty__sub { margin: 0 auto; max-width: 300px; font-size: var(--fs-subhead); line-height: 1.4; }
+/* Texte agrandi : l'illustration reste, plus petite ; les onglets sur deux rangées, en pleine largeur, rien de coupé */
+.type-xl .exhero { width: 62%; margin-inline: auto; }
+.type-xl .extabs { display: grid; grid-template-columns: 1fr 1fr; row-gap: 2px; }
+.type-xl .extabs .segmented__btn { overflow-wrap: normal; hyphens: none; }
+.type-xl .extabs .segmented__btn::before { display: none; }

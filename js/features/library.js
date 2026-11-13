@@ -114,17 +114,6 @@ function refreshLibMuscleBox(focus = false) {
   target?.focus({ preventScroll: true });
 }
 
-// Fiche sans vidéo ni animation 3D : le muscle principal sur le personnage, en tête (rien pour le cardio)
-function muscleHeroHtml(name) {
-  if (exerciseVideo(name) || exerciseAnim(name)) return '';
-  const id = exerciseMuscles({ name }).primary?.[0];
-  if (!isMuscleId(id)) return '';
-  return `<div class="group mgcs mgcs--hero"><div class="cell mgc mgc--hero">
-      <span class="mgc__text"><span class="mgc__sub">Muscle principal</span><span class="mgc__title">${esc(muscleLabel(id))}</span></span>
-      ${muscleImgHtml(id)}
-    </div></div>`;
-}
-
 function libListHtml() {
   const q = libQuery.trim();
   const items = libMatches(libMuscle)
@@ -182,23 +171,40 @@ function renderLibrary() {
     </div>`;
 }
 
-// Fiche : silhouette et muscles, matériel, mesure, versions plus facile / plus dure, progrès si déjà fait.
+// ── Fiche d'un exercice ─────────────────────────────────────
+// Grande illustration en tête (vidéo du coach, sinon animation 3D, sinon le muscle principal sur le personnage ; rien
+// pour le cardio sans image), nom en grand titre et « muscles · matériel », puis des onglets : À propos (conseil, consignes,
+// muscles, matériel, progression, force), Historique, Courbe et Records (écran de Progrès d'un exercice, js/features/
+// progress-chart.js : mêmes calculs). Onglet gardé pendant la session, À propos pour un autre exercice.
 // name : nom de la bibliothèque ou nom tapé par la personne (« Comment faire » d'un alias) : les muscles
 // sont ceux qu'elle a choisis pour ce nom, sinon les muscles vérifiés
-function renderLibraryEx(name) {
-  const e = catalogueEntry(name);
-  if (!e) return `<div class="view library-ex view--grouped">${navBar({ title: 'Exercice' })}<div class="scr"><div class="empty-note">Exercice introuvable.</div></div></div>`;
+const LIB_EX_TABS = [['about', 'À propos'], ['history', 'Historique'], ['chart', 'Courbe'], ['records', 'Records']];
+let libExTab = 'about';
+let libExTabOf = null;   // exercice de l'onglet gardé
+
+// Image décorative : le titre et la ligne « muscles · matériel » disent déjà tout (VoiceOver ne la lit pas)
+function libExHeroHtml(name) {
+  const media = exerciseVideoHtml(name);
+  if (media) return `<div class="exhero exhero--media">${media}</div>`;
+  const id = exerciseMuscles({ name }).primary?.[0];
+  if (!isMuscleId(id)) return '';
+  return `<div class="exhero"><img class="exhero__img" src="img/muscles/${id}.webp" alt="" width="600" height="400" decoding="async"></div>`;
+}
+
+// Historique, Courbe ou Records d'un exercice jamais fait : un état vide qui dit quoi faire
+function libExEmptyHtml(what) {
+  return `<div class="exempty">${icon(what === 'chart' ? 'chart' : 'clock.history', 28)}
+      <p class="exempty__title">Pas encore fait</p>
+      <p class="exempty__sub">${what === 'records' ? 'Tes records' : what === 'chart' ? 'Ta courbe' : 'Tes séances'} de cet exercice ${what === 'chart' ? 's\'affichera' : 's\'afficheront'} ici après ta première séance.</p>
+    </div>`;
+}
+
+function libExAboutHtml(e, name) {
   const { easier, harder } = progressionOf(e.name);
-  const done = [...exerciseIndex().values()].find(it => catalogueEntry(it.name)?.name === e.name);
   const link = (n, lbl) => n ? `<button class="cell cell--nav" data-action="open-library-ex" data-name="${esc(n)}">
       <span class="cell__body"><span class="cell__sub">${lbl}</span><span class="cell__title">${esc(n)}</span></span>${icon('chevron.right', 16)}</button>` : '';
   const share = bodyShare(e);
-  return `
-    <div class="view library-ex view--grouped">
-      ${navBar({ title: esc(catalogueAliasOf(name) ? name : e.name), large: false })}
-      <div class="scr">
-        ${aliasNoteHtml(name, 'scr-sub ex-alias library-ex__alias')}
-        ${muscleHeroHtml(name)}
+  return `${howToTipHtml(e.name)}
         ${howToHtml(e.name)}
         ${exMusclesGroupHtml({ name }, 'Muscles')}
         <div class="group">
@@ -211,15 +217,58 @@ function renderLibraryEx(name) {
         </div>
         ${easier || harder ? `<div class="group-title">Progression</div><div class="group">${link(easier, 'Plus facile')}${link(harder, 'Plus dur')}</div>` : ''}
         ${strengthGroupHtml(e.name)}
-        ${done ? `<div class="group"><button class="cell cell--nav" data-action="open-stats-ex" data-ex="${esc(done.exId)}">
-            <span class="cell__body"><span class="cell__title">Voir mes progrès</span></span>${icon('chevron.right', 16)}</button></div>` : ''}
-        ${e.aliases.length ? `<div class="group-foot">Aussi appelé : ${esc(e.aliases.join(', '))}</div>` : ''}
+        ${e.aliases.length ? `<div class="group-foot">Aussi appelé : ${esc(e.aliases.join(', '))}</div>` : ''}`;
+}
+
+function renderLibraryEx(name) {
+  const e = catalogueEntry(name);
+  if (!e) return `<div class="view library-ex view--grouped">${navBar({ title: 'Exercice' })}<div class="scr"><div class="empty-note">Exercice introuvable.</div></div></div>`;
+  if (libExTabOf !== e.name) { libExTab = 'about'; libExTabOf = e.name; statsMode = 'charge'; }
+  const done = [...exerciseIndex().values()].find(it => catalogueEntry(it.name)?.name === e.name);
+  const st = done ? exStatsParts(done, { fiche: true }) : null;
+  const more = done ? `<div class="group"><button class="cell cell--nav" data-action="open-stats-ex" data-ex="${esc(done.exId)}">
+            <span class="cell__body"><span class="cell__title">Voir mes progrès</span></span>${icon('chevron.right', 16)}</button></div>` : '';
+  const panels = {
+    about: libExAboutHtml(e, name),
+    history: st ? `<div class="group">${st.sessions}</div>${more}` : libExEmptyHtml('history'),
+    chart: st ? st.chart : libExEmptyHtml('chart'),
+    records: st ? `${st.records}${st.target}` : libExEmptyHtml('records'),
+  };
+  const q = EQUIPMENT.find(x => x.id === e.equip);
+  const sub = [[...new Set(exerciseMuscles({ name }).primary.map(muscleLabel))].join(', '), q?.label].filter(Boolean).join(' · ');
+  const title = catalogueAliasOf(name) ? name : e.name;
+  return `
+    <div class="view library-ex view--grouped">
+      ${navBar({ title: '' })}
+      <div class="scr">
+        ${libExHeroHtml(name)}
+        <h1 class="scr-title exhead__title">${esc(title)}</h1>
+        ${sub ? `<p class="exhead__sub">${esc(sub)}</p>` : ''}
+        ${aliasNoteHtml(name, 'scr-sub ex-alias library-ex__alias')}
+        <div class="segmented seg-full extabs" role="tablist" aria-label="Fiche de l'exercice">
+          ${LIB_EX_TABS.map(([k, l]) => `<button class="segmented__btn${libExTab === k ? ' segmented__btn--active' : ''}" role="tab" id="extab-${k}"
+            aria-selected="${libExTab === k}" aria-controls="expanel-${k}" data-action="lib-ex-tab" data-tab="${k}">${l}</button>`).join('')}
+        </div>
+        ${LIB_EX_TABS.map(([k]) => `<div class="expanel" role="tabpanel" id="expanel-${k}" aria-labelledby="extab-${k}"${libExTab === k ? '' : ' hidden'}>${panels[k]}</div>`).join('')}
       </div>
     </div>`;
 }
 
+// Onglet choisi : les panneaux sont déjà là, seul l'affichage change (l'animation de l'en-tête continue) ;
+// la courbe se dessine quand son panneau devient visible (largeur nulle tant qu'il est caché)
+function setLibExTab(k) {
+  libExTab = k;
+  document.querySelectorAll('.library-ex .extabs [role="tab"]').forEach(b => {
+    const on = b.dataset.tab === k;
+    b.classList.toggle('segmented__btn--active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  document.querySelectorAll('.library-ex .expanel').forEach(p => { p.hidden = p.id !== `expanel-${k}`; });
+  if (k === 'chart') drawCharts();
+}
+
 SCREENS.set('library', { render: () => renderLibrary(), mount: () => fitLibSubs() });
-SCREENS.set('library-ex', { render: name => renderLibraryEx(name), mount: () => mountHowTo() });
+SCREENS.set('library-ex', { render: name => renderLibraryEx(name), mount: () => { mountHowTo(); if (libExTab === 'chart') drawCharts(); } });
 
 // Recherche : seule la liste est redessinée (le champ garde le focus et le clavier)
 document.addEventListener('input', e => {
@@ -245,6 +294,7 @@ registerActions({
   // Ouverture depuis Programme : on repart des groupes musculaires (les filtres ne restent qu'en revenant d'une fiche)
   'go-library': () => { libQuery = ''; libEquip = 'all'; libMuscle = NO_MUSCLE_FILTER; navigate('library'); },
   'open-library-ex': (e, el) => navigate(makeRoute('library-ex', el.dataset.name)),
+  'lib-ex-tab': (e, el) => { if (el.dataset.tab !== libExTab) { setLibExTab(el.dataset.tab); haptic(); } },
   'lib-muscle': (e, el) => {
     const before = libMuscle.group;
     libMuscle = muscleFilterTap(el, libMuscle);

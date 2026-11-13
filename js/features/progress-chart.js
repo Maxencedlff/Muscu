@@ -47,6 +47,28 @@ function renderStatsExercise(exId) {
     return `<div class="view stats-ex view--grouped">${navBar({ title: 'Exercice' })}
       <div class="scr"><div class="empty-note">Aucune donnée pour cet exercice.</div></div></div>`;
   }
+  const s = exStatsParts(it);
+  return `
+    <div class="view stats-ex view--grouped">
+      ${navBar({ title: '' })}
+      <div class="scr">
+        <h1 class="scr-title">${esc(it.name)}</h1>
+        ${aliasNoteHtml(it.name, 'scr-sub ex-alias')}
+        ${s.chart}
+        ${s.records}
+        ${s.target}
+        ${s.cardio ? '' : strengthGroupHtml(it.name)}
+        ${exMusclesGroupHtml({ exId: it.exId, name: it.name })}
+        <div class="group-title">Séances</div>
+        <div class="group">${s.sessions}</div>
+      </div>
+    </div>`;
+}
+
+// Morceaux de l'écran d'un exercice, repris tels quels par les onglets Historique, Courbe et Records de la fiche de la
+// Bibliothèque (js/features/library.js) : un seul calcul. Pose l'état de la courbe (chartState) que drawCharts dessine.
+// fiche : records en plus (meilleures reps, meilleur volume) et séances détaillées (toutes les séries), les 8 dernières
+function exStatsParts(it, { fiche = false } = {}) {
   const bw     = isBodyweight(it);
   chartUnit    = it.unit || 'reps';
   chartEx      = { name: it.name };
@@ -89,12 +111,18 @@ function renderStatsExercise(exId) {
 
   // Séances où un record de cet exercice a été battu (records notés, js/data/records.js) : médaille
   const recHids = exerciseRecordSessions(it, pts);
-  const sessions = pts.slice().reverse().map(p => `
+  const sessionTxt = p => cardio ? cardioPointTxt(p, pk) : fiche ? setsText(p.sets, it.measure, setKind(chartEx))
+    : bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} ${chartUnit}` : setTxt(p.best, chartEx);
+  const sessions = pts.slice().reverse().slice(0, fiche ? 8 : Infinity).map(p => {
+    const txt = `${sessionTxt(p)}${p.rpe != null ? ` · RPE ${fmtNum(p.rpe, 1)}` : ''}`;
+    return `
       <button class="cell cell--nav" data-action="open-history" data-id="${esc(p.hid)}">
-        <span class="cell__body"><span class="cell__title cell__title--reg">${fmtDate(p.date)}${recHids.has(p.hid) ? ` <span class="stats-rec">${medalSvg(16)}<span class="visually-hidden">, record</span></span>` : ''}</span></span>
-        <span class="cell__value num">${cardio ? cardioPointTxt(p, pk) : bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} ${chartUnit}` : setTxt(p.best, chartEx)}${p.rpe != null ? ` · RPE ${fmtNum(p.rpe, 1)}` : ''}</span>
+        <span class="cell__body"><span class="cell__title cell__title--reg">${fmtDate(p.date)}${recHids.has(p.hid) ? ` <span class="stats-rec">${medalSvg(16)}<span class="visually-hidden">, record</span></span>` : ''}</span>
+          ${fiche ? `<span class="cell__sub num">${txt}</span>` : ''}</span>
+        ${fiche ? '' : `<span class="cell__value num">${txt}</span>`}
         ${icon('chevron.right', 16)}
-      </button>`).join('');
+      </button>`;
+  }).join('');
 
   const modes = cardio ? cModes : [['charge', 'Charge max'], ['volume', 'Volume'], ['1rm', '1RM est.'], ...(hasRpe ? [['effort', 'Effort']] : [])];
   const modeOn = cardio ? cardioMode : statsMode;
@@ -113,12 +141,11 @@ function renderStatsExercise(exId) {
           ${cell('Plus longue durée', `${Math.max(0, ...it.points.flatMap(p => p.sets.map(s => parseInt(s.reps) || 0)))} min`)}`
     : holdBest ? cell('Plus long maintien', setTxt(holdBest, chartEx))
     : cell('Record', prBest ? setTxt(prBest, chartEx) : '—');
-  return `
-    <div class="view stats-ex view--grouped">
-      ${navBar({ title: '' })}
-      <div class="scr">
-        <h1 class="scr-title">${esc(it.name)}</h1>
-        ${aliasNoteHtml(it.name, 'scr-sub ex-alias')}
+  // Fiche : records de répétitions et de volume en plus (une seule séance, toutes séries de travail comprises)
+  const moreCells = fiche && !cardio && !holdBest ? `
+          ${cell('Meilleures reps', `${Math.max(0, ...pts.map(p => p.maxReps))} ${bw ? chartUnit : 'reps'}`)}
+          ${bw ? '' : cell('Meilleur volume', fmtVolume(Math.max(0, ...pts.map(p => p.volume))))}` : '';
+  const chart = `
         <div class="segmented seg-full" role="group" aria-label="Mesure affichée">
           ${modes.map(([m, l]) => `<button class="segmented__btn ${modeOn === m ? 'segmented__btn--active' : ''}" aria-pressed="${modeOn === m}" data-action="${cardio ? 'stats-cardio-mode' : 'stats-mode'}" data-mode="${m}">${l}</button>`).join('')}
         </div>
@@ -130,23 +157,18 @@ function renderStatsExercise(exId) {
         <div class="chart" id="exChart">
           <canvas class="stats-canvas" role="img" aria-label=""></canvas>
           <div class="chart-bubble num" hidden></div>
-        </div>
+        </div>`;
+  const records = `
         <div class="group">${recordCells}
           ${!bw && rec1RM ? `
           <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Record 1RM est.</span><span class="cell__sub">Charge que tu soulèverais une seule fois, calculée d'après tes séries</span></span>
             <span class="cell__value num">~${fmtW(rec1RM)} ${unitLbl()}</span></div>
           <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">1RM est. dernière séance</span></span>
-            <span class="cell__value num">${last.best1RM ? `~${fmtW(last.best1RM)} ${unitLbl()}` : '—'}</span></div>` : ''}
+            <span class="cell__value num">${last.best1RM ? `~${fmtW(last.best1RM)} ${unitLbl()}` : '—'}</span></div>` : ''}${moreCells}
           <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Séances</span></span>
             <span class="cell__value num">${pts.length}</span></div>
-        </div>
-        ${targetBar}
-        ${cardio ? '' : strengthGroupHtml(it.name)}
-        ${exMusclesGroupHtml({ exId: it.exId, name: it.name })}
-        <div class="group-title">Séances</div>
-        <div class="group">${sessions}</div>
-      </div>
-    </div>`;
+        </div>`;
+  return { cardio, chart, records, target: targetBar, sessions };
 }
 
 // Série de maintien la plus longue (puis la plus lestée) : { w, r, weight, reps } comme bestSet, null sans

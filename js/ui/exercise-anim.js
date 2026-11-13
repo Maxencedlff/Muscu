@@ -76,24 +76,35 @@ function workingSegments(name) {
   return new Set(Object.entries(SEG_MUSCLES).filter(([, ids]) => ids.some(id => primary.includes(id))).map(([seg]) => seg));
 }
 
-// Carte « Comment faire » : vidéo d'un coach s'il y en a une (js/ui/exercise-video.js), sinon animation si
-// le mouvement est prêt (ou deux positions superposées quand les animations sont réduites), puis consignes
-// et erreur fréquente ; '' si l'exercice n'en a pas
+// Fiche d'un exercice (js/features/library.js) : la vidéo d'un coach (js/ui/exercise-video.js) ou l'animation 3D va en
+// grande illustration en tête ; « Comment faire » garde le mannequin dessiné (seulement sans vidéo ni animation 3D),
+// les consignes, dont les 2 premières visibles et « Plus » pour les autres, et l'erreur fréquente passe en conseil
+// mis en avant (howToTipHtml). '' si l'exercice n'a rien de tout ça.
+const HOWTO_SHOWN = 2;
 function howToHtml(name) {
-  const how = exerciseHowTo(name), video = exerciseVideoHtml(name), move = video ? null : exerciseMove(name);
-  if (!how && !move && !video) return '';
+  const how = exerciseHowTo(name), move = exerciseVideoHtml(name) ? null : exerciseMove(name);
+  if (!how && !move) return '';
   const working = move ? workingSegments(name) : null;
+  const more = how ? how.cues.length - HOWTO_SHOWN : 0;
   return `
     <div class="group-title">Comment faire</div>
     <div class="group howto">
-      ${video}
       ${move ? `<svg class="howto__anim" viewBox="${moveViewBox(move)}" role="img" aria-label="Animation du mouvement : ${esc(name)}" data-move="${esc(name)}">
         <g class="mv-ghost">${moveSvgInner(move, movePose(move, 1), working)}</g>
         <g class="mv-live">${moveSvgInner(move, movePose(move, 0), working)}</g>
       </svg>` : ''}
-      ${how ? `<ol class="howto__cues">${how.cues.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
-      <p class="howto__mistake"><strong>Erreur fréquente :</strong> ${esc(how.mistake)}</p>` : ''}
+      ${how ? `<ol class="howto__cues">${how.cues.map((c, i) => `<li${i >= HOWTO_SHOWN ? ' hidden tabindex="-1"' : ''}>${esc(c)}</li>`).join('')}</ol>
+      ${more > 0 ? `<button class="howto__more" data-action="howto-more" aria-label="Plus : ${more} autre${more > 1 ? 's' : ''} étape${more > 1 ? 's' : ''}">Plus</button>` : ''}` : ''}
     </div>`;
+}
+// Erreur fréquente : une cellule avec une icône, en tête de « À propos » ; '' sans consignes
+function howToTipHtml(name) {
+  const how = exerciseHowTo(name);
+  if (!how?.mistake) return '';
+  return `<div class="group extip"><div class="cell">
+      <span class="extip__icon">${icon('info.circle', 22)}</span>
+      <span class="cell__body"><span class="cell__sub">Erreur fréquente</span><span class="cell__title cell__title--reg">${esc(how.mistake)}</span></span>
+    </div></div>`;
 }
 
 // Lance l'animation des cartes affichées ; s'arrête d'elle-même quand l'écran change
@@ -111,3 +122,13 @@ function mountHowTo() {
   };
   requestAnimationFrame(frame);
 }
+
+registerActions({
+  // « Plus » : les autres consignes apparaissent, le bouton s'efface ; VoiceOver passe à la première révélée
+  'howto-more': (e, el) => {
+    const hidden = [...el.closest('.howto').querySelectorAll('.howto__cues li[hidden]')];
+    hidden.forEach(li => { li.hidden = false; });
+    el.remove();
+    hidden[0]?.focus({ preventScroll: true });
+  },
+});
