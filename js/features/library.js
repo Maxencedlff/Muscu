@@ -25,7 +25,8 @@ function libSection(e) {
 // boîte qui ne rétrécit pas, seuls les muscles peuvent finir en « … ». Le choix deux muscles / un muscle se fait
 // sur la largeur réelle, après le rendu (fitLibSubs).
 function libSubHtml(m, equip) {
-  const two = musclesLine(m, 2), one = musclesLine(m, 1);
+  // Un seul muscle qui ne tient toujours pas (iPhone SE) : nom court plutôt que « Ischio-jam… »
+  const two = musclesLine(m, 2), one = musclesLine(m, 1).replace('Ischio-jambiers', 'Ischios');
   const mus = `<span class="mgc__mus"${one !== two ? ` data-short="${esc(one)}"` : ''}>${esc(two)}</span>`;
   if (!equip) return mus;
   return `${two ? mus : ''}<span class="mgc__eq">${two ? '\u00a0·\u00a0' : ''}${esc(equip)}</span>`;
