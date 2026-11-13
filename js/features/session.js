@@ -851,7 +851,8 @@ function scrollToCurrent(smooth = true, focus = false) {
     const above = sel => card ? [...card.querySelectorAll(sel)].filter(el => el.getBoundingClientRect().top < rowTop).pop() : null;
     const lastDone = above('.session-set--done')?.closest('.set-swipe');
     const anchors = [band, keep, keep ? null : card, keep ? null : card?.querySelector('.ex-card__name'),
-      keep ? null : card?.querySelector('.sets__head'), lastDone, lastDone?.querySelector('.rir')]
+      // en-tête des séries : seulement après une série faite (1re série trop basse : le nom reste visible, CI t-grand-texte)
+      keep || !lastDone ? null : card?.querySelector('.sets__head'), lastDone, lastDone?.querySelector('.rir')]
       .filter(el => el && el.getBoundingClientRect().top <= rowTop);
     const barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
     const room = window.innerHeight - barH - ($('.rest-mini')?.getBoundingClientRect().height || 0) - 24;
