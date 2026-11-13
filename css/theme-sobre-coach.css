@@ -87,6 +87,10 @@ html.type-xl .team-week__tile + .team-week__tile { margin-top: 4px; }
 .plan-card, .plan-gantt { border-radius: 12px; }
 .plan-pill { background: var(--fill2); }
 
+/* Fiche élève : semaine en cours de la même couleur que dans Progrès (texte principal), plus de vert qui se lisait
+   « objectif atteint » (panel v4 t1) */
+.progress-week .wkbars--up .wkbars__b--now:not(.wkbars__b--vide) { background: var(--label); }
+
 /* ── Messages : bulles neutres, la mienne à l'opposé de la reçue (claire en sombre, foncée en clair) ── */
 .chat-msg--mine .chat-msg__bubble { background: var(--sbc-bubble-mine); color: var(--sbc-bubble-mine-text); }
 .chat-msg__time { font-variant-numeric: tabular-nums; }

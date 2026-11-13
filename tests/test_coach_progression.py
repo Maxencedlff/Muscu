@@ -183,7 +183,7 @@ def t_fiche(bench, eng, dev, theme):
         page.wait_for_selector('.coach-student-view .progress-week')
         page.wait_for_timeout(500)
         first = page.evaluate("document.querySelector('.coach-student-view .scr .group-title')?.textContent.trim()")
-        R.check(first == 'Cette semaine', f'{t} fiche : « Cette semaine » en tête ({first!r})')
+        R.check(first == '7 derniers jours', f'{t} fiche : « 7 derniers jours » en tête ({first!r})')
         wk = page.inner_text('.coach-student-view .progress-week')
         R.check('3 sur 4' in wk and 'Prévues : Sèche 4 jours' in wk, f'{t} fiche : séances faites sur prévues ({wk!r})')
         R.check('Squat' in wk and 'Tractions' in wk and '105 kg' in wk and 'avant 100 kg' in wk, f'{t} fiche : records avec l\'exercice')

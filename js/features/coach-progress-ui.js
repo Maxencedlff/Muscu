@@ -53,27 +53,28 @@ function progressPlannedOf(uid) {
 
 // Séances de la semaine : valeur courte à droite (« 3 sur 4 », « 2 ») et détail dessous
 // (« Prévues : Sèche 4 jours », « 3 d'habitude »)
-function progressSessionsCell(pr, planned, bars = '') {
+function progressSessionsCell(pr, planned, bars = '', counts = null) {
   const value = planned ? `${pr.n7} sur ${planned.n}` : String(pr.n7);
   const sub = planned ? `Prévues : ${planned.name}` : pr.habit !== null && pr.habit >= 1 ? `${fmtNum(pr.habit)} d'habitude` : '';
   const spoken = planned ? `${pr.n7} sur ${planned.n} prévues` : value;
   return `
-          <div class="cell progress-week__row" aria-label="${esc(`Séances : ${spoken}${sub && !planned ? `, ${sub}` : planned ? `, programme ${planned.name}` : ''}`)}" role="group">
+          <div class="cell progress-week__row" aria-label="${esc(`Séances : ${spoken}${sub && !planned ? `, ${sub}` : planned ? `, programme ${planned.name}` : ''}${counts ? `. 4 dernières semaines : ${counts.join(', ')}` : ''}`)}" role="group">
             <span class="cell__body"><span class="cell__title">Séances</span>${sub ? `<span class="cell__sub">${esc(sub)}</span>` : ''}</span>
             ${bars}<span class="cell__value num">${esc(value)}</span>
           </div>`;
 }
 
-// Ses séances des 4 dernières semaines (première page chargée), seulement si elle couvre toute la période
-function progressWeekBars(uid) {
+// Ses séances des 4 dernières semaines (première page chargée), seulement si elle couvre toute la période ;
+// null sinon. Les barres sont dessinées par weekBarsSvg, les nombres dits à VoiceOver (panel v4 t1)
+function progressWeekCounts(uid) {
   const f = coachSessions(uid), now = Date.now();
   const oldest = f.rows[f.rows.length - 1]?.doneAt;
   const covered = f.end || (oldest && now - new Date(oldest).getTime() >= 28 * 864e5);
-  const counts = f.rows.length ? weekCounts(f.rows.map(r => new Date(r.doneAt).getTime()), now, 4, !!covered) : null;
-  return counts ? weekBarsSvg(counts) : '';
+  return f.rows.length ? weekCounts(f.rows.map(r => new Date(r.doneAt).getTime()), now, 4, !!covered) : null;
 }
 
-// Fiche d'un élève, en tête : « Cette semaine ». Le signal (seulement s'il dit autre chose que les lignes
+// Fiche d'un élève, en tête : « 7 derniers jours » (glissants : « Cette semaine » se lisait comme la semaine du
+// calendrier de l'accueil, panel v4 t1). Le signal (seulement s'il dit autre chose que les lignes
 // en dessous : à relancer, stable), les séances faites sur prévues, les records avec l'exercice, la
 // dernière séance (elle s'ouvre si elle est chargée).
 function coachWeekSummaryHtml(uid) {
@@ -86,7 +87,8 @@ function coachWeekSummaryHtml(uid) {
     ? '<div class="cell"><span class="cell__body"><span class="cell__title">Records</span></span><span class="cell__value">Aucun</span></div>' : '';
   const more = pr.records.length > PROGRESS_SUMMARY_RECORDS
     ? `<div class="cell"><span class="cell__sub">Et ${plural(pr.records.length - PROGRESS_SUMMARY_RECORDS, 'autre record', 'autres records')}, dans ses séances</span></div>` : '';
-  const sessions = progressSessionsCell(pr, planned, progressWeekBars(uid));
+  const counts = progressWeekCounts(uid);
+  const sessions = progressSessionsCell(pr, planned, counts ? weekBarsSvg(counts) : '', counts);
   const row = coachSessions(uid).rows[0];
   const lastTxt = st.last_session ? studentLastLine(st) : 'Pas encore de séance';
   const last = row && st.last_session && row.doneAt === st.last_session.done_at
@@ -96,9 +98,8 @@ function coachWeekSummaryHtml(uid) {
           </button>`
     : `<div class="cell"><span class="cell__body"><span class="cell__title">Dernière séance</span><span class="cell__sub">${esc(lastTxt)}</span></span></div>`;
   return `
-        <div class="group-title">Cette semaine</div>
-        <div class="group progress-week">${sig}${sessions}${recs}${none}${more}${last}</div>
-        <div class="group-foot">Aujourd'hui et les 6 jours d'avant.</div>`;
+        <div class="group-title">7 derniers jours</div>
+        <div class="group progress-week">${sig}${sessions}${recs}${none}${more}${last}</div>`;
 }
 
 // En tête de Mes élèves : « Cette semaine », trois chiffres d'un coup d'œil (records battus, élèves à relancer,

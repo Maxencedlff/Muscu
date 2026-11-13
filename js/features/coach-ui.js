@@ -745,7 +745,8 @@ function coachSessionCell(uid, row) {
               <span class="hcell__sub num">${esc(publicMetaLine(s))}${plan ? ` · ${plan.done}/${plan.total} séries` : ''}</span>
               ${mine || row.note ? `<span class="coach-sess__tags">${mine ? '<span class="coach-tag">Ton programme</span>' : ''}${row.note ? '<span class="coach-tag coach-tag--note">Commentée</span>' : ''}</span>` : ''}
             </span>
-          </button>`;
+            ${icon('chevron.right', 16)}
+          </button>`;   // chevron : la ligne s'ouvre, comme « Dernière séance » et l'historique (panel v4 t1)
 }
 
 function renderCoachStudent(uid) {
