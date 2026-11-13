@@ -746,11 +746,17 @@ def p_nutrition(r):
         r.saisir('#dietFoodSearch', 'riz blanc cuit', 'recherche')   # le riz blanc existe cru et cuit (« riz cuit » : le thaï, sans version crue)
         r.attendre('#dietFoodList .diet-cand', 'résultats')
     # Riz cuit cherché « cuit » : version voulue, pas de rappel « Pesé cru ? » (panel vague 4)
+    alerte = False
     with r.etape('quantite', 'Aliment choisi : quantité en grammes', cle=cle):
         r.toucher('#dietFoodList .diet-cand', '1er résultat')
-        r.saisir('.sheet-root:not(.sheet-root--out) #qtyVal', 150, 'quantité')
+        # Sans unité ni rappel cru / cuit, la quantité se saisit dans l'alerte à champ (dietAskGrams), sinon dans la feuille
+        alerte = r.present('.ios-dialog__input', timeout=1500)
+        r.saisir('.ios-dialog__input' if alerte else '.sheet-root:not(.sheet-root--out) #qtyVal', 150, 'quantité')
     with r.etape('aliment-ajoute', 'Aliment ajouté au repas (macros calculées)', cle=cle):
-        r.toucher('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm', 'OK')
+        if alerte:
+            r.choisir('OK')
+        else:
+            r.toucher('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm', 'OK')
     with r.etape('accueil-carte', 'Accueil : carte Nutrition du jour'):
         r.onglet('train', 'Entraînement')
         r.defiler('.diet-home', 'carte Nutrition')
