@@ -687,7 +687,7 @@ function coachPermanentCodeHtml() {
   const shown = formatCoachCode(code);
   return `<div class="cell coach-code-cell coach-code-cell--main">
             <span class="cell__body"><span class="cell__title coach-code num">${esc(shown)}</span><span class="cell__sub">Ton code à toi, sans date de fin · à mettre dans ta bio</span></span>
-            <button class="social-pill coach-copy-btn" data-action="coach-copy-code" data-code="${esc(shown)}" aria-label="Copier ton code coach ${esc(shown)}">Copier</button>
+            <button class="coach-icon-btn coach-copy-btn" data-action="coach-copy-code" data-code="${esc(shown)}" aria-label="Copier ton code coach">${icon('doc.on.doc', 20)}</button>
             <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(code)}" aria-label="Partager ton code coach">${icon('square.and.arrow.up', 20)}</button>
           </div>`;
 }
@@ -1100,16 +1100,18 @@ registerActions({
     } finally { coachInviteBusy = false; if (currentView() === 'coach-students') render(); else refreshCoachCell(); }
   },
   'coach-share-invite': async (e, el) => { await shareCoachInvite(el.dataset.code); },
-  // Code seul, pour la bio : confirmé sur le bouton lui-même (« Copié »), pas par un toast posé sur la liste
+  // Code seul, pour la bio : confirmé sur le bouton lui-même (coche 2 s, « Code copié » pour VoiceOver), pas par un
+  // toast posé sur la liste
   'coach-copy-code': async (e, el) => {
     const code = el.dataset.code;
     try { await navigator.clipboard.writeText(code); }
     catch { showToast(`Code : ${code}`); return; }
     haptic();
     announce('Code copié');
-    el.textContent = 'Copié';
+    el.innerHTML = icon('checkmark', 20);
+    el.setAttribute('aria-label', 'Code copié');
     clearTimeout(el._copied);
-    el._copied = setTimeout(() => { if (el.isConnected) el.textContent = 'Copier'; }, 2000);
+    el._copied = setTimeout(() => { if (el.isConnected) { el.innerHTML = icon('doc.on.doc', 20); el.setAttribute('aria-label', 'Copier ton code coach'); } }, 2000);
   },
   'coach-revoke-invite': async (e, el) => {
     if (!(await confirmSheet(`Retirer le code ${el.dataset.code} ?`, 'Il ne servira plus à personne. Tes élèves actuels restent suivis.', 'Retirer le code'))) return;

@@ -343,6 +343,12 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
   .onb__actions { padding-top: 10px; }
   .onb__actions .auth__skip { margin-top: 0; }
 }
+/* iPhone SE (568 pt) : un cran de plus, titre et silhouettes, pour la séance entière au-dessus de « Commencer » */
+@media (max-height: 600px) {
+  .onb__body .body-map { height: 64px; }
+  .onb__eyebrow + .auth__title { font-size: var(--fs-title1); }
+  .onb__label { margin-bottom: 6px; }
+}
 /* Accueil : la même disposition (bouton sous le titre) dès que la colonne fait moins de 19 fois la taille du texte, donc
    aussi en texte agrandi sur iPhone 13 (« Nouvea / u plan » coupé à côté du bouton, panel t8). Les unités em d'une requête
    de conteneur suivent la taille de texte du conteneur. */

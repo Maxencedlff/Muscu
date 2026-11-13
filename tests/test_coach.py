@@ -535,6 +535,7 @@ def t_coach(bench, eng, dev, theme):
         R.check(len(ccalls(page, 'coach_create_invite')) == 1, f'{t} double toucher : un seul code créé ({len(ccalls(page, "coach_create_invite"))})')
         R.check('onglet Social › Rejoindre un coach' in page.evaluate(f"coachInviteText('{codes[0]}')") if codes else False, f'{t} invitation : dit où aller')
         layout(page, t, 'Mes élèves avec code')
+        page.locator('.coach-team [data-action="coach-invite"]').evaluate("e => e.scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'12-invitation-{t}')
         R.check(page.evaluate(f"coachInviteText('{codes[0]}')").count(codes[0]) == 1 and ' - ' not in page.evaluate(f"coachInviteText('{codes[0]}')"), f'{t} texte d\'invitation')
         page.click('[data-action="coach-revoke-invite"]')
