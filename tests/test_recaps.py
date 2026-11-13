@@ -138,7 +138,7 @@ def t_semaine(bench, eng, dev, theme):
         }""")
         R.check(m['w'] >= 44 and m['h'] >= 44, f'{t} carte : bouton Masquer ≥ 44 pt ({m["w"]:.0f}×{m["h"]:.0f})')
         R.check(m['prev'].startswith('hero'), f'{t} carte : juste sous la séance du jour ({m["prev"]})')
-        R.check(any(c['t'] == '16,1\u00a0t' for c in m['chips']) and all(c['h'] < 2 * c['lh'] for c in m['chips']), f'{t} carte : « 16,1 t » insécable, pastilles sur une ligne {m["chips"]}')
+        R.check(any(c['t'] == '16,1 t' for c in m['chips']) and all(c['h'] < 2 * c['lh'] for c in m['chips']), f'{t} carte : « 16,1 t » insécable, pastilles sur une ligne {m["chips"]}')
         R.check(m['titleClear'], f'{t} carte : le titre ne passe pas sous le bouton Masquer')
         R.check(m['label'].startswith('Ta semaine · 12 – 18 oct. 2 séances') and m['label'].endswith('Voir mon récap') and not m['hasAria'], f'{t} carte : un seul bouton, lu comme il est écrit ({m["label"][:70]})')
         R.check(m['bg'] == m['cell'], f'{t} carte : une cellule comme les autres, sans aplat (direction sobre) ({m["bg"]} / {m["cell"]})')

@@ -82,7 +82,7 @@ function renderStatsExercise(exId) {
     return `
       <div class="group-title">Objectif</div>
       <div class="group group--pad">
-        <div class="target-row"><span>${fmtW(target)} ${unitLbl()}</span><span class="${pct >= 100 ? 'txt-up' : ''}">${pct >= 100 ? 'Atteint' : pct + ' %'}</span></div>
+        <div class="target-row"><span>${fmtW(target)} ${unitLbl()}</span><span class="${pct >= 100 ? 'txt-up' : ''}">${pct >= 100 ? 'Atteint' : pct + '\u00a0%'}</span></div>
         <div class="tbar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div class="tbar__fill" style="width:${pct}%"></div></div>
       </div>`;
   })() : '';

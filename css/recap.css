@@ -2,14 +2,14 @@
    Récaps (semaine, mois, année) : carte de l'accueil, écrans façon story
    Direction « sobre » : deux aplats, l'orange MDLF (accent : chiffres de la période, résumé) et le noir (night :
    profil, records, exercice, palier). Plus de citron vert ni de violet. L'orange suit le thème de l'app :
-   #FF7A1A et texte noir en sombre (8,4:1), #C64000 et texte blanc en clair (5,1:1) ; blanc sur noir 21:1.
+   #FF7A1A et texte noir en sombre (8,4:1), #A85400 et texte blanc en clair (5,3:1) ; blanc sur noir 21:1.
    Mêmes couleurs que l'image partagée (js/features/recap-canvas.js, RECAP_TONE_COLORS).
 ═══════════════════════════════════════════════ */
 
 :root {
   --rc-accent: #FF7A1A; --rc-on-accent: #000; --rc-night: #000; --rc-on-night: #FFF; --rc-night-heat: #FF7A1A;
 }
-body.light { --rc-accent: #C64000; --rc-on-accent: #FFF; }
+body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
 .tone-accent { --rc-bg: var(--rc-accent); --rc-fg: var(--rc-on-accent); --rc-heat: #000; }   /* muscles en noir sur la silhouette claire, dans les deux thèmes */
 .tone-night  { --rc-bg: var(--rc-night);  --rc-fg: var(--rc-on-night);  --rc-heat: var(--rc-night-heat); }
 /* Écran noir, même en thème clair : la silhouette garde la rampe du sombre (Progrès, theme-sobre-progres.css), sinon

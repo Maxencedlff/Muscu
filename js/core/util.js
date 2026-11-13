@@ -14,7 +14,9 @@ function $(sel, ctx = document) { return ctx.querySelector(sel); }
 function pad(n) { return String(n).padStart(2, '0'); }
 
 // ── Typographie française à l'affichage ──
-// Espace fine insécable (U+202F) avant ? ! ; : et après « / avant » ; trait d'union insécable dans « mois-ci », « celle-là ».
+// Espace fine insécable (U+202F) avant ? ! ; seulement ; espace insécable normale (U+00A0) avant « : », à l'intérieur
+// des guillemets, autour de « × », entre un nombre et son unité ou son nom, et avant « · » (panel vague 4 : avec SF Pro,
+// l'espace fine entre « 1 » et « record » est presque invisible, « 1record battu »). Trait d'union insécable dans « mois-ci ».
 // Rien n'est jamais réécrit dans les données ni dans les champs : seuls les nœuds de texte affichés sont touchés
 // (MutationObserver ci-dessous), après chaque rendu, toast, feuille ou annonce. Un retour à la ligne ne laisse plus
 // « ? » ou « : » seuls en début de ligne (panels de la vague 3).
@@ -27,10 +29,10 @@ const FR_TYPO_RE = new RegExp('[ \u00a0]([?!;:\u00bb])|(\u00ab)[ \u00a0]|(\\S)-(
   + `|(\\d) (${FR_TYPO_UNITS})(?![\\p{L}])|(\u2248|sem\\.) (?=\\d)`, 'gu');
 function frTypo(str) {
   return String(str ?? '').replace(FR_TYPO_RE, (m, before, open, w, tail, d, unit, lead) =>
-    before ? '\u202f' + before : open ? open + '\u202f' : w ? w + '\u2011' + tail : d ? d + '\u202f' + unit
-      : lead ? lead + '\u202f' : '\u202f\u00d7\u202f')
-    .replace(/ \u00b7 /g, '\u202f\u00b7 ')
-    .replace(FR_TYPO_GLUE_RE, '$1\u202f')   // « L 1 », « P 5 » (macros) et « repos 2:00 » jamais séparés (panel t6)
+    before ? (before === ':' || before === '\u00bb' ? '\u00a0' : '\u202f') + before : open ? open + '\u00a0'
+      : w ? w + '\u2011' + tail : d ? d + '\u00a0' + unit : lead ? lead + '\u00a0' : '\u00a0\u00d7\u00a0')
+    .replace(/ \u00b7 /g, '\u00a0\u00b7 ')
+    .replace(FR_TYPO_GLUE_RE, '$1\u00a0')   // « L 1 », « P 5 » (macros) et « repos 2:00 » jamais séparés (panel t6)
     .replace(/(\d)-(?=\d)/g, '$1\u2011');   // tempo « 3-1-1 » jamais coupé (« Ex. 3- » puis « 1-1 »)   // à part : « 1,3 t · 53 min » (l'unité vient d'être prise par la règle du dessus)
 }
 const FR_TYPO_GLUE_RE = /(?<=^|[\s(])(\p{Lu}|j|\p{L}{2,}(?= \d{1,2}:\d\d)) (?=\d)/gu;
@@ -52,11 +54,11 @@ function frTypoText(n) {
 }
 
 // ── « · » jamais en fin de ligne (panel t6) ──
-// frTypo colle le « · » au mot d'avant (espace fine insécable) et laisse couper après lui : « Record 32 × 9 · » puis
+// frTypo colle le « · » au mot d'avant (espace insécable) et laisse couper après lui : « Record 32 × 9 · » puis
 // « Repos 2:00 » à la ligne. Quand la ligne casse juste là, le point est masqué (visibility : la largeur reste la même,
 // la mise en page ne bouge pas) ; il revient si la largeur change. Mesuré une fois par image, après le rendu, et
 // seulement sur les nœuds qui portent un séparateur (quelques dizaines par écran).
-const FR_SEP = '\u202f\u00b7';
+const FR_SEP = '\u00a0\u00b7';
 const frSepNodes = new Set();
 let frSepFrame = 0;
 function frSepQueue(n) {

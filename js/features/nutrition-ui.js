@@ -141,15 +141,19 @@ function dietSummaryHtml(pr) {
       </section>`;
 }
 
-// Frise des 7 derniers jours : un toucher ouvre le jour (aujourd'hui : route sans paramètre)
+// Frise des 7 derniers jours : un toucher ouvre le jour (aujourd'hui : route sans paramètre). Panel vague 4 : elle
+// reprenait les pastilles de « Cette semaine » de l'accueil (semaine du lundi, séances faites) pour un autre sens. Ici,
+// un sélecteur de date comme le Calendrier d'iOS : la lettre et le numéro du jour, le jour choisi plein, et sous le
+// numéro un petit point pour la journée (plein : complète, anneau : en partie).
 function dietWeekHtml(day) {
   const today = dietDayKey();
   return `<div class="diet-week" role="group" aria-label="7 derniers jours">${dietWeek(data).map(w => {
-    const letter = new Date(w.ts).toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase();
+    const d = new Date(w.ts), letter = d.toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase();
     const label = `${w.day === today ? 'Aujourd\'hui' : fmtDate(w.ts, 'day')}${w.complete ? ', journée complète' : w.some ? ', en partie' : ''}`;
     return `<button class="diet-week__day${w.day === day ? ' diet-week__day--on' : ''}" data-action="diet-day" data-day="${w.day}" aria-pressed="${w.day === day}" aria-label="${esc(label)}">
         <span class="diet-week__letter" aria-hidden="true">${letter}</span>
-        <span class="diet-week__dot${w.complete ? ' diet-week__dot--done' : w.some ? ' diet-week__dot--some' : ''}" aria-hidden="true">${w.complete ? icon('checkmark', 13) : ''}</span>
+        <span class="diet-week__num num${w.day === today ? ' diet-week__num--today' : ''}" aria-hidden="true">${d.getDate()}</span>
+        <span class="diet-week__dot${w.complete ? ' diet-week__dot--done' : w.some ? ' diet-week__dot--some' : ''}" aria-hidden="true"></span>
       </button>`;
   }).join('')}</div>`;
 }

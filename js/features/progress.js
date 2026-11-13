@@ -116,7 +116,7 @@ function sinceTxt(ts, now = Date.now()) {
   if (d.getFullYear() !== new Date(now).getFullYear()) opts.year = 'numeric';
   return `depuis ${d.toLocaleDateString('fr-FR', opts)}`;
 }
-function pctTxt(p) { return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)} %`; }
+function pctTxt(p) { return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)}\u00a0%`; }
 
 // dates facultatives : points placés selon la date, comme la grande courbe de la fiche (chartXFracs), pour que les deux
 // tracés aient la même forme (panel t6 : la mini-courbe les plaçait au rang)
@@ -204,11 +204,16 @@ function statsStartHtml() {
         </div>`;
 }
 
-// Séances des 4 dernières semaines, en petites barres sous « ce mois-ci » (la plus récente à droite)
+// Séances des 4 dernières semaines du calendrier, sur leur propre ligne sous les chiffres du mois et de l'année (panel
+// vague 4 : posées sous « ce mois-ci », elles semblaient le détailler), la semaine en cours à droite
 function statsWeekBars() {
-  const counts = weekCounts((data.history || []).map(h => new Date(h.date).getTime()));
-  const bars = counts ? weekBarsSvg(counts) : '';
-  return bars ? `<span class="stat-pair__trend">${bars}</span>` : '';
+  if (!data.history?.length) return '';
+  const counts = weekCounts(data.history.map(h => new Date(h.date).getTime()));
+  const bars = counts ? weekBarsSvg(counts, '') : '';
+  return bars ? `<div class="cell progress-week__row stats-weeks">
+            <span class="cell__body"><span class="cell__title">Séances par semaine</span><span class="cell__sub">4 dernières, du lundi au dimanche</span></span>
+            ${bars}
+          </div>` : '';
 }
 
 function renderStats() {
@@ -230,9 +235,10 @@ function renderStats() {
         ${data.history?.length ? statsRecordsHtml() : statsStartHtml()}
         <div class="group stats-head">
           <div class="stat-pair">
-            <div class="stat-pair__item"><span class="stat-pair__val num">${monthCount}</span><span class="stat-pair__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span>${statsWeekBars()}</div>
+            <div class="stat-pair__item"><span class="stat-pair__val num">${monthCount}</span><span class="stat-pair__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span></div>
             <div class="stat-pair__item"><span class="stat-pair__val num">${yearCount}</span><span class="stat-pair__lbl">${yearCount > 1 ? 'séances' : 'séance'} cette année</span></div>
           </div>
+          ${statsWeekBars()}
           <button class="cell cell--nav" data-action="go-stats-overview">
             ${icon('chart', 22)}
             <span class="cell__body"><span class="cell__title">Vue d'ensemble</span>${records ? `<span class="cell__sub">${plural(records, 'record', 'records')} cette semaine</span>` : ''}</span>

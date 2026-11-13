@@ -249,7 +249,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     pr = app.recapProfile(full, p, full, null, null);
     assert.equal(pr.title, 'Tout le corps');
     assert.equal(pr.lines[0][0], 'Bien réparti', 'pas « Tout le corps » deux fois');
-    assert.match(pr.lines[0][1], /^[A-ZÉ][a-zé]+(, [a-zé]+)* et [a-zé]+ : chacun plus de 12\u202f% de tes séries$/, 'les groupes nommés, pas « 4 groupes »');
+    assert.match(pr.lines[0][1], /^[A-ZÉ][a-zé]+(, [a-zé]+)* et [a-zé]+ : chacun plus de 12\u00a0% de tes séries$/, 'les groupes nommés, pas « 4 groupes »');
     assert.equal(app.recapProfile([], p, [], null, null), null, 'rien à dire : pas de profil');
   }));
 

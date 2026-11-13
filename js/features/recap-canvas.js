@@ -7,14 +7,14 @@
 // chiffre géant, puis les blocs de l'écran (tuiles, avant → après, courbe, frise, personnage…), et la signature
 // « MDLF Training » au même endroit sur toutes les stories : c'est elle qui fait connaître l'app à chaque
 // partage. Direction « sobre » : deux aplats seulement, l'orange MDLF (accent) et le noir (night), aucun violet
-// ni citron vert ; l'orange suit le thème de l'app (#FF7A1A et texte noir en sombre, #C64000 et texte blanc en
+// ni citron vert ; l'orange suit le thème de l'app (#FF7A1A et texte noir en sombre, #A85400 et texte blanc en
 // clair), le noir est le même partout. Zones d'Instagram (STORY.TOP, STORY.BOTTOM, share-canvas.js) laissées
 // vides ; rien sous 36 px (lisible en vignette). Jamais de poids du corps ni de mensuration dans l'image.
 const RECAP_TONE_COLORS = {
   accent: { bg: '#FF7A1A', fg: '#000000', heat: '#000000', box: '#000000', boxText: '#FFFFFF' },
   night:  { bg: '#000000', fg: '#FFFFFF', heat: '#FF7A1A', box: '#1C1C1E', boxText: '#FFFFFF' },
 };
-const RECAP_TONE_LIGHT = { accent: { bg: '#C64000', fg: '#FFFFFF', heat: '#000000', box: '#FFFFFF', boxText: '#000000' } };
+const RECAP_TONE_LIGHT = { accent: { bg: '#A85400', fg: '#FFFFFF', heat: '#000000', box: '#FFFFFF', boxText: '#000000' } };
 // Couleurs d'un écran dans le thème de l'app (light : thème clair) ; ton inconnu : l'orange
 function recapToneColors(tone, light) {
   const t = Object.hasOwn(RECAP_TONE_COLORS, tone) ? tone : 'accent';

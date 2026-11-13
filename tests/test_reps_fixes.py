@@ -14,7 +14,7 @@ from fixtures import *  # noqa
 
 LOT = 'reps_fixes'
 R = Results(LOT)
-NB = ' '
+NB = ' '   # textes lus ramenés à l'espace simple par typo_norm (tests/fixtures.py), U+00A0 compris
 
 
 def tag(device, theme):

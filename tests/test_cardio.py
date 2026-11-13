@@ -91,7 +91,7 @@ def t_historique(bench, eng, dev, theme):
         rows = page.locator('.hrow--health')
         R.check(rows.count() == 2, f'{t} 2 lignes de Santé (celle écrite par MDLF écartée) : {rows.count()}')
         first = rows.first.inner_text()
-        R.check('Course' in first and '5,2 km · 27 min · 5:12 /km · Apple Watch' in first, f'{t} ligne de course : {first!r}')
+        R.check('Course' in first and '5,2 km · 27 min · 5:12 /km · Apple Watch' in first, f'{t} ligne de course : {first!r}')
         R.check('Vélo' in rows.nth(1).inner_text() and 'Strava' in rows.nth(1).inner_text() and '28,2 km/h' in rows.nth(1).inner_text(),
                 f'{t} ligne vélo : {rows.nth(1).inner_text()!r}')
         R.check(rows.locator('button, [data-action]').count() == 0, f'{t} lignes de Santé non modifiables')

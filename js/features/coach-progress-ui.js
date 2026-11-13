@@ -64,16 +64,17 @@ function progressSessionsCell(pr, planned, bars = '') {
           </div>`;
 }
 
-// Ses séances des 4 dernières semaines (première page chargée), seulement si elle couvre toute la période
+// Ses séances des 4 dernières semaines du calendrier (première page chargée), seulement si elle couvre toute la période
 function progressWeekBars(uid) {
   const f = coachSessions(uid), now = Date.now();
   const oldest = f.rows[f.rows.length - 1]?.doneAt;
-  const covered = f.end || (oldest && now - new Date(oldest).getTime() >= 28 * 864e5);
+  const covered = f.end || (oldest && new Date(oldest).getTime() <= weekStartMs(now, 3));
   const counts = f.rows.length ? weekCounts(f.rows.map(r => new Date(r.doneAt).getTime()), now, 4, !!covered) : null;
   return counts ? weekBarsSvg(counts) : '';
 }
 
-// Fiche d'un élève, en tête : « Cette semaine ». Le signal (seulement s'il dit autre chose que les lignes
+// Fiche d'un élève, en tête : « 7 derniers jours » (glissants, panel vague 4 : « Cette semaine » se confondait avec la
+// semaine du calendrier de l'accueil). Le signal (seulement s'il dit autre chose que les lignes
 // en dessous : à relancer, stable), les séances faites sur prévues, les records avec l'exercice, la
 // dernière séance (elle s'ouvre si elle est chargée).
 function coachWeekSummaryHtml(uid) {
@@ -96,9 +97,9 @@ function coachWeekSummaryHtml(uid) {
           </button>`
     : `<div class="cell"><span class="cell__body"><span class="cell__title">Dernière séance</span><span class="cell__sub">${esc(lastTxt)}</span></span></div>`;
   return `
-        <div class="group-title">Cette semaine</div>
+        <div class="group-title">7 derniers jours</div>
         <div class="group progress-week">${sig}${sessions}${recs}${none}${more}${last}</div>
-        <div class="group-foot">Aujourd'hui et les 6 jours d'avant.</div>`;
+        <div class="group-foot">Aujourd'hui et les 6 jours d'avant. Les barres comptent les séances par semaine, du lundi au dimanche.</div>`;
 }
 
 // En tête de Mes élèves : « Cette semaine », trois chiffres d'un coup d'œil (records battus, élèves à relancer,

@@ -7,22 +7,26 @@
 .diet-plan-from { margin: 0 0 4px; padding: 0 4px; font-size: var(--fs-subhead); color: var(--label2); overflow-wrap: anywhere; }
 .nutrition-view .coach-progs { margin-top: 8px; }
 
-/* Frise des 7 derniers jours : pastille verte = journée complète */
+/* Frise des 7 derniers jours : sélecteur de date (lettre, numéro, point de la journée), à ne pas confondre avec les
+   pastilles cochées de « Cette semaine » sur l'accueil (panel vague 4). Jour choisi : numéro plein, couleur du texte ;
+   aujourd'hui : numéro en gras. Point vert plein = journée complète, anneau vert = en partie. */
 .diet-week { display: grid; grid-template-columns: repeat(7, 1fr); margin: 8px 0 0; }
 /* Écran de 320 pt : la frise prend une partie des marges pour garder 7 cibles de 44 pt */
 @media (max-width: 359px) { .diet-week { margin-left: -12px; margin-right: -12px; } }
 .diet-week__day {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  min-height: 52px; min-width: 0; padding: 4px 0; border: none; background: none; border-radius: var(--r-sm);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 56px; min-width: 0; padding: 4px 0; border: none; background: none; border-radius: var(--r-sm);
   font: inherit; color: var(--label2); cursor: pointer;
 }
 .diet-week__day:active { opacity: .6; }
-.diet-week__letter { font-size: var(--fs-caption); font-weight: 600; }
-.diet-week__day--on .diet-week__letter { color: var(--label); font-weight: 800; }
-.diet-week__dot { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--fill2); }
-.diet-week__dot--some { box-shadow: inset 0 0 0 2px var(--check-on); background: none; }
-.diet-week__dot--done { background: var(--check-on); color: var(--check-mark); }
-.diet-week__day--on .diet-week__dot:not(.diet-week__dot--done):not(.diet-week__dot--some) { box-shadow: inset 0 0 0 2px var(--label2); background: none; }
+.diet-week__letter { font-size: var(--fs-caption2); font-weight: 600; line-height: 1; }
+.diet-week__num { min-width: 30px; min-height: 30px; padding: 2px 5px; line-height: 1.2; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-callout, 1rem); font-weight: 500; color: var(--label); }
+.diet-week__num--today { font-weight: 800; }
+.diet-week__day--on .diet-week__num { background: var(--label); color: var(--bg); font-weight: 700; }
+.diet-week__dot { width: 7px; height: 7px; border-radius: 50%; }
+.diet-week__dot--some { box-shadow: inset 0 0 0 1.5px var(--check-on); }
+.diet-week__dot--done { background: var(--check-on); }
 
 /* Bilan du jour : anneau des calories, barres des macros */
 .diet-sum { margin-top: 12px; background: var(--cell); border-radius: 20px; padding: 16px; }

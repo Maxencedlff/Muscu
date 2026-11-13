@@ -70,7 +70,7 @@
 .mlegend__n { color: var(--label2); }
 /* Où en sont tes muscles (Progrès) : sous les paliers, avant l'unité */
 .mlegend__you { flex-basis: 100%; margin-top: 6px; text-align: center; color: var(--label); font-weight: 600; }
-.mlegend__dot { width: 10px; height: 10px; border-radius: 3px; background: var(--body-zone); position: relative; overflow: hidden; }
+.mlegend__dot { width: 12px; height: 12px; border-radius: 3px; background: var(--body-zone); position: relative; overflow: hidden; }
 .mlegend__dot::after { content: ''; position: absolute; inset: 0; background: var(--body-heat); opacity: var(--o, 0); }
 .mlegend__dot { flex-shrink: 0; }
 .mlegend__dot--peak::after { background: var(--body-heat-max); }
