@@ -27,11 +27,13 @@
   --font-num: ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
 }
 body.light {
-  --tint: #BA3B00;              /* texte et liens : 5,7:1 sur blanc, 5,1:1 sur #F2F2F7, 4,7:1 sur les feuilles et dialogues
-                                   (#C64000 tombait à 4,4:1 sur le dialogue et les dates du comparateur) */
-  --tint-fill: #C64000;         /* texte blanc 5,1:1 */
+  /* Orange d'action en clair (panel vague 4) : #BA3B00 (teinte 19°) tirait sur le rouge destructif #D70015 (354°),
+     « Remplacer » et « Retirer » se confondaient. Teinte 29-30°, nettement orange, AA partout :
+     5,9:1 sur blanc, 5,3:1 sur #F2F2F7, 5,2:1 sur les feuilles et dialogues assombris */
+  --tint: #A04E00;
+  --tint-fill: #A85400;         /* bouton plein, texte blanc 5,3:1 */
   --on-tint: #FFFFFF;
-  --tint-on-fill: #A93A0B;      /* 5,6:1 sur --fill clair */
+  --tint-on-fill: #8F4600;      /* sur --fill clair : 5,4:1 sur cellule, 5,0:1 sur fond gris */
   --indigo: #0066CC; --purple: #8A6A45;
   --sb-macro-p: #0E7C93; --sb-macro-c: #0066CC; --sb-macro-f: #8A6A45;
 }
