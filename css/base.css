@@ -44,13 +44,12 @@
   --cat-text-mix: 72%; --cat-text-base: #FFFFFF;
   --cat-color: var(--tint);      /* couleur de séance par défaut, redéfinie par écran (jamais le vert de « fait ») */
   /* Silhouette musculaire (js/ui/body-map.js) : corps, muscle au repos, muscle travaillé */
-  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: var(--orange);
-  --body-heat-sec: #A8622A;       /* muscles secondaires d'un exercice (fiche) : orange atténué, plus de jaune (panel t6) */
-  --body-heat-max: #FF5A1F;      /* palier le plus haut (20 séries et plus) : orange rouge, au bout de l'échelle */
-  /* Paliers de Progrès (Entretien → Gros volume) : une seule rampe dont la clarté monte à chaque palier (brun rouge,
-     orange brûlé, orange vif, pêche pâle), écart CIELAB d'au moins 20 entre voisins (panel t6 : quatre oranges
-     indistinguables, Gros volume plus sombre qu'Objectif atteint) */
-  --body-tier-1: #8C3A1C; --body-tier-2: #D2601A; --body-tier-3: #FF8C1A; --body-tier-4: #FFD3A0;
+  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #C94A3F;   /* rouge des muscles (images 3D), pas l'orange d'action ; détail : css/theme-sobre-progres.css */
+  --body-heat-sec: #9E5A50;       /* muscles secondaires d'un exercice (fiche) : même rouge, moins saturé */
+  --body-heat-max: #C94A3F;      /* palier le plus haut (récaps) */
+  /* Paliers de Progrès (Entretien → Gros volume) : une seule rampe rouge dont la clarté monte à chaque palier
+     (rouge sombre, rouge chair, saumon, rose pâle), écart CIELAB d'au moins 18 entre voisins */
+  --body-tier-1: #A73830; --body-tier-2: #E15F51; --body-tier-3: #F89B8C; --body-tier-4: #FDD4CC;
   --body-base-bright: .78;       /* personnage 3D gris un peu assombri sur le noir, lisible (clair : 1, tel quel) */
   --tip-bg: #2C2C2E;             /* bulle d'un muscle touché */
   --bubble-in: #2C2C2E;          /* bulle d'un message reçu (messages coach) */
@@ -110,7 +109,7 @@ body.light {
   --dlg-sep: rgba(60,60,67,.29); --dlg-press: rgba(0,0,0,.06);
   --shadow-float: 0 8px 24px rgba(0,0,0,.12);
   --cat-text-mix: 55%; --cat-text-base: #000000;
-  --body-skin: #E5E5EA; --body-zone: #C7C7CC; --body-base-bright: 1; --body-heat-max: #E03E00; --body-tier-1: #EBB37E; --body-tier-2: #E07A1F; --body-tier-3: #A84300; --body-tier-4: #6B1F00; --body-heat-sec: #F5BE85; --tip-bg: #FFFFFF; --tip-link: var(--tint);
+  --body-skin: #E5E5EA; --body-zone: #C7C7CC; --body-base-bright: 1; --body-heat: #A31B19; --body-heat-max: #A31B19; --body-tier-1: #E68B7D; --body-tier-2: #CE4A3F; --body-tier-3: #A11C1D; --body-tier-4: #641A15; --body-heat-sec: #C37367; --tip-bg: #FFFFFF; --tip-link: var(--tint);
   --body-hl-glow: rgba(0,102,204,.7);
   --bubble-in: #E9E9EB;
   --siwa-bg: #000000; --siwa-fg: #FFFFFF;

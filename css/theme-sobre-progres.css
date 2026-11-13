@@ -2,26 +2,29 @@
    Direction « sobre et vivante » : Progrès, Historique, Programme, Bibliothèque (branche sobre-progres)
    Mêmes règles et mêmes jetons que css/theme-sobre.css (chargé juste avant) :
    - l'orange MDLF garde ses quatre usages (bouton principal, onglet actif, ligne en cours, liens d'action) ;
-     les courbes et la silhouette sont des données : la même teinte, pas une deuxième couleur ;
+     les courbes sont des données : la même teinte ; les muscles (silhouette, animations) sont en rouge, celui des images 3D ;
    - vert = fait et progression, or = record (icône seulement), rouge = suppression ;
    - aucun dégradé, aucune lueur, aucune tuile : listes groupées et chiffres à chasse fixe.
    Le retirer = retirer une ligne d'index.html.
 ═══════════════════════════════════════════════ */
 
-/* ── Silhouette des muscles : une seule rampe orange, du gris du muscle au repos à l'orange MDLF ──
-   Panel vague 4 : les 4 paliers étaient 4 oranges presque identiques (1,2 à 1,45:1 d'un palier au suivant), on ne
-   distinguait pas « Travaillé » de « Objectif atteint » sans lire la liste. Même teinte (26-30°), clarté nettement
-   étagée (L* 71, 53, 36, 23 en clair ; 36, 53, 70, 87 en sombre), dans les deux thèmes. En sombre, plus de séries = plus lumineux ;
-   en clair, plus foncé. En hex et non en color-mix : js/ui/body-map.js lit ces jetons pour teinter le canvas. */
+/* ── Silhouette des muscles : une seule rampe ROUGE, celle des images 3D (img/muscles, médiane sRGB 163,27,25) ──
+   Le rouge est la couleur des muscles (en-tête « Muscle principal », animations) ; l'orange reste l'action. Rouge
+   « chair » (teinte LCh 34°), plus sombre et moins saturé que le rouge Supprimer d'iOS (#FF453A sombre, #D70015 clair :
+   écart CIELAB de 25 au moins). Muscle principal : #C94A3F en sombre (3,7:1 sur la cellule #1C1C1E, 4,5:1 sur le noir),
+   #A31B19 en clair (7,7:1 sur blanc). Secondaires : même teinte, moins saturée (sombre, 3,3:1) ou plus claire (clair, 3,5:1).
+   Panel vague 4 : 4 paliers nettement étagés (L* 67, 50, 35, 22 en clair ; 40, 57, 73, 88 en sombre), dans les deux
+   thèmes. En sombre, plus de séries = plus lumineux ; en clair, plus foncé. En hex et non en color-mix :
+   js/ui/body-map.js lit ces jetons pour teinter le canvas. */
 :root {
-  --body-heat: #FF7A1A; --body-heat-max: #FF7A1A; --body-heat-sec: #AD6430;
-  --body-tier-1: #80451A; --body-tier-2: #C2641A; --body-tier-3: #FF8F3A; --body-tier-4: #FFD0A3;
+  --body-heat: #C94A3F; --body-heat-max: #C94A3F; --body-heat-sec: #9E5A50;
+  --body-tier-1: #A73830; --body-tier-2: #E15F51; --body-tier-3: #F89B8C; --body-tier-4: #FDD4CC;
   --sp-chart-line: #FF7A1A;
 }
 body.light {
-  /* Muscle principal d'un exercice : l'orange foncé des boutons (5,3:1 sur blanc) ; secondaires 2,5:1 plus clairs */
-  --body-heat: #A85400; --body-heat-max: #A85400; --body-heat-sec: #E8A36E;
-  --body-tier-1: #EE9A5A; --body-tier-2: #C86010; --body-tier-3: #8A4000; --body-tier-4: #5E2800;
+  /* Muscle principal d'un exercice : le rouge des images 3D (7,7:1 sur blanc) ; secondaires plus clairs (3,5:1) */
+  --body-heat: #A31B19; --body-heat-max: #A31B19; --body-heat-sec: #C37367;
+  --body-tier-1: #E68B7D; --body-tier-2: #CE4A3F; --body-tier-3: #A11C1D; --body-tier-4: #641A15;
   /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #E57000 × 0,7 = #A04E00,
      l'orange d'action de l'app (5,9:1 sur la carte blanche) */
   --sp-chart-line: #E57000;

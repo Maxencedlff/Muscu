@@ -148,7 +148,7 @@ function recapPageHtml(page, i, st) {
   }
   if (page.bars) parts.push(recapBarsHtml(page.bars));
   if (page.body && page.id === 'profile') {
-    // Couleurs de Progrès (orange, palier le plus haut orange rouge) et sa légende par paliers
+    // Couleurs de Progrès (rouge des muscles, palier le plus haut en rose pâle) et sa légende par paliers
     parts.push(`<div class="rp-figure">${bodyMapHtml(page.body, { view: 'both', className: 'rp-body', peak: true })}</div>`);
     if (page.scale) parts.push(`<div class="rp-scale" aria-hidden="true">${MUSCLE_LEVEL_WORDS.slice(1).map((w, i) => `<span><i${i + 1 >= MUSCLE_LEVEL_MAX ? ' class="is-peak"' : ''} style="--o:${bodyHeatOpacity((i + 1) / MUSCLE_LEVEL_MAX)}"></i>${esc(w)} <b class="num">${muscleLevelRange(i + 1)}</b></span>`).join('')}<small>${esc(page.scale)}</small></div>`);
   }
