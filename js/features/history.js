@@ -38,8 +38,9 @@ function historyCell(h) {
   const progId = entryProg(h);
   const meta   = sessionMeta(h.category, progId);
   const vol    = sessionVolume(h.exercises || [], entryBodyKg(h));
-  // Séance d'un autre programme : son nom en gris après le titre (« Bras · Bras & épaules »), coupé par « … » s'il est long ;
-  // la ligne du dessous reste « N exercices · t · durée » partout (panel t5 : la mention remplaçait le nombre d'exercices)
+  // Séance d'un autre programme : « Programme Bras & épaules » sur sa propre ligne, sous le titre (panel vague 4 : après le
+  // titre, « Bras · Bras & é… » se coupait sur iPhone SE et semblait répéter le nom) ; la ligne du dessous reste
+  // « N exercices · t · durée » partout (panel t5 : la mention remplaçait le nombre d'exercices)
   const other  = progId !== data.activeProgramme && progId !== FREE;
   const parts  = [plural((h.exercises || []).length, 'exercice', 'exercices')];
   if (vol > 0) parts.push(fmtVolume(vol));
@@ -53,7 +54,8 @@ function historyCell(h) {
       <button class="hcell" data-action="open-history" data-id="${esc(h.id)}">
         <span class="hcell__dot" style="background:${meta.color}"></span>
         <span class="hcell__body">
-          <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span>${other ? `<span class="hcell__prog">· ${esc(progMeta(progId).name)}</span>` : ''}<span class="hcell__date">${fmtDate(h.date)}</span></span>
+          <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
+          ${other ? `<span class="hcell__prog">Programme ${esc(progMeta(progId).name)}</span>` : ''}
           <span class="hcell__bot"><span class="hcell__sub num">${parts.join(' · ')}</span>${recMark}</span>
         </span>
         ${icon('chevron.right', 16)}
@@ -124,7 +126,20 @@ function refreshHistoryList() {
 
 // Séries d'un exercice (setsText, js/data/measures.js), échappées pour le HTML
 function setsLine(sets, measure = 'reps', kind = 'charge') {
-  return esc(setsText(sets, measure, kind));
+  const shown = setsText(sets, measure, kind), spoken = setsSpoken(sets, measure, kind);
+  return spoken ? `<span aria-hidden="true">${esc(shown)}</span><span class="visually-hidden">${esc(spoken)}</span>` : esc(shown);
+}
+// Même chose pour VoiceOver : « 4 séries à 28 kilos : 8, 8, 8 et 8 reps » et non « 28 kg multiplié par 8, 8, 8, 8 »
+// (panel vague 4 ; en séance, chaque ligne a déjà sa phrase) ; '' hors répétitions (le texte affiché se lit bien)
+function setsSpoken(sets, measure, kind) {
+  const ok = workSets(sets).filter(s => String(s.reps ?? '') !== '');
+  if (measure !== 'reps' || !ok.length) return '';
+  const and = xs => xs.length > 1 ? `${xs.slice(0, -1).join(', ')} et ${xs.at(-1)}` : xs[0];
+  const unit = data.unit === 'lbs' ? 'livres' : 'kilos', pre = { lest: 'plus ', aide: 'aide de ' }[kind] || '';
+  const load = s => parseFloat(s.weight) > 0 ? `${pre}${fmtW(s.weight)} ${unit}` : '';
+  const n = plural(ok.length, 'série', 'séries');
+  if (ok.every(s => load(s) === load(ok[0]))) return `${n}${load(ok[0]) ? ` à ${load(ok[0])}` : ''} : ${and(ok.map(s => s.reps))} reps`;
+  return `${n} : ${and(ok.map(s => `${load(s) || 'sans charge'}, ${s.reps} reps`))}`;
 }
 // Prise d'un exercice reçu d'un ami ou d'un élève (js/data/grips.js : libellés fixes, échappés quand même)
 function reviewGripHtml(e) {
@@ -167,7 +182,7 @@ function renderHistoryDetail(id) {
         <p class="scr-sub">${when}${progId !== data.activeProgramme && progId !== FREE ? ` · Programme ${esc(progMeta(progId).name)}` : ''}</p>
         <div class="tiles">
           <div class="tile"><span class="tile__val num">${h.duration ? fmtDuration(h.duration) : '—'}</span><span class="tile__lbl">Durée</span></div>
-          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">Volume</span></div>
+          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">Total soulevé</span></div>
           <div class="tile"><span class="tile__val num">${nSets}</span><span class="tile__lbl">${nSets > 1 ? 'Séries' : 'Série'}</span></div>
         </div>
         <div class="group-title">Exercices</div>

@@ -94,6 +94,8 @@ html:not(.type-xl) .sum-tile__value { font-size: clamp(1.3rem, 6.6vw, 1.765rem);
 .sum-tile__label { order: 1; }
 html.type-xl .sum-tiles { grid-template-columns: 1fr; row-gap: 10px; }
 html.type-xl .sum-tile + .sum-tile { border-left: 0; padding-top: 10px; border-top: .5px solid var(--sep); }
+/* Tuiles empilées : même retrait pour les trois chiffres (panel vague 4 : « 52 min » à 4 px, les deux autres à 12 px) */
+html.type-xl .sum-tile { padding-left: 4px; padding-right: 4px; }
 .sum-section-title { padding: 24px 16px 7px; }
 
 /* ── Progrès ── */
