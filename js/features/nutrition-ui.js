@@ -105,7 +105,9 @@ function dietCallHtml(pr) {
 // Repas vides du plan (rien de prévu, on y ajoute ce qu'on mange) : ils ne se cochent pas. Avec eux, l'état dit « repas
 // prévus » : « Journée complète » après le seul petit-déjeuner rempli, ou « 0 repas coché sur 1 » au-dessus de
 // quatre repas, faisaient croire la journée finie ou le compte faux (panel vague 4)
-const dietHasFreeMeals = pr => pr.meals.some(x => !x.live.length);
+// Repas retiré pour la journée : pas « libre », la journée reste « complète » sans lui (on a choisi de ne pas le manger) ;
+// jour vide : les repas sans plan copié sont libres (on y note ce qu'on mange)
+const dietHasFreeMeals = pr => pr.meals.some(x => !x.meal.items.length || (pr.blank && !x.live.length));
 // Aliments notés hors plan ce jour-là (jour vide : tout ce qu'on a mangé)
 const dietNotedCount = pr => pr.meals.reduce((n, x) => n + x.extras.length, 0);
 function dietStatusText(pr) {
@@ -256,7 +258,7 @@ function dietMealHtml(x, pr, day) {
               ${!live.length && !extras.length ? `<span class="diet-meal__macros">${emptyText}</span>`
                 : data.dietHideNumbers ? '' : `<span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`}`;
   // ⋯ : menu du repas (« Retirer ce repas pour aujourd'hui »), seulement s'il reste des aliments prévus à retirer
-  const menu = live.length ? `<button class="diet-meal__menu" data-action="diet-meal-menu" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Options de ${esc(meal.name)}">${icon('ellipsis', 20)}</button>` : '';
+  const menu = live.length ? `<button class="diet-meal__menu" data-action="diet-day-meal-menu" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Options de ${esc(meal.name)}">${icon('ellipsis', 20)}</button>` : '';
   return `
         <article class="diet-meal${done ? ' diet-meal--done' : ''}${isNext ? ' diet-meal--next' : ''}" data-meal="${esc(meal.id)}">
           <div class="diet-meal__head">
@@ -592,7 +594,7 @@ registerActions({
   },
   // ⋯ d'un repas : « Retirer ce repas pour aujourd'hui » (ses aliments prévus et sa coche ; ses ajouts restent), Annuler
   // dans le toast ; la ligne « Remettre le repas prévu » le remet. Le plan ne change pas
-  'diet-meal-menu': async (e, el) => {
+  'diet-day-meal-menu': async (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
     const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
     if (!meal) return;

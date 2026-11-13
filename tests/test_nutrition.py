@@ -1109,9 +1109,9 @@ def t_repas_vides(bench, eng, dev, theme):
         open_app(page, theme, with_plan(NOW))
         page.click('.diet-home__open')
         page.wait_for_selector('.nutrition-view .diet-sum')
-        R.check(page.locator('.diet-meal [data-action="diet-meal-menu"]').count() == 4, f'{t} ⋯ sur chaque repas')
+        R.check(page.locator('.diet-meal [data-action="diet-day-meal-menu"]').count() == 4, f'{t} ⋯ sur chaque repas')
         R.check('Repas du jour : pré-remplis par le plan' in nb(page.inner_text('[data-action="go-diet-settings"]')), f'{t} réglage dit sous « Réglages de la nutrition »')
-        page.click('.diet-meal[data-meal="m2"] [data-action="diet-meal-menu"]')
+        page.click('.diet-meal[data-meal="m2"] [data-action="diet-day-meal-menu"]')
         page.wait_for_selector('.ios-dialog')
         R.check("Retirer ce repas pour aujourd'hui" in page.inner_text('.ios-dialog'), f'{t} menu du repas : retirer pour aujourd\'hui')
         shot(page, LOT, f'r1-menu-repas-{t}')
@@ -1130,7 +1130,7 @@ def t_repas_vides(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check(m2.locator('.diet-check').count() == 1 and m2.locator('.diet-item[data-item]').count() == 3, f'{t} Annuler : repas remis')
         # Retiré puis « Remettre le repas prévu » d'un toucher
-        page.click('.diet-meal[data-meal="m2"] [data-action="diet-meal-menu"]')
+        page.click('.diet-meal[data-meal="m2"] [data-action="diet-day-meal-menu"]')
         tap_dialog(page, "Retirer ce repas pour aujourd'hui")
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
         page.click('.diet-meal[data-meal="m2"] .diet-item--plan')
@@ -1138,7 +1138,7 @@ def t_repas_vides(bench, eng, dev, theme):
         R.check(m2.locator('.diet-check').count() == 1 and page.evaluate("data.dietLog") is None, f'{t} « Remettre » : rien de gardé')
         # Déjeuner et dîner retirés, petit-déjeuner et collation cochés : journée complète, seuls les repas cochés comptent
         for m in ('m2', 'm4'):
-            page.click(f'.diet-meal[data-meal="{m}"] [data-action="diet-meal-menu"]')
+            page.click(f'.diet-meal[data-meal="{m}"] [data-action="diet-day-meal-menu"]')
             tap_dialog(page, "Retirer ce repas pour aujourd'hui")
             page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
         R.check(kcal_eaten(page) == 0, f'{t} rien de coché : rien de mangé')

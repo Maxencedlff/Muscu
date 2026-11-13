@@ -866,6 +866,19 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(run(`SYNC_LOCAL_ONLY.includes('dietEmptyDays')`), 'réglage de l\'appareil');
   });
 
+  test('actions : aucun nom déclaré deux fois (le second remplaçait le premier en silence : ⋯ d\'un repas du jour ouvrait l\'éditeur)', () => {
+    const walk = d => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true })
+      .flatMap(f => (f.isDirectory() ? walk(path.join(d, f.name)) : f.name.endsWith('.js') ? [path.join(d, f.name)] : []));
+    const seen = new Map(), dup = [];
+    for (const f of walk('js')) {
+      for (const block of read(f).split('registerActions({').slice(1)) {
+        for (const m of block.matchAll(/^ {2}'([a-z0-9-]+)':/gm)) { if (seen.has(m[1])) dup.push(`${m[1]} (${seen.get(m[1])}, ${f})`); seen.set(m[1], f); }
+      }
+    }
+    assert.ok(seen.size > 300, `${seen.size} actions lues`);
+    sameJSON(dup, []);
+  });
+
   test('réglage des repas du jour : aujourd\'hui suit sans rien perdre, les jours passés ne changent pas', () => {
     reset();
     loadDb();
