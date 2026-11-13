@@ -9,6 +9,8 @@ name: iOS
 #  - testflight (à la main : gh workflow run ios.yml -f testflight=true) : compile la version signée
 #    et l'envoie sur App Store Connect (TestFlight). Demande les secrets ASC_KEY_ID, ASC_ISSUER_ID et
 #    ASC_KEY_P8 (clé d'API au rôle Admin).
+permissions: {}
+
 on:
   push:
     paths:
@@ -76,8 +78,12 @@ jobs:
     if: ${{ always() && (needs.gate.result == 'success' || (needs.gate.result == 'skipped' && !inputs.testflight)) }}
     runs-on: macos-26
     timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
