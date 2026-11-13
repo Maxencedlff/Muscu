@@ -54,8 +54,10 @@ function studentLastLine(st) {
 function coachOfflineNote(kind, what) {
   return `<div class="social-note" role="status"><p>${kind === 'offline' ? what : esc(coachErrorText(kind))}</p><button class="social-note__btn" data-action="coach-retry">Réessayer</button></div>`;
 }
-function coachToast(r, okText) {
-  if (r.ok) { if (okText) showToast(okText); return true; }
+// Réussite : toast, ou seulement l'annonce VoiceOver quand l'écran montre déjà le résultat sur la ligne concernée
+// (« Envoyé le 4 nov. », le commentaire, le code retiré) : pas de bulle posée sur la liste (panel v4 t1, comme en séance)
+function coachToast(r, okText, { inline = false } = {}) {
+  if (r.ok) { if (okText) { if (inline) announce(okText); else showToast(okText); } return true; }
   showToast(coachErrorText(r.kind), { error: true });
   return false;
 }
@@ -660,11 +662,24 @@ function coachTeamHtml() {
         ${cphTeamSetupHtml(st.students)}
         <div class="group-title">Invitations</div>
         <div class="group">
+          ${coachPermanentCodeHtml()}
           ${invites}
-          <button class="cell cell--action" data-action="coach-invite" ${coachInviteBusy ? 'disabled' : ''}>${icon('plus', 20)}<span>Inviter un élève</span></button>
+          <button class="cell cell--action" data-action="coach-invite" ${coachInviteBusy ? 'disabled' : ''}>${icon('plus', 20)}<span>${coachPro.code ? 'Créer un code de 7 jours' : 'Inviter un élève'}</span></button>
         </div>
-        <div class="group-foot">Ces codes sont valables 7 jours et servent à plusieurs élèves. Ton code coach, dans Réglages › Coach, n'expire pas. L'élève le saisit dans l'onglet Social › Rejoindre un coach.</div>
+        <div class="group-foot">${coachPro.code ? 'Les codes de 7 jours expirent au bout d\'une semaine. ' : 'Ces codes sont valables 7 jours et servent à plusieurs élèves. '}L'élève saisit le code dans Social › Rejoindre un coach.</div>
         ${removed}`;
+}
+// Code coach permanent, en tête des invitations : c'est lui qui va dans la bio, les codes de 7 jours viennent
+// ensuite (panel v4 t1 : il n'était que dans Réglages › Coach, et le bouton principal créait des codes qui expirent)
+function coachPermanentCodeHtml() {
+  const code = coachPro.code;
+  if (!code) return '';
+  const shown = formatCoachCode(code);
+  return `<div class="cell coach-code-cell coach-code-cell--main">
+            <span class="cell__body"><span class="cell__title coach-code num">${esc(shown)}</span><span class="cell__sub">Ton code à toi, sans date de fin · à mettre dans ta bio</span></span>
+            <button class="social-pill coach-copy-btn" data-action="coach-copy-code" data-code="${esc(shown)}" aria-label="Copier ton code coach ${esc(shown)}">Copier</button>
+            <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(code)}" aria-label="Partager ton code coach">${icon('square.and.arrow.up', 20)}</button>
+          </div>`;
 }
 function renderCoachStudents() {
   return `
@@ -1073,9 +1088,20 @@ registerActions({
     } finally { coachInviteBusy = false; if (currentView() === 'coach-students') render(); else refreshCoachCell(); }
   },
   'coach-share-invite': async (e, el) => { await shareCoachInvite(el.dataset.code); },
+  // Code seul, pour la bio : confirmé sur le bouton lui-même (« Copié »), pas par un toast posé sur la liste
+  'coach-copy-code': async (e, el) => {
+    const code = el.dataset.code;
+    try { await navigator.clipboard.writeText(code); }
+    catch { showToast(`Code : ${code}`); return; }
+    haptic();
+    announce('Code copié');
+    el.textContent = 'Copié';
+    clearTimeout(el._copied);
+    el._copied = setTimeout(() => { if (el.isConnected) el.textContent = 'Copier'; }, 2000);
+  },
   'coach-revoke-invite': async (e, el) => {
     if (!(await confirmSheet(`Retirer le code ${el.dataset.code} ?`, 'Il ne servira plus à personne. Tes élèves actuels restent suivis.', 'Retirer le code'))) return;
-    coachToast(await coachRevokeInvite(el.dataset.code), 'Code retiré');
+    coachToast(await coachRevokeInvite(el.dataset.code), 'Code retiré', { inline: true });
   },
   'coach-open-student': (e, el) => navigate(makeRoute('coach-student', el.dataset.uid)),
   'coach-open-session': (e, el) => navigate(makeRoute('coach-session', el.dataset.uid, el.dataset.id)),
@@ -1091,7 +1117,7 @@ registerActions({
   'coach-allow': async (e, el) => {
     const p = (coach.state?.removed || []).find(x => x.user_id === el.dataset.uid);
     el.disabled = true;
-    coachToast(await coachAllowStudent(el.dataset.uid), `${personName(p)} peut revenir avec un de tes codes`);
+    coachToast(await coachAllowStudent(el.dataset.uid), `${personName(p)} peut revenir avec un de tes codes`, { inline: true });
     render();
   },
   'coach-comment': async (e, el) => {
@@ -1106,7 +1132,7 @@ registerActions({
     const r = await coachSetNote(uid, id, text);
     // Échec (hors ligne) : le texte est gardé pour le prochain essai
     coachNoteDraft = r.ok ? null : { key, text };
-    if (coachToast(r, text.trim() ? 'Commentaire envoyé' : 'Commentaire retiré')) haptic();
+    if (coachToast(r, text.trim() ? 'Commentaire envoyé' : 'Commentaire retiré', { inline: true })) haptic();
     render();
   },
   'coach-send': async (e, el) => {
@@ -1122,7 +1148,7 @@ registerActions({
     const dr = coachSendDraftFor(currentRoute());
     el.disabled = true;
     const r = await coachSendProgramme(uid, prog, { prog: dr.prog, ex: dr.ex });
-    if (!coachToast(r, `Programme envoyé à ${personName(coachStudent(uid))}`)) { el.disabled = false; return; }
+    if (!coachToast(r, `Programme envoyé à ${personName(coachStudent(uid))}`, { inline: true })) { el.disabled = false; return; }
     // Consignes gardées dans mon programme (perso : up.consigne ; intégré : programmes[id].consigne) : le
     // prochain envoi les reprend
     const c = cleanConsigne(dr.prog), up = data.userProgrammes?.[prog], pd = data.programmes[prog] ||= makeProgData(prog);

@@ -518,6 +518,15 @@ def t_coach(bench, eng, dev, theme):
         R.check(('Aucune séance' in tom) != ('Pas encore de séance' in tom), f'{t} élève sans séance : un seul message ({tom!r})')
         layout(page, t, 'Mes élèves')
         shot(page, LOT, f'11-mes-eleves-{t}')
+        # Panel v4 t1 : le code coach permanent (celui de la bio) en tête des invitations, avec Copier et Partager ;
+        # les codes de 7 jours en second
+        perm = page.evaluate('coachPro.code')
+        if perm:
+            main = page.locator('.coach-team .coach-code-cell--main')
+            R.check(main.count() == 1 and page.evaluate('formatCoachCode(coachPro.code)') in main.inner_text() and 'bio' in main.inner_text()
+                    and main.locator('[data-action="coach-copy-code"]').count() == 1 and main.locator('[data-action="coach-share-invite"]').count() == 1,
+                    f'{t} Invitations : code permanent en tête, Copier et Partager')
+            R.check('Créer un code de 7 jours' in page.inner_text('[data-action="coach-invite"]'), f'{t} Invitations : code de 7 jours en option')
         # Invitation : code créé et partagé, puis retiré ; double toucher : un seul code
         page.evaluate("(() => { const b = document.querySelector('[data-action=coach-invite]'); handleAction(null, b, 'coach-invite'); handleAction(null, b, 'coach-invite'); })()")
         page.wait_for_timeout(500)
@@ -628,7 +637,9 @@ def t_coach(bench, eng, dev, theme):
         R.check(ok and p['sessions'][0]['exercises'][1].get('ss') == 'g1' and 'lastWeight' not in json.dumps(p), f'{t} supersets envoyés, sans charges')
         R.check(ok and p['sessions'][0]['exercises'][1].get('repFixed') is True and p['sessions'][0]['exercises'][1].get('repMax') == 12, f'{t} reps fixes envoyées (4 × 12)')
         R.check(page.evaluate("data.programmes.u_force.exercises.sA[0].consigne") == 'Coudes serrés.', f'{t} consignes gardées pour le prochain envoi')
-        R.check(page.evaluate('view') == 'coach-student' and 'envoyé à lea' in toast(page), f'{t} retour à l\'élève, toast ({toast(page)!r})')
+        # Confirmation sans bulle posée sur la fiche (« Programmes envoyés » la montre) : annoncée à VoiceOver
+        page.wait_for_function("document.getElementById('sr-polite').textContent.includes('envoyé à lea')", timeout=3000)
+        R.check(page.evaluate('view') == 'coach-student' and toast(page) == '', f'{t} retour à l\'élève, annonce sans toast ({toast(page)!r})')
         page.wait_for_timeout(300)
         page.wait_for_timeout(400)
         R.check(page.locator('.coach-sent[data-prog="u_force"] .coach-sent__state--unseen').inner_text() == 'Pas encore ouvert', f'{t} programme envoyé : « Pas encore ouvert » tout de suite')
