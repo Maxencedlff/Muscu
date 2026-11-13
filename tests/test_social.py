@@ -76,6 +76,9 @@ def no_hscroll(page):
 
 
 def small_targets(page, sel='#app button, .tabbar button'):
+    # Mesure après les animations (le 👏 grossit puis revient quand on le touche : faux échec 13/11)
+    page.wait_for_function("""() => document.getAnimations().every(a => a.playState !== 'running'
+        || (a.effect && a.effect.getTiming().iterations === Infinity))""", timeout=3000)
     return page.evaluate("""s => [...document.querySelectorAll(s)].filter(e => e.offsetParent && !e.disabled)
         .filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; })
         .map(e => (e.getAttribute('aria-label') || e.textContent).trim().slice(0, 30))""", sel)

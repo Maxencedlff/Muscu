@@ -28,6 +28,9 @@ def tap(page, sel):
 
 
 def small_targets(page):
+    # Mesure après les animations d'entrée (une page en cours d'apparition est plus petite : faux échec 13/11)
+    page.wait_for_function("""() => document.getAnimations().every(a => a.playState !== 'running'
+        || (a.effect && a.effect.getTiming().iterations === Infinity))""", timeout=3000)
     return page.evaluate("""() => [...document.querySelectorAll('.onb button')].filter(e => e.offsetParent)
         .map(e => e.getBoundingClientRect()).filter(r => r.width < 44 || r.height < 44).length""")
 
