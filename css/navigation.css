@@ -78,6 +78,20 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 .navbar__title-main, .navbar__title-sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navbar__title-main { line-height: min(1.176rem, 26px); }
 .navbar__title-sub { font-size: min(0.706rem, 15px); line-height: min(0.882rem, 18px); font-weight: 400; color: var(--label2); }
+/* Séance : le nom de l'exercice en cours prend la place du titre quand il passe sous la barre (observeCurrentExName,
+   js/features/session.js), en fondu court ; les deux sur la même ligne de grille, la colonne prend le plus large */
+.navbar__title:has(> .navbar__title-ex) { display: grid; grid-template-columns: minmax(0, 1fr); }
+.navbar__title-main, .navbar__title-ex { grid-area: 1 / 1; transition: opacity .15s, visibility .15s; }
+.navbar__title-ex { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: min(1.176rem, 26px); contain: inline-size; }
+/* Nom affiché : la colonne du titre prend toute la place entre le chevron et « Terminer » (comme navbar__bar--wide-back),
+   le nom s'y termine par « … » ; caché, il ne pèse pas sur la largeur (contain) et le titre reste centré. Sans cela, en
+   texte agrandi sur iPhone SE, le nom passait sur le chevron */
+.navbar--ex .navbar__bar { grid-template-columns: max-content minmax(0, 1fr) max-content; }
+.navbar--ex .navbar__title { max-width: none; }
+/* Le titre de la séance s'efface à l'écran seulement : VoiceOver le lit toujours (la copie, elle, lui est cachée) */
+.navbar:not(.navbar--ex) .navbar__title-ex { opacity: 0; visibility: hidden; }
+.navbar--ex .navbar__title-main { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .navbar__title-main, .navbar__title-ex { transition: none; } }
 
 .navbar__back, .navbar__text, .navbar__icon {
   background: none; border: none; color: var(--tint); font: inherit; cursor: pointer;
