@@ -336,7 +336,7 @@ function foldedRirHtml(block) {
   const ld = activeSession.lastDone;
   if (!ld || !block.includes(ld.ei) || !rirShown()) return '';
   const ex = activeSession.exercises[ld.ei], s = ex?.sets[ld.si];
-  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps') return '';
+  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps' || TECHS[setTech(s)]?.sub) return '';
   const tags = block.length > 1 ? ssTags(activeSession.exercises) : null;
   return `<div class="ex-fold-rir">${rirPickerHtml(ld.ei, ld.si, s, ex, tags ? tags[ld.ei] : '')}</div>`;
 }
@@ -532,7 +532,10 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const mach   = m === 'cardio' ? machineTxt(s.machine) : '';
   // RIR (js/data/rir.js) : sélecteur sous la dernière série validée, badge « RIR 2 » sur les autres
   const last   = activeSession.lastDone?.ei === ei && activeSession.lastDone?.si === si;
-  const rir    = m === 'reps' && !warm ? (last && rirShown() ? rirPickerHtml(ei, si, s, ex) : rirBadgeHtml(s)) : '';
+  // Pas de sélecteur sur une série suivie de mini-séries, drops ou blocs (poussée à l'échec, js/data/intensif.js) : il
+  // s'intercalait entre la série et sa mini-série pendant la pause de 15 s (panel vague 4)
+  const sub    = TECHS[setTech(s)]?.sub;
+  const rir    = m === 'reps' && !warm ? (last && rirShown() && !sub ? rirPickerHtml(ei, si, s, ex) : rirBadgeHtml(s)) : '';
   const rirSpoken = cleanRir(s.rir) !== null ? `, ${rirTxt(s.rir)} en réserve` : '';
   // « Annuler » en ligne pendant 6 s : la ligne se corrige toujours au toucher, mais n'est plus annoncée comme un bouton
   // (pas de bouton dans un bouton pour VoiceOver) ; « Annuler » a sa propre action
@@ -819,7 +822,7 @@ function focusCurrentSet() {
   currentSetRow()?.querySelector('button.set-check-zone')?.focus({ preventScroll: true });
 }
 
-// Centre la série courante à l'écran (après validation, reprise ou restauration) ; focus : après un geste
+// Amène la série courante à l'écran (après validation, reprise ou restauration) ; focus : après un geste
 // de l'utilisateur (focusCurrentSet), jamais à l'ouverture ni à la fin d'un repos qu'il n'a pas touché
 function scrollToCurrent(smooth = true, focus = false) {
   requestAnimationFrame(() => {
@@ -827,10 +830,8 @@ function scrollToCurrent(smooth = true, focus = false) {
     if (!row) return;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const behavior = smooth && !reduce ? 'smooth' : 'auto';
-    // Ligne « … · Annuler » au-dessus de la carte en cours (sessionUndo), ou toute première série d'un exercice : le haut
-    // de la carte (ou la ligne) juste sous la barre, pour que le nom et « Annuler » restent visibles (panel de la vague 3 :
-    // en texte agrandi, centrer la série cachait le nom ; la bande d'une mini-série sortait de l'écran) ; la série doit
-    // rester à l'écran, sinon elle est centrée comme avant
+    // Ligne « … · Annuler » au-dessus de la carte en cours (sessionUndo) : elle reste visible si possible (panel de la
+    // vague 3 : la bande d'une mini-série sortait de l'écran)
     const card = row.closest('.ex-card');
     // La ligne peut aussi coiffer la carte qui vient de se refermer, juste au-dessus de celle-ci
     const any = $('.ex-undo');
@@ -841,22 +842,39 @@ function scrollToCurrent(smooth = true, focus = false) {
     // la nomme : « Ensuite : … ») ; à la fin du repos, la série à faire reprend la main
     const fold = restActive ? $('.ex-fold-rir') : null;
     const keep = fold && card && fold.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING ? fold.closest('.ex-card') : null;
-    const top = band || keep || (card && !card.querySelector('.session-set--done') ? card : null);
+    // Ancres possibles, de la plus haute à la plus basse : la ligne « Annuler », la carte repliée gardée pendant le repos,
+    // la carte en cours, son nom, la dernière série validée avec son sélecteur « Reps en réserve », ce sélecteur seul.
+    // On aligne sous la barre la plus haute qui laisse la série à faire entière à l'écran (panel vague 4 : centrer la
+    // série coupait « Reps en réserve » et le nom de l'exercice sous la barre, surtout en texte agrandi). Aucune ne tient :
+    // l'ancre la plus basse reste entière et la série descend juste assez pour se montrer, sans jamais la dépasser.
+    const rowTop = row.getBoundingClientRect().top;
+    const above = sel => card ? [...card.querySelectorAll(sel)].filter(el => el.getBoundingClientRect().top < rowTop).pop() : null;
+    const lastDone = above('.session-set--done')?.closest('.set-swipe');
+    const anchors = [band, keep, keep ? null : card, keep ? null : card?.querySelector('.ex-card__name'),
+      lastDone, lastDone?.querySelector('.rir')]
+      .filter(el => el && el.getBoundingClientRect().top <= rowTop);
     const barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
     const room = window.innerHeight - barH - ($('.rest-mini')?.getBoundingClientRect().height || 0) - 24;
-    if (top && row.getBoundingClientRect().bottom - top.getBoundingClientRect().top <= room) {
-      window.scrollTo({ top: Math.max(0, top.getBoundingClientRect().top + window.scrollY - barH - 8), behavior });
-    } else if (keep) {
-      const y = window.scrollY, need = row.getBoundingClientRect().bottom + y - barH - room;
-      window.scrollTo({ top: Math.max(0, Math.min(need, (band || keep).getBoundingClientRect().top + y - barH - 8)), behavior });
-    } else if (top === card && card) {
-      // Première série trop basse pour tenir avec tout l'en-tête (texte agrandi sur SE) : on descend juste assez pour
-      // montrer la série, sans jamais passer le nom de l'exercice sous la barre (CI t6 : la centrer cachait le nom)
-      const name = card.querySelector('.ex-card__name') || card;
-      const y = window.scrollY, need = row.getBoundingClientRect().bottom + y - barH - room;
-      window.scrollTo({ top: Math.max(0, Math.min(need, name.getBoundingClientRect().top + y - barH - 8)), behavior });
+    const y = window.scrollY, at = el => el.getBoundingClientRect().top + y - barH - 8;
+    const fit = anchors.find(el => row.getBoundingClientRect().bottom - el.getBoundingClientRect().top <= room);
+    if (fit) window.scrollTo({ top: Math.max(0, at(fit)), behavior });
+    else if (anchors.length) {
+      const need = row.getBoundingClientRect().bottom + y - barH - room;
+      window.scrollTo({ top: Math.max(0, Math.min(need, at(anchors[anchors.length - 1]))), behavior });
     } else row.scrollIntoView({ block: 'center', behavior });
     if (focus) focusCurrentSet();
+  });
+}
+
+// Carte d'un exercice (et sa ligne « … · Annuler ») juste sous la barre, après un geste qui la modifie
+function scrollToCard(ei) {
+  requestAnimationFrame(() => {
+    const card = exCardOf(ei);
+    if (!card) return;
+    const top = card.previousElementSibling?.classList.contains('ex-undo') ? card.previousElementSibling : card;
+    const barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: Math.max(0, top.getBoundingClientRect().top + window.scrollY - barH - 8), behavior: reduce ? 'auto' : 'smooth' });
   });
 }
 
