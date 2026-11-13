@@ -90,7 +90,7 @@ def t_home(bench, eng, dev, theme):
         R.check(page.locator('.hero [class*="badge"]').count() == 0, f'{t} pas de pastille « Prête » en double avec « Ensuite »')
         R.check(page.locator('#app .hero__btn, #app .btn--primary').count() == 1, f'{t} Démarrer : seul bouton plein')
         cells = page.locator('.home-cell[data-action="session-actions"]')
-        R.check(cells.count() == 2 and page.inner_text('.home-list__title').strip().upper() == 'ENSUITE', f'{t} 2 autres séances dans « Ensuite »')
+        R.check(cells.count() == 2 and page.inner_text('.home-list__title').strip().upper() == 'AUTRES SÉANCES', f'{t} 2 autres séances dans « Autres séances »')
         R.check(all(cells.nth(i).bounding_box()['height'] >= 44 for i in range(cells.count())), f'{t} cellules de 44 pt au moins')
         week = page.locator('.week')
         R.check(page.locator('.rings').count() == 0 and week.count() == 1, f'{t} une seule carte « Cette semaine », plus d\'anneaux')
