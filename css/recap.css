@@ -10,7 +10,7 @@
   --rc-accent: #FF7A1A; --rc-on-accent: #000; --rc-night: #000; --rc-on-night: #FFF; --rc-night-heat: #FF7A1A;
 }
 body.light { --rc-accent: #C64000; --rc-on-accent: #FFF; }
-.tone-accent { --rc-bg: var(--rc-accent); --rc-fg: var(--rc-on-accent); --rc-heat: var(--rc-on-accent); }
+.tone-accent { --rc-bg: var(--rc-accent); --rc-fg: var(--rc-on-accent); --rc-heat: #000; }   /* muscles en noir sur la silhouette claire, dans les deux thèmes */
 .tone-night  { --rc-bg: var(--rc-night);  --rc-fg: var(--rc-on-night);  --rc-heat: var(--rc-night-heat); }
 /* Écran noir, même en thème clair : la silhouette garde la rampe du sombre (Progrès, theme-sobre-progres.css), sinon
    le palier le plus haut, le plus foncé en clair, serait le moins visible sur le noir */

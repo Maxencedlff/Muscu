@@ -14,7 +14,7 @@ const RECAP_TONE_COLORS = {
   accent: { bg: '#FF7A1A', fg: '#000000', heat: '#000000', box: '#000000', boxText: '#FFFFFF' },
   night:  { bg: '#000000', fg: '#FFFFFF', heat: '#FF7A1A', box: '#1C1C1E', boxText: '#FFFFFF' },
 };
-const RECAP_TONE_LIGHT = { accent: { bg: '#C64000', fg: '#FFFFFF', heat: '#FFFFFF', box: '#FFFFFF', boxText: '#000000' } };
+const RECAP_TONE_LIGHT = { accent: { bg: '#C64000', fg: '#FFFFFF', heat: '#000000', box: '#FFFFFF', boxText: '#000000' } };
 // Couleurs d'un écran dans le thème de l'app (light : thème clair) ; ton inconnu : l'orange
 function recapToneColors(tone, light) {
   const t = Object.hasOwn(RECAP_TONE_COLORS, tone) ? tone : 'accent';

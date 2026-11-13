@@ -318,6 +318,10 @@ def p_programme(r):
     with r.etape('fiche-exercice', 'Fiche d\'un exercice (séries, repos, reps)', cle='Modifier un exercice du programme'):
         r.toucher('.view.editor [data-action="edit-ex"]', '1er exercice')
         r.attendre('.view.ex-edit', 'fiche de l\'exercice')
+    # Vague 4 : reps fixes (« 4 × 12 ») à la place de la fourchette
+    with r.etape('reps-fixes', 'Fiche de l\'exercice : reps « Fixe » (4 × 12) au lieu de la fourchette', cle='Modifier un exercice du programme'):
+        r.defiler('[data-action="ex-rep-mode"]', 'choix Fourchette / Fixe')
+        r.toucher('[data-action="ex-rep-mode"][data-fixed="true"]', 'Fixe')
     with r.etape('mes-programmes', 'Mes programmes'):
         r.toucher('[data-action="cancel-ex"]', 'Annuler (fiche de l\'exercice)')
         r.retour()
@@ -340,6 +344,14 @@ def p_bibliotheque(r):
         r.attendre('.view.library-ex', 'fiche de la bibliothèque')
     with r.etape('fiche-bas', 'Fiche, bas de l\'écran'):
         r.bas('bas de la fiche')
+    # Vague 4 : animation 3D du personnage maison (sans vidéo de coach), fiche du squat barre
+    with r.etape('anim-3d', 'Comment faire du squat barre : animation 3D', cle='Voir l\'animation 3D d\'un exercice'):
+        r.retour()
+        r.saisir('#libSearch', 'Squat barre', 'recherche')
+        r.toucher('[data-action="open-library-ex"][data-name="Squat barre"]', 'Squat barre')
+        r.attendre('.library-ex .exvideo--3d', 'animation 3D')
+        r.defiler('.library-ex .exvideo--3d', 'animation 3D')
+        r.page.wait_for_timeout(800)   # première image de la vidéo
 
 
 @parcours('reglages', 'Réglages (chaque groupe)', 'pratiquant')
@@ -352,6 +364,34 @@ def p_reglages(r):
     for i, t in enumerate(titres[1:], 1):
         with r.etape(f'groupe-{t}', f'Groupe « {t} »'):
             r.defiler(f'.settings-view .group-title >> nth={i}', f'« {t} »')
+
+
+# Coquille iOS factice de la build 68 : le module de sons publie sa méthode diagnostics (Capacitor.PluginHeaders),
+# signe que la coquille sait baisser la musique (Native.sound.canDuck) ; tous les autres modules répondent vide
+COQUILLE_SONS_68 = """
+window.Capacitor = {
+  isNativePlatform: () => true,
+  getPlatform: () => 'ios',
+  isPluginAvailable: n => n === 'MdlfSound',
+  PluginHeaders: [{ name: 'MdlfSound', methods: [{ name: 'play' }, { name: 'diagnostics' }] }],
+  registerPlugin: name => name === 'App' ? { addListener: async () => ({ remove() {} }), getInfo: async () => ({ build: '68', version: '1.3' }) }
+    : new Proxy({}, { get: (_, m) => (m === 'then' ? undefined : async () => ({})) }),
+};
+"""
+
+
+@parcours('reglages-sons', 'Réglages : sons et « Baisser la musique » (app iOS, build 68)', 'pratiquant')
+def p_reglages_sons(r):
+    """App iOS à jour (build 68) : Réglages, groupe des sons ; « Baisser la musique » pendant le décompte de fin
+    de repos, activé d'office, puis coupé. Coquille iOS simulée."""
+    r.coquille_native(COQUILLE_SONS_68)
+    r.lancer(REALISTE)
+    cle = 'Régler « Baisser la musique »'
+    with r.etape('sons', 'Réglages, groupe des sons : « Baisser la musique »', cle=cle):
+        reglages(r)
+        r.defiler('[data-action="setting-duck"]', '« Baisser la musique »')
+    with r.etape('sons-coupe', '« Baisser la musique » coupé', cle=cle):
+        r.toucher('[data-action="setting-duck"]', 'Baisser la musique')
 
 
 @parcours('guide', 'Guide', 'pratiquant')
@@ -700,10 +740,10 @@ def p_nutrition(r):
     with r.etape('plan-cree', 'Plan créé : quatre repas à remplir', cle=cle):
         r.choisir('Créer')
         r.attendre('.diet-plan-view', 'plan diète')
-    with r.etape('recherche-aliment', 'Ajouter un aliment : recherche « riz cuit »', cle=cle):
+    with r.etape('recherche-aliment', 'Ajouter un aliment : recherche « riz blanc cuit »', cle=cle):
         r.toucher('[data-action="diet-add-food"]', 'Ajouter un aliment (Petit-déjeuner)')
         r.attendre('#dietFoodSearch', 'feuille de recherche')
-        r.saisir('#dietFoodSearch', 'riz cuit', 'recherche')
+        r.saisir('#dietFoodSearch', 'riz blanc cuit', 'recherche')   # le riz blanc existe cru et cuit (« riz cuit » : le thaï, sans version crue)
         r.attendre('#dietFoodList .diet-cand', 'résultats')
     # Riz cuit : il existe aussi cru, la feuille de quantité le rappelle (« Pesé cru ? », vague 4)
     with r.etape('quantite', 'Aliment choisi : quantité en grammes, rappel cru / cuit', cle=cle):
@@ -835,6 +875,15 @@ def p_scan(r):
         r.toucher('[data-fscan="create"]', 'Créer l\'aliment')
         r.attendre('#dietFoodName', 'formulaire Nouvel aliment')
         r.page.evaluate('document.activeElement && document.activeElement.blur()')
+    # Vague 4 : Mes aliments (Réglages de la nutrition), le paquet scanné y est gardé
+    cle = 'Retrouver ses aliments scannés'
+    with r.etape('mes-aliments', 'Réglages de la nutrition › Mes aliments : le paquet scanné', cle=cle):
+        for _ in range(3):   # feuilles empilées (Nouvel aliment sur la recherche) : Annuler, de la plus haute à la plus basse
+            r.page.evaluate("() => [...document.querySelectorAll('.sheet-root:not(.sheet-root--out) .sheet__btn--cancel')].pop()?.click()")
+            r.page.wait_for_timeout(450)
+        r.raccourci("() => navigate('diet-settings')", 'feuilles refermées, Réglages de la nutrition ouverts (Nutrition › Réglages)')
+        r.toucher('[data-action="go-diet-foods"]', 'Mes aliments')
+        r.attendre('.diet-foods-view', 'Mes aliments')
 
 
 @parcours('intensif', 'Séance : technique d\'intensification (rest-pause)', 'pratiquant')
