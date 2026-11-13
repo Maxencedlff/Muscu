@@ -318,9 +318,19 @@ function coachExVideoBtn(name) {
 function coachExPlanParts(e) {
   const out = [];
   if (measureOf(e) === 'reps' && e.repMin) out.push(`${e.repMin} à ${e.repMax ?? 12} reps`);
+  // Ni fourchette ni reps fixes : la progression par défaut (+1 rep jusqu'à 12, puis la charge), écrite pour une
+  // relecture complète avant l'envoi (« Pompes · 3 séries » laissait le coach deviner, panel v4 t1)
+  else if (measureOf(e) === 'reps' && !fixedReps(e)) out.push('jusqu\'à 12 reps');
   const it = INTENS_PLANS[cleanIntens(e.intens)];
   if (it) out.push(it.short);
   return out;
+}
+
+// Séries d'un élève, côté coach : à charge égale, les reps séparées par des virgules (« 40 kg × 8, 7 ») ; avec
+// « 8 · 7 », un coach lisait le 7 comme un RIR ou un RPE (panel v4 t1). Charges différentes : inchangé.
+function coachSetsLine(sets, measure, kind) {
+  const txt = setsText(sets, measure, kind);
+  return esc(/^(?:[^×·]+ × )?\d+(?: · \d+)+(?: reps)?$/.test(txt) ? txt.replace(/ · /g, ', ') : txt);
 }
 
 function coachProgPreviewHtml(item) {
@@ -831,12 +841,12 @@ function reviewExerciseCell(x, xs, i) {
             <div class="cell hex review-ex">
               <span class="cell__body">
                 <span class="review-ex__line"><span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>${reviewTrendHtml(x.trend)}</span>
-                <span class="review-ex__line"><span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
+                <span class="review-ex__line"><span class="hex__sets num">${coachSetsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}
                 ${reviewGripHtml(e)}
                 ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
-                ${x.prev ? `<span class="review-ex__prev num">avant ${setsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
+                ${x.prev ? `<span class="review-ex__prev num">avant ${coachSetsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
               </span>
             </div>`;
 }
