@@ -84,8 +84,9 @@ function renderLibraryEx(name) {
   const share = bodyShare(e);
   return `
     <div class="view library-ex view--grouped">
-      ${navBar({ title: esc(catalogueAliasOf(name) ? name : e.name), large: true, sub: aliasNoteHtml(name, 'scr-sub ex-alias') })}
+      ${navBar({ title: esc(catalogueAliasOf(name) ? name : e.name), large: false })}
       <div class="scr">
+        ${aliasNoteHtml(name, 'scr-sub ex-alias library-ex__alias')}
         ${howToHtml(e.name)}
         ${exMusclesGroupHtml({ name }, 'Muscles')}
         <div class="group">

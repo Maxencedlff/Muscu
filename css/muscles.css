@@ -179,11 +179,19 @@ body.light .mpick__auto { background: var(--cell); }
   background: var(--scrim); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   transition: opacity .2s;
 }
-.exvideo__btn .icon { margin-left: 3px; }   /* triangle centré à l'œil */
-.exvideo--playing .exvideo__btn { opacity: 0; }
+.exvideo__btn .icon--play { margin-left: 3px; }   /* triangle centré à l'œil */
+.exvideo__btn .icon--pause { display: none; }
+/* En lecture : petit ❚❚ blanc dans le coin bas droit, sur une pastille sombre, toujours visible (glyphe blanc sur le
+   noir de l'animation : contraste maximal ; sur une vidéo claire, la pastille le détache) */
+.exvideo__play { align-items: center; justify-content: center; }
+.exvideo--playing .exvideo__play { align-items: flex-end; justify-content: flex-end; padding: 0 8px 8px 0; }
+.exvideo--playing .exvideo__btn { width: 36px; height: 36px; }
+.exvideo--playing .exvideo__btn .icon--play { display: none; }
+.exvideo--playing .exvideo__btn .icon--pause { display: block; }
 .exvideo--error .exvideo__btn { display: none; }
 .exvideo--error .exvideo__play { cursor: default; }
 /* Animation 3D du personnage maison (repli sans vidéo de coach) : carrée, fond noir pur, pas plus de 320 pt */
 .exvideo--3d .exvideo__frame { width: min(100%, 320px, 46vh); }
+.exvideo--3d { margin-bottom: 14px; }   /* sans légende dessous : l'écart avec les consignes vient d'ici */
 .exvideo__credit { margin: 6px 0 0; text-align: center; font-size: var(--fs-footnote); color: var(--label2); }
 @media (prefers-reduced-motion: reduce) { .exvideo__btn { transition: none; } }
