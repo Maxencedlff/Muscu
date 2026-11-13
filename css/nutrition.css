@@ -32,6 +32,7 @@
 .diet-ring { display: block; }
 .diet-ring__track { fill: none; stroke: var(--fill); }
 .diet-ring__arc { fill: none; stroke: var(--macro-kcal); stroke-linecap: round; transition: stroke-dashoffset .5s var(--nav-ease); }
+.diet-ring__arc--zero { stroke-linecap: butt; }   /* à 0 : rien (le bout arrondi d'un arc nul faisait un point vert, panel vague 4) */
 .diet-sum__kcal { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; line-height: 1.15; }
 .diet-sum__kcal b { font-family: var(--font-rounded); font-size: var(--fs-title2); font-weight: 700; }
 .diet-sum__kcal span { font-size: var(--fs-caption); color: var(--label2); max-width: 72px; }   /* 10 pt de marge dans l'anneau : « sur 2 000 » puis « kcal » (panel t5) */

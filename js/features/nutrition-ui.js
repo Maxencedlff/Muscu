@@ -84,7 +84,7 @@ function dietRingSvg(ratio, size = 112, stroke = 12) {
   const r = (size - stroke) / 2, c = 2 * Math.PI * r;
   return `<svg class="diet-ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
       <circle class="diet-ring__track" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}"/>
-      <circle class="diet-ring__arc" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}"
+      <circle class="diet-ring__arc${ratio > 0 ? '' : ' diet-ring__arc--zero'}" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}"
         stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - ratio)).toFixed(2)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
     </svg>`;
 }

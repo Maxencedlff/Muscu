@@ -10,6 +10,10 @@
 
 /* ── Nutrition : journal du jour ── */
 .diet-sum { border-radius: 12px; }
+/* Barres des macros : le vert de l'anneau des calories, une seule couleur de sens (vert = avancée vers l'objectif, comme
+   la progression en séance) ; chaque barre porte son nom, la couleur n'a rien d'autre à dire. Le bleu des glucides se
+   lisait comme le bleu d'action d'iOS, et trois teintes sans légende ne disaient rien (panel vague 4) */
+.diet-bar--p .diet-bar__fill, .diet-bar--c .diet-bar__fill, .diet-bar--f .diet-bar__fill { background: var(--macro-kcal); }
 /* Remplacer un aliment : flèches d'affordance grises (comme un chevron) ; « Remplace… », « Ajouté aujourd'hui » : texte secondaire */
 .diet-item__swap { color: var(--label3); }
 body.light .diet-item__swap { color: var(--label2); }
