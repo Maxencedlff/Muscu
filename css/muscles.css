@@ -216,6 +216,11 @@ body.light .mpick__auto { background: var(--cell); }
 .mgcs--hero { margin-bottom: 20px; }
 .view--grouped .mgc--hero { min-height: 7.5rem; }
 .mgc--hero .mgc__img { max-width: 58%; }
+/* Exercices de la Bibliothèque : même ligne illustrée, un peu plus basse, nom au corps de texte */
+.view--grouped .mgc--ex { min-height: 4.75rem; }
+.mgc--ex .mgc__title { font-size: var(--fs-body); }
+.mgc--ex .mgc__text { width: 60%; }
+.mgc--ex .mgc__img { max-width: 45%; }
 /* Texte agrandi (type-xl) : le nom passe avant l'image ; la liste redevient une liste de texte et l'en-tête
    de la fiche (redit par la section Muscles) disparaît, plutôt qu'un nom coupé ou caché sous le personnage */
 .type-xl .mgc__img { display: none; }

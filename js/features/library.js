@@ -15,12 +15,16 @@ function libSection(e) {
   return MUSCLE_GROUPS.find(g => g.muscles.includes(e.primary[0]))?.label || 'Autres';
 }
 
+// Une ligne par exercice, même mise en page que les groupes : nom et détails à gauche, personnage 3D à
+// droite avec le muscle principal en rouge (retour de Maxence, 13/11 : « une liste, ce n'est ni pratique ni
+// joli »). Cardio ou muscle sans image : la ligne garde son texte seul.
 function libRowHtml(e) {
   const equip = EQUIPMENT.find(q => q.id === e.equip)?.label || '';
-  return `<button class="cell cell--nav" data-action="open-library-ex" data-name="${esc(e.name)}">
-      <span class="cell__body"><span class="cell__title">${esc(e.name)}</span>
-        <span class="cell__sub">${esc([musclesLine(exerciseMuscles({ name: e.name }), 3), equip].filter(Boolean).join(' · '))}</span></span>
-      ${icon('chevron.right', 16)}
+  const m = exerciseMuscles({ name: e.name }), id = m.primary?.[0];
+  return `<button class="cell mgc mgc--ex" data-action="open-library-ex" data-name="${esc(e.name)}">
+      <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
+        <span class="mgc__sub">${esc([musclesLine(m, 3), equip].filter(Boolean).join(' · '))}</span></span>
+      ${isMuscleId(id) ? muscleImgHtml(id, true) : ''}
     </button>`;
 }
 
@@ -36,8 +40,8 @@ function libMatches(f) {
 function exercisesCountLabel(n) { return n ? `${n} exercice${n > 1 ? 's' : ''}` : 'Aucun exercice'; }
 
 // Image décorative (alt vide) : VoiceOver lit le libellé de la ligne ; sans fichier, la ligne garde son texte
-function muscleImgHtml(id) {
-  return `<img class="mgc__img" src="img/muscles/${id}.webp" alt="" width="300" height="200" decoding="async">`;
+function muscleImgHtml(id, lazy = false) {
+  return `<img class="mgc__img" src="img/muscles/${id}.webp" alt="" width="300" height="200" decoding="async"${lazy ? ' loading="lazy"' : ''}>`;
 }
 
 function muscleGroupsHtml(action) {
