@@ -84,7 +84,7 @@ def small_targets(page, sel='#app button, .tabbar button'):
 def cut_texts(page):
     """Textes coupés ou qui débordent de leur boîte (hors champs de saisie)."""
     return page.evaluate("""() => [...document.querySelectorAll('#app *, .tabbar *')].filter(e => e.offsetParent && e.children.length === 0
-        && e.textContent.trim() && !e.matches('input, svg, use, .icon *') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        && e.textContent.trim() && !e.matches('input, svg, use, .icon *, .visually-hidden') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
         .map(e => e.textContent.trim().slice(0, 30))""")
 
 

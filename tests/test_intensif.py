@@ -407,14 +407,14 @@ def t_pause_annonce(bench, eng, dev, theme):
         page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '4')
         page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(400)
         R.check('S2' in page.locator('.rest-mini__next').text_content() and native_rest(page).get('body', '').startswith(f'Série 2 · {name0}'), f'{t} reprise faite : la série 2 est annoncée')
-        # Cluster : « Bloc 1 »
+        # Cluster : « Bloc +1 »
         skip_rest(page)
         page.evaluate("activeSession.lastEi = 1; persistSession(); render()")
         page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(400)
         nxt = ' '.join(page.locator('.rest-mini__next').text_content().replace('\u00a0', ' ').split())
-        R.check('Ensuite : Bloc 1' in nxt and page.locator('.session-set--current').count() == 0, f'{t} cluster : « Ensuite » annonce le bloc, seul mis en avant ({nxt})')
+        R.check('Ensuite : Bloc +1' in nxt and page.locator('.session-set--current').count() == 0, f'{t} cluster : « Ensuite » annonce le bloc, seul mis en avant ({nxt})')
         nat = native_rest(page)
-        R.check(nat.get('body', '').startswith(f'Bloc 1 · {name1}') and nat.get('next', {}).get('exercise') == f'{name1} · Bloc 1', f'{t} cluster : notification et Live Activity {nat}')
+        R.check(nat.get('body', '').startswith(f'Bloc +1 · {name1}') and nat.get('next', {}).get('exercise') == f'{name1} · Bloc +1', f'{t} cluster : notification et Live Activity {nat}')
         R.check(no_hscroll(page), f'{t} pause : pas de défilement horizontal')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
