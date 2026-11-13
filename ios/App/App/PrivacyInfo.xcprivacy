@@ -62,9 +62,10 @@
 			</array>
 		</dict>
 		<dict>
-			<!-- Santé : pesées (date et poids) saisies dans l'app, envoyées seulement si l'élève coche « Poids du
-			     corps » dans Réglages › Partager avec mon coach, vues seulement par ce coach, effacées au retrait
-			     (supabase/migrations/20261031300000_partage_coach.sql). Jamais une donnée lue dans Apple Santé -->
+			<!-- Santé : pesées (date et poids) et mensurations saisies dans l'app, envoyées seulement si l'élève coche
+			     « Poids du corps » ou « Mensurations » dans Réglages › Partager avec mon coach, vues seulement par ce
+			     coach, effacées au retrait (supabase/migrations/20261031300000_partage_coach.sql,
+			     20261105010000_partage_mensurations.sql). Jamais une donnée lue dans Apple Santé -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeHealth</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
@@ -109,7 +110,9 @@
 			</array>
 		</dict>
 		<dict>
-			<!-- Notes de séance, noms d'exercices ou de programmes saisis, avatar (emoji) du compte -->
+			<!-- Notes de séance, noms d'exercices ou de programmes saisis, plans diète (créés ou envoyés par le
+			     coach, js/data/coach-diet.js ; le journal des repas reste sur l'appareil), signalements d'un
+			     compte (fonction report), avatar (emoji) du compte -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
@@ -190,6 +193,8 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Bips (SoundPlugin.swift, build 68) : délais de la file audio seulement, aucune horloge système
+	     (ProcessInfo.systemUptime, mach_absolute_time) ; le journal des incidents audio reste sur l'iPhone. -->
 	<!-- Lecteur de code-barres (ScannerPlugin.swift, AVFoundation) : les images de la caméra restent sur l'iPhone,
 	     aucune API à raison déclarée. Seul le numéro lu part vers Open Food Facts (js/data/food-scan.js), sans
 	     identifiant ni compte : rien de lié à la personne, donc aucun type de donnée collectée à ajouter. -->

@@ -71,7 +71,7 @@ struct RestCountdown: View {
     }
 }
 
-/// « Ensuite : Développé couché · série 3 · 80 kg × 8 » (« Maintenant » une fois le repos fini)
+/// « Ensuite : Développé couché · série 3/4 · 80 kg × 8 » (« Maintenant » une fois le repos fini)
 struct RestNextLine: View {
     let next: RestActivityAttributes.NextSet
     let isStale: Bool
@@ -91,7 +91,7 @@ struct RestNextLine: View {
     }
 
     private var detail: String {
-        [next.exercise, "série \(next.set)", next.load].filter { !$0.isEmpty }.joined(separator: " · ")
+        [next.exercise, next.setText, next.load].filter { (part: String) -> Bool in !part.isEmpty }.joined(separator: " · ")
     }
 }
 

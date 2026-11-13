@@ -33,12 +33,21 @@ struct RestActivityAttributes: ActivityAttributes {
         var interval: ClosedRange<Date> { startDate...max(endDate, startDate) }
     }
 
-    /// « Ensuite : Squat · série 3 · 80 kg × 8 » ; la charge est déjà mise en forme par l'app
+    /// « Ensuite : Squat · série 3/4 · 80 kg × 8 » ; la charge est déjà mise en forme par l'app
     /// (unité, virgule décimale), vide quand aucune répétition n'est prévue.
     struct NextSet: Codable, Hashable {
         var exercise: String
         var set: Int
         var load: String
+        /// Nombre de séries de travail de l'exercice (build 68). Facultatif : absent d'un JS plus
+        /// ancien ou d'une Live Activity déjà affichée, la ligne reste « série 3 ».
+        var of: Int? = nil
+
+        /// « série 3/4 », ou « série 3 » sans total connu (ou un total plus petit : série en plus)
+        var setText: String {
+            if let total = self.of, total >= self.set, total > 1 { return "série \(self.set)/\(total)" }
+            return "série \(self.set)"
+        }
     }
 
     /// Nom de la séance (« Push », « Haut du corps »…)

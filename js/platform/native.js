@@ -447,7 +447,7 @@ const Native = (() => {
     },
 
     // Live Activity du repos (écran verrouillé, Dynamic Island). Hors app : rien.
-    // state = { endTime (ms), total (s), title, color, next: { exercise, set, load } | null }
+    // state = { endTime (ms), total (s), title, color, next: { exercise, set, of, load } | null }
     liveActivity: {
       start(state)  { if (!isNative) return false; quiet(LiveActivity.start(state)); return true; },
       update(state) { if (!isNative) return false; quiet(LiveActivity.update(state)); return true; },
@@ -498,10 +498,15 @@ const Native = (() => {
     // Bips joués par iOS (audibles en mode silencieux, par-dessus la musique sans la couper).
     // available : faux dans le navigateur et dans une coquille plus ancienne que le module
     // (une mise à jour à chaud peut arriver avant la nouvelle build) : l'appelant garde alors le Web Audio.
+    // canDuck : la coquille sait baisser la musique le temps d'un son (« duck », build 68 et suivantes) ;
+    // reconnue à la méthode diagnostics, arrivée avec, dans la liste des méthodes que Capacitor publie
+    // pour chaque module natif (Capacitor.PluginHeaders).
     sound: {
       available: isNative && !!cap.isPluginAvailable?.('MdlfSound'),
-      // alert : vrai pour la fin du repos seulement (audible en silencieux) ; ignoré par une build plus ancienne
-      play(notes, alert = false) { if (isNative) quiet(Sound.play({ notes, alert })); },
+      canDuck: isNative && !!cap.PluginHeaders?.find?.(h => h?.name === 'MdlfSound')?.methods?.some?.(m => m?.name === 'diagnostics'),
+      // alert : lu par la build 67 seulement (vrai = audible en silencieux) ; la build 68 joue tout ainsi.
+      // duck : musique des autres apps baissée le temps du son ; ignoré par une build plus ancienne.
+      play(notes, alert = false, duck = false) { if (isNative) quiet(Sound.play({ notes, alert, duck })); },
     },
 
     // Compte MDLF : connexion avec Apple ou Google et session gardée dans le Trousseau (js/data/account.js).

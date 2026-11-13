@@ -827,7 +827,7 @@ test('esc, normName, sameEx, plural, setsVolume', () => {
 // simule un changement venu d'iCloud, cloud.saved liste les écritures acceptées.
 // storage : stockage web d'un lancement précédent (relance de l'app) ;
 // manualTimers : les minuteries attendent timers.flush() au lieu de partir tout de suite
-function nativeContext({ native = true, platform = 'ios', localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {}, available = [] } = {}) {
+function nativeContext({ native = true, platform = 'ios', localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {}, available = [], headers } = {}) {
   const calls = [];
   const pending = [];
   if (localData !== null) storage.setItem('ppl_v2', localData);
@@ -869,6 +869,7 @@ function nativeContext({ native = true, platform = 'ios', localData = null, file
       getPlatform: () => platform,   // 'ios' ou 'android' (coquille simulée)
       isPluginAvailable: (name) => available.includes(name),   // modules présents dans la coquille
       registerPlugin: (name) => plugins[name] || new Proxy({}, { get: (_, m) => async () => calls.push([name, m]) }),
+      ...(headers ? { PluginHeaders: headers } : {}),   // méthodes publiées par chaque module natif
     } : undefined,
   };
   box.window = box;
@@ -1146,22 +1147,22 @@ test('live activity : série suivante (charge en kg ou lbs, poids du corps, sans
   reset();
   const session = { exercises: [{ name: 'Squat', sets: [
     { weight: '80', reps: '8' }, { weight: '', reps: '12' }, { weight: '32.5', reps: '' }] }] };
-  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0 })`), { exercise: 'Squat', set: 1, load: '80 kg × 8' });
-  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 1 })`), { exercise: 'Squat', set: 2, load: '12 reps' });
-  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 2 })`), { exercise: 'Squat', set: 3, load: '' });
+  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0 })`), { exercise: 'Squat', set: 1, of: 3, load: '80 kg × 8' });
+  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 1 })`), { exercise: 'Squat', set: 2, of: 3, load: '12 reps' });
+  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 2 })`), { exercise: 'Squat', set: 3, of: 3, load: '' });
   assert.equal(run(`restActivityNext(${JSON.stringify(session)}, null)`), null, 'toutes les séries faites');
   assert.equal(run(`restActivityNext(${JSON.stringify(session)}, { ei: 4, si: 0 })`), null);
   // Pause d'un rest-pause : la reprise qui suit, sa charge, la série qu'elle prolonge
-  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0, k: 0, label: 'Reprise 1', set: { weight: '80', reps: '4' } })`), { exercise: 'Squat · Reprise 1', set: 1, load: '80 kg × 4' });
+  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0, k: 0, label: 'Reprise 1', set: { weight: '80', reps: '4' } })`), { exercise: 'Squat · Reprise 1', set: 1, of: 3, load: '80 kg × 4' });
   reset({ unit: 'lbs' });
   assert.equal(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0 })`).load, '176,4 lbs × 8');
   // Échauffements (panel du 06/11) : numéro affiché, jamais l'indice ; l'échauffement se nomme
   reset();
   const warm = { exercises: [{ name: 'Squat', sets: [
     { weight: '40', reps: '8', warmup: true }, { weight: '60', reps: '5', warmup: true }, { weight: '80', reps: '8' }, { weight: '80', reps: '8' }] }] };
-  sameJSON(run(`restActivityNext(${JSON.stringify(warm)}, { ei: 0, si: 2 })`), { exercise: 'Squat', set: 1, load: '80 kg × 8' }, 'série 1 après 2 échauffements');
+  sameJSON(run(`restActivityNext(${JSON.stringify(warm)}, { ei: 0, si: 2 })`), { exercise: 'Squat', set: 1, of: 2, load: '80 kg × 8' }, 'série 1/2 après 2 échauffements (échauffements hors total)');
   assert.equal(run(`restActivityNext(${JSON.stringify(warm)}, { ei: 0, si: 3 })`).set, 2);
-  sameJSON(run(`restActivityNext(${JSON.stringify(warm)}, { ei: 0, si: 1 })`), { exercise: 'Squat · Échauffement 2', set: 1, load: '60 kg × 5' });
+  sameJSON(run(`restActivityNext(${JSON.stringify(warm)}, { ei: 0, si: 1 })`), { exercise: 'Squat · Échauffement 2', set: 1, of: 2, load: '60 kg × 5' });
 });
 
 test('live activity : données envoyées (séance, couleur, durée entière, textes bornés pour les 4 Ko d\'Apple)', () => {
@@ -1708,6 +1709,36 @@ test('sons : tous passent alert:true (lecture iOS audible en mode silencieux, r�
   n.Native.sound.play([{ freq: 660, start: 0, dur: .1 }]);
   await new Promise(r => setImmediate(r));
   sameJSON(got, [true, false]);
+});
+
+test('sons : décompte et GO de fin de repos baissent la musique (réglage, oui par défaut), rien d\'autre', () => {
+  const sent = {};
+  const box = { data: { soundOn: true }, navigator: {}, document: { addEventListener() {} },
+                Native: { haptic: () => true, sound: { available: true, play: (n, alert, duck) => { box.last = duck; } } } };
+  const c = vm.createContext(box);
+  const src = fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8');
+  vm.runInContext(src + '\nthis.playMelody = playMelody; this.names = Object.keys(MELODIES);', c);
+  for (const name of c.names) { box.last = undefined; c.playMelody(name); sent[name] = box.last; }
+  sameJSON(Object.keys(sent).filter(k => sent[k] === true).sort(), ['restCount', 'restGo']);
+  assert.ok(Object.values(sent).every(v => typeof v === 'boolean'), 'toujours un booléen');
+  box.data.duckMusic = false;
+  c.playMelody('restGo');
+  assert.equal(box.last, false, 'réglage coupé : musique jamais baissée');
+});
+
+test('sons : duck part vers iOS ; canDuck seulement si la coquille publie la méthode diagnostics (build 68)', async () => {
+  const got = [];
+  const n = nativeContext({ available: ['MdlfSound'], plugins: { MdlfSound: { play: async o => { got.push([o.alert, o.duck]); } } } });
+  n.Native.sound.play([{ freq: 660, start: 0, dur: .1 }], true, true);
+  n.Native.sound.play([{ freq: 660, start: 0, dur: .1 }], true);
+  await new Promise(r => setImmediate(r));
+  sameJSON(got, [[true, true], [true, false]]);
+  assert.equal(n.Native.sound.canDuck, false, 'sans PluginHeaders');
+  const b67 = [{ name: 'MdlfSound', methods: [{ name: 'play', rtype: 'promise' }] }];
+  const b68 = [{ name: 'MdlfSound', methods: [{ name: 'play', rtype: 'promise' }, { name: 'diagnostics', rtype: 'promise' }] }];
+  assert.equal(nativeContext({ available: ['MdlfSound'], headers: b67 }).Native.sound.canDuck, false, 'build 67');
+  assert.equal(nativeContext({ available: ['MdlfSound'], headers: b68 }).Native.sound.canDuck, true, 'build 68');
+  assert.equal(nativeContext({ native: false }).Native.sound.canDuck, false, 'navigateur');
 });
 
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
