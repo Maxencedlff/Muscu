@@ -745,8 +745,8 @@ def p_nutrition(r):
         r.attendre('#dietFoodSearch', 'feuille de recherche')
         r.saisir('#dietFoodSearch', 'riz blanc cuit', 'recherche')   # le riz blanc existe cru et cuit (« riz cuit » : le thaï, sans version crue)
         r.attendre('#dietFoodList .diet-cand', 'résultats')
-    # Riz cuit : il existe aussi cru, la feuille de quantité le rappelle (« Pesé cru ? », vague 4)
-    with r.etape('quantite', 'Aliment choisi : quantité en grammes, rappel cru / cuit', cle=cle):
+    # Riz cuit cherché « cuit » : version voulue, pas de rappel « Pesé cru ? » (panel vague 4)
+    with r.etape('quantite', 'Aliment choisi : quantité en grammes', cle=cle):
         r.toucher('#dietFoodList .diet-cand', '1er résultat')
         r.saisir('.sheet-root:not(.sheet-root--out) #qtyVal', 150, 'quantité')
     with r.etape('aliment-ajoute', 'Aliment ajouté au repas (macros calculées)', cle=cle):

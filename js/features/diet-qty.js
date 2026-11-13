@@ -7,8 +7,8 @@
 //  - Sous le champ : résumé « 2 œufs · 100 g · 134 kcal » (lu « 2 œufs, 100 grammes, 134 kilocalories »), macros en
 //    toutes lettres, et la note « 1 œuf : environ 50 g, poids moyen. » seulement quand le poids est estimé.
 //  - Sert à la feuille de quantité (dietAskQty : plan, ajout du jour) et à la fiche d'un produit scanné.
-//  - Nouvel aliment de la base qui existe cru et cuit : rappel « Pesé cuit ? Choisis la version cuite. » en tête de la
-//    feuille, l'autre version prise d'un toucher (dietQtyTwinHtml).
+//  - Nouvel aliment de la base qui existe cru et cuit, cherché sans dire la cuisson : rappel « Pesé cuit ? Choisis la
+//    version cuite. » sous la quantité, l'autre version prise d'un toucher sur un lien secondaire (dietQtyTwinHtml).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -135,10 +135,9 @@ function dietQtyBind(root, units, st, per, onChange = null) {
 function dietQtyTwinHtml(twin) {
   const cooked = foodCookTag(twin) === 'cuit';
   const ask = cooked ? 'Pesé cuit\u00a0? Choisis la version cuite.' : 'Pesé cru\u00a0? Choisis la version crue.';
-  return `<div class="qty__twin" role="note">
-      <p class="qty__twin-text">${icon('info.circle', 14)}<span>${ask} Les valeurs ne sont pas les mêmes.</span></p>
-      <button type="button" class="qty__twin-btn" data-qtwin aria-label="Prendre ${esc(foodName(twin.name))}, la version ${cooked ? 'cuite' : 'crue'}">Prendre ${esc(foodName(twin.name))}</button>
-    </div>`;
+  // Lien secondaire sous la quantité (panel vague 4 : en tête de feuille, en orange gras, il passait pour l'action principale)
+  return `<p class="qty__twin" role="note">${ask} Les valeurs ne sont pas les mêmes.
+      <button type="button" class="qty__twin-btn" data-qtwin aria-label="Prendre ${esc(foodName(twin.name))}, la version ${cooked ? 'cuite' : 'crue'}">Prendre la version ${cooked ? 'cuite' : 'crue'}</button></p>`;
 }
 
 // Feuille de quantité : { g, por } (por null en grammes) ou null. init : aliment du plan ({ g, por }) pour une
@@ -156,7 +155,7 @@ async function dietAskQty(food, init = null, { twin = false } = {}) {
   let read = null;
   const title = elideName(foodName(food.name));
   // Sans unité : en grammes, clavier ouvert d'office comme l'alerte à champ
-  const p = sheet({ title, confirm: 'OK', body: `${other ? dietQtyTwinHtml(other) : ''}${dietQtyHtml(units, st)}`,
+  const p = sheet({ title, confirm: 'OK', body: `${dietQtyHtml(units, st)}${other ? dietQtyTwinHtml(other) : ''}`,
     focus: units.length ? null : '#qtyVal', onConfirm: () => read?.() || false });
   const root = [...document.querySelectorAll('.sheet-root')].pop();
   read = dietQtyBind(root, units, st, food.per);

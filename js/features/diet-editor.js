@@ -186,7 +186,8 @@ async function dietPickFood() {
     const b = ev.target.closest('[data-pick]');
     if (!b) return;
     const k = b.dataset.pick;
-    root._close(k === 'new' || k === 'scan' ? k : k === 'create' ? { create: dietCutName(query) } : results[Number(k)] || null);
+    const hit = results[Number(k)];
+    root._close(k === 'new' || k === 'scan' ? k : k === 'create' ? { create: dietCutName(query) } : hit ? { ...hit, query } : null);
   });
   return p;
 }
@@ -199,8 +200,9 @@ async function dietChooseFood() {
   // Nom tapé repris avec une majuscule (« whey » → « Whey »), comme le clavier le ferait
   const typed = pick?.create, chosen = pick === 'new' ? await dietNewFood() : typed !== undefined ? await dietNewFood(typed.charAt(0).toUpperCase() + typed.slice(1)) : pick;
   if (!chosen?.food) return null;
-  // Rappel cru / cuit : la feuille de quantité peut rendre l'autre version (q.food)
-  const q = await dietAskQty(chosen.food, null, { twin: true });
+  // Rappel cru / cuit : la feuille de quantité peut rendre l'autre version (q.food). Pas quand la recherche disait déjà
+  // « cuit » ou « cru » : la version est choisie exprès (panel vague 4, « riz blanc cuit » puis « Pesé cru ? »)
+  const q = await dietAskQty(chosen.food, null, { twin: !foodQuerySaysCook(chosen.query) });
   return q && { food: q.food || chosen.food, g: q.g, por: q.por };
 }
 

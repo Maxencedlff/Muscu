@@ -992,7 +992,10 @@ def t_vague4(bench, eng, dev, theme):
         pick_food(page, 'riz blanc', 'Riz blanc, cru')
         page.wait_for_selector(f'{LIVE_SHEET} .qty__twin')
         tw = nb(page.inner_text(f'{LIVE_SHEET} .qty__twin'))
-        R.check('Pesé cuit ? Choisis la version cuite.' in tw and 'Riz blanc, cuit, sans sel ajouté' in tw, f'{t} v4 quantité : rappel cru / cuit ({tw!r})')
+        R.check('Pesé cuit ? Choisis la version cuite.' in tw and 'Prendre la version cuite' in tw
+                and 'Riz blanc, cuit, sans sel ajouté' in (page.get_attribute(f'{LIVE_SHEET} [data-qtwin]', 'aria-label') or ''), f'{t} v4 quantité : rappel cru / cuit, en lien sous la quantité ({tw!r})')
+        R.check(page.evaluate(f"(() => {{ const q = document.querySelector('{LIVE_SHEET} [data-qty]'), w = document.querySelector('{LIVE_SHEET} .qty__twin'); return !!(q.compareDocumentPosition(w) & Node.DOCUMENT_POSITION_FOLLOWING); }})()"),
+                f'{t} v4 quantité : rappel après le champ (lu après lui par VoiceOver)')
         R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '100', f'{t} v4 quantité : 100 g d\'office')
         R.check(small_targets(page, f'{LIVE_SHEET} button') == [] and not cut_texts(page, LIVE_SHEET), f'{t} v4 quantité : 44 pt, aucun texte coupé')
         shot(page, LOT, f'v4-5-pese-cuit-{t}')
@@ -1001,6 +1004,8 @@ def t_vague4(bench, eng, dev, theme):
         page.wait_for_selector(f'{LIVE_SHEET} #qtyVal, .ios-dialog__input')
         R.check(page.locator(f'{LIVE_SHEET} .qty__twin').count() == 0, f'{t} v4 version cuite : pas de second rappel')
         qty_grams(page, '180')
+        # Panel vague 4 : la recherche disait déjà « cuit », la version cuite est voulue : aucun rappel « Pesé cru ? »
+        R.check(page.evaluate("foodQuerySaysCook('riz blanc cuit') && foodQuerySaysCook('Poulet CRU') && !foodQuerySaysCook('riz blanc')"), f'{t} v4 recherche qui dit la cuisson reconnue')
         page.wait_for_timeout(400)
         it = page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1)")
         R.check(it and it['food'] == RIZ and it['g'] == 180, f'{t} v4 version cuite ajoutée ({it and it["name"]}, {it and it["g"]} g)')
