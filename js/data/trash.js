@@ -8,8 +8,6 @@
 // Un programme supprimé est seulement archivé : l'historique a besoin de ses noms et couleurs.
 // Aucun effet d'écran ni d'écriture : l'appelant enregistre (historyChanged) et redessine.
 
-const DAY_MS = 86400000;
-
 // Retire une séance de l'historique et la met en tête de la corbeille ; renvoie la séance ou null
 function moveToTrash(id, now = Date.now()) {
   const idx = (data.history || []).findIndex(h => h.id === id);

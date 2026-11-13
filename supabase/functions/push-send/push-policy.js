@@ -162,11 +162,5 @@ export function providerTokenCache({ keyId, now, sign, load, swap, ttlS = PROVID
   };
 }
 
-// Comparaison du secret de la planification en temps constant
-export function sameSecret(a, b) {
-  const x = new TextEncoder().encode(String(a ?? '')), y = new TextEncoder().encode(String(b ?? ''));
-  if (!x.length || x.length !== y.length) return false;
-  let diff = 0;
-  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
-  return diff === 0;
-}
+// Comparaison en temps constant du secret de la planification (_shared/same-secret.js, commune à coach-photos-purge)
+export { sameSecret } from '../_shared/same-secret.js';

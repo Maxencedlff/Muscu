@@ -45,19 +45,16 @@ function dietTargetsText(plan) {
   if (!t) return 'Selon le plan';
   return [t.kcal ? `${dietN(t.kcal)} kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${m.short}\u00a0${t[m.k]}` : ''))].filter(Boolean).join(' · ');
 }
-// Les mêmes objectifs dits par VoiceOver : « 2 000 kilocalories, 150 grammes de protéines »
-function dietTargetsSpoken(plan) {
+// Objectifs en toutes lettres, unités au choix : « 2 000 kilocalories, 150 grammes de protéines » (VoiceOver) ou
+// « 2 000 kcal, 150 g de protéines » (confirmation d'envoi au coach, où « P 150 » ne se comprenait pas à côté de
+// « 34 g de protéines de moins », panel t6)
+function dietTargetsWords(plan, kcal, g) {
   const t = plan.targets;
   if (!t) return 'Selon le plan';
-  return [t.kcal ? `${dietN(t.kcal)} kilocalories` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]} grammes de ${m.label.toLowerCase()}` : ''))].filter(Boolean).join(', ');
+  return [t.kcal ? `${dietN(t.kcal)}${kcal}` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]}${g} de ${m.label.toLowerCase()}` : ''))].filter(Boolean).join(', ');
 }
-// En toutes lettres mais unités abrégées (« 2 000 kcal, 150 g de protéines ») : confirmation d'envoi au coach, où
-// « P 150 » ne se comprenait pas à côté de « 34 g de protéines de moins » (panel t6)
-function dietTargetsLong(plan) {
-  const t = plan.targets;
-  if (!t) return 'Selon le plan';
-  return [t.kcal ? `${dietN(t.kcal)}\u00a0kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]}\u00a0g de ${m.label.toLowerCase()}` : ''))].filter(Boolean).join(', ');
-}
+function dietTargetsSpoken(plan) { return dietTargetsWords(plan, ' kilocalories', ' grammes'); }
+function dietTargetsLong(plan) { return dietTargetsWords(plan, '\u00a0kcal', '\u00a0g'); }
 function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), esc(dietTargetsSpoken(plan))); }
 
 function dietPlanItemCell(plan, meal, it, ro) {

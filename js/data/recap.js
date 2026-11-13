@@ -596,7 +596,6 @@ function recapNb(s) { return String(s ?? '').replace(/ /g, ' '); }
 //   violet : profil, muscles, exercice (texte blanc)
 //   orange : records, premières fois (texte noir)
 //   pink   : régularité (texte noir)
-const RECAP_TONES = ['lime', 'violet', 'orange', 'pink'];
 const RECAP_SPAN = { week: 'cette semaine', month: 'ce mois-ci', year: 'cette année' };
 const RECAP_MINE = { week: 'Ma semaine', month: 'Mon mois', year: 'Mon année' };
 const RECAP_SUMMARY_LINES = 4;   // lignes du dernier écran (au-delà, l'image déborde)

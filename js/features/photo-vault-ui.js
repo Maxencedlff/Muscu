@@ -24,7 +24,6 @@ let photoCmp = { a: null, b: null, pos: 50 };
 let photoNewPose = 'face';
 let photoAddPose = 'face';     // pose proposée par la case touchée (coffre vide : Face, Profil, Dos)
 
-const PV_CENTER_PHASES = ['loading', 'unavailable', 'error', 'nopasscode', 'missing'];
 // Nom de ce qui ouvre le coffre : « Face ID », « Touch ID », « Optic ID », ou le code de l'iPhone seul
 const bioLabel = () => ({ faceID: 'Face ID', touchID: 'Touch ID', opticID: 'Optic ID' })[pv.bioType] || '';
 const pvOpenLabel = () => (bioLabel() ? `Ouvrir avec ${bioLabel()}` : 'Ouvrir avec le code de l\'iPhone');
