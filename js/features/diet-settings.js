@@ -147,7 +147,7 @@ function renderDietFoods() {
       <div class="scr">
         ${list.length ? `
         ${full ? `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>Mes aliments est plein (${DIET_FOODS_MAX}). Retire ceux dont tu ne te sers plus pour en garder d'autres.</span></p>` : ''}
-        <p class="diet-foods__count num">${list.length} sur ${DIET_FOODS_MAX}</p>
+        <p class="diet-foods__count num">${plural(list.length, 'aliment perso', 'aliments perso')}, ${DIET_FOODS_MAX} au plus</p>
         ${dietMacroLegendHtml()}
         <div class="group">${list.map(dietFoodCellHtml).join('')}</div>
         <div class="group-foot">Retirer un aliment ne change pas tes plans : chaque aliment d'un plan garde ses valeurs. Tu pourras le recréer ou le scanner à nouveau.</div>`

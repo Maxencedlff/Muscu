@@ -295,6 +295,8 @@ body.light .sheet .qty__step { background: var(--cell); }
 .qty__eq:empty, .qty__macros:empty, .qty__hint:empty { display: none; }
 .qty__hint { margin: 4px 0 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
 
-/* Mes aliments (Réglages de la nutrition) : compteur « 37 sur 200 », avertissement quand la liste est pleine */
+/* Mes aliments (Réglages de la nutrition) : compteur « 37 aliments perso, 200 au plus », avertissement quand la liste est pleine */
 .diet-foods__count { margin: 0 0 6px; padding: 0 16px; font-size: var(--fs-footnote); color: var(--label2); }
 .diet-foods-view .diet-low { margin: 0 16px 10px; color: var(--label); }
+/* « ⋯ » de chaque aliment : seul accès pour le retirer, à 3:1 au moins (en gris tertiaire, 1,7:1, panel Apple vague 4) */
+.diet-foods-view .cell .icon--ellipsis { color: var(--label2); }
