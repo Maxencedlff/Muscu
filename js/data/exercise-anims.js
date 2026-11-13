@@ -12,7 +12,7 @@ const EXERCISE_ANIM_DIR = 'img/anim/';
 const EXERCISE_ANIMS = {
   'Squat barre': 'squat-barre',
   'Développé couché barre': 'developpe-couche-barre',
-  'Soulevé de terre': 'souleve-de-terre',
+  // 'Soulevé de terre' retiré le 13/11/2026 : départ en squat et corps qui se traversent, à refaire (mdlf-perso)
   'Tractions pronation': 'tractions-pronation',
   'Curl biceps haltères': 'curl-biceps-halteres',
 };

@@ -3,14 +3,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export default function ({ test, run, assert, ROOT }) {
-  const NAMES = ['Squat barre', 'Développé couché barre', 'Soulevé de terre', 'Tractions pronation', 'Curl biceps haltères'];
+  const NAMES = ['Squat barre', 'Développé couché barre', 'Tractions pronation', 'Curl biceps haltères'];
   const anim = n => run(`exerciseAnim(${JSON.stringify(n)})`);
 
-  test('animations 3D : 5 exercices pilotes, noms exacts de la bibliothèque, alias ramenés', () => {
+  test('animations 3D : 4 exercices pilotes, noms exacts de la bibliothèque, alias ramenés', () => {
     const keys = run('Object.keys(EXERCISE_ANIMS)');
     assert.deepEqual([...keys].sort(), [...NAMES].sort());
     keys.forEach(k => assert.equal(run(`catalogueEntry(${JSON.stringify(k)})?.name`), k, `${k} : nom de la bibliothèque`));
-    assert.equal(anim('deadlift').poster, 'img/anim/souleve-de-terre.webp', 'alias anglais');
+    assert.equal(anim('Squat barre').poster, 'img/anim/squat-barre.webp');
+    assert.equal(anim('Soulevé de terre'), null, 'soulevé de terre retiré tant qu\'il est à refaire');
     assert.equal(anim('Curl marteau'), null, 'exercice sans animation');
     assert.equal(anim(''), null);
     assert.equal(anim('constructor'), null, 'pas de clé héritée de Object');

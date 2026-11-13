@@ -50,7 +50,7 @@ const ASSETS = [
   '/img/muscles/obliques.webp', '/img/muscles/glutes.webp', '/img/muscles/quads.webp', '/img/muscles/hamstrings.webp', '/img/muscles/adductors.webp', '/img/muscles/calves.webp',
   // Animations 3D du « Comment faire » (js/data/exercise-anims.js) : affiches dès l'installation, vidéos au
   // premier visionnage (ANIM_RE plus bas)
-  '/img/anim/squat-barre.webp', '/img/anim/developpe-couche-barre.webp', '/img/anim/souleve-de-terre.webp',
+  '/img/anim/squat-barre.webp', '/img/anim/developpe-couche-barre.webp',
   '/img/anim/tractions-pronation.webp', '/img/anim/curl-biceps-halteres.webp',
 ];
 
