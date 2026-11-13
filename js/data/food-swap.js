@@ -138,6 +138,9 @@ function foodCookTag(food) {
 // Nom sans les mots de la cuisson : « Riz blanc, cru » et « Riz blanc, cuit, sans sel ajouté » donnent « riz blanc »
 const FOOD_COOK_WORDS = /\b(sans sel ajoute|a l eau|au four|a cuire|cuit|cuite|cuits|cuites|bouilli|bouillie|roti|rotie|grille|grillee|poele|poelee|vapeur|braise|cru|crue|crus|crues|sec|seche|secs|seches)\b/g;
 const foodCookBase = name => foodKey(name).replace(/\bble dur\b/g, 'ble').replace(FOOD_COOK_WORDS, ' ').replace(/\s+/g, ' ').trim();
+// Recherche qui nomme déjà la cuisson (« riz blanc cuit », « poulet cru ») : l'aliment choisi est la version voulue
+const FOOD_COOK_WORD = new RegExp(FOOD_COOK_WORDS.source);   // sans /g : test() sans état
+const foodQuerySaysCook = q => FOOD_COOK_WORD.test(foodKey(q || ''));
 // Version crue d'un aliment cuit de la base, ou l'inverse (même nom sans la cuisson, même famille), null sans elle.
 // Plusieurs (faux-filet grillé, rôti) : le nom le plus court. Sert au rappel « Pesé cuit ? » de la feuille de quantité
 function foodCookTwin(food) {

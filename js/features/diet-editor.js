@@ -82,7 +82,8 @@ function renderDietPlan(id) {
           ${ro ? (meal.items.length ? '' : '<div class="cell"><span class="cell__sub">Aucun aliment</span></div>')
             : `<button class="cell cell--action" data-action="diet-add-food" data-meal="${esc(meal.id)}">${icon('plus', 20)}<span>Ajouter un aliment</span></button>`}
         </div>
-        <div class="group-foot num">${meal.note ? `${esc(meal.note)} · ` : ''}${dietSrPair(dietMacroLine(dietMealMacros(meal)), dietMacroSpoken(dietMealMacros(meal)))}</div>`).join('');
+        ${meal.items.length ? `<div class="group-foot num">${meal.note ? `${esc(meal.note)} · ` : ''}${dietSrPair(dietMacroLine(dietMealMacros(meal)), dietMacroSpoken(dietMealMacros(meal)))}</div>`
+          : meal.note ? `<div class="group-foot">${esc(meal.note)}</div>` : ''}`).join('');   /* repas vide : pas de ligne de zéros (panel Apple vague 4) */
   return `
     <div class="view view--grouped diet-plan-view">
       ${navBar({ title: esc(plan.name), right, large: true })}
@@ -161,8 +162,10 @@ async function dietPickFood() {
   const body = `
     <div class="diet-pick">
       ${foodScanButtonHtml()}
-      <input type="search" id="dietFoodSearch" class="search" placeholder="Rechercher" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment">
+      <div class="social-search diet-pick__search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
+        <input type="search" id="dietFoodSearch" class="search social-search__input" placeholder="Rechercher" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment"></div>
       <div class="diet-pick__list" id="dietFoodList">${dietFoodResultsHtml('')}</div>
+      <p class="sr-text" id="dietFoodCount" aria-live="polite"></p>
       <button class="diet-cand diet-cand--new" data-pick="new">${icon('plus', 18)}<span class="diet-cand__name">Créer un aliment</span></button>
     </div>`;
   const p = sheet({ title: 'Ajouter un aliment', cancel: 'Annuler', confirm: '', body, focus: '#dietFoodSearch' });
@@ -172,12 +175,19 @@ async function dietPickFood() {
     query = ev.target.value;
     results = searchFoods(query, { own: data.dietFoods || [] });
     $('#dietFoodList', root).innerHTML = dietFoodResultsHtml(query, results);
+    // VoiceOver : nombre de résultats dit à chaque frappe (la liste changeait sans rien annoncer, panel vague 4)
+    clearTimeout(root._countT);
+    root._countT = setTimeout(() => {
+      const c = $('#dietFoodCount', root);
+      if (c) c.textContent = !query.trim() ? '' : results.length ? plural(results.length, 'résultat', 'résultats') : 'Aucun résultat';
+    }, 500);
   });
   root?.addEventListener('click', ev => {
     const b = ev.target.closest('[data-pick]');
     if (!b) return;
     const k = b.dataset.pick;
-    root._close(k === 'new' || k === 'scan' ? k : k === 'create' ? { create: dietCutName(query) } : results[Number(k)] || null);
+    const hit = results[Number(k)];
+    root._close(k === 'new' || k === 'scan' ? k : k === 'create' ? { create: dietCutName(query) } : hit ? { ...hit, query } : null);
   });
   return p;
 }
@@ -190,8 +200,9 @@ async function dietChooseFood() {
   // Nom tapé repris avec une majuscule (« whey » → « Whey »), comme le clavier le ferait
   const typed = pick?.create, chosen = pick === 'new' ? await dietNewFood() : typed !== undefined ? await dietNewFood(typed.charAt(0).toUpperCase() + typed.slice(1)) : pick;
   if (!chosen?.food) return null;
-  // Rappel cru / cuit : la feuille de quantité peut rendre l'autre version (q.food)
-  const q = await dietAskQty(chosen.food, null, { twin: true });
+  // Rappel cru / cuit : la feuille de quantité peut rendre l'autre version (q.food). Pas quand la recherche disait déjà
+  // « cuit » ou « cru » : la version est choisie exprès (panel vague 4, « riz blanc cuit » puis « Pesé cru ? »)
+  const q = await dietAskQty(chosen.food, null, { twin: !foodQuerySaysCook(chosen.query) });
   return q && { food: q.food || chosen.food, g: q.g, por: q.por };
 }
 
@@ -209,7 +220,7 @@ async function dietNewFood(name = '', { code = null } = {}) {
         <input id="dietFoodName" class="diet-field__input" type="text" maxlength="${DIET_FOOD_NAME_MAX}" autocomplete="off" autocapitalize="sentences" value="${esc(name)}" placeholder="Skyr nature"></label>
       ${codeHint}
       <p class="diet-form__hint">Pour 100 g : recopie les valeurs de l'étiquette, l'énergie comprise. Laissée vide, l'app la calcule (4 kcal par gramme de protéines ou de glucides, 9 de lipides).</p>
-      ${field('dietFoodK', 'Énergie', 'kcal', 900)}${field('dietFoodP', 'Protéines', 'g', 100)}${field('dietFoodC', 'Glucides', 'g', 100)}${field('dietFoodF', 'Lipides', 'g', 100)}
+      <div class="diet-fields">${field('dietFoodK', 'Énergie', 'kcal', 900)}${field('dietFoodP', 'Protéines', 'g', 100)}${field('dietFoodC', 'Glucides', 'g', 100)}${field('dietFoodF', 'Lipides', 'g', 100)}</div>
       <label class="diet-field"><span class="diet-field__label">Une portion</span>
         <input id="dietFoodPortion" class="diet-field__input num" type="text" inputmode="decimal" autocomplete="off" placeholder="Facultatif" aria-label="Poids d'une portion, en grammes, facultatif">
         <span class="diet-field__unit">g</span></label>

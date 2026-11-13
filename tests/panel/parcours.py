@@ -745,8 +745,8 @@ def p_nutrition(r):
         r.attendre('#dietFoodSearch', 'feuille de recherche')
         r.saisir('#dietFoodSearch', 'riz blanc cuit', 'recherche')   # le riz blanc existe cru et cuit (« riz cuit » : le thaï, sans version crue)
         r.attendre('#dietFoodList .diet-cand', 'résultats')
-    # Riz cuit : il existe aussi cru, la feuille de quantité le rappelle (« Pesé cru ? », vague 4)
-    with r.etape('quantite', 'Aliment choisi : quantité en grammes, rappel cru / cuit', cle=cle):
+    # Riz cuit cherché « cuit » : version voulue, pas de rappel « Pesé cru ? » (panel vague 4)
+    with r.etape('quantite', 'Aliment choisi : quantité en grammes', cle=cle):
         r.toucher('#dietFoodList .diet-cand', '1er résultat')
         r.saisir('.sheet-root:not(.sheet-root--out) #qtyVal', 150, 'quantité')
     with r.etape('aliment-ajoute', 'Aliment ajouté au repas (macros calculées)', cle=cle):
@@ -784,12 +784,13 @@ def p_nutrition(r):
     with r.etape('coach-accueil', 'Accueil : « max veut t\'envoyer un plan diète »', cle=cle):
         fermer_dialogue(r, 'Garder sur cet iPhone')
         r.attendre('.coach-home', 'carte du plan diète du coach')
-    with r.etape('coach-accord', 'Accord pour recevoir les plans du coach', cle=cle):
-        if r.present('.coach-home [data-action="diet-coach-accept"]'):
-            r.toucher('.coach-home [data-action="diet-coach-accept"]', 'Accepter (carte de l\'accueil)')
-            fermer_dialogue(r, 'Accepter')
+    # Un seul geste (vague 4) : « Recevoir » demande l'accord puis prend le plan
+    with r.etape('coach-accord', 'Recevoir : accord pour les plans du coach, plan pris dans la foulée', cle=cle):
+        r.toucher('.coach-home [data-action="diet-take"]', 'Recevoir (carte de l\'accueil)')
+        fermer_dialogue(r, 'Accepter')
     with r.etape('coach-suivi', 'Plan du coach suivi', cle=cle):
-        r.toucher('.coach-home [data-action="diet-take"]', 'Utiliser')
+        if r.present('.coach-home [data-action="diet-take"]'):
+            r.toucher('.coach-home [data-action="diet-take"]', 'Utiliser')
     with r.etape('coach-nutrition', 'Nutrition avec le plan du coach (consigne, repas)', cle=cle):
         r.toucher('.diet-home__open', 'carte Nutrition')
         fermer_dialogue(r, 'Garder sur cet iPhone')

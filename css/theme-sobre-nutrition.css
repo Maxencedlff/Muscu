@@ -10,9 +10,10 @@
 
 /* ── Nutrition : journal du jour ── */
 .diet-sum { border-radius: 12px; }
-/* Une seule ligne « en cours » : le repas suivant (surtitre « Ensuite » et son rond à cocher) ; les autres ronds
-   restent lisibles (3:1 et plus) sans être orange */
-.diet-meal:not(.diet-meal--next) .diet-check:not(.diet-check--on) { color: var(--label2); box-shadow: inset 0 0 0 2px var(--label2); }
+/* Barres des macros : le vert de l'anneau des calories, une seule couleur de sens (vert = avancée vers l'objectif, comme
+   la progression en séance) ; chaque barre porte son nom, la couleur n'a rien d'autre à dire. Le bleu des glucides se
+   lisait comme le bleu d'action d'iOS, et trois teintes sans légende ne disaient rien (panel vague 4) */
+.diet-bar--p .diet-bar__fill, .diet-bar--c .diet-bar__fill, .diet-bar--f .diet-bar__fill { background: var(--macro-kcal); }
 /* Remplacer un aliment : flèches d'affordance grises (comme un chevron) ; « Remplace… », « Ajouté aujourd'hui » : texte secondaire */
 .diet-item__swap { color: var(--label3); }
 body.light .diet-item__swap { color: var(--label2); }
@@ -22,10 +23,10 @@ body.light .diet-item__swap { color: var(--label2); }
 .diet-empty { border-radius: 12px; }
 .diet-empty__icon { color: var(--label2); }
 
-/* Journée encore vide : l'appel à cocher le premier repas (js/features/nutrition-ui.js), sous la ligne d'état */
-.diet-sum__call { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding-top: 10px; border-top: .5px solid var(--sep);
+/* Journée encore vide : l'appel à cocher le premier repas (js/features/nutrition-ui.js), sous la ligne d'état ; texte
+   seul, le rond à cocher est celui du repas */
+.diet-sum__call { display: block; margin: 10px 0 0; padding-top: 10px; border-top: .5px solid var(--sep);
   font-size: var(--fs-subhead); line-height: 1.35; font-weight: 600; color: var(--label); }
-.diet-sum__call-dot { flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--tint); }   /* le rond à cocher, en petit */
 
 /* Fiche produit scanné : titre des valeurs en casse de phrase */
 .fscan__vals-title { text-transform: none; letter-spacing: 0; font-weight: 600; }
@@ -67,14 +68,17 @@ body.light .diet-item__swap { color: var(--label2); }
   /* Repas qu'on vient de cocher (js/ui/vivant-nutrition.js) : le rond se remplit de vert, puis la coche se trace,
      comme une série validée ; les repas déjà cochés à l'ouverture ne bougent pas */
   .diet-check.vv-fill { animation: vvDietCheck .34s cubic-bezier(.2, .8, .2, 1) both; }
-  .diet-check.vv-fill .icon { stroke-dasharray: 30; animation: vvDraw .26s .12s ease-out both; }
+  .diet-check.vv-fill .icon { opacity: 1; stroke-dasharray: 30; animation: vvDraw .26s .12s ease-out both; }
   @keyframes vvDietCheck {
-    0%   { background: transparent; box-shadow: inset 0 0 0 2px var(--tint); transform: scale(.86); }
+    0%   { background: transparent; box-shadow: inset 0 0 0 2px var(--set-ring); transform: scale(.86); }
     55%  { background: var(--check-on); box-shadow: inset 0 0 0 0 var(--check-on); transform: scale(1.08); }
     100% { transform: scale(1); }
   }
 }
 
-/* Éditeur de plan : un « Modifier » par repas en plus de « Ajouter un aliment » dépassait le budget d'orange ;
-   l'ajout d'un aliment garde l'orange (l'action du repas), « Modifier » passe en texte secondaire plein */
-.group-title__btn.diet-meal-edit { color: var(--label2); font-weight: 600; }
+/* Éditeur de plan : « Modifier » d'un repas est un lien d'action, en orange comme partout (en gris, il passait pour un
+   libellé ou un bouton désactivé, panel vague 4) */
+.group-title__btn.diet-meal-edit { color: var(--tint); font-weight: 400; }
+/* « Ensuite » au-dessus du repas suivant : un état, pas une action ; casse de phrase, gris secondaire (la carte porte
+   déjà le contour orange de la ligne en cours ; en orange capitales, il invitait à toucher, panel Apple vague 4) */
+.diet-meal__eyebrow { color: var(--label2); text-transform: none; letter-spacing: 0; font-weight: 600; }

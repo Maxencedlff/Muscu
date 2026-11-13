@@ -84,7 +84,7 @@ function dietRingSvg(ratio, size = 112, stroke = 12) {
   const r = (size - stroke) / 2, c = 2 * Math.PI * r;
   return `<svg class="diet-ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
       <circle class="diet-ring__track" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}"/>
-      <circle class="diet-ring__arc" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}"
+      <circle class="diet-ring__arc${ratio > 0 ? '' : ' diet-ring__arc--zero'}" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}"
         stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - ratio)).toFixed(2)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
     </svg>`;
 }
@@ -98,7 +98,19 @@ function dietCallText(name) {
 }
 function dietCallHtml(pr) {
   if (pr.nDone || !pr.next || pr.day !== dietDayKey()) return '';
-  return `<p class="diet-sum__call"><span class="diet-sum__call-dot" aria-hidden="true"></span><span>${esc(dietCallText(pr.next.meal.name))}</span></p>`;
+  // Texte seul : le rond à cocher est celui du repas, plus bas (un deuxième rond, plus petit, faisait deux dessins pour un geste)
+  return `<p class="diet-sum__call">${esc(dietCallText(pr.next.meal.name))}</p>`;
+}
+
+// Repas vides du plan (rien de prévu, on y ajoute ce qu'on mange) : ils ne se cochent pas. Avec eux, l'état dit « repas
+// prévus » : « Journée complète » après le seul petit-déjeuner rempli, ou « 0 repas coché sur 1 » au-dessus de
+// quatre repas, faisaient croire la journée finie ou le compte faux (panel vague 4)
+const dietHasFreeMeals = pr => pr.meals.some(x => !x.meal.items.length);
+function dietStatusText(pr) {
+  const free = dietHasFreeMeals(pr);
+  if (pr.complete) return free ? (pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché') : 'Journée complète';
+  if (free) return `${pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché'} : ${pr.nDone} sur ${pr.nMeals}`;
+  return `${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${pr.nMeals}`;
 }
 
 // Bilan du jour : anneau (calories) et trois barres (macros), mangé sur repère
@@ -120,8 +132,7 @@ function dietSummaryHtml(pr) {
           </div>`).join('');
   const streak = data.dietStreakOff ? 0 : dietStreak(data);
   const n = pr.nMeals;   // repas à cocher (ceux qui ont des aliments)
-  const status = pr.complete ? `<span class="diet-sum__done">${icon('checkmark', 14)}Journée complète</span>`
-    : `<span>${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${n}</span>`;
+  const status = `<span${pr.complete ? ' class="diet-sum__done"' : ''}>${pr.complete ? icon('checkmark', 14) : ''}${dietStatusText(pr)}</span>`;
   const line = `<p class="diet-sum__line">${status}${streak >= 2 ? `<span class="diet-sum__streak">${icon('flame', 14)}${streak} jours complets d'affilée</span>` : ''}</p>
         ${dietCallHtml(pr)}`;
   // Chiffres masqués (Réglages de la nutrition) : les repas cochés seulement
@@ -148,6 +159,7 @@ function dietSummaryHtml(pr) {
 function dietWeekHtml(day) {
   const today = dietDayKey();
   return `<div class="diet-week" role="group" aria-label="7 derniers jours">${dietWeek(data).map(w => {
+    // Lettre seule comme le Calendrier d'iOS : le numéro dessous distingue mardi et mercredi (panel vague 4)
     const d = new Date(w.ts), letter = d.toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase();
     const label = `${w.day === today ? 'Aujourd\'hui' : fmtDate(w.ts, 'day')}${w.complete ? ', journée complète' : w.some ? ', en partie' : ''}`;
     return `<button class="diet-week__day${w.day === day ? ' diet-week__day--on' : ''}" data-action="diet-day" data-day="${w.day}" aria-pressed="${w.day === day}" aria-label="${esc(label)}">
@@ -158,7 +170,9 @@ function dietWeekHtml(day) {
   }).join('')}</div>`;
 }
 
-// Bouton rond à cocher (vert une fois coché) : un seul toucher, rien au pointerdown
+// Bouton rond à cocher : rond vide tant que le repas n'est pas coché, rond vert avec sa coche une fois coché, comme une
+// série en séance (panel vague 4 : la coche dessinée d'office se lisait « déjà fait »). L'icône reste dans le bouton,
+// invisible, pour l'animation qui la trace au moment de cocher. Un seul toucher, rien au pointerdown
 // day null (carte de l'accueil) : le jour est lu au toucher, jamais figé à l'affichage (carte restée ouverte après minuit)
 function dietCheckBtn(meal, done, day, extra = '') {
   return `<button class="diet-check${done ? ' diet-check--on' : ''}" data-action="diet-check" data-meal="${esc(meal.id)}"${day ? ` data-day="${day}"` : ''} aria-pressed="${done}"
@@ -215,7 +229,8 @@ function dietMealHtml(x, pr, day) {
   // Titre : un repas coché se déplie au toucher ; pas coché, il est déjà ouvert (simple texte)
   const title = `${isNext ? '<span class="diet-meal__eyebrow">Ensuite</span>' : ''}
               <span class="diet-meal__name">${esc(meal.name)}</span>
-              ${data.dietHideNumbers ? '' : `<span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`}`;
+              ${!meal.items.length && !extras.length ? '<span class="diet-meal__macros">Rien de prévu : ajoute ce que tu manges</span>'
+                : data.dietHideNumbers ? '' : `<span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`}`;
   return `
         <article class="diet-meal${done ? ' diet-meal--done' : ''}${isNext ? ' diet-meal--next' : ''}" data-meal="${esc(meal.id)}">
           <div class="diet-meal__head">
@@ -230,19 +245,20 @@ function dietMealHtml(x, pr, day) {
 }
 
 // Carte d'un plan reçu de mon coach (écran Nutrition, Mon coach) : nom, repas, « Utiliser ce plan »
-// Sans l'accord « recevoir les plans de mon coach » : invitation, sans rien du contenu du plan
-function dietInviteCardHtml() {
+// Sans l'accord « recevoir les plans de mon coach » : invitation, sans rien du contenu du plan. « Recevoir » demande
+// l'accord puis prend le plan d'un seul geste (panel vague 4 : « Accepter » puis « Utiliser », deux validations)
+function dietInviteCardHtml(item) {
   const who = esc(coachName());
   return `
         <article class="coach-prog diet-inbox diet-invite">
           <div class="coach-prog__eyebrow">Plans diète</div>
           <h3 class="coach-prog__name">${who} veut t'envoyer un plan diète</h3>
-          <p class="coach-prog__meta">Accepte pour le recevoir. Tu peux retirer ton accord quand tu veux.</p>
-          <button class="btn btn--primary coach-prog__btn" data-action="diet-coach-accept">Accepter</button>
+          <p class="coach-prog__meta">Ton plan actuel reste dans Plans diète. Tu peux retirer ton accord quand tu veux.</p>
+          <button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">Recevoir</button>
         </article>`;
 }
 function dietInboxCardHtml(item) {
-  if (!dietCoachAccepted()) return dietInviteCardHtml();
+  if (!dietCoachAccepted()) return dietInviteCardHtml(item);
   const { status } = dietInboxStatus(item);
   const who = esc(coachName());
   if (item.tooNew) return `
@@ -316,16 +332,21 @@ function renderNutrition(dayParam) {
   const plan = dietActivePlan(data);
   const day = dietRouteDay(dayParam);
   const pending = account.user && myCoach() ? dietPending() : null;
-  const right = plan ? `<button class="navbar__text" data-action="diet-open-plan" data-id="${esc(data.dietActive)}">Plan</button>` : '';
-  const title = dietDayTitle(day);
-  const head = navBar({ title, large: true, right });
+  // « Mon plan » : le plan suivi, dont le retour dira « Nutrition » (panel vague 4 : « Plan » seul, et un écran titré
+  // « Aujourd'hui » ouvert depuis la carte « Nutrition », faisaient trois noms pour un même endroit)
+  const right = plan ? `<button class="navbar__text" data-action="diet-open-plan" data-id="${esc(data.dietActive)}">Mon plan</button>` : '';
+  // Titre : la destination (Nutrition), comme la carte de l'accueil et le retour des écrans suivants ; le jour affiché
+  // passe en tête de la ligne du plan, en gras
+  const head = navBar({ title: 'Nutrition', large: true, right });
   if (!plan) {
     return `<div class="view view--grouped nutrition-view">${head}<div class="scr">
         ${pending ? `<div class="coach-progs">${dietInboxCardHtml(pending)}</div>` : ''}
         ${dietEmptyHtml()}${dietSettingsCellHtml()}${dietSourceFoot({ help: true })}</div></div>`;
   }
   const pr = dietDayProgress(data, data.dietActive, day);
-  const from = plan.fromCoach ? `<p class="diet-plan-from">${esc(plan.name)} · ${elide('de', esc(plan.fromCoach.name || 'ton coach'))}</p>` : `<p class="diet-plan-from">${esc(plan.name)}</p>`;
+  // Plan du coach : « envoyé par max » (« · de max » se lisait comme une quantité, panel Apple vague 4)
+  const by = plan.fromCoach ? ` · envoyé par ${esc(plan.fromCoach.name || 'ton coach')}` : '';
+  const from = `<p class="diet-plan-from"><b class="diet-plan-from__day">${esc(dietDayTitle(day))}</b> · ${esc(plan.name)}${by}</p>`;
   // Aujourd'hui : pas de jour figé dans les boutons, lu au toucher (écran resté ouvert après minuit)
   const past = day !== dietDayKey(), attrDay = past ? day : '';
   const meals = pr.meals.length ? pr.meals.map(x => dietMealHtml(x, pr, attrDay)).join('')
@@ -339,7 +360,8 @@ function renderNutrition(dayParam) {
         ${dietWeekHtml(day)}
         ${past ? '<button class="btn btn--secondary diet-today" data-action="diet-today">Revenir à aujourd\'hui</button>' : ''}
         ${dietSummaryHtml(pr)}
-        ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}</span></p>` : ''}
+        ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}${plan.fromCoach
+          ? ` Suis le plan de ${esc(plan.fromCoach.name || 'ton coach')} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
         ${pr.meals.length ? dietMacroLegendHtml() : ''}
@@ -364,10 +386,9 @@ function nutritionHomeCard() {
     <section class="home-card account-card coach-home" aria-labelledby="dietPendingTitle">
       <div class="account-card__text">
         <h2 class="account-card__title" id="dietPendingTitle">${!ok ? `${esc(coachName())} veut t'envoyer un plan diète` : dietInboxStatus(pending).status === 'update' ? `Plan diète mis à jour par ${esc(coachName())}` : `Nouveau plan diète ${elide('de', esc(coachName()))}`}</h2>
-        <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Accepte pour le recevoir'}</p>
+        <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Ton plan actuel reste dans Plans diète'}</p>
       </div>
-      ${ok ? `<button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">Utiliser</button>`
-        : '<button class="account-card__btn" data-action="diet-coach-accept">Accepter</button>'}
+      <button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">${ok ? 'Utiliser' : 'Recevoir'}</button>
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
     </section>` : '';
   const plan = dietActivePlan(data);
@@ -394,7 +415,7 @@ function nutritionHomeCard() {
   // VoiceOver : le bouton du haut dit tout (plan, calories, chaque repas) ; les lignes sont cachées, sauf le bouton à cocher
   const spokenMeals = pr.meals.filter(x => x.meal.items.length)
     .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
-  const spoken = `Nutrition, ${plan.name} : ${hide ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? ', journée complète' : ''}. ${spokenMeals}. Ouvrir`;
+  const spoken = `Nutrition, ${plan.name} : ${hide ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${spokenMeals}. Ouvrir`;
   return `${card}
     <section class="home-card diet-home${pr.complete ? ' diet-home--complete' : ''}">
       <button class="diet-home__open" data-action="go-nutrition" aria-label="${esc(spoken)}">
@@ -402,7 +423,7 @@ function nutritionHomeCard() {
         <span class="diet-home__text" aria-hidden="true">
           <span class="diet-home__title"><span class="home-card__title">Nutrition</span><span class="diet-home__plan">${esc(plan.name)}</span></span>
           <span class="diet-home__kcal num">${head}</span>
-          ${pr.complete ? `<span class="diet-home__next">${icon('checkmark', 12)}Journée complète</span>` : ''}
+          ${pr.complete ? `<span class="diet-home__next">${icon('checkmark', 12)}${dietStatusText(pr)}</span>` : ''}
         </span>
       </button>
       <div class="diet-home__meals" data-action="go-nutrition">${rows}
@@ -488,8 +509,12 @@ async function dietSwapSheet(itemId, day) {
   else {
     const c = cands[Number(choice)];
     if (!c) return;
+    const prev = cur || null;
     dietSetSwap(data, planId, itemId, { name: c.food.name, food: c.food.code, fam: c.food.fam, g: c.g, per: c.food.per }, day);
-    showToast(`Remplacé par ${foodName(c.food.name)}`);
+    // Annuler, comme « Retirer pour aujourd'hui » (panel Apple vague 4 : le remplacement changeait les totaux sans retour)
+    showToast(`Remplacé par ${foodName(c.food.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      dietSetSwap(data, planId, itemId, prev, day); save(); render(); announce(`Remis : ${foodName((prev || it).name)}`);
+    } });
   }
   haptic();
   save();
@@ -525,9 +550,9 @@ registerActions({
     save();
     const pr = dietDayProgress(data, planId, day);
     haptic(on ? (pr.complete ? 'success' : 'medium') : 'light');
-    if (on && pr.complete) { try { validationSound(); } catch {} announce('Journée complète, bravo'); }   // pas de toast : il couvrait la carte du repas ; « Journée complète » s'affiche déjà en haut, avec le son
+    if (on && pr.complete) { try { validationSound(); } catch {} }   // pas de toast : il couvrait la carte du repas ; « Journée complète » s'affiche déjà en haut, avec le son
     render();
-    if (on) { announce(pr.complete ? 'Journée complète' : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`); return; }
+    if (on) { announce(pr.complete ? dietStatusText(pr) : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`); return; }
     // Décoché par erreur : Annuler le recoche (le toast l'annonce à VoiceOver, « Annuler disponible »)
     const name = pr.meals.find(x => x.meal.id === meal)?.meal.name || 'Repas';
     showToast(`Décoché : ${name}`, { action: 'Annuler', duration: 5000, onAction: () => {
@@ -598,7 +623,8 @@ registerActions({
       if (!fresh || fresh.meta) { showToast(coachErrorText('offline'), { error: true }); return; }
     }
     // Donnée de santé : le plan du coach n'est reçu qu'avec l'accord de l'élève (« Recevoir les plans diète »)
-    if (!dietCoachAccepted() && !(await dietAskCoachAccept())) return;
+    // Accord demandé ici même : le plan est pris dans la foulée, sans « Touche Utiliser » (un seul geste)
+    if (!dietCoachAccepted() && !(await dietAskCoachAccept({ quiet: true }))) return;
     if (item.tooNew) { showToast('Mets l\'app à jour pour recevoir ce plan.'); return; }
     const it = dietInbox().find(x => x.id === item.id);
     const id = importCoachDiet(data, it, myCoach());
@@ -606,7 +632,8 @@ registerActions({
     save();
     haptic();
     coachMarkInboxSeen('programme', it.id);
-    showToast(`Plan en cours : ${it.data.name}`);
+    const before = Object.keys(data.dietPlans || {}).length > 1;
+    showToast(before ? `Plan en cours : ${it.data.name}. L'ancien reste dans Plans diète` : `Plan en cours : ${it.data.name}`);
     render();
   },
   'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },

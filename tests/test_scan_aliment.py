@@ -124,7 +124,7 @@ def t_scan(bench, eng, dev, theme):
         add_food_sheet(page)
         # Bouton en tête, avant la recherche, avec son icône
         order = page.evaluate("[...document.querySelector('.diet-pick').children].map(e => e.className.split(' ').pop() || e.id)")
-        R.check(order[:2] == ['diet-cand--scan', 'search'], f'{t} feuille : « Scanner » en tête, avant la recherche {order[:3]}')
+        R.check(order[:2] == ['diet-cand--scan', 'diet-pick__search'], f'{t} feuille : « Scanner » en tête, avant la recherche {order[:3]}')
         R.check(page.inner_text('.diet-cand--scan').strip() == 'Scanner un code-barres' and page.locator('.diet-cand--scan svg use[href="#i-barcode"]').count() == 1,
                 f'{t} feuille : « Scanner un code-barres » et son icône')
         sheet_layout(page, t, 'feuille Ajouter un aliment')

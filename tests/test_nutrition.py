@@ -129,17 +129,13 @@ def t_journee(bench, eng, dev, theme):
         card = page.locator('.diet-home')
         R.check(card.count() == 1 and 'nutrition' in card.inner_text().lower() and 'Petit-déjeuner' in card.inner_text(), f'{t} accueil : carte Nutrition avec le prochain repas')
         R.check(small_targets(page, '.diet-home button') == [], f'{t} carte : 44 pt')
-        # Bouton à cocher : coche grise visible, jamais un deuxième anneau vide à côté de celui des calories
-        col = page.evaluate("[getComputedStyle(document.querySelector('.diet-home .diet-check')).color, getComputedStyle(document.body).getPropertyValue('--label3')]")
-        R.check(page.locator('.diet-home .diet-check .icon').count() == 1, f'{t} carte : bouton Cocher présent ({col})')
-        # Panel Apple du 08/11 : contour et coche en couleur d'action, pas en gris pâle comme l'anneau des calories
-        tint = page.evaluate("""() => { const b = document.querySelector('.diet-home .diet-check'), s = getComputedStyle(b), probe = document.createElement('span');
-            probe.style.color = 'var(--tint)'; document.body.append(probe); const tint = getComputedStyle(probe).color; probe.remove();
-            return { color: s.color, ring: s.boxShadow, tint }; }""")
-        # Panel t5 : coche visible dans le rond (seul, il passait pour l'anneau des kcal) ; panel t6 : coche pleine en bleu
-        # d'action (à 40 % d'opacité, un bleu marine invisible en sombre)
-        op = page.evaluate("getComputedStyle(document.querySelector('.diet-home .diet-check .icon')).opacity")
-        R.check(float(op) == 1 and tint['color'] == tint['tint'] and tint['tint'] in tint['ring'], f'{t} carte : cercle et coche en couleur d\'action, coche lisible ({op}) {tint}')
+        # Bouton à cocher (panel vague 4) : rond vide gris, le même qu'une série à valider en séance ; la coche n'est
+        # dessinée qu'une fois coché (rond orange avec sa coche : lu « déjà fait »)
+        ring = page.evaluate("""() => { const b = document.querySelector('.diet-home .diet-check'), probe = document.createElement('span');
+            probe.style.color = 'var(--set-ring)'; document.body.append(probe); const set = getComputedStyle(probe).color; probe.remove();
+            return { ring: getComputedStyle(b).boxShadow, set, op: getComputedStyle(b.querySelector('.icon')).opacity }; }""")
+        R.check(page.locator('.diet-home .diet-check').count() == 1 and float(ring['op']) == 0 and ring['set'] in ring['ring'],
+                f'{t} carte : rond vide gris comme en séance, sans coche avant de cocher {ring}')
         shot(page, LOT, f'1-accueil-{t}')
         card.scroll_into_view_if_needed()
         shot(page, LOT, f'1b-accueil-carte-{t}')
@@ -153,13 +149,14 @@ def t_journee(bench, eng, dev, theme):
         # Écran Nutrition
         page.click('.diet-home__open')
         page.wait_for_selector('.nutrition-view .diet-sum')
-        # Journal : même bouton Cocher que sur l'accueil, en couleur d'action (panels de la vague 3)
+        # Journal : même rond vide que sur l'accueil ; l'appel « Coche ton… » est du texte seul (plus de deuxième rond)
         jc = page.evaluate("""() => { const b = document.querySelector('.nutrition-view .diet-check:not(.diet-check--on)'); if (!b) return null;
-            const p = document.createElement('span'); p.style.color = 'var(--tint)'; document.body.append(p); const tint = getComputedStyle(p).color; p.remove();
-            const s = getComputedStyle(b); return parseFloat(getComputedStyle(b.querySelector('.icon')).opacity) === 1 && s.color === tint && s.boxShadow.includes(tint); }""")
-        R.check(jc is True, f'{t} journal : pas coché = cercle et coche en couleur d\'action ({jc})')
+            const p = document.createElement('span'); p.style.color = 'var(--set-ring)'; document.body.append(p); const set = getComputedStyle(p).color; p.remove();
+            return parseFloat(getComputedStyle(b.querySelector('.icon')).opacity) === 0 && getComputedStyle(b).boxShadow.includes(set); }""")
+        R.check(jc is True and page.locator('.diet-sum__call-dot').count() == 0, f'{t} journal : pas coché = rond vide gris, un seul dessin ({jc})')
         txt = page.inner_text('.nutrition-view')
-        R.check("Aujourd'hui" in txt and 'Prise de masse' in txt, f'{t} Nutrition : titre et plan')
+        R.check("Aujourd'hui" in txt and 'Prise de masse' in txt and big_title(page) == "Aujourd'hui" and page.inner_text('.navbar__large').strip() == 'Nutrition'
+                and page.inner_text('[data-action="diet-open-plan"]').strip() == 'Mon plan', f'{t} Nutrition : titre Nutrition, jour et plan, bouton Mon plan')
         R.check('sur 2 600 kcal' in txt.replace(' ', ' ').replace('\xa0', ' '), f'{t} Nutrition : objectif de calories du plan')
         # Calories et protéines fixées, pas les glucides ni les lipides : pas de repère tiré du plan (il ne colle pas aux 2 600 kcal)
         R.check(page.locator('.diet-bar--p:not(.diet-bar--free) .diet-bar__track').count() == 1 and page.locator('.diet-bar--free').count() == 2
@@ -167,9 +164,11 @@ def t_journee(bench, eng, dev, theme):
         R.check(page.locator('.diet-week__day').count() == 7 and page.get_attribute('.diet-week__day--on', 'data-day') == '2026-11-05', f'{t} frise : 7 jours, aujourd\'hui choisi')
         R.check(page.locator('.diet-meal--done').count() == 1 and page.locator('.diet-meal--done .diet-item').count() == 0, f'{t} repas coché replié')
         R.check(page.locator('.diet-meal--next[data-meal="m2"]').count() == 1 and 'ensuite' in page.inner_text('.diet-meal--next').lower(), f'{t} déjeuner marqué « Ensuite »')
+        # Panel Apple vague 4 : « Ensuite » est un état (la carte porte le contour orange), en gris secondaire, ni orange
+        # d'action ni vert de « fait »
         nx = page.evaluate("""() => { const e = document.querySelector('.diet-meal--next .diet-meal__eyebrow'), p = document.createElement('i');
-            p.style.color = 'var(--tint)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return getComputedStyle(e).color === c; }""")
-        R.check(nx, f'{t} « Ensuite » en couleur d\'action, pas le vert de « fait »')
+            p.style.color = 'var(--label2)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return getComputedStyle(e).color === c; }""")
+        R.check(nx, f'{t} « Ensuite » en gris secondaire (un état, pas une action)')
         R.check('Pèse le riz cuit.' in txt, f'{t} consigne du repas')
         R.check('Ciqual 2025' in txt and 'Licence Ouverte Etalab 2.0' in txt and 'avis médical' in txt, f'{t} source, licence et précaution citées')
         R.check('0810 037 037' in txt, f'{t} ligne d\'écoute en bas de l\'écran')
@@ -265,7 +264,7 @@ def t_journee(bench, eng, dev, theme):
         # Hier : frise, jour vide
         page.click('.diet-week__day[data-day="2026-11-04"]')
         page.wait_for_timeout(300)
-        R.check(page.inner_text('.navbar__large').strip() == 'Hier' and page.locator('.diet-meal--done').count() == 0, f'{t} hier : rien de coché')
+        R.check(page.inner_text('.diet-plan-from__day').strip() == 'Hier' and page.inner_text('.navbar__large').strip() == 'Nutrition' and page.locator('.diet-meal--done').count() == 0, f'{t} hier : rien de coché')
         page.click('.diet-week__day[data-day="2026-11-05"]')
         page.wait_for_timeout(300)
         R.check(page.locator('.diet-meal--done').count() == 4, f'{t} retour à aujourd\'hui')
@@ -523,7 +522,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check(page.evaluate("data.dietConsent.on") is False and page.evaluate("Object.keys(profilePayload(data)).filter(k => k.startsWith('diet'))") == ['dietConsent'], f'{t} refus daté : aucun plan vers le serveur')
         page.wait_for_selector('.nutrition-view .diet-sum')
-        R.check('de max' in page.inner_text('.diet-plan-from') and 'Bois 2 L par jour.' in page.inner_text('.nutrition-view'), f'{t} élève : plan du coach et sa consigne')
+        R.check('envoyé par max' in page.inner_text('.diet-plan-from') and 'Bois 2 L par jour.' in page.inner_text('.nutrition-view'), f'{t} élève : plan du coach et sa consigne')
         shot(page, LOT, f'12-eleve-nutrition-{t}')
         # Plan du coach en lecture seule
         page.click('[data-action="diet-open-plan"]')
@@ -588,7 +587,8 @@ def t_plan_neuf_puis_coach(bench):
             page.wait_for_timeout(250)
             home = page.inner_text('.diet-home').replace('\u202f', ' ').replace('\xa0', ' ')
             pr = page.evaluate("dietDayProgress(data, data.dietActive)")
-            R.check('Journée complète' in home and 'Déjeuner' not in home, f'{t} accueil : seul repas rempli coché, journée complète ({home!r})')
+            # Panel vague 4 : trois repas vides restent à remplir, ce n'est pas « Journée complète »
+            R.check('Repas prévu coché' in home and 'Journée complète' not in home and 'Déjeuner' not in home, f'{t} accueil : seul repas rempli coché, repas prévu coché ({home!r})')
             R.check(pr['goal']['kcal'] == round(pr['eaten']['kcal']), f'{t} accueil : repère = prévu du jour ({round(pr["eaten"]["kcal"])} sur {pr["goal"]["kcal"]})')
             page.locator('.diet-home').scroll_into_view_if_needed()
             R.check(page.locator('.toast').count() == 0, f'{t} journée complète : aucun toast posé sur la carte d\'un repas (le haut le dit déjà)')
@@ -596,7 +596,9 @@ def t_plan_neuf_puis_coach(bench):
             shot(page, LOT, f'16-plan-neuf-accueil-{t}')
             page.click('.diet-home__open')
             page.wait_for_selector('.nutrition-view .diet-sum')
-            R.check('Journée complète' in page.inner_text('.diet-sum') and page.locator('.diet-meal--next').count() == 0, f'{t} Nutrition : journée complète, aucun repas vide « Ensuite »')
+            R.check('Repas prévu coché' in page.inner_text('.diet-sum') and page.locator('.diet-meal--next').count() == 0, f'{t} Nutrition : repas prévu coché, aucun repas vide « Ensuite »')
+            R.check('Rien de prévu' in page.inner_text('.diet-meal[data-meal="p2"]') and '0 kcal' not in page.inner_text('.diet-meal[data-meal="p2"]').replace('\xa0', ' '),
+                    f'{t} repas vide : « Rien de prévu », pas une ligne de zéros')
             R.check(page.locator('.diet-week__day[data-day="2026-11-05"] .diet-week__dot--done').count() == 1, f'{t} frise : aujourd\'hui vert, comme le bilan')
             # Plan du coach suivi le même jour : 0 coché, la frise d'aujourd'hui ne garde pas la coche de l'ancien plan
             page.evaluate("data.dietActive = 'dc_max_lea00001'; save(); render()")
@@ -635,11 +637,13 @@ def t_invitation(bench):
             page.wait_for_selector('.diet-invite')
             R.check('Plan secret' not in page.inner_text('#app'), f'{theme} Mon coach : rien du plan sans accord')
             shot(page, LOT, f'15-invitation-iPhone_13-{theme}')
-            page.click('.diet-invite [data-action="diet-coach-accept"]')
+            # Panel vague 4 : « Recevoir » donne l'accord ET prend le plan, d'un seul geste (plus de « Utiliser » ensuite)
+            page.click('.diet-invite [data-action="diet-take"]')
             page.wait_for_selector('.ios-dialog')
             tap_dialog(page, 'Accepter')
             page.wait_for_timeout(500)
             R.check(page.evaluate("data.dietCoachConsent.on") is True and 'Plan secret' in page.inner_text('#app'), f'{theme} serveur d\'avant : accord gardé sur l\'appareil, plan affiché')
+            R.check(page.evaluate("dietActivePlan(data)?.name") == 'Plan secret' and 'Touche Utiliser' not in toast(page), f'{theme} Recevoir : plan suivi d\'un geste ({toast(page)!r})')
             R.check(not page.errors, f'{theme} invitation : aucune erreur JS {page.errors[:2]}')
 
 
@@ -788,7 +792,8 @@ SHOW = """() => { Object.defineProperty(document, 'visibilityState', { configura
 
 
 def big_title(page):
-    return page.inner_text('.navbar__large').strip()
+    """Jour affiché : en tête de la ligne du plan (le grand titre dit toujours « Nutrition », panel vague 4)."""
+    return page.inner_text('.diet-plan-from__day').strip()
 
 
 def t_jour_et_retirer(bench, eng, dev, theme):
@@ -989,7 +994,10 @@ def t_vague4(bench, eng, dev, theme):
         pick_food(page, 'riz blanc', 'Riz blanc, cru')
         page.wait_for_selector(f'{LIVE_SHEET} .qty__twin')
         tw = nb(page.inner_text(f'{LIVE_SHEET} .qty__twin'))
-        R.check('Pesé cuit ? Choisis la version cuite.' in tw and 'Riz blanc, cuit, sans sel ajouté' in tw, f'{t} v4 quantité : rappel cru / cuit ({tw!r})')
+        R.check('Pesé cuit ? Choisis la version cuite.' in tw and 'Prendre la version cuite' in tw
+                and 'Riz blanc, cuit, sans sel ajouté' in (page.get_attribute(f'{LIVE_SHEET} [data-qtwin]', 'aria-label') or ''), f'{t} v4 quantité : rappel cru / cuit, en lien sous la quantité ({tw!r})')
+        R.check(page.evaluate(f"(() => {{ const q = document.querySelector('{LIVE_SHEET} [data-qty]'), w = document.querySelector('{LIVE_SHEET} .qty__twin'); return !!(q.compareDocumentPosition(w) & Node.DOCUMENT_POSITION_FOLLOWING); }})()"),
+                f'{t} v4 quantité : rappel après le champ (lu après lui par VoiceOver)')
         R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '100', f'{t} v4 quantité : 100 g d\'office')
         R.check(small_targets(page, f'{LIVE_SHEET} button') == [] and not cut_texts(page, LIVE_SHEET), f'{t} v4 quantité : 44 pt, aucun texte coupé')
         shot(page, LOT, f'v4-5-pese-cuit-{t}')
@@ -998,6 +1006,8 @@ def t_vague4(bench, eng, dev, theme):
         page.wait_for_selector(f'{LIVE_SHEET} #qtyVal, .ios-dialog__input')
         R.check(page.locator(f'{LIVE_SHEET} .qty__twin').count() == 0, f'{t} v4 version cuite : pas de second rappel')
         qty_grams(page, '180')
+        # Panel vague 4 : la recherche disait déjà « cuit », la version cuite est voulue : aucun rappel « Pesé cru ? »
+        R.check(page.evaluate("foodQuerySaysCook('riz blanc cuit') && foodQuerySaysCook('Poulet CRU') && !foodQuerySaysCook('riz blanc')"), f'{t} v4 recherche qui dit la cuisson reconnue')
         page.wait_for_timeout(400)
         it = page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1)")
         R.check(it and it['food'] == RIZ and it['g'] == 180, f'{t} v4 version cuite ajoutée ({it and it["name"]}, {it and it["g"]} g)')
@@ -1068,7 +1078,7 @@ def t_vague4_plein(bench):
             create('Barre maison 2')
             tap_dialog(page, 'Gérer Mes aliments')
             page.wait_for_selector('.diet-foods-view')
-            R.check('200 sur 200' in nb(page.inner_text('.diet-foods-view')) and page.locator('.diet-foods-view .diet-low').count() == 1, f'{theme} Mes aliments : 200 sur 200, plein dit')
+            R.check('200 aliments perso, 200 au plus' in nb(page.inner_text('.diet-foods-view')) and page.locator('.diet-foods-view .diet-low').count() == 1, f'{theme} Mes aliments : 200 sur 200, plein dit')
             R.check(page.locator('.diet-foods-view [data-action="diet-food-menu"]').count() == 200, f'{theme} Mes aliments : la liste')
             layout(page, theme, 'Mes aliments')
             shot(page, LOT, f'v4-9-mes-aliments-{theme}')
@@ -1076,7 +1086,7 @@ def t_vague4_plein(bench):
             tap_dialog(page, 'Retirer de Mes aliments')
             page.wait_for_timeout(300)
             R.check(page.evaluate("[data.dietFoods.length, data.dietFoods[0].id, data.dietFoodsGone]") == [199, 'f1', ['f0']], f'{theme} retiré, noté pour la synchro')
-            R.check('199 sur 200' in nb(page.inner_text('.diet-foods-view')) and 'Retiré : Aliment perso 0' in toast(page), f'{theme} retiré : compteur et toast')
+            R.check('199 aliments perso, 200 au plus' in nb(page.inner_text('.diet-foods-view')) and 'Retiré : Aliment perso 0' in toast(page), f'{theme} retiré : compteur et toast')
             page.locator('.toast__action').click()
             page.wait_for_timeout(300)
             R.check(page.evaluate("[data.dietFoods.length, data.dietFoods[0].id, data.dietFoodsGone ?? null]") == [200, 'f0', None], f'{theme} Annuler : remis à sa place')
