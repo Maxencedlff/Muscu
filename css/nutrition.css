@@ -246,6 +246,13 @@ body.light .fscan__vals { background: var(--cell); }
 .diet-field__input:focus { outline: none; }
 .diet-field:focus-within { box-shadow: inset 0 0 0 2px var(--tint); }
 .diet-field__unit { flex-shrink: 0; min-width: 2.4em; font-size: var(--fs-callout); color: var(--label2); }
+/* Valeurs pour 100 g : une liste groupée iOS, séparateurs fins, plutôt qu'une carte par champ (panel Apple vague 4) */
+.diet-fields { margin-top: 8px; border-radius: var(--r-md); overflow: hidden; background: var(--cell); }
+.sheet .diet-fields { background: var(--cell2); }
+body.light .sheet .diet-fields { background: var(--cell); }
+.diet-fields > .diet-field { position: relative; margin-top: 0; border-radius: 0; background: none; }
+.diet-fields > .diet-field + .diet-field::before { content: ''; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--sep); }
+.diet-fields > .diet-field:focus-within { border-radius: var(--r-md); }
 .diet-form__err { margin: 8px 0 0; min-height: 1.2em; font-size: var(--fs-footnote); color: var(--red-text); }
 
 /* Éditeur : plan suivi, valeur « Suivi » de la liste */
