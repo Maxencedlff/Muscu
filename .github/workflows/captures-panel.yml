@@ -74,7 +74,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           python -u tests/panel/capture_parcours.py "$RUNNER_TEMP/out/$MODE-$GROUPE" $OPT --parcours "$PARCOURS"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: part-${{ matrix.mode }}-${{ matrix.groupe }}
           path: ${{ runner.temp }}/out
@@ -118,7 +118,7 @@ jobs:
               ko = sum(1 for x in e if x.get('statut') == 'erreur'); ab = sum(1 for x in e if x.get('statut') == 'absent')
               print(f'{m} : {n} captures, {len(e)} étapes, {ab} absentes, {ko} en erreur')
           PY
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: captures-panel
           path: captures
