@@ -155,7 +155,8 @@ def t_journee(bench, eng, dev, theme):
             return parseFloat(getComputedStyle(b.querySelector('.icon')).opacity) === 0 && getComputedStyle(b).boxShadow.includes(set); }""")
         R.check(jc is True and page.locator('.diet-sum__call-dot').count() == 0, f'{t} journal : pas coché = rond vide gris, un seul dessin ({jc})')
         txt = page.inner_text('.nutrition-view')
-        R.check("Aujourd'hui" in txt and 'Prise de masse' in txt, f'{t} Nutrition : titre et plan')
+        R.check("Aujourd'hui" in txt and 'Prise de masse' in txt and big_title(page) == "Aujourd'hui" and page.inner_text('.navbar__large').strip() == 'Nutrition'
+                and page.inner_text('[data-action="diet-open-plan"]').strip() == 'Mon plan', f'{t} Nutrition : titre Nutrition, jour et plan, bouton Mon plan')
         R.check('sur 2 600 kcal' in txt.replace(' ', ' ').replace('\xa0', ' '), f'{t} Nutrition : objectif de calories du plan')
         # Calories et protéines fixées, pas les glucides ni les lipides : pas de repère tiré du plan (il ne colle pas aux 2 600 kcal)
         R.check(page.locator('.diet-bar--p:not(.diet-bar--free) .diet-bar__track').count() == 1 and page.locator('.diet-bar--free').count() == 2
@@ -261,7 +262,7 @@ def t_journee(bench, eng, dev, theme):
         # Hier : frise, jour vide
         page.click('.diet-week__day[data-day="2026-11-04"]')
         page.wait_for_timeout(300)
-        R.check(page.inner_text('.navbar__large').strip() == 'Hier' and page.locator('.diet-meal--done').count() == 0, f'{t} hier : rien de coché')
+        R.check(page.inner_text('.diet-plan-from__day').strip() == 'Hier' and page.inner_text('.navbar__large').strip() == 'Nutrition' and page.locator('.diet-meal--done').count() == 0, f'{t} hier : rien de coché')
         page.click('.diet-week__day[data-day="2026-11-05"]')
         page.wait_for_timeout(300)
         R.check(page.locator('.diet-meal--done').count() == 4, f'{t} retour à aujourd\'hui')
@@ -519,7 +520,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check(page.evaluate("data.dietConsent.on") is False and page.evaluate("Object.keys(profilePayload(data)).filter(k => k.startsWith('diet'))") == ['dietConsent'], f'{t} refus daté : aucun plan vers le serveur')
         page.wait_for_selector('.nutrition-view .diet-sum')
-        R.check('de max' in page.inner_text('.diet-plan-from') and 'Bois 2 L par jour.' in page.inner_text('.nutrition-view'), f'{t} élève : plan du coach et sa consigne')
+        R.check('envoyé par max' in page.inner_text('.diet-plan-from') and 'Bois 2 L par jour.' in page.inner_text('.nutrition-view'), f'{t} élève : plan du coach et sa consigne')
         shot(page, LOT, f'12-eleve-nutrition-{t}')
         # Plan du coach en lecture seule
         page.click('[data-action="diet-open-plan"]')
@@ -784,7 +785,8 @@ SHOW = """() => { Object.defineProperty(document, 'visibilityState', { configura
 
 
 def big_title(page):
-    return page.inner_text('.navbar__large').strip()
+    """Jour affiché : en tête de la ligne du plan (le grand titre dit toujours « Nutrition », panel vague 4)."""
+    return page.inner_text('.diet-plan-from__day').strip()
 
 
 def t_jour_et_retirer(bench, eng, dev, theme):

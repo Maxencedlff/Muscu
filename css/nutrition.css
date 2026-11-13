@@ -5,6 +5,7 @@
 ═══════════════════════════════════════════════ */
 
 .diet-plan-from { margin: 0 0 4px; padding: 0 4px; font-size: var(--fs-subhead); color: var(--label2); overflow-wrap: anywhere; }
+.diet-plan-from__day { color: var(--label); font-weight: 600; }   /* jour affiché (Aujourd'hui, Hier, mardi 3 novembre) */
 .nutrition-view .coach-progs { margin-top: 8px; }
 
 /* Frise des 7 derniers jours : pastille verte = journée complète */

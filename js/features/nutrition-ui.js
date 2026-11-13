@@ -315,16 +315,21 @@ function renderNutrition(dayParam) {
   const plan = dietActivePlan(data);
   const day = dietRouteDay(dayParam);
   const pending = account.user && myCoach() ? dietPending() : null;
-  const right = plan ? `<button class="navbar__text" data-action="diet-open-plan" data-id="${esc(data.dietActive)}">Plan</button>` : '';
-  const title = dietDayTitle(day);
-  const head = navBar({ title, large: true, right });
+  // « Mon plan » : le plan suivi, dont le retour dira « Nutrition » (panel vague 4 : « Plan » seul, et un écran titré
+  // « Aujourd'hui » ouvert depuis la carte « Nutrition », faisaient trois noms pour un même endroit)
+  const right = plan ? `<button class="navbar__text" data-action="diet-open-plan" data-id="${esc(data.dietActive)}">Mon plan</button>` : '';
+  // Titre : la destination (Nutrition), comme la carte de l'accueil et le retour des écrans suivants ; le jour affiché
+  // passe en tête de la ligne du plan, en gras
+  const head = navBar({ title: 'Nutrition', large: true, right });
   if (!plan) {
     return `<div class="view view--grouped nutrition-view">${head}<div class="scr">
         ${pending ? `<div class="coach-progs">${dietInboxCardHtml(pending)}</div>` : ''}
         ${dietEmptyHtml()}${dietSettingsCellHtml()}${dietSourceFoot({ help: true })}</div></div>`;
   }
   const pr = dietDayProgress(data, data.dietActive, day);
-  const from = plan.fromCoach ? `<p class="diet-plan-from">${esc(plan.name)} · ${elide('de', esc(plan.fromCoach.name || 'ton coach'))}</p>` : `<p class="diet-plan-from">${esc(plan.name)}</p>`;
+  // Plan du coach : « envoyé par max » (« · de max » se lisait comme une quantité, panel Apple vague 4)
+  const by = plan.fromCoach ? ` · envoyé par ${esc(plan.fromCoach.name || 'ton coach')}` : '';
+  const from = `<p class="diet-plan-from"><b class="diet-plan-from__day">${esc(dietDayTitle(day))}</b> · ${esc(plan.name)}${by}</p>`;
   // Aujourd'hui : pas de jour figé dans les boutons, lu au toucher (écran resté ouvert après minuit)
   const past = day !== dietDayKey(), attrDay = past ? day : '';
   const meals = pr.meals.length ? pr.meals.map(x => dietMealHtml(x, pr, attrDay)).join('')
