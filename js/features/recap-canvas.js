@@ -12,7 +12,7 @@
 // vides ; rien sous 36 px (lisible en vignette). Jamais de poids du corps ni de mensuration dans l'image.
 const RECAP_TONE_COLORS = {
   accent: { bg: '#FF7A1A', fg: '#000000', heat: '#000000', box: '#000000', boxText: '#FFFFFF' },
-  night:  { bg: '#000000', fg: '#FFFFFF', heat: '#FF7A1A', box: '#1C1C1E', boxText: '#FFFFFF' },
+  night:  { bg: '#000000', fg: '#FFFFFF', heat: '#C94A3F', box: '#1C1C1E', boxText: '#FFFFFF' },
 };
 const RECAP_TONE_LIGHT = { accent: { bg: '#A85400', fg: '#FFFFFF', heat: '#000000', box: '#FFFFFF', boxText: '#000000' } };
 // Couleurs d'un écran dans le thème de l'app (light : thème clair) ; ton inconnu : l'orange
@@ -20,8 +20,9 @@ function recapToneColors(tone, light) {
   const t = Object.hasOwn(RECAP_TONE_COLORS, tone) ? tone : 'accent';
   return (light && RECAP_TONE_LIGHT[t]) || RECAP_TONE_COLORS[t];
 }
-// Personnage du profil (écran noir) : l'orange de Progrès en sombre, un seul, l'intensité dit le palier
-const RECAP_BODY = { heat: '#FF7A1A', peak: '#FF7A1A' };
+// Personnage du profil (écran noir) : le rouge des muscles de Progrès en sombre, l'intensité dit le palier ;
+// palier le plus haut : le rose pâle du dernier palier (comme .is-peak, css/recap.css)
+const RECAP_BODY = { heat: '#C94A3F', peak: '#FDD4CC' };
 const RECAP_STORY = {
   HEAD: 40,          // « MA SEMAINE · 12 – 18 OCTOBRE »
   NUM_MAX: 300, NUM_MIN: 140,

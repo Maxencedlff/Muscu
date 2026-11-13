@@ -62,7 +62,7 @@ function bodyHeatOpacity(i) {
   return v > 0 ? Math.round((0.15 + 0.85 * v) * 10) / 10 : 0;
 }
 
-// Paliers de Progrès (option tiers) : une rampe orange dont la clarté change dans le même sens à chaque palier (panels de
+// Paliers de Progrès (option tiers) : une rampe rouge dont la clarté change dans le même sens à chaque palier (panels de
 // la vague 3 : Objectif atteint plus clair que Gros volume, l'échelle ne se lisait pas). En clair, du plus pâle au plus
 // sombre ; en sombre, du plus sombre au plus lumineux (tokens --body-tier-1 à 4, css/base.css). Intensité = palier /
 // MUSCLE_LEVEL_MAX ; null : muscle non coloré.

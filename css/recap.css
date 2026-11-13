@@ -7,16 +7,17 @@
 ═══════════════════════════════════════════════ */
 
 :root {
-  --rc-accent: #FF7A1A; --rc-on-accent: #000; --rc-night: #000; --rc-on-night: #FFF; --rc-night-heat: #FF7A1A;
+  --rc-accent: #FF7A1A; --rc-on-accent: #000; --rc-night: #000; --rc-on-night: #FFF; --rc-night-heat: #C94A3F;
 }
 body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
 .tone-accent { --rc-bg: var(--rc-accent); --rc-fg: var(--rc-on-accent); --rc-heat: #000; }   /* muscles en noir sur la silhouette claire, dans les deux thèmes */
 .tone-night  { --rc-bg: var(--rc-night);  --rc-fg: var(--rc-on-night);  --rc-heat: var(--rc-night-heat); }
-/* Écran noir, même en thème clair : la silhouette garde la rampe du sombre (Progrès, theme-sobre-progres.css), sinon
-   le palier le plus haut, le plus foncé en clair, serait le moins visible sur le noir */
+/* Écran noir, même en thème clair : la silhouette garde le rouge des muscles du sombre (Progrès,
+   theme-sobre-progres.css), sinon le palier le plus haut, le plus foncé en clair, serait le moins visible sur le noir.
+   Palier le plus haut (.is-peak) : le rose pâle du dernier palier de Progrès, distinct du rouge des autres */
 .tone-night {
-  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #FF7A1A; --body-heat-max: #FF7A1A; --body-heat-sec: #AD6430;
-  --body-tier-1: #7F573C; --body-tier-2: #AD6430; --body-tier-3: #D76F25; --body-tier-4: #FF7A1A;
+  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #C94A3F; --body-heat-max: #FDD4CC; --body-heat-sec: #9E5A50;
+  --body-tier-1: #A73830; --body-tier-2: #E15F51; --body-tier-3: #F89B8C; --body-tier-4: #FDD4CC;
 }
 
 /* ── Accueil : carte « Ta semaine », une cellule comme les autres (pas d'aplat sur l'accueil) ── */
