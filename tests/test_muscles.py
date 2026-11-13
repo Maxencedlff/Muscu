@@ -765,7 +765,7 @@ def t_fiche(bench, eng, dev, theme):
             return !!(h.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) && h.getBoundingClientRect().width >= document.querySelector('.extabs').getBoundingClientRect().width - 1; }""")
         R.check(order and page.locator('.howto .exvideo').count() == 0 and page.locator('.exhero .exvideo__play').count() == 1,
                 f'{t} animation 3D en tête, pleine largeur, avant le titre, avec son bouton')
-        R.check(page.inner_text('.exhead__title').strip() == 'Squat barre' and page.inner_text('.exhead__sub').strip() == 'Quadriceps, Fessiers · Salle',
+        R.check(page.inner_text('.exhead__title').strip() == 'Squat barre' and page.inner_text('.exhead__sub').strip() .replace('\xa0', ' ') == 'Quadriceps · Fessiers · Salle',
                 f'{t} titre et ligne « muscles · matériel » ({page.inner_text(".exhead__sub")!r})')
         # Onglets : tablist, À propos à l'ouverture, un seul panneau visible
         tabs = page.locator('.library-ex .extabs[role="tablist"] [role="tab"]')

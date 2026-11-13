@@ -235,7 +235,7 @@ function renderLibraryEx(name) {
     records: st ? `${st.records}${st.target}` : libExEmptyHtml('records'),
   };
   const q = EQUIPMENT.find(x => x.id === e.equip);
-  const sub = [[...new Set(exerciseMuscles({ name }).primary.map(muscleLabel))].join(', '), q?.label].filter(Boolean).join('\u00a0· ');   // « · » collé au mot d'avant : le matériel ne se lit pas comme un muscle
+  const sub = [[...new Set(exerciseMuscles({ name }).primary.map(muscleLabel))].join('\u00a0· '), q?.label].filter(Boolean).join('\u00a0· ');   // « · » collé au mot d'avant : le matériel ne se lit pas comme un muscle
   const title = catalogueAliasOf(name) ? name : e.name;
   return `
     <div class="view library-ex view--grouped">
