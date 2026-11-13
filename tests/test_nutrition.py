@@ -72,6 +72,11 @@ def no_hscroll(page):
 
 
 def small_targets(page, sel='#app button, .tabbar button'):
+    # Rebond du rond coché fini d'abord (.vv-fill : 0,86 → 1,08 → 1 en 0,34 s, direction sobre et vivante) : une cible
+    # mesurée en plein rebond paraissait sous 44 pt. Seulement lui : attendre toutes les animations laisserait partir
+    # les toasts (et leur « Annuler ») avant la suite du test.
+    page.evaluate("""() => Promise.all(document.getAnimations().filter(a => a.effect?.target?.closest?.('.vv-fill'))
+        .map(a => a.finished.catch(() => null)))""")
     return page.evaluate("""s => [...document.querySelectorAll(s)].filter(e => e.offsetParent && !e.disabled)
         .filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; })
         .map(e => (e.getAttribute('aria-label') || e.textContent).trim().slice(0, 30))""", sel)

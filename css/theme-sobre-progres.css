@@ -64,7 +64,7 @@ body.light {
 .history-detail .tile, .stats-overview .tile { background: none; border-radius: 0; padding: 0 12px; gap: 2px; min-height: 0; }
 .history-detail .tile:first-child, .stats-overview .tile:first-child { padding-left: 4px; }
 .history-detail .tile + .tile, .stats-overview .tile + .tile { border-left: .5px solid var(--sep); }
-html:not(.type-xl) .history-detail .tile__val, html:not(.type-xl) .stats-overview .tile__val { font-size: clamp(1.2rem, 6vw, 1.647rem); line-height: 1.15; }
+html:not(.type-xl) .history-detail .tile__val, html:not(.type-xl) .stats-overview .tile__val { font-size: clamp(0.9rem, 5vw, 1.647rem); line-height: 1.15; }   /* 5vw comme la base : « 181,9 t » coupé sur iPhone SE et Galaxy S9+ à 6vw (police plus large que SF Pro) */
 html.type-xl .history-detail .tiles, html.type-xl .stats-overview .tiles { grid-template-columns: 1fr; row-gap: 10px; }
 html.type-xl .history-detail .tile + .tile, html.type-xl .stats-overview .tile + .tile { border-left: 0; padding: 10px 0 0 4px; border-top: .5px solid var(--sep); }
 .tiles + .group-title { padding-top: 22px; }
