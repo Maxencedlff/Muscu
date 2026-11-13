@@ -972,6 +972,82 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     for (const f of ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js']) assert.ok(read(f).includes('dietMacroLegendHtml('), `légende : ${f}`);
   });
 
+  test('repas vides : aujourd\'hui déjà enregistré pré-rempli sans rien de noté se lit vide (passé intact)', () => {
+    reset0(); mealsDay(2);
+    const T = run('dietDayKey()');
+    run(`data.dietLog = { '${T}': { plan: 'd_a', done: [], swaps: {}, meals: ['m1', 'm2'] }, '${H}': { plan: 'd_a', done: [], swaps: {}, meals: ['m1'] } }`);
+    const p = pr(T);
+    assert.ok(p.blank && p.eaten.kcal === 0 && p.meals.every(x => !x.live.length && x.copyable), 'aujourd\'hui : vide');
+    assert.equal(run(`dietDay(data, 'd_a', '${H}').blank`), undefined, 'jour passé : jamais touché');
+    // Plan de coach ou réglage « pré-remplis » : rien ne change
+    run(`data.dietEmptyDays = false`);
+    assert.ok(!pr(T).blank, 'réglage pré-remplis respecté');
+    run(`delete data.dietEmptyDays; data.dietPlans.d_a.fromCoach = { coachId: 'c1', name: 'coach_x' }`);
+    assert.ok(!pr(T).blank, 'plan du coach : pré-rempli');
+  });
+
+  test('repas vides : aujourd\'hui avec quelque chose de noté reste pré-rempli', () => {
+    reset0(); mealsDay(2);
+    const T = run('dietDayKey()');
+    for (const e of [{ done: ['m1'] }, { removed: ['it1'] }, { off: ['m2'] }, { swaps: { it1: item(RIZ_CUIT, 80) } }, { copied: ['m1'] }]) {
+      run(`data.dietLog = { '${T}': ${JSON.stringify({ plan: 'd_a', done: [], swaps: {}, ...e })} }`);
+      assert.ok(!pr(T).blank, `noté : ${Object.keys(e)[0]}`);
+    }
+  });
+
+  test('reprendre le repas d\'hier : ajouts et aliments du plan cochés (remplacements compris), comptés tout de suite', () => {
+    reset(); mealsDay(2); run('data.dietEmptyDays = false');
+    // Hier, pré-rempli : Midi coché avec le riz remplacé par 80 g de riz, plus un œuf ajouté
+    run(`dietSetSwap(data, 'd_a', 'it1', ${JSON.stringify(item(RIZ_CUIT, 80))}, '${H}'); dietToggleMeal(data, 'd_a', 'm2', '${H}')`);
+    add('m2', OEUF_DUR, 50, H);
+    add('m1', OEUF_DUR, 30, H);   // Matin pas coché : son ajout ne compte pas, rien à reprendre
+    run('data.dietEmptyDays = true');
+    const src = run(`dietMealReuseSource(data, 'd_a', 'm2', '${D}')`);
+    sameJSON([src.day, src.items.map(x => x.g)], [H, [80, 50]]);
+    assert.equal(run(`dietMealReuseSource(data, 'd_a', 'm1', '${D}')`), null, 'Matin d\'hier pas mangé');
+    const r = run(`dietReuseMeal(data, 'd_a', 'm2', '${D}')`);
+    assert.ok(r.day === H && r.ids.length === 2);
+    const p = pr();
+    sameJSON(p.meals[1].extras.map(x => x.g), [80, 50]);
+    assert.equal(Math.round(p.eaten.kcal), Math.round(kcal(RIZ_CUIT, 80) + kcal(OEUF_DUR, 50)), 'compté tout de suite');
+    // Modifiable et retirable comme tout ajout
+    assert.ok(run(`dietSetExtra(data, 'd_a', 'm2', '${r.ids[0]}', 100, '${D}')`));
+    assert.ok(run(`dietSetExtra(data, 'd_a', 'm2', '${r.ids[1]}', null, '${D}')`));
+    sameJSON(pr().meals[1].extras.map(x => x.g), [100]);
+    assert.equal(run(`dietDay(data, 'd_a', '${H}').extras.m2.length`), 1, 'hier inchangé');
+  });
+
+  test('reprendre un repas : jour vide d\'hier sans rien, le dernier des 7 jours d\'avant (plan copié et coché)', () => {
+    reset(); mealsDay(2); run('data.dietEmptyDays = true');
+    const old = '2026-11-01';
+    run(`dietCopyMealPlan(data, 'd_a', 'm1', '${old}'); dietToggleMeal(data, 'd_a', 'm1', '${old}')`);
+    run(`dietCopyMealPlan(data, 'd_a', 'm1', '${H}')`);   // hier : plan copié mais pas coché, pas mangé
+    const src = run(`dietMealReuseSource(data, 'd_a', 'm1', '${D}')`);
+    sameJSON([src.day, src.items.map(x => x.name)], [old, [run(`data.dietPlans.d_a.meals[0].items[0].name`)]]);
+    // Plus de 7 jours avant : trop vieux
+    assert.equal(run(`dietMealReuseSource(data, 'd_a', 'm1', '2026-11-09')`), null);
+    assert.ok(run(`dietReuseMeal(data, 'd_a', 'm1', '${D}')`).day === old);
+    assert.equal(Math.round(pr().eaten.kcal), Math.round(kcal(OEUF_DUR, 100)));
+  });
+
+  test('reprendre un repas : rien de mangé ces 7 derniers jours, pas de bouton ni d\'ajout', () => {
+    reset(); mealsDay(2); run('data.dietEmptyDays = true');
+    assert.equal(run(`dietMealReuseSource(data, 'd_a', 'm1', '${D}')`), null);
+    assert.equal(run(`dietReuseMeal(data, 'd_a', 'm1', '${D}')`), null);
+    assert.equal(run(`data.dietLog?.['${D}']?.extras`), undefined);
+    assert.ok(read('js/features/nutrition-ui.js').includes("if (!src) return '';"), 'pas de ligne sans source');
+  });
+
+  test('reprendre un repas : Annuler retire seulement ce qui a été repris', () => {
+    reset(); mealsDay(2); run('data.dietEmptyDays = true');
+    add('m2', RIZ_CUIT, 120, H);
+    const r = run(`dietReuseMeal(data, 'd_a', 'm2', '${D}')`);
+    add('m2', POULET_GRILLE, 100);   // ajouté pendant le message
+    assert.ok(run(`dietUndoReuseMeal(data, 'd_a', 'm2', ${JSON.stringify(r.ids)}, '${D}')`));
+    sameJSON(pr().meals[1].extras.map(x => x.g), [100], 'l\'ajout fait entre-temps reste');
+    assert.ok(!run(`dietUndoReuseMeal(data, 'd_a', 'm2', ${JSON.stringify(r.ids)}, '${D}')`), 'deux fois : rien');
+  });
+
   test('repas du jour : son propre plan commence vide par défaut, un plan de coach reste pré-rempli, le choix prime', () => {
     reset0();
     run(`data.dietPlans = { a: { name: 'Mon plan', meals: [{ id: 'm1', name: 'Midi', items: [{ id: 'i1', food: 'riz-blanc-cuit', g: 200 }] }] },

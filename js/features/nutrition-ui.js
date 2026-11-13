@@ -244,6 +244,29 @@ function dietMealPlanRowHtml(x, day) {
                 <span class="diet-item__name">${esc(label)}</span>
                 <span class="diet-item__sub num">${esc(sub)}</span>
               </span>
+            </button>${off || x.extras?.length ? '' : dietMealReuseRowHtml(meal, day)}`;
+}
+// Jour vide : « Reprendre le repas d'hier » (ou du dernier jour des 7 d'avant où ce repas a été mangé), à côté de
+// « Copier le plan de ce repas ». Ce qui sera repris est nommé dessous ; rien à reprendre, ou repas déjà noté (pas de
+// double ajout d'un second toucher) : pas de ligne
+function dietReuseDayWord(from, day) {
+  const t = new Date(`${day}T12:00:00`).getTime();
+  if (localISO(t - 86400000) === from) return 'd\'hier';
+  return `du ${new Date(`${from}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' })}`;
+}
+function dietMealReuseRowHtml(meal, day) {
+  const d0 = day || dietDayKey(), src = dietMealReuseSource(data, data.dietActive, meal.id, d0);
+  if (!src) return '';
+  const label = `Reprendre le repas ${dietReuseDayWord(src.day, d0)}`;
+  const names = src.items.map(it => foodName(it.name)), kcal = src.items.reduce((a, it) => a + dietItemMacros(it).kcal, 0);
+  const sub = `${names.join(', ')}${data.dietHideNumbers ? '' : ` · ${dietN(kcal)}\u00a0kcal`}`;
+  return `
+            <button class="diet-item diet-item--plan" data-action="diet-meal-reuse" data-meal="${esc(meal.id)}" data-day="${d0}"
+              aria-label="${esc(label)} : ${esc(names.join(', '))}${data.dietHideNumbers ? '' : `, ${dietN(kcal)} kilocalories`}">
+              <span class="diet-item__body">
+                <span class="diet-item__name">${esc(label)}</span>
+                <span class="diet-item__sub num">${esc(sub)}</span>
+              </span>
             </button>`;
 }
 
@@ -622,6 +645,20 @@ registerActions({
     // Jour vide : « Remettre le repas prévu » remet aussi son plan (sinon le repas revient vide, contrairement à l'annonce)
     if (el.dataset.op !== 'copy' && dietDay(data, planId, day).blank === true) dietCopyMealPlan(data, planId, mealId, day);
     save(); haptic(); render(); announce(`${meal.name} : plan du repas remis, à cocher une fois mangé`);
+  },
+  // Jour vide : « Reprendre le repas d'hier » : ce qui a été mangé devient des ajouts du jour, Annuler dans le toast
+  'diet-meal-reuse': (e, el) => {
+    const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
+    const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
+    const r = meal && dietReuseMeal(data, planId, mealId, day);
+    if (!r) return;
+    dietOpenMeals.add(mealId);
+    save(); haptic(); render();
+    const what = `${meal.name} ${dietReuseDayWord(r.day, day)}`;
+    announce(`Repris : ${what}, ${r.ids.length} aliment${r.ids.length > 1 ? 's' : ''}`);
+    showToast(`Repris : ${what}`, { action: 'Annuler', duration: 6000, onAction: () => {
+      dietUndoReuseMeal(data, planId, mealId, r.ids, day); save(); render(); announce(`Annulé : ${meal.name}`);
+    } });
   },
   'diet-meal-open': (e, el) => {
     const id = el.dataset.meal;

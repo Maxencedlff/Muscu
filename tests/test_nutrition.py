@@ -1199,5 +1199,39 @@ def t_repas_vides(bench, eng, dev, theme):
         shot(page, LOT, f'r5-jour-vide-note-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides],
+def t_repas_hier(bench, eng, dev, theme):
+    """Retour de Maxence du 13/11 : « une option pour remettre le jour d'avant ». Jour vide : « Reprendre le repas d'hier »
+    (ou du dernier jour des 7 d'avant) à côté de « Copier le plan de ce repas », ce qui sera repris nommé dessous ;
+    un toucher le note (compté tout de suite), Annuler dans le message."""
+    t = tag(dev, theme) + '-hier'
+    d = json.loads(with_plan(NOW, {
+        '2026-11-04': {'plan': 'd_masse01', 'done': ['m2'], 'swaps': {}},
+        '2026-11-02': {'plan': 'd_masse01', 'done': [], 'swaps': {}, 'blank': True, 'extras': {'m1': [food_item(OEUF, 100, 'x1')]}},
+    }))
+    del d['dietEmptyDays']   # son propre plan : repas vides par défaut
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, json.dumps(d, ensure_ascii=False))
+        page.click('.diet-home__open')
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        reuse = lambda m: page.locator(f'.diet-meal[data-meal="{m}"] [data-action="diet-meal-reuse"]')
+        R.check([reuse(m).count() for m in ('m1', 'm2', 'm3', 'm4')] == [1, 1, 0, 0], f'{t} « Reprendre » seulement là où il y a quelque chose')
+        R.check(nb(reuse('m2').inner_text()).startswith("Reprendre le repas d'hier") and 'Riz' in reuse('m2').inner_text() and 'kcal' in reuse('m2').inner_text(),
+                f'{t} hier : libellé et aliments ({nb(reuse("m2").inner_text())!r})')
+        R.check(nb(reuse('m1').inner_text()).startswith('Reprendre le repas du lundi 2'), f'{t} jour plus ancien nommé ({nb(reuse("m1").inner_text())!r})')
+        layout(page, t, 'reprendre le repas')
+        page.locator('.diet-meal[data-meal="m2"]').scroll_into_view_if_needed()
+        shot(page, LOT, f'r6-reprendre-hier-{t}')
+        reuse('m2').click()
+        page.wait_for_timeout(300)
+        m2 = page.locator('.diet-meal[data-meal="m2"]')
+        R.check(m2.locator('[data-action="diet-extra"]').count() == 3 and kcal_eaten(page) > 400 and reuse('m2').count() == 0,
+                f'{t} repris : 3 ajouts comptés tout de suite ({kcal_eaten(page)} kcal)')
+        R.check('Repris' in toast(page), f'{t} message avec Annuler ({toast(page)!r})')
+        page.locator('.toast__action').click()
+        page.wait_for_timeout(300)
+        R.check(m2.locator('[data-action="diet-extra"]').count() == 0 and kcal_eaten(page) == 0 and reuse('m2').count() == 1, f'{t} Annuler : rien de gardé')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides, t_repas_hier],
          once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier, t_minuit, t_vague4_six_repas, t_vague4_plein])
