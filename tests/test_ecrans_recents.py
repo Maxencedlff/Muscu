@@ -55,6 +55,7 @@ PLAN = {'name': 'Prise de masse', 'targets': {'kcal': 2600, 'p': 160}, 'meals': 
 def donnees():
     d = six_mois(now_ms=NOW)
     d['dietPlans'] = {'d_masse01': PLAN}
+    d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
     d['dietActive'] = 'd_masse01'
     return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
 

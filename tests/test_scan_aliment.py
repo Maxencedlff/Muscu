@@ -58,6 +58,7 @@ def plan_json():
     d = ppl_v2_today(now_ms=NOW)
     d['dietPlans'] = {'d_scan01': {'name': 'Mon plan', 'meals': [
         {'id': 'm1', 'name': 'Petit-déjeuner', 'items': []}, {'id': 'm2', 'name': 'Collation', 'items': []}]}}
+    d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
     d['dietActive'] = 'd_scan01'
     return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
 

@@ -4,6 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
+  // Ces tests décrivent le mode « pré-rempli » ; depuis le 13/11, son propre plan commence vide par défaut
+  // (dietEmptyDaysFor) : on choisit donc le mode pré-rempli, le défaut a ses propres tests plus bas
+  const reset0 = reset;
+  reset = (...a) => { reset0(...a); run('data.dietEmptyDays = false'); };
   const read = p => fs.readFileSync(path.join(ROOT, p), 'utf8');
   const foods = JSON.parse(read('data/foods.json'));
   const loadDb = () => { run(`setFoodDb(${JSON.stringify(foods)})`); };
@@ -929,7 +933,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     add('m2', RIZ_CUIT, 80);
     run(`dietSetEmptyDays(data, false, '${D}')`);
     p = pr();
-    assert.ok(run('data.dietEmptyDays') === undefined && !p.blank);
+    assert.ok(run('data.dietEmptyDays') === false && !p.blank);
     sameJSON(p.meals.map(x => [x.live.length, x.off]), [[1, false], [0, true], [0, true]]);
     assert.ok(p.complete && Math.round(p.eaten.kcal) === Math.round(kcal(OEUF_DUR, 100) + kcal(RIZ_CUIT, 80)));
     // Aller-retour sans rien noter : le repas retiré reste retiré
@@ -967,4 +971,19 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.match(read('js/features/nutrition-ui.js'), /function dietMacroLegendHtml[\s\S]{0,400}aria-hidden="true"/);
     for (const f of ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js']) assert.ok(read(f).includes('dietMacroLegendHtml('), `légende : ${f}`);
   });
+
+  test('repas du jour : son propre plan commence vide par défaut, un plan de coach reste pré-rempli, le choix prime', () => {
+    reset0();
+    run(`data.dietPlans = { a: { name: 'Mon plan', meals: [{ id: 'm1', name: 'Midi', items: [{ id: 'i1', food: 'riz-blanc-cuit', g: 200 }] }] },
+      b: { name: 'Coach', fromCoach: { coachId: 'c1', name: 'coach_x' }, meals: [{ id: 'm1', name: 'Midi', items: [{ id: 'i1', food: 'riz-blanc-cuit', g: 200 }] }] } }`);
+    assert.equal(run(`dietEmptyDaysFor(data, 'a')`), true, 'son plan : vide');
+    assert.equal(run(`dietEmptyDaysFor(data, 'b')`), false, 'plan du coach : pré-rempli');
+    assert.equal(run(`dietDay(data, 'a', '2026-11-14').blank`), true);
+    assert.equal(run(`dietDay(data, 'b', '2026-11-14').blank`), undefined);
+    run(`data.dietEmptyDays = false`);
+    assert.equal(run(`dietEmptyDaysFor(data, 'a')`), false, 'choix « pré-remplis » respecté');
+    run(`data.dietEmptyDays = true`);
+    assert.equal(run(`dietEmptyDaysFor(data, 'b')`), true, 'choix « vides » respecté');
+  });
+
 }

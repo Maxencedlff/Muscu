@@ -357,7 +357,7 @@ function dietLowNoteHtml(own = true) {
 // (« Repas du jour : pré-remplis par le plan ») : on sait qu'il existe sans ouvrir les réglages
 function dietSettingsCellHtml() {
   return `<div class="group group--gap"><button class="cell cell--nav" data-action="go-diet-settings">
-      <span class="cell__body"><span class="cell__title">Réglages de la nutrition</span><span class="cell__sub">Repas du jour : ${data.dietEmptyDays ? 'vides, je note ce que je mange' : 'pré-remplis par le plan'}</span></span>${icon('chevron.right', 16)}</button></div>`;
+      <span class="cell__body"><span class="cell__title">Réglages de la nutrition</span><span class="cell__sub">Repas du jour : ${dietEmptyDaysFor(data, data.dietActive) ? 'vides, je note ce que je mange' : 'pré-remplis par le plan'}</span></span>${icon('chevron.right', 16)}</button></div>`;
 }
 
 function renderNutrition(dayParam) {

@@ -47,6 +47,7 @@ def tag(device, theme):
 def with_plan(now_ms, log=None):
     d = ppl_v2_today(now_ms=now_ms)
     d['dietPlans'] = {'d_masse01': PLAN}
+    d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
     d['dietActive'] = 'd_masse01'
     if log:
         d['dietLog'] = log
@@ -407,6 +408,7 @@ def t_coach_eleve(bench, eng, dev, theme):
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         d = ppl_v2_today(now_ms=NOW)
         d['dietPlans'] = {'d_lea00001': {**PLAN, 'name': 'Sèche Léa', 'consigne': 'Bois 2 L par jour.'}}
+        d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
         open_app(page, theme, json.dumps(d, ensure_ascii=False), account=True)
         signin(page, 'max')
         uid = page.evaluate("""() => { const me = __sb.meId(); __sb.makeCoach(me);
@@ -578,6 +580,7 @@ def t_plan_neuf_puis_coach(bench):
             mine = {'name': 'Ma prise de masse', 'meals': [{'id': 'p1', 'name': 'Petit-déjeuner', 'items': [food_item(RIZ, 150, 'r1')]}]
                     + [{'id': f'p{i}', 'name': n, 'items': []} for i, n in ((2, 'Déjeuner'), (3, 'Collation'), (4, 'Dîner'))]}
             d['dietPlans'] = {'d_neuf0001': mine, 'dc_max_lea00001': {**PLAN, 'name': 'Sèche Léa'}}
+            d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
             d['dietActive'] = 'd_neuf0001'
             open_app(page, theme, json.dumps(d, ensure_ascii=False))
             page.click('.diet-home [data-action="diet-check"]')
@@ -1024,6 +1027,7 @@ def t_vague4_six_repas(bench):
                       {'id': 'm6', 'name': 'Avant de dormir', 'items': [food_item(OEUF, 100, 'i10')]}]
     d = ppl_v2_today(now_ms=NOW)
     d['dietPlans'] = {'d_masse01': plan}
+    d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
     d['dietActive'] = 'd_masse01'
     d['dietLog'] = {'2026-11-05': {'plan': 'd_masse01', 'done': ['m1', 'm2', 'm3'], 'swaps': {}}}
     for theme in ('light', 'dark'):
@@ -1049,6 +1053,7 @@ def t_vague4_plein(bench):
     eng = dict((d, e) for e, d in ALL_DEVICES)['iPhone 13']
     d = ppl_v2_today(now_ms=NOW)
     d['dietPlans'] = {'d_masse01': PLAN}
+    d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
     d['dietActive'] = 'd_masse01'
     d['dietFoods'] = [{'id': f'f{i}', 'name': f'Aliment perso {i}', 'fam': 'p', 'per': {'k': 100, 'p': 10, 'c': 10, 'f': 1}} for i in range(200)]
     seed_json = json.dumps(d, ensure_ascii=False)

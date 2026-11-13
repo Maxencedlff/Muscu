@@ -850,6 +850,7 @@ def p_scan(r):
     r.simuler(r'^https://world\.openfoodfacts\.org/', off)
     d = json.loads(REALISTE)
     d['dietPlans'] = {'d_scan01': PLAN_SCAN}
+    d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
     d['dietActive'] = 'd_scan01'
     r.lancer(json.dumps(d, ensure_ascii=False, separators=(',', ':')))
     r.raccourci("navigate(makeRoute('diet-plan', 'd_scan01'))", 'plan de nutrition « Mon plan » ouvert (Programme › Plans de nutrition)')

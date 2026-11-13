@@ -103,7 +103,7 @@ function renderDietSettings() {
         <div class="group-title">Repas du jour</div>
         <div class="group" role="radiogroup" aria-label="Repas du jour">
           ${[[false, 'Pré-remplis par le plan', 'Tu coches chaque repas une fois mangé.'], [true, 'Vides', 'Tu notes ce que tu manges ; le plan donne les objectifs et se copie repas par repas.']].map(([blank, title, sub]) => {
-            const on = (data.dietEmptyDays === true) === blank;
+            const on = dietEmptyDaysFor(data, data.dietActive) === blank;
             return `
           <button class="cell cell--pick" data-action="diet-day-mode" data-blank="${blank}" role="radio" aria-checked="${on}">
             <span class="cell__body"><span class="cell__title">${title}</span><span class="cell__sub">${sub}</span></span>
@@ -189,7 +189,7 @@ registerActions({
   // Repas du jour : pré-remplis par le plan ou vides (js/data/nutrition.js, dietSetEmptyDays)
   'diet-day-mode': (e, el) => {
     const blank = el.dataset.blank === 'true';
-    if ((data.dietEmptyDays === true) === blank) return;
+    if (dietEmptyDaysFor(data, data.dietActive) === blank) return;
     dietSetEmptyDays(data, blank);
     save(); haptic(); render();
     announce(blank ? 'Repas du jour vides' : 'Repas du jour pré-remplis par le plan');
