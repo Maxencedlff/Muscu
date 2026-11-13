@@ -968,8 +968,11 @@ def p_seance_outils(r):
         r.toucher('.view.programmes [data-action="open-prog-session"][data-cat="push"]', 'séance Push')
         r.toucher('.view.editor [data-action="edit-ex"]', '1er exercice')
         r.attendre('.view.ex-edit', 'fiche de l\'exercice')
-        r.defiler('#exRepMin', 'rubrique Progression')
+        r.defiler('[data-action="ex-rep-mode"]', 'rubrique Progression')
     with r.etape('fourchette', 'Fourchette 8 à 12 saisie', cle=cle):
+        # Vague 4 : un haut réglé seul (10 reps dans ces données) se lit en reps fixes ; « Fourchette » d'abord
+        if not r.present('#exRepMin', timeout=300):
+            r.toucher('[data-action="ex-rep-mode"][data-fixed="false"]', 'Fourchette')
         r.saisir('#exRepMin', 8, 'bas de fourchette')
         r.saisir('#exRepMax', 12, 'haut de fourchette')
     with r.etape('fourchette-ok', 'Fiche enregistrée', cle=cle):

@@ -167,8 +167,11 @@ html.type-xl .diet-home__ring { display: none; }
 .qty__twin-text { margin: 0; display: flex; gap: 6px; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label); }
 .qty__twin-text .icon { flex-shrink: 0; margin-top: 2px; color: var(--tint); }
 .qty__twin-btn { display: flex; align-items: center; width: 100%; min-height: 44px; margin-top: 6px; padding: 6px 0; border: none; background: none;
-  font: inherit; font-size: var(--fs-subhead); font-weight: 600; color: var(--tint); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+  font: inherit; font-size: var(--fs-subhead); font-weight: 600; color: var(--tint-on-fill, var(--tint)); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
 .qty__twin-btn:active { opacity: .6; }
+/* Nom de l'aliment en titre de la feuille de quantité : sur deux lignes au plus, jamais coupé avant « cru » ou « cuit »
+   (« Riz blanc, cuit, sans sel ajouté » tronqué sur iPhone SE, panel vague 4) */
+.sheet:has([data-qty]) .sheet__title { white-space: normal; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 /* Mes aliments plein : avertissement de la fiche d'un produit scanné */
 .fscan__full { margin: 12px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label); }
 .fscan__full .btn { margin-top: 8px; }

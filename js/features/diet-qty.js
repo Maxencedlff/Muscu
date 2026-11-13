@@ -137,7 +137,7 @@ function dietQtyTwinHtml(twin) {
   const ask = cooked ? 'Pesé cuit\u00a0? Choisis la version cuite.' : 'Pesé cru\u00a0? Choisis la version crue.';
   return `<div class="qty__twin" role="note">
       <p class="qty__twin-text">${icon('info.circle', 14)}<span>${ask} Les valeurs ne sont pas les mêmes.</span></p>
-      <button type="button" class="qty__twin-btn" data-qtwin aria-label="Prendre la version ${cooked ? 'cuite' : 'crue'} : ${esc(foodName(twin.name))}">Prendre ${esc(foodName(twin.name))}</button>
+      <button type="button" class="qty__twin-btn" data-qtwin aria-label="Prendre ${esc(foodName(twin.name))}, la version ${cooked ? 'cuite' : 'crue'}">Prendre ${esc(foodName(twin.name))}</button>
     </div>`;
 }
 
