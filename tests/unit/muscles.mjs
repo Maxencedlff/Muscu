@@ -588,8 +588,8 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
 
   test('musclesLine : principaux, faisceaux de l\'épaule regroupés, deux au plus', () => {
     assert.equal(app.musclesLine(app.musclesOf('Développé militaire haltères')), 'Épaules');
-    assert.equal(app.musclesLine(app.musclesOf('Développé incliné haltères')), 'Pectoraux · Épaules');
-    assert.equal(app.musclesLine(app.musclesOf('Soulevé de terre')), 'Fessiers · Ischio-jambiers');
+    assert.equal(app.musclesLine(app.musclesOf('Développé incliné haltères')), 'Pectoraux\u00a0· Épaules', 'point collé au mot d\'avant');
+    assert.equal(app.musclesLine(app.musclesOf('Soulevé de terre')), 'Fessiers\u00a0· Ischio-jambiers');
     assert.equal(app.musclesLine(app.musclesOf('Inconnu')), '');
   });
 

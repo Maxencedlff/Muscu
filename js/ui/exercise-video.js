@@ -16,7 +16,7 @@ function exerciseVideoHtml(name) {
       <div class="exvideo__frame">
         <video class="exvideo__media" playsinline muted loop preload="none" disablepictureinpicture disableremoteplayback
                poster="${esc(v.poster)}" data-src="${esc(v.src)}" aria-hidden="true"></video>
-        ${exvideoButtonHtml(what)}
+        ${exvideoPosterHtml(v.poster)}${exvideoButtonHtml(what)}
       </div>
       <figcaption class="exvideo__credit">Vidéo : @${esc(v.coach)}</figcaption>
     </figure>`;
@@ -31,6 +31,12 @@ function exvideoButtonHtml(what) {
         </button>`;
 }
 
+// Affiche en vraie image par-dessus la vidéo : jamais de carré noir tant que la vidéo n'a pas d'image (WebKit qui ne
+// la lit pas, chargement lent, lecture refusée). Masquée dès que la lecture avance (exvideo--ready), gardée si elle échoue
+function exvideoPosterHtml(src) {
+  return src ? `<img class="exvideo__poster" src="${esc(src)}" alt="" decoding="async">` : '';
+}
+
 // Animation 3D (repli) : même figure, sans crédit ni légende (« Animation 3D » sous l'image n'apprenait rien,
 // panel v4 t1) ; la ligne ne sert qu'en cas d'erreur. data-src* : H.264 puis VP9, choisi à la lecture
 function exerciseAnimHtml(name) {
@@ -42,7 +48,7 @@ function exerciseAnimHtml(name) {
         <video class="exvideo__media" playsinline muted loop preload="none" disablepictureinpicture disableremoteplayback
                poster="${esc(a.poster)}" data-src="${esc(a.sources[0].src)}"
                data-sources="${esc(JSON.stringify(a.sources))}" aria-hidden="true"></video>
-        ${exvideoButtonHtml(what)}
+        ${exvideoPosterHtml(a.poster)}${exvideoButtonHtml(what)}
       </div>
       <figcaption class="exvideo__credit" hidden></figcaption>
     </figure>`;
@@ -81,6 +87,9 @@ function mountExerciseVideo() {
   const video = fig.querySelector('video');
   video.muted = true;
   ['play', 'playing', 'pause', 'ended'].forEach(ev => video.addEventListener(ev, () => exvideoState(fig)));
+  // Première image réellement affichée : la lecture a avancé (un « playing » sans image décodée laisserait du noir)
+  const ready = () => { if (video.currentTime > 0 && !fig.classList.contains('exvideo--error')) fig.classList.add('exvideo--ready'); };
+  ['playing', 'timeupdate'].forEach(ev => video.addEventListener(ev, ready));
   video.addEventListener('error', () => {
     fig.classList.add('exvideo--error');
     fig.querySelector('.exvideo__credit').hidden = false;

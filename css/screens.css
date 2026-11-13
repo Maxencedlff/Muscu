@@ -491,9 +491,9 @@ html.type-xl .chat-msg--theirs { align-items: flex-start; }
 html.type-xl body * { overflow-wrap: break-word; }
 /* Libellé et valeur (ou segment) : en texte agrandi, comme iOS, la valeur passe sous le libellé, à droite, plutôt que de
    réduire le libellé à une lettre (« O/bj/ec/tif », « Vol/um/e » à côté du segment, panel t5) */
-html.type-xl .view--grouped .cell:is(:has(> .cell__value), .cell--ctl:has(> .segmented)):not(:has(> .cell__icon)) { flex-wrap: wrap; row-gap: 4px; }
-html.type-xl .view--grouped .cell:is(:has(> .cell__value), .cell--ctl:has(> .segmented)):not(:has(> .cell__icon)) > .cell__body { flex: 1 0 auto; max-width: 100%; }
-html.type-xl .view--grouped .cell:is(:has(> .cell__value), .cell--ctl:has(> .segmented)):not(:has(> .cell__icon)) > .cell__body + * { margin-left: auto; }
+html.type-xl .view--grouped .cell:is(:has(> .cell__value), :has(> .cell__trail), .cell--ctl:has(> .segmented)):not(:has(> .cell__icon)) { flex-wrap: wrap; row-gap: 4px; }
+html.type-xl .view--grouped .cell:is(:has(> .cell__value), :has(> .cell__trail), .cell--ctl:has(> .segmented)):not(:has(> .cell__icon)) > .cell__body { flex: 1 0 auto; max-width: 100%; }
+html.type-xl .view--grouped .cell:is(:has(> .cell__value), :has(> .cell__trail), .cell--ctl:has(> .segmented)):not(:has(> .cell__icon)) > .cell__body + * { margin-left: auto; }
 /* Mon profil : pseudo sur plusieurs lignes, « Modifier » dessous, chiffres l'un sous l'autre */
 html.type-xl .athlete__id { flex-wrap: wrap; }
 html.type-xl .athlete__text { flex-basis: 100%; }

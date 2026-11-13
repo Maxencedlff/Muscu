@@ -97,12 +97,12 @@ function howToHtml(name) {
       ${more > 0 ? `<button class="howto__more" data-action="howto-more" aria-label="Plus : ${more} autre${more > 1 ? 's' : ''} étape${more > 1 ? 's' : ''}">Plus</button>` : ''}` : ''}
     </div>`;
 }
-// Erreur fréquente : une cellule avec une icône, en tête de « À propos » ; '' sans consignes
+// Erreur fréquente : une cellule avec le triangle d'avertissement (gris, jamais le rouge des muscles), en tête de « À propos » ; '' sans consignes
 function howToTipHtml(name) {
   const how = exerciseHowTo(name);
   if (!how?.mistake) return '';
   return `<div class="group extip"><div class="cell">
-      <span class="extip__icon">${icon('info.circle', 22)}</span>
+      <span class="extip__icon">${icon('exclamationmark.triangle', 22)}</span>
       <span class="cell__body"><span class="cell__sub">Erreur fréquente</span><span class="cell__title cell__title--reg">${esc(how.mistake)}</span></span>
     </div></div>`;
 }

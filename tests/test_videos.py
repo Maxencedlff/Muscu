@@ -327,7 +327,11 @@ def t_anim3d(bench, eng, dev, theme):
                     const r = b.getBoundingClientRect(), q = f.getBoundingClientRect(), cs = getComputedStyle(b);
                     return { op: +cs.opacity, w: r.width, right: q.right - r.right, bottom: q.bottom - r.bottom,
                              pause: getComputedStyle(b.querySelector('.icon--pause')).display }; })()""")
-                R.check(pb['op'] == 1 and pb['pause'] != 'none' and pb['w'] <= 40 and pb['right'] < 16 and pb['bottom'] < 16, f'{t} ❚❚ visible dans le coin {pb}')
+                R.check(pb['op'] == 1 and pb['pause'] != 'none' and abs(pb['w'] - 44) < 1 and abs(pb['right'] - 10) < 1.5 and abs(pb['bottom'] - 10) < 1.5,
+                        f'{t} ❚❚ dans un rond de 44 pt, à 10 pt du coin {pb}')
+                blur = page.evaluate("(() => { const cs = getComputedStyle(document.querySelector('.exvideo--3d .exvideo__btn')); return cs.backdropFilter || cs.webkitBackdropFilter || 'none'; })()")
+                R.check(blur == 'none', f'{t} pause : fond uni, sans flou ({blur})')
+                R.check(page.locator('.exvideo--3d.exvideo--ready').count() == 1 and not page.locator('.exvideo--3d .exvideo__poster').is_visible(), f'{t} en lecture : affiche masquée')
                 page.click('.exvideo--3d .exvideo__play')
                 page.wait_for_timeout(200)
                 R.check(page.evaluate("document.querySelector('.exvideo--3d video').paused"), f'{t} toucher : pause')
@@ -346,6 +350,7 @@ def t_anim3d(bench, eng, dev, theme):
         open_fiche(page, 'Développé couché barre')
         page.wait_for_timeout(600)
         R.check(page.locator('.exvideo--3d.exvideo--manual').count() == 1, f'{t} réduire les animations : pas de lecture automatique')
+        R.check(page.locator('.exvideo--3d .exvideo__poster').is_visible(), f'{t} avant lecture : affiche visible, jamais de carré noir')
         R.check(not page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('src')"), f'{t} réduire les animations : rien de chargé')
         R.check(page.get_attribute('.exvideo--3d .exvideo__play', 'aria-label') == 'Lire l\'animation 3D de Développé couché barre' and page.locator('.exvideo--3d .exvideo__btn').is_visible(), f'{t} affiche et ▶ « Lire l\'animation »')
         R.check(page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('poster')") == 'img/anim/developpe-couche-barre.webp', f'{t} affiche du développé couché')

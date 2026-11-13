@@ -359,7 +359,7 @@ function unknownMuscleExercises(history = data.history, index = chosenMusclesInd
 // regroupés), '' si inconnu
 function musclesLine(m, max = 2) {
   const names = [...new Set(m.primary.map(id => MUSCLE_BY_ID.get(id).short || muscleLabel(id)))];
-  return names.slice(0, max).join(' · ');
+  return names.slice(0, max).join('\u00a0· ');   // « · » collé au mot d'avant : coupure après, jamais devant
 }
 
 // ── Filtre par muscle (Bibliothèque, feuille « Ajouter un exercice ») ─

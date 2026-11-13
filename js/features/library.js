@@ -29,7 +29,7 @@ function libSubHtml(m, equip) {
   const two = musclesLine(m, 2), one = musclesLine(m, 1).replace('Ischio-jambiers', 'Ischios');
   const mus = `<span class="mgc__mus"${one !== two ? ` data-short="${esc(one)}"` : ''}>${esc(two)}</span>`;
   if (!equip) return mus;
-  return `${two ? mus : ''}<span class="mgc__eq">${two ? '\u00a0·\u00a0' : ''}${esc(equip)}</span>`;
+  return `${two ? mus : ''}<span class="mgc__eq">${two ? '\u00a0· ' : ''}${esc(equip)}</span>`;
 }
 // Deux muscles qui ne tiennent pas en entier : un seul (texte agrandi : rien à faire). Mesure tout de suite, puis
 // à l'image suivante et une fois les polices chargées : la police de secours, plus étroite, faisait tout tenir à tort
@@ -206,7 +206,7 @@ function libExAboutHtml(e, name) {
   const share = bodyShare(e);
   return `${howToTipHtml(e.name)}
         ${howToHtml(e.name)}
-        ${exMusclesGroupHtml({ name }, 'Muscles')}
+        ${exMusclesGroupHtml({ name }, 'Muscles', { textOnly: !exerciseVideoHtml(name) })}
         <div class="group">
           <div class="cell"><span class="cell__body"><span class="cell__title">Matériel</span></span>
             <span class="cell__value">${esc(EQUIPMENT.find(q => q.id === e.equip)?.label || '—')}</span></div>
@@ -235,7 +235,7 @@ function renderLibraryEx(name) {
     records: st ? `${st.records}${st.target}` : libExEmptyHtml('records'),
   };
   const q = EQUIPMENT.find(x => x.id === e.equip);
-  const sub = [[...new Set(exerciseMuscles({ name }).primary.map(muscleLabel))].join(', '), q?.label].filter(Boolean).join(' · ');
+  const sub = [[...new Set(exerciseMuscles({ name }).primary.map(muscleLabel))].join(', '), q?.label].filter(Boolean).join('\u00a0· ');   // « · » collé au mot d'avant : le matériel ne se lit pas comme un muscle
   const title = catalogueAliasOf(name) ? name : e.name;
   return `
     <div class="view library-ex view--grouped">

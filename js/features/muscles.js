@@ -66,21 +66,21 @@ function musclesControlsHtml(m, name, { pick, reset }) {
     rows: `
       <button class="cell cell--nav" ${pick}>
         <span class="cell__body"><span class="cell__title">${verified ? 'Modifier les muscles' : 'Choisir les muscles'}</span></span>
-        <span class="cell__value">${value}</span>${icon('chevron.right', 16)}
+        <span class="cell__trail"><span class="cell__value">${value}</span>${icon('chevron.right', 16)}</span>
       </button>
       ${modified ? `<button class="cell cell--action" ${reset}><span class="cell__title">${RESET_MUSCLES_LABEL}</span></button>` : ''}`,
     foot: verified ? (modified ? MODIFIED_MUSCLES_FOOT : VERIFIED_MUSCLES_FOOT) : '',
   };
 }
 
-// Muscles d'un exercice hors programme (Progrès › Exercice, fiche de la bibliothèque) : { name, exId? }
-function exMusclesGroupHtml(ex, title = 'Muscles ciblés') {
+// Muscles d'un exercice hors programme (Progrès, fiche) : { name, exId? } ; textOnly : « Muscles : Fessiers » sans secondaire
+function exMusclesGroupHtml(ex, title = 'Muscles ciblés', { textOnly = false } = {}) {
   const m = exerciseMuscles(ex);
   const c = musclesControlsHtml(m, ex.name, { pick: `data-action="declare-muscles" data-name="${esc(ex.name)}"`,
     reset: `data-action="reset-muscles" data-name="${esc(ex.name)}" data-ex="${esc(ex.exId || '')}"` });
-  return `
-    <div class="group-title">${title}</div>
-    <div class="group">${exMusclesPanelHtml(m)}${c.rows}</div>
+  const line = textOnly && m.primary.length && !m.secondary.length && `<div class="cell mline"><span class="cell__body"><span class="cell__title cell__title--reg">Muscles : ${esc([...new Set(m.primary.map(muscleLabel))].join(', '))}</span></span></div>`;
+  return `<div class="group-title">${title}</div>
+    <div class="group">${line || exMusclesPanelHtml(m)}${c.rows}</div>
     ${c.foot ? `<div class="group-foot">${c.foot}</div>` : ''}`;
 }
 

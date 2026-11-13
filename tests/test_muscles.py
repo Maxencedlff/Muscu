@@ -773,7 +773,14 @@ def t_fiche(bench, eng, dev, theme):
         R.check(page.get_attribute('#extab-about', 'aria-selected') == 'true' and page.locator('.expanel:not([hidden])').count() == 1, f'{t} À propos ouvert')
         R.check(tab_ok(page), f'{t} onglets : aucun nom coupé')
         # Conseil mis en avant, puis 2 consignes et « Plus » qui déplie le reste
-        R.check('Erreur fréquente' in page.inner_text('#expanel-about .extip'), f'{t} conseil en tête d\'À propos')
+        R.check('Erreur fréquente' in page.inner_text('#expanel-about .extip') and page.locator('.extip .icon--exclamationmark-triangle').count() == 1,
+                f'{t} conseil en tête d\'À propos, triangle d\'avertissement (pas le « i » d\'info)')
+        # Affiche en vraie image sur l'animation : jamais de carré noir avant la première image
+        R.check(page.locator('.exhero .exvideo__poster').count() == 1 and page.get_attribute('.exhero .exvideo__poster', 'src') == 'img/anim/squat-barre.webp',
+                f'{t} affiche de l\'animation en image')
+        more = page.evaluate("""() => { const b = document.querySelector('.howto__more').getBoundingClientRect(), c = document.querySelector('.howto').getBoundingClientRect();
+            return { h: b.height, w: b.width, cw: c.width }; }""")
+        R.check(more['h'] >= 44 and abs(more['w'] - more['cw']) < 1, f'{t} « Plus » : 44 pt de haut, toute la largeur {more}')
         shown = lambda: page.locator('.howto__cues li:visible').count()
         total = page.locator('.howto__cues li').count()
         R.check(shown() == 2 and total > 2, f'{t} 2 consignes visibles sur {total}')
@@ -796,10 +803,17 @@ def t_fiche(bench, eng, dev, theme):
         page.wait_for_selector('.library-ex .exhero__img')
         R.check(page.get_attribute('#extab-about', 'aria-selected') == 'true', f'{t} autre exercice : retour à À propos')
         R.check(page.get_attribute('.exhero__img', 'alt') == '', f'{t} image décorative (le titre dit tout)')
+        R.check(page.locator('#expanel-about .mpanel').count() == 1, f'{t} Pec deck (secondaires) : silhouette gardée')
         # Jamais fait : état vide utile dans Historique, Courbe et Records
         for k in ['history', 'chart', 'records']:
             R.check('Pas encore fait' in fiche_tab(page, k).inner_text(), f'{t} {k} vide : « Pas encore fait »')
         R.check(no_hscroll(page), f'{t} fiche : pas de défilement horizontal')
+        # Image du muscle en tête et aucun secondaire : une ligne de texte au lieu d'une deuxième silhouette
+        page.evaluate("navigate(makeRoute('library-ex', 'Curl marteau'))")
+        page.wait_for_selector('.library-ex .exhero__img')
+        R.check(page.locator('.library-ex .mpanel').count() == 0 and page.inner_text('.library-ex .mline').strip().startswith('Muscles : Brachial'),
+                f'{t} sans secondaire : « Muscles : … » sans silhouette ({page.locator(".library-ex .mline").all_inner_texts()})')
+        R.check('\u00a0· ' in typo_raw(page, "() => document.querySelector('.exhead__sub').textContent"), f'{t} « · » collé au muscle d\'avant')
         # Texte agrandi : illustration plus petite, onglets sur deux rangées, rien de coupé
         page.add_style_tag(content='html { font-size: 28px !important; }')
         page.evaluate("window.dispatchEvent(new Event('resize'))")
@@ -808,6 +822,9 @@ def t_fiche(bench, eng, dev, theme):
             g = page.evaluate("""() => ({ hero: document.querySelector('.exhero').getBoundingClientRect().width,
                 tabs: document.querySelector('.extabs').getBoundingClientRect().width })""")
             R.check(0 < g['hero'] < g['tabs'] and tab_ok(page) and no_hscroll(page), f'{t} type-xl : image réduite, onglets entiers {g}')
+            tr = page.evaluate("""() => { const t = document.querySelector('.library-ex .cell__trail'), v = t.querySelector('.cell__value').getBoundingClientRect(),
+                i = t.querySelector('.icon').getBoundingClientRect(); return Math.abs((v.top + v.bottom) / 2 - (i.top + i.bottom) / 2) < v.height / 2; }""")
+            R.check(tr, f'{t} type-xl : « Vérifiés » et chevron sur la même ligne')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

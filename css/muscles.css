@@ -160,8 +160,9 @@ body.light .mpick__auto { background: var(--cell); }
 .howto__anim--live .mv-ghost { display: none; }
 .howto__cues { margin: 0; padding-left: 20px; font-size: 0.941rem; line-height: 1.4; color: var(--label); }
 .howto__cues li + li { margin-top: 4px; }
-/* « Plus » : les consignes après les 2 premières ; lien orange, zone de toucher de 44 pt */
-.howto__more { display: block; min-height: 44px; margin: 2px 0 -12px; padding: 0; border: 0; background: none;
+/* « Plus » : les consignes après les 2 premières ; lien orange, zone de toucher de 44 pt sur toute la largeur de la cellule */
+.howto__more { display: block; box-sizing: border-box; width: calc(100% + 32px); min-height: 44px; margin: 2px -16px -14px; padding: 0 16px;
+  text-align: left; border: 0; background: none;
   font: inherit; font-size: var(--fs-callout); color: var(--tint); cursor: pointer; }
 .howto__more:active { opacity: .5; }
 /* Vidéo d'un coach partenaire (js/ui/exercise-video.js) : à la place du mannequin, proportions du fichier
@@ -172,6 +173,8 @@ body.light .mpick__auto { background: var(--cell); }
   margin: 0 auto; border-radius: 10px; overflow: hidden; background: var(--black);
 }
 .exvideo__media { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--black); }
+.exvideo__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.exvideo--ready .exvideo__poster { display: none; }
 .exvideo__play {
   position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: none; background: transparent;
   display: flex; align-items: center; justify-content: center; color: var(--white); cursor: pointer;
@@ -179,7 +182,8 @@ body.light .mpick__auto { background: var(--cell); }
 }
 .exvideo__btn {
   display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%;
-  background: var(--scrim); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  background: var(--scrim);   /* fond sombre uni, sans flou ni verre ; liseré clair : le rond se voit aussi sur le noir */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--white) 35%, transparent);
   transition: opacity .2s;
 }
 .exvideo__btn .icon--play { margin-left: 3px; }   /* triangle centré à l'œil */
@@ -187,8 +191,8 @@ body.light .mpick__auto { background: var(--cell); }
 /* En lecture : petit ❚❚ blanc dans le coin bas droit, sur une pastille sombre, toujours visible (glyphe blanc sur le
    noir de l'animation : contraste maximal ; sur une vidéo claire, la pastille le détache) */
 .exvideo__play { align-items: center; justify-content: center; }
-.exvideo--playing .exvideo__play { align-items: flex-end; justify-content: flex-end; padding: 0 8px 8px 0; }
-.exvideo--playing .exvideo__btn { width: 36px; height: 36px; }
+.exvideo--playing .exvideo__play { align-items: flex-end; justify-content: flex-end; padding: 0 10px 10px 0; }
+.exvideo--playing .exvideo__btn { width: 44px; height: 44px; }
 .exvideo--playing .exvideo__btn .icon--play { display: none; }
 .exvideo--playing .exvideo__btn .icon--pause { display: block; }
 .exvideo--error .exvideo__btn { display: none; }
@@ -248,6 +252,7 @@ body.light .mpick__auto { background: var(--cell); }
 .exhero .exvideo { margin: 0; }
 .exhero .exvideo__frame, .exhero .exvideo--3d .exvideo__frame { width: min(100%, calc(56vh * var(--ar, 1))); border-radius: 0; }
 .exhero:has(.exvideo--3d) { background: var(--black); }   /* animation sur noir pur : la carte prend le même fond */
+.exhero:has(.exvideo--3d) .exvideo__credit { color: color-mix(in srgb, var(--white) 70%, transparent); }   /* lisible sur le noir, en clair aussi */
 .exhero .exvideo__credit { margin: 0; padding: 6px 12px 8px; }
 .exhero .exvideo__credit[hidden] { display: none; }
 .exhead__title { margin: 14px 0 2px; }
@@ -272,3 +277,6 @@ body.light .mpick__auto { background: var(--cell); }
 .type-xl .extabs { display: grid; grid-template-columns: 1fr 1fr; row-gap: 2px; }
 .type-xl .extabs .segmented__btn { overflow-wrap: normal; hyphens: none; }
 .type-xl .extabs .segmented__btn::before { display: none; }
+/* Valeur et chevron d'une rangée : un seul bloc, jamais le chevron seul à la ligne (texte agrandi) */
+.cell__trail { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap; }
+.cell__trail > .icon:last-child { color: var(--label3); }
