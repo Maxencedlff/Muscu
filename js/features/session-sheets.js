@@ -220,15 +220,15 @@ function axEquipHtml() {
 // action : nom de l'action (« lib-muscle », « ax-muscle ») ; f : filtre en cours { group, muscle }.
 // Première ligne : les grands groupes ; seconde, une fois un groupe choisi : ses muscles. Lignes qui
 // défilent de côté, pour ne pas manger la hauteur de la liste.
-// lead : pastille posée en tête de la ligne des groupes (Bibliothèque : le matériel replié). Avec elle, le
-// groupe choisi la suit, pour que les deux restent visibles sans faire défiler la ligne (iPhone SE).
+// lead : pastille posée en tête de la ligne des groupes (Bibliothèque : le matériel replié). Avec elle, un groupe
+// choisi est un niveau de navigation (titre et retour de la barre) : la ligne ne garde que les autres groupes, sans
+// « Tous les muscles » (le retour le remplace) ni le groupe en cours (le titre le dit).
 function muscleFilterHtml(action, f, lead = '') {
   const chip = (label, attrs, on) => `<button class="ax__chip" aria-pressed="${on}" data-action="${action}" ${attrs}>${esc(label)}</button>`;
   const g = MUSCLE_GROUP_BY_ID.get(f?.group);
-  const order = lead && g ? [g, ...MUSCLE_GROUPS.filter(x => x !== g)] : MUSCLE_GROUPS;
-  const all = chip('Tous les muscles', 'data-group=""', !g);
-  const chips = order.map(x => chip(x.label, `data-group="${x.id}"`, g?.id === x.id));
-  const groups = [lead, ...(lead && g ? [chips[0], all, ...chips.slice(1)] : [all, ...chips])].join('');
+  const nav = lead && g;
+  const groups = [lead, ...(nav ? [] : [chip('Tous les muscles', 'data-group=""', !g)]),
+    ...MUSCLE_GROUPS.filter(x => !nav || x !== g).map(x => chip(x.label, `data-group="${x.id}"`, g?.id === x.id))].join('');
   const sub = g && g.muscles.length > 1
     ? `<div class="mf__row mf__row--sub" role="group" aria-label="Muscles : ${esc(g.label)}">${[chip(g.all, `data-group="${g.id}" data-muscle=""`, !f.muscle),
         ...g.muscles.map(id => chip(muscleLabel(id), `data-group="${g.id}" data-muscle="${id}"`, f.muscle === id))].join('')}</div>`

@@ -222,7 +222,9 @@ body.light .mpick__auto { background: var(--cell); }
 .mgc--ex .mgc__text { width: 60%; }
 .mgc--ex .mgc__img { max-width: 45%; }
 /* Sous-titre d'un exercice sur une seule ligne (rythme régulier de la liste) ; jamais coupé dans un mot sans « … » */
-.mgc--ex .mgc__sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mgc--ex .mgc__sub { display: flex; white-space: nowrap; min-width: 0; }
+.mgc--ex .mgc__mus { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mgc--ex .mgc__eq { flex-shrink: 0; }   /* le matériel n'est jamais coupé : seuls les muscles cèdent */
 /* Petits écrans (iPhone SE) : lignes plus basses, nom sur une ligne, pour voir 4 exercices sous les filtres */
 @media (max-width: 360px), (max-height: 680px) {
   .view--grouped .mgc--ex { min-height: 4rem; padding-block: 8px; }
@@ -233,6 +235,7 @@ body.light .mpick__auto { background: var(--cell); }
    de la fiche (redit par la section Muscles) disparaît, plutôt qu'un nom coupé ou caché sous le personnage */
 .type-xl .mgc__img { display: none; }
 .type-xl .mgc__text { width: 100%; }
-.type-xl .mgc--ex .mgc__sub { white-space: normal; overflow: visible; }
+.type-xl .mgc--ex .mgc__sub { display: block; white-space: normal; }
+.type-xl .mgc--ex .mgc__mus, .type-xl .mgc--ex .mgc__eq { white-space: normal; }
 .type-xl .view--grouped .mgc { min-height: 44px; }
 .type-xl .mgcs--hero { display: none; }

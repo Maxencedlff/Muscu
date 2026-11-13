@@ -21,11 +21,36 @@ function libSection(e) {
 // Sous-titre sur une seule ligne, pour un rythme régulier (panel du 13/11) : deux muscles au plus et le
 // matériel en court, un seul muscle si c'est encore trop long, points de suspension en dernier recours (CSS).
 // Le muscle filtré passe devant. VoiceOver lit tout : nom, tous les muscles principaux, matériel entier.
-const LIB_SUB_MAX = 30;   // caractères qui tiennent sur une ligne à côté du personnage (iPhone 13 et SE)
-function libSubLine(m, equip) {
-  const line = n => [musclesLine(m, n), equip].filter(Boolean).join(' · ');
-  return line(2).length <= LIB_SUB_MAX ? line(2) : line(1);
+// Le matériel n'est jamais coupé (« Mollets · Quadriceps · Car… » sur iPhone SE, panel du 13/11) : il a sa propre
+// boîte qui ne rétrécit pas, seuls les muscles peuvent finir en « … ». Le choix deux muscles / un muscle se fait
+// sur la largeur réelle, après le rendu (fitLibSubs).
+function libSubHtml(m, equip) {
+  const two = musclesLine(m, 2), one = musclesLine(m, 1);
+  const mus = `<span class="mgc__mus"${one !== two ? ` data-short="${esc(one)}"` : ''}>${esc(two)}</span>`;
+  if (!equip) return mus;
+  return `${two ? mus : ''}<span class="mgc__eq">${two ? '\u00a0·\u00a0' : ''}${esc(equip)}</span>`;
 }
+// Deux muscles qui ne tiennent pas en entier : un seul (texte agrandi : rien à faire). Mesure tout de suite, puis
+// à l'image suivante et une fois les polices chargées : la police de secours, plus étroite, faisait tout tenir à tort
+// Largeur voulue mesurée sans rétrécir la boîte : WebKit donne scrollWidth = clientWidth sous des « … »
+function libSubOverflows(mus) {
+  const sub = mus.parentElement;
+  mus.style.flexShrink = '0';
+  const need = mus.getBoundingClientRect().width + (sub.querySelector('.mgc__eq')?.getBoundingClientRect().width || 0);
+  mus.style.flexShrink = '';
+  return need > sub.clientWidth - 2;   // 2 px de marge : à la limite, WebKit pose déjà les « … » (arrondis)
+}
+function fitLibSubsNow(scope) {
+  scope.querySelectorAll('.library .mgc__mus[data-short]').forEach(el => {
+    if (libSubOverflows(el)) { el.textContent = el.dataset.short; el.removeAttribute('data-short'); }
+  });
+}
+function fitLibSubs(scope = document) {
+  fitLibSubsNow(scope);
+  requestAnimationFrame(() => fitLibSubsNow(scope));
+  document.fonts?.ready.then(() => fitLibSubsNow(scope));
+}
+window.addEventListener('resize', () => fitLibSubsNow(document));
 function libRowHtml(e) {
   const q = EQUIPMENT.find(x => x.id === e.equip);
   const m = exerciseMuscles({ name: e.name }), id = m.primary?.[0];
@@ -34,7 +59,7 @@ function libRowHtml(e) {
   const label = [e.name, ...muscles, q?.label].filter(Boolean).join(', ');
   return `<button class="cell mgc mgc--ex" data-action="open-library-ex" data-name="${esc(e.name)}" aria-label="${esc(label)}">
       <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
-        <span class="mgc__sub">${esc(libSubLine(shown, q?.short || q?.label || ''))}</span></span>
+        <span class="mgc__sub">${libSubHtml(shown, q?.short || q?.label || '')}</span></span>
       ${isMuscleId(id) ? muscleImgHtml(id, true) : ''}
     </button>`;
 }
@@ -83,7 +108,7 @@ function refreshLibMuscleBox(focus = false) {
   if (equip) equip.hidden = !!libMuscle.group;
   if (!focus) return;
   const g = libMuscle.group;
-  const target = g ? $(`.library .mf [data-group="${g}"]${libMuscle.muscle ? `[data-muscle="${libMuscle.muscle}"]` : ':not([data-muscle])'}`)
+  const target = g ? $(`.library .mf__row--sub [data-muscle="${libMuscle.muscle || ''}"]`)
     : $('.library .mgc');
   target?.focus({ preventScroll: true });
 }
@@ -126,10 +151,21 @@ function libListHtml() {
   }).join('');
 }
 
+// Groupe choisi = un niveau de navigation iOS, sans nouvelle route (panel du 13/11 : le retour disait « Programme »
+// et sortait de la Bibliothèque) : titre du groupe, retour « ‹ Bibliothèque » qui remet le filtre à zéro
+function libNavBar() {
+  const g = MUSCLE_GROUP_BY_ID.get(libMuscle.group);
+  if (!g) return navBar({ title: 'Bibliothèque' });
+  const back = `<button class="navbar__back" data-action="lib-muscle" data-group="" aria-label="Retour : Bibliothèque">
+      ${icon('chevron.left', 22)}<span class="navbar__back-label" data-full="Bibliothèque">Bibliothèque</span>
+    </button>`;
+  return navBar({ title: esc(g.label), large: false, left: back });
+}
+
 function renderLibrary() {
   return `
     <div class="view library view--grouped">
-      ${navBar({ title: 'Bibliothèque' })}
+      ${libNavBar()}
       <div class="scr">
         <div class="hist-tools">
           <input type="search" id="libSearch" class="search" placeholder="Nom, muscle ou matériel" value="${esc(libQuery)}"
@@ -181,7 +217,7 @@ function renderLibraryEx(name) {
     </div>`;
 }
 
-SCREENS.set('library', { render: () => renderLibrary() });
+SCREENS.set('library', { render: () => renderLibrary(), mount: () => fitLibSubs() });
 SCREENS.set('library-ex', { render: name => renderLibraryEx(name), mount: () => mountHowTo() });
 
 // Recherche : seule la liste est redessinée (le champ garde le focus et le clavier)
@@ -191,7 +227,7 @@ document.addEventListener('input', e => {
   const groups = $('.library .mgcs');
   if (groups) groups.hidden = !!libQuery.trim();   // en recherche, les résultats viennent tout de suite
   const list = $('#libList');
-  if (list) list.innerHTML = libListHtml();
+  if (list) { list.innerHTML = libListHtml(); fitLibSubs(list); }
 });
 
 // Nouveau matériel : pastilles de la rangée, pastille repliée, nombres des groupes et liste à jour
@@ -201,7 +237,7 @@ function setLibEquip(id) {
   refreshLibMuscleBox();
   $('.library .mf__row--sub [aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   const list = $('#libList');
-  if (list) list.innerHTML = libListHtml();
+  if (list) { list.innerHTML = libListHtml(); fitLibSubs(list); }
 }
 
 registerActions({
@@ -211,13 +247,18 @@ registerActions({
   'lib-muscle': (e, el) => {
     const before = libMuscle.group;
     libMuscle = muscleFilterTap(el, libMuscle);
+    // Groupe changé : toute la vue est redessinée (barre : titre et retour), en haut de page pour voir le titre,
+    // les filtres et le 1er exercice. VoiceOver : sur le retour en entrant dans un groupe, sur la ligne du groupe
+    // quitté en revenant à la liste des groupes.
+    if (libMuscle.group !== before) {
+      paint(0);
+      const target = libMuscle.group ? $('.library .navbar__back') : $(`.library .mgcs [data-group="${before}"]`);
+      target?.focus({ preventScroll: true });
+      return;
+    }
     refreshLibMuscleBox(true);
     const list = $('#libList');
-    if (list) list.innerHTML = libListHtml();
-    // Groupe changé : la liste des groupes (haute) laisse place aux pastilles, la page raccourcit ; on remonte
-    // en haut pour voir le titre du groupe, ses filtres et le 1er exercice (panel du 13/11 : liste déjà défilée)
-    if (libMuscle.group !== before) window.scrollTo({ top: 0, behavior: 'auto' });
-    // Le groupe choisi suit la pastille Matériel (début de ligne) ; le muscle précis reste visible dans la sienne
+    if (list) { list.innerHTML = libListHtml(); fitLibSubs(list); }
     $('.library .mf__row--sub [aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   },
   'lib-equip': (e, el) => { setLibEquip(el.dataset.equip); haptic(); },
