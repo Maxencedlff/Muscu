@@ -245,13 +245,14 @@ function chatBadgeHtml(n) {
 function chatCellHtml(key) {
   if (!chatAvailable()) return '';
   const th = chatThreadOf(key), n = chatUnreadOf(key);
+  // Nom lu par VoiceOver = texte du bouton (« Messages, 2 non lus, » puis le dernier message) : pas d'aria-label,
+  // qui cachait le dernier message affiché
   const last = th?.last ? `${th.last.mine ? 'Toi : ' : ''}${th.last.body.replace(/\s+/g, ' ')}` : 'Aucun message pour l\'instant';
-  const label = ['Messages', n ? plural(n, 'non lu', 'non lus') : ''].filter(Boolean).join(', ');
   return `
         <div class="group">
-          <button class="cell cell--nav chat-cell" data-action="chat-open" data-key="${esc(key)}" aria-label="${esc(label)}">
+          <button class="cell cell--nav chat-cell" data-action="chat-open" data-key="${esc(key)}">
             <span class="coach-cell__icon" aria-hidden="true">${icon('text.bubble', 20)}</span>
-            <span class="cell__body"><span class="cell__title">Messages</span><span class="cell__sub chat-cell__last">${esc(last)}</span></span>
+            <span class="cell__body"><span class="cell__title">Messages${n ? `<span class="sr-text">, ${plural(n, 'non lu', 'non lus')},</span>` : ''}</span><span class="cell__sub chat-cell__last">${esc(last)}</span></span>
             ${n ? `<span class="coach-count num" aria-hidden="true">${n > 99 ? '99+' : n}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>

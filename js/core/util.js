@@ -198,16 +198,24 @@ function daysAgo(ts, now = Date.now()) {
 
 // Date d'un horodatage ou d'un objet Date. Sans style : « Aujourd'hui », « Hier », sinon
 // « jeu. 9 oct. » (l'année seulement si ce n'est pas l'année en cours). Styles : DATE_FORMATS.
+// Formateurs Intl gardés : toLocaleDateString en recrée un à chaque appel (une ligne d'historique sur deux en
+// passait 1 ms sur un téléphone moyen). Mêmes textes : chaque format porte des champs de date.
+const DATE_FMT_CACHE = new Map();
+function dateFmt(key, opts) {
+  let f = DATE_FMT_CACHE.get(key);
+  if (!f) { f = new Intl.DateTimeFormat('fr-FR', opts); DATE_FMT_CACHE.set(key, f); }
+  return f;
+}
 function fmtDate(ts, style) {
   const d = new Date(ts);
-  if (style) return d.toLocaleDateString('fr-FR', DATE_FORMATS[style]);
+  if (Number.isNaN(d.getTime())) return d.toLocaleDateString('fr-FR');   // « Invalid Date », comme avant (format() lèverait une erreur)
+  if (style) return DATE_FORMATS[style] ? dateFmt(style, DATE_FORMATS[style]).format(d) : d.toLocaleDateString('fr-FR', DATE_FORMATS[style]);
   const today = new Date();
   const diff = daysAgo(d, today);
   if (diff === 0) return 'Aujourd\'hui';
   if (diff === 1) return 'Hier';
-  const opts = { weekday: 'short', day: 'numeric', month: 'short' };
-  if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
-  return d.toLocaleDateString('fr-FR', opts);
+  const year = d.getFullYear() !== today.getFullYear();
+  return dateFmt(year ? 'courte+an' : 'courte', { weekday: 'short', day: 'numeric', month: 'short', ...(year ? { year: 'numeric' } : {}) }).format(d);
 }
 
 // Heure : « 14:05 »
@@ -248,8 +256,19 @@ function cleanReps(v) { return String(v ?? '').replace(/\D/g, '').slice(0, 4); }
 // jamais la réponse visible d'un toucher
 function afterPaint(fn) { requestAnimationFrame(() => setTimeout(fn, 0)); }
 
+// Mémorisé : appelé des dizaines de milliers de fois pour quelques dizaines de noms (Progrès, records, historique :
+// 1 200 séances, 1,5 s sur 4 s de calcul passaient dans normalize('NFD')). Le cache est vidé s'il grossit trop
+// (recherche tapée lettre à lettre, noms importés).
+const NORM_NAME_CACHE = new Map();
 function normName(name) {
-  return String(name ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const s = String(name ?? '');
+  let v = NORM_NAME_CACHE.get(s);
+  if (v === undefined) {
+    if (NORM_NAME_CACHE.size >= 5000) NORM_NAME_CACHE.clear();
+    v = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    NORM_NAME_CACHE.set(s, v);
+  }
+  return v;
 }
 
 // Même exercice ? Par identifiant stable si les deux en ont un, sinon par nom normalisé.
