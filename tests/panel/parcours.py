@@ -339,6 +339,12 @@ def p_bibliotheque(r):
         r.onglet('program', 'Programme')
         r.toucher('[data-action="go-library"]', 'Bibliothèque')
         r.attendre('.view.library', 'Bibliothèque')
+    # Exercices d'un groupe : une ligne illustrée par exercice (personnage 3D, muscle principal en rouge)
+    with r.etape('groupe', 'Exercices du groupe Jambes', cle='Choisir un exercice par muscle'):
+        r.toucher('.library .mgcs .mgc[data-group="jambes"]', 'groupe Jambes')
+        r.attendre('#libList .mgc--ex', 'exercices illustrés')
+    with r.etape('groupe-suite', 'Exercices du groupe Jambes, plus bas'):
+        r.defiler('#libList .mgc--ex >> nth=6', 'exercices plus bas')
     with r.etape('fiche', 'Fiche d\'un exercice', cle='Ouvrir la fiche d\'un exercice de la bibliothèque'):
         r.toucher('.view.library [data-action="open-library-ex"]', '1er exercice')
         r.attendre('.view.library-ex', 'fiche de la bibliothèque')

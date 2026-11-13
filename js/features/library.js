@@ -180,10 +180,17 @@ registerActions({
   'go-library': () => { libQuery = ''; libEquip = 'all'; libMuscle = NO_MUSCLE_FILTER; navigate('library'); },
   'open-library-ex': (e, el) => navigate(makeRoute('library-ex', el.dataset.name)),
   'lib-muscle': (e, el) => {
+    const before = libMuscle.group;
     libMuscle = muscleFilterTap(el, libMuscle);
     refreshLibMuscleBox(true);
     const list = $('#libList');
     if (list) list.innerHTML = libListHtml();
+    // Groupe changé : la liste des groupes (haute) laisse place aux pastilles, la page raccourcit ; on remonte
+    // en haut pour voir le titre du groupe, ses filtres et le 1er exercice (panel du 13/11 : liste déjà défilée)
+    if (libMuscle.group !== before) {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      $('.library .mf [aria-pressed="true"][data-group]:not([data-muscle])')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
   },
   'lib-equip': (e, el) => {
     libEquip = el.dataset.equip;
