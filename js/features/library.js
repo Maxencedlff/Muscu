@@ -172,7 +172,8 @@ document.addEventListener('input', e => {
 });
 
 registerActions({
-  'go-library': () => navigate('library'),
+  // Ouverture depuis Programme : on repart des groupes musculaires (les filtres ne restent qu'en revenant d'une fiche)
+  'go-library': () => { libQuery = ''; libEquip = 'all'; libMuscle = NO_MUSCLE_FILTER; navigate('library'); },
   'open-library-ex': (e, el) => navigate(makeRoute('library-ex', el.dataset.name)),
   'lib-muscle': (e, el) => {
     libMuscle = muscleFilterTap(el, libMuscle);
