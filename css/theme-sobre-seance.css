@@ -31,6 +31,8 @@
   font-size: 0.824rem; line-height: 1.2; font-weight: 700; padding: 3px 10px 3px 7px; border-radius: 8px; gap: 5px;
 }
 .session-set .pr-badge .medal { width: 17px; height: 17px; flex-shrink: 0; }
+/* En clair, sur la série en cours (voile orange) : or plus foncé, 5:1 au lieu de 4,45:1 */
+body.light .session-set .pr-badge { color: #8A4E00; }
 
 /* ── Bilan : médaille plus grande (ligne du record et « Nouveaux records ») ── */
 .sum-line { gap: 8px; }
