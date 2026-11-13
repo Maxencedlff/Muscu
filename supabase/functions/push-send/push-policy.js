@@ -52,7 +52,7 @@ export function pushMessage(row) {
   const ref = typeof row.ref === 'string' ? row.ref.slice(0, 64) : '';
   // Plan diète envoyé par le canal des programmes (id diet_<…>, docs/NUTRITION_V1.md) : dit comme tel
   if (row.kind === 'coach_programme' && ref.startsWith('diet_')) {
-    return { title: 'Ton coach', body: `${actorName(row.actor_name)} t’a envoyé un plan diète`, kind: row.kind, ref };
+    return { title: 'Ton coach', body: `${actorName(row.actor_name)} t’a envoyé un plan de nutrition`, kind: row.kind, ref };
   }
   return { ...make(actorName(row.actor_name)), kind: row.kind, ref };
 }

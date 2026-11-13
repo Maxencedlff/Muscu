@@ -687,7 +687,7 @@ with open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 
 
 def aliment(code, g, iid):
-    """Aliment d'un plan diète (table Ciqual de data/foods.json), comme tests/test_nutrition.py."""
+    """Aliment d'un plan de nutrition (table Ciqual de data/foods.json), comme tests/test_nutrition.py."""
     f = _FOODS[code]
     return {'id': iid, 'name': f[1], 'food': code, 'fam': f[2], 'g': g, 'per': {'k': f[3], 'p': f[4], 'c': f[5], 'f': f[6]}}
 
@@ -723,23 +723,23 @@ def demarrer(r, cat, nom):
 
 @parcours('nutrition', 'Nutrition : créer son plan, journal du jour, plan du coach', 'pratiquant')
 def p_nutrition(r):
-    """Pratiquant sans plan diète : Programme › Plans diète, « Créer un plan », un aliment cherché (riz cuit, 150 g),
+    """Pratiquant sans plan de nutrition : Programme › Plans de nutrition, « Créer un plan », un aliment cherché (riz cuit, 150 g),
     puis l'accueil et l'écran Nutrition du jour (anneau des calories, macros, repas à cocher, remplacer un aliment).
     Ensuite connecté (Léa) et suivie par le coach max, qui lui envoie le plan « Sèche Léa » : accord, « Suivre »,
     Nutrition avec le plan du coach."""
     r.lancer(REALISTE)
-    cle = 'Créer son plan diète avec un aliment'
-    with r.etape('plans', 'Programme › Plans diète', cle=cle):
+    cle = 'Créer son plan de nutrition avec un aliment'
+    with r.etape('plans', 'Programme › Plans de nutrition', cle=cle):
         r.onglet('program', 'Programme')
         r.defiler('[data-action="go-diet-plans"]', 'groupe Nutrition')
-        r.toucher('[data-action="go-diet-plans"]', 'Plans diète')
-        r.attendre('.diet-plans-view', 'Plans diète')
+        r.toucher('[data-action="go-diet-plans"]', 'Plans de nutrition')
+        r.attendre('.diet-plans-view', 'Plans de nutrition')
     with r.etape('nouveau-plan', '« Créer un plan » : nom du plan', cle=cle):
         r.toucher('[data-action="diet-new-plan"]', 'Créer un plan')
         r.saisir('.ios-dialog__input', 'Ma prise de masse', 'nom du plan')
     with r.etape('plan-cree', 'Plan créé : quatre repas à remplir', cle=cle):
         r.choisir('Créer')
-        r.attendre('.diet-plan-view', 'plan diète')
+        r.attendre('.diet-plan-view', 'plan de nutrition')
     with r.etape('recherche-aliment', 'Ajouter un aliment : recherche « riz blanc cuit »', cle=cle):
         r.toucher('[data-action="diet-add-food"]', 'Ajouter un aliment (Petit-déjeuner)')
         r.attendre('#dietFoodSearch', 'feuille de recherche')
@@ -786,10 +786,10 @@ def p_nutrition(r):
           sent_at: new Date().toISOString(), seen: false });
         await coachRefresh(); switchTab('train', { reset: true }); render();
     }""", 'Léa connectée, suivie par max, qui lui a envoyé le plan « Sèche Léa »', PLAN_DIETE)
-    cle = 'Suivre le plan diète du coach'
-    with r.etape('coach-accueil', 'Accueil : « max veut t\'envoyer un plan diète »', cle=cle):
+    cle = 'Suivre le plan de nutrition du coach'
+    with r.etape('coach-accueil', 'Accueil : « max veut t\'envoyer un plan de nutrition »', cle=cle):
         fermer_dialogue(r, 'Garder sur cet iPhone')
-        r.attendre('.coach-home', 'carte du plan diète du coach')
+        r.attendre('.coach-home', 'carte du plan de nutrition du coach')
     # Un seul geste (vague 4) : « Recevoir » demande l'accord puis prend le plan
     with r.etape('coach-accord', 'Recevoir : accord pour les plans du coach, plan pris dans la foulée', cle=cle):
         r.toucher('.coach-home [data-action="diet-take"]', 'Recevoir (carte de l\'accueil)')
@@ -846,7 +846,7 @@ def p_scan(r):
     d['dietPlans'] = {'d_scan01': PLAN_SCAN}
     d['dietActive'] = 'd_scan01'
     r.lancer(json.dumps(d, ensure_ascii=False, separators=(',', ':')))
-    r.raccourci("navigate(makeRoute('diet-plan', 'd_scan01'))", 'plan diète « Mon plan » ouvert (Programme › Plans diète)')
+    r.raccourci("navigate(makeRoute('diet-plan', 'd_scan01'))", 'plan de nutrition « Mon plan » ouvert (Programme › Plans de nutrition)')
     cle = 'Scanner un produit et l\'ajouter'
     with r.etape('feuille', 'Ajouter un aliment : « Scanner un code-barres » en tête', cle=cle):
         r.toucher('[data-action="diet-add-food"][data-meal="m1"]', 'Ajouter un aliment (Déjeuner)')
@@ -861,7 +861,7 @@ def p_scan(r):
         r.page.focus('.fscan__name')
     with r.etape('ajoute', 'Pâtes ajoutées au déjeuner', cle=cle):
         r.toucher('.sheet-root .sheet__btn--confirm', 'Ajouter')
-        r.attendre('.diet-plan-view', 'plan diète')
+        r.attendre('.diet-plan-view', 'plan de nutrition')
     etat['reseau'] = False
     r.raccourci('() => {}', 'réseau coupé (Open Food Facts injoignable)')
     cle = 'Rescanner sans réseau'
@@ -1044,16 +1044,16 @@ PREPARE_SUIVI = """(plan) => {
 }"""
 
 
-@parcours('coach-suivi', 'Coach : planning, progression, envoi avec fourchette et technique, plan diète', 'coach')
+@parcours('coach-suivi', 'Coach : planning, progression, envoi avec fourchette et technique, plan de nutrition', 'coach')
 def p_coach_suivi(r):
     """Coach max avec Léa (12 séances, 2 records cette semaine, reprise puis mini cut planifiés) et Tom : planning des
     élèves, fiche de Léa (« Cette semaine »), envoi du programme « Force » (fourchettes, drop set, top set, prises) puis
-    du plan diète « Sèche Léa » (Léa a donné son accord)."""
+    du plan de nutrition « Sèche Léa » (Léa a donné son accord)."""
     r.lancer(REALISTE)
     r.connecter('max')
     r.raccourci(PREPARE_COACH, 'rôle coach validé, élèves Léa et Tom, programme « Force », message de Léa',
                 [seances_eleve_records(), days_back_ms(NOW, 3, 9, tz=PARIS)])
-    r.raccourci(PREPARE_SUIVI, 'phases de Léa et Tom, fourchettes, techniques et prises dans « Force », plan diète « Sèche Léa », accord diète de Léa',
+    r.raccourci(PREPARE_SUIVI, 'phases de Léa et Tom, fourchettes, techniques et prises dans « Force », plan de nutrition « Sèche Léa », accord diète de Léa',
                 PLAN_DIETE)
     cle = 'Voir le planning des élèves'
     with r.etape('mes-eleves', 'Onglet Coach, Élèves : signal de progression et phase', cle=cle):
@@ -1070,7 +1070,7 @@ def p_coach_suivi(r):
         r.retour()
         r.toucher('.coach-student-row', 'Léa', texte='lea')
         r.attendre('.coach-student-view', 'fiche de l\'élève')
-    with r.etape('fiche-eleve-bas', 'Fiche de Léa, bas de l\'écran (programme, plan diète)'):
+    with r.etape('fiche-eleve-bas', 'Fiche de Léa, bas de l\'écran (programme, plan de nutrition)'):
         r.bas('bas de la fiche')
     cle = 'Envoyer un programme à un élève'
     with r.etape('envoyer-ecran', 'Envoyer « Force » : fourchettes, techniques et prises affichées', cle=cle):
@@ -1081,10 +1081,10 @@ def p_coach_suivi(r):
         r.defiler('[data-action="coach-send-go"]', 'bouton Envoyer')
     with r.etape('programme-envoye', 'Programme envoyé : retour à la fiche', cle=cle):
         r.toucher('[data-action="coach-send-go"]', 'Envoyer à Léa')
-    cle = 'Envoyer un plan diète à un élève'
-    with r.etape('diete-choix', 'Envoyer un plan diète : choix du plan', cle=cle):
-        r.defiler('[data-action="coach-send-diet"]', 'Envoyer un plan diète')
-        r.toucher('[data-action="coach-send-diet"]', 'Envoyer un plan diète')
+    cle = 'Envoyer un plan de nutrition à un élève'
+    with r.etape('diete-choix', 'Envoyer un plan de nutrition : choix du plan', cle=cle):
+        r.defiler('[data-action="coach-send-diet"]', 'Envoyer un plan de nutrition')
+        r.toucher('[data-action="coach-send-diet"]', 'Envoyer un plan de nutrition')
         r.attendre('.ios-dialog__btn', 'liste des plans')
     with r.etape('diete-relecture', 'Plan diète : relecture avant l\'envoi', cle=cle):
         r.choisir('Sèche Léa')

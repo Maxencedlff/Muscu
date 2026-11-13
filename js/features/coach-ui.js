@@ -285,7 +285,7 @@ function renderCoachJoin(code) {
         ${coachTitle(`Ce ${elide('que', name)} pourra faire`)}
         ${list([['Des programmes pour toi', 'Avec ses consignes. Tu choisis de les ajouter.'], ['Ses commentaires', 'Sous tes séances, dans ton historique.'],
           ['Des messages', 'Texte seul, entre vous deux. Effacés quand le coaching s\'arrête. Tu peux signaler un message.'],
-          ['Des plans diète', 'Seulement si tu acceptes ses plans. Tu choisis de les suivre.']])}
+          ['Des plans de nutrition', 'Seulement si tu acceptes ses plans. Tu choisis de les suivre.']])}
         ${coachTitle('Seulement si tu le choisis')}
         ${list([['Ton poids et tes mensurations', 'Rien n\'est partagé au départ. Tu coches ce que tu veux dans Réglages › Social et coach › Partager avec mon coach.'],
           ...(photos ? [['Des photos de bilan', 'Seulement celles que tu lui envoies toi-même depuis ton coffre, chiffrées pour ton coach seulement. Tu peux les retirer quand tu veux.']] : [])])}

@@ -653,7 +653,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     run(`data.dietPlans = {}`);
     sameJSON(run(`coachDietSentStatus('s1').map(x => [x.name, x.gone])`), [['Sèche Léa', true]]);
     run(`localStorage.removeItem(COACH_SENT_KEY)`);
-    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.name, x.gone])`), [['Plan diète', true]], 'nom inconnu : « Plan diète », jamais « Plan supprimé »');
+    sameJSON(run(`coachDietSentStatus('s1').map(x => [x.name, x.gone])`), [['Plan de nutrition', true]], 'nom inconnu : « Plan de nutrition », jamais « Plan supprimé »');
     run('coach.state = null');
   });
 
@@ -666,7 +666,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(run(`coachErrorText('empty_diet')`).includes('aliment'));
     const { pushMessage } = await import(path.join(ROOT, 'supabase/functions/push-send/push-policy.js'));
     const row = { wanted: true, token: 'a'.repeat(64), kind: 'coach_programme', actor_name: 'max' };
-    assert.equal(pushMessage({ ...row, ref: 'diet_k7m2qx9p' }).body, 'max t’a envoyé un plan diète');
+    assert.equal(pushMessage({ ...row, ref: 'diet_k7m2qx9p' }).body, 'max t’a envoyé un plan de nutrition');
     assert.equal(pushMessage({ ...row, ref: 'u_abc' }).body, 'max t’a envoyé un programme');
     sameJSON(run(`pushTarget({ kind: 'coach_programme', ref: 'diet_k7m2qx9p' }, [])`), { tab: 'train', screen: 'nutrition', params: [] });
   });
@@ -686,7 +686,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(!/diab|obésit|plus sain|brûle|détox|detox|maigrir vite/i.test(ui), 'pas de finalité médicale ni de promesse');
     for (const t of ['table Ciqual 2025 de l\'Anses (version du 03/11/2025)', 'doi.org/10.57745/RDMHWY', 'Licence Ouverte Etalab 2.0', 'L\'Anses ne valide pas ces plans',
       '0810 037 037', 'réservent les régimes sous 1 200 kcal', 'Garder sur cet iPhone']) assert.ok(ui.includes(t), `texte : ${t}`);
-    for (const t of ['Copier sur mon compte', 'En savoir plus', 'Recevoir les plans diète', 'envoyer un plan diète']) assert.ok(ui.includes(t), `texte : ${t}`);
+    for (const t of ['Copier sur mon compte', 'En savoir plus', 'Recevoir les plans de nutrition', 'envoyer un plan de nutrition']) assert.ok(ui.includes(t), `texte : ${t}`);
     const privacy = read('privacy.html');
     assert.ok(privacy.includes('id="nutrition"') && privacy.includes('href="#nutrition"') && privacy.includes('Your diet plans'), 'privacy.html : Nutrition FR et EN');
     // Textes de l'interface : sans tiret dans les phrases

@@ -28,7 +28,7 @@ function renderDietPlans() {
   const isCoach = coachRole().isCoach;
   return `
     <div class="view view--grouped diet-plans-view">
-      ${navBar({ title: 'Plans diète' })}
+      ${navBar({ title: 'Plans de nutrition' })}
       <div class="scr">
         <div class="group">
           ${ids.map(row).join('')}
@@ -68,7 +68,7 @@ function dietPlanItemCell(plan, meal, it, ro) {
 function renderDietPlan(id) {
   const plan = dietPlanOf(id);
   // Grand titre : le nom du plan entier, même long (iPhone SE) ; la barre compacte, qui le coupe, vient au défilement
-  if (!plan) return `<div class="view view--grouped diet-plan-view">${navBar({ title: 'Plan diète' })}<div class="scr"><div class="empty-note">Ce plan n'existe plus.</div></div></div>`;
+  if (!plan) return `<div class="view view--grouped diet-plan-view">${navBar({ title: 'Plan de nutrition' })}<div class="scr"><div class="empty-note">Ce plan n'existe plus.</div></div></div>`;
   const ro = !!plan.fromCoach, on = data.dietActive === id, total = dietPlanMacros(plan);
   const right = ro ? '' : `<button class="navbar__text" data-action="diet-rename" data-id="${esc(id)}">Renommer</button>`;
   const meals = plan.meals.map(meal => `

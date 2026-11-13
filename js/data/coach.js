@@ -161,7 +161,7 @@ function cleanInbox(raw) {
     // Format plus récent que cette app : nom seul, « Mets l'app à jour » (tooNew)
     const tooNew = dietSentTooNew(p.data);
     const d = p.meta === true && p.data?.kind === 'diet' && typeof p.data.name === 'string' ? { name: p.data.name.slice(0, DIET_NAME_MAX), meals: [] }
-      : tooNew ? { name: dietText(p.data.diet?.name, DIET_NAME_MAX) || 'Plan diète', meals: [] } : cleanSentDiet(p.data);
+      : tooNew ? { name: dietText(p.data.diet?.name, DIET_NAME_MAX) || 'Plan de nutrition', meals: [] } : cleanSentDiet(p.data);
     return d ? { id: p.id, data: d, sentAt: coachTime(p.sent_at) ?? 0, seen: p.seen === true, ...(p.meta === true ? { meta: true } : {}), ...(tooNew ? { tooNew: true } : {}) } : null;
   }).filter(Boolean).sort((a, b) => b.sentAt - a.sentAt);
   const programmes = rows.map(p => {
@@ -236,7 +236,7 @@ const COACH_ERROR_TEXT = {
   too_big: 'Programme trop gros pour être envoyé.',
   // Plan diète (js/data/coach-diet.js)
   empty_diet: 'Ajoute au moins un aliment à ce plan avant de l\'envoyer.',
-  diet_not_accepted: 'Ton élève doit d\'abord accepter les plans diète dans son app.',
+  diet_not_accepted: 'Ton élève doit d\'abord accepter les plans de nutrition dans son app.',
   // Partage avec le coach (js/data/coach-share.js)
   not_shared: 'Ce partage est coupé : coche-le à nouveau pour l\'envoyer.',
   invalid_kind: 'Ce partage n\'est pas encore disponible.',

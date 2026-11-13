@@ -279,9 +279,9 @@ function dietInviteCardHtml(item) {
   const who = esc(coachName());
   return `
         <article class="coach-prog diet-inbox diet-invite">
-          <div class="coach-prog__eyebrow">Plans diète</div>
-          <h3 class="coach-prog__name">${who} veut t'envoyer un plan diète</h3>
-          <p class="coach-prog__meta">Ton plan actuel reste dans Plans diète. Tu peux retirer ton accord quand tu veux.</p>
+          <div class="coach-prog__eyebrow">Plans de nutrition</div>
+          <h3 class="coach-prog__name">${who} veut t'envoyer un plan de nutrition</h3>
+          <p class="coach-prog__meta">Ton plan actuel reste dans Plans de nutrition. Tu peux retirer ton accord quand tu veux.</p>
           <button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">Recevoir</button>
         </article>`;
 }
@@ -291,11 +291,11 @@ function dietInboxCardHtml(item) {
   const who = esc(coachName());
   if (item.tooNew) return `
         <article class="coach-prog diet-inbox">
-          <div class="coach-prog__eyebrow">Plan diète ${elide('de', who)}</div>
+          <div class="coach-prog__eyebrow">Plan de nutrition ${elide('de', who)}</div>
           <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
           <p class="coach-prog__meta">Mets l'app à jour pour recevoir ce plan.</p>
         </article>`;
-  const eyebrow = status === 'update' ? `Mis à jour par ${who}` : status === 'new' ? `Nouveau plan diète ${elide('de', who)}` : `Reçu ${elide('de', who)}`;
+  const eyebrow = status === 'update' ? `Mis à jour par ${who}` : status === 'new' ? `Nouveau plan de nutrition ${elide('de', who)}` : `Reçu ${elide('de', who)}`;
   const total = item.meta ? null : dietPlanMacros(item.data);
   const btn = status === 'current' ? '<p class="coach-prog__done">C\'est ton plan</p>'
     : `<button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">${status === 'update' ? 'Mettre à jour' : 'Utiliser ce plan'}</button>`;
@@ -314,10 +314,10 @@ function dietInboxCardHtml(item) {
 // les plans reçus (contenu seulement avec l'accord)
 function dietInboxHtml() {
   const list = dietInbox(), on = dietCoachAccepted();
-  return `<div class="group-title">Plans diète</div>
+  return `<div class="group-title">Plans de nutrition</div>
         <div class="group">
           <button class="cell" data-action="diet-coach-toggle" role="switch" aria-checked="${on}">
-            <span class="cell__body"><span class="cell__title">Recevoir les plans diète ${elide('de', esc(coachName()))}</span>
+            <span class="cell__body"><span class="cell__title">Recevoir les plans de nutrition ${elide('de', esc(coachName()))}</span>
               <span class="cell__sub">${on ? 'Gardés sur le serveur jusqu\'à ce que tu retires ton accord.' : 'Sans ton accord, ton coach ne peut pas t\'en envoyer.'}</span></span>
             ${switchHtml(on)}
           </button>
@@ -329,7 +329,7 @@ function dietEmptyHtml() {
   return `
         <div class="diet-empty">
           <span class="diet-empty__icon" aria-hidden="true">${icon('fork.knife', 34)}</span>
-          <h2 class="diet-empty__title">Pas encore de plan diète</h2>
+          <h2 class="diet-empty__title">Pas encore de plan de nutrition</h2>
           <p class="diet-empty__sub">Ton coach peut t'en envoyer un. Tu peux aussi créer le tien : tes repas, tes aliments et leurs quantités, les macros se calculent seules.</p>
           <button class="btn btn--primary diet-empty__btn" data-action="diet-new-plan">Créer mon plan</button>
         </div>`;
@@ -414,8 +414,8 @@ function nutritionHomeCard() {
   const card = pending ? `
     <section class="home-card account-card coach-home" aria-labelledby="dietPendingTitle">
       <div class="account-card__text">
-        <h2 class="account-card__title" id="dietPendingTitle">${!ok ? `${esc(coachName())} veut t'envoyer un plan diète` : dietInboxStatus(pending).status === 'update' ? `Plan diète mis à jour par ${esc(coachName())}` : `Nouveau plan diète ${elide('de', esc(coachName()))}`}</h2>
-        <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Ton plan actuel reste dans Plans diète'}</p>
+        <h2 class="account-card__title" id="dietPendingTitle">${!ok ? `${esc(coachName())} veut t'envoyer un plan de nutrition` : dietInboxStatus(pending).status === 'update' ? `Plan de nutrition mis à jour par ${esc(coachName())}` : `Nouveau plan de nutrition ${elide('de', esc(coachName()))}`}</h2>
+        <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Ton plan actuel reste dans Plans de nutrition'}</p>
       </div>
       <button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">${ok ? 'Utiliser' : 'Recevoir'}</button>
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
@@ -472,7 +472,7 @@ function dietProgrammeGroupHtml() {
         <div class="group-title">Nutrition</div>
         <div class="group">
           <button class="cell cell--nav" data-action="go-diet-plans">
-            <span class="cell__body"><span class="cell__title">Plans diète</span>
+            <span class="cell__body"><span class="cell__title">Plans de nutrition</span>
               <span class="cell__sub">Repas, aliments et quantités ; macros calculées</span></span>
             <span class="cell__value">${plan ? esc(plan.name) : 'Aucun'}</span>
             ${icon('chevron.right', 16)}
@@ -486,7 +486,7 @@ function coachDietGroupHtml(uid) {
   const sent = coachDietSentStatus(uid);
   return `
         <div class="group">
-          <button class="cell cell--action" data-action="coach-send-diet" data-uid="${esc(uid)}">${icon('paperplane', 20)}<span>Envoyer un plan diète</span></button>
+          <button class="cell cell--action" data-action="coach-send-diet" data-uid="${esc(uid)}">${icon('paperplane', 20)}<span>Envoyer un plan de nutrition</span></button>
           ${sent.map(x => `
           <div class="cell coach-sent" data-diet="${esc(x.id)}"><span class="cell__body"><span class="cell__title">${esc(x.name)}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}${x.gone ? ' · supprimé de tes plans' : ''}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.seen ? 'used' : 'unseen'}">${x.seen ? 'Vu' : 'Pas encore ouvert'}</span></span></div>`).join('')}
         </div>`;
@@ -690,20 +690,20 @@ registerActions({
     haptic();
     coachMarkInboxSeen('programme', it.id);
     const before = Object.keys(data.dietPlans || {}).length > 1;
-    showToast(before ? `Plan en cours : ${it.data.name}. L'ancien reste dans Plans diète` : `Plan en cours : ${it.data.name}`);
+    showToast(before ? `Plan en cours : ${it.data.name}. L'ancien reste dans tes plans` : `Plan en cours : ${it.data.name}`);
     render();
   },
   'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
   'coach-send-diet': async (e, el) => {
     const uid = el.dataset.uid, ids = coachSendableDiets();
     if (!ids.length) {
-      const go = await dialog({ title: 'Aucun plan à envoyer', message: 'Crée d\'abord un plan diète avec au moins un aliment, dans Programme › Plans diète.',
+      const go = await dialog({ title: 'Aucun plan à envoyer', message: 'Crée d\'abord un plan de nutrition avec au moins un aliment, dans Programme › Plans de nutrition.',
         actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Créer un plan', value: true, style: 'preferred' }] });
       if (go === true) switchToDietPlans();
       return;
     }
     const who = personName(coachStudent(uid));
-    const planId = await dialog({ type: 'sheet', title: 'Envoyer un plan diète', message: `Choisis un de tes plans pour ${who}. Un nouvel envoi du même plan le met à jour chez ${who}.`,
+    const planId = await dialog({ type: 'sheet', title: 'Envoyer un plan de nutrition', message: `Choisis un de tes plans pour ${who}. Un nouvel envoi du même plan le met à jour chez ${who}.`,
       actions: [...ids.map(id => ({ label: data.dietPlans[id].name, value: id })), { label: 'Annuler', style: 'cancel' }] });
     if (!planId) return;
     // Relecture avant l'envoi, comme un programme (écran Envoyer, bouton « Envoyer à … ») : un plan diète

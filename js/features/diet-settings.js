@@ -39,8 +39,8 @@ async function dietAskShort(title, message, yes, no) {
 // Accord « copier sur mon compte » ; renvoie true s'il est donné
 async function dietAskConsent() {
   if (dietConsentOn(data)) return true;
-  const coachText = coachRole().isCoach ? 'Tes plans diète, y compris ceux que tu prépares pour tes élèves, peuvent renseigner sur la santé.'
-    : 'Tes plans diète et tes objectifs peuvent renseigner sur ta santé.';
+  const coachText = coachRole().isCoach ? 'Tes plans de nutrition, y compris ceux que tu prépares pour tes élèves, peuvent renseigner sur la santé.'
+    : 'Tes plans de nutrition et tes objectifs peuvent renseigner sur ta santé.';
   const v = await dietAskShort('Copier tes plans sur ton compte ?',
     `${coachText} Avec ton accord, ils sont copiés sur ton compte ; sans lui, ils restent sur cet iPhone.`,
     'Copier sur mon compte', 'Garder sur cet iPhone');
@@ -64,8 +64,8 @@ function dietSyncSoon() {
 async function dietAskCoachAccept({ quiet = false } = {}) {
   if (dietCoachAccepted()) return true;
   const who = coachName();
-  const v = await dietAskShort(`Recevoir les plans diète ${elide('de', who)} ?`,
-    `Ton coach pourra t'envoyer des plans diète, gardés sur le serveur jusqu'à ce que tu retires ton accord. Ils peuvent renseigner sur ta santé.`,
+  const v = await dietAskShort(`Recevoir les plans de nutrition ${elide('de', who)} ?`,
+    `Ton coach pourra t'envoyer des plans de nutrition, gardés sur le serveur jusqu'à ce que tu retires ton accord. Ils peuvent renseigner sur ta santé.`,
     'Accepter', 'Pas maintenant');
   if (!v) return false;
   return dietCoachApply(true, { quiet });
@@ -76,7 +76,7 @@ async function dietCoachApply(on, { quiet = false } = {}) {
   save();
   haptic();
   // Plan en attente : message court, entier même en texte agrandi maximal (4 lignes au plus, panel t6)
-  if (!quiet) showToast(on ? (dietPending() ? 'Plan reçu. Touche Utiliser' : 'Réception des plans diète activée') : 'Plans diète du coach effacés du serveur');
+  if (!quiet) showToast(on ? (dietPending() ? 'Plan reçu. Touche Utiliser' : 'Réception des plans de nutrition activée') : 'Plans de nutrition du coach effacés du serveur');
   coachRefresh();
   return on;
 }
@@ -123,11 +123,11 @@ function renderDietSettings() {
           ${sw('diet-consent', dietConsentOn(data), 'Copier mes plans sur mon compte', since)}
         </div>
         ${account.dietTooBig ? '<p class="diet-low" role="note">Tes plans sont trop lourds pour être copiés sur ton compte : supprime des plans dont tu ne te sers plus. Le reste de ton compte se synchronise normalement.</p>' : ''}
-        <div class="group-foot">Avec ton accord, tes plans diète, tes objectifs et tes aliments perso sont copiés sur le serveur de l'app pour les retrouver sur tes appareils. Retirer ton accord les efface du serveur.</div>` : ''}
+        <div class="group-foot">Avec ton accord, tes plans de nutrition, tes objectifs et tes aliments perso sont copiés sur le serveur de l'app pour les retrouver sur tes appareils. Retirer ton accord les efface du serveur.</div>` : ''}
         ${hasCoach ? `
         <div class="group-title">Coach</div>
         <div class="group">
-          ${sw('diet-coach-toggle', dietCoachAccepted(), `Recevoir les plans diète ${elide('de', esc(coachName()))}`)}
+          ${sw('diet-coach-toggle', dietCoachAccepted(), `Recevoir les plans de nutrition ${elide('de', esc(coachName()))}`)}
         </div>
         <div class="group-foot">Les plans de ton coach sont gardés sur le serveur jusqu'à ce que tu retires ton accord ou que le coaching s'arrête ; ton coach voit seulement si tu les as ouverts.</div>` : ''}
         <div class="group-foot diet-foot">Dans tous les cas, tes plans sont sur cet iPhone, dans la copie iCloud de l'app et dans tes exports. Les repas que tu coches et les aliments que tu remplaces restent sur cet iPhone et dans tes exports : ni copie iCloud, ni serveur, ni coach.</div>
@@ -204,7 +204,7 @@ registerActions({
   },
   'diet-consent': async () => {
     if (dietConsentOn(data)) {
-      if (!(await confirmSheet('Retirer ton accord ?', 'Tes plans diète sont effacés du serveur et restent sur cet iPhone.', 'Retirer'))) return;
+      if (!(await confirmSheet('Retirer ton accord ?', 'Tes plans de nutrition sont effacés du serveur et restent sur cet iPhone.', 'Retirer'))) return;
       dietSetConsent(data, false);
       save();
       dietSyncSoon();
@@ -215,7 +215,7 @@ registerActions({
   'diet-coach-accept': async () => { await dietAskCoachAccept(); render(); },
   'diet-coach-toggle': async () => {
     if (dietCoachAccepted()) {
-      if (!(await confirmSheet('Ne plus recevoir ses plans ?', 'Les plans diète que ton coach t\'a envoyés sont effacés du serveur. Ceux que tu suis déjà restent sur cet iPhone.', 'Retirer'))) return;
+      if (!(await confirmSheet('Ne plus recevoir ses plans ?', 'Les plans de nutrition que ton coach t\'a envoyés sont effacés du serveur. Ceux que tu suis déjà restent sur cet iPhone.', 'Retirer'))) return;
       await dietCoachApply(false);
     } else await dietAskCoachAccept();
     render();
