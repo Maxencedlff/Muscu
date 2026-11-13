@@ -414,9 +414,9 @@ def t_achat(bench, eng, dev, theme):
                 f'{t} transaction prise : plus jamais réenvoyée sur ce compte')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
-    # Codes : le code cadeau MDLF se saisit dans l'app, le code d'offre Apple ouvre la fenêtre d'Apple
+    # Code cadeau MDLF : saisi dans l'app hors iOS seulement (règle 3.1.1 d'Apple, giftCodeInApp) ; ici Android
     with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+        open_app(page, theme, ppl_v2_today_json(), opts={'platform': 'android'})
         signin(page, username='max')
         refresh_access(page)
         page.evaluate("__st.addCode('K7M2QX9PR4TD', { kind: 'days', days: 30 }); "
@@ -452,6 +452,32 @@ def t_achat(bench, eng, dev, theme):
         page.click('[data-action="pay-code"]')
         code_sheet(page, 'VTEK7M2QX9PR')
         page.wait_for_timeout(600)
+        R.check(page.evaluate("__st.ents[__sb.meId()].gift") is True and page.evaluate('accessStatus()') == 'gift',
+                f'{t} code à vie : accès offert')
+        R.check(page.evaluate('accessUntil()') is None, f'{t} code à vie : aucune date de fin')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # App iOS : aucun champ de code maison (règle 3.1.1), seul le code d'offre d'Apple ; un code cadeau
+    # utilisé ailleurs (navigateur, Android) donne un accès lié au compte, lu ici comme tout autre droit
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username='max')
+        refresh_access(page)
+        page.evaluate("__st.addCode('VTEK7M2QX9PR', { kind: 'lifetime' }); null")
+        page.evaluate("navigate(makeRoute('paywall', 'end'))")
+        page.wait_for_selector('[data-action="pay-apple-code"]')
+        R.check(page.locator('[data-action="pay-code"]').count() == 0, f'{t} iOS : pas de « J\'ai un code » sur l\'écran d\'abonnement')
+        foot = page.inner_text('.pay-view')
+        R.check('code MDLF' not in foot and 'code d\'offre Apple' in foot, f'{t} iOS : la note ne parle que du code d\'offre Apple')
+        page.evaluate("navigate('subscription')")
+        page.wait_for_timeout(500)
+        R.check(page.locator('[data-action="pay-code"]').count() == 0 and page.locator('[data-action="pay-apple-code"]').count() == 1,
+                f'{t} iOS : Réglages › Abonnement sans « J\'ai un code », avec le code d\'offre Apple')
+        R.check(page.evaluate("guideTopic('abonnement-gerer').steps.join(' ')").find("[J'ai un code]") < 0,
+                f'{t} iOS : le guide ne décrit plus le code MDLF')
+        # Code utilisé ailleurs (même compte) : l'app iOS lit l'accès à vie
+        R.check(page.evaluate("accessRedeemGiftCode('VTEK7M2QX9PR').then(r => r.ok)") is True, f'{t} code utilisé hors iOS : accepté par le serveur')
+        refresh_access(page)
         R.check(page.evaluate("__st.ents[__sb.meId()].gift") is True and page.evaluate('accessStatus()') == 'gift',
                 f'{t} code à vie : accès offert')
         R.check(page.evaluate('accessUntil()') is None, f'{t} code à vie : aucune date de fin')
@@ -509,8 +535,9 @@ def t_achats_bloques(bench, eng, dev, theme):
                 f'{t} achats bloqués : aucune formule, message clair ({txt[:140]!r})')
         R.check('Temps d\'écran' in txt, f'{t} achats bloqués : on dit où regarder')
         R.check(page.locator('[data-action="pay-restore"]').count() == 1
-                and page.locator('[data-action="pay-code"]').count() == 1,
-                f'{t} achats bloqués : restauration et code cadeau encore possibles')
+                and page.locator('[data-action="pay-apple-code"]').count() == 1
+                and page.locator('[data-action="pay-code"]').count() == 0,
+                f'{t} achats bloqués : restauration et code d\'offre Apple encore possibles, pas de code maison (3.1.1)')
         layout(page, t, 'achats bloqués')
         shot(page, LOT, f'13-achats-bloques-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -595,10 +622,10 @@ def t_verrou_serveur(bench, eng, dev, theme):
         page.click('.pay-banner')
         page.wait_for_timeout(500)
         R.check(page.evaluate("currentView()") == 'paywall', f'{t} verrou : le bandeau mène à l\'abonnement')
-        # Code cadeau accepté : la séance refusée repart toute seule
+        # Accès rendu par un code cadeau (saisi hors de l'app iOS, règle 3.1.1 : même appel au serveur) :
+        # la séance refusée repart toute seule
         page.evaluate("__st.addCode('K7M2QX9PR4TD', { kind: 'days', days: 30 }); null")
-        page.click('[data-action="pay-code"]')
-        code_sheet(page, 'K7M2QX9PR4TD')
+        R.check(page.evaluate("accessRedeemGiftCode('K7M2QX9PR4TD').then(r => r.ok)") is True, f'{t} code cadeau accepté par le serveur')
         page.wait_for_timeout(1500)
         R.check(page.evaluate('canWrite()') is True, f'{t} code accepté : droit rendu')
         R.check(page.evaluate("(__sb.upserted || []).some(r => r.id === 'apres-essai')"),

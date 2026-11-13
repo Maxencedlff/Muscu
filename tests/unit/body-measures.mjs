@@ -186,6 +186,11 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const plist = fs.readFileSync(path.join(ROOT, 'ios/App/App/Info.plist'), 'utf8');
     for (const k of ['NSCameraUsageDescription', 'NSPhotoLibraryUsageDescription']) {
       assert.match(plist, new RegExp(`<key>${k}</key>\\s*<string>[^<]{20,}</string>`), `${k} dans Info.plist`);
+      // Règle 5.1.1(ii) : « Ensure your purpose strings clearly and completely describe your use of the data ».
+      // La photo peut partir chez le coach (photos de bilan) : le texte le dit, et ne promet plus qu'elle reste sur l'iPhone.
+      const text = plist.match(new RegExp(`<key>${k}</key>\\s*<string>([^<]*)</string>`))[1];
+      assert.ok(/coffre/.test(text) && /chiffrée/.test(text) && /coach/.test(text) && /photos? de bilan/.test(text), `${k} : coffre, chiffrement et envoi au coach dits`);
+      assert.ok(!/restent? sur ton iPhone/.test(text), `${k} : plus de promesse inexacte « reste sur ton iPhone »`);
     }
   });
 }

@@ -93,6 +93,48 @@ const Native = (() => {
     try { const h = JSON.parse(json)?.history; return Array.isArray(h) ? h.length : 0; } catch { return 0; }
   };
 
+  // Copie iCloud clé-valeur SANS donnée de santé saisie à la main. Règle 5.1.3(ii) de l'App Store : « may
+  // not store personal health information in iCloud ». Poids du corps (réglage, pesées, poids noté avec
+  // chaque séance), mensurations, repas cochés (journal de la diète) et sexe restent sur l'iPhone : stockage
+  // de l'app et fichier ppl_v2.json des Documents (inclus dans la sauvegarde de l'iPhone, que l'utilisateur
+  // règle et peut chiffrer), plus l'export. Les données de Santé n'entrent déjà jamais dans data
+  // (js/data/measures.js, storableBodyKg). Toutes ces clés sont aussi dans SYNC_LOCAL_ONLY (jamais sur le
+  // serveur). Choix justifié dans docs/REVUE_APPLE.md (« Copie iCloud »).
+  const CLOUD_PRIVATE_KEYS = ['bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'dietLog', 'strengthSex'];
+  const CLOUD_PRIVATE_SESSION_KEYS = ['bodyKg'];
+  const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  // JSON envoyé à iCloud : le même texte s'il n'a aucune clé privée (empreinte inchangée), sinon une copie
+  // sans elles. Les copies iCloud déjà écrites avec ces clés sont remplacées au premier enregistrement qui
+  // suit (l'empreinte du texte filtré diffère de celle retenue), sans rien à faire.
+  const cloudCopy = json => {
+    let d;
+    try { d = JSON.parse(json); } catch { return json; }
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return json;
+    const history = Array.isArray(d.history) ? d.history : [];
+    const marked = h => h && typeof h === 'object' && CLOUD_PRIVATE_SESSION_KEYS.some(k => hasOwn(h, k));
+    if (!CLOUD_PRIVATE_KEYS.some(k => hasOwn(d, k)) && !history.some(marked)) return json;
+    CLOUD_PRIVATE_KEYS.forEach(k => { delete d[k]; });
+    if (history.some(marked)) {
+      d.history = history.map(h => {
+        if (!marked(h)) return h;
+        const c = { ...h };
+        CLOUD_PRIVATE_SESSION_KEYS.forEach(k => { delete c[k]; });
+        return c;
+      });
+    }
+    return JSON.stringify(d);
+  };
+  // Reprise d'une copie iCloud : les clés privées de cet iPhone (absentes d'une copie récente) sont gardées
+  const withDevicePrivate = (cloudJson, deviceJson) => {
+    let cloud, device;
+    try { cloud = JSON.parse(cloudJson); device = JSON.parse(deviceJson); } catch { return cloudJson; }
+    if (!cloud || typeof cloud !== 'object' || Array.isArray(cloud) || !device || typeof device !== 'object') return cloudJson;
+    const keep = CLOUD_PRIVATE_KEYS.filter(k => hasOwn(device, k) && !hasOwn(cloud, k) && device[k] != null);
+    if (!keep.length) return cloudJson;
+    keep.forEach(k => { cloud[k] = device[k]; });
+    return JSON.stringify(cloud);
+  };
+
   // Empreinte d'un texte (longueur + FNV-1a 32 bits) : sert à ne pas renvoyer à iCloud ce qu'il a déjà
   const fingerprint = text => {
     let h = 0x811c9dc5;
@@ -156,7 +198,8 @@ const Native = (() => {
   // Copie iCloud arrivée (ou lue) alors que l'écriture était encore fermée : reprise si elle a des
   // séances et l'iPhone aucune (une séance en cours, gardée à part, reprend après le rechargement)
   const adoptCloud = json => {
-    if (sessionCount(json) > 0 && sessionCount(getItem('ppl_v2')) === 0 && restore(json)) return;
+    const device = getItem('ppl_v2');
+    if (sessionCount(json) > 0 && sessionCount(device) === 0 && restore(withDevicePrivate(json, device))) return;
     openCloud();
   };
 
@@ -167,11 +210,12 @@ const Native = (() => {
     const sessions = sessionCount(json);
     if (sessions > 0) openCloud();
     if (!cloudReady) return;
-    const print = fingerprint(json);
+    const data = cloudCopy(json);   // sans poids, mensurations, repas ni sexe (règle 5.1.3(ii))
+    const print = fingerprint(data);
     if (!cloudErase && print === getItem(CLOUD_SENT)) return;
     const force = cloudErase;
     cloudErase = false;
-    Promise.resolve(Cloud.save({ data: json, sessions, force }))
+    Promise.resolve(Cloud.save({ data, sessions, force }))
       .then(r => { if (r?.saved) setItem(CLOUD_SENT, print); })
       .catch(() => {});
   };
@@ -238,9 +282,10 @@ const Native = (() => {
 
     // Deux copies de sécurité des données :
     //  - ppl_v2.json dans les Documents de l'app (le stockage web d'iOS peut être vidé dans de rares
-    //    cas), inclus dans la sauvegarde iCloud de l'iPhone ;
+    //    cas), complet, inclus dans la sauvegarde de l'iPhone ;
     //  - la copie iCloud de l'app (MdlfCloudBackup), qui survit à la suppression de l'app et revient
-    //    sur un nouvel iPhone. Une donnée sans séance n'y est écrite qu'une fois iCloud consulté.
+    //    sur un nouvel iPhone, SANS poids, mensurations, repas ni sexe (cloudCopy, règle 5.1.3(ii)).
+    //    Une donnée sans séance n'y est écrite qu'une fois iCloud consulté.
     backup(json) {
       if (!isNative || !backupEnabled) return;
       clearTimeout(backupTimer);

@@ -17,6 +17,34 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     for (const ui of ['Photos de bilan', 'Envoyer cette photo']) assert.ok(read('js/features/coach-photos-ui.js').includes(ui), `libellé « ${ui} » toujours dans l'app`);
   });
 
+  test('confidentialité : sauvegardes chiffrées de la base annoncées (90 jours chez GitHub, copies locales), FR et EN', () => {
+    const page = read('privacy.html'), cut = page.indexOf('<hr>'), fr = page.slice(0, cut), en = page.slice(cut);
+    const wf = read('.github/workflows/sauvegarde-base.yml');
+    const days = Number(wf.match(/retention-days:\s*(\d+)/)[1]);
+    assert.equal(days, 90, 'durée du workflow');
+    assert.ok(fr.includes(`pendant <strong>${days} jours</strong>`) && en.includes(`for <strong>${days} days</strong>`), 'durée de 90 jours annoncée (FR et EN)');
+    assert.ok(/chiffrée<\/strong> \(AES-256\)/.test(fr) && /encrypted<\/strong> \(AES-256\)/.test(en), 'chiffrement annoncé');
+    assert.ok(/--cipher-algo AES256/.test(wf), 'le workflow chiffre bien en AES-256');
+    assert.ok(fr.includes('<strong>GitHub</strong> (GitHub, Inc.') && en.includes('<strong>GitHub</strong> (GitHub, Inc.'), 'GitHub nommé comme sous-traitant');
+    assert.ok(fr.includes('Data Privacy Framework') && en.includes('Data Privacy Framework'), 'transfert hors UE encadré');
+    assert.ok(fr.includes('30 dernières copies') && en.includes('last 30 copies'), 'copies chiffrées sur le poste de l\'éditeur');
+    assert.ok(/GitHub, Inc\. \(sauvegardes chiffrées de la base/.test(fr) && /GitHub, Inc\. \(encrypted database backups/.test(en), 'GitHub dans la liste des hébergeurs');
+    // Après la suppression du compte : plus « effacé partout », mais présent jusqu'à l'expiration des sauvegardes
+    assert.ok(/Elles restent seulement dans les sauvegardes chiffrées faites avant[^<]*au plus tard 90 jours/.test(fr), 'FR : ce qui reste après suppression');
+    assert.ok(/remains only in the encrypted backups made before[^<]*at most 90 days/.test(en), 'EN : what remains after deletion');
+    assert.ok(!/quelques jours la ligne d'une photo|for a few days \(its day/.test(page), 'plus de « quelques jours » pour les sauvegardes');
+    assert.ok(page.includes('id="sauvegardes"') && page.includes('id="backups"'), 'ancres FR et EN');
+    // Date de mise à jour, FR et EN, identiques
+    assert.ok(fr.includes('mise à jour le 12 novembre 2026') && en.includes('updated November 12, 2026'), 'date du 12/11/2026');
+  });
+
+  test('confidentialité : copie iCloud décrite sans poids, mensurations, repas ni sexe (règle 5.1.3(ii)), FR et EN', () => {
+    const page = read('privacy.html'), cut = page.indexOf('<hr>'), fr = page.slice(0, cut), en = page.slice(cut);
+    assert.ok(fr.includes('Cette copie iCloud ne contient ni ton poids, ni tes mensurations, ni les repas que tu coches, ni ton sexe'), 'FR');
+    assert.ok(en.includes('This iCloud copy contains neither your body weight, nor your body measurements, nor the meals you tick, nor your sex'), 'EN');
+    assert.ok(!/dans la copie iCloud de l'app et dans l'export|in the app's iCloud copy and in the export|dans la copie iCloud de l'app décrite ci-dessous et dans l'export|in the app's iCloud copy described below and in the export/.test(page), 'plus aucune promesse de ces données dans iCloud');
+  });
+
   test('lettre : état du serveur nettoyé, inscrit seulement si le serveur le dit', () => {
     sameJSON(run('cleanNewsletterState({ subscribed: true, consented_at: "2026-10-31T10:00:00Z", version: "v1", has_email: true })'),
       { subscribed: true, consentedAt: Date.parse('2026-10-31T10:00:00Z'), version: 'v1', hasEmail: true });

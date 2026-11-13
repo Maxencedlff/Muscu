@@ -48,9 +48,9 @@
 	<key>NSAppleMusicUsageDescription</key>
 	<string>MDLF Training affiche le morceau en cours et te permet de le contrôler pendant ta séance.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>MDLF Training utilise l'appareil photo pour tes photos de progression, qui restent sur ton iPhone, et pour scanner le code-barres d'un aliment.</string>
+	<string>MDLF Training utilise l'appareil photo pour scanner le code-barres d'un aliment et pour tes photos de progression. Elles sont gardées chiffrées dans ton coffre sur ton iPhone ; seules celles que tu choisis d'envoyer à ton coach comme photos de bilan partent, chiffrées pour lui seul.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>MDLF Training ouvre ta photothèque pour choisir une photo de progression, qui reste sur ton iPhone.</string>
+	<string>MDLF Training ouvre ta photothèque pour choisir une photo de progression. Elle est gardée chiffrée dans ton coffre sur ton iPhone ; elle ne part que si tu choisis de l'envoyer à ton coach comme photo de bilan, chiffrée pour lui seul.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>MDLF Training enregistre l'image de ta séance dans Photos quand tu choisis « Enregistrer l'image ».</string>
 	<key>NSFaceIDUsageDescription</key>

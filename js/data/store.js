@@ -169,7 +169,7 @@ const TRASH_DAYS     = 30;     // durée de vie d'une séance dans « Supprimés
 // sans toucher aux champs valides (idempotent).
 // Pesées saisies dans l'app (Réglages › Poids du corps, bilan) : [{ date, kg }] du plus récent au plus
 // ancien, une par jour au plus (la dernière du jour), BODY_LOG_MAX au plus. Jamais sur le serveur
-// (SYNC_LOCAL_ONLY, js/data/sync.js) ; gardées dans la copie iCloud et l'export comme bodyWeightKg.
+// (SYNC_LOCAL_ONLY, js/data/sync.js) ; gardées dans l'export comme bodyWeightKg, pas dans la copie iCloud (règle 5.1.3(ii), Native.backup).
 // Les pesées de Santé n'y entrent jamais (règle 5.1.3) : elles sont relues dans Santé.
 const BODY_LOG_MAX = 400;
 const dayKey = ts => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
