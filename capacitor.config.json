@@ -28,7 +28,8 @@
       "appReadyTimeout": 10000,
       "resetWhenUpdate": true,
       "autoDeleteFailed": true,
-      "autoDeletePrevious": true
+      "autoDeletePrevious": true,
+      "publicKey": "-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEArbXu7cGIp+EcBL/zFPtAF47dCamZzh3MIKZA4wXtizrvKVike7Hn\nWgE0c6WtWu7SMfCCuowj2gewTaCbVbUVIBn1VPdc9Ejh0DCTMo1Qa2SYnDR99zIn\n3D7hS2NZs3wHiA3E1p3wy1igLsT166EMTteyuHn+vTGQY2XQBWUspIIlzke+xgwl\nXdg3UiPgijBR4f8VEoCbPUd4d7FKIcdc/WqohzT3i19fdENI+pjhiMTcarH7i6a3\nL/TQk7jQzVUMU8+6oaRx/pxrEGcbHLZLOyi+PsJYyC61J8AEtFzB2HGmCBFNIQ11\ny1lE7AR3KBucxzCDgnKi+UhmNnta4r/CJQIDAQAB\n-----END RSA PUBLIC KEY-----\n"
     }
   }
 }
