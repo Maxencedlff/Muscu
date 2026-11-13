@@ -624,9 +624,14 @@ registerActions({
     // Texte court, unités abrégées comme à l'écran, l'écart avec l'objectif en premier (panel t5 : la phrase VoiceOver
     // « 2 000 kilocalories, 150 grammes » s'affichait telle quelle, à côté de « 575 kcal »)
     // ; l'élève voit le même écart sous le plan, dans sa Nutrition du jour : dit au coach (panel t7)
-    const gap = dietTargetGap(plan);
+    // Une ligne (panel v4 t1 : sept lignes de chiffres, on ne savait pas si c'était une erreur) : repas et kcal prévues,
+    // l'objectif et l'écart entre parenthèses ; l'écart se lit comme une information, pas un blocage
+    const meals = plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas');
+    const kcal = Math.round(dietPlanMacros(plan).kcal), goal = Math.round(Number(plan.targets?.kcal) || 0);
+    const diff = Math.max(kcal, goal) + -Math.min(kcal, goal), gap = goal && diff > goal * 0.1 ? ' (' + (kcal < goal ? '−' : '+') + dietN(diff) + ')' : '';
     const ok = await dialog({ title: `Envoyer « ${plan.name} » à\u00a0${who}\u00a0?`,
-      message: `${gap ? `${gap} ` : ''}${plan.targets ? `Objectif du jour : ${dietTargetsLong(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kcal prévues.${gap ? ` ${who} verra le même écart sous le plan, dans sa Nutrition du jour.` : ''}`,
+      message: goal ? `${meals} · ${dietN(kcal)} kcal prévues pour ${dietN(goal)} visées${gap}.`
+        : `${meals} · ${dietN(kcal)} kcal prévues, sans objectif du jour.`,
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
     if (ok !== true) return;
     el.disabled = true;
