@@ -41,7 +41,8 @@ body.light .session-set .pr-badge { color: #8A4E00; }
 html.type-xl .sum-line .medal { width: 1.5em; height: 1.5em; margin-top: 0; }
 
 /* ── Image partagée : aperçu au format choisi (story 9:16 ou carré), cadre sans ombre ── */
-.share-preview__frame { box-shadow: none; border-radius: 12px; }
+/* Filet du séparateur autour de l'image : ses bords se voient sur le fond de la feuille, du même gris (panel vague 4) */
+.share-preview__frame { box-shadow: 0 0 0 1px var(--sep); border-radius: 12px; overflow: hidden; }
 .share-preview__frame--square { aspect-ratio: 1; height: auto; width: min(100%, 58vh, 420px); width: min(100%, 58dvh, 420px); }
 .share-preview__formats { width: 100%; max-width: 420px; }
 
@@ -62,6 +63,9 @@ html.type-xl .sum-line .medal { width: 1.5em; height: 1.5em; margin-top: 0; }
 
 /* ── Disques : neutres (ils étaient orange, couleur de séance), le poids reste lisible dessous ── */
 .pl__plate { fill: color-mix(in srgb, var(--label) 22%, var(--cell)); stroke: var(--label2); }
+/* En clair, barre et disques à au moins 3:1 sur le blanc (panel vague 4 : gris clair sur blanc, illisibles à la salle) */
+body.light .pl__bar { fill: var(--label2); }
+body.light .pl__plate { fill: color-mix(in srgb, var(--label) 35%, var(--cell)); stroke: var(--label); }
 
 /* ═══════════════════════════════════════════════
    Mouvement
