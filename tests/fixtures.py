@@ -339,12 +339,31 @@ def old_active_session(now_ms=None, with_rest=False):
 #  Outils Playwright
 # ─────────────────────────────────────────────────────────────
 
+_JS_FUNCTION = re.compile(r'^\s*(async\s+)?(function\b|\([^()]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)')
+
+
+def as_function(expr):
+    """Expression JS en chaîne → fonction fléchée ; une fonction est rendue telle quelle."""
+    return expr if not isinstance(expr, str) or _JS_FUNCTION.match(expr) else f'() => ({expr})'
+
+
 class Bench:
     """Lance un navigateur par moteur et fabrique des contextes (appareil, thème)."""
 
-    def __init__(self, p):
-        self.p = p
+    def __init__(self, p=None):
+        self._p = p
+        self._pw = None
         self.browsers = {}
+
+    @property
+    def p(self):
+        # Playwright démarré au premier besoin : l'arrêter sans avoir lancé de navigateur laisse une
+        # TargetClosedError (Playwright 1.62), vue dans chaque processus qui ne lançait rien
+        if self._p is None:
+            from playwright.sync_api import sync_playwright
+            self._pw = sync_playwright()
+            self._p = self._pw.start()
+        return self._p
 
     def browser(self, engine):
         if engine not in self.browsers:
@@ -364,10 +383,21 @@ class Bench:
         page = ctx.new_page()
         page.errors = []
         page.on('pageerror', lambda e: page.errors.append(str(e)))
+        # Violations de la Content-Security-Policy (journalisées par index.html) : tout test qui en provoque
+        # une échoue, pour qu'une CSP trop stricte ne casse jamais un écran en silence (audit du 12/11, m1).
+        # Un test qui en provoque à dessein vide page.csp_violations.
+        page.csp_violations = []
+        # Une expression en chaîne (« document.x > 2 ») est évaluée par Playwright avec eval, que la CSP refuse
+        # (pas de 'unsafe-eval') : elle devient une fonction, comme celles déjà écrites « () => … »
+        wait_fn = page.wait_for_function
+        page.wait_for_function = lambda expr, *a, **k: wait_fn(as_function(expr), *a, **k)
+        page.on('console', lambda m: m.text.startswith('[CSP]') and page.csp_violations.append(m.text))
         if clock is not None:
             freeze_clock(page, clock)
         try:
             yield page
+            if page.csp_violations:
+                raise AssertionError(f'violation de la CSP : {page.csp_violations[:3]}')
         finally:
             ctx.close()
 
@@ -378,6 +408,8 @@ class Bench:
     def close(self):
         for b in self.browsers.values():
             b.close()
+        if self._pw is not None:
+            self._p.stop()
 
 
 def seed(page, theme, ppl_v2=None, active=None, extra=None, url=None):
@@ -427,6 +459,7 @@ class Results:
         self.lot = lot
         self.fails = []
         self.count = 0
+        self.skipped = []
 
     def check(self, cond, label):
         self.count += 1
@@ -434,8 +467,23 @@ class Results:
             self.fails.append(label)
             print('  ÉCHEC :', label, flush=True)
 
+    def skip(self, reason):
+        """Exemption explicite : ce processus ne vérifie rien à dessein (appareil hors du périmètre du lot)."""
+        self.skipped.append(reason)
+        print('  IGNORÉ :', reason, flush=True)
+
     def done(self):
-        print(f'Lot {self.lot} : {self.count - len(self.fails)}/{self.count} vérifications OK', flush=True)
+        """Code de sortie du lot. Un processus qui ne vérifie rien (0/0) échoue, sauf exemption par skip() :
+        un lot qui se viderait par régression ne doit jamais passer pour un succès (audit du 12/11, m4)."""
+        ok = self.count - len(self.fails)
+        if self.count == 0 and self.skipped:
+            print(f'Lot {self.lot} : 0/0 vérifications, ignoré à dessein ({self.skipped[0]})', flush=True)
+            return 0
+        if self.count == 0:
+            print(f'  ÉCHEC : aucune vérification faite (0/0)', flush=True)
+            print(f'Lot {self.lot} : 0/0 vérifications, ÉCHEC', flush=True)
+            return 1
+        print(f'Lot {self.lot} : {ok}/{self.count} vérifications OK', flush=True)
         return 1 if self.fails else 0
 
 
@@ -448,35 +496,38 @@ def run_main(R, tests, once=()):
     Sans variable, tout tourne dans ce processus (usage manuel).
     """
     import sys
-    from playwright.sync_api import sync_playwright
     only = sys.argv[1:]
+    if os.environ.get('PPL_LIST'):
+        # Inventaire pour run_all.py : il ne planifie que les processus qui ont des tests à lancer
+        print('PPL_LIST ' + json.dumps({'tests': len(tests), 'once': len(once)}), flush=True)
+        sys.exit(0)
     dev_f, theme_f, once_only = os.environ.get('PPL_DEV'), os.environ.get('PPL_THEME'), os.environ.get('PPL_ONCE')
-    with sync_playwright() as p:
-        bench = Bench(p)
-        if not once_only:
-            # PPL_DEV (un processus de run_all.py) peut viser un appareil récent ; sinon PPL_DEVICES choisit
-            for eng, dev in (ALL_DEVICES if dev_f else selected_devices()):
-                if dev_f and dev != dev_f:
+    bench = Bench()
+    if not once_only:
+        # PPL_DEV (un processus de run_all.py) peut viser un appareil récent ; sinon PPL_DEVICES choisit
+        for eng, dev in (ALL_DEVICES if dev_f else selected_devices()):
+            if dev_f and dev != dev_f:
+                continue
+            for theme in THEMES:
+                if theme_f and theme != theme_f:
                     continue
-                for theme in THEMES:
-                    if theme_f and theme != theme_f:
+                for fn in tests:
+                    if only and fn.__name__ not in only:
                         continue
-                    for fn in tests:
-                        if only and fn.__name__ not in only:
-                            continue
-                        try:
-                            fn(bench, eng, dev, theme)
-                        except Exception as e:
-                            R.check(False, f'{dev}-{theme} {fn.__name__} : exception {str(e).splitlines()[0]}')
-        if once_only or not (dev_f or theme_f):
-            for fn in once:
-                if only and fn.__name__ not in only:
-                    continue
-                try:
-                    fn(bench)
-                except Exception as e:
-                    R.check(False, f'{fn.__name__} : exception {str(e).splitlines()[0]}')
-        bench.close()
+                    try:
+                        fn(bench, eng, dev, theme)
+                    except Exception as e:
+                        R.check(False, f'{dev}-{theme} {fn.__name__} : exception {str(e).splitlines()[0]}')
+    if once_only or not (dev_f or theme_f):
+        for fn in once:
+            if only and fn.__name__ not in only:
+                continue
+            try:
+                fn(bench)
+            except Exception as e:
+                R.check(False, f'{fn.__name__} : exception {str(e).splitlines()[0]}')
+    bench.close()
+    # Playwright arrêté (bench.close) avant la sortie : plus de TargetClosedError en fin de processus
     sys.exit(R.done())
 
 

@@ -65,8 +65,9 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     };
     for (const f of open) {
       const src = read(`supabase/functions/${f}/index.ts`);
-      const handler = src.slice(src.indexOf('Deno.serve('));
-      assert.ok(handler.length > 20, `${f} : Deno.serve introuvable`);
+      const handler = src.slice(src.indexOf('export async function handler(req: Request): Promise<Response> {'));
+      assert.ok(handler.length > 20, `${f} : handler exporté introuvable`);
+      assert.ok(src.trimEnd().endsWith("\nif (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);"), `${f} : Deno.serve(handler) absent ou pas en dernier`);
       const shared = SHARED_SECRET[f];
       if (shared) {
         const at = handler.indexOf(shared.check);
@@ -77,10 +78,10 @@ export default function ({ test, assert, sameJSON, ROOT }) {
       }
       const ex = OAUTH_RETURN[f];
       if (ex) {
-        const serve = handler.slice(0, handler.indexOf('\n});') + 4);
+        const serve = handler.slice(0, handler.indexOf('\n}\n') + 2);
         assert.ok(serve.includes(`if (req.method === 'POST') return ${ex.post}(req);`)
           && serve.includes(`if (req.method === 'GET') return ${ex.get}(new URL(req.url));`), `${f} : aiguillage POST / GET inattendu`);
-        assert.ok(!WORK.test(serve), `${f} : du travail dans Deno.serve`);
+        assert.ok(!WORK.test(serve), `${f} : du travail dans le handler`);
         const post = src.slice(src.indexOf(`async function ${ex.post}(req: Request)`));
         const at = post.search(GUARD);
         assert.ok(at > 0 && !WORK.test(post.slice(0, at)), `${f} : ${ex.post} sans refus 401 par caller() en premier`);

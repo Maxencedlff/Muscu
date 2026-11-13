@@ -12,7 +12,7 @@
 import { bodyCode, caller, CORS, json } from '../_shared/http.ts';
 import { exchangeAppleCode, revokeAppleToken } from '../_shared/apple.ts';
 
-Deno.serve(async (req) => {
+export async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   const who = await caller(req);
@@ -22,4 +22,7 @@ Deno.serve(async (req) => {
   if (!grant) return json({ revoked: false });
   if (who.user.identities?.some((i) => i.provider === 'apple' && i.id === grant.sub)) return json({ error: 'still_linked', revoked: false }, 409);
   return json({ revoked: await revokeAppleToken(grant) });
-});
+}
+
+// Toujours servi en production ; les tests Deno (tests/deno, MDLF_EDGE_TESTS=1) importent le handler sans serveur
+if (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);

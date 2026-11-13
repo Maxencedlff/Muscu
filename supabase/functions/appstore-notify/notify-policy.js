@@ -57,6 +57,14 @@ const ignore = (type, reason) => ({ handled: false, type, reason });
 // { handled: true, type, value: { original_transaction_id, product_id, expires_at, revoked, force,
 //   event_at, account_token, intro_offer, environment } } ou { handled: false, type, reason } : accepté et ignoré (200).
 // Ne renvoie JAMAIS de refus : tout ce qui est signé par Apple repart en 200 (voir la règle 1).
+/**
+ * Types lus par `deno check` (fonctions Edge) ; aucun effet à l'exécution.
+ * @param {{ notification?: any, transaction?: unknown, renewal?: any, nowMs?: number }} [input]
+ * @returns {{ handled: false, type: string | null, reason: string, value?: undefined }
+ *   | { handled: true, type: string, reason?: undefined, value: { original_transaction_id: string, product_id: string,
+ *     expires_at: string | null, revoked: boolean, force: boolean, event_at: string | null, account_token: string | null,
+ *     intro_offer: boolean, environment: string } }}
+ */
 export function notificationDecision({ notification, transaction, renewal = null, nowMs = Date.now() } = {}) {
   if (!isObject(notification) || typeof notification.notificationType !== 'string') return ignore(null, 'malformed');
   const type = notification.notificationType;

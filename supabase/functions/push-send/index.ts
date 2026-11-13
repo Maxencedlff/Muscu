@@ -66,7 +66,7 @@ async function sendOne(row: ClaimRow, topic: string): Promise<Result> {
   }
 }
 
-Deno.serve(async (req) => {
+export async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   const secret = env('PUSH_CRON_SECRET');
   if (!secret || !sameSecret(req.headers.get('x-push-secret'), secret)) return json({ error: 'auth' }, 401);
@@ -100,4 +100,7 @@ Deno.serve(async (req) => {
     if (rows.length < BATCH) break;
   }
   return json(total);
-});
+}
+
+// Toujours servi en production ; les tests Deno (tests/deno, MDLF_EDGE_TESTS=1) importent le handler sans serveur
+if (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);

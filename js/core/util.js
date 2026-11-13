@@ -225,14 +225,23 @@ function clone(o) {
   return typeof structuredClone === 'function' ? structuredClone(o) : JSON.parse(JSON.stringify(o));
 }
 
-// Nombre saisi borné : accepte la virgule décimale, renvoie null si vide, invalide ou hors bornes
+// Nombre saisi borné : accepte la virgule décimale, renvoie null si vide, invalide ou hors bornes.
+// Écriture décimale simple seulement : Number() lisait aussi « 0x14 » (20), « 1e3 » (1000) ou « Infinity »,
+// et le collage « 2,5,5 » doit être refusé, pas tronqué (audit du 12/11, m3)
+const NUM_RE = /^[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)$/;
 function num(v, min, max, int = false) {
-  const s = String(v ?? '').trim().replace(',', '.');
-  if (s === '') return null;
-  const n = Number(s);
+  if (typeof v === 'number') return Number.isFinite(v) && v >= min && v <= max && (!int || Number.isInteger(v)) ? v : null;
+  const raw = String(v ?? '').trim();
+  if (raw === '') return null;
+  if (!NUM_RE.test(raw)) return null;
+  const n = Number(raw.replace(',', '.'));
   if (!Number.isFinite(n) || n < min || n > max || (int && !Number.isInteger(n))) return null;
   return n;
 }
+
+// Saisie de reps (ou de secondes, de minutes) : chiffres seuls. Un collage « 12abc » ou « 1e3 » ne
+// survit plus au rechargement ni ne s'affiche « 20 kg × abc » (audit du 12/11, m3)
+function cleanReps(v) { return String(v ?? '').replace(/\D/g, '').slice(0, 4); }
 
 // Nom d'exercice comparable : minuscules, sans accents, espaces réduits
 // Exécute fn juste après le prochain affichage : un appel natif lent (son, Live Activity) ne retarde

@@ -26,14 +26,14 @@ document.addEventListener('input', e => {
     const si = parseInt(e.target.dataset.si);
     if (!isNaN(ei) && !isNaN(si)) {
       if (action === 'set-weight') activeSession.exercises[ei].sets[si].weight = storeW(e.target.value);
-      if (action === 'set-reps')   activeSession.exercises[ei].sets[si].reps   = e.target.value;
+      if (action === 'set-reps')   activeSession.exercises[ei].sets[si].reps   = repsInput(e.target);
       if (action === 'set-dist')   setDist(activeSession.exercises[ei].sets[si], e.target.value);
     }
   }
 
   // Série validée rouverte : saisie gardée jusqu'à l'enregistrement
   if (editingSet && (e.target.id === 'editSetWeight' || e.target.id === 'editSetReps')) {
-    editingSet[e.target.id === 'editSetWeight' ? 'weight' : 'reps'] = e.target.value;
+    editingSet[e.target.id === 'editSetWeight' ? 'weight' : 'reps'] = e.target.id === 'editSetReps' ? repsInput(e.target) : e.target.value;
   }
 
   if (currentView() === 'add-session') {
@@ -41,7 +41,7 @@ document.addEventListener('input', e => {
     const si   = parseInt(e.target.dataset.si);
     if (exid && !isNaN(si) && addSets[exid]) {
       if (action === 'add-weight') addSets[exid][si].weight = storeW(e.target.value);
-      if (action === 'add-reps')   addSets[exid][si].reps   = e.target.value;
+      if (action === 'add-reps')   addSets[exid][si].reps   = repsInput(e.target);
       if (action === 'add-dist')   setDist(addSets[exid][si], e.target.value);
       const saveBtn = $('[data-action="save-past-session"]');
       if (saveBtn) saveBtn.disabled = !addHasReps();

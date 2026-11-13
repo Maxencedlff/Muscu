@@ -229,7 +229,7 @@ def audit(page, t, ecran, insets):
 def t_ecrans(bench, eng, dev, theme):
     insets = safe_insets(dev)
     if insets is None:
-        print(f'  {dev} : appareil ancien, ignoré (ce lot vise les appareils récents : PPL_DEVICES=recents)', flush=True)
+        R.skip(f"{dev} : appareil ancien, hors du lot des appareils récents")
         return
     t = f'{dev}-{theme}'.replace(' ', '_')
     n = [0]

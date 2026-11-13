@@ -14,7 +14,7 @@
 import { adminClient, env, json } from '../_shared/http.ts';
 import { purgeRound, PURGE_ROUNDS, sameSecret } from './purge-policy.js';
 
-Deno.serve(async (req) => {
+export async function handler(req: Request): Promise<Response> {
   const secret = env('PHOTOS_PURGE_SECRET');
   if (!secret || !sameSecret(req.headers.get('x-purge-secret'), secret)) return json({ error: 'auth' }, 401);
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
@@ -42,4 +42,7 @@ Deno.serve(async (req) => {
   }
   if (failed) console.error('coach-photos-purge: tour interrompu, repris à la prochaine planification');
   return json({ removed, failed }, failed ? 500 : 200);
-});
+}
+
+// Toujours servi en production ; les tests Deno (tests/deno, MDLF_EDGE_TESTS=1) importent le handler sans serveur
+if (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);

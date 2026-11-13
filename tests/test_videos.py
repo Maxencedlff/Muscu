@@ -2,8 +2,8 @@
 reçu du coach, manifeste vide ou absent, données cellulaires, hors ligne.
 
 La vidéo est une mire générée sur place par ffmpeg avec scripts/prepare-exercise-video.py (jamais une
-vidéo tierce), servie par une fausse adresse https interceptée (https://videos.mdlf.test/). Aucune requête
-ne sort. Sans ffmpeg, les fichiers sont remplacés par des octets quelconques (la lecture échoue : l'état
+vidéo tierce), servie à l'adresse du stockage Supabase (seul hôte de vidéos permis par la CSP d'index.html),
+interceptée par le test. Aucune requête ne sort. Sans ffmpeg, les fichiers sont remplacés par des octets quelconques (la lecture échoue : l'état
 « indisponible » est vérifié à la place).
 Captures : $PPL_SCRATCH/shots/lotvideos/ (clair et sombre).
 Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_videos.py (ou run_all.py videos).
@@ -23,7 +23,7 @@ from fake_account import FAKE_ACCOUNT
 LOT = 'videos'
 R = Results(LOT)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HOST = 'https://videos.mdlf.test/'
+HOST = 'https://yopptmdjtnezmccdvaxf.supabase.co/storage/v1/object/public/exercise-videos/'   # intercepté, rien ne sort
 EX = 'Squat barre'
 COACH = 'coach.test'
 FULL_DEVICES = ('iPhone 13', 'Pixel 7')

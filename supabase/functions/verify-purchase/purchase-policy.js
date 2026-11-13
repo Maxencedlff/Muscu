@@ -62,6 +62,15 @@ const msDate = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 && v
 // { ok: true, value: { product_id, kind, expires_at (ISO|null), original_transaction_id,
 //   transaction_id, revoked, environment, expired, event_at, account_token, intro_offer } } ou
 // { ok: false, error }.
+/**
+ * Types lus par `deno check` (fonctions Edge) ; aucun effet à l'exécution.
+ * @typedef {{ product_id: string, kind: string, expires_at: string, original_transaction_id: string,
+ *   transaction_id: string, revoked: boolean, environment: string, expired: boolean, event_at: string | null,
+ *   account_token: string | null, intro_offer: boolean }} TransactionValue
+ * @param {unknown} payload
+ * @param {{ nowMs?: number }} [options]
+ * @returns {{ ok: true, value: TransactionValue, error?: undefined } | { ok: false, error: string, value?: undefined }}
+ */
 export function transactionDecision(payload, { nowMs = Date.now() } = {}) {
   if (!isObject(payload)) return { ok: false, error: 'invalid_jws' };
   if (payload.bundleId !== BUNDLE_ID) return { ok: false, error: 'bad_bundle' };
