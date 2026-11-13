@@ -163,7 +163,7 @@ html.type-xl .diet-home__ring { display: none; }
 .diet-cand--create .diet-cand__name { color: var(--tint); font-weight: 600; }
 .diet-cand--create .icon { flex-shrink: 0; color: var(--tint); }
 /* Rappel cru / cuit de la feuille de quantité : note sous la quantité, l'autre version en lien (pas une action principale) */
-.qty__twin { margin: 16px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); text-align: center; }
+.qty__twin { margin: 8px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); text-align: center; }
 .qty__twin-btn { display: block; margin: 0 auto; min-height: 44px; padding: 0 8px; border: none; background: none;
   font: inherit; font-size: var(--fs-footnote); color: var(--tint); cursor: pointer; overflow-wrap: anywhere; }
 .qty__twin-btn:active { opacity: .6; }

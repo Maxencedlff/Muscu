@@ -116,7 +116,7 @@
 /* Effacer la recherche : le rond gris avec sa croix des champs de recherche d'iOS (xmark.circle.fill), dessiné par l'app
    (le moteur en dessinait un autre, une touche ⌫ « effacer une lettre », panel Apple vague 4) */
 .search::-webkit-search-cancel-button {
-  -webkit-appearance: none; appearance: none; flex-shrink: 0; width: 18px; height: 18px; margin: 0 0 0 8px; cursor: pointer;
+  -webkit-appearance: none; appearance: none; flex-shrink: 0; align-self: center; width: 18px; height: 18px; margin: auto 0 auto 8px; cursor: pointer;
   background: var(--label2);
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cmask id='m'%3E%3Crect width='20' height='20' fill='white'/%3E%3Cpath d='M6.6 6.6l6.8 6.8M13.4 6.6l-6.8 6.8' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/mask%3E%3Ccircle cx='10' cy='10' r='10' fill='white' mask='url(%23m)'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cmask id='m'%3E%3Crect width='20' height='20' fill='white'/%3E%3Cpath d='M6.6 6.6l6.8 6.8M13.4 6.6l-6.8 6.8' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/mask%3E%3Ccircle cx='10' cy='10' r='10' fill='white' mask='url(%23m)'/%3E%3C/svg%3E") center / contain no-repeat;
