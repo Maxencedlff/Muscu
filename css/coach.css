@@ -211,6 +211,8 @@
   display: block; width: 100%; min-height: 50px; padding: 10px 14px; border: 0; border-radius: var(--r-sm);
   background: var(--fill2); color: var(--label); font-size: var(--fs-title3); letter-spacing: 1px;
 }
+/* Focus : le liseré orange des autres champs (recherche, quantité), plus l'anneau bleu de WebKit (panel v4 t1) */
+.coach-code-input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--tint); }
 .coach-code-input[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--red); }
 .coach-sheet__hint { display: flex; justify-content: space-between; gap: 12px; }
 .coach-sheet__hint--bad { color: var(--red-text); }
