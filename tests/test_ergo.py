@@ -107,7 +107,7 @@ def t_seance(bench, eng, dev, theme):
         # Vague 3 : Durée, Volume, Séries comme le fil, valeur puis libellé dessous
         tl = page.evaluate("""() => [...document.querySelectorAll('.sum-tile')].map(t => { const l = t.querySelector('.sum-tile__label'), v = t.querySelector('.sum-tile__value');
             return [l.textContent, l.getBoundingClientRect().top > v.getBoundingClientRect().top]; })""")
-        R.check([x[0] for x in tl] == ['Durée', 'Total soulevé', 'Séries'] and all(x[1] for x in tl), f'{t} bilan : chiffres dans l\'ordre du fil, libellé dessous {tl}')
+        R.check([x[0] for x in tl] == ['Durée', 'Soulevé', 'Séries'] and all(x[1] for x in tl), f'{t} bilan : chiffres dans l\'ordre du fil, libellé dessous {tl}')
         shot(page, LOT, f'bilan-{t}')
         page.click('[data-action="summary-done"]'); page.wait_for_timeout(300)
 

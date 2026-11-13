@@ -68,9 +68,9 @@ function platesSheetHtml() {
     <div class="rs rs--plates pl">
       <div class="rs__title">Disques · ${esc(ex.name)}</div>
       <div class="pl__target">
-        <button class="rs__round num" data-action="pl-adj" data-d="-1" aria-label="Moins ${fmtNum(plStep())} ${u}">${icon('minus', 20)}</button>
+        <button class="rs__round num" data-action="pl-adj" data-d="-1" aria-label="Moins ${fmtNum(plStep())} ${u}">${icon('minus', 26)}</button>
         <div class="pl__val num" aria-live="polite"><span id="plTarget">${fmtNum(pl.target)}</span> <span class="pl__unit">${u}</span></div>
-        <button class="rs__round num" data-action="pl-adj" data-d="1" aria-label="Plus ${fmtNum(plStep())} ${u}">${icon('plus', 20)}</button>
+        <button class="rs__round num" data-action="pl-adj" data-d="1" aria-label="Plus ${fmtNum(plStep())} ${u}">${icon('plus', 26)}</button>
       </div>
       ${plDrawHtml(r.perSide, setup.plates)}
       <div class="pl__result num" aria-live="polite">${plResultHtml(r, pl.target, setup.unit)}</div>

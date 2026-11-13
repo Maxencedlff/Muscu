@@ -172,7 +172,7 @@ function renderSummary() {
         <div class="sum-tiles">
           <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${sumTileValueHtml(fmtDuration(sm.duration))}</div></div>
           ${sm.volume > 0 || !sm.reps
-            ? `<div class="sum-tile"><div class="sum-tile__label">Total soulevé</div><div class="sum-tile__value num">${sumTileValueHtml(fmtVolume(sm.volume))}</div>${summaryDeltaHtml(sm.delta, sm.volume)}</div>`
+            ? `<div class="sum-tile"><div class="sum-tile__label">Soulevé</div><div class="sum-tile__value num">${sumTileValueHtml(fmtVolume(sm.volume))}</div>${summaryDeltaHtml(sm.delta, sm.volume)}</div>`
             : `<div class="sum-tile"><div class="sum-tile__label">Reps</div><div class="sum-tile__value num">${sm.reps}</div></div>`}
           <div class="sum-tile"><div class="sum-tile__label">Séries</div><div class="sum-tile__value num">${sm.sets}</div></div>
         </div>

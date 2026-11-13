@@ -851,11 +851,13 @@ function scrollToCurrent(smooth = true, focus = false) {
     const above = sel => card ? [...card.querySelectorAll(sel)].filter(el => el.getBoundingClientRect().top < rowTop).pop() : null;
     const lastDone = above('.session-set--done')?.closest('.set-swipe');
     const anchors = [band, keep, keep ? null : card, keep ? null : card?.querySelector('.ex-card__name'),
-      lastDone, lastDone?.querySelector('.rir')]
+      keep ? null : card?.querySelector('.sets__head'), lastDone, lastDone?.querySelector('.rir')]
       .filter(el => el && el.getBoundingClientRect().top <= rowTop);
     const barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
     const room = window.innerHeight - barH - ($('.rest-mini')?.getBoundingClientRect().height || 0) - 24;
-    const y = window.scrollY, at = el => el.getBoundingClientRect().top + y - barH - 8;
+    // 8 px d'air sous la barre au-dessus d'une carte ; une ancre dans la carte vient juste sous la barre, sans laisser
+    // dépasser le bas de la ligne d'au-dessus (CI : bas des lettres de l'en-tête visibles sous la barre)
+    const y = window.scrollY, at = el => el.getBoundingClientRect().top + y - barH - ([band, keep, card].includes(el) ? 8 : 0);
     const fit = anchors.find(el => row.getBoundingClientRect().bottom - el.getBoundingClientRect().top <= room);
     if (fit) window.scrollTo({ top: Math.max(0, at(fit)), behavior });
     else if (anchors.length) {
