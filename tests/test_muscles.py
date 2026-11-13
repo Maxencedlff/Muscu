@@ -614,7 +614,18 @@ def t_muscle_filter(bench, eng, dev, theme):
 
         page.evaluate("navigate('library')")
         page.wait_for_selector('#libList')
-        page.click('.mf__row:not(.mf__row--sub) [data-action="lib-muscle"][data-group="dos"]')
+        # Sans groupe choisi : une ligne illustrée par groupe (même ordre que les pastilles), nom et nombre
+        # lus ensemble par VoiceOver, image décorative chargée, zone de toucher d'au moins 44 px
+        rows = page.locator('.library .mgc')
+        ids = [rows.nth(i).get_attribute('data-group') for i in range(rows.count())]
+        R.check(ids == ['pectoraux', 'dos', 'epaules', 'bras', 'abdominaux', 'jambes'], f'{t} Bibliothèque : groupes illustrés {ids}')
+        lab = rows.first.get_attribute('aria-label') or ''
+        R.check(re.fullmatch(r'Pectoraux, \d+ exercices', lab) is not None, f'{t} groupe : libellé VoiceOver « {lab} »')
+        R.check(page.locator('.library .mgc img[alt=""]').count() == 6, f'{t} groupes : images décoratives (alt vide)')
+        page.wait_for_function("[...document.querySelectorAll('.library .mgc img')].every(i => i.complete && i.naturalWidth > 0)", timeout=5000)
+        R.check(min(rows.nth(i).bounding_box()['height'] for i in range(6)) >= 44, f'{t} groupes : 44 px au moins')
+        shot(page, LOT, f'groupes-biblio-{t}')
+        page.click('.library .mgc[data-group="dos"]')
         page.wait_for_timeout(150)
         titles = page.locator('#libList .group-title').all_inner_texts()
         R.check(len(titles) == 1 and titles[0].lower().startswith('dos'), f'{t} Bibliothèque : seulement la section Dos {titles}')
@@ -622,6 +633,21 @@ def t_muscle_filter(bench, eng, dev, theme):
         page.wait_for_timeout(150)
         subs = page.locator('#libList .cell__sub').all_inner_texts()
         R.check(subs and all('Grand dorsal' in x for x in subs), f'{t} Bibliothèque : grand dorsal seulement ({len(subs)})')
+        page.click('[data-action="lib-muscle"][data-group=""]')
+        page.wait_for_timeout(150)
+        R.check(page.locator('.library .mgc').count() == 6 and page.locator('.library .mf__row').count() == 0, f'{t} « Tous les muscles » : retour aux groupes illustrés')
+        page.fill('#libSearch', 'curl')
+        R.check(page.locator('.library .mgcs').is_hidden(), f'{t} recherche : groupes masqués')
+        page.fill('#libSearch', '')
+        # Fiche sans vidéo ni animation 3D : muscle principal en tête ; avec l'animation 3D : pas d'en-tête
+        page.evaluate("navigate(makeRoute('library-ex', 'Pec deck'))")
+        page.wait_for_selector('.view.library-ex .mgc--hero')
+        R.check('Pectoraux' in page.inner_text('.view.library-ex .mgc--hero'), f'{t} fiche : en-tête au muscle principal')
+        page.evaluate("navigate(makeRoute('library-ex', 'Squat barre'))")
+        page.wait_for_selector('.view.library-ex .exvideo')
+        R.check(page.locator('.view.library-ex .mgc--hero').count() == 0, f'{t} fiche animée : pas d\'en-tête')
+        page.evaluate("navigate('library')")
+        page.wait_for_selector('.view.library')
         R.check(no_hscroll(page), f'{t} pas de défilement horizontal de la page')
         shot(page, LOT, f'filtre-biblio-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')

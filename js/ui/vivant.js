@@ -178,9 +178,9 @@ function vvFillRings() {
   });
 }
 
-// Image du personnage absente (rendus pas encore livrés) : la carte garde son texte, sans image cassée
+// Image du personnage absente (fichier manquant) : la ligne garde son texte, sans image cassée
 document.addEventListener('error', e => {
-  if (e.target?.classList?.contains('mcard__img')) e.target.setAttribute('data-missing', '');
+  if (e.target?.classList?.contains('mgc__img')) e.target.setAttribute('data-missing', '');
 }, true);
 
 let vvQueued = false;

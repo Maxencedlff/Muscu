@@ -91,12 +91,6 @@ html.type-xl .history-detail .tile + .tile, html.type-xl .stats-overview .tile +
 /* Pastille grise devant chaque séance : elle ne distingue plus rien, le nom suffit */
 .programmes .ps-list .cat-badge, .prog-info .cat-badge { display: none; }
 
-/* ── Bibliothèque : cartes des groupes (branche design-muscles), nom à gauche, personnage à droite ──
-   Sans image (rendus pas encore livrés, ou image en erreur) : le texte prend toute la largeur. */
-.mcard { background: var(--cell) !important; }
-.mcard__title { color: var(--label); }
-.mcard:has(.mcard__img[data-missing]) .mcard__text, .mcard:not(:has(.mcard__img)) .mcard__text { width: 100%; }
-
 /* ═══════════════════════════════════════════════
    Mouvement (vivant) : la courbe se trace, le personnage se colore, la liste arrive
 ═══════════════════════════════════════════════ */

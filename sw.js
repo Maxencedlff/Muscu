@@ -43,6 +43,11 @@ const ASSETS = [
   '/img/body/female/back/rear_delts.webp', '/img/body/female/back/traps.webp', '/img/body/female/back/lats.webp', '/img/body/female/back/lower_back.webp',
   '/img/body/female/back/triceps.webp', '/img/body/female/back/forearms.webp', '/img/body/female/back/glutes.webp', '/img/body/female/back/hamstrings.webp',
   '/img/body/female/back/adductors.webp', '/img/body/female/back/calves.webp',
+  // Groupes de muscles illustrés (Bibliothèque) et en-tête de la fiche d'un exercice (js/features/library.js)
+  '/img/muscles/pectoraux.webp', '/img/muscles/dos.webp', '/img/muscles/epaules.webp', '/img/muscles/bras.webp', '/img/muscles/abdominaux.webp', '/img/muscles/jambes.webp',
+  '/img/muscles/chest.webp', '/img/muscles/front_delts.webp', '/img/muscles/side_delts.webp', '/img/muscles/rear_delts.webp', '/img/muscles/traps.webp', '/img/muscles/lats.webp',
+  '/img/muscles/lower_back.webp', '/img/muscles/biceps.webp', '/img/muscles/brachialis.webp', '/img/muscles/triceps.webp', '/img/muscles/forearms.webp', '/img/muscles/abs.webp',
+  '/img/muscles/obliques.webp', '/img/muscles/glutes.webp', '/img/muscles/quads.webp', '/img/muscles/hamstrings.webp', '/img/muscles/adductors.webp', '/img/muscles/calves.webp',
   // Animations 3D du « Comment faire » (js/data/exercise-anims.js) : affiches dès l'installation, vidéos au
   // premier visionnage (ANIM_RE plus bas)
   '/img/anim/squat-barre.webp', '/img/anim/developpe-couche-barre.webp', '/img/anim/souleve-de-terre.webp',

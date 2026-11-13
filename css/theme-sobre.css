@@ -122,13 +122,6 @@ html:not(.type-xl) .team-week__val { font-size: inherit; line-height: inherit; }
 .team-week__tile--warn .team-week__val, .team-week__tile--new .team-week__val { color: var(--label); }
 .progress-sig--warn { color: var(--label); }
 
-/* ── Bibliothèque : cartes des groupes de muscles (rendus 3D, branche design-muscles) ──
-   Aplat de cellule, pas de dégradé ; l'image porte la couleur (muscles en rouge). Sans image : la carte reste propre. */
-.mcard { background: var(--cell) !important; color: var(--label) !important; border-radius: 12px; }
-.mcard__sub { color: var(--label2) !important; }
-.mcard__img[data-missing] { display: none; }
-.mcard--hero { border-radius: 12px; }
-
 /* ═══════════════════════════════════════════════
    Mouvement (vivant)
 ═══════════════════════════════════════════════ */

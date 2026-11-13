@@ -24,10 +24,61 @@ function libRowHtml(e) {
     </button>`;
 }
 
+// ── Groupes de muscles en liste illustrée (filtre sans groupe choisi) ─
+// Sans groupe choisi, les pastilles des groupes deviennent une liste iOS : nom et nombre d'exercices à
+// gauche, personnage 3D maison à droite, muscles du groupe en rouge (img/muscles/<id>.webp, dépôt
+// mdlf-perso, src/cartes.py). Toucher une ligne = toucher la pastille du groupe (même action, même
+// ordre). Un groupe choisi : retour aux pastilles, pour garder la liste des exercices en haut.
+function libMatches(f) {
+  return EXERCISE_CATALOGUE.filter(e => (libEquip === 'all' || e.equip === libEquip)
+    && muscleFilterMatch(exerciseMuscles({ name: e.name }), f));
+}
+function exercisesCountLabel(n) { return n ? `${n} exercice${n > 1 ? 's' : ''}` : 'Aucun exercice'; }
+
+// Image décorative (alt vide) : VoiceOver lit le libellé de la ligne ; sans fichier, la ligne garde son texte
+function muscleImgHtml(id) {
+  return `<img class="mgc__img" src="img/muscles/${id}.webp" alt="" width="300" height="200" decoding="async">`;
+}
+
+function muscleGroupsHtml(action) {
+  const rows = MUSCLE_GROUPS.map(g => {
+    const count = exercisesCountLabel(libMatches({ group: g.id, muscle: null }).length);
+    return `<button class="cell mgc" data-action="${action}" data-group="${g.id}" aria-label="${esc(g.label)}, ${count}">
+        <span class="mgc__text"><span class="mgc__title">${esc(g.label)}</span><span class="mgc__sub">${count}</span></span>
+        ${muscleImgHtml(g.id)}
+      </button>`;
+  }).join('');
+  return `<div class="mf mgcs group" data-mf="${action}" role="group" aria-label="Groupes de muscles"${libQuery.trim() ? ' hidden' : ''}>${rows}</div>`;
+}
+function libMuscleBoxHtml() {
+  return libMuscle.group ? muscleFilterHtml('lib-muscle', libMuscle) : muscleGroupsHtml('lib-muscle');
+}
+// focus : après un toucher, VoiceOver reste sur le choix (pastille du groupe, ou première ligne)
+function refreshLibMuscleBox(focus = false) {
+  const box = $('.library .mf');
+  if (!box) return;
+  box.outerHTML = libMuscleBoxHtml();
+  if (!focus) return;
+  const g = libMuscle.group;
+  const target = g ? $(`.library .mf [data-group="${g}"]${libMuscle.muscle ? `[data-muscle="${libMuscle.muscle}"]` : ':not([data-muscle])'}`)
+    : $('.library .mgc');
+  target?.focus({ preventScroll: true });
+}
+
+// Fiche sans vidéo ni animation 3D : le muscle principal sur le personnage, en tête (rien pour le cardio)
+function muscleHeroHtml(name) {
+  if (exerciseVideo(name) || exerciseAnim(name)) return '';
+  const id = exerciseMuscles({ name }).primary?.[0];
+  if (!isMuscleId(id)) return '';
+  return `<div class="group mgcs mgcs--hero"><div class="cell mgc mgc--hero">
+      <span class="mgc__text"><span class="mgc__sub">Muscle principal</span><span class="mgc__title">${esc(muscleLabel(id))}</span></span>
+      ${muscleImgHtml(id)}
+    </div></div>`;
+}
+
 function libListHtml() {
   const q = libQuery.trim();
-  const items = EXERCISE_CATALOGUE.filter(e => (libEquip === 'all' || e.equip === libEquip)
-      && muscleFilterMatch(exerciseMuscles({ name: e.name }), libMuscle))
+  const items = libMatches(libMuscle)
     .map(e => ({ e, score: q ? exerciseMatchScore(e.name, q) : 2 })).filter(x => x.score > 0);
   if (!items.length) {
     const why = q ? ` pour « ${esc(q)} »` : muscleFilterTargets(libMuscle) ? ' pour ce muscle avec ce matériel' : '';
@@ -64,7 +115,7 @@ function renderLibrary() {
             ${[{ id: 'all', label: 'Tout' }, ...EQUIPMENT].map(({ id, label }) =>
               `<button class="ax__chip" aria-pressed="${libEquip === id}" data-action="lib-equip" data-equip="${id}">${label}</button>`).join('')}
           </div>
-          ${muscleFilterHtml('lib-muscle', libMuscle)}
+          ${libMuscleBoxHtml()}
         </div>
         <div id="libList">${libListHtml()}</div>
       </div>
@@ -86,6 +137,7 @@ function renderLibraryEx(name) {
     <div class="view library-ex view--grouped">
       ${navBar({ title: esc(catalogueAliasOf(name) ? name : e.name), large: true, sub: aliasNoteHtml(name, 'scr-sub ex-alias') })}
       <div class="scr">
+        ${muscleHeroHtml(name)}
         ${howToHtml(e.name)}
         ${exMusclesGroupHtml({ name }, 'Muscles')}
         <div class="group">
@@ -112,6 +164,8 @@ SCREENS.set('library-ex', { render: name => renderLibraryEx(name), mount: () => 
 document.addEventListener('input', e => {
   if (e.target.id !== 'libSearch') return;
   libQuery = e.target.value;
+  const groups = $('.library .mgcs');
+  if (groups) groups.hidden = !!libQuery.trim();   // en recherche, les résultats viennent tout de suite
   const list = $('#libList');
   if (list) list.innerHTML = libListHtml();
 });
@@ -121,12 +175,14 @@ registerActions({
   'open-library-ex': (e, el) => navigate(makeRoute('library-ex', el.dataset.name)),
   'lib-muscle': (e, el) => {
     libMuscle = muscleFilterTap(el, libMuscle);
+    refreshLibMuscleBox(true);
     const list = $('#libList');
     if (list) list.innerHTML = libListHtml();
   },
   'lib-equip': (e, el) => {
     libEquip = el.dataset.equip;
     document.querySelectorAll('[data-action="lib-equip"]').forEach(b => b.setAttribute('aria-pressed', String(b === el)));
+    if (!libMuscle.group) refreshLibMuscleBox();   // nombres d'exercices des groupes
     const list = $('#libList');
     if (list) list.innerHTML = libListHtml();
     haptic();
