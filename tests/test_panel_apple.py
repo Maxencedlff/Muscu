@@ -417,6 +417,51 @@ def t_alerte_empilee(bench):
             shot(page, LOT, f'alerte-empilee-{t}')
 
 
+def t_titre_seance_replie(bench):
+    """Séance (panel vague 4) : le nom de l'exercice en cours passé sous la barre, la barre le reprend en titre ;
+    texte agrandi sur iPhone SE et texte normal sur iPhone 13, clair et sombre. Plus de point gris sous les numéros."""
+    css = "(() => { const st = document.createElement('style'); st.textContent = 'html { font: 33px -apple-system, system-ui, sans-serif !important; }'; const put = () => { if (!document.documentElement) return false; document.documentElement.appendChild(st); return true; }; if (!put()) new MutationObserver((m, o) => { if (put()) o.disconnect(); }).observe(document, { childList: true }); })()"
+    st_js = """() => { const b = document.querySelector('#app .navbar'), ex = b.querySelector('.navbar__title-ex'), main = b.querySelector('.navbar__title-main');
+        const row = currentSetRow(), card = row.closest('.ex-card'), n = card.querySelector('.ex-card__name').getBoundingClientRect();
+        return { on: b.classList.contains('navbar--ex'), text: ex.textContent, want: activeSession.exercises[+(row.dataset.ei ?? card.dataset.ei)].name,
+                 exOp: +getComputedStyle(ex).opacity, mainOp: +getComputedStyle(main).opacity, hidden: ex.getAttribute('aria-hidden'),
+                 under: n.top < b.getBoundingClientRect().bottom - 1,
+                 clear: (() => { const l = b.querySelector('.navbar__side--left > *').getBoundingClientRect(), r = b.querySelector('.navbar__side--right > *').getBoundingClientRect(), x = ex.getBoundingClientRect();
+                                 return x.left >= l.right - 1 && x.right <= r.left + 1; })(), exFits: ex.scrollWidth <= ex.clientWidth + 1 || getComputedStyle(ex).textOverflow === 'ellipsis' }; }"""
+    for dev, big in (('iPhone SE', True), ('iPhone 13', False)):
+        for theme in ('light', 'dark'):
+            t = tag(dev, theme) + ('-ax33' if big else '')
+            with bench.page('webkit', dev, theme) as page:
+                if big:
+                    page.add_init_script(css)
+                seed(page, theme, ppl_v2_today_json())
+                page.evaluate("startSession('pull')")
+                page.wait_for_selector('.view.session'); page.wait_for_timeout(500)
+                R.check(page.locator('.set-tech-n').count() > 0 and page.locator('.set-tech-n__dot').count() == 0,
+                        f'{t} numéro de série touchable, sans point gris dessous')
+                s = page.evaluate(st_js)
+                R.check(not s['on'] and s['exOp'] < .1 and s['mainOp'] > .9, f'{t} démarrage : nom visible, la barre garde son titre {s}')
+                # Série validée puis fin du repos : la séance défile vers la série à faire
+                page.click('.session-set--current [data-action="validate-set"]'); page.wait_for_timeout(700)
+                for sel in ('.rest-overlay [data-action="skip-rest"]', '.rest-mini__skip'):
+                    if page.locator(sel).count():
+                        page.locator(sel).first.click(); break
+                page.wait_for_timeout(900)
+                s = page.evaluate(st_js)
+                if not s['under']:   # texte normal : le nom reste souvent visible ; on le fait passer sous la barre
+                    R.check(not s['on'], f'{t} nom visible après la série : pas de doublon dans la barre {s}')
+                    page.evaluate("(() => { const n = currentSetRow().closest('.ex-card').querySelector('.ex-card__name'); window.scrollBy(0, n.getBoundingClientRect().bottom); })()")
+                    page.wait_for_timeout(500)
+                    s = page.evaluate(st_js)
+                R.check(s['under'] and s['on'] and s['text'] == s['want'] and s['exOp'] > .9 and s['mainOp'] < .1 and s['hidden'] == 'true' and s['exFits'] and s['clear'],
+                        f'{t} nom sous la barre : la barre affiche « {s["want"]} », caché à VoiceOver {s}')
+                shot(page, LOT, f'titre-seance-{t}')
+                page.evaluate('window.scrollTo(0, 0)'); page.wait_for_timeout(500)
+                s = page.evaluate(st_js)
+                R.check(not s['on'] and s['mainOp'] > .9, f'{t} retour en haut : titre normal {s}')
+                R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_grand_texte(bench):
     """Texte agrandi (Dynamic Type AX3, 33 px) sur iPhone SE : accueil, séance et nutrition sans défilement de côté."""
     data = ppl_v2_today()
@@ -455,4 +500,4 @@ def t_grand_texte(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_grand_texte, t_alerte_empilee, t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+run_main(R, [], once=[t_titre_seance_replie, t_grand_texte, t_alerte_empilee, t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

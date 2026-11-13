@@ -662,10 +662,8 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
      toucher par pseudo-élément faisait déborder le contenu (scrollWidth > clientWidth, test « texte tronqué ») */
   position: relative; justify-self: center; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
   font-family: inherit; color: var(--label2);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  display: flex; align-items: center; justify-content: center;
 }
-/* Indice discret : un point sous le numéro, là où une technique peut se poser */
-.set-tech-n__dot { width: 4px; height: 4px; border-radius: 50%; background: var(--label3); }
 .set-tech-n:active { opacity: .6; }
 .tech { margin: -2px -6px 4px; }
 .tech__cap {

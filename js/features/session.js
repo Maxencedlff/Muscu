@@ -298,6 +298,7 @@ function renderSession() {
     <div class="view session ${restActive ? 'session--resting' : ''}" style="--cat-color:${meta.color}">
       ${navBar({ large: false,
         title: `<span class="navbar__title-main">${meta.label}</span>
+                <span class="navbar__title-ex" aria-hidden="true"></span>
                 <span class="navbar__title-sub session-sub num"><span id="session-count">${done}/${total}</span> · <span id="session-clock">${fmtClock(Date.now() - activeSession.startedAt)}</span></span>`,
         left: `<button class="navbar__icon" data-action="back" aria-label="Réduire la séance">${icon('chevron.down', 24)}</button>`,
         right: `<button class="navbar__text navbar__text--bold" data-action="finish-session">Terminer</button>`,
@@ -869,6 +870,31 @@ function scrollToCurrent(smooth = true, focus = false) {
   });
 }
 
+// Nom de l'exercice en cours repris par la barre quand il passe dessous, comme le grand titre d'iOS qui se replie
+// (panel vague 4 : iPhone SE en texte agrandi, scrollToCurrent aligne l'en-tête « kg / Reps » sous la barre et le
+// nom de l'exercice n'était plus visible nulle part). Le nom remplace « Push » / « Pull »… le temps qu'il est caché,
+// le compteur et le chrono restent dessous. La copie de la barre est cachée à VoiceOver : le nom de la carte reste
+// celui qu'il lit, une seule fois.
+let curNameObserver = null;
+function observeCurrentExName() {
+  curNameObserver?.disconnect();
+  curNameObserver = null;
+  const bar = $('#app .navbar'), slot = bar?.querySelector('.navbar__title-ex');
+  const row = currentSetRow(), card = row?.closest('.ex-card'), name = card?.querySelector('.ex-card__name');
+  const ex = activeSession?.exercises[parseInt(row?.dataset.ei ?? card?.dataset.ei)];
+  bar?.classList.remove('navbar--ex');
+  if (!slot || !name || !ex || !('IntersectionObserver' in window)) return;
+  slot.textContent = ex.name;   // superset : l'exercice de la série à faire, pas « Superset »
+  const top = bar.getBoundingClientRect().height;
+  // Repris dès que le nom COMMENCE à passer sous la barre ; un nom coupé par le bas de l'écran ne compte pas
+  curNameObserver = new IntersectionObserver(([en]) => {
+    if (!bar.isConnected) return;
+    const under = en.intersectionRatio < 1 && en.boundingClientRect.top < (en.rootBounds?.top ?? top) + 1;
+    bar.classList.toggle('navbar--ex', under);
+  }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: [0, 0.99, 1] });
+  curNameObserver.observe(name);
+}
+
 // Carte d'un exercice (et sa ligne « … · Annuler ») juste sous la barre, après un geste qui la modifie
 function scrollToCard(ei) {
   requestAnimationFrame(() => {
@@ -890,6 +916,7 @@ function afterSessionRender(entering) {
   const tipFirst = entering && coachSessionProgTipHtml() && !activeSession.exercises.some(ex => ex.sets.some(s => s.done));
   if (tipFirst) window.scrollTo(0, 0);
   else if (entering) scrollToCurrent(false);
+  observeCurrentExName();
   const a = document.activeElement;
   if (!(a && a.matches?.('.set-input'))) document.body.classList.remove('kb-open');
 }

@@ -29,10 +29,11 @@ function techNextSub() {
 }
 
 // Numéro d'une série de travail à faire (ou rouverte) : bouton qui ouvre le choix d'une technique.
-// Même aspect que le numéro, avec un point discret dessous (indice qu'il se touche) ; zone de 44 px (session.css)
+// Même aspect que le numéro (sans indice visuel : le point gris dessous ne disait rien, panel vague 4) ; raccourci du
+// choix « Technique… » du menu ⋯ de la série (techMenuActions) ; zone de 44 px (session.css)
 function setTechNumHtml(ex, ei, si) {
   const t = setTech(ex.sets[si]);
-  return `<button class="set-n set-tech-n num" data-action="tech-set" data-ei="${ei}" data-si="${si}" aria-label="${setSpokenName(ex, si)}, ${esc(ex.name)} : technique d'intensification${t ? `, ${TECHS[t].label}` : ''}">${setDisplayNo(ex.sets, si)}<span class="set-tech-n__dot" aria-hidden="true"></span></button>`;
+  return `<button class="set-n set-tech-n num" data-action="tech-set" data-ei="${ei}" data-si="${si}" aria-label="${setSpokenName(ex, si)}, ${esc(ex.name)} : technique d'intensification${t ? `, ${TECHS[t].label}` : ''}">${setDisplayNo(ex.sets, si)}</button>`;
 }
 
 // Sous la série : titre de la technique (+ une sous-série, retirer), puis une ligne par sous-série,
