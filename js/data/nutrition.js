@@ -216,11 +216,11 @@ function dietHomeMeals(pr, max = 4) {
 // Journal : { 'AAAA-MM-JJ': { plan, done: [id repas], swaps: { [id aliment]: aliment }, extras: { [id repas]: [aliment] }, removed: [id aliment] } },
 // 120 jours au plus. extras : aliments ajoutés à un repas pour ce jour seulement, hors plan (le plan ne change pas).
 // swaps : remplaçant d'un aliment du plan, ou le même aliment à une autre quantité (« Changer la quantité »).
-// removed : aliments du plan pas mangés ce jour-là (« Retirer pour aujourd'hui », « Retirer ce repas pour aujourd'hui »).
-// Un ancien client ignore removed (l'aliment y reste compté, rien ne casse).
-// blank : jour commencé vide (réglage dietEmptyDays) ; ses aliments prévus sont dans removed tant qu'on n'a pas copié
-// le plan du repas. Gardé avec le jour : changer le réglage ne réécrit jamais un jour déjà noté. Un ancien client
-// l'ignore et lit removed comme d'habitude
+// removed : aliments du plan pas mangés ce jour-là (« Retirer pour aujourd'hui »).
+// off : repas retirés pour ce jour (« Retirer ce repas pour aujourd'hui ») : ni à cocher, ni comptés.
+// blank : jour commencé vide (réglage dietEmptyDays) : les aliments prévus d'un repas n'y sont que s'il est dans copied
+// (« Copier le plan de ce repas »), même si le plan change ensuite. Gardé avec le jour : changer le réglage ne réécrit
+// jamais un jour passé. Champs facultatifs : un ancien client les ignore (aliments prévus affichés, comptés à la coche)
 function cleanDietLog(v, now = Date.now()) {
   if (!dietIsObj(v)) return {};
   const oldest = localISO(now - DIET_LOG_DAYS * 86400000), newest = localISO(now + 2 * 86400000);
@@ -239,13 +239,17 @@ function cleanDietLog(v, now = Date.now()) {
     const removed = cleanDietRemoved(e.removed);
     // Repas du plan ce jour-là (instantané) : un jour passé reste jugé avec le plan de ce jour
     const meals = Array.isArray(e.meals) ? [...new Set(e.meals.filter(id => typeof id === 'string' && DIET_PART_RE.test(id)))].slice(0, DIET_MEAL_MAX) : null;
-    const blank = e.blank === true;
-    if (done.length || Object.keys(swaps).length || Object.keys(extras).length || removed.length || blank) {
+    const blank = e.blank === true, off = cleanDietMealIds(e.off), copied = cleanDietMealIds(e.copied);
+    if (done.length || Object.keys(swaps).length || Object.keys(extras).length || removed.length || off.length || copied.length || blank) {
       out[day] = { plan: e.plan, done, swaps, ...(Object.keys(extras).length ? { extras } : {}), ...(removed.length ? { removed } : {}), ...(meals ? { meals } : {}),
-        ...(blank ? { blank } : {}) };
+        ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}) };
     }
   }
   return out;
+}
+// Repas d'un jour (off, copied) : ids uniques et valides
+function cleanDietMealIds(v) {
+  return Array.isArray(v) ? [...new Set(v.filter(id => typeof id === 'string' && DIET_PART_RE.test(id)))].slice(0, DIET_MEAL_MAX) : [];
 }
 // Aliments du plan retirés pour ce jour : ids uniques et valides
 function cleanDietRemoved(v) {
@@ -365,16 +369,27 @@ function dietPickedDay(pick, day, week, now = Date.now()) {
 // Retour dans l'app : le choix d'un jour passé tombe au lendemain ou s'il date de plus de DIET_PICK_MS
 function dietPickStale(pick, now = Date.now()) { return !!pick && (pick.today !== dietDayKey(now) || now - pick.at > DIET_PICK_MS); }
 // Entrée du journal de ce jour pour ce plan. Jour pas encore noté (ou noté avec un autre plan) : pré-rempli par le
-// plan, ou vide si le réglage « Repas du jour : Vides » est choisi (tous les aliments prévus retirés, blank)
+// plan, ou vide (blank) si le réglage « Repas du jour : Vides » est choisi
 function dietDay(d, planId, day) {
   const e = d.dietLog?.[day];
-  if (e && e.plan === planId) return { ...e, extras: e.extras || {}, removed: e.removed || [] };
-  const blank = d.dietEmptyDays === true;
-  const removed = blank ? (d.dietPlans?.[planId]?.meals || []).flatMap(m => m.items.map(it => it.id)) : [];
-  return { plan: planId, done: [], swaps: {}, extras: {}, removed, ...(blank ? { blank } : {}) };
+  if (e && e.plan === planId) return { ...e, extras: e.extras || {}, removed: e.removed || [], off: e.off || [], copied: e.copied || [] };
+  return { plan: planId, done: [], swaps: {}, extras: {}, removed: [], off: [], copied: [], ...(d.dietEmptyDays === true ? { blank: true } : {}) };
 }
-// Aliments prévus encore au menu de ce jour (ni retirés, ni dans un repas retiré) : ce qu'on coche
-function dietMealLive(meal, removed) { return (meal?.items || []).filter(it => !removed?.includes(it.id)); }
+// Aliments prévus encore au menu de ce jour : ni retirés, ni dans un repas retiré, ni dans un repas d'un jour vide dont
+// le plan n'a pas été copié. C'est ce qu'on coche
+function dietMealLive(meal, e) {
+  if (!meal || e?.off?.includes(meal.id) || (e?.blank === true && !e.copied?.includes(meal.id))) return [];
+  return meal.items.filter(it => !e?.removed?.includes(it.id));
+}
+// Repas à faire ce jour-là (pour « Journée complète ») : jour pré-rempli, ceux qui ont des aliments à cocher ; jour vide,
+// tous les repas du plan qui ont des aliments, sauf ceux retirés
+function dietDayRequired(meals, e) {
+  return (meals || []).filter(m => (e.blank === true ? m.items.length > 0 && !e.off?.includes(m.id) : dietMealLive(m, e).length > 0)).map(m => m.id);
+}
+// Repas fait : coché ; jour vide, un repas dont le plan n'a pas été copié est fait dès qu'un aliment y est noté
+function dietMealSatisfied(e, id) {
+  return e.blank === true && !e.copied?.includes(id) ? (e.extras?.[id] || []).length > 0 : e.done.includes(id);
+}
 function dietWriteDay(d, day, e) {
   const plan = d.dietPlans?.[e.plan];
   // Repas et aliments qui n'existent plus dans le plan : oubliés
@@ -384,13 +399,15 @@ function dietWriteDay(d, day, e) {
   const swaps = Object.fromEntries(Object.entries(e.swaps || {}).filter(([id]) => items.has(id)));
   const extras = Object.fromEntries(Object.entries(e.extras || {}).filter(([id, list]) => meals.has(id) && list?.length));
   const removed = (e.removed || []).filter(id => items.has(id));
+  const off = (e.off || []).filter(id => meals.has(id)), copied = (e.copied || []).filter(id => meals.has(id)), blank = e.blank === true;
   d.dietLog ||= {};
-  // Instantané : les repas à cocher ce jour-là (un repas retiré pour la journée n'en est plus, « Journée complète » sans lui)
-  const snapshot = (plan?.meals || []).filter(m => dietMealLive(m, removed).length).map(m => m.id);
-  const hasExtras = Object.keys(extras).length > 0, blank = e.blank === true;
+  // Instantané : les repas à faire ce jour-là (un repas retiré n'en est plus, « Journée complète » sans lui)
+  const snapshot = dietDayRequired(plan?.meals, { removed, off, copied, blank });
+  const hasExtras = Object.keys(extras).length > 0;
   // Jour vide (blank) gardé même sans rien d'autre : sinon il redeviendrait « pré-rempli » ou « vide » selon le réglage du moment
-  if (done.length || Object.keys(swaps).length || hasExtras || removed.length || blank) {
-    d.dietLog[day] = { plan: e.plan, done, swaps, ...(hasExtras ? { extras } : {}), ...(removed.length ? { removed } : {}), meals: snapshot, ...(blank ? { blank } : {}) };
+  if (done.length || Object.keys(swaps).length || hasExtras || removed.length || off.length || copied.length || blank) {
+    d.dietLog[day] = { plan: e.plan, done, swaps, ...(hasExtras ? { extras } : {}), ...(removed.length ? { removed } : {}), meals: snapshot,
+      ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}) };
   }
   else delete d.dietLog[day];
   if (!Object.keys(d.dietLog).length) delete d.dietLog;
@@ -430,39 +447,57 @@ function dietSetRemoved(d, planId, itemId, off = true, day = dietDayKey()) {
   dietWriteDay(d, day, { ...e, removed });
   return off;
 }
-// Retire un repas entier pour ce jour (off true : tous ses aliments prévus, et sa coche) ou le remet (off false : ses
-// aliments prévus reviennent, à cocher ; c'est aussi « Copier le plan de ce repas » d'un jour vide). Ses ajouts restent.
-// Le plan ne change pas ; renvoie false si le repas n'existe pas
-function dietSetMealRemoved(d, planId, mealId, off = true, day = dietDayKey()) {
+// Retire un repas entier pour ce jour (« Retirer ce repas pour aujourd'hui ») : plus à cocher, plus compté. Sa coche
+// et ses ajouts partent avec lui (pas mangés) ; renvoie de quoi Annuler (dietUndoMealOff), null si le repas n'existe pas.
+// Ce qu'on y ajoute ensuite (on a mangé autre chose) compte tout de suite. Le plan ne change pas
+function dietSetMealOff(d, planId, mealId, day = dietDayKey()) {
   const meal = d.dietPlans?.[planId]?.meals.find(m => m.id === mealId);
-  if (!meal) return false;
-  const e = dietDay(d, planId, day), ids = meal.items.map(it => it.id);
-  const removed = [...e.removed.filter(id => !ids.includes(id)), ...(off ? ids : [])];
-  dietWriteDay(d, day, { ...e, removed, done: off ? e.done.filter(id => id !== mealId) : e.done });
+  if (!meal) return null;
+  const e = dietDay(d, planId, day);
+  const gone = { extras: e.extras[mealId] || [], done: e.done.includes(mealId) };
+  const extras = { ...e.extras };
+  delete extras[mealId];
+  dietWriteDay(d, day, { ...e, extras, off: [...e.off.filter(id => id !== mealId), mealId], done: e.done.filter(id => id !== mealId) });
+  return gone;
+}
+// « Remettre le repas prévu » : ses aliments prévus reviennent, à cocher (les ajouts partis restent partis)
+function dietSetMealOn(d, planId, mealId, day = dietDayKey()) {
+  if (!d.dietPlans?.[planId]?.meals.some(m => m.id === mealId)) return false;
+  const e = dietDay(d, planId, day);
+  dietWriteDay(d, day, { ...e, off: e.off.filter(id => id !== mealId) });
   return true;
 }
-// Remet l'entrée d'un jour telle qu'elle était (Annuler) : copie prise avant le changement, null s'il n'y en avait pas
-function dietPutDay(d, day, entry) {
-  if (entry) (d.dietLog ||= {})[day] = entry;
-  else if (d.dietLog) { delete d.dietLog[day]; if (!Object.keys(d.dietLog).length) delete d.dietLog; }
+// Annuler un retrait : seulement lui (une coche ou un ajout faits entre-temps restent) ; ses ajouts et sa coche reviennent
+function dietUndoMealOff(d, planId, mealId, gone, day = dietDayKey()) {
+  if (!dietSetMealOn(d, planId, mealId, day) || !gone) return false;
+  const e = dietDay(d, planId, day), now = e.extras[mealId] || [];
+  const extras = { ...e.extras, [mealId]: [...gone.extras.filter(x => !now.some(y => y.id === x.id)), ...now].slice(0, DIET_ITEM_MAX) };
+  dietWriteDay(d, day, { ...e, extras, done: gone.done && !e.done.includes(mealId) ? [...e.done, mealId] : e.done });
+  return true;
+}
+// Jour vide : « Copier le plan de ce repas » (ses aliments prévus, à cocher ; ce qui est déjà noté reste compté)
+function dietCopyMealPlan(d, planId, mealId, day = dietDayKey()) {
+  if (!d.dietPlans?.[planId]?.meals.some(m => m.id === mealId)) return false;
+  const e = dietDay(d, planId, day);
+  dietWriteDay(d, day, { ...e, copied: [...e.copied.filter(id => id !== mealId), mealId], off: e.off.filter(id => id !== mealId) });
+  return true;
 }
 // Réglage « Repas du jour » (blank true : vides). Les jours pas encore notés suivent le réglage ; aujourd'hui, déjà
-// noté, change aussi sans rien perdre : vers « Vides », les repas pas cochés perdent leurs aliments prévus (les repas
-// cochés restent, ils ont été mangés) ; vers « Pré-remplis », les repas vides sans ajout reprennent le plan (un repas où
-// l'on a noté ce qu'on a mangé reste tel quel : pas de double compte). Les jours passés ne changent jamais
+// noté, change aussi sans rien perdre. Vers « Vides » : les repas cochés gardent leur plan (copié), les autres se vident.
+// Vers « Pré-remplis » : les repas sans ajout reprennent le plan ; un repas où l'on a noté ce qu'on a mangé est retiré
+// (pas de double compte, ses ajouts comptent). Un repas retiré le reste. Les jours passés ne changent jamais
 function dietSetEmptyDays(d, blank, day = dietDayKey()) {
   if (blank) d.dietEmptyDays = true; else delete d.dietEmptyDays;
   const e = d.dietLog?.[day], plan = e && d.dietPlans?.[e.plan];
   if (!plan || (e.blank === true) === !!blank) return;
   const cur = dietDay(d, e.plan, day);
-  let removed = [...cur.removed];
+  if (blank) { dietWriteDay(d, day, { ...cur, blank: true, copied: [...cur.done] }); return; }
+  const off = [...cur.off];
   for (const m of plan.meals) {
-    const ids = m.items.map(it => it.id);
-    if (blank && !cur.done.includes(m.id)) removed = [...removed.filter(id => !ids.includes(id)), ...ids];
-    if (!blank && !(cur.extras[m.id] || []).length && ids.length && ids.every(id => removed.includes(id))) removed = removed.filter(id => !ids.includes(id));
+    if (m.items.length && !cur.copied.includes(m.id) && !off.includes(m.id) && (cur.extras[m.id] || []).length) off.push(m.id);
   }
-  const next = { ...cur, removed };
-  if (blank) next.blank = true; else delete next.blank;
+  const next = { ...cur, off, copied: [] };
+  delete next.blank;
   dietWriteDay(d, day, next);
 }
 // Ajoute un aliment à un repas pour ce jour seulement (repas coché ou non : il reste dans son état) ;
@@ -500,32 +535,34 @@ function dietDayProgress(d, planId, day = dietDayKey()) {
   if (!plan) return null;
   const e = dietDay(d, planId, day);
   // Ajouts du jour : comptés dans le repas (mangé une fois coché), jamais dans le prévu ni le repère
+  const blank = e.blank === true;
   const meals = plan.meals.map(m => {
-    const extras = e.extras[m.id] || [], base = dietMealMacros(m, e.swaps, e.removed);
+    const extras = e.extras[m.id] || [], live = dietMealLive(m, e);
+    const base = live.length ? dietMealMacros(m, e.swaps, e.removed) : DIET_ZERO(), added = extras.reduce((a, it) => dietAdd(a, dietItemMacros(it)), DIET_ZERO());
     // Repère : le plan du jour, remplaçants compris ; jamais baissé par un aliment retiré ou une quantité changée
     const plannedSwaps = Object.fromEntries(m.items.filter(it => e.swaps[it.id] && !dietIsQtyChange(it, e.swaps[it.id])).map(it => [it.id, e.swaps[it.id]]));
-    const live = dietMealLive(m, e.removed);
-    return { meal: m, live, extras, base, plan: dietMealMacros(m, plannedSwaps), macros: extras.reduce((a, it) => dietAdd(a, dietItemMacros(it)), base), done: live.length > 0 && e.done.includes(m.id) };
+    const off = e.off.includes(m.id), copyable = blank && !off && m.items.length > 0 && !e.copied.includes(m.id);
+    return { meal: m, live, extras, base, added, off, copyable, plan: dietMealMacros(m, plannedSwaps), macros: dietAdd(base, added), done: live.length > 0 && e.done.includes(m.id) };
   });
   const toEat = meals.filter(x => x.live.length);
-  // Repas sans aliment prévu ce jour-là (collation libre, repas retiré, jour vide) : ce qu'on y ajoute est mangé tout de
-  // suite, sans coche, et ne change pas « Journée complète » (seuls les repas prévus comptent)
-  const eaten = meals.filter(x => x.done || (!x.live.length && x.extras.length)).reduce((a, x) => dietAdd(a, x.macros), DIET_ZERO());
+  // Mangé : un repas coché (aliments prévus et ajouts) ; les ajouts seuls tout de suite dans un jour vide (on note ce
+  // qu'on mange, plan copié ou non) et dans un repas sans aliment prévu (collation libre, repas retiré puis autre chose)
+  const eaten = meals.reduce((a, x) => dietAdd(a, x.done ? x.macros : x.extras.length && (blank || !x.live.length) ? x.added : DIET_ZERO()), DIET_ZERO());
   const planned = meals.reduce((a, x) => dietAdd(a, x.plan), DIET_ZERO());
-  const nDone = toEat.filter(x => x.done).length;
+  const req = dietDayRequired(plan.meals, e), nDone = req.filter(id => dietMealSatisfied(e, id)).length;
   const { goal, own } = dietGoal(plan);
   for (const k of DIET_TARGET_KEYS) if (!own[k]) goal[k] = Math.round(planned[k]);
-  return { plan, day, swaps: e.swaps, removed: e.removed, blank: e.blank === true, meals, eaten, planned, goal, own, nDone, nMeals: toEat.length,
-    complete: toEat.length > 0 && nDone === toEat.length, next: toEat.find(x => !x.done) || null };
+  return { plan, day, swaps: e.swaps, removed: e.removed, blank, meals, eaten, planned, goal, own, nDone, nMeals: req.length,
+    complete: req.length > 0 && nDone === req.length, next: toEat.find(x => !x.done) || null };
 }
 // Jour complet : tous les repas du plan suivi ce jour-là cochés. planId : seulement si ce jour a été coché
 // avec ce plan (aujourd'hui après un changement de plan : les coches de l'ancien ne comptent plus, comme à l'écran)
 function dietDayComplete(d, day, planId = null) {
   const e = d.dietLog?.[day];
   if (!e || (planId && e.plan !== planId)) return false;
-  // Instantané du jour (repas à cocher ce jour-là) ; journal d'avant l'instantané : le plan actuel, repas retirés exclus
-  const ids = Array.isArray(e.meals) ? e.meals : (d.dietPlans?.[e.plan]?.meals || []).filter(m => dietMealLive(m, e.removed).length).map(m => m.id);
-  return ids.length > 0 && ids.every(id => e.done.includes(id));
+  // Instantané du jour (repas à faire ce jour-là) ; journal d'avant l'instantané : le plan actuel, repas retirés exclus
+  const ids = Array.isArray(e.meals) ? e.meals : dietDayRequired(d.dietPlans?.[e.plan]?.meals, e);
+  return ids.length > 0 && ids.every(id => dietMealSatisfied(e, id));
 }
 // Jours complets d'affilée jusqu'à aujourd'hui (aujourd'hui pas encore fini : la série court jusqu'à hier).
 // Aujourd'hui est jugé avec le plan suivi ; les jours passés, avec le plan de ce jour-là

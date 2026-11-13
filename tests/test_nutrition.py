@@ -1181,11 +1181,12 @@ def t_repas_vides(bench, eng, dev, theme):
         qty_grams(page, '10')
         page.wait_for_timeout(400)
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
-        R.check(kcal_eaten(page) > 50 and '1 aliment noté' in nb(page.inner_text('.diet-sum__line')), f'{t} noté : compté tout de suite ({kcal_eaten(page)} kcal)')
+        noted = kcal_eaten(page)
+        R.check(noted > 50 and '1 repas noté sur 4' in nb(page.inner_text('.diet-sum__line')), f'{t} noté : compté tout de suite ({noted} kcal)')
         page.click('.diet-meal[data-meal="m2"] .diet-item--plan')
         page.wait_for_timeout(300)
         m2 = page.locator('.diet-meal[data-meal="m2"]')
-        R.check(m2.locator('.diet-check').count() == 1 and m2.locator('.diet-item[data-item]').count() == 3 and kcal_eaten(page) < 150,
+        R.check(m2.locator('.diet-check').count() == 1 and m2.locator('.diet-item[data-item]').count() == 3 and kcal_eaten(page) == noted,
                 f'{t} plan du déjeuner copié : à cocher, pas compté avant')
         layout(page, t, 'jour vide, plan copié')
         page.evaluate("window.scrollTo(0, 0); document.querySelector('.scr')?.scrollTo?.(0, 0)")

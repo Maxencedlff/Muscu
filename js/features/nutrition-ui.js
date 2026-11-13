@@ -105,14 +105,15 @@ function dietCallHtml(pr) {
 // Repas vides du plan (rien de prévu, on y ajoute ce qu'on mange) : ils ne se cochent pas. Avec eux, l'état dit « repas
 // prévus » : « Journée complète » après le seul petit-déjeuner rempli, ou « 0 repas coché sur 1 » au-dessus de
 // quatre repas, faisaient croire la journée finie ou le compte faux (panel vague 4)
-// Repas retiré pour la journée : pas « libre », la journée reste « complète » sans lui (on a choisi de ne pas le manger) ;
-// jour vide : les repas sans plan copié sont libres (on y note ce qu'on mange)
-const dietHasFreeMeals = pr => pr.meals.some(x => !x.meal.items.length || (pr.blank && !x.live.length));
+// Repas retiré pour la journée : pas « libre », la journée reste « complète » sans lui (on a choisi de ne pas le manger)
+const dietHasFreeMeals = pr => pr.meals.some(x => !x.meal.items.length);
 // Aliments notés hors plan ce jour-là (jour vide : tout ce qu'on a mangé)
 const dietNotedCount = pr => pr.meals.reduce((n, x) => n + x.extras.length, 0);
 function dietStatusText(pr) {
   // Rien à cocher (jour vide, repas tous retirés) : ce qu'on a noté, sans « 0 sur 0 »
   if (!pr.nMeals) { const n = dietNotedCount(pr); return n ? plural(n, 'aliment noté', 'aliments notés') : 'Rien de noté pour l\'instant'; }
+  // Jour vide : un repas est fait dès qu'on y a noté un aliment (ou coché son plan copié)
+  if (pr.blank) return pr.complete ? 'Journée complète' : pr.nDone ? `${pr.nDone} ${pr.nDone > 1 ? 'repas notés' : 'repas noté'} sur ${pr.nMeals}` : 'Rien de noté pour l\'instant';
   const free = dietHasFreeMeals(pr);
   if (pr.complete) return free ? (pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché') : 'Journée complète';
   if (free) return `${pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché'} : ${pr.nDone} sur ${pr.nMeals}`;
@@ -230,13 +231,14 @@ function dietExtraRowHtml(it, meal, day) {
 
 // Repas retiré pour la journée, ou repas d'un jour vide : une ligne pour reprendre ses aliments prévus, d'un toucher.
 // Jour vide : « Copier le plan de ce repas » ; repas retiré : « Remettre le repas prévu ». Les aliments sont nommés dessous
-function dietMealPlanRowHtml(meal, pr, day) {
+function dietMealPlanRowHtml(x, day) {
+  const { meal, off } = x;
   const names = meal.items.map(it => foodName(it.name)), kcal = dietMealMacros(meal).kcal;
-  const label = pr.blank ? 'Copier le plan de ce repas' : 'Remettre le repas prévu';
+  const label = off ? 'Remettre le repas prévu' : 'Copier le plan de ce repas';
   const when = !day || day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
-  const sub = `${pr.blank ? '' : `Retiré ${when} · `}${names.join(', ')}${data.dietHideNumbers ? '' : ` · ${dietN(kcal)}\u00a0kcal`}`;
+  const sub = `${off ? `Retiré ${when} · ` : ''}${names.join(', ')}${data.dietHideNumbers ? '' : ` · ${dietN(kcal)}\u00a0kcal`}`;
   return `
-            <button class="diet-item diet-item--plan" data-action="diet-meal-back" data-meal="${esc(meal.id)}" data-day="${day}"
+            <button class="diet-item diet-item--plan" data-action="diet-meal-back" data-op="${off ? 'on' : 'copy'}" data-meal="${esc(meal.id)}" data-day="${day}"
               aria-label="${esc(label)} : ${esc(names.join(', '))}${data.dietHideNumbers ? '' : `, ${dietN(kcal)} kilocalories`}">
               <span class="diet-item__body">
                 <span class="diet-item__name">${esc(label)}</span>
@@ -249,16 +251,17 @@ function dietMealHtml(x, pr, day) {
   const { meal, macros, done, extras = [], live = meal.items } = x;
   const isNext = pr.next?.meal.id === meal.id;
   const open = !done || dietOpenMeals.has(meal.id);
-  const cleared = meal.items.length > 0 && !live.length;   // retiré pour la journée, ou jour vide
+  const cleared = x.off || x.copyable;   // retiré pour la journée, ou repas d'un jour vide pas encore copié
   const when = !day || day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
-  const emptyText = !cleared ? 'Rien de prévu : ajoute ce que tu manges' : pr.blank ? 'Ajoute ce que tu manges' : `Retiré pour ${when}`;
+  const emptyText = x.off ? `Retiré pour ${when}` : x.copyable ? 'Ajoute ce que tu manges' : 'Rien de prévu : ajoute ce que tu manges';
   // Titre : un repas coché se déplie au toucher ; pas coché, il est déjà ouvert (simple texte)
   const title = `${isNext ? '<span class="diet-meal__eyebrow">Ensuite</span>' : ''}
               <span class="diet-meal__name">${esc(meal.name)}</span>
-              ${!live.length && !extras.length ? `<span class="diet-meal__macros">${emptyText}</span>`
+              ${(cleared || !meal.items.length) && !extras.length ? `<span class="diet-meal__macros">${emptyText}</span>`
                 : data.dietHideNumbers ? '' : `<span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`}`;
-  // ⋯ : menu du repas (« Retirer ce repas pour aujourd'hui »), seulement s'il reste des aliments prévus à retirer
-  const menu = live.length ? `<button class="diet-meal__menu" data-action="diet-day-meal-menu" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Options de ${esc(meal.name)}">${icon('ellipsis', 20)}</button>` : '';
+  // ⋯ : menu du repas (« Retirer ce repas pour aujourd'hui »), pour tout repas du plan pas encore retiré (jour vide
+  // compris : un repas sauté ne bloque pas « Journée complète »)
+  const menu = meal.items.length && !x.off ? `<button class="diet-meal__menu" data-action="diet-day-meal-menu" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Options de ${esc(meal.name)}">${icon('ellipsis', 20)}</button>` : '';
   return `
         <article class="diet-meal${done ? ' diet-meal--done' : ''}${isNext ? ' diet-meal--next' : ''}" data-meal="${esc(meal.id)}">
           <div class="diet-meal__head">
@@ -267,7 +270,7 @@ function dietMealHtml(x, pr, day) {
             ${menu}${live.length ? dietCheckBtn(meal, done, day) : ''}
           </div>
           ${meal.note && open ? `<p class="diet-meal__note">${icon('info.circle', 14)}<span>${esc(meal.note)}</span></p>` : ''}
-          ${open ? `<div class="diet-meal__items">${cleared ? dietMealPlanRowHtml(meal, pr, day) : meal.items.map(it => dietItemRowHtml(it, pr, day)).join('')}${extras.map(it => dietExtraRowHtml(it, meal, day)).join('')}
+          ${open ? `<div class="diet-meal__items">${cleared ? dietMealPlanRowHtml(x, day) : meal.items.map(it => dietItemRowHtml(it, pr, day)).join('')}${extras.map(it => dietExtraRowHtml(it, meal, day)).join('')}
             <button class="diet-item diet-item--add" data-action="diet-day-add" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Ajouter un aliment à ${esc(meal.name)}">${icon('plus', 18)}<span class="diet-item__name">Ajouter un aliment</span></button></div>` : ''}
         </article>`;
 }
@@ -592,8 +595,8 @@ registerActions({
       save(); render(); announce(`Recoché : ${name}`);
     } });
   },
-  // ⋯ d'un repas : « Retirer ce repas pour aujourd'hui » (ses aliments prévus et sa coche ; ses ajouts restent), Annuler
-  // dans le toast ; la ligne « Remettre le repas prévu » le remet. Le plan ne change pas
+  // ⋯ d'un repas : « Retirer ce repas pour aujourd'hui » (ses aliments prévus, sa coche et ses ajouts : pas mangés),
+  // Annuler dans le toast (ne défait que le retrait) ; la ligne « Remettre le repas prévu » le remet. Le plan ne change pas
   'diet-day-meal-menu': async (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
     const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
@@ -602,19 +605,20 @@ registerActions({
     const v = await dialog({ type: 'sheet', title: meal.name, message: `Seulement pour ${when} : ton plan ne change pas.`,
       actions: [{ label: `Retirer ce repas pour ${when}`, value: 'off', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
     if (v !== 'off') return;
-    const before = data.dietLog?.[day] ? JSON.parse(JSON.stringify(data.dietLog[day])) : null;
-    if (!dietSetMealRemoved(data, planId, mealId, true, day)) return;
+    const gone = dietSetMealOff(data, planId, mealId, day);
+    if (!gone) return;
     dietOpenMeals.delete(mealId);
     save(); haptic('light'); render();
     showToast(`Retiré pour ${when} : ${meal.name}`, { action: 'Annuler', duration: 6000, onAction: () => {
-      dietPutDay(data, day, before); save(); render(); announce(`Remis : ${meal.name}`);
+      dietUndoMealOff(data, planId, mealId, gone, day); save(); render(); announce(`Remis : ${meal.name}`);
     } });
   },
   // Repas retiré : « Remettre le repas prévu » ; jour vide : « Copier le plan de ce repas ». Un toucher, à cocher ensuite
   'diet-meal-back': (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
     const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
-    if (!meal || !dietSetMealRemoved(data, planId, mealId, false, day)) return;
+    const ok = meal && (el.dataset.op === 'copy' ? dietCopyMealPlan(data, planId, mealId, day) : dietSetMealOn(data, planId, mealId, day));
+    if (!ok) return;
     save(); haptic(); render(); announce(`${meal.name} : plan du repas remis, à cocher une fois mangé`);
   },
   'diet-meal-open': (e, el) => {
