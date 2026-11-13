@@ -16,14 +16,15 @@ function techSubAt(ds) {
 }
 
 // Sous-série qui suit la dernière validation (pause d'un rest-pause ou d'un cluster, ou entre deux drops) :
-// { ei, si, k, label: « Mini-série 1 », set: { weight, reps } } avec la charge proposée et l'objectif de reps ;
+// { ei, si, k, label: « Mini-série +1 », set: { weight, reps } } avec la charge proposée et l'objectif de reps ;
 // null sinon. La barre de repos, la notification de fin et la Live Activity l'annoncent (js/features/rest.js)
 function techNextSub() {
   const xs = activeSession?.exercises;
   const c = xs && techCurrentSub(xs, activeSession.lastDone);
   if (!c) return null;
   const ex = xs[c.ei], s = ex.sets[c.si], x = s.sub[c.k];
-  return { ...c, label: `${capitalize(TECHS[setTech(s)].subName)} ${c.k + 1}`,
+  // « Mini-série +1 » : le même repère que la ligne (« +1 »), pas un 2e nom à relier de tête (panel vague 4)
+  return { ...c, label: `${capitalize(TECHS[setTech(s)].subName)} +${c.k + 1}`,
     set: { weight: subWeightKg(s, c.k, techOpts(ex)), reps: String(x.reps ?? '').trim() || x.prev?.reps || '' } };
 }
 

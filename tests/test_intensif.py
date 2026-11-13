@@ -374,7 +374,7 @@ def t_pause_annonce(bench, eng, dev, theme):
         # Panel du 06/11 : « Ensuite : Rowing haltère u… » coupé sur iPhone. Pendant la pause, la barre tait le nom
         # (l'exercice qu'on vient de faire, dit aux lecteurs d'écran) et montre la reprise entière
         vis = ' '.join(page.evaluate("[...document.querySelectorAll('.rest-mini__next > :not(.sr-text)')].map(e => e.textContent).join('')").replace(' ', ' ').split())
-        R.check(vis.startswith(f'Ensuite : Mini-série 1 · {kg0} kg') and name0 not in vis and 'S2' not in vis, f'{t} rest-pause : « Ensuite » annonce la reprise, sans le nom ({vis})')
+        R.check(vis.startswith(f'Ensuite : Mini-série +1 · {kg0} kg') and name0 not in vis and 'S2' not in vis, f'{t} rest-pause : « Ensuite » annonce la reprise, sans le nom ({vis})')
         R.check(page.locator('.rest-mini__next .sr-text').text_content().strip(', ') == name0, f'{t} rest-pause : nom de l\'exercice dit au lecteur d\'écran')
         R.check(page.evaluate("""(() => { const n = document.querySelector('.rest-mini__next'), r = n.getBoundingClientRect();
             return [...n.children].filter(e => !e.matches('.sr-text')).every(e => e.scrollWidth <= e.clientWidth + 1 && e.getBoundingClientRect().right <= r.right + 1); })()"""),
@@ -400,8 +400,8 @@ def t_pause_annonce(bench, eng, dev, theme):
                 && Math.round(r.height) + 12 >= 44; })""")
         R.check(hits == [True, True], f'{t} « + reprise » et × : zone de toucher réelle de 44 px ({hits})')
         nat = native_rest(page)
-        R.check(nat.get('body', '').startswith(f'Mini-série 1 · {name0} · {kg0} kg'), f'{t} rest-pause : notification « {nat.get("body")} »')
-        R.check(nat.get('next', {}).get('exercise') == f'{name0} · Mini-série 1' and nat['next'].get('load', '').startswith(f'{kg0} kg') and nat['next'].get('set') == 1,
+        R.check(nat.get('body', '').startswith(f'Mini-série +1 · {name0} · {kg0} kg'), f'{t} rest-pause : notification « {nat.get("body")} »')
+        R.check(nat.get('next', {}).get('exercise') == f'{name0} · Mini-série +1' and nat['next'].get('load', '').startswith(f'{kg0} kg') and nat['next'].get('set') == 1,
                 f'{t} rest-pause : Live Activity {nat.get("next")}')
         # Reprise validée (aucune autre à faire) : retour au repos habituel, la série 2 est annoncée
         page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '4')
