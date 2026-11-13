@@ -259,8 +259,17 @@ function cphSetupGroupHtml() {
         </div>
         <div class="group-foot">Tes élèves pourront t'envoyer des photos, chiffrées pour toi uniquement, que tu ouvres avec Face ID. Une fois pour tous tes élèves.</div>`;
 }
+// Mes élèves : l'entrée tant que la réception n'est pas activée, puis son état, durable (panel v4 t1 : la ligne
+// disparaissait, et seul un toast disait que c'était fait)
 function cphTeamSetupHtml(students) {
-  return students.length && cphCoachShown() && !cphCoach.key ? cphSetupGroupHtml() : '';
+  if (!students.length || !cphCoachShown()) return '';
+  if (!cphCoach.key) return cphSetupGroupHtml();
+  return `
+        <div class="group-title">Photos de bilan</div>
+        <div class="group">
+          <div class="cell">${icon('lock', 20)}<span class="cell__body"><span class="cell__title">Réception des photos</span></span><span class="cell__value">Activée</span></div>
+        </div>
+        <div class="group-foot">Chaque élève choisit les photos qu'il t'envoie. Tu les ouvres avec Face ID depuis sa fiche.</div>`;
 }
 function cphCoachGroupHtml(uid) {
   if (!cphCoachShown()) return '';
@@ -494,7 +503,7 @@ registerActions({
   },
   'cph-setup': async () => {
     const r = await cphCoachSetup();
-    if (r.ok) { haptic('success'); showToast('Réception des photos activée'); render(); return; }
+    if (r.ok) { haptic('success'); announce('Réception des photos activée'); render(); return; }   // l'état reste écrit dans la liste
     if (!r.canceled) showToast(r.nopasscode ? 'Active un code sur ton iPhone d\'abord.' : coachErrorText(r.kind), { error: true });
     render();
   },

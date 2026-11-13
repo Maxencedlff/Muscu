@@ -164,8 +164,10 @@ def t_envoi_complet(bench, eng, dev, theme):
         key = cp.evaluate(f"() => __sb.co.pkeys['{ids['max']}']")
         R.check(key and len(key['wrapped_key']) >= 40 and '"d"' not in json.dumps(key) and cp.evaluate('__vaultCalls').count('create') == 1,
                 f'{t} clé publiée, privée seulement chiffrée, Face ID demandé une fois')
-        R.check('Réception des photos activée' in toast(cp), f'{t} toast d\'activation ({toast(cp)!r})')
-        R.check('cph-setup' not in cp.evaluate('coachTeamHtml()'), f'{t} Coach › Élèves : plus proposé une fois activé')
+        cp.wait_for_function("document.getElementById('sr-polite').textContent.includes('Réception des photos activée')", timeout=3000)
+        R.check(toast(cp) == '', f'{t} activation annoncée, sans toast ({toast(cp)!r})')
+        team = cp.evaluate('coachTeamHtml()')
+        R.check('cph-setup' not in team and 'Activée' in team, f'{t} Coach › Élèves : plus proposé une fois activé, état « Activée » durable')
         layout(cp, t, 'Fiche : photos activées')
         shot(cp, LOT, f'02-fiche-activee-{t}')
 

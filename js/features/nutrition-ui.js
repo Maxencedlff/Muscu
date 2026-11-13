@@ -632,7 +632,7 @@ registerActions({
     el.disabled = true;
     const r = await coachSendDiet(uid, planId);
     el.disabled = false;
-    if (coachToast(r, `Plan envoyé à ${who}`)) { haptic(); coachRefresh(); }
+    if (coachToast(r, `Plan envoyé à ${who}`, { inline: true })) { haptic(); coachRefresh(); }   // « Envoyé le … » sous le plan
   },
 });
 
