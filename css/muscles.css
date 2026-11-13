@@ -195,3 +195,30 @@ body.light .mpick__auto { background: var(--cell); }
 .exvideo--3d { margin-bottom: 14px; }   /* sans légende dessous : l'écart avec les consignes vient d'ici */
 .exvideo__credit { margin: 6px 0 0; text-align: center; font-size: var(--fs-footnote); color: var(--label2); }
 @media (prefers-reduced-motion: reduce) { .exvideo__btn { transition: none; } }
+
+/* ── Groupes de muscles en liste illustrée (Bibliothèque) et en-tête de la fiche d'un exercice ──
+   Liste iOS (js/features/library.js) : nom et nombre d'exercices à gauche, personnage 3D maison à droite
+   (img/muscles/<id>.webp, 3:2, bord gauche déjà fondu dans l'image, muscles en rouge). Aplat de cellule,
+   séparateurs iOS, aucun dégradé ni ombre. Hauteur en rem : la ligne grandit avec le texte agrandi, l'image
+   suit la hauteur et ne passe jamais sous le texte. Sans image (fichier absent) : le texte prend toute la place. */
+.mgcs { gap: 0; }
+.mgcs[hidden] { display: none; }
+.view--grouped .mgc { min-height: 5.6rem; padding: 12px 16px; overflow: hidden; }
+.mgc__text { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 2px; width: 55%; min-width: 0; }
+.mgc__title { font-size: var(--fs-title3); font-weight: 600; line-height: 1.25; color: var(--label); hyphens: auto; }
+.mgc__sub { font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
+.mgc__img {
+  position: absolute; top: 0; right: 0; height: 100%; width: auto; aspect-ratio: 3 / 2; max-width: 50%;
+  object-fit: cover; object-position: 70% center; pointer-events: none; -webkit-user-drag: none; user-select: none;
+}
+.mgc__img[data-missing] { display: none; }
+.mgc:has(.mgc__img[data-missing]) .mgc__text { width: 100%; }
+.mgcs--hero { margin-bottom: 20px; }
+.view--grouped .mgc--hero { min-height: 7.5rem; }
+.mgc--hero .mgc__img { max-width: 58%; }
+/* Texte agrandi (type-xl) : le nom passe avant l'image ; la liste redevient une liste de texte et l'en-tête
+   de la fiche (redit par la section Muscles) disparaît, plutôt qu'un nom coupé ou caché sous le personnage */
+.type-xl .mgc__img { display: none; }
+.type-xl .mgc__text { width: 100%; }
+.type-xl .view--grouped .mgc { min-height: 44px; }
+.type-xl .mgcs--hero { display: none; }
