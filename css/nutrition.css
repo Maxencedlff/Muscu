@@ -312,3 +312,12 @@ body.light .sheet .qty__step { background: var(--cell); }
 .diet-foods-view .diet-low { margin: 0 16px 10px; color: var(--label); }
 /* « ⋯ » de chaque aliment : seul accès pour le retirer, à 3:1 au moins (en gris tertiaire, 1,7:1, panel Apple vague 4) */
 .diet-foods-view .cell--nav > .icon--ellipsis:last-child { color: var(--label2); }
+
+/* ⋯ d'un repas (« Retirer ce repas pour aujourd'hui ») : à gauche du rond à cocher, 44 pt, gris (pas une action principale) */
+.diet-meal__menu {
+  flex-shrink: 0; width: 44px; height: 44px; margin-right: -4px; display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; border-radius: 22px; color: var(--label2); cursor: pointer;
+}
+.diet-meal__menu:active { background: var(--fill); }
+/* Repas retiré ou jour vide : « Copier le plan de ce repas » / « Remettre le repas prévu », en couleur d'action */
+.diet-item--plan .diet-item__name { color: var(--tint); font-weight: 600; }

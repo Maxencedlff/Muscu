@@ -52,7 +52,7 @@ const SYNC_DIET_CONSENT_KEYS = ['dietPlans', 'dietActive', 'dietFoods', 'dietFoo
 // jour ; sur l'appareil seulement en V1 (le montrer au coach demandera son accord, docs/NUTRITION_V1.md)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'soundLevel', 'duckMusic', 'vibrateOn',
   'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex', 'dietLog',
-  'dietConsentAsked', 'dietHideNumbers', 'dietStreakOff', 'dietCoachConsent'];
+  'dietConsentAsked', 'dietHideNumbers', 'dietStreakOff', 'dietEmptyDays', 'dietCoachConsent'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les

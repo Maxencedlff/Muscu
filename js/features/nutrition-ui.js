@@ -105,8 +105,14 @@ function dietCallHtml(pr) {
 // Repas vides du plan (rien de prévu, on y ajoute ce qu'on mange) : ils ne se cochent pas. Avec eux, l'état dit « repas
 // prévus » : « Journée complète » après le seul petit-déjeuner rempli, ou « 0 repas coché sur 1 » au-dessus de
 // quatre repas, faisaient croire la journée finie ou le compte faux (panel vague 4)
-const dietHasFreeMeals = pr => pr.meals.some(x => !x.meal.items.length);
+// Repas retiré pour la journée : pas « libre », la journée reste « complète » sans lui (on a choisi de ne pas le manger) ;
+// jour vide : les repas sans plan copié sont libres (on y note ce qu'on mange)
+const dietHasFreeMeals = pr => pr.meals.some(x => !x.meal.items.length || (pr.blank && !x.live.length));
+// Aliments notés hors plan ce jour-là (jour vide : tout ce qu'on a mangé)
+const dietNotedCount = pr => pr.meals.reduce((n, x) => n + x.extras.length, 0);
 function dietStatusText(pr) {
+  // Rien à cocher (jour vide, repas tous retirés) : ce qu'on a noté, sans « 0 sur 0 »
+  if (!pr.nMeals) { const n = dietNotedCount(pr); return n ? plural(n, 'aliment noté', 'aliments notés') : 'Rien de noté pour l\'instant'; }
   const free = dietHasFreeMeals(pr);
   if (pr.complete) return free ? (pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché') : 'Journée complète';
   if (free) return `${pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché'} : ${pr.nDone} sur ${pr.nMeals}`;
@@ -222,24 +228,46 @@ function dietExtraRowHtml(it, meal, day) {
             </button>`;
 }
 
+// Repas retiré pour la journée, ou repas d'un jour vide : une ligne pour reprendre ses aliments prévus, d'un toucher.
+// Jour vide : « Copier le plan de ce repas » ; repas retiré : « Remettre le repas prévu ». Les aliments sont nommés dessous
+function dietMealPlanRowHtml(meal, pr, day) {
+  const names = meal.items.map(it => foodName(it.name)), kcal = dietMealMacros(meal).kcal;
+  const label = pr.blank ? 'Copier le plan de ce repas' : 'Remettre le repas prévu';
+  const when = !day || day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
+  const sub = `${pr.blank ? '' : `Retiré ${when} · `}${names.join(', ')}${data.dietHideNumbers ? '' : ` · ${dietN(kcal)}\u00a0kcal`}`;
+  return `
+            <button class="diet-item diet-item--plan" data-action="diet-meal-back" data-meal="${esc(meal.id)}" data-day="${day}"
+              aria-label="${esc(label)} : ${esc(names.join(', '))}${data.dietHideNumbers ? '' : `, ${dietN(kcal)} kilocalories`}">
+              <span class="diet-item__body">
+                <span class="diet-item__name">${esc(label)}</span>
+                <span class="diet-item__sub num">${esc(sub)}</span>
+              </span>
+            </button>`;
+}
+
 function dietMealHtml(x, pr, day) {
-  const { meal, macros, done, extras = [] } = x;
+  const { meal, macros, done, extras = [], live = meal.items } = x;
   const isNext = pr.next?.meal.id === meal.id;
   const open = !done || dietOpenMeals.has(meal.id);
+  const cleared = meal.items.length > 0 && !live.length;   // retiré pour la journée, ou jour vide
+  const when = !day || day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
+  const emptyText = !cleared ? 'Rien de prévu : ajoute ce que tu manges' : pr.blank ? 'Ajoute ce que tu manges' : `Retiré pour ${when}`;
   // Titre : un repas coché se déplie au toucher ; pas coché, il est déjà ouvert (simple texte)
   const title = `${isNext ? '<span class="diet-meal__eyebrow">Ensuite</span>' : ''}
               <span class="diet-meal__name">${esc(meal.name)}</span>
-              ${!meal.items.length && !extras.length ? '<span class="diet-meal__macros">Rien de prévu : ajoute ce que tu manges</span>'
+              ${!live.length && !extras.length ? `<span class="diet-meal__macros">${emptyText}</span>`
                 : data.dietHideNumbers ? '' : `<span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`}`;
+  // ⋯ : menu du repas (« Retirer ce repas pour aujourd'hui »), seulement s'il reste des aliments prévus à retirer
+  const menu = live.length ? `<button class="diet-meal__menu" data-action="diet-day-meal-menu" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Options de ${esc(meal.name)}">${icon('ellipsis', 20)}</button>` : '';
   return `
         <article class="diet-meal${done ? ' diet-meal--done' : ''}${isNext ? ' diet-meal--next' : ''}" data-meal="${esc(meal.id)}">
           <div class="diet-meal__head">
             ${done ? `<button class="diet-meal__title" data-action="diet-meal-open" data-meal="${esc(meal.id)}" aria-expanded="${open}">${title}<span class="diet-meal__more" aria-hidden="true">${icon('chevron.down', 14)}</span></button>`
               : `<div class="diet-meal__title">${title}</div>`}
-            ${meal.items.length ? dietCheckBtn(meal, done, day) : ''}
+            ${menu}${live.length ? dietCheckBtn(meal, done, day) : ''}
           </div>
           ${meal.note && open ? `<p class="diet-meal__note">${icon('info.circle', 14)}<span>${esc(meal.note)}</span></p>` : ''}
-          ${open ? `<div class="diet-meal__items">${meal.items.map(it => dietItemRowHtml(it, pr, day)).join('')}${extras.map(it => dietExtraRowHtml(it, meal, day)).join('')}
+          ${open ? `<div class="diet-meal__items">${cleared ? dietMealPlanRowHtml(meal, pr, day) : meal.items.map(it => dietItemRowHtml(it, pr, day)).join('')}${extras.map(it => dietExtraRowHtml(it, meal, day)).join('')}
             <button class="diet-item diet-item--add" data-action="diet-day-add" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Ajouter un aliment à ${esc(meal.name)}">${icon('plus', 18)}<span class="diet-item__name">Ajouter un aliment</span></button></div>` : ''}
         </article>`;
 }
@@ -322,10 +350,11 @@ function dietSourceFoot({ help = false } = {}) {
 function dietLowNoteHtml(own = true) {
   return `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>${own ? 'Cet objectif' : 'Ce plan'} est très bas pour un adulte qui s'entraîne. Les recommandations de santé réservent les régimes sous 1 200 kcal par jour à un suivi médical. Tu peux en parler à un médecin ou à un diététicien.</span></p>`;
 }
-// Bas de l'écran Nutrition : réglages (chiffres, série, accord)
+// Bas de l'écran Nutrition : réglages (repas du jour, chiffres, série, accord). Le choix des repas du jour y est dit
+// (« Repas du jour : pré-remplis par le plan ») : on sait qu'il existe sans ouvrir les réglages
 function dietSettingsCellHtml() {
   return `<div class="group group--gap"><button class="cell cell--nav" data-action="go-diet-settings">
-      <span class="cell__body"><span class="cell__title">Réglages de la nutrition</span></span>${icon('chevron.right', 16)}</button></div>`;
+      <span class="cell__body"><span class="cell__title">Réglages de la nutrition</span><span class="cell__sub">Repas du jour : ${data.dietEmptyDays ? 'vides, je note ce que je mange' : 'pré-remplis par le plan'}</span></span>${icon('chevron.right', 16)}</button></div>`;
 }
 
 function renderNutrition(dayParam) {
@@ -394,14 +423,17 @@ function nutritionHomeCard() {
   const plan = dietActivePlan(data);
   if (!plan) return card;
   const day = dietDayKey(), pr = dietDayProgress(data, data.dietActive, day);
-  if (!pr.nMeals) return card;   // aucun repas rempli : rien à suivre aujourd'hui (pas de « 0 sur 0 kcal »)
+  // Plan sans aucun aliment et rien de noté : rien à suivre aujourd'hui (pas de « 0 sur 0 kcal »). Jour vide ou repas
+  // retirés : la carte reste (le repère du plan, ce qu'on a noté)
+  if (!pr.meals.some(x => x.meal.items.length || x.extras.length)) return card;
   const next = pr.next;
   const hide = data.dietHideNumbers === true;
-  const head = hide ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
+  const head = hide ? (pr.nMeals ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : esc(dietStatusText(pr))) : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
   // Tous les repas du jour (vague 4) : nom, kcal, coché ou non ; le prochain porte le bouton à cocher (un toucher).
   // Plus de 4 repas : 3 autour du prochain et « et 2 autres ». Le reste de la carte ouvre Nutrition
   const { shown, more } = dietHomeMeals(pr);
-  const kcalOf = x => (hide ? '' : `<span class="diet-home__mkcal num">${dietN(x.macros.kcal)}\u00a0kcal</span>`);
+  // Repas sans aliment prévu ni noté (jour vide) : pas de « 0 kcal »
+  const kcalOf = x => (hide || (!x.live.length && !x.extras.length) ? '' : `<span class="diet-home__mkcal num">${dietN(x.macros.kcal)}\u00a0kcal</span>`);
   const rows = shown.map(x => {
     const isNext = next?.meal.id === x.meal.id;
     const state = x.done ? 'done' : isNext ? 'next' : 'todo';
@@ -413,9 +445,9 @@ function nutritionHomeCard() {
   }).join('');
   const moreText = more ? `et ${more} ${more > 1 ? 'autres' : 'autre'}` : '';
   // VoiceOver : le bouton du haut dit tout (plan, calories, chaque repas) ; les lignes sont cachées, sauf le bouton à cocher
-  const spokenMeals = pr.meals.filter(x => x.meal.items.length)
-    .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
-  const spoken = `Nutrition, ${plan.name} : ${hide ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${spokenMeals}. Ouvrir`;
+  const spokenMeals = pr.meals.filter(x => x.meal.items.length || x.extras.length)
+    .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide || (!x.live.length && !x.extras.length) ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
+  const spoken = `Nutrition, ${plan.name} : ${hide ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${spokenMeals}. Ouvrir`;
   return `${card}
     <section class="home-card diet-home${pr.complete ? ' diet-home--complete' : ''}">
       <button class="diet-home__open" data-action="go-nutrition" aria-label="${esc(spoken)}">
@@ -559,6 +591,31 @@ registerActions({
       if (!dietDay(data, planId, day).done.includes(meal)) dietToggleMeal(data, planId, meal, day);
       save(); render(); announce(`Recoché : ${name}`);
     } });
+  },
+  // ⋯ d'un repas : « Retirer ce repas pour aujourd'hui » (ses aliments prévus et sa coche ; ses ajouts restent), Annuler
+  // dans le toast ; la ligne « Remettre le repas prévu » le remet. Le plan ne change pas
+  'diet-day-meal-menu': async (e, el) => {
+    const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
+    const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
+    if (!meal) return;
+    const when = day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
+    const v = await dialog({ type: 'sheet', title: meal.name, message: `Seulement pour ${when} : ton plan ne change pas.`,
+      actions: [{ label: `Retirer ce repas pour ${when}`, value: 'off', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
+    if (v !== 'off') return;
+    const before = data.dietLog?.[day] ? JSON.parse(JSON.stringify(data.dietLog[day])) : null;
+    if (!dietSetMealRemoved(data, planId, mealId, true, day)) return;
+    dietOpenMeals.delete(mealId);
+    save(); haptic('light'); render();
+    showToast(`Retiré pour ${when} : ${meal.name}`, { action: 'Annuler', duration: 6000, onAction: () => {
+      dietPutDay(data, day, before); save(); render(); announce(`Remis : ${meal.name}`);
+    } });
+  },
+  // Repas retiré : « Remettre le repas prévu » ; jour vide : « Copier le plan de ce repas ». Un toucher, à cocher ensuite
+  'diet-meal-back': (e, el) => {
+    const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
+    const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
+    if (!meal || !dietSetMealRemoved(data, planId, mealId, false, day)) return;
+    save(); haptic(); render(); announce(`${meal.name} : plan du repas remis, à cocher une fois mangé`);
   },
   'diet-meal-open': (e, el) => {
     const id = el.dataset.meal;

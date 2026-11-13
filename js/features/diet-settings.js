@@ -100,6 +100,18 @@ function renderDietSettings() {
             <span class="cell__body"><span class="cell__title">Mes aliments</span><span class="cell__sub">Ceux que tu as créés ou scannés</span></span>
             <span class="cell__value num">${(data.dietFoods || []).length}</span>${icon('chevron.right', 16)}</button>
         </div>
+        <div class="group-title">Repas du jour</div>
+        <div class="group" role="radiogroup" aria-label="Repas du jour">
+          ${[[false, 'Pré-remplis par le plan', 'Tu coches chaque repas une fois mangé.'], [true, 'Vides', 'Tu notes ce que tu manges ; le plan donne les objectifs et se copie repas par repas.']].map(([blank, title, sub]) => {
+            const on = (data.dietEmptyDays === true) === blank;
+            return `
+          <button class="cell cell--pick" data-action="diet-day-mode" data-blank="${blank}" role="radio" aria-checked="${on}">
+            <span class="cell__body"><span class="cell__title">${title}</span><span class="cell__sub">${sub}</span></span>
+            <span class="cell__check">${on ? icon('checkmark', 20) : ''}</span>
+          </button>`;
+          }).join('')}
+        </div>
+        <div class="group-foot">Change aussi la journée d'aujourd'hui ; les repas déjà cochés et les jours passés restent tels quels.</div>
         <div class="group-title">Affichage</div>
         <div class="group">
           ${sw('diet-hide-numbers', data.dietHideNumbers === true, 'Masquer les calories et les grammes', 'Seules les cases des repas restent ; les quantités des aliments aussi.')}
@@ -174,6 +186,14 @@ registerActions({
     } });
   },
   'diet-privacy': () => dietOpenPrivacy(),
+  // Repas du jour : pré-remplis par le plan ou vides (js/data/nutrition.js, dietSetEmptyDays)
+  'diet-day-mode': (e, el) => {
+    const blank = el.dataset.blank === 'true';
+    if ((data.dietEmptyDays === true) === blank) return;
+    dietSetEmptyDays(data, blank);
+    save(); haptic(); render();
+    announce(blank ? 'Repas du jour vides' : 'Repas du jour pré-remplis par le plan');
+  },
   'diet-hide-numbers': () => {
     if (data.dietHideNumbers) delete data.dietHideNumbers; else data.dietHideNumbers = true;
     save(); haptic(); render();
