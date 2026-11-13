@@ -54,7 +54,6 @@ function dietTargetsWords(plan, kcal, g) {
   return [t.kcal ? `${dietN(t.kcal)}${kcal}` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]}${g} de ${m.label.toLowerCase()}` : ''))].filter(Boolean).join(', ');
 }
 function dietTargetsSpoken(plan) { return dietTargetsWords(plan, ' kilocalories', ' grammes'); }
-function dietTargetsLong(plan) { return dietTargetsWords(plan, '\u00a0kcal', '\u00a0g'); }
 function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), esc(dietTargetsSpoken(plan))); }
 
 function dietPlanItemCell(plan, meal, it, ro) {
