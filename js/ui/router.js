@@ -222,7 +222,7 @@ const SCREENS = new Map([
   ['programmes',     { render: () => renderProgrammes() }],
   ['session',        { render: () => activeSession ? renderSession() : renderDashboard(),
                        mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante
-                       enter: () => requestWakeLock(), leave: () => releaseWakeLock() }],
+                       enter: () => requestWakeLock(), leave: () => { releaseWakeLock(); curNameObserver?.disconnect(); curNameObserver = null; } }],
   ['editor',         { render: () => renderEditor() }],
   ['history',        { render: () => renderHistory(), mount: () => { mountHealthWorkouts('history', refreshHistoryList); if (socialEnabled()) socialLoadMyReactions({ minAge: SOCIAL_REFRESH_MS }); } }],   // « 👏 2 » (Social activé)
   ['stats',          { render: () => renderStats(), mount: () => fillWeightGroup() }],

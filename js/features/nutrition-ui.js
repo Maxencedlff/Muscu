@@ -619,6 +619,8 @@ registerActions({
     const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
     const ok = meal && (el.dataset.op === 'copy' ? dietCopyMealPlan(data, planId, mealId, day) : dietSetMealOn(data, planId, mealId, day));
     if (!ok) return;
+    // Jour vide : « Remettre le repas prévu » remet aussi son plan (sinon le repas revient vide, contrairement à l'annonce)
+    if (el.dataset.op !== 'copy' && dietDay(data, planId, day).blank === true) dietCopyMealPlan(data, planId, mealId, day);
     save(); haptic(); render(); announce(`${meal.name} : plan du repas remis, à cocher une fois mangé`);
   },
   'diet-meal-open': (e, el) => {
