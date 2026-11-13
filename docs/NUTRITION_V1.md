@@ -163,6 +163,36 @@ Demande de Maxence : « choisir la quantité d'œufs plutôt que le poids » (ya
   plein), tests/test_nutrition.py `t_vague4` (5 appareils, clair et sombre), `t_vague4_six_repas` (iPhone SE,
   texte agrandi), `t_vague4_plein`.
 
+## Repas retirés et journées vides (13/11/2026) : retour de Maxence
+
+« C'est relou d'avoir encore les repas d'avant, on peut pas les suppr. » Le journal affichait chaque jour tous les
+aliments du plan ; on ne retirait qu'un aliment à la fois.
+
+- **Retirer ce repas pour aujourd'hui** : `⋯` à gauche du rond de chaque repas qui a encore des aliments prévus,
+  feuille « Retirer ce repas pour aujourd'hui » (destructif, Annuler dans le toast : l'entrée du jour d'avant est
+  remise telle quelle, `dietPutDay`). Tous ses aliments prévus vont dans `removed` et sa coche part
+  (`dietSetMealRemoved`). Le repas reste, sans rond, avec une ligne « Remettre le repas prévu » (un toucher, à
+  recocher ensuite) ; ses ajouts restent et comptent tout de suite. Le plan ne change pas.
+- **Réglage « Repas du jour »** (Réglages de la nutrition, en tête ; rappelé sous la ligne « Réglages de la
+  nutrition » du journal) : **Pré-remplis par le plan** (par défaut) ou **Vides**. Vides : chaque jour commence
+  avec les repas du plan sans aliment prévu ; on note ce qu'on mange (« + Ajouter un aliment », compté tout de suite) ;
+  le plan donne l'objectif du jour et « Copier le plan de ce repas » remet ses aliments d'un toucher (à cocher).
+  Réglage de l'appareil (`dietEmptyDays`, SYNC_LOCAL_ONLY comme les autres réglages de la nutrition).
+  Par défaut **Pré-remplis** : le cas d'usage principal reste le plan du coach, suivi en cochant (un toucher par
+  repas, règle des deux touchers) ; les utilisateurs actuels ne voient rien changer.
+- **Changer le réglage** vaut tout de suite pour aujourd'hui sans rien perdre (`dietSetEmptyDays`) : vers Vides, les
+  repas pas cochés perdent leurs aliments prévus, les repas cochés restent ; vers Pré-remplis, les repas vides sans
+  ajout reprennent le plan, ceux où l'on a noté ce qu'on a mangé restent tels quels (pas de double compte). Un jour
+  commencé vide garde `blank: true` dans le journal : les jours passés ne changent jamais.
+- **Mangé** : un aliment prévu ne compte qu'une fois son repas coché ; un repas sans aliment prévu ce jour-là (retiré,
+  jour vide, collation libre) n'est ni à cocher ni dans « n repas cochés sur N » ; ses ajouts comptent tout de suite.
+  **Journée complète** : tous les repas qui ont encore des aliments prévus sont cochés (l'instantané `meals` ne
+  garde que ceux-là). Rien à cocher : « 2 aliments notés » ou « Rien de noté pour l'instant », jamais « 0 sur 0 ».
+- **Compatibilité** : `blank` est facultatif ; un ancien client l'ignore et lit `removed` comme avant (le journal
+  reste sur l'appareil, rien ne passe par le serveur). Le plan du coach ne change jamais.
+- **Tests** : tests/unit/nutrition.mjs (« repas retiré… », « réglage des repas du jour… »), tests/test_nutrition.py
+  `t_repas_vides` (5 appareils, clair et sombre).
+
 ## Équivalences : la règle (js/data/food-swap.js, testée par tests/unit/nutrition.mjs)
 
 Principe des « exchange lists » de l'ADA / Academy of Nutrition and Dietetics (« Choose Your Foods ») et des
@@ -300,9 +330,9 @@ dietPlans: { [id]: {                 // profil, AVEC ACCORD seulement ; fusion p
 dietActive: id,                      // plan suivi (profil)
 dietFoods: [{ id, name, fam, per, code?, src?, salt?, portion?: { u, pl, g } }], // aliments perso (profil), 200 au plus
 dietFoodsGone: [id],                 // aliments perso retirés (profil, avec accord) : la fusion ne les fait pas revenir
-dietLog: { 'AAAA-MM-JJ': { plan, done: [id de repas], swaps: { [id d'aliment]: aliment }, meals: [id] } },   // SYNC_LOCAL_ONLY ; meals : instantané du jour
+dietLog: { 'AAAA-MM-JJ': { plan, done: [id de repas], swaps: { [id d'aliment]: aliment }, extras?, removed?: [id d'aliment], meals: [id], blank? } },   // SYNC_LOCAL_ONLY ; meals : instantané du jour ; blank : jour commencé vide
 dietConsent: { on, at },             // accord daté (profil, part toujours)
-dietConsentAsked, dietHideNumbers, dietStreakOff: true,   // réglages de l'appareil (SYNC_LOCAL_ONLY)
+dietConsentAsked, dietHideNumbers, dietStreakOff, dietEmptyDays: true,   // réglages de l'appareil (SYNC_LOCAL_ONLY)
 dietCoachConsent: { on, at },        // accord « plans du coach » gardé ici quand le serveur n'est pas à jour (SYNC_LOCAL_ONLY)
 ```
 

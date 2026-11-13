@@ -794,6 +794,106 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     sameJSON(C.dietFoodsGone.sort(), ['old', 'wh1']);
   });
 
+  test('repas retiré pour aujourd\'hui, remis ; journée vide (réglage) : rien de prévu compté, plan copié d\'un toucher', () => {
+    reset();
+    loadDb();
+    const riz = { ...item(RIZ_CUIT, 150), id: 'it1' }, poulet = { ...item(POULET_GRILLE, 100), id: 'it2' }, oeuf = { ...item(OEUF_DUR, 100), id: 'it3' };
+    run(`data.dietPlans = { d_a: { name: 'P', targets: { kcal: 2000 }, meals: [{ id: 'm1', name: 'Matin', items: [${JSON.stringify(oeuf)}] }, { id: 'm2', name: 'Midi', items: [${JSON.stringify(riz)}, ${JSON.stringify(poulet)}] }] } }; data.dietActive = 'd_a';`);
+    const D = '2026-11-05', pr = () => run(`dietDayProgress(data, 'd_a', '${D}')`);
+    const kOeuf = run(`dietItemMacros(data.dietPlans.d_a.meals[0].items[0]).kcal`);
+    // Prévu pas coché : jamais compté dans le mangé
+    assert.equal(pr().eaten.kcal, 0, 'rien de coché : rien de mangé');
+    // Matin coché puis Midi retiré : journée complète avec le seul matin, Midi ni à cocher ni compté
+    run(`dietToggleMeal(data, 'd_a', 'm1', '${D}'); dietToggleMeal(data, 'd_a', 'm2', '${D}')`);
+    assert.equal(run(`dietSetMealRemoved(data, 'd_a', 'm2', true, '${D}')`), true);
+    let p = pr();
+    sameJSON(p.removed.sort(), ['it1', 'it2']);
+    assert.equal(p.meals[1].live.length, 0);
+    assert.equal(p.meals[1].done, false, 'repas retiré : plus coché');
+    assert.equal(p.nMeals, 1);
+    assert.ok(p.complete, 'journée complète sans le repas retiré');
+    assert.equal(Math.round(p.eaten.kcal), Math.round(kOeuf), 'mangé : le matin seul');
+    assert.equal(p.goal.kcal, 2000, 'objectif inchangé');
+    assert.ok(run(`dietDayComplete(data, '${D}', 'd_a')`), 'série : jour complet');
+    sameJSON(run(`data.dietLog['${D}'].meals`), ['m1'], 'instantané : repas à cocher ce jour-là');
+    assert.equal(run('data.dietPlans.d_a.meals[1].items.length'), 2, 'le plan ne change pas');
+    // Ajout dans le repas retiré : compté tout de suite (on note ce qu'on a mangé), sans coche
+    const added = run(`dietAddExtra(data, 'd_a', 'm2', ${JSON.stringify(item(RIZ_CUIT, 100))}, '${D}')`);
+    assert.ok(Math.round(pr().eaten.kcal) === Math.round(kOeuf + added.per.k), 'ajout du repas retiré : compté');
+    assert.ok(pr().complete);
+    // Remis : à cocher de nouveau (pas recoché en silence), l'ajout reste
+    run(`dietSetMealRemoved(data, 'd_a', 'm2', false, '${D}')`);
+    p = pr();
+    assert.equal(p.removed.length, 0);
+    assert.equal(p.nMeals, 2);
+    assert.ok(!p.complete && p.next.meal.id === 'm2', 'remis : à cocher');
+    assert.equal(p.meals[1].extras.length, 1, 'ajout gardé');
+    // Annuler : l'entrée d'avant remise telle quelle
+    const before = run(`JSON.parse(JSON.stringify(data.dietLog['${D}']))`);
+    run(`dietSetMealRemoved(data, 'd_a', 'm1', true, '${D}')`);
+    run(`dietPutDay(data, '${D}', ${JSON.stringify(before)})`);
+    sameJSON(run(`data.dietLog['${D}']`), before);
+    run(`dietPutDay(data, '${D}', null)`);
+    assert.equal(run('data.dietLog'), undefined);
+    assert.equal(run(`dietSetMealRemoved(data, 'd_a', 'zz', true, '${D}')`), false, 'repas inconnu');
+
+    // Réglage « Vides » : chaque jour commence sans aliment prévu, le plan reste le repère
+    run(`dietSetEmptyDays(data, true, '${D}')`);
+    assert.equal(run('data.dietEmptyDays'), true);
+    p = pr();
+    assert.ok(p.blank && p.nMeals === 0 && p.eaten.kcal === 0 && p.removed.length === 3, 'jour vide : rien à cocher, rien compté');
+    assert.equal(p.goal.kcal, 2000, 'objectif gardé');
+    assert.equal(run(`dietDayProgress(data, 'd_a', '2026-11-06').blank`), true, 'jours suivants : vides');
+    // Noter ce qu'on mange : compté tout de suite ; jour gardé « vide » même si le réglage change ensuite
+    run(`dietAddExtra(data, 'd_a', 'm1', ${JSON.stringify(item(OEUF_DUR, 100))}, '${D}')`);
+    assert.equal(Math.round(pr().eaten.kcal), Math.round(kOeuf));
+    assert.equal(run(`data.dietLog['${D}'].blank`), true);
+    assert.ok(run(`dietWeek(data, ${new Date(2026, 10, 5, 12).getTime()}).at(-1).some`), 'frise : jour en partie');
+    // Copier le plan du midi : ses aliments reviennent, à cocher
+    run(`dietSetMealRemoved(data, 'd_a', 'm2', false, '${D}')`);
+    p = pr();
+    assert.ok(p.nMeals === 1 && p.next.meal.id === 'm2' && Math.round(p.eaten.kcal) === Math.round(kOeuf), 'plan copié : à cocher, pas compté avant');
+    // Tout copié : jour gardé (blank) même sans rien retiré
+    run(`dietSetMealRemoved(data, 'd_a', 'm1', false, '${D}')`);
+    assert.equal(run(`data.dietLog['${D}'].blank`), true);
+    assert.equal(run(`'removed' in data.dietLog['${D}']`), false);
+    // Relu (sauvegarde, synchro) : blank gardé, illisible écarté
+    run(`sanitizeDiet(data, ${new Date(2026, 10, 5, 12).getTime()})`);
+    assert.equal(run(`data.dietLog['${D}'].blank`), true);
+    run(`data.dietLog['${D}'].blank = 'oui'; data.dietEmptyDays = 1; sanitizeDiet(data, ${new Date(2026, 10, 5, 12).getTime()})`);
+    assert.equal(run(`'blank' in data.dietLog['${D}']`), false);
+    assert.equal(run('data.dietEmptyDays'), undefined);
+    assert.ok(run(`SYNC_LOCAL_ONLY.includes('dietEmptyDays')`), 'réglage de l\'appareil');
+  });
+
+  test('réglage des repas du jour : aujourd\'hui suit sans rien perdre, les jours passés ne changent pas', () => {
+    reset();
+    loadDb();
+    const riz = { ...item(RIZ_CUIT, 150), id: 'it1' }, oeuf = { ...item(OEUF_DUR, 100), id: 'it3' }, poulet = { ...item(POULET_GRILLE, 100), id: 'it2' };
+    run(`data.dietPlans = { d_a: { name: 'P', meals: [{ id: 'm1', name: 'Matin', items: [${JSON.stringify(oeuf)}] }, { id: 'm2', name: 'Midi', items: [${JSON.stringify(riz)}] }, { id: 'm3', name: 'Soir', items: [${JSON.stringify(poulet)}] }] } }; data.dietActive = 'd_a';`);
+    const D = '2026-11-05', H = '2026-11-04';
+    run(`dietToggleMeal(data, 'd_a', 'm1', '${H}'); dietToggleMeal(data, 'd_a', 'm1', '${D}')`);
+    const hier = run(`JSON.stringify(data.dietLog['${H}'])`);
+    // Vers « Vides » : Matin coché reste, Midi et Soir se vident ; hier ne bouge pas
+    run(`dietSetEmptyDays(data, true, '${D}')`);
+    let p = run(`dietDayProgress(data, 'd_a', '${D}')`);
+    sameJSON(p.meals.map(x => x.live.length), [1, 0, 0]);
+    assert.ok(p.blank && p.complete && p.meals[0].done, 'repas coché gardé');
+    assert.equal(run(`JSON.stringify(data.dietLog['${H}'])`), hier, 'hier inchangé');
+    // Midi noté à la main ; retour à « Pré-remplis » : Soir reprend le plan, Midi garde ce qui a été noté (pas de double compte)
+    run(`dietAddExtra(data, 'd_a', 'm2', ${JSON.stringify(item(RIZ_CUIT, 80))}, '${D}')`);
+    run(`dietSetEmptyDays(data, false, '${D}')`);
+    p = run(`dietDayProgress(data, 'd_a', '${D}')`);
+    assert.equal(run('data.dietEmptyDays'), undefined);
+    assert.ok(!p.blank);
+    sameJSON(p.meals.map(x => x.live.length), [1, 0, 1]);
+    assert.equal(p.next.meal.id, 'm3');
+    assert.equal(run(`JSON.stringify(data.dietLog['${H}'])`), hier, 'hier inchangé');
+    // Journal d'un ancien client (ni blank ni instantané) : lu comme avant
+    run(`data.dietLog = { '${H}': { plan: 'd_a', done: ['m1', 'm2', 'm3'], swaps: {} } }`);
+    assert.ok(run(`dietDayComplete(data, '${H}')`));
+  });
+
   test('vague 4 : carte de l\'accueil, tous les repas jusqu\'à 4, sinon 3 autour du prochain et « et N autres »', () => {
     const mk = (n, done = 0) => {
       const meals = Array.from({ length: n }, (_, i) => ({ meal: { id: `m${i}`, name: `R${i}`, items: [{}] }, done: i < done }));

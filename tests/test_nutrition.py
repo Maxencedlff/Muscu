@@ -1099,5 +1099,99 @@ def t_vague4_plein(bench):
             R.check(not page.errors, f'{theme} plein : aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4],
+
+def t_repas_vides(bench, eng, dev, theme):
+    """Retour de Maxence du 13/11 : « c'est relou d'avoir encore les repas d'avant, on peut pas les suppr ». Un repas
+    entier se retire pour aujourd'hui (⋯, Annuler, « Remettre le repas prévu »), « Journée complète » sans lui ; réglage
+    « Repas du jour : Vides » : rien de pré-rempli, on note ce qu'on mange (compté tout de suite), plan copié d'un toucher."""
+    t = tag(dev, theme) + '-vides'
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, with_plan(NOW))
+        page.click('.diet-home__open')
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        R.check(page.locator('.diet-meal [data-action="diet-meal-menu"]').count() == 4, f'{t} ⋯ sur chaque repas')
+        R.check('Repas du jour : pré-remplis par le plan' in nb(page.inner_text('[data-action="go-diet-settings"]')), f'{t} réglage dit sous « Réglages de la nutrition »')
+        page.click('.diet-meal[data-meal="m2"] [data-action="diet-meal-menu"]')
+        page.wait_for_selector('.ios-dialog')
+        R.check("Retirer ce repas pour aujourd'hui" in page.inner_text('.ios-dialog'), f'{t} menu du repas : retirer pour aujourd\'hui')
+        shot(page, LOT, f'r1-menu-repas-{t}')
+        tap_dialog(page, "Retirer ce repas pour aujourd'hui")
+        page.wait_for_timeout(300)
+        m2 = page.locator('.diet-meal[data-meal="m2"]')
+        R.check(m2.locator('.diet-check').count() == 0 and m2.locator('.diet-item--plan').count() == 1 and 'Remettre le repas prévu' in m2.inner_text(),
+                f'{t} repas retiré : plus de rond, « Remettre le repas prévu »')
+        R.check("Retiré pour aujourd'hui : Déjeuner" in nb(toast(page)), f'{t} toast avec Annuler ({toast(page)!r})')
+        R.check(page.evaluate("dietDayProgress(data, data.dietActive).nMeals") == 3 and page.evaluate("data.dietPlans.d_masse01.meals[1].items.length") == 3,
+                f'{t} 3 repas à cocher, plan inchangé')
+        layout(page, t, 'repas retiré')
+        m2.scroll_into_view_if_needed()
+        shot(page, LOT, f'r2-repas-retire-{t}')
+        page.locator('.toast__action').click()
+        page.wait_for_timeout(300)
+        R.check(m2.locator('.diet-check').count() == 1 and m2.locator('.diet-item[data-item]').count() == 3, f'{t} Annuler : repas remis')
+        # Retiré puis « Remettre le repas prévu » d'un toucher
+        page.click('.diet-meal[data-meal="m2"] [data-action="diet-meal-menu"]')
+        tap_dialog(page, "Retirer ce repas pour aujourd'hui")
+        page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
+        page.click('.diet-meal[data-meal="m2"] .diet-item--plan')
+        page.wait_for_timeout(300)
+        R.check(m2.locator('.diet-check').count() == 1 and page.evaluate("data.dietLog") is None, f'{t} « Remettre » : rien de gardé')
+        # Déjeuner et dîner retirés, petit-déjeuner et collation cochés : journée complète, seuls les repas cochés comptent
+        for m in ('m2', 'm4'):
+            page.click(f'.diet-meal[data-meal="{m}"] [data-action="diet-meal-menu"]')
+            tap_dialog(page, "Retirer ce repas pour aujourd'hui")
+            page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
+        R.check(kcal_eaten(page) == 0, f'{t} rien de coché : rien de mangé')
+        for m in ('m1', 'm3'):
+            page.click(f'.diet-meal[data-meal="{m}"] .diet-check')
+            page.wait_for_timeout(250)
+        expect = page.evaluate("Math.round(['m1', 'm3'].reduce((n, id) => n + dietMealMacros(data.dietPlans.d_masse01.meals.find(m => m.id === id)).kcal, 0))")
+        R.check('Journée complète' in page.inner_text('.diet-sum__line') and abs(kcal_eaten(page) - expect) <= 1, f'{t} journée complète sans les repas retirés ({kcal_eaten(page)} / {expect})')
+        # Réglages : Repas du jour, Vides
+        page.click('[data-action="go-diet-settings"]')
+        page.wait_for_selector('[data-action="diet-day-mode"]')
+        R.check(page.locator('[data-action="diet-day-mode"][aria-checked="true"]').inner_text().startswith('Pré-remplis'), f'{t} réglage : pré-remplis par défaut')
+        page.click('[data-action="diet-day-mode"][data-blank="true"]')
+        page.wait_for_timeout(250)
+        R.check(page.evaluate("data.dietEmptyDays") is True and page.locator('[data-action="diet-day-mode"][data-blank="true"]').get_attribute('aria-checked') == 'true', f'{t} réglage : vides')
+        layout(page, t, 'réglages repas du jour')
+        shot(page, LOT, f'r3-reglage-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+    # Journée vide (réglage gardé) : rien de pré-rempli ni compté, on note, le plan se copie
+    d = json.loads(with_plan(NOW))
+    d['dietEmptyDays'] = True
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, json.dumps(d, ensure_ascii=False))
+        card = page.locator('.diet-home')
+        R.check(card.count() == 1 and card.locator('.diet-check').count() == 0, f'{t} accueil : carte gardée, rien à cocher')
+        page.click('.diet-home__open')
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        R.check(page.locator('.diet-meal .diet-check').count() == 0 and page.locator('.diet-item--plan').count() == 4 and page.locator('.diet-item[data-item]').count() == 0,
+                f'{t} jour vide : aucun aliment prévu, « Copier le plan de ce repas » sur chaque repas')
+        R.check('Copier le plan de ce repas' in page.inner_text('.diet-meal[data-meal="m1"]') and "Rien de noté pour l'instant" in nb(page.inner_text('.diet-sum__line')), f'{t} jour vide : textes')
+        R.check('sur 2 600 kcal' in nb(page.inner_text('.diet-sum')), f'{t} jour vide : objectif du plan gardé')
+        layout(page, t, 'jour vide')
+        shot(page, LOT, f'r4-jour-vide-{t}')
+        page.click('[data-action="diet-day-add"][data-meal="m1"]')
+        page.wait_for_selector('#dietFoodSearch')
+        page.fill('#dietFoodSearch', 'huile olive')
+        page.wait_for_timeout(200)
+        page.locator('#dietFoodList .diet-cand').first.click()
+        qty_grams(page, '10')
+        page.wait_for_timeout(400)
+        page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
+        R.check(kcal_eaten(page) > 50 and '1 aliment noté' in nb(page.inner_text('.diet-sum__line')), f'{t} noté : compté tout de suite ({kcal_eaten(page)} kcal)')
+        page.click('.diet-meal[data-meal="m2"] .diet-item--plan')
+        page.wait_for_timeout(300)
+        m2 = page.locator('.diet-meal[data-meal="m2"]')
+        R.check(m2.locator('.diet-check').count() == 1 and m2.locator('.diet-item[data-item]').count() == 3 and kcal_eaten(page) < 150,
+                f'{t} plan du déjeuner copié : à cocher, pas compté avant')
+        layout(page, t, 'jour vide, plan copié')
+        page.evaluate("window.scrollTo(0, 0); document.querySelector('.scr')?.scrollTo?.(0, 0)")
+        page.locator('.diet-meal[data-meal="m1"]').scroll_into_view_if_needed()
+        shot(page, LOT, f'r5-jour-vide-note-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides],
          once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier, t_minuit, t_vague4_six_repas, t_vague4_plein])
