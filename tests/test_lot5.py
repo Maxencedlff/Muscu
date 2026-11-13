@@ -49,7 +49,8 @@ def t_history(bench, eng, dev, theme):
         go(page, 'history')
         vis = visible_count(page, '.hcell')
         # Galaxy S9+ (320 px de large) : les sous-titres longs passent sur 2 lignes au lieu d'être tronqués
-        need = 7 if dev in ('iPhone 13', 'Pixel 7') else 6 if dev == 'Galaxy S9+' else 5
+        # Vague 4 : le programme d'une séance d'un autre programme a sa ligne (« Programme Bras & épaules ») : une cellule de moins
+        need = 6 if dev in ('iPhone 13', 'Pixel 7', 'Galaxy S9+') else 5
         R.check(vis >= need, f'{t} historique : {vis} cellules visibles (>= {need})')
         h = page.locator('.hcell').first.bounding_box()['height']
         R.check(62 <= h <= 90, f'{t} historique : hauteur de cellule {h:.0f}')

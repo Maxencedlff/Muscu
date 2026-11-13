@@ -133,7 +133,7 @@ function renderStatsExercise(exId) {
         </div>
         <div class="group">${recordCells}
           ${!bw && rec1RM ? `
-          <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Record 1RM est.</span></span>
+          <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Record 1RM est.</span><span class="cell__sub">Charge que tu soulèverais une seule fois, calculée d'après tes séries</span></span>
             <span class="cell__value num">~${fmtW(rec1RM)} ${unitLbl()}</span></div>
           <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">1RM est. dernière séance</span></span>
             <span class="cell__value num">${last.best1RM ? `~${fmtW(last.best1RM)} ${unitLbl()}` : '—'}</span></div>` : ''}

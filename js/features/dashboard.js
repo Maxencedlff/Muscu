@@ -137,7 +137,7 @@ function cellStatusHtml(cat) {
   }
   return st.ready
     ? `<span class="home-cell__status home-cell__status--ready">Prête</span>`
-    : `<span class="home-cell__status">dans ${fmtWait(st.remaining)}</span>`;
+    : `<span class="home-cell__status">Prête dans ${fmtWait(st.remaining)}</span>`;
 }
 
 // Durée habituelle d'une séance (minutes, arrondies à 5) : médiane de ses 5 dernières,
@@ -295,7 +295,8 @@ function heroBtnSpot() {
   return document.documentElement.classList.contains('type-xl') ? 'top' : 'mid';
 }
 
-// « Ensuite » : les autres séances du programme, sans couleur de séance, leur état à droite
+// « Autres séances » (et non « Ensuite », qui laissait croire à un ordre : panel vague 4) : les autres séances du
+// programme, sans couleur de séance, leur état à droite (« Prête », « Prête dans 1 j 18 h »)
 function otherSessionHtml(cat) {
   const n = (prog().exercises[cat] || []).length;
   return `
@@ -344,7 +345,7 @@ function renderDashboard() {
         ${hero ? '' : recapHomeCard()}
         ${nutritionHomeCard()}
         ${keys.length ? weekCard(weekStats()) : ''}
-        ${others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Ensuite</h2><div class="home-card">${others}</div></section>` : ''}
+        ${others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Autres séances</h2><div class="home-card">${others}</div></section>` : ''}
       </div>
     </div>`;
 }

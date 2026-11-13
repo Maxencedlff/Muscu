@@ -148,7 +148,7 @@ function syncNativeRest() {
 }
 
 // Texte de la notification de fin de repos : « Série 4 · Squat barre », pendant la pause d'un rest-pause
-// ou d'un cluster la sous-série qui suit avec sa charge : « Mini-série 1 · Squat barre · 70 kg × 4 »
+// ou d'un cluster la sous-série qui suit avec sa charge : « Mini-série +1 · Squat barre · 70 kg × 4 »
 function restEndBody() {
   const sub = activeSession && techNextSub();
   if (sub) { const p = nextSetParts(); return `${p.step} · ${p.name}${p.load}`; }

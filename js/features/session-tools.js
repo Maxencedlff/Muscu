@@ -68,9 +68,9 @@ function platesSheetHtml() {
     <div class="rs rs--plates pl">
       <div class="rs__title">Disques · ${esc(ex.name)}</div>
       <div class="pl__target">
-        <button class="rs__round num" data-action="pl-adj" data-d="-1" aria-label="Moins ${fmtNum(plStep())} ${u}">−</button>
+        <button class="rs__round num" data-action="pl-adj" data-d="-1" aria-label="Moins ${fmtNum(plStep())} ${u}">${icon('minus', 26)}</button>
         <div class="pl__val num" aria-live="polite"><span id="plTarget">${fmtNum(pl.target)}</span> <span class="pl__unit">${u}</span></div>
-        <button class="rs__round num" data-action="pl-adj" data-d="1" aria-label="Plus ${fmtNum(plStep())} ${u}">+</button>
+        <button class="rs__round num" data-action="pl-adj" data-d="1" aria-label="Plus ${fmtNum(plStep())} ${u}">${icon('plus', 26)}</button>
       </div>
       ${plDrawHtml(r.perSide, setup.plates)}
       <div class="pl__result num" aria-live="polite">${plResultHtml(r, pl.target, setup.unit)}</div>
@@ -84,7 +84,7 @@ function platesSheetHtml() {
       <div class="pl__row pl__row--top">
         <span class="pl__lbl">Disques</span>
         <div class="pl__chips" role="group" aria-label="Disques disponibles">
-          ${plChoices(setup).map(p => `<button class="ax__chip num" data-action="pl-plate" data-plate="${p}" aria-pressed="${setup.plates.includes(p)}" aria-label="Disque de ${fmtNum(p)} ${u}${setup.plates.includes(p) ? ', disponible' : ', absent'}">${fmtNum(p)}</button>`).join('')}
+          ${plChoices(setup).map(p => `<button class="ax__chip num" data-action="pl-plate" data-plate="${p}" aria-pressed="${setup.plates.includes(p)}" aria-label="Disque de ${fmtNum(p)} ${u}">${fmtNum(p)}</button>`).join('')}
           <button class="ax__chip" data-action="pl-other" aria-label="Ajouter un autre disque">${icon('plus', 14)} Autre</button>
         </div>
       </div>
@@ -178,6 +178,9 @@ function addWarmup(ei) {
     persistSession();
     render();
   } });
+  // La ligne « Échauffement ajouté · Annuler » et le nom de l'exercice sous la barre, entiers (panel vague 4 : la page
+  // restait défilée et coupait le nom en texte agrandi) ; l'exercice peut ne pas être celui en cours
+  scrollToCard(ei);
 }
 
 // ── Actions ─────────────────────────────────────────────────

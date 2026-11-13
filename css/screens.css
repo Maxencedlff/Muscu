@@ -195,10 +195,8 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
 .hcell__date { font-size: 0.882rem; color: var(--label2); white-space: nowrap; flex-shrink: 0; }
 .hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; } /* sur 2 lignes si besoin plutôt que tronqué */
 .hcell__title + .hcell__date { margin-left: auto; }
-/* Le nom du programme prend seulement la place laissée par le nom de la séance et la date (base 0) : « Bras » jamais
-   « Br… » (panel t6 ; rétrécis ensemble, le titre perdait aussi quelques pixels, donc ses lettres) */
-.hcell__prog { flex: 1 1 0; min-width: 0; font-size: 1rem; line-height: 1.294rem; font-weight: 400; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hcell__prog + .hcell__date { margin-left: auto; }
+/* Programme d'une séance d'un autre programme : sa ligne à lui, sous le titre, entier (revient à la ligne s'il est long) */
+.hcell__prog { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; }
 /* Ligne du bas : détails à gauche, pastille des records notés à droite (médaille et nombre) */
 .hcell__bot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hcell__rec { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; font-size: 0.765rem; font-weight: 600; color: var(--gold-text); }
@@ -392,6 +390,15 @@ html.type-xl .rest-mini__next > * { white-space: normal; overflow: visible; }
 /* Très grand texte (suite, captures « texte agrandi » de la vague 3) : rien ne déborde ni ne se coupe au milieu d'un
    libellé ; les lignes reviennent à la ligne, les zones de toucher gardent 44 px */
 html.type-xl .session-set .set-check-zone { min-width: 44px; }
+/* Symboles qui suivent le texte (panel vague 4 : rond de validation, coche, − et + restaient à leur taille de base à AX3,
+   minuscules à côté des chiffres) : tailles en rem, jamais sous la taille normale */
+html.type-xl .set-check { width: max(32px, 1.88rem); height: max(32px, 1.88rem); }
+html.type-xl .set-check .icon { width: 56%; height: 56%; }
+html.type-xl .set-check-zone { height: auto; min-height: max(48px, 2.4rem); }
+html.type-xl .ax-stepper button { width: max(44px, 2.4rem); height: max(44px, 2.4rem); }
+html.type-xl .ax-stepper .icon, html.type-xl .stepper .icon { width: max(18px, 1.06rem); height: max(18px, 1.06rem); }
+html.type-xl .stepper { width: auto; min-width: 94px; height: auto; min-height: max(32px, 1.88rem); }
+html.type-xl .stepper button { padding: 0 max(12px, .7rem); }
 html.type-xl .ex-card__foot { flex-wrap: wrap; row-gap: 4px; }
 html.type-xl .targets__target, html.type-xl .targets__gain, html.type-xl .targets__before, html.type-xl .recap-card__cta { white-space: normal; }
 html.type-xl .targets__val { flex-shrink: 1; min-width: 0; max-width: 100%; }
@@ -440,7 +447,11 @@ html.type-xl .rs__next { order: 3; }
   html.type-xl .rs { gap: 12px; }
 }
 html.type-xl .rs__adj .rs__round { width: 100%; }
-html.type-xl .rs__resume { font-size: min(0.882rem, 15px); max-width: 150px; }
+/* « Fin du repos à 18:32 » suit le texte agrandi : il passe sous l'anneau, où il a la largeur de l'écran (panel vague 4 : plafonné
+   à 15 px dans l'anneau, illisible à AX3) */
+html.type-xl .rs .rs__resume { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  width: calc(100vw - 32px); max-width: none; font-size: 0.882rem; }
+html.type-xl .rs__ring { margin-bottom: 2.4em; }
 html.type-xl .rs__time { font-size: min(72px, 3.4rem); }
 /* Superset : le compte et ⓘ passent sous le nom plutôt que de le couper */
 html.type-xl .ss-member { flex-wrap: wrap; }

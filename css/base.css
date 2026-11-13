@@ -30,6 +30,9 @@
   --scrim: rgba(0,0,0,.55);      /* pastille de texte blanc posée sur une photo */
   --segment-on: #737378;      /* segment choisi nettement plus clair que le fond (texte blanc 4,7:1) */
   --dimmer: rgba(0,0,0,.5);      /* voile des surcouches */
+  /* Bande au-dessus d'une feuille de la séance presque plein écran : opaque (plus de titre coupé derrière la poignée)
+     et d'une autre teinte que la feuille (panel vague 4 : en sombre, feuille et fond étaient le même noir) */
+  --sheet-under: #000000; --sheet-under-full: #1C1C1E;
   --dlg-bg: rgba(44,44,46,.97); --dlg-solid: #2C2C2E;   /* feuilles, alertes, toasts : lisibles même si le flou est faible */
   --toast-bg: var(--dlg-solid); --toast-shadow: var(--shadow-float);
   --dlg-sep: rgba(84,84,88,.65); --dlg-press: rgba(255,255,255,.08);
@@ -100,6 +103,7 @@ body.light {
   --green-text: #1F7A35; --red-text: #D70015; --orange-text: #C93400; --gold-text: #A05A00;
   --segment-on: #FFFFFF;
   --dimmer: rgba(0,0,0,.25);
+  --sheet-under: #8E8E93; --sheet-under-full: #8E8E93;
   --dlg-bg: rgba(242,242,247,.97); --dlg-solid: #F2F2F7;
   /* Toast clair : blanc, ombre plus marquée et filet, sinon il se fond dans le fond gris (#F2F2F7, panel t7) */
   --toast-bg: #FFFFFF; --toast-shadow: 0 0 0 .5px rgba(0,0,0,.14), 0 8px 28px rgba(0,0,0,.2);
