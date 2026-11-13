@@ -133,7 +133,7 @@ html.type-xl .tiles--4 .tile + .tile { border-top: .5px solid var(--sep); }
 .cph-pair__pose, .pgal__date { font-variant-numeric: tabular-nums; }
 /* « Voir dans le coffre » en gris : la ligne entière s'ouvre, l'orange reste à « Envoyer depuis mon coffre ». Les dates du
    comparateur gardent l'orange (panel du 08/11 : en gris, le menu passait pour un texte fixe) */
-.cph-row__link { color: var(--label2); }
+.cph-row__link { color: var(--tint); }   /* un lien d'action : orange (panel v4 t1 : en gris gras, on le prenait pour un sous-titre) */
 .pcmp__sel { font-variant-numeric: tabular-nums; }
 
 /* ═══════════════════════════════════════════════

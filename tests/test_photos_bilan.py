@@ -270,7 +270,9 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check(sp.evaluate('currentView()') == 'photo-vault' and sp.inner_text('.sheet .cphs__day') == sp.evaluate('fmtDate(Date.now() - 14 * 86400000)'),
                 f'{t} feuille d\'envoi ouverte sur le jour qui reste ({sp.inner_text(".sheet .cphs__day")!r})')
         lead = sp.inner_text('.sheet .cphs__lead')
-        R.check('Ton coach verra cette photo. Tu peux la retirer quand tu veux.' in lead, f'{t} photo seule : accord affiché ({lead!r})')
+        # Panel v4 t1 : où va la photo, en tête (chiffrée avant l'envoi, ouverte par le coach seul)
+        R.check('Chiffrée avant l\'envoi : seul ton coach' in lead and 'Tu peux la retirer quand tu veux.' in lead and 'sur ton iPhone' not in sp.inner_text('.sheet'),
+                f'{t} photo seule : accord affiché ({lead!r})')
         sp.wait_for_timeout(400)   # feuille montée en entier (mesurée en pleine animation, « Annuler » paraissait petit)
         layout(sp, t, 'Feuille d\'envoi (une photo)')
         shot(sp, LOT, f'05-feuille-une-photo-{t}')

@@ -462,7 +462,7 @@ html.type-xl .sum-row__main { flex-basis: 100%; }
 /* Feuilles : Annuler / OK en haut, le titre en entier dessous */
 html.type-xl .sheet__bar { display: flex; flex-wrap: wrap; justify-content: space-between; }
 html.type-xl .sheet__btn { font-size: min(1rem, 22px); }   /* plafonnés comme la barre de navigation : Annuler à gauche, l'action à droite, sur une ligne (panel t5) */
-html.type-xl .sheet__bar .sheet__title { order: 2; flex-basis: 100%; white-space: normal; text-align: left; padding: 4px 0 0; }
+html.type-xl .sheet__bar .sheet__title { order: 2; flex-basis: 100%; white-space: normal; text-align: left; padding: 4px 12px 0; }   /* 16 pt du bord, comme le contenu (panel v4 t1) */
 /* Messages : l'heure sous la bulle, la bulle plus large */
 html.type-xl .chat-msg { flex-direction: column; align-items: flex-end; max-width: 92%; }
 html.type-xl .chat-msg--theirs { align-items: flex-start; }

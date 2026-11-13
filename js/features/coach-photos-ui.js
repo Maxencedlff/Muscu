@@ -29,7 +29,7 @@ function cphVerifyHtml(code) {
         <div class="group">
           <button class="cell cell--nav cph-verify" data-action="cph-verify" aria-expanded="${cphVerifyOpen}">
             <span class="cell__body"><span class="cell__title">Vérifier le code avec ton coach</span></span>
-            ${icon(cphVerifyOpen ? 'chevron.down' : 'chevron.right', 16)}
+            ${icon(cphVerifyOpen ? 'chevron.up' : 'chevron.down', 16)}
           </button>${cphVerifyOpen ? `
           <div class="cell"><span class="cell__body"><span class="cell__sub">Tes photos sont protégées sur ton iPhone : seul ton coach peut les ouvrir, ni nous ni personne d'autre. Pour t'en assurer, demande à ton coach le code écrit en bas de sa page Photos de bilan, dans son app. Il doit être le même que celui-ci : <span class="num cph-code">${esc(code)}</span>. Si les deux codes sont différents, n'envoie plus de photo et écris à ton coach.</span></span></div>` : ''}
         </div>`;
@@ -94,15 +94,17 @@ async function cphSendSheet(day) {
         <span class="cphs__ok" id="cphs-ok-${esc(p.id)}">Ton coach verra cette photo. Tu peux la retirer quand tu veux.</span></span>
     </button>`;
   };
-  const lead = single ? '<p class="cphs__lead">Ton coach verra cette photo. Tu peux la retirer quand tu veux.</p>'
-    : `<p class="cphs__lead">Choisis chaque photo à envoyer${free < unsent.length ? ` (${free} au plus)` : ''}.</p>`;
+  // Où va la photo, en tête de la feuille (panel v4 t1 : « Chiffrées sur ton iPhone », en bas, faisait croire qu'elle
+  // restait sur le téléphone, et sortait de l'écran en texte agrandi)
+  const lead = single ? `<p class="cphs__lead">Chiffrée avant l'envoi : seul ton coach, ${cphCoachName()}, pourra l'ouvrir. Tu peux la retirer quand tu veux.</p>`
+    : `<p class="cphs__lead">Chiffrées avant l'envoi : seul ton coach, ${cphCoachName()}, pourra les ouvrir. Choisis chaque photo à envoyer${free < unsent.length ? ` (${free} au plus)` : ''}.</p>`;
   // Titre : ce qui est montré, pas le verbe du bouton (panel t5)
   await sheet({ title: 'Photos à envoyer', cancel: 'Annuler', confirm: '', body: `
     <p class="cphs__day">${esc(fmtDate(cphDayTs(day)))}</p>
     ${lead}
     <div class="cphs__list">${list.map(item).join('')}</div>
     <button class="btn btn--primary btn--full cphs__go" data-action="cph-send-go" data-day="${esc(day)}" ${single ? `data-one="${esc(unsent[0].id)}"` : 'disabled'}>${single ? 'Envoyer cette photo' : 'Envoyer'}</button>
-    <p class="mpick__foot">Seul ton coach, ${cphCoachName()}, ${single ? 'la verra. Chiffrée' : 'les verra. Chiffrées'} sur ton iPhone, sans la localisation ni aucune autre donnée de la photo.</p>` });
+    <p class="mpick__foot">Envoyée${single ? '' : 's'} sans la localisation ni aucune autre donnée de la photo.</p>` });
   cphPicked = new Set();
 }
 function cphPickToggle(el) {
