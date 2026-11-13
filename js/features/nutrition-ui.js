@@ -156,7 +156,9 @@ function dietSummaryHtml(pr) {
 function dietWeekHtml(day) {
   const today = dietDayKey();
   return `<div class="diet-week" role="group" aria-label="7 derniers jours">${dietWeek(data).map(w => {
-    const letter = new Date(w.ts).toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase();
+    // « Mar », « Mer » : deux « M » côte à côte ne disaient pas quel jour est aujourd'hui (panel vague 4)
+    const short = new Date(w.ts).toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '');
+    const letter = short.charAt(0).toUpperCase() + short.slice(1, 3);
     const label = `${w.day === today ? 'Aujourd\'hui' : fmtDate(w.ts, 'day')}${w.complete ? ', journée complète' : w.some ? ', en partie' : ''}`;
     return `<button class="diet-week__day${w.day === day ? ' diet-week__day--on' : ''}" data-action="diet-day" data-day="${w.day}" aria-pressed="${w.day === day}" aria-label="${esc(label)}">
         <span class="diet-week__letter" aria-hidden="true">${letter}</span>
@@ -355,7 +357,8 @@ function renderNutrition(dayParam) {
         ${dietWeekHtml(day)}
         ${past ? '<button class="btn btn--secondary diet-today" data-action="diet-today">Revenir à aujourd\'hui</button>' : ''}
         ${dietSummaryHtml(pr)}
-        ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}</span></p>` : ''}
+        ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}${plan.fromCoach
+          ? ` Suis le plan de ${esc(plan.fromCoach.name || 'ton coach')} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
         ${pr.meals.length ? dietMacroLegendHtml() : ''}
@@ -503,8 +506,12 @@ async function dietSwapSheet(itemId, day) {
   else {
     const c = cands[Number(choice)];
     if (!c) return;
+    const prev = cur || null;
     dietSetSwap(data, planId, itemId, { name: c.food.name, food: c.food.code, fam: c.food.fam, g: c.g, per: c.food.per }, day);
-    showToast(`Remplacé par ${foodName(c.food.name)}`);
+    // Annuler, comme « Retirer pour aujourd'hui » (panel Apple vague 4 : le remplacement changeait les totaux sans retour)
+    showToast(`Remplacé par ${foodName(c.food.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      dietSetSwap(data, planId, itemId, prev, day); save(); render(); announce(`Remis : ${foodName((prev || it).name)}`);
+    } });
   }
   haptic();
   save();

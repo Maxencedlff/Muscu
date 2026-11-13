@@ -76,6 +76,9 @@ body.light .diet-item__swap { color: var(--label2); }
   }
 }
 
-/* Éditeur de plan : un « Modifier » par repas en plus de « Ajouter un aliment » dépassait le budget d'orange ;
-   l'ajout d'un aliment garde l'orange (l'action du repas), « Modifier » passe en texte secondaire plein */
-.group-title__btn.diet-meal-edit { color: var(--label2); font-weight: 600; }
+/* Éditeur de plan : « Modifier » d'un repas est un lien d'action, en orange comme partout (en gris, il passait pour un
+   libellé ou un bouton désactivé, panel vague 4) */
+.group-title__btn.diet-meal-edit { color: var(--tint); font-weight: 400; }
+/* « Ensuite » au-dessus du repas suivant : un état, pas une action ; casse de phrase, gris secondaire (la carte porte
+   déjà le contour orange de la ligne en cours ; en orange capitales, il invitait à toucher, panel Apple vague 4) */
+.diet-meal__eyebrow { color: var(--label2); text-transform: none; letter-spacing: 0; font-weight: 600; }
