@@ -1134,13 +1134,10 @@ test('native : Live Activity du repos relayée au module MdlfLiveActivity, rien 
 
 // ── Live Activity du repos (rest-activity.js) ───────────────
 
-test('live activity : couleur de séance → couleur système d\'iOS ou hexadécimal, sinon indigo', () => {
-  assert.equal(app.restActivityTint('var(--orange)'), 'orange');
-  assert.equal(app.restActivityTint(' var(--teal) '), 'teal');
-  assert.equal(app.restActivityTint('#30b0c7'), '#30B0C7');
-  assert.equal(app.restActivityTint('var(--label2)'), 'indigo', 'token qui n\'est pas une couleur de séance');
-  assert.equal(app.restActivityTint('red; x'), 'indigo');
-  assert.equal(app.restActivityTint(undefined), 'indigo');
+test('live activity : une seule teinte, l\'orange MDLF, quelle que soit la séance (plus d\'indigo)', () => {
+  for (const c of ['var(--orange)', ' var(--teal) ', '#30b0c7', 'var(--indigo)', 'var(--label2)', 'red; x', undefined]) {
+    assert.equal(app.restActivityTint(c), '#FF7A1A', String(c));
+  }
 });
 
 test('live activity : série suivante (charge en kg ou lbs, poids du corps, sans reps)', () => {
@@ -1171,7 +1168,7 @@ test('live activity : données envoyées (séance, couleur, durée entière, tex
   const session = { category: 'push', programme: 'ppl', exercises: [{ name: long, sets: [{ weight: '20', reps: '10' }] }] };
   const p = run(`restActivityPayload(${JSON.stringify(session)}, { ei: 0, si: 0 }, { endTime: 1700000090000, total: 89.6 })`);
   assert.equal(p.title, 'Push');
-  assert.equal(p.color, 'orange');
+  assert.equal(p.color, '#FF7A1A', 'orange MDLF, plus la couleur de la séance');
   assert.equal(p.total, 90);
   assert.equal(p.endTime, 1700000090000);
   assert.equal(p.next.exercise.length, 60);
@@ -1179,7 +1176,7 @@ test('live activity : données envoyées (séance, couleur, durée entière, tex
   run(`data.userProgrammes = { u_test0001: { name: 'Perso', sessions: { a: { label: ${JSON.stringify('<b>' + long)}, icon: '', desc: '', color: '#FF3B30' } } } }`);
   const u = run(`restActivityPayload({ category: 'a', programme: 'u_test0001', exercises: [] }, null, { endTime: 1, total: 0 })`);
   assert.equal(u.title, ('<b>' + long).slice(0, 40), 'texte brut (pas de HTML côté natif), borné');
-  assert.equal(u.color, '#FF3B30');
+  assert.equal(u.color, '#FF7A1A', 'séance perso : même teinte');
   assert.equal(u.total, 1);
   assert.equal(u.next, null);
 });

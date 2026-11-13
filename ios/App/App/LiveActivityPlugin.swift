@@ -77,7 +77,7 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let state = Self.contentState(call) else { call.reject("Repos invalide"); return }
         let attributes = RestActivityAttributes(
             sessionTitle: String((call.getString("title") ?? "Séance").prefix(40)),
-            tint: call.getString("color") ?? "indigo")
+            tint: call.getString("color") ?? "#FF7A1A")   // orange MDLF (RestTint.brandHex)
         enqueue {
             let current = Self.liveActivities
             if let same = current.first(where: { Self.sameSession($0.attributes, attributes) }) {

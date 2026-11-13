@@ -56,12 +56,12 @@ function offlineNote(what) {
 }
 // Record mis en avant sur la carte : le plus marquant de ceux que son app a notés (jamais recalculé ici :
 // le fil ne contient qu'une partie de ses séances), en or, et combien d'autres (« +1 », lu « plus 1 »).
-// « 🏆 Record · Squat 125 kg +1 »
+// « Record · Squat 125 kg +1 », derrière la médaille au trait (js/ui/medal.js), jamais un emoji
 function feedRecordHtml(s) {
   const r = topNotedRecord(s.records);
   if (!r) return '';
   const more = (s.records?.length || 0) - 1;
-  return `<span class="feed-card__rec"><span aria-hidden="true">🏆 </span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num"> +${more}</span>` : ''}</span>`;
+  return `<span class="feed-card__rec">${medalSvg(18)}<span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num"> +${more}</span>` : ''}</span></span>`;
 }
 // Les trois chiffres de la carte : durée, volume, séries (sans l'échauffement) ; un chiffre absent est omis. Même ordre et
 // même style (valeur, puis libellé dessous, avec une capitale) dans la séance d'un ami, Mon profil et le bilan (vague 3)

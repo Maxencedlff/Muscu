@@ -88,7 +88,8 @@ function historyListHTML() {
   if (!all.length) {
     return (data.history || []).length || healthEntries().length
       ? `<div class="empty-note">Aucune séance ne correspond.</div>`
-      : `<div class="empty-note">Aucune séance enregistrée.<br>Termine ta première séance pour la voir ici.</div>`;
+      : `<div class="empty-note">Aucune séance enregistrée.<br>Termine ta première séance pour la voir ici.</div>
+        <div class="group"><button class="cell cell--action" data-action="go-home"><span class="cell__title">Démarrer une séance</span></button></div>`;
   }
   const months = historyByMonth(all);
   const out = months.slice(0, histMonths).map(m =>

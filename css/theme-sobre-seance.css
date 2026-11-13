@@ -1,0 +1,83 @@
+/* ═══════════════════════════════════════════════
+   Direction « sobre et vivante » : séance, repos, bilan, record (branche sobre-seance)
+   Complète css/theme-sobre.css (ses jetons : --tint, --tint-fill, --on-tint, --medal, --sb-ring),
+   chargé juste après lui. Mêmes règles : un seul orange (bouton principal, onglet actif, série en
+   cours, liens d'action), vert = fait, rouge = suppression, or = record ; ni dégradé, ni lueur, ni
+   ombre colorée, ni capitales espacées ; tout mouvement s'arrête avec « Réduire les animations ».
+═══════════════════════════════════════════════ */
+
+/* ── Repos : l'anneau suit l'heure de fin image par image (js/features/rest.js, restRingFrame) ──
+   Plus de transition sur ces anneaux : elle mettait l'anneau en retard sur le chiffre. Les anneaux des
+   efforts chronométrés (tempo, gainage) gardent une transition courte, calée sur leur tic de 100-200 ms. */
+.rest-ring__bar { transition: stroke-dashoffset .2s linear; }
+/* Même orange en clair : --sb-ring (theme-sobre.css) est résolu sur :root, il restait l'orange vif du sombre
+   sur fond blanc ; l'anneau prend --tint là où il est dessiné, donc #C64000 en clair */
+.rest-ring__bar { stroke: var(--tint); }
+
+/* ── Carte d'exercice : l'orange reste aux actions qui font avancer la séance ──
+   ⋯ et « Repos 2:00 » se répétaient sur chaque carte (5 à 8 éléments orange par écran) : gris, toujours
+   des boutons (zone de 44 pt, nom VoiceOver inchangé) */
+.ex-card__more { color: var(--label2); }
+.ex-rest-link { color: var(--label2); font-weight: 600; }
+
+/* ── Superset : plus de barre orange sur toute la hauteur de la carte (décor) ; A1 / A2 en pastille neutre ── */
+.ex-card.ss-card { border-left: 0; }
+.ex-card.ss-card:not(.ex-card--collapsed) { padding-left: 12px; }
+.ss-tag { background: var(--fill); }
+.rest-mini .rest-ring__bar, .sess-sheet--rest .rest-ring__bar { transition: none; }
+
+/* ── Record battu : badge or plus grand ── */
+.session-set .pr-badge {
+  font-size: 0.824rem; line-height: 1.2; font-weight: 700; padding: 3px 10px 3px 7px; border-radius: 8px; gap: 5px;
+}
+.session-set .pr-badge .medal { width: 17px; height: 17px; flex-shrink: 0; }
+/* En clair, sur la série en cours (voile orange) : or plus foncé, 5:1 au lieu de 4,45:1 */
+body.light .session-set .pr-badge { color: #8A4E00; }
+
+/* ── Bilan : médaille plus grande (ligne du record et « Nouveaux records ») ── */
+.sum-line { gap: 8px; }
+.sum-line .medal { width: 28px; height: 28px; }
+.sum-record .medal { width: 30px; height: 30px; }
+html.type-xl .sum-line .medal { width: 1.5em; height: 1.5em; margin-top: 0; }
+
+/* ── Image partagée : aperçu au format choisi (story 9:16 ou carré), cadre sans ombre ── */
+.share-preview__frame { box-shadow: none; border-radius: 12px; }
+.share-preview__frame--square { aspect-ratio: 1; height: auto; width: min(100%, 58vh, 420px); width: min(100%, 58dvh, 420px); }
+.share-preview__formats { width: 100%; max-width: 420px; }
+
+/* ── Petits titres de la séance : casse de phrase, semi-gras gris (plus de capitales espacées) ── */
+.ss-round__title, .sets__caption, .session-notes-label {
+  text-transform: none; letter-spacing: 0; font-size: var(--fs-footnote); line-height: 1.3; font-weight: 600; color: var(--label2);
+}
+
+/* ── Chrono d'effort (tempo, gainage, cardio) ── */
+/* ▶ de la série en cours : orange plein, texte noir en sombre (le blanc ne tenait pas 3:1 sur l'orange vif) */
+.set-play { background: var(--tint-fill); color: var(--on-tint); }
+/* Chrono qui tourne : anneau net de 2 px, plus le halo orange flou */
+.set-play--live { box-shadow: 0 0 0 2px var(--cell), 0 0 0 4px var(--tint); }
+/* Pastilles de tempo et de prise : neutres, l'orange reste à l'action */
+.tempo-pill, .ex-grip__main { background: var(--fill); }
+/* Phase du tempo (« Descends ») en noir ou blanc : l'anneau orange dit déjà que ça tourne */
+.tempo__word { color: var(--label); }
+
+/* ── Disques : neutres (ils étaient orange, couleur de séance), le poids reste lisible dessous ── */
+.pl__plate { fill: color-mix(in srgb, var(--label) 22%, var(--cell)); stroke: var(--label2); }
+
+/* ═══════════════════════════════════════════════
+   Mouvement
+═══════════════════════════════════════════════ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Record : la coche d'abord (vvFill, 340 ms), puis 100 ms plus tard le badge arrive et un éclat d'or
+     net (anneau plein de 2 px) s'ouvre et s'efface en 280 ms. Joué une seule fois, au toucher qui valide
+     la série (js/ui/vivant.js : rien ne se rejoue quand on revient sur l'écran). */
+  .pr-badge.vv-rec { animation: sbsRecPop .3s .1s cubic-bezier(.2, .8, .2, 1.4) both; }
+  .vv-rec .pr-badge .medal, .pr-badge.vv-rec .medal { animation: sbsRecMedal .36s .1s cubic-bezier(.2, .8, .2, 1.4) both; }
+  .session-set .vv-burst {
+    width: 30px; height: 30px; margin: -15px 0 0 -15px; border: 2px solid var(--medal);
+    animation: sbsBurst .28s .1s cubic-bezier(.1, .6, .3, 1) both;
+  }
+  .sum-line .vv-burst { width: 44px; height: 44px; margin: -22px 0 0 -22px; border: 2px solid var(--medal); animation: sbsBurst .32s cubic-bezier(.1, .6, .3, 1) both; }
+  @keyframes sbsRecPop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
+  @keyframes sbsRecMedal { 0% { transform: scale(.4) rotate(-20deg); } 70% { transform: scale(1.2) rotate(6deg); } 100% { transform: none; } }
+  @keyframes sbsBurst { 0% { transform: scale(.5); opacity: 0; } 1% { opacity: 1; } 100% { transform: scale(2.4); opacity: 0; } }
+}

@@ -11,11 +11,16 @@
 // - Strava (« Sticker Stats ») et Nike Run Club : trois chiffres énormes, peu de texte, logo discret
 //   mais toujours présent. Hevy : records, volume, carte des muscles, fond clair ou sombre.
 //   Apple Fitness : chiffres en SF Rounded, couleur d'activité, cartes sombres arrondies.
-//   → ici : nom de la séance en très grand, trois tuiles (durée, volume, séries), records en or,
-//   3 à 5 exercices clés, signature « MDLF Training » avec l'icône de l'app (publicité à chaque partage).
+//   → ici : nom de la séance en très grand, trois chiffres (durée, volume, séries), records en or,
+//   les exercices, signature « MDLF Training » avec l'icône de l'app (publicité à chaque partage).
+// - Direction « sobre » (12/11/2026, docs « 14 signes d'un design IA ») : fond uni, aucun halo ni
+//   dégradé, aucune ombre ; casse de phrase (plus de petites capitales espacées) ; les trois chiffres
+//   sur une ligne, valeur en grand et libellé gris dessous, séparés par des filets (plus de tuiles) ;
+//   un seul bloc groupé pour les exercices ; or = record (médaille au trait), rien d'autre en couleur.
+// - Deux formats : story 9:16 (1080 × 1920) et carré (1080 × 1080, fil Instagram, messages).
 // - Lisible en vignette (aperçu de story ~ 1/8) : titre ≥ 120 px, chiffres ≥ 76 px, rien sous 28 px.
 // - Couleurs : uniquement les tokens de css/base.css, résolus par l'appelant (storyPalette) dans le
-//   thème de l'app ; la couleur de la séance colore le halo du fond et le surtitre.
+//   thème de l'app.
 // - Polices système (-apple-system / SF Pro, SF Pro Rounded pour les chiffres). Le canvas n'a pas
 //   d'équivalent de font-variant-numeric : les chiffres ne sont jamais alignés en colonne, ils sont
 //   ferrés à droite un par ligne.
@@ -121,18 +126,12 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Carte : fond de cellule du thème, ombre douce en clair, fine bordure en sombre
+// Bloc groupé (liste iOS) : fond de cellule du thème, opaque, ni ombre ni bordure (le contraste de
+// surface suffit : #1C1C1E sur noir, blanc sur #F2F2F7)
 function drawCard(ctx, p, x, y, w, h) {
-  ctx.save();
   roundRect(ctx, x, y, w, h, STORY.RADIUS);
-  if (p.light) { ctx.shadowColor = rgbaCss(p.label, .08); ctx.shadowBlur = 40; ctx.shadowOffsetY = 12; }
-  ctx.fillStyle = rgbaCss(p.cell, p.light ? 1 : .78);
+  ctx.fillStyle = rgbaCss(p.cell);
   ctx.fill();
-  ctx.restore();
-  if (!p.light) {
-    roundRect(ctx, x + 1, y + 1, w - 2, h - 2, STORY.RADIUS - 1);
-    ctx.strokeStyle = rgbaCss(p.label, .07); ctx.lineWidth = 2; ctx.stroke();
-  }
 }
 
 // Médaille de record (mêmes tracés que medalSvg, js/ui/medal.js), carrée de côté size
@@ -140,10 +139,10 @@ function drawMedal(ctx, p, x, y, size) {
   const k = size / 24;
   ctx.save();
   ctx.translate(x, y); ctx.scale(k, k);
-  ctx.fillStyle = rgbaCss(p.gold, .55); ctx.fill(new Path2D(MEDAL_PATHS.ribbon));
-  ctx.fillStyle = rgbaCss(p.gold);
-  ctx.beginPath(); ctx.arc(12, 15, 6, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = rgbaCss(p.cell); ctx.fill(new Path2D(MEDAL_PATHS.star));
+  ctx.strokeStyle = rgbaCss(p.gold); ctx.lineWidth = 1.75; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.stroke(new Path2D(MEDAL_PATHS.ribbon));
+  ctx.beginPath(); ctx.arc(12, 15, 6, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1.3; ctx.stroke(new Path2D(MEDAL_PATHS.star));
   ctx.restore();
 }
 
@@ -158,44 +157,39 @@ function drawMuscleMap(ctx, x, y, w, h, image) {
 
 // ── Blocs de l'image ────────────────────────────────────────
 
-function drawBackground(ctx, p) {
-  const { W, H } = STORY;
-  ctx.fillStyle = rgbaCss(p.bg); ctx.fillRect(0, 0, W, H);
-  // Halo de la couleur de la séance en haut à gauche, rappel plus discret en bas à droite
-  const glow = (cx, cy, r, a) => {
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0, rgbaCss(p.cat, a)); g.addColorStop(1, rgbaCss(p.cat, 0));
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  };
-  glow(W * .12, 180, 1150, p.light ? .30 : .52);
-  glow(W * .95, H * .80, 900, p.light ? .12 : .20);
+// Fond uni du thème (noir pur en sombre, #F2F2F7 en clair)
+function drawBackground(ctx, p, w = STORY.W, h = STORY.H) {
+  ctx.fillStyle = rgbaCss(p.bg); ctx.fillRect(0, 0, w, h);
 }
 
-// Surtitre « SAMEDI 17 OCTOBRE · 18:30 » (couleur de la séance), puis le nom de la séance en très grand
+// « Samedi 17 octobre · 18:30 » : casse de phrase, initiale en capitale
+function storyKicker(st) {
+  const k = [st.day, st.time].filter(Boolean).join(' · ');
+  return k.charAt(0).toLocaleUpperCase('fr-FR') + k.slice(1);
+}
+
+// Surtitre « Samedi 17 octobre · 18:30 » en gris, puis le nom de la séance en très grand
 function drawHeader(ctx, p, st, y, titleSize) {
   const { SIDE, W } = STORY, maxW = W - 2 * SIDE;
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = rgbaCss(p.catText);
-  ctx.font = storyFont(700, 34, false, p); setTracking(ctx, 5);
-  const kicker = [st.day, st.time].filter(Boolean).join(' · ').toLocaleUpperCase('fr-FR');
-  ctx.fillText(fitText(ctx, kicker, maxW), SIDE, y + 30);
+  ctx.fillStyle = rgbaCss(p.label2);
+  ctx.font = storyFont(600, 36, false, p); setTracking(ctx, 0);
+  ctx.fillText(fitText(ctx, storyKicker(st), maxW), SIDE, y + 30);
   ctx.fillStyle = rgbaCss(p.label);
   ctx.font = storyFont(800, titleSize, false, p); setTracking(ctx, -titleSize * .02);
   ctx.fillText(fitText(ctx, st.title, maxW), SIDE - 4, y + 52 + titleSize * .9);
   setTracking(ctx, 0);
 }
 
-// Pastille dorée « 2 records battus »
+// Ligne du record : médaille d'or au trait et « 2 records battus » en or, sans pastille autour
 // h : hauteur (STORY.CHIP ; plus serrée quand une séance avec supersets manque de place)
-function drawRecordsChip(ctx, p, st, y, h = STORY.CHIP) {
-  const text = shareRecordsText(st.records), x = STORY.SIDE, k = h / STORY.CHIP;
-  const medal = Math.round(48 * k), pad = Math.round(28 * k);
-  ctx.font = storyFont(700, Math.max(28, Math.round(36 * Math.min(1, k * 1.1))), false, p);   // rien sous 28 px
-  roundRect(ctx, x, y, pad + medal + 16 + ctx.measureText(text).width + 36, h, h / 2);
-  ctx.fillStyle = rgbaCss(p.gold, p.light ? .16 : .18); ctx.fill();
-  drawMedal(ctx, p, x + pad - 2, y + (h - medal) / 2, medal);
+function drawRecordsChip(ctx, p, st, y, h = STORY.CHIP, x = STORY.SIDE) {
+  const text = shareRecordsText(st.records), k = h / STORY.CHIP;
+  const medal = Math.round(60 * k);
+  ctx.font = storyFont(700, Math.max(28, Math.round(40 * Math.min(1, k * 1.1))), false, p);   // rien sous 28 px
+  drawMedal(ctx, p, x - 6, y + (h - medal) / 2, medal);
   ctx.fillStyle = rgbaCss(p.goldText); ctx.textBaseline = 'middle';
-  ctx.fillText(text, x + pad + medal + 16, y + h / 2 + 2);
+  ctx.fillText(text, x + medal + 8, y + h / 2 + 2);
   ctx.textBaseline = 'alphabetic';
 }
 
@@ -203,24 +197,33 @@ function storyTiles(st) {
   return [['Durée', st.duration || '—'], ['Volume', st.volume || '—'], ['Séries', String(st.sets)]];
 }
 
-// Libellé en petites capitales espacées, valeur en SF Rounded (taille ajustée à la largeur)
+// Valeur en grand (SF Rounded, taille ajustée à la largeur), libellé gris en casse de phrase dessous
 function drawStat(ctx, p, label, value, x, y, maxW, size, gap) {
-  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
-  ctx.fillText(label.toLocaleUpperCase('fr-FR'), x, y + 30); setTracking(ctx, 0);
-  fitSize(ctx, value, maxW, size, 48, s => storyFont(700, s, true, p));
+  const s = fitSize(ctx, value, maxW, size, 48, z => storyFont(700, z, true, p));
   ctx.fillStyle = rgbaCss(p.label);
-  ctx.fillText(value, x - 2, y + 30 + gap);
+  ctx.fillText(value, x - 2, y + s * .8);
+  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(500, 32, false, p); setTracking(ctx, 0);
+  ctx.fillText(label, x, y + s * .8 + gap);
 }
 
-// Trois tuiles côte à côte (sans silhouette). h : hauteur (STORY.TILES ; moins hautes quand une
-// séance avec supersets manque de place, chiffres réduits d'autant)
-function drawTilesRow(ctx, p, st, y, h = STORY.TILES) {
-  const { SIDE, W } = STORY, gap = 24, k = h / STORY.TILES;
-  const w = (W - 2 * SIDE - 2 * gap) / 3;
+// Filet fin du thème (séparateur de liste), horizontal ou vertical
+function drawRule(ctx, p, x, y, w, h) {
+  ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(x, y, w, h);
+}
+
+// Les trois chiffres sur une ligne, sans tuiles : filets en haut et en bas, filets verticaux entre eux
+// (comme le bilan de l'app). h : hauteur (STORY.TILES ; moins haute quand une séance avec supersets
+// manque de place, chiffres réduits d'autant). left / width : bande occupée (format carré).
+function drawTilesRow(ctx, p, st, y, h = STORY.TILES, left = STORY.SIDE, width = STORY.W - 2 * STORY.SIDE) {
+  const k = h / STORY.TILES, w = width / 3, pad = Math.round(36 * k);
+  drawRule(ctx, p, left, y, width, 2);
+  drawRule(ctx, p, left, y + h - 2, width, 2);
+  const size = Math.round(84 * Math.min(1, k * 1.1)), gap = Math.round(58 * Math.min(1, k * 1.05));
+  const top = y + Math.round((h - size * .8 - gap) / 2) - 4;
   storyTiles(st).forEach(([label, value], i) => {
-    const x = SIDE + i * (w + gap);
-    drawCard(ctx, p, x, y, w, h);
-    drawStat(ctx, p, label, value, x + 36, y + Math.round(36 * k), w - 64, Math.round(80 * Math.min(1, k * 1.1)), Math.round(104 * k));
+    const x = left + i * w;
+    if (i) drawRule(ctx, p, x, y + pad, 2, h - 2 * pad);
+    drawStat(ctx, p, label, value, x + (i ? 36 : 4), top, w - (i ? 56 : 24), size, gap);
   });
 }
 
@@ -229,14 +232,16 @@ function drawTilesWithMap(ctx, p, st, y, image) {
   const { SIDE, W, TILES_MAP: h } = STORY, colW = 440, padX = 44, step = 92;
   drawCard(ctx, p, SIDE, y, W - 2 * SIDE, h);
   const left = SIDE + padX, right = SIDE + colW;
+  // Valeur en gras à gauche, libellé gris à sa droite (« 52 min  Durée ») : la valeur d'abord
   storyTiles(st).forEach(([label, value], i) => {
-    const base = y + 40 + i * step + 62;
-    if (i) { ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(left, y + 40 + i * step, right - left, 2); }
-    ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
-    ctx.fillText(label.toLocaleUpperCase('fr-FR'), left, base); setTracking(ctx, 0);
-    fitSize(ctx, value, colW - padX - 190, 58, 40, s => storyFont(700, s, true, p));
-    ctx.fillStyle = rgbaCss(p.label); ctx.textAlign = 'right';
-    ctx.fillText(value, right, base); ctx.textAlign = 'left';
+    const base = y + 40 + i * step + 64;
+    if (i) drawRule(ctx, p, left, y + 40 + i * step, right - left, 2);
+    fitSize(ctx, value, colW - padX - 150, 60, 40, s => storyFont(700, s, true, p));
+    ctx.fillStyle = rgbaCss(p.label);
+    ctx.fillText(value, left - 2, base);
+    const vw = ctx.measureText(value).width;
+    ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(500, 30, false, p);
+    ctx.fillText(label, left + vw + 18, base);
   });
   drawMuscleMap(ctx, right + 24, y + 28, W - SIDE - right - 24 - 28, h - 56, image);
 }
@@ -295,14 +300,14 @@ function highlightsHeight(list, more, rowH = STORY.ROW, air = 1) {
   return head + units.reduce((a, u) => a + unitHeight(u, rowH, air), 0) + (more ? STORY.MORE : 0) + foot;
 }
 
-// Superset : « SUPERSET » en couleur de la séance, crochet « [ » qui tient ses exercices, puis pour
+// Superset : « Superset » en gris, crochet « [ » neutre qui tient ses exercices, puis pour
 // chacun le nom et le détail de toutes ses séries (« 30 kg × 10 · 10 · 9 », en or s'il y a un record).
 // nameSize : taille commune des noms en lignes compactes (sinon réduite exercice par exercice).
 function drawGroup(ctx, p, u, ry, rowH, nameSize = null, air = 1) {
   const { SIDE, W } = STORY, padX = 44, g = groupMetrics(rowH, air);
   const x = SIDE + padX, tx = x + g.indent, maxW = W - 2 * SIDE - 2 * padX - g.indent;
-  ctx.fillStyle = rgbaCss(p.catText); ctx.font = storyFont(700, g.title, false, p); setTracking(ctx, 3);
-  ctx.fillText(u[0].kind.toLocaleUpperCase('fr-FR'), x, ry + g.titleBase); setTracking(ctx, 0);
+  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, g.title + 2, false, p); setTracking(ctx, 0);
+  ctx.fillText(u[0].kind, x, ry + g.titleBase);
 
   // Crochet « [ » : du haut du premier nom au bas du dernier détail, avec ses retours en haut et en bas
   const top = ry + g.head + g.nameBase - g.name * 0.8;
@@ -311,7 +316,7 @@ function drawGroup(ctx, p, u, ry, rowH, nameSize = null, air = 1) {
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(bx + tick, top); ctx.lineTo(bx, top); ctx.lineTo(bx, bottom); ctx.lineTo(bx + tick, bottom);
-  ctx.strokeStyle = rgbaCss(p.cat); ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.strokeStyle = rgbaCss(p.label2, .7); ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.stroke();
   ctx.restore();
 
@@ -337,8 +342,8 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
   // Avec des supersets, un nom n'est jamais réduit sous NAME_MIN (il est tronqué au-delà)
   const nameFloor = list.some(r => r.group != null || r.sets) ? STORY.NAME_MIN : 24;
   drawCard(ctx, p, SIDE, y, w, highlightsHeight(list, more, rowH, air));
-  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
-  ctx.fillText('EXERCICES', SIDE + padX, y + CARD_HEAD - 20); setTracking(ctx, 0);
+  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 32, false, p); setTracking(ctx, 0);
+  ctx.fillText('Exercices', SIDE + padX, y + CARD_HEAD - 20);
 
   const compact = rowH < ROW;
   const size = Math.round(Math.min(40, rowH * 0.6)), base = Math.round(rowH * 0.66);
@@ -566,5 +571,79 @@ function drawStory(canvas, st, palette, assets = {}) {
   else drawTilesRow(ctx, p, st, at.tiles, tilesH);
   if (rows) drawHighlights(ctx, p, shown, at.highlights, rows, more, rowH, air);
   drawSignature(ctx, p, assets.icon, at.signature);
+  return canvas;
+}
+
+// ── Format carré (1080 × 1080) ──────────────────────────────
+// Fil Instagram, messages : pas de zones couvertes comme en story, mais moitié moins de hauteur. Même
+// ordre que la story (date, nom, record, trois chiffres, exercices, signature) ; les exercices tiennent
+// sur une ligne chacun (nom à gauche, meilleure série à droite, en or pour un record) et ceux qui ne
+// tiennent pas passent dans « + N autres exercices ». Le bloc entier est centré au-dessus de la signature.
+const SQUARE = { W: 1080, H: 1080, SIDE: 72, TOP: 64, BOTTOM: 56, TILES: 176, ROW: 66, HEAD: 70, FOOT: 14, MORE: 52 };
+
+function squareLayout(ctx, p, st) {
+  const { W, H, SIDE, TOP, BOTTOM, TILES, ROW, HEAD, FOOT, MORE } = SQUARE;
+  const titleSize = fitSize(ctx, st.title, W - 2 * SIDE, 120, 80, s => storyFont(800, s, false, p));
+  const sigTop = H - BOTTOM - STORY.SIGNATURE;
+  const head = [['header', 48 + titleSize, 24], st.records ? ['chip', 60, 22] : null, ['tiles', TILES, 30]].filter(Boolean);
+  const headH = head.reduce((a, [, h, gap]) => a + h + gap, 0);
+  const n = st.highlights.length, total = n + st.others;
+  const room = sigTop - 40 - TOP - headH - HEAD - FOOT;
+  let rows = Math.max(0, Math.min(n, Math.floor(room / ROW)));
+  if (rows > 0 && rows < total && rows * ROW + MORE > room) rows--;
+  const more = rows > 0 && rows < total;
+  const listH = rows ? HEAD + rows * ROW + (more ? MORE : 0) + FOOT : 0;
+  let y = TOP + Math.max(0, (sigTop - 40 - TOP - headH - listH) / 2);
+  const at = {};
+  head.forEach(([name, h, gap]) => { at[name] = y; y += h + gap; });
+  at.list = y;
+  return { at, titleSize, rows, more, listH, sigTop };
+}
+
+function drawSquareList(ctx, p, st, y, rows, more, h) {
+  const { W, SIDE, ROW, HEAD } = SQUARE, w = W - 2 * SIDE, padX = 40;
+  drawCard(ctx, p, SIDE, y, w, h);
+  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 0);
+  ctx.fillText('Exercices', SIDE + padX, y + HEAD - 22);
+  st.highlights.slice(0, rows).forEach((r, i) => {
+    const ry = y + HEAD + i * ROW, base = ry + 44;
+    if (i) drawRule(ctx, p, SIDE + padX, ry, w - 2 * padX, 2);
+    const valMax = Math.round((w - 2 * padX) * .45);
+    fitSize(ctx, r.value, valMax, 34, 24, s => storyFont(700, s, true, p));
+    const vw = Math.min(ctx.measureText(r.value).width, valMax);
+    ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
+    ctx.textAlign = 'right'; ctx.fillText(fitText(ctx, r.value, valMax), SIDE + w - padX, base); ctx.textAlign = 'left';
+    const nameW = w - 2 * padX - vw - 28 - (r.record ? 42 : 0);
+    ctx.font = storyFont(600, 34, false, p);
+    ctx.fillStyle = rgbaCss(p.label);
+    const name = fitText(ctx, r.name, nameW);
+    ctx.fillText(name, SIDE + padX, base);
+    if (r.record) drawMedal(ctx, p, SIDE + padX + ctx.measureText(name).width + 8, base - 28, 34);
+  });
+  if (more) {
+    const hidden = st.highlights.length + st.others - rows;
+    ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(500, 30, false, p);
+    ctx.fillText(`+ ${plural(hidden, 'autre exercice', 'autres exercices')}`, SIDE + padX, y + HEAD + rows * ROW + 38);
+  }
+}
+
+// Dessine l'image carrée dans le canvas (redimensionné à 1080 × 1080). Mêmes palette et assets que drawStory
+// (la silhouette des muscles n'y figure pas : elle demanderait la place des exercices).
+function drawSquare(canvas, st, palette, assets = {}) {
+  const { W, H, SIDE, TILES } = SQUARE;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d'), p = palette;
+  const { at, titleSize, rows, more, listH, sigTop } = squareLayout(ctx, p, st);
+  drawBackground(ctx, p, W, H);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 34, false, p); setTracking(ctx, 0);
+  ctx.fillText(fitText(ctx, storyKicker(st), W - 2 * SIDE), SIDE, at.header + 30);
+  ctx.fillStyle = rgbaCss(p.label); ctx.font = storyFont(800, titleSize, false, p); setTracking(ctx, -titleSize * .02);
+  ctx.fillText(fitText(ctx, st.title, W - 2 * SIDE), SIDE - 4, at.header + 44 + titleSize * .86);
+  setTracking(ctx, 0);
+  if (st.records) drawRecordsChip(ctx, p, st, at.chip, 60, SIDE);
+  drawTilesRow(ctx, p, st, at.tiles, TILES, SIDE, W - 2 * SIDE);
+  if (rows) drawSquareList(ctx, p, st, at.list, rows, more, listH);
+  drawSignature(ctx, p, assets.icon, sigTop);
   return canvas;
 }
