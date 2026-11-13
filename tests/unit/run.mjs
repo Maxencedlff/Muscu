@@ -1383,7 +1383,7 @@ test('iOS : extension RestActivity déclarée, embarquée et signée comme l\'ap
 // ── Mises à jour à chaud ────────────────────────────────────
 
 const OTA_SUM = 'a'.repeat(64);
-const otaManifest = (o = {}) => ({ version: '2026.10.20-abc1234', seq: 2000, runtime: 'r1', url: 'https://mdlf-ota.vercel.app/b.zip', checksum: OTA_SUM, ...o });
+const otaManifest = (o = {}) => ({ version: '2026.10.20-abc1234', seq: 2000, runtime: 'r1', url: 'https://mdlf-ota.vercel.app/bundles/2026.10.20-abc1234.zip', checksum: OTA_SUM, ...o });
 const otaCtx = (o = {}) => ({ build: { version: 'x', seq: 1000, runtime: 'r1' }, shellRuntime: 'r1', failed: [], ...o });
 
 test('mise à jour à chaud : décision (version, empreinte native, échecs, manifeste)', () => {
@@ -1401,6 +1401,72 @@ test('mise à jour à chaud : décision (version, empreinte native, échecs, man
   assert.equal(d(otaManifest(), otaCtx({ build: null })).download, false, 'PWA : jamais');
 });
 
+test('mise à jour à chaud : paquet accepté seulement sous https://mdlf-ota.vercel.app/bundles/ (audit M1)', () => {
+  const bad = url => run(`liveUpdateDecision(${JSON.stringify(otaManifest({ url }))}, ${JSON.stringify(otaCtx())})`).reason;
+  assert.equal(run('OTA_MANIFEST_URL'), 'https://mdlf-ota.vercel.app/manifest.json', 'adresse du manifeste figée');
+  assert.equal(run('OTA_BUNDLE_PREFIX'), 'https://mdlf-ota.vercel.app/bundles/');
+  assert.ok(run('otaBundleUrlAllowed("https://mdlf-ota.vercel.app/bundles/2026.11.12-f50f417.zip")'));
+  for (const url of [
+    'https://evil.example/bundles/x.zip',                       // autre domaine
+    'https://mdlf-ota.vercel.app.evil.example/bundles/x.zip',   // suffixe de domaine
+    'https://evil.vercel.app/bundles/x.zip',                    // autre projet Vercel
+    'https://MDLF-OTA.vercel.app/bundles/x.zip',                // casse
+    'https://mdlf-ota.vercel.app:443/bundles/x.zip',            // port
+    'http://mdlf-ota.vercel.app/bundles/x.zip',                 // http
+    'https://mdlf-ota.vercel.app/x.zip',                        // hors /bundles/
+    'https://mdlf-ota.vercel.app/api/ping.js',
+    'https://mdlf-ota.vercel.app/bundlesx/x.zip',
+    'https://mdlf-ota.vercel.app/bundles/',                     // pas de fichier
+    'https://mdlf-ota.vercel.app/bundles/sub/x.zip',            // sous-dossier
+    'https://mdlf-ota.vercel.app/bundles//evil.example/x.zip',  // « // »
+    'https://mdlf-ota.vercel.app/bundles/../api/x.zip',         // remontée
+    'https://mdlf-ota.vercel.app/bundles/..zip',
+    'https://mdlf-ota.vercel.app/bundles/%2e%2e%2fapi%2fx.zip', // encodages
+    'https://mdlf-ota.vercel.app/bundles/x%2Ezip',
+    'https://mdlf-ota.vercel.app/bundles/x.zip%00',
+    'https://mdlf-ota.vercel.app/bundles/x.zip?u=https://evil.example', // requête
+    'https://mdlf-ota.vercel.app/bundles/x.zip#frag',
+    'https://mdlf-ota.vercel.app@evil.example/bundles/x.zip',   // « @ » : vrai hôte evil.example
+    'https://user@mdlf-ota.vercel.app/bundles/x.zip',
+    'https://mdlf-ota.vercel.app/bundles/x@evil.example.zip',
+    'https://mdlf-ota.vercel.app/bundles\\x.zip',               // barre inverse
+    'https://mdlf-ota.vercel.app/bundles/x.zip ',               // espace, retour à la ligne
+    'https://mdlf-ota.vercel.app/bundles/x.zip\n',
+    ' https://mdlf-ota.vercel.app/bundles/x.zip',
+    '//mdlf-ota.vercel.app/bundles/x.zip',                      // sans protocole
+    'https://mdlf-ota.vercel.app/bundles/x.exe',                // pas un zip
+    '', null,
+  ]) assert.equal(bad(url), 'manifeste invalide', `refusé : ${JSON.stringify(url)}`);
+  assert.equal(run('otaBundleUrlAllowed(["https://mdlf-ota.vercel.app/bundles/x.zip"])'), false, 'pas une chaîne');
+});
+
+test('mise à jour à chaud : manifeste signé (Capgo) accepté, clé de session transmise au module natif', async () => {
+  const d = m => run(`liveUpdateDecision(${JSON.stringify(m)}, ${JSON.stringify(otaCtx())})`).reason;
+  const signed = { checksum: 'L/cUKyz6Bt+jQ6aO==', sessionKey: 'qtD9Ol7XOmrZ2dPbdRQzaw==:u2aGLrKWgGASYQ+e/V==' };
+  assert.equal(d(otaManifest(signed)), 'nouvelle version 2026.10.20-abc1234');
+  assert.equal(d(otaManifest({ ...signed, sessionKey: 'pas-de-deux-points' })), 'manifeste invalide');
+  assert.equal(d(otaManifest({ ...signed, sessionKey: '' })), 'manifeste invalide');
+  assert.equal(d(otaManifest({ ...signed, checksum: 'abc def' })), 'manifeste invalide');
+  assert.equal(d(otaManifest({ checksum: signed.checksum })), 'manifeste invalide', 'empreinte chiffrée sans clé de session');
+  const { result, calls } = await otaScenario({ manifest: otaManifest(signed) });
+  assert.equal(result.status, 'ready');
+  sameJSON(calls[0], ['download', '2026.10.20-abc1234', signed.checksum, signed.sessionKey]);
+});
+
+test('mise à jour à chaud : ota.yml publie seulement un commit dont Tests est vert, derrière l\'environnement ota (audit M6)', () => {
+  const ota = fs.readFileSync(path.join(ROOT, '.github/workflows/ota.yml'), 'utf8');
+  const publish = ota.slice(ota.indexOf('\n  publish:'));
+  assert.match(ota, /^permissions: \{\}$/m, 'aucun droit par défaut');
+  assert.match(ota, /actions\/workflows\/tests\.yml\/runs\?head_sha=\$SHA/, 'attend Tests sur le SHA publié');
+  assert.match(ota, /"completed success"\) echo "Tests verts\."; echo "sha=\$SHA" >> "\$GITHUB_OUTPUT"/);
+  assert.match(publish, /needs: gate/);
+  assert.match(publish, /environment: ota/);
+  assert.match(publish, /ref: \$\{\{ needs\.gate\.outputs\.sha \}\}/, 'construit depuis le SHA vérifié, pas depuis main');
+  assert.doesNotMatch(ota, /ref: main/);
+  assert.doesNotMatch(ota, /paquet signé \(SHA-256\)/, 'une empreinte SHA-256 n\'est pas une signature');
+  assert.match(ota, /secrets\.OTA_CAPGO_PRIVATE_KEY/);
+});
+
 const OTA_BG   = JSON.stringify([{ kind: 'background', value: '300000' }]);
 const OTA_KILL = JSON.stringify([{ kind: 'kill' }]);
 
@@ -1415,7 +1481,7 @@ async function otaScenario({ manifest = otaManifest(), session = null, now = fal
        Native.ota = {
          current: async () => ({ bundle: { id: __current } }),
          list: async () => __bundles,
-         download: async (o) => { __calls.push(['download', o.version, o.checksum]); return { id: 'b1', version: o.version, status: 'success' }; },
+         download: async (o) => { __calls.push(['download', o.version, o.checksum, ...(o.sessionKey ? [o.sessionKey] : [])]); return { id: 'b1', version: o.version, status: 'success' }; },
          applyNow: async (id) => { __calls.push(['now', id]); return true; },
          applyAtNextLaunch: async (id, cond) => { __calls.push(['next', id]); __calls.push(['delay', JSON.stringify(cond)]); return true; },
        };`);

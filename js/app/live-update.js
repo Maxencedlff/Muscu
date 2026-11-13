@@ -9,7 +9,11 @@
 // ne confirme pas son démarrage (Native.ota.ready) sous 10 s.
 // Règle Apple 2.5.2 : réservé aux corrections ; une nouvelle fonctionnalité passe par l'App Store.
 
+// Adresses figées : le manifeste vient toujours de cette adresse, et le paquet qu'il désigne doit
+// être sous OTA_BUNDLE_PREFIX (audit du 12/11/2026, M1). Un manifeste qui pointerait ailleurs
+// (autre domaine, autre chemin, http) est refusé, même avec une empreinte valide.
 const OTA_MANIFEST_URL  = 'https://mdlf-ota.vercel.app/manifest.json';
+const OTA_BUNDLE_PREFIX = 'https://mdlf-ota.vercel.app/bundles/';
 const SHELL_RUNTIME_KEY = 'mdlf_shell_runtime';
 const OTA_CHECK_EVERY   = 6 * 3_600_000;   // au retour au premier plan, au plus toutes les 6 h
 const OTA_TIMEOUT       = 8_000;
@@ -34,6 +38,28 @@ function currentBuild() {
   return window.MDLF_BUILD || null;
 }
 
+// Adresse de paquet acceptée : préfixe exact, puis un seul nom de fichier « <version>.zip » fait de
+// caractères sûrs. Le contrôle porte sur le texte brut, sans le décoder : « % » (encodages),
+// « @ » (identifiants), « / » ou « \ » (autre dossier, « // »), « ? » et « # » sont refusés d'office,
+// et un nom qui commence par « . » aussi (« .. »). Le nom de domaine est en minuscules dans le
+// préfixe : « MDLF-OTA… » ou un port (« :443 ») ne passent pas non plus.
+function otaBundleUrlAllowed(url) {
+  if (typeof url !== 'string' || !url.startsWith(OTA_BUNDLE_PREFIX)) return false;
+  return /^[0-9A-Za-z][0-9A-Za-z._-]*\.zip$/.test(url.slice(OTA_BUNDLE_PREFIX.length));
+}
+
+// Empreinte du paquet, sous l'une des deux formes publiées par scripts/ota-bundle.py :
+//  - sans signature (builds sans publicKey) : SHA-256 en hexadécimal ;
+//  - signée (builds avec publicKey Capgo, docs/BUILD.md) : SHA-256 chiffré par la clé privée (base64)
+//    et clé de session « iv:clé » (base64). Le module natif vérifie la signature avec la clé publique
+//    compilée dans l'app et refuse tout paquet sans clé de session valide.
+const OTA_B64 = '[A-Za-z0-9+/]+={0,2}';
+function otaChecksumValid(manifest) {
+  if (manifest.sessionKey === undefined) return /^[0-9a-f]{64}$/.test(manifest.checksum || '');
+  return new RegExp(`^${OTA_B64}$`).test(manifest.checksum || '')
+    && new RegExp(`^${OTA_B64}:${OTA_B64}$`).test(manifest.sessionKey || '');
+}
+
 // Décision pure : faut-il télécharger ce manifeste ? Renvoie { download, reason }.
 //   build        : contenu en place { version, seq, runtime }
 //   shellRuntime : empreinte native de l'app installée
@@ -42,7 +68,7 @@ function liveUpdateDecision(manifest, { build, shellRuntime, failed = [] }) {
   const no = reason => ({ download: false, reason });
   if (!build) return no('contenu sans informations de version');
   if (!manifest || typeof manifest.version !== 'string' || !Number.isFinite(manifest.seq)
-      || !/^https:\/\//.test(manifest.url || '') || !/^[0-9a-f]{64}$/.test(manifest.checksum || '')) {
+      || !otaBundleUrlAllowed(manifest.url) || !otaChecksumValid(manifest)) {
     return no('manifeste invalide');
   }
   // Avant l'empreinte : une OTA plus ancienne que le contenu en place (faite pour une build
@@ -93,7 +119,8 @@ async function checkLiveUpdate({ now = false } = {}) {
     if (!decision.download) return { status: 'none', reason: decision.reason };
 
     const bundle = bundles.find(b => b.version === manifest.version && b.status === 'success')
-      || await Native.ota.download({ url: manifest.url, version: manifest.version, checksum: manifest.checksum });
+      || await Native.ota.download({ url: manifest.url, version: manifest.version, checksum: manifest.checksum,
+        sessionKey: manifest.sessionKey });
     if (!bundle?.id) return { status: 'error', reason: 'téléchargement impossible' };
 
     if (now && !activeSession && await Native.ota.applyNow(bundle.id)) return { status: 'applied', reason: manifest.version };

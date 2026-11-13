@@ -373,8 +373,8 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
 | `js/app/live-update.js` | Décision (`liveUpdateDecision`) et parcours (`checkLiveUpdate`) ; vérifie 3 s après le démarrage puis au retour au premier plan (au plus toutes les 6 h) |
 | `scripts/build-web.mjs` | Embarque `window.MDLF_BUILD = { version, seq, runtime }` dans dist/ |
 | `scripts/runtime-version.mjs` | Calcule l'empreinte native `runtime`, une par plateforme (testée dans `tests/unit/companions.mjs` et `tests/unit/android.mjs`) |
-| `scripts/ota-bundle.py` | dist/ → `ota-site/` : `bundles/<version>.zip` (immuable), `manifest.json` (jamais en cache) |
-| `.github/workflows/ota.yml` | Tests, pages juridiques complètes et en ligne (`check-legal-online.mjs`, docs/JURIDIQUE.md), paquet, publication sur **https://mdlf-ota.vercel.app**, vérification en ligne du SHA-256 |
+| `scripts/ota-bundle.py` | dist/ → `ota-site/` : `bundles/<version>.zip` (immuable), `manifest.json` (jamais en cache) ; chiffrement et signature Capgo si `OTA_CAPGO_PRIVATE_KEY` et `publicKey` sont posées (docs/BUILD.md) |
+| `.github/workflows/ota.yml` | Job `gate` (workflow Tests vert sur le commit publié, construit depuis ce SHA), environnement GitHub `ota` à relecture obligatoire, tests, pages juridiques complètes et en ligne (`check-legal-online.mjs`, docs/JURIDIQUE.md), paquet, publication sur **https://mdlf-ota.vercel.app**, vérification en ligne du SHA-256 |
 
 **Règles de sûreté**
 - **Empreinte native (`runtime`)** : SHA-256 des fichiers Swift compilés (référencés dans une phase
@@ -394,6 +394,8 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
   (`next` + délai `kill`). Réglages › « Rechercher une mise à jour » l'applique tout de suite hors séance.
 - Nouvelle version de l'app installée : retour au contenu d'origine (`resetWhenUpdate`).
 - Seul du code commité est publiable (version « -local » refusée).
+- **Adresse du paquet figée** : `manifest.url` doit être sous `https://mdlf-ota.vercel.app/bundles/`
+  (`otaBundleUrlAllowed`), sinon le manifeste est refusé.
 
 **Règle Apple (Guideline 2.5.2)** : une app ne doit pas télécharger de code qui « introduit ou
 modifie des fonctionnalités ». Les mises à jour à chaud sont donc **réservées aux corrections de
