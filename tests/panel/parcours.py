@@ -705,11 +705,12 @@ def p_nutrition(r):
         r.attendre('#dietFoodSearch', 'feuille de recherche')
         r.saisir('#dietFoodSearch', 'riz cuit', 'recherche')
         r.attendre('#dietFoodList .diet-cand', 'résultats')
-    with r.etape('quantite', 'Aliment choisi : quantité en grammes', cle=cle):
+    # Riz cuit : il existe aussi cru, la feuille de quantité le rappelle (« Pesé cru ? », vague 4)
+    with r.etape('quantite', 'Aliment choisi : quantité en grammes, rappel cru / cuit', cle=cle):
         r.toucher('#dietFoodList .diet-cand', '1er résultat')
-        r.saisir('.ios-dialog__input', 150, 'quantité')
+        r.saisir('.sheet-root:not(.sheet-root--out) #qtyVal', 150, 'quantité')
     with r.etape('aliment-ajoute', 'Aliment ajouté au repas (macros calculées)', cle=cle):
-        r.choisir('OK')
+        r.toucher('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm', 'OK')
     with r.etape('accueil-carte', 'Accueil : carte Nutrition du jour'):
         r.onglet('train', 'Entraînement')
         r.defiler('.diet-home', 'carte Nutrition')

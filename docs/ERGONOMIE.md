@@ -77,6 +77,9 @@ Toujours le même mot pour la même chose, en français courant, au tutoiement, 
 | Mon profil | sa page côté Social | |
 | Suivre ; ceux qui te suivent, les personnes que tu suis | la relation dans Social : « Séances des personnes que tu suis », « Masquée à ceux qui te suivent », Suivre, Ne plus suivre, et les deux listes de Mon profil (Te suivent, Suivis) | amis pour cette relation ; s'abonner, abonnés, abonnements (réservés à l'abonnement payant) |
 | Utiliser ce plan ; plan en cours | prendre un plan diète (le sien ou celui du coach) : « Utiliser ce plan », « Plan en cours : … » | Suivre, suivi (réservés à Social) |
+| Mes aliments | les aliments créés ou scannés par la personne (Réglages de la nutrition › Mes aliments, 200 au plus ; plein : on prévient, jamais le plus ancien retiré en silence) | aliments perso (en libellé) |
+| P, G, L | protéines, glucides, lipides abrégés dans les lignes des listes (« P 7 · G 77 · L 1 »), toujours avec la légende « P protéines · G glucides · L lipides » une fois par écran ou par feuille (`dietMacroLegendHtml`) ; en toutes lettres dans la feuille de quantité et pour VoiceOver | une lettre sans légende à l'écran |
+| cru, cuit | étiquette d'un résultat de recherche quand le nom Ciqual le dit (`foodCookTag`) ; « Pesé cuit ? Choisis la version cuite. » dans la feuille de quantité quand l'autre version existe | |
 | Coaching | la relation entre un élève et son coach : « si le coaching s'arrête », « Quitter mon coach », « Retirer l'élève » | suivi, suivre ; jamais « il » ou « lui » pour le coach (« Ton coach », son pseudo) |
 | Ami | une personne de ta vie qu'on invite (« Inviter un ami », « Entraîne-toi avec tes amis ») | jamais pour dire qui voit tes séances |
 | Supprimer la séance | retirer une séance d'un programme | |
@@ -88,6 +91,9 @@ Un nouveau mot ou un mot qui change : mettre à jour ce lexique, le guide (js/da
 qui citent le libellé (le test du guide échoue si un libellé cité n'existe plus).
 
 ## 4. Tailles
+
+- Carte d'un résumé sur l'accueil (Nutrition) : 4 lignes de liste au plus, « et 2 autres » au-delà ; une seule
+  action par ligne (le bouton à cocher, sur le prochain repas seulement), le reste de la carte ouvre l'écran.
 
 - Toute zone touchable fait au moins 44 × 44 px (pastilles, puces de filtre, ±, champs de recherche).
 - Texte à 12 px au moins (0,706 rem), sauf la barre d'onglets (10 px, comme iOS).

@@ -11,7 +11,8 @@
 //  - offParse : valeurs pour 100 g (ou 100 ml) ; énergie absente → depuis les kJ, sinon 4/4/9 (ecalc) ;
 //    valeurs hors des bornes de cleanDietPer → « incomplet » (la personne saisit l'étiquette).
 //  - Mes aliments (data.dietFoods) : un produit trouvé y est gardé avec son code ; au scan suivant, il est
-//    retrouvé sur l'appareil, sans réseau (dietFoodByCode).
+//    retrouvé sur l'appareil, sans réseau (dietFoodByCode). Plein (200) : le produit n'y est pas gardé, la fiche le
+//    dit et propose de gérer Mes aliments ; jamais le plus ancien retiré en silence.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -140,9 +141,15 @@ async function offLookup(code, { fetchImpl = fetch, timeout = OFF_TIMEOUT, userA
 function dietFoodByCode(list, code) {
   return (Array.isArray(list) ? list : []).find(x => x?.code && x.code === code) || null;
 }
+// Mes aliments plein (DIET_FOODS_MAX) pour ce produit : il n'y est pas encore (même code : remplacé sur place)
+function dietScanFull(d, food) {
+  return (Array.isArray(d.dietFoods) ? d.dietFoods : []).filter(x => x?.code !== food.code).length >= DIET_FOODS_MAX;
+}
 // Garde le produit dans data.dietFoods (en tête) et le renvoie. Même code : remplacé. Même nom qu'un autre
-// aliment perso : le code est ajouté au nom, l'aliment saisi à la main n'est jamais écrasé
+// aliment perso : le code est ajouté au nom, l'aliment saisi à la main n'est jamais écrasé.
+// Plein : rien n'est retiré en silence, null (la fiche le dit, le produit s'ajoute sans être gardé)
 function dietSaveScanned(d, food) {
+  if (dietScanFull(d, food)) return null;
   const list = (Array.isArray(d.dietFoods) ? d.dietFoods : []).filter(x => x?.code !== food.code);
   let name = food.name;
   if (list.some(x => normName(x.name) === normName(name))) name = dietCutName(`${name.slice(0, DIET_FOOD_NAME_MAX - 16)} · ${food.code}`);

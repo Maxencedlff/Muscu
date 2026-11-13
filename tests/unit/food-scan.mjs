@@ -134,6 +134,24 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run("searchFoods('pâte', { own: data.dietFoods })[0].food.src"), 'off');
   });
 
+  test('Mes aliments plein (200) : le produit scanné n\'y est pas gardé, rien n\'en part en silence (vague 4)', () => {
+    reset();
+    const per = { k: 100, p: 10, c: 10, f: 1 };
+    run(`data.dietFoods = ${JSON.stringify(Array.from({ length: 200 }, (_, i) => ({ id: `f${i}`, name: `Aliment ${i}`, fam: 'p', per, ...(i === 9 ? { code: '96385074' } : {}) })))}`);
+    const found = parse(prod({ 'energy-kcal_100g': 539, proteins_100g: 6.3, carbohydrates_100g: 57.5, fat_100g: 30.9 })).food;
+    assert.equal(run(`dietScanFull(data, ${JSON.stringify(found)})`), true);
+    assert.equal(run(`dietSaveScanned(data, ${JSON.stringify(found)})`), null, 'pas gardé');
+    assert.equal(run('data.dietFoods.length'), 200);
+    assert.equal(run('data.dietFoods.at(-1).id'), 'f199', 'le plus ancien reste');
+    // Déjà gardé (même code) : mis à jour sur place, même plein
+    const again = { ...found, code: '96385074' };
+    assert.equal(run(`dietScanFull(data, ${JSON.stringify(again)})`), false);
+    assert.equal(run(`dietSaveScanned(data, ${JSON.stringify(again)}).code`), '96385074');
+    assert.equal(run('data.dietFoods.length'), 200);
+    // Même nom qu'un aliment perso mais autre code : un aliment de plus, donc refusé quand c'est plein
+    assert.equal(run(`dietSaveScanned(data, ${JSON.stringify({ ...found, code: '3017620422003', name: 'Aliment 3' })})`), null);
+  });
+
   test('Scanner : module natif déclaré, attribution ODbL, confidentialité, cache du service worker', () => {
     const swift = read('ios/App/App/ScannerPlugin.swift');
     assert.match(swift, /jsName = "MdlfScanner"/);

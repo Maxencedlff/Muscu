@@ -120,22 +120,58 @@ div.diet-meal__title { cursor: default; }
 .diet-empty__sub { margin: 8px 0 0; font-size: var(--fs-subhead); line-height: 1.45; color: var(--label2); }
 .diet-empty__btn { margin-top: 18px; width: 100%; min-height: 50px; }
 
-/* Carte de l'accueil : anneau, où en est la journée, prochain repas à cocher */
-.diet-home { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 0; }
+/* Carte de l'accueil : anneau, nom du plan, où en est la journée ; dessous, tous les repas du jour (vague 4) : nom, kcal,
+   coché (rond vert plein, comme dans le journal) ou non, le prochain avec son bouton à cocher */
+.diet-home { display: flex; flex-direction: column; padding: 6px 12px 8px 0; }
 .diet-home__open {
-  flex: 1; min-width: 0; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 6px 0 6px 16px;
+  min-width: 0; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 6px 0 6px 16px;
   border: none; background: none; font: inherit; color: var(--label); text-align: left; cursor: pointer;
 }
 .diet-home__open:active { opacity: .7; }
 .diet-home__ring { flex-shrink: 0; display: flex; }
 .diet-home__text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.diet-home__title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
+.diet-home__plan { font-size: var(--fs-footnote); color: var(--label2); overflow-wrap: anywhere; }
 .diet-home__kcal { font-size: var(--fs-subhead); color: var(--label2); }
 .diet-home__kcal b { color: var(--label); font-weight: 700; }
 .diet-home__next { display: flex; align-items: center; gap: 4px; font-size: var(--fs-subhead); font-weight: 600; overflow-wrap: anywhere; }
 .diet-home--complete .diet-home__next { color: var(--check-on); }
-/* Texte agrandi : sans l'anneau (« 0 sur 215 kcal » le dit), le texte garde la largeur et un seul rond reste, celui à
-   cocher (« NUTRITIO/N », deux ronds empilés, panel t5) */
+.diet-home__meals { display: flex; flex-direction: column; padding-left: 16px; cursor: pointer; }
+.diet-home__meal { position: relative; display: flex; align-items: center; gap: 8px; min-height: 34px; }
+.diet-home__meal + .diet-home__meal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: .5px; background: var(--sep); }
+.diet-home__mtext { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 8px; padding: 5px 0; font-size: var(--fs-subhead); }
+.diet-home__mname { min-width: 0; overflow-wrap: anywhere; }
+.diet-home__mkcal { color: var(--label2); white-space: nowrap; }
+.diet-home__meal--done .diet-home__mname { color: var(--label2); }
+.diet-home__meal--next .diet-home__mname { font-weight: 600; }
+.diet-home__mstate { flex-shrink: 0; width: 44px; display: flex; justify-content: center; }
+.diet-home__done { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--check-on); color: var(--check-mark); }
+.diet-home__done .icon { width: 12px; height: 12px; }
+.diet-home__more { padding: 6px 0 2px; font-size: var(--fs-footnote); color: var(--label2); }
 html.type-xl .diet-home__ring { display: none; }
+
+/* Légende des lettres des macros (« P protéines · G glucides · L lipides »), une fois par écran ou par feuille */
+.diet-legend { margin: 0 0 8px; padding: 0 16px; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
+.sheet .diet-legend { margin: 10px 0 0; padding: 0; }
+.diet-legend b { font-weight: 700; color: var(--label); }
+.diet-legend__k { white-space: nowrap; }
+.sheet .diet-legend--list { margin: 0; padding: 8px 14px 2px; }   /* en tête de la liste des résultats */
+/* Étiquette « cru » / « cuit » d'un résultat de recherche : discrète, en tête de la ligne des valeurs */
+.diet-tag { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--label3);
+  font-size: var(--fs-caption); font-weight: 600; line-height: 1.5; color: var(--label); vertical-align: 1px; }
+/* « Créer « whey » » en tête des résultats quand rien ne correspond pile */
+.diet-cand--create .diet-cand__name { color: var(--tint); font-weight: 600; }
+.diet-cand--create .icon { flex-shrink: 0; color: var(--tint); }
+/* Rappel cru / cuit de la feuille de quantité, avec la version à prendre d'un toucher */
+.qty__twin { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r-md); background: var(--fill2); }
+.qty__twin-text { margin: 0; display: flex; gap: 6px; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label); }
+.qty__twin-text .icon { flex-shrink: 0; margin-top: 2px; color: var(--tint); }
+.qty__twin-btn { display: flex; align-items: center; width: 100%; min-height: 44px; margin-top: 6px; padding: 6px 0; border: none; background: none;
+  font: inherit; font-size: var(--fs-subhead); font-weight: 600; color: var(--tint); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.qty__twin-btn:active { opacity: .6; }
+/* Mes aliments plein : avertissement de la fiche d'un produit scanné */
+.fscan__full { margin: 12px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label); }
+.fscan__full .btn { margin-top: 8px; }
 
 /* Feuilles : remplacer, rechercher, créer un aliment, objectifs */
 .diet-swap, .diet-pick, .diet-form { padding: 0; }
@@ -254,3 +290,7 @@ body.light .sheet .qty__step { background: var(--cell); }
 .qty__macros { margin: 2px 0 0; font-size: var(--fs-footnote); color: var(--label); text-align: center; }
 .qty__eq:empty, .qty__macros:empty, .qty__hint:empty { display: none; }
 .qty__hint { margin: 4px 0 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+
+/* Mes aliments (Réglages de la nutrition) : compteur « 37 sur 200 », avertissement quand la liste est pleine */
+.diet-foods__count { margin: 0 0 6px; padding: 0 16px; font-size: var(--fs-footnote); color: var(--label2); }
+.diet-foods-view .diet-low { margin: 0 16px 10px; color: var(--label); }

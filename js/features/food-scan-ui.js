@@ -89,7 +89,7 @@ function fscanStateHtml(kind, code) {
 }
 // Valeurs pour 100 g, la quantité (100 g d'office, ou 1 unité du paquet : « 1 pot ») et ce qu'elle apporte,
 // recalculé à la frappe. units : dietQtyUnits(food)
-function fscanFoundHtml(food, units = []) {
+function fscanFoundHtml(food, units = [], { kept = true } = {}) {
   const per = food.per;
   const row = (label, shown, spoken) => `<div class="fscan__row" role="listitem"><span class="fscan__k">${label}</span><span class="fscan__v num">${dietSrPair(shown, spoken)}</span></div>`;
   const g1 = v => fmtNum(v, 1);
@@ -110,9 +110,12 @@ function fscanFoundHtml(food, units = []) {
       <input id="fscanG" class="diet-field__input num" type="text" inputmode="decimal" autocomplete="off" value="100" aria-label="Quantité en grammes, ${DIET_G_MAX} au plus">
       <span class="diet-field__unit">g</span></label>`}
     <p class="fscan__total num" id="fscanTotal" aria-live="polite"></p>
+    ${units.length ? '' : dietMacroLegendHtml()}
     <p class="diet-form__err" id="fscanErr" role="alert"></p>
     ${food.src === 'off' ? fscanSrcHtml() : '<p class="fscan__src">Ton aliment, avec les valeurs que tu as saisies.</p>'}
-    <p class="fscan__src">Gardé dans Mes aliments : retrouvé sans réseau au prochain scan.</p>`;
+    ${kept ? '<p class="fscan__src">Gardé dans Mes aliments : retrouvé sans réseau au prochain scan.</p>'
+      : `<div class="fscan__full" role="note"><p>Mes aliments est plein (${DIET_FOODS_MAX}) : ce produit s'ajoute, mais n'y est pas gardé. Retire ceux dont tu ne te sers plus pour garder les prochains.</p>
+      <button class="btn btn--secondary btn--full" data-fscan="foods">Gérer Mes aliments</button></div>`}`;
 }
 function fscanTotalText(food, g) {
   if (g === null) return '';
@@ -140,10 +143,10 @@ function foodScanSheet(code) {
     const t = focusSel && $(focusSel, box);
     if (t) t.focus({ preventScroll: true });
   };
-  const showFood = f => {
+  const showFood = (f, { kept = true } = {}) => {
     food = f;
     const units = dietQtyUnits(f);
-    show(fscanFoundHtml(f, units), '.fscan__name');
+    show(fscanFoundHtml(f, units, { kept }), '.fscan__name');
     ok.style.visibility = '';
     // À l'unité : le contrôle donne résumé et macros, le total resterait une redite
     if (units.length) { readQty = dietQtyBind(box, units, dietQtyInit(units, null), f.per); return; }
@@ -160,9 +163,12 @@ function foodScanSheet(code) {
     busy = false;
     if (!root.isConnected) return;   // feuille fermée pendant la recherche
     if (r.status === 'found') {
-      const kept = dietSaveScanned(data, r.food);
-      save();
-      if (kept) { showFood(kept); announce(`${kept.name} trouvé`); return; }
+      // Mes aliments plein : le produit s'ajoute quand même, sans y être gardé (fscanFoundHtml le dit)
+      const full = dietScanFull(data, r.food);
+      const kept = full ? null : dietSaveScanned(data, r.food);
+      if (kept) save();
+      const f = kept || (full ? r.food : null);
+      if (f) { showFood(f, { kept: !!kept }); announce(`${f.name} trouvé${full ? '. Mes aliments est plein : il n\'y est pas gardé' : ''}`); return; }
     }
     const kind = FSCAN_STATES[r.status] ? r.status : 'error';
     show(fscanStateHtml(kind, code), '.fscan__title');
@@ -172,6 +178,7 @@ function foodScanSheet(code) {
     const b = ev.target.closest('[data-fscan]');
     if (!b) return;
     if (b.dataset.fscan === 'retry') lookup();
+    else if (b.dataset.fscan === 'foods') root._close({ manage: true });
     else root._close({ create: box.dataset.name || '' });
   });
   // Déjà scanné (ou créé après un code introuvable) : sur l'appareil, sans réseau
@@ -186,6 +193,7 @@ async function foodScanFlow() {
   if (!code) return null;
   const r = await foodScanSheet(code);
   if (!r) return null;
+  if (r.manage) { dietOpenFoods(); return null; }
   if (r.create !== undefined) {
     const made = await dietNewFood(r.create, { code });
     if (!made?.food) return null;

@@ -142,7 +142,8 @@ def t_journee(bench, eng, dev, theme):
         page.click('.diet-home [data-action="diet-check"]')
         page.wait_for_timeout(250)
         R.check(page.evaluate("dietDayProgress(data, data.dietActive).meals[0].done") is True, f'{t} accueil : petit-déjeuner coché d\'un toucher')
-        R.check('Déjeuner' in page.inner_text('.diet-home'), f'{t} accueil : le déjeuner passe devant')
+        R.check(page.locator('.diet-home__meal--next[data-meal="m2"] [data-action="diet-check"]').count() == 1
+                and page.locator('.diet-home__meal--done[data-meal="m1"] .diet-home__done').count() == 1, f'{t} accueil : petit-déjeuner coché, le déjeuner a le bouton')
         R.check(page.evaluate("JSON.parse(localStorage.getItem('ppl_v2')).dietLog['2026-11-05'].done[0]") == 'm1', f'{t} coche enregistrée')
         # Écran Nutrition
         page.click('.diet-home__open')
@@ -314,6 +315,9 @@ def t_creer_plan(bench, eng, dev, theme):
         page.wait_for_timeout(200)
         R.check(page.locator('#dietFoodList .diet-cand').count() >= 5, f'{t} recherche : résultats')
         shot(page, LOT, f'6-recherche-{t}')
+        # Flocons d'avoine : le nom ne dit ni cru ni cuit, pas de rappel ; la quantité se tape dans l'alerte à champ
+        page.fill('#dietFoodSearch', 'flocons avoine')
+        page.wait_for_timeout(200)
         first = page.locator('#dietFoodList .diet-cand .diet-cand__name').first.inner_text()
         page.locator('#dietFoodList .diet-cand').first.click()
         page.wait_for_selector('.ios-dialog__input')
@@ -893,11 +897,190 @@ def t_minuit(bench):
         open_app(page, 'light', with_plan(eve))
         page.click('.diet-home [data-action="diet-check"]')
         page.wait_for_timeout(200)
-        R.check('Déjeuner' in page.inner_text('.diet-home'), 'accueil 23 h 59 : petit-déjeuner coché')
+        R.check(page.locator('.diet-home__meal--next[data-meal="m2"]').count() == 1, 'accueil 23 h 59 : petit-déjeuner coché')
         page.clock.run_for(90_000)
         page.wait_for_timeout(300)
-        R.check('Petit-déjeuner' in page.inner_text('.diet-home'), f'minuit : carte de l\'accueil sur la nouvelle journée ({page.inner_text(".diet-home")!r})')
+        R.check(page.locator('.diet-home__meal--next[data-meal="m1"]').count() == 1 and page.locator('.diet-home__meal--done').count() == 0,
+                f'minuit : carte de l\'accueil sur la nouvelle journée ({page.inner_text(".diet-home")!r})')
         R.check(not page.errors, f'minuit accueil : aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer], once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier, t_minuit])
+# ── Vague 4 (demandes de Maxence) ───────────────────────────
+
+def t_vague4(bench, eng, dev, theme):
+    """Vague 4 : carte de l'accueil (nom du plan, tous les repas), légende des macros, « Créer « … » » en tête,
+    étiquettes cru / cuit, rappel « Pesé cuit ? » avec la version cuite prise d'un toucher."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, with_plan(NOW))
+        card = page.locator('.diet-home')
+        card.scroll_into_view_if_needed()
+        R.check(nb(page.inner_text('.diet-home__plan')) == 'Prise de masse', f'{t} v4 carte : nom du plan')
+        rows = page.locator('.diet-home__meal')
+        names = [nb(x) for x in page.locator('.diet-home__mname').all_inner_texts()]
+        R.check(names == ['Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'], f'{t} v4 carte : les 4 repas ({names})')
+        kc = [nb(x) for x in page.locator('.diet-home__mkcal').all_inner_texts()]
+        R.check(len(kc) == 4 and all(re.fullmatch(r'\d[\d ]* kcal', k) for k in kc), f'{t} v4 carte : kcal de chaque repas ({kc})')
+        R.check(page.locator('.diet-home [data-action="diet-check"]').count() == 1
+                and page.locator('.diet-home__meal--next[data-meal="m1"] [data-action="diet-check"]').count() == 1, f'{t} v4 carte : un seul bouton, sur le prochain repas')
+        lbl = page.get_attribute('.diet-home__open', 'aria-label') or ''
+        R.check('Prise de masse' in lbl and 'Déjeuner' in lbl and 'Dîner' in lbl and lbl.endswith('Ouvrir'), f'{t} v4 carte : VoiceOver dit le plan et les repas ({lbl[:90]!r})')
+        R.check(page.evaluate("[...document.querySelectorAll('.diet-home__mtext')].every(e => e.getAttribute('aria-hidden') === 'true')"), f'{t} v4 carte : lignes cachées à VoiceOver (dites par le bouton)')
+        h = page.evaluate("document.querySelector('.diet-home').getBoundingClientRect().height")
+        R.check(rows.count() == 4 and h < 330, f'{t} v4 carte : compacte ({round(h)} px)')
+        layout(page, t, 'v4 carte de l\'accueil')
+        shot(page, LOT, f'v4-1-carte-{t}')
+        page.click('.diet-home [data-action="diet-check"]')
+        page.wait_for_timeout(300)
+        R.check(page.locator('.diet-home__meal--done[data-meal="m1"]').count() == 1 and page.locator('.diet-home__meal--next[data-meal="m2"] .diet-check').count() == 1,
+                f'{t} v4 carte : coché d\'un toucher, le suivant prend le bouton')
+        shot(page, LOT, f'v4-2-carte-cochee-{t}')
+        # Toucher une ligne (pas le bouton) : ouvre Nutrition ; légende des lettres une fois sous « Repas »
+        page.locator('.diet-home__meal[data-meal="m3"] .diet-home__mtext').click()
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        leg = page.locator('.nutrition-view .diet-legend')
+        R.check(leg.count() == 1 and nb(leg.inner_text()) == 'P protéines · G glucides · L lipides' and leg.get_attribute('aria-hidden') == 'true',
+                f'{t} v4 Nutrition : légende des macros, une fois ({leg.count()})')
+        layout(page, t, 'v4 Nutrition légende')
+        # Recherche : « whey » absent de Ciqual → « Créer « whey » » en tête, nom prérempli
+        open_editor(page)
+        R.check(page.locator('.diet-plan-view .diet-legend').count() == 1, f'{t} v4 éditeur : légende des macros')
+        page.locator('[data-action="diet-add-food"]').nth(2).click()
+        page.wait_for_selector('#dietFoodSearch')
+        page.fill('#dietFoodSearch', 'whey')
+        page.wait_for_timeout(200)
+        first = page.locator('#dietFoodList > *').first
+        R.check('diet-cand--create' in (first.get_attribute('class') or '') and nb(first.locator('.diet-cand__name').inner_text()) == 'Créer « whey »',
+                f'{t} v4 recherche : « Créer « whey » » en tête')
+        R.check(page.locator('.diet-pick > .diet-cand--new').count() == 1, f'{t} v4 recherche : « Créer un aliment » reste en bas')
+        shot(page, LOT, f'v4-3-creer-en-tete-{t}')
+        first.click()
+        page.wait_for_selector('#dietFoodName')
+        R.check(page.input_value('#dietFoodName') == 'Whey', f'{t} v4 créer : nom prérempli ({page.input_value("#dietFoodName")!r})')
+        page.click(f'{LIVE_SHEET} .sheet__btn--cancel')
+        page.wait_for_timeout(350)
+        # Riz blanc : trouvé pile, pas de « Créer » ; étiquettes cru / cuit
+        page.locator('[data-action="diet-add-food"]').nth(2).click()
+        page.wait_for_selector('#dietFoodSearch')
+        page.fill('#dietFoodSearch', 'riz blanc')
+        page.wait_for_timeout(200)
+        R.check(page.locator('#dietFoodList .diet-cand--create').count() == 0, f'{t} v4 recherche : « riz blanc » trouvé pile, pas de « Créer »')
+        tags = page.evaluate("""[...document.querySelectorAll('#dietFoodList .diet-cand')].map(b => [b.querySelector('.diet-cand__name')?.textContent, b.querySelector('.diet-tag')?.textContent || ''])""")
+        crus = [n for n, tg in tags if tg == 'cru']
+        cuits = [n for n, tg in tags if tg == 'cuit']
+        R.check('Riz blanc, cru' in crus and 'Riz blanc, cuit, sans sel ajouté' in cuits, f'{t} v4 recherche : étiquettes cru et cuit ({len(crus)} cru, {len(cuits)} cuit)')
+        R.check(page.locator('#dietFoodList .diet-legend').count() == 1, f'{t} v4 recherche : légende des macros')
+        # Barre de la feuille mesurée après son animation d'ouverture (en CI, mesurée pendant : « Annuler » à 40 pt)
+        page.wait_for_function("s => [...document.querySelectorAll(s)].every(e => !e.getAnimations().length)", arg=f'{LIVE_SHEET}, {LIVE_SHEET} *')
+        st = small_targets(page, f'{LIVE_SHEET} button')
+        if st:   # détail pour comprendre un échec en CI (taille de chaque bouton trop petit, taille de la fenêtre)
+            st = page.evaluate("""s => [...document.querySelectorAll(s)].filter(e => e.offsetParent && !e.disabled).map(e => [e.textContent.trim().slice(0, 12), e.getBoundingClientRect()])
+                .filter(([, r]) => r.width < 44 || r.height < 44).map(([n, r]) => n + ' ' + Math.round(r.width) + 'x' + Math.round(r.height)).concat(['vue ' + innerWidth + 'x' + innerHeight])""", f'{LIVE_SHEET} button')
+        R.check(not st, f'{t} v4 recherche : 44 pt {st}')
+        ct = cut_texts(page, LIVE_SHEET)
+        R.check(not ct, f'{t} v4 recherche : aucun texte coupé {ct}')
+        shot(page, LOT, f'v4-4-cru-cuit-{t}')
+        # Riz blanc cru choisi : « Pesé cuit ? Choisis la version cuite. », un toucher prend le riz cuit
+        pick_food(page, 'riz blanc', 'Riz blanc, cru')
+        page.wait_for_selector(f'{LIVE_SHEET} .qty__twin')
+        tw = nb(page.inner_text(f'{LIVE_SHEET} .qty__twin'))
+        R.check('Pesé cuit ? Choisis la version cuite.' in tw and 'Riz blanc, cuit, sans sel ajouté' in tw, f'{t} v4 quantité : rappel cru / cuit ({tw!r})')
+        R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '100', f'{t} v4 quantité : 100 g d\'office')
+        R.check(small_targets(page, f'{LIVE_SHEET} button') == [] and not cut_texts(page, LIVE_SHEET), f'{t} v4 quantité : 44 pt, aucun texte coupé')
+        shot(page, LOT, f'v4-5-pese-cuit-{t}')
+        page.click(f'{LIVE_SHEET} [data-qtwin]')
+        page.wait_for_timeout(400)
+        page.wait_for_selector(f'{LIVE_SHEET} #qtyVal, .ios-dialog__input')
+        R.check(page.locator(f'{LIVE_SHEET} .qty__twin').count() == 0, f'{t} v4 version cuite : pas de second rappel')
+        qty_grams(page, '180')
+        page.wait_for_timeout(400)
+        it = page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1)")
+        R.check(it and it['food'] == RIZ and it['g'] == 180, f'{t} v4 version cuite ajoutée ({it and it["name"]}, {it and it["g"]} g)')
+        R.check(not page.errors, f'{t} v4 aucune erreur JS {page.errors[:2]}')
+
+
+def t_vague4_six_repas(bench):
+    """Carte de l'accueil avec 6 repas : 3 autour du prochain et « et 3 autres », iPhone SE en texte agrandi."""
+    eng = dict((d, e) for e, d in ALL_DEVICES)['iPhone SE']
+    plan = json.loads(json.dumps(PLAN))
+    plan['meals'] += [{'id': 'm5', 'name': 'Collation du soir', 'items': [food_item(BANANE, 120, 'i9')]},
+                      {'id': 'm6', 'name': 'Avant de dormir', 'items': [food_item(OEUF, 100, 'i10')]}]
+    d = ppl_v2_today(now_ms=NOW)
+    d['dietPlans'] = {'d_masse01': plan}
+    d['dietActive'] = 'd_masse01'
+    d['dietLog'] = {'2026-11-05': {'plan': 'd_masse01', 'done': ['m1', 'm2', 'm3'], 'swaps': {}}}
+    for theme in ('light', 'dark'):
+        with bench.frozen_page(NOW, eng, 'iPhone SE', theme) as page:
+            open_app(page, theme, json.dumps(d, ensure_ascii=False))
+            page.locator('.diet-home').scroll_into_view_if_needed()
+            ids = page.evaluate("[...document.querySelectorAll('.diet-home__meal')].map(e => e.dataset.meal)")
+            R.check(ids == ['m3', 'm4', 'm5'] and nb(page.inner_text('.diet-home__more')) == 'et 3 autres', f'{theme} 6 repas : 3 autour du prochain, « et 3 autres » ({ids})')
+            layout(page, f'SE-{theme}', '6 repas')
+            shot(page, LOT, f'v4-6-six-repas-iPhone_SE-{theme}')
+            # Texte agrandi : rien de coupé, 44 pt, pas de défilement de côté
+            page.add_style_tag(content='html { font-size: 28px !important; }')
+            page.evaluate("window.dispatchEvent(new Event('resize'))")
+            page.wait_for_timeout(300)
+            R.check(page.evaluate("document.documentElement.classList.contains('type-xl')"), f'{theme} texte agrandi actif')
+            page.locator('.diet-home').scroll_into_view_if_needed()
+            layout(page, f'SE-{theme}', '6 repas texte agrandi')
+            shot(page, LOT, f'v4-7-six-repas-xl-iPhone_SE-{theme}')
+
+
+def t_vague4_plein(bench):
+    """Mes aliments plein (200) : prévenu, jamais le plus ancien retiré ; ajouter sans garder ; Gérer Mes aliments, retirer, Annuler."""
+    eng = dict((d, e) for e, d in ALL_DEVICES)['iPhone 13']
+    d = ppl_v2_today(now_ms=NOW)
+    d['dietPlans'] = {'d_masse01': PLAN}
+    d['dietActive'] = 'd_masse01'
+    d['dietFoods'] = [{'id': f'f{i}', 'name': f'Aliment perso {i}', 'fam': 'p', 'per': {'k': 100, 'p': 10, 'c': 10, 'f': 1}} for i in range(200)]
+    seed_json = json.dumps(d, ensure_ascii=False)
+    for theme in ('dark', 'light'):
+        with bench.frozen_page(NOW, eng, 'iPhone 13', theme) as page:
+            open_app(page, theme, seed_json)
+            open_editor(page)
+
+            def create(name):
+                page.locator('[data-action="diet-add-food"]').nth(2).click()
+                page.wait_for_selector('#dietFoodSearch')
+                page.click('.diet-cand--new')
+                page.wait_for_selector('#dietFoodName')
+                page.fill('#dietFoodName', name)
+                page.fill('#dietFoodP', '20')
+                page.click('.sheet__btn--confirm')
+                page.wait_for_selector('.ios-dialog')
+            create('Barre maison')
+            msg = page.inner_text('.ios-dialog')
+            R.check('Mes aliments est plein' in msg and '200' in msg, f'{theme} plein : prévenu ({msg[:60]!r})')
+            shot(page, LOT, f'v4-8-plein-{theme}')
+            tap_dialog(page, 'Ajouter sans le garder')
+            qty_grams(page, '50')
+            page.wait_for_timeout(400)
+            R.check(page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1).name") == 'Barre maison', f'{theme} plein : ajouté au repas')
+            R.check(page.evaluate("[data.dietFoods.length, data.dietFoods.at(-1).id, data.dietFoods.some(x => x.name === 'Barre maison')]") == [200, 'f199', False],
+                    f'{theme} plein : rien retiré, pas gardé')
+            # Gérer Mes aliments : la liste, retirer, Annuler
+            create('Barre maison 2')
+            tap_dialog(page, 'Gérer Mes aliments')
+            page.wait_for_selector('.diet-foods-view')
+            R.check('200 sur 200' in nb(page.inner_text('.diet-foods-view')) and page.locator('.diet-foods-view .diet-low').count() == 1, f'{theme} Mes aliments : 200 sur 200, plein dit')
+            R.check(page.locator('.diet-foods-view [data-action="diet-food-menu"]').count() == 200, f'{theme} Mes aliments : la liste')
+            layout(page, theme, 'Mes aliments')
+            shot(page, LOT, f'v4-9-mes-aliments-{theme}')
+            page.locator('.diet-foods-view [data-action="diet-food-menu"]').first.click()
+            tap_dialog(page, 'Retirer de Mes aliments')
+            page.wait_for_timeout(300)
+            R.check(page.evaluate("[data.dietFoods.length, data.dietFoods[0].id, data.dietFoodsGone]") == [199, 'f1', ['f0']], f'{theme} retiré, noté pour la synchro')
+            R.check('199 sur 200' in nb(page.inner_text('.diet-foods-view')) and 'Retiré : Aliment perso 0' in toast(page), f'{theme} retiré : compteur et toast')
+            page.locator('.toast__action').click()
+            page.wait_for_timeout(300)
+            R.check(page.evaluate("[data.dietFoods.length, data.dietFoods[0].id, data.dietFoodsGone ?? null]") == [200, 'f0', None], f'{theme} Annuler : remis à sa place')
+            # Réglages de la nutrition : entrée « Mes aliments »
+            page.evaluate("navigate('diet-settings')")
+            page.wait_for_selector('[data-action="go-diet-foods"]')
+            R.check('200' in page.inner_text('[data-action="go-diet-foods"]'), f'{theme} réglages : Mes aliments et son nombre')
+            R.check(not page.errors, f'{theme} plein : aucune erreur JS {page.errors[:2]}')
+
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4],
+         once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier, t_minuit, t_vague4_six_repas, t_vague4_plein])

@@ -124,6 +124,45 @@ Demande de Maxence : « choisir la quantité d'œufs plutôt que le poids » (ya
   envoi au coach, Open Food Facts), tests/test_nutrition.py `t_unites` (2 œufs → 100 g, 134 kcal),
   tests/test_scan_aliment.py `t_pot` (yaourt « 4 x 125 g » → 1 pot).
 
+## Vague 4 (12/11/2026) : demandes de Maxence
+
+- **Carte de l'accueil** (`nutritionHomeCard`) : le nom du plan à côté de « Nutrition », les calories du jour, puis
+  **tous les repas du jour** (nom, kcal, rond vert plein une fois coché). Le prochain repas porte le bouton à cocher
+  (un toucher) ; le reste de la carte ouvre Nutrition. Compacte : 4 repas au plus listés, au-delà 3 autour du
+  prochain (le dernier coché, le prochain, le suivant) et « et 2 autres » (`dietHomeMeals`, js/data/nutrition.js).
+  VoiceOver : le bouton du haut dit le plan, les calories et chaque repas ; les lignes sont cachées, sauf le bouton.
+- **Recherche** (`dietPickFood`) : quand aucun résultat ne contient chaque mot tapé en entier (`foodSearchExact` :
+  « whey », « riz bl »), « Créer « whey » » s'affiche **en tête**, et la feuille de création s'ouvre avec ce nom
+  (majuscule au début). « Créer un aliment » reste en bas, vide.
+- **Cru, cuit** : étiquette discrète « cru » ou « cuit » sur un résultat quand le nom Ciqual le dit (`foodCookTag` :
+  cuit, grillé, poêlé, bouilli, rôti, braisé, vapeur… ; cru, à cuire ; « sec » seulement pour un féculent, une
+  banane sèche n'est pas crue ; « blé dur » n'est pas un œuf dur, corrigé aussi dans `foodState` des équivalences).
+  Feuille de quantité d'un **nouvel** aliment de la base qui existe dans l'autre version (`foodCookTwin` : même nom
+  sans les mots de la cuisson, même famille ; plus de 200 couples, riz, pâtes, quinoa, boulgour, viandes, poissons) : « Pesé
+  cuit ? Choisis la version cuite. Les valeurs ne sont pas les mêmes. » et un bouton « Prendre Riz blanc, cuit… »
+  qui rouvre la feuille sur l'autre version. Ces aliments passent par la feuille (grammes seuls) plutôt que
+  l'alerte à champ, pour porter le bouton. Rien en modification d'une quantité.
+- **Mes aliments plein (200)** : avant, le plus ancien partait en silence (`cleanDietFoods`). Maintenant :
+  création (`dietKeepFood`) : « Mes aliments est plein », **Ajouter sans le garder** (l'aliment va au repas,
+  le plan garde ses valeurs), **Gérer Mes aliments** ou Annuler ; scan (`dietScanFull`) : le produit s'ajoute
+  sans être gardé, la fiche le dit et propose « Gérer Mes aliments ». Un aliment déjà gardé (même nom, même
+  code-barres) se met à jour sur place, même plein. **Réglages de la nutrition › Mes aliments** (`diet-foods`) :
+  « 37 sur 200 », la liste (créé ou scanné, valeurs pour 100 g), un toucher puis « Retirer de Mes aliments »
+  (Annuler dans le toast, remis à sa place). Retirer ne change aucun plan.
+  Synchro : l'identifiant retiré va dans `dietFoodsGone` (300 au plus, copié avec l'accord comme `dietFoods`) ;
+  la fusion par union ne fait plus revenir un aliment retiré d'un autre appareil qui l'avait encore.
+- **Macros pour débutants** : les lignes des listes restent « P 7 · G 77 · L 1 » (« 100 g · 155 kcal · 3,3 g prot. ·
+  33,2 g gluc. · 0,7 g lip. » fait une fois et demie la longueur et passe à la ligne sur iPhone SE, plus encore en
+  texte agrandi) ;
+  la légende « **P** protéines · **G** glucides · **L** lipides » s'affiche une fois par écran ou par feuille
+  (`dietMacroLegendHtml` : Nutrition sous « Repas », éditeur du plan sous « Par jour », recherche, Remplacer,
+  fiche d'un produit scanné, Mes aliments). Cachée à VoiceOver, qui dit déjà chaque ligne en toutes lettres ;
+  absente quand les chiffres sont masqués. La feuille de quantité garde ses macros en toutes lettres.
+- **Tests** : tests/unit/nutrition.mjs (« vague 4 » : étiquettes, couples cru / cuit, recherche pile, Mes aliments
+  plein, retirer et Annuler, synchro des retraits, repas de la carte, textes), tests/unit/food-scan.mjs (scan
+  plein), tests/test_nutrition.py `t_vague4` (5 appareils, clair et sombre), `t_vague4_six_repas` (iPhone SE,
+  texte agrandi), `t_vague4_plein`.
+
 ## Équivalences : la règle (js/data/food-swap.js, testée par tests/unit/nutrition.mjs)
 
 Principe des « exchange lists » de l'ADA / Academy of Nutrition and Dietetics (« Choose Your Foods ») et des
@@ -237,7 +276,7 @@ consentement explicite). Deux accords séparés, chacun daté et retirable :
 
 - **Entraînement › Nutrition** (écran du jour) et une **carte sur l'accueil** quand un plan est suivi.
   L'accueil est l'endroit du « aujourd'hui » : on y démarre sa séance, on y coche son repas. La carte
-  montre l'anneau des calories et le prochain repas, avec le bouton à cocher : pas besoin d'ouvrir l'écran
+  montre le nom du plan, l'anneau des calories et les repas du jour, le prochain avec le bouton à cocher : pas besoin d'ouvrir l'écran
   (« cocher le petit bouton vert, hop tu passes à la suite »). Sans plan, rien sur l'accueil (aucun bruit
   pour qui ne s'en sert pas).
 - **Programme › Plans diète** : on prépare ses plans là où on prépare ses programmes. Un coach y écrit les
@@ -259,7 +298,8 @@ dietPlans: { [id]: {                 // profil, AVEC ACCORD seulement ; fusion p
   meals: [{ id, name, note?, items: [{ id, name, food: code Ciqual | null, fam, g, per: { k, p, c, f }, src, ecalc?,
     por?: { n, u, pl, g } }] }] } },   // por : unité choisie (« 2 œufs »), g fait foi
 dietActive: id,                      // plan suivi (profil)
-dietFoods: [{ id, name, fam, per, code?, src?, salt?, portion?: { u, pl, g } }], // aliments perso (profil)
+dietFoods: [{ id, name, fam, per, code?, src?, salt?, portion?: { u, pl, g } }], // aliments perso (profil), 200 au plus
+dietFoodsGone: [id],                 // aliments perso retirés (profil, avec accord) : la fusion ne les fait pas revenir
 dietLog: { 'AAAA-MM-JJ': { plan, done: [id de repas], swaps: { [id d'aliment]: aliment }, meals: [id] } },   // SYNC_LOCAL_ONLY ; meals : instantané du jour
 dietConsent: { on, at },             // accord daté (profil, part toujours)
 dietConsentAsked, dietHideNumbers, dietStreakOff: true,   // réglages de l'appareil (SYNC_LOCAL_ONLY)
@@ -348,7 +388,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 | `js/data/food-portions.js` | Portions courantes (table), unité du paquet scanné (`offPortion`), textes « 2 œufs » (chargé avant `nutrition.js`) |
 | `js/features/diet-qty.js` | Contrôle de quantité « Grammes \| unité » et feuille de quantité (`dietAskQty`) |
 | `js/features/diet-editor.js` | Plans diète, éditeur, recherche d'aliment, aliment perso, objectifs |
-| `js/features/diet-settings.js` | Réglages de la nutrition (chiffres masqués, série, accord) et question de l'accord |
+| `js/features/diet-settings.js` | Réglages de la nutrition (Mes aliments, chiffres masqués, série, accord) et question de l'accord |
 | `css/nutrition.css` | Styles (couleurs : tokens `--macro-*`, `--check-*` de `css/base.css`) |
 | `tests/unit/nutrition.mjs` | Bornes, macros, coches, série, équivalences sur la vraie base, plan du coach, notification |
 | `tests/test_nutrition.py` | Parcours complets (5 appareils, clair et sombre) et captures |

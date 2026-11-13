@@ -100,7 +100,8 @@ function foodMatchScore(key, words) {
 function searchFoods(query, { limit = 40, own = [] } = {}) {
   const words = foodKey(query).split(' ').filter(Boolean);
   if (!words.length) return [];
-  const mine = own.map(x => ({ food: dietOwnPick(x), own: true, score: foodMatchScore(foodKey(x.name), words) + 100000 }));
+  // Mes aliments d'abord, seulement s'ils correspondent (avant : tous listés à chaque recherche, « Skyr » pour « riz »)
+  const mine = own.map(x => { const m = foodMatchScore(foodKey(x.name), words); return { food: dietOwnPick(x), own: true, score: m > 0 ? m + 100000 : 0 }; });
   const base = (foodDb?.foods || []).map(f => ({ food: f, own: false, score: foodMatchScore(f.key, words) }));
   return [...mine, ...base].filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.food.name.localeCompare(b.food.name, 'fr')).slice(0, limit);
 }
@@ -121,11 +122,41 @@ const swapAnchorOf = (per, anchor) => (anchor === 'p' ? per.p : per.k);
 function swapRoundG(g) { return g < 50 ? Math.max(1, Math.round(g)) : Math.round(g / 5) * 5; }
 // Cru ou cuit d'après le nom Ciqual, null si le nom ne le dit pas
 function foodState(name) {
-  const k = foodKey(name);
+  const k = foodKey(name).replace(/\bble dur\b/g, 'ble');   // « Semoule de blé dur, crue » : « dur » d'un œuf, pas du blé
   if (/\b(cuit|cuite|cuits|cuites|bouilli|bouillie|roti|rotie|grille|grillee|poele|poelee|vapeur|frit|frite|frites|braise|appertise|appertisee|dur|mollet|poche|brouille)\b/.test(k)) return 'cuit';
   // « Pâtes sèches, cuites » : cuites ; « Polenta précuite, à cuire », « Banane sèche » : pas encore cuites ou séchées
   if (/\ba cuire\b|\b(cru|crue|crus|crues|sec|seche|secs|seches|deshydrate|deshydratee|deshydrates)\b/.test(k)) return 'cru';
   return null;
+}
+// Étiquette « cru » ou « cuit » d'un résultat de recherche (pâtes, riz, viandes…), null quand le nom ne le dit pas.
+// « Sec » ne vaut « cru » que pour un féculent (lentilles, pâtes sèches) : une banane sèche n'est pas crue
+function foodCookTag(food) {
+  const st = foodState(food?.name);
+  if (st !== 'cru') return st;
+  return /\ba cuire\b|\b(cru|crue|crus|crues)\b/.test(foodKey(food.name)) || food.fam === 'f' ? 'cru' : null;
+}
+// Nom sans les mots de la cuisson : « Riz blanc, cru » et « Riz blanc, cuit, sans sel ajouté » donnent « riz blanc »
+const FOOD_COOK_WORDS = /\b(sans sel ajoute|a l eau|au four|a cuire|cuit|cuite|cuits|cuites|bouilli|bouillie|roti|rotie|grille|grillee|poele|poelee|vapeur|braise|cru|crue|crus|crues|sec|seche|secs|seches)\b/g;
+const foodCookBase = name => foodKey(name).replace(/\bble dur\b/g, 'ble').replace(FOOD_COOK_WORDS, ' ').replace(/\s+/g, ' ').trim();
+// Version crue d'un aliment cuit de la base, ou l'inverse (même nom sans la cuisson, même famille), null sans elle.
+// Plusieurs (faux-filet grillé, rôti) : le nom le plus court. Sert au rappel « Pesé cuit ? » de la feuille de quantité
+function foodCookTwin(food) {
+  const tag = food?.code ? foodCookTag(food) : null;
+  if (!tag || !foodDb) return null;
+  const base = foodCookBase(food.name);
+  if (!base) return null;
+  let best = null;
+  for (const f of foodDb.foods) {
+    if (f.code === food.code || f.fam !== food.fam || foodCookTag(f) === tag || !foodCookTag(f) || foodCookBase(f.name) !== base) continue;
+    if (!best || f.name.length < best.name.length) best = f;
+  }
+  return best;
+}
+// La recherche a-t-elle trouvé pile ce qui est tapé ? Un résultat contient chaque mot tapé en entier (« huile olive » :
+// « Huile d'olive vierge extra » ; « riz bl », mot pas fini, ou « whey », absent : non)
+function foodSearchExact(query, results) {
+  const words = foodKey(query).split(' ').filter(Boolean);
+  return words.length > 0 && results.some(x => { const parts = foodKey(x.food.name).split(' '); return words.every(w => parts.includes(w)); });
 }
 // Écarts du remplaçant (à sa quantité) avec l'original : { kcal, p, c, f }
 function swapDelta(a, b) { return { kcal: b.kcal - a.kcal, p: b.p - a.p, c: b.c - a.c, f: b.f - a.f }; }

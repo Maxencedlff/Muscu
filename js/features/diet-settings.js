@@ -10,7 +10,8 @@
 //    sans lui, le coach ne peut pas envoyer (serveur à jour) et l'app n'affiche rien du plan (invitation).
 //    Retiré : les plans diète que le serveur gardait pour l'élève sont effacés (déclencheur).
 //  Questions courtes (deux phrases), « En savoir plus » ouvre privacy.html#nutrition.
-//  - Écran diet-settings : masquer les calories et les grammes de macros, afficher la série, les accords.
+//  - Écran diet-settings : Mes aliments, masquer les calories et les grammes de macros, afficher la série, les accords.
+//  - Écran diet-foods (Mes aliments) : aliments créés ou scannés, un toucher pour en retirer un.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -92,6 +93,12 @@ function renderDietSettings() {
     <div class="view view--grouped diet-settings-view">
       ${navBar({ title: 'Réglages', large: true, largeTitle: 'Réglages de la nutrition' })}
       <div class="scr">
+        <div class="group-title">Aliments</div>
+        <div class="group">
+          <button class="cell cell--nav" data-action="go-diet-foods">
+            <span class="cell__body"><span class="cell__title">Mes aliments</span><span class="cell__sub">Ceux que tu as créés ou scannés</span></span>
+            <span class="cell__value num">${(data.dietFoods || []).length}</span>${icon('chevron.right', 16)}</button>
+        </div>
         <div class="group-title">Affichage</div>
         <div class="group">
           ${sw('diet-hide-numbers', data.dietHideNumbers === true, 'Masquer les calories et les grammes', 'Seules les cases des repas restent ; les quantités des aliments aussi.')}
@@ -118,8 +125,53 @@ function renderDietSettings() {
 }
 SCREENS.set('diet-settings', { render: () => renderDietSettings() });
 
+// ── Mes aliments (vague 4) ──────────────────────────────────
+// Aliments créés ou scannés, 200 au plus : la liste, un toucher pour retirer (Annuler dans le toast). Ouvert depuis
+// les réglages, et quand Mes aliments est plein (création, scan) : jamais le plus ancien retiré en silence.
+// Retirer ne change aucun plan : chaque aliment du plan garde ses propres valeurs pour 100 g
+function dietOpenFoods() { navigate('diet-foods'); }
+function dietFoodCellHtml(x) {
+  const hide = data.dietHideNumbers === true, per = x.per;
+  const kind = x.code ? 'Scanné' : 'Créé';
+  const shown = hide ? kind : `${kind} · 100 g · ${per.k} kcal · P ${fmtNum(per.p)} · G ${fmtNum(per.c)} · L ${fmtNum(per.f)}`;
+  const spoken = hide ? kind : `${kind}, pour 100 grammes, ${per.k} kilocalories, ${dietMacroWords(per, fmtNum).replace(/ g /g, ' grammes ')}`;
+  return `<button class="cell cell--nav" data-action="diet-food-menu" data-id="${esc(x.id)}">
+      <span class="cell__body"><span class="cell__title">${esc(foodName(x.name))}</span><span class="cell__sub num">${dietSrPair(esc(shown), esc(spoken))}</span></span>${icon('ellipsis', 18)}</button>`;
+}
+function renderDietFoods() {
+  const list = data.dietFoods || [], full = list.length >= DIET_FOODS_MAX;
+  return `
+    <div class="view view--grouped diet-foods-view">
+      ${navBar({ title: 'Mes aliments', large: true })}
+      <div class="scr">
+        ${list.length ? `
+        ${full ? `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>Mes aliments est plein (${DIET_FOODS_MAX}). Retire ceux dont tu ne te sers plus pour en garder d'autres.</span></p>` : ''}
+        <p class="diet-foods__count num">${list.length} sur ${DIET_FOODS_MAX}</p>
+        ${dietMacroLegendHtml()}
+        <div class="group">${list.map(dietFoodCellHtml).join('')}</div>
+        <div class="group-foot">Retirer un aliment ne change pas tes plans : chaque aliment d'un plan garde ses valeurs. Tu pourras le recréer ou le scanner à nouveau.</div>`
+          : '<div class="empty-note">Aucun aliment perso. Ceux que tu crées ou scannes en ajoutant un aliment s\'ajoutent ici.</div>'}
+      </div>
+    </div>`;
+}
+SCREENS.set('diet-foods', { render: () => renderDietFoods() });
+
 registerActions({
   'go-diet-settings': () => navigate('diet-settings'),
+  'go-diet-foods': () => dietOpenFoods(),
+  'diet-food-menu': async (e, el) => {
+    const x = (data.dietFoods || []).find(f => f.id === el.dataset.id);
+    if (!x) return;
+    const v = await dialog({ type: 'sheet', title: foodName(x.name), message: 'Tes plans ne changent pas : chaque aliment y garde ses valeurs.',
+      actions: [{ label: 'Retirer de Mes aliments', value: 'del', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
+    if (v !== 'del') return;
+    const gone = dietRemoveFood(data, x.id);
+    if (!gone) return;
+    save(); haptic('light'); render(); dietSyncSoon();
+    showToast(`Retiré : ${foodName(x.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      if (dietRestoreFood(data, gone)) { save(); render(); dietSyncSoon(); announce(`Remis : ${foodName(x.name)}`); }
+    } });
+  },
   'diet-privacy': () => dietOpenPrivacy(),
   'diet-hide-numbers': () => {
     if (data.dietHideNumbers) delete data.dietHideNumbers; else data.dietHideNumbers = true;
