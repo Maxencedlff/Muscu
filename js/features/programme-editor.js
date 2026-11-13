@@ -105,7 +105,7 @@ function renderEditor() {
           </button>
           ${isUserProg(data.activeProgramme) ? `
           <button class="cell cell--nav" data-action="edit-custom-session" data-id="${esc(cat)}">
-            <span class="cell__body"><span class="cell__title">Nom et couleur</span></span>
+            <span class="cell__body"><span class="cell__title">Nom et description</span></span>
             ${icon('chevron.right', 16)}
           </button>` : ''}
         </div>

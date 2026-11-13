@@ -191,7 +191,7 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
                 defer { Task { @MainActor in UIApplication.shared.endBackgroundTask(background) } }
                 do {
                     let activity = try RestActivity.request(
-                        attributes: .init(sessionTitle: "Push", tint: "orange"),
+                        attributes: .init(sessionTitle: "Push", tint: "#FF7A1A"),   // orange MDLF
                         content: Self.content(state), pushType: nil)
                     try? await Task.sleep(nanoseconds: 22_000_000_000)
                     await activity.update(Self.content(state), alertConfiguration: AlertConfiguration(

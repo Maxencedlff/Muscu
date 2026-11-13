@@ -178,7 +178,7 @@ private struct ConnectionNote: View {
         } else if model.failed {
             Label("Pas arrivé, réessaie", systemImage: "exclamationmark.triangle")
                 .font(.footnote)
-                .foregroundStyle(.orange)
+                .foregroundStyle(WatchTint.brand)   // l'orange de l'app, pas l'orange système
         }
     }
 }

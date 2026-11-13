@@ -131,7 +131,9 @@ def t_semaine(bench, eng, dev, theme):
           return { w: c.width, h: c.height, prev: card.previousElementSibling?.className || '', chips,
                    overlap: fig ? (c.bottom > fig.top && c.left < fig.right && fig.top < c.bottom - 30) : false,
                    titleClear: title.right <= c.left + 4 || title.top >= c.bottom - 4,
-                   bg: getComputedStyle(card).backgroundColor, label: card.querySelector('.recap-card__open').textContent.replace(/\s+/g, ' ').trim(),
+                   bg: getComputedStyle(card).backgroundColor,
+                   cell: (() => { const p = document.createElement('div'); p.style.background = 'var(--cell)'; document.body.append(p);
+                                  const v = getComputedStyle(p).backgroundColor; p.remove(); return v; })(), label: card.querySelector('.recap-card__open').textContent.replace(/\s+/g, ' ').trim(),
                    hasAria: card.querySelector('.recap-card__open').hasAttribute('aria-label') };
         }""")
         R.check(m['w'] >= 44 and m['h'] >= 44, f'{t} carte : bouton Masquer ≥ 44 pt ({m["w"]:.0f}×{m["h"]:.0f})')
@@ -139,8 +141,7 @@ def t_semaine(bench, eng, dev, theme):
         R.check(any(c['t'] == '16,1\u00a0t' for c in m['chips']) and all(c['h'] < 2 * c['lh'] for c in m['chips']), f'{t} carte : « 16,1 t » insécable, pastilles sur une ligne {m["chips"]}')
         R.check(m['titleClear'], f'{t} carte : le titre ne passe pas sous le bouton Masquer')
         R.check(m['label'].startswith('Ta semaine · 12 – 18 oct. 2 séances') and m['label'].endswith('Voir mon récap') and not m['hasAria'], f'{t} carte : un seul bouton, lu comme il est écrit ({m["label"][:70]})')
-        black = m['bg'] in ('rgb(0, 0, 0)',)
-        R.check(black == (theme == 'dark'), f'{t} carte : noir pur en sombre, citron vert en clair ({m["bg"]})')
+        R.check(m['bg'] == m['cell'], f'{t} carte : une cellule comme les autres, sans aplat (direction sobre) ({m["bg"]} / {m["cell"]})')
         shot(page, LOT, f'accueil-carte-{t}')
 
         page.click('.recap-card__open')
@@ -149,7 +150,7 @@ def t_semaine(bench, eng, dev, theme):
         st = recap_state(page)
         R.check(st['n'] >= 5 and st['dots'] == st['n'], f'{t} récap semaine : {st["n"]} écrans et autant de barres')
         R.check(st['active'] == 0 and st['onIdx'] == 0 and st['prevOff'] and not st['nextOff'], f'{t} récap semaine : premier écran actif, flèche gauche inactive')
-        R.check(st['kicker'] == 'TA SEMAINE' and st['value'] == '2' and st['caption'] == 'séances' and st['tone'] == 'lime', f'{t} récap semaine : « 2 séances » ({st["kicker"]}, {st["value"]} {st["caption"]}, {st["tone"]})')
+        R.check(st['kicker'] == 'TA SEMAINE' and st['value'] == '2' and st['caption'] == 'séances' and st['tone'] == 'accent', f'{t} récap semaine : « 2 séances » ({st["kicker"]}, {st["value"]} {st["caption"]}, {st["tone"]})')
         R.check(st['sw'] <= st['vw'], f'{t} récap semaine : pas de défilement horizontal de la page ({st["sw"]} > {st["vw"]})')
         R.check(not st['tabbar'], f'{t} récap semaine : plein écran, sans barre d\'onglets')
         page.wait_for_timeout(700)   # fin de l'animation d'arrivée et du compteur
@@ -162,7 +163,7 @@ def t_semaine(bench, eng, dev, theme):
         page.wait_for_timeout(800)
         st = recap_state(page)
         R.check(st['active'] == 1 and st['onIdx'] == 1 and st['scroll'] == 1 and not st['prevOff'], f'{t} récap semaine : toucher à droite → deuxième écran ({st["active"]}, barre {st["onIdx"]}, défilement {st["scroll"]})')
-        R.check(st['id'] == 'records' and st['tone'] == 'orange' and st['share'] == 'Partager ce record', f'{t} petite semaine : le record en deuxième ({st["id"]}, {st["tone"]}, {st["share"]})')
+        R.check(st['id'] == 'records' and st['tone'] == 'night' and st['share'] == 'Partager ce record', f'{t} petite semaine : le record en deuxième ({st["id"]}, {st["tone"]}, {st["share"]})')
         rec = page.evaluate("""() => { const p = document.querySelector('.recap-page.is-active');
           return { from: p.querySelector('.rp-from')?.textContent, box: p.querySelector('.rp-box')?.textContent, label: p.getAttribute('aria-label') }; }""")
         R.check(rec['from'] and rec['box'] and 'depuis ton record du' in rec['box'] and '→' in rec['label'], f'{t} écran record : avant → après et gain réels ({rec["from"]}, {rec["box"]})')

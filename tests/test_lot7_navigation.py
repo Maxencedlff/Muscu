@@ -113,9 +113,7 @@ def t_narrow_navbar(bench, eng, dev, theme):
             const ti = rt.getBoundingClientRect();
             return ti.left - a.right; }""")
         R.check(gap >= 6, f'{t} Nouvelle séance : « Annuler » ne touche pas le titre ({gap:.1f})')
-        over = page.evaluate("""() => { const g = document.querySelector('.color-grid').parentElement.getBoundingClientRect();
-            return [...document.querySelectorAll('.color-swatch')].filter(b => b.getBoundingClientRect().right > g.right + 0.5).length; }""")
-        R.check(over == 0, f'{t} grille de couleurs sans débordement ({over})')
+        R.check(page.locator('.color-swatch').count() == 0, f'{t} Nouvelle séance : plus de choix de couleur (une seule teinte)')
         shot(page, LOT, f'seance_perso_{t}')
         # Modifier la séance (historique)
         page.goto(BASE_URL); page.wait_for_selector('#app > *')

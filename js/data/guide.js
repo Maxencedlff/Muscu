@@ -212,7 +212,7 @@ const GUIDE_SECTIONS = [
         steps: [
           '[Programme] › [Créer un programme], puis donne-lui un nom.',
           'Pars d\'un [Programme vide] ou d\'une copie d\'un programme intégré.',
-          '[Ajouter une séance] : nom, description et couleur.',
+          '[Ajouter une séance] : nom et description.',
           '[Modifier l\'ordre] range les séances avec la poignée ≡, par exemple dans l\'ordre de ta semaine.',
           'En bas de l\'onglet : [Renommer le programme] ou [Supprimer le programme]. Un programme supprimé va dans [Supprimés récemment].',
         ],
@@ -226,7 +226,7 @@ const GUIDE_SECTIONS = [
           '[Ajouter un exercice] ouvre la recherche dans la bibliothèque.',
           '[Modifier] affiche la poignée ≡ pour changer l\'ordre, et le bouton − pour supprimer un exercice.',
           '[Récupération] : 24, 48, 72 ou 96 h avant que la séance soit de nouveau prête.',
-          'Dans tes propres programmes, [Nom et couleur] et [Supprimer la séance] sont en bas de l\'écran.',
+          'Dans tes propres programmes, [Nom et description] et [Supprimer la séance] sont en bas de l\'écran.',
           'Depuis l\'accueil, [Modifier les exercices] ouvre directement la prochaine séance.',
         ],
         related: ['regler-exercice', 'recuperation'],

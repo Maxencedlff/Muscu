@@ -321,7 +321,7 @@ def t_programme(bench, eng, dev, theme):
         page.evaluate("activateProgramme('custom')")
         go(page, 'programmes')
         page.click('[data-action="add-custom-session"]')
-        R.check(page.locator('.emoji-btn').count() == 0 and page.locator('.color-swatch[aria-label="Orange"]').count() == 1, f'{t} séance perso : couleurs seulement (plus d\'icône)')
+        R.check(page.locator('.emoji-btn').count() == 0 and page.locator('.color-swatch').count() == 0 and page.locator('#csName').count() == 1, f'{t} séance perso : nom et description, ni icône ni couleur (direction sobre)')
         shot(page, LOT, f'cs_edit_{dev}_{theme}')
         R.check(not page.errors, f'{t} programme : erreurs JS {page.errors[:2]}')
 

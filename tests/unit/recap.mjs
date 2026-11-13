@@ -185,9 +185,9 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     const pages = app.recapPages(st);
     sameJSON(pages.map(p => p.id), ['sessions', 'profile', 'volume', 'records', 'exercise', 'summary'], 'aucun écran « premières fois » ; pas de régularité sans 3 semaines actives avant');
     assert.ok(!pages.some(p => /premi[èe]re|nouvel exercice/i.test(JSON.stringify(p))), 'jamais de « première fois » ni de « nouvel exercice »');
-    assert.ok(pages.every(p => ['lime', 'violet', 'orange', 'pink'].includes(p.tone) && p.share), 'chaque écran a sa couleur et son bouton');
+    assert.ok(pages.every(p => ['accent', 'night'].includes(p.tone) && p.share), 'chaque écran a sa couleur et son bouton');
     const by = Object.fromEntries(pages.map(p => [p.id, p]));
-    assert.equal(by.sessions.tone, 'lime'); assert.equal(by.records.tone, 'orange'); assert.equal(by.profile.tone, 'violet');
+    assert.equal(by.sessions.tone, 'accent'); assert.equal(by.records.tone, 'night'); assert.equal(by.profile.tone, 'night');
     assert.equal(by.sessions.kicker, 'TA SEMAINE');
     assert.equal(by.sessions.value, '3'); assert.equal(by.sessions.caption, 'séances');
     assert.equal(by.sessions.note, '+2 séances par rapport à la semaine d\'avant');
@@ -207,7 +207,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(by.exercise.kicker, 'TON EXERCICE LE PLUS FAIT');
     assert.equal(by.exercise.title, 'Développé couché haltères'); assert.equal(by.exercise.caption, 'dans 2 séances sur 3 · 4 séries');
     assert.equal(by.exercise.box, '', 'semaine : pas de progression du 1RM');
-    assert.equal(by.summary.tone, 'lime'); assert.equal(by.summary.kicker, '12 – 18 OCTOBRE');
+    assert.equal(by.summary.tone, 'accent'); assert.equal(by.summary.kicker, '12 – 18 OCTOBRE');
     assert.equal(by.summary.title, 'Ma semaine en bref', 'un titre clair, pas une formule');
     sameJSON(by.summary.tiles.map(([l]) => l), ['Volume soulevé', 'Séances', 'Durée', 'Record']);
     assert.equal(by.summary.share, 'Partager ma semaine');

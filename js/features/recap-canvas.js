@@ -3,20 +3,25 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Même mise en page que l'écran (js/features/recap.js) : aplat de la couleur de l'écran (citron vert,
-// violet, orange, rose : css/recap.css), chiffre géant, puis les blocs de l'écran (tuiles, avant → après,
-// courbe, frise, personnage…), et la signature « MDLF Training » au même endroit sur toutes les stories :
-// c'est elle qui fait connaître l'app à chaque partage. Un aplat saturé plutôt qu'un fond noir : la story
-// ressort dans le fil d'Instagram. Zones d'Instagram (STORY.TOP, STORY.BOTTOM, share-canvas.js) laissées
+// Même mise en page que l'écran (js/features/recap.js) : aplat de la couleur de l'écran (css/recap.css),
+// chiffre géant, puis les blocs de l'écran (tuiles, avant → après, courbe, frise, personnage…), et la signature
+// « MDLF Training » au même endroit sur toutes les stories : c'est elle qui fait connaître l'app à chaque
+// partage. Direction « sobre » : deux aplats seulement, l'orange MDLF (accent) et le noir (night), aucun violet
+// ni citron vert ; l'orange suit le thème de l'app (#FF7A1A et texte noir en sombre, #C64000 et texte blanc en
+// clair), le noir est le même partout. Zones d'Instagram (STORY.TOP, STORY.BOTTOM, share-canvas.js) laissées
 // vides ; rien sous 36 px (lisible en vignette). Jamais de poids du corps ni de mensuration dans l'image.
 const RECAP_TONE_COLORS = {
-  lime:   { bg: '#C8F53C', fg: '#000000', heat: '#5B3BF0', box: '#000000', boxText: '#FFFFFF' },
-  violet: { bg: '#5B3BF0', fg: '#FFFFFF', heat: '#C8F53C', box: '#FFFFFF', boxText: '#000000' },
-  orange: { bg: '#FF7A3D', fg: '#000000', heat: '#5B3BF0', box: '#000000', boxText: '#FFFFFF' },
-  pink:   { bg: '#FF6FA5', fg: '#000000', heat: '#5B3BF0', box: '#000000', boxText: '#FFFFFF' },
+  accent: { bg: '#FF7A1A', fg: '#000000', heat: '#000000', box: '#000000', boxText: '#FFFFFF' },
+  night:  { bg: '#000000', fg: '#FFFFFF', heat: '#FF7A1A', box: '#1C1C1E', boxText: '#FFFFFF' },
 };
-// Personnage du profil : couleurs de Progrès (thème sombre de l'app), palier le plus haut orange rouge
-const RECAP_BODY = { heat: '#FF9F0A', peak: '#FF5A1F' };
+const RECAP_TONE_LIGHT = { accent: { bg: '#C64000', fg: '#FFFFFF', heat: '#FFFFFF', box: '#FFFFFF', boxText: '#000000' } };
+// Couleurs d'un écran dans le thème de l'app (light : thème clair) ; ton inconnu : l'orange
+function recapToneColors(tone, light) {
+  const t = Object.hasOwn(RECAP_TONE_COLORS, tone) ? tone : 'accent';
+  return (light && RECAP_TONE_LIGHT[t]) || RECAP_TONE_COLORS[t];
+}
+// Personnage du profil (écran noir) : l'orange de Progrès en sombre, un seul, l'intensité dit le palier
+const RECAP_BODY = { heat: '#FF7A1A', peak: '#FF7A1A' };
 const RECAP_STORY = {
   HEAD: 40,          // « MA SEMAINE · 12 – 18 OCTOBRE »
   NUM_MAX: 300, NUM_MIN: 140,
@@ -363,7 +368,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
   canvas.width = STORY.W; canvas.height = STORY.H;
   const ctx = canvas.getContext('2d');
   const { W, H, TOP, BOTTOM, SIDE } = STORY, R = RECAP_STORY, maxW = W - 2 * SIDE;
-  const c = { ...(RECAP_TONE_COLORS[page.tone] || RECAP_TONE_COLORS.lime), p: palette };
+  const c = { ...recapToneColors(page.tone, palette.light), p: palette };
   const f = (w, s) => storyFont(w, s, false, palette);
   ctx.fillStyle = c.bg; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
@@ -421,7 +426,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
 // Image d'un écran de récap dans un canvas (personnage : silhouette des réglages, muscles de la période)
 async function renderRecapStory(page, st, canvas = document.createElement('canvas')) {
   const palette = storyPalette('var(--green)');
-  const tone = RECAP_TONE_COLORS[page.tone] || RECAP_TONE_COLORS.lime;
+  const tone = recapToneColors(page.tone, palette.light);
   const wantBody = page.body && Object.keys(page.body).length && ['profile', 'sessions'].includes(page.id);
   const [icon, body] = await Promise.all([
     loadImage('icon-192.png'),

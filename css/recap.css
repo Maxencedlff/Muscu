@@ -1,24 +1,28 @@
 /* ═══════════════════════════════════════════════
    Récaps (semaine, mois, année) : carte de l'accueil, écrans façon story
-   Une couleur de marque, citron vert (texte noir), et trois couleurs d'écran, chacune pour un type de
-   fait : violet (profil, muscles, exercice ; texte blanc), orange (records, premières fois), rose
-   (régularité). Mêmes couleurs en clair et en sombre : ce sont des aplats, comme la story partagée.
-   Contrastes (WCAG) : noir sur #C8F53C 16:1, sur #FF7A3D 8,3:1, sur #FF6FA5 8:1 ; blanc sur #5B3BF0 6,6:1.
+   Direction « sobre » : deux aplats, l'orange MDLF (accent : chiffres de la période, résumé) et le noir (night :
+   profil, records, exercice, palier). Plus de citron vert ni de violet. L'orange suit le thème de l'app :
+   #FF7A1A et texte noir en sombre (8,4:1), #C64000 et texte blanc en clair (5,1:1) ; blanc sur noir 21:1.
+   Mêmes couleurs que l'image partagée (js/features/recap-canvas.js, RECAP_TONE_COLORS).
 ═══════════════════════════════════════════════ */
 
 :root {
-  --rc-lime: #C8F53C; --rc-violet: #5B3BF0; --rc-orange: #FF7A3D; --rc-pink: #FF6FA5;
-  --rc-red: #E8202A;   /* muscles sur le citron vert (carte de l'accueil) */
+  --rc-accent: #FF7A1A; --rc-on-accent: #000; --rc-night: #000; --rc-on-night: #FFF; --rc-night-heat: #FF7A1A;
 }
-.tone-lime   { --rc-bg: var(--rc-lime);   --rc-fg: #000; --rc-heat: var(--rc-violet); }
-.tone-violet { --rc-bg: var(--rc-violet); --rc-fg: #FFF; --rc-heat: var(--rc-lime); }
-.tone-orange { --rc-bg: var(--rc-orange); --rc-fg: #000; --rc-heat: var(--rc-violet); }
-.tone-pink   { --rc-bg: var(--rc-pink);   --rc-fg: #000; --rc-heat: var(--rc-violet); }
+body.light { --rc-accent: #C64000; --rc-on-accent: #FFF; }
+.tone-accent { --rc-bg: var(--rc-accent); --rc-fg: var(--rc-on-accent); --rc-heat: var(--rc-on-accent); }
+.tone-night  { --rc-bg: var(--rc-night);  --rc-fg: var(--rc-on-night);  --rc-heat: var(--rc-night-heat); }
+/* Écran noir, même en thème clair : la silhouette garde la rampe du sombre (Progrès, theme-sobre-progres.css), sinon
+   le palier le plus haut, le plus foncé en clair, serait le moins visible sur le noir */
+.tone-night {
+  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #FF7A1A; --body-heat-max: #FF7A1A; --body-heat-sec: #AD6430;
+  --body-tier-1: #7F573C; --body-tier-2: #AD6430; --body-tier-3: #D76F25; --body-tier-4: #FF7A1A;
+}
 
-/* ── Accueil : carte « Ta semaine » ── */
+/* ── Accueil : carte « Ta semaine », une cellule comme les autres (pas d'aplat sur l'accueil) ── */
 .recap-card {
   position: relative; margin-top: 12px; border-radius: var(--r-lg); overflow: hidden;
-  background: var(--rc-lime); color: #000;
+  background: var(--cell); color: var(--label);
 }
 .recap-card__open {
   position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 0;
@@ -28,8 +32,8 @@
 .recap-card--body .recap-card__open { padding-right: 112px; }
 .recap-card__open:active { opacity: .75; }
 .recap-card__kicker {
-  padding-right: 32px; font-size: var(--fs-caption); font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-  opacity: .72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  padding-right: 32px; font-size: var(--fs-subhead); font-weight: 600; color: var(--label2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .recap-card__title {
   margin-top: 4px; font-size: clamp(22px, 6.6vw, 27px); line-height: 1.12; font-weight: 800; letter-spacing: -.02em;
@@ -38,35 +42,26 @@
 .recap-card--body .recap-card__kicker { width: calc(100% + 64px); max-width: none; }   /* le surtitre passe au-dessus du personnage */
 .recap-card__chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .recap-card__chip {
-  white-space: nowrap; padding: 3px 9px; border-radius: 999px; background: rgba(0, 0, 0, .1);
-  font-size: var(--fs-footnote); font-weight: 700;
+  white-space: nowrap; padding: 3px 9px; border-radius: 999px; background: var(--fill);
+  font-size: var(--fs-footnote); font-weight: 600; color: var(--label);
 }
 .recap-card__cta {
   display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; min-height: 40px; padding: 0 16px;
-  border-radius: 999px; background: #000; color: var(--rc-lime); font-size: var(--fs-subhead); font-weight: 700; white-space: nowrap;
+  border-radius: 999px; background: var(--tint-fill, var(--tint)); color: var(--on-tint, #FFF); font-size: var(--fs-subhead); font-weight: 700; white-space: nowrap;
 }
 .recap-card__fig {
   position: absolute; right: 6px; bottom: -14px; width: 96px; pointer-events: none;
 }
-.recap-card__fig .body-map { --body-base-bright: 1; --body-heat: var(--rc-red); width: 100%; }
+.recap-card__fig .body-map { width: 100%; }
 .recap-card__close {
   position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: none; background: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; color: #000; border-radius: 50%; z-index: 1;
+  display: flex; align-items: center; justify-content: center; color: var(--label2); border-radius: 50%; z-index: 1;
 }
 .recap-card__close::before {
-  content: ''; position: absolute; inset: 9px; border-radius: 50%; background: rgba(0, 0, 0, .1);
+  content: ''; position: absolute; inset: 9px; border-radius: 50%; background: var(--fill);
 }
 .recap-card__close .icon { position: relative; }
-.recap-card__close:active::before { background: rgba(0, 0, 0, .22); }
-
-/* Sombre : carte noire bordée de citron vert (un aplat fluo éblouirait sur le noir pur) */
-body:not(.light) .recap-card { background: #000; color: #FFF; box-shadow: inset 0 0 0 1.5px var(--rc-lime); }
-body:not(.light) .recap-card__kicker { color: var(--rc-lime); opacity: 1; }
-body:not(.light) .recap-card__chip { background: rgba(200, 245, 60, .16); color: var(--rc-lime); }
-body:not(.light) .recap-card__cta { background: var(--rc-lime); color: #000; }
-body:not(.light) .recap-card__fig .body-map { --body-heat: var(--rc-lime); --body-base-bright: .9; }
-body:not(.light) .recap-card__close { color: #FFF; }
-body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .14); }
+.recap-card__close:active::before { background: var(--fill2, var(--fill)); }
 
 /* ── Un récap : plein écran, écrans côte à côte (défilement à crans), haut et bas posés dessus ── */
 .view.recap:not(.recap--empty) {
@@ -74,10 +69,8 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
   background: var(--rc-bg); color: var(--rc-fg);
   transition: background-color .35s ease, color .35s ease;
 }
-.view.recap[data-tone="lime"]   { --rc-bg: var(--rc-lime);   --rc-fg: #000; }
-.view.recap[data-tone="violet"] { --rc-bg: var(--rc-violet); --rc-fg: #FFF; }
-.view.recap[data-tone="orange"] { --rc-bg: var(--rc-orange); --rc-fg: #000; }
-.view.recap[data-tone="pink"]   { --rc-bg: var(--rc-pink);   --rc-fg: #000; }
+.view.recap[data-tone="accent"] { --rc-bg: var(--rc-accent); --rc-fg: var(--rc-on-accent); }
+.view.recap[data-tone="night"]  { --rc-bg: var(--rc-night);  --rc-fg: var(--rc-on-night); }
 
 .recap__top {
   position: absolute; top: 0; left: 0; right: 0; z-index: 2; pointer-events: none;
@@ -150,7 +143,7 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
   display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
   background: var(--rc-heat); color: var(--rc-bg); font-style: normal; font-size: 13px; font-weight: 800;
 }
-/* Légende du personnage du profil : les paliers de Progrès (.mlegend), en blanc sur la couleur du récap */
+/* Légende du personnage du profil : les paliers de Progrès (.mlegend), en blanc sur le noir du récap */
 .rp-scale { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; font-size: var(--fs-caption); font-weight: 700; }
 .rp-scale span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .rp-scale b { font-weight: 600; opacity: .8; }
@@ -163,7 +156,7 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
   margin-top: 6px; padding: 14px 16px; border-radius: var(--r-md);
   background: #000; color: #FFF; font-size: var(--fs-callout); font-weight: 700; line-height: 1.3;
 }
-.tone-violet .rp-box { background: #FFF; color: #000; }
+.tone-night .rp-box { background: #1C1C1E; color: #FFF; }
 .rp-lines { margin: 2px 0 0; display: flex; flex-direction: column; gap: 8px; }
 .rp-lines div { display: flex; flex-direction: column; gap: 1px; font-size: var(--fs-callout); line-height: 1.25; }
 .rp-lines dt { font-weight: 800; }

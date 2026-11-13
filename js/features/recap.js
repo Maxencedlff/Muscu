@@ -246,10 +246,11 @@ async function recapDrawSummary() {
 // En quittant le récap : barre d'état rendue au thème de l'app
 function recapLeave() { Native.statusBar(!document.body.classList.contains('light')); }
 
-// Barre d'état d'iOS lisible sur la couleur de l'écran (texte blanc sur le violet, noir ailleurs)
+// Barre d'état d'iOS lisible sur la couleur de l'écran : texte blanc sur le noir et sur l'orange foncé du
+// thème clair, noir sur l'orange vif du thème sombre
 function recapStatusBar() {
   const tone = document.querySelector('.view.recap')?.dataset.tone;
-  if (tone) Native.statusBar(tone === 'violet');
+  if (tone) Native.statusBar(tone === 'night' || document.body.classList.contains('light'));
 }
 
 // Le chiffre géant monte de 0 à sa valeur (0,6 s, format français gardé) ; rien sous prefers-reduced-motion

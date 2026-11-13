@@ -7,38 +7,20 @@ import WidgetKit
 // Le temps n'est jamais calculé ici : Text(timerInterval:) et ProgressView(timerInterval:) sont
 // animés par le système à partir de l'heure de fin (WidgetKit, « Displaying dynamic dates »).
 
-/// Couleur de la séance : l'orange MDLF (« #FF7A1A », restActivityTint de js/features/rest-activity.js),
-/// une couleur système, ou un autre « #RRGGBB ». L'orange MDLF a deux variantes, comme dans l'app :
-/// vif sur fond sombre, foncé sur fond clair (#C2410C, contraste AA). Plus d'indigo, y compris par défaut.
+/// Couleur de la Live Activity et des widgets : l'orange MDLF, un seul (direction « sobre »), quelle que soit la
+/// séance. Deux variantes, comme dans l'app : vif sur fond sombre (#FF7A1A), foncé sur fond clair (#C64000,
+/// texte blanc 5,1:1 ; css/theme-sobre.css --tint-fill). La valeur reçue (« #FF7A1A » de restActivityTint,
+/// js/features/rest-activity.js, ou un ancien nom de couleur d'une Live Activity déjà lancée) est ignorée :
+/// plus d'orange système, de violet ni d'indigo.
 enum RestTint {
     static let brandHex = "#FF7A1A"
     static let brand = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .light
-            ? UIColor(red: 0xC2 / 255, green: 0x41 / 255, blue: 0x0C / 255, alpha: 1)
+            ? UIColor(red: 0xC6 / 255, green: 0x40 / 255, blue: 0x00 / 255, alpha: 1)
             : UIColor(red: 0xFF / 255, green: 0x7A / 255, blue: 0x1A / 255, alpha: 1)
     })
 
-    static func color(_ value: String) -> Color {
-        switch value {
-        case "orange": return Color(uiColor: .systemOrange)
-        case "red":    return Color(uiColor: .systemRed)
-        case "yellow": return Color(uiColor: .systemYellow)
-        case "green":  return Color(uiColor: .systemGreen)
-        case "teal":   return Color(uiColor: .systemTeal)
-        case "blue":   return Color(uiColor: .systemBlue)
-        case "purple": return Color(uiColor: .systemPurple)
-        case "pink":   return Color(uiColor: .systemPink)
-        case "indigo": return brand
-        default:
-            if value.uppercased() == brandHex { return brand }
-            guard value.count == 7, value.hasPrefix("#"), let rgb = UInt32(value.dropFirst(), radix: 16) else {
-                return brand
-            }
-            return Color(red: Double((rgb >> 16) & 0xFF) / 255,
-                         green: Double((rgb >> 8) & 0xFF) / 255,
-                         blue: Double(rgb & 0xFF) / 255)
-        }
-    }
+    static func color(_ value: String) -> Color { brand }
 }
 
 /// Anneau qui se vide jusqu'à la fin du repos ; plein (et coché) une fois le repos terminé

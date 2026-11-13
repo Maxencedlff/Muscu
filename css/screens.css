@@ -296,13 +296,6 @@ html.type-xl .chart-bubble { white-space: normal; }
   color: var(--label3); touch-action: none; cursor: grab; flex-shrink: 0;
 }
 
-/* Séance Perso */
-.color-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; justify-items: center; }
-.color-swatch {
-  width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--c); cursor: pointer;
-}
-.color-swatch.is-on { box-shadow: 0 0 0 3px var(--cell), 0 0 0 5px var(--c); }
-
 /* ═════════ Accessibilité et finitions de bord ═════════ */
 
 /* « · » qui finirait une ligne (frSepCheck, js/core/util.js) : rendu transparent, sa largeur gardée pour que rien ne bouge.

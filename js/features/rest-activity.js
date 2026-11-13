@@ -13,7 +13,7 @@
 // (direction « sobre » : une seule couleur d'action, plus de couleur par séance, plus d'indigo).
 // Envoyé en « #RRGGBB » : les versions natives déjà installées savent dessiner un code hex (RestTint,
 // WatchTint), un nom inconnu les ferait retomber sur leur indigo d'avant. Les versions natives à jour
-// reconnaissent ce code et prennent la variante foncée (#C2410C) sur fond clair.
+// ignorent la valeur et prennent l'orange de l'app, foncé (#C64000) sur fond clair.
 const MDLF_TINT = '#FF7A1A';
 const REST_ACTIVITY_MAX   = { title: 40, exercise: 60 };
 

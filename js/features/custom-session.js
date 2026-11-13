@@ -1,15 +1,13 @@
 // ═══════════════════════════════════════════════════════════
-//  Séance perso : nom, description, couleur
+//  Séance perso : nom, description (plus de choix de couleur : la couleur de séance ne colore plus rien,
+//  direction « sobre », une seule teinte d'action ; celle d'une séance existante est gardée telle quelle)
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 let csEditId    = null;   // séance modifiée, null pour une nouvelle séance
-let csColor     = '#3b82f6';
+let csColor     = '#FF9500';   // gardée dans les données (anciennes versions, export), jamais choisie
 let csProg      = 'custom';   // programme modifiable visé par l'écran Séance perso
-const CS_COLORS = [['#FF9500','Orange'],['#FF3B30','Rouge'],['#FFCC00','Jaune'],['#34C759','Vert'],['#30B0C7','Turquoise'],
-                   ['#007AFF','Bleu'],['#5856D6','Indigo'],['#AF52DE','Violet'],['#FF2D55','Rose'],['#8E8E93','Gris']];
-
-// Séance Perso : nom, description, couleur (la pastille de la séance est un point de cette couleur)
+// Séance Perso : nom, description
 function renderCsEdit() {
   const isEdit   = csEditId !== null;
   const existing = isEdit ? (userSessions(csProg)?.[csEditId] || {}) : {};
@@ -25,12 +23,6 @@ function renderCsEdit() {
                placeholder="Ex : Séance A" autocomplete="off" aria-label="Nom de la séance"></div>
           <div class="cell cell--field"><input type="text" id="csDesc" class="field" value="${esc(existing.desc)}"
                placeholder="Description (optionnel)" autocomplete="off" aria-label="Description"></div>
-        </div>
-        <div class="group-title">Couleur</div>
-        <div class="group group--pad">
-          <div class="color-grid" role="radiogroup" aria-label="Couleur">
-            ${CS_COLORS.map(([c, n]) => `<button class="color-swatch ${c.toLowerCase() === String(csColor).toLowerCase() ? 'is-on' : ''}" role="radio" aria-checked="${c.toLowerCase() === String(csColor).toLowerCase()}" aria-label="${n}" data-action="pick-cs-color" data-color="${c}" style="--c:${c}"></button>`).join('')}
-          </div>
         </div>
         ${isEdit ? `
         <div class="group group--gap">
@@ -59,13 +51,6 @@ registerActions({
   },
   'close-cs-modal': () => {
     csEditId = null; goBack();
-  },
-  'pick-cs-color': (e, el) => {
-    csColor = el.dataset.color;
-    document.querySelectorAll('.color-swatch').forEach(b => {
-      const on = b.dataset.color === csColor;
-      b.classList.toggle('is-on', on); b.setAttribute('aria-checked', on);
-    });
   },
   'save-cs-modal': () => {
     const name = $('#csName')?.value.trim();
@@ -100,7 +85,7 @@ registerActions({
     setTimeout(() => { if (currentRoute() === makeRoute('editor', id)) openAddExSheet({ target: 'programme' }); }, 380);
   },
   'delete-custom-session': async (e, el) => {
-    // Depuis l'écran de la séance (data-id) ou depuis « Nom et couleur » (csEditId)
+    // Depuis l'écran de la séance (data-id) ou depuis « Nom et description » (csEditId)
     if (el.dataset.id) { csEditId = el.dataset.id; csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom'; }
     const id = csEditId, pid = csProg;
     const running = activeSession && activeSession.programme === pid && activeSession.category === id;
