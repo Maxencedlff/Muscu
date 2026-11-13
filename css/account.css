@@ -326,9 +326,22 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
 @media (prefers-reduced-motion: reduce) { .onb__body .body-map { transition: none; } }
 /* Boutons en bas de l'écran, toujours visibles : collés au bas du calque quand la liste dépasse (iPhone SE) */
 .onb__actions {
-  position: sticky; bottom: 0; margin: auto calc(-1 * var(--gutter)) -24px; padding: 16px var(--gutter) 8px;
+  position: sticky; bottom: 0; margin: auto calc(-1 * var(--gutter)) -24px; padding: 16px var(--gutter) calc(8px + env(safe-area-inset-bottom, 0px));
   display: flex; flex-direction: column; background: var(--bg);
   z-index: 2;   /* au-dessus des séparateurs de la liste (z-index 1) : ils barraient « Commencer » (Duo plié, vague 3) */
+}
+/* Le bord bas (safe area) est couvert par le fond du bloc collé, pas par le calque : sinon un bout de la liste passait
+   SOUS « Voir les autres programmes » (Duo en paysage, panel v4 t1). Les questions, sans bloc collé, gardent la marge. */
+.onb { padding-bottom: 0; }
+.onb__page:not(.onb__page--result) { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+/* Petite hauteur (iPhone SE, paysage) : silhouettes plus basses, boutons plus serrés, pour voir au moins une séance
+   entière au-dessus de « Commencer » (on ne voyait qu'une demi-ligne « Push · pousser ») */
+@media (max-height: 700px) {
+  .onb__body .body-map { height: clamp(72px, 15vh, 112px); }
+  .onb__bodies { margin-bottom: 12px; }
+  .onb__reason { margin-bottom: 10px; }
+  .onb__actions { padding-top: 10px; }
+  .onb__actions .auth__skip { margin-top: 0; }
 }
 /* Accueil : la même disposition (bouton sous le titre) dès que la colonne fait moins de 19 fois la taille du texte, donc
    aussi en texte agrandi sur iPhone 13 (« Nouvea / u plan » coupé à côté du bouton, panel t8). Les unités em d'une requête
