@@ -144,9 +144,10 @@ def t_liste(bench, eng, dev, theme):
         names = page.evaluate("[...document.querySelectorAll('.coach-student-row .social-row__name')].map(e => e.textContent.trim())")
         R.check(names == ['zoe', 'tom', 'nina', 'lea', 'hugo', 'paul'], f'{t} tri : nouveautés, à relancer, records, les autres ({names})')
         sig = lambda n: page.locator('.coach-student-row', has_text=n).locator('.progress-sig')
-        R.check(sig('lea').inner_text().replace(' ', '') == '↑2recordscettesem.',
-                f'{t} Léa : records ({sig("lea").inner_text()!r})')
-        R.check('progress-sig--up' in (sig('lea').get_attribute('class') or ''), f'{t} Léa : en vert')
+        # Panel v4 t1 : médaille au trait (comme la fiche et le bilan), plus la flèche verte des progressions
+        R.check(sig('lea').inner_text().replace(' ', '') == '2recordscettesem.' and sig('lea').locator('.medal').count() == 1,
+                f'{t} Léa : records, médaille ({sig("lea").inner_text()!r})')
+        R.check('progress-sig--up' in (sig('lea').get_attribute('class') or ''), f'{t} Léa : signal record')
         R.check(sig('tom').inner_text() == '9 jours sans séance' and 'progress-sig--warn' in sig('tom').get_attribute('class'), f'{t} Tom : inactif en orange ({sig("tom").inner_text()!r})')
         R.check(sig('nina').inner_text() == '1 séance au lieu de 3' and 'progress-sig--warn' in sig('nina').get_attribute('class'), f'{t} Nina : en baisse ({sig("nina").inner_text()!r})')
         R.check(sig('hugo').inner_text() == 'Stable depuis 2 sem.' and 'progress-sig--muted' in sig('hugo').get_attribute('class'), f'{t} Hugo : stable en gris ({sig("hugo").inner_text()!r})')

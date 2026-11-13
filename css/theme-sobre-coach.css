@@ -48,7 +48,9 @@ body.light {
 }
 html.type-xl .team-week { padding: 10px 16px; }
 html.type-xl .team-week__tile + .team-week__tile { margin-top: 4px; }
-.team-week__tile--up .team-week__val { color: var(--green-text); }
+/* Record : médaille or, chiffre au texte courant (or = record, le vert reste « fait et progression », panel v4 t1) */
+.team-week__tile--up .team-week__val, .progress-sig--up { color: var(--label); }
+.team-week__val .medal, .progress-sig__arrow .medal { color: var(--medal); vertical-align: -2px; }
 
 /* Pastilles d'un élève : séances à voir en gris (un état), non-lus en rouge (css/theme-sobre.css) */
 .coach-count--sessions { background: var(--fill2); }

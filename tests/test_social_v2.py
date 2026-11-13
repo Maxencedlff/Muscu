@@ -228,7 +228,9 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.inner_text('.friends-view .navbar__large').strip() == 'Coach', f'{t} grand titre « Coach »')
         R.check(page.get_attribute('.social-seg [data-seg="students"]', 'aria-pressed') == 'true', f'{t} ouvert sur Élèves')
         week = [x.replace('\n', ' ') for x in page.locator('.team-week__tile').all_inner_texts()]
-        R.check(week == ['↑ 1 record', '1 à relancer', '1 nouveauté'], f'{t} cette semaine : records, à relancer, nouveautés ({week})')
+        week = [' '.join(x.split()) for x in week]
+        R.check(week == ['1 record', '1 à relancer', '1 nouveauté'] and page.locator('.team-week__tile--up .medal').count() == 1,
+                f'{t} cette semaine : records (médaille), à relancer, nouveautés ({week})')
         R.check(page.locator('.team-week__tile--up').count() == 1 and page.locator('.team-week__tile--warn').count() == 1, f'{t} couleurs : vert et orange')
         aria = page.get_attribute('.team-week', 'aria-label')
         R.check(aria == 'Cette semaine : 1 record, 1 élève à relancer, 1 nouveauté à lire.', f'{t} VoiceOver : une phrase ({aria!r})')

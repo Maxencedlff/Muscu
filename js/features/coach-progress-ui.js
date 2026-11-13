@@ -15,7 +15,8 @@ const PROGRESS_SORT_FOOT = 'En haut, les nouveautés à lire, puis les élèves 
 
 // Signal d'une ligne : « ↑ 2 records cette semaine » (vert), « Pas de séance depuis 9 jours » (orange)…
 function progressSignalHtml(pr) {
-  const arrow = pr.tone === 'up' ? '<span class="progress-sig__arrow" aria-hidden="true">↑</span>' : '';
+  // Record : la médaille au trait, comme la fiche et le bilan ; la flèche verte reste aux progressions (panel v4 t1)
+  const arrow = pr.tone === 'up' ? `<span class="progress-sig__arrow" aria-hidden="true">${medalSvg(14)}</span>` : '';
   return `<span class="cell__sub progress-sig progress-sig--${pr.tone}">${arrow}${esc(pr.text)}</span>`;
 }
 
@@ -109,7 +110,7 @@ function coachTeamWeekHtml(students) {
   if (!students?.length) return '';
   const now = Date.now();
   const w = teamWeekSummary(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id));
-  const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? '↑ ' : ''}${val}</span> <span class="team-week__lbl">${lbl}</span></span>`;
+  const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? `${medalSvg(14)} ` : ''}${val}</span> <span class="team-week__lbl">${lbl}</span></span>`;
   const spoken = `Cette semaine : ${plural(w.records, 'record', 'records')}, ${plural(w.warn, 'élève', 'élèves')} à relancer, ${plural(w.fresh, 'nouveauté', 'nouveautés')} à lire.`;
   return `
         <div class="group-title">Cette semaine</div>
