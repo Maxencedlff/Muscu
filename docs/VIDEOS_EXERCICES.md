@@ -59,6 +59,23 @@ Les vidéos ne sont jamais dans le dépôt, ni dans le paquet de l'app, ni dans 
 - Vidéo injoignable (hors ligne, fichier absent) : « Vidéo indisponible sans réseau · @coach », les consignes
   restent lisibles.
 
+## Repli : animations 3D du personnage maison
+
+Sans vidéo de coach, cinq exercices pilotes (squat barre, développé couché barre, soulevé de terre, tractions
+pronation, curl biceps haltères) montrent une animation 3D de notre personnage (dépôt `mdlf-perso`, branche
+`anim`, `src/anim/`) : 1 répétition en boucle, muette, 720 × 720, fond noir, muscles principaux en rouge ombré,
+secondaires en rouge atténué. Liste et fichiers : `js/data/exercise-anims.js`, `img/anim/<nom>.mp4|webm|webp`.
+Une vidéo de coach ajoutée au manifeste passe toujours devant.
+
+- Même lecteur (`exerciseAnimHtml`, légende « Animation 3D ») ; H.264 d'abord, VP9 si le navigateur ne lit pas
+  le H.264 (choix par `canPlayType` au moment de la lecture).
+- Lecture automatique même sur données cellulaires (fichier de l'app, ≈ 100 Ko) ; « Réduire les animations » :
+  affiche + ▶, rien de chargé avant le toucher.
+- `sw.js` : affiches dans le cache de la version ; vidéos mises en cache entières au premier visionnage
+  (`ANIM_RE`), puis servies depuis le cache par plages (206), y compris hors ligne.
+- Ajouter un exercice : rendu dans `mdlf-perso` (`src/anim/make_anim.sh`), copie des 3 fichiers dans `img/anim/`,
+  une ligne dans `EXERCISE_ANIMS`, l'affiche dans `ASSETS` de `sw.js` et `CACHE` monté.
+
 ## Hébergement retenu : Supabase Storage du projet existant
 
 Bucket public `exercise-videos` du projet `yopptmdjtnezmccdvaxf` (aucun nouveau compte). MP4 progressif

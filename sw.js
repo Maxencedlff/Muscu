@@ -15,7 +15,7 @@ const ASSETS = [
   '/js/data/tempo.js', '/js/data/grips.js', '/js/data/session-order.js', '/js/data/supersets.js', '/js/data/exercise-moves.js', '/js/data/exercise-howto.js', '/js/data/muscle-load.js', '/js/data/recap.js', '/js/data/app-icons.js',
   '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/my-programmes.js',
   '/js/data/import-measures.js',
-  '/js/data/exercise-videos.js',
+  '/js/data/exercise-videos.js', '/js/data/exercise-anims.js',
   '/js/data/food-portions.js', '/js/data/nutrition.js', '/js/data/food-swap.js', '/js/data/food-scan.js', '/js/data/coach-diet.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
   '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/body-tip.js', '/js/ui/exercise-anim.js', '/js/ui/exercise-video.js', '/js/ui/medal.js',
@@ -43,7 +43,38 @@ const ASSETS = [
   '/img/body/female/back/rear_delts.webp', '/img/body/female/back/traps.webp', '/img/body/female/back/lats.webp', '/img/body/female/back/lower_back.webp',
   '/img/body/female/back/triceps.webp', '/img/body/female/back/forearms.webp', '/img/body/female/back/glutes.webp', '/img/body/female/back/hamstrings.webp',
   '/img/body/female/back/adductors.webp', '/img/body/female/back/calves.webp',
+  // Animations 3D du « Comment faire » (js/data/exercise-anims.js) : affiches dès l'installation, vidéos au
+  // premier visionnage (ANIM_RE plus bas)
+  '/img/anim/squat-barre.webp', '/img/anim/developpe-couche-barre.webp', '/img/anim/souleve-de-terre.webp',
+  '/img/anim/tractions-pronation.webp', '/img/anim/curl-biceps-halteres.webp',
 ];
+
+// Animations 3D de l'app (fichiers de l'app, quelques centaines de Ko) : mises en cache entières au premier
+// visionnage, puis servies depuis le cache, plages (Range → 206) comprises : Safari ne lit une vidéo qu'ainsi
+const ANIM_RE = /^\/img\/anim\/[a-z0-9-]+\.(mp4|webm)$/;
+
+async function animResponse(request, path) {
+  const cache = await caches.open(CACHE);
+  let full = await cache.match(path);
+  if (!full) {
+    const res = await fetch(path);
+    if (!res.ok) return res;
+    await cache.put(path, res.clone());
+    full = res;
+  }
+  const m = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('range') || '');
+  if (!m) return full;
+  const buf = await full.arrayBuffer();
+  const size = buf.byteLength;
+  const start = m[1] === '' ? Math.max(0, size - Number(m[2])) : Number(m[1]);
+  const end = m[1] !== '' && m[2] !== '' ? Math.min(Number(m[2]), size - 1) : size - 1;
+  if (!(start <= end && start < size)) {
+    return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+  }
+  return new Response(buf.slice(start, end + 1), { status: 206, headers: {
+    'Content-Type': full.headers.get('Content-Type') || 'video/mp4', 'Accept-Ranges': 'bytes',
+    'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': String(end - start + 1) } });
+}
 
 // Une version = un cache complet, téléchargé d'un bloc (cache HTTP contourné) :
 // l'app ne mélange jamais des fichiers de deux versions.
@@ -69,6 +100,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  if (ANIM_RE.test(url.pathname)) { e.respondWith(animResponse(e.request, url.pathname)); return; }
   // Vidéos d'exercices (docs/VIDEOS_EXERCICES.md) : jamais en cache, lues par plages (Range) depuis le réseau
   if (e.request.destination === 'video' || e.request.headers.has('range') || /\.(mp4|m4v|mov|webm)$/i.test(url.pathname)) return;
   const key = e.request.mode === 'navigate' ? '/index.html' : e.request;

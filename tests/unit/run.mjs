@@ -79,6 +79,7 @@ const SCRIPTS = [
   'js/data/exercise-moves.js',
   'js/data/exercise-howto.js',
   'js/data/exercise-videos.js',
+  'js/data/exercise-anims.js',
   'js/data/muscle-load.js',
   'js/data/recap.js',
   'js/data/app-icons.js',
@@ -92,6 +93,7 @@ const SCRIPTS = [
   'js/ui/body-tip.js',
   'js/ui/medal.js',
   'js/app/actions.js',
+  'js/ui/exercise-video.js',
   'js/features/rest-activity.js',
   'js/features/apple-services.js',
   'js/app/live-update.js',
@@ -1850,6 +1852,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 
 // ── Vidéos d'exercices des coachs (tests dans exercise-videos.mjs) ──
 (await import('./exercise-videos.mjs')).default({ test, run, assert, ROOT });
+// ── Animations 3D du personnage maison, repli sans vidéo (tests dans exercise-anims.mjs) ──
+(await import('./exercise-anims.mjs')).default({ test, run, assert, ROOT });
 // ── Ergonomie : objectif en séance, ligne du bilan, derniers records (tests dans ergo.mjs) ──
 (await import('./ergo.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Reps fixes « 4 × 12 » (tests dans reps-fixes.mjs) ──
