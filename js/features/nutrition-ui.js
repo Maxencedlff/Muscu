@@ -229,19 +229,20 @@ function dietMealHtml(x, pr, day) {
 }
 
 // Carte d'un plan reçu de mon coach (écran Nutrition, Mon coach) : nom, repas, « Utiliser ce plan »
-// Sans l'accord « recevoir les plans de mon coach » : invitation, sans rien du contenu du plan
-function dietInviteCardHtml() {
+// Sans l'accord « recevoir les plans de mon coach » : invitation, sans rien du contenu du plan. « Recevoir » demande
+// l'accord puis prend le plan d'un seul geste (panel vague 4 : « Accepter » puis « Utiliser », deux validations)
+function dietInviteCardHtml(item) {
   const who = esc(coachName());
   return `
         <article class="coach-prog diet-inbox diet-invite">
           <div class="coach-prog__eyebrow">Plans diète</div>
           <h3 class="coach-prog__name">${who} veut t'envoyer un plan diète</h3>
-          <p class="coach-prog__meta">Accepte pour le recevoir. Tu peux retirer ton accord quand tu veux.</p>
-          <button class="btn btn--primary coach-prog__btn" data-action="diet-coach-accept">Accepter</button>
+          <p class="coach-prog__meta">Ton plan actuel reste dans Plans diète. Tu peux retirer ton accord quand tu veux.</p>
+          <button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">Recevoir</button>
         </article>`;
 }
 function dietInboxCardHtml(item) {
-  if (!dietCoachAccepted()) return dietInviteCardHtml();
+  if (!dietCoachAccepted()) return dietInviteCardHtml(item);
   const { status } = dietInboxStatus(item);
   const who = esc(coachName());
   if (item.tooNew) return `
@@ -368,10 +369,9 @@ function nutritionHomeCard() {
     <section class="home-card account-card coach-home" aria-labelledby="dietPendingTitle">
       <div class="account-card__text">
         <h2 class="account-card__title" id="dietPendingTitle">${!ok ? `${esc(coachName())} veut t'envoyer un plan diète` : dietInboxStatus(pending).status === 'update' ? `Plan diète mis à jour par ${esc(coachName())}` : `Nouveau plan diète ${elide('de', esc(coachName()))}`}</h2>
-        <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Accepte pour le recevoir'}</p>
+        <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Ton plan actuel reste dans Plans diète'}</p>
       </div>
-      ${ok ? `<button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">Utiliser</button>`
-        : '<button class="account-card__btn" data-action="diet-coach-accept">Accepter</button>'}
+      <button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">${ok ? 'Utiliser' : 'Recevoir'}</button>
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
     </section>` : '';
   const plan = dietActivePlan(data);
@@ -602,7 +602,8 @@ registerActions({
       if (!fresh || fresh.meta) { showToast(coachErrorText('offline'), { error: true }); return; }
     }
     // Donnée de santé : le plan du coach n'est reçu qu'avec l'accord de l'élève (« Recevoir les plans diète »)
-    if (!dietCoachAccepted() && !(await dietAskCoachAccept())) return;
+    // Accord demandé ici même : le plan est pris dans la foulée, sans « Touche Utiliser » (un seul geste)
+    if (!dietCoachAccepted() && !(await dietAskCoachAccept({ quiet: true }))) return;
     if (item.tooNew) { showToast('Mets l\'app à jour pour recevoir ce plan.'); return; }
     const it = dietInbox().find(x => x.id === item.id);
     const id = importCoachDiet(data, it, myCoach());
@@ -610,7 +611,8 @@ registerActions({
     save();
     haptic();
     coachMarkInboxSeen('programme', it.id);
-    showToast(`Plan en cours : ${it.data.name}`);
+    const before = Object.keys(data.dietPlans || {}).length > 1;
+    showToast(before ? `Plan en cours : ${it.data.name}. L'ancien reste dans Plans diète` : `Plan en cours : ${it.data.name}`);
     render();
   },
   'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },

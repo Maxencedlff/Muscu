@@ -784,12 +784,13 @@ def p_nutrition(r):
     with r.etape('coach-accueil', 'Accueil : « max veut t\'envoyer un plan diète »', cle=cle):
         fermer_dialogue(r, 'Garder sur cet iPhone')
         r.attendre('.coach-home', 'carte du plan diète du coach')
-    with r.etape('coach-accord', 'Accord pour recevoir les plans du coach', cle=cle):
-        if r.present('.coach-home [data-action="diet-coach-accept"]'):
-            r.toucher('.coach-home [data-action="diet-coach-accept"]', 'Accepter (carte de l\'accueil)')
-            fermer_dialogue(r, 'Accepter')
+    # Un seul geste (vague 4) : « Recevoir » demande l'accord puis prend le plan
+    with r.etape('coach-accord', 'Recevoir : accord pour les plans du coach, plan pris dans la foulée', cle=cle):
+        r.toucher('.coach-home [data-action="diet-take"]', 'Recevoir (carte de l\'accueil)')
+        fermer_dialogue(r, 'Accepter')
     with r.etape('coach-suivi', 'Plan du coach suivi', cle=cle):
-        r.toucher('.coach-home [data-action="diet-take"]', 'Utiliser')
+        if r.present('.coach-home [data-action="diet-take"]'):
+            r.toucher('.coach-home [data-action="diet-take"]', 'Utiliser')
     with r.etape('coach-nutrition', 'Nutrition avec le plan du coach (consigne, repas)', cle=cle):
         r.toucher('.diet-home__open', 'carte Nutrition')
         fermer_dialogue(r, 'Garder sur cet iPhone')

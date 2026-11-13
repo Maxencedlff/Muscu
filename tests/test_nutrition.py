@@ -632,11 +632,13 @@ def t_invitation(bench):
             page.wait_for_selector('.diet-invite')
             R.check('Plan secret' not in page.inner_text('#app'), f'{theme} Mon coach : rien du plan sans accord')
             shot(page, LOT, f'15-invitation-iPhone_13-{theme}')
-            page.click('.diet-invite [data-action="diet-coach-accept"]')
+            # Panel vague 4 : « Recevoir » donne l'accord ET prend le plan, d'un seul geste (plus de « Utiliser » ensuite)
+            page.click('.diet-invite [data-action="diet-take"]')
             page.wait_for_selector('.ios-dialog')
             tap_dialog(page, 'Accepter')
             page.wait_for_timeout(500)
             R.check(page.evaluate("data.dietCoachConsent.on") is True and 'Plan secret' in page.inner_text('#app'), f'{theme} serveur d\'avant : accord gardé sur l\'appareil, plan affiché')
+            R.check(page.evaluate("dietActivePlan(data)?.name") == 'Plan secret' and 'Touche Utiliser' not in toast(page), f'{theme} Recevoir : plan suivi d\'un geste ({toast(page)!r})')
             R.check(not page.errors, f'{theme} invitation : aucune erreur JS {page.errors[:2]}')
 
 

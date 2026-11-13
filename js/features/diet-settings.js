@@ -60,22 +60,23 @@ function dietSyncSoon() {
 }
 
 // Accord « recevoir les plans diète de mon coach » (élève) ; renvoie true s'il est donné
-async function dietAskCoachAccept() {
+// quiet : le plan en attente est pris juste après (diet-take), pas de « Touche Utiliser »
+async function dietAskCoachAccept({ quiet = false } = {}) {
   if (dietCoachAccepted()) return true;
   const who = coachName();
   const v = await dietAskShort(`Recevoir les plans diète ${elide('de', who)} ?`,
     `Ton coach pourra t'envoyer des plans diète, gardés sur le serveur jusqu'à ce que tu retires ton accord. Ils peuvent renseigner sur ta santé.`,
     'Accepter', 'Pas maintenant');
   if (!v) return false;
-  return dietCoachApply(true);
+  return dietCoachApply(true, { quiet });
 }
-async function dietCoachApply(on) {
+async function dietCoachApply(on, { quiet = false } = {}) {
   const r = await dietCoachSetAccept(on);
   if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return false; }
   save();
   haptic();
   // Plan en attente : message court, entier même en texte agrandi maximal (4 lignes au plus, panel t6)
-  showToast(on ? (dietPending() ? 'Plan reçu. Touche Utiliser' : 'Réception des plans diète activée') : 'Plans diète du coach effacés du serveur');
+  if (!quiet) showToast(on ? (dietPending() ? 'Plan reçu. Touche Utiliser' : 'Réception des plans diète activée') : 'Plans diète du coach effacés du serveur');
   coachRefresh();
   return on;
 }
