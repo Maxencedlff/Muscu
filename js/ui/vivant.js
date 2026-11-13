@@ -9,28 +9,41 @@
 
 const VV_REDUCED = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
-// Petites barres « 4 dernières semaines » (Progrès, fiche élève) : counts du plus ancien au plus récent,
-// décoratives (aria-hidden) : le chiffre et son libellé restent le texte lu par VoiceOver.
-// Semaine sans séance : barre grise au plancher (une absence se lit, elle ne disparaît pas) ; « 4 sem. » dessous.
+// Petites barres « 4 dernières semaines » (Progrès, fiche élève) : counts du plus ancien au plus récent, semaines du
+// calendrier (lundi à dimanche, comme la semaine de l'accueil), la dernière est la semaine en cours. Panel vague 4 :
+// les barres sans valeur ni période se lisaient comme un détail du chiffre du mois ; chaque barre porte son nombre,
+// la semaine en cours a la même couleur partout (le texte, jamais le vert « fait »), et VoiceOver lit les valeurs.
+// Semaine sans séance : barre grise au plancher (une absence se lit, elle ne disparaît pas).
 const WKBARS_H = 28, WKBARS_MIN = 6;
-function weekBarsSvg(counts) {
+function weekBarsSvg(counts, caption = 'par semaine') {
   if (!Array.isArray(counts) || counts.length < 2) return '';
-  const max = Math.max(1, ...counts), last = counts[counts.length - 1];
-  const prev = counts.slice(0, -1), avg = prev.reduce((a, b) => a + b, 0) / prev.length;
-  const bars = counts.map((n, i) => {
-    const cls = `wkbars__b${n > 0 ? '' : ' wkbars__b--vide'}${i === counts.length - 1 ? ' wkbars__b--now' : ''}`;
-    return `<span class="${cls}" style="height:${n > 0 ? Math.max(10, Math.round(n / max * WKBARS_H)) : WKBARS_MIN}px"></span>`;
+  const max = Math.max(1, ...counts), n = counts.length;
+  const cols = counts.map((c, i) => {
+    const cls = `wkbars__b${c > 0 ? '' : ' wkbars__b--vide'}${i === n - 1 ? ' wkbars__b--now' : ''}`;
+    return `<span class="wkbars__col"><span class="${cls}" style="height:${c > 0 ? Math.max(10, Math.round(c / max * WKBARS_H)) : WKBARS_MIN}px"></span>`
+      + `<span class="wkbars__n num${i === n - 1 ? ' wkbars__n--now' : ''}">${c}</span></span>`;
   }).join('');
-  return `<span class="wkbars${last > avg ? ' wkbars--up' : ''}" aria-hidden="true"><span class="wkbars__bars">${bars}</span><span class="wkbars__lbl">4 sem.</span></span>`;
+  const before = counts.slice(0, -1).join(', ');
+  const spoken = `Séances par semaine, ${n} dernières semaines : ${before}, et ${counts[n - 1]} cette semaine`;
+  return `<span class="wkbars" role="img" aria-label="${spoken}"><span class="wkbars__bars">${cols}</span>`
+    + `${caption ? `<span class="wkbars__lbl">${caption}</span>` : ''}</span>`;
 }
-// Séances par semaine glissante (7 jours), 4 semaines, à partir d'horodatages ; null si la période
-// n'est pas entièrement couverte par les données (complete : false)
+// Lundi 0 h de la semaine du calendrier qui contient now, reculé de back semaines (heure locale, changement d'heure compris)
+function weekStartMs(now = Date.now(), back = 0) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7 - 7 * back);
+  return d.getTime();
+}
+// Séances par semaine du calendrier (lundi à dimanche), les `weeks` dernières, semaine en cours comprise, à partir
+// d'horodatages ; null si la période n'est pas entièrement couverte par les données (complete : false)
 function weekCounts(stamps, now = Date.now(), weeks = 4, complete = true) {
   if (!complete) return null;
-  const W = 7 * 864e5, out = new Array(weeks).fill(0);
+  const starts = Array.from({ length: weeks }, (_, k) => weekStartMs(now, k)), out = new Array(weeks).fill(0);
   stamps.forEach(t => {
-    const k = Math.floor((now - t) / W);
-    if (k >= 0 && k < weeks) out[weeks - 1 - k]++;
+    if (!(t <= now)) return;
+    const k = starts.findIndex(st => t >= st);
+    if (k >= 0) out[weeks - 1 - k]++;
   });
   return out;
 }

@@ -4,6 +4,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 
 export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
   const src = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -161,6 +162,25 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(app.frTypo('519,6 t'), '519,6\u00a0t');
     assert.equal(app.frTypo('Dos · Biceps'), 'Dos\u00a0· Biceps', '« · » symétrique : même largeur d\'espace des deux côtés');
     assert.ok(!/\d\u202f\p{L}/u.test(app.frTypo('5 exercices, 1 séance, 6 jours, 3 repas')), 'jamais d\'espace fine entre un nombre et un mot');
+  });
+
+  test('Mini-barres : semaines du calendrier (lundi), nombre sous chaque barre, semaine en cours jamais verte', () => {
+    // js/ui/vivant.js (hors du contexte commun : il touche au DOM) : ses fonctions pures, avant les chiffres qui défilent
+    const vvSrc = src('js/ui/vivant.js'), vv = vm.createContext({});
+    vm.runInContext(vvSrc.slice(0, vvSrc.indexOf('// ── Chiffres qui défilent ──')), vv, { filename: 'js/ui/vivant.js' });
+    // Jeudi 12 novembre 2026, 15 h : semaine en cours du lundi 9 au dimanche 15
+    const now = new Date(2026, 10, 12, 15).getTime(), at = (d, h = 18) => new Date(2026, 10, d, h).getTime();
+    assert.equal(new Date(vv.weekStartMs(now)).getDate(), 9, 'semaine en cours : lundi 9');
+    assert.equal(new Date(vv.weekStartMs(now, 3)).getDate(), 19, 'trois semaines avant : lundi 19 octobre');
+    // lundi 9 (semaine en cours), dimanche 8 et lundi 2 (semaine d'avant), 30 octobre, 18 octobre (hors période)
+    const counts = vv.weekCounts([at(9, 7), at(8), at(2), new Date(2026, 9, 30).getTime(), new Date(2026, 9, 18).getTime()], now);
+    assert.equal(JSON.stringify(counts), JSON.stringify([0, 1, 2, 1]), 'un dimanche compte dans sa semaine, pas dans celle du lundi qui suit');
+    assert.equal(vv.weekCounts([at(9)], now, 4, false), null);
+    const html = vv.weekBarsSvg([2, 3, 0, 1]);
+    assert.match(html, /aria-label="Séances par semaine, 4 dernières semaines : 2, 3, 0, et 1 cette semaine"/);
+    assert.ok(!/aria-hidden/.test(html) && !/wkbars--up/.test(html), 'lu par VoiceOver, plus de vert « en hausse »');
+    assert.equal((html.match(/class="wkbars__n/g) || []).length, 4, 'chaque barre porte son nombre');
+    assert.match(html, /wkbars__n num wkbars__n--now">1</);
   });
 
   test('Tendance « depuis mai » : du premier au dernier point affiché', () => {

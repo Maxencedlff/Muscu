@@ -100,14 +100,11 @@ html.type-xl .sum-tile + .sum-tile { border-left: 0; padding-top: 10px; border-t
 
 /* ── Progrès ── */
 html:not(.type-xl) .stat-pair__val { font-size: 1.882rem; line-height: 2.2rem; }
-.stat-pair__trend { display: flex; align-items: flex-end; gap: 6px; margin-top: 4px; color: var(--label2); font-size: var(--fs-caption); }
 .prow__spark.txt-up { color: var(--green-text); }
 
-/* ── Semaine en barres (Progrès et fiche élève) ── */
-.wkbars { display: inline-flex; align-items: flex-end; gap: 3px; height: 22px; flex-shrink: 0; }
-.wkbars__b { width: 7px; min-height: 2px; border-radius: 2px; background: var(--chart-bar); transform-origin: bottom; }
-.wkbars__b--now { background: var(--label); }
-.wkbars--up .wkbars__b--now { background: var(--green); }
+/* ── Semaine en barres (Progrès et fiche élève) : détail dans css/theme-sobre-progres.css ── */
+.wkbars { display: inline-flex; flex-shrink: 0; }
+.wkbars__b { transform-origin: bottom; }
 .progress-week__row .wkbars { margin-right: 10px; }
 
 /* ── Nutrition ── */
@@ -163,7 +160,7 @@ html:not(.type-xl) .team-week__val { font-size: inherit; line-height: inherit; }
   @keyframes vvDraw160 { from { stroke-dashoffset: 160; } to { stroke-dashoffset: 0; } }
   @keyframes vvFade { from { opacity: 0; } }
   .wkbars__b { animation: vvGrow .45s cubic-bezier(.2, .8, .2, 1) both; }
-  .wkbars__b:nth-child(2) { animation-delay: .05s; } .wkbars__b:nth-child(3) { animation-delay: .1s; } .wkbars__b:nth-child(4) { animation-delay: .15s; }
+  .wkbars__col:nth-child(2) .wkbars__b { animation-delay: .05s; } .wkbars__col:nth-child(3) .wkbars__b { animation-delay: .1s; } .wkbars__col:nth-child(4) .wkbars__b { animation-delay: .15s; }
   @keyframes vvGrow { from { transform: scaleY(0); } }
 
   /* Bilan : les chiffres montent en même temps que le décompte (js/ui/vivant.js) */

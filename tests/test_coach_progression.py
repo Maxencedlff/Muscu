@@ -2,7 +2,7 @@
 - Mes élèves : un signal par élève, lisible d'un coup d'œil (↑ records en vert, à relancer en orange, le reste en
   gris), 3 lignes au plus par élève, tri (nouveautés, à relancer, records, les autres) dit sous la liste ;
 - pas de fausse alerte : un élève en décharge qui s'entraîne moins n'est pas « en baisse » ;
-- fiche d'un élève : « Cette semaine » en tête (séances faites sur prévues, records avec l'exercice, dernière
+- fiche d'un élève : « 7 derniers jours » en tête (séances faites sur prévues, records avec l'exercice, dernière
   séance qui s'ouvre), signal orange repris pour l'élève à relancer ;
 - serveur sans coach_progress (PGRST202) : les séances des élèves actifs sont lues page par page, les records
   apparaissent quand même, aucune erreur ;
@@ -183,7 +183,7 @@ def t_fiche(bench, eng, dev, theme):
         page.wait_for_selector('.coach-student-view .progress-week')
         page.wait_for_timeout(500)
         first = page.evaluate("document.querySelector('.coach-student-view .scr .group-title')?.textContent.trim()")
-        R.check(first == 'Cette semaine', f'{t} fiche : « Cette semaine » en tête ({first!r})')
+        R.check(first == '7 derniers jours', f'{t} fiche : « 7 derniers jours » en tête ({first!r})')
         wk = page.inner_text('.coach-student-view .progress-week')
         R.check('3 sur 4' in wk and 'Prévues : Sèche 4 jours' in wk, f'{t} fiche : séances faites sur prévues ({wk!r})')
         R.check('Squat' in wk and 'Tractions' in wk and '105 kg' in wk and 'avant 100 kg' in wk, f'{t} fiche : records avec l\'exercice')

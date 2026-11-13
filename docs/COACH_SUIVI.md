@@ -225,7 +225,9 @@ puis ceux qui ont battu un record cette semaine, puis les autres. »
 - **Ligne d'un élève** : 3 lignes au plus : pseudo ; signal ; sa phase (« Mini cut · sem. 3/6 ») ou, sans planning,
   sa dernière séance (« Push · ton programme · hier »). Pastilles (nouvelles séances, messages) inchangées. Élève sans
   séance arrivé il y a moins de 8 jours, sans planning : pas de signal, la 3e ligne dit « Aucune séance pour l'instant ».
-- **Fiche d'un élève, en tête** : groupe « Cette semaine » : le signal s'il est orange ou « stable » (les autres se
+- **Fiche d'un élève, en tête** : groupe « 7 derniers jours » (« Cette semaine » jusqu'à la vague 4, confondu avec la
+  semaine du calendrier de l'accueil ; les mini-barres, elles, comptent les semaines du lundi au dimanche, chiffre sous
+  chaque barre) : le signal s'il est orange ou « stable » (les autres se
   lisent dans les lignes du dessous) ; « Séances » : « 3 sur 4 » et « Prévues : Sèche 4 jours » quand sa phase en cours
   suit un de mes programmes (nombre de séances du programme, retrouvé par son nom), sinon « 2 » et « 3 d'habitude » ; un record
   par exercice (3 au plus, puis « Et 2 autres records ») avec l'exercice, la valeur et celle d'avant ; « Records :
