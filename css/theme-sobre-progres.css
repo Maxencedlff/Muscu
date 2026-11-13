@@ -8,21 +8,23 @@
    Le retirer = retirer une ligne d'index.html.
 ═══════════════════════════════════════════════ */
 
-/* ── Silhouette des muscles : une seule rampe, du gris du muscle au repos à l'orange MDLF ──
-   Valeurs calculées (mélange de --body-zone et de --tint-fill à 30, 55, 78 et 100 %), en hex et non en color-mix :
-   js/ui/body-map.js lit ces jetons pour teinter le canvas, il lui faut une couleur résolue. Plus de pêche ni de jaune. */
+/* ── Silhouette des muscles : une seule rampe orange, du gris du muscle au repos à l'orange MDLF ──
+   Panel vague 4 : les 4 paliers étaient 4 oranges presque identiques (1,2 à 1,45:1 d'un palier au suivant), on ne
+   distinguait pas « Travaillé » de « Objectif atteint » sans lire la liste. Même teinte (26-30°), clarté nettement
+   étagée (L* 71, 53, 36, 23 en clair ; 36, 53, 70, 87 en sombre), dans les deux thèmes. En sombre, plus de séries = plus lumineux ;
+   en clair, plus foncé. En hex et non en color-mix : js/ui/body-map.js lit ces jetons pour teinter le canvas. */
 :root {
   --body-heat: #FF7A1A; --body-heat-max: #FF7A1A; --body-heat-sec: #AD6430;
-  --body-tier-1: #7F573C; --body-tier-2: #AD6430; --body-tier-3: #D76F25; --body-tier-4: #FF7A1A;
+  --body-tier-1: #80451A; --body-tier-2: #C2641A; --body-tier-3: #FF8F3A; --body-tier-4: #FFD0A3;
   --sp-chart-line: #FF7A1A;
 }
 body.light {
-  /* En clair, plus de séries = plus foncé, jusqu'à l'orange foncé (5,2:1 sur blanc) */
-  --body-heat: #C64000; --body-heat-max: #C64000; --body-heat-sec: #C47D62;
-  --body-tier-1: #C69F92; --body-tier-2: #C47D62; --body-tier-3: #C35E36; --body-tier-4: #C64000;
-  /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #FF5E12 × 0,7 = #B2420D,
-     l'orange foncé de l'app (6:1 sur la carte blanche) */
-  --sp-chart-line: #FF5E12;
+  /* Muscle principal d'un exercice : l'orange foncé des boutons (5,3:1 sur blanc) ; secondaires 2,5:1 plus clairs */
+  --body-heat: #A85400; --body-heat-max: #A85400; --body-heat-sec: #E8A36E;
+  --body-tier-1: #EE9A5A; --body-tier-2: #C86010; --body-tier-3: #8A4000; --body-tier-4: #5E2800;
+  /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #E57000 × 0,7 = #A04E00,
+     l'orange d'action de l'app (5,9:1 sur la carte blanche) */
+  --sp-chart-line: #E57000;
 }
 /* Muscle principal et secondaires d'un exercice : pastilles neutres, une puce de la couleur du personnage les relie */
 .mpill { display: inline-flex; align-items: center; gap: 6px; }
