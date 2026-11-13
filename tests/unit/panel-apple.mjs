@@ -135,26 +135,32 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
 
   test('Typographie française : espaces insécables avant ? ! ; :, guillemets, « mois\u2011ci »', () => {
     assert.equal(app.frTypo('Tout réinitialiser ?'), 'Tout réinitialiser\u202f?');
-    assert.equal(app.frTypo('Échauffement ajouté : 3 séries'), 'Échauffement ajouté\u202f: 3\u202fséries');
-    assert.equal(app.frTypo('« Gros record ! »'), '«\u202fGros record\u202f!\u202f»');
-    assert.equal(app.frTypo('3 séances ce mois-ci'), '3\u202fséances ce mois\u2011ci');
-    assert.equal(app.frTypo('Repos 1:30 · 10:05'), 'Repos\u202f1:30\u202f· 10:05', 'chronos intacts et collés à leur mot, « · » jamais en début de ligne');
+    assert.equal(app.frTypo('Échauffement ajouté : 3 séries'), 'Échauffement ajouté\u00a0: 3\u00a0séries');
+    assert.equal(app.frTypo('« Gros record ! »'), '«\u00a0Gros record\u202f!\u00a0»');
+    assert.equal(app.frTypo('3 séances ce mois-ci'), '3\u00a0séances ce mois\u2011ci');
+    assert.equal(app.frTypo('Repos 1:30 · 10:05'), 'Repos\u00a01:30\u00a0· 10:05', 'chronos intacts et collés à leur mot, « · » jamais en début de ligne');
     // Panel t6 : lettre et chiffre des macros, « 1 j 18 h » jamais séparés
-    assert.equal(app.frTypo('P 5 · G 46 · L 1'), 'P\u202f5\u202f· G\u202f46\u202f· L\u202f1');
-    assert.equal(app.frTypo('encore 1 j 18 h'), 'encore 1\u202fj\u202f18\u202fh');
+    assert.equal(app.frTypo('P 5 · G 46 · L 1'), 'P\u00a05\u00a0· G\u00a046\u00a0· L\u00a01');
+    assert.equal(app.frTypo('encore 1 j 18 h'), 'encore 1\u00a0j\u00a018\u00a0h');
     assert.equal(app.frTypo('La 3e séance'), 'La 3e séance', 'mot de plusieurs lettres devant un nombre : coupure permise');
     // Panel t5 : nombre et unité ou nom, date, « ≈ 60 », « sem. 2/2 », « 10 % » jamais séparés
-    assert.equal(app.frTypo('5 exercices · ≈ 60 min'), '5\u202fexercices\u202f· ≈\u202f60\u202fmin');
-    assert.equal(app.frTypo('ven. 30 oct.'), 'ven. 30\u202foct.');
-    assert.equal(app.frTypo('+1 rep sur rowing'), '+1\u202frep sur rowing');
-    assert.equal(app.frTypo('Reprise · sem. 2/2'), 'Reprise\u202f· sem.\u202f2/2');
-    assert.equal(app.frTypo('baisse de 10 %'), 'baisse de 10\u202f%');
+    assert.equal(app.frTypo('5 exercices · ≈ 60 min'), '5\u00a0exercices\u00a0· ≈\u00a060\u00a0min');
+    assert.equal(app.frTypo('ven. 30 oct.'), 'ven. 30\u00a0oct.');
+    assert.equal(app.frTypo('+1 rep sur rowing'), '+1\u00a0rep sur rowing');
+    assert.equal(app.frTypo('Reprise · sem. 2/2'), 'Reprise\u00a0· sem.\u00a02/2');
+    assert.equal(app.frTypo('baisse de 10 %'), 'baisse de 10\u00a0%');
     assert.equal(app.frTypo('Ex. 3-1-1'), 'Ex. 3\u20111\u20111', 'tempo insécable');
     assert.equal(app.frTypo('3 secondes et 2 maisons'), '3 secondes et 2 maisons', 'un mot qui commence comme une unité reste intact');
     assert.equal(app.frTypo('https://x.fr/a?b=1 ; ok'), 'https://x.fr/a?b=1\u202f; ok', 'pas d\'espace ajoutée là où il n\'y en avait pas');
     assert.equal(app.frTypo('cinquante-cinq, ceci'), 'cinquante-cinq, ceci', 'autres traits d\'union intacts');
-    assert.equal(app.frTypo('Objectif 32 kg × 10'), 'Objectif 32\u202fkg\u202f×\u202f10', '« 32 kg × 10 » insécable');
-    assert.equal(app.frTypo('1\u202f080 kg'), '1\u202f080\u202fkg', 'nombre et unité liés');
+    assert.equal(app.frTypo('Objectif 32 kg × 10'), 'Objectif 32\u00a0kg\u00a0×\u00a010', '« 32 kg × 10 » insécable');
+    assert.equal(app.frTypo('1\u202f080 kg'), '1\u202f080\u00a0kg', 'nombre et unité liés');
+    // Panel vague 4 : l'espace fine (U+202F) disparaissait avec SF Pro (« 1record battu », « +1rep », « 519,6t ») ;
+    // espace insécable normale entre un nombre et son mot, fine seulement avant ; ! ? et dans les milliers
+    assert.equal(app.frTypo('1 record battu · +1 rep sur rowing'), '1\u00a0record battu\u00a0· +1\u00a0rep sur rowing');
+    assert.equal(app.frTypo('519,6 t'), '519,6\u00a0t');
+    assert.equal(app.frTypo('Dos · Biceps'), 'Dos\u00a0· Biceps', '« · » symétrique : même largeur d\'espace des deux côtés');
+    assert.ok(!/\d\u202f\p{L}/u.test(app.frTypo('5 exercices, 1 séance, 6 jours, 3 repas')), 'jamais d\'espace fine entre un nombre et un mot');
   });
 
   test('Tendance « depuis mai » : du premier au dernier point affiché', () => {

@@ -14,24 +14,25 @@ import datetime
 from zoneinfo import ZoneInfo
 
 # ── Typographie française de l'app (frTypo, js/core/util.js) ──
-# L'app pose une espace fine insécable (U+202F) avant ? ! ; : » et après «, autour de « × » et entre un nombre et
+# L'app pose une espace fine insécable (U+202F) avant ? ! ; et une espace insécable (U+00A0, panel vague 4) avant : »,
+# après «, autour de « × » et entre un nombre et
 # « kg » (et les autres unités, panel t5), et un trait d'union insécable (U+2011) dans « mois-ci ». Les textes lus par les tests sont ramenés à l'espace
-# et au trait d'union simples, SEULEMENT à ces places : un U+202F de séparateur de milliers (« 1 080 ») ou un U+00A0 (« 30 min ») restent tels quels, et les
+# et au trait d'union simples, SEULEMENT à ces places : un U+202F de séparateur de milliers (« 1 080 ») reste tel quel ; un U+00A0 écrit par l'app à ces mêmes places (« 30 min ») est ramené aussi, et les
 # vérifications gardent toute leur précision. typo_raw(page, js) lit un texte sans cette normalisation.
 # Panel t5 : aussi entre un nombre et son unité ou son nom (FR_TYPO_UNITS), après « ≈ » et « sem. », avant « · ».
 _TYPO_UNITS = ('kg|lb|min|h|j|s|t|g|kcal|km|cm|%|reps?|séances?|séries?|exercices?|jours?|semaines?|sem\\.|repas|records?'
                '|janv\\.|févr\\.|mars|avr\\.|mai|juin|juil\\.|août|sept\\.|oct\\.|nov\\.|déc\\.')
-_TYPO_RE = re.compile('\u202f(?=[?!;:\u00bb])|(?<=\u00ab)\u202f|\u2011|\u202f\u00d7\u202f|(?<=\\d)\u202f(?=(?i:' + _TYPO_UNITS + '))'
-                      '|(?<=\u2248)\u202f|(?<=sem\\.)\u202f(?=\\d)|\u202f(?=\u00b7 )'
+_TYPO_RE = re.compile('[\u202f\u00a0](?=[?!;:\u00bb])|(?<=\u00ab)[\u202f\u00a0]|\u2011|[\u202f\u00a0]\u00d7[\u202f\u00a0]|(?<=\\d)[\u202f\u00a0](?=(?i:' + _TYPO_UNITS + '))'
+                      '|(?<=\u2248)[\u202f\u00a0]|(?<=sem\\.)[\u202f\u00a0](?=\\d)|[\u202f\u00a0](?=\u00b7 )'
                       # panel t6 : « L 1 », « 1 j 18 h », « repos 2:00 » ; mois en capitales (« 18 OCT. », text-transform lu par inner_text)
-                      '|(?:(?<=^[A-ZÀ-Ýj])|(?<=[\\s(][A-ZÀ-Ýj]))\u202f(?=\\d)|(?<=[^\\W\\d_])\u202f(?=\\d{1,2}:\\d\\d)')
-_TYPO_SUB = {'\u2011': '-', '\u202f\u00d7\u202f': ' \u00d7 '}
+                      '|(?:(?<=^[A-ZÀ-Ýj])|(?<=[\\s(][A-ZÀ-Ýj]))[\u202f\u00a0](?=\\d)|(?<=[^\\W\\d_])[\u202f\u00a0](?=\\d{1,2}:\\d\\d)')
+_TYPO_SUB = {'\u2011': '-'}   # « × » entouré d'espaces simples (lambda ci-dessous)
 
 
 def typo_norm(v):
     """Ramène les espaces et traits d'union typographiques de frTypo à leur forme simple (récursif)."""
     if isinstance(v, str):
-        return _TYPO_RE.sub(lambda m: _TYPO_SUB.get(m.group(0), ' '), v)
+        return _TYPO_RE.sub(lambda m: _TYPO_SUB.get(m.group(0), ' \u00d7 ' if '\u00d7' in m.group(0) else ' '), v)
     if isinstance(v, list):
         return [typo_norm(x) for x in v]
     if isinstance(v, tuple):

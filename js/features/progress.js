@@ -116,7 +116,7 @@ function sinceTxt(ts, now = Date.now()) {
   if (d.getFullYear() !== new Date(now).getFullYear()) opts.year = 'numeric';
   return `depuis ${d.toLocaleDateString('fr-FR', opts)}`;
 }
-function pctTxt(p) { return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)} %`; }
+function pctTxt(p) { return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)}\u00a0%`; }
 
 // dates facultatives : points placés selon la date, comme la grande courbe de la fiche (chartXFracs), pour que les deux
 // tracés aient la même forme (panel t6 : la mini-courbe les plaçait au rang)

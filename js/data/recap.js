@@ -397,7 +397,7 @@ function recapProfile(history, p, sessions, favSlot, favDay, now = Date.now()) {
       parts.push('Tout le corps');
       // Le titre dit déjà « Tout le corps » : la ligne dit pourquoi, en mots (pas « 4 groupes à plus de 12 % »)
       const even = groups.filter(g => g.share >= RECAP_ALL_BODY.share).map(g => g.label.toLocaleLowerCase('fr-FR'));
-      lines.push(['Bien réparti', `${recapCap(even.slice(0, -1).join(', '))} et ${even.at(-1)} : chacun plus de ${Math.round(RECAP_ALL_BODY.share * 100)} % de tes séries`]);
+      lines.push(['Bien réparti', `${recapCap(even.slice(0, -1).join(', '))} et ${even.at(-1)} : chacun plus de ${Math.round(RECAP_ALL_BODY.share * 100)}\u00a0% de tes séries`]);
     }
   }
   const timed = sessions.filter(h => h.duration > 0);
