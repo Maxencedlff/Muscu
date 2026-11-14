@@ -605,7 +605,7 @@ function coachHistoryMount() {
 }
 // Bilan : sous les notes, quand on a un coach
 function coachNotesHint() {
-  return account.user && myCoach() ? '<p class="coach-notes-hint">Ton coach voit tes notes.</p>' : '';
+  return account.user && myCoach() ? '<p class="coach-notes-hint">Ton coach voit la note de séance.</p>' : '';
 }
 
 // ── Coach : Mes élèves ──────────────────────────────────────

@@ -16,6 +16,8 @@ const NOTE_CLEAR = Object.freeze({ clear: true });   // valeur du choix « Effac
 
 // Saisie d'une note : { text } à enregistrer, { clear: true } à effacer (ou champ vidé), null si annulé.
 // Une ligne de 140 caractères dans l'alerte iOS à champ ; « Effacer » seulement s'il y a une note.
+// « Visible par toi seul » : vrai tant que le serveur ne transmet ni les notes d'exercice ni celles de série au coach
+// (private.session_for_coach) ; à revoir le jour où il les transmettra. La note de séance, elle, part au coach.
 async function askNote({ title, message, value = '', canClear = false }) {
   const actions = canClear
     ? [{ label: 'Enregistrer', style: 'preferred' }, { label: 'Effacer', value: NOTE_CLEAR, style: 'destructive' }, { label: 'Annuler', style: 'cancel' }]
@@ -56,9 +58,10 @@ function collapsedNoteLineHtml(ex) {
   const own = cleanNote(ex?.note);
   return own ? `<span class="ex-summary__note">${icon('note', 12)}<span>${esc(own)}</span></span>` : '';
 }
+// Lien texte (une icône = un sens : l'icône grise reste l'étiquette d'une note, jamais un bouton)
 function collapsedNoteBtnHtml(ex, ei) {
   const own = cleanNote(ex?.note);
-  return `<button class="ex-note-btn${own ? ' ex-note-btn--on' : ''}" data-action="ex-note" data-ei="${ei}" aria-label="${own ? 'Modifier la note' : 'Ajouter une note'}, ${esc(ex.name)}">${icon('note', 20)}</button>`;
+  return `<button class="ex-note-link" data-action="ex-note" data-ei="${ei}" aria-label="${own ? 'Modifier la note' : 'Ajouter une note'}, ${esc(ex.name)}">${own ? 'Modifier la note' : 'Note'}</button>`;
 }
 
 // Choix du menu ⋯
@@ -68,7 +71,7 @@ async function editExerciseNote(ei) {
   const ex = activeSession?.exercises[ei];
   if (!ex) return;
   const shown = exNoteShown(ex);
-  const r = await askNote({ title: ex.name, message: 'Relue la prochaine fois sur cet exercice.', value: shown?.text || '', canClear: !!shown });
+  const r = await askNote({ title: ex.name, message: 'Relue la prochaine fois sur cet exercice. Visible par toi seul.', value: shown?.text || '', canClear: !!shown });
   if (!r || !activeSession || activeSession.exercises[ei] !== ex) return;
   if (r === NOTE_CLEAR) {
     // La note de la séance d'abord ; sans elle, celle de la dernière fois, retirée de sa séance (synchronisée)
@@ -92,9 +95,9 @@ function setNoteLinkHtml(ex, ei, si) {
   const n = cleanNote(ex.sets[si]?.note);
   return `<button class="set-note-link" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-label="${n ? `Note : ${esc(n)}. Modifier la note` : 'Ajouter une note'}, ${setRefName(ex, si)}, ${esc(ex.name)}">${icon('note', 14)}<span aria-hidden="true">${n ? esc(n) : 'Ajouter une note'}</span></button>`;
 }
-// Petit indicateur (10 px) sur une série validée qui a une note : après le numéro, dans le coin sous une lettre de superset
+// Indicateur (14 px, gris lisible) sur une série validée qui a une note : après le numéro, dans le coin sous une lettre de superset
 function setNoteDotHtml(s, tag = '') {
-  return cleanNote(s?.note) ? `<span class="set-note-dot${tag ? ' set-note-dot--corner' : ''}" aria-hidden="true">${icon('note', 10)}</span>` : '';
+  return cleanNote(s?.note) ? `<span class="set-note-dot${tag ? ' set-note-dot--corner' : ''}" aria-hidden="true">${icon('note', 14)}</span>` : '';
 }
 
 async function editSetNote(ei, si) {
@@ -106,7 +109,7 @@ async function editSetNote(ei, si) {
     else if (!saveEditedSet()) return;
   }
   const had = cleanNote(s.note);
-  const r = await askNote({ title: `Note · ${setSpokenName(ex, si)}`, message: ex.name, value: had || '', canClear: !!had });
+  const r = await askNote({ title: `Note · ${setSpokenName(ex, si)}`, message: `${ex.name}. Visible par toi seul.`, value: had || '', canClear: !!had });
   if (activeSession?.exercises[ei]?.sets[si] !== s) return;
   if (r === NOTE_CLEAR) { delete s.note; announce('Note effacée'); }
   else if (r) { s.note = r.text; announce('Note enregistrée'); }

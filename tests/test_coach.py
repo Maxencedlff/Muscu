@@ -319,7 +319,7 @@ def t_eleve(bench, eng, dev, theme):
         tip.click()
         page.wait_for_timeout(200)
         R.check(page.locator('.coach-tip[data-ex]:not([data-ex=""])').first.get_attribute('aria-expanded') == 'false', f'{t} consigne repliée d\'un seul toucher')
-        R.check(page.evaluate('coachNotesHint()').find('Ton coach voit tes notes') > 0, f'{t} bilan : « Ton coach voit tes notes »')
+        R.check(page.evaluate('coachNotesHint()').find('Ton coach voit la note de séance') > 0, f'{t} bilan : « Ton coach voit la note de séance »')
         page.evaluate("activeSession = null; persistSession(); routeTo('dashboard')")
         page.wait_for_timeout(200)
         # Panel du 07/11 : Squat à reps fixes (« 5 reps ») fait à 72,5 × 8 la dernière fois : l'objectif disait

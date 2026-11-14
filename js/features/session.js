@@ -320,17 +320,15 @@ function renderSession() {
 function renderCollapsedExercise(ex, ei, records, rir = '') {
   return `
       <div class="exercise-block ex-card ex-card--collapsed" data-ei="${ei}">
-        <div class="ex-summary-row">
-          <button class="ex-summary" data-action="toggle-ex" data-ei="${ei}" aria-expanded="false">
-            <span class="ex-summary__text">
-              <span class="ex-summary__name">${esc(ex.name)}</span>
-              <span class="ex-summary__line num">${doneSummary(ex)}${records ? ` · ${medalSvg(14)}` : ''}</span>
-              ${collapsedNoteLineHtml(ex)}
-            </span>
-            <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
-          </button>
-          ${collapsedNoteBtnHtml(ex, ei)}
-        </div>${rir}
+        <button class="ex-summary" data-action="toggle-ex" data-ei="${ei}" aria-expanded="false">
+          <span class="ex-summary__text">
+            <span class="ex-summary__name">${esc(ex.name)}</span>
+            <span class="ex-summary__line num">${doneSummary(ex)}${records ? ` · ${medalSvg(14)}` : ''}</span>
+            ${collapsedNoteLineHtml(ex)}
+          </span>
+          <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
+        </button>
+        ${collapsedNoteBtnHtml(ex, ei)}${rir}
       </div>`;
 }
 
@@ -545,7 +543,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const sub    = TECHS[setTech(s)]?.sub;
   const rir    = m === 'reps' && !warm ? (last && rirShown() && !sub ? rirPickerHtml(ei, si, s, ex) : rirBadgeHtml(s)) : '';
   const rirSpoken = cleanRir(s.rir) !== null ? `, ${rirTxt(s.rir)} en réserve` : '';
-  const noteSpoken = cleanNote(s.note) ? `, note : ${esc(cleanNote(s.note))}` : '';   // js/features/session-notes.js
+  const noteSpoken = cleanNote(s.note) ? `, avec note : ${esc(cleanNote(s.note))}` : '';   // js/features/session-notes.js
   // « Annuler » en ligne pendant 6 s : la ligne se corrige toujours au toucher, mais n'est plus annoncée comme un bouton
   // (pas de bouton dans un bouton pour VoiceOver) ; « Annuler » a sa propre action
   const u = undoForSet(ex, si);
@@ -991,9 +989,9 @@ registerActions({
     if (editingSet && !saveEditedSet()) return;
     editingSet = { ei: parseInt(el.dataset.ei), si: parseInt(el.dataset.si) };
     render();
-    // Curseur placé pendant le tap lui-même : iOS n'ouvre le clavier que dans le geste, et un focus
-    // différé reviendrait dans le champ après une sortie rapide (qui ne serait alors pas enregistrée)
-    $('#editSetReps')?.focus({ preventScroll: true });
+    // Jamais de focus automatique dans un champ (règle iOS : ni clavier ni poignées de sélection sans le demander) :
+    // on touche le champ à corriger. Le focus va au ✓ (bouton, sans clavier) pour que VoiceOver reste sur la série.
+    $('.session-set--editing .set-check-zone')?.focus({ preventScroll: true });
   },
   'save-edit-set': saveEditedSet,
   'delete-set': (e, el) => {

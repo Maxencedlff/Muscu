@@ -56,6 +56,17 @@ document.addEventListener('pointercancel', () => {
   swipe.wrap.classList.remove('set-swipe--swiping');
   swipe = null;
 });
+// Série rouverte sans rien taper (relue, note consultée) : un toucher ailleurs la referme, comme le faisait la sortie
+// du champ quand il prenait le focus. Après l'action touchée, pour ne jamais la détourner.
+document.addEventListener('click', e => {
+  const open = editingSet;
+  if (!open || e.target.closest?.('.session-set--editing, .ios-dialog, .sess-sheet')) return;
+  setTimeout(() => {
+    if (editingSet !== open || open.weight !== undefined || open.reps !== undefined || document.activeElement?.matches?.('.set-input')) return;
+    editingSet = null;
+    render();
+  }, 0);
+});
 // Le relâchement d'un balayage ne doit pas ouvrir la série en édition
 document.addEventListener('click', e => {
   if (swipeBlockClick && e.target.closest?.('.session-set')) { e.stopPropagation(); e.preventDefault(); }
