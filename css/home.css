@@ -36,13 +36,13 @@
 /* Haut de la carte : texte à gauche, vignette à droite sur toute sa hauteur ; la carte la rogne à droite */
 .hero__top { position: relative; min-height: 7.2rem; margin: -4px -18px 0 0; }
 .hero__text { position: relative; z-index: 1; display: flex; flex-direction: column; width: 58%; }
-.hero__thumb { height: 7.2rem; max-width: 46%; }
+.hero__top .hero__thumb { height: 7.2rem; max-width: 46%; }   /* .hero__top : passe devant .mgc__img (css/muscles.css, chargé après) */
 .hero--noart .hero__text, .hero__top:has(.mgc__img[data-missing]) .hero__text { width: 100%; }
 .hero__text > .hero__btn { width: 100%; }
 .hero__top + .hero__wait, .hero__top + .hero__why, .hero__top + .hero__sleep { margin-top: 10px; }
 @media (max-width: 359px) {
   .hero__text { width: 64%; }
-  .hero__thumb { height: 6rem; max-width: 40%; }
+  .hero__top .hero__thumb { height: 6rem; max-width: 40%; }
 }
 .hero .hero__desc { margin-top: 6px; font-size: var(--fs-callout); line-height: 1.3; color: var(--label); }
 .hero .hero__info { margin-top: 3px; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }
@@ -159,7 +159,7 @@ html.type-xl .week__text { overflow: visible; }
 .home-cell.mgc .home-cell__text { flex: none; gap: 2px; }
 .home-cell.mgc .home-cell__name { font-size: var(--fs-title3); white-space: normal; }
 .home-cell.mgc .home-cell__right { margin-top: 2px; }
-.home-cell__img { right: -16px; max-width: 48%; }
+.home-cell .home-cell__img { right: -16px; max-width: 48%; }
 .home-cell + .home-cell::before { right: -16px; }
 
 /* Petite hauteur (iPhone SE) : la carte se resserre, Démarrer reste visible sans défiler */
