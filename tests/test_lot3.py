@@ -92,6 +92,15 @@ def t_home(bench, eng, dev, theme):
         cells = page.locator('.home-cell[data-action="session-actions"]')
         R.check(cells.count() == 2 and page.inner_text('.home-list__title').strip().upper() == 'AUTRES SÉANCES', f'{t} 2 autres séances dans « Autres séances »')
         R.check(all(cells.nth(i).bounding_box()['height'] >= 44 for i in range(cells.count())), f'{t} cellules de 44 pt au moins')
+        # Cartes séances : la prochaine et les autres illustrées par la vignette du groupe principal (Bibliothèque),
+        # images décoratives ; VoiceOver lit le texte affiché (nom, infos, état), sans aria-label qui le tronquerait
+        art = page.evaluate("""() => [...document.querySelectorAll('.hero .hero__thumb, .home-list .home-cell__img')].map(i => ({
+            src: i.getAttribute('src'), alt: i.getAttribute('alt'), hidden: i.getAttribute('aria-hidden'), shown: i.complete && i.naturalWidth > 0 && i.getBoundingClientRect().width > 40 }))""")
+        R.check(len(art) == 3 and all(a['src'].startswith('img/muscles/') and a['alt'] == '' and a['hidden'] == 'true' and a['shown'] for a in art), f'{t} séances illustrées, images décoratives {art}')
+        R.check(page.get_attribute('.hero .hero__thumb', 'src') == 'img/muscles/pectoraux.webp', f'{t} Push : vignette des pectoraux')
+        cards = [{'name': cells.nth(i).locator('.home-cell__name').inner_text(), 'text': ' '.join(cells.nth(i).inner_text().split()), 'aria': cells.nth(i).get_attribute('aria-label')} for i in range(cells.count())]
+        R.check(sorted(c['name'] for c in cards) == ['Legs', 'Pull'] and all(c['aria'] is None and 'exercices' in c['text'] and ('Prête' in c['text'] or 'En cours' in c['text']) for c in cards),
+                f'{t} cartes Pull et Legs : nom, infos et « Prête » ou « Prête dans… » lus par VoiceOver {cards}')
         week = page.locator('.week')
         R.check(page.locator('.rings').count() == 0 and week.count() == 1, f'{t} une seule carte « Cette semaine », plus d\'anneaux')
         R.check(page.locator('.week__day').count() == 7 and page.locator('.week__letter').all_inner_texts() == list('LMMJVSD'), f'{t} 7 jours')
@@ -416,6 +425,13 @@ def o_home_type_xl(bench):
         R.check(g['xl'] and btn.inner_text().strip() == 'Démarrer quand même', f'type-xl : « Démarrer quand même » ({btn.inner_text()!r}, {g})')
         R.check(g['scroll'] == 0 and g['top'] >= 0 and g['bottom'] <= g['tabbar'] and g['fits'], f'type-xl iPhone SE : « Démarrer quand même » visible sans défiler {g}')
         R.check(g['first'] and g['underName'] and g['css'] == '0', f'type-xl : Démarrer sous le nom dans le HTML, sans CSS order {g}')
+        # Texte agrandi : plus de vignettes, rien de coupé (ni nom de séance, ni nom d'exercice, ni état), pas de défilement horizontal
+        xl = page.evaluate("""() => {
+            const imgs = [...document.querySelectorAll('.hero__thumb, .home-cell__img')].filter(i => getComputedStyle(i).display !== 'none');
+            const cut = [...document.querySelectorAll('.hero__text > *, .home-cell__name, .home-cell__sub, .home-cell__status, .targets__name, .targets__target, .targets__before')]
+                .filter(e => e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1).map(e => e.className);
+            return { imgs: imgs.length, cut, hscroll: document.documentElement.scrollWidth > innerWidth }; }""")
+        R.check(xl['imgs'] == 0 and not xl['cut'] and not xl['hscroll'], f'type-xl : sans image, rien de coupé {xl}')
         shot(page, LOT, 'accueil-type-xl-recup-iPhone_SE')
         # Séance sans exercice : pas de cibles, le lien vers l'éditeur reste
         c = page.evaluate("(() => { const c = nextSessionCat(sessionKeys()); prog().exercises[c] = []; save(); render(); return c; })()")
