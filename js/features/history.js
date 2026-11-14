@@ -16,6 +16,7 @@ function historyMatches(h, q) {
   if (!q) return true;
   if (isHealthEntry(h)) return [h.health.title, h.health.source, h.exercises[0].name].some(t => normName(t).includes(q));
   if (normName(h.notes).includes(q)) return true;
+  if ((h.exercises || []).some(e => normName(e.note).includes(q))) return true;   // notes d'exercice (js/data/notes.js)
   return (h.exercises || []).some(e => normName(e.name).includes(q));
 }
 
@@ -196,6 +197,7 @@ function renderHistoryDetail(id) {
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}
                 ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
+                ${historyNotesHtml(e)}
               </span>
             </div>`).join('')}
         </div>

@@ -308,6 +308,7 @@ function renderSession() {
       <div class="session-content">
         ${renderMusicBar()}
         ${coachSessionProgTipHtml()}
+        ${lastSessionNoteHtml()}
         ${exHtml}
         <button class="session-add-ex-btn" data-action="add-session-ex">${icon('plus', 20)} Ajouter un exercice</button>
       </div>
@@ -319,13 +320,17 @@ function renderSession() {
 function renderCollapsedExercise(ex, ei, records, rir = '') {
   return `
       <div class="exercise-block ex-card ex-card--collapsed" data-ei="${ei}">
-        <button class="ex-summary" data-action="toggle-ex" data-ei="${ei}" aria-expanded="false">
-          <span class="ex-summary__text">
-            <span class="ex-summary__name">${esc(ex.name)}</span>
-            <span class="ex-summary__line num">${doneSummary(ex)}${records ? ` · ${medalSvg(14)}` : ''}</span>
-          </span>
-          <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
-        </button>${rir}
+        <div class="ex-summary-row">
+          <button class="ex-summary" data-action="toggle-ex" data-ei="${ei}" aria-expanded="false">
+            <span class="ex-summary__text">
+              <span class="ex-summary__name">${esc(ex.name)}</span>
+              <span class="ex-summary__line num">${doneSummary(ex)}${records ? ` · ${medalSvg(14)}` : ''}</span>
+              ${collapsedNoteLineHtml(ex)}
+            </span>
+            <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
+          </button>
+          ${collapsedNoteBtnHtml(ex, ei)}
+        </div>${rir}
       </div>`;
 }
 
@@ -418,6 +423,7 @@ function renderExerciseCard(ex, ei, cur) {
       </div>
       ${exGoalHtml(ex)}
       ${gripLineHtml(ex, ei)}
+      ${exNoteLineHtml(ex, ei)}
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
       ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
@@ -501,6 +507,7 @@ function renderGroupCard(members, cur, tags) {
       <div class="ex-card__sub"><button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${members.at(-1)}" aria-label="Repos ${fmtRestSpoken(exRest(xs[members.at(-1)]))} après chaque tour, modifier">Repos ${rest} après chaque tour</button></div>
       <div class="ss-members">${legend}</div>
       ${members.map(ei => gripLineHtml(xs[ei], ei, tags[ei])).join('')}
+      ${members.map(ei => exNoteLineHtml(xs[ei], ei, tags[ei])).join('')}
       ${members.map(ei => coachSessionTipHtml(xs[ei], tags[ei])).join('')}
       <div class="sets" role="group" aria-label="Séries du ${kind.toLowerCase()}">
         <div class="sets__head" aria-hidden="true">
@@ -538,6 +545,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const sub    = TECHS[setTech(s)]?.sub;
   const rir    = m === 'reps' && !warm ? (last && rirShown() && !sub ? rirPickerHtml(ei, si, s, ex) : rirBadgeHtml(s)) : '';
   const rirSpoken = cleanRir(s.rir) !== null ? `, ${rirTxt(s.rir)} en réserve` : '';
+  const noteSpoken = cleanNote(s.note) ? `, note : ${esc(cleanNote(s.note))}` : '';   // js/features/session-notes.js
   // « Annuler » en ligne pendant 6 s : la ligne se corrige toujours au toucher, mais n'est plus annoncée comme un bouton
   // (pas de bouton dans un bouton pour VoiceOver) ; « Annuler » a sa propre action
   const u = undoForSet(ex, si);
@@ -545,8 +553,8 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" ${u ? '' : 'role="button" tabindex="0"'}>
-          <span class="sr-text">${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
-          ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
+          <span class="sr-text">${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
+          ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}${setNoteDotHtml(s, tag)}
           ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}
           <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
           <span class="set-val set-val--r num" aria-hidden="true">${esc(s.reps)}</span>
@@ -699,6 +707,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}">
         ${check}
+        ${editing && s.done ? setNoteLinkHtml(ex, ei, si) : ''}
       </div>
       ${rir}
     </div>`;
@@ -911,9 +920,10 @@ function scrollToCard(ei) {
 function afterSessionRender(entering) {
   const mini = $('.rest-mini');
   if (mini) document.documentElement.style.setProperty('--rest-h', `${Math.ceil(mini.getBoundingClientRect().height)}px`);
-  // Consigne générale du coach (js/features/coach-ui.js) et aucune série faite : la séance s'ouvre en haut,
-  // la consigne visible (sinon elle serait cachée sous la barre par le défilement vers le premier exercice)
-  const tipFirst = entering && coachSessionProgTipHtml() && !activeSession.exercises.some(ex => ex.sets.some(s => s.done));
+  // Consigne générale du coach (js/features/coach-ui.js) ou note de la dernière fois (js/features/session-notes.js) et
+  // aucune série faite : la séance s'ouvre en haut, la ligne visible (sinon elle serait cachée sous la barre par le
+  // défilement vers le premier exercice)
+  const tipFirst = entering && (coachSessionProgTipHtml() || lastSessionNoteHtml()) && !activeSession.exercises.some(ex => ex.sets.some(s => s.done));
   if (tipFirst) window.scrollTo(0, 0);
   else if (entering) scrollToCurrent(false);
   observeCurrentExName();

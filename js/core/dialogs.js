@@ -87,6 +87,7 @@ function dialogInputLabel(input, title = '') {
 }
 
 // actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred', section, apart }]
+// input : { value, placeholder, text | digits | decimal, max (longueur d'un texte, 40 par défaut), unit, label }
 // type 'sheet' = feuille d'actions en bas, 'alert' = alerte centrée
 // Feuille seulement : section = titre du groupe de choix qui commence là (long menu rangé en sections) ; group = groupe
 // séparé du précédent par une bande, sans titre (menu court) ;
@@ -120,7 +121,7 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
         </div>
         ${input   ? `<div class="ios-dialog__field">
             <input class="ios-dialog__input" ${input.digits ? 'type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="20"'   // code-barres : zéros de tête gardés
-              : input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"'
+              : input.text ? `type="text" autocomplete="off" autocapitalize="sentences" maxlength="${input.max || 40}"`
               : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off"'   // « 70,5 » : la virgule du clavier français
               : 'type="number" inputmode="numeric"'}
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}" aria-label="${esc(dialogInputLabel(input, title))}">
@@ -152,11 +153,12 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     };
     const pick = a => {
       if (!a || a.style === 'cancel') return close(null);
-      close(field ? field.value : a.value);
+      // Avec un champ, le choix rend le texte saisi ; un choix qui porte sa propre valeur (« Effacer ») la rend
+      close(field && a.value === undefined ? field.value : a.value);
     };
     const onKey = ev => {
       if (ev.key === 'Escape') close(null);
-      if (ev.key === 'Enter' && field) { ev.preventDefault(); pick(main[main.length - 1]); }
+      if (ev.key === 'Enter' && field) { ev.preventDefault(); pick(main.find(a => a.style === 'preferred') || main[main.length - 1]); }
     };
     root.addEventListener('click', ev => {
       ev.stopPropagation();

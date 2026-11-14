@@ -221,7 +221,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.match(html, /Reps en réserve · S2</, 'S2 : l\'échauffement ne compte pas');
     assert.match(html, /data-action="set-rir" data-ei="0" data-si="2" data-rir="1" aria-pressed="true"/, 'RIR déjà noté : pastille enfoncée');
     assert.match(html, /aria-label="Répétitions en réserve, [^"]*, Squat barre"/, 'VoiceOver : nom de l\'exercice sous le résumé');
-    assert.match(run(`renderCollapsedExercise(activeSession.exercises[0], 0, 0, foldedRirHtml([0]))`), /<\/button><div class="ex-fold-rir">/, 'sous le bouton du résumé, pas dedans');
+    assert.match(run(`renderCollapsedExercise(activeSession.exercises[0], 0, 0, foldedRirHtml([0]))`), /<\/button>\s*<\/div><div class="ex-fold-rir">/, 'sous le bouton du résumé, pas dedans');
     assert.equal(run(`foldedRirHtml([1, 2])`), '', 'autre bloc : rien');
     run(`activeSession.lastDone = { ei: 2, si: 0 };`);
     assert.match(run(`foldedRirHtml([1, 2])`), /Reps en réserve · A2 S1</, 'superset : la lettre de l\'exercice');

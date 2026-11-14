@@ -86,6 +86,16 @@ function cleanCoachState(raw) {
 function cleanCoachSession(s) {
   const base = cleanPublicSession(s);
   const o = s && typeof s === 'object' ? s : {};
+  // Notes d'exercice et de série (js/data/notes.js) : le coach seul, jamais un abonné (cleanPublicSession les
+  // écarte). La liste blanche du serveur ne les transmet pas encore : lues dès qu'elle les ajoutera.
+  const rawEx = (Array.isArray(o.exercises) ? o.exercises : []).slice(0, 60)
+    .filter(e => e && typeof e === 'object' && typeof e.name === 'string' && e.name.trim());
+  base.exercises.forEach((e, i) => {
+    const n = cleanNote(rawEx[i]?.note);
+    if (n) e.note = n;
+    const rs = (Array.isArray(rawEx[i]?.sets) ? rawEx[i].sets : []).slice(0, 50).filter(st => st && typeof st === 'object');
+    e.sets.forEach((st, j) => { const sn = cleanNote(rs[j]?.note); if (sn) st.note = sn; });
+  });
   const bodyKg = typeof cleanSessionBodyKg === 'function' ? cleanSessionBodyKg(o.bodyKg) : null;
   return { ...base, notes: coachStr(o.notes, 2000), hidden: o.hidden === true, ...(bodyKg ? { bodyKg } : {}) };
 }

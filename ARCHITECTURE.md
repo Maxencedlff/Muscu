@@ -101,6 +101,7 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `warmup.js` | Échauffement (chargé avant `store.js`) : paliers 40 / 60 / 80 %, `isWarmupSet`, `workSets` (séries de travail : volume, records, séries, récaps, muscles excluent `warmup: true`) |
 | `intensif.js` | Techniques d'intensification (chargé avant `store.js`) : drop set, rest-pause, cluster (sous-séries `sub` sous la série), top set, back-off (étiquettes `tech`) ; `volumeSets` (volume avec les sous-séries), `techFields`, `cleanTechSet`, prescription du programme `INTENS_PLANS` / `applyIntensPlan`, charge proposée `subAutoKg`, sous-série en cours `techCurrentSub` (seulement celle de la dernière série validée), textes `techLines`, `techShareText`. Décisions : docs/INTENSIFICATION.md |
 | `rir.js` | RIR facultatif d'une série validée (`rir` 0 à 4, `cleanRir`, équivalence RPE de Zourdos), réglage `data.rirOn` (appareil), `meanRpe`, `rirLine` |
+| `notes.js` | Notes courtes (`NOTE_MAX` 140, `cleanNote` : une ligne, chargé avant `store.js`) : d'exercice (`note` d'un exercice de l'historique ou de la séance en cours), de série (`note` d'une série validée), et note de séance (`notes`, existante). Dernière note d'un exercice par sa fiche de la bibliothèque, alias et ancien nom compris (`noteKey`, `exerciseNoteIndex` gardé par `dataVersion`, `exerciseNotes`, `lastExerciseNote`), note de la dernière séance du même type (`lastSessionNote`), notes de série nommées (`setNotesOf`), effacement d'une note passée (`clearHistoryExerciseNote`). Synchronisées avec la séance ; jamais aux abonnés (liste blanche du serveur) ; le coach lit la note de séance, les notes d'exercice et de série dès que `private.session_for_coach` les transmettra (`cleanCoachSession` les lit déjà) |
 | `strength-standards.js` | Seuils du niveau de force (`STRENGTH_STANDARDS` : squat, développé couché, soulevé de terre ; hommes et femmes ; par catégorie de poids), **générés** par `scripts/strength-standards.py` depuis l'export public d'OpenPowerlifting. Ne pas modifier à la main |
 | `strength-levels.js` | Niveau de force, logique pure et locale (chargé avant `store.js` : `STRENGTH_SEXES` sert au nettoyage) : `STRENGTH_LIFTS` (3 exercices à barre), `STRENGTH_SEXES`, `strengthLiftOf`, `strengthSex` (Réglages › Entraînement › Sexe, null sans réponse ou « Ne pas préciser »), `strengthThresholds` (catégorie de poids), `liftBestE1rm` (90 jours), `strengthStanding`, `sessionStrengthLevels` (bilan, palier franchi). Méthode et source : docs/ENTRAINEMENT.md |
 | `import-csv.js` | Import Hevy / Strong, logique pure : lecture CSV, format, dates, correspondance des noms (`matchImportedExercise`, `IMPORT_ALIASES`), conversion (RPE → `rir`, échauffements gardés → `warmup: true`), dédoublonnage, `applyImport`. Formats : docs/IMPORT_CSV.md |
@@ -188,6 +189,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `watch.js` | Apple Watch (app iOS) : état envoyé à la montre (`watchState`, `watchBlockReason`) et gestes acceptés (`watchActionFor`), logique pure ; `watchBoot()` appelé par `init.js` une fois la séance restaurée (écouteurs puis premier état ; rien n'est écouté ni envoyé avant), `syncWatch()` appelé par `persistSession()` (rien n'est renvoyé si l'état n'a pas changé), `handleWatchAction()` valide la série, passe le repos ou fait ±15 s comme les boutons de l'iPhone (geste de plus de 30 s refusé). Voir docs/WATCH_WIDGETS.md |
 | `home-widget.js` | Widget de l'écran d'accueil et de l'écran verrouillé (app iOS) : instantané `widgetSnapshot()` (prochaine séance, semaine, séance en cours), écrit au démarrage et au passage en arrière-plan s'il a changé |
 | `siri.js` | « Démarrer ma séance » (Siri, Raccourcis) : `siriDecision()` (logique pure) puis `startSessionFlow()` ; `siriBoot()` appelé par `init.js` après la restauration de la séance et Bienvenue : il pose l'écouteur (aucune demande suivie avant) et prend la demande laissée au lancement |
+| `session-notes.js` | Notes en séance et relues : alerte à champ (`askNote` : 140 caractères, « Effacer » s'il y a une note), ligne grise « Dernière note : … » sous le nom (`exNoteLineHtml`, toucher = modifier ou effacer), icône « note » au bout d'une carte repliée (`collapsedNoteBtnHtml`), choix du menu ⋯ (`exNoteMenuLabel`), note d'une série validée rouverte (`setNoteLinkHtml`) et son indicateur de 10 px (`setNoteDotHtml`), « Note de la dernière fois » en haut de la même séance, fermée par `activeSession.lastNoteOff` (`lastSessionNoteHtml`), Historique › Séance et relecture du coach (`historyNotesHtml`), fiche de la bibliothèque (`libExNotesHtml`) |
 | `session-sheets.js` | Feuilles de la séance (`openSessSheet`), repos d'un exercice, feuille d'ajout / remplacement d'exercice (`openAddExSheet({ target })` : séance en cours, Programme › Séance ou séance passée), menu ⋯, « Comment faire » (`hasHowTo`, `openHowTo` : menu ⋯ ou nom de l'exercice touché sur sa carte) |
 | `session-tools.js` | Feuilles « Disques » et « Échauffement » de la séance (`js/data/plates.js`, `js/data/warmup.js`) |
 | `session-intensif.js` | Techniques d'intensification en séance : numéro de série touchable (`setTechNumHtml`), titre et sous-lignes sous la série (`techBlockHtml`), validation d'une sous-série, choix dans Programme › Exercice (`exIntensHtml`) ; logique dans `js/data/intensif.js` |
@@ -319,7 +321,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   lastExport: 1712345678901,                 // facultatif
   strengthSex: 'male' | 'female' | 'none',   // facultatif : Réglages › Entraînement › Sexe (repères du niveau de force), appareil seulement
   history: [{ id, programme, category, date, duration?, notes, hidden?,   // hidden : true = masquée aux abonnés (Amis)
-              exercises: [{ exId, name, sets: [{ weight, reps }] }] }],   // triée du plus récent au plus ancien
+              exercises: [{ exId, name, note?, sets: [{ weight, reps, note? }] }] }],   // triée du plus récent au plus ancien ; note : js/data/notes.js
 }
 ```
 
@@ -363,7 +365,8 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   activeSession: { category, programme, startedAt, lastEi?,         // (baseline d'une version d'avant : ignoré,
                                                                     //  les badges se comparent à l'historique)
                    exercises: [{ exId, name, rest?, bumped?,
-                                 sets: [{ weight, reps, plannedWeight, prev: { weight, reps } | null, done }] }] },
+                                 note?, sets: [{ weight, reps, plannedWeight, prev: { weight, reps } | null, done, note? }] }],
+                   lastNoteOff? },                                  // note? : js/data/notes.js ; lastNoteOff : « Note de la dernière fois » fermée
   sessionNotes: '',
   rest: { endTime, minimized, total } | null,                       // repos calé sur une heure de fin
 }

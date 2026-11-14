@@ -475,6 +475,7 @@ function cleanHistoryEntry(h) {
   if (typeof h.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(h.id)) h.id = uid();
   if (h.healthSaved !== undefined && h.healthSaved !== true) delete h.healthSaved;   // app iOS : déjà envoyée à Santé
   if (h.hidden !== undefined && h.hidden !== true) delete h.hidden;   // masquée aux abonnés (social), absent sinon
+  if (h.notes !== undefined && typeof h.notes !== 'string') delete h.notes;   // note de séance (bilan) : un texte ou rien
   // Poids du corps au moment de la séance (volume des exercices au poids du corps)
   if (h.bodyKg !== undefined && !(Number.isFinite(h.bodyKg) && h.bodyKg >= 25 && h.bodyKg <= 300)) delete h.bodyKg;
   h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');
@@ -491,6 +492,8 @@ function cleanHistoryEntry(h) {
     pinLegacyCardioWords(ex);
     // Prise faite ce jour-là (js/data/grips.js) : indication, ne change ni records ni « Avant »
     if (ex.grip !== undefined) { const g = cleanGrip(ex.grip); if (g) ex.grip = g; else delete ex.grip; }
+    // Note d'exercice (js/data/notes.js) : une ligne bornée, retirée si vide
+    if (ex.note !== undefined) { const n = cleanNote(ex.note); if (n) ex.note = n; else delete ex.note; }
     ex.sets.forEach(st => {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
@@ -502,6 +505,8 @@ function cleanHistoryEntry(h) {
       if (st.rir !== undefined) { const r = cleanRir(st.rir); if (r === null) delete st.rir; else st.rir = r; }
       // Technique d'intensification et sous-séries (js/data/intensif.js) : bornées, absentes sinon
       cleanTechSet(st);
+      // Note de série (js/data/notes.js) : même règle que la note d'exercice
+      if (st.note !== undefined) { const n = cleanNote(st.note); if (n) st.note = n; else delete st.note; }
     });
     // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
     ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);

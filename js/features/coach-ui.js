@@ -847,6 +847,7 @@ function reviewExerciseCell(x, xs, i) {
                 ${techLinesHtml(e)}
                 ${reviewGripHtml(e)}
                 ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
+                ${historyNotesHtml(e)}
                 ${x.prev ? `<span class="review-ex__prev num">avant ${coachSetsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
               </span>
             </div>`;

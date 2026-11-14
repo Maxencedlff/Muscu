@@ -30,6 +30,7 @@ const SCRIPTS = [
   'js/data/warmup.js',
   'js/data/intensif.js',
   'js/data/rir.js',
+  'js/data/notes.js',
   'js/data/strength-standards.js',
   'js/data/strength-levels.js',
   'js/data/body-measures.js',
@@ -103,6 +104,7 @@ const SCRIPTS = [
   'js/features/session.js',
   'js/features/session-sheets.js',
   'js/features/grip-ui.js',
+  'js/features/session-notes.js',
   'js/features/session-order-ui.js',
   'js/features/session-tools.js',
   'js/features/summary.js',
@@ -1849,6 +1851,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./entries.mjs')).default({ test, run, reset, assert, app, sameJSON });
 // ── Tempo : notation, préréglages, sens de départ, phrase d'aide, horloge des phases (tests dans tempo.mjs) ──
 (await import('./tempo.mjs')).default({ test, run, assert, app, sameJSON });
+// ── Notes d'exercice, de série et de séance (tests dans notes.mjs) ──
+(await import('./notes.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Outils de la séance (lot 2) : disques, échauffement, RIR et leurs exclusions (tests dans seance-outils.mjs) ──
 (await import('./seance-outils.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Techniques d'intensification (tests dans intensif.mjs) ──

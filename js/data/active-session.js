@@ -50,6 +50,9 @@ function restoreSession() {
     if (!activeSession.startedAt) activeSession.startedAt = Date.now();
     activeSession.exercises.forEach(ex => {
       if (!Array.isArray(ex.sets)) ex.sets = [];
+      // Notes d'exercice et de série (js/data/notes.js) : bornées comme dans l'historique
+      if (ex.note !== undefined) { const n = cleanNote(ex.note); if (n) ex.note = n; else delete ex.note; }
+      ex.sets.forEach(st => { if (st && st.note !== undefined) { const n = cleanNote(st.note); if (n) st.note = n; else delete st.note; } });
       // Exercice sans mesure (la séance écrit la sienne depuis longtemps : startSession, feuille d'ajout) d'une
       // donnée d'avant le schéma 6 : les mots de cardio appris depuis ne le font pas changer de mesure
       pinLegacyCardioWords(ex, loadedSchema);

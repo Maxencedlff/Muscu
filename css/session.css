@@ -797,3 +797,59 @@ html.type-xl .pl__row--top .pl__lbl { padding-top: 0; }
   .rest-mini { left: max(16px, calc(50% - var(--col-max) / 2 + 16px)); right: max(16px, calc(50% - var(--col-max) / 2 + 16px)); }
   .sess-sheet__panel { left: max(0px, calc(50% - var(--col-max) / 2)); right: max(0px, calc(50% - var(--col-max) / 2)); }
 }
+
+/* ── Notes (js/features/session-notes.js) ──
+   Discrètes : gris, petite icône « note », rien sans note. Texte jamais coupé (Dynamic Type) : il passe à la ligne. */
+.ex-note {
+  display: flex; align-items: flex-start; gap: 6px; width: 100%; min-height: 44px; margin: -12px 0 -8px; padding: 12px 0;
+  background: none; border: 0; text-align: left; color: var(--label2); font: inherit; cursor: pointer;
+  font-size: var(--fs-footnote); line-height: 1.059rem; -webkit-tap-highlight-color: transparent;
+}
+.ex-note:active { opacity: .5; }
+.ex-note > .icon { flex-shrink: 0; margin-top: 1px; }
+.ex-note .ss-tag--sm { flex-shrink: 0; }
+.ex-note__text { min-width: 0; overflow-wrap: anywhere; }
+.ex-note__lbl { font-weight: 600; }
+.ex-grip + .ex-note { margin-top: -14px; }
+/* Carte repliée : note sous le résumé, icône pour en écrire une au bout de la ligne */
+.ex-summary-row { display: flex; align-items: center; }
+.ex-summary-row > .ex-summary { flex: 1; min-width: 0; padding-right: 4px; }
+.ex-summary__note { display: flex; align-items: flex-start; gap: 4px; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; }
+.ex-summary__note > .icon { flex-shrink: 0; margin-top: 2px; }
+.ex-summary__note > span { min-width: 0; }
+.ex-note-btn {
+  width: 44px; height: 44px; margin-right: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; border-radius: 22px; color: var(--label2); cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.ex-note-btn--on { color: var(--label); }
+.ex-note-btn:active { background: var(--fill); }
+/* Série : indicateur de 10 px juste après son numéro, lien sous les champs de la série rouverte */
+.session-set .set-note-dot { position: absolute; top: 50%; left: 29px; transform: translateY(-50%); display: flex; color: var(--label2); pointer-events: none; }
+.session-set .set-note-dot--corner { top: 4px; left: 4px; transform: none; }
+.session-set .set-note-link {
+  grid-column: 1 / -1; justify-self: start; display: inline-flex; align-items: flex-start; gap: 6px; max-width: 100%;
+  min-height: 44px; padding: 12px 4px; margin: -4px 0 -4px; background: none; border: 0; text-align: left; cursor: pointer;
+  color: var(--tint); font: inherit; font-size: var(--fs-footnote); line-height: 1.059rem; font-weight: 600;
+}
+.session-set .set-note-link > .icon { flex-shrink: 0; margin-top: 1px; }
+.session-set .set-note-link > span { min-width: 0; overflow-wrap: anywhere; }
+.session-set .set-note-link:active { opacity: .5; }
+/* Haut de la séance : note du bilan de la dernière fois, qu'on ferme */
+.sess-lastnote {
+  display: flex; align-items: flex-start; gap: 8px; padding: 4px 4px 4px 12px; flex-shrink: 0;
+  background: var(--cell); border-radius: var(--r-lg); color: var(--label2);
+}
+.sess-lastnote__icon { display: flex; padding-top: 12px; flex-shrink: 0; }
+.sess-lastnote__text { flex: 1; min-width: 0; margin: 0; padding: 10px 0; font-size: var(--fs-footnote); line-height: 1.059rem; overflow-wrap: anywhere; }
+.sess-lastnote__lbl { font-weight: 600; }
+.sess-lastnote__close {
+  width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; border-radius: 22px; color: var(--label2); cursor: pointer;
+}
+.sess-lastnote__close:active { background: var(--fill); }
+/* Historique › Séance et relecture du coach : notes sous l'exercice */
+.hex__note { display: flex; align-items: flex-start; gap: 4px; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; }
+.hex__note > .icon { flex-shrink: 0; margin-top: 2px; }
+.hex__note > span { min-width: 0; }
+.hex__note-lbl { font-weight: 600; }
+.ex-notecell .cell__title { overflow-wrap: anywhere; white-space: normal; }

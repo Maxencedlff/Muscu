@@ -448,6 +448,8 @@ function exerciseMenuActions(xs, ei, curEi = null) {
       // Prise (js/data/grips.js) : seulement pour les mouvements où elle compte
       ...(gripOptionsFor(ex) ? [{ label: 'Choisir la prise', value: 'grip' }] : []),
       ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
+      // Note d'exercice (js/features/session-notes.js), relue la prochaine fois
+      { label: exNoteMenuLabel(ex), value: 'note' },
     ]),
     ...band('order', [
       ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
@@ -490,6 +492,9 @@ async function exerciseMenu(ei) {
   const xs = activeSession.exercises;
   if (choice === 'grip') {
     openGripSheet(ei);
+    return;
+  } else if (choice === 'note') {
+    await editExerciseNote(ei);
     return;
   } else if (choice === 'up' || choice === 'down') {
     const moved = ssMove(xs, ei, choice === 'up' ? -1 : 1);

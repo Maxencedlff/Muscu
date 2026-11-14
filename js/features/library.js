@@ -204,7 +204,8 @@ function libExAboutHtml(e, name) {
   const link = (n, lbl) => n ? `<button class="cell cell--nav" data-action="open-library-ex" data-name="${esc(n)}">
       <span class="cell__body"><span class="cell__sub">${lbl}</span><span class="cell__title">${esc(n)}</span></span>${icon('chevron.right', 16)}</button>` : '';
   const share = bodyShare(e);
-  return `${howToTipHtml(e.name)}
+  return `${libExNotesHtml(e.name, 1)}
+        ${howToTipHtml(e.name)}
         ${howToHtml(e.name)}
         ${exMusclesGroupHtml({ name }, 'Muscles', { textOnly: !exerciseVideoHtml(name) })}
         <div class="group">
@@ -230,7 +231,7 @@ function renderLibraryEx(name) {
             <span class="cell__body"><span class="cell__title">Voir mes progrès</span></span>${icon('chevron.right', 16)}</button></div>` : '';
   const panels = {
     about: libExAboutHtml(e, name),
-    history: st ? `<div class="group">${st.sessions}</div>${more}` : libExEmptyHtml('history'),
+    history: st ? `${libExNotesHtml(e.name, 5)}<div class="group">${st.sessions}</div>${more}` : libExEmptyHtml('history'),
     chart: st ? st.chart : libExEmptyHtml('chart'),
     records: st ? `${st.records}${st.target}` : libExEmptyHtml('records'),
   };
