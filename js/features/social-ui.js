@@ -250,7 +250,7 @@ function activationHtml() {
           </button>
         </div>
         <button class="btn ${coached ? 'btn--secondary' : 'btn--primary'} btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>${coached ? 'Ajouter aussi des amis' : 'Activer'}</button>
-        <div class="group-foot">${name ? 'On te trouve avec ce pseudo.' : 'Il faut un pseudo pour qu\'on te trouve.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que voient ceux qui te suivent.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à ceux qui te suivent.${coachRole().hasCoach ? ' Ton coach voit en plus tes séances et leurs notes, et ton poids si tu choisis de le partager.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>`;
+        <div class="group-foot">${name ? 'On te trouve avec ce pseudo.' : 'Il faut un pseudo pour qu\'on te trouve.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que voient ceux qui te suivent.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à ceux qui te suivent.${coachRole().hasCoach ? ' Ton coach voit en plus tes séances et leur note de séance, et ton poids si tu choisis de le partager.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>`;
 }
 
 function enabledBodyHtml() {
