@@ -153,14 +153,16 @@ html.type-xl .week__text { overflow: visible; }
 .home-cell__status { font-size: 0.882rem; color: var(--label2); }
 .home-cell__status--ready { color: var(--label); font-weight: 600; }
 .home-cell__status--live { color: var(--tint-on-fill); font-weight: 600; }
-/* Autres séances en cartes illustrées (classe mgc : image de js/features/library.js et repli sans fichier) */
-.home-list .home-card { overflow: hidden; }
-.home-cell.mgc { min-height: 5.6rem; padding: 12px 0; }
+/* Autres séances en cartes illustrées (classe mgc : image de js/features/library.js et repli sans fichier). Vignette
+   entière (contain : les fessiers et les cuisses de Legs restent visibles), en retrait du haut, du bas et du chevron :
+   elle reste dans sa cellule, sans passer sur le séparateur ni toucher la vignette voisine */
+.home-cell.mgc { min-height: 6.4rem; padding: 12px 0; overflow: hidden; }
 .home-cell.mgc .home-cell__text { flex: none; gap: 2px; }
 .home-cell.mgc .home-cell__name { font-size: var(--fs-title3); white-space: normal; }
+.home-cell__desc { font-size: var(--fs-subhead); line-height: 1.3; color: var(--label); }
 .home-cell.mgc .home-cell__right { margin-top: 2px; }
-.home-cell .home-cell__img { right: -16px; max-width: 48%; }
-.home-cell + .home-cell::before { right: -16px; }
+.home-cell.mgc > .icon { margin-left: auto; }
+.home-cell .home-cell__img { top: 8px; right: 22px; height: calc(100% - 16px); max-width: 44%; object-fit: contain; object-position: right center; }
 
 /* Petite hauteur (iPhone SE) : la carte se resserre, Démarrer reste visible sans défiler */
 @media (max-height: 700px) {
@@ -181,6 +183,8 @@ html.type-xl .hero__top { margin: 0; min-height: 0; }
 html.type-xl .hero__text { width: 100%; }
 html.type-xl .targets__name { display: block; overflow: visible; }
 html.type-xl .targets__main, html.type-xl .targets__sub { flex-wrap: wrap; }
+/* « Modifier » passé sous le titre : aligné sur lui (sa marge intérieure de 8 pt rattrapée), pas en retrait */
+html.type-xl .targets__edit { margin-left: -8px; }
 
 /* Vivant : les coches des jours faits se tracent (même tracé que la coche d'une série, css/theme-sobre.css) */
 @media (prefers-reduced-motion: no-preference) {

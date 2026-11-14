@@ -243,7 +243,8 @@ function weekCard(ws) {
 function heroFactsHtml(cat, last) {
   const nEx = (prog().exercises[cat] || []).length, mins = sessionMinutes(cat);
   const facts = [nEx ? plural(nEx, 'exercice', 'exercices') : '', mins ? `≈ ${mins} min` : ''].filter(Boolean).join(' · ');
-  const when = last ? `Dernière fois : ${fmtDate(last.date)}` : 'Jamais faite';
+  // Date d'un bloc (espaces insécables) : jamais « ven. » en fin de ligne et « 30 oct. » dessous (iPhone SE)
+  const when = last ? `Dernière fois : ${fmtDate(last.date).replace(/ /g, '\u00a0')}` : 'Jamais faite';
   return `<p class="hero__info num">${facts ? `<span class="hero__fact">${facts}</span>` : ''}<span class="hero__fact">${when}</span></p>`;
 }
 
@@ -340,14 +341,18 @@ function heroBtnSpot() {
 // « Autres séances » (et non « Ensuite », qui laissait croire à un ordre : panel vague 4) : les autres séances du
 // programme en cartes illustrées, comme les groupes de la Bibliothèque : nom, infos et état (« Prête », « Prête dans
 // 1 j 18 h ») à gauche, vignette du groupe principal à droite. Intitulé VoiceOver = le texte affiché (image décorative)
+// Les muscles écrits (« Pectoraux · Épaules · Triceps ») restent quand la vignette disparaît (texte agrandi), comme
+// sur la carte de la prochaine séance ; le chevron dit que la carte se touche (feuille d'actions)
 function otherSessionHtml(cat) {
-  const n = (prog().exercises[cat] || []).length, mins = sessionMinutes(cat);
+  const n = (prog().exercises[cat] || []).length, mins = sessionMinutes(cat), meta = sessionMeta(cat);
   const facts = [plural(n, 'exercice', 'exercices'), mins ? `≈ ${mins} min` : ''].filter(Boolean).join(' · ');
+  const desc = meta.desc || coachSessionDesc(data.activeProgramme, cat);
   return `
       <button class="home-cell mgc" data-action="session-actions" data-cat="${esc(cat)}">
-        <span class="home-cell__text mgc__text"><span class="home-cell__name">${sessionMeta(cat).label}</span><span class="home-cell__sub num">${facts}</span>
+        <span class="home-cell__text mgc__text"><span class="home-cell__name">${meta.label}</span>${desc ? `<span class="home-cell__desc">${desc}</span>` : ''}<span class="home-cell__sub num">${facts}</span>
           <span class="home-cell__right" data-status-cat="${esc(cat)}">${cellStatusHtml(cat)}</span></span>
         ${sessionThumbHtml(cat, 'home-cell__img')}
+        ${icon('chevron.right', 14)}
       </button>`;
 }
 

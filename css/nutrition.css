@@ -151,6 +151,8 @@ div.diet-meal__title { cursor: default; }
 .diet-home__mstate { flex-shrink: 0; width: 44px; display: flex; justify-content: center; }
 .diet-home__done { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--check-on); color: var(--check-mark); }
 .diet-home__done .icon { width: 12px; height: 12px; }
+.diet-home__empty .diet-home__mname { color: var(--label2); }
+.diet-home__add { color: var(--tint); font-weight: 600; white-space: nowrap; }
 .diet-home__more { padding: 6px 0 2px; font-size: var(--fs-footnote); color: var(--label2); }
 html.type-xl .diet-home__ring { display: none; }
 
