@@ -3,6 +3,13 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
+// Maquettes de l'accueil (branche accueil-v2), au choix de Maxence ; toutes gardent les mêmes fonctions :
+//   1 « Personnage du jour » : le personnage 3D de la séance illustre la carte, « À battre » en lignes compactes
+//   2 « Semaine en tête »    : anneau et frise de la semaine en tête, puis la séance avec sa vignette à gauche
+//   3 « Cartes séances »     : chaque séance du programme en carte illustrée, la prochaine avec Démarrer
+//   0 : l'accueil d'avant les maquettes
+const HOME_VARIANT = 1;
+
 let ticker = null;
 
 // « dans 1 j 18 h », « dans 14 h », « dans 35 min » (jamais de secondes)
@@ -166,18 +173,29 @@ function targetRowHtml(cat, ex) {
   return `<li class="targets__row"><span class="targets__name">${esc(ex.name)}</span>`
     + `<span class="targets__val"><span class="targets__now"><span class="targets__target num">${esc(t.text)}</span>${gain}</span>${before}</span></li>`;
 }
+// Maquettes : ligne compacte, nom sur une ligne et cible en gras à droite ; dessous en gris, « avant … » et le gain.
+// Le nom ne se coupe qu'avec « … » (lu en entier par VoiceOver) ; texte agrandi : il revient à la ligne.
+function targetRowCompactHtml(cat, ex) {
+  const t = exerciseTarget(cat, ex);
+  const gain = t.gain
+    ? `<span class="targets__gain num">${icon('arrow.up', 11)}${esc(t.gain)}<span class="sr-text"> de plus</span></span>` : '';
+  const before = t.gain && t.before ? `<span class="targets__before num">avant ${esc(t.before)}</span>` : '';
+  return `<li class="targets__row"><span class="targets__main"><span class="targets__name">${esc(ex.name)}</span>`
+    + `<span class="targets__target num">${esc(t.text)}</span></span>`
+    + `${before || gain ? `<span class="targets__sub">${before}${gain}</span>` : ''}</li>`;
+}
 function targetsHtml(cat) {
   const exs = prog().exercises[cat] || [];
   if (!exs.length) return '';
   const more = exs.length - HERO_TARGETS;
   const anyHistory = exs.some(ex => lastPerf(data.activeProgramme, cat, ex));
   return `
-    <div class="targets">
+    <div class="targets${HOME_VARIANT ? ' targets--compact' : ''}">
       <div class="targets__head">
         <h3 class="targets__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}</h3>
         <button class="targets__edit" data-action="go-editor" data-cat="${esc(cat)}" aria-label="Modifier les exercices">Modifier</button>
       </div>
-      <ul class="targets__list">${exs.slice(0, HERO_TARGETS).map(ex => targetRowHtml(cat, ex)).join('')}</ul>
+      <ul class="targets__list">${exs.slice(0, HERO_TARGETS).map(ex => (HOME_VARIANT ? targetRowCompactHtml : targetRowHtml)(cat, ex)).join('')}</ul>
       ${more > 0 ? `<p class="targets__more">et ${plural(more, 'autre exercice', 'autres exercices')}</p>` : ''}
     </div>`;
 }
@@ -220,7 +238,16 @@ function weekDayHtml(letter, done, today) {
   return `<span class="week__day${today ? ' week__day--today' : ''}"><span class="week__letter">${letter}</span>`
     + `<span class="${cls}">${done ? icon('checkmark', 14) : ''}</span></span>`;
 }
-function weekCard(ws) {
+// Maquette 2 : anneau de l'objectif de la semaine (vert de « fait », il se remplit à l'arrivée), le compte au centre
+const WEEK_RING_R = 24, WEEK_RING_C = 2 * Math.PI * WEEK_RING_R;
+function weekRingSvg(count, goal) {
+  const part = Math.min(1, goal ? count / goal : 0), off = Math.round(WEEK_RING_C * (1 - part) * 10) / 10;
+  return `<span class="week__ring" aria-hidden="true"><svg viewBox="0 0 60 60" width="60" height="60" aria-hidden="true" focusable="false">`
+    + `<circle class="week__ring-track" cx="30" cy="30" r="${WEEK_RING_R}"/>`
+    + (part ? `<circle class="week__ring-arc" cx="30" cy="30" r="${WEEK_RING_R}" stroke-dasharray="${Math.round(WEEK_RING_C * 10) / 10}" stroke-dashoffset="${off}" style="--ring-c:${Math.round(WEEK_RING_C * 10) / 10}"/>` : '')
+    + `</svg><span class="week__ring-n num">${count >= goal && goal ? icon('checkmark', 20) : `<b>${count}</b>/${goal}`}</span></span>`;
+}
+function weekCard(ws, { ring = false } = {}) {
   const goal = weeklyGoal();
   const days = WEEK_DAYS.map((l, i) => weekDayHtml(l, !!ws.days[i][0], i === ws.today)).join('');
   const done = ws.days.map((d, i) => d[0] ? `${WEEK_NAMES[i]} ${rawLabel(d[0].category, entryProg(d[0]))}` : '').filter(Boolean);
@@ -229,7 +256,8 @@ function weekCard(ws) {
   // reprendrait pas « Cette semaine » (WCAG 2.5.3, le nom doit contenir le texte visible)
   const spoken = ` : ${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal}${done.length ? ` (${done.join(', ')})` : ''}.${line ? ` ${line.replace(/ · /g, ', ')}.` : ''}`;
   return `
-    <button class="home-card week" data-action="go-stats" aria-description="Voir les progrès">
+    <button class="home-card week${ring ? ' week--ring' : ''}" data-action="go-stats" aria-description="Voir les progrès">
+      ${ring ? weekRingSvg(ws.count, goal) : ''}
       <span class="week__head"><span class="home-card__title">Cette semaine</span><span class="sr-text">${esc(spoken)}</span><span class="week__count num" aria-hidden="true"><b>${ws.count}</b> sur ${goal}</span></span>
       <span class="week__days" aria-hidden="true">${days}</span>
       ${line ? `<span class="week__line" aria-hidden="true"><span class="week__text">${esc(line)}</span>${icon('chevron.right', 12)}</span>` : ''}
@@ -247,19 +275,20 @@ function heroFactsHtml(cat, last) {
 
 // Prochaine séance (ou séance en cours) : une seule carte, avec Démarrer comme seul bouton plein.
 // Pas prête : l'attente, ce qui la fixe et « Démarrer quand même » en gris.
-function heroHtml(keys, next, liveHere) {
+// Les morceaux sont les mêmes pour les trois maquettes (HOME_VARIANT) ; seule leur place change.
+function heroParts(keys, next, liveHere) {
   const meta = sessionMeta(next), st = catStatus(next);
-  let info, btn;
+  let facts, more = '', btn;
   if (liveHere) {
-    info = `<p class="hero__info hero__info--live">En cours · <span class="num" id="hero-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span></p>`;
+    facts = `<p class="hero__info hero__info--live">En cours · <span class="num" id="hero-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span></p>`;
     btn  = `<button class="hero__btn" data-action="resume-session">${icon('play', 18)}Reprendre</button>`;
   } else {
-    info = heroFactsHtml(next, lastEntryOf(next));
-    if (!st.ready) info += `<p class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</p>`;
-    if (st.by) info += `<p class="hero__why">${esc(recoveryReason(st.by))}</p>`;
-    info += sleepHomeHtml();   // Santé : la nuit, une ligne (js/features/apple-services.js)
+    facts = heroFactsHtml(next, lastEntryOf(next));
+    if (!st.ready) more += `<p class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</p>`;
+    if (st.by) more += `<p class="hero__why">${esc(recoveryReason(st.by))}</p>`;
+    more += sleepHomeHtml();   // Santé : la nuit, une ligne (js/features/apple-services.js)
     const passed = passedOverNote(keys, next);
-    if (passed) info += `<p class="hero__why hero__why--passed">${esc(passed)}</p>`;
+    if (passed) more += `<p class="hero__why hero__why--passed">${esc(passed)}</p>`;
     btn = st.ready
       ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${meta.label}">${icon('play', 18)}Démarrer</button>`
       : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
@@ -269,19 +298,86 @@ function heroHtml(keys, next, liveHere) {
   // vide), un lien sous le bouton le remplace, comme avant la refonte
   const targets = liveHere ? '' : targetsHtml(next);
   const edit = targets ? '' : `<button class="hero__edit" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>`;
-  const spot = heroBtnSpot();
-  // Grand titre : plus petit pour un nom long (« Bras & épaules »)
-  const size = rawLabel(next).length <= 9 ? 'l' : 'm';
+  return {
+    meta, facts, more, btn, targets, edit, spot: heroBtnSpot(),
+    eyebrow: liveHere ? 'Séance en cours' : 'Prochaine séance',
+    desc: desc ? `<p class="hero__desc">${desc}</p>` : '',
+    // Grand titre : plus petit pour un nom long (« Bras & épaules »)
+    size: rawLabel(next).length <= 9 ? 'l' : 'm',
+  };
+}
+
+// Avant les maquettes : nom en très grand, puis description, infos, Démarrer et les cibles
+function heroHtml(keys, next, liveHere) {
+  const h = heroParts(keys, next, liveHere);
   return `
-    <section class="hero" aria-label="${liveHere ? 'Séance en cours' : 'Prochaine séance'}">
-      <p class="hero__eyebrow">${liveHere ? 'Séance en cours' : 'Prochaine séance'}</p>
-      <h2 class="hero__name hero__name--${size}">${meta.label}</h2>
-      ${spot === 'top' ? btn : ''}
-      ${desc ? `<p class="hero__desc">${desc}</p>` : ''}
-      ${info}
-      ${spot === 'mid' ? btn : ''}${targets}
-      ${edit}
+    <section class="hero" aria-label="${h.eyebrow}">
+      <p class="hero__eyebrow">${h.eyebrow}</p>
+      <h2 class="hero__name hero__name--${h.size}">${h.meta.label}</h2>
+      ${h.spot === 'top' ? h.btn : ''}
+      ${h.desc}
+      ${h.facts}${h.more}
+      ${h.spot === 'mid' ? h.btn : ''}${h.targets}
+      ${h.edit}
     </section>`;
+}
+
+// Maquette 1 « Personnage du jour » : le personnage 3D (face et dos) à droite du nom (flottant : placé avant le texte), muscles de la séance en
+// rouge ; nom en titre moyen, Démarrer pleine largeur juste dessous (visible sans défiler sur iPhone SE). L'attente
+// et ses raisons passent sous le haut de la carte, sur toute la largeur. Texte agrandi : plus de personnage.
+// variant : 'fig' (personnage à droite), 'thumb' (vignette du groupe à gauche, maquette 2), 'card' (vignette à
+// droite comme les groupes de la Bibliothèque, maquette 3)
+function heroIllustratedHtml(keys, next, liveHere, variant) {
+  const h = heroParts(keys, next, liveHere);
+  const art = variant === 'fig' ? sessionFigureHtml(next, 'hero__fig') : sessionThumbHtml(next, `hero__thumb hero__thumb--${variant}`);
+  return `
+    <section class="hero hero--${variant}${art ? '' : ' hero--noart'}" aria-label="${h.eyebrow}">
+      <div class="hero__top">
+        ${variant === 'fig' ? art : ''}
+        <div class="hero__text">
+          <p class="hero__eyebrow">${h.eyebrow}</p>
+          <h2 class="hero__name hero__name--t">${h.meta.label}</h2>
+          ${h.spot === 'top' ? h.btn : ''}
+          ${h.desc}
+          ${h.facts}
+        </div>
+        ${variant === 'fig' ? '' : art}
+      </div>
+      ${h.more}
+      ${h.spot === 'mid' ? h.btn : ''}${h.targets}
+      ${h.edit}
+    </section>`;
+}
+
+// ── Illustrations : toujours décoratives (alt vide, aria-hidden) ; VoiceOver lit le nom et les muscles écrits ──
+// Muscles principaux de la séance et nombre d'exercices qui les travaillent
+function sessionMuscleCount(cat) {
+  const index = chosenMusclesIndex(), n = new Map();
+  (prog().exercises[cat] || []).forEach(ex => exerciseMuscles(ex, index).primary.forEach(m => n.set(m, (n.get(m) || 0) + 1)));
+  return n;
+}
+// Personnage maison face et dos (js/ui/body-map.js), chaque muscle principal de la séance en rouge : pour Pull, le dos
+// et les biceps, composés calque par calque ; '' si aucun muscle n'est connu
+function sessionFigureHtml(cat, className) {
+  const n = sessionMuscleCount(cat);
+  if (!n.size) return '';
+  return bodyMapHtml(Object.fromEntries([...n.keys()].map(m => [m, 1])), { view: 'both', className });
+}
+// Groupe principal d'une séance (celui qui compte le plus d'exercices) : Push → pectoraux, Pull → dos, Legs → jambes
+function sessionGroup(cat) {
+  const n = sessionMuscleCount(cat);
+  let best = null, bestN = 0;
+  MUSCLE_GROUPS.forEach(g => {
+    const c = g.muscles.reduce((a, m) => a + (n.get(m) || 0), 0);
+    if (c > bestN) { best = g.id; bestN = c; }
+  });
+  return best;
+}
+// Vignette du groupe (img/muscles/<groupe>.webp, 600 × 400, celle de la Bibliothèque) ; fichier absent : rien
+// (classe mgc__img : js/ui/vivant.js la marque data-missing et la cache)
+function sessionThumbHtml(cat, className) {
+  const g = sessionGroup(cat);
+  return g ? `<img class="mgc__img ${className}" src="img/muscles/${g}.webp" alt="" aria-hidden="true" width="600" height="400" decoding="async">` : '';
 }
 
 // Place de Démarrer dans la carte. Ordre de lecture = ordre affiché (WCAG 1.3.2) : c'est le HTML qui la
@@ -307,6 +403,18 @@ function otherSessionHtml(cat) {
       </button>`;
 }
 
+// Maquette 3 : la même cellule en carte illustrée, comme les groupes de la Bibliothèque (nom et état à gauche, vignette
+// du groupe principal à droite). Intitulé VoiceOver = le texte affiché (l'image est décorative)
+function otherSessionCardHtml(cat) {
+  const n = (prog().exercises[cat] || []).length, mins = sessionMinutes(cat);
+  const facts = [plural(n, 'exercice', 'exercices'), mins ? `≈ ${mins} min` : ''].filter(Boolean).join(' · ');
+  return `
+      <button class="home-cell home-cell--card mgc" data-action="session-actions" data-cat="${esc(cat)}">
+        <span class="home-cell__text mgc__text"><span class="home-cell__name">${sessionMeta(cat).label}</span><span class="home-cell__sub num">${facts}</span>
+          <span class="home-cell__right" data-status-cat="${esc(cat)}">${cellStatusHtml(cat)}</span></span>
+        ${sessionThumbHtml(cat, 'home-cell__img')}
+      </button>`;
+}
 
 // Libellé suivi du chevron : le dernier mot et le chevron ne se séparent jamais (chevron seul sur sa ligne en AX33, panel t6)
 function navSubWithChevron(text) {
@@ -320,8 +428,13 @@ function renderDashboard() {
   const liveHere = activeSession && activeSession.programme === data.activeProgramme && keys.includes(activeSession.category);
   const next = liveHere ? activeSession.category : nextSessionCat(keys);
 
-  const hero = next ? `${heroHtml(keys, next, liveHere)}${recapHomeCard()}${accountHomeCard()}${coachHomeCard()}` : '';
-  const others = keys.filter(k => k !== next).map(otherSessionHtml).join('');
+  const after = `${recapHomeCard()}${accountHomeCard()}${coachHomeCard()}`;
+  const heroCard = !next ? '' : HOME_VARIANT === 1 ? heroIllustratedHtml(keys, next, liveHere, 'fig')
+    : HOME_VARIANT === 2 ? heroIllustratedHtml(keys, next, liveHere, 'thumb')
+    : HOME_VARIANT === 3 ? heroIllustratedHtml(keys, next, liveHere, 'card')
+    : heroHtml(keys, next, liveHere);
+  const hero = next ? `${heroCard}${after}` : '';
+  const others = keys.filter(k => k !== next).map(HOME_VARIANT === 3 ? otherSessionCardHtml : otherSessionHtml).join('');
 
   const emptyCustom = isUserProg(data.activeProgramme) && keys.length === 0
     ? `<div class="empty-state">
@@ -335,17 +448,20 @@ function renderDashboard() {
   const from = coachFromLine(data.activeProgramme);   // programme reçu d'un coach (js/features/coach-ui.js)
   const sub = `<button class="navbar__sub" data-action="go-my-programmes" aria-label="Programme ${esc(pm.name)}${from ? `, ${from}` : ''}, mes programmes">${navSubWithChevron(`Programme ${pm.name}`)}</button>${from ? `<p class="coach-from coach-from--home">${from}</p>` : ''}`;
 
+  const week = keys.length ? weekCard(weekStats(), { ring: HOME_VARIANT === 2 }) : '';
+  const othersList = others ? `<section class="home-list${HOME_VARIANT === 3 ? ' home-list--cards' : ''}" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Autres séances</h2><div class="home-card">${others}</div></section>` : '';
+  const noHero = hero ? '' : `${accountHomeCard()}${recapHomeCard()}`;
+  // Ordre des blocs : 0 et 1, la séance puis la semaine ; 2, la semaine d'abord ; 3, toutes les séances d'abord
+  const body = HOME_VARIANT === 2 ? `${week}${hero || emptyCustom}${noHero}${nutritionHomeCard()}${othersList}`
+    : HOME_VARIANT === 3 ? `${hero ? heroCard : emptyCustom}${othersList}${hero ? after : noHero}${nutritionHomeCard()}${week}`
+    : `${hero || emptyCustom}${noHero}${nutritionHomeCard()}${week}${othersList}`;
+
   return `
-    <div class="view dashboard">
+    <div class="view dashboard home-v${HOME_VARIANT}">
       ${navBar({ title: 'Entraînement', largeTitle: date, right, sub })}
       <div class="home">
         ${accessBannerHtml()}
-        ${hero || emptyCustom}
-        ${hero ? '' : accountHomeCard()}
-        ${hero ? '' : recapHomeCard()}
-        ${nutritionHomeCard()}
-        ${keys.length ? weekCard(weekStats()) : ''}
-        ${others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Autres séances</h2><div class="home-card">${others}</div></section>` : ''}
+        ${body}
       </div>
     </div>`;
 }

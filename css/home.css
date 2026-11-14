@@ -150,3 +150,97 @@ html.type-xl .week__text { overflow: visible; }
    l'ordre affiché */
 /* Très grands caractères : la date reste un surtitre (la règle de css/navigation.css en ferait un grand titre) */
 html.type-xl .dashboard .navbar__large { font-size: var(--fs-footnote); line-height: 1.3; }
+
+/* ═══════════════════════════════════════════════
+   Maquettes de l'accueil (HOME_VARIANT, js/features/dashboard.js)
+   Un visuel qui porte du sens : le personnage 3D maison, muscles de la séance en rouge (--body-heat), ou la vignette
+   du groupe de la Bibliothèque ; l'anneau de la semaine en vert de « fait ». L'orange reste à Démarrer. Images
+   décoratives (aria-hidden) ; texte agrandi : elles disparaissent, le texte prend toute la largeur.
+═══════════════════════════════════════════════ */
+.hero__top { display: flex; align-items: center; gap: 12px; }
+.hero__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hero .hero__name--t { margin-top: 2px; font-size: 1.647rem; line-height: 1.1; letter-spacing: -.02em; }
+.hero__top + .hero__wait, .hero__top + .hero__why, .hero__top + .hero__sleep { margin-top: 10px; }
+
+/* 1 · Personnage du jour : face et dos, à droite du nom, à la hauteur du bloc de texte */
+.hero--fig { padding: 16px; }
+/* Personnage flottant à droite : le texte s'écoule à côté, et les lignes qui dépassent sa hauteur reprennent toute la
+   largeur (iPhone SE 1re génération, 320 pt : les infos passent dessous plutôt que de se couper en trois lignes) */
+.hero--fig .hero__top { display: flow-root; }
+.hero--fig .hero__text { display: block; }
+.hero__fig { float: right; margin: 0 0 4px 10px; height: 7.2rem; }
+@media (max-width: 359px) { .hero__fig { height: 5.4rem; } }
+.hero__fig .body-map__row { width: auto; height: 100%; }
+
+/* 2 · Semaine en tête : vignette carrée du groupe à gauche (sur un aplat, comme une pochette) */
+.hero__top .hero__thumb--thumb {
+  position: static; order: -1; flex: none; width: 5.2rem; height: 5.2rem; max-width: none; aspect-ratio: auto;
+  object-fit: cover; object-position: 72% 40%; border-radius: 12px; background: var(--bg);
+}
+
+/* 3 · Cartes séances : vignette à droite, bord gauche fondu dans l'image (comme les groupes de la Bibliothèque) */
+.hero--card .hero__top { position: relative; min-height: 7.2rem; margin: -4px -18px 0 0; }
+.hero--card .hero__text { position: relative; z-index: 1; flex: none; width: 58%; }
+.hero--card .hero__thumb--card { height: 7.2rem; max-width: 46%; }
+@media (max-width: 359px) {
+  .hero--card .hero__text { width: 64%; }
+  .hero--card .hero__thumb--card { height: 6rem; max-width: 40%; }
+  .hero__top .hero__thumb--thumb { width: 4rem; height: 4rem; }
+}
+.home-list--cards .home-card { overflow: hidden; }
+.home-cell--card { min-height: 5.6rem; padding: 12px 0; overflow: visible; }
+.home-cell--card .home-cell__text { gap: 2px; width: 58%; flex: none; }
+.home-cell--card .home-cell__name { font-size: var(--fs-title3); white-space: normal; }
+.home-cell--card .home-cell__right { margin-top: 2px; }
+.home-cell--card .home-cell__img { right: -16px; max-width: 48%; }
+.home-cell--card + .home-cell--card::before { right: -16px; }
+
+/* Anneau de la semaine (maquette 2) : le compte au centre, la frise des jours à droite */
+/* Anneau à gauche du titre et des cumuls ; la frise des jours dessous, sur toute la largeur */
+.week--ring { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 14px; align-items: center; padding: 14px 16px; }
+.week--ring .week__ring { grid-row: 1 / 3; }
+.week--ring .week__head { grid-column: 2; grid-row: 1; align-self: end; }
+.week--ring .week__line { grid-column: 2; grid-row: 2; align-self: start; margin-top: 2px; }
+.week--ring .week__days { grid-column: 1 / -1; grid-row: 3; margin-top: 12px; }
+.week--ring .week__count { display: none; }
+.week__ring { position: relative; width: 60px; height: 60px; }
+.week__ring svg { display: block; transform: rotate(-90deg); }
+.week__ring-track, .week__ring-arc { fill: none; stroke-width: 6; }
+.week__ring-track { stroke: var(--fill2); }
+.week__ring-arc { stroke: var(--check-on); stroke-linecap: round; }
+.week__ring-n { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: var(--fs-footnote); color: var(--label2); }
+.week__ring-n b { font-size: 1.3rem; font-weight: 700; color: var(--label); }
+.week__ring-n .icon { color: var(--check-on); }
+
+/* « À battre » en lignes compactes : nom sur une ligne, cible en gras à droite ; dessous en gris, « avant … » et le gain */
+.targets--compact .targets__row { display: block; padding: 7px 0; }
+.targets__main { display: flex; align-items: baseline; gap: 12px; }
+.targets--compact .targets__name { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.targets--compact .targets__target { flex: none; }
+.targets__sub { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 1px; }
+.targets__sub .targets__gain { margin-left: auto; }
+
+/* Texte agrandi : plus d'illustration, rien n'est coupé */
+html.type-xl .hero__fig, html.type-xl .week__ring { display: none; }
+html.type-xl .hero--card .hero__top { margin: 0; min-height: 0; }
+html.type-xl .hero--card .hero__text, html.type-xl .home-cell--card .home-cell__text { width: 100%; }
+html.type-xl .week--ring { display: block; }
+html.type-xl .week--ring .week__count { display: inline; }
+html.type-xl .targets--compact .targets__name { white-space: normal; overflow: visible; }
+html.type-xl .targets__main, html.type-xl .targets__sub { flex-wrap: wrap; }
+
+@media (max-height: 700px) {
+  .hero .hero__name--t { font-size: 1.588rem; }
+  .targets--compact .targets__row { padding: 5px 0; }
+}
+
+/* Vivant : les muscles de la séance s'allument, l'anneau se remplit, les coches des jours faits se tracent */
+@media (prefers-reduced-motion: no-preference) {
+  .hero__fig .body-map__m { animation: homeHeat .6s .15s ease-out both; }
+  @keyframes homeHeat { from { opacity: 0; } }
+  .week__ring-arc { animation: homeRing .8s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes homeRing { from { stroke-dashoffset: var(--ring-c); } }
+  [class*="home-v"] .week__dot--done .icon { stroke-dasharray: 30; animation: vvDraw .3s .2s ease-out both; }
+}
+.week + .hero { margin-top: 12px; }
+.hero__text > .hero__btn { width: 100%; }
