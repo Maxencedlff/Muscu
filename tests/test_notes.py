@@ -53,10 +53,12 @@ def t_notes(bench, eng, dev, theme):
         start(page, 'legs')   # Squat barre, Presse à cuisses…
         R.check(page.locator('.ex-note, .sess-lastnote, .set-note-dot').count() == 0, f'{t} aucune note : rien d\'affiché')
 
-        # ── Note d'exercice : menu ⋯ › « Ajouter une note », alerte à champ (140 caractères)
+        # ── Note d'exercice : menu ⋯ › Plus d'options… › « Ajouter une note », alerte à champ (140 caractères)
         val(page, 0, 0)
         page.locator('.ex-card[data-ei="0"] [data-action="ex-menu"]').click(); page.wait_for_timeout(300)
-        R.check(page.locator('.ios-dialog__btn', has_text='Ajouter une note').count() == 1, f'{t} menu ⋯ : « Ajouter une note »')
+        R.check(page.locator('.ios-dialog__btn', has_text='Ajouter une note').count() == 0, f'{t} menu ⋯ court (tient sur iPhone SE) : la note est dans Plus d\'options')
+        tap_dialog(page, "Plus d'options…"); page.wait_for_timeout(300)
+        R.check(page.locator('.ios-dialog__btn', has_text='Ajouter une note').count() == 1, f'{t} Plus d\'options : « Ajouter une note »')
         tap_dialog(page, 'Ajouter une note')
         R.check(page.locator('.ios-dialog__input').get_attribute('maxlength') == '140', f'{t} champ borné à 140 caractères')
         R.check(page.locator('.ios-dialog__input').get_attribute('aria-label') == 'Note', f'{t} champ nommé pour VoiceOver')

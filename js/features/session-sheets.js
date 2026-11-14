@@ -448,8 +448,6 @@ function exerciseMenuActions(xs, ei, curEi = null) {
       // Prise (js/data/grips.js) : seulement pour les mouvements où elle compte
       ...(gripOptionsFor(ex) ? [{ label: 'Choisir la prise', value: 'grip' }] : []),
       ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
-      // Note d'exercice (js/features/session-notes.js), relue la prochaine fois
-      { label: exNoteMenuLabel(ex), value: 'note' },
     ]),
     ...band('order', [
       ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
@@ -465,6 +463,9 @@ function exerciseMenuActions(xs, ei, curEi = null) {
 function exerciseMoreActions(xs, ei) {
   const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei);
   return [
+    // Note d'exercice (js/features/session-notes.js), relue la prochaine fois. Ici plutôt que dans le menu ⋯ :
+    // celui-ci doit tenir sans défiler sur iPhone SE ; le lien « Note » est aussi au bout de l'exercice terminé
+    { label: exNoteMenuLabel(ex), value: 'note' },
     ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
     ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
     ...(inGroup ? [{ label: 'Retirer du superset', value: 'ss-leave' }] : []),

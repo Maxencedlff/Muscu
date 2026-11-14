@@ -3,7 +3,7 @@
 //  Logique et données : js/data/notes.js. Discrètes par principe : rien ne s'affiche tant qu'il n'y a pas
 //  de note, sauf une petite icône « note » au bout d'un exercice terminé (et le choix du menu ⋯).
 //
-//  - Exercice : menu ⋯ « Ajouter une note », ou l'icône au bout de la carte repliée. La note la plus
+//  - Exercice : menu ⋯ › Plus d'options… › « Ajouter une note », ou l'icône au bout de la carte repliée. La note la plus
 //    récente de l'exercice (même fiche de la bibliothèque) se lit sous son nom à la séance suivante,
 //    en gris : « Dernière note : siège cran 4 » ; un toucher la modifie ou l'efface.
 //  - Série : série validée touchée (rouverte), puis « Ajouter une note » sous ses champs. Jamais au toucher
