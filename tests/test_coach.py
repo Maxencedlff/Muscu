@@ -593,9 +593,9 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.locator('.coach-sess').count() == 30, f'{t} 30 séances par page ({page.locator(".coach-sess").count()})')
         R.check(page.locator('.coach-sess[data-id="l00"] .coach-tag').inner_text() == 'Ton programme' and page.locator('.coach-sess[data-id="l01"] .coach-tag').count() == 0, f'{t} « Ton programme » sur la bonne séance')
         # Coach v2 : ses séances en cartes illustrées, comme l'Historique (vignette du groupe travaillé, décorative)
-        art = page.locator('.coach-sess[data-id="l02"] img.hcell__img')
-        R.check(page.locator('.coach-sess.hcell--card').count() == 30 and art.count() == 1 and art.get_attribute('src') == 'img/muscles/pectoraux.webp' and art.get_attribute('aria-hidden') == 'true',
-                f'{t} séances de Léa : cartes illustrées ({art.count()})')
+        art = page.locator('.coach-sess[data-id="l02"] .hcell__map .body-map')
+        R.check(page.locator('.coach-sess.hcell--card').count() == 30 and art.count() == 1 and art.get_attribute('aria-hidden') == 'true' and art.locator('img, svg, span').count() > 0,
+                f'{t} séances de Léa : cartes de l\'Historique, personnage décoratif ({art.count()})')
         R.check(page.locator('.coach-student-view .cstu-hero').count() == 1 and 'Haut' in page.inner_text('.coach-student-view .cstu-hero'), f'{t} fiche : carte de sa dernière séance en tête')
         R.check('61' not in page.inner_text('.coach-student-view'), f'{t} jamais le poids du corps')
         R.check(page.evaluate(f"Object.keys(coachSessions('{ids['lea']}').rows[0].s).includes('bodyKg')") is False, f'{t} séance reçue sans bodyKg')

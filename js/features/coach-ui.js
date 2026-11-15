@@ -779,9 +779,15 @@ function coachPlanOf(s) {
   return { done, total, missing };
 }
 
+// Personnage de la carte, celui de l'Historique (exercisesBodyHtml, js/features/progress-muscles.js : face et dos, muscles
+// ciblés et en soutien), avec l'index vide des séances reçues (mes choix de muscles ne s'appliquent pas aux autres)
+function coachSessionBodyHtml(exercises) {
+  const body = exercisesBodyHtml(exercises, OTHERS_MUSCLES_INDEX, 'hcell__body-map');
+  return body ? `<span class="hcell__map">${body}</span>` : '';
+}
 // Séance d'un élève en carte illustrée, comme l'Historique : nom, date et records, « durée · exercices » (et séries
-// faites sur prévues avec mon programme), étiquettes ; vignette du groupe travaillé à droite (décorative). Chevron :
-// la carte s'ouvre. Texte agrandi : plus de vignette (css/muscles.css).
+// faites sur prévues avec mon programme), étiquettes ; personnage de l'Historique à droite (décoratif). Chevron :
+// la carte s'ouvre. Texte agrandi : plus de personnage (css/screens.css).
 function coachSessionCell(uid, row) {
   const s = row.s, mine = coachOwnProgrammeName(s.programme), plan = coachPlanOf(s);
   const recs = Array.isArray(s.records) ? s.records.length : 0;
@@ -794,7 +800,7 @@ function coachSessionCell(uid, row) {
               <span class="hcell__sub num">${esc(publicMetaLine(s))}${plan ? ` · ${plan.done}/${plan.total} séries` : ''}</span>
               ${mine || row.note ? `<span class="coach-sess__tags">${mine ? '<span class="coach-tag">Ton programme</span>' : ''}${row.note ? '<span class="coach-tag coach-tag--note">Commentée</span>' : ''}</span>` : ''}
             </span>
-            ${progThumbHtml(sessionGroupOf(s.exercises), 'hcell__img')}
+            ${coachSessionBodyHtml(s.exercises)}
             ${icon('chevron.right', 16)}
           </button></div>`;
 }
