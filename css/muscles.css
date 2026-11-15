@@ -222,7 +222,7 @@ body.light .mpick__auto { background: var(--cell); }
 .mgc:has(.mgc__img[data-missing]) .mgc__text { width: 100%; }
 /* Exercices de la Bibliothèque : même ligne illustrée, un peu plus basse, nom au corps de texte */
 .view--grouped .mgc--ex { min-height: 4.75rem; }
-.mgc--ex .mgc__title { font-size: var(--fs-body); }
+.mgc--ex .mgc__title { font-size: var(--fs-body); hyphens: manual; }   /* pas de « hal-tères » coupé : retour à la ligne entre les mots */
 .mgc--ex .mgc__text { width: 60%; }
 .mgc--ex .mgc__img { max-width: 45%; }
 /* Sous-titre d'un exercice sur une seule ligne (rythme régulier de la liste) ; jamais coupé dans un mot sans « … » */

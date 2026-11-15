@@ -730,7 +730,7 @@ def t_muscle_filter(bench, eng, dev, theme):
         page.click('.library .mgcs .mgc[data-group="dos"]')
         page.wait_for_timeout(150)
         titles = page.locator('#libList .group-title').all_inner_texts()
-        R.check(len(titles) == 1 and titles[0].lower().startswith('dos'), f'{t} Bibliothèque : seulement la section Dos {titles}')
+        R.check(titles and titles[0].lower().startswith('dos ·') and all(x.lower().startswith('dos') for x in titles) and len(titles) <= 2, f'{t} Bibliothèque : section Dos, puis « Dos en second » {titles}')
         # Chaque exercice : personnage 3D au muscle principal à droite, comme les groupes (retour de Maxence, 13/11)
         srcs = page.eval_on_selector_all('#libList .mgc--ex', "rs => rs.map(r => r.querySelector('img')?.getAttribute('src') || '')")
         page.wait_for_timeout(400)
