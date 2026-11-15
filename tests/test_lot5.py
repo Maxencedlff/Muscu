@@ -66,7 +66,7 @@ def t_history(bench, eng, dev, theme):
         under = page.evaluate("""() => [...document.querySelectorAll('.hcell--card')].flatMap(c => {
             const i = c.querySelector('.hcell__img'); if (!i || !i.offsetWidth) return [];
             const ir = i.getBoundingClientRect(), left = ir.left + ir.width * .1;
-            return [...c.querySelectorAll('.hcell__title, .hcell__date, .hcell__prog, .hcell__sub')].filter(e => {
+            return [...c.querySelectorAll('.hcell__title, .hcell__date, .hcell__rec, .hcell__prog, .hcell__sub')].filter(e => {
               const r = document.createRange(); r.selectNodeContents(e);
               return [...r.getClientRects()].some(q => q.width > 0 && q.right > left + 4); }).map(e => e.textContent.trim()); })""")
         R.check(not under, f'{t} historique : aucun texte sous la vignette {under[:3]}')
@@ -169,7 +169,17 @@ def t_history(bench, eng, dev, theme):
         R.check(hd['img'] and hd['mus'] and hd['h1'], f'{t} détail : en-tête illustré, groupes écrits {hd}')
         R.check(hd['ex'] > 0 and hd['exImg'] == hd['ex'] and hd['over'] == 0, f'{t} détail : vignette par exercice, sans recouvrir le nom {hd}')
         when = page.inner_text('.hdhead__when')
-        R.check(re.search(r'\d{4}\u00a0·\u00a0\d{1,2}:\d{2}$', when) is not None, f'{t} détail : « année · heure » insécable {when!r}')
+        tm = page.evaluate("(() => { const e = document.querySelector('.hdhead__time'); return e ? [e.textContent, getComputedStyle(e).whiteSpace] : null; })()")
+        R.check(re.search(r'\d{4} ·\u00a0\d{1,2}:\d{2}$', when) is not None and tm and tm[1] == 'nowrap', f'{t} détail : « · heure » d\'un seul tenant {when!r} {tm}')
+        # En-tête : le texte (au mot près) s'arrête avant la vignette, en taille normale comme en AX33
+        for xl in (False, True):
+            hit = page.evaluate("""xl => { const h = document.documentElement; h.classList.toggle('type-xl', xl);
+                const i = document.querySelector('.hdhead__img'), r = i && i.offsetWidth ? i.getBoundingClientRect() : null;
+                const bad = r ? [...document.querySelectorAll('.hdhead__title, .hdhead__when, .hdhead__mus, .hdhead__prog')].filter(e => {
+                  const g = document.createRange(); g.selectNodeContents(e); return [...g.getClientRects()].some(q => q.width > 0 && q.right > r.left + r.width * .1); }).map(e => e.textContent) : [];
+                const cut = [...document.querySelectorAll('.hdhead__time')].some(e => { const g = document.createRange(); g.selectNodeContents(e); return new Set([...g.getClientRects()].map(q => Math.round(q.top))).size > 1; });
+                h.classList.remove('type-xl'); return { bad, cut }; }""", xl)
+            R.check(not hit['bad'] and not hit['cut'], f'{t} détail{" AX" if xl else ""} : en-tête sans texte sous l\'image, heure entière {hit}')
         # Records du détail en texte agrandi : la valeur sous le nom, pleine largeur, rien de coupé ; libellé en toutes lettres
         rid = page.evaluate('historySorted().find(h => entryRecords(h).length)?.id')
         if rid:

@@ -230,7 +230,8 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
    le texte prend toute la largeur et revient à la ligne. */
 .hmonth__count { font-weight: 400; color: var(--label2); font-size: var(--fs-subhead); }
 /* Texte agrandi : le nombre de séances sur sa ligne, sans le point qui restait seul en bout de ligne */
-html.type-xl .hmonth__count { display: block; }
+html.type-xl .hmonth__title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .4em; row-gap: 0; }
+html.type-xl .hmonth__count { line-height: 1.2; }
 html.type-xl .hmonth__count > [aria-hidden] { display: none; }
 /* Même gabarit que « Autres séances » de l'accueil (css/home.css, .home-cell.mgc) : 6,4 rem de haut, vignette entière
    (contain) de 6,4 rem − 16 pt de haut, 22 pt avant le chevron, au plus 44 % de la largeur utile. Elle garde cette taille
@@ -242,7 +243,7 @@ html.type-xl .hmonth__count > [aria-hidden] { display: none; }
 .hcell--card .hcell__body.mgc__text { flex: none; width: calc(100cqw - 62px - var(--hthumb) * .9); gap: 2px; }
 .hcell--card .hcell__title { font-size: var(--fs-title3); line-height: 1.35rem; white-space: normal; overflow: visible; overflow-wrap: break-word; }
 .hcell--card .hcell__title > [role="img"] { margin-left: 6px; vertical-align: -2px; }
-.hcell__when { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hcell__when { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; min-width: 0; }   /* « 2 records » passe sous la date plutôt que sous la vignette (SE) */
 .hcell--card .hcell__date { font-size: var(--fs-subhead); line-height: 1.25rem; color: var(--label2); }
 .hcell--card .hcell__sub { font-size: var(--fs-footnote); line-height: 1.059rem; overflow-wrap: normal; }
 .hcell--card > .icon { margin-left: auto; position: relative; z-index: 1; }
@@ -262,23 +263,36 @@ html.type-xl .history .hist-tools .seg-full { display: grid; grid-template-colum
 html.type-xl .history .hist-tools .seg-full .segmented__btn { margin: 0; padding: 8px 6px; min-height: 44px; white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: none; }
 html.type-xl .history .hist-tools .seg-full .segmented__btn::after { inset: 0; }
 html.type-xl .history .hist-tools .seg-full .segmented__btn::before { display: none; }
+html.type-xl .history .hist-tools .seg-full .segmented__btn:last-child:nth-child(odd) { grid-column: 1 / -1; }   /* pas de case vide */
+/* Texte agrandi, bas du détail : « Partager ma séance » et « Supprimer de l'historique » alignés à gauche tous les deux,
+   l'icône contre le texte (plus centrée seule sur sa ligne) */
+html.type-xl .history-detail .share-btn { justify-content: flex-start; text-align: left; }
+html.type-xl .history-detail .share-btn .icon { flex-shrink: 0; }
+html.type-xl .history-detail .cell--destructive { justify-content: flex-start !important; text-align: left; }
 
 /* Détail d'une séance : en-tête comme la carte de la prochaine séance (nom, date, groupes à gauche ; vignette à droite) */
 .view--grouped .hdhead.mgc {
-  position: relative; display: flex; align-items: center; min-height: 7.2rem; margin-top: 8px; padding: 14px 16px;
+  /* Vignette : la hauteur de la carte de base moins 8 pt en haut et en bas, au plus 34 % de la largeur ; le texte garde
+     sa colonne à gauche (padding-right) et ne touche jamais l'image. Les deux % se rapportent à la même largeur (celle de
+     .scr pour le padding, celle de la carte pour l'image : la carte prend toute la largeur de .scr). */
+  --hdimg: min((7.2rem - 16px) * 1.5, 34%);
+  position: relative; display: flex; align-items: center; min-height: 7.2rem; margin-top: 8px;
+  padding: 14px calc(var(--hdimg) + 16px) 14px 16px;
   background: var(--cell); border-radius: var(--r-lg); overflow: hidden;
 }
-.hdhead .hdhead__text { width: 58%; gap: 2px; }
+.hdhead .hdhead__text { width: 100%; gap: 2px; }
 .hdhead .hdhead__title { margin: 0; display: block; font-size: var(--fs-title1); line-height: 2rem; font-weight: 800; letter-spacing: -.02em; }
 .hdhead__when, .hdhead__prog { font-size: var(--fs-subhead); line-height: 1.3; color: var(--label2); }
-.hdhead__mus { margin-top: 4px; font-size: var(--fs-subhead); line-height: 1.3; color: var(--label); font-weight: 600; }
-.view--grouped .hdhead .hdhead__img { top: 8px; right: 8px; height: calc(100% - 16px); max-width: 46%; object-fit: contain; object-position: right center; }
-@media (max-width: 359px) {
-  .hdhead .hdhead__text { width: 64%; }
-  .view--grouped .hdhead .hdhead__img { max-width: 38%; }
+.hdhead__time { white-space: nowrap; }
+html.type-xl .hdhead__time { overflow-wrap: normal; }
+/* Groupes sur des lignes équilibrées : jamais « Bras » seul sur la deuxième */
+.hdhead__mus { margin-top: 4px; font-size: var(--fs-subhead); line-height: 1.3; color: var(--label); font-weight: 600; text-wrap: balance; }
+.view--grouped .hdhead .hdhead__img {
+  top: calc(50% - (7.2rem - 16px) / 2); right: 8px; height: calc(7.2rem - 16px); width: var(--hdimg); max-width: none;
+  object-fit: contain; object-position: right center;
 }
-.hdhead--noart .hdhead__text { width: 100%; }
-html.type-xl .view--grouped .hdhead.mgc { min-height: 0; }
+.view--grouped .hdhead--noart.hdhead.mgc, .view--grouped .hdhead.mgc:has(.hdhead__img[data-missing]) { padding-right: 16px; }
+html.type-xl .view--grouped .hdhead.mgc { min-height: 0; padding-right: 16px; }
 html.type-xl .hdhead .hdhead__text { width: 100%; }
 
 /* Exercices du détail : petite vignette du muscle principal en haut à droite, le texte s'arrête avant elle */

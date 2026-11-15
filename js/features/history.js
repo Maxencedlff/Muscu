@@ -215,8 +215,9 @@ function renderHistoryDetail(id) {
   const meta   = sessionMeta(h.category, progId);
   let when = capitalize(fmtDate(h.date, 'long'));
   // L'heure n'a de sens que pour une séance chronométrée (une séance passée n'a pas d'heure)
-  // « 2026 · 13:11 » insécable : l'heure ne passe jamais seule à la ligne (panel Historique)
-  if (h.duration) when = when.replace(/ (\S+)$/, '\u00a0$1') + `\u00a0·\u00a0${fmtTime(h.date)}`;
+  // « · 13:11 » d'un seul tenant (.hdhead__time, nowrap) : l'heure ne se coupe jamais (« 1 / 3:11 » en AX33) ni ne
+  // laisse son point seul en bout de ligne ; il passe à la ligne entier si la date remplit déjà la ligne
+  if (h.duration) when = `${esc(when)} <span class="hdhead__time">·\u00a0${fmtTime(h.date)}</span>`;
   const vol   = sessionVolume(h.exercises || [], entryBodyKg(h));
   const nSets = (h.exercises || []).reduce((a, e) => a + workSets(e.sets).length, 0);   // séries de travail
   const index = chosenMusclesIndex();
