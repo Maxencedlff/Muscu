@@ -34,6 +34,12 @@ const FOOD_PORTIONS = [
   { re: /^fromage blanc(?! fondu)/, units: [U('pot', 'pots', 100)] },
   { re: /^(yaourt|lait fermente type yaourt|specialite laitiere|skyr)\b|\bskyr\b/, units: [U('pot', 'pots', 125)] },
   { re: /^compote\b|^puree de (pommes|fruits)/, units: [U('pot', 'pots', 100)] },
+  // Desserts lactés en pot (retour de Maxence, 15/11 : « liégeois » ne proposait que des grammes). Poids des pots les
+  // plus vendus : liégeois et viennois 100 g, crème dessert 125 g, mousse au chocolat 60 g, flan et riz au lait 100 g
+  { re: /^(liegeois|viennois|mousse liegeoise)\b/, units: [U('pot', 'pots', 100)] },
+  { re: /^creme dessert\b/, units: [U('pot', 'pots', 125)] },
+  { re: /^mousse au chocolat\b/, units: [U('pot', 'pots', 60)] },
+  { re: /^(flan aux oeufs|flan nappe|flan au caramel|creme caramel|riz au lait|semoule au lait)\b/, units: [U('pot', 'pots', 100)] },
   // Viennoiseries et pains
   { re: /^croissant (sans precision|ordinaire|pur beurre)/, units: [U('croissant', 'croissants', 60)] },
   { re: /^croissant aux amandes/, units: [U('croissant', 'croissants', 90)] },
