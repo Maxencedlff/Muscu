@@ -506,7 +506,7 @@ html.type-xl .cstu-hero__name { font-size: var(--fs-title2); }
 .cmine-hero__prog:active { opacity: .6; }
 .cmine-hero__prog > .icon { flex: none; margin-left: auto; color: var(--label3); }
 /* Programme qui couvre plusieurs groupes : le personnage entier, face et dos (bodyMapHtml), dans la case */
-.cmine-hero__pic .cprog-body { position: absolute; inset: 4px; display: flex; align-items: center; justify-content: center; }
+.cmine-hero__pic .cprog-body.cmine-hero__img { position: absolute; inset: 4px; width: auto; height: auto; display: flex; align-items: center; justify-content: center; overflow: hidden; }   /* en retrait des coins arrondis : pas de liseré rouge */
 .cprog-body .body-map { width: 100%; }
 .cmine-hero__pic { position: relative; flex: none; width: 3.6rem; height: 3.6rem; border-radius: 12px; background: var(--fill2); overflow: hidden; }
 .cmine-hero__pic .cmine-hero__img { inset: 0; width: 100%; height: 100%; max-width: none; aspect-ratio: auto; object-fit: cover; object-position: 82% 40%; }
@@ -540,3 +540,5 @@ html.type-xl .chat-cell .coach-cell__icon { display: none; }
 /* Texte agrandi : les 7 points de régularité à la taille du texte (ils restaient à 9 pt à côté d'un nom en AX3) */
 html.type-xl .cstu__days { gap: .2em; }
 html.type-xl .cstu__day { width: .45em; height: .45em; }
+/* Texte agrandi : « Ajouter à mes programmes » revient à la ligne dans le bouton (il sortait de l'écran sur iPhone SE) */
+html.type-xl .coach-prog__btn { white-space: normal; height: auto; min-height: 44px; padding-top: 8px; padding-bottom: 8px; line-height: 1.25; text-align: center; }

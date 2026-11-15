@@ -29,7 +29,15 @@
   const large = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
   if (large > innerWidth + 1) {
     const fautif = [...document.body.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1 && getComputedStyle(e).display !== 'none'; })
-      .filter((e, i, l) => !l.some(o => o !== e && e.contains(o))).slice(0, 3).map(nom).join(' ; ');
+      .filter((e, i, l) => !l.some(o => o !== e && e.contains(o))).slice(0, 3).map(nom).join(' ; ')
+      || (() => {   // sinon : un texte qui dépasse de sa boîte (mot trop long), trouvé par ses morceaux
+        const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), out = [];
+        for (let n; (n = w.nextNode()) && out.length < 3;) {
+          const r = document.createRange(); r.selectNodeContents(n);
+          if ([...r.getClientRects()].some(x => x.width > 0 && x.right > innerWidth + 1)) out.push(`« ${n.textContent.trim().slice(0, 30)} » dans ${nom(n.parentElement)}`);
+        }
+        return out.join(' ; ');
+      })();
     constats.push(`débordement horizontal : page de ${large} px pour un écran de ${innerWidth} px${fautif ? ` (${fautif})` : ''}`);
   }
 
