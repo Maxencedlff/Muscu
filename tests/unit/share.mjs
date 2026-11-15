@@ -246,6 +246,12 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     const s = (weight, reps) => ({ weight, reps });
     assert.equal(txt([s('30', '10'), s('30', '10'), s('30', '9')]), '30 kg × 10 · 10 · 9');
     assert.equal(txt([s('30', '10'), s('32.5', '8'), s('32.5', '7')]), '30 × 10 · 32,5 × 8 · 32,5 × 7', 'historique : inchangé');
+    // Relecture (Historique, ami, coach) : à charge égale, reps à virgules ; charges qui changent et durées inchangées
+    const read = (sets, m = 'reps') => app.setsTextRead(sets, m, 'charge');
+    assert.equal(read([s('130', '10'), s('130', '10')]), '130 kg × 10, 10');
+    assert.equal(read([s('', '15'), s('', '12')]), '15, 12 reps');
+    assert.equal(read([s('30', '10'), s('32.5', '8')]), '30 × 10 · 32,5 × 8');
+    assert.equal(read([s('', '45'), s('', '60')], 'time'), '45 s · 1 min');
     assert.equal(app.setsText([s('30', '10'), s('32.5', '8')], 'reps', 'charge', { unitEach: true }), '30 kg × 10 · 32,5 kg × 8', 'image : unité à chaque série');
     assert.equal(app.setsText([s('30', '10'), s('30', '9')], 'reps', 'charge', { unitEach: true }), '30 kg × 10 · 9');
     assert.equal(txt([s('', '15'), s('', '12')]), '15 · 12 reps');

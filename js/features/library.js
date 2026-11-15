@@ -52,15 +52,22 @@ function fitLibSubs(scope = document) {
   document.fonts?.ready.then(() => fitLibSubsNow(scope));
 }
 window.addEventListener('resize', () => fitLibSubsNow(document));
+// Noms voisins qui ne diffèrent que d'une lettre : le geste en sous-titre, à la place des muscles (les noms, données
+// partagées, ne changent pas ; panel finitions : « Abducteurs » et « Adducteurs » se suivent dans la liste)
+const LIB_HINTS = {
+  'Abducteurs machine': 'Écarter les cuisses (fessiers)',
+  'Adducteurs machine': 'Serrer les cuisses',
+};
 function libRowHtml(e) {
   const q = EQUIPMENT.find(x => x.id === e.equip);
   const m = exerciseMuscles({ name: e.name }), id = m.primary?.[0];
   const f = libMuscle.muscle, shown = f && m.primary.includes(f) ? { ...m, primary: [f, ...m.primary.filter(x => x !== f)] } : m;
   const muscles = [...new Set(m.primary.map(muscleLabel))];
-  const label = [e.name, ...muscles, q?.label].filter(Boolean).join(', ');
+  const hint = LIB_HINTS[e.name];
+  const label = [e.name, hint, ...muscles, q?.label].filter(Boolean).join(', ');
   return `<button class="cell mgc mgc--ex" data-action="open-library-ex" data-name="${esc(e.name)}" aria-label="${esc(label)}">
       <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
-        <span class="mgc__sub">${libSubHtml(shown, q?.short || q?.label || '')}</span></span>
+        <span class="mgc__sub">${hint ? `<span class="mgc__mus">${esc(hint)}</span>` : libSubHtml(shown, q?.short || q?.label || '')}</span></span>
       ${isMuscleId(id) ? muscleImgHtml(id, true) : ''}
     </button>`;
 }
@@ -158,8 +165,8 @@ function renderLibrary() {
       ${libNavBar()}
       <div class="scr">
         <div class="hist-tools">
-          <input type="search" id="libSearch" class="search" placeholder="Nom, muscle ou matériel" value="${esc(libQuery)}"
-                 autocomplete="off" enterkeyhint="search" aria-label="Rechercher un exercice">
+          <input type="search" id="libSearch" class="search" placeholder="${document.documentElement.classList.contains('type-xl') ? 'Rechercher' : 'Nom, muscle ou matériel'}" value="${esc(libQuery)}"
+                 autocomplete="off" enterkeyhint="search" aria-label="Rechercher un exercice par nom, muscle ou matériel">
           <div class="ax__equip lib__equip" role="group" aria-label="Matériel"${libMuscle.group ? ' hidden' : ''}>
             ${[{ id: 'all', label: 'Tout' }, ...EQUIPMENT].map(({ id, label }) =>
               `<button class="ax__chip" aria-pressed="${libEquip === id}" data-action="lib-equip" data-equip="${id}">${label}</button>`).join('')}

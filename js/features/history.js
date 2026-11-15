@@ -125,9 +125,9 @@ function refreshHistoryList() {
   if (el) el.innerHTML = historyListHTML();
 }
 
-// Séries d'un exercice (setsText, js/data/measures.js), échappées pour le HTML
+// Séries d'un exercice (setsTextRead, js/data/measures.js : « 130 kg × 10, 10 »), échappées pour le HTML
 function setsLine(sets, measure = 'reps', kind = 'charge') {
-  const shown = setsText(sets, measure, kind), spoken = setsSpoken(sets, measure, kind);
+  const shown = setsTextRead(sets, measure, kind), spoken = setsSpoken(sets, measure, kind);
   return spoken ? `<span aria-hidden="true">${esc(shown)}</span><span class="visually-hidden">${esc(spoken)}</span>` : esc(shown);
 }
 // Même chose pour VoiceOver : « 4 séries à 28 kilos : 8, 8, 8 et 8 reps » et non « 28 kg multiplié par 8, 8, 8, 8 »
