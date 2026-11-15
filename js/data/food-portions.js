@@ -150,11 +150,15 @@ function offPortion(pr, name = '') {
     const p = ok(known ? { u: known.u, pl: known.pl, g } : { u: 'unité', pl: 'unités', g });
     if (p) return p;
   }
-  // 3. Nom connu de la table (« 6 œufs frais » : l'œuf moyen)
+  // 3. Nom connu de la table (« 6 œufs frais » : l'œuf moyen). Si le paquet donne sa portion en grammes (« 37,5g »)
+  // dans un ordre de grandeur plausible pour cette unité, c'est le poids du paquet qui compte : la tranche de ce pain
+  // de mie pèse 37,5 g, pas les 25 g de la table (retour de Maxence, 15/11 : « une tranche c'est 2,9 g de protéines »)
   const known = foodPortions({ name })[0];
+  const sq = typeof pr?.serving_quantity === 'number' ? pr.serving_quantity : offPortionNum(t(pr?.serving_quantity) || 'x');
+  const sqOk = Number.isFinite(sq) && sq >= 1 && sq <= 2000 && sq !== 100;
+  if (known && sqOk && sq >= known.g * 0.5 && sq <= known.g * 2.5) { const p = ok({ ...known, g: sq }); if (p) return p; }
   if (known) return ok(known);
   // 4. Portion indiquée (« 30 g ») ; 100 g n'en est pas une (valeur par défaut de beaucoup de fiches)
-  const sq = typeof pr?.serving_quantity === 'number' ? pr.serving_quantity : offPortionNum(t(pr?.serving_quantity) || 'x');
-  if (Number.isFinite(sq) && sq >= 1 && sq <= 2000 && sq !== 100) return ok({ u: 'portion', pl: 'portions', g: sq });
+  if (sqOk) return ok({ u: 'portion', pl: 'portions', g: sq });
   return null;
 }

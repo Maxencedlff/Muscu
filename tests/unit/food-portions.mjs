@@ -103,4 +103,13 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     sameJSON(run(`foodPortions(dietOwnPick(data.dietFoods[0]))[0]`), { u: 'pot', pl: 'pots', g: 125 }, 'unité du paquet en premier, exacte');
     assert.ok(!('portion' in run(`cleanDietFoods([{ name: 'X', per: { k: 1, p: 0, c: 0, f: 0 }, portion: { u: 'pot', g: -1 } }])[0]`)), 'portion illisible retirée');
   });
+
+  test('paquet scanné : la portion en grammes du paquet prime sur la table pour une unité connue (pain de mie 37,5 g)', () => {
+    const p = run(`offPortion({ serving_size: '37,5g', serving_quantity: 37.5, quantity: '750 g' }, 'Pain de mie')`);
+    assert.equal(p.u, 'tranche'); assert.equal(p.g, 37.5, 'tranche du paquet, pas les 25 g de la table');
+    const far = run(`offPortion({ serving_size: '150g', serving_quantity: 150 }, 'Pain de mie')`);
+    assert.equal(far.g, 25, 'portion trop éloignée de la tranche (sans doute plusieurs tranches) : la table reste');
+    assert.equal(run(`offPortion({ serving_quantity: 100 }, 'Pain de mie')`).g, 25, '100 g n\'est pas une portion');
+  });
+
 }
