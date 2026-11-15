@@ -45,7 +45,11 @@ function wakeAudio() {
   } catch {}
 }
 
-function beep(freq, dur = .15, vol = .35) {
+// Une note sinusoïdale, comme la lecture iOS (SoundPlugin.swift, render()) : attaque de 4 ms puis
+// décroissance exponentielle jusqu'à 0,001 sur la durée. at : départ en secondes depuis maintenant,
+// programmé sur l'horloge audio (les partiels d'un même son partent ensemble, sans le flou d'un setTimeout).
+function beep(freq, dur = .15, vol = .35, at = 0) {
+  if (!webAudioAllowed()) return;   // app iOS : jamais de Web Audio (voir webAudioAllowed)
   try {
     wakeAudio();
     const osc  = audioCtx.createOscillator();
@@ -54,10 +58,12 @@ function beep(freq, dur = .15, vol = .35) {
     gain.connect(audioCtx.destination);
     osc.frequency.value = freq;
     osc.type = 'sine';
-    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + dur);
-    osc.start();
-    osc.stop(audioCtx.currentTime + dur);
+    const t0 = audioCtx.currentTime + at;
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol, t0 + .004);
+    gain.gain.exponentialRampToValueAtTime(.001 * vol, t0 + dur);
+    osc.start(t0);
+    osc.stop(t0 + dur);
   } catch {}
 }
 
@@ -67,8 +73,34 @@ function beep(freq, dur = .15, vol = .35) {
 const SOUND_LEVELS = { fort: 0.9, normal: 0.6, bas: 0.35 };
 function soundVol() { return SOUND_LEVELS[data.soundLevel] ?? SOUND_LEVELS.fort; }
 
-// Mélodies : notes { freq (Hz), start (s depuis le début), dur (s) }. Jouées par iOS dans l'app
-// (Native.sound : par-dessus la musique, audibles en mode silencieux), sinon en Web Audio.
+// Mélodies : notes [freq (Hz), start (s depuis le début), dur (s), gain ?]. gain (0…1, 1 par défaut) :
+// part de la note dans le volume choisi, pour les sons faits de plusieurs partiels. Jouées par iOS dans
+// l'app (Native.sound : par-dessus la musique, audibles en mode silencieux), sinon en Web Audio.
+//
+// La lecture iOS ne sait jouer que des sinus (render(), changer de timbre demanderait une build) : un timbre
+// se compose donc en additionnant des sinus. Les notes s'additionnent puis sont écrêtées à ±1 : la somme
+// des enveloppes d'un son, au volume « Fort » (0,9), reste sous 1 (tests/unit/run.mjs le vérifie).
+//
+// Bloc de bois (sons du tempo guidé) : le timbre des métronomes (le Klopfgeist de Logic va « d'un clic à un
+// son de percussion accordé, proche d'un woodblock ou de claves »). Un mode principal, deux modes plus aigus
+// et inharmoniques qui s'éteignent plus vite, et un clic d'attaque très bref : le son est sec (aucune traîne
+// sous la voix qui compte les reps) et son énergie tombe entre 1 et 5 kHz, où l'oreille est la plus sensible
+// et où un sinus seul à 392 Hz se noyait dans les basses de la musique de la salle. Rapports choisis à
+// l'oreille (aucune mesure publiée des modes d'un woodblock), sans rapport entier : pas de « bip » électronique.
+function woodblock(freq, start, gain = 1, dur = .12) {
+  return [
+    [freq,        start, dur,       .75 * gain],
+    [freq * 2.32, start, dur * .5,  .37 * gain],
+    [freq * 4.13, start, dur * .3,  .22 * gain],
+    [4700,        start, .012,      .12 * gain],
+  ];
+}
+// Hauteurs du tempo : sol 5, ré 6 (une quinte, intervalle franc) ; accent de nouvelle rep : do 7. Aucune
+// ne reprend celles de la fin de repos (880, 1050, 1400, 1750 Hz) ni son timbre (sinus purs).
+const WOOD_LOW = 784, WOOD_HIGH = 1175, WOOD_ACCENT = 2093;
+// Deux coups à 75 ms forment un seul geste dont l'oreille suit le sens (aigu → grave : descente)
+const WOOD_GAP = .075;
+
 const MELODIES = {
   timer:      [[880, 0, .12], [1100, .16, .12], [1320, .32, .35]],
   validation: [[660, 0, .1]],
@@ -77,10 +109,19 @@ const MELODIES = {
   tick:       [[440, 0, .08]],
   restCount:  [[880, 0, .11]],                               // repos : chaque bip du decompte 3-2-1 (aigu : ressort de la musique)
   restGo:     [[1050, 0, .1], [1400, .12, .1], [1750, .26, .33]],  // repos : GO, montee nette, differente du decompte
-  tempoDown:  [[392, 0, .12]],                  // tempo : début de la descente (grave)
-  tempoUp:    [[659, 0, .12]],                  // tempo : début de la montée (aigu)
-  tempoX:     [[880, 0, .07], [880, .1, .07]],  // tempo : montée explosive
-  tempoRep:   [[523, 0, .08], [1047, .1, .16]], // tempo : nouvelle répétition (deux notes, distincte des phases)
+  // Tempo guidé. Le sens du son suit celui de la charge (on associe spontanément l'aigu au haut : effet
+  // SMARC, Rusconi et al., Cognition 2006) : la descente tombe (« tic-toc »), la montée monte (« toc-tic »).
+  tempoDown:  [...woodblock(WOOD_HIGH, 0, 1, .09), ...woodblock(WOOD_LOW, WOOD_GAP, 1, .18)],
+  tempoUp:    [...woodblock(WOOD_LOW, 0, 1, .09), ...woodblock(WOOD_HIGH, WOOD_GAP, 1, .18)],
+  // Montée explosive (« X ») : trois coups serrés qui grimpent, plus vifs que la montée normale
+  tempoX:     [...woodblock(WOOD_LOW, 0, 1, .06), ...woodblock(WOOD_HIGH, .045, 1, .06), ...woodblock(WOOD_LOW * 2, .09, 1, .12)],
+  // Chaque seconde d'une phase longue et chaque pause : un coup léger (10 dB sous les phases), comme le tic
+  // d'un métronome à 60 : on compte « 3 s » sans regarder l'écran, sans fatiguer sur des dizaines de reps
+  tempoTick:  woodblock(WOOD_LOW * 2, 0, .55, .06),
+  // Nouvelle répétition : le geste de la phase qui commence, précédé d'un coup aigu (l'accent du 1er temps
+  // d'un métronome) ; la voix dit le numéro par-dessus
+  tempoRepDown: [...woodblock(WOOD_ACCENT, 0, .85, .06), ...woodblock(WOOD_HIGH, WOOD_GAP * 1.2, 1, .09), ...woodblock(WOOD_LOW, WOOD_GAP * 2.2, 1, .18)],
+  tempoRepUp:   [...woodblock(WOOD_ACCENT, 0, .85, .06), ...woodblock(WOOD_LOW, WOOD_GAP * 1.2, 1, .09), ...woodblock(WOOD_HIGH, WOOD_GAP * 2.2, 1, .18)],
 };
 
 // Tous les sons passent par la lecture iOS (.playback, audible en mode silencieux, par-dessus la musique).
@@ -134,7 +175,7 @@ function checkNativeSound(sentAt) {
 function playMelody(name, { replay = true } = {}) {
   if (data.soundOn === false) return Promise.resolve({ ok: true, reasons: [] });
   const vol = soundVol();
-  const notes = MELODIES[name].map(([freq, start, dur]) => ({ freq, start, dur, vol }));
+  const notes = MELODIES[name].map(([freq, start, dur, gain = 1]) => ({ freq, start, dur, vol: vol * gain }));
   if (Native.sound.available) {
     const wantsDuck = data.duckMusic !== false && DUCKED_MELODIES.includes(name);
     const forced = soundNeedsReset && !!Native.sound.canDuck;
@@ -147,7 +188,7 @@ function playMelody(name, { replay = true } = {}) {
       return res;
     });
   }
-  notes.forEach(n => setTimeout(() => beep(n.freq, n.dur, n.vol), n.start * 1000));
+  notes.forEach(n => beep(n.freq, n.dur, n.vol, n.start));
   return Promise.resolve({ ok: true, reasons: [] });
 }
 

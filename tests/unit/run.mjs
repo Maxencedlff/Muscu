@@ -1655,11 +1655,14 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
   await new Promise(r => setImmediate(r));
   assert.ok(c.calls.some(([n, m]) => n === 'MdlfSound' && m === 'play'), 'MdlfSound.play appelé');
   // Mélodies dans les bornes acceptées par SoundPlugin.swift (start < 5 s, dur < 2 s, 20 Hz–20 kHz)
+  // (les timbres se composent avec des fonctions, woodblock() : le fichier est exécuté, pas découpé)
   const src = fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8');
-  const MELODIES = vm.runInNewContext('(' + src.match(/const MELODIES = (\{[\s\S]*?\n\});/)[1] + ')');
+  const mc = vm.createContext({ document: { addEventListener() {} } });
+  vm.runInContext(src + '\nthis.MELODIES = MELODIES;', mc);
+  const MELODIES = mc.MELODIES;
   assert.ok(Object.keys(MELODIES).length >= 5);
   for (const [name, notes] of Object.entries(MELODIES)) {
-    for (const [f, s, d] of notes) assert.ok(f > 20 && f < 20000 && s >= 0 && s < 5 && d > 0 && d < 2, `${name} : note hors bornes`);
+    for (const [f, s, d, g = 1] of notes) assert.ok(f > 20 && f < 20000 && s >= 0 && s < 5 && d > 0 && d < 2 && g > 0 && g <= 1, `${name} : note hors bornes`);
   }
 });
 
@@ -1833,6 +1836,10 @@ test('Native.sound.diagnostics : null hors app ou build sans la méthode, état 
   assert.equal(await nativeContext().Native.notificationPermission(), 'prompt');
   assert.equal(await nativeContext({ native: false }).Native.notificationPermission(), null);
 });
+
+// ── Sons du tempo guidé (tests dans tempo-sons.mjs) ─────────
+
+(await import('./tempo-sons.mjs')).default({ test, assert, sameJSON, ROOT });
 
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 

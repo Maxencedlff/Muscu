@@ -10,8 +10,13 @@ const TEMPO_WORDS = {
   push: { ecc: 'Descends', bottom: 'Tiens', con: 'Pousse', top: 'Tiens' },
   pull: { con: 'Tire', top: 'Tiens', ecc: 'Relâche', bottom: 'Tiens' },
 };
-// Notes courtes et douces (le son natif coupe la note précédente : moins de 0,2 s chacune)
-const TEMPO_NOTES = { ecc: 'tempoDown', con: 'tempoUp' };
+// Sons des phases (js/core/haptics-audio.js) : un geste qui descend ou qui monte au début du mouvement,
+// un coup léger au début des pauses et à chaque seconde d'une phase longue. Tous durent moins de 0,4 s :
+// le son natif coupe le précédent, et il en part au plus un par seconde.
+const TEMPO_NOTES = { ecc: 'tempoDown', con: 'tempoUp', bottom: 'tempoTick', top: 'tempoTick' };
+const TEMPO_REP_NOTES = { ecc: 'tempoRepDown', con: 'tempoRepUp' };
+// Son du début d'une phase : montée « X » à part (aussi vite que possible)
+function tempoPhaseNote(e, phase) { return phase === 'con' && e.tempo[2] === 'X' ? 'tempoX' : TEMPO_NOTES[phase]; }
 
 // Effort au tempo pour la série si l'exercice en a un ; null sinon
 function tempoEffort(ex, s, ei, si) {
@@ -37,21 +42,22 @@ function updateTempoUI(e) {
     if (stop) stop.textContent = 'Arrêter';
     if (bar) bar.setAttribute('stroke-dashoffset', e.reps ? RING_BIG * (1 - (c.rep - 1) / e.reps) : 0);
   }
-  // Une note au début de la descente et de la montée (« X » : double note), rien aux pauses ;
-  // « Rep N » annoncé à VoiceOver, sans chaque phase (trop bavard)
-  const key = `${c.phase}:${c.rep}:${c.phase === 'prep' ? c.prepLeft : ''}`;
+  // Un son à chaque seconde, comme un métronome à 60 : le geste de la phase à son début, un coup léger
+  // ensuite (« Descends » 3 s : geste, tic, tic) ; « Rep N » annoncé à VoiceOver, sans chaque phase (trop bavard)
+  const key = `${c.phase}:${c.rep}:${c.phase === 'prep' ? c.prepLeft : c.phaseLeft}`;
   if (key !== effortLastSecond) {
-    // Nouvelle répétition : changement de rang, ou première phase après la préparation. Son à deux notes
-    // et numéro dit à voix haute, pour compter sans regarder l'écran ; les autres phases gardent leur note
+    // Nouvelle répétition : changement de rang, ou première phase après la préparation. Le geste de la
+    // phase précédé d'un accent, et le numéro dit à voix haute, pour compter sans regarder l'écran
     const [lastPhase, lastRep] = String(effortLastSecond || '').split(':');
     const newRep = c.phase !== 'prep' && c.phase !== 'done' && (lastPhase === 'prep' || c.rep !== Number(lastRep));
+    const newPhase = c.phase !== lastPhase || c.rep !== Number(lastRep);
     if (c.phase === 'prep') playMelody('tick');
     else if (newRep) {
-      playMelody('tempoRep');
+      playMelody(TEMPO_REP_NOTES[c.phase] || 'tempoRepDown');
       sayCount(c.rep);
       announce(e.reps && c.rep === e.reps ? 'Dernière rep' : `Rep ${c.rep}`);
       if (lastPhase === 'prep') haptic();
-    } else if (TEMPO_NOTES[c.phase]) playMelody(c.phase === 'con' && e.tempo[2] === 'X' ? 'tempoX' : TEMPO_NOTES[c.phase]);
+    } else if (c.phase !== 'done') playMelody(newPhase ? tempoPhaseNote(e, c.phase) : 'tempoTick');
   }
   effortLastSecond = key;
   if (c.phase === 'done') finishEffort(c.endAt, e.reps);
