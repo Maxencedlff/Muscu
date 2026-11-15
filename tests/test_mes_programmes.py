@@ -66,11 +66,10 @@ def t_mes_programmes(bench, eng, dev, theme):
         rows = page.locator('.prog-add [data-action="open-prog-info"]')
         R.check(rows.count() == 7, f'{t} catalogue : 7 programmes intégrés ({rows.count()})')
         R.check('3 séances par semaine' in rows.first.inner_text(), f'{t} catalogue : fréquence conseillée')
-        # Vignettes : personnage entier (muscles travaillés) pour un programme multi-groupes ; jamais la même image
-        # d'un seul groupe pour tous (« une icône = un sens ») ; « Actif » sous le nom, pas à droite des séances
-        thumbs = page.evaluate("""() => [...document.querySelectorAll('.prog-add [data-action="open-prog-info"]')].map(r =>
-            r.querySelector('.psq--body') ? 'corps' : (r.querySelector('.psq--img img') || {}).getAttribute?.('src') || 'lettre')""")
-        R.check(thumbs.count('corps') >= 5 and len([x for x in thumbs if x.startswith('img/')]) <= 2, f'{t} catalogue : personnage entier pour les programmes complets {thumbs}')
+        # Vignettes : séances par semaine en gros (le personnage serait identique sur chaque ligne, « une icône = un sens ») ;
+        # « Actif » sous le nom, pas à droite des séances
+        thumbs = page.evaluate("""() => [...document.querySelectorAll('.prog-add [data-action="open-prog-info"] .psq--freq b')].map(b => b.textContent)""")
+        R.check(len(thumbs) == 7 and len(set(thumbs)) >= 3, f'{t} catalogue : fréquence en vignette, qui varie {thumbs}')
         state = page.locator('.prog-add [data-id="ppl"] .prog-add__state')
         R.check(state.count() == 1 and state.inner_text().strip() == 'Actif' and page.locator('.prog-add [data-id="ppl"] .cell__value').count() == 0,
                 f'{t} catalogue : « Actif » sous le nom de PPL')

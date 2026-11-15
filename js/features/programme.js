@@ -235,18 +235,20 @@ function renderMyProgrammes() {
     </div>`;
 }
 
-// Ajouter un programme : en créer un, ou en prendre un dans « Tous les programmes » (intégrés)
+// Ajouter un programme : en créer un, ou en prendre un dans « Tous les programmes » (intégrés).
+// Vignette du catalogue = séances par semaine en gros : tous ces programmes couvrent le corps entier, le personnage
+// serait le même sur chaque ligne (« une icône = un sens ») ; il reste dans la fiche du programme.
 function renderProgAdd() {
   const row = id => {
     const pm = PROGRAMMES[id], adv = PROGRAMME_ADVICE[id];
     const state = data.activeProgramme === id ? 'Actif' : inMyProgrammes(id) ? 'Ajouté' : '';
     return `
       <button class="cell cell--nav" data-action="open-prog-info" data-id="${esc(id)}">
-        ${progSquareHtml(id, pm)}
+        ${adv ? `<span class="psq psq--freq" aria-hidden="true"><b>${adv.perWeek}</b>/ sem</span>` : progSquareHtml(id, pm)}
         <span class="cell__body">
           <span class="cell__title">${esc(pm.name)}</span>
           ${state ? `<span class="cell__sub prog-add__state">${state}</span>` : ''}
-          <span class="cell__sub">${adv ? `${adv.perWeek} séances par semaine · ` : ''}${Object.values(pm.sessions).map(x => esc(x.label)).join(' · ')}</span>
+          <span class="cell__sub">${adv ? `<span class="psq-freq-txt">${adv.perWeek} séances par semaine · </span>` : ''}${Object.values(pm.sessions).map(x => esc(x.label)).join(' · ')}</span>
         </span>
         ${icon('chevron.right', 16)}
       </button>`;

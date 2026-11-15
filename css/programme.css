@@ -91,8 +91,15 @@ html.type-xl .psq--img, html.type-xl .psq--body { display: none; }
 /* Programme qui couvre plusieurs groupes : personnage entier, face et dos, muscles travaillés en rouge (récap) */
 .psq--body { width: 42px; height: 42px; padding: 2px 3px; background: var(--fill2); display: flex; align-items: center; }
 .psq--body .body-map { width: 100%; }
+/* Catalogue : fréquence conseillée en gros ; le texte « N séances par semaine » reste pour VoiceOver et le texte agrandi */
+.psq--freq { width: 42px; height: 42px; background: var(--fill2); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; line-height: 1.1; color: var(--label2); }
+.psq--freq b { font-size: 20px; font-weight: 700; color: var(--label); }
+html:not(.type-xl) .psq-freq-txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+html.type-xl .psq--freq { display: none; }
+/* Mini-personnages : pas de fondu (une centaine de calques animés à la fois pour rien à 42 px) */
+.psq--body .body-map__m { animation: none; }
 /* Lettre d'un programme sans exercice : grise, sans couleur de séance */
-.psq:not(.psq--img):not(.psq--body) { background: var(--fill2); color: var(--label2); }
+.psq:not(.psq--img):not(.psq--body):not(.psq--freq) { background: var(--fill2); color: var(--label2); }
 /* « Actif » / « Ajouté » sous le nom (Tous les programmes) : la ligne des séances garde sa largeur */
 .prog-add__state { color: var(--label); font-weight: 600; }
 
