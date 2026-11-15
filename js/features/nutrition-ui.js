@@ -458,9 +458,14 @@ function nutritionHomeCard() {
   // Tous les repas du jour (vague 4) : nom, kcal, coché ou non ; le prochain porte le bouton à cocher (un toucher).
   // Plus de 4 repas : 3 autour du prochain et « et 2 autres ». Le reste de la carte ouvre Nutrition
   const { shown, more } = dietHomeMeals(pr);
-  // Repas sans aliment prévu ni noté (jour vide) : pas de « 0 kcal »
-  const kcalOf = x => (hide || (!x.live.length && !x.extras.length) ? '' : `<span class="diet-home__mkcal num">${dietN(x.macros.kcal)}\u00a0kcal</span>`);
-  const rows = shown.map(x => {
+  // Repas sans aliment prévu ni noté (jour vide) : pas de « 0 kcal », mais « à noter » (le repas attend une saisie)
+  const empty = x => !x.live.length && !x.extras.length;
+  const kcalOf = x => (empty(x) ? (pr.blank ? '<span class="diet-home__mkcal">à noter</span>' : '')
+    : hide ? '' : `<span class="diet-home__mkcal num">${dietN(x.macros.kcal)}\u00a0kcal</span>`);
+  // Jour vide sans rien de noté (son propre plan commence vide) : une invite, la même phrase que l'écran Nutrition
+  const blankNothing = pr.blank && pr.meals.every(empty);
+  const rows = blankNothing ? `
+        <div class="diet-home__meal diet-home__empty" aria-hidden="true"><span class="diet-home__mtext"><span class="diet-home__mname">${dietStatusText(pr)}</span><span class="diet-home__add">Ajouter</span></span></div>` : shown.map(x => {
     const isNext = next?.meal.id === x.meal.id;
     const state = x.done ? 'done' : isNext ? 'next' : 'todo';
     return `
@@ -469,11 +474,11 @@ function nutritionHomeCard() {
           <span class="diet-home__mstate">${x.done ? `<span class="diet-home__done" aria-hidden="true">${icon('checkmark', 12)}</span>` : isNext ? dietCheckBtn(x.meal, false, null) : ''}</span>
         </div>`;
   }).join('');
-  const moreText = more ? `et ${more} ${more > 1 ? 'autres' : 'autre'}` : '';
+  const moreText = !blankNothing && more ? `et ${more} ${more > 1 ? 'autres' : 'autre'}` : '';
   // VoiceOver : le bouton du haut dit tout (plan, calories, chaque repas) ; les lignes sont cachées, sauf le bouton à cocher
   const spokenMeals = pr.meals.filter(x => x.meal.items.length || x.extras.length)
     .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide || (!x.live.length && !x.extras.length) ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
-  const spoken = `Nutrition, ${plan.name} : ${hide ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${spokenMeals}. Ouvrir`;
+  const spoken = `Nutrition, ${plan.name} : ${hide ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${blankNothing ? `${dietStatusText(pr)}. Ajouter` : `${spokenMeals}. Ouvrir`}`;
   return `${card}
     <section class="home-card diet-home${pr.complete ? ' diet-home--complete' : ''}">
       <button class="diet-home__open" data-action="go-nutrition" aria-label="${esc(spoken)}">

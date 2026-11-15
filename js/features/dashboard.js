@@ -154,17 +154,19 @@ function sessionMinutes(cat) {
 
 // Cible du jour d'un exercice : exerciseTarget (js/data/goals.js), la même qu'en séance.
 
-// « À battre aujourd'hui », dans la carte de la prochaine séance : les premiers exercices, la cible en
-// gras, le gain avec une flèche ↑ (jamais la couleur seule : « ↑ 1 rep », sans « + »), la dernière fois
-// en gris dessous. Jamais fait : « Au programme » et le nombre de séries prévu.
+// « À battre aujourd'hui », dans la carte de la prochaine séance : les premiers exercices en lignes compactes. Le nom à
+// gauche (deux lignes au plus, puis « … » ; VoiceOver le lit en entier), la cible en gras à droite ; dessous, en gris,
+// la dernière fois (« avant … ») et le gain avec une flèche ↑ (jamais la couleur seule : « ↑ 1 rep », sans « + »).
+// Jamais fait : « Au programme » et la cible seule.
 const HERO_TARGETS = 3;
 function targetRowHtml(cat, ex) {
   const t = exerciseTarget(cat, ex);
   const gain = t.gain
     ? `<span class="targets__gain num">${icon('arrow.up', 11)}${esc(t.gain)}<span class="sr-text"> de plus</span></span>` : '';
   const before = t.gain && t.before ? `<span class="targets__before num">avant ${esc(t.before)}</span>` : '';
-  return `<li class="targets__row"><span class="targets__name">${esc(ex.name)}</span>`
-    + `<span class="targets__val"><span class="targets__now"><span class="targets__target num">${esc(t.text)}</span>${gain}</span>${before}</span></li>`;
+  return `<li class="targets__row"><span class="targets__main"><span class="targets__name">${esc(ex.name)}</span>`
+    + `<span class="targets__target num">${esc(t.text)}</span></span>`
+    + `${before || gain ? `<span class="targets__sub">${before}${gain}</span>` : ''}</li>`;
 }
 function targetsHtml(cat) {
   const exs = prog().exercises[cat] || [];
@@ -241,25 +243,26 @@ function weekCard(ws) {
 function heroFactsHtml(cat, last) {
   const nEx = (prog().exercises[cat] || []).length, mins = sessionMinutes(cat);
   const facts = [nEx ? plural(nEx, 'exercice', 'exercices') : '', mins ? `≈ ${mins} min` : ''].filter(Boolean).join(' · ');
-  const when = last ? `Dernière fois : ${fmtDate(last.date)}` : 'Jamais faite';
+  // Date d'un bloc (espaces insécables) : jamais « ven. » en fin de ligne et « 30 oct. » dessous (iPhone SE)
+  const when = last ? `Dernière fois : ${fmtDate(last.date).replace(/ /g, '\u00a0')}` : 'Jamais faite';
   return `<p class="hero__info num">${facts ? `<span class="hero__fact">${facts}</span>` : ''}<span class="hero__fact">${when}</span></p>`;
 }
 
-// Prochaine séance (ou séance en cours) : une seule carte, avec Démarrer comme seul bouton plein.
-// Pas prête : l'attente, ce qui la fixe et « Démarrer quand même » en gris.
-function heroHtml(keys, next, liveHere) {
+// Prochaine séance (ou séance en cours) : une carte illustrée, comme les groupes de la Bibliothèque, avec Démarrer comme
+// seul bouton plein. Pas prête : l'attente, ce qui la fixe et « Démarrer quand même » en gris.
+function heroParts(keys, next, liveHere) {
   const meta = sessionMeta(next), st = catStatus(next);
-  let info, btn;
+  let facts, more = '', btn;
   if (liveHere) {
-    info = `<p class="hero__info hero__info--live">En cours · <span class="num" id="hero-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span></p>`;
+    facts = `<p class="hero__info hero__info--live">En cours · <span class="num" id="hero-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span></p>`;
     btn  = `<button class="hero__btn" data-action="resume-session">${icon('play', 18)}Reprendre</button>`;
   } else {
-    info = heroFactsHtml(next, lastEntryOf(next));
-    if (!st.ready) info += `<p class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</p>`;
-    if (st.by) info += `<p class="hero__why">${esc(recoveryReason(st.by))}</p>`;
-    info += sleepHomeHtml();   // Santé : la nuit, une ligne (js/features/apple-services.js)
+    facts = heroFactsHtml(next, lastEntryOf(next));
+    if (!st.ready) more += `<p class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</p>`;
+    if (st.by) more += `<p class="hero__why">${esc(recoveryReason(st.by))}</p>`;
+    more += sleepHomeHtml();   // Santé : la nuit, une ligne (js/features/apple-services.js)
     const passed = passedOverNote(keys, next);
-    if (passed) info += `<p class="hero__why hero__why--passed">${esc(passed)}</p>`;
+    if (passed) more += `<p class="hero__why hero__why--passed">${esc(passed)}</p>`;
     btn = st.ready
       ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${meta.label}">${icon('play', 18)}Démarrer</button>`
       : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
@@ -269,19 +272,59 @@ function heroHtml(keys, next, liveHere) {
   // vide), un lien sous le bouton le remplace, comme avant la refonte
   const targets = liveHere ? '' : targetsHtml(next);
   const edit = targets ? '' : `<button class="hero__edit" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>`;
-  const spot = heroBtnSpot();
-  // Grand titre : plus petit pour un nom long (« Bras & épaules »)
-  const size = rawLabel(next).length <= 9 ? 'l' : 'm';
+  return {
+    meta, facts, more, btn, targets, edit, spot: heroBtnSpot(),
+    eyebrow: liveHere ? 'Séance en cours' : 'Prochaine séance',
+    desc: desc ? `<p class="hero__desc">${desc}</p>` : '',
+  };
+}
+
+// En haut, le nom (titre moyen), les muscles et les infos à gauche, la vignette du groupe principal à droite ; l'attente
+// et ses raisons dessous, sur toute la largeur ; puis Démarrer et les cibles. Texte agrandi : plus de vignette, le texte
+// prend toute la largeur, Démarrer passe sous le nom (heroBtnSpot).
+function heroHtml(keys, next, liveHere) {
+  const h = heroParts(keys, next, liveHere);
+  const art = sessionThumbHtml(next, 'hero__thumb');
   return `
-    <section class="hero" aria-label="${liveHere ? 'Séance en cours' : 'Prochaine séance'}">
-      <p class="hero__eyebrow">${liveHere ? 'Séance en cours' : 'Prochaine séance'}</p>
-      <h2 class="hero__name hero__name--${size}">${meta.label}</h2>
-      ${spot === 'top' ? btn : ''}
-      ${desc ? `<p class="hero__desc">${desc}</p>` : ''}
-      ${info}
-      ${spot === 'mid' ? btn : ''}${targets}
-      ${edit}
+    <section class="hero${art ? '' : ' hero--noart'}" aria-label="${h.eyebrow}">
+      <div class="hero__top">
+        <div class="hero__text">
+          <p class="hero__eyebrow">${h.eyebrow}</p>
+          <h2 class="hero__name">${h.meta.label}</h2>
+          ${h.spot === 'top' ? h.btn : ''}
+          ${h.desc}
+          ${h.facts}
+        </div>
+        ${art}
+      </div>
+      ${h.more}
+      ${h.spot === 'mid' ? h.btn : ''}${h.targets}
+      ${h.edit}
     </section>`;
+}
+
+// ── Illustrations : toujours décoratives (alt vide, aria-hidden) ; VoiceOver lit le nom et les infos écrites ──
+// Muscles principaux de la séance et nombre d'exercices qui les travaillent
+function sessionMuscleCount(cat) {
+  const index = chosenMusclesIndex(), n = new Map();
+  (prog().exercises[cat] || []).forEach(ex => exerciseMuscles(ex, index).primary.forEach(m => n.set(m, (n.get(m) || 0) + 1)));
+  return n;
+}
+// Groupe principal d'une séance (celui qui compte le plus d'exercices) : Push → pectoraux, Pull → dos, Legs → jambes
+function sessionGroup(cat) {
+  const n = sessionMuscleCount(cat);
+  let best = null, bestN = 0;
+  MUSCLE_GROUPS.forEach(g => {
+    const c = g.muscles.reduce((a, m) => a + (n.get(m) || 0), 0);
+    if (c > bestN) { best = g.id; bestN = c; }
+  });
+  return best;
+}
+// Vignette du groupe (img/muscles/<groupe>.webp, 600 × 400, celle de la Bibliothèque) ; fichier absent : rien
+// (classe mgc__img : js/ui/vivant.js la marque data-missing et la cache)
+function sessionThumbHtml(cat, className) {
+  const g = sessionGroup(cat);
+  return g ? `<img class="mgc__img ${className}" src="img/muscles/${g}.webp" alt="" aria-hidden="true" width="600" height="400" decoding="async">` : '';
 }
 
 // Place de Démarrer dans la carte. Ordre de lecture = ordre affiché (WCAG 1.3.2) : c'est le HTML qui la
@@ -296,17 +339,22 @@ function heroBtnSpot() {
 }
 
 // « Autres séances » (et non « Ensuite », qui laissait croire à un ordre : panel vague 4) : les autres séances du
-// programme, sans couleur de séance, leur état à droite (« Prête », « Prête dans 1 j 18 h »)
+// programme en cartes illustrées, comme les groupes de la Bibliothèque : nom, infos et état (« Prête », « Prête dans
+// 1 j 18 h ») à gauche, vignette du groupe principal à droite. Intitulé VoiceOver = le texte affiché (image décorative)
+// Les muscles écrits (« Pectoraux · Épaules · Triceps ») restent quand la vignette disparaît (texte agrandi), comme
+// sur la carte de la prochaine séance ; le chevron dit que la carte se touche (feuille d'actions)
 function otherSessionHtml(cat) {
-  const n = (prog().exercises[cat] || []).length;
+  const n = (prog().exercises[cat] || []).length, mins = sessionMinutes(cat), meta = sessionMeta(cat);
+  const facts = [plural(n, 'exercice', 'exercices'), mins ? `≈ ${mins} min` : ''].filter(Boolean).join(' · ');
+  const desc = meta.desc || coachSessionDesc(data.activeProgramme, cat);
   return `
-      <button class="home-cell" data-action="session-actions" data-cat="${esc(cat)}">
-        <span class="home-cell__text"><span class="home-cell__name">${sessionMeta(cat).label}</span><span class="home-cell__sub num">${plural(n, 'exercice', 'exercices')}</span></span>
-        <span class="home-cell__right" data-status-cat="${esc(cat)}">${cellStatusHtml(cat)}</span>
+      <button class="home-cell mgc" data-action="session-actions" data-cat="${esc(cat)}">
+        <span class="home-cell__text mgc__text"><span class="home-cell__name">${meta.label}</span>${desc ? `<span class="home-cell__desc">${desc}</span>` : ''}<span class="home-cell__sub num">${facts}</span>
+          <span class="home-cell__right" data-status-cat="${esc(cat)}">${cellStatusHtml(cat)}</span></span>
+        ${sessionThumbHtml(cat, 'home-cell__img')}
         ${icon('chevron.right', 14)}
       </button>`;
 }
-
 
 // Libellé suivi du chevron : le dernier mot et le chevron ne se séparent jamais (chevron seul sur sa ligne en AX33, panel t6)
 function navSubWithChevron(text) {
@@ -320,7 +368,7 @@ function renderDashboard() {
   const liveHere = activeSession && activeSession.programme === data.activeProgramme && keys.includes(activeSession.category);
   const next = liveHere ? activeSession.category : nextSessionCat(keys);
 
-  const hero = next ? `${heroHtml(keys, next, liveHere)}${recapHomeCard()}${accountHomeCard()}${coachHomeCard()}` : '';
+  const hero = next ? heroHtml(keys, next, liveHere) : '';
   const others = keys.filter(k => k !== next).map(otherSessionHtml).join('');
 
   const emptyCustom = isUserProg(data.activeProgramme) && keys.length === 0
@@ -335,17 +383,21 @@ function renderDashboard() {
   const from = coachFromLine(data.activeProgramme);   // programme reçu d'un coach (js/features/coach-ui.js)
   const sub = `<button class="navbar__sub" data-action="go-my-programmes" aria-label="Programme ${esc(pm.name)}${from ? `, ${from}` : ''}, mes programmes">${navSubWithChevron(`Programme ${pm.name}`)}</button>${from ? `<p class="coach-from coach-from--home">${from}</p>` : ''}`;
 
+  const week = keys.length ? weekCard(weekStats()) : '';
+  const othersList = others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Autres séances</h2><div class="home-card">${others}</div></section>` : '';
+  // Toutes les séances d'abord (la prochaine, puis les autres), puis les cartes (récap, compte, coach), Nutrition et la semaine
+  const cards = hero ? `${recapHomeCard()}${accountHomeCard()}${coachHomeCard()}` : `${accountHomeCard()}${recapHomeCard()}`;
+
   return `
     <div class="view dashboard">
       ${navBar({ title: 'Entraînement', largeTitle: date, right, sub })}
       <div class="home">
         ${accessBannerHtml()}
         ${hero || emptyCustom}
-        ${hero ? '' : accountHomeCard()}
-        ${hero ? '' : recapHomeCard()}
+        ${othersList}
+        ${cards}
         ${nutritionHomeCard()}
-        ${keys.length ? weekCard(weekStats()) : ''}
-        ${others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Autres séances</h2><div class="home-card">${others}</div></section>` : ''}
+        ${week}
       </div>
     </div>`;
 }

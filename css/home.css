@@ -1,8 +1,12 @@
 /* ═══════════════════════════════════════════════
-   Accueil (onglet Entraînement, js/features/dashboard.js) : carte de la
-   prochaine séance, « Cette semaine », « Ensuite ». Une seule couleur
-   d'accent (Démarrer, les jours faits) ; la hiérarchie tient aux niveaux
-   de gris et à la graisse, jamais aux couleurs de séance.
+   Accueil (onglet Entraînement, js/features/dashboard.js) : les séances du
+   programme en cartes illustrées (la prochaine avec Démarrer, puis « Autres
+   séances »), « Cette semaine ». Une seule couleur d'action (Démarrer) ; le
+   rouge est aux muscles des vignettes ; la hiérarchie tient aux niveaux de
+   gris et à la graisse, jamais aux couleurs de séance.
+   Vignettes : img/muscles/<groupe>.webp (3:2, bord gauche fondu dans l'image),
+   comme les groupes de la Bibliothèque ; décoratives (aria-hidden). Texte
+   agrandi : elles disparaissent, le texte prend toute la largeur.
 ═══════════════════════════════════════════════ */
 
 /* Grand titre de l'accueil : la date, en surtitre (le titre compact reste « Entraînement ») */
@@ -25,12 +29,21 @@
 /* ── Prochaine séance : la seule carte héros ── */
 .hero {
   display: flex; flex-direction: column; padding: 18px;
-  background: var(--cell); border-radius: 20px; color: var(--label);
+  background: var(--cell); border-radius: 20px; color: var(--label); overflow: hidden;
 }
 .hero p { margin: 0; }
-.hero__name { margin: 6px 0 0; font-weight: 800; letter-spacing: -.025em; line-height: 1.05; overflow-wrap: anywhere; }
-.hero__name--l { font-size: min(2.6rem, 11.5vw); }
-.hero__name--m { font-size: 2rem; }
+.hero__name { margin: 2px 0 0; font-size: 1.647rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; overflow-wrap: anywhere; }
+/* Haut de la carte : texte à gauche, vignette à droite sur toute sa hauteur ; la carte la rogne à droite */
+.hero__top { position: relative; min-height: 7.2rem; margin: -4px -18px 0 0; }
+.hero__text { position: relative; z-index: 1; display: flex; flex-direction: column; width: 58%; }
+.hero__top .hero__thumb { height: 7.2rem; max-width: 46%; }   /* .hero__top : passe devant .mgc__img (css/muscles.css, chargé après) */
+.hero--noart .hero__text, .hero__top:has(.mgc__img[data-missing]) .hero__text { width: 100%; }
+.hero__text > .hero__btn { width: 100%; }
+.hero__top + .hero__wait, .hero__top + .hero__why, .hero__top + .hero__sleep { margin-top: 10px; }
+@media (max-width: 359px) {
+  .hero__text { width: 64%; }
+  .hero__top .hero__thumb { height: 6rem; max-width: 40%; }
+}
 .hero .hero__desc { margin-top: 6px; font-size: var(--fs-callout); line-height: 1.3; color: var(--label); }
 .hero .hero__info { margin-top: 3px; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }
 .hero__fact { display: block; }
@@ -69,14 +82,18 @@
 }
 .hero__edit:active { opacity: .5; }
 .targets__list { list-style: none; margin: 0; padding: 0; }
-.targets__row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; padding: 7px 0; }
+/* Ligne compacte : nom à gauche, cible en gras à droite ; dessous en gris, « avant … » et le gain */
+.targets__row { padding: 7px 0; }
 .targets__row + .targets__row { border-top: .5px solid var(--sep); }
-/* Nom en entier, coupé seulement entre deux mots */
-/* Il garde au moins 7 em : sinon la cible passe sous le nom, alignée à droite (écran de 320 pt, grands caractères) */
-.targets__name { flex: 1 1 7em; min-width: 0; font-size: var(--fs-callout); line-height: 1.25; overflow-wrap: break-word; }
-.targets__val { flex-shrink: 0; margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; }
-.targets__now { display: flex; align-items: baseline; gap: 6px; }
-.targets__target { font-size: var(--fs-callout); font-weight: 700; white-space: nowrap; }
+.targets__main { display: flex; align-items: baseline; gap: 12px; }
+/* Nom coupé seulement entre deux mots, deux lignes au plus (iPhone SE), puis « … » ; il garde au moins 7 em */
+.targets__name {
+  flex: 1 1 7em; min-width: 0; font-size: var(--fs-callout); line-height: 1.25; overflow-wrap: break-word;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.targets__target { flex: none; font-size: var(--fs-callout); font-weight: 700; white-space: nowrap; }
+.targets__sub { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 1px; }
+.targets__sub .targets__gain { margin-left: auto; }
 .targets__gain {
   display: inline-flex; align-items: center; gap: 2px; white-space: nowrap;
   font-size: var(--fs-footnote); font-weight: 600; color: var(--label2);
@@ -136,11 +153,21 @@ html.type-xl .week__text { overflow: visible; }
 .home-cell__status { font-size: 0.882rem; color: var(--label2); }
 .home-cell__status--ready { color: var(--label); font-weight: 600; }
 .home-cell__status--live { color: var(--tint-on-fill); font-weight: 600; }
+/* Autres séances en cartes illustrées (classe mgc : image de js/features/library.js et repli sans fichier). Vignette
+   entière (contain : les fessiers et les cuisses de Legs restent visibles), en retrait du haut, du bas et du chevron :
+   elle reste dans sa cellule, sans passer sur le séparateur ni toucher la vignette voisine */
+.home-cell.mgc { min-height: 6.4rem; padding: 12px 0; overflow: hidden; }
+.home-cell.mgc .home-cell__text { flex: none; gap: 2px; }
+.home-cell.mgc .home-cell__name { font-size: var(--fs-title3); white-space: normal; }
+.home-cell__desc { font-size: var(--fs-subhead); line-height: 1.3; color: var(--label); }
+.home-cell.mgc .home-cell__right { margin-top: 2px; }
+.home-cell.mgc > .icon { margin-left: auto; }
+.home-cell .home-cell__img { top: 8px; right: 22px; height: calc(100% - 16px); max-width: 44%; object-fit: contain; object-position: right center; }
 
 /* Petite hauteur (iPhone SE) : la carte se resserre, Démarrer reste visible sans défiler */
 @media (max-height: 700px) {
   .hero { padding: 14px 16px 16px; }
-  .hero__name--l { font-size: 2.1rem; }
+  .hero__name { font-size: 1.588rem; }
   .targets { margin-top: 10px; }
   .targets__row { padding: 5px 0; }
   .hero__btn { margin-top: 10px; min-height: 50px; }
@@ -150,3 +177,16 @@ html.type-xl .week__text { overflow: visible; }
    l'ordre affiché */
 /* Très grands caractères : la date reste un surtitre (la règle de css/navigation.css en ferait un grand titre) */
 html.type-xl .dashboard .navbar__large { font-size: var(--fs-footnote); line-height: 1.3; }
+
+/* Texte agrandi : plus de vignette, rien n'est coupé (le nom des cibles reprend toutes ses lignes) */
+html.type-xl .hero__top { margin: 0; min-height: 0; }
+html.type-xl .hero__text { width: 100%; }
+html.type-xl .targets__name { display: block; overflow: visible; }
+html.type-xl .targets__main, html.type-xl .targets__sub { flex-wrap: wrap; }
+/* « Modifier » passé sous le titre : aligné sur lui (sa marge intérieure de 8 pt rattrapée), pas en retrait */
+html.type-xl .targets__edit { margin-left: -8px; }
+
+/* Vivant : les coches des jours faits se tracent (même tracé que la coche d'une série, css/theme-sobre.css) */
+@media (prefers-reduced-motion: no-preference) {
+  .week__dot--done .icon { stroke-dasharray: 30; animation: vvDraw .3s .2s ease-out both; }
+}
