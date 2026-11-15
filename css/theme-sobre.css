@@ -18,8 +18,9 @@
   --cat-color: var(--tint);
   /* Couleurs de séance et pastilles du guide : plus de violet ni d'indigo (bleu système et sable) */
   --indigo: #0A84FF; --purple: #AC8E68;
-  /* Macros : bleu-vert, bleu, sable ; kcal en vert (avancée vers l'objectif) */
-  --sb-macro-p: #40C8E0; --sb-macro-c: #409CFF; --sb-macro-f: #C9A27A;
+  /* Macros : bleu, or, sable ; kcal en vert (avancée vers l'objectif). Trois teintes nettement à part (panel nutri-v2 :
+     le bleu-vert des protéines et le bleu des glucides se confondaient), jamais l'orange des actions ni le rouge des muscles */
+  --sb-macro-p: #409CFF; --sb-macro-c: #E8B400; --sb-macro-f: #C9A27A;
   --sb-ring: var(--tint);
   --sb-burst: var(--medal);
   --sb-badge: #D70015;          /* pastille de non-lu : texte blanc 5,5:1 */
@@ -35,7 +36,7 @@ body.light {
   --on-tint: #FFFFFF;
   --tint-on-fill: #8F4600;      /* sur --fill clair : 5,4:1 sur cellule, 5,0:1 sur fond gris */
   --indigo: #0066CC; --purple: #8A6A45;
-  --sb-macro-p: #0E7C93; --sb-macro-c: #0066CC; --sb-macro-f: #8A6A45;
+  --sb-macro-p: #0066CC; --sb-macro-c: #9C7700; --sb-macro-f: #8A6A45;   /* repères graphiques à 3:1 au moins sur blanc */
 }
 :root, body.light { --macro-p: var(--sb-macro-p); --macro-c: var(--sb-macro-c); --macro-f: var(--sb-macro-f); }
 /* Jetons tirés d'un autre jeton : redéclarés sous body.light, sinon ils gardent la valeur du sombre (une variable se

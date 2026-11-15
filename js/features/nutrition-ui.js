@@ -57,8 +57,9 @@ function dietMacroWords(m, fmt = dietN) { return `${fmt(m.p)} g de protéines, $
 // Légende des lettres, une fois par écran ou par feuille, au-dessus de la première ligne « P 7 · G 77 · L 1 » : les lignes
 // restent courtes (iPhone SE, texte agrandi), la débutante sait ce que veut dire chaque lettre (demande de Maxence,
 // vague 4). Cachée à VoiceOver : chaque ligne y est déjà dite en toutes lettres. Rien quand les chiffres sont masqués
-// dots : pastilles de couleur, seulement là où la couleur des macros sert (écran du jour : barres de composition des repas)
-function dietMacroLegendHtml(extra = '', { dots = false } = {}) {
+// Pastilles de couleur partout (recherche, remplacer, fiche scannée, Mon plan, journal) : la même couleur dit la même
+// macro sur tous les écrans (panel nutri-v2) ; dots: false pour un texte sans couleur
+function dietMacroLegendHtml(extra = '', { dots = true } = {}) {
   if (data.dietHideNumbers === true) return '';
   const dot = k => (dots ? '<i class="diet-dot diet-dot--' + k + '"></i>' : '');
   return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k">${dot(m.k)}<b>${m.short}</b>\u00a0${m.label.toLowerCase()}</span>`).join(' · ')}</p>`;
@@ -307,7 +308,7 @@ function dietMealHtml(x, pr, day) {
   const emptyText = x.off ? `Retiré pour ${when}` : x.copyable ? 'Ajoute ce que tu manges' : 'Rien de prévu : ajoute ce que tu manges';
   // Titre : un repas coché se déplie au toucher ; pas coché, il est déjà ouvert (simple texte)
   const title = `${isNext ? '<span class="diet-meal__eyebrow">Ensuite</span>' : ''}
-              <span class="diet-meal__name">${esc(meal.name)}</span>
+              <span class="diet-meal__nameline"><span class="diet-meal__name">${esc(meal.name)}</span>${done ? `<span class="diet-meal__more" aria-hidden="true">${icon('chevron.down', 14)}</span>` : ''}</span>
               ${(cleared || !meal.items.length) && !extras.length ? `<span class="diet-meal__macros">${emptyText}</span>`
                 : data.dietHideNumbers ? '' : `<span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`}`;
   // ⋯ : menu du repas (« Retirer ce repas pour aujourd'hui »), pour tout repas du plan pas encore retiré (jour vide
@@ -316,7 +317,7 @@ function dietMealHtml(x, pr, day) {
   return `
         <article class="diet-meal${done ? ' diet-meal--done' : ''}${isNext ? ' diet-meal--next' : ''}" data-meal="${esc(meal.id)}">
           <div class="diet-meal__head">
-            ${done ? `<button class="diet-meal__title" data-action="diet-meal-open" data-meal="${esc(meal.id)}" aria-expanded="${open}">${title}<span class="diet-meal__more" aria-hidden="true">${icon('chevron.down', 14)}</span></button>`
+            ${done ? `<button class="diet-meal__title" data-action="diet-meal-open" data-meal="${esc(meal.id)}" aria-expanded="${open}">${title}</button>`
               : `<div class="diet-meal__title">${title}</div>`}
             ${menu}${live.length ? dietCheckBtn(meal, done, day) : ''}
           </div>
@@ -448,7 +449,7 @@ function renderNutrition(dayParam) {
           ? ` Suis le plan de ${esc(plan.fromCoach.name || 'ton coach')} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
-        ${pr.meals.length ? dietMacroLegendHtml('', { dots: true }) : ''}
+        ${pr.meals.length ? dietMacroLegendHtml() : ''}
         <div class="diet-meals">${meals}</div>
         ${dietSettingsCellHtml()}
         ${dietSourceFoot({ help: true })}

@@ -226,6 +226,29 @@ def t_journee(bench, eng, dev, theme):
         page.wait_for_timeout(200)
         R.check(page.get_attribute('.diet-meal[data-meal="m4"] .diet-meal__title', 'aria-expanded') == 'true'
                 and page.locator('.diet-meal[data-meal="m4"] .diet-meal__more .icon').count() == 1, f'{t} dîner coché : chevron, déplié')
+        # Panel nutri-v2 : repas coché, titre pas grisé et chevron sur la ligne du nom ; barre de composition aux teintes
+        # exactes des pastilles (pas d'opacité) ; « Remplace … » en gris, pas en gras, sur une ligne
+        st = page.evaluate("""() => { const m = document.querySelector('.diet-meal[data-meal="m4"]'), cs = e => getComputedStyle(e);
+            const name = m.querySelector('.diet-meal__name'), more = m.querySelector('.diet-meal__more'), probe = document.createElement('span');
+            probe.style.color = 'var(--label)'; document.body.append(probe); const label = cs(probe).color; probe.remove();
+            const nr = name.getBoundingClientRect(), mr = more.getBoundingClientRect();
+            const segs = [...document.querySelectorAll('.nutrition-view .diet-mix__seg')].map(x => [x.className.slice(-1), cs(x).backgroundColor]);
+            const dots = Object.fromEntries([...document.querySelectorAll('.diet-sum .diet-dot')].map(x => [x.className.slice(-1), cs(x).backgroundColor]));
+            const sw = document.querySelector('.diet-item__swapped');
+            return { gray: cs(name).color !== label, inline: Math.abs((nr.top + nr.bottom) / 2 - (mr.top + mr.bottom) / 2) < 6 && mr.left > nr.left,
+              mix: segs.length > 0 && segs.every(([k, c]) => c === dots[k]) && [...document.querySelectorAll('.nutrition-view .diet-mix')].every(x => cs(x).opacity === '1'),
+              swap: sw ? [cs(sw).fontWeight, cs(sw).whiteSpace, cs(sw).color !== label] : null }; }""")
+        R.check(not st['gray'] and st['inline'] and st['mix'] and (st['swap'] is None or (int(st['swap'][0]) < 600 and st['swap'][1] == 'nowrap' and st['swap'][2])),
+                f'{t} panel nutri-v2 : titre coché lisible, chevron à droite du nom, teintes identiques, « Remplace » secondaire {st}')
+        # Protéines et glucides nettement différentes (écart de teinte), ni orange d'action ni rouge ; les lipides (sable, peu
+        # saturé) se distinguent de l'orange par la saturation, pas par la teinte
+        hues = page.evaluate("""() => { const h = c => { const [r, g, b] = c.match(/\\d+/g).map(Number).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+              if (!d) return 0; let x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (x * 60 + 360) % 360; };
+            const c = k => { const p = document.createElement('span'); p.style.color = `var(--macro-${k})`; document.body.append(p); const v = getComputedStyle(p).color; p.remove(); return h(v); };
+            return { p: c('p'), c: c('c'), f: c('f'), tint: c('kcal') && (() => { const p = document.createElement('span'); p.style.color = 'var(--tint)'; document.body.append(p); const v = getComputedStyle(p).color; p.remove(); return h(v); })() }; }""")
+        far = lambda a, b: min(abs(a - b), 360 - abs(a - b))
+        R.check(far(hues['p'], hues['c']) >= 60 and all(far(hues[k], hues['tint']) >= 12 and far(hues[k], 0) >= 15 for k in 'pc'),
+                f'{t} macros : protéines et glucides de teintes nettement différentes, ni orange ni rouge {hues}')
         add = '.diet-meal[data-meal="m4"] [data-action="diet-day-add"]'
         R.check(page.locator(add).count() == 1 and 'Dîner' in (page.get_attribute(add, 'aria-label') or ''), f'{t} dîner coché : « Ajouter un aliment » (nommé)')
         shot(page, LOT, f'4d-coche-deplie-{t}')
@@ -970,7 +993,8 @@ def t_vague4(bench, eng, dev, theme):
         layout(page, t, 'v4 Nutrition légende')
         # Recherche : « whey » absent de Ciqual → « Créer « whey » » en tête, nom prérempli
         open_editor(page)
-        R.check(page.locator('.diet-plan-view .diet-legend').count() == 1, f'{t} v4 éditeur : légende des macros')
+        R.check(page.locator('.diet-plan-view .diet-legend').count() == 1 and page.locator('.diet-plan-view .diet-legend .diet-dot').count() == 3,
+                f'{t} v4 éditeur : légende des macros, pastilles de couleur')
         page.locator('[data-action="diet-add-food"]').nth(2).click()
         page.wait_for_selector('#dietFoodSearch')
         page.fill('#dietFoodSearch', 'whey')
@@ -995,7 +1019,8 @@ def t_vague4(bench, eng, dev, theme):
         crus = [n for n, tg in tags if tg == 'cru']
         cuits = [n for n, tg in tags if tg == 'cuit']
         R.check('Riz blanc, cru' in crus and 'Riz blanc, cuit, sans sel ajouté' in cuits, f'{t} v4 recherche : étiquettes cru et cuit ({len(crus)} cru, {len(cuits)} cuit)')
-        R.check(page.locator('#dietFoodList .diet-legend').count() == 1, f'{t} v4 recherche : légende des macros')
+        R.check(page.locator('#dietFoodList .diet-legend').count() == 1 and page.locator('#dietFoodList .diet-legend .diet-dot').count() == 3,
+                f'{t} v4 recherche : légende des macros, pastilles de couleur')
         # Barre de la feuille mesurée après son animation d'ouverture (en CI, mesurée pendant : « Annuler » à 40 pt)
         page.wait_for_function("s => [...document.querySelectorAll(s)].every(e => !e.getAnimations().length)", arg=f'{LIVE_SHEET}, {LIVE_SHEET} *')
         st = small_targets(page, f'{LIVE_SHEET} button')

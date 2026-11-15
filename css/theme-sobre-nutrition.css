@@ -17,7 +17,9 @@
 /* Remplacer un aliment : flèches d'affordance grises (comme un chevron) ; « Remplace… », « Ajouté aujourd'hui » : texte secondaire */
 .diet-item__swap { color: var(--label3); }
 body.light .diet-item__swap { color: var(--label2); }
-.diet-item__swapped { color: var(--label); font-weight: 600; }
+/* « Remplace … » : texte secondaire gris, une ligne coupée « … » ; le nom de l'aliment choisi domine (panel nutri-v2) */
+.diet-item__swapped { color: var(--label2); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.type-xl .diet-item__swapped { white-space: normal; overflow: visible; }
 /* Série de jours complets : un chiffre qui progresse, sans flamme orange */
 .diet-sum__streak .icon { color: var(--green-text); }
 .diet-empty { border-radius: 12px; }

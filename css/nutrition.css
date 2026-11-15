@@ -87,7 +87,7 @@ div.diet-meal__title { cursor: default; }
 .diet-meal__eyebrow { font-size: var(--fs-caption); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tint); }
 .diet-meal__name { font-size: var(--fs-body); font-weight: 600; overflow-wrap: anywhere; }
 .diet-meal__macros { margin-top: 2px; font-size: var(--fs-footnote); color: var(--label2); }
-.diet-meal--done .diet-meal__name { color: var(--label2); }
+/* Repas coché : le titre garde sa couleur (le rond vert dit « fait » ; en gris, il se lisait désactivé, panel nutri-v2) */
 .diet-check {
   flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -291,7 +291,9 @@ body.light .sheet .diet-fields { background: var(--cell); }
 
 /* Repas coché : chevron qui dit « se déplie » ; ajouts du jour et « Ajouter un aliment » sous les aliments du plan */
 .diet-meal__title { position: relative; }
-.diet-meal__more { display: inline-flex; margin-top: 2px; color: var(--label2); transition: transform .2s; }
+/* Chevron d'un repas coché : à droite du nom, sur sa ligne (seul sous les macros, il flottait, panel nutri-v2) */
+.diet-meal__nameline { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.diet-meal__more { display: inline-flex; flex-shrink: 0; color: var(--label2); transition: transform .2s; }
 .diet-meal__title[aria-expanded="true"] .diet-meal__more { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) { .diet-meal__more { transition: none; } }
 .diet-item--add { color: var(--tint); font-weight: 600; }
@@ -371,7 +373,7 @@ body.light .sheet .qty__step { background: var(--cell); }
 .diet-meal__name { font-size: var(--fs-title3); line-height: 1.25; }
 .diet-mix { display: flex; gap: 2px; height: 6px; margin: 0 16px 12px; border-radius: var(--r-pill); overflow: hidden; }
 .diet-mix__seg { display: block; min-width: 3px; flex-basis: 0; }
-.diet-meal--done .diet-mix { opacity: .55; }
+/* Barre de composition : exactement les teintes des pastilles et du bilan, repas coché compris */
 
 /* Écran étroit : pastille plus petite, le nom garde sa largeur */
 @media (max-width: 359px) {
