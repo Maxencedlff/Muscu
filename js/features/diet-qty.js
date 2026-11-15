@@ -15,6 +15,8 @@
 const QTY_G_STEP = 10;   // pas des boutons − et + en grammes
 
 // Unités proposées pour cet aliment : celles de la table ou du paquet, plus l'unité déjà choisie (aliment du plan)
+// Sous 10 g, une décimale (« 2,9 g » comme sur le paquet, pas « 2 g ») ; au-delà, l'entier
+const qtyN = v => (v < 10 ? fmtNum(Math.round(v * 10) / 10, 1) : dietN(v));
 function dietQtyUnits(food, por = null) {
   const units = foodPortions(food);
   if (por && !units.some(u => u.u === por.u)) units.unshift({ u: por.u, pl: por.pl, g: por.g });
@@ -98,7 +100,7 @@ function dietQtyBind(root, units, st, per, onChange = null) {
     $('#qtyEq', box).innerHTML = dietSrPair(esc(shown), esc(spoken));
     // Macros en toutes lettres (« P/G/L » n'est pas compris d'une débutante), masquées avec les calories
     $('#qtyMacros', box).innerHTML = kcal === null ? '' : dietSrPair(
-      `Protéines\u00a0${dietN(m.p)}\u00a0g · Glucides\u00a0${dietN(m.c)}\u00a0g · Lipides\u00a0${dietN(m.f)}\u00a0g`, dietMacroGramsSpoken(m));
+      `Protéines\u00a0${qtyN(m.p)}\u00a0g · Glucides\u00a0${qtyN(m.c)}\u00a0g · Lipides\u00a0${qtyN(m.f)}\u00a0g`, dietMacroGramsSpoken(m));
     onChange?.(r);
   };
   box.addEventListener('click', ev => {
