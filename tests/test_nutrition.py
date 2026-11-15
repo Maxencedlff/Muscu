@@ -961,12 +961,12 @@ def t_vague4(bench, eng, dev, theme):
         R.check(page.locator('.diet-home__meal--done[data-meal="m1"]').count() == 1 and page.locator('.diet-home__meal--next[data-meal="m2"] .diet-check').count() == 1,
                 f'{t} v4 carte : coché d\'un toucher, le suivant prend le bouton')
         shot(page, LOT, f'v4-2-carte-cochee-{t}')
-        # Toucher une ligne (pas le bouton) : ouvre Nutrition ; légende des lettres une fois sous « Repas »
+        # Toucher une ligne (pas le bouton) : ouvre Nutrition ; légende des lettres une fois sous « Repas » (espaces ignorés : sur 320 pt, la légende avec ses pastilles passe à la ligne et WebKit peut y perdre une espace)
         page.locator('.diet-home__meal[data-meal="m3"] .diet-home__mtext').click()
         page.wait_for_selector('.nutrition-view .diet-sum')
         leg = page.locator('.nutrition-view .diet-legend')
-        R.check(leg.count() == 1 and nb(leg.inner_text()) == 'P protéines · G glucides · L lipides' and leg.get_attribute('aria-hidden') == 'true',
-                f'{t} v4 Nutrition : légende des macros, une fois ({leg.count()})')
+        R.check(leg.count() == 1 and ''.join(nb(leg.inner_text()).split()) == 'Pprotéines·Gglucides·Llipides' and leg.get_attribute('aria-hidden') == 'true',
+                f'{t} v4 Nutrition : légende des macros, une fois ({leg.count()}, {leg.inner_text()!r})')
         layout(page, t, 'v4 Nutrition légende')
         # Recherche : « whey » absent de Ciqual → « Créer « whey » » en tête, nom prérempli
         open_editor(page)
