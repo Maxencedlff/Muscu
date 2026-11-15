@@ -21,10 +21,44 @@ function sessionMusclesSummary(progId, cat) {
   return esc([...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([l]) => l).join(' · '));
 }
 
-// Petite vignette 3D (3:2) d'un muscle, à gauche d'un exercice de Programme › Séance, comme la liste de
-// Progrès ; décorative, cachée en texte agrandi (css/programme.css)
+// Petite vignette 3D d'un muscle, à gauche d'un exercice de Programme › Séance, comme la liste de Progrès ; cadrée
+// sur le muscle (data-m, css/programme.css : un deltoïde reste lisible à 48 px) ; décorative, cachée en texte agrandi
 function progRowThumbHtml(id) {
-  return id ? `<img class="mgc__img prow-thumb" src="img/muscles/${id}.webp" alt="" aria-hidden="true" width="600" height="400" decoding="async">` : '';
+  return id ? `<span class="prow-thumb" data-m="${esc(id)}" aria-hidden="true"><img class="mgc__img" src="img/muscles/${id}.webp" alt="" width="600" height="400" decoding="async"></span>` : '';
+}
+
+// Groupe principal d'une liste d'exercices (le premier muscle d'un exercice compte 1, les autres ½), comme
+// sessionGroup de l'accueil ; renvoie aussi le muscle le plus travaillé de ce groupe
+function exercisesMainGroup(exs) {
+  const n = new Map(), index = chosenMusclesIndex();
+  exs.forEach(ex => exerciseMuscles(ex, index).primary.forEach((m, i) => n.set(m, (n.get(m) || 0) + (i ? 0.5 : 1))));
+  let best = null, bestN = 0;
+  MUSCLE_GROUPS.forEach(g => {
+    const c = g.muscles.reduce((a, m) => a + (n.get(m) || 0), 0);
+    if (c > bestN) { best = g; bestN = c; }
+  });
+  if (!best) return null;
+  const top = best.muscles.slice().sort((a, b) => (n.get(b) || 0) - (n.get(a) || 0))[0];
+  return { group: best.id, muscle: top };
+}
+
+// Vignette d'une carte de séance : celle du groupe principal ; pour les jambes, celle du muscle le plus travaillé
+// (Legs commence par les quadriceps : la vue de dos des ischios contredisait le texte)
+function progSessionThumbHtml(cat) {
+  const g = exercisesMainGroup(prog().exercises[cat] || []);
+  if (!g) return '';
+  const id = g.group === 'jambes' && isMuscleId(g.muscle) ? g.muscle : g.group;
+  return `<img class="mgc__img pcard__img" src="img/muscles/${id}.webp" alt="" aria-hidden="true" width="600" height="400" decoding="async">`;
+}
+
+// Vignette d'un programme (Mes programmes, Tous les programmes) : groupe principal de toutes ses séances (exercices
+// par défaut d'un programme intégré jamais ouvert) ; sans exercice, son initiale
+function progSquareHtml(id, pm, color) {
+  const exs = Object.values((data.programmes[id] || makeProgData(id)).exercises || {}).flat();
+  const g = exs.length ? exercisesMainGroup(exs) : null;
+  return g
+    ? `<span class="psq psq--img" aria-hidden="true"><img class="mgc__img" src="img/muscles/${g.group}.webp" alt="" width="600" height="400" decoding="async"></span>`
+    : `<span class="psq" style="--c:${color}">${esc(pm.name.charAt(0).toUpperCase())}</span>`;
 }
 
 // Séance du programme en carte illustrée, comme « Autres séances » sur l'accueil : nom, muscles, exercices, séries et
@@ -43,7 +77,7 @@ function progSessionCardHtml(cat, progId) {
           ${muscles ? `<span class="pcard__muscles">${muscles}</span>` : ''}
           <span class="cell__sub pcard__facts num">${shown}</span>
         </span>
-        ${sessionThumbHtml(cat, 'pcard__img')}
+        ${progSessionThumbHtml(cat)}
         ${icon('chevron.right', 16)}
       </button>`;
 }
@@ -136,16 +170,15 @@ function renderMyProgrammes() {
       : Object.values(pm.sessions).map(x => x.label).join(' · ');
     return { pm, color, names };
   };
-  const square = (pm, color) => `<span class="psq" style="--c:${color}">${esc(pm.name.charAt(0).toUpperCase())}</span>`;
   const row = id => {
     const { pm, color, names } = info(id);
     const on = data.activeProgramme === id;
     return `
       <button class="cell cell--pick" data-action="select-prog" data-id="${esc(id)}" aria-pressed="${on}">
-        ${square(pm, color)}
+        ${progSquareHtml(id, pm, color)}
         <span class="cell__body">
           <span class="cell__title">${esc(pm.name)}</span>
-          <span class="cell__sub cell__sub--1">${names}</span>
+          <span class="cell__sub mp-names">${names}</span>
           ${coachFromLine(id) ? `<span class="cell__sub coach-from">${coachFromLine(id)}</span>` : ''}
         </span>
         <span class="cell__check">${on ? icon('checkmark', 20) : ''}</span>
@@ -162,7 +195,7 @@ function renderMyProgrammes() {
     return `
       <div class="cell ed-row ed-row--edit mp-row" data-id="${esc(id)}">
         ${minus}
-        ${square(pm, color)}
+        ${progSquareHtml(id, pm, color)}
         <span class="cell__body">
           <span class="cell__title ed-name">${esc(pm.name)}</span>
           ${active ? '<span class="cell__sub">Programme actif</span>' : ''}
@@ -197,7 +230,7 @@ function renderProgAdd() {
     const state = data.activeProgramme === id ? 'Actif' : inMyProgrammes(id) ? 'Ajouté' : '';
     return `
       <button class="cell cell--nav" data-action="open-prog-info" data-id="${esc(id)}">
-        <span class="psq" style="--c:${color}">${esc(pm.name.charAt(0).toUpperCase())}</span>
+        ${progSquareHtml(id, pm, color)}
         <span class="cell__body">
           <span class="cell__title">${esc(pm.name)}</span>
           <span class="cell__sub">${adv ? `${adv.perWeek} séances par semaine · ` : ''}${Object.values(pm.sessions).map(x => esc(x.label)).join(' · ')}</span>

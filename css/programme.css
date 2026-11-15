@@ -21,16 +21,44 @@
   .pcard .pcard__img { height: 4.6rem; max-width: 36%; }
 }
 
-/* ── Petite vignette à gauche d'un exercice de la séance (pas en mode Modifier : ⊖ et ≡ prennent sa place) ── */
-.prow-thumb.mgc__img {
-  position: static; flex: none; width: 48px; height: 32px; max-width: none; aspect-ratio: 3 / 2;
-  object-fit: cover; object-position: 70% center; border-radius: 6px; background: var(--fill2);
+/* ── Petite vignette à gauche d'un exercice de la séance (pas en mode Modifier : ⊖ et ≡ prennent sa place) ──
+   Cadre 3:2 qui rogne l'image ; elle est agrandie autour du muscle rouge (centre et zoom mesurés sur chaque
+   img/muscles/<id>.webp) : un deltoïde ou un triceps reste lisible à 48 px, au lieu d'un trait collé au bord */
+.prow-thumb {
+  flex: none; position: relative; width: 48px; height: 32px; border-radius: 6px; overflow: hidden; background: var(--fill2);
 }
+.prow-thumb .mgc__img { position: static; display: block; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center; }
+.prow-thumb:has(.mgc__img[data-missing]) { display: none; }
 .ed-row:has(> .prow-thumb) { gap: 10px; }
 /* iPhone SE : la vignette se fait plus petite, le nom garde la place (au moins 60 % de la ligne) */
 @media (max-width: 360px) {
-  .prow-thumb.mgc__img { width: 36px; height: 24px; border-radius: 5px; }
+  .prow-thumb { width: 36px; height: 24px; border-radius: 5px; }
 }
+.prow-thumb[data-m="abdominaux"] img { transform-origin: 55% 47%; transform: translate(-5%, 3%) scale(1.28); }
+.prow-thumb[data-m="abs"] img { transform-origin: 57% 47%; transform: translate(-7%, 3%) scale(1.22); }
+.prow-thumb[data-m="adductors"] img { transform-origin: 58% 46%; transform: translate(-8%, 4%) scale(1.75); }
+.prow-thumb[data-m="biceps"] img { transform-origin: 59% 52%; transform: translate(-9%, -2%) scale(2.00); }
+.prow-thumb[data-m="brachialis"] img { transform-origin: 59% 50%; transform: translate(-9%, 0%) scale(2.00); }
+.prow-thumb[data-m="bras"] img { transform-origin: 59% 62%; transform: translate(-9%, -12%) scale(1.46); }
+.prow-thumb[data-m="calves"] img { transform-origin: 56% 50%; transform: translate(-6%, 0%) scale(1.16); }
+.prow-thumb[data-m="chest"] img { transform-origin: 56% 50%; transform: translate(-6%, 0%) scale(1.34); }
+.prow-thumb[data-m="dos"] img { transform-origin: 57% 51%; transform: translate(-7%, -1%) scale(1.19); }
+.prow-thumb[data-m="epaules"] img { transform-origin: 57% 50%; transform: translate(-7%, 0%) scale(1.07); }
+.prow-thumb[data-m="forearms"] img { transform-origin: 58% 55%; transform: translate(-8%, -5%) scale(2.00); }
+.prow-thumb[data-m="front_delts"] img { transform-origin: 58% 48%; transform: translate(-8%, 2%) scale(2.00); }
+.prow-thumb[data-m="glutes"] img { transform-origin: 54% 50%; transform: translate(-4%, 0%) scale(1.73); }
+.prow-thumb[data-m="hamstrings"] img { transform-origin: 56% 49%; transform: translate(-6%, 1%) scale(1.19); }
+.prow-thumb[data-m="jambes"] img { transform-origin: 57% 57%; transform: translate(-7%, -7%) scale(1.00); }
+.prow-thumb[data-m="lats"] img { transform-origin: 55% 51%; transform: translate(-5%, -1%) scale(1.19); }
+.prow-thumb[data-m="lower_back"] img { transform-origin: 57% 51%; transform: translate(-7%, -1%) scale(1.77); }
+.prow-thumb[data-m="obliques"] img { transform-origin: 55% 49%; transform: translate(-5%, 1%) scale(1.21); }
+.prow-thumb[data-m="pectoraux"] img { transform-origin: 56% 50%; transform: translate(-6%, 0%) scale(1.34); }
+.prow-thumb[data-m="quads"] img { transform-origin: 56% 50%; transform: translate(-6%, 0%) scale(1.25); }
+.prow-thumb[data-m="rear_delts"] img { transform-origin: 57% 50%; transform: translate(-7%, 0%) scale(2.00); }
+.prow-thumb[data-m="side_delts"] img { transform-origin: 60% 50%; transform: translate(-10%, 0%) scale(2.00); }
+.prow-thumb[data-m="traps"] img { transform-origin: 57% 47%; transform: translate(-7%, 3%) scale(1.46); }
+.prow-thumb[data-m="triceps"] img { transform-origin: 58% 51%; transform: translate(-8%, -1%) scale(1.92); }
+
 
 /* Dernière performance d'un bloc : jamais « dernier » seul en fin de ligne */
 .ed-last { white-space: nowrap; }
@@ -44,9 +72,30 @@ html.type-xl .ed-last { white-space: normal; }
 .view--grouped .plist .cell + .cell::before { left: 58px; }   /* séparateur aligné sur le texte, comme Réglages d'iOS */
 
 /* ── Texte agrandi : plus de vignettes, le texte prend toute la largeur, rien de coupé ── */
-html.type-xl .prow-thumb.mgc__img { display: none; }
+html.type-xl .prow-thumb { display: none; }
 html.type-xl .pcard .mgc__text { width: 100%; }
 html.type-xl .view--grouped .pcard { min-height: 44px; }
 html.type-xl .plist__icon { width: 1.6em; height: 1.6em; }
 html.type-xl .plist__icon .icon { width: 1em; height: 1em; }
 html.type-xl .view--grouped .plist .cell + .cell::before { left: 16px; }
+
+/* Nom d'un exercice de la séance : en entier en texte agrandi (deux lignes au plus sinon) */
+html.type-xl .ed-name { display: block; -webkit-line-clamp: unset; overflow: visible; overflow-wrap: break-word; }
+
+/* ── Mes programmes et Tous les programmes : vignette du groupe principal, séances en entier ── */
+.psq--img { width: 42px; height: 28px; overflow: hidden; background: var(--fill2); }
+.psq--img .mgc__img { position: static; display: block; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: 60% center; }
+.psq--img:has(.mgc__img[data-missing]) { visibility: hidden; }
+.mp-names { overflow-wrap: break-word; }   /* « Push · Pull · Legs » entier, sur deux lignes au besoin */
+html.type-xl .psq--img { display: none; }
+
+/* ── Programme › Exercice, texte agrandi : un choix par rangée (« Fourchette » jamais coupé en plein mot) ── */
+.ex-edit .seg-full .segmented__btn { overflow-wrap: normal; word-break: normal; hyphens: none; }
+html.type-xl .ex-edit .seg-full { display: grid; grid-template-columns: 1fr; row-gap: 2px; height: auto; }
+html.type-xl .ex-edit .seg-full .segmented__btn { margin: 0; padding: 8px 6px; min-height: 44px; }
+html.type-xl .ex-edit .seg-full .segmented__btn::after { inset: 0; }
+html.type-xl .ex-edit .seg-full .segmented__btn::before { display: none; }
+/* Tempo personnalisé : « Ex. 3-1-1 » entier ; en texte agrandi, le champ passe sous son nom, pleine largeur */
+#exTempoIn { width: 6.5em; max-width: 100%; }
+html.type-xl .cell:has(> #exTempoIn) { flex-wrap: wrap; row-gap: 6px; }
+html.type-xl #exTempoIn { width: 100%; text-align: left; }

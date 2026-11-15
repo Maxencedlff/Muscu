@@ -245,9 +245,10 @@ def t_programme(bench, eng, dev, theme):
                      name: c.querySelector('.pcard__name').textContent.trim(), muscles: (c.querySelector('.pcard__muscles') || {}).textContent || '',
                      label: c.getAttribute('aria-label') || '',
                      apart: img ? txt.getBoundingClientRect().right <= img.getBoundingClientRect().left + 1 : false }; })""")
-        R.check([c['src'] for c in cards] == ['img/muscles/pectoraux.webp', 'img/muscles/dos.webp', 'img/muscles/jambes.webp'],
+        R.check([c['src'] for c in cards][:2] == ['img/muscles/pectoraux.webp', 'img/muscles/dos.webp'],
                 f'{t} cartes : vignette du groupe principal {[c["src"] for c in cards]}')
         R.check(all(c['hidden'] for c in cards) and all(c['apart'] for c in cards), f'{t} cartes : vignette décorative, à côté du texte {cards}')
+        R.check([c['src'] for c in cards][2:] == ['img/muscles/quads.webp'], f'{t} carte Legs : vignette des quadriceps, cités en premier')
         R.check(cards and cards[0]['name'] == 'Push' and cards[0]['muscles'] == 'Pectoraux · Épaules · Triceps', f'{t} carte Push : nom et muscles {cards[:1]}')
         R.check(all(c['label'].startswith(c['name'] + ', ') and 'exercices' in c['label'] and 'séries' in c['label'] and '≈' not in c['label'] for c in cards),
                 f'{t} cartes : intitulé VoiceOver complet {[c["label"] for c in cards]}')
@@ -258,7 +259,7 @@ def t_programme(bench, eng, dev, theme):
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         widths = page.evaluate("[...document.querySelectorAll('.ed-row')].map(r => r.querySelector('.ed-name').getBoundingClientRect().width / r.getBoundingClientRect().width)")
         R.check(min(widths) >= 0.6, f'{t} éditeur : noms >= 60 % de la largeur ({min(widths):.2f})')
-        thumbs = page.evaluate("[...document.querySelectorAll('.ed-row')].map(r => (r.querySelector('.prow-thumb') || {}).getAttribute?.('src') || '')")
+        thumbs = page.evaluate("[...document.querySelectorAll('.ed-row')].map(r => (r.querySelector('.prow-thumb img') || {}).getAttribute?.('src') || '')")
         R.check(len(thumbs) == 6 and all(x.startswith('img/muscles/') for x in thumbs) and thumbs[0] == 'img/muscles/chest.webp',
                 f'{t} éditeur : vignette du muscle principal à gauche de chaque exercice {thumbs[:2]}')
         R.check(page.evaluate("[...document.querySelectorAll('.ed-row')].every(r => { const i = r.querySelector('.prow-thumb'), n = r.querySelector('.ed-name'); return i.getBoundingClientRect().right <= n.getBoundingClientRect().left; })"),
@@ -311,6 +312,11 @@ def t_programme(bench, eng, dev, theme):
         page.evaluate("addMyProgramme('upper_lower'); save()")
         page.click('[data-action="go-my-programmes"]')
         R.check(page.locator('.cell--pick[aria-pressed="true"] .icon').count() == 1, f'{t} sélecteur : coche sur le programme actif')
+        mp = page.evaluate("""() => [...document.querySelectorAll('.mp-list .cell--pick')].map(r => { const n = r.querySelector('.mp-names');
+            return { img: (r.querySelector('.psq--img img') || {}).getAttribute?.('src') || '', cut: n.scrollWidth > n.clientWidth + 1 || getComputedStyle(n).textOverflow === 'ellipsis',
+                     lines: Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight)) }; })""")
+        R.check(mp and mp[0]['img'].startswith('img/muscles/'), f'{t} Mes programmes : vignette du groupe principal de PPL {mp}')
+        R.check(all(not x['cut'] and x['lines'] <= 2 for x in mp), f'{t} Mes programmes : séances en entier, 2 lignes au plus {mp}')
         shot(page, LOT, f'picker_{dev}_{theme}')
         page.click('[data-action="select-prog"][data-id="upper_lower"]')
         page.wait_for_timeout(250)
@@ -386,6 +392,29 @@ def t_programme_type_xl(bench):
         g = page.evaluate(check, '.prow-thumb')
         R.check(g['imgs'] == 0 and not g['cut'] and not g['hscroll'], f'type-xl éditeur : sans vignette, rien de coupé {g}')
         shot(page, LOT, 'editor_type_xl')
+        clamped = page.evaluate("[...document.querySelectorAll('.ed-name')].filter(e => e.scrollHeight > e.clientHeight + 1).map(e => e.textContent)")
+        R.check(not clamped, f'type-xl éditeur : noms d\'exercice en entier, sans « … » {clamped}')
+        # Fiche d'un exercice : aucun mot coupé dans les choix (« Fourchett / e »), tempo personnalisé lisible en entier
+        page.click('.ed-row[data-i="0"]')
+        page.wait_for_selector('.view.ex-edit')
+        broken = page.evaluate("""() => [...document.querySelectorAll('.ex-edit .segmented__btn')].flatMap(b => {
+            const out = [], walk = document.createTreeWalker(b, NodeFilter.SHOW_TEXT);
+            for (let n; (n = walk.nextNode());) for (const m of n.textContent.matchAll(/\\S+/g)) {
+                const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
+                if (r.getClientRects().length > 1) out.push(m[0]); }
+            return out; })""")
+        R.check(not broken, f'type-xl fiche : aucun mot coupé dans les choix {broken}')
+        tempo = page.evaluate("""() => { const i = document.querySelector('#exTempoIn'); if (!i) return null;
+            const cs = getComputedStyle(i), c = document.createElement('canvas').getContext('2d');
+            c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+            const need = c.measureText(i.placeholder).width + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+            return { w: i.clientWidth, need, right: i.getBoundingClientRect().right, vw: innerWidth }; }""")
+        R.check(tempo and tempo['w'] + 1 >= tempo['need'] and tempo['right'] <= tempo['vw'], f'type-xl fiche : « Ex. 3-1-1 » entier dans le tempo personnalisé {tempo}')
+        shot(page, LOT, 'ex_edit_type_xl')
+        page.evaluate("routeTo('my-programmes')")
+        page.wait_for_selector('.view.my-programmes')
+        names = page.evaluate("[...document.querySelectorAll('.mp-names')].filter(e => e.scrollWidth > e.clientWidth + 1 || getComputedStyle(e).textOverflow === 'ellipsis').map(e => e.textContent)")
+        R.check(not names, f'type-xl Mes programmes : séances en entier {names}')
         R.check(not page.errors, f'type-xl programme : erreurs JS {page.errors[:2]}')
 
 
