@@ -229,6 +229,9 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
    .view--grouped .mgc et .mgc__img de css/muscles.css (chargé après). Texte agrandi : plus de vignette (même fichier),
    le texte prend toute la largeur et revient à la ligne. */
 .hmonth__count { font-weight: 400; color: var(--label2); font-size: var(--fs-subhead); }
+/* Texte agrandi : le nombre de séances sur sa ligne, sans le point qui restait seul en bout de ligne */
+html.type-xl .hmonth__count { display: block; }
+html.type-xl .hmonth__count > [aria-hidden] { display: none; }
 .view--grouped .hrow .hcell--card { min-height: 4.9rem; padding: 10px 16px; gap: 8px; overflow: hidden; }
 .hcell--card .hcell__body.mgc__text { flex: none; width: 58%; gap: 1px; }
 .hcell--card .hcell__title { font-size: var(--fs-title3); line-height: 1.35rem; white-space: normal; overflow: visible; overflow-wrap: break-word; }
