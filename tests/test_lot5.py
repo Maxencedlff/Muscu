@@ -50,8 +50,9 @@ def t_history(bench, eng, dev, theme):
         vis = visible_count(page, '.hcell')
         # Galaxy S9+ (320 px de large) : les sous-titres longs passent sur 2 lignes au lieu d'être tronqués
         # Vague 4 : le programme d'une séance d'un autre programme a sa ligne (« Programme Bras & épaules ») : une cellule de moins
-        # 15/11 : cartes illustrées (nom, date, détails sur trois lignes, vignette) : une carte de moins qu'en liste de texte
-        need = 5 if dev in ('iPhone 13', 'Pixel 7', 'Galaxy S9+') else 4
+        # 15/11 : cartes illustrées (nom, date, détails sur trois lignes, vignette) : une carte de moins qu'en liste de texte ;
+        # le Galaxy S9+ (658 px de haut) rejoint les petits écrans
+        need = 5 if dev in ('iPhone 13', 'Pixel 7') else 4
         R.check(vis >= need, f'{t} historique : {vis} cellules visibles (>= {need})')
         h = page.locator('.hcell').first.bounding_box()['height']
         R.check(62 <= h <= 100, f'{t} historique : hauteur de cellule {h:.0f}')
