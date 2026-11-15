@@ -729,6 +729,13 @@ def t_muscle_filter(bench, eng, dev, theme):
         R.check(page.locator('.library .mgcs .mgc').count() == 6, f'{t} Bibliothèque rouverte : groupes illustrés, pas le dernier filtre')
         page.fill('#libSearch', 'curl')
         R.check(page.locator('.library .mgcs').is_hidden(), f'{t} recherche : groupes masqués')
+        # Abducteurs et Adducteurs (une lettre d'écart, l'un sous l'autre) : le geste en sous-titre, lu aussi par VoiceOver
+        page.fill('#libSearch', 'ducteurs machine'); page.wait_for_timeout(300)
+        subs = page.evaluate("""() => Object.fromEntries([...document.querySelectorAll('#libList .mgc--ex')].map(b =>
+            [b.dataset.name, [b.querySelector('.mgc__sub').textContent, b.getAttribute('aria-label')]]))""")
+        R.check(subs.get('Abducteurs machine', [''])[0] == 'Écarter les cuisses (fessiers)' and subs.get('Adducteurs machine', [''])[0] == 'Serrer les cuisses'
+                and 'Écarter les cuisses' in subs['Abducteurs machine'][1] and 'Serrer les cuisses' in subs['Adducteurs machine'][1],
+                f'{t} Abducteurs / Adducteurs : geste en sous-titre {subs}')
         page.fill('#libSearch', '')
         # Fiche sans vidéo ni animation 3D : le muscle principal en grande image ; avec l'animation 3D : l'animation (t_fiche)
         page.evaluate("navigate(makeRoute('library-ex', 'Pec deck'))")
@@ -825,6 +832,10 @@ def t_fiche(bench, eng, dev, theme):
             tr = page.evaluate("""() => { const t = document.querySelector('.library-ex .cell__trail'), v = t.querySelector('.cell__value').getBoundingClientRect(),
                 i = t.querySelector('.icon').getBoundingClientRect(); return Math.abs((v.top + v.bottom) / 2 - (i.top + i.bottom) / 2) < v.height / 2; }""")
             R.check(tr, f'{t} type-xl : « Vérifiés » et chevron sur la même ligne')
+            # Recherche de la Bibliothèque : « Nom, muscle ou maté… » coupé en AX33, texte court ; aria-label complet
+            page.evaluate("navigate('library')"); page.wait_for_selector('#libSearch')
+            ph = page.locator('#libSearch').evaluate("e => [e.placeholder, e.getAttribute('aria-label')]")
+            R.check(ph == ['Rechercher', 'Rechercher un exercice par nom, muscle ou matériel'], f'{t} type-xl : texte d\'aide court de la recherche {ph}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

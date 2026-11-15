@@ -129,7 +129,7 @@ function lastSessionNoteHtml() {
         <div class="sess-lastnote" role="note">
           <span class="sess-lastnote__icon">${icon('note', 16)}</span>
           <p class="sess-lastnote__text"><span class="sess-lastnote__lbl">Note de la dernière fois :</span> ${esc(n.text)}</p>
-          <button class="sess-lastnote__close" data-action="sess-lastnote-close" aria-label="Masquer la note de la dernière fois">${icon('xmark', 16)}</button>
+          <button class="sess-lastnote__close" data-action="sess-lastnote-close" aria-label="Masquer la note (elle reste dans l'historique)">${icon('xmark', 16)}</button>
         </div>`;
 }
 

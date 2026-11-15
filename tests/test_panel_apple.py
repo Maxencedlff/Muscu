@@ -351,6 +351,7 @@ def t_modifier_cibles(bench):
             m = page.evaluate("""() => { const t = document.querySelector('.targets__title').getBoundingClientRect(), e = document.querySelector('.targets__edit').getBoundingClientRect();
                 return { same: e.top < t.bottom && e.bottom > t.top, right: e.left >= t.right - 1 }; }""")
             R.check(m['same'] and m['right'], f'{t} « Modifier » à droite du titre, sur sa ligne {m}')
+            R.check(page.get_attribute('.targets__edit', 'aria-label') == 'Modifier les exercices et les objectifs de cette séance', f'{t} « Modifier » : VoiceOver dit ce qu\'il change')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

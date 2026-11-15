@@ -91,6 +91,13 @@ function setsText(sets, measure = 'reps', kind = 'charge', { unitEach = false } 
   const unit = unitEach ? ` ${unitLbl()}` : '';
   return ok.map(s => `${parseFloat(s.weight) > 0 ? fmtW(s.weight) + unit + ' × ' : ''}${s.reps}`).join(' · ');
 }
+// Même chose pour la relecture (Historique, séance d'un ami, côté coach) : à charge égale, les reps séparées par des
+// virgules (« 130 kg × 10, 10 ») ; avec « 10 · 10 », le second nombre se lisait comme un RIR ou un RPE (panels v4 t1
+// et finitions). Charges différentes : inchangé (« 30 × 10 · 32,5 × 8 »).
+function setsTextRead(sets, measure = 'reps', kind = 'charge') {
+  const txt = setsText(sets, measure, kind);
+  return /^(?:[^×·]+ × )?\d+(?: · \d+)+(?: reps)?$/.test(txt) ? txt.replace(/ · /g, ', ') : txt;
+}
 // Séries d'échauffement d'un exercice (js/data/warmup.js) : « Échauffement 20 kg × 8 · 30 kg × 5 », '' sans
 function warmupText(sets) {
   const ws = (sets || []).filter(isWarmupSet).filter(s => String(s.reps ?? '') !== '');

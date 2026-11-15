@@ -325,11 +325,9 @@ function coachExPlanParts(e) {
   return out;
 }
 
-// Séries d'un élève, côté coach : à charge égale, les reps séparées par des virgules (« 40 kg × 8, 7 ») ; avec
-// « 8 · 7 », un coach lisait le 7 comme un RIR ou un RPE (panel v4 t1). Charges différentes : inchangé.
+// Séries d'un élève, côté coach : reps à virgules (setsTextRead, js/data/measures.js), échappées pour le HTML
 function coachSetsLine(sets, measure, kind) {
-  const txt = setsText(sets, measure, kind);
-  return esc(/^(?:[^×·]+ × )?\d+(?: · \d+)+(?: reps)?$/.test(txt) ? txt.replace(/ · /g, ', ') : txt);
+  return esc(setsTextRead(sets, measure, kind));
 }
 
 function coachProgPreviewHtml(item) {

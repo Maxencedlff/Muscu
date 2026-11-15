@@ -38,7 +38,7 @@ def t_screens(bench, eng, dev, theme):
         R.check(ph, f'{tag} historique : texte indicatif de recherche entier')
         shot(page, LOT, f'{tag}-historique')
 
-        # 7. Détail d'une séance : séries au format « 34 kg × 10 · 10 »
+        # 7. Détail d'une séance : séries au format « 34 kg × 10, 10 »
         go(page, 'history-detail', page.evaluate('historySorted()[0].id'))
         sets = page.evaluate("[...document.querySelectorAll('.hex__sets')].map(e => e.textContent)")
         R.check(sets and all(('×' in s) or s.endswith('reps') for s in sets), f'{tag} détail séance : format « kg × reps » {sets[:2]}')

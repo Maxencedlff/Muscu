@@ -143,6 +143,7 @@ def t_notes(bench, eng, dev, theme):
         start(page, 'legs')
         top = page.locator('.sess-lastnote')
         R.check(top.count() == 1 and SESSION_NOTE in top.inner_text() and 'Note de la dernière fois' in top.inner_text(), f'{t} note de séance remontrée en haut')
+        R.check(top.locator('.sess-lastnote__close').get_attribute('aria-label') == 'Masquer la note (elle reste dans l\'historique)', f'{t} croix : VoiceOver dit que la note reste')
         line = page.locator('.ex-card[data-ei="0"] .ex-note')
         R.check(line.count() == 1 and 'Dernière note' in line.inner_text() and EX_NOTE in line.inner_text(), f'{t} dernière note sous le nom ({line.inner_text() if line.count() else ""})')
         R.check(line.get_attribute('aria-label') == f'Dernière note : {EX_NOTE}. Modifier la note', f'{t} VoiceOver lit la dernière note')
