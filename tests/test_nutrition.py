@@ -163,6 +163,15 @@ def t_journee(bench, eng, dev, theme):
         R.check(page.locator('.diet-bar--p:not(.diet-bar--free) .diet-bar__track').count() == 1 and page.locator('.diet-bar--free').count() == 2
                 and '/' not in page.inner_text('.diet-bar--c') and "Pas d'objectif" in page.inner_text('.diet-bar--f'), f'{t} Nutrition : glucides et lipides sans repère inventé')
         R.check(page.locator('.diet-week__day').count() == 7 and page.get_attribute('.diet-week__day--on', 'data-day') == '2026-11-05', f'{t} frise : 7 jours, aujourd\'hui choisi')
+        # Refonte illustrée (nutri-v2) : pastille de la famille devant chaque aliment (icône du sprite, cachée à VoiceOver),
+        # barre de composition des repas aux couleurs des macros, pastilles de couleur nommées dans le bilan et la légende
+        vis = page.evaluate("""() => { const rows = [...document.querySelectorAll('.nutrition-view .diet-item[data-item]')];
+            const ico = rows.filter(r => { const u = r.querySelector(':scope > .diet-ico[aria-hidden="true"] use'); return u && document.getElementById(u.getAttribute('href').slice(1)); });
+            const segs = [...document.querySelectorAll('.nutrition-view .diet-meal .diet-mix[aria-hidden="true"] .diet-mix__seg')];
+            return { rows: rows.length, ico: ico.length, segs: segs.length, painted: segs.every(x => getComputedStyle(x).backgroundColor !== 'rgba(0, 0, 0, 0)'),
+              dots: document.querySelectorAll('.diet-sum .diet-dot, .nutrition-view .diet-legend .diet-dot').length }; }""")
+        R.check(vis['rows'] > 0 and vis['ico'] == vis['rows'] and vis['segs'] >= 2 and vis['painted'] and vis['dots'] == 6,
+                f'{t} visuels : famille de chaque aliment, composition des repas, couleurs des macros nommées {vis}')
         R.check(page.locator('.diet-meal--done').count() == 1 and page.locator('.diet-meal--done .diet-item').count() == 0, f'{t} repas coché replié')
         R.check(page.locator('.diet-meal--next[data-meal="m2"]').count() == 1 and 'ensuite' in page.inner_text('.diet-meal--next').lower(), f'{t} déjeuner marqué « Ensuite »')
         # Panel Apple vague 4 : « Ensuite » est un état (la carte porte le contour orange), en gris secondaire, ni orange

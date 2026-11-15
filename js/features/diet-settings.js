@@ -149,7 +149,7 @@ function dietFoodCellHtml(x) {
   const shown = hide ? kind : `${kind} · 100 g · ${per.k} kcal · P ${fmtNum(per.p)} · G ${fmtNum(per.c)} · L ${fmtNum(per.f)}`;
   const spoken = hide ? kind : `${kind}, pour 100 grammes, ${per.k} kilocalories, ${dietMacroWords(per, fmtNum).replace(/ g /g, ' grammes ')}`;
   return `<button class="cell cell--nav" data-action="diet-food-menu" data-id="${esc(x.id)}">
-      <span class="cell__body"><span class="cell__title">${esc(foodName(x.name))}</span><span class="cell__sub num">${dietSrPair(esc(shown), esc(spoken))}</span></span>${icon('ellipsis', 18)}</button>`;
+      ${dietFoodIconHtml(x)}<span class="cell__body"><span class="cell__title">${esc(foodName(x.name))}</span><span class="cell__sub num">${dietSrPair(esc(shown), esc(spoken))}</span></span>${icon('ellipsis', 18)}</button>`;
 }
 function renderDietFoods() {
   const list = data.dietFoods || [], full = list.length >= DIET_FOODS_MAX;

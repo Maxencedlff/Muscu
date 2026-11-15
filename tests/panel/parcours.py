@@ -782,6 +782,11 @@ def p_nutrition(r):
     with r.etape('journal', 'Nutrition : journal du jour (anneau, macros, repas)', cle='Ouvrir le journal du jour'):
         r.toucher('.diet-home__open', 'carte Nutrition')
         r.attendre('.nutrition-view', 'écran Nutrition')
+    # Plan perso : jours vides par défaut (on note ce qu'on mange) ; « Copier le plan de ce repas » le remplit, à cocher ensuite
+    with r.etape('repas-copie', 'Jour vide : « Copier le plan de ce repas » (aliments du plan, pastilles de famille)'):
+        if r.present('.nutrition-view [data-action="diet-meal-back"][data-op="copy"]', timeout=1500):
+            r.toucher('.nutrition-view [data-action="diet-meal-back"][data-op="copy"]', 'Copier le plan de ce repas')
+        r.attendre('.nutrition-view .diet-meal [data-action="diet-check"]', 'rond à cocher')
     with r.etape('repas-coche', 'Petit-déjeuner coché : les macros montent', cle='Cocher un repas'):
         r.toucher('.nutrition-view .diet-meal [data-action="diet-check"]', 'cocher le petit-déjeuner')
         r.defiler('.diet-sum', 'bilan du jour')
@@ -795,6 +800,8 @@ def p_nutrition(r):
         else:
             fermer_feuille(r)
             raise Absent('aucun équivalent proposé pour le riz cuit')
+    with r.etape('repas-aliments', 'Repas en carte : barre de composition, aliments avec leur famille'):
+        r.defiler('.nutrition-view .diet-meal', 'carte du petit-déjeuner')
 
     # Plan envoyé par le coach : Léa connectée, coach max relié, plan « Sèche Léa » déposé sur le faux serveur
     r.connecter('lea')

@@ -10,10 +10,10 @@
 
 /* ── Nutrition : journal du jour ── */
 .diet-sum { border-radius: 12px; }
-/* Barres des macros : le vert de l'anneau des calories, une seule couleur de sens (vert = avancée vers l'objectif, comme
-   la progression en séance) ; chaque barre porte son nom, la couleur n'a rien d'autre à dire. Le bleu des glucides se
-   lisait comme le bleu d'action d'iOS, et trois teintes sans légende ne disaient rien (panel vague 4) */
-.diet-bar--p .diet-bar__fill, .diet-bar--c .diet-bar__fill, .diet-bar--f .diet-bar__fill { background: var(--macro-kcal); }
+/* Barres des macros : chacune à la couleur de sa macro (--macro-p, -c, -f, tokens sobres de css/theme-sobre.css), la
+   même que sa pastille devant le nom et que la barre de composition de chaque repas : la couleur dit « protéines »,
+   « glucides » ou « lipides » partout, avec sa légende (vague 4 : trois teintes sans légende ne disaient rien ; nutri-v2 :
+   pastille nommée dans le bilan et dans la légende des lettres). L'anneau des calories garde le vert de l'avancée */
 /* Remplacer un aliment : flèches d'affordance grises (comme un chevron) ; « Remplace… », « Ajouté aujourd'hui » : texte secondaire */
 .diet-item__swap { color: var(--label3); }
 body.light .diet-item__swap { color: var(--label2); }

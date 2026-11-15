@@ -31,14 +31,37 @@ function dietMacroSpoken(m) { return `${dietN(m.kcal)} kilocalories, ${dietMacro
 function dietMacroGramsSpoken(m) { return `${dietN(m.p)} grammes de protéines, ${dietN(m.c)} de glucides, ${dietN(m.f)} de lipides`; }
 // Ligne abrégée à l'écran (« P 4 · G 47 »), dite en toutes lettres par VoiceOver (sinon « P 4 g » lettre par lettre)
 function dietSrPair(visible, spoken) { return `<span aria-hidden="true">${visible}</span><span class="sr-text">${spoken}</span>`; }
+// ── Visuels qui portent du sens (refonte illustrée, comme l'accueil) ──
+// Icône de la famille d'un aliment (famille d'équivalence de la table Ciqual, scripts/prepare-foods.py) : viande, féculent,
+// laitier, matière grasse, fruit, légume, sucré, boisson, plat composé, aide culinaire. Un seul gris : l'icône dit « quoi »,
+// jamais un état. Aliment perso ou scanné : famille tirée de ses macros (dietFamOf). Cachée à VoiceOver (le nom suffit)
+function dietFoodFam(it) { return DIET_FAMS.includes(it?.fam) ? it.fam : it?.per ? dietFamOf(it.per) : 'a'; }
+function dietFoodIconHtml(it, extra = '') {
+  const cls = extra ? 'diet-ico ' + extra : 'diet-ico';
+  return '<span class="' + cls + '" aria-hidden="true">' + icon('food.' + dietFoodFam(it), 20) + '</span>';
+}
+// Même pastille pour une action de la liste (ajouter, copier le plan, reprendre) : l'icône de l'action, en couleur d'action
+function dietActIconHtml(name) { return '<span class="diet-ico diet-ico--act" aria-hidden="true">' + icon(name, 18) + '</span>'; }
+// Part des calories venant des protéines, glucides et lipides (4, 4 et 9 kcal par gramme) : barre fine en trois
+// segments, aux couleurs des macros du bilan (légende : les noms du bilan et la légende des lettres). Cachée à VoiceOver :
+// les grammes sont déjà dits. Rien sans calories ou chiffres masqués
+function dietMixHtml(m, extra = '') {
+  const e = { p: 4 * (m.p || 0), c: 4 * (m.c || 0), f: 9 * (m.f || 0) }, t = e.p + e.c + e.f;
+  if (!(t > 0) || data.dietHideNumbers === true) return '';
+  const segs = DIET_MACROS.filter(({ k }) => e[k] > 0)
+    .map(({ k }) => '<span class="diet-mix__seg diet-mix__seg--' + k + '" style="flex-grow:' + (e[k] / t * 100).toFixed(1) + '"></span>');
+  return '<span class="diet-mix' + (extra ? ' ' + extra : '') + '" aria-hidden="true">' + segs.join('') + '</span>';
+}
 // Texte d'un dialogue (message lu tel quel) : en toutes lettres pour tous, « 4 g de protéines, 47 g de glucides… »
 function dietMacroWords(m, fmt = dietN) { return `${fmt(m.p)} g de protéines, ${fmt(m.c)} g de glucides, ${fmt(m.f)} g de lipides`; }
 // Légende des lettres, une fois par écran ou par feuille, au-dessus de la première ligne « P 7 · G 77 · L 1 » : les lignes
 // restent courtes (iPhone SE, texte agrandi), la débutante sait ce que veut dire chaque lettre (demande de Maxence,
 // vague 4). Cachée à VoiceOver : chaque ligne y est déjà dite en toutes lettres. Rien quand les chiffres sont masqués
-function dietMacroLegendHtml(extra = '') {
+// dots : pastilles de couleur, seulement là où la couleur des macros sert (écran du jour : barres de composition des repas)
+function dietMacroLegendHtml(extra = '', { dots = false } = {}) {
   if (data.dietHideNumbers === true) return '';
-  return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k"><b>${m.short}</b>\u00a0${m.label.toLowerCase()}</span>`).join(' · ')}</p>`;
+  const dot = k => (dots ? '<i class="diet-dot diet-dot--' + k + '"></i>' : '');
+  return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k">${dot(m.k)}<b>${m.short}</b>\u00a0${m.label.toLowerCase()}</span>`).join(' · ')}</p>`;
 }
 function dietDayTitle(day) {
   const today = dietDayKey();
@@ -130,11 +153,11 @@ function dietSummaryHtml(pr) {
   const free = k => own.kcal && !own[k];
   const bars = DIET_MACROS.map(({ k, label }) => free(k) ? `
           <div class="diet-bar diet-bar--${k} diet-bar--free" role="img" aria-label="${label} : ${dietN(eaten[k])} grammes, pas d'objectif">
-            <div class="diet-bar__head"><span class="diet-bar__label">${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> g</span></div>
+            <div class="diet-bar__head"><span class="diet-bar__label"><i class="diet-dot diet-dot--${k}"></i>${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> g</span></div>
             <div class="diet-bar__sub">Pas d'objectif</div>
           </div>` : `
           <div class="diet-bar diet-bar--${k}" role="img" aria-label="${label} : ${dietN(eaten[k])} grammes sur ${dietN(goal[k])}">
-            <div class="diet-bar__head"><span class="diet-bar__label">${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> / ${dietN(goal[k])} g</span></div>
+            <div class="diet-bar__head"><span class="diet-bar__label"><i class="diet-dot diet-dot--${k}"></i>${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> / ${dietN(goal[k])} g</span></div>
             <div class="diet-bar__track"><span class="diet-bar__fill" style="width:${(dietRatio(eaten[k], goal[k]) * 100).toFixed(1)}%"></span></div>
           </div>`).join('');
   const streak = data.dietStreakOff ? 0 : dietStreak(data);
@@ -194,6 +217,7 @@ function dietItemRowHtml(it, pr, day) {
   if (pr.removed?.includes(it.id)) return `
             <button class="diet-item diet-item--off" data-action="diet-restore" data-item="${esc(it.id)}" data-day="${day}"
               aria-label="${esc(foodName(it.name))}, retiré ${when}. Remettre">
+              ${dietFoodIconHtml(it)}
               <span class="diet-item__body">
                 <span class="diet-item__name">${esc(foodName(it.name))}</span>
                 <span class="diet-item__sub num">Retiré ${when} · ${esc(dietQtyText(it))}</span>
@@ -206,6 +230,7 @@ function dietItemRowHtml(it, pr, day) {
   return `
             <button class="diet-item" data-action="diet-swap" data-item="${esc(it.id)}" data-day="${day}"
               aria-label="${esc(foodName(eat.name))}, ${esc(dietQtySpoken(eat))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}${swap ? `, ${qty ? `prévu ${esc(dietQtySpoken(it))}` : `remplace ${esc(foodName(it.name))}`}` : ''}. Modifier">
+              ${dietFoodIconHtml(eat)}
               <span class="diet-item__body">
                 <span class="diet-item__name">${esc(foodName(eat.name))}</span>
                 <span class="diet-item__sub num">${note ? `<span class="diet-item__swapped">${esc(note)}</span>` : ''}${esc(dietQtyText(eat))}${nums}</span>
@@ -221,6 +246,7 @@ function dietExtraRowHtml(it, meal, day) {
   return `
             <button class="diet-item diet-item--extra" data-action="diet-extra" data-meal="${esc(meal.id)}" data-extra="${esc(it.id)}" data-day="${day}"
               aria-label="${esc(foodName(it.name))}, ${esc(dietQtySpoken(it))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}, ajouté ${when}, hors plan. Modifier">
+              ${dietFoodIconHtml(it)}
               <span class="diet-item__body">
                 <span class="diet-item__name">${esc(foodName(it.name))}</span>
                 <span class="diet-item__sub num"><span class="diet-item__swapped">Ajouté ${when}</span>${esc(dietQtyText(it))}${nums}</span>
@@ -240,6 +266,7 @@ function dietMealPlanRowHtml(x, day) {
   return `
             <button class="diet-item diet-item--plan" data-action="diet-meal-back" data-op="${off ? 'on' : 'copy'}" data-meal="${esc(meal.id)}" data-day="${day}"
               aria-label="${esc(label)} : ${esc(names.join(', '))}${data.dietHideNumbers ? '' : `, ${dietN(kcal)} kilocalories`}">
+              ${dietActIconHtml(off ? 'arrow.clockwise' : 'doc.on.doc')}
               <span class="diet-item__body">
                 <span class="diet-item__name">${esc(label)}</span>
                 <span class="diet-item__sub num">${esc(sub)}</span>
@@ -263,6 +290,7 @@ function dietMealReuseRowHtml(meal, day) {
   return `
             <button class="diet-item diet-item--plan" data-action="diet-meal-reuse" data-meal="${esc(meal.id)}" data-day="${d0}"
               aria-label="${esc(label)} : ${esc(names.join(', '))}${data.dietHideNumbers ? '' : `, ${dietN(kcal)} kilocalories`}">
+              ${dietActIconHtml('clock.history')}
               <span class="diet-item__body">
                 <span class="diet-item__name">${esc(label)}</span>
                 <span class="diet-item__sub num">${esc(sub)}</span>
@@ -292,9 +320,10 @@ function dietMealHtml(x, pr, day) {
               : `<div class="diet-meal__title">${title}</div>`}
             ${menu}${live.length ? dietCheckBtn(meal, done, day) : ''}
           </div>
+          ${(cleared || !meal.items.length) && !extras.length ? '' : dietMixHtml(macros, 'diet-meal__mix')}
           ${meal.note && open ? `<p class="diet-meal__note">${icon('info.circle', 14)}<span>${esc(meal.note)}</span></p>` : ''}
           ${open ? `<div class="diet-meal__items">${cleared ? dietMealPlanRowHtml(x, day) : meal.items.map(it => dietItemRowHtml(it, pr, day)).join('')}${extras.map(it => dietExtraRowHtml(it, meal, day)).join('')}
-            <button class="diet-item diet-item--add" data-action="diet-day-add" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Ajouter un aliment à ${esc(meal.name)}">${icon('plus', 18)}<span class="diet-item__name">Ajouter un aliment</span></button></div>` : ''}
+            <button class="diet-item diet-item--add" data-action="diet-day-add" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Ajouter un aliment à ${esc(meal.name)}">${dietActIconHtml('plus')}<span class="diet-item__name">Ajouter un aliment</span></button></div>` : ''}
         </article>`;
 }
 
@@ -419,7 +448,7 @@ function renderNutrition(dayParam) {
           ? ` Suis le plan de ${esc(plan.fromCoach.name || 'ton coach')} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
-        ${pr.meals.length ? dietMacroLegendHtml() : ''}
+        ${pr.meals.length ? dietMacroLegendHtml('', { dots: true }) : ''}
         <div class="diet-meals">${meals}</div>
         ${dietSettingsCellHtml()}
         ${dietSourceFoot({ help: true })}
@@ -536,6 +565,7 @@ async function dietSwapSheet(itemId, day) {
   const shownGap = c => -Math.round(ref.kcal) + Math.round(c.macros.kcal);
   const row = (c, i) => `
       <button class="diet-cand" data-swap="${i}">
+        ${dietFoodIconHtml(c.food)}
         <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(c.food.name))}</span>
           <span class="diet-cand__sub num">${hide ? `${c.g} g` : dietSrPair(`${c.g} g · ${dietMacroLine(c.macros)}`, `${c.g} grammes, ${dietMacroSpoken(c.macros)}`)}</span></span>
         ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(shownGap(c), 'kilocalories')}">${swapDeltaText(shownGap(c), 'kcal')}</span>`}

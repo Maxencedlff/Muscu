@@ -58,7 +58,7 @@ function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), e
 
 function dietPlanItemCell(plan, meal, it, ro) {
   const m = dietItemMacros(it);
-  const inner = `<span class="cell__body"><span class="cell__title">${esc(foodName(it.name))}</span>
+  const inner = `${dietFoodIconHtml(it)}<span class="cell__body"><span class="cell__title">${esc(foodName(it.name))}</span>
       <span class="cell__sub num">${dietSrPair(`${esc(dietQtyText(it))} · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`,
         `${esc(dietQtySpoken(it))}, ${dietN(m.kcal)} kilocalories${it.ecalc ? ' calculées' : ''}, ${dietMacroGramsSpoken(m)}`)}</span></span>`;
   return ro ? `<div class="cell">${inner}</div>`
@@ -141,6 +141,7 @@ function dietFoodRowHtml(x, i) {
   const tag = foodCookTag(x.food);
   return `
         <button class="diet-cand" data-pick="${i}">
+          ${dietFoodIconHtml(x.food)}
           <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(x.food.name))}</span>
             <span class="diet-cand__sub num">${tag ? `<span class="diet-tag" aria-hidden="true">${tag}</span>` : ''}${x.own ? 'Mon aliment · ' : ''}${dietSrPair(`100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · P ${fmtNum(x.food.per.p)} · G ${fmtNum(x.food.per.c)} · L ${fmtNum(x.food.per.f)}`,
               `pour 100 grammes, ${x.food.per.k} kilocalories${x.food.ecalc ? ' calculées' : ''}, ${dietMacroWords(x.food.per, fmtNum).replace(/ g /g, ' grammes ')}`)}</span></span>

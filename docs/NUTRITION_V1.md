@@ -423,3 +423,20 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 | `css/nutrition.css` | Styles (couleurs : tokens `--macro-*`, `--check-*` de `css/base.css`) |
 | `tests/unit/nutrition.mjs` | Bornes, macros, coches, série, équivalences sur la vraie base, plan du coach, notification |
 | `tests/test_nutrition.py` | Parcours complets (5 appareils, clair et sombre) et captures |
+
+## Écran du jour illustré (15/11/2026, branche nutri-v2)
+
+Demande de Maxence : chaque onglet aussi agréable que l'accueil, jamais un écran fait seulement de texte et de chiffres,
+chaque visuel porte un sens.
+
+- **Bilan** : anneau des calories (vert = avancée) et une barre par macro, chacune à sa couleur (`--macro-p`, `-c`, `-f`,
+  tokens sobres de css/theme-sobre.css) avec une pastille devant son nom : la couleur est nommée. Écran de 320 pt :
+  anneau de 92 pt à côté des barres (au-dessus, le bilan prenait tout l'écran).
+- **Repas en cartes** : titre plus grand, barre de composition sous l'en-tête (part des kcal venant des protéines,
+  glucides et lipides, 4/4/9 kcal par gramme), aux mêmes couleurs ; légende des lettres avec les pastilles.
+- **Aliments** : pastille grise avec l'icône de la famille d'équivalence (viande, féculent, laitier, matière grasse,
+  fruit, légume, sucré, boisson, plat composé, aide culinaire ; icônes `food.*` du sprite d'index.html), dans le journal,
+  Mon plan, la recherche, les équivalents et Mes aliments. Aliment perso ou scanné : famille tirée de ses macros.
+  Les actions de la liste (ajouter, copier le plan, reprendre le repas d'hier, remettre) ont leur icône dans la même colonne.
+- Images et barres cachées à VoiceOver (noms et grammes déjà dits). Texte agrandi : plus de pastille de famille, comme
+  les vignettes de l'accueil. Aucune photo d'aliment : la table Ciqual n'en a pas.

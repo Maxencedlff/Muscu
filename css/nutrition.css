@@ -56,8 +56,15 @@
 .diet-sum__streak { display: inline-flex; align-items: center; gap: 4px; color: var(--label); font-weight: 600; }
 .diet-sum__streak .icon { color: var(--orange-text); }
 .diet-sum__hint { margin: 6px 0 0; font-size: var(--fs-footnote); color: var(--label2); }
-/* Petit écran ou très grands caractères : l'anneau passe au-dessus des barres */
-@media (max-width: 359px) { .diet-sum__main { flex-direction: column; align-items: stretch; } .diet-sum__ring { align-self: center; } }
+/* Petit écran (320 pt) : anneau plus petit, toujours à côté des barres (au-dessus, le bilan prenait tout l'écran) ;
+   très grands caractères : l'anneau passe au-dessus des barres */
+@media (max-width: 359px) {
+  .diet-sum { padding-left: 12px; padding-right: 12px; }
+  .diet-sum__main { gap: 12px; }
+  .diet-sum__ring { width: 92px; height: 92px; }
+  .diet-sum__ring .diet-ring { width: 92px; height: 92px; }
+  .diet-sum__kcal span { max-width: 64px; }
+}
 html.type-xl .diet-sum__main { flex-direction: column; align-items: stretch; }
 html.type-xl .diet-sum__ring { align-self: center; }
 html.type-xl .diet-sum__ring { width: 7.5em; height: 7.5em; }   /* l'anneau grandit avec « 0 sur 215 kcal » */
@@ -323,3 +330,63 @@ body.light .sheet .qty__step { background: var(--cell); }
 .diet-meal__menu:active { background: var(--fill); }
 /* Repas retiré ou jour vide : « Copier le plan de ce repas » / « Remettre le repas prévu », en couleur d'action */
 .diet-item--plan .diet-item__name { color: var(--tint); font-weight: 600; }
+
+/* ═══════════════════════════════════════════════
+   Refonte illustrée (branche nutri-v2, dans le style de l'accueil) : chaque visuel porte un sens.
+   - Pastille d'aliment (.diet-ico) : icône de sa famille (viande, féculent, laitier…), un seul gris ; action de la
+     liste (ajouter, copier, reprendre) : la même pastille, icône en couleur d'action.
+   - Couleurs des macros (--macro-p, -c, -f de css/theme-sobre.css) : pastille devant chaque nom du bilan et de la
+     légende, remplissage des barres, barre de composition d'un repas (part des kcal venant de chaque macro).
+   - Aucun dégradé, lueur ni verre ; texte agrandi : pastilles à la taille du texte, barre gardée.
+═══════════════════════════════════════════════ */
+.diet-ico {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--fill2); color: var(--label2);
+}
+.diet-ico .icon { width: 20px; height: 20px; }
+.diet-ico--act { background: none; color: var(--tint); }   /* action : l'icône seule, dans la colonne des pastilles */
+.diet-item--off .diet-ico { opacity: .5; }
+/* Séparateurs alignés sur le texte, après la pastille (listes iOS) */
+.diet-item + .diet-item::before { left: 62px; }
+.diet-cand:has(> .diet-ico) + .diet-cand::before, .diet-cand + .diet-cand:has(> .diet-ico)::before { left: 60px; }
+.diet-item--add { min-height: 48px; }
+.diet-item--add .diet-item__name { font-size: var(--fs-callout); }
+/* Liste groupée (Mon plan, Mes aliments) : la pastille avant le texte */
+.cell > .diet-ico { margin-right: 12px; }
+
+/* Pastille de couleur d'une macro (légende) */
+.diet-dot { display: inline-block; flex-shrink: 0; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; vertical-align: .08em; }
+.diet-dot--p, .diet-mix__seg--p { background: var(--macro-p); }
+.diet-dot--c, .diet-mix__seg--c { background: var(--macro-c); }
+.diet-dot--f, .diet-mix__seg--f { background: var(--macro-f); }
+.diet-legend__k .diet-dot { margin-right: 4px; }
+
+/* Bilan du jour : carte comme celles de l'accueil, calories en grand dans l'anneau */
+.diet-sum { padding: 16px 16px 14px; }
+.diet-sum__kcal b { font-size: var(--fs-title1, 1.65rem); letter-spacing: -.01em; }
+@media (max-width: 359px) { .diet-sum__kcal b { font-size: var(--fs-title2); } }
+.diet-bar__label { display: inline-flex; align-items: center; }
+
+/* Repas en cartes : titre plus grand (comme les cartes de l'accueil), barre de composition sous l'en-tête */
+.diet-meal__name { font-size: var(--fs-title3); line-height: 1.25; }
+.diet-mix { display: flex; gap: 2px; height: 6px; margin: 0 16px 12px; border-radius: var(--r-pill); overflow: hidden; }
+.diet-mix__seg { display: block; min-width: 3px; flex-basis: 0; }
+.diet-meal--done .diet-mix { opacity: .55; }
+
+/* Écran étroit : pastille plus petite, le nom garde sa largeur */
+@media (max-width: 359px) {
+  .diet-ico { width: 28px; height: 28px; border-radius: 8px; }
+  .diet-ico .icon { width: 17px; height: 17px; }
+  .diet-item, .diet-cand { gap: 10px; }
+  .diet-item + .diet-item::before { left: 54px; }
+  .diet-cand:has(> .diet-ico) + .diet-cand::before, .diet-cand + .diet-cand:has(> .diet-ico)::before { left: 52px; }
+}
+/* Texte agrandi : comme les vignettes de l'accueil, plus de pastille de famille (le nom de l'aliment prend toute la
+   largeur, rien n'est coupé) ; les actions gardent leur icône, à la taille du texte ; pastilles des macros en em */
+html.type-xl .diet-ico:not(.diet-ico--act) { display: none; }
+html.type-xl .diet-ico--act { width: auto; height: auto; }
+html.type-xl .diet-ico--act .icon { width: 1.1em; height: 1.1em; }
+html.type-xl .diet-item + .diet-item::before, html.type-xl .diet-cand + .diet-cand::before,
+html.type-xl .diet-cand:has(> .diet-ico) + .diet-cand::before, html.type-xl .diet-cand + .diet-cand:has(> .diet-ico)::before { left: 16px; }
+html.type-xl .diet-dot { width: .45em; height: .45em; margin-right: .3em; }
+html.type-xl .cell > .diet-ico { display: none; }
