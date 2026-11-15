@@ -161,3 +161,6 @@ html.type-xl :is(.mcard, .mdetail__seg) .seg-full { display: grid; grid-template
 html.type-xl :is(.mcard, .mdetail__seg) .seg-full .segmented__btn { margin: 0; padding: 8px 6px; min-height: 44px; overflow-wrap: normal; hyphens: none; }
 html.type-xl :is(.mcard, .mdetail__seg) .seg-full .segmented__btn::after { inset: 0; }
 html.type-xl :is(.mcard, .mdetail__seg) .seg-full .segmented__btn::before { display: none; }
+/* Titre du groupe : bloc (et non flex, où un mot plus large que l'écran ne se coupe pas), coupé au besoin en texte
+   très agrandi avec une police plus large (vu en CI : « Pectoraux » à 33 px débordait sur iPhone SE) */
+.stats-group .exhead__title { display: block; hyphens: auto; }
