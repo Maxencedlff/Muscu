@@ -535,13 +535,7 @@ function coachFromLine(progId) {
 // Accueil : muscles d'une séance d'un programme reçu (le coach n'envoie pas de description) : les plus
 // travaillés par ses exercices, comme « Pectoraux · Épaules · Triceps » des programmes intégrés
 function coachSessionDesc(progId, cat) {
-  if (!coachProgOf(progId)) return '';
-  const count = new Map();
-  (data.programmes[progId]?.exercises?.[cat] || []).forEach(e => exerciseMuscles(e).primary.forEach(id => {
-    const label = MUSCLE_BY_ID.get(id)?.short || muscleLabel(id);
-    count.set(label, (count.get(label) || 0) + 1);
-  }));
-  return esc([...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([l]) => l).join(' · '));
+  return coachProgOf(progId) ? sessionMusclesSummary(progId, cat) : '';
 }
 
 // Programme et Programme › Séance : consigne générale du programme

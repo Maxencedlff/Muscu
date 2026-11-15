@@ -1,0 +1,52 @@
+/* ═══════════════════════════════════════════════
+   Onglet Programme (js/features/programme.js, programme-editor.js), dans le style de l'accueil :
+   - séances en cartes illustrées (classe mgc de css/muscles.css, comme « Autres séances ») : nom, muscles, exercices
+     et durée à gauche, vignette 3D du groupe principal à droite (img/muscles/<groupe>.webp, muscles en rouge) ;
+   - Programme › Séance : petite vignette du muscle principal à gauche de chaque exercice, comme la liste de Progrès ;
+   - entrées secondaires en liste iOS, icône neutre dans un carré gris (l'orange reste aux actions).
+   Aplats et séparateurs iOS, aucun dégradé ni ombre. Texte agrandi (type-xl) : plus d'images, rien de coupé.
+═══════════════════════════════════════════════ */
+
+/* ── Séances du programme ── */
+.view--grouped .pcard { min-height: 6.4rem; padding: 10px 36px 10px 16px; align-items: center; overflow: hidden; }
+.pcard .mgc__text { flex: 1; width: auto; gap: 2px; }
+.pcard .pcard__name { font-size: var(--fs-title3); font-weight: 600; line-height: 1.25; overflow-wrap: break-word; }
+.pcard__muscles { font-size: var(--fs-subhead); line-height: 1.3; color: var(--label); overflow-wrap: break-word; }
+.pcard .pcard__facts { margin-top: 2px; font-size: var(--fs-footnote); line-height: 1.3; }
+/* Vignette entière dans le flux, à droite du texte (contain : fessiers et cuisses de Legs visibles) : le texte revient
+   à la ligne avant elle, jamais dessous */
+.pcard .pcard__img { position: static; flex: none; height: 5.4rem; width: auto; max-width: 40%; object-fit: contain; object-position: right center; }
+.pcard > .icon:last-child { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 1; }
+@media (max-width: 360px) {
+  .pcard .pcard__img { height: 4.6rem; max-width: 36%; }
+}
+
+/* ── Petite vignette à gauche d'un exercice de la séance (pas en mode Modifier : ⊖ et ≡ prennent sa place) ── */
+.prow-thumb.mgc__img {
+  position: static; flex: none; width: 48px; height: 32px; max-width: none; aspect-ratio: 3 / 2;
+  object-fit: cover; object-position: 70% center; border-radius: 6px; background: var(--fill2);
+}
+.ed-row:has(> .prow-thumb) { gap: 10px; }
+/* iPhone SE : la vignette se fait plus petite, le nom garde la place (au moins 60 % de la ligne) */
+@media (max-width: 360px) {
+  .prow-thumb.mgc__img { width: 36px; height: 24px; border-radius: 5px; }
+}
+
+/* Dernière performance d'un bloc : jamais « dernier » seul en fin de ligne */
+.ed-last { white-space: nowrap; }
+html.type-xl .ed-last { white-space: normal; }
+
+/* ── Entrées secondaires : Mes programmes, Bibliothèque, Plans de nutrition ── */
+.plist__icon {
+  flex: none; width: 30px; height: 30px; border-radius: 7px; background: var(--fill2); color: var(--label);
+  display: flex; align-items: center; justify-content: center;
+}
+.view--grouped .plist .cell + .cell::before { left: 58px; }   /* séparateur aligné sur le texte, comme Réglages d'iOS */
+
+/* ── Texte agrandi : plus de vignettes, le texte prend toute la largeur, rien de coupé ── */
+html.type-xl .prow-thumb.mgc__img { display: none; }
+html.type-xl .pcard .mgc__text { width: 100%; }
+html.type-xl .view--grouped .pcard { min-height: 44px; }
+html.type-xl .plist__icon { width: 1.6em; height: 1.6em; }
+html.type-xl .plist__icon .icon { width: 1em; height: 1em; }
+html.type-xl .view--grouped .plist .cell + .cell::before { left: 16px; }

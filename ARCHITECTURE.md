@@ -72,6 +72,7 @@ android/              coquille Android en préparation (Capacitor, modules Kotli
 | `coach.css` | Coach : cellule en haut de l'onglet Social, pastilles de nouveautés, programmes reçus, consignes (Programme › Séance, séance en cours), séances d'un élève, codes d'invitation, saisie des consignes et du commentaire |
 | `paywall.css` | Abonnement : bandeau discret de l'accueil, écran d'abonnement (formules, prix lus chez StoreKit), Réglages › Abonnement, liens vers les conditions et la confidentialité |
 | `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), vignettes « Icône de l'app » (`.app-icons`), accessibilité, paysage, Dynamic Type |
+| `programme.css` | Onglet Programme : séances en cartes illustrées (vignette 3D du groupe principal, comme l'accueil), petite vignette du muscle principal à gauche des exercices de Programme › Séance, entrées secondaires en liste iOS avec icône neutre ; texte agrandi : sans images |
 
 Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 

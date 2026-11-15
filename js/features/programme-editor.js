@@ -48,7 +48,7 @@ function renderEditor() {
     const last = lastPerf(data.activeProgramme, cat, ex);
     const best = last ? bestSet(last.ex.sets, ex) : null;
     const plan = canTech(ex) ? INTENS_PLANS[cleanIntens(ex.intens)]?.short : '';   // technique prescrite
-    const sub  = `${setsRangeHtml(ex)}${plan ? ` · ${plan}` : ''}${best ? ` · dernier ${setTxt(best, ex)}` : ''}`;
+    const sub  = `${setsRangeHtml(ex)}${plan ? ` · ${plan}` : ''}${best ? ` · <span class="ed-last">dernier ${setTxt(best, ex)}</span>` : ''}`;
     const tag  = ssTagHtml(list, i);
     if (editorEditing) {
       return `
@@ -65,8 +65,11 @@ function renderEditor() {
           <span class="ed-handle" data-i="${i}" role="button" aria-label="Déplacer ${esc(ex.name)}">${icon('line.3.horizontal', 22)}</span>
         </div>`;
     }
+    // Vignette du muscle principal, comme la liste de Progrès ; pas en mode Modifier, où ⊖ et ≡ prennent sa place
+    const main = exerciseMuscles(ex).primary?.[0];
     return `
       <button class="cell cell--nav ed-row" data-action="edit-ex" data-i="${i}">
+        ${progRowThumbHtml(isMuscleId(main) ? main : null)}
         <span class="cell__body">
           <span class="cell__title ed-name">${tag}${esc(ex.name)}</span>
           ${exMusclesSubHtml(ex)}

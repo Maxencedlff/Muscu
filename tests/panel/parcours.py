@@ -317,11 +317,12 @@ def p_progres(r):
 
 @parcours('programme', 'Programme', 'pratiquant')
 def p_programme(r):
-    """Onglet Programme : la liste des séances, une séance, la fiche d'un exercice, Mes programmes."""
+    """Onglet Programme : les séances en cartes illustrées, une séance (exercices avec leur vignette), la fiche d'un
+    exercice, Mes programmes (liste iOS sous les cartes)."""
     r.lancer(REALISTE)
-    with r.etape('liste', 'Onglet Programme'):
+    with r.etape('liste', 'Onglet Programme : séances en cartes illustrées'):
         r.onglet('program', 'Programme')
-        r.attendre('.view.programmes', 'Programme')
+        r.attendre('.view.programmes .ps-list .pcard', 'cartes des séances')
     with r.etape('seance', 'Une séance du programme', cle='Modifier un exercice du programme'):
         r.toucher('.view.programmes [data-action="open-prog-session"]', '1re séance')
         r.attendre('.view.editor', 'séance du programme')
@@ -335,6 +336,7 @@ def p_programme(r):
     with r.etape('mes-programmes', 'Mes programmes'):
         r.toucher('[data-action="cancel-ex"]', 'Annuler (fiche de l\'exercice)')
         r.retour()
+        r.defiler('.view.programmes [data-action="go-my-programmes"]', 'liste sous les cartes')
         r.toucher('.view.programmes [data-action="go-my-programmes"]', 'Mes programmes')
         r.attendre('.view.my-programmes', 'Mes programmes')
     with r.etape('tous-programmes', 'Ajouter un programme (catalogue)'):
@@ -347,6 +349,7 @@ def p_bibliotheque(r):
     r.lancer(REALISTE)
     with r.etape('bibliotheque', 'Bibliothèque', cle='Ouvrir la fiche d\'un exercice de la bibliothèque'):
         r.onglet('program', 'Programme')
+        r.defiler('[data-action="go-library"]', 'liste sous les cartes')
         r.toucher('[data-action="go-library"]', 'Bibliothèque')
         r.attendre('.view.library', 'Bibliothèque')
     # Exercices d'un groupe : une ligne illustrée par exercice (personnage 3D, muscle principal en rouge)
@@ -747,7 +750,7 @@ def p_nutrition(r):
     cle = 'Créer son plan de nutrition avec un aliment'
     with r.etape('plans', 'Programme › Plans de nutrition', cle=cle):
         r.onglet('program', 'Programme')
-        r.defiler('[data-action="go-diet-plans"]', 'groupe Nutrition')
+        r.defiler('[data-action="go-diet-plans"]', 'liste sous les cartes')
         r.toucher('[data-action="go-diet-plans"]', 'Plans de nutrition')
         r.attendre('.diet-plans-view', 'Plans de nutrition')
     with r.etape('nouveau-plan', '« Créer un plan » : nom du plan', cle=cle):

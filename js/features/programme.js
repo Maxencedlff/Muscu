@@ -10,27 +10,59 @@ function exSetsCount(cat, progId) {
   return { n: list.length, sets: list.reduce((a, e) => a + (parseInt(e.sets) || 0), 0) };
 }
 
+// Muscles les plus travaillés par les exercices d'une séance (« Pectoraux · Épaules · Triceps »), échappés :
+// séances sans description (programme créé ou reçu d'un coach)
+function sessionMusclesSummary(progId, cat) {
+  const count = new Map();
+  (data.programmes[progId]?.exercises?.[cat] || []).forEach(e => exerciseMuscles(e).primary.forEach(id => {
+    const label = MUSCLE_BY_ID.get(id)?.short || muscleLabel(id);
+    count.set(label, (count.get(label) || 0) + 1);
+  }));
+  return esc([...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([l]) => l).join(' · '));
+}
+
+// Petite vignette 3D (3:2) d'un muscle, à gauche d'un exercice de Programme › Séance, comme la liste de
+// Progrès ; décorative, cachée en texte agrandi (css/programme.css)
+function progRowThumbHtml(id) {
+  return id ? `<img class="mgc__img prow-thumb" src="img/muscles/${id}.webp" alt="" aria-hidden="true" width="600" height="400" decoding="async">` : '';
+}
+
+// Séance du programme en carte illustrée, comme « Autres séances » sur l'accueil : nom, muscles, exercices, séries et
+// durée habituelle à gauche, vignette du groupe principal à droite (sessionThumbHtml, js/features/dashboard.js).
+// VoiceOver lit l'intitulé complet (« environ 55 minutes » et non « ≈ 55 min ») ; l'image est décorative.
+function progSessionCardHtml(cat, progId) {
+  const meta = sessionMeta(cat, progId), c = exSetsCount(cat, progId), mins = sessionMinutes(cat);
+  const muscles = meta.desc || sessionMusclesSummary(progId, cat);
+  const facts = c.n ? [plural(c.n, 'exercice', 'exercices'), plural(c.sets, 'série', 'séries')] : ['Aucun exercice'];
+  const shown = [...facts, mins ? `≈ ${mins} min` : ''].filter(Boolean).join(' · ');
+  const spoken = [meta.label, muscles, ...facts, mins ? `environ ${mins} minutes` : ''].filter(Boolean).join(', ');
+  return `
+      <button class="cell cell--nav mgc pcard" data-action="open-prog-session" data-cat="${esc(cat)}" data-id="${esc(cat)}" aria-label="${spoken}">
+        <span class="cell__body mgc__text">
+          <span class="cell__title pcard__name">${meta.label}</span>
+          ${muscles ? `<span class="pcard__muscles">${muscles}</span>` : ''}
+          <span class="cell__sub pcard__facts num">${shown}</span>
+        </span>
+        ${sessionThumbHtml(cat, 'pcard__img')}
+        ${icon('chevron.right', 16)}
+      </button>`;
+}
+
+// Entrée secondaire de l'onglet en liste iOS : icône neutre dans un carré gris (l'orange reste aux actions)
+function progListIconHtml(name) {
+  return `<span class="plist__icon" aria-hidden="true">${icon(name, 18)}</span>`;
+}
+
+// Onglet Programme : les séances en cartes illustrées d'abord, puis Mes programmes, la Bibliothèque et les plans de
+// nutrition en liste iOS, puis créer et partager
 function renderProgrammes() {
   const pid  = data.activeProgramme;
   const pm   = progMeta(pid);
-  const cell = (cat, progId, action) => {
-    const c = exSetsCount(cat, progId);
-    return `
-      <button class="cell cell--nav" data-action="${action}" data-cat="${esc(cat)}" data-id="${esc(cat)}">
-        ${catDot(cat, progId)}
-        <span class="cell__body">
-          <span class="cell__title">${sessionMeta(cat, progId).label}</span>
-          <span class="cell__sub">${plural(c.n, 'exercice', 'exercices')} · ${plural(c.sets, 'série', 'séries')}</span>
-        </span>
-        ${icon('chevron.right', 16)}
-      </button>`;
-  };
   // Ligne du mode Modifier : la séance ne s'ouvre pas, la poignée ≡ la déplace (js/ui/reorder.js)
   const editCell = (cat, progId) => {
     const label = sessionMeta(cat, progId).label;
     return `
       <div class="cell ed-row--edit ps-row">
-        ${catDot(cat, progId)}
         <span class="cell__body"><span class="cell__title">${label}</span></span>
         <span class="ed-handle ps-handle" role="button" aria-label="Déplacer ${label}">${icon('line.3.horizontal', 22)}</span>
       </div>`;
@@ -41,11 +73,11 @@ function renderProgrammes() {
   const editing = canReorder && progEditing;
   const sessions = `
       <div class="group-title group-title--row">
-        <span>Séances</span>
+        <span>Séances ${elide('de', esc(pm.name))}</span>
         ${canReorder ? `<button class="group-title__btn ${editing ? 'group-title__btn--bold' : ''}" data-action="toggle-prog-order">${editing ? 'OK' : 'Modifier l\'ordre'}</button>` : ''}
       </div>
       <div class="group ps-list">
-        ${keys.map(c => editing ? editCell(c, pid) : cell(c, pid, 'open-prog-session')).join('')}
+        ${keys.map(c => editing ? editCell(c, pid) : progSessionCardHtml(c, pid)).join('')}
         ${user && !editing ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
       </div>
       ${editing ? `<div class="group-foot">Fais glisser ≡ pour ranger tes séances, par exemple dans l'ordre de ta semaine.</div>` : ''}
@@ -63,26 +95,25 @@ function renderProgrammes() {
     <div class="view programmes view--grouped">
       ${navBar({ title: 'Programme', right: settingsButtonHtml() })}
       <div class="scr">
-        <div class="group">
+        ${coachEditorConsigneHtml(data.activeProgramme)}
+        ${sessions}
+        <div class="group group--gap plist">
           <button class="cell cell--nav" data-action="go-my-programmes">
+            ${progListIconHtml('list.bullet')}
             <span class="cell__body"><span class="cell__title">Mes programmes</span></span>
             <span class="cell__value">${esc(pm.name)}</span>
             ${icon('chevron.right', 16)}
           </button>
-          <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
-        </div>
-        ${coachEditorConsigneHtml(data.activeProgramme)}
-        ${sessions}
-        <div class="group group--gap">
           <button class="cell cell--nav" data-action="go-library">
+            ${progListIconHtml('books.vertical')}
             <span class="cell__body"><span class="cell__title">Bibliothèque d'exercices</span>
               <span class="cell__sub">${EXERCISE_CATALOGUE.length} exercices, leurs muscles et leur matériel</span></span>
             ${icon('chevron.right', 16)}
           </button>
+          ${dietProgrammeCellHtml(progListIconHtml('fork.knife'))}
         </div>
-        ${dietProgrammeGroupHtml()}
-        <div class="group-title">Partager</div>
-        <div class="group">
+        <div class="group group--gap">
+          <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
           <button class="cell cell--action" data-action="share-programme">${icon('square.and.arrow.up', 20)}<span>Envoyer ce programme</span></button>
         </div>
         <div class="group-foot">Envoie tes séances et tes exercices par message. Tes charges, records et ton historique restent sur ton téléphone.</div>

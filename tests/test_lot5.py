@@ -237,14 +237,37 @@ def t_programme(bench, eng, dev, theme):
         R.check(page.locator('.cell--action', has_text='Ajouter une séance').count() == 0
                 and page.locator('[data-action="new-programme"]').count() >= 1, f'{t} programme intégré : « Créer un programme » proposé')
         R.check(page.locator('[data-action="go-settings"]').count() == 1 and page.locator('[data-action="go-settings"] .icon--gear').count() == 1, f'{t} programme : la roue des Réglages, comme sur l\'accueil')
+        # Séances en cartes illustrées, comme l'accueil : vignette du groupe principal (décorative), nom, muscles, infos ;
+        # VoiceOver lit l'intitulé complet ; le texte ne passe jamais sous la vignette
+        cards = page.evaluate("""() => [...document.querySelectorAll('.ps-list .pcard')].map(c => {
+            const img = c.querySelector('.pcard__img'), txt = c.querySelector('.mgc__text');
+            return { cat: c.dataset.cat, src: img ? img.getAttribute('src') : '', hidden: img ? img.getAttribute('aria-hidden') === 'true' && img.alt === '' : false,
+                     name: c.querySelector('.pcard__name').textContent.trim(), muscles: (c.querySelector('.pcard__muscles') || {}).textContent || '',
+                     label: c.getAttribute('aria-label') || '',
+                     apart: img ? txt.getBoundingClientRect().right <= img.getBoundingClientRect().left + 1 : false }; })""")
+        R.check([c['src'] for c in cards] == ['img/muscles/pectoraux.webp', 'img/muscles/dos.webp', 'img/muscles/jambes.webp'],
+                f'{t} cartes : vignette du groupe principal {[c["src"] for c in cards]}')
+        R.check(all(c['hidden'] for c in cards) and all(c['apart'] for c in cards), f'{t} cartes : vignette décorative, à côté du texte {cards}')
+        R.check(cards and cards[0]['name'] == 'Push' and cards[0]['muscles'] == 'Pectoraux · Épaules · Triceps', f'{t} carte Push : nom et muscles {cards[:1]}')
+        R.check(all(c['label'].startswith(c['name'] + ', ') and 'exercices' in c['label'] and 'séries' in c['label'] and '≈' not in c['label'] for c in cards),
+                f'{t} cartes : intitulé VoiceOver complet {[c["label"] for c in cards]}')
+        R.check(page.locator('.plist [data-action="go-my-programmes"] .plist__icon').count() == 1
+                and page.locator('.plist [data-action="go-library"] .plist__icon').count() == 1
+                and page.locator('.plist [data-action="go-diet-plans"] .plist__icon').count() == 1, f'{t} entrées secondaires : liste iOS avec icône')
         shot(page, LOT, f'programme_{dev}_{theme}')
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         widths = page.evaluate("[...document.querySelectorAll('.ed-row')].map(r => r.querySelector('.ed-name').getBoundingClientRect().width / r.getBoundingClientRect().width)")
         R.check(min(widths) >= 0.6, f'{t} éditeur : noms >= 60 % de la largeur ({min(widths):.2f})')
+        thumbs = page.evaluate("[...document.querySelectorAll('.ed-row')].map(r => (r.querySelector('.prow-thumb') || {}).getAttribute?.('src') || '')")
+        R.check(len(thumbs) == 6 and all(x.startswith('img/muscles/') for x in thumbs) and thumbs[0] == 'img/muscles/chest.webp',
+                f'{t} éditeur : vignette du muscle principal à gauche de chaque exercice {thumbs[:2]}')
+        R.check(page.evaluate("[...document.querySelectorAll('.ed-row')].every(r => { const i = r.querySelector('.prow-thumb'), n = r.querySelector('.ed-name'); return i.getBoundingClientRect().right <= n.getBoundingClientRect().left; })"),
+                f'{t} éditeur : vignette à gauche du nom')
         shot(page, LOT, f'editor_{dev}_{theme}')
         page.click('[data-action="toggle-edit-mode"]')
         widths = page.evaluate("[...document.querySelectorAll('.ed-row')].map(r => r.querySelector('.ed-name').getBoundingClientRect().width / r.getBoundingClientRect().width)")
         R.check(min(widths) >= 0.6, f'{t} éditeur (Modifier) : noms >= 60 % ({min(widths):.2f})')
+        R.check(page.locator('.ed-row .prow-thumb').count() == 0, f'{t} éditeur (Modifier) : ⊖ et ≡ à la place des vignettes')
         shot(page, LOT, f'editor_edit_{dev}_{theme}')
         before = page.evaluate("data.programmes.ppl.exercises.push.map(e => e.id)")
         hb = page.locator('.ed-handle').first.bounding_box()
@@ -342,7 +365,31 @@ def t_perf(bench):
         print(f'  perf historique {n} séances : {best:.1f} ms')
 
 
+def t_programme_type_xl(bench):
+    """Très grands caractères sur iPhone SE : cartes des séances et exercices sans vignette, texte entier, sans débord."""
+    with bench.page('webkit', 'iPhone SE', 'dark') as page:
+        seed(page, 'dark', ppl_v2_today_json())
+        page.add_style_tag(content='html { font-size: 28px !important; }')
+        page.evaluate("window.dispatchEvent(new Event('resize'))")
+        page.wait_for_timeout(300)
+        page.evaluate("switchTab('program')")
+        page.wait_for_selector('.ps-list .pcard')
+        check = """sel => ({ xl: document.documentElement.classList.contains('type-xl'),
+            imgs: [...document.querySelectorAll(sel)].filter(i => i.getBoundingClientRect().width > 0).length,
+            cut: [...document.querySelectorAll('.view:not([hidden]) .cell__title, .view:not([hidden]) .cell__sub, .pcard__muscles')]
+                .filter(e => e.offsetParent && e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim()),
+            hscroll: document.documentElement.scrollWidth > innerWidth + 1 })"""
+        g = page.evaluate(check, '.pcard__img')
+        R.check(g['xl'] and g['imgs'] == 0 and not g['cut'] and not g['hscroll'], f'type-xl programme : cartes sans vignette, rien de coupé {g}')
+        page.click('[data-action="open-prog-session"][data-cat="push"]')
+        page.wait_for_selector('.view.editor')
+        g = page.evaluate(check, '.prow-thumb')
+        R.check(g['imgs'] == 0 and not g['cut'] and not g['hscroll'], f'type-xl éditeur : sans vignette, rien de coupé {g}')
+        shot(page, LOT, 'editor_type_xl')
+        R.check(not page.errors, f'type-xl programme : erreurs JS {page.errors[:2]}')
+
+
 TESTS = [t_history, t_progress, t_poids, t_programme]
 
 if __name__ == '__main__':
-    run_main(R, TESTS, once=[t_perf])
+    run_main(R, TESTS, once=[t_perf, t_programme_type_xl])

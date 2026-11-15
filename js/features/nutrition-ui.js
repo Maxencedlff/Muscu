@@ -497,18 +497,16 @@ function nutritionHomeCard() {
 
 // ── Programme : entrée des plans ────────────────────────────
 
-function dietProgrammeGroupHtml() {
+function dietProgrammeCellHtml(iconHtml = '') {
   const plan = dietActivePlan(data);
   return `
-        <div class="group-title">Nutrition</div>
-        <div class="group">
           <button class="cell cell--nav" data-action="go-diet-plans">
+            ${iconHtml}
             <span class="cell__body"><span class="cell__title">Plans de nutrition</span>
               <span class="cell__sub">Repas, aliments et quantités ; macros calculées</span></span>
             <span class="cell__value">${plan ? esc(plan.name) : 'Aucun'}</span>
             ${icon('chevron.right', 16)}
-          </button>
-        </div>`;
+          </button>`;
 }
 
 // ── Coach : plan diète d'un élève ───────────────────────────
