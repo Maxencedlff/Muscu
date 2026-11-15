@@ -87,7 +87,7 @@ def t_progress(bench, eng, dev, theme):
             const rows = [...v.querySelectorAll('.mrow')].map(r => +r.querySelector('.cell__value').textContent);
             return { img: !!img && img.alt === '' && img.getAttribute('aria-hidden') === 'true' && img.src.includes('img/muscles/dos.webp'),
                      title: v.querySelector('h1').textContent.trim(), back: document.querySelector('.navbar__back-label')?.textContent.trim(),
-                     pct: v.querySelector('.sgrp__pct').textContent.replace(/\\s+/g, ' ').trim(), how: !!v.querySelector('.sgrp__how')?.textContent.includes('12 semaines'),
+                     pct: v.querySelector('.sgrp__pct').textContent.replace(/\\s+/g, ' ').trim(), how: /12\\s+semaines/.test(v.querySelector('.sgrp__how')?.textContent || ''),
                      ex: v.querySelectorAll('[data-action="open-stats-ex"]').length, rows, muscles: [...v.querySelectorAll('.mrow')].map(r => r.dataset.muscle),
                      total: +v.querySelector('.sgrp__total .cell__value').textContent.trim(), unit: [...v.querySelectorAll('.group-title')].map(e => e.textContent.trim()),
                      sr: [...v.querySelectorAll('.mrow .visually-hidden')].map(e => e.textContent) }; }""")
@@ -102,6 +102,7 @@ def t_progress(bench, eng, dev, theme):
             R.check(page.locator('#exChart').count() == 1, f'{t} détail : un exercice ouvre sa courbe')
             page.click('[data-action="back"]')
             page.wait_for_selector('.view.stats-group')
+        page.wait_for_timeout(500)   # fin du glissement d'entrée (l'écran arrive de la droite)
         R.check(no_hscroll(page), f'{t} détail du groupe : pas de défilement horizontal')
         shot(page, LOT, f'detail-groupe-{t}')
         page.locator('.view.stats-group [data-action="go-stats-muscles"]').click()
@@ -179,6 +180,7 @@ def t_progres_grand_texte(bench, eng, dev, theme):
         R.check(not cut and imgs == 0, f'{t} Progrès : rien de coupé, vignettes masquées {cut} {imgs}')
         page.locator('.view.stats .pgrp[data-group="pectoraux"]').click()
         page.wait_for_selector('.view.stats-group')
+        page.wait_for_timeout(500)   # fin du glissement d'entrée (l'écran arrive de la droite)
         R.check(no_hscroll(page), f'{t} détail du groupe : pas de défilement horizontal')
         shot(page, LOT, f'detail-groupe-{t}')
         page.locator('.view.stats-group [data-action="go-stats-muscles"]').click()
@@ -595,13 +597,14 @@ def t_tip(bench, eng, dev, theme):
         R.check(anim() == 'none', f'{t} réduire les animations : pas de pulsation')
         page.emulate_media(reduced_motion='no-preference')
         shot(page, LOT, f'bulle-face-{t}')
-        n_chest = int(re.search(r'(\d+) séries?', txt).group(1))
+        per_week = lambda x: int((re.search(r'soit (\d+) par semaine', x) or re.search(r'(\d+) séries?', x)).group(1))   # Séries par muscle : par semaine
+        n_chest = per_week(txt)
         # Un autre muscle, de dos : la bulle suit
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         txt = tip_text(page)
         R.check(txt.startswith('Grand dorsal') and page.locator('.btip').count() == 1, f'{t} bulle grand dorsal : « {txt} »')
         R.check(not tip_covers_selector(page), f'{t} bulle dos : sélecteur non couvert')
-        n_lats = int(re.search(r'(\d+) séries?', txt).group(1))
+        n_lats = per_week(txt)
         shot(page, LOT, f'bulle-dos-{t}')
         # Toucher hors d'un muscle : entre les deux vues (fond), puis sur la tête (zone grise) : fermée
         f, b = (page.locator(f'.mcard__map .body-map__{v}').bounding_box() for v in ('front', 'back'))

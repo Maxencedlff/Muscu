@@ -110,6 +110,7 @@ const SCRIPTS = [
   'js/features/summary.js',
   'js/features/settings.js',
   'js/features/progress.js',
+  'js/features/progress-muscles.js',
   'js/features/watch.js',
   'js/features/home-widget.js',
   'js/features/siri.js',
