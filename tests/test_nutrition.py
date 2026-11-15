@@ -691,7 +691,7 @@ def t_unites(bench, eng, dev, theme):
         R.check(page.text_content(f'{LIVE_SHEET} #qtyEq .sr-text') == '2 œufs, 100 grammes, 134 kilocalories', f'{t} œuf : VoiceOver en toutes lettres')
         R.check(nb(page.text_content(f'{LIVE_SHEET} #qtyUnit')) == 'œufs' and 'environ 50' in nb(page.text_content(f'{LIVE_SHEET} #qtyHint')), f'{t} œuf : unité accordée, poids moyen « environ »')
         mac = nb(page.text_content(f'{LIVE_SHEET} #qtyMacros [aria-hidden="true"]'))
-        R.check(re.fullmatch(r'Protéines \d+ g · Glucides \d+ g · Lipides \d+ g', mac) and nb(page.text_content(f'{LIVE_SHEET} #qtyHint')) == '1 œuf : environ 50 g, poids moyen.',
+        R.check(re.fullmatch(r'Protéines \d+(,\d)? g · Glucides \d+(,\d)? g · Lipides \d+(,\d)? g', mac) and nb(page.text_content(f'{LIVE_SHEET} #qtyHint')) == '1 œuf : environ 50 g, poids moyen.',
                 f'{t} œuf : macros en toutes lettres, note du poids moyen ({mac!r})')
         vis = page.evaluate("s => { const m = document.querySelector(s + ' #qtyMacros').getBoundingClientRect(), b = document.querySelector(s + ' .sheet__body').getBoundingClientRect(); return m.bottom <= b.bottom + 1 && m.top >= b.top; }", LIVE_SHEET)
         R.check(vis, f'{t} œuf : ligne des macros visible sans défiler')
