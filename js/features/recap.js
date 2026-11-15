@@ -121,11 +121,20 @@ function recapBarsHtml(bars) {
       <i style="height:${Math.max(n ? 8 : 3, Math.round(n / max * 100))}%"></i><b>${esc(RECAP_MONTH_NAME(m).charAt(0).toLocaleUpperCase('fr-FR'))}</b></span>`).join('')}</div>`;
 }
 
+// Surtitre écrit en majuscules dans les données (l'image partagée le garde) : à l'écran, en casse de phrase
+// (« Ton profil cette semaine »), sans majuscules espacées (règles de design de l'app)
+function recapKickerText(k) {
+  const s = String(k ?? '').toLocaleLowerCase('fr-FR');
+  return s.charAt(0).toLocaleUpperCase('fr-FR') + s.slice(1);
+}
+
+const RECAP_PILLS_MAX = 3;
+
 function recapPageHtml(page, i, st) {
   const v = page.value ? recapSplitValue(page.value) : null;
   const unit = page.unit || v?.unit || '';
   const parts = [];
-  parts.push(`<div class="rp-kicker">${esc(page.kicker)}</div>`);
+  parts.push(`<div class="rp-kicker">${esc(recapKickerText(page.kicker))}</div>`);
   if (page.sub) parts.push(`<div class="rp-sub">${esc(page.sub)}</div>`);
   if (page.lead) parts.push(`<div class="rp-lead">${esc(page.lead)}</div>`);
   if (page.title && page.id !== 'summary') parts.push(`<div class="rp-title${page.value ? ' rp-title--small' : ''}">${esc(page.title)}</div>`);
@@ -155,7 +164,8 @@ function recapPageHtml(page, i, st) {
   // Ouverture : le personnage de la semaine, à droite du chiffre
   const side = page.body && page.id === 'sessions'
     ? `<div class="rp-side">${bodyMapHtml(page.body, { view: 'front', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>` : '';
-  if (page.pills?.length) parts.push(`<div class="rp-pills">${page.pills.map(([l, x], i) => `<span class="rp-pill"><i class="num" aria-hidden="true">${i + 1}</i>${esc(l)} <b class="num">${esc(x)}</b></span>`).join('')}</div>`);
+  // Profil : les 3 muscles les plus travaillés (le personnage montre les autres, VoiceOver les lit tous)
+  if (page.pills?.length) parts.push(`<div class="rp-pills">${page.pills.slice(0, RECAP_PILLS_MAX).map(([l, x], i) => `<span class="rp-pill"><i class="num" aria-hidden="true">${i + 1}</i>${esc(l)} <b class="num">${esc(x)}</b></span>`).join('')}</div>`);
   if (page.tiles?.length && page.id !== 'summary') parts.push(`<div class="rp-tiles">${page.tiles.map(([l, x]) => `<div class="rp-tile"><b class="num">${esc(x)}</b><span>${esc(l)}</span></div>`).join('')}</div>`);
   if (page.list?.length) {
     if (page.listTitle) parts.push(`<div class="rp-list-title">${esc(page.listTitle)}</div>`);
@@ -226,10 +236,24 @@ function recapMount() {
     const r = track.getBoundingClientRect();
     recapGo(e.clientX - r.left < r.width / 3 ? -1 : 1);
   });
+  recapFootGuard();
   bodyPreload();   // calques du personnage (déjà chargés au repos, sinon tout de suite)
   recapStatusBar();
   recapAnimate(document.querySelector('.recap-page.is-active'));
   recapDrawSummary();
+}
+
+// Garde du bas : les écrans réservent la vraie hauteur du pied (flèches, Partager, barre d'accueil) dans
+// --rc-foot-h, suivie par un ResizeObserver (texte agrandi, marge de sécurité) : rien ne passe sous le bouton.
+let recapFootObs = null;
+function recapFootGuard() {
+  recapFootObs?.disconnect();
+  recapFootObs = null;
+  const view = document.querySelector('.view.recap'), foot = view?.querySelector('.recap__foot');
+  if (!foot) return;
+  const set = () => view.style.setProperty('--rc-foot-h', `${Math.ceil(foot.getBoundingClientRect().height)}px`);
+  set();
+  if (typeof ResizeObserver === 'function') { recapFootObs = new ResizeObserver(set); recapFootObs.observe(foot); }
 }
 
 // Story du dernier écran : l'image partagée elle-même, dessinée une fois
@@ -244,7 +268,7 @@ async function recapDrawSummary() {
 }
 
 // En quittant le récap : barre d'état rendue au thème de l'app
-function recapLeave() { Native.statusBar(!document.body.classList.contains('light')); }
+function recapLeave() { recapFootObs?.disconnect(); recapFootObs = null; Native.statusBar(!document.body.classList.contains('light')); }
 
 // Barre d'état d'iOS lisible sur la couleur de l'écran : texte blanc sur le noir et sur l'orange foncé du
 // thème clair, noir sur l'orange vif du thème sombre

@@ -150,7 +150,7 @@ def t_semaine(bench, eng, dev, theme):
         st = recap_state(page)
         R.check(st['n'] >= 5 and st['dots'] == st['n'], f'{t} récap semaine : {st["n"]} écrans et autant de barres')
         R.check(st['active'] == 0 and st['onIdx'] == 0 and st['prevOff'] and not st['nextOff'], f'{t} récap semaine : premier écran actif, flèche gauche inactive')
-        R.check(st['kicker'] == 'TA SEMAINE' and st['value'] == '2' and st['caption'] == 'séances' and st['tone'] == 'accent', f'{t} récap semaine : « 2 séances » ({st["kicker"]}, {st["value"]} {st["caption"]}, {st["tone"]})')
+        R.check(st['kicker'] == 'Ta semaine' and st['value'] == '2' and st['caption'] == 'séances' and st['tone'] == 'accent', f'{t} récap semaine : « 2 séances » ({st["kicker"]}, {st["value"]} {st["caption"]}, {st["tone"]})')
         R.check(st['sw'] <= st['vw'], f'{t} récap semaine : pas de défilement horizontal de la page ({st["sw"]} > {st["vw"]})')
         R.check(not st['tabbar'], f'{t} récap semaine : plein écran, sans barre d\'onglets')
         page.wait_for_timeout(700)   # fin de l'animation d'arrivée et du compteur
@@ -213,7 +213,7 @@ def t_semaine(bench, eng, dev, theme):
         page.wait_for_selector('.view.recap')
         page.wait_for_timeout(600)
         st = recap_state(page)
-        R.check(st['kicker'] == 'TON MOIS' and st['caption'] == 'séances' and st['n'] >= 6, f'{t} récap mois : {st["value"]} séances, {st["n"]} écrans')
+        R.check(st['kicker'] == 'Ton mois' and st['caption'] == 'séances' and st['n'] >= 6, f'{t} récap mois : {st["value"]} séances, {st["n"]} écrans')
         sub = page.evaluate("document.querySelector('.recap-page.is-active .rp-sub')?.textContent")
         R.check(sub == 'Septembre 2026', f'{t} récap mois : période ({sub})')
         shot(page, LOT, f'recap-mois-{t}')
@@ -229,7 +229,7 @@ def t_semaine(bench, eng, dev, theme):
         if 'profile' in lab:
             R.check(not any(w in lab['profile'] for w in ('le soir', 'le matin', 'le midi')) or 'Entre ' in lab['profile'],
                     f'{t} récap mois : moment de la journée avec sa plage ({lab["profile"][:140]})')
-        if 'records' in lab and 'RECORDS' in page.evaluate("document.querySelector('.recap-page[data-id=records] .rp-kicker').textContent"):
+        if 'records' in lab and 'records' in page.evaluate("document.querySelector('.recap-page[data-id=records] .rp-kicker').textContent"):
             R.check(any(k in lab['records'] for k in ('Ta plus forte', 'Ton record le plus')) and ('Tes autres records' in lab['records'] or 'Ton autre record' in lab['records']),
                     f'{t} récap mois : pourquoi ce record, et les autres listés ({lab["records"][:140]})')
         if 'streak' in lab:
@@ -265,7 +265,7 @@ def t_annee(bench, eng, dev, theme):
         page.wait_for_selector('.view.recap')
         page.wait_for_timeout(600)
         st = recap_state(page)
-        R.check(st['kicker'] == 'TON ANNÉE' and st['value'] == '78', f'{t} bilan : 78 séances ({st["kicker"]} {st["value"]})')
+        R.check(st['kicker'] == 'Ton année' and st['value'] == '78', f'{t} bilan : 78 séances ({st["kicker"]} {st["value"]})')
         labels = page.evaluate("[...document.querySelectorAll('.recap-page')].map(p => p.getAttribute('aria-label'))")
         R.check(any('mois le plus actif' in l for l in labels), f'{t} bilan : mois le plus actif (écran régularité)')
         R.check(any('ton année en un corps' in l for l in labels), f'{t} bilan : « ton année en un corps »')
@@ -280,6 +280,58 @@ def t_annee(bench, eng, dev, theme):
         shot(page, LOT, f'bilan-annee-resume-{t}')
         share_current(page, t, 'bilan résumé', f'story-annee-resume-{t}')
         R.check(not page.errors, f'{t} année : aucune erreur JS {page.errors}')
+    finally:
+        cm.__exit__(None, None, None)
+
+
+BAS_JS = """() => {
+  const foot = document.querySelector('.recap__foot').getBoundingClientRect();
+  const p = document.querySelector('.recap-page.is-active');
+  const vis = [...p.querySelectorAll('.recap-page__body *')].filter(e => {
+    const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+    return r.height > 0 && r.width > 0 && cs.visibility !== 'hidden' && cs.display !== 'none';
+  });
+  const bottom = Math.max(0, ...vis.map(e => e.getBoundingClientRect().bottom));
+  const last = vis.reduce((a, e) => (!a || e.getBoundingClientRect().bottom > a.getBoundingClientRect().bottom ? e : a), null);
+  const fig = p.querySelector('.rp-figure .body-map__row')?.getBoundingClientRect();
+  return { id: p.dataset.id, footTop: foot.top, bottom, last: last ? last.className || last.tagName : '',
+           sh: p.scrollHeight, ch: p.clientHeight, pills: p.querySelectorAll('.rp-pill').length,
+           pillsShown: [...p.querySelectorAll('.rp-pill')].every(e => e.getBoundingClientRect().height > 0),
+           fig: fig ? { w: fig.width, h: fig.height } : null,
+           kicker: p.querySelector('.rp-kicker')?.textContent || '',
+           kickerCss: (() => { const k = p.querySelector('.rp-kicker'); if (!k) return ''; const cs = getComputedStyle(k); return cs.textTransform + ' ' + cs.letterSpacing; })() };
+}"""
+
+
+def t_bas(bench, eng, dev, theme):
+    """Rien sous le pied « Partager » : sur chaque écran (semaine, mois, année), le bas du dernier élément visible
+    est au-dessus du pied et l'écran ne défile pas. Profil : titre, lignes, personnage, légende et 3 pastilles."""
+    t = tag(dev, theme)
+    cm, page = open_page(bench, eng, dev, theme, (2026, 12, 5, 10))
+    try:
+        for key in ('w2026-10-12', 'm2026-09', 'y2026'):
+            n_mus = page.evaluate(f"Object.keys(recapLoad('{key}').pages.find(p => p.id === 'profile')?.body || {{}}).length")
+            if key == 'm2026-09':
+                R.check(n_mus >= 6, f'{t} {key} : données d\'au moins 6 muscles ({n_mus})')
+            page.evaluate(f"navigate(makeRoute('recap', '{key}'))")
+            page.wait_for_selector('.view.recap .recap__foot')
+            page.wait_for_timeout(400)
+            n = page.locator('.recap-page').count()
+            for i in range(n):
+                page.evaluate(f"() => {{ const tr = document.querySelector('#recapTrack'); tr.scrollTo({{ left: {i} * tr.clientWidth, behavior: 'instant' }}); }}")
+                page.wait_for_timeout(900)
+                m = page.evaluate(BAS_JS)
+                where = f'{t} {key} écran {i + 1} ({m["id"]})'
+                R.check(m['bottom'] <= m['footTop'] + .5, f'{where} : rien sous le pied (bas {m["bottom"]:.0f} > pied {m["footTop"]:.0f}, {m["last"]})')
+                R.check(m['sh'] <= m['ch'] + 1, f'{where} : l\'écran ne défile pas ({m["sh"]} > {m["ch"]})')
+                R.check((m['kicker'] != m['kicker'].upper() or not any(c.isalpha() for c in m['kicker'])) and 'uppercase' not in m['kickerCss'],
+                        f'{where} : surtitre en casse normale ({m["kicker"]}, {m["kickerCss"]})')
+                if m['id'] == 'profile':
+                    R.check(m['pills'] == min(3, n_mus) and m['pillsShown'], f'{where} : {m["pills"]} pastilles visibles (3 au plus)')
+                    R.check(m['fig'] and m['fig']['h'] >= 70 and abs(m['fig']['w'] / m['fig']['h'] - .96) < .03, f'{where} : personnage lisible et proportionné ({m["fig"]})')
+                    if key == 'm2026-09':
+                        shot(page, LOT, f'profil-bas-{t}')
+        R.check(not page.errors, f'{t} bas : aucune erreur JS {page.errors}')
     finally:
         cm.__exit__(None, None, None)
 
@@ -360,4 +412,4 @@ def t_moments(bench):
         cm.__exit__(None, None, None)
 
 
-run_main(R, [t_semaine, t_annee], once=[t_moments])
+run_main(R, [t_semaine, t_annee, t_bas], once=[t_moments])

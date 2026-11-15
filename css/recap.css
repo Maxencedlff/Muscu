@@ -102,13 +102,13 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
 .recap-page {
   flex: 0 0 100%; width: 100%; min-width: 0; height: 100%; scroll-snap-align: start; scroll-snap-stop: always;
   background: var(--rc-bg); color: var(--rc-fg); cursor: pointer;
-  padding: calc(env(safe-area-inset-top, 0px) + 72px) var(--gutter) calc(env(safe-area-inset-bottom, 0px) + 84px);
+  padding: calc(env(safe-area-inset-top, 0px) + 72px) var(--gutter) calc(var(--rc-foot-h, calc(env(safe-area-inset-bottom, 0px) + 72px)) + 12px);
   display: flex; flex-direction: column; overflow-y: auto; -webkit-user-select: none; user-select: none;
 }
 .recap-page__body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .rp-inner { display: flex; flex-direction: column; gap: 10px; margin: auto 0; padding: 8px 0; }
 
-.rp-kicker { font-size: var(--fs-footnote); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+.rp-kicker { font-size: var(--fs-subhead); font-weight: 600; opacity: .7; }
 .rp-sub { margin-top: -6px; font-size: var(--fs-callout); font-weight: 700; opacity: .8; }
 .rp-title {
   font-size: clamp(38px, 12vw, 58px); line-height: 1; font-weight: 800; letter-spacing: -.03em; text-wrap: balance; overflow-wrap: anywhere;
@@ -152,7 +152,10 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
 .rp-scale i { width: 11px; height: 11px; border-radius: 3px; position: relative; overflow: hidden; background: rgba(255, 255, 255, .35); }
 .rp-scale i::after { content: ''; position: absolute; inset: 0; background: var(--body-heat); opacity: var(--o, 0); }
 .rp-scale i.is-peak::after { background: var(--body-heat-max); opacity: 1; }
-.rp-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+/* Profil : 3 pastilles compactes, sur une ligne quand elles tiennent, sinon à la ligne entre deux pastilles */
+.rp-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; flex-shrink: 0; }
+.rp-pills .rp-pill { gap: 5px; padding: 4px 10px 4px 4px; font-size: var(--fs-footnote); }
+.rp-pills .rp-pill i { width: 20px; height: 20px; font-size: 12px; }
 .rp-box {
   margin-top: 6px; padding: 14px 16px; border-radius: var(--r-md);
   background: #000; color: #FFF; font-size: var(--fs-callout); font-weight: 700; line-height: 1.3;
@@ -162,9 +165,13 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
 .rp-lines div { display: flex; flex-direction: column; gap: 1px; font-size: var(--fs-callout); line-height: 1.25; }
 .rp-lines dt { font-weight: 800; }
 .rp-lines dd { margin: 0; opacity: .85; font-weight: 600; font-size: var(--fs-subhead); }
-.rp-figure { display: flex; justify-content: center; margin-top: 4px; }
-.rp-figure .body-map { --body-base-bright: 1; width: min(78%, 300px); max-height: 38vh; }
-.rp-figure .body-map__row { max-height: 38vh; margin: 0 auto; }
+/* Profil : l'écran occupe toute la hauteur entre le haut et le pied ; le personnage prend la place qui reste
+   (conteneur de taille, cqw / cqh) et garde ses proportions (--body-ar, largeur / hauteur de face + dos) */
+.recap-page[data-id="profile"] .rp-inner { flex: 1; min-height: 0; margin: 0; justify-content: center; }
+.recap-page[data-id="profile"] .rp-inner > :not(.rp-figure) { flex-shrink: 0; }
+.rp-figure { flex: 1 1 0; min-height: 72px; max-height: 340px; margin-top: 4px; container-type: size; display: flex; align-items: center; justify-content: center; }
+.rp-figure .body-map { --body-base-bright: 1; }
+.rp-figure .body-map__row { width: min(78cqw, 300px, 100cqh * var(--body-ar, .96)); margin: 0 auto; }
 .rp-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
 .rp-tile {
   display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 14px; border-radius: var(--r-md);
@@ -263,14 +270,20 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
 /* Petite hauteur (iPhone SE, paysage) : tout se resserre */
 @media (max-height: 760px) { .rp-curve ~ .rp-list { display: none; } }
 /* iPhone SE : l'écran tient sans défiler sous les boutons. Records : les 2 premiers autres (le titre ne
-   promet pas de nombre) ; profil : le personnage dit déjà les muscles, VoiceOver lit les pastilles */
+   promet pas de nombre) ; profil : le personnage rétrécit (.rp-figure), les pastilles restent */
 @media (max-height: 700px) {
   .rp-list li:nth-child(n+3) { display: none; }
-  [data-id="profile"] .rp-pills { display: none; }
-  .recap-page { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
+  .recap-page { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); padding-bottom: calc(var(--rc-foot-h, calc(env(safe-area-inset-bottom, 0px) + 72px)) + 4px); }
   .rp-inner { gap: 6px; }
   .rp-num { font-size: clamp(64px, 20vw, 100px); }
   .rp-title:not(.rp-title--small) { font-size: clamp(32px, 10vw, 46px); }
-  .rp-figure .body-map, .rp-figure .body-map__row { max-height: 30vh; }
   .rp-bars { height: 90px; }
+  /* Profil : lignes, légende et pastilles resserrées, la place gagnée va au personnage */
+  .rp-lines { gap: 4px; }
+  .rp-lines div { font-size: var(--fs-subhead); line-height: 1.2; }
+  .rp-lines dd { font-size: var(--fs-footnote); }
+  .rp-scale { gap: 2px 10px; }
+  .rp-pills { gap: 4px; }
+  .rp-pills .rp-pill { padding: 3px 8px 3px 3px; font-size: var(--fs-caption); }
+  .rp-pills .rp-pill i { width: 18px; height: 18px; font-size: 11px; }
 }

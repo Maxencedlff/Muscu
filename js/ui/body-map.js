@@ -132,7 +132,7 @@ function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), labe
   const caps = captions ? `<span class="body-map__caps" aria-hidden="true" style="--fig:${fig};color:${esc(c.text)}">${views.map(v => `<span>${v === 'front' ? 'Face' : 'Dos'}</span>`).join('')}</span>` : '';
   const a11y = label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"';
   const act = tap ? ' data-action="body-tap"' : '';
-  return `<div class="body-map ${esc(className)}" data-body="${kind}"${act}${a11y}><span class="body-map__row" style="aspect-ratio:${ratio};--fig:${fig}">${figs}</span>${caps}</div>`;
+  return `<div class="body-map ${esc(className)}" data-body="${kind}"${act}${a11y}><span class="body-map__row" style="aspect-ratio:${ratio};--body-ar:${(rowW * BODY_IMG.w / BODY_IMG.h).toFixed(4)};--fig:${fig}">${figs}</span>${caps}</div>`;
 }
 
 // ── Image partagée (canvas) ─────────────────────────────────
