@@ -11,8 +11,35 @@ function historySorted() {
   return (data.history || []).slice().sort((a, b) => b.date - a.date);
 }
 
+// Filtres : les séances du programme actif (data-cat = la catégorie, toujours là), puis celles d'autres programmes ou
+// libres réellement présentes dans l'historique (« Bras » d'un autre programme : data-cat = « programme/catégorie »),
+// de la plus récente à la plus ancienne ; un même nom n'a qu'un filtre (le premier)
+function historyFilterKeys() {
+  const out = sessionKeys().map(k => [k, sessionMeta(k).label]);
+  const seen = new Set(out.map(([, l]) => l));
+  historySorted().forEach(h => {
+    const prog = entryProg(h);
+    if (prog === data.activeProgramme || isHealthEntry(h)) return;
+    const label = sessionMeta(h.category, prog).label;
+    if (seen.has(label)) return;
+    seen.add(label); out.push([`${prog}/${h.category}`, label]);
+  });
+  return out;
+}
+function historyFilterHit(h) {
+  if (histFilter === 'all') return true;
+  const i = histFilter.indexOf('/');
+  // Filtre d'un autre programme : toutes les séances de même nom, quel que soit le programme hors programme actif
+  if (i > 0) {
+    const prog = histFilter.slice(0, i), cat = histFilter.slice(i + 1);
+    const label = sessionMeta(cat, prog).label, p = entryProg(h);
+    return p !== data.activeProgramme && sessionMeta(h.category, p).label === label;
+  }
+  return h.category === histFilter && entryProg(h) === data.activeProgramme;
+}
+
 function historyMatches(h, q) {
-  if (histFilter !== 'all' && !(h.category === histFilter && entryProg(h) === data.activeProgramme)) return false;
+  if (!historyFilterHit(h)) return false;
   if (!q) return true;
   if (isHealthEntry(h)) return [h.health.title, h.health.source, h.exercises[0].name].some(t => normName(t).includes(q));
   if (normName(h.notes).includes(q)) return true;
@@ -53,7 +80,7 @@ function historyCell(h, index) {
   // Records de la séance (recordCount, js/data/records.js : même règle que le bilan et Progrès) : médaille et nombre, à
   // côté de la date
   const recs = recordCount(h);
-  const recMark = recs ? `<span class="hcell__rec num">${medalSvg(14)}<span aria-hidden="true">${recs}</span><span class="visually-hidden">, ${plural(recs, 'record', 'records')}</span></span>` : '';
+  const recMark = recs ? `<span class="hcell__rec num">${medalSvg(14)}${plural(recs, 'record', 'records')}</span>` : '';
   const art = progThumbHtml(mainGroupOf(h.exercises, index), 'hcell__img');
   return `
     <div class="hrow" data-id="${esc(h.id)}">
@@ -111,8 +138,8 @@ function historyListHTML() {
 }
 
 function renderHistory() {
-  const keys = sessionKeys();
-  if (histFilter !== 'all' && !keys.includes(histFilter)) histFilter = 'all';
+  const filters = historyFilterKeys();
+  if (histFilter !== 'all' && !filters.some(([k]) => k === histFilter)) histFilter = 'all';
   return `
     <div class="view history view--grouped">
       ${navBar({ title: 'Historique', right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>` })}
@@ -121,7 +148,7 @@ function renderHistory() {
           <input type="search" id="histSearch" class="search" placeholder="Rechercher" value="${esc(histQuery)}"
                  autocomplete="off" enterkeyhint="search" aria-label="Rechercher dans l'historique">
           <div class="segmented seg-full seg-scroll" role="group" aria-label="Filtrer par séance">
-            ${[['all', 'Toutes'], ...keys.map(k => [k, sessionMeta(k).label])].map(([k, l]) =>
+            ${[['all', 'Toutes'], ...filters].map(([k, l]) =>
               `<button class="segmented__btn ${histFilter === k ? 'segmented__btn--active' : ''}" aria-pressed="${histFilter === k}" data-action="hist-filter" data-cat="${esc(k)}">${l}</button>`).join('')}
           </div>
         </div>
@@ -188,7 +215,8 @@ function renderHistoryDetail(id) {
   const meta   = sessionMeta(h.category, progId);
   let when = capitalize(fmtDate(h.date, 'long'));
   // L'heure n'a de sens que pour une séance chronométrée (une séance passée n'a pas d'heure)
-  if (h.duration) when += ` · ${fmtTime(h.date)}`;
+  // « 2026 · 13:11 » insécable : l'heure ne passe jamais seule à la ligne (panel Historique)
+  if (h.duration) when = when.replace(/ (\S+)$/, '\u00a0$1') + `\u00a0·\u00a0${fmtTime(h.date)}`;
   const vol   = sessionVolume(h.exercises || [], entryBodyKg(h));
   const nSets = (h.exercises || []).reduce((a, e) => a + workSets(e.sets).length, 0);   // séries de travail
   const index = chosenMusclesIndex();

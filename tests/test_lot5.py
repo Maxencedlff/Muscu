@@ -105,6 +105,17 @@ def t_history(bench, eng, dev, theme):
         R.check(page.locator('.hmonth').count() == 3 and page.locator('[data-action="hist-more"]').count() == 1,
                 f'{t} historique : pagination sur 3 mois')
         shot(page, LOT, f'history_{dev}_{theme}')
+        # Records en toutes lettres (« 4 records », pas un chiffre seul après la médaille)
+        import re
+        recs = page.locator('.hcell__rec').all_inner_texts()
+        R.check(recs and all(re.fullmatch(r'\d+ records?', x.strip()) for x in recs), f'{t} historique : records en toutes lettres {recs[:3]}')
+        # Filtres tirés de l'historique : la séance « Bras » d'un autre programme a son filtre, qui ne montre qu'elle
+        bras = page.locator('[data-action="hist-filter"]', has_text='Bras')
+        R.check(bras.count() == 1 and '/' in (bras.get_attribute('data-cat') or ''), f'{t} historique : filtre Bras (autre programme)')
+        if bras.count() == 1:
+            bras.click()
+            tb = set(page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)"))
+            R.check(tb == {'Bras'}, f'{t} historique : filtre Bras ({tb})')
         # Filtre Pull + recherche
         page.click('[data-action="hist-filter"][data-cat="pull"]')
         titles = set(page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)"))
@@ -157,6 +168,21 @@ def t_history(bench, eng, dev, theme):
                        return i && n && n.getBoundingClientRect().right > i.getBoundingClientRect().left + 1; }).length }; }""")
         R.check(hd['img'] and hd['mus'] and hd['h1'], f'{t} détail : en-tête illustré, groupes écrits {hd}')
         R.check(hd['ex'] > 0 and hd['exImg'] == hd['ex'] and hd['over'] == 0, f'{t} détail : vignette par exercice, sans recouvrir le nom {hd}')
+        when = page.inner_text('.hdhead__when')
+        R.check(re.search(r'\d{4}\u00a0·\u00a0\d{1,2}:\d{2}$', when) is not None, f'{t} détail : « année · heure » insécable {when!r}')
+        # Records du détail en texte agrandi : la valeur sous le nom, pleine largeur, rien de coupé ; libellé en toutes lettres
+        rid = page.evaluate('historySorted().find(h => entryRecords(h).length)?.id')
+        if rid:
+            go(page, f'history-detail:{rid}')
+            rx = page.evaluate("""() => { const h = document.documentElement; h.classList.add('type-xl');
+                const out = [...document.querySelectorAll('.history-detail .review-rec')].map(c => { const b = c.querySelector('.cell__body').getBoundingClientRect(),
+                  v = c.querySelector('.review-rec__val'), vr = v.getBoundingClientRect();
+                  return { below: vr.top >= b.bottom - 1, cut: v.scrollWidth > v.clientWidth + 1, wide: b.width > c.getBoundingClientRect().width * .6 }; });
+                h.classList.remove('type-xl'); return out; }""")
+            R.check(rx and all(x['below'] and not x['cut'] and x['wide'] for x in rx), f'{t} détail texte agrandi : valeur des records sous le nom {rx[:2]}')
+            subs = page.locator('.history-detail .review-rec .cell__sub').all_inner_texts()
+            R.check(not any('Record reps' in x for x in subs), f'{t} détail : « Record de répétitions » en toutes lettres {subs[:3]}')
+            go(page, f'history-detail:{hid}')
         shot(page, LOT, f'history_detail_{dev}_{theme}')
         page.click('.navbar__back')  # Fusion : barre de navigation du lot 3
         R.check(page.locator('.view.history').count() == 1, f'{t} détail : retour à l\'historique')

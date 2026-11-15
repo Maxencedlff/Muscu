@@ -729,7 +729,7 @@ def t_recap(bench, eng, dev, theme):
         R.check('15' in tiles[2] and '4' in tiles[3], f'{t} séries et exercices ({tiles[2:]!r})')
         recs = page.locator('.coach-session-view .review-rec').all_inner_texts()
         R.check(len(recs) == 2 and 'Squat haltère' in recs[0] and 'avant 20 kg' in recs[0] and '22,5 kg' in recs[0], f'{t} record de charge nommé avec l\'ancienne valeur ({recs})')
-        R.check(len(recs) == 2 and 'Squat poids du corps' in recs[1] and 'Record reps' in recs[1], f'{t} record de reps au poids du corps ({recs})')
+        R.check(len(recs) == 2 and 'Squat poids du corps' in recs[1] and 'Record de répétitions' in recs[1], f'{t} record de reps au poids du corps ({recs})')
         rows = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .review-ex').all_inner_texts()]
         R.check('↑ +2,5 kg' in rows[0] and 'avant 20 kg × 12, 12, 12, 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
         R.check('36 reps' in rows[1] and '↑ +6 reps' in rows[1], f'{t} poids du corps : « 36 reps » et +6 ({rows[1]!r})')
@@ -774,7 +774,7 @@ def t_rir(bench, eng, dev, theme):
         tiles = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .tile').all_inner_texts()]
         R.check(tiles[1].startswith('480') and tiles[2].startswith('2'), f'{t} échauffement hors volume et séries ({tiles})')
         rec = page.inner_text('.coach-session-view .review-rec').replace('\u202f', ' ')
-        R.check('Record reps' in rec and 'avant 20 kg × 10' in rec and '20 kg × 12' in rec, f'{t} record noté ({rec!r})')
+        R.check('Record de répétitions' in rec and 'avant 20 kg × 10' in rec and '20 kg × 12' in rec, f'{t} record noté ({rec!r})')
         R.check("sans l'échauffement" in page.inner_text('.review-rule'), f'{t} règle du volume à jour')
         shot(page, LOT, f'14c-relecture-rir-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
