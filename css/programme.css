@@ -83,11 +83,18 @@ html.type-xl .view--grouped .plist .cell + .cell::before { left: 16px; }
 html.type-xl .ed-name { display: block; -webkit-line-clamp: unset; overflow: visible; overflow-wrap: break-word; }
 
 /* ── Mes programmes et Tous les programmes : vignette du groupe principal, séances en entier ── */
-.psq--img { width: 42px; height: 28px; overflow: hidden; background: var(--fill2); }
+.psq--img { width: 42px; height: 42px; overflow: hidden; background: var(--fill2); }
 .psq--img .mgc__img { position: static; display: block; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: 60% center; }
 .psq--img:has(.mgc__img[data-missing]) { visibility: hidden; }
 .mp-names { overflow-wrap: break-word; }   /* « Push · Pull · Legs » entier, sur deux lignes au besoin */
-html.type-xl .psq--img { display: none; }
+html.type-xl .psq--img, html.type-xl .psq--body { display: none; }
+/* Programme qui couvre plusieurs groupes : personnage entier, face et dos, muscles travaillés en rouge (récap) */
+.psq--body { width: 42px; height: 42px; padding: 2px 3px; background: var(--fill2); display: flex; align-items: center; }
+.psq--body .body-map { width: 100%; }
+/* Lettre d'un programme sans exercice : grise, sans couleur de séance */
+.psq:not(.psq--img):not(.psq--body) { background: var(--fill2); color: var(--label2); }
+/* « Actif » / « Ajouté » sous le nom (Tous les programmes) : la ligne des séances garde sa largeur */
+.prog-add__state { color: var(--label); font-weight: 600; }
 
 /* ── Programme › Exercice, texte agrandi : un choix par rangée (« Fourchette » jamais coupé en plein mot) ── */
 .ex-edit .seg-full .segmented__btn { overflow-wrap: normal; word-break: normal; hyphens: none; }

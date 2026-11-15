@@ -313,9 +313,11 @@ def t_programme(bench, eng, dev, theme):
         page.click('[data-action="go-my-programmes"]')
         R.check(page.locator('.cell--pick[aria-pressed="true"] .icon').count() == 1, f'{t} sélecteur : coche sur le programme actif')
         mp = page.evaluate("""() => [...document.querySelectorAll('.mp-list .cell--pick')].map(r => { const n = r.querySelector('.mp-names');
-            return { img: (r.querySelector('.psq--img img') || {}).getAttribute?.('src') || '', cut: n.scrollWidth > n.clientWidth + 1 || getComputedStyle(n).textOverflow === 'ellipsis',
+            return { id: r.dataset.id, body: !!r.querySelector('.psq--body .body-map[aria-hidden="true"]'), img: (r.querySelector('.psq--img img') || {}).getAttribute?.('src') || '', cut: n.scrollWidth > n.clientWidth + 1 || getComputedStyle(n).textOverflow === 'ellipsis',
                      lines: Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight)) }; })""")
-        R.check(mp and mp[0]['img'].startswith('img/muscles/'), f'{t} Mes programmes : vignette du groupe principal de PPL {mp}')
+        # Un programme couvre plusieurs groupes : personnage entier avec ses muscles, jamais la vignette d'un seul groupe
+        multi = [x for x in mp if x['id'] in ('ppl', 'upper_lower')]
+        R.check(len(multi) == 2 and all(x['body'] and not x['img'] for x in multi), f'{t} Mes programmes : PPL et Upper / Lower en personnage entier {mp}')
         R.check(all(not x['cut'] and x['lines'] <= 2 for x in mp), f'{t} Mes programmes : séances en entier, 2 lignes au plus {mp}')
         shot(page, LOT, f'picker_{dev}_{theme}')
         page.click('[data-action="select-prog"][data-id="upper_lower"]')

@@ -66,6 +66,14 @@ def t_mes_programmes(bench, eng, dev, theme):
         rows = page.locator('.prog-add [data-action="open-prog-info"]')
         R.check(rows.count() == 7, f'{t} catalogue : 7 programmes intégrés ({rows.count()})')
         R.check('3 séances par semaine' in rows.first.inner_text(), f'{t} catalogue : fréquence conseillée')
+        # Vignettes : personnage entier (muscles travaillés) pour un programme multi-groupes ; jamais la même image
+        # d'un seul groupe pour tous (« une icône = un sens ») ; « Actif » sous le nom, pas à droite des séances
+        thumbs = page.evaluate("""() => [...document.querySelectorAll('.prog-add [data-action="open-prog-info"]')].map(r =>
+            r.querySelector('.psq--body') ? 'corps' : (r.querySelector('.psq--img img') || {}).getAttribute?.('src') || 'lettre')""")
+        R.check(thumbs.count('corps') >= 5 and len([x for x in thumbs if x.startswith('img/')]) <= 2, f'{t} catalogue : personnage entier pour les programmes complets {thumbs}')
+        state = page.locator('.prog-add [data-id="ppl"] .prog-add__state')
+        R.check(state.count() == 1 and state.inner_text().strip() == 'Actif' and page.locator('.prog-add [data-id="ppl"] .cell__value').count() == 0,
+                f'{t} catalogue : « Actif » sous le nom de PPL')
         shot(page, LOT, f'2-ajouter-{t}')
         tap(page, '.prog-add [data-action="open-prog-info"][data-id="bro"]')
         R.check(page.evaluate('view') == 'prog-info', f'{t} fiche du programme')

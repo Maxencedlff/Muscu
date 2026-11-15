@@ -51,14 +51,40 @@ function progSessionThumbHtml(cat) {
   return `<img class="mgc__img pcard__img" src="img/muscles/${id}.webp" alt="" aria-hidden="true" width="600" height="400" decoding="async">`;
 }
 
-// Vignette d'un programme (Mes programmes, Tous les programmes) : groupe principal de toutes ses séances (exercices
-// par défaut d'un programme intégré jamais ouvert) ; sans exercice, son initiale
-function progSquareHtml(id, pm, color) {
-  const exs = Object.values((data.programmes[id] || makeProgData(id)).exercises || {}).flat();
-  const g = exs.length ? exercisesMainGroup(exs) : null;
-  return g
-    ? `<span class="psq psq--img" aria-hidden="true"><img class="mgc__img" src="img/muscles/${g.group}.webp" alt="" width="600" height="400" decoding="async"></span>`
-    : `<span class="psq" style="--c:${color}">${esc(pm.name.charAt(0).toUpperCase())}</span>`;
+// Vignette d'un programme (Mes programmes, Tous les programmes), d'après ses vrais exercices (ceux par défaut d'un
+// programme intégré jamais ouvert). Un programme couvre presque toujours plusieurs groupes : le personnage entier,
+// face et dos, avec en rouge les muscles qu'il travaille (bodyMapHtml, comme le récap de la semaine). Programme
+// vraiment ciblé (plus de 60 % de ses exercices dans un groupe) : la vignette de ce groupe. Sans exercice : son
+// initiale, en gris. Décorative : le nom et les séances sont écrits à côté.
+const PROG_FOCUS_SHARE = 0.6;
+function programmeExercises(id) {
+  return Object.values((data.programmes[id] || makeProgData(id)).exercises || {}).flat();
+}
+function programmeFocusGroup(exs) {
+  const n = new Map(), index = chosenMusclesIndex();
+  exs.forEach(ex => {
+    const g = muscleGroupOf(exerciseMuscles(ex, index).primary?.[0]);
+    if (g) n.set(g.id, (n.get(g.id) || 0) + 1);
+  });
+  const [best, count] = [...n.entries()].sort((a, b) => b[1] - a[1])[0] || [];
+  return best && count / exs.length > PROG_FOCUS_SHARE ? best : null;
+}
+function programmeLevels(exs) {
+  const levels = {}, index = chosenMusclesIndex();
+  exs.forEach(ex => {
+    const m = exerciseMuscles(ex, index);
+    m.secondary.forEach(k => { levels[k] = Math.max(levels[k] || 0, 0.4); });
+    m.primary.forEach(k => { levels[k] = 1; });
+  });
+  return levels;
+}
+function progSquareHtml(id, pm) {
+  const exs = programmeExercises(id);
+  const focus = exs.length ? programmeFocusGroup(exs) : null;
+  if (focus) return `<span class="psq psq--img" aria-hidden="true"><img class="mgc__img" src="img/muscles/${focus}.webp" alt="" width="600" height="400" decoding="async"></span>`;
+  const levels = exs.length ? programmeLevels(exs) : {};
+  if (Object.keys(levels).length) return `<span class="psq psq--body" aria-hidden="true">${bodyMapHtml(levels, { view: 'both' })}</span>`;
+  return `<span class="psq">${esc(pm.name.charAt(0).toUpperCase())}</span>`;
 }
 
 // Séance du programme en carte illustrée, comme « Autres séances » sur l'accueil : nom, muscles, exercices, séries et
@@ -164,18 +190,17 @@ function renderMyProgrammes() {
   const ids = data.myProgrammes || [];
   const info = id => {
     const pm = progMeta(id), keys = sessionKeys(id);
-    const color = keys.length ? sessionMeta(keys[0], id).color : 'var(--label3)';
     const names = isUserProg(id)
       ? (keys.map(k => esc(rawLabel(k, id))).join(' · ') || 'Aucune séance')
       : Object.values(pm.sessions).map(x => x.label).join(' · ');
-    return { pm, color, names };
+    return { pm, names };
   };
   const row = id => {
-    const { pm, color, names } = info(id);
+    const { pm, names } = info(id);
     const on = data.activeProgramme === id;
     return `
       <button class="cell cell--pick" data-action="select-prog" data-id="${esc(id)}" aria-pressed="${on}">
-        ${progSquareHtml(id, pm, color)}
+        ${progSquareHtml(id, pm)}
         <span class="cell__body">
           <span class="cell__title">${esc(pm.name)}</span>
           <span class="cell__sub mp-names">${names}</span>
@@ -186,7 +211,7 @@ function renderMyProgrammes() {
   };
   // Mode Modifier : même ligne que les exercices d'une séance (⊖ puis bouton rouge, poignée ≡)
   const editRow = id => {
-    const { pm, color } = info(id);
+    const { pm } = info(id);
     const active = id === data.activeProgramme, created = !PROGRAMMES[id];
     const verb = created ? 'Supprimer' : 'Retirer';
     const minus = active
@@ -195,7 +220,7 @@ function renderMyProgrammes() {
     return `
       <div class="cell ed-row ed-row--edit mp-row" data-id="${esc(id)}">
         ${minus}
-        ${progSquareHtml(id, pm, color)}
+        ${progSquareHtml(id, pm)}
         <span class="cell__body">
           <span class="cell__title ed-name">${esc(pm.name)}</span>
           ${active ? '<span class="cell__sub">Programme actif</span>' : ''}
@@ -226,16 +251,15 @@ function renderMyProgrammes() {
 function renderProgAdd() {
   const row = id => {
     const pm = PROGRAMMES[id], adv = PROGRAMME_ADVICE[id];
-    const color = Object.values(pm.sessions)[0]?.color || 'var(--label3)';
     const state = data.activeProgramme === id ? 'Actif' : inMyProgrammes(id) ? 'Ajouté' : '';
     return `
       <button class="cell cell--nav" data-action="open-prog-info" data-id="${esc(id)}">
-        ${progSquareHtml(id, pm, color)}
+        ${progSquareHtml(id, pm)}
         <span class="cell__body">
           <span class="cell__title">${esc(pm.name)}</span>
+          ${state ? `<span class="cell__sub prog-add__state">${state}</span>` : ''}
           <span class="cell__sub">${adv ? `${adv.perWeek} séances par semaine · ` : ''}${Object.values(pm.sessions).map(x => esc(x.label)).join(' · ')}</span>
         </span>
-        ${state ? `<span class="cell__value">${state}</span>` : ''}
         ${icon('chevron.right', 16)}
       </button>`;
   };
