@@ -297,7 +297,7 @@ def t_fil(bench, eng, dev, theme):
         page.locator('.feed-card').first.locator('.feed-card__main').click()
         page.wait_for_selector('.social-session-view')
         d = page.inner_text('.social-session-view')
-        R.check('80 kg × 8 · 7' in d and 'Dips' in d and 'note privée' not in d, f'{t} détail des séries ({d[:120]!r})')
+        R.check('80 kg × 8, 7' in d and 'Dips' in d and 'note privée' not in d, f'{t} détail des séries ({d[:120]!r})')
         # Volume : charge notée × reps, poids du corps non compté (Dips, Pompes) ; ni flèches ni notes
         vol = page.locator('.social-session-view .tile').nth(1).inner_text()   # Durée, Volume, Séries (même ordre que le fil)
         R.check('1,6 t' in vol and 'Volume' in vol, f'{t} volume de la séance d\'un ami : 1 560 kg, soit 1,6 t ({vol!r})')

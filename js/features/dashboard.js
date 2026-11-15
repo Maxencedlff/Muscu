@@ -177,7 +177,7 @@ function targetsHtml(cat) {
     <div class="targets">
       <div class="targets__head">
         <h3 class="targets__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}</h3>
-        <button class="targets__edit" data-action="go-editor" data-cat="${esc(cat)}" aria-label="Modifier les exercices">Modifier</button>
+        <button class="targets__edit" data-action="go-editor" data-cat="${esc(cat)}" aria-label="Modifier les exercices et les objectifs de cette séance">Modifier</button>
       </div>
       <ul class="targets__list">${exs.slice(0, HERO_TARGETS).map(ex => targetRowHtml(cat, ex)).join('')}</ul>
       ${more > 0 ? `<p class="targets__more">et ${plural(more, 'autre exercice', 'autres exercices')}</p>` : ''}

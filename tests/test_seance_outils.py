@@ -170,7 +170,7 @@ def t_outils(bench, eng, dev, theme):
         notes = page.locator('.hex__sets--note').all_inner_texts()
         R.check(any(n.startswith('Échauffement 25 kg × 8') for n in notes) and any(n.startswith('Reps en réserve : 0 · —') for n in notes), f'{t} détail : lignes Échauffement et Reps en réserve {notes}')
         work = page.locator('.hex__sets').first.inner_text()
-        R.check(work.startswith('60 kg × ') and '25 kg' not in work and '35 kg' not in work and work.count('·') == 1, f'{t} détail : deux séries de travail seules ({work})')
+        R.check(work.startswith('60 kg × ') and '25 kg' not in work and '35 kg' not in work and work.count(',') == 1 and '·' not in work, f'{t} détail : deux séries de travail seules, reps à virgule ({work})')
         shot(page, LOT, f'{t}-06-historique')
         # Progrès › Exercice : courbe Effort proposée pour le Squat barre
         page.evaluate("navigate(makeRoute('stats-ex', 'g1squatb'))"); page.wait_for_selector('.view.stats-ex'); page.wait_for_timeout(300)
