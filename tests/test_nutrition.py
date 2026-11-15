@@ -745,7 +745,8 @@ def t_clavier(bench):
     """Clavier ouvert (signalé le 10/11) : la feuille « Ajouter un aliment » et son bouton Scanner restent au-dessus,
     le contenu défile ; clavier refermé, tout revient en bas."""
     engines = dict((d, e) for e, d in ALL_DEVICES)
-    for dev in ('iPhone 13', 'iPhone SE'):
+    # iPhone 17 : vraie marge du haut (Dynamic Island, simulée) : la feuille ne doit pas monter dessous (15/11)
+    for dev in ('iPhone 13', 'iPhone SE', 'iPhone 17'):
         for theme in THEMES:
             t = tag(dev, theme) + '-clavier'
             with bench.frozen_page(NOW, engines[dev], dev, theme) as page:
@@ -756,14 +757,15 @@ def t_clavier(bench):
                 page.wait_for_selector('#dietFoodSearch')
                 page.fill('#dietFoodSearch', 'riz')
                 page.wait_for_timeout(300)
-                kb = 336 if dev == 'iPhone 13' else 260
+                kb = 260 if dev == 'iPhone SE' else 336
                 page.evaluate('px => __kb(px)', kb)
                 page.wait_for_timeout(200)
                 m = page.evaluate("""([sel, kb]) => { const r = e => document.querySelector(sel + ' ' + e).getBoundingClientRect(), body = document.querySelector(sel + ' .sheet__body');
                     const vis = innerHeight - kb, s = r('.sheet'), sc = r('.diet-cand--scan'), ok = r('.sheet__btn--cancel');
                     return { open: document.documentElement.classList.contains('kb-open'), vis, bottom: s.bottom, top: s.top, scanTop: sc.top, scanBottom: sc.bottom,
                       barTop: ok.top, scrolls: body.scrollHeight > body.clientHeight + 1 }; }""", [LIVE_SHEET, kb])
-                R.check(m['open'] and m['bottom'] <= m['vis'] + 1 and m['top'] >= 0, f'{t} feuille au-dessus du clavier {m}')
+                safe_top = page.evaluate("() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sim-sai-top')) || 0")
+                R.check(m['open'] and m['bottom'] <= m['vis'] + 1 and m['top'] >= safe_top, f'{t} feuille au-dessus du clavier, sous la barre d\'état (marge {safe_top}) {m}')
                 R.check(m['scanTop'] >= m['top'] and m['scanBottom'] <= m['vis'], f'{t} bouton Scanner visible au-dessus du clavier {m}')
                 R.check(m['barTop'] >= 0, f'{t} Annuler visible {m}')
                 R.check(m['scrolls'] and page.evaluate("s => { const b = document.querySelector(s + ' .sheet__body'); b.scrollTop = 200; return b.scrollTop > 0; }", LIVE_SHEET),
