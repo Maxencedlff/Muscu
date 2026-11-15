@@ -10,7 +10,7 @@
 //    l'accueil (programme reçu, commentaire), consignes dans Programme, Programme › Séance et la séance
 //    (repliables), commentaire dans Historique (marque dans la liste, détail), notes vues du coach (bilan).
 //  - Coach : Mes élèves (`coach-students` : signal de progression et tri, js/features/coach-progress-ui.js ;
-//    nouvelles séances, invitations, élèves retirés), un élève (`coach-student:UID` : « Cette semaine » en tête,
+//    nouvelles séances, invitations, élèves retirés), un élève (`coach-student:UID` : « 7 derniers jours » en tête,
 //    séances, séries faites sur prévues, programmes envoyés pas encore utilisés),
 //    une séance (`coach-session:UID:ID` : relecture comparée à ses séances reçues, exercices prévus non faits,
 //    « Commenter »), envoi d'un programme avec consignes (`coach-send:UID:PROG`, brouillon gardé sur l'appareil).
@@ -338,9 +338,18 @@ function coachProgPreviewHtml(item) {
           </div>`).join('')}</div>`;
 }
 
-// Groupe le plus travaillé d'un programme reçu (toutes ses séances), pour sa vignette ; null sans détail (hors ligne)
-function coachProgGroupOf(item) {
-  return item?.meta ? null : sessionGroupOf((item?.data?.sessions || []).flatMap(x => x.exercises || []));
+// Illustration d'un programme reçu : la règle de Mes programmes (js/features/programme.js, programmeFocusGroup et
+// programmeLevels, réutilisées telles quelles) : un groupe seul s'il pèse plus de 60 % des exercices, sinon le
+// personnage entier, face et dos, muscles travaillés en rouge (« Force » Haut + Bas : tout le corps, plus les seuls
+// pectoraux, panel coach t1). Décorative ; '' sans détail (hors ligne) ni exercice.
+function coachProgArtHtml(item, cls) {
+  if (item?.meta) return '';
+  const exs = (item?.data?.sessions || []).flatMap(x => x.exercises || []);
+  if (!exs.length) return '';
+  const focus = programmeFocusGroup(exs);
+  if (focus) return progThumbHtml(focus, cls);
+  const levels = programmeLevels(exs);
+  return Object.keys(levels).length ? `<span class="${cls} cprog-body" aria-hidden="true">${bodyMapHtml(levels, { view: 'both' })}</span>` : '';
 }
 // État d'un programme reçu en une phrase courte (carte de tête de Mon coach)
 function coachProgStateText(item) {
@@ -358,7 +367,7 @@ function coachProgCardHtml(item) {
   const kept = status === 'current' && data.userProgrammes?.[id]?.fromCoach?.keptAt === item.sentAt && item.sentAt > (data.userProgrammes[id].fromCoach.sentAt || 0);
   const eyebrow = status === 'update' ? `Mis à jour par ${who}` : status === 'new' ? `Nouveau programme ${elide('de', who)}` : `Reçu ${elide('de', who)}`;
   const open = coachProgOpen.has(item.id) && !item.meta;
-  const art = progThumbHtml(coachProgGroupOf(item), 'coach-prog__img');
+  const art = coachProgArtHtml(item, 'coach-prog__img');
   const btn = status === 'current'
     ? (kept ? `<p class="coach-prog__done">Tu as gardé ta version.</p>
         <button class="btn btn--secondary coach-prog__btn" data-action="coach-take-prog" data-id="${esc(item.id)}">Prendre la version ${elide('de', who)}</button>`
@@ -383,7 +392,10 @@ function coachProgCardHtml(item) {
 
 // Pastille « nouveau » d'un élément compté dans la pastille de « Mon coach » (Social) : chaque nouveauté comptée
 // se retrouve à l'intérieur (panel t6 : 3 sur la ligne, une seule pastille visible dedans)
-function coachNewDotHtml(on) { return on ? ' <span class="coach-dot" role="img" aria-label="nouveau"></span>' : ''; }
+// Pastille rouge « Nouveau », la même que les compteurs (panel coach t1 : un point rouge sans chiffre ne se comptait pas
+// dans « Mon coach 3 ») ; collée au dernier mot par une espace insécable, jamais seule sur sa ligne. VoiceOver lit
+// « Nouveau ».
+function coachNewDotHtml(on) { return on ? '\u00a0<span class="coach-new">Nouveau</span>' : ''; }
 // Commentaires non lus à l'arrivée sur Mon coach : marqués vus tout de suite (la pastille de l'onglet baisse),
 // leur point reste jusqu'au départ de l'écran pour qu'on voie lesquels étaient nouveaux
 let coachMineFresh = new Set();
@@ -399,21 +411,23 @@ function coachNotesHtml(notes) {
   }).join('')}</div>`;
 }
 
-// Carte de tête de Mon coach, en bas : le dernier programme reçu, illustré (vignette carrée du groupe le plus
-// travaillé, décorative), son nom et son état ; la carte du programme, plus bas, garde l'action. Rien sans programme.
+// Carte de tête de Mon coach, en bas : le dernier programme reçu, illustré (décoratif), son nom et son état. La ligne
+// se touche, avec un chevron comme Messages : elle amène à la carte du programme, plus bas, qui garde l'action (Ajouter,
+// Mettre à jour) et l'aperçu des exercices. Rien sans programme.
 function coachMineProgHtml(inbox) {
   const item = inbox?.programmes?.[0];
   if (!item) return '';
-  const g = coachProgGroupOf(item), n = item.meta ? 0 : item.data.sessions.length;
+  const art = coachProgArtHtml(item, 'cmine-hero__img'), n = item.meta ? 0 : item.data.sessions.length;
   return `
-          <div class="cmine-hero__prog${g ? '' : ' cmine-hero__prog--noart'}">
-            ${g ? `<span class="cmine-hero__pic">${progThumbHtml(g, 'cmine-hero__img')}</span>` : ''}
+          <button class="cmine-hero__prog${art ? '' : ' cmine-hero__prog--noart'}" data-action="coach-prog-jump" data-id="${esc(item.id)}">
+            ${art ? `<span class="cmine-hero__pic">${art}</span>` : ''}
             <span class="cmine-hero__text">
               <span class="cmine-hero__eyebrow">${inbox.programmes.length > 1 ? 'Dernier programme reçu' : 'Programme reçu'}</span>
               <span class="cmine-hero__name">${esc(item.data.name)}</span>
               <span class="cmine-hero__sub">${n ? `${plural(n, 'séance', 'séances')}<span aria-hidden="true"> · </span><span class="visually-hidden">, </span>` : ''}${coachProgStateText(item)}</span>
             </span>
-          </div>`;
+            ${icon('chevron.right', 16)}
+          </button>`;
 }
 
 function renderCoachMine() {
@@ -892,7 +906,7 @@ SCREENS.set('coach-student', {
     coachLoadMeasures(uid);
     cphCoachRefresh().then(() => { if (cphCoach.key) cphCoachLoad(uid); });   // photos de bilan (liste chiffrée, rien d'ouvert)
     if (!plan.coach && plan.available !== false) coachPlanRefresh();   // planning (serveur sans planification : rien)
-    coachProgressRefresh();   // résumé « Cette semaine » (5 min au plus entre deux lectures)
+    coachProgressRefresh();   // résumé « 7 derniers jours » (5 min au plus entre deux lectures)
     coachMarkSeen(uid);
   },
 });
@@ -1162,6 +1176,14 @@ registerActions({
   'coach-lost-ok': () => { coachSetLost(null); refreshCoachCell(); },
   'coach-add-prog': async (e, el) => { await addCoachProgrammeFlow(el.dataset.id); },
   'coach-take-prog': async (e, el) => { await addCoachProgrammeFlow(el.dataset.id, { take: true }); },
+  // Carte de tête de Mon coach : la carte du programme sous la barre de navigation, son titre annoncé par VoiceOver
+  'coach-prog-jump': (e, el) => {
+    const card = document.getElementById(`coach-prog-${el.dataset.id}`);
+    if (!card) return;
+    window.scrollTo(0, Math.max(0, card.getBoundingClientRect().top + window.scrollY - ($('.navbar')?.offsetHeight || 0) - 8));
+    const h = card.querySelector('.coach-prog__name');
+    if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+  },
   'coach-prog-toggle': (e, el) => { const id = el.dataset.id; if (coachProgOpen.has(id)) coachProgOpen.delete(id); else coachProgOpen.add(id); render(); },
   'coach-dismiss-prog': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
   'coach-dismiss-note': (e, el) => { coachMarkInboxSeen('note', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },

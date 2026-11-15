@@ -253,16 +253,35 @@ def t_eleve(bench, eng, dev, theme):
         R.check(page.evaluate("getComputedStyle(document.querySelector('[data-action=social-enable]')).position") == 'static', f'{t} « Ajouter aussi des amis » : à sa place, pas collé sur le texte')
         layout(page, t, 'Social avec coach')
         shot(page, LOT, f'5-amis-cellule-{t}')
+        badge_out = int(cell.locator('.coach-count').inner_text()) if cell.locator('.coach-count').count() else 0
         cell.click()
         page.wait_for_selector('.coach-mine-view .coach-prog')
+        page.wait_for_timeout(300)
+        # Panel coach t1 : chaque nouveauté comptée dans « Mon coach N » a sa pastille dedans (« Nouveau » pour un programme,
+        # un plan ou un commentaire, le nombre pour les messages), collée à son texte
+        shown = page.locator('.coach-mine-view .coach-new').count() + sum(int(x) for x in page.locator('.coach-mine-view .chat-cell .coach-count').all_inner_texts())
+        R.check(badge_out > 0 and shown == badge_out, f'{t} Mon coach : {shown} nouveautés affichées pour la pastille {badge_out}')
+        alone = page.evaluate("""[...document.querySelectorAll('.coach-mine-view .coach-new')].filter(p => { const prev = p.previousSibling;
+            if (!prev) return false; const r = document.createRange(); r.setStart(prev, Math.max(0, prev.textContent.length - 2)); r.setEnd(prev, prev.textContent.length);
+            return Math.abs(r.getBoundingClientRect().top - p.getBoundingClientRect().top) > 6; }).length""")
+        R.check(alone == 0, f'{t} Mon coach : pastille « Nouveau » jamais seule sur sa ligne ({alone})')
         R.check('Trois séances par semaine' in page.inner_text('.coach-prog'), f'{t} Mon coach : consigne du programme')
         # Coach v2 : carte d'en-tête claire (le coach, puis le programme reçu illustré et son état), programme reçu
         # illustré lui aussi ; vignettes décoratives
         hero = page.locator('.coach-mine-view .cmine-hero')
         ht = hero.inner_text().replace('\u00a0', ' ')
         R.check(hero.count() == 1 and 'max' in ht and 'Ton coach' in ht and 'Force' in ht and 'À ajouter à tes programmes' in ht, f'{t} Mon coach : carte d\'en-tête ({ht!r})')
-        imgs = page.locator('.coach-mine-view .cmine-hero__img, .coach-mine-view .coach-prog__img')
-        R.check(imgs.count() == 2 and all(imgs.nth(i).get_attribute('aria-hidden') == 'true' and imgs.nth(i).get_attribute('alt') == '' for i in range(2)), f'{t} Mon coach : programme reçu illustré, vignettes décoratives ({imgs.count()})')
+        # « Force » (Haut + Bas avec squat) couvre plusieurs groupes : le personnage entier, comme Mes programmes (panel coach t1)
+        arts = page.locator('.coach-mine-view .cmine-hero__img, .coach-mine-view .coach-prog__img')
+        R.check(arts.count() == 2 and all(arts.nth(i).get_attribute('aria-hidden') == 'true' and arts.nth(i).locator('.body-map').count() == 1 for i in range(2)),
+                f'{t} Mon coach : programme reçu illustré par le personnage entier, décoratif ({arts.count()})')
+        row = hero.locator('[data-action="coach-prog-jump"]')
+        R.check(row.count() == 1 and row.locator('.icon').count() == 1, f'{t} Mon coach : ligne du programme touchable, avec chevron')
+        row.click()
+        page.wait_for_timeout(400)
+        top = page.evaluate("document.querySelector('.coach-mine-view .coach-prog').getBoundingClientRect().top - document.querySelector('.navbar').getBoundingClientRect().bottom")
+        R.check(-2 <= top <= 60 or page.evaluate('scrollY >= document.documentElement.scrollHeight - innerHeight - 2'), f'{t} Mon coach : la ligne amène à la carte du programme ({top})')
+        page.evaluate('scrollTo(0, 0)')
         # Aperçu des exercices avant d'ajouter
         page.click('[data-action="coach-prog-toggle"]')
         page.wait_for_selector('.coach-prog__preview')

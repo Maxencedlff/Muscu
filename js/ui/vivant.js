@@ -15,7 +15,8 @@ const VV_REDUCED = () => { try { return matchMedia('(prefers-reduced-motion: red
 // la semaine en cours a la même couleur partout (le texte, jamais le vert « fait »), et VoiceOver lit les valeurs.
 // Semaine sans séance : barre grise au plancher (une absence se lit, elle ne disparaît pas).
 const WKBARS_H = 28, WKBARS_MIN = 6;
-function weekBarsSvg(counts, caption = 'par semaine') {
+// rolling : tranches de 7 jours glissants (fiche d'un élève) plutôt que semaines du calendrier
+function weekBarsSvg(counts, caption = 'par semaine', { rolling = false } = {}) {
   if (!Array.isArray(counts) || counts.length < 2) return '';
   const max = Math.max(1, ...counts), n = counts.length;
   const cols = counts.map((c, i) => {
@@ -24,7 +25,8 @@ function weekBarsSvg(counts, caption = 'par semaine') {
       + `<span class="wkbars__n num${i === n - 1 ? ' wkbars__n--now' : ''}">${c}</span></span>`;
   }).join('');
   const before = counts.slice(0, -1).join(', ');
-  const spoken = `Séances par semaine, ${n} dernières semaines : ${before}, et ${counts[n - 1]} cette semaine`;
+  const spoken = rolling ? `Séances par tranches de 7 jours, ${n} dernières tranches : ${before}, et ${counts[n - 1]} ces 7 derniers jours`
+    : `Séances par semaine, ${n} dernières semaines : ${before}, et ${counts[n - 1]} cette semaine`;
   return `<span class="wkbars" role="img" aria-label="${spoken}"><span class="wkbars__bars">${cols}</span>`
     + `${caption ? `<span class="wkbars__lbl">${caption}</span>` : ''}</span>`;
 }

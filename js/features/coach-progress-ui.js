@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 //  Progression des élèves, écrans du coach : le signal de chaque ligne de Mes élèves, le tri et sa
-//  phrase d'explication, et le résumé « Cette semaine » en tête de la fiche d'un élève.
+//  phrase d'explication, et le résumé « 7 derniers jours » en tête de la fiche d'un élève.
 //  Règles (pures, testées) : js/data/coach-progress.js ; contrat : docs/COACH_SUIVI.md, « Progression ».
 //
 //  Une couleur, un sens : vert avec ↑ = record, orange = à relancer, gris = rien à faire. Le texte dit
@@ -11,9 +11,9 @@
 'use strict';
 
 const PROGRESS_SUMMARY_RECORDS = 3;   // fiche : records listés, les suivants comptés (« Et 2 autres records »)
-const PROGRESS_SORT_FOOT = 'En haut, les nouveautés à lire, puis les élèves à relancer, puis ceux qui ont battu un record cette semaine, puis les autres. Tes élèves ne se voient pas entre eux.';
+const PROGRESS_SORT_FOOT = 'En haut, les nouveautés à lire, puis les élèves à relancer, puis ceux qui ont battu un record ces 7 derniers jours, puis les autres. Tes élèves ne se voient pas entre eux.';
 
-// Signal d'une ligne : « 2 records cette sem. » (médaille), « 9 jours sans séance » (à relancer)…
+// Signal d'une ligne : « 2 records en 7 jours » (médaille), « 9 jours sans séance » (à relancer)…
 // À relancer : un triangle d'alerte devant le texte, au texte courant (l'orange reste à l'action, le rouge aux muscles)
 function progressSignalHtml(pr) {
   // Record : la médaille au trait, comme la fiche et le bilan ; la flèche verte reste aux progressions (panel v4 t1)
@@ -113,13 +113,16 @@ function progressSessionsCell(pr, planned, bars = '') {
           </div>`;
 }
 
-// Ses séances des 4 dernières semaines du calendrier (première page chargée), seulement si elle couvre toute la
-// période ; null sinon. Les barres (weekBarsSvg) disent elles-mêmes les nombres à VoiceOver
+// Ses séances par tranches de 7 jours glissants (aujourd'hui et les 6 jours d'avant, puis les 3 tranches d'avant), comme
+// le signal de la liste : un seul sens de « semaine » partout (panel coach t1). Première page chargée, seulement si elle
+// couvre les 28 jours ; null sinon. Les barres (weekBarsSvg) disent elles-mêmes les nombres à VoiceOver
 function progressWeekCounts(uid) {
   const f = coachSessions(uid), now = Date.now();
   const oldest = f.rows[f.rows.length - 1]?.doneAt;
-  const covered = f.end || (oldest && new Date(oldest).getTime() <= weekStartMs(now, 3));
-  return f.rows.length ? weekCounts(f.rows.map(r => new Date(r.doneAt).getTime()), now, 4, !!covered) : null;
+  const covered = f.end || (oldest && new Date(oldest).getTime() <= progressDayStart(now, 27));
+  if (!f.rows.length || !covered) return null;
+  const sessions = f.rows.map(r => ({ at: new Date(r.doneAt).getTime() }));
+  return [3, 2, 1, 0].map(k => progressWeekCount(sessions, k, now));
 }
 
 // Fiche d'un élève, sous la carte de tête : « 7 derniers jours » (glissants, panel vague 4 : « Cette semaine » se
@@ -137,14 +140,14 @@ function coachWeekSummaryHtml(uid) {
   const more = pr.records.length > PROGRESS_SUMMARY_RECORDS
     ? `<div class="cell"><span class="cell__sub">Et ${plural(pr.records.length - PROGRESS_SUMMARY_RECORDS, 'autre record', 'autres records')}, dans ses séances</span></div>` : '';
   const counts = progressWeekCounts(uid);
-  const sessions = progressSessionsCell(pr, planned, counts ? weekBarsSvg(counts) : '');
+  const sessions = progressSessionsCell(pr, planned, counts ? weekBarsSvg(counts, 'par 7 jours', { rolling: true }) : '');
   return `
         <div class="group-title">7 derniers jours</div>
         <div class="group progress-week">${sig}${sessions}${recs}${none}${more}</div>
-        <div class="group-foot">Aujourd'hui et les 6 jours d'avant. Les barres comptent les séances par semaine, du lundi au dimanche.</div>`;
+        <div class="group-foot">Aujourd'hui et les 6 jours d'avant. Les barres comptent les séances par tranches de 7 jours.</div>`;
 }
 
-// En tête de Mes élèves : « Cette semaine », trois chiffres d'un coup d'œil (records battus, élèves à relancer,
+// En tête de Mes élèves : « 7 derniers jours » (glissants, comme le signal de chaque élève), trois chiffres d'un coup d'œil (records battus, élèves à relancer,
 // nouveautés à lire), avec la même couleur que les lignes (vert ↑, orange, teinte). Rien à toucher : c'est
 // la liste triée en dessous qui mène aux élèves. VoiceOver lit une phrase.
 function coachTeamWeekHtml(students) {
@@ -152,9 +155,9 @@ function coachTeamWeekHtml(students) {
   const now = Date.now();
   const w = teamWeekSummary(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id));
   const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? `${medalSvg(14)} ` : ''}${val}</span> <span class="team-week__lbl">${lbl}</span></span>`;
-  const spoken = `Cette semaine : ${plural(w.records, 'record', 'records')}, ${plural(w.warn, 'élève', 'élèves')} à relancer, ${plural(w.fresh, 'nouveauté', 'nouveautés')} à lire.`;
+  const spoken = `7 derniers jours : ${plural(w.records, 'record', 'records')}, ${plural(w.warn, 'élève', 'élèves')} à relancer, ${plural(w.fresh, 'nouveauté', 'nouveautés')} à lire.`;
   return `
-        <div class="group-title">Cette semaine</div>
+        <div class="group-title">7 derniers jours</div>
         <div class="team-week" role="img" aria-label="${esc(spoken)}">
           ${tile(w.records, w.records > 1 ? 'records' : 'record', 'up')}
           ${tile(w.warn, 'à relancer', 'warn')}

@@ -66,10 +66,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   test('progression : records de la semaine, un par exercice, le plus marquant d\'abord', () => {
     const f = facts([[0, [rec('Squat', 'reps', 10)]], [2, [rec('Squat', 'charge', 105), rec('Tractions', 'reps', 9)]], [7, [rec('Développé couché')]], [9]]);
     const p = sp(st({ last_session: last(0) }), f);
-    sameJSON([p.kind, p.tone, p.text], ['records', 'up', '2 records cette sem.'], 'Squat deux fois : un seul record ; le 7e jour d\'avant ne compte pas');
+    sameJSON([p.kind, p.tone, p.text], ['records', 'up', '2 records en 7 jours'], 'Squat deux fois : un seul record ; le 7e jour d\'avant ne compte pas');
     sameJSON(p.records.map(x => [x.ex, x.r.kind]), [['Squat', 'charge'], ['Tractions', 'reps']]);
     assert.equal(p.n7, 2);
-    assert.equal(sp(st({ last_session: last(0) }), facts([[0, [rec('Squat')]]])).text, '1 record cette sem.');
+    assert.equal(sp(st({ last_session: last(0) }), facts([[0, [rec('Squat')]]])).text, '1 record en 7 jours');
     // Casse et accents : même exercice
     assert.equal(sp(st({ last_session: last(0) }), facts([[0, [rec('Développé couché')]], [1, [rec('developpe COUCHE', 'reps')]]])).records.length, 1);
     // Séance d'une app d'avant (records null) : rien d'inventé
@@ -116,7 +116,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(sp(s, facts(list, { from: D(27, 0) })).kind, 'fewer');
     // Sans faits du tout : séances sur 7 jours de coach_state, ni habitude ni records
     const p = sp(st({ last_session: last(1), sessions_7d: 3 }));
-    sameJSON([p.kind, p.text, p.habit, p.records.length], ['regular', '3 séances cette sem.', null, 0]);
+    sameJSON([p.kind, p.text, p.habit, p.records.length], ['regular', '3 séances en 7 jours', null, 0]);
   });
 
   test('progression : stable depuis 2 semaines sans record, seulement sur des séances que l\'app sait juger', () => {
@@ -138,7 +138,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     }
     assert.equal(sp(s, f({ lastRecordAt: D(40) }), [phase('bulk', '2026-11-09', 6)]).kind, 'stable', 'prise de masse : oui');
     // Aucune séance cette semaine (mais moins de 8 jours) : la semaine, pas « stable »
-    assert.equal(sp(st({ last_session: last(7) }), facts([[7], [14]], { lastRecordAt: D(40) })).text, '0 séance cette sem.');
+    assert.equal(sp(st({ last_session: last(7) }), facts([[7], [14]], { lastRecordAt: D(40) })).text, '0 séance en 7 jours');
   });
 
   test('progression : tri de Mes élèves (nouveautés, à relancer, records, les autres)', () => {
@@ -222,7 +222,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       run(`__answers.coach_progress = { students: [{ student_id: 's1', sessions: [{ at: Date.now() - 3600000, records: [{ ex: 'Squat', kind: 'charge', before: 100, after: 105 }] }] }] }`);
       assert.equal(await run('coachProgressRefresh()'), true);
       assert.equal(run('progress.available'), true);
-      assert.equal(run(`coachStudentProgress(coach.state.students[0]).text`), '1 record cette sem.');
+      assert.equal(run(`coachStudentProgress(coach.state.students[0]).text`), '1 record en 7 jours');
       assert.equal(await run('coachProgressRefresh()'), true, 'relu il y a moins de 5 min : rien');
       assert.equal(run('__calls.filter(c => c[0] === "coach_progress").length'), 1);
       // Serveur d'avant : PGRST202 → séances de l'élève actif ces 35 jours (Léa), pas de Tom ni de Zoé
@@ -233,7 +233,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       for (let i = 0; i < 5 && run('progress.prefetching'); i++) await new Promise(r => setTimeout(r, 0));
       assert.equal(run('progress.available'), false);
       sameJSON(run('__calls.map(c => c[0] + (c[1]?.student ? ":" + c[1].student : ""))'), ['coach_progress', 'coach_student_sessions:s1']);
-      assert.equal(run(`coachStudentProgress(coach.state.students[0]).text`), '1 record cette sem.', 'signal depuis les séances reçues');
+      assert.equal(run(`coachStudentProgress(coach.state.students[0]).text`), '1 record en 7 jours', 'signal depuis les séances reçues');
       // Ensuite : plus d'appel à la fonction absente ; séances lues il y a moins de 5 min : pas relues
       await run('coachProgressRefresh()');
       for (let i = 0; i < 5 && run('progress.prefetching'); i++) await new Promise(r => setTimeout(r, 0));

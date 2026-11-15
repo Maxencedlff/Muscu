@@ -13,7 +13,7 @@
 //         jamais pendant une phase où l'on ne cherche pas de record (sèche, mini cut, maintien, décharge,
 //         reprise) ;
 //      5. sinon     (gris)   : le nombre de séances de la semaine.
-//    « Cette semaine » = aujourd'hui et les 6 jours d'avant (jours du calendrier) : un lundi matin ne
+//    « 7 jours » = aujourd'hui et les 6 jours d'avant (jours du calendrier) : un lundi matin ne
 //    remet pas tout le monde à zéro.
 //  - Tri de Mes élèves (sortStudentsByProgress) : nouveautés à lire, puis élèves à relancer, puis records,
 //    puis les autres.
@@ -140,7 +140,7 @@ function studentProgress(st, { facts = null, phases = null, now = Date.now() } =
   const n7 = facts ? progressWeekCount(known, 0, now) : (st?.sessions_7d || 0);
   const records = facts ? progressWeekRecords(known, now) : [];
   const out = (kind, tone, text, extra = {}) => ({ kind, tone, text, n7, habit: null, records, daysSince: null, ...extra });
-  const weekTxt = n => `${plural(n, 'séance', 'séances')} cette sem.`;
+  const weekTxt = n => `${plural(n, 'séance', 'séances')} en 7 jours`;
 
   // 1. Inactif (ou jamais venu depuis son arrivée)
   if (!Number.isFinite(lastAt)) {
@@ -166,7 +166,7 @@ function studentProgress(st, { facts = null, phases = null, now = Date.now() } =
   }
 
   // 3. Records de la semaine
-  if (records.length) return out('records', 'up', `${plural(records.length, 'record', 'records')} cette sem.`, { habit, daysSince });
+  if (records.length) return out('records', 'up', `${plural(records.length, 'record', 'records')} en 7 jours`, { habit, daysSince });
 
   // 4. Stable : depuis le dernier record (ou la première séance connue), mais jamais sur une période où une
   //    séance n'a pas de records notés (app d'avant : on ne sait pas)

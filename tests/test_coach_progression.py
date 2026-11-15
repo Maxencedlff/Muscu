@@ -145,13 +145,13 @@ def t_liste(bench, eng, dev, theme):
         R.check(names == ['zoe', 'tom', 'nina', 'lea', 'hugo', 'paul'], f'{t} tri : nouveautés, à relancer, records, les autres ({names})')
         sig = lambda n: page.locator('.coach-student-row', has_text=n).locator('.progress-sig')
         # Panel v4 t1 : médaille au trait (comme la fiche et le bilan), plus la flèche verte des progressions
-        R.check(sig('lea').inner_text().replace(' ', '') == '2recordscettesem.' and sig('lea').locator('.medal').count() == 1,
+        R.check(sig('lea').inner_text().replace(' ', '').replace('\u00a0', '') == '2recordsen7jours' and sig('lea').locator('.medal').count() == 1,
                 f'{t} Léa : records, médaille ({sig("lea").inner_text()!r})')
         R.check('progress-sig--up' in (sig('lea').get_attribute('class') or ''), f'{t} Léa : signal record')
         R.check(sig('tom').inner_text() == '9 jours sans séance' and 'progress-sig--warn' in sig('tom').get_attribute('class'), f'{t} Tom : inactif en orange ({sig("tom").inner_text()!r})')
         R.check(sig('nina').inner_text() == '1 séance au lieu de 3' and 'progress-sig--warn' in sig('nina').get_attribute('class'), f'{t} Nina : en baisse ({sig("nina").inner_text()!r})')
         R.check(sig('hugo').inner_text() == 'Stable depuis 2 sem.' and 'progress-sig--muted' in sig('hugo').get_attribute('class'), f'{t} Hugo : stable en gris ({sig("hugo").inner_text()!r})')
-        R.check(sig('paul').inner_text() == '1 séance cette sem.' and 'progress-sig--muted' in sig('paul').get_attribute('class'), f'{t} Paul en décharge : pas « en baisse » ({sig("paul").inner_text()!r})')
+        R.check(sig('paul').inner_text() == '1 séance en 7 jours' and 'progress-sig--muted' in sig('paul').get_attribute('class'), f'{t} Paul en décharge : pas « en baisse » ({sig("paul").inner_text()!r})')
         R.check(page.locator('.coach-student-row', has_text='zoe').locator('.coach-count').count() == 1, f'{t} Zoé : pastille des nouvelles séances')
         R.check('Mini cut · sem. 3/6' in page.locator('.coach-student-row', has_text='lea').inner_text(), f'{t} Léa : sa phase en 3e ligne')
         R.check('Push · ' in page.locator('.coach-student-row', has_text='tom').inner_text(), f'{t} Tom sans planning : sa dernière séance en 3e ligne')
@@ -189,6 +189,13 @@ def t_fiche(bench, eng, dev, theme):
         R.check('3 sur 4' in wk and 'Prévues : Sèche 4 jours' in wk, f'{t} fiche : séances faites sur prévues ({wk!r})')
         R.check('Squat' in wk and 'Tractions' in wk and '105 kg' in wk and 'avant 100 kg' in wk, f'{t} fiche : records avec l\'exercice')
         R.check(page.locator('.progress-week .review-rec').count() == 2, f'{t} fiche : un record par exercice')
+        # Panel coach t1 : un seul sens de « semaine », les 7 jours glissants partout (signal de la liste, barres de la fiche)
+        bars = page.locator('.progress-week .wkbars')
+        if bars.count():
+            nums = page.locator('.progress-week .wkbars__n').all_inner_texts()
+            R.check(page.inner_text('.progress-week .wkbars__lbl') == 'par 7 jours' and bars.get_attribute('aria-label').startswith('Séances par tranches de 7 jours')
+                    and nums[-1] == page.inner_text('.progress-week .progress-week__row .cell__value').split()[0], f'{t} fiche : barres par tranches de 7 jours, la dernière = le chiffre affiché ({nums})')
+        R.check('par tranches de 7 jours' in page.inner_text('.coach-student-view .group-foot'), f'{t} fiche : pied « par tranches de 7 jours »')
         # Coach v2 : la dernière séance passe dans la carte de tête, illustrée (vignette décorative), au-dessus des
         # « 7 derniers jours », avec ses jours d'entraînement en pastilles (aujourd'hui à droite)
         hero = page.locator('.coach-student-view .cstu-hero')
@@ -235,7 +242,7 @@ def t_serveur_ancien(bench, eng, dev, theme):
         page.wait_for_selector('.coach-student-row[data-signal="records"]', timeout=5000)
         page.wait_for_timeout(500)
         sig = page.locator('.coach-student-row', has_text='lea').locator('.progress-sig').inner_text()
-        R.check('2 records cette sem.' in sig, f'{t} serveur d\'avant : records lus dans les séances ({sig!r})')
+        R.check('2 records en 7 jours' in sig, f'{t} serveur d\'avant : records lus dans les séances ({sig!r})')
         read = sorted(c['student'] for c in ccalls(page, 'coach_student_sessions'))
         R.check(read == sorted(ids[n] for n in ['zoe', 'tom', 'nina', 'lea', 'hugo', 'paul']), f'{t} serveur d\'avant : une page par élève actif ({len(read)})')
         R.check(len(ccalls(page, 'coach_progress')) == 1, f'{t} serveur d\'avant : fonction absente demandée une fois')

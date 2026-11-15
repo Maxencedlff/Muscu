@@ -194,17 +194,19 @@ s'appuie que sur `coach_state` (inactivité, séances de la semaine). Une app d'
 
 ### Règles du signal (un par élève, le premier qui s'applique)
 
-« Cette semaine » = aujourd'hui et les 6 jours d'avant, en jours du calendrier : un lundi matin ne remet pas tout le
-monde à zéro, et c'est la même fenêtre que « séances sur 7 jours ». Chaque signal tient en 22 caractères, une ligne
-sur un iPhone SE (« sem. » comme dans « Mini cut · sem. 3/6 ») ; un test unitaire le vérifie.
+« 7 jours » = aujourd'hui et les 6 jours d'avant, en jours du calendrier : un lundi matin ne remet pas tout le
+monde à zéro, et c'est la même fenêtre que « séances sur 7 jours ». Un seul sens partout depuis le panel coach t1 (le
+signal disait « cette sem. » sur 7 jours glissants quand les barres de la fiche comptaient du lundi au dimanche) :
+signal (« 3 séances en 7 jours »), résumé « 7 derniers jours » de Mes élèves et barres de la fiche (tranches de 7 jours).
+Chaque signal tient en 22 caractères, une ligne sur un iPhone SE ; un test unitaire le vérifie.
 
 | # | Signal | Couleur | Règle | Pourquoi |
 |---|---|---|---|---|
 | 1 | « 9 jours sans séance » ; « Pas encore de séance » | orange | 8 jours du calendrier ou plus sans séance (au-delà de 4 semaines : « 5 sem. sans séance ») ; jamais venu, lié depuis 8 jours (avant : même texte, en gris) | Une semaine entière sautée, même par un élève à 1 séance par semaine. Vrai aussi en décharge : une décharge s'entraîne, plus léger. |
 | 2 | « 1 séance au lieu de 3 » | orange | Habitude = médiane des 3 semaines d'avant, au moins 2 ; cette semaine au moins 2 de moins. Seulement si ces 3 semaines sont connues (fenêtre du serveur, ou toutes ses séances reçues). **Jamais** si une phase Décharge ou Reprise touche cette semaine (en cours ou finie depuis moins de 7 jours) | Une séance ratée n'est pas une baisse ; la médiane ignore une semaine à part (malade, vacances) ; en décharge ou en reprise, on s'entraîne moins exprès. |
-| 3 | « ↑ 2 records cette sem. » | vert | Records notés cette semaine, un par exercice (casse et accents ignorés) | Le nombre d'exercices qui progressent, pas le nombre de lignes (charge et reps du même squat = 1). |
+| 3 | « 2 records en 7 jours » | vert | Records notés en 7 jours, un par exercice (casse et accents ignorés) | Le nombre d'exercices qui progressent, pas le nombre de lignes (charge et reps du même squat = 1). |
 | 4 | « Stable depuis 3 sem. » (au-delà de l'horizon de 182 jours : « 6 mois ») | gris | Aucun record depuis 14 jours ou plus (depuis le dernier record, sinon la première séance connue), cette semaine au moins une séance, et toutes les séances de la période ont des records notés (`unnoted_at` plus ancien). **Jamais** pendant une phase Sèche, Mini cut, Maintien, Décharge ou Reprise | Ne pas dire « stable » sur des séances que l'app ne sait pas juger (app d'avant) ; en sèche, ne pas battre de record est normal, « stable » y serait lu comme un reproche. |
-| 5 | « 3 séances cette sem. » | gris | Le reste | Toujours une information utile, jamais une alerte. |
+| 5 | « 3 séances en 7 jours » | gris | Le reste | Toujours une information utile, jamais une alerte. |
 
 La baisse passe avant les records : un élève qui bat un record sur sa seule séance de la semaine, au lieu de trois,
 doit quand même être relancé. Une couleur, un sens : vert avec ↑ = record, orange = à relancer, gris = rien à faire ;
@@ -214,24 +216,25 @@ le texte dit toujours la même chose que la couleur.
 
 1. **Nouveautés à lire** (nouvelles séances ou messages non lus), la séance la plus récente d'abord ;
 2. **à relancer** (orange), le plus ancien sans séance d'abord ;
-3. **records cette semaine**, le plus de records d'abord ;
+3. **records en 7 jours**, le plus de records d'abord ;
 4. **les autres**, la séance la plus récente d'abord.
 
 À égalité, le pseudo. Sous la liste (dès 2 élèves) : « En haut, les nouveautés à lire, puis les élèves à relancer,
-puis ceux qui ont battu un record cette semaine, puis les autres. »
+puis ceux qui ont battu un record ces 7 derniers jours, puis les autres. »
 
 ### Écrans
 
 - **Ligne d'un élève** : 3 lignes au plus : pseudo ; signal ; sa phase (« Mini cut · sem. 3/6 ») ou, sans planning,
   sa dernière séance (« Push · ton programme · hier »). Pastilles (nouvelles séances, messages) inchangées. Élève sans
   séance arrivé il y a moins de 8 jours, sans planning : pas de signal, la 3e ligne dit « Aucune séance pour l'instant ».
-- **Fiche d'un élève, en tête** : groupe « 7 derniers jours » (« Cette semaine » jusqu'à la vague 4, confondu avec la
-  semaine du calendrier de l'accueil ; les mini-barres, elles, comptent les semaines du lundi au dimanche, chiffre sous
-  chaque barre) : le signal s'il est orange ou « stable » (les autres se
+- **Fiche d'un élève, en tête** : carte de sa dernière séance (illustrée, elle s'ouvre quand elle est chargée : 2e
+  toucher depuis la liste) et de ses jours d'entraînement, puis le groupe « 7 derniers jours » (« Cette semaine » jusqu'à
+  la vague 4) ; ses mini-barres comptent les séances par tranches de 7 jours glissants, les 4 dernières, chiffre sous
+  chaque barre (« par 7 jours ») : le signal s'il est orange ou « stable » (les autres se
   lisent dans les lignes du dessous) ; « Séances » : « 3 sur 4 » et « Prévues : Sèche 4 jours » quand sa phase en cours
   suit un de mes programmes (nombre de séances du programme, retrouvé par son nom), sinon « 2 » et « 3 d'habitude » ; un record
   par exercice (3 au plus, puis « Et 2 autres records ») avec l'exercice, la valeur et celle d'avant ; « Records :
-  Aucun » ; « Dernière séance », qui s'ouvre (2e toucher depuis la liste) quand elle est chargée.
+  Aucun ».
 
 ### Limites
 
