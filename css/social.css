@@ -388,3 +388,8 @@ html.type-xl .feed-card__head { min-height: 0; }
 .comment-compose__count { margin: 4px calc(var(--gutter) + 6px) 0; min-height: 0; text-align: right; font-size: var(--fs-footnote); color: var(--label2); }
 .comment-compose__count:empty { display: none; }
 .comment-compose__count.is-over { color: var(--red-text); }
+/* Texte agrandi : records (Mon profil, fiche d'un élève, séance d'un ami) sur deux lignes plutôt qu'un nom d'exercice
+   coupé au milieu d'un mot ; la valeur passe dessous quand le nom prend la largeur */
+html.type-xl :is(.rec-row, .review-rec) { flex-wrap: wrap; row-gap: 2px; }
+html.type-xl :is(.rec-row, .review-rec) .cell__body { flex: 1 1 8em; min-width: 0; }
+html.type-xl :is(.rec-row, .review-rec) .cell__title { overflow-wrap: normal; word-break: normal; hyphens: none; }

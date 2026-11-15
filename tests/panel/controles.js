@@ -28,7 +28,7 @@
   // 1. Débordement horizontal de la page
   const large = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
   if (large > innerWidth + 1) {
-    const fautif = [...document.body.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1 && !e.closest('[aria-hidden=true]'); })
+    const fautif = [...document.body.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1 && getComputedStyle(e).display !== 'none'; })
       .filter((e, i, l) => !l.some(o => o !== e && e.contains(o))).slice(0, 3).map(nom).join(' ; ');
     constats.push(`débordement horizontal : page de ${large} px pour un écran de ${innerWidth} px${fautif ? ` (${fautif})` : ''}`);
   }
