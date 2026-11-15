@@ -316,23 +316,9 @@ function heroHtml(keys, next, liveHere) {
 }
 
 // ── Illustrations : toujours décoratives (alt vide, aria-hidden) ; VoiceOver lit le nom et les infos écrites ──
-// Muscles principaux de la séance et nombre d'exercices qui les travaillent
-function sessionMuscleCount(cat) {
-  const index = chosenMusclesIndex(), n = new Map();
-  // Muscle principal d'un exercice = le premier : il compte 1, les autres principaux ½ (un Pull avec curls et tractions
-  // reste « Dos » et non « Bras » : retour de Maxence, 15/11)
-  (prog().exercises[cat] || []).forEach(ex => exerciseMuscles(ex, index).primary.forEach((m, i) => n.set(m, (n.get(m) || 0) + (i ? 0.5 : 1))));
-  return n;
-}
-// Groupe principal d'une séance (celui qui compte le plus d'exercices) : Push → pectoraux, Pull → dos, Legs → jambes
+// Groupe principal d'une séance du programme (mainGroupOf, js/data/muscles.js) : Push → pectoraux, Pull → dos, Legs → jambes
 function sessionGroup(cat) {
-  const n = sessionMuscleCount(cat);
-  let best = null, bestN = 0;
-  MUSCLE_GROUPS.forEach(g => {
-    const c = g.muscles.reduce((a, m) => a + (n.get(m) || 0), 0);
-    if (c > bestN) { best = g.id; bestN = c; }
-  });
-  return best;
+  return mainGroupOf(prog().exercises[cat] || []);
 }
 // Vignette du groupe (img/muscles/<groupe>.webp, 600 × 400, celle de la Bibliothèque) ; fichier absent : rien
 // (classe mgc__img : js/ui/vivant.js la marque data-missing et la cache)

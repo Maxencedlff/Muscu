@@ -879,6 +879,24 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.ok(!app.muscleFilterHtml('lib-muscle', run('NO_MUSCLE_FILTER')).includes('mf__row--sub'));
   });
 
+  test('muscles : groupes travaillés par une liste d\'exercices (cartes de l\'historique, vignettes de l\'accueil)', () => {
+    reset();
+    const push = [{ name: 'Développé couché' }, { name: 'Développé incliné haltères' }, { name: 'Élévations latérales' }, { name: 'Extension triceps poulie' }];
+    const groups = app.exercisesGroups(push).map(x => x.g.id);
+    assert.equal(groups[0], 'pectoraux', `Push : pectoraux d'abord (${groups})`);
+    assert.ok(groups.includes('epaules') && groups.includes('bras'), `Push : épaules et bras présents (${groups})`);
+    assert.equal(app.mainGroupOf([{ name: 'Squat' }, { name: 'Leg curl' }, { name: 'Mollets debout' }]), 'jambes');
+    // Un Pull avec deux curls reste « Dos » : le premier muscle d'un exercice compte 1, les autres ½
+    assert.equal(app.mainGroupOf([{ name: 'Tractions' }, { name: 'Rowing barre' }, { name: 'Curl biceps' }]), 'dos');
+    // Liste vide, absente ou d'exercices inconnus : aucun groupe (pas de vignette)
+    assert.equal(app.mainGroupOf([]), null);
+    assert.equal(app.mainGroupOf(undefined), null);
+    assert.equal(app.exercisesGroups([{ name: 'Truc inventé zzz' }]).length, 0);
+    // Les groupes sont triés du plus au moins travaillé, sans groupe à zéro
+    const ns = app.exercisesGroups(push).map(x => x.n);
+    assert.ok(ns.every((n, i) => n > 0 && (i === 0 || ns[i - 1] >= n)), `ordre décroissant (${ns})`);
+  });
+
   // Contexte vm (localStorage) : lu à l'appel, après reset()
   function ctx() { return run('globalThis'); }
 }

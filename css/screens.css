@@ -222,6 +222,66 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
 .hex__sets { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); }
 .hnotes { font-size: 0.882rem; line-height: 1.176rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 
+/* ── Historique illustré (refonte du 15/11, dans le style des cartes de l'accueil) ──
+   Chaque séance passée est une carte : nom, date et records, exercices · tonnage · durée à gauche ; vignette 3D du
+   groupe le plus travaillé à droite (img/muscles/<groupe>.webp, 600 × 400, muscles en rouge, bord gauche fondu dans
+   l'image). Aplat de cellule, séparateurs iOS, aucun dégradé ni ombre. Les sélecteurs à trois classes passent devant
+   .view--grouped .mgc et .mgc__img de css/muscles.css (chargé après). Texte agrandi : plus de vignette (même fichier),
+   le texte prend toute la largeur et revient à la ligne. */
+.hmonth__count { font-weight: 400; color: var(--label2); font-size: var(--fs-subhead); }
+.view--grouped .hrow .hcell--card { min-height: 4.9rem; padding: 10px 16px; gap: 8px; overflow: hidden; }
+.hcell--card .hcell__body.mgc__text { flex: none; width: 58%; gap: 1px; }
+.hcell--card .hcell__title { font-size: var(--fs-title3); line-height: 1.35rem; white-space: normal; overflow: visible; overflow-wrap: break-word; }
+.hcell--card .hcell__title > [role="img"] { margin-left: 6px; vertical-align: -2px; }
+.hcell__when { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hcell--card .hcell__date { font-size: var(--fs-subhead); line-height: 1.25rem; color: var(--label2); }
+.hcell--card .hcell__sub { font-size: var(--fs-footnote); line-height: 1.059rem; overflow-wrap: normal; }
+.hcell--card > .icon { margin-left: auto; position: relative; z-index: 1; }
+.hrow .hcell--card .hcell__img {
+  top: 6px; right: 36px; height: calc(100% - 12px); max-width: 34%; object-fit: contain; object-position: right center;
+}
+@media (max-width: 359px) {
+  .hcell--card .hcell__body.mgc__text { width: 64%; }
+  .hrow .hcell--card .hcell__img { max-width: 28%; }
+}
+/* Petite hauteur (iPhone SE) : cartes resserrées, quatre séances visibles sous la recherche et les filtres */
+@media (max-height: 700px) {
+  .view--grouped .hrow .hcell--card { min-height: 4.3rem; padding-block: 7px; }
+  .hcell--card .hcell__title { font-size: var(--fs-body); line-height: 1.25rem; }
+  .hcell--card .hcell__date { line-height: 1.1rem; }
+}
+html.type-xl .hcell--card .hcell__body.mgc__text { width: auto; flex: 1; }
+html.type-xl .hcell__when { flex-wrap: wrap; }
+
+/* Détail d'une séance : en-tête comme la carte de la prochaine séance (nom, date, groupes à gauche ; vignette à droite) */
+.view--grouped .hdhead.mgc {
+  position: relative; display: flex; align-items: center; min-height: 7.2rem; margin-top: 8px; padding: 14px 16px;
+  background: var(--cell); border-radius: var(--r-lg); overflow: hidden;
+}
+.hdhead .hdhead__text { width: 58%; gap: 2px; }
+.hdhead .hdhead__title { margin: 0; display: block; font-size: var(--fs-title1); line-height: 2rem; font-weight: 800; letter-spacing: -.02em; }
+.hdhead__when, .hdhead__prog { font-size: var(--fs-subhead); line-height: 1.3; color: var(--label2); }
+.hdhead__mus { margin-top: 4px; font-size: var(--fs-subhead); line-height: 1.3; color: var(--label); font-weight: 600; }
+.view--grouped .hdhead .hdhead__img { top: 8px; right: 8px; height: calc(100% - 16px); max-width: 46%; object-fit: contain; object-position: right center; }
+@media (max-width: 359px) {
+  .hdhead .hdhead__text { width: 64%; }
+  .view--grouped .hdhead .hdhead__img { max-width: 38%; }
+}
+.hdhead--noart .hdhead__text { width: 100%; }
+html.type-xl .view--grouped .hdhead.mgc { min-height: 0; }
+html.type-xl .hdhead .hdhead__text { width: 100%; }
+
+/* Exercices du détail : petite vignette du muscle principal en haut à droite, le texte s'arrête avant elle */
+.hex--art { position: relative; }
+.hex--art .hex__img {
+  position: absolute; top: 8px; right: 12px; left: auto; height: 2.6rem; width: auto; max-width: none; aspect-ratio: 3 / 2;
+  object-fit: contain; object-position: right center;
+}
+.hex--art:has(.hex__img) .cell__body { padding-right: 4.2rem; }
+.hex--art:has(.hex__img[data-missing]) .cell__body { padding-right: 0; }
+html.type-xl .hex--art .cell__body { padding-right: 0; }
+html.type-xl .hex__img { display: none; }
+
 /* ── Progrès ── */
 .prow { gap: 10px; }
 .prow__name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
