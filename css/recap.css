@@ -105,7 +105,7 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
   padding: calc(env(safe-area-inset-top, 0px) + 72px) var(--gutter) calc(var(--rc-foot-h, calc(env(safe-area-inset-bottom, 0px) + 72px)) + 12px);
   display: flex; flex-direction: column; overflow-y: auto; -webkit-user-select: none; user-select: none;
 }
-.recap-page__body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.recap-page__body { flex: 1; display: flex; flex-direction: column; min-height: 0; container-type: size; }   /* cqh : hauteur disponible au-dessus du pied */
 .rp-inner { display: flex; flex-direction: column; gap: 10px; margin: auto 0; padding: 8px 0; }
 
 .rp-kicker { font-size: var(--fs-subhead); font-weight: 600; opacity: .7; }
@@ -186,11 +186,13 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
 .rp-list li small { display: block; margin-top: 2px; font-size: var(--fs-footnote); font-weight: 700; opacity: .75; }
 .rp-list li b { flex-shrink: 0; white-space: nowrap; font-weight: 800; }
 .rp-list li.rp-list__more { min-height: 36px; font-size: var(--fs-footnote); font-weight: 700; opacity: .75; }
-.rp-list-title { margin-top: 6px; font-size: var(--fs-footnote); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+.rp-list-title { margin-top: 6px; font-size: var(--fs-subhead); font-weight: 600; opacity: .7; }
+/* Liste trop haute pour l'écran : les dernières lignes sont retirées (recapFit), le récap partagé les garde */
+.rp-list .is-fit-out, .is-fit-out { display: none !important; }
 
 /* Ouverture : personnage à droite, le texte garde sa colonne */
 .rp-inner--side { position: relative; padding-right: 34%; }
-.rp-side { position: absolute; right: -8px; top: 50%; transform: translateY(-50%); width: 36%; pointer-events: none; }
+.rp-side { position: absolute; right: -8px; top: 50%; transform: translateY(-50%); width: min(36%, 100cqh * .44); pointer-events: none; }   /* paysage : la hauteur du personnage reste dans l'écran (une vue : largeur / hauteur ≈ .46) */
 .rp-side .body-map { --body-base-bright: 1; width: 100%; }
 .recap-page.is-active .rp-side { animation: recapFig .6s ease-out .15s both; }
 

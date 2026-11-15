@@ -251,9 +251,25 @@ function recapFootGuard() {
   recapFootObs = null;
   const view = document.querySelector('.view.recap'), foot = view?.querySelector('.recap__foot');
   if (!foot) return;
-  const set = () => view.style.setProperty('--rc-foot-h', `${Math.ceil(foot.getBoundingClientRect().height)}px`);
+  const set = () => { view.style.setProperty('--rc-foot-h', `${Math.ceil(foot.getBoundingClientRect().height)}px`); recapFit(); };
   set();
   if (typeof ResizeObserver === 'function') { recapFootObs = new ResizeObserver(set); recapFootObs.observe(foot); }
+  document.fonts?.ready.then(() => { if (view.isConnected) recapFit(); });   // polices chargées : hauteurs définitives
+}
+
+// Écran plus haut que la place (noms longs, petit téléphone, paysage) : la liste perd ses dernières lignes,
+// « et N autres » d'abord, jusqu'à tenir ; une seule ligne qui ne tient pas : la liste et son titre partent.
+// Mesure par offsetHeight (insensible à l'animation d'arrivée) ; VoiceOver lit toujours tout (aria-label).
+function recapFit() {
+  document.querySelectorAll('.recap-page').forEach(p => {
+    p.querySelectorAll('.is-fit-out').forEach(e => e.classList.remove('is-fit-out'));
+    const body = p.querySelector('.recap-page__body'), inner = p.querySelector('.rp-inner'), list = p.querySelector('.rp-list');
+    if (!body || !inner || !list) return;
+    const over = () => inner.offsetHeight > body.clientHeight;
+    const rows = [...list.children].filter(li => li.offsetHeight > 0).reverse();   // « et N autres » est la dernière
+    while (over() && rows.length > 1) rows.shift().classList.add('is-fit-out');
+    if (over()) { list.classList.add('is-fit-out'); p.querySelector('.rp-list-title')?.classList.add('is-fit-out'); }
+  });
 }
 
 // Story du dernier écran : l'image partagée elle-même, dessinée une fois
