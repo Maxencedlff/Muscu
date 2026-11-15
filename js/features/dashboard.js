@@ -316,7 +316,7 @@ function heroHtml(keys, next, liveHere) {
 }
 
 // ── Illustrations : toujours décoratives (alt vide, aria-hidden) ; VoiceOver lit le nom et les infos écrites ──
-// Groupe principal d'une séance du programme (mainGroupOf, js/data/muscles.js) : Push → pectoraux, Pull → dos, Legs → jambes
+// Groupe principal d'une séance du programme (mainGroupOf, js/features/progress-muscles.js) : Push → pectoraux, Pull → dos, Legs → jambes
 function sessionGroup(cat) {
   return mainGroupOf(prog().exercises[cat] || []);
 }

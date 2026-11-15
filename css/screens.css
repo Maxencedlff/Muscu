@@ -243,9 +243,11 @@ html.type-xl .hmonth__count > [aria-hidden] { display: none; }
 .hrow .hcell--card .hcell__img {
   top: 6px; right: 36px; height: calc(100% - 12px); max-width: 34%; object-fit: contain; object-position: right center;
 }
-@media (max-width: 359px) {
-  .hcell--card .hcell__body.mgc__text { width: 64%; }
-  .hrow .hcell--card .hcell__img { max-width: 28%; }
+/* Écrans étroits (iPhone SE 1re génération, Galaxy S8) : plus de place au texte, la ligne des détails ne se coupe pas ;
+   la vignette (contain, calée à droite) reste dans son coin */
+@media (max-width: 374px) {
+  .hcell--card .hcell__body.mgc__text { width: 70%; }
+  .hrow .hcell--card .hcell__img { max-width: 26%; }
 }
 /* Petite hauteur (iPhone SE) : cartes resserrées, quatre séances visibles sous la recherche et les filtres */
 @media (max-height: 700px) {

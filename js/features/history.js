@@ -35,7 +35,7 @@ function healthHistoryCell(h) {
 }
 
 // Séance passée en carte illustrée, comme « Autres séances » de l'accueil : nom, date et records, puis exercices, tonnage
-// et durée à gauche ; vignette 3D du groupe le plus travaillé à droite (mainGroupOf, js/data/muscles.js). La vignette est
+// et durée à gauche ; vignette 3D du groupe le plus travaillé à droite (mainGroupOf, js/features/progress-muscles.js). La vignette est
 // décorative (aria-hidden) : VoiceOver lit le texte, records compris. Texte agrandi : plus de vignette (css/muscles.css).
 // index : chosenMusclesIndex() calculé une fois pour toute la liste
 function historyCell(h, index) {
