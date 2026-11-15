@@ -224,10 +224,10 @@ function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
 
 // Légende : l'unité en tête (panel t5), chaque palier en mots avec ses bornes ; en « 4 semaines », la moyenne par semaine.
 // load : avec la charge de la période, une ligne dit où en sont TES muscles (muscleLegendYou)
-function muscleLegendHtml(span = muscleSpan, load = null) {
+function muscleLegendHtml(span = muscleSpan, load = null, { unit = true } = {}) {
   const you = load ? muscleLegendYou(load) : '';
   return `<div class="mlegend" aria-hidden="true">
-    <span class="mlegend__unit">${span === 'month' ? 'Séries en moyenne par semaine' : 'Séries par semaine'}</span>
+    ${unit ? `<span class="mlegend__unit">${span === 'month' ? 'Séries en moyenne par semaine' : 'Séries par semaine'}</span>` : ''}
     ${MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('')}
     ${you ? `<span class="mlegend__you num">${esc(you)}</span>` : ''}
   </div>`;
@@ -297,7 +297,7 @@ function renderStatsMuscles() {
       ${navBar({ title: 'Séries par muscle' })}
       <div class="scr">
         <div class="mdetail__seg">${spanSegmentedHtml()}</div>
-        <div class="mdetail__legend">${muscleLegendHtml(load.span)}</div>
+        <div class="mdetail__legend">${muscleLegendHtml(load.span, null, { unit: false })}</div>
         <div class="group-title">${weeklyTitle(load.span)}</div>
         <div class="group">${muscleWeekRowsHtml(load, ids)}</div>
         <div class="group-foot">La couleur de la barre est le palier de la légende. Une série compte entière pour les muscles principaux d'un exercice et pour moitié pour ses muscles secondaires. Repère : 10 séries par semaine et par muscle ; jusqu'à 20, les gains continuent, plus lentement.</div>

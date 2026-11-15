@@ -34,16 +34,19 @@ function exWindowPct(it, now = Date.now()) {
 // Force d'un groupe : moyenne des progrès (exWindowPct) des exercices dont il est le muscle principal
 // Séries par semaine du groupe : somme des séries par semaine affichées de ses muscles (load.weekly) : la carte, le
 // détail du groupe et Séries par muscle disent le même nombre
+// Moins de GROUP_MIN_SESSIONS séances des exercices du groupe en 12 semaines : « Pas assez de séances » plutôt qu'un
+// « Stable » qui laisserait croire à une mesure (panel Progrès t2 : Abdominaux « Stable » à 1 série par semaine)
+const GROUP_MIN_SESSIONS = 4;
 function groupProgress(idx, load) {
   const by = new Map(MUSCLE_GROUPS.map(g => [g.id, []]));
   idx.forEach(it => {
     const g = muscleGroupOf(exMainMuscle(it.name)), p = g ? exWindowPct(it) : null;
-    if (p !== null) by.get(g.id).push({ it, pct: p });
+    if (p !== null) by.get(g.id).push({ it, pct: p, n: windowPoints(it).length });
   });
   return MUSCLE_GROUPS.map(g => {
-    const ex = by.get(g.id), pcts = ex.map(x => x.pct);
+    const ex = by.get(g.id), enough = ex.reduce((a, x) => a + x.n, 0) >= GROUP_MIN_SESSIONS;
     const perWeek = g.muscles.reduce((a, m) => a + (load.weekly[m] || 0), 0);
-    return { g, ex, n: pcts.length, pct: pcts.length ? Math.round(pcts.reduce((a, v) => a + v, 0) / pcts.length) : null, perWeek };
+    return { g, ex, n: ex.length, pct: enough ? Math.round(ex.reduce((a, x) => a + x.pct, 0) / ex.length) : null, perWeek };
   });
 }
 function groupTrendTxt(pct) { return pct === null ? 'Pas assez de séances' : pct === 0 ? 'Stable' : `${pctTxt(pct)} de force`; }
@@ -54,7 +57,7 @@ function progGroupCardsHtml(idx, load = muscleLoad(muscleSpan)) {
     const cls = pct > 0 ? 'txt-up' : 'txt-flat';   // une baisse en gris : le rouge, ici, c'est le muscle
     const trend = groupTrendTxt(pct);
     const sets = `${plural(perWeek, 'série', 'séries')} par semaine`;
-    const label = `${g.label} : ${trend}${n ? ` sur ${plural(n, 'exercice', 'exercices')}` : ''} en 3 mois, ${sets}`;
+    const label = `${g.label} : ${trend}${pct !== null ? ` sur ${plural(n, 'exercice', 'exercices')}` : ''} en 3 mois, ${sets}`;
     return `
       <button class="cell cell--nav mgc pgrp" data-action="open-stats-group" data-group="${g.id}" aria-label="${esc(label)}">
         <span class="mgc__text" aria-hidden="true">
@@ -86,7 +89,7 @@ function renderStatsGroup(id) {
         <h1 class="scr-title exhead__title">${esc(g.label)}</h1>
         <div class="sgrp__force">
           <span class="sgrp__pct num ${gp.pct === null ? 'txt-flat' : cls}">${groupTrendTxt(gp.pct)}</span>
-          <span class="sgrp__since">en 3 mois${gp.n ? `, sur ${plural(gp.n, 'exercice', 'exercices')}` : ''}</span>
+          <span class="sgrp__since">en 3 mois${gp.pct !== null ? `, sur ${plural(gp.n, 'exercice', 'exercices')}` : ''}</span>
         </div>
         <p class="sgrp__how">${GROUP_FORCE_HOW}</p>
         ${rows ? `<div class="group-title">Exercices</div><div class="group">${rows}</div>`

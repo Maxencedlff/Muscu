@@ -169,8 +169,9 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const s = (name, exId, w, d, cat = 'push') => ({ id: `${exId}${d}`, programme: 'ppl', category: cat, date: Date.now() - d * DAY, exercises: [
       { exId, name, sets: [{ weight: String(w), reps: '8', done: true }, { weight: String(w), reps: '8', done: true }] }] });
     run(`data.activeProgramme = 'ppl'; data.history = ${JSON.stringify([
-      s('Développé couché barre', 'bench', 50, 60), s('Développé couché barre', 'bench', 52.5, 30), s('Développé couché barre', 'bench', 55, 2),
-      s('Curl barre', 'curl', 30, 50, 'pull'), s('Curl barre', 'curl', 30, 3, 'pull'),
+      s('Développé couché barre', 'bench', 50, 60), s('Développé couché barre', 'bench', 52.5, 40), s('Développé couché barre', 'bench', 52.5, 20), s('Développé couché barre', 'bench', 55, 2),
+      s('Curl barre', 'curl', 30, 50, 'pull'), s('Curl barre', 'curl', 30, 30, 'pull'), s('Curl barre', 'curl', 30, 15, 'pull'), s('Curl barre', 'curl', 30, 3, 'pull'),
+      s('Crunch câble', 'crunch', 25, 40, 'legs'), s('Crunch câble', 'crunch', 25, 10, 'legs'),
       s('Tirage vertical', 'lat', 60, 3, 'pull')])};`);
   }
 
@@ -181,6 +182,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     sameJSON(g.pectoraux, { pct: 10, n: 1, perWeek: g.pectoraux.perWeek }, '50 → 55 kg : +10 %');
     assert.equal(g.bras.pct, 0, 'même charge : stable');
     assert.equal(g.dos.pct, null, 'une seule séance : pas de pourcentage');
+    assert.equal(g.abdominaux.pct, null, 'deux séances en 3 mois : « Pas assez de séances », pas « Stable »');
     assert.ok(g.pectoraux.perWeek > 0 && Number.isInteger(g.pectoraux.perWeek), 'séries par semaine entières');
     const html = run(`progGroupCardsHtml(exerciseIndex(), muscleLoad('month'))`);
     assert.equal((html.match(/class="cell cell--nav mgc pgrp"/g) || []).length, 6, 'six groupes');
@@ -205,6 +207,8 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(curl.includes('Stable') && !curl.includes('class="spark"') && !curl.includes('0 %'), 'stable : un mot, pas de ligne plate');
     assert.ok(bench.includes('class="spark"') && bench.includes('+10 %'), 'progrès : courbe et pourcentage');
     assert.ok(bench.includes('img/muscles/chest.webp') && bench.includes('alt=""'), 'vignette décorative du muscle principal');
+    const inGroup = run(`statsRow([...exerciseIndex().values()].find(it => it.name === 'Développé couché barre'), { recent: true })`);
+    assert.ok(inGroup.includes('+10\u00a0% en 3 mois') && !inGroup.includes('class="spark"'), 'détail du groupe : période dite, pas de mini-courbe');
   });
 
   // ── Échauffement ──

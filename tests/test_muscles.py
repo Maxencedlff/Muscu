@@ -117,6 +117,22 @@ def t_progress(bench, eng, dev, theme):
                 f'{t} Séries par muscle : même unité et mêmes nombres que la carte, paliers légendés {top}')
         page.click('[data-action="back"]'); page.wait_for_selector('.view.stats-group')
         page.click('[data-action="back"]'); page.wait_for_selector('.view.stats')
+        # Détail « Pectoraux » : chaque nom d'exercice se lit en entier, sur 2 lignes au plus, jamais coupé dans un mot
+        # (panel Progrès t2 : « Déve co… » sur iPhone SE), avec la période de son évolution
+        page.locator('.view.stats .pgrp[data-group="pectoraux"]').click()
+        page.wait_for_selector('.view.stats-group'); page.wait_for_timeout(500)
+        names = page.evaluate("""() => [...document.querySelectorAll('.stats-group .prow__name')].map(e => {
+            const lh = parseFloat(getComputedStyle(e).lineHeight) || 21, words = [];
+            const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+            for (let n = w.nextNode(); n; n = w.nextNode()) for (const m of n.nodeValue.matchAll(/\\S+/g)) {
+              const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length); words.push(r.getClientRects().length); }
+            return { t: e.textContent.trim(), full: e.scrollWidth <= e.clientWidth + 1 && e.scrollHeight <= e.clientHeight + 1,
+                     lines: Math.round(e.getBoundingClientRect().height / lh), whole: words.every(k => k === 1) }; })""")
+        R.check(names and all(n['full'] and n['lines'] <= 2 and n['whole'] for n in names), f'{t} détail Pectoraux : noms entiers, 2 lignes au plus {names}')
+        subs = page.locator('.stats-group .prow .cell__sub').all_inner_texts()
+        R.check(all('en 3 mois' in x for x in subs if '%' in x or 'stable' in x) and page.locator('.stats-group .spark').count() == 0,
+                f'{t} détail : évolution avec sa période, sans mini-courbe {subs}')
+        page.click('[data-action="back"]'); page.wait_for_selector('.view.stats')
         # Période ouverte par défaut : 4 semaines (cette semaine, la silhouette est grise le lundi)
         R.check(page.locator('[data-action="muscle-span"][data-span="month"]').get_attribute('aria-pressed') == 'true', f'{t} 4 semaines par défaut')
         page.click('[data-action="muscle-span"][data-span="week"]')

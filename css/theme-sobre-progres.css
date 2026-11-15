@@ -164,3 +164,13 @@ html.type-xl :is(.mcard, .mdetail__seg) .seg-full .segmented__btn::before { disp
 /* Titre du groupe : bloc (et non flex, où un mot plus large que l'écran ne se coupe pas), coupé au besoin en texte
    très agrandi avec une police plus large (vu en CI : « Pectoraux » à 33 px débordait sur iPhone SE) */
 .stats-group .exhead__title { display: block; hyphens: auto; }
+
+/* Noms d'exercices : toujours lisibles, coupés entre deux mots seulement (« haltères », « barre » distinguent les variantes).
+   Détail d'un groupe : sans mini-courbe, l'évolution sous le nom, le nom en entier sur toute la largeur ;
+   liste de Progrès sur écran étroit (iPhone SE) : la mini-courbe cède sa place au nom, le % reste */
+.prow__name { overflow-wrap: normal; word-break: normal; hyphens: manual; }
+.prow--group .prow__name { display: block; -webkit-line-clamp: unset; overflow: visible; }
+@media (max-width: 360px) { .prow .prow__spark { display: none; } }
+/* Courbe d'un exercice : une ligne d'aide sous la valeur quand le 1RM estimé est choisi */
+.chart-help { margin: 2px 0 8px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); }
+.prow__period { white-space: nowrap; }

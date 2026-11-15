@@ -124,7 +124,9 @@ function exStatsParts(it, { fiche = false } = {}) {
       </button>`;
   }).join('');
 
-  const modes = cardio ? cModes : [['charge', 'Charge max'], ['volume', 'Volume'], ['1rm', '1RM est.'], ...(hasRpe ? [['effort', 'Effort']] : [])];
+  // « 1RM estimé » en toutes lettres quand il tient (trois mesures) ; à quatre, la forme courte, et une ligne d'aide
+  // sous la valeur quand elle est choisie (panel Progrès t2 : « 1RM est. » est du jargon)
+  const modes = cardio ? cModes : [['charge', 'Charge max'], ['volume', 'Volume'], ['1rm', hasRpe ? '1RM est.' : '1RM estimé'], ...(hasRpe ? [['effort', 'Effort']] : [])];
   const modeOn = cardio ? cardioMode : statsMode;
   // Cardio : meilleure allure (ou vitesse) et plus longue distance à la place du record de charge
   const paces = it.points.map(p => p.pace).filter(Boolean);
@@ -147,13 +149,14 @@ function exStatsParts(it, { fiche = false } = {}) {
           ${bw ? '' : cell('Meilleur volume', fmtVolume(Math.max(0, ...pts.map(p => p.volume))))}` : '';
   const chart = `
         <div class="segmented seg-full" role="group" aria-label="Mesure affichée">
-          ${modes.map(([m, l]) => `<button class="segmented__btn ${modeOn === m ? 'segmented__btn--active' : ''}" aria-pressed="${modeOn === m}" data-action="${cardio ? 'stats-cardio-mode' : 'stats-mode'}" data-mode="${m}">${l}</button>`).join('')}
+          ${modes.map(([m, l]) => `<button class="segmented__btn ${modeOn === m ? 'segmented__btn--active' : ''}" aria-pressed="${modeOn === m}" data-action="${cardio ? 'stats-cardio-mode' : 'stats-mode'}" data-mode="${m}"${m === '1rm' ? ' aria-label="1RM estimé"' : ''}>${l}</button>`).join('')}
         </div>
         <div class="chart-head">
           <span class="chart-head__val num">${fmtMetricVal(vals[vals.length - 1], bw)}</span>
           ${tp === null ? '' : `<span class="chart-head__trend num ${better > 0 ? 'txt-up' : better < 0 ? 'txt-down' : 'txt-flat'}">${pctTxt(tp)}</span><span class="chart-head__since">${esc(sinceTxt(pts[0].date))}</span>`}
           ${statsMode === '1rm' && !cardio ? `<button class="info-btn" data-action="info-1rm" aria-label="Comment est calculé le 1RM estimé ?">i</button>` : ''}
         </div>
+        ${statsMode === '1rm' && !cardio ? '<p class="chart-help">1RM estimé : la charge max théorique pour 1 rép, d\'après tes séries.</p>' : ''}
         <div class="chart" id="exChart">
           <canvas class="stats-canvas" role="img" aria-label=""></canvas>
           <div class="chart-bubble num" hidden></div>

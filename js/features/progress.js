@@ -175,6 +175,21 @@ function statsRow(it, { recent = false } = {}) {
   const last = it.points[it.points.length - 1];
   const tp   = trendPct(vals);
   const cls  = tp > 0 ? 'txt-up' : tp < 0 ? 'txt-down' : 'txt-flat';
+  const perf = it.measure === 'cardio' ? cardioPointTxt(last, paceKind(it)) : bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best, { name: it.name });
+  // Détail d'un groupe : l'évolution sous le nom, avec sa période (« +8 % en 3 mois », la force du groupe), sans
+  // mini-courbe : le nom garde toute la largeur (panel Progrès t2 : « Déve co… » sur iPhone SE)
+  if (recent) {
+    const trend = tp === null ? '' : tp === 0 ? 'stable en 3 mois' : `${pctTxt(tp)} en 3 mois`;
+    return `
+      <button class="cell cell--nav prow prow--group" data-action="open-stats-ex" data-ex="${esc(it.exId)}">
+        ${progThumbHtml(exMainMuscle(it.name), 'prow__img')}
+        <span class="cell__body">
+          <span class="cell__title prow__name">${esc(it.name)}</span>
+          <span class="cell__sub num">${perf}${trend ? ` · <span class="prow__period ${cls}">${trend}</span>` : ''}</span>
+        </span>
+        ${icon('chevron.right', 16)}
+      </button>`;
+  }
   const trail = tp === null ? '' : tp === 0 ? '<span class="prow__trend prow__trend--stable">Stable</span>'
     : `<span class="prow__spark ${cls}">${sparkline(vals, pts.map(p => p.date))}</span><span class="prow__trend num ${cls}">${pctTxt(tp)}</span>`;
   return `
@@ -182,7 +197,7 @@ function statsRow(it, { recent = false } = {}) {
         ${progThumbHtml(exMainMuscle(it.name), 'prow__img')}
         <span class="cell__body">
           <span class="cell__title prow__name">${esc(it.name)}</span>
-          <span class="cell__sub num">${it.measure === 'cardio' ? cardioPointTxt(last, paceKind(it)) : bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best, { name: it.name })}</span>
+          <span class="cell__sub num">${perf}</span>
         </span>
         ${trail}
         ${icon('chevron.right', 16)}
