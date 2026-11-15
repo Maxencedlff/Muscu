@@ -199,8 +199,10 @@ body.light .livebar { background: var(--cell); }
   animation: sheetUp .35s var(--nav-ease);
   transition: transform .25s var(--nav-ease);
 }
-.kb-open .sheet-root { top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); }
-.kb-open .sheet { max-height: calc(var(--vv-h, 100dvh) - 12px); padding-bottom: 0; }
+/* Clavier ouvert : la feuille tient dans la zone visible, SOUS la barre d'état / Dynamic Island (retour de Maxence,
+   15/11 : la feuille « Nouvel aliment » mordait sur l'heure et la batterie) */
+.kb-open .sheet-root { top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); }   /* voile sur toute la zone visible */
+.kb-open .sheet { max-height: calc(var(--vv-h, 100dvh) - env(safe-area-inset-top, 0px) - 12px); padding-bottom: 0; }
 .sheet__grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--label3); margin: 6px auto 0; flex-shrink: 0; }
 .sheet__bar { display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr); align-items: center; min-height: 44px; padding: 0 4px; flex-shrink: 0; }
 .sheet__title:focus, .sheet:focus { outline: none; }   /* focus posé pour VoiceOver (dialogs.js), pas d'anneau à l'écran */
