@@ -112,4 +112,14 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run(`offPortion({ serving_quantity: 100 }, 'Pain de mie')`).g, 25, '100 g n\'est pas une portion');
   });
 
+
+  test('desserts lactés en pot : liégeois, crème dessert, mousse, flan ; pas les gaufres liégeoises', () => {
+    const u = n => run(`foodPortions({ name: ${JSON.stringify(n)} })`)[0];
+    assert.deepEqual([u('Liégeois ou viennois (chocolat, café, caramel ou vanille), rayon frais').u, u('Liégeois ou viennois (chocolat, café, caramel ou vanille), rayon frais').g], ['pot', 100]);
+    assert.equal(u('Crème dessert au chocolat, rayon frais').g, 125);
+    assert.equal(u('Mousse au chocolat (base laitière), rayon frais').g, 60);
+    assert.equal(u('Flan aux oeufs, rayon frais').g, 100);
+    assert.equal(u('Gaufre bruxelloise ou liégeoise nature, artisanale'), undefined, 'gaufre : pas un pot');
+  });
+
 }
