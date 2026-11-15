@@ -107,6 +107,18 @@ function nextSessionCat(keys) {
   return keys.slice().sort((a, b) => st.get(a).readyAt - st.get(b).readyAt || own(a) - own(b))[0];
 }
 
+// « Autres séances » dans l'ordre des chronos (retour de Maxence, 15/11) : d'abord les prêtes (la moins récente
+// en tête, comme nextSessionCat), puis les autres de la plus proche à la plus lointaine
+function sessionsByReadiness(keys) {
+  const now = Date.now(), st = new Map(keys.map(k => [k, catStatus(k, now)]));
+  const own = k => prog().timers[k] || 0;
+  return keys.slice().sort((a, b) => {
+    const A = st.get(a), B = st.get(b);
+    if (A.ready !== B.ready) return A.ready ? -1 : 1;
+    return A.ready ? ((A.last || 0) - (B.last || 0) || own(a) - own(b)) : (A.readyAt - B.readyAt || own(a) - own(b));
+  });
+}
+
 // Séance qu'attendait la rotation (jamais faite, sinon faite il y a le plus longtemps) quand
 // l'accueil en propose une autre à cause de la récupération des muscles : texte brut, sinon ''.
 //   « Push attend : quadriceps en récupération (encore 1 j) »  (pas prête)
@@ -307,7 +319,9 @@ function heroHtml(keys, next, liveHere) {
 // Muscles principaux de la séance et nombre d'exercices qui les travaillent
 function sessionMuscleCount(cat) {
   const index = chosenMusclesIndex(), n = new Map();
-  (prog().exercises[cat] || []).forEach(ex => exerciseMuscles(ex, index).primary.forEach(m => n.set(m, (n.get(m) || 0) + 1)));
+  // Muscle principal d'un exercice = le premier : il compte 1, les autres principaux ½ (un Pull avec curls et tractions
+  // reste « Dos » et non « Bras » : retour de Maxence, 15/11)
+  (prog().exercises[cat] || []).forEach(ex => exerciseMuscles(ex, index).primary.forEach((m, i) => n.set(m, (n.get(m) || 0) + (i ? 0.5 : 1))));
   return n;
 }
 // Groupe principal d'une séance (celui qui compte le plus d'exercices) : Push → pectoraux, Pull → dos, Legs → jambes
@@ -369,7 +383,7 @@ function renderDashboard() {
   const next = liveHere ? activeSession.category : nextSessionCat(keys);
 
   const hero = next ? heroHtml(keys, next, liveHere) : '';
-  const others = keys.filter(k => k !== next).map(otherSessionHtml).join('');
+  const others = sessionsByReadiness(keys.filter(k => k !== next)).map(otherSessionHtml).join('');
 
   const emptyCustom = isUserProg(data.activeProgramme) && keys.length === 0
     ? `<div class="empty-state">
