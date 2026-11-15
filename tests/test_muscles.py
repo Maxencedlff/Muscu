@@ -61,6 +61,26 @@ def t_progress(bench, eng, dev, theme):
         tab(page, 2)
         card = page.locator('.mcard')
         R.check(card.count() == 1, f'{t} carte « Muscles » dans Progrès')
+        # Cartes des groupes en tête : force en 3 mois (ou « Stable », « Pas assez de séances »), séries par semaine,
+        # libellé VoiceOver complet (le texte visible et la vignette sont masqués à VoiceOver)
+        grp = page.locator('.view.stats .pgrp')
+        R.check(grp.count() == 6, f'{t} six cartes de groupes ({grp.count()})')
+        labels = [grp.nth(i).get_attribute('aria-label') for i in range(grp.count())]
+        pat = re.compile(r"^(Pectoraux|Dos|Épaules|Bras|Abdominaux|Jambes) : ([+−]\d+\u00a0% de force sur \d+ exercices?|Stable sur \d+ exercices?|Pas assez de séances) en 3 mois, (\d+) séries? par semaine$")
+        R.check(all(pat.match(l or '') for l in labels), f'{t} libellés VoiceOver complets {labels[:2]}')
+        vis = [' '.join(grp.nth(i).inner_text().split()) for i in range(grp.count())]
+        R.check(all(pat.match(l).group(3) in v and pat.match(l).group(1) in v for l, v in zip(labels, vis) if pat.match(l)),
+                f'{t} séries par semaine écrites comme lues {vis[:2]}')
+        R.check(all('% de force' in v or 'Stable' in v or 'Pas assez' in v for v in vis), f'{t} force en % ou état écrit {vis}')
+        R.check(page.evaluate("[...document.querySelectorAll('.pgrp img')].every(i => i.alt === '' && i.getAttribute('aria-hidden') === 'true')"),
+                f'{t} vignettes des groupes décoratives')
+        R.check(page.evaluate("[...document.querySelectorAll('.pgrp .mgc__text')].every(e => e.getAttribute('aria-hidden') === 'true')"),
+                f'{t} texte des cartes lu une fois (intitulé du bouton)')
+        page.locator('.view.stats .pgrp[data-muscle="lats"]').click()
+        page.wait_for_selector('.view.stats-muscles')
+        R.check(page.locator('.mrow--focus[data-muscle="lats"]').count() == 1, f'{t} toucher « Dos » : détail des séries, grand dorsal mis en avant')
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.view.stats')
         # Période ouverte par défaut : 4 semaines (cette semaine, la silhouette est grise le lundi)
         R.check(page.locator('[data-action="muscle-span"][data-span="month"]').get_attribute('aria-pressed') == 'true', f'{t} 4 semaines par défaut')
         page.click('[data-action="muscle-span"][data-span="week"]')

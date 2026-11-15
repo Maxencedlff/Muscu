@@ -255,8 +255,7 @@ function muscleSrListHtml(load) {
 
 function periodTxt(span = muscleSpan) { return span === 'month' ? 'ces 4 dernières semaines' : 'cette semaine'; }
 
-// hero : maquette A de Progrès, la silhouette en tête et en grand, avec son titre de section
-function renderMuscleCard({ hero = false } = {}) {
+function renderMuscleCard() {
   const load = muscleLoad(muscleSpan);
   const low = load.low.slice(0, 5).map(muscleLabel);
   const lowCell = !load.sessions
@@ -266,8 +265,8 @@ function renderMuscleCard({ hero = false } = {}) {
         ${low.length ? `<span class="cell__sub mlow">${low.join(' · ')}</span>` : ''}
       </span></div>`;
   return `
-    <div class="group-title">${hero ? `Tes muscles ${periodTxt()}` : 'Muscles'}</div>
-    <div class="group mcard${hero ? ' mcard--hero' : ''}">
+    <div class="group-title">Muscles</div>
+    <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
         ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true, tiers: true, tap: true })}

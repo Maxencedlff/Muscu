@@ -3,12 +3,6 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Maquettes de l'écran Progrès (refonte visuelle, 15/11) : une seule est gardée après le choix de Maxence.
-//   'A' : Corps en tête (silhouette de la période en grand, chiffres clés en tuiles, records en cartes illustrées)
-//   'B' : Records d'abord (records et progrès sur 3 mois en cartes, courbe du volume par semaine, puis le corps)
-//   'C' : Par muscle (chaque groupe en carte illustrée : force gagnée en 3 mois et séries de la semaine, à la Fitbod)
-const PROGRES_VARIANTE = 'A';
-
 // Courbe d'un exercice : « Charge max » à l'ouverture depuis une liste, la grandeur de la tendance de la liste (panel Apple
 // du 08/11 : la liste disait +13 % de charge max, la fiche s'ouvrait sur le volume à +35 %)
 let statsMode = 'charge';   // 'charge' | 'volume' | '1rm' | 'effort'
@@ -170,22 +164,25 @@ function statsSections(idx) {
   return sections;
 }
 
-// Cellule d'un exercice : dernière performance, courbe et tendance, sur toutes ses séances comme la courbe « Charge max »
-// de sa fiche (même chiffre aux deux endroits ; la mini-courbe ne montrait que les 12 dernières)
+// Cellule d'un exercice : vignette du muscle principal, dernière performance, courbe et tendance, sur toutes ses séances
+// comme la courbe « Charge max » de sa fiche (même chiffre aux deux endroits). Sans évolution, ni courbe ni « 0 % » :
+// « Stable » en gris (une ligne plate répétée sur la moitié de la liste ne disait rien, revue du 15/11)
 function statsRow(it) {
   const bw   = isBodyweight(it);
   const vals = it.points.map(p => mainMetric(it, p));
   const last = it.points[it.points.length - 1];
   const tp   = trendPct(vals);
   const cls  = tp > 0 ? 'txt-up' : tp < 0 ? 'txt-down' : 'txt-flat';
+  const trail = tp === null ? '' : tp === 0 ? '<span class="prow__trend prow__trend--stable">Stable</span>'
+    : `<span class="prow__spark ${cls}">${sparkline(vals, it.points.map(p => p.date))}</span><span class="prow__trend num ${cls}">${pctTxt(tp)}</span>`;
   return `
       <button class="cell cell--nav prow" data-action="open-stats-ex" data-ex="${esc(it.exId)}">
+        ${progThumbHtml(exMainMuscle(it.name), 'prow__img')}
         <span class="cell__body">
           <span class="cell__title prow__name">${esc(it.name)}</span>
           <span class="cell__sub num">${it.measure === 'cardio' ? cardioPointTxt(last, paceKind(it)) : bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best, { name: it.name })}</span>
         </span>
-        <span class="prow__spark ${cls}">${sparkline(vals, it.points.map(p => p.date))}</span>
-        <span class="prow__trend num ${cls}">${tp === null ? '' : pctTxt(tp)}</span>
+        ${trail}
         ${icon('chevron.right', 16)}
       </button>`;
 }
@@ -223,8 +220,8 @@ function statsWeekBars() {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Maquettes A, B, C (PROGRES_VARIANTE) : briques visuelles
-//  Images toujours décoratives (alt vide, aria-hidden) : VoiceOver lit le texte et l'intitulé complet du bouton.
+//  Progrès par muscle (refonte du 15/11, maquette C retenue) : chaque groupe en carte illustrée, comme Fitbod montre
+//  la force par groupe et Hevy les séries par muscle. Images toujours décoratives (alt vide, aria-hidden) : VoiceOver lit le texte et l'intitulé complet du bouton.
 // ═══════════════════════════════════════════════════════════
 const PROG_WINDOW_DAYS = 84;   // « 3 mois » : 12 semaines
 
@@ -238,74 +235,24 @@ function exMainMuscle(name) {
   return isMuscleId(id) ? id : null;
 }
 function muscleGroupOf(id) { return MUSCLE_GROUPS.find(g => g.muscles.includes(id)) || null; }
-function idxByName(idx, name) {
-  for (const it of idx.values()) if (sameExerciseName(it.name, name)) return it;
-  return null;
-}
 
-// Progrès d'un exercice sur la fenêtre : première et dernière séance des 12 semaines (la grandeur de sa liste :
+// Progrès d'un exercice en % sur la fenêtre : première et dernière séance des 12 semaines (la grandeur de sa liste :
 // charge max, ou reps au poids du corps). null sans deux séances, ou si la dernière date de plus de 3 semaines
-function exWindowProgress(it, now = Date.now()) {
+function exWindowPct(it, now = Date.now()) {
   if (it.measure === 'cardio') return null;
   const pts = it.points.filter(p => p.date >= now - PROG_WINDOW_DAYS * 86_400_000);
   if (pts.length < 2 || pts.at(-1).date < now - 21 * 86_400_000) return null;
-  const bw = isBodyweight(it), a = mainMetric(it, pts[0]), b = mainMetric(it, pts.at(-1));
-  if (!(a > 0)) return null;
-  const val = v => (bw ? plural(v, 'rep', 'reps') : `${fmtW(v)} ${unitLbl()}`);
-  const d = Math.round((b - a) * 100) / 100;
-  return { it, bw, from: pts[0].date, before: val(a), after: val(b), pct: Math.round((b - a) / a * 100),
-    gain: d > 0 ? (bw ? plural(d, 'rep', 'reps') : `${fmtW(d)} ${unitLbl()}`) : '' };
+  const a = mainMetric(it, pts[0]), b = mainMetric(it, pts.at(-1));
+  return a > 0 ? Math.round((b - a) / a * 100) : null;
 }
 
-// ── A : records récents en cartes illustrées (liste iOS, vignette du muscle principal à droite) ──
-function progRecordCardsHtml(idx) {
-  const recs = recentRecords(data.history, 3);
-  if (!recs.length) return '';
-  const rows = recs.map(({ ex, date, r }) => {
-    const it = idxByName(idx, ex), gain = recordGainTxt(r);
-    const before = r.before != null ? notedValueTxt(r, 'before') : '';
-    const label = `${ex}, record le ${fmtDate(date)} : ${notedValueTxt(r)}${before ? `, avant ${before}` : ''}${gain ? `, ${gain} de plus` : ''}`;
-    const tag = it ? 'button' : 'div';
-    return `
-      <${tag} class="cell mgc prec${it ? ' cell--nav' : ''}"${it ? ` data-action="open-stats-ex" data-ex="${esc(it.exId)}"` : ''} aria-label="${esc(label)}">
-        <span class="mgc__text" aria-hidden="true">
-          <span class="prec__date">${medalSvg(16)}${esc(fmtDate(date))}</span>
-          <span class="mgc__title prec__name">${esc(ex)}</span>
-          <span class="prec__val num">${esc(notedValueTxt(r))}</span>
-          <span class="mgc__sub num">${before ? `avant ${esc(before)}` : ''}${gain ? `<span class="txt-up">${before ? ' · ' : ''}+${esc(gain)}</span>` : ''}</span>
-        </span>
-        ${progThumbHtml(exMainMuscle(ex))}
-        ${it ? icon('chevron.right', 16) : ''}
-      </${tag}>`;
-  }).join('');
-  return `<div class="group-title">Derniers records</div><div class="group mgcs precs">${rows}</div>`;
-}
-
-// ── A : chiffres clés en tuiles (2 × 2), puis les semaines et les écrans liés ──
-function progTilesHtml(idx, { monthCount, yearCount }) {
-  const ws = weekStart();
-  // Records notés de la semaine (charge, reps, temps…), un par exercice : « Derniers records » juste dessous dit pareil
-  const weekRecs = recentRecords(data.history, 50).filter(x => x.date >= ws).length;
-  let vol = 0;
-  idx.forEach(it => it.points.forEach(p => { if (p.date >= ws && p.hasWeight && it.measure !== 'cardio') vol += p.volume; }));
-  const tile = (val, lbl) => `<div class="ptile"><span class="ptile__val num">${val}</span><span class="ptile__lbl">${lbl}</span></div>`;
-  return `
-    <div class="group-title">Chiffres clés</div>
-    <div class="ptiles">
-      ${tile(monthCount, `${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci`)}
-      ${tile(yearCount, `${yearCount > 1 ? 'séances' : 'séance'} cette année`)}
-      ${tile(weekRecs, `${weekRecs > 1 ? 'records' : 'record'} cette semaine`)}
-      ${tile(fmtVolume(vol), 'soulevés cette semaine')}
-    </div>`;
-}
-
-// Semaines, Vue d'ensemble et Récaps : les mêmes rangées partout (withPair : les deux chiffres du mois et de l'année)
-function statsNavGroupHtml(records, withPair = null) {
+// Chiffres du mois et de l'année, semaines, Vue d'ensemble et Récaps
+function statsNavGroupHtml(records, { monthCount, yearCount }) {
   return `<div class="group stats-head">
-          ${withPair ? `<div class="stat-pair">
-            <div class="stat-pair__item"><span class="stat-pair__val num">${withPair.monthCount}</span><span class="stat-pair__lbl">${withPair.monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span></div>
-            <div class="stat-pair__item"><span class="stat-pair__val num">${withPair.yearCount}</span><span class="stat-pair__lbl">${withPair.yearCount > 1 ? 'séances' : 'séance'} cette année</span></div>
-          </div>` : ''}
+          <div class="stat-pair">
+            <div class="stat-pair__item"><span class="stat-pair__val num">${monthCount}</span><span class="stat-pair__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span></div>
+            <div class="stat-pair__item"><span class="stat-pair__val num">${yearCount}</span><span class="stat-pair__lbl">${yearCount > 1 ? 'séances' : 'séance'} cette année</span></div>
+          </div>
           ${statsWeekBars()}
           <button class="cell cell--nav" data-action="go-stats-overview">
             ${icon('chart', 22)}
@@ -320,92 +267,13 @@ function statsNavGroupHtml(records, withPair = null) {
         </div>`;
 }
 
-// ── B : records et progrès en cartes illustrées qui défilent de côté ──
-// Records récents d'abord (médaille, avant → maintenant), puis les exercices qui ont le plus progressé en 3 mois
-function progProgressCardsHtml(idx) {
-  const cards = [], seen = new Set();
-  recentRecords(data.history, 3).forEach(({ ex, date, r }) => {
-    if (r.before == null) return;
-    const it = idxByName(idx, ex);
-    seen.add(normName(ex));
-    cards.push({ it, name: ex, muscle: exMainMuscle(ex), top: `${medalSvg(14)}Record · ${fmtDate(date)}`, topTxt: `Record le ${fmtDate(date)}`,
-      before: notedValueTxt(r, 'before'), after: notedValueTxt(r), gain: recordGainTxt(r) });
-  });
-  const prog = [...idx.values()].map(it => exWindowProgress(it)).filter(p => p && p.pct > 0 && !seen.has(normName(p.it.name)))
-    .sort((a, b) => b.pct - a.pct).slice(0, 6 - cards.length);
-  prog.forEach(p => cards.push({ it: p.it, name: p.it.name, muscle: exMainMuscle(p.it.name), top: esc(sinceTxt(p.from)), topTxt: sinceTxt(p.from),
-    before: p.before, after: p.after, gain: p.gain, pct: p.pct }));
-  if (!cards.length) return '';
-  const html = cards.map(c => {
-    const label = `${c.name}, ${c.topTxt} : ${c.before} puis ${c.after}${c.gain ? `, ${c.gain} de plus` : ''}`;
-    const tag = c.it ? 'button' : 'div';
-    return `
-      <${tag} class="pcard"${c.it ? ` data-action="open-stats-ex" data-ex="${esc(c.it.exId)}"` : ''} aria-label="${esc(label)}">
-        <span class="pcard__art">${progThumbHtml(c.muscle, 'pcard__img')}</span>
-        <span class="pcard__body" aria-hidden="true">
-          <span class="pcard__top">${c.top}</span>
-          <span class="pcard__name">${esc(c.name)}</span>
-          <span class="pcard__vals num"><span class="pcard__before">${esc(c.before)}</span> <span class="pcard__arrow">→</span> <span class="pcard__after">${esc(c.after)}</span></span>
-          ${c.gain ? `<span class="pcard__gain num txt-up">+${esc(c.gain)}${c.pct ? ` · ${pctTxt(c.pct)}` : ''}</span>` : ''}
-        </span>
-      </${tag}>`;
-  }).join('');
-  return `<div class="group-title">Tes progrès</div>
-    <div class="pcards" role="list" aria-label="Records et progrès récents">${html.replaceAll('class="pcard"', 'role="listitem" class="pcard"')}</div>`;
-}
-
-// ── B : courbe d'ensemble, volume soulevé par semaine (12 semaines complètes), tracée à l'ouverture ──
-function weeklyVolumes(idx, weeks = 12, now = Date.now()) {
-  const starts = Array.from({ length: weeks + 1 }, (_, k) => weekStartMs(now, weeks - k));   // la dernière : semaine en cours
-  const vols = new Array(weeks).fill(0);
-  idx.forEach(it => {
-    if (it.measure === 'cardio') return;
-    it.points.forEach(p => {
-      if (!p.hasWeight) return;
-      for (let k = 0; k < weeks; k++) if (p.date >= starts[k] && p.date < starts[k + 1]) { vols[k] += p.volume; break; }
-    });
-  });
-  return { vols, starts };
-}
-// Une barre par semaine (ce qui a été fait) et la tendance par-dessus (moyenne des 4 dernières semaines, en orange) :
-// les semaines courtes ou de vacances ne cachent plus la progression de fond
-function progOverallChartHtml(idx) {
-  const { vols, starts } = weeklyVolumes(idx);
-  if (vols.filter(v => v > 0).length < 2) return '';
-  const W = 320, H = 110, top = 8, n = vols.length, max = Math.max(...vols) || 1;
-  const slot = W / n, bw = Math.min(16, slot * 0.55);
-  const cx = i => slot * (i + 0.5), y = v => H - v / max * (H - top);
-  const trend = vols.map((_, i) => { const w = vols.slice(Math.max(0, i - 3), i + 1); return w.reduce((a, v) => a + v, 0) / w.length; });
-  const bars = vols.map((v, i) => `<rect class="pchart__bar${i === n - 1 ? ' pchart__bar--last' : ''}" x="${(cx(i) - bw / 2).toFixed(1)}" y="${y(v).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, H - y(v)).toFixed(1)}" rx="2"/>`).join('');
-  const pts = trend.map((v, i) => `${cx(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  const first = trend[3], last = trend.at(-1);
-  const tp = first > 0 ? Math.round((last - first) / first * 100) : null;
-  const cls = tp > 0 ? 'txt-up' : 'txt-flat';
-  const d0 = new Date(starts[0]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-  const spoken = `Volume soulevé par semaine, 12 dernières semaines complètes : ${vols.map(v => fmtVolume(v)).join(', ')}.${tp === null ? '' : ` Tendance sur 4 semaines : ${pctTxt(tp)}.`}`;
-  return `
-    <div class="group-title">Volume par semaine</div>
-    <div class="group pchart">
-      <div class="pchart__head">
-        <span class="pchart__val num">${fmtVolume(Math.round(last))}</span>
-        <span class="pchart__lbl">par semaine en moyenne${tp === null ? '' : `, <span class="${cls} num">${pctTxt(tp)}</span> depuis ${d0}`}</span>
-      </div>
-      <svg class="pchart__svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(spoken)}">
-        ${bars}
-        <polyline class="pchart__line" pathLength="1" points="${pts}" fill="none"/>
-      </svg>
-      <div class="pchart__axis" aria-hidden="true"><span>${d0}</span><span>semaine dernière</span></div>
-      <div class="pchart__legend" aria-hidden="true"><i class="pchart__key"></i>Moyenne sur 4 semaines</div>
-    </div>`;
-}
-
-// ── C : chaque groupe de muscles en carte illustrée : force gagnée en 3 mois, séries par semaine ──
-// Force d'un groupe : moyenne des progrès (exWindowProgress) des exercices dont il est le muscle principal
+// ── Chaque groupe de muscles en carte illustrée : force gagnée en 3 mois, séries par semaine ──
+// Force d'un groupe : moyenne des progrès (exWindowPct) des exercices dont il est le muscle principal
 function groupProgress(idx, load) {
   const by = new Map(MUSCLE_GROUPS.map(g => [g.id, []]));
   idx.forEach(it => {
-    const g = muscleGroupOf(exMainMuscle(it.name)), p = g && exWindowProgress(it);
-    if (p) by.get(g.id).push(p.pct);
+    const g = muscleGroupOf(exMainMuscle(it.name)), p = g ? exWindowPct(it) : null;
+    if (p !== null) by.get(g.id).push(p);
   });
   return MUSCLE_GROUPS.map(g => {
     const pcts = by.get(g.id);
@@ -413,8 +281,8 @@ function groupProgress(idx, load) {
     return { g, n: pcts.length, pct: pcts.length ? Math.round(pcts.reduce((a, v) => a + v, 0) / pcts.length) : null, perWeek };
   });
 }
-function progGroupCardsHtml(idx) {
-  const load = muscleLoad(muscleSpan);
+// load, period : la période de la carte Muscles (muscleSpan, js/features/muscles.js), la même pour les deux
+function progGroupCardsHtml(idx, load = muscleLoad(muscleSpan), period = periodTxt()) {
   const rows = groupProgress(idx, load).map(({ g, n, pct, perWeek }) => {
     const cls = pct > 0 ? 'txt-up' : 'txt-flat';   // une baisse en gris : le rouge, ici, c'est le muscle
     const trend = pct === null ? 'Pas assez de séances' : pct === 0 ? 'Stable' : `${pctTxt(pct)} de force`;
@@ -432,7 +300,7 @@ function progGroupCardsHtml(idx) {
       </button>`;
   }).join('');
   return `<div class="group-title">Tes muscles en 3 mois</div><div class="group mgcs pgrps">${rows}</div>
-    <div class="group-foot">Force : charge max de chaque exercice, de ta première à ta dernière séance des 12 semaines. Séries ${periodTxt()}, en moyenne par semaine.</div>`;
+    <div class="group-foot">Force : charge max de chaque exercice, de ta première à ta dernière séance des 12 semaines. Séries ${period}, en moyenne par semaine.</div>`;
 }
 
 function renderStats() {
@@ -451,18 +319,16 @@ function renderStats() {
         ${idx.size ? list : has ? `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>` : ''}`;
   const pair = { monthCount, yearCount };
 
-  let top;
-  if (!has) top = `${statsStartHtml()}${statsNavGroupHtml(records, pair)}${renderMuscleCard()}`;
-  else if (PROGRES_VARIANTE === 'A') top = `${renderMuscleCard({ hero: true })}${progTilesHtml(idx, { monthCount, yearCount })}${statsNavGroupHtml(records)}${progRecordCardsHtml(idx)}`;
-  else if (PROGRES_VARIANTE === 'B') top = `${progProgressCardsHtml(idx) || statsRecordsHtml()}${progOverallChartHtml(idx)}${statsNavGroupHtml(records, pair)}${renderMuscleCard()}`;
-  else if (PROGRES_VARIANTE === 'C') top = `${progGroupCardsHtml(idx)}${statsNavGroupHtml(records, pair)}${statsRecordsHtml()}${renderMuscleCard()}`;
-  else top = `${statsRecordsHtml()}${statsNavGroupHtml(records, pair)}${renderMuscleCard()}`;
+  // Sans séance : l'invitation d'abord (les cartes des groupes n'auraient rien à dire)
+  const top = has ? `${progGroupCardsHtml(idx)}${statsNavGroupHtml(records, pair)}${statsRecordsHtml()}`
+    : `${statsStartHtml()}${statsNavGroupHtml(records, pair)}`;
 
   return `
-    <div class="view stats view--grouped progres-${PROGRES_VARIANTE.toLowerCase()}">
+    <div class="view stats view--grouped">
       ${navBar({ title: 'Progrès' })}
       <div class="scr">
         ${top}
+        ${renderMuscleCard()}
         ${tail}
       </div>
     </div>`;

@@ -162,6 +162,44 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(!run(`recordRowsHtml([{ ex: '<img onerror=x>', date: Date.now(), r: { kind: 'charge', after: 50 } }])`).includes('<img'), 'nom échappé');
   });
 
+  // ── Progrès par muscle : cartes des groupes, liste des exercices ──
+
+  // Développé couché (pectoraux) de 50 à 55 kg en 3 mois, curl (bras) sans évolution, tirage (dos) une seule séance
+  function seedGroups() {
+    const s = (name, exId, w, d, cat = 'push') => ({ id: `${exId}${d}`, programme: 'ppl', category: cat, date: Date.now() - d * DAY, exercises: [
+      { exId, name, sets: [{ weight: String(w), reps: '8', done: true }, { weight: String(w), reps: '8', done: true }] }] });
+    run(`data.activeProgramme = 'ppl'; data.history = ${JSON.stringify([
+      s('Développé couché barre', 'bench', 50, 60), s('Développé couché barre', 'bench', 52.5, 30), s('Développé couché barre', 'bench', 55, 2),
+      s('Curl barre', 'curl', 30, 50, 'pull'), s('Curl barre', 'curl', 30, 3, 'pull'),
+      s('Tirage vertical', 'lat', 60, 3, 'pull')])};`);
+  }
+
+  test('Progrès : carte d\'un groupe, force gagnée en 3 mois (moyenne des exercices du groupe) et séries par semaine', () => {
+    reset();
+    seedGroups();
+    const g = run(`Object.fromEntries(groupProgress(exerciseIndex(), muscleLoad('month')).map(x => [x.g.id, { pct: x.pct, n: x.n, perWeek: x.perWeek }]))`);
+    sameJSON(g.pectoraux, { pct: 10, n: 1, perWeek: g.pectoraux.perWeek }, '50 → 55 kg : +10 %');
+    assert.equal(g.bras.pct, 0, 'même charge : stable');
+    assert.equal(g.dos.pct, null, 'une seule séance : pas de pourcentage');
+    assert.ok(g.pectoraux.perWeek > 0 && Number.isInteger(g.pectoraux.perWeek), 'séries par semaine entières');
+    const html = run(`progGroupCardsHtml(exerciseIndex(), muscleLoad('month'), 'ces 4 dernières semaines')`);
+    assert.equal((html.match(/class="cell cell--nav mgc pgrp"/g) || []).length, 6, 'six groupes');
+    assert.ok(html.includes('+10 % de force') && html.includes('Stable') && html.includes('Pas assez de séances'), 'les trois états écrits');
+    assert.ok(/aria-label="Pectoraux : \+10 % de force sur 1 exercice en 3 mois, \d+ séries? par semaine"/.test(html), 'libellé VoiceOver complet');
+    assert.ok(html.includes('data-action="go-stats-muscles" data-muscle="chest"'), 'toucher : détail des séries, muscle du groupe mis en avant');
+    assert.ok(!/<img(?![^>]*alt="")/.test(html) && !/<img(?![^>]*aria-hidden="true")/.test(html), 'vignettes décoratives');
+  });
+
+  test('Progrès : un exercice sans évolution dit « Stable », sans courbe ni « 0 % » ; vignette du muscle principal', () => {
+    reset();
+    seedGroups();
+    const idx = run('[...exerciseIndex().values()].map(it => ({ name: it.name, html: statsRow(it) }))');
+    const curl = idx.find(x => x.name === 'Curl barre').html, bench = idx.find(x => x.name === 'Développé couché barre').html;
+    assert.ok(curl.includes('Stable') && !curl.includes('class="spark"') && !curl.includes('0 %'), 'stable : un mot, pas de ligne plate');
+    assert.ok(bench.includes('class="spark"') && bench.includes('+10 %'), 'progrès : courbe et pourcentage');
+    assert.ok(bench.includes('img/muscles/chest.webp') && bench.includes('alt=""'), 'vignette décorative du muscle principal');
+  });
+
   // ── Échauffement ──
 
   test('échauffement : phrase simple, au nombre réel de séries', () => {
