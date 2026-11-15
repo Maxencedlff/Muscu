@@ -65,6 +65,12 @@ def end_rest_soon(page, ms=2600):
     page.evaluate("__snd.plays = []; __snd.notif = []")
 
 
+def after_defer(notif, end):
+    """Opérations sur la notification après sa programmation repoussée (scheduleRestEnd annule puis reprogramme)"""
+    idx = [i for i, n in enumerate(notif) if n['op'] == 'schedule' and n['at'] >= end + 2000]
+    return None if not idx else notif[idx[0] + 1:]
+
+
 def t_reglages(bench):
     with bench.page(ENGINE, DEVICE, THEME) as page:
         open_app(page)
@@ -98,7 +104,9 @@ def t_fin_repos_saine(bench):
         open_app(page)
         end_rest_soon(page)
         end = page.evaluate('restEndTime')
-        page.wait_for_function('__snd.notif.some(n => n.op === "cancel")', timeout=7000)
+        page.evaluate(f'window.__end = {end}')
+        page.wait_for_function("(() => { const i = __snd.notif.findIndex(n => n.op === 'schedule' && n.at >= __end + 2000);"
+                               " return i >= 0 && __snd.notif.slice(i + 1).some(n => n.op === 'cancel'); })()", timeout=7000)
         page.wait_for_timeout(300)
         plays, notif = page.evaluate('__snd.plays'), page.evaluate('__snd.notif')
         R.check([p['freq'] for p in plays] == [880, 880, 1050] or [p['freq'] for p in plays] == [880, 880, 880, 1050],
@@ -106,7 +114,7 @@ def t_fin_repos_saine(bench):
         sched = [n for n in notif if n['op'] == 'schedule']
         R.check(len(sched) == 1 and sched[0]['at'] >= end + 2000, f'notification repoussée après la fin, pas annulée avant le GO {notif}')
         go_at = [p['at'] for p in plays if p['freq'] == 1050][0]
-        cancels = [n for n in notif if n['op'] == 'cancel']
+        cancels = [n for n in (after_defer(notif, end) or []) if n['op'] == 'cancel']
         R.check(cancels and cancels[0]['at'] >= go_at, 'notification annulée seulement après le GO joué')
         R.check(not page.errors, f'fin saine : aucune erreur JS {page.errors[:2]}')
 
@@ -115,13 +123,15 @@ def t_fin_repos_panne(bench):
     with bench.page(ENGINE, DEVICE, THEME) as page:
         open_app(page)
         end_rest_soon(page)
+        end = page.evaluate('restEndTime')
         page.evaluate("__snd.diag.category = 'AVAudioSessionCategoryAmbient'")
         page.wait_for_function('__snd.plays.filter(p => p.freq === 1050).length >= 2', timeout=7000)
         page.wait_for_timeout(800)
         plays, notif = page.evaluate('__snd.plays'), page.evaluate('__snd.notif')
         gos = [p for p in plays if p['freq'] == 1050]
         R.check(len(gos) == 2 and gos[1]['duck'], f'lecture en panne : GO rejoué une fois en forçant la remise en état {gos}')
-        R.check(not any(n['op'] == 'cancel' for n in notif), f'lecture en panne : notification gardée en filet {notif}')
+        rest = after_defer(notif, end)
+        R.check(rest is not None and not any(n['op'] == 'cancel' for n in rest), f'lecture en panne : notification gardée en filet {notif}')
         R.check(not page.errors, f'panne : aucune erreur JS {page.errors[:2]}')
 
 
