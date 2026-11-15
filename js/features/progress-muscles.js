@@ -19,6 +19,26 @@ function exMainMuscle(name) {
 }
 function muscleGroupOf(id) { return MUSCLE_GROUPS.find(g => g.muscles.includes(id)) || null; }
 
+// ── Groupes travaillés par une liste d'exercices (séance du programme, séance passée) ─
+// Muscle principal d'un exercice = le premier : il compte 1, les autres principaux ½ (un Pull avec curls et tractions
+// reste « Dos » et non « Bras » : retour de Maxence, 15/11). index : chosenMusclesIndex() déjà calculé (boucles).
+function exercisesMuscleCount(list, index = chosenMusclesIndex()) {
+  const n = new Map();
+  (Array.isArray(list) ? list : []).forEach(ex => exerciseMuscles(ex, index).primary
+    .forEach((m, i) => n.set(m, (n.get(m) || 0) + (i ? 0.5 : 1))));
+  return n;
+}
+// Groupes de MUSCLE_GROUPS touchés, du plus au moins travaillé ([{ g, n }]) ; à égalité, l'ordre du corps
+function exercisesGroups(list, index) {
+  const n = exercisesMuscleCount(list, index);
+  return MUSCLE_GROUPS.map(g => ({ g, n: g.muscles.reduce((a, m) => a + (n.get(m) || 0), 0) }))
+    .filter(x => x.n > 0).sort((a, b) => b.n - a.n);
+}
+// Groupe principal (celui qui compte le plus d'exercices) : Push → pectoraux, Pull → dos, Legs → jambes ; null si aucun
+function mainGroupOf(list, index) {
+  return exercisesGroups(list, index)[0]?.g.id || null;
+}
+
 // Progrès d'un exercice en % sur la fenêtre : première et dernière séance des 12 semaines (la grandeur de sa liste :
 // charge max, ou reps au poids du corps). null sans deux séances, ou si la dernière date de plus de 3 semaines
 function windowPoints(it, now = Date.now()) { return it.points.filter(p => p.date >= now - PROG_WINDOW_DAYS * 86_400_000); }

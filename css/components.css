@@ -169,6 +169,17 @@
 .review-rec .cell__body { min-width: 0; }
 .review-rec .cell__title { overflow-wrap: anywhere; }
 .review-rec__val { flex-shrink: 0; font-size: var(--fs-subhead); font-weight: 600; white-space: nowrap; }
+/* Texte agrandi : la valeur passe sous le nom, en pleine largeur (alignée sur le texte, après la médaille) ; le nom et
+   le sous-titre gardent toute la ligne (panel Historique : « 35 kg × 11 » coupé, nom écrasé) */
+html.type-xl .review-rec { flex-wrap: wrap; row-gap: 2px; }
+html.type-xl .review-rec .cell__body { flex: 1 1 calc(100% - 34px); }
+html.type-xl .review-rec__val { flex: 1 0 100%; padding-left: 34px; white-space: normal; }
+/* Écran étroit (iPhone SE 1re génération) : même chose en taille normale, « Record de répétitions · avant … » garde sa ligne */
+@media (max-width: 374px) {
+  .review-rec { flex-wrap: wrap; row-gap: 2px; }
+  .review-rec .cell__body { flex: 1 1 calc(100% - 34px); }
+  .review-rec__val { flex: 1 0 100%; padding-left: 34px; white-space: normal; }
+}
 /* Progrès › Exercice : séance où un record a été battu */
 .stats-rec .medal { color: var(--medal); vertical-align: -3px; }
 /* Version minimale de l'app (js/app/updates.js, checkMinBuild) : écran plein qui ne se ferme pas, à la

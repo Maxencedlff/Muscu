@@ -11,8 +11,35 @@ function historySorted() {
   return (data.history || []).slice().sort((a, b) => b.date - a.date);
 }
 
+// Filtres : les séances du programme actif (data-cat = la catégorie, toujours là), puis celles d'autres programmes ou
+// libres réellement présentes dans l'historique (« Bras » d'un autre programme : data-cat = « programme/catégorie »),
+// de la plus récente à la plus ancienne ; un même nom n'a qu'un filtre (le premier)
+function historyFilterKeys() {
+  const out = sessionKeys().map(k => [k, sessionMeta(k).label]);
+  const seen = new Set(out.map(([, l]) => l));
+  historySorted().forEach(h => {
+    const prog = entryProg(h);
+    if (prog === data.activeProgramme || isHealthEntry(h)) return;
+    const label = sessionMeta(h.category, prog).label;
+    if (seen.has(label)) return;
+    seen.add(label); out.push([`${prog}/${h.category}`, label]);
+  });
+  return out;
+}
+function historyFilterHit(h) {
+  if (histFilter === 'all') return true;
+  const i = histFilter.indexOf('/');
+  // Filtre d'un autre programme : toutes les séances de même nom, quel que soit le programme hors programme actif
+  if (i > 0) {
+    const prog = histFilter.slice(0, i), cat = histFilter.slice(i + 1);
+    const label = sessionMeta(cat, prog).label, p = entryProg(h);
+    return p !== data.activeProgramme && sessionMeta(h.category, p).label === label;
+  }
+  return h.category === histFilter && entryProg(h) === data.activeProgramme;
+}
+
 function historyMatches(h, q) {
-  if (histFilter !== 'all' && !(h.category === histFilter && entryProg(h) === data.activeProgramme)) return false;
+  if (!historyFilterHit(h)) return false;
   if (!q) return true;
   if (isHealthEntry(h)) return [h.health.title, h.health.source, h.exercises[0].name].some(t => normName(t).includes(q));
   if (normName(h.notes).includes(q)) return true;
@@ -34,31 +61,38 @@ function healthHistoryCell(h) {
     </div>`;
 }
 
-function historyCell(h) {
+// Séance passée en carte illustrée, comme « Autres séances » de l'accueil : nom, date et records, puis exercices, tonnage
+// et durée à gauche ; vignette 3D du groupe le plus travaillé à droite (mainGroupOf, js/features/progress-muscles.js). La vignette est
+// décorative (aria-hidden) : VoiceOver lit le texte, records compris. Texte agrandi : plus de vignette (css/muscles.css).
+// index : chosenMusclesIndex() calculé une fois pour toute la liste
+function historyCell(h, index) {
   if (isHealthEntry(h)) return healthHistoryCell(h);
   const progId = entryProg(h);
   const meta   = sessionMeta(h.category, progId);
   const vol    = sessionVolume(h.exercises || [], entryBodyKg(h));
-  // Séance d'un autre programme : « Programme Bras & épaules » sur sa propre ligne, sous le titre (panel vague 4 : après le
+  // Séance d'un autre programme : « Programme Bras & épaules » sur sa propre ligne, sous la date (panel vague 4 : après le
   // titre, « Bras · Bras & é… » se coupait sur iPhone SE et semblait répéter le nom) ; la ligne du dessous reste
   // « N exercices · t · durée » partout (panel t5 : la mention remplaçait le nombre d'exercices)
   const other  = progId !== data.activeProgramme && progId !== FREE;
   const parts  = [plural((h.exercises || []).length, 'exercice', 'exercices')];
   if (vol > 0) parts.push(fmtVolume(vol));
   if (h.duration) parts.push(fmtDuration(h.duration));
-  // Records de la séance (recordCount, js/data/records.js : même règle que le bilan et Progrès) : médaille et nombre
+  // Records de la séance (recordCount, js/data/records.js : même règle que le bilan et Progrès) : médaille et nombre, à
+  // côté de la date
   const recs = recordCount(h);
-  const recMark = recs ? `<span class="hcell__rec num">${medalSvg(14)}<span aria-hidden="true">${recs}</span><span class="visually-hidden">, ${plural(recs, 'record', 'records')}</span></span>` : '';
+  const recMark = recs ? `<span class="hcell__rec num">${medalSvg(14)}${plural(recs, 'record', 'records')}</span>` : '';
+  const art = progThumbHtml(mainGroupOf(h.exercises, index), 'hcell__img');
   return `
     <div class="hrow" data-id="${esc(h.id)}">
       <button class="hrow__del" data-action="swipe-delete-session" data-id="${esc(h.id)}" tabindex="-1">Supprimer</button>
-      <button class="hcell" data-action="open-history" data-id="${esc(h.id)}">
-        <span class="hcell__dot" style="background:${meta.color}"></span>
-        <span class="hcell__body">
-          <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
+      <button class="hcell hcell--card mgc" data-action="open-history" data-id="${esc(h.id)}">
+        <span class="hcell__body mgc__text">
+          <span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span>
+          <span class="hcell__when"><span class="hcell__date">${fmtDate(h.date)}</span>${recMark}</span>
           ${other ? `<span class="hcell__prog">Programme ${esc(progMeta(progId).name)}</span>` : ''}
-          <span class="hcell__bot"><span class="hcell__sub num">${parts.join(' · ')}</span>${recMark}</span>
+          <span class="hcell__sub num">${parts.join(' · ')}</span>
         </span>
+        ${art}
         ${icon('chevron.right', 16)}
       </button>
     </div>`;
@@ -95,14 +129,17 @@ function historyListHTML() {
         <div class="group"><button class="cell cell--action" data-action="go-home"><span class="cell__title">Démarrer une séance</span></button></div>`;
   }
   const months = historyByMonth(all);
+  const index = chosenMusclesIndex();
+  // En-tête de mois : le mois et son nombre de séances (« Novembre 2026 · 4 séances »), pour se repérer en défilant
   const out = months.slice(0, histMonths).map(m =>
-    `<section class="hmonth" data-month="${m.key}"><h2 class="hmonth__title">${m.title}</h2><div class="group">${m.sessions.map(historyCell).join('')}</div></section>`).join('');
+    `<section class="hmonth" data-month="${m.key}"><h2 class="hmonth__title">${m.title}<span class="hmonth__count"><span aria-hidden="true"> · </span><span class="visually-hidden">, </span>${plural(m.sessions.length, 'séance', 'séances')}</span></h2>
+      <div class="group">${m.sessions.map(h => historyCell(h, index)).join('')}</div></section>`).join('');
   return months.length > histMonths ? out + `<button class="btn-more" data-action="hist-more">Afficher plus</button>` : out;
 }
 
 function renderHistory() {
-  const keys = sessionKeys();
-  if (histFilter !== 'all' && !keys.includes(histFilter)) histFilter = 'all';
+  const filters = historyFilterKeys();
+  if (histFilter !== 'all' && !filters.some(([k]) => k === histFilter)) histFilter = 'all';
   return `
     <div class="view history view--grouped">
       ${navBar({ title: 'Historique', right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>` })}
@@ -111,7 +148,7 @@ function renderHistory() {
           <input type="search" id="histSearch" class="search" placeholder="Rechercher" value="${esc(histQuery)}"
                  autocomplete="off" enterkeyhint="search" aria-label="Rechercher dans l'historique">
           <div class="segmented seg-full seg-scroll" role="group" aria-label="Filtrer par séance">
-            ${[['all', 'Toutes'], ...keys.map(k => [k, sessionMeta(k).label])].map(([k, l]) =>
+            ${[['all', 'Toutes'], ...filters].map(([k, l]) =>
               `<button class="segmented__btn ${histFilter === k ? 'segmented__btn--active' : ''}" aria-pressed="${histFilter === k}" data-action="hist-filter" data-cat="${esc(k)}">${l}</button>`).join('')}
           </div>
         </div>
@@ -161,6 +198,12 @@ function historyRecordsGroup(h) {
         <div class="group">${recs.map(r => notedRecordCell(r)).join('')}</div>`;
 }
 
+// Petite vignette du muscle principal d'un exercice, à droite de son nom (décorative ; texte agrandi : retirée)
+function histExThumbHtml(e, index) {
+  const id = exerciseMuscles(e, index).primary?.[0];
+  return isMuscleId(id) ? progThumbHtml(id, 'hex__img') : '';
+}
+
 // Historique › Séance : la séance vient de la route (« history-detail:ID »)
 function renderHistoryDetail(id) {
   const h = (data.history || []).find(x => x.id === id);
@@ -172,15 +215,29 @@ function renderHistoryDetail(id) {
   const meta   = sessionMeta(h.category, progId);
   let when = capitalize(fmtDate(h.date, 'long'));
   // L'heure n'a de sens que pour une séance chronométrée (une séance passée n'a pas d'heure)
-  if (h.duration) when += ` · ${fmtTime(h.date)}`;
+  // « · 13:11 » d'un seul tenant (.hdhead__time, nowrap) : l'heure ne se coupe jamais (« 1 / 3:11 » en AX33) ni ne
+  // laisse son point seul en bout de ligne ; il passe à la ligne entier si la date remplit déjà la ligne
+  if (h.duration) when = `${esc(when)} <span class="hdhead__time">·\u00a0${fmtTime(h.date)}</span>`;
   const vol   = sessionVolume(h.exercises || [], entryBodyKg(h));
   const nSets = (h.exercises || []).reduce((a, e) => a + workSets(e.sets).length, 0);   // séries de travail
+  const index = chosenMusclesIndex();
+  // Groupes travaillés, du plus au moins sollicité : écrits sous la date (lus par VoiceOver, restent en texte agrandi) ;
+  // la vignette du premier, à droite, les montre en rouge (décorative)
+  const groups = exercisesGroups(h.exercises, index);
+  const art = progThumbHtml(groups[0]?.g.id, 'hdhead__img');
   return `
     <div class="view history-detail view--grouped">
       ${navBar({ title: '', right: `<button class="navbar__text" data-action="edit-session" data-id="${esc(h.id)}">Modifier</button>` })}
       <div class="scr">
-        <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${meta.color}"></span>${meta.label}</h1>
-        <p class="scr-sub">${when}${progId !== data.activeProgramme && progId !== FREE ? ` · Programme ${esc(progMeta(progId).name)}` : ''}</p>
+        <section class="hdhead mgc${art ? '' : ' hdhead--noart'}">
+          <div class="hdhead__text mgc__text">
+            <h1 class="scr-title hdhead__title">${meta.label}</h1>
+            <span class="hdhead__when">${when}</span>
+            ${progId !== data.activeProgramme && progId !== FREE ? `<span class="hdhead__prog">Programme ${esc(progMeta(progId).name)}</span>` : ''}
+            ${groups.length ? `<span class="hdhead__mus">${groups.slice(0, 3).map(x => esc(x.g.label)).join('\u00a0· ')}</span>` : ''}
+          </div>
+          ${art}
+        </section>
         <div class="tiles">
           <div class="tile"><span class="tile__val num">${h.duration ? fmtDuration(h.duration) : '—'}</span><span class="tile__lbl">Durée</span></div>
           <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">Soulevé</span></div>
@@ -189,7 +246,8 @@ function renderHistoryDetail(id) {
         <div class="group-title">Exercices</div>
         <div class="group">
           ${(h.exercises || []).map((e, i, xs) => `
-            <div class="cell hex">
+            <div class="cell hex hex--art">
+              ${histExThumbHtml(e, index)}
               <span class="cell__body">
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
                 ${gripText(e.grip, e) ? `<span class="hex__sets hex__sets--note">${gripText(e.grip, e)}</span>` : ''}

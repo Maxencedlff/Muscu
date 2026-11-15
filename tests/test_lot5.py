@@ -50,15 +50,72 @@ def t_history(bench, eng, dev, theme):
         vis = visible_count(page, '.hcell')
         # Galaxy S9+ (320 px de large) : les sous-titres longs passent sur 2 lignes au lieu d'être tronqués
         # Vague 4 : le programme d'une séance d'un autre programme a sa ligne (« Programme Bras & épaules ») : une cellule de moins
-        need = 6 if dev in ('iPhone 13', 'Pixel 7', 'Galaxy S9+') else 5
+        # 15/11 : cartes illustrées au gabarit des « Autres séances » de l'accueil (6,4 rem) : deux cartes de moins qu'en
+        # liste de texte : 3 cartes entières partout (la 4e affleure la tab bar sur iPhone 13 selon la police : 4 en local,
+        # 3 sur GitHub), la suivante entamée invite à défiler
+        need = 3
         R.check(vis >= need, f'{t} historique : {vis} cellules visibles (>= {need})')
         h = page.locator('.hcell').first.bounding_box()['height']
-        R.check(62 <= h <= 90, f'{t} historique : hauteur de cellule {h:.0f}')
+        R.check(62 <= h <= 125, f'{t} historique : hauteur de cellule {h:.0f}')
+        # Même hauteur de référence que les cartes de l'accueil (.home-cell.mgc : 6,4 rem)
+        ref = page.evaluate("6.4 * parseFloat(getComputedStyle(document.documentElement).fontSize)")
+        mh = float(page.evaluate("getComputedStyle(document.querySelector('.hcell--card')).minHeight").replace('px', ''))
+        R.check(abs(mh - ref) < 1, f'{t} historique : hauteur de référence de l\'accueil ({mh:.0f} px, {ref:.0f} attendus)')
+        # Le texte (mesuré au mot près, Range) ne passe jamais sous le personnage : il peut couvrir les 10 premiers % de
+        # l'image, transparents dans toutes les vignettes (bord gauche fondu ; pectoraux, le plus large, commence à 10 %)
+        under = page.evaluate("""() => [...document.querySelectorAll('.hcell--card')].flatMap(c => {
+            const i = c.querySelector('.hcell__img'); if (!i || !i.offsetWidth) return [];
+            const ir = i.getBoundingClientRect(), left = ir.left + ir.width * .1;
+            return [...c.querySelectorAll('.hcell__title, .hcell__date, .hcell__rec, .hcell__prog, .hcell__sub')].filter(e => {
+              const r = document.createRange(); r.selectNodeContents(e);
+              return [...r.getClientRects()].some(q => q.width > 0 && q.right > left + 4); }).map(e => e.textContent.trim()); })""")
+        R.check(not under, f'{t} historique : aucun texte sous la vignette {under[:3]}')
+        # Cartes illustrées : chaque séance a sa vignette 3D du groupe le plus travaillé, décorative, dans la carte, à
+        # droite du texte sans le recouvrir ; Push → pectoraux, Pull → dos, Legs → jambes
+        cards = page.evaluate("""() => [...document.querySelectorAll('.hrow:not(.hrow--health) .hcell--card')].map(c => {
+            const i = c.querySelector('img.hcell__img'), b = c.getBoundingClientRect(), tx = c.querySelector('.hcell__body').getBoundingClientRect();
+            const r = i && i.getBoundingClientRect();
+            return { t: c.querySelector('.hcell__title').textContent.trim(), src: i ? i.getAttribute('src') : '', alt: i ? i.getAttribute('alt') : null,
+                     hidden: i ? i.getAttribute('aria-hidden') : null, inside: !!r && r.top >= b.top - 1 && r.bottom <= b.bottom + 1 && r.right <= b.right + 1,
+                     clear: !!r && r.left >= tx.right - 24 }; })""")
+        R.check(cards and all(c['src'] and c['alt'] == '' and c['hidden'] == 'true' for c in cards), f'{t} historique : vignette décorative sur chaque carte {cards[:1]}')
+        R.check(all(c['inside'] for c in cards), f'{t} historique : vignettes dans leur carte {[c["t"] for c in cards if not c["inside"]][:3]}')
+        R.check(all(c['clear'] for c in cards), f'{t} historique : vignette à droite du texte {[c["t"] for c in cards if not c["clear"]][:3]}')
+        want = {'Push': 'pectoraux', 'Pull': 'dos', 'Legs': 'jambes'}
+        bad = [c for c in cards if c['t'] in want and not c['src'].endswith(f"/{want[c['t']]}.webp")]
+        R.check(not bad, f'{t} historique : vignette du groupe principal {[(c["t"], c["src"]) for c in bad][:3]}')
+        heads = page.locator('.hmonth__title').all_inner_texts()
+        R.check(heads and all('séance' in x for x in heads), f'{t} historique : nombre de séances par mois {heads[:2]}')
+        # Texte agrandi : plus de vignette, aucun titre ni détail coupé
+        xl = page.evaluate("""() => { const h = document.documentElement; h.classList.add('type-xl');
+            const imgs = [...document.querySelectorAll('.hcell__img')].filter(i => i.offsetWidth > 0).length;
+            const cut = [...document.querySelectorAll('.hcell__title, .hcell__sub, .hcell__date')].filter(e => e.scrollWidth > e.clientWidth + 1).length;
+            h.classList.remove('type-xl'); return { imgs, cut }; }""")
+        R.check(xl == {'imgs': 0, 'cut': 0}, f'{t} historique texte agrandi : vignettes retirées, rien de coupé {xl}')
+        # Texte agrandi : filtres sur deux colonnes, aucun mot coupé (« Toute/s ») ; chaque mot tient sur une seule ligne
+        split = page.evaluate("""() => { const h = document.documentElement; h.classList.add('type-xl');
+            const bad = [...document.querySelectorAll('.hist-tools .segmented__btn')].filter(b => {
+              const tn = [...b.childNodes].find(n => n.nodeType === 3); if (!tn) return false;
+              let at = 0; return tn.textContent.split(' ').some(w => { const r = document.createRange(); r.setStart(tn, at); r.setEnd(tn, at + w.length); at += w.length + 1;
+                const tops = new Set([...r.getClientRects()].filter(q => q.width > 0).map(q => Math.round(q.top))); return tops.size > 1; }); }).map(b => b.textContent);
+            const sw = document.documentElement.scrollWidth; h.classList.remove('type-xl'); return { bad, sw }; }""")
+        R.check(not split['bad'] and split['sw'] <= page.viewport_size['width'], f'{t} historique texte agrandi : filtres sans mot coupé {split}')
         R.check(no_dot_decimal(page, '#histList'), f'{t} historique : aucun point décimal')
         R.check(page.locator('.hcell__date', has_text='12:00').count() == 0, f'{t} historique : pas d\'heure fictive')
         R.check(page.locator('.hmonth').count() == 3 and page.locator('[data-action="hist-more"]').count() == 1,
                 f'{t} historique : pagination sur 3 mois')
         shot(page, LOT, f'history_{dev}_{theme}')
+        # Records en toutes lettres (« 4 records », pas un chiffre seul après la médaille)
+        import re
+        recs = page.locator('.hcell__rec').all_inner_texts()
+        R.check(recs and all(re.fullmatch(r'\d+ records?', x.strip()) for x in recs), f'{t} historique : records en toutes lettres {recs[:3]}')
+        # Filtres tirés de l'historique : la séance « Bras » d'un autre programme a son filtre, qui ne montre qu'elle
+        bras = page.locator('[data-action="hist-filter"]', has_text='Bras')
+        R.check(bras.count() == 1 and '/' in (bras.get_attribute('data-cat') or ''), f'{t} historique : filtre Bras (autre programme)')
+        if bras.count() == 1:
+            bras.click()
+            tb = set(page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)"))
+            R.check(tb == {'Bras'}, f'{t} historique : filtre Bras ({tb})')
         # Filtre Pull + recherche
         page.click('[data-action="hist-filter"][data-cat="pull"]')
         titles = set(page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)"))
@@ -102,6 +159,40 @@ def t_history(bench, eng, dev, theme):
         R.check(no_dot_decimal(page, '.view.history-detail'), f'{t} détail : aucun point décimal')
         R.check(page.locator('[data-action="edit-session"]').count() == 1 and page.locator('.cell--destructive', has_text='Supprimer de l\'historique').count() == 1,
                 f'{t} détail : Modifier et Supprimer')
+        # En-tête illustré : vignette décorative du groupe principal, groupes travaillés écrits ; une vignette par exercice
+        hd = page.evaluate("""() => { const i = document.querySelector('.hdhead .hdhead__img');
+            return { img: !!i && i.getAttribute('alt') === '' && i.getAttribute('aria-hidden') === 'true', mus: document.querySelector('.hdhead__mus')?.textContent || '',
+                     h1: document.querySelector('.hdhead h1.scr-title')?.textContent || '', ex: document.querySelectorAll('.hex').length,
+                     exImg: document.querySelectorAll('.hex img.hex__img[aria-hidden="true"]').length,
+                     over: [...document.querySelectorAll('.hex')].filter(c => { const i = c.querySelector('.hex__img'), n = c.querySelector('.hex__name');
+                       return i && n && n.getBoundingClientRect().right > i.getBoundingClientRect().left + 1; }).length }; }""")
+        R.check(hd['img'] and hd['mus'] and hd['h1'], f'{t} détail : en-tête illustré, groupes écrits {hd}')
+        R.check(hd['ex'] > 0 and hd['exImg'] == hd['ex'] and hd['over'] == 0, f'{t} détail : vignette par exercice, sans recouvrir le nom {hd}')
+        when = page.inner_text('.hdhead__when')
+        tm = page.evaluate("(() => { const e = document.querySelector('.hdhead__time'); return e ? [e.textContent, getComputedStyle(e).whiteSpace] : null; })()")
+        R.check(re.search(r'\d{4} ·\u00a0\d{1,2}:\d{2}$', when) is not None and tm and tm[1] == 'nowrap', f'{t} détail : « · heure » d\'un seul tenant {when!r} {tm}')
+        # En-tête : le texte (au mot près) s'arrête avant la vignette, en taille normale comme en AX33
+        for xl in (False, True):
+            hit = page.evaluate("""xl => { const h = document.documentElement; h.classList.toggle('type-xl', xl);
+                const i = document.querySelector('.hdhead__img'), r = i && i.offsetWidth ? i.getBoundingClientRect() : null;
+                const bad = r ? [...document.querySelectorAll('.hdhead__title, .hdhead__when, .hdhead__mus, .hdhead__prog')].filter(e => {
+                  const g = document.createRange(); g.selectNodeContents(e); return [...g.getClientRects()].some(q => q.width > 0 && q.right > r.left + r.width * .1); }).map(e => e.textContent) : [];
+                const cut = [...document.querySelectorAll('.hdhead__time')].some(e => { const g = document.createRange(); g.selectNodeContents(e); return new Set([...g.getClientRects()].map(q => Math.round(q.top))).size > 1; });
+                h.classList.remove('type-xl'); return { bad, cut }; }""", xl)
+            R.check(not hit['bad'] and not hit['cut'], f'{t} détail{" AX" if xl else ""} : en-tête sans texte sous l\'image, heure entière {hit}')
+        # Records du détail en texte agrandi : la valeur sous le nom, pleine largeur, rien de coupé ; libellé en toutes lettres
+        rid = page.evaluate('historySorted().find(h => entryRecords(h).length)?.id')
+        if rid:
+            go(page, f'history-detail:{rid}')
+            rx = page.evaluate("""() => { const h = document.documentElement; h.classList.add('type-xl');
+                const out = [...document.querySelectorAll('.history-detail .review-rec')].map(c => { const b = c.querySelector('.cell__body').getBoundingClientRect(),
+                  v = c.querySelector('.review-rec__val'), vr = v.getBoundingClientRect();
+                  return { below: vr.top >= b.bottom - 1, cut: v.scrollWidth > v.clientWidth + 1, wide: b.width > c.getBoundingClientRect().width * .6 }; });
+                h.classList.remove('type-xl'); return out; }""")
+            R.check(rx and all(x['below'] and not x['cut'] and x['wide'] for x in rx), f'{t} détail texte agrandi : valeur des records sous le nom {rx[:2]}')
+            subs = page.locator('.history-detail .review-rec .cell__sub').all_inner_texts()
+            R.check(not any('Record reps' in x for x in subs), f'{t} détail : « Record de répétitions » en toutes lettres {subs[:3]}')
+            go(page, f'history-detail:{hid}')
         shot(page, LOT, f'history_detail_{dev}_{theme}')
         page.click('.navbar__back')  # Fusion : barre de navigation du lot 3
         R.check(page.locator('.view.history').count() == 1, f'{t} détail : retour à l\'historique')

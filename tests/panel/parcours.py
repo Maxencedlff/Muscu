@@ -263,10 +263,10 @@ def p_historique(r):
     r.lancer(REALISTE)
     with r.etape('liste', 'Onglet Historique', cle='Revoir sa dernière séance'):
         r.onglet('history', 'Historique')
-        r.attendre('.view.history', 'Historique')
+        r.attendre('.view.history .hcell--card', 'Historique en cartes illustrées')
     with r.etape('detail', 'Détail de la dernière séance', cle='Revoir sa dernière séance'):
-        r.toucher('[data-action="open-history"]', 'la séance la plus récente')
-        r.attendre('.view.history-detail', 'détail de séance')
+        r.toucher('.view.history .hcell--card[data-action="open-history"]', 'la séance la plus récente')
+        r.attendre('.view.history-detail .hdhead', 'détail de séance (en-tête illustré)')
     with r.etape('detail-bas', 'Détail, bas de l\'écran'):
         r.bas('bas du détail')
 
