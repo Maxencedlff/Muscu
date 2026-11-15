@@ -6,15 +6,8 @@
 let muscleSpan = 'month';  // période de Progrès (MUSCLE_SPANS) : « Cette semaine » serait grise chaque lundi
 let muscleFocus = null;    // muscle mis en avant dans « Séries par muscle » (ouvert depuis la bulle)
 
-// Intensités d'un exercice pour la silhouette de la fiche : principaux pleins, secondaires presque
-// pleins mais d'une autre teinte (--body-heat-sec), pour rester lisibles et distincts
-const SECONDARY_INTENSITY = 0.8;
-function exerciseIntensity(m) {
-  const lv = {};
-  m.secondary.forEach(id => { lv[id] = SECONDARY_INTENSITY; });
-  m.primary.forEach(id => { lv[id] = 1; });
-  return lv;
-}
+// Intensités d'un exercice pour la silhouette de la fiche : exerciseIntensity (js/features/progress-muscles.js,
+// partagée avec les cartes de l'historique)
 
 // ── Pastilles ───────────────────────────────────────────────
 

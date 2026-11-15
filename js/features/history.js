@@ -13,33 +13,39 @@ function historySorted() {
 
 // Filtres : les séances du programme actif (data-cat = la catégorie, toujours là), puis celles d'autres programmes ou
 // libres réellement présentes dans l'historique (« Bras » d'un autre programme : data-cat = « programme/catégorie »),
-// de la plus récente à la plus ancienne ; un même nom n'a qu'un filtre (le premier)
+// de la plus récente à la plus ancienne. Un filtre = un nom de séance, à la casse et aux accents près (normName :
+// « Epaules » d'un programme et « Épaules » d'un autre font une seule pastille, retour de Maxence du 15/11), libellé
+// avec accent quand l'un des deux en a. Les données gardées ne changent pas : seul le regroupement à l'affichage.
 function historyFilterKeys() {
-  const out = sessionKeys().map(k => [k, sessionMeta(k).label]);
-  const seen = new Set(out.map(([, l]) => l));
+  const out = [], at = new Map();
+  const add = (key, label) => {
+    const n = normName(label), i = at.get(n);
+    if (i === undefined) { at.set(n, out.length); out.push([key, label]); return; }
+    if (label.normalize('NFD').length > out[i][1].normalize('NFD').length) out[i][1] = label;   // « Épaules » plutôt que « Epaules »
+  };
+  sessionKeys().forEach(k => add(k, sessionMeta(k).label));
   historySorted().forEach(h => {
     const prog = entryProg(h);
     if (prog === data.activeProgramme || isHealthEntry(h)) return;
-    const label = sessionMeta(h.category, prog).label;
-    if (seen.has(label)) return;
-    seen.add(label); out.push([`${prog}/${h.category}`, label]);
+    add(`${prog}/${h.category}`, sessionMeta(h.category, prog).label);
   });
   return out;
 }
-function historyFilterHit(h) {
+// Nom normalisé d'une séance passée, et celui que vise un filtre (« programme/catégorie » ou catégorie du programme actif)
+function historyEntryName(h) { return normName(sessionMeta(h.category, entryProg(h)).label); }
+function historyFilterName(key) {
+  const i = key.indexOf('/');
+  return normName(i > 0 ? sessionMeta(key.slice(i + 1), key.slice(0, i)).label : sessionMeta(key).label);
+}
+// Une séance passe le filtre quand son nom est celui du filtre, quel que soit son programme ; les courses et sorties vélo
+// de Santé n'ont que « Toutes »
+function historyFilterHit(h, name = historyFilterName(histFilter)) {
   if (histFilter === 'all') return true;
-  const i = histFilter.indexOf('/');
-  // Filtre d'un autre programme : toutes les séances de même nom, quel que soit le programme hors programme actif
-  if (i > 0) {
-    const prog = histFilter.slice(0, i), cat = histFilter.slice(i + 1);
-    const label = sessionMeta(cat, prog).label, p = entryProg(h);
-    return p !== data.activeProgramme && sessionMeta(h.category, p).label === label;
-  }
-  return h.category === histFilter && entryProg(h) === data.activeProgramme;
+  return !isHealthEntry(h) && historyEntryName(h) === name;
 }
 
-function historyMatches(h, q) {
-  if (!historyFilterHit(h)) return false;
+function historyMatches(h, q, name) {
+  if (!historyFilterHit(h, name)) return false;
   if (!q) return true;
   if (isHealthEntry(h)) return [h.health.title, h.health.source, h.exercises[0].name].some(t => normName(t).includes(q));
   if (normName(h.notes).includes(q)) return true;
@@ -62,8 +68,10 @@ function healthHistoryCell(h) {
 }
 
 // Séance passée en carte illustrée, comme « Autres séances » de l'accueil : nom, date et records, puis exercices, tonnage
-// et durée à gauche ; vignette 3D du groupe le plus travaillé à droite (mainGroupOf, js/features/progress-muscles.js). La vignette est
-// décorative (aria-hidden) : VoiceOver lit le texte, records compris. Texte agrandi : plus de vignette (css/muscles.css).
+// et durée à gauche ; à droite, le personnage entier (face et dos) avec les muscles de la séance réellement faite :
+// principaux de chaque exercice en rouge plein, secondaires en rouge clair (exercisesBodyHtml, js/features/progress-muscles.js ;
+// une séance épaules + abdos montre les deux, retour de Maxence du 15/11). Décoratif (aria-hidden) : VoiceOver lit le
+// texte, records compris. Texte agrandi : plus de personnage (css/screens.css).
 // index : chosenMusclesIndex() calculé une fois pour toute la liste
 function historyCell(h, index) {
   if (isHealthEntry(h)) return healthHistoryCell(h);
@@ -81,7 +89,8 @@ function historyCell(h, index) {
   // côté de la date
   const recs = recordCount(h);
   const recMark = recs ? `<span class="hcell__rec num">${medalSvg(14)}${plural(recs, 'record', 'records')}</span>` : '';
-  const art = progThumbHtml(mainGroupOf(h.exercises, index), 'hcell__img');
+  const body = exercisesBodyHtml(h.exercises, index, 'hcell__body-map');
+  const art = body ? `<span class="hcell__map">${body}</span>` : '';
   return `
     <div class="hrow" data-id="${esc(h.id)}">
       <button class="hrow__del" data-action="swipe-delete-session" data-id="${esc(h.id)}" tabindex="-1">Supprimer</button>
@@ -121,7 +130,8 @@ function historyByMonth(list) {
 // vélo de Santé s'y mêlent à leur date (filtre « Toutes » seulement : elles n'appartiennent à aucune séance)
 function historyListHTML() {
   const q   = normName(histQuery);
-  const all = [...historySorted(), ...healthEntries()].sort((a, b) => b.date - a.date).filter(h => historyMatches(h, q));
+  const name = histFilter === 'all' ? '' : historyFilterName(histFilter);
+  const all = [...historySorted(), ...healthEntries()].sort((a, b) => b.date - a.date).filter(h => historyMatches(h, q, name));
   if (!all.length) {
     return (data.history || []).length || healthEntries().length
       ? `<div class="empty-note">Aucune séance ne correspond.</div>`
@@ -222,9 +232,11 @@ function renderHistoryDetail(id) {
   const nSets = (h.exercises || []).reduce((a, e) => a + workSets(e.sets).length, 0);   // séries de travail
   const index = chosenMusclesIndex();
   // Groupes travaillés, du plus au moins sollicité : écrits sous la date (lus par VoiceOver, restent en texte agrandi) ;
-  // la vignette du premier, à droite, les montre en rouge (décorative)
+  // le personnage, à droite, montre les muscles ciblés et ceux en soutien, comme la carte de la liste (décoratif) ; la
+  // légende des deux teintes est ici, une seule fois (dans la liste, elle coûtait une carte visible sur iPhone SE)
   const groups = exercisesGroups(h.exercises, index);
-  const art = progThumbHtml(groups[0]?.g.id, 'hdhead__img');
+  const body = exercisesBodyHtml(h.exercises, index, 'hdhead__body-map');
+  const art = body ? `<span class="hdhead__map">${body}</span>` : '';
   return `
     <div class="view history-detail view--grouped">
       ${navBar({ title: '', right: `<button class="navbar__text" data-action="edit-session" data-id="${esc(h.id)}">Modifier</button>` })}
@@ -235,6 +247,7 @@ function renderHistoryDetail(id) {
             <span class="hdhead__when">${when}</span>
             ${progId !== data.activeProgramme && progId !== FREE ? `<span class="hdhead__prog">Programme ${esc(progMeta(progId).name)}</span>` : ''}
             ${groups.length ? `<span class="hdhead__mus">${groups.slice(0, 3).map(x => esc(x.g.label)).join('\u00a0· ')}</span>` : ''}
+            ${body ? bodyLegendHtml('hd-legend') : ''}
           </div>
           ${art}
         </section>

@@ -61,37 +61,39 @@ def t_history(bench, eng, dev, theme):
         ref = page.evaluate("6.4 * parseFloat(getComputedStyle(document.documentElement).fontSize)")
         mh = float(page.evaluate("getComputedStyle(document.querySelector('.hcell--card')).minHeight").replace('px', ''))
         R.check(abs(mh - ref) < 1, f'{t} historique : hauteur de référence de l\'accueil ({mh:.0f} px, {ref:.0f} attendus)')
-        # Le texte (mesuré au mot près, Range) ne passe jamais sous le personnage : il peut couvrir les 10 premiers % de
-        # l'image, transparents dans toutes les vignettes (bord gauche fondu ; pectoraux, le plus large, commence à 10 %)
+        # Le texte (mesuré au mot près, Range) ne passe jamais sous le personnage (face et dos de la séance)
         under = page.evaluate("""() => [...document.querySelectorAll('.hcell--card')].flatMap(c => {
-            const i = c.querySelector('.hcell__img'); if (!i || !i.offsetWidth) return [];
-            const ir = i.getBoundingClientRect(), left = ir.left + ir.width * .1;
+            const i = c.querySelector('.hcell__map'); if (!i || !i.offsetWidth) return [];
+            const left = i.getBoundingClientRect().left;
             return [...c.querySelectorAll('.hcell__title, .hcell__date, .hcell__rec, .hcell__prog, .hcell__sub')].filter(e => {
               const r = document.createRange(); r.selectNodeContents(e);
               return [...r.getClientRects()].some(q => q.width > 0 && q.right > left + 4); }).map(e => e.textContent.trim()); })""")
         R.check(not under, f'{t} historique : aucun texte sous la vignette {under[:3]}')
-        # Cartes illustrées : chaque séance a sa vignette 3D du groupe le plus travaillé, décorative, dans la carte, à
-        # droite du texte sans le recouvrir ; Push → pectoraux, Pull → dos, Legs → jambes
+        # Cartes illustrées (15/11) : chaque séance a son personnage entier, face et dos, décoratif, dans la carte, à droite
+        # du texte sans le recouvrir ; muscles principaux de ses exercices en rouge plein : Push → pectoraux, Pull → grand
+        # dorsal, Legs → quadriceps ; aucun fondu animé (des dizaines de calques à la fois)
         cards = page.evaluate("""() => [...document.querySelectorAll('.hrow:not(.hrow--health) .hcell--card')].map(c => {
-            const i = c.querySelector('img.hcell__img'), b = c.getBoundingClientRect(), tx = c.querySelector('.hcell__body').getBoundingClientRect();
+            const i = c.querySelector('.hcell__map .body-map'), b = c.getBoundingClientRect(), tx = c.querySelector('.hcell__body').getBoundingClientRect();
             const r = i && i.getBoundingClientRect();
-            return { t: c.querySelector('.hcell__title').textContent.trim(), src: i ? i.getAttribute('src') : '', alt: i ? i.getAttribute('alt') : null,
+            const main = i ? [...new Set([...i.querySelectorAll('.body-map__m:not(.body-map__m--sec)')].map(m => m.dataset.muscle))] : [];
+            return { t: c.querySelector('.hcell__title').textContent.trim(), views: i ? i.querySelectorAll('.body-map__fig').length : 0, main,
                      hidden: i ? i.getAttribute('aria-hidden') : null, inside: !!r && r.top >= b.top - 1 && r.bottom <= b.bottom + 1 && r.right <= b.right + 1,
-                     clear: !!r && r.left >= tx.right - 24 }; })""")
-        R.check(cards and all(c['src'] and c['alt'] == '' and c['hidden'] == 'true' for c in cards), f'{t} historique : vignette décorative sur chaque carte {cards[:1]}')
-        R.check(all(c['inside'] for c in cards), f'{t} historique : vignettes dans leur carte {[c["t"] for c in cards if not c["inside"]][:3]}')
-        R.check(all(c['clear'] for c in cards), f'{t} historique : vignette à droite du texte {[c["t"] for c in cards if not c["clear"]][:3]}')
-        want = {'Push': 'pectoraux', 'Pull': 'dos', 'Legs': 'jambes'}
-        bad = [c for c in cards if c['t'] in want and not c['src'].endswith(f"/{want[c['t']]}.webp")]
-        R.check(not bad, f'{t} historique : vignette du groupe principal {[(c["t"], c["src"]) for c in bad][:3]}')
+                     clear: !!r && r.left >= tx.right, anim: i ? [...i.querySelectorAll('.body-map__m')].some(m => getComputedStyle(m).animationName !== 'none') : null }; })""")
+        R.check(cards and all(c['views'] == 2 and c['hidden'] == 'true' and c['main'] for c in cards), f'{t} historique : personnage face et dos, décoratif, sur chaque carte {cards[:1]}')
+        R.check(all(c['inside'] for c in cards), f'{t} historique : personnages dans leur carte {[c["t"] for c in cards if not c["inside"]][:3]}')
+        R.check(all(c['clear'] for c in cards), f'{t} historique : personnage à droite du texte {[c["t"] for c in cards if not c["clear"]][:3]}')
+        R.check(not any(c['anim'] for c in cards), f'{t} historique : calques des personnages sans animation')
+        want = {'Push': 'chest', 'Pull': 'lats', 'Legs': 'quads'}
+        bad = [c for c in cards if c['t'] in want and want[c['t']] not in c['main']]
+        R.check(not bad, f'{t} historique : muscles principaux de la séance {[(c["t"], c["main"]) for c in bad][:3]}')
         heads = page.locator('.hmonth__title').all_inner_texts()
         R.check(heads and all('séance' in x for x in heads), f'{t} historique : nombre de séances par mois {heads[:2]}')
         # Texte agrandi : plus de vignette, aucun titre ni détail coupé
         xl = page.evaluate("""() => { const h = document.documentElement; h.classList.add('type-xl');
-            const imgs = [...document.querySelectorAll('.hcell__img')].filter(i => i.offsetWidth > 0).length;
+            const imgs = [...document.querySelectorAll('.hcell__map')].filter(i => i.offsetWidth > 0).length;
             const cut = [...document.querySelectorAll('.hcell__title, .hcell__sub, .hcell__date')].filter(e => e.scrollWidth > e.clientWidth + 1).length;
             h.classList.remove('type-xl'); return { imgs, cut }; }""")
-        R.check(xl == {'imgs': 0, 'cut': 0}, f'{t} historique texte agrandi : vignettes retirées, rien de coupé {xl}')
+        R.check(xl == {'imgs': 0, 'cut': 0}, f'{t} historique texte agrandi : personnages retirés, rien de coupé {xl}')
         # Texte agrandi : filtres sur deux colonnes, aucun mot coupé (« Toute/s ») ; chaque mot tient sur une seule ligne
         split = page.evaluate("""() => { const h = document.documentElement; h.classList.add('type-xl');
             const bad = [...document.querySelectorAll('.hist-tools .segmented__btn')].filter(b => {
@@ -159,9 +161,9 @@ def t_history(bench, eng, dev, theme):
         R.check(no_dot_decimal(page, '.view.history-detail'), f'{t} détail : aucun point décimal')
         R.check(page.locator('[data-action="edit-session"]').count() == 1 and page.locator('.cell--destructive', has_text='Supprimer de l\'historique').count() == 1,
                 f'{t} détail : Modifier et Supprimer')
-        # En-tête illustré : vignette décorative du groupe principal, groupes travaillés écrits ; une vignette par exercice
-        hd = page.evaluate("""() => { const i = document.querySelector('.hdhead .hdhead__img');
-            return { img: !!i && i.getAttribute('alt') === '' && i.getAttribute('aria-hidden') === 'true', mus: document.querySelector('.hdhead__mus')?.textContent || '',
+        # En-tête illustré : personnage décoratif de la séance (face et dos), groupes travaillés écrits ; une vignette par exercice
+        hd = page.evaluate("""() => { const i = document.querySelector('.hdhead .hdhead__map .body-map');
+            return { img: !!i && i.getAttribute('aria-hidden') === 'true' && i.querySelectorAll('.body-map__fig').length === 2, mus: document.querySelector('.hdhead__mus')?.textContent || '',
                      h1: document.querySelector('.hdhead h1.scr-title')?.textContent || '', ex: document.querySelectorAll('.hex').length,
                      exImg: document.querySelectorAll('.hex img.hex__img[aria-hidden="true"]').length,
                      over: [...document.querySelectorAll('.hex')].filter(c => { const i = c.querySelector('.hex__img'), n = c.querySelector('.hex__name');
@@ -174,9 +176,9 @@ def t_history(bench, eng, dev, theme):
         # En-tête : le texte (au mot près) s'arrête avant la vignette, en taille normale comme en AX33
         for xl in (False, True):
             hit = page.evaluate("""xl => { const h = document.documentElement; h.classList.toggle('type-xl', xl);
-                const i = document.querySelector('.hdhead__img'), r = i && i.offsetWidth ? i.getBoundingClientRect() : null;
+                const i = document.querySelector('.hdhead__map'), r = i && i.offsetWidth ? i.getBoundingClientRect() : null;
                 const bad = r ? [...document.querySelectorAll('.hdhead__title, .hdhead__when, .hdhead__mus, .hdhead__prog')].filter(e => {
-                  const g = document.createRange(); g.selectNodeContents(e); return [...g.getClientRects()].some(q => q.width > 0 && q.right > r.left + r.width * .1); }).map(e => e.textContent) : [];
+                  const g = document.createRange(); g.selectNodeContents(e); return [...g.getClientRects()].some(q => q.width > 0 && q.right > r.left); }).map(e => e.textContent) : [];
                 const cut = [...document.querySelectorAll('.hdhead__time')].some(e => { const g = document.createRange(); g.selectNodeContents(e); return new Set([...g.getClientRects()].map(q => Math.round(q.top))).size > 1; });
                 h.classList.remove('type-xl'); return { bad, cut }; }""", xl)
             R.check(not hit['bad'] and not hit['cut'], f'{t} détail{" AX" if xl else ""} : en-tête sans texte sous l\'image, heure entière {hit}')
@@ -202,6 +204,54 @@ def t_history(bench, eng, dev, theme):
 # Horloge figée le dimanche 25 octobre 2026 à 20 h, heure de Paris (jour du passage à l'heure d'hiver : la
 # semaine depuis lundi dure 169 h). Pull (lundi) et Legs (mercredi) y sont, Push (samedi d'avant) non.
 SUNDAY_EVENING = local_ms(2026, 10, 25, 20, 0, tz=PARIS)
+
+
+def t_history_corps(bench, eng, dev, theme):
+    """Retour de Maxence (15/11) : une séance épaules + abdos montre les deux groupes en rouge plein, les muscles en
+    soutien dans une autre teinte ; « Epaules » et « Épaules » (deux programmes) ne font qu'un filtre."""
+    t = tag(dev, theme)
+    at = local_ms(2026, 10, 15, 18)
+    with bench.frozen_page(at, eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json(now_ms=at, weeks=2))
+        page.evaluate("""at => {
+            const ex = names => names.map(name => ({ name, sets: [{ weight: '20', reps: '10' }, { weight: '20', reps: '10' }] }));
+            data.history.push(
+              { id: 'ep1', date: at - 3600e3, category: 'Epaules', programme: 'zz-epaules-1', exercises: ex(['Développé militaire', 'Élévations latérales', 'Crunch']) },
+              { id: 'ep2', date: at - 30 * 3600e3, category: 'Épaules', programme: 'zz-epaules-2', exercises: ex(['Élévations latérales']) });
+            save(); }""", at)
+        go(page, 'history')
+        pills = page.locator('[data-action="hist-filter"]').all_inner_texts()
+        ep = [p for p in pills if p.strip().lower() in ('epaules', 'épaules')]
+        R.check(ep == ['Épaules'], f'{t} historique corps : une seule pastille Épaules, avec accent {pills}')
+        card = page.evaluate("""() => { const c = document.querySelector('.hrow[data-id="ep1"] .body-map');
+            if (!c) return null;
+            const ms = [...c.querySelectorAll('.body-map__m')];
+            const main = [...new Set(ms.filter(m => !m.classList.contains('body-map__m--sec')).map(m => m.dataset.muscle))];
+            const sec = ms.filter(m => m.classList.contains('body-map__m--sec'));
+            const col = el => el ? getComputedStyle(el).backgroundColor : '';
+            return { main, sec: [...new Set(sec.map(m => m.dataset.muscle))], cMain: col(ms.find(m => !m.classList.contains('body-map__m--sec'))), cSec: col(sec[0]) }; }""")
+        R.check(card and 'abs' in card['main'] and any('delts' in m for m in card['main']), f'{t} historique corps : épaules ET abdos en principaux {card}')
+        R.check(card and card['sec'] and not set(card['sec']) & set(card['main']), f'{t} historique corps : secondaires en --sec, hors principaux {card}')
+        R.check(card and card['cMain'] and card['cSec'] and card['cMain'] != card['cSec'], f'{t} historique corps : deux teintes distinctes {card}')
+        page.evaluate("document.querySelector('.hrow[data-id=\"ep1\"]').scrollIntoView({ block: 'center' })")
+        shot(page, LOT, f'history_corps_{dev}_{theme}')
+        page.locator('[data-action="hist-filter"]', has_text='Épaules').click()
+        ids = set(page.evaluate("[...document.querySelectorAll('.hrow')].map(r => r.dataset.id)"))
+        R.check(ids == {'ep1', 'ep2'}, f'{t} historique corps : le filtre fusionné montre les deux séances {ids}')
+        page.click('.hrow[data-id="ep1"] .hcell')
+        page.wait_for_selector('.view.history-detail')
+        dm = page.evaluate("""() => { const c = document.querySelector('.hdhead__map .body-map'); if (!c) return null;
+            return { main: [...new Set([...c.querySelectorAll('.body-map__m:not(.body-map__m--sec)')].map(m => m.dataset.muscle))],
+                     sec: c.querySelectorAll('.body-map__m--sec').length }; }""")
+        R.check(dm and 'abs' in dm['main'] and dm['sec'] > 0, f'{t} détail corps : même personnage principal / soutien {dm}')
+        # Légende des deux teintes, une seule fois, dans le détail (pas dans la liste : une carte visible de moins sur SE)
+        leg = page.evaluate("""() => ({ list: document.querySelectorAll('.view.history .body-legend').length,
+            dots: [...document.querySelectorAll('.hdhead .body-legend__dot')].map(d => getComputedStyle(d).backgroundColor),
+            txt: document.querySelector('.hdhead .body-legend')?.textContent || '' })""")
+        R.check(len(leg['dots']) == 2 and leg['dots'][0] != leg['dots'][1] and 'Ciblés' in leg['txt'] and 'En soutien' in leg['txt'],
+                f'{t} détail corps : légende Ciblés / En soutien en deux teintes {leg}')
+        shot(page, LOT, f'history_corps_detail_{dev}_{theme}')
+        R.check(not page.errors, f'{t} historique corps : erreurs JS {page.errors[:2]}')
 
 
 def t_progress(bench, eng, dev, theme):
@@ -511,7 +561,7 @@ def t_programme_type_xl(bench):
         R.check(not page.errors, f'type-xl programme : erreurs JS {page.errors[:2]}')
 
 
-TESTS = [t_history, t_progress, t_poids, t_programme]
+TESTS = [t_history, t_history_corps, t_progress, t_poids, t_programme]
 
 if __name__ == '__main__':
     run_main(R, TESTS, once=[t_perf, t_programme_type_xl])

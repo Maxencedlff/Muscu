@@ -39,6 +39,39 @@ function mainGroupOf(list, index) {
   return exercisesGroups(list, index)[0]?.g.id || null;
 }
 
+// ── Silhouette d'un exercice ou d'une séance : muscles ciblés et muscles en soutien ──
+// Principaux pleins, secondaires presque pleins mais d'une autre teinte (--body-heat-sec, option secondary de
+// bodyMapHtml), pour rester lisibles et distincts. m : { primary, secondary } (exerciseMuscles)
+const SECONDARY_INTENSITY = 0.8;
+function exerciseIntensity(m) {
+  const lv = {};
+  m.secondary.forEach(id => { lv[id] = SECONDARY_INTENSITY; });
+  m.primary.forEach(id => { lv[id] = 1; });
+  return lv;
+}
+// Muscles d'une liste d'exercices (séance passée) : principaux de chacun des exercices, puis secondaires qui ne sont
+// principaux d'aucun (épaules + abdos : les deux en rouge plein, triceps et trapèzes en soutien).
+// Renvoie { primary, secondary } au format d'exerciseMuscles ; index : chosenMusclesIndex() déjà calculé (boucles)
+function exercisesMuscles(list, index = chosenMusclesIndex()) {
+  const primary = new Set(), secondary = new Set();
+  (Array.isArray(list) ? list : []).forEach(ex => {
+    const m = exerciseMuscles(ex, index);
+    m.primary.forEach(id => primary.add(id));
+    m.secondary.forEach(id => secondary.add(id));
+  });
+  return { primary: [...primary], secondary: [...secondary].filter(id => !primary.has(id)) };
+}
+// Personnage entier (face et dos) d'une liste d'exercices, décoratif ; '' si aucun muscle reconnu (cardio, inconnus).
+// Le texte de la carte ou de l'en-tête dit déjà les groupes travaillés à VoiceOver.
+function exercisesBodyHtml(list, index, className = '') {
+  const m = exercisesMuscles(list, index);
+  return m.primary.length ? bodyMapHtml(exerciseIntensity(m), { view: 'both', secondary: m.secondary, className }) : '';
+}
+// Légende des deux teintes (détail d'une séance passée), décorative comme les personnages qu'elle explique
+function bodyLegendHtml(cls = '') {
+  return `<div class="body-legend ${cls}" aria-hidden="true"><span class="body-legend__it"><i class="body-legend__dot"></i>Ciblés</span><span class="body-legend__it"><i class="body-legend__dot body-legend__dot--sec"></i>En soutien</span></div>`;
+}
+
 // Progrès d'un exercice en % sur la fenêtre : première et dernière séance des 12 semaines (la grandeur de sa liste :
 // charge max, ou reps au poids du corps). null sans deux séances, ou si la dernière date de plus de 3 semaines
 function windowPoints(it, now = Date.now()) { return it.points.filter(p => p.date >= now - PROG_WINDOW_DAYS * 86_400_000); }

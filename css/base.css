@@ -45,7 +45,7 @@
   --cat-color: var(--tint);      /* couleur de séance par défaut, redéfinie par écran (jamais le vert de « fait ») */
   /* Silhouette musculaire (js/ui/body-map.js) : corps, muscle au repos, muscle travaillé */
   --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #C94A3F;   /* rouge des muscles (images 3D), pas l'orange d'action ; détail : css/theme-sobre-progres.css */
-  --body-heat-sec: #9E5A50;       /* muscles secondaires d'un exercice (fiche) : même rouge, moins saturé */
+  --body-heat-sec: #EFA195;       /* muscles secondaires (fiche, historique) : même rouge, rosé plus clair (L* 74 contre 49) */
   --body-heat-max: #C94A3F;      /* palier le plus haut (récaps) */
   /* Paliers de Progrès (Entretien → Gros volume) : une seule rampe rouge dont la clarté monte à chaque palier
      (rouge sombre, rouge chair, saumon, rose pâle), écart CIELAB d'au moins 18 entre voisins */

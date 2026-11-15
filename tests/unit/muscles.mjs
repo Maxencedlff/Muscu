@@ -897,6 +897,24 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.ok(ns.every((n, i) => n > 0 && (i === 0 || ns[i - 1] >= n)), `ordre décroissant (${ns})`);
   });
 
+  test('muscles : personnage d\'une séance passée (ciblés de chaque exercice, soutien à part)', () => {
+    reset();
+    const exs = [{ name: 'Développé militaire' }, { name: 'Élévations latérales' }, { name: 'Crunch' }];
+    const m = app.exercisesMuscles(exs);
+    const each = exs.map(e => app.exerciseMuscles(e));
+    // Principaux de CHAQUE exercice (épaules et abdos), pas seulement du groupe dominant
+    each.forEach(x => x.primary.forEach(id => assert.ok(m.primary.includes(id), `${id} principal`)));
+    assert.ok(m.primary.includes('abs') && m.primary.some(id => /delts/.test(id)), `épaules et abdos (${m.primary})`);
+    // Secondaires : jamais un muscle déjà principal d'un autre exercice, sans doublon
+    assert.ok(m.secondary.every(id => !m.primary.includes(id)), `secondaires hors principaux (${m.secondary})`);
+    assert.equal(new Set(m.secondary).size, m.secondary.length);
+    const html = app.exercisesBodyHtml(exs, undefined, 'x');
+    assert.ok(/data-muscle="abs"/.test(html) && html.includes('body-map__front') && html.includes('body-map__back'), 'face et dos');
+    assert.ok(m.secondary.length === 0 || html.includes('body-map__m--sec'), 'secondaires dans leur teinte');
+    assert.equal(app.exercisesBodyHtml([{ name: 'Truc inventé zzz' }]), '', 'aucun muscle : pas de personnage');
+    assert.equal(app.exercisesBodyHtml(undefined), '');
+  });
+
   // Contexte vm (localStorage) : lu à l'appel, après reset()
   function ctx() { return run('globalThis'); }
 }

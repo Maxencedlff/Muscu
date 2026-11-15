@@ -227,38 +227,44 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
 .hnotes { font-size: 0.882rem; line-height: 1.176rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ── Historique illustré (refonte du 15/11, dans le style des cartes de l'accueil) ──
-   Chaque séance passée est une carte : nom, date et records, exercices · tonnage · durée à gauche ; vignette 3D du
-   groupe le plus travaillé à droite (img/muscles/<groupe>.webp, 600 × 400, muscles en rouge, bord gauche fondu dans
-   l'image). Aplat de cellule, séparateurs iOS, aucun dégradé ni ombre. Les sélecteurs à trois classes passent devant
-   .view--grouped .mgc et .mgc__img de css/muscles.css (chargé après). Texte agrandi : plus de vignette (même fichier),
-   le texte prend toute la largeur et revient à la ligne. */
+   Chaque séance passée est une carte : nom, date et records, exercices · tonnage · durée à gauche ; personnage entier
+   de la séance à droite (face et dos, muscles ciblés en rouge plein, en soutien en rouge clair). Aplat de cellule,
+   séparateurs iOS, aucun dégradé ni ombre. Les sélecteurs à trois classes passent devant .view--grouped .mgc de
+   css/muscles.css (chargé après). Texte agrandi : plus de personnage, le texte prend toute la largeur et revient à la ligne. */
 .hmonth__count { font-weight: 400; color: var(--label2); font-size: var(--fs-subhead); }
 /* Texte agrandi : le nombre de séances sur sa ligne, sans le point qui restait seul en bout de ligne */
 html.type-xl .hmonth__title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .4em; row-gap: 0; }
 html.type-xl .hmonth__count { line-height: 1.2; }
 html.type-xl .hmonth__count > [aria-hidden] { display: none; }
-/* Même gabarit que « Autres séances » de l'accueil (css/home.css, .home-cell.mgc) : 6,4 rem de haut, vignette entière
-   (contain) de 6,4 rem − 16 pt de haut, 22 pt avant le chevron, au plus 44 % de la largeur utile. Elle garde cette taille
-   quand une carte grandit (texte sur plus de lignes) et reste centrée. La colonne de texte s'arrête 8 pt avant le
-   personnage : les 10 premiers % de l'image sont transparents (bord gauche fondu, pectoraux : le plus large), le texte
-   peut y passer mais jamais sous le dessin ; une ligne longue revient à la ligne entre deux mots. */
-.hrow:has(> .hcell--card) { container-type: inline-size; }   /* cqw : largeur de la carte, la même pour le texte et la vignette */
-.view--grouped .hrow .hcell--card { --hthumb: min((6.4rem - 16px) * 1.5, (100cqw - 32px) * .44); min-height: 6.4rem; padding: 12px 16px; gap: 10px; overflow: hidden; }
-.hcell--card .hcell__body.mgc__text { flex: none; width: calc(100cqw - 62px - var(--hthumb) * .9); gap: 2px; }
+/* Même gabarit que « Autres séances » de l'accueil (css/home.css, .home-cell.mgc) : 6,4 rem de haut. Personnage entier
+   de la séance (face et dos côte à côte, exercisesBodyHtml de js/features/progress-muscles.js), à la place de la
+   vignette d'un seul groupe (retour de Maxence du 15/11 : une séance épaules + abdos ne montrait que les abdos) :
+   hauteur de la carte de base moins 6 pt en haut et en bas, largeur = hauteur × 807 / 840 (rapport de la rangée
+   face + dos, js/ui/body-map.js), 22 pt avant le chevron. Il garde cette taille quand une carte grandit (texte sur plus
+   de lignes) et reste centré. La colonne de texte s'arrête 8 pt avant lui ; une ligne longue revient à la ligne entre
+   deux mots. Séance sans muscle reconnu (cardio) : pas de personnage, le texte prend la place. */
+.hrow:has(> .hcell--card) { container-type: inline-size; }   /* cqw : largeur de la carte, la même pour le texte et le personnage */
+.view--grouped .hrow .hcell--card { --hmap-h: calc(6.4rem - 12px); --hthumb: calc(var(--hmap-h) * .961); min-height: 6.4rem; padding: 12px 16px; gap: 10px; overflow: hidden; }
+.hcell--card .hcell__body.mgc__text { flex: 1; gap: 2px; }
+.hcell--card:has(.hcell__map) .hcell__body.mgc__text { flex: none; width: calc(100cqw - 62px - var(--hthumb)); }
 .hcell--card .hcell__title { font-size: var(--fs-title3); line-height: 1.35rem; white-space: normal; overflow: visible; overflow-wrap: break-word; }
 .hcell--card .hcell__title > [role="img"] { margin-left: 6px; vertical-align: -2px; }
 .hcell__when { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; min-width: 0; }   /* « 2 records » passe sous la date plutôt que sous la vignette (SE) */
 .hcell--card .hcell__date { font-size: var(--fs-subhead); line-height: 1.25rem; color: var(--label2); }
 .hcell--card .hcell__sub { font-size: var(--fs-footnote); line-height: 1.059rem; overflow-wrap: normal; }
 .hcell--card > .icon { margin-left: auto; position: relative; z-index: 1; }
-.hrow .hcell--card .hcell__img {
-  top: calc(50% - (6.4rem - 16px) / 2); right: 38px; height: calc(6.4rem - 16px); max-width: none; width: var(--hthumb);
-  object-fit: contain; object-position: right center;
-}
-/* Écran étroit (iPhone SE 1re génération, Galaxy S8) : vignette un peu plus petite, la colonne de texte garde de la place */
-@media (max-width: 374px) {
-  .view--grouped .hrow .hcell--card { --hthumb: min((6.4rem - 16px) * 1.5, (100cqw - 32px) * .38); }
-}
+.hcell__map, .hdhead__map { position: absolute; pointer-events: none; }
+.hcell__map { top: calc(50% - var(--hmap-h) / 2); right: 38px; width: var(--hthumb); height: var(--hmap-h); }
+.hcell__map .body-map, .hdhead__map .body-map { width: 100%; }
+/* Des dizaines de petits personnages à la fois : pas de fondu des calques (css/theme-sobre-progres.css) */
+.hcell__map .body-map__m, .hdhead__map .body-map__m { animation: none; }
+html.type-xl .hcell__map, html.type-xl .hdhead__map, html.type-xl .hd-legend { display: none; }
+/* Légende des deux teintes, sous les groupes du détail d'une séance : puces de la couleur du personnage, texte secondaire */
+.body-legend { display: flex; flex-wrap: wrap; column-gap: 16px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
+.body-legend__it { display: inline-flex; align-items: center; gap: 6px; }
+.body-legend__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--body-heat); }
+.body-legend__dot--sec { background: var(--body-heat-sec); }
+.hd-legend { margin-top: 6px; }
 html.type-xl .hcell--card .hcell__body.mgc__text { width: auto; flex: 1; }
 html.type-xl .hcell__when { flex-wrap: wrap; }
 /* Texte agrandi : les filtres passent sur deux colonnes (« Toute/s » coupé au milieu du mot sur une seule rangée) ;
@@ -274,12 +280,11 @@ html.type-xl .history-detail .share-btn { justify-content: flex-start; text-alig
 html.type-xl .history-detail .share-btn .icon { flex-shrink: 0; }
 html.type-xl .history-detail .cell--destructive { justify-content: flex-start !important; text-align: left; }
 
-/* Détail d'une séance : en-tête comme la carte de la prochaine séance (nom, date, groupes à gauche ; vignette à droite) */
+/* Détail d'une séance : en-tête comme la carte de la prochaine séance (nom, date, groupes à gauche ; personnage à droite) */
 .view--grouped .hdhead.mgc {
-  /* Vignette : la hauteur de la carte de base moins 8 pt en haut et en bas, au plus 34 % de la largeur ; le texte garde
-     sa colonne à gauche (padding-right) et ne touche jamais l'image. Les deux % se rapportent à la même largeur (celle de
-     .scr pour le padding, celle de la carte pour l'image : la carte prend toute la largeur de .scr). */
-  --hdimg: min((7.2rem - 16px) * 1.5, 34%);
+  /* Personnage : la hauteur de la carte de base moins 8 pt en haut et en bas, largeur = hauteur × 807 / 840 (face + dos) ;
+     le texte garde sa colonne à gauche (padding-right) et ne touche jamais le dessin */
+  --hdimg: calc((7.2rem - 16px) * .961);
   position: relative; display: flex; align-items: center; min-height: 7.2rem; margin-top: 8px;
   padding: 14px calc(var(--hdimg) + 16px) 14px 16px;
   background: var(--cell); border-radius: var(--r-lg); overflow: hidden;
@@ -291,11 +296,9 @@ html.type-xl .history-detail .cell--destructive { justify-content: flex-start !i
 html.type-xl .hdhead__time { overflow-wrap: normal; }
 /* Groupes sur des lignes équilibrées : jamais « Bras » seul sur la deuxième */
 .hdhead__mus { margin-top: 4px; font-size: var(--fs-subhead); line-height: 1.3; color: var(--label); font-weight: 600; text-wrap: balance; }
-.view--grouped .hdhead .hdhead__img {
-  top: calc(50% - (7.2rem - 16px) / 2); right: 8px; height: calc(7.2rem - 16px); width: var(--hdimg); max-width: none;
-  object-fit: contain; object-position: right center;
-}
-.view--grouped .hdhead--noart.hdhead.mgc, .view--grouped .hdhead.mgc:has(.hdhead__img[data-missing]) { padding-right: 16px; }
+/* Personnage de la séance : même logique que la carte de la liste, à la hauteur de l'en-tête */
+.hdhead__map { top: calc(50% - (7.2rem - 16px) / 2); right: 8px; width: var(--hdimg); height: calc(7.2rem - 16px); }
+.view--grouped .hdhead--noart.hdhead.mgc { padding-right: 16px; }
 html.type-xl .view--grouped .hdhead.mgc { min-height: 0; padding-right: 16px; }
 html.type-xl .hdhead .hdhead__text { width: 100%; }
 

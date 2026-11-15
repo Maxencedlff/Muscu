@@ -12,12 +12,12 @@
    Le rouge est la couleur des muscles (en-tête « Muscle principal », animations) ; l'orange reste l'action. Rouge
    « chair » (teinte LCh 34°), plus sombre et moins saturé que le rouge Supprimer d'iOS (#FF453A sombre, #D70015 clair :
    écart CIELAB de 25 au moins). Muscle principal : #C94A3F en sombre (3,7:1 sur la cellule #1C1C1E, 4,5:1 sur le noir),
-   #A31B19 en clair (7,7:1 sur blanc). Secondaires : même teinte, moins saturée (sombre, 3,3:1) ou plus claire (clair, 3,5:1).
+   #A31B19 en clair (7,7:1 sur blanc). Secondaires : même teinte, plus claire : rosé #EFA195 en sombre (L* 74 contre 49 : l'ancien #9E5A50, à L* 46, se confondait avec le principal sur les petits personnages de l'historique, 15/11), #C37367 en clair (3,5:1).
    Panel vague 4 : 4 paliers nettement étagés (L* 67, 50, 35, 22 en clair ; 40, 57, 73, 88 en sombre), dans les deux
    thèmes. En sombre, plus de séries = plus lumineux ; en clair, plus foncé. En hex et non en color-mix :
    js/ui/body-map.js lit ces jetons pour teinter le canvas. */
 :root {
-  --body-heat: #C94A3F; --body-heat-max: #C94A3F; --body-heat-sec: #9E5A50;
+  --body-heat: #C94A3F; --body-heat-max: #C94A3F; --body-heat-sec: #EFA195;
   --body-tier-1: #A73830; --body-tier-2: #E15F51; --body-tier-3: #F89B8C; --body-tier-4: #FDD4CC;
   --sp-chart-line: #FF7A1A;
 }
