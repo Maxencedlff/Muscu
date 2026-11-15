@@ -283,10 +283,20 @@ def p_progres(r):
         r.onglet('progress', 'Progrès')
         r.attendre('.view.stats', 'Progrès')
     with r.etape('silhouette', 'Carte Muscles (silhouette de la semaine)'):
-        r.defiler('[data-action="go-stats-muscles"]', 'carte Muscles')
+        r.defiler('.mcard', 'carte Muscles')
+    with r.etape('progres-bas', 'Progrès, bas de l\'écran (liste des exercices)'):
+        r.bas()
+    with r.etape('detail-groupe', 'Détail d\'un groupe (Pectoraux : force, exercices, séries par semaine)', cle='Voir la force d\'un groupe'):
+        r.page.evaluate('scrollTo(0, 0)')
+        r.toucher('.view.stats .pgrp[data-group="pectoraux"]', 'carte Pectoraux')
+        r.attendre('.view.stats-group', 'détail du groupe')
+    with r.etape('detail-groupe-bas', 'Détail d\'un groupe, bas de l\'écran'):
+        r.bas()
     with r.etape('series-par-muscle', 'Séries par muscle', cle='Voir ses muscles travaillés'):
-        r.toucher('[data-action="go-stats-muscles"]', 'carte Muscles')
+        r.toucher('.view.stats-group [data-action="go-stats-muscles"]', 'Tous les muscles')
+        r.attendre('.view.stats-muscles', 'Séries par muscle')
     with r.etape('courbe-exercice', 'Courbe d\'un exercice et son record', cle='Voir la progression d\'un exercice'):
+        r.retour()
         r.retour()
         r.toucher('.view.stats [data-action="open-stats-ex"]', '1er exercice de la liste')
         r.attendre('.view.stats-ex', 'écran de l\'exercice')

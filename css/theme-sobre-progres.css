@@ -137,3 +137,27 @@ html.type-xl .prow { flex-wrap: wrap; row-gap: 4px; padding-right: 36px; }
 html.type-xl .prow .cell__body { flex: 1 1 100%; }
 html.type-xl .prow__name { display: block; -webkit-line-clamp: unset; overflow: visible; }
 html.type-xl .prow > .icon:last-child { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
+
+/* ── Progrès › un groupe de muscles (renderStatsGroup) : grande vignette (.exhero de la fiche d'exercice), force, exercices ── */
+.sgrp__force { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 2px 0 4px; }
+.sgrp__pct { font-size: var(--fs-title1); line-height: 1.2; font-weight: 700; }
+.sgrp__since { font-size: var(--fs-subhead); color: var(--label2); }
+.sgrp__how { margin: 0 0 4px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); }
+.sgrp__total .cell__title, .sgrp__total .cell__value { color: var(--label); font-weight: 600; }
+.stats-group .group + .group { margin-top: 20px; }
+/* Séries par muscle : la légende des paliers sous le sélecteur (la couleur d'une barre est son palier) */
+.mdetail__legend { margin-top: 12px; }
+
+/* ── Progrès › Exercice, texte agrandi : sélecteur de mesure sur deux rangées en pleine largeur, mots entiers ;
+   séances : chevron gardé à droite, centré, quand la valeur passe sous la date ── */
+html.type-xl .stats-ex .seg-full { display: grid; grid-template-columns: 1fr 1fr; row-gap: 2px; height: auto; }
+html.type-xl .stats-ex .seg-full .segmented__btn { margin: 0; padding: 8px 6px; min-height: 44px; overflow-wrap: normal; hyphens: none; word-break: normal; }
+html.type-xl .stats-ex .seg-full .segmented__btn::after { inset: 0; }
+html.type-xl .stats-ex .seg-full .segmented__btn::before { display: none; }
+html.type-xl .stats-ex .cell--nav { padding-right: 36px; }
+html.type-xl .stats-ex .cell--nav > .icon:last-child { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
+/* Période « Cette semaine / 4 semaines » (carte Muscles, Séries par muscle), texte agrandi : un choix par rangée, mots entiers */
+html.type-xl :is(.mcard, .mdetail__seg) .seg-full { display: grid; grid-template-columns: 1fr; row-gap: 2px; height: auto; }
+html.type-xl :is(.mcard, .mdetail__seg) .seg-full .segmented__btn { margin: 0; padding: 8px 6px; min-height: 44px; overflow-wrap: normal; hyphens: none; }
+html.type-xl :is(.mcard, .mdetail__seg) .seg-full .segmented__btn::after { inset: 0; }
+html.type-xl :is(.mcard, .mdetail__seg) .seg-full .segmented__btn::before { display: none; }

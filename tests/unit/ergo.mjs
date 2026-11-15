@@ -182,11 +182,18 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(g.bras.pct, 0, 'même charge : stable');
     assert.equal(g.dos.pct, null, 'une seule séance : pas de pourcentage');
     assert.ok(g.pectoraux.perWeek > 0 && Number.isInteger(g.pectoraux.perWeek), 'séries par semaine entières');
-    const html = run(`progGroupCardsHtml(exerciseIndex(), muscleLoad('month'), 'ces 4 dernières semaines')`);
+    const html = run(`progGroupCardsHtml(exerciseIndex(), muscleLoad('month'))`);
     assert.equal((html.match(/class="cell cell--nav mgc pgrp"/g) || []).length, 6, 'six groupes');
     assert.ok(html.includes('+10 % de force') && html.includes('Stable') && html.includes('Pas assez de séances'), 'les trois états écrits');
     assert.ok(/aria-label="Pectoraux : \+10 % de force sur 1 exercice en 3 mois, \d+ séries? par semaine"/.test(html), 'libellé VoiceOver complet');
-    assert.ok(html.includes('data-action="go-stats-muscles" data-muscle="chest"'), 'toucher : détail des séries, muscle du groupe mis en avant');
+    assert.ok(html.includes('data-action="open-stats-group" data-group="pectoraux"'), 'toucher : détail du groupe');
+    const same = run(`(() => { const load = muscleLoad('month'), gp = groupProgress(exerciseIndex(), load);
+      return gp.every(x => x.perWeek === x.g.muscles.reduce((a, m) => a + load.weekly[m], 0)); })()`);
+    assert.ok(same, 'séries du groupe = somme des séries par semaine affichées de ses muscles (même unité partout)');
+    const w = run(`muscleLoad('month').weekly`);
+    assert.ok(Object.values(w).every(Number.isInteger), 'séries par semaine entières');
+    assert.ok(run(`(() => { const l = muscleLoad('month'); return Object.keys(l.weekly).every(k => l.levels[k] === muscleLevel(l.weekly[k])); })()`),
+      'le palier (couleur) suit le nombre affiché');
     assert.ok(!/<img(?![^>]*alt="")/.test(html) && !/<img(?![^>]*aria-hidden="true")/.test(html), 'vignettes décoratives');
   });
 

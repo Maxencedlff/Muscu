@@ -10,13 +10,10 @@
 //   fiche exercice     nom, principal ou secondaire pour cet exercice
 
 // Bulle de la carte de Progrès
-// Moyenne par semaine affichée : tronquée au dixième, pour ne jamais annoncer le palier suivant
-function perWeekTxt(v) { return fmtNum(Math.floor(v * 10) / 10); }
-
 function muscleTipLoadHtml(id) {
   const load = muscleLoad(muscleSpan), lvl = load.levels[id] || 0, n = roundSets(load.sets[id] || 0);
   const count = load.span === 'month'
-    ? `${setsTxt(n)} en ${MUSCLE_SPANS.month.weeks} semaines, soit ${perWeekTxt(load.perWeek[id])} par semaine`
+    ? `${setsTxt(n)} en ${MUSCLE_SPANS.month.weeks} semaines, soit ${load.weekly[id]} par semaine en moyenne`
     : `${setsTxt(n)} depuis lundi`;
   return `<p class="btip__title" id="btipTitle">${esc(muscleLabel(id))}</p>
     <p class="btip__sub">${count}</p>

@@ -231,6 +231,7 @@ const SCREENS = new Map([
   ['summary',        { render: () => renderSummary() }],          // Entraînement › Bilan
   ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { historyReactionsMount(routeParams(currentRoute())[0]); historyCommentsMount(routeParams(currentRoute())[0]); coachHistoryMount(); } }],   // qui a réagi, commentaires (Social activé)
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
+  ['stats-group',    { render: id => renderStatsGroup(id) }],   // Progrès › un groupe de muscles (js/features/progress.js)
   ['stats-overview', { render: () => renderStatsOverview() }],
   ['body-measures',  { render: () => renderBodyMeasures() }],   // Progrès › Mesures (js/features/body-measures-ui.js)
   ['photo-vault',    { render: () => renderPhotoVault(), mount: o => mountPhotoVault(o), leave: () => leavePhotoVault() }],   // Mesures › coffre à photos (js/features/photo-vault-ui.js), refermé en le quittant

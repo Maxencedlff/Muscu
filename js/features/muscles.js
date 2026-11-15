@@ -244,13 +244,16 @@ function muscleLegendYou(load) {
 }
 
 function setsTxt(n) { return plural(roundSets(n), 'série', 'séries'); }
+// « 12 séries par semaine » : l'unité de toute la partie Muscles de Progrès (carte des groupes, Séries par muscle,
+// détail d'un groupe, liste VoiceOver), en moyenne sur 4 semaines ou cette semaine
+function weeklyTxt(n, span = muscleSpan) { return `${plural(n, 'série', 'séries')} par semaine${span === 'month' ? ' en moyenne' : ''}`; }
 
 // Liste lue par VoiceOver à la place du dessin (Apple HIG, « Accessibility » : l'information portée
 // par la couleur existe aussi en texte)
 function muscleSrListHtml(load) {
   const you = muscleLegendYou(load);   // la légende visible est aria-hidden : VoiceOver lit la synthèse ici
   return `${you ? `<p class="visually-hidden">${esc(you)}</p>` : ''}<ul class="visually-hidden">${MUSCLES.map(({ id, label }) =>
-    `<li>${label} : ${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</li>`).join('')}</ul>`;
+    `<li>${label} : ${weeklyTxt(load.weekly[id], load.span)}, ${levelWord(load.levels[id])}</li>`).join('')}</ul>`;
 }
 
 function periodTxt(span = muscleSpan) { return span === 'month' ? 'ces 4 dernières semaines' : 'cette semaine'; }
@@ -284,29 +287,37 @@ function renderMuscleCard() {
 
 // ── Progrès › Séries par muscle ─────────────────────────────
 
-function renderStatsMuscles() {
-  const load = muscleLoad(muscleSpan);
-  const weeks = MUSCLE_SPANS[load.span].weeks;
-  const max = Math.max(MUSCLE_LEVEL_FROM.at(-1) * weeks, ...Object.values(load.sets));
-  const rows = MUSCLES.slice().sort((a, b) => load.sets[b.id] - load.sets[a.id]).map(({ id, label }) => {
-    const pct = Math.round(load.sets[id] / max * 100);
+// Lignes « muscle, séries par semaine, barre » : Séries par muscle et détail d'un groupe (même unité que la carte)
+function muscleWeekRowsHtml(load, ids) {
+  const max = Math.max(MUSCLE_LEVEL_FROM.at(-1), ...MUSCLES.map(m => load.weekly[m.id]));
+  return ids.map(id => {
+    const n = load.weekly[id], tier = bodyTier(load.intensity[id]);
     return `
       <div class="cell mrow${id === muscleFocus ? ' mrow--focus' : ''}" data-muscle="${id}">
         <span class="cell__body">
-          <span class="mrow__top"><span class="cell__title">${label}</span><span class="cell__value num">${roundSets(load.sets[id])}</span></span>
-          <span class="mrow__bar" aria-hidden="true"><i${(t => (t ? ` class="is-${t.tone}"` : ''))(bodyTier(load.intensity[id]))} style="width:${pct}%;--o:${bodyTier(load.intensity[id])?.op || 0}"></i></span>
-          <span class="visually-hidden">${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</span>
+          <span class="mrow__top" aria-hidden="true"><span class="cell__title">${muscleLabel(id)}</span><span class="cell__value num">${n}</span></span>
+          <span class="mrow__bar" aria-hidden="true"><i${tier ? ` class="is-${tier.tone}"` : ''} style="width:${Math.round(n / max * 100)}%;--o:${tier?.op || 0}"></i></span>
+          <span class="visually-hidden">${muscleLabel(id)} : ${weeklyTxt(n, load.span)}, ${levelWord(load.levels[id])}</span>
         </span>
       </div>`;
   }).join('');
+}
+function weeklyTitle(span = muscleSpan) { return span === 'month' ? 'Séries par semaine, moyenne sur 4 semaines' : 'Séries cette semaine'; }
+
+// Écran ouvert en haut (panel Progrès t1 : il s'ouvrait défilé, sélecteur et titre sous la barre) ; le muscle venu
+// de la bulle est mis en avant sur place, sans défilement
+function renderStatsMuscles() {
+  const load = muscleLoad(muscleSpan);
+  const ids = MUSCLES.map(m => m.id).sort((a, b) => load.weekly[b] - load.weekly[a] || load.sets[b] - load.sets[a]);
   return `
     <div class="view stats-muscles view--grouped">
       ${navBar({ title: 'Séries par muscle' })}
       <div class="scr">
         <div class="mdetail__seg">${spanSegmentedHtml()}</div>
-        <div class="group-title">Séries ${periodTxt(load.span)}</div>
-        <div class="group">${rows}</div>
-        <div class="group-foot">Une série compte entière pour les muscles principaux d'un exercice et pour moitié pour ses muscles secondaires. Repère : 10 séries par semaine et par muscle ; jusqu'à 20, les gains continuent, plus lentement.</div>
+        <div class="mdetail__legend">${muscleLegendHtml(load.span)}</div>
+        <div class="group-title">${weeklyTitle(load.span)}</div>
+        <div class="group">${muscleWeekRowsHtml(load, ids)}</div>
+        <div class="group-foot">La couleur de la barre est le palier de la légende. Une série compte entière pour les muscles principaux d'un exercice et pour moitié pour ses muscles secondaires. Repère : 10 séries par semaine et par muscle ; jusqu'à 20, les gains continuent, plus lentement.</div>
       </div>
     </div>`;
 }
@@ -353,9 +364,10 @@ registerActions({
     if (!MUSCLE_SPANS[el.dataset.span] || el.dataset.span === muscleSpan) return;
     muscleSpan = el.dataset.span; render();
   },
-  // Depuis la bulle d'un muscle (js/features/muscle-tip.js) : sa ligne mise en avant et amenée à l'écran
+  // Ouvert en haut ; depuis la bulle d'un muscle (js/features/muscle-tip.js) seulement, sa ligne est mise en avant et
+  // amenée à l'écran (on a demandé CE muscle)
   'go-stats-muscles': (e, el) => {
-    muscleFocus = isMuscleId(el.dataset.muscle) ? el.dataset.muscle : null;
+    muscleFocus = el.closest('.btip') && isMuscleId(el.dataset.muscle) ? el.dataset.muscle : null;
     navigate('stats-muscles');
     if (muscleFocus) requestAnimationFrame(() => $(`.stats-muscles .mrow[data-muscle="${muscleFocus}"]`)?.scrollIntoView({ block: 'center' }));
   },

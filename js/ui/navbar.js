@@ -198,7 +198,7 @@ function routeTitle(route, isRoot) {
     'social-people': routeParams(route)[0] === 'followers' ? 'Te suivent' : 'Suivis',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
     paywall: 'Abonnement', subscription: 'Abonnement',
-    library: 'Bibliothèque', 'library-ex': 'Exercice', 'guide-topic': 'Guide', 'stats-muscles': 'Muscles', 'muscles-unknown': 'Sans muscles',
+    library: 'Bibliothèque', 'library-ex': 'Exercice', 'guide-topic': 'Guide', 'stats-muscles': 'Muscles', 'stats-group': MUSCLE_GROUP_BY_ID.get(routeParams(route)[0])?.label || 'Muscles', 'muscles-unknown': 'Sans muscles',
     nutrition: 'Nutrition', 'diet-plans': 'Plans de nutrition', 'diet-settings': 'Réglages', 'diet-plan': data.dietPlans?.[routeParams(route)[0]]?.name || 'Plan',
   }[name] || 'Retour';
 }

@@ -71,20 +71,23 @@ function muscleLevel(perWeek) {
 // Charge de la période qui se termine à `now`, par muscle : séries de la période (sets), séries par
 // semaine, palier et intensité 0..1 (celle que reçoit bodyMapHtml) ; muscles peu travaillés
 // (palier ≤ 1, hors petits groupes), du moins au plus travaillé. Le palier se calcule sur le nombre de
-// séries affiché (demi-séries arrondies, roundSets) : la couleur ne contredit jamais le chiffre lu.
+// séries par semaine affiché (weekly) : la couleur ne contredit jamais le chiffre lu.
 function muscleLoad(spanKey = 'week', now = Date.now(), history = data.history) {
   const span = MUSCLE_SPANS[spanKey] || MUSCLE_SPANS.week;
   const from = span.calendar ? weekStart(now) : now - span.days * 86_400_000;
   const { counts, sessions } = muscleSetCounts(history, from, now + 1);
-  const perWeek = {}, levels = {}, intensity = {};
+  const perWeek = {}, weekly = {}, levels = {}, intensity = {};
   MUSCLES.forEach(({ id }) => {
     perWeek[id]   = roundSets(counts[id]) / span.weeks;
-    levels[id]    = muscleLevel(perWeek[id]);
+    // Séries par semaine affichées (carte des groupes, Séries par muscle, détail d'un groupe) : entières, au moins 1 dès
+    // qu'une série a été faite (une demi-série par mois ne se lit pas « 0 »)
+    weekly[id]    = perWeek[id] > 0 ? Math.max(1, Math.round(perWeek[id])) : 0;
+    levels[id]    = muscleLevel(weekly[id]);
     intensity[id] = levels[id] / MUSCLE_LEVEL_MAX;
   });
   const low = MUSCLES.filter(m => !m.minor && levels[m.id] <= 1).map(m => m.id)
     .sort((a, b) => perWeek[a] - perWeek[b]);
-  return { span: MUSCLE_SPANS[spanKey] ? spanKey : 'week', sessions, sets: counts, perWeek, levels, intensity, low };
+  return { span: MUSCLE_SPANS[spanKey] ? spanKey : 'week', sessions, sets: counts, perWeek, weekly, levels, intensity, low };
 }
 
 // Muscles d'une seule séance (image partagée) : intensité 0..1 rapportée au muscle le plus

@@ -76,11 +76,46 @@ def t_progress(bench, eng, dev, theme):
                 f'{t} vignettes des groupes décoratives')
         R.check(page.evaluate("[...document.querySelectorAll('.pgrp .mgc__text')].every(e => e.getAttribute('aria-hidden') === 'true')"),
                 f'{t} texte des cartes lu une fois (intitulé du bouton)')
-        page.locator('.view.stats .pgrp[data-muscle="lats"]').click()
+        # Toucher « Dos » : détail du groupe (grande vignette, force et les exercices qui la font, séries de ses muscles
+        # dans l'unité de la carte), retour « Progrès », lien « Tous les muscles » ouvert en haut
+        dos = next(l for l in labels if l.startswith('Dos : '))
+        dos_sets = int(pat.match(dos).group(3))
+        dos_trend = ' '.join(page.locator('.view.stats .pgrp[data-group="dos"] .pgrp__trend').inner_text().split())
+        page.locator('.view.stats .pgrp[data-group="dos"]').click()
+        page.wait_for_selector('.view.stats-group')
+        g = page.evaluate("""() => { const v = document.querySelector('.view.stats-group'), img = v.querySelector('.exhero img');
+            const rows = [...v.querySelectorAll('.mrow')].map(r => +r.querySelector('.cell__value').textContent);
+            return { img: !!img && img.alt === '' && img.getAttribute('aria-hidden') === 'true' && img.src.includes('img/muscles/dos.webp'),
+                     title: v.querySelector('h1').textContent.trim(), back: document.querySelector('.navbar__back-label')?.textContent.trim(),
+                     pct: v.querySelector('.sgrp__pct').textContent.replace(/\\s+/g, ' ').trim(), how: !!v.querySelector('.sgrp__how')?.textContent.includes('12 semaines'),
+                     ex: v.querySelectorAll('[data-action="open-stats-ex"]').length, rows, muscles: [...v.querySelectorAll('.mrow')].map(r => r.dataset.muscle),
+                     total: +v.querySelector('.sgrp__total .cell__value').textContent.trim(), unit: [...v.querySelectorAll('.group-title')].map(e => e.textContent.trim()),
+                     sr: [...v.querySelectorAll('.mrow .visually-hidden')].map(e => e.textContent) }; }""")
+        R.check(g['img'] and g['title'] == 'Dos' and g['back'] == 'Progrès', f'{t} détail du groupe : vignette décorative, titre, retour « Progrès » {g}')
+        R.check(g['pct'] == dos_trend and g['how'], f'{t} détail : même force que la carte ({dos_trend!r}) et son calcul {g["pct"]!r}')
+        R.check(g['muscles'] == ['lats', 'traps', 'lower_back'] and sum(g['rows']) == dos_sets and g['total'] == dos_sets,
+                f'{t} détail : séries par semaine des muscles = carte ({dos_sets}) {g["rows"]} {g["total"]!r}')
+        R.check('Séries par semaine, moyenne sur 4 semaines' in g['unit'] and all('par semaine' in x for x in g['sr']), f'{t} détail : unité dite (écran et VoiceOver) {g["unit"]}')
+        if g['ex']:
+            page.locator('.view.stats-group [data-action="open-stats-ex"]').first.click()
+            page.wait_for_selector('.view.stats-ex')
+            R.check(page.locator('#exChart').count() == 1, f'{t} détail : un exercice ouvre sa courbe')
+            page.click('[data-action="back"]')
+            page.wait_for_selector('.view.stats-group')
+        R.check(no_hscroll(page), f'{t} détail du groupe : pas de défilement horizontal')
+        shot(page, LOT, f'detail-groupe-{t}')
+        page.locator('.view.stats-group [data-action="go-stats-muscles"]').click()
         page.wait_for_selector('.view.stats-muscles')
-        R.check(page.locator('.mrow--focus[data-muscle="lats"]').count() == 1, f'{t} toucher « Dos » : détail des séries, grand dorsal mis en avant')
-        page.click('[data-action="back"]')
-        page.wait_for_selector('.view.stats')
+        page.wait_for_timeout(450)
+        top = page.evaluate("""() => { const seg = document.querySelector('.mdetail__seg').getBoundingClientRect(), bar = document.querySelector('#app .navbar').getBoundingClientRect();
+            const v = id => +document.querySelector(`.mrow[data-muscle="${id}"] .cell__value`).textContent;
+            return { y: scrollY, visible: seg.top >= bar.bottom - 1, dos: v('lats') + v('traps') + v('lower_back'),
+                     title: [...document.querySelectorAll('.stats-muscles .group-title')].map(e => e.textContent.trim()), legend: !!document.querySelector('.stats-muscles .mlegend') }; }""")
+        R.check(top['y'] < 2 and top['visible'], f'{t} « Tous les muscles » s\'ouvre en haut, sélecteur visible {top}')
+        R.check(top['dos'] == dos_sets and 'Séries par semaine, moyenne sur 4 semaines' in top['title'] and top['legend'],
+                f'{t} Séries par muscle : même unité et mêmes nombres que la carte, paliers légendés {top}')
+        page.click('[data-action="back"]'); page.wait_for_selector('.view.stats-group')
+        page.click('[data-action="back"]'); page.wait_for_selector('.view.stats')
         # Période ouverte par défaut : 4 semaines (cette semaine, la silhouette est grise le lundi)
         R.check(page.locator('[data-action="muscle-span"][data-span="month"]').get_attribute('aria-pressed') == 'true', f'{t} 4 semaines par défaut')
         page.click('[data-action="muscle-span"][data-span="week"]')
@@ -121,6 +156,50 @@ def t_progress(bench, eng, dev, theme):
         page.wait_for_selector('.view.stats-ex')
         pills = page.locator('.mpanel .mpill').all_inner_texts()
         R.check(pills[:1] == ['Pectoraux'] and 'Triceps' in pills, f'{t} fiche exercice : pastilles {pills}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+AX33 = "(() => { const st = document.createElement('style'); st.textContent = 'html { font: 33px -apple-system, system-ui, sans-serif !important; }'; const put = () => { if (!document.documentElement) return false; document.documentElement.appendChild(st); return true; }; if (!put()) new MutationObserver((m, o) => { if (put()) o.disconnect(); }).observe(document, { childList: true }); })()"
+
+
+def t_progres_grand_texte(bench, eng, dev, theme):
+    """Progrès en texte très agrandi (AX33) : cartes des groupes sans vignette ni nom coupé, détail du groupe, sélecteur
+    « Charge max / Volume / 1RM est. » sur deux rangées sans mot coupé, chevron des séances gardé à droite."""
+    if eng != 'webkit':
+        return
+    t = tag(dev, theme) + '-ax33'
+    with bench.page(eng, dev, theme) as page:
+        page.add_init_script(AX33)
+        seed(page, theme, ppl_v2_today_json())
+        tab(page, 2)
+        R.check(page.evaluate("document.documentElement.classList.contains('type-xl')"), f'{t} texte agrandi détecté')
+        cut = page.evaluate("""() => [...document.querySelectorAll('.pgrp .mgc__title, .pgrp .pgrp__trend, .prow__name')]
+            .filter(e => e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1).map(e => e.textContent.trim())""")
+        imgs = page.evaluate("[...document.querySelectorAll('.pgrp img, .prow img')].filter(i => i.offsetWidth > 0).length")
+        R.check(not cut and imgs == 0, f'{t} Progrès : rien de coupé, vignettes masquées {cut} {imgs}')
+        page.locator('.view.stats .pgrp[data-group="pectoraux"]').click()
+        page.wait_for_selector('.view.stats-group')
+        R.check(no_hscroll(page), f'{t} détail du groupe : pas de défilement horizontal')
+        shot(page, LOT, f'detail-groupe-{t}')
+        page.locator('.view.stats-group [data-action="go-stats-muscles"]').click()
+        page.wait_for_selector('.view.stats-muscles')
+        per = page.evaluate("[...document.querySelectorAll('.mdetail__seg .segmented__btn')].filter(b => b.scrollWidth > b.clientWidth + 1).map(b => b.textContent)")
+        R.check(not per, f'{t} période « Cette semaine / 4 semaines » : aucun mot coupé {per}')
+        page.click('[data-action="back"]'); page.wait_for_selector('.view.stats-group')
+        page.click('[data-action="back"]'); page.wait_for_selector('.view.stats')
+        page.locator('[data-action="open-stats-ex"][data-ex="p1dcouch"]').click()
+        page.wait_for_selector('.view.stats-ex')
+        seg = page.evaluate("""() => { const b = [...document.querySelectorAll('.stats-ex .seg-full .segmented__btn')];
+            const tops = new Set(b.map(x => Math.round(x.getBoundingClientRect().top)));
+            return { n: b.length, rows: tops.size, cut: b.filter(x => x.scrollWidth > x.clientWidth + 1).map(x => x.textContent.trim()),
+                     words: b.every(x => { const r = document.createRange(); r.selectNodeContents(x); return r.getClientRects().length <= x.textContent.trim().split(/\\s+/).length; }) }; }""")
+        R.check(seg['n'] >= 3 and seg['rows'] >= 2 and not seg['cut'] and seg['words'], f'{t} sélecteur de mesure : deux rangées, aucun mot coupé {seg}')
+        page.evaluate("scrollTo(0, document.documentElement.scrollHeight)"); page.wait_for_timeout(300)
+        chev = page.evaluate("""() => [...document.querySelectorAll('.stats-ex [data-action="open-history"]')].map(c => {
+            const r = c.getBoundingClientRect(), i = c.querySelector(':scope > .icon:last-child').getBoundingClientRect();
+            return i.left > r.left + r.width / 2 && Math.abs((i.top + i.bottom) / 2 - (r.top + r.bottom) / 2) < r.height / 2; })""")
+        R.check(chev and all(chev), f'{t} séances : chevron à droite de chaque ligne {chev}')
+        shot(page, LOT, f'courbe-seances-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -883,4 +962,4 @@ def once_static(bench):
         R.check(px and px['red'] > 2000 and px['gray'] > 20000, f'bodyMapImage : base grise et pectoraux teintés en rouge {px}')
 
 
-run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_muscle_filter, t_fiche, t_silhouette, t_tip], once=[once_static])
+run_main(R, [t_progress, t_progres_grand_texte, t_empty, t_editor, t_library_muscles, t_add_sheet, t_muscle_filter, t_fiche, t_silhouette, t_tip], once=[once_static])
