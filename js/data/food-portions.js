@@ -48,6 +48,8 @@ const FOOD_PORTIONS = [
   { re: /^pain au lait/, units: [U('pain au lait', 'pains au lait', 35)] },
   { re: /^brioche/, units: [U('brioche individuelle', 'brioches individuelles', 50, false, 'brioche'), U('tranche', 'tranches', 35)] },
   { re: /^madeleine/, units: [U('madeleine', 'madeleines', 25)] },
+  // « Grandes tranches » (Lidl, Harrys, Jacquet…) : 36 à 40 g la tranche, 37,5 g au paquet Lidl (photo de Maxence, 15/11)
+  { re: /^pain de mie(?! .*sandwich).*\bgrandes? tranches?\b/, units: [U('tranche', 'tranches', 37.5)] },
   { re: /^pain de mie(?! .*sandwich)/, units: [U('tranche', 'tranches', 25)] },
   { re: /^pain (aliment moyen|blanc|de tradition)/, units: [U('baguette', 'baguettes', 250, true), U('tranche', 'tranches', 30)] },
   { re: /^pain (de campagne|complet|bis|au levain|aux cereales|au son|de seigle)/, units: [U('tranche', 'tranches', 30)] },

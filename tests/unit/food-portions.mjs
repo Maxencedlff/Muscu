@@ -112,6 +112,12 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run(`offPortion({ serving_quantity: 100 }, 'Pain de mie')`).g, 25, '100 g n\'est pas une portion');
   });
 
+  test('pain de mie « grandes tranches » sans portion au paquet : tranche de 37,5 g, pas 25 g', () => {
+    assert.equal(run(`offPortion({}, 'Pain de mie Grandes tranches Nature')`).g, 37.5);
+    assert.equal(run(`foodPortions({ name: 'Pain de mie grande tranche complet' })[0]`).g, 37.5);
+    assert.equal(run(`foodPortions({ name: 'Pain de mie nature' })[0]`).g, 25, 'tranche ordinaire inchangée');
+  });
+
 
   test('desserts lactés en pot : liégeois, crème dessert, mousse, flan ; pas les gaufres liégeoises', () => {
     const u = n => run(`foodPortions({ name: ${JSON.stringify(n)} })`)[0];
