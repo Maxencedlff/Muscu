@@ -81,6 +81,11 @@ function libMatches(f) {
   return EXERCISE_CATALOGUE.filter(e => (libEquip === 'all' || e.equip === libEquip)
     && muscleFilterMatch(exerciseMuscles({ name: e.name }), f));
 }
+// Exercice dont le muscle principal (le premier) est dans le filtre : c'est lui qui compte pour un groupe
+function libMainMatch(e, f) {
+  const t = muscleFilterTargets(f), first = exerciseMuscles({ name: e.name }).primary?.[0];
+  return !t || t.includes(first);
+}
 function exercisesCountLabel(n) { return n ? `${n} exercice${n > 1 ? 's' : ''}` : 'Aucun exercice'; }
 
 // Image décorative (alt vide) : VoiceOver lit le libellé de la ligne ; sans fichier, la ligne garde son texte
@@ -90,7 +95,7 @@ function muscleImgHtml(id, lazy = false) {
 
 function muscleGroupsHtml(action) {
   const rows = MUSCLE_GROUPS.map(g => {
-    const count = exercisesCountLabel(libMatches({ group: g.id, muscle: null }).length);
+    const count = exercisesCountLabel(libMatches({ group: g.id, muscle: null }).filter(e => libMainMatch(e, { group: g.id, muscle: null })).length);
     return `<button class="cell mgc" data-action="${action}" data-group="${g.id}" aria-label="${esc(g.label)}, ${count}">
         <span class="mgc__text"><span class="mgc__title">${esc(g.label)}</span><span class="mgc__sub">${count}</span></span>
         ${muscleImgHtml(g.id)}
@@ -136,10 +141,15 @@ function libListHtml() {
   }
   // Filtre par muscle : une seule section, nommée comme la pastille (un soulevé de terre rangé en Jambes
   // reste visible sous « Dos » sans ouvrir de section Jambes)
+  // Deux sections (retour de Maxence, 15/11 : « dans pec on tombe sur burpees ? ») : d'abord les exercices dont c'est
+  // le muscle PRINCIPAL (le premier, celui de la vignette), puis « Pectoraux en second » pour les autres
   if (muscleFilterTargets(libMuscle)) {
     const g = MUSCLE_GROUP_BY_ID.get(libMuscle.group);
-    const list = items.map(x => x.e).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-    return `<div class="group-title">${esc(libMuscle.muscle ? muscleLabel(libMuscle.muscle) : g.label)} · ${list.length}</div><div class="group">${list.map(libRowHtml).join('')}</div>`;
+    const name = libMuscle.muscle ? muscleLabel(libMuscle.muscle) : g.label;
+    const all = items.map(x => x.e).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    const main = all.filter(e => libMainMatch(e, libMuscle)), also = all.filter(e => !libMainMatch(e, libMuscle));
+    const sec = (title, list) => list.length ? `<div class="group-title">${title} · ${list.length}</div><div class="group">${list.map(libRowHtml).join('')}</div>` : '';
+    return sec(esc(name), main) + sec(`${esc(name)} en second`, also);
   }
   const order = [...MUSCLE_GROUPS.map(g => g.label), 'Cardio', 'Autres'];
   return order.map(title => {
