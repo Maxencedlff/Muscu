@@ -235,6 +235,10 @@ def t_history_corps(bench, eng, dev, theme):
         R.check(card and card['cMain'] and card['cSec'] and card['cMain'] != card['cSec'], f'{t} historique corps : deux teintes distinctes {card}')
         page.evaluate("document.querySelector('.hrow[data-id=\"ep1\"]').scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'history_corps_{dev}_{theme}')
+        # Titres des cartes : le libellé fusionné, avec l'accent, pour les deux séances (données gardées telles quelles)
+        tt = page.evaluate("['ep1', 'ep2'].map(id => document.querySelector(`.hrow[data-id=\"${id}\"] .hcell__title`)?.firstChild?.textContent)")
+        R.check(tt == ['Épaules', 'Épaules'] and page.evaluate("data.history.find(h => h.id === 'ep1').category") == 'Epaules',
+                f'{t} historique corps : titres fusionnés « Épaules », données inchangées {tt}')
         page.locator('[data-action="hist-filter"]', has_text='Épaules').click()
         ids = set(page.evaluate("[...document.querySelectorAll('.hrow')].map(r => r.dataset.id)"))
         R.check(ids == {'ep1', 'ep2'}, f'{t} historique corps : le filtre fusionné montre les deux séances {ids}')
@@ -244,6 +248,8 @@ def t_history_corps(bench, eng, dev, theme):
             return { main: [...new Set([...c.querySelectorAll('.body-map__m:not(.body-map__m--sec)')].map(m => m.dataset.muscle))],
                      sec: c.querySelectorAll('.body-map__m--sec').length }; }""")
         R.check(dm and 'abs' in dm['main'] and dm['sec'] > 0, f'{t} détail corps : même personnage principal / soutien {dm}')
+        h1 = page.inner_text('.hdhead__title').strip()
+        R.check(h1 == 'Épaules', f'{t} détail corps : titre fusionné « Épaules » ({h1})')
         # Légende des deux teintes, une seule fois, dans le détail (pas dans la liste : une carte visible de moins sur SE)
         leg = page.evaluate("""() => ({ list: document.querySelectorAll('.view.history .body-legend').length,
             dots: [...document.querySelectorAll('.hdhead .body-legend__dot')].map(d => getComputedStyle(d).backgroundColor),
@@ -280,6 +286,10 @@ def t_history_filtres(bench, eng, dev, theme):
         rows = page.evaluate("""() => [...document.querySelectorAll('.sheet .hist-pick')].map(r => ({ k: r.dataset.pick,
             l: r.querySelector('.cell__title').textContent, n: +r.querySelector('.cell__value').textContent }))""")
         shown = set(page.evaluate("[...document.querySelectorAll('.hist-seg [data-action=\"hist-filter\"]')].filter(b => b.offsetWidth > 0).map(b => b.dataset.cat)"))
+        # En tête : « Toutes les séances », cochée (filtre en cours), puis les autres séances
+        checks = page.evaluate("[...document.querySelectorAll('.sheet .hist-pick')].filter(r => r.querySelector('.hist-pick__check svg')).map(r => r.dataset.pick)")
+        R.check(rows and rows[0]['k'] == 'all' and rows[0]['l'] == 'Toutes les séances' and checks == ['all'], f'{t} filtres : « Toutes les séances » en tête, cochée {rows[:1]} {checks}')
+        rows = rows[1:]
         R.check(len(rows) >= 15 and not shown & {r['k'] for r in rows}, f'{t} filtres : « Plus » liste les autres séances ({len(rows)})')
         R.check(all(rows[i]['n'] >= rows[i + 1]['n'] for i in range(len(rows) - 1)), f'{t} filtres : feuille triée par nombre de séances {[r["n"] for r in rows][:6]}')
         shot(page, LOT, f'history_filtres_plus_{dev}_{theme}')
@@ -292,6 +302,13 @@ def t_history_filtres(bench, eng, dev, theme):
         R.check(titles == {pick['l']}, f'{t} filtres : séance choisie dans « Plus » appliquée {titles}')
         R.check(act == {'k': pick['k'], 'vis': True}, f'{t} filtres : filtre choisi visible et actif {act}')
         n2 = page.evaluate("[...document.querySelectorAll('.hist-seg .segmented__btn')].filter(b => b.offsetWidth > 0).length")
+        # Coche sur le filtre en cours à la réouverture de la feuille
+        page.click('.hist-seg .hist-seg__more')
+        page.wait_for_selector('.sheet .hist-pick')
+        on = page.evaluate("[...document.querySelectorAll('.sheet .hist-pick')].filter(r => r.querySelector('.hist-pick__check svg')).map(r => r.dataset.pick)")
+        R.check(on == [] or on == [pick['k']], f'{t} filtres : coche sur le filtre en cours {on}')
+        page.click('.sheet .sheet__btn--cancel')
+        page.wait_for_timeout(400)
         R.check(n2 <= 6, f'{t} filtres : toujours au plus 6 boutons ({n2})')
         # Texte agrandi : « Toutes » et le bouton de la feuille (nom du filtre choisi), rien d'autre
         xl = page.evaluate("""() => { document.documentElement.classList.add('type-xl');

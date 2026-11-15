@@ -81,13 +81,20 @@ function refreshHistoryFilters() {
 async function historyFilterSheet() {
   const shownKeys = new Set([...document.querySelectorAll('.hist-seg [data-action="hist-filter"]')]
     .filter(b => b.offsetWidth > 0).map(b => b.dataset.cat));
-  const rest = historyFilterKeys().filter(f => !shownKeys.has(f.key)).sort((a, b) => b.n - a.n || historyFilterRank(a, b));
+  const all = historyFilterKeys();
+  const rest = all.filter(f => !shownKeys.has(f.key)).sort((a, b) => b.n - a.n || historyFilterRank(a, b));
   if (!rest.length) return;
-  const row = f => `<button class="cell cell--nav hist-pick${f.key === histFilter ? ' hist-pick--on' : ''}" data-pick="${esc(f.key)}" aria-pressed="${f.key === histFilter}">
-      <span class="cell__body"><span class="cell__title">${f.label}</span></span>
-      <span class="cell__value num" aria-hidden="true">${f.n}</span><span class="visually-hidden">, ${plural(f.n, 'séance', 'séances')}</span>
+  // Coche iOS sur le filtre en cours ; « Toutes les séances » en tête, avec le nombre total
+  const row = (key, label, n) => {
+    const on = key === histFilter;
+    return `<button class="cell hist-pick${on ? ' hist-pick--on' : ''}" data-pick="${esc(key)}" aria-pressed="${on}">
+      <span class="hist-pick__check" aria-hidden="true">${on ? icon('checkmark', 17) : ''}</span>
+      <span class="cell__body"><span class="cell__title">${label}</span></span>
+      <span class="cell__value num" aria-hidden="true">${n}</span><span class="visually-hidden">, ${plural(n, 'séance', 'séances')}</span>
     </button>`;
-  const p = sheet({ title: 'Séances', cancel: 'Annuler', confirm: '', body: `<div class="view--grouped hist-picks-wrap"><div class="group hist-picks">${rest.map(row).join('')}</div></div>` });
+  };
+  const total = all.reduce((a, f) => a + f.n, 0);
+  const p = sheet({ title: 'Séances', cancel: 'Annuler', confirm: '', body: `<div class="view--grouped hist-picks-wrap"><div class="group hist-picks">${row('all', 'Toutes les séances', total)}${rest.map(f => row(f.key, f.label, f.n)).join('')}</div></div>` });
   const root = [...document.querySelectorAll('.sheet-root')].pop();
   root?.addEventListener('click', ev => { const b = ev.target.closest('[data-pick]'); if (b) root._close(b.dataset.pick); });
   const key = await p;
@@ -98,6 +105,14 @@ function setHistoryFilter(key) {
   histFilter = key; histMonths = 3;
   refreshHistoryFilters();
   refreshHistoryList();
+}
+// Nom affiché d'une séance passée : le libellé fusionné des filtres (« Épaules » pour « Epaules » et « Épaules »), pour que
+// la carte, le détail et la pastille disent la même chose (panel du 15/11 : on croyait à deux séances). labels :
+// historyNameLabels() déjà calculé (boucles) ; les données gardées ne changent pas
+function historyNameLabels(filters = historyFilterKeys()) { return new Map(filters.map(f => [normName(f.label), f.label])); }
+function historyEntryLabel(h, labels = historyNameLabels()) {
+  const label = sessionMeta(h.category, entryProg(h)).label;
+  return labels.get(normName(label)) || label;
 }
 // Nom normalisé d'une séance passée, et celui que vise un filtre (« programme/catégorie » ou catégorie du programme actif)
 function historyEntryName(h) { return normName(sessionMeta(h.category, entryProg(h)).label); }
@@ -141,10 +156,9 @@ function healthHistoryCell(h) {
 // une séance épaules + abdos montre les deux, retour de Maxence du 15/11). Décoratif (aria-hidden) : VoiceOver lit le
 // texte, records compris. Texte agrandi : plus de personnage (css/screens.css).
 // index : chosenMusclesIndex() calculé une fois pour toute la liste
-function historyCell(h, index) {
+function historyCell(h, index, labels) {
   if (isHealthEntry(h)) return healthHistoryCell(h);
   const progId = entryProg(h);
-  const meta   = sessionMeta(h.category, progId);
   const vol    = sessionVolume(h.exercises || [], entryBodyKg(h));
   // Séance d'un autre programme : « Programme Bras & épaules » sur sa propre ligne, sous la date (panel vague 4 : après le
   // titre, « Bras · Bras & é… » se coupait sur iPhone SE et semblait répéter le nom) ; la ligne du dessous reste
@@ -164,7 +178,7 @@ function historyCell(h, index) {
       <button class="hrow__del" data-action="swipe-delete-session" data-id="${esc(h.id)}" tabindex="-1">Supprimer</button>
       <button class="hcell hcell--card mgc" data-action="open-history" data-id="${esc(h.id)}">
         <span class="hcell__body mgc__text">
-          <span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span>
+          <span class="hcell__title">${historyEntryLabel(h, labels)}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span>
           <span class="hcell__when"><span class="hcell__date">${fmtDate(h.date)}</span>${recMark}</span>
           ${other ? `<span class="hcell__prog">Programme ${esc(progMeta(progId).name)}</span>` : ''}
           <span class="hcell__sub num">${parts.join(' · ')}</span>
@@ -207,11 +221,11 @@ function historyListHTML() {
         <div class="group"><button class="cell cell--action" data-action="go-home"><span class="cell__title">Démarrer une séance</span></button></div>`;
   }
   const months = historyByMonth(all);
-  const index = chosenMusclesIndex();
+  const index = chosenMusclesIndex(), labels = historyNameLabels();
   // En-tête de mois : le mois et son nombre de séances (« Novembre 2026 · 4 séances »), pour se repérer en défilant
   const out = months.slice(0, histMonths).map(m =>
     `<section class="hmonth" data-month="${m.key}"><h2 class="hmonth__title">${m.title}<span class="hmonth__count"><span aria-hidden="true"> · </span><span class="visually-hidden">, </span>${plural(m.sessions.length, 'séance', 'séances')}</span></h2>
-      <div class="group">${m.sessions.map(h => historyCell(h, index)).join('')}</div></section>`).join('');
+      <div class="group">${m.sessions.map(h => historyCell(h, index, labels)).join('')}</div></section>`).join('');
   return months.length > histMonths ? out + `<button class="btn-more" data-action="hist-more">Afficher plus</button>` : out;
 }
 
@@ -287,7 +301,6 @@ function renderHistoryDetail(id) {
       <div class="scr"><div class="empty-note">Cette séance n'existe plus.</div></div></div>`;
   }
   const progId = entryProg(h);
-  const meta   = sessionMeta(h.category, progId);
   let when = capitalize(fmtDate(h.date, 'long'));
   // L'heure n'a de sens que pour une séance chronométrée (une séance passée n'a pas d'heure)
   // « · 13:11 » d'un seul tenant (.hdhead__time, nowrap) : l'heure ne se coupe jamais (« 1 / 3:11 » en AX33) ni ne
@@ -308,7 +321,7 @@ function renderHistoryDetail(id) {
       <div class="scr">
         <section class="hdhead mgc${art ? '' : ' hdhead--noart'}">
           <div class="hdhead__text mgc__text">
-            <h1 class="scr-title hdhead__title">${meta.label}</h1>
+            <h1 class="scr-title hdhead__title">${historyEntryLabel(h)}</h1>
             <span class="hdhead__when">${when}</span>
             ${progId !== data.activeProgramme && progId !== FREE ? `<span class="hdhead__prog">Programme ${esc(progMeta(progId).name)}</span>` : ''}
             ${groups.length ? `<span class="hdhead__mus">${groups.slice(0, 3).map(x => esc(x.g.label)).join('\u00a0· ')}</span>` : ''}

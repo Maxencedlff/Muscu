@@ -284,7 +284,8 @@ html.type-xl .history .hist-tools .hist-seg .hist-seg__xl { display: block; grid
 .hist-picks-wrap { background: none; }   /* .view--grouped : styles des cellules iOS, sans le fond de l'écran */
 .hist-picks { margin: 0; }
 .hist-pick { width: 100%; text-align: left; }
-.hist-pick--on .cell__title { font-weight: 700; }
+.hist-pick--on .cell__title { font-weight: 600; }
+.hist-pick__check { flex: 0 0 18px; display: inline-flex; color: var(--tint); }   /* coche iOS à gauche, place gardée sur chaque ligne */
 /* Texte agrandi : les filtres passent sur deux colonnes (« Toute/s » coupé au milieu du mot sur une seule rangée) ;
    un nom de séance long revient à la ligne entre deux mots, jamais dans un mot */
 html.type-xl .history .hist-tools .seg-full { display: grid; grid-template-columns: 1fr 1fr; row-gap: 2px; height: auto; overflow: visible; }
