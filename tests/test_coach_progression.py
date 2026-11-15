@@ -189,11 +189,23 @@ def t_fiche(bench, eng, dev, theme):
         R.check('3 sur 4' in wk and 'Prévues : Sèche 4 jours' in wk, f'{t} fiche : séances faites sur prévues ({wk!r})')
         R.check('Squat' in wk and 'Tractions' in wk and '105 kg' in wk and 'avant 100 kg' in wk, f'{t} fiche : records avec l\'exercice')
         R.check(page.locator('.progress-week .review-rec').count() == 2, f'{t} fiche : un record par exercice')
-        R.check('Dernière séance' in wk and 'Haut' in wk and 'hier' in wk.lower(), f'{t} fiche : dernière séance')
+        # Coach v2 : la dernière séance passe dans la carte de tête, illustrée (vignette décorative), au-dessus des
+        # « 7 derniers jours », avec ses jours d'entraînement en pastilles (aujourd'hui à droite)
+        hero = page.locator('.coach-student-view .cstu-hero')
+        ht = hero.inner_text()
+        R.check(hero.count() == 1 and 'Dernière séance' in ht and 'Haut' in ht and 'hier' in ht.lower(), f'{t} fiche : dernière séance en carte de tête ({ht!r})')
+        R.check(page.evaluate("(() => { const h = document.querySelector('.cstu-hero'), w = document.querySelector('.progress-week'); return !!(h && w && (h.compareDocumentPosition(w) & Node.DOCUMENT_POSITION_FOLLOWING)); })()"),
+                f'{t} fiche : carte de tête avant les 7 derniers jours')
+        img = hero.locator('img.cstu-hero__img')
+        R.check(img.count() == 1 and (img.get_attribute('src') or '').startswith('img/muscles/') and img.get_attribute('alt') == '' and img.get_attribute('aria-hidden') == 'true',
+                f'{t} fiche : vignette du groupe travaillé, décorative ({img.count()})')
+        R.check(hero.locator('.week__day').count() == 7 and hero.locator('.week__days').get_attribute('aria-hidden') == 'true'
+                and 'sur les 7 derniers jours' in hero.locator('.cstu-hero__week .visually-hidden').text_content(), f'{t} fiche : 7 jours en pastilles, lus en une phrase')
+        R.check(page.locator('.progress-week [data-action="coach-open-session"]').count() == 0, f'{t} fiche : la dernière séance n\'est plus répétée dans le groupe')
         layout(page, t, 'Fiche de Léa')
         shot(page, LOT, f'2-fiche-lea-{t}')
         # La dernière séance s'ouvre (2e toucher)
-        page.locator('.progress-week [data-action="coach-open-session"]').click()
+        page.locator('.cstu-hero [data-action="coach-open-session"]').click()
         page.wait_for_selector('.coach-session-view')
         page.wait_for_timeout(300)
         R.check('Haut' in page.inner_text('.coach-session-view .scr-title'), f'{t} dernière séance ouverte')

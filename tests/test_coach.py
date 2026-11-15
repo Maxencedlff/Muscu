@@ -256,6 +256,13 @@ def t_eleve(bench, eng, dev, theme):
         cell.click()
         page.wait_for_selector('.coach-mine-view .coach-prog')
         R.check('Trois séances par semaine' in page.inner_text('.coach-prog'), f'{t} Mon coach : consigne du programme')
+        # Coach v2 : carte d'en-tête claire (le coach, puis le programme reçu illustré et son état), programme reçu
+        # illustré lui aussi ; vignettes décoratives
+        hero = page.locator('.coach-mine-view .cmine-hero')
+        ht = hero.inner_text().replace('\u00a0', ' ')
+        R.check(hero.count() == 1 and 'max' in ht and 'Ton coach' in ht and 'Force' in ht and 'À ajouter à tes programmes' in ht, f'{t} Mon coach : carte d\'en-tête ({ht!r})')
+        imgs = page.locator('.coach-mine-view .cmine-hero__img, .coach-mine-view .coach-prog__img')
+        R.check(imgs.count() == 2 and all(imgs.nth(i).get_attribute('aria-hidden') == 'true' and imgs.nth(i).get_attribute('alt') == '' for i in range(2)), f'{t} Mon coach : programme reçu illustré, vignettes décoratives ({imgs.count()})')
         # Aperçu des exercices avant d'ajouter
         page.click('[data-action="coach-prog-toggle"]')
         page.wait_for_selector('.coach-prog__preview')
@@ -283,6 +290,7 @@ def t_eleve(bench, eng, dev, theme):
         R.check(page.evaluate('data.activeProgramme') == 'u_c00000000_u_force', f'{t} programme u_c<id> actif')
         R.check(page.evaluate("__sb.co.progs[0].seen") is True and tab_badge(page) == '', f'{t} programme vu : badge retiré')
         R.check('Dans tes programmes' in page.inner_text('.coach-prog'), f'{t} carte : « Dans tes programmes »')
+        R.check('Ton programme actuel' in page.inner_text('.cmine-hero'), f'{t} en-tête : « Ton programme actuel »')
         up = page.evaluate('data.userProgrammes.u_c00000000_u_force')
         R.check(up['fromCoach']['name'] == 'max' and up['consigne'].startswith('Trois'), f'{t} fromCoach et consigne gardés')
         # Reconnaissable : accueil et Mes programmes
@@ -513,9 +521,22 @@ def t_coach(bench, eng, dev, theme):
         R.check(broken == [], f'{t} Mes élèves : aucun mot coupé en deux {broken}')
         R.check(row.locator('.progress-sig').count() == 1 and row.locator('.progress-sig').inner_text().strip() and ' '.join(row.locator('.coach-count').inner_text().split()) == '3 nouvelles', f'{t} signal de la semaine et nouvelles séances')
         # Panel du 06/11 : pastille rouge « 3 » sans sens à côté de la bulle des messages ; désormais haltère + nombre
-        R.check(row.locator('.coach-count--sessions .icon').count() == 1 and 'nouvelles séances' in row.locator('.visually-hidden').first.text_content(), f'{t} pastille des séances : haltère, nombre et « nouvelles » écrit')
+        R.check(row.locator('.coach-count--sessions .icon').count() == 1 and 'nouvelles séances' in row.locator('.coach-count--sessions + .visually-hidden').text_content(), f'{t} pastille des séances : haltère, nombre et « nouvelles » écrit')
         tom = page.locator('.coach-student-row', has_text='tom').inner_text()
         R.check(('Aucune séance' in tom) != ('Pas encore de séance' in tom), f'{t} élève sans séance : un seul message ({tom!r})')
+        # Coach v2 : une carte par élève, vignette du groupe de sa dernière séance (Haut de mon programme Force :
+        # pectoraux) avec son avatar dans le coin ; sans séance, l'avatar seul. Vignette décorative.
+        pic = row.locator('.cstu__pic img.cstu__img')
+        R.check(pic.count() == 1 and pic.get_attribute('src') == 'img/muscles/pectoraux.webp' and pic.get_attribute('alt') == '' and pic.get_attribute('aria-hidden') == 'true'
+                and row.locator('.cstu__pic .avatar').inner_text() == '🦊', f'{t} carte de Léa : vignette de sa dernière séance, avatar dans le coin ({pic.count()})')
+        tom_row = page.locator('.coach-student-row', has_text='tom')
+        R.check(tom_row.locator('.cstu__pic--avatar .avatar').count() == 1 and tom_row.locator('img').count() == 0, f'{t} carte de Tom : sans séance, son avatar seul')
+        # Régularité : 7 points (aujourd'hui à droite), décoratifs, dits en une phrase ; Léa s'entraîne tous les jours
+        days = row.locator('.cstu__day')
+        R.check(days.count() in (0, 7) and (days.count() == 0 or row.locator('.cstu__days').get_attribute('aria-hidden') == 'true'), f'{t} carte de Léa : régularité en 7 points ({days.count()})')
+        if days.count():
+            R.check(row.locator('.cstu__day--on').count() >= 5 and 'sur les 7 derniers' in row.inner_html(), f'{t} carte de Léa : jours d\'entraînement de la semaine')
+        R.check(tom_row.locator('.cstu__days').count() == 0, f'{t} carte de Tom : pas de régularité inventée')
         layout(page, t, 'Mes élèves')
         shot(page, LOT, f'11-mes-eleves-{t}')
         # Panel v4 t1 : le code coach permanent (celui de la bio) en tête des invitations, avec Copier et Partager ;
@@ -552,6 +573,11 @@ def t_coach(bench, eng, dev, theme):
         R.check(tab_badge(page) == '', f'{t} séances vues : badge retiré')
         R.check(page.locator('.coach-sess').count() == 30, f'{t} 30 séances par page ({page.locator(".coach-sess").count()})')
         R.check(page.locator('.coach-sess[data-id="l00"] .coach-tag').inner_text() == 'Ton programme' and page.locator('.coach-sess[data-id="l01"] .coach-tag').count() == 0, f'{t} « Ton programme » sur la bonne séance')
+        # Coach v2 : ses séances en cartes illustrées, comme l'Historique (vignette du groupe travaillé, décorative)
+        art = page.locator('.coach-sess[data-id="l02"] img.hcell__img')
+        R.check(page.locator('.coach-sess.hcell--card').count() == 30 and art.count() == 1 and art.get_attribute('src') == 'img/muscles/pectoraux.webp' and art.get_attribute('aria-hidden') == 'true',
+                f'{t} séances de Léa : cartes illustrées ({art.count()})')
+        R.check(page.locator('.coach-student-view .cstu-hero').count() == 1 and 'Haut' in page.inner_text('.coach-student-view .cstu-hero'), f'{t} fiche : carte de sa dernière séance en tête')
         R.check('61' not in page.inner_text('.coach-student-view'), f'{t} jamais le poids du corps')
         R.check(page.evaluate(f"Object.keys(coachSessions('{ids['lea']}').rows[0].s).includes('bodyKg')") is False, f'{t} séance reçue sans bodyKg')
         layout(page, t, 'séances d\'un élève')

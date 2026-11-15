@@ -27,7 +27,11 @@
 
   // 1. Débordement horizontal de la page
   const large = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
-  if (large > innerWidth + 1) constats.push(`débordement horizontal : page de ${large} px pour un écran de ${innerWidth} px`);
+  if (large > innerWidth + 1) {
+    const fautif = [...document.body.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1 && !e.closest('[aria-hidden=true]'); })
+      .filter((e, i, l) => !l.some(o => o !== e && e.contains(o))).slice(0, 3).map(nom).join(' ; ');
+    constats.push(`débordement horizontal : page de ${large} px pour un écran de ${innerWidth} px${fautif ? ` (${fautif})` : ''}`);
+  }
 
   // 2. Police sous le seuil (texte visible uniquement)
   const petits = [];
@@ -71,6 +75,38 @@
       && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflowX !== 'visible')
     .map(e => `« ${e.textContent.trim().slice(0, 40)} »`);
   resume('textes coupés (plus larges que leur boîte)', coupes);
+
+  // 5. Retours à la ligne mal placés (texte agrandi surtout) : un mot coupé en deux lignes, un « · » seul ou en tête
+  //    de ligne, une heure (« 18 h 30 », « 18:30 ») sur deux lignes. Lignes comparées par le haut de chaque morceau.
+  const ligne = (n, a, b) => { const r = document.createRange(); r.setStart(n, a); r.setEnd(n, b); return [...r.getClientRects()].filter(x => x.width > 0).map(x => Math.round(x.top)); };
+  const mots = [], points = [], heures = [];
+  const marche = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: n => {
+    const el = n.parentElement;
+    return el && n.textContent.trim() && visible(el) && !el.closest('svg, script, style, input, textarea, select, .tabbar') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+  } });
+  const ou = n => { const el = n.parentElement.closest('[class]'); return el ? '.' + [...el.classList].slice(0, 2).join('.') : n.parentElement.tagName.toLowerCase(); };
+  let finPrec;   // ligne du dernier caractère du morceau de texte précédent (un « · » seul dans sa balise)
+  for (let n; (n = marche.nextNode());) {
+    const t = n.textContent;
+    for (const m of t.matchAll(/[^\s\u00a0\u202f·/\u2011-]+/g)) {   // coupure après un trait d'union ou une barre : permise
+      if (m[0].length > 1 && new Set(ligne(n, m.index, m.index + m[0].length)).size > 1) mots.push(`« ${m[0].slice(0, 30)} » (${ou(n)})`);
+    }
+    for (const m of t.matchAll(/\d{1,2}(?:[\s\u00a0\u202f]?h[\s\u00a0\u202f]?\d{2}|:\d{2})/g)) {
+      if (new Set(ligne(n, m.index, m.index + m[0].length)).size > 1) heures.push(`« ${m[0]} » (${ou(n)})`);
+    }
+    for (const m of t.matchAll(/·/g)) {
+      const ici = ligne(n, m.index, m.index + 1)[0];
+      if (ici === undefined) continue;
+      const avant = t.slice(0, m.index).search(/\S\s*$/);
+      const g = avant >= 0 ? ligne(n, avant, avant + 1)[0] : finPrec;
+      if (g !== undefined && g !== ici) points.push(`« ${t.slice(Math.max(0, m.index - 12), m.index + 12).trim() || '·'} » (${ou(n)})`);
+    }
+    const der = t.search(/\S\s*$/);
+    finPrec = der >= 0 ? ligne(n, der, der + 1).at(-1) : finPrec;
+  }
+  resume('mots coupés sur deux lignes', mots);
+  resume('« · » seul ou en tête de ligne', points);
+  resume('heures sur deux lignes', heures);
 
   // Écran affiché : route de l'app, calque plein écran, feuille ou dialogue ouverts
   const lbl = el => el ? (el.getAttribute('aria-label') || el.querySelector('h1,h2,.ios-dialog__title,.sheet__title,.ax__title')?.textContent || '').trim().slice(0, 50) : '';

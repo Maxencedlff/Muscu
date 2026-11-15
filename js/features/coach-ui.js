@@ -334,27 +334,46 @@ function coachProgPreviewHtml(item) {
   return `<div class="coach-prog__preview">${item.data.sessions.map(s => `
           <div class="coach-prog__sess">
             <div class="coach-prog__sess-name"><span class="hcell__dot" style="background:${esc(s.color)}" aria-hidden="true"></span>${esc(s.label)}</div>
-            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${setsRepsHtml(e)}</span>${coachExPlanParts(e).map(x => ` <span class="coach-prog__ex-plan num">· ${esc(x)}</span>`).join('')}${gripText(e.grip, e) ? ` <span class="coach-prog__ex-grip">· ${gripText(e.grip, e)}</span>` : ''}${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
+            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span>&nbsp;<span class="num">· ${setsRepsHtml(e)}</span>${coachExPlanParts(e).map(x => `&nbsp;<span class="coach-prog__ex-plan num">· ${esc(x)}</span>`).join('')}${gripText(e.grip, e) ? `&nbsp;<span class="coach-prog__ex-grip">· ${gripText(e.grip, e)}</span>` : ''}${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
           </div>`).join('')}</div>`;
 }
 
-// Carte d'un programme reçu (Mon coach) : statut, consigne, exercices dépliables, action
+// Groupe le plus travaillé d'un programme reçu (toutes ses séances), pour sa vignette ; null sans détail (hors ligne)
+function coachProgGroupOf(item) {
+  return item?.meta ? null : sessionGroupOf((item?.data?.sessions || []).flatMap(x => x.exercises || []));
+}
+// État d'un programme reçu en une phrase courte (carte de tête de Mon coach)
+function coachProgStateText(item) {
+  const { status, id } = coachStatus(item);
+  if (status === 'update') return 'Mise à jour à prendre';
+  if (status === 'new') return 'À ajouter à tes programmes';
+  return data.activeProgramme === id ? 'Ton programme actuel' : 'Dans tes programmes';
+}
+
+// Carte d'un programme reçu (Mon coach) : statut, nom et séances à gauche, vignette du groupe le plus travaillé à
+// droite (décorative), consigne, exercices dépliables, action
 function coachProgCardHtml(item) {
   const { status, id } = coachStatus(item);
   const nS = item.data.sessions.length, who = esc(coachName());
   const kept = status === 'current' && data.userProgrammes?.[id]?.fromCoach?.keptAt === item.sentAt && item.sentAt > (data.userProgrammes[id].fromCoach.sentAt || 0);
   const eyebrow = status === 'update' ? `Mis à jour par ${who}` : status === 'new' ? `Nouveau programme ${elide('de', who)}` : `Reçu ${elide('de', who)}`;
   const open = coachProgOpen.has(item.id) && !item.meta;
+  const art = progThumbHtml(coachProgGroupOf(item), 'coach-prog__img');
   const btn = status === 'current'
     ? (kept ? `<p class="coach-prog__done">Tu as gardé ta version.</p>
         <button class="btn btn--secondary coach-prog__btn" data-action="coach-take-prog" data-id="${esc(item.id)}">Prendre la version ${elide('de', who)}</button>`
       : '<p class="coach-prog__done">Dans tes programmes</p>')
     : `<button class="btn btn--primary coach-prog__btn" data-action="coach-add-prog" data-id="${esc(item.id)}" aria-label="${status === 'update' ? `Mettre à jour ${esc(item.data.name)}` : `Ajouter ${esc(item.data.name)} à mes programmes`}">${status === 'update' ? 'Mettre à jour' : 'Ajouter à mes programmes'}</button>`;
   return `
-        <article class="coach-prog">
-          <div class="coach-prog__eyebrow">${eyebrow}${coachNewDotHtml(!item.seen)}</div>
-          <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
-          ${item.meta ? '<p class="coach-prog__meta">Détail disponible avec du réseau.</p>' : `<p class="coach-prog__meta">${plural(nS, 'séance', 'séances')}${nS ? ` : ${esc(item.data.sessions.map(s => s.label).join(', '))}` : ''}</p>`}
+        <article class="coach-prog" id="coach-prog-${esc(item.id)}">
+          <div class="coach-prog__head${art ? '' : ' coach-prog__head--noart'}">
+            <div class="coach-prog__head-text">
+              <div class="coach-prog__eyebrow">${eyebrow}${coachNewDotHtml(!item.seen)}</div>
+              <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
+              ${item.meta ? '<p class="coach-prog__meta">Détail disponible avec du réseau.</p>' : `<p class="coach-prog__meta">${plural(nS, 'séance', 'séances')}${nS ? ` : ${esc(item.data.sessions.map(s => s.label).join(', '))}` : ''}</p>`}
+            </div>
+            ${art}
+          </div>
           ${item.data.consigne ? `<p class="coach-prog__consigne">${icon('info.circle', 14)}<span>${esc(item.data.consigne)}</span></p>` : ''}
           ${item.meta ? '' : `<button class="coach-prog__toggle" data-action="coach-prog-toggle" data-id="${esc(item.id)}" aria-expanded="${open}">${open ? 'Masquer les exercices' : 'Voir les exercices'} ${icon(open ? 'chevron.up' : 'chevron.down', 12)}</button>`}
           ${open ? coachProgPreviewHtml(item) : ''}
@@ -380,6 +399,23 @@ function coachNotesHtml(notes) {
   }).join('')}</div>`;
 }
 
+// Carte de tête de Mon coach, en bas : le dernier programme reçu, illustré (vignette carrée du groupe le plus
+// travaillé, décorative), son nom et son état ; la carte du programme, plus bas, garde l'action. Rien sans programme.
+function coachMineProgHtml(inbox) {
+  const item = inbox?.programmes?.[0];
+  if (!item) return '';
+  const g = coachProgGroupOf(item), n = item.meta ? 0 : item.data.sessions.length;
+  return `
+          <div class="cmine-hero__prog${g ? '' : ' cmine-hero__prog--noart'}">
+            ${g ? `<span class="cmine-hero__pic">${progThumbHtml(g, 'cmine-hero__img')}</span>` : ''}
+            <span class="cmine-hero__text">
+              <span class="cmine-hero__eyebrow">${inbox.programmes.length > 1 ? 'Dernier programme reçu' : 'Programme reçu'}</span>
+              <span class="cmine-hero__name">${esc(item.data.name)}</span>
+              <span class="cmine-hero__sub">${n ? `${plural(n, 'séance', 'séances')}<span aria-hidden="true"> · </span><span class="visually-hidden">, </span>` : ''}${coachProgStateText(item)}</span>
+            </span>
+          </div>`;
+}
+
 function renderCoachMine() {
   const head = navBar({ title: 'Mon coach', large: true });   // grand titre replié au défilement, comme Coach et Mon profil
   const p = myCoach();
@@ -398,9 +434,12 @@ function renderCoachMine() {
       ${head}
       <div class="scr">
         ${stale}
-        <div class="coach-join__who coach-mine__who">
-          ${personAvatar(p, 'l')}
-          <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(personName(p))}</span><span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span></span>
+        <div class="cmine-hero">
+          <div class="coach-join__who coach-mine__who">
+            ${personAvatar(p, 'l')}
+            <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(personName(p))}</span><span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span></span>
+          </div>
+          ${coachMineProgHtml(inbox)}
         </div>
         ${chatIntroHtml()}
         ${chatCellHtml(CHAT_COACH)}
@@ -726,19 +765,70 @@ function coachPlanOf(s) {
   return { done, total, missing };
 }
 
-// Chevron : la ligne s'ouvre, comme « Dernière séance » et l'historique (panel v4 t1)
+// Séance d'un élève en carte illustrée, comme l'Historique : nom, date et records, « durée · exercices » (et séries
+// faites sur prévues avec mon programme), étiquettes ; vignette du groupe travaillé à droite (décorative). Chevron :
+// la carte s'ouvre. Texte agrandi : plus de vignette (css/muscles.css).
 function coachSessionCell(uid, row) {
   const s = row.s, mine = coachOwnProgrammeName(s.programme), plan = coachPlanOf(s);
+  const recs = Array.isArray(s.records) ? s.records.length : 0;
+  const recMark = recs ? `<span class="hcell__rec num">${medalSvg(14)}${plural(recs, 'record', 'records')}</span>` : '';
   return `
-          <button class="hcell coach-sess" data-action="coach-open-session" data-uid="${esc(uid)}" data-id="${esc(row.id)}">
-            <span class="hcell__dot" style="background:${coachSessionColor(s)}" aria-hidden="true"></span>
-            <span class="hcell__body">
-              <span class="hcell__top"><span class="hcell__title">${esc(s.label)}</span><span class="hcell__date">${fmtDate(row.doneAt)}</span></span>
+          <div class="hrow coach-sess-row"><button class="hcell hcell--card mgc coach-sess" data-action="coach-open-session" data-uid="${esc(uid)}" data-id="${esc(row.id)}">
+            <span class="hcell__body mgc__text">
+              <span class="hcell__title">${esc(s.label)}</span>
+              <span class="hcell__when"><span class="hcell__date">${fmtDate(row.doneAt)}</span>${recMark}</span>
               <span class="hcell__sub num">${esc(publicMetaLine(s))}${plan ? ` · ${plan.done}/${plan.total} séries` : ''}</span>
               ${mine || row.note ? `<span class="coach-sess__tags">${mine ? '<span class="coach-tag">Ton programme</span>' : ''}${row.note ? '<span class="coach-tag coach-tag--note">Commentée</span>' : ''}</span>` : ''}
             </span>
+            ${progThumbHtml(sessionGroupOf(s.exercises), 'hcell__img')}
             ${icon('chevron.right', 16)}
-          </button>`;
+          </button></div>`;
+}
+
+// Carte de tête de la fiche (refonte Coach v2) : sa dernière séance illustrée (nom, date, chiffres, records, vignette
+// du groupe travaillé), qui s'ouvre si elle est chargée, puis ses 7 derniers jours en pastilles comme la semaine de
+// l'accueil (aujourd'hui à droite). Mêmes données que la liste de ses séances : rien de nouveau n'est montré.
+function coachStudentHeroHtml(uid) {
+  const st = coachStudent(uid);
+  if (!st) return '';
+  const ls = st.last_session, first = coachSessions(uid).rows[0];
+  const row = first && ls && first.doneAt === ls.done_at ? first : null;
+  const s = row?.s;
+  const mine = ls && coachOwnProgrammeName(ls.programme);
+  const facts = s ? [publicMetaLine(s), reviewVolume(s.exercises) > 0 ? fmtVolume(reviewVolume(s.exercises)) : ''].filter(Boolean).join(' · ') : '';
+  const recs = Array.isArray(s?.records) ? s.records.length : 0;
+  const g = studentLastGroup(st);
+  const when = ls ? capitalize(fmtDate(ls.done_at)).replace(/ /g, '\u00a0') : '';
+  const text = `
+            <span class="cstu-hero__text">
+              <span class="cstu-hero__eyebrow">Dernière séance</span>
+              <span class="cstu-hero__name">${ls ? esc(ls.label) : 'Pas encore de séance'}</span>
+              ${ls ? `<span class="cstu-hero__info num">${esc(when)}${mine ? '<span aria-hidden="true"> · </span><span class="visually-hidden">, </span>ton programme' : ''}</span>` : ''}
+              ${facts ? `<span class="cstu-hero__info num">${esc(facts)}</span>` : ''}
+              ${recs ? `<span class="hcell__rec cstu-hero__rec num">${medalSvg(14)}${plural(recs, 'record', 'records')}</span>` : ''}
+            </span>
+            ${ls && g ? progThumbHtml(g, 'cstu-hero__img') : ''}`;
+  const top = row
+    ? `<button class="cstu-hero__last" data-action="coach-open-session" data-uid="${esc(uid)}" data-id="${esc(row.id)}">${text}${icon('chevron.right', 16)}</button>`
+    : `<div class="cstu-hero__last">${text}</div>`;
+  const days = studentDays(st);
+  let week = '';
+  if (days) {
+    const now = Date.now();
+    const dots = days.map((x, i) => {
+      const d = new Date(now); d.setDate(d.getDate() - (6 - i));
+      return weekDayHtml(WEEK_DAYS[(d.getDay() + 6) % 7], x > 0, i === 6);
+    }).join('');
+    const on = days.map((x, i) => { const d = new Date(now); d.setDate(d.getDate() - (6 - i)); return x ? WEEK_NAMES[(d.getDay() + 6) % 7] : ''; }).filter(Boolean);
+    week = `
+          <div class="cstu-hero__week">
+            <span class="cstu-hero__week-head"><span class="cstu-hero__eyebrow">Jours d'entraînement</span><span class="cstu-hero__count num" aria-hidden="true"><b>${days.filter(Boolean).length}</b> sur 7</span></span>
+            <span class="week__days" aria-hidden="true">${dots}</span>
+            <span class="visually-hidden">${on.length ? `${on.length} sur les 7 derniers jours : ${on.join(', ')}.` : 'Aucun sur les 7 derniers jours.'}</span>
+          </div>`;
+  }
+  return `
+        <div class="cstu-hero${ls && g ? '' : ' cstu-hero--noart'}">${top}${week}</div>`;
 }
 
 function renderCoachStudent(uid) {
@@ -771,6 +861,7 @@ function renderCoachStudent(uid) {
           ${personAvatar(p, 'l')}
           <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(personName(p))}</span><span class="coach-join__sub">${sinceText(p) ? `Élève depuis le ${esc(sinceText(p))}` : 'Élève'}</span></span>
         </div>
+        ${coachStudentHeroHtml(uid)}
         ${coachWeekSummaryHtml(uid)}
         ${chatCellHtml(uid)}
         ${coachPlanGroupHtml(uid)}

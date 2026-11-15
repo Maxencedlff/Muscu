@@ -114,10 +114,20 @@ body.has-livebar .social-enable { bottom: calc(var(--tabbar-h) + 72px + env(safe
 .feed-card__name { font-size: var(--fs-body); line-height: 1.3; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .feed-card__date { font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); white-space: nowrap; }
 .feed-card__main { flex-direction: column; gap: 10px; min-height: 44px; padding: 8px 16px 14px; }
-.feed-card__title { display: flex; align-items: baseline; gap: 8px; width: 100%; min-width: 0; }
-.feed-card__title .hcell__dot { align-self: center; margin-top: 0; }
-.feed-card__label { flex: 1; min-width: 0; font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; letter-spacing: -.01em; overflow-wrap: anywhere; }
-.feed-card__title .feed-card__date { margin-left: auto; }
+/* Haut de la séance, illustré comme l'Historique (refonte Coach v2, 15/11) : nom et muscles à gauche, vignette 3D du
+   groupe le plus travaillé à droite (img/muscles/<groupe>.webp, 600 × 400, bord gauche fondu, muscles en rouge),
+   entière (contain) et décorative. La colonne de texte s'arrête avant le personnage ; un nom long revient à la ligne
+   entre deux mots. Sans vignette (groupe inconnu, fichier absent, texte agrandi) : le texte prend toute la largeur. */
+.feed-card__head { position: relative; display: flex; width: 100%; min-height: 5.4rem; }
+.feed-card__head--noart, .feed-card__head:has(.mgc__img[data-missing]) { min-height: 0; }
+.feed-card__text { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; width: 58%; min-width: 0; }
+.feed-card__head--noart .feed-card__text, .feed-card__head:has(.mgc__img[data-missing]) .feed-card__text { width: 100%; }
+.feed-card__head .feed-card__img { top: 0; right: -6px; height: 5.4rem; width: auto; max-width: 46%; object-fit: contain; object-position: right center; }
+.feed-card__title { display: flex; flex-direction: column; gap: 1px; width: 100%; min-width: 0; }
+.feed-card__label { min-width: 0; font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; letter-spacing: -.01em; overflow-wrap: break-word; hyphens: none; }
+.feed-card__title .feed-card__date { white-space: normal; }
+html.type-xl .feed-card__text { width: 100%; }
+html.type-xl .feed-card__head { min-height: 0; }
 /* Trois chiffres côte à côte, séparés d'un filet, libellé dessous (lecture : « 58 min Durée ») */
 .feed-card__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
 .feed-card__stat { min-width: 0; display: flex; flex-direction: column; gap: 1px; }

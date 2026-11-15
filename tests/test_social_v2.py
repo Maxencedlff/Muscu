@@ -154,6 +154,14 @@ def t_pratiquant(bench, eng, dev, theme):
         R.check(color == gold, f'{t} médaille du record en or ({color} / {gold})')
         chips = card.locator('.feed-card__chip').all_inner_texts()
         R.check(1 <= len(chips) <= 3 and 'Quadriceps' in chips, f'{t} carte : muscles travaillés ({chips})')
+        # Coach v2 : carte illustrée comme l'Historique, vignette du groupe le plus travaillé (Legs : jambes), décorative,
+        # à droite du nom sans passer sous le texte
+        art = card.locator('.feed-card__head img.feed-card__img')
+        R.check(art.count() == 1 and art.get_attribute('src') == 'img/muscles/jambes.webp' and art.get_attribute('alt') == '' and art.get_attribute('aria-hidden') == 'true',
+                f'{t} carte : vignette des jambes, décorative ({art.count()})')
+        gap = page.evaluate("""(() => { const c = document.querySelector('.feed-card[data-id=l0]'), tx = c.querySelector('.feed-card__text').getBoundingClientRect(),
+            im = c.querySelector('.feed-card__img').getBoundingClientRect(); return im.width > 40 && tx.right <= im.left + im.width * .12; })()""")
+        R.check(gap, f'{t} carte : le texte s\'arrête avant le personnage')
         R.check(card.locator('.react').count() == 1 and card.locator('[data-action="social-open-comments"]').count() == 1, f'{t} carte : réagir et commenter')
         R.check(page.locator('.feed-card[data-id="l1"] .feed-card__rec').count() == 0, f'{t} séance sans record : pas de pastille')
         layout(page, t, 'Social')

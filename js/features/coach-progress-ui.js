@@ -13,14 +13,61 @@
 const PROGRESS_SUMMARY_RECORDS = 3;   // fiche : records listés, les suivants comptés (« Et 2 autres records »)
 const PROGRESS_SORT_FOOT = 'En haut, les nouveautés à lire, puis les élèves à relancer, puis ceux qui ont battu un record cette semaine, puis les autres. Tes élèves ne se voient pas entre eux.';
 
-// Signal d'une ligne : « ↑ 2 records cette semaine » (vert), « Pas de séance depuis 9 jours » (orange)…
+// Signal d'une ligne : « 2 records cette sem. » (médaille), « 9 jours sans séance » (à relancer)…
+// À relancer : un triangle d'alerte devant le texte, au texte courant (l'orange reste à l'action, le rouge aux muscles)
 function progressSignalHtml(pr) {
   // Record : la médaille au trait, comme la fiche et le bilan ; la flèche verte reste aux progressions (panel v4 t1)
-  const arrow = pr.tone === 'up' ? `<span class="progress-sig__arrow" aria-hidden="true">${medalSvg(14)}</span>` : '';
+  const arrow = pr.tone === 'up' ? `<span class="progress-sig__arrow" aria-hidden="true">${medalSvg(14)}</span>`
+    : pr.tone === 'warn' ? `<span class="progress-sig__alert" aria-hidden="true">${icon('exclamationmark.triangle', 14)}</span>` : '';
   return `<span class="cell__sub progress-sig progress-sig--${pr.tone}">${arrow}${esc(pr.text)}</span>`;
 }
 
-// Mes élèves : les lignes triées (sortStudentsByProgress), chacune en 3 lignes au plus
+// ── Carte d'un élève (refonte Coach v2, 15/11) ──────────────
+// Dans le style de l'accueil et de l'Historique : à gauche une vignette carrée du groupe travaillé à sa dernière
+// séance (img/muscles/<groupe>.webp, décorative), son avatar posé dans le coin ; sans groupe connu, l'avatar seul.
+// Au milieu : nom et, à sa droite, la régularité des 7 derniers jours (un point par jour, aujourd'hui à droite), signal
+// (alerte s'il décroche), dernière séance ou phase, puis les pastilles de nouveautés. Texte agrandi : plus de vignette.
+// Rien de nouveau n'est montré : la dernière séance, ses exercices et ses dates sont déjà ceux de sa fiche.
+
+// Groupe de sa dernière séance : ses exercices s'ils sont déjà reçus (première page de ses séances), sinon ceux de
+// la séance de même nom du programme d'où elle vient (le mien, ou un programme intégré) ; null sinon
+function studentLastGroup(st) {
+  const ls = st?.last_session;
+  if (!ls) return null;
+  const row = coach.sessions?.[st.user_id]?.rows?.[0];
+  if (row && row.doneAt === ls.done_at) return sessionGroupOf(row.s.exercises);
+  const prog = coachSentIdOf(ls.programme, account.user?.id) || ls.programme;
+  if (!prog) return null;
+  const key = progSessionsOf(data, prog).find(x => normName(x.label) === normName(ls.label))?.key;
+  return key ? sessionGroupOf(data.programmes?.[prog]?.exercises?.[key]) : null;
+}
+// Séances par jour sur les 7 derniers jours (du plus ancien à aujourd'hui), seulement si toute la période est connue
+// (faits de progression ou séances reçues), ou s'il n'a fait aucune séance de la semaine (coach_state le dit) ; null sinon,
+// et null pour un élève qui n'a encore aucune séance
+function studentDays(st, now = Date.now()) {
+  if (!st.last_session) return null;   // jamais venu : le signal le dit, pas de semaine vide en plus
+  const f = coachProgressFacts(st.user_id);
+  if (f && f.from <= progressDayStart(now, 6)) {
+    const days = Array(7).fill(0);
+    f.sessions.forEach(x => { const d = Math.max(0, daysAgo(x.at, now)); if (d <= 6) days[6 - d]++; });
+    return days;
+  }
+  return st.last_session && !st.sessions_7d ? Array(7).fill(0) : null;
+}
+// Les 7 points (décoratifs) et leur phrase pour VoiceOver
+function studentDaysHtml(days) {
+  if (!days) return '';
+  const n = days.filter(Boolean).length;
+  return `<span class="cstu__days" aria-hidden="true">${days.map((x, i) => `<span class="cstu__day${x ? ' cstu__day--on' : ''}${i === 6 ? ' cstu__day--today' : ''}"></span>`).join('')}</span><span class="visually-hidden">, ${n ? `${plural(n, 'jour', 'jours')} d'entraînement sur les 7 derniers` : 'aucune séance ces 7 derniers jours'}</span>`;
+}
+// Vignette (ou avatar seul) de la carte
+function studentPicHtml(st) {
+  const g = studentLastGroup(st);
+  return `<span class="cstu__pic${g ? '' : ' cstu__pic--avatar'}">${g ? progThumbHtml(g, 'cstu__img') : ''}${personAvatar(st)}</span>`;
+}
+
+// Mes élèves : les cartes triées (sortStudentsByProgress) ; texte en 3 lignes au plus (nom et régularité à sa droite,
+// signal, dernière séance ou phase), les pastilles sur une ligne à part dessous
 function coachStudentRowsHtml(students) {
   const now = Date.now();
   return sortStudentsByProgress(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id)).map(({ st: s, pr }) => {
@@ -28,14 +75,15 @@ function coachStudentRowsHtml(students) {
     // « Pas encore de séance » (signal) dit déjà ce que dirait « Aucune séance pour l'instant » : un seul message
     // (panel Apple de la vague 3) ; la 3e ligne ne reste que pour un planning
     const third = coachStudentPlanLine(s.user_id) || (pr.kind === 'never' ? '' : `<span class="cell__sub">${esc(studentLastLine(s))}</span>`);
+    const days = studentDaysHtml(studentDays(s, now));
+    const badges = s.new_sessions || unread ? `<span class="cs-badges">${sessionsBadgeHtml(s.new_sessions)}${chatBadgeHtml(unread)}</span>${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}` : '';
     return `
-          <button class="cell cell--nav social-row coach-student-row" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}" data-name="${esc(personName(s))}"${coachSearchQ && !normName(personName(s)).includes(normName(coachSearchQ)) ? ' hidden' : ''}>
-            <span class="social-row__main">${personAvatar(s)}<span class="social-row__text">
-              <span class="social-row__name">${esc(personName(s))}</span>
+          <button class="cell cell--nav social-row coach-student-row cstu${pr.tone === 'warn' ? ' cstu--warn' : ''}" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}" data-name="${esc(personName(s))}"${coachSearchQ && !normName(personName(s)).includes(normName(coachSearchQ)) ? ' hidden' : ''}>
+            <span class="social-row__main">${studentPicHtml(s)}<span class="cstu__col"><span class="social-row__text">
+              <span class="cstu__top"><span class="social-row__name">${esc(personName(s))}</span>${days}</span>
               ${pr.kind === 'new' && !coachStudentPlanLine(s.user_id) ? '' : progressSignalHtml(pr)}
               ${third}
-            </span></span>
-            ${s.new_sessions || unread ? `<span class="cs-badges">${sessionsBadgeHtml(s.new_sessions)}${chatBadgeHtml(unread)}</span>` : ''}${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}
+            </span>${badges ? `<span class="cstu__foot">${badges}</span>` : ''}</span></span>
             ${icon('chevron.right', 16)}
           </button>`;
   }).join('');
@@ -74,10 +122,10 @@ function progressWeekCounts(uid) {
   return f.rows.length ? weekCounts(f.rows.map(r => new Date(r.doneAt).getTime()), now, 4, !!covered) : null;
 }
 
-// Fiche d'un élève, en tête : « 7 derniers jours » (glissants, panel vague 4 : « Cette semaine » se confondait avec la
-// semaine du calendrier de l'accueil). Le signal (seulement s'il dit autre chose que les lignes
-// en dessous : à relancer, stable), les séances faites sur prévues, les records avec l'exercice, la
-// dernière séance (elle s'ouvre si elle est chargée).
+// Fiche d'un élève, sous la carte de tête : « 7 derniers jours » (glissants, panel vague 4 : « Cette semaine » se
+// confondait avec la semaine du calendrier de l'accueil). Le signal (seulement s'il dit autre chose que les lignes
+// en dessous : à relancer, stable), les séances faites sur prévues, les records avec l'exercice. La dernière séance
+// est dans la carte de tête (coachStudentHeroHtml, js/features/coach-ui.js).
 function coachWeekSummaryHtml(uid) {
   const st = coachStudent(uid);
   if (!st) return '';
@@ -90,17 +138,9 @@ function coachWeekSummaryHtml(uid) {
     ? `<div class="cell"><span class="cell__sub">Et ${plural(pr.records.length - PROGRESS_SUMMARY_RECORDS, 'autre record', 'autres records')}, dans ses séances</span></div>` : '';
   const counts = progressWeekCounts(uid);
   const sessions = progressSessionsCell(pr, planned, counts ? weekBarsSvg(counts) : '');
-  const row = coachSessions(uid).rows[0];
-  const lastTxt = st.last_session ? studentLastLine(st) : 'Pas encore de séance';
-  const last = row && st.last_session && row.doneAt === st.last_session.done_at
-    ? `<button class="cell cell--nav" data-action="coach-open-session" data-uid="${esc(uid)}" data-id="${esc(row.id)}">
-            <span class="cell__body"><span class="cell__title">Dernière séance</span><span class="cell__sub">${esc(lastTxt)}</span></span>
-            ${icon('chevron.right', 16)}
-          </button>`
-    : `<div class="cell"><span class="cell__body"><span class="cell__title">Dernière séance</span><span class="cell__sub">${esc(lastTxt)}</span></span></div>`;
   return `
         <div class="group-title">7 derniers jours</div>
-        <div class="group progress-week">${sig}${sessions}${recs}${none}${more}${last}</div>
+        <div class="group progress-week">${sig}${sessions}${recs}${none}${more}</div>
         <div class="group-foot">Aujourd'hui et les 6 jours d'avant. Les barres comptent les séances par semaine, du lundi au dimanche.</div>`;
 }
 

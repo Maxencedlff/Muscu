@@ -76,23 +76,38 @@ function feedMusclesHtml(s) {
   return m.length ? `<span class="feed-card__muscles" aria-label="${esc(`Muscles : ${m.join(', ')}`)}">${m.map(x => `<span class="feed-card__chip" aria-hidden="true">${esc(x)}</span>`).join('')}</span>` : '';
 }
 
-// Carte du fil : qui et quand (vers son profil), la séance (vers le détail des séries : nom, chiffres, record
-// en or, muscles), puis réagir (js/features/reactions-ui.js) et Commenter (la séance, sur ses commentaires).
+// Vignette 3D du groupe le plus travaillé d'une séance reçue (ami, élève) : mainGroupOf (js/features/progress-muscles.js)
+// sur ses exercices, avec un index vide : mes propres choix de muscles ne s'appliquent pas aux exercices des autres
+// (bibliothèque et règles du nom seulement). Rien de nouveau n'est montré : les exercices sont déjà dans la séance
+// reçue. null sans groupe reconnu.
+const OTHERS_MUSCLES_INDEX = new Map();
+function sessionGroupOf(exercises) { return mainGroupOf(exercises, OTHERS_MUSCLES_INDEX); }
+
+// Carte du fil, illustrée comme l'Historique : qui et quand (vers son profil), puis la séance (vers le détail des
+// séries) : nom et muscles à gauche, vignette du groupe travaillé à droite (décorative), les trois chiffres, le
+// record en or ; puis réagir (js/features/reactions-ui.js) et Commenter (la séance, sur ses commentaires).
 // Ma séance (Mon profil) : le résumé des réactions seulement.
-// owner : false sur l'écran du profil (la personne est déjà nommée), la date passe alors à côté du nom de séance
+// owner : false sur l'écran du profil (la personne est déjà nommée), la date passe alors sous le nom de séance.
+// Texte agrandi : plus de vignette (css/muscles.css), le texte prend toute la largeur.
 function feedCardHtml(row, { owner = true } = {}) {
   const s = row.s, p = { username: row.username, avatar: row.avatar };
   const mine = row.owner === social.userId;
+  const art = progThumbHtml(sessionGroupOf(s.exercises), 'feed-card__img');
   return `
     <article class="feed-card" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}">
       ${owner ? `<button class="feed-card__who" data-action="social-open-profile" data-uid="${esc(row.owner)}">
         ${personAvatar(p)}<span class="feed-card__who-text"><span class="feed-card__name">${esc(personName(p))}</span><span class="feed-card__date">${esc(fmtAgo(row.doneAt))}</span></span>
       </button>` : ''}
       <button class="feed-card__main" data-action="social-open-session" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}">
-        <span class="feed-card__title"><span class="hcell__dot" style="background:${publicSessionColor(s)}" aria-hidden="true"></span><span class="feed-card__label">${esc(s.label)}</span>${owner ? '' : `<span class="feed-card__date">${fmtDate(row.doneAt)}</span>`}</span>
+        <span class="feed-card__head${art ? '' : ' feed-card__head--noart'}">
+          <span class="feed-card__text">
+            <span class="feed-card__title"><span class="feed-card__label">${esc(s.label)}</span>${owner ? '' : `<span class="feed-card__date">${fmtDate(row.doneAt)}</span>`}</span>
+            ${feedMusclesHtml(s)}
+          </span>
+          ${art}
+        </span>
         ${feedStatsHtml(s)}
         ${feedRecordHtml(s)}
-        ${feedMusclesHtml(s)}
       </button>
       <div class="feed-card__foot">${mine
         ? `<span class="react-own">${reactionsSummary(row.reactions) ? reactionsSummaryHtml(row.reactions) : '<span class="react-own__none">Aucune réaction</span>'}</span>`
