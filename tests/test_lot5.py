@@ -51,8 +51,9 @@ def t_history(bench, eng, dev, theme):
         # Galaxy S9+ (320 px de large) : les sous-titres longs passent sur 2 lignes au lieu d'être tronqués
         # Vague 4 : le programme d'une séance d'un autre programme a sa ligne (« Programme Bras & épaules ») : une cellule de moins
         # 15/11 : cartes illustrées au gabarit des « Autres séances » de l'accueil (6,4 rem) : deux cartes de moins qu'en
-        # liste de texte ; le Galaxy S9+ (658 px de haut) rejoint les petits écrans
-        need = 4 if dev in ('iPhone 13', 'Pixel 7') else 3
+        # liste de texte : 3 cartes entières partout (la 4e affleure la tab bar sur iPhone 13 selon la police : 4 en local,
+        # 3 sur GitHub), la suivante entamée invite à défiler
+        need = 3
         R.check(vis >= need, f'{t} historique : {vis} cellules visibles (>= {need})')
         h = page.locator('.hcell').first.bounding_box()['height']
         R.check(62 <= h <= 125, f'{t} historique : hauteur de cellule {h:.0f}')
