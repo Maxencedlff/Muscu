@@ -11,14 +11,15 @@ function exSetsCount(cat, progId) {
 }
 
 // Muscles les plus travaillés par les exercices d'une séance (« Pectoraux · Épaules · Triceps »), échappés :
-// séances sans description (programme créé ou reçu d'un coach)
+// séances sans description (programme créé ou reçu d'un coach). Décompte de exercisesMuscleCount
+// (js/features/progress-muscles.js), regroupé par nom court
 function sessionMusclesSummary(progId, cat) {
   const count = new Map();
-  (data.programmes[progId]?.exercises?.[cat] || []).forEach(e => exerciseMuscles(e).primary.forEach(id => {
+  exercisesMuscleCount(data.programmes[progId]?.exercises?.[cat] || []).forEach((w, id) => {
     const label = MUSCLE_BY_ID.get(id)?.short || muscleLabel(id);
-    count.set(label, (count.get(label) || 0) + 1);
-  }));
-  return esc([...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([l]) => l).join(' · '));
+    count.set(label, (count.get(label) || 0) + w);
+  });
+  return esc([...count.entries()].sort((x, y) => y[1] - x[1]).slice(0, 3).map(([l]) => l).join(' · '));
 }
 
 // Petite vignette 3D d'un muscle, à gauche d'un exercice de Programme › Séance, comme la liste de Progrès ; cadrée
@@ -27,27 +28,17 @@ function progRowThumbHtml(id) {
   return id ? `<span class="prow-thumb" data-m="${esc(id)}" aria-hidden="true"><img class="mgc__img" src="img/muscles/${id}.webp" alt="" width="600" height="400" decoding="async"></span>` : '';
 }
 
-// Groupe principal d'une liste d'exercices (le premier muscle d'un exercice compte 1, les autres ½), comme
-// sessionGroup de l'accueil ; renvoie aussi le muscle le plus travaillé de ce groupe
-function exercisesMainGroup(exs) {
-  const n = new Map(), index = chosenMusclesIndex();
-  exs.forEach(ex => exerciseMuscles(ex, index).primary.forEach((m, i) => n.set(m, (n.get(m) || 0) + (i ? 0.5 : 1))));
-  let best = null, bestN = 0;
-  MUSCLE_GROUPS.forEach(g => {
-    const c = g.muscles.reduce((a, m) => a + (n.get(m) || 0), 0);
-    if (c > bestN) { best = g; bestN = c; }
-  });
-  if (!best) return null;
-  const top = best.muscles.slice().sort((a, b) => (n.get(b) || 0) - (n.get(a) || 0))[0];
-  return { group: best.id, muscle: top };
-}
-
-// Vignette d'une carte de séance : celle du groupe principal ; pour les jambes, celle du muscle le plus travaillé
-// (Legs commence par les quadriceps : la vue de dos des ischios contredisait le texte)
+// Vignette d'une carte de séance : celle du groupe principal (mainGroupOf, js/features/progress-muscles.js, comme
+// l'accueil) ; pour les jambes, celle du muscle le plus travaillé (Legs commence par les quadriceps : la vue de dos
+// des ischios contredisait le texte)
 function progSessionThumbHtml(cat) {
-  const g = exercisesMainGroup(prog().exercises[cat] || []);
-  if (!g) return '';
-  const id = g.group === 'jambes' && isMuscleId(g.muscle) ? g.muscle : g.group;
+  const list = prog().exercises[cat] || [], index = chosenMusclesIndex();
+  let id = mainGroupOf(list, index);
+  if (!id) return '';
+  if (id === 'jambes') {
+    const n = exercisesMuscleCount(list, index);
+    id = MUSCLE_GROUP_BY_ID.get('jambes').muscles.slice().sort((x, y) => (n.get(y) || 0) - (n.get(x) || 0))[0];
+  }
   return `<img class="mgc__img pcard__img" src="img/muscles/${id}.webp" alt="" aria-hidden="true" width="600" height="400" decoding="async">`;
 }
 
@@ -60,14 +51,11 @@ const PROG_FOCUS_SHARE = 0.6;
 function programmeExercises(id) {
   return Object.values((data.programmes[id] || makeProgData(id)).exercises || {}).flat();
 }
+// Groupe dominant (exercisesGroups, js/features/progress-muscles.js) s'il pèse plus de 60 % du programme, sinon null
 function programmeFocusGroup(exs) {
-  const n = new Map(), index = chosenMusclesIndex();
-  exs.forEach(ex => {
-    const g = muscleGroupOf(exerciseMuscles(ex, index).primary?.[0]);
-    if (g) n.set(g.id, (n.get(g.id) || 0) + 1);
-  });
-  const [best, count] = [...n.entries()].sort((a, b) => b[1] - a[1])[0] || [];
-  return best && count / exs.length > PROG_FOCUS_SHARE ? best : null;
+  const groups = exercisesGroups(exs, chosenMusclesIndex());
+  const total = groups.reduce((a, x) => a + x.n, 0);
+  return groups.length && groups[0].n / total > PROG_FOCUS_SHARE ? groups[0].g.id : null;
 }
 function programmeLevels(exs) {
   const levels = {}, index = chosenMusclesIndex();
