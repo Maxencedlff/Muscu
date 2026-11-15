@@ -114,3 +114,83 @@ html.type-xl .history-detail .tile + .tile, html.type-xl .stats-overview .tile +
   .tbar__fill { transform-origin: left; animation: spFill .6s cubic-bezier(.2, .8, .2, 1) both; }
   @keyframes spFill { from { transform: scaleX(0); } }
 }
+
+/* ═══════════════════════════════════════════════
+   Maquettes de l'écran Progrès (PROGRES_VARIANTE, js/features/progress.js). Cartes et listes iOS, aplats,
+   vignettes 3D de la Bibliothèque (img/muscles, muscles en rouge), un seul orange (la courbe : une donnée).
+═══════════════════════════════════════════════ */
+/* A : silhouette en grand, en tête */
+.mcard--hero .mcard__map { width: min(100%, 300px); }
+.progres-a .scr > .group-title:first-child { padding-top: 8px; }
+/* A : chiffres clés en tuiles 2 × 2 (aplat de cellule, coins iOS) */
+.ptiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ptile { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 14px; border-radius: var(--r-md); background: var(--cell); }
+.ptile__val { font-size: var(--fs-title1); line-height: 1.2; font-weight: 700; overflow-wrap: anywhere; }
+.ptile__lbl { font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
+.ptiles + .group { margin-top: 10px; }
+html.type-xl .ptiles { grid-template-columns: 1fr; }
+/* A : records en cartes illustrées (même ligne que la Bibliothèque) */
+.view--grouped .prec { min-height: 6.4rem; align-items: center; }
+.prec .mgc__text { gap: 1px; }
+.prec__date { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-footnote); color: var(--label2); }
+.prec__date .medal { color: var(--medal); flex-shrink: 0; }
+.prec__name { font-size: var(--fs-body, 1rem); }
+.prec__val { font-size: var(--fs-title3); font-weight: 700; line-height: 1.25; }
+.prec > .mgc__img { object-fit: contain; object-position: right center; }
+
+/* B : cartes qui défilent de côté (bord à bord, accrochées), image en haut, avant → maintenant dessous */
+.pcards {
+  display: flex; gap: 10px; margin: 0 -16px; padding: 0 16px 2px; overflow-x: auto; scroll-snap-type: x mandatory;
+  scroll-padding-inline: 16px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.pcards::-webkit-scrollbar { display: none; }
+.pcard {
+  flex: 0 0 min(56%, 210px); display: flex; flex-direction: column; padding: 0; border: 0; border-radius: var(--r-md);
+  background: var(--cell); color: var(--label); font: inherit; text-align: left; overflow: hidden; scroll-snap-align: start; cursor: pointer;
+}
+.pcard:active { opacity: .7; }
+.pcard__art { display: block; aspect-ratio: 2 / 1; position: relative; overflow: hidden; }
+.pcard .pcard__img { position: static; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center 40%; }
+.pcard__body { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 12px; }
+.pcard__top { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-footnote); color: var(--label2); }
+.pcard__top .medal { color: var(--medal); flex-shrink: 0; }
+.pcard__name { font-size: var(--fs-body, 1rem); font-weight: 600; line-height: 1.25; }
+.pcard__vals { font-size: var(--fs-subhead); color: var(--label2); }
+.pcard__after { color: var(--label); font-weight: 700; }
+.pcard__arrow { color: var(--label3); }
+.pcard__gain { font-size: var(--fs-subhead); font-weight: 600; }
+html.type-xl .pcards { flex-direction: column; margin: 0; padding: 0; overflow: visible; }
+html.type-xl .pcard { flex: none; }
+html.type-xl .pcard__art { display: none; }
+/* B : courbe d'ensemble */
+.pchart { padding: 12px 16px 10px; }
+.pchart__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.pchart__val { font-size: var(--fs-title1); font-weight: 700; line-height: 1.2; }
+.pchart__lbl { font-size: var(--fs-subhead); color: var(--label2); }
+.pchart__svg { display: block; width: 100%; height: auto; margin-top: 8px; overflow: visible; }
+.pchart__line { stroke: var(--sp-chart-line); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.pchart__bar { fill: var(--chart-bar); opacity: .5; }
+.pchart__bar--last { opacity: .9; }
+.pchart__legend { margin-top: 6px; font-size: var(--fs-caption); color: var(--label2); }
+.pchart__key { display: inline-block; width: 12px; height: 3px; margin-right: 5px; border-radius: 2px; vertical-align: middle; background: var(--sp-chart-line); }
+.pchart__axis { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; margin-top: 4px; font-size: var(--fs-caption); color: var(--label2); }
+
+/* C : groupes de muscles en liste illustrée */
+.view--grouped .pgrp { min-height: 6rem; }
+.pgrp__trend { font-size: var(--fs-subhead); font-weight: 600; line-height: 1.3; }
+.pgrp > .mgc__img { object-fit: contain; object-position: right center; right: 28px; max-width: 44%; }
+.pgrp .mgc__text { width: 56%; }
+@media (max-width: 360px) { .pgrp > .mgc__img, .prec > .mgc__img { max-width: 38%; } .pgrp .mgc__text, .prec .mgc__text { width: 60%; } }
+
+
+@media (prefers-reduced-motion: no-preference) {
+  /* B : la courbe d'ensemble se trace, comme celle d'un exercice */
+  .pchart__line { stroke-dasharray: 1; animation: pcTrace .8s .2s cubic-bezier(.3, .7, .2, 1) both; }
+  .pchart__bar { transform-box: fill-box; transform-origin: bottom; animation: vvGrow .45s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes pcTrace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  /* Tuiles et cartes : elles arrivent */
+  .ptile, .pcard { animation: vvFade .35s ease-out both; }
+}
+/* Chevron des cartes illustrées : devant la vignette, au bord droit */
+.prec > .icon:last-child, .pgrp > .icon:last-child { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 1; color: var(--label3); }
+.prec > .mgc__img { right: 30px; }
