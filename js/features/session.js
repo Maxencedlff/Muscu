@@ -282,6 +282,19 @@ function doneSummary(ex) {
   return `${work.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}`;
 }
 
+// ── Vignettes des exercices ──────────────────────────────────
+// Le personnage maison, muscle principal de l'exercice en rouge (img/muscles, la vignette de Programme › Séance et de la
+// Bibliothèque), cadré sur le muscle (data-m, css/programme.css). Décorative et cachée à VoiceOver : le nom dit tout.
+// Toucher = « Comment faire », comme le nom (même sens, pas un 2e arrêt VoiceOver). Texte agrandi : cachée (comme
+// Programme). Image en cache après la 1re fois, décodée hors du fil principal : rien ne ralentit la validation.
+let thumbMuscleIdx = null;   // index des muscles choisis, calculé une fois par rendu de la séance
+function exThumbHtml(ex, ei, { cls = '', howTo = false } = {}) {
+  const id = exerciseMuscles(sessExData(ex) || ex, thumbMuscleIdx || undefined).primary?.[0];
+  if (!isMuscleId(id)) return '';
+  const tap = howTo ? ` data-action="ex-howto" data-ei="${ei}"` : '';
+  return `<span class="prow-thumb ex-thumb ${cls}" data-m="${esc(id)}" aria-hidden="true"${tap}><img class="mgc__img" src="img/muscles/${id}.webp" alt="" width="600" height="400" decoding="async"></span>`;
+}
+
 // ── Rendu de la séance ───────────────────────────────────────
 
 function renderSession() {
@@ -291,6 +304,7 @@ function renderSession() {
   const cur  = currentSet();
 
   const xs     = activeSession.exercises, tags = ssTags(xs);
+  thumbMuscleIdx = chosenMusclesIndex();
   const exHtml = ssBlocks(xs).map(b => exUndoBefore(b, xs) + (b.length > 1 ? renderGroupCard(b, cur, tags) : renderExerciseCard(xs[b[0]], b[0], cur))).join('')
     + (sessUndo && sessUndo.at !== undefined && !sessUndo.ex && sessUndo.at >= xs.length ? exUndoHtml(sessUndo) : '');
 
@@ -321,6 +335,7 @@ function renderCollapsedExercise(ex, ei, records, rir = '') {
   return `
       <div class="exercise-block ex-card ex-card--collapsed" data-ei="${ei}">
         <button class="ex-summary" data-action="toggle-ex" data-ei="${ei}" aria-expanded="false">
+          ${exThumbHtml(ex, ei, { cls: 'ex-thumb--sm' })}
           <span class="ex-summary__text">
             <span class="ex-summary__name">${esc(ex.name)}</span>
             <span class="ex-summary__line num">${doneSummary(ex)}${records ? ` · ${medalSvg(14)}` : ''}</span>
@@ -407,8 +422,13 @@ function renderExerciseCard(ex, ei, cur) {
   // et ses sous-séries sous la série (js/features/session-intensif.js)
   const rows = ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}`).join('');
 
+  // Exercice de la série à faire : sa vignette cerclée d'orange (la série en cours, seul autre orange de la carte)
+  const isCur = cur && cur.ei === ei;
   return `
-    <div class="exercise-block ex-card ${allDone ? 'ex-card--done' : ''}" data-ei="${ei}">
+    <div class="exercise-block ex-card ${allDone ? 'ex-card--done' : ''} ${isCur ? 'ex-card--current' : ''}" data-ei="${ei}">
+      <div class="ex-card__top">
+      ${exThumbHtml(ex, ei, { howTo })}
+      <div class="ex-card__intro">
       <div class="ex-card__head">
         ${allDone
           ? `<button class="ex-card__name ex-card__name--btn" data-action="toggle-ex" data-ei="${ei}" aria-expanded="true">${esc(ex.name)}</button>`
@@ -423,6 +443,8 @@ function renderExerciseCard(ex, ei, cur) {
       ${gripLineHtml(ex, ei)}
       ${exNoteLineHtml(ex, ei)}
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
+      </div>
+      </div>
       ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
       <div class="sets" role="group" aria-label="Séries de ${esc(ex.name)}">
@@ -493,10 +515,14 @@ function renderGroupCard(members, cur, tags) {
         </div>`).join('');
   const rest = fmtRest(exRest(xs[members.at(-1)]));
   const m0   = exs[0];
+  // Vignettes des exercices enchaînés, côte à côte devant « Superset » (les lignes A1, A2 gardent la place des noms) ;
+  // celle de l'exercice de la série à faire cerclée d'orange. Circuit de 4 ou 5 : pas la place, aucune
+  const thumbs = members.length > 3 ? '' : `<span class="ss-thumbs">${members.map(ei => exThumbHtml(xs[ei], ei, { cls: `ex-thumb--sm${cur && cur.ei === ei ? ' ex-thumb--current' : ''}`, howTo: !allDone && hasHowTo(xs[ei]) })).join('')}</span>`;
 
   return `
     <div class="exercise-block ex-card ss-card ${allDone ? 'ex-card--done' : ''}" data-ei="${head}">
       <div class="ex-card__head">
+        ${thumbs}
         ${allDone
           ? `<button class="ex-card__name ex-card__name--btn" data-action="toggle-ex" data-ei="${head}" aria-expanded="true">${kind}</button>`
           : `<h2 class="ex-card__name">${kind}</h2>`}

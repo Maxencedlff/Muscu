@@ -15,6 +15,26 @@
   border-radius: var(--r-lg); padding: 10px 12px 4px; flex-shrink: 0;
 }
 .ex-card__head { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+/* Vignette de l'exercice (exThumbHtml, js/features/session.js) à gauche du nom, de l'objectif et du repos : le
+   personnage, muscle principal en rouge ; la carte ne grandit pas (elle tient dans la hauteur de l'en-tête).
+   Cadrage par muscle : .prow-thumb[data-m] (css/programme.css) ; texte agrandi : cachée (même fichier) */
+.ex-card__top { display: flex; align-items: flex-start; gap: 10px; }
+.ex-card__intro { flex: 1; min-width: 0; }
+.prow-thumb.ex-thumb { width: 60px; height: 40px; margin-top: 2px; border-radius: 8px; }
+.ex-card__intro > .ex-card__head + .ex-goal { margin-top: 0; }
+.prow-thumb.ex-thumb--sm { width: 48px; height: 32px; margin-top: 0; border-radius: 6px; }
+.ex-thumb[data-action] { cursor: pointer; }
+.ex-thumb[data-action]:active { opacity: .6; }
+/* Exercice de la série à faire : vignette cerclée d'orange (« en cours ») ; fait : vignette atténuée, la coche verte dit le reste */
+.ex-card--current .ex-thumb:not(.ex-thumb--sm), .ex-thumb--current { box-shadow: 0 0 0 2px var(--cell), 0 0 0 4px var(--tint); }
+.ex-summary .ex-thumb { opacity: .75; }
+.ss-thumbs { display: flex; gap: 8px; flex-shrink: 0; }
+.ss-thumbs:empty { display: none; }
+html.type-xl .ss-thumbs { display: none; }
+@media (max-width: 374px) {
+  .prow-thumb.ex-thumb { width: 51px; height: 34px; }
+  .prow-thumb.ex-thumb--sm { width: 42px; height: 28px; }
+}
 .ex-card__name {
   flex: 1; min-width: 0; margin: 0;
   font-size: 1rem; line-height: 1.294rem; font-weight: 600; color: var(--label);

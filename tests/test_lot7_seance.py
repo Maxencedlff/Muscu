@@ -42,6 +42,20 @@ def t_seance(bench, eng, dev, theme):
         R.check(all(p[2] for p in prev), f'{t} Préc. non tronquée {[p[0] for p in prev if not p[2]]}')
         shot(page, LOT, f'{t}-01-tableau')
 
+        # Cartes illustrées : vignette du muscle principal sur chaque exercice, cachée à VoiceOver, image décodée hors du
+        # fil principal ; l'exercice de la série à faire est marqué ; la carte ne grandit pas (vignette dans l'en-tête)
+        th = page.evaluate("""(() => { const cards = [...document.querySelectorAll('.ex-card:not(.ss-card)')];
+            const th = cards.map(c => c.querySelector('.ex-card__top > .ex-thumb'));
+            const top = document.querySelector('.ex-card[data-ei="0"] .ex-card__top'), img = th[0] && th[0].getBoundingClientRect();
+            return { all: th.every(Boolean), hidden: th.every(x => x && x.getAttribute('aria-hidden') === 'true'),
+                     async: th.every(x => x && x.querySelector('img').getAttribute('decoding') === 'async'),
+                     cur: document.querySelector('.ex-card[data-ei="0"]').classList.contains('ex-card--current')
+                          && document.querySelectorAll('.ex-card--current').length === 1,
+                     fits: !!img && img.bottom <= top.getBoundingClientRect().bottom + 1 }; })()""")
+        R.check(th == {'all': True, 'hidden': True, 'async': True, 'cur': True, 'fits': True}, f'{t} vignettes des exercices, exercice en cours marqué {th}')
+        ring = page.evaluate("[...document.querySelectorAll('.ex-card[data-ei=\"0\"] .set-check')].slice(0, 2).map(e => getComputedStyle(e).boxShadow)")
+        R.check(len(ring) == 2 and ring[0] != ring[1], f'{t} rond « valider » de la série à faire cerclé autrement que les suivants {ring}')
+
         # Saisie avec virgule acceptée, delta gris tant que l'exercice n'est pas fini
         w = page.locator('[data-action="set-weight"][data-ei="0"][data-si="0"]')
         r = page.locator('[data-action="set-reps"][data-ei="0"][data-si="0"]')

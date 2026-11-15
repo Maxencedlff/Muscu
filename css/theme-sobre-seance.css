@@ -51,6 +51,10 @@ html.type-xl .sum-line .medal { width: 1.5em; height: 1.5em; margin-top: 0; }
   text-transform: none; letter-spacing: 0; font-size: var(--fs-footnote); line-height: 1.3; font-weight: 600; color: var(--label2);
 }
 
+/* ── Série à faire : son rond « valider » cerclé d'orange, plus épais : là où le pouce va, repérable d'un coup d'œil
+   entre deux séries (les autres ronds restent gris) ── */
+:is(.session-set--current, .session-set--subcur) .set-check-zone:not(.set-check-zone--wait) .set-check { box-shadow: inset 0 0 0 2.5px var(--tint); }
+
 /* ── Chrono d'effort (tempo, gainage, cardio) ── */
 /* ▶ de la série en cours : orange plein, texte noir en sombre (le blanc ne tenait pas 3:1 sur l'orange vif) */
 .set-play { background: var(--tint-fill); color: var(--on-tint); }
