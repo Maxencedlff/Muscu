@@ -232,8 +232,14 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
 /* Texte agrandi : le nombre de séances sur sa ligne, sans le point qui restait seul en bout de ligne */
 html.type-xl .hmonth__count { display: block; }
 html.type-xl .hmonth__count > [aria-hidden] { display: none; }
-.view--grouped .hrow .hcell--card { min-height: 4.9rem; padding: 10px 16px; gap: 8px; overflow: hidden; }
-.hcell--card .hcell__body.mgc__text { flex: none; width: 58%; gap: 1px; }
+/* Même gabarit que « Autres séances » de l'accueil (css/home.css, .home-cell.mgc) : 6,4 rem de haut, vignette entière
+   (contain) de 6,4 rem − 16 pt de haut, 22 pt avant le chevron, au plus 44 % de la largeur utile. Elle garde cette taille
+   quand une carte grandit (texte sur plus de lignes) et reste centrée. La colonne de texte s'arrête 8 pt avant le
+   personnage : les 10 premiers % de l'image sont transparents (bord gauche fondu, pectoraux : le plus large), le texte
+   peut y passer mais jamais sous le dessin ; une ligne longue revient à la ligne entre deux mots. */
+.hrow:has(> .hcell--card) { container-type: inline-size; }   /* cqw : largeur de la carte, la même pour le texte et la vignette */
+.view--grouped .hrow .hcell--card { --hthumb: min((6.4rem - 16px) * 1.5, (100cqw - 32px) * .44); min-height: 6.4rem; padding: 12px 16px; gap: 10px; overflow: hidden; }
+.hcell--card .hcell__body.mgc__text { flex: none; width: calc(100cqw - 62px - var(--hthumb) * .9); gap: 2px; }
 .hcell--card .hcell__title { font-size: var(--fs-title3); line-height: 1.35rem; white-space: normal; overflow: visible; overflow-wrap: break-word; }
 .hcell--card .hcell__title > [role="img"] { margin-left: 6px; vertical-align: -2px; }
 .hcell__when { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -241,22 +247,21 @@ html.type-xl .hmonth__count > [aria-hidden] { display: none; }
 .hcell--card .hcell__sub { font-size: var(--fs-footnote); line-height: 1.059rem; overflow-wrap: normal; }
 .hcell--card > .icon { margin-left: auto; position: relative; z-index: 1; }
 .hrow .hcell--card .hcell__img {
-  top: 6px; right: 36px; height: calc(100% - 12px); max-width: 34%; object-fit: contain; object-position: right center;
+  top: calc(50% - (6.4rem - 16px) / 2); right: 38px; height: calc(6.4rem - 16px); max-width: none; width: var(--hthumb);
+  object-fit: contain; object-position: right center;
 }
-/* Écrans étroits (iPhone SE 1re génération, Galaxy S8) : plus de place au texte, la ligne des détails ne se coupe pas ;
-   la vignette (contain, calée à droite) reste dans son coin */
+/* Écran étroit (iPhone SE 1re génération, Galaxy S8) : vignette un peu plus petite, la colonne de texte garde de la place */
 @media (max-width: 374px) {
-  .hcell--card .hcell__body.mgc__text { width: 70%; }
-  .hrow .hcell--card .hcell__img { max-width: 26%; }
-}
-/* Petite hauteur (iPhone SE) : cartes resserrées, quatre séances visibles sous la recherche et les filtres */
-@media (max-height: 700px) {
-  .view--grouped .hrow .hcell--card { min-height: 4.3rem; padding-block: 7px; }
-  .hcell--card .hcell__title { font-size: var(--fs-body); line-height: 1.25rem; }
-  .hcell--card .hcell__date { line-height: 1.1rem; }
+  .view--grouped .hrow .hcell--card { --hthumb: min((6.4rem - 16px) * 1.5, (100cqw - 32px) * .38); }
 }
 html.type-xl .hcell--card .hcell__body.mgc__text { width: auto; flex: 1; }
 html.type-xl .hcell__when { flex-wrap: wrap; }
+/* Texte agrandi : les filtres passent sur deux colonnes (« Toute/s » coupé au milieu du mot sur une seule rangée) ;
+   un nom de séance long revient à la ligne entre deux mots, jamais dans un mot */
+html.type-xl .history .hist-tools .seg-full { display: grid; grid-template-columns: 1fr 1fr; row-gap: 2px; height: auto; overflow: visible; }
+html.type-xl .history .hist-tools .seg-full .segmented__btn { margin: 0; padding: 8px 6px; min-height: 44px; white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: none; }
+html.type-xl .history .hist-tools .seg-full .segmented__btn::after { inset: 0; }
+html.type-xl .history .hist-tools .seg-full .segmented__btn::before { display: none; }
 
 /* Détail d'une séance : en-tête comme la carte de la prochaine séance (nom, date, groupes à gauche ; vignette à droite) */
 .view--grouped .hdhead.mgc {

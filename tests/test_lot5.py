@@ -50,12 +50,25 @@ def t_history(bench, eng, dev, theme):
         vis = visible_count(page, '.hcell')
         # Galaxy S9+ (320 px de large) : les sous-titres longs passent sur 2 lignes au lieu d'être tronqués
         # Vague 4 : le programme d'une séance d'un autre programme a sa ligne (« Programme Bras & épaules ») : une cellule de moins
-        # 15/11 : cartes illustrées (nom, date, détails sur trois lignes, vignette) : une carte de moins qu'en liste de texte ;
-        # le Galaxy S9+ (658 px de haut) rejoint les petits écrans
-        need = 5 if dev in ('iPhone 13', 'Pixel 7') else 4
+        # 15/11 : cartes illustrées au gabarit des « Autres séances » de l'accueil (6,4 rem) : deux cartes de moins qu'en
+        # liste de texte ; le Galaxy S9+ (658 px de haut) rejoint les petits écrans
+        need = 4 if dev in ('iPhone 13', 'Pixel 7') else 3
         R.check(vis >= need, f'{t} historique : {vis} cellules visibles (>= {need})')
         h = page.locator('.hcell').first.bounding_box()['height']
-        R.check(62 <= h <= 100, f'{t} historique : hauteur de cellule {h:.0f}')
+        R.check(62 <= h <= 125, f'{t} historique : hauteur de cellule {h:.0f}')
+        # Même hauteur de référence que les cartes de l'accueil (.home-cell.mgc : 6,4 rem)
+        ref = page.evaluate("6.4 * parseFloat(getComputedStyle(document.documentElement).fontSize)")
+        mh = float(page.evaluate("getComputedStyle(document.querySelector('.hcell--card')).minHeight").replace('px', ''))
+        R.check(abs(mh - ref) < 1, f'{t} historique : hauteur de référence de l\'accueil ({mh:.0f} px, {ref:.0f} attendus)')
+        # Le texte (mesuré au mot près, Range) ne passe jamais sous le personnage : il peut couvrir les 10 premiers % de
+        # l'image, transparents dans toutes les vignettes (bord gauche fondu ; pectoraux, le plus large, commence à 10 %)
+        under = page.evaluate("""() => [...document.querySelectorAll('.hcell--card')].flatMap(c => {
+            const i = c.querySelector('.hcell__img'); if (!i || !i.offsetWidth) return [];
+            const ir = i.getBoundingClientRect(), left = ir.left + ir.width * .1;
+            return [...c.querySelectorAll('.hcell__title, .hcell__date, .hcell__prog, .hcell__sub')].filter(e => {
+              const r = document.createRange(); r.selectNodeContents(e);
+              return [...r.getClientRects()].some(q => q.width > 0 && q.right > left + 4); }).map(e => e.textContent.trim()); })""")
+        R.check(not under, f'{t} historique : aucun texte sous la vignette {under[:3]}')
         # Cartes illustrées : chaque séance a sa vignette 3D du groupe le plus travaillé, décorative, dans la carte, à
         # droite du texte sans le recouvrir ; Push → pectoraux, Pull → dos, Legs → jambes
         cards = page.evaluate("""() => [...document.querySelectorAll('.hrow:not(.hrow--health) .hcell--card')].map(c => {
@@ -78,6 +91,14 @@ def t_history(bench, eng, dev, theme):
             const cut = [...document.querySelectorAll('.hcell__title, .hcell__sub, .hcell__date')].filter(e => e.scrollWidth > e.clientWidth + 1).length;
             h.classList.remove('type-xl'); return { imgs, cut }; }""")
         R.check(xl == {'imgs': 0, 'cut': 0}, f'{t} historique texte agrandi : vignettes retirées, rien de coupé {xl}')
+        # Texte agrandi : filtres sur deux colonnes, aucun mot coupé (« Toute/s ») ; chaque mot tient sur une seule ligne
+        split = page.evaluate("""() => { const h = document.documentElement; h.classList.add('type-xl');
+            const bad = [...document.querySelectorAll('.hist-tools .segmented__btn')].filter(b => {
+              const tn = [...b.childNodes].find(n => n.nodeType === 3); if (!tn) return false;
+              let at = 0; return tn.textContent.split(' ').some(w => { const r = document.createRange(); r.setStart(tn, at); r.setEnd(tn, at + w.length); at += w.length + 1;
+                const tops = new Set([...r.getClientRects()].filter(q => q.width > 0).map(q => Math.round(q.top))); return tops.size > 1; }); }).map(b => b.textContent);
+            const sw = document.documentElement.scrollWidth; h.classList.remove('type-xl'); return { bad, sw }; }""")
+        R.check(not split['bad'] and split['sw'] <= page.viewport_size['width'], f'{t} historique texte agrandi : filtres sans mot coupé {split}')
         R.check(no_dot_decimal(page, '#histList'), f'{t} historique : aucun point décimal')
         R.check(page.locator('.hcell__date', has_text='12:00').count() == 0, f'{t} historique : pas d\'heure fictive')
         R.check(page.locator('.hmonth').count() == 3 and page.locator('[data-action="hist-more"]').count() == 1,
