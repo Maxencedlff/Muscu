@@ -59,6 +59,10 @@
 .cell--destructive { color: var(--red-text) !important; justify-content: center !important; }
 .cell--destructive.cell--left { justify-content: flex-start !important; }
 .cell--ctl { cursor: default; }
+/* Réglages › Sons › Diagnostic du son : texte brut, petit, sélectionnable (capture à nous envoyer) */
+.sound-diag { padding: 2px 16px 12px; }
+.sound-diag__text { margin: 0; width: 100%; font: 0.706rem/1.0rem ui-monospace, "SF Mono", Menlo, monospace; color: var(--label2);
+  white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
 .cell--wrap { flex-wrap: wrap; }
 .cell--wrap .seg-full { flex-basis: 100%; }
 /* Libellé et contrôle : sur une ligne si la place suffit, sinon le contrôle passe dessous à droite */

@@ -1741,6 +1741,99 @@ test('sons : duck part vers iOS ; canDuck seulement si la coquille publie la mé
   assert.equal(nativeContext({ native: false }).Native.sound.canDuck, false, 'navigateur');
 });
 
+// Contexte de haptics-audio.js avec une lecture iOS simulée : diag = état rendu par diagnostics()
+function soundContext({ diag = null, canDuck = true, data = { soundOn: true } } = {}) {
+  const sent = [];
+  const box = { data, navigator: {}, document: { addEventListener() {} }, Date,
+                setTimeout: (f) => { f(); return 1; },
+                Native: { haptic: () => true, sound: { available: true, canDuck,
+                  play: (notes, alert, duck) => { sent.push({ notes, duck }); },
+                  diagnostics: async () => (typeof diag === 'function' ? diag() : diag) } } };
+  const c = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8')
+    + '\nthis.playMelody = playMelody; this.soundProblems = soundProblems; this.wakeAudio = wakeAudio;'
+    + ' this.testRestEndSound = testRestEndSound; this.lastCheck = () => lastSoundCheck; this.audioCtx = () => audioCtx;', c);
+  return { c, sent, box };
+}
+const SOUND_OK = { category: 'AVAudioSessionCategoryPlayback', sessionActive: true, engineRunning: true, journal: [] };
+
+test('sons iOS : aucun contexte Web Audio dans l\'app (WebKit changerait la catégorie de toute la session)', () => {
+  const { c } = soundContext();
+  let created = 0;
+  c.AudioContext = function () { created++; this.state = 'running'; };
+  c.wakeAudio();
+  assert.equal(created, 0, 'lecture iOS : pas de contexte Web Audio');
+  assert.equal(c.audioCtx(), null);
+});
+
+test('sons iOS : état relu après chaque son ; panne détectée (catégorie, session, moteur, échec du journal)', () => {
+  const { c } = soundContext();
+  assert.equal(c.soundProblems(SOUND_OK).length, 0);
+  assert.equal(c.soundProblems(null).length, 0, 'build ancienne : rien à dire');
+  const now = Date.parse('2026-11-15T10:00:05Z');
+  sameJSON(Array.from(c.soundProblems({ ...SOUND_OK, category: 'AVAudioSessionCategoryAmbient' })), ['catégorie AVAudioSessionCategoryAmbient']);
+  assert.ok(c.soundProblems({ ...SOUND_OK, sessionActive: false })[0].includes('session'));
+  assert.ok(c.soundProblems({ ...SOUND_OK, engineRunning: false })[0].includes('moteur'));
+  const recent = { ...SOUND_OK, journal: ['2026-11-15T10:00:05Z échec lecture : refus (NSOSStatusErrorDomain 561015905)'] };
+  sameJSON(Array.from(c.soundProblems(recent, now)), ['échec lecture : refus (NSOSStatusErrorDomain 561015905)']);
+  const old = { ...SOUND_OK, journal: ['2026-11-15T09:50:00Z échec lecture : refus'] };
+  assert.equal(c.soundProblems(old, now).length, 0, 'un vieil échec du journal ne compte plus');
+});
+
+test('sons iOS : lecture en panne → le son suivant force la remise en état (duck), le GO est rejoué', async () => {
+  let state = { ...SOUND_OK, category: 'AVAudioSessionCategoryAmbient' };
+  const { c, sent } = soundContext({ diag: () => state });
+  const r1 = await c.playMelody('validation');
+  assert.equal(r1.ok, false);
+  sameJSON(sent.map(s => s.duck), [false], 'série validée : pas de duck');
+  assert.equal(c.lastCheck().ok, false);
+  state = SOUND_OK;
+  await c.playMelody('validation');
+  sameJSON(sent.map(s => s.duck), [false, true], 'son suivant : duck forcé, catégorie refixée par le module');
+  await c.playMelody('validation');
+  sameJSON(sent.map(s => s.duck), [false, true, false], 'remis en état : plus de duck forcé');
+  // GO perdu : rejoué une seule fois, avec la remise en état
+  state = { ...SOUND_OK, engineRunning: false };
+  sent.length = 0;
+  const go = await c.playMelody('restGo');
+  assert.equal(sent.length, 2, 'GO rejoué une fois');
+  assert.equal(sent[1].duck, true);
+  assert.equal(go.ok, false, 'toujours en panne : la notification de fin de repos reste en filet');
+});
+
+test('sons iOS : build sans diagnostics → rien de relu, comportement d\'avant', async () => {
+  const { c, sent } = soundContext({ canDuck: false, diag: () => { throw new Error('jamais appelé'); } });
+  const r = await c.playMelody('restGo');
+  assert.equal(r.ok, true);
+  assert.equal(sent.length, 1);
+});
+
+test('Réglages › Tester la fin de repos : 3 bips de décompte puis le GO, avec les vrais réglages', async () => {
+  const { c, sent, box } = soundContext({ diag: SOUND_OK });
+  box.data.soundLevel = 'normal';
+  const r = await c.testRestEndSound();
+  assert.equal(sent.length, 4);
+  sameJSON(sent.map(s => s.notes[0].freq), [880, 880, 880, 1050]);
+  assert.ok(sent.every(s => s.duck === true), 'décompte et GO baissent la musique (réglage par défaut)');
+  assert.ok(sent.every(s => s.notes.every(n => n.vol === 0.6)), 'volume choisi');
+  assert.equal(r.ok, true);
+  box.data.duckMusic = false; sent.length = 0;
+  await c.testRestEndSound();
+  assert.ok(sent.every(s => s.duck === false), 'réglage coupé : musique jamais baissée');
+});
+
+test('Native.sound.diagnostics : null hors app ou build sans la méthode, état du module sinon', async () => {
+  assert.equal(await nativeContext({ native: false }).Native.sound.diagnostics(), null);
+  assert.equal(await nativeContext({ available: ['MdlfSound'] }).Native.sound.diagnostics(), null, 'build 67');
+  const b68 = [{ name: 'MdlfSound', methods: [{ name: 'play' }, { name: 'diagnostics' }] }];
+  const n = nativeContext({ available: ['MdlfSound'], headers: b68, plugins: { MdlfSound: { diagnostics: async () => SOUND_OK } } });
+  sameJSON(await n.Native.sound.diagnostics(), SOUND_OK);
+  const ko = nativeContext({ available: ['MdlfSound'], headers: b68, plugins: { MdlfSound: { diagnostics: async () => { throw new Error('x'); } } } });
+  assert.equal(await ko.Native.sound.diagnostics(), null);
+  assert.equal(await nativeContext().Native.notificationPermission(), 'prompt');
+  assert.equal(await nativeContext({ native: false }).Native.notificationPermission(), null);
+});
+
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 
 (await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert, ROOT });

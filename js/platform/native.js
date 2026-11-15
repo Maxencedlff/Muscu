@@ -57,6 +57,8 @@ const Native = (() => {
   const hasVault     = has('MdlfVault');
   const hasAgeRange  = has('MdlfAgeRange');
   const hasScanner   = has('MdlfScanner');
+  // MdlfSound sait baisser la musique et rendre son état (méthode diagnostics, build 68 et suivantes)
+  const soundCanDuck = isNative && !!cap.PluginHeaders?.find?.(h => h?.name === 'MdlfSound')?.methods?.some?.(m => m?.name === 'diagnostics');
 
   // Rejet de Share.share (@capacitor/share, SharePlugin.swift : completionWithItemsHandler) traduit
   // en résultat. « Share canceled » : feuille fermée sans choisir d'app. « Error sharing item » :
@@ -274,6 +276,12 @@ const Native = (() => {
           schedule: { at: new Date(endTime), allowWhileIdle: true },
         }] });
       } catch {}
+    },
+
+    // Autorisation des notifications ('granted', 'denied', 'prompt'…), sans rien demander ; null hors app
+    async notificationPermission() {
+      if (!isNative) return null;
+      try { return (await LocalNotifications.checkPermissions()).display || null; } catch { return null; }
     },
 
     cancelRestEnd() {
@@ -503,10 +511,16 @@ const Native = (() => {
     // pour chaque module natif (Capacitor.PluginHeaders).
     sound: {
       available: isNative && !!cap.isPluginAvailable?.('MdlfSound'),
-      canDuck: isNative && !!cap.PluginHeaders?.find?.(h => h?.name === 'MdlfSound')?.methods?.some?.(m => m?.name === 'diagnostics'),
+      canDuck: soundCanDuck,
       // alert : lu par la build 67 seulement (vrai = audible en silencieux) ; la build 68 joue tout ainsi.
       // duck : musique des autres apps baissée le temps du son ; ignoré par une build plus ancienne.
       play(notes, alert = false, duck = false) { if (isNative) quiet(Sound.play({ notes, alert, duck })); },
+      // État du module et son journal (build 68 et suivantes) : { journal, category, sessionActive,
+      // engineRunning, otherAudioPlaying, ducking, duckOthers } ; null hors app, build ancienne ou échec.
+      async diagnostics() {
+        if (!soundCanDuck) return null;
+        try { return await Sound.diagnostics(); } catch { return null; }
+      },
     },
 
     // Compte MDLF : connexion avec Apple ou Google et session gardée dans le Trousseau (js/data/account.js).

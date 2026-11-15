@@ -30,7 +30,15 @@ let audioCtx = null;
 
 // iOS met le contexte en « suspended » (sans geste) ou « interrupted » (appel, arrière-plan, Siri) :
 // il est relancé à chaque occasion, sinon les bips suivants restent muets
+// App iOS : aucun contexte Web Audio. Les bips y passent par iOS (Native.sound) et un contexte Web Audio
+// ouvert par la vue web fait changer à WebKit la catégorie de la session audio de TOUTE l'app (forums Apple
+// 24464 et 85256, WebKit 167788 : catégorie « ambiante », coupée par le bouton silencieux). Le module natif
+// ne fixant sa catégorie qu'au premier son, tous les sons de l'app devenaient muets en mode silencieux
+// après le premier toucher (15/11/2026, app ouverte, sans musique, même le bip d'une série).
+function webAudioAllowed() { return !Native.sound?.available; }
+
 function wakeAudio() {
+  if (!webAudioAllowed()) return;
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state !== 'running') audioCtx.resume();
@@ -84,12 +92,63 @@ const MELODIES = {
 // musique », oui par défaut ; app iOS, build 68 et suivantes). iOS la remonte 1,2 s après le dernier bip.
 const DUCKED_MELODIES = ['restCount', 'restGo'];
 
-function playMelody(name) {
-  if (data.soundOn === false) return;
+// ── Santé de la lecture iOS ─────────────────────────────────
+// Le module natif répond au JS avant de jouer (SoundPlugin.swift, play) : un échec n'y est que noté dans
+// son journal. Après chaque son, son état est relu (diagnostics, build 68 et suivantes). Lecture en
+// panne (catégorie changée par un tiers, session inactive, moteur arrêté, échec noté) : le son suivant
+// part avec « duck », seule demande qui force le module à refixer sa catégorie et à réactiver session et
+// moteur (prepare) ; le GO de fin de repos est rejoué tout de suite ainsi.
+const SOUND_CHECK_DELAY = 350;           // ms après l'envoi : le son est préparé et lancé sur la file audio
+const PLAYBACK_CATEGORY = 'AVAudioSessionCategoryPlayback';
+let soundNeedsReset = false;
+let lastSoundCheck  = null;              // { at, ok, reasons, diag } : affiché par Réglages › Diagnostic du son
+
+// Ce qui cloche dans un état du module (diagnostics), lignes du journal datées de sinceMs ou après
+function soundProblems(diag, sinceMs = 0) {
+  if (!diag) return [];
+  const reasons = [];
+  if (diag.category && diag.category !== PLAYBACK_CATEGORY) reasons.push(`catégorie ${diag.category}`);
+  if (diag.sessionActive === false) reasons.push('session inactive');
+  if (diag.engineRunning === false) reasons.push('moteur arrêté');
+  const fails = (diag.journal || []).filter(l => /échec/.test(l) && Date.parse(String(l).slice(0, 20)) >= sinceMs - 1000);
+  if (fails.length) reasons.push(fails[fails.length - 1].replace(/^\S+ /, ''));
+  return reasons;
+}
+
+// Relit l'état du module après un son ; résout { ok, reasons } (ok vrai si rien à relire : build ancienne)
+function checkNativeSound(sentAt) {
+  return new Promise(resolve => {
+    if (typeof Native.sound?.diagnostics !== 'function' || !Native.sound.canDuck) { resolve({ ok: true, reasons: [] }); return; }
+    setTimeout(async () => {
+      const diag = await Native.sound.diagnostics();
+      const reasons = soundProblems(diag, sentAt);
+      const ok = !!diag && reasons.length === 0;
+      if (!ok) soundNeedsReset = true;
+      lastSoundCheck = { at: Date.now(), ok, reasons: diag ? reasons : ['diagnostics sans réponse'], diag };
+      resolve({ ok, reasons });
+    }, SOUND_CHECK_DELAY);
+  });
+}
+
+// Joue la mélodie. Résout { ok } une fois l'état du module relu (lecture iOS), tout de suite sinon.
+function playMelody(name, { replay = true } = {}) {
+  if (data.soundOn === false) return Promise.resolve({ ok: true, reasons: [] });
   const vol = soundVol();
   const notes = MELODIES[name].map(([freq, start, dur]) => ({ freq, start, dur, vol }));
-  if (Native.sound.available) { Native.sound.play(notes, true, data.duckMusic !== false && DUCKED_MELODIES.includes(name)); return; }
+  if (Native.sound.available) {
+    const wantsDuck = data.duckMusic !== false && DUCKED_MELODIES.includes(name);
+    const forced = soundNeedsReset && !!Native.sound.canDuck;
+    if (forced) soundNeedsReset = false;
+    const sentAt = Date.now();
+    Native.sound.play(notes, true, wantsDuck || forced);
+    return checkNativeSound(sentAt).then(res => {
+      // GO de fin de repos perdu : rejoué une fois, module remis en état par le duck forcé
+      if (!res.ok && replay && name === 'restGo') return playMelody(name, { replay: false });
+      return res;
+    });
+  }
   notes.forEach(n => setTimeout(() => beep(n.freq, n.dur, n.vol), n.start * 1000));
+  return Promise.resolve({ ok: true, reasons: [] });
 }
 
 // Voix de synthèse (Web Speech API, MDN : speechSynthesis) : compte des répétitions du tempo.
@@ -107,8 +166,18 @@ function sayCount(n) {
 function restCountBeep() { playMelody('restCount'); }
 
 function timerDone() {
-  playMelody('restGo');
+  const played = playMelody('restGo');
   if (data.vibrateOn !== false && !Native.haptic('success') && navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+  return played;
+}
+
+// Réglages › Sons › « Tester la fin de repos » : la vraie séquence, 3-2-1 puis GO, avec les réglages
+// (volume, baisser la musique). Résout l'état relu après le GO.
+function testRestEndSound() {
+  return new Promise(resolve => {
+    [0, 1000, 2000].forEach(t => setTimeout(restCountBeep, t));
+    setTimeout(() => resolve(playMelody('restGo')), 3000);
+  });
 }
 
 function validationSound() { playMelody('validation'); }

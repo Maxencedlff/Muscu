@@ -14,6 +14,11 @@ let restTotal     = 0;     // durée totale du repos en cours (anneau de progres
 const RING_SMALL = 2 * Math.PI * 17;
 const RING_BIG   = 2 * Math.PI * 100;
 const REST_PRESETS = [60, 90, 120, 180, 240, 300]; // préréglages proposés dans les feuilles de repos
+// Filet de la fin de repos, app à l'écran : la notification n'est plus annulée avant le GO mais repoussée
+// de REST_NOTIF_GRACE ms, puis annulée seulement une fois le GO réellement joué (état du module relu,
+// playMelody). GO perdu, écran verrouillé dans la dernière seconde (minuteurs JS gelés) : elle sonne.
+const REST_NOTIF_GRACE = 2500;
+let restNotifDeferred = false;
 
 // Part du repos qui reste à l'instant même, calculée sur l'heure de fin et non sur la seconde entière :
 // l'anneau se vide dès la première image (avant, il restait plein jusqu'au premier tic d'une seconde)
@@ -143,6 +148,7 @@ function startRestCountdown() {
 // ou app en arrière-plan
 function syncNativeRest() {
   if (!Native.isNative || !restActive) return;
+  restNotifDeferred = false;
   syncRestActivity();
   Native.scheduleRestEnd(restEndTime, restEndBody());
 }
@@ -172,18 +178,29 @@ function resumeRestCountdown() {
     if (before > restTimeLeft && restTimeLeft >= 1 && restTimeLeft <= 3 && document.visibilityState === 'visible') restCountBeep();
     before = restTimeLeft;
     updateRestUI();
-    // App à l'écran : les bips de l'app annoncent la fin, la notification ferait doublon (bannière + son)
-    if (restTimeLeft <= 1 && document.visibilityState === 'visible') Native.cancelRestEnd();
+    // App à l'écran : les bips de l'app annoncent la fin, la notification ferait doublon. Elle est repoussée
+    // (filet, voir REST_NOTIF_GRACE) ; coquille sans diagnostics (GO invérifiable) : annulée comme avant.
+    if (restTimeLeft <= 1 && document.visibilityState === 'visible' && !restNotifDeferred) {
+      restNotifDeferred = true;
+      if (Native.sound.canDuck) Native.scheduleRestEnd(restEndTime + REST_NOTIF_GRACE, restEndBody());
+      else Native.cancelRestEnd();
+    }
     if (restTimeLeft <= 0) restFinished();
   }, 250);
 }
 
 // Fin du repos : la barre pulse, affiche « C'est reparti » 2 s, puis la série suivante est centrée
 function restFinished() {
-  stopRest();
+  const seen = document.visibilityState === 'visible';
+  stopRest(true);
   restTimeLeft = 0;
   persistSession();
-  timerDone();
+  // Notification annulée seulement si le GO a joué, app à l'écran, et sans nouveau repos entre-temps.
+  // App cachée (quelques secondes de JS avant la suspension) : iOS ne joue pas de son d'une app en
+  // arrière-plan sans mode audio de fond (Info.plist), la notification reste seule à prévenir.
+  Promise.resolve(timerDone()).then(res => {
+    if (seen && res?.ok !== false && !restActive && document.visibilityState === 'visible') Native.cancelRestEnd();
+  }, () => {});
   closeRestSheet();
   const sub = techNextSub(), nx = sub || currentSet();
   announce(nx ? `Repos terminé, ${(sub ? sub.label : setSpokenName(activeSession.exercises[nx.ei], nx.si)).toLowerCase()} de ${activeSession.exercises[nx.ei].name}` : 'Repos terminé');
@@ -226,7 +243,8 @@ function resumeRest(saved) {
 function clearRest() { clearInterval(restInterval); restInterval = null; stopRestRings(); }
 
 // Arrête le repos en cours (chrono et état) sans toucher à l'affichage
-function stopRest() { clearRest(); restActive = false; Native.cancelRestEnd(); endRestActivity(); }
+// keepNotif : fin naturelle du repos, la notification sert de filet (restFinished décide)
+function stopRest(keepNotif = false) { clearRest(); restActive = false; if (!keepNotif) Native.cancelRestEnd(); endRestActivity(); }
 
 function removeRestUI() {
   document.querySelectorAll('.rest-mini').forEach(el => el.remove());
