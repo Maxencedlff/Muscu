@@ -1893,6 +1893,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./reps-fixes.mjs')).default({ test, run, reset, assert, sameJSON });
 // Nutrition : plans bornés, macros, repas cochés, équivalences sur la vraie base Ciqual, plan du coach
 (await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// Nutrition, règles fines (bornes et branches repérées par le test de mutation, tests dans nutrition-regles.mjs)
+(await import('./nutrition-regles.mjs')).default({ test, run, reset, assert, sameJSON });
 // Scanner un aliment : codes-barres, réponse d'Open Food Facts, Mes aliments (tests dans food-scan.mjs)
 (await import('./food-scan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Quantités à l'unité : portions courantes, conversions, unité du paquet (tests dans food-portions.mjs)
