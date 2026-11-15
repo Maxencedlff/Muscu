@@ -130,3 +130,10 @@ html.type-xl .history-detail .tile + .tile, html.type-xl .stats-overview .tile +
 .prow .prow__img { position: static; flex: none; width: 48px; height: 32px; max-width: none; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 6px; background: var(--fill2); }
 .prow__trend--stable { min-width: 0; font-size: var(--fs-footnote); color: var(--label2); }
 .prow .prow__img[data-missing], html.type-xl .prow .prow__img { display: none; }
+/* Texte agrandi (type-xl) : sans vignette, le texte prend la largeur ; une ligne d'exercice passe sur deux rangées
+   (nom entier, puis courbe et tendance), chevron centré à droite : rien de coupé */
+html.type-xl .pgrp .mgc__text { width: 100%; padding-right: 24px; }
+html.type-xl .prow { flex-wrap: wrap; row-gap: 4px; padding-right: 36px; }
+html.type-xl .prow .cell__body { flex: 1 1 100%; }
+html.type-xl .prow__name { display: block; -webkit-line-clamp: unset; overflow: visible; }
+html.type-xl .prow > .icon:last-child { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
