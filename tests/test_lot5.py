@@ -254,6 +254,57 @@ def t_history_corps(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} historique corps : erreurs JS {page.errors[:2]}')
 
 
+def t_history_filtres(bench, eng, dev, theme):
+    """Retour de Maxence (15/11) : 20 séances de noms différents. « Toutes » + au plus 4 séances + « Plus » (6 boutons
+    au plus, aucun défilement horizontal) ; une séance choisie dans « Plus » filtre la liste et devient visible."""
+    t = tag(dev, theme)
+    at = local_ms(2026, 10, 15, 18)
+    with bench.frozen_page(at, eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json(now_ms=at, weeks=2))
+        page.evaluate("""at => {
+            const ex = [{ name: 'Curl biceps', sets: [{ weight: '10', reps: '10' }] }];
+            for (let i = 1; i <= 20; i++) for (let k = 0; k < 1 + (i % 3); k++)
+              data.history.push({ id: `bl${i}-${k}`, date: at - (i * 2 + k) * 86400e3, category: `Bloc ${String(i).padStart(2, '0')}`,
+                                  programme: `zz-bloc-${i}`, exercises: ex });
+            save(); }""", at)
+        go(page, 'history')
+        bar = page.evaluate("""() => { const s = document.querySelector('.hist-seg');
+            return { n: [...s.querySelectorAll('.segmented__btn')].filter(b => b.offsetWidth > 0).length,
+                     sw: s.scrollWidth, cw: s.clientWidth, page: document.documentElement.scrollWidth,
+                     more: !!s.querySelector('.hist-seg__more') && s.querySelector('.hist-seg__more').offsetWidth > 0 }; }""")
+        R.check(bar['n'] <= 6 and bar['more'], f'{t} filtres : au plus 6 boutons dont « Plus » {bar}')
+        R.check(bar['sw'] <= bar['cw'] + 1 and bar['page'] <= page.viewport_size['width'], f'{t} filtres : aucun défilement horizontal {bar}')
+        shot(page, LOT, f'history_filtres_{dev}_{theme}')
+        page.click('.hist-seg .hist-seg__more')
+        page.wait_for_selector('.sheet .hist-pick')
+        rows = page.evaluate("""() => [...document.querySelectorAll('.sheet .hist-pick')].map(r => ({ k: r.dataset.pick,
+            l: r.querySelector('.cell__title').textContent, n: +r.querySelector('.cell__value').textContent }))""")
+        shown = set(page.evaluate("[...document.querySelectorAll('.hist-seg [data-action=\"hist-filter\"]')].filter(b => b.offsetWidth > 0).map(b => b.dataset.cat)"))
+        R.check(len(rows) >= 15 and not shown & {r['k'] for r in rows}, f'{t} filtres : « Plus » liste les autres séances ({len(rows)})')
+        R.check(all(rows[i]['n'] >= rows[i + 1]['n'] for i in range(len(rows) - 1)), f'{t} filtres : feuille triée par nombre de séances {[r["n"] for r in rows][:6]}')
+        shot(page, LOT, f'history_filtres_plus_{dev}_{theme}')
+        pick = rows[-1]
+        page.click(f'.sheet .hist-pick[data-pick="{pick["k"]}"]')
+        page.wait_for_timeout(400)
+        titles = set(page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)"))
+        act = page.evaluate("""() => { const b = document.querySelector('.hist-seg .segmented__btn--active[data-action="hist-filter"]');
+            return b ? { k: b.dataset.cat, vis: b.offsetWidth > 0 } : null; }""")
+        R.check(titles == {pick['l']}, f'{t} filtres : séance choisie dans « Plus » appliquée {titles}')
+        R.check(act == {'k': pick['k'], 'vis': True}, f'{t} filtres : filtre choisi visible et actif {act}')
+        n2 = page.evaluate("[...document.querySelectorAll('.hist-seg .segmented__btn')].filter(b => b.offsetWidth > 0).length")
+        R.check(n2 <= 6, f'{t} filtres : toujours au plus 6 boutons ({n2})')
+        # Texte agrandi : « Toutes » et le bouton de la feuille (nom du filtre choisi), rien d'autre
+        xl = page.evaluate("""() => { document.documentElement.classList.add('type-xl');
+            const v = [...document.querySelectorAll('.hist-seg .segmented__btn')].filter(b => b.offsetWidth > 0).map(b => b.textContent.trim());
+            return v; }""")
+        R.check(len(xl) == 2 and xl[0] == 'Toutes' and xl[1] == pick['l'], f'{t} filtres texte agrandi : Toutes + Filtrer {xl}')
+        page.click('.hist-seg .hist-seg__xl')
+        page.wait_for_selector('.sheet .hist-pick')
+        R.check(page.locator('.sheet .hist-pick').count() >= 20, f'{t} filtres texte agrandi : la feuille liste toutes les séances')
+        page.evaluate("document.documentElement.classList.remove('type-xl')")
+        R.check(not page.errors, f'{t} filtres : erreurs JS {page.errors[:2]}')
+
+
 def t_progress(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.frozen_page(SUNDAY_EVENING, eng, dev, theme) as page:
@@ -561,7 +612,7 @@ def t_programme_type_xl(bench):
         R.check(not page.errors, f'type-xl programme : erreurs JS {page.errors[:2]}')
 
 
-TESTS = [t_history, t_history_corps, t_progress, t_poids, t_programme]
+TESTS = [t_history, t_history_corps, t_history_filtres, t_progress, t_poids, t_programme]
 
 if __name__ == '__main__':
     run_main(R, TESTS, once=[t_perf, t_programme_type_xl])

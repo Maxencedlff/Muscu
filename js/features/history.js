@@ -16,6 +16,9 @@ function historySorted() {
 // de la plus récente à la plus ancienne. Un filtre = un nom de séance, à la casse et aux accents près (normName :
 // « Epaules » d'un programme et « Épaules » d'un autre font une seule pastille, retour de Maxence du 15/11), libellé
 // avec accent quand l'un des deux en a. Les données gardées ne changent pas : seul le regroupement à l'affichage.
+// Chaque filtre compte ses séances (n), celles des HIST_RECENT_DAYS derniers jours (recent) et la date de la dernière
+// (last) : de quoi choisir les pastilles visibles et trier la feuille « Plus ».
+const HIST_RECENT_DAYS = 60;
 function historyFilterKeys() {
   const out = [], at = new Map();
   const add = (key, label) => {
@@ -24,12 +27,77 @@ function historyFilterKeys() {
     if (label.normalize('NFD').length > out[i][1].normalize('NFD').length) out[i][1] = label;   // « Épaules » plutôt que « Epaules »
   };
   sessionKeys().forEach(k => add(k, sessionMeta(k).label));
-  historySorted().forEach(h => {
+  const hist = historySorted();
+  hist.forEach(h => {
     const prog = entryProg(h);
     if (prog === data.activeProgramme || isHealthEntry(h)) return;
     add(`${prog}/${h.category}`, sessionMeta(h.category, prog).label);
   });
-  return out;
+  const stats = out.map(() => ({ n: 0, recent: 0, last: 0 }));
+  const since = Date.now() - HIST_RECENT_DAYS * 86_400_000;
+  hist.forEach(h => {
+    if (isHealthEntry(h)) return;
+    const i = at.get(historyEntryName(h));
+    if (i === undefined) return;
+    const st = stats[i];
+    st.n++; if (h.date >= since) st.recent++; if (h.date > st.last) st.last = h.date;
+  });
+  return out.map(([key, label], i) => ({ key, label, ...stats[i] }));
+}
+
+// ── Barre de filtres : « Toutes » + au plus HIST_VISIBLE séances, puis « Plus » (retour de Maxence du 15/11 : avec
+// 20 séances différentes, la barre défilait sans fin). Visibles : les plus fréquentes sur 60 jours (ex aequo : la plus
+// récente d'abord), affichées dans l'ordre du programme ; le filtre choisi est toujours visible (il prend la place de la
+// 4e). Écran étroit (< 390 pt, iPhone SE) : la moins fréquente des quatre (data-opt) est cachée en CSS et « Plus »
+// apparaît s'il le faut. Texte agrandi : « Toutes » et « Filtrer… » seulement (CSS aussi : rien à redessiner).
+const HIST_VISIBLE = 4;
+function historyFilterRank(a, b) { return b.recent - a.recent || b.last - a.last || b.n - a.n; }
+function historyFiltersHtml(filters = historyFilterKeys()) {
+  const ranked = filters.slice().sort(historyFilterRank);
+  let shown = ranked.slice(0, HIST_VISIBLE);
+  const act = filters.find(f => f.key === histFilter);
+  if (act && !shown.includes(act)) shown = [...shown.slice(0, HIST_VISIBLE - 1), act];
+  const more = filters.length > HIST_VISIBLE + 1;                // plus de 5 séances : « Plus » partout
+  const narrowMore = filters.length === HIST_VISIBLE + 1 || more; // écran étroit : « Plus » dès 5
+  if (!more) shown = filters.slice();
+  // Cachée sur écran étroit : la moins bien classée des visibles, jamais le filtre choisi
+  const opt = filters.length > HIST_VISIBLE ? shown.slice().sort(historyFilterRank).reverse().find(f => f.key !== histFilter) : null;
+  const visible = filters.filter(f => shown.includes(f));        // ordre du programme, puis des autres séances
+  const btn = (k, l, extra = '') => `<button class="segmented__btn ${histFilter === k ? 'segmented__btn--active' : ''}" aria-pressed="${histFilter === k}" data-action="hist-filter" data-cat="${esc(k)}"${extra}>${l}</button>`;
+  const actLabel = act ? act.label : '';
+  return `<div class="segmented seg-full hist-seg" role="group" aria-label="Filtrer par séance">
+      ${btn('all', 'Toutes')}
+      ${visible.map(f => btn(f.key, f.label, `${f === opt ? ' data-opt="1"' : ''} title="${esc(f.label)}"`)).join('')}
+      ${more || narrowMore ? `<button class="segmented__btn hist-seg__more${more ? '' : ' hist-seg__more--narrow'}" data-action="hist-filter-more" aria-label="Autres séances" aria-haspopup="dialog">${icon('ellipsis', 18)}</button>` : ''}
+      <button class="segmented__btn hist-seg__xl${act ? ' segmented__btn--active' : ''}" data-action="hist-filter-more" aria-haspopup="dialog" aria-pressed="${!!act}">${act ? actLabel : 'Filtrer…'}</button>
+    </div>`;
+}
+function refreshHistoryFilters() {
+  const el = $('.hist-seg');
+  if (el) el.outerHTML = historyFiltersHtml();
+}
+// Feuille « Plus » : les séances qui ne sont pas à l'écran (selon la largeur et la taille du texte), triées par nombre de
+// séances, le nombre en valeur à droite (cellules iOS)
+async function historyFilterSheet() {
+  const shownKeys = new Set([...document.querySelectorAll('.hist-seg [data-action="hist-filter"]')]
+    .filter(b => b.offsetWidth > 0).map(b => b.dataset.cat));
+  const rest = historyFilterKeys().filter(f => !shownKeys.has(f.key)).sort((a, b) => b.n - a.n || historyFilterRank(a, b));
+  if (!rest.length) return;
+  const row = f => `<button class="cell cell--nav hist-pick${f.key === histFilter ? ' hist-pick--on' : ''}" data-pick="${esc(f.key)}" aria-pressed="${f.key === histFilter}">
+      <span class="cell__body"><span class="cell__title">${f.label}</span></span>
+      <span class="cell__value num" aria-hidden="true">${f.n}</span><span class="visually-hidden">, ${plural(f.n, 'séance', 'séances')}</span>
+    </button>`;
+  const p = sheet({ title: 'Séances', cancel: 'Annuler', confirm: '', body: `<div class="view--grouped hist-picks-wrap"><div class="group hist-picks">${rest.map(row).join('')}</div></div>` });
+  const root = [...document.querySelectorAll('.sheet-root')].pop();
+  root?.addEventListener('click', ev => { const b = ev.target.closest('[data-pick]'); if (b) root._close(b.dataset.pick); });
+  const key = await p;
+  if (key == null) return;
+  setHistoryFilter(key);
+}
+function setHistoryFilter(key) {
+  histFilter = key; histMonths = 3;
+  refreshHistoryFilters();
+  refreshHistoryList();
 }
 // Nom normalisé d'une séance passée, et celui que vise un filtre (« programme/catégorie » ou catégorie du programme actif)
 function historyEntryName(h) { return normName(sessionMeta(h.category, entryProg(h)).label); }
@@ -149,7 +217,7 @@ function historyListHTML() {
 
 function renderHistory() {
   const filters = historyFilterKeys();
-  if (histFilter !== 'all' && !filters.some(([k]) => k === histFilter)) histFilter = 'all';
+  if (histFilter !== 'all' && !filters.some(f => f.key === histFilter)) histFilter = 'all';
   return `
     <div class="view history view--grouped">
       ${navBar({ title: 'Historique', right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>` })}
@@ -157,10 +225,7 @@ function renderHistory() {
         <div class="hist-tools">
           <input type="search" id="histSearch" class="search" placeholder="Rechercher" value="${esc(histQuery)}"
                  autocomplete="off" enterkeyhint="search" aria-label="Rechercher dans l'historique">
-          <div class="segmented seg-full seg-scroll" role="group" aria-label="Filtrer par séance">
-            ${[['all', 'Toutes'], ...filters].map(([k, l]) =>
-              `<button class="segmented__btn ${histFilter === k ? 'segmented__btn--active' : ''}" aria-pressed="${histFilter === k}" data-action="hist-filter" data-cat="${esc(k)}">${l}</button>`).join('')}
-          </div>
+          ${historyFiltersHtml(filters)}
         </div>
         <div id="histList">${historyListHTML()}</div>
       </div>
@@ -387,14 +452,8 @@ registerActions({
   'open-history': (e, el) => {
     navigate(makeRoute('history-detail', el.dataset.id));
   },
-  'hist-filter': (e, el) => {
-    histFilter = el.dataset.cat; histMonths = 3;
-    document.querySelectorAll('[data-action="hist-filter"]').forEach(b => {
-      const on = b.dataset.cat === histFilter;
-      b.classList.toggle('segmented__btn--active', on); b.setAttribute('aria-pressed', on);
-    });
-    refreshHistoryList();
-  },
+  'hist-filter': (e, el) => setHistoryFilter(el.dataset.cat),
+  'hist-filter-more': () => historyFilterSheet(),
   'hist-more': () => {
     histMonths += 3; refreshHistoryList();
   },

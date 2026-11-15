@@ -267,6 +267,24 @@ html.type-xl .hcell__map, html.type-xl .hdhead__map, html.type-xl .hd-legend { d
 .hd-legend { margin-top: 6px; }
 html.type-xl .hcell--card .hcell__body.mgc__text { width: auto; flex: 1; }
 html.type-xl .hcell__when { flex-wrap: wrap; }
+/* Filtres de l'Historique (historyFiltersHtml, js/features/history.js) : « Toutes », au plus 4 séances et « Plus », sur
+   une seule rangée qui ne défile jamais ; un nom trop long finit par « … » (il est entier dans la feuille « Plus »).
+   Écran étroit (iPhone SE) : la moins fréquente des quatre (data-opt) part dans « Plus ». Texte agrandi : « Toutes » et
+   « Filtrer… » seulement, qui ouvre la même feuille. */
+.hist-seg .segmented__btn { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.hist-seg .hist-seg__more { flex: 0 0 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--label2); }
+.hist-seg .hist-seg__xl, .hist-seg .hist-seg__more--narrow { display: none; }
+@media (max-width: 389px) {
+  .hist-seg [data-opt] { display: none; }
+  .hist-seg .hist-seg__more--narrow { display: inline-flex; }
+}
+html.type-xl .hist-seg [data-cat]:not([data-cat="all"]), html.type-xl .hist-seg .hist-seg__more { display: none; }
+html.type-xl .history .hist-tools .hist-seg .hist-seg__xl { display: block; grid-column: auto; }
+/* Feuille « Plus » : liste iOS, nombre de séances en valeur à droite ; le filtre choisi en gras */
+.hist-picks-wrap { background: none; }   /* .view--grouped : styles des cellules iOS, sans le fond de l'écran */
+.hist-picks { margin: 0; }
+.hist-pick { width: 100%; text-align: left; }
+.hist-pick--on .cell__title { font-weight: 700; }
 /* Texte agrandi : les filtres passent sur deux colonnes (« Toute/s » coupé au milieu du mot sur une seule rangée) ;
    un nom de séance long revient à la ligne entre deux mots, jamais dans un mot */
 html.type-xl .history .hist-tools .seg-full { display: grid; grid-template-columns: 1fr 1fr; row-gap: 2px; height: auto; overflow: visible; }
