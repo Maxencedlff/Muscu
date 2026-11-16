@@ -23,12 +23,30 @@ let ignorePop  = 0;     // popstate provoqués par l'app elle-même
 let shownKey   = null;  // clé du dernier écran affiché par show()
 let skipTransition = false;
 const scrollMem = {};   // défilement par écran (clé = onglet + pile)
-const snapMem   = {};   // dernier rendu de chaque écran, montré sous le geste de retour
+const snapMem   = {};   // dernier rendu de chaque écran, montré sous le geste de retour (screenImage)
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 // Le défilement de chaque écran est géré par l'app, pas par le navigateur
 try { history.scrollRestoration = 'manual'; } catch {}
 // Navigateur piloté par les tests : pas de transitions, sauf demande explicite (window.__pplTransitions)
 const transitionsOff = () => navigator.webdriver && !window.__pplTransitions;
+
+// Image HTML d'un écran telle qu'il est affiché, pour le geste de retour (js/ui/edge-swipe.js). innerHTML ne lit que
+// le HTML de départ des champs, pas ce qu'ils contiennent : un message envoyé, resté comme contenu initial du
+// <textarea> d'un rendu fait pendant la frappe, réapparaissait dans la saisie vidée pendant le glissement (16/11).
+// La copie reçoit donc la valeur courante de chaque champ (texte, case cochée, choix) ; jamais un mot de passe.
+function screenImage(root = $('#app')) {
+  const copy = root.cloneNode(true);
+  const live = root.querySelectorAll('input, textarea, select'), dup = copy.querySelectorAll('input, textarea, select');
+  live.forEach((el, i) => {
+    const c = dup[i];
+    if (el.tagName === 'TEXTAREA') c.textContent = el.value;
+    else if (el.tagName === 'SELECT') [...c.options].forEach((o, j) => o.toggleAttribute('selected', !!el.options[j]?.selected));
+    else if (el.type === 'checkbox' || el.type === 'radio') c.toggleAttribute('checked', el.checked);
+    else if (el.type === 'password' || el.type === 'file') c.removeAttribute('value');
+    else c.setAttribute('value', el.value);
+  });
+  return copy.innerHTML;
+}
 
 // Une route est le nom d'un écran suivi de ses paramètres encodés : « history-detail:ab12cd »,
 // « ex-edit:push:2 ». Chaque entrée des piles porte ainsi l'écran et ce qu'il affiche.
@@ -294,7 +312,7 @@ function paint(scrollY = window.scrollY) {
 let shownName = null;   // nom du dernier écran affiché par show(), pour son crochet leave()
 function show(dir = 'none') {
   // Image de l'écran quitté, pour le geste de retour ; jamais celle du coffre à photos (dates, poses, URL d'images)
-  if (shownKey && dir === 'push' && shownName !== 'photo-vault') snapMem[shownKey] = $('#app').innerHTML;
+  if (shownKey && dir === 'push' && shownName !== 'photo-vault') snapMem[shownKey] = screenImage();
   const key = navKey();
   shownKey = key;
   const target = (dir === 'pop' || dir === 'down' || dir === 'fade') ? (scrollMem[key] || 0) : 0;

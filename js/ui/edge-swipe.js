@@ -44,7 +44,7 @@ function isStandalone() {
       // que l'écran qu'il remplace (scrollTop), donc la barre de titre collante reste en haut.
       const prevKey = navKey({ tab: nav.tab, stacks: { [nav.tab]: nav.stacks[nav.tab].slice(0, -1) } });
       layer = makeEdgeLayer(snapMem[prevKey] || '', scrollMem[prevKey] || 0, 'edge-layer');
-      cur = makeEdgeLayer($('#app').innerHTML, window.scrollY, 'edge-layer edge-layer--current');
+      cur = makeEdgeLayer(screenImage(), window.scrollY, 'edge-layer edge-layer--current');
       document.body.classList.add('edge-swiping');   // #app reste en place mais invisible
     }
     if (!layer) return;

@@ -234,4 +234,65 @@ def t_sans_serveur(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_eleve, t_coach, t_sans_serveur])
+# Geste de retour depuis le bord, arrêté à mi-chemin (js/ui/edge-swipe.js). Le geste écoute les événements touch
+# (des pointer events seraient annulés par le défilement d'iOS) et Playwright n'a pas de glissement tactile ; WebKit
+# refuse new Touch() hors d'un vrai écran tactile : les événements sont construits à la main (touches, clientX),
+# seuls champs lus par le geste. Ainsi le test tourne aussi dans WebKit.
+EDGE_HALF = """async () => {
+    const fire = (type, x) => { const e = new Event(type, { bubbles: true }), t = [{ identifier: 1, clientX: x, clientY: 400 }];
+      Object.defineProperty(e, 'touches', { value: type === 'touchend' || type === 'touchcancel' ? [] : t });
+      Object.defineProperty(e, 'changedTouches', { value: t }); document.dispatchEvent(e); };
+    fire('touchstart', 6);
+    for (let x = 20; x <= innerWidth / 2; x += 25) { fire('touchmove', x); await new Promise(r => setTimeout(r, 30)); }
+    const c = document.querySelector('.edge-layer--current'), ta = c?.querySelector('textarea');
+    const r = { layer: !!c, under: !!document.querySelector('.edge-layer:not(.edge-layer--current)'), value: ta ? ta.value : null,
+      menu: (c?.querySelector('[data-action="chat-menu"]')?.getBoundingClientRect().width || 0) >= 44, sent: c ? c.innerHTML.includes('10 minutes au poids du corps') : null };
+    // Doigt ramené vers le bord puis levé lentement : geste abandonné, l'écran reste (vitesse et distance faibles)
+    fire('touchmove', 12); await new Promise(r => setTimeout(r, 600)); fire('touchend', 12);
+    return r;
+}"""
+
+
+def o_retour_apres_envoi(bench):
+    """Coach : message envoyé à lilou, puis geste de retour arrêté à mi-chemin. L'écran qui glisse est l'écran
+    réel : saisie vide (pas le texte envoyé, vu le 16/11), bouton ⋯ présent, fiche de lilou dessous."""
+    for eng, dev in (('webkit', 'iPhone 13'), ('chromium', 'Pixel 7')):
+        t = tag(dev, 'light')
+        with bench.page(eng, dev, 'light') as page:
+            page.add_init_script("Object.defineProperty(navigator, 'standalone', { get: () => true })")
+            open_app(page, 'light', ppl_v2_today_json())
+            signin(page)
+            lilou = page.evaluate("""() => { const me = __sb.meId(); __sb.makeCoach(me);
+                const p = __sb.addPerson({ username: 'lilou', social: false }); __sb.link(me, p); return p; }""")
+            page.evaluate('coachRefresh()')
+            page.wait_for_timeout(500)
+            page.click('.tabbar [data-tab="friends"]')
+            page.click(f'.coach-student-row[data-uid="{lilou}"]')
+            page.wait_for_selector('.chat-cell')
+            page.locator('.chat-cell').scroll_into_view_if_needed()
+            page.click('.chat-cell')
+            page.wait_for_selector('#chatInput')
+            page.wait_for_timeout(400)
+            text = 'Aujourd\'hui, 10 minutes au poids du corps. Quand tu veux… Love ❤️'
+            page.focus('#chatInput')
+            page.keyboard.type(text[:20])
+            # Écran redessiné en entier pendant la frappe (fin de saisie, retour au premier plan) : le brouillon
+            # devient le contenu de départ du <textarea> dans le HTML
+            page.evaluate('document.activeElement.blur(); render()')
+            page.focus('#chatInput')
+            page.keyboard.type(text[20:])
+            page.click('.chat-compose .comment-compose__send')
+            page.wait_for_timeout(600)
+            page.evaluate('document.activeElement.blur()')
+            R.check(page.input_value('#chatInput') == '' and page.locator('.chat-msg--mine').count() == 1, f'{t} message envoyé, saisie vide')
+            r = page.evaluate(EDGE_HALF)
+            R.check(r['layer'] and r['under'], f'{t} geste à mi-chemin : écran courant qui glisse, fiche dessous {r}')
+            R.check(r['value'] == '' and not r['sent'], f'{t} geste de retour : saisie vide, pas le message envoyé {r}')
+            R.check(r['menu'], f'{t} geste de retour : bouton ⋯ présent {r}')
+            page.wait_for_timeout(400)
+            R.check(page.locator('.edge-layer').count() == 0 and page.locator('#app .coach-chat-view').count() == 1
+                    and page.input_value('#chatInput') == '', f'{t} geste abandonné : conversation intacte')
+            R.check(not page.errors, f'{t} geste : aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_eleve, t_coach, t_sans_serveur], once=[o_retour_apres_envoi])
