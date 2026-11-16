@@ -113,7 +113,7 @@ def t_niveau(bench, eng, dev, theme):
         R.check('Niveau de force' in html and 'Squat barre' in html and 'Rowing' not in html, f'{tag} bilan : niveaux de la séance')
 
         # Cibles et séance partent de la dernière séance faite (aucune décharge ne les change) : palier de charge
-        # proposé, toutes les séries prévues préremplies
+        # proposé, toutes les séries prévues préremplies à ce palier (objectif du jour, panel « yeux neufs » du 16/11)
         page.evaluate("""data.programmes.ppl.exercises.push = [['dcb', 'Développé couché barre'], ['sqb', 'Squat barre']]
           .map(([id, name]) => ({ id, name, sets: 3, repMax: 5 })); save(); switchTab('train'); render();""")
         push = page.evaluate("targetsHtml('push')")
@@ -121,7 +121,8 @@ def t_niveau(bench, eng, dev, theme):
         page.evaluate("startSession('push')")
         page.wait_for_selector('.ex-card')
         sess = page.evaluate("activeSession.exercises.map(e => e.sets.map(s => s.weight + '×' + s.reps).join(' '))")
-        R.check(sess == ['80×5 80×5 80×5'] * 2, f'{tag} séance : 3 séries préremplies depuis la dernière séance {sess}')
+        prev = page.evaluate("activeSession.exercises.map(e => e.sets.map(s => s.prev.weight + '×' + s.prev.reps).join(' '))")
+        R.check(sess == ['82.5×5 82.5×5 82.5×5'] * 2 and prev == ['80×5 80×5 80×5'] * 2, f'{tag} séance : 3 séries préremplies au palier, « Avant » depuis la dernière séance {sess} {prev}')
         page.evaluate("endSession()")
         R.check(not page.errors, f'{tag} niveau : aucune erreur JS {page.errors}')
     finally:
