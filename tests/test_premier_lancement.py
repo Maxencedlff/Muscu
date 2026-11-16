@@ -132,6 +132,20 @@ def t_parcours(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(page.locator('.onb').count() == 0, f'{t} questions jamais deux fois')
         R.check(page.evaluate('trainingLevel()') == 'debutant', f'{t} niveau gardé (repère de la bulle des muscles)')
+        # Panel « yeux neufs » du 16/11 : première séance, aucune charge proposée ; une ligne grise dit laquelle prendre
+        page.evaluate("startSession(sessionKeys(data.activeProgramme)[0])")
+        page.wait_for_selector('.view.session .ex-card')
+        first = page.locator('.ex-card[data-ei="0"] .ex-first')
+        R.check(first.count() == 1 and first.inner_text().strip() == 'Première fois : prends un poids que tu soulèves 15 fois facilement'
+                and page.evaluate("getComputedStyle(document.querySelector('.ex-first')).color") == page.evaluate("getComputedStyle(document.querySelector('.ex-card__sub')).color"),
+                f'{t} 1re séance : « Première fois » en gris sous le nom')
+        R.check(no_hscroll(page), f'{t} 1re séance : pas de défilement horizontal')
+        shot(page, LOT, f'3-premiere-seance-{t}')
+        page.fill('[data-action="set-weight"][data-ei="0"][data-si="0"]', '10')
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
+        page.wait_for_timeout(300)
+        R.check(page.locator('.ex-card[data-ei="0"] .ex-first').count() == 0, f'{t} série validée : la ligne s\'en va')
+        page.evaluate("activeSession = null; persistSession()")
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

@@ -386,6 +386,17 @@ function exGoalHtml(ex, cls = '') {
     : `<div class="ex-goal num ${cls}">Objectif ${esc(t.text)}</div>`;
 }
 
+// Exercice jamais fait (aucune dernière fois, aucune charge prévue) et rien de validé : une ligne grise dit quelle
+// charge prendre, à la place de l'objectif (panel « yeux neufs » du 16/11 : la case kg n'avait que « — »). Exercice
+// en charge seulement : ni poids du corps, ni élastique, ni durée, ni cardio.
+// cls : 'ex-goal--member' sous un exercice de superset (aligné sur son nom)
+const FIRST_TIME_NO_LOAD = new Set(['aucun', 'elastique', 'cardio']);
+function exFirstTimeHtml(ex, cls = '') {
+  if (measureOf(ex) !== 'reps' || loadKind(ex) !== 'charge' || FIRST_TIME_NO_LOAD.has(equipmentOf(ex.name))) return '';
+  if (ex.sets.some(s => s.done || s.prev || hasLoad(s.weight))) return '';
+  return `<div class="ex-first ${cls}">Première fois : prends un poids que tu soulèves 15 fois facilement</div>`;
+}
+
 // Sous-titre de la carte : record, repos de l'exercice (modifiable), hausse de volume
 // Record de l'en-tête de carte : celui du programme, remplacé dès qu'une série du jour le bat (même règle que
 // js/data/store.js : charge plus lourde, ou mêmes kilos et plus de reps). Sans quoi l'en-tête affichait
@@ -440,7 +451,7 @@ function renderExerciseCard(ex, ei, cur) {
         <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${ex.sets.length}</span><span class="visually-hidden">${doneN} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
       </div>
-      ${exGoalHtml(ex)}
+      ${exGoalHtml(ex)}${exFirstTimeHtml(ex)}
       ${gripLineHtml(ex, ei)}
       ${exNoteLineHtml(ex, ei)}
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
@@ -507,7 +518,7 @@ function renderGroupCard(members, cur, tags) {
           ${chip}
           <span class="ex-card__count num"><span aria-hidden="true">${n}/${ex.sets.length}</span><span class="visually-hidden">${n} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
           <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
-        </div>${exGoalHtml(ex, 'ex-goal--member')}`;
+        </div>${exGoalHtml(ex, 'ex-goal--member')}${exFirstTimeHtml(ex, 'ex-goal--member')}`;
   }).join('');
 
   const rounds = ssRounds(xs, members).map((round, t) => `

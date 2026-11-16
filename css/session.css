@@ -116,6 +116,9 @@ html.type-xl .ss-thumbs { display: none; }
 .ex-goal { display: flex; align-items: center; gap: 4px; margin: -2px 0 2px; font-size: 0.765rem; line-height: 1.059rem; font-weight: 600; color: var(--label); }
 .ex-goal--done { color: var(--green-text); }
 .ex-goal--member { margin: -8px 0 4px calc(28px + 8px); }   /* sous le nom, après la lettre A1 (.ss-tag) */
+/* Exercice jamais fait (exFirstTimeHtml) : à la place de l'objectif, en gris, sur plusieurs lignes s'il le faut */
+.ex-first { margin: -2px 0 4px; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); }
+.ex-first.ex-goal--member { margin: -8px 0 4px calc(28px + 8px); }
 .ex-rest-link {
   background: none; border: 0; color: var(--tint); font: inherit; cursor: pointer;
   padding: 13px 2px; margin: -13px -2px;

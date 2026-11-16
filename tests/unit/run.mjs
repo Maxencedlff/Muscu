@@ -2004,6 +2004,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // ── Panel d'ergonomie Apple, vague 3 : règles pures corrigées (tests dans panel-apple.mjs) ──
 (await import('./panel-apple.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
 
+// ── Panel « yeux neufs » du 16/11, vague 1 (tests dans yeux-neufs.mjs) ──
+(await import('./yeux-neufs.mjs')).default({ test, run, reset, assert, sameJSON });
+
 // ── Content-Security-Policy de la WebView (tests dans csp.mjs) ──
 (await import('./csp.mjs')).default({ test, assert, ROOT });
 
