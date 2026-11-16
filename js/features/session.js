@@ -315,7 +315,7 @@ function nextSetParts() {
   // Sous-série sans objectif de reps (pas faite la dernière fois) : sa charge seule, « Reprise 1 · 70 kg »
   const load = String(s.reps ?? '') !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}`
     : sub && hasLoad(s.weight) ? ` · ${fmtW(s.weight, { plain: true })} ${unitLbl()}` : '';
-  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `Série ${setDisplayNo(ex.sets, cur.si)}`;   // compte des séries de travail, comme leur ligne
+  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `${holdGuide(ex) ? 'Maintien' : 'Série'} ${setDisplayNo(ex.sets, cur.si)}`;   // compte des séries de travail, comme leur ligne
   return { name: ex.name, step, load, tail: step + load, sub: !!sub };
 }
 // « Développé incliné · Série 1 · 30 kg × 10 »
@@ -859,7 +859,7 @@ function deleteSet(ei, si) {
   editingSet = null;
   haptic();
   persistSession();
-  sessionUndo(`${name} supprimé${isWarmupSet(s) ? '' : 'e'}`, { target: { ex, delSi: si }, onAction: () => {
+  sessionUndo(`${name} supprimé${isWarmupSet(s) || holdGuide(ex) ? '' : 'e'}`, { target: { ex, delSi: si }, onAction: () => {
     if (!activeSession?.exercises.includes(ex) || ex.sets.includes(s)) return;
     ex.sets.splice(Math.min(si, ex.sets.length), 0, s);
     activeSession.lastDone = lastDone;
@@ -924,7 +924,7 @@ function validateSet(ei, si, opts = {}) {
   scrollToCurrent(true, true);
   // Le toast nomme d'abord ce que « Annuler » défait (la validation de la série), puis ce qui suit :
   // « Série 1 validée · puis rest-pause » (panel du 07/11). Retirer la technique : le × de son bloc.
-  const doneTxt = `${setSpokenName(ex, si)} validé${isWarmupSet(s) ? '' : 'e'}`;
+  const doneTxt = `${setSpokenName(ex, si)} validé${isWarmupSet(s) || holdGuide(ex) ? '' : 'e'}`;
   const next = chain ? `enchaîne ${xs[chain.ei].name}` : techPause !== null ? `puis ${TECHS[setTech(s)].label.toLowerCase()}` : '';
   sessionUndo(next ? `${doneTxt} · ${next}` : doneTxt, { target: { ex, si }, onAction: () => undoValidate(undo) });
 }
@@ -1098,7 +1098,7 @@ function saveEditedSet() {
   document.activeElement?.blur?.();
   haptic();
   const ex = activeSession.exercises[ei];
-  sessionUndo(`${setSpokenName(ex, si)} modifiée`, { target: { ex, si }, state: 'Modifiée' });
+  sessionUndo(`${setSpokenName(ex, si)} modifié${holdGuide(ex) ? '' : 'e'}`, { target: { ex, si }, state: 'Modifiée' });
   return true;
 }
 
