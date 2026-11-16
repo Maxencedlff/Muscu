@@ -8,7 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −8 | `20261116000000_eleves_gratuits_down.sql` (élèves offerts par leur coach : retour à l'élève payant et au code d'offre −25 %) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et du payant attendent la règle du 16/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
+| −8 | `20261116030000_eleves_gratuits_down.sql` (élèves offerts par leur coach : retour à l'élève payant et au code d'offre −25 %) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et du payant attendent la règle du 16/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
 | −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
 | −5 | `20261106100000_seance_publique_intensif_prise_down.sql` | rien | oui (vérifié) |
@@ -49,7 +49,7 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 9. `20261106100000_seance_publique_intensif_prise.sql` (séance vue par un ami ou un coach : techniques d'intensification et prise ; indépendante, peut aussi passer seule)
 10. `20261106200000_plans_diete_coach.sql` (après l'OTA qui demande l'accord de l'élève : sinon les coachs ne peuvent plus envoyer de plan diète tant que leurs élèves n'ont pas la version qui sait accepter ; et après les mensurations, dont il garde la donnée)
 11. `20261107000000_photos_bilan.sql` (photos de bilan chiffrées de bout en bout, docs/PHOTOS_BILAN.md : indépendante ; avant l'OTA, avec la fonction `coach-photos-purge` et sa planification)
-12. `20261116000000_eleves_gratuits.sql` (élèves offerts par leur coach, décision du 16/11/2026, docs/PAYANT_V1.md) : APRÈS 1 à 3 (il réécrit `access_json` des tarifs), avec l'OTA qui l'affiche. Aucune fonction Edge à redéployer.
+12. `20261116030000_eleves_gratuits.sql` (élèves offerts par leur coach, décision du 16/11/2026, docs/PAYANT_V1.md) : APRÈS 1 à 3 (il réécrit `access_json` des tarifs), avec l'OTA qui l'affiche. Aucune fonction Edge à redéployer.
 
 Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md).
 

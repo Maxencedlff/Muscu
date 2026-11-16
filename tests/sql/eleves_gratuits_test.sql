@@ -1,4 +1,4 @@
--- Vérifications de 20261116000000_eleves_gratuits.sql (élèves offerts par leur coach, décision du
+-- Vérifications de 20261116030000_eleves_gratuits.sql (élèves offerts par leur coach, décision du
 -- 16/11/2026), lancées par tests/sql/run.sh. Rien n'est appliqué en production : Postgres local jetable.
 -- Comptes simulés …000000000e00 à …e3f : K est le coach (rôle validé), L un élève qui paie lui-même,
 -- Z n'a pas de coach, E01 à E15 sont les élèves de K dans l'ordre d'arrivée.

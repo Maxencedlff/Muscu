@@ -2,7 +2,7 @@
 --  Payant V1, ÉLÈVES OFFERTS PAR LEUR COACH (décision de Maxence du 16/11/2026, contrat :
 --  docs/PAYANT_V1.md, section « Élèves offerts par leur coach »). Après 20261030000000_payant_tarifs.sql
 --  et 20261031000000_payant_plus.sql. Rien de ce fichier n'est appliqué en production sans le feu vert
---  de Maxence. Retour arrière : supabase/rollback/20261116000000_eleves_gratuits_down.sql.
+--  de Maxence. Retour arrière : supabase/rollback/20261116030000_eleves_gratuits_down.sql.
 --
 --  « Les élèves ne paient pas, ce sont les coachs qui paient un forfait élève. » Remplace l'offre
 --  élève du 30/10 (−25 % pendant 12 mois par code d'offre Apple, 4,89 €/mois).

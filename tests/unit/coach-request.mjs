@@ -41,14 +41,14 @@ export default function ({ test, assert, ROOT }) {
       assert.ok(s.includes(`'${e}'`), `erreur ${e} absente de la migration`);
       assert.ok(d.includes(e), `erreur ${e} absente du contrat`);
     }
-    // Les tarifs du 30/10 ne produisaient plus coach_team (élève payant) : c'est 20261116000000 qui le rétablit
+    // Les tarifs du 30/10 ne produisaient plus coach_team (élève payant) : c'est 20261116030000 qui le rétablit
     assert.ok(!/st := 'coach_team'/.test(s), 'tarifs : statut coach_team produit');
     assert.ok(/'coach_team',\s+false/.test(s), 'tarifs : coach_team toujours faux');
   });
 
   test('élèves offerts (16/11/2026) : migration, retour arrière et contrat', () => {
-    const up = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261116000000_eleves_gratuits.sql'), 'utf8');
-    const down = fs.readFileSync(path.join(ROOT, 'supabase/rollback/20261116000000_eleves_gratuits_down.sql'), 'utf8');
+    const up = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261116030000_eleves_gratuits.sql'), 'utf8');
+    const down = fs.readFileSync(path.join(ROOT, 'supabase/rollback/20261116030000_eleves_gratuits_down.sql'), 'utf8');
     const d = doc();
     // Élève offert dans la limite du palier, 7 jours de grâce, offre −25 % retirée
     assert.ok(/elsif in_team then st := 'coach_team';/.test(up) && /'coach_cover', cover,/.test(up), 'coach_team et coach_cover produits');
@@ -60,7 +60,7 @@ export default function ({ test, assert, ROOT }) {
       const body = tarifs.slice(tarifs.indexOf(f), tarifs.indexOf('\n$$;', tarifs.indexOf(f)));
       assert.ok(down.includes(body), `${f} : texte d'origine dans le retour arrière`);
     }
-    for (const k of ['coach_cover', 'over_limit', 'grace', 'uncovered', 'coach_tier_log', '20261116000000_eleves_gratuits']) {
+    for (const k of ['coach_cover', 'over_limit', 'grace', 'uncovered', 'coach_tier_log', '20261116030000_eleves_gratuits']) {
       assert.ok(d.includes(k), `${k} absent du contrat`);
     }
   });

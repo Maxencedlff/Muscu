@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
---  Retour arrière de supabase/migrations/20261116000000_eleves_gratuits.sql (à lancer à la main, dans
+--  Retour arrière de supabase/migrations/20261116030000_eleves_gratuits.sql (à lancer à la main, dans
 --  l'éditeur SQL, seulement si Maxence décide de revenir aux tarifs du 30/10 : élève payant, −25 %
 --  pendant 12 mois par code d'offre Apple). Pas dans migrations/ : Supabase ne l'applique jamais de
 --  lui-même. Aucune migration plus récente ne dépend de ce fichier.
