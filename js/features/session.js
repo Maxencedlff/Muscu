@@ -300,8 +300,9 @@ function nextSetText() {
 
 // Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette. Un exercice du
 // programme la reçoit d'office au départ (goalPrefill, ex.bumped) : la puce reste pour un exercice ajouté en cours de route
+// Programme envoyé par un coach : jamais (c'est lui qui décide de la charge, coachLedProgramme)
 function bumpReady(ex) {
-  if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex)) return false;
+  if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex) || coachLedProgramme(activeSession.programme)) return false;
   const work  = workSets(ex.sets);
   const prevs = work.map(s => s.prev).filter(Boolean);
   if (!prevs.length || prevs.length < Math.min(work.length, 2)) return false;

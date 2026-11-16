@@ -71,4 +71,27 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     run(`startSession('pull')`);
     sameJSON(run(`${ex}.sets.map(s => s.weight)`), ['', '', '', '']);
   }));
+
+  test('yeux neufs 3 : programme du coach, sa prescription reprise et aucune hausse décidée par l\'app', () => withSession(() => {
+    reset();
+    const item = { id: 'u_force', sentAt: 1, data: { name: 'Force', sessions: [{ key: 'sB', label: 'Bas', color: '#34C759',
+      exercises: [{ name: 'Squat barre', sets: 4, repMin: 3, repMax: 5, intens: 'topback' }] }] } };
+    const id = run(`importCoachProgramme(data, ${JSON.stringify(item)}, { user_id: 'abcdefgh', username: 'max' })`);
+    run(`data.activeProgramme = '${id}'; { const ex = data.programmes['${id}'].exercises.sB[0];
+      data.history = [{ id: 'h-sq', programme: '${id}', category: 'sB', date: Date.now() - ${DAY}, duration: 1800000,
+        exercises: [{ exId: ex.id, name: ex.name, sets: Array.from({ length: 4 }, () => ({ weight: '72.5', reps: '5', done: true })) }] }]; }`);
+    assert.equal(run(`coachLedProgramme('${id}')`), true);
+    const goal = run(`exerciseGoal('sB', data.programmes['${id}'].exercises.sB[0], '${id}')`);
+    sameJSON(goal.goal, { w: 72.5, r: 5 }, 'haut de la fourchette atteint partout : pas de + 2,5 kg, pas de 6e rep');
+    assert.equal(goal.gain, '');
+    run(`startSession('sB')`);
+    const ex = 'activeSession.exercises[0]';
+    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps + ':' + s.tech)`), ['72.5×5:top', '72.5×5:backoff', '72.5×5:backoff', '72.5×5:backoff'],
+      'top set puis back-off du coach, charge de la dernière fois');
+    assert.equal(run(`repRangeText(${ex})`), '3–5 reps', 'fourchette du coach affichée');
+    assert.equal(run(`bumpReady(${ex})`), false, 'pas de puce ↑ 2,5 kg');
+    // Même historique sur un programme à soi : la hausse revient
+    run(`delete data.userProgrammes['${id}'].fromCoach`);
+    assert.equal(run(`exerciseGoal('sB', data.programmes['${id}'].exercises.sB[0], '${id}').gain`), '2,5 kg');
+  }));
 }

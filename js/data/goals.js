@@ -11,6 +11,11 @@
 // d'une flèche ↑ ; before : la meilleure série de la dernière fois, '' si jamais fait ; goal : la série à
 // faire { w en kg, r }, null quand il n'y a rien à battre (jamais fait, durée, cardio, aide).
 // Jamais fait : « 4 séries », ou « 4 × 12 » en reps fixes (setsRepsText).
+// Programme envoyé par un coach (importCoachProgramme, js/data/coach.js) : c'est lui qui décide de la charge. Ni hausse
+// de 2,5 kg proposée (objectif, puce de la séance), ni rep au-delà du haut de sa fourchette (panel « yeux neufs » du
+// 16/11 : « 3 à 5 reps, 1re série lourde » prescrit, « ↑ 2,5 kg » et « Objectif 75 kg × 3 » affichés)
+function coachLedProgramme(progKey) { return !!data.userProgrammes?.[progKey]?.fromCoach; }
+
 function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
   const lp = lastPerf(progKey, cat, ex);
   const planned = { text: setsRepsText(ex), gain: '', before: '', goal: null };
@@ -20,12 +25,13 @@ function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
   if (!best) return planned;
   const before = setTxt(best, ex);
   if (measureOf(ex) !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '', before, goal: null };   // durée, cardio : on rappelle la dernière fois
-  // Reps fixes (« 4 × 12 », fixedReps) : la rep de plus ne dépasse pas ce nombre
-  const fixed = fixedReps(ex);
-  const more = { w: best.w, r: fixed ? Math.min(best.r + 1, fixed) : best.r + 1 };
+  // Reps fixes (« 4 × 12 », fixedReps) : la rep de plus ne dépasse pas ce nombre ; programme du coach : ni le haut
+  // de sa fourchette
+  const repMax = ex.repMax ?? 12, coachLed = coachLedProgramme(progKey);
+  const cap = fixedReps(ex) || (coachLed ? repMax : null);
+  const more = { w: best.w, r: cap ? Math.min(best.r + 1, cap) : best.r + 1 };
   if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: more.r, reps: String(more.r) }, ex), gain: more.r > best.r ? '1 rep' : '', before, goal: more };
-  const repMax = ex.repMax ?? 12;
-  const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
+  const bump = !coachLed && best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
   if (bump) {
     const w = best.w + bumpStepKg(), r = goalRepsAfterBump(ex);
     return { text: setTxt({ w, weight: w, r }), gain: bumpLabel(), before, goal: { w, r } };

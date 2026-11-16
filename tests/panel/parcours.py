@@ -537,7 +537,7 @@ COACH_PROG = {
             {'name': 'Rowing haltère unilatéral', 'sets': 4, 'ss': 'g1'},
             {'name': 'Pompes', 'sets': 3, 'ss': 'g1', 'consigne': 'Gainage serré.'}]},
         {'key': 'sB', 'label': 'Bas', 'color': '#34C759', 'exercises': [
-            {'name': 'Squat barre', 'sets': 5, 'repMax': 5}]},
+            {'name': 'Squat barre', 'sets': 5, 'repMin': 3, 'repMax': 5, 'intens': 'topback'}]},
     ],
 }
 
