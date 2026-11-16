@@ -127,7 +127,9 @@ def t_seance(bench, eng, dev, theme):
         # Top set sur la 1re série de la presse : étiquette sans sous-ligne
         page.click('[data-action="tech-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(300)
         tap_dialog(page, 'Top set')
-        R.check(page.locator('.ex-card[data-ei="1"] .tech').count() == 2 and page.locator('.ex-card[data-ei="1"] .session-set--sub').count() == 1, f'{t} top set : étiquette seule, rest-pause : une sous-ligne')
+        # Panel du 16/11 : top set en pastille dans la ligne de sa série (plus de ligne à part avec un ×)
+        R.check(page.locator('.ex-card[data-ei="1"] .tech').count() == 1 and page.locator('.ex-card[data-ei="1"] .session-set[data-si="0"] .tech-pill').count() == 1
+                and page.locator('.ex-card[data-ei="1"] .session-set--sub').count() == 1, f'{t} top set : pastille dans sa ligne, rest-pause : une sous-ligne')
         center(page, '.ex-card[data-ei="1"] .tech')
         shot(page, LOT, f'{t}-03-rest-pause-top-set')
         # Mollets debout (poids du corps) : technique possible ; Annuler ne pose rien
@@ -138,7 +140,7 @@ def t_seance(bench, eng, dev, theme):
         # ── Séance fermée puis rouverte : techniques et sous-séries restaurées
         page.reload(); page.wait_for_selector('#app > *'); page.wait_for_timeout(300)
         page.evaluate("navigate('session')"); page.wait_for_selector('.view.session'); page.wait_for_timeout(300)
-        R.check(page.locator('.ex-card[data-ei="0"] .session-set--sub').count() == 2 and page.locator('.ex-card[data-ei="1"] .tech').count() == 2, f'{t} reprise : sous-lignes restaurées')
+        R.check(page.locator('.ex-card[data-ei="0"] .session-set--sub').count() == 2 and page.locator('.ex-card[data-ei="1"] .tech').count() == 1 and page.locator('.ex-card[data-ei="1"] .tech-pill').count() == 1, f'{t} reprise : sous-lignes restaurées')
 
         # ── Enregistrement : drop validé gardé, drop non fait écarté ; rest-pause sans sous-série validée : retiré
         page.evaluate("activeSession.exercises.slice(1).forEach(ex => ex.sets.forEach(s => { s.done = true; s.reps = s.reps || '10'; }))")
