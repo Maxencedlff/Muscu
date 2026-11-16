@@ -413,8 +413,13 @@ def t_creer_plan(bench, eng, dev, theme):
         page.click('[data-action="diet-targets"]')
         page.wait_for_selector(f'{LIVE_SHEET} #dietT_p')
         page.fill(f'{LIVE_SHEET} #dietT_p', '150')
+        # Feuille posée (fin de sa montée) avant OK : sur une machine lente de la CI, le toucher tombait pendant l'animation
+        page.wait_for_function("() => !document.querySelector('.sheet-root:not(.sheet-root--out) .sheet')?.getAnimations().some(a => a.playState === 'running')")
         page.click(f'{LIVE_SHEET} .sheet__btn--confirm')
-        page.wait_for_timeout(300)
+        try:
+            page.wait_for_function("() => Object.values(data.dietPlans)[0].targets?.p === 150", timeout=3000)
+        except Exception:
+            pass
         R.check(page.evaluate("Object.values(data.dietPlans)[0].targets") == {'p': 150}, f'{t} objectif de protéines fixé ({page.evaluate("Object.values(data.dietPlans)[0].targets ?? null")})')
         R.check(page.locator('.diet-low').count() == 0, f'{t} plan en cours de remplissage (repas vides) : pas de message « très bas »')
         page.click('[data-action="diet-targets"]')
