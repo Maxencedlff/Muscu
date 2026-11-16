@@ -424,3 +424,7 @@ html.type-xl .diet-tg__seg .segmented__btn { margin: 0; padding: 8px 6px; min-he
 html.type-xl .diet-tg__seg .segmented__btn::before { display: none; }
 html.type-xl .diet-tg__seg .segmented__btn::after { inset: 0; }
 html.type-xl .diet-tg .diet-field { flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; }
+/* Champ jamais écrasé (« 290 » pour 2 900) : il passe sous le nom quand la ligne est trop étroite */
+html.type-xl .diet-tg .diet-field__input { flex: 1 0 4.5em; }
+html.type-xl .diet-tg .diet-field__label { flex: 1 1 auto; }
+html.type-xl .diet-tg .diet-tg__select { flex-basis: 0; }
