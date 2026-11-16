@@ -137,8 +137,9 @@ html.type-xl .ss-thumbs { display: none; }
 }
 /* Échauffement dans la carte : « Échauf. » en toutes lettres, la 1re colonne s'élargit (WARM_NUM_HTML) ; écran étroit :
    « É », la place reste aux charges */
-.sets--warm { --set-cols: 54px minmax(0,1.3fr) minmax(0,1fr) minmax(44px,.8fr) 52px; }
+.sets--warm { --set-cols: 58px minmax(0,1.3fr) minmax(0,1fr) minmax(44px,.8fr) 52px; }
 .set-n__short { display: none; }
+.set-n__long { letter-spacing: 0; }
 @media (max-width: 374px) {
   .sets--warm { --set-cols: 30px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; }
   .set-n__long { display: none; }
