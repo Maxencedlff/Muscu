@@ -341,7 +341,12 @@ def t_creer_plan(bench, eng, dev, theme):
         page.fill('.ios-dialog__input', 'Ma prise de masse')   # nom du panel : long, le titre touchait le Retour sur SE
         tap_dialog(page, 'Créer')
         page.wait_for_selector('.diet-plan-view')
-        R.check(page.locator('[data-action="diet-add-food"]').count() == 4, f'{t} plan neuf : 4 repas')
+        # Plan perso neuf : seulement les objectifs ; les repas types sont facultatifs (retour du 16/11)
+        R.check(page.locator('[data-action="diet-add-food"]').count() == 0 and page.locator('[data-action="diet-compose"]').count() == 1
+                and 'Total' not in page.inner_text('.diet-plan-view'), f'{t} plan neuf : objectifs seuls, « Composer des repas types »')
+        page.click('[data-action="diet-compose"]')
+        page.wait_for_selector('.diet-types-title')
+        R.check(page.locator('[data-action="diet-add-food"]').count() == 4, f'{t} repas types : 4 repas à remplir')
         shot(page, LOT, f'4d-plan-cree-{t}')
         R.check(page.evaluate('data.dietActive') == page.evaluate("Object.keys(data.dietPlans)[0]"), f'{t} premier plan : suivi')
         # Ajouter du riz cuit au petit-déjeuner : recherche, choix, 150 g
@@ -691,6 +696,8 @@ def nb(v):
 
 def open_editor(page):
     page.evaluate("switchTab('program', { reset: true }); navigate(makeRoute('diet-plan', 'd_masse01'))")
+    page.wait_for_selector('.diet-plan-view')
+    page.locator('[data-action="diet-compose"]').click() if page.locator('[data-action="diet-compose"]').count() else None   # plan perso vide : repas types facultatifs, cachés
     page.wait_for_selector('.diet-plan-view [data-action="diet-add-food"]')
 
 
@@ -1209,8 +1216,8 @@ def t_repas_vides(bench, eng, dev, theme):
         page.click('.diet-home__open')
         page.wait_for_selector('.nutrition-view .diet-sum')
         R.check(page.locator('.diet-meal .diet-check').count() == 0 and page.locator('.diet-item--plan').count() == 4 and page.locator('.diet-item[data-item]').count() == 0,
-                f'{t} jour vide : aucun aliment prévu, « Copier le plan de ce repas » sur chaque repas')
-        R.check('Copier le plan de ce repas' in page.inner_text('.diet-meal[data-meal="m1"]') and "Rien de noté pour l'instant" in nb(page.inner_text('.diet-sum__line')), f'{t} jour vide : textes')
+                f'{t} jour vide : aucun aliment prévu, « Copier le repas type » sur chaque repas')
+        R.check('Copier le repas type' in page.inner_text('.diet-meal[data-meal="m1"]') and "Rien de noté pour l'instant" in nb(page.inner_text('.diet-sum__line')), f'{t} jour vide : textes')
         R.check('sur 2 600 kcal' in nb(page.inner_text('.diet-sum')), f'{t} jour vide : objectif du plan gardé')
         layout(page, t, 'jour vide')
         shot(page, LOT, f'r4-jour-vide-{t}')
@@ -1291,7 +1298,7 @@ def t_objectifs(bench, eng, dev, theme):
         page.wait_for_selector(f'{sh} #dietT_kcal')
         R.check(page.get_attribute(f'{sh} #dietT_c', 'placeholder') == 'Aucun' and page.input_value(f'{sh} #dietT_c') == '',
                 f'{t} champ vide : « Aucun », jamais le total des repas en gris')
-        R.check('Repas prévus' in page.inner_text(f'{sh} .diet-form__hint'), f'{t} total des repas écrit à part')
+        R.check('Repas types' in page.inner_text(f'{sh} .diet-form__hint'), f'{t} total des repas types écrit à part')
         R.check(nb(page.inner_text(f'{sh} .diet-field__label >> nth=0')) == 'Calories', f'{t} libellé « Calories »')
         layout(page, t, 'feuille des objectifs', scope=sh)
         shot(page, LOT, f'o1-objectifs-{t}')
@@ -1364,5 +1371,61 @@ def t_objectifs(bench, eng, dev, theme):
                 f'{t} plan du coach : objectifs en lecture seule, « fixés par max »')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides, t_repas_hier, t_objectifs],
+
+def t_repas_types(bench, eng, dev, theme):
+    """Retour de Maxence du 16/11 : « repas prévu, je comprends pas… c'est pas parce que j'ai mangé un truc que demain c'est
+    ce repas que j'ai prévu ». Plan perso : repas types facultatifs, nommés comme tels, « Vider les repas types » (Annuler) ;
+    sans repas types, l'écran ne montre que les objectifs ; un ajout du journal ne touche jamais le plan ; plan du coach
+    inchangé (« Total prévu », repas prévus)."""
+    t = tag(dev, theme) + '-types'
+    alby = {'id': 'a1', 'name': 'Saint Alby · Allumettes fumées', 'food': None, 'fam': 'v', 'g': 200, 'per': {'k': 180, 'p': 18, 'c': 1, 'f': 12}, 'src': 'off'}
+    d = ppl_v2_today(now_ms=NOW)
+    d['dietPlans'] = {'d_prot01': {'name': 'Protéines', 'targets': {'p': 144}, 'meals': [
+        {'id': 'm1', 'name': 'Petit-déjeuner', 'items': []}, {'id': 'm2', 'name': 'Déjeuner', 'items': [alby]},
+        {'id': 'm3', 'name': 'Collation', 'items': []}, {'id': 'm4', 'name': 'Dîner', 'items': []}]}}
+    d['dietActive'] = 'd_prot01'
+    meals_js = "JSON.stringify(data.dietPlans.d_prot01.meals.map(m => m.items.map(i => i.name)))"
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, json.dumps(d, ensure_ascii=False))
+        page.evaluate("navigate(makeRoute('diet-plan', 'd_prot01'))")
+        page.wait_for_selector('.diet-plan-view .diet-types-title')
+        v = nb(page.inner_text('.diet-plan-view'))
+        R.check('Repas types (facultatif)' in v and 'Total des repas types' in v and 'Total prévu' not in v and 'Repas prévus' not in v,
+                f'{t} repas ajoutés au plan : nommés « Repas types (facultatif) », jamais « prévus »')
+        gap = nb(page.inner_text('.diet-plan-view .diet-gap'))
+        R.check(gap.startswith('Tes repas types font') and 'protéines' in gap, f'{t} écart nommé « Tes repas types » ({gap!r})')
+        layout(page, t, 'repas types')
+        shot(page, LOT, f't1-repas-types-{t}')
+        page.locator('[data-action="diet-clear-meals"]').scroll_into_view_if_needed()
+        page.click('[data-action="diet-clear-meals"]')
+        page.wait_for_timeout(300)
+        R.check(page.evaluate(meals_js) == '[[],[],[],[]]' and page.evaluate("data.dietPlans.d_prot01.meals.length") == 4, f'{t} « Vider les repas types » : aliments retirés, repas gardés')
+        v = nb(page.inner_text('.diet-plan-view'))
+        R.check(page.locator('.diet-plan-view .diet-gap').count() == 0 and 'Total' not in v and page.locator('[data-action="diet-compose"]').count() == 1
+                and page.locator('[data-action="diet-add-food"]').count() == 0, f'{t} vidé : objectifs seuls, ni total ni écart')
+        R.check('Annuler' in toast(page), f'{t} toast Annuler ({toast(page)!r})')
+        shot(page, LOT, f't2-repas-types-vides-{t}')
+        page.locator('.toast__action').click()
+        page.wait_for_timeout(300)
+        R.check(page.evaluate(meals_js) == '[[],["Saint Alby · Allumettes fumées"],[],[]]', f'{t} Annuler : repas types remis')
+        page.click('[data-action="diet-clear-meals"]')
+        page.wait_for_timeout(300)
+        # Journal du jour : un ajout reste dans la journée, le plan ne change pas, et demain rien n'est prévu
+        page.evaluate("switchTab('train', { reset: true }); navigate('nutrition')")
+        page.wait_for_selector('.nutrition-view [data-action="diet-day-add"][data-meal="m2"]')
+        page.evaluate("""a => { dietAddExtra(data, 'd_prot01', 'm2', a); save(); render(); }""", alby)
+        page.wait_for_timeout(200)
+        R.check(page.evaluate(meals_js) == '[[],[],[],[]]', f'{t} ajout du journal : plan inchangé')
+        R.check(page.evaluate("Object.keys(dietDay(data, 'd_prot01', dietDayKey(Date.now() + 86400000)).extras).length") == 0, f'{t} lendemain : rien de repris')
+        # Plan du coach : repas prévus gardés
+        page.evaluate("""a => { data.dietPlans.d_prot01.fromCoach = { coachId: 'c1', name: 'max', sentAt: 1 }; data.dietPlans.d_prot01.meals[1].items = [a];
+            save(); navigate(makeRoute('diet-plan', 'd_prot01')); }""", alby)
+        page.wait_for_selector('.diet-plan-view')
+        v = nb(page.inner_text('.diet-plan-view'))
+        R.check('Total prévu' in v and 'Repas types' not in v and page.locator('[data-action="diet-clear-meals"]').count() == 0
+                and nb(page.inner_text('.diet-plan-view .diet-gap')).startswith('Les repas prévus font'), f'{t} plan du coach : repas prévus inchangés')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides, t_repas_hier, t_objectifs, t_repas_types],
          once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier, t_minuit, t_vague4_six_repas, t_vague4_plein])

@@ -261,7 +261,9 @@ function dietExtraRowHtml(it, meal, day) {
 function dietMealPlanRowHtml(x, day) {
   const { meal, off } = x;
   const names = meal.items.map(it => foodName(it.name)), kcal = dietMealMacros(meal).kcal;
-  const label = off ? 'Remettre le repas prévu' : 'Copier le plan de ce repas';
+  // Plan perso : « Copier le repas type » (ses repas sont des habitudes facultatives, pas un menu prévu)
+  const personal = dietPersonal(dietActivePlan(data));
+  const label = off ? (personal ? 'Remettre le repas type' : 'Remettre le repas prévu') : personal ? 'Copier le repas type' : 'Copier le plan de ce repas';
   const when = !day || day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
   const sub = `${off ? `Retiré ${when} · ` : ''}${names.join(', ')}${data.dietHideNumbers ? '' : ` · ${dietN(kcal)}\u00a0kcal`}`;
   return `
@@ -445,7 +447,7 @@ function renderNutrition(dayParam) {
         ${dietWeekHtml(day)}
         ${past ? '<button class="btn btn--secondary diet-today" data-action="diet-today">Revenir à aujourd\'hui</button>' : ''}
         ${dietSummaryHtml(pr)}
-        ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}${plan.fromCoach
+        ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan, dietMealsNoun(plan)))}${plan.fromCoach
           ? ` Suis le plan de ${esc(plan.fromCoach.name || 'ton coach')} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>

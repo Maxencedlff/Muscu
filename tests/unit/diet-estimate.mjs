@@ -94,4 +94,23 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     for (const f of ['js/features/diet-editor.js', 'privacy.html']) assert.doesNotMatch(read(f), /ne calcule pas tes besoins/, f);
     assert.match(read('js/features/diet-editor.js'), /Estimation, pas un avis médical/);
   });
+
+  test("repas types : ce qui est noté dans la journée ne s'ajoute jamais au plan (retour du 16/11)", () => {
+    reset();
+    run(`data.dietPlans = { d_p: { name: 'Protéines', targets: { p: 144 }, meals: [{ id: 'm1', name: 'Déjeuner', items: [] }] } }; data.dietActive = 'd_p'`);
+    const before = run('JSON.stringify(data.dietPlans.d_p.meals)');
+    const it = { id: 'x', name: 'Allumettes fumées', food: null, fam: 'v', g: 200, per: { k: 200, p: 18, c: 1, f: 14 }, src: 'off' };
+    assert.ok(run(`dietAddExtra(data, 'd_p', 'm1', ${JSON.stringify(it)})`), 'ajout du jour fait');
+    assert.equal(run('JSON.stringify(data.dietPlans.d_p.meals)'), before, 'repas du plan inchangés');
+    assert.equal(run(`dietDay(data, 'd_p', dietDayKey()).extras.m1.length`), 1, 'gardé dans le journal du jour seulement');
+    // Le lendemain : rien de prévu, rien de repris en silence
+    assert.equal(run(`dietDay(data, 'd_p', dietDayKey(Date.now() + 86400000)).extras.m1`), undefined);
+  });
+
+  test('repas types : la phrase d\'écart nomme les repas du plan (« Tes repas types » pour un plan perso)', () => {
+    const plan = { name: 'P', targets: { p: 144 }, meals: [{ id: 'm1', name: 'R', items: [{ id: 'i', name: 'A', food: null, fam: 'v', g: 100, per: { k: 400, p: 101, c: 0, f: 0 } }] }] };
+    assert.equal(run(`dietTargetGap(${JSON.stringify(plan)}, 'Tes repas types')`), 'Tes repas types font 43 g de protéines de moins que l\'objectif du jour.');
+    assert.match(run(`dietTargetGap(${JSON.stringify(plan)})`), /^Les repas prévus font 43 g/);
+    assert.equal(run(`dietTargetGap(${JSON.stringify({ ...plan, meals: [{ id: 'm1', name: 'R', items: [] }] })}, 'Tes repas types')`), '', 'sans repas types : aucune phrase');
+  });
 }

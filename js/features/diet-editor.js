@@ -13,6 +13,16 @@
 
 const dietPlanOf = id => { const p = data.dietPlans?.[id]; return p && !p.archived ? p : null; };
 const dietMealOf = (plan, mealId) => plan?.meals.find(m => m.id === mealId) || null;
+// Plan perso (ni reçu d'un coach, ni préparé par un coach) : ses repas sont des « repas types » facultatifs, ce que la
+// personne mange d'habitude, pour le copier vite dans sa journée ; l'essentiel est le journal du jour et les objectifs
+// (retour de Maxence du 16/11 : « c'est pas parce que j'ai mangé un truc que demain c'est ce repas que j'ai prévu »).
+// Un plan de coach garde ses repas prévus : c'est un menu à suivre
+function dietPersonal(plan) { return !!plan && !plan.fromCoach && !coachRole().isCoach; }
+function dietHasMealItems(plan) { return !!plan?.meals.some(m => m.items.length); }
+function dietMealsNoun(plan) { return dietPersonal(plan) ? 'Tes repas types' : 'Les repas prévus'; }
+// Plans dont la personne a demandé à composer des repas types (le temps de la session : tant qu'aucun aliment n'y est,
+// l'écran du plan ne montre que les objectifs)
+const dietComposing = new Set();
 
 function renderDietPlans() {
   const ids = dietPlanIds(data);
@@ -78,6 +88,8 @@ function renderDietPlan(id) {
   // Grand titre : le nom du plan entier, même long (iPhone SE) ; la barre compacte, qui le coupe, vient au défilement
   if (!plan) return `<div class="view view--grouped diet-plan-view">${navBar({ title: 'Plan de nutrition' })}<div class="scr"><div class="empty-note">Ce plan n'existe plus.</div></div></div>`;
   const ro = !!plan.fromCoach, on = data.dietActive === id, total = dietPlanMacros(plan);
+  const personal = dietPersonal(plan), filled = dietHasMealItems(plan);
+  const showMeals = !personal || filled || dietComposing.has(id), gap = dietTargetGap(plan, dietMealsNoun(plan));
   const right = ro ? '' : `<button class="navbar__text" data-action="diet-rename" data-id="${esc(id)}">Renommer</button>`;
   const meals = plan.meals.map(meal => `
         <div class="group-title group-title--row diet-meal-title">
@@ -103,16 +115,22 @@ function renderDietPlan(id) {
         <div class="group-title">Par jour</div>
         ${dietMacroLegendHtml()}
         <div class="group">
-          <div class="cell"><span class="cell__body"><span class="cell__title">Total prévu</span><span class="cell__sub num">${dietSrPair(`P\u00a0${dietN(total.p)}\u00a0g · G\u00a0${dietN(total.c)}\u00a0g · L\u00a0${dietN(total.f)}\u00a0g`, dietMacroGramsSpoken(total))}</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>
+          ${personal && !filled ? '' : `<div class="cell"><span class="cell__body"><span class="cell__title">${personal ? 'Total des repas types' : 'Total prévu'}</span><span class="cell__sub num">${dietSrPair(`P\u00a0${dietN(total.p)}\u00a0g · G\u00a0${dietN(total.c)}\u00a0g · L\u00a0${dietN(total.f)}\u00a0g`, dietMacroGramsSpoken(total))}</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>`}
           ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsHtml(plan)}</span></span></div>`
             : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsCellHtml(plan)}</span></span>${icon('chevron.right', 16)}</button>`}
         </div>
-        ${dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}</span></p>` : ''}
+        ${gap ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(gap)}</span></p>` : ''}
         <div class="group-foot">${ro ? `Plan et objectifs fixés par ${esc(plan.fromCoach.name || 'ton coach')} : il les modifie et te les renvoie. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
-          : 'Fixe tes objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. Sans objectif, le total prévu sert de repère.'}</div>
+          : personal ? 'Fixe tes objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. Ce que tu manges se note chaque jour dans Entraînement › Nutrition.'
+            : 'Fixe les objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. Sans objectif, le total prévu sert de repère.'}</div>
         ${dietLowKcal(plan) ? dietLowNoteHtml(!!plan.targets?.kcal) : ''}
-        ${meals}
-        ${ro || plan.meals.length >= DIET_MEAL_MAX ? '' : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-add-meal" data-id="${esc(id)}">${icon('plus', 20)}<span>Ajouter un repas</span></button></div>`}
+        ${personal ? (showMeals ? `<div class="group-title diet-types-title">Repas types (facultatif)</div>
+        <div class="group-foot diet-types-foot">Ce que tu manges d'habitude, pour le copier vite dans ta journée. Ce que tu notes dans Nutrition ne s'ajoute jamais ici.</div>`
+          : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-compose" data-id="${esc(id)}">${icon('plus', 20)}<span>Composer des repas types (facultatif)</span></button></div>
+        <div class="group-foot">Ce que tu manges d'habitude, pour le copier vite dans ta journée.</div>`) : ''}
+        ${showMeals ? meals : ''}
+        ${personal && filled ? `<div class="group group--gap"><button class="cell cell--action" data-action="diet-clear-meals" data-id="${esc(id)}">${icon('trash', 20)}<span>Vider les repas types</span></button></div>` : ''}
+        ${ro || !showMeals || plan.meals.length >= DIET_MEAL_MAX ? '' : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-add-meal" data-id="${esc(id)}">${icon('plus', 20)}<span>Ajouter un repas</span></button></div>`}
         <div class="group group--gap">
           ${!ro && coachRole().isCoach ? `<button class="cell cell--action" data-action="diet-send-student" data-id="${esc(id)}">${icon('paperplane', 20)}<span>Envoyer à un élève</span></button>` : ''}
           <button class="cell cell--action" data-action="diet-duplicate" data-id="${esc(id)}">${icon('doc.on.doc', 20)}<span>${ro ? 'Dupliquer pour le modifier' : 'Dupliquer le plan'}</span></button>
@@ -293,7 +311,7 @@ async function dietAskGrams(food, value = 100) {
 // Rend { targets } (null = aucun objectif) ou null si annulée
 const DIET_T_ROWS = [['kcal', 'Calories', 'kcal'], ['p', 'Protéines', 'g'], ['c', 'Glucides', 'g'], ['f', 'Lipides', 'g']];
 
-function dietTargetsEditHtml(t, total, kg) {
+function dietTargetsEditHtml(t, total, kg, plan) {
   const row = (k, label, unit) => {
     const dot = k === 'kcal' ? '' : `<i class="diet-dot diet-dot--${k}" aria-hidden="true"></i>`;
     const unitHtml = k === 'p' && kg
@@ -304,12 +322,16 @@ function dietTargetsEditHtml(t, total, kg) {
           value="${t[k] ?? ''}" placeholder="Aucun" aria-label="${label} par jour${k === 'kcal' ? ', en kilocalories' : ', en grammes'}. Vide : aucun objectif">
         ${unitHtml}</label>`;
   };
-  const planned = `Repas prévus : ${dietN(total.kcal)} kcal · P ${dietN(total.p)} g · G ${dietN(total.c)} g · L ${dietN(total.f)} g`;
-  const plannedSpoken = 'Repas prévus : ' + dietN(total.kcal) + ' kilocalories, ' + dietMacroGramsSpoken(total);
+  const word = dietPersonal(plan) ? 'Repas types' : 'Repas prévus';
+  const planned = `${word} : ${dietN(total.kcal)} kcal · P ${dietN(total.p)} g · G ${dietN(total.c)} g · L ${dietN(total.f)} g`;
+  const plannedSpoken = word + ' : ' + dietN(total.kcal) + ' kilocalories, ' + dietMacroGramsSpoken(total);
+  // Sans repas types, pas de « Repas types : 0 kcal » : seulement ce que veut dire un champ vide
+  const empty = `Un champ vide : pas d'objectif`;
+  const hint = dietHasMealItems(plan) ? `${dietSrPair(esc(planned), esc(plannedSpoken))}. ${empty}, leur total sert de repère.` : `${empty}.`;
   return `<div data-tstep="edit">
       <div class="diet-fields">${DIET_T_ROWS.map(r => row(...r)).join('')}</div>
       <p class="diet-tg__pkg num" id="dietTPkg" aria-live="polite"></p>
-      <p class="diet-form__hint num">${dietSrPair(esc(planned), esc(plannedSpoken))}. Un champ vide : pas d'objectif, le total prévu sert de repère.</p>
+      <p class="diet-form__hint num">${hint}</p>
       <p class="diet-form__err" id="dietTErr" role="alert"></p>
       <div class="diet-tg__links">
         <button type="button" class="diet-tg__link" data-tpropose>Me proposer des objectifs</button>
@@ -364,7 +386,7 @@ async function dietTargetsSheet(plan) {
   const kg = kg0 && kg0 >= DIET_EST_BOUNDS.kg[0] && kg0 <= DIET_EST_BOUNDS.kg[1] ? kg0 : null;
   // Sexe : celui déclaré dans Réglages › Entraînement (niveau de force), jamais la silhouette (un choix d'affichage)
   const pre = { goal: 'keep', activity: 'mid', sex: isCoach ? null : strengthSex(), kg };
-  const body = `<div class="diet-form diet-tg">${dietTargetsEditHtml(t, total, kg)}${dietTargetsAskHtml(pre)}${dietTargetsResultHtml()}</div>`;
+  const body = `<div class="diet-form diet-tg">${dietTargetsEditHtml(t, total, kg, plan)}${dietTargetsAskHtml(pre)}${dietTargetsResultHtml()}</div>`;
   // pExact : grammes exacts derrière le champ tant qu'il n'est pas retouché (144 g affichés « 1,9 g/kg » restent
   // 144 g, pas 142 : l'arrondi du ratio ne change jamais un objectif en silence)
   let perKg = !!kg && data.dietProteinPerKg === true, proposal = null, pExact = t.p ?? null;
@@ -476,7 +498,8 @@ registerActions({
       showToast(`${coachRole().isCoach ? DIET_PLAN_MAX_COACH : DIET_PLAN_MAX} plans au plus : supprimes-en un d'abord`, { error: true });
       return;
     }
-    const name = await askText({ title: 'Nouveau plan', message: 'Quatre repas sont prêts à remplir ; tu pourras les renommer.', placeholder: 'Mon plan', confirm: 'Créer' });
+    const name = await askText({ title: 'Nouveau plan', message: coachRole().isCoach ? 'Quatre repas sont prêts à remplir ; tu pourras les renommer.'
+      : 'Tu y fixes tes objectifs du jour ; ce que tu manges se note chaque jour dans Nutrition.', placeholder: 'Mon plan', confirm: 'Créer' });
     if (!name) return;
     // Premier plan : suivi d'office, sauf pour un coach (js/data/nutrition.js, dietNewPlan)
     const id = dietNewPlan(data, name, { isCoach: coachRole().isCoach });
@@ -508,6 +531,22 @@ registerActions({
     if (!r) return;
     if (r.targets) plan.targets = r.targets; else delete plan.targets;
     dietSaved();
+  },
+  'diet-compose': (e, el) => { dietComposing.add(el.dataset.id); render(); },
+  // Vider les repas types (plan perso) : aliments retirés, repas gardés (le journal s'y rattache) ; Annuler les remet
+  'diet-clear-meals': (e, el) => {
+    const plan = dietPlanOf(el.dataset.id);
+    if (!dietPersonal(plan) || !dietHasMealItems(plan)) return;
+    const before = plan.meals.map(m => m.items);
+    for (const m of plan.meals) m.items = [];
+    dietComposing.delete(el.dataset.id);
+    dietSaved();
+    showToast('Repas types vidés', { action: 'Annuler', duration: 6000, onAction: () => {
+      const p = dietPlanOf(el.dataset.id);
+      if (!p) return;
+      p.meals.forEach((m, i) => { if (before[i] && !m.items.length) m.items = before[i]; });
+      dietTouch(p); save(); render();
+    } });
   },
   'diet-add-meal': async () => {
     const ed = dietEditedPlan();

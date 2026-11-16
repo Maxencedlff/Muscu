@@ -91,6 +91,8 @@ def open_plan(page, theme, shell=True):
     seed(page, theme, plan_json(), extra={'ppl_welcome_seen': '1'})
     page.wait_for_timeout(300)
     page.evaluate("navigate(makeRoute('diet-plan', 'd_scan01'))")
+    page.wait_for_selector('.diet-plan-view')
+    page.locator('[data-action="diet-compose"]').click() if page.locator('[data-action="diet-compose"]').count() else None   # plan perso vide : repas types facultatifs, cachés
     page.wait_for_selector('.diet-plan-view [data-action="diet-add-food"]')
     return off
 

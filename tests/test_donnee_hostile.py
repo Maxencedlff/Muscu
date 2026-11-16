@@ -335,7 +335,9 @@ def t_off(bench, eng, dev, theme):
         page.route('https://world.openfoodfacts.org/**', off_route)
         seed(page, theme, json.dumps(d, ensure_ascii=False), extra={'ppl_welcome_seen': '1'})
         page.wait_for_timeout(300)
-        go(page, "makeRoute('diet-plan', 'd_evil')", '.diet-plan-view [data-action="diet-add-food"]')
+        go(page, "makeRoute('diet-plan', 'd_evil')", '.diet-plan-view')
+        page.locator('[data-action="diet-compose"]').click() if page.locator('[data-action="diet-compose"]').count() else None   # plan perso vide : repas types facultatifs, cachés
+        page.wait_for_selector('.diet-plan-view [data-action="diet-add-food"]')
         for meal, (code, (_, expect)) in enumerate(OFF_PRODUCTS.items()):
             label = ', '.join(expect)
             page.locator('[data-action="diet-add-food"]').nth(meal).click()

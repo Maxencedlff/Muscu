@@ -783,9 +783,11 @@ def p_nutrition(r):
     with r.etape('nouveau-plan', '« Créer un plan » : nom du plan', cle=cle):
         r.toucher('[data-action="diet-new-plan"]', 'Créer un plan')
         r.saisir('.ios-dialog__input', 'Ma prise de masse', 'nom du plan')
-    with r.etape('plan-cree', 'Plan créé : quatre repas à remplir', cle=cle):
+    with r.etape('plan-cree', 'Plan créé : objectifs du jour, repas types facultatifs (cachés)', cle=cle):
         r.choisir('Créer')
         r.attendre('.diet-plan-view', 'plan de nutrition')
+    with r.etape('repas-types', '« Composer des repas types (facultatif) » : quatre repas à remplir', cle=cle):
+        r.toucher('[data-action="diet-compose"]', 'Composer des repas types')
     with r.etape('recherche-aliment', 'Ajouter un aliment : recherche « riz blanc cuit »', cle=cle):
         r.toucher('[data-action="diet-add-food"]', 'Ajouter un aliment (Petit-déjeuner)')
         r.attendre('#dietFoodSearch', 'feuille de recherche')
@@ -839,7 +841,7 @@ def p_nutrition(r):
     # Plan perso : jours vides par défaut (on note ce qu'on mange) ; « Copier le plan de ce repas » le remplit, à cocher ensuite
     with r.etape('repas-copie', 'Jour vide : « Copier le plan de ce repas » (aliments du plan, pastilles de famille)'):
         if r.present('.nutrition-view [data-action="diet-meal-back"][data-op="copy"]', timeout=1500):
-            r.toucher('.nutrition-view [data-action="diet-meal-back"][data-op="copy"]', 'Copier le plan de ce repas')
+            r.toucher('.nutrition-view [data-action="diet-meal-back"][data-op="copy"]', 'Copier le repas type')
         r.attendre('.nutrition-view .diet-meal [data-action="diet-check"]', 'rond à cocher')
     with r.etape('repas-coche', 'Petit-déjeuner coché : les macros montent', cle='Cocher un repas'):
         r.toucher('.nutrition-view .diet-meal [data-action="diet-check"]', 'cocher le petit-déjeuner')
@@ -927,7 +929,7 @@ def p_scan(r):
     d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
     d['dietActive'] = 'd_scan01'
     r.lancer(json.dumps(d, ensure_ascii=False, separators=(',', ':')))
-    r.raccourci("navigate(makeRoute('diet-plan', 'd_scan01'))", 'plan de nutrition « Mon plan » ouvert (Programme › Plans de nutrition)')
+    r.raccourci("navigate(makeRoute('diet-plan', 'd_scan01')); dietComposing.add('d_scan01'); render()", 'plan de nutrition « Mon plan » ouvert, repas types affichés (Programme › Plans de nutrition)')
     cle = 'Scanner un produit et l\'ajouter'
     with r.etape('feuille', 'Ajouter un aliment : « Scanner un code-barres » en tête', cle=cle):
         r.toucher('[data-action="diet-add-food"][data-meal="m1"]', 'Ajouter un aliment (Déjeuner)')

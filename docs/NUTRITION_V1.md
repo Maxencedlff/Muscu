@@ -250,6 +250,16 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
   publiée) ; « Utiliser ces objectifs » (enregistre) ou « Ajuster » (remplit la saisie). Un coach : ni g/kg ni
   poids pré-rempli (le sien ne vaut pas pour ses élèves). Plan reçu d'un coach : objectifs en lecture seule
   (« Plan et objectifs fixés par … »), « Dupliquer pour le modifier ».
+- **Plan perso : repas types facultatifs** (retour de Maxence du 16/11/2026 : « repas prévu, je comprends pas… c'est
+  pas parce que j'ai mangé un truc que demain c'est ce repas que j'ai prévu »). Rien dans l'app ne copie le journal
+  dans le plan (`dietAddExtra` n'écrit que `dietLog`, testé) : les aliments d'un plan ne viennent que de « Ajouter un
+  aliment » de l'écran du plan (`diet-add-food`, `js/features/diet-editor.js`), atteint par « Mon plan » depuis
+  Nutrition ; avant le 09/11, le journal ne savait pas ajouter un aliment à la journée, c'était le seul moyen de
+  noter un produit (scanné). Désormais, pour un plan perso (ni reçu d'un coach, ni préparé par un coach) : sans
+  aliment, l'écran du plan ne montre que les objectifs et « Composer des repas types (facultatif) » ; avec des
+  aliments, « Repas types (facultatif) : ce que tu manges d'habitude, pour le copier vite dans ta journée »,
+  « Total des repas types », l'écart nommé « Tes repas types font… », « Vider les repas types » (un toucher, repas
+  gardés, Annuler). Journal : « Copier le repas type ». Le plan d'un coach garde « Total prévu » et ses repas prévus.
 - **Calories fixées, pas une macro** (un coach fixe souvent kcal et protéines) : cette macro s'affiche sans repère
   ni jauge (« Pas d'objectif ») ; son total tiré du plan ne collerait pas aux calories fixées.
 - **Repas vides** (plan neuf pas encore rempli) : ni cochables, ni comptés dans « n repas cochés sur N » ou la

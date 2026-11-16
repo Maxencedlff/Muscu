@@ -318,8 +318,9 @@ function dietLowKcal(plan) {
 
 // Écart de plus de 10 % entre les repas prévus et l'objectif fixé (calories, protéines) : une phrase, sinon ''.
 // « 1 425 kcal prévues » à côté de « objectif 2 000 kcal » passait inaperçu, à l'envoi du coach comme chez
-// l'élève (panel du 07/11) ; rien n'est bloqué, c'est un signal
-function dietTargetGap(plan) {
+// l'élève (panel du 07/11) ; rien n'est bloqué, c'est un signal. noun : « Les repas prévus » (plan d'un coach), « Tes
+// repas types » (plan perso : des repas d'habitude facultatifs, pas un menu imposé, retour du 16/11)
+function dietTargetGap(plan, noun = 'Les repas prévus') {
   const t = plan?.targets;
   if (!t || !plan.meals?.some(m => m.items?.length)) return '';
   const total = dietPlanMacros(plan);
@@ -328,7 +329,7 @@ function dietTargetGap(plan) {
     if (!goal || Math.abs(diff) <= goal * 0.1) return [];
     return [`${fmtNum(Math.abs(diff))} ${unit} de ${diff < 0 ? 'moins' : 'plus'}`];
   });
-  return parts.length ? `Les repas prévus font ${parts.join(' et ')} que l'objectif du jour.` : '';
+  return parts.length ? `${noun} font ${parts.join(' et ')} que l'objectif du jour.` : '';
 }
 
 // ── Macros ──────────────────────────────────────────────────
