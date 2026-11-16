@@ -72,7 +72,7 @@ ${renderAccessSettingsGroup()}
           ${renderBodyWeightSetting()}
           ${strengthSexSettingHtml()}
           <button class="cell" data-action="setting-rir" role="switch" aria-checked="${rirShown()}">
-            ${cellIco('battery.reserve', 'blue')}
+            ${cellIco('gauge', 'blue')}
             <span class="cell__body"><span class="cell__title">Reps en réserve</span>
               <span class="cell__sub">Après chaque série, facultatif</span></span>
             ${switchHtml(rirShown())}

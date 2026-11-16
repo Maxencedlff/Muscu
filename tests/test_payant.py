@@ -692,8 +692,23 @@ def t_verrou_eteint(bench, eng, dev, theme):
         # Réglages : l'état est dit en clair, sans rien promettre
         page.evaluate("routeTo('settings')")
         page.wait_for_selector('[data-action="access-open-settings"]')
-        R.check('Tout est ouvert' in page.inner_text('[data-action="access-open-settings"]'),
+        R.check(page.inner_text('[data-action="access-open-settings"] .cell__value').strip() == 'Ouvert',
                 f'{t} verrou éteint : Réglages le disent')
+        # Sur 320 pt : le titre « Abonnement » garde sa largeur, 8 px au moins avant la valeur (panel reglages-v2)
+        vp = page.viewport_size
+        page.set_viewport_size({'width': 320, 'height': vp['height']})
+        page.wait_for_timeout(150)
+        gap = page.evaluate("""() => { const c = document.querySelector('[data-action="access-open-settings"]');
+            const t = c.querySelector('.cell__title'), v = c.querySelector('.cell__value');
+            const r = document.createRange(); r.selectNodeContents(t);
+            return { gap: v.getBoundingClientRect().left - r.getBoundingClientRect().right, cut: t.scrollWidth > t.clientWidth + 1 }; }""")
+        page.set_viewport_size(vp)
+        R.check(gap['gap'] >= 8 and not gap['cut'], f'{t} Réglages › Abonnement sur 320 pt : titre entier, 8 px avant la valeur {gap}')
+        # Texte agrandi, connecté : l'avatar reste, réduit à 44 px (masqué seulement pour « Se connecter »)
+        av = page.evaluate("""() => { const h = document.documentElement; h.classList.add('type-xl');
+            const a = document.querySelector('.settings-view .account-cell .avatar'); const r = a && a.getBoundingClientRect();
+            h.classList.remove('type-xl'); return r ? [Math.round(r.width), Math.round(r.height)] : null; }""")
+        R.check(av == [44, 44], f'{t} Réglages texte agrandi, connecté : avatar de 44 px gardé ({av})')
         page.click('[data-action="access-open-settings"]')
         page.wait_for_selector('.pay-settings-view')
         R.check('Tout est ouvert pour l\'instant' in page.inner_text('.pay-settings-view'), f'{t} Abonnement : verrou éteint expliqué')

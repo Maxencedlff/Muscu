@@ -635,8 +635,10 @@ html.type-xl .cell.social-row { flex-wrap: wrap; row-gap: 4px; padding-bottom: 8
 html.type-xl .cell.social-row .social-row__main { flex-basis: 100%; }
 /* Repos : −15 / +15 à la taille de leur texte (ils sortaient de leurs cercles) */
 html.type-xl .rs__round { width: auto; height: auto; min-width: 56px; min-height: 56px; padding: 8px 14px; border-radius: 28px; }
-/* Réglages › Se connecter : sans l'avatar de tête, « Se connecter » tient entier sur sa ligne (il était coupé « connec/ter ») */
-html.type-xl .account-cell > .avatar { display: none; }
+/* Réglages › Se connecter : sans l'avatar de tête, « Se connecter » tient entier sur sa ligne (il était coupé « connec/ter ») ;
+   connecté, l'avatar (photo ou initiale) reste, réduit à 44 px (panel reglages-v2) */
+html.type-xl .account-cell--out > .avatar { display: none; }
+html.type-xl .account-cell:not(.account-cell--out) > .avatar { width: 44px; height: 44px; font-size: 24px; }
 /* Photos envoyées : le texte sur toute la largeur, « Retirer » dessous, à gauche (il écrasait la ligne) */
 html.type-xl .cph-row { flex-wrap: wrap; }
 html.type-xl .cph-row > .cell__body { flex-basis: 100%; }

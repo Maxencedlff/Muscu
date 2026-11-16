@@ -566,6 +566,24 @@ def t_programme(bench, eng, dev, theme):
                           return { t: c.textContent.trim().slice(0, 30), shown: i.width > 0, beside: b.left >= i.right && b.top < i.bottom }; });
             h.classList.remove('type-xl'); return out; }""")
         R.check(xl and all(r['shown'] and r['beside'] for r in xl), f'{t} réglages texte agrandi : icônes gardées, titre à côté {[r["t"] for r in xl if not (r["shown"] and r["beside"])]}')
+        # Texte agrandi, chevron : toujours au bord droit, jamais seul à gauche sous le carré (panel reglages-v2) ; avec une
+        # valeur, sur la même rangée qu'elle ; sans valeur, à hauteur du titre. Tailles AX1 et AX3 de la police.
+        for fs in (23, 33):
+            chev = page.evaluate("""fs => { const h = document.documentElement, old = h.style.fontSize; h.classList.add('type-xl'); h.style.fontSize = fs + 'px';
+                const out = [...document.querySelectorAll('.view.settings-view .cell--nav')].filter(c => c.querySelector(':scope > .set-ico'))
+                  .map(c => { const cr = c.getBoundingClientRect(), i = c.querySelector(':scope > .set-ico').getBoundingClientRect(),
+                                  ch = c.querySelector(':scope > .icon:last-child').getBoundingClientRect(), b = c.querySelector(':scope > .cell__body').getBoundingClientRect(),
+                                  v = c.querySelector(':scope > .cell__value:not(:empty)'), vr = v && v.getBoundingClientRect(), mid = ch.top + ch.height / 2;
+                              return { t: c.textContent.trim().slice(0, 24), right: cr.right - ch.right <= 16, notUnder: ch.left > i.right + 20,
+                                       row: vr ? mid > vr.top && mid < vr.bottom : mid > b.top && mid < b.bottom }; });
+                h.classList.remove('type-xl'); h.style.fontSize = old; return out; }""", fs)
+            bad = [r['t'] for r in chev if not (r['right'] and r['notUnder'] and r['row'])]
+            R.check(chev and not bad, f'{t} réglages texte agrandi {fs} px : chevron à droite, sur la rangée de sa valeur ou de son titre {bad}')
+        # Sauvegarde jamais faite : rouge d'alerte système, pas l'orange ambré voisin de l'orange des actions
+        warn = page.evaluate("""() => { const v = document.querySelector('[data-action="go-backup"] .cell__value'), p = document.createElement('span');
+            p.style.color = 'var(--red-text)'; document.body.append(p); const want = getComputedStyle(p).color; p.remove();
+            return [getComputedStyle(v).color, want]; }""")
+        R.check(warn[0] == warn[1], f'{t} réglages : « Jamais » en rouge d\'alerte {warn}')
         R.check(page.locator('.view.settings-view [data-action="export"], .view.settings-view #lastExportTxt').count() == 0, f'{t} réglages : export déplacé dans Sauvegarde')
         bk = page.locator('[data-action="go-backup"] .cell__value.txt-warn')
         R.check(bk.count() == 1 and bk.inner_text().strip() == 'Jamais', f'{t} réglages : Sauvegarde « Jamais » en orange sans compte')

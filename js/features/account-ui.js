@@ -61,7 +61,7 @@ function renderAccountGroupInner() {
   const info = signedIn ? null : accountReconnectInfo();
   const sub = signedIn ? 'Compte et sauvegarde' : info?.ended ? 'Ta session a pris fin' : info ? 'Reconnecte-toi pour reprendre la sauvegarde' : 'Sauvegarde tes séances sur un compte';
   return `
-          <button class="cell cell--nav account-cell" data-action="go-account" aria-label="${esc(signedIn ? `${name}, ${sub}` : `${name}. ${sub}`)}">
+          <button class="cell cell--nav account-cell${signedIn ? '' : ' account-cell--out'}" data-action="go-account" aria-label="${esc(signedIn ? `${name}, ${sub}` : `${name}. ${sub}`)}">
             ${avatarHtml('l')}
             <span class="cell__body"><span class="account-cell__name">${esc(name)}</span><span class="cell__sub">${esc(sub)}</span></span>
             ${icon('chevron.right', 16)}

@@ -61,9 +61,9 @@ function accessStatusText() {
   return ACCESS_STATUS_TEXT[st] || ACCESS_STATUS_TEXT.unknown;
 }
 
-// Valeur courte affichée dans la cellule des Réglages
+// Valeur courte affichée dans la cellule des Réglages (un mot : sur 320 pt, « Tout est ouvert » collait au titre)
 function accessShortValue() {
-  if (!paywallOn()) return 'Tout est ouvert';
+  if (!paywallOn()) return 'Ouvert';
   return accessStatusText();
 }
 

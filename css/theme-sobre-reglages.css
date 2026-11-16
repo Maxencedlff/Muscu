@@ -45,17 +45,36 @@
 /* Groupe de la seule ligne destructive : centrée, comme « Réinitialiser » d'iOS */
 .settings-view .cell--destructive { justify-content: center !important; }
 
-/* Texte agrandi : les carrés restent, le texte passe à la ligne à côté d'eux. css/screens.css fait passer la valeur
-   ou le segment dessous, à droite ; ici, le titre est borné à la place qui reste à droite du carré (sinon il
-   descendait sous le carré, laissé seul sur sa ligne). Même sélecteur que screens.css, plus le carré : il l'emporte. */
-html.type-xl .settings-view .cell:has(> .set-ico):is(:has(> .cell__value), :has(> .cell__trail), .cell--ctl:has(> .segmented)) > .cell__body {
+/* Valeur vide (Coach sans compte, Supprimés récemment à zéro) : rien, pas même son écart */
+.settings-view .cell > .cell__value:empty { display: none; }
+/* Taille normale : le titre garde toujours sa largeur, c'est la valeur qui cède (points de suspension) ;
+   « Abonnement » collait à « Tout est ouvert » sur 320 pt (panel reglages-v2) */
+html:not(.type-xl) .settings-view .cell:has(> .set-ico) .cell__title { white-space: nowrap; }
+html:not(.type-xl) .settings-view .cell:has(> .set-ico) > .cell__body { min-width: auto; }
+.settings-view .cell:has(> .set-ico) > .cell__value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Sauvegarde jamais faite (sans compte) : rouge d'alerte système, plus l'orange ambré trop proche des actions */
+.settings-view .txt-warn, .backup-view .txt-warn { color: var(--red-text); }
+
+/* Texte agrandi : les carrés restent, le titre passe à la ligne à côté de son carré, jamais dessous.
+   - Ligne avec une valeur : grille, le carré sur deux rangées, le titre en rangée 1, la valeur et le chevron
+     ensemble en rangée 2 à droite (en flex, le chevron finissait seul à gauche, sous le carré).
+   - Ligne avec un segment : css/screens.css le fait passer dessous, à droite ; le titre est borné à côté du carré.
+   - Ligne sans valeur (Guide, pages légales) : chevron hors du flux, à droite, centré sur le titre ; la place
+     gagnée garde les longs mots entiers (« Confidentialité » en AX3 sur iPhone SE). */
+html.type-xl .settings-view .cell:has(> .set-ico):has(> .cell__value:not(:empty)) {
+  display: grid; grid-template-columns: var(--set-ico-size) minmax(0, 1fr) auto auto;
+  column-gap: var(--set-ico-gap); row-gap: 4px; align-items: center;
+}
+html.type-xl .settings-view .cell:has(> .set-ico):has(> .cell__value:not(:empty)) > .set-ico { grid-column: 1; grid-row: 1 / span 2; }
+html.type-xl .settings-view .cell:has(> .set-ico):has(> .cell__value:not(:empty)) > .cell__body { grid-column: 2 / -1; grid-row: 1; max-width: none; }
+html.type-xl .settings-view .cell:has(> .set-ico):has(> .cell__value:not(:empty)) > .cell__value { grid-column: 2 / 4; grid-row: 2; justify-self: end; margin-left: 0; white-space: normal; text-align: right; }
+html.type-xl .settings-view .cell:has(> .set-ico):has(> .cell__value:not(:empty)) > .icon:last-child { grid-column: 4; grid-row: 2; }
+html.type-xl .settings-view .cell:has(> .set-ico).cell--ctl:has(> .segmented) > .cell__body {
   max-width: calc(100% - var(--set-ico-size) - var(--set-ico-gap));
 }
-/* Ligne sans valeur (Guide, pages légales) : chevron sorti du flux, collé au bord droit et centré ; la place gagnée
-   évite de couper un long mot (« Confidentialité » en AX3 sur iPhone SE). Avec une valeur, le chevron reste à côté
-   d'elle, sur la ligne du dessous. */
-html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) { padding-right: 30px; }
-html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) > .icon:last-child { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value:not(:empty))) { padding-right: 30px; }
+html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value:not(:empty))) > .icon:last-child { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
 /* Écrans de 320 pt (iPhone SE 1re génération, petits Android) : carré et marges réduits (24 px, 8 px de marge) ;
    chaque titre tient sur une ligne même avec une police plus large que SF Pro (DejaVu de la CI), « Carte « Ta
    semaine » » à côté de son interrupteur compris ; en texte agrandi, les mots longs restent entiers */
@@ -65,6 +84,6 @@ html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value))
   .settings-view .set-ico { border-radius: 6px; }
   .settings-view .set-ico .icon { width: 16px; height: 16px; }
   .settings-view .cell + .cell:has(> .set-ico)::before { left: calc(var(--set-ico-pad) + var(--set-ico-size) + var(--set-ico-gap)); }
-  html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) { padding-right: 24px; }
-  html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) > .icon:last-child { right: 6px; }
+  html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value:not(:empty))) { padding-right: 24px; }
+  html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value:not(:empty))) > .icon:last-child { right: 6px; }
 }
