@@ -61,8 +61,12 @@ function exerciseIndex() {
     let it = map.get(key);
     if (!it) { it = { exId: key, name: e.name, points: [], cat: h.category, prog: entryProg(h) }; map.set(key, it); }
     it.name = e.name; it.measure = measureOf(e); it.unit = MEASURES[it.measure].unit; it.cat = h.category; it.prog = entryProg(h);
+    p.measure = it.measure;
     it.points.push(p);
   }));
+  // Une courbe, une grandeur : celle de la dernière séance. Les séances notées dans une autre mesure (vacuum en
+  // répétitions avant le 16/11/2026, mesure changée à la main) restent dans l'Historique, jamais lues « 12 s »
+  map.forEach(it => { it.points = it.points.filter(p => p.measure === it.measure); });
   return map;
 }
 

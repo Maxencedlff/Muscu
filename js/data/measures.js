@@ -24,14 +24,42 @@ function isMeasure(m) { return m === 'time' || m === 'cardio'; }
 // Objectif d'une série qu'on n'a jamais faite : haut de fourchette de l'exercice en répétitions
 // (12 sans réglage), 30 s de maintien, 20 min de cardio. Affiché en gris dans la case et pris tel quel
 // si la case reste vide à la validation : ce que l'on voit est ce qui s'enregistre.
-function defaultGoal(measure, repMax) {
-  if (measure === 'time' || measure === 'cardio') return MEASURES[measure].goal;
+// name : maintien guidé (holdGuide) : sa durée conseillée plutôt que 30 s
+function defaultGoal(measure, repMax, name = '') {
+  if (measure === 'time') return holdGuide({ name, measure })?.goal ?? MEASURES.time.goal;
+  if (measure === 'cardio') return MEASURES[measure].goal;
   return num(repMax, 1, MEASURES.reps.max, true) ?? MEASURES.reps.goal;
 }
 
 // Exercices de la bibliothèque qui se tiennent dans le temps (les cardio sont ceux de la famille « cardio »)
 const TIMED_EXERCISES = new Set(['Gainage (planche)', 'Gainage latéral', 'Gainage creux', 'L-sit', 'Chaise contre le mur',
-  'Suspension passive', 'Front lever']);
+  'Suspension passive', 'Front lever', 'Vacuum']);
+
+// Maintiens guidés : exercices qui se notent en maintiens (« 5 maintiens de 20 s », jamais en séries de
+// musculation) et dont le chrono dit quoi faire à chaque instant (js/data/effort-clock.js, holdCue).
+// Vacuum : protocole et sources dans docs/VACUUM.md. goal : durée d'un maintien sans séance précédente.
+// prep : consignes de la préparation, de la plus tôt à la plus tard ([secondes restantes au plus, texte]) ;
+// start / hold / last / end : départ du maintien, pendant, 3 dernières secondes, fin (annoncés à VoiceOver) ;
+// rest : repos par défaut entre deux maintiens (secondes), tant que ni le programme ni la séance n'en fixent un.
+const HOLD_GUIDES = {
+  // 10 s puis 15 à 20 s quand c'est maîtrisé, 15 s de repos (essais résumés par Golob 2024) ; respiration gardée
+  Vacuum: {
+    goal: 10, rest: 15,
+    prep: [[5, 'Expire tout ton air'], [2, 'Rentre le bas du ventre']],
+    start: 'Ventre rentré, respire petit', hold: 'Respire petit, dos immobile', last: 'Encore un peu', end: 'Relâche',
+  },
+};
+// Guide d'un exercice en durée (null sinon) : par sa fiche de la bibliothèque, alias compris
+function holdGuide(ex) {
+  if (measureOf(ex) !== 'time') return null;
+  const e = catalogueEntry(ex?.name || '');
+  return (e && HOLD_GUIDES[e.name]) || null;
+}
+// « maintien » ou « série » : le mot d'une série de cet exercice ; plural : « maintiens », « séries »
+function setNoun(ex, n = 1) {
+  const hold = !!holdGuide(ex);
+  return n > 1 ? (hold ? 'maintiens' : 'séries') : (hold ? 'maintien' : 'série');
+}
 // Noms saisis librement : maintiens et cardio reconnus par mots-clés (sur ruleKey)
 const TIMED_RE  = /gainage|planche|plank|chaise (contre le|au) mur|wall sit|suspension|dead hang|\bl sit|hollow|front lever|back lever|maintien|isometri/;
 const CARDIO_RE = /course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|escalier|stair|stepmill|step mill|climbmill|powermill|rameur|natation/;

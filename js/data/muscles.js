@@ -99,7 +99,7 @@ function editDistance(a, b, max = 2) {
 function searchWords(name) {
   const entry = catalogueEntry(name);
   const texts = [name, ...(entry ? entry.aliases : [])].map(ruleKey);
-  const muscles = exerciseMuscles({ name }).primary.map(id => MUSCLE_WORDS[id] || '').join(' ');
+  const m = exerciseMuscles({ name }), muscles = [...m.primary.map(id => MUSCLE_WORDS[id] || ''), ...deepMuscleWords(m)].join(' ');
   // Mots séparés, plus chaque nom en un seul mot (« hipthrust »)
   return [...new Set([...texts.join(' ').split(' '), ...texts.map(t => t.replace(/ /g, '')), ...muscles.split(' ')]
     .filter(Boolean).map(plainWord))];
@@ -198,7 +198,7 @@ const MUSCLE_RULES = [
   [/shrug|haussement|trapeze/,                                                            'traps', 'forearms'],
   // Obliques avant les abdominaux : rotations et flexions latérales du buste, gainage sur le côté, anti-rotation
   [/oblique|russian|rotations? russes?|twist|rotations? (du )?(buste|tronc)|torso rotation|trunk rotation|bucheron|wood ?chop|pallof|anti ?rotation|flexions? laterales?|side bend|inclinaisons? laterales?|gainage lateral|planche laterale|side (plank|bridge)|crunch (croise|lateral|velo|bicyclette)|bicycle crunch|suitcase|valise|windmill|moulin/, 'obliques', 'abs'],
-  [/crunch|abdo|gainage|planche|plank|\breleve|leg raise|roue|ab wheel|sit ?up|mountain|grimpeur|hollow|vacuum|hollowing|get ?up|turc|dead bug|\bl sit|toes to bar/, 'abs', ''],
+  [/crunch|abdo|gainage|planche|plank|\breleve|leg raise|roue|ab wheel|sit ?up|mountain|grimpeur|hollow(?!ing)|get ?up|turc|dead bug|\bl sit|toes to bar/, 'abs', ''],
   [/militaire|military|epaule|arnold|overhead|shoulder press|\bohp\b|push press|\bz press|viking|landmine|developpe nuque|halo/, 'front_delts', 'side_delts triceps traps'],
   [/ecarte|pec deck|\bpecs?\b|butterfly|\bfly\b|vis a vis|crossover|croise/,               'chest', 'front_delts'],
   [/(developpe|press|bench).*incline|incline.*(press|bench)/,                             'chest front_delts', 'triceps'],
@@ -213,7 +213,7 @@ const MUSCLE_RULES = [
   [/developpe|press/,                                                                     'chest', 'front_delts triceps'],
 ].map(([re, primary, secondary]) => [re, primary.split(' ').filter(Boolean), secondary.split(' ').filter(Boolean)]);
 
-const NO_MUSCLES = Object.freeze({ primary: [], secondary: [], source: 'none' });
+const NO_MUSCLES = Object.freeze({ primary: [], secondary: [], deep: [], source: 'none' });
 const musclesCache = new Map();
 
 // Muscles d'un exercice d'après son nom : la bibliothèque d'abord, sinon les règles.
@@ -223,11 +223,11 @@ function musclesOf(name) {
   if (musclesCache.has(key)) return musclesCache.get(key);
   let res = NO_MUSCLES;
   const known = catalogueEntry(name);
-  if (known) res = Object.freeze({ primary: known.primary, secondary: known.secondary, source: 'catalogue' });
+  if (known) res = Object.freeze({ primary: known.primary, secondary: known.secondary, deep: known.deep, source: 'catalogue' });
   else if (key) {
     const rk = ruleKey(name);
-    const rule = MUSCLE_RULES.find(([re]) => re.test(rk));
-    if (rule) res = Object.freeze({ primary: rule[1], secondary: rule[2], source: 'rules' });
+    const rule = MUSCLE_RULES.find(([re]) => re.test(rk));   // muscle profond seul d'abord (vacuum, exercise-catalogue.js)
+    res = deepRuleMuscles(rk) || (rule ? Object.freeze({ primary: rule[1], secondary: rule[2], deep: [], source: 'rules' }) : NO_MUSCLES);
   }
   musclesCache.set(key, res);
   return res;
@@ -346,7 +346,7 @@ function resetChosenMuscles(ex, d = data) {
 function unknownMuscleExercises(history = data.history, index = chosenMusclesIndex()) {
   const seen = new Map();
   (history || []).forEach(h => (h.exercises || []).forEach(e => {
-    if (exerciseMuscles(e, index).primary.length) return;
+    if (musclesKnown(exerciseMuscles(e, index))) return;
     const k = normName(e.name);
     if (!k) return;
     const cur = seen.get(k) || { name: e.name, count: 0 };
@@ -385,9 +385,10 @@ function muscleFilterTargets(f) {
 
 // L'exercice passe si l'un de ses muscles PRINCIPAUX est visé : « Biceps » montre les curls, pas les
 // tractions (biceps en secondaire), pour une liste courte et utile. Muscles inconnus : jamais montré filtré.
+// Muscle profond (vacuum) : deepInGroup (exercise-catalogue.js)
 function muscleFilterMatch(m, f) {
   const t = muscleFilterTargets(f);
-  return !t || (m?.primary || []).some(id => t.includes(id));
+  return !t || (m?.primary || []).some(id => t.includes(id)) || deepInGroup(m, f);
 }
 
 // Toucher une pastille : le groupe déjà choisi (sans muscle précis) se désélectionne ; un muscle précis

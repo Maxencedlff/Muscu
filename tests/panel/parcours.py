@@ -393,6 +393,58 @@ def p_bibliotheque(r):
         r.page.wait_for_timeout(800)   # première image de la vidéo
 
 
+
+def _avec_vacuum():
+    """Données réalistes, plus du vacuum en fin de séance Jambes : une séance d'avant en séries × reps (ancienne
+    version), deux en secondes (maintiens)."""
+    d = json.loads(REALISTE)
+    d['programmes']['ppl']['exercises']['legs'].append({'id': 'vacuum01', 'name': 'Vacuum', 'sets': 5, 'lastWeight': '',
+                                                         'lastReps': '', 'pr': None, 'est1RM': None, 'target': None})
+    def seance(i, jours, series, mesure=None):
+        ex = {'exId': 'vacuum01', 'name': 'Vacuum', 'sets': [{'weight': '', 'reps': str(r)} for r in series]}
+        if mesure:
+            ex['measure'] = mesure
+        return {'id': f'hvac{i}', 'programme': 'ppl', 'category': 'legs', 'date': days_back_ms(NOW, jours, 18, tz=PARIS),
+                'duration': 20 * 60_000, 'notes': '', 'exercises': [ex]}
+    d['history'] += [seance(0, 9, [12, 12, 12]), seance(1, 5, [10] * 5, 'time'), seance(2, 2, [15, 15, 12, 12, 12], 'time')]
+    d['history'].sort(key=lambda h: -h['date'])
+    return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
+
+
+@parcours('vacuum', 'Vacuum : fiche, maintiens chronométrés guidés, records en secondes', 'pratiquant')
+def p_vacuum(r):
+    """Vacuum abdominal (docs/VACUUM.md) : fiche de la Bibliothèque (personnage sans rouge, transverse), carte de
+    séance en maintiens sans colonne de charge, chrono guidé, maintien validé, Progrès en secondes."""
+    r.lancer(_avec_vacuum())
+    with r.etape('fiche', 'Fiche du vacuum : personnage sans rouge, « Transverse, muscle profond »', cle='Ouvrir la fiche du vacuum'):
+        r.onglet('program', 'Programme')
+        r.defiler('[data-action="go-library"]', 'liste sous les cartes')
+        r.toucher('[data-action="go-library"]', 'Bibliothèque')
+        r.attendre('.view.library', 'Bibliothèque')
+        r.saisir('#libSearch', 'Vacuum', 'recherche')
+        r.toucher('[data-action="open-library-ex"][data-name="Vacuum"]', 'Vacuum')
+        r.attendre('.view.library-ex', 'fiche du vacuum')
+    with r.etape('fiche-consignes', 'Fiche du vacuum : consignes'):
+        r.defiler('.library-ex .howto__cues', 'consignes')
+    r.raccourci("""() => { startSession('legs'); const ei = activeSession.exercises.findIndex(e => e.name === 'Vacuum');
+        activeSession.exercises.forEach((e, i) => { if (i !== ei) e.sets.forEach(s => { s.done = true; s.reps = s.reps || '10'; }); });
+        persistSession(); render(); }""", 'séance Jambes, exercices avant le vacuum faits')
+    with r.etape('seance-carte', 'Carte du vacuum : N°, Avant, Durée, sans colonne de charge', cle='Faire un maintien guidé'):
+        r.defiler('.view.session .ex-card:has(.sets--noload)', 'carte du vacuum')
+    with r.etape('chrono-prep', 'Chrono guidé : préparation « Expire tout ton air »', cle='Faire un maintien guidé'):
+        r.toucher('.view.session .sets--noload .set-play', '▶ du maintien')
+        r.attendre('.rs--effort', 'chrono')
+    with r.etape('chrono-maintien', 'Chrono guidé : pendant le maintien « Respire petit, dos immobile »'):
+        r.raccourci("() => { activeSession.effort.start -= 7000; updateEffortUI(); }", '2 s dans le maintien')
+    with r.etape('maintien-valide', 'Maintien validé en secondes, repos de 15 s', cle='Faire un maintien guidé'):
+        r.raccourci("() => { activeSession.effort.start -= 20000; updateEffortUI(); }", 'fin du maintien')
+        r.page.wait_for_timeout(400)
+        passer_repos(r)
+        r.defiler('.view.session .ex-card:has(.sets--noload)', 'carte du vacuum')
+    r.raccourci("() => navigate(makeRoute('stats-ex', 'vacuum01'))", 'Progrès › Vacuum')
+    with r.etape('progres', 'Progrès › Vacuum : plus long maintien, temps total sous tension'):
+        r.attendre('.view.stats-ex', 'Progrès › Vacuum')
+
 @parcours('reglages', 'Réglages (chaque groupe)', 'pratiquant')
 def p_reglages(r):
     """Réglages ouverts depuis l'accueil, puis chaque groupe amené en haut de l'écran."""

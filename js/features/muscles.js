@@ -24,7 +24,18 @@ function exMusclesSubHtml(ex, cls = 'cell__sub') {
 }
 
 // Silhouette et pastilles d'un exercice (Programme › Exercice, Progrès › Exercice)
+// Muscle profond seul (vacuum) : le personnage sans aucun rouge, le muscle nommé en gris, et pourquoi rien n'est coloré
+const DEEP_MUSCLE_NOTE = 'Muscle profond, invisible en surface : rien n\'est coloré sur le personnage.';
+function deepMusclesNames(m) { return (m.deep || []).map(id => deepMuscleLabel(id, true)).filter(Boolean).join(', '); }
 function exMusclesPanelHtml(m) {
+  if (!m.primary.length && m.deep?.length) {
+    return `
+    <div class="cell mpanel mpanel--deep">
+      ${bodyMapHtml({}, { className: 'mpanel__map' })}
+      <div class="cell__body"><ul class="mpills" aria-label="Muscles ciblés">${m.deep.map(id => `<li class="mpill mpill--sec">${esc(deepMuscleLabel(id, true))}</li>`).join('')}</ul>
+        <span class="cell__sub">${DEEP_MUSCLE_NOTE}</span></div>
+    </div>`;
+  }
   if (!m.primary.length) {
     return `<div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Muscles non reconnus</span>
       <span class="cell__sub">Choisis les muscles travaillés pour les voir dans Progrès.</span></span></div>`;
@@ -71,7 +82,8 @@ function exMusclesGroupHtml(ex, title = 'Muscles ciblés', { textOnly = false } 
   const m = exerciseMuscles(ex);
   const c = musclesControlsHtml(m, ex.name, { pick: `data-action="declare-muscles" data-name="${esc(ex.name)}"`,
     reset: `data-action="reset-muscles" data-name="${esc(ex.name)}" data-ex="${esc(ex.exId || '')}"` });
-  const line = textOnly && m.primary.length && !m.secondary.length && `<div class="cell mline"><span class="cell__body"><span class="cell__title cell__title--reg">${esc([...new Set(m.primary.map(muscleLabel))].join(', '))}</span></span></div>`;
+  const deepLine = textOnly && !m.primary.length && m.deep?.length && `<div class="cell mline"><span class="cell__body"><span class="cell__title cell__title--reg">${esc(deepMusclesNames(m))}</span><span class="cell__sub">${DEEP_MUSCLE_NOTE}</span></span></div>`;
+  const line = deepLine || textOnly && m.primary.length && !m.secondary.length && `<div class="cell mline"><span class="cell__body"><span class="cell__title cell__title--reg">${esc([...new Set(m.primary.map(muscleLabel))].join(', '))}</span></span></div>`;
   return `<div class="group-title">${title}</div>
     <div class="group">${line || exMusclesPanelHtml(m)}${c.rows}</div>
     ${c.foot ? `<div class="group-foot">${c.foot}</div>` : ''}`;
@@ -153,7 +165,7 @@ async function pickMusclesSheet({ title = 'Muscles ciblés', current = [], curre
 async function pickExMuscles() {
   if (!exDraft) return;
   const m = draftExMuscles(exDraft), verified = musclesVerified(exDraft.name);
-  const res = await pickMusclesSheet({ current: m.primary, currentSecondary: m.secondary, like: m.primary.length ? [] : similarExercises(exDraft.name),
+  const res = await pickMusclesSheet({ current: m.primary, currentSecondary: m.secondary, like: musclesKnown(m) ? [] : similarExercises(exDraft.name),
     auto: !verified || m.source === 'user', ...(verified ? { autoLabel: RESET_MUSCLES_LABEL } : {}) });
   if (!res || !exDraft) return;
   const none = res.auto || !res.list.length || isVerifiedChoice(exDraft.name, res.list, res.secondary);
@@ -172,7 +184,7 @@ async function pickExMuscles() {
 // Exercice de la bibliothèque : confirmation avant de s'écarter des muscles vérifiés (confirmModifyVerified).
 async function declareMusclesFor(name, { ask = false, check = false } = {}) {
   const m = exerciseMuscles({ name }), verified = musclesVerified(name);
-  const like = m.primary.length && !check ? [] : similarExercises(name);
+  const like = musclesKnown(m) && !check ? [] : similarExercises(name);
   // Guillemets à espaces insécables : « » jamais seuls en début de ligne
   const quoted = `«\u00a0${esc(name)}\u00a0»`;
   const intro = check ? `Devinés d'après le nom ${quoted}. Corrige-les si besoin : ils comptent pour la récupération et Progrès.`
@@ -191,7 +203,7 @@ async function declareMusclesFor(name, { ask = false, check = false } = {}) {
 
 // Après l'ajout d'un exercice : si ses muscles sont inconnus, on les demande (une fois la feuille fermée)
 function askMusclesIfUnknown(name, after = () => render()) {
-  if (exerciseMuscles({ name }).primary.length) return;
+  if (musclesKnown(exerciseMuscles({ name }))) return;
   setTimeout(async () => { if (await declareMusclesFor(name, { ask: true })) after(); }, 350);
 }
 // Après la création d'un exercice aux muscles devinés : vérification proposée (une fois la feuille fermée)

@@ -1876,6 +1876,9 @@ test('Native.sound.diagnostics : null hors app ou build sans la méthode, état 
 
 (await import('./measures.mjs')).default({ test, app, run, reset, assert, ROOT });
 
+// ── Vacuum : maintiens guidés, transverse seul (tests dans vacuum.mjs) ──
+(await import('./vacuum.mjs')).default({ test, run, reset, assert, sameJSON });
+
 // ── Comment faire : consignes des exercices (tests dans howto.mjs) ──
 
 (await import('./howto.mjs')).default({ test, run, reset, assert });

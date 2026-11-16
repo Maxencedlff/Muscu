@@ -387,10 +387,15 @@ function cleanLastAccount(v) {
 // recopiée sans ses abréviations, qui ne touchent aucun de ces noms) : « Rowers », « wall-squats » et
 // « Home trainer » sont retrouvés comme la bibliothèque les retrouve.
 // Par schéma de la version qui a appris le nom (les programmes ne sont figés qu'une fois, normalizeData)
+// - 16/11/2026 (durée) : le vacuum devient un maintien en secondes. Historique seulement (VACUUM_TIME_SCHEMA) :
+//   une séance d'avant reste « 12 reps », mais un programme qui contient du vacuum passe aux maintiens (c'est
+//   une prescription, pas une donnée faite ; la séance suivante se note en secondes). Schéma des données inchangé.
 const LEGACY_REPS_BY_SCHEMA = {
   4: ['treadmill', 'trail', 'fractionne', 'vtt', 'home trainer'],
   5: ['rower', 'elliptical', 'cross trainer', 'skipping rope', 'la chaise', 'chaise murale', 'wall squat'],
+  7: ['vacuum', 'stomach vacuum', 'vacuum abdominal', 'aspiration du ventre', 'rentrer le ventre'],
 };
+const VACUUM_TIME_SCHEMA = 7;   // noms figés dans l'historique seulement, jamais dans les programmes
 const LEGACY_REPS_NAMES = Object.values(LEGACY_REPS_BY_SCHEMA).flat();
 // Clé exacte des versions d'avant la clé souple (séparateurs en espaces) et clé souple (schéma 5)
 const legacyExactKey = name => normName(name).replace(/[-_/.]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -401,11 +406,12 @@ const LOOSE_KEY_SCHEMA = 5;
 const LEGACY_REPS_KEYS = Object.entries(LEGACY_REPS_BY_SCHEMA).map(([v, names]) =>
   ({ schema: Number(v), loose: new Set(names.map(legacyKey)), exact: new Set(names.map(legacyExactKey)) }));
 // fromSchema : schéma des données (historique : 0, tous les noms). Figé si le nom a été appris après ce
-// schéma, ou si c'est une variante (« Trails », « Treadmills ») que seule la clé souple reconnaît
-function pinLegacyReps(ex, fromSchema = 0) {
+// schéma, ou si c'est une variante (« Trails », « Treadmills ») que seule la clé souple reconnaît.
+// programme : exercice d'un programme (les noms de VACUUM_TIME_SCHEMA et après n'y sont jamais figés)
+function pinLegacyReps(ex, fromSchema = 0, programme = false) {
   if (ex.measure != null) return;
   const key = legacyKey(ex.name), exact = legacyExactKey(ex.name);
-  const pin = LEGACY_REPS_KEYS.some(l => l.loose.has(key)
+  const pin = LEGACY_REPS_KEYS.some(l => !(programme && l.schema >= VACUUM_TIME_SCHEMA) && l.loose.has(key)
     && (l.schema > fromSchema || (fromSchema < LOOSE_KEY_SCHEMA && !l.exact.has(exact))));
   if (pin) ex.measure = 'reps';
 }
@@ -573,7 +579,7 @@ function normalizeData(d, rawJson = null) {
   // vient de la bibliothèque du 25/10 (cardio) et le reste. L'historique est traité par cleanHistoryEntry.
   const from = d.schema || 2;
   if (from < 5) {
-    Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(ex => pinLegacyReps(ex, from))));
+    Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(ex => pinLegacyReps(ex, from, true))));
   }
   // Schéma 6 (29/10/2026) : mots de cardio appris (pinLegacyCardioWords), même règle pour les programmes.
   // Les séances perso (customSessions) n'ont que nom et couleur : leurs exercices sont dans d.programmes.custom.
