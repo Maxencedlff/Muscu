@@ -152,6 +152,32 @@ function summaryUnknownMusclesHtml(h) {
         </div>`;
 }
 
+// Ordre de la séance faite (Faire maintenant, Plus tard, exercice ajouté « Ensuite ») différent de celui du programme :
+// un toucher le garde pour la prochaine fois (retour du 10/11 et réponse du coach : « ça te le garde en mémoire »).
+// Jamais automatique : « Plus tard » sert aussi à contourner une machine prise un jour. Programme reçu d'un coach :
+// c'est la copie de l'élève qui change (comme Programme › Séance › Modifier).
+function summaryOrderList(sm) { return data.programmes[sm.programme]?.exercises?.[sm.category] || null; }
+// orderIds : ordre de la séance à la fin (orderByStart sur toute la liste : exercices commencés à leur place, puis ceux
+// pas faits dans l'ordre de la séance), posé par « Terminer » ; sinon l'ordre de l'historique
+function summaryOrderNext(sm, h) { return orderProgrammeLike(summaryOrderList(sm), sm.orderIds || (h?.exercises || []).map(e => e.exId)); }
+function summaryOrderHtml(sm, h) {
+  if (sm.orderKept) return `
+        <div class="sum-list sum-order" id="sumOrder" role="status" tabindex="-1">
+          <div class="sum-row">
+            <div class="sum-row__main"><div class="sum-row__name">Ordre gardé</div><div class="sum-row__sub">La prochaine séance ${esc(sessionMeta(sm.category, sm.programme).label)} suivra cet ordre</div></div>
+            <span class="sum-order__check" aria-hidden="true">${icon('checkmark', 18)}</span>
+          </div>
+        </div>`;
+  if (!summaryOrderNext(sm, h)) return '';
+  return `
+        <div class="sum-list sum-order" id="sumOrder">
+          <button class="sum-row sum-row--action" data-action="summary-keep-order">
+            <div class="sum-row__main"><div class="sum-row__name">Garder cet ordre</div><div class="sum-row__sub">Tu as changé l'ordre des exercices : la prochaine fois aussi</div></div>
+            <span class="sum-row__cta">Garder</span>
+          </button>
+        </div>`;
+}
+
 function renderSummary() {
   const sm = lastSummary;
   if (!sm) return renderDashboard();
@@ -184,6 +210,7 @@ function renderSummary() {
         <div class="sum-list">
           ${summaryRowsHtml(sm.rows)}
         </div>
+        ${summaryOrderHtml(sm, h)}
         ${summaryUnknownMusclesHtml(h)}
         <div class="sum-section-title">Notes</div>
         <textarea id="summaryNotes" class="sum-notes" rows="3" placeholder="Comment s'est passée la séance ?"
@@ -201,7 +228,7 @@ function refreshSummaryBodyKg() {
   const h = lastSummary && data.history.find(x => x.id === lastSummary.id);
   if (!h || h.bodyKg || !currentBodyKg()) return;
   if (storableBodyKg()) h.bodyKg = storableBodyKg();   // pesée de Santé : relue, jamais gardée
-  lastSummary = buildSummary(h);
+  lastSummary = { ...buildSummary(h), orderKept: lastSummary.orderKept, orderIds: lastSummary.orderIds };
 }
 
 // Notes du bilan : enregistrées au fil de la frappe
@@ -325,6 +352,7 @@ registerActions({
     syncWorkoutToHealth(entry);   // app iOS : entraînement dans Santé, sans attendre
     // Bilan : records notés à l'enregistrement (et 1RM estimé battu, pour soi)
     lastSummary = buildSummary(entry);
+    lastSummary.orderIds = orderByStart(activeSession.exercises).map(ex => ex.exId);   // « Garder cet ordre » (summaryOrderHtml)
     if (lastSummary.records.length) recordSound(); else finishSound();
     haptic(lastSummary.recordCount ? 'success' : 'light');   // record : avec la médaille qui apparaît (css/session.css)
     endSession();
@@ -333,6 +361,17 @@ registerActions({
     // Ferme le toast « Série validée · Annuler » de la dernière série, devenu sans objet.
     document.querySelectorAll('.toast').forEach(t => t.remove());
     announce('Séance enregistrée');
+  },
+  'summary-keep-order': () => {
+    const sm = lastSummary, list = sm && summaryOrderList(sm);
+    const next = list && summaryOrderNext(sm, data.history.find(x => x.id === sm.id));
+    if (!next) return;
+    list.splice(0, list.length, ...next);
+    save();
+    sm.orderKept = true;
+    haptic();
+    render();
+    $('#sumOrder')?.focus({ preventScroll: true });   // VoiceOver lit « Ordre gardé » à la place du bouton touché
   },
   'summary-done': () => {
     const ta = $('#summaryNotes');

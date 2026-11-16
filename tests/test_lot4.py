@@ -235,6 +235,9 @@ def t_flow(bench, eng, dev, theme):
         R.check(page.locator('#axSets').inner_text() == '4', f'{t} compteur de séries')
         shot(page, LOT, f'ajout-exercice-{t}')
         page.fill('#axSearch', 'Pompes lestées')
+        # « À la fin » (par défaut : juste après l'exercice en cours, retour du 10/11) : la suite du test vise les mêmes rangs
+        if page.locator('[data-action="ax-place"][data-place="end"]').count():
+            page.click('[data-action="ax-place"][data-place="end"]')
         page.locator('.ax__item--create').click(); page.wait_for_timeout(250)
         R.check(page.evaluate('activeSession.exercises.at(-1).name') == 'Pompes lestées' and page.evaluate('activeSession.exercises.at(-1).sets.length') == 4, f'{t} exercice créé avec 4 séries')
         # En séance, aucune feuille par-dessus l'entraînement après la création (muscles vérifiés hors séance)

@@ -387,13 +387,36 @@ def t_progress(bench, eng, dev, theme):
         tap_dialog(page, 'OK')
         # Vue d'ensemble
         go(page, 'stats-overview')
-        R.check(page.locator('.cal__d .cal__dots i').count() >= 1 or True, f'{t} vue d\'ensemble : calendrier')
         R.check(page.locator('.wk').count() == 12, f'{t} vue d\'ensemble : 12 semaines')
-        navs = page.evaluate("[...document.querySelectorAll('.cal__nav')].map(b => { const r = b.getBoundingClientRect(); return Math.min(r.width, r.height); })")
-        R.check(min(navs) >= 44, f'{t} vue d\'ensemble : chevrons de 44 pt ({navs})')
-        page.click('[data-action="ov-month"][data-d="-1"]')
-        R.check(page.locator('.cal__d .cal__dots i').count() >= 3, f'{t} vue d\'ensemble : séances du mois précédent')
+        R.check(page.locator('.stats-overview .cal').count() == 0, f'{t} vue d\'ensemble : calendrier passé dans l\'Historique')
         shot(page, LOT, f'overview_{dev}_{theme}')
+        # Historique : calendrier du mois en tête (retour de Maxence du 16/11), repliable, un jour touché montre ses séances
+        go(page, 'history')
+        # Fermé par défaut (la liste garde ses cartes à l'écran), ouvert par le bouton calendrier de la barre
+        tog = page.locator('.navbar [data-action="hcal-toggle"]')
+        R.check(tog.get_attribute('aria-expanded') == 'false' and tog.get_attribute('aria-label') == 'Calendrier' and page.locator('.hcal').count() == 0,
+                f'{t} historique : calendrier fermé par défaut, bouton « Calendrier » dans la barre')
+        bb = tog.bounding_box()
+        R.check(bb and bb['width'] >= 44 and bb['height'] >= 44, f'{t} historique : bouton calendrier de 44 pt {bb}')
+        tog.click(); page.wait_for_timeout(150)
+        navs = page.evaluate("[...document.querySelectorAll('.hcal .cal__nav')].map(b => { const r = b.getBoundingClientRect(); return Math.min(r.width, r.height); })")
+        R.check(navs and min(navs) >= 44, f'{t} historique : chevrons de 44 pt ({navs})')
+        page.click('[data-action="hcal-month"][data-d="-1"]'); page.wait_for_timeout(150)
+        R.check(page.locator('.hcal .cal__dots i').count() >= 3, f'{t} historique : séances du mois précédent')
+        day = page.locator('.hcal [data-action="hcal-day"]').first
+        R.check(day.count() == 1 and day.get_attribute('aria-label'), f'{t} historique : jour annoncé « {day.get_attribute("aria-label") if day.count() else ""} »')
+        n = len((day.get_attribute('aria-label') or '').split(',')) - 1
+        day.click(); page.wait_for_timeout(250)
+        R.check(page.locator('.hcal-day .hcell').count() == n and day.get_attribute('aria-pressed') == 'true', f'{t} historique : jour touché, {n} séance(s) dessous')
+        R.check(page.locator('.hcal-day .hcell__map').count() >= 1 or page.evaluate("document.documentElement.classList.contains('type-xl')"), f'{t} historique : cartes illustrées (personnage)')
+        shot(page, LOT, f'historique_calendrier_{dev}_{theme}')
+        page.locator('.hcal [aria-pressed="true"]').click(); page.wait_for_timeout(200)
+        R.check(page.locator('.hcal-day').count() == 0, f'{t} historique : même jour retouché, séances cachées')
+        R.check(tog.get_attribute('aria-expanded') == 'true', f'{t} historique : bouton dit « développé »')
+        go(page, 'history')
+        R.check(page.locator('.hcal .cal__grid').count() == 1, f'{t} historique : ouvert gardé')
+        page.click('.navbar [data-action="hcal-toggle"]'); page.wait_for_timeout(150)
+        R.check(page.locator('.hcal').count() == 0 and page.locator('.navbar [data-action="hcal-toggle"]').get_attribute('aria-expanded') == 'false', f'{t} historique : calendrier fermé')
         R.check(not page.errors, f'{t} progrès : erreurs JS {page.errors[:2]}')
 
 

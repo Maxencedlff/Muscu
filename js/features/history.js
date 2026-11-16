@@ -234,8 +234,9 @@ function renderHistory() {
   if (histFilter !== 'all' && !filters.some(f => f.key === histFilter)) histFilter = 'all';
   return `
     <div class="view history view--grouped">
-      ${navBar({ title: 'Historique', right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>` })}
+      ${navBar({ title: 'Historique', right: `${histCalBtnHtml()}<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>` })}
       <div class="scr" id="histScroll">
+        ${histCalHtml()}
         <div class="hist-tools">
           <input type="search" id="histSearch" class="search" placeholder="Rechercher" value="${esc(histQuery)}"
                  autocomplete="off" enterkeyhint="search" aria-label="Rechercher dans l'historique">
@@ -249,6 +250,7 @@ function renderHistory() {
 function refreshHistoryList() {
   const el = $('#histList');
   if (el) el.innerHTML = historyListHTML();
+  refreshHistoryCalendar();   // filtre changé, séance supprimée : le calendrier suit (js/features/history-calendar.js)
 }
 
 // Séries d'un exercice (setsTextRead, js/data/measures.js : « 130 kg × 10, 10 »), échappées pour le HTML

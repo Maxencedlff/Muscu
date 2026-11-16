@@ -421,6 +421,11 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .ax__opt + .ax__opt::before, .ax__item + .ax__item::before {
   content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep);
 }
+/* Placer : le choix passe sous le libellé quand la ligne est trop étroite (320 pt, police plus large, texte agrandi) */
+.ax-place { flex-wrap: wrap; row-gap: 4px; }
+.ax-place__lbl { display: flex; flex-direction: column; min-width: 0; flex: 1 1 96px; }
+.ax-place .segmented { flex: none; margin-left: auto; }
+.ax-place__where { font-size: var(--fs-footnote); color: var(--label2); overflow-wrap: anywhere; }
 .ax-stepper { display: flex; align-items: center; background: var(--fill); border-radius: 8px; }
 .ax-stepper button { width: 44px; height: 44px; border: 0; background: none; color: var(--label); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .ax-stepper span { min-width: 28px; text-align: center; font-size: 1rem; font-weight: 600; }
@@ -495,6 +500,9 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
   border: 0; border-radius: var(--r-md); background: var(--cell); color: var(--tint); font: inherit; font-size: 0.882rem; text-align: left; cursor: pointer; }
 .sum-row--action { width: 100%; border: 0; background: none; color: var(--label); font: inherit; text-align: left; cursor: pointer; }
 .sum-row--action:active { background: var(--fill2); }
+.sum-order { margin-top: 8px; }
+.sum-order:focus { outline: none; }
+.sum-order__check { color: var(--tint); display: flex; }
 .sum-row__cta { color: var(--tint); font-size: 0.941rem; font-weight: 600; }
 .sum-trend { width: 16px; text-align: center; font-size: 1rem; font-weight: 700; color: var(--label2); flex-shrink: 0; }
 .sum-trend--up { color: var(--green-text); }
@@ -836,13 +844,17 @@ html.type-xl .pl__row--top .pl__lbl { padding-top: 0; }
 .grip-sub { color: var(--label2); }
 
 /* ── Ordre de la séance (js/features/session-order-ui.js) : « + Série » à gauche, « Plus tard » à droite ── */
-.ex-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* Écran étroit (iPhone SE, 320 pt) : « + Série · Note · Faire maintenant » ne tient pas sur une ligne ; le lien d'ordre
+   passe dessous, calé à droite (margin-left: auto), au lieu de déborder de la carte (défilement de côté) */
+.ex-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; }   /* « + Série » et « Note » ensemble à gauche */
 .order-link {
-  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 6px; margin-right: -6px;
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 6px; margin-right: -6px; margin-left: auto;
   background: none; border: 0; color: var(--tint); font: inherit; font-size: 0.882rem; font-weight: 600; cursor: pointer;
   white-space: nowrap; -webkit-tap-highlight-color: transparent;
 }
 .order-link:active { opacity: .5; }
+/* Texte agrandi : « Faire maintenant » passe sur deux lignes plutôt que de déborder de la carte (iPhone SE, AX3) */
+html.type-xl .order-link { white-space: normal; text-align: left; min-width: 0; }
 
 /* Grand écran : la barre de repos et les feuilles de la séance suivent la colonne de lecture (--col-max,
    navigation.css) au lieu de s'étaler sur tout l'écran */

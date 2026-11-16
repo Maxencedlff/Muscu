@@ -246,6 +246,35 @@ function muscleFilterTap(el, f) {
   return next;
 }
 
+// Où placer l'exercice ajouté en séance (retour du 10/11) : « Ensuite » par défaut (orderAddSpot, js/data/session-order.js),
+// ou « À la fin ». Rien à choisir quand les deux reviennent au même (séance finie, rien après l'exercice en cours).
+let axPlace = 'next';
+function axPlaceHtml() {
+  const xs = activeSession?.exercises || [], spot = orderAddSpot(xs, currentSet()?.ei);
+  if (!spot) return '';
+  // Une rangée de 44 pt comme « Séries » : la liste des exercices reste visible sans défiler (iPhone SE)
+  const opt = (place, label, spoken) => `<button class="segmented__btn ${axPlace === place ? 'segmented__btn--active' : ''}" aria-pressed="${axPlace === place}" data-action="ax-place" data-place="${place}" aria-label="${spoken}">${label}</button>`;
+  return `
+        <div class="ax__opt ax-place">
+          <span class="ax-place__lbl">Placer<span class="ax-place__where" id="axPlaceWhere" aria-hidden="true">${axPlaceWhere(spot, xs)}</span></span>
+          <div class="segmented seg-sm" role="group" aria-label="Placer l'exercice">
+            ${opt('next', 'Ensuite', `Ensuite, ${spot.before ? 'juste avant' : 'juste après'} ${esc(spot.ref.name)}`)}${opt('end', 'À la fin', `À la fin, après ${esc(xs.at(-1).name)}`)}
+          </div>
+        </div>`;
+}
+// Où ira l'exercice, sous « Placer » (lu par VoiceOver sur chaque choix)
+function axPlaceWhere(spot, xs) {
+  return axPlace === 'end' ? `après ${esc(xs.at(-1).name)}` : `${spot.before ? 'avant' : 'après'} ${esc(spot.ref.name)}`;
+}
+// Place dans la liste du programme qui correspond à « Ensuite » : à côté de l'exercice de référence (superset entier),
+// sinon à la fin (exercice de référence ajouté en séance, absent du programme)
+function progAddIndex(list, spot) {
+  const ri = spot?.ref?.exId ? list.findIndex(e => e.id === spot.ref.exId) : -1;
+  if (ri < 0) return list.length;
+  const b = ssBlocks(list).find(x => x.includes(ri));
+  return spot.before ? b[0] : b.at(-1) + 1;
+}
+
 // exclude : noms à ne pas proposer (par défaut, les exercices de la séance en cours)
 function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick = null } = {}) {
   const names = exclude ?? (activeSession?.exercises || []).map(e => e.name);
@@ -253,6 +282,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
   const rep   = ax.replaceEi !== null ? activeSession.exercises[ax.replaceEi] : null;
   axMuscle    = NO_MUSCLE_FILTER;
   axSets      = rep ? Math.max(1, rep.sets.filter(s => !s.done).length) : 3;   // les séries qui restent à faire
+  axPlace     = 'next';
   const html = `
     <div class="ax">
       <div class="ax__bar">
@@ -274,7 +304,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
             <button data-action="ax-sets" data-d="1" aria-label="Une série de plus">${icon('plus', 18)}</button>
           </div>
         </div>
-        ${rep || target !== 'session' ? '' : `
+        ${rep || target !== 'session' ? '' : `${axPlaceHtml()}
         <label class="ax__opt">
           <span>Ajouter au programme</span>
           <input type="checkbox" id="axToProg" class="ax-switch" role="switch">
@@ -311,9 +341,10 @@ function pickExercise(name) {
   let inProg    = list.find(e => sameExerciseName(e.name, name));
   const toProg  = $('#axToProg')?.checked;
   let addedToProg = null;   // ajouté aussi au programme : « Annuler » l'en retire aussi
+  const spot = ax.replaceEi === null && axPlace === 'next' ? orderAddSpot(activeSession.exercises, currentSet()?.ei) : null;
   if (toProg && !inProg && ax.replaceEi === null) {
     inProg = addedToProg = makeExercise(name, axSets);
-    list.push(inProg);
+    list.splice(progAddIndex(list, spot), 0, inProg);   // même place que dans la séance : retenue la prochaine fois
     save();
   }
   let exId = inProg ? inProg.id : resolveExId(sp, sc, name);
@@ -338,10 +369,16 @@ function pickExercise(name) {
     sessionUndo(done.length ? `Remplacé, ${plural(done.length, 'série gardée', 'séries gardées')}` : 'Exercice remplacé', {
       target: { ex: exObj }, onAction: () => restoreSessionExercises(before),
     });
+    activeSession.lastEi = null; activeSession.lastDone = null;
   } else {
-    const before = clone(activeSession.exercises);
-    activeSession.exercises.push(exObj);
-    target = activeSession.exercises.length - 1;
+    const before = clone(activeSession.exercises), xs = activeSession.exercises;
+    // « Ensuite » ou « À la fin » : chrono, série rouverte et RIR de la dernière série suivent leur exercice (remapSessionOrder)
+    target = spot ? spot.at : xs.length;
+    const next = [...xs], lastEx = xs[activeSession.lastEi];
+    next.splice(target, 0, exObj);
+    remapSessionOrder(next);
+    // Placé avant l'exercice pas encore commencé : c'est lui qui suit (sinon l'exercice en cours le reste)
+    activeSession.lastEi = spot?.before ? target : (lastEx ? next.indexOf(lastEx) : null);
     // En ligne, au-dessus de sa carte, avec « Annuler » comme un remplacement ou un échauffement (panel t6 : même geste,
     // même réponse)
     sessionUndo(addedToProg ? 'Ajouté à la séance et au programme' : 'Ajouté à la séance', { target: { ex: exObj }, onAction: () => {
@@ -349,10 +386,10 @@ function pickExercise(name) {
       restoreSessionExercises(before);
     } });
   }
-  activeSession.lastEi = null; activeSession.lastDone = null;
   closeSessSheets();
   haptic();
   persistSession();
+  syncNativeRest();   // pendant un repos, la notification et la Live Activity annoncent le nouvel exercice suivant
   render();
   setTimeout(() => exCardOf(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
 }
@@ -563,6 +600,17 @@ registerActions({
     axSets = Math.min(10, Math.max(1, axSets + parseInt(el.dataset.d)));
     const n = $('#axSets');
     if (n) n.textContent = axSets;
+  },
+  // Ensuite / À la fin : mis à jour sur place (VoiceOver reste sur le choix touché et annonce son état)
+  'ax-place': (e, el) => {
+    axPlace = el.dataset.place === 'end' ? 'end' : 'next';
+    document.querySelectorAll('[data-action="ax-place"]').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.place === axPlace));
+      b.classList.toggle('segmented__btn--active', b.dataset.place === axPlace);
+    });
+    const xs = activeSession?.exercises || [], spot = orderAddSpot(xs, currentSet()?.ei), where = $('#axPlaceWhere');
+    if (where && spot) where.innerHTML = axPlaceWhere(spot, xs);
+    haptic();
   },
   'ax-equip': (e, el) => {
     data.exEquip = el.dataset.equip;

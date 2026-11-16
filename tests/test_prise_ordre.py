@@ -171,7 +171,9 @@ def t_ordre(bench, eng, dev, theme):
         R.check(page.locator('.ex-card[data-ei="0"] [data-action="ex-later"]').inner_text().strip() == 'Plus tard', f'{t} libellé « Plus tard »')
         R.check(page.locator('[data-action="ex-later"] .icon--arrow-turn-down-right').count() == 1 and page.locator('[data-action="ex-later"] .icon--chevron-down').count() == 0,
                 f'{t} « Plus tard » : flèche qui tourne, pas le chevron de « Réduire la séance »')
-        R.check(page.locator('[data-action="ex-now"]').count() == 0, f'{t} pas de « Faire maintenant » en bas des cartes')
+        # Retour du 10/11 : « Faire maintenant » introuvable dans ⋯ ; un mot au pied de chaque autre exercice à faire
+        R.check(page.locator('[data-action="ex-now"]').count() == len(start) - 1 and page.locator('.ex-card[data-ei="0"] [data-action="ex-now"]').count() == 0,
+                f'{t} « Faire maintenant » au pied des autres exercices ({page.locator("[data-action=ex-now]").count()})')
         R.check(not small(page, '.order-link'), f'{t} bouton de 44 px {small(page, ".order-link")}')
         R.check(no_hscroll(page), f'{t} pas de défilement de côté')
         shot(page, LOT, f'{t}-6-ordre-bouton')
@@ -199,6 +201,15 @@ def t_ordre(bench, eng, dev, theme):
         tap_dialog(page, 'Faire maintenant')
         page.wait_for_timeout(400)
         R.check(names(page) == [start[3], start[0], start[1], start[2], start[4]], f'{t} maintenant : ordre {names(page)}')
+        sess_undo(page)
+        R.check(names(page) == start, f'{t} Annuler : ordre d\'avant')
+        # Même chose d'un toucher, au pied de la carte
+        page.locator('.ex-card[data-ei="3"] [data-action="ex-now"]').scroll_into_view_if_needed()
+        lbl = page.locator('.ex-card[data-ei="3"] [data-action="ex-now"]').get_attribute('aria-label')
+        R.check(lbl.startswith(f'Faire maintenant : {start[3]}'), f'{t} pied de carte : annoncé « {lbl} »')
+        page.click('.ex-card[data-ei="3"] [data-action="ex-now"]')
+        page.wait_for_timeout(400)
+        R.check(names(page) == [start[3], start[0], start[1], start[2], start[4]], f'{t} maintenant (pied de carte) : ordre {names(page)}')
         R.check(cur_name(page) == start[3] and current(page) == [0, 0], f'{t} maintenant : série en cours suivie ({cur_name(page)})')
         R.check('Mis en cours' in sess_undo_text(page), f'{t} maintenant : ligne « Mis en cours · Annuler »')
         R.check(page.evaluate("(r => r && r.top > 60 && r.bottom < innerHeight)(document.querySelector('.session-set--current')?.getBoundingClientRect())"), f'{t} maintenant : série en cours visible')
@@ -274,5 +285,77 @@ def t_ordre_sous_serie(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} erreurs JS {page.errors}')
 
 
+def finish(page):
+    page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+    tap_dialog(page, 'Enregistrer la séance')
+    page.wait_for_selector('.view.summary'); page.wait_for_timeout(300)
+
+
+def t_ajout_ordre(bench, eng, dev, theme):
+    """Retour du 10/11 : exercice ajouté en séance « Ensuite » (pas à la fin), retenu au programme ; ordre changé gardé
+    pour la prochaine fois depuis le bilan (« Garder cet ordre »)."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        page.evaluate("startSession('pull')")
+        page.wait_for_selector('.view.session')
+        start = names(page)
+        n0 = len(page.evaluate("activeSession.exercises[0].sets"))
+        for si in range(n0):
+            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(250)
+            skip_rest(page)
+        # Premier exercice fini : « Ensuite » par défaut, juste avant le 2e (il devient le deuxième)
+        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); page.wait_for_timeout(350)
+        place = page.evaluate("[...document.querySelectorAll('[data-action=ax-place]')].map(b => [b.textContent.trim(), b.getAttribute('aria-pressed'), b.getAttribute('aria-label')])")
+        R.check([p[:2] for p in place] == [['Ensuite', 'true'], ['À la fin', 'false']], f'{t} ajout : Ensuite par défaut {place}')
+        R.check(place and place[0][2] == f'Ensuite, juste avant {start[1]}', f'{t} ajout : VoiceOver dit où ({place[0][2] if place else ""})')
+        R.check(not small(page, '[data-action="ax-place"]'), f'{t} ajout : choix de 44 px {small(page, "[data-action=ax-place]")}')
+        R.check(no_hscroll(page), f'{t} ajout : pas de défilement de côté')
+        shot(page, LOT, f'{t}-11-ajout-ensuite')
+        prog0 = [e['name'] for e in pull_prog(page)]
+        page.click('#axToProg')
+        page.fill('#axSearch', 'Face pull')
+        page.locator('#axList .ax__item', has_text='Face pull').first.click(); page.wait_for_timeout(400)
+        added = page.evaluate("activeSession.exercises[1].name")
+        R.check(names(page)[0] == start[0] and added.startswith('Face pull') and names(page)[2:] == start[1:], f'{t} ajout : en 2e position {names(page)}')
+        R.check(cur_name(page) == added, f'{t} ajout : c\'est lui qui suit ({cur_name(page)})')
+        prog = [e['name'] for e in pull_prog(page)]
+        R.check(prog[1] == added, f'{t} ajout : 2e aussi dans le programme (la prochaine fois) {prog}')
+        shot(page, LOT, f'{t}-12-ajout-place')
+        sess_undo(page)
+        R.check(names(page) == start and [e['name'] for e in pull_prog(page)] == prog0, f'{t} Annuler : retiré de la séance et du programme')
+
+        # « À la fin » : comme avant
+        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); page.wait_for_timeout(350)
+        page.click('[data-action="ax-place"][data-place="end"]')
+        R.check(page.locator('[data-action="ax-place"][data-place="end"]').get_attribute('aria-pressed') == 'true', f'{t} « À la fin » choisi')
+        page.fill('#axSearch', 'Face pull')
+        page.locator('#axList .ax__item', has_text='Face pull').first.click(); page.wait_for_timeout(400)
+        R.check(names(page)[:-1] == start and names(page)[-1].startswith('Face pull'), f'{t} à la fin {names(page)}')
+        sess_undo(page)
+
+        # Faire maintenant sur le 4e, une série de chaque, puis bilan : « Garder cet ordre » met le 4e en 2e au programme
+        page.locator('.ex-card[data-ei="3"] [data-action="ex-now"]').click(); page.wait_for_timeout(400)
+        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(250)
+        skip_rest(page)
+        finish(page)
+        row = page.locator('[data-action="summary-keep-order"]')
+        R.check(row.count() == 1, f'{t} bilan : « Garder cet ordre » proposé')
+        R.check(not small(page, '[data-action="summary-keep-order"]'), f'{t} bilan : ligne de 44 px')
+        row.scroll_into_view_if_needed()
+        shot(page, LOT, f'{t}-13-bilan-garder-ordre')
+        before = [e['name'] for e in pull_prog(page)]
+        row.click(); page.wait_for_timeout(300)
+        after = [e['name'] for e in pull_prog(page)]
+        R.check(after == [start[0], start[3], start[1], start[2]] + start[4:], f'{t} bilan : programme dans l\'ordre fait {after} (avant {before})')
+        R.check('Ordre gardé' in page.locator('#sumOrder').inner_text() and page.evaluate("document.activeElement?.id") == 'sumOrder', f'{t} bilan : « Ordre gardé », focus pour VoiceOver')
+        page.click('[data-action="summary-done"]'); page.wait_for_timeout(300)
+        page.evaluate("startSession('pull')")
+        page.wait_for_selector('.view.session')
+        R.check(names(page)[:2] == [start[0], start[3]], f'{t} séance suivante : le nouvel ordre {names(page)[:3]}')
+        page.evaluate("endSession()")
+        R.check(not page.errors, f'{t} erreurs JS {page.errors}')
+
+
 if __name__ == '__main__':
-    run_main(R, [t_prise, t_ordre, t_ordre_sous_serie])
+    run_main(R, [t_prise, t_ordre, t_ordre_sous_serie, t_ajout_ordre])

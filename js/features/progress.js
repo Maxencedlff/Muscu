@@ -6,7 +6,6 @@
 // Courbe d'un exercice : « Charge max » à l'ouverture depuis une liste, la grandeur de la tendance de la liste (panel Apple
 // du 08/11 : la liste disait +13 % de charge max, la fiche s'ouvrait sur le volume à +35 %)
 let statsMode = 'charge';   // 'charge' | 'volume' | '1rm' | 'effort'
-let ovMonth   = null; // { y, m } du calendrier de la vue d'ensemble
 
 // Mesures d'un exercice dans une séance
 function exPoint(h, e) {
@@ -308,7 +307,7 @@ registerActions({
     navigate(makeRoute('stats-ex', el.dataset.ex));
   },
   'go-stats-overview': () => {
-    ovMonth = null; navigate('stats-overview');
+    navigate('stats-overview');
   },
   'info-1rm': async () => {
     await dialog({ title: '1RM estimé', message: 'Charge estimée pour une seule rep. Fiable jusqu\'à 12 reps.',

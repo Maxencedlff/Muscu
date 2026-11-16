@@ -206,6 +206,9 @@ def p_seance(r):
     with r.etape('ajouter-recherche', 'Recherche « soulevé »', cle='Ajouter un exercice (recherche)'):
         r.saisir('#axSearch', 'soulevé', 'recherche')
     with r.etape('ajouter-choisi', 'Soulevé de terre ajouté à la séance', cle='Ajouter un exercice (recherche)'):
+        # « À la fin » : la suite du parcours remplace le 2e exercice (par défaut, « Ensuite » y mettrait le soulevé)
+        if r.present('.sess-sheet--addex [data-action="ax-place"][data-place="end"]'):
+            r.toucher('.sess-sheet--addex [data-action="ax-place"][data-place="end"]', 'Placer : À la fin')
         sel = '.sess-sheet--addex [data-action="ax-pick"]'
         if r.present(sel + '[data-name="Soulevé de terre"]'):
             r.toucher(sel + '[data-name="Soulevé de terre"]', 'Soulevé de terre')
@@ -226,6 +229,9 @@ def p_seance(r):
 
     with r.etape('plus-tard', 'Faire l\'exercice en cours plus tard (lien en bas de sa carte)', cle='Faire un exercice plus tard'):
         r.toucher('.view.session [data-action="ex-later"]', '« Plus tard » de l\'exercice en cours')
+    with r.etape('faire-maintenant', 'Faire un autre exercice maintenant (lien en bas de sa carte)', cle='Changer l\'ordre de la séance'):
+        r.defiler('.view.session [data-action="ex-now"]', '« Faire maintenant » d\'un autre exercice')
+        r.toucher('.view.session [data-action="ex-now"]', '« Faire maintenant »')
 
     with r.etape('superset-choix', 'Superset : choisir le partenaire', cle='Créer un superset'):
         menu_ex(r, 0)
@@ -284,6 +290,12 @@ def p_historique(r):
     with r.etape('liste', 'Onglet Historique', cle='Revoir sa dernière séance'):
         r.onglet('history', 'Historique')
         r.attendre('.view.history .hcell--card', 'Historique en cartes illustrées')
+    with r.etape('calendrier', 'Calendrier du mois (bouton de la barre)', cle='Revoir ses séances sur un calendrier'):
+        r.toucher('.view.history .navbar [data-action="hcal-toggle"]', 'Calendrier')
+        r.attendre('.view.history .hcal .cal__grid', 'calendrier du mois')
+    with r.etape('calendrier-jour', 'Séances d\'un jour touché', cle='Revoir ses séances sur un calendrier'):
+        r.toucher('.view.history .hcal [data-action="hcal-day"]', 'un jour avec séance')
+        r.attendre('.view.history .hcal-day .hcell', 'séances du jour')
     with r.etape('detail', 'Détail de la dernière séance', cle='Revoir sa dernière séance'):
         r.toucher('.view.history .hcell--card[data-action="open-history"]', 'la séance la plus récente')
         r.attendre('.view.history-detail .hdhead', 'détail de séance (en-tête illustré)')

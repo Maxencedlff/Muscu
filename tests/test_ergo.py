@@ -90,7 +90,7 @@ def t_seance(bench, eng, dev, theme):
         # Deux touchers : ouvrir la feuille, toucher l'exercice récent
         R.check(in_view(page, '#axList [data-name="Squat barre"]'), f'{t} récent visible sans défiler')
         page.locator('#axList [data-name="Squat barre"]').click(); page.wait_for_timeout(350)
-        R.check(page.evaluate("activeSession.exercises.at(-1).name") == 'Squat barre', f'{t} ajouté en 2 touchers')
+        R.check(page.evaluate("activeSession.exercises.some(e => e.name === 'Squat barre')"), f'{t} ajouté en 2 touchers')
         # Recherche : liste directe, sans sections
         page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); page.wait_for_timeout(300)
         page.fill('#axSearch', 'curl')

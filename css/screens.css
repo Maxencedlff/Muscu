@@ -376,6 +376,23 @@ html.type-xl .chart-bubble { white-space: normal; }
 .cal__d--today > .num { color: var(--bg); background: var(--label); font-weight: 600; /* neutre : rouge réservé au destructif, bleu à l'interactif */ border-radius: 50%; width: 26px; height: 26px; line-height: 1.529rem; margin-top: -3px; }
 .cal__dots { display: flex; gap: 2px; margin-top: 3px; height: 6px; }
 .cal__dots i { width: 6px; height: 6px; border-radius: 50%; display: block; }
+/* Historique : calendrier du mois en tête (js/features/history-calendar.js), compact et repliable */
+.hcal { margin: 4px 0 12px; }
+.hcal .cal__title { margin: 0; }
+/* Bouton calendrier de la barre : un fond discret quand le calendrier est ouvert (état aussi dit par aria-expanded) */
+.hcal-btn--on { background: var(--fill); border-radius: 50%; }
+.hcal .cal__grid { row-gap: 0; }
+.hcal .cal__d { min-height: 44px; }
+button.cal__d { border: 0; background: none; color: var(--label); font: inherit; font-size: 0.882rem; cursor: pointer; border-radius: 10px; width: 100%; }
+button.cal__d:active { background: var(--fill2); }
+button.cal__d[aria-pressed="true"] { background: var(--fill); }
+.cal__d--has > .num { font-weight: 600; }
+.cal__d--empty, span.cal__d:not(.cal__d--has) { color: var(--label2); }
+.hcal-day { margin-bottom: 12px; }
+html.type-xl .hcal .cal__d { font-size: 1rem; min-height: 48px; }
+html.type-xl .hcal .cal__wd { font-size: 0.882rem; }
+html.type-xl .hcal .cal__d--today > .num { width: 1.5em; height: 1.5em; line-height: 1.5em; margin-top: 0; }   /* le cercle d'aujourd'hui suit le texte agrandi */
+
 /* Barres sous l'objectif en gris système (3:1 au moins sur la carte, clair et sombre ; --fill faisait 1,2:1, panel t5),
    le nombre de séances au-dessus de chaque barre */
 .wks { position: relative; display: flex; align-items: flex-end; gap: 6px; height: 120px; margin-top: 18px; padding-right: 20px; }   /* l'objectif à droite, hors des barres */
@@ -527,7 +544,7 @@ html.type-xl .ax-stepper button { width: max(44px, 2.4rem); height: max(44px, 2.
 html.type-xl .ax-stepper .icon, html.type-xl .stepper .icon { width: max(18px, 1.06rem); height: max(18px, 1.06rem); }
 html.type-xl .stepper { width: auto; min-width: 94px; height: auto; min-height: max(44px, 2.4rem); }
 html.type-xl .stepper button { padding: 0 max(12px, .7rem); }
-html.type-xl .ex-card__foot { flex-wrap: wrap; row-gap: 4px; }
+html.type-xl .ex-card__foot { row-gap: 4px; }
 html.type-xl .targets__target, html.type-xl .targets__gain, html.type-xl .targets__before, html.type-xl .recap-card__cta { white-space: normal; }
 html.type-xl .targets__val { flex-shrink: 1; min-width: 0; max-width: 100%; }
 html.type-xl .targets__now { flex-wrap: wrap; justify-content: flex-end; }
