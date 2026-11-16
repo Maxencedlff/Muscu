@@ -5,11 +5,9 @@
 //    Connect : passer d'un palier coach à l'autre, ou du particulier au coach, est une montée ou une
 //    descente chez Apple (pas un second abonnement), et l'essai de 3 mois ne sert qu'une fois par
 //    identifiant Apple pour tout le groupe.
-//  - Ce fichier ne contient AUCUN PRIX des formules : ils sont lus chez StoreKit (displayPrice). Seule
-//    exception, assumée : le prix de l'offre élève (−25 % pendant 12 mois). C'est un CODE D'OFFRE
-//    d'Apple, et StoreKit ne donne jamais le prix d'un code d'offre avant qu'on le saisisse. Le texte
-//    vient donc d'un repli par devise (PLAN_STUDENT_PRICE), aux prix posés dans App Store Connect ; la
-//    feuille d'Apple affiche ensuite le vrai prix avant toute confirmation.
+//  - Ce fichier ne contient AUCUN PRIX : ils sont lus chez StoreKit (displayPrice). Depuis le 16/11/2026,
+//    les élèves d'un coach ne paient rien (l'abonnement coach les comprend, docs/PAYANT_V1.md) : il n'y a
+//    plus d'offre élève ni de prix écrit dans l'app.
 //  - « soit 8,5 mois » est CALCULÉ (prix annuel / prix mensuel lus chez StoreKit, au demi-mois près).
 //  - Paliers coach : limite d'élèves suivis (10, 20, 30, illimité). Le serveur fait foi
 //    (coach_tier_state, refus tier_full) ; ici on ne fait que choisir quoi montrer.
@@ -30,15 +28,8 @@ const planId = (key, period) => `${PLAN_PREFIX}${key}.${period === 'year' ? 'yea
 // Tous les identifiants, dans l'ordre d'affichage (le même que ios/App/App/StorePlugin.swift)
 const PLAN_IDS = Object.freeze(PLAN_TIERS.flatMap(t => [planId(t.key, 'month'), planId(t.key, 'year')]));
 
-// Offre élève : code d'offre d'Apple sur le mensuel particulier (App Store Connect, offre « Eleve de
-// coach -25 pct 12 mois »), 12 mois, nouveaux abonnés seulement, sans essai gratuit
-const PLAN_STUDENT_MONTHS = 12;
-const PLAN_STUDENT_PRICE = Object.freeze({ EUR: '4,89 €', USD: '$3.99', CAD: '4,99 $ CA', CHF: 'CHF 3.00' });
-// Page d'Apple qui ouvre la saisie du code d'offre avec le code déjà rempli (identifiant de l'app)
+// Identifiant de l'app sur l'App Store (fiche de l'app, écran « Mets à jour l'app »)
 const PLAN_APP_STORE_ID = '6823561962';
-function planRedeemUrl(code) {
-  return `https://apps.apple.com/redeem?ctx=offercodes&id=${PLAN_APP_STORE_ID}&code=${encodeURIComponent(code)}`;
-}
 
 // Identifiant → { tier, period: 'month' | 'year' }, null si ce n'est pas une de nos formules
 function planOf(id) {
@@ -71,10 +62,4 @@ function planYearMonths(monthly, yearly) {
 // 8.5 → « 8,5 mois », 10 → « 10 mois »
 function planMonthsText(n) {
   return `${String(n).replace('.', ',')} mois`;
-}
-
-// Prix de l'offre élève dans la devise de la boutique (lue sur le mensuel StoreKit), null si inconnue
-function planStudentPrice(currency) {
-  return typeof currency === 'string' && Object.prototype.hasOwnProperty.call(PLAN_STUDENT_PRICE, currency)
-    ? PLAN_STUDENT_PRICE[currency] : null;
 }

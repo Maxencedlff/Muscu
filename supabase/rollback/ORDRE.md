@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −8 | `20261116000000_eleves_gratuits_down.sql` (élèves offerts par leur coach : retour à l'élève payant et au code d'offre −25 %) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et du payant attendent la règle du 16/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
 | −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
 | −5 | `20261106100000_seance_publique_intensif_prise_down.sql` | rien | oui (vérifié) |
@@ -26,7 +27,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | 7 | `20261031200000_reactions_profil_down.sql` | commentaires (3) | non |
 | 8 | `20261031100000_records_series_down.sql` | progression des élèves (−4) : `coach_progress` lit `private.session_records` ; séance publique (−5) de préférence avant (seul, il remplace aussi son `session_public`) | non (seul, tout le reste marche : vérifié sans les tests de la progression ni de la séance publique) |
 | 9 | `20261031000000_payant_plus_down.sql` | rien | oui (vérifié) |
-| 10 | `20261030000000_payant_tarifs_down.sql` | payant plus (9) | non, refuse sans rien changer |
+| 10 | `20261030000000_payant_tarifs_down.sql` | payant plus (9), élèves offerts (−8) | non, refuse sans rien changer |
 | 11 | `20261029000000_payant_modele_b_down.sql` | tarifs (10) | non, refuse sans rien changer |
 
 « Dépend de » : la migration plus récente réécrit des fonctions de celle-ci (my_activity, réécrite par les commentaires, pour 7 ; access_json, access_refresh, access_claim, srv_access_* pour 10 et 11). Les retours arrière 4, 10 et 11 s'arrêtent d'eux-mêmes (exception, transaction annulée) si la migration du dessus est encore en place. Pour 7, suivre l'ordre : lancé avant 3, il retire mark_activity_seen et my_shown_sessions que les commentaires utilisent.
@@ -48,6 +49,7 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 9. `20261106100000_seance_publique_intensif_prise.sql` (séance vue par un ami ou un coach : techniques d'intensification et prise ; indépendante, peut aussi passer seule)
 10. `20261106200000_plans_diete_coach.sql` (après l'OTA qui demande l'accord de l'élève : sinon les coachs ne peuvent plus envoyer de plan diète tant que leurs élèves n'ont pas la version qui sait accepter ; et après les mensurations, dont il garde la donnée)
 11. `20261107000000_photos_bilan.sql` (photos de bilan chiffrées de bout en bout, docs/PHOTOS_BILAN.md : indépendante ; avant l'OTA, avec la fonction `coach-photos-purge` et sa planification)
+12. `20261116000000_eleves_gratuits.sql` (élèves offerts par leur coach, décision du 16/11/2026, docs/PAYANT_V1.md) : APRÈS 1 à 3 (il réécrit `access_json` des tarifs), avec l'OTA qui l'affiche. Aucune fonction Edge à redéployer.
 
 Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md).
 
@@ -63,7 +65,7 @@ Pour cette vague, **appliquer seulement `20261107000000_photos_bilan.sql`** (11e
 
 Les cinq migrations du payant (1 à 5 : modèle B, tarifs, payant plus, lettre d'information, parrainage du payant) **ne font pas partie de cette vague** : elles attendent l'accord de Maxence.
 
-Pour défaire en production : l'ordre inverse de cette liste (11 → 1), avant tout retour arrière plus ancien.
+Pour défaire en production : l'ordre inverse de cette liste (12 → 1), avant tout retour arrière plus ancien.
 
 ## Ce qui est mis de côté, pas effacé
 

@@ -74,7 +74,7 @@ begin
   if (st ->> 'server_now')::timestamptz not between now() - interval '1 minute' and now() + interval '1 minute' then raise 'server_now : %', st; end if;
   -- Les clés du contrat (modèle B), exactement
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
-     array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
+     array['can_write', 'coach_cover', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
      then raise 'clés de access_state : %', st; end if;
   reset role;
   if exists (select 1 from public.entitlements where user_id = pg_temp.pu('a')) then raise 'access_state a créé une ligne'; end if;
@@ -82,7 +82,7 @@ begin
   -- my_access crée la ligne, sans rien démarrer
   st := public.my_access();
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
-     array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
+     array['can_write', 'coach_cover', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
      then raise 'clés de my_access : %', st; end if;
   if st ->> 'status' is distinct from 'none' or not (st ->> 'can_write')::boolean then raise 'my_access : %', st; end if;
   reset role;
@@ -394,7 +394,7 @@ begin
   if (public.my_access() ->> 'days_left')::int is distinct from 5 then raise '5 jours offerts à F'; end if;
 end $$;
 
--- ── Élève suivi par un coach : plus d'accès gratuit (20261030000000_payant_tarifs.sql) ──
+-- ── Élève d'un coach SANS abonnement coach : pas offert (règle du 16/11 : eleves_gratuits_test.sql) ──
 do $$
 declare st jsonb;
 begin
@@ -406,12 +406,12 @@ begin
   set role authenticated;
   st := public.my_access();
   if st ->> 'status' is distinct from 'none' or (st ->> 'coach_team')::boolean or (st ->> 'can_write')::boolean
-     then raise 'élève de coach encore gratuit : %', st; end if;
+     or st -> 'coach_cover' ->> 'state' <> 'ended' then raise 'élève d''un coach sans abonnement coach offert : %', st; end if;
   reset role;
   if (select in_coach_team from public.entitlements where user_id = pg_temp.pu('d')) then raise 'instantané in_coach_team'; end if;
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
   set role authenticated;
-  -- Un abonné qui est aussi élève est « active », coach_team toujours faux
+  -- Un abonné qui est aussi élève (coach sans abonnement coach) est « active », coach_team faux
   if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pu('d'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-d1')) is distinct from 'ok' then raise 'abonnement de D'; end if;
   st := public.my_access();
   if st ->> 'status' is distinct from 'active' or (st ->> 'coach_team')::boolean then raise 'abonné et élève : %', st; end if;
@@ -653,7 +653,7 @@ do $$ begin
   -- Un abonné passe, verrou allumé (offre de lancement comprise)
   if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, null, true, %L)', pg_temp.pu('i'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-i1', 'Production')) is distinct from 'ok' then raise 'abonnement de I'; end if;
   if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-4', '{"date": 1780000002000, "exercises": []}') $q$) is distinct from 'ok' then raise 'abonné refusé'; end if;
-  -- Un élève de coach, lui, n'a plus d'accès gratuit (20261030000000_payant_tarifs.sql)
+  -- Un élève d'un coach sans abonnement coach n'est pas offert (eleves_gratuits_test.sql)
   reset role;
   update public.entitlement_claims set revoked_at = now() where original_transaction_id = 'tx-i1';
   perform private.access_refresh(pg_temp.pu('i'));
@@ -866,7 +866,7 @@ begin
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
 end $$;
 
--- Les élèves gratuits (10 par coach) ont été retirés par 20261030000000_payant_tarifs.sql : voir tarifs_test.sql.
+-- Élèves offerts par leur coach (palier de l'abonnement coach, délai de grâce) : voir eleves_gratuits_test.sql.
 
 -- ── Grâce de fin de séance : bornée, et sans antidatage possible ──
 do $$

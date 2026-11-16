@@ -8,7 +8,8 @@
 //  - Réglages › Coach (renderCoachProGroup, appelée par js/features/coach-ui.js) : pas encore coach,
 //    l'entrée de la demande ; coach validé, son code permanent (à partager) et son palier.
 //  - Palier plein (coachTierBannerHtml) : « 10 élèves sur 10 : passe au palier supérieur », mène à
-//    l'onglet Coach de l'abonnement avec le palier suivant mis en avant.
+//    l'onglet Coach de l'abonnement avec le palier suivant mis en avant. Élèves au-delà de la formule
+//    (descente de palier, abonnement coach arrêté) : leur accès n'est plus offert, le bandeau le dit.
 //  Tout texte venu du serveur passe par esc(). Rien au pointerdown : actions au clic seulement.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -25,7 +26,10 @@ let coachRequestBusy = false;
 function coachTierBannerHtml() {
   const txt = coachTierFullText(coachPro.tier);
   if (!txt || !paywallOn()) return '';
-  const next = coachPro.tier.next_product || planId(planTierFor(coachPro.tier.students + 1).key, 'month');
+  // Élèves au-delà de la formule : le palier qui les contient tous ; palier plein : le suivant
+  const t = coachPro.tier;
+  const next = t.uncovered > 0 ? planId(planTierFor(t.students).key, 'month')
+    : t.next_product || planId(planTierFor(t.students + 1).key, 'month');
   return `
         <button class="pay-banner pay-banner--off coach-tier-banner" data-action="pay-open" data-reason="offer" data-tab="coach" data-id="${esc(next)}">
           <span class="pay-banner__text">${esc(txt)}</span>
@@ -64,7 +68,7 @@ function renderCoachProGroup() {
             <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(code)}" aria-label="Partager ton code coach">${icon('square.and.arrow.up', 20)}</button>
           </div>` : `<div class="cell"><span class="cell__sub">${coachPro.error ? esc(coachProErrorText(coachPro.error)) : 'Chargement…'}</span></div>`}
         </div>
-        <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre un coach.${paywallOn() ? ' Avec lui, leur abonnement est à 25 % de moins pendant 12 mois.' : ''}</div>
+        <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre un coach.${paywallOn() ? ' Tes élèves n\'ont rien à payer : ta formule coach comprend leur accès, dans la limite de son nombre d\'élèves.' : ''}</div>
         <div class="group-title">Abonnement coach</div>
         <div class="group">
           <button class="cell cell--nav" data-action="pay-open" data-reason="offer" data-tab="coach">

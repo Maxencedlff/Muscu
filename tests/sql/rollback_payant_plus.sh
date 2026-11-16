@@ -48,7 +48,7 @@ begin
   st := private.access_json('00000000-0000-0000-0000-000000000c02');
   if st ->> 'status' <> 'none' then raise 'accès retiré revenu : %', st; end if;
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
-     array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
+     array['can_write', 'coach_cover', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
      then raise 'clés d''avant : %', st; end if;
   if (select count(*) from private.payant_plus_revoked_redemptions) <> 2 then raise 'retraits non mis de côté'; end if;
   if (select expires_at > now() from public.gift_codes where code = (select code from public.rb_code)) then raise 'code désactivé réutilisable'; end if;

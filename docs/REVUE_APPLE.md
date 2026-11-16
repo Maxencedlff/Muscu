@@ -32,7 +32,7 @@ de démo se tape directement dans App Store Connect.
 >
 > Demo account (verified coach, Google sign-in): [ADRESSE DU COMPTE GOOGLE DE DÉMO] / [MOT DE PASSE DU COMPTE GOOGLE DE DÉMO]. You can also sign in with your own Apple ID to see the personal plans.
 >
-> Student offer: a student who joins a coach with the coach's code gets 25% off the monthly plan for 12 months through a single-use Apple offer code distributed by our server; it cannot be tested without a coach code and a Sandbox offer code.
+> Coach plans and students: a verified coach buys an auto-renewable coach subscription in the app (In-App Purchase, tiers of 10, 20, 30 or unlimited students). Students who join that coach with the coach's code get full access paid by the coach's subscription, within the number of students of the coach's tier; they never pay and are never charged. If the coach's subscription ends, students keep access for 7 days, then they can subscribe themselves through In-App Purchase like any user.
 >
 > Codes: the only code that can be entered in the iOS app is an Apple subscription offer code ("J'ai un code d'offre Apple", which opens Apple's own redemption sheet). The app has no license keys or other code of its own to unlock features.
 >

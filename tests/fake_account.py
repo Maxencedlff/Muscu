@@ -48,7 +48,8 @@ invalid_card, invalid_diploma, already_coach, rate_limited 5 par 24 h), coach_ti
 Edge coach-request-alert (__sb.co.alerts) ; codes de 8 ou 12 caractères ; un élève de trop : tier_full (verrou
 allumé : limite de la formule coach, 0 sans formule ; éteint : 50, ou plus selon le palier).
 État dans __sb.co ; __sb.makeCoach(id) valide le rôle (coach_at, code permanent, demande « approved »),
-__sb.rejectCoach(id, motif) refuse la demande, __sb.setTier(id, produit) pose la formule coach,
+__sb.rejectCoach(id, motif) refuse la demande, __sb.setTier(id, produit) pose la formule coach
+(coach_tier_state.uncovered : élèves au-delà de la formule payée, tous sans formule),
 __sb.link(coach, élève) relie deux comptes. Appels dans
 __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
 Messages (supabase/migrations/20261031510000_chat_coach.sql) : chat_threads, chat_messages (before_id, after_id),
@@ -991,7 +992,9 @@ FAKE_ACCOUNT = r"""
       const k = tierKey(co.tierProduct[me]), lim = limitOf(me), n = co.links.filter(l => l.coach === me).length;
       const next = TIER_ORDER[k ? TIER_ORDER.indexOf(k) + 1 : 0];
       return { is_coach: true, paywall_on: !!(window.__st && __st.paywallOn), product_id: k ? co.tierProduct[me] : null, limit: lim, students: n,
-        full: lim !== null && n >= lim, next_product: next ? `com.mdlf.training.${next}.monthly` : null };
+        full: lim !== null && n >= lim, next_product: next ? `com.mdlf.training.${next}.monthly` : null,
+        // Élèves que la formule payée ne couvre pas (16/11/2026 : leur accès n'est plus offert)
+        uncovered: Math.max(n - (k === 'coachmax' ? Infinity : k ? Number(k.slice(5)) : 0), 0) };
     },
     coach_my_code: me => (co.coachAt[me] ? { code: co.permCode[me], created_at: new Date(co.coachAt[me]).toISOString() } : pgErr('not_coach')),
     coach_revoke_invite: (me, { code }) => { co.invites = co.invites.filter(i => !(i.coach === me && i.code === code)); return null; },
