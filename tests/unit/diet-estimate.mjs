@@ -131,4 +131,44 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     run(`data.dietPlans.d_p.targets = undefined; data.dietPlans.d_p.fromCoach = { coachId: 'c', name: 'max', sentAt: 1 }`);
     assert.equal(run(`dietDayFinished(data, '${day}', 'd_p')`), true, 'menu du coach : tous les repas cochés');
   });
+
+  test('objectifs automatiques : ce qui manque, âge depuis l\'année de naissance, mineur, objectif et activité retenus', () => {
+    const r = run(`dietAutoInputs({ sex: 'male', kg: 74.5, birthYear: 2001, heightCm: 180, goal: 'gain', activity: 'high' }, 2026)`);
+    sameJSON(r, { inputs: { sex: 'male', kg: 74.5, cm: 180, age: 25, goal: 'gain', activity: 'high' }, missing: [], minor: false });
+    sameJSON(run(`dietAutoInputs({ kg: 74.5 }, 2026)`).missing, ['sex', 'age', 'cm']);
+    assert.equal(run(`dietMissingText(['sex', 'age', 'cm'])`), 'ton sexe, ton âge et ta taille');
+    assert.equal(run(`dietMissingText(['cm'])`), 'ta taille');
+    assert.equal(run(`dietAutoInputs({ sex: 'female', kg: 50, birthYear: 2010, heightCm: 160 }, 2026).minor`), true, '16 ans : pas de proposition');
+    sameJSON(run(`(() => { const a = dietAutoInputs({ goal: 'x', activity: '__proto__' }); return [a.inputs.goal, a.inputs.activity]; })()`), ['keep', 'mid']);
+    reset();
+    run(`data.birthYear = 1890; data.heightCm = 999; data.dietEstGoal = 'bulk'; data.dietEstSex = 'x'; sanitizeData(data)`);
+    sameJSON(run('[data.birthYear, data.heightCm, data.dietEstGoal, data.dietEstSex]'), [undefined, undefined, undefined, undefined], 'valeurs hors bornes retirées');
+    for (const k of ['birthYear', 'heightCm', 'dietEstGoal', 'dietEstActivity', 'dietEstSex']) assert.ok(run(`SYNC_LOCAL_ONLY.includes('${k}')`), `${k} sur l'appareil seulement`);
+    const native = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
+    for (const k of ['birthYear', 'heightCm']) assert.ok(native.match(/CLOUD_PRIVATE_KEYS = \[[^\]]*/)[0].includes(`'${k}'`), `${k} hors de la copie iCloud`);
+  });
+
+  test('repas de base : masqués, jamais supprimés ; migration douce (repas supprimé remis masqué, noms en double « (2) »)', () => {
+    reset();
+    const meal = (id, name, items = []) => ({ id, name, items });
+    run(`data.dietPlans = { d_a: { name: 'P', meals: ${JSON.stringify([meal('m1', 'Petit-déjeuner'), meal('m2', 'Déjeuner'), meal('m3', 'déjeuner'), meal('m4', 'Collation')])} },
+      d_c: { name: 'Coach', meals: ${JSON.stringify([meal('c1', 'Matin'), meal('c2', 'Matin')])}, fromCoach: { coachId: 'c', name: 'max', sentAt: 1 } } }; sanitizeData(data)`);
+    const a = run('data.dietPlans.d_a.meals');
+    sameJSON(a.map(m => [m.id, m.name, m.base ?? null, m.hidden ?? false]), [
+      ['m1', 'Petit-déjeuner', 'b', false], ['m2', 'Déjeuner', 'l', false], ['m3', 'déjeuner (2)', null, false], ['m4', 'Collation', 's', false], ['mb_d', 'Dîner', 'd', true]]);
+    assert.equal(run('JSON.stringify(sanitizeData(data).dietPlans.d_a)'), run('JSON.stringify(data.dietPlans.d_a)'), 'idempotente');
+    sameJSON(run('data.dietPlans.d_c.meals.map(m => m.name)'), ['Matin', 'Matin'], 'plan du coach : tel qu\'envoyé');
+    // Repas masqué : ni dans la journée, ni dans les totaux, ni envoyé à un élève
+    run(`data.dietPlans.d_a.meals[4].items = [{ id: 'x', name: 'Riz', food: null, fam: 'f', g: 100, per: { k: 100, p: 2, c: 20, f: 1 } }]`);
+    assert.equal(run(`dietPlanMacros(data.dietPlans.d_a).kcal`), 0);
+    assert.ok(!run(`dietDayProgress(data, 'd_a', dietDayKey()).meals.some(x => x.meal.id === 'mb_d')`));
+    assert.ok(!run(`dietToSent(data.dietPlans.d_a).diet.meals.some(m => m.id === 'mb_d')`));
+    // Noms comparés sans casse ni accents
+    assert.equal(run(`dietMealNameTaken(data.dietPlans.d_a, 'DINER')`), true);
+    assert.equal(run(`dietMealNameTaken(data.dietPlans.d_a, 'Dîner', 'mb_d')`), false, 'le repas renommé lui-même');
+    assert.equal(run(`dietMealNameTaken(data.dietPlans.d_a, 'Goûter')`), false);
+    // Plan neuf : quatre repas de base
+    const id = run(`dietNewPlan(data, 'Neuf')`);
+    sameJSON(run(`data.dietPlans['${id}'].meals.map(m => m.base)`), ['b', 'l', 's', 'd']);
+  });
 }

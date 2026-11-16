@@ -274,6 +274,24 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
   calories atteint ») ; sans objectif de calories, jamais (un compte : « 2 repas cochés sur 4 »). Panel « regard neuf »
   du 16/11 : « Journée complète » sur un plan de 233 kcal, petit-déjeuner seul noté (`dietDayFinished`,
   `dietProgressFinished`, `dietFinishedStreak`).
+- **Demandes de Maxence du 16/11** (« j'ai mis dans petit-déj ce qui devrait être dans déjeuner… supprimer le dîner
+  n'a aucun sens… des repas qui ont le même nom… un truc qui calcule automatiquement ») :
+  - **Déplacer vers…** : menu d'un aliment de repas type (Annuler le remet à sa place) ; dans la journée, menu d'un
+    ajout du jour ou feuille d'un aliment prévu (pour ce jour seulement : retiré de son repas, ajouté à l'autre ; le plan
+    ne change pas ; Annuler).
+  - **Repas de base** (`base` : b, l, s, d ; Petit-déjeuner, Déjeuner, Collation, Dîner) : « Masquer ce repas »
+    (`hidden`, réversible, place gardée, « Repas masqués › Réafficher » en pied du plan ; ni dans la journée, ni dans
+    les totaux, ni envoyé à un élève). Repas ajoutés : « Supprimer le repas », confirmation, Annuler.
+  - **Noms en double** refusés (sans casse ni accents) : « Un repas porte déjà ce nom ».
+  - **Migration douce** (`dietMigratePlan`, `sanitizeDiet`, jamais sur un plan reçu d'un coach, idempotente) : repas de
+    base reconnus par leur nom, repas de base supprimé remis masqué (`mb_<clé>`), doublons « (2) ».
+  - **Proposition automatique** : Réglages › Âge et Taille (facultatifs, `birthYear`, `heightCm`, sur l'iPhone
+    seulement : SYNC_LOCAL_ONLY et hors de la copie iCloud, comme le poids). Feuille Objectifs du jour : carte
+    « Proposition » en tête (2 980 kcal · P 134 · G 460 · L 67, explication, « Estimation, pas un avis médical »),
+    objectif et activité à choisir et retenus (`dietEstGoal`, `dietEstActivity`), « Appliquer » ou « Ajuster » ;
+    jamais appliquée seule ; recalculée avec le poids du moment. Ce qui manque est nommé (« il manque ton âge et ta
+    taille ») avec « Compléter » (gardé dans Réglages ; sexe : celui du niveau de force, sinon `dietEstSex`). Pas
+    de proposition sous 18 ans ni pour un coach.
 - **Calories fixées, pas une macro** (un coach fixe souvent kcal et protéines) : cette macro s'affiche sans repère
   ni jauge (« Pas d'objectif ») ; son total tiré du plan ne collerait pas aux calories fixées.
 - **Repas vides** (plan neuf pas encore rempli) : ni cochables, ni comptés dans « n repas cochés sur N » ou la

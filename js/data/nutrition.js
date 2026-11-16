@@ -40,6 +40,10 @@ const DIET_TARGET_KEYS = ['kcal', 'p', 'c', 'f'];
 const DIET_TARGET_MAX = { kcal: 10000, p: 600, c: 1500, f: 600 };
 // Repas d'un plan neuf : les noms seuls, la personne les remplit
 const DIET_DEFAULT_MEALS = ['Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'];
+// Repas de base d'un plan perso (retour de Maxence du 16/11 : « supprimer le dîner n'a aucun sens ») : base = clé fixe,
+// gardée au renommage ; un repas de base se masque (hidden), jamais ne se supprime. Identifiant stable du repas remis
+// par la migration (mb_<clé>) : deux appareils qui migrent le même plan donnent le même repas
+const DIET_BASE_KEYS = ['b', 'l', 's', 'd'];
 // Repère de santé (NICE NG246, 2025) : sous 1 200 kcal par jour, un régime relève d'un suivi médical.
 // L'app le dit sans rien bloquer (dietLowKcal)
 const DIET_LOW_KCAL = 1200;
@@ -103,7 +107,46 @@ function cleanDietMeal(m) {
   const out = { id: typeof m.id === 'string' && DIET_PART_RE.test(m.id) ? m.id : uid(), name: dietText(m.name, DIET_NAME_MAX) || 'Repas', items };
   const note = dietText(m.note, DIET_NOTE_MAX);
   if (note) out.note = note;
+  if (DIET_BASE_KEYS.includes(m.base)) out.base = m.base;
+  if (m.hidden === true) out.hidden = true;
   return out;
+}
+// Nom comparé sans casse ni accents (« Dîner » = « diner » = « DINER »)
+function dietNameKey(n) { return String(n ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+// Un autre repas du plan porte-t-il déjà ce nom ? (exceptId : le repas renommé)
+function dietMealNameTaken(plan, name, exceptId = null) {
+  const k = dietNameKey(name);
+  return !!plan?.meals.some(m => m.id !== exceptId && dietNameKey(m.name) === k);
+}
+// Repas affichés (journal, totaux, frise) : sans les repas masqués
+function dietShownMeals(plan) { return (plan?.meals || []).filter(m => !m.hidden); }
+// Migration douce d'un plan perso (sanitizeDiet ; jamais un plan reçu d'un coach, qui reste tel qu'envoyé) :
+//  1. plan d'avant les repas de base : le premier repas de chaque nom par défaut devient de base ;
+//  2. repas de base supprimé avant le 16/11 : remis masqué (mb_<clé>), pas perdu ;
+//  3. noms en double (sans casse ni accents) : « (2) », « (3) »… ajouté au suivant, rien n'est perdu.
+// Idempotente : un plan déjà migré ne change pas
+function dietMigratePlan(plan) {
+  if (!plan || plan.fromCoach) return plan;
+  if (!plan.meals.some(m => m.base)) {
+    DIET_DEFAULT_MEALS.forEach((n, i) => {
+      const m = plan.meals.find(x => !x.base && dietNameKey(x.name) === dietNameKey(n));
+      if (m) m.base = DIET_BASE_KEYS[i];
+    });
+  }
+  DIET_BASE_KEYS.forEach((k, i) => {
+    if (plan.meals.some(m => m.base === k) || plan.meals.length >= DIET_MEAL_MAX) return;
+    let id = `mb_${k}`;
+    while (plan.meals.some(m => m.id === id)) id = uid();
+    plan.meals.push({ id, name: DIET_DEFAULT_MEALS[i], items: [], base: k, hidden: true });
+  });
+  const seen = new Set();
+  for (const m of plan.meals) {
+    let name = m.name, n = 2;
+    while (seen.has(dietNameKey(name))) name = `${dietText(m.name, DIET_NAME_MAX - 4)} (${n++})`;
+    m.name = name;
+    seen.add(dietNameKey(name));
+  }
+  return plan;
 }
 // Objectifs du jour fixés par la personne ou son coach : chaque valeur facultative, null si aucune
 function cleanDietTargets(t) {
@@ -272,6 +315,7 @@ function cleanDietExtras(v) {
 // Appelé par sanitizeData : clés retirées quand il n'en reste rien de valable
 function sanitizeDiet(d, now = Date.now()) {
   if (d.dietPlans !== undefined) { d.dietPlans = cleanDietPlans(d.dietPlans); if (!Object.keys(d.dietPlans).length) delete d.dietPlans; }
+  for (const plan of Object.values(d.dietPlans || {})) dietMigratePlan(plan);
   const p = d.dietPlans?.[d.dietActive];
   if (d.dietActive !== undefined && (!p || p.archived)) delete d.dietActive;
   if (d.dietFoods !== undefined) { d.dietFoods = cleanDietFoods(d.dietFoods); if (!d.dietFoods.length) delete d.dietFoods; }
@@ -283,6 +327,10 @@ function sanitizeDiet(d, now = Date.now()) {
     if (ok) d.dietConsent = { on: c.on, at: c.at }; else delete d.dietConsent;
   }
   for (const k of ['dietConsentAsked', 'dietHideNumbers', 'dietStreakOff', 'dietProteinPerKg']) if (d[k] !== undefined && d[k] !== true) delete d[k];
+  // Objectif et activité choisis pour la proposition d'objectifs (js/data/diet-estimate.js), gardés sur l'appareil
+  if (d.dietEstGoal !== undefined && !['gain', 'keep', 'cut'].includes(d.dietEstGoal)) delete d.dietEstGoal;
+  if (d.dietEstActivity !== undefined && !['low', 'light', 'mid', 'high'].includes(d.dietEstActivity)) delete d.dietEstActivity;
+  if (d.dietEstSex !== undefined && !['male', 'female'].includes(d.dietEstSex)) delete d.dietEstSex;
   // Repas du jour : true (vides) ou false (pré-remplis) choisis ; absent = selon le plan (dietEmptyDaysFor)
   if (d.dietEmptyDays !== undefined && typeof d.dietEmptyDays !== 'boolean') delete d.dietEmptyDays;
   // Accord « recevoir les plans de mon coach » gardé sur l'appareil (serveur pas encore à jour) : même forme
@@ -311,7 +359,8 @@ function dietShownRatio(v, goal) {
 function dietLowKcal(plan) {
   if (!plan) return false;
   const own = plan.targets?.kcal;
-  if (!own && !(plan.meals?.length && plan.meals.every(m => m.items.length))) return false;
+  const shown = dietShownMeals(plan);
+  if (!own && !(shown.length && shown.every(m => m.items.length))) return false;
   const k = own || dietGoal(plan).goal.kcal;
   return k > 0 && k < DIET_LOW_KCAL;
 }
@@ -322,7 +371,7 @@ function dietLowKcal(plan) {
 // repas types » (plan perso : des repas d'habitude facultatifs, pas un menu imposé, retour du 16/11)
 function dietTargetGap(plan, noun = 'Les repas prévus') {
   const t = plan?.targets;
-  if (!t || !plan.meals?.some(m => m.items?.length)) return '';
+  if (!t || !dietShownMeals(plan).some(m => m.items?.length)) return '';
   const total = dietPlanMacros(plan);
   const parts = [['kcal', 'kcal'], ['p', 'g de protéines']].flatMap(([k, unit]) => {
     const goal = Number(t[k]) || 0, diff = Math.round(total[k]) - goal;
@@ -352,7 +401,7 @@ function dietIsQtyChange(it, swap) { return !!swap && swap.name === it.name && (
 function dietMealMacros(meal, swaps = null, removed = null) {
   return (meal?.items || []).reduce((a, it) => (removed?.includes(it.id) ? a : dietAdd(a, dietItemMacros(dietEffectiveItem(it, swaps)))), DIET_ZERO());
 }
-function dietPlanMacros(plan, swaps = null) { return (plan?.meals || []).reduce((a, m) => dietAdd(a, dietMealMacros(m, swaps)), DIET_ZERO()); }
+function dietPlanMacros(plan, swaps = null) { return dietShownMeals(plan).reduce((a, m) => dietAdd(a, dietMealMacros(m, swaps)), DIET_ZERO()); }
 // Repère du jour : objectif fixé, sinon total prévu par le plan. own : objectif fixé (true) ou total (false)
 function dietGoal(plan) {
   const total = dietPlanMacros(plan), t = plan?.targets || {};
@@ -425,7 +474,7 @@ function dietWriteDay(d, day, e) {
   const off = (e.off || []).filter(id => meals.has(id)), copied = (e.copied || []).filter(id => meals.has(id)), blank = e.blank === true;
   d.dietLog ||= {};
   // Instantané : les repas à faire ce jour-là (un repas retiré n'en est plus, « Journée complète » sans lui)
-  const snapshot = dietDayRequired(plan?.meals, { removed, off, copied, blank });
+  const snapshot = dietDayRequired(dietShownMeals(plan), { removed, off, copied, blank });
   const hasExtras = Object.keys(extras).length > 0;
   // Jour vide (blank) gardé même sans rien d'autre : sinon il redeviendrait « pré-rempli » ou « vide » selon le réglage du moment
   if (done.length || Object.keys(swaps).length || hasExtras || removed.length || off.length || copied.length || blank) {
@@ -599,7 +648,7 @@ function dietDayProgress(d, planId, day = dietDayKey()) {
   const e = dietDay(d, planId, day);
   // Ajouts du jour : comptés dans le repas (mangé une fois coché), jamais dans le prévu ni le repère
   const blank = e.blank === true;
-  const meals = plan.meals.map(m => {
+  const meals = dietShownMeals(plan).map(m => {
     const extras = e.extras[m.id] || [], live = dietMealLive(m, e);
     const base = live.length ? dietMealMacros(m, e.swaps, e.removed) : DIET_ZERO(), added = extras.reduce((a, it) => dietAdd(a, dietItemMacros(it)), DIET_ZERO());
     // Repère : le plan du jour, remplaçants compris ; jamais baissé par un aliment retiré ou une quantité changée
@@ -612,7 +661,7 @@ function dietDayProgress(d, planId, day = dietDayKey()) {
   // qu'on mange, plan copié ou non) et dans un repas sans aliment prévu (collation libre, repas retiré puis autre chose)
   const eaten = meals.reduce((a, x) => dietAdd(a, x.done ? x.macros : x.extras.length && (blank || !x.live.length) ? x.added : DIET_ZERO()), DIET_ZERO());
   const planned = meals.reduce((a, x) => dietAdd(a, x.plan), DIET_ZERO());
-  const req = dietDayRequired(plan.meals, e), nDone = req.filter(id => dietMealSatisfied(e, id)).length;
+  const req = dietDayRequired(dietShownMeals(plan), e), nDone = req.filter(id => dietMealSatisfied(e, id)).length;
   const { goal, own } = dietGoal(plan);
   for (const k of DIET_TARGET_KEYS) if (!own[k]) goal[k] = Math.round(planned[k]);
   return { plan, day, swaps: e.swaps, removed: e.removed, blank, meals, eaten, planned, goal, own, nDone, nMeals: req.length,
@@ -624,7 +673,7 @@ function dietDayComplete(d, day, planId = null) {
   const e = d.dietLog?.[day];
   if (!e || (planId && e.plan !== planId)) return false;
   // Instantané du jour (repas à faire ce jour-là) ; journal d'avant l'instantané : le plan actuel, repas retirés exclus
-  const ids = Array.isArray(e.meals) ? e.meals : dietDayRequired(d.dietPlans?.[e.plan]?.meals, e);
+  const ids = Array.isArray(e.meals) ? e.meals : dietDayRequired(dietShownMeals(d.dietPlans?.[e.plan]), e);
   return ids.length > 0 && ids.every(id => dietMealSatisfied(e, id));
 }
 // Journée « finie » à l'écran (point vert, coche, son, « journée complète » lu par VoiceOver). Menu d'un coach : tous
@@ -680,7 +729,7 @@ function dietNewPlan(d, name = 'Mon plan', { isCoach = false } = {}) {
   let id;
   do { id = 'd_' + uid(); } while (d.dietPlans?.[id]);
   (d.dietPlans ||= {})[id] = { name: dietText(name, DIET_NAME_MAX) || 'Mon plan',
-    meals: DIET_DEFAULT_MEALS.map(n => ({ id: uid(), name: n, items: [] })), updatedAt: Date.now() };
+    meals: DIET_DEFAULT_MEALS.map((n, i) => ({ id: uid(), name: n, items: [], base: DIET_BASE_KEYS[i] })), updatedAt: Date.now() };
   if (!isCoach && !dietActivePlan(d)) d.dietActive = id;
   return id;
 }
@@ -736,7 +785,7 @@ function dietSentId(planId) { return DIET_SENT_PREFIX + String(planId).replace(/
 function dietToSent(plan) {
   const c = cleanDietPlan(plan);
   if (!c) return null;
-  const diet = { name: c.name, meals: c.meals.map(m => ({ id: m.id, name: m.name, ...(m.note ? { note: m.note } : {}),
+  const diet = { name: c.name, meals: c.meals.filter(m => !m.hidden).map(m => ({ id: m.id, name: m.name, ...(m.note ? { note: m.note } : {}),
     items: m.items.map(it => ({ id: it.id, name: it.name, food: it.food, fam: it.fam, g: it.g, per: it.per, src: it.src, ...(it.ecalc ? { ecalc: true } : {}),
       ...(it.por ? { por: it.por } : {}) })) })) };
   if (c.targets) diet.targets = c.targets;

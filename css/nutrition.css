@@ -431,3 +431,12 @@ html.type-xl .diet-tg .diet-tg__select { flex-basis: 0; }
 /* « Utiliser ces objectifs » toujours visible sans défiler (iPhone SE, panel du 16/11) : collé au bas de la feuille */
 .diet-tg__acts { position: sticky; bottom: -24px; margin: 0 -16px -24px; padding: 4px 16px 16px; background: var(--cell); }
 body.light .diet-tg__acts { background: var(--bg); }
+/* Carte « Proposition » en tête de la feuille Objectifs du jour : aplat de cellule, rien de coloré sauf l'action */
+.diet-tg__card { margin-bottom: 16px; padding: 12px 14px 4px; border-radius: var(--r-md); background: var(--cell2); }
+body.light .diet-tg__card { background: var(--cell); }
+.diet-tg__card .diet-tg__seg { margin-top: 10px; }
+.diet-tg__card .diet-field { background: none; padding: 0; margin-top: 4px; }
+.diet-tg__cardtxt { margin: 6px 0 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); }
+.diet-tg__prop { margin: 10px 0 0; font-size: var(--fs-body); font-weight: 600; }
+.diet-tg__cardacts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-top: 12px; padding-bottom: 8px; }
+.diet-tg__apply { min-height: 44px; }

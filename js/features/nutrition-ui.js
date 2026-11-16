@@ -616,6 +616,7 @@ async function dietSwapSheet(itemId, day) {
         : `<p class="diet-swap__none">${foodDb ? 'Aucun équivalent assez proche dans la base pour cet aliment.' : 'Base d\'aliments indisponible pour l\'instant.'}</p>`}
       <div class="diet-swap__acts">
         <button class="diet-cand" data-swap="qty"><span class="diet-cand__body"><span class="diet-cand__name">Changer la quantité</span><span class="diet-cand__sub num">${esc(dietQtyText(eat))}</span></span></button>
+        ${dietShownMeals(plan).length > 1 ? '<button class="diet-cand" data-swap="move"><span class="diet-cand__body"><span class="diet-cand__name">Déplacer vers…</span></span></button>' : ''}
         <button class="diet-cand diet-cand--off" data-swap="off"><span class="diet-cand__body"><span class="diet-cand__name">Retirer pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'}</span></span></button>
       </div>
       <p class="diet-swap__foot">Seulement pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ton plan ne change pas.</p>
@@ -632,6 +633,7 @@ async function dietSwapSheet(itemId, day) {
     return;
   }
   if (choice === 'off') { dietRemovePlanItem(planId, it, day); return; }
+  if (choice === 'move') { await dietMoveDayItem(planId, day, plan.meals.find(m => m.items.includes(it)), eat, { planItem: it }); return; }
   if (choice === 'back') { dietSetSwap(data, planId, itemId, null, day); showToast(`${foodName(it.name)} remis`); }
   else {
     const c = cands[Number(choice)];
@@ -654,6 +656,31 @@ function dietRemovePlanItem(planId, it, day) {
   save(); haptic('light'); render();
   showToast(`Retiré pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ${foodName(it.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
     dietSetRemoved(data, planId, it.id, false, day); save(); render(); announce(`Remis : ${foodName(it.name)}`);
+  } });
+}
+
+// Déplacer un aliment de la journée vers un autre repas, pour ce jour seulement (le plan ne change pas) : un ajout du jour
+// change de repas ; un aliment prévu est retiré de son repas et ajouté à l'autre. Annuler remet tout comme avant
+async function dietMoveDayItem(planId, day, meal, eat, { extra = null, planItem = null } = {}) {
+  const to = meal && await dietPickMeal(dietActivePlan(data), meal.id, `Déplacer ${foodName(eat.name)} vers…`);
+  const target = to && dietActivePlan(data)?.meals.find(m => m.id === to);
+  if (!target) return;
+  if (extra && !dietSetExtra(data, planId, meal.id, extra.id, null, day)) return;
+  if (planItem) dietSetRemoved(data, planId, planItem.id, true, day);
+  const added = dietAddExtra(data, planId, target.id, { ...eat }, day);
+  if (!added) {   // repas d'arrivée plein : rien ne bouge
+    if (extra) dietAddExtra(data, planId, meal.id, extra, day);
+    if (planItem) dietSetRemoved(data, planId, planItem.id, false, day);
+    showToast(`${DIET_ITEM_MAX} ajouts au plus par repas`, { error: true });
+    return;
+  }
+  dietOpenMeals.add(target.id);
+  save(); haptic(); render();
+  showToast(`Déplacé vers ${target.name}`, { action: 'Annuler', duration: 6000, onAction: () => {
+    dietSetExtra(data, planId, target.id, added.id, null, day);
+    if (extra) dietAddExtra(data, planId, meal.id, extra, day);
+    if (planItem) dietSetRemoved(data, planId, planItem.id, false, day);
+    save(); render(); announce(`Remis dans ${meal.name}`);
   } });
 }
 
@@ -783,11 +810,15 @@ registerActions({
     const it = (dietDay(data, planId, day).extras[mealId] || []).find(x => x.id === el.dataset.extra);
     if (!it) return;
     const choice = await dialog({ type: 'sheet', title: foodName(it.name), message: `${dietQtyText(it)}, ajouté pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ton plan ne change pas.`,
-      actions: [{ label: 'Changer la quantité', value: 'g' }, { label: 'Retirer', value: 'del', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
+      actions: [{ label: 'Changer la quantité', value: 'g' },
+        ...(dietShownMeals(dietActivePlan(data)).length > 1 ? [{ label: 'Déplacer vers…', value: 'move' }] : []),
+        { label: 'Retirer', value: 'del', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
     if (choice === 'g') {
       const q = await dietAskQty(it, it);
       if (!q || !dietSetExtra(data, planId, mealId, it.id, q, day)) return;
       save(); haptic(); render(); announce(`${foodName(it.name)} : ${dietQtySpoken(q)}`);
+    } else if (choice === 'move') {
+      await dietMoveDayItem(planId, day, dietActivePlan(data).meals.find(m => m.id === mealId), it, { extra: it });
     } else if (choice === 'del') {
       const before = { g: it.g, por: it.por };
       dietSetExtra(data, planId, mealId, it.id, null, day);

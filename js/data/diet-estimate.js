@@ -59,6 +59,24 @@ function dietEstimate(o) {
   return { kcal, p, c, f, bmr: Math.round(bmr), tdee: tdeeR, why, whyMacros };
 }
 
+// Ce que l'app sait déjà pour proposer des objectifs sans rien redemander (Réglages : poids, sexe, âge, taille ; feuille :
+// objectif et activité, mémorisés). p = { sex, kg, birthYear, heightCm, goal, activity }, year : année en cours.
+// Rend { inputs, missing, minor } : missing = ce qui manque parmi 'kg', 'sex', 'age', 'cm' (dans cet ordre) ; minor :
+// moins de 18 ans, aucune proposition
+function dietAutoInputs(p = {}, year = new Date().getFullYear()) {
+  const age = Number.isInteger(p.birthYear) ? year - p.birthYear : null;
+  const inputs = { sex: p.sex === 'male' || p.sex === 'female' ? p.sex : null, kg: Number(p.kg) || null, cm: Number(p.heightCm) || null, age,
+    goal: Object.hasOwn(DIET_EST_GOALS, p.goal ?? '') ? p.goal : 'keep', activity: Object.hasOwn(DIET_EST_ACTIVITY, p.activity ?? '') ? p.activity : 'mid' };
+  const missing = [['kg', inputs.kg], ['sex', inputs.sex], ['age', age], ['cm', inputs.cm]].filter(([, v]) => v == null).map(([k]) => k);
+  return { inputs, missing, minor: age != null && age < DIET_EST_BOUNDS.age[0] };
+}
+// Ce qui manque, en toutes lettres : « ton âge et ta taille »
+function dietMissingText(missing) {
+  const w = { kg: 'ton poids', sex: 'ton sexe', age: 'ton âge', cm: 'ta taille' };
+  const l = missing.map(k => w[k]);
+  return l.length > 1 ? `${l.slice(0, -1).join(', ')} et ${l.at(-1)}` : l[0] || '';
+}
+
 // Protéines : g/kg → grammes (arrondis à l'unité), null si le ratio ou le poids est invalide
 function dietProteinGrams(perKg, kg) {
   const r = num(perKg, DIET_PKG_BOUNDS[0], DIET_PKG_BOUNDS[1]);

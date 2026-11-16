@@ -71,6 +71,7 @@ ${renderAccessSettingsGroup()}
           </div>
           ${renderBodyWeightSetting()}
           ${strengthSexSettingHtml()}
+          ${profileAgeHeightHtml()}
           <button class="cell" data-action="setting-rir" role="switch" aria-checked="${rirShown()}">
             ${cellIco('gauge', 'blue')}
             <span class="cell__body"><span class="cell__title">Reps en réserve</span>
@@ -195,6 +196,31 @@ function silhouetteIcoHtml() {
   return `<span class="set-ico set-ico--body" aria-hidden="true"><img src="${bodyImgUrl(bodySilhouette(), 'front', 'base')}" alt="" decoding="async"></span>`;
 }
 
+// Âge et taille, facultatifs, à côté du poids et du sexe : ils servent seulement à proposer des objectifs de nutrition
+// (feuille Objectifs du jour, js/data/diet-estimate.js) et restent sur l'iPhone (SYNC_LOCAL_ONLY, pas dans la copie
+// iCloud, comme le poids), ce que dit le sous-titre. Demande de Maxence du 16/11 : « un truc qui calcule automatiquement »
+function profileAge(d = data) { return Number.isInteger(d.birthYear) ? new Date().getFullYear() - d.birthYear : null; }
+function profileAgeHeightHtml() {
+  const age = profileAge(), cm = data.heightCm;
+  const cell = (action, ico, title, value, spoken) => `<button class="cell cell--nav" data-action="${action}">
+            ${cellIco(ico, 'gray')}
+            <span class="cell__body"><span class="cell__title">${title}</span>
+              <span class="cell__sub">Objectifs de nutrition, sur cet iPhone seulement</span></span>
+            <span class="cell__value num"${value ? '' : ' aria-label="Non renseigné"'}>${value ? esc(value) : '—'}</span>
+            ${icon('chevron.right', 16)}
+          </button>`;
+  return cell('set-profile-age', 'calendar', 'Âge', age ? `${age} ans` : '') + cell('set-profile-height', 'ruler', 'Taille', cm ? `${fmtNum(cm)} cm` : '');
+}
+// Saisie d'un nombre du profil ; champ vidé : effacé (facultatif)
+async function askProfileNumber({ title, message, value, unit, min, max }) {
+  const raw = await dialog({ title, message, input: { value, unit }, actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'OK', style: 'preferred' }] });
+  if (raw === null) return undefined;
+  if (String(raw).trim() === '') return null;
+  const v = num(raw, min, max, true);
+  if (v === null) { showToast(`Valeur entre ${min} et ${max}`, { error: true }); return undefined; }
+  return v;
+}
+
 // Entraînement › Poids du corps : la pesée de Santé quand elle est activée (app iOS, js/features/apple-services.js),
 // sinon le poids saisi dans l'app
 function renderBodyWeightSetting() {
@@ -306,6 +332,20 @@ function settingsButtonHtml() {
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
+  'set-profile-age': async () => {
+    const v = await askProfileNumber({ title: 'Âge', message: 'Facultatif. Reste sur cet iPhone : sert seulement à proposer tes objectifs de nutrition. Vide : effacé.',
+      value: profileAge() ? String(profileAge()) : '', unit: 'ans', min: 10, max: 110 });
+    if (v === undefined) return;
+    if (v === null) delete data.birthYear; else data.birthYear = new Date().getFullYear() - v;
+    save(); render();
+  },
+  'set-profile-height': async () => {
+    const v = await askProfileNumber({ title: 'Taille', message: 'Facultatif. Reste sur cet iPhone : sert seulement à proposer tes objectifs de nutrition. Vide : effacé.',
+      value: data.heightCm ? String(data.heightCm) : '', unit: 'cm', min: 100, max: 250 });
+    if (v === undefined) return;
+    if (v === null) delete data.heightCm; else data.heightCm = v;
+    save(); render();
+  },
   'go-settings': () => {
     navigate('settings');
   },

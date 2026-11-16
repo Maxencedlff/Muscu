@@ -318,6 +318,11 @@ function sanitizeData(d) {
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
   // Sexe des repères de force (Réglages › Entraînement, js/data/strength-levels.js) : male, female, none ou absent
   if (d.strengthSex !== undefined && !STRENGTH_SEXES.includes(d.strengthSex)) delete d.strengthSex;
+  // Année de naissance et taille (Réglages, facultatives) : seulement pour proposer des objectifs de nutrition
+  // (js/data/diet-estimate.js) ; sur l'iPhone seulement, comme le poids (SYNC_LOCAL_ONLY, pas dans la copie iCloud)
+  const year = new Date().getFullYear();
+  if (d.birthYear !== undefined && !(Number.isInteger(d.birthYear) && d.birthYear >= year - 110 && d.birthYear <= year - 5)) delete d.birthYear;
+  if (d.heightCm !== undefined && !(Number.isFinite(d.heightCm) && d.heightCm >= 100 && d.heightCm <= 250)) delete d.heightCm;
   // Niveau du premier lancement (trainingLevel) : valeur inconnue retirée
   if (d.level !== undefined && !TRAINING_LEVELS.includes(d.level)) delete d.level;
   // Dernier compte connecté sur l'appareil (cleanLastAccount) : retiré s'il est illisible

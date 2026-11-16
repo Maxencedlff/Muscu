@@ -819,19 +819,33 @@ def p_nutrition(r):
     with r.etape('objectifs-enregistres', 'Objectifs enregistrés : écart des repas prévus en calories et en protéines', cle=cle):
         r.toucher(f'{feuille} .sheet__btn--confirm', 'OK')
     cle = 'Se faire proposer des objectifs'
-    with r.etape('proposer', '« Me proposer des objectifs » : objectif, activité, sexe, âge, taille, poids', cle=cle):
+    with r.etape('proposer', 'Carte « Proposition » : il manque ton sexe, ton âge et ta taille, « Compléter »', cle=cle):
         r.toucher('[data-action="diet-targets"]', 'Objectifs du jour')
-        r.toucher(f'{feuille} [data-tpropose]', 'Me proposer des objectifs')
-    with r.etape('proposer-reponses', 'Réponses : prise de masse, 3 à 5 séances, homme, 25 ans, 180 cm, 74,5 kg', cle=cle):
+        r.attendre(f'{feuille} #dietTCard', 'carte Proposition')
+    with r.etape('proposer-reponses', 'Compléter mes infos : prise de masse, 3 à 5 séances, homme, 25 ans, 180 cm (gardés dans Réglages)', cle=cle):
+        r.toucher(f'{feuille} [data-tcomplete]', 'Compléter')
         r.toucher(f'{feuille} [data-tseg="goal"][data-v="gain"]', 'Prise de masse')
         r.toucher(f'{feuille} [data-tseg="sex"][data-v="male"]', 'Homme')
         r.saisir(f'{feuille} #dietEAge', 25, 'âge')
         r.saisir(f'{feuille} #dietECm', 180, 'taille')
-        r.saisir(f'{feuille} #dietEKg', '74,5', 'poids')
-    with r.etape('proposition', 'Proposition : valeurs et explication en une ligne, « estimation, pas un avis médical »', cle=cle):
-        r.toucher(f'{feuille} [data-tcalc]', 'Calculer')
-    with r.etape('proposition-utilisee', '« Utiliser ces objectifs » : enregistrés sur le plan', cle=cle):
-        r.toucher(f'{feuille} [data-tuse]', 'Utiliser ces objectifs')
+    with r.etape('proposition', 'Carte « Proposition » : 2 980 kcal · P 134 · G 460 · L 67, explication, « Appliquer » ou « Ajuster »', cle=cle):
+        r.toucher(f'{feuille} [data-tcalc]', 'Enregistrer')
+        r.attendre(f'{feuille} [data-tapply]', 'Appliquer')
+    with r.etape('proposition-utilisee', '« Appliquer » : objectifs enregistrés sur le plan', cle=cle):
+        r.toucher(f'{feuille} [data-tapply]', 'Appliquer')
+    cle = 'Ranger ses repas types'
+    with r.etape('deplacer', 'Aliment du petit-déjeuner : « Déplacer vers… »', cle=cle):
+        r.toucher('[data-action="diet-item-menu"]', 'riz du petit-déjeuner')
+        r.choisir('Déplacer vers…')
+    with r.etape('deplace', 'Déplacé vers Déjeuner (Annuler dans le message)', cle=cle):
+        r.choisir('Déjeuner')
+    with r.etape('masquer', 'Dîner : « Masquer ce repas » (un repas de base ne se supprime pas)', cle=cle):
+        r.toucher('[data-action="diet-meal-menu"]', 'Modifier (dîner)', nth=3)
+    with r.etape('masque', 'Dîner masqué : « Repas masqués › Réafficher Dîner » en pied du plan', cle=cle):
+        r.choisir('Masquer ce repas')
+        r.defiler('[data-action="diet-meal-show"]', 'Réafficher')
+    with r.etape('reaffiche', 'Dîner réaffiché à sa place', cle=cle):
+        r.toucher('[data-action="diet-meal-show"]', 'Réafficher Dîner')
     with r.etape('accueil-carte', 'Accueil : carte Nutrition du jour'):
         r.onglet('train', 'Entraînement')
         r.defiler('.diet-home', 'carte Nutrition')

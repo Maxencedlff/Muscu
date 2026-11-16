@@ -18,7 +18,13 @@ const dietMealOf = (plan, mealId) => plan?.meals.find(m => m.id === mealId) || n
 // (retour de Maxence du 16/11 : « c'est pas parce que j'ai mangé un truc que demain c'est ce repas que j'ai prévu »).
 // Un plan de coach garde ses repas prévus : c'est un menu à suivre
 function dietPersonal(plan) { return !!plan && !plan.fromCoach && !coachRole().isCoach; }
-function dietHasMealItems(plan) { return !!plan?.meals.some(m => m.items.length); }
+function dietHasMealItems(plan) { return dietShownMeals(plan).some(m => m.items.length); }
+// Choisir un autre repas (« Déplacer vers… ») : nom du repas choisi, ou null
+async function dietPickMeal(plan, exceptId, title) {
+  const others = dietShownMeals(plan).filter(m => m.id !== exceptId);
+  if (!others.length) return null;
+  return dialog({ type: 'sheet', title, actions: [...others.map(m => ({ label: m.name, value: m.id })), { label: 'Annuler', style: 'cancel' }] });
+}
 function dietMealsNoun(plan) { return dietPersonal(plan) ? 'Tes repas types' : 'Les repas prévus'; }
 // Plans dont la personne a demandé à composer des repas types (le temps de la session : tant qu'aucun aliment n'y est,
 // l'écran du plan ne montre que les objectifs)
@@ -92,7 +98,7 @@ function renderDietPlan(id) {
   const personal = dietPersonal(plan), filled = dietHasMealItems(plan);
   const showMeals = !personal || filled || dietComposing.has(id), gap = dietTargetGap(plan, dietMealsNoun(plan));
   const right = ro ? '' : `<button class="navbar__text" data-action="diet-rename" data-id="${esc(id)}">Renommer</button>`;
-  const meals = plan.meals.map(meal => `
+  const meals = dietShownMeals(plan).map(meal => `
         <div class="group-title group-title--row diet-meal-title">
           <span>${esc(meal.name)}</span>
           ${ro ? '' : `<button class="group-title__btn diet-meal-edit" data-action="diet-meal-menu" data-meal="${esc(meal.id)}" aria-label="Modifier le repas ${esc(meal.name)}">Modifier</button>`}
@@ -131,6 +137,7 @@ function renderDietPlan(id) {
         <div class="group-foot">Ce que tu manges d'habitude, pour le copier vite dans ta journée.</div>`) : ''}
         ${showMeals ? meals : ''}
         ${personal && filled ? `<div class="group group--gap"><button class="cell cell--action" data-action="diet-clear-meals" data-id="${esc(id)}">${icon('trash', 20)}<span>Vider les repas types</span></button></div>` : ''}
+        ${!ro && personal ? dietHiddenMealsHtml(plan) : ''}
         ${ro || !showMeals || plan.meals.length >= DIET_MEAL_MAX ? '' : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-add-meal" data-id="${esc(id)}">${icon('plus', 20)}<span>Ajouter un repas</span></button></div>`}
         <div class="group group--gap">
           ${!ro && coachRole().isCoach ? `<button class="cell cell--action" data-action="diet-send-student" data-id="${esc(id)}">${icon('paperplane', 20)}<span>Envoyer à un élève</span></button>` : ''}
@@ -142,6 +149,14 @@ function renderDietPlan(id) {
         ${dietSourceFoot()}
       </div>
     </div>`;
+}
+// Repas masqués (repas de base d'un plan perso) : en pied de liste, un toucher les réaffiche à leur place
+function dietHiddenMealsHtml(plan) {
+  const hidden = plan.meals.filter(m => m.hidden);
+  if (!hidden.length) return '';
+  return `<div class="group-title">Repas masqués</div>
+        <div class="group">${hidden.map(m => `<button class="cell cell--action" data-action="diet-meal-show" data-meal="${esc(m.id)}">${icon('eye', 20)}<span>Réafficher ${esc(m.name)}</span></button>`).join('')}</div>
+        <div class="group-foot">Un repas masqué n'apparaît plus dans ta journée ; ses aliments sont gardés.</div>`;
 }
 SCREENS.set('diet-plans', { render: () => renderDietPlans(), enter: () => { dietMaybeAskConsent(); } });
 SCREENS.set('diet-plan', { render: id => renderDietPlan(id), enter: () => { loadFoods(); } });
@@ -312,7 +327,7 @@ async function dietAskGrams(food, value = 100) {
 // Rend { targets } (null = aucun objectif) ou null si annulée
 const DIET_T_ROWS = [['kcal', 'Calories', 'kcal'], ['p', 'Protéines', 'g'], ['c', 'Glucides', 'g'], ['f', 'Lipides', 'g']];
 
-function dietTargetsEditHtml(t, total, kg, plan) {
+function dietTargetsEditHtml(t, total, kg, plan, auto) {
   const row = (k, label, unit) => {
     const dot = k === 'kcal' ? '' : `<i class="diet-dot diet-dot--${k}" aria-hidden="true"></i>`;
     const unitHtml = k === 'p' && kg
@@ -329,13 +344,17 @@ function dietTargetsEditHtml(t, total, kg, plan) {
   // Sans repas types, pas de « Repas types : 0 kcal » : seulement ce que veut dire un champ vide
   const empty = `Un champ vide : pas d'objectif`;
   const hint = dietHasMealItems(plan) ? `${dietSrPair(esc(planned), esc(plannedSpoken))}. ${empty}, leur total sert de repère.` : `${empty}.`;
+  // Carte « Proposition » en tête (auto : pas pour un coach) ; sinon le lien « Me proposer des objectifs » d'avant
+  const card = auto ? '<section class="diet-tg__card" id="dietTCard" aria-label="Proposition d\'objectifs"></section>' : '';
+  const propose = auto ? '' : '<button type="button" class="diet-tg__link" data-tpropose>Me proposer des objectifs</button>';
   return `<div data-tstep="edit">
+      ${card}
       <div class="diet-fields">${DIET_T_ROWS.map(r => row(...r)).join('')}</div>
       <p class="diet-tg__pkg num" id="dietTPkg" aria-live="polite"></p>
       <p class="diet-form__hint num">${hint}</p>
       <p class="diet-form__err" id="dietTErr" role="alert"></p>
       <div class="diet-tg__links">
-        <button type="button" class="diet-tg__link" data-tpropose>Me proposer des objectifs</button>
+        ${propose}
         <button type="button" class="diet-tg__link" data-tclear>Aucun objectif</button>
       </div>
     </div>`;
@@ -352,7 +371,7 @@ function dietTargetsAskHtml(pre) {
       <input id="${id}" class="diet-field__input num" type="text" inputmode="${mode}" autocomplete="off" value="${value ?? ''}" aria-label="${label}, en ${unit === 'ans' ? 'années' : unit === 'cm' ? 'centimètres' : 'kilos'}">
       <span class="diet-field__unit" aria-hidden="true">${unit}</span></label>`;
   return `<div data-tstep="ask" hidden>
-      <h3 class="diet-tg__title" tabindex="-1">Me proposer des objectifs</h3>
+      <h3 class="diet-tg__title" tabindex="-1">${pre.auto ? 'Compléter mes infos' : 'Me proposer des objectifs'}</h3>
       <p class="diet-tg__q">Ton objectif</p>
       ${seg('goal', Object.entries(DIET_EST_GOALS).map(([k, g]) => [k, g.label]), pre.goal, 'Ton objectif')}
       <p class="diet-tg__q">Ton activité</p>
@@ -362,9 +381,10 @@ function dietTargetsAskHtml(pre) {
         </select>${icon('chevron.up.chevron.down', 14)}</label>
       <p class="diet-tg__q">Toi</p>
       ${seg('sex', [['male', 'Homme'], ['female', 'Femme']], pre.sex, 'Sexe')}
-      <div class="diet-fields">${field('dietEAge', 'Âge', 'ans', '', 'numeric')}${field('dietECm', 'Taille', 'cm', '', 'numeric')}${field('dietEKg', 'Poids', 'kg', pre.kg ? fmtNum(pre.kg, 1) : '', 'decimal')}</div>
+      <div class="diet-fields">${field('dietEAge', 'Âge', 'ans', pre.age ?? '', 'numeric')}${field('dietECm', 'Taille', 'cm', pre.cm ?? '', 'numeric')}${field('dietEKg', 'Poids', 'kg', pre.kg ? fmtNum(pre.kg, 1) : '', 'decimal')}</div>
+      ${pre.auto ? '<p class="diet-form__hint">Gardés dans Réglages, sur cet iPhone seulement, pour te proposer des objectifs sans rien redemander.</p>' : ''}
       <p class="diet-form__err" id="dietEErr" role="alert"></p>
-      <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tcalc>Calculer</button>
+      <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tcalc>${pre.auto ? 'Enregistrer' : 'Calculer'}</button>
       <button type="button" class="diet-tg__link diet-tg__back" data-tback>Retour</button>
     </div>`;
 }
@@ -388,8 +408,14 @@ async function dietTargetsSheet(plan) {
   const kg0 = isCoach ? null : currentBodyKg();
   const kg = kg0 && kg0 >= DIET_EST_BOUNDS.kg[0] && kg0 <= DIET_EST_BOUNDS.kg[1] ? kg0 : null;
   // Sexe : celui déclaré dans Réglages › Entraînement (niveau de force), jamais la silhouette (un choix d'affichage)
-  const pre = { goal: 'keep', activity: 'mid', sex: isCoach ? null : strengthSex(), kg };
-  const body = `<div class="diet-form diet-tg">${dietTargetsEditHtml(t, total, kg, plan)}${dietTargetsAskHtml(pre)}${dietTargetsResultHtml()}</div>`;
+  // Proposition automatique (demande de Maxence du 16/11) : pas pour un coach, qui prépare les plans de ses élèves
+  const auto = !isCoach;
+  // Sexe : celui de Réglages › Entraînement ; « Ne pas préciser » là-bas : celui donné ici, gardé à part (dietEstSex)
+  const autoState = () => dietAutoInputs({ sex: strengthSex() || data.dietEstSex, kg: currentBodyKg(), birthYear: data.birthYear, heightCm: data.heightCm,
+    goal: data.dietEstGoal, activity: data.dietEstActivity });
+  const a0 = autoState().inputs;
+  const pre = auto ? { auto, goal: a0.goal, activity: a0.activity, sex: a0.sex, kg, age: a0.age, cm: a0.cm } : { goal: 'keep', activity: 'mid', sex: null, kg };
+  const body = `<div class="diet-form diet-tg">${dietTargetsEditHtml(t, total, kg, plan, auto)}${dietTargetsAskHtml(pre)}${dietTargetsResultHtml()}</div>`;
   // pExact : grammes exacts derrière le champ tant qu'il n'est pas retouché (144 g affichés « 1,9 g/kg » restent
   // 144 g, pas 142 : l'arrondi du ratio ne change jamais un objectif en silence)
   let perKg = !!kg && data.dietProteinPerKg === true, proposal = null, pExact = t.p ?? null;
@@ -434,12 +460,55 @@ async function dietTargetsSheet(plan) {
   };
   if (unitBtn && perKg && t.p) pIn.value = fmtNum(dietProteinPerKg(t.p, kg), 1);
   paintP();
+  // Carte « Proposition » : calculée à l'ouverture avec le poids du moment (un nouveau poids la met à jour), jamais
+  // appliquée sans « Appliquer ». Il ne reste à choisir que l'objectif et l'activité, gardés pour la fois suivante
+  let cardProp = null;
+  const paintCard = () => {
+    const box = $('#dietTCard', root);
+    if (!box) return;
+    const a = autoState();
+    cardProp = a.missing.length || a.minor ? null : dietEstimate(a.inputs);
+    const head = '<h3 class="diet-tg__title">Proposition</h3>';
+    if (a.minor) { box.innerHTML = head + '<p class="diet-tg__cardtxt">Proposition réservée aux adultes (18 ans ou plus).</p>'; return; }
+    if (a.missing.length) {
+      box.innerHTML = head + '<p class="diet-tg__cardtxt">Pour te proposer des objectifs, il manque ' + esc(dietMissingText(a.missing)) + '.</p>'
+        + '<button type="button" class="diet-tg__link" data-tcomplete>Compléter</button>';
+      return;
+    }
+    if (!cardProp) { box.innerHTML = head + '<p class="diet-tg__cardtxt">Pas de proposition pour ces valeurs : vérifie ton âge, ta taille et ton poids dans Réglages.</p>'; return; }
+    const segBtn = ([v, l]) => '<button type="button" class="segmented__btn' + (v === a.inputs.goal ? ' segmented__btn--active' : '') + '" data-tcgoal="' + v + '" aria-pressed="' + (v === a.inputs.goal) + '">' + l + '</button>';
+    const options = Object.entries(DIET_EST_ACTIVITY).map(([k, x]) => '<option value="' + k + '"' + (k === a.inputs.activity ? ' selected' : '') + '>' + x.label + '</option>').join('');
+    const line = fmtNum(cardProp.kcal) + '\u00a0kcal · P\u00a0' + cardProp.p + ' · G\u00a0' + cardProp.c + ' · L\u00a0' + cardProp.f;
+    const spoken = fmtNum(cardProp.kcal) + ' kilocalories, ' + cardProp.p + ' grammes de protéines, ' + cardProp.c + ' de glucides, ' + cardProp.f + ' de lipides';
+    box.innerHTML = head
+      + '<div class="segmented seg-full diet-tg__seg" role="group" aria-label="Ton objectif">' + Object.entries(DIET_EST_GOALS).map(([k, g]) => [k, g.label]).map(segBtn).join('') + '</div>'
+      + '<label class="diet-field diet-tg__actfield"><select id="dietCAct" class="diet-field__input diet-field__select diet-tg__select" aria-label="Ton activité">' + options + '</select>' + icon('chevron.up.chevron.down', 14) + '</label>'
+      + '<p class="diet-tg__prop num" id="dietCProp">' + dietSrPair(esc(line), esc(spoken)) + '</p>'
+      + '<p class="diet-tg__why num">' + esc(cardProp.why) + '</p>'
+      + '<p class="diet-tg__why diet-tg__why--macros num">' + esc(cardProp.whyMacros) + '</p>'
+      + '<p class="diet-form__hint">Estimation, pas un avis médical. Méthode : Mifflin-St Jeor (1990), Morton et al. (2018), Iraki et al. (2019).</p>'
+      + '<div class="diet-tg__cardacts"><button type="button" class="btn btn--primary diet-tg__apply" data-tapply>Appliquer</button>'
+      + '<button type="button" class="diet-tg__link" data-tcadjust>Ajuster</button></div>';
+  };
+  paintCard();
+  root.addEventListener('change', ev => {
+    if (ev.target.id !== 'dietCAct') return;
+    data.dietEstActivity = ev.target.value; save(); paintCard();
+  });
   pIn.addEventListener('input', () => { pExact = null; paintP(); });
   const fill = v => { pExact = v?.p ?? null; for (const k of DIET_TARGET_KEYS) $(`#dietT_${k}`, root).value = v?.[k] != null ? (k === 'p' && perKg ? fmtNum(dietProteinPerKg(v.p, kg), 1) : k === 'kcal' ? fmtNum(v[k]) : String(v[k])) : ''; paintP(); };
   root.addEventListener('click', ev => {
-    const el = ev.target.closest('[data-tunit], [data-tclear], [data-tpropose], [data-tback], [data-tcalc], [data-tuse], [data-tadjust], [data-tseg]');
+    const el = ev.target.closest('[data-tunit], [data-tclear], [data-tpropose], [data-tback], [data-tcalc], [data-tuse], [data-tadjust], [data-tseg], [data-tcgoal], [data-tapply], [data-tcadjust], [data-tcomplete]');
     if (!el) return;
-    if (el.matches('[data-tunit]')) {
+    if (el.matches('[data-tcgoal]')) {
+      data.dietEstGoal = el.dataset.tcgoal; save(); haptic('light'); paintCard();
+    } else if (el.matches('[data-tapply]') && cardProp) {
+      root._close({ targets: cleanDietTargets({ kcal: cardProp.kcal, p: cardProp.p, c: cardProp.c, f: cardProp.f }) });
+    } else if (el.matches('[data-tcadjust]') && cardProp) {
+      fill(cardProp); haptic('light');
+      $('#dietT_kcal', root)?.focus({ preventScroll: true });
+    } else if (el.matches('[data-tcomplete]')) show('ask');
+    else if (el.matches('[data-tunit]')) {
       // Conversion de la valeur en cours : 144 g ↔ 1,9 g/kg
       const raw = pIn.value.trim();
       const g = raw ? (pExact ?? (perKg ? dietProteinGrams(raw, kg) : num(raw, 1, DIET_TARGET_MAX.p))) : null;
@@ -471,6 +540,19 @@ async function dietTargetsSheet(plan) {
             : w === null ? `Poids : de ${DIET_EST_BOUNDS.kg[0]} à ${DIET_EST_BOUNDS.kg[1]} kg.` : '';
       $('#dietEErr', root).textContent = err;
       if (err) return;
+      if (auto) {
+        // Compléter mes infos : gardées dans Réglages (sur l'iPhone seulement), puis retour à la carte, calculée
+        data.birthYear = new Date().getFullYear() - age;
+        data.heightCm = Math.round(cm);
+        if (data.strengthSex === undefined) data.strengthSex = seg('sex'); else if (!strengthSex()) data.dietEstSex = seg('sex');
+        if (!currentBodyKg()) data.bodyWeightKg = Math.round(w * 10) / 10;
+        data.dietEstGoal = seg('goal') || 'keep';
+        data.dietEstActivity = $('#dietEAct', root).value;
+        save();
+        paintCard();
+        show('edit');
+        return;
+      }
       proposal = dietEstimate({ sex: seg('sex'), kg: w, cm, age, activity: $('#dietEAct', root).value, goal: seg('goal') });
       if (!proposal) return;
       const cell = (k, label, v, unit, spoken) => {
@@ -488,6 +570,29 @@ async function dietTargetsSheet(plan) {
     }
   });
   return p;
+}
+
+// Déplacer un aliment d'un repas type à un autre (« j'ai mis dans petit-déj ce qui devrait être dans déjeuner », 16/11) ;
+// Annuler le remet à sa place
+async function dietMovePlanItem(ed, meal, it) {
+  const to = await dietPickMeal(ed.plan, meal.id, `Déplacer ${foodName(it.name)} vers…`);
+  const target = to && dietMealOf(ed.plan, to);
+  if (!target) return;
+  if (target.items.length >= DIET_ITEM_MAX) { showToast(`${DIET_ITEM_MAX} aliments au plus par repas`, { error: true }); return; }
+  const i = meal.items.indexOf(it);
+  meal.items.splice(i, 1);
+  target.items.push(it);
+  haptic();
+  dietSaved();
+  showToast(`Déplacé vers ${target.name}`, { action: 'Annuler', duration: 6000, onAction: () => {
+    const p = dietPlanOf(ed.id), from = dietMealOf(p, meal.id), back = dietMealOf(p, target.id);
+    if (!from || !back) return;
+    const j = back.items.findIndex(x => x.id === it.id);
+    if (j < 0) return;
+    back.items.splice(j, 1);
+    from.items.splice(Math.min(i, from.items.length), 0, it);
+    dietTouch(p); save(); render();
+  } });
 }
 
 // ── Actions ─────────────────────────────────────────────────
@@ -532,8 +637,11 @@ registerActions({
     if (!plan || plan.fromCoach) return;
     const r = await dietTargetsSheet(plan);
     if (!r) return;
-    if (r.targets) plan.targets = r.targets; else delete plan.targets;
-    dietSaved();
+    // Plan relu après la feuille et enregistré quel que soit l'écran affiché (dietSaved ne garde que sur l'éditeur)
+    const p = dietPlanOf(el.dataset.id);
+    if (!p || p.fromCoach) return;
+    if (r.targets) p.targets = r.targets; else delete p.targets;
+    dietTouch(p); save(); render();
   },
   'diet-compose': (e, el) => { dietComposing.add(el.dataset.id); render(); },
   // Vider les repas types (plan perso) : aliments retirés, repas gardés (le journal s'y rattache) ; Annuler les remet
@@ -556,6 +664,7 @@ registerActions({
     if (!ed || ed.plan.meals.length >= DIET_MEAL_MAX) return;
     const name = await askText({ title: 'Nouveau repas', placeholder: 'Collation', confirm: 'Ajouter' });
     if (!name) return;
+    if (dietMealNameTaken(ed.plan, name)) { showToast('Un repas porte déjà ce nom', { error: true }); return; }
     ed.plan.meals.push({ id: uid(), name: dietText(name, DIET_NAME_MAX), items: [] });
     dietSaved();
   },
@@ -569,7 +678,8 @@ registerActions({
       { label: meal.note ? 'Modifier la consigne' : 'Ajouter une consigne', value: 'note' },
       ...(i > 0 ? [{ label: 'Monter', value: 'up' }] : []),
       ...(i < ed.plan.meals.length - 1 ? [{ label: 'Descendre', value: 'down' }] : []),
-      { label: 'Supprimer le repas', value: 'delete', style: 'destructive' },
+      // Repas de base : masqué, jamais supprimé (« supprimer le dîner n'a aucun sens », 16/11) ; repas ajouté : supprimé
+      meal.base ? { label: 'Masquer ce repas', value: 'hide' } : { label: 'Supprimer le repas', value: 'delete', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' },
     ] });
     if (choice === 'copy') {
@@ -577,7 +687,9 @@ registerActions({
       showToast(`${meal.name} copié`);
     } else if (choice === 'rename') {
       const name = await askText({ title: 'Nom du repas', value: meal.name });
-      if (name) meal.name = dietText(name, DIET_NAME_MAX);
+      if (!name) return;
+      if (dietMealNameTaken(ed.plan, name, meal.id)) { showToast('Un repas porte déjà ce nom', { error: true }); return; }
+      meal.name = dietText(name, DIET_NAME_MAX);
     } else if (choice === 'note') {
       const r = await coachTextSheet({ title: 'Consigne du repas', value: meal.note || '', placeholder: 'Par exemple : 1 h avant l\'entraînement',
         max: DIET_NOTE_MAX, existing: false, confirm: 'OK' });
@@ -586,11 +698,34 @@ registerActions({
       if (note) meal.note = note; else delete meal.note;
     } else if (choice === 'up' || choice === 'down') {
       moveItem(ed.plan.meals, i, choice === 'up' ? i - 1 : i + 1);
+    } else if (choice === 'hide') {
+      meal.hidden = true;
+      dietSaved();
+      showToast(`${meal.name} masqué`, { action: 'Annuler', duration: 6000, onAction: () => {
+        const m = dietMealOf(dietPlanOf(ed.id), meal.id);
+        if (m) { delete m.hidden; dietTouch(dietPlanOf(ed.id)); save(); render(); }
+      } });
+      return;
     } else if (choice === 'delete') {
-      if (meal.items.length && !(await confirmSheet('Supprimer ce repas ?', `${meal.name} et ses ${plural(meal.items.length, 'aliment', 'aliments')} sont retirés du plan.`, 'Supprimer'))) return;
+      if (!(await confirmSheet('Supprimer ce repas ?', meal.items.length ? `${meal.name} et ses ${plural(meal.items.length, 'aliment', 'aliments')} sont retirés du plan.` : `${meal.name} est retiré du plan.`, 'Supprimer'))) return;
       ed.plan.meals.splice(i, 1);
+      dietSaved();
+      showToast(`${meal.name} supprimé`, { action: 'Annuler', duration: 6000, onAction: () => {
+        const p = dietPlanOf(ed.id);
+        if (!p || p.meals.some(m => m.id === meal.id) || p.meals.length >= DIET_MEAL_MAX) return;
+        p.meals.splice(Math.min(i, p.meals.length), 0, meal);
+        dietTouch(p); save(); render();
+      } });
+      return;
     } else return;
     dietSaved();
+  },
+  'diet-meal-show': (e, el) => {
+    const ed = dietEditedPlan(), meal = dietMealOf(ed?.plan, el.dataset.meal);
+    if (!meal) return;
+    delete meal.hidden;
+    dietSaved();
+    showToast(`${meal.name} réaffiché`);
   },
   'diet-add-food': async (e, el) => {
     const ed = dietEditedPlan(), meal = dietMealOf(ed?.plan, el.dataset.meal);
@@ -610,6 +745,7 @@ registerActions({
     if (!it) return;
     const choice = await dialog({ type: 'sheet', title: foodName(it.name), message: `${dietQtyText(it)} : ${dietN(dietItemMacros(it).kcal)} kcal, ${dietMacroWords(dietItemMacros(it))}`, actions: [
       { label: 'Changer la quantité', value: 'qty' },
+      ...(dietShownMeals(ed.plan).length > 1 ? [{ label: 'Déplacer vers…', value: 'move' }] : []),
       { label: 'Retirer du repas', value: 'remove', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' },
     ] });
@@ -618,6 +754,9 @@ registerActions({
       if (!q) return;
       it.g = q.g;
       if (q.por) it.por = q.por; else delete it.por;
+    } else if (choice === 'move') {
+      dietMovePlanItem(ed, meal, it);
+      return;
     } else if (choice === 'remove') {
       meal.items = meal.items.filter(x => x !== it);
     } else return;
