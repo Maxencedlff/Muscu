@@ -812,9 +812,11 @@ html.type-xl .pl__row--top .pl__lbl { padding-top: 0; }
 .grip-sub { color: var(--label2); }
 
 /* ── Ordre de la séance (js/features/session-order-ui.js) : « + Série » à gauche, « Plus tard » à droite ── */
-.ex-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* Écran étroit (iPhone SE, 320 pt) : « + Série · Note · Faire maintenant » ne tient pas sur une ligne ; le lien d'ordre
+   passe dessous, calé à droite (margin-left: auto), au lieu de déborder de la carte (défilement de côté) */
+.ex-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; }   /* « + Série » et « Note » ensemble à gauche */
 .order-link {
-  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 6px; margin-right: -6px;
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 6px; margin-right: -6px; margin-left: auto;
   background: none; border: 0; color: var(--tint); font: inherit; font-size: 0.882rem; font-weight: 600; cursor: pointer;
   white-space: nowrap; -webkit-tap-highlight-color: transparent;
 }

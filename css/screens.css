@@ -544,7 +544,7 @@ html.type-xl .ax-stepper button { width: max(44px, 2.4rem); height: max(44px, 2.
 html.type-xl .ax-stepper .icon, html.type-xl .stepper .icon { width: max(18px, 1.06rem); height: max(18px, 1.06rem); }
 html.type-xl .stepper { width: auto; min-width: 94px; height: auto; min-height: max(32px, 1.88rem); }
 html.type-xl .stepper button { padding: 0 max(12px, .7rem); }
-html.type-xl .ex-card__foot { flex-wrap: wrap; row-gap: 4px; }
+html.type-xl .ex-card__foot { row-gap: 4px; }
 html.type-xl .targets__target, html.type-xl .targets__gain, html.type-xl .targets__before, html.type-xl .recap-card__cta { white-space: normal; }
 html.type-xl .targets__val { flex-shrink: 1; min-width: 0; max-width: 100%; }
 html.type-xl .targets__now { flex-wrap: wrap; justify-content: flex-end; }
