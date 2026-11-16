@@ -217,7 +217,7 @@ function libGroupedHtml(items) {
 function libNavBar() {
   const g = MUSCLE_GROUP_BY_ID.get(libMuscle.group);
   const root = libPickOn ? 'Groupes' : 'Bibliothèque';
-  const right = libPickOn ? libPickRightHtml() : '';
+  const right = libPickOn ? libPickRightHtml(!!g) : '';
   // Choix : titre court « Exercices » (« Ajouter un exercice » était coupé sur iPhone SE entre Annuler et Sélectionner)
   if (!g) return navBar({ title: libPickOn ? 'Exercices' : 'Bibliothèque', right, ...(libPickOn ? { left: libPickLeftHtml() } : {}) });
   const back = `<button class="navbar__back" data-action="lib-muscle" data-group="" aria-label="Retour : ${root}">
@@ -226,16 +226,18 @@ function libNavBar() {
   return navBar({ title: esc(g.label), large: false, left: back, right });
 }
 // Barre du mode choix : « Annuler » ramène à la séance (ou quitte la sélection multiple) ; à droite, « Sélectionner »
-// puis « Ajouter (n) », grisé tant que rien n'est coché
+// puis « Ajouter (n) », grisé tant que rien n'est coché. Dans un groupe, la gauche garde le retour vers les groupes :
+// « Annuler » de la sélection passe alors à droite, avant « Ajouter (n) » (sinon on ne pouvait plus en sortir)
 function libPickLeftHtml() {
   return libPick.multi
     ? '<button class="navbar__text" data-action="lib-pick-multi" aria-label="Annuler la sélection">Annuler</button>'
     : '<button class="navbar__text" data-action="back">Annuler</button>';
 }
-function libPickRightHtml() {
+function libPickRightHtml(inGroup = !!libMuscle.group) {
   if (!libPick.multi) return '<button class="navbar__text" data-action="lib-pick-multi">Sélectionner</button>';
   const n = libPick.sel.length;
-  return `<button class="navbar__text navbar__text--bold lib-pick-add" data-action="lib-pick-add"${n ? '' : ' disabled'}
+  const cancel = inGroup ? '<button class="navbar__text lib-pick-cancel" data-action="lib-pick-multi" aria-label="Annuler la sélection">Annuler</button>' : '';
+  return `${cancel}<button class="navbar__text navbar__text--bold lib-pick-add" data-action="lib-pick-add"${n ? '' : ' disabled'}
       aria-label="${n ? `Ajouter ${plural(n, 'exercice', 'exercices')}` : 'Ajouter, aucun exercice coché'}">Ajouter${n ? ` (${n})` : ''}</button>`;
 }
 
@@ -442,7 +444,7 @@ registerActions({
     libPick.multi = !libPick.multi;
     libPick.sel = [];
     render();
-    $('.library--pick .navbar__side--right .navbar__text')?.focus({ preventScroll: true });
+    $('.library--pick .navbar__side--right .navbar__text:last-child')?.focus({ preventScroll: true });
   },
   'lib-pick-add': () => { if (libPick.sel.length) progPickExercises(libPick.cat, libPick.sel.slice()); },
   'lib-pick-create': (e, el) => openExEditNew(libPick.cat, el.dataset.name || ''),
