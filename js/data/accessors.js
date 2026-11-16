@@ -79,10 +79,6 @@ function sessionKeys(progId) {
 function catBadge(color) {
   return `<span class="cat-badge" style="--cat-color:${color}" aria-hidden="true"></span>`;
 }
-// Pastille d'une séance d'un programme (onglet Programme)
-function catDot(cat, progId) {
-  return catBadge(sessionMeta(cat, progId || data.activeProgramme).color);
-}
 
 function sessionMeta(cat, progId) {
   progId = progId || data.activeProgramme;
