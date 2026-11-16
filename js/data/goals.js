@@ -16,8 +16,16 @@
 // 16/11 : « 3 à 5 reps, 1re série lourde » prescrit, « ↑ 2,5 kg » et « Objectif 75 kg × 3 » affichés)
 function coachLedProgramme(progKey) { return !!data.userProgrammes?.[progKey]?.fromCoach; }
 
+// Charge prescrite par le coach (load, loads : js/data/coach-presc.js) : c'est elle l'objectif, « 60 kg × 8 »,
+// coach: true (« Coach : 60 kg × 8 » en séance et sur l'accueil) ; goal = la charge la plus lourde au bas des reps.
 function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
   const lp = lastPerf(progKey, cat, ex);
+  if (measureOf(ex) === 'reps' && hasPrescLoad(ex)) {
+    const lb = lp ? bestSet(workSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0)) : null;
+    const r = prescReps(ex);
+    return { text: prescText(ex), spoken: prescSpoken(ex), gain: '', before: lb ? setTxt(lb, ex) : '', coach: true,
+      goal: { w: Math.max(...prescKgList(ex)), r: r ? r.lo : 1 } };
+  }
   const planned = { text: setsRepsText(ex), gain: '', before: '', goal: null };
   if (!lp) return planned;
   const sets = workSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);   // l'échauffement ne fixe pas la cible
@@ -104,8 +112,8 @@ function setsRangeHtml(ex) {
 }
 
 function exerciseTarget(cat, ex) {
-  const { text, gain, before } = exerciseGoal(cat, ex);
-  return { text, gain, before };
+  const { text, gain, before, coach, spoken } = exerciseGoal(cat, ex);
+  return { text, gain, before, ...(coach ? { coach: true, spoken } : {}) };
 }
 
 // Une série de travail validée atteint l'objectif : au moins la charge (kg, au centième près) et les reps

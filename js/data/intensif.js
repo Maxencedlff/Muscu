@@ -155,6 +155,31 @@ function applyIntensPlan(ex, plan) {
   for (const [s, t] of pairs) if (!s.done && !s.tech && applyTech(s, t)) n++;
   return n;
 }
+// Back-off pré-rempli plus léger que le top set (panel du 16/11 : « Back-off allégée » à la même charge que le top set).
+// Règle annoncée (docs/INTENSIFICATION.md) : charge du top set − 10 %, arrondie à ce qui se charge (barre et disques,
+// sinon pas de 2,5 kg ou 5 lb : roundLoad, js/data/plates.js). Une série de back-off déjà plus légère (celle de la
+// dernière fois) garde sa charge ; une charge prescrite par le coach passe après (prescPrefill). Renvoie le nombre de
+// séries changées.
+const BACKOFF_RATIO = 0.9;
+function backoffPrefill(ex) {
+  if (!ex || !canTech(ex)) return 0;
+  const work = (ex.sets || []).filter(s => !isWarmupSet(s));
+  const top = work.find(s => setTech(s) === 'top');
+  const tw = toUnitW(top?.weight);
+  if (!(tw > 0)) return 0;
+  const b = roundLoad(tw * BACKOFF_RATIO, { ...plateSetup(), barbell: isBarbellExercise(ex) });
+  if (!(b < tw)) return 0;
+  let n = 0;
+  work.forEach(s => {
+    if (s.done || setTech(s) !== 'backoff') return;
+    const w = toUnitW(s.weight);
+    if (w > 0 && w < tw) return;
+    s.weight = storeW(String(b));
+    s.plannedWeight = s.weight;
+    n++;
+  });
+  return n;
+}
 // Choix du menu ⋯ d'un exercice de la séance (js/features/session-sheets.js) : une seule entrée, toute technique
 // sur une série. « Dernière série en drop set » faisait doublon (panel du 06/11 : une action, un sens) ; le chemin
 // court reste le numéro de la série (2 touchers)

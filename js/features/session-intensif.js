@@ -36,11 +36,28 @@ function setTechNumHtml(ex, ei, si) {
   return `<button class="set-n set-tech-n num" data-action="tech-set" data-ei="${ei}" data-si="${si}" aria-label="${setSpokenName(ex, si)}, ${esc(ex.name)} : technique d'intensification${t ? `, ${TECHS[t].label}` : ''}">${setDisplayNo(ex.sets, si)}</button>`;
 }
 
-// Sous la série : titre de la technique (+ une sous-série, retirer), puis une ligne par sous-série,
-// remplie comme une série (charge proposée, objectif de la dernière fois en gris, ✓)
+// Technique prescrite par le programme d'un coach (intens) : l'élève ne la retire pas d'un toucher (pas de ×, ni
+// « Retirer la technique ») ; il peut toujours noter ce qu'il a vraiment fait
+function techPrescribed(ex) {
+  return !!activeSession && coachLedProgramme(activeSession.programme) && !!cleanIntens(sessExData(ex)?.intens);
+}
+
+// Top set, back-off (sans sous-série) : petite pastille dans la ligne de SA série, sous « Avant » (panel du 16/11 :
+// l'étiquette sur une ligne à elle, entre deux séries, avec un × rond, ne disait ni à quelle série elle se
+// rapportait, ni ce que faisait le ×). Retirer : le numéro de la série ou ⋯ › Technique d'intensification.
+// spoken : lue par VoiceOver (série à faire) ; série validée : dans sa phrase, pastille cachée
+function techPillHtml(s, { spoken = true } = {}) {
+  const t = setTech(s);
+  if (!t || TECHS[t].sub) return '';
+  return `<span class="tech-pill"${spoken ? '' : ' aria-hidden="true"'}><span class="tech-pill__name">${TECHS[t].label}</span> <span class="tech-pill__hint">${TECHS[t].hint}</span></span>`;
+}
+
+// Sous la série (drop set, rest-pause, cluster) : titre de la technique (+ une sous-série, retirer), puis une ligne par
+// sous-série, remplie comme une série (charge proposée, objectif de la dernière fois en gris, ✓). Top set et back-off :
+// pastille dans la ligne de la série (techPillHtml)
 function techBlockHtml(ex, ei, s, si) {
   const t = setTech(s);
-  if (!t || !canTech(ex)) return '';
+  if (!t || !canTech(ex) || !TECHS[t].sub) return '';
   const T = TECHS[t], name = setSpokenName(ex, si).toLowerCase();
   const add = T.sub && (s.sub || []).length < TECH_SUB_MAX
     ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}">${icon('plus', 14)}${T.subName}</button>` : '';
@@ -50,7 +67,7 @@ function techBlockHtml(ex, ei, s, si) {
       <div class="tech__cap">
         <span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span></span>
         <span class="tech__btns">${add}
-        <button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button></span>
+        ${techPrescribed(ex) ? '' : `<button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button>`}</span>
       </div>
       ${rows}
     </div>`;
@@ -116,7 +133,7 @@ async function openTechSheet(ei, si) {
   const t = await dialog({ type: 'sheet', title: `${setSpokenName(ex, si)} · ${ex.name}`,
     message: 'Drop set : tu baisses la charge et tu continues sans repos. Rest-pause, cluster : même charge après 15 à 20 s de pause. Top set : ta série la plus lourde. Back-off : une série allégée après.', actions: [
       ...TECH_IDS.map(id => ({ label: `${id === cur ? '✓ ' : ''}${TECHS[id].label}`, value: id })),
-      ...(cur ? [{ label: 'Retirer la technique', value: 'none', style: 'destructive' }] : []),
+      ...(cur && !techPrescribed(ex) ? [{ label: 'Retirer la technique', value: 'none', style: 'destructive' }] : []),
       { label: 'Annuler', style: 'cancel' },
     ] });
   if (!t || activeSession?.exercises[ei]?.sets[si] !== s) return;

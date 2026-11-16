@@ -706,6 +706,14 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
   display: flex; align-items: center; justify-content: center;
 }
 .set-tech-n:active { opacity: .6; }
+/* Top set, back-off : pastille sous « Avant », dans la ligne de sa série (techPillHtml) ; gris, jamais l'orange des actions */
+.tech-pill {
+  display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 8px; border-radius: var(--r-xs);
+  background: var(--fill); color: var(--label); font-size: 0.706rem; line-height: 0.941rem;
+}
+.tech-pill__name { font-weight: 700; }
+.tech-pill__hint { color: var(--label); font-weight: 400; }
+.session-set .set-badge .tech-pill { flex-wrap: wrap; }
 .tech { margin: -2px -6px 4px; }
 .tech__cap {
   display: flex; align-items: center; gap: 16px; min-height: 52px; min-width: 0;

@@ -150,7 +150,7 @@ function goalPrefill(ex) {
   if (!d || measureOf(ex) !== 'reps') return;
   const t = exerciseGoal(activeSession.category, d, activeSession.programme);
   const g = t?.goal;
-  if (!g) return;
+  if (!g || t.coach) return;   // charge prescrite par le coach : posée par prescPrefill (js/data/coach-presc.js)
   if (t.gain === bumpLabel()) { bumpExerciseLoad(ex); return; }
   const at = Math.round(g.w * 100), repsOf = s => parseInt(s.prev?.reps ?? s.reps) || 0;
   const best = ex.sets.filter(s => !s.done && !isWarmupSet(s) && Math.round((parseFloat(s.weight) || 0) * 100) === at)
@@ -192,8 +192,17 @@ function startSession(cat) {
   };
   ssNormalize(activeSession.exercises);
   activeSession.exercises.forEach(goalPrefill);
-  // Technique prescrite par le programme (coach ou soi : js/data/intensif.js), posée sur ses séries
-  activeSession.exercises.forEach(ex => applyIntensPlan(ex, sessExData(ex)?.intens));
+  // Technique prescrite par le programme (coach ou soi : js/data/intensif.js), posée sur ses séries ; back-off
+  // allégé (backoffPrefill). Programme d'un coach : reps dans sa fourchette (clampRepsToPlan), puis sa charge et
+  // ses reps prescrites en premier (prescPrefill, js/data/coach-presc.js)
+  const coachLed = coachLedProgramme(progKey);
+  activeSession.exercises.forEach(ex => {
+    const d = sessExData(ex);
+    applyIntensPlan(ex, d?.intens);
+    if (coachLed) clampRepsToPlan(ex, d);
+    backoffPrefill(ex);
+    prescPrefill(ex, d);
+  });
   persistSession();
   otaSessionChanged();   // une mise à jour en file attend la fin de la séance (js/app/live-update.js)
   routeTo('session');
@@ -431,6 +440,8 @@ function exGoalHtml(ex, cls = '') {
   const d = sessExData(ex);
   const t = d && exerciseGoal(activeSession.category, d, activeSession.programme);
   if (!t?.goal) return '';
+  // Charge prescrite par le coach : sa prescription reste affichée toute la séance (« Avant » garde la dernière fois)
+  if (t.coach) return `<div class="ex-goal ex-goal--coach num ${cls}"><span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ton coach : ${esc(t.spoken)}</span></div>`;
   return goalReached(t.goal, ex.sets)
     ? `<div class="ex-goal ex-goal--done ${cls}">${icon('checkmark', 13)}Objectif atteint</div>`
     : `<div class="ex-goal num ${cls}">Objectif ${esc(t.text)}</div>`;
@@ -641,13 +652,13 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}">
-          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
+          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
           ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m))}
           <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
           <span class="set-val set-val--r num" aria-hidden="true">${esc(s.reps)}</span>
           <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
-          ${record || pace || mach ? `<span class="set-badge" aria-hidden="true">${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
+          ${record || pace || mach || techPillHtml(s) ? `<span class="set-badge" aria-hidden="true">${techPillHtml(s, { spoken: false })}${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
           ${setNotePreviewHtml(ei, s, si)}
         </div>
         ${rir}
@@ -808,6 +819,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}">
         ${check}
+        ${techPillHtml(s) ? `<span class="set-badge">${techPillHtml(s)}</span>` : ''}
         ${setNotePreviewHtml(ei, s, si)}
       </div>
       ${rir}
@@ -920,7 +932,9 @@ function carryWeightToNextSet(ex, si) {
   const undo    = { s, next: null, nextW: null, nextR: null };
   if (!nextSet || nextSet.done || isWarmupSet(s)) return undo;
   undo.next = nextSet; undo.nextW = nextSet.weight; undo.nextR = nextSet.reps;
-  if ((parseFloat(s.weight) || 0) !== (parseFloat(s.plannedWeight) || 0)) nextSet.weight = s.weight;
+  // Pas vers une série prévue à une autre charge : back-off après un top set, charge prescrite différente
+  const otherPlan = (setTech(s) === 'top' && setTech(nextSet) === 'backoff') || String(s.pk ?? '') !== String(nextSet.pk ?? '');
+  if (!otherPlan && (parseFloat(s.weight) || 0) !== (parseFloat(s.plannedWeight) || 0)) nextSet.weight = s.weight;
   // Reps : reprises seulement si rien n'était prévu (premier essai d'un exercice), jamais un objectif écrasé
   if (String(nextSet.reps ?? '').trim() === '' && s.reps) nextSet.reps = s.reps;
   return undo;

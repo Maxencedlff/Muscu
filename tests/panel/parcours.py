@@ -537,7 +537,9 @@ COACH_PROG = {
             {'name': 'Rowing haltère unilatéral', 'sets': 4, 'ss': 'g1'},
             {'name': 'Pompes', 'sets': 3, 'ss': 'g1', 'consigne': 'Gainage serré.'}]},
         {'key': 'sB', 'label': 'Bas', 'color': '#34C759', 'exercises': [
-            {'name': 'Squat barre', 'sets': 5, 'repMin': 3, 'repMax': 5, 'intens': 'topback'}]},
+            {'name': 'Squat barre', 'sets': 5, 'repMin': 3, 'repMax': 5, 'intens': 'topback'},
+            # Charge prescrite par le coach (js/data/coach-presc.js) : « Coach : 120 kg × 10 »
+            {'name': 'Presse à cuisses', 'sets': 3, 'repMax': 10, 'repFixed': True, 'load': 120}]},
     ],
 }
 
@@ -722,6 +724,11 @@ def p_eleve(r):
         r.onglet('train', 'Entraînement')
         r.toucher('.view.dashboard [data-action="start-session"]', 'Démarrer')
         r.attendre('.view.session', 'séance')
+    cle = 'Suivre la prescription du coach en séance'
+    with r.etape('seance-fourchette', 'Squat du coach (3 à 5 reps) : reps dans la fourchette, top set puis back-off allégés', cle=cle):
+        r.defiler('.ex-card .tech-pill', 'étiquette « Top set » de la série 1')
+    with r.etape('seance-charge-coach', 'Presse à cuisses : « Coach : 120 kg × 10 », cases pré-remplies', cle=cle):
+        r.defiler('.ex-goal--coach', 'prescription du coach')
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1135,6 +1142,19 @@ def p_coach_suivi(r):
         r.toucher('[data-action="coach-send"]', 'Envoyer un programme')
         r.choisir('Force')
         r.attendre('.coach-send-view', 'écran Envoyer')
+    cle = 'Prescrire une charge à un élève'
+    with r.etape('prescrire-ouvrir', 'Squat barre : « Prescrire une charge » (charge et reps pour Léa)', cle=cle):
+        r.defiler('.coach-presc-btn[data-ex="e4"]', 'Prescrire une charge (Squat barre)')
+        r.toucher('.coach-presc-btn[data-ex="e4"]', 'Prescrire une charge')
+        r.attendre('.coach-presc-view', 'Charge et reps')
+    with r.etape('prescrire-saisie', 'Charge : 90 kg pour toutes les séries, top set à 100 kg', cle=cle):
+        r.saisir('#cpLoad', '90', 'charge de toutes les séries')
+        r.saisir('#cpSet0', '100', 'charge de la série 1 (top set)')
+    with r.etape('prescrire-ok', 'Prescription gardée : « Charge : 100 kg puis 90 kg × 3–5 »', cle=cle):
+        r.toucher('[data-action="coach-presc-ok"]', 'OK')
+        r.attendre('.coach-send-view', 'écran Envoyer')
+        r.defiler('.coach-presc-btn[data-ex="e4"]', 'prescription du squat')
+    cle = 'Envoyer un programme à un élève'
     with r.etape('envoyer-bas', 'Écran Envoyer, bas (séance Bas, bouton Envoyer)', cle=cle):
         r.defiler('[data-action="coach-send-go"]', 'bouton Envoyer')
     with r.etape('programme-envoye', 'Programme envoyé : retour à la fiche', cle=cle):

@@ -86,8 +86,8 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(goal.gain, '');
     run(`startSession('sB')`);
     const ex = 'activeSession.exercises[0]';
-    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps + ':' + s.tech)`), ['72.5×5:top', '72.5×5:backoff', '72.5×5:backoff', '72.5×5:backoff'],
-      'top set puis back-off du coach, charge de la dernière fois');
+    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps + ':' + s.tech)`), ['72.5×5:top', '65×5:backoff', '65×5:backoff', '65×5:backoff'],
+      'top set à la charge de la dernière fois, back-off à − 10 % arrondi à la barre (backoffPrefill)');
     assert.equal(run(`repRangeText(${ex})`), '3–5 reps', 'fourchette du coach affichée');
     assert.equal(run(`bumpReady(${ex})`), false, 'pas de puce ↑ 2,5 kg');
     // Même historique sur un programme à soi : la hausse revient

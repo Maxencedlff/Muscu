@@ -24,7 +24,7 @@ const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coa
 const COACH_SEND_DRAFT_KEY = 'mdlf_coach_send_draft';   // brouillon de l'écran Envoyer (retour arrière, relance)
 const coachTipClosed = new Set();   // séance en cours : consignes repliées (identifiant d'exercice, '' : programme)
 const coachProgOpen = new Set();    // Mon coach : programmes reçus dont les exercices sont dépliés
-let coachSendDraft = null;          // écran d'envoi : { route, prog, ex: { [cat]: { [exId]: texte } } }
+let coachSendDraft = null;          // écran d'envoi : { route, prog, ex: { [cat]: { [exId]: texte } }, presc: { [cat]: { [exId]: prescription } } }
 let coachNoteDraft = null;          // commentaire pas envoyé (hors ligne) : { key, text }, repris à la réouverture
 let coachInviteBusy = false;        // « Inviter un élève » : un seul code par toucher
 
@@ -72,7 +72,7 @@ function coachTitle(html) { return `<h2 class="group-title coach-title">${html}<
 function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
-  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
+  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-presc': 'Charge et reps', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
     'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure', 'coach-photos': 'Photos de bilan',
     'coach-photos-mine': 'Photos de bilan' }[name] || null;
 }
@@ -949,6 +949,7 @@ function reviewExerciseCell(x, xs, i) {
                 <span class="review-ex__line"><span class="hex__sets num">${coachSetsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}
+                ${prescGapText(e) ? `<span class="hex__sets hex__sets--note num coach-presc-gap">${esc(prescGapText(e))}</span>` : ''}
                 ${reviewGripHtml(e)}
                 ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
                 ${historyNotesHtml(e)}
@@ -1067,14 +1068,15 @@ function coachSaveSendDraft() {
 function coachSendDraftFor(route) {
   if (coachSendDraft?.route === route) return coachSendDraft;
   const kept = coachReadSendDraft(route);
-  if (kept) { coachSendDraft = { route, prog: String(kept.prog || ''), ex: kept.ex && typeof kept.ex === 'object' ? kept.ex : {} }; return coachSendDraft; }
-  const progId = routeParams(route)[1];
+  if (kept) { coachSendDraft = { route, prog: String(kept.prog || ''), ex: kept.ex && typeof kept.ex === 'object' ? kept.ex : {}, presc: kept.presc && typeof kept.presc === 'object' ? kept.presc : {} }; return coachSendDraft; }
+  const [uid, progId] = routeParams(route);
   const ex = {};
   progSessionsOf(data, progId).forEach(s => {
     ex[s.key] = {};
     (data.programmes[progId]?.exercises?.[s.key] || []).forEach(e => { ex[s.key][e.id] = e.consigne || ''; });
   });
-  coachSendDraft = { route, prog: data.userProgrammes?.[progId]?.consigne || data.programmes[progId]?.consigne || '', ex };
+  // Charge et reps prescrites : celles de mon dernier envoi de ce programme à cet élève (js/data/coach-presc.js)
+  coachSendDraft = { route, prog: data.userProgrammes?.[progId]?.consigne || data.programmes[progId]?.consigne || '', ex, presc: coachPrescFor(uid, progId) };
   return coachSendDraft;
 }
 
@@ -1089,15 +1091,20 @@ function renderCoachSend(uid, progId) {
     const xs = data.programmes[progId]?.exercises?.[s.key] || [];
     return `
         <div class="group-title">${esc(s.label)}</div>
-        <div class="group">${xs.length ? xs.map((e, i) => `
+        <div class="group">${xs.length ? xs.map((e0, i) => {
+          // Reps prescrites à cet élève (js/data/coach-presc.js) à la place de celles du programme
+          const e = applyCoachPresc({ ...e0 }, dr.presc?.[s.key]?.[e0.id]);
+          return `
           <div class="cell coach-send-ex">
             <span class="cell__body">
               <span class="cell__title">${ssTagHtml(xs, i)}${esc(e.name)}</span>
               <span class="cell__sub num">${[setsRepsHtml(e), ...[...coachExPlanParts(e), ...(e.rest ? [`repos ${fmtRest(e.rest)}`] : []), ...(e.tempo ? [`tempo ${shortTempo(e.tempo)}`] : [])].map(esc)].join(' · ')}</span>
               ${gripSubHtml(e)}
+              ${coachPrescBtnHtml(uid, progId, s.key, e)}
               ${ta(`data-cat="${esc(s.key)}" data-ex="${esc(e.id)}"`, dr.ex[s.key]?.[e.id] || '', `Consigne pour ${e.name}`, 'Consigne (facultative)')}
             </span>
-          </div>`).join('') : '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
+          </div>`;
+        }).join('') : '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
         </div>`;
   }).join('');
   return `
@@ -1111,11 +1118,20 @@ function renderCoachSend(uid, progId) {
         <div class="group-foot">Les consignes sont facultatives et gardées pour tes prochains envois. ${who} les voit dans le programme et pendant la séance.</div>
         ${groups}
         <button class="btn btn--primary btn--full coach-send-btn" data-action="coach-send-go" data-uid="${esc(uid)}" data-prog="${esc(progId)}">Envoyer à ${who}</button>
-        <div class="group-foot">Tes charges, tes records et ton historique ne sont pas envoyés. Un nouvel envoi du même programme le met à jour chez ton élève.</div>
+        <div class="group-foot">Tes charges, tes records et ton historique ne sont pas envoyés, seulement les charges que tu prescris. Un nouvel envoi du même programme le met à jour chez ton élève : change la charge d'une semaine sur l'autre et renvoie.</div>
       </div>
     </div>`;
 }
 SCREENS.set('coach-send', { render: (uid, progId) => renderCoachSend(uid, progId) });
+
+// Charge et reps prescrites d'un exercice (écran coach-presc, js/features/coach-presc-ui.js) : « Charge : 60 kg × 8 ·
+// Modifier », sinon « Prescrire une charge » ; lien en orange, comme les autres actions
+function coachPrescBtnHtml(uid, progId, cat, e) {
+  if (measureOf(e) !== 'reps') return '';
+  const txt = prescText(e);
+  return `<button class="coach-presc-btn num" data-action="coach-presc-open" data-uid="${esc(uid)}" data-prog="${esc(progId)}" data-cat="${esc(cat)}" data-ex="${esc(e.id)}"
+    aria-label="${txt ? `Charge prescrite à ${esc(e.name)} : ${esc(prescSpoken(e))}. Modifier` : `Prescrire une charge et des reps pour ${esc(e.name)}`}">${txt ? `<span class="coach-presc-btn__val">Charge : ${esc(txt)}</span><span class="coach-presc-btn__act" aria-hidden="true">Modifier</span>` : 'Prescrire une charge'}</button>`;
+}
 
 // Programmes que je peux envoyer : Mes programmes, sans les programmes reçus d'un coach
 function coachSendableProgrammes() {
@@ -1273,7 +1289,7 @@ registerActions({
     const { uid, prog } = el.dataset;
     const dr = coachSendDraftFor(currentRoute());
     el.disabled = true;
-    const r = await coachSendProgramme(uid, prog, { prog: dr.prog, ex: dr.ex });
+    const r = await coachSendProgramme(uid, prog, { prog: dr.prog, ex: dr.ex, presc: dr.presc || {} });
     if (!coachToast(r, `Programme envoyé à ${personName(coachStudent(uid))}`, { inline: true })) { el.disabled = false; return; }
     // Consignes gardées dans mon programme (perso : up.consigne ; intégré : programmes[id].consigne) : le
     // prochain envoi les reprend
@@ -1286,6 +1302,7 @@ registerActions({
       if (xc) x.consigne = xc; else delete x.consigne;
     }));
     save();
+    coachPrescRemember(uid, prog, dr.presc || {});   // repris au prochain envoi à cet élève (js/data/coach-presc.js)
     haptic();
     coachSendDraft = null;
     coachSaveSendDraft();
