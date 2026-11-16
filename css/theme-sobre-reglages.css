@@ -32,7 +32,7 @@
 .set-ico--gray  { background: var(--set-ico-gray); }
 /* Silhouette : le personnage maison en entier, centré dans son carré */
 .set-ico--body { background: var(--set-ico-body); overflow: hidden; }
-.set-ico--body img { display: block; height: 27px; width: auto; margin-top: 3px; align-self: start; }
+.set-ico--body img { display: block; height: calc(var(--set-ico-size) - 3px); width: auto; margin-top: 3px; align-self: start; }
 
 /* Lignes à icône : l'action garde son orange sur le titre seulement, le carré reste blanc sur couleur */
 .cell--action > .set-ico .icon { color: var(--set-ico-glyph); }
@@ -56,16 +56,15 @@ html.type-xl .settings-view .cell:has(> .set-ico):is(:has(> .cell__value), :has(
    d'elle, sur la ligne du dessous. */
 html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) { padding-right: 30px; }
 html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) > .icon:last-child { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
-/* Écrans de 320 pt (iPhone SE 1re génération, petits Android) : carré et marges un peu réduits, chaque titre
-   tient sur une ligne (« Carte « Ta semaine » » à côté de son interrupteur) et, en texte agrandi, les mots longs
-   restent entiers */
+/* Écrans de 320 pt (iPhone SE 1re génération, petits Android) : carré et marges réduits (24 px, 8 px de marge) ;
+   chaque titre tient sur une ligne même avec une police plus large que SF Pro (DejaVu de la CI), « Carte « Ta
+   semaine » » à côté de son interrupteur compris ; en texte agrandi, les mots longs restent entiers */
 @media (max-width: 359px) {
-  .settings-view { --set-ico-size: 26px; --set-ico-gap: 8px; }
-  .settings-view .cell:has(> .set-ico) { gap: var(--set-ico-gap); padding-left: 12px; padding-right: 12px; }
+  .settings-view { --set-ico-size: 24px; --set-ico-gap: 8px; --set-ico-pad: 8px; }
+  .settings-view .cell:has(> .set-ico) { gap: var(--set-ico-gap); padding-left: var(--set-ico-pad); padding-right: var(--set-ico-pad); }
   .settings-view .set-ico { border-radius: 6px; }
-  .settings-view .set-ico .icon { width: 17px; height: 17px; }
-  .settings-view .cell + .cell:has(> .set-ico)::before { left: calc(12px + var(--set-ico-size) + var(--set-ico-gap)); }
+  .settings-view .set-ico .icon { width: 16px; height: 16px; }
+  .settings-view .cell + .cell:has(> .set-ico)::before { left: calc(var(--set-ico-pad) + var(--set-ico-size) + var(--set-ico-gap)); }
   html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) { padding-right: 24px; }
   html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) > .icon:last-child { right: 6px; }
-  html.type-xl .settings-view .cell + .cell:has(> .set-ico)::before { left: calc(12px + var(--set-ico-size) + var(--set-ico-gap)); }
 }
