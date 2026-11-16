@@ -135,6 +135,15 @@ html.type-xl .ss-thumbs { display: none; }
   /* « Série » à 12 px : son en-tête déborde sur l'écart et le bord, la colonne garde 30 px (place des charges) */
   .sets__head > span:first-child { margin-left: -3px; margin-right: calc(-1 * var(--set-gap)); }
 }
+/* Échauffement dans la carte : « Échauf. » en toutes lettres, la 1re colonne s'élargit (WARM_NUM_HTML) ; écran étroit :
+   « É », la place reste aux charges */
+.sets--warm { --set-cols: 54px minmax(0,1.3fr) minmax(0,1fr) minmax(44px,.8fr) 52px; }
+.set-n__short { display: none; }
+@media (max-width: 374px) {
+  .sets--warm { --set-cols: 30px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; }
+  .set-n__long { display: none; }
+  .set-n__short { display: inline; }
+}
 .sets__head, .session-set { display: grid; grid-template-columns: var(--set-cols); column-gap: var(--set-gap); align-items: center; }
 .sets__head {
   padding: 0 6px 4px; font-size: 0.706rem; font-weight: 600; color: var(--label2);

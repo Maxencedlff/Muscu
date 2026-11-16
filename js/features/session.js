@@ -276,7 +276,8 @@ function currentSet() {
   return null;
 }
 
-// Série suivante en deux morceaux : { name: « Développé incliné », tail: « S1 · 30 kg × 10 » } (tail = step + load), null sans.
+// Série suivante en deux morceaux : { name: « Développé incliné », tail: « Série 1 · 30 kg × 10 » } (tail = step + load), null sans.
+// « Série 1 » en toutes lettres, plus « S1 » (panel « yeux neufs » du 16/11 : jargon pour un débutant).
 // Pendant la pause d'un rest-pause ou d'un cluster, c'est la sous-série qui suit : « Reprise 1 · 70 kg × 4 »
 // (js/features/session-intensif.js), sub: true. La barre de repos coupe le nom, jamais la série ; pendant une
 // pause de technique, elle tait le nom (l'exercice qu'on vient de faire) : « Ensuite : Reprise 1 · 32 kg × 4 »
@@ -289,10 +290,10 @@ function nextSetParts() {
   // Sous-série sans objectif de reps (pas faite la dernière fois) : sa charge seule, « Reprise 1 · 70 kg »
   const load = String(s.reps ?? '') !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}`
     : sub && hasLoad(s.weight) ? ` · ${fmtW(s.weight, { plain: true })} ${unitLbl()}` : '';
-  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `S${setDisplayNo(ex.sets, cur.si)}`;   // compte des séries de travail, comme leur ligne
+  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `Série ${setDisplayNo(ex.sets, cur.si)}`;   // compte des séries de travail, comme leur ligne
   return { name: ex.name, step, load, tail: step + load, sub: !!sub };
 }
-// « Développé incliné · S1 · 30 kg × 10 »
+// « Développé incliné · Série 1 · 30 kg × 10 »
 function nextSetText() {
   const p = nextSetParts();
   return p ? `${p.name} · ${p.tail}` : '';
@@ -497,7 +498,7 @@ function renderExerciseCard(ex, ei, cur) {
       </div>
       ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
-      <div class="sets" role="group" aria-label="Séries de ${esc(ex.name)}">
+      <div class="sets${ex.sets.some(isWarmupSet) ? ' sets--warm' : ''}" role="group" aria-label="Séries de ${esc(ex.name)}">
         <div class="sets__head" aria-hidden="true">
           <span>Série</span><span>Avant</span>
           <span>${loadHeader(ex)}</span><span>${MEASURES[measureOf(ex)].count}</span>
@@ -584,7 +585,7 @@ function renderGroupCard(members, cur, tags) {
       ${members.map(ei => gripLineHtml(xs[ei], ei, tags[ei])).join('')}
       ${members.map(ei => exNoteLineHtml(xs[ei], ei, tags[ei])).join('')}
       ${members.map(ei => coachSessionTipHtml(xs[ei], tags[ei])).join('')}
-      <div class="sets" role="group" aria-label="Séries du ${kind.toLowerCase()}">
+      <div class="sets${exs.some(ex => ex.sets.some(isWarmupSet)) ? ' sets--warm' : ''}" role="group" aria-label="Séries du ${kind.toLowerCase()}">
         <div class="sets__head" aria-hidden="true">
           <span>Exo</span><span>Avant</span>
           <span>${loadHeader(m0)}</span><span>${MEASURES[measureOf(m0)].count}</span>
@@ -671,7 +672,7 @@ function rirEverUsed() {
 function rirPickerHtml(ei, si, s, ex, tag = null) {
   const r = cleanRir(s.rir), folded = tag !== null;
   return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}${folded ? `, ${esc(ex.name)}` : ''}">
-            <span class="rir__lbl" aria-hidden="true">Reps en réserve${folded ? ` · ${tag ? `${tag} ` : ''}S${setDisplayNo(ex.sets, si)}` : ''}</span>${rirEverUsed() ? '' : `
+            <span class="rir__lbl" aria-hidden="true">Reps en réserve${folded ? ` · ${tag ? `${tag} · ` : ''}Série ${setDisplayNo(ex.sets, si)}` : ''}</span>${rirEverUsed() ? '' : `
             <span class="rir__help">Facultatif : combien tu aurais pu en faire de plus</span>`}
             <span class="rir__btns">${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}</span>
             <span class="rir__rpe num" aria-live="polite">${r === null ? '' : `RPE ${rirToRpe(r)}`}</span>
@@ -708,11 +709,13 @@ function setFirstValue(s, m) {
   return hasLoad(s?.weight) ? fmtW(s.weight, { plain: true }) : '';
 }
 
-// Première colonne : numéro de la série de travail (l'échauffement, « É », ne décale pas la numérotation),
-// ou A1, A2… dans un superset (affiché tour par tour)
+// Première colonne : numéro de la série de travail (l'échauffement ne décale pas la numérotation), ou A1, A2… dans
+// un superset (affiché tour par tour). Échauffement : « Échauf. » (colonne élargie, .sets--warm), « É » sur un écran
+// étroit (css/session.css) ; VoiceOver lit toujours « Échauffement 1 » (setSpokenName, dans les libellés de la ligne)
+const WARM_NUM_HTML = '<span class="set-n__long">Échauf.</span><span class="set-n__short">É</span>';
 function setNumHtml(ex, si, tag) {
   if (tag) return `<span class="set-n"><span class="ss-tag">${tag}</span></span>`;
-  if (isWarmupSet(ex.sets[si])) return `<span class="set-n set-n--warm" aria-hidden="true">É</span>`;
+  if (isWarmupSet(ex.sets[si])) return `<span class="set-n set-n--warm" aria-hidden="true">${WARM_NUM_HTML}</span>`;
   return `<span class="set-n num">${setDisplayNo(ex.sets, si)}</span>`;
 }
 

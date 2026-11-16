@@ -374,7 +374,7 @@ def t_pause_annonce(bench, eng, dev, theme):
         # Panel du 06/11 : « Ensuite : Rowing haltère u… » coupé sur iPhone. Pendant la pause, la barre tait le nom
         # (l'exercice qu'on vient de faire, dit aux lecteurs d'écran) et montre la reprise entière
         vis = ' '.join(page.evaluate("[...document.querySelectorAll('.rest-mini__next > :not(.sr-text)')].map(e => e.textContent).join('')").replace(' ', ' ').split())
-        R.check(vis.startswith(f'Ensuite : Mini-série +1 · {kg0} kg') and name0 not in vis and 'S2' not in vis, f'{t} rest-pause : « Ensuite » annonce la reprise, sans le nom ({vis})')
+        R.check(vis.startswith(f'Ensuite : Mini-série +1 · {kg0} kg') and name0 not in vis and 'Série 2' not in vis, f'{t} rest-pause : « Ensuite » annonce la reprise, sans le nom ({vis})')
         R.check(page.locator('.rest-mini__next .sr-text').text_content().strip(', ') == name0, f'{t} rest-pause : nom de l\'exercice dit au lecteur d\'écran')
         R.check(page.evaluate("""(() => { const n = document.querySelector('.rest-mini__next'), r = n.getBoundingClientRect();
             return [...n.children].filter(e => !e.matches('.sr-text')).every(e => e.scrollWidth <= e.clientWidth + 1 && e.getBoundingClientRect().right <= r.right + 1); })()"""),
@@ -406,7 +406,7 @@ def t_pause_annonce(bench, eng, dev, theme):
         # Reprise validée (aucune autre à faire) : retour au repos habituel, la série 2 est annoncée
         page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '4')
         page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(400)
-        R.check('S2' in page.locator('.rest-mini__next').text_content() and native_rest(page).get('body', '').startswith(f'Série 2 · {name0}'), f'{t} reprise faite : la série 2 est annoncée')
+        R.check('Série 2' in page.locator('.rest-mini__next').text_content() and native_rest(page).get('body', '').startswith(f'Série 2 · {name0}'), f'{t} reprise faite : la série 2 est annoncée')
         # Cluster : « Bloc +1 »
         skip_rest(page)
         page.evaluate("activeSession.lastEi = 1; persistSession(); render()")
