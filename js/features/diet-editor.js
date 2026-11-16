@@ -69,7 +69,8 @@ function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), e
 // calories ne se réglaient pas, retour du 16/11)
 function dietTargetsCellHtml(plan) {
   const t = plan.targets;
-  if (!t) return esc('Aucun : le total prévu sert de repère');
+  // Sans objectif : le repère est le total des repas (types ou prévus) ; sans aucun aliment, il n'y a pas de repère
+  if (!t) return esc(!dietHasMealItems(plan) ? 'Aucun' : dietPersonal(plan) ? 'Aucun : le total des repas types sert de repère' : 'Aucun : le total prévu sert de repère');
   if (t.kcal) return dietTargetsHtml(plan);
   return dietSrPair(esc(`Calories : aucun objectif · ${dietTargetsText(plan)}`), esc(`Calories : aucun objectif, ${dietTargetsSpoken(plan)}`));
 }

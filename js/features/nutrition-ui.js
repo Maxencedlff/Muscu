@@ -185,7 +185,7 @@ function dietSummaryHtml(pr) {
           <div class="diet-sum__bars">${bars}</div>
         </div>
         ${line}
-        ${own.kcal || own.p || own.c || own.f ? '' : `<p class="diet-sum__hint">Repère : le total prévu par ton plan${Object.keys(pr.swaps).length ? ', remplacements du jour compris' : ''}.</p>`}
+        ${own.kcal || own.p || own.c || own.f || !dietHasMealItems(pr.plan) ? '' : `<p class="diet-sum__hint">Repère : ${dietPersonal(pr.plan) ? 'le total de tes repas types' : 'le total prévu par ton plan'}${Object.keys(pr.swaps).length ? ', remplacements du jour compris' : ''}.</p>`}
         ${dietLowKcal(pr.plan) ? dietLowNoteHtml(!!pr.plan.targets?.kcal) : ''}
       </section>`;
 }
