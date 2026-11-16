@@ -746,10 +746,23 @@ function renderCoachStudents() {
 // Arrivée sur Mes élèves (écran ou segment Élèves) : état relu, puis la progression (30 s au plus), le palier, la clé
 // des photos de bilan (une fois)
 function coachTeamEnter() {
+  const view = currentView();
+  coachAskHere = () => currentView() === view && (view !== 'friends' || friendsSeg() === 'students');
   coachRefresh().then(() => coachProgressRefresh({ minAge: 30_000 }));
   if (cphCoach.key === undefined) cphCoachRefresh();   // « Recevoir les photos de bilan » proposé sous la liste
   coachProRefresh({ minAge: 30_000 });
 }
+// Premier élève arrivé : sur Mes élèves, une fois l'état relu (lecture déjà en cours comprise), proposer d'être
+// prévenu quand un élève écrit (une fois par arrivée, js/features/push-ui.js)
+let coachAskHere = null;
+onCoachChange(() => {
+  const here = coachAskHere;
+  if (!here || !coach.state) return;
+  if (!here()) { coachAskHere = null; return; }
+  if (!coach.state.is_coach || !coach.state.students.length) return;
+  coachAskHere = null;
+  pushAskInContext('coach', here);
+});
 SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachTeamEnter(); } });
 
 // ── Coach : un élève et ses séances ─────────────────────────
@@ -1168,6 +1181,8 @@ registerActions({
     goBack();
     await dialog({ title: 'C\'est fait !', message: `Les programmes ${elide('de', name)} arriveront dans Social › Mon coach.`,
       actions: [{ label: 'OK', style: 'preferred' }] });
+    // Lien accepté : proposer d'être prévenu quand le coach écrit (une fois, js/features/push-ui.js)
+    pushAskInContext('student');
   },
   'coach-leave': async () => {
     const name = coachName();

@@ -423,4 +423,67 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(t({ kind: 'inconnu' }), null);
     assert.equal(t(null), null);
   });
+
+  // ── Demande en contexte (coach ↔ élève) ──
+  test('push demande : jamais au premier lancement, 7 jours après « Plus tard », 2 fois au plus', () => {
+    const P5 = { reactions: false, comments: false, follows: false, coach: false, messages: false };
+    const D = o => run(`pushAskDecision(${JSON.stringify({ role: 'student', permission: 'prompt', prefs: P5, state: {}, now: 1e12, firstLaunch: false, ...o })})`);
+    assert.equal(D({}), 'ask');
+    assert.equal(D({ role: 'coach' }), 'ask');
+    assert.equal(D({ firstLaunch: true }), 'skip', 'premier lancement');
+    assert.equal(D({ state: { n: 1, at: 1e12 - 6 * 86400_000 } }), 'skip', '6 jours après « Plus tard »');
+    assert.equal(D({ state: { n: 1, at: 1e12 - 7 * 86400_000 } }), 'ask', '7 jours après');
+    assert.equal(D({ state: { n: 2, at: 1 } }), 'skip', 'deux fois en tout');
+    assert.equal(D({ state: { done: true } }), 'skip', 'déjà répondu « Activer »');
+    assert.equal(D({ permission: 'denied' }), 'skip', 'refus d\'iOS : la fenêtre ne revient pas');
+    assert.equal(D({ permission: 'unavailable' }), 'skip', 'build sans le module');
+    assert.equal(D({ permission: 'granted' }), 'ask', 'autorisé (fin du repos) mais types éteints');
+    assert.equal(D({ permission: 'granted', prefs: { ...P5, messages: true } }), 'done', 'déjà allumé ici');
+    assert.equal(D({ permission: 'prompt', prefs: { ...P5, messages: true } }), 'ask', 'réinstallation : à réactiver');
+    assert.equal(D({ prefs: { reactions: false, follows: false, coach: false } }), 'skip', 'serveur sans les messages');
+    assert.equal(D({ prefs: null }), 'skip', 'réglages illisibles');
+    assert.equal(D({ role: 'autre' }), 'skip');
+    sameJSON(run(`pushAskWanted('student', ${JSON.stringify(P5)})`), ['messages', 'coach', 'comments']);
+    sameJSON(run(`pushAskWanted('coach', ${JSON.stringify(P5)})`), ['messages', 'coach']);
+    // Mémoire de l'iPhone
+    run(`localStorage.removeItem('mdlf_push_ask'); pushAskLater(5); pushAskLater(9)`);
+    sameJSON(run(`pushAskStored()`), { n: 2, at: 9 });
+    run(`pushAskDone()`);
+    sameJSON(run(`pushAskStored()`), { n: 2, at: 9, done: true });
+    run(`localStorage.setItem('mdlf_push_ask', '{pas du json'); `);
+    sameJSON(run(`pushAskStored()`), {}, 'mémoire illisible : rien');
+    run(`localStorage.removeItem('mdlf_push_ask')`);
+  });
+
+  test('push demande : « Activer » élève → iOS, jeton, puis messages, coach et commentaires (le reste inchangé)', async () => {
+    const P5 = { reactions: false, follows: true, coach: false, comments: false, messages: false };
+    await withFakes({ prefs: P5 }, async () => {
+      run(`localStorage.removeItem('mdlf_push_ask')`);
+      assert.equal(await run(`pushAskCheck('student', 1e12, false)`), 'ask');
+      run('__calls = []');
+      sameJSON(await run(`pushEnableFor('student')`), { ok: true });
+      sameJSON(run('__calls'), ['permission', 'request', 'register',
+        `push_register:${JSON.stringify({ token: FAKE_TOKEN, env: 'production' })}`,
+        'push_set_prefs:{"reactions":null,"comments":true,"follows":null,"coach":true,"messages":true}']);
+      sameJSON(run('push.prefs'), { reactions: false, comments: true, follows: true, coach: true, messages: true });
+      assert.equal(run(`pushAskDecision({ role: 'student', permission: 'granted', prefs: push.prefs, state: {}, now: 1e12, firstLaunch: false })`), 'done', 'plus rien à demander');
+      assert.equal(await run(`pushAskCheck('student', 1e12, true)`), 'skip', 'premier lancement : aucun appel utile');
+    });
+    await withFakes({ permission: 'granted', prefs: { reactions: true, follows: false, coach: false, comments: false, messages: false } }, async () => {
+      await run('pushLoad()');
+      run('__calls = []');
+      sameJSON(await run(`pushEnableFor('coach')`), { ok: true });
+      assert.ok(!run('__calls').includes('request'), 'déjà autorisé : pas de fenêtre');
+      assert.ok(run('__calls').includes('push_set_prefs:{"reactions":null,"comments":null,"follows":null,"coach":true,"messages":true}'), run('__calls').join(' | '));
+    });
+    // Refus d'iOS : rien sur le serveur
+    await withFakes({ answer: 'denied', prefs: P5 }, async () => {
+      await run('pushLoad()');
+      run('__calls = []');
+      sameJSON(await run(`pushEnableFor('student')`), { ok: false, reason: 'denied' });
+      assert.ok(!run('__calls').some(c => c.startsWith('push_')), 'aucun appel au serveur');
+      assert.equal(run('pushDeniedHere()'), true, 'la conversation montre la ligne vers Réglages');
+    });
+    run(`localStorage.removeItem('mdlf_push_ask')`);
+  });
 }

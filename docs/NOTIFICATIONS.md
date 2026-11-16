@@ -13,8 +13,19 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
 | Messages | ligne ajoutée dans `coach_messages` par l'autre personne (mon coach, ou un de mes élèves) | « Nouveau message » · « kevin t'a envoyé un message » | Social (ou Coach) › la conversation (avec mon coach, ou avec cet élève), même app fermée |
 
 - **Rien sans accord** : les cinq types sont éteints par défaut (pas de ligne `push_prefs` = tout
-  éteint). La fenêtre d'autorisation d'iOS ne s'ouvre qu'au toucher d'un interrupteur ; le jeton de
-  l'iPhone n'est inscrit qu'à ce moment-là.
+  éteint). La fenêtre d'autorisation d'iOS ne s'ouvre qu'au toucher d'un interrupteur ou d'« Activer »
+  dans la demande en contexte (ci-dessous) ; le jeton de l'iPhone n'est inscrit qu'à ce moment-là.
+- **Demande en contexte** (`pushAskInContext`, js/features/push-ui.js ; règles `pushAskDecision`,
+  js/data/push.js) : feuille d'iOS « Être prévenu quand ton coach t'écrit ? » (élève) ou « …quand un élève
+  t'écrit ? » (coach), « Activer » / « Plus tard ». Moments : lien avec un coach accepté (après « C'est
+  fait ! »), Mes élèves avec au moins un élève, ouverture d'une conversation. Jamais au premier lancement
+  (celui des questions de départ : pas de séance, `onboarded` faux au chargement). « Activer » : fenêtre
+  d'iOS, jeton, puis `push_set_prefs` avec `messages` et `coach` (et `comments` pour l'élève) à vrai, le
+  reste à `null` (inchangé). « Plus tard » : pas avant 7 jours, 2 fois au plus. Plus demandé une fois
+  activé, refusé dans iOS ou déjà allumé ici. Mémoire sur l'iPhone : `mdlf_push_ask` `{ n, at, done }`.
+- **Refus d'iOS** : la conversation montre « Notifications désactivées · Réglages », qui ouvre les
+  réglages de l'app dans l'app Réglages (`openSettings`, `UIApplication.openSettingsURLString`) ; s'il ne
+  répond pas, Réglages › Notifications de l'app. L'autorisation est relue au retour au premier plan.
 - **Écran verrouillé** : seul le pseudo de l'auteur apparaît, jamais le texte d'un commentaire, d'un
   message ni le nom d'un programme. La file ne garde d'ailleurs que l'id du commentaire ou du message.
 - **Pas de doublon** : la même notification (destinataire, type, auteur, objet) n'est pas recréée pendant
@@ -120,4 +131,4 @@ messages : réglages, salve, lu, masqué, signalé, bloqué, lien rompu, écran 
 | `js/data/push.js` | réglages, jeton, déconnexion, écran du toucher (`pushTarget`), logique testée par `tests/unit/push.mjs`. Les types « Commentaires » et « Messages » ne sont montrés que si le serveur les renvoie (serveur d'avant : 3 interrupteurs, `push_set_prefs` à 3 arguments) |
 | `js/features/push-ui.js` | Réglages › Notifications, cellule des Réglages, toucher d'une notification |
 
-E2E : `tests/test_notifications.py` (faux module `MdlfPush` et fausses RPC dans `tests/fake_account.py`).
+E2E : `tests/test_notifications.py` (faux module `MdlfPush` et fausses RPC dans `tests/fake_account.py` ; demande en contexte marquée répondue sauf `__fakeOpts.pushAsk`).

@@ -542,3 +542,7 @@ html.type-xl .cstu__days { gap: .2em; }
 html.type-xl .cstu__day { width: .45em; height: .45em; }
 /* Texte agrandi : « Ajouter à mes programmes » revient à la ligne dans le bouton (il sortait de l'écran sur iPhone SE) */
 html.type-xl .coach-prog__btn { white-space: normal; height: auto; min-height: 44px; padding-top: 8px; padding-bottom: 8px; line-height: 1.25; text-align: center; }
+/* Conversation, notifications refusées dans iOS : ligne discrète vers les Réglages de l'iPhone (44 pt de cible) */
+.chat-push-off { display: block; min-height: 44px; margin: 0 auto; padding: 10px var(--gutter); background: none; border: 0;
+  font: inherit; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+.chat-push-off__link { color: var(--tint); }

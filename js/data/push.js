@@ -6,7 +6,7 @@
 'use strict';
 
 // Rien n'est envoyé sans accord : chaque type est éteint par défaut sur le serveur (push_prefs), iOS a sa
-// propre autorisation (demandée seulement quand on allume un type), et le jeton n'est inscrit qu'à ce
+// propre autorisation (demandée seulement quand on allume un type, ou à « Activer » de la demande en contexte), et le jeton n'est inscrit qu'à ce
 // moment-là. Tout éteint, ou déconnexion : le jeton est retiré du compte (push_unregister). Session finie
 // hors de l'app (jeton de rafraîchissement refusé), ou retrait qui n'a pas abouti (hors ligne, erreur,
 // délai) : le marqueur reste, et le jeton est retiré à la connexion suivante d'un AUTRE compte sur cet
@@ -212,3 +212,85 @@ function pushOnAccount() {
   }).catch(() => false);
 }
 onAccountChange(() => { pushOnAccount(); });
+
+// ── Demande en contexte (coach ↔ élève) ─────────────────────
+// Les types restent éteints par défaut sur le serveur : on propose de les allumer au moment où ils ont un
+// sens (lien avec un coach accepté, Mes élèves avec au moins un élève, première ouverture d'une
+// conversation), jamais au premier lancement. « Activer » : fenêtre d'iOS, jeton inscrit, puis les types
+// utiles allumés (réactions et abonnements inchangés). « Plus tard » : pas avant 7 jours, 2 fois au plus.
+// Mémoire sur cet iPhone seulement (l'autorisation d'iOS l'est aussi) : { n, at, done }.
+const PUSH_ASK_KEY = 'mdlf_push_ask';
+const PUSH_ASK_WAIT_MS = 7 * 86400_000;
+const PUSH_ASK_MAX = 2;
+// Types allumés par « Activer » : l'élève garde aussi les commentaires sur ses séances
+const PUSH_ASK_TYPES = { student: ['messages', 'coach', 'comments'], coach: ['messages', 'coach'] };
+// Premier lancement : celui des questions de départ (js/features/onboarding.js), lu au chargement
+const PUSH_ASK_FIRST_LAUNCH = typeof data === 'object' && !!data && !data.onboarded && !(data.history || []).length;
+
+function pushAskStored() {
+  try { const v = JSON.parse(localStorage.getItem(PUSH_ASK_KEY)); return v && typeof v === 'object' ? v : {}; } catch { return {}; }
+}
+function pushAskStore(v) { try { localStorage.setItem(PUSH_ASK_KEY, JSON.stringify(v)); } catch { /* redemandé plus tard, au pire */ } }
+function pushAskLater(now = Date.now()) {
+  const s = pushAskStored();
+  pushAskStore({ ...s, n: (Number.isInteger(s.n) ? s.n : 0) + 1, at: now });
+}
+function pushAskDone() { pushAskStore({ ...pushAskStored(), done: true }); }
+
+// Types que « Activer » allume, parmi ceux que le serveur connaît
+function pushAskWanted(role, prefs) {
+  return (PUSH_ASK_TYPES[role] || []).filter(id => !!prefs && id in prefs);
+}
+
+// Mémoire locale seule (sans réseau) : la demande est-elle encore possible ?
+function pushAskOpen(state, now, firstLaunch = PUSH_ASK_FIRST_LAUNCH) {
+  if (firstLaunch || state?.done) return false;
+  const n = Number.isInteger(state?.n) ? state.n : 0;
+  if (n >= PUSH_ASK_MAX) return false;
+  return !(Number.isFinite(state?.at) && now - state.at < PUSH_ASK_WAIT_MS);
+}
+
+// → 'ask' (proposer), 'done' (déjà allumé ici : ne plus jamais demander), 'skip' (pas maintenant)
+function pushAskDecision({ role, permission, prefs, state, now, firstLaunch = PUSH_ASK_FIRST_LAUNCH }) {
+  if (!pushAskOpen(state, now, firstLaunch) || !prefs) return 'skip';
+  const wanted = pushAskWanted(role, prefs);
+  if (!wanted.includes('messages')) return 'skip';   // serveur sans les messages : rien d'utile à proposer
+  if (permission === 'granted' && prefs.messages === true) return 'done';
+  // Refus d'iOS : la fenêtre ne reviendrait pas (la conversation montre la ligne vers Réglages) ;
+  // build sans le module : rien à proposer
+  if (permission !== 'prompt' && permission !== 'granted') return 'skip';
+  return 'ask';
+}
+
+// Lit l'état (mémoire, puis autorisation et réglages) et décide, pour role 'student' | 'coach'
+async function pushAskCheck(role, now = Date.now(), firstLaunch = PUSH_ASK_FIRST_LAUNCH) {
+  if (!pushPossible() || !pushAskOpen(pushAskStored(), now, firstLaunch)) return 'skip';
+  if (!(await pushLoad())) return 'skip';
+  return pushAskDecision({ role, permission: push.permission, prefs: push.prefs, state: pushAskStored(), now, firstLaunch });
+}
+
+// « Activer » : autorisation d'iOS et jeton, puis les types utiles allumés en un appel (null = inchangé)
+// → { ok } ou { ok: false, reason: 'busy' | 'denied' | 'unavailable' | 'register' | <erreur> }
+async function pushEnableFor(role) {
+  if (!pushPossible() || push.busy || !push.prefs) return { ok: false, reason: 'busy' };
+  push.busy = 'ask'; notifyPush();
+  try {
+    const fail = await pushEnsureDevice();
+    if (fail) return { ok: false, reason: fail };
+    const args = { ...Object.fromEntries(pushShownTypes().map(t => [t.id, null])),
+      ...Object.fromEntries(pushAskWanted(role, push.prefs).map(id => [id, true])) };
+    const r = await pushRpc('push_set_prefs', args);
+    if (!r.ok) return { ok: false, reason: r.kind };
+    push.prefs = cleanPushPrefs(r.data);
+    return { ok: true };
+  } finally { push.busy = null; notifyPush(); }
+}
+
+// Autorisation d'iOS relue (retour des Réglages de l'iPhone) ; prévient l'écran si elle a changé
+async function pushRefreshPermission() {
+  if (!pushPossible()) return;
+  const p = await Native.push.permission();
+  if (p !== push.permission) { push.permission = p; notifyPush(); }
+}
+// Notifications refusées dans iOS pour cette app (ligne discrète de la conversation)
+function pushDeniedHere() { return pushPossible() && push.permission === 'denied'; }
