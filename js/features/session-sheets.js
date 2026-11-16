@@ -107,8 +107,9 @@ function setExRest(ei, secs) {
 }
 
 // ── Ajouter (ou remplacer) un exercice : recherche dans la bibliothèque ──
-// Une seule feuille pour trois cibles : la séance en cours ('session'), Programme › Séance
-// ('programme') et la séance passée ('past', qui reçoit le choix par onPick(name, sets)).
+// Une seule feuille pour deux cibles : la séance en cours ('session') et la séance passée ('past', qui reçoit
+// le choix par onPick(name, sets)). Programme › Séance passe par la Bibliothèque en mode choix (« lib-pick »,
+// js/features/library.js), suivie du réglage de l'exercice.
 let ax = { target: 'session', replaceEi: null, exclude: new Set(), around: [], onPick: null };
 let axSets = 3;
 let axMuscle = NO_MUSCLE_FILTER;   // filtre par muscle de la feuille, remis à zéro à chaque ouverture
@@ -291,8 +292,7 @@ function axPick(name) {
   name = name.charAt(0).toUpperCase() + name.slice(1);  // nom créé en minuscules : « Hip thrust », pas « hip thrust »
   // Lu avant l'ajout, qui fait entrer le nom dans la bibliothèque
   const created = !exerciseLibrary().some(n => sameExerciseName(n, name));
-  if (ax.target === 'programme') addExerciseToEditedSession(name);
-  else if (ax.target === 'past') ax.onPick?.(name, axSets);
+  if (ax.target === 'past') ax.onPick?.(name, axSets);
   else pickExercise(name);
   // Hors séance, nom inventé : muscles devinés proposés à la vérification (un toucher sur OK les confirme,
   // fermer garde la devinette), muscles inconnus demandés. En séance, aucune feuille par-dessus
@@ -300,19 +300,6 @@ function axPick(name) {
   if (ax.target === 'session') return;
   if (created && exerciseMuscles({ name }).source === 'rules') askMusclesToCheck(name);
   else askMusclesIfUnknown(name);
-}
-
-// Programme › Séance : l'exercice rejoint le programme ; ses réglages se font ensuite dans Programme › Exercice
-function addExerciseToEditedSession(name) {
-  const cat  = editorCatOf();
-  const list = prog().exercises[cat] || (prog().exercises[cat] = []);
-  if (list.some(e => sameExerciseName(e.name, name))) { showToast('Déjà dans cette séance'); return; }
-  list.push(makeExercise(name, axSets));
-  save();
-  closeSessSheets();
-  haptic();
-  showToast('Exercice ajouté');
-  render();
 }
 
 // Exercice ajouté (ou remplaçant) dans la séance en cours, éventuellement ajouté aussi au programme

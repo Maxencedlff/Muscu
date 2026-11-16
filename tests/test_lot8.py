@@ -48,18 +48,19 @@ def add_session(page, name, from_list=True):
     page.wait_for_selector('#csName')
     page.fill('#csName', name)
     page.click('[data-action="save-cs-modal"]')
-    # Nouvelle séance : ses exercices s'ouvrent, recherche déjà ouverte
-    page.wait_for_selector('.view.editor')
-    page.wait_for_selector('#axSearch')
+    # Nouvelle séance : la Bibliothèque s'ouvre en mode choix (mêmes groupes illustrés)
+    page.wait_for_selector('.view.library.library--pick')
 
 
-def add_exercise(page, name, sheet_open=False):
-    if not sheet_open:
+def open_pick(page, already_open=False):
+    if not already_open:
         page.click('[data-action="add-ex"]')
-    page.wait_for_selector('#axSearch')
-    page.fill('#axSearch', name)
-    page.wait_for_timeout(150)
-    page.locator('[data-action="ax-pick"]', has_text=name).first.click()
+    page.wait_for_selector('.view.library.library--pick')
+    page.wait_for_timeout(300)
+
+
+def save_ex(page):
+    page.click('[data-action="save-ex"]')
     page.wait_for_timeout(400)
 
 
@@ -83,16 +84,65 @@ def t_programmes(bench, eng, dev, theme):
         add_session(page, 'Haut du corps', from_list=False)
         cats = list(data(page)['userProgrammes'][pid]['sessions'])
         R.check(len(cats) == 1, f'{t} séance ajoutée au programme {cats}')
-        R.check(page.evaluate('currentRoute()') == f'editor:{cats[0]}', f'{t} séance créée : ses exercices s\'ouvrent')
-        add_exercise(page, 'Développé couché haltères', sheet_open=True)
-        page.wait_for_timeout(400)
-        add_exercise(page, 'Tractions lestées')
-        # Nom inventé dans Programme : muscles devinés proposés à la vérification ; « Plus tard » garde la devinette
-        page.wait_for_selector('.sheet .mpick'); page.wait_for_timeout(300)
-        R.check(page.locator('.sheet__title').inner_text() == 'Vérifier les muscles', f'{t} exercice inventé : muscles à vérifier')
-        page.click('.sheet__btn--cancel'); page.wait_for_timeout(350)
-        exs = [e['name'] for e in data(page)['programmes'][pid]['exercises'][cats[0]]]
-        R.check(exs == ['Développé couché haltères', 'Tractions lestées'], f'{t} exercices choisis ajoutés {exs}')
+        st = page.evaluate('nav.stacks.program')
+        R.check(st[-2:] == [f'editor:{cats[0]}', f'lib-pick:{cats[0]}'], f'{t} séance créée : ses exercices, puis le choix dans la Bibliothèque {st}')
+        # Ajout par la Bibliothèque : groupes illustrés, groupe Pectoraux, un exercice ; son réglage s'ouvre tout de suite
+        open_pick(page, already_open=True)
+        R.check(page.locator('.library--pick .mgcs .mgc[data-group="pectoraux"] .mgc__img').count() == 1, f'{t} choix : groupes illustrés de la Bibliothèque')
+        R.check(page.locator('.library--pick #libSearch').count() == 1 and page.locator('.library--pick [data-action="lib-equip"]').count() >= 5, f'{t} choix : recherche et filtres de matériel')
+        shot(page, LOT, f'choix-{t}')
+        page.click('.library--pick .mgc[data-group="pectoraux"]'); page.wait_for_timeout(300)
+        page.click('.library--pick [data-action="lib-pick"][data-name="Développé couché haltères"]')
+        page.wait_for_selector('.view.ex-edit')
+        R.check(page.input_value('#exName') == 'Développé couché haltères', f'{t} réglage ouvert d\'office, nom rempli')
+        R.check(page.inner_text('#exSetsVal') == '3' and page.input_value('#exRepMax') == '12', f'{t} réglage : valeurs par défaut (3 séries, 12 reps en haut)')
+        R.check(len(data(page)['programmes'][pid]['exercises'][cats[0]]) == 0, f'{t} rien d\'ajouté avant OK')
+        page.click('[data-action="ex-sets"][data-d="1"]')
+        page.click('[data-action="ex-rest"][data-s="120"]')
+        page.fill('#exTarget', '22,5')
+        shot(page, LOT, f'reglage-{t}')
+        save_ex(page)
+        page.wait_for_selector('.view.editor')
+        ex0 = data(page)['programmes'][pid]['exercises'][cats[0]][0]
+        R.check(ex0['name'] == 'Développé couché haltères' and ex0['sets'] == 4 and ex0['rest'] == 120 and ex0['target'] == 22.5,
+                f'{t} OK enregistre le réglage {ex0}')
+        # Exercice créé : nom, muscles, matériel puis réglage, sur le même écran
+        open_pick(page)
+        page.fill('#libSearch', 'tractions lestées'); page.wait_for_timeout(200)
+        page.click('.library--pick [data-action="lib-pick-create"]')
+        page.wait_for_selector('.view.ex-edit')
+        R.check(page.input_value('#exName') == 'Tractions lestées', f'{t} création : nom repris (majuscule)')
+        R.check(page.locator('#exMuscles').count() == 1 and page.locator('#exEquip [data-action="ex-equip"]').count() >= 5, f'{t} création : muscles et matériel')
+        page.click('#exEquip [data-equip="barre"]')
+        save_ex(page)
+        page.wait_for_selector('.view.editor')
+        R.check(page.evaluate("equipmentOf('Tractions lestées')") == 'barre', f'{t} création : matériel enregistré')
+        # Ajout multiple : « Sélectionner », deux exercices cochés, réglages l'un après l'autre
+        open_pick(page)
+        page.click('.library--pick [data-action="lib-pick-multi"]'); page.wait_for_timeout(250)
+        R.check(page.locator('.library--pick [data-action="lib-pick-add"]').is_disabled(), f'{t} multiple : Ajouter grisé sans choix')
+        page.click('.library--pick .mgc[data-group="bras"]'); page.wait_for_timeout(300)
+        rows = page.locator('.library--pick [data-action="lib-pick"][role="checkbox"]')
+        picked = [rows.nth(i).get_attribute('data-name') for i in range(2)]
+        rows.nth(0).click(); rows.nth(1).click(); page.wait_for_timeout(150)
+        R.check(rows.nth(0).get_attribute('aria-checked') == 'true', f'{t} multiple : case cochée')
+        add_txt = page.inner_text('.library--pick [data-action="lib-pick-add"]')
+        R.check('(2)' in add_txt, f'{t} multiple : « Ajouter (2) » {add_txt!r} {picked}')
+        shot(page, LOT, f'choix-multiple-{t}')
+        page.click('.library--pick [data-action="lib-pick-add"]')
+        page.wait_for_selector('.view.ex-edit')
+        R.check('1 sur 2' in page.inner_text('.view.ex-edit .navbar') and page.inner_text('[data-action="save-ex"]') == 'Suivant', f'{t} multiple : « 1 sur 2 », Suivant')
+        page.click('[data-action="ex-sets"][data-d="1"]')
+        save_ex(page)
+        R.check('2 sur 2' in page.inner_text('.view.ex-edit .navbar') and page.inner_text('[data-action="save-ex"]') == 'OK', f'{t} multiple : « 2 sur 2 », OK')
+        save_ex(page)
+        page.wait_for_selector('.view.editor')
+        lst = data(page)['programmes'][pid]['exercises'][cats[0]]
+        exs = [e['name'] for e in lst]
+        R.check(exs == ['Développé couché haltères', 'Tractions lestées', *picked], f'{t} exercices choisis ajoutés {exs}')
+        R.check(lst[2]['sets'] == 4 and lst[3]['sets'] == 3, f'{t} multiple : réglage de chacun gardé')
+        # Retour depuis le réglage : la séance, jamais l'écran du choix
+        R.check(page.evaluate('currentRoute()') == f'editor:{cats[0]}', f'{t} après OK : la séance')
         shot(page, LOT, f'editeur-{t}')
         # Retour : la liste des séances, pas l'écran du nom
         page.evaluate('goBack()')

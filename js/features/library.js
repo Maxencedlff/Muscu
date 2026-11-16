@@ -9,11 +9,37 @@ let libEquip = 'all';    // filtre de matériel de l'écran (indépendant de la 
 
 let libMuscle = NO_MUSCLE_FILTER;   // filtre par muscle de l'écran (groupe, muscle précis)
 
+// Même écran pour choisir les exercices d'une séance du programme (« lib-pick:CAT », retour de Maxence du 16/11 :
+// « quand on crée un programme, on ne retrouve plus l'interface de la bibliothèque »). Mêmes groupes illustrés, même
+// liste, même recherche, mêmes filtres ; seuls changent la barre (Annuler, Sélectionner), le toucher d'une ligne
+// (ajouter au lieu d'ouvrir la fiche), la ligne « Créer un exercice » et les exercices de la personne, ajoutés à la
+// liste. Le réglage de l'exercice suit tout de suite (js/features/programme-editor.js, progPickExercises).
+let libPickOn = false;   // écran dessiné en mode choix (posé par le rendu de chaque route)
+let libPick = { cat: null, multi: false, sel: [] };   // séance visée, sélection multiple et noms cochés
+
+// Exercices proposés : la bibliothèque, plus, en mode choix, ceux que la personne a créés (sans fiche ; matériel
+// choisi à la création, sinon visibles avec tous les filtres). Gardés tant que la donnée ne change pas.
+let libEntriesMemo = null;
+function libEntries() {
+  if (!libPickOn) return EXERCISE_CATALOGUE;
+  if (libEntriesMemo?.v !== dataVersion) {
+    const mine = exerciseLibrary().filter(n => !catalogueEntry(n)).map(n => ({ name: n, equip: equipmentOf(n), aliases: [], mine: true }));
+    libEntriesMemo = { v: dataVersion, list: [...EXERCISE_CATALOGUE, ...mine] };
+  }
+  return libEntriesMemo.list;
+}
+// Déjà dans la séance visée : la ligne le dit, le toucher ne l'ajoute pas une deuxième fois
+function libPickHas(name) {
+  return (prog().exercises[libPick.cat] || []).some(e => sameExerciseName(e.name, name));
+}
+
 // Sections de la liste, dans l'ordre du corps : rangement par le premier muscle principal (MUSCLE_GROUPS)
 function libSection(e) {
   if (e.equip === 'cardio') return 'Cardio';
-  const deepGroup = !e.primary.length && DEEP_MUSCLES[e.deep?.[0]]?.group;   // vacuum : avec les abdominaux
-  return MUSCLE_GROUPS.find(g => (deepGroup ? g.id === deepGroup : g.muscles.includes(e.primary[0])))?.label || 'Autres';
+  // Exercice créé (prog-ajout) : ses muscles ; muscle profond seul (vacuum) : avec son groupe (abdominaux)
+  const m = e.primary ? e : exerciseMuscles({ name: e.name });
+  const deepGroup = !m.primary?.length && DEEP_MUSCLES[m.deep?.[0]]?.group;
+  return MUSCLE_GROUPS.find(g => (deepGroup ? g.id === deepGroup : g.muscles.includes(m.primary?.[0])))?.label || 'Autres';
 }
 
 // Une ligne par exercice, même mise en page que les groupes : nom et détails à gauche, personnage 3D à
@@ -66,11 +92,32 @@ function libRowHtml(e) {
   const muscles = [...new Set([...m.primary.map(muscleLabel), ...(m.deep || []).map(id => deepMuscleLabel(id, true))])];
   const hint = LIB_HINTS[e.name] || (!m.primary.length && m.deep?.length ? deepMusclesNames(m) : null);
   const label = [e.name, hint, ...muscles, q?.label].filter(Boolean).join(', ');
+  const sub = hint ? `<span class="mgc__mus">${esc(hint)}</span>` : libSubHtml(shown, q?.short || q?.label || '');
+  if (libPickOn) return libPickRowHtml(e, label, sub, id);
   return `<button class="cell mgc mgc--ex" data-action="open-library-ex" data-name="${esc(e.name)}" aria-label="${esc(label)}">
       <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
-        <span class="mgc__sub">${hint ? `<span class="mgc__mus">${esc(hint)}</span>` : libSubHtml(shown, q?.short || q?.label || '')}</span></span>
+        <span class="mgc__sub">${sub}</span></span>
       ${isMuscleId(id) ? muscleImgHtml(id, true) : ''}
     </button>`;
+}
+// Ligne du mode choix : même ligne illustrée ; en sélection multiple, une case ronde à gauche (comme Photos d'iOS),
+// lue « case à cocher » par VoiceOver. Déjà dans la séance : dit en sous-titre, grisé, jamais ajouté deux fois.
+function libPickRowHtml(e, label, sub, id) {
+  const has = libPickHas(e.name), on = libPick.sel.includes(e.name), multi = libPick.multi && !has;
+  const state = multi ? ` role="checkbox" aria-checked="${on}"` : '';
+  return `<button class="cell mgc mgc--ex${libPick.multi ? ' mgc--pick' : ''}${has ? ' mgc--has' : ''}" data-action="lib-pick" data-name="${esc(e.name)}"${state}
+        aria-label="${esc(has ? `${e.name}, déjà dans la séance` : label)}"${has ? ' aria-disabled="true"' : ''}>
+      ${libPick.multi ? `<span class="mgc__check" aria-hidden="true">${icon('checkmark', 14)}</span>` : ''}
+      <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
+        <span class="mgc__sub">${has ? '<span class="mgc__mus">Déjà dans la séance</span>' : sub}</span></span>
+      ${isMuscleId(id) ? muscleImgHtml(id, true) : ''}
+    </button>`;
+}
+// « Créer un exercice » (liste) ou « Créer « nom tapé » » (recherche sans le nom exact) : nom, muscles, matériel
+// et réglage sur un seul écran (Programme › Exercice)
+function libCreateHtml(name = '') {
+  const label = name ? `Créer « ${esc(name)} »` : 'Créer un exercice';
+  return `<div class="group lib-create"><button class="cell cell--action" data-action="lib-pick-create" data-name="${esc(name)}">${icon('plus', 20)}<span>${label}</span></button></div>`;
 }
 
 // ── Groupes de muscles en liste illustrée (filtre sans groupe choisi) ─
@@ -79,7 +126,7 @@ function libRowHtml(e) {
 // mdlf-perso, src/cartes.py). Toucher une ligne = toucher la pastille du groupe (même action, même
 // ordre). Un groupe choisi : retour aux pastilles, pour garder la liste des exercices en haut.
 function libMatches(f) {
-  return EXERCISE_CATALOGUE.filter(e => (libEquip === 'all' || e.equip === libEquip)
+  return libEntries().filter(e => (libEquip === 'all' || e.equip === libEquip || (e.mine && !e.equip))
     && muscleFilterMatch(exerciseMuscles({ name: e.name }), f));
 }
 // Exercice dont le muscle principal (le premier) est dans le filtre : c'est lui qui compte pour un groupe
@@ -131,15 +178,21 @@ function libListHtml() {
   const q = libQuery.trim();
   const items = libMatches(libMuscle)
     .map(e => ({ e, score: q ? exerciseMatchScore(e.name, q) : 2 })).filter(x => x.score > 0);
+  // Mode choix : « Créer » en tête de la liste, ou après les résultats tant que le nom exact n'existe pas
+  const create = !libPickOn ? '' : !q ? libCreateHtml()
+    : libEntries().some(e => normName(e.name) === normName(q)) ? '' : libCreateHtml(q);
   if (!items.length) {
     const why = q ? ` pour « ${esc(q)} »` : muscleFilterTargets(libMuscle) ? ' pour ce muscle avec ce matériel' : '';
-    return `<div class="empty-note">Aucun exercice${why}. Tu peux le créer depuis une séance.</div>`;
+    return `<div class="empty-note">Aucun exercice${why}.${libPickOn ? '' : ' Tu peux le créer depuis une séance.'}</div>${create}`;
   }
   // Recherche : liste à plat, les meilleurs d'abord ; sinon par grande zone du corps, dans l'ordre alphabétique
   if (q) {
     items.sort((a, b) => b.score - a.score || a.e.name.localeCompare(b.e.name, 'fr'));
-    return `<div class="group">${items.map(x => libRowHtml(x.e)).join('')}</div>`;
+    return `<div class="group">${items.map(x => libRowHtml(x.e)).join('')}</div>${create}`;
   }
+  return create + libGroupedHtml(items);
+}
+function libGroupedHtml(items) {
   // Filtre par muscle : une seule section, nommée comme la pastille (un soulevé de terre rangé en Jambes
   // reste visible sous « Dos » sans ouvrir de section Jambes)
   // Deux sections (retour de Maxence, 15/11 : « dans pec on tombe sur burpees ? ») : d'abord les exercices dont c'est
@@ -163,16 +216,37 @@ function libListHtml() {
 // et sortait de la Bibliothèque) : titre du groupe, retour « ‹ Bibliothèque » qui remet le filtre à zéro
 function libNavBar() {
   const g = MUSCLE_GROUP_BY_ID.get(libMuscle.group);
-  if (!g) return navBar({ title: 'Bibliothèque' });
-  const back = `<button class="navbar__back" data-action="lib-muscle" data-group="" aria-label="Retour : Bibliothèque">
-      ${icon('chevron.left', 22)}<span class="navbar__back-label" data-full="Bibliothèque">Bibliothèque</span>
+  const root = libPickOn ? 'Groupes' : 'Bibliothèque';
+  const right = libPickOn ? libPickRightHtml() : '';
+  // Choix : titre court « Exercices » (« Ajouter un exercice » était coupé sur iPhone SE entre Annuler et Sélectionner)
+  if (!g) return navBar({ title: libPickOn ? 'Exercices' : 'Bibliothèque', right, ...(libPickOn ? { left: libPickLeftHtml() } : {}) });
+  const back = `<button class="navbar__back" data-action="lib-muscle" data-group="" aria-label="Retour : ${root}">
+      ${icon('chevron.left', 22)}<span class="navbar__back-label" data-full="${root}">${root}</span>
     </button>`;
-  return navBar({ title: esc(g.label), large: false, left: back });
+  return navBar({ title: esc(g.label), large: false, left: back, right });
+}
+// Barre du mode choix : « Annuler » ramène à la séance (ou quitte la sélection multiple) ; à droite, « Sélectionner »
+// puis « Ajouter (n) », grisé tant que rien n'est coché
+function libPickLeftHtml() {
+  return libPick.multi
+    ? '<button class="navbar__text" data-action="lib-pick-multi" aria-label="Annuler la sélection">Annuler</button>'
+    : '<button class="navbar__text" data-action="back">Annuler</button>';
+}
+function libPickRightHtml() {
+  if (!libPick.multi) return '<button class="navbar__text" data-action="lib-pick-multi">Sélectionner</button>';
+  const n = libPick.sel.length;
+  return `<button class="navbar__text navbar__text--bold lib-pick-add" data-action="lib-pick-add"${n ? '' : ' disabled'}
+      aria-label="${n ? `Ajouter ${plural(n, 'exercice', 'exercices')}` : 'Ajouter, aucun exercice coché'}">Ajouter${n ? ` (${n})` : ''}</button>`;
 }
 
-function renderLibrary() {
+function renderLibrary(pickCat = null) {
+  libPickOn = pickCat !== null;
+  if (libPickOn && !sessionKeys().includes(pickCat)) {
+    return `<div class="view library view--grouped">${navBar({ title: 'Exercices' })}<div class="scr"><div class="empty-note">Cette séance n'existe plus.</div></div></div>`;
+  }
+  if (libPickOn && libPick.cat !== pickCat) libPick = { cat: pickCat, multi: false, sel: [] };
   return `
-    <div class="view library view--grouped">
+    <div class="view library${libPickOn ? ' library--pick' : ''} view--grouped">
       ${libNavBar()}
       <div class="scr">
         <div class="hist-tools">
@@ -295,6 +369,20 @@ function setLibExTab(k) {
 }
 
 SCREENS.set('library', { render: () => renderLibrary(), mount: () => fitLibSubs() });
+SCREENS.set('lib-pick', { render: cat => renderLibrary(cat), mount: () => fitLibSubs() });
+
+// Ouvre le choix pour une séance du programme : groupes illustrés, rien de coché, aucun filtre
+function openLibPick(cat) {
+  libQuery = ''; libEquip = 'all'; libMuscle = NO_MUSCLE_FILTER;
+  libPick = { cat, multi: false, sel: [] };
+  navigate(makeRoute('lib-pick', cat));
+}
+
+// Sélection multiple : la case de la ligne et la barre changent en place (défilement et focus gardés)
+function refreshLibPickBar() {
+  const right = $('.library--pick .navbar__side--right');
+  if (right) right.innerHTML = libPickRightHtml();
+}
 SCREENS.set('library-ex', { render: name => renderLibraryEx(name), mount: () => { mountHowTo(); if (libExTab === 'chart') drawCharts(); } });
 
 // Recherche : seule la liste est redessinée (le champ garde le focus et le clavier)
@@ -340,6 +428,24 @@ registerActions({
     $('.library .mf__row--sub [aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   },
   'lib-equip': (e, el) => { setLibEquip(el.dataset.equip); haptic(); },
+  'lib-pick': (e, el) => {
+    const name = el.dataset.name;
+    if (libPickHas(name)) { showToast('Déjà dans cette séance'); return; }
+    if (!libPick.multi) { progPickExercises(libPick.cat, [name]); return; }
+    const i = libPick.sel.indexOf(name);
+    if (i >= 0) libPick.sel.splice(i, 1); else libPick.sel.push(name);
+    el.setAttribute('aria-checked', String(i < 0));
+    refreshLibPickBar();
+    haptic();
+  },
+  'lib-pick-multi': () => {
+    libPick.multi = !libPick.multi;
+    libPick.sel = [];
+    render();
+    $('.library--pick .navbar__side--right .navbar__text')?.focus({ preventScroll: true });
+  },
+  'lib-pick-add': () => { if (libPick.sel.length) progPickExercises(libPick.cat, libPick.sel.slice()); },
+  'lib-pick-create': (e, el) => openExEditNew(libPick.cat, el.dataset.name || ''),
   // Feuille d'actions iOS (comme les autres choix de l'app) : le choix en cours en gras
   'lib-equip-menu': async () => {
     const choice = await dialog({ type: 'sheet', title: 'Matériel', actions: [

@@ -312,7 +312,19 @@ function catalogueAliasOf(name) {
   return e && normName(e.name) !== normName(name) ? e.name : null;
 }
 // Matériel d'un exercice de la bibliothèque (id d'EQUIPMENT), null pour un nom saisi librement
-function equipmentOf(name) { return CATALOGUE_BY_NAME.get(normName(name))?.equip ?? null; }
+function equipmentOf(name) { return CATALOGUE_BY_NAME.get(normName(name))?.equip ?? customEquipOf(name); }
+// Matériel choisi pour un exercice créé par la personne (data.exerciseEquip, par nom normalisé ; Programme › Exercice).
+// Un nom de la bibliothèque garde toujours le sien.
+function customEquipOf(name) {
+  const id = (typeof data === 'undefined' ? null : data)?.exerciseEquip?.[normName(name)];
+  return EQUIPMENT.some(q => q.id === id) ? id : null;
+}
+function setCustomEquip(name, id) {
+  const key = normName(name);
+  if (!key || CATALOGUE_BY_NAME.get(key)) return;
+  if (id && EQUIPMENT.some(q => q.id === id)) (data.exerciseEquip ||= {})[key] = id;
+  else if (data.exerciseEquip) { delete data.exerciseEquip[key]; if (!Object.keys(data.exerciseEquip).length) delete data.exerciseEquip; }
+}
 // Fiche de la bibliothèque d'un nom (nom exact, alias, abréviation développée ou clé souple), null sinon
 // Mémorisée par nom : la bibliothèque ne change pas, et measureOf la demande pour chaque exercice de chaque séance
 const CATALOGUE_ENTRY_CACHE = new Map();

@@ -299,6 +299,15 @@ function sanitizeData(d) {
       if (!k || k.length > 80 || !list.length) delete d[field][k]; else d[field][k] = list;
     });
   });
+  // Matériel des exercices créés par la personne : { nom normalisé: identifiant de EQUIPMENT } (validé à la lecture,
+  // customEquipOf : la liste du matériel est chargée après ce fichier)
+  if (d.exerciseEquip !== undefined) {
+    if (!isObj(d.exerciseEquip)) delete d.exerciseEquip;
+    else {
+      Object.keys(d.exerciseEquip).forEach(k => { const v = d.exerciseEquip[k]; if (!k || k.length > 80 || typeof v !== 'string' || !/^[a-z]{2,20}$/.test(v)) delete d.exerciseEquip[k]; });
+      if (!Object.keys(d.exerciseEquip).length) delete d.exerciseEquip;
+    }
+  }
   const okProg = id => PROGRAMMES[id] || (d.userProgrammes[id] && !d.userProgrammes[id].archived);
   if (!okProg(d.activeProgramme)) d.activeProgramme = 'ppl';
   const rest = parseInt(d.defaultRest);
