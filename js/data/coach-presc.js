@@ -13,7 +13,7 @@
 //
 //  Séance de l'élève : chaque série de travail prescrite garde pk (kg prescrits, texte) ; l'entrée
 //  d'historique porte presc = { kg: [kg | null, aligné sur ses séries], lo, hi } pour que le coach
-//  voie l'écart entre prescrit et fait (serveur : supabase/migrations/20261116000000_charge_prescrite.sql).
+//  voie l'écart entre prescrit et fait (serveur : supabase/migrations/20261116010000_charge_prescrite.sql).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 

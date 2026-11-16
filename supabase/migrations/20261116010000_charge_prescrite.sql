@@ -13,7 +13,7 @@
 --
 --  Sans cette migration : l'app marche, l'élève a ses charges prescrites ; seul l'écart n'apparaît pas
 --  chez le coach (le champ ne lui parvient pas).
---  Réversible : supabase/rollback/20261116000000_charge_prescrite_down.sql (texte de 20261031100000).
+--  Réversible : supabase/rollback/20261116010000_charge_prescrite_down.sql (texte de 20261031100000).
 --  Aucune donnée n'est modifiée.
 -- ═══════════════════════════════════════════════════════════
 

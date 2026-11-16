@@ -92,7 +92,7 @@ function cleanCoachSession(s) {
   const kept = all.map((e, k) => k).filter(k => { const e = all[k]; return e && typeof e === 'object' && typeof e.name === 'string' && e.name.trim(); });
   const rawEx = kept.map(k => all[k]);
   // Charge prescrite par le coach (js/data/coach-presc.js) : presc[] du serveur, aligné sur ses exercices
-  // (private.session_for_coach, migration 20261116000000) ; presc sur l'exercice (séance d'une copie locale)
+  // (private.session_for_coach, migration 20261116010000) ; presc sur l'exercice (séance d'une copie locale)
   const presc = Array.isArray(o.presc) ? o.presc : [];
   base.exercises.forEach((e, i) => {
     const n = cleanNote(rawEx[i]?.note);

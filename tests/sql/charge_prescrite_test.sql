@@ -1,4 +1,4 @@
--- Vérifications de supabase/migrations/20261116000000_charge_prescrite.sql (lancées par tests/sql/run.sh) :
+-- Vérifications de supabase/migrations/20261116010000_charge_prescrite.sql (lancées par tests/sql/run.sh) :
 -- la prescription du coach sort pour SON coach seulement, alignée sur les exercices, revalidée.
 --
 -- Comptes simulés (pg_temp.pu('a') → …0000000007fa) : A ana.p1 suit B ben.p1 (accepté, social activé des

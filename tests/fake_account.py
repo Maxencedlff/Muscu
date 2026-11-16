@@ -770,7 +770,7 @@ FAKE_ACCOUNT = r"""
   const validInvite = code => co.invites.find(i => i.code === code && i.expires > now());
   const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   // private.session_for_coach : liste blanche du social + notes, hidden, id, records avec before (jamais bodyKg ni healthSaved)
-  // presc (20261116000000_charge_prescrite.sql) : prescription du coach, alignée sur exercises, null sinon ; absente sans aucune
+  // presc (20261116010000_charge_prescrite.sql) : prescription du coach, alignée sur exercises, null sinon ; absente sans aucune
   const prescNum = (v, lo, hi, int) => (typeof v === 'number' && v >= lo && v <= hi && (!int || Number.isInteger(v)) ? v : undefined);
   const pubPresc = p => (p && typeof p === 'object' && !Array.isArray(p) && Array.isArray(p.kg)
     ? { kg: p.kg.slice(0, 100).map(k => prescNum(k, 0, 500) ?? null), lo: prescNum(p.lo, 1, 100, true), hi: prescNum(p.hi, 1, 100, true) } : null);

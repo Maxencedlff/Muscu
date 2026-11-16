@@ -197,7 +197,7 @@ c'est le coach qui décide, et il peut désormais le dire. Logique : js/data/coa
 
 **Séance enregistrée** : `presc: { kg: [kg | null, une valeur par série enregistrée, null pour l'échauffement], lo, hi }`
 sur l'exercice ; série en cours : `pk` (kg prescrits). Le coach le reçoit par `private.session_for_coach`
-(migration `20261116000000_charge_prescrite.sql` : tableau `presc` au premier niveau, aligné sur `exercises`, coach
+(migration `20261116010000_charge_prescrite.sql` : tableau `presc` au premier niveau, aligné sur `exercises`, coach
 seulement, jamais les amis) et lit sous l'exercice : « Prescrit 60 kg × 8 · série 1 à 62,5 kg » ou « · fait comme
 prévu ». Sans la migration, l'écart ne lui parvient pas ; rien d'autre ne change.
 

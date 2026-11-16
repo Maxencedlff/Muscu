@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
---  Retour arrière de supabase/migrations/20261116000000_charge_prescrite.sql (à lancer à la main, dans
+--  Retour arrière de supabase/migrations/20261116010000_charge_prescrite.sql (à lancer à la main, dans
 --  l'éditeur SQL, sur décision de Maxence). Pas dans migrations/ : Supabase ne l'applique jamais de lui-même.
 --
 --  Effet : private.session_for_coach reprend son texte de 20261031100000_records_series.sql (plus de presc) ;
