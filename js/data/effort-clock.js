@@ -34,6 +34,21 @@ function effortClock(effort, now = Date.now()) {
   return { ...base, phase: 'effort', side: 2, elapsed: Math.floor(t2), left: Math.ceil(target - t2), endAt };
 }
 
+// Consigne d'un maintien guidé (HOLD_GUIDES, js/data/measures.js) à l'instant c = effortClock(...) :
+// préparation (« Expire tout ton air », puis « Rentre le nombril »), maintien (« Respire petit, sans relâcher »),
+// 3 dernières secondes (« Encore un peu »), fin (« Relâche »). null sans guide ou en changement de côté.
+function holdCue(guide, c) {
+  if (!guide || !c) return null;
+  if (c.phase === 'prep') {
+    let txt = guide.prep[0][1];
+    guide.prep.forEach(([upTo, t]) => { if (c.prepLeft <= upTo) txt = t; });
+    return txt;
+  }
+  if (c.phase === 'done') return guide.end;
+  if (c.phase !== 'effort') return null;
+  return c.left != null && c.left <= 3 ? guide.last : guide.hold;
+}
+
 // Horloge d'une série guidée au tempo { start, tempo: [ecc, pause, con, haut], reps: N | null, conFirst,
 // firstRep } (firstRep : rang de la première répétition guidée depuis start, > 1 après une reprise).
 // Phases d'une répétition dans l'ordre réel du mouvement (les tirages commencent par la concentrique),

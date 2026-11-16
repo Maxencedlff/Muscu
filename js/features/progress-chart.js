@@ -20,6 +20,7 @@ function fmtMetricVal(v, bw) {
   if (chartState?.fmtVal) return chartState.fmtVal(v);   // courbe d'une autre grandeur (mensurations)
   if (chartState?.cardio) return fmtCardioVal(v, chartState.cardio, chartState.paceKind);
   if (chartState?.effort) return `RPE ${fmtNum(v, 1)}`;
+  if (bw && chartUnit === 's') return fmtSeconds(Math.round(v));   // maintiens : « 1 min 20 », pas « 80 s »
   if (bw) return `${Math.round(v)} ${chartUnit}`;
   if (statsMode === 'volume') return fmtVolume(data.unit === 'lbs' ? v / KG_TO_LBS : v);
   return `${statsMode === '1rm' ? '~' : ''}${fmtNum(Math.round(v * 10) / 10)} ${unitLbl()}`;
@@ -79,6 +80,7 @@ function exStatsParts(it, { fiche = false } = {}) {
   // Courbe « Effort » (RPE moyen, js/data/rir.js) : proposée dès qu'une séance a des RIR notés
   const hasRpe = !cardio && it.points.some(p => p.rpe != null);
   if (statsMode === 'effort' && !hasRpe) statsMode = 'charge';
+  if (it.measure === 'time' && statsMode === '1rm') statsMode = 'charge';   // pas de 1RM sur un maintien
   const effort = !cardio && statsMode === 'effort';
   // Courbe d'allure, de distance ou d'effort : seulement les séances qui en ont une
   const pts    = effort ? it.points.filter(p => p.rpe != null) : !cardio || cardioMode === 'time' ? it.points : it.points.filter(p => cardioMetric(p, cardioMode));
@@ -126,7 +128,8 @@ function exStatsParts(it, { fiche = false } = {}) {
 
   // « 1RM estimé » en toutes lettres quand il tient (trois mesures) ; à quatre, la forme courte, et une ligne d'aide
   // sous la valeur quand elle est choisie (panel Progrès t2 : « 1RM est. » est du jargon)
-  const modes = cardio ? cModes : [['charge', 'Charge max'], ['volume', 'Volume'], ['1rm', hasRpe ? '1RM est.' : '1RM estimé'], ...(hasRpe ? [['effort', 'Effort']] : [])];
+  // Maintiens : la durée la plus longue et le temps total de la séance ; ni charge ni 1RM (ils n'y ont pas de sens)
+  const modes = cardio ? cModes : it.measure === 'time' ? [['charge', 'Plus long'], ['volume', 'Temps total'], ...(hasRpe ? [['effort', 'Effort']] : [])] : [['charge', 'Charge max'], ['volume', 'Volume'], ['1rm', hasRpe ? '1RM est.' : '1RM estimé'], ...(hasRpe ? [['effort', 'Effort']] : [])];
   const modeOn = cardio ? cardioMode : statsMode;
   // Cardio : meilleure allure (ou vitesse) et plus longue distance à la place du record de charge
   const paces = it.points.map(p => p.pace).filter(Boolean);
@@ -136,12 +139,14 @@ function exStatsParts(it, { fiche = false } = {}) {
             <span class="cell__value num">${val}</span></div>`;
   // Maintien : le plus long (lest le plus lourd à durée égale), pas la série la plus lestée
   const holdBest = it.measure === 'time' ? longestHold(pts.flatMap(p => p.sets)) : null;
+  // Temps total sous tension : toutes les secondes tenues (maintiens), la grandeur qui remplace le volume en kg
+  const holdTotal = holdBest ? pts.reduce((a, p) => a + p.totalReps, 0) : 0;
   const recordCells = cardio ? `
           ${bestPace ? cell(pk === 'speed' ? 'Meilleure vitesse' : 'Meilleure allure', fmtPace(bestPace, pk)) : ''}
           ${fixedDistancePaces(it.points, pk).map(([d, v]) => cell(`Meilleure allure ${recordDistTxt(d)}`, fmtPace(v / 60, pk))).join('')}
           ${maxDist ? cell('Plus longue distance', `${fmtNum(maxDist)} km`) : ''}
           ${cell('Plus longue durée', `${Math.max(0, ...it.points.flatMap(p => p.sets.map(s => parseInt(s.reps) || 0)))} min`)}`
-    : holdBest ? cell('Plus long maintien', setTxt(holdBest, chartEx))
+    : holdBest ? cell('Plus long maintien', setTxt(holdBest, chartEx)) + cell('Temps total sous tension', fmtSeconds(holdTotal))
     : cell('Record', prBest ? setTxt(prBest, chartEx) : '—');
   // Fiche : records de répétitions et de volume en plus (une seule séance, toutes séries de travail comprises)
   const moreCells = fiche && !cardio && !holdBest ? `

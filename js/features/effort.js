@@ -11,6 +11,7 @@
 // Tout se calcule depuis les horodatages : le chrono reste juste si l'app passe en arrière-plan.
 let effortInterval = null;
 let effortLastSecond = null;  // dernière seconde affichée (bips et annonces une seule fois)
+let effortLastCue = null;     // dernière consigne d'un maintien guidé (annoncée une seule fois)
 
 // Effort encore valable (série existante, à faire, mesurée en durée) ; sinon il est abandonné
 function effortStillValid() {
@@ -36,8 +37,7 @@ function effortSheetHtml() {
         </svg>
         <div class="rs__center">
           <div class="rs__time num" role="timer" aria-live="off" id="effortTime"></div>
-          <div class="rs__resume" id="effortSub"></div>
-          <div class="rs__resume">Série ${e.si + 1} sur ${ex.sets.length}</div>
+          <div class="rs__resume rs__resume--pair"><span id="effortSub"></span><span>${effortStepTxt(ex, e)}</span></div>
         </div>
       </div>
       <div class="rs__adj">
@@ -48,16 +48,24 @@ function effortSheetHtml() {
     </div>`;
 }
 
+// « Série 2 sur 3 » ; maintien guidé (vacuum) : « Maintien 2 sur 5 · 20 s »
+function effortStepTxt(ex, e) {
+  const n = setNoun(ex);
+  const goal = holdGuide(ex) && e.target ? ` · ${fmtSeconds(e.target)}` : '';
+  return `${n[0].toUpperCase()}${n.slice(1)} ${e.si + 1} sur ${ex.sets.length}${goal}`;
+}
+
 function updateEffortUI() {
   if (!effortStillValid()) { cancelEffort(); return; }
   if (activeSession.effort.kind === 'tempo') { updateTempoUI(activeSession.effort); return; }
   if (activeSession.effort.kind === 'machine') { updateMachineUI(activeSession.effort); return; }
   const e = activeSession.effort, c = effortClock(e), two = e.sides === 2;
+  const guide = holdGuide(activeSession.exercises[e.ei]), cue = holdCue(guide, c);   // maintien guidé (vacuum)
   const time = $('#effortTime'), sub = $('#effortSub'), bar = $('.sess-sheet--effort .rest-ring__bar'), stop = $('#effortStop');
   const sideTxt = two ? `Côté ${c.side} · ` : '';
   if (c.phase === 'prep') {
     if (time) time.textContent = String(c.prepLeft);
-    if (sub) sub.textContent = 'Mets-toi en position';
+    if (sub) sub.textContent = cue || 'Mets-toi en position';
     if (stop) stop.textContent = 'Commencer';
     if (bar) bar.setAttribute('stroke-dashoffset', RING_BIG * (c.prepLeft / EFFORT_PREP_S));
   } else if (c.phase === 'switch') {
@@ -67,7 +75,7 @@ function updateEffortUI() {
     if (bar) bar.setAttribute('stroke-dashoffset', RING_BIG * (c.switchLeft / EFFORT_SWITCH_S));
   } else {
     if (time) time.textContent = fmtRest(e.target ? c.left : c.elapsed);
-    if (sub) sub.textContent = sideTxt + (e.target ? `Objectif ${fmtSeconds(e.target)}` : 'Chrono libre');
+    if (sub) sub.textContent = cue || sideTxt + (e.target ? `Objectif ${fmtSeconds(e.target)}` : 'Chrono libre');
     if (stop) stop.textContent = two && c.side === 1 ? 'Côté suivant' : 'Arrêter';
     if (bar) bar.setAttribute('stroke-dashoffset', e.target ? RING_BIG * (1 - c.left / e.target) : 0);
   }
@@ -78,8 +86,11 @@ function updateEffortUI() {
     const [lastPhase, lastSide] = String(effortLastSecond || '').split(':');
     if (c.phase === 'prep' || c.phase === 'switch' || (e.target && c.left >= 1 && c.left <= 3)) playMelody('tick');
     if (c.phase === 'switch' && lastPhase !== 'switch') { announce('Change de côté'); haptic(); }
+    // Maintien guidé : chaque consigne de la préparation est dite une fois (« Expire tout ton air », « Rentre le nombril »)
+    const lastCue = effortLastCue; effortLastCue = cue;
+    if (guide && c.phase === 'prep' && cue !== lastCue) announce(cue);
     if (c.phase === 'effort' && lastPhase && (lastPhase !== 'effort' || lastSide !== String(c.side))) {
-      announce(two ? `Côté ${c.side}, vas-y` : 'Vas-y'); haptic();
+      announce(guide ? guide.start : two ? `Côté ${c.side}, vas-y` : 'Vas-y'); haptic();
       afterPaint(syncEffortActivity);   // écran verrouillé : décompte du côté qui commence
     }
     if (c.phase === 'effort' && e.target && c.left === 10 && e.target > 15) announce('10 secondes');
@@ -100,7 +111,7 @@ function startEffort(ei, si) {
   // Machine de cardio : chrono qui part tout de suite (la machine tourne déjà), sans préparation
   activeSession.effort = tempoEffort(ex, s, ei, si) || machineEffort(ex, s, ei, si)
     || { ei, si, start: Date.now() + EFFORT_PREP_S * 1000, target, sides: bothSides(ex) ? 2 : 1 };
-  effortLastSecond = null;
+  effortLastSecond = null; effortLastCue = null;
   persistSession();
   haptic();
   openEffortSheet();
@@ -128,7 +139,7 @@ function runEffortClock() {
 }
 
 function clearEffort() {
-  clearInterval(effortInterval); effortInterval = null; effortLastSecond = null;
+  clearInterval(effortInterval); effortInterval = null; effortLastSecond = null; effortLastCue = null;
   if (activeSession) delete activeSession.effort;
 }
 
@@ -137,6 +148,7 @@ function clearEffort() {
 function finishEffort(endAt, held) {
   if (!activeSession?.effort) return;               // déjà fini (horloge et retour au premier plan)
   const { ei, si, kind } = activeSession.effort;
+  const guide = kind ? null : holdGuide(activeSession.exercises[ei]);
   clearEffort();                                     // d'abord : plus de seconde validation possible
   document.querySelector('.sess-sheet--effort')?._close?.();
   const s = activeSession.exercises[ei]?.sets[si];
@@ -145,7 +157,7 @@ function finishEffort(endAt, held) {
   s.reps = String(Math.max(1, Math.round(held)));
   Native.cancelRestEnd();
   validateSet(ei, si, { restFrom: endAt, prevReps });
-  announce(kind === 'tempo' ? `Terminé, ${s.reps} répétitions` : `Terminé, ${fmtSeconds(s.reps)} tenues`);
+  announce(kind === 'tempo' ? `Terminé, ${s.reps} répétitions` : `${guide ? guide.end : 'Terminé'}, ${fmtSeconds(s.reps)} tenues`);
 }
 
 // Bouton du bas : « Commencer » (passe la préparation ou le changement de côté), « Côté suivant »

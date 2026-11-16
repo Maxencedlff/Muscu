@@ -124,10 +124,15 @@ function plannedSet(src, prev) {
 // Séries d'un exercice pré-remplies série par série avec la dernière séance (sinon la dernière série faite).
 // Les séries d'échauffement de la dernière fois ne comptent pas (js/data/warmup.js) : la 1re série de
 // travail se compare à la 1re série de travail
+// Dernière fois notée dans une autre mesure (vacuum en répétitions avant le 16/11/2026, mesure changée à la main) :
+// ni « Avant » ni valeur reprise, « 12 reps » ne devient jamais « 12 s ». lastWeight / lastReps du programme ne
+// viennent que des séances en répétitions (recomputePRFromHistory) : repris en répétitions seulement.
 function buildSets(progKey, cat, exLike, n, fallback = {}) {
-  const prevSets = workSets(lastPerf(progKey, cat, exLike)?.ex.sets);
+  const m = measureOf(exLike), last = lastPerf(progKey, cat, exLike);
+  const prevSets = last && measureOf(last.ex) === m ? workSets(last.ex.sets) : [];
+  const base = m === 'reps' ? { weight: fallback.lastWeight || '', reps: fallback.lastReps || '' } : { weight: '', reps: '' };
   return Array.from({ length: n }, (_, i) => {
-    const src = prevSets[i] ?? prevSets.at(-1) ?? { weight: fallback.lastWeight || '', reps: fallback.lastReps || '' };
+    const src = prevSets[i] ?? prevSets.at(-1) ?? base;
     return plannedSet(capReps(src, exLike), prevSets[i]);
   });
 }
@@ -259,7 +264,7 @@ function sessExData(ex) {
 // défaut de l'exercice (premier essai). Montré en gris dans la case vide, pris si elle le reste.
 function setGoal(ex, s) {
   const d = sessExData(ex);
-  return String(s?.prev?.reps || defaultGoal(measureOf(ex), d?.repMin ?? d?.repMax));
+  return String(s?.prev?.reps || defaultGoal(measureOf(ex), d?.repMin ?? d?.repMax, ex.name));
 }
 // Prescription de reps du programme : fourchette (« 8–12 reps ») si un bas est réglé, « 4 × 12 » en reps
 // fixes (fixedReps, js/data/goals.js), sinon '' ; même règle que l'écran du coach (coachExPlanParts)
@@ -276,7 +281,7 @@ function repRangeHtml(ex) {
 }
 
 function exRest(ex) {
-  return sessExData(ex)?.rest ?? ex?.rest ?? data.defaultRest;
+  return sessExData(ex)?.rest ?? ex?.rest ?? holdGuide(ex)?.rest ?? data.defaultRest;   // vacuum : repos court par défaut
 }
 // Exercice dont le repos compte pour ei : le dernier de son superset (repos après chaque tour), sinon lui-même
 function restEi(ei) {
@@ -509,7 +514,7 @@ function renderExerciseCard(ex, ei, cur) {
             ? `<h2 class="ex-card__name ex-card__name--howto"><button class="ex-howto" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${howToNameHtml(ex.name)}</span></button></h2>`
             : `<h2 class="ex-card__name">${esc(ex.name)}</h2>`}
         ${chip}
-        <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${ex.sets.length}</span><span class="visually-hidden">${doneN} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
+        <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${ex.sets.length}</span><span class="visually-hidden">${doneN} sur ${ex.sets.length} ${setNoun(ex, ex.sets.length)} ${holdGuide(ex) ? (ex.sets.length > 1 ? 'validés' : 'validé') : (ex.sets.length > 1 ? 'validées' : 'validée')}</span></span>
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
       </div>
       ${exGoalHtml(ex)}${exFirstTimeHtml(ex)}
@@ -520,16 +525,16 @@ function renderExerciseCard(ex, ei, cur) {
       </div>
       ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
-      <div class="sets${ex.sets.some(isWarmupSet) ? ' sets--warm' : ''}" role="group" aria-label="Séries de ${esc(ex.name)}">
+      <div class="sets${ex.sets.some(isWarmupSet) ? ' sets--warm' : ''}${holdGuide(ex) ? ' sets--noload' : ''}" role="group" aria-label="${holdGuide(ex) ? 'Maintiens' : 'Séries'} de ${esc(ex.name)}">
         <div class="sets__head" aria-hidden="true">
-          <span>Série</span><span>Avant</span>
+          <span>${holdGuide(ex) ? 'N°' : 'Série'}</span><span>Avant</span>
           <span>${loadHeader(ex)}</span><span>${MEASURES[measureOf(ex)].count}</span>
           <span>${icon('checkmark', 14)}</span>
         </div>
         ${rows}
       </div>
       <div class="ex-card__foot">
-        <button class="add-set-link" data-action="add-set" data-ei="${ei}" aria-label="Ajouter une série, ${esc(ex.name)}">${icon('plus', 16)} Série</button>
+        <button class="add-set-link" data-action="add-set" data-ei="${ei}" aria-label="Ajouter ${holdGuide(ex) ? 'un maintien' : 'une série'}, ${esc(ex.name)}">${icon('plus', 16)} ${holdGuide(ex) ? 'Maintien' : 'Série'}</button>
         ${exNoteFootHtml(ex, ei)}
         ${orderBtnHtml(ei, cur)}
       </div>
@@ -652,7 +657,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}">
-          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
+          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm || holdGuide(ex) ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
           ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m))}
           <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
@@ -669,11 +674,12 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
 // setRefName : la même chose avec son article (« la série 2 », « l'échauffement 1 »)
 function setSpokenName(ex, si) {
   const s = ex.sets[si];
-  return isWarmupSet(s) ? `Échauffement ${ex.sets.slice(0, si + 1).filter(isWarmupSet).length}` : `Série ${setDisplayNo(ex.sets, si)}`;
+  if (isWarmupSet(s)) return `Échauffement ${ex.sets.slice(0, si + 1).filter(isWarmupSet).length}`;
+  return `${holdGuide(ex) ? 'Maintien' : 'Série'} ${setDisplayNo(ex.sets, si)}`;   // vacuum : « Maintien 2 »
 }
 function setRefName(ex, si) {
   const n = setSpokenName(ex, si);
-  return isWarmupSet(ex.sets[si]) ? `l'${n.toLowerCase()}` : `la ${n.toLowerCase()}`;
+  return isWarmupSet(ex.sets[si]) ? `l'${n.toLowerCase()}` : `${holdGuide(ex) ? 'le' : 'la'} ${n.toLowerCase()}`;
 }
 
 // Sélecteur RIR d'une série validée : 0 à 4+, l'équivalent RPE à côté du choix ; un nouveau toucher sur le

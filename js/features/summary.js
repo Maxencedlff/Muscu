@@ -138,7 +138,7 @@ function summaryRowsHtml(rows) {
 // Exercices de la séance dont l'app ne connaît pas les muscles : choisis ici plutôt qu'en pleine série
 function summaryUnknownMusclesHtml(h) {
   const index = chosenMusclesIndex();
-  const names = [...new Map((h?.exercises || []).filter(e => !exerciseMuscles(e, index).primary.length)
+  const names = [...new Map((h?.exercises || []).filter(e => !musclesKnown(exerciseMuscles(e, index)))
     .map(e => [normName(e.name), e.name])).values()];
   if (!names.length) return '';
   return `

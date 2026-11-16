@@ -24,7 +24,33 @@
 // sur le gainage latéral (Ekstrom 2007, JOSPT, « side bridge ») et la cible d'ExRx pour « Cable Twist », « Side
 // Bend » et « Pallof press » (anti-rotation). La planche travaille les deux (Ekstrom 2007 : grand droit et oblique
 // externe élevés, érecteurs du rachis faibles). Le transverse, profond, n'a pas de zone : il est cité dans les
-// fiches « Comment faire » (vacuum, gainage, dead bug).
+// fiches « Comment faire » (vacuum, gainage, dead bug) et c'est le seul muscle du vacuum (DEEP_MUSCLES ci-dessous).
+// Muscles profonds (16/11/2026) : sans zone sur le personnage (rien à colorer en surface : le transverse est sous les
+// obliques et le grand droit, OpenStax 11.4) et sans compte de séries par semaine (aucune dose hebdomadaire établie
+// pour lui, contrairement aux séries de Schoenfeld 2017). Un exercice qui ne vise qu'eux n'a aucun muscle principal :
+// le vacuum (Urquhart 2005, EMG à fil fin : transverse avant oblique interne, grand droit peu actif ; docs/VACUUM.md).
+// group : groupe de la Bibliothèque où il se range (MUSCLE_GROUPS, muscles.js).
+const DEEP_MUSCLES = {
+  transverse: { label: 'Transverse', long: 'Transverse (profond)', group: 'abdominaux' },
+};
+const DEEP_TARGETS = { Vacuum: ['transverse'] };
+function deepMuscleLabel(id, long = false) { return (long ? DEEP_MUSCLES[id]?.long : DEEP_MUSCLES[id]?.label) || ''; }
+// Noms libres qui ne visent qu'un muscle profond : vus avant MUSCLE_RULES (musclesOf, muscles.js), pour qu'un
+// « Vacuum à genoux » ne colore pas le grand droit. rk : clé de règle du nom (ruleKey) ; null sans muscle profond
+const DEEP_RULES = [[/vacuum|hollowing|aspiration du ventre|rentrer le ventre|drawing in/, ['transverse']]];
+function deepRuleMuscles(rk) {
+  const deep = DEEP_RULES.find(([re]) => re.test(rk));
+  return deep ? Object.freeze({ primary: [], secondary: [], deep: deep[1], source: 'rules' }) : null;
+}
+// Mots de recherche des muscles profonds (searchWords) : le vacuum est trouvé par « transverse », « abdos », « ventre »
+const DEEP_WORDS = { transverse: 'transverse abdominaux abdos ventre' };
+function deepMuscleWords(m) { return (m?.deep || []).map(id => DEEP_WORDS[id] || ''); }
+// Muscles connus : au moins un principal, ou un muscle profond (vacuum) ; sinon l'app les demande
+function musclesKnown(m) { return !!(m?.primary?.length || m?.deep?.length); }
+// Filtre par muscle : un muscle profond passe dans son groupe (DEEP_MUSCLES.group), seulement le groupe entier choisi
+function deepInGroup(m, f) {
+  return !!f?.group && !f.muscle && (m?.deep || []).some(id => DEEP_MUSCLES[id]?.group === f.group);
+}
 // Matériel nécessaire, pour filtrer la bibliothèque quand on s'entraîne sans salle (feuille d'ajout).
 // Chaque exercice a une seule catégorie : celle du matériel le plus lourd qu'il demande.
 // Ordre = ordre des filtres ; les identifiants sont repris tels quels par sanitizeData (store.js).
@@ -110,7 +136,7 @@ const EXERCISE_CATALOGUE = [
   ['Bûcheron poulie',                  'obliques',               'abs', 'salle', 'bûcheron|bûcheron à la poulie|woodchop|wood chop|cable woodchop|cable twist|woodchopper'],   // ExRx, « Cable Twist » : cible obliques
   ['Pallof press',                     'obliques',               'abs', 'salle', 'pallof|press pallof'],   // anti-rotation : obliques (et transverse, sans zone)
   ['Flexion latérale haltère',         'obliques',               'lower_back', 'halteres', 'side bend|dumbbell side bend|flexion latérale|flexions latérales|inclinaison latérale|flexion latérale haltères'],   // ExRx, « Dumbbell Side Bend » : obliques, carré des lombes en synergiste (rangé avec les lombaires)
-  ['Vacuum',                           'abs',                    '', 'aucun', 'stomach vacuum|vacuum abdominal|aspiration du ventre|rentrer le ventre'],   // transverse (profond, sans zone) : compté avec les abdominaux
+  ['Vacuum',                           '',                       '', 'aucun', 'stomach vacuum|vacuum abdominal|aspiration du ventre|rentrer le ventre'],   // transverse seul (DEEP_TARGETS) : grand droit peu actif (Urquhart 2005), jamais en rouge ni compté en séries
   // Jambes
   ['Squat barre',                      'quads glutes',           'adductors lower_back', 'salle', 'back squat|barbell squat|squat arrière'],
   ['Squat avant',                      'quads',                  'glutes abs', 'salle', 'front squat|squat avant barre'],
@@ -254,6 +280,7 @@ const EXERCISE_CATALOGUE = [
   ['Crunch machine',                   'abs',                    '',            'salle', 'machine crunch|ab crunch machine'],
 ].map(([name, primary, secondary, equip, aliases = '']) => Object.freeze({
   name, primary: primary.split(' ').filter(Boolean), secondary: secondary.split(' ').filter(Boolean), equip,
+  deep: Object.freeze(DEEP_TARGETS[name] || []),
   aliases: Object.freeze(aliases.split('|').map(a => a.trim()).filter(Boolean)),
 }));
 // Par nom normalisé et par alias : un ancien nom (« Pull-ups ») ou le nom anglais retrouve sa fiche ;

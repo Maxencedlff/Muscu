@@ -18,7 +18,8 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     const names = run('EXERCISE_CATALOGUE.map(e => normName(e.name))');
     assert.equal(new Set(names).size, names.length, 'nom en double dans la bibliothèque');
     run('EXERCISE_CATALOGUE').forEach(e => {
-      assert.ok(e.primary.length, `${e.name} : aucun muscle principal`);
+      // Muscle profond seul (vacuum, DEEP_MUSCLES) : aucun principal, son muscle profond est connu
+      assert.ok(e.primary.length || (e.deep.length && e.deep.every(id => run(`!!DEEP_MUSCLES[${JSON.stringify(id)}]`))), `${e.name} : aucun muscle principal`);
       [...e.primary, ...e.secondary].forEach(id => assert.ok(known.has(id), `${e.name} : muscle inconnu ${id}`));
       assert.ok(!e.secondary.some(id => e.primary.includes(id)), `${e.name} : muscle principal et secondaire`);
     });
@@ -53,6 +54,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
   test('muscles : la bibliothèque et les règles concordent sur le muscle principal', () => {
     // Garde-fou : une règle trop large (ex. « press ») ne doit pas contredire la bibliothèque
     run('EXERCISE_CATALOGUE').forEach(e => {
+      if (!e.primary.length) { assert.ok(run('DEEP_RULES').some(([re]) => re.test(app.ruleKey(e.name))), `${e.name} : aucune règle profonde`); return; }
       const rule = run('MUSCLE_RULES').find(([re]) => re.test(app.ruleKey(e.name)));
       assert.ok(rule, `${e.name} : aucune règle ne le reconnaît`);
       assert.ok(rule[1].some(id => e.primary.includes(id)), `${e.name} : règle ${rule[0]} → ${rule[1]}`);
@@ -762,7 +764,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
       'Flexion latérale poulie': 'obliques', 'Side bend kettlebell': 'obliques', 'Gainage latéral lesté': 'obliques', 'Side plank avec rotation': 'obliques',
       'Crunch croisé au sol': 'obliques', 'Crunch latéral': 'obliques', 'Suitcase carry': 'obliques', 'Windmill kettlebell': 'obliques',
       // Flexion du tronc : toujours les abdominaux
-      'Crunch inversé': 'abs', 'Relevés de jambes lestés': 'abs', 'Gainage sur les mains': 'abs', 'Planche 2 min': 'abs', 'Vacuum à genoux': 'abs', 'Hollow rock': 'abs',
+      'Crunch inversé': 'abs', 'Relevés de jambes lestés': 'abs', 'Gainage sur les mains': 'abs', 'Planche 2 min': 'abs', 'Hollow rock': 'abs',
       // Règles voisines intactes
       'Rotation externe poulie': 'rear_delts', 'Élévations latérales poulie basse': 'side_delts', 'Fentes latérales': 'quads', 'Landmine press': 'front_delts',
     };
@@ -778,7 +780,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     const expected = {
       'Crunch': ['abs', ''], 'Crunch poulie': ['abs', ''], 'Crunch machine': ['abs', ''], 'Relevés de jambes': ['abs', ''], 'Relevés de genoux suspendu': ['abs', 'forearms'],
       'Toes to bar': ['abs', 'forearms lats'], 'Gainage (planche)': ['abs', 'obliques'], 'Gainage creux': ['abs', ''], 'Dead bug': ['abs', ''], 'L-sit': ['abs', 'quads triceps'],
-      'Roue abdominale': ['abs', 'obliques lats'], 'Grimpeur': ['abs', 'quads front_delts'], 'Vacuum': ['abs', ''], 'Turkish get-up': ['abs', 'obliques front_delts glutes'],
+      'Roue abdominale': ['abs', 'obliques lats'], 'Grimpeur': ['abs', 'quads front_delts'], 'Vacuum': ['', ''], 'Turkish get-up': ['abs', 'obliques front_delts glutes'],
       'Rotations russes': ['obliques', 'abs'], 'Gainage latéral': ['obliques', 'glutes'], 'Crunch oblique': ['obliques', 'abs'], 'Bûcheron poulie': ['obliques', 'abs'],
       'Pallof press': ['obliques', 'abs'], 'Flexion latérale haltère': ['obliques', 'lower_back'], 'Crunch vélo': ['abs obliques', ''],
       'Marche du fermier': ['forearms traps', 'abs obliques'], 'Bird dog': ['lower_back glutes', 'abs'],
