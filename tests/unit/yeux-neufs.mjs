@@ -3,7 +3,7 @@
 //  objectif et cases, programme du coach, import Strong / Hevy, mots entiers, VoiceOver, « Comment faire »)
 // ═══════════════════════════════════════════════════════════
 
-export default function ({ test, run, reset, assert }) {
+export default function ({ test, run, reset, assert, sameJSON }) {
   const DAY = 86400000;
   const set = (weight, reps) => ({ weight, reps, done: true });
   // Séance simulée sur les vraies fonctions de js/features/session.js ; écran et stockage remplacés le temps du test
@@ -45,5 +45,30 @@ export default function ({ test, run, reset, assert }) {
       run(`startSession('pull')`);
       assert.equal(run(`exFirstTimeHtml(${ex})`), '', `${name} : pas de poids à prendre`);
     }
+  }));
+
+  test('yeux neufs 2 : cases pré-remplies avec l\'objectif du jour, « Avant » garde la dernière fois', () => withSession(() => {
+    reset();
+    const ex = 'activeSession.exercises[0]';
+    // Meilleure série + 1 rep : la série qui était la meilleure prend l'objectif, les autres gardent leurs reps
+    seedRow('Rowing barre', [set('32', '9'), set('32', '9'), set('32', '8'), set('30', '10')]);
+    run(`startSession('pull')`);
+    assert.equal(run(`exerciseGoal('pull', data.programmes.ppl.exercises.pull[0]).text`), '32 kg × 10');
+    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps)`), ['32×10', '32×9', '32×8', '30×10'], 'objectif sur la 1re série à 32 kg, le reste comme avant');
+    sameJSON(run(`${ex}.sets.map(s => s.prev.reps)`), ['9', '9', '8', '10'], '« Avant » : la dernière fois');
+    // Hausse de charge (toutes les séries en haut de fourchette) : posée d'office, au bas de la fourchette, sans puce
+    seedRow('Rowing barre', [set('30', '12'), set('30', '12'), set('30', '12')], { sets: 3, repMin: 8, repMax: 12 });
+    run(`startSession('pull')`);
+    sameJSON(run(`exerciseGoal('pull', data.programmes.ppl.exercises.pull[0]).goal`), { w: 32.5, r: 8 });
+    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps)`), ['32.5×8', '32.5×8', '32.5×8'], 'comme « Objectif 32,5 kg × 8 »');
+    assert.equal(run(`bumpReady(${ex})`), false, 'hausse déjà posée : plus de puce');
+    assert.equal(run(`${ex}.sets[1].plannedWeight`), '32.5', 'charge prévue : la série suivante n\'est pas « modifiée »');
+    // Échauffement gardé à ses paliers
+    run(`${ex}.sets.unshift({ weight: '15', reps: '8', warmup: true, done: false }); ${ex}.bumped = false; bumpExerciseLoad(${ex})`);
+    assert.equal(run(`${ex}.sets[0].weight`), '15', 'échauffement inchangé');
+    // Jamais fait : rien à pré-remplir
+    seedRow('Rowing barre', null);
+    run(`startSession('pull')`);
+    sameJSON(run(`${ex}.sets.map(s => s.weight)`), ['', '', '', '']);
   }));
 }

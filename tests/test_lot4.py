@@ -70,7 +70,10 @@ def t_flow(bench, eng, dev, theme):
         # Toutes les séries non faites sont modifiables
         R.check(page.locator('.ex-card[data-ei="0"] .set-input').count() == 8, f'{t} 4 séries modifiables dès le départ')
         w0, r0, v0 = row_inputs(page, 0, 0)
-        R.check(w0.input_value() == '32,5' and r0.input_value() == '10', f'{t} pré-remplissage 32,5 × 10')
+        # Panel « yeux neufs » du 16/11 : la 1re série prend l'objectif affiché (32,5 × 10 la dernière fois → 11)
+        goal = page.locator('.ex-card[data-ei="0"] .ex-goal').inner_text().replace('\u00a0', ' ').strip()
+        R.check(w0.input_value() == '32,5' and r0.input_value() == '11' and goal == 'Objectif 32,5 kg × 11', f'{t} pré-remplissage 32,5 × 11, comme l\'objectif ({goal!r})')
+        R.check(row_inputs(page, 0, 1)[1].input_value() == '10', f'{t} 2e série : ses reps de la dernière fois')
         R.check(w0.get_attribute('inputmode') == 'decimal' and r0.get_attribute('inputmode') == 'numeric' and w0.get_attribute('enterkeyhint') == 'next', f'{t} inputmode et enterkeyhint')
         # Mesures
         m = page.evaluate("""() => {
@@ -301,21 +304,25 @@ def t_restore(bench, eng, dev, theme):
 
 
 def t_bump(bench):
-    """Puce « ↑ +2,5 kg » quand toutes les séries précédentes ont atteint 12 reps."""
+    """Double progression : toutes les séries précédentes à 12 reps → + 2,5 kg posés d'office au départ, aux reps
+    de l'objectif (panel « yeux neufs » du 16/11 : les cases suivent « Objectif 35 kg × 8 »), sans puce à toucher."""
     with bench.page('webkit', 'iPhone 13', 'dark') as page:
         d = ppl_v2_today()
         last = next(h for h in d['history'] if h['category'] == 'push')
         for s in last['exercises'][0]['sets']:
             s['reps'] = '12'
+        before = [float(s['weight']) for s in last['exercises'][0]['sets'] if not s.get('warmup')]
         seed(page, 'dark', json.dumps(d, ensure_ascii=False))
         start(page)
-        R.check(page.locator('.ex-card[data-ei="0"] .bump-chip').count() == 1 and page.locator('.bump-chip').count() == 1, 'progression : puce sur le seul exercice éligible')
+        sets = page.evaluate('activeSession.exercises[0].sets.filter(s => !s.warmup).map(s => [s.weight, s.reps])')
+        R.check(all(abs(float(w) - b - 2.5) < 1e-6 for (w, _), b in zip(sets, before)) and all(r == '8' for _, r in sets),
+                f'progression : + 2,5 kg et retour à 8 reps dès le départ {before} → {sets}')
+        goal = page.locator('.ex-card[data-ei="0"] .ex-goal').inner_text().replace('\u00a0', ' ').strip()
+        R.check(goal == f"Objectif {('%g' % (max(before) + 2.5)).replace('.', ',')} kg × 8", f'progression : objectif et cases d\'accord ({goal!r})')
+        R.check(page.locator('.bump-chip').count() == 0, 'progression : plus de puce à toucher, la hausse est déjà dans les cases')
+        prev = page.evaluate("activeSession.exercises[0].sets.filter(s => !s.warmup).map(s => parseFloat(s.prev.weight))")
+        R.check(prev == before, f'progression : « Avant » garde la charge de la dernière fois {prev}')
         shot(page, LOT, 'progression-iPhone_13-dark')
-        before = page.evaluate('activeSession.exercises[0].sets.map(s => s.weight)')
-        page.click('.bump-chip'); page.wait_for_timeout(150)
-        after = page.evaluate('activeSession.exercises[0].sets.map(s => s.weight)')
-        R.check(all(abs(float(a) - float(b) - 2.5) < 1e-6 for a, b in zip(after, before)), f'progression : +2,5 kg appliqué {before} → {after}')
-        R.check(page.locator('.bump-chip').count() == 0, 'progression : puce retirée après usage')
 
 
 def t_keyboard(bench):

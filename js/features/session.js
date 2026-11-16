@@ -129,6 +129,41 @@ function capReps(src, exLike) {
   return max && parseInt(src.reps) > max ? { ...src, reps: String(max) } : src;
 }
 
+// Cases pré-remplies avec l'objectif du jour affiché sous le nom (exerciseGoal, js/data/goals.js ; panel « yeux neufs »
+// du 16/11 : « Objectif 32 kg × 10 » au-dessus de cases à 32 × 9, un ✓ rapide notait 9). Hausse de charge : posée
+// d'office sur les séries (bumpExerciseLoad), la puce ↑ n'a plus lieu d'être. Sinon (la meilleure série + 1 rep), c'est
+// la série qui était la meilleure la dernière fois qui prend l'objectif ; les autres gardent leurs reps d'avant (un 10,
+// 10, 9, 8 ne devient pas 11 partout). « Avant » reste la dernière fois.
+function goalPrefill(ex) {
+  const d = sessExData(ex);
+  if (!d || measureOf(ex) !== 'reps') return;
+  const t = exerciseGoal(activeSession.category, d, activeSession.programme);
+  const g = t?.goal;
+  if (!g) return;
+  if (t.gain === bumpLabel()) { bumpExerciseLoad(ex); return; }
+  const at = Math.round(g.w * 100), repsOf = s => parseInt(s.prev?.reps ?? s.reps) || 0;
+  const best = ex.sets.filter(s => !s.done && !isWarmupSet(s) && Math.round((parseFloat(s.weight) || 0) * 100) === at)
+    .reduce((b, s) => (!b || repsOf(s) > repsOf(b) ? s : b), null);
+  if (best && (parseInt(best.reps) || 0) < g.r) best.reps = String(g.r);
+}
+
+// Double progression : + 2,5 kg (5 lb) sur chaque série de travail à faire (l'échauffement garde ses paliers), aux reps
+// de l'objectif (goalRepsAfterBump, js/data/goals.js) : le bas de la fourchette, ces reps en reps fixes, sinon quelques
+// reps sous le haut. Puce ↑ (exercice ajouté en cours de route) et objectif du jour (goalPrefill). Renvoie ces reps.
+function bumpExerciseLoad(ex) {
+  const step = data.unit === 'lbs' ? 5 : 2.5;
+  const lo = measureOf(ex) === 'reps' ? goalRepsAfterBump(sessExData(ex) || {}) : null;
+  ex.sets.forEach(s => {
+    if (s.done || isWarmupSet(s)) return;
+    const cur = toUnitW(s.weight || s.prev?.weight) || 0;
+    s.weight = storeW(String(Math.round((cur + step) * 100) / 100));
+    s.plannedWeight = s.weight;
+    if (lo) s.reps = String(lo);
+  });
+  ex.bumped = true;
+  return lo;
+}
+
 function startSession(cat) {
   sessionNotes  = '';
   persistWarned = false;
@@ -145,6 +180,7 @@ function startSession(cat) {
     exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}), ...(cleanGrip(ex.grip) ? { grip: cleanGrip(ex.grip) } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   ssNormalize(activeSession.exercises);
+  activeSession.exercises.forEach(goalPrefill);
   // Technique prescrite par le programme (coach ou soi : js/data/intensif.js), posée sur ses séries
   activeSession.exercises.forEach(ex => applyIntensPlan(ex, sessExData(ex)?.intens));
   persistSession();
@@ -262,7 +298,8 @@ function nextSetText() {
   return p ? `${p.name} · ${p.tail}` : '';
 }
 
-// Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette
+// Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette. Un exercice du
+// programme la reçoit d'office au départ (goalPrefill, ex.bumped) : la puce reste pour un exercice ajouté en cours de route
 function bumpReady(ex) {
   if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex)) return false;
   const work  = workSets(ex.sets);
@@ -1100,18 +1137,8 @@ registerActions({
   'bump-weight': (e, el) => {
     const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
     if (!ex) return;
-    const step = data.unit === 'lbs' ? 5 : 2.5;
-    // La nouvelle charge repart aux reps de l'objectif (goalRepsAfterBump, js/data/goals.js) : le bas de la
-    // fourchette, sinon quelques reps sous le haut ; la puce et « Objectif 75 kg × 3 » disent la même chose
-    const lo = measureOf(ex) === 'reps' ? goalRepsAfterBump(sessExData(ex) || {}) : null;
-    ex.sets.forEach(s => {
-      if (s.done || isWarmupSet(s)) return;   // l'échauffement garde ses paliers
-      const cur = toUnitW(s.weight || s.prev?.weight) || 0;
-      s.weight = storeW(String(Math.round((cur + step) * 100) / 100));
-      s.plannedWeight = s.weight;
-      if (lo) s.reps = String(lo);
-    });
-    ex.bumped = true;
+    // La nouvelle charge repart aux reps de l'objectif : la puce et « Objectif 75 kg × 8 » disent la même chose
+    const lo = bumpExerciseLoad(ex);
     haptic();
     persistSession();
     render();

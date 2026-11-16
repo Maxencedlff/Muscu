@@ -364,10 +364,8 @@ def t_eleve(bench, eng, dev, theme):
         reps = [card.locator(f'[data-action="set-reps"][data-si="{i}"]').input_value() for i in range(5)]
         R.check(goal == 'Objectif 75 kg × 5' and '5 × 5' in card.inner_text().replace('\u00a0', ' ') and reps == ['5'] * 5,
                 f'{t} séance : objectif, « 5 × 5 » et cases d\'accord ({goal!r}, {reps})')
-        page.click('.ex-card[data-ei="0"] [data-action="bump-weight"]')
-        page.wait_for_timeout(200)
         w = page.evaluate("activeSession.exercises[0].sets.map(s => s.weight + '×' + s.reps)")
-        R.check(w == ['75×5'] * 5, f'{t} puce ↑ 2,5 kg : 75 × 5 comme l\'objectif ({w})')
+        R.check(w == ['75×5'] * 5 and card.locator('[data-action="bump-weight"]').count() == 0, f'{t} cases à 75 × 5 comme l\'objectif, sans puce ({w})')
         page.evaluate("activeSession = null; persistSession(); data.history = data.history.filter(h => h.id !== 'h-sq'); save(); routeTo('dashboard')")
         page.wait_for_timeout(200)
         # Commentaire du coach sur une séance : Historique › Séance
