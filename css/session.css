@@ -707,7 +707,8 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
   display: inline-flex; align-items: center; justify-content: center; gap: 2px;
 }
 .tech__add { padding: 0 10px 0 8px; }
-.tech__cap > button:first-of-type { margin-left: auto; }   /* boutons à droite, même sans le texte d'aide (petit écran) */
+/* Boutons ensemble, à droite, même sans le texte d'aide (petit écran) ; passés sous le libellé, ils y restent calés à droite */
+.tech__btns { display: flex; align-items: center; gap: 16px; flex: none; margin-left: auto; }
 .tech__x { width: 36px; color: var(--label2); }
 .tech__add::after, .tech__x::after { content: ''; position: absolute; inset: -4px; }   /* 44 px de zone de toucher, 8 px libres entre les deux (panel de la vague 3) */
 .tech__add:active, .tech__x:active { opacity: .6; }

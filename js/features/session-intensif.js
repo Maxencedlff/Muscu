@@ -49,8 +49,8 @@ function techBlockHtml(ex, ei, s, si) {
     <div class="tech" role="group" aria-label="${T.label}, ${name}">
       <div class="tech__cap">
         <span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span></span>
-        ${add}
-        <button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button>
+        <span class="tech__btns">${add}
+        <button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button></span>
       </div>
       ${rows}
     </div>`;

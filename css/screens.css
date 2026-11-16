@@ -477,7 +477,17 @@ html.type-xl .sets__head { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 
 html.type-xl .sets__head > :nth-child(-n+2) { display: none; }
 html.type-xl .sets__head > :nth-child(3) { grid-area: w; }
 html.type-xl .sets__head > :nth-child(4) { grid-area: r; }
-html.type-xl .sets__head > :nth-child(5) { grid-area: check; visibility: hidden; min-width: 44px; }
+/* Colonne ✓ de l'en-tête aussi large que le rond des lignes (max(32px, 1.88rem) dans sa zone de 44 px), et en-tête calé
+   sur les lignes (elles débordent de 6 px de chaque côté, .set-swipe) : « kg » et « Reps » au-dessus de leurs cases en AX33 */
+html.type-xl .sets__head > :nth-child(5) { grid-area: check; visibility: hidden; min-width: max(44px, 1.88rem); }
+html.type-xl .sets__head { margin: 0 -6px; }
+/* Technique d'intensification : « + mini-série » grandit avec son texte (il débordait de sa pastille de 36 px en AX33) */
+/* Texte agrandi : quand le libellé et les boutons ne tiennent pas sur une ligne (panel seance-t1 : « + mini-série »
+   recouvrait « Rest-pause » et « 15 s » en AX33), les boutons passent dessous, ensemble et calés à droite ; 4 px sous eux
+   pour que leur zone de 44 px ne passe pas sous la sous-série */
+html.type-xl .tech__cap { flex-wrap: wrap; column-gap: 16px; row-gap: 4px; padding-bottom: 4px; }
+html.type-xl .tech__label { flex: 1 1 auto; min-width: min-content; }
+html.type-xl .tech__add { height: auto; min-height: 36px; padding-top: 4px; padding-bottom: 4px; white-space: nowrap; }
 html.type-xl .session-set {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "n prev check" "w r check";
   row-gap: 6px; padding: 8px 6px;

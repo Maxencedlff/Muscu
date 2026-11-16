@@ -429,4 +429,38 @@ def once_static(bench):
         R.check(f in html and '/' + f in sw, f'{f} chargé par index.html et mis en cache par sw.js')
 
 
-run_main(R, [t_seance, t_programme, t_saute, t_superset, t_record_force, t_ami_coach, t_pause_annonce], once=[once_static])
+def once_grand_texte(bench):
+    """Texte agrandi (AX1 23 px, AX3 33 px), iPhone SE et 13 : la ligne « Rest-pause · 15 s » et ses boutons ne se recouvrent
+    pas (panel seance-t1 : « + mini-série » recouvrait le nom et la pause en AX33), « kg » et « Reps » au-dessus de leurs cases."""
+    for px in (23, 33):
+        css = ("(() => { const st = document.createElement('style'); st.textContent = 'html { font: %dpx -apple-system, system-ui, sans-serif !important; }';"
+               " const put = () => { if (!document.documentElement) return false; document.documentElement.appendChild(st); return true; };"
+               " if (!put()) new MutationObserver((m, o) => { if (put()) o.disconnect(); }).observe(document, { childList: true }); })()") % px
+        for dev in ('iPhone SE', 'iPhone 13'):
+            t = f'{dev}-ax{px}'
+            with bench.page('webkit', dev, 'light') as page:
+                page.add_init_script(css)
+                seed(page, 'light', ppl_v2_today_json())
+                page.wait_for_timeout(400)
+                start(page, 'legs')
+                page.click('[data-action="tech-set"][data-ei="0"][data-si="1"]'); page.wait_for_timeout(300)
+                tap_dialog(page, 'Rest-pause'); page.wait_for_timeout(300)
+                g = page.evaluate("""() => { const cap = document.querySelector('.ex-card[data-ei="0"] .tech__cap');
+                    const r = el => el.getBoundingClientRect(), cut = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+                    const add = cap.querySelector('.tech__add'), x = cap.querySelector('.tech__x'), txt = [cap.querySelector('.tech__name'), cap.querySelector('.tech__hint')];
+                    const rg = document.createRange(); rg.selectNodeContents(add); const tr = rg.getBoundingClientRect(), ar = r(add);
+                    const inside = tr.left >= ar.left - 0.5 && tr.right <= ar.right + 0.5 && tr.top >= ar.top - 0.5 && tr.bottom <= ar.bottom + 0.5;   // texte dans sa pastille
+                    return { xl: document.documentElement.classList.contains('type-xl'),
+                             overlap: txt.some(e => cut(r(e), r(add)) || cut(r(e), r(x))) || cut(r(add), r(x)), inside,
+                             right: Math.round(r(cap).right - r(x).right) }; }""")
+                R.check(not g['overlap'] and g['inside'], f'{t} « Rest-pause », « 15 s » et « + mini-série » ne se recouvrent pas {g}')
+                if g['xl']:
+                    al = page.evaluate("""() => { const card = document.querySelector('.ex-card[data-ei="0"]'), h = card.querySelectorAll('.sets__head > span');
+                        const row = card.querySelector('.session-set'), c = el => { const b = el.getBoundingClientRect(); return b.left + b.width / 2; };
+                        return [Math.round(c(h[2]) - c(row.querySelector('.set-input:not(.set-input--required)'))), Math.round(c(h[3]) - c(row.querySelector('.set-input--required')))]; }""")
+                    R.check(all(abs(d) <= 3 for d in al), f'{t} « kg » et « Reps » centrés sur leurs cases (écarts {al} px)')
+                center(page, '.ex-card[data-ei="0"] .tech')
+                shot(page, LOT, f'{t}-grand-texte-rest-pause')
+
+
+run_main(R, [t_seance, t_programme, t_saute, t_superset, t_record_force, t_ami_coach, t_pause_annonce], once=[once_static, once_grand_texte])
