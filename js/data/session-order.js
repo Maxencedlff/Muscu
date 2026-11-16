@@ -77,3 +77,32 @@ function orderByStart(xs) {
     .sort((a, c) => (a.t === c.t ? 0 : a.t < c.t ? -1 : 1) || a.k - c.k)
     .flatMap(({ b }) => b.map(i => xs[i]));
 }
+
+// Exercice ajouté en cours de séance (retour du 10/11 : « il s'est rajouté tout à la fin alors que je l'ai en deuxième
+// position »). Place « Ensuite » : juste après le bloc en cours s'il est commencé, sinon juste avant lui (on vient de
+// finir un exercice : le nouveau devient le suivant). Renvoie { at, ref, before } (ref : exercice de référence),
+// ou null quand « Ensuite » revient à « À la fin » (séance finie, ou rien après le bloc en cours).
+function orderAddSpot(xs, curEi) {
+  if (!Number.isInteger(curEi) || !xs[curEi]) return null;
+  const blocks = ssBlocks(xs), b = blocks[orderBlockOf(blocks, curEi)];
+  // Rien de fait dans la séance : « Ensuite » vient après le premier exercice, pas avant (il n'y a pas d'exercice fini)
+  const started = b.some(i => xs[i].sets.some(s => s.done)) || !xs.some(e => e.sets.some(s => s.done));
+  const at = started ? b.at(-1) + 1 : b[0];
+  if (at >= xs.length) return null;
+  return { at, ref: xs[started ? b.at(-1) : b[0]], before: !started };
+}
+
+// « Garder cet ordre » du bilan : la liste du programme (list) reprend l'ordre de la séance faite (ids : exId dans
+// l'ordre de l'historique). Par blocs (un superset reste entier) : les blocs faits reprennent, dans l'ordre de la
+// séance, les places qu'ils occupaient ; un bloc absent de la séance garde la sienne. Nouvelle liste (mêmes objets),
+// ou null si l'ordre ne change pas.
+function orderProgrammeLike(list, ids) {
+  if (!Array.isArray(list) || list.length < 2) return null;
+  const rank = new Map();
+  (ids || []).forEach((id, k) => { if (id && !rank.has(id)) rank.set(id, k); });
+  const blocks = ssBlocks(list).map(b => ({ b, r: Math.min(...b.map(i => rank.get(list[i].id) ?? Infinity)) }));
+  const done = blocks.filter(x => x.r !== Infinity), sorted = [...done].sort((a, c) => a.r - c.r);
+  let k = 0;
+  const next = blocks.map(x => (x.r === Infinity ? x : sorted[k++])).flatMap(x => x.b.map(i => list[i]));
+  return next.some((ex, i) => ex !== list[i]) ? next : null;
+}

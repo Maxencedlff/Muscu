@@ -4,14 +4,18 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// « Plus tard » en bas de la carte de l'exercice en cours (ou de son superset), quand il reste autre
-// chose à faire. Les autres exercices n'ont pas de bouton : toucher une de leurs séries suffit.
+// « Plus tard » en bas de la carte de l'exercice en cours (ou de son superset), quand il reste autre chose à faire ;
+// « Faire maintenant » en bas des autres exercices qui restent à faire. Retour du 10/11 : un testeur voulait faire un
+// exercice en deuxième sans trouver « Faire maintenant », seul dans le menu ⋯. Un mot dans la ligne du pied qui existe
+// déjà (« + Série », « Note ») : la carte ne grandit pas.
 function orderBtnHtml(ei, cur) {
-  const xs = activeSession.exercises;
-  if (orderChoiceFor(xs, ei, cur?.ei) !== 'later') return '';
+  const xs = activeSession.exercises, choice = orderChoiceFor(xs, ei, cur?.ei);
+  if (!choice) return '';
   const g = ssGroupOf(xs, ei);
   const what = g ? `${ssKind(g.length).toLowerCase()} ${g.map(k => esc(xs[k].name)).join(' et ')}` : esc(xs[ei].name);
-  return `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Plus tard : ${what}, passe en dernier">${icon('arrow.turn.down.right', 14)}Plus tard</button>`;
+  return choice === 'later'
+    ? `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Plus tard : ${what}, passe en dernier">${icon('arrow.turn.down.right', 14)}Plus tard</button>`
+    : `<button class="order-link" data-action="ex-now" data-ei="${ei}" aria-label="Faire maintenant : ${what}, passe avant l'exercice en cours">${icon('arrow.up', 14)}Faire maintenant</button>`;
 }
 
 // Nouvelle liste de la séance (mêmes objets, autre ordre) : les positions (ei) gardées ailleurs suivent
@@ -90,4 +94,5 @@ function sessionDoLater(ei) {
 
 registerActions({
   'ex-later': (e, el) => sessionDoLater(parseInt(el.dataset.ei)),
+  'ex-now':   (e, el) => sessionDoNow(parseInt(el.dataset.ei)),
 });

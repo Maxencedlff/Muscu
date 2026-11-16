@@ -197,6 +197,32 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     assert.equal(run('orderFocusEi(xs, 4)'), 4);
   });
 
+  test('ordre : exercice ajouté « Ensuite » (retour du 10/11 : il partait tout à la fin)', () => {
+    reset();
+    const spot = (xs, cur) => run(`(() => { const r = orderAddSpot(${xs}, ${cur}); return r && { at: r.at, ref: r.ref.name, before: r.before }; })()`);
+    // A fini, B pas commencé : le nouveau passe avant B (il devient le deuxième)
+    sameJSON(spot(list([['A', 3, null, 3], ['B', 3], ['C', 3]]), 1), { at: 1, ref: 'B', before: true });
+    // B commencé : juste après B
+    sameJSON(spot(list([['A', 3, null, 3], ['B', 3, null, 1], ['C', 3]]), 1), { at: 2, ref: 'B', before: false });
+    // Rien de fait : après le premier exercice, pas devant lui
+    sameJSON(spot(list([['A', 3], ['B', 3]]), 0), { at: 1, ref: 'A', before: false });
+    // Superset commencé : après tout le groupe
+    sameJSON(spot(list([['A', 3, 'g', 1], ['B', 3, 'g'], ['C', 3]]), 1), { at: 2, ref: 'B', before: false });
+    assert.equal(spot(list([['A', 3, null, 3], ['B', 3, null, 1]]), 1), null, 'rien après : « Ensuite » = « À la fin »');
+    assert.equal(spot(list([['A', 3, null, 3]]), 'undefined'), null, 'séance finie');
+  });
+
+  test('ordre : « Garder cet ordre » du bilan, par blocs, absents à leur place', () => {
+    reset();
+    const prog = JSON.stringify([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C', ss: 'g' }, { id: 'd', name: 'D', ss: 'g' }, { id: 'e', name: 'E' }]);
+    const like = ids => names(`orderProgrammeLike(${prog}, ${JSON.stringify(ids)})`);
+    sameJSON(like(['a', 'e', 'b', 'c', 'd']), ['A', 'E', 'B', 'C', 'D'], 'E fait en deuxième');
+    sameJSON(like(['a', 'd', 'c', 'b']), ['A', 'C', 'D', 'B', 'E'], 'superset entier, E (pas fait) garde sa place');
+    assert.equal(like(['a', 'b', 'c', 'd', 'e']), null, 'même ordre : rien à proposer');
+    assert.equal(like(['a', 'n:curl', 'b']), null, 'exercice hors programme ignoré');
+    assert.equal(run('orderProgrammeLike(null, ["a"])'), null);
+  });
+
   // Séance simulée sur les vraies fonctions (currentSet de js/features/session.js) ; écran, stockage et natif
   // remplacés le temps du test, puis rendus (restore) pour les tests suivants
   const STUBBED = ['render', 'scrollToCurrent', 'haptic', 'persistSession', 'cancelEffort', 'showToast', 'sessionUndo', 'save'];

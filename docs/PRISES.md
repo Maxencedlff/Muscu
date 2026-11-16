@@ -140,9 +140,10 @@ personne ne le trouvait. Une action, un mot :
 - **Plus tard**, en bas de la carte de l'exercice en cours (le seul bouton ajouté aux cartes) et dans
   son menu ··· : il passe en dernier et **l'exercice qui le suivait** devient celui en cours (un
   exercice sauté plus haut reste sauté ; s'il n'y a rien après, on repart du premier qui reste).
-- **Faire maintenant**, dans le menu ··· d'un autre exercice : il passe juste avant l'exercice en
-  cours et devient celui en cours. Pas de bouton sur les cartes : toucher une série d'un autre
-  exercice suffit déjà à le commencer.
+- **Faire maintenant**, en bas de la carte de chaque autre exercice à faire (depuis le 16/11) et dans son
+  menu ··· : il passe juste avant l'exercice en cours et devient celui en cours. Retour d'un testeur du
+  10/11 : seul dans ···, personne ne le trouvait. C'est un mot dans la ligne du pied qui existait déjà
+  (« + Série », « Note ») : la carte ne grandit pas.
 
 Un message propose **Annuler** pendant 4 secondes (« Mis en dernier », « Mis en cours » :
 courts, pour tenir sur la largeur d'un iPhone SE).
@@ -165,8 +166,28 @@ Règles :
   (`syncNativeRest`, aussi après Monter et Descendre).
 - La séance est enregistrée tout de suite (`persistSession`) : l'ordre survit à la fermeture de l'app,
   et la montre suit.
-- Le programme ne change pas : c'est l'ordre de cette séance. Pour changer l'ordre du programme :
-  Programme › Séance › Modifier (poignée ≡).
+- Le programme ne change pas pendant la séance : « Plus tard » sert aussi à contourner une machine prise
+  un jour. À la fin, si l'ordre fait diffère du programme, le bilan propose **Garder cet ordre** (un
+  toucher, jamais automatique) : la prochaine séance suit cet ordre. Les exercices sont rangés par blocs
+  (un superset reste entier) dans l'ordre où ils ont été commencés, ceux pas faits ensuite dans l'ordre
+  de la séance ; un exercice ajouté sans « Ajouter au programme » n'y entre pas (`orderProgrammeLike`).
+  Programme reçu d'un coach : la copie de l'élève change, comme par Programme › Séance › Modifier.
+  Autre chemin : Programme › Séance › Modifier (poignée ≡).
+
+### Exercice ajouté en séance (retour du 10/11)
+
+« L'exercice s'est rajouté tout à la fin de ma séance alors que je l'ai en deuxième position. » La feuille
+d'ajout a une rangée **Placer : Ensuite | À la fin**, « Ensuite » par défaut (`orderAddSpot`) :
+
+- exercice en cours commencé (ou rien de fait) : juste après lui, superset entier ;
+- exercice en cours pas commencé (on vient d'en finir un) : juste avant lui, et le nouveau devient celui
+  en cours ;
+- rien après l'exercice en cours, séance finie : pas de rangée (les deux reviennent au même).
+
+Avec « Ajouter au programme », il prend la même place dans le programme (à côté de l'exercice de
+référence), donc la prochaine fois aussi. Chrono, série rouverte et RIR de la dernière série suivent
+leur exercice (`remapSessionOrder`) ; pendant un repos, la notification et la Live Activity annoncent le
+nouvel exercice suivant (`syncNativeRest`). VoiceOver lit où : « Ensuite, juste avant Tirage vertical ».
 
 **Pas de glisser pour réordonner en séance.** Les séries se balaient déjà de côté pour « Supprimer »
 (`js/features/session-gestures.js`) et la page défile verticalement ; un appui long ou une poignée

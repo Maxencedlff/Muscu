@@ -1,35 +1,12 @@
 // ═══════════════════════════════════════════════════════════
-//  Progrès › Vue d'ensemble : calendrier et séances par semaine
+//  Progrès › Vue d'ensemble : tuiles et séances par semaine
 // ═══════════════════════════════════════════════════════════
+// Le calendrier du mois est dans l'Historique (js/features/history-calendar.js, retour de Maxence du 16/11) : ici, il
+// faisait doublon. Restent ce qui ne relève pas de l'historique : moyennes, total et régularité face à l'objectif.
 'use strict';
 
 function renderStatsOverview() {
-  const now  = new Date();
-  if (!ovMonth) ovMonth = { y: now.getFullYear(), m: now.getMonth() };
-  const { y, m } = ovMonth;
   const hist = data.history || [];
-
-  // Calendrier du mois : lundi en premier
-  const first = new Date(y, m, 1);
-  const days  = new Date(y, m + 1, 0).getDate();
-  const lead  = dayIndexInWeek(first);
-  const byDay = {};
-  hist.forEach(h => {
-    const d = new Date(h.date);
-    if (d.getFullYear() === y && d.getMonth() === m) (byDay[d.getDate()] ||= []).push(h);
-  });
-  const today = (now.getFullYear() === y && now.getMonth() === m) ? now.getDate() : 0;
-  let cells = '';
-  for (let i = 0; i < lead; i++) cells += '<span class="cal__d cal__d--empty"></span>';
-  for (let d = 1; d <= days; d++) {
-    const hs = byDay[d] || [];
-    const lbl = hs.length ? `, ${hs.map(h => sessionMeta(h.category, entryProg(h)).label).join(', ')}` : '';
-    cells += `<span class="cal__d ${d === today ? 'cal__d--today' : ''}" aria-label="${d}${lbl}"><span class="num">${d}</span>
-      <span class="cal__dots">${hs.slice(0, 3).map(h => `<i style="background:${historyColor(h)}"></i>`).join('')}</span></span>`;
-  }
-  const monthName = fmtDate(first, 'month');
-  const monthCount = Object.values(byDay).reduce((a, l) => a + l.length, 0);
-  const isCur = y === now.getFullYear() && m === now.getMonth();
 
   // Séances par semaine sur 12 semaines, face à l'objectif des Réglages (weeklyGoal) ; le nombre au-dessus de chaque
   // barre, « 0 » compris (panel t6 : un trait sans valeur passait pour une donnée manquante), une semaine par élément de liste pour VoiceOver (role="img" sur le tout rendait les semaines muettes, panel t5)
@@ -55,17 +32,6 @@ function renderStatsOverview() {
           <div class="tile"><span class="tile__val num">${fmtVolume(vol)}</span><span class="tile__lbl">Volume total</span></div>
           <div class="tile"><span class="tile__val num">${hist.length}</span><span class="tile__lbl">${hist.length > 1 ? 'Séances' : 'Séance'} au total</span></div>
         </div>
-        <div class="group group--pad cal" id="ovCal">
-          <div class="cal__head">
-            <button class="cal__nav" data-action="ov-month" data-d="-1" aria-label="Mois précédent">${icon('chevron.left', 20)}</button>
-            <span class="cal__title">${monthName.charAt(0).toUpperCase() + monthName.slice(1)}<span class="cal__count num">${plural(monthCount, 'séance', 'séances')}</span></span>
-            <button class="cal__nav" data-action="ov-month" data-d="1" ${isCur ? 'disabled' : ''} aria-label="Mois suivant">${icon('chevron.right', 20)}</button>
-          </div>
-          <div class="cal__grid">
-            ${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<span class="cal__wd" aria-hidden="true">${d}</span>`).join('')}
-            ${cells}
-          </div>
-        </div>
         <div class="group-title">Séances par semaine</div>
         <div class="group group--pad">
           <div class="wks" role="list" aria-label="Séances par semaine sur 12 semaines, objectif ${goal}">
@@ -77,32 +43,3 @@ function renderStatsOverview() {
       </div>
     </div>`;
 }
-
-// Balayage horizontal du calendrier : mois précédent / suivant
-let calSwipe = null;
-document.addEventListener('pointerdown', e => {
-  if (!e.target.closest?.('#ovCal .cal__grid')) return;
-  calSwipe = { x: e.clientX, y: e.clientY };
-});
-document.addEventListener('pointerup', e => {
-  if (!calSwipe) return;
-  const dx = e.clientX - calSwipe.x, dy = e.clientY - calSwipe.y;
-  calSwipe = null;
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) changeOvMonth(dx < 0 ? 1 : -1);
-});
-function changeOvMonth(d) {
-  const now = new Date();
-  let { y, m } = ovMonth;
-  m += d;
-  if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
-  if (y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth())) return;
-  ovMonth = { y, m };
-  render();
-}
-
-// ── Actions ─────────────────────────────────────────────────
-registerActions({
-  'ov-month': (e, el) => {
-    changeOvMonth(parseInt(el.dataset.d));
-  },
-});

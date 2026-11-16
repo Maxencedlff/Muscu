@@ -85,10 +85,12 @@ def t_screens(bench, eng, dev, theme):
         go(page, 'stats-overview')
         clipped = page.evaluate(CLIPPED_JS, '.tile__val')
         R.check(not clipped, f'{tag} vue d\'ensemble : valeurs des tuiles entières {clipped}')
+        shot(page, LOT, f'{tag}-vue-ensemble')
+        page.evaluate("localStorage.setItem('mdlf_hist_cal', '1')")   # calendrier déplié
+        go(page, 'history')   # calendrier du mois : dans l'Historique depuis le 16/11
         bg = page.evaluate("getComputedStyle(document.querySelector('.cal__d--today > .num')).backgroundColor")
         red = page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--red').trim()")
         R.check('255, 59, 48' not in bg and '255, 69, 58' not in bg and red not in bg, f'{tag} aujourd\'hui : pas de rouge ({bg})')
-        shot(page, LOT, f'{tag}-vue-ensemble')
 
         # 5 et 6. Détail exercice : carte du graphique, axe Y homogène, dates espacées
         go(page, 'stats-ex', 'p1dcouch', statsMode='volume')
