@@ -133,19 +133,19 @@ function dietCallHtml(pr) {
 const dietHasFreeMeals = pr => pr.meals.some(x => !x.meal.items.length);
 // Aliments notés hors plan ce jour-là (jour vide : tout ce qu'on a mangé)
 const dietNotedCount = pr => pr.meals.reduce((n, x) => n + x.extras.length, 0);
-// « Journée complète » seulement pour le menu d'un coach (suivi en entier) : sur un plan perso, ses repas types cochés ne
-// disent rien de la journée (« Journée complète » sur un plan de 233 kcal, panel « regard neuf » du 16/11)
-function dietDoneWord(blank) {
-  if (!dietPersonal(dietActivePlan(data))) return 'Journée complète';
-  return blank ? 'Tous les repas notés' : 'Repas types cochés';
-}
 function dietStatusText(pr) {
+  if (!pr.plan.fromCoach && dietProgressFinished(pr)) return 'Objectif de calories atteint';
   // Rien à cocher (jour vide, repas tous retirés) : ce qu'on a noté, sans « 0 sur 0 »
   if (!pr.nMeals) { const n = dietNotedCount(pr); return n ? plural(n, 'aliment noté', 'aliments notés') : 'Rien de noté pour l\'instant'; }
   // Jour vide : un repas est fait dès qu'on y a noté un aliment (ou coché son plan copié)
-  if (pr.blank) return pr.complete ? dietDoneWord(true) : pr.nDone ? `${pr.nDone} ${pr.nDone > 1 ? 'repas notés' : 'repas noté'} sur ${pr.nMeals}` : 'Rien de noté pour l\'instant';
+  // Plan perso : « fini » seulement à l'objectif de calories (dietProgressFinished), sinon un simple compte
+  if (!pr.plan.fromCoach) {
+    if (pr.blank) return pr.nDone ? `${pr.nDone} ${pr.nDone > 1 ? 'repas notés' : 'repas noté'} sur ${pr.nMeals}` : 'Rien de noté pour l\'instant';
+    return `${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${pr.nMeals}`;
+  }
+  if (pr.blank) return pr.complete ? 'Journée complète' : pr.nDone ? `${pr.nDone} ${pr.nDone > 1 ? 'repas notés' : 'repas noté'} sur ${pr.nMeals}` : 'Rien de noté pour l\'instant';
   const free = dietHasFreeMeals(pr);
-  if (pr.complete) return free ? (pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché') : dietDoneWord(false);
+  if (pr.complete) return free ? (pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché') : 'Journée complète';
   if (free) return `${pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché'} : ${pr.nDone} sur ${pr.nMeals}`;
   return `${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${pr.nMeals}`;
 }
@@ -167,15 +167,16 @@ function dietSummaryHtml(pr) {
             <div class="diet-bar__head"><span class="diet-bar__label"><i class="diet-dot diet-dot--${k}"></i>${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> / ${dietN(goal[k])} g</span></div>
             <div class="diet-bar__track"><span class="diet-bar__fill" style="width:${(dietRatio(eaten[k], goal[k]) * 100).toFixed(1)}%"></span></div>
           </div>`).join('');
-  const streak = data.dietStreakOff ? 0 : dietStreak(data);
+  const streak = data.dietStreakOff ? 0 : dietFinishedStreak(data);
   const n = pr.nMeals;   // repas à cocher (ceux qui ont des aliments)
-  const status = `<span${pr.complete ? ' class="diet-sum__done"' : ''}>${pr.complete ? icon('checkmark', 14) : ''}${dietStatusText(pr)}</span>`;
+  const fin = dietProgressFinished(pr);
+  const status = `<span${fin ? ' class="diet-sum__done"' : ''}>${fin ? icon('checkmark', 14) : ''}${dietStatusText(pr)}</span>`;
   const line = `<p class="diet-sum__line">${status}${streak >= 2 ? `<span class="diet-sum__streak">${icon('flame', 14)}${streak} jours complets d'affilée</span>` : ''}</p>
         ${dietCallHtml(pr)}`;
   // Chiffres masqués (Réglages de la nutrition) : les repas cochés seulement
-  if (hide) return `<section class="diet-sum diet-sum--plain${pr.complete ? ' diet-sum--complete' : ''}" aria-label="Bilan de la journée">${line}</section>`;
+  if (hide) return `<section class="diet-sum diet-sum--plain${fin ? ' diet-sum--complete' : ''}" aria-label="Bilan de la journée">${line}</section>`;
   return `
-      <section class="diet-sum${pr.complete ? ' diet-sum--complete' : ''}" aria-label="Bilan de la journée">
+      <section class="diet-sum${fin ? ' diet-sum--complete' : ''}" aria-label="Bilan de la journée">
         <div class="diet-sum__main">
           <div class="diet-sum__ring" role="img" aria-label="${dietN(eaten.kcal)} kilocalories sur ${dietN(goal.kcal)}">
             ${dietRingSvg(ratio)}
@@ -198,11 +199,11 @@ function dietWeekHtml(day) {
   return `<div class="diet-week" role="group" aria-label="7 derniers jours">${dietWeek(data).map(w => {
     // Lettre seule comme le Calendrier d'iOS : le numéro dessous distingue mardi et mercredi (panel vague 4)
     const d = new Date(w.ts), letter = d.toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase();
-    const label = `${w.day === today ? 'Aujourd\'hui' : fmtDate(w.ts, 'day')}${w.complete ? ', journée complète' : w.some ? ', en partie' : ''}`;
+    const label = `${w.day === today ? 'Aujourd\'hui' : fmtDate(w.ts, 'day')}${w.finished ? (dietActivePlan(data)?.fromCoach ? ', journée complète' : ', objectif atteint') : w.some ? ', en partie' : ''}`;
     return `<button class="diet-week__day${w.day === day ? ' diet-week__day--on' : ''}" data-action="diet-day" data-day="${w.day}" aria-pressed="${w.day === day}" aria-label="${esc(label)}">
         <span class="diet-week__letter" aria-hidden="true">${letter}</span>
         <span class="diet-week__num num${w.day === today ? ' diet-week__num--today' : ''}" aria-hidden="true">${d.getDate()}</span>
-        <span class="diet-week__dot${w.complete ? ' diet-week__dot--done' : w.some ? ' diet-week__dot--some' : ''}" aria-hidden="true"></span>
+        <span class="diet-week__dot${w.finished ? ' diet-week__dot--done' : w.some ? ' diet-week__dot--some' : ''}" aria-hidden="true"></span>
       </button>`;
   }).join('')}</div>`;
 }
@@ -541,15 +542,15 @@ function nutritionHomeCard() {
   // VoiceOver : le bouton du haut dit tout (plan, calories, chaque repas) ; les lignes sont cachées, sauf le bouton à cocher
   const spokenMeals = pr.meals.filter(x => x.meal.items.length || x.extras.length)
     .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide || (!x.live.length && !x.extras.length) ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
-  const spoken = `Nutrition, ${plan.name} : ${hide ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${blankNothing ? `${dietStatusText(pr)}. Ajouter` : `${spokenMeals}. Ouvrir`}`;
+  const spoken = `Nutrition, ${plan.name} : ${hide ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${dietProgressFinished(pr) ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${blankNothing ? `${dietStatusText(pr)}. Ajouter` : `${spokenMeals}. Ouvrir`}`;
   return `${card}
-    <section class="home-card diet-home${pr.complete ? ' diet-home--complete' : ''}">
+    <section class="home-card diet-home${dietProgressFinished(pr) ? ' diet-home--complete' : ''}">
       <button class="diet-home__open" data-action="go-nutrition" aria-label="${esc(spoken)}">
         <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(hide ? pr.nDone / Math.max(1, pr.nMeals) : dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
         <span class="diet-home__text" aria-hidden="true">
           <span class="diet-home__title"><span class="home-card__title">Nutrition</span><span class="diet-home__plan">${esc(plan.name)}</span></span>
           <span class="diet-home__kcal num">${head}</span>
-          ${pr.complete ? `<span class="diet-home__next">${icon('checkmark', 12)}${dietStatusText(pr)}</span>` : ''}
+          ${dietProgressFinished(pr) ? `<span class="diet-home__next">${icon('checkmark', 12)}${dietStatusText(pr)}</span>` : ''}
         </span>
       </button>
       <div class="diet-home__meals" data-action="go-nutrition">${rows}
@@ -674,10 +675,11 @@ registerActions({
     if (!on) dietOpenMeals.delete(meal);
     save();
     const pr = dietDayProgress(data, planId, day);
-    haptic(on ? (pr.complete ? 'success' : 'medium') : 'light');
-    if (on && pr.complete) { try { validationSound(); } catch {} }   // pas de toast : il couvrait la carte du repas ; « Journée complète » s'affiche déjà en haut, avec le son
+    const fin = dietProgressFinished(pr);
+    haptic(on ? (fin ? 'success' : 'medium') : 'light');
+    if (on && fin) { try { validationSound(); } catch {} }   // pas de toast : il couvrait la carte du repas ; « Journée complète » s'affiche déjà en haut, avec le son
     render();
-    if (on) { announce(pr.complete ? dietStatusText(pr) : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`); return; }
+    if (on) { announce(fin ? dietStatusText(pr) : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`); return; }
     // Décoché par erreur : Annuler le recoche (le toast l'annonce à VoiceOver, « Annuler disponible »)
     const name = pr.meals.find(x => x.meal.id === meal)?.meal.name || 'Repas';
     showToast(`Décoché : ${name}`, { action: 'Annuler', duration: 5000, onAction: () => {

@@ -627,6 +627,30 @@ function dietDayComplete(d, day, planId = null) {
   const ids = Array.isArray(e.meals) ? e.meals : dietDayRequired(d.dietPlans?.[e.plan]?.meals, e);
   return ids.length > 0 && ids.every(id => dietMealSatisfied(e, id));
 }
+// Journée « finie » à l'écran (point vert, coche, son, « journée complète » lu par VoiceOver). Menu d'un coach : tous
+// ses repas cochés (dietDayComplete). Plan perso : seulement l'objectif de calories atteint, à 95 % au moins ; sans
+// objectif de calories, jamais : ses repas types cochés, ou un petit-déjeuner noté, ne disent rien de la journée
+// (panel « regard neuf » du 16/11 : « Journée complète » sur un plan de 233 kcal, petit-déjeuner seul noté)
+const DIET_DONE_SHARE = 0.95;
+function dietPersonalDone(plan, eatenKcal) {
+  const k = Number(plan?.targets?.kcal) || 0;
+  return k > 0 && Math.round(eatenKcal) >= k * DIET_DONE_SHARE;
+}
+function dietProgressFinished(pr) { return !!pr && (pr.plan.fromCoach ? pr.complete : dietPersonalDone(pr.plan, pr.eaten.kcal)); }
+function dietDayFinished(d, day, planId = null) {
+  const e = d.dietLog?.[day], plan = e && d.dietPlans?.[e.plan];
+  if (!e || (planId && e.plan !== planId)) return false;
+  if (!plan || plan.fromCoach) return dietDayComplete(d, day, planId);
+  return dietPersonalDone(plan, dietDayProgress(d, e.plan, day).eaten.kcal);
+}
+// Série affichée : jours finis d'affilée (même règle que la frise), aujourd'hui compté seulement s'il est fini
+function dietFinishedStreak(d, now = Date.now()) {
+  let n = 0;
+  const day = i => { const t = new Date(now); t.setHours(12, 0, 0, 0); t.setDate(t.getDate() - i); return dietDayKey(t.getTime()); };
+  let i = dietDayFinished(d, day(0), d.dietActive || null) ? 0 : 1;
+  while (i <= DIET_LOG_DAYS && dietDayFinished(d, day(i))) { n++; i++; }
+  return n;
+}
 // Jours complets d'affilée jusqu'à aujourd'hui (aujourd'hui pas encore fini : la série court jusqu'à hier).
 // Aujourd'hui est jugé avec le plan suivi ; les jours passés, avec le plan de ce jour-là
 function dietStreak(d, now = Date.now()) {
@@ -644,7 +668,7 @@ function dietWeek(d, now = Date.now()) {
     const day = dietDayKey(t.getTime()), only = j === 6 ? d.dietActive || null : null;
     const e = d.dietLog?.[day], mine = !!e && (!only || e.plan === only);
     // En partie : un repas coché ou un aliment noté (jour vide : on note sans cocher)
-    return { day, ts: t.getTime(), complete: dietDayComplete(d, day, only), some: mine && (e.done.length > 0 || Object.keys(e.extras || {}).length > 0) };
+    return { day, ts: t.getTime(), complete: dietDayComplete(d, day, only), finished: dietDayFinished(d, day, only), some: mine && (e.done.length > 0 || Object.keys(e.extras || {}).length > 0) };
   });
 }
 

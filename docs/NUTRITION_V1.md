@@ -269,6 +269,11 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
   « Revenir à aujourd'hui » remplacent la route sans transition (`navReplaceQuiet`) et seul le contenu sous la barre
   change ; défilement, barre et grand titre gardés, léger fondu de 180 ms dans le sens du jour (coupé avec Réduire
   les animations). Avant : transition d'écran complète et retour en haut.
+- **Journée « finie »** (point vert de la frise, coche et son, « journée complète » lu par VoiceOver, série) : menu
+  d'un coach, tous ses repas cochés ; plan perso, seulement l'objectif de calories atteint à 95 % (« Objectif de
+  calories atteint ») ; sans objectif de calories, jamais (un compte : « 2 repas cochés sur 4 »). Panel « regard neuf »
+  du 16/11 : « Journée complète » sur un plan de 233 kcal, petit-déjeuner seul noté (`dietDayFinished`,
+  `dietProgressFinished`, `dietFinishedStreak`).
 - **Calories fixées, pas une macro** (un coach fixe souvent kcal et protéines) : cette macro s'affiche sans repère
   ni jauge (« Pas d'objectif ») ; son total tiré du plan ne collerait pas aux calories fixées.
 - **Repas vides** (plan neuf pas encore rempli) : ni cochables, ni comptés dans « n repas cochés sur N » ou la

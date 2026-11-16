@@ -121,7 +121,7 @@ function renderDietPlan(id) {
         </div>
         ${gap ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(gap)}</span></p>` : ''}
         <div class="group-foot">${ro ? `Plan et objectifs fixés par ${esc(plan.fromCoach.name || 'ton coach')} : il les modifie et te les renvoie. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
-          : personal ? 'Fixe tes objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. Ce que tu manges se note chaque jour dans Entraînement › Nutrition.'
+          : personal ? `${plan.targets ? '' : 'Fixe tes objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. '}Ce que tu manges se note chaque jour dans Entraînement › Nutrition.`
             : 'Fixe les objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. Sans objectif, le total prévu sert de repère.'}</div>
         ${dietLowKcal(plan) ? dietLowNoteHtml(!!plan.targets?.kcal) : ''}
         ${personal ? (showMeals ? `<div class="group-title diet-types-title">Repas types (facultatif)</div>

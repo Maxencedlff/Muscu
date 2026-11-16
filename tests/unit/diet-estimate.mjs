@@ -113,4 +113,22 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.match(run(`dietTargetGap(${JSON.stringify(plan)})`), /^Les repas prévus font 43 g/);
     assert.equal(run(`dietTargetGap(${JSON.stringify({ ...plan, meals: [{ id: 'm1', name: 'R', items: [] }] })}, 'Tes repas types')`), '', 'sans repas types : aucune phrase');
   });
+
+  test('journée « finie » : menu du coach quand tout est coché, plan perso seulement à 95 % de l\'objectif de calories', () => {
+    reset();
+    const it = { id: 'i1', name: 'Riz', food: null, fam: 'f', g: 100, per: { k: 233, p: 5, c: 50, f: 1 } };
+    run(`data.dietEmptyDays = false; data.dietPlans = { d_p: { name: 'P', meals: [{ id: 'm1', name: 'Midi', items: [${JSON.stringify(it)}] }] } }; data.dietActive = 'd_p'`);
+    run(`dietToggleMeal(data, 'd_p', 'm1', dietDayKey())`);
+    const day = run('dietDayKey()');
+    assert.equal(run(`dietDayComplete(data, '${day}', 'd_p')`), true, 'repas cochés (règle des repas)');
+    assert.equal(run(`dietDayFinished(data, '${day}', 'd_p')`), false, 'plan perso sans objectif de calories : jamais fini (233 kcal)');
+    assert.equal(run(`dietProgressFinished(dietDayProgress(data, 'd_p', '${day}'))`), false);
+    run(`data.dietPlans.d_p.targets = { kcal: 246 }`);
+    assert.equal(run(`dietDayFinished(data, '${day}', 'd_p')`), false, '233 sur 246 : 94,7 %, pas encore');
+    run(`data.dietPlans.d_p.targets = { kcal: 245 }`);
+    assert.equal(run(`dietDayFinished(data, '${day}', 'd_p')`), true, '233 sur 245 : 95,1 %, atteint');
+    assert.equal(run('dietFinishedStreak(data)'), 1);
+    run(`data.dietPlans.d_p.targets = undefined; data.dietPlans.d_p.fromCoach = { coachId: 'c', name: 'max', sentAt: 1 }`);
+    assert.equal(run(`dietDayFinished(data, '${day}', 'd_p')`), true, 'menu du coach : tous les repas cochés');
+  });
 }
