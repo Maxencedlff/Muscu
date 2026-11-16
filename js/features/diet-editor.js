@@ -297,7 +297,7 @@ function dietTargetsEditHtml(t, total, kg) {
   const row = (k, label, unit) => {
     const dot = k === 'kcal' ? '' : `<i class="diet-dot diet-dot--${k}" aria-hidden="true"></i>`;
     const unitHtml = k === 'p' && kg
-      ? `<button type="button" class="diet-field__unitbtn" data-tunit aria-label="Saisir en grammes par kilo">g</button>`
+      ? `<button type="button" class="diet-field__unitbtn" data-tunit aria-label="g : grammes. Toucher pour passer en g/kg">g</button>`
       : `<span class="diet-field__unit" aria-hidden="true">${unit}</span>`;
     return `<label class="diet-field"><span class="diet-field__label">${dot}${label}</span>
         <input id="dietT_${k}" class="diet-field__input num" type="text" inputmode="${k === 'p' ? 'decimal' : 'numeric'}" autocomplete="off"
@@ -333,8 +333,8 @@ function dietTargetsAskHtml(pre) {
       <p class="diet-tg__q">Ton objectif</p>
       ${seg('goal', Object.entries(DIET_EST_GOALS).map(([k, g]) => [k, g.label]), pre.goal, 'Ton objectif')}
       <p class="diet-tg__q">Ton activité</p>
-      <label class="diet-field"><span class="sr-text">Ton activité</span>
-        <select id="dietEAct" class="diet-field__input diet-field__select diet-tg__select">
+      <label class="diet-field">
+        <select id="dietEAct" class="diet-field__input diet-field__select diet-tg__select" aria-label="Ton activité">
           ${options}
         </select>${icon('chevron.up.chevron.down', 14)}</label>
       <p class="diet-tg__q">Toi</p>
@@ -398,7 +398,8 @@ async function dietTargetsSheet(plan) {
   const paintP = () => {
     if (!unitBtn) return;
     unitBtn.textContent = perKg ? 'g/kg' : 'g';
-    unitBtn.setAttribute('aria-label', perKg ? 'Unité : grammes par kilo. Toucher pour saisir en grammes' : 'Unité : grammes. Toucher pour saisir en grammes par kilo');
+    // Intitulé qui commence par le texte affiché (« g », « g/kg ») : Contrôle vocal et axe (label-content-name-mismatch)
+    unitBtn.setAttribute('aria-label', perKg ? 'g/kg : grammes par kilo. Toucher pour passer en g' : 'g : grammes. Toucher pour passer en g/kg');
     pIn.setAttribute('aria-label', `Protéines par jour, en ${perKg ? 'grammes par kilo de poids du corps' : 'grammes'}. Vide : aucun objectif`);
     const raw = pIn.value.trim(), kgTxt = `${fmtNum(kg, 1)} kg (Réglages)`;
     let line = '';
