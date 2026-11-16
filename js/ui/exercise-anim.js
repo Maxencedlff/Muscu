@@ -97,7 +97,7 @@ function howToHtml(name) {
       ${more > 0 ? `<button class="howto__more" data-action="howto-more" aria-label="Plus : ${more} autre${more > 1 ? 's' : ''} étape${more > 1 ? 's' : ''}">Plus</button>` : ''}` : ''}
     </div>`;
 }
-// Erreur fréquente : une cellule avec le triangle d'avertissement (gris, jamais le rouge des muscles), en tête de « À propos » ; '' sans consignes
+// Erreur fréquente : une cellule avec le triangle d'avertissement (gris, jamais le rouge des muscles), sous « Comment faire » ; '' sans consignes
 function howToTipHtml(name) {
   const how = exerciseHowTo(name);
   if (!how?.mistake) return '';

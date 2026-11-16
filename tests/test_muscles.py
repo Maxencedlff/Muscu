@@ -899,7 +899,11 @@ def t_fiche(bench, eng, dev, theme):
         R.check(tab_ok(page), f'{t} onglets : aucun nom coupé')
         # Conseil mis en avant, puis 2 consignes et « Plus » qui déplie le reste
         R.check('Erreur fréquente' in page.inner_text('#expanel-about .extip') and page.locator('.extip .icon--exclamationmark-triangle').count() == 1,
-                f'{t} conseil en tête d\'À propos, triangle d\'avertissement (pas le « i » d\'info)')
+                f'{t} conseil dans À propos, triangle d\'avertissement (pas le « i » d\'info)')
+        # Panel « yeux neufs » du 16/11 : « Comment faire » en tête d'À propos, avant l'erreur fréquente, visible sans défiler
+        first = page.evaluate("document.querySelector('#expanel-about > .group-title')?.textContent.trim()")
+        howto_top = page.evaluate("document.querySelector('#expanel-about .howto').getBoundingClientRect().top < document.querySelector('#expanel-about .extip').getBoundingClientRect().top")
+        R.check(first == 'Comment faire' and howto_top, f'{t} « Comment faire » en tête d\'À propos ({first!r})')
         # Affiche en vraie image sur l'animation : jamais de carré noir avant la première image
         R.check(page.locator('.exhero .exvideo__poster').count() == 1 and page.get_attribute('.exhero .exvideo__poster', 'src') == 'img/anim/squat-barre.webp',
                 f'{t} affiche de l\'animation en image')
