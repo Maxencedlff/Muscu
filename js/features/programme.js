@@ -257,10 +257,16 @@ function renderProgAdd() {
     <div class="view prog-add view--grouped">
       ${navBar({ title: 'Ajouter un programme' })}
       <div class="scr">
-        <div class="group">
+        <div class="group plist">
+          <button class="cell cell--nav" data-action="go-prog-gen">
+            ${progListIconHtml('slider.horizontal.3')}
+            <span class="cell__body"><span class="cell__title">Créer mon programme sur mesure</span>
+              <span class="cell__sub">Selon ton temps, ton matériel et ton objectif</span></span>
+            ${icon('chevron.right', 16)}
+          </button>
           <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
         </div>
-        <div class="group-foot">Tes séances et tes exercices, vide ou à partir d'un programme existant.</div>
+        <div class="group-foot">Sur mesure : quelques questions, puis un programme que tu peux modifier. Sinon tes séances et tes exercices, vide ou à partir d'un programme existant.</div>
         <div class="group-title">Tous les programmes</div>
         <div class="group">${catalogueProgrammeIds().map(row).join('')}</div>
       </div>

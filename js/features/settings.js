@@ -205,7 +205,7 @@ function profileAgeHeightHtml() {
   const cell = (action, ico, title, value, spoken) => `<button class="cell cell--nav" data-action="${action}">
             ${cellIco(ico, 'gray')}
             <span class="cell__body"><span class="cell__title">${title}</span>
-              <span class="cell__sub">Objectifs de nutrition, sur cet iPhone seulement</span></span>
+              <span class="cell__sub">Nutrition et programme sur mesure, sur cet iPhone</span></span>
             <span class="cell__value num"${value ? '' : ' aria-label="Non renseigné"'}>${value ? esc(value) : '—'}</span>
             ${icon('chevron.right', 16)}
           </button>`;
@@ -333,14 +333,14 @@ function settingsButtonHtml() {
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
   'set-profile-age': async () => {
-    const v = await askProfileNumber({ title: 'Âge', message: 'Facultatif. Reste sur cet iPhone : sert seulement à proposer tes objectifs de nutrition. Vide : effacé.',
+    const v = await askProfileNumber({ title: 'Âge', message: 'Facultatif. Reste sur cet iPhone : sert seulement à proposer tes objectifs de nutrition et à doser un programme sur mesure. Vide : effacé.',
       value: profileAge() ? String(profileAge()) : '', unit: 'ans', min: 10, max: 110 });
     if (v === undefined) return;
     if (v === null) delete data.birthYear; else data.birthYear = new Date().getFullYear() - v;
     save(); render();
   },
   'set-profile-height': async () => {
-    const v = await askProfileNumber({ title: 'Taille', message: 'Facultatif. Reste sur cet iPhone : sert seulement à proposer tes objectifs de nutrition. Vide : effacé.',
+    const v = await askProfileNumber({ title: 'Taille', message: 'Facultatif. Reste sur cet iPhone : sert seulement à proposer tes objectifs de nutrition et, avec ton poids, à choisir entre tractions et tractions assistées. Vide : effacé.',
       value: data.heightCm ? String(data.heightCm) : '', unit: 'cm', min: 100, max: 250 });
     if (v === undefined) return;
     if (v === null) delete data.heightCm; else data.heightCm = v;

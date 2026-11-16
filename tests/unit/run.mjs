@@ -88,6 +88,7 @@ const SCRIPTS = [
   'js/data/guide.js',
   'js/data/onboarding.js',
   'js/data/my-programmes.js',
+  'js/data/program-generator.js',
   'js/data/food-swap.js',
   'js/data/food-scan.js',
   'js/ui/forms.js',
@@ -1926,6 +1927,8 @@ test('Native.sound.diagnostics : null hors app ou build sans la méthode, état 
 // ── Partage avec le coach : consentement, pesées envoyées, volume relu avec le poids (tests dans coach-share.mjs) ──
 (await import('./coach-share.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Planification du coach : phases, semaines, chevauchement, nettoyage (tests dans coach-plan.mjs) ──
+// ── Générateur de programme sur mesure (tests dans program-generator.mjs) ──
+(await import('./program-generator.mjs')).default({ test, run, reset, assert, sameJSON });
 (await import('./coach-plan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Progression des élèves : signal, semaines, phases, tri, faits du serveur (tests dans coach-progress.mjs) ──
 (await import('./coach-progress.mjs')).default({ test, run, assert, sameJSON, ROOT });

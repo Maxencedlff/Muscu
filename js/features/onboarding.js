@@ -111,6 +111,7 @@ const ONB_STEPS = {
       <p class="onb__label" id="onbBodies">Muscles travaillés. Touche ta silhouette.</p>
       <div class="onb__bodies" role="group" aria-labelledby="onbBodies">${onbBodiesHtml(programmeMuscleLevels(id))}</div>
       <div class="group onb__group">${programmeSessionsHtml(id)}</div>
+      <button class="auth__skip onb__custom" data-action="onb-custom">Créer mon programme sur mesure</button>
       <div class="onb__actions">
         <button class="btn btn--primary auth__primary" data-action="onb-start">Commencer</button>
         <button class="auth__skip" data-action="onb-others">Voir les autres programmes</button>
@@ -162,4 +163,7 @@ registerActions({
   'onb-start': () => { applyOnboarding(); haptic(); closeOnboarding(); render(); },
   // Conseil appliqué (actif, dans Mes programmes), puis le catalogue pour en essayer un autre
   'onb-others': () => { applyOnboarding(); closeOnboarding(); navigate('prog-add'); },
+  // Sur mesure (lien discret, jamais imposé) : conseil appliqué comme « Voir les autres », puis le générateur
+  // prérempli avec les trois réponses ; le quitter laisse le programme conseillé
+  'onb-custom': () => { const pre = { place: onb.place, perWeek: onb.perWeek, level: onb.level }; applyOnboarding(); closeOnboarding(); openProgGen(pre); },
 });

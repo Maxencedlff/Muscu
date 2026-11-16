@@ -720,6 +720,19 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 .prog-info__btn { width: 100%; border-radius: var(--r-pill); }
 .prog-info__state { margin: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--label2); font-size: var(--fs-body); }
 
+/* ── Programme sur mesure (js/features/program-generator-ui.js) : questions et aperçu ── */
+.gen-step { margin: 0 16px 6px; font-size: var(--fs-footnote); color: var(--label2); }
+.gen-lead { margin-top: 0; }
+.view--grouped .cell.gen-opt { min-height: 56px; }
+.gen-opt__title { font-weight: 600; }
+.gen-why { margin: 4px 16px 16px; font-size: var(--fs-body); line-height: 1.38; color: var(--label2); text-wrap: pretty; }
+.gen-why p { margin: 0; }
+.gen-why p + p { margin-top: 8px; }
+.gen-sess-title { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.gen-ex .cell__sub { font-size: var(--fs-subhead); line-height: 1.25; margin-top: 2px; }
+.gen-notes p { margin: 0; }
+.gen-notes p + p { margin-top: 6px; }
+
 /* ── Importer depuis une autre app (Hevy, Strong) : feuille d'aperçu et feuille de lien ── */
 .imp { color: var(--label); }
 .imp__lead { margin: 4px 0 12px; font-size: var(--fs-body); line-height: 1.38; color: var(--label2); text-wrap: pretty; }
