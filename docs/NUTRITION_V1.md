@@ -260,6 +260,15 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
   aliments, « Repas types (facultatif) : ce que tu manges d'habitude, pour le copier vite dans ta journée »,
   « Total des repas types », l'écart nommé « Tes repas types font… », « Vider les repas types » (un toucher, repas
   gardés, Annuler). Journal : « Copier le repas type ». Le plan d'un coach garde « Total prévu » et ses repas prévus.
+- **Balayer pour supprimer** (retour du 16/11 : « c'est mieux de slider plutôt que de faire Retirer ») : sur un aliment
+  du journal (prévu : retiré pour la journée ; ajouté : supprimé) et d'un repas type, balayer à gauche révèle
+  « Supprimer » ; au-delà de 60 % de la largeur, le lâcher supprime ; Annuler dans le toast. Axe verrouillé après
+  10 px (un défilement n'ouvre rien). VoiceOver : le toucher de la ligne ouvre son menu, « Retirer » en second
+  (`js/ui/swipe-row.js`, réutilisable par toute ligne `data-swipe-del`).
+- **Changer de jour sans redessiner l'écran** (retour du 16/11 : « ça fait un refresh pas beau ») : la frise et
+  « Revenir à aujourd'hui » remplacent la route sans transition (`navReplaceQuiet`) et seul le contenu sous la barre
+  change ; défilement, barre et grand titre gardés, léger fondu de 180 ms dans le sens du jour (coupé avec Réduire
+  les animations). Avant : transition d'écran complète et retour en haut.
 - **Calories fixées, pas une macro** (un coach fixe souvent kcal et protéines) : cette macro s'affiche sans repère
   ni jauge (« Pas d'objectif ») ; son total tiré du plan ne collerait pas aux calories fixées.
 - **Repas vides** (plan neuf pas encore rempli) : ni cochables, ni comptés dans « n repas cochés sur N » ou la

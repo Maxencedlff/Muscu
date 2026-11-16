@@ -229,7 +229,7 @@ function dietItemRowHtml(it, pr, day) {
   const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
   const note = !swap ? '' : qty ? `Prévu : ${dietQtyText(it)}` : `Remplace ${foodName(it.name)}`;
   return `
-            <button class="diet-item" data-action="diet-swap" data-item="${esc(it.id)}" data-day="${day}"
+            <button class="diet-item" data-action="diet-swap" data-swipe-del="diet-item-del" data-item="${esc(it.id)}" data-day="${day}"
               aria-label="${esc(foodName(eat.name))}, ${esc(dietQtySpoken(eat))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}${swap ? `, ${qty ? `prévu ${esc(dietQtySpoken(it))}` : `remplace ${esc(foodName(it.name))}`}` : ''}. Modifier">
               ${dietFoodIconHtml(eat)}
               <span class="diet-item__body">
@@ -245,7 +245,7 @@ function dietExtraRowHtml(it, meal, day) {
   const m = dietItemMacros(it), when = !day || day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
   const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
   return `
-            <button class="diet-item diet-item--extra" data-action="diet-extra" data-meal="${esc(meal.id)}" data-extra="${esc(it.id)}" data-day="${day}"
+            <button class="diet-item diet-item--extra" data-action="diet-extra" data-swipe-del="diet-extra-del" data-meal="${esc(meal.id)}" data-extra="${esc(it.id)}" data-day="${day}"
               aria-label="${esc(foodName(it.name))}, ${esc(dietQtySpoken(it))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}, ajouté ${when}, hors plan. Modifier">
               ${dietFoodIconHtml(it)}
               <span class="diet-item__body">
@@ -459,9 +459,34 @@ function renderNutrition(dayParam) {
     </div>`;
 }
 SCREENS.set('nutrition', { render: day => renderNutrition(day), enter: () => { loadFoods(); dietMaybeAskConsent(); } });
+// Changer de jour dans Nutrition (frise, « Revenir à aujourd'hui ») : seule la partie du jour change. Avant le 16/11, la
+// route remplacée relançait la transition d'écran (tout l'écran glissait, le défilement revenait en haut, le grand titre
+// réapparaissait) : « ça fait un refresh pas beau ». Désormais la barre et le défilement restent, le contenu sous la
+// frise arrive en fondu avec un petit glissement dans le sens du jour choisi (180 ms, coupé avec Réduire les animations)
+function dietSwapDay(route) {
+  const scr = $('.nutrition-view .scr'), from = dietRouteDay(routeParams(currentRoute())[0]);
+  navReplaceQuiet(route);
+  if (!scr) { render(); return; }
+  const to = dietRouteDay(routeParams(route)[0]), y = window.scrollY;
+  const focusDay = document.activeElement?.closest?.('.diet-week__day')?.dataset.day;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = renderNutrition(routeParams(route)[0]);
+  const fresh = $('.scr', tmp);
+  if (!fresh) { render(); return; }
+  frTypoNode(fresh);
+  scr.replaceChildren(...fresh.childNodes);
+  window.scrollTo(0, y);
+  if (focusDay) scr.querySelector(`.diet-week__day[data-day="${focusDay}"]`)?.focus({ preventScroll: true });
+  if (reduceMotion.matches || to === from) return;
+  const dx = to < from ? -12 : 12;
+  for (const el of scr.children) {
+    if (el.classList.contains('diet-week')) continue;
+    el.animate?.([{ opacity: 0.6, transform: `translateX(${dx}px)` }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });   // jamais d'écran vide : on part de 60 %
+  }
+}
 function dietGoToday() {
   dietPick = null;
-  if (currentView() === 'nutrition') navigate('nutrition', { replace: true });
+  if (currentView() === 'nutrition') dietSwapDay('nutrition');
 }
 
 // ── Accueil : carte du jour ─────────────────────────────────
@@ -632,7 +657,7 @@ registerActions({
     const day = el.dataset.day, today = dietDayKey();
     dietPick = day === today ? null : { day, today, at: Date.now() };
     const route = day === dietDayKey() ? 'nutrition' : makeRoute('nutrition', day);
-    navigate(route, { replace: routeName(currentRoute()) === 'nutrition' });
+    if (routeName(currentRoute()) === 'nutrition') dietSwapDay(route); else navigate(route);
   },
   // Cocher : un seul toucher, retour haptique ; journée complète : petit son de réussite
   'diet-check': (e, el) => {
@@ -702,6 +727,20 @@ registerActions({
     render();
   },
   'diet-swap': async (e, el) => { await dietSwapSheet(el.dataset.item, el.dataset.day || dietDayKey()); },
+  // Balayé vers la gauche (js/ui/swipe-row.js) : aliment prévu retiré pour la journée, ajout du jour supprimé ; Annuler
+  'diet-item-del': (e, el) => {
+    const day = el.dataset.day || dietDayKey(), it = dietActivePlan(data)?.meals.flatMap(m => m.items).find(x => x.id === el.dataset.item);
+    if (it) dietRemovePlanItem(data.dietActive, it, day);
+  },
+  'diet-extra-del': (e, el) => {
+    const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
+    const it = (dietDay(data, planId, day).extras[mealId] || []).find(x => x.id === el.dataset.extra);
+    if (!it || !dietSetExtra(data, planId, mealId, it.id, null, day)) return;
+    save(); haptic('light'); render();
+    showToast(`Supprimé : ${foodName(it.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      dietAddExtra(data, planId, mealId, it, day); save(); render(); announce(`Remis : ${foodName(it.name)}`);
+    } });
+  },
   'diet-today': () => { dietGoToday(); announce('Aujourd\'hui'); },
   'diet-restore': (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey();

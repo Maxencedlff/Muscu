@@ -200,3 +200,14 @@ html.type-xl .review-rec__val { flex: 1 0 100%; padding-left: 34px; white-space:
 .min-build__btn { width: 100%; }
 .min-build__note { margin: var(--sp-3) 0 0; color: var(--label2); font-size: var(--fs-footnote); }
 @media (prefers-reduced-motion: reduce) { .min-build { animation: none; } }
+
+/* Balayer pour supprimer (js/ui/swipe-row.js) : la ligne glisse, « Supprimer » rouge dessous comme les listes d'iOS ;
+   balayée au-delà de 60 %, le bouton s'étend (le lâcher supprime). Défilement vertical laissé au navigateur */
+[data-swipe-del] { touch-action: pan-y; }
+.swipe-on { z-index: 1; background: var(--cell); transition: transform .2s ease-out; }
+.swipe-drag { transition: none; }
+.swipe-del { position: absolute; right: 0; z-index: 0; display: flex; align-items: center; justify-content: flex-end; padding: 0 16px;
+  border: none; background: var(--red); color: var(--white); font: 400 var(--fs-callout) -apple-system, system-ui, sans-serif; cursor: pointer; min-width: 0;
+  white-space: nowrap; transition: width .2s ease-out; }
+.swipe-del--full { justify-content: flex-start; }
+@media (prefers-reduced-motion: reduce) { .swipe-on, .swipe-del { transition: none; } }

@@ -80,7 +80,7 @@ function dietPlanItemCell(plan, meal, it, ro) {
       <span class="cell__sub num">${dietSrPair(`${esc(dietQtyText(it))} · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`,
         `${esc(dietQtySpoken(it))}, ${dietN(m.kcal)} kilocalories${it.ecalc ? ' calculées' : ''}, ${dietMacroGramsSpoken(m)}`)}</span></span>`;
   return ro ? `<div class="cell">${inner}</div>`
-    : `<button class="cell cell--nav" data-action="diet-item-menu" data-meal="${esc(meal.id)}" data-item="${esc(it.id)}">${inner}${icon('chevron.right', 16)}</button>`;
+    : `<button class="cell cell--nav" data-action="diet-item-menu" data-swipe-del="diet-plan-item-del" data-meal="${esc(meal.id)}" data-item="${esc(it.id)}">${inner}${icon('chevron.right', 16)}</button>`;
 }
 
 function renderDietPlan(id) {
@@ -619,6 +619,21 @@ registerActions({
       meal.items = meal.items.filter(x => x !== it);
     } else return;
     dietSaved();
+  },
+  // Balayé vers la gauche (js/ui/swipe-row.js) : retiré du repas, Annuler le remet à sa place
+  'diet-plan-item-del': (e, el) => {
+    const ed = dietEditedPlan(), meal = dietMealOf(ed?.plan, el.dataset.meal);
+    const i = meal ? meal.items.findIndex(x => x.id === el.dataset.item) : -1;
+    if (i < 0) return;
+    const [it] = meal.items.splice(i, 1);
+    haptic('light');
+    dietSaved();
+    showToast(`Retiré du repas : ${foodName(it.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      const m = dietMealOf(dietPlanOf(ed.id), meal.id);
+      if (!m || m.items.some(x => x.id === it.id)) return;
+      m.items.splice(Math.min(i, m.items.length), 0, it);
+      dietTouch(dietPlanOf(ed.id)); save(); render();
+    } });
   },
   'diet-duplicate': (e, el) => {
     if (!dietCanCreate(data, coachRole().isCoach)) {

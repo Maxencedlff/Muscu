@@ -1427,5 +1427,122 @@ def t_repas_types(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides, t_repas_hier, t_objectifs, t_repas_types],
+
+def swipe(page, sel, frac, dy=0):
+    """Balayage du doigt simulé par les événements pointer (souris de Playwright) : de 85 % de la largeur vers la gauche,
+    d'une fraction frac de la largeur ; dy : dérive verticale (défilement)."""
+    page.locator(sel).first.evaluate("e => e.scrollIntoView({ block: 'center' })")   # jamais sous la barre d'onglets
+    page.wait_for_timeout(100)
+    box = page.locator(sel).first.bounding_box()
+    x0, y0 = box['x'] + box['width'] * 0.85, box['y'] + box['height'] / 2
+    page.mouse.move(x0, y0)
+    page.mouse.down()
+    for i in range(1, 9):
+        page.mouse.move(x0 - box['width'] * frac * i / 8, y0 + dy * i / 8)
+        page.wait_for_timeout(16)
+    page.mouse.up()
+    page.wait_for_timeout(300)
+
+
+def t_balayage(bench, eng, dev, theme):
+    """Retour de Maxence du 16/11 : « pour retirer des aliments, c'est mieux de slider ». Balayer à gauche révèle
+    « Supprimer » (rouge, comme Mail) ; balayé jusqu'au bout, supprimé tout de suite ; Annuler dans le toast ; un
+    défilement vertical n'ouvre rien ; journal du jour et repas types."""
+    t = tag(dev, theme) + '-balayage'
+    d = json.loads(with_plan(NOW, {'2026-11-05': {'plan': 'd_masse01', 'done': [], 'swaps': {}, 'extras': {'m2': [food_item(OEUF, 100, 'x1')]}}}))
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, json.dumps(d, ensure_ascii=False))
+        page.click('.diet-home__open')
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        page.evaluate("dietOpenMeals.add('m2'); render()")
+        row = '.nutrition-view [data-swipe-del="diet-item-del"][data-item="i3"]'
+        page.wait_for_selector(row)
+        page.locator(row).scroll_into_view_if_needed()
+        removed = "dietDay(data, 'd_masse01', dietDayKey()).removed"
+        # Défilement vertical : rien ne s'ouvre
+        swipe(page, row, 0.05, dy=80)
+        R.check(page.locator('.swipe-del').count() == 0 and page.evaluate(removed) == [], f'{t} geste vertical : aucune ligne ouverte')
+        # Balayage court : « Supprimer » révélé, rien de supprimé
+        swipe(page, row, 0.3)
+        R.check(page.locator('.swipe-del').count() == 1 and nb(page.inner_text('.swipe-del')) == 'Supprimer' and page.evaluate(removed) == [],
+                f'{t} balayage court : « Supprimer » révélé')
+        shot(page, LOT, f'b1-balayage-{t}')
+        tx = page.evaluate(f"getComputedStyle(document.querySelector('{row}')).transform")
+        R.check('matrix' in tx, f'{t} ligne décalée ({tx})')
+        page.click('.swipe-del')
+        page.wait_for_timeout(300)
+        R.check(page.evaluate(removed) == ['i3'] and 'Annuler' in toast(page), f'{t} « Supprimer » : retiré pour la journée, Annuler ({toast(page)!r})')
+        page.locator('.toast__action').click()
+        page.wait_for_timeout(300)
+        R.check(page.evaluate(removed) == [], f'{t} Annuler : remis')
+        # Balayé jusqu'au bout : supprimé sans second toucher (ajout du jour)
+        extra = '.nutrition-view [data-swipe-del="diet-extra-del"][data-extra="x1"]'
+        page.wait_for_selector(extra)
+        page.locator(extra).scroll_into_view_if_needed()
+        swipe(page, extra, 0.8)
+        R.check(page.evaluate("(dietDay(data, 'd_masse01', dietDayKey()).extras.m2 || []).length") == 0 and 'Annuler' in toast(page),
+                f'{t} balayé jusqu\'au bout : ajout supprimé, Annuler')
+        # Une ligne ouverte se referme d'un toucher, sans ouvrir le menu
+        swipe(page, row, 0.3)
+        page.locator(row).click()
+        page.wait_for_timeout(300)
+        R.check(page.locator('.swipe-del').count() == 0 and page.locator('.diet-swap').count() == 0, f'{t} toucher une ligne ouverte : refermée, rien d\'ouvert')
+        # Repas types (éditeur du plan) ; le toast précédent ne doit pas couvrir la ligne
+        open_editor(page)
+        page.evaluate("dropScreenToast()")
+        page.wait_for_timeout(300)
+        cell = '.diet-plan-view [data-swipe-del="diet-plan-item-del"][data-item="i1"]'
+        page.locator(cell).scroll_into_view_if_needed()
+        swipe(page, cell, 0.8)
+        ids = "data.dietPlans.d_masse01.meals[0].items.map(i => i.id)"
+        R.check(page.evaluate(ids) == ['i2'], f'{t} repas type : aliment retiré d\'un balayage ({page.evaluate(ids)})')
+        page.locator('.toast__action').click()
+        page.wait_for_timeout(300)
+        R.check(page.evaluate(ids) == ['i1', 'i2'], f'{t} Annuler : remis à sa place')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+
+def t_changer_jour(bench, eng, dev, theme):
+    """Retour de Maxence du 16/11 : « quand on veut voir le jour d'avant, ça fait un refresh pas beau ». La vue n'est plus
+    recréée : barre et grand titre gardés, défilement gardé, seul le contenu du jour change (fondu de 180 ms)."""
+    t = tag(dev, theme) + '-jour'
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, with_plan(NOW, {'2026-11-04': {'plan': 'd_masse01', 'done': ['m1', 'm2'], 'swaps': {}}}))
+        page.click('.diet-home__open')
+        page.wait_for_selector('.nutrition-view .diet-week')
+        page.evaluate("document.querySelector('.nutrition-view').__garde = 1; document.querySelector('.nutrition-view .navbar').__garde = 1")
+        page.evaluate("window.scrollTo(0, 120)")
+        page.wait_for_timeout(150)
+        y0 = page.evaluate('Math.round(window.scrollY)')
+        title0 = page.inner_text('.diet-plan-from')
+        # Toucher sans défilement automatique de Playwright (la frise est sous la barre une fois l'écran défilé)
+        page.evaluate("""document.querySelector('.diet-week__day[data-day="2026-11-04"]').click()""")
+        frames = []
+        for k in range(3):
+            frames.append(page.screenshot(path=shot_path(LOT, f'j{k + 1}-jour-avant-{t}')))   # suite d'images pendant le fondu
+            page.wait_for_timeout(60)
+        kept = page.evaluate("[document.querySelector('.nutrition-view')?.__garde, document.querySelector('.nutrition-view .navbar')?.__garde]")
+        R.check(kept == [1, 1], f'{t} vue et barre gardées, pas recréées ({kept})')
+        y1 = page.evaluate('Math.round(window.scrollY)')
+        R.check(abs(y1 - y0) <= 1 and y0 > 0, f'{t} défilement gardé ({y0} → {y1})')
+        R.check(page.inner_text('.diet-plan-from') != title0 and page.evaluate("location.hash").endswith('2026-11-04'),
+                f'{t} jour choisi affiché, adresse à jour ({page.evaluate("location.hash")})')
+        R.check(page.locator('.diet-week__day[data-day="2026-11-04"][aria-pressed="true"]').count() == 1, f'{t} frise : jour choisi coché')
+        page.click('[data-action="diet-today"]')
+        page.wait_for_timeout(300)
+        R.check(page.evaluate("document.querySelector('.nutrition-view').__garde") == 1 and not page.evaluate("location.hash").endswith('2026-11-04'),
+                f'{t} « Revenir à aujourd\'hui » : même vue')
+        # Retour arrière puis retour sur Nutrition : l'écran se redessine normalement
+        page.evaluate("goBack()")
+        page.wait_for_timeout(400)
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+
+def shot_path(lot, name):
+    d = os.path.join(SHOTS, 'lot%s' % lot)
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, name.replace(' ', '_').replace('+', 'plus') + '.png')
+
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides, t_repas_hier, t_objectifs, t_repas_types, t_balayage, t_changer_jour],
          once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier, t_minuit, t_vague4_six_repas, t_vague4_plein])

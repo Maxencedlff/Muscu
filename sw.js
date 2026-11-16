@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v191';
+const CACHE = 'ppl-v193';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/data/exercise-videos.json', '/data/foods.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
@@ -18,7 +18,7 @@ const ASSETS = [
   '/js/data/exercise-videos.js', '/js/data/exercise-anims.js',
   '/js/data/food-portions.js', '/js/data/nutrition.js', '/js/data/diet-estimate.js', '/js/data/food-swap.js', '/js/data/food-scan.js', '/js/data/coach-diet.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
-  '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/body-tip.js', '/js/ui/exercise-anim.js', '/js/ui/exercise-video.js', '/js/ui/medal.js', '/js/ui/vivant.js', '/js/ui/vivant-nutrition.js', '/js/ui/vivant-coach.js',
+  '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/swipe-row.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/body-tip.js', '/js/ui/exercise-anim.js', '/js/ui/exercise-video.js', '/js/ui/medal.js', '/js/ui/vivant.js', '/js/ui/vivant-nutrition.js', '/js/ui/vivant-coach.js',
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',
   '/js/features/dashboard.js', '/js/features/programme.js', '/js/features/programme-editor.js', '/js/features/custom-session.js',
   '/js/features/session.js', '/js/features/rest.js', '/js/features/effort.js', '/js/features/effort-tempo.js', '/js/features/effort-machine.js', '/js/features/rest-activity.js', '/js/features/watch.js', '/js/features/home-widget.js', '/js/features/siri.js', '/js/features/session-sheets.js', '/js/features/session-tools.js', '/js/features/supersets-ui.js', '/js/features/grip-ui.js', '/js/features/session-notes.js', '/js/features/session-order-ui.js', '/js/features/session-gestures.js', '/js/features/session-intensif.js',

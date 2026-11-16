@@ -145,6 +145,16 @@ function navigate(route, { replace = false } = {}) {
   navCommit(next, pushDir(route), replace ? 'replace' : 'push');
 }
 
+// Remplace l'écran courant par une autre route du même écran sans le redessiner : l'écran met lui-même à jour la
+// partie qui change (Nutrition, changement de jour : ni glissement de tout l'écran, ni retour en haut, retour du 16/11)
+function navReplaceQuiet(route) {
+  const next = navClone(nav), s = next.stacks[next.tab];
+  s[s.length - 1] = route;
+  nav = navSanitize(next);
+  navWrite('replace');
+  shownKey = navKey();
+}
+
 function goBack() {
   const s = nav.stacks[nav.tab];
   if (s.length < 2) return;
