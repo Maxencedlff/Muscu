@@ -99,8 +99,10 @@ const ONB_STEPS = {
     'Sur une semaine normale. C\'est aussi ton objectif sur l\'accueil.',
     ONB_FREQS.map(f => onbOption('onb-freq', f.n, f.label, '', onb.perWeek === f.n)).join('')),
 
-  level: () => onbQuestion('Ton niveau&nbsp;?', '',
-    Object.entries(ONB_LEVELS).map(([k, l]) => onbOption('onb-level', k, l.label, l.sub, onb.level === k)).join('')),
+  // Panel « yeux neufs » du 16/11 : qui vient de Strong ou de Hevy ne trouvait pas l'import (Réglages › Données seulement)
+  level: () => `${onbQuestion('Ton niveau&nbsp;?', '',
+    Object.entries(ONB_LEVELS).map(([k, l]) => onbOption('onb-level', k, l.label, l.sub, onb.level === k)).join(''))}
+      <button class="auth__skip onb__import" data-action="onb-import">Tu viens de Strong ou Hevy&nbsp;? Importer ton historique</button>`,
 
   result: () => {
     const id = recommendProgramme(onb);
@@ -160,6 +162,9 @@ registerActions({
     haptic();
   },
   'onb-start': () => { applyOnboarding(); haptic(); closeOnboarding(); render(); },
+  // Import Strong / Hevy : réponses données appliquées (niveau sans réponse : déjà entraîné, recommendProgramme), puis le
+  // choix du fichier, dans le même toucher (iOS n'ouvre le sélecteur de fichiers que sur un geste)
+  'onb-import': () => { applyOnboarding(); closeOnboarding(); render(); handleAction(null, null, 'import-other-app'); },
   // Conseil appliqué (actif, dans Mes programmes), puis le catalogue pour en essayer un autre
   'onb-others': () => { applyOnboarding(); closeOnboarding(); navigate('prog-add'); },
 });

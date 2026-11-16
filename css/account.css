@@ -333,6 +333,8 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
 /* Le bord bas (safe area) est couvert par le fond du bloc collé, pas par le calque : sinon un bout de la liste passait
    SOUS « Voir les autres programmes » (Duo en paysage, panel v4 t1). Les questions, sans bloc collé, gardent la marge. */
 .onb { padding-bottom: 0; }
+/* « Tu viens de Strong ou Hevy ? » sous les niveaux : lien discret, aligné sur la liste */
+.onb__import { align-self: flex-start; margin-top: 12px; padding: 0 4px; text-align: left; font-size: var(--fs-subhead); }
 .onb__page:not(.onb__page--result) { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 /* Petite hauteur (iPhone SE, paysage) : silhouettes plus basses, boutons plus serrés, pour voir au moins une séance
    entière au-dessus de « Commencer » (on ne voyait qu'une demi-ligne « Push · pousser ») */
