@@ -78,11 +78,11 @@ registerActions({
     save();
     showToast(wasEdit ? 'Séance modifiée' : 'Séance créée');
     if (wasEdit) { goBack(); return; }
-    // Nouvelle séance : on enchaîne sur ses exercices, recherche ouverte. L'écran du nom est remplacé,
-    // le retour ramène donc à la liste des séances.
+    // Nouvelle séance : on enchaîne sur ses exercices, Bibliothèque ouverte en mode choix. L'écran du nom est
+    // remplacé, le retour ramène donc à la liste des séances.
     editorEditing = false;
     navigate(makeRoute('editor', id), { replace: true });
-    setTimeout(() => { if (currentRoute() === makeRoute('editor', id)) openAddExSheet({ target: 'programme' }); }, 380);
+    setTimeout(() => { if (currentRoute() === makeRoute('editor', id)) openLibPick(id); }, 380);
   },
   'delete-custom-session': async (e, el) => {
     // Depuis l'écran de la séance (data-id) ou depuis « Nom et description » (csEditId)

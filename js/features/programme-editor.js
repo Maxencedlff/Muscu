@@ -5,6 +5,7 @@
 
 let editorEditing = false;   // mode Modifier de la liste d'exercices
 let exDraft       = null;    // brouillon de l'écran Programme › Exercice (exDraft.route : son écran)
+let exQueue       = null;    // réglages enchaînés après un ajout multiple : { cat, ids, pos }
 
 // Séance éditée par Programme › Séance (« editor:CAT ») ou Programme › Exercice (« ex-edit:CAT:I ») :
 // celle de la route, ou la première séance du programme actif si elle n'en fait plus partie
@@ -24,13 +25,84 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, repFixed: fixedReps(ex) !== null, intens: cleanIntens(ex.intens), measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false, grip: cleanGrip(ex.grip) }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, repFixed: false, intens: null, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false, grip: null };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, repFixed: fixedReps(ex) !== null, intens: cleanIntens(ex.intens), measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false, grip: cleanGrip(ex.grip), equip: customEquipOf(ex.name) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, repFixed: false, intens: null, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false, grip: null, equip: null };
   exDraft._init = exDraftSnapshot(exDraft);
   return exDraft;
 }
 // Réglages du brouillon comparables (sans la route ni l'état initial) : sert à savoir s'il a changé
 function exDraftSnapshot(d) { const { route, _init, ...rest } = d; return JSON.stringify(rest); }
+
+// ── Ajout depuis la Bibliothèque (« lib-pick », js/features/library.js) : le réglage suit tout de suite ──
+// Retour de Maxence (16/11) : « quand tu ajoutes un exercice, il faut recliquer dessus pour le configurer ».
+// Un exercice : Programme › Exercice s'ouvre à sa place, nom rempli et valeurs par défaut (3 séries, 8 à 12 reps,
+// repos par défaut) ; « OK » l'ajoute, « Annuler » n'ajoute rien. Plusieurs : tous ajoutés d'un coup avec ces valeurs
+// (rien n'est perdu si l'on s'arrête), puis leurs réglages l'un après l'autre (« 1 sur 3 », « Suivant »).
+// L'écran du choix est remplacé : OK, Annuler ou le retour ramènent à la séance.
+function progPickExercises(cat, names) {
+  if (names.length === 1) { openExEditNew(cat, names[0]); return; }
+  const list = prog().exercises[cat] || (prog().exercises[cat] = []);
+  const ids = [];
+  names.forEach(name => {
+    if (list.some(e => sameExerciseName(e.name, name))) return;
+    const ex = makeExercise(name, 3);
+    const known = resolveExId(data.activeProgramme, cat, name);   // supprimé puis repris : même suivi (comme save-ex)
+    if (!list.some(e => e.id === known)) ex.id = known;
+    list.push(ex);
+    ids.push(ex.id);
+  });
+  if (!ids.length) { showToast('Déjà dans cette séance'); return; }
+  recomputePRFromHistory();
+  save();
+  haptic();
+  exDraft = null;
+  exQueue = ids.length > 1 ? { cat, ids, pos: 0 } : null;
+  navigate(makeRoute('ex-edit', cat, list.findIndex(e => e.id === ids[0])), { replace: true });
+}
+// Nouvel exercice (« Créer », ou un exercice choisi seul) : brouillon prérempli, puis l'écran à la place du choix
+function openExEditNew(cat, name = '') {
+  const route = makeRoute('ex-edit', cat);
+  exDraft = null; exQueue = null;
+  const d = exDraftFor(route);
+  name = String(name || '').trim();
+  d.name = name.charAt(0).toUpperCase() + name.slice(1);   // tapé en minuscules : « Hip thrust »
+  d.muscles = null;
+  d._init = exDraftSnapshot(d);   // rien de changé : « Annuler » ferme sans demander
+  navigate(route, { replace: true });
+}
+// Position dans les réglages enchaînés de l'écran affiché ({ pos, n }), null hors de cette suite
+function exQueueAt(route) {
+  if (!exQueue) return null;
+  const i = editExIdxOf(route), ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
+  return ex && editorCatOf(route) === exQueue.cat && ex.id === exQueue.ids[exQueue.pos] ? { pos: exQueue.pos, n: exQueue.ids.length } : null;
+}
+// Exercice suivant de la suite (un exercice supprimé entre-temps est sauté) ; false s'il n'y en a plus
+function exQueueNext() {
+  const list = prog().exercises[exQueue?.cat] || [];
+  while (exQueue && ++exQueue.pos < exQueue.ids.length) {
+    const i = list.findIndex(e => e.id === exQueue.ids[exQueue.pos]);
+    if (i >= 0) { navigate(makeRoute('ex-edit', exQueue.cat, i), { replace: true }); return true; }
+  }
+  exQueue = null;
+  return false;
+}
+
+// Matériel d'un exercice créé par la personne (la bibliothèque connaît déjà le sien) : sert aux filtres de matériel
+// de la Bibliothèque et de la feuille d'ajout. Rien de choisi : visible avec tous les filtres, comme avant.
+function exEquipHtml(d) {
+  const name = String(d.name || '').trim();
+  if (!name || catalogueEntry(name)) return '';
+  return `
+        <div class="group-title">Matériel</div>
+        <div class="group">
+          <div class="cell cell--ctl cell--wrap">
+            <div class="ax__equip ex-equip" role="group" aria-label="Matériel">
+              ${[{ id: '', label: 'Non précisé' }, ...EQUIPMENT].map(({ id, label }) => `<button class="ax__chip" aria-pressed="${(d.equip || '') === id}" data-action="ex-equip" data-equip="${id}">${esc(label)}</button>`).join('')}
+            </div>
+          </div>
+        </div>`;
+}
+function refreshExEquip() { const box = $('#exEquip'); if (box && exDraft) box.innerHTML = exEquipHtml(exDraft); }
 
 // Programme › Séance : exercices, récupération, repos, mode Modifier (glisser pour réordonner)
 function renderEditor() {
@@ -279,11 +351,13 @@ function renderExEdit() {
   const isEdit = editExIdx !== null;
   const d = exDraftFor(currentRoute());
   const restVal = d.rest ?? data.defaultRest;
+  const q = exQueueAt(currentRoute());   // ajout multiple : « 2 sur 3 », « Suivant » jusqu'au dernier
+  const more = q && q.pos < q.n - 1;
   return `
     <div class="view ex-edit view--grouped">
-      ${navBar({ title: isEdit ? 'Exercice' : 'Nouvel exercice',
+      ${navBar({ title: q ? `${q.pos + 1} sur ${q.n}` : isEdit ? 'Exercice' : 'Nouvel exercice',
           left: `<button class="navbar__text" data-action="cancel-ex">Annuler</button>`,
-          right: `<button class="navbar__text navbar__text--bold" data-action="save-ex">OK</button>` })}
+          right: `<button class="navbar__text navbar__text--bold" data-action="save-ex"${more ? ' aria-label="Suivant : enregistrer et régler l\'exercice suivant"' : ''}>${more ? 'Suivant' : 'OK'}</button>` })}
       <div class="scr">
         <div class="group-title">Nom</div>
         <div class="group">
@@ -294,6 +368,7 @@ function renderExEdit() {
         </div>
         <div id="exAlias">${aliasNoteHtml(d.name, 'group-foot ex-alias')}</div>
         ${renderExEditMuscles(d)}
+        <div id="exEquip">${exEquipHtml(d)}</div>
         <div class="group-title">Séance</div>
         <div class="group">
           <div class="cell cell--ctl">
@@ -371,6 +446,7 @@ document.addEventListener('input', e => {
   if (alias) alias.innerHTML = aliasNoteHtml(exDraft.name, 'group-foot ex-alias');
   refreshExEditMuscles();
   refreshExGrip();   // la prise proposée dépend du nom (js/features/grip-ui.js)
+  refreshExEquip();  // matériel : exercices hors bibliothèque seulement
 });
 
 // ── Actions ─────────────────────────────────────────────────
@@ -462,9 +538,14 @@ registerActions({
     exDraft = null;
     navigate(makeRoute('ex-edit', cat, i));
   },
-  'add-ex': () => {
-    // Même feuille de recherche que pendant la séance (bibliothèque + création)
-    openAddExSheet({ target: 'programme' });
+  // Même écran que la Bibliothèque (groupes illustrés, recherche, matériel), en mode choix
+  'add-ex': () => openLibPick(editorCatOf()),
+  'ex-equip': (e, el) => {
+    if (!exDraft) return;
+    exDraft.equip = el.dataset.equip || null;
+    refreshExEquip();
+    $(`#exEquip [data-equip="${el.dataset.equip}"]`)?.focus({ preventScroll: true });
+    haptic();
   },
   'ed-superset': () => editorSupersetCreate(editorCatOf()),
   'ex-ss-leave': () => {
@@ -500,7 +581,7 @@ registerActions({
     const [removed] = list.splice(i, 1);
     ssNormalize(list);
     save();
-    if (currentView() === 'ex-edit') { exDraft = null; goBack(); } else render();
+    if (currentView() === 'ex-edit') { exDraft = null; exQueue = null; goBack(); } else render();
     showToast(`« ${name} » supprimé`, { action: 'Annuler', duration: 5000, onAction: () => {
       if (list.includes(removed)) return;
       list.splice(Math.min(i, list.length), 0, removed);
@@ -514,7 +595,8 @@ registerActions({
     const fieldsChanged = ['#exName', '#exTarget', '#exRepMax', '#exTempoIn'].some(sel => { const f = $(sel); return f && f.value !== f.defaultValue; });
     const draftChanged = exDraft && exDraft._init !== exDraftSnapshot(exDraft);
     if ((fieldsChanged || draftChanged) && !(await confirmSheet('Abandonner les modifications ?', 'Les réglages de cet exercice ne seront pas enregistrés.', 'Abandonner'))) return;
-    exDraft = null;
+    // Ajout multiple : les exercices restants gardent leurs valeurs par défaut
+    exDraft = null; exQueue = null;
     goBack();
   },
   'save-ex': async () => {
@@ -603,7 +685,11 @@ registerActions({
       list.push(ex);
       recomputePRFromHistory();
     }
+    setCustomEquip(name, exDraft?.equip);
+    const queued = !!exQueueAt(route);
     exDraft = null; save();
+    if (queued && exQueueNext()) return;
+    exQueue = null;
     goBack();
   },
 });

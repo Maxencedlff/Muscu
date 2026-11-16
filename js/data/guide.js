@@ -223,14 +223,14 @@ const GUIDE_SECTIONS = [
         id: 'modifier-seance', title: 'Modifier une séance', icon: 'list.bullet', color: 'purple',
         lead: 'Dans l\'onglet [Programme], touche une séance pour voir et changer ses exercices.',
         steps: [
-          '[Ajouter un exercice] ouvre la recherche dans la bibliothèque.',
+          '[Ajouter un exercice] ouvre la bibliothèque. Touche un exercice : son réglage s\'ouvre, [OK] l\'ajoute. [Sélectionner] pour en prendre plusieurs.',
           '[Modifier] affiche la poignée ≡ pour changer l\'ordre, et le bouton − pour supprimer un exercice.',
           '[Récupération] : 24, 48, 72 ou 96 h avant que la séance soit de nouveau prête.',
           'Dans tes propres programmes, [Nom et description] et [Supprimer la séance] sont en bas de l\'écran.',
           'Depuis l\'accueil, [Modifier les exercices] ouvre directement la prochaine séance.',
         ],
         related: ['regler-exercice', 'recuperation'],
-        actions: ['open-prog-session', 'go-editor', 'add-ex', 'toggle-edit-mode', 'set-cooldown', 'del-ex'],
+        actions: ['open-prog-session', 'go-editor', 'add-ex', 'lib-pick', 'lib-pick-multi', 'lib-pick-create', 'toggle-edit-mode', 'set-cooldown', 'del-ex'],
       },
       {
         id: 'regler-exercice', title: 'Régler un exercice', icon: 'pencil', color: 'purple',

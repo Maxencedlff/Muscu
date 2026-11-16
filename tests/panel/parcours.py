@@ -346,6 +346,37 @@ def p_programme(r):
     with r.etape('seance', 'Une séance du programme', cle='Modifier un exercice du programme'):
         r.toucher('.view.programmes [data-action="open-prog-session"]', '1re séance')
         r.attendre('.view.editor', 'séance du programme')
+    # Retour de Maxence (16/11) : « Ajouter un exercice » ouvre la Bibliothèque illustrée, puis le réglage tout de suite
+    cle = 'Ajouter un exercice au programme'
+    with r.etape('ajout-biblio', 'Ajouter un exercice : la Bibliothèque en mode choix', cle=cle):
+        r.defiler('.view.editor [data-action="add-ex"]', 'Ajouter un exercice')
+        r.toucher('.view.editor [data-action="add-ex"]', 'Ajouter un exercice')
+        r.attendre('.view.library--pick', 'Bibliothèque en mode choix')
+    with r.etape('ajout-groupe', 'Ajouter : exercices du groupe Pectoraux', cle=cle):
+        r.toucher('.library--pick .mgcs .mgc[data-group="pectoraux"]', 'groupe Pectoraux')
+        r.attendre('#libList .mgc--ex', 'exercices illustrés')
+    with r.etape('ajout-reglage', 'Exercice touché : son réglage s\'ouvre, valeurs par défaut remplies', cle=cle):
+        r.toucher('.library--pick [data-action="lib-pick"]:not([aria-disabled])', '1er exercice pas encore dans la séance')
+        r.attendre('.view.ex-edit', 'réglage de l\'exercice')
+    with r.etape('ajout-ok', 'OK : l\'exercice rejoint la séance', cle=cle):
+        r.toucher('[data-action="save-ex"]', 'OK')
+        r.attendre('.view.editor', 'séance du programme')
+    cle = 'Ajouter plusieurs exercices au programme'
+    with r.etape('ajout-multiple', 'Sélectionner : deux exercices du groupe Bras cochés', cle=cle):
+        r.defiler('.view.editor [data-action="add-ex"]', 'Ajouter un exercice')
+        r.toucher('.view.editor [data-action="add-ex"]', 'Ajouter un exercice')
+        r.toucher('.library--pick [data-action="lib-pick-multi"]', 'Sélectionner')
+        r.toucher('.library--pick .mgcs .mgc[data-group="bras"]', 'groupe Bras')
+        r.toucher('.library--pick [data-action="lib-pick"][role="checkbox"]', '1er exercice')
+        r.toucher('.library--pick [data-action="lib-pick"][role="checkbox"]', '2e exercice', nth=1)
+    with r.etape('ajout-multiple-reglage', 'Ajouter (2) : réglage « 1 sur 2 », puis Suivant', cle=cle):
+        r.toucher('.library--pick [data-action="lib-pick-add"]', 'Ajouter (2)')
+        r.attendre('.view.ex-edit', 'réglage 1 sur 2')
+    with r.etape('ajout-multiple-fin', 'Réglage « 2 sur 2 », puis OK : retour à la séance', cle=cle):
+        r.toucher('[data-action="save-ex"]', 'Suivant')
+        r.attendre('.view.ex-edit', 'réglage 2 sur 2')
+        r.toucher('[data-action="save-ex"]', 'OK')
+        r.attendre('.view.editor', 'séance du programme')
     with r.etape('fiche-exercice', 'Fiche d\'un exercice (séries, repos, reps)', cle='Modifier un exercice du programme'):
         r.toucher('.view.editor [data-action="edit-ex"]', '1er exercice')
         r.attendre('.view.ex-edit', 'fiche de l\'exercice')

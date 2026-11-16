@@ -280,3 +280,18 @@ body.light .mpick__auto { background: var(--cell); }
 /* Valeur et chevron d'une rangée : un seul bloc, jamais le chevron seul à la ligne (texte agrandi) */
 .cell__trail { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap; }
 .cell__trail > .icon:last-child { color: var(--label3); }
+
+/* ── Bibliothèque en mode choix (Programme › Séance › Ajouter un exercice, « lib-pick ») ──
+   Même liste illustrée. Sélection multiple : case ronde à gauche comme Photos d'iOS, pleine (orange des actions)
+   une fois cochée. Exercice déjà dans la séance : grisé, sous-titre « Déjà dans la séance ». */
+.mgc--pick { padding-left: 52px !important; }
+.mgc__check {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%); z-index: 1;
+  display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid var(--label3); color: transparent;
+}
+.mgc__check .icon { width: 14px; height: 14px; }
+.mgc--pick[aria-checked="true"] .mgc__check { background: var(--tint-fill); border-color: var(--tint-fill); color: var(--on-tint); }
+.mgc--has .mgc__title, .mgc--has .mgc__img { opacity: .45; }
+.library--pick .lib-create { margin-top: 0; margin-bottom: 8px; }
+.type-xl .mgc--pick { padding-left: 48px !important; }
