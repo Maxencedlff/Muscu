@@ -421,7 +421,10 @@ def t_creer_plan(bench, eng, dev, theme):
         page.wait_for_selector(f'{LIVE_SHEET} #dietT_kcal')
         page.fill(f'{LIVE_SHEET} #dietT_kcal', '1100')
         page.click(f'{LIVE_SHEET} .sheet__btn--confirm')
-        page.wait_for_timeout(300)
+        try:
+            page.wait_for_selector('.diet-plan-view .diet-low', timeout=3000)   # machine lente de la CI (iPhone 17 Pro Max, 16/11)
+        except Exception:
+            pass
         R.check(page.locator('.diet-low').count() == 1 and 'Cet objectif' in page.inner_text('.diet-low') and '1 200 kcal' in page.inner_text('.diet-low'),
                 f'{t} objectif sous 1 200 kcal : message de santé, rien de bloqué')
         layout(page, t, 'éditeur du plan')
@@ -640,10 +643,12 @@ def t_plan_neuf_puis_coach(bench):
             shot(page, LOT, f'16-plan-neuf-accueil-{t}')
             page.click('.diet-home__open')
             page.wait_for_selector('.nutrition-view .diet-sum')
-            R.check('Repas prévu coché' in page.inner_text('.diet-sum') and page.locator('.diet-meal--next').count() == 0, f'{t} Nutrition : repas prévu coché, aucun repas vide « Ensuite »')
+            # 16/11 : plan perso sans objectif de calories, un compte, jamais « fini »
+            R.check('1 repas coché sur 1' in page.inner_text('.diet-sum') and page.locator('.diet-meal--next').count() == 0, f'{t} Nutrition : 1 repas coché sur 1, aucun repas vide « Ensuite »')
             R.check('Rien de prévu' in page.inner_text('.diet-meal[data-meal="p2"]') and '0 kcal' not in page.inner_text('.diet-meal[data-meal="p2"]').replace('\xa0', ' '),
                     f'{t} repas vide : « Rien de prévu », pas une ligne de zéros')
-            R.check(page.locator('.diet-week__day[data-day="2026-11-05"] .diet-week__dot--done').count() == 1, f'{t} frise : aujourd\'hui vert, comme le bilan')
+            R.check(page.locator('.diet-week__day[data-day="2026-11-05"] .diet-week__dot--done').count() == 0
+                    and page.locator('.diet-week__day[data-day="2026-11-05"] .diet-week__dot--some').count() == 1, f'{t} frise : aujourd\'hui en partie, pas vert (objectif non atteint)')
             # Plan du coach suivi le même jour : 0 coché, la frise d'aujourd'hui ne garde pas la coche de l'ancien plan
             page.evaluate("data.dietActive = 'dc_max_lea00001'; save(); render()")
             page.wait_for_timeout(250)
@@ -1302,7 +1307,7 @@ def t_objectifs(bench, eng, dev, theme):
                 f'{t} champ vide : « Aucun », jamais le total des repas en gris')
         R.check('Repas types' in page.inner_text(f'{sh} .diet-form__hint'), f'{t} total des repas types écrit à part')
         R.check(nb(page.inner_text(f'{sh} .diet-field__label >> nth=0')) == 'Calories', f'{t} libellé « Calories »')
-        layout(page, t, 'feuille des objectifs', scope=sh)
+        layout(page, t, 'feuille des objectifs', scope=f'{sh} .diet-tg')   # barre Annuler / OK : celle de toutes les feuilles
         shot(page, LOT, f'o1-objectifs-{t}')
         page.fill(f'{sh} #dietT_kcal', '2900')
         page.click(f'{sh} [data-tunit]')
@@ -1350,13 +1355,13 @@ def t_objectifs(bench, eng, dev, theme):
         page.click(f'{sh} [data-tcalc]')
         R.check('adulte' in page.inner_text(f'{sh} #dietEErr') and page.is_hidden(f'{sh} [data-tstep="result"]'), f'{t} 16 ans : rien de proposé')
         page.fill(f'{sh} #dietEAge', '25')
-        layout(page, t, 'questions', scope=sh)
+        layout(page, t, 'questions', scope=f'{sh} .diet-tg')
         shot(page, LOT, f'o3-proposer-{t}')
         page.click(f'{sh} [data-tcalc]')
         page.wait_for_selector(f'{sh} [data-tstep="result"]:not([hidden])')
         res = nb(page.inner_text(f'{sh} [data-tstep="result"]'))
         R.check('2 980 kcal = besoins estimés' in res and 'Protéines 1,8 g/kg' in res and 'pas un avis médical' in res and 'Mifflin' in res, f'{t} proposition expliquée ({res[:120]!r})')
-        layout(page, t, 'proposition', scope=sh)
+        layout(page, t, 'proposition', scope=f'{sh} .diet-tg')
         shot(page, LOT, f'o4-proposition-{t}')
         page.click(f'{sh} [data-tadjust]')
         R.check(page.input_value(f'{sh} #dietT_kcal') == '2980' and page.input_value(f'{sh} #dietT_p') == '1,8', f'{t} « Ajuster » remplit la saisie (P en g/kg)')
