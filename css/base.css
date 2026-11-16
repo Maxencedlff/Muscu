@@ -244,17 +244,17 @@ input, textarea, select { font-family: inherit; }
 /* Interrupteur inactif (état inconnu, compte sans adresse) : estompé comme un UISwitch désactivé ; le texte reste lisible */
 .cell:disabled .switch { opacity: .45; }
 
-/* Stepper « − | + » */
+/* Stepper « − | + » : 44 pt de haut, la cible entière visible (32 pt comme UIStepper paraissait petit au panel du 16/11,
+   réglage d'un exercice : séries et repos) */
 .stepper {
   display: flex; flex-shrink: 0;
-  width: 94px; height: 32px; border-radius: 8px; background: var(--fill);
+  width: 104px; height: 44px; border-radius: 10px; background: var(--fill);
 }
 .stepper button {
   flex: 1; position: relative; border: none; background: none; color: var(--label);
   display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
 .stepper button + button { border-left: .5px solid var(--sep); }
-.stepper button::after { content: ''; position: absolute; inset: -6px 0; } /* zone de tap de 44 px */
 .stepper button:active { opacity: .5; }
 
 /* Pastille de séance : point de la couleur de la séance (même taille que celui de l'Historique) */
