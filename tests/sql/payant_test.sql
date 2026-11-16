@@ -971,8 +971,9 @@ begin
   if pg_temp.perr($q$ update public.sessions set deleted_at = null, data = '{"date": 1790000000000}' where id = 'reserve-3' $q$) is distinct from 'ok' then raise 'abonné : sortie de corbeille refusée'; end if;
   if pg_temp.perr($q$ update public.sessions set id = 'renommee' where id = 'reserve-3' $q$) is distinct from 'ok' then raise 'abonné : renommage refusé'; end if;
   reset role;
-  -- Ordre des déclencheurs : le verrou des mises à jour passe AVANT sessions_touch
-  if (select array_agg(tgname::text order by tgname) from pg_trigger where tgrelid = 'public.sessions'::regclass and not tgisinternal and (tgtype & 16) <> 0)
+  -- Ordre des déclencheurs : le verrou des mises à jour passe AVANT sessions_touch (déclencheurs BEFORE ; ceux
+  -- d'APRÈS, comme la notification au coach, ne changent pas la ligne)
+  if (select array_agg(tgname::text order by tgname) from pg_trigger where tgrelid = 'public.sessions'::regclass and not tgisinternal and (tgtype & 16) <> 0 and (tgtype & 2) <> 0)
      is distinct from array['sessions_paywall_upd', 'sessions_touch'] then raise 'déclencheurs de mise à jour : %', (select array_agg(tgname) from pg_trigger where tgrelid = 'public.sessions'::regclass and not tgisinternal); end if;
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
 end $$;

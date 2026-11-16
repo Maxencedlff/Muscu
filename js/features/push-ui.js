@@ -68,7 +68,7 @@ function renderPushSettings() {
         <div class="group-title">M'avertir</div>
         <div class="group${blocked ? ' group--disabled' : ''}">${rows}
         </div>
-        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo de la personne, jamais le texte d'un commentaire ou d'un message. Les rappels de fin de repos ne changent pas.</div>
+        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo de la personne, jamais le texte d'un commentaire ou d'un message (pour la séance d'un élève : son nom et sa durée, jamais les charges). Les rappels de fin de repos ne changent pas.</div>
       </div></div>`;
 }
 
@@ -94,7 +94,10 @@ function openPushTarget(p) {
   if (t.tab === 'friends' || social) setSocialSeg(social ? 'friends' : 'students');
   switchTab(t.tab, { reset: true });
   // Social masqué par la tranche d'âge (js/data/age-range.js) : l'onglet seul, jamais un écran du social
-  if (t.screen && !(socialHiddenByAge() && String(t.screen).startsWith('social-'))) navigate(makeRoute(t.screen, ...t.params));
+  if (t.screen && !(socialHiddenByAge() && String(t.screen).startsWith('social-'))) {
+    if (t.via) navigate(makeRoute(...t.via));
+    navigate(makeRoute(t.screen, ...t.params));
+  }
   if (t.tab === 'friends') { if (!socialHiddenByAge()) socialRefresh(); coachRefresh(); }
 }
 Native.push.onTap(p => { try { openPushTarget(p); } catch { /* écran indisponible : l'app s'ouvre simplement */ } });
@@ -150,8 +153,8 @@ registerActions({
 const PUSH_ASK_TEXT = {
   student: { title: 'Être prévenu quand ton coach t’écrit ?',
     message: 'Aussi quand il commente une séance ou t’envoie un programme. La notification montre son pseudo, jamais le texte. Modifiable dans Réglages › Notifications.' },
-  coach: { title: 'Être prévenu quand un élève t’écrit ?',
-    message: 'La notification montre son pseudo, jamais le texte du message. Modifiable dans Réglages › Notifications.' },
+  coach: { title: 'Être prévenu quand un élève t’écrit ou termine une séance ?',
+    message: 'La notification montre son pseudo, le nom de la séance et sa durée ; jamais le texte d’un message ni les charges. Modifiable dans Réglages › Notifications.' },
 };
 let pushAsking = false;
 async function pushAskInContext(role, stillHere = () => true) {

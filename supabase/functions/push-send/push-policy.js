@@ -3,7 +3,8 @@
 //
 // 1. Contenu : un titre et une phrase en français, avec le seul pseudo de l'auteur (jamais le texte d'un
 //    commentaire, d'un message ni le nom d'un programme : l'écran verrouillé est visible par d'autres ; la
-//    file n'en a d'ailleurs pas copie). Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
+//    file n'en a d'ailleurs pas copie). Seule exception, la séance d'un élève (au coach) : son nom (label,
+//    40 caractères) et sa durée (minutes), relus par push_claim ; jamais une charge. Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
 //    ouvrir le bon écran au toucher (PushPlugin.swift) ; ref : séance, programme, ou conversation ('@coach' ou id de l'élève).
 // 2. Requête APNs (documentation Apple « Sending notification requests to APNs ») : HTTP/2, POST
 //    /3/device/<jeton>, en-têtes authorization (jeton du fournisseur), apns-push-type alert, apns-topic
@@ -28,11 +29,13 @@ export const NAME_MAX = 40;
 const TOKEN_RE = /^[0-9a-f]{64,200}$/;
 export const validDeviceToken = (t) => typeof t === 'string' && TOKEN_RE.test(t);
 
-// Pseudo affiché : texte brut, une ligne, borné ; sinon « Quelqu'un »
-function actorName(name) {
-  const s = typeof name === 'string' ? [...name].filter(c => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127).join('').trim() : '';
-  return s ? [...s].slice(0, NAME_MAX).join('') : 'Quelqu’un';
+// Texte brut, une ligne, borné ('' si vide)
+function plainLine(v, max) {
+  const s = typeof v === 'string' ? [...v].filter(c => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127).join('').trim() : '';
+  return [...s].slice(0, max).join('').trim();
 }
+// Pseudo affiché ; sinon « Quelqu'un »
+function actorName(name) { return plainLine(name, NAME_MAX) || 'Quelqu’un'; }
 
 export const PUSH_KINDS = Object.freeze({
   reaction:        (who) => ({ title: 'Bravo !', body: `${who} t\u2019a dit bravo pour ta séance` }),
@@ -41,6 +44,12 @@ export const PUSH_KINDS = Object.freeze({
   coach_programme: (who) => ({ title: 'Ton coach', body: `${who} t’a envoyé un programme` }),
   comment:         (who) => ({ title: 'Nouveau commentaire', body: `${who} a commenté ta séance` }),
   chat_message:    (who) => ({ title: 'Nouveau message', body: `${who} t’a envoyé un message` }),
+  // Séance d'un de mes élèves (coach) : nom de la séance et durée seulement, jamais une charge ni un exercice
+  student_session: (who, row = {}) => {
+    const label = plainLine(row.label, NAME_MAX);
+    const min = Number.isInteger(row.minutes) && row.minutes >= 1 && row.minutes <= 1440 ? ` · ${row.minutes} min` : '';
+    return { title: 'Séance terminée', body: `${who} a terminé ${label || 'une séance'}${min}` };
+  },
 });
 
 // Ligne de push_claim → { skip } ou { title, body, kind, ref }
@@ -54,7 +63,7 @@ export function pushMessage(row) {
   if (row.kind === 'coach_programme' && ref.startsWith('diet_')) {
     return { title: 'Ton coach', body: `${actorName(row.actor_name)} t’a envoyé un plan de nutrition`, kind: row.kind, ref };
   }
-  return { ...make(actorName(row.actor_name)), kind: row.kind, ref };
+  return { ...make(actorName(row.actor_name), row), kind: row.kind, ref };
 }
 
 // Requête HTTP vers APNs pour une ligne (message déjà construit par pushMessage)

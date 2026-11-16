@@ -19,6 +19,15 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(pushMessage(row({ kind: 'comment', ref: 's-2' })), { title: 'Nouveau commentaire', body: 'max.dlf a commenté ta séance', kind: 'comment', ref: 's-2' });
     const uid = '00000000-0000-0000-0000-0000000000aa';
     sameJSON(pushMessage(row({ kind: 'chat_message', ref: uid })), { title: 'Nouveau message', body: 'max.dlf t’a envoyé un message', kind: 'chat_message', ref: uid });
+    // Séance d'un élève (au coach) : nom et durée, rien d'autre
+    sameJSON(pushMessage(row({ kind: 'student_session', ref: `${uid}/s-1`, actor_name: 'lea', label: 'Push', minutes: 52 })),
+      { title: 'Séance terminée', body: 'lea a terminé Push · 52 min', kind: 'student_session', ref: `${uid}/s-1` });
+    assert.equal(pushMessage(row({ kind: 'student_session', actor_name: 'lea' })).body, 'lea a terminé une séance');
+    assert.equal(pushMessage(row({ kind: 'student_session', actor_name: 'lea', label: 'Jambes', minutes: 0 })).body, 'lea a terminé Jambes', 'durée hors bornes : omise');
+    assert.equal(pushMessage(row({ kind: 'student_session', actor_name: 'lea', minutes: '52' })).body, 'lea a terminé une séance', 'durée en texte : omise');
+    assert.equal(pushMessage(row({ kind: 'student_session', actor_name: 'lea', label: 'a\nb' + 'x'.repeat(80) })).body.length < 70, true, 'nom borné, une ligne');
+    const leak = pushMessage(row({ kind: 'student_session', actor_name: 'lea', label: 'Push', weight: '140', exercises: [{ name: 'Squat' }] }));
+    assert.ok(!/140|Squat/.test(JSON.stringify(leak)), 'aucune charge ni exercice');
     // La ligne de push_claim n'a jamais de texte saisi ; même si elle en avait, il ne partirait pas
     const sneaky = pushMessage(row({ kind: 'chat_message', ref: uid, body: 'texte privé', text: 'texte privé' }));
     assert.ok(!JSON.stringify(sneaky).includes('privé'), 'texte saisi dans la notification');
@@ -420,6 +429,11 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(t({ kind: 'chat_message', ref: student }), { tab: 'friends', screen: 'coach-chat', params: [student] }, 'coach : avec cet élève');
     sameJSON(t({ kind: 'chat_message', ref: '../x' }), { tab: 'friends', screen: null, params: [] }, 'ref inattendu : onglet Social');
     sameJSON(t({ kind: 'chat_message', ref: '' }), { tab: 'friends', screen: null, params: [] });
+    const st = '00000000-0000-0000-0000-0000000000c1';
+    sameJSON(t({ kind: 'student_session', ref: `${st}/s-1` }), { tab: 'friends', screen: 'coach-session', params: [st, 's-1'], via: ['coach-student', st] });
+    sameJSON(t({ kind: 'student_session', ref: `${st}/hk:a/b` }), { tab: 'friends', screen: 'coach-session', params: [st, 'hk:a/b'], via: ['coach-student', st] });
+    sameJSON(t({ kind: 'student_session', ref: st }), { tab: 'friends', screen: 'coach-student', params: [st] });
+    sameJSON(t({ kind: 'student_session', ref: 'pas-un-id/s-1' }), { tab: 'friends', screen: null, params: [] });
     assert.equal(t({ kind: 'inconnu' }), null);
     assert.equal(t(null), null);
   });
@@ -444,7 +458,12 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(D({ prefs: null }), 'skip', 'réglages illisibles');
     assert.equal(D({ role: 'autre' }), 'skip');
     sameJSON(run(`pushAskWanted('student', ${JSON.stringify(P5)})`), ['messages', 'coach', 'comments']);
-    sameJSON(run(`pushAskWanted('coach', ${JSON.stringify(P5)})`), ['messages', 'coach']);
+    sameJSON(run(`pushAskWanted('coach', ${JSON.stringify(P5)})`), ['messages', 'coach'], 'serveur sans les séances des élèves');
+    const P6 = { ...P5, student_sessions: false };
+    sameJSON(run(`pushAskWanted('coach', ${JSON.stringify(P6)})`), ['messages', 'coach', 'student_sessions']);
+    assert.equal(D({ role: 'coach', permission: 'granted', prefs: { ...P6, messages: true } }), 'ask', 'coach : messages allumés, pas les séances');
+    assert.equal(D({ role: 'coach', permission: 'granted', prefs: { ...P6, messages: true, student_sessions: true } }), 'done');
+    assert.equal(D({ role: 'student', permission: 'granted', prefs: { ...P6, messages: true } }), 'done', 'élève : les séances des élèves ne comptent pas');
     // Mémoire de l'iPhone
     run(`localStorage.removeItem('mdlf_push_ask'); pushAskLater(5); pushAskLater(9)`);
     sameJSON(run(`pushAskStored()`), { n: 2, at: 9 });

@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −8 | `20261116020000_notifications_seances_eleves_down.sql` | rien | oui (vérifié) |
 | −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
 | −5 | `20261106100000_seance_publique_intensif_prise_down.sql` | rien | oui (vérifié) |
@@ -15,7 +16,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | −3 | `20261105010000_partage_mensurations_down.sql` | plans diète du coach (−6) : il réécrit après lui la contrainte de `coach_shares.kind`, `share_kind_open` et `student_shares` | oui pour les autres lots (vérifié) ; l'accord des plans diète ne marche plus alors : défaire −6 avant |
 | −2 | `20261105000000_coach_planning_down.sql` | rien | oui (vérifié) |
 | −1 | `20261101000000_parrainage_payant_down.sql` | rien | oui (vérifié) |
-| 0a | `20261031910000_notifications_messages_down.sql` | rien | oui (vérifié) |
+| 0a | `20261031910000_notifications_messages_down.sql` | séances des élèves (−8) : elles remplacent ses fonctions | non |
 | 0 | `20261031900000_notifications_push_down.sql` | notifications des messages et commentaires (0a) : elles remplacent ses fonctions | non |
 | 1 | `20261031620000_strava_down.sql` (Strava en sommeil : migration à ne pas appliquer au lancement, docs/STRAVA.md) | rien | oui (vérifié) |
 | 2 | `20261031510000_chat_coach_down.sql` | notifications des messages (0a) : son déclencheur lit coach_messages | non |

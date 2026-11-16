@@ -364,7 +364,7 @@ def t_demande_eleve(bench, eng, dev, theme):
         calls = push_calls(page)
         R.check(calls.index('request') < calls.index('register') < next(i for i, c in enumerate(calls) if c.startswith('push_set_prefs')), f'{t} ordre : iOS, jeton, réglages {calls}')
         prefs = page.evaluate('__sb.push.prefs[__sb.meId()]')
-        R.check(prefs == {'reactions': False, 'follows': False, 'coach': True, 'comments': True, 'messages': True}, f'{t} messages, coach et commentaires ; le reste inchangé {prefs}')
+        R.check(prefs == {'reactions': False, 'follows': False, 'coach': True, 'comments': True, 'messages': True, 'student_sessions': False}, f'{t} messages, coach et commentaires ; le reste inchangé {prefs}')
         R.check(page.evaluate('__sb.push.devices')[FAKE_TOKEN] is not None, f'{t} appareil inscrit')
         R.check(page.locator('.chat-push-off').count() == 0, f'{t} accordé : pas de ligne « désactivées »')
         leave_chat(page)
@@ -465,12 +465,17 @@ def o_demande_coach(bench):
             page.evaluate("switchTab('friends', { reset: true }); navigate('coach-students')")
             page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
             txt = ask_sheet(page)
-            R.check('Être prévenu quand un élève t’écrit ?' in txt, f'{theme} coach : la question ({txt!r})')
+            R.check('Être prévenu quand un élève t’écrit ou termine une séance ?' in txt and 'jamais' in txt and 'charges' in txt, f'{theme} coach : la question ({txt!r})')
             shot(page, LOT, f'demande-coach-iPhone_13-{theme}')
             tap_dialog(page, 'Activer')
             page.wait_for_function("() => (__sb.push.prefs[__sb.meId()] || {}).messages === true", timeout=3000)
             prefs = page.evaluate('__sb.push.prefs[__sb.meId()]')
-            R.check(prefs == {'reactions': False, 'follows': False, 'coach': True, 'comments': False, 'messages': True}, f'{theme} coach : messages et coach seulement {prefs}')
+            R.check(prefs == {'reactions': False, 'follows': False, 'coach': True, 'comments': False, 'messages': True, 'student_sessions': True},
+                    f'{theme} coach : messages, coach et séances des élèves {prefs}')
+            # Réglages › Notifications : l'interrupteur des séances des élèves, montré au coach, allumé
+            page.evaluate("switchTab('train', { reset: true }); navigate('notifications')")
+            page.wait_for_selector('.push-view [data-kind="student_sessions"]')
+            R.check(page.get_attribute('[data-kind="student_sessions"]', 'aria-checked') == 'true', f'{theme} interrupteur « Séances de mes élèves » allumé')
             R.check(not page.errors, f'{theme} aucune erreur JS {page.errors}')
 
 
@@ -493,5 +498,26 @@ def o_demande_lien_accepte(bench):
         R.check(not page.errors, f'aucune erreur JS {page.errors}')
 
 
+def o_toucher_seance_eleve(bench):
+    """Coach : toucher « zoe a terminé Push » ouvre la fiche de zoe puis la séance (retour : la fiche)."""
+    with bench.page('webkit', 'iPhone 13', 'dark') as page:
+        open_app(page, 'dark', ppl_v2_today_json())
+        signin(page)
+        sid = page.evaluate("""async () => { const me = __sb.meId(); __sb.makeCoach(me);
+            const s = __sb.addPerson({ username: 'zoe', social: false, sessions: [{ id: 'z-1', date: Date.now() - 600e3, label: 'Push', exercises: [] }] });
+            __sb.link(me, s); await coachRefresh(); return s; }""")
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'student_session', 'ref': f'{sid}/z-1'})
+        page.wait_for_function("r => currentRoute() === r", arg=f'coach-session:{sid}:z-1', timeout=3000)
+        page.wait_for_timeout(500)
+        R.check(page.evaluate('nav.tab') == 'friends' and page.evaluate('friendsSeg()') == 'students', 'séance d\'élève : onglet Coach, segment Élèves')
+        R.check(page.locator('.coach-session-view').count() == 1 and 'plus disponible' not in page.inner_text('.coach-session-view'), f'la séance de zoe s\'affiche ({page.inner_text(".coach-session-view")[:80]!r})')
+        st = page.evaluate('nav.stacks[nav.tab]')
+        R.check(len(st) >= 2 and st[-2] == f'coach-student:{sid}', f'retour : la fiche de zoe {st}')
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'student_session', 'ref': sid})
+        page.wait_for_function("r => currentRoute() === r", arg=f'coach-student:{sid}', timeout=3000)
+        R.check(True, 'id de l\'élève seul : sa fiche')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+
+
 run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_ancien_serveur, t_absent, t_toucher, t_sommeil, t_demande_eleve, t_demande_refusee],
-         once=[o_coach_segment, o_demande_plus_tard, o_demande_premier_lancement, o_demande_coach, o_demande_lien_accepte])
+         once=[o_coach_segment, o_demande_plus_tard, o_demande_premier_lancement, o_demande_coach, o_demande_lien_accepte, o_toucher_seance_eleve])

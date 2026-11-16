@@ -23,6 +23,8 @@ const PUSH_TYPES = [
   { id: 'follows', title: 'Demandes d’abonnement', sub: 'Quand quelqu’un veut suivre tes séances' },
   { id: 'coach', title: 'Mon coach', sub: 'Commentaire sur une séance, nouveau programme' },
   { id: 'messages', title: 'Messages', sub: 'Quand ton coach ou un de tes élèves t’écrit', later: true },
+  // 20261116020000_notifications_seances_eleves.sql ; montré aux coachs seulement (ou s'il est déjà allumé)
+  { id: 'student_sessions', title: 'Séances de mes élèves', sub: 'Quand un élève termine une séance', later: true, coachOnly: true },
 ];
 
 // prefs : réglages lus sur le serveur (null tant que non lus) ; permission : celle d'iOS
@@ -42,7 +44,9 @@ function cleanPushPrefs(raw) {
   return out;
 }
 // Types que le serveur connaît (interrupteurs montrés) ; réglages pas encore lus : ceux d'avant
-function pushShownTypes(prefs = push.prefs) { return PUSH_TYPES.filter(t => prefs ? t.id in prefs : !t.later); }
+function pushShownTypes(prefs = push.prefs) {
+  return PUSH_TYPES.filter(t => (prefs ? t.id in prefs : !t.later) && (!t.coachOnly || prefs?.[t.id] === true || coachRole().isCoach));
+}
 function pushAnyOn(prefs) { return !!prefs && PUSH_TYPES.some(t => prefs[t.id] === true); }
 
 function pushStored() {
@@ -176,7 +180,8 @@ async function pushReleaseOther(uid) {
 }
 
 // Écran ouvert par le toucher d'une notification ({ kind, ref } posés par push-send)
-//   → { tab, screen, params } (screen null : racine de l'onglet) ; inconnu : null (l'app s'ouvre simplement).
+//   → { tab, screen, params, via? } (screen null : racine de l'onglet ; via : écran ouvert avant, pour le retour) ;
+//   inconnu : null (l'app s'ouvre simplement).
 // Une séance qui n'est pas (ou plus) sur cet appareil : l'Historique. Message : ref = clé de la
 // conversation, décidée par le serveur ('@coach' = CHAT_COACH : avec mon coach ; l'id d'un élève : avec
 // lui), sans dépendre du compte connecté (pas encore chargé quand on touche la notification app fermée).
@@ -192,6 +197,14 @@ function pushTarget(p, history = []) {
       ? { tab: 'history', screen: 'history-detail', params: [ref] } : { tab: 'history', screen: null, params: [] };
   }
   if (kind === 'follow_request') return { tab: 'friends', screen: null, params: [] };
+  // Séance d'un de mes élèves (coach) : ref = '<id de l'élève>/<id de la séance>' (ou l'id seul, séance trop
+  // longue pour la notification) → sa fiche, puis la séance (la fiche charge ses séances)
+  if (kind === 'student_session') {
+    const cut = ref.indexOf('/'), student = cut < 0 ? ref : ref.slice(0, cut), sid = cut < 0 ? '' : ref.slice(cut + 1);
+    if (!PUSH_UUID_RE.test(student)) return { tab: 'friends', screen: null, params: [] };
+    return sid ? { tab: 'friends', screen: 'coach-session', params: [student, sid], via: ['coach-student', student] }
+      : { tab: 'friends', screen: 'coach-student', params: [student] };
+  }
   // Plan diète (ref diet_<…>, js/data/nutrition.js) : écran Nutrition, où il se prend d'un toucher
   if (kind === 'coach_programme' && ref.startsWith('diet_')) return { tab: 'train', screen: 'nutrition', params: [] };
   if (kind === 'coach_programme') return { tab: 'friends', screen: 'coach-mine', params: [] };
@@ -222,8 +235,10 @@ onAccountChange(() => { pushOnAccount(); });
 const PUSH_ASK_KEY = 'mdlf_push_ask';
 const PUSH_ASK_WAIT_MS = 7 * 86400_000;
 const PUSH_ASK_MAX = 2;
-// Types allumés par « Activer » : l'élève garde aussi les commentaires sur ses séances
-const PUSH_ASK_TYPES = { student: ['messages', 'coach', 'comments'], coach: ['messages', 'coach'] };
+// Types allumés par « Activer » : l'élève garde aussi les commentaires sur ses séances ; le coach, les séances
+// de ses élèves. PUSH_ASK_KEYS : ceux qui, déjà allumés ici, rendent la demande inutile
+const PUSH_ASK_TYPES = { student: ['messages', 'coach', 'comments'], coach: ['messages', 'coach', 'student_sessions'] };
+const PUSH_ASK_KEYS = { student: ['messages'], coach: ['messages', 'student_sessions'] };
 // Premier lancement : celui des questions de départ (js/features/onboarding.js), lu au chargement
 const PUSH_ASK_FIRST_LAUNCH = typeof data === 'object' && !!data && !data.onboarded && !(data.history || []).length;
 
@@ -255,7 +270,7 @@ function pushAskDecision({ role, permission, prefs, state, now, firstLaunch = PU
   if (!pushAskOpen(state, now, firstLaunch) || !prefs) return 'skip';
   const wanted = pushAskWanted(role, prefs);
   if (!wanted.includes('messages')) return 'skip';   // serveur sans les messages : rien d'utile à proposer
-  if (permission === 'granted' && prefs.messages === true) return 'done';
+  if (permission === 'granted' && PUSH_ASK_KEYS[role].every(id => !(id in prefs) || prefs[id] === true)) return 'done';
   // Refus d'iOS : la fenêtre ne reviendrait pas (la conversation montre la ligne vers Réglages) ;
   // build sans le module : rien à proposer
   if (permission !== 'prompt' && permission !== 'granted') return 'skip';
