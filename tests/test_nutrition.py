@@ -213,11 +213,11 @@ def t_journee(bench, eng, dev, theme):
         page.click('.diet-meal[data-meal="m1"] .diet-meal__title')
         page.wait_for_timeout(200)
         R.check(page.locator('.diet-meal[data-meal="m1"] .diet-item[data-action="diet-swap"]').count() == 2, f'{t} repas coché déplié au toucher')
-        # Journée complète
+        # Journée complète : sur un plan perso, « Repas types cochés » (« Journée complète » est réservé au menu d'un coach)
         for m in ('m3', 'm4'):
             page.click(f'.diet-meal[data-meal="{m}"] [data-action="diet-check"]')
             page.wait_for_timeout(250)
-        R.check('Journée complète' in page.inner_text('.diet-sum'), f'{t} journée complète')
+        R.check('Repas types cochés' in page.inner_text('.diet-sum'), f'{t} journée complète')
         shot(page, LOT, f'4-journee-complete-{t}')
         # Bug du 09/11 (Maxence) : dîner et collation déjà cochés, journée complète, on ne pouvait plus rien y ajouter.
         # Déplier le dîner coché, « Ajouter un aliment » : il reste coché, ses totaux et ceux du jour se recalculent
@@ -266,7 +266,7 @@ def t_journee(bench, eng, dev, theme):
         R.check(row.count() == 1 and 'Ajouté aujourd' in row.inner_text(), f'{t} ligne « Ajouté aujourd\'hui »')
         R.check(page.get_attribute('.diet-meal[data-meal="m4"] [data-action="diet-check"]', 'aria-pressed') == 'true', f'{t} dîner toujours coché')
         after = kcal_eaten(page)
-        R.check(after > before and 'Journée complète' in page.inner_text('.diet-sum'), f'{t} mangé recalculé ({before} → {after}), journée complète gardée')
+        R.check(after > before and 'Repas types cochés' in page.inner_text('.diet-sum'), f'{t} mangé recalculé ({before} → {after}), journée complète gardée')
         R.check(page.evaluate("data.dietPlans.d_masse01.meals[3].items.length") == plan_items, f'{t} le plan ne change pas')
         R.check('Ajouté à Dîner' in toast(page), f'{t} toast « Ajouté à Dîner » ({toast(page)!r})')
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
@@ -288,11 +288,11 @@ def t_journee(bench, eng, dev, theme):
         # Collation cochée : décocher d'un toucher, Annuler la recoche
         page.click('.diet-meal[data-meal="m3"] [data-action="diet-check"]')
         page.wait_for_timeout(300)
-        R.check('Décoché : Collation' in toast(page) and 'Journée complète' not in page.inner_text('.diet-sum'), f'{t} collation décochée ({toast(page)!r})')
+        R.check('Décoché : Collation' in toast(page) and 'Repas types cochés' not in page.inner_text('.diet-sum'), f'{t} collation décochée ({toast(page)!r})')
         page.locator('.toast__action').click()
         page.wait_for_timeout(300)
         R.check(page.get_attribute('.diet-meal[data-meal="m3"] [data-action="diet-check"]', 'aria-pressed') == 'true'
-                and 'Journée complète' in page.inner_text('.diet-sum'), f'{t} Annuler : collation recochée')
+                and 'Repas types cochés' in page.inner_text('.diet-sum'), f'{t} Annuler : collation recochée')
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
         # Hier : frise, jour vide
         page.click('.diet-week__day[data-day="2026-11-04"]')
@@ -313,7 +313,7 @@ def t_journee(bench, eng, dev, theme):
         page.evaluate('goBack()')
         page.wait_for_selector('.nutrition-view')
         txt = page.inner_text('.diet-meals') + page.inner_text('.diet-sum')
-        R.check('kcal' not in txt and page.locator('.diet-ring').count() == 0 and 'Journée complète' in txt, f'{t} chiffres masqués : cases des repas seulement')
+        R.check('kcal' not in txt and page.locator('.diet-ring').count() == 0 and 'Repas types cochés' in txt, f'{t} chiffres masqués : cases des repas seulement')
         shot(page, LOT, f'4c-sans-chiffres-{t}')
         page.evaluate("data.dietHideNumbers = undefined; delete data.dietHideNumbers; save(); render()")
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
@@ -1166,8 +1166,8 @@ def t_repas_vides(bench, eng, dev, theme):
         tap_dialog(page, "Retirer ce repas pour aujourd'hui")
         page.wait_for_timeout(300)
         m2 = page.locator('.diet-meal[data-meal="m2"]')
-        R.check(m2.locator('.diet-check').count() == 0 and m2.locator('.diet-item--plan').count() == 1 and 'Remettre le repas prévu' in m2.inner_text(),
-                f'{t} repas retiré : plus de rond, « Remettre le repas prévu »')
+        R.check(m2.locator('.diet-check').count() == 0 and m2.locator('.diet-item--plan').count() == 1 and 'Remettre le repas type' in m2.inner_text(),
+                f'{t} repas retiré : plus de rond, « Remettre le repas type » (plan perso)')
         R.check("Retiré pour aujourd'hui : Déjeuner" in nb(toast(page)), f'{t} toast avec Annuler ({toast(page)!r})')
         R.check(page.evaluate("dietDayProgress(data, data.dietActive).nMeals") == 3 and page.evaluate("data.dietPlans.d_masse01.meals[1].items.length") == 3,
                 f'{t} 3 repas à cocher, plan inchangé')
@@ -1194,7 +1194,7 @@ def t_repas_vides(bench, eng, dev, theme):
             page.click(f'.diet-meal[data-meal="{m}"] .diet-check')
             page.wait_for_timeout(250)
         expect = page.evaluate("Math.round(['m1', 'm3'].reduce((n, id) => n + dietMealMacros(data.dietPlans.d_masse01.meals.find(m => m.id === id)).kcal, 0))")
-        R.check('Journée complète' in page.inner_text('.diet-sum__line') and abs(kcal_eaten(page) - expect) <= 1, f'{t} journée complète sans les repas retirés ({kcal_eaten(page)} / {expect})')
+        R.check('Repas types cochés' in page.inner_text('.diet-sum__line') and abs(kcal_eaten(page) - expect) <= 1, f'{t} journée complète sans les repas retirés ({kcal_eaten(page)} / {expect})')
         # Réglages : Repas du jour, Vides
         page.click('[data-action="go-diet-settings"]')
         page.wait_for_selector('[data-action="diet-day-mode"]')

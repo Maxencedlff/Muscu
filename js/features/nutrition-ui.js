@@ -133,13 +133,19 @@ function dietCallHtml(pr) {
 const dietHasFreeMeals = pr => pr.meals.some(x => !x.meal.items.length);
 // Aliments notés hors plan ce jour-là (jour vide : tout ce qu'on a mangé)
 const dietNotedCount = pr => pr.meals.reduce((n, x) => n + x.extras.length, 0);
+// « Journée complète » seulement pour le menu d'un coach (suivi en entier) : sur un plan perso, ses repas types cochés ne
+// disent rien de la journée (« Journée complète » sur un plan de 233 kcal, panel « regard neuf » du 16/11)
+function dietDoneWord(blank) {
+  if (!dietPersonal(dietActivePlan(data))) return 'Journée complète';
+  return blank ? 'Tous les repas notés' : 'Repas types cochés';
+}
 function dietStatusText(pr) {
   // Rien à cocher (jour vide, repas tous retirés) : ce qu'on a noté, sans « 0 sur 0 »
   if (!pr.nMeals) { const n = dietNotedCount(pr); return n ? plural(n, 'aliment noté', 'aliments notés') : 'Rien de noté pour l\'instant'; }
   // Jour vide : un repas est fait dès qu'on y a noté un aliment (ou coché son plan copié)
-  if (pr.blank) return pr.complete ? 'Journée complète' : pr.nDone ? `${pr.nDone} ${pr.nDone > 1 ? 'repas notés' : 'repas noté'} sur ${pr.nMeals}` : 'Rien de noté pour l\'instant';
+  if (pr.blank) return pr.complete ? dietDoneWord(true) : pr.nDone ? `${pr.nDone} ${pr.nDone > 1 ? 'repas notés' : 'repas noté'} sur ${pr.nMeals}` : 'Rien de noté pour l\'instant';
   const free = dietHasFreeMeals(pr);
-  if (pr.complete) return free ? (pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché') : 'Journée complète';
+  if (pr.complete) return free ? (pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché') : dietDoneWord(false);
   if (free) return `${pr.nMeals > 1 ? 'Repas prévus cochés' : 'Repas prévu coché'} : ${pr.nDone} sur ${pr.nMeals}`;
   return `${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${pr.nMeals}`;
 }
