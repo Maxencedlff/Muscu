@@ -28,7 +28,16 @@ const FOOD_PORTIONS = [
   { re: /^oeuf (blanc|jaune) .*(cru|cuit)$/, units: m => [m[1] === 'blanc' ? U('blanc d’œuf', 'blancs d’œufs', 30) : U('jaune d’œuf', 'jaunes d’œufs', 18)] },
   { re: /^oeuf (cru|dur|poche|a la coque|au plat|brouille)/, units: [U('œuf', 'œufs', 50)] },
   { re: /^oeufs? (frais|extra frais|plein air|bio|de poules?|fermiers?|moyens?|gros|label)\b|^(\d+ )?oeufs?$/, units: [U('œuf', 'œufs', 50)] },
-  // Laitages en pot
+  // Boissons (Maxence, 16/11 : « j'ai pas tasse à café ? ») : tasse à café = petite tasse française (~60 ml),
+  // tasse = tasse de petit-déjeuner (~200 ml), mug ~250 ml, verre ~200 ml ; boissons ≈ 1 g/ml
+  { re: /^cafe expresso\b.*pret a boire/, units: [U('tasse à café', 'tasses à café', 40)] },
+  { re: /^cafe( decafeine)?( non)? instantane\b.*pret a boire|^cafe non instantane\b.*pret a boire/, units: [U('tasse à café', 'tasses à café', 60), U('mug', 'mugs', 250)] },
+  { re: /^cafe au lait\b.*pret a boire/, units: [U('tasse', 'tasses', 200), U('mug', 'mugs', 250)] },
+  { re: /^the\b.*infuse/, units: [U('tasse', 'tasses', 200), U('mug', 'mugs', 250)] },
+  { re: /^chocolat chaud\b.*prete? a boire/, units: [U('tasse', 'tasses', 200), U('mug', 'mugs', 250)] },
+  { re: /^lait (demi ecreme|ecreme|entier)\b/, units: [U('verre', 'verres', 200), U('bol', 'bols', 250)] },
+  { re: /^jus d(e|es)? /, units: [U('verre', 'verres', 200)] },
+  // Laitages en pot (« yaourt à boire » : pas d'unité ; les boissons prêtes à boire sont au-dessus)
   { re: /\ba boire\b/, units: [] },
   { re: /petit suisse/, units: [U('petit-suisse', 'petits-suisses', 60)] },
   { re: /^fromage blanc(?! fondu)/, units: [U('pot', 'pots', 100)] },

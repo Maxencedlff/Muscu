@@ -30,9 +30,9 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(units(ciqual('Huile d\'olive vierge extra'))[1].u, 'cuillère à café');
   });
 
-  test('portions : pas de faux amis (bœuf, œufs de lompe, yaourt à boire, pomme de terre, jus d\'orange)', () => {
+  test('portions : pas de faux amis (bœuf, œufs de lompe, yaourt à boire, pomme de terre)', () => {
     for (const name of ['Boeuf, entrecôte crue', 'Oeufs de lompe ou oeufs de lump, semi-conserve', 'Oeuf de caille, cru', 'Lait fermenté ou yaourt à boire, aromatisé, sucré',
-      'Pomme de terre, sans peau, crue', 'Jus d\'orange, pur jus', 'Marsala aux oeufs', 'Chocolat chaud, boisson instantanée, sucrée, prête à boire (reconstituée avec du lait demi-écrémé)']) {
+      'Pomme de terre, sans peau, crue', 'Marsala aux oeufs']) {
       assert.equal(units(ciqual(name)).length, 0, `${name} : aucune unité`);
     }
     assert.equal(units({ name: 'Whey protéine vanille' })[0].u, 'dose', 'aliment perso : whey');
@@ -118,6 +118,20 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run(`foodPortions({ name: 'Pain de mie nature' })[0]`).g, 25, 'tranche ordinaire inchangée');
   });
 
+
+  test('boissons : tasse à café, tasse, mug, verre, bol', () => {
+    const u = n => JSON.parse(JSON.stringify(run(`foodPortions({ name: ${JSON.stringify(n)} })`).map(x => [x.u, x.g])));
+    assert.deepEqual(u('Café expresso, non instantané, sans sucres ajoutés, prêt à boire'), [['tasse à café', 40]]);
+    assert.deepEqual(u('Café, non instantané, sans sucres ajoutés, prêt à boire')[0], ['tasse à café', 60]);
+    assert.deepEqual(u('Café décaféiné, instantané, sans sucres ajoutés, prêt à boire')[0], ['tasse à café', 60]);
+    assert.deepEqual(u('Café au lait, café crème ou cappuccino, instantané ou non, sans sucres ajoutés, prêt à boire')[0], ['tasse', 200]);
+    assert.deepEqual(u('Thé vert, infusé, sans sucres ajoutés')[0], ['tasse', 200]);
+    assert.deepEqual(u('Chocolat chaud, boisson instantanée, sucrée, prête à boire (reconstituée avec du lait demi-écrémé)')[0], ['tasse', 200]);
+    assert.deepEqual(u('Lait demi-écrémé, UHT')[0], ['verre', 200]);
+    assert.deepEqual(u("Jus d'orange, pur jus")[0], ['verre', 200], 'jus : un verre, pas une orange');
+    assert.deepEqual(u('Café, moulu'), [], 'café en poudre : pas de tasse');
+    assert.deepEqual(u('Thé, feuille'), [], 'feuilles de thé : pas de tasse');
+  });
 
   test('desserts lactés en pot : liégeois, crème dessert, mousse, flan ; pas les gaufres liégeoises', () => {
     const u = n => run(`foodPortions({ name: ${JSON.stringify(n)} })`)[0];
