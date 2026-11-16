@@ -221,9 +221,11 @@ function libExAboutHtml(e, name) {
   const link = (n, lbl) => n ? `<button class="cell cell--nav" data-action="open-library-ex" data-name="${esc(n)}">
       <span class="cell__body"><span class="cell__sub">${lbl}</span><span class="cell__title">${esc(n)}</span></span>${icon('chevron.right', 16)}</button>` : '';
   const share = bodyShare(e);
-  return `${libExNotesHtml(e.name, 1)}
+  // « Comment faire » en tête, juste sous l'illustration et les onglets, puis l'erreur fréquente et la dernière note
+  // (panel « yeux neufs » du 16/11 : sous « Erreur fréquente », les consignes tombaient sous le pli)
+  return `${howToHtml(e.name)}
         ${howToTipHtml(e.name)}
-        ${howToHtml(e.name)}
+        ${libExNotesHtml(e.name, 1)}
         ${exMusclesGroupHtml({ name }, 'Muscles', { textOnly: !exerciseVideoHtml(name) })}
         <div class="group">
           <div class="cell"><span class="cell__body"><span class="cell__title">Matériel</span></span>

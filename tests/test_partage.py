@@ -81,6 +81,8 @@ def finish_push(page):
     page.wait_for_timeout(150)
     w = page.locator('[data-action="set-weight"][data-ei="0"][data-si="0"]')
     w.fill('45')
+    # 2e exercice : refait comme la dernière fois (sa 1re série est pré-remplie à l'objectif, une rep de plus : un record de plus)
+    page.fill('[data-action="set-reps"][data-ei="1"][data-si="0"]', page.evaluate("activeSession.exercises[1].sets[0].prev.reps"))
     page.evaluate("document.activeElement && document.activeElement.blur()")
     for ei, si in ((0, 0), (0, 1), (1, 0)):
         page.locator(f'[data-action="validate-set"][data-ei="{ei}"][data-si="{si}"]').click()

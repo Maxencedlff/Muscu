@@ -113,12 +113,13 @@ def t_session_pr(bench, eng, dev, theme):
         t = tag(dev, theme)
         start(page)
         reps = page.evaluate("activeSession.exercises[0].sets.map(s => s.reps)")
-        R.check([str(r) for r in reps] == ['10', '10', '9', '8'], f'{t} pré-remplissage série par série {reps}')
+        # 1re série : l'objectif du jour (32,5 × 10 la dernière fois → 11, panel « yeux neufs » du 16/11), les autres série par série
+        R.check([str(r) for r in reps] == ['11', '10', '9', '8'], f'{t} pré-remplissage : objectif puis série par série {reps}')
         prev = page.evaluate("activeSession.exercises[0].sets.map(s => s.prev && s.prev.reps)")
         R.check([str(r) for r in prev] == ['10', '10', '9', '8'], f'{t} prev conservé {prev}')
         si, w, r, v = active_inputs(page)
-        R.check(w.input_value() == '32,5' and r.input_value() == '10', f'{t} champs pré-remplis 32,5 × 10')
-        v.click(); page.wait_for_timeout(150)
+        R.check(w.input_value() == '32,5' and r.input_value() == '11', f'{t} champs pré-remplis 32,5 × 11 (objectif)')
+        r.fill('10'); v.click(); page.wait_for_timeout(150)
         skip_rest(page)
         R.check(page.locator('.pr-badge').count() == 0, f'{t} refaire exactement le PR : aucun badge')
         R.check(page.evaluate("activeSession.exercises[0].sets[1].reps") in ('10', 10), f'{t} reps de la série 2 non écrasées')
@@ -276,7 +277,7 @@ def t_rename(bench, eng, dev, theme):
         page.click('.tabbar [data-tab="train"]'); page.wait_for_timeout(200)
         page.click('.tabbar [data-tab="train"]')  # onglet actif touché : retour à l'accueil
         start(page)
-        R.check(page.evaluate("activeSession.exercises[0].sets.map(s => String(s.reps)).join('/')") == '10/10/9/8', f'{t} pré-remplissage conservé après renommage')
+        R.check(page.evaluate("activeSession.exercises[0].sets.map(s => String(s.reps)).join('/')") == '11/10/9/8', f'{t} pré-remplissage conservé après renommage')
 
 
 def t_import_bad(bench, eng, dev, theme):

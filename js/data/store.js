@@ -220,6 +220,8 @@ function sanitizeData(d) {
         if (ex.repMin !== undefined) { const r = num(ex.repMin, 1, 99, true); if (r === null || r >= (ex.repMax ?? 12)) delete ex.repMin; else ex.repMin = r; }
         // Reps fixes (« 4 × 12 », fixedReps de js/data/goals.js) : true ou rien, jamais avec un bas de fourchette
         if (ex.repFixed !== undefined && (ex.repFixed !== true || ex.repMin !== undefined)) delete ex.repFixed;
+        // Charge prescrite par le coach (js/data/coach-presc.js) : kg de 0 à 500, retirée sinon
+        cleanPrescInPlace(ex);
         // Technique prescrite (js/data/intensif.js) : une clé connue ou rien
         if (ex.intens !== undefined) { const v = cleanIntens(ex.intens); if (v) ex.intens = v; else delete ex.intens; }
         if (ex.rest   != null) ex.rest   = num(ex.rest, 10, 600, true);
@@ -515,6 +517,8 @@ function cleanHistoryEntry(h) {
     });
     // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
     ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);
+    // Charge prescrite par le coach (js/data/coach-presc.js), alignée sur les séries : retirée sinon
+    if (ex.presc !== undefined) { const p = cleanHistoryPresc(ex.presc, ex.sets.length); if (p) ex.presc = p; else delete ex.presc; }
   });
   return true;
 }

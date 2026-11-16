@@ -116,6 +116,9 @@ html.type-xl .ss-thumbs { display: none; }
 .ex-goal { display: flex; align-items: center; gap: 4px; margin: -2px 0 2px; font-size: 0.765rem; line-height: 1.059rem; font-weight: 600; color: var(--label); }
 .ex-goal--done { color: var(--green-text); }
 .ex-goal--member { margin: -8px 0 4px calc(28px + 8px); }   /* sous le nom, après la lettre A1 (.ss-tag) */
+/* Exercice jamais fait (exFirstTimeHtml) : à la place de l'objectif, en gris, sur plusieurs lignes s'il le faut */
+.ex-first { margin: -2px 0 4px; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); }
+.ex-first.ex-goal--member { margin: -8px 0 4px calc(28px + 8px); }
 .ex-rest-link {
   background: none; border: 0; color: var(--tint); font: inherit; cursor: pointer;
   padding: 13px 2px; margin: -13px -2px;
@@ -131,6 +134,16 @@ html.type-xl .ss-thumbs { display: none; }
   .sets { --set-cols: 30px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; --set-gap: 3px; }
   /* « Série » à 12 px : son en-tête déborde sur l'écart et le bord, la colonne garde 30 px (place des charges) */
   .sets__head > span:first-child { margin-left: -3px; margin-right: calc(-1 * var(--set-gap)); }
+}
+/* Échauffement dans la carte : « Échauf. » en toutes lettres, la 1re colonne s'élargit (WARM_NUM_HTML) ; écran étroit :
+   « É », la place reste aux charges */
+.sets--warm { --set-cols: 58px minmax(0,1.3fr) minmax(0,1fr) minmax(44px,.8fr) 52px; }
+.set-n__short { display: none; }
+.set-n__long { letter-spacing: 0; }
+@media (max-width: 374px) {
+  .sets--warm { --set-cols: 30px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; }
+  .set-n__long { display: none; }
+  .set-n__short { display: inline; }
 }
 .sets__head, .session-set { display: grid; grid-template-columns: var(--set-cols); column-gap: var(--set-gap); align-items: center; }
 .sets__head {
@@ -353,6 +366,8 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   margin: 0 0 8px; padding: 0 4px 0 16px; border-radius: var(--r-md); background: var(--cell);
   font-size: var(--fs-subhead); color: var(--label2);
 }
+/* Série supprimée : la ligne prend sa place dans le tableau (delUndoRows), à la hauteur d'une série */
+.ex-undo--row { min-height: 56px; margin: 0 -6px 2px; padding-left: 6px; border-radius: var(--r-sm); }
 .ex-undo__text { flex: 1 1 8em; min-width: 0; padding: 10px 0; overflow-wrap: break-word; }
 .ex-undo__btn { flex-shrink: 0; margin-left: auto; min-height: 44px; padding: 0 12px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--tint); cursor: pointer; }
 .ex-undo__btn:active { opacity: .5; }
@@ -691,6 +706,14 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
   display: flex; align-items: center; justify-content: center;
 }
 .set-tech-n:active { opacity: .6; }
+/* Top set, back-off : pastille sous « Avant », dans la ligne de sa série (techPillHtml) ; gris, jamais l'orange des actions */
+.tech-pill {
+  display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 8px; border-radius: var(--r-xs);
+  background: var(--fill); color: var(--label); font-size: 0.706rem; line-height: 0.941rem;
+}
+.tech-pill__name { font-weight: 700; }
+.tech-pill__hint { color: var(--label); font-weight: 400; }
+.session-set .set-badge .tech-pill { flex-wrap: wrap; }
 .tech { margin: -2px -6px 4px; }
 .tech__cap {
   display: flex; align-items: center; gap: 16px; min-height: 52px; min-width: 0;

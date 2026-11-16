@@ -770,9 +770,15 @@ FAKE_ACCOUNT = r"""
   const validInvite = code => co.invites.find(i => i.code === code && i.expires > now());
   const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   // private.session_for_coach : liste blanche du social + notes, hidden, id, records avec before (jamais bodyKg ni healthSaved)
+  // presc (20261116010000_charge_prescrite.sql) : prescription du coach, alignée sur exercises, null sinon ; absente sans aucune
+  const prescNum = (v, lo, hi, int) => (typeof v === 'number' && v >= lo && v <= hi && (!int || Number.isInteger(v)) ? v : undefined);
+  const pubPresc = p => (p && typeof p === 'object' && !Array.isArray(p) && Array.isArray(p.kg)
+    ? { kg: p.kg.slice(0, 100).map(k => prescNum(k, 0, 500) ?? null), lo: prescNum(p.lo, 1, 100, true), hi: prescNum(p.hi, 1, 100, true) } : null);
   const sessionForCoach = (id, d) => {
     const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
+    const presc = (d.exercises || []).map(e => pubPresc(e.presc));
     return JSON.parse(JSON.stringify({ ...sessionPublic(d), records: pubRecords(d.records, true), notes: sc(d.notes), hidden: sc(d.hidden), id,
+      ...(presc.some(Boolean) ? { presc } : {}),
       exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), grip: pubGrip(e.grip), sets: (e.sets || []).map(pubSet) })) }));
   };
   const noteAlive = n => livePosts(n.student).some(p => p.id === n.sid);

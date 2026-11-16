@@ -261,6 +261,8 @@ function sessionHistoryEntry(sp, sc) {
           ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}),
           ...(cleanNote(s.note) ? { note: cleanNote(s.note) } : {}),   // note de série (js/data/notes.js)
           ...techFields(s, { doneOnly: true }) })),   // technique et sous-séries validées (js/data/intensif.js)
+        // Charge prescrite par le coach, alignée sur les séries validées (js/data/coach-presc.js) : le coach voit l'écart
+        ...(historyPresc(ex, ex.sets.filter(s => s.done)) ? { presc: historyPresc(ex, ex.sets.filter(s => s.done)) } : {}),
       }))
       .filter(ex => ex.sets.length),
   };

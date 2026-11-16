@@ -114,7 +114,13 @@ def t_outils(bench, eng, dev, theme):
         nums = page.locator('.ex-card[data-ei="0"] .set-n').all_inner_texts()
         # Série en cours (1er échauffement) : le bouton Disques remplace son numéro
         cur_plates = page.locator('.ex-card[data-ei="0"] .session-set--current .set-plates').count() == 1
-        R.check(cur_plates and nums[1:3] == ['É', 'É'] and nums[3:5] == ['1', '2'] if len(nums) >= 5 else False, f'{t} numérotation : (Disques) É É puis 1, 2 ({nums[:6]})')
+        # Panel « yeux neufs » du 16/11 : « Échauf. » en toutes lettres, « É » sous 375 pt ; VoiceOver lit « Échauffement 1 »
+        warm = 'É' if page.evaluate('innerWidth < 375') else 'Échauf.'
+        R.check(cur_plates and nums[1:3] == [warm, warm] and nums[3:5] == ['1', '2'] if len(nums) >= 5 else False, f'{t} numérotation : (Disques) {warm} {warm} puis 1, 2 ({nums[:6]})')
+        cut = page.evaluate("[...document.querySelectorAll('.ex-card[data-ei=\"0\"] .set-n--warm')].filter(e => e.scrollWidth > e.clientWidth + 1).length")
+        R.check(cut == 0, f'{t} « {warm} » entier dans sa colonne')
+        spoken = page.get_attribute('.ex-card[data-ei="0"] .session-set--warmup:not(.session-set--current) [data-action="set-weight"]', 'aria-label')
+        R.check('échauffement 2' in spoken, f'{t} VoiceOver : « échauffement 2 » en entier ({spoken})')
         R.check(page.evaluate("JSON.parse(localStorage.getItem('ppl_active_session')).activeSession.exercises[0].sets[0].warmup") is True, f'{t} séance sauvegardée avec l\'échauffement')
         page.evaluate("document.querySelector('.ex-card[data-ei=\"0\"]').scrollIntoView()")
         shot(page, LOT, f'{t}-04-echauffement-seance')
@@ -199,7 +205,7 @@ def t_reglage(bench):
         page.evaluate("activeSession.exercises[0].sets.unshift({ weight: '10', reps: '8', done: true, warmup: true }); activeSession.exercises[0].sets[1].rir = 1; persistSession()")
         page.reload(); page.wait_for_selector('.view.session'); page.wait_for_timeout(300)
         R.check(page.locator('.session-set--warmup').count() == 1 and page.evaluate("activeSession.exercises[0].sets[1].rir") == 1, 'séance restaurée avec échauffement et RIR')
-        R.check(page.locator('.ex-card[data-ei="0"] .set-n').all_inner_texts()[:2] == ['É', '1'], 'numérotation après restauration')
+        R.check(page.locator('.ex-card[data-ei="0"] .set-n').all_inner_texts()[:2] == ['Échauf.', '1'], 'numérotation après restauration')
         R.check(not page.errors, f'aucune erreur JS {page.errors}')
 
 
@@ -262,7 +268,7 @@ def t_rir_derniere(bench, eng, dev, theme):
         val(0, 0); val(0, 1, rest=False)
         R.check(page.locator('.ex-card--collapsed[data-ei="0"] .ex-fold-rir .rir__btn').count() == 5, f'{t} exercice fini : sélecteur sous le résumé replié')
         R.check(page.locator('.rest-mini').count() == 1 and fold_rir_visible(page), f'{t} sélecteur visible au-dessus de la barre de repos')
-        R.check(page.locator('.ex-fold-rir .rir__lbl').inner_text() == 'Reps en réserve · S2', f'{t} libellé : la série notée')
+        R.check(page.locator('.ex-fold-rir .rir__lbl').inner_text() == 'Reps en réserve · Série 2', f'{t} libellé : la série notée')
         shot(page, LOT, f'{t}-1-exercice')
         page.click('.ex-fold-rir .rir__btn[data-rir="2"]'); page.wait_for_timeout(250)
         R.check(page.evaluate("activeSession.exercises[0].sets[1].rir") == 2 and page.locator('.ex-fold-rir .rir__rpe').inner_text() == 'RPE 8', f'{t} un toucher : RIR 2 noté (RPE 8)')
@@ -275,7 +281,7 @@ def t_rir_derniere(bench, eng, dev, theme):
         # ── Dernière série d'un superset : la lettre de l'exercice
         val(2, 0); val(1, 1, rest=False); val(2, 1, rest=False)
         R.check(page.locator('.ss-card.ex-card--collapsed .ex-fold-rir .rir__btn[data-ei="2"][data-si="1"]').count() == 5, f'{t} superset fini : sélecteur de A2 S2 sous le résumé')
-        R.check(page.locator('.ex-fold-rir .rir__lbl').inner_text() == 'Reps en réserve · A2 S2' and fold_rir_visible(page), f'{t} superset : libellé et visible')
+        R.check(page.locator('.ex-fold-rir .rir__lbl').inner_text() == 'Reps en réserve · A2 · Série 2' and fold_rir_visible(page), f'{t} superset : libellé et visible')
         shot(page, LOT, f'{t}-2-superset')
         skip_rest(page)
 

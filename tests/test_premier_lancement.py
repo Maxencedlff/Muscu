@@ -132,6 +132,20 @@ def t_parcours(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(page.locator('.onb').count() == 0, f'{t} questions jamais deux fois')
         R.check(page.evaluate('trainingLevel()') == 'debutant', f'{t} niveau gardé (repère de la bulle des muscles)')
+        # Panel « yeux neufs » du 16/11 : première séance, aucune charge proposée ; une ligne grise dit laquelle prendre
+        page.evaluate("startSession(sessionKeys(data.activeProgramme)[0])")
+        page.wait_for_selector('.view.session .ex-card')
+        first = page.locator('.ex-card[data-ei="0"] .ex-first')
+        R.check(first.count() == 1 and first.inner_text().strip() == 'Première fois : prends un poids que tu soulèves 15 fois facilement'
+                and page.evaluate("getComputedStyle(document.querySelector('.ex-first')).color") == page.evaluate("getComputedStyle(document.querySelector('.ex-card__sub')).color"),
+                f'{t} 1re séance : « Première fois » en gris sous le nom')
+        R.check(no_hscroll(page), f'{t} 1re séance : pas de défilement horizontal')
+        shot(page, LOT, f'3-premiere-seance-{t}')
+        page.fill('[data-action="set-weight"][data-ei="0"][data-si="0"]', '10')
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
+        page.wait_for_timeout(300)
+        R.check(page.locator('.ex-card[data-ei="0"] .ex-first').count() == 0, f'{t} série validée : la ligne s\'en va')
+        page.evaluate("activeSession = null; persistSession()")
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -159,6 +173,30 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         R.check('Actif' in row.inner_text(), f'{t} Voir les autres : catalogue, Upper / Lower actif')
         R.check(page.evaluate('[data.activeProgramme, data.myProgrammes]') == ['upper_lower', ['upper_lower']], f'{t} conseil appliqué et dans Mes programmes')
         R.check(page.evaluate('[data.weeklyGoal, data.onboarded]') == [5, True], f'{t} objectif 5, questions passées')
+
+        # Panel « yeux neufs » du 16/11 : « Tu viens de Strong ou Hevy ? » sous les niveaux, ouvre le choix du fichier
+        # (réponses données appliquées, niveau sans réponse : déjà entraîné)
+        seed(page, theme, None)
+        page.wait_for_selector('.onb__page--place')
+        tap(page, '[data-action="onb-place"][data-val="salle"]')
+        tap(page, '[data-action="onb-freq"][data-val="4"]')
+        link = page.locator('.onb [data-action="onb-import"]')
+        R.check(link.count() == 1 and link.inner_text().replace('\u00a0', ' ').strip() == 'Tu viens de Strong ou Hevy ? Importer ton historique'
+                and link.bounding_box()['height'] >= 44, f'{t} niveau : lien d\'import Strong / Hevy, 44 pt')
+        R.check(link.bounding_box()['y'] > page.locator('.onb .onb__group').bounding_box()['y'], f'{t} lien sous les niveaux')
+        R.check(small_targets(page) == 0 and no_hscroll(page), f'{t} niveau : 44 pt, pas de défilement horizontal')
+        shot(page, LOT, f'4-niveau-import-{t}')
+        with page.expect_file_chooser() as fc:
+            link.click()
+        R.check(fc.value is not None and page.evaluate('[data.activeProgramme, data.weeklyGoal, data.onboarded]') == ['upper_lower', 4, True],
+                f'{t} import : choix du fichier ouvert, réponses appliquées')
+        page.wait_for_timeout(300)
+        R.check(page.locator('.onb').count() == 0, f'{t} import : questions fermées')
+        # Même cellule dans Réglages › Données (pas seulement dans Sauvegarde)
+        page.evaluate("navigate('settings')")
+        page.wait_for_selector('.view.settings-view')
+        cell = page.locator('.view.settings-view .group-title:text-is("Données") + .group [data-action="import-other-app"]')
+        R.check(cell.count() == 1 and cell.inner_text().strip() == 'Importer depuis Strong ou Hevy', f'{t} Réglages › Données : « Importer depuis Strong ou Hevy »')
 
         # Utilisateur existant (séances) : rien
         seed(page, theme, ppl_v2_today_json())

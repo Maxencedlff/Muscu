@@ -177,7 +177,8 @@ function targetRowHtml(cat, ex) {
     ? `<span class="targets__gain num">${icon('arrow.up', 11)}${esc(t.gain)}<span class="sr-text"> de plus</span></span>` : '';
   const before = t.gain && t.before ? `<span class="targets__before num">avant ${esc(t.before)}</span>` : '';
   return `<li class="targets__row"><span class="targets__main"><span class="targets__name">${esc(ex.name)}</span>`
-    + `<span class="targets__target num">${esc(t.text)}</span></span>`
+    // Charge prescrite par le coach : « Coach : 60 kg × 8 », comme en séance
+    + `<span class="targets__target num">${t.coach ? `<span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ton coach : ${esc(t.spoken)}</span>` : esc(t.text)}</span></span>`
     + `${before || gain ? `<span class="targets__sub">${before}${gain}</span>` : ''}</li>`;
 }
 function targetsHtml(cat) {

@@ -143,7 +143,8 @@ Points que le tableau ne disait pas, tranchés côté serveur ; l'app doit les c
 
 ## Programme envoyé (`data`)
 Format de js/data/prog-share.js étendu, validé par l'app à la réception :
-`{ name, consigne?, sessions: [{ key, label, color, exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, ss?, consigne? }] }] }`.
+`{ name, consigne?, sessions: [{ key, label, color, exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, load?, loads?, intens?, ss?, grip?, consigne? }] }] }`.
+- Charge prescrite (16/11/2026) : `load` (kg pour toutes les séries) et `loads` (série par série), voir « Charge prescrite » plus bas.
 - Reps : fourchette `repMin` à `repMax` (« 8 à 12 »), ou reps fixes `repFixed: true` avec le nombre dans `repMax` (« 4 × 12 », jamais avec `repMin`). Une appli d'avant `repFixed` ignore le champ et lit le seul haut : même hausse de charge quand toutes les séries l'atteignent ; seul l'objectif après la hausse diffère (4 sous le haut au lieu du même nombre).
 - `consigne` (programme ou exercice) : texte du coach, 500 caractères au plus.
 - À l'import, l'élève reçoit un programme perso (`userProgrammes`, id `u_c<8 premiers caractères alphanumériques de l'id du coach>_<prog_id>`, choix du 27/10 : deux coachs qui envoient le même `prog_id` ne s'écrasent jamais, et le coach reconnaît ses programmes ; un import plus ancien `u_c<prog_id>` du même coach garde sa place), marqué `fromCoach: { coachId, name, sentAt, hash, keptAt? }`. Un nouvel envoi du même `prog_id` met à jour le programme importé (exercices et consignes), en gardant les `id` d'exercices dont le nom ne change pas dans la même séance, pour garder l'historique et les records.
@@ -151,6 +152,54 @@ Format de js/data/prog-share.js étendu, validé par l'app à la réception :
 - `retired: true` sur une séance : séance retirée par le coach dans un nouvel envoi. Gardée pour l'historique (nom, couleur), jamais listée (accueil, programme, choix de séance).
 - Consigne d'un programme intégré que le coach envoie : gardée dans `programmes[id].consigne` (les programmes intégrés n'ont pas d'entrée `userProgrammes`).
 - L'élève peut l'utiliser comme n'importe quel programme ; s'il le modifie, un nouvel envoi lui demande avant d'écraser.
+
+## Charge prescrite (16/11/2026)
+Demande de Maxence : « le coach peut prescrire les charges si besoin et les reps ». Depuis yn-v1, l'app ne monte plus
+seule la charge d'un programme reçu d'un coach (ni pastille ↑, ni + 2,5 kg, ni reps au-delà du haut de la fourchette) :
+c'est le coach qui décide, et il peut désormais le dire. Logique : js/data/coach-presc.js ; écran : js/features/coach-presc-ui.js.
+
+**Format** (exercice du programme envoyé, puis du programme importé) : deux champs facultatifs.
+- `load` : kg, nombre de 0 à 500 (au gramme), pour toutes les séries de travail ;
+- `loads` : `[kg | null]`, série de travail par série de travail (`null` = `load`), autant que de séries au plus.
+  Utile pour un top set plus lourd et des back-off plus légers (`intens: 'topback'`).
+- Les reps restent `repMin` / `repMax` / `repFixed` (fourchette ou reps fixes). Le coach peut les changer pour cet élève
+  dans le même écran : elles remplacent celles du programme dans l'envoi seulement.
+- Pas de pourcentage de 1RM en V1 : il demanderait le 1RM de l'élève, que le coach ne connaît pas toujours et que l'app
+  estime (jamais un record) ; une charge en kg dit la même chose sans ambiguïté.
+- **Rétrocompatibilité** : une app d'avant ce champ ne garde que les champs qu'elle connaît (`cleanSentProgramme`) : elle
+  reçoit le programme sans charge, sans erreur. L'app actuelle borne les valeurs (hors bornes : écartées) et
+  `sanitizeData` les revalide au chargement. Le serveur ne valide pas le contenu du programme (objet JSON, 200 Ko).
+
+**Coach** (écran Envoyer, `coach-send:UID:PROG`) : sous chaque exercice en répétitions, « Prescrire une charge » (ou
+« Charge : 60 kg × 8 · Modifier ») ouvre `coach-presc:UID:PROG:CAT:EXID` :
+- Reps : Fourchette ou Fixe, reprises du programme ;
+- Charge : « Toutes les séries », puis « Série par série » (vide = la charge de toutes les séries ; séries nommées Top
+  set / Back-off si le programme le prescrit) ; clavier numérique, de 0 à 500 kg par demi-kilo (0 à 1 102 lb par
+  demi-livre), refus signalé sur le champ ;
+- « Reprendre sa dernière fois » : les charges de la dernière séance de l'élève sur cet exercice, quand ses séances sont
+  chargées (fiche de l'élève ouverte avant).
+- Rien n'est écrit dans le programme du coach : la prescription est propre à l'élève, gardée sur l'appareil du coach
+  (`mdlf_coach_presc`, par élève et programme) et reprise au prochain envoi. D'une semaine sur l'autre : rouvrir
+  Envoyer, changer la charge, renvoyer ; le renvoi du même `prog_id` met à jour le programme de l'élève (règle d'avant :
+  il garde ses identifiants d'exercice, donc son historique et ses records).
+
+**Élève** (séance d'un programme reçu) :
+- Cases pré-remplies avec la charge prescrite. Reps : reps fixes → ce nombre ; fourchette → si la charge est celle de la
+  dernière fois, ses reps d'alors ramenées dans la fourchette (il continue sa double progression) ; sinon le bas de la
+  fourchette (même règle qu'après une hausse de charge, `goalRepsAfterBump`).
+- Sous le nom : « Coach : 60 kg × 8 » (« Coach : 100 kg puis 90 kg × 3–5 » série par série), lu « Prescrit par ton
+  coach : 60 kilos, 8 reps » ; la même chose sur l'accueil. « Avant » garde la dernière fois.
+- Il note ce qu'il fait vraiment : rien ne l'en empêche. Une charge changée passe à la série suivante seulement si elle
+  avait la même prescription (jamais d'un top set à un back-off).
+- Sans charge prescrite, programme du coach : les reps pré-remplies restent dans sa fourchette (plafonnées au haut,
+  relevées au bas), comme l'objectif affiché (panel du 16/11 : « 3–5 reps », « Objectif 72,5 kg × 5 » au-dessus de cases
+  à 8, 8, 8, 7).
+
+**Séance enregistrée** : `presc: { kg: [kg | null, une valeur par série enregistrée, null pour l'échauffement], lo, hi }`
+sur l'exercice ; série en cours : `pk` (kg prescrits). Le coach le reçoit par `private.session_for_coach`
+(migration `20261116010000_charge_prescrite.sql` : tableau `presc` au premier niveau, aligné sur `exercises`, coach
+seulement, jamais les amis) et lit sous l'exercice : « Prescrit 60 kg × 8 · série 1 à 62,5 kg » ou « · fait comme
+prévu ». Sans la migration, l'écart ne lui parvient pas ; rien d'autre ne change.
 
 ## App
 - **Réglages › Coach** (tout le monde) : « Rejoindre un coach » (saisie du code, puis aperçu du coach et de ce qu'il verra, puis « Accepter ») ; si suivi : le coach, « Quitter mon coach ».

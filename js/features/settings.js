@@ -160,6 +160,10 @@ ${renderConnectionsGroup()}
             ${backupCellValue()}
             ${icon('chevron.right', 16)}
           </button>
+          <button class="cell cell--action" data-action="import-other-app">
+            ${cellIco('square.and.arrow.down', 'gray')}
+            <span class="cell__body"><span class="cell__title">Importer depuis Strong ou Hevy</span></span>
+          </button>
         </div>
         <div class="group">
           <button class="cell cell--destructive" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>

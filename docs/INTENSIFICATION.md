@@ -54,7 +54,8 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
    calculs de records ne parcourent que `ex.sets` ; rien à exclure.
 5. **Nombre de séries** : une série avec ses drops compte pour une (comme la littérature qui compte un drop set
    comme une série prolongée, et comme MacroFactor).
-6. **Top set et back-off** ne changent aucun calcul : étiquettes seulement (historique, coach).
+6. **Top set et back-off** ne changent aucun calcul : étiquettes seulement (historique, coach). Seule la charge
+   pré-remplie d'un back-off est allégée (voir « Programme et coach »).
 7. **Mesures** : seulement les exercices en répétitions (`canTech`). Ni maintien ni cardio. Échauffement exclu.
    Machine d'assistance : la sous-ligne reprend la même aide (alléger voudrait dire plus d'aide, à régler soi-même).
 
@@ -101,6 +102,20 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
 - Posé au démarrage de la séance (`applyIntensPlan`) et sur un exercice du programme ajouté en cours de séance.
 - Coach : `programmeToSent` l'envoie, `cleanSentProgramme` le valide, `COACH_FIELDS` le remplace à l'import :
   l'élève le voit en séance. Une version précédente de l'app de l'élève l'ignore.
+- **Back-off allégé** (panel du 16/11 : les back-off étaient pré-remplis à la charge du top set) : au démarrage,
+  une série de back-off à faire prend **la charge du top set − 10 %, arrondie à ce qui se charge** (barre et
+  disques, sinon pas de 2,5 kg ou 5 lb : `roundLoad`), par `backoffPrefill` (js/data/intensif.js). Exemples :
+  top set 80 kg à la barre → 72,5 kg ; haltères 30 kg → 27,5 kg. Une série de back-off déjà plus légère (celle
+  de la dernière fois) garde sa charge ; une charge prescrite par le coach passe avant tout
+  (docs/COACH_V1.md, « Charge prescrite »). Pourquoi 10 % : le bas de l'allègement courant d'un back-off (5 à
+  15 % selon les coachs), assez pour que la case dise « allégée » sans décider à la place du pratiquant ; une case
+  vide aurait laissé un ✓ rapide noter 0 kg. Changer de charge au top set ne la recopie plus sur le back-off.
+- **Étiquettes top set et back-off** (panel du 16/11 : une ligne entière entre deux séries, avec un × rond, ne
+  disait ni à quelle série elle se rapportait, ni ce que faisait le ×) : petite pastille grise **dans la ligne de
+  sa série**, sous « Avant » (`techPillHtml`). Plus de ×. Retirer ou changer la technique : le numéro de la série
+  ou ⋯ › Technique d'intensification, « Retirer la technique ». Programme d'un coach (technique prescrite par
+  `intens`) : ni ×, ni « Retirer la technique » (`techPrescribed`), l'élève ne retire pas ce que son coach a
+  prescrit ; le drop set, le rest-pause et le cluster gardent leur bloc de sous-séries, sans × non plus.
 
 ## Ailleurs
 

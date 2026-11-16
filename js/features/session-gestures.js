@@ -6,10 +6,19 @@
 const SWIPE_OPEN = 88, SWIPE_MIN = 80;   // SWIPE_OPEN : largeur de .set-del (session.css), « Supprimer » en entier
 let swipe = null, swipeBlockClick = false;
 
+// « Supprimer » d'une série : lu par VoiceOver et touchable seulement une fois révélé par le balayage
+function setDelShown(wrap, on) {
+  const del = wrap?.querySelector(':scope > .set-del');
+  if (!del) return;
+  if (on) del.removeAttribute('aria-hidden'); else del.setAttribute('aria-hidden', 'true');
+  del.tabIndex = on ? 0 : -1;
+}
+
 function closeSwipes(except) {
   document.querySelectorAll('.set-swipe--open').forEach(w => {
     if (w === except) return;
     w.classList.remove('set-swipe--open');
+    setDelShown(w, false);
     const r = w.querySelector('.session-set');
     if (r) r.style.transform = '';
   });
@@ -46,6 +55,7 @@ function endSwipe() {
   s.row.style.transition = '';
   const open = s.base + s.dx < -SWIPE_MIN || (s.base && s.dx < 20);
   s.wrap.classList.toggle('set-swipe--open', open);
+  setDelShown(s.wrap, open);
   s.row.style.transform = open ? `translateX(${-SWIPE_OPEN}px)` : '';
   if (open) haptic();
 }

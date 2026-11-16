@@ -88,11 +88,17 @@ function cleanCoachSession(s) {
   const o = s && typeof s === 'object' ? s : {};
   // Notes d'exercice et de série (js/data/notes.js) : le coach seul, jamais un abonné (cleanPublicSession les
   // écarte). La liste blanche du serveur ne les transmet pas encore : lues dès qu'elle les ajoutera.
-  const rawEx = (Array.isArray(o.exercises) ? o.exercises : []).slice(0, 60)
-    .filter(e => e && typeof e === 'object' && typeof e.name === 'string' && e.name.trim());
+  const all = (Array.isArray(o.exercises) ? o.exercises : []).slice(0, 60);
+  const kept = all.map((e, k) => k).filter(k => { const e = all[k]; return e && typeof e === 'object' && typeof e.name === 'string' && e.name.trim(); });
+  const rawEx = kept.map(k => all[k]);
+  // Charge prescrite par le coach (js/data/coach-presc.js) : presc[] du serveur, aligné sur ses exercices
+  // (private.session_for_coach, migration 20261116010000) ; presc sur l'exercice (séance d'une copie locale)
+  const presc = Array.isArray(o.presc) ? o.presc : [];
   base.exercises.forEach((e, i) => {
     const n = cleanNote(rawEx[i]?.note);
     if (n) e.note = n;
+    const p = cleanHistoryPresc(presc[kept[i]] ?? rawEx[i]?.presc, e.sets.length);
+    if (p) e.presc = p;
     const rs = (Array.isArray(rawEx[i]?.sets) ? rawEx[i].sets : []).slice(0, 50).filter(st => st && typeof st === 'object');
     e.sets.forEach((st, j) => { const sn = cleanNote(rs[j]?.note); if (sn) st.note = sn; });
   });
@@ -110,7 +116,7 @@ function cleanCoachSessionRow(r) {
 }
 
 // Programme envoyé, tel que l'app l'accepte : { name, consigne?, sessions: [{ key, label, color,
-// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, intens?, ss?, grip?, consigne? }] }] }, null s'il est
+// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, load?, loads?, intens?, ss?, grip?, consigne? }] }] }, null s'il est
 // inutilisable. Mêmes bornes que la saisie (sanitizeData) ; clés de séance de SESSION_CAT_RE, uniques.
 function cleanSentProgramme(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -138,6 +144,8 @@ function cleanSentProgramme(raw) {
           if (rn !== null && rn < (o.repMax ?? 12)) o.repMin = rn;
           // Reps fixes (« 4 × 12 ») : jamais avec un bas ; une ancienne appli l'ignore et lit le seul haut
           if (e.repFixed === true && o.repMin === undefined) o.repFixed = true;
+          // Charge prescrite (js/data/coach-presc.js) : kg pour toutes les séries, et série par série
+          Object.assign(o, prescLoadFields(e, o.sets));
           if (ssId(e)) o.ss = e.ss;
           const it = cleanIntens(e.intens);   // technique prescrite (js/data/intensif.js)
           if (it) o.intens = it;
@@ -312,7 +320,8 @@ function progSessionsOf(d, progId) {
 
 // Programme de d au format d'envoi (consignes et supersets compris). Les consignes viennent du
 // programme (champ consigne), ou de over = { prog, ex: { [cat]: { [exId]: texte } } } quand le coach
-// vient de les saisir
+// vient de les saisir ; over.presc = { [cat]: { [exId]: prescription } } : charge et reps prescrites à
+// cet élève (js/data/coach-presc.js), qui remplacent les reps du programme
 function programmeToSent(d, progId, over = null) {
   const up = d.userProgrammes?.[progId];
   const name = up ? up.name : PROGRAMMES[progId]?.name;
@@ -329,6 +338,8 @@ function programmeToSent(d, progId, over = null) {
         if (e.repMax) o.repMax = e.repMax;
         if (e.repMin) o.repMin = e.repMin;
         if (e.repFixed === true) o.repFixed = true;
+        Object.assign(o, prescLoadFields(e, e.sets));   // programme reçu : sa charge prescrite (empreinte)
+        applyCoachPresc(o, over?.presc?.[s.key]?.[e.id]);
         if (cleanIntens(e.intens)) o.intens = e.intens;
         if (ssId(e)) o.ss = e.ss;
         if (cleanGrip(e.grip)) o.grip = cleanGrip(e.grip);
@@ -370,7 +381,7 @@ function coachProgrammeStatus(d, item, coachId = null) {
 // Exercices : celui de même nom DANS LA MÊME séance garde son identifiant et ses réglages propres à
 // l'élève (records, muscles choisis, objectif) ; un exercice qui change de séance repart d'un nouvel
 // identifiant (les records se calculent par séance du programme). Ce que le coach décide (séries,
-// repos, mesure, tempo, fourchette ou reps fixes, superset, prise, consigne) est remplacé.
+// repos, mesure, tempo, fourchette ou reps fixes, charge prescrite, superset, prise, consigne) est remplacé.
 // Séance retirée par le coach : gardée avec retired: true (nom et couleur des séances déjà faites dans
 // l'historique, rawLabel), mais absente de toutes les listes (sessionKeys). Renvoie l'identifiant local.
 function importCoachProgramme(d, item, coachPerson) {
@@ -388,7 +399,7 @@ function importCoachProgramme(d, item, coachPerson) {
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
-  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'repFixed', 'intens', 'ss', 'grip', 'consigne'];
+  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'repFixed', 'load', 'loads', 'intens', 'ss', 'grip', 'consigne'];
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };

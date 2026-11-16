@@ -79,6 +79,15 @@ function setUndoHtml(u) {
 function exUndoHtml(u) {
   return `<div class="ex-undo" role="status"><span class="ex-undo__text">${esc(u.text)}</span>${u.onAction ? `<button class="ex-undo__btn" data-action="sess-undo">${esc(u.label)}</button>` : ''}</div>`;
 }
+// « Série 4 supprimée · Annuler » à la place de la série retirée (deleteSet), là où le regard est déjà : au-dessus de la
+// carte, la ligne sortait de l'écran sur un exercice long
+function delUndoRows(ex, rows) {
+  const u = sessUndo;
+  if (u?.ex !== ex || u.delSi === undefined) return rows;
+  const out = rows.slice();
+  out.splice(Math.min(u.delSi, out.length), 0, exUndoHtml(u).replace('class="ex-undo"', 'class="ex-undo ex-undo--row"'));
+  return out;
+}
 // Bloc (exercice ou superset) replié : toutes ses séries faites, aucune sous-série en attente, pas déplié à la main
 function blockCollapsed(block, xs) {
   const ld = activeSession.lastDone;
@@ -89,6 +98,8 @@ function exUndoBefore(block, xs) {
   if (!u) return '';
   // « Annuler » d'une série : dans sa ligne ; si la dernière série referme la carte, la ligne passe au-dessus d'elle
   if (u.si !== undefined) return u.ex && block.some(i => xs[i] === u.ex) && blockCollapsed(block, xs) ? exUndoHtml(u) : '';
+  // Série supprimée : à sa place dans la carte d'un exercice seul (delUndoRows), au-dessus d'un superset
+  if (u.delSi !== undefined && block.length === 1 && !blockCollapsed(block, xs)) return '';
   if (u.ex && block.some(i => xs[i] === u.ex)) return exUndoHtml(u);
   if (u.at !== undefined && !u.ex && block[0] === u.at) return exUndoHtml(u);
   return '';
@@ -129,6 +140,41 @@ function capReps(src, exLike) {
   return max && parseInt(src.reps) > max ? { ...src, reps: String(max) } : src;
 }
 
+// Cases pré-remplies avec l'objectif du jour affiché sous le nom (exerciseGoal, js/data/goals.js ; panel « yeux neufs »
+// du 16/11 : « Objectif 32 kg × 10 » au-dessus de cases à 32 × 9, un ✓ rapide notait 9). Hausse de charge : posée
+// d'office sur les séries (bumpExerciseLoad), la puce ↑ n'a plus lieu d'être. Sinon (la meilleure série + 1 rep), c'est
+// la série qui était la meilleure la dernière fois qui prend l'objectif ; les autres gardent leurs reps d'avant (un 10,
+// 10, 9, 8 ne devient pas 11 partout). « Avant » reste la dernière fois.
+function goalPrefill(ex) {
+  const d = sessExData(ex);
+  if (!d || measureOf(ex) !== 'reps') return;
+  const t = exerciseGoal(activeSession.category, d, activeSession.programme);
+  const g = t?.goal;
+  if (!g || t.coach) return;   // charge prescrite par le coach : posée par prescPrefill (js/data/coach-presc.js)
+  if (t.gain === bumpLabel()) { bumpExerciseLoad(ex); return; }
+  const at = Math.round(g.w * 100), repsOf = s => parseInt(s.prev?.reps ?? s.reps) || 0;
+  const best = ex.sets.filter(s => !s.done && !isWarmupSet(s) && Math.round((parseFloat(s.weight) || 0) * 100) === at)
+    .reduce((b, s) => (!b || repsOf(s) > repsOf(b) ? s : b), null);
+  if (best && (parseInt(best.reps) || 0) < g.r) best.reps = String(g.r);
+}
+
+// Double progression : + 2,5 kg (5 lb) sur chaque série de travail à faire (l'échauffement garde ses paliers), aux reps
+// de l'objectif (goalRepsAfterBump, js/data/goals.js) : le bas de la fourchette, ces reps en reps fixes, sinon quelques
+// reps sous le haut. Puce ↑ (exercice ajouté en cours de route) et objectif du jour (goalPrefill). Renvoie ces reps.
+function bumpExerciseLoad(ex) {
+  const step = data.unit === 'lbs' ? 5 : 2.5;
+  const lo = measureOf(ex) === 'reps' ? goalRepsAfterBump(sessExData(ex) || {}) : null;
+  ex.sets.forEach(s => {
+    if (s.done || isWarmupSet(s)) return;
+    const cur = toUnitW(s.weight || s.prev?.weight) || 0;
+    s.weight = storeW(String(Math.round((cur + step) * 100) / 100));
+    s.plannedWeight = s.weight;
+    if (lo) s.reps = String(lo);
+  });
+  ex.bumped = true;
+  return lo;
+}
+
 function startSession(cat) {
   sessionNotes  = '';
   persistWarned = false;
@@ -145,8 +191,18 @@ function startSession(cat) {
     exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}), ...(cleanGrip(ex.grip) ? { grip: cleanGrip(ex.grip) } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   ssNormalize(activeSession.exercises);
-  // Technique prescrite par le programme (coach ou soi : js/data/intensif.js), posée sur ses séries
-  activeSession.exercises.forEach(ex => applyIntensPlan(ex, sessExData(ex)?.intens));
+  activeSession.exercises.forEach(goalPrefill);
+  // Technique prescrite par le programme (coach ou soi : js/data/intensif.js), posée sur ses séries ; back-off
+  // allégé (backoffPrefill). Programme d'un coach : reps dans sa fourchette (clampRepsToPlan), puis sa charge et
+  // ses reps prescrites en premier (prescPrefill, js/data/coach-presc.js)
+  const coachLed = coachLedProgramme(progKey);
+  activeSession.exercises.forEach(ex => {
+    const d = sessExData(ex);
+    applyIntensPlan(ex, d?.intens);
+    if (coachLed) clampRepsToPlan(ex, d);
+    backoffPrefill(ex);
+    prescPrefill(ex, d);
+  });
   persistSession();
   otaSessionChanged();   // une mise à jour en file attend la fin de la séance (js/app/live-update.js)
   routeTo('session');
@@ -240,7 +296,8 @@ function currentSet() {
   return null;
 }
 
-// Série suivante en deux morceaux : { name: « Développé incliné », tail: « S1 · 30 kg × 10 » } (tail = step + load), null sans.
+// Série suivante en deux morceaux : { name: « Développé incliné », tail: « Série 1 · 30 kg × 10 » } (tail = step + load), null sans.
+// « Série 1 » en toutes lettres, plus « S1 » (panel « yeux neufs » du 16/11 : jargon pour un débutant).
 // Pendant la pause d'un rest-pause ou d'un cluster, c'est la sous-série qui suit : « Reprise 1 · 70 kg × 4 »
 // (js/features/session-intensif.js), sub: true. La barre de repos coupe le nom, jamais la série ; pendant une
 // pause de technique, elle tait le nom (l'exercice qu'on vient de faire) : « Ensuite : Reprise 1 · 32 kg × 4 »
@@ -253,18 +310,20 @@ function nextSetParts() {
   // Sous-série sans objectif de reps (pas faite la dernière fois) : sa charge seule, « Reprise 1 · 70 kg »
   const load = String(s.reps ?? '') !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}`
     : sub && hasLoad(s.weight) ? ` · ${fmtW(s.weight, { plain: true })} ${unitLbl()}` : '';
-  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `S${setDisplayNo(ex.sets, cur.si)}`;   // compte des séries de travail, comme leur ligne
+  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `Série ${setDisplayNo(ex.sets, cur.si)}`;   // compte des séries de travail, comme leur ligne
   return { name: ex.name, step, load, tail: step + load, sub: !!sub };
 }
-// « Développé incliné · S1 · 30 kg × 10 »
+// « Développé incliné · Série 1 · 30 kg × 10 »
 function nextSetText() {
   const p = nextSetParts();
   return p ? `${p.name} · ${p.tail}` : '';
 }
 
-// Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette
+// Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette. Un exercice du
+// programme la reçoit d'office au départ (goalPrefill, ex.bumped) : la puce reste pour un exercice ajouté en cours de route
+// Programme envoyé par un coach : jamais (c'est lui qui décide de la charge, coachLedProgramme)
 function bumpReady(ex) {
-  if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex)) return false;
+  if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex) || coachLedProgramme(activeSession.programme)) return false;
   const work  = workSets(ex.sets);
   const prevs = work.map(s => s.prev).filter(Boolean);
   if (!prevs.length || prevs.length < Math.min(work.length, 2)) return false;
@@ -381,9 +440,22 @@ function exGoalHtml(ex, cls = '') {
   const d = sessExData(ex);
   const t = d && exerciseGoal(activeSession.category, d, activeSession.programme);
   if (!t?.goal) return '';
+  // Charge prescrite par le coach : sa prescription reste affichée toute la séance (« Avant » garde la dernière fois)
+  if (t.coach) return `<div class="ex-goal ex-goal--coach num ${cls}"><span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ton coach : ${esc(t.spoken)}</span></div>`;
   return goalReached(t.goal, ex.sets)
     ? `<div class="ex-goal ex-goal--done ${cls}">${icon('checkmark', 13)}Objectif atteint</div>`
     : `<div class="ex-goal num ${cls}">Objectif ${esc(t.text)}</div>`;
+}
+
+// Exercice jamais fait (aucune dernière fois, aucune charge prévue) et rien de validé : une ligne grise dit quelle
+// charge prendre, à la place de l'objectif (panel « yeux neufs » du 16/11 : la case kg n'avait que « — »). Exercice
+// en charge seulement : ni poids du corps, ni élastique, ni durée, ni cardio.
+// cls : 'ex-goal--member' sous un exercice de superset (aligné sur son nom)
+const FIRST_TIME_NO_LOAD = new Set(['aucun', 'elastique', 'cardio']);
+function exFirstTimeHtml(ex, cls = '') {
+  if (measureOf(ex) !== 'reps' || loadKind(ex) !== 'charge' || FIRST_TIME_NO_LOAD.has(equipmentOf(ex.name))) return '';
+  if (ex.sets.some(s => s.done || s.prev || hasLoad(s.weight))) return '';
+  return `<div class="ex-first ${cls}">Première fois : prends un poids que tu soulèves 15 fois facilement</div>`;
 }
 
 // Sous-titre de la carte : record, repos de l'exercice (modifiable), hausse de volume
@@ -421,7 +493,7 @@ function renderExerciseCard(ex, ei, cur) {
   const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}">↑ ${bumpLabel()}</button>` : '';
   // Séries d'échauffement (js/data/warmup.js) : en tête, sous un titre gris ; technique d'intensification
   // et ses sous-séries sous la série (js/features/session-intensif.js)
-  const rows = ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}`).join('');
+  const rows = delUndoRows(ex, ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}`)).join('');
 
   // Exercice de la série à faire : sa vignette cerclée d'orange (la série en cours, seul autre orange de la carte)
   const isCur = cur && cur.ei === ei;
@@ -440,7 +512,7 @@ function renderExerciseCard(ex, ei, cur) {
         <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${ex.sets.length}</span><span class="visually-hidden">${doneN} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
       </div>
-      ${exGoalHtml(ex)}
+      ${exGoalHtml(ex)}${exFirstTimeHtml(ex)}
       ${gripLineHtml(ex, ei)}
       ${exNoteLineHtml(ex, ei)}
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
@@ -448,7 +520,7 @@ function renderExerciseCard(ex, ei, cur) {
       </div>
       ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
-      <div class="sets" role="group" aria-label="Séries de ${esc(ex.name)}">
+      <div class="sets${ex.sets.some(isWarmupSet) ? ' sets--warm' : ''}" role="group" aria-label="Séries de ${esc(ex.name)}">
         <div class="sets__head" aria-hidden="true">
           <span>Série</span><span>Avant</span>
           <span>${loadHeader(ex)}</span><span>${MEASURES[measureOf(ex)].count}</span>
@@ -507,7 +579,7 @@ function renderGroupCard(members, cur, tags) {
           ${chip}
           <span class="ex-card__count num"><span aria-hidden="true">${n}/${ex.sets.length}</span><span class="visually-hidden">${n} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
           <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
-        </div>${exGoalHtml(ex, 'ex-goal--member')}`;
+        </div>${exGoalHtml(ex, 'ex-goal--member')}${exFirstTimeHtml(ex, 'ex-goal--member')}`;
   }).join('');
 
   const rounds = ssRounds(xs, members).map((round, t) => `
@@ -535,7 +607,7 @@ function renderGroupCard(members, cur, tags) {
       ${members.map(ei => gripLineHtml(xs[ei], ei, tags[ei])).join('')}
       ${members.map(ei => exNoteLineHtml(xs[ei], ei, tags[ei])).join('')}
       ${members.map(ei => coachSessionTipHtml(xs[ei], tags[ei])).join('')}
-      <div class="sets" role="group" aria-label="Séries du ${kind.toLowerCase()}">
+      <div class="sets${exs.some(ex => ex.sets.some(isWarmupSet)) ? ' sets--warm' : ''}" role="group" aria-label="Séries du ${kind.toLowerCase()}">
         <div class="sets__head" aria-hidden="true">
           <span>Exo</span><span>Avant</span>
           <span>${loadHeader(m0)}</span><span>${MEASURES[measureOf(m0)].count}</span>
@@ -580,13 +652,13 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}">
-          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
+          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
           ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m))}
           <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
           <span class="set-val set-val--r num" aria-hidden="true">${esc(s.reps)}</span>
           <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
-          ${record || pace || mach ? `<span class="set-badge" aria-hidden="true">${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
+          ${record || pace || mach || techPillHtml(s) ? `<span class="set-badge" aria-hidden="true">${techPillHtml(s, { spoken: false })}${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
           ${setNotePreviewHtml(ei, s, si)}
         </div>
         ${rir}
@@ -622,7 +694,7 @@ function rirEverUsed() {
 function rirPickerHtml(ei, si, s, ex, tag = null) {
   const r = cleanRir(s.rir), folded = tag !== null;
   return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}${folded ? `, ${esc(ex.name)}` : ''}">
-            <span class="rir__lbl" aria-hidden="true">Reps en réserve${folded ? ` · ${tag ? `${tag} ` : ''}S${setDisplayNo(ex.sets, si)}` : ''}</span>${rirEverUsed() ? '' : `
+            <span class="rir__lbl" aria-hidden="true">Reps en réserve${folded ? ` · ${tag ? `${tag} · ` : ''}Série ${setDisplayNo(ex.sets, si)}` : ''}</span>${rirEverUsed() ? '' : `
             <span class="rir__help">Facultatif : combien tu aurais pu en faire de plus</span>`}
             <span class="rir__btns">${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}</span>
             <span class="rir__rpe num" aria-live="polite">${r === null ? '' : `RPE ${rirToRpe(r)}`}</span>
@@ -659,11 +731,13 @@ function setFirstValue(s, m) {
   return hasLoad(s?.weight) ? fmtW(s.weight, { plain: true }) : '';
 }
 
-// Première colonne : numéro de la série de travail (l'échauffement, « É », ne décale pas la numérotation),
-// ou A1, A2… dans un superset (affiché tour par tour)
+// Première colonne : numéro de la série de travail (l'échauffement ne décale pas la numérotation), ou A1, A2… dans
+// un superset (affiché tour par tour). Échauffement : « Échauf. » (colonne élargie, .sets--warm), « É » sur un écran
+// étroit (css/session.css) ; VoiceOver lit toujours « Échauffement 1 » (setSpokenName, dans les libellés de la ligne)
+const WARM_NUM_HTML = '<span class="set-n__long">Échauf.</span><span class="set-n__short">É</span>';
 function setNumHtml(ex, si, tag) {
   if (tag) return `<span class="set-n"><span class="ss-tag">${tag}</span></span>`;
-  if (isWarmupSet(ex.sets[si])) return `<span class="set-n set-n--warm" aria-hidden="true">É</span>`;
+  if (isWarmupSet(ex.sets[si])) return `<span class="set-n set-n--warm" aria-hidden="true">${WARM_NUM_HTML}</span>`;
   return `<span class="set-n num">${setDisplayNo(ex.sets, si)}</span>`;
 }
 
@@ -700,7 +774,10 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
   const prevF   = setFirstValue(s.prev, m);
   const prev    = s.prev ? `${prevF ? prevF + '&nbsp;× ' : ''}${esc(s.prev.reps)}` : '—';
   const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
-  const del     = `<button class="set-del" data-action="delete-set" data-ei="${ei}" data-si="${si}" tabindex="-1" aria-label="Supprimer ${setRefName(ex, si)}, ${esc(ex.name)}">Supprimer</button>`;   // numéro affiché, échauffements à part
+  // Caché à VoiceOver et inactif tant que le balayage ne l'a pas révélé (setDelShown, js/features/session-gestures.js) : lu
+  // avant chaque série, un double toucher supprimait sans le vouloir (panel « yeux neufs » du 16/11). Sans balayage :
+  // ⋯ › Plus d'options › « Retirer la dernière série ». Numéro affiché, échauffements à part
+  const del     = `<button class="set-del" data-action="delete-set" data-ei="${ei}" data-si="${si}" tabindex="-1" aria-hidden="true" aria-label="Supprimer ${setRefName(ex, si)}, ${esc(ex.name)}">Supprimer</button>`;
 
   if (s.done && !editing) return renderDoneSetRow(ex, ei, s, si, prev, del, tag);
 
@@ -742,6 +819,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}">
         ${check}
+        ${techPillHtml(s) ? `<span class="set-badge">${techPillHtml(s)}</span>` : ''}
         ${setNotePreviewHtml(ei, s, si)}
       </div>
       ${rir}
@@ -759,6 +837,30 @@ function unusualSetText(ex, s) {
     prW: parseFloat(sessExData(ex)?.pr?.weight) || 0, repMax: sessExData(ex)?.repMax ?? 12,
     doneReps: done.map(x => parseInt(x.reps) || 0), doneW: done.map(x => parseFloat(x.weight) || 0), kind: loadKind(ex),
   });
+}
+
+// Série supprimée (balayage, ou ⋯ › « Retirer la dernière série ») : « Série 2 supprimée · Annuler » au-dessus de la carte,
+// comme la validation ; « Annuler » la remet à sa place, avec la série en cours d'avant
+function deleteSet(ei, si) {
+  const ex = activeSession?.exercises[ei];
+  const s = ex?.sets[si];
+  if (!s) return;
+  if (ex.sets.length === 1) { closeSwipes(); showToast('Dernière série : retire l\'exercice avec ⋯'); return; }
+  if (activeSession.effort?.ei === ei) cancelEffort();   // les positions des séries changent
+  const name = setSpokenName(ex, si), lastDone = activeSession.lastDone ?? null;
+  ex.sets.splice(si, 1);
+  activeSession.lastDone = null;
+  editingSet = null;
+  haptic();
+  persistSession();
+  sessionUndo(`${name} supprimé${isWarmupSet(s) ? '' : 'e'}`, { target: { ex, delSi: si }, onAction: () => {
+    if (!activeSession?.exercises.includes(ex) || ex.sets.includes(s)) return;
+    ex.sets.splice(Math.min(si, ex.sets.length), 0, s);
+    activeSession.lastDone = lastDone;
+    clearSessionUndo();
+    persistSession();
+    render();
+  } });
 }
 
 // ── Validation d'une série ───────────────────────────────────
@@ -830,7 +932,9 @@ function carryWeightToNextSet(ex, si) {
   const undo    = { s, next: null, nextW: null, nextR: null };
   if (!nextSet || nextSet.done || isWarmupSet(s)) return undo;
   undo.next = nextSet; undo.nextW = nextSet.weight; undo.nextR = nextSet.reps;
-  if ((parseFloat(s.weight) || 0) !== (parseFloat(s.plannedWeight) || 0)) nextSet.weight = s.weight;
+  // Pas vers une série prévue à une autre charge : back-off après un top set, charge prescrite différente
+  const otherPlan = (setTech(s) === 'top' && setTech(nextSet) === 'backoff') || String(s.pk ?? '') !== String(nextSet.pk ?? '');
+  if (!otherPlan && (parseFloat(s.weight) || 0) !== (parseFloat(s.plannedWeight) || 0)) nextSet.weight = s.weight;
   // Reps : reprises seulement si rien n'était prévu (premier essai d'un exercice), jamais un objectif écrasé
   if (String(nextSet.reps ?? '').trim() === '' && s.reps) nextSet.reps = s.reps;
   return undo;
@@ -1031,18 +1135,10 @@ registerActions({
     $('.session-set--editing .set-check-zone')?.focus({ preventScroll: true });
   },
   'save-edit-set': saveEditedSet,
+  // Bouton révélé par le balayage seulement (jamais un « Supprimer » resté caché)
   'delete-set': (e, el) => {
-    const ei = parseInt(el.dataset.ei), si = parseInt(el.dataset.si);
-    const ex = activeSession?.exercises[ei];
-    if (!ex?.sets[si]) return;
-    if (ex.sets.length === 1) { closeSwipes(); showToast('Dernière série : retire l\'exercice avec ⋯'); return; }
-    if (activeSession.effort?.ei === ei) cancelEffort();   // les positions des séries changent
-    ex.sets.splice(si, 1);
-    activeSession.lastDone = null;
-    editingSet = null;
-    haptic();
-    persistSession();
-    render();
+    if (el?.closest && !el.closest('.set-swipe--open')) return;
+    deleteSet(parseInt(el.dataset.ei), parseInt(el.dataset.si));
   },
   // RIR d'une série validée (js/data/rir.js) : un toucher note, le même toucher efface
   'set-rir': (e, el) => {
@@ -1089,18 +1185,8 @@ registerActions({
   'bump-weight': (e, el) => {
     const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
     if (!ex) return;
-    const step = data.unit === 'lbs' ? 5 : 2.5;
-    // La nouvelle charge repart aux reps de l'objectif (goalRepsAfterBump, js/data/goals.js) : le bas de la
-    // fourchette, sinon quelques reps sous le haut ; la puce et « Objectif 75 kg × 3 » disent la même chose
-    const lo = measureOf(ex) === 'reps' ? goalRepsAfterBump(sessExData(ex) || {}) : null;
-    ex.sets.forEach(s => {
-      if (s.done || isWarmupSet(s)) return;   // l'échauffement garde ses paliers
-      const cur = toUnitW(s.weight || s.prev?.weight) || 0;
-      s.weight = storeW(String(Math.round((cur + step) * 100) / 100));
-      s.plannedWeight = s.weight;
-      if (lo) s.reps = String(lo);
-    });
-    ex.bumped = true;
+    // La nouvelle charge repart aux reps de l'objectif : la puce et « Objectif 75 kg × 8 » disent la même chose
+    const lo = bumpExerciseLoad(ex);
     haptic();
     persistSession();
     render();
