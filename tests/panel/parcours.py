@@ -363,6 +363,47 @@ def p_programme(r):
         r.toucher('[data-action="go-prog-add"]', 'Ajouter un programme')
 
 
+@parcours('generateur', 'Programme sur mesure (générateur)', 'pratiquant')
+def p_generateur(r):
+    """Pratiquant régulier qui crée un programme sur mesure : Programme › Mes programmes › Ajouter › « Créer mon programme
+    sur mesure », profil repris des Réglages, prise de muscle, intermédiaire, 4 jours, 75 min, salle complète, fessiers en
+    priorité, douleur d'épaule, puis l'aperçu et « Utiliser ce programme »."""
+    r.lancer(REALISTE)
+    cle = 'Créer un programme sur mesure'
+    with r.etape('ajouter', 'Ajouter un programme : « sur mesure » en première ligne', cle=cle):
+        r.onglet('program', 'Programme')
+        r.defiler('.view.programmes [data-action="go-my-programmes"]', 'liste sous les cartes')
+        r.toucher('.view.programmes [data-action="go-my-programmes"]', 'Mes programmes')
+        r.toucher('[data-action="go-prog-add"]', 'Ajouter un programme')
+    with r.etape('profil', 'Profil repris des Réglages', cle=cle):
+        r.toucher('[data-action="go-prog-gen"]', 'Créer mon programme sur mesure')
+        r.attendre('.view.prog-gen', 'générateur')
+    with r.etape('objectif', 'Objectif', cle=cle):
+        r.toucher('[data-action="gen-next"][data-step="toi"]', 'Commencer')
+    with r.etape('niveau', 'Niveau', cle=cle):
+        r.toucher('[data-action="gen-set"][data-val="muscle"]', 'Prendre du muscle')
+    with r.etape('jours', 'Jours par semaine', cle=cle):
+        r.toucher('[data-action="gen-set"][data-val="intermediaire"]', 'Intermédiaire')
+    with r.etape('duree', 'Temps par séance', cle=cle):
+        r.toucher('[data-action="gen-set"][data-val="4"]', '4 jours')
+    with r.etape('materiel', 'Matériel', cle=cle):
+        r.toucher('[data-action="gen-set"][data-val="75"]', '75 min')
+    with r.etape('options', 'Priorités et limites', cle=cle):
+        r.toucher('[data-action="gen-next"][data-step="materiel"]', 'Suivant')
+        r.toucher('[data-action="gen-zone"][data-val="fessiers"]', 'Fessiers')
+        r.toucher('[data-action="gen-limit"][data-val="epaule"]', 'Épaule')
+    with r.etape('apercu', 'Aperçu du programme', cle=cle):
+        r.toucher('[data-action="gen-next"][data-step="options"]', 'Voir mon programme')
+        r.attendre('[data-action="gen-use"]', 'aperçu')
+    with r.etape('apercu-bas', 'Aperçu, bas de l\'écran (séances, boutons)', cle=cle):
+        r.bas('bas de l\'aperçu')
+    with r.etape('confirmer', '« Utiliser ce programme » : confirmation', cle=cle):
+        r.toucher('[data-action="gen-use"]', 'Utiliser ce programme')
+    with r.etape('programme', 'Programme créé et actif', cle=cle):
+        r.choisir('Utiliser ce programme')
+        r.attendre('.view.programmes .pcard', 'séances du programme')
+
+
 @parcours('bibliotheque', 'Bibliothèque d\'exercices', 'pratiquant')
 def p_bibliotheque(r):
     """Bibliothèque depuis l'onglet Programme, puis la fiche d'un exercice (comment faire)."""

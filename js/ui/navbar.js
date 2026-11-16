@@ -190,6 +190,7 @@ function routeTitle(route, isRoot) {
   const name = routeName(route);
   if (name === 'editor') { const cat = editorCatOf(route); return cat ? rawLabel(cat) : 'Séance'; }
   if (name.startsWith('coach')) return coachRouteTitle(route) || 'Retour';
+  if (name === 'prog-gen') return { toi: 'Sur mesure', objectif: 'Objectif', niveau: 'Niveau', jours: 'Jours', duree: 'Temps', materiel: 'Matériel', options: 'Priorités' }[routeParams(route)[0]] || 'Sur mesure';
   return {
     dashboard: 'Entraînement', history: 'Historique', stats: 'Progrès',
     programmes: 'Programme', settings: 'Réglages', guide: 'Guide', account: 'Compte', session: 'Séance', summary: 'Bilan',
