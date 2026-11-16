@@ -580,6 +580,8 @@ html.type-xl .rs__adj .rs__round { width: 100%; }
 html.type-xl .rs .rs__resume { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
   width: calc(100vw - 32px); max-width: none; font-size: 0.882rem; }
 html.type-xl .rs__ring { margin-bottom: 2.4em; }
+/* Chrono d'effort : consigne et « Maintien 1 sur 5 » (rs__resume--pair), jusqu'à trois lignes à AX3 : place gardée sous l'anneau */
+html.type-xl .rs__ring:has(.rs__resume--pair) { margin-bottom: 4.8em; }
 html.type-xl .rs__time { font-size: min(72px, 3.4rem); }
 /* Superset : le compte et ⓘ passent sous le nom plutôt que de le couper */
 html.type-xl .ss-member { flex-wrap: wrap; }

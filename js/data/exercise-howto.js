@@ -243,8 +243,12 @@ const EXERCISE_HOWTO = {
   'Dead bug': [['Allongé sur le dos, bras tendus vers le plafond', 'Genoux pliés à 90° au-dessus des hanches',
     'Nombril rentré pendant tout l\'exercice : le transverse garde le bas du dos au sol',
     'Tends une jambe et le bras opposé vers le sol, souffle', 'Reviens, puis change de côté'], 'Bas du dos qui décolle du sol'],
-  'Vacuum': [['Debout ou à quatre pattes, souffle tout ton air', 'Rentre le nombril vers la colonne, le plus loin possible',
-    'Tiens 10 à 20 secondes en respirant petit, puis relâche', 'Cible le transverse, muscle profond qui ceinture le ventre'], 'Bloquer sa respiration ou cambrer le dos'],
+  // Vacuum (docs/VACUUM.md) : consigne des études de l'« abdominal hollowing » (Urquhart 2005, Teyhen 2005), durées des
+  // essais résumés par Golob 2024 ; aucune promesse de taille fine (aucune étude ne le montre)
+  'Vacuum': [['Débute couché sur le dos, genoux pliés ; puis à quatre pattes, assis, debout',
+    'Expire tout ton air, puis rentre le bas du ventre vers la colonne', 'Respire petit sans relâcher le ventre, dos et bassin immobiles',
+    'Tiens 10 s, puis 15 à 20 s quand c\'est facile ; 8 à 10 maintiens', 'Travaille le transverse, muscle profond qui ceinture le ventre'],
+    'Bloquer sa respiration, ou rentrer le haut du ventre en cambrant le dos'],
   'Bird dog': [['À quatre pattes, mains sous les épaules, genoux sous les hanches', 'Dos plat, abdos serrés',
     'Tends un bras devant et la jambe opposée derrière', 'Tiens deux secondes, reviens, change de côté'], 'Bassin qui tourne ou dos qui se creuse'],
   'Relevés de jambes': [['Allongé sur le dos, mains sous les fesses ou le long du corps', 'Jambes tendues, bas du dos plaqué au sol',

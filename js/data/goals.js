@@ -71,12 +71,14 @@ function fixedReps(ex) {
 // Séries prescrites : « 4 × 12 » en reps fixes (espaces insécables : jamais coupé), sinon « 4 séries »
 function setsRepsText(ex) {
   const n = measureOf(ex) === 'reps' ? fixedReps(ex) : null;
-  return n ? `${ex.sets}\u00a0×\u00a0${n}` : plural(ex.sets, 'série', 'séries');
+  return n ? `${ex.sets}\u00a0×\u00a0${n}` : setsCountTxt(ex);
 }
+// « 3 séries », vacuum : « 5 maintiens » (setNoun, js/data/measures.js, chargé après : appelé au rendu seulement)
+function setsCountTxt(ex) { return `${ex.sets} ${setNoun(ex, ex.sets)}`; }
 // Même chose pour VoiceOver : « 4 séries de 12 reps », pas « 4 multiplié par 12 »
 function setsRepsSpoken(ex) {
   const n = measureOf(ex) === 'reps' ? fixedReps(ex) : null;
-  return n ? `${plural(ex.sets, 'série', 'séries')} de ${plural(n, 'rep', 'reps')}` : plural(ex.sets, 'série', 'séries');
+  return n ? `${plural(ex.sets, 'série', 'séries')} de ${plural(n, 'rep', 'reps')}` : setsCountTxt(ex);
 }
 // HTML : le texte affiché, lu par VoiceOver dans sa forme parlée (classe visually-hidden, css/screens.css, que les contrôles de textes coupés ignorent)
 function setsRepsHtml(ex) {

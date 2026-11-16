@@ -12,7 +12,8 @@ let libMuscle = NO_MUSCLE_FILTER;   // filtre par muscle de l'écran (groupe, mu
 // Sections de la liste, dans l'ordre du corps : rangement par le premier muscle principal (MUSCLE_GROUPS)
 function libSection(e) {
   if (e.equip === 'cardio') return 'Cardio';
-  return MUSCLE_GROUPS.find(g => g.muscles.includes(e.primary[0]))?.label || 'Autres';
+  const deepGroup = !e.primary.length && DEEP_MUSCLES[e.deep?.[0]]?.group;   // vacuum : avec les abdominaux
+  return MUSCLE_GROUPS.find(g => (deepGroup ? g.id === deepGroup : g.muscles.includes(e.primary[0])))?.label || 'Autres';
 }
 
 // Une ligne par exercice, même mise en page que les groupes : nom et détails à gauche, personnage 3D à
@@ -62,8 +63,8 @@ function libRowHtml(e) {
   const q = EQUIPMENT.find(x => x.id === e.equip);
   const m = exerciseMuscles({ name: e.name }), id = m.primary?.[0];
   const f = libMuscle.muscle, shown = f && m.primary.includes(f) ? { ...m, primary: [f, ...m.primary.filter(x => x !== f)] } : m;
-  const muscles = [...new Set(m.primary.map(muscleLabel))];
-  const hint = LIB_HINTS[e.name];
+  const muscles = [...new Set([...m.primary.map(muscleLabel), ...(m.deep || []).map(id => deepMuscleLabel(id, true))])];
+  const hint = LIB_HINTS[e.name] || (!m.primary.length && m.deep?.length ? deepMusclesNames(m) : null);
   const label = [e.name, hint, ...muscles, q?.label].filter(Boolean).join(', ');
   return `<button class="cell mgc mgc--ex" data-action="open-library-ex" data-name="${esc(e.name)}" aria-label="${esc(label)}">
       <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
@@ -83,8 +84,8 @@ function libMatches(f) {
 }
 // Exercice dont le muscle principal (le premier) est dans le filtre : c'est lui qui compte pour un groupe
 function libMainMatch(e, f) {
-  const t = muscleFilterTargets(f), first = exerciseMuscles({ name: e.name }).primary?.[0];
-  return !t || t.includes(first);
+  const m = exerciseMuscles({ name: e.name }), t = muscleFilterTargets(f), first = m.primary?.[0];
+  return !t || t.includes(first) || (!first && deepInGroup(m, f));
 }
 function exercisesCountLabel(n) { return n ? `${n} exercice${n > 1 ? 's' : ''}` : 'Aucun exercice'; }
 
@@ -203,7 +204,12 @@ let libExTabOf = null;   // exercice de l'onglet gardé
 function libExHeroHtml(name) {
   const media = exerciseVideoHtml(name);
   if (media) return `<div class="exhero exhero--media">${media}</div>`;
-  const id = exerciseMuscles({ name }).primary?.[0];
+  const m = exerciseMuscles({ name }), id = m.primary?.[0];
+  // Muscle profond seul (vacuum) : le personnage sans rouge et la raison, jamais un faux rouge sur les abdominaux
+  if (!id && m.deep?.length) {
+    return `<figure class="exhero exhero--deep">${bodyMapHtml({}, { view: 'front', className: 'exhero__body' })}
+      <figcaption class="exhero__cap">${esc(deepMuscleLabel(m.deep[0]))}, muscle profond, invisible en surface</figcaption></figure>`;
+  }
   if (!isMuscleId(id)) return '';
   return `<div class="exhero"><img class="exhero__img" src="img/muscles/${id}.webp" alt="" width="600" height="400" decoding="async"></div>`;
 }
@@ -253,7 +259,8 @@ function renderLibraryEx(name) {
     records: st ? `${st.records}${st.target}` : libExEmptyHtml('records'),
   };
   const q = EQUIPMENT.find(x => x.id === e.equip);
-  const sub = [[...new Set(exerciseMuscles({ name }).primary.map(muscleLabel))].join('\u00a0· '), q?.label].filter(Boolean).join('\u00a0· ');   // « · » collé au mot d'avant : le matériel ne se lit pas comme un muscle
+  const mSub = exerciseMuscles({ name });
+  const sub = [[...new Set([...mSub.primary.map(muscleLabel), ...(mSub.deep || []).map(id => deepMuscleLabel(id, true))])].join('\u00a0· '), q?.label].filter(Boolean).join('\u00a0· ');   // « · » collé au mot d'avant : le matériel ne se lit pas comme un muscle
   const title = catalogueAliasOf(name) ? name : e.name;
   return `
     <div class="view library-ex view--grouped">

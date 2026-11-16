@@ -132,6 +132,12 @@ html.type-xl .ss-thumbs { display: none; }
   /* « Série » à 12 px : son en-tête déborde sur l'écart et le bord, la colonne garde 30 px (place des charges) */
   .sets__head > span:first-child { margin-left: -3px; margin-right: calc(-1 * var(--set-gap)); }
 }
+/* Maintien guidé (vacuum, holdGuide) : pas de colonne « +kg », un lest n'y a pas de sens. Quatre colonnes, la case de
+   charge (champ, valeur validée, en-tête) retirée de la grille ; la durée prend sa place */
+.sets--noload { --set-cols: 34px minmax(0,1.3fr) minmax(0,1.8fr) 52px; }
+@media (max-width: 374px) { .sets--noload { --set-cols: 30px minmax(0,1.2fr) minmax(0,1.9fr) 48px; } }
+.sets--noload .sets__head > span:nth-child(3), .sets--noload .session-set > .set-input:not(.set-input--required),
+.sets--noload .session-set > .set-val--w { display: none; }
 .sets__head, .session-set { display: grid; grid-template-columns: var(--set-cols); column-gap: var(--set-gap); align-items: center; }
 .sets__head {
   padding: 0 6px 4px; font-size: 0.706rem; font-weight: 600; color: var(--label2);
@@ -339,6 +345,9 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .rs__center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .rs__time { font-family: var(--font-rounded); font-size: 72px; line-height: 1; font-weight: 300; letter-spacing: 0; }
 .rs__resume { font-size: 0.882rem; color: var(--label2); }
+/* Chrono d'effort : consigne et « Série 2 sur 3 » dans un seul bloc, l'une sous l'autre ; en texte agrandi, le bloc passe
+   sous l'anneau (screens.css) sans que les deux lignes, placées au même endroit, se recouvrent */
+.rs__resume--pair { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 /* Annuler en ligne (sessionUndo, js/features/session.js) : dans la colonne « Avant » de la série, ou en ligne au-dessus de
    la carte de l'exercice ; prend sa place, ne recouvre rien */
 .set-undo {
