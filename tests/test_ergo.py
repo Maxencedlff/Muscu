@@ -116,11 +116,11 @@ def t_seance(bench, eng, dev, theme):
         rec = page.locator('.hrow').first.locator('.hcell__rec')
         R.check(rec.count() == 1 and rec.inner_text().split(',')[0].strip().startswith('1'), f'{t} pastille record dans l\'historique')
 
-        # 3. Progrès (15/11 : « Tes muscles en 3 mois » en tête, puis les chiffres) : les 3 derniers records restent présents
+        # 3. Progrès (16/11 : la carte des muscles en tête, puis « Tes muscles en 3 mois » et les chiffres) : les 3 derniers records restent présents
         page.evaluate("switchTab('progress')"); page.wait_for_timeout(400)
         R.check(page.locator('.stats-records .rec-row').count() == 3, f'{t} 3 derniers records')
         titles = [x.strip().lower() for x in page.locator('.scr > .group-title').all_inner_texts()]
-        R.check(titles and titles[0].startswith('tes muscles') and 'derniers records' in titles, f'{t} groupes en tête, derniers records présents {titles[:4]}')
+        R.check(titles[:2] == ['muscles', 'tes muscles en 3 mois'] and 'derniers records' in titles, f'{t} carte des muscles en tête, puis les groupes, derniers records présents {titles[:4]}')
         R.check(page.locator('[data-action="muscle-span"][data-span="month"]').get_attribute('aria-pressed') == 'true', f'{t} 4 semaines par défaut')
 
         # A. Programme : la même roue que l'accueil

@@ -273,16 +273,16 @@ function renderStats() {
         ${idx.size ? list : has ? `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>` : ''}`;
   const pair = { monthCount, yearCount };
 
-  // Sans séance : l'invitation d'abord (les cartes des groupes n'auraient rien à dire)
-  const top = has ? `${progGroupCardsHtml(idx)}${statsNavGroupHtml(records, pair)}${statsRecordsHtml()}`
-    : `${statsStartHtml()}${statsNavGroupHtml(records, pair)}`;
+  // Avec des séances : la carte des muscles (face et dos) d'abord, puis les groupes (Maxence, 16/11 : « montrer
+  // la carte des muscles en premier serait plus judicieux ») ; sans séance : l'invitation d'abord
+  const top = has ? `${renderMuscleCard()}${progGroupCardsHtml(idx)}${statsNavGroupHtml(records, pair)}${statsRecordsHtml()}`
+    : `${statsStartHtml()}${statsNavGroupHtml(records, pair)}${renderMuscleCard()}`;
 
   return `
     <div class="view stats view--grouped">
       ${navBar({ title: 'Progrès' })}
       <div class="scr">
         ${top}
-        ${renderMuscleCard()}
         ${tail}
       </div>
     </div>`;
