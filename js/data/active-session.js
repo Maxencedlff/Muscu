@@ -59,7 +59,7 @@ function restoreSession() {
       if (ex.sets.some(st => !('prev' in st))) {
         const last = lastPerf(activeSession.programme, activeSession.category, ex);
         ex.sets.forEach((st, i) => {
-          if (!('prev' in st)) st.prev = last?.ex.sets[i] ? { weight: last.ex.sets[i].weight, reps: last.ex.sets[i].reps } : null;
+          if (!('prev' in st)) st.prev = last?.ex.sets[i] ? { weight: last.ex.sets[i].weight, reps: last.ex.sets[i].reps, ...(cleanNote(last.ex.sets[i].note) ? { note: cleanNote(last.ex.sets[i].note) } : {}) } : null;
         });
       }
     });

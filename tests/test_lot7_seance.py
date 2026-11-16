@@ -33,8 +33,8 @@ def t_seance(bench, eng, dev, theme):
         vals = page.evaluate("[...document.querySelectorAll('[data-action=\"set-weight\"]')].map(i => i.value + '|' + i.placeholder)")
         R.check(all('.' not in v for v in vals), f'{t} champs kg sans point décimal {vals[:4]}')
 
-        # Colonne Préc. sur une seule ligne, hauteurs régulières
-        prev = page.evaluate("""[...document.querySelectorAll('.set-prev')].map(e => {
+        # Colonne Préc. sur une seule ligne, hauteurs régulières (la valeur ; la case est aussi le bouton de la note, icône dessous)
+        prev = page.evaluate("""[...document.querySelectorAll('.set-prev:not(.set-note-btn), .set-note-btn__val')].map(e => {
             const lh = parseFloat(getComputedStyle(e).lineHeight);
             return [e.textContent, e.getBoundingClientRect().height <= lh * 1.5, e.scrollWidth <= e.clientWidth + 1];
         })""")

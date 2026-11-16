@@ -173,6 +173,22 @@ def p_seance(r):
         r.toucher('.view.session [data-action="save-edit-set"]', 'enregistrer la correction')
         passer_repos(r)
 
+    # Notes : case « Avant » de la série suivante (à faire), puis « Note » au pied de la carte
+    with r.etape('note-serie-ouvrir', 'Note de série : toucher la case « Avant » de la série 2', cle='Noter une série'):
+        r.toucher('.view.session .session-set[data-ei="0"][data-si="1"] .set-note-btn', 'case « Avant » de la série 2')
+        r.attendre('.ios-dialog__input', 'alerte de la note')
+    with r.etape('note-serie-ecrite', 'Note de série enregistrée : lue sous la ligne', cle='Noter une série'):
+        r.saisir('.ios-dialog__input', 'épaule gauche sensible', 'note')
+        r.choisir('Enregistrer')
+        r.defiler('.view.session .session-set[data-ei="0"][data-si="1"]', 'la série notée')
+    with r.etape('note-exercice', 'Note d\'exercice : lien « Note » au pied de la carte', cle='Noter un exercice'):
+        r.toucher('.view.session .ex-card[data-ei="0"] .ex-foot-note', '« Note » au pied de la carte')
+        r.attendre('.ios-dialog__input', 'alerte de la note')
+    with r.etape('note-exercice-ecrite', 'Note d\'exercice enregistrée : lue sous le nom', cle='Noter un exercice'):
+        r.saisir('.ios-dialog__input', 'siège cran 4', 'note')
+        r.choisir('Enregistrer')
+        r.defiler('.view.session .ex-card[data-ei="0"] .ex-note', 'la note sous le nom')
+
     # Ajouter un exercice : filtres explorés, puis recherche et choix
     with r.etape('ajouter-feuille', 'Feuille « Ajouter un exercice »', cle='Ajouter un exercice (recherche)'):
         r.toucher('.view.session [data-action="add-session-ex"]', 'Ajouter un exercice')
@@ -1024,6 +1040,10 @@ def p_seance_outils(r):
         demarrer(r, 'push', 'Push')
         if not r.present('.view.session .ex-card', '8–12 reps'):
             raise Absent('fourchette « 8–12 reps » pas affichée sur la carte')
+    with r.etape('note-serie', 'Note de la série 1 depuis sa case « Avant »', cle='Noter une série'):
+        r.toucher('.view.session .session-set[data-ei="0"][data-si="0"] .set-note-btn', 'case « Avant » de la série 1')
+        r.saisir('.ios-dialog__input', 'prise un peu plus large', 'note')
+        r.choisir('Enregistrer')
 
     cle = 'Ajouter un exercice filtré par muscle'
     with r.etape('ajout-filtre', 'Feuille d\'ajout : filtre Dos', cle=cle):

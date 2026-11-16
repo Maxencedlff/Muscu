@@ -104,7 +104,8 @@ function plannedSet(src, prev) {
     plannedWeight: src?.weight ?? '',
     // machine : réglages de la dernière fois, point de départ du chrono (machineStart)
     // tech, sub : technique de la dernière fois (js/data/intensif.js), « Avant » de ses sous-séries
-    prev:   prev ? { weight: prev.weight, reps: prev.reps, ...(prev.dist ? { dist: prev.dist } : {}), ...(prev.machine ? { machine: prev.machine } : {}), ...techFields(prev) } : null,
+    // note : celle de la même série la dernière fois (js/features/session-notes.js), relue sous la série à faire
+    prev:   prev ? { weight: prev.weight, reps: prev.reps, ...(prev.dist ? { dist: prev.dist } : {}), ...(prev.machine ? { machine: prev.machine } : {}), ...(cleanNote(prev.note) ? { note: cleanNote(prev.note) } : {}), ...techFields(prev) } : null,
     done:   false,
   };
 }
@@ -457,6 +458,7 @@ function renderExerciseCard(ex, ei, cur) {
       </div>
       <div class="ex-card__foot">
         <button class="add-set-link" data-action="add-set" data-ei="${ei}" aria-label="Ajouter une série, ${esc(ex.name)}">${icon('plus', 16)} Série</button>
+        ${exNoteFootHtml(ex, ei)}
         ${orderBtnHtml(ei, cur)}
       </div>
     </div>`;
@@ -570,20 +572,22 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const rir    = m === 'reps' && !warm ? (last && rirShown() && !sub ? rirPickerHtml(ei, si, s, ex) : rirBadgeHtml(s)) : '';
   const rirSpoken = cleanRir(s.rir) !== null ? `, ${rirTxt(s.rir)} en réserve` : '';
   const noteSpoken = cleanNote(s.note) ? `, avec note : ${esc(cleanNote(s.note))}` : '';   // js/features/session-notes.js
-  // « Annuler » en ligne pendant 6 s : la ligne se corrige toujours au toucher, mais n'est plus annoncée comme un bouton
-  // (pas de bouton dans un bouton pour VoiceOver) ; « Annuler » a sa propre action
+  // La ligne se corrige au toucher (data-action sur la ligne) ; pour VoiceOver, le bouton « Modifier » est sa phrase, pas
+  // la ligne entière : la case « Avant » (sa note) et « Annuler » sont des boutons à part, jamais un bouton dans un bouton.
+  // « Annuler » en ligne pendant 6 s : la phrase n'est plus annoncée comme un bouton, « Annuler » a sa propre action
   const u = undoForSet(ex, si);
   return `
       <div class="set-swipe">
         ${del}
-        <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" ${u ? '' : 'role="button" tabindex="0"'}>
-          <span class="sr-text">${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
-          ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}${setNoteDotHtml(s, tag)}
-          ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}
+        <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}">
+          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
+          ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
+          ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m))}
           <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
           <span class="set-val set-val--r num" aria-hidden="true">${esc(s.reps)}</span>
           <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
           ${record || pace || mach ? `<span class="set-badge" aria-hidden="true">${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
+          ${setNotePreviewHtml(ei, s, si)}
         </div>
         ${rir}
       </div>`;
@@ -684,6 +688,13 @@ function setPlayHtml(ex, ei, s, si) {
   return `<button class="set-n set-play${live ? ' set-play--live' : ''}" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${what}, ${setSpokenName(ex, si).toLowerCase()}, ${esc(ex.name)}${goal}">${icon(live ? 'timer' : 'play', 16)}</button>`;
 }
 
+// « Avant » dit à VoiceOver (« 32 × 9 ») : la valeur affichée dans la case, sans espace insécable
+function prevSpoken(s, m) {
+  if (!s.prev) return '';
+  const f = setFirstValue(s.prev, m);
+  return `${f ? `${f} × ` : ''}${esc(s.prev.reps)}`;
+}
+
 function renderSetRow(ex, ei, s, si, cur, tag) {
   const m       = measureOf(ex);
   const prevF   = setFirstValue(s.prev, m);
@@ -725,13 +736,13 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''} ${warm ? 'session-set--warmup' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
         ${firstCol}
-        ${undoForSet(ex, si) ? setUndoHtml(undoForSet(ex, si)) : `<span class="set-prev num">${s.prev ? '<span class="visually-hidden">La dernière fois </span><span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}</span>`}
+        ${undoForSet(ex, si) ? setUndoHtml(undoForSet(ex, si)) : setNoteBtnHtml(ex, ei, s, si, `${s.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}`, prevSpoken(s, m))}
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
                value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}">
         ${check}
-        ${editing && s.done ? setNoteLinkHtml(ex, ei, si) : ''}
+        ${setNotePreviewHtml(ei, s, si)}
       </div>
       ${rir}
     </div>`;

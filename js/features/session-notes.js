@@ -1,13 +1,15 @@
 // ═══════════════════════════════════════════════════════════
 //  Notes : saisie en séance et relecture (carte d'exercice, série, haut de la séance, Historique, fiche)
 //  Logique et données : js/data/notes.js. Discrètes par principe : rien ne s'affiche tant qu'il n'y a pas
-//  de note, sauf une petite icône « note » au bout d'un exercice terminé (et le choix du menu ⋯).
+//  de note, sauf la petite icône « note » de la case « Avant » et le lien « Note » au bout d'un exercice.
 //
 //  - Exercice : menu ⋯ › Plus d'options… › « Ajouter une note », ou l'icône au bout de la carte repliée. La note la plus
 //    récente de l'exercice (même fiche de la bibliothèque) se lit sous son nom à la séance suivante,
 //    en gris : « Dernière note : siège cran 4 » ; un toucher la modifie ou l'efface.
-//  - Série : série validée touchée (rouverte), puis « Ajouter une note » sous ses champs. Jamais au toucher
-//    de validation, jamais par un appui long (le toucher simple ouvre déjà la série, règle iOS « un seul tap »).
+//  - Série : la case « Avant » de chaque série (à faire ou validée) ouvre sa note ; l'icône y est pleine quand la série
+//    en a une, et la note se lit sous la ligne (ou celle de la même série la dernière fois, sur une série à faire).
+//    Jamais au toucher de validation, jamais par un appui long (règle iOS « un seul tap »).
+//  - Fin d'exercice : lien « Note » au pied de la carte, et « Note » sous le résumé de la carte repliée.
 //  - Séance : la note du bilan revient en haut de la même séance du programme, la fois suivante, et se ferme.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -90,14 +92,29 @@ async function editExerciseNote(ei) {
 
 // ── Série ───────────────────────────────────────────────────
 
-// Série validée rouverte : sous ses champs, « Ajouter une note » ou la note, à modifier
-function setNoteLinkHtml(ex, ei, si) {
-  const n = cleanNote(ex.sets[si]?.note);
-  return `<button class="set-note-link" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-label="${n ? `Note : ${esc(n)}. Modifier la note` : 'Ajouter une note'}, ${setRefName(ex, si)}, ${esc(ex.name)}">${icon('note', 14)}<span aria-hidden="true">${n ? esc(n) : 'Ajouter une note'}</span></button>`;
+// Toute série (à faire, validée, rouverte) : la case « Avant » est le bouton de sa note (demande du 16/11 : « une petite
+// partie dans chaque série, on clique dessus pour écrire et/ou voir la note »). Aucune colonne de plus sur iPhone SE :
+// sous la valeur d'avant, l'icône « note » au trait (pas de note) ou pleine (note écrite). Loin du champ Reps et du ✓.
+// prevHtml : contenu de la case (« 32 × 9 », ou « — »), prevSpoken : la même valeur pour VoiceOver (WCAG 2.5.3)
+function setNoteBtnHtml(ex, ei, s, si, prevHtml, prevSpoken) {
+  const own = cleanNote(s?.note), last = !own && !s?.done ? cleanNote(s?.prev?.note) : null;
+  const what = own ? `Note de ${setRefName(ex, si)} : ${esc(own)}. Modifier la note`
+    : `Ajouter une note à ${setRefName(ex, si)}${last ? `. La dernière fois : ${esc(last)}` : ''}`;
+  return `<button class="set-prev set-note-btn num${own ? ' set-note-btn--on' : ''}" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-label="${prevSpoken ? `Avant ${prevSpoken}. ` : ''}${what}, ${esc(ex.name)}"><span class="set-note-btn__val">${prevHtml}</span>${icon(own ? 'note.fill' : 'note', 14)}</button>`;
 }
-// Indicateur (14 px, gris lisible) sur une série validée qui a une note : après le numéro, dans le coin sous une lettre de superset
-function setNoteDotHtml(s, tag = '') {
-  return cleanNote(s?.note) ? `<span class="set-note-dot${tag ? ' set-note-dot--corner' : ''}" aria-hidden="true">${icon('note', 14)}</span>` : '';
+// Sous la ligne, seulement quand il y a quoi lire : la note de la série, sinon (série à faire) celle de la même série la
+// dernière fois. Lue par VoiceOver dans le bouton ci-dessus et la phrase de la série validée ; ici, un toucher l'ouvre
+function setNotePreviewHtml(ei, s, si) {
+  const own = cleanNote(s?.note), last = !own && !s?.done ? cleanNote(s?.prev?.note) : null;
+  if (!own && !last) return '';
+  return `<span class="set-note-prev" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-hidden="true">${last ? '<span class="set-note-prev__lbl">La dernière fois :</span> ' : ''}${esc(own || last)}</span>`;
+}
+
+// Fin de l'exercice (pied de la carte, entre « + Série » et « Plus tard ») : la note de l'exercice, sans chercher dans ⋯.
+// Lien texte comme ses voisins ; la note elle-même se lit sous le nom (exNoteLineHtml)
+function exNoteFootHtml(ex, ei) {
+  const shown = exNoteShown(ex);
+  return `<button class="add-set-link ex-foot-note" data-action="ex-note" data-ei="${ei}" aria-label="${shown?.own ? 'Modifier la note' : 'Ajouter une note'} de l'exercice, ${esc(ex.name)}">Note</button>`;
 }
 
 async function editSetNote(ei, si) {
@@ -108,8 +125,8 @@ async function editSetNote(ei, si) {
     if (editingSet.weight === undefined && editingSet.reps === undefined) { editingSet = null; document.activeElement?.blur?.(); }
     else if (!saveEditedSet()) return;
   }
-  const had = cleanNote(s.note);
-  const r = await askNote({ title: `Note · ${setSpokenName(ex, si)}`, message: `${ex.name}. Visible par toi seul.`, value: had || '', canClear: !!had });
+  const had = cleanNote(s.note), last = !had ? cleanNote(s.prev?.note) : null;
+  const r = await askNote({ title: `Note · ${setSpokenName(ex, si)}`, message: `${ex.name}.${last ? ` La dernière fois : ${last}.` : ''} Visible par toi seul.`, value: had || '', canClear: !!had });
   if (activeSession?.exercises[ei]?.sets[si] !== s) return;
   if (r === NOTE_CLEAR) { delete s.note; announce('Note effacée'); }
   else if (r) { s.note = r.text; announce('Note enregistrée'); }
