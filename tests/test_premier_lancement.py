@@ -196,7 +196,7 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         page.evaluate("navigate('settings')")
         page.wait_for_selector('.view.settings-view')
         cell = page.locator('.view.settings-view .group-title:text-is("Données") + .group [data-action="import-other-app"]')
-        R.check(cell.count() == 1 and cell.inner_text().strip() == 'Importer depuis Strong ou Hevy', f'{t} Réglages › Données : « Importer depuis Strong ou Hevy »')
+        R.check(cell.count() == 1 and cell.inner_text().strip() == 'Importer de Strong ou Hevy', f'{t} Réglages › Données : « Importer de Strong ou Hevy »')
 
         # Utilisateur existant (séances) : rien
         seed(page, theme, ppl_v2_today_json())
