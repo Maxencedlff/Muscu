@@ -79,6 +79,15 @@ function setUndoHtml(u) {
 function exUndoHtml(u) {
   return `<div class="ex-undo" role="status"><span class="ex-undo__text">${esc(u.text)}</span>${u.onAction ? `<button class="ex-undo__btn" data-action="sess-undo">${esc(u.label)}</button>` : ''}</div>`;
 }
+// « Série 4 supprimée · Annuler » à la place de la série retirée (deleteSet), là où le regard est déjà : au-dessus de la
+// carte, la ligne sortait de l'écran sur un exercice long
+function delUndoRows(ex, rows) {
+  const u = sessUndo;
+  if (u?.ex !== ex || u.delSi === undefined) return rows;
+  const out = rows.slice();
+  out.splice(Math.min(u.delSi, out.length), 0, exUndoHtml(u).replace('class="ex-undo"', 'class="ex-undo ex-undo--row"'));
+  return out;
+}
 // Bloc (exercice ou superset) replié : toutes ses séries faites, aucune sous-série en attente, pas déplié à la main
 function blockCollapsed(block, xs) {
   const ld = activeSession.lastDone;
@@ -89,6 +98,8 @@ function exUndoBefore(block, xs) {
   if (!u) return '';
   // « Annuler » d'une série : dans sa ligne ; si la dernière série referme la carte, la ligne passe au-dessus d'elle
   if (u.si !== undefined) return u.ex && block.some(i => xs[i] === u.ex) && blockCollapsed(block, xs) ? exUndoHtml(u) : '';
+  // Série supprimée : à sa place dans la carte d'un exercice seul (delUndoRows), au-dessus d'un superset
+  if (u.delSi !== undefined && block.length === 1 && !blockCollapsed(block, xs)) return '';
   if (u.ex && block.some(i => xs[i] === u.ex)) return exUndoHtml(u);
   if (u.at !== undefined && !u.ex && block[0] === u.at) return exUndoHtml(u);
   return '';
@@ -471,7 +482,7 @@ function renderExerciseCard(ex, ei, cur) {
   const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}">↑ ${bumpLabel()}</button>` : '';
   // Séries d'échauffement (js/data/warmup.js) : en tête, sous un titre gris ; technique d'intensification
   // et ses sous-séries sous la série (js/features/session-intensif.js)
-  const rows = ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}`).join('');
+  const rows = delUndoRows(ex, ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}`)).join('');
 
   // Exercice de la série à faire : sa vignette cerclée d'orange (la série en cours, seul autre orange de la carte)
   const isCur = cur && cur.ei === ei;
@@ -752,7 +763,10 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
   const prevF   = setFirstValue(s.prev, m);
   const prev    = s.prev ? `${prevF ? prevF + '&nbsp;× ' : ''}${esc(s.prev.reps)}` : '—';
   const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
-  const del     = `<button class="set-del" data-action="delete-set" data-ei="${ei}" data-si="${si}" tabindex="-1" aria-label="Supprimer ${setRefName(ex, si)}, ${esc(ex.name)}">Supprimer</button>`;   // numéro affiché, échauffements à part
+  // Caché à VoiceOver et inactif tant que le balayage ne l'a pas révélé (setDelShown, js/features/session-gestures.js) : lu
+  // avant chaque série, un double toucher supprimait sans le vouloir (panel « yeux neufs » du 16/11). Sans balayage :
+  // ⋯ › Plus d'options › « Retirer la dernière série ». Numéro affiché, échauffements à part
+  const del     = `<button class="set-del" data-action="delete-set" data-ei="${ei}" data-si="${si}" tabindex="-1" aria-hidden="true" aria-label="Supprimer ${setRefName(ex, si)}, ${esc(ex.name)}">Supprimer</button>`;
 
   if (s.done && !editing) return renderDoneSetRow(ex, ei, s, si, prev, del, tag);
 
@@ -811,6 +825,30 @@ function unusualSetText(ex, s) {
     prW: parseFloat(sessExData(ex)?.pr?.weight) || 0, repMax: sessExData(ex)?.repMax ?? 12,
     doneReps: done.map(x => parseInt(x.reps) || 0), doneW: done.map(x => parseFloat(x.weight) || 0), kind: loadKind(ex),
   });
+}
+
+// Série supprimée (balayage, ou ⋯ › « Retirer la dernière série ») : « Série 2 supprimée · Annuler » au-dessus de la carte,
+// comme la validation ; « Annuler » la remet à sa place, avec la série en cours d'avant
+function deleteSet(ei, si) {
+  const ex = activeSession?.exercises[ei];
+  const s = ex?.sets[si];
+  if (!s) return;
+  if (ex.sets.length === 1) { closeSwipes(); showToast('Dernière série : retire l\'exercice avec ⋯'); return; }
+  if (activeSession.effort?.ei === ei) cancelEffort();   // les positions des séries changent
+  const name = setSpokenName(ex, si), lastDone = activeSession.lastDone ?? null;
+  ex.sets.splice(si, 1);
+  activeSession.lastDone = null;
+  editingSet = null;
+  haptic();
+  persistSession();
+  sessionUndo(`${name} supprimé${isWarmupSet(s) ? '' : 'e'}`, { target: { ex, delSi: si }, onAction: () => {
+    if (!activeSession?.exercises.includes(ex) || ex.sets.includes(s)) return;
+    ex.sets.splice(Math.min(si, ex.sets.length), 0, s);
+    activeSession.lastDone = lastDone;
+    clearSessionUndo();
+    persistSession();
+    render();
+  } });
 }
 
 // ── Validation d'une série ───────────────────────────────────
@@ -1083,18 +1121,10 @@ registerActions({
     $('.session-set--editing .set-check-zone')?.focus({ preventScroll: true });
   },
   'save-edit-set': saveEditedSet,
+  // Bouton révélé par le balayage seulement (jamais un « Supprimer » resté caché)
   'delete-set': (e, el) => {
-    const ei = parseInt(el.dataset.ei), si = parseInt(el.dataset.si);
-    const ex = activeSession?.exercises[ei];
-    if (!ex?.sets[si]) return;
-    if (ex.sets.length === 1) { closeSwipes(); showToast('Dernière série : retire l\'exercice avec ⋯'); return; }
-    if (activeSession.effort?.ei === ei) cancelEffort();   // les positions des séries changent
-    ex.sets.splice(si, 1);
-    activeSession.lastDone = null;
-    editingSet = null;
-    haptic();
-    persistSession();
-    render();
+    if (el?.closest && !el.closest('.set-swipe--open')) return;
+    deleteSet(parseInt(el.dataset.ei), parseInt(el.dataset.si));
   },
   // RIR d'une série validée (js/data/rir.js) : un toucher note, le même toucher efface
   'set-rir': (e, el) => {

@@ -168,17 +168,37 @@ def t_flow(bench, eng, dev, theme):
         s0 = page.evaluate("activeSession.exercises[0].sets[0]")
         R.check(s0['weight'] == '41' and s0['reps'] == '7' and page.locator('.session-set--editing').count() == 0,
                 f'{t} série enregistrée en quittant la saisie {s0}')
-        # Balayage : supprimer une série
+        # Balayage : supprimer une série. Fermé, « Supprimer » est caché à VoiceOver et inactif (panel « yeux neufs » du
+        # 16/11 : lu avant chaque série, un double toucher supprimait sans annulation)
         n0 = page.evaluate('activeSession.exercises[0].sets.length')
+        hidden = page.evaluate("[...document.querySelectorAll('.set-swipe:not(.set-swipe--open) > .set-del')].every(b => b.getAttribute('aria-hidden') === 'true' && b.tabIndex === -1)")
+        R.check(hidden, f'{t} « Supprimer » fermé : aria-hidden, hors du clavier')
+        page.evaluate("handleAction(null, document.querySelector('.ex-card[data-ei=\"0\"] .set-swipe:not(.set-swipe--open) > .set-del'), 'delete-set')")
+        R.check(page.evaluate('activeSession.exercises[0].sets.length') == n0, f'{t} « Supprimer » fermé : sans effet')
         box = page.locator('.ex-card[data-ei="0"] .set-swipe').nth(3).locator('.set-prev').bounding_box()
         page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
         page.mouse.down()
         page.mouse.move(box['x'] + box['width'] / 2 - 130, box['y'] + box['height'] / 2 + 3, steps=8)
         page.mouse.up(); page.wait_for_timeout(300)
-        R.check(page.locator('.set-swipe--open .set-del').count() == 1, f'{t} balayage : « Supprimer » révélé')
+        R.check(page.locator('.set-swipe--open .set-del').count() == 1 and page.locator('.set-swipe--open .set-del').get_attribute('aria-hidden') is None,
+                f'{t} balayage : « Supprimer » révélé, lu par VoiceOver')
         shot(page, LOT, f'balayage-{t}')
+        before = page.evaluate("JSON.stringify(activeSession.exercises[0].sets)")
         page.locator('.set-swipe--open .set-del').click(); page.wait_for_timeout(150)
         R.check(page.evaluate('activeSession.exercises[0].sets.length') == n0 - 1, f'{t} balayage : série supprimée')
+        R.check(sess_undo_text(page).startswith('Série 4 supprimée') and page.locator('.ex-undo [data-action="sess-undo"]').count() == 1,
+                f'{t} « Série 4 supprimée · Annuler » ({sess_undo_text(page)!r})')
+        shot(page, LOT, f'serie-supprimee-{t}')
+        sess_undo(page)
+        R.check(page.evaluate("JSON.stringify(activeSession.exercises[0].sets)") == before, f'{t} Annuler : la série revient à sa place')
+        # Sans balayage (VoiceOver) : ⋯ › Plus d'options › « Retirer la dernière série », annulable aussi
+        page.click('[data-action="ex-menu"][data-ei="0"]'); page.wait_for_timeout(300)
+        tap_dialog(page, "Plus d'options")
+        page.wait_for_timeout(300)
+        tap_dialog(page, 'Retirer la dernière série')
+        page.wait_for_timeout(200)
+        R.check(page.evaluate('activeSession.exercises[0].sets.length') == n0 - 1 and sess_undo_text(page).startswith('Série 4 supprimée'),
+                f'{t} ⋯ › Retirer la dernière série ({sess_undo_text(page)!r})')
         # + Série (panel du 07/11 : VoiceOver lisait « Série, bouton », sans dire quoi ni pour quel exercice)
         lbl = page.get_attribute('[data-action="add-set"][data-ei="0"]', 'aria-label')
         R.check(lbl == f"Ajouter une série, {page.evaluate('activeSession.exercises[0].name')}", f'{t} « + Série » nommé pour VoiceOver ({lbl!r})')

@@ -475,6 +475,8 @@ function exerciseMoreActions(xs, ei) {
     ...techMenuActions(ex),
     ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
+    // Seul moyen sans le balayage (VoiceOver : le « Supprimer » caché de chaque série ne lui est plus lu)
+    ...(ex.sets.length > 1 ? [{ label: 'Retirer la dernière série', value: 'del-last-set' }] : []),
     { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
     { label: 'Relancer le repos', value: 'restart' },
     { label: 'Muscles ciblés', value: 'muscles' },
@@ -527,6 +529,9 @@ async function exerciseMenu(ei) {
     openExRestSheet(restEi(ei), render);
   } else if (choice === 'tempo') {
     await chooseSessionTempo(ei);
+  } else if (choice === 'del-last-set') {
+    deleteSet(ei, ex.sets.length - 1);
+    return;
   } else if (choice === 'restart') {
     openRest(exRest(xs[restEi(ei)]));
   } else if (choice === 'remove') {
