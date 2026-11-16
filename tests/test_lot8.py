@@ -123,6 +123,7 @@ def t_programmes(bench, eng, dev, theme):
         R.check(page.locator('.library--pick [data-action="lib-pick-add"]').is_disabled(), f'{t} multiple : Ajouter grisé sans choix')
         page.click('.library--pick .mgc[data-group="bras"]'); page.wait_for_timeout(300)
         rows = page.locator('.library--pick [data-action="lib-pick"][role="checkbox"]')
+        R.check(page.locator('.library--pick .lib-pick-cancel').is_visible(), f'{t} multiple dans un groupe : « Annuler » pour sortir de la sélection')
         picked = [rows.nth(i).get_attribute('data-name') for i in range(2)]
         rows.nth(0).click(); rows.nth(1).click(); page.wait_for_timeout(150)
         R.check(rows.nth(0).get_attribute('aria-checked') == 'true', f'{t} multiple : case cochée')
@@ -132,6 +133,8 @@ def t_programmes(bench, eng, dev, theme):
         page.click('.library--pick [data-action="lib-pick-add"]')
         page.wait_for_selector('.view.ex-edit')
         R.check('1 sur 2' in page.inner_text('.view.ex-edit .navbar') and page.inner_text('[data-action="save-ex"]') == 'Suivant', f'{t} multiple : « 1 sur 2 », Suivant')
+        hs = page.evaluate("[...document.querySelectorAll('.view.ex-edit .stepper button')].map(b => Math.round(b.getBoundingClientRect().height))")
+        R.check(len(hs) == 4 and min(hs) >= 44, f'{t} réglage : boutons − et + d\'au moins 44 pt de haut {hs}')
         page.click('[data-action="ex-sets"][data-d="1"]')
         save_ex(page)
         R.check('2 sur 2' in page.inner_text('.view.ex-edit .navbar') and page.inner_text('[data-action="save-ex"]') == 'OK', f'{t} multiple : « 2 sur 2 », OK')
