@@ -153,22 +153,39 @@ Deno.test('push-send : bon secret mais clés APNs absentes → 503 avant de pren
   assert.equal(calls.length, 0, 'file prise alors que l\'envoi est impossible');
 });
 
-Deno.test('coach-photos-purge : bon secret, file vide → 200, une seule demande à la base avec la clé serveur', async () => {
+Deno.test('coach-photos-purge : bon secret, files vides → 200, une demande par compartiment avec la clé serveur', async () => {
   const { res, body, calls } = await call(coachPhotosPurge, request('POST', { headers: { 'x-purge-secret': PURGE_SECRET } }), {
     env: { PHOTOS_PURGE_SECRET: PURGE_SECRET },
-    routes: { 'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse([]) },
+    routes: {
+      'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse([]),
+      'POST /rest/v1/rpc/srv_profile_photo_purge_claim': () => jsonResponse([]),
+    },
   });
   assert.equal(res.status, 200);
   assert.deepEqual(body, { removed: 0, failed: false });
-  assert.deepEqual(calls.map((c) => `${c.method} ${c.path}`), ['POST /rest/v1/rpc/srv_coach_photo_purge_claim']);
-  assert.equal(calls[0].auth, 'Bearer faux-service-role-de-test');
-  // Base en panne : 500, rien d'effacé
+  assert.deepEqual(calls.map((c) => `${c.method} ${c.path}`), ['POST /rest/v1/rpc/srv_coach_photo_purge_claim', 'POST /rest/v1/rpc/srv_profile_photo_purge_claim']);
+  assert.ok(calls.every((c) => c.auth === 'Bearer faux-service-role-de-test'));
+  // Base en panne pour les photos de bilan : 500, rien d'effacé, mais les photos de profil sont quand même purgées
   const down = await call(coachPhotosPurge, request('POST', { headers: { 'x-purge-secret': PURGE_SECRET } }), {
     env: { PHOTOS_PURGE_SECRET: PURGE_SECRET },
-    routes: { 'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse({ code: 'XX000', message: 'panne' }, 500) },
+    routes: {
+      'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse({ code: 'XX000', message: 'panne' }, 500),
+      'POST /rest/v1/rpc/srv_profile_photo_purge_claim': () => jsonResponse([]),
+    },
   });
   assert.equal(down.res.status, 500);
   assert.ok(!down.calls.some((c) => c.path.startsWith('/storage/')), 'stockage touché malgré la panne');
+  assert.ok(down.calls.some((c) => c.path === '/rest/v1/rpc/srv_profile_photo_purge_claim'), 'photos de profil oubliées après la panne de l\'autre compartiment');
+  // Serveur sans la migration de la photo de profil (PGRST202) : les photos de bilan restent purgées
+  const old = await call(coachPhotosPurge, request('POST', { headers: { 'x-purge-secret': PURGE_SECRET } }), {
+    env: { PHOTOS_PURGE_SECRET: PURGE_SECRET },
+    routes: {
+      'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse([]),
+      'POST /rest/v1/rpc/srv_profile_photo_purge_claim': () => jsonResponse({ code: 'PGRST202', message: 'Could not find the function' }, 404),
+    },
+  });
+  assert.equal(old.res.status, 500, 'échec signalé (la planification le journalise)');
+  assert.equal(old.calls[0].path, '/rest/v1/rpc/srv_coach_photo_purge_claim');
 });
 
 Deno.test('appstore-notify : signature d\'Apple absente ou fausse → 401, rien d\'écrit', async () => {

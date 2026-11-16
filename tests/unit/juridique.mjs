@@ -35,7 +35,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(!/quelques jours la ligne d'une photo|for a few days \(its day/.test(page), 'plus de « quelques jours » pour les sauvegardes');
     assert.ok(page.includes('id="sauvegardes"') && page.includes('id="backups"'), 'ancres FR et EN');
     // Date de mise à jour, FR et EN, identiques
-    assert.ok(fr.includes('mise à jour le 12 novembre 2026') && en.includes('updated November 12, 2026'), 'date du 12/11/2026');
+    assert.ok(fr.includes('mise à jour le 16 novembre 2026') && en.includes('updated November 16, 2026'), 'date du 16/11/2026 (photo de profil)');
   });
 
   test('confidentialité : copie iCloud décrite sans poids, mensurations, repas ni sexe (règle 5.1.3(ii)), FR et EN', () => {

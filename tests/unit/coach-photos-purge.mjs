@@ -41,7 +41,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     const mig = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261107000000_photos_bilan.sql'), 'utf8');
     assert.match(mig, /grant execute on function public\.srv_coach_photo_purge_claim\(int\) to service_role;/);
     const del = fs.readFileSync(path.join(ROOT, 'supabase/functions/delete-account/index.ts'), 'utf8');
-    assert.ok(del.indexOf('removeCoachPhotos(user.id)') > del.indexOf('deleteUser(user.id)') && del.indexOf('deleteUser(user.id)') > 0, 'fichiers effacés après le compte (deleteAccountThenFiles)');
+    assert.ok(del.indexOf('removePhotoFiles(user.id)') > del.indexOf('deleteUser(user.id)') && del.indexOf('deleteUser(user.id)') > 0, 'fichiers effacés après le compte (deleteAccountThenFiles)');
   });
 
   test('suppression du compte : le compte d\'abord, les fichiers des photos ensuite ; échec du compte → rien d\'effacé', async () => {

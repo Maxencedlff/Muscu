@@ -204,6 +204,13 @@
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   border-radius: 50%; background: var(--fill2); line-height: 1;
 }
+/* Photo de profil (js/data/profile-photo.js) : posée par-dessus l'emoji ou l'initiale, qui restent dessous si elle
+   ne charge pas. Aucun cadre ni ombre : le disque seul, comme Contacts. */
+.avatar { position: relative; }
+.avatar__photo {
+  position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%;
+  object-fit: cover; background: var(--fill2); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
 .avatar--l  { width: 60px; height: 60px; font-size: min(2rem, 34px); }
 .avatar--xl { width: 92px; height: 92px; font-size: min(3.059rem, 52px); }
 .avatar--empty { color: var(--label2); }
@@ -359,3 +366,20 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
   .account-card__close { grid-column: 2; grid-row: 1; margin-top: -9px; }
   .account-card__btn { grid-column: 1 / -1; grid-row: 2; justify-self: start; padding: 0; }
 }
+
+/* ── Photo de profil : mention « Pro » et feuille ── */
+.pro-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; vertical-align: 1px;
+  font-size: var(--fs-caption2); font-weight: 600; line-height: 1.35; color: var(--label2);
+  border: 1px solid var(--sep); background: transparent;
+}
+.pph-sheet { display: flex; flex-direction: column; align-items: stretch; padding: 4px 0 8px; }
+.pph-preview { display: flex; justify-content: center; margin: 4px 0 14px; }
+.pph-preview .avatar--xl, .pph-preview__img { width: 132px; height: 132px; }
+.pph-preview .avatar--xl { font-size: min(4.4rem, 74px); }
+.pph-preview .avatar--initial.avatar--xl { font-size: min(3.5rem, 60px); }
+.pph-preview__img { border-radius: 50%; object-fit: cover; background: var(--fill2); -webkit-touch-callout: none; }
+.pph-lead { margin: 0 0 14px; font-size: var(--fs-subhead); color: var(--label); text-align: center; }
+.pph-note { margin: 0 0 14px; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+.pph-gap { margin-top: 10px; }
+.pph-foot { margin: 12px 0 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
