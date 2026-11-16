@@ -140,7 +140,8 @@ function dietStatusText(pr) {
   // Jour vide : un repas est fait dès qu'on y a noté un aliment (ou coché son plan copié)
   // Plan perso : « fini » seulement à l'objectif de calories (dietProgressFinished), sinon un simple compte
   if (!pr.plan.fromCoach) {
-    if (pr.blank) return pr.nDone ? `${pr.nDone} ${pr.nDone > 1 ? 'repas notés' : 'repas noté'} sur ${pr.nMeals}` : 'Rien de noté pour l\'instant';
+    // Jour vide : « 1 repas noté » (« sur 1 » à côté de quatre repas affichés prêtait à confusion, panel du 16/11)
+    if (pr.blank) return pr.nDone ? `${pr.nDone} ${pr.nDone > 1 ? 'repas notés' : 'repas noté'}` : 'Rien de noté pour l\'instant';
     return `${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${pr.nMeals}`;
   }
   if (pr.blank) return pr.complete ? 'Journée complète' : pr.nDone ? `${pr.nDone} ${pr.nDone > 1 ? 'repas notés' : 'repas noté'} sur ${pr.nMeals}` : 'Rien de noté pour l\'instant';
@@ -454,7 +455,7 @@ function renderNutrition(dayParam) {
         ${dietWeekHtml(day)}
         ${past ? '<button class="btn btn--secondary diet-today" data-action="diet-today">Revenir à aujourd\'hui</button>' : ''}
         ${dietSummaryHtml(pr)}
-        ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan, dietMealsNoun(plan)))}${plan.fromCoach
+        ${!data.dietHideNumbers && !dietPersonal(plan) && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan, dietMealsNoun(plan)))}${plan.fromCoach
           ? ` Suis le plan de ${esc(plan.fromCoach.name || 'ton coach')} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>

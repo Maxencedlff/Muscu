@@ -135,6 +135,10 @@ function backLabelFits(btn, label) {
   // Sans tolérance : un libellé plus large d'un seul pixel s'affichait « Coa… » (iPhone SE, panel t6). Un faux « trop
   // large » (arrondi) ne coûte rien : le titre se décale simplement entre le retour et la droite.
   if (label.scrollWidth > label.clientWidth) return false;
+  // Barre trop étroite ou bouton de droite coupé (« Renommer » poussé hors de l'écran par « ‹ Plans de nutrition »,
+  // iPhone SE en AX33, panel du 16/11) : le libellé du retour cède sa place, même sans titre compact
+  const bar = btn.closest('.navbar__bar'), right = bar?.querySelector('.navbar__side--right > .navbar__text');
+  if (bar && (bar.scrollWidth > bar.clientWidth + 1 || (right && right.scrollWidth > right.clientWidth + 1))) return false;
   const title = btn.closest('.navbar__bar, .auth__bar')?.querySelector('.navbar__title');
   if (!title?.textContent.trim()) return true;
   // Titre compact pas encore affiché (grand titre ou titre du contenu encore visibles) : il ne prend pas de place,

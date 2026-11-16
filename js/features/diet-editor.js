@@ -320,7 +320,7 @@ function dietTargetsEditHtml(t, total, kg, plan) {
       : `<span class="diet-field__unit" aria-hidden="true">${unit}</span>`;
     return `<label class="diet-field"><span class="diet-field__label">${dot}${label}</span>
         <input id="dietT_${k}" class="diet-field__input num" type="text" inputmode="${k === 'p' ? 'decimal' : 'numeric'}" autocomplete="off"
-          value="${t[k] ?? ''}" placeholder="Aucun" aria-label="${label} par jour${k === 'kcal' ? ', en kilocalories' : ', en grammes'}. Vide : aucun objectif">
+          value="${t[k] == null ? '' : k === 'kcal' ? fmtNum(t[k]) : t[k]}" placeholder="Aucun" aria-label="${label} par jour${k === 'kcal' ? ', en kilocalories' : ', en grammes'}. Vide : aucun objectif">
         ${unitHtml}</label>`;
   };
   const word = dietPersonal(plan) ? 'Repas types' : 'Repas prévus';
@@ -376,8 +376,10 @@ function dietTargetsResultHtml() {
       <p class="diet-tg__why num" id="dietEWhy"></p>
       <p class="diet-tg__why diet-tg__why--macros num" id="dietEWhyM"></p>
       <p class="diet-form__hint">Estimation, pas un avis médical : pèse-toi chaque semaine et ajuste après deux ou trois semaines. Méthode : Mifflin-St Jeor (1990), protéines selon Morton et al. (2018), prise de masse selon Iraki et al. (2019).</p>
-      <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tuse>Utiliser ces objectifs</button>
-      <button type="button" class="diet-tg__link diet-tg__back" data-tadjust>Ajuster</button>
+      <div class="diet-tg__acts">
+        <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tuse>Utiliser ces objectifs</button>
+        <button type="button" class="diet-tg__link diet-tg__back" data-tadjust>Ajuster</button>
+      </div>
     </div>`;
 }
 
@@ -394,7 +396,7 @@ async function dietTargetsSheet(plan) {
   const p = sheet({ title: 'Objectifs du jour', confirm: 'OK', body, onConfirm: panel => {
     const out = {};
     for (const k of DIET_TARGET_KEYS) {
-      const raw = $(`#dietT_${k}`, panel).value.trim();
+      const raw = $(`#dietT_${k}`, panel).value.replace(/[\s\u202f\u00a0]/g, '');   // « 2 900 » : espace des milliers
       if (!raw) continue;
       const v = k === 'p' && pExact != null ? pExact : k === 'p' && perKg ? dietProteinGrams(raw, kg) : num(raw, 1, DIET_TARGET_MAX[k]);
       if (v === null || v > DIET_TARGET_MAX[k]) {
@@ -433,7 +435,7 @@ async function dietTargetsSheet(plan) {
   if (unitBtn && perKg && t.p) pIn.value = fmtNum(dietProteinPerKg(t.p, kg), 1);
   paintP();
   pIn.addEventListener('input', () => { pExact = null; paintP(); });
-  const fill = v => { pExact = v?.p ?? null; for (const k of DIET_TARGET_KEYS) $(`#dietT_${k}`, root).value = v?.[k] != null ? (k === 'p' && perKg ? fmtNum(dietProteinPerKg(v.p, kg), 1) : String(v[k])) : ''; paintP(); };
+  const fill = v => { pExact = v?.p ?? null; for (const k of DIET_TARGET_KEYS) $(`#dietT_${k}`, root).value = v?.[k] != null ? (k === 'p' && perKg ? fmtNum(dietProteinPerKg(v.p, kg), 1) : k === 'kcal' ? fmtNum(v[k]) : String(v[k])) : ''; paintP(); };
   root.addEventListener('click', ev => {
     const el = ev.target.closest('[data-tunit], [data-tclear], [data-tpropose], [data-tback], [data-tcalc], [data-tuse], [data-tadjust], [data-tseg]');
     if (!el) return;

@@ -1237,7 +1237,7 @@ def t_repas_vides(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
         noted = kcal_eaten(page)
-        R.check(noted > 50 and '1 repas noté sur 4' in nb(page.inner_text('.diet-sum__line')), f'{t} noté : compté tout de suite ({noted} kcal)')
+        R.check(noted > 50 and '1 repas noté' in nb(page.inner_text('.diet-sum__line')), f'{t} noté : compté tout de suite ({noted} kcal)')
         page.click('.diet-meal[data-meal="m2"] .diet-item--plan')
         page.wait_for_timeout(300)
         m2 = page.locator('.diet-meal[data-meal="m2"]')
@@ -1364,7 +1364,7 @@ def t_objectifs(bench, eng, dev, theme):
         layout(page, t, 'proposition', scope=f'{sh} .diet-tg')
         shot(page, LOT, f'o4-proposition-{t}')
         page.click(f'{sh} [data-tadjust]')
-        R.check(page.input_value(f'{sh} #dietT_kcal') == '2980' and page.input_value(f'{sh} #dietT_p') == '1,8', f'{t} « Ajuster » remplit la saisie (P en g/kg)')
+        R.check(nb(page.input_value(f'{sh} #dietT_kcal')).replace(' ', '') == '2980' and '980' in page.input_value(f'{sh} #dietT_kcal') and page.input_value(f'{sh} #dietT_p') == '1,8', f'{t} « Ajuster » remplit la saisie (P en g/kg)')
         page.click(f'{sh} [data-tpropose]')
         page.click(f'{sh} [data-tcalc]')
         page.click(f'{sh} [data-tuse]')
@@ -1403,6 +1403,12 @@ def t_repas_types(bench, eng, dev, theme):
         R.check(gap.startswith('Tes repas types font') and 'protéines' in gap, f'{t} écart nommé « Tes repas types » ({gap!r})')
         layout(page, t, 'repas types')
         shot(page, LOT, f't1-repas-types-{t}')
+        # Journal du jour : pas d'écart des repas types (il sert à composer, dans l'éditeur ; panel du 16/11)
+        page.evaluate("navigate('nutrition')")
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        R.check(page.locator('.nutrition-view .diet-gap').count() == 0, f'{t} journal d\'un plan perso : aucun écart des repas types')
+        page.evaluate("goBack()")
+        page.wait_for_selector('[data-action="diet-clear-meals"]')
         page.locator('[data-action="diet-clear-meals"]').scroll_into_view_if_needed()
         page.click('[data-action="diet-clear-meals"]')
         page.wait_for_timeout(300)
@@ -1438,6 +1444,10 @@ def t_repas_types(bench, eng, dev, theme):
         v = nb(page.inner_text('.diet-plan-view'))
         R.check('Total prévu' in v and 'Repas types' not in v and page.locator('[data-action="diet-clear-meals"]').count() == 0
                 and nb(page.inner_text('.diet-plan-view .diet-gap')).startswith('Les repas prévus font'), f'{t} plan du coach : repas prévus inchangés')
+        page.evaluate("navigate('nutrition')")
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        R.check(page.locator('.nutrition-view .diet-gap').count() == 1 and 'Les repas prévus font' in nb(page.inner_text('.nutrition-view .diet-gap')),
+                f'{t} journal du plan du coach : écart toujours affiché')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 

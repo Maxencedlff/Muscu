@@ -428,3 +428,6 @@ html.type-xl .diet-tg .diet-field { flex-wrap: wrap; padding-top: 6px; padding-b
 html.type-xl .diet-tg .diet-field__input { flex: 1 0 4.5em; }
 html.type-xl .diet-tg .diet-field__label { flex: 1 1 auto; }
 html.type-xl .diet-tg .diet-tg__select { flex-basis: 0; }
+/* « Utiliser ces objectifs » toujours visible sans défiler (iPhone SE, panel du 16/11) : collé au bas de la feuille */
+.diet-tg__acts { position: sticky; bottom: -24px; margin: 0 -16px -24px; padding: 4px 16px 16px; background: var(--cell); }
+body.light .diet-tg__acts { background: var(--bg); }
