@@ -114,7 +114,7 @@ const GEN_SCREENS = {
     const sex = p.sex === 'male' ? 'Homme' : p.sex === 'female' ? 'Femme' : '';
     return genScreen('toi', 'Sur mesure', `
       <div class="group">
-        ${cell('set-profile-age', 'calendar', 'Âge', p.age ? `${p.age} ans` : '')}
+        ${cell('set-profile-age', 'clock.history', 'Âge', p.age ? `${p.age} ans` : '')}
         ${cell('set-profile-height', 'ruler', 'Taille', p.heightCm ? `${fmtNum(p.heightCm)} cm` : '')}
         ${cell('set-body-weight', 'bathroom.scale', 'Poids', p.kg ? `${fmtW(p.kg)} ${unitLbl()}` : '')}
         ${cell('set-strength-sex', 'sex', 'Sexe', sex)}
