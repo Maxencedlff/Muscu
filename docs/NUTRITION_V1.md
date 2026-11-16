@@ -229,10 +229,27 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
 
 ## Santé : précautions
 
-- **Aucun calcul de besoins.** Pas de formule de métabolisme, pas de « tu devrais manger ». Les objectifs
-  sont fixés par le coach ou par la personne ; sans objectif, le total prévu par le plan ce jour-là
-  (remplacements du jour compris : un équivalent ne donne jamais « 217 sur 215 kcal ») sert de repère, et
-  l'écran le dit (« Repère : le total prévu par ton plan »).
+- **Objectifs du jour : la saisie d'abord, une estimation sur demande** (retour de Maxence du 16/11/2026 : « je parle
+  des kcal, je peux pas le modifier ? » ; le champ vide montrait en gris le total des repas, 1 579 kcal, qu'il
+  prenait pour une valeur figée). Feuille « Objectifs du jour » : Calories, Protéines, Glucides, Lipides ; un champ
+  vide dit « Aucun », le total des repas prévus est écrit dessous, « Aucun objectif » vide tout. Protéines en
+  **g ou g/kg** (un toucher sur l'unité ; poids des Réglages ; gardées en grammes dans le plan, les grammes exacts ne
+  changent pas tant que le champ n'est pas retouché ; réglage de l'appareil `dietProteinPerKg`). Sans objectif, le
+  total prévu par le plan ce jour-là (remplacements du jour compris : un équivalent ne donne jamais « 217 sur
+  215 kcal ») sert de repère, et l'écran le dit (« Repère : le total prévu par ton plan »).
+- **« Me proposer des objectifs »** (lien secondaire, jamais au centre) : objectif (prise de masse, maintien, sèche),
+  activité (4 niveaux), sexe (pré-rempli par Réglages › Entraînement › Sexe), âge (18 à 80 ans), taille, poids
+  (Réglages). Calcul sur l'appareil, réponses ni gardées ni envoyées (`js/data/diet-estimate.js`) : Mifflin-St Jeor
+  (Am J Clin Nutr 1990) × 1,2 / 1,375 / 1,55 / 1,725 ; + 10 % en prise de masse (bas de la fourchette de 10 à 20 %
+  d'Iraki et al., *Sports* 2019, [PMC6680710](https://pmc.ncbi.nlm.nih.gov/articles/PMC6680710)), − 15 % en sèche ;
+  protéines 1,8 g/kg (2,2 en sèche : Morton et al., *BJSM* 2018, plateau 1,62 g/kg, IC jusqu'à 2,2 ; ISSN 2017 :
+  1,4 à 2,0) ; lipides 0,9 g/kg et au moins 20 % de l'énergie (bas de la fourchette EFSA de 20 à 35 %) ; glucides :
+  le reste. Jamais sous le métabolisme de base ni sous 1 200 kcal. Affichage : les quatre valeurs, l'explication
+  (« 2 980 kcal = besoins estimés (2 710 kcal) + 10 % », « Protéines 1,8 g/kg · lipides 0,9 g/kg · glucides : le
+  reste »), « Estimation, pas un avis médical », la méthode et ses sources (règle 1.4.1 d'Apple : méthode
+  publiée) ; « Utiliser ces objectifs » (enregistre) ou « Ajuster » (remplit la saisie). Un coach : ni g/kg ni
+  poids pré-rempli (le sien ne vaut pas pour ses élèves). Plan reçu d'un coach : objectifs en lecture seule
+  (« Plan et objectifs fixés par … »), « Dupliquer pour le modifier ».
 - **Calories fixées, pas une macro** (un coach fixe souvent kcal et protéines) : cette macro s'affiche sans repère
   ni jauge (« Pas d'objectif ») ; son total tiré du plan ne collerait pas aux calories fixées.
 - **Repas vides** (plan neuf pas encore rempli) : ni cochables, ni comptés dans « n repas cochés sur N » ou la
@@ -333,7 +350,7 @@ dietFoods: [{ id, name, fam, per, code?, src?, salt?, portion?: { u, pl, g } }],
 dietFoodsGone: [id],                 // aliments perso retirés (profil, avec accord) : la fusion ne les fait pas revenir
 dietLog: { 'AAAA-MM-JJ': { plan, done: [id de repas], swaps: { [id d'aliment]: aliment }, extras?, removed?: [id d'aliment], meals: [id], off?: [id de repas], copied?: [id de repas], blank? } },   // SYNC_LOCAL_ONLY ; meals : instantané du jour ; blank : jour commencé vide
 dietConsent: { on, at },             // accord daté (profil, part toujours)
-dietConsentAsked, dietHideNumbers, dietStreakOff, dietEmptyDays: true,   // réglages de l'appareil (SYNC_LOCAL_ONLY)
+dietConsentAsked, dietHideNumbers, dietStreakOff, dietEmptyDays, dietProteinPerKg: true,   // réglages de l'appareil (SYNC_LOCAL_ONLY)
 dietCoachConsent: { on, at },        // accord « plans du coach » gardé ici quand le serveur n'est pas à jour (SYNC_LOCAL_ONLY)
 ```
 
@@ -396,7 +413,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 - **Coches visibles par le coach** : il faut le consentement de l'élève, donnée par donnée, comme le poids
   (`coach_shares`, kind `diet` à ouvrir, migration à écrire) ; en V1 le journal reste sur l'iPhone.
 - **Plusieurs plans selon le jour** (jour d'entraînement, jour de repos), recettes, liste de courses.
-- **Calcul des besoins** : volontairement absent (voir « Santé »).
+- ~~**Calcul des besoins**~~ : proposition sur demande depuis le 16/11/2026 (voir « Santé »).
 - **Apple Santé** (écrire les macros) : demande une build et la déclaration de confidentialité.
 
 ## Avant une mise en production
@@ -414,6 +431,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 | `data/foods.json` | Base embarquée : code, nom, famille, kcal, P, G, L, sucres, sous-groupe |
 | `js/data/nutrition.js` | Modèle, bornes (`sanitizeDiet`), macros, journée, série, format d'envoi au coach (chargé avant `store.js`) |
 | `js/data/food-swap.js` | Base (chargement, recherche) et règle des équivalences |
+| `js/data/diet-estimate.js` | Objectifs du jour : proposition estimée (Mifflin-St Jeor), protéines en g/kg (fonctions pures) |
 | `js/data/coach-diet.js` | Envoi par le coach, état des envois, plans reçus |
 | `js/features/nutrition-ui.js` | Écran du jour, carte de l'accueil, remplacement, entrées Programme et coach |
 | `js/data/food-portions.js` | Portions courantes (table), unité du paquet scanné (`offPortion`), textes « 2 œufs » (chargé avant `nutrition.js`) |

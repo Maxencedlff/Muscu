@@ -3,8 +3,8 @@
 //
 //  - Programme › Plans diète (diet-plans) : mes plans et ceux reçus d'un coach, le plan suivi d'abord,
 //    « Créer un plan ». Un coach y prépare aussi les plans de ses élèves (envoi depuis la fiche de l'élève).
-//  - Un plan (diet-plan:ID) : suivre ce plan, total prévu, objectifs du jour (fixés par la personne,
-//    jamais calculés par l'app), repas et leurs aliments. Ajouter un aliment : recherche dans la base Ciqual
+//  - Un plan (diet-plan:ID) : suivre ce plan, total prévu, objectifs du jour (fixés par la personne ou son
+//    coach ; une estimation est proposée sur demande, js/data/diet-estimate.js), repas et leurs aliments. Ajouter un aliment : recherche dans la base Ciqual
 //    ou dans mes aliments perso, puis la quantité en grammes ; les macros se calculent seules.
 //  - Plan reçu d'un coach : lecture seule (le coach le modifie et le renvoie) ; le remplacement d'un
 //    aliment pour la journée reste possible dans Nutrition.
@@ -55,6 +55,14 @@ function dietTargetsWords(plan, kcal, g) {
 }
 function dietTargetsSpoken(plan) { return dietTargetsWords(plan, ' kilocalories', ' grammes'); }
 function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), esc(dietTargetsSpoken(plan))); }
+// Ligne « Objectifs du jour » de l'éditeur : dit aussi ce qui n'est pas fixé (« P 144 » seul laissait croire que les
+// calories ne se réglaient pas, retour du 16/11)
+function dietTargetsCellHtml(plan) {
+  const t = plan.targets;
+  if (!t) return esc('Aucun : le total prévu sert de repère');
+  if (t.kcal) return dietTargetsHtml(plan);
+  return dietSrPair(esc(`Calories : aucun objectif · ${dietTargetsText(plan)}`), esc(`Calories : aucun objectif, ${dietTargetsSpoken(plan)}`));
+}
 
 function dietPlanItemCell(plan, meal, it, ro) {
   const m = dietItemMacros(it);
@@ -97,11 +105,11 @@ function renderDietPlan(id) {
         <div class="group">
           <div class="cell"><span class="cell__body"><span class="cell__title">Total prévu</span><span class="cell__sub num">${dietSrPair(`P\u00a0${dietN(total.p)}\u00a0g · G\u00a0${dietN(total.c)}\u00a0g · L\u00a0${dietN(total.f)}\u00a0g`, dietMacroGramsSpoken(total))}</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>
           ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsHtml(plan)}</span></span></div>`
-            : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsHtml(plan)}</span></span>${icon('chevron.right', 16)}</button>`}
+            : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsCellHtml(plan)}</span></span>${icon('chevron.right', 16)}</button>`}
         </div>
         ${dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}</span></p>` : ''}
-        <div class="group-foot">${ro ? `Plan envoyé par ${esc(plan.fromCoach.name || 'ton coach')} : il le modifie et te le renvoie. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
-          : 'Les objectifs, c\'est toi (ou ton coach) qui les fixes : l\'app ne calcule pas tes besoins. Sans objectif, le total prévu sert de repère.'}</div>
+        <div class="group-foot">${ro ? `Plan et objectifs fixés par ${esc(plan.fromCoach.name || 'ton coach')} : il les modifie et te les renvoie. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
+          : 'Fixe tes objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. Sans objectif, le total prévu sert de repère.'}</div>
         ${dietLowKcal(plan) ? dietLowNoteHtml(!!plan.targets?.kcal) : ''}
         ${meals}
         ${ro || plan.meals.length >= DIET_MEAL_MAX ? '' : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-add-meal" data-id="${esc(id)}">${icon('plus', 20)}<span>Ajouter un repas</span></button></div>`}
@@ -275,29 +283,185 @@ async function dietAskGrams(food, value = 100) {
 
 // ── Objectifs du jour ───────────────────────────────────────
 
-async function dietTargetsSheet(plan) {
-  const t = plan.targets || {}, total = dietPlanMacros(plan);
-  const row = (k, label, unit) => `
-      <label class="diet-field"><span class="diet-field__label">${label}</span>
-        <input id="dietT_${k}" class="diet-field__input num" type="text" inputmode="numeric" autocomplete="off" value="${t[k] ?? ''}" placeholder="${dietN(total[k])}" aria-label="${label} par jour, vide : selon le plan">
-        <span class="diet-field__unit">${unit}</span></label>`;
-  const body = `
-    <div class="diet-form">
-      ${row('kcal', 'Énergie', 'kcal')}${row('p', 'Protéines', 'g')}${row('c', 'Glucides', 'g')}${row('f', 'Lipides', 'g')}
-      <p class="diet-form__hint">Laisse vide pour suivre le total prévu par le plan (en gris). Ces repères sont les tiens ou ceux de ton coach : l'app ne calcule pas tes besoins.</p>
+// Feuille en trois temps, dans la même feuille (pas de feuille sur une feuille) :
+//  - saisie (edit) : Calories, Protéines, Glucides, Lipides ; un champ vide = pas d'objectif (« Aucun »), le total
+//    des repas prévus est écrit à part (en gris dans le champ, il passait pour une valeur fixée : retour de
+//    Maxence du 16/11, « je peux pas modifier les kcal ? ») ; protéines en g ou en g/kg (poids des Réglages) ;
+//  - questions (ask) : « Me proposer des objectifs », 6 réponses, poids (Réglages) et sexe (niveau de force) pré-remplis ;
+//  - proposition (result) : valeurs, explication en une ligne, « Utiliser ces objectifs » ou « Ajuster ».
+// Un coach prépare les plans de ses élèves : ni g/kg ni poids pré-rempli (ce serait son poids, pas le leur).
+// Rend { targets } (null = aucun objectif) ou null si annulée
+const DIET_T_ROWS = [['kcal', 'Calories', 'kcal'], ['p', 'Protéines', 'g'], ['c', 'Glucides', 'g'], ['f', 'Lipides', 'g']];
+
+function dietTargetsEditHtml(t, total, kg) {
+  const row = (k, label, unit) => {
+    const dot = k === 'kcal' ? '' : `<i class="diet-dot diet-dot--${k}" aria-hidden="true"></i>`;
+    const unitHtml = k === 'p' && kg
+      ? `<button type="button" class="diet-field__unitbtn" data-tunit aria-label="Saisir en grammes par kilo">g</button>`
+      : `<span class="diet-field__unit" aria-hidden="true">${unit}</span>`;
+    return `<label class="diet-field"><span class="diet-field__label">${dot}${label}</span>
+        <input id="dietT_${k}" class="diet-field__input num" type="text" inputmode="${k === 'p' ? 'decimal' : 'numeric'}" autocomplete="off"
+          value="${t[k] ?? ''}" placeholder="Aucun" aria-label="${label} par jour${k === 'kcal' ? ', en kilocalories' : ', en grammes'}. Vide : aucun objectif">
+        ${unitHtml}</label>`;
+  };
+  const planned = `Repas prévus : ${dietN(total.kcal)} kcal · P ${dietN(total.p)} g · G ${dietN(total.c)} g · L ${dietN(total.f)} g`;
+  const plannedSpoken = 'Repas prévus : ' + dietN(total.kcal) + ' kilocalories, ' + dietMacroGramsSpoken(total);
+  return `<div data-tstep="edit">
+      <div class="diet-fields">${DIET_T_ROWS.map(r => row(...r)).join('')}</div>
+      <p class="diet-tg__pkg num" id="dietTPkg" aria-live="polite"></p>
+      <p class="diet-form__hint num">${dietSrPair(esc(planned), esc(plannedSpoken))}. Un champ vide : pas d'objectif, le total prévu sert de repère.</p>
       <p class="diet-form__err" id="dietTErr" role="alert"></p>
+      <div class="diet-tg__links">
+        <button type="button" class="diet-tg__link" data-tpropose>Me proposer des objectifs</button>
+        <button type="button" class="diet-tg__link" data-tclear>Aucun objectif</button>
+      </div>
     </div>`;
-  return sheet({ title: 'Objectifs du jour', confirm: 'OK', body, onConfirm: panel => {
+}
+
+function dietTargetsAskHtml(pre) {
+  // Gabarits sans gabarit imbriqué (le contrôle des tirets de tests/unit/nutrition.mjs lit les chaînes à plat)
+  const segBtn = (name, cur) => ([v, l]) => '<button type="button" class="segmented__btn' + (v === cur ? ' segmented__btn--active' : '')
+    + '" data-tseg="' + name + '" data-v="' + v + '" aria-pressed="' + (v === cur) + '">' + l + '</button>';
+  const seg = (name, opts, cur, label) => `<div class="segmented seg-full diet-tg__seg" role="group" aria-label="${label}">
+      ${opts.map(segBtn(name, cur)).join('')}</div>`;
+  const options = Object.entries(DIET_EST_ACTIVITY).map(([k, a]) => '<option value="' + k + '"' + (k === pre.activity ? ' selected' : '') + '>' + a.label + '</option>').join('');
+  const field = (id, label, unit, value, mode) => `<label class="diet-field"><span class="diet-field__label">${label}</span>
+      <input id="${id}" class="diet-field__input num" type="text" inputmode="${mode}" autocomplete="off" value="${value ?? ''}" aria-label="${label}, en ${unit === 'ans' ? 'années' : unit === 'cm' ? 'centimètres' : 'kilos'}">
+      <span class="diet-field__unit" aria-hidden="true">${unit}</span></label>`;
+  return `<div data-tstep="ask" hidden>
+      <h3 class="diet-tg__title" tabindex="-1">Me proposer des objectifs</h3>
+      <p class="diet-tg__q">Ton objectif</p>
+      ${seg('goal', Object.entries(DIET_EST_GOALS).map(([k, g]) => [k, g.label]), pre.goal, 'Ton objectif')}
+      <p class="diet-tg__q">Ton activité</p>
+      <label class="diet-field"><span class="sr-text">Ton activité</span>
+        <select id="dietEAct" class="diet-field__input diet-field__select diet-tg__select">
+          ${options}
+        </select>${icon('chevron.up.chevron.down', 14)}</label>
+      <p class="diet-tg__q">Toi</p>
+      ${seg('sex', [['male', 'Homme'], ['female', 'Femme']], pre.sex, 'Sexe')}
+      <div class="diet-fields">${field('dietEAge', 'Âge', 'ans', '', 'numeric')}${field('dietECm', 'Taille', 'cm', '', 'numeric')}${field('dietEKg', 'Poids', 'kg', pre.kg ? fmtNum(pre.kg, 1) : '', 'decimal')}</div>
+      <p class="diet-form__err" id="dietEErr" role="alert"></p>
+      <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tcalc>Calculer</button>
+      <button type="button" class="diet-tg__link diet-tg__back" data-tback>Retour</button>
+    </div>`;
+}
+
+function dietTargetsResultHtml() {
+  return `<div data-tstep="result" hidden>
+      <h3 class="diet-tg__title" tabindex="-1">Proposition</h3>
+      <div class="diet-fields" id="dietEOut"></div>
+      <p class="diet-tg__why num" id="dietEWhy"></p>
+      <p class="diet-tg__why diet-tg__why--macros num" id="dietEWhyM"></p>
+      <p class="diet-form__hint">Estimation, pas un avis médical : pèse-toi chaque semaine et ajuste après deux ou trois semaines. Méthode : Mifflin-St Jeor (1990), protéines selon Morton et al. (2018), prise de masse selon Iraki et al. (2019).</p>
+      <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tuse>Utiliser ces objectifs</button>
+      <button type="button" class="diet-tg__link diet-tg__back" data-tadjust>Ajuster</button>
+    </div>`;
+}
+
+async function dietTargetsSheet(plan) {
+  const t = plan.targets || {}, total = dietPlanMacros(plan), isCoach = coachRole().isCoach;
+  const kg0 = isCoach ? null : currentBodyKg();
+  const kg = kg0 && kg0 >= DIET_EST_BOUNDS.kg[0] && kg0 <= DIET_EST_BOUNDS.kg[1] ? kg0 : null;
+  // Sexe : celui déclaré dans Réglages › Entraînement (niveau de force), jamais la silhouette (un choix d'affichage)
+  const pre = { goal: 'keep', activity: 'mid', sex: isCoach ? null : strengthSex(), kg };
+  const body = `<div class="diet-form diet-tg">${dietTargetsEditHtml(t, total, kg)}${dietTargetsAskHtml(pre)}${dietTargetsResultHtml()}</div>`;
+  // pExact : grammes exacts derrière le champ tant qu'il n'est pas retouché (144 g affichés « 1,9 g/kg » restent
+  // 144 g, pas 142 : l'arrondi du ratio ne change jamais un objectif en silence)
+  let perKg = !!kg && data.dietProteinPerKg === true, proposal = null, pExact = t.p ?? null;
+  const p = sheet({ title: 'Objectifs du jour', confirm: 'OK', body, onConfirm: panel => {
     const out = {};
     for (const k of DIET_TARGET_KEYS) {
       const raw = $(`#dietT_${k}`, panel).value.trim();
       if (!raw) continue;
-      const v = num(raw, 1, DIET_TARGET_MAX[k]);
-      if (v === null) { $('#dietTErr', panel).textContent = `Valeur entre 1 et ${DIET_TARGET_MAX[k]}.`; return false; }
+      const v = k === 'p' && pExact != null ? pExact : k === 'p' && perKg ? dietProteinGrams(raw, kg) : num(raw, 1, DIET_TARGET_MAX[k]);
+      if (v === null || v > DIET_TARGET_MAX[k]) {
+        $('#dietTErr', panel).textContent = k === 'p' && perKg ? `Protéines : de ${fmtNum(DIET_PKG_BOUNDS[0], 1)} à ${fmtNum(DIET_PKG_BOUNDS[1], 1)} g/kg.`
+          : `${DIET_T_ROWS.find(r => r[0] === k)[1]} : de 1 à ${fmtNum(DIET_TARGET_MAX[k])}.`;
+        $(`#dietT_${k}`, panel).focus();
+        return false;
+      }
       out[k] = Math.round(v);
     }
+    if (kg) { if (perKg) data.dietProteinPerKg = true; else delete data.dietProteinPerKg; }
     return { targets: cleanDietTargets(out) };
   } });
+  const root = [...document.querySelectorAll('.sheet-root')].pop();
+  if (!root) return p;
+  const okBtn = $('.sheet__btn--confirm', root), pIn = $('#dietT_p', root), unitBtn = $('[data-tunit]', root);
+  const show = next => {
+    for (const el of root.querySelectorAll('[data-tstep]')) el.hidden = el.dataset.tstep !== next;
+    okBtn.style.visibility = next === 'edit' ? '' : 'hidden';   // OK enregistre la saisie : seulement sur elle
+    $(`[data-tstep="${next}"] ${next === 'edit' ? '#dietT_kcal' : '.diet-tg__title'}`, root)?.focus({ preventScroll: true });
+    $('.sheet__body', root).scrollTop = 0;
+  };
+  // Protéines : unité, et l'autre écriture dessous (« = 142 g pour 74,5 kg », « 1,9 g/kg pour 74,5 kg »)
+  const paintP = () => {
+    if (!unitBtn) return;
+    unitBtn.textContent = perKg ? 'g/kg' : 'g';
+    unitBtn.setAttribute('aria-label', perKg ? 'Unité : grammes par kilo. Toucher pour saisir en grammes' : 'Unité : grammes. Toucher pour saisir en grammes par kilo');
+    pIn.setAttribute('aria-label', `Protéines par jour, en ${perKg ? 'grammes par kilo de poids du corps' : 'grammes'}. Vide : aucun objectif`);
+    const raw = pIn.value.trim(), kgTxt = `${fmtNum(kg, 1)} kg (Réglages)`;
+    let line = '';
+    if (raw && perKg) { const g = pExact ?? dietProteinGrams(raw, kg); line = g ? `= ${fmtNum(g)} g pour ${kgTxt}` : ''; }
+    else if (raw) { const r = dietProteinPerKg(num(raw, 1, DIET_TARGET_MAX.p), kg); line = r ? `Soit ${fmtNum(r, 1)} g/kg pour ${kgTxt}` : ''; }
+    $('#dietTPkg', root).textContent = line;
+  };
+  if (unitBtn && perKg && t.p) pIn.value = fmtNum(dietProteinPerKg(t.p, kg), 1);
+  paintP();
+  pIn.addEventListener('input', () => { pExact = null; paintP(); });
+  const fill = v => { pExact = v?.p ?? null; for (const k of DIET_TARGET_KEYS) $(`#dietT_${k}`, root).value = v?.[k] != null ? (k === 'p' && perKg ? fmtNum(dietProteinPerKg(v.p, kg), 1) : String(v[k])) : ''; paintP(); };
+  root.addEventListener('click', ev => {
+    const el = ev.target.closest('[data-tunit], [data-tclear], [data-tpropose], [data-tback], [data-tcalc], [data-tuse], [data-tadjust], [data-tseg]');
+    if (!el) return;
+    if (el.matches('[data-tunit]')) {
+      // Conversion de la valeur en cours : 144 g ↔ 1,9 g/kg
+      const raw = pIn.value.trim();
+      const g = raw ? (pExact ?? (perKg ? dietProteinGrams(raw, kg) : num(raw, 1, DIET_TARGET_MAX.p))) : null;
+      perKg = !perKg;
+      if (g) { pIn.value = perKg ? fmtNum(dietProteinPerKg(g, kg), 1) : String(Math.round(g)); pExact = Math.round(g); }
+      paintP(); haptic('light');
+    } else if (el.matches('[data-tclear]')) {
+      fill(null); $('#dietTErr', root).textContent = ''; haptic('light');
+      showToast('Objectifs vidés : touche OK pour enregistrer');
+    } else if (el.matches('[data-tpropose]')) show('ask');
+    else if (el.matches('[data-tback], [data-tadjust]')) {
+      if (el.matches('[data-tadjust]') && proposal) fill(proposal);
+      show('edit');
+    } else if (el.matches('[data-tseg]')) {
+      for (const b of root.querySelectorAll(`[data-tseg="${el.dataset.tseg}"]`)) {
+        const on = b === el;
+        b.classList.toggle('segmented__btn--active', on);
+        b.setAttribute('aria-pressed', String(on));
+      }
+      haptic('light');
+    } else if (el.matches('[data-tcalc]')) {
+      const seg = n => $(`[data-tseg="${n}"].segmented__btn--active`, root)?.dataset.v ?? null;
+      const age = num($('#dietEAge', root).value, DIET_EST_BOUNDS.age[0], DIET_EST_BOUNDS.age[1], true);
+      const cm = num($('#dietECm', root).value, DIET_EST_BOUNDS.cm[0], DIET_EST_BOUNDS.cm[1]);
+      const w = num($('#dietEKg', root).value, DIET_EST_BOUNDS.kg[0], DIET_EST_BOUNDS.kg[1]);
+      const err = !seg('sex') ? 'Choisis Homme ou Femme : la formule diffère.'
+        : age === null ? `Âge : de ${DIET_EST_BOUNDS.age[0]} à ${DIET_EST_BOUNDS.age[1]} ans (la formule vaut pour un adulte).`
+          : cm === null ? `Taille : de ${DIET_EST_BOUNDS.cm[0]} à ${DIET_EST_BOUNDS.cm[1]} cm.`
+            : w === null ? `Poids : de ${DIET_EST_BOUNDS.kg[0]} à ${DIET_EST_BOUNDS.kg[1]} kg.` : '';
+      $('#dietEErr', root).textContent = err;
+      if (err) return;
+      proposal = dietEstimate({ sex: seg('sex'), kg: w, cm, age, activity: $('#dietEAct', root).value, goal: seg('goal') });
+      if (!proposal) return;
+      const cell = (k, label, v, unit, spoken) => {
+        const dot = k === 'kcal' ? '' : '<i class="diet-dot diet-dot--' + k + '" aria-hidden="true"></i>';
+        const val = dietSrPair(fmtNum(v) + ' ' + unit, fmtNum(v) + ' ' + spoken);
+        return `<div class="diet-field"><span class="diet-field__label">${dot}${label}</span><span class="diet-field__input num diet-tg__val">${val}</span></div>`;
+      };
+      $('#dietEOut', root).innerHTML = cell('kcal', 'Calories', proposal.kcal, 'kcal', 'kilocalories')
+        + DIET_T_ROWS.slice(1).map(([k, l]) => cell(k, l, proposal[k], 'g', 'grammes')).join('');
+      $('#dietEWhy', root).textContent = proposal.why;
+      $('#dietEWhyM', root).textContent = proposal.whyMacros;
+      show('result');
+    } else if (el.matches('[data-tuse]') && proposal) {
+      root._close({ targets: cleanDietTargets({ kcal: proposal.kcal, p: proposal.p, c: proposal.c, f: proposal.f }) });
+    }
+  });
+  return p;
 }
 
 // ── Actions ─────────────────────────────────────────────────

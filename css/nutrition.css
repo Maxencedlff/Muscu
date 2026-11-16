@@ -392,3 +392,34 @@ html.type-xl .diet-item + .diet-item::before, html.type-xl .diet-cand + .diet-ca
 html.type-xl .diet-cand:has(> .diet-ico) + .diet-cand::before, html.type-xl .diet-cand + .diet-cand:has(> .diet-ico)::before { left: 16px; }
 html.type-xl .diet-dot { width: .45em; height: .45em; margin-right: .3em; }
 html.type-xl .cell > .diet-ico { display: none; }
+
+/* Objectifs du jour (js/features/diet-editor.js, dietTargetsSheet) : saisie, « Me proposer des objectifs », proposition.
+   Un seul orange (--tint) pour les actions ; pastilles des macros devant leur nom ; rien de rouge */
+.diet-field__unitbtn { flex-shrink: 0; min-width: max(44px, 2.4em); min-height: 44px; margin: 0; padding: 0; border: none; background: none;
+  font: inherit; font-size: var(--fs-callout); font-weight: 600; color: var(--tint); cursor: pointer; text-align: left; }
+.diet-field__unitbtn:active { opacity: .6; }
+.diet-tg__pkg { margin: 6px 0 0; min-height: 1.3em; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
+.diet-tg__pkg:empty { min-height: 0; margin: 0; }
+.diet-tg__links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; margin-top: 4px; }
+.diet-tg__link { min-height: 44px; padding: 0; border: none; background: none; font: inherit; font-size: var(--fs-callout);
+  color: var(--tint); cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.diet-tg__link:active { opacity: .6; }
+.diet-tg__back { display: block; margin: 4px auto 0; text-align: center; }
+.diet-tg__title { margin: 0; font-size: var(--fs-body); font-weight: 600; }
+.diet-tg__title:focus { outline: none; }
+.diet-tg__q { margin: 16px 0 8px; font-size: var(--fs-footnote); color: var(--label2); }
+.diet-tg__seg { display: flex; }
+.diet-tg__seg .segmented__btn { white-space: normal; line-height: 1.15; overflow-wrap: normal; }
+.diet-tg__select { flex: 1; min-width: 0; text-align: left; text-align-last: left; }
+.diet-tg__select + .icon { flex-shrink: 0; color: var(--label2); pointer-events: none; }
+.diet-tg .diet-fields { margin-top: 8px; }
+.diet-tg__val { display: flex; align-items: center; justify-content: flex-end; }
+.diet-tg__why { margin: 10px 0 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label); }
+.diet-tg__why--macros { margin-top: 2px; }
+.diet-tg__go { margin-top: 16px; }
+/* Texte agrandi : segments en colonne, nom et valeur l'un sous l'autre plutôt que coupés */
+html.type-xl .diet-tg__seg { display: grid; grid-template-columns: 1fr; row-gap: 2px; height: auto; }
+html.type-xl .diet-tg__seg .segmented__btn { margin: 0; padding: 8px 6px; min-height: 44px; }
+html.type-xl .diet-tg__seg .segmented__btn::before { display: none; }
+html.type-xl .diet-tg__seg .segmented__btn::after { inset: 0; }
+html.type-xl .diet-tg .diet-field { flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; }

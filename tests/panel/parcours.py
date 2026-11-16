@@ -803,6 +803,33 @@ def p_nutrition(r):
             r.choisir('OK')
         else:
             r.toucher('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm', 'OK')
+    # Objectifs du jour (retour du 16/11 : « je peux pas modifier les kcal ? ») : saisie, protéines en g/kg, proposition
+    cle = 'Fixer ses objectifs du jour'
+    feuille = '.sheet-root:not(.sheet-root--out)'
+    with r.etape('objectifs', 'Objectifs du jour : Calories, Protéines, Glucides, Lipides (« Aucun » si vide)', cle=cle):
+        r.toucher('[data-action="diet-targets"]', 'Objectifs du jour')
+        r.attendre(f'{feuille} #dietT_kcal', 'feuille des objectifs')
+    with r.etape('objectifs-kcal', 'Calories : 2 900 kcal tapées', cle=cle):
+        r.saisir(f'{feuille} #dietT_kcal', 2900, 'calories')
+    with r.etape('objectifs-gkg', 'Protéines en g/kg : 1,9 g/kg, grammes calculés avec le poids des Réglages', cle=cle):
+        r.toucher(f'{feuille} [data-tunit]', 'unité g → g/kg')
+        r.saisir(f'{feuille} #dietT_p', '1,9', 'protéines en g/kg')
+    with r.etape('objectifs-enregistres', 'Objectifs enregistrés : écart des repas prévus en calories et en protéines', cle=cle):
+        r.toucher(f'{feuille} .sheet__btn--confirm', 'OK')
+    cle = 'Se faire proposer des objectifs'
+    with r.etape('proposer', '« Me proposer des objectifs » : objectif, activité, sexe, âge, taille, poids', cle=cle):
+        r.toucher('[data-action="diet-targets"]', 'Objectifs du jour')
+        r.toucher(f'{feuille} [data-tpropose]', 'Me proposer des objectifs')
+    with r.etape('proposer-reponses', 'Réponses : prise de masse, 3 à 5 séances, homme, 25 ans, 180 cm, 74,5 kg', cle=cle):
+        r.toucher(f'{feuille} [data-tseg="goal"][data-v="gain"]', 'Prise de masse')
+        r.toucher(f'{feuille} [data-tseg="sex"][data-v="male"]', 'Homme')
+        r.saisir(f'{feuille} #dietEAge', 25, 'âge')
+        r.saisir(f'{feuille} #dietECm', 180, 'taille')
+        r.saisir(f'{feuille} #dietEKg', '74,5', 'poids')
+    with r.etape('proposition', 'Proposition : valeurs et explication en une ligne, « estimation, pas un avis médical »', cle=cle):
+        r.toucher(f'{feuille} [data-tcalc]', 'Calculer')
+    with r.etape('proposition-utilisee', '« Utiliser ces objectifs » : enregistrés sur le plan', cle=cle):
+        r.toucher(f'{feuille} [data-tuse]', 'Utiliser ces objectifs')
     with r.etape('accueil-carte', 'Accueil : carte Nutrition du jour'):
         r.onglet('train', 'Entraînement')
         r.defiler('.diet-home', 'carte Nutrition')

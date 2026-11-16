@@ -36,6 +36,7 @@ const SCRIPTS = [
   'js/data/body-measures.js',
   'js/data/food-portions.js',
   'js/data/nutrition.js',
+  'js/data/diet-estimate.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -1996,6 +1997,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Nutrition, règles fines (bornes et branches repérées par le test de mutation, tests dans nutrition-regles.mjs)
 (await import('./nutrition-regles.mjs')).default({ test, run, reset, assert, sameJSON });
+// Objectifs du jour : proposition estimée (Mifflin-St Jeor) et protéines en g/kg
+(await import('./diet-estimate.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Scanner un aliment : codes-barres, réponse d'Open Food Facts, Mes aliments (tests dans food-scan.mjs)
 (await import('./food-scan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Quantités à l'unité : portions courantes, conversions, unité du paquet (tests dans food-portions.mjs)

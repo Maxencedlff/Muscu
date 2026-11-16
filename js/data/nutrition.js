@@ -12,9 +12,11 @@
 //  - data.dietLog (repas cochés et remplacements du jour) : sur l'appareil seulement (SYNC_LOCAL_ONLY).
 //  - Réglages de l'appareil : dietHideNumbers (masquer calories et grammes de macros), dietStreakOff (série
 //    masquée), dietConsentAsked (la question de l'accord a été posée), dietEmptyDays (repas du jour vides : chaque
-//    jour commence sans aliment prévu, on note ce qu'on mange ; absent : pré-remplis par le plan, comme avant).
-//  - Aucun calcul de besoins : les objectifs viennent du coach ou de la personne ; sans objectif, le
-//    total du plan sert de repère.
+//    jour commence sans aliment prévu, on note ce qu'on mange ; absent : pré-remplis par le plan, comme avant),
+//    dietProteinPerKg (objectif de protéines saisi en g/kg ; gardé en grammes dans le plan).
+//  - Objectifs : fixés par le coach ou la personne ; une estimation est proposée sur demande seulement
+//    (js/data/diet-estimate.js), jamais appliquée sans « Utiliser ces objectifs » ; sans objectif, le total du
+//    plan sert de repère.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -280,7 +282,7 @@ function sanitizeDiet(d, now = Date.now()) {
     const c = d.dietConsent, ok = dietIsObj(c) && typeof c.on === 'boolean' && typeof c.at === 'string' && c.at.length <= 40 && Number.isFinite(Date.parse(c.at));
     if (ok) d.dietConsent = { on: c.on, at: c.at }; else delete d.dietConsent;
   }
-  for (const k of ['dietConsentAsked', 'dietHideNumbers', 'dietStreakOff']) if (d[k] !== undefined && d[k] !== true) delete d[k];
+  for (const k of ['dietConsentAsked', 'dietHideNumbers', 'dietStreakOff', 'dietProteinPerKg']) if (d[k] !== undefined && d[k] !== true) delete d[k];
   // Repas du jour : true (vides) ou false (pré-remplis) choisis ; absent = selon le plan (dietEmptyDaysFor)
   if (d.dietEmptyDays !== undefined && typeof d.dietEmptyDays !== 'boolean') delete d.dietEmptyDays;
   // Accord « recevoir les plans de mon coach » gardé sur l'appareil (serveur pas encore à jour) : même forme

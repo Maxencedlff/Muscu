@@ -1269,5 +1269,100 @@ def t_repas_hier(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides, t_repas_hier],
+
+def t_objectifs(bench, eng, dev, theme):
+    """Retour de Maxence du 16/11 (« je peux pas modifier les kcal ? ») : la feuille Objectifs du jour montre « Aucun »
+    dans un champ vide et les repas prévus à part ; calories fixées comme les protéines, protéines en g/kg (poids des
+    Réglages) sans arrondi silencieux, « Aucun objectif », « Me proposer des objectifs » puis « Utiliser » ; plan du
+    coach : objectifs en lecture seule."""
+    t = tag(dev, theme) + '-obj'
+    d = json.loads(with_plan(NOW))
+    d['bodyWeightKg'] = 74.5
+    sh = LIVE_SHEET
+    plan_t = "data.dietPlans.d_masse01.targets ?? null"
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, json.dumps(d, ensure_ascii=False))
+        page.evaluate("navigate(makeRoute('diet-plan', 'd_masse01'))")
+        page.wait_for_selector('.diet-plan-view [data-action="diet-targets"]')
+        foot = page.inner_text('.diet-plan-view')
+        R.check('ne calcule pas' not in foot and 'estimation' in foot, f'{t} pied : plus de « l\'app ne calcule pas tes besoins »')
+        # 1. Modifier : calories tapées, protéines passées en g/kg (160 g restent 160 g)
+        page.click('[data-action="diet-targets"]')
+        page.wait_for_selector(f'{sh} #dietT_kcal')
+        R.check(page.get_attribute(f'{sh} #dietT_c', 'placeholder') == 'Aucun' and page.input_value(f'{sh} #dietT_c') == '',
+                f'{t} champ vide : « Aucun », jamais le total des repas en gris')
+        R.check('Repas prévus' in page.inner_text(f'{sh} .diet-form__hint'), f'{t} total des repas écrit à part')
+        R.check(nb(page.inner_text(f'{sh} .diet-field__label >> nth=0')) == 'Calories', f'{t} libellé « Calories »')
+        layout(page, t, 'feuille des objectifs', scope=sh)
+        shot(page, LOT, f'o1-objectifs-{t}')
+        page.fill(f'{sh} #dietT_kcal', '2900')
+        page.click(f'{sh} [data-tunit]')
+        R.check(page.input_value(f'{sh} #dietT_p') == '2,1' and nb(page.inner_text(f'{sh} [data-tunit]')) == 'g/kg', f'{t} 160 g → 2,1 g/kg')
+        R.check('= 160 g' in nb(page.inner_text(f'{sh} #dietTPkg')), f'{t} grammes exacts gardés ({nb(page.inner_text(sh + " #dietTPkg"))!r})')
+        shot(page, LOT, f'o2-objectifs-gkg-{t}')
+        page.click(f'{sh} .sheet__btn--confirm')
+        page.wait_for_timeout(350)
+        R.check(page.evaluate(plan_t) == {'kcal': 2900, 'p': 160}, f'{t} calories fixées, protéines inchangées ({page.evaluate(plan_t)})')
+        R.check(page.evaluate('data.dietProteinPerKg') is True, f'{t} g/kg retenu sur l\'appareil')
+        gap = page.inner_text('.diet-plan-view .diet-gap') if page.locator('.diet-plan-view .diet-gap').count() else ''
+        R.check('kcal' in gap and 'de moins' in gap, f'{t} écart des calories montré comme celui des protéines ({gap!r})')
+        # 2. En g/kg : 1,9 g/kg × 74,5 kg = 142 g
+        page.click('[data-action="diet-targets"]')
+        page.wait_for_selector(f'{sh} #dietT_p')
+        R.check(page.input_value(f'{sh} #dietT_p') == '2,1', f'{t} rouvert en g/kg')
+        page.fill(f'{sh} #dietT_p', '1,9')
+        R.check('= 142 g' in nb(page.inner_text(f'{sh} #dietTPkg')), f'{t} 1,9 g/kg = 142 g')
+        page.fill(f'{sh} #dietT_p', '9')
+        page.click(f'{sh} .sheet__btn--confirm')
+        R.check('g/kg' in page.inner_text(f'{sh} #dietTErr'), f'{t} 9 g/kg refusé, feuille ouverte')
+        page.fill(f'{sh} #dietT_p', '1,9')
+        page.click(f'{sh} .sheet__btn--confirm')
+        page.wait_for_timeout(350)
+        R.check(page.evaluate(plan_t) == {'kcal': 2900, 'p': 142}, f'{t} protéines 142 g ({page.evaluate(plan_t)})')
+        # 3. Remettre à zéro : « Aucun objectif », puis OK
+        page.click('[data-action="diet-targets"]')
+        page.wait_for_selector(f'{sh} [data-tclear]')
+        page.click(f'{sh} [data-tclear]')
+        R.check(all(page.input_value(f'{sh} #dietT_{k}') == '' for k in ('kcal', 'p', 'c', 'f')), f'{t} « Aucun objectif » vide les champs')
+        page.click(f'{sh} .sheet__btn--confirm')
+        page.wait_for_timeout(350)
+        R.check(page.evaluate(plan_t) is None and 'Aucun' in page.inner_text('[data-action="diet-targets"]'), f'{t} plus aucun objectif')
+        # 4. Proposer puis utiliser (homme 74,5 kg, 25 ans, 180 cm, 3 à 5 séances, prise de masse : 2 980 kcal)
+        page.click('[data-action="diet-targets"]')
+        page.wait_for_selector(f'{sh} [data-tpropose]')
+        page.click(f'{sh} [data-tpropose]')
+        page.wait_for_selector(f'{sh} [data-tstep="ask"]:not([hidden])')
+        R.check(not page.is_visible(f'{sh} .sheet__btn--confirm'), f'{t} questions : OK caché (il enregistre la saisie)')
+        R.check(page.input_value(f'{sh} #dietEKg') == '74,5', f'{t} poids des Réglages pré-rempli')
+        page.click(f'{sh} [data-tseg="goal"][data-v="gain"]')
+        page.click(f'{sh} [data-tseg="sex"][data-v="male"]')
+        page.fill(f'{sh} #dietEAge', '16')
+        page.fill(f'{sh} #dietECm', '180')
+        page.click(f'{sh} [data-tcalc]')
+        R.check('adulte' in page.inner_text(f'{sh} #dietEErr') and page.is_hidden(f'{sh} [data-tstep="result"]'), f'{t} 16 ans : rien de proposé')
+        page.fill(f'{sh} #dietEAge', '25')
+        layout(page, t, 'questions', scope=sh)
+        shot(page, LOT, f'o3-proposer-{t}')
+        page.click(f'{sh} [data-tcalc]')
+        page.wait_for_selector(f'{sh} [data-tstep="result"]:not([hidden])')
+        res = nb(page.inner_text(f'{sh} [data-tstep="result"]'))
+        R.check('2 980 kcal = besoins estimés' in res and 'Protéines 1,8 g/kg' in res and 'pas un avis médical' in res and 'Mifflin' in res, f'{t} proposition expliquée ({res[:120]!r})')
+        layout(page, t, 'proposition', scope=sh)
+        shot(page, LOT, f'o4-proposition-{t}')
+        page.click(f'{sh} [data-tadjust]')
+        R.check(page.input_value(f'{sh} #dietT_kcal') == '2980' and page.input_value(f'{sh} #dietT_p') == '1,8', f'{t} « Ajuster » remplit la saisie (P en g/kg)')
+        page.click(f'{sh} [data-tpropose]')
+        page.click(f'{sh} [data-tcalc]')
+        page.click(f'{sh} [data-tuse]')
+        page.wait_for_timeout(350)
+        R.check(page.evaluate(plan_t) == {'kcal': 2980, 'p': 134, 'c': 460, 'f': 67}, f'{t} « Utiliser ces objectifs » ({page.evaluate(plan_t)})')
+        shot(page, LOT, f'o5-objectifs-utilises-{t}')
+        # 5. Plan du coach : objectifs lus, jamais modifiables
+        page.evaluate("""() => { data.dietPlans.d_masse01.fromCoach = { coachId: 'c1', name: 'max', sentAt: 1 }; data.dietPlans.d_masse01.targets = { kcal: 2600, p: 160 }; save(); render(); }""")
+        page.wait_for_timeout(300)
+        R.check(page.locator('[data-action="diet-targets"]').count() == 0 and 'objectifs fixés par max' in page.inner_text('.diet-plan-view'),
+                f'{t} plan du coach : objectifs en lecture seule, « fixés par max »')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides, t_repas_hier, t_objectifs],
          once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier, t_minuit, t_vague4_six_repas, t_vague4_plein])
