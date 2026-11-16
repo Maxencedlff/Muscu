@@ -20,11 +20,11 @@ const NOTE_CLEAR = Object.freeze({ clear: true });   // valeur du choix « Effac
 // Une ligne de 140 caractères dans l'alerte iOS à champ ; « Effacer » seulement s'il y a une note.
 // « Visible par toi seul » : vrai tant que le serveur ne transmet ni les notes d'exercice ni celles de série au coach
 // (private.session_for_coach) ; à revoir le jour où il les transmettra. La note de séance, elle, part au coach.
-async function askNote({ title, message, value = '', canClear = false }) {
+async function askNote({ title, message, value = '', canClear = false, placeholder = 'Ex. siège cran 4' }) {
   const actions = canClear
     ? [{ label: 'Enregistrer', style: 'preferred' }, { label: 'Effacer', value: NOTE_CLEAR, style: 'destructive' }, { label: 'Annuler', style: 'cancel' }]
     : [{ label: 'Annuler', style: 'cancel' }, { label: 'Enregistrer', style: 'preferred' }];
-  const r = await dialog({ title, message, input: { value, placeholder: 'Ex. siège cran 4', text: true, max: NOTE_MAX, label: 'Note' }, actions });
+  const r = await dialog({ title, message, input: { value, placeholder, text: true, max: NOTE_MAX, label: 'Note' }, actions });
   if (r === null || r === undefined) return null;
   if (r === NOTE_CLEAR) return NOTE_CLEAR;
   const text = cleanNote(r);
@@ -94,13 +94,15 @@ async function editExerciseNote(ei) {
 
 // Toute série (à faire, validée, rouverte) : la case « Avant » est le bouton de sa note (demande du 16/11 : « une petite
 // partie dans chaque série, on clique dessus pour écrire et/ou voir la note »). Aucune colonne de plus sur iPhone SE :
-// sous la valeur d'avant, l'icône « note » au trait (pas de note) ou pleine (note écrite). Loin du champ Reps et du ✓.
+// sous la valeur d'avant, l'icône « note » au trait (pas de note) ou remplie avec ses lignes (note écrite). Loin du champ
+// Reps et du ✓. Texte agrandi : le mot « Note » à côté de l'icône d'une série sans note (panel des 40 juges : l'icône
+// seule ne disait pas qu'elle sert à écrire) ; en taille normale, icône seule, pour rester discret (demande de Maxence)
 // prevHtml : contenu de la case (« 32 × 9 », ou « — »), prevSpoken : la même valeur pour VoiceOver (WCAG 2.5.3)
 function setNoteBtnHtml(ex, ei, s, si, prevHtml, prevSpoken) {
   const own = cleanNote(s?.note), last = !own && !s?.done ? cleanNote(s?.prev?.note) : null;
   const what = own ? `Note de ${setRefName(ex, si)} : ${esc(own)}. Modifier la note`
     : `Ajouter une note à ${setRefName(ex, si)}${last ? `. La dernière fois : ${esc(last)}` : ''}`;
-  return `<button class="set-prev set-note-btn num${own ? ' set-note-btn--on' : ''}" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-label="${prevSpoken ? `Avant ${prevSpoken}. ` : ''}${what}, ${esc(ex.name)}"><span class="set-note-btn__val">${prevHtml}</span>${icon(own ? 'note.fill' : 'note', 14)}</button>`;
+  return `<button class="set-prev set-note-btn num${own ? ' set-note-btn--on' : ''}" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-label="${prevSpoken ? `Avant ${prevSpoken}. ` : ''}${what}, ${esc(ex.name)}"><span class="set-note-btn__val">${prevHtml}</span><span class="set-note-btn__ico">${icon(own ? 'note.fill' : 'note', 14)}${own ? '' : '<span class="set-note-btn__word" aria-hidden="true">Note</span>'}</span></button>`;
 }
 // Sous la ligne, seulement quand il y a quoi lire : la note de la série, sinon (série à faire) celle de la même série la
 // dernière fois. Lue par VoiceOver dans le bouton ci-dessus et la phrase de la série validée ; ici, un toucher l'ouvre
@@ -126,7 +128,8 @@ async function editSetNote(ei, si) {
     else if (!saveEditedSet()) return;
   }
   const had = cleanNote(s.note), last = !had ? cleanNote(s.prev?.note) : null;
-  const r = await askNote({ title: `Note · ${setSpokenName(ex, si)}`, message: `${ex.name}.${last ? ` La dernière fois : ${last}.` : ''} Visible par toi seul.`, value: had || '', canClear: !!had });
+  const r = await askNote({ title: `Note · ${setSpokenName(ex, si)}`, message: `${ex.name}.${last ? ` La dernière fois : ${last}.` : ''} Visible par toi seul.`, value: had || '', canClear: !!had,
+    placeholder: 'Ex. dernière rep difficile, épaule OK' });
   if (activeSession?.exercises[ei]?.sets[si] !== s) return;
   if (r === NOTE_CLEAR) { delete s.note; announce('Note effacée'); }
   else if (r) { s.note = r.text; announce('Note enregistrée'); }

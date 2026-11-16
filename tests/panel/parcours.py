@@ -181,6 +181,10 @@ def p_seance(r):
         r.saisir('.ios-dialog__input', 'épaule gauche sensible', 'note')
         r.choisir('Enregistrer')
         r.defiler('.view.session .session-set[data-ei="0"][data-si="1"]', 'la série notée')
+    r.raccourci("""() => { const s = activeSession.exercises[0].sets[3]; if (s.prev) s.prev.note = 'dernière rep aidée'; render(); }""",
+                'note « dernière rep aidée » sur la série 4 la dernière fois')
+    with r.etape('note-derniere-fois', 'Série 4 à faire : rappel « La dernière fois : … » sous la ligne'):
+        r.defiler('.view.session .session-set[data-ei="0"][data-si="3"] .set-note-prev', 'le rappel de la dernière fois')
     with r.etape('note-exercice', 'Note d\'exercice : lien « Note » au pied de la carte', cle='Noter un exercice'):
         r.toucher('.view.session .ex-card[data-ei="0"] .ex-foot-note', '« Note » au pied de la carte')
         r.attendre('.ios-dialog__input', 'alerte de la note')

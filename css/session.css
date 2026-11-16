@@ -851,8 +851,10 @@ html.type-xl .pl__row--top .pl__lbl { padding-top: 0; }
 }
 .session-set .set-note-btn:active { background: var(--fill); }
 .set-note-btn__val { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.set-note-btn > .icon { flex-shrink: 0; width: 1.1em; height: 1.1em; }
-.set-note-btn--on > .icon { color: var(--label); }
+.set-note-btn__ico { display: flex; align-items: center; gap: 4px; }
+.set-note-btn__ico > .icon { flex-shrink: 0; width: 1.3em; height: 1.3em; color: var(--label2); }
+.set-note-btn--on .set-note-btn__ico > .icon { color: var(--label); }
+.set-note-btn__word { display: none; color: var(--tint); font-weight: 600; }
 /* Note de la série (ou celle de la même série la dernière fois) sous la ligne, seulement s'il y en a une */
 .session-set .set-note-prev {
   grid-column: 2 / -1; justify-self: start; padding: 0 0 6px; cursor: pointer;
@@ -861,6 +863,8 @@ html.type-xl .pl__row--top .pl__lbl { padding-top: 0; }
 .set-note-prev__lbl { font-weight: 600; }
 html.type-xl .session-set .set-note-btn { align-items: flex-start; gap: 4px; margin: 0; padding: 0; text-align: left; white-space: normal; }
 html.type-xl .set-note-btn__val { overflow: visible; }
+html.type-xl .set-note-btn__ico { flex-wrap: wrap; }
+html.type-xl .set-note-btn__word { display: inline; overflow-wrap: anywhere; }
 html.type-xl .session-set .set-note-prev { grid-column: 1 / -1; }
 /* Haut de la séance : note du bilan de la dernière fois, qu'on ferme */
 .sess-lastnote {
