@@ -839,6 +839,8 @@ def p_nutrition(r):
         r.choisir('Déplacer vers…')
     with r.etape('deplace', 'Déplacé vers Déjeuner (Annuler dans le message)', cle=cle):
         r.choisir('Déjeuner')
+    with r.etape('deplace-annule', '« Annuler » : le riz revient au petit-déjeuner', cle=cle):
+        r.toucher('.toast__action', 'Annuler')
     with r.etape('masquer', 'Dîner : « Masquer ce repas » (un repas de base ne se supprime pas)', cle=cle):
         r.toucher('[data-action="diet-meal-menu"]', 'Modifier (dîner)', nth=3)
     with r.etape('masque', 'Dîner masqué : « Repas masqués › Réafficher Dîner » en pied du plan', cle=cle):

@@ -209,7 +209,7 @@ function profileAgeHeightHtml() {
             <span class="cell__value num"${value ? '' : ' aria-label="Non renseigné"'}>${value ? esc(value) : '—'}</span>
             ${icon('chevron.right', 16)}
           </button>`;
-  return cell('set-profile-age', 'calendar', 'Âge', age ? `${age} ans` : '') + cell('set-profile-height', 'ruler', 'Taille', cm ? `${fmtNum(cm)} cm` : '');
+  return cell('set-profile-age', 'clock.history', 'Âge', age ? `${age} ans` : '') + cell('set-profile-height', 'ruler', 'Taille', cm ? `${fmtNum(cm)} cm` : '');
 }
 // Saisie d'un nombre du profil ; champ vidé : effacé (facultatif)
 async function askProfileNumber({ title, message, value, unit, min, max }) {
