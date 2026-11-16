@@ -391,6 +391,7 @@ button.cal__d[aria-pressed="true"] { background: var(--fill); }
 .hcal-day { margin-bottom: 12px; }
 html.type-xl .hcal .cal__d { font-size: 1rem; min-height: 48px; }
 html.type-xl .hcal .cal__wd { font-size: 0.882rem; }
+html.type-xl .hcal .cal__d--today > .num { width: 1.5em; height: 1.5em; line-height: 1.5em; margin-top: 0; }   /* le cercle d'aujourd'hui suit le texte agrandi */
 
 /* Barres sous l'objectif en gris système (3:1 au moins sur la carte, clair et sombre ; --fill faisait 1,2:1, panel t5),
    le nombre de séances au-dessus de chaque barre */
