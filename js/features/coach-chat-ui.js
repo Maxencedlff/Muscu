@@ -58,6 +58,11 @@ function chatCountText(text) {
   return n >= CHAT_WARN ? `${n} / ${CHAT_MAX}` : '';
 }
 
+// Notifications refusées dans iOS : une ligne discrète vers les Réglages de l'iPhone (js/features/push-ui.js)
+function chatPushLineHtml() {
+  return pushDeniedHere() ? `<button class="chat-push-off" data-action="push-open-ios-settings-chat">Notifications désactivées · <span class="chat-push-off__link">Réglages</span></button>` : '';
+}
+
 function renderCoachChat(key) {
   const p = chatPartner(key);
   const name = p ? personName(p) : 'Messages';
@@ -80,6 +85,7 @@ function renderCoachChat(key) {
       <div class="scr chat">
         <p class="chat-intro">${esc(key === CHAT_COACH ? `Messages avec ton coach ${name}. Vous seuls les lisez.` : `Messages avec ${name}. Vous seuls les lisez.`)}
           Ils sont effacés si le coaching s'arrête.</p>
+        <div id="chatPushLine">${chatPushLineHtml()}</div>
         <div class="chat-list" id="chatList" role="log" aria-live="polite" aria-relevant="additions">${chatListHtml(key)}</div>
         <div class="chat-compose">
           <textarea id="chatInput" class="comment-compose__input chat-compose__input" data-key="${esc(key)}" rows="1"
@@ -134,7 +140,13 @@ function chatStartPoll() {
   chatStopPoll();
   chatPollTimer = setInterval(chatTick, CHAT_POLL_MS);
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && chatKeyShown()) chatTick(); });
+// Retour au premier plan (peut-être depuis les Réglages de l'iPhone) : messages et autorisation d'iOS relus
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && chatKeyShown()) { chatTick(); pushRefreshPermission(); } });
+// Autorisation d'iOS changée : la ligne seule, sans redessiner la saisie
+onPushChange(() => {
+  const line = chatKeyShown() && $('#chatPushLine');
+  if (line) { const html = chatPushLineHtml(); if (line.innerHTML !== html) line.innerHTML = html; }
+});
 
 // ── Saisie et actions ───────────────────────────────────────
 
@@ -208,8 +220,11 @@ SCREENS.set('coach-chat', {
     chatShownLast = null;
     if (key === CHAT_COACH) setChatIntroSeen();
     chatStartPoll();
+    pushRefreshPermission();
     await chatLoad(key);
     if (chatKeyShown() === key) chatMarkRead(key, { force: true });
+    // Première ouverture : proposer d'être prévenu des messages (une fois, js/features/push-ui.js)
+    if (chatKeyShown() === key) pushAskInContext(key === CHAT_COACH ? 'student' : 'coach', () => chatKeyShown() === key);
   },
   leave: () => { chatStopPoll(); },
 });

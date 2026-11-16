@@ -100,9 +100,11 @@ already au second envoi, not_connected sans liaison) et strava-disconnect (revok
 État dans __sb.st ; __sb.stravaAuthorize() simule l'accord donné dans Safari (prénom Léa), __sb.stravaRevokeAtStrava()
 l'accès retiré chez Strava. Corps reçus dans __sb.st.sent. __sb.fail.strava = 'offline' pour le hors ligne.
 
+Demande en contexte des notifications : marquée déjà répondue (mdlf_push_ask) sauf __fakeOpts.pushAsk.
+
 Notifications push (docs/NOTIFICATIONS.md) : module MdlfPush (autorisation d'iOS __sb.push.permission :
 'prompt' | 'granted' | 'denied', réponse à la fenêtre __sb.push.answer, faux jeton __sb.push.token, '' :
-inscription refusée par iOS) ; RPC push_prefs, push_set_prefs (null = inchangé), push_register (jeton
+inscription refusée par iOS) ; RPC push_prefs (6 types, ou 3 avec __fakeOpts.pushOldServer, 5 avec pushServer5), push_set_prefs (null = inchangé), push_register (jeton
 vérifié comme la migration), push_unregister, push_release (jeton d'un autre compte seulement). État dans __sb.push (prefs, devices) ; appels dans __sb.calls
 sous ['push', fonction, arguments] ; __sb.fail.push = 'offline' pour le hors ligne.
 """
@@ -118,6 +120,9 @@ FAKE_ACCOUNT = r"""
     appleCodes: {}, appleN: 0, pendingEmail: null,
     push: Object.assign({ permission: 'prompt', answer: 'granted', token: 'ab'.repeat(32), prefs: {}, devices: {} }, opts.push || {}),
   };
+  // Demande en contexte des notifications (js/features/push-ui.js) : déjà répondue sur ce faux iPhone, sauf
+  // __fakeOpts.pushAsk (sinon sa feuille s'ouvrirait dans tous les tests du coach et des messages)
+  if (!opts.pushAsk) { try { localStorage.setItem('mdlf_push_ask', '{"done":true}'); } catch { /* pas de stockage */ } }
   const log = (...a) => sb.calls.push(a);
   const err = (code, message = code, status = 400) => ({ name: 'AuthApiError', code, message, status });
 
@@ -1137,15 +1142,19 @@ FAKE_ACCOUNT = r"""
   const SPORTS = ['WeightTraining', 'Workout', 'Run', 'TrailRun', 'Walk', 'Ride', 'Rowing', 'Elliptical', 'StairStepper'];
   const stravaStatus = () => ({ connected: st.connected, athlete_name: st.connected ? st.name : null, connected_at: null,
     can_write: st.connected && st.canWrite, exports: st.connected ? Object.entries(st.exports).map(([session_id, activity_id]) => ({ session_id, activity_id })) : [] });
-  // ── Notifications push : comme supabase/migrations/20261031900000_notifications_push.sql et 20261031910000_notifications_messages.sql ──
-  // Serveur à jour : 5 types (20261031910000) ; __fakeOpts.pushOldServer : les 3 d'avant
-  const PUSH_PREF_KEYS = opts.pushOldServer ? ['reactions', 'follows', 'coach'] : ['reactions', 'follows', 'coach', 'comments', 'messages'];
+  // ── Notifications push : comme supabase/migrations/20261031900000_notifications_push.sql, 20261031910000_notifications_messages.sql
+  //    et 20261116020000_notifications_seances_eleves.sql ──
+  // Serveur à jour : 6 types ; __fakeOpts.pushOldServer : les 3 d'avant ; __fakeOpts.pushServer5 : les 5 de 20261031910000.
+  // push_set_prefs existe à 3, 5 et 6 arguments (versions gardées pour les apps d'avant)
+  const PUSH_ALL_KEYS = ['reactions', 'follows', 'coach', 'comments', 'messages', 'student_sessions'];
+  const PUSH_PREF_KEYS = PUSH_ALL_KEYS.slice(0, opts.pushOldServer ? 3 : opts.pushServer5 ? 5 : 6);
+  const PUSH_SET_VERSIONS = [3, 5, 6].filter(n => n <= PUSH_PREF_KEYS.length).map(n => PUSH_ALL_KEYS.slice(0, n).sort().join());
   const pushPrefs = id => { const p = sb.push.prefs[id] || {}; return Object.fromEntries(PUSH_PREF_KEYS.map(k => [k, p[k] === true])); };
   const pushRpc = {
     push_prefs: me => pushPrefs(me),
     push_set_prefs: (me, a) => {
       // PostgREST : la version dont les noms d'arguments sont exactement ceux envoyés, sinon 404 (PGRST202)
-      if (Object.keys(a).sort().join() !== [...PUSH_PREF_KEYS].sort().join()) return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.push_set_prefs' } };
+      if (!PUSH_SET_VERSIONS.includes(Object.keys(a).sort().join())) return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.push_set_prefs' } };
       const p = pushPrefs(me); for (const k of PUSH_PREF_KEYS) if (a[k] !== null && a[k] !== undefined) p[k] = !!a[k]; sb.push.prefs[me] = p; return pushPrefs(me);
     },
     push_register: (me, a) => { if (!/^[0-9a-f]{64,200}$/.test(a.token || '') || !['production', 'sandbox'].includes(a.env)) return { data: null, error: { code: 'P0001', message: 'invalid_token' } }; sb.push.devices[a.token] = me; return null; },

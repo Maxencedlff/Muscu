@@ -68,7 +68,7 @@ function renderPushSettings() {
         <div class="group-title">M'avertir</div>
         <div class="group${blocked ? ' group--disabled' : ''}">${rows}
         </div>
-        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo de la personne, jamais le texte d'un commentaire ou d'un message. Les rappels de fin de repos ne changent pas.</div>
+        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo de la personne, jamais le texte d'un commentaire ou d'un message (pour la séance d'un élève : son nom et sa durée, jamais les charges). Les rappels de fin de repos ne changent pas.</div>
       </div></div>`;
 }
 
@@ -94,7 +94,10 @@ function openPushTarget(p) {
   if (t.tab === 'friends' || social) setSocialSeg(social ? 'friends' : 'students');
   switchTab(t.tab, { reset: true });
   // Social masqué par la tranche d'âge (js/data/age-range.js) : l'onglet seul, jamais un écran du social
-  if (t.screen && !(socialHiddenByAge() && String(t.screen).startsWith('social-'))) navigate(makeRoute(t.screen, ...t.params));
+  if (t.screen && !(socialHiddenByAge() && String(t.screen).startsWith('social-'))) {
+    if (t.via) navigate(makeRoute(...t.via));
+    navigate(makeRoute(t.screen, ...t.params));
+  }
   if (t.tab === 'friends') { if (!socialHiddenByAge()) socialRefresh(); coachRefresh(); }
 }
 Native.push.onTap(p => { try { openPushTarget(p); } catch { /* écran indisponible : l'app s'ouvre simplement */ } });
@@ -143,3 +146,41 @@ registerActions({
     if (!r.ok) await pushExplainFailure(r.reason);
   },
 });
+
+// ── Demande en contexte (js/data/push.js, pushAskCheck) ─────
+// Feuille d'iOS, une à la fois, seulement si l'écran qui l'a demandée est toujours là et qu'aucune autre
+// feuille n'est ouverte. Le serveur ne montre jamais le texte d'un message : c'est dit dans la feuille.
+const PUSH_ASK_TEXT = {
+  student: { title: 'Être prévenu quand ton coach t’écrit ?',
+    message: 'Aussi quand il commente une séance ou t’envoie un programme. La notification montre son pseudo, jamais le texte. Modifiable dans Réglages › Notifications.' },
+  coach: { title: 'Être prévenu quand un élève t’écrit ou termine une séance ?',
+    message: 'La notification montre son pseudo, le nom de la séance et sa durée ; jamais le texte d’un message ni les charges. Modifiable dans Réglages › Notifications.' },
+};
+let pushAsking = false;
+async function pushAskInContext(role, stillHere = () => true) {
+  if (pushAsking || !PUSH_ASK_TEXT[role]) return;
+  pushAsking = true;
+  try {
+    const d = await pushAskCheck(role);
+    if (d === 'done') { pushAskDone(); return; }
+    if (d !== 'ask' || !stillHere() || document.querySelector('.ios-dialog:not(.ios-dialog--out), .sheet-root:not(.sheet-root--out)')) return;
+    if (activeSession && currentView() === 'session') return;
+    const v = await dialog({ type: 'sheet', ...PUSH_ASK_TEXT[role],
+      actions: [{ label: 'Activer', value: 'on', style: 'preferred' }, { label: 'Plus tard', style: 'cancel' }] });
+    if (v !== 'on') { pushAskLater(); return; }
+    haptic();
+    const r = await pushEnableFor(role);
+    if (r.ok) { pushAskDone(); showToast('Notifications activées'); return; }
+    // Refus d'iOS (la fenêtre ne reviendra pas : ligne vers Réglages dans la conversation) ou build sans le module
+    if (r.reason === 'denied' || r.reason === 'unavailable') { pushAskDone(); return; }
+    pushAskLater();
+    await pushExplainFailure(r.reason);
+  } catch { /* écran parti, réseau : redemandé à la prochaine occasion */ } finally { pushAsking = false; }
+}
+
+// Conversation, notifications refusées dans iOS : réglages de l'app dans l'app Réglages (module MdlfPush,
+// openSettings) ; build où il ne répond pas : Réglages › Notifications de l'app, qui l'explique
+async function pushOpenIosSettingsChat() {
+  if (!(await Native.push.openSettings())) navigate('notifications');
+}
+registerActions({ 'push-open-ios-settings-chat': () => { pushOpenIosSettingsChat(); } });

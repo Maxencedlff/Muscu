@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −9 | `20261116020000_notifications_seances_eleves_down.sql` | rien | oui (vérifié) |
 | −8 | `20261116010000_charge_prescrite_down.sql` | rien | oui (vérifié) |
 | −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
@@ -16,7 +17,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | −3 | `20261105010000_partage_mensurations_down.sql` | plans diète du coach (−6) : il réécrit après lui la contrainte de `coach_shares.kind`, `share_kind_open` et `student_shares` | oui pour les autres lots (vérifié) ; l'accord des plans diète ne marche plus alors : défaire −6 avant |
 | −2 | `20261105000000_coach_planning_down.sql` | rien | oui (vérifié) |
 | −1 | `20261101000000_parrainage_payant_down.sql` | rien | oui (vérifié) |
-| 0a | `20261031910000_notifications_messages_down.sql` | rien | oui (vérifié) |
+| 0a | `20261031910000_notifications_messages_down.sql` | séances des élèves (−8) : elles remplacent ses fonctions | non |
 | 0 | `20261031900000_notifications_push_down.sql` | notifications des messages et commentaires (0a) : elles remplacent ses fonctions | non |
 | 1 | `20261031620000_strava_down.sql` (Strava en sommeil : migration à ne pas appliquer au lancement, docs/STRAVA.md) | rien | oui (vérifié) |
 | 2 | `20261031510000_chat_coach_down.sql` | notifications des messages (0a) : son déclencheur lit coach_messages | non |
@@ -50,6 +51,7 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 10. `20261106200000_plans_diete_coach.sql` (après l'OTA qui demande l'accord de l'élève : sinon les coachs ne peuvent plus envoyer de plan diète tant que leurs élèves n'ont pas la version qui sait accepter ; et après les mensurations, dont il garde la donnée)
 11. `20261107000000_photos_bilan.sql` (photos de bilan chiffrées de bout en bout, docs/PHOTOS_BILAN.md : indépendante ; avant l'OTA, avec la fonction `coach-photos-purge` et sa planification)
 12. `20261116010000_charge_prescrite.sql` (charge prescrite par le coach, docs/COACH_V1.md « Charge prescrite » : le coach reçoit la prescription avec la séance de son élève ; indépendante, ne réécrit que `private.session_for_coach` ; avant ou après l'OTA, sans risque : sans elle, seul l'écart prescrit / fait n'apparaît pas chez le coach)
+13. `20261116020000_notifications_seances_eleves.sql` (notification au coach quand un élève termine une séance, docs/NOTIFICATIONS.md ; remplace des fonctions des notifications des messages, à démonter avant elles)
 
 Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md).
 

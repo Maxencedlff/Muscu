@@ -317,4 +317,207 @@ def o_coach_segment(bench):
         R.check(not page.errors, f'aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_ancien_serveur, t_absent, t_toucher, t_sommeil], once=[o_coach_segment])
+# ── Demande en contexte (coach ↔ élève) : feuille d'iOS, une fois, jamais au premier lancement ──
+
+def with_coach(page):
+    """Je suis l'élève de coachmax (lien déjà là)."""
+    page.evaluate("""async () => { const c = __sb.addPerson({ username: 'coachmax', social: false }); __sb.makeCoach(c); __sb.link(c, __sb.meId()); await coachRefresh(); }""")
+
+
+def open_chat(page, key='@coach'):
+    page.evaluate("k => { switchTab('friends', { reset: true }); navigate(makeRoute('coach-chat', k === '@coach' ? CHAT_COACH : k)); }", key)
+    page.wait_for_selector('.coach-chat-view')
+    page.wait_for_timeout(500)
+
+
+def leave_chat(page):
+    page.evaluate("switchTab('train', { reset: true })")
+    page.wait_for_timeout(200)
+
+
+def ask_sheet(page):
+    d = page.locator('.ios-dialog--sheet')
+    return d.inner_text() if d.count() else ''
+
+
+def t_demande_eleve(bench, eng, dev, theme):
+    """Élève, première ouverture de la conversation : feuille sobre, « Activer » → iOS, jeton, messages + coach + commentaires."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), {'pushAsk': True})
+        signin(page)
+        R.check(not any(c in ('request', 'register') for c in push_calls(page)), f'{t} rien demandé au lancement {push_calls(page)}')
+        with_coach(page)
+        open_chat(page)
+        page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
+        txt = ask_sheet(page)
+        R.check('Être prévenu quand ton coach t’écrit ?' in txt and 'jamais le texte' in txt, f'{t} feuille : la question et ce que montre la notification ({txt!r})')
+        btns = page.evaluate("[...document.querySelectorAll('.ios-dialog__btn')].map(b => [b.textContent.trim(), Math.round(b.getBoundingClientRect().height)])")
+        R.check([b[0] for b in btns] == ['Activer', 'Plus tard'] and all(h >= 44 for _, h in btns), f'{t} « Activer » et « Plus tard », 44 pt {btns}')
+        R.check(page.evaluate("document.querySelector('.ios-dialog').getAttribute('role') === 'dialog' && !!document.querySelector('.ios-dialog').getAttribute('aria-labelledby')"),
+                f'{t} VoiceOver : feuille nommée par sa question')
+        R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} pas de défilement horizontal')
+        shot(page, LOT, f'demande-eleve-{t}')
+        R.check(not any(c in ('request', 'register') for c in push_calls(page)), f'{t} fenêtre d\'iOS seulement après « Activer »')
+        tap_dialog(page, 'Activer')
+        page.wait_for_function("() => (__sb.push.prefs[__sb.meId()] || {}).messages === true", timeout=3000)
+        calls = push_calls(page)
+        R.check(calls.index('request') < calls.index('register') < next(i for i, c in enumerate(calls) if c.startswith('push_set_prefs')), f'{t} ordre : iOS, jeton, réglages {calls}')
+        prefs = page.evaluate('__sb.push.prefs[__sb.meId()]')
+        R.check(prefs == {'reactions': False, 'follows': False, 'coach': True, 'comments': True, 'messages': True, 'student_sessions': False}, f'{t} messages, coach et commentaires ; le reste inchangé {prefs}')
+        R.check(page.evaluate('__sb.push.devices')[FAKE_TOKEN] is not None, f'{t} appareil inscrit')
+        R.check(page.locator('.chat-push-off').count() == 0, f'{t} accordé : pas de ligne « désactivées »')
+        leave_chat(page)
+        open_chat(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0, f'{t} plus jamais redemandé')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_demande_refusee(bench, eng, dev, theme):
+    """Refus d'iOS : rien sur le serveur, la conversation montre « Notifications désactivées · Réglages »."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), {'pushAsk': True, 'push': {'answer': 'denied'}})
+        signin(page)
+        with_coach(page)
+        open_chat(page)
+        page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
+        tap_dialog(page, 'Activer')
+        page.wait_for_selector('.chat-push-off', timeout=3000)
+        R.check(not any(c.startswith('push_set_prefs') or c.startswith('push_register') for c in push_calls(page)), f'{t} refus : rien sur le serveur {push_calls(page)}')
+        line = page.locator('.chat-push-off')
+        R.check(line.inner_text().strip() == 'Notifications désactivées · Réglages', f'{t} ligne discrète ({line.inner_text()!r})')
+        box = line.bounding_box()
+        R.check(box and box['height'] >= 44, f'{t} ligne : 44 pt de cible')
+        R.check(page.locator('.ios-dialog').count() == 0, f'{t} pas d\'alerte en plus après le refus')
+        shot(page, LOT, f'conversation-notifs-desactivees-{t}')
+        line.click()
+        page.wait_for_timeout(200)
+        R.check('openSettings' in push_calls(page), f'{t} ouvre les Réglages de l\'iPhone')
+        # Réglages ouverts mais sans réponse (build sans le module) : Réglages › Notifications de l'app
+        page.evaluate("Native.push.openSettings = async () => false")
+        line.click()
+        page.wait_for_selector('.push-view', timeout=3000)
+        R.check(page.evaluate('currentView()') == 'notifications', f'{t} repli : Réglages › Notifications')
+        # Rallumées dans iOS puis retour dans l'app : la ligne disparaît
+        page.evaluate("__sb.push.permission = 'granted'")
+        open_chat(page)
+        page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+        page.wait_for_timeout(300)
+        R.check(page.locator('.chat-push-off').count() == 0, f'{t} autorisées de nouveau : plus de ligne')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def o_demande_plus_tard(bench):
+    """« Plus tard » : pas avant 7 jours, 2 fois au plus ; déjà refusé dans iOS : jamais de feuille."""
+    with bench.page('webkit', 'iPhone 13', 'light') as page:
+        open_app(page, 'light', ppl_v2_today_json(), {'pushAsk': True})
+        signin(page)
+        with_coach(page)
+        open_chat(page)
+        page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
+        tap_dialog(page, 'Plus tard')
+        R.check(not any(c in ('request', 'register') or c.startswith('push_set_prefs') for c in push_calls(page)), f'« Plus tard » : rien demandé {push_calls(page)}')
+        R.check(page.evaluate("JSON.parse(localStorage.getItem('mdlf_push_ask')).n") == 1, '« Plus tard » noté')
+        leave_chat(page); open_chat(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0, 'pas redemandé avant 7 jours')
+        page.evaluate("const s = JSON.parse(localStorage.getItem('mdlf_push_ask')); s.at -= 8 * 86400e3; localStorage.setItem('mdlf_push_ask', JSON.stringify(s))")
+        leave_chat(page); open_chat(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 1, 'redemandé après 7 jours')
+        tap_dialog(page, 'Plus tard')
+        page.evaluate("const s = JSON.parse(localStorage.getItem('mdlf_push_ask')); s.at -= 8 * 86400e3; localStorage.setItem('mdlf_push_ask', JSON.stringify(s))")
+        leave_chat(page); open_chat(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0, 'jamais plus de 2 fois')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+    with bench.page('webkit', 'iPhone 13', 'dark') as page:
+        open_app(page, 'dark', ppl_v2_today_json(), {'pushAsk': True, 'push': {'permission': 'denied'}})
+        signin(page)
+        with_coach(page)
+        open_chat(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0, 'déjà refusé dans iOS : pas de feuille')
+        R.check(page.locator('.chat-push-off').count() == 1, 'déjà refusé : la ligne vers Réglages')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+
+
+def o_demande_premier_lancement(bench):
+    """Premier lancement (aucune séance, questions de départ pas répondues) : jamais de feuille."""
+    with bench.page('webkit', 'iPhone 13', 'light') as page:
+        open_app(page, 'light', None, {'pushAsk': True})
+        R.check(page.evaluate('PUSH_ASK_FIRST_LAUNCH') is True, 'premier lancement reconnu')
+        signin(page)
+        R.check(page.evaluate("pushAskCheck('student')") == 'skip', 'premier lancement : rien à demander')
+        R.check(not any(c in ('request', 'register') for c in push_calls(page)), f'aucune fenêtre d\'iOS {push_calls(page)}')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+
+
+def o_demande_coach(bench):
+    """Coach : Mes élèves avec un premier élève → « …quand un élève t'écrit ? » ; « Activer » allume messages et coach."""
+    for theme in ('light', 'dark'):
+        with bench.page('webkit', 'iPhone 13', theme) as page:
+            open_app(page, theme, ppl_v2_today_json(), {'pushAsk': True})
+            signin(page)
+            page.evaluate("async () => { const me = __sb.meId(); __sb.makeCoach(me); await coachRefresh(); }")
+            page.evaluate("switchTab('friends', { reset: true }); navigate('coach-students')")
+            page.wait_for_timeout(700)
+            R.check(page.locator('.ios-dialog--sheet').count() == 0, f'{theme} aucun élève : pas de feuille')
+            page.evaluate("async () => { const me = __sb.meId(); const s = __sb.addPerson({ username: 'zoe', social: false }); __sb.link(me, s); }")
+            page.evaluate("switchTab('train', { reset: true })"); page.wait_for_timeout(150)
+            page.evaluate("switchTab('friends', { reset: true }); navigate('coach-students')")
+            page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
+            txt = ask_sheet(page)
+            R.check('Être prévenu quand un élève t’écrit ou termine une séance ?' in txt and 'jamais' in txt and 'charges' in txt, f'{theme} coach : la question ({txt!r})')
+            shot(page, LOT, f'demande-coach-iPhone_13-{theme}')
+            tap_dialog(page, 'Activer')
+            page.wait_for_function("() => (__sb.push.prefs[__sb.meId()] || {}).messages === true", timeout=3000)
+            prefs = page.evaluate('__sb.push.prefs[__sb.meId()]')
+            R.check(prefs == {'reactions': False, 'follows': False, 'coach': True, 'comments': False, 'messages': True, 'student_sessions': True},
+                    f'{theme} coach : messages, coach et séances des élèves {prefs}')
+            # Réglages › Notifications : l'interrupteur des séances des élèves, montré au coach, allumé
+            page.evaluate("switchTab('train', { reset: true }); navigate('notifications')")
+            page.wait_for_selector('.push-view [data-kind="student_sessions"]')
+            R.check(page.get_attribute('[data-kind="student_sessions"]', 'aria-checked') == 'true', f'{theme} interrupteur « Séances de mes élèves » allumé')
+            R.check(not page.errors, f'{theme} aucune erreur JS {page.errors}')
+
+
+def o_demande_lien_accepte(bench):
+    """Élève qui accepte le lien d'un coach : après « C'est fait ! », la feuille de notifications."""
+    with bench.page('webkit', 'iPhone 13', 'light') as page:
+        open_app(page, 'light', ppl_v2_today_json(), {'pushAsk': True})
+        signin(page, 'lea')
+        page.evaluate("""async () => { const c = __sb.addPerson({ username: 'max', social: false }); __sb.makeCoach(c);
+            __sb.co.invites.push({ code: 'K7M2QX9P', coach: c, expires: Date.now() + 7 * 86400000 });
+            await coachPreview('K7M2QX9P'); socialAgeOk = true; switchTab('friends', { reset: true }); navigate(makeRoute('coach-join', 'K7M2QX9P')); }""")
+        page.wait_for_selector('[data-action="coach-accept"]:not([disabled])')
+        page.click('[data-action="coach-accept"]')
+        page.wait_for_selector('.ios-dialog', timeout=3000)
+        R.check("C'est fait" in page.inner_text('.ios-dialog'), 'message de bienvenue d\'abord')
+        tap_dialog(page, 'OK')
+        page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
+        R.check('quand ton coach t’écrit' in ask_sheet(page), f'puis la feuille ({ask_sheet(page)!r})')
+        tap_dialog(page, 'Plus tard')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+
+
+def o_toucher_seance_eleve(bench):
+    """Coach : toucher « zoe a terminé Push » ouvre la fiche de zoe puis la séance (retour : la fiche)."""
+    with bench.page('webkit', 'iPhone 13', 'dark') as page:
+        open_app(page, 'dark', ppl_v2_today_json())
+        signin(page)
+        sid = page.evaluate("""async () => { const me = __sb.meId(); __sb.makeCoach(me);
+            const s = __sb.addPerson({ username: 'zoe', social: false, sessions: [{ id: 'z-1', date: Date.now() - 600e3, label: 'Push', exercises: [] }] });
+            __sb.link(me, s); await coachRefresh(); return s; }""")
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'student_session', 'ref': f'{sid}/z-1'})
+        page.wait_for_function("r => currentRoute() === r", arg=f'coach-session:{sid}:z-1', timeout=3000)
+        page.wait_for_timeout(500)
+        R.check(page.evaluate('nav.tab') == 'friends' and page.evaluate('friendsSeg()') == 'students', 'séance d\'élève : onglet Coach, segment Élèves')
+        R.check(page.locator('.coach-session-view').count() == 1 and 'plus disponible' not in page.inner_text('.coach-session-view'), f'la séance de zoe s\'affiche ({page.inner_text(".coach-session-view")[:80]!r})')
+        st = page.evaluate('nav.stacks[nav.tab]')
+        R.check(len(st) >= 2 and st[-2] == f'coach-student:{sid}', f'retour : la fiche de zoe {st}')
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'student_session', 'ref': sid})
+        page.wait_for_function("r => currentRoute() === r", arg=f'coach-student:{sid}', timeout=3000)
+        R.check(True, 'id de l\'élève seul : sa fiche')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_ancien_serveur, t_absent, t_toucher, t_sommeil, t_demande_eleve, t_demande_refusee],
+         once=[o_coach_segment, o_demande_plus_tard, o_demande_premier_lancement, o_demande_coach, o_demande_lien_accepte, o_toucher_seance_eleve])

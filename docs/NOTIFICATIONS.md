@@ -11,10 +11,22 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
 | Commentaires | ligne ajoutée dans `session_comments` par un autre sur une séance à moi | « Nouveau commentaire » · « max.dlf a commenté ta séance » | Historique › la séance (Historique si elle n'est pas sur l'iPhone) |
 | Mon coach | `coach_notes` ajouté ou texte changé ; `coach_programmes` ajouté ou contenu changé | « Ton coach » · « kevin a commenté ta séance » / « kevin t'a envoyé un programme » | Historique › la séance ; Social › Mon coach |
 | Messages | ligne ajoutée dans `coach_messages` par l'autre personne (mon coach, ou un de mes élèves) | « Nouveau message » · « kevin t'a envoyé un message » | Social (ou Coach) › la conversation (avec mon coach, ou avec cet élève), même app fermée |
+| Séances de mes élèves (coachs seulement) | séance datée qui arrive dans `sessions` (insert avec `done_at`, ou `done_at` qui passe de null à une date) d'un élève lié, coach encore coach, séance de moins de 24 h et pas d'avant le lien | « Séance terminée » · « lea a terminé Push · 52 min » (nom et durée seulement, jamais une charge ni un exercice) | Coach › la fiche de l'élève › la séance |
 
-- **Rien sans accord** : les cinq types sont éteints par défaut (pas de ligne `push_prefs` = tout
-  éteint). La fenêtre d'autorisation d'iOS ne s'ouvre qu'au toucher d'un interrupteur ; le jeton de
-  l'iPhone n'est inscrit qu'à ce moment-là.
+- **Rien sans accord** : les six types sont éteints par défaut (pas de ligne `push_prefs` = tout
+  éteint). La fenêtre d'autorisation d'iOS ne s'ouvre qu'au toucher d'un interrupteur ou d'« Activer »
+  dans la demande en contexte (ci-dessous) ; le jeton de l'iPhone n'est inscrit qu'à ce moment-là.
+- **Demande en contexte** (`pushAskInContext`, js/features/push-ui.js ; règles `pushAskDecision`,
+  js/data/push.js) : feuille d'iOS « Être prévenu quand ton coach t'écrit ? » (élève) ou « …quand un élève
+  t'écrit ? » (coach), « Activer » / « Plus tard ». Moments : lien avec un coach accepté (après « C'est
+  fait ! »), Mes élèves avec au moins un élève, ouverture d'une conversation. Jamais au premier lancement
+  (celui des questions de départ : pas de séance, `onboarded` faux au chargement). « Activer » : fenêtre
+  d'iOS, jeton, puis `push_set_prefs` avec `messages` et `coach` à vrai, plus `comments` pour l'élève et
+  `student_sessions` pour le coach, le reste à `null` (inchangé). « Plus tard » : pas avant 7 jours, 2 fois au plus. Plus demandé une fois
+  activé, refusé dans iOS ou déjà allumé ici. Mémoire sur l'iPhone : `mdlf_push_ask` `{ n, at, done }`.
+- **Refus d'iOS** : la conversation montre « Notifications désactivées · Réglages », qui ouvre les
+  réglages de l'app dans l'app Réglages (`openSettings`, `UIApplication.openSettingsURLString`) ; s'il ne
+  répond pas, Réglages › Notifications de l'app. L'autorisation est relue au retour au premier plan.
 - **Écran verrouillé** : seul le pseudo de l'auteur apparaît, jamais le texte d'un commentaire, d'un
   message ni le nom d'un programme. La file ne garde d'ailleurs que l'id du commentaire ou du message.
 - **Pas de doublon** : la même notification (destinataire, type, auteur, objet) n'est pas recréée pendant
@@ -35,15 +47,22 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
   signalements), signalé par moi, ou dont l'auteur ne voit plus la séance (désabonné, social coupé, séance
   masquée) : rien. Message : lien coach ↔ élève rompu, rôle de coach retiré, conversation que j'ai
   signalée, ou déjà lu (conversation ouverte dans l'app) : rien.
+- **Séances des élèves** (`20261116020000_notifications_seances_eleves.sql`) : réglage à part
+  `student_sessions`, pas la colonne `coach` (elle veut dire « mon coach m'écrit », des comptes l'ont déjà
+  allumée, et un coach qui a un coach doit pouvoir garder l'un sans l'autre). Une notification par élève et
+  par heure au plus, et jamais deux fois la même séance en 24 h. Séances masquées aux abonnés comprises :
+  le coach les voit déjà (`coach_student_sessions`). `ref` rendu : `<id de l'élève>/<id de la séance>`
+  (l'id de l'élève seul au-delà de 64 caractères) ; nom (40 caractères) et durée en minutes relus par
+  `push_claim`, séance supprimée ou lien rompu entre-temps : rien.
 - **Séance en cours** : le toucher d'une notification n'arrache jamais de l'écran de la séance.
 - Les rappels de fin de repos restent des notifications locales (`LocalNotifications`), sans serveur.
 
-## Données sur le serveur (`20261031900000_notifications_push.sql`, `20261031910000_notifications_messages.sql`)
+## Données sur le serveur (`20261031900000_notifications_push.sql`, `20261031910000_notifications_messages.sql`, `20261116020000_notifications_seances_eleves.sql`)
 
 | Table | Contenu | Accès |
 |---|---|---|
 | `public.push_devices` | jeton APNs (hexadécimal, 64 à 200 caractères), compte, environnement (`production` / `sandbox`), dates | RPC seulement |
-| `public.push_prefs` | cinq booléens par compte (`reactions`, `follows`, `coach`, `comments`, `messages`) | RPC seulement |
+| `public.push_prefs` | six booléens par compte (`reactions`, `follows`, `coach`, `comments`, `messages`, `student_sessions`) | RPC seulement |
 | `private.push_outbox` | file : destinataire, type, auteur, objet (id de séance, de programme, de commentaire ou de message ; jamais un texte), état d'envoi | déclencheurs et RPC de l'envoi |
 | `private.push_apns_auth` | une ligne : jeton du fournisseur APNs (JWT d'une heure, pas la clé .p8), son `iat`, l'identifiant de clé | RPC de l'envoi |
 
@@ -55,8 +74,8 @@ RLS activée sans politique et aucun GRANT de table : tout passe par des fonctio
 | `push_register(token, env)` | authenticated | inscrit ou rafraîchit le jeton de cet appareil pour mon compte ; un jeton d'un autre compte passe au mien ; 10 appareils au plus |
 | `push_unregister(token)` | authenticated | retire ce jeton s'il est à moi |
 | `push_release(token)` | authenticated | retire ce jeton s'il est à un AUTRE compte (laissé sur cet iPhone par une session finie hors de l'app) ; le mien n'est jamais touché |
-| `push_prefs()` | authenticated | `{ reactions, follows, coach, comments, messages }` |
-| `push_set_prefs(reactions, follows, coach, comments, messages)` | authenticated | `null` = inchangé ; un type éteint vide sa file en attente. La version à 3 arguments reste (app d'avant) et ne touche pas aux deux autres |
+| `push_prefs()` | authenticated | `{ reactions, follows, coach, comments, messages, student_sessions }` |
+| `push_set_prefs(reactions, follows, coach, comments, messages, student_sessions)` | authenticated | `null` = inchangé ; un type éteint vide sa file en attente. Les versions à 3 et 5 arguments restent (apps d'avant) et ne touchent pas aux types suivants |
 | `push_claim(max_rows)` | service_role | prend la file (une ligne par appareil, `wanted` relu avec la modération), `ref` = écran à ouvrir (séance du commentaire ; conversation : `@coach` pour l'élève, id de l'élève pour le coach, sans dépendre du compte chargé dans l'app), ménage : file de plus de 7 jours, appareils muets depuis 60 jours |
 | `push_done(ids, dead_tokens)` | service_role | solde les notifications traitées, retire les jetons morts |
 | `push_auth_get()` | service_role | jeton du fournisseur APNs gardé `{ token, iat, key_id }`, ou `null` |
@@ -88,8 +107,8 @@ fenêtre d'iOS puis jeton) ; la cellule des Réglages dit « À réactiver » (`
 
 Tests : `tests/sql/push_test.sql` (anon, autre compte, défauts, déclencheurs, blocage, fantôme, file,
 reprise, suppression du compte, `push_release`) et `tests/sql/push_messages_test.sql` (commentaires et
-messages : réglages, salve, lu, masqué, signalé, bloqué, lien rompu, écran à ouvrir) ; retours arrière :
-`tests/sql/rollback_push_messages_check.sh` (pg_dump identique), puis `tests/sql/rollback_push_check.sh`.
+messages : réglages, salve, lu, masqué, signalé, bloqué, lien rompu, écran à ouvrir) ; `tests/sql/push_seances_test.sql` (séances des élèves : réglage, déclencheurs, débit, ce qui ne sonne jamais, écran, nom et durée) ; retours arrière :
+`tests/sql/rollback_push_seances_check.sh`, `tests/sql/rollback_push_messages_check.sh` (pg_dump identique), puis `tests/sql/rollback_push_check.sh`.
 
 ## Envoi (`supabase/functions/push-send/`)
 
@@ -120,4 +139,4 @@ messages : réglages, salve, lu, masqué, signalé, bloqué, lien rompu, écran 
 | `js/data/push.js` | réglages, jeton, déconnexion, écran du toucher (`pushTarget`), logique testée par `tests/unit/push.mjs`. Les types « Commentaires » et « Messages » ne sont montrés que si le serveur les renvoie (serveur d'avant : 3 interrupteurs, `push_set_prefs` à 3 arguments) |
 | `js/features/push-ui.js` | Réglages › Notifications, cellule des Réglages, toucher d'une notification |
 
-E2E : `tests/test_notifications.py` (faux module `MdlfPush` et fausses RPC dans `tests/fake_account.py`).
+E2E : `tests/test_notifications.py` (faux module `MdlfPush` et fausses RPC dans `tests/fake_account.py` ; demande en contexte marquée répondue sauf `__fakeOpts.pushAsk`).
