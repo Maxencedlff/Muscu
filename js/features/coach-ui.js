@@ -89,6 +89,7 @@ function renderCoachSettingsGroup() {
         <div class="group-title">Social et coach</div>
         <div class="group">
           <button class="cell cell--nav" data-action="coach-open-settings">
+            ${cellIco('coach', 'blue')}
             <span class="cell__body"><span class="cell__title">Coach</span></span>
             <span class="cell__value">${value}</span>
             ${icon('chevron.right', 16)}

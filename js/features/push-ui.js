@@ -13,6 +13,7 @@ function pushSettingsCell() {
   const value = !push.prefs ? '' : on ? 'Activées' : pushNeedsReactivate() ? 'À réactiver' : 'Désactivées';
   return `
           <button class="cell cell--nav" data-action="push-open">
+            ${cellIco('bell', 'blue')}
             <span class="cell__body"><span class="cell__title">Notifications</span></span>
             <span class="cell__value">${value}</span>
             ${icon('chevron.right', 16)}

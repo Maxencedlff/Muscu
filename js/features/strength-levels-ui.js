@@ -81,6 +81,7 @@ function summaryStrengthHtml(h) {
 function strengthSexSettingHtml() {
   const v = data.strengthSex;
   return `<button class="cell cell--nav" data-action="set-strength-sex">
+            ${cellIco('sex', 'gray')}
             <span class="cell__body"><span class="cell__title">Sexe</span>
               <span class="cell__sub">Niveau de force, facultatif</span></span>
             <span class="cell__value"${v ? '' : ' aria-label="Non renseigné"'}>${v ? STRENGTH_SEX_LABELS[v] : '—'}</span>

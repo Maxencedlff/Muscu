@@ -548,6 +548,24 @@ def t_programme(bench, eng, dev, theme):
         titles = page.evaluate("[...document.querySelectorAll('.view.settings-view .group-title')].map(e => e.textContent.trim())")
         want = ['Entraînement', 'Sons et vibrations', 'Apparence'] + (['Social et coach'] if page.evaluate('accountAvailable()') else []) + ['Données', 'Aide', 'Informations légales']
         R.check(titles == want, f'{t} réglages : ordre des groupes {titles}')
+        # Une icône par ligne, comme les Réglages d'iOS : carré décoratif (VoiceOver le saute), sauf la carte du
+        # compte (avatar) et la ligne destructive ; le même symbole ne sert jamais à deux lignes de sens différent
+        ico = page.evaluate("""() => [...document.querySelectorAll('.view.settings-view .cell')]
+            .filter(c => !c.matches('.account-cell, .cell--destructive'))
+            .map(c => { const i = c.querySelector(':scope > .set-ico');
+                        return { t: (c.querySelector('.cell__title') || c).textContent.trim().slice(0, 30), ok: !!i && i.getAttribute('aria-hidden') === 'true',
+                                 sym: i?.querySelector('use')?.getAttribute('href') || 'img' }; })""")
+        R.check(ico and all(r['ok'] for r in ico), f'{t} réglages : une icône décorative par ligne {[r["t"] for r in ico if not r["ok"]]}')
+        legal = {'#i-doc.text'}   # Conditions d'utilisation, de vente, mentions légales : un seul sens, « page juridique »
+        syms = [r['sym'] for r in ico if r['sym'] not in legal]
+        R.check(len(syms) == len(set(syms)), f'{t} réglages : un symbole = une ligne {sorted(s for s in syms if syms.count(s) > 1)}')
+        # Texte agrandi : les icônes restent, le titre passe à la ligne à côté de son carré (jamais dessous)
+        xl = page.evaluate("""() => { const h = document.documentElement; h.classList.add('type-xl');
+            const out = [...document.querySelectorAll('.view.settings-view .cell')].filter(c => c.querySelector(':scope > .set-ico'))
+              .map(c => { const i = c.querySelector(':scope > .set-ico').getBoundingClientRect(), b = c.querySelector(':scope > .cell__body').getBoundingClientRect();
+                          return { t: c.textContent.trim().slice(0, 30), shown: i.width > 0, beside: b.left >= i.right && b.top < i.bottom }; });
+            h.classList.remove('type-xl'); return out; }""")
+        R.check(xl and all(r['shown'] and r['beside'] for r in xl), f'{t} réglages texte agrandi : icônes gardées, titre à côté {[r["t"] for r in xl if not (r["shown"] and r["beside"])]}')
         R.check(page.locator('.view.settings-view [data-action="export"], .view.settings-view #lastExportTxt').count() == 0, f'{t} réglages : export déplacé dans Sauvegarde')
         bk = page.locator('[data-action="go-backup"] .cell__value.txt-warn')
         R.check(bk.count() == 1 and bk.inner_text().strip() == 'Jamais', f'{t} réglages : Sauvegarde « Jamais » en orange sans compte')

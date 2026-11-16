@@ -383,6 +383,13 @@ def p_reglages(r):
     for i, t in enumerate(titres[1:], 1):
         with r.etape(f'groupe-{t}', f'Groupe « {t} »'):
             r.defiler(f'.settings-view .group-title >> nth={i}', f'« {t} »')
+    # Connecté : carte du compte (avatar, pseudo) et Abonnement en tête, groupe Social et coach complet
+    r.connecter('max', amis=True)
+    with r.etape('connecte-haut', 'Connecté : carte du compte et Abonnement'):
+        r.page.evaluate("() => { render(); document.querySelectorAll('#app .scr').forEach(e => { e.scrollTop = 0; }); scrollTo(0, 0); }")
+        r.attendre('.settings-view [data-action="go-account"]', 'carte du compte')
+    with r.etape('connecte-social', 'Connecté : groupe « Social et coach »'):
+        r.defiler('.settings-view [data-action="coach-open-settings"]', '« Social et coach »')
 
 
 # Coquille iOS factice de la build 68 : le module de sons publie sa méthode diagnostics (Capacitor.PluginHeaders),

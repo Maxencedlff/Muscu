@@ -8,6 +8,15 @@ function switchHtml(on) {
   return `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
 }
 
+// Icône de ligne des Réglages, comme les Réglages d'iOS : symbole blanc dans un carré arrondi de couleur
+// (css/theme-sobre-reglages.css). Décorative : le titre de la ligne dit tout, VoiceOver la saute.
+// Teintes sobres, jamais l'orange des actions ni le rouge des muscles : blue, green, sable, gray.
+const CELL_ICO_TONES = ['blue', 'green', 'sable', 'gray'];
+function cellIco(name, tone = 'gray') {
+  const t = CELL_ICO_TONES.includes(tone) ? tone : 'gray';
+  return `<span class="set-ico set-ico--${t}" aria-hidden="true">${icon(name, 19)}</span>`;
+}
+
 // Signale un champ invalide (contour rouge, aria-invalid) et affiche le message
 function flagInvalid(input, msg) {
   if (input) {

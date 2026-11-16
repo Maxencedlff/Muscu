@@ -23,6 +23,7 @@ function coachShareSettingsCell() {
   const value = coachShareSummary();
   return `
           <button class="cell cell--nav" data-action="coach-open-share">
+            ${cellIco('square.and.arrow.up', 'blue')}
             <span class="cell__body"><span class="cell__title">Partager avec mon coach</span></span>
             ${value !== null ? `<span class="cell__value">${esc(value)}</span>` : ''}
             ${icon('chevron.right', 16)}

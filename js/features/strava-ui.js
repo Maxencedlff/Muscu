@@ -25,6 +25,7 @@ function renderConnectionsGroup() {
         <div class="group-title">Connexions</div>
         <div class="group">
           <button class="cell cell--nav" data-action="strava-open-settings">
+            ${cellIco('link', 'gray')}
             <span class="cell__body"><span class="cell__title">Strava</span>
               <span class="cell__sub">Envoie tes séances terminées</span></span>
             <span class="cell__value">${value}</span>

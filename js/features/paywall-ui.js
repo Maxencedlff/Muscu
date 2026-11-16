@@ -407,6 +407,7 @@ function renderAccessSettingsGroup() {
   return `
         <div class="group">
           <button class="cell cell--nav" data-action="access-open-settings">
+            ${cellIco('checkmark.seal', 'blue')}
             <span class="cell__body"><span class="cell__title">Abonnement</span></span>
             <span class="cell__value">${esc(accessShortValue())}</span>
             ${icon('chevron.right', 16)}

@@ -578,6 +578,7 @@ function socialDefaultVisibleCell() {
   const on = sessionsVisibleByDefault();
   return `
           <button class="cell" data-action="setting-visible-default" role="switch" aria-checked="${on}">
+            ${cellIco('eye', 'blue')}
             <span class="cell__body"><span class="cell__title">Séances visibles par défaut</span>
               <span class="cell__sub">Préremplit « Visible sur mon profil » au bilan de chaque séance</span></span>
             ${switchHtml(on)}

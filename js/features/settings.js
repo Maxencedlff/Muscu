@@ -5,8 +5,8 @@
 
 // Pages juridiques publiques (js/data/legal-links.js) : ouvertes dans Safari (_blank)
 const SETTINGS_LEGAL_PAGES = [
-  ['privacy', 'Confidentialité'], ['terms', 'Conditions d\'utilisation'],
-  ['sales', 'Conditions de vente'], ['mentions', 'Mentions légales'],
+  ['privacy', 'Confidentialité', 'shield'], ['terms', 'Conditions d\'utilisation', 'doc.text'],
+  ['sales', 'Conditions de vente', 'doc.text'], ['mentions', 'Mentions légales', 'doc.text'],
 ];
 
 // « aujourd'hui », « hier », « il y a 3 jours » : jours du calendrier (dernier export, Supprimés récemment)
@@ -35,9 +35,11 @@ function wipedExtras() { return photosAllowedHere() ? 'mensurations et photos' :
 
 // Écran Réglages, sur le modèle des Réglages d'iOS : Compte, Entraînement, Sons et vibrations, Apparence,
 // Social et coach, Connexions (Strava, js/features/strava-ui.js), Données, Aide. Les groupes propres à l'app iOS (Services Apple, Icône de l'app) suivent
-// la section la plus proche ; absents dans le navigateur.
+// la section la plus proche ; absents dans le navigateur. Une icône par ligne dans un carré de couleur (cellIco,
+// js/ui/forms.js) : chaque symbole a un seul sens dans tout l'écran ; la Silhouette montre le personnage choisi.
 function renderSettings() {
   const nSess = (data.history || []).length;
+  const soundOn = data.soundOn !== false;
   return `
     <div class="view settings-view view--grouped">
       ${navBar({ title: 'Réglages' })}
@@ -48,17 +50,20 @@ ${renderAccessSettingsGroup()}
         <div class="group-title">Entraînement</div>
         <div class="group">
           <button class="cell cell--nav" data-action="setting-rest">
+            ${cellIco('timer', 'blue')}
             <span class="cell__body"><span class="cell__title">Repos par défaut</span></span>
             <span class="cell__value num">${fmtRest(data.defaultRest)}</span>
             ${icon('chevron.right', 16)}
           </button>
           <button class="cell cell--nav" data-action="setting-weekly-goal">
+            ${cellIco('target', 'green')}
             <span class="cell__body"><span class="cell__title">Objectif</span>
               <span class="cell__sub">Séances par semaine</span></span>
             <span class="cell__value num">${data.weeklyGoal ? `${data.weeklyGoal} / semaine` : `Auto · ${weeklyGoal()} / sem.`}</span>
             ${icon('chevron.right', 16)}
           </button>
           <div class="cell cell--ctl">
+            ${cellIco('scalemass', 'gray')}
             <span class="cell__body"><span class="cell__title">Unité</span></span>
             <div class="segmented seg-sm" role="group" aria-label="Unité de poids">
               ${['kg', 'lbs'].map(u => `<button class="segmented__btn ${data.unit === u ? 'segmented__btn--active' : ''}" aria-pressed="${data.unit === u}" data-action="setting-unit" data-val="${u}">${u}</button>`).join('')}
@@ -67,6 +72,7 @@ ${renderAccessSettingsGroup()}
           ${renderBodyWeightSetting()}
           ${strengthSexSettingHtml()}
           <button class="cell" data-action="setting-rir" role="switch" aria-checked="${rirShown()}">
+            ${cellIco('battery.reserve', 'blue')}
             <span class="cell__body"><span class="cell__title">Reps en réserve</span>
               <span class="cell__sub">Après chaque série, facultatif</span></span>
             ${switchHtml(rirShown())}
@@ -75,30 +81,36 @@ ${renderAccessSettingsGroup()}
 
         <div class="group-title">Sons et vibrations</div>
         <div class="group">
-          <button class="cell" data-action="setting-sound" role="switch" aria-checked="${data.soundOn !== false}">
+          <button class="cell" data-action="setting-sound" role="switch" aria-checked="${soundOn}">
+            ${cellIco('speaker.wave.2', 'sable')}
             <span class="cell__body"><span class="cell__title">Sons</span></span>
-            ${switchHtml(data.soundOn !== false)}
+            ${switchHtml(soundOn)}
           </button>
-          ${data.soundOn !== false ? `<div class="cell cell--ctl">
+          ${soundOn ? `<div class="cell cell--ctl">
+            ${cellIco('slider.horizontal.3', 'sable')}
             <span class="cell__body"><span class="cell__title">Volume</span></span>
             <div class="segmented seg-sm" role="group" aria-label="Volume des bips">
               ${[['bas', 'Bas'], ['normal', 'Normal'], ['fort', 'Fort']].map(([v, l]) =>
                 `<button class="segmented__btn ${data.soundLevel === v ? 'segmented__btn--active' : ''}" aria-pressed="${data.soundLevel === v}" data-action="setting-sound-level" data-val="${v}">${l}</button>`).join('')}
             </div>
           </div>` : ''}
-          ${data.soundOn !== false && Native.sound.canDuck ? `<button class="cell" data-action="setting-duck" role="switch" aria-checked="${data.duckMusic !== false}">
+          ${soundOn && Native.sound.canDuck ? `<button class="cell" data-action="setting-duck" role="switch" aria-checked="${data.duckMusic !== false}">
+            ${cellIco('music.down', 'sable')}
             <span class="cell__body"><span class="cell__title">Baisser la musique</span>
               <span class="cell__sub">Pendant le décompte de fin de repos</span></span>
             ${switchHtml(data.duckMusic !== false)}
           </button>` : ''}
           <button class="cell" data-action="setting-vibrate" role="switch" aria-checked="${data.vibrateOn !== false}">
+            ${cellIco('iphone.radiowaves', 'sable')}
             <span class="cell__body"><span class="cell__title">Vibrations</span></span>
             ${switchHtml(data.vibrateOn !== false)}
           </button>
-          ${data.soundOn !== false ? `<button class="cell cell--action" data-action="sound-test-rest">
+          ${soundOn ? `<button class="cell cell--action" data-action="sound-test-rest">
+            ${cellIco('play', 'sable')}
             <span class="cell__body"><span class="cell__title">Tester la fin de repos</span></span>
           </button>` : ''}
           <button class="cell cell--action" data-action="sound-diagnostics" aria-expanded="false" aria-controls="sound-diag">
+            ${cellIco('waveform', 'gray')}
             <span class="cell__body"><span class="cell__title">Diagnostic du son</span></span>
           </button>
           <div class="sound-diag" id="sound-diag" hidden><pre class="sound-diag__text" aria-live="polite"></pre></div>
@@ -109,6 +121,7 @@ ${renderAppleServicesGroup(switchHtml)}
         <div class="group-title">Apparence</div>
         <div class="group">
           <div class="cell cell--ctl">
+            ${cellIco('circle.lefthalf.filled', 'blue')}
             <span class="cell__body"><span class="cell__title">Thème</span></span>
             <div class="segmented seg-sm" role="group" aria-label="Thème">
               ${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([v, l]) =>
@@ -116,11 +129,13 @@ ${renderAppleServicesGroup(switchHtml)}
             </div>
           </div>
           <div class="cell cell--ctl">
+            ${silhouetteIcoHtml()}
             <span class="cell__body"><span class="cell__title">Silhouette</span>
               <span class="cell__sub">Carte des muscles</span></span>
             ${silhouetteSegmentedHtml()}
           </div>
           <button class="cell" data-action="setting-recap-card" role="switch" aria-checked="${data.recapCardOff !== true}">
+            ${cellIco('calendar', 'green')}
             <span class="cell__body"><span class="cell__title">Carte « Ta semaine »</span>
               <span class="cell__sub">Sur l'accueil le dimanche soir et le lundi</span></span>
             ${switchHtml(data.recapCardOff !== true)}
@@ -133,35 +148,41 @@ ${renderConnectionsGroup()}
         <div class="group-title">Données</div>
         <div class="group">
           <button class="cell cell--nav" data-action="go-trash">
+            ${cellIco('trash', 'gray')}
             <span class="cell__body"><span class="cell__title">Supprimés récemment</span></span>
-            <span class="cell__value num">${trashCount() || ''}</span>
+            ${trashCount() ? `<span class="cell__value num">${trashCount()}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>
           <button class="cell cell--nav" data-action="go-backup">
+            ${cellIco('archivebox', 'gray')}
             <span class="cell__body"><span class="cell__title">Sauvegarde</span></span>
             ${backupCellValue()}
             ${icon('chevron.right', 16)}
           </button>
-          <button class="cell cell--destructive cell--left" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
         </div>
-        ${account.user ? '<div class="group-foot">Efface cet appareil seulement. Pour effacer aussi ton compte\u00a0: Compte › Supprimer mon compte.</div>' : ''}
+        <div class="group">
+          <button class="cell cell--destructive" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
+        </div>
+        ${account.user ? '<div class="group-foot">Efface cet appareil seulement. Pour effacer aussi ton compte : Compte › Supprimer mon compte.</div>' : ''}
 
         <div class="group-title">Aide</div>
         <div class="group">
-          <button class="cell cell--nav" data-action="go-guide"><span class="cell__body"><span class="cell__title">Guide de l'app</span></span>${icon('chevron.right', 16)}</button>
+          <button class="cell cell--nav" data-action="go-guide">${cellIco('questionmark.circle', 'blue')}<span class="cell__body"><span class="cell__title">Guide de l'app</span></span>${icon('chevron.right', 16)}</button>
           <div class="cell">
-            <span class="cell__body"><span class="cell__title">MDLF Training<span id="appVersion"></span> · ${plural(nSess, 'séance', 'séances')}</span></span>
+            ${cellIco('info.circle', 'gray')}
+            <span class="cell__body"><span class="cell__title">MDLF Training<span id="appVersion"></span></span>
+              <span class="cell__sub">${plural(nSess, 'séance enregistrée', 'séances enregistrées')}</span></span>
           </div>
           ${Native.isNative
-            ? `<button class="cell cell--action" data-action="live-update-check"><span class="cell__body"><span class="cell__title">Rechercher une mise à jour</span>
+            ? `<button class="cell cell--action" data-action="live-update-check">${cellIco('arrow.down.circle', 'gray')}<span class="cell__body"><span class="cell__title">Rechercher une mise à jour</span>
                  <span class="cell__sub">${esc(liveUpdateLabel())}</span></span></button>`
-            : `<button class="cell cell--action" data-action="force-update"><span class="cell__title">Rechercher une mise à jour</span></button>`}
+            : `<button class="cell cell--action" data-action="force-update">${cellIco('arrow.down.circle', 'gray')}<span class="cell__body"><span class="cell__title">Rechercher une mise à jour</span></span></button>`}
         </div>
 
         <div class="group-title">Informations légales</div>
         <div class="group">
-          ${SETTINGS_LEGAL_PAGES.map(([page, label]) => `<button class="cell cell--nav" data-action="open-legal" data-page="${page}">
-            <span class="cell__body"><span class="cell__title">${label}</span></span>${icon('chevron.right', 16)}</button>`).join('')}
+          ${SETTINGS_LEGAL_PAGES.map(([page, label, ico]) => `<button class="cell cell--nav" data-action="open-legal" data-page="${page}">
+            ${cellIco(ico, 'gray')}<span class="cell__body"><span class="cell__title">${label}</span></span>${icon('chevron.right', 16)}</button>`).join('')}
         </div>
         <div class="group-foot">Pages du site mdlf.app, ouvertes dans Safari. L'abonnement est vendu et remboursé par Apple.</div>
 
@@ -169,11 +190,17 @@ ${renderConnectionsGroup()}
     </div>`;
 }
 
+// Apparence › Silhouette : le personnage maison choisi (corps gris, vue de face) à la place du symbole
+function silhouetteIcoHtml() {
+  return `<span class="set-ico set-ico--body" aria-hidden="true"><img src="${bodyImgUrl(bodySilhouette(), 'front', 'base')}" alt="" decoding="async"></span>`;
+}
+
 // Entraînement › Poids du corps : la pesée de Santé quand elle est activée (app iOS, js/features/apple-services.js),
 // sinon le poids saisi dans l'app
 function renderBodyWeightSetting() {
   if (Native.isNative && data.healthOn === true) return renderBodyWeightCell();
   return `<button class="cell cell--nav" data-action="set-body-weight">
+            ${cellIco('bathroom.scale', 'gray')}
             <span class="cell__body"><span class="cell__title">Poids du corps</span>
               <span class="cell__sub">Volume des tractions, dips, pompes</span></span>
             <span class="cell__value num"${data.bodyWeightKg ? '' : ' aria-label="Non renseigné"'}>${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : '—'}</span>

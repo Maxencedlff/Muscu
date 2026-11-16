@@ -358,6 +358,7 @@ function renderAppleServicesGroup(tog) {
         <div class="group-title">${Native.music.available ? 'Services Apple' : 'Santé'}</div>
         <div class="group">
           <button class="cell" data-action="setting-health" role="switch" aria-checked="${data.healthOn === true}">
+            ${cellIco('heart', 'green')}
             <span class="cell__body"><span class="cell__title">${Native.health.name}</span>
               <span class="cell__sub">${HEALTH_TEXT.reads}</span></span>
             ${tog(data.healthOn === true)}
@@ -367,11 +368,13 @@ function renderAppleServicesGroup(tog) {
           ${data.healthOn === true ? (() => {
             const n = healthBacklog().length;
             return `<button class="cell cell--nav" data-action="health-backfill">
+            ${cellIco('paperplane', 'green')}
             <span class="cell__body"><span class="cell__title">Envoyer l'historique dans Santé</span>
               <span class="cell__sub">${n ? plural(n, 'séance pas encore envoyée', 'séances pas encore envoyées') : 'Tout est déjà dans Santé'}</span></span>
             ${icon('chevron.right', 16)}
           </button>`; })() : ''}
           ${Native.music.available ? `<button class="cell" data-action="setting-music" role="switch" aria-checked="${data.musicOn === true}">
+            ${cellIco('music', 'sable')}
             <span class="cell__body"><span class="cell__title">Apple Music</span>
               <span class="cell__sub">Pilote l'app Musique d'Apple pendant la séance (pas Spotify ni Deezer)</span></span>
             ${tog(data.musicOn === true)}
@@ -391,23 +394,24 @@ function weighInWhen(ts) {
 function renderBodyWeightCell() {
   const last = knownLatestBodyMass();
   const title = '<span class="cell__title">Poids du corps</span>';
+  const ico = cellIco('bathroom.scale', 'gray');
   if (last === undefined && weightCache.failed) {
     return `<button class="cell cell--nav" id="bodyWeightCell" data-action="retry-body-weight">
-            <span class="cell__body">${title}<span class="cell__sub">Santé n'a pas répondu : touche pour réessayer</span></span>
+            ${ico}<span class="cell__body">${title}<span class="cell__sub">Santé n'a pas répondu : touche pour réessayer</span></span>
             ${icon('arrow.clockwise', 18)}</button>`;
   }
   if (last === undefined) {
     return `<div class="cell" id="bodyWeightCell">
-            <span class="cell__body">${title}<span class="cell__sub">Lecture dans Santé…</span></span></div>`;
+            ${ico}<span class="cell__body">${title}<span class="cell__sub">Lecture dans Santé…</span></span></div>`;
   }
   if (last) {
     return `<div class="cell" id="bodyWeightCell">
-            <span class="cell__body">${title}
+            ${ico}<span class="cell__body">${title}
               <span class="cell__sub">Pris dans Santé · pesée ${esc(weighInWhen(last.date))}</span></span>
             <span class="cell__value num">${fmtW(last.kg)} ${unitLbl()}</span></div>`;
   }
   return `<button class="cell cell--nav" id="bodyWeightCell" data-action="set-body-weight">
-            <span class="cell__body">${title}
+            ${ico}<span class="cell__body">${title}
               <span class="cell__sub">Aucune pesée lue dans Santé : saisis-le ici</span></span>
             <span class="cell__value num">${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : 'Non renseigné'}</span>
             ${icon('chevron.right', 16)}
@@ -418,16 +422,17 @@ function renderBodyWeightCell() {
 // qui les lit), puis rappel de ce qui en est fait. État pas encore lu ou inconnu (build antérieure) : rien.
 function renderHealthWorkoutsCell() {
   const title = '<span class="cell__title">Courses et vélo de Santé</span>';
+  const ico = cellIco('figure.run', 'green');
   if (workoutsAuthKnown === 'shouldRequest') {
     return `<button class="cell cell--nav" data-action="health-workouts-auth">
-            <span class="cell__body">${title}
+            ${ico}<span class="cell__body">${title}
               <span class="cell__sub">Autorise leur lecture : elles s'affichent dans l'Historique et comptent pour la récupération</span></span>
             ${icon('chevron.right', 16)}
           </button>`;
   }
   if (workoutsAuthKnown !== 'unnecessary') return '';
   return `<div class="cell">
-            <span class="cell__body">${title}
+            ${ico}<span class="cell__body">${title}
               <span class="cell__sub">Affichées dans l'Historique ; comptent pour la récupération à partir de 20 min</span></span>
           </div>`;
 }
@@ -437,16 +442,17 @@ function renderHealthWorkoutsCell() {
 function renderHealthExtraCell() {
   if (workoutsAuthKnown === 'shouldRequest') return '';
   const title = '<span class="cell__title">Sommeil et cardio</span>';
+  const ico = cellIco('moon', 'green');
   if (extraAuthKnown === 'shouldRequest') {
     return `<button class="cell cell--nav" data-action="health-workouts-auth">
-            <span class="cell__body">${title}
+            ${ico}<span class="cell__body">${title}
               <span class="cell__sub">Autorise ton sommeil (affiché sur l'accueil) et les distances du tapis, du vélo et du rameur</span></span>
             ${icon('chevron.right', 16)}
           </button>`;
   }
   if (extraAuthKnown !== 'unnecessary') return '';
   return `<div class="cell">
-            <span class="cell__body">${title}
+            ${ico}<span class="cell__body">${title}
               <span class="cell__sub">Ta nuit s'affiche sur l'accueil ; le cardio des machines part dans Santé avec son type et sa distance</span></span>
           </div>`;
 }

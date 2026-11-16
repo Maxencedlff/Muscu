@@ -1,0 +1,71 @@
+/* ═══════════════════════════════════════════════
+   Direction « sobre et vivante » : Réglages (branche reglages-v2)
+   Sur le modèle des Réglages d'iOS : une icône par ligne, symbole blanc dans un carré arrondi de couleur
+   (cellIco, js/ui/forms.js), groupes nets, carte du compte en tête.
+   Mêmes règles que css/theme-sobre.css (chargé avant, dont on reprend les jetons) :
+   - jamais l'orange des actions ni le rouge des muscles dans les carrés : bleu, vert, sable et gris système ;
+   - le sens est porté par le symbole (un symbole = un sens), la couleur ne fait que regrouper ;
+   - aucun dégradé, lueur ni verre ; casse de phrase.
+   Les carrés sont décoratifs (aria-hidden) : le titre de la ligne dit tout, le contraste du symbole n'est
+   donc pas exigé (WCAG 1.4.11 ne vise que les graphiques nécessaires) ; il reste au moins 3:1 sauf sur le vert.
+═══════════════════════════════════════════════ */
+
+:root {
+  --set-ico-blue: var(--indigo);     /* bleu système (#0A84FF en sombre, #0066CC en clair dans theme-sobre.css) */
+  --set-ico-green: var(--green);
+  --set-ico-sable: var(--brown);
+  --set-ico-gray: #8E8E93;           /* gris système */
+  --set-ico-body: var(--cell3);      /* fond du personnage (Silhouette) */
+  --set-ico-glyph: #FFFFFF;
+  --set-ico-size: 30px;
+  --set-ico-gap: 12px;
+}
+
+.set-ico {
+  flex-shrink: 0; width: var(--set-ico-size); height: var(--set-ico-size); border-radius: 7px;
+  display: grid; place-items: center; color: var(--set-ico-glyph); background: var(--set-ico-gray);
+}
+.set-ico .icon { width: 19px; height: 19px; }
+.set-ico--blue  { background: var(--set-ico-blue); }
+.set-ico--green { background: var(--set-ico-green); }
+.set-ico--sable { background: var(--set-ico-sable); }
+.set-ico--gray  { background: var(--set-ico-gray); }
+/* Silhouette : le personnage maison en entier, centré dans son carré */
+.set-ico--body { background: var(--set-ico-body); overflow: hidden; }
+.set-ico--body img { display: block; height: 27px; width: auto; margin-top: 3px; align-self: start; }
+
+/* Lignes à icône : l'action garde son orange sur le titre seulement, le carré reste blanc sur couleur */
+.cell--action > .set-ico .icon { color: var(--set-ico-glyph); }
+/* Séparateur aligné sur le texte, après le carré (16 + 30 + 12), comme les Réglages d'iOS */
+.settings-view .cell + .cell:has(> .set-ico)::before { left: calc(16px + var(--set-ico-size) + var(--set-ico-gap)); }
+
+/* Carte du compte en tête : un peu d'air, comme la carte de l'identifiant Apple */
+.settings-view .account-head .account-cell { min-height: 80px; }
+
+/* Groupe de la seule ligne destructive : centrée, comme « Réinitialiser » d'iOS */
+.settings-view .cell--destructive { justify-content: center !important; }
+
+/* Texte agrandi : les carrés restent, le texte passe à la ligne à côté d'eux. css/screens.css fait passer la valeur
+   ou le segment dessous, à droite ; ici, le titre est borné à la place qui reste à droite du carré (sinon il
+   descendait sous le carré, laissé seul sur sa ligne). Même sélecteur que screens.css, plus le carré : il l'emporte. */
+html.type-xl .settings-view .cell:has(> .set-ico):is(:has(> .cell__value), :has(> .cell__trail), .cell--ctl:has(> .segmented)) > .cell__body {
+  max-width: calc(100% - var(--set-ico-size) - var(--set-ico-gap));
+}
+/* Ligne sans valeur (Guide, pages légales) : chevron sorti du flux, collé au bord droit et centré ; la place gagnée
+   évite de couper un long mot (« Confidentialité » en AX3 sur iPhone SE). Avec une valeur, le chevron reste à côté
+   d'elle, sur la ligne du dessous. */
+html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) { padding-right: 30px; }
+html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) > .icon:last-child { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+/* Écrans de 320 pt (iPhone SE 1re génération, petits Android) : carré et marges un peu réduits, chaque titre
+   tient sur une ligne (« Carte « Ta semaine » » à côté de son interrupteur) et, en texte agrandi, les mots longs
+   restent entiers */
+@media (max-width: 359px) {
+  .settings-view { --set-ico-size: 26px; --set-ico-gap: 8px; }
+  .settings-view .cell:has(> .set-ico) { gap: var(--set-ico-gap); padding-left: 12px; padding-right: 12px; }
+  .settings-view .set-ico { border-radius: 6px; }
+  .settings-view .set-ico .icon { width: 17px; height: 17px; }
+  .settings-view .cell + .cell:has(> .set-ico)::before { left: calc(12px + var(--set-ico-size) + var(--set-ico-gap)); }
+  html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) { padding-right: 24px; }
+  html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value)) > .icon:last-child { right: 6px; }
+  html.type-xl .settings-view .cell + .cell:has(> .set-ico)::before { left: calc(12px + var(--set-ico-size) + var(--set-ico-gap)); }
+}
