@@ -182,4 +182,21 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.doesNotMatch(run(`coachErrorText('send_rate')`), /heure\b(?!s)/);
     assert.equal(run(`coachSendLimit(50)`), 130);
   });
+
+  // Scripts classiques à portée partagée (ARCHITECTURE.md) : deux déclarations du même nom au niveau supérieur font
+  // échouer le chargement du second fichier (COACH_PAGE déclaré deux fois, le 17/11 : tout l'écran coach cassé)
+  test('scripts de l\'app : aucun nom déclaré deux fois au niveau supérieur', async () => {
+    const fs = await import('node:fs'), path = await import('node:path'), url = await import('node:url');
+    const root = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..', '..');
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    const seen = new Map(), dup = [];
+    for (const [, src] of html.matchAll(/<script src="(js\/[^"]+)"/g)) {
+      const code = fs.readFileSync(path.join(root, src), 'utf8');
+      for (const [, name] of code.matchAll(/^(?:const|let|var|(?:async )?function\*?|class)\s+([A-Za-z_$][\w$]*)/gm)) {
+        if (seen.has(name) && seen.get(name) !== src) dup.push(`${name} (${seen.get(name)}, ${src})`);
+        seen.set(name, src);
+      }
+    }
+    assert.deepEqual(dup, []);
+  });
 }

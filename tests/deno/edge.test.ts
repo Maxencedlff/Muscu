@@ -155,6 +155,40 @@ Deno.test('push-send : bon secret mais clés APNs absentes → 503 avant de pren
   assert.equal(calls.length, 0, 'file prise alors que l\'envoi est impossible');
 });
 
+// Clé ES256 générée pour le test (jamais une vraie clé APNs), au format du fichier .p8
+async function fakeP8() {
+  const k = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const der = new Uint8Array(await crypto.subtle.exportKey('pkcs8', k.privateKey));
+  return `-----BEGIN PRIVATE KEY-----\n${btoa(String.fromCharCode(...der))}\n-----END PRIVATE KEY-----`;
+}
+
+Deno.test('push-send : résumé des séances (student_digest) envoyé avec un nombre seul ; nombre invalide → soldé sans envoi', async () => {
+  const TOKEN = 'cd'.repeat(32);   // faux jeton d'appareil
+  const rows = [
+    { id: 41, kind: 'student_digest', ref: '', token: TOKEN, env: 'production', actor_name: null, wanted: true, count: 12 },
+    { id: 42, kind: 'student_digest', ref: '', token: TOKEN, env: 'production', actor_name: null, wanted: true },
+  ];
+  let done: unknown = null;
+  const { res, body, calls } = await call(pushSend, request('POST', { headers: { 'x-push-secret': PUSH_SECRET } }), {
+    env: { PUSH_CRON_SECRET: PUSH_SECRET, APNS_KEY_P8: await fakeP8(), APNS_KEY_ID: 'FAUXKEY001', APNS_TEAM_ID: 'FAUXTEAM01' },
+    routes: {
+      'POST /rest/v1/rpc/push_claim': () => jsonResponse(rows),
+      'POST /rest/v1/rpc/push_auth_get': () => jsonResponse(null),
+      'POST /rest/v1/rpc/push_auth_swap': (c) => jsonResponse(JSON.parse(c.body)),
+      'POST /rest/v1/rpc/push_done': (c) => { done = JSON.parse(c.body); return jsonResponse(null); },
+    },
+  });
+  assert.equal(res.status, 200);
+  // APNs injoignable en test (réseau interdit) : nouvel essai pour le résumé valable, l'autre soldé sans envoi
+  assert.deepEqual(body, { sent: 0, dead: 0, retry: 1, dropped: 0, skipped: 1 });
+  const apns = calls.filter((c) => c.url.startsWith('https://api.push.apple.com/3/device/'));
+  assert.equal(apns.length, 1, 'une seule demande à APNs');
+  const payload = JSON.parse(apns[0].body);
+  assert.deepEqual(payload.aps.alert, { title: 'Séances terminées', body: '12 élèves ont terminé leur séance' });
+  assert.deepEqual(payload.mdlf, { kind: 'student_digest', ref: '' });
+  assert.deepEqual(done, { ids: [42], dead_tokens: [] });
+});
+
 Deno.test('coach-photos-purge : bon secret, files vides → 200, une demande par compartiment avec la clé serveur', async () => {
   const { res, body, calls } = await call(coachPhotosPurge, request('POST', { headers: { 'x-purge-secret': PURGE_SECRET } }), {
     env: { PHOTOS_PURGE_SECRET: PURGE_SECRET },

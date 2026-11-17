@@ -4,7 +4,8 @@
 // 1. Contenu : un titre et une phrase en français, avec le seul pseudo de l'auteur (jamais le texte d'un
 //    commentaire, d'un message ni le nom d'un programme : l'écran verrouillé est visible par d'autres ; la
 //    file n'en a d'ailleurs pas copie). Seule exception, la séance d'un élève (au coach) : son nom (label,
-//    40 caractères) et sa durée (minutes), relus par push_claim ; jamais une charge. Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
+//    40 caractères) et sa durée (minutes), relus par push_claim ; jamais une charge. Résumé des séances
+//    (student_digest) : un nombre d'élèves seulement (count), sans pseudo ni écran (ref vide). Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
 //    ouvrir le bon écran au toucher (PushPlugin.swift) ; ref : séance, programme, ou conversation ('@coach' ou id de l'élève).
 // 2. Requête APNs (documentation Apple « Sending notification requests to APNs ») : HTTP/2, POST
 //    /3/device/<jeton>, en-têtes authorization (jeton du fournisseur), apns-push-type alert, apns-topic
@@ -50,7 +51,15 @@ export const PUSH_KINDS = Object.freeze({
     const min = Number.isInteger(row.minutes) && row.minutes >= 1 && row.minutes <= 1440 ? ` · ${row.minutes} min` : '';
     return { title: 'Séance terminée', body: `${who} a terminé ${label || 'une séance'}${min}` };
   },
+  // Résumé (coach, au-delà de 3 séances notifiées dans l'heure) : un nombre d'élèves, jamais un pseudo
+  student_digest: (who, row = {}) => ({
+    title: 'Séances terminées',
+    body: row.count === 1 ? '1 élève a terminé sa séance' : `${row.count} élèves ont terminé leur séance`,
+  }),
 });
+
+// Résumé : nombre d'élèves entier de 1 à 10 000, sinon rien à envoyer
+const validDigestCount = (n) => Number.isInteger(n) && n >= 1 && n <= 10000;
 
 // Ligne de push_claim → { skip } ou { title, body, kind, ref }
 export function pushMessage(row) {
@@ -58,6 +67,10 @@ export function pushMessage(row) {
   if (!validDeviceToken(row.token)) return { skip: 'no_device' };
   const make = PUSH_KINDS[row.kind];
   if (!make) return { skip: 'unknown_kind' };
+  if (row.kind === 'student_digest') {
+    if (!validDigestCount(row.count)) return { skip: 'invalid_count' };
+    return { ...make('', row), kind: row.kind, ref: '' };
+  }
   const ref = typeof row.ref === 'string' ? row.ref.slice(0, 64) : '';
   // Plan diète envoyé par le canal des programmes (id diet_<…>, docs/NUTRITION_V1.md) : dit comme tel
   if (row.kind === 'coach_programme' && ref.startsWith('diet_')) {

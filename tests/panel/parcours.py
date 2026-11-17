@@ -760,6 +760,57 @@ def p_coach(r):
         r.toucher('.chat-compose .comment-compose__send', 'Envoyer')
 
 
+PREPARE_BOITE = """(n) => {
+    const me = __sb.meId(); __sb.makeCoach(me); __sb.setTier(me, 'com.mdlf.training.coachmax.yearly');
+    const now = Date.now(), noms = ['lea', 'tom', 'ines', 'hugo', 'jade', 'noah', 'lina', 'adam', 'chloe', 'enzo'], ids = [];
+    for (let i = 0; i < n; i++) {
+      const s = i < 6 ? [{ id: 's' + i, date: now - (i + 1) * 3600e3, duration: 3000e3, programme: 'ppl', category: 'push', label: 'Push', exercises: [] }] : [];
+      const id = __sb.addPerson({ username: noms[i % 10] + (i >= 10 ? String(i) : ''), avatar: ['🦊', '🐻', '🦁', '🐼'][i % 4], social: false, sessions: s });
+      __sb.link(me, id, now - 40 * 86400e3); ids.push(id);
+      if (i % 3 === 0) { __sb.push.devices['e'.repeat(60) + String(i).padStart(4, '0')] = id; __sb.push.prefs[id] = { messages: true }; }
+    }
+    const txt = ["J'ai senti mon épaule sur le développé, je baisse la charge ?", 'Séance faite, 4 x 8 au squat', 'Merci pour le programme !',
+      'Je pars en vacances la semaine prochaine', 'Top, on garde ça', 'Pense à noter ton RIR sur chaque série'];
+    for (let i = 0; i < 12; i++) __sb.msg(ids[i], i % 4 === 3, txt[i % 6], now - (i * 5 + 1) * 3600e3);
+    __sb.co.links.forEach(l => { if (l.coach === me) l.seen = new Date(now - 30 * 3600e3).toISOString(); });
+    return coachRefresh();
+}"""
+
+
+@parcours('boite-coach', 'Coach de 30 élèves : filtres, Messages, envoi à plusieurs', 'coach')
+def p_boite_coach(r):
+    """Coach de 30 élèves : 12 conversations (des non-lues), 6 élèves avec une nouvelle séance, un sur trois avec
+    les notifications. Filtres de Mes élèves, segment Messages, une conversation, puis envoi d'un programme à plusieurs."""
+    r.lancer(REALISTE)
+    r.connecter('max')
+    r.raccourci(PREPARE_BOITE, 'coach de 30 élèves, 12 conversations, 6 nouvelles séances', 30)
+    with r.etape('eleves-filtres', 'Onglet Coach : Élèves, filtres et compteurs', cle='Trouver les élèves à relancer'):
+        r.onglet('friends', 'Coach')
+        r.attendre('.coach-team .coach-student-row', 'Élèves')
+    with r.etape('filtre-nouveautes', 'Filtre Nouveautés', cle='Trouver les élèves à relancer'):
+        r.toucher('.coach-filter[data-filter="fresh"]', 'Nouveautés')
+    with r.etape('messages', 'Segment Messages : toutes les conversations', cle='Répondre à un élève'):
+        r.toucher('.social-seg [data-seg="messages"]', 'Messages')
+        r.attendre('#chatRows .chat-row', 'conversations')
+    with r.etape('conversation', 'Une conversation ouverte d\'un toucher', cle='Répondre à un élève'):
+        r.toucher('#chatRows .chat-row', 'la première conversation')
+        r.attendre('.coach-chat-view', 'conversation')
+    with r.etape('retour-messages', 'Retour sur Messages (conversation lue)', cle='Répondre à un élève'):
+        r.retour()
+        r.attendre('#chatRows', 'Messages')
+    with r.etape('envoyer', 'Fiche d\'un élève : Envoyer un programme', cle='Envoyer un programme à plusieurs élèves'):
+        r.toucher('.social-seg [data-seg="students"]', 'Élèves')
+        r.toucher('.coach-filter[data-filter="all"]', 'Tous')
+        r.toucher('.coach-student-row', 'premier élève')
+        r.attendre('.coach-student-view', 'fiche')
+        r.toucher('[data-action="coach-send"]', 'Envoyer un programme')
+        r.toucher('.ios-dialog__btn', 'premier programme de la feuille')
+    with r.etape('plusieurs', 'Envoyer à plusieurs élèves : Tous', cle='Envoyer un programme à plusieurs élèves'):
+        r.toucher('[data-action="coach-send-many"]', 'Envoyer à plusieurs élèves')
+        r.attendre('.coach-send-many-view', 'cases à cocher')
+        r.toucher('[data-action="coach-many-all"]', 'Tous')
+
+
 @parcours('devenir-coach', 'Demande « Devenir coach »', 'coach')
 def p_devenir_coach(r):
     """Éducateur sportif connecté, pas encore coach : Réglages › Coach › Devenir coach, formulaire (nom, carte

@@ -23,7 +23,8 @@ psql -c "insert into auth.users (id) values ('00000000-0000-0000-0000-0000000008
   insert into public.push_prefs (user_id, reactions) values ('00000000-0000-0000-0000-0000000008b1', true);
   insert into public.bravos (session_owner, session_id, user_id) values ('00000000-0000-0000-0000-0000000008b1', 's1', '00000000-0000-0000-0000-0000000008b2');
   do \$\$ begin if (select count(*) from private.push_outbox) <> 1 then raise 'file vide avant le retour arrière'; end if; end \$\$;"
-# Du plus récent au plus ancien (supabase/rollback/ORDRE.md) : séances des élèves, puis messages et commentaires
+# Du plus récent au plus ancien (supabase/rollback/ORDRE.md) : résumé des séances, séances des élèves, puis messages et commentaires
+psql -f "$root/supabase/rollback/20261117050000_messages_coach_down.sql"
 psql -f "$root/supabase/rollback/20261116020000_notifications_seances_eleves_down.sql"
 psql -f "$root/supabase/rollback/20261031910000_notifications_messages_down.sql"
 psql -f "$root/supabase/rollback/20261031900000_notifications_push_down.sql"

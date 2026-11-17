@@ -140,8 +140,9 @@ function refreshCoachCell() {
   if (friendsLayoutChanged()) { render(); return; }
   const top = $('#coachCell'), team = $('#studentsBody');
   if (top) top.innerHTML = coachCellHtml();
-  if (team) setHtmlIfChanged(team, coachTeamHtml());
-  if (team) coachWatchMore();
+  // Recherche en cours : la liste seule, le champ garde le clavier
+  if (team && document.activeElement?.id === 'coachSearch') coachRefreshRows();
+  else if (team) { setHtmlIfChanged(team, coachTeamHtml()); coachWatchMore(); }
   if (typeof refreshChatInbox === 'function') refreshChatInbox();
 }
 // Segment Élèves redessiné à chaque nouveauté du coach (état, conversations, planning, progression : 4 à 6 fois
@@ -671,14 +672,14 @@ function coachNotesHint() {
 
 // Plus de COACH_SEARCH_FROM élèves : un champ filtre la liste par pseudo, sans quitter l'écran (panel Apple de la vague 3 :
 // les coachs partenaires suivent beaucoup d'élèves). Au-delà de 20 élèves, des filtres (Tous, À relancer, Nouveautés,
-// Sans programme, compteurs exacts) ; la liste se dessine par COACH_PAGE cartes, la suite en défilant (test de charge
+// Sans programme, compteurs exacts) ; la liste se dessine par COACH_ROWS_PAGE cartes, la suite en défilant (test de charge
 // du 17/11 : 300 élèves faisaient une seule liste de 35 000 px). Recherche et filtre ne redessinent que la liste
 // (#coachRows) : le champ garde le clavier.
 const COACH_SEARCH_FROM = 9;
-const COACH_PAGE = 40;
+const COACH_ROWS_PAGE = 40;
 let coachSearchQ = '';
 let coachFilter = 'all';        // filtre de Mes élèves (COACH_FILTERS, js/data/coach-progress.js)
-let coachShownN = COACH_PAGE;   // cartes dessinées
+let coachShownN = COACH_ROWS_PAGE;   // cartes dessinées
 let coachRowsObserver = null;   // « Afficher plus » touché tout seul quand il arrive à l'écran
 function coachTeamView() {
   const st = coach.state, now = Date.now();
@@ -697,7 +698,7 @@ function coachRowsHtml(v = coachTeamView()) {
   const none = !v.shown.length && coach.state.students.length
     ? `<div class="cell" id="coachSearchNone"><span class="cell__sub social-empty">${coachSearchQ ? 'Aucun élève ne correspond.' : 'Aucun élève dans ce filtre.'}</span></div>` : '';
   return `${page.map(({ st, pr }) => coachStudentRowHtml(st, pr, v.now)).join('') || none || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}${rest > 0
-    ? `<button class="cell cell--action coach-more-rows" data-action="coach-more-rows">Afficher ${plural(Math.min(rest, COACH_PAGE), 'élève de plus', 'élèves de plus')}</button>` : ''}`;
+    ? `<button class="cell cell--action coach-more-rows" data-action="coach-more-rows">Afficher ${plural(Math.min(rest, COACH_ROWS_PAGE), 'élève de plus', 'élèves de plus')}</button>` : ''}`;
 }
 function coachFiltersHtml(v) {
   if (!v.counts) return '';
@@ -722,11 +723,11 @@ function coachWatchMore() {
   coachRowsObserver = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { coachRowsObserver.disconnect(); coachShowMoreRows(); } }, { rootMargin: '600px 0px' });
   coachRowsObserver.observe(btn);
 }
-function coachShowMoreRows() { coachShownN += COACH_PAGE; coachRefreshRows(); }
+function coachShowMoreRows() { coachShownN += COACH_ROWS_PAGE; coachRefreshRows(); }
 document.addEventListener('input', e => {
   if (e.target.id !== 'coachSearch') return;
   coachSearchQ = e.target.value;
-  coachShownN = COACH_PAGE;
+  coachShownN = COACH_ROWS_PAGE;
   coachRefreshRows();
 });
 
@@ -1413,7 +1414,7 @@ registerActions({
     const f = COACH_FILTERS.some(([k]) => k === el.dataset.filter) ? el.dataset.filter : 'all';
     if (f === coachFilter) return;
     coachFilter = f;
-    coachShownN = COACH_PAGE;
+    coachShownN = COACH_ROWS_PAGE;
     haptic();
     coachRefreshRows();
   },

@@ -23,9 +23,9 @@ dump() {
     | sed -E 's/20[0-9]{2}-[0-9]{2}-[0-9]{2} [0-9:.]+\+[0-9]{2}/<date>/g' > "$1"
 }
 psql -f "$here/supabase_stub.sql"
-# Sans les séances des élèves (20261116020000), qui s'appuient sur elle et se démontent avant
+# Sans les séances des élèves (20261116020000) ni leur résumé (20261117050000), qui s'appuient sur elle et se démontent avant
 for m in "$root"/supabase/migrations/*.sql; do
-  case "$(basename "$m" .sql)" in "$M"|20261116020000_*) ;; *) psql -f "$m" ;; esac
+  case "$(basename "$m" .sql)" in "$M"|20261116020000_*|20261117050000_*) ;; *) psql -f "$m" ;; esac
 done
 # Avant : un compte avec un appareil (faux jeton), « Bravos » allumé, un bravo en file
 U1=00000000-0000-0000-0000-0000000008c1; U2=00000000-0000-0000-0000-0000000008c2

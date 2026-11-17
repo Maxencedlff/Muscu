@@ -97,6 +97,17 @@ Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris p
 - **Serveur sans messagerie** (fonction absente, PostgREST `PGRST202`) : la cellule « Messages » n'apparaît pas.
 - **privacy.html** : « Messages » dans Coach (FR et EN), avec la copie gardée 12 mois en cas de signalement.
 
+### Boîte de réception du coach (17/11/2026, validée par Maxence)
+Test de charge du 17/11 (300 élèves) : une seule liste de 35 000 px sans filtres, pastille de l'onglet bloquée à « 99+ », aucun envoi groupé, refus d'envoi qui disait « une heure » au lieu de 24 h. Sans 6e onglet (iOS rangerait le 6e dans « Plus »).
+- **Onglet Coach** : segments **Élèves | Messages | Mes amis** (`SOCIAL_SEGS`).
+- **Messages** : une ligne par conversation existante, comme Messages d'iOS (avatar ou photo, pseudo, heure `chatListTime`, dernier message sur une ligne, « Toi : » devant les miens) ; non-lues en tête avec leur nombre, puis la plus récente ; recherche par pseudo sur tous les élèves (aussi ceux sans conversation, pour en commencer une) ; 40 lignes, puis 40 de plus en défilant ; un toucher ouvre `coach-chat:<élève>`, le retour revient sur Messages. Nombre de non-lus sur le bouton du segment.
+- **Pastille de l'onglet Coach** : messages non lus (plus ce que mon propre coach m'envoie, et les demandes du social). Les nouvelles séances des élèves n'y sont plus : elles sont dans le filtre Nouveautés. « 99+ » seulement sur cette pastille ; partout ailleurs, nombres exacts.
+- **Mes élèves** au-delà de 20 élèves : filtres **Tous · À relancer · Nouveautés · Sans programme** avec compteurs exacts (`COACH_FILTERS`, `coachFilterCounts`) ; « Sans programme » : aucun programme envoyé par moi, un plan diète ne compte pas. 40 cartes, la suite en défilant.
+- **Notification** : un message ouvre la conversation (segment Messages dessous) ; le résumé des séances (`student_digest`, docs/NOTIFICATIONS.md) ouvre Élèves filtré sur Nouveautés.
+- **Cloche barrée** (`bell.slash`, grise, après le pseudo) : élève sans notification de mes messages (`coach_push_off`), dans Mes élèves, Messages et l'envoi à plusieurs.
+- **Élève** : « Messages » juste sous « Mon coach », en tête de Social, avec ses non-lus (un toucher) ; « Mon coach » ne les compte plus une deuxième fois.
+- **Envoi à plusieurs élèves** (Envoyer › « Envoyer à plusieurs élèves », route `coach-send-many:UID:PROG`) : cases à cocher et « Tous », l'élève d'origine coché d'office ; mêmes consignes que l'écran Envoyer, et pour chaque élève la charge prescrite lors de son dernier envoi de ce programme. Un `coach_send_programme` par élève, 4 à la fois. Limite du serveur : 30 + 2 par élève suivi sur 24 h glissantes ; plus d'élèves cochés que la limite : dit avant ; refus en cours : arrêt, « Envoyé à X sur Y », la vraie durée (« Réessaie dans 24 h », `send_rate`), les élèves restants restent cochés.
+
 ### Ordre de mise en production
 Migration d'abord, puis la fonction Edge `report` (mode `{ report_id }`), puis l'OTA (une app à jour sur un serveur d'avant cache la cellule ; avec une fonction `report` d'avant, le signalement est enregistré mais l'alerte ne part pas : `notified_at` nul, requête de rattrapage). Retour arrière : `supabase/rollback/20261031510000_chat_coach_down.sql`, vérifié par `tests/sql/rollback_social_check.sh`.
 
@@ -121,6 +132,7 @@ Le coach envoie un plan diète par le même canal que les programmes : `coach_se
 | `coach_set_note(student uuid, session_id text, text text)` | `void` | Texte vide = supprime. `seen_at` remis à null. |
 | `student_inbox()` | `jsonb` | Élève : `{ programmes: [{ id, data, sent_at, seen }], notes: [{ session_id, text, updated_at, seen }] }`. |
 | `student_mark_seen(kind text, ref text)` | `void` | `kind` = `programme` ou `note`. |
+| `coach_push_off()` | `jsonb` | Coach : `[uuid, …]`, identifiants de ses élèves liés qui ne recevraient pas ses messages en notification (aucun appareil inscrit, ou réglage « Messages » éteint), et rien d'autre (ni date, ni appareil, ni autre réglage) ; pas coach : `[]` ; sans compte : `not_signed_in` ; 600 lectures par heure (`rate_limited`). Migration `20261117050000_messages_coach.sql` (17/11/2026) ; l'app montre une cloche barrée à côté de ces élèves (Élèves, Messages). Serveur d'avant (`PGRST202`) : aucune cloche. |
 
 ## Précisions du serveur (migration 20261027100000_coach.sql, 27/10)
 Points que le tableau ne disait pas, tranchés côté serveur ; l'app doit les connaître :
