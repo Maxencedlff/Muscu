@@ -221,7 +221,7 @@ function persistSession() {
   syncWatch();
   if (saved || !activeSession || persistWarned) return;
   persistWarned = true;
-  showToast('Stockage plein : la séance n\'est plus sauvegardée', { error: true });
+  showToast('Stockage plein, séance non enregistrée', { error: true });
 }
 
 function endSession() {
@@ -462,7 +462,7 @@ const FIRST_TIME_NO_LOAD = new Set(['aucun', 'elastique', 'cardio']);
 function exFirstTimeHtml(ex, cls = '') {
   if (measureOf(ex) !== 'reps' || loadKind(ex) !== 'charge' || FIRST_TIME_NO_LOAD.has(equipmentOf(ex.name))) return '';
   if (ex.sets.some(s => s.done || s.prev || hasLoad(s.weight))) return '';
-  return `<div class="ex-first ${cls}">Première fois : prends un poids que tu soulèves 15 fois facilement</div>`;
+  return `<div class="ex-first ${cls}">Première fois : prends une charge que tu soulèves 15 fois facilement</div>`;
 }
 
 // Sous-titre de la carte : record, repos de l'exercice (modifiable), hausse de volume
@@ -703,7 +703,7 @@ function rirPickerHtml(ei, si, s, ex, tag = null) {
   const r = cleanRir(s.rir), folded = tag !== null;
   return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}${folded ? `, ${esc(ex.name)}` : ''}">
             <span class="rir__lbl" aria-hidden="true">Reps en réserve${folded ? ` · ${tag ? `${tag} · ` : ''}Série ${setDisplayNo(ex.sets, si)}` : ''}</span>${rirEverUsed() ? '' : `
-            <span class="rir__help">Facultatif : combien tu aurais pu en faire de plus</span>`}
+            <span class="rir__help">Facultatif : reps que tu aurais encore pu faire</span>`}
             <span class="rir__btns">${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}</span>
             <span class="rir__rpe num" aria-live="polite">${r === null ? '' : `RPE ${rirToRpe(r)}`}</span>
           </div>`;

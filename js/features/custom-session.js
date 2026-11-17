@@ -22,7 +22,7 @@ function renderCsEdit() {
           <div class="cell cell--field"><input type="text" id="csName" class="field" value="${esc(existing.label)}"
                placeholder="Ex : Séance A" autocomplete="off" aria-label="Nom de la séance"></div>
           <div class="cell cell--field"><input type="text" id="csDesc" class="field" value="${esc(existing.desc)}"
-               placeholder="Description (optionnel)" autocomplete="off" aria-label="Description"></div>
+               placeholder="Description (facultatif)" autocomplete="off" aria-label="Description"></div>
         </div>
         ${isEdit ? `
         <div class="group group--gap">
@@ -91,7 +91,7 @@ registerActions({
     const running = activeSession && activeSession.programme === pid && activeSession.category === id;
     if (running && !(await confirmSheet('Cette séance est en cours', 'Elle sera abandonnée.', 'Supprimer'))) return;
     const n = (data.history || []).filter(h => h.category === id && h.programme === pid).length;
-    const msg = n ? `Ses exercices seront supprimés et ${n} séance${n > 1 ? 's' : ''} de l'historique ser${n > 1 ? 'ont effacées' : 'a effacée'}.`
+    const msg = n ? `Ses exercices et ${n} séance${n > 1 ? 's' : ''} de l'historique seront supprimés.`
                   : 'Ses exercices seront supprimés.';
     if (!(await confirmSheet('Supprimer cette séance ?', msg, 'Supprimer'))) return;
     if (running) endSession();

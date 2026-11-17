@@ -115,8 +115,8 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`cleanIntens('drop-last')`), 'drop-last');
     assert.equal(run(`cleanIntens('toString')`), null);
     // Panel du 07/11 : « top set puis back-off » était du jargon sur l'écran Envoyer et chez l'élève
-    assert.equal(run(`intensLabel('topback')`), '1re série la plus lourde, puis séries allégées');
-    assert.equal(run(`INTENS_PLANS.topback.short`), '1re série la plus lourde, puis allégées');
+    assert.equal(run(`intensLabel('topback')`), '1re série lourde, puis allégées');
+    assert.equal(run(`INTENS_PLANS.topback.short`), '1re lourde, puis allégées');
     assert.ok(Object.values(run('INTENS_PLANS')).every(p => !/top set|back-off/i.test(p.label + p.short)), 'aucun terme anglais hors du guide');
     // Menu ⋯ : une seule entrée (« Dernière série en drop set » faisait doublon) ; rien en cardio
     sameJSON(run(`techMenuActions(${S(ex(2))}).map(a => a.value)`), ['tech-pick']);

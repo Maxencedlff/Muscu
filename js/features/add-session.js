@@ -185,14 +185,14 @@ function renderAddSession() {
         ${hasPrev ? `<button class="btn btn--secondary btn--full add-copy-prev" data-action="add-copy-prev">Reprendre la dernière séance</button>` : ''}
         ${exercises.map(ex => addExerciseBlock(ex.id, ex.name, addPrev[ex.id] || [], false, ex)).join('')}
         ${addExtras.map(({ key, name, measure }) => addExerciseBlock(key, name, [], true, { name, measure })).join('')}
-        ${addProg === FREE && !addExtras.length ? `<p class="add-free-hint">Ajoute les exercices que tu as faits. Ils comptent dans tes progrès, sans toucher à ton programme.</p>` : ''}
+        ${addProg === FREE && !addExtras.length ? `<p class="add-free-hint">Ajoute les exercices faits. Ils comptent dans les progrès, le programme ne change pas.</p>` : ''}
         <button class="session-add-ex-btn" data-action="add-past-ex">
           + Ajouter un exercice
         </button>
         <div class="session-notes-block">
           <div class="session-notes-label">Notes</div>
           <textarea class="session-notes-input" data-action="add-notes-input"
-                    placeholder="Comment s'est passée la séance ? (optionnel)">${esc(addNotes)}</textarea>
+                    placeholder="Comment s'est passée la séance ? (facultatif)">${esc(addNotes)}</textarea>
         </div>
       </div>
     </div>`;
@@ -358,7 +358,7 @@ registerActions({
   'add-other': async () => {
     const choices = addProgChoices();
     const choice = await dialog({ type: 'sheet', title: 'Séance passée',
-      message: 'Une séance d\'un autre programme, ou faite hors programme. Ton programme actif ne change pas.', actions: [
+      message: 'Séance d\'un autre programme ou hors programme. Le programme actif ne change pas.', actions: [
         ...(addProg !== FREE ? [{ label: 'Séance libre', value: FREE, style: 'preferred' }] : []),
         ...choices.map(id => ({ label: id === data.activeProgramme ? `${progMeta(id).name} (actuel)` : progMeta(id).name, value: id })),
         { label: 'Annuler', style: 'cancel' },
@@ -399,7 +399,7 @@ registerActions({
     if (!addSessionInputsValid(dateEl)) return;
 
     const exercises = pastSessionExercises();
-    if (!exercises.length) { showToast('Ajoute au moins un exercice avec poids et reps.'); return; }
+    if (!exercises.length) { showToast('Ajoute un exercice avec charge et reps'); return; }
 
     const wasEdit = !!editSessionId;
     storePastSession(exercises);

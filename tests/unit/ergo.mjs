@@ -214,8 +214,8 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   // ── Échauffement ──
 
   test('échauffement : phrase simple, au nombre réel de séries', () => {
-    assert.equal(run('warmupNoteText(3)'), '3 séries légères pour préparer tes muscles. Elles ne comptent pas dans tes records.');
-    assert.equal(run('warmupNoteText(1)'), '1 série légère pour préparer tes muscles. Elle ne compte pas dans tes records.');
+    assert.equal(run('warmupNoteText(3)'), '3 séries légères pour préparer les muscles. Elles ne comptent pas dans les records.');
+    assert.equal(run('warmupNoteText(1)'), '1 série légère pour préparer les muscles. Elle ne compte pas dans les records.');
   });
 
   // ── Feuille « Ajouter un exercice » ──

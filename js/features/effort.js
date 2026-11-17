@@ -158,7 +158,7 @@ function finishEffort(endAt, held) {
   s.reps = String(Math.max(1, Math.round(held)));
   Native.cancelRestEnd();
   validateSet(ei, si, { restFrom: endAt, prevReps });
-  announce(kind === 'tempo' ? `Terminé, ${s.reps} répétitions` : `${guide ? guide.end : 'Terminé'}, ${fmtSeconds(s.reps)} tenues`);
+  announce(kind === 'tempo' ? `Terminé, ${s.reps} reps` : `${guide ? guide.end : 'Terminé'}, ${fmtSeconds(s.reps)} tenues`);
 }
 
 // Bouton du bas : « Commencer » (passe la préparation ou le changement de côté), « Côté suivant »

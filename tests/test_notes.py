@@ -1,5 +1,5 @@
 """Notes : d'exercice (menu ⋯, lien « Note » au pied de la carte, relue la fois suivante sous le nom), de série (case
-« Avant » de chaque série, aperçu sous la ligne, note de la dernière fois, Historique) et de séance (bilan, remontrée en haut de la même séance). Fiche de la bibliothèque, Effacer, VoiceOver,
+« Avant » de chaque série, aperçu sous la ligne, note de la dernière fois, Historique) et de séance (bilan, remontrée en haut de la même séance). Fiche de la bibliothèque, Supprimer, VoiceOver,
 texte agrandi."""
 import os
 import sys
@@ -65,7 +65,7 @@ def t_notes(bench, eng, dev, theme):
         tap_dialog(page, 'Ajouter une note')
         R.check(page.locator('.ios-dialog__input').get_attribute('maxlength') == '140', f'{t} champ borné à 140 caractères')
         R.check(page.locator('.ios-dialog__input').get_attribute('aria-label') == 'Note', f'{t} champ nommé pour VoiceOver')
-        R.check(page.locator('.ios-dialog__btn', has_text='Effacer').count() == 0, f'{t} pas d\'« Effacer » sans note')
+        R.check(page.locator('.ios-dialog__btn', has_text='Supprimer').count() == 0, f'{t} pas d\'« Supprimer » sans note')
         R.check('Visible par toi seul' in page.locator('.ios-dialog__msg').inner_text(), f'{t} exercice : qui lit la note')
         type_note(page, EX_NOTE)
         shot(page, LOT, f'{t}-1-saisie')
@@ -104,7 +104,7 @@ def t_notes(bench, eng, dev, theme):
         R.check(done.locator('.set-note-prev').inner_text() == 'épaule', f'{t} série validée : note lue sous la ligne')
         done.locator('.set-note-btn').click(); page.wait_for_timeout(300)
         R.check(page.evaluate("editingSet") is None, f'{t} toucher la note ne rouvre pas la série')
-        R.check(page.locator('.ios-dialog__input').input_value() == 'épaule' and page.locator('.ios-dialog__btn', has_text='Effacer').count() == 1, f'{t} alerte préremplie, « Effacer » proposé')
+        R.check(page.locator('.ios-dialog__input').input_value() == 'épaule' and page.locator('.ios-dialog__btn', has_text='Supprimer').count() == 1, f'{t} alerte préremplie, « Supprimer » proposé')
         type_note(page, SET_NOTE)
         tap_dialog(page, 'Enregistrer'); page.wait_for_timeout(200)
         R.check(page.evaluate("activeSession.exercises[1].sets[0].note") == SET_NOTE, f'{t} note de série modifiée')
@@ -194,18 +194,18 @@ def t_notes(bench, eng, dev, theme):
         # Toucher la dernière note : la modifier pour cette séance
         line.click(); page.wait_for_timeout(300)
         R.check(page.locator('.ios-dialog__input').input_value() == EX_NOTE, f'{t} alerte préremplie avec la note')
-        R.check(page.locator('.ios-dialog__btn', has_text='Effacer').count() == 1, f'{t} « Effacer » proposé')
+        R.check(page.locator('.ios-dialog__btn', has_text='Supprimer').count() == 1, f'{t} « Supprimer » proposé')
         type_note(page, 'siège cran 5')
         tap_dialog(page, 'Enregistrer'); page.wait_for_timeout(200)
         R.check(page.evaluate("activeSession.exercises[0].note") == 'siège cran 5', f'{t} note modifiée pour cette séance')
         R.check(page.evaluate("data.history[0].exercises[0].note") == EX_NOTE, f'{t} la séance passée garde sa note')
-        # Effacer : la note de la séance, puis celle de la dernière fois (retirée de sa séance)
+        # Supprimer : la note de la séance, puis celle de la dernière fois (retirée de sa séance)
         page.locator('.ex-card[data-ei="0"] .ex-note').click(); page.wait_for_timeout(300)
-        tap_dialog(page, 'Effacer'); page.wait_for_timeout(200)
-        R.check(page.evaluate("activeSession.exercises[0].note") is None and 'Dernière note' in page.locator('.ex-card[data-ei="0"] .ex-note').inner_text(), f'{t} Effacer : note de la séance retirée, dernière note revenue')
+        tap_dialog(page, 'Supprimer'); page.wait_for_timeout(200)
+        R.check(page.evaluate("activeSession.exercises[0].note") is None and 'Dernière note' in page.locator('.ex-card[data-ei="0"] .ex-note').inner_text(), f'{t} Supprimer : note de la séance retirée, dernière note revenue')
         page.locator('.ex-card[data-ei="0"] .ex-note').click(); page.wait_for_timeout(300)
-        tap_dialog(page, 'Effacer'); page.wait_for_timeout(200)
-        R.check(page.locator('.ex-card[data-ei="0"] .ex-note').count() == 0 and page.evaluate("data.history[0].exercises[0].note") is None, f'{t} Effacer : dernière note retirée de sa séance')
+        tap_dialog(page, 'Supprimer'); page.wait_for_timeout(200)
+        R.check(page.locator('.ex-card[data-ei="0"] .ex-note').count() == 0 and page.evaluate("data.history[0].exercises[0].note") is None, f'{t} Supprimer : dernière note retirée de sa séance')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

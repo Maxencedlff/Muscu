@@ -212,7 +212,7 @@ function machineReviewHtml(e) {
           ${extras}
         </div>` : ''}
         ${pk === 'split' ? `<div class="group-foot num" id="machSplit"></div>` : ''}
-        ${machine.slots.some(x => x.units.includes('level')) ? `<div class="group-foot">Chaque marque a ses niveaux : compare-les sur la même machine.</div>` : ''}
+        ${machine.slots.some(x => x.units.includes('level')) ? `<div class="group-foot">Les niveaux changent d'une marque à l'autre. Compare sur la même machine.</div>` : ''}
       </div>
       <div class="rs__adj">
         <button class="rs__skip rs__done" data-action="mach-save">Enregistrer</button>
