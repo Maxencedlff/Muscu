@@ -300,7 +300,7 @@ export default function ({ test, run, reset, assert, ROOT }) {
 
   test('valeur inhabituelle : faute de frappe signalée, hausses normales et petites charges laissées', () => {
     const u = (set, ref) => run(`unusualSetValue(${JSON.stringify(set)}, ${JSON.stringify({ kind: 'charge', repMax: 12, ...ref })})`);
-    assert.match(u({ reps: '180', weight: '25' }, { prevReps: 10, prevW: 25 }), /180 répétitions/);
+    assert.match(u({ reps: '180', weight: '25' }, { prevReps: 10, prevW: 25 }), /180 reps/);
     assert.equal(u({ reps: '40', weight: '' }, { repMax: 40 }), '', 'crunchs à 40 : haut de fourchette');
     assert.equal(u({ reps: '35', weight: '' }, { doneReps: [35] }), '', 'déjà fait dans la séance');
     assert.match(u({ reps: '10', weight: '275' }, { prevW: 25 }), /d'habitude/);

@@ -103,7 +103,7 @@ function groupProgress(idx, load) {
   });
 }
 function groupTrendTxt(pct) { return pct === null ? 'Pas assez de séances' : pct === 0 ? 'Stable' : `${pctTxt(pct)} de force`; }
-const GROUP_FORCE_HOW = 'Charge max de chaque exercice, de ta première à ta dernière séance des 12 semaines, en moyenne sur les exercices du groupe.';
+const GROUP_FORCE_HOW = 'Moyenne des exercices du groupe. Pour chacun, la charge max de ta première à ta dernière séance sur 12 semaines.';
 // load : la période de la carte Muscles (muscleSpan, js/features/muscles.js), la même pour les deux
 function progGroupCardsHtml(idx, load = muscleLoad(muscleSpan)) {
   const rows = groupProgress(idx, load).map(({ g, n, pct, perWeek }) => {
@@ -122,7 +122,7 @@ function progGroupCardsHtml(idx, load = muscleLoad(muscleSpan)) {
         ${icon('chevron.right', 16)}
       </button>`;
   }).join('');
-  return `<div class="group-title">Tes muscles en 3 mois</div><div class="group mgcs pgrps">${rows}</div>
+  return `<div class="group-title">Muscles en 3 mois</div><div class="group mgcs pgrps">${rows}</div>
     <div class="group-foot">Force : charge max sur 12 semaines. ${load.span === 'month' ? 'Séries : moyenne par semaine sur 4 semaines.' : 'Séries : cette semaine.'}</div>`;
 }
 
@@ -146,7 +146,7 @@ function renderStatsGroup(id) {
         </div>
         <p class="sgrp__how">${GROUP_FORCE_HOW}</p>
         ${rows ? `<div class="group-title">Exercices</div><div class="group">${rows}</div>`
-          : '<div class="group-foot">Fais au moins deux séances d\'un exercice de ce groupe en 3 mois pour voir sa force évoluer.</div>'}
+          : '<div class="group-foot">La force s\'affiche après deux séances d\'un exercice de ce groupe en 3 mois.</div>'}
         <div class="group-title">${weeklyTitle(load.span)}</div>
         <div class="group">
           ${g.muscles.length > 1 ? `<div class="cell sgrp__total"><span class="cell__body"><span class="cell__title" aria-hidden="true">Tout le groupe</span><span class="visually-hidden">Tout le groupe : ${weeklyTxt(gp.perWeek, load.span)}</span></span><span class="cell__value num" aria-hidden="true">${gp.perWeek}</span></div>` : ''}

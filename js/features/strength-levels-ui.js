@@ -27,13 +27,13 @@ function strengthGroupHtml(name) {
   const kg = currentBodyKg();
   if (!kg) {
     return `${title}<div class="group"><button class="cell cell--nav" data-action="set-body-weight">
-      <span class="cell__body"><span class="cell__title">Ajoute ton poids du corps</span>
+      <span class="cell__body"><span class="cell__title">Ajouter ton poids du corps</span>
         <span class="cell__sub">Pour situer ton 1RM estimé</span></span>${icon('chevron.right', 16)}</button></div>`;
   }
   const best = liftBestE1rm(data.history, lift);
   if (!best) {
-    return `${title}<div class="group"><div class="cell"><span class="cell__body"><span class="cell__title">Pas encore de 1RM estimé</span>
-      <span class="cell__sub">Une série de 1 à 12 reps ces 90 derniers jours suffit</span></span></div></div>`;
+    return `${title}<div class="group"><div class="cell"><span class="cell__body"><span class="cell__title">Aucun 1RM estimé</span>
+      <span class="cell__sub">Il faut une série de 1 à 12 reps sur 90 jours</span></span></div></div>`;
   }
   const sex = strengthSex();
   const st = sex && strengthStanding(lift, best.e1rm, kg, sex);
@@ -49,7 +49,7 @@ function strengthGroupHtml(name) {
         <span class="cell__sub num">${fmtNum(ratio, 2)} × ton poids</span></span>${info}</div>
       ${ask}
     </div>
-    ${ask || sex ? '' : '<div class="group-foot">Pas de palier sans sexe indiqué : Réglages › Entraînement › Sexe.</div>'}`;
+    ${ask || sex ? '' : '<div class="group-foot">Indique ton sexe pour voir le palier, dans Réglages › Entraînement › Sexe.</div>'}`;
   }
   const next = st.next ? `${st.next.label} à ${fmtW(st.next.kg)} ${unitLbl()}` : 'Plus haut repère atteint';
   return `${title}
@@ -92,7 +92,7 @@ function strengthSexSettingHtml() {
 registerActions({
   'set-strength-sex': async () => {
     const v = await dialog({ type: 'sheet', title: 'Sexe',
-      message: 'Sert seulement à choisir les repères du niveau de force, hommes ou femmes. Jamais envoyé sur ton compte.',
+      message: 'Sert seulement à choisir les repères hommes ou femmes. Jamais envoyé sur ton compte.',
       actions: [
         { label: 'Homme', value: 'male' },
         { label: 'Femme', value: 'female' },
@@ -105,10 +105,10 @@ registerActions({
   },
   'strength-info': async () => {
     await dialog({ title: 'Niveau de force',
-      message: 'Ton 1RM estimé (meilleure série de ces 90 jours) divisé par ton poids du corps, comparé à des centaines de milliers '
-        + 'de compétiteurs de force athlétique, sans équipement et contrôlés antidopage, à leur première compétition, de ton sexe et '
-        + 'de ta catégorie de poids (données publiques d\'OpenPowerlifting). Intermédiaire : le niveau d\'un pratiquant régulier depuis '
-        + 'quelques années ; Avancé : le compétiteur médian ; Élite : les 10 % les plus forts. C\'est un repère, pas un examen.',
+      message: 'Ton 1RM estimé sur 90 jours est divisé par ton poids du corps. '
+        + 'Il est comparé aux compétiteurs de force athlétique de ton sexe et de ton poids. '
+        + 'Ils sont à leur première compétition, sans équipement et contrôlés antidopage. Source : OpenPowerlifting. '
+        + 'Intermédiaire : pratiquant régulier depuis quelques années. Avancé : compétiteur médian. Élite : les 10 % les plus forts.',
       actions: [{ label: 'OK', value: true, style: 'preferred' }] });
   },
 });

@@ -14,7 +14,7 @@
 //         l'unité est dite par VoiceOver, voir spoken)
 // goal : objectif d'une série sans séance précédente (répétitions : haut de fourchette, voir defaultGoal)
 const MEASURES = {
-  reps:   { label: 'Répétitions', load: () => unitLbl(),       count: 'Reps',     max: 100,  goal: 12, unit: 'reps', spoken: 'répétitions', msg: 'Reps entre 1 et 100' },
+  reps:   { label: 'Reps',        load: () => unitLbl(),       count: 'Reps',     max: 100,  goal: 12, unit: 'reps', spoken: 'répétitions', msg: 'Reps entre 1 et 100' },
   time:   { label: 'Durée',       load: () => `+${unitLbl()}`, count: 'Durée',    max: 3600, goal: 30, unit: 's',    spoken: 'secondes',    msg: 'Durée entre 1 et 3600 secondes' },
   cardio: { label: 'Cardio',      load: () => 'km',            count: 'Durée',    max: 600,  goal: 20, unit: 'min',  spoken: 'minutes',     msg: 'Durée entre 1 et 600 minutes' },
 };
@@ -250,7 +250,7 @@ function loadKind(ex) { return !bodyShare(ex) ? 'charge' : isAssisted(ex) ? 'aid
 function unusualSetValue({ reps, weight }, ref) {
   const r = parseInt(reps) || 0, w = parseFloat(weight) || 0;
   const refReps = Math.max(ref.prevReps || 0, ref.repMax || 12, ...(ref.doneReps || []));
-  if (r > Math.max(30, refReps * 2)) return `${r} répétitions`;
+  if (r > Math.max(30, refReps * 2)) return `${r} reps`;
   if (ref.kind !== 'charge') return '';
   const refW = Math.max(ref.prevW || 0, ref.prW || 0, ...(ref.doneW || []));
   if (refW > 0 && w - refW > Math.max(refW * 0.5, 20)) return `${fmtW(weight)} (d'habitude ${fmtW(refW)})`;

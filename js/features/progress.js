@@ -222,7 +222,7 @@ function statsRecordsHtml() {
 // Progrès sans séance : l'invitation et le geste qui la suit (Entraînement), plutôt qu'un écran éteint à zéro
 function statsStartHtml() {
   return `<div class="group stats-start">
-          <div class="cell stats-start__msg">${icon('chart', 22)}<p class="stats-empty">Fais ta première séance pour voir tes muscles travaillés ici.</p></div>
+          <div class="cell stats-start__msg">${icon('chart', 22)}<p class="stats-empty">Tes muscles travaillés s'affichent après ta première séance.</p></div>
           <button class="cell cell--action" data-action="go-home"><span class="cell__title">Démarrer une séance</span></button>
         </div>`;
 }
@@ -254,7 +254,7 @@ function statsNavGroupHtml(records, { monthCount, yearCount }) {
           </button>
           <button class="cell cell--nav" data-action="go-recaps">
             ${icon('calendar', 22)}
-            <span class="cell__body"><span class="cell__title">Récaps</span><span class="cell__sub">Ta semaine, ton mois, ton année</span></span>
+            <span class="cell__body"><span class="cell__title">Récaps</span><span class="cell__sub">Semaine, mois et année</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
@@ -310,7 +310,7 @@ registerActions({
     navigate('stats-overview');
   },
   'info-1rm': async () => {
-    await dialog({ title: '1RM estimé', message: 'Charge estimée pour une seule rep. Fiable jusqu\'à 12 reps.',
+    await dialog({ title: '1RM estimé', message: 'Charge que tu soulèverais une seule fois, d\'après tes séries. Fiable jusqu\'à 12 reps.',
       actions: [{ label: 'OK', value: true, style: 'preferred' }] });
   },
 });

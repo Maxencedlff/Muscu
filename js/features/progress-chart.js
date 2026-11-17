@@ -161,7 +161,7 @@ function exStatsParts(it, { fiche = false } = {}) {
           ${tp === null ? '' : `<span class="chart-head__trend num ${better > 0 ? 'txt-up' : better < 0 ? 'txt-down' : 'txt-flat'}">${pctTxt(tp)}</span><span class="chart-head__since">${esc(sinceTxt(pts[0].date))}</span>`}
           ${statsMode === '1rm' && !cardio ? `<button class="info-btn" data-action="info-1rm" aria-label="Comment est calculé le 1RM estimé ?">i</button>` : ''}
         </div>
-        ${statsMode === '1rm' && !cardio ? '<p class="chart-help">1RM estimé : la charge max théorique pour 1 rép, d\'après tes séries.</p>' : ''}
+        ${statsMode === '1rm' && !cardio ? '<p class="chart-help">1RM estimé : charge que tu soulèverais une seule fois.</p>' : ''}
         <div class="chart" id="exChart">
           <canvas class="stats-canvas" role="img" aria-label=""></canvas>
           <div class="chart-bubble num" hidden></div>

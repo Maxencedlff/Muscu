@@ -229,7 +229,7 @@ def t_empty(bench, eng, dev, theme):
         tab(page, 2)
         R.check(page.locator('.mcard').count() == 1, f'{t} carte présente sans historique')
         R.check('Aucune séance' in page.locator('.mcard').inner_text(), f'{t} état vide')
-        R.check(page.locator('.stats-empty').inner_text().strip() == 'Fais ta première séance pour voir tes muscles travaillés ici.', f'{t} invitation en tête de Progrès')
+        R.check(page.locator('.stats-empty').inner_text().strip() == 'Tes muscles travaillés s\'affichent après ta première séance.', f'{t} invitation en tête de Progrès')
         R.check(page.locator('.stats .empty-note').count() == 0, f'{t} une seule invitation')
         R.check(all(heat(page, m) == 0 for m in ('chest', 'quads', 'lats')), f'{t} silhouette neutre')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -923,7 +923,7 @@ def t_fiche(bench, eng, dev, theme):
         hist = fiche_tab(page, 'history')
         rows = hist.locator('[data-action="open-history"]')
         R.check(rows.count() >= 1 and ' × ' in rows.first.inner_text() and hist.locator('[data-action="open-stats-ex"]').count() == 1,
-                f'{t} Historique : séances (date, séries kg × reps) et « Voir mes progrès »')
+                f'{t} Historique : séances (date, séries kg × reps) et « Voir les progrès »')
         rec = fiche_tab(page, 'records').inner_text()
         R.check(all(k in rec for k in ['Record', 'Record 1RM est.', 'Meilleures reps', 'Meilleur volume']), f'{t} Records : charge, 1RM, reps, volume')
         fiche_tab(page, 'chart')

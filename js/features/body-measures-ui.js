@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Progrès › Mesures : mensurations et photos de progression (écran, feuilles, actions)
+//  Progrès › Mensurations : mensurations et photos de progression (écran, feuilles, actions)
 // ═══════════════════════════════════════════════════════════
 //
 // Rien sur le serveur : mensurations dans data.bodyMeasures (js/data/body-measures.js, jamais
@@ -11,14 +11,13 @@
 // l'écran Progrès lui-même (l'app s'ouvre en salle), seulement une ligne qui mène ici.
 'use strict';
 
-const BM_PRIVATE = 'Privé : reste sur ton iPhone et dans sa sauvegarde, jamais sur nos serveurs';
+const BM_PRIVATE = 'Elles restent sur ton iPhone et dans sa sauvegarde, jamais sur nos serveurs';
 // Élève d'un coach : « rien n'est montré à ton coach » ne serait pas sûr pour l'écran, qui mène au coffre d'où partent
 // les photos de bilan, même avant que leur état soit relu du serveur (panels de la vague 3 : texte faux à l'arrivée)
 const bmPhotosToCoach = () => !!(account.user && coachRole().hasCoach) && !cphAgeBlocked() && !cphDisabled();
-const BM_SHARED = 'Partagées avec ton coach, qui voit leurs valeurs et leurs dates. Tes amis ne voient rien, et tes photos restent dans ton coffre, sauf celles que tu lui envoies toi-même';
+const BM_SHARED = 'Partagées avec ton coach, qui voit les valeurs et leurs dates. Tes amis ne voient rien. Tes photos restent dans le coffre, sauf celles que tu lui envoies';
 // Mensurations cochées dans Réglages › Partager avec mon coach (js/data/coach-share.js)
 function bmSharedWithCoach() { return !!account.user && coachShareOn('measures'); }
-function bmPrivacyText() { return bmSharedWithCoach() ? BM_SHARED : BM_PRIVATE; }
 // Une mensuration change sur cet appareil : enregistrée, puis renvoyée au coach si la case est cochée
 function bmSaved() { save(); coachShareMeasuresChanged(); render(); }
 
@@ -26,7 +25,7 @@ function bmSaved() { save(); coachShareMeasuresChanged(); render(); }
 function renderBodyMeasuresGroup() {
   const s = bodyMeasureSummary();
   return `
-        <div class="group-title">Mesures</div>
+        <div class="group-title">Mensurations</div>
         <div class="group">
           <button class="cell cell--nav" data-action="go-body-measures">
             ${icon('ruler', 22)}
@@ -37,7 +36,7 @@ function renderBodyMeasuresGroup() {
         </div>`;
 }
 
-// ── Écran Mesures ───────────────────────────────────────────
+// ── Écran Mensurations ───────────────────────────────────────────
 function renderBodyMeasures() {
   const unit = lenUnitLbl();
   const rows = BODY_MEASURES.map(m => {
@@ -55,16 +54,16 @@ function renderBodyMeasures() {
   }).join('');
   return `
     <div class="view body-measures view--grouped">
-      ${navBar({ title: 'Mesures' })}
+      ${navBar({ title: 'Mensurations' })}
       <div class="scr">
         <div class="bm-private">${bmSharedWithCoach() ? `${icon('person.2', 16)}<span>${BM_SHARED}. Pour arrêter : Réglages › Partager avec mon coach.</span>`
-          : `${icon('eye.slash', 16)}<span>${BM_PRIVATE}. ${bmPhotosToCoach() ? 'Tes mesures ne sont montrées à personne ; ton coach ne voit que les photos que tu lui envoies toi-même.' : cphNobodyTxt()}</span>`}</div>
-        <div class="group-title">Mensurations</div>
+          : `${icon('eye.slash', 16)}<span>${BM_PRIVATE}. ${bmPhotosToCoach() ? 'Personne ne voit tes mensurations. Ton coach ne voit que les photos que tu lui envoies toi-même.' : cphNobodyTxt()}</span>`}</div>
+        <div class="group-title">Dernières valeurs</div>
         <div class="group">
           <button class="cell cell--action" data-action="bm-add">${icon('plus', 22)}<span class="cell__title">Ajouter des mesures</span></button>
           ${rows}
         </div>
-        <div class="group-foot">En ${unit === 'in' ? 'pouces, comme tes charges en lbs' : 'centimètres'}. Tes mensurations sont dans l'export de l'app${photosAllowedHere() ? ' ; pas tes photos, trop lourdes' : ''}.</div>
+        <div class="group-foot">En ${unit === 'in' ? 'pouces, comme tes charges en lbs' : 'centimètres'}. L'export de l'app contient les mensurations${photosAllowedHere() ? ', pas les photos' : ''}.</div>
         ${photosEnabled() ? photoVaultCellHtml() : ''}
       </div>
     </div>`;
@@ -81,10 +80,10 @@ async function addMeasuresSheet(keys = BODY_MEASURE_KEYS) {
           placeholder="${last ? fmtLen(last.cm, { plain: true }) : '—'}" aria-label="${bodyMeasureLabel(k)} en ${unit}"><span>${unit}</span></span>
       </label>`;
   }).join('');
-  const res = await sheet({ title: keys.length === 1 ? bodyMeasureLabel(keys[0]) : 'Mesures', confirm: 'OK', focus: keys.length === 1 ? '.bm-in' : null, body: `
+  const res = await sheet({ title: keys.length === 1 ? bodyMeasureLabel(keys[0]) : 'Mensurations', confirm: 'OK', focus: keys.length === 1 ? '.bm-in' : null, body: `
     <div class="date-row bm-date"><label class="date-label" for="bmDate">Date</label><input type="date" id="bmDate" class="date-input" value="${today}" min="2000-01-01" max="${today}"></div>
     <div class="sheet-list">${rows}</div>
-    <p class="mpick__foot">${keys.length > 1 ? 'Laisse vide ce que tu n\'as pas mesuré. ' : ''}Mesure détendu, au même endroit à chaque fois. ${bmPrivacyText()}.</p>`,
+    <p class="mpick__foot">${keys.length > 1 ? 'Laisse vide ce que tu n\'as pas mesuré. ' : ''}Mesure détendu, toujours au même endroit.</p>`,
     onConfirm: panel => {
       const dateIn = $('#bmDate', panel);
       const date = dateInputToTs(dateIn.value);
@@ -143,14 +142,13 @@ function renderBodyMeasure(key) {
         <div class="group">
           <div class="cell"><span class="cell__body"><span class="cell__title">Depuis la première mesure</span>
             <span class="cell__sub">${esc(fmtDate(series[0].date))} · ${fmtLen(series[0].cm)} ${unit}</span></span>
-            <span class="cell__value num">${fmtLenDelta(d.dFirst) || (series.length > 1 ? 'Pareil' : '—')}</span></div>
+            <span class="cell__value num">${fmtLenDelta(d.dFirst) || (series.length > 1 ? 'Stable' : '—')}</span></div>
           <div class="cell"><span class="cell__body"><span class="cell__title">Mesures</span></span><span class="cell__value num">${series.length}</span></div>
         </div>` : `<div class="empty-note">Aucune mesure pour l'instant.</div>`}
         <div class="group">
           <button class="cell cell--action" data-action="bm-add-one" data-key="${key}">${icon('plus', 22)}<span class="cell__title">Ajouter une mesure</span></button>
         </div>
         ${entries ? `<div class="group-title">Historique</div><div class="group">${entries}</div>` : ''}
-        <div class="group-foot">${bmPrivacyText()}.</div>
       </div>
     </div>`;
 }
