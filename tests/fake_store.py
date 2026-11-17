@@ -71,9 +71,11 @@ FAKE_STORE = r"""
         displayPrice: '6,49 €', price: 6.49, currency: 'EUR', period: { unit: 'month', value: 1 }, introEligible: true },
       { id: 'com.mdlf.training.pro.yearly', displayName: 'MDLF Training annuel', description: 'Abonnement annuel',
         displayPrice: '55,00 €', price: 55, currency: 'EUR', period: { unit: 'year', value: 1 }, introEligible: true },
-      // Paliers coach (tarifs du 30/10), mêmes clés : visibles dans l'app pour un coach validé seulement
-      ...[['coach10', 15.99, 134.99, '10 élèves'], ['coach20', 19.99, 169, '20 élèves'], ['coach30', 24.99, 209.99, '30 élèves'],
-          ['coachmax', 29.99, 250, 'illimité']].flatMap(([k, m, y, l]) => [
+      // Paliers coach (grille du 17/11 : 10, 25, 50, 100 élèves), mêmes clés : visibles dans l'app pour un coach validé
+      // seulement. Prix volontairement FICTIFS (les vrais sont dans App Store Connect) : s'ils s'affichent, ils viennent
+      // bien de StoreKit ; annuel ≈ 8,5 mois
+      ...[['coach10', 11.11, 94.4, '10 élèves'], ['coach20', 22.22, 188.8, '25 élèves'], ['coach30', 33.33, 283.3, '50 élèves'],
+          ['coachmax', 44.44, 377.7, '100 élèves']].flatMap(([k, m, y, l]) => [
         { id: `com.mdlf.training.${k}.monthly`, displayName: `Coach ${l}`, description: 'Coach, mensuel',
           displayPrice: m.toFixed(2).replace('.', ',') + ' €', price: m, currency: 'EUR', period: { unit: 'month', value: 1 }, introEligible: true },
         { id: `com.mdlf.training.${k}.yearly`, displayName: `Coach ${l}`, description: 'Coach, annuel',

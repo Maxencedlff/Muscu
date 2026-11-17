@@ -8,6 +8,7 @@
 //  - Réglages › Coach (renderCoachProGroup, appelée par js/features/coach-ui.js) : pas encore coach,
 //    l'entrée de la demande ; coach validé, son code permanent (à partager) et son palier.
 //  - Palier plein (coachTierBannerHtml) : « 10 élèves sur 10 : passe au palier supérieur », mène à
+//    (au plus haut palier, 100 élèves : « Plus de 100 élèves : écris-nous à contact@mdlf.app », sans achat)
 //    l'onglet Coach de l'abonnement avec le palier suivant mis en avant. Élèves au-delà de la formule
 //    (descente de palier, abonnement coach arrêté) : leur accès n'est plus offert, le bandeau le dit.
 //  Tout texte venu du serveur passe par esc(). Rien au pointerdown : actions au clic seulement.
@@ -28,8 +29,16 @@ function coachTierBannerHtml() {
   if (!txt || !paywallOn()) return '';
   // Élèves au-delà de la formule : le palier qui les contient tous ; palier plein : le suivant
   const t = coachPro.tier;
-  const next = t.uncovered > 0 ? planId(planTierFor(t.students).key, 'month')
-    : t.next_product || planId(planTierFor(t.students + 1).key, 'month');
+  const tierFor = n => planTierFor(n) && planId(planTierFor(n).key, 'month');
+  const next = t.uncovered > 0 ? tierFor(t.students) : t.next_product || tierFor(t.students + 1);
+  // Plus de 100 élèves : pas de formule au-dessus, on écrit (bandeau sans achat, ouvre le courriel)
+  if (!next || t.contact) {
+    return `
+        <a class="pay-banner pay-banner--off coach-tier-banner coach-tier-banner--contact" href="mailto:contact@mdlf.app?subject=${encodeURIComponent('MDLF Training : plus de 100 élèves')}">
+          <span class="pay-banner__text">${esc(txt)}</span>
+          <span class="pay-banner__more">Écrire ${icon('chevron.right', 12)}</span>
+        </a>`;
+  }
   return `
         <button class="pay-banner pay-banner--off coach-tier-banner" data-action="pay-open" data-reason="offer" data-tab="coach" data-id="${esc(next)}">
           <span class="pay-banner__text">${esc(txt)}</span>

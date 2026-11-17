@@ -9,20 +9,24 @@
 //    les élèves d'un coach ne paient rien (l'abonnement coach les comprend, docs/PAYANT_V1.md) : il n'y a
 //    plus d'offre élève ni de prix écrit dans l'app.
 //  - « soit 8,5 mois » est CALCULÉ (prix annuel / prix mensuel lus chez StoreKit, au demi-mois près).
-//  - Paliers coach : limite d'élèves suivis (10, 20, 30, illimité). Le serveur fait foi
+//  - Paliers coach (grille du 17/11/2026) : limite d'élèves suivis 10, 25, 50, 100 ; au-delà de 100, pas
+//    d'achat : « Plus de 100 élèves : écris-nous » (PLAN_COACH_CONTACT). Le serveur fait foi
 //    (coach_tier_state, refus tier_full) ; ici on ne fait que choisir quoi montrer.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 const PLAN_PREFIX = 'com.mdlf.training.';
-// Particulier, puis les paliers coach du plus petit au plus grand. limit null : élèves illimités.
+// Particulier (limit null : sans objet), puis les paliers coach du plus petit au plus grand.
 const PLAN_TIERS = Object.freeze([
   Object.freeze({ key: 'pro',      coach: false, limit: null, label: 'Particulier' }),
   Object.freeze({ key: 'coach10',  coach: true,  limit: 10,   label: '10 élèves' }),
-  Object.freeze({ key: 'coach20',  coach: true,  limit: 20,   label: '20 élèves' }),
-  Object.freeze({ key: 'coach30',  coach: true,  limit: 30,   label: '30 élèves' }),
-  Object.freeze({ key: 'coachmax', coach: true,  limit: null, label: 'Élèves illimités' }),
+  Object.freeze({ key: 'coach20',  coach: true,  limit: 25,   label: '25 élèves' }),
+  Object.freeze({ key: 'coach30',  coach: true,  limit: 50,   label: '50 élèves' }),
+  Object.freeze({ key: 'coachmax', coach: true,  limit: 100,  label: '100 élèves' }),
 ]);
+// Au-delà du plus haut palier : pas de formule, on écrit (même phrase dans l'app et le contrat)
+const PLAN_COACH_MAX = 100;
+const PLAN_COACH_CONTACT = 'Plus de 100 élèves : écris-nous à contact@mdlf.app';
 const PLAN_COACH_TIERS = PLAN_TIERS.filter(t => t.coach);
 const planId = (key, period) => `${PLAN_PREFIX}${key}.${period === 'year' ? 'yearly' : 'monthly'}`;
 // Tous les identifiants, dans l'ordre d'affichage (le même que ios/App/App/StorePlugin.swift)
@@ -38,10 +42,10 @@ function planOf(id) {
   return { tier: PLAN_TIERS.find(t => t.key === key), period: per === 'yearly' ? 'year' : 'month' };
 }
 function planIsCoach(id) { return !!planOf(id)?.tier.coach; }
-// Palier coach conseillé pour n élèves : le plus petit qui les contient
+// Palier coach conseillé pour n élèves : le plus petit qui les contient ; null au-delà de 100 (on écrit)
 function planTierFor(students) {
   const n = Number.isInteger(students) && students > 0 ? students : 0;
-  return PLAN_COACH_TIERS.find(t => t.limit === null || n <= t.limit);
+  return PLAN_COACH_TIERS.find(t => n <= t.limit) || null;
 }
 // Palier coach suivant (montée de palier), null au plafond ou hors coach
 function planNextTier(id) {

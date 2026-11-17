@@ -319,6 +319,7 @@ select.coach-req-field__input:invalid { color: var(--label2); }
 .coach-req-foot { margin-top: 12px; }
 .coach-req-reason { color: var(--label); }
 .pay-banner.coach-tier-banner { margin-bottom: 16px; background: var(--cell); }   /* « Voir » en bleu lisible (contraste 4,5:1) */
+.coach-tier-banner--contact { text-decoration: none; -webkit-tap-highlight-color: transparent; }   /* lien mailto : même allure que le bandeau */
 .coach-code-cell .coach-code { letter-spacing: 1px; }
 
 /* ── Progression des élèves (js/features/coach-progress-ui.js) ──

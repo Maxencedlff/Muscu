@@ -37,8 +37,8 @@ do $$ begin
   if (select count(*) from unnest(array['pro', 'coach10', 'coach20', 'coach30', 'coachmax']) t, unnest(array['monthly', 'yearly']) p
        where private.access_product_kind('com.mdlf.training.' || t || '.' || p) = 'sub') <> 10 then raise 'produits reconnus'; end if;
   if private.access_product_kind('com.mdlf.training.access.gift') is not null then raise 'accès offert revenu'; end if;
-  if private.coach_product_limit('com.mdlf.training.coach20.yearly') <> 20 or private.coach_product_limit('com.mdlf.training.pro.monthly') is not null
-     or private.coach_product_limit('com.mdlf.training.coachmax.monthly') <> 2147483647 then raise 'paliers'; end if;
+  if private.coach_product_limit('com.mdlf.training.coach20.yearly') <> 25 or private.coach_product_limit('com.mdlf.training.pro.monthly') is not null
+     or private.coach_product_limit('com.mdlf.training.coachmax.monthly') <> 100 then raise 'paliers (grille du 17/11)'; end if;
 end $$;
 
 -- ── Demande du rôle coach : envoi, saisie, refus d'un autre compte ──
@@ -168,10 +168,10 @@ begin
   perform pg_temp.tlogin(pg_temp.tu('10'));
   st := public.coach_tier_state();
   if not (st ->> 'full')::boolean or (st ->> 'students')::int <> 10 then raise 'palier plein : %', st; end if;
-  -- Montée au palier 20 (même groupe Apple : une nouvelle transaction de la même souscription)
+  -- Montée au palier 20, 25 élèves depuis la grille du 17/11 (même groupe Apple : une nouvelle transaction de la même souscription)
   if pg_temp.tsrv(format('select public.srv_access_event(%L, %L, %L, false, now() + interval ''1 second'')', 'tx-coach10',
        'com.mdlf.training.coach20.monthly', now() + interval '30 days')) is distinct from 'ok' then raise 'montée de palier'; end if;
-  if (public.coach_tier_state() ->> 'limit')::int <> 20 then raise 'palier 20 : %', public.coach_tier_state(); end if;
+  if (public.coach_tier_state() ->> 'limit')::int <> 25 then raise 'palier 20 : %', public.coach_tier_state(); end if;
   perform pg_temp.tlogin(pg_temp.tn(11));
   perform public.coach_join(c);
   -- Descente au palier 10 : les 11 restent, aucun 12e
@@ -181,7 +181,7 @@ begin
   if pg_temp.terr(format('select public.coach_join(%L)', c)) is distinct from 'tier_full' then raise '12e après la descente'; end if;
   reset role;
   if (select count(*) from public.coach_links where coach_id = pg_temp.tu('10')) <> 11 then raise 'élèves gardés après la descente'; end if;
-  -- Illimité (coachmax) : au-delà de 30 et de l'ancienne limite de 50
+  -- Palier max (coachmax, 100 élèves depuis la grille du 17/11) : au-delà de 30 et de l'ancienne limite de 50
   set role authenticated;
   if pg_temp.tsrv(format('select public.srv_access_event(%L, %L, %L, false, now() + interval ''3 seconds'')', 'tx-coach10',
        'com.mdlf.training.coachmax.yearly', now() + interval '365 days')) is distinct from 'ok' then raise 'palier illimité'; end if;
@@ -191,7 +191,8 @@ begin
   end loop;
   perform pg_temp.tlogin(pg_temp.tu('10'));
   st := public.coach_tier_state();
-  if st -> 'limit' <> 'null'::jsonb or (st ->> 'students')::int <> 31 or (st ->> 'full')::boolean or st -> 'next_product' <> 'null'::jsonb then raise 'illimité : %', st; end if;
+  if (st ->> 'limit')::int <> 100 or (st ->> 'students')::int <> 31 or (st ->> 'full')::boolean or st -> 'next_product' <> 'null'::jsonb
+     or (st ->> 'contact')::boolean then raise 'palier max : %', st; end if;
 end $$;
 reset role;
 

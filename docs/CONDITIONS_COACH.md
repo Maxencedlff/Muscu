@@ -26,10 +26,12 @@ TTC, vendus par Apple) :
 
 | Formule | Par mois | Par an | Élèves suivis |
 |---|---|---|---|
-| Coach 10 | 15,99 € | 134,99 € | jusqu'à 10 |
-| Coach 20 | 19,99 € | 169,00 € | jusqu'à 20 |
-| Coach 30 | 24,99 € | 209,99 € | jusqu'à 30 |
-| Coach illimité | 29,99 € | 250,00 € | sans limite |
+| Coach 10 | 19,99 € | 169,00 € | jusqu'à 10 |
+| Coach 25 | 39,99 € | 339,00 € | jusqu'à 25 |
+| Coach 50 | 69,99 € | 589,00 € | jusqu'à 50 |
+| Coach 100 | 119,99 € | 999,00 € | jusqu'à 100 |
+
+Plus de 100 élèves : écris-nous à contact@mdlf.app (pas de formule dans l'app).
 
 - 3 mois gratuits au premier abonnement, offerts par Apple (un seul essai par identifiant Apple, même si tu
   as déjà eu l'essai en particulier : pas de second essai).

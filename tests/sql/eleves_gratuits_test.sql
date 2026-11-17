@@ -105,7 +105,7 @@ begin
   if pg_temp.gsrv(format('select public.srv_access_event(%L, %L, %L, false, now() + interval ''1 second'')', 'tx-g-coach',
        'com.mdlf.training.coach10.monthly', now() + interval '30 days')) <> 'ok' then raise 'descente de palier'; end if;
   reset role;
-  if (select count(*) from private.coach_tier_log where coach_id = pg_temp.gu('a0') and old_limit = 20) <> 1 then raise 'descente non notée'; end if;
+  if (select count(*) from private.coach_tier_log where coach_id = pg_temp.gu('a0') and old_limit = private.coach_product_limit('com.mdlf.training.coach20.monthly')) <> 1 then raise 'descente non notée'; end if;
   set role authenticated;
   if pg_temp.gacc(pg_temp.ge(10)) -> 'coach_cover' ->> 'state' <> 'active' then raise '10e élève, palier 10'; end if;
   st := pg_temp.gacc(pg_temp.ge(11));

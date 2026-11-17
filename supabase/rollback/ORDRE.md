@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −12 | `20261117010000_grille_coach_down.sql` (grille coach du 17/11 : retour aux limites 10, 20, 30, illimité ; remettre aussi les prix dans App Store Connect) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et des élèves offerts attendent la grille du 17/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
 | −11 | `20261117000000_photo_profil_down.sql` (vider d'abord le compartiment `profile-photos` par l'API Storage : il refuse sinon ; redéployer ensuite `coach-photos-purge` dans sa version d'avant, qui ne connaît pas ce compartiment) | rien | oui (vérifié) |
 | −10 | `20261116030000_eleves_gratuits_down.sql` (élèves offerts par leur coach : retour à l'élève payant et au code d'offre −25 %) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et du payant attendent la règle du 16/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
 | −9 | `20261116020000_notifications_seances_eleves_down.sql` | rien | oui (vérifié) |
@@ -59,6 +60,7 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
 5. `20261101000000_parrainage_payant.sql`
 6. `20261116030000_eleves_gratuits.sql` (élèves offerts par leur coach, décision du 16/11/2026, docs/PAYANT_V1.md) : APRÈS 1 à 3 (il réécrit `access_json` des tarifs) ; collée avant, elle échoue dans sa transaction sans rien changer (`prod_order_test.sh`, étape 6). Aucune fonction Edge à redéployer pour elle.
 7. `20261117000000_photo_profil.sql` (photo de profil, docs/PHOTO_PROFIL.md : indépendante, passe aussi seule sur la production de départ, étape 7 ; avec `coach-photos-purge` redéployée, qui purge aussi ce compartiment, et `delete-account` ; avant l'OTA qui montre la cellule). Renommée le 17/11 (ancien nom `20261116000000_photo_profil.sql`) pour garder l'ordre des dates égal à l'ordre de la production.
+8. `20261117010000_grille_coach.sql` (grille coach du 17/11/2026 : 10, 25, 50, 100 élèves, docs/PAYANT_V1.md) : APRÈS 6 (il réécrit `coach_tier_state` des élèves offerts). Aucune fonction Edge à redéployer. Les prix se changent dans App Store Connect, à part.
 
 Les fonctions Edge du payant (`verify-purchase`, `appstore-notify`, puis `coach-request-alert`) se déploient juste APRÈS 1 à 3 : elles envoient `p_intro` et `p_environment`, que la base du 28/10 ne connaît pas (docs/PAYANT_V1.md, « Mise en production »).
 
@@ -66,7 +68,7 @@ Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.
 
 Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque (et Strava).
 
-Pour défaire en production : l'ordre inverse de cette liste (7 → 1), avant tout retour arrière plus ancien (tableau du haut).
+Pour défaire en production : l'ordre inverse de cette liste (8 → 1), avant tout retour arrière plus ancien (tableau du haut).
 
 ## Ce qui est mis de côté, pas effacé
 

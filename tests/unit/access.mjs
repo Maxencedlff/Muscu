@@ -612,14 +612,16 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(run(`[planOf('com.mdlf.training.coach20.yearly').tier.key, planOf('com.mdlf.training.coach20.yearly').period,
       planOf('com.mdlf.training.pro.monthly').tier.coach, planOf('com.mdlf.training.access.gift'), planIsCoach('com.mdlf.training.coachmax.monthly')]`),
       ['coach20', 'year', false, null, true]);
-    // Palier conseillé : le plus petit qui contient les élèves ; au-delà de 30, illimité
-    sameJSON(run(`[0, 1, 10, 11, 20, 21, 30, 31, 500].map(n => planTierFor(n).key)`),
-      ['coach10', 'coach10', 'coach10', 'coach20', 'coach20', 'coach30', 'coach30', 'coachmax', 'coachmax']);
+    // Palier conseillé : le plus petit qui contient les élèves (grille du 17/11 : 10, 25, 50, 100) ; au-delà de 100, aucun
+    sameJSON(run(`[0, 1, 10, 11, 25, 26, 50, 51, 100, 101, 500].map(n => planTierFor(n)?.key ?? null)`),
+      ['coach10', 'coach10', 'coach10', 'coach20', 'coach20', 'coach30', 'coach30', 'coachmax', 'coachmax', null, null]);
+    sameJSON(run(`PLAN_COACH_TIERS.map(t => [t.limit, t.label])`), [[10, '10 élèves'], [25, '25 élèves'], [50, '50 élèves'], [100, '100 élèves']]);
+    assert.equal(run('PLAN_COACH_CONTACT'), 'Plus de 100 élèves : écris-nous à contact@mdlf.app');
     sameJSON(run(`['com.mdlf.training.coach10.monthly', 'com.mdlf.training.coach30.yearly', 'com.mdlf.training.coachmax.monthly', 'com.mdlf.training.pro.monthly']
       .map(id => planNextTier(id)?.key ?? null)`), ['coach20', 'coachmax', null, 'coach10']);
-    // Prix lus chez StoreKit (nombres) : 55 / 6,49 = 8,47 → 8,5 mois ; 134,99 / 15,99 = 8,44 → 8,5
-    sameJSON(run(`[planYearMonths({ amount: 6.49 }, { amount: 55 }), planYearMonths({ amount: 15.99 }, { amount: 134.99 }),
-      planYearMonths({ amount: 29.99 }, { amount: 250 }), planYearMonths({ amount: 7.77 }, { amount: 77.77 }),
+    // Prix lus chez StoreKit (nombres, fictifs ici) : 55 / 6,49 = 8,47 → 8,5 mois ; 94,4 / 11,11 = 8,50 → 8,5
+    sameJSON(run(`[planYearMonths({ amount: 6.49 }, { amount: 55 }), planYearMonths({ amount: 11.11 }, { amount: 94.4 }),
+      planYearMonths({ amount: 44.44 }, { amount: 377.7 }), planYearMonths({ amount: 7.77 }, { amount: 77.77 }),
       planYearMonths(null, { amount: 55 }), planYearMonths({ amount: 0 }, { amount: 55 }), planYearMonths({ amount: 5 }, { amount: 70 })]`),
       [8.5, 8.5, 8.5, 10, null, null, null]);
     assert.equal(run('planMonthsText(8.5)'), '8,5 mois');
@@ -647,7 +649,14 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(t.full, true);
     assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 10 }))`),
       '10 élèves sur 10 : passe au palier supérieur.');
-    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, limit: null, students: 99 }))`), null, 'illimité : jamais plein');
+    // Plus haut palier (100 élèves) plein, ou plus de 100 élèves : aucune formule au-dessus, on écrit (grille du 17/11)
+    const contact = 'Plus de 100 élèves : écris-nous à contact@mdlf.app.';
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coachmax.monthly', limit: 100, students: 100, contact: true }))`), contact);
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coachmax.yearly', limit: 100, students: 100 }))`), contact, 'contact déduit (serveur sans la clé)');
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coachmax.monthly', limit: 100, students: 99 }))`), null, '99 sur 100 : rien');
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach30.monthly', limit: 50, students: 104, uncovered: 54 }))`), contact, 'plus de 100 élèves au palier 50');
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach20.monthly', limit: 25, students: 25 }))`),
+      '25 élèves sur 25 : passe au palier supérieur.');
     // Élèves au-delà de la formule (16/11/2026) : leur accès n'est plus offert, le coach est invité à monter
     assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 13, uncovered: 3 }))`),
       '3 élèves au-delà de ta formule : leur accès n\'est plus offert. Passe au palier supérieur.');

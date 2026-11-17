@@ -283,7 +283,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(r[0].length, 10, 'aucune formule lue : l\'écran d\'abonnement serait vide');
     assert.equal(r[0][0][1], '6,49 €', 'le prix affiché doit être displayPrice, pas le nombre');
     assert.equal(r[0][1][1], '55,00 €');
-    assert.equal(r[0][2][1], '15,99 €', 'palier coach 10 élèves');
+    assert.equal(r[0][2][1], '11,11 €', 'palier coach 10 élèves (prix fictif du faux StoreKit)');
     assert.ok(r[0][0][2], 'le nom du produit (displayName) n\'est pas lu');
     sameJSON(r[1], { ok: true }, 'restauration : le serveur n\'a rien reçu');
     assert.equal(r[2], 1, 'le droit en cours (abonnement) doit partir');

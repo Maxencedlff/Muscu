@@ -1,8 +1,8 @@
 # Payant V1 : contrat entre l'app, le serveur et Apple
 
-Décisions de Maxence (26/10 au 28/10/2026), dont le **modèle B** voté le 28/10 au soir, puis **tarifs et rôle coach du 30/10/2026** (section « Tarifs du 30/10 », qui remplace les prix ci-dessous), puis **élèves offerts par leur coach du 16/11/2026** (section « Élèves offerts par leur coach », qui remplace la règle des élèves) :
+Décisions de Maxence (26/10 au 28/10/2026), dont le **modèle B** voté le 28/10 au soir, puis **tarifs et rôle coach du 30/10/2026** (section « Tarifs du 30/10 », qui remplace les prix ci-dessous), puis **élèves offerts par leur coach du 16/11/2026** (section « Élèves offerts par leur coach », qui remplace la règle des élèves), puis **grille coach du 17/11/2026** (section « Grille coach du 17/11 », qui remplace les paliers et prix coach) :
 - **essai gratuit de 3 mois géré par Apple** : c'est une **offre de lancement** (« 3 mois gratuits ») configurée dans App Store Connect sur les deux abonnements. Apple exige un moyen de paiement et garantit **un seul essai par identifiant Apple et par groupe d'abonnements**. Le serveur ne tient plus d'essai maison ;
-- puis **tout est payant** (pas de version gratuite limitée) : particulier **6,49 €/mois** et **55,00 €/an** ; coach de **15,99 €** à **29,99 €/mois** selon le nombre d'élèves (prix du 30/10, voir « Tarifs du 30/10 ») ;
+- puis **tout est payant** (pas de version gratuite limitée) : particulier **6,49 €/mois** et **55,00 €/an** ; coach de **19,99 €** à **119,99 €/mois** selon le nombre d'élèves, 10, 25, 50 ou 100 (grille du 17/11, voir « Grille coach du 17/11 ») ;
 - sans abonnement : le profil et l'historique restent **consultables**, l'**export** reste possible ; on ne peut plus **enregistrer de nouvelle séance** ;
 - **compte obligatoire pour enregistrer une séance quand le verrou est allumé** (vote 8 contre 2), connexion avec Apple en premier ; verrou éteint, rien ne change ; Historique, Progrès et export restent toujours ouverts, avec ou sans compte ;
 - **« Accès offert » d'Apple supprimé** (10 voix sur 10) : le non consommable `com.mdlf.training.access.gift` n'est plus reconnu nulle part ; Maxence supprime le produit dans App Store Connect ;
@@ -17,21 +17,28 @@ Décisions de Maxence (26/10 au 28/10/2026), dont le **modèle B** voté le 28/1
 ## Produits App Store Connect
 Groupe d'abonnement `MDLF Training Acces` (id **22520671**), app id **6823561962**. Tous dans le **même groupe** : un seul abonnement actif à la fois par identifiant Apple, et **un seul essai gratuit par identifiant Apple pour tout le groupe** (un particulier qui a déjà eu son essai n'en a pas un second en passant coach).
 
+Prix France de la **grille du 17/11/2026** ; les prix des autres pays sont réglés dans App Store Connect par un autre agent le 17/11 (équivalences d'Apple) : les relire là, ce tableau ne les recopie plus pour le coach.
+
+| Produit | Identifiant | ASC id | Niveau | France | Élèves |
+|---|---|---|---|---|---|
+| Coach 100 élèves mensuel | `com.mdlf.training.coachmax.monthly` | 6829035229 | 1 | 119,99 € | 100 |
+| Coach 100 élèves annuel | `com.mdlf.training.coachmax.yearly` | 6829035364 | 2 | 999,00 € | 100 |
+| Coach 50 élèves mensuel | `com.mdlf.training.coach30.monthly` | 6829035217 | 3 | 69,99 € | 50 |
+| Coach 50 élèves annuel | `com.mdlf.training.coach30.yearly` | 6829035393 | 4 | 589,00 € | 50 |
+| Coach 25 élèves mensuel | `com.mdlf.training.coach20.monthly` | 6829035210 | 5 | 39,99 € | 25 |
+| Coach 25 élèves annuel | `com.mdlf.training.coach20.yearly` | 6829035275 | 6 | 339,00 € | 25 |
+| Coach 10 élèves mensuel | `com.mdlf.training.coach10.monthly` | 6829035180 | 7 | 19,99 € | 10 |
+| Coach 10 élèves annuel | `com.mdlf.training.coach10.yearly` | 6829035208 | 8 | 169,00 € | 10 |
+
+Particulier (inchangé, prix des 5 pays) :
+
 | Produit | Identifiant | ASC id | Niveau | France | BEL | CHE | CAN | USA |
 |---|---|---|---|---|---|---|---|---|
-| Coach illimité mensuel | `com.mdlf.training.coachmax.monthly` | 6829035229 | 1 | 29,99 € | 29,99 € | 25,00 CHF | 34,99 $ CA | 24,99 $ |
-| Coach illimité annuel | `com.mdlf.training.coachmax.yearly` | 6829035364 | 2 | 250,00 € | 250,00 € | 200,00 CHF | 299,00 $ CA | 229,00 $ |
-| Coach 30 élèves mensuel | `com.mdlf.training.coach30.monthly` | 6829035217 | 3 | 24,99 € | 24,99 € | 20,00 CHF | 29,99 $ CA | 22,99 $ |
-| Coach 30 élèves annuel | `com.mdlf.training.coach30.yearly` | 6829035393 | 4 | 209,99 € | 209,99 € | 180,00 CHF | 249,99 $ CA | 199,99 $ |
-| Coach 20 élèves mensuel | `com.mdlf.training.coach20.monthly` | 6829035210 | 5 | 19,99 € | 19,99 € | 15,00 CHF | 24,99 $ CA | 17,99 $ |
-| Coach 20 élèves annuel | `com.mdlf.training.coach20.yearly` | 6829035275 | 6 | 169,00 € | 169,00 € | 120,00 CHF | 199,00 $ CA | 149,00 $ |
-| Coach 10 élèves mensuel | `com.mdlf.training.coach10.monthly` | 6829035180 | 7 | 15,99 € | 15,99 € | 14,00 CHF | 19,99 $ CA | 14,99 $ |
-| Coach 10 élèves annuel | `com.mdlf.training.coach10.yearly` | 6829035208 | 8 | 134,99 € | 134,99 € | 100,00 CHF | 149,99 $ CA | 119,99 $ |
 | MDLF Training mensuel | `com.mdlf.training.pro.monthly` | 6827767578 | 9 | 6,49 € | 6,49 € | 5,00 CHF | 7,99 $ CA | 5,99 $ |
 | MDLF Training annuel | `com.mdlf.training.pro.yearly` | 6827767660 | 10 | 55,00 € | 55,00 € | 40,00 CHF | 69,00 $ CA | 49,00 $ |
 
 - **Essai** : offre de lancement « 3 mois gratuits » (FREE_TRIAL, THREE_MONTHS) sur **les dix** abonnements, dans les 5 pays.
-- **Pays** : FRA, BEL, CHE, CAN, USA (disponibilité de chaque produit, `availableInNewTerritories` vrai). Prix France choisis par Maxence ; les 4 autres pays = **équivalence automatique d'Apple** (`equalizations` du prix France), sauf **CHE coachmax mensuel** relevé à **25,00 CHF** (l'équivalence donnait 20,00 CHF, le même prix que coach30). Ces équivalences sont parfois basses (CHE, USA) : à revoir par Maxence s'il veut des prix ronds par pays. Les autres pays qu'Apple ouvrirait plus tard prendront aussi l'équivalence automatique.
+- **Pays** : FRA, BEL, CHE, CAN, USA (disponibilité de chaque produit, `availableInNewTerritories` vrai). Prix France choisis par Maxence ; les 4 autres pays = **équivalence automatique d'Apple** (`equalizations` du prix France) ; l'ancien relèvement de **CHE coachmax mensuel** (25,00 CHF, grille du 30/10) est à revoir avec la grille du 17/11. Ces équivalences sont parfois basses (CHE, USA) : à revoir par Maxence s'il veut des prix ronds par pays. Les autres pays qu'Apple ouvrirait plus tard prendront aussi l'équivalence automatique.
 - **Niveaux** (ordre du groupe, 1 = le plus haut) : chaque palier coach est au-dessus du palier inférieur, et tout le coach est au-dessus du particulier. Passer de coach10 à coach20 (ou de particulier à coach) est donc une **montée** : immédiate chez Apple, avec remboursement au prorata de la période en cours ; une **descente** prend effet au renouvellement suivant. Mensuel et annuel d'un même palier sont à deux niveaux voisins (l'API n'en met pas deux au même niveau) : passer du mensuel à l'annuel d'un même palier est une descente, appliquée au renouvellement.
 - ~~**Offre élève**~~ (**retirée le 16/11/2026**, à désactiver par Maxence : voir « Élèves offerts par leur coach ») : code d'offre « Eleve de coach -25 pct 12 mois » (id `9a963bbc-d2c8-4478-8ba3-6bc74abc067d`) sur `pro.monthly` : nouveaux abonnés seulement (`NEW`), remplace l'essai (`REPLACE_INTRO_OFFERS`), payé chaque mois (`PAY_AS_YOU_GO`, 1 mois × 12) à **4,89 €** (BEL 4,89 €, CHE 3,00 CHF, CAN 4,99 $ CA, USA 3,99 $), puis prix normal. Voir « Élève : −25 % pendant 12 mois ».
 - Il manque à chaque produit la **capture de revue** (état `MISSING_METADATA`) : à faire par Maxence.
@@ -140,6 +147,26 @@ Fabriqués par Maxence en SQL, utilisés **dans l'app** (Réglages › Abonnemen
   - **Seuls `rate_limited` et `not_found`** (aucun utilisateur) sont levés en `P0001`. `rate_limited` : plus de **10 essais par heure et par compte, réussis OU ratés**.
   - `uses` est incrémenté sous verrou de ligne : deux appareils qui utilisent le même code en même temps ne dépassent jamais `max_uses`.
 
+## Grille coach du 17/11 (décision de Maxence, migration `20261117010000_grille_coach.sql`)
+
+Remplace les paliers et les prix coach du 30/10 (section suivante, gardée pour l'historique). Les **identifiants des produits ne changent pas** (`coach20` compte désormais 25 élèves, `coach30` 50, `coachmax` 100) ; les prix se règlent dans App Store Connect et sont **lus chez StoreKit** par l'app (aucun prix écrit dans le code ni dans les tests : le faux StoreKit des tests a des prix fictifs).
+
+| Formule | Élèves | Mensuel | Annuel | Touché par mois (France) |
+|---|---|---|---|---|
+| Coach 10 | jusqu'à 10 | 19,99 € | 169,00 € | ~14,16 € |
+| Coach 25 (`coach20`) | jusqu'à 25 | 39,99 € | 339,00 € | ~28,33 € |
+| Coach 50 (`coach30`) | jusqu'à 50 | 69,99 € | 589,00 € | ~49,58 € |
+| Coach 100 (`coachmax`) | jusqu'à 100 | 119,99 € | 999,00 € | ~85,00 € |
+| Plus de 100 élèves | pas de formule : « Plus de 100 élèves : écris-nous à contact@mdlf.app » (sans achat) | | | |
+
+« Touché » : prix TTC moins la TVA de 20 % (collectée par Apple), puis 15 % d'Apple (Small Business Program) : 19,99 / 1,2 × 0,85 = 14,16. Annuel ≈ 8,5 mois (169 / 19,99 = 8,45 ; 339 / 39,99 = 8,48 ; 589 / 69,99 = 8,42 ; 999 / 119,99 = 8,33 : l'app affiche « soit 8,5 mois », calculé au demi-mois près).
+
+- `private.coach_product_limit` : 10, 25, 50, 100 (plus de palier illimité). `private.coach_student_limit` ne change pas (verrou éteint : au moins 50 ; allumé : le palier payé) : elle lit `coach_product_limit`.
+- `coach_tier_state()` → `{ is_coach, paywall_on, product_id, limit (toujours un nombre), students, full, uncovered, next_product (coach20 sous 25, coach30 sous 50, coachmax sous 100, null au palier 100), contact }` : `contact` vrai quand le coach a le palier 100 et 100 élèves ou plus. L'app affiche alors « Plus de 100 élèves : écris-nous à contact@mdlf.app » (bandeau qui ouvre un e-mail, phrase sous les formules coach), jamais un achat ; le 101e élève est refusé (`tier_full`).
+- Un coach qui suit déjà plus d'élèves que sa nouvelle limite les garde tous ; les élèves au-delà ne sont plus offerts (`over_limit`, sans grâce : la formule du coach n'a pas changé). Personne n'a d'abonnement coach en production au 17/11 : aucun cas réel.
+- Retour arrière : `supabase/rollback/20261117010000_grille_coach_down.sql` (remet 10, 20, 30, illimité ; les prix se remettent à part dans App Store Connect). Tests : `tests/sql/grille_coach_test.sql`.
+- App ancienne (avant cette mise à jour) sur ce serveur : libellés « 20 élèves », « 30 élèves », « Élèves illimités » faux tant que l'OTA n'est pas reçue ; verrou éteint, l'écran des formules coach ne s'affiche pas. App nouvelle sur un serveur sans cette migration : `contact` déduit (palier `coachmax` et 100 élèves), le reste suit les limites du serveur.
+
 ## Tarifs du 30/10 (décision de Maxence, migration `20261030000000_payant_tarifs.sql`)
 
 ### Grille
@@ -175,7 +202,7 @@ Pour être coach il faut **vraiment** l'être : encadrer contre rémunération e
 - `coach_code_norm` accepte 8 ou 12 caractères ; saisie souple (majuscules, espaces et tirets ignorés : `ABCD-EFGH-JKLM`).
 
 ### Paliers
-- `private.coach_student_limit(coach)` : **0** si le compte n'est pas coach ; **verrou éteint** : au moins **50** (comportement d'avant, TestFlight) ; **verrou allumé** : le palier de l'abonnement coach **en cours** (10, 20, 30, illimité pour coachmax), **0 sans abonnement coach** (un coach validé doit s'abonner pour accueillir des élèves). L'ancienne limite fixe de 50 (`team_full`) disparaît.
+- `private.coach_student_limit(coach)` : **0** si le compte n'est pas coach ; **verrou éteint** : au moins **50** (comportement d'avant, TestFlight) ; **verrou allumé** : le palier de l'abonnement coach **en cours** (10, 20, 30, illimité pour coachmax ; **10, 25, 50, 100 depuis la grille du 17/11**), **0 sans abonnement coach** (un coach validé doit s'abonner pour accueillir des élèves). L'ancienne limite fixe de 50 (`team_full`) disparaît.
 - `coach_preview` et `coach_join` refusent **`tier_full`** quand l'équipe a atteint la limite : l'app dit à l'élève que son coach doit **passer au palier supérieur**. Vérifié sous le verrou par coach de `coach_join` (deux adhésions simultanées ne dépassent pas).
 - **Descente de palier** (ou fin de l'abonnement coach) : les élèves déjà là **restent**, seul l'ajout est bloqué.
 - `coach_tier_state()` → `{ is_coach, paywall_on, product_id, limit (null = illimité), students, full, next_product }` : `next_product` est le mensuel du palier suivant (`coach10` sans abonnement coach, null en illimité). L'app montre « 10 élèves sur 10 : passe au palier supérieur » et mène à ce produit.
@@ -215,7 +242,7 @@ Pour être coach il faut **vraiment** l'être : encadrer contre rémunération e
 « Les élèves ne paient pas, ce sont les coachs qui paient un forfait élève. » Remplace l'offre élève du 30/10. Retour arrière : `supabase/rollback/20261116030000_eleves_gratuits_down.sql`. Tests : `tests/sql/eleves_gratuits_test.sql`.
 
 ### Règle (serveur, `private.coach_cover`, lue par `private.access_json`)
-- Un élève a l'**accès complet sans payer** (statut `coach_team`, `can_write` vrai) quand il est lié à un coach (`coach_links`) qui a **toujours le rôle**, un **abonnement coach en cours** (palier 10, 20, 30 ou illimité), et que l'élève est **dans la limite du palier** : les élèves sont rangés par date d'arrivée chez ce coach (`coach_links.created_at`, puis `student_id`), les N premiers sont offerts.
+- Un élève a l'**accès complet sans payer** (statut `coach_team`, `can_write` vrai) quand il est lié à un coach (`coach_links`) qui a **toujours le rôle**, un **abonnement coach en cours** (palier 10, 25, 50 ou 100 élèves depuis la grille du 17/11), et que l'élève est **dans la limite du palier** : les élèves sont rangés par date d'arrivée chez ce coach (`coach_links.created_at`, puis `student_id`), les N premiers sont offerts.
 - **Délai de grâce : 7 jours** (`private.coach_cover_grace()`), quand l'offre s'arrête : fin ou remboursement de l'abonnement coach (7 jours après la fin), **descente de palier** (7 jours après le changement, pour les élèves que l'ancien palier couvrait : journal `private.coach_tier_log`, rempli par le déclencheur `entitlement_claims_tier_log`, une souscription Apple changeant de produit sur place ; purgé après 30 jours), **rôle retiré** par l'administrateur (7 jours après `coach_requests.decided_at`). Pendant la grâce : `coach_team`, `until` = fin de la grâce. Ensuite l'élève retombe sur la règle normale : **essai gratuit d'Apple** (il n'a jamais acheté, Apple le lui accorde encore) ou abonnement. Rien n'est supprimé : historique, progrès, export.
 - **Au-delà du palier** (après la grâce) : l'élève n'est **pas** offert et **jamais facturé en silence** (rien n'est débité sans un achat qu'il confirme chez Apple) ; il voit un message clair, et le coach est invité à monter de palier (`coach_tier_state().uncovered`). L'ajout d'un élève au-delà du palier reste refusé (`tier_full`, inchangé). Un élève offert qui part libère sa place : le suivant entre dans le palier.
 - **Le coach** : rien ne change pour lui (son abonnement coach lui donne l'accès complet).

@@ -44,7 +44,8 @@ function cleanCoachRequest(raw) {
     is_coach: r.is_coach === true,
   };
 }
-// coach_tier_state() nettoyé. limit null : élèves illimités. product_id : formule coach en cours.
+// coach_tier_state() nettoyé. limit null : inconnue. product_id : formule coach en cours. contact : plus haut palier
+// plein (100 élèves), aucune formule au-dessus (clé du serveur depuis la grille du 17/11, déduite sinon).
 function cleanCoachTier(raw) {
   const r = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const n = v => (Number.isInteger(v) && v >= 0 ? v : null);
@@ -54,11 +55,14 @@ function cleanCoachTier(raw) {
   // uncovered : élèves que la formule ne couvre pas (au-delà du palier, ou tous sans abonnement coach)
   return { is_coach: r.is_coach === true, paywall_on: r.paywall_on === true, product_id: product, limit, students,
     full: r.full === true || (limit !== null && students >= limit), next_product: next,
-    uncovered: Math.min(n(r.uncovered) ?? 0, students) };
+    uncovered: Math.min(n(r.uncovered) ?? 0, students),
+    contact: r.contact === true || (planOf(product)?.tier.key === 'coachmax' && students >= PLAN_COACH_MAX) };
 }
 // Des élèves ne sont plus offerts (au-delà du palier, ou sans abonnement coach) : le coach est invité à
 // monter de palier. Sinon le palier est plein : « 10 élèves sur 10 : passe au palier supérieur ». null sinon.
 function coachTierFullText(tier) {
+  // Plus haut palier plein, ou plus de 100 élèves : aucune formule au-dessus
+  if (tier?.is_coach && (tier.contact || (tier.uncovered > 0 && tier.students > PLAN_COACH_MAX))) return `${PLAN_COACH_CONTACT}.`;
   if (tier?.is_coach && tier.uncovered > 0) {
     const who = tier.uncovered > 1 ? `${tier.uncovered} élèves` : '1 élève';
     return tier.product_id

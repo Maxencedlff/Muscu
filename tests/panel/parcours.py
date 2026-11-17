@@ -1560,8 +1560,9 @@ def p_abonnement_coach(r):
     r.connecter('max')
     r.raccourci("""async () => { const me = __sb.meId(); __sb.makeCoach(me); __sb.setTier(me, 'com.mdlf.training.coach10.monthly');
         for (let i = 0; i < 12; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + (i + 1), social: false }), Date.now() - (30 - i) * 86400000);
+        __st.subscribe('com.mdlf.training.coach10.monthly', 30, {});
         await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); access.loadedAt = 0; await accessRefresh(); render(); }""",
-                'max coach validé, abonné au palier 10 élèves, 12 élèves')
+                'max coach validé, abonné au palier 10 élèves (achat simulé), 12 élèves')
     cle = 'Choisir son forfait coach'
     with r.etape('reglages-abonnement', 'Réglages › Abonnement du coach', cle=cle):
         _abonnement(r)
@@ -1572,7 +1573,7 @@ def p_abonnement_coach(r):
         r.onglet('friends', 'Coach')
         r.raccourci("navigate('coach-students')", 'liste complète des élèves')
         r.attendre('.coach-tier-banner', 'bandeau du palier')
-    with r.etape('palier-conseille', 'Palier 20 élèves conseillé', cle='Voir les élèves non couverts'):
+    with r.etape('palier-conseille', 'Palier 25 élèves conseillé', cle='Voir les élèves non couverts'):
         r.toucher('.coach-tier-banner', 'bandeau du palier')
         r.attendre('.pay-view', 'écran d\'abonnement')
 

@@ -264,7 +264,7 @@ function payProHtml(list) {
         <div class="pay-plans">${pro.map(p => payPlanHtml(p, { months: payYearMonths(list, p) })).join('')}</div>${payTermsHtml(pro)}${payLegalHtml()}`;
 }
 
-// Paliers coach, réservés à un coach validé : 4 formules pour la période choisie, nombre d'élèves suivis,
+// Paliers coach, réservés à un coach validé : 4 formules (10, 25, 50, 100 élèves) pour la période choisie, nombre d'élèves suivis,
 // palier conseillé (celui qui les contient, ou celui demandé par le bandeau « passe au palier
 // supérieur »), formule en cours marquée « Ta formule ».
 function payCoachHtml(list, pre) {
@@ -289,7 +289,10 @@ function payCoachHtml(list, pre) {
     return payPlanHtml(p, { label: t.label, current: current === p.id, tag: t === wanted && current !== p.id ? 'Conseillé' : '',
       months: payYearMonths(list, p) });
   }).join('');
-  return `${count}${seg}<div class="pay-plans">${plans}</div>${payTermsHtml(shown)}${payLegalHtml()}`;
+  // Plus de 100 élèves (grille du 17/11/2026) : aucune formule au-dessus du palier 100, on écrit
+  const contact = students >= PLAN_COACH_MAX || tier?.contact
+    ? `<p class="pay-note pay-coach-contact">${esc(PLAN_COACH_CONTACT)}.</p>` : '';
+  return `${count}${seg}<div class="pay-plans">${plans}</div>${contact}${payTermsHtml(shown)}${payLegalHtml()}`;
 }
 
 function payMissingHtml() {

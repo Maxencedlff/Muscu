@@ -1009,7 +1009,7 @@ def t_tarifs(bench, eng, dev, theme):
         pl = plans_text(page)
         R.check(len(pl) == 2 and '6,49 € par mois' in pl[0] and '55,00 € par an' in pl[1] and 'soit 8,5 mois' in pl[1]
                 and 'soit' not in pl[0], f'{t} particulier : mensuel, annuel « soit 8,5 mois » {pl}')
-        R.check(page.locator('.pay-tabs').count() == 0 and '15,99' not in txt and 'élèves' not in ' '.join(pl),
+        R.check(page.locator('.pay-tabs').count() == 0 and '11,11' not in txt and 'élèves' not in ' '.join(pl),
                 f'{t} pas coach : aucun palier coach visible')
         R.check('Tu es coach ?' in txt and 'Tu es coach\u202f?' in typo_raw(page, "document.querySelector('.pay-view').innerText"),
                 f'{t} pas coach : lien vers la demande (espace fine insécable avant « ? »)')
@@ -1026,16 +1026,16 @@ def t_tarifs(bench, eng, dev, theme):
         txt = paywall(page, 'coach')
         pl = plans_text(page)
         R.check(page.locator('.pay-tabs .segmented__btn').count() == 2 and len(pl) == 4
-                and '15,99 € par mois' in pl[0] and '10 élèves' in pl[0] and 'Conseillé' in pl[0]
-                and '29,99 € par mois' in pl[3] and 'illimités' in pl[3], f'{t} coach : 4 paliers mensuels {pl}')
+                and '11,11 € par mois' in pl[0] and '10 élèves' in pl[0] and 'Conseillé' in pl[0]
+                and '44,44 € par mois' in pl[3] and '100 élèves' in pl[3] and 'illimit' not in ' '.join(pl), f'{t} coach : 4 paliers mensuels {pl}')
         R.check('Tu suis 0 élève' in txt and 'ton propre accès complet' in txt, f'{t} coach : élèves suivis, accès compris')
-        R.check('3 mois gratuits' in pl[0] and 'Essai gratuit de 3 mois, puis 15,99 € par mois' in txt, f'{t} coach : essai de 3 mois, mentions')
+        R.check('3 mois gratuits' in pl[0] and 'Essai gratuit de 3 mois, puis 11,11 € par mois' in txt, f'{t} coach : essai de 3 mois, mentions')
         layout(page, t, 'abonnement coach')
         shot(page, LOT, f'21-tarifs-coach-{t}')
         page.click('[data-action="pay-period"][data-period="year"]')
         page.wait_for_timeout(300)
         pl = plans_text(page)
-        R.check(len(pl) == 4 and '134,99 € par an' in pl[0] and all('soit 8,5 mois' in x for x in pl), f'{t} coach annuel : « soit 8,5 mois » {pl}')
+        R.check(len(pl) == 4 and '94,40 € par an' in pl[0] and all('soit 8,5 mois' in x for x in pl), f'{t} coach annuel : « soit 8,5 mois » {pl}')
         page.click('[data-action="pay-period"][data-period="month"]')
         page.wait_for_timeout(200)
         # Onglet Particulier toujours là pour un coach
@@ -1054,8 +1054,8 @@ def t_tarifs(bench, eng, dev, theme):
         b.click()
         page.wait_for_timeout(700)
         pl = plans_text(page)
-        R.check(page.evaluate('currentView()') == 'paywall' and 'Ta formule' in pl[0] and 'Conseillé' in pl[1] and '20 élèves' in pl[1],
-                f'{t} montée de palier : 20 élèves conseillé, 10 élèves « Ta formule » {pl}')
+        R.check(page.evaluate('currentView()') == 'paywall' and 'Ta formule' in pl[0] and 'Conseillé' in pl[1] and '25 élèves' in pl[1],
+                f'{t} montée de palier : 25 élèves conseillé, 10 élèves « Ta formule » {pl}')
         R.check(page.locator(f'[data-action="pay-buy"][data-id="{C10}"]').is_disabled(), f'{t} formule en cours : pas rachetable')
         # Achat du palier suivant : même groupe Apple, accès complet
         page.click('[data-action="pay-buy"][data-id="com.mdlf.training.coach20.monthly"]')
@@ -1131,8 +1131,21 @@ def t_tarifs(bench, eng, dev, theme):
         b.click()
         page.wait_for_timeout(700)
         pl = plans_text(page)
-        R.check(any('Conseillé' in x and '20 élèves' in x for x in pl), f'{t} coach au-delà du palier : 20 élèves conseillé {pl}')
+        R.check(any('Conseillé' in x and '25 élèves' in x for x in pl), f'{t} coach au-delà du palier : 25 élèves conseillé {pl}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+        # Grille du 17/11 : 100 élèves au plus haut palier → « Plus de 100 élèves : écris-nous », sans achat
+        page.evaluate("""async (p) => { const me = __sb.meId(); __sb.setTier(me, p);
+            for (let i = 12; i < 100; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
+            await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }""", 'com.mdlf.training.coachmax.yearly')
+        page.evaluate("navigate('coach-students')")
+        page.wait_for_timeout(700)
+        b = page.locator('.coach-tier-banner')
+        R.check(b.count() == 1 and 'Plus de 100 élèves : écris-nous à contact@mdlf.app' in b.inner_text()
+                and (b.get_attribute('href') or '').startswith('mailto:contact@mdlf.app'), f'{t} 100 élèves : écrire, pas d\'achat')
+        txt = paywall(page, 'coach')
+        R.check('Plus de 100 élèves : écris-nous à contact@mdlf.app' in txt, f'{t} 100 élèves : phrase sur l\'écran coach')
+        shot(page, LOT, f'26-coach-100-eleves-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS (100 élèves) {page.errors}')
 
     # 5. Verrou éteint (TestFlight) : rien d'achetable, ni paliers coach, ni rien d'offert affiché
     with bench.page(eng, dev, theme) as page:

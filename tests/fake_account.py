@@ -637,11 +637,11 @@ FAKE_ACCOUNT = r"""
   sb.rejectCoach = (id, reason) => { if (co.requests[id]) Object.assign(co.requests[id], { status: 'rejected', reason, decided_at: new Date(now()).toISOString() }); };
   // Formule coach en cours chez Apple (abonnement vérifié par le serveur) : sa limite d'élèves
   sb.setTier = (id, product) => { co.tierProduct[id] = product; };
-  const TIER_LIMIT = { coach10: 10, coach20: 20, coach30: 30, coachmax: null };
+  const TIER_LIMIT = { coach10: 10, coach20: 25, coach30: 50, coachmax: 100 };   // grille du 17/11 (20261117010000_grille_coach.sql)
   const TIER_ORDER = ['coach10', 'coach20', 'coach30', 'coachmax'];
   const tierKey = product => { const m = /^com\.mdlf\.training\.(coach\w+)\.(monthly|yearly)$/.exec(product || ''); return m && m[1] in TIER_LIMIT ? m[1] : null; };
   // Limite d'élèves : verrou allumé, celle de la formule coach (0 sans formule) ; éteint, 50 comme avant
-  // sauf palier plus haut. null : illimité
+  // sauf palier plus haut
   const limitOf = coachId => {
     const k = tierKey(co.tierProduct[coachId]);
     const lim = k ? TIER_LIMIT[k] : 0;
@@ -1087,7 +1087,9 @@ FAKE_ACCOUNT = r"""
       return { is_coach: true, paywall_on: !!(window.__st && __st.paywallOn), product_id: k ? co.tierProduct[me] : null, limit: lim, students: n,
         full: lim !== null && n >= lim, next_product: next ? `com.mdlf.training.${next}.monthly` : null,
         // Élèves que la formule payée ne couvre pas (16/11/2026 : leur accès n'est plus offert)
-        uncovered: Math.max(n - (k === 'coachmax' ? Infinity : k ? Number(k.slice(5)) : 0), 0) };
+        uncovered: Math.max(n - (k ? TIER_LIMIT[k] : 0), 0),
+        // Plus haut palier plein : aucune formule au-dessus, l'app propose d'écrire (grille du 17/11)
+        contact: k === 'coachmax' && n >= 100 };
     },
     coach_my_code: me => (co.coachAt[me] ? { code: co.permCode[me], created_at: new Date(co.coachAt[me]).toISOString() } : pgErr('not_coach')),
     coach_revoke_invite: (me, { code }) => { co.invites = co.invites.filter(i => !(i.coach === me && i.code === code)); return null; },
