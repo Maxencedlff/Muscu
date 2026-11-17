@@ -121,10 +121,10 @@ const ONB_STEPS = {
       <p class="onb__label" id="onbBodies">Quelle silhouette te ressemble&nbsp;? Les muscles travaillés sont en couleur.</p>
       <div class="onb__bodies" role="group" aria-labelledby="onbBodies">${onbBodiesHtml(programmeMuscleLevels(id))}</div>
       <div class="group onb__group">${programmeSessionsHtml(id)}</div>
+      <button class="auth__skip onb__others" data-action="onb-others">Voir les autres programmes</button>
       <div class="onb__actions">
         <button class="btn btn--primary auth__primary" data-action="onb-start">Commencer</button>
         <button class="auth__skip onb__custom" data-action="onb-custom">Ajuster à mon temps et mon matériel</button>
-        <button class="auth__skip" data-action="onb-others">Voir les autres programmes</button>
       </div>`;
   },
 };
