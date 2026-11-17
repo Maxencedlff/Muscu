@@ -37,7 +37,7 @@ function effortSheetHtml() {
         </svg>
         <div class="rs__center">
           <div class="rs__time num" role="timer" aria-live="off" id="effortTime"></div>
-          <div class="rs__resume rs__resume--pair"><span id="effortSub"></span><span>${effortStepTxt(ex, e)}</span></div>
+          <div class="rs__resume rs__resume--pair"><span id="effortSub"></span>${effortStepHtml(ex, e)}</div>
         </div>
       </div>
       <div class="rs__adj">
@@ -49,10 +49,11 @@ function effortSheetHtml() {
 }
 
 // « Série 2 sur 3 » ; maintien guidé (vacuum) : « Maintien 2 sur 5 · 20 s »
-function effortStepTxt(ex, e) {
+// « Maintien 1 sur 5 » et « 15 s » sur deux lignes : en une seule, la ligne débordait sur l'anneau (panel 17/11)
+function effortStepHtml(ex, e) {
   const n = setNoun(ex);
-  const goal = holdGuide(ex) && e.target ? ` · ${fmtSeconds(e.target)}` : '';
-  return `${n[0].toUpperCase()}${n.slice(1)} ${e.si + 1} sur ${ex.sets.length}${goal}`;
+  const step = `${n[0].toUpperCase()}${n.slice(1)} ${e.si + 1} sur ${ex.sets.length}`;
+  return `<span>${esc(step)}</span>${holdGuide(ex) && e.target ? `<span>${esc(fmtSeconds(e.target))}</span>` : ''}`;
 }
 
 function updateEffortUI() {

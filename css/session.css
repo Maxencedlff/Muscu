@@ -361,6 +361,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* Chrono d'effort : consigne et « Série 2 sur 3 » dans un seul bloc, l'une sous l'autre ; en texte agrandi, le bloc passe
    sous l'anneau (screens.css) sans que les deux lignes, placées au même endroit, se recouvrent */
 .rs__resume--pair { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.rs--effort .rs__resume { max-width: 140px; }   /* reste dans la partie large du cercle, sans toucher l'anneau */
 /* Annuler en ligne (sessionUndo, js/features/session.js) : dans la colonne « Avant » de la série, ou en ligne au-dessus de
    la carte de l'exercice ; prend sa place, ne recouvre rien */
 .set-undo {
