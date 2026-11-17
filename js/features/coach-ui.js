@@ -1230,7 +1230,7 @@ function renderCoachSendMany(uid, progId) {
       ${navBar({ title: 'Plusieurs élèves', large: false })}
       <div class="scr">
         <h1 class="scr-title">${esc(progMeta(progId).name)}</h1>
-        <p class="scr-sub">Les consignes de l'écran Envoyer. Pour la charge, chaque élève reçoit celle que tu lui as prescrite la dernière fois.</p>
+        <p class="scr-sub">Mêmes consignes que pour ${esc(personName(coachStudent(uid)))}. Charge : la dernière que tu as prescrite à chaque élève.</p>
         ${all.length >= COACH_SEARCH_FROM ? `<div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="coachManySearch" class="search social-search__input" placeholder="Rechercher un élève" aria-label="Rechercher un élève par son pseudo"
             autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(m.q)}"></div>` : ''}
         <div class="group">
