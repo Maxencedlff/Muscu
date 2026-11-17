@@ -94,8 +94,8 @@ def t_reps_fixes(bench, eng, dev, theme):
         page.evaluate("data.programmes.ppl.exercises.pull.push({ id: 'neuf', name: 'Pull-over poulie', sets: 4, repMax: 12, repFixed: true }); save()")
         R.check(page.evaluate("exerciseTarget('pull', data.programmes.ppl.exercises.pull.at(-1)).text") == f'4{NB}×{NB}12', f'{t} accueil : jamais fait, « 4 × 12 » au programme')
 
-        # Séance : reps d'avant ramenées à 12, « 4 × 12 » sur la carte ; tout à 12 la dernière fois : + 2,5 kg posés
-        # d'office, toujours 12 reps, comme l'objectif (panel « yeux neufs » du 16/11 : plus de puce à toucher)
+        # Séance : reps d'avant ramenées à 12, « 4 × 12 » sur la carte ; tout à 12 la dernière fois : rien n'est monté
+        # d'office (règle du 17/11), la puce ↑ propose + 2,5 kg, toujours 12 reps
         page.evaluate("""() => {
             const h = data.history.find(x => x.category === 'pull' && (x.programme || 'ppl') === 'ppl' && x.exercises.some(e => e.name === 'Rowing haltère unilatéral'));
             h.exercises.find(e => e.name === 'Rowing haltère unilatéral').sets.forEach(s => { s.reps = '13'; });
@@ -106,12 +106,15 @@ def t_reps_fixes(bench, eng, dev, theme):
         page.wait_for_selector('.view.session')
         page.wait_for_timeout(200)
         reps = page.evaluate('activeSession.exercises[0].sets.filter(s => !s.warmup).map(s => s.reps)')
-        R.check(all(r == '12' for r in reps), f'{t} séance : reps d\'avant (13) ramenées à 12, toujours 12 après la hausse {reps}')
+        R.check(all(r == '12' for r in reps), f'{t} séance : reps d\'avant (13) ramenées à 12 {reps}')
         card = page.locator('.ex-card[data-ei="0"]').first
         R.check(f'4{NB}×{NB}12' in card.inner_text(), f'{t} séance : « 4 × 12 » sur la carte')
-        R.check(card.locator('[data-action="bump-weight"]').count() == 0, f'{t} séance : hausse déjà posée, pas de puce')
         weights = page.evaluate('activeSession.exercises[0].sets.filter(s => !s.warmup).map(s => [s.weight, s.prev.weight])')
-        R.check(len({w for w, _ in weights}) == 1 and all(abs(float(w) - float(p) - 2.5) < 1e-6 for w, p in weights), f'{t} charge augmentée sur toutes les séries {weights}')
+        R.check(all(w == p for w, p in weights), f'{t} cases à la charge de la dernière fois {weights}')
+        R.check(card.locator('[data-action="bump-weight"]').count() == 1, f'{t} séance : la puce ↑ propose la hausse')
+        card.locator('[data-action="bump-weight"]').click(); page.wait_for_timeout(300)
+        weights = page.evaluate('activeSession.exercises[0].sets.filter(s => !s.warmup).map(s => [s.weight, s.prev.weight, s.reps])')
+        R.check(len({w for w, _, _ in weights}) == 1 and all(abs(float(w) - float(p) - 2.5) < 1e-6 and r == '12' for w, p, r in weights), f'{t} puce touchée : charge augmentée sur toutes les séries, toujours 12 reps {weights}')
         page.evaluate("document.querySelectorAll('.toast').forEach(e => e.remove())")   # message de l'étape « 1 rep refusée »
         shot(page, LOT, f'03-seance-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:3]}')

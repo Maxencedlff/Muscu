@@ -48,6 +48,9 @@ def t_seance(bench, eng, dev, theme):
         r = page.locator('[data-action="set-reps"][data-ei="0"][data-si="0"]')
         prev_r = page.evaluate('activeSession.exercises[0].sets[0].prev.reps')
         R.check(r.input_value() == prev_r, f'{t} 1re série pré-remplie avec la dernière fois ({r.input_value()} / {prev_r})')
+        # La série qui bat la dernière fois (volume, record) : l'objectif de l'accueil tapé à la main
+        page.evaluate("""(() => { const ex = activeSession.exercises[0], g = exerciseGoal(activeSession.category, sessExData(ex), activeSession.programme).goal;
+            ex.sets[0].weight = String(g.w); ex.sets[0].reps = String(g.r); render(); })()""")
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
         # 5. Volume en clair
         d = page.locator('.ex-card[data-ei="0"] .ex-vol__delta')
