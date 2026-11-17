@@ -117,6 +117,7 @@ const SCRIPTS = [
   'js/features/watch.js',
   'js/features/home-widget.js',
   'js/features/siri.js',
+  'js/features/nutrition-ui.js',   // carte Nutrition de l'accueil (nutritionHomeCard)
 ];
 
 // ── Environnement simulé ────────────────────────────────────
@@ -135,6 +136,8 @@ const toasts = [];
 const sandbox = {
   console,
   AbortController, setTimeout, clearTimeout,   // vérification des mises à jour à chaud
+  SCREENS: new Map(),     // écrans déclarés par js/features/nutrition-ui.js (routeur hors de ce contexte)
+  setInterval: () => 0,   // passage de minuit de Nutrition (js/features/nutrition-ui.js) : jamais lancé ici
   atob,                                        // lecture des jetons du compte (jwtPayload)
   btoa, TextEncoder, TextDecoder, Blob, crypto: globalThis.crypto,   // coffre à photos (js/data/photo-vault.js)
   localStorage: new MemoryStorage(),

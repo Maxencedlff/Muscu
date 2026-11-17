@@ -520,9 +520,12 @@ function nutritionHomeCard() {
   const plan = dietActivePlan(data);
   if (!plan) return card;
   const day = dietDayKey(), pr = dietDayProgress(data, data.dietActive, day);
-  // Plan sans aucun aliment et rien de noté : rien à suivre aujourd'hui (pas de « 0 sur 0 kcal »). Jour vide ou repas
-  // retirés : la carte reste (le repère du plan, ce qu'on a noté)
-  if (!pr.meals.some(x => x.meal.items.length || x.extras.length)) return card;
+  // Plan sans aucun aliment et rien de noté : la carte seulement avec un objectif de calories (« 0 sur 2 800 kcal » :
+  // repas qui changent chaque jour, on suit ses calories, demande de Maxence du 17/11) ; sans objectif, rien à suivre
+  // (pas de « 0 sur 0 kcal »). Jour vide ou repas retirés : la carte reste (le repère du plan, ce qu'on a noté)
+  if (!pr.meals.some(x => x.meal.items.length || x.extras.length) && !(pr.goal.kcal > 0)) return card;
+  // Aucun aliment prévu dans le plan : ses repas se remplissent au fil du jour, comme un jour vide
+  const noFood = !pr.meals.some(x => x.meal.items.length);
   const next = pr.next;
   const hide = data.dietHideNumbers === true;
   const head = hide ? (pr.nMeals ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : esc(dietStatusText(pr))) : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
@@ -531,12 +534,12 @@ function nutritionHomeCard() {
   const { shown, more } = dietHomeMeals(pr);
   // Repas sans aliment prévu ni noté (jour vide) : pas de « 0 kcal », mais « à noter » (le repas attend une saisie)
   const empty = x => !x.live.length && !x.extras.length;
-  const kcalOf = x => (empty(x) ? (pr.blank ? '<span class="diet-home__mkcal">à noter</span>' : '')
+  const kcalOf = x => (empty(x) ? (pr.blank || noFood ? '<span class="diet-home__mkcal">à noter</span>' : '')
     : hide ? '' : `<span class="diet-home__mkcal num">${dietN(x.macros.kcal)}\u00a0kcal</span>`);
-  // Jour vide sans rien de noté (son propre plan commence vide) : une invite, la même phrase que l'écran Nutrition
-  const blankNothing = pr.blank && pr.meals.every(empty);
+  // Jour vide, ou plan sans aliment prévu, sans rien de noté : une invite, la même phrase que l'écran Nutrition
+  const blankNothing = (pr.blank || noFood) && pr.meals.every(empty);
   const rows = blankNothing ? `
-        <div class="diet-home__meal diet-home__empty" aria-hidden="true"><span class="diet-home__mtext"><span class="diet-home__mname">${dietStatusText(pr)}</span><span class="diet-home__add">Ajouter</span></span></div>` : shown.map(x => {
+        <div class="diet-home__meal diet-home__empty" aria-hidden="true"><span class="diet-home__mtext"><span class="diet-home__mname">${dietStatusText(pr) || 'Rien de noté aujourd\'hui'}</span><span class="diet-home__add">Ajouter</span></span></div>` : shown.map(x => {
     const isNext = next?.meal.id === x.meal.id;
     const state = x.done ? 'done' : isNext ? 'next' : 'todo';
     return `
@@ -549,7 +552,7 @@ function nutritionHomeCard() {
   // VoiceOver : le bouton du haut dit tout (plan, calories, chaque repas) ; les lignes sont cachées, sauf le bouton à cocher
   const spokenMeals = pr.meals.filter(x => x.meal.items.length || x.extras.length)
     .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide || (!x.live.length && !x.extras.length) ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
-  const spoken = `Nutrition, ${plan.name} : ${hide ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${dietProgressFinished(pr) ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${blankNothing ? `${dietStatusText(pr)}. Ajouter` : `${spokenMeals}. Ouvrir`}`;
+  const spoken = `Nutrition, ${plan.name} : ${hide ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${dietProgressFinished(pr) ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${blankNothing ? `${dietStatusText(pr) || 'Rien de noté aujourd\'hui'}. Ajouter` : `${spokenMeals}. Ouvrir`}`;
   return `${card}
     <section class="home-card diet-home${dietProgressFinished(pr) ? ' diet-home--complete' : ''}">
       <button class="diet-home__open" data-action="go-nutrition" aria-label="${esc(spoken)}">

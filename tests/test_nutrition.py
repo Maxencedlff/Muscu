@@ -1675,5 +1675,33 @@ def t_repas_gestion(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides, t_repas_hier, t_objectifs, t_repas_types, t_balayage, t_changer_jour, t_repas_gestion],
+def t_objectif_sans_aliment(bench, eng, dev, theme):
+    """Demande de Maxence du 17/11 : plan avec objectifs mais sans aucun aliment prévu (ses repas changent chaque jour).
+    La carte Nutrition reste sur l'accueil : « 0 sur 2 800 kcal », l'anneau et l'invite « Rien de noté… · Ajouter »."""
+    t = tag(dev, theme) + '-objectif-seul'
+    d = ppl_v2_today(now_ms=NOW)
+    d['dietPlans'] = {'d_var01': {'name': 'Repas variables', 'targets': {'kcal': 2800, 'p': 150},
+                                  'meals': [{'id': 'm1', 'name': 'Petit-déjeuner', 'items': []}, {'id': 'm2', 'name': 'Déjeuner', 'items': []},
+                                            {'id': 'm3', 'name': 'Dîner', 'items': []}]}}
+    d['dietActive'] = 'd_var01'
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, json.dumps(d, ensure_ascii=False))
+        card = page.locator('.diet-home')
+        R.check(card.count() == 1, f'{t} accueil : carte Nutrition affichée')
+        txt = nb(page.inner_text('.diet-home')) if card.count() else ''
+        R.check('0 sur 2 800 kcal' in txt and page.locator('.diet-home__ring svg').count() == 1, f'{t} carte : « 0 sur 2 800 kcal » et l\'anneau ({txt!r})')
+        R.check(page.locator('.diet-home__empty').count() == 1 and 'Ajouter' in txt and page.locator('.diet-home__mkcal').count() == 0,
+                f'{t} carte : l\'invite, aucun repas à « 0 kcal »')
+        lbl = page.get_attribute('.diet-home__open', 'aria-label') or ''
+        R.check(nb(lbl).startswith('Nutrition, Repas variables : 0 kilocalories sur 2 800') and lbl.endswith('Ajouter'), f'{t} VoiceOver : {lbl!r}')
+        R.check(small_targets(page, '.diet-home button') == [] and no_hscroll(page), f'{t} carte : 44 pt, pas de défilement de côté')
+        card.scroll_into_view_if_needed()
+        shot(page, LOT, f'objectif-seul-accueil-{t}')
+        page.click('.diet-home__open')
+        page.wait_for_selector('.nutrition-view .diet-sum')
+        R.check('sur 2 800 kcal' in nb(page.inner_text('.diet-sum')), f'{t} Nutrition : objectif repris')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites, t_jour_et_retirer, t_vague4, t_repas_vides, t_repas_hier, t_objectifs, t_repas_types, t_balayage, t_changer_jour, t_repas_gestion, t_objectif_sans_aliment],
          once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier, t_minuit, t_vague4_six_repas, t_vague4_plein])

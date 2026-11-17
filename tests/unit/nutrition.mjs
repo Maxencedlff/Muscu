@@ -1062,4 +1062,26 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run(`dietEmptyDaysFor(data, 'b')`), true, 'choix « vides » respecté');
   });
 
+  test('accueil : plan avec objectif sans aucun aliment prévu, la carte Nutrition reste (« 0 sur 2 800 kcal » et l\'invite)', () => {
+    reset(); loadDb();
+    const plan = meals => `data.dietPlans = { d_g: { name: 'Repas variables', targets: { kcal: 2800, p: 150 }, meals: ${JSON.stringify(meals)} } }; data.dietActive = 'd_g';`;
+    run(plan([{ id: 'm1', name: 'Matin', items: [] }, { id: 'm2', name: 'Midi', items: [] }]));
+    const html = run('nutritionHomeCard()');
+    assert.match(html, /class="home-card diet-home/, 'carte affichée');
+    assert.match(html, /<b>0<\/b> sur 2(\u202f|\u00a0| )?800 kcal/, 'haut de carte : « 0 sur 2 800 kcal »');
+    assert.match(html, /diet-home__ring/, 'anneau');
+    assert.match(html, /diet-home__empty[\s\S]*Rien de noté[\s\S]*Ajouter/, 'invite au lieu des repas');
+    assert.doesNotMatch(html, /0\u00a0kcal<\/span>/, 'jamais « 0 kcal » sur un repas');
+    assert.match(html, /aria-label="Nutrition, Repas variables : 0 kilocalories sur 2(\u202f|\u00a0| )?800\. Rien de noté[^"]*\. Ajouter"/, 'VoiceOver : même chose');
+    // Un aliment noté au Midi : le repas s'affiche avec ses calories, plus d'invite, jamais « 0 kcal »
+    run(`dietAddExtra(data, 'd_g', 'm2', ${JSON.stringify(item(RIZ_CUIT, 100))}, dietDayKey())`);
+    const h2 = run('nutritionHomeCard()');
+    assert.match(h2, /<b>155<\/b> sur 2(\u202f|\u00a0| )?800 kcal/, 'haut de carte : le mangé');
+    assert.doesNotMatch(h2, /diet-home__empty|>0\u00a0kcal</, 'ni invite ni « 0 kcal »');
+    assert.match(h2, /Midi<\/span><span class="diet-home__mkcal num">155\u00a0kcal/, 'repas noté : ses calories');
+    // Sans objectif : pas de carte (pas de « 0 sur 0 kcal »)
+    run(`data.dietPlans.d_g.targets = {}; delete data.dietLog;`);
+    assert.doesNotMatch(run('nutritionHomeCard()'), /diet-home/, 'sans objectif ni aliment : pas de carte');
+  });
+
 }
