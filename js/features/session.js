@@ -1081,12 +1081,13 @@ function observeCurrentExName() {
   slot.textContent = ex.name;   // superset : l'exercice de la série à faire, pas « Superset »
   const top = bar.getBoundingClientRect().height;
   // Repris dès que le nom COMMENCE à passer sous la barre (un nom coupé par le bas de l'écran ne compte pas), tant
-  // que la carte couvre encore le haut de l'écran. Positions relues à chaque passage d'un seuil : celui du nom
-  // (entrée, sortie sous la barre) ou celui de la carte (sa fin qui passe sous la barre, ratio 0)
-  curNameObserver = new IntersectionObserver(() => {
+  // que la carte couvre encore le haut de l'écran : sa fin qui passe sous la barre (ratio 0) relance le calcul
+  let nameUnder = false;
+  curNameObserver = new IntersectionObserver(entries => {
     if (!bar.isConnected) return;
-    const n = name.getBoundingClientRect(), c = card.getBoundingClientRect();
-    bar.classList.toggle('navbar--ex', n.top < top + 1 && c.bottom > top + 1);
+    const en = entries.filter(x => x.target === name).pop();
+    if (en) nameUnder = en.intersectionRatio < 1 && en.boundingClientRect.top < (en.rootBounds?.top ?? top) + 1;
+    bar.classList.toggle('navbar--ex', nameUnder && card.getBoundingClientRect().bottom > top + 1);
   }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: [0, 0.99, 1] });
   curNameObserver.observe(name);
   curNameObserver.observe(card);

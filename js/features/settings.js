@@ -79,7 +79,7 @@ ${renderAccessSettingsGroup()}
             ${switchHtml(rirShown())}
           </button>
           <button class="cell" data-action="setting-record" role="switch" aria-checked="${headRecordShown()}">
-            <span class="set-ico set-ico--blue" aria-hidden="true">${medalSvg(19)}</span>
+            ${cellIco('medal', 'blue')}
             <span class="cell__body"><span class="cell__title">Record en séance</span>
               <span class="cell__sub">Sous chaque exercice</span></span>
             ${switchHtml(headRecordShown())}
