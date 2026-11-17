@@ -63,7 +63,7 @@ function coachTierFullText(tier) {
     const who = tier.uncovered > 1 ? `${tier.uncovered} élèves` : '1 élève';
     return tier.product_id
       ? `${who} au-delà de ta formule : ${tier.uncovered > 1 ? 'leur' : 'son'} accès n'est plus offert. Passe au palier supérieur.`
-      : `Sans abonnement coach, ${tier.uncovered > 1 ? `tes ${tier.uncovered} élèves n'ont` : 'ton élève n\'a'} plus l'accès offert. Prends un abonnement coach.`;
+      : `Sans abonnement coach, l'accès de ${tier.uncovered > 1 ? `tes ${tier.uncovered} élèves n'est` : 'ton élève n\'est'} pas offert. Prends un abonnement coach.`;
   }
   if (!tier || !tier.is_coach || !tier.full || tier.limit === null) return null;
   return tier.limit === 0

@@ -234,10 +234,10 @@ disaient que la photo « reste sur ton iPhone », alors qu'une photo du coffre p
 de bilan). Nouveaux textes (ios/App/App/Info.plist) :
 
 - `NSCameraUsageDescription` : « MDLF Training utilise l'appareil photo pour scanner le code-barres d'un
-  aliment et pour tes photos de progression. Elles sont gardées chiffrées dans ton coffre sur ton iPhone ;
+  aliment, pour ta photo de profil et pour tes photos de progression. Elles sont gardées chiffrées dans ton coffre sur ton iPhone ;
   seules celles que tu choisis d'envoyer à ton coach comme photos de bilan partent, chiffrées pour lui seul. »
-- `NSPhotoLibraryUsageDescription` : « MDLF Training ouvre ta photothèque pour choisir une photo de
-  progression. Elle est gardée chiffrée dans ton coffre sur ton iPhone ; elle ne part que si tu choisis de
+- `NSPhotoLibraryUsageDescription` : « MDLF Training ouvre ta photothèque pour choisir ta photo de profil,
+  visible de tes amis et de ton coach, ou une photo de progression. Une photo de progression est gardée chiffrée dans ton coffre sur ton iPhone ; elle ne part que si tu choisis de
   l'envoyer à ton coach comme photo de bilan, chiffrée pour lui seul. »
 
 Info.plist fait partie de l'empreinte `runtime` : ce changement demande une **nouvelle build** (commit à part,

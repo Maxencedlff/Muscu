@@ -134,6 +134,11 @@ export default function ({ test, run, app, assert, sameJSON, ROOT }) {
     assert.ok(at('js/features/profile-photo-ui.js') > at('js/features/social-ui.js'), 'écran après le social');
     assert.match(sw, /const CACHE = 'ppl-v\d+';/, 'version du cache (montée à la publication)');
     assert.ok(sw.includes("'/js/data/profile-photo.js'") && sw.includes("'/js/features/profile-photo-ui.js'"));
+    // Build 69 : les textes d'autorisation d'iOS nomment la photo de profil (règle 5.1.1, docs/PHOTO_PROFIL.md)
+    const plist = read('ios/App/App/Info.plist');
+    for (const k of ['NSCameraUsageDescription', 'NSPhotoLibraryUsageDescription']) {
+      assert.match(plist, new RegExp(`<key>${k}</key>\\s*<string>[^<]*photo de profil[^<]*</string>`), `${k} : photo de profil`);
+    }
     const privacy = read('privacy.html');
     const li = privacy.slice(privacy.indexOf('<li id="photo-profil">'), privacy.indexOf('</li>', privacy.indexOf('<li id="photo-profil">')));
     assert.ok(li.length > 100, 'paragraphe « Photo de profil »');

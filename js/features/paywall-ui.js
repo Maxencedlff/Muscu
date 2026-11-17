@@ -96,7 +96,7 @@ function payCoverNote() {
   if (mine) return null;
   return { tone: 'warn', text: cover.state === 'over_limit'
     ? `Ton coach ${name} suit plus d'élèves que sa formule n'en comprend : ton accès n'est plus offert. Il peut passer à la formule au-dessus. En attendant, tu peux t'abonner toi-même.`
-    : `Ton coach ${name} n'a plus d'abonnement coach : ton accès n'est plus offert. Tu peux t'abonner toi-même, ton historique reste là.` };
+    : `Ton coach ${name} n'a pas d'abonnement coach en cours : ton accès n'est pas offert. Tu peux t'abonner toi-même, ton historique reste là.` };
 }
 function payCoverNoteHtml() {
   const n = payCoverNote();

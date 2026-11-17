@@ -654,7 +654,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 11, uncovered: 1 }))`),
       '1 élève au-delà de ta formule : son accès n\'est plus offert. Passe au palier supérieur.');
     assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: null, limit: 0, students: 4, uncovered: 4 }))`),
-      'Sans abonnement coach, tes 4 élèves n\'ont plus l\'accès offert. Prends un abonnement coach.');
+      'Sans abonnement coach, l\'accès de tes 4 élèves n\'est pas offert. Prends un abonnement coach.');
     // Nombre abîmé : borné au nombre d'élèves, jamais négatif
     sameJSON(run(`[cleanCoachTier({ is_coach: true, students: 2, uncovered: 99 }).uncovered, cleanCoachTier({ students: 2, uncovered: -1 }).uncovered]`), [2, 0]);
     // Produit inconnu renvoyé par le serveur : ignoré

@@ -90,8 +90,8 @@ app d'avant sur le serveur à jour ne voit rien de nouveau.
 5. **Livraison par une build soumise, pas par une mise à jour à chaud seule** (IOS.md, « Règle Apple » : fonction
    nouvelle, nouvelle donnée envoyée) : fusionner `photo-profil` dans `main`, build TestFlight puis App Store, décrite
    dans « What to Test » et la note d'examen (docs/REVUE_APPLE.md), avec un compte de démonstration qui a un ami avec
-   photo. Dans la même build, à revoir : les textes `NSCameraUsageDescription` et `NSPhotoLibraryUsageDescription`
-   d'Info.plist, qui ne parlent pas encore de la photo de profil.
+   photo. Dans la même build (69, branche `serveur-1711`) : les textes `NSCameraUsageDescription` et
+   `NSPhotoLibraryUsageDescription` d'Info.plist nomment la photo de profil (test : `tests/unit/profile-photo.mjs`).
 6. Retour arrière : `supabase/rollback/20261117000000_photo_profil_down.sql` (en-tête : vider le compartiment d'abord).
 
 Administration : signalements de photos `select … from public.reports where target_ref like 'photo:%'` ; voir la photo dans
