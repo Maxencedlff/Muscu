@@ -588,7 +588,7 @@ html.type-xl .chat-row__last { white-space: normal; display: -webkit-box; -webki
 /* ── Filtres de Mes élèves (au-delà de 20 élèves) : pastilles de 44 pt de zone, compteur exact ── */
 /* Une seule ligne qui défile de côté (comme les filtres de Mail ou de Photos) : sur iPhone SE, sur 3 lignes, ils
    cachaient tous les élèves sous le pli */
-.coach-filters { display: flex; flex-wrap: nowrap; gap: 0 8px; margin: 0 0 6px; padding: 0 var(--gutter); overflow-x: auto;
+.coach-filters { position: relative; display: flex; flex-wrap: nowrap; gap: 0 8px; margin: 0 0 6px; padding: 0 var(--gutter); overflow-x: auto;
   scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .coach-filters::-webkit-scrollbar { display: none; }
 .coach-filter { flex-shrink: 0; }
