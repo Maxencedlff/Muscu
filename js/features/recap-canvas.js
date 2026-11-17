@@ -376,11 +376,11 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
 
   // En-tête : « MA SEMAINE · 12 – 18 OCTOBRE », puis le surtitre de l'écran (« NOUVEAU RECORD · JEUDI 15 »)
   let y = TOP + 50;
-  const mine = (page.id === 'summary' ? st.period.label : `${RECAP_MINE[st.period.kind]} · ${st.period.label}`).toLocaleUpperCase('fr-FR');
-  ctx.fillStyle = c.fg; ctx.font = f(800, R.HEAD); setTracking(ctx, 4);
+  const mine = page.id === 'summary' ? st.period.label : `${RECAP_MINE[st.period.kind]} · ${st.period.label}`;
+  ctx.fillStyle = c.fg; ctx.font = f(800, R.HEAD);
   ctx.fillText(fitText(ctx, mine, maxW), SIDE, y + R.HEAD * .8); y += R.HEAD + 18;
   const own = page.id !== 'summary' && page.kicker !== st.period.title.toLocaleUpperCase('fr-FR');
-  if (own) { ctx.globalAlpha = .7; ctx.font = f(700, R.SMALL); ctx.fillText(fitText(ctx, page.kicker, maxW), SIDE, y + R.SMALL * .8); ctx.globalAlpha = 1; y += R.SMALL + 18; }
+  if (own) { ctx.globalAlpha = .7; ctx.font = f(700, R.SMALL); ctx.fillText(fitText(ctx, recapKickerText(page.kicker), maxW), SIDE, y + R.SMALL * .8); ctx.globalAlpha = 1; y += R.SMALL + 18; }
   setTracking(ctx, 0);
   const top = y + 36, sigY = H - BOTTOM - R.SIG, bottom = sigY - 56;
 

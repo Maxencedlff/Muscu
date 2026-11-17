@@ -54,7 +54,7 @@ function recapHomeCard() {
         <span class="recap-card__kicker">Ta semaine · ${esc(p.short)}</span>
         <span class="recap-card__title">${esc(head)}</span>
         <span class="recap-card__chips">${chips.map(c => `<span class="recap-card__chip num">${esc(c)}</span>`).join('')}</span>
-        <span class="recap-card__cta">Voir mon récap ${icon('chevron.right', 14)}</span>
+        <span class="recap-card__cta">Voir le récap ${icon('chevron.right', 14)}</span>
         ${body ? `<span class="recap-card__fig" aria-hidden="true">${body}</span>` : ''}
       </button>
       <button class="recap-card__close" data-action="recap-card-hide" data-key="${esc(p.key)}" aria-label="Masquer la carte">${icon('xmark', 14)}</button>
@@ -81,7 +81,7 @@ function renderRecaps() {
     <div class="view recaps view--grouped">
       ${navBar({ title: 'Récaps' })}
       <div class="scr">
-        ${empty ? `<div class="empty-note">Termine des séances : le récap de ta semaine apparaîtra ici le dimanche soir, celui du mois le 1er, et le bilan de l'année en décembre.</div>` : ''}
+        ${empty ? `<div class="empty-note">Le récap de la semaine arrive le dimanche soir, celui du mois le 1er. Le bilan de l'année arrive en décembre.</div>` : ''}
         ${years.length ? `<div class="group-title">Bilan de l'année</div><div class="group">${years.map(recapCell).join('')}</div>` : ''}
         ${months.length ? `<div class="group-title">Mois</div><div class="group">${months.map(recapCell).join('')}</div>` : ''}
         ${weeks.length ? `<div class="group-title">Semaines</div><div class="group">${shownWeeks.map(recapCell).join('')}
@@ -382,7 +382,7 @@ function openRecap(key) {
 
 registerActions({
   'open-recap':      (e, el) => { openRecap(el.dataset.key); },
-  'recap-card-hide': (e, el) => { setRecapSeen(el.dataset.key); render(); showToast('Le récap reste dans Progrès › Récaps'); },
+  'recap-card-hide': (e, el) => { setRecapSeen(el.dataset.key); render(); showToast('Récap dans Progrès › Récaps'); },
   'go-recaps':       () => { recapsShowAll = false; navigate('recaps'); },
   'recaps-more':     () => { recapsShowAll = true; render(); },
   'recap-prev':      () => { recapGo(-1); },

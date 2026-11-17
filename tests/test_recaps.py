@@ -141,7 +141,7 @@ def t_semaine(bench, eng, dev, theme):
         R.check(m['prev'].startswith('hero') or m['prev'].startswith('home-list') or 'home-free' in m['prev'].split(), f'{t} carte : juste sous les séances, la séance du jour en tête ({m["prev"]})')
         R.check(any(c['t'] == '16,1 t' for c in m['chips']) and all(c['h'] < 2 * c['lh'] for c in m['chips']), f'{t} carte : « 16,1 t » insécable, pastilles sur une ligne {m["chips"]}')
         R.check(m['titleClear'], f'{t} carte : le titre ne passe pas sous le bouton Masquer')
-        R.check(m['label'].startswith('Ta semaine · 12 – 18 oct. 2 séances') and m['label'].endswith('Voir mon récap') and not m['hasAria'], f'{t} carte : un seul bouton, lu comme il est écrit ({m["label"][:70]})')
+        R.check(m['label'].startswith('Ta semaine · 12 – 18 oct. 2 séances') and m['label'].endswith('Voir le récap') and not m['hasAria'], f'{t} carte : un seul bouton, lu comme il est écrit ({m["label"][:70]})')
         R.check(m['bg'] == m['cell'], f'{t} carte : une cellule comme les autres, sans aplat (direction sobre) ({m["bg"]} / {m["cell"]})')
         shot(page, LOT, f'accueil-carte-{t}')
 
@@ -231,7 +231,7 @@ def t_semaine(bench, eng, dev, theme):
             R.check(not any(w in lab['profile'] for w in ('le soir', 'le matin', 'le midi')) or 'Entre ' in lab['profile'],
                     f'{t} récap mois : moment de la journée avec sa plage ({lab["profile"][:140]})')
         if 'records' in lab and 'records' in page.evaluate("document.querySelector('.recap-page[data-id=records] .rp-kicker').textContent"):
-            R.check(any(k in lab['records'] for k in ('Ta plus forte', 'Ton record le plus')) and ('Tes autres records' in lab['records'] or 'Ton autre record' in lab['records']),
+            R.check(any(k in lab['records'] for k in ('Plus forte', 'Record le plus', 'Record mis en avant')) and ('Autres records' in lab['records'] or 'Autre record' in lab['records']),
                     f'{t} récap mois : pourquoi ce record, et les autres listés ({lab["records"][:140]})')
         if 'streak' in lab:
             R.check('séances ou plus' in lab['streak'] and 'Séances par semaine' in lab['streak'], f'{t} récap mois : régularité à son rythme ({lab["streak"][:120]})')
@@ -269,7 +269,7 @@ def t_annee(bench, eng, dev, theme):
         R.check(st['kicker'] == 'Ton année' and st['value'] == '78', f'{t} bilan : 78 séances ({st["kicker"]} {st["value"]})')
         labels = page.evaluate("[...document.querySelectorAll('.recap-page')].map(p => p.getAttribute('aria-label'))")
         R.check(any('mois le plus actif' in l for l in labels), f'{t} bilan : mois le plus actif (écran régularité)')
-        R.check(any('ton année en un corps' in l for l in labels), f'{t} bilan : « ton année en un corps »')
+        R.check(any("muscles de l'année" in l for l in labels), f'{t} bilan : « muscles de l\'année »')
         R.check(labels[-1].startswith('Ton année, 2026 en bref : ') and 'Séances 78' in labels[-1], f'{t} bilan : résumé ({labels[-1][:90]})')
         R.check(any('record' in l for l in labels), f'{t} bilan : des records sur l\'année')
         shot(page, LOT, f'bilan-annee-{t}')

@@ -172,7 +172,7 @@ function summaryOrderHtml(sm, h) {
   return `
         <div class="sum-list sum-order" id="sumOrder">
           <button class="sum-row sum-row--action" data-action="summary-keep-order">
-            <div class="sum-row__main"><div class="sum-row__name">Garder cet ordre</div><div class="sum-row__sub">Tu as changé l'ordre des exercices : la prochaine fois aussi</div></div>
+            <div class="sum-row__main"><div class="sum-row__name">Garder cet ordre</div><div class="sum-row__sub">Même ordre à la prochaine séance</div></div>
             <span class="sum-row__cta">Garder</span>
           </button>
         </div>`;
@@ -202,7 +202,7 @@ function renderSummary() {
             : `<div class="sum-tile"><div class="sum-tile__label">Reps</div><div class="sum-tile__value num">${sm.reps}</div></div>`}
           <div class="sum-tile"><div class="sum-tile__label">Séries</div><div class="sum-tile__value num">${sm.sets}</div></div>
         </div>
-        ${sm.needsBodyKg ? `<button class="sum-hint" data-action="set-body-weight">Ajoute ton poids pour compter le volume des exercices au poids du corps ${icon('chevron.right', 14)}</button>` : ''}
+        ${sm.needsBodyKg ? `<button class="sum-hint" data-action="set-body-weight">Ajoute ton poids pour compter les exercices au poids du corps ${icon('chevron.right', 14)}</button>` : ''}
         ${shareStoryButton(sm.id, 'sum-share')}
         ${summaryRecordsHtml(sm.records)}
         ${summaryStrengthHtml(h)}

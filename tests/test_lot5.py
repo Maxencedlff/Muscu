@@ -193,7 +193,7 @@ def t_history(bench, eng, dev, theme):
                 h.classList.remove('type-xl'); return out; }""")
             R.check(rx and all(x['below'] and not x['cut'] and x['wide'] for x in rx), f'{t} détail texte agrandi : valeur des records sous le nom {rx[:2]}')
             subs = page.locator('.history-detail .review-rec .cell__sub').all_inner_texts()
-            R.check(not any('Record reps' in x for x in subs), f'{t} détail : « Record de répétitions » en toutes lettres {subs[:3]}')
+            R.check(not any('Record reps' in x for x in subs), f'{t} détail : « Record de reps » en toutes lettres {subs[:3]}')
             go(page, f'history-detail:{hid}')
         shot(page, LOT, f'history_detail_{dev}_{theme}')
         page.click('.navbar__back')  # Fusion : barre de navigation du lot 3

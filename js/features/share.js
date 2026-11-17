@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Bouton « Partager ma séance » (bilan, Historique › Séance) → feuille d'aperçu → partage :
+// Bouton « Partager la séance » (bilan, Historique › Séance) → feuille d'aperçu → partage :
 // - app iOS : Native.shareImage (fichier en cache + feuille de partage d'iOS) ;
 // - PWA : navigator.share({ files }) si le navigateur accepte les fichiers, sinon téléchargement.
 // Safari n'autorise navigator.share que pendant le geste de l'utilisateur (« transient activation »,
@@ -102,7 +102,7 @@ function blobDataUrl(blob) {
 }
 
 // Formats proposés pour une séance : story (9:16) et carré (fil, messages)
-const SHARE_FORMATS = { story: { label: 'Story', hint: 'Format story Instagram' }, square: { label: 'Carré', hint: 'Format carré, pour le fil et les messages' } };
+const SHARE_FORMATS = { story: { label: 'Story', hint: 'Pour une story Instagram' }, square: { label: 'Carré', hint: 'Pour le fil et les messages' } };
 
 // alt : description de l'image pour VoiceOver (shareStoryAlt, recapPageAlt) ; formats : choix story / carré
 function sharePreviewBody(alt, formats = false) {
@@ -224,5 +224,5 @@ registerActions({
 // Bouton commun du bilan et du détail d'une séance
 function shareStoryButton(id, cls = '') {
   return `<button class="btn btn--secondary btn--full share-btn ${cls}" data-action="share-story" data-id="${esc(id)}">
-    ${icon('square.and.arrow.up', 22)}<span>Partager ma séance</span></button>`;
+    ${icon('square.and.arrow.up', 22)}<span>Partager la séance</span></button>`;
 }
