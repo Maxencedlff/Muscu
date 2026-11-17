@@ -37,7 +37,7 @@ const GEN_GOALS = {
 };
 const GEN_LEVELS = {
   debutant:      { label: 'Je débute', sub: 'Moins de six mois de musculation' },
-  reprise:       { label: 'Je reprends en douceur', sub: 'Après une longue pause' },
+  reprise:       { label: 'Je reprends en douceur', sub: 'Après plusieurs mois d\'arrêt' },
   intermediaire: { label: 'Intermédiaire', sub: 'Six mois à trois ans, avec régularité' },
   avance:        { label: 'Avancé', sub: 'Plus de trois ans, avec régularité' },
 };

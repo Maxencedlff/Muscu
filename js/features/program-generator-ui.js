@@ -119,29 +119,29 @@ const GEN_SCREENS = {
         ${cell('set-body-weight', 'bathroom.scale', 'Poids', p.kg ? `${fmtW(p.kg)} ${unitLbl()}` : '')}
         ${cell('set-strength-sex', 'sex', 'Sexe', sex)}
       </div>
-      <div class="group-foot">Facultatifs, déjà repris des Réglages. L'âge dose le volume à partir de 60 ans ; le poids et la taille
-        choisissent entre tractions et tractions assistées. Le sexe ne change rien au programme. Tout reste sur cet iPhone.</div>
+      <div class="group-foot">Facultatif, repris des Réglages et gardé sur cet iPhone. L'âge réduit le volume après 60 ans.
+        Taille et poids choisissent les tractions, assistées ou non. Le sexe ne change rien.</div>
       ${genNextBtn('toi', 'Commencer')}`,
-    { lead: 'Quelques questions courtes, puis un programme fait pour toi, que tu pourras modifier comme les autres.' });
+    { lead: `${GEN_QUESTIONS} questions, puis un programme que tu peux modifier.` });
   },
-  objectif: () => genScreen('objectif', 'Ton objectif', `<div class="group">${Object.entries(GEN_GOALS)
+  objectif: () => genScreen('objectif', 'Objectif', `<div class="group">${Object.entries(GEN_GOALS)
     .map(([k, g]) => genOption('gen-set', k, g.label, g.sub, genAns.goal === k)).join('')}</div>`),
-  niveau: () => genScreen('niveau', 'Ton niveau', `<div class="group">${Object.entries(GEN_LEVELS)
+  niveau: () => genScreen('niveau', 'Niveau', `<div class="group">${Object.entries(GEN_LEVELS)
     .map(([k, l]) => genOption('gen-set', k, l.label, genAns.levelGuess && genAns.level === k ? `${l.sub} · d'après ton historique` : l.sub, genAns.level === k)).join('')}</div>`),
   jours: () => genScreen('jours', 'Jours par semaine', `<div class="group">${GEN_DAYS
-    .map(n => genOption('gen-set', n, `${n} jours`, '', genAns.days === n)).join('')}</div>`, { lead: 'Sur une semaine normale, ceux où tu peux vraiment venir.' }),
+    .map(n => genOption('gen-set', n, `${n} jours`, '', genAns.days === n)).join('')}</div>`, { lead: 'Ceux où tu peux venir sur une semaine normale.' }),
   duree: () => genScreen('duree', 'Temps par séance', `<div class="group">${GEN_MINUTES
-    .map(n => genOption('gen-set', n, `${n} min`, '', genAns.minutes === n)).join('')}</div>`, { lead: 'Échauffement compris. Les séances ne le dépasseront pas.' }),
+    .map(n => genOption('gen-set', n, `${n} min`, '', genAns.minutes === n)).join('')}</div>`, { lead: 'Échauffement compris. Aucune séance ne dépasse ce temps.' }),
   materiel: () => {
     const a = genAnswers(), gym = a.gym === true;
     const fixed = a.equip.includes('halteres_fixes');
     const loads = a.dbLoads.length ? `Charges : ${a.dbLoads.map(v => fmtNum(v)).join(', ')} kg` : 'Touche pour donner leurs charges';
-    return genScreen('materiel', 'Ton matériel', `
+    return genScreen('materiel', 'Matériel', `
       <div class="group">${genCheck('gen-gym', 'salle', 'Salle complète', 'Barres, haltères, machines, poulies', gym)}</div>
       <div class="group-title">Ou ce que tu as</div>
       <div class="group">${GEN_EQUIP.map(e => genCheck('gen-equip', e.id, e.label, e.id === 'halteres_fixes' && fixed && !gym ? loads : '', !gym && a.equip.includes(e.id))).join('')}</div>
       ${fixed && !gym ? '<div class="group"><button class="cell cell--action" data-action="gen-db-loads"><span>Charges des haltères fixes</span></button></div>' : ''}
-      <div class="group-foot">Le poids du corps compte toujours : sans rien cocher, le programme se fait sans matériel.</div>
+      <div class="group-foot">Sans rien cocher, le programme se fait au poids du corps.</div>
       ${genNextBtn('materiel')}`);
   },
   options: () => {
@@ -151,8 +151,8 @@ const GEN_SCREENS = {
       <div class="group">${Object.entries(GEN_ZONES).map(([k, z]) => genCheck('gen-zone', k, z.label, '', a.zones.includes(k))).join('')}</div>
       <div class="group-title">Douleurs ou limites, facultatif</div>
       <div class="group">${Object.entries(GEN_LIMITS).map(([k, l]) => genCheck('gen-limit', k, l.label, l.sub, a.limits.includes(k))).join('')}</div>
-      <div class="group-foot">Les exercices qui chargent la zone sont retirés ou remplacés. Ce n'est pas un avis médical : si une douleur persiste, parles-en à un professionnel de santé.</div>
-      ${genNextBtn('options', 'Voir mon programme')}`);
+      <div class="group-foot">Les exercices qui chargent la zone sont retirés ou remplacés. Ce n'est pas un avis médical. Si une douleur persiste, parles-en à un professionnel de santé.</div>
+      ${genNextBtn('options', 'Voir le programme')}`);
   },
   apercu: () => renderGenPreview(),
 };
@@ -189,12 +189,12 @@ function renderGenPreview() {
         </div>
         <div class="group-title">Séries par muscle et par semaine</div>
         <div class="group">${vol}</div>
-        <div class="group-foot">Une série compte entière pour les muscles principaux de l'exercice, pour moitié pour les secondaires, comme dans Progrès.</div>
+        <div class="group-foot">1 série par muscle principal, ½ par muscle secondaire, comme dans Progrès.</div>
         ${sessions}
         ${r.notes.length ? `<div class="group-foot gen-notes">${r.notes.map(n => `<p>${esc(n)}</p>`).join('')}</div>` : ''}
         <div class="prog-info__actions">
           <button class="btn btn--primary prog-info__btn" data-action="gen-use">Utiliser ce programme</button>
-          <button class="btn btn--secondary prog-info__btn" data-action="gen-edit">Modifier mes réponses</button>
+          <button class="btn btn--secondary prog-info__btn" data-action="gen-edit">Modifier les réponses</button>
         </div>
       </div>
     </div>`;
@@ -215,7 +215,7 @@ const GEN_SET = {
 };
 // Charges des haltères fixes, en kilos (« 4 8 12 », virgule décimale acceptée)
 async function genAskLoads() {
-  const raw = await askText({ title: 'Haltères fixes', message: 'Leurs charges en kilos, séparées par des espaces. Exemple : 4 8 12',
+  const raw = await askText({ title: 'Haltères fixes', message: 'Charges en kg, séparées par un espace. Exemple : 4 8 12',
     value: genAns.dbLoads.map(v => fmtNum(v)).join(' '), placeholder: '4 8 12' });
   if (raw === null) return;
   const loads = raw.replace(/(\d),(\d)/g, '$1.$2').split(/[\s,;]+/).map(Number).filter(v => v > 0 && v <= 80);
@@ -250,7 +250,7 @@ registerActions({
     const name = genProgrammeName();
     const cur = progMeta(data.activeProgramme).name;
     if (!(await confirmSheet(`Utiliser « ${name} » ?`,
-      `Il s'ajoute à Mes programmes et devient ton programme actif. ${cur} y reste, avec son historique.`, 'Utiliser ce programme', false))) return;
+      `Il devient le programme actif. ${cur} reste dans Mes programmes, avec son historique.`, 'Utiliser ce programme', false))) return;
     const id = 'u_' + uid();
     const { up, pd } = genProgrammeData(r, name);
     data.userProgrammes[id] = up;
