@@ -39,10 +39,10 @@ async function dietAskShort(title, message, yes, no) {
 // Accord « copier sur mon compte » ; renvoie true s'il est donné
 async function dietAskConsent() {
   if (dietConsentOn(data)) return true;
-  const coachText = coachRole().isCoach ? 'Tes plans de nutrition, y compris ceux que tu prépares pour tes élèves, peuvent renseigner sur la santé.'
+  const coachText = coachRole().isCoach ? 'Tes plans de nutrition, y compris ceux de tes élèves, peuvent renseigner sur la santé.'
     : 'Tes plans de nutrition et tes objectifs peuvent renseigner sur ta santé.';
   const v = await dietAskShort('Copier tes plans sur ton compte ?',
-    `${coachText} Avec ton accord, ils sont copiés sur ton compte ; sans lui, ils restent sur cet iPhone.`,
+    `${coachText} Sans accord, ils restent sur cet iPhone.`,
     'Copier sur mon compte', 'Garder sur cet iPhone');
   if (v === null) return false;
   dietSetConsent(data, v);
@@ -65,7 +65,7 @@ async function dietAskCoachAccept({ quiet = false } = {}) {
   if (dietCoachAccepted()) return true;
   const who = coachName();
   const v = await dietAskShort(`Recevoir les plans de nutrition ${elide('de', who)} ?`,
-    `Ton coach pourra t'envoyer des plans de nutrition, gardés sur le serveur jusqu'à ce que tu retires ton accord. Ils peuvent renseigner sur ta santé.`,
+    `Ils sont gardés sur le serveur jusqu'au retrait de ton accord. Ils peuvent renseigner sur ta santé.`,
     'Accepter', 'Pas maintenant');
   if (!v) return false;
   return dietCoachApply(true, { quiet });
@@ -76,7 +76,7 @@ async function dietCoachApply(on, { quiet = false } = {}) {
   save();
   haptic();
   // Plan en attente : message court, entier même en texte agrandi maximal (4 lignes au plus, panel t6)
-  if (!quiet) showToast(on ? (dietPending() ? 'Plan reçu. Touche Utiliser' : 'Réception des plans de nutrition activée') : 'Plans de nutrition du coach effacés du serveur');
+  if (!quiet) showToast(on ? (dietPending() ? 'Plan reçu. Touche Utiliser' : 'Plans du coach acceptés') : 'Plans du coach supprimés du serveur');
   coachRefresh();
   return on;
 }
@@ -97,12 +97,12 @@ function renderDietSettings() {
         <div class="group-title">Aliments</div>
         <div class="group">
           <button class="cell cell--nav" data-action="go-diet-foods">
-            <span class="cell__body"><span class="cell__title">Mes aliments</span><span class="cell__sub">Ceux que tu as créés ou scannés</span></span>
+            <span class="cell__body"><span class="cell__title">Mes aliments</span><span class="cell__sub">Créés ou scannés</span></span>
             <span class="cell__value num">${(data.dietFoods || []).length}</span>${icon('chevron.right', 16)}</button>
         </div>
         <div class="group-title">Repas du jour</div>
         <div class="group" role="radiogroup" aria-label="Repas du jour">
-          ${[[false, 'Pré-remplis par le plan', 'Tu coches chaque repas une fois mangé.'], [true, 'Vides', 'Tu notes ce que tu manges ; le plan donne les objectifs et se copie repas par repas.']].map(([blank, title, sub]) => {
+          ${[[false, 'Pré-remplis par le plan', 'Tu coches chaque repas une fois mangé.'], [true, 'Vides', 'Tu notes ce que tu manges. Le plan fixe les objectifs et se copie repas par repas.']].map(([blank, title, sub]) => {
             const on = dietEmptyDaysFor(data, data.dietActive) === blank;
             return `
           <button class="cell cell--pick" data-action="diet-day-mode" data-blank="${blank}" role="radio" aria-checked="${on}">
@@ -111,10 +111,10 @@ function renderDietSettings() {
           </button>`;
           }).join('')}
         </div>
-        <div class="group-foot">Change aussi la journée d'aujourd'hui ; les repas déjà cochés et les jours passés restent tels quels.</div>
+        <div class="group-foot">S'applique dès aujourd'hui. Les repas cochés et les jours passés ne changent pas.</div>
         <div class="group-title">Affichage</div>
         <div class="group">
-          ${sw('diet-hide-numbers', data.dietHideNumbers === true, 'Masquer les calories et les grammes', 'Seules les cases des repas restent ; les quantités des aliments aussi.')}
+          ${sw('diet-hide-numbers', data.dietHideNumbers === true, 'Masquer les calories et les grammes', 'Les cases des repas et les quantités restent.')}
           ${sw('diet-streak', data.dietStreakOff !== true, 'Afficher la série', 'Jours complets d\'affilée')}
         </div>
         ${account.user ? `
@@ -122,15 +122,15 @@ function renderDietSettings() {
         <div class="group">
           ${sw('diet-consent', dietConsentOn(data), 'Copier mes plans sur mon compte', since)}
         </div>
-        ${account.dietTooBig ? '<p class="diet-low" role="note">Tes plans sont trop lourds pour être copiés sur ton compte : supprime des plans dont tu ne te sers plus. Le reste de ton compte se synchronise normalement.</p>' : ''}
-        <div class="group-foot">Avec ton accord, tes plans de nutrition, tes objectifs et tes aliments perso sont copiés sur le serveur de l'app pour les retrouver sur tes appareils. Retirer ton accord les efface du serveur.</div>` : ''}
+        ${account.dietTooBig ? '<p class="diet-low" role="note">Plans trop lourds pour ton compte. Supprime ceux que tu n\'utilises plus. Le reste du compte se synchronise.</p>' : ''}
+        <div class="group-foot">Plans, objectifs et aliments perso sont copiés sur le serveur de l'app, pour tes autres appareils. Retirer l'accord les supprime du serveur.</div>` : ''}
         ${hasCoach ? `
         <div class="group-title">Coach</div>
         <div class="group">
           ${sw('diet-coach-toggle', dietCoachAccepted(), `Recevoir les plans de nutrition ${elide('de', esc(coachName()))}`)}
         </div>
-        <div class="group-foot">Les plans de ton coach sont gardés sur le serveur jusqu'à ce que tu retires ton accord ou que le coaching s'arrête ; ton coach voit seulement si tu les as ouverts.</div>` : ''}
-        <div class="group-foot diet-foot">Dans tous les cas, tes plans sont sur cet iPhone, dans la copie iCloud de l'app et dans tes exports. Les repas que tu coches et les aliments que tu remplaces restent sur cet iPhone et dans tes exports : ni copie iCloud, ni serveur, ni coach.</div>
+        <div class="group-foot">Ses plans restent sur le serveur jusqu'au retrait de l'accord ou la fin du coaching. Ton coach voit seulement si tu les as ouverts.</div>` : ''}
+        <div class="group-foot diet-foot">Les plans sont sur cet iPhone, dans la copie iCloud de l'app et dans les exports. Les repas cochés et les aliments remplacés restent seulement sur cet iPhone et dans les exports.</div>
         <div class="group group--gap"><button class="cell cell--nav" data-action="diet-privacy">
           <span class="cell__body"><span class="cell__title">Confidentialité de la nutrition</span></span>${icon('chevron.right', 16)}</button></div>
       </div>
@@ -158,12 +158,12 @@ function renderDietFoods() {
       ${navBar({ title: 'Mes aliments', large: true })}
       <div class="scr">
         ${list.length ? `
-        ${full ? `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>Mes aliments est plein (${DIET_FOODS_MAX}). Retire ceux dont tu ne te sers plus pour en garder d'autres.</span></p>` : ''}
+        ${full ? `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>Mes aliments est plein (${DIET_FOODS_MAX}). Retire-en pour en garder d'autres.</span></p>` : ''}
         <p class="diet-foods__count num">${plural(list.length, 'aliment perso', 'aliments perso')}, ${DIET_FOODS_MAX} au plus</p>
         ${dietMacroLegendHtml()}
         <div class="group">${list.map(dietFoodCellHtml).join('')}</div>
-        <div class="group-foot">Retirer un aliment ne change pas tes plans : chaque aliment d'un plan garde ses valeurs. Tu pourras le recréer ou le scanner à nouveau.</div>`
-          : '<div class="empty-note">Aucun aliment perso. Ceux que tu crées ou scannes en ajoutant un aliment s\'ajoutent ici.</div>'}
+        <div class="group-foot">Retirer un aliment ne change pas les plans. Tu pourras le recréer ou le scanner.</div>`
+          : '<div class="empty-note">Aucun aliment perso. Ceux que tu crées ou scannes s\'affichent ici.</div>'}
       </div>
     </div>`;
 }
@@ -175,7 +175,7 @@ registerActions({
   'diet-food-menu': async (e, el) => {
     const x = (data.dietFoods || []).find(f => f.id === el.dataset.id);
     if (!x) return;
-    const v = await dialog({ type: 'sheet', title: foodName(x.name), message: 'Tes plans ne changent pas : chaque aliment y garde ses valeurs.',
+    const v = await dialog({ type: 'sheet', title: foodName(x.name), message: 'Les plans ne changent pas.',
       actions: [{ label: 'Retirer de Mes aliments', value: 'del', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
     if (v !== 'del') return;
     const gone = dietRemoveFood(data, x.id);
@@ -204,7 +204,7 @@ registerActions({
   },
   'diet-consent': async () => {
     if (dietConsentOn(data)) {
-      if (!(await confirmSheet('Retirer ton accord ?', 'Tes plans de nutrition sont effacés du serveur et restent sur cet iPhone.', 'Retirer'))) return;
+      if (!(await confirmSheet('Retirer ton accord ?', 'Tes plans sont supprimés du serveur et restent sur cet iPhone.', 'Retirer'))) return;
       dietSetConsent(data, false);
       save();
       dietSyncSoon();
@@ -215,7 +215,7 @@ registerActions({
   'diet-coach-accept': async () => { await dietAskCoachAccept(); render(); },
   'diet-coach-toggle': async () => {
     if (dietCoachAccepted()) {
-      if (!(await confirmSheet('Ne plus recevoir ses plans ?', 'Les plans de nutrition que ton coach t\'a envoyés sont effacés du serveur. Ceux que tu suis déjà restent sur cet iPhone.', 'Retirer'))) return;
+      if (!(await confirmSheet('Ne plus recevoir ses plans ?', 'Les plans envoyés par ton coach sont supprimés du serveur. Ceux déjà pris restent sur cet iPhone.', 'Retirer'))) return;
       await dietCoachApply(false);
     } else await dietAskCoachAccept();
     render();

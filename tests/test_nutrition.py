@@ -343,7 +343,7 @@ def t_creer_plan(bench, eng, dev, theme):
         page.wait_for_selector('.diet-plan-view')
         # Plan perso neuf : seulement les objectifs ; les repas types sont facultatifs (retour du 16/11)
         R.check(page.locator('[data-action="diet-add-food"]').count() == 0 and page.locator('[data-action="diet-compose"]').count() == 1
-                and 'Total' not in page.inner_text('.diet-plan-view'), f'{t} plan neuf : objectifs seuls, « Composer des repas types »')
+                and 'Total' not in page.inner_text('.diet-plan-view'), f'{t} plan neuf : objectifs seuls, « Ajouter des repas types »')
         page.click('[data-action="diet-compose"]')
         page.wait_for_selector('.diet-types-title')
         R.check(page.locator('[data-action="diet-add-food"]').count() == 4, f'{t} repas types : 4 repas à remplir')

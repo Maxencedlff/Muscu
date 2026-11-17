@@ -36,7 +36,7 @@ async function foodScanTypeCode(message = 'Tape les chiffres écrits sous les ba
     const code = normBarcode(raw);
     if (code) return code;
     value = String(raw).trim();
-    message = 'Ce code ne tient pas : vérifie les chiffres (13 le plus souvent, parfois 8 ou 12).';
+    message = 'Ce code ne tient pas. Un code-barres a 13 chiffres, parfois 8 ou 12.';
   }
 }
 
@@ -63,13 +63,13 @@ async function foodScanReadCode() {
 // ── Fiche du produit ────────────────────────────────────────
 
 const FSCAN_STATES = {
-  unknown: { title: 'Produit introuvable', text: 'Ce code-barres n\'est pas dans Open Food Facts. Crée l\'aliment avec les valeurs de l\'étiquette : il sera retrouvé à ton prochain scan.' },
-  incomplete: { title: 'Valeurs incomplètes', text: 'Open Food Facts connaît ce produit, mais pas toutes ses valeurs pour 100 g. Recopie-les depuis l\'étiquette : l\'aliment sera retrouvé à ton prochain scan.' },
-  offline: { title: 'Pas de réseau', text: 'La recherche du produit demande une connexion. Réessaie, ou crée l\'aliment avec les valeurs de l\'étiquette.', retry: true },
-  error: { title: 'Open Food Facts ne répond pas', text: 'Réessaie dans un moment, ou crée l\'aliment avec les valeurs de l\'étiquette.', retry: true },
+  unknown: { title: 'Produit introuvable', text: 'Ce code-barres n\'est pas dans Open Food Facts. Crée l\'aliment avec les valeurs de l\'étiquette.' },
+  incomplete: { title: 'Valeurs incomplètes', text: 'Il manque des valeurs pour 100 g dans Open Food Facts. Recopie-les depuis l\'étiquette.' },
+  offline: { title: 'Pas de réseau', text: 'La recherche demande une connexion. Réessaie, ou crée l\'aliment avec l\'étiquette.', retry: true },
+  error: { title: 'Open Food Facts ne répond pas', text: 'Réessaie dans un moment, ou crée l\'aliment avec l\'étiquette.', retry: true },
 };
 const fscanCodeHtml = code => `<p class="fscan__code num">Code-barres ${dietSrPair(barcodeShown(code), barcodeSpoken(code))}</p>`;
-const fscanSrcHtml = () => '<p class="fscan__src">Source : Open Food Facts (openfoodfacts.org), © les contributeurs d\'Open Food Facts, base libre sous licence ODbL. Vérifie avec l\'étiquette du paquet.</p>';
+const fscanSrcHtml = () => '<p class="fscan__src">Source : Open Food Facts (openfoodfacts.org), © les contributeurs d\'Open Food Facts, base libre sous licence ODbL. Vérifie avec l\'étiquette.</p>';
 
 function fscanLoadingHtml(code) {
   return `<div class="fscan__state" role="status"><span class="fscan__spin" aria-hidden="true"></span>
@@ -112,9 +112,9 @@ function fscanFoundHtml(food, units = [], { kept = true } = {}) {
     <p class="fscan__total num" id="fscanTotal" aria-live="polite"></p>
     ${units.length ? '' : dietMacroLegendHtml()}
     <p class="diet-form__err" id="fscanErr" role="alert"></p>
-    ${food.src === 'off' ? fscanSrcHtml() : '<p class="fscan__src">Ton aliment, avec les valeurs que tu as saisies.</p>'}
-    ${kept ? '<p class="fscan__src">Gardé dans Mes aliments : retrouvé sans réseau au prochain scan.</p>'
-      : `<div class="fscan__full" role="note"><p>Mes aliments est plein (${DIET_FOODS_MAX}) : ce produit s'ajoute, mais n'y est pas gardé. Retire ceux dont tu ne te sers plus pour garder les prochains.</p>
+    ${food.src === 'off' ? fscanSrcHtml() : '<p class="fscan__src">Valeurs que tu as saisies.</p>'}
+    ${kept ? '<p class="fscan__src">Gardé dans Mes aliments, reconnu au prochain scan.</p>'
+      : `<div class="fscan__full" role="note"><p>Mes aliments est plein (${DIET_FOODS_MAX}). Ce produit s'ajoute au repas sans y être gardé.</p>
       <button class="btn btn--secondary btn--full" data-fscan="foods">Gérer Mes aliments</button></div>`}`;
 }
 function fscanTotalText(food, g) {
