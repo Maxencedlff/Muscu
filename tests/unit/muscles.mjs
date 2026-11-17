@@ -78,6 +78,38 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.ok(!app.musclesOf('Écarté poulie haute').secondary.includes('triceps'));
   });
 
+  test('muscles : un mot d\'un nom composé ne déclenche pas la règle d\'un autre mouvement (audit du 17/11/2026)', () => {
+    // Premier muscle principal attendu ; chaque cas était compté ailleurs avant (règle plus haut gagnante)
+    const cases = {
+      // Noms tapés par des utilisateurs
+      'Pompes triangles': 'triceps', 'Hip trust banc': 'glutes', 'Peck deck ( préfatigue )': 'chest',
+      // « grip », « close grip » : mot de prise devant un tirage, pas un exercice de poigne ni un développé serré
+      'Neutral grip pull up': 'lats', 'Wide grip lat pulldown cable': 'lats', 'Reverse grip lat pulldown': 'lats',
+      'Close grip lat pulldown cable': 'lats', 'Reverse grip curl': 'brachialis', 'Curl prise inversée': 'brachialis',
+      // Développés d'épaules pris pour le développé couché ou la presse à cuisses
+      'Behind the neck press': 'front_delts', 'Bradford press': 'front_delts', 'Développé Bradford': 'front_delts',
+      'Développé Z': 'front_delts', 'Presse militaire': 'front_delts', 'Pompes en équilibre': 'front_delts',
+      // Landmine : seul le développé est un exercice d'épaules
+      'Landmine row': 'lats', 'Landmine rotation': 'obliques', 'Rotation landmine': 'obliques', 'Rainbow landmine': 'obliques',
+      // Deltoïde postérieur et coiffe
+      'Reverse butterfly': 'rear_delts', 'Rowing deltoïde postérieur': 'rear_delts', 'Cuban press': 'rear_delts', 'Développé cubain': 'rear_delts',
+      // Fessiers et chaîne postérieure
+      'Triceps kickback cable': 'triceps', 'Relevé de bassin': 'glutes', 'Hyperextensions inversées': 'glutes',
+      'Tirage entre les jambes': 'glutes', 'Cable pull through': 'glutes', 'Gainage dorsal': 'lower_back',
+      'Romanian deadlift barbell': 'hamstrings',
+      // Gainage et abdos
+      'Copenhagen plank': 'adductors', 'Planche Copenhague': 'adductors', 'Side plank hip dip': 'obliques',
+      'Cross body crunch': 'obliques', 'Rollout barre': 'abs', 'Ab rollout': 'abs',
+      'Tractions L-sit': 'lats', 'Pompes pseudo planche': 'chest', 'Mountain bike': 'quads',
+      'Dips entre deux bancs': 'triceps',
+    };
+    for (const [name, main] of Object.entries(cases)) assert.equal(app.musclesOf(name).primary[0], main, `${name} → ${app.musclesOf(name).primary}`);
+    // Les mots voisins gardent leur sens
+    const kept = { 'Landmine press': 'front_delts', 'Développé landmine': 'front_delts', 'Close grip bench': 'triceps', 'Pinch grip': 'forearms',
+      'Presse à cuisses unilatérale': 'quads', 'Kickback fessier': 'glutes', 'Gainage': 'abs', 'Pompes': 'chest', 'Dips': 'chest', 'Rowing barre T': 'lats' };
+    for (const [name, main] of Object.entries(kept)) assert.equal(app.musclesOf(name).primary[0], main, `${name} → ${app.musclesOf(name).primary}`);
+  });
+
   test('muscles : un nom ou un alias ne mène qu\'à une fiche (clé normalisée, abréviations développées, clé souple)', () => {
     const owner = new Map(), clash = [];
     run('EXERCISE_CATALOGUE').forEach(e => [e.name, ...e.aliases].forEach(n => new Set([app.normName(n), app.ruleKey(n), '~' + app.looseKey(n)]).forEach(k => {
