@@ -271,7 +271,7 @@ function chatInboxRowsHtml() {
   const page = all.slice(0, chatInboxN), rest = all.length - page.length, now = Date.now();
   if (!all.length) {
     return `<div class="cell" id="chatInboxNone"><span class="cell__sub social-empty">${chatInboxQ ? 'Aucun élève ne correspond.'
-      : 'Aucune conversation pour l\'instant. Cherche un élève par son pseudo pour lui écrire.'}</span></div>`;
+      : 'Aucune conversation. Cherche un élève par son pseudo pour lui écrire.'}</span></div>`;
   }
   return page.map(r => chatInboxRowHtml(r, now)).join('') + (rest > 0
     ? `<button class="cell cell--action chat-more-rows" data-action="chat-inbox-more">Afficher ${plural(Math.min(rest, CHAT_INBOX_PAGE), 'conversation de plus', 'conversations de plus')}</button>` : '');

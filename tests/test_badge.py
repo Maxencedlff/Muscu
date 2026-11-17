@@ -200,7 +200,7 @@ def t_eleve_signale(bench, eng, dev, theme):
         # Signaler : confirmation, ligne dans la file commune, badge suspendu et caché tout de suite, alerte demandée
         rep.click()
         page.wait_for_selector('.ios-dialog')
-        R.check('l\'équipe la vérifie' in page.inner_text('.ios-dialog') and 'ne saura pas que c\'est toi' in page.inner_text('.ios-dialog'),
+        R.check('l\'équipe vérifiera la carte' in page.inner_text('.ios-dialog') and 'ne saura pas que c\'est toi' in page.inner_text('.ios-dialog'),
                 f'{t} confirmation : vérification et anonymat expliqués')
         shot(page, LOT, f'8-signaler-confirmation-{t}')
         tap_dialog(page, 'Signaler')

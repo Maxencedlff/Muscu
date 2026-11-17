@@ -128,7 +128,7 @@ const COACH_PRO_TEXT = {
   not_found: 'Connecte-toi d\'abord à ton compte.',
   card_suspended: 'Ton badge est en cours de revue après un signalement. Tu pourras le modifier ensuite.',
   card_removed: 'Ton badge a été retiré par l\'équipe. Écris à contact@mdlf.app pour en parler.',
-  invalid_badge_card: 'Numéro introuvable : il ressemble à 04912ED0123, comme sur ta carte.',
+  invalid_badge_card: 'Ce numéro n\'a pas le bon format. Recopie-le comme sur ta carte, par exemple 04912ED0123.',
 };
 function coachProErrorKind(error) {
   if (!error) return null;
