@@ -274,8 +274,8 @@ def p_seance(r):
         r.attendre('.view.summary', 'bilan')
     with r.etape('bilan-bas', 'Bilan, bas de l\'écran'):
         r.bas('bas du bilan')
-    with r.etape('partage-apercu', 'Partager ma séance : aperçu de la story', cle='Partager la séance en story'):
-        r.toucher('[data-action="share-story"]', 'Partager ma séance')
+    with r.etape('partage-apercu', 'Partager la séance : aperçu de la story', cle='Partager la séance en story'):
+        r.toucher('[data-action="share-story"]', 'Partager la séance')
         r.attendre('.share-preview', 'aperçu de la story')
         r.page.wait_for_timeout(600)   # image dessinée dans le canvas
     with r.etape('bilan-termine', 'Aperçu fermé, « Terminé » : accueil'):
@@ -337,11 +337,11 @@ def p_progres(r):
     with r.etape('vue-ensemble', 'Vue d\'ensemble (records de la semaine, calendrier)'):
         r.retour()
         r.toucher('[data-action="go-stats-overview"]', 'Vue d\'ensemble')
-    with r.etape('mesures', 'Mesures du corps', cle='Ouvrir ses mesures'):
+    with r.etape('mesures', 'Mensurations', cle='Ouvrir ses mensurations'):
         r.retour()
-        r.defiler('[data-action="go-body-measures"]', 'groupe Mesures')
-        r.toucher('[data-action="go-body-measures"]', 'Mesures')
-        r.attendre('.view.body-measures', 'Mesures')
+        r.defiler('[data-action="go-body-measures"]', 'groupe Mensurations')
+        r.toucher('[data-action="go-body-measures"]', 'Mensurations')
+        r.attendre('.view.body-measures', 'Mensurations')
     with r.etape('photos', 'Photos de progression (coffre : présentation, « Créer le coffre »)'):
         r.toucher('[data-action="go-photo-vault"]', 'Photos')
         r.attendre('.view.photo-vault', 'coffre à photos')
@@ -419,7 +419,7 @@ def p_generateur(r):
         r.toucher('.view.programmes [data-action="go-my-programmes"]', 'Mes programmes')
         r.toucher('[data-action="go-prog-add"]', 'Ajouter un programme')
     with r.etape('profil', 'Profil repris des Réglages', cle=cle):
-        r.toucher('[data-action="go-prog-gen"]', 'Créer mon programme sur mesure')
+        r.toucher('[data-action="go-prog-gen"]', 'Programme sur mesure')
         r.attendre('.view.prog-gen', 'générateur')
     with r.etape('objectif', 'Objectif', cle=cle):
         r.toucher('[data-action="gen-next"][data-step="toi"]', 'Commencer')
@@ -436,7 +436,7 @@ def p_generateur(r):
         r.toucher('[data-action="gen-zone"][data-val="fessiers"]', 'Fessiers')
         r.toucher('[data-action="gen-limit"][data-val="epaule"]', 'Épaule')
     with r.etape('apercu', 'Aperçu du programme', cle=cle):
-        r.toucher('[data-action="gen-next"][data-step="options"]', 'Voir mon programme')
+        r.toucher('[data-action="gen-next"][data-step="options"]', 'Voir le programme')
         r.attendre('[data-action="gen-use"]', 'aperçu')
     with r.etape('apercu-bas', 'Aperçu, bas de l\'écran (séances, boutons)', cle=cle):
         r.bas('bas de l\'aperçu')
@@ -592,7 +592,7 @@ def p_guide(r):
 @parcours('social', 'Social V2 : fil, carte de séance, commenter, recherche, Mon profil', 'pratiquant')
 def p_social(r):
     """Onglet Social (docs/SOCIAL_V2.md) sans compte (invitation à se connecter), puis connecté : activation, fil vide
-    (« Ton fil t'attend », Inviter un ami, champ de recherche), recherche d'un pseudo, fil avec une amie qui
+    (« Aucune personne suivie », Inviter un ami, champ de recherche), recherche d'un pseudo, fil avec une amie qui
     s'entraîne (carte de séance : chiffres, record, muscles), sa séance, « Commenter » et un commentaire envoyé,
     puis Mon profil."""
     r.lancer(REALISTE)
@@ -604,7 +604,7 @@ def p_social(r):
     with r.etape('activer', 'Connecté : retour à Social, carte d\'activation', cle='Activer Social'):
         r.retour()
         r.attendre('[data-action="social-enable"]', 'carte d\'activation')
-    with r.etape('fil-vide', 'Social activé, fil vide : « Ton fil t\'attend », Inviter un ami, champ de recherche au-dessus', cle='Activer Social'):
+    with r.etape('fil-vide', 'Social activé, fil vide : « Aucune personne suivie », Inviter un ami, champ de recherche au-dessus', cle='Activer Social'):
         r.toucher('[data-action="social-age"]', 'J\'ai 15 ans ou plus')
         r.toucher('[data-action="social-enable"]', 'Activer')
         r.attendre('#friendsBody [data-action="social-invite"]', 'fil vide avec « Inviter un ami »')
@@ -929,8 +929,8 @@ def p_nutrition(r):
     with r.etape('plan-cree', 'Plan créé : objectifs du jour, repas types facultatifs (cachés)', cle=cle):
         r.choisir('Créer')
         r.attendre('.diet-plan-view', 'plan de nutrition')
-    with r.etape('repas-types', '« Composer des repas types (facultatif) » : quatre repas à remplir', cle=cle):
-        r.toucher('[data-action="diet-compose"]', 'Composer des repas types')
+    with r.etape('repas-types', '« Ajouter des repas types » : quatre repas à remplir', cle=cle):
+        r.toucher('[data-action="diet-compose"]', 'Ajouter des repas types')
     with r.etape('recherche-aliment', 'Ajouter un aliment : recherche « riz blanc cuit »', cle=cle):
         r.toucher('[data-action="diet-add-food"]', 'Ajouter un aliment (Petit-déjeuner)')
         r.attendre('#dietFoodSearch', 'feuille de recherche')
@@ -1403,7 +1403,7 @@ def recopier_serveur(r, de, vers):
 @parcours('photos-bilan', 'Photos de bilan : l\'élève les envoie, le coach les compare', 'coach')
 def p_photos_bilan(r):
     """Deux téléphones. Le coach max active « Recevoir les photos de bilan » sous la liste de Coach › Élèves (Face ID
-    simulé, une fois pour tous ses élèves). Léa ouvre son coffre (Progrès › Mesures › Photos, Face ID), y a trois photos sur deux jours,
+    simulé, une fois pour tous ses élèves). Léa ouvre son coffre (Progrès › Mensurations › Photos, Face ID), y a trois photos sur deux jours,
     touche « Envoyer à mon coach » sous un jour, coche une photo (accord affiché sous la photo), l'envoie (18 ans ou
     plus, déclaré une fois), puis envoie seule la photo d'il y a deux semaines ; elle les retrouve dans Social › Mon
     coach › Photos de bilan. Le coach les ouvre (Face ID) et compare les deux dates côte à côte ; Léa en retire une."""
@@ -1433,10 +1433,10 @@ def p_photos_bilan(r):
         recopier_serveur(r, coach, eleve)
         r.raccourci("""async mx => { const me = __sb.meId(); __sb.makeCoach(mx); __sb.link(mx, me, Date.now() - 40 * 86400000);
             await coachRefresh(); }""", 'Léa suivie par max, qui reçoit les photos', mx)
-        with r.etape('coffre', 'Élève : Progrès › Mesures › Photos, coffre créé avec Face ID', cle='Élève : envoyer une photo de bilan'):
+        with r.etape('coffre', 'Élève : Progrès › Mensurations › Photos, coffre créé avec Face ID', cle='Élève : envoyer une photo de bilan'):
             r.onglet('progress', 'Progrès')
-            r.defiler('[data-action="go-body-measures"]', 'groupe Mesures')
-            r.toucher('[data-action="go-body-measures"]', 'Mesures')
+            r.defiler('[data-action="go-body-measures"]', 'groupe Mensurations')
+            r.toucher('[data-action="go-body-measures"]', 'Mensurations')
             r.toucher('[data-action="go-photo-vault"]', 'Photos')
             r.toucher('[data-action="pv-start"]', 'Créer le coffre (Face ID simulé)')
             r.attendre('.view.photo-vault [data-action="photo-add"]', 'coffre ouvert')
