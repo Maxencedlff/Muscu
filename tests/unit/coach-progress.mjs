@@ -253,4 +253,16 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(r, { records: 3, warn: 1, fresh: 3 });
     sameJSON(run(`teamWeekSummary([], () => null)`), { records: 0, warn: 0, fresh: 0 });
   });
+
+  test('filtres de Mes élèves : compteurs exacts, sans programme hors plans diète', () => {
+    const rows = `[
+      { st: { user_id: 'a', new_sessions: 0, sent: [] }, pr: { tone: 'warn' } },
+      { st: { user_id: 'b', new_sessions: 120, sent: [{ id: 'ppl' }] }, pr: { tone: 'none' } },
+      { st: { user_id: 'c', new_sessions: 0, sent: [{ id: 'diet_x' }] }, pr: { tone: 'up' } },
+      { st: { user_id: 'd', new_sessions: 0, sent: null }, pr: { tone: 'none' } },
+    ]`;
+    sameJSON(run(`coachFilterCounts(${rows}, st => (st.user_id === 'd' ? 1 : 0))`), { all: 4, warn: 1, fresh: 2, noprog: 2 });
+    assert.equal(run(`COACH_FILTER_MIN`), 21, 'au-delà de 20 élèves');
+    assert.equal(run(`coachStudentIn('noprog', { sent: null }, {})`), false, 'serveur sans « sent » : jamais compté');
+  });
 }

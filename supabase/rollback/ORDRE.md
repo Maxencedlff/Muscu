@@ -8,14 +8,15 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −16 | `20261117090000_badge_carte_pro_down.sql` (efface les déclarations ; les signalements restent dans `public.reports`) | rien | oui (vérifié) |
-| −15 | `20261117050000_reaction_jaime_down.sql` (chaque ❤️ redevient un 👏) | rien | oui (vérifié) |
+| −17 | `20261117090000_badge_carte_pro_down.sql` (efface les déclarations ; les signalements restent dans `public.reports`) | rien | oui (vérifié) |
+| −16 | `20261117060000_reaction_jaime_down.sql` (chaque ❤️ redevient un 👏 ; `push_claim` reprend celui du résumé des séances, −15) | rien | oui (vérifié) |
+| −15 | `20261117050000_messages_coach_down.sql` (résumé des séances et `coach_push_off` : résumés en file effacés, une notification par élève et par heure comme avant ; push-send peut rester) | J'aime (−16) : il reprend son `push_claim` | oui pour les autres lots (vérifié, sans `reaction_jaime_test.sql`) ; défaire −16 avant pour garder le texte de la notification d'une réaction |
 | −14 | `20261117040000_promo_coach_down.sql` (supprimer d'abord la fonction Edge `coach-promo-offer` ; demandes d'offre et comptes déjà coachs mis de côté dans `private.promo_coach_archive_*`) | rien | oui (vérifié) |
 | −13 | `20261117030000_grille_coach_down.sql` (grille coach du 17/11 : retour aux limites 10, 20, 30, illimité ; remettre aussi les prix dans App Store Connect) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et des élèves offerts attendent la grille du 17/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
 | −12 | `20261117020000_charge_coach_down.sql` (fonctions d'avant : mêmes réponses, plus lentes ; envoi de programmes revenu à 30 par 24 h) | rien | oui (vérifié) |
 | −11 | `20261117010000_photo_profil_down.sql` (vider d'abord le compartiment `profile-photos` par l'API Storage : il refuse sinon ; redéployer ensuite `coach-photos-purge` dans sa version d'avant, qui ne connaît pas ce compartiment) | rien | oui (vérifié) |
 | −10 | `20261116030000_eleves_gratuits_down.sql` (élèves offerts par leur coach : retour à l'élève payant et au code d'offre −25 %) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et du payant attendent la règle du 16/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
-| −9 | `20261116020000_notifications_seances_eleves_down.sql` | J'aime (−15) : il remplace son `push_claim` | oui pour les autres lots (vérifié) ; défaire −15 avant pour garder le texte de la notification |
+| −9 | `20261116020000_notifications_seances_eleves_down.sql` | résumé des séances (−15) : il remplace ses fonctions et s'appuie sur `student_sessions` ; J'aime (−16) : il remplace son `push_claim` | oui pour les autres lots (vérifié, sans `messages_coach_test.sql`) ; refuse s'il reste un résumé en file : défaire −16 puis −15 avant |
 | −8 | `20261116010000_charge_prescrite_down.sql` | rien | oui (vérifié) |
 | −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
@@ -82,7 +83,11 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
 8. `20261117020000_charge_coach.sql` (charge côté coach, mesures de `tests/charge/` : séances lues 3 fois plus vite à réponse identique, progression sans relire 182 jours, envoi de programmes à 30 + 2 par élève sur 24 h ; après 20261116010000 (en production) et les plans diète, dont elle réécrit les fonctions ; sans OTA)
 9. `20261117030000_grille_coach.sql` (grille coach du 17/11/2026 : 10, 25, 50, 100 élèves, docs/PAYANT_V1.md) : APRÈS 6 (il réécrit `coach_tier_state` des élèves offerts). Aucune fonction Edge à redéployer. Les prix se changent dans App Store Connect, à part.
 10. `20261117040000_promo_coach.sql` (essai coach par offre promotionnelle d'Apple, docs/PAYANT_V1.md) : APRÈS 6 (il relit le journal des descentes de palier `private.coach_tier_log`) ; puis la fonction Edge `coach-promo-offer` (secrets de `verify-purchase`), puis la build 69 avec l'OTA.
-11. `20261117050000_reaction_jaime.sql` (réaction ❤️ « J'aime », docs/SOCIAL_V1.md « J'aime ») : **avant** la fonction `push-send` à jour, elle-même **avant** l'OTA. Une app à jour sur un serveur d'avant ne peut pas aimer (`invalid_reaction`) ; une app d'avant sur ce serveur ignore les ❤️ sans planter. push-send peut passer juste avant ou juste après la migration : sans les nouveaux champs il dit « lea a aimé ta séance », l'ancien push-send dit encore « Bravo ! » tant qu'il n'est pas redéployé. Retour arrière : l'ordre inverse (OTA d'avant, puis `20261117050000_reaction_jaime_down.sql` ; push-send peut rester).
+11. `20261117050000_messages_coach.sql` (boîte Messages du coach, test de charge du 17/11 : résumé des séances au-delà de 3 par heure, `coach_push_off`) : la fonction Edge `push-send` (avec `push-policy.js`, version qui connaît aussi ❤️) redéployée AVANT (elle doit connaître `student_digest`, sinon la ligne est soldée sans envoi), puis la migration, puis l'OTA (une app d'avant ignore `coach_push_off` ; une app à jour sur un serveur d'avant ne montre aucune cloche). Aucune dépendance au payant : passe aussi seule après 20261116020000. NON appliquée (feu vert de Maxence).
+12. `20261117060000_reaction_jaime.sql` (réaction ❤️ « J'aime », docs/SOCIAL_V1.md « J'aime ») : APRÈS 11, dont elle reprend `push_claim` (résumé des séances) en y ajoutant la réaction ; renommée le 17/11 (ancien nom `20261117000000`, plus ancien que la production) ; **avant** l'OTA. Une app à jour sur un serveur d'avant ne peut pas aimer (`invalid_reaction`) ; une app d'avant sur ce serveur ignore les ❤️ sans planter. push-send peut passer juste avant ou juste après la migration : sans les nouveaux champs il dit « lea a aimé ta séance », l'ancien push-send dit encore « Bravo ! » tant qu'il n'est pas redéployé. Retour arrière : l'ordre inverse (OTA d'avant, puis `20261117060000_reaction_jaime_down.sql` ; push-send peut rester).
+13. `20261117090000_badge_carte_pro.sql` (badge « Carte pro déclarée », docs/COACH_V1.md « Badge carte pro ») : indépendante (nouvelle table `coach_cards`, aucune fonction existante réécrite), aucune fonction Edge ; avant l'OTA qui montre la section « Carte professionnelle ». Une app d'avant l'ignore.
+
+Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 
 Les fonctions Edge du payant (`verify-purchase`, `appstore-notify`, puis `coach-request-alert`) se déploient juste APRÈS 1 à 3 : elles envoient `p_intro` et `p_environment`, que la base du 28/10 ne connaît pas (docs/PAYANT_V1.md, « Mise en production »).
 
@@ -90,7 +95,7 @@ Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.
 
 Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque (et Strava).
 
-Pour défaire en production : l'ordre inverse de cette liste (10 → 1), avant tout retour arrière plus ancien (tableau du haut).
+Pour défaire en production : l'ordre inverse de cette liste (13 → 1), avant tout retour arrière plus ancien (tableau du haut).
 
 ## Ce qui est mis de côté, pas effacé
 

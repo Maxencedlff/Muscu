@@ -250,6 +250,8 @@ const COACH_ERROR_TEXT = {
   tier_full: 'Ton coach a atteint la limite de son abonnement : il doit passer au palier supérieur.',
   not_found: 'Introuvable : ce code est peut-être le tien, ou l\'élève ne te suit plus.',
   rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
+  // Envoi d'un programme ou d'un plan diète : limite glissante sur 24 h (20261117020000_charge_coach.sql, point 3)
+  send_rate: 'Limite d\'envoi atteinte : 30 envois plus 2 par élève, sur 24 heures. Réessaie dans 24 h.',
   too_long: 'Texte trop long.',
   invalid_programme: 'Ce programme ne peut pas être envoyé.',
   username_required: 'Choisis d\'abord un pseudo : ton coach te reconnaîtra avec.',
@@ -669,8 +671,13 @@ async function coachSendProgramme(student, progId, over = null) {
   if (sentProgrammeBytes(p) > COACH_PROG_BYTES) return { ok: false, kind: 'too_big' };
   const r = await coachRpc('coach_send_programme', { student, prog_id: progId, data: p });
   if (r.ok) coachRecordSent(student, progId, Date.now(), p.name);
-  return r;
+  return coachSendRate(r);
 }
+
+// Refus de coach_send_programme pour la limite d'envoi : sa vraie durée (24 h), pas « une heure » (test de charge du 17/11)
+function coachSendRate(r) { return !r.ok && r.kind === 'rate_limited' ? { ...r, kind: 'send_rate' } : r; }
+// Nombre d'envois permis sur 24 h (même règle que le serveur : 30 + 2 par élève suivi)
+function coachSendLimit(team = coach.state?.students.length || 0) { return 30 + 2 * team; }
 
 // Élève : programme ou commentaire vu (badge)
 async function coachMarkInboxSeen(kind, ref) {

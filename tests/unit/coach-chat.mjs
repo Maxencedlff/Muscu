@@ -148,4 +148,55 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(run(`coachErrorKind({ code: 'PGRST202', message: 'Could not find the function public.chat_threads without parameters' })`), 'missing');
     for (const k of ['empty_message', 'missing', 'too_long', 'rate_limited']) assert.match(run(`coachErrorText(${JSON.stringify(k)})`), /^[A-ZÉ].+\.$/, k);
   });
+
+  test('boîte du coach : heure comme Messages d\'iOS', () => {
+    const now = Date.parse('2026-11-17T15:00:00');
+    assert.equal(run(`chatListTime(${Date.parse('2026-11-17T09:05:00')}, ${now})`), '09:05');
+    assert.equal(run(`chatListTime(${Date.parse('2026-11-16T23:59:00')}, ${now})`), 'Hier');
+    assert.equal(run(`chatListTime(${Date.parse('2026-11-13T10:00:00')}, ${now})`), 'Vendredi');
+    assert.match(run(`chatListTime(${Date.parse('2026-11-03T10:00:00')}, ${now})`), /^3 nov\.?$/);
+    assert.match(run(`chatListTime(${Date.parse('2025-11-03T10:00:00')}, ${now})`), /^3 nov\.? 2025$/);
+    assert.equal(run(`chatListTime(NaN, ${now})`), '');
+  });
+
+  test('boîte du coach : non-lues en tête, puis la plus récente ; recherche sur tous les élèves', () => {
+    const rows = run(`chatInboxRows(
+      [{ user_id: 'a', username: 'anna' }, { user_id: 'b', username: 'bob' }, { user_id: 'c', username: 'chloé' }, { user_id: 'd', username: 'dan' }],
+      { students: { a: { unread: 0, last: { at: 300 } }, b: { unread: 2, last: { at: 100 } }, c: { unread: 0, last: { at: 500 } } } })`);
+    sameJSON(rows.map(r => r.st.user_id), ['b', 'c', 'a'], 'dan sans message : absent ; bob non lu en tête');
+    const q = run(`chatInboxRows([{ user_id: 'c', username: 'Chloé' }, { user_id: 'd', username: 'dan' }], { students: {} }, 'chloe', s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase())`);
+    sameJSON(q.map(r => r.st.user_id), ['c'], 'recherche sans accents, élève sans conversation compris');
+    sameJSON(run(`chatInboxRows(null, null)`), []);
+  });
+
+  test('notifications coupées : identifiants seulement', () => {
+    const s = run(`[...cleanPushOff(['a', 3, null, 'x'.repeat(65), 'b'])]`);
+    sameJSON(s, ['a', 'b']);
+    assert.equal(run(`cleanPushOff({}).size`), 0);
+  });
+
+  test('envoi : le refus de limite dit 24 h, pas une heure', () => {
+    sameJSON(run(`coachSendRate({ ok: false, kind: 'rate_limited' })`), { ok: false, kind: 'send_rate' });
+    sameJSON(run(`coachSendRate({ ok: false, kind: 'offline' })`), { ok: false, kind: 'offline' });
+    assert.match(run(`coachErrorText('send_rate')`), /24 h/);
+    assert.doesNotMatch(run(`coachErrorText('send_rate')`), /heure\b(?!s)/);
+    assert.equal(run(`coachSendLimit(50)`), 130);
+  });
+
+  // Scripts classiques à portée partagée (ARCHITECTURE.md) : deux déclarations du même nom au niveau supérieur font
+  // échouer le chargement du second fichier (COACH_PAGE déclaré deux fois, le 17/11 : tout l'écran coach cassé)
+  test('scripts de l\'app : aucun nom déclaré deux fois au niveau supérieur', async () => {
+    const fs = await import('node:fs'), path = await import('node:path'), url = await import('node:url');
+    const root = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..', '..');
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    const seen = new Map(), dup = [];
+    for (const [, src] of html.matchAll(/<script src="(js\/[^"]+)"/g)) {
+      const code = fs.readFileSync(path.join(root, src), 'utf8');
+      for (const [, name] of code.matchAll(/^(?:const|let|var|(?:async )?function\*?|class)\s+([A-Za-z_$][\w$]*)/gm)) {
+        if (seen.has(name) && seen.get(name) !== src) dup.push(`${name} (${seen.get(name)}, ${src})`);
+        seen.set(name, src);
+      }
+    }
+    assert.deepEqual(dup, []);
+  });
 }

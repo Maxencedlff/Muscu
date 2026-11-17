@@ -110,7 +110,7 @@ Décisions de Maxence (30/10/2026) :
 - **Historique** : « 🔥 2 » (la plus fréquente et le total) à côté du titre d'une séance qui a reçu des réactions ; dans le détail, « Réactions (N) » et la liste de qui a réagi.
 - **privacy.html** : « Réactions » remplace « Bravos » (FR et EN), avec qui voit qui a réagi et la date de consultation de l'activité.
 
-## J'aime (17/11/2026, migration `20261117050000_reaction_jaime.sql`)
+## J'aime (17/11/2026, migration `20261117060000_reaction_jaime.sql`)
 
 Décisions de Maxence (17/11/2026) :
 - un toucher = ❤️ `like` « J'aime », en tête de la liste fermée : ❤️ `like`, 👏 `clap`, 🔥 `fire`, 💪 `strong`, 🏆 `trophy`, 😮 `wow` ;
@@ -124,7 +124,7 @@ Décisions de Maxence (17/11/2026) :
 - `push_claim` rend pour une réaction `reaction` et `label` (voir docs/NOTIFICATIONS.md).
 - **Anciennes versions de l'app** : elles écartent une sorte inconnue sans planter (`cleanReactionCounts`, `cleanWhoRow`, `cleanActivityRow` de js/data/social.js, vérifié) : un ❤️ n'y apparaît pas (ni compte, ni « qui a réagi », ni activité) ; si ma propre réaction est ❤️, elles l'affichent comme « pas de réaction » et un toucher y pose 👏 à la place. Pas de cas d'erreur. L'app à jour garde la même règle pour une sorte future.
 - **Ordre de mise en production** : la migration, puis la fonction `push-send`, puis l'OTA (supabase/rollback/ORDRE.md, 14). Une app à jour sur un serveur d'avant ne peut pas aimer (`invalid_reaction`, réaction annulée) mais « + » et la rangée marchent.
-- **Retour arrière** : `supabase/rollback/20261117050000_reaction_jaime_down.sql` (chaque ❤️ redevient un 👏, ligne et date gardées), vérifié par `tests/sql/rollback_reaction_jaime_check.sh` et `tests/sql/rollback_nuit_check.sh`. Remettre l'OTA d'avant d'abord.
+- **Retour arrière** : `supabase/rollback/20261117060000_reaction_jaime_down.sql` (chaque ❤️ redevient un 👏, ligne et date gardées), vérifié par `tests/sql/rollback_reaction_jaime_check.sh` et `tests/sql/rollback_nuit_check.sh`. Remettre l'OTA d'avant d'abord.
 
 ### App (js/features/reactions-ui.js)
 - **Fil** : le cœur (emoji seul ; plein à la teinte quand ❤️ est ma réaction ; VoiceOver « J'aime », bouton bascule) : un toucher pose ❤️, le retire, ou remplace une autre réaction par ❤️ ; appui long (0,42 s) : bulle des cinq autres. À côté, « + » (VoiceOver « Autres réactions », menu) : la même bulle ; il montre ma réaction quand c'en est une autre (« Autres réactions, la tienne : Chaud »). Puis le résumé « ❤️🔥 3 ». Deux boutons de 44 pt au moins.

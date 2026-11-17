@@ -42,9 +42,11 @@ function updateTabBadge() {
   syncTabMeta();
   const btn = $('.tabbar [data-tab="friends"]');
   if (!btn) return;
-  // Demandes reçues (Social) + nouveautés du coach (js/data/coach.js : nouvelles séances, programmes, commentaires)
-  // + messages non lus (js/data/coach-chat.js)
-  const social = socialBadge(), fromCoach = coachBadge() + chatUnreadTotal(), n = social + fromCoach;
+  // Demandes reçues (Social) + nouveautés du coach (js/data/coach.js : programmes, commentaires de mon coach)
+  // + messages non lus (js/data/coach-chat.js). Onglet Coach : les nouvelles séances des élèves n'y sont plus (17/11 :
+  // la pastille compte les messages non lus ; à 300 élèves elle restait à « 99+ ») ; elles sont dans le filtre Nouveautés
+  const coachTab = typeof coachTabOn === 'function' && coachTabOn();
+  const social = socialBadge(), fromCoach = (coachTab ? coachBadgeStudent() : coachBadge()) + chatUnreadTotal(), n = social + fromCoach;
   let badge = btn.querySelector('.tabbar__badge');
   if (!n) { badge?.remove(); btn.removeAttribute('aria-label'); return; }
   if (!badge) { badge = document.createElement('span'); badge.className = 'tabbar__badge num'; badge.setAttribute('aria-hidden', 'true'); btn.append(badge); }

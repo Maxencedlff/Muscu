@@ -23,9 +23,9 @@ dump() {
     | sed -E 's/20[0-9]{2}-[0-9]{2}-[0-9]{2} [0-9:.]+\+[0-9]{2}/<date>/g' > "$1"
 }
 psql -f "$here/supabase_stub.sql"
-# Sans J'aime (20261117050000), qui remplace son push_claim et se démonte avant
+# Sans le résumé des séances (20261117050000) ni J'aime (20261117060000), qui s'appuient sur elle et se démontent avant
 for m in "$root"/supabase/migrations/*.sql; do
-  case "$(basename "$m" .sql)" in "$M"|20261117050000_*) ;; *) psql -f "$m" ;; esac
+  case "$(basename "$m" .sql)" in "$M"|20261117050000_*|20261117060000_*) ;; *) psql -f "$m" ;; esac
 done
 # Avant : K coach, E son élève, un appareil (faux jeton), messages allumés, un message en file
 U1=00000000-0000-0000-0000-0000000008d1; U2=00000000-0000-0000-0000-0000000008d2

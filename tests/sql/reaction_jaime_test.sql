@@ -1,4 +1,4 @@
--- Vérifications de supabase/migrations/20261117050000_reaction_jaime.sql (lancées par tests/sql/run.sh) :
+-- Vérifications de supabase/migrations/20261117060000_reaction_jaime.sql (lancées par tests/sql/run.sh) :
 -- ❤️ like dans la liste fermée (set_reaction, contrainte), égalités départagées ❤️ d'abord (my_reactions),
 -- toggle_bravo des anciennes versions inchangé (👏), et ce que push_claim rend pour une réaction : la sorte
 -- relue à l'envoi et le nom de ma séance (40 caractères au plus), rien si elle a été retirée ou si la séance

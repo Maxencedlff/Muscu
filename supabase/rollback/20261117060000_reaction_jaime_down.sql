@@ -1,17 +1,17 @@
 -- ═══════════════════════════════════════════════════════════
---  Retour arrière de supabase/migrations/20261117050000_reaction_jaime.sql (à lancer à la main, dans
+--  Retour arrière de supabase/migrations/20261117060000_reaction_jaime.sql (à lancer à la main, dans
 --  l'éditeur SQL, seulement si Maxence décide d'annuler la réaction « J'aime »). Pas dans migrations/ :
 --  Supabase ne l'applique jamais de lui-même.
 --
 --  Effet : chaque ❤️ redevient un 👏 (la ligne reste, sa date aussi : rien ne se perd et rien ne redevient
 --  « nouveau ») ; la contrainte bravos_kind, set_reaction et reaction_top reprennent leur texte de
---  20261031200000_reactions_profil.sql ; push_claim reprend celui de 20261116020000 (plus de champs reaction
---  ni label pour une réaction).
+--  20261031200000_reactions_profil.sql ; push_claim reprend celui de 20261117050000_messages_coach.sql (plus de
+--  champs reaction ni label pour une réaction ; le résumé des séances reste).
 --  L'app à jour reste utilisable mais ne peut plus aimer : le cœur et le double toucher envoient like, refusé
 --  (invalid_reaction : réaction annulée, message d'erreur du serveur) ; « + », l'appui long et la rangée
 --  marchent. Remettre d'abord l'OTA d'avant (supabase/rollback/ORDRE.md).
 --  push-send peut rester tel quel : sans reaction, il dit « lea a aimé ta séance ».
---  À démonter AVANT 20261116020000_notifications_seances_eleves_down.sql et avant
+--  À démonter AVANT 20261117050000_messages_coach_down.sql, 20261116020000_notifications_seances_eleves_down.sql et avant
 --  20261031200000_reactions_profil_down.sql (supabase/rollback/ORDRE.md).
 --  Vérifié par tests/sql/rollback_nuit_check.sh (pg_dump identique à la base d'avant) et
 --  tests/sql/rollback_reaction_jaime_check.sh (un ❤️ posé redevient un 👏).
@@ -73,7 +73,7 @@ begin
 end
 $$;
 
--- Texte de 20261116020000_notifications_seances_eleves.sql
+-- Texte de 20261117050000_messages_coach.sql
 create or replace function public.push_claim(max_rows int) returns jsonb
   language plpgsql security definer set search_path = '' as
 $$
@@ -85,6 +85,11 @@ begin
     select o.id from private.push_outbox o
       where o.sent_at is null and o.attempts < 5 and o.created_at > now() - interval '24 hours'
         and (o.claimed_at is null or o.claimed_at < now() - interval '5 minutes')
+        and (o.kind <> 'student_digest'
+             or (o.created_at <= now() - interval '15 minutes'
+                 and not exists (select 1 from private.push_outbox p
+                                 where p.recipient = o.recipient and p.kind = 'student_digest' and p.id <> o.id
+                                   and coalesce(p.sent_at, p.claimed_at) > now() - interval '1 hour')))
       order by o.created_at
       limit least(greatest(coalesce(max_rows, 50), 1), 200)
       for update skip locked
@@ -92,25 +97,31 @@ begin
     update private.push_outbox o set claimed_at = now(), attempts = o.attempts + 1
       from picked where o.id = picked.id
       returning o.*
+  ), counted as (
+    select c.*, case when c.kind = 'student_digest' then private.push_digest_count(c.recipient, c.actors) end as n
+    from claimed c
   ), checked as (
     select c.*, private.push_wanted(c.recipient, c.kind) and not private.blocked_between(c.recipient, c.actor)
-                and private.push_valid(c.kind, c.recipient, c.actor, c.ref) as ok
-    from claimed c
+                and private.push_valid(c.kind, c.recipient, c.actor, c.ref)
+                and (c.kind <> 'student_digest' or c.n >= 1) as ok
+    from counted c
   )
   select coalesce(jsonb_agg(jsonb_build_object(
            'id', c.id, 'kind', c.kind,
            'ref', case when not c.ok then ''
+                       when c.kind = 'student_digest' then ''
                        when c.kind = 'student_session' then
                          case when char_length(c.actor::text || '/' || c.ref) <= 64 then c.actor::text || '/' || c.ref else c.actor::text end
                        else private.push_open_ref(c.kind, c.ref, c.recipient) end,
            'token', d.token, 'env', d.env,
-           'actor_name', up.username,
+           'actor_name', case when c.kind = 'student_digest' then null else up.username end,
            'wanted', c.ok)
            || case when c.ok and c.kind = 'student_session' then jsonb_strip_nulls(jsonb_build_object(
                 'label', case when jsonb_typeof(x.data -> 'label') = 'string' then nullif(left(btrim(x.data ->> 'label'), 40), '') end,
                 'minutes', case when jsonb_typeof(x.data -> 'duration') = 'number'
                                      and (x.data ->> 'duration')::numeric between 60000 and 86400000
                                 then round((x.data ->> 'duration')::numeric / 60000)::int end))
+                   when c.ok and c.kind = 'student_digest' then jsonb_build_object('count', c.n)
               else '{}'::jsonb end
            order by c.id), '[]'::jsonb)
     into res

@@ -37,7 +37,7 @@ const REPORT_DETAILS_MAX = 500;
 const SOCIAL_ME = '@me';                   // clé du fil de mes séances telles que les autres les voient
 const ACTIVITY_PAGE = 50;                  // lignes par page de l'activité (comme le serveur)
 // Réactions, dans l'ordre du choix (liste fermée, la même que la contrainte bravos_kind du serveur,
-// migration 20261117050000_reaction_jaime.sql). La première, ❤️ « J'aime », est celle d'un simple toucher
+// migration 20261117060000_reaction_jaime.sql). La première, ❤️ « J'aime », est celle d'un simple toucher
 // (bouton cœur, double toucher sur le résumé d'une carte) ; les autres sont derrière « + » ou l'appui long.
 // Une sorte inconnue (version plus récente du serveur) est écartée partout, sans erreur.
 const REACTIONS = [

@@ -23,7 +23,8 @@ let socialResults = null;      // { q, rows } ou { q, error } de la dernière re
 let socialSearchTimer = null, socialSearchSeq = 0;
 let friendsShown = null;       // état de l'onglet au dernier dessin complet (friendsState)
 let friendsLayout = null;      // forme de l'onglet au dernier dessin complet (friendsLayoutKey)
-let socialSeg = 'students';    // compte coach : segment affiché, Élèves (à l'ouverture de l'app) ou Social
+let socialSeg = 'students';    // compte coach : segment affiché, Élèves (à l'ouverture de l'app), Messages ou Mes amis
+const SOCIAL_SEGS = ['students', 'messages', 'friends'];
 let socialScrollComments = false;   // « Commenter » d'une carte : la séance s'ouvre sur ses commentaires
 
 // ── Petits gabarits ─────────────────────────────────────────
@@ -172,13 +173,15 @@ function renderFriends() {
   friendsShown = st;
   friendsLayout = friendsLayoutKey();
   const right = st === 'on' ? meButtonHtml() : '';
-  // « Mes amis » plutôt que « Social » : la vie de pratiquant du coach, à part de ses élèves (panel v4 t1)
+  // « Mes amis » plutôt que « Social » : la vie de pratiquant du coach, à part de ses élèves (panel v4 t1). Messages
+  // (17/11, validé par Maxence) : toutes les conversations avec ses élèves, sans 6e onglet (iOS le rangerait dans « Plus »)
   const segs = coachTab ? `
         <div class="segmented seg-full social-seg" role="group" aria-label="Afficher">
-          ${[['students', 'Élèves'], ['friends', 'Mes amis']].map(([k, l]) => `<button class="segmented__btn ${seg === k ? 'segmented__btn--active' : ''}" data-action="social-seg" data-seg="${k}" aria-pressed="${seg === k}">${l}</button>`).join('')}
+          ${[['students', 'Élèves'], ['messages', 'Messages'], ['friends', 'Mes amis']].map(([k, l]) => `<button class="segmented__btn ${seg === k ? 'segmented__btn--active' : ''}" data-action="social-seg" data-seg="${k}" aria-pressed="${seg === k}">${l}${k === 'messages' ? chatSegCountHtml() : ''}</button>`).join('')}
         </div>` : '';
   const body = seg === 'students'
     ? `<div id="studentsBody" class="coach-team">${coachTeamHtml()}</div>`
+    : seg === 'messages' ? chatInboxScreenHtml()
     : `${reactHintHtml()}<div id="coachCell">${coachCellHtml()}</div>${st === 'on' ? searchHtml() : ''}<div id="friendsBody">${friendsBodyHtml(st)}</div>`;
   return `
     <div class="view view--grouped friends-view${coachTab ? ' friends-view--coach' : ''}">
@@ -188,7 +191,7 @@ function renderFriends() {
 }
 // Segment montré à la prochaine ouverture de l'onglet (compte coach) : Élèves après avoir retiré un élève,
 // Social pour une demande d'abonnement reçue en notification
-function setSocialSeg(seg) { socialSeg = seg === 'friends' ? 'friends' : 'students'; }
+function setSocialSeg(seg) { socialSeg = SOCIAL_SEGS.includes(seg) ? seg : 'students'; }
 function routeToStudents() { setSocialSeg('students'); routeTo('friends'); }
 function searchHtml() {
   return `
@@ -352,12 +355,13 @@ async function friendsEnter() {
   // Segment Élèves (compte coach) : état, progression et palier ; sinon la cellule Mon coach (js/features/coach-ui.js),
   // indépendante du social. Social masqué par la tranche d'âge : les élèves d'un coach restent à jour
   if (friendsSeg() === 'students') coachTeamEnter();
+  if (friendsSeg() === 'messages') { chatInboxEnter(); return; }
   if (socialHiddenByAge()) return;
   if (friendsSeg() !== 'students') coachRefresh({ minAge: SOCIAL_REFRESH_MS });
   await socialRefresh();
   if (socialEnabled() && Date.now() - socialFeed('').loadedAt > SOCIAL_REFRESH_MS) socialLoadFeed('');
 }
-SCREENS.set('friends', { render: () => renderFriends(), enter: () => { friendsEnter(); } });
+SCREENS.set('friends', { render: () => renderFriends(), mount: () => { if (friendsSeg() === 'students') coachWatchMore(); if (friendsSeg() === 'messages') chatInboxWatchMore(); }, enter: () => { friendsEnter(); } });
 
 // ── Séance d'un ami ─────────────────────────────────────────
 
@@ -721,7 +725,7 @@ registerActions({
   'social-open-comments': (e, el) => { socialScrollComments = true; navigate(makeRoute('social-session', el.dataset.owner, el.dataset.id)); },
   // Compte coach : Élèves ou Social, en haut de l'onglet Coach ; chaque segment se recharge à l'arrivée
   'social-seg': (e, el) => {
-    const seg = el.dataset.seg === 'friends' ? 'friends' : 'students';
+    const seg = SOCIAL_SEGS.includes(el.dataset.seg) ? el.dataset.seg : 'students';
     if (seg === socialSeg) return;
     socialSeg = seg;
     haptic();

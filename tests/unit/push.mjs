@@ -41,6 +41,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(pushMessage(row({ actor_name: null })).body, 'Quelqu’un a aimé ta séance');
     assert.equal(pushMessage(row({ actor_name: 'a\nb\u0007' })).body.startsWith('ab '), true, 'caractères de contrôle retirés');
     assert.equal([...pushMessage(row({ actor_name: 'x'.repeat(200) })).body].length < 80, true, 'pseudo borné');
+    // Résumé des séances (coach) : un nombre, jamais un pseudo, aucun écran précis
+    sameJSON(pushMessage(row({ kind: 'student_digest', ref: 'ignoré', actor_name: 'lea', count: 12 })),
+      { title: 'Séances terminées', body: '12 élèves ont terminé leur séance', kind: 'student_digest', ref: '' });
+    assert.equal(pushMessage(row({ kind: 'student_digest', ref: '', actor_name: null, count: 1 })).body, '1 élève a terminé sa séance');
   });
 
   test('push : rien sans accord, sans appareil ni type connu', async () => {
@@ -49,6 +53,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(pushMessage(row({ token: null })), { skip: 'no_device' });
     sameJSON(pushMessage(row({ token: 'ZZ'.repeat(32) })), { skip: 'no_device' });
     sameJSON(pushMessage(row({ kind: 'pub' })), { skip: 'unknown_kind' });
+    // Résumé des séances : un nombre d'élèves entier, sinon rien
+    for (const count of [undefined, 0, -1, 1.5, '12', 10001]) sameJSON(pushMessage(row({ kind: 'student_digest', ref: '', count })), { skip: 'invalid_count' });
   });
 
   test('push : requête APNs (hôte, en-têtes, charge utile, expiration 24 h)', async () => {
@@ -432,8 +438,9 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const student = '00000000-0000-0000-0000-0000000000b2';
     // Clé décidée par le serveur (push_open_ref) : rien ne dépend du compte connecté
     assert.equal(run('CHAT_COACH'), '@coach', 'même clé que push_open_ref');
-    sameJSON(t({ kind: 'chat_message', ref: '@coach' }), { tab: 'friends', screen: 'coach-chat', params: ['@coach'] }, 'élève : avec mon coach');
-    sameJSON(t({ kind: 'chat_message', ref: student }), { tab: 'friends', screen: 'coach-chat', params: [student] }, 'coach : avec cet élève');
+    sameJSON(t({ kind: 'chat_message', ref: '@coach' }), { tab: 'friends', screen: 'coach-chat', params: ['@coach'], seg: 'students' }, 'élève : avec mon coach');
+    sameJSON(t({ kind: 'chat_message', ref: student }), { tab: 'friends', screen: 'coach-chat', params: [student], seg: 'messages' }, 'coach : avec cet élève, la boîte Messages dessous');
+    sameJSON(t({ kind: 'student_digest', ref: '' }), { tab: 'friends', screen: null, params: [], seg: 'students', filter: 'fresh' }, 'résumé des séances : Élèves, Nouveautés');
     sameJSON(t({ kind: 'chat_message', ref: '../x' }), { tab: 'friends', screen: null, params: [] }, 'ref inattendu : onglet Social');
     sameJSON(t({ kind: 'chat_message', ref: '' }), { tab: 'friends', screen: null, params: [] });
     const st = '00000000-0000-0000-0000-0000000000c1';

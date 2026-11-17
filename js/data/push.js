@@ -190,7 +190,8 @@ function pushTarget(p, history = []) {
   const kind = p?.kind, ref = typeof p?.ref === 'string' ? p.ref : '';
   if (kind === 'chat_message') {
     if (ref !== CHAT_COACH && !PUSH_UUID_RE.test(ref)) return { tab: 'friends', screen: null, params: [] };
-    return { tab: 'friends', screen: 'coach-chat', params: [ref] };
+    // Coach : le segment Messages, sous la conversation (retour à la boîte de réception)
+    return { tab: 'friends', screen: 'coach-chat', params: [ref], seg: ref === CHAT_COACH ? 'students' : 'messages' };
   }
   if (kind === 'reaction' || kind === 'coach_note' || kind === 'comment') {
     return ref && history.some(h => h.id === ref)
@@ -205,6 +206,9 @@ function pushTarget(p, history = []) {
     return sid ? { tab: 'friends', screen: 'coach-session', params: [student, sid], via: ['coach-student', student] }
       : { tab: 'friends', screen: 'coach-student', params: [student] };
   }
+  // Résumé « 12 élèves ont terminé leur séance » (coach, au-delà de 3 notifications de séances dans l'heure) :
+  // onglet Coach, segment Élèves, filtre Nouveautés
+  if (kind === 'student_digest') return { tab: 'friends', screen: null, params: [], seg: 'students', filter: 'fresh' };
   // Plan diète (ref diet_<…>, js/data/nutrition.js) : écran Nutrition, où il se prend d'un toucher
   if (kind === 'coach_programme' && ref.startsWith('diet_')) return { tab: 'train', screen: 'nutrition', params: [] };
   if (kind === 'coach_programme') return { tab: 'friends', screen: 'coach-mine', params: [] };

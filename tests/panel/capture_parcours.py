@@ -47,7 +47,7 @@ COMBOS = {
     'grand-texte': [('webkit', d, th, fs) for fs in (23, 33) for d in ('iPhone 13', 'iPhone SE') for th in ('light', 'dark')],
 }
 # Parcours du mode texte agrandi
-GRAND_TEXTE_PARCOURS = ['accueil', 'seance', 'coach', 'social', 'photos-bilan', 'nutrition', 'reglages']
+GRAND_TEXTE_PARCOURS = ['accueil', 'seance', 'coach', 'boite-coach', 'social', 'photos-bilan', 'nutrition', 'reglages']
 THEME_FR = {'dark': 'sombre', 'light': 'clair'}
 CIBLE_MINI = 44
 POLICE_MINI = 12

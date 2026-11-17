@@ -30,6 +30,7 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | `−` et `+` | Une unité de moins ou de plus (feuille de quantité d'un aliment : « 2 œufs ») ; `+` seul reste l'ajout | Toujours par paire, autour du champ |
 | Coche | Choisir ou valider (série, programme actif, « Utiliser ce plan ») | |
 | Bulle à lignes (`text.bubble`) | Messages privés avec son coach ou un élève, et leur nombre de non-lus | Jamais pour un commentaire |
+| Cloche barrée (`bell.slash`) | État, côté coach : cet élève ne reçoit pas les notifications de tes messages (aucun iPhone inscrit, ou « Messages » éteint). Petite et grise, après le pseudo (Mes élèves, Messages, envoi à plusieurs) | Jamais une action ; jamais côté élève |
 | Bulle vide (`bubble.left`) | Commentaire sur une séance : « Commenter » (Social), « Commentée par ton coach » | Jamais pour les messages privés |
 | Silhouette dans un cercle (`person.crop.circle`) | Pas encore de compte : « Se connecter » (Réglages, Compte) | Jamais l'haltère, réservée à l'onglet Entraînement |
 

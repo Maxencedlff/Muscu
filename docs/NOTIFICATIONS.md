@@ -12,8 +12,9 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
 | Mon coach | `coach_notes` ajouté ou texte changé ; `coach_programmes` ajouté ou contenu changé | « Ton coach » · « kevin a commenté ta séance » / « kevin t'a envoyé un programme » | Historique › la séance ; Social › Mon coach |
 | Messages | ligne ajoutée dans `coach_messages` par l'autre personne (mon coach, ou un de mes élèves) | « Nouveau message » · « kevin t'a envoyé un message » | Social (ou Coach) › la conversation (avec mon coach, ou avec cet élève), même app fermée |
 | Séances de mes élèves (coachs seulement) | séance datée qui arrive dans `sessions` (insert avec `done_at`, ou `done_at` qui passe de null à une date) d'un élève lié, coach encore coach, séance de moins de 24 h et pas d'avant le lien | « Séance terminée » · « lea a terminé Push · 52 min » (nom et durée seulement, jamais une charge ni un exercice) | Coach › la fiche de l'élève › la séance |
+| Séances de mes élèves, résumé (coachs seulement, même réglage) | au-delà de 3 séances notifiées dans l'heure, les suivantes s'ajoutent à un résumé (`20261117050000_messages_coach.sql`) | « Séances terminées » · « 12 élèves ont terminé leur séance » (un nombre, jamais un pseudo) | Coach › Élèves, filtre « Nouveautés » |
 
-- **Rien sans accord** : les six types sont éteints par défaut (pas de ligne `push_prefs` = tout
+- **Rien sans accord** : les six réglages sont éteints par défaut (pas de ligne `push_prefs` = tout
   éteint). La fenêtre d'autorisation d'iOS ne s'ouvre qu'au toucher d'un interrupteur ou d'« Activer »
   dans la demande en contexte (ci-dessous) ; le jeton de l'iPhone n'est inscrit qu'à ce moment-là.
 - **Demande en contexte** (`pushAskInContext`, js/features/push-ui.js ; règles `pushAskDecision`,
@@ -69,16 +70,23 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
   le coach les voit déjà (`coach_student_sessions`). `ref` rendu : `<id de l'élève>/<id de la séance>`
   (l'id de l'élève seul au-delà de 64 caractères) ; nom (40 caractères) et durée en minutes relus par
   `push_claim`, séance supprimée ou lien rompu entre-temps : rien.
+- **Résumé des séances** (`20261117050000_messages_coach.sql`, test de charge du 17/11 : un coach de 300
+  élèves recevait jusqu'à 300 notifications par heure) : au plus 3 notifications « Séance terminée » par
+  heure glissante et par coach, tous élèves confondus. Au-delà, l'élève est ajouté à un résumé
+  (`student_digest`, une ligne en attente par coach, élèves distincts dans `push_outbox.actors`). Le résumé
+  part 15 minutes après sa création, jamais dans l'heure qui suit le précédent : 3 notifications et un résumé
+  par heure au plus. `push_claim` relit le nombre (`count` : élèves encore liés et non bloqués ; 0 : rien),
+  `ref` vide, sans pseudo. Réglage `student_sessions` éteint : résumé en attente vidé.
 - **Séance en cours** : le toucher d'une notification n'arrache jamais de l'écran de la séance.
 - Les rappels de fin de repos restent des notifications locales (`LocalNotifications`), sans serveur.
 
-## Données sur le serveur (`20261031900000_notifications_push.sql`, `20261031910000_notifications_messages.sql`, `20261116020000_notifications_seances_eleves.sql`)
+## Données sur le serveur (`20261031900000_notifications_push.sql`, `20261031910000_notifications_messages.sql`, `20261116020000_notifications_seances_eleves.sql`, `20261117050000_messages_coach.sql`)
 
 | Table | Contenu | Accès |
 |---|---|---|
 | `public.push_devices` | jeton APNs (hexadécimal, 64 à 200 caractères), compte, environnement (`production` / `sandbox`), dates | RPC seulement |
 | `public.push_prefs` | six booléens par compte (`reactions`, `follows`, `coach`, `comments`, `messages`, `student_sessions`) | RPC seulement |
-| `private.push_outbox` | file : destinataire, type, auteur, objet (id de séance, de programme, de commentaire ou de message ; jamais un texte), état d'envoi | déclencheurs et RPC de l'envoi |
+| `private.push_outbox` | file : destinataire, type, auteur, objet (id de séance, de programme, de commentaire ou de message ; jamais un texte), état d'envoi ; résumé des séances : élèves regroupés (`actors`) | déclencheurs et RPC de l'envoi |
 | `private.push_apns_auth` | une ligne : jeton du fournisseur APNs (JWT d'une heure, pas la clé .p8), son `iat`, l'identifiant de clé | RPC de l'envoi |
 
 RLS activée sans politique et aucun GRANT de table : tout passe par des fonctions `security definer`
@@ -91,7 +99,8 @@ RLS activée sans politique et aucun GRANT de table : tout passe par des fonctio
 | `push_release(token)` | authenticated | retire ce jeton s'il est à un AUTRE compte (laissé sur cet iPhone par une session finie hors de l'app) ; le mien n'est jamais touché |
 | `push_prefs()` | authenticated | `{ reactions, follows, coach, comments, messages, student_sessions }` |
 | `push_set_prefs(reactions, follows, coach, comments, messages, student_sessions)` | authenticated | `null` = inchangé ; un type éteint vide sa file en attente. Les versions à 3 et 5 arguments restent (apps d'avant) et ne touchent pas aux types suivants |
-| `push_claim(max_rows)` | service_role | prend la file (une ligne par appareil, `wanted` relu avec la modération), réaction : `reaction` (sorte actuelle, absente si retirée) et `label` (nom de ma séance, absent sans nom ou supprimée), `ref` = écran à ouvrir (séance du commentaire ; conversation : `@coach` pour l'élève, id de l'élève pour le coach, sans dépendre du compte chargé dans l'app), ménage : file de plus de 7 jours, appareils muets depuis 60 jours |
+| `push_claim(max_rows)` | service_role | prend la file (une ligne par appareil, `wanted` relu avec la modération), réaction : `reaction` (sorte actuelle, absente si retirée) et `label` (nom de ma séance, absent sans nom ou supprimée), `ref` = écran à ouvrir (séance du commentaire ; conversation : `@coach` pour l'élève, id de l'élève pour le coach, sans dépendre du compte chargé dans l'app), ménage : file de plus de 7 jours, appareils muets depuis 60 jours ; résumé des séances : `{ kind: 'student_digest', ref: '', count }`, pris 15 min après sa création et pas dans l'heure du précédent |
+| `coach_push_off()` | authenticated | coach : `[uuid, …]`, ses élèves liés qui ne recevraient pas ses messages en notification (aucun appareil, ou « Messages » éteint) ; rien d'autre ; pas coach : `[]` ; 600 lectures par heure (`rate_limited`) ; l'app montre une cloche barrée |
 | `push_done(ids, dead_tokens)` | service_role | solde les notifications traitées, retire les jetons morts |
 | `push_auth_get()` | service_role | jeton du fournisseur APNs gardé `{ token, iat, key_id }`, ou `null` |
 | `push_auth_swap(expected, token, iat, key_id)` | service_role | le remplace seulement s'il porte encore `expected` (`null` : pas encore de ligne) ; rend la ligne gagnante |
@@ -122,8 +131,8 @@ fenêtre d'iOS puis jeton) ; la cellule des Réglages dit « À réactiver » (`
 
 Tests : `tests/sql/push_test.sql` (anon, autre compte, défauts, déclencheurs, blocage, fantôme, file,
 reprise, suppression du compte, `push_release`) et `tests/sql/push_messages_test.sql` (commentaires et
-messages : réglages, salve, lu, masqué, signalé, bloqué, lien rompu, écran à ouvrir) ; `tests/sql/push_seances_test.sql` (séances des élèves : réglage, déclencheurs, débit, ce qui ne sonne jamais, écran, nom et durée) ; retours arrière :
-`tests/sql/rollback_push_seances_check.sh`, `tests/sql/rollback_push_messages_check.sh` (pg_dump identique), puis `tests/sql/rollback_push_check.sh`.
+messages : réglages, salve, lu, masqué, signalé, bloqué, lien rompu, écran à ouvrir) ; `tests/sql/push_seances_test.sql` (séances des élèves : réglage, déclencheurs, débit, ce qui ne sonne jamais, écran, nom et durée) ; `tests/sql/messages_coach_test.sql` (résumé : seuil, élèves distincts, regroupement, un par heure, bloqué, lien rompu, réglage ; `coach_push_off`) ; retours arrière :
+`tests/sql/rollback_messages_coach_check.sh`, `tests/sql/rollback_push_seances_check.sh`, `tests/sql/rollback_push_messages_check.sh` (pg_dump identique), puis `tests/sql/rollback_push_check.sh`.
 
 ## Envoi (`supabase/functions/push-send/`)
 

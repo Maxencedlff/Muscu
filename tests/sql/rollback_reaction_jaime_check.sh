@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Retour arrière de la réaction « J'aime » (supabase/rollback/20261117050000_reaction_jaime_down.sql), sur un
+# Retour arrière de la réaction « J'aime » (supabase/rollback/20261117060000_reaction_jaime_down.sql), sur un
 # Postgres local jetable comme run.sh : toutes les autres migrations et des réactions (dont un 👏), pg_dump ;
 # puis la migration, un ❤️ posé, le retour arrière : le ❤️ est redevenu un 👏 (ligne et date gardées), like est
 # refusé, et le pg_dump est identique à celui d'avant une fois ce ❤️ compté comme le 👏 qu'il est devenu.
@@ -9,7 +9,7 @@ set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
 bin=$(dirname "$(command -v initdb 2>/dev/null || ls -d /usr/lib/postgresql/*/bin/initdb | sort -V | tail -1)")
-M=20261117050000_reaction_jaime
+M=20261117060000_reaction_jaime
 tmp=$(mktemp -d)
 port=$(( 20000 + RANDOM % 20000 ))
 cleanup() { "$bin/pg_ctl" -D "$tmp/data" -m immediate stop >/dev/null 2>&1 || true; rm -rf "$tmp"; }

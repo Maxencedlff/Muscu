@@ -324,7 +324,7 @@ FAKE_ACCOUNT = r"""
     so.bravos = so.bravos.filter(b => !(b.owner === owner && b.sid === sid && b.user === user));
     so.bravos.push({ owner, sid, user, kind, at });
   };
-  const KINDS = ['like', 'clap', 'fire', 'strong', 'trophy', 'wow'];   // liste fermée (20261117050000_reaction_jaime.sql)
+  const KINDS = ['like', 'clap', 'fire', 'strong', 'trophy', 'wow'];   // liste fermée (20261117060000_reaction_jaime.sql)
   const pgErr = message => ({ data: null, error: { code: 'P0001', message, details: null, hint: null } });
   const blockedBetween = (a, b) => so.blocks.some(k => (k.blocker === a && k.blocked === b) || (k.blocker === b && k.blocked === a));
   const rel = (a, b) => so.follows.find(f => f.follower === a && f.followee === b);
@@ -962,6 +962,15 @@ FAKE_ACCOUNT = r"""
     chat_mark_read: (me, { student = null, up_to = null } = {}) => {
       const th = chatThread(me, student); if (!th) return pgErr('not_found');
       const ms = chatMsgs(th).filter(m => up_to == null || m.id <= up_to); chatMark(th, ms.length ? ms[ms.length - 1].id : 0); return null;
+    },
+    // Notifications coupées chez mes élèves (supabase/migrations/20261117060000_messages_coach.sql) : aucun appareil
+    // inscrit ou « Messages » éteint ; __sb.fail.pushOff = 'missing' : serveur sans la fonction
+    coach_push_off: me => {
+      if (sb.fail.pushOff === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.coach_push_off' } };
+      if (!co.coachAt[me]) return [];
+      const devs = Object.values(sb.push.devices);
+      return co.links.filter(l => l.coach === me).map(l => l.student)
+        .filter(s => !devs.includes(s) || sb.push.prefs[s]?.messages !== true);
     },
     // Copie des 50 derniers messages (co.chatReports, gardée après la rupture du lien) et ligne de la file commune
     report_chat: (me, { reason, student = null } = {}) => {

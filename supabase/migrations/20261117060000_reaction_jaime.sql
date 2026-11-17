@@ -1,7 +1,7 @@
 -- ═══════════════════════════════════════════════════════════
 --  Réaction « J'aime » ❤️ (décision de Maxence du 17/11/2026, contrat : docs/SOCIAL_V1.md, section
 --  « J'aime (17/11/2026) »). 20261031200000_reactions_profil.sql est déjà en production : elle ne change pas,
---  tout le changement est ici. Retour arrière : supabase/rollback/20261117050000_reaction_jaime_down.sql.
+--  tout le changement est ici. Retour arrière : supabase/rollback/20261117060000_reaction_jaime_down.sql.
 --
 --  - Liste fermée : like ❤️ s'ajoute en tête (like, clap, fire, strong, trophy, wow), toujours sans texte.
 --    C'est la réaction d'un simple toucher dans l'app à jour ; 👏 reste la valeur par défaut de la colonne
@@ -16,7 +16,8 @@
 --  - Anciennes versions de l'app : elles ne connaissent pas like. Elles l'écartent sans planter (comptes,
 --    qui a réagi et activité ignorent une sorte inconnue ; js/data/social.js, cleanReactionCounts,
 --    cleanWhoRow, cleanActivityRow) : un ❤️ n'y apparaît simplement pas, jusqu'à l'OTA.
---  - Ordre de mise en production : cette migration, puis push-send, puis l'OTA (supabase/rollback/ORDRE.md).
+--  - Ordre de mise en production : APRÈS 20261117050000_messages_coach.sql, dont elle reprend push_claim
+--    (résumé des séances) ; puis push-send, puis l'OTA (supabase/rollback/ORDRE.md).
 -- ═══════════════════════════════════════════════════════════
 
 -- ── Données ──────────────────────────────────────────────
@@ -78,7 +79,7 @@ begin
 end
 $$;
 
--- Comme 20261116020000_notifications_seances_eleves.sql, plus, pour une réaction : reaction (la sorte posée
+-- Comme 20261117050000_messages_coach.sql (séances des élèves et leur résumé), plus, pour une réaction : reaction (la sorte posée
 -- par l'auteur sur ma séance, relue maintenant ; absente si elle a été retirée) et label (nom de ma séance,
 -- 40 caractères au plus ; absent sans nom ou si la séance est supprimée)
 create or replace function public.push_claim(max_rows int) returns jsonb
@@ -92,6 +93,11 @@ begin
     select o.id from private.push_outbox o
       where o.sent_at is null and o.attempts < 5 and o.created_at > now() - interval '24 hours'
         and (o.claimed_at is null or o.claimed_at < now() - interval '5 minutes')
+        and (o.kind <> 'student_digest'
+             or (o.created_at <= now() - interval '15 minutes'
+                 and not exists (select 1 from private.push_outbox p
+                                 where p.recipient = o.recipient and p.kind = 'student_digest' and p.id <> o.id
+                                   and coalesce(p.sent_at, p.claimed_at) > now() - interval '1 hour')))
       order by o.created_at
       limit least(greatest(coalesce(max_rows, 50), 1), 200)
       for update skip locked
@@ -99,25 +105,31 @@ begin
     update private.push_outbox o set claimed_at = now(), attempts = o.attempts + 1
       from picked where o.id = picked.id
       returning o.*
+  ), counted as (
+    select c.*, case when c.kind = 'student_digest' then private.push_digest_count(c.recipient, c.actors) end as n
+    from claimed c
   ), checked as (
     select c.*, private.push_wanted(c.recipient, c.kind) and not private.blocked_between(c.recipient, c.actor)
-                and private.push_valid(c.kind, c.recipient, c.actor, c.ref) as ok
-    from claimed c
+                and private.push_valid(c.kind, c.recipient, c.actor, c.ref)
+                and (c.kind <> 'student_digest' or c.n >= 1) as ok
+    from counted c
   )
   select coalesce(jsonb_agg(jsonb_build_object(
            'id', c.id, 'kind', c.kind,
            'ref', case when not c.ok then ''
+                       when c.kind = 'student_digest' then ''
                        when c.kind = 'student_session' then
                          case when char_length(c.actor::text || '/' || c.ref) <= 64 then c.actor::text || '/' || c.ref else c.actor::text end
                        else private.push_open_ref(c.kind, c.ref, c.recipient) end,
            'token', d.token, 'env', d.env,
-           'actor_name', up.username,
+           'actor_name', case when c.kind = 'student_digest' then null else up.username end,
            'wanted', c.ok)
            || case when c.ok and c.kind = 'student_session' then jsonb_strip_nulls(jsonb_build_object(
                 'label', case when jsonb_typeof(x.data -> 'label') = 'string' then nullif(left(btrim(x.data ->> 'label'), 40), '') end,
                 'minutes', case when jsonb_typeof(x.data -> 'duration') = 'number'
                                      and (x.data ->> 'duration')::numeric between 60000 and 86400000
                                 then round((x.data ->> 'duration')::numeric / 60000)::int end))
+                   when c.ok and c.kind = 'student_digest' then jsonb_build_object('count', c.n)
                    when c.ok and c.kind = 'reaction' then jsonb_strip_nulls(jsonb_build_object(
                 'reaction', b.kind,
                 'label', case when x.deleted_at is null and jsonb_typeof(x.data -> 'label') = 'string'

@@ -50,7 +50,8 @@ def open_coach(page, theme):
     page.evaluate('coachRefresh()')
     page.wait_for_timeout(300)
     page.click('.tabbar [data-tab="friends"]')
-    page.wait_for_function(f'() => document.querySelectorAll(".coach-team .coach-student-row").length === {N}', timeout=60_000)
+    # Liste par pages de 40 depuis le 17/11 (COACH_ROWS_PAGE) : la première page, puis la suite en défilant
+    page.wait_for_function('() => document.querySelectorAll(".coach-team .coach-student-row").length === 40', timeout=60_000)
     page.wait_for_function('() => typeof progress === "object" && progress.facts && !progress.loading', timeout=30_000)
     page.wait_for_timeout(300)
     return ids
@@ -60,7 +61,16 @@ def t_liste(bench, eng, dev, theme):
     t = f'{dev}-{theme}'
     with bench.page(eng, dev, theme) as page:
         ids = open_coach(page, theme)
-        R.check(page.locator('.coach-team .coach-student-row').count() == N, f'{t} {N} élèves dans la liste')
+        R.check(page.locator('.coach-more-rows').count() == 1, f'{t} 40 cartes d\'abord, la suite en dessous')
+        for _ in range(10):
+            if not page.locator('.coach-more-rows').count():
+                break
+            page.locator('.coach-more-rows').scroll_into_view_if_needed()
+            page.wait_for_timeout(200)
+        R.check(page.locator('.coach-team .coach-student-row').count() == N, f'{t} {N} élèves dans la liste, en défilant')
+        R.check(page.evaluate("Object.fromEntries([...document.querySelectorAll('.coach-filter')].map(b => [b.dataset.filter, +b.querySelector('.coach-filter__n').textContent]))").get('all') == N,
+                f'{t} filtre Tous : {N}, compteur exact')
+        page.evaluate('scrollTo(0, 0)')
         cut = page.evaluate("""[...document.querySelectorAll('.coach-team .cstu .social-row__name')]
             .filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent).slice(0, 5)""")
         R.check(cut == [], f'{t} chaque pseudo lisible en entier {cut}')
