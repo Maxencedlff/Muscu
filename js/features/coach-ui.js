@@ -721,6 +721,9 @@ function coachRefreshRows() {
 }
 // Bas de la liste atteint : 40 cartes de plus, sans toucher (le bouton reste pour VoiceOver et sans IntersectionObserver)
 function coachWatchMore() {
+  // Filtre choisi visible dans sa ligne qui défile (ouverte par une notification sur Nouveautés), sans défiler la page
+  const on = $('.coach-filter--on'), row = on?.parentElement;
+  if (row && (on.offsetLeft < row.scrollLeft || on.offsetLeft + on.offsetWidth > row.scrollLeft + row.clientWidth)) row.scrollLeft = on.offsetLeft - 16;
   coachRowsObserver?.disconnect();
   const btn = $('.coach-more-rows');
   if (!btn || typeof IntersectionObserver !== 'function') return;
