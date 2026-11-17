@@ -713,6 +713,10 @@ function coachRefreshRows() {
   setHtmlIfChanged(el, coachRowsHtml(v));
   const f = $('#coachFilters');
   if (f) setHtmlIfChanged(f, coachFiltersHtml(v));
+  // Le segment entier montre maintenant ce que donnerait coachTeamHtml() : la prochaine relecture sans nouveauté ne le
+  // réécrit pas (setHtmlIfChanged de refreshCoachCell)
+  const team = $('#studentsBody');
+  if (team) team.__html = coachTeamHtml();
   coachWatchMore();
 }
 // Bas de la liste atteint : 40 cartes de plus, sans toucher (le bouton reste pour VoiceOver et sans IntersectionObserver)

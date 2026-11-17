@@ -229,6 +229,8 @@ def t_coach(bench, eng, dev, theme):
         page.evaluate("() => { const l = __sb.co.links.find(x => x.coach === __sb.meId()); __sb.msg(l.student, false, 'Salut'); return coachRefresh(); }")
         page.wait_for_timeout(300)
         R.check((page.get_attribute('.tabbar [data-tab="friends"]', 'aria-label') or '').startswith('Coach, '), f'{t} badge (message non lu) annoncé avec « Coach »')
+        page.evaluate("() => { __sb.co.msgs = []; return coachRefresh(); }")   # la suite du test sans ce message
+        page.wait_for_timeout(300)
         # « Voir qui a progressé » : un toucher depuis n'importe quel onglet
         touches = 1
         open_tab(page)

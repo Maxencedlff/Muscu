@@ -524,6 +524,8 @@ def t_coach(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check(tab_badge(page) == '1', f'{t} pastille : 1 message de Léa ({tab_badge(page)!r})')
         R.check('nouveauté' in (page.get_attribute('.tabbar [data-tab="friends"]', 'aria-label') or ''), f'{t} badge annoncé par VoiceOver')
+        page.evaluate("() => { __sb.co.msgs = []; return coachRefresh(); }")   # la suite du test sans ce message
+        page.wait_for_timeout(300)
         # Compte coach : l'onglet s'appelle Coach et s'ouvre sur ses élèves (segment Élèves), sans toucher de plus
         R.check(page.inner_text('.tabbar [data-tab="friends"] .tabbar__label') == 'Coach', f'{t} coach : onglet « Coach »')
         friends_tab(page)
