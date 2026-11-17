@@ -23,7 +23,9 @@ function waterState(day = localISO()) {
 }
 // « 1,2 sur 2,8 L », lu « 1,2 litre sur 2,8 »
 function waterValText(st, sep = 'sur') { return `${waterLitres(st.ml)} ${sep} ${fmtNum(st.goal.l, 2)}\u00a0L`; }
-function waterValSpoken(st) { return `${waterLitres(st.ml)} litre${st.ml >= 2000 ? 's' : ''} sur ${fmtNum(st.goal.l, 2)}`; }
+function waterValSpoken(st) { return `${waterLitres(st.ml)} litre${st.ml >= 2000 ? 's' : ''} sur ${fmtNum(st.goal.l, 2)}${st.goal.plus ? ', dont 0,5 litre pour la séance' : ''}`; }
+// « (dont +0,5 L séance) » : le total du jour dit d'où vient la hausse (option C du 17/11)
+function waterPlusHtml(st) { return st.goal.plus ? ` <span class="water-card__plus">(dont +${fmtNum(st.goal.plus, 2)}\u00a0L séance)</span>` : ''; }
 
 // Verre qui se remplit (visuel de la jauge, caché à VoiceOver qui lit les chiffres)
 function waterGlassSvg(ratio, size = 44) {
@@ -50,7 +52,6 @@ function waterAddBtnHtml(cup, day = '', extra = '') {
 // Carte « Eau » du jour affiché (day : jour de la frise ; past : jour passé, figé dans les boutons)
 function waterCardHtml(day, { past = false } = {}) {
   const st = waterState(day), attrDay = past ? day : '';
-  const why = st.goal.src === 'auto' && st.goal.plus ? `<p class="water-card__why">+ 0,5\u00a0L : séance ${past ? 'ce jour-là' : 'aujourd\'hui'}</p>` : '';
   const n = waterDay(data, day).length;
   return `
         <h2 class="group-title" id="waterTitle">Eau</h2>
@@ -58,13 +59,12 @@ function waterCardHtml(day, { past = false } = {}) {
           <button class="water-card__top" data-action="water-goal" aria-label="${esc(`Eau : ${waterValSpoken(st)}${st.reached ? ', objectif atteint' : ''}. Changer l'objectif`)}">
             <span class="water-card__glass">${waterGlassSvg(st.ratio)}</span>
             <span class="water-card__text" aria-hidden="true">
-              <span class="water-card__val num"><b>${waterLitres(st.ml)}</b> sur ${fmtNum(st.goal.l, 2)}\u00a0L</span>
+              <span class="water-card__val num"><b>${waterLitres(st.ml)}</b> sur ${fmtNum(st.goal.l, 2)}\u00a0L${waterPlusHtml(st)}</span>
               <span class="water-card__goal">${st.reached ? `${icon('checkmark', 12)}Objectif atteint` : st.goal.src === 'plan' ? 'Objectif du plan' : st.goal.src === 'me' ? 'Objectif choisi' : 'Objectif conseillé'}</span>
             </span>
             ${icon('chevron.right', 16)}
           </button>
           ${waterBarHtml(st.ratio)}
-          ${why}
           <div class="water-card__btns">
             ${waterCups(data).map(c => waterAddBtnHtml(c, attrDay)).join('')}
             <button class="water-add water-add--other" data-action="water-other"${attrDay ? ` data-day="${esc(attrDay)}"` : ''}>Autre</button>
@@ -107,21 +107,25 @@ function waterHomeCard() {
 // Objectif : − / + par 0,25 L, « Revenir au repère conseillé » ; fixé par le plan : lecture seule
 async function waterGoalSheet() {
   const st = waterState(), g = st.goal, sex = waterSex();
-  const auto = { ...waterAutoGoal({ sex, training: st.training }), src: 'auto' };
+  // La feuille règle la base (sans le bonus de séance) ; le total du jour est dit dessous
+  const bonus = waterTrainBonusOn(data), plusToday = st.training && bonus ? WATER_TRAIN_L : 0;
+  const auto = { ...waterAutoGoal({ sex, training: false }), src: 'auto' };
+  const todayText = v => (plusToday ? `Aujourd'hui : ${fmtNum(v + plusToday, 2)}\u00a0L (dont +0,5\u00a0L séance)` : '');
   if (g.src === 'plan') {
     await sheet({ title: 'Objectif d\'eau', cancel: '', confirm: 'OK', body: `<div class="water-gs">
         <p class="water-gs__val num">${fmtNum(g.l, 2)}\u00a0L</p><p class="water-gs__why">${esc(waterGoalWhy(g))}</p></div>` });
     return;
   }
-  let l = g.l;
+  let l = g.base;
   const body = `<div class="water-gs">
       <div class="water-gs__step">
         <button type="button" class="water-gs__btn" data-wstep="-1" aria-label="Moins 0,25 litre">${icon('minus', 22)}</button>
         <p class="water-gs__val num" id="waterGsVal" aria-live="polite">${fmtNum(l, 2)}\u00a0L</p>
         <button type="button" class="water-gs__btn" data-wstep="1" aria-label="Plus 0,25 litre">${icon('plus', 22)}</button>
       </div>
-      <p class="water-gs__why" id="waterGsWhy">${esc(waterGoalWhy(g, { sex }))}</p>
-      <button type="button" class="water-gs__link" data-wauto ${g.src === 'auto' ? 'hidden' : ''}>Revenir au repère conseillé (${fmtNum(auto.l, 2)}\u00a0L)</button>
+      <p class="water-gs__today num" id="waterGsToday">${esc(todayText(l))}</p>
+      <p class="water-gs__why" id="waterGsWhy">${esc(waterGoalWhy(g, { sex, bonus }))}</p>
+      <button type="button" class="water-gs__link" data-wauto ${g.src === 'auto' ? 'hidden' : ''}>Revenir au repère conseillé (${fmtNum(auto.base, 2)}\u00a0L)</button>
       <p class="water-gs__src">Repères : EFSA (2010), apport en eau des adultes ; ACSM (2007), pertes par la sueur à l'effort. Des repères, pas un avis médical.</p>
     </div>`;
   let mode = g.src;   // 'auto' ou 'me'
@@ -130,13 +134,14 @@ async function waterGoalSheet() {
   if (root) {
     const paint = () => {
       $('#waterGsVal', root).textContent = `${fmtNum(l, 2)}\u00a0L`;
-      $('#waterGsWhy', root).textContent = mode === 'auto' ? waterGoalWhy(auto, { sex }) : waterGoalWhy({ src: 'me' });
+      $('#waterGsToday', root).textContent = todayText(l);
+      $('#waterGsWhy', root).textContent = waterGoalWhy({ src: mode }, { sex, bonus });
       $('[data-wauto]', root).hidden = mode === 'auto';
     };
     root.addEventListener('click', ev => {
       const step = ev.target.closest('[data-wstep]');
       if (step) { l = waterStepGoal(l, Number(step.dataset.wstep)); mode = 'me'; haptic('light'); paint(); return; }
-      if (ev.target.closest('[data-wauto]')) { l = auto.l; mode = 'auto'; haptic('light'); paint(); }
+      if (ev.target.closest('[data-wauto]')) { l = auto.base; mode = 'auto'; haptic('light'); paint(); }
     });
   }
   const r = await p;
@@ -215,6 +220,10 @@ function waterSettingsGroupHtml() {
             <span class="cell__body"><span class="cell__title">Suivre l'eau</span><span class="cell__sub">Un objectif en litres, un toucher par verre</span></span>
             ${switchHtml(on)}
           </button>
+          <button class="cell" data-action="water-train-toggle" role="switch" aria-checked="${waterTrainBonusOn(data)}">
+            <span class="cell__body"><span class="cell__title">+0,5 L les jours de séance</span><span class="cell__sub">Sur ton objectif ; celui fixé par ton coach ne change pas</span></span>
+            ${switchHtml(waterTrainBonusOn(data))}
+          </button>
           <button class="cell cell--nav" data-action="go-water-cups">
             <span class="cell__body"><span class="cell__title">Contenants</span><span class="cell__sub">Verre, bouteille, 1 L${mine.length ? ` et ${plural(mine.length, 'perso', 'perso')}` : ''}</span></span>${icon('chevron.right', 16)}</button>
         </div>
@@ -285,6 +294,10 @@ registerActions({
   'water-on': () => { data.waterOn = true; save(); haptic(); render(); announce('Suivi de l\'eau activé'); },
   'water-toggle': () => {
     if (data.waterOn) delete data.waterOn; else data.waterOn = true;
+    save(); haptic(); render();
+  },
+  'water-train-toggle': () => {
+    if (data.waterTrainOff) delete data.waterTrainOff; else data.waterTrainOff = true;
     save(); haptic(); render();
   },
   'go-water-cups': () => navigate('water-cups'),

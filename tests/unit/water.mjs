@@ -20,14 +20,35 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     let g = run(`waterGoalFor(data, { plan: ${j(coachPlan)}, sex: 'male', training: true })`);
     sameJSON({ l: g.l, src: g.src, coach: g.coach }, { l: 3, src: 'plan', coach: 'max' }, 'le plan du coach fait foi, sans bonus');
     assert.match(run(`waterGoalWhy(${j(g)})`), /^Fixé par max dans ton plan de nutrition\.$/);
-    run('data.waterGoalL = 2.75');
+    run('data.waterGoalL = 3');
     g = run(`waterGoalFor(data, { plan: null, sex: 'male', training: true })`);
-    sameJSON({ l: g.l, src: g.src }, { l: 2.75, src: 'me' }, 'choisi à la main : tel quel, même un jour de séance');
+    sameJSON({ l: g.l, src: g.src, base: g.base, plus: g.plus }, { l: 3.5, src: 'me', base: 3, plus: 0.5 }, 'option C : 3 L choisis = 3,5 L un jour de séance');
+    g = run(`waterGoalFor(data, { plan: null, sex: 'male', training: false })`);
+    sameJSON({ l: g.l, plus: g.plus }, { l: 3, plus: 0 }, 'jour sans séance : 3 L');
+    assert.equal(run(`waterGoalWhy(${j(g)})`), 'Choisi par toi, plus 0,5 L les jours de séance.');
     run('delete data.waterGoalL');
     g = run(`waterGoalFor(data, { plan: { name: 'x', meals: [], targets: { kcal: 2000 } }, sex: 'female', training: false })`);
     sameJSON({ l: g.l, src: g.src }, { l: 1.6, src: 'auto' }, 'plan sans eau : le repère');
     assert.equal(run(`waterGoalWhy(waterGoalFor(data, { sex: 'male', training: true }), { sex: 'male' })`),
-      'Repère de l\'EFSA : 2 L de boissons par jour pour un homme, plus 0,5 L un jour d\'entraînement.');
+      'Repère de l\'EFSA : 2 L de boissons par jour pour un homme, plus 0,5 L les jours de séance.');
+  });
+
+  test('eau : réglage « +0,5 L les jours de séance » allumé par défaut, coupé sur le repère et l\'objectif choisi, jamais sur le coach', () => {
+    reset();
+    assert.equal(run('waterTrainBonusOn(data)'), true, 'allumé par défaut (clé absente)');
+    run('data.waterTrainOff = true');
+    let g = run(`waterGoalFor(data, { sex: 'male', training: true })`);
+    sameJSON({ l: g.l, plus: g.plus }, { l: 2, plus: 0 }, 'coupé : repère sans bonus');
+    run('data.waterGoalL = 3');
+    g = run(`waterGoalFor(data, { sex: 'male', training: true })`);
+    sameJSON({ l: g.l, plus: g.plus }, { l: 3, plus: 0 }, 'coupé : objectif choisi tel quel');
+    assert.equal(run(`waterGoalWhy(${j(g)}, { bonus: false })`), 'Choisi par toi.');
+    run('delete data.waterTrainOff');
+    g = run(`waterGoalFor(data, { plan: { name: 'P', meals: [], targets: { water: 3 }, fromCoach: { coachId: 'c', name: 'max' } }, sex: 'male', training: true })`);
+    sameJSON({ l: g.l, plus: g.plus, src: g.src }, { l: 3, plus: 0, src: 'plan' }, 'objectif du coach : jamais de bonus');
+    run('data.waterTrainOff = "oui"; sanitizeData(data)');
+    assert.equal(run('data.waterTrainOff'), undefined, 'valeur illisible retirée (bonus allumé)');
+    assert.ok(run(`SYNC_LOCAL_ONLY.includes('waterTrainOff')`));
   });
 
   test('eau : pas de 0,25 L sur la grille, bornes 0,5 à 6 L', () => {
@@ -126,7 +147,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
 
   test('eau : sur l\'appareil seulement (jamais sur le compte ni dans la copie iCloud), dans l\'export', () => {
     reset();
-    for (const k of ['waterLog', 'waterOn', 'waterGoalL', 'waterCups']) {
+    for (const k of ['waterLog', 'waterOn', 'waterGoalL', 'waterCups', 'waterTrainOff']) {
       assert.ok(run(`SYNC_LOCAL_ONLY.includes('${k}') && !SYNC_PROFILE_KEYS.includes('${k}')`), k);
     }
     run(`data.waterOn = true; waterAdd(data, 250)`);

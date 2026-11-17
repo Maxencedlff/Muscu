@@ -7,7 +7,8 @@
 //    boissons de l'EFSA (2010) selon le sexe, + 0,5 L un jour d'entraînement (ACSM 2007 : 0,5 à 2 L de sueur par heure).
 //  - data.waterLog : ce qui a été bu, jour par jour ({ 'AAAA-MM-JJ': [{ id, ml, at }] }), 120 jours. Sur l'appareil
 //    seulement, comme le journal des repas (SYNC_LOCAL_ONLY, hors de la copie iCloud : règle 5.1.3(ii) d'Apple).
-//  - Réglages de l'appareil : waterOn (suivi activé), waterGoalL (objectif choisi), waterCups (contenants perso).
+//  - Réglages de l'appareil : waterOn (suivi activé), waterGoalL (objectif choisi), waterCups (contenants perso),
+//    waterTrainOff (+0,5 L les jours de séance coupé ; absent : allumé, sur le repère et sur l'objectif choisi).
 //  - Aucune finalité médicale : des repères, jamais d'alerte ni de rouge.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -88,6 +89,7 @@ function waterNameKey(n) { return String(n ?? '').normalize('NFD').replace(/[̀-
 // Appelé par sanitizeData : clés retirées quand il n'en reste rien de valable
 function sanitizeWater(d, now = Date.now()) {
   if (d.waterOn !== undefined && d.waterOn !== true) delete d.waterOn;
+  if (d.waterTrainOff !== undefined && d.waterTrainOff !== true) delete d.waterTrainOff;   // bonus de séance coupé (absent : allumé)
   if (d.waterGoalL !== undefined) { const l = cleanWaterLitres(d.waterGoalL); if (l === null) delete d.waterGoalL; else d.waterGoalL = l; }
   if (d.waterCups !== undefined) { d.waterCups = cleanWaterCups(d.waterCups); if (!d.waterCups.length) delete d.waterCups; }
   if (d.waterLog !== undefined) { d.waterLog = cleanWaterLog(d.waterLog, now); if (!Object.keys(d.waterLog).length) delete d.waterLog; }
@@ -111,12 +113,16 @@ function waterTrainingDay(d, day, { live = false } = {}) {
 }
 // Objectif du jour : { l, src, base, plus, coach } ; src : 'plan' (plan de nutrition, coach compris), 'me' (choisi
 // à la main) ou 'auto' (repère calculé). plan : le plan de nutrition suivi (ou null)
+// Bonus d'un jour de séance (« +0,5 L les jours de séance », allumé par défaut, vote du 17/11 : option C) : sur le repère
+// comme sur l'objectif choisi (3 L choisis = 3,5 L un jour de séance), jamais sur celui du coach (il décide)
+function waterTrainBonusOn(d) { return d?.waterTrainOff !== true; }
 function waterGoalFor(d, { plan = null, sex = null, training = false } = {}) {
   const fromPlan = cleanWaterLitres(plan?.targets?.water);
   if (fromPlan !== null) return { l: fromPlan, src: 'plan', base: fromPlan, plus: 0, coach: plan.fromCoach?.name || (plan.fromCoach ? '' : null) };
+  const bonus = training && waterTrainBonusOn(d);
   const own = cleanWaterLitres(d.waterGoalL);
-  if (own !== null) return { l: own, src: 'me', base: own, plus: 0, coach: null };
-  return { ...waterAutoGoal({ sex, training }), src: 'auto', coach: null };
+  if (own !== null) { const plus = bonus ? WATER_TRAIN_L : 0; return { l: Math.round((own + plus) * 100) / 100, src: 'me', base: own, plus, coach: null }; }
+  return { ...waterAutoGoal({ sex, training: bonus }), src: 'auto', coach: null };
 }
 // Pas de 0,25 L : depuis 2,3 L, « + » donne 2,5 et « − » 2,25 (la grille de 0,25), bornés de 0,5 à 6 L
 function waterStepGoal(l, dir) {
@@ -188,12 +194,14 @@ function waterParseQty(raw) {
   return ml >= WATER_ML_MIN && ml <= WATER_ML_MAX ? ml : null;
 }
 // Explication de l'objectif en une phrase (feuille de l'objectif)
-function waterGoalWhy(g, { sex = null } = {}) {
+// bonus : réglage « +0,5 L les jours de séance » allumé (la règle est dite, séance ou non ce jour-là)
+function waterGoalWhy(g, { sex = null, bonus = true } = {}) {
   if (g.src === 'plan') return g.coach != null ? `Fixé par ${g.coach || 'ton coach'} dans ton plan de nutrition.` : 'Fixé dans ton plan de nutrition.';
-  if (g.src === 'me') return 'Choisi par toi.';
+  const plus = bonus ? ', plus 0,5 L les jours de séance' : '';
+  if (g.src === 'me') return `Choisi par toi${plus}.`;
   const who = sex === 'male' ? '2 L de boissons par jour pour un homme' : sex === 'female' ? '1,6 L de boissons par jour pour une femme'
     : '1,8 L de boissons par jour, entre les repères homme (2 L) et femme (1,6 L)';
-  return `Repère de l'EFSA : ${who}${g.plus ? ', plus 0,5 L un jour d\'entraînement' : ''}.`;
+  return `Repère de l'EFSA : ${who}${plus}.`;
 }
 
 // ── Santé (HealthKit) : préparé, pas branché ────────────────

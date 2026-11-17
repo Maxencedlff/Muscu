@@ -278,4 +278,51 @@ def t_eteint(bench):
         R.check(not page.errors, f'éteint : aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_parcours], once=[t_seul_sans_plan, t_coach_objectif, t_contenant, t_minuit, t_eteint])
+def t_seance(bench):
+    """Option C (vote du 17/11) : un jour de séance, +0,5 L sur le repère et sur l'objectif choisi, dit sur la carte
+    (« sur 3,5 L (dont +0,5 L séance) ») ; le réglage le coupe ; iPhone SE, clair et sombre."""
+    eng = dict((d, e) for e, d in ALL_DEVICES)['iPhone SE']
+    for theme in ('light', 'dark'):
+        t = f'SE-{theme}-séance'
+        d = json.loads(data_json(NOW))
+        d['history'].append({'id': 'h_today', 'date': NOW - 3600000, 'programme': d.get('activeProgramme', 'ppl'), 'category': 'push',
+                             'exercises': [{'exId': 'x', 'name': 'Développé couché', 'sets': [{'weight': '60', 'reps': '8', 'done': True}]}]})
+        with bench.frozen_page(NOW, eng, 'iPhone SE', theme) as page:
+            open_app(page, theme, json.dumps(d, ensure_ascii=False))
+            R.check(goal(page) == 2.5, f'{t} repère : 2 + 0,5 L ({goal(page)})')
+            page.click('.water-home__open')
+            page.wait_for_selector('.water-card')
+            page.locator('.water-card').scroll_into_view_if_needed()
+            val = nb(page.inner_text('.water-card__val')).replace('\n', ' ')
+            R.check(val == '0 sur 2,5 L (dont +0,5 L séance)', f'{t} carte : {val!r}')
+            lbl = page.get_attribute('.water-card__top', 'aria-label') or ''
+            R.check('dont 0,5 litre pour la séance' in lbl, f'{t} VoiceOver : {lbl!r}')
+            # Objectif choisi : 3 L → 3,5 L aujourd'hui
+            page.click('.water-card__top')
+            page.wait_for_selector('.sheet .water-gs')
+            for _ in range(4):
+                page.click('.sheet [data-wstep="1"]')
+            R.check(nb(page.inner_text('#waterGsVal')) == '3 L' and nb(page.inner_text('#waterGsToday')) == "Aujourd'hui : 3,5 L (dont +0,5 L séance)",
+                    f'{t} feuille : base 3 L, total du jour dit ({page.inner_text("#waterGsToday")!r})')
+            shot(page, LOT, f'10-objectif-seance-{t}')
+            page.click('.sheet__btn--confirm')
+            page.wait_for_timeout(300)
+            val = nb(page.inner_text('.water-card__val')).replace('\n', ' ')
+            R.check(page.evaluate('data.waterGoalL') == 3 and val == '0 sur 3,5 L (dont +0,5 L séance)', f'{t} choisi 3 L : {val!r}')
+            layout(page, t, 'carte un jour de séance', '.water-card')
+            shot(page, LOT, f'11-carte-seance-{t}')
+            big_text(page)
+            page.locator('.water-card').scroll_into_view_if_needed()
+            layout(page, t, 'carte un jour de séance, texte agrandi', '.water-card')
+            shot(page, LOT, f'12-carte-seance-xl-{t}')
+            # Réglage coupé : 3 L
+            page.click('[data-action="go-diet-settings"]')
+            page.wait_for_selector('[data-action="water-train-toggle"]')
+            R.check(page.get_attribute('[data-action="water-train-toggle"]', 'aria-checked') == 'true', f'{t} réglage allumé par défaut')
+            page.click('[data-action="water-train-toggle"]')
+            page.wait_for_timeout(200)
+            R.check(page.evaluate('data.waterTrainOff') is True and goal(page) == 3, f'{t} réglage coupé : 3 L ({goal(page)})')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
+
+
+run_main(R, [t_parcours], once=[t_seance, t_seul_sans_plan, t_coach_objectif, t_contenant, t_minuit, t_eteint])

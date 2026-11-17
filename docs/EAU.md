@@ -10,13 +10,23 @@ Dans cet ordre (`waterGoalFor`, js/data/water.js) :
 1. **Plan de nutrition** : `targets.water` (litres) fixé par le coach. Lecture seule chez l'élève (« Fixé par max dans
    ton plan de nutrition. »), sans bonus d'entraînement : le coach décide.
 2. **Choisi à la main** : `data.waterGoalL`, par pas de 0,25 L (grille de 0,25 : depuis 2,3 L, « + » donne 2,5 et « − »
-   2,25), de 0,5 à 6 L. Tel quel, même un jour de séance.
+   2,25), de 0,5 à 6 L. La feuille règle cette base et dit le total du jour dessous (« Aujourd'hui : 3,5 L (dont +0,5 L
+   séance) »).
 3. **Repère conseillé** (par défaut), en une phrase dans l'app : « Repère de l'EFSA : 2 L de boissons par jour pour un
-   homme, plus 0,5 L un jour d'entraînement. »
+   homme, plus 0,5 L les jours de séance. »
    - **Base** : 80 % de l'apport adéquat de l'EFSA, soit **2,0 L** de boissons pour un homme (2,5 L au total) et
      **1,6 L** pour une femme (2,0 L au total). Sexe non précisé : **1,8 L**. Sexe lu dans Réglages › Entraînement
      (niveau de force), sinon celui donné pour la proposition d'objectifs (`dietEstSex`), jamais la silhouette.
    - **Jour d'entraînement** : **+ 0,5 L** si une séance est enregistrée ce jour-là ou en cours aujourd'hui.
+
+### +0,5 L les jours de séance (décision du 17/11 : option C, vote 5/5 des coachs, pratiquants et expert)
+
+- Réglage **« +0,5 L les jours de séance »** dans Réglages de la nutrition › Eau, **allumé par défaut**, désactivable
+  (`data.waterTrainOff = true` quand il est coupé ; absent : allumé ; sur l'appareil seulement).
+- Il s'applique au **repère conseillé** comme à l'**objectif choisi** : 3 L choisis deviennent 3,5 L un jour de séance.
+  Jamais à un objectif **fixé par le coach** dans le plan : le coach décide.
+- La carte dit le total du jour et d'où vient la hausse : « 0 sur 3,5 L (dont +0,5 L séance) » ; VoiceOver : « …, dont
+  0,5 litre pour la séance ». L'accueil montre le total seul (« 1,2 / 3,5 L »), pour rester sur une ligne.
 
 ### Sources (lues le 17/11/2026)
 
@@ -75,14 +85,15 @@ rouge aux muscles et aux suppressions. Piste grise (`--fill`), aucun dégradé.
 
 ```js
 waterOn: true,                               // suivi activé (réglage de l'appareil)
-waterGoalL: 2.75,                            // objectif choisi, litres, pas de 0,05 (absent : repère conseillé)
+waterGoalL: 2.75,                            // objectif choisi (base sans bonus), litres, pas de 0,05 (absent : repère)
+waterTrainOff: true,                         // +0,5 L les jours de séance coupé (absent : allumé)
 waterCups: [{ id, name, ml }],               // contenants perso, 4 au plus, 50 ml à 3 L
 waterLog: { 'AAAA-MM-JJ': [{ id, ml, at }] } // ajouts (10 ml à 3 L, 60 par jour), 120 jours
 // plan de nutrition : targets.water (litres, 0,5 à 6, pas de 0,05), fixé par le coach
 ```
 
 - **Sur l'appareil seulement**, comme le journal des repas (`dietLog`, que la synchro n'envoie pas non plus) :
-  les quatre clés sont dans `SYNC_LOCAL_ONLY`, `waterLog` est retiré de la copie iCloud (`CLOUD_PRIVATE_KEYS`, règle
+  les cinq clés sont dans `SYNC_LOCAL_ONLY`, `waterLog` est retiré de la copie iCloud (`CLOUD_PRIVATE_KEYS`, règle
   5.1.3(ii) d'Apple : donnée de santé saisie à la main). Dans l'export JSON (Réglages › Sauvegarde). L'export CSV ne
   contient que les séances, la nutrition n'en a pas : rien ajouté.
 - **Objectif du coach** : dans le plan, donc copié sur le compte avec l'accord de nutrition (`dietConsent`) comme les
@@ -117,8 +128,8 @@ l'activer, pas avant.
 
 ## Tests
 
-- `tests/unit/water.mjs` : repère EFSA et bonus, priorité plan / choisi / repère, pas de 0,25 L, ajout, Annuler, minuit,
+- `tests/unit/water.mjs` : repère EFSA et bonus, réglage du bonus (allumé par défaut, coupé, jamais sur le coach), priorité plan / choisi / repère, pas de 0,25 L, ajout, Annuler, minuit,
   bornes, nettoyage, contenants, quantité tapée, textes, jour d'entraînement, clés locales et iCloud, `targets.water`
   envoyé et reçu, échantillon Santé, accueil, textes sobres.
 - `tests/test_eau.py` (lot `eau`) : parcours accueil → Nutrition → objectif → historique sur chaque appareil et thème ;
-  carte seule sans plan (iPhone SE, texte agrandi), objectif du coach, contenant perso, minuit, suivi éteint.
+  jour de séance (« sur 3,5 L (dont +0,5 L séance) », réglage coupé, iPhone SE clair et sombre, texte agrandi), carte seule sans plan (iPhone SE, texte agrandi), objectif du coach, contenant perso, minuit, suivi éteint.

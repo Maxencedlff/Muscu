@@ -44,7 +44,9 @@
 .water-card__val b { font-size: var(--fs-title3, 1.18rem); font-weight: 700; color: var(--label); }
 .water-card__goal { display: flex; align-items: center; gap: 4px; font-size: var(--fs-footnote); color: var(--label2); }
 .water-card__goal .icon { color: var(--check-on); }
-.water-card__why { margin: 6px 0 0; font-size: var(--fs-footnote); color: var(--label2); }
+.water-card__plus { font-size: var(--fs-footnote); color: var(--label2); white-space: nowrap; }
+.water-gs__today { margin: 10px 0 0; font-size: var(--fs-subhead); font-weight: 600; }
+.water-gs__today:empty { display: none; }
 .water-card__btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; }
 .water-card__btns .water-add { padding: 4px 8px; }
 .water-card__log {
@@ -107,3 +109,4 @@ html.type-xl .water-add--home { flex: 1 1 100%; margin-bottom: 4px; }
 html.type-xl .water-home__val { white-space: normal; }
 html.type-xl .water-log__day { grid-template-columns: 1fr; }
 html.type-xl .water-log__dval { white-space: normal; }
+html.type-xl .water-card__plus { white-space: normal; }
