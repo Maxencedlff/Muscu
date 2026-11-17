@@ -1060,7 +1060,10 @@ def t_vague4(bench, eng, dev, theme):
         R.check(page.evaluate(f"(() => {{ const q = document.querySelector('{LIVE_SHEET} [data-qty]'), w = document.querySelector('{LIVE_SHEET} .qty__twin'); return !!(q.compareDocumentPosition(w) & Node.DOCUMENT_POSITION_FOLLOWING); }})()"),
                 f'{t} v4 quantité : rappel après le champ (lu après lui par VoiceOver)')
         R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '100', f'{t} v4 quantité : 100 g d\'office')
-        R.check(small_targets(page, f'{LIVE_SHEET} button') == [] and not cut_texts(page, LIVE_SHEET), f'{t} v4 quantité : 44 pt, aucun texte coupé')
+        # Mesurée après l'animation de la feuille (en CI chargée, mesurée pendant : boutons sous 44 pt, échec au hasard)
+        page.wait_for_function("s => [...document.querySelectorAll(s)].every(e => !e.getAnimations().length)", arg=f'{LIVE_SHEET}, {LIVE_SHEET} *')
+        st, ct = small_targets(page, f'{LIVE_SHEET} button'), cut_texts(page, LIVE_SHEET)
+        R.check(st == [] and not ct, f'{t} v4 quantité : 44 pt, aucun texte coupé {st} {ct}')
         shot(page, LOT, f'v4-5-pese-cuit-{t}')
         page.click(f'{LIVE_SHEET} [data-qtwin]')
         page.wait_for_timeout(400)

@@ -134,7 +134,8 @@ def t_views(bench, eng, dev, theme):
             return h ? h.textContent : b ? b.getAttribute('aria-label') : ''; }""")
         R.check(head.startswith('Série 2'), f'{t} tête de ligne lue « Série 2 » ({head})')
         w = page.locator('[data-action="set-weight"][data-ei="0"][data-si="1"]')
-        R.check(w.get_attribute('aria-label') == 'Charge, en kg', f'{t} libellé charge ({w.get_attribute("aria-label")})')
+        # Développé couché haltères : charge par haltère (yn2-seance, en-tête « kg / par haltère »)
+        R.check(w.get_attribute('aria-label') == 'Charge par haltère, en kg', f'{t} libellé charge ({w.get_attribute("aria-label")})')
         R.check(page.locator('[data-action="set-reps"][data-ei="0"][data-si="1"]').get_attribute('aria-label') == 'Répétitions', f'{t} libellé reps')
         R.check(page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').get_attribute('aria-label') == 'Valider la série 1', f'{t} libellé ✓')
         # Validation dans l'ordre : le ✓ de la série 2 attend la série 1, et le dit
