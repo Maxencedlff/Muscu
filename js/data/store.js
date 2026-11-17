@@ -352,6 +352,8 @@ function sanitizeData(d) {
   d.myProgrammes = cleanMyProgrammes(d);   // après l'historique : la migration le lit
   // Nutrition (js/data/nutrition.js, chargé avant) : plans, plan suivi, aliments perso, repas cochés
   sanitizeDiet(d);
+  // Eau (js/data/water.js, chargé avant) : suivi, objectif choisi, contenants, journal waterLog
+  sanitizeWater(d);
   return d;
 }
 

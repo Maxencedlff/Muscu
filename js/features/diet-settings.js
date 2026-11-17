@@ -117,6 +117,7 @@ function renderDietSettings() {
           ${sw('diet-hide-numbers', data.dietHideNumbers === true, 'Masquer les calories et les grammes', 'Seules les cases des repas restent ; les quantités des aliments aussi.')}
           ${sw('diet-streak', data.dietStreakOff !== true, 'Afficher la série', 'Jours complets d\'affilée')}
         </div>
+        ${waterSettingsGroupHtml()}
         ${account.user ? `
         <div class="group-title">Compte</div>
         <div class="group">

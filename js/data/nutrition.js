@@ -156,6 +156,10 @@ function cleanDietTargets(t) {
     const v = num(t[k], 1, DIET_TARGET_MAX[k]);
     if (v !== null) out[k] = Math.round(v);
   }
+  // Eau, en litres (js/data/water.js, docs/EAU.md) : fixée par le coach, au pas de 0,05 L, de 0,5 à 6 L. Hors de
+  // DIET_TARGET_KEYS (macros) : une app d'avant l'eau l'ignore sans rien casser
+  const w = num(t.water, 0.5, 6);
+  if (w !== null) out.water = Math.round(w * 20) / 20;
   return Object.keys(out).length ? out : null;
 }
 // Plan : { name, meals, targets?, consigne?, archived?, fromCoach? }, null s'il est inutilisable

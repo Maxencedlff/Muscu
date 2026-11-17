@@ -1,0 +1,109 @@
+/* ═══════════════════════════════════════════════
+   Eau (js/features/water-ui.js, docs/EAU.md) : carte de l'écran Nutrition, ligne de la carte de l'accueil,
+   feuilles de l'objectif et de l'historique.
+   Couleur de la jauge et du verre : --check-on, le vert de l'avancée vers l'objectif (anneau des calories). Pas de
+   bleu (protéines), pas d'orange (actions seulement), jamais de rouge. Aucun dégradé ni lueur.
+═══════════════════════════════════════════════ */
+
+/* Jauge : piste grise, remplissage vert */
+.water-bar { display: block; height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.water-bar__fill { display: block; height: 100%; border-radius: 3px; background: var(--check-on); transition: width .4s var(--nav-ease, ease-out); }
+@media (prefers-reduced-motion: reduce) { .water-bar__fill { transition: none; } }
+
+/* Verre qui se remplit */
+.water-glass { display: block; }
+.water-glass__line { fill: none; stroke: var(--label3); stroke-width: 2; stroke-linejoin: round; }
+.water-glass__fill { fill: var(--check-on); }
+
+/* Boutons d'ajout : gris, texte orange (bouton secondaire), 44 pt */
+.water-add {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; min-width: 44px;
+  padding: 0 12px; border: none; border-radius: var(--r-md); background: var(--fill); color: var(--tint-on-fill);
+  font: inherit; font-size: var(--fs-subhead); font-weight: 600; line-height: 1.2; cursor: pointer; text-align: center;
+}
+.water-add:active { opacity: .6; }
+.water-add .icon { flex-shrink: 0; width: 1em; height: 1em; }   /* suit le texte agrandi */
+.water-add span { overflow-wrap: anywhere; }
+.water-card .water-add__lbl { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.water-card .water-add__qty { font-size: var(--fs-footnote); font-weight: 500; }
+.water-card .water-add { justify-content: flex-start; gap: 8px; padding: 6px 12px; min-height: 52px; }
+.water-card .water-add--other { justify-content: center; }
+.water-add--home .water-add__qty { font-size: inherit; font-weight: inherit; }
+
+/* ── Carte de l'écran Nutrition ── */
+.water-card { background: var(--cell); border-radius: 20px; padding: 6px 16px 4px; }
+.water-card__top {
+  width: 100%; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 6px 0; border: none; background: none;
+  font: inherit; color: var(--label); text-align: left; cursor: pointer;
+}
+.water-card__top:active { opacity: .7; }
+.water-card__top > .icon { flex-shrink: 0; color: var(--label3); }
+.water-card__glass { flex-shrink: 0; display: flex; }
+.water-card__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.water-card__val { font-size: var(--fs-body); color: var(--label2); }
+.water-card__val b { font-size: var(--fs-title3, 1.18rem); font-weight: 700; color: var(--label); }
+.water-card__goal { display: flex; align-items: center; gap: 4px; font-size: var(--fs-footnote); color: var(--label2); }
+.water-card__goal .icon { color: var(--check-on); }
+.water-card__why { margin: 6px 0 0; font-size: var(--fs-footnote); color: var(--label2); }
+.water-card__btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; }
+.water-card__btns .water-add { padding: 4px 8px; }
+.water-card__log {
+  width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0;
+  border: none; border-top: .5px solid var(--sep); margin-top: 8px; background: none; font: inherit; font-size: var(--fs-subhead);
+  color: var(--label2); text-align: left; cursor: pointer;
+}
+.water-card__log:active { opacity: .6; }
+.water-card__log .icon { flex-shrink: 0; color: var(--label3); }
+
+/* ── Accueil : ligne sous les repas de la carte Nutrition, ou petite carte seule ── */
+.water-home { display: flex; align-items: center; gap: 8px; padding-left: 16px; }
+.diet-home .water-home { margin-top: 4px; border-top: .5px solid var(--sep); padding-top: 4px; }
+.water-home__open {
+  flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 4px 0;
+  border: none; background: none; font: inherit; color: var(--label); text-align: left; cursor: pointer;
+}
+.water-home__open:active { opacity: .7; }
+.water-home__line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 8px; font-size: var(--fs-subhead); }
+.water-home__label { font-weight: 600; }
+.water-home__val { color: var(--label2); white-space: nowrap; }
+.water-home__val b { color: var(--label); font-weight: 700; }
+.water-add--home { flex-shrink: 0; }
+.water-home-card { padding: 6px 12px 6px 0; }
+
+/* ── Feuille de l'objectif ── */
+.water-gs { padding: 8px 0 4px; text-align: center; }
+.water-gs__step { display: flex; align-items: center; justify-content: center; gap: 20px; }
+.water-gs__btn {
+  width: 52px; height: 52px; border-radius: 50%; border: none; background: var(--fill); color: var(--tint-on-fill);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.water-gs__btn:active { opacity: .6; }
+.water-gs__val { margin: 0; min-width: 4.5em; font-size: var(--fs-large, 2rem); font-weight: 700; }
+.water-gs__why { margin: 14px 0 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); }
+.water-gs__link { margin-top: 10px; min-height: 44px; padding: 0 8px; border: none; background: none; font: inherit; font-size: var(--fs-subhead); font-weight: 600; color: var(--tint); cursor: pointer; }
+.water-gs__src { margin: 10px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
+
+/* ── Feuille de l'historique ── */
+.water-log__title { margin: 14px 0 6px; font-size: var(--fs-subhead); font-weight: 600; color: var(--label2); }
+.water-log__title:first-child { margin-top: 4px; }
+.water-log__list { background: var(--cell); border-radius: var(--r-md); padding: 0 0 0 16px; }
+.water-log__row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.water-log__row + .water-log__row::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: .5px; background: var(--sep); }
+.water-log__txt { font-size: var(--fs-body); }
+.water-log__del { min-height: 44px; padding: 0 16px; border: none; background: none; font: inherit; font-size: var(--fs-subhead); color: var(--red-text); cursor: pointer; }
+.water-log__empty { margin: 0; padding: 12px 16px 12px 0; font-size: var(--fs-subhead); color: var(--label2); }
+.water-log__week { display: flex; flex-direction: column; gap: 10px; background: var(--cell); border-radius: var(--r-md); padding: 12px 16px; }
+.water-log__day { display: grid; grid-template-columns: 1fr auto; row-gap: 4px; column-gap: 8px; font-size: var(--fs-subhead); }
+.water-log__day .water-bar { grid-column: 1 / -1; }
+.water-log__day--on .water-log__dname { font-weight: 700; }
+.water-log__dval { color: var(--label2); white-space: nowrap; }
+.water-log__note { margin: 12px 0 0; font-size: var(--fs-footnote); color: var(--label2); }
+
+/* Texte agrandi : pas de verre (comme l'anneau de la carte de l'accueil), boutons en pleine largeur, lignes qui passent */
+html.type-xl .water-card__glass { display: none; }
+html.type-xl .water-card__btns { grid-template-columns: minmax(0, 1fr); }
+html.type-xl .water-home { flex-wrap: wrap; padding-right: 0; }
+html.type-xl .water-add--home { flex: 1 1 100%; margin-bottom: 4px; }
+html.type-xl .water-home__val { white-space: normal; }
+html.type-xl .water-log__day { grid-template-columns: 1fr; }
+html.type-xl .water-log__dval { white-space: normal; }

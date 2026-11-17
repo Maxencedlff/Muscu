@@ -97,12 +97,12 @@ const Native = (() => {
 
   // Copie iCloud clé-valeur SANS donnée de santé saisie à la main. Règle 5.1.3(ii) de l'App Store : « may
   // not store personal health information in iCloud ». Poids du corps (réglage, pesées, poids noté avec
-  // chaque séance), mensurations, repas cochés (journal de la diète) et sexe restent sur l'iPhone : stockage
+  // chaque séance), mensurations, repas cochés (journal de la diète), eau bue (waterLog) et sexe restent sur l'iPhone : stockage
   // de l'app et fichier ppl_v2.json des Documents (inclus dans la sauvegarde de l'iPhone, que l'utilisateur
   // règle et peut chiffrer), plus l'export. Les données de Santé n'entrent déjà jamais dans data
   // (js/data/measures.js, storableBodyKg). Toutes ces clés sont aussi dans SYNC_LOCAL_ONLY (jamais sur le
   // serveur). Choix justifié dans docs/REVUE_APPLE.md (« Copie iCloud »).
-  const CLOUD_PRIVATE_KEYS = ['bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'dietLog', 'strengthSex', 'birthYear', 'heightCm', 'dietEstSex'];
+  const CLOUD_PRIVATE_KEYS = ['bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'dietLog', 'strengthSex', 'birthYear', 'heightCm', 'dietEstSex', 'waterLog'];
   const CLOUD_PRIVATE_SESSION_KEYS = ['bodyKg'];
   const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
   // JSON envoyé à iCloud : le même texte s'il n'a aucune clé privée (empreinte inchangée), sinon une copie
