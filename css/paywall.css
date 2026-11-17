@@ -104,3 +104,6 @@
 .pay-cover-cell .cell__title { white-space: normal; text-wrap: pretty; }
 /* Offre arrêtée ou en délai de grâce : lue d'un coup d'œil, sans couleur d'alerte */
 .pay-cover--warn { color: var(--label); }
+
+/* Élève couvert par son coach qui a encore son propre abonnement : carte sobre, texte sur plusieurs lignes */
+.pay-double .pay-double__text { white-space: normal; text-wrap: pretty; line-height: 1.35; }

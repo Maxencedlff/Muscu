@@ -220,7 +220,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(cgv.includes('<strong>ne paie rien</strong>') && cgv.includes('<strong>7 jours</strong>') && cgv.includes('pay nothing'), 'élève offert, FR et EN');
     assert.ok(!/4,89|€4\.89|Offre élève|Student offer|25 %/.test(cgv), 'CGV : ancienne offre élève');
     assert.ok(!/4,89|25 % de moins|25% off|remise élève|student discount/.test(read('privacy.html')), 'confidentialité : ancienne offre élève');
-    for (const s of ['3 mois gratuits', 'au moins 24 heures avant la fin de l\'essai', 'reportaproblem.apple.com', 'TVA non applicable, art. 293 B du CGI']) {
+    for (const s of ['3 mois gratuits', '2 mois gratuits', 'au moins 24 heures avant la fin de l\'essai', 'reportaproblem.apple.com', 'TVA non applicable, art. 293 B du CGI']) {
       assert.ok(cgv.includes(s), `CGV : « ${s} » absent`);
     }
   });

@@ -117,6 +117,9 @@ FAKE_STORE = r"""
     environment: tx.environment || 'production',
     subscription: SUB_IDS.includes(tx.productId),
     reason: tx.reason || 'purchase',
+    // Seulement dans current() et restore() (état de la souscription, iOS 17, build 69) ; `__st.owned.willAutoRenew = false` :
+    // résilié chez Apple, il ne se renouvelle plus
+    ...(tx.withRenewal ? { willAutoRenew: tx.willAutoRenew !== false } : {}),
   });
 
   const me = () => (window.__sb && __sb.meId ? __sb.meId() : null);
@@ -270,19 +273,20 @@ FAKE_STORE = r"""
     const intro = !!st.introEligible;
     st.introEligible = false;
     st.owned = { productId, originalId: 'apple-' + n, transactionId: 'tx-' + n, intro,
-      expiresAt: serverNow() + (intro ? 90 : period(productId)) * DAY };
+      expiresAt: serverNow() + (intro ? (/\.coach/.test(productId) ? 60 : 90) : period(productId)) * DAY };
     return st.owned;
   };
   const openTx = tx => { if (!st.open.includes(tx.transactionId)) st.open.push(tx.transactionId); return tx; };
   const entitlements = () => {
-    const list = [st.owned].filter(Boolean).map(tx => { openTx(tx); return describeTx(tx); });
+    const list = [st.owned].filter(Boolean).map(tx => { openTx(tx); return describeTx({ ...tx, withRenewal: true }); });
     return { entitlements: list, unverified: st.unverified || 0 };
   };
   const describeProduct = p => {
     const eligible = !!st.introEligible && p.introEligible !== false;
     const out = { ...p, introEligible: eligible };
     delete out.offer;
-    if (eligible) out.offer = { ...OFFER };
+    // Essai d'Apple : 3 mois pour le particulier, 2 mois pour les formules coach (décision du 17/11/2026)
+    if (eligible) out.offer = /\.coach/.test(p.id) ? { ...OFFER, period: { unit: 'month', value: 2 } } : { ...OFFER };
     return out;
   };
   const storePlugin = {

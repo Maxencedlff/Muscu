@@ -87,17 +87,41 @@ function payCoverNote() {
   const name = payCoverName(cover) || 'ton coach';
   const mine = accessStatus() === 'active';   // il paie aussi lui-même
   // Offert sans rien payer : le titre le dit déjà (« Offert par ton coach <nom> », « Rien à payer »)
-  if (cover.state === 'active') {
-    return mine ? { tone: 'ok', text: `Ton coach ${name} t'offre l'accès : tu peux résilier ton propre abonnement dans « Gérer chez Apple ».` } : null;
-  }
+  // Offert alors qu'il a encore son propre abonnement : la carte « Ton coach couvre ton accès » le dit (payDoubleCardHtml)
+  if (cover.state === 'active') return null;
   if (cover.state === 'grace') {
-    return { tone: 'warn', text: `Ton coach ${name} a arrêté ou changé son abonnement coach. Ton accès reste offert jusqu'au ${cover.until ? fmtDate(cover.until) : 'dans quelques jours'}${mine ? '' : ' ; ensuite, tu pourras t\'abonner si tu veux continuer'}.` };
+    // Fin de grâce : jamais d'essai promis (Apple seul sait s'il y a droit, l'écran des formules le lit chez StoreKit)
+    return { tone: 'warn', text: `Ton coach ${name} a arrêté ou changé son abonnement coach. Ton accès reste offert jusqu'au ${cover.until ? fmtDate(cover.until) : 'dans quelques jours'}${mine ? ' ; ensuite, ton propre abonnement continue' : ' ; ensuite, tu pourras t\'abonner si tu veux continuer'}.` };
   }
   if (mine) return null;
   return { tone: 'warn', text: cover.state === 'over_limit'
     ? `Ton coach ${name} suit plus d'élèves que sa formule n'en comprend : ton accès n'est plus offert. Il peut passer à la formule au-dessus. En attendant, tu peux t'abonner toi-même.`
     : `Ton coach ${name} n'a pas d'abonnement coach en cours : ton accès n'est pas offert. Tu peux t'abonner toi-même, ton historique reste là.` };
 }
+// Élève couvert par son coach qui a encore son propre abonnement (ou essai) chez Apple : seul Apple peut l'arrêter.
+// Carte sobre, jamais de remboursement promis (décision de Maxence du 17/11/2026) ; disparaît quand l'abonnement
+// ne se renouvelle plus (StoreKit). Montrée aussi verrou éteint : le prélèvement d'Apple, lui, est réel.
+function payDoubleCardHtml() {
+  const d = accessDoubleSub();
+  if (!d) return '';
+  return `
+        <div class="group pay-double" role="note">
+          <div class="cell pay-double__cell"><span class="cell__body"><span class="cell__title pay-double__text">${esc(accessDoubleSubText(d))}</span></span></div>
+          ${Native.store.available ? '<button class="cell cell--action" data-action="pay-manage"><span class="cell__title">Gérer mon abonnement</span></button>' : ''}
+        </div>`;
+}
+// Juste après l'acceptation du lien avec un coach (js/features/coach-ui.js) : même message, une fois
+async function payDoubleAfterJoin() {
+  if (!account.user || !Native.store.available) return;
+  access.loadedAt = 0;
+  await Promise.all([accessRefresh(), accessLoadCurrentPlan()]);
+  const d = accessDoubleSub();
+  if (!d) return;
+  const choice = await dialog({ title: 'Ton abonnement', message: accessDoubleSubText(d),
+    actions: [{ label: 'Gérer mon abonnement', value: 'manage', style: 'preferred' }, { label: 'Plus tard', style: 'cancel' }] });
+  if (choice === 'manage') handleAction(null, null, 'pay-manage');
+}
+
 function payCoverNoteHtml() {
   const n = payCoverNote();
   return n ? `<div class="pay-note pay-cover pay-cover--${n.tone}" role="status"><p>${esc(n.text)}</p></div>` : '';
@@ -486,7 +510,7 @@ function renderSubscription() {
   return `
     <div class="view view--grouped pay-settings-view">
       ${head}
-      <div class="scr">${stale}${rows}${actions}${payLegalHtml()}</div>
+      <div class="scr">${stale}${payDoubleCardHtml()}${rows}${actions}${payLegalHtml()}</div>
     </div>`;
 }
 SCREENS.set('subscription', { render: () => renderSubscription(), enter: () => { accessRefresh(); accessLoadCurrentPlan(); } });

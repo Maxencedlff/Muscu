@@ -71,7 +71,7 @@ const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
 // state : dernier état lu pendant ce lancement ; cached : dernier état gardé sur l'appareil
 const access = { userId: null, state: null, cached: null, loading: false, again: false, error: null, loadedAt: 0,
   products: null, missing: null, productsAt: 0, buying: null, verifying: false, syncing: false,
-  canPay: true, refused: new Set(), currentProduct: null, storeEnv: null,
+  canPay: true, refused: new Set(), currentProduct: null, currentRenews: null, currentExpires: null, storeEnv: null,
   // Sans compte : verrou lu dans app_config (true, false, ou null tant qu'il n'a jamais été lu)
   anon: readAnonPaywall(), anonAt: 0, anonLoading: false, firstSeen: null };
 const accessListeners = [];
@@ -242,6 +242,25 @@ function accessGiftForever() {
 function accessCoachCover() {
   const st = accessKnown();
   return st && !st.stale ? st.coach_cover : null;
+}
+
+// Élève que son coach couvre ET qui a encore son propre abonnement (ou essai) qui se renouvelle chez Apple :
+// il paierait deux fois sans le savoir. Seul Apple peut arrêter un abonnement : on le lui dit, jamais de
+// remboursement promis. null, ou { trialEnds } (date où l'essai devient payant, sinon null). La carte
+// disparaît dès qu'Apple dit que l'abonnement ne se renouvelle plus (renouvellement inconnu : montrée).
+function accessDoubleSub() {
+  const cover = accessCoachCover();
+  if (!account.user || cover?.state !== 'active') return null;
+  const own = access.currentProduct;
+  if (!own || planIsCoach(own) || access.currentRenews === false) return null;
+  const trialEnds = accessIntroUntil() || null;
+  return { trialEnds };
+}
+// Texte de la carte (sobre, sans remboursement : on dit seulement qu'il peut résilier)
+function accessDoubleSubText(d) {
+  return d.trialEnds
+    ? `Ton coach couvre ton accès. Ton essai devient payant le ${fmtDate(d.trialEnds)} : résilie-le pour ne pas être prélevé.`
+    : 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.';
 }
 
 // Date de fin donnée par le serveur (fin de l'abonnement, essai d'Apple compris, ou du cadeau), ou null
@@ -646,6 +665,10 @@ async function accessLoadCurrentPlan() {
   // Partage familial : l'abonnement d'un proche n'est pas « ta formule » (rien n'est facturé à cette personne)
   const sub = list.find(e => ACCESS_PRODUCT_IDS.includes(e.productId) && !e.familyShared);
   access.currentProduct = sub ? sub.productId : null;
+  // Renouvellement prévu (StoreKit, build 69 sous iOS 17) : true, false (résilié chez Apple), null (inconnu) ;
+  // fin de la période en cours (fin de l'essai pendant l'essai)
+  access.currentRenews = sub && typeof sub.willAutoRenew === 'boolean' ? sub.willAutoRenew : null;
+  access.currentExpires = sub ? accessTime(sub.expiresAt) : null;
   if (sub && !access.products?.length) await accessLoadProducts();
   notifyAccess();
   return access.currentProduct;

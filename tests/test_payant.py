@@ -1029,7 +1029,8 @@ def t_tarifs(bench, eng, dev, theme):
                 and '11,11 € par mois' in pl[0] and '10 élèves' in pl[0] and 'Conseillé' in pl[0]
                 and '44,44 € par mois' in pl[3] and '100 élèves' in pl[3] and 'illimit' not in ' '.join(pl), f'{t} coach : 4 paliers mensuels {pl}')
         R.check('Tu suis 0 élève' in txt and 'ton propre accès complet' in txt, f'{t} coach : élèves suivis, accès compris')
-        R.check('3 mois gratuits' in pl[0] and 'Essai gratuit de 3 mois, puis 11,11 € par mois' in txt, f'{t} coach : essai de 3 mois, mentions')
+        R.check('2 mois gratuits' in pl[0] and 'Essai gratuit de 2 mois, puis 11,11 € par mois' in txt and '3 mois' not in ' '.join(pl),
+                f'{t} coach : essai de 2 mois lu chez StoreKit, mentions')
         layout(page, t, 'abonnement coach')
         shot(page, LOT, f'21-tarifs-coach-{t}')
         page.click('[data-action="pay-period"][data-period="year"]')
@@ -1107,11 +1108,35 @@ def t_tarifs(bench, eng, dev, theme):
         refresh_access(page)
         txt = paywall(page)
         R.check('n\'a pas d\'abonnement coach en cours' in txt and len(plans_text(page)) == 2, f'{t} coach sans abonnement : message ({txt[:160]!r})')
-        # 5. Élève qui paie lui-même et que son coach offre : il peut résilier
+        # 5. Élève qui paie lui-même et que son coach couvre (17/11/2026) : carte sobre, « Gérer mon abonnement »,
+        # jamais de remboursement ; elle disparaît quand Apple dit que l'abonnement ne se renouvelle plus
         page.evaluate("__st.setCover('active')")
         subscribed(page, days=30, product=MONTHLY)
+        page.evaluate("p => { __st.owned = { productId: p, originalId: 'apple-own', transactionId: 'tx-own', expiresAt: Date.now() + 30 * 86400000 }; }", MONTHLY)
         txt = sub_text(page)
-        R.check('tu peux résilier ton propre abonnement' in txt, f'{t} élève abonné et offert : résiliation proposée ({txt[:200]!r})')
+        card = page.locator('.pay-settings-view .pay-double')
+        R.check(card.count() == 1 and 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.' in card.inner_text()
+                and card.locator('[data-action="pay-manage"]').inner_text().strip() == 'Gérer mon abonnement'
+                and not any(w in txt.lower() for w in ('rembours', 'prorata', '!')), f'{t} élève abonné et couvert : carte ({txt[:200]!r})')
+        layout(page, t, 'élève abonné et couvert')
+        shot(page, LOT, f'27-eleve-abonne-couvert-{t}')
+        # Essai d'Apple en cours : la date où il devient payant
+        subscribed(page, days=40, intro=True, product=MONTHLY)
+        txt = sub_text(page)
+        R.check('Ton essai devient payant le' in txt and 'résilie-le pour ne pas être prélevé' in txt, f'{t} élève en essai et couvert : date ({txt[:220]!r})')
+        shot(page, LOT, f'28-eleve-essai-couvert-{t}')
+        # Résilié chez Apple : la carte disparaît
+        page.evaluate("__st.owned.willAutoRenew = false")
+        sub_text(page)
+        R.check(page.locator('.pay-settings-view .pay-double').count() == 0, f'{t} abonnement résilié : plus de carte')
+        # Juste après l'acceptation du lien : même message, une fois, dans un dialogue
+        page.evaluate("__st.owned.willAutoRenew = true")
+        page.evaluate("payDoubleAfterJoin()")
+        page.wait_for_selector('.ios-dialog', timeout=5000)
+        dlg = page.inner_text('.ios-dialog')
+        R.check('Ton coach couvre ton accès' in dlg and 'Gérer mon abonnement' in dlg and 'Plus tard' in dlg, f'{t} après le lien : dialogue ({dlg[:160]!r})')
+        page.locator('.ios-dialog__btn', has_text='Plus tard').click()
+        page.wait_for_timeout(300)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # 4 bis. Coach : « Tes élèves n'ont rien à payer », élèves au-delà de sa formule signalés

@@ -1197,6 +1197,8 @@ registerActions({
     goBack();
     await dialog({ title: 'C\'est fait !', message: `Les programmes ${elide('de', name)} arriveront dans Social › Mon coach.`,
       actions: [{ label: 'OK', style: 'preferred' }] });
+    // Couvert par son coach alors qu'il a son propre abonnement ou essai chez Apple : le lui dire (paywall-ui.js)
+    await payDoubleAfterJoin();
     // Lien accepté : proposer d'être prévenu quand le coach écrit (une fois, js/features/push-ui.js)
     pushAskInContext('student');
   },

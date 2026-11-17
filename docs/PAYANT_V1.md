@@ -1,7 +1,7 @@
 # Payant V1 : contrat entre l'app, le serveur et Apple
 
 Décisions de Maxence (26/10 au 28/10/2026), dont le **modèle B** voté le 28/10 au soir, puis **tarifs et rôle coach du 30/10/2026** (section « Tarifs du 30/10 », qui remplace les prix ci-dessous), puis **élèves offerts par leur coach du 16/11/2026** (section « Élèves offerts par leur coach », qui remplace la règle des élèves), puis **grille coach du 17/11/2026** (section « Grille coach du 17/11 », qui remplace les paliers et prix coach) :
-- **essai gratuit de 3 mois géré par Apple** : c'est une **offre de lancement** (« 3 mois gratuits ») configurée dans App Store Connect sur les deux abonnements. Apple exige un moyen de paiement et garantit **un seul essai par identifiant Apple et par groupe d'abonnements**. Le serveur ne tient plus d'essai maison ;
+- **essai gratuit géré par Apple** : **3 mois** pour le particulier, **2 mois** pour les formules coach (décision du 17/11/2026, avant : 3 mois pour tous) ; c'est une **offre de lancement** configurée dans App Store Connect sur chaque abonnement. L'app lit la durée chez StoreKit (`offer.period`), jamais écrite dans le code. Apple exige un moyen de paiement et garantit **un seul essai par identifiant Apple et par groupe d'abonnements**. Le serveur ne tient plus d'essai maison ;
 - puis **tout est payant** (pas de version gratuite limitée) : particulier **6,49 €/mois** et **55,00 €/an** ; coach de **19,99 €** à **119,99 €/mois** selon le nombre d'élèves, 10, 25, 50 ou 100 (grille du 17/11, voir « Grille coach du 17/11 ») ;
 - sans abonnement : le profil et l'historique restent **consultables**, l'**export** reste possible ; on ne peut plus **enregistrer de nouvelle séance** ;
 - **compte obligatoire pour enregistrer une séance quand le verrou est allumé** (vote 8 contre 2), connexion avec Apple en premier ; verrou éteint, rien ne change ; Historique, Progrès et export restent toujours ouverts, avec ou sans compte ;
@@ -37,7 +37,7 @@ Particulier (inchangé, prix des 5 pays) :
 | MDLF Training mensuel | `com.mdlf.training.pro.monthly` | 6827767578 | 9 | 6,49 € | 6,49 € | 5,00 CHF | 7,99 $ CA | 5,99 $ |
 | MDLF Training annuel | `com.mdlf.training.pro.yearly` | 6827767660 | 10 | 55,00 € | 55,00 € | 40,00 CHF | 69,00 $ CA | 49,00 $ |
 
-- **Essai** : offre de lancement « 3 mois gratuits » (FREE_TRIAL, THREE_MONTHS) sur **les dix** abonnements, dans les 5 pays.
+- **Essai** : offre de lancement FREE_TRIAL dans les 5 pays : « 3 mois gratuits » (THREE_MONTHS) sur les deux abonnements particulier, « 2 mois gratuits » (TWO_MONTHS) sur les huit abonnements coach depuis le 17/11/2026 (changé dans App Store Connect par un autre agent).
 - **Pays** : FRA, BEL, CHE, CAN, USA (disponibilité de chaque produit, `availableInNewTerritories` vrai). Prix France choisis par Maxence ; les 4 autres pays = **équivalence automatique d'Apple** (`equalizations` du prix France) ; l'ancien relèvement de **CHE coachmax mensuel** (25,00 CHF, grille du 30/10) est à revoir avec la grille du 17/11. Ces équivalences sont parfois basses (CHE, USA) : à revoir par Maxence s'il veut des prix ronds par pays. Les autres pays qu'Apple ouvrirait plus tard prendront aussi l'équivalence automatique.
 - **Niveaux** (ordre du groupe, 1 = le plus haut) : chaque palier coach est au-dessus du palier inférieur, et tout le coach est au-dessus du particulier. Passer de coach10 à coach20 (ou de particulier à coach) est donc une **montée** : immédiate chez Apple, avec remboursement au prorata de la période en cours ; une **descente** prend effet au renouvellement suivant. Mensuel et annuel d'un même palier sont à deux niveaux voisins (l'API n'en met pas deux au même niveau) : passer du mensuel à l'annuel d'un même palier est une descente, appliquée au renouvellement.
 - ~~**Offre élève**~~ (**retirée le 16/11/2026**, à désactiver par Maxence : voir « Élèves offerts par leur coach ») : code d'offre « Eleve de coach -25 pct 12 mois » (id `9a963bbc-d2c8-4478-8ba3-6bc74abc067d`) sur `pro.monthly` : nouveaux abonnés seulement (`NEW`), remplace l'essai (`REPLACE_INTRO_OFFERS`), payé chaque mois (`PAY_AS_YOU_GO`, 1 mois × 12) à **4,89 €** (BEL 4,89 €, CHE 3,00 CHF, CAN 4,99 $ CA, USA 3,99 $), puis prix normal. Voir « Élève : −25 % pendant 12 mois ».
@@ -157,6 +157,7 @@ Remplace les paliers et les prix coach du 30/10 (section suivante, gardée pour 
 | Coach 25 (`coach20`) | jusqu'à 25 | 39,99 € | 339,00 € | ~28,33 € |
 | Coach 50 (`coach30`) | jusqu'à 50 | 69,99 € | 589,00 € | ~49,58 € |
 | Coach 100 (`coachmax`) | jusqu'à 100 | 119,99 € | 999,00 € | ~85,00 € |
+| Essai | **2 mois** gratuits pour toutes les formules coach (3 mois pour le particulier), lus chez StoreKit | | | |
 | Plus de 100 élèves | pas de formule : « Plus de 100 élèves : écris-nous à contact@mdlf.app » (sans achat) | | | |
 
 « Touché » : prix TTC moins la TVA de 20 % (collectée par Apple), puis 15 % d'Apple (Small Business Program) : 19,99 / 1,2 × 0,85 = 14,16. Annuel ≈ 8,5 mois (169 / 19,99 = 8,45 ; 339 / 39,99 = 8,48 ; 589 / 69,99 = 8,42 ; 999 / 119,99 = 8,33 : l'app affiche « soit 8,5 mois », calculé au demi-mois près).
@@ -166,6 +167,13 @@ Remplace les paliers et les prix coach du 30/10 (section suivante, gardée pour 
 - Un coach qui suit déjà plus d'élèves que sa nouvelle limite les garde tous ; les élèves au-delà ne sont plus offerts (`over_limit`, sans grâce : la formule du coach n'a pas changé). Personne n'a d'abonnement coach en production au 17/11 : aucun cas réel.
 - Retour arrière : `supabase/rollback/20261117010000_grille_coach_down.sql` (remet 10, 20, 30, illimité ; les prix se remettent à part dans App Store Connect). Tests : `tests/sql/grille_coach_test.sql`.
 - App ancienne (avant cette mise à jour) sur ce serveur : libellés « 20 élèves », « 30 élèves », « Élèves illimités » faux tant que l'OTA n'est pas reçue ; verrou éteint, l'écran des formules coach ne s'affiche pas. App nouvelle sur un serveur sans cette migration : `contact` déduit (palier `coachmax` et 100 élèves), le reste suit les limites du serveur.
+
+### Élève couvert par son coach qui a déjà son propre abonnement (17/11/2026)
+Seul Apple peut arrêter un abonnement. Un élève qui avait son propre abonnement (ou un essai) et que son coach couvre ensuite paierait deux fois sans le savoir :
+- **Carte sobre** en tête de Réglages › Abonnement tant que c'est vrai (`accessDoubleSub`, `accessDoubleSubText` dans `js/data/access.js`, carte `payDoubleCardHtml`), et le même texte dans un dialogue juste après l'acceptation du lien (`payDoubleAfterJoin`, appelé par `coach-accept`) : en essai, « Ton coach couvre ton accès. Ton essai devient payant le <date> : résilie-le pour ne pas être prélevé. » (date `intro_until` du serveur) ; abonné, « Ton coach couvre ton accès. Tu peux résilier ton abonnement. » ; bouton « Gérer mon abonnement » (page Abonnements d'Apple, `PAY_MANAGE_URL`).
+- Conditions : `coach_cover.state = 'active'`, une formule particulier dans les droits en cours de l'iPhone (pas partagée en famille), qui se renouvelle encore. Le renouvellement vient de StoreKit (`willAutoRenew`, état de la souscription sous iOS 17, **build 69**) ; inconnu (build 68, iOS 16) : la carte reste jusqu'à la fin de l'abonnement. Montrée aussi verrou éteint : le prélèvement d'Apple est réel.
+- **Jamais de remboursement** (décision de Maxence du 17/11/2026) : les mois payés avant le coach ne sont pas remboursés ; aucun texte de l'app n'en parle (test unitaire), les CGV et CONDITIONS_COACH le disent.
+- Après le départ du coach : 7 jours de grâce (« ensuite, ton propre abonnement continue » s'il en a un, sinon « tu pourras t'abonner si tu veux continuer », sans promettre d'essai : seul StoreKit sait s'il y a droit).
 
 ## Tarifs du 30/10 (décision de Maxence, migration `20261030000000_payant_tarifs.sql`)
 

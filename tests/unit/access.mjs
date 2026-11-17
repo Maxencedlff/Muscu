@@ -721,6 +721,42 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(offline(team({ state: 'active', until: null, coach: 'lucas' }), 8), [false, 'unknown', null, true]);
     // Plus aucune offre élève payante dans l'app
     assert.equal(run('typeof accessStudentOffer'), 'undefined');
+  });
+
+  test('élève couvert par son coach avec son propre abonnement (17/11/2026) : carte, essai daté, jamais de remboursement', () => {
+    const own = (cover, extra = {}) => ({ status: 'active', paywall_on: true, can_write: true, gift: false, coach_team: true,
+      until: new Date(NOW + 20 * DAY).toISOString(), coach_cover: cover, server_now: NOW, ...extra });
+    const look = (st, product, renews) => run(`(() => { const u = account.user, saved = { ...access };
+      try { account.user = { id: 'u' }; accessReset('u'); access.state = cleanAccess(${JSON.stringify(st)});
+        access.currentProduct = ${JSON.stringify(product)}; access.currentRenews = ${JSON.stringify(renews)};
+        const d = accessDoubleSub(); return d ? accessDoubleSubText(d) : null; }
+      finally { account.user = u; Object.assign(access, saved); } })()`);
+    const lucas = { state: 'active', until: null, coach: 'lucas' };
+    const MONTHLY = 'com.mdlf.training.pro.monthly';
+    assert.equal(look(own(lucas), MONTHLY, true), 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.');
+    // Renouvellement inconnu (build 68, iOS 16) : montrée quand même
+    assert.equal(look(own(lucas), MONTHLY, null), 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.');
+    // Essai d'Apple en cours : date du serveur (fin de l'offre de lancement)
+    const end = NOW + 40 * DAY;
+    const trial = look(own(lucas, { intro_offer: true, intro_until: new Date(end).toISOString() }), MONTHLY, true);
+    assert.equal(trial, `Ton coach couvre ton accès. Ton essai devient payant le ${run(`fmtDate(${end})`)} : résilie-le pour ne pas être prélevé.`);
+    // Disparaît : résilié chez Apple, pas d'abonnement sur l'iPhone, formule coach, coach qui ne couvre pas (grâce, au-delà)
+    assert.equal(look(own(lucas), MONTHLY, false), null);
+    assert.equal(look(own(lucas), null, true), null);
+    assert.equal(look(own(lucas), 'com.mdlf.training.coach10.monthly', true), null);
+    assert.equal(look(own({ state: 'grace', until: new Date(NOW + 3 * DAY).toISOString(), coach: 'lucas' }), MONTHLY, true), null);
+    assert.equal(look(own({ state: 'over_limit', coach: 'lucas' }), MONTHLY, true), null);
+    assert.equal(look(own(null), MONTHLY, true), null);
+    // Aucun texte de l'abonnement ne parle de remboursement (décision de Maxence du 17/11/2026), ni de point d'exclamation
+    const ui = fs.readFileSync(path.join(ROOT, 'js/features/paywall-ui.js'), 'utf8');
+    const code = f => fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    for (const f of ['js/features/paywall-ui.js', 'js/data/access.js', 'js/features/coach-ui.js', 'js/data/coach-pro.js', 'js/features/coach-pro-ui.js']) {
+      assert.ok(!/rembours|prorata/i.test(code(f)), `${f} : un texte parle de remboursement`);
+    }
+    assert.ok(!/couvre ton accès[^'`]*!/.test(ui), 'carte avec un point d\'exclamation');
+    // Après la grâce : jamais d'essai promis (seul StoreKit sait s'il y a droit)
+    const grace = ui.slice(ui.indexOf("if (cover.state === 'grace')"), ui.indexOf('if (mine) return null;')).split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    assert.ok(/reste offert jusqu'au/.test(grace) && !/essai|gratuit/i.test(grace), 'grâce : aucun essai promis');
     assert.ok(!/not_student|not_new|no_code|testflight/.test(JSON.stringify(run('Object.keys(ACCESS_ERROR_TEXT)'))), 'erreurs de l\'offre élève restées');
   });
 }

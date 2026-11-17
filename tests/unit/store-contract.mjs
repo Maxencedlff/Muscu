@@ -289,7 +289,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(r[2], 1, 'le droit en cours (abonnement) doit partir');
     sameJSON(r[3], ['tx-1'], 'chaque transaction vérifiée doit être terminée chez Apple');
     // L'essai gratuit est lu chez StoreKit (offre de lancement), jamais écrit dans l'app
-    sameJSON(r[5], Array(10).fill({ unit: 'month', value: 3 }), 'essai lu dans offer (StoreKit), pas inventé');
+    // 3 mois pour le particulier, 2 pour les formules coach (17/11/2026)
+    sameJSON(r[5], [...Array(2).fill({ unit: 'month', value: 3 }), ...Array(8).fill({ unit: 'month', value: 2 })], 'essai lu dans offer (StoreKit), pas inventé');
     assert.equal(r[4], true, 'accès rendu après la restauration');
   });
 

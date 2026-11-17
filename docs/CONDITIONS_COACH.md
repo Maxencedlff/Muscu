@@ -33,7 +33,7 @@ TTC, vendus par Apple) :
 
 Plus de 100 élèves : écris-nous à contact@mdlf.app (pas de formule dans l'app).
 
-- 3 mois gratuits au premier abonnement, offerts par Apple (un seul essai par identifiant Apple, même si tu
+- 2 mois gratuits au premier abonnement (3 mois pour la formule particulier), offerts par Apple (un seul essai par identifiant Apple, même si tu
   as déjà eu l'essai en particulier : pas de second essai).
 - Palier plein : un nouvel élève ne peut pas te rejoindre tant que tu n'es pas passé au palier supérieur ;
   les élèves déjà là restent. Monter de palier est immédiat (Apple rembourse le reste de la période au
@@ -49,6 +49,8 @@ Plus de 100 élèves : écris-nous à contact@mdlf.app (pas de formule dans l'ap
     comprend (les premiers arrivés, jusqu'au nombre d'élèves de ta formule) ; si tu arrêtes ton abonnement
     coach ou passes à une formule plus petite, son accès reste offert 7 jours, puis elle peut s'abonner
     elle-même (décision du 16/11/2026, remplace l'ancienne offre à 4,89 € par mois) ;
+  - si elle avait déjà son propre abonnement (ou un essai), elle le garde tant qu'elle ne le résilie pas chez
+    Apple : l'app le lui signale. Les mois qu'elle a déjà payés ne sont pas remboursés ;
   - **t'est rattachée** pour ta commission, si elle n'avait pas déjà un parrain (un seul parrain par compte,
     le premier, jamais changé ensuite, même si elle quitte ton équipe ou en rejoint une autre).
 - Ton propre compte ne peut pas t'être rattaché.

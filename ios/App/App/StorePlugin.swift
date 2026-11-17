@@ -293,7 +293,15 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         for await result in StoreKit.Transaction.currentEntitlements {
             guard let transaction = verified(result) else { refused += 1; continue }
             guard subscriptionIds.contains(transaction.productID), transaction.revocationDate == nil else { continue }
-            list.append(describe(transaction, jws: result.jwsRepresentation))
+            // Renouvellement automatique encore prévu ? (iOS 17 : état de la souscription signé par Apple).
+            // Le web s'en sert pour l'élève que son coach couvre : « Tu peux résilier ton abonnement »
+            // tant qu'il se renouvelle (build 69 ; absent avant iOS 17 ou sur une build plus ancienne).
+            var renews: Bool? = nil
+            if #available(iOS 17.0, *), let state = await transaction.subscriptionStatus,
+               case .verified(let info) = state.renewalInfo {
+                renews = info.willAutoRenew
+            }
+            list.append(describe(transaction, jws: result.jwsRepresentation, willAutoRenew: renews))
         }
         return (list, refused)
     }
@@ -431,7 +439,7 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
     /// Une transaction vérifiée pour le web, avec son JWS (c'est lui que le serveur vérifie, l'app ne
     /// fait que le porter). Les identifiants partent en texte : ce sont des entiers 64 bits, que le JSON
     /// de la vue web arrondirait. Les dates sont en millisecondes depuis 1970, comme les autres modules.
-    private static func describe(_ transaction: StoreKit.Transaction, jws: String) -> [String: Any] {
+    private static func describe(_ transaction: StoreKit.Transaction, jws: String, willAutoRenew: Bool? = nil) -> [String: Any] {
         var out: [String: Any] = [
             "jws": jws,
             "transactionId": String(transaction.id),
@@ -445,6 +453,7 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
             "environment": name(transaction.environment),
             "subscription": subscriptionIds.contains(transaction.productID),
         ]
+        if let renews = willAutoRenew { out["willAutoRenew"] = renews }
         // Renouvellement automatique ou achat : indisponible avant iOS 17, le web s'en passe
         if #available(iOS 17.0, *) {
             out["reason"] = transaction.reason == .renewal ? "renewal" : "purchase"
