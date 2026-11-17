@@ -16,8 +16,9 @@
 //  - Badge « Carte pro déclarée » (17/11/2026, migration 20261117090000_badge_carte_pro.sql, contrat
 //    docs/COACH_V1.md « Badge carte pro ») : le coach validé DÉCLARE le numéro de sa carte (Réglages › Coach) ;
 //    le badge dit « déclarée », jamais « vérifiée ». Numéro lu par le coach seul (coach_card_state) ; les
-//    autres ne lisent que { shown, declared_at } (coach_card_badge, gardé 5 min). Signalé : suspendu dès le
-//    premier signalement (report_coach_card, puis alerte e-mail par la fonction Edge report) jusqu'à la revue.
+//    autres ne lisent que { shown, declared_at } (coach_card_badge, gardé 5 min). Signalé (report_coach_card,
+//    puis alerte e-mail par la fonction Edge report dès le premier) : suspendu à partir de 2 comptes différents,
+//    jusqu'à la revue ; au premier, rien ne change à l'écran.
 //    'verified' (FranceConnect, plus tard) est montré comme 'declared'.
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran s'abonne par onCoachChange
 //    (même signal que le coach : un seul redessin) ; les badges des autres par onCoachBadgeChange.
@@ -241,16 +242,17 @@ async function coachBadgeLoad(uid, { force = false } = {}) {
   return b;
 }
 
-// Signaler le badge d'un coach : enregistré et suspendu côté serveur, alerte e-mail au mieux. Le badge
-// disparaît tout de suite chez moi.
+// Signaler le badge d'un coach : enregistré côté serveur, alerte e-mail au mieux. Le badge reste tel que le
+// serveur le dit (relu) : suspendu seulement au 2e compte différent. data : id du signalement, ou null si ce
+// compte l'avait déjà signalé (already: true).
 async function coachCardReport(uid, details = '') {
   const d = String(details || '').trim().slice(0, 300);
   const r = await coachProRpc('report_coach_card', { coach: uid, details: d || null });
   if (!r.ok) return r;
-  coachBadges.set(uid, { shown: false, declared_at: null, at: Date.now() });
-  notifyCoachBadge();
-  if (Number.isSafeInteger(r.data) && typeof socialReportAlert === 'function') socialReportAlert(r.data);
-  return { ok: true, data: r.data ?? null };
+  const id = Number.isSafeInteger(r.data) && r.data > 0 ? r.data : null;
+  if (id && typeof socialReportAlert === 'function') socialReportAlert(id);
+  await coachBadgeLoad(uid, { force: true });
+  return { ok: true, data: id, already: id === null };
 }
 
 onAccountChange(() => {

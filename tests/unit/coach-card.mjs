@@ -61,7 +61,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const doc = read('docs/COACH_V1.md');
     const down = read('supabase/rollback/20261117090000_badge_carte_pro_down.sql');
     for (const f of ['coach_card_state', 'coach_card_declare', 'coach_card_withdraw', 'coach_card_badge', 'report_coach_card',
-      'coach_card_restore', 'coach_card_remove', 'coach_cards_review']) {
+      'coach_card_restore', 'coach_card_remove', 'coach_cards_review', 'coach_card_reporters']) {
       assert.ok(sql.includes(f), `${f} absent de la migration`);
       assert.ok(doc.includes(f), `${f} absent du contrat`);
       assert.ok(down.includes(f), `${f} absent du retour arrière`);
@@ -77,6 +77,15 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     }
     assert.ok(!/grant[^;]*private\.coach_card/.test(sql), 'fonction d\'administration ouverte');
     assert.ok(!/grant[^;]*on public\.coach_cards/.test(sql), 'table lisible par un client');
+  });
+
+  test('badge carte pro : suspendu à partir de 2 comptes différents, lien de la fiche officielle pour la revue', () => {
+    const sql = read('supabase/migrations/20261117090000_badge_carte_pro.sql');
+    assert.ok(/count\(distinct r\.reporter_id\)/.test(sql), 'comptes différents comptés');
+    assert.ok(sql.includes("private.coach_card_reporters(c.user_id) >= 2 then"), 'seuil de 2 comptes');
+    assert.ok(sql.includes("'https://recherche-educateur.sports.gouv.fr/CartePro/' || c.card_number as fiche"), 'lien de la fiche dans la vue de revue');
+    const doc = read('docs/COACH_V1.md');
+    assert.ok(doc.includes('2 comptes différents') && doc.includes('recherche-educateur.sports.gouv.fr/CartePro/'), 'contrat');
   });
 
   test('badge carte pro : CGU (FR et EN) annoncent la suppression du compte en cas d\'usurpation', () => {

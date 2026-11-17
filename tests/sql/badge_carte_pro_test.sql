@@ -90,18 +90,25 @@ begin
   if pg_temp.cerr(format('select public.report_coach_card(%L)', pg_temp.cu('b1'))) is distinct from 'not_found' then raise 'signaler un badge absent'; end if;
 end $$;
 
--- ── Signalement : suspendu dès le premier, file commune, une fois par compte ──
+-- ── Signalement : alerte dès le premier, suspendu à partir de 2 comptes différents, une fois par compte ──
 do $$
 declare id1 bigint; id2 bigint; b jsonb;
 begin
   perform pg_temp.clogin(pg_temp.cu('51'));
   id1 := public.report_coach_card(pg_temp.cu('a1'), E'  Ce numéro   est\ncelui de mon frère  ');
   if id1 is null then raise 'premier signalement'; end if;
-  if (public.coach_card_badge(pg_temp.cu('a1')) ->> 'shown')::boolean then raise 'badge encore montré après signalement'; end if;
+  -- 1er signalement : rien ne change pour personne
+  if not (public.coach_card_badge(pg_temp.cu('a1')) ->> 'shown')::boolean then raise 'badge caché dès le 1er signalement'; end if;
+  -- Le même compte une 2e fois : ne compte pas
   if public.report_coach_card(pg_temp.cu('a1')) is not null then raise 'deuxième signalement du même compte'; end if;
+  if not (public.coach_card_badge(pg_temp.cu('a1')) ->> 'shown')::boolean then raise 'suspendu par le même compte deux fois'; end if;
+  perform pg_temp.clogin(pg_temp.cu('a1'));
+  if public.coach_card_state() ->> 'status' <> 'declared' then raise 'coach suspendu au 1er signalement'; end if;
+  -- 2e compte différent : suspendu
   perform pg_temp.clogin(pg_temp.cu('01'));
   id2 := public.report_coach_card(pg_temp.cu('a1'));
-  if id2 is null or id2 = id1 then raise 'signalement d''un autre compte sur un badge suspendu'; end if;
+  if id2 is null or id2 = id1 then raise 'signalement d''un autre compte'; end if;
+  if (public.coach_card_badge(pg_temp.cu('a1')) ->> 'shown')::boolean then raise 'badge montré après 2 comptes'; end if;
   perform pg_temp.clogin(pg_temp.cu('a1'));
   b := public.coach_card_state();
   if b ->> 'status' <> 'suspended' or b ->> 'suspended_at' is null or b ->> 'card_number' <> '04912ED0124' then raise 'état du coach : %', b; end if;
@@ -111,20 +118,22 @@ begin
 end $$;
 reset role;
 do $$
-declare r public.reports;
+declare r public.reports; v record;
 begin
   select * into r from public.reports x where x.reporter_id = pg_temp.cu('51') and x.target_ref = 'coach_card';
   if r.kind <> 'profile' or r.reason <> 'autre' or r.target_username <> 'carte.a1'
      or r.details <> 'Badge « Carte pro déclarée » signalé : Ce numéro est celui de mon frère' then raise 'ligne du signalement : %', row_to_json(r); end if;
   if r.details ~ '04912' then raise 'numéro recopié dans le signalement'; end if;
-  if (select reports from private.coach_cards_review where user_id = pg_temp.cu('a1')) <> 2 then raise 'vue de revue'; end if;
-  -- Revue : badge rendu
+  if (select count(*) from public.reports x where x.target_ref = 'coach_card' and x.target_user = pg_temp.cu('a1')) <> 2 then raise 'une ligne par compte'; end if;
+  select * into v from private.coach_cards_review where user_id = pg_temp.cu('a1');
+  if v.reporters <> 2 or v.status <> 'suspended' or v.fiche <> 'https://recherche-educateur.sports.gouv.fr/CartePro/04912ED0124' then raise 'vue de revue : %', row_to_json(v); end if;
+  -- Revue : badge rendu, compteur remis à zéro
   if private.coach_card_restore(pg_temp.cu('a1'), 'carte trouvée') ->> 'status' <> 'declared' then raise 'restauration'; end if;
   if exists (select 1 from private.coach_cards_review) then raise 'revue encore listée'; end if;
   if pg_temp.cerr(format('select private.coach_card_restore(%L)', pg_temp.cu('a1'))) is distinct from 'not_found' then raise 'restaurer un badge non suspendu'; end if;
 end $$;
 
--- ── Après la revue : les signalements d'avant ne comptent plus qu'une fois par déclaration ──
+-- ── Après la revue : on recompte depuis la revue ; les anciens signalants ne comptent plus ──
 set role authenticated;
 do $$
 begin
@@ -132,9 +141,16 @@ begin
   if not (public.coach_card_badge(pg_temp.cu('a1')) ->> 'shown')::boolean then raise 'badge non rendu'; end if;
   -- Même déclaration déjà signalée par S : rejoué, rien ne change
   if public.report_coach_card(pg_temp.cu('a1')) is not null then raise 'signalement rejoué après revue'; end if;
-  if not (public.coach_card_badge(pg_temp.cu('a1')) ->> 'shown')::boolean then raise 'suspendu par un signalement rejoué'; end if;
+  -- Un nouveau compte après la revue : 1 seul depuis la revue, badge gardé, mais listé pour l'admin
+  perform pg_temp.clogin(pg_temp.cu('11'));
+  if public.report_coach_card(pg_temp.cu('a1')) is null then raise 'signalement après revue'; end if;
+  if not (public.coach_card_badge(pg_temp.cu('a1')) ->> 'shown')::boolean then raise 'suspendu par 1 compte après revue'; end if;
 end $$;
 reset role;
+do $$
+begin
+  if (select reporters from private.coach_cards_review where user_id = pg_temp.cu('a1') and status = 'declared') <> 1 then raise 'vue : badge signalé une fois'; end if;
+end $$;
 
 -- ── Perte du rôle : badge masqué ; rôle rendu : badge revenu ──
 update public.user_profiles set coach_at = null where user_id = pg_temp.cu('a1');
@@ -188,6 +204,8 @@ begin
   perform pg_temp.clogin(pg_temp.cu('51'));
   if not (public.coach_card_badge(pg_temp.cu('b1')) ->> 'shown')::boolean then raise 'badge vérifié masqué'; end if;
   if public.coach_card_badge(pg_temp.cu('b1'))::text ~ 'verif' then raise 'vérification annoncée au public'; end if;
+  perform public.report_coach_card(pg_temp.cu('b1'));
+  perform pg_temp.clogin(pg_temp.cu('01'));
   perform public.report_coach_card(pg_temp.cu('b1'));
   perform pg_temp.clogin(pg_temp.cu('b1'));
   st := public.coach_card_state();

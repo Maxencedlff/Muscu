@@ -23,6 +23,7 @@ drop view private.coach_cards_review;
 drop function private.coach_card_remove(uuid, text);
 drop function private.coach_card_restore(uuid, text);
 drop function private.coach_card_shown(uuid, uuid);
+drop function private.coach_card_reporters(uuid);
 drop function private.coach_card_json(uuid);
 drop table public.coach_cards;
 delete from private.social_rate r where r.action = 'coach_card';

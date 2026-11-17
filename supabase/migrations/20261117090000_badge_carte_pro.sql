@@ -14,8 +14,12 @@
 --  4. Signalement (report_coach_card) : réutilise la file commune public.reports (déclencheur : 10 par 24 h
 --     et par compte, pseudo visé, purge à 12 mois) avec target_ref = 'coach_card' ; l'app demande ensuite
 --     l'alerte e-mail à la fonction Edge report ({ report_id }), comme report_comment et report_chat.
---     DÈS LE PREMIER SIGNALEMENT, le badge est suspendu (status 'suspended') jusqu'à la revue de
---     l'administrateur : private.coach_card_restore le rend, private.coach_card_remove le retire.
+--     L'alerte part dès le premier signalement, mais le badge n'est suspendu (status 'suspended') qu'à partir
+--     de 2 signalements venant de 2 comptes DIFFÉRENTS (décision de Maxence, 17/11), comptés depuis la
+--     déclaration ou la dernière revue. Un compte ne signale qu'une fois une même déclaration. Suspendu
+--     jusqu'à la revue de l'administrateur : private.coach_card_restore le rend, private.coach_card_remove le
+--     retire. La vue de revue donne le lien de la fiche officielle (recherche-educateur.sports.gouv.fr/CartePro/
+--     <numéro>) pour comparer sa photo à celle du profil du coach.
 --  5. Retrait par l'administrateur (usurpation, carte expirée) : status 'removed', le coach ne peut plus
 --     redéclarer tant que l'administrateur n'a pas effacé la ligne. Coach qui perd son rôle : badge masqué
 --     (la ligne reste, le rôle rendu le rend).
@@ -25,7 +29,7 @@
 --  7. Blocage entre deux comptes : le badge n'est ni montré ni signalable.
 --
 --  Administration (éditeur SQL) :
---    select * from private.coach_cards_review;                         -- badges suspendus et signalements
+--    select * from private.coach_cards_review;                         -- badges signalés, lien de la fiche officielle
 --    select private.coach_card_restore('<uuid>', 'carte trouvée sur le site du ministère le 17/11');
 --    select private.coach_card_remove('<uuid>', 'Numéro d''une autre personne.');
 --    delete from public.coach_cards where user_id = '<uuid>';          -- autoriser une nouvelle déclaration
@@ -147,9 +151,20 @@ begin
 end
 $$;
 
+-- Comptes différents qui ont signalé ce badge depuis la déclaration ou la dernière revue
+create function private.coach_card_reporters(uid uuid) returns int
+  language sql stable set search_path = '' as
+$$
+  select count(distinct r.reporter_id)::int from public.coach_cards c join public.reports r
+      on r.target_user = c.user_id and r.target_ref = 'coach_card'
+     and r.created_at >= greatest(c.declared_at, coalesce(c.reviewed_at, c.declared_at))
+   where c.user_id = uid
+$$;
+
 -- Signaler le badge d'un coach : ligne dans public.reports (alerte par la fonction Edge report, mode
--- { report_id }), badge suspendu tout de suite. Un seul signalement par compte et par déclaration (rejoué :
--- null, rien de plus). Badge déjà suspendu : le signalement est quand même enregistré (preuve en plus).
+-- { report_id }, dès le premier). Badge suspendu à partir de 2 comptes différents (seuil compté par
+-- coach_card_reporters). Un seul signalement par compte et par déclaration (rejoué : null, rien de plus).
+-- Badge déjà suspendu : le signalement est quand même enregistré (preuve en plus).
 create function public.report_coach_card(coach uuid, details text default null) returns bigint
   language plpgsql security definer set search_path = '' as
 $$
@@ -175,7 +190,7 @@ begin
     values (me, c.user_id, 'profile', 'coach_card', 'autre',
             left('Badge « Carte pro déclarée » signalé' || coalesce(' : ' || txt, ''), 500))
     returning id into rep_id;
-  if c.status <> 'suspended' then
+  if c.status <> 'suspended' and private.coach_card_reporters(c.user_id) >= 2 then
     update public.coach_cards x set status = 'suspended', suspended_at = now() where x.user_id = c.user_id;
   end if;
   return rep_id;
@@ -212,20 +227,22 @@ begin
 end
 $$;
 
--- Badges suspendus, avec le nombre de signalements depuis la déclaration
+-- Badges à revoir : suspendus, ou signalés une fois depuis la déclaration ou la dernière revue. fiche : la
+-- page officielle de la carte (photo, nom, diplômes, validité), à comparer à la photo de profil du coach.
 create view private.coach_cards_review as
   select c.user_id, p.username, c.card_number, c.status, c.declared_at, c.suspended_at,
-         (select count(*) from public.reports r
-           where r.target_user = c.user_id and r.target_ref = 'coach_card' and r.created_at >= c.declared_at) as reports
+         private.coach_card_reporters(c.user_id) as reporters,
+         'https://recherche-educateur.sports.gouv.fr/CartePro/' || c.card_number as fiche
     from public.coach_cards c left join public.user_profiles p using (user_id)
-   where c.status = 'suspended'
-   order by c.suspended_at;
+   where c.status = 'suspended' or (c.status in ('declared', 'verified') and private.coach_card_reporters(c.user_id) >= 1)
+   order by c.status = 'suspended' desc, c.suspended_at, c.declared_at;
 
 -- ── Droits ───────────────────────────────────────────────
 
 revoke all on private.coach_cards_review from public, anon, authenticated, service_role;
 revoke all on function private.coach_card_json(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.coach_card_shown(uuid, uuid) from public, anon, authenticated, service_role;
+revoke all on function private.coach_card_reporters(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.coach_card_restore(uuid, text) from public, anon, authenticated, service_role;
 revoke all on function private.coach_card_remove(uuid, text) from public, anon, authenticated, service_role;
 

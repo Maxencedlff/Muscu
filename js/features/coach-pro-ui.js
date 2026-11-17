@@ -115,7 +115,7 @@ function coachCardGroupHtml() {
           <div class="cell"><span class="cell__body"><span class="cell__title">Badge</span></span><span class="cell__value">${state}</span></div>`;
   if (c.status === 'suspended') {
     return `${title}<div class="group">${rows}</div>
-        <div class="group-foot">Ton badge a été signalé : il est masqué le temps que l'équipe vérifie ta carte sur le site du ministère des Sports. Il revient si tout est en ordre.</div>`;
+        <div class="group-foot">Ton badge a été signalé par plusieurs personnes : il est masqué le temps que l'équipe vérifie ta carte sur le site du ministère des Sports. Il revient si tout est en ordre.</div>`;
   }
   if (c.status === 'removed') {
     return `${title}<div class="group">${rows}</div>
@@ -165,13 +165,13 @@ async function coachCardReportFlow(uid) {
     || (typeof socialPerson === 'function' ? socialPerson(uid) : null);
   const name = personName(p || {});
   const ok = await confirmSheet('Signaler ce badge ?',
-    `Si tu penses que cette carte n'est pas celle de ${name} ou n'est plus valable, le badge est masqué jusqu'à ce que l'équipe la vérifie. ${name} ne saura pas que c'est toi.`,
+    `Si tu penses que cette carte n'est pas celle de ${name} ou n'est plus valable, l'équipe la vérifie sur le site du ministère des Sports. ${name} ne saura pas que c'est toi.`,
     'Signaler');
   if (!ok) return;
   const r = await coachCardReport(uid);
   if (!r.ok) { showToast(coachProErrorText(r.kind), { error: true }); return; }
   haptic('success');
-  showToast('Signalement envoyé');
+  showToast(r.already ? 'Tu as déjà signalé ce badge' : 'Signalement envoyé');
 }
 
 onCoachBadgeChange(() => { if (CARD_BADGE_VIEWS.includes(currentView()) && !coachTyping()) render(); });

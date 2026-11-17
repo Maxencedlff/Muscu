@@ -48,7 +48,7 @@ invalid_card, invalid_diploma, already_coach, rate_limited 5 par 24 h), coach_ti
 Edge coach-request-alert (__sb.co.alerts) ; codes de 8 ou 12 caractères ;
 badge carte pro (20261117090000_badge_carte_pro.sql) : coach_card_state, coach_card_declare (not_coach, invalid_card,
 card_suspended, card_removed, rate_limited 5 par 24 h), coach_card_withdraw, coach_card_badge (jamais le numéro, blocage),
-report_coach_card (ligne de __sb.so.reports, badge suspendu au premier signalement) ; état dans __sb.co.cards,
+report_coach_card (ligne de __sb.so.reports, alerte dès le 1er, badge suspendu à partir de 2 comptes différents) ; état dans __sb.co.cards,
 __sb.setCard(id, numéro, état) en pose un, __sb.fail.card = 'missing' (PGRST202 : serveur sans le badge) ; un élève de trop : tier_full (verrou
 allumé : limite de la formule coach, 0 sans formule ; éteint : 50, ou plus selon le palier).
 État dans __sb.co ; __sb.makeCoach(id) valide le rôle (coach_at, code permanent, demande « approved »),
@@ -1052,7 +1052,10 @@ FAKE_ACCOUNT = r"""
       const rid = sb.so.reports.length + 1;
       sb.so.reports.push({ id: rid, by: me, target_user: id, kind: 'profile', target_ref: 'coach_card', reason: 'autre',
         details: ('Badge « Carte pro déclarée » signalé' + (details ? ' : ' + details : '')).slice(0, 500), notified: false, at: now() });
-      if (c.status !== 'suspended') Object.assign(c, { status: 'suspended', suspended_at: new Date(now()).toISOString() });
+      // Suspendu à partir de 2 comptes différents depuis la déclaration ou la dernière revue
+      const since = Math.max(Date.parse(c.declared_at), c.reviewed_at ? Date.parse(c.reviewed_at) : 0);
+      const n = new Set(sb.so.reports.filter(r => r.target_user === id && r.target_ref === 'coach_card' && r.at >= since).map(r => r.by)).size;
+      if (c.status !== 'suspended' && n >= 2) Object.assign(c, { status: 'suspended', suspended_at: new Date(now()).toISOString() });
       return rid;
     },
     coach_revoke_invite: (me, { code }) => { co.invites = co.invites.filter(i => !(i.coach === me && i.code === code)); return null; },

@@ -1,8 +1,8 @@
 """Badge « Carte pro déclarée » des coachs (docs/COACH_V1.md, « Badge carte pro ») : le coach déclare son numéro de
 carte dans Réglages › Coach (format refusé dans la feuille, prérempli avec sa demande, changé, retiré ; suspendu et
 retiré par l'administrateur ; serveur sans le badge : section cachée) ; l'élève voit le badge dans l'aperçu
-« Rejoindre » et dans Mon coach, jamais le numéro ; « Signaler ce badge » le suspend tout de suite et part dans la
-file des signalements ; profil d'un autre coach ; compte bloqué : pas de badge. Texte agrandi sur iPhone SE.
+« Rejoindre » et dans Mon coach, jamais le numéro ; « Signaler ce badge » part dans la file des signalements (alerte
+dès le premier), suspend le badge à partir de 2 comptes différents, un même compte ne compte qu'une fois ; profil d'un autre coach ; compte bloqué : pas de badge. Texte agrandi sur iPhone SE.
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py, règles de 20261117090000_badge_carte_pro.sql) : aucune
 requête ne sort. Captures : $PPL_SCRATCH/shots/lotbadge/ (chaque écran, clair et sombre).
@@ -166,7 +166,7 @@ def setup_coach(page, social=False):
 
 
 def t_eleve_signale(bench, eng, dev, theme):
-    """Élève : badge dans l'aperçu « Rejoindre » et dans Mon coach, sans numéro ; « Signaler ce badge » le suspend."""
+    """Élève : badge dans l'aperçu « Rejoindre » et dans Mon coach, sans numéro ; 1er signalement : alerte, rien ne change ; deux fois : une seule."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme)
@@ -200,21 +200,27 @@ def t_eleve_signale(bench, eng, dev, theme):
         # Signaler : confirmation, ligne dans la file commune, badge suspendu et caché tout de suite, alerte demandée
         rep.click()
         page.wait_for_selector('.ios-dialog')
-        R.check('masqué jusqu\'à ce que l\'équipe la vérifie' in page.inner_text('.ios-dialog') and 'ne saura pas que c\'est toi' in page.inner_text('.ios-dialog'),
-                f'{t} confirmation : effet et anonymat expliqués')
+        R.check('l\'équipe la vérifie' in page.inner_text('.ios-dialog') and 'ne saura pas que c\'est toi' in page.inner_text('.ios-dialog'),
+                f'{t} confirmation : vérification et anonymat expliqués')
         shot(page, LOT, f'8-signaler-confirmation-{t}')
         tap_dialog(page, 'Signaler')
         page.wait_for_timeout(600)
         rows = page.evaluate("__sb.so.reports.filter(r => r.target_ref === 'coach_card')")
         R.check(len(rows) == 1 and rows[0]['target_user'] == max_id and rows[0]['kind'] == 'profile' and rows[0]['notified'] is True,
-                f'{t} signalement dans la file commune, alerte e-mail demandée ({rows})')
-        R.check(page.evaluate(f"__sb.co.cards['{max_id}'].status") == 'suspended', f'{t} badge suspendu dès le premier signalement')
-        R.check(page.locator('.coach-mine-view .card-badge').count() == 0 and page.locator('[data-action="coach-card-report"]').count() == 0,
-                f'{t} badge et bouton disparus tout de suite')
+                f'{t} 1er signalement dans la file commune, alerte e-mail demandée ({rows})')
         R.check('Signalement envoyé' in (page.locator('.toast').inner_text() if page.locator('.toast').count() else ''), f'{t} toast « Signalement envoyé »')
-        # Rechargé plus tard : toujours caché (le serveur ne le montre plus)
-        page.evaluate(f"async () => {{ await coachBadgeLoad('{max_id}', {{ force: true }}); }}")
-        R.check(page.evaluate(f"coachBadgeShown('{max_id}')") is False, f'{t} relu : badge suspendu caché')
+        # 1er signalement : rien ne change à l'écran ni sur le serveur
+        R.check(page.evaluate(f"__sb.co.cards['{max_id}'].status") == 'declared', f'{t} 1 seul compte : badge pas suspendu')
+        R.check(page.locator('.coach-mine-view .card-badge').count() == 1, f'{t} 1er signalement : badge toujours affiché')
+        # Le même compte une 2e fois : ne compte pas, le dit
+        page.wait_for_timeout(2500)
+        page.click('[data-action="coach-card-report"]')
+        page.wait_for_selector('.ios-dialog')
+        tap_dialog(page, 'Signaler')
+        page.wait_for_timeout(600)
+        R.check(page.evaluate("__sb.so.reports.filter(r => r.target_ref === 'coach_card').length") == 1
+                and page.evaluate(f"__sb.co.cards['{max_id}'].status") == 'declared', f'{t} même compte deux fois : compté une fois')
+        R.check('déjà signalé' in (page.locator('.toast').inner_text() if page.locator('.toast').count() else ''), f'{t} toast « Tu as déjà signalé ce badge »')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -230,6 +236,7 @@ def t_profil_autre(bench, eng, dev, theme):
         page.wait_for_selector('.social-profile-view .card-badge')
         R.check(badge_text(page) == LABEL and NUM not in page.inner_text('#app'), f'{t} profil d\'un coach : badge, sans numéro')
         R.check(page.locator('[data-action="coach-card-report"]').count() == 1, f'{t} profil : « Signaler ce badge »')
+
         layout(page, t, 'profil d\'un coach')
         shot(page, LOT, f'9-profil-coach-{t}')
         if dev == 'iPhone SE':
@@ -238,7 +245,22 @@ def t_profil_autre(bench, eng, dev, theme):
             R.check(page.evaluate("(() => { const b = document.querySelector('.card-badge').getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth; })()"),
                     f'{t} texte agrandi : badge dans l\'écran')
             shot(page, LOT, f'9b-profil-coach-grand-texte-{t}')
-        # Pas coach : aucun badge ni bouton
+        # nina l'a déjà signalé : mon signalement (2e compte différent) le suspend, le badge disparaît
+        page.evaluate(f"""() => {{ __sb.so.reports.push({{ id: __sb.so.reports.length + 1, by: '{nina}', target_user: '{max_id}', kind: 'profile',
+            target_ref: 'coach_card', reason: 'autre', details: 'Badge', notified: true, at: Date.now() }}); }}""")
+        page.locator('[data-action="coach-card-report"]').scroll_into_view_if_needed()
+        page.click('[data-action="coach-card-report"]')
+        page.wait_for_selector('.ios-dialog')
+        tap_dialog(page, 'Signaler')
+        # Signalement, alerte, puis relecture du badge et redessin : attendus sans délai fixe (lent sous charge)
+        try:
+            page.wait_for_function("() => !document.querySelector('.social-profile-view .card-badge')", timeout=8000)
+        except Exception:
+            pass
+        R.check(page.evaluate(f"__sb.co.cards['{max_id}'].status") == 'suspended', f'{t} 2e compte différent : badge suspendu')
+        R.check(page.locator('.social-profile-view .card-badge').count() == 0 and page.locator('[data-action="coach-card-report"]').count() == 0,
+                f'{t} 2e compte différent : badge et bouton disparus')
+                # Pas coach : aucun badge ni bouton
         page.evaluate(f"navigate(makeRoute('social-profile', '{nina}'))")
         page.wait_for_selector('.social-profile-view')
         page.wait_for_timeout(400)
