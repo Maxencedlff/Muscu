@@ -181,11 +181,6 @@ function fmtVolume(kg) {
   return kg >= 1000 ? tenth(kg / 1000) + ' t' : fmtNum(Math.round(kg)) + ' kg';
 }
 
-function historyColor(h) {
-  const progId = entryProg(h);
-  return sessionMeta(h.category, progId).color || 'var(--label2)';
-}
-
 // Texte posé sur une couleur de séance : blanc, ou noir quand le blanc n'atteindrait pas 4,5:1
 // (orange, jaune, turquoise, couleurs claires des séances perso). Les var(--x) sont lues en sombre,
 // le thème où elles sont les plus claires.
