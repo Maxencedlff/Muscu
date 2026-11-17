@@ -118,7 +118,8 @@ jobs:
           echo "iOS : $IOS_RT · watchOS : $WOS_RT"
           [ "$WOS_RT" != "null" ] && [ -n "$WOS_RT" ] || { echo "Aucun simulateur watchOS dans l'image"; exit 1; }
           types=$(xcrun simctl list devicetypes -j)
-          pick() { echo "$types" | jq -r --arg re "$1" '[.devicetypes[] | select(.name | test($re))] | last | .identifier'; }
+          # Liste du plus récent au plus ancien : le premier qui correspond (Series 11, iPhone 17 Pro)
+          pick() { echo "$types" | jq -r --arg re "$1" '[.devicetypes[] | select(.name | test($re))] | first | .identifier'; }
           PHONE_T=$(pick '^iPhone 1[6-9] Pro$')
           W46_T=$(pick '^Apple Watch Series [0-9]+ \(46mm\)$')
           W42_T=$(pick '^Apple Watch Series [0-9]+ \(42mm\)$')
