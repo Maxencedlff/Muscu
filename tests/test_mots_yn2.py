@@ -155,4 +155,26 @@ def t_compteur(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} compteur : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_accueil, t_seance_libre, t_csv, t_compteur])
+def t_titre_barre(bench, eng, dev, theme):
+    """Barre de la séance : « Pousser (Push) » quand il tient en entier, sinon le nom court, jamais coupé."""
+    t = tag(dev, theme)
+    st = """(() => { const m = document.querySelector('#app .navbar__title-main');
+        return { text: m.textContent.trim(), cut: m.scrollWidth > m.clientWidth + 1 }; })()"""
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        page.click('.hero__btn')
+        page.wait_for_selector('.view.session')
+        s = page.evaluate(st)
+        short = page.evaluate('sessionMeta(activeSession.category, activeSession.programme).label')
+        R.check(s['text'] in PLAIN | {short} and not s['cut'], f'{t} barre de séance : nom entier {s}')
+        if page.viewport_size['width'] >= 390:
+            R.check(s['text'] in PLAIN, f'{t} barre de séance : nom en clair sur un grand écran {s}')
+        page.evaluate("document.documentElement.classList.add('type-xl'); document.documentElement.style.fontSize = '24px'; render()")
+        page.wait_for_timeout(150)
+        s = page.evaluate(st)
+        R.check(s['text'] in PLAIN | {short} and not s['cut'], f'{t} barre de séance, texte agrandi : nom entier {s}')
+        shot(page, LOT, f'6-titre-barre-grand-texte-{t}')
+        R.check(not page.errors, f'{t} titre de la barre : aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_accueil, t_seance_libre, t_csv, t_compteur, t_titre_barre])

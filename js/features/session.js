@@ -367,6 +367,8 @@ function renderSession() {
   const { total, done } = sessionSetCounts();
   const pct  = total ? Math.round(done / total * 100) : 0;
   const cur  = currentSet();
+  // « Pousser (Push) » quand il tient dans la barre, sinon le nom court (fitSessionTitle, après l'affichage)
+  const longTitle = activeSession.programme === FREE ? meta.label : esc(sessionTitle(activeSession.category, activeSession.programme));
 
   const xs     = activeSession.exercises, tags = ssTags(xs);
   thumbMuscleIdx = chosenMusclesIndex();
@@ -376,7 +378,7 @@ function renderSession() {
   return `
     <div class="view session ${restActive ? 'session--resting' : ''}" style="--cat-color:${meta.color}">
       ${navBar({ large: false,
-        title: `<span class="navbar__title-main">${meta.label}</span>
+        title: `<span class="navbar__title-main"${longTitle !== meta.label ? ` data-short="${meta.label}"` : ''}>${longTitle}</span>
                 <span class="navbar__title-ex" aria-hidden="true"></span>
                 <span class="navbar__title-sub session-sub num"><span id="session-count">${done}/${total}</span> · <span id="session-clock">${fmtClock(Date.now() - activeSession.startedAt)}</span></span>`,
         left: `<button class="navbar__icon" data-action="back" aria-label="Réduire la séance">${icon('chevron.down', 24)}</button>`,
@@ -1112,6 +1114,13 @@ function scrollToCard(ei) {
   });
 }
 
+// Titre de la barre : « Pousser (Push) » s'il tient en entier (iPhone 13), sinon le nom court « Push » plutôt
+// qu'un nom coupé (iPhone SE, texte agrandi, « Haut du corps (Upper) »)
+function fitSessionTitle() {
+  const main = $('#app .navbar__title-main');
+  if (main?.dataset.short && main.scrollWidth > main.clientWidth + 1) main.textContent = main.dataset.short;
+}
+
 // Appelé par render() après l'affichage de la séance
 function afterSessionRender(entering) {
   const mini = $('.rest-mini');
@@ -1122,6 +1131,7 @@ function afterSessionRender(entering) {
   const tipFirst = entering && (coachSessionProgTipHtml() || lastSessionNoteHtml()) && !activeSession.exercises.some(ex => ex.sets.some(s => s.done));
   if (tipFirst) window.scrollTo(0, 0);
   else if (entering) scrollToCurrent(false);
+  fitSessionTitle();
   observeCurrentExName();
   const a = document.activeElement;
   if (!(a && a.matches?.('.set-input'))) document.body.classList.remove('kb-open');
