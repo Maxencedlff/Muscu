@@ -149,7 +149,7 @@ def t_views(bench, eng, dev, theme):
         page.wait_for_timeout(500)
         R.check(page.locator('[data-action="validate-set"][data-ei="0"][data-si="1"]').get_attribute('aria-label') == 'Valider la série 2', f'{t} série 1 faite : la 2 se valide')
         lbl = page.locator('.session-set--done .sr-text').first.text_content() or ''
-        R.check(lbl.startswith('Série 1 validée, 32,5 kilos, 11 répétitions'),   # 1re série à l'objectif du jour (32,5 × 11)
+        R.check(lbl.startswith('Série 1 validée, 32,5 kilos, 10 répétitions'),   # 1re série à la dernière fois (32,5 × 10, règle du 17/11)
                 f'{t} libellé série validée ({lbl})')
         R.check(page.locator('[role="timer"][aria-live="off"]').count() >= 1, f'{t} chrono role=timer aria-live=off')
         R.check(page.locator('.rest-mini [aria-label="Moins 15 secondes"]').count() == 1 and page.locator('.rest-mini [aria-label="Passer le repos"]').count() == 1, f'{t} libellés du repos')
