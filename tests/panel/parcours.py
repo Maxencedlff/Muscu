@@ -1626,3 +1626,25 @@ def p_photo_profil(r):
     with r.etape('profil-amie', 'Profil de Léa : sa photo, « Signaler la photo »'):
         r.raccourci("navigate(makeRoute('social-profile', window.__lea))", 'profil de Léa ouvert depuis le fil')
         r.attendre('.social-profile-view .account-hero', 'profil')
+
+
+@parcours('eleve-abonne-couvert', 'Élève déjà abonné que son coach couvre : « Tu peux résilier ton abonnement »', 'coach')
+def p_eleve_abonne_couvert(r):
+    """Léa avait son propre abonnement mensuel (essai d'Apple en cours) avant de rejoindre lucas, coach abonné : son coach
+    couvre maintenant son accès. Réglages › Abonnement le lui dit avec la date où l'essai deviendrait payant et
+    « Gérer mon abonnement » ; jamais de remboursement promis. Puis elle a résilié chez Apple : la carte disparaît."""
+    _coquille_payante(r)
+    r.lancer(REALISTE)
+    r.connecter('lea')
+    r.raccourci("""async () => { const c = __sb.addPerson({ username: 'lucas', avatar: '🦁', social: false }); __sb.makeCoach(c);
+        __sb.link(c, __sb.meId(), Date.now() - 2 * 86400000); __st.setCover('active');
+        __st.subscribe('com.mdlf.training.pro.monthly', 40, { intro: true });
+        __st.owned = { productId: 'com.mdlf.training.pro.monthly', originalId: 'apple-lea', transactionId: 'tx-lea', expiresAt: Date.now() + 40 * 86400000 };
+        await coachRefresh(); access.loadedAt = 0; await accessRefresh(); render(); }""",
+                'Léa en essai d\'Apple sur la formule mensuelle, puis reliée à lucas (coach abonné)')
+    cle = 'Savoir qu\'on peut résilier son propre abonnement'
+    with r.etape('reglages-abonnement', 'Réglages › Abonnement : « Ton coach couvre ton accès », date de l\'essai, « Gérer mon abonnement »', cle=cle):
+        _abonnement(r)
+        r.attendre('.pay-double', 'carte')
+    with r.etape('resilie', 'Abonnement résilié chez Apple : plus de carte'):
+        r.raccourci("async () => { __st.owned.willAutoRenew = false; await accessLoadCurrentPlan(); render(); }", 'résilié dans les réglages d\'Apple')
