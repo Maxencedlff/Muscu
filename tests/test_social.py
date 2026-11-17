@@ -87,7 +87,7 @@ def small_targets(page, sel='#app button, .tabbar button'):
 def cut_texts(page):
     """Textes coupés ou qui débordent de leur boîte (hors champs de saisie)."""
     return page.evaluate("""() => [...document.querySelectorAll('#app *, .tabbar *')].filter(e => e.offsetParent && e.children.length === 0
-        && e.textContent.trim() && !e.matches('input, svg, use, .icon *, .visually-hidden') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        && e.textContent.trim() && !e.matches('input, svg, use, .icon *, .visually-hidden, .sr-text') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
         .map(e => e.textContent.trim().slice(0, 30))""")
 
 
@@ -279,20 +279,20 @@ def t_fil(bench, eng, dev, theme):
         got = page.evaluate("[...document.querySelectorAll('.feed-card')].map(c => c.dataset.id)")
         R.check(len(got) == 23 and len(set(got)) == 23, f'{t} 23 séances, aucune perdue ni doublée (même milliseconde à la jonction) ({len(got)})')
         R.check(page.locator('[data-action="social-more"]').count() == 0, f'{t} fin du fil : plus de bouton')
-        # Réaction (un toucher) : 👏 donné puis retiré (détail des réactions : test_reactions.py)
-        bravo = page.locator('.feed-card').first.locator('.react')
-        R.check(bravo.inner_text().strip() == '👏' and bravo.get_attribute('aria-label') == 'Réagir' and 'bravo' not in page.inner_text('#app').lower(),
-                f'{t} bouton : 👏 seul, sans « Bravo » ({bravo.inner_text()!r})')
+        # Réaction (un toucher sur le cœur) : ❤️ donné puis retiré (détail des réactions : test_reactions.py)
+        bravo = page.locator('.feed-card').first.locator('[data-action="social-react"]')
+        R.check(bravo.inner_text().strip() == '❤️' and bravo.get_attribute('aria-label') == 'J\'aime' and 'bravo' not in page.inner_text('#app').lower(),
+                f'{t} bouton : ❤️ seul, sans « Bravo » ({bravo.inner_text()!r})')
         bravo.click()
         page.wait_for_timeout(300)
-        bravo = page.locator('.feed-card').first.locator('.react')
-        R.check(bravo.get_attribute('aria-pressed') == 'true' and '👏 1' in page.locator('.feed-card').first.inner_text(), f'{t} bravo donné')
-        R.check(page.evaluate('__sb.so.bravos.length') == 1, f'{t} bravo enregistré')
-        R.check(small_targets(page, '.react') == [], f'{t} bravo : 44 pt')
+        bravo = page.locator('.feed-card').first.locator('[data-action="social-react"]')
+        R.check(bravo.get_attribute('aria-pressed') == 'true' and '❤️ 1' in page.locator('.feed-card').first.inner_text(), f'{t} ❤️ donné')
+        R.check(page.evaluate('__sb.so.bravos.map(b => b.kind)') == ['like'], f'{t} ❤️ enregistré')
+        R.check(small_targets(page, '.react') == [], f'{t} cœur et « + » : 44 pt')
         shot(page, LOT, f'4b-bravo-{t}')
         bravo.click()
         page.wait_for_timeout(300)
-        R.check(page.locator('.feed-card').first.locator('.react').get_attribute('aria-pressed') == 'false' and page.evaluate('__sb.so.bravos.length') == 0, f'{t} bravo retiré')
+        R.check(page.locator('.feed-card').first.locator('[data-action="social-react"]').get_attribute('aria-pressed') == 'false' and page.evaluate('__sb.so.bravos.length') == 0, f'{t} ❤️ retiré')
         # Détail des séries
         page.locator('.feed-card').first.locator('.feed-card__main').click()
         page.wait_for_selector('.social-session-view')
@@ -681,9 +681,9 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(page.locator('.feed-card').count() > 0, f'{t} réseau revenu : fil chargé')
         # Bravo hors ligne : annulé, message traduit
         page.evaluate('__sb.fail.social = "offline"')
-        page.locator('.feed-card').first.locator('.react').click()
+        page.locator('.feed-card').first.locator('[data-action="social-react"]').click()
         page.wait_for_timeout(300)
-        R.check(page.locator('.feed-card').first.locator('.react').get_attribute('aria-pressed') == 'false' and 'Pas d\'Internet' in toast(page), f'{t} bravo hors ligne annulé ({toast(page)!r})')
+        R.check(page.locator('.feed-card').first.locator('[data-action="social-react"]').get_attribute('aria-pressed') == 'false' and 'Pas d\'Internet' in toast(page), f'{t} bravo hors ligne annulé ({toast(page)!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
     # Panel Apple du 08/11 : social activé (état connu), fil vide, hors ligne : un seul message, pas « demandes pas à jour »
     with bench.page(eng, dev, theme) as page:

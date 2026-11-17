@@ -620,6 +620,16 @@ def p_social(r):
         await socialRefresh(); await socialLoadFeed(''); render(); }""", 'recherche effacée, fil relu')
     with r.etape('fil', 'Fil : carte de séance de Léa et demande de Tom'):
         r.attendre('.feed-card', 'carte du fil')
+    # Réactions (17/11) : le cœur, « + » pour les autres, double toucher sur le résumé d'une carte
+    with r.etape('jaime', 'Un toucher sur le cœur : ❤️ « J\'aime »', cle='Aimer la séance d\'une amie'):
+        r.toucher('.feed-card [data-action="social-react"]', 'cœur')
+    with r.etape('autres-reactions', '« + » à côté du cœur : 🔥 💪 🏆 👏 😮', cle='Choisir une autre réaction'):
+        r.toucher('.feed-card [data-action="social-react-more"]', 'Autres réactions')
+    with r.etape('double-toucher', 'Double toucher sur le résumé de la 2e carte (muscles, chiffres) : ❤️ et cœur animé', cle='Aimer la séance d\'une amie'):
+        r.page.keyboard.press('Escape')
+        r.page.locator('.feed-card').nth(1).locator('[data-like-zone]').scroll_into_view_if_needed()
+        r.page.locator('.feed-card').nth(1).locator('[data-like-zone]').dblclick()
+        r.page.wait_for_timeout(150)
     with r.etape('seance-amie', 'Séance d\'une amie', cle='Voir la séance d\'une amie'):
         r.toucher('.feed-card [data-action="social-open-session"]', 'carte de Léa')
     with r.etape('commenter', '« Commenter » : la séance s\'ouvre sur ses commentaires', cle='Commenter la séance d\'une amie'):

@@ -71,9 +71,10 @@ function feedStatsHtml(s) {
     [String(n), n > 1 ? 'Séries' : 'Série']].filter(Boolean);
   return `<span class="feed-card__stats">${stats.map(([v, l]) => `<span class="feed-card__stat"><span class="feed-card__stat-val num">${esc(v)}</span><span class="feed-card__stat-lbl">${l}</span></span>`).join('')}</span>`;
 }
+// Muscles : puces pour l'œil, une phrase pour VoiceOver (hors d'un bouton, aria-label sur un span ne serait pas lu)
 function feedMusclesHtml(s) {
   const m = feedMuscles(s);
-  return m.length ? `<span class="feed-card__muscles" aria-label="${esc(`Muscles : ${m.join(', ')}`)}">${m.map(x => `<span class="feed-card__chip" aria-hidden="true">${esc(x)}</span>`).join('')}</span>` : '';
+  return m.length ? `<span class="feed-card__muscles"><span class="sr-text">${esc(`Muscles : ${m.join(', ')}`)}</span>${m.map(x => `<span class="feed-card__chip" aria-hidden="true">${esc(x)}</span>`).join('')}</span>` : '';
 }
 
 // Vignette 3D du groupe le plus travaillé d'une séance reçue (ami, élève) : mainGroupOf (js/features/progress-muscles.js)
@@ -84,9 +85,10 @@ const OTHERS_MUSCLES_INDEX = new Map();
 function sessionGroupOf(exercises) { return mainGroupOf(exercises, OTHERS_MUSCLES_INDEX); }
 
 // Carte du fil, illustrée comme l'Historique : qui et quand (vers son profil), puis la séance (vers le détail des
-// séries) : nom et muscles à gauche, vignette du groupe travaillé à droite (décorative), les trois chiffres, le
-// record en or ; puis réagir (js/features/reactions-ui.js) et Commenter (la séance, sur ses commentaires).
-// Ma séance (Mon profil) : le résumé des réactions seulement.
+// séries, au premier toucher) : nom à gauche, vignette du groupe travaillé à droite (décorative) ; puis le résumé
+// (muscles, les trois chiffres, le record en or), zone du double toucher « J'aime » qui n'ouvre rien
+// (js/features/reactions-ui.js, décision du 17/11) ; puis réagir et Commenter (la séance, sur ses commentaires).
+// Ma séance (Mon profil) : le résumé des réactions seulement, pas de double toucher.
 // owner : false sur l'écran du profil (la personne est déjà nommée), la date passe alors sous le nom de séance.
 // Texte agrandi : plus de vignette (css/muscles.css), le texte prend toute la largeur.
 function feedCardHtml(row, { owner = true } = {}) {
@@ -102,13 +104,15 @@ function feedCardHtml(row, { owner = true } = {}) {
         <span class="feed-card__head${art ? '' : ' feed-card__head--noart'}">
           <span class="feed-card__text">
             <span class="feed-card__title"><span class="feed-card__label">${esc(s.label)}</span>${owner ? '' : `<span class="feed-card__date">${fmtDate(row.doneAt)}</span>`}</span>
-            ${feedMusclesHtml(s)}
           </span>
           ${art}
         </span>
+      </button>
+      <div class="feed-card__sum"${likeZoneAttrs(row, mine)}>
+        ${feedMusclesHtml(s)}
         ${feedStatsHtml(s)}
         ${feedRecordHtml(s)}
-      </button>
+      </div>
       <div class="feed-card__foot">${mine
         ? `<span class="react-own">${reactionsSummary(row.reactions) ? reactionsSummaryHtml(row.reactions) : '<span class="react-own__none">Aucune réaction</span>'}</span>`
         : reactionBarHtml(row)}

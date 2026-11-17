@@ -15,7 +15,9 @@
 import { adminClient, env, json } from '../_shared/http.ts';
 import { apnsOutcome, apnsRequest, providerToken, providerTokenCache, pushMessage, sameSecret, settledIds } from './push-policy.js';
 
-type ClaimRow = { id: number; kind: string; ref: string; token: string | null; env: string | null; actor_name: string | null; wanted: boolean };
+// reaction et label (réaction) ; label et minutes (séance d'un élève) : relus par push_claim, facultatifs
+type ClaimRow = { id: number; kind: string; ref: string; token: string | null; env: string | null; actor_name: string | null; wanted: boolean;
+  reaction?: string | null; label?: string | null; minutes?: number | null };
 type Result = { id: number; outcome: 'sent' | 'dead_token' | 'retry' | 'drop' | 'skip'; token?: string };
 
 const BATCH = 100;

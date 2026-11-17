@@ -111,17 +111,41 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   });
 
   test('réactions : liste fermée, comptes nettoyés, la plus fréquente, résumé et VoiceOver', () => {
-    sameJSON(run(`REACTIONS.map(r => r.kind)`), ['clap', 'fire', 'strong', 'trophy', 'wow']);
+    sameJSON(run(`REACTIONS.map(r => r.kind)`), ['like', 'clap', 'fire', 'strong', 'trophy', 'wow']);
+    sameJSON(run(`REACTIONS.map(r => r.emoji)`), ['❤️', '👏', '🔥', '💪', '🏆', '😮']);
+    sameJSON(run(`[REACTION_DEFAULT, REACTIONS_MORE.map(r => r.kind)]`), ['like', ['clap', 'fire', 'strong', 'trophy', 'wow']], '« + » : les cinq autres');
     sameJSON(run(`cleanReactionCounts({ clap: 2, fire: 0, heart: 4, wow: 1.5, strong: -1, trophy: '3' })`), { clap: 2 }, 'sortes connues et entiers positifs seulement');
     sameJSON(run(`reactionsTop({ fire: 1, clap: 1, wow: 3 })`), ['wow', 'clap', 'fire'], 'égalité : ordre de la liste, comme le serveur');
+    sameJSON(run(`reactionsTop({ fire: 1, like: 1 })`), ['like', 'fire'], 'égalité : ❤️ d\'abord');
+    assert.equal(run(`reactionsSpoken({ like: 2, fire: 1 })`), '3 réactions : 2 J\'aime, 1 Chaud');
+    // Historique : « ❤️ 3 · 🔥 1 », la plus fréquente d'abord, trois sortes au plus
+    assert.equal(run(`reactionsCountsText({ fire: 1, like: 3 })`), '❤️ 3 · 🔥 1');
+    assert.equal(run(`reactionsCountsText({ wow: 1, fire: 1, like: 1, clap: 1 })`), '❤️ 1 · 👏 1 · 🔥 1');
+    assert.equal(run(`reactionsCountsText({})`), '');
     assert.equal(run(`reactionsSummary({ fire: 2, clap: 1 })`), '🔥👏 3');
     assert.equal(run(`reactionsSummary({})`), '');
     assert.equal(run(`reactionsSpoken({ fire: 2, clap: 1 })`), '3 réactions : 2 Chaud, 1 Applaudissements');
     // Ma réaction changée, retirée, posée : les comptes suivent, l'objet d'entrée ne bouge pas
     sameJSON(run(`(() => { const c = { fire: 1, clap: 2 }; const out = [withMyReaction(c, 'fire', 'clap'), withMyReaction(c, 'clap', null), withMyReaction(c, null, 'wow'), c]; return out; })()`),
       [{ clap: 3 }, { fire: 1, clap: 1 }, { fire: 1, clap: 2, wow: 1 }, { fire: 1, clap: 2 }]);
-    // Un toucher : 👏, ou retirer la mienne (quelle qu'elle soit)
-    sameJSON(run(`[tapReaction(null), tapReaction('fire'), tapReaction('clap')]`), ['clap', null, null]);
+    // Un toucher sur le cœur : ❤️, le retirer s'il est déjà là, remplacer une autre réaction par ❤️
+    sameJSON(run(`[tapReaction(null), tapReaction('like'), tapReaction('fire')]`), ['like', null, 'like']);
+    // Double toucher sur le résumé : ❤️ seulement si je n'ai pas réagi ; jamais retirer ni remplacer
+    sameJSON(run(`[doubleTapReaction(null), doubleTapReaction('like'), doubleTapReaction('fire')]`), ['like', null, null]);
+    assert.equal(run(`activityText({ kind: 'reaction', reaction: 'like', label: 'Push' })`), 'a réagi ❤️ à ta séance Push', 'Mon profil : « a réagi »');
+  });
+
+  // Même liste fermée, dans le même ordre, que le serveur (dernière migration qui l'a posée) et que les notifications
+  test('réactions : même liste que le serveur (bravos_kind, set_reaction, reaction_top) et que push-send', async () => {
+    const dir = path.join(ROOT, 'supabase/migrations');
+    const all = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort().map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+    const last = (re) => { const m = [...all.matchAll(re)].pop(); return m ? [...m[1].matchAll(/'([a-z]+)'/g)].map(x => x[1]) : null; };
+    const app = run(`REACTIONS.map(r => r.kind)`);
+    sameJSON(last(/constraint bravos_kind check \(kind in \(([^)]+)\)\)/g), app, 'contrainte bravos_kind');
+    sameJSON(last(/set_reaction\.kind not in \(([^)]+)\)/g), app, 'liste de set_reaction');
+    sameJSON(last(/array_position\(array\[([^\]]+)\], v\.key\)/g), app, 'ordre des égalités de reaction_top');
+    const { REACTION_EMOJI } = await import(path.join(ROOT, 'supabase/functions/push-send/push-policy.js'));
+    sameJSON(Object.entries(REACTION_EMOJI), run(`REACTIONS.map(r => [r.kind, r.emoji])`), 'emojis des notifications');
   });
 
   test('réactions : ligne du fil avec réactions, et serveur d\'avant (bravos seulement) compté en 👏', () => {

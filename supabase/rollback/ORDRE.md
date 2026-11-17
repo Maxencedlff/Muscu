@@ -8,12 +8,13 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −15 | `20261117050000_reaction_jaime_down.sql` (chaque ❤️ redevient un 👏) | rien | oui (vérifié) |
 | −14 | `20261117040000_promo_coach_down.sql` (supprimer d'abord la fonction Edge `coach-promo-offer` ; demandes d'offre et comptes déjà coachs mis de côté dans `private.promo_coach_archive_*`) | rien | oui (vérifié) |
 | −13 | `20261117030000_grille_coach_down.sql` (grille coach du 17/11 : retour aux limites 10, 20, 30, illimité ; remettre aussi les prix dans App Store Connect) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et des élèves offerts attendent la grille du 17/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
 | −12 | `20261117020000_charge_coach_down.sql` (fonctions d'avant : mêmes réponses, plus lentes ; envoi de programmes revenu à 30 par 24 h) | rien | oui (vérifié) |
 | −11 | `20261117010000_photo_profil_down.sql` (vider d'abord le compartiment `profile-photos` par l'API Storage : il refuse sinon ; redéployer ensuite `coach-photos-purge` dans sa version d'avant, qui ne connaît pas ce compartiment) | rien | oui (vérifié) |
 | −10 | `20261116030000_eleves_gratuits_down.sql` (élèves offerts par leur coach : retour à l'élève payant et au code d'offre −25 %) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et du payant attendent la règle du 16/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
-| −9 | `20261116020000_notifications_seances_eleves_down.sql` | rien | oui (vérifié) |
+| −9 | `20261116020000_notifications_seances_eleves_down.sql` | J'aime (−15) : il remplace son `push_claim` | oui pour les autres lots (vérifié) ; défaire −15 avant pour garder le texte de la notification |
 | −8 | `20261116010000_charge_prescrite_down.sql` | rien | oui (vérifié) |
 | −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
@@ -30,10 +31,10 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | 4 | `20261031400000_parrainage_down.sql` | parrainage du payant (−1) : la table des paiements référence les attributions | non, refuse sans rien changer |
 | 5 | `20261031300000_partage_coach_down.sql` | mensurations partagées (−3) : leur table s'appuie sur `coach_shares` ; plans diète du coach (−6) : son accord et son déclencheur sont sur `coach_shares` | non |
 | 6 | `20261031230000_newsletter_down.sql` | rien | oui (vérifié) |
-| 7 | `20261031200000_reactions_profil_down.sql` | commentaires (3) | non |
+| 7 | `20261031200000_reactions_profil_down.sql` | J'aime (−15) : il réécrit `set_reaction` et `reaction_top` ; commentaires (3) | non |
 | 8 | `20261031100000_records_series_down.sql` | progression des élèves (−4) : `coach_progress` lit `private.session_records` ; séance publique (−5) de préférence avant (seul, il remplace aussi son `session_public`) | non (seul, tout le reste marche : vérifié sans les tests de la progression ni de la séance publique) |
 | 9 | `20261031000000_payant_plus_down.sql` | rien | oui (vérifié) |
-| 10 | `20261030000000_payant_tarifs_down.sql` | payant plus (9), élèves offerts (−8) | non, refuse sans rien changer |
+| 10 | `20261030000000_payant_tarifs_down.sql` | payant plus (9), élèves offerts (−10) | non, refuse sans rien changer |
 | 11 | `20261029000000_payant_modele_b_down.sql` | tarifs (10) | non, refuse sans rien changer |
 
 « Dépend de » : la migration plus récente réécrit des fonctions de celle-ci (my_activity, réécrite par les commentaires, pour 7 ; access_json, access_refresh, access_claim, srv_access_* pour 10 et 11). Les retours arrière 4, 10 et 11 s'arrêtent d'eux-mêmes (exception, transaction annulée) si la migration du dessus est encore en place. Pour 7, suivre l'ordre : lancé avant 3, il retire mark_activity_seen et my_shown_sessions que les commentaires utilisent.
@@ -80,6 +81,7 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
 8. `20261117020000_charge_coach.sql` (charge côté coach, mesures de `tests/charge/` : séances lues 3 fois plus vite à réponse identique, progression sans relire 182 jours, envoi de programmes à 30 + 2 par élève sur 24 h ; après 20261116010000 (en production) et les plans diète, dont elle réécrit les fonctions ; sans OTA)
 9. `20261117030000_grille_coach.sql` (grille coach du 17/11/2026 : 10, 25, 50, 100 élèves, docs/PAYANT_V1.md) : APRÈS 6 (il réécrit `coach_tier_state` des élèves offerts). Aucune fonction Edge à redéployer. Les prix se changent dans App Store Connect, à part.
 10. `20261117040000_promo_coach.sql` (essai coach par offre promotionnelle d'Apple, docs/PAYANT_V1.md) : APRÈS 6 (il relit le journal des descentes de palier `private.coach_tier_log`) ; puis la fonction Edge `coach-promo-offer` (secrets de `verify-purchase`), puis la build 69 avec l'OTA.
+11. `20261117050000_reaction_jaime.sql` (réaction ❤️ « J'aime », docs/SOCIAL_V1.md « J'aime ») : **avant** la fonction `push-send` à jour, elle-même **avant** l'OTA. Une app à jour sur un serveur d'avant ne peut pas aimer (`invalid_reaction`) ; une app d'avant sur ce serveur ignore les ❤️ sans planter. push-send peut passer juste avant ou juste après la migration : sans les nouveaux champs il dit « lea a aimé ta séance », l'ancien push-send dit encore « Bravo ! » tant qu'il n'est pas redéployé. Retour arrière : l'ordre inverse (OTA d'avant, puis `20261117050000_reaction_jaime_down.sql` ; push-send peut rester).
 
 Les fonctions Edge du payant (`verify-purchase`, `appstore-notify`, puis `coach-request-alert`) se déploient juste APRÈS 1 à 3 : elles envoient `p_intro` et `p_environment`, que la base du 28/10 ne connaît pas (docs/PAYANT_V1.md, « Mise en production »).
 
@@ -113,6 +115,7 @@ bash tests/sql/rollback_lot3_check.sh     # lot 3 : démontage complet et chaque
 bash tests/sql/rollback_check.sh          # réactions, avec données
 bash tests/sql/rollback_social_check.sh   # commentaires et chat, avec données
 bash tests/sql/rollback_push_check.sh     # notifications push
+bash tests/sql/rollback_reaction_jaime_check.sh   # J'aime : ❤️ redevenu 👏, base identique
 bash tests/sql/photos_bilan_rollback_test.sh   # photos de bilan : planification et secret de la purge retirés
 ```
 

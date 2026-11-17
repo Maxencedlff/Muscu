@@ -12,7 +12,14 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
 
   test('push : textes par type, pseudo seul, jamais le contenu saisi', async () => {
     const { pushMessage } = await load();
-    sameJSON(pushMessage(row()), { title: 'Bravo !', body: 'max.dlf t’a dit bravo pour ta séance', kind: 'reaction', ref: 's-1' });
+    // Réaction : son emoji et le nom de ma séance (relus par push_claim) ; sans sorte : texte générique, jamais « bravo »
+    sameJSON(pushMessage(row({ reaction: 'like', label: 'Push' })), { title: 'Nouvelle réaction', body: 'max.dlf a réagi ❤️ à ta séance Push', kind: 'reaction', ref: 's-1' });
+    assert.equal(pushMessage(row({ reaction: 'fire' })).body, 'max.dlf a réagi 🔥 à ta séance', 'séance sans nom');
+    sameJSON(pushMessage(row()), { title: 'Nouvelle réaction', body: 'max.dlf a aimé ta séance', kind: 'reaction', ref: 's-1' });
+    assert.equal(pushMessage(row({ reaction: '<b>x</b>', label: 'Push' })).body, 'max.dlf a aimé ta séance', 'sorte inconnue : générique, jamais le texte reçu');
+    assert.equal(pushMessage(row({ reaction: 'toString' })).body, 'max.dlf a aimé ta séance', 'clé héritée : générique');
+    assert.equal(pushMessage(row({ reaction: 'wow', label: 'L\n' + 'y'.repeat(80) })).body, `max.dlf a réagi 😮 à ta séance L${'y'.repeat(39)}`, 'nom borné à 40, une ligne');
+    assert.ok(!/bravo/i.test(JSON.stringify([pushMessage(row()), pushMessage(row({ reaction: 'clap' }))])), 'plus de « bravo »');
     assert.equal(pushMessage(row({ kind: 'follow_request', ref: '' })).body, 'max.dlf veut suivre tes séances');
     assert.equal(pushMessage(row({ kind: 'coach_note' })).body, 'max.dlf a commenté ta séance');
     assert.equal(pushMessage(row({ kind: 'coach_programme', ref: 'prog1' })).body, 'max.dlf t’a envoyé un programme');
@@ -31,7 +38,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // La ligne de push_claim n'a jamais de texte saisi ; même si elle en avait, il ne partirait pas
     const sneaky = pushMessage(row({ kind: 'chat_message', ref: uid, body: 'texte privé', text: 'texte privé' }));
     assert.ok(!JSON.stringify(sneaky).includes('privé'), 'texte saisi dans la notification');
-    assert.equal(pushMessage(row({ actor_name: null })).body, 'Quelqu’un t’a dit bravo pour ta séance');
+    assert.equal(pushMessage(row({ actor_name: null })).body, 'Quelqu’un a aimé ta séance');
     assert.equal(pushMessage(row({ actor_name: 'a\nb\u0007' })).body.startsWith('ab '), true, 'caractères de contrôle retirés');
     assert.equal([...pushMessage(row({ actor_name: 'x'.repeat(200) })).body].length < 80, true, 'pseudo borné');
   });
@@ -46,12 +53,12 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
 
   test('push : requête APNs (hôte, en-têtes, charge utile, expiration 24 h)', async () => {
     const { pushMessage, apnsRequest } = await load();
-    const r = row();
+    const r = row({ reaction: 'like', label: 'Push' });
     const req = apnsRequest(r, pushMessage(r), { topic: 'com.mdlf.training', providerToken: 'faux.jeton.fournisseur', nowS: 1_800_000_000 });
     assert.equal(req.url, `https://api.push.apple.com/3/device/${FAKE_TOKEN}`);
     sameJSON(req.init.headers, { authorization: 'bearer faux.jeton.fournisseur', 'apns-push-type': 'alert', 'apns-topic': 'com.mdlf.training',
       'apns-priority': '10', 'apns-expiration': '1800086400', 'content-type': 'application/json' });
-    sameJSON(JSON.parse(req.init.body), { aps: { alert: { title: 'Bravo !', body: 'max.dlf t’a dit bravo pour ta séance' }, sound: 'default', 'thread-id': 'reaction' },
+    sameJSON(JSON.parse(req.init.body), { aps: { alert: { title: 'Nouvelle réaction', body: 'max.dlf a réagi ❤️ à ta séance Push' }, sound: 'default', 'thread-id': 'reaction' },
       mdlf: { kind: 'reaction', ref: 's-1' } });
     assert.ok(Buffer.byteLength(req.init.body) < 4096, 'sous la limite de 4 Ko');
     const sb = row({ env: 'sandbox' });

@@ -3,8 +3,9 @@
 //
 // 1. Contenu : un titre et une phrase en français, avec le seul pseudo de l'auteur (jamais le texte d'un
 //    commentaire, d'un message ni le nom d'un programme : l'écran verrouillé est visible par d'autres ; la
-//    file n'en a d'ailleurs pas copie). Seule exception, la séance d'un élève (au coach) : son nom (label,
-//    40 caractères) et sa durée (minutes), relus par push_claim ; jamais une charge. Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
+//    file n'en a d'ailleurs pas copie). Exceptions, relues par push_claim : la séance d'un élève (au coach),
+//    son nom (label, 40 caractères) et sa durée (minutes), jamais une charge ; une réaction, son emoji
+//    (reaction, liste fermée) et le nom de MA séance (label, 40 caractères). Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
 //    ouvrir le bon écran au toucher (PushPlugin.swift) ; ref : séance, programme, ou conversation ('@coach' ou id de l'élève).
 // 2. Requête APNs (documentation Apple « Sending notification requests to APNs ») : HTTP/2, POST
 //    /3/device/<jeton>, en-têtes authorization (jeton du fournisseur), apns-push-type alert, apns-topic
@@ -37,8 +38,18 @@ function plainLine(v, max) {
 // Pseudo affiché ; sinon « Quelqu'un »
 function actorName(name) { return plainLine(name, NAME_MAX) || 'Quelqu’un'; }
 
+// Réactions (liste fermée, la même que la contrainte bravos_kind et REACTIONS de js/data/social.js)
+export const REACTION_EMOJI = Object.freeze({ like: '❤️', clap: '👏', fire: '🔥', strong: '💪', trophy: '🏆', wow: '😮' });
+
 export const PUSH_KINDS = Object.freeze({
-  reaction:        (who) => ({ title: 'Bravo !', body: `${who} t\u2019a dit bravo pour ta séance` }),
+  // Réaction : sa sorte (relue par push_claim, liste fermée ci-dessous : jamais un texte reçu tel quel) et le nom
+  // de MA séance (40 caractères) ; sorte absente (retirée avant l'envoi, ou push_claim d'avant le 17/11) : générique
+  reaction: (who, row = {}) => {
+    const emoji = Object.hasOwn(REACTION_EMOJI, row.reaction) ? REACTION_EMOJI[row.reaction] : '';
+    const label = plainLine(row.label, NAME_MAX);
+    return { title: 'Nouvelle réaction',
+      body: emoji ? `${who} a réagi ${emoji} à ta séance${label ? ` ${label}` : ''}` : `${who} a aimé ta séance` };
+  },
   follow_request:  (who) => ({ title: 'Nouvelle demande', body: `${who} veut suivre tes séances` }),
   coach_note:      (who) => ({ title: 'Ton coach', body: `${who} a commenté ta séance` }),
   coach_programme: (who) => ({ title: 'Ton coach', body: `${who} t’a envoyé un programme` }),

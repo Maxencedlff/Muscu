@@ -36,9 +36,12 @@ const SOCIAL_REFRESH_MS = 30_000;          // retour au premier plan : une relec
 const REPORT_DETAILS_MAX = 500;
 const SOCIAL_ME = '@me';                   // clé du fil de mes séances telles que les autres les voient
 const ACTIVITY_PAGE = 50;                  // lignes par page de l'activité (comme le serveur)
-// Réactions, dans l'ordre du choix (liste fermée, la même que la contrainte bravos_kind du serveur).
-// La première est celle d'un simple toucher.
+// Réactions, dans l'ordre du choix (liste fermée, la même que la contrainte bravos_kind du serveur,
+// migration 20261117050000_reaction_jaime.sql). La première, ❤️ « J'aime », est celle d'un simple toucher
+// (bouton cœur, double toucher sur le résumé d'une carte) ; les autres sont derrière « + » ou l'appui long.
+// Une sorte inconnue (version plus récente du serveur) est écartée partout, sans erreur.
 const REACTIONS = [
+  { kind: 'like', emoji: '❤️', label: 'J\'aime' },
   { kind: 'clap', emoji: '👏', label: 'Applaudissements' },
   { kind: 'fire', emoji: '🔥', label: 'Chaud' },
   { kind: 'strong', emoji: '💪', label: 'Costaud' },
@@ -46,6 +49,10 @@ const REACTIONS = [
   { kind: 'wow', emoji: '😮', label: 'Impressionnant' },
 ];
 const REACTION_DEFAULT = REACTIONS[0].kind;
+// Les autres, derrière « + » et l'appui long
+const REACTIONS_MORE = REACTIONS.slice(1);
+// Serveur d'avant les réactions (bravos et my_bravo seulement) : chaque bravo est un 👏
+const REACTION_LEGACY = 'clap';
 // Motifs de la fonction report, dans l'ordre de la feuille « Signaler »
 const REPORT_REASONS = [
   { reason: 'spam', label: 'Spam ou publicité' },
@@ -126,8 +133,15 @@ function withMyReaction(counts, mine, kind) {
   if (kind) out[kind] = (out[kind] || 0) + 1;
   return out;
 }
-// Ce que fait un toucher sur le bouton : réaction par défaut, ou retirer la mienne
-function tapReaction(mine) { return mine ? null : REACTION_DEFAULT; }
+// Ce que fait un toucher sur le cœur : ❤️, ou le retirer si c'est déjà ma réaction (une autre est remplacée)
+function tapReaction(mine) { return mine === REACTION_DEFAULT ? null : REACTION_DEFAULT; }
+// Double toucher sur le résumé d'une carte : ❤️ si je n'ai pas encore réagi ; jamais retirer ni remplacer
+// une réaction choisie (null : rien à envoyer)
+function doubleTapReaction(mine) { return mine ? null : REACTION_DEFAULT; }
+// Historique : « ❤️ 3 · 🔥 1 » (la plus fréquente d'abord), '' sans réaction
+function reactionsCountsText(counts, max = 3) {
+  return reactionsTop(counts, max).map(k => `${reactionOf(k).emoji} ${counts[k]}`).join(' · ');
+}
 
 // Séance d'un autre, telle que la liste blanche du serveur la décrit : { date, duration, programme,
 // category, label, exercises: [{ name, measure, ss, sets: [{ weight, reps, dist }] }] }. Rien d'autre n'est
@@ -167,7 +181,7 @@ function pinnedLegacyMeasure(name) { const ex = { name }; pinLegacyCardioWords(e
 
 // Ligne de feed() ou de my_shown_sessions() : { owner, username, avatar, id, doneAt, s, reactions, my,
 // bravos, mine }, null si inutilisable. reactions : comptes par sorte, my : ma réaction (ou null).
-// Serveur d'avant les réactions (bravos et my_bravo seulement) : tout est compté en 👏.
+// Serveur d'avant les réactions (bravos et my_bravo seulement) : tout est compté en 👏 (REACTION_LEGACY).
 function cleanFeedRow(r) {
   if (!r || typeof r !== 'object' || typeof r.owner !== 'string' || typeof r.id !== 'string') return null;
   const p = cleanPerson({ user_id: r.owner, username: r.username, avatar: r.avatar });
@@ -176,8 +190,8 @@ function cleanFeedRow(r) {
   const doneAt = Number.isFinite(Number(r.done_at)) ? Number(r.done_at) : s.date;
   if (!Number.isFinite(doneAt)) return null;
   const bravos = Number.isInteger(r.bravos) && r.bravos > 0 ? r.bravos : 0;
-  const reactions = r.reactions && typeof r.reactions === 'object' ? cleanReactionCounts(r.reactions) : (bravos ? { [REACTION_DEFAULT]: bravos } : {});
-  const my = 'my_reaction' in r ? validReaction(r.my_reaction) : (r.my_bravo === true ? REACTION_DEFAULT : null);
+  const reactions = r.reactions && typeof r.reactions === 'object' ? cleanReactionCounts(r.reactions) : (bravos ? { [REACTION_LEGACY]: bravos } : {});
+  const my = 'my_reaction' in r ? validReaction(r.my_reaction) : (r.my_bravo === true ? REACTION_LEGACY : null);
   return { owner: r.owner, username: p.username, avatar: p.avatar, id: r.id, doneAt, s, reactions, my,
     bravos: reactionTotal(reactions), mine: !!my };
 }

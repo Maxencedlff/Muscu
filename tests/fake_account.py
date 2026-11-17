@@ -320,7 +320,7 @@ FAKE_ACCOUNT = r"""
     so.bravos = so.bravos.filter(b => !(b.owner === owner && b.sid === sid && b.user === user));
     so.bravos.push({ owner, sid, user, kind, at });
   };
-  const KINDS = ['clap', 'fire', 'strong', 'trophy', 'wow'];
+  const KINDS = ['like', 'clap', 'fire', 'strong', 'trophy', 'wow'];   // liste fermée (20261117050000_reaction_jaime.sql)
   const pgErr = message => ({ data: null, error: { code: 'P0001', message, details: null, hint: null } });
   const blockedBetween = (a, b) => so.blocks.some(k => (k.blocker === a && k.blocked === b) || (k.blocker === b && k.blocked === a));
   const rel = (a, b) => so.follows.find(f => f.follower === a && f.followee === b);
