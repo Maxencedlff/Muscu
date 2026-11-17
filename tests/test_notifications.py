@@ -313,7 +313,7 @@ def o_coach_segment(bench):
             page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': kind, 'ref': ref})
             page.wait_for_timeout(400)
             segs[kind] = page.evaluate('friendsSeg()')
-        R.check(segs == {'reaction': 'friends', 'comment': 'friends', 'chat_message': 'students'}, f'coach : bravo et commentaire → Social, message → Élèves {segs}')
+        R.check(segs == {'reaction': 'friends', 'comment': 'friends', 'chat_message': 'messages'}, f'coach : bravo et commentaire → Social, message → Messages {segs}')
         R.check(not page.errors, f'aucune erreur JS {page.errors}')
 
 

@@ -517,7 +517,12 @@ def t_coach(bench, eng, dev, theme):
         ids = setup_coach(page)
         page.evaluate('coachRefresh()')
         page.wait_for_timeout(300)
-        R.check(tab_badge(page) == '3', f'{t} badge : 3 nouvelles séances de Léa ({tab_badge(page)!r})')
+        # 17/11 : la pastille de l'onglet Coach compte les messages non lus ; les nouvelles séances sont sur la carte de
+        # l'élève et dans le filtre Nouveautés (à 300 élèves, elle restait à « 99+ »)
+        R.check(tab_badge(page) == '', f'{t} pastille : pas les 3 nouvelles séances de Léa ({tab_badge(page)!r})')
+        page.evaluate("lea => { __sb.msg(lea, false, 'Question sur le squat'); return coachRefresh(); }", ids['lea'])
+        page.wait_for_timeout(300)
+        R.check(tab_badge(page) == '1', f'{t} pastille : 1 message de Léa ({tab_badge(page)!r})')
         R.check('nouveauté' in (page.get_attribute('.tabbar [data-tab="friends"]', 'aria-label') or ''), f'{t} badge annoncé par VoiceOver')
         # Compte coach : l'onglet s'appelle Coach et s'ouvre sur ses élèves (segment Élèves), sans toucher de plus
         R.check(page.inner_text('.tabbar [data-tab="friends"] .tabbar__label') == 'Coach', f'{t} coach : onglet « Coach »')

@@ -48,12 +48,12 @@ SETUP = """(n) => {
     __sb.link(me, id, now - 30 * 86400e3);
     ids.push(id);
   }
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 12 && i * 3 < n; i++) {
     __sb.msg(ids[i * 3], true, 'Top, on monte de 2,5 kg sur le développé couché la semaine prochaine', now - (20 - i) * 3600e3);
     if (i < 4) __sb.msg(ids[i * 3], false, 'Séance faite, ressenti correct ' + i, now - (10 - i) * 600e3);
   }
   ids.forEach((id, i) => { if (i % 3 === 0) { __sb.push.devices['d'.repeat(60) + String(i).padStart(4, '0')] = id; __sb.push.prefs[id] = { messages: true }; } });
-  __sb.co.links.forEach(l => { if (l.coach === me) l.seen = new Date(now - 7200e3).toISOString(); });
+  __sb.co.links.forEach(l => { if (l.coach === me) l.seen = now - 7200e3; });
   return ids;
 }"""
 
