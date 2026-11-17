@@ -97,8 +97,8 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     reset();
     const id = coachProg({ name: 'Squat barre', sets: 3, repMin: 8, repMax: 12 }, [done('60', '10'), done('60', '10'), done('60', '9')]);
     run(`startSession('sB')`);
-    assert.doesNotMatch(run(`exGoalHtml(${ex})`), /Coach/);
-    assert.match(run(`exGoalHtml(${ex})`), /Objectif 60 kg × 11/);
+    assert.equal(run(`exGoalHtml(${ex})`), '', 'ni « Coach », ni ligne « Objectif » en séance (17/11)');
+    assert.equal(run(`exerciseGoal('sB', data.programmes['${id}'].exercises.sB[0], '${id}').text`), '60 kg × 11', 'objectif de l\'accueil comme avant');
     run(`${ex}.sets.forEach(s => { s.done = true; })`);
     assert.equal(run(`sessionHistoryEntry('${id}', 'sB')`).exercises[0].presc, undefined);
   }));
@@ -107,8 +107,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     reset();
     coachProg({ name: 'Squat barre', sets: 4, repMin: 3, repMax: 5 }, [done('72.5', '8'), done('72.5', '8'), done('72.5', '8'), done('72.5', '7')]);
     run(`startSession('sB')`);
-    assert.match(run(`exGoalHtml(${ex})`), /Objectif 72,5 kg × 5/);
-    sameJSON(cells(), ['72.5×5', '72.5×5', '72.5×5', '72.5×5'], 'collées à l\'objectif affiché, plus 8, 8, 8, 7');
+    sameJSON(cells(), ['72.5×5', '72.5×5', '72.5×5', '72.5×5'], 'ramenées au haut de sa fourchette, plus 8, 8, 8, 7');
     // Relevées au bas : 2 reps la dernière fois
     coachProg({ name: 'Squat barre', sets: 2, repMin: 3, repMax: 5 }, [done('80', '2'), done('80', '1')]);
     run(`startSession('sB')`);

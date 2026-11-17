@@ -1,12 +1,15 @@
 // ═══════════════════════════════════════════════════════════
 //  Objectif du jour d'un exercice : une seule règle pour l'accueil (« À battre aujourd'hui »,
-//  js/features/dashboard.js) et la séance (sous le nom, js/features/session.js)
+//  js/features/dashboard.js) et la puce ↑ de la séance (bumpReady). La séance n'affiche plus de ligne
+//  « Objectif … » sous le nom (demande de Maxence du 17/11) : seule la prescription du coach y reste.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Même règle que la puce de la séance (bumpReady) : toutes les séries de la dernière fois en haut de la
-// fourchette → charge + 2,5 kg (5 lb), à faire au bas de la fourchette (goalRepsAfterBump) ; sinon la
-// meilleure série de la dernière fois + 1 rep ; jamais fait → nombre de séries prévu.
+// Fourchette (« 8 à 10 », ou 12 en haut par défaut) : la dernière fois a atteint le haut sur toutes les séries de
+// travail, ou l'a dépassé sur la meilleure (Maxence le 17/11 : 24 × 12 en 8 à 10 donnait « Objectif 24 kg × 13 »,
+// « il est con cet objectif ») → charge + 2,5 kg (5 lb, le plus petit pas des haltères, machines et barres par
+// défaut), au bas de la fourchette (goalRepsAfterBump) ; sinon la meilleure série + 1 rep, jamais au-delà du haut.
+// Reps fixes : la règle d'avant (+ 1 rep jusqu'au nombre, puis la charge). Jamais fait → nombre de séries prévu.
 // text : « 32,5 kg × 11 », « 35 kg × 8 » ; gain : sans signe (« 1 rep », « 2,5 kg »), l'accueil le précède
 // d'une flèche ↑ ; before : la meilleure série de la dernière fois, '' si jamais fait ; goal : la série à
 // faire { w en kg, r }, null quand il n'y a rien à battre (jamais fait, durée, cardio, aide).
@@ -33,18 +36,31 @@ function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
   if (!best) return planned;
   const before = setTxt(best, ex);
   if (measureOf(ex) !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '', before, goal: null };   // durée, cardio : on rappelle la dernière fois
-  // Reps fixes (« 4 × 12 », fixedReps) : la rep de plus ne dépasse pas ce nombre ; programme du coach : ni le haut
-  // de sa fourchette
-  const repMax = ex.repMax ?? 12, coachLed = coachLedProgramme(progKey);
-  const cap = fixedReps(ex) || (coachLed ? repMax : null);
-  const more = { w: best.w, r: cap ? Math.min(best.r + 1, cap) : best.r + 1 };
+  // La rep de plus ne dépasse pas le haut (reps fixes : ce nombre ; fourchette : son haut, la charge monte ensuite).
+  // Poids du corps et lest : pas de charge à monter, les reps continuent au-delà (sauf reps fixes ou coach)
+  const coachLed = coachLedProgramme(progKey);
+  const fixed = fixedReps(ex), repMax = fixed || (parseInt(ex.repMax) || 12);
+  const capped = fixed || coachLed || (best.w > 0 && loadKind(ex) !== 'lest');
+  const more = { w: best.w, r: capped ? Math.min(best.r + 1, repMax) : best.r + 1 };
   if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: more.r, reps: String(more.r) }, ex), gain: more.r > best.r ? '1 rep' : '', before, goal: more };
-  const bump = !coachLed && best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
+  const bump = goalBumpDue(ex, sets, coachLed);
   if (bump) {
     const w = best.w + bumpStepKg(), r = goalRepsAfterBump(ex);
     return { text: setTxt({ w, weight: w, r }), gain: bumpLabel(), before, goal: { w, r } };
   }
   return { text: setTxt({ ...best, r: more.r }), gain: more.r > best.r ? '1 rep' : '', before, goal: more };
+}
+
+// Hausse de charge due (objectif et puce ↑ de la séance, bumpReady) : séries de travail de la dernière fois
+// (reps > 0) toutes au haut (au moins 2, ou le nombre prévu s'il est plus petit), ou, en fourchette, la meilleure
+// au-delà du haut. Jamais sur un programme du coach (c'est lui qui décide), ni sans charge.
+function goalBumpDue(ex, sets, coachLed = false) {
+  if (coachLed || !sets.length) return false;
+  const fixed = fixedReps(ex), hi = fixed || (parseInt(ex.repMax) || 12);
+  const reps = sets.map(s => parseInt(s.reps) || 0), w = Math.max(...sets.map(s => parseFloat(s.weight) || 0));
+  if (!(w > 0)) return false;
+  const all = sets.length >= Math.min(parseInt(ex.sets) || 2, 2) && reps.every(r => r >= hi);
+  return all || (!fixed && Math.max(...reps) > hi);
 }
 
 // Reps à faire avec la charge augmentée :
@@ -116,11 +132,4 @@ function setsRangeHtml(ex) {
 function exerciseTarget(cat, ex) {
   const { text, gain, before, coach, spoken } = exerciseGoal(cat, ex);
   return { text, gain, before, ...(coach ? { coach: true, spoken } : {}) };
-}
-
-// Une série de travail validée atteint l'objectif : au moins la charge (kg, au centième près) et les reps
-function goalReached(goal, sets) {
-  if (!goal) return false;
-  return workSets(sets).some(s => s.done && (parseInt(s.reps) || 0) >= goal.r
-    && Math.round((parseFloat(s.weight) || 0) * 100) >= Math.round(goal.w * 100));
 }

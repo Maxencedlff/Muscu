@@ -359,12 +359,12 @@ def t_eleve(bench, eng, dev, theme):
         tg = page.evaluate("targetsHtml('sB')").replace('\u00a0', ' ')
         R.check('72,5 kg × 5' in tg and '75 kg' not in tg and '× 3' not in tg, f'{t} accueil : « 72,5 kg × 5 », pas de hausse décidée par l\'app')
         page.evaluate("startSession('sB')")
-        page.wait_for_selector('.ex-card[data-ei="0"] .ex-goal')
+        page.wait_for_selector('.ex-card[data-ei="0"] [data-action="set-reps"]')
         card = page.locator('.ex-card[data-ei="0"]')
-        goal = card.locator('.ex-goal').inner_text().replace('\u00a0', ' ').strip()
         reps = [card.locator(f'[data-action="set-reps"][data-si="{i}"]').input_value() for i in range(5)]
-        R.check(goal == 'Objectif 72,5 kg × 5' and '5 × 5' in card.inner_text().replace('\u00a0', ' ') and reps == ['5'] * 5,
-                f'{t} séance : objectif, « 5 × 5 » et cases d\'accord ({goal!r}, {reps})')
+        # Plus de ligne « Objectif » en séance (17/11) : « 5 × 5 » et les cases disent la prescription
+        R.check(card.locator('.ex-goal').count() == 0 and '5 × 5' in card.inner_text().replace('\u00a0', ' ') and reps == ['5'] * 5,
+                f'{t} séance : « 5 × 5 » et cases d\'accord, sans ligne « Objectif » ({reps})')
         w = page.evaluate("activeSession.exercises[0].sets.map(s => s.weight + '×' + s.reps)")
         R.check(w == ['72.5×5'] * 5 and card.locator('[data-action="bump-weight"]').count() == 0, f'{t} programme du coach : cases à 72,5 × 5, sans puce ↑ ({w})')
         page.evaluate("activeSession = null; persistSession(); data.history = data.history.filter(h => h.id !== 'h-sq'); save(); routeTo('dashboard')")

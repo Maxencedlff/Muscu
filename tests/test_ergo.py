@@ -41,19 +41,14 @@ def t_seance(bench, eng, dev, theme):
         page.click('[data-action="start-session"][data-cat="push"]')
         page.wait_for_selector('.view.session')
 
-        # 1. Objectif sous le nom, le même texte que l'accueil
-        goal = page.locator('.ex-card[data-ei="0"] .ex-goal')
-        R.check(goal.count() == 1 and goal.inner_text().strip() == f'Objectif {target}', f'{t} objectif en séance = accueil ({goal.inner_text() if goal.count() else None!r} / {target!r})')
-        fs = page.evaluate("parseFloat(getComputedStyle(document.querySelector('.ex-goal')).fontSize)")
-        R.check(fs >= 12, f'{t} objectif : police {fs}px')
-        # Série qui le bat : « Objectif atteint ». La case reprend la dernière fois (règle du 17/11) : on tape l'objectif
+        # 1. Règle du 17/11 (Maxence) : plus de ligne « Objectif » sous le nom ; l'accueil garde « À battre aujourd'hui »,
+        #    la case reprend la dernière fois (« Avant »)
+        R.check(target.strip() != '', f'{t} accueil : objectif affiché ({target!r})')
+        R.check(page.locator('.ex-card[data-ei="0"] .ex-goal').count() == 0, f'{t} séance : pas de ligne « Objectif »')
         r = page.locator('[data-action="set-reps"][data-ei="0"][data-si="0"]')
-        goal_r = page.locator('.ex-card[data-ei="0"] .ex-goal').inner_text().strip().split('×')[-1].strip()
         prev_r = page.evaluate('activeSession.exercises[0].sets[0].prev.reps')
         R.check(r.input_value() == prev_r, f'{t} 1re série pré-remplie avec la dernière fois ({r.input_value()} / {prev_r})')
-        r.fill(goal_r); blur(page)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
-        R.check(page.locator('.ex-card[data-ei="0"] .ex-goal--done').inner_text().strip() == 'Objectif atteint', f'{t} objectif atteint')
         # 5. Volume en clair
         d = page.locator('.ex-card[data-ei="0"] .ex-vol__delta')
         R.check(d.count() == 1 and d.inner_text().endswith('de volume'), f'{t} « +… de volume »')
@@ -166,7 +161,7 @@ def t_chrono(bench):
 
 
 def t_superset(bench):
-    """Superset : l'objectif sous chaque exercice du groupe."""
+    """Superset : pas de ligne « Objectif » sous les exercices du groupe (17/11), pas de nom répété dans les tours."""
     import json
     d = ppl_v2_today()
     exs = d['programmes']['ppl']['exercises']['push']
@@ -175,7 +170,7 @@ def t_superset(bench):
         seed(page, 'light', json.dumps(d, ensure_ascii=False))
         page.click('[data-action="start-session"][data-cat="push"]'); page.wait_for_selector('.ss-card')
         goals = page.locator('.ss-card .ex-goal--member').all_inner_texts()
-        R.check(len(goals) == 2 and all(g.strip().startswith('Objectif ') for g in goals), f'superset : un objectif par exercice {goals}')
+        R.check(goals == [], f'superset : pas de ligne « Objectif » {goals}')
         R.check(page.locator('.ss-card .ss-exname').count() == 0, 'superset : pas de nom répété dans les tours')
 
 

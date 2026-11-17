@@ -151,26 +151,7 @@ def t_superset_noms(bench):
                 const r = document.createRange(); r.selectNodeContents(e);
                 return { text: e.textContent.trim(), lines: Math.round(r.getBoundingClientRect().height / lh), cut: e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1 }; }""")
             R.check(m['text'].startswith('Tirage vertical poulie prise serrée') and m['lines'] == 2 and not m['cut'], f'{t} superset : nom entier sur deux lignes {m}')
-            # L'objectif reste sous le nom, sans le chevaucher
-            gap = page.evaluate("""() => { const n = document.querySelector('.ss-member__name .ex-howto__text, .ss-member__name'), g = document.querySelector('.ex-goal--member');
-                const r = document.createRange(); r.selectNodeContents(n); return Math.round(g.getBoundingClientRect().top - r.getBoundingClientRect().bottom); }""")
-            R.check(gap >= 0, f'{t} superset : objectif sous le nom sur deux lignes (écart {gap} px)')
             shot(page, LOT, f'superset-noms-{t}')
-            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-
-
-def t_objectif_pas_bouton(bench):
-    """« Objectif 32 kg × 10 » en couleur de texte (pas le bleu d'action de « Repos 2:00 », qui est un bouton)."""
-    for theme in ('light', 'dark'):
-        t = tag('iPhone 13', theme)
-        with bench.page('webkit', 'iPhone 13', theme) as page:
-            start_session(page, theme)
-            c = page.evaluate("""() => { const g = document.querySelector('.ex-card[data-ei="0"] .ex-goal'), n = document.querySelector('.ex-card[data-ei="0"] .ex-card__name');
-                const tint = document.querySelector('.navbar__text, .navbar__back, [data-action="finish-session"]');
-                return { goal: getComputedStyle(g).color, label: getComputedStyle(n).color, tint: getComputedStyle(tint).color,
-                         weight: getComputedStyle(g).fontWeight, tag: g.tagName, action: g.closest('button, [data-action]') ? 'oui' : 'non' }; }""")
-            R.check(c['goal'] == c['label'] and c['goal'] != c['tint'] and int(c['weight']) >= 600 and c['action'] == 'non',
-                    f'{t} objectif : couleur de texte, en gras, pas dans un bouton {c}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -519,4 +500,4 @@ def t_grand_texte(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_titre_seance_replie, t_grand_texte, t_alerte_empilee, t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+run_main(R, [], once=[t_titre_seance_replie, t_grand_texte, t_alerte_empilee, t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_menu_exercice])

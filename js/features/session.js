@@ -308,16 +308,16 @@ function nextSetText() {
   return p ? `${p.name} · ${p.tail}` : '';
 }
 
-// Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette. Touchée, elle monte
-// la charge des séries à faire (bumpExerciseLoad, ex.bumped) : rien n'est monté d'office dans les cases (17/11)
+// Puce « ↑ +2,5 kg » : la dernière fois a atteint le haut de la fourchette partout, ou l'a dépassé (goalBumpDue). Touchée,
+// elle monte la charge des séries à faire (bumpExerciseLoad, ex.bumped) : rien n'est monté d'office dans les cases (17/11)
 // Programme envoyé par un coach : jamais (c'est lui qui décide de la charge, coachLedProgramme)
 function bumpReady(ex) {
   if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex) || coachLedProgramme(activeSession.programme)) return false;
   const work  = workSets(ex.sets);
-  const prevs = work.map(s => s.prev).filter(Boolean);
+  const prevs = work.map(s => s.prev).filter(p => p && (parseInt(p.reps) || 0) > 0);
   if (!prevs.length || prevs.length < Math.min(work.length, 2)) return false;
-  const repMax = sessExData(ex)?.repMax ?? 12;
-  return prevs.every(p => (parseInt(p.reps) || 0) >= repMax && (parseFloat(p.weight) || 0) > 0);
+  // Même règle que l'objectif de l'accueil (goalBumpDue, js/data/goals.js) : haut atteint partout, ou dépassé
+  return goalBumpDue(sessExData(ex) || { repMax: 12, sets: work.length }, prevs);
 }
 
 // Ligne repliée d'un exercice terminé : « 4 × 8 · 32,5 kg » (reps différentes : « 10/10/9/8 »), allure du cardio
@@ -424,18 +424,14 @@ function exVolumeHtml(ex, allDone) {
     ? ` · <span class="ex-vol__delta ${allDone ? 'ex-vol__delta--up' : ''}">+${fmtVolume(delta)} de volume</span>` : '';
 }
 
-// Objectif du jour sous le nom (le même que l'accueil : exerciseGoal, js/data/goals.js), puis « Objectif
-// atteint » en vert dès qu'une série validée le bat. Rien sans objectif (jamais fait, durée, cardio).
+// Sous le nom : seulement la prescription du coach (« Coach : 60 kg × 8 », sa charge reste affichée toute la séance).
+// La ligne « Objectif … » est retirée (demande de Maxence du 17/11) : il reste la fourchette, le repos et « Avant ».
 // cls : 'ex-goal--member' sous un exercice de superset (aligné sur son nom)
 function exGoalHtml(ex, cls = '') {
   const d = sessExData(ex);
-  const t = d && exerciseGoal(activeSession.category, d, activeSession.programme);
-  if (!t?.goal) return '';
-  // Charge prescrite par le coach : sa prescription reste affichée toute la séance (« Avant » garde la dernière fois)
-  if (t.coach) return `<div class="ex-goal ex-goal--coach num ${cls}"><span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ton coach : ${esc(t.spoken)}</span></div>`;
-  return goalReached(t.goal, ex.sets)
-    ? `<div class="ex-goal ex-goal--done ${cls}">${icon('checkmark', 13)}Objectif atteint</div>`
-    : `<div class="ex-goal num ${cls}">Objectif ${esc(t.text)}</div>`;
+  const t = d && measureOf(d) === 'reps' && hasPrescLoad(d) ? exerciseGoal(activeSession.category, d, activeSession.programme) : null;
+  if (!t?.coach) return '';
+  return `<div class="ex-goal ex-goal--coach num ${cls}"><span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ton coach : ${esc(t.spoken)}</span></div>`;
 }
 
 // Exercice jamais fait (aucune dernière fois, aucune charge prévue) et rien de validé : une ligne grise dit quelle

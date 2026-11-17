@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Ergonomie : objectif du jour en séance (exerciseGoal, goalReached), ligne du bilan (summaryLine),
+//  Ergonomie : objectif du jour (exerciseGoal, goalBumpDue), ligne du bilan (summaryLine),
 //  carte « Derniers records » de Progrès, phrase de l'échauffement
 // ═══════════════════════════════════════════════════════════
 
@@ -59,7 +59,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run(`goalRepsAfterBump({ repMax: 12 })`), 8);
     assert.equal(run(`goalRepsAfterBump({})`), 8);
     ex = seedRow([{ weight: '30', reps: '13' }, { weight: '30', reps: '11' }]);
-    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 30, r: 14 }, 'sans réglage, pas de plafond aux reps');
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 32.5, r: 8 }, 'sans réglage (8 à 12) : au-delà du haut, la charge monte (17/11)');
     // Poids du corps : +1 rep, charge nulle
     ex = seedRow([{ weight: '', reps: '15' }]);
     sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 0, r: 16 });
@@ -78,21 +78,6 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const g = run(`exerciseGoal('pull', ${ex})`);
     assert.equal(g.goal, null);
     assert.equal(g.gain, '');
-  });
-
-  test('goalReached : une série de travail validée atteint la charge et les reps', () => {
-    reset();
-    const goal = { w: 32.5, r: 11 };
-    assert.equal(run(`goalReached(${JSON.stringify(goal)}, ${JSON.stringify([set('32.5', '11')])})`), true, 'égalité : atteint');
-    assert.equal(run(`goalReached(${JSON.stringify(goal)}, ${JSON.stringify([set('35', '12')])})`), true, 'mieux : atteint');
-    assert.equal(run(`goalReached(${JSON.stringify(goal)}, ${JSON.stringify([set('32.5', '10')])})`), false, 'une rep de moins');
-    assert.equal(run(`goalReached(${JSON.stringify(goal)}, ${JSON.stringify([set('30', '15')])})`), false, 'plus de reps, charge plus légère');
-    assert.equal(run(`goalReached(${JSON.stringify(goal)}, ${JSON.stringify([{ weight: '32.5', reps: '11', done: false }])})`), false, 'pas validée');
-    assert.equal(run(`goalReached(${JSON.stringify(goal)}, ${JSON.stringify([set('32.5', '11', { warmup: true })])})`), false, 'échauffement');
-    assert.equal(run(`goalReached({ w: 0, r: 16 }, ${JSON.stringify([set('', '16')])})`), true, 'poids du corps');
-    assert.equal(run(`goalReached(null, ${JSON.stringify([set('99', '99')])})`), false, 'sans objectif');
-    // Charge en lbs convertie à l'enregistrement : arrondi au centième, pas de faux « raté »
-    assert.equal(run(`goalReached({ w: 102.0582, r: 5 }, ${JSON.stringify([set('102.06', '5')])})`), true);
   });
 
   // ── Bilan ──
@@ -354,5 +339,42 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(!/nowrap|ellipsis/.test(rule), 'le toast n\'est plus forcé sur une ligne');
     assert.match(css, /\.toast > span \{[^}]*line-clamp: 2/, 'deux lignes au plus');
     assert.match(css, /\.toast--action > span \{[^}]*line-clamp: 3/, 'trois à côté du bouton');
+  });
+
+  test('objectif du 17/11 : au-delà du haut de la fourchette, la charge monte ; sinon + 1 rep jusqu\'au haut', () => {
+    reset();
+    // Cas de la capture de Maxence : 8 à 10 reps, 24 × 12 la dernière fois → plus jamais « 24 kg × 13 »
+    let ex = seedRow([set('24', '12')], { repMin: 8, repMax: 10 });
+    sameJSON(run(`exerciseGoal('pull', ${ex})`), { text: '26,5 kg × 8', gain: '2,5 kg', before: '24 kg × 12', goal: { w: 26.5, r: 8 } },
+      '24 × 12 en 8 à 10 : 26,5 kg × 8');
+    ex = seedRow([set('24', '12'), set('24', '10'), set('24', '9')], { repMin: 8, repMax: 10 });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 26.5, r: 8 }, 'meilleure série au-delà du haut, les autres dessous : la charge monte');
+    // Haut atteint partout : la charge monte (règle d'avant)
+    ex = seedRow([set('24', '10'), set('24', '10'), set('24', '10')], { repMin: 8, repMax: 10 });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 26.5, r: 8 });
+    // Dans la fourchette : + 1 rep, jamais au-delà du haut
+    ex = seedRow([set('24', '9'), set('24', '8')], { repMin: 8, repMax: 10 });
+    sameJSON(run(`exerciseGoal('pull', ${ex})`).goal, { w: 24, r: 10 });
+    ex = seedRow([set('24', '10'), set('24', '8')], { repMin: 8, repMax: 10 });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 24, r: 10 }, 'haut atteint sur une seule série : pas de 11e rep');
+    // Haltères : même pas de 2,5 kg (le plus petit des racks, roundLoad)
+    run(`data.programmes.ppl.exercises.pull[0].name = 'Rowing haltère'; data.history[0].exercises[0].name = 'Rowing haltère'`);
+    ex = seedRow([set('24', '12')], { repMin: 8, repMax: 10 });
+    assert.equal(run(`exerciseGoal('pull', ${ex}).goal.w`), 26.5);
+    // Reps fixes (« 5 × 5 ») : règle d'avant, + 1 rep jusqu'au nombre, puis la charge
+    ex = seedRow([set('72.5', '4'), set('72.5', '3')], { repMax: 5, repFixed: true });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 72.5, r: 5 });
+    ex = seedRow([set('72.5', '6'), set('72.5', '4')], { repMax: 5, repFixed: true });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 72.5, r: 5 }, 'reps fixes : 6 sur une série ne monte pas la charge');
+    ex = seedRow([set('72.5', '5'), set('72.5', '5')], { repMax: 5, repFixed: true });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 75, r: 5 });
+    // Poids du corps : pas de charge à monter, les reps continuent
+    ex = seedRow([set('', '15'), set('', '14')], { repMin: 8, repMax: 12 });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 0, r: 16 });
+    // La puce ↑ de la séance suit la même règle (goalBumpDue)
+    ex = seedRow([set('24', '12'), set('24', '10'), set('24', '9')], { repMin: 8, repMax: 10 });
+    assert.equal(run(`goalBumpDue(${ex}, ${JSON.stringify([set('24', '12'), set('24', '10'), set('24', '9')])})`), true);
+    assert.equal(run(`goalBumpDue(${ex}, ${JSON.stringify([set('24', '10'), set('24', '9')])})`), false);
+    assert.equal(run(`goalBumpDue(${ex}, ${JSON.stringify([set('24', '12')])}, true)`), false, 'programme du coach : jamais');
   });
 }
