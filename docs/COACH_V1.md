@@ -2,7 +2,7 @@
 
 Décisions de Maxence (26 et 27/10/2026) :
 - un coach suit des élèves ; il garde toutes les fonctions d'un utilisateur normal ;
-- **depuis le 30/10** (docs/PAYANT_V1.md, « Tarifs du 30/10 ») : plus d'élève gratuit (un élève a −25 % pendant 12 mois avec le code de son coach) ; le rôle coach est une **demande vérifiée à la main** (carte professionnelle d'éducateur sportif) ; le coach paie un **abonnement à paliers** (10, 20, 30 élèves, illimité), refus `tier_full` au-delà ; chaque coach a un **code permanent** de 12 caractères ;
+- **depuis le 30/10** (docs/PAYANT_V1.md, « Tarifs du 30/10 ») : plus d'élève gratuit (un élève a −25 % pendant 12 mois avec le code de son coach) ; **remplacé le 16/11/2026** : l'élève ne paie rien, l'abonnement coach le comprend dans la limite de son palier (« Élèves offerts par leur coach ») ; le rôle coach est une **demande vérifiée à la main** (carte professionnelle d'éducateur sportif) ; le coach paie un **abonnement à paliers** (10, 20, 30 élèves, illimité), refus `tier_full` au-delà ; chaque coach a un **code permanent** de 12 caractères ;
 - pas de messagerie en V1 ; à la place, des **consignes** (sur un programme ou un exercice) et un **commentaire** du coach sur une séance (31/10/2026 : messages texte ajoutés, voir « Messages ») ;
 - **envoi de programmes** du coach vers l'élève ;
 - les élèves d'un même coach ne se voient pas entre eux ;

@@ -1011,7 +1011,7 @@ def t_tarifs(bench, eng, dev, theme):
         pl = plans_text(page)
         R.check(len(pl) == 2 and '6,49 € par mois' in pl[0] and '55,00 € par an' in pl[1] and 'soit 8,5 mois' in pl[1]
                 and 'soit' not in pl[0], f'{t} particulier : mensuel, annuel « soit 8,5 mois » {pl}')
-        R.check(page.locator('.pay-tabs').count() == 0 and '15,99' not in txt and 'élèves' not in ' '.join(pl),
+        R.check(page.locator('.pay-tabs').count() == 0 and '11,11' not in txt and 'élèves' not in ' '.join(pl),
                 f'{t} pas coach : aucun palier coach visible')
         R.check('Tu es coach ?' in txt and 'Tu es coach\u202f?' in typo_raw(page, "document.querySelector('.pay-view').innerText"),
                 f'{t} pas coach : lien vers la demande (espace fine insécable avant « ? »)')
@@ -1028,16 +1028,17 @@ def t_tarifs(bench, eng, dev, theme):
         txt = paywall(page, 'coach')
         pl = plans_text(page)
         R.check(page.locator('.pay-tabs .segmented__btn').count() == 2 and len(pl) == 4
-                and '15,99 € par mois' in pl[0] and '10 élèves' in pl[0] and 'Conseillé' in pl[0]
-                and '29,99 € par mois' in pl[3] and 'illimités' in pl[3], f'{t} coach : 4 paliers mensuels {pl}')
+                and '11,11 € par mois' in pl[0] and '10 élèves' in pl[0] and 'Conseillé' in pl[0]
+                and '44,44 € par mois' in pl[3] and '100 élèves' in pl[3] and 'illimit' not in ' '.join(pl), f'{t} coach : 4 paliers mensuels {pl}')
         R.check('Tu suis 0 élève' in txt and 'ton propre accès complet' in txt, f'{t} coach : élèves suivis, accès compris')
-        R.check('3 mois gratuits' in pl[0] and 'Essai gratuit de 3 mois, puis 15,99 € par mois' in txt, f'{t} coach : essai de 3 mois, mentions')
+        R.check('2 mois gratuits' in pl[0] and 'Essai gratuit de 2 mois, puis 11,11 € par mois' in txt and '3 mois' not in ' '.join(pl),
+                f'{t} coach : essai de 2 mois lu chez StoreKit, mentions')
         layout(page, t, 'abonnement coach')
         shot(page, LOT, f'21-tarifs-coach-{t}')
         page.click('[data-action="pay-period"][data-period="year"]')
         page.wait_for_timeout(300)
         pl = plans_text(page)
-        R.check(len(pl) == 4 and '134,99 € par an' in pl[0] and all('soit 8,5 mois' in x for x in pl), f'{t} coach annuel : « soit 8,5 mois » {pl}')
+        R.check(len(pl) == 4 and '94,40 € par an' in pl[0] and all('soit 8,5 mois' in x for x in pl), f'{t} coach annuel : « soit 8,5 mois » {pl}')
         page.click('[data-action="pay-period"][data-period="month"]')
         page.wait_for_timeout(200)
         # Onglet Particulier toujours là pour un coach
@@ -1056,8 +1057,8 @@ def t_tarifs(bench, eng, dev, theme):
         b.click()
         page.wait_for_timeout(700)
         pl = plans_text(page)
-        R.check(page.evaluate('currentView()') == 'paywall' and 'Ta formule' in pl[0] and 'Conseillé' in pl[1] and '20 élèves' in pl[1],
-                f'{t} montée de palier : 20 élèves conseillé, 10 élèves « Ta formule » {pl}')
+        R.check(page.evaluate('currentView()') == 'paywall' and 'Ta formule' in pl[0] and 'Conseillé' in pl[1] and '25 élèves' in pl[1],
+                f'{t} montée de palier : 25 élèves conseillé, 10 élèves « Ta formule » {pl}')
         R.check(page.locator(f'[data-action="pay-buy"][data-id="{C10}"]').is_disabled(), f'{t} formule en cours : pas rachetable')
         # Achat du palier suivant : même groupe Apple, accès complet
         page.click('[data-action="pay-buy"][data-id="com.mdlf.training.coach20.monthly"]')
@@ -1065,40 +1066,115 @@ def t_tarifs(bench, eng, dev, theme):
         R.check(page.evaluate('accessStatus()') == 'active' and page.evaluate('canWrite()') is True, f'{t} palier coach acheté : accès complet')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
-    # 4. Élève avec le code de son coach : −25 % pendant 12 mois, sans essai, code d'offre d'Apple
+    # 4. Élève d'un coach abonné (décision du 16/11/2026) : rien à payer, « Offert par ton coach lucas »
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
         signin(page, username='lea')
         page.evaluate("""async () => { const c = __sb.addPerson({ username: 'lucas', social: false }); __sb.makeCoach(c);
-            __sb.link(c, __sb.meId()); window.__opened = []; window.open = u => { __opened.push(String(u)); return null; };
-            await coachRefresh(); }""")
+            __sb.link(c, __sb.meId()); __st.setCover('active'); await coachRefresh(); }""")
+        refresh_access(page)
+        R.check(page.evaluate('accessStatus()') == 'coach_team' and page.evaluate('canWrite()') is True,
+                f'{t} élève offert : accès complet sans payer')
+        txt = paywall(page)
+        R.check('Offert par ton coach lucas' in page.inner_text('.pay-hero') and 'rien à payer' in txt
+                and page.locator('.pay-plan, [data-action="pay-buy"]').count() == 0 and '4,89' not in txt and '25 %' not in txt
+                and 'seul essai gratuit' not in txt, f'{t} élève offert : écran d\'abonnement sans formule ({txt[:160]!r})')
+        layout(page, t, 'abonnement élève offert')
+        shot(page, LOT, f'23-eleve-offert-{t}')
+        txt = sub_text(page)
+        R.check('Offert par ton coach lucas' in txt and 'Rien à payer' in txt and 'Voir les formules' not in txt,
+                f'{t} élève offert : Réglages › Abonnement ({txt[:160]!r})')
+        shot(page, LOT, f'24-eleve-offert-reglages-{t}')
+        # 2. Coach résilié ou descendu de palier : 7 jours de grâce, date dite, bandeau sur l'accueil
+        page.evaluate("__st.setCover('grace', { days: 5 })")
+        refresh_access(page)
+        txt = sub_text(page)
+        R.check(page.evaluate('canWrite()') is True and 'Offert jusqu\'au' in txt and 'reste offert jusqu\'au' in txt,
+                f'{t} élève en grâce : date de fin dite ({txt[:200]!r})')
+        page.evaluate("switchTab('train')")
+        page.wait_for_timeout(600)
+        R.check('Offert par ton coach jusqu\'au' in banner(page), f'{t} élève en grâce : bandeau de l\'accueil ({banner(page)!r})')
+        # 3. Coach au-delà de sa limite : message clair, formules habituelles (jamais d'achat silencieux)
+        page.evaluate("__st.setCover('over_limit')")
         refresh_access(page)
         txt = paywall(page)
-        card = page.locator('.pay-student')
-        ctext = card.inner_text().replace('\n', ' ') if card.count() else ''
-        R.check(card.count() == 1 and 'Offre élève de lucas' in ctext and '4,89 €' in ctext
-                and 'par mois pendant 12 mois, puis 6,49 € par mois. Sans essai gratuit.' in ctext, f'{t} élève : offre −25 % ({ctext!r})')
-        R.check(page.locator('.pay-plan').count() == 0 and '3 mois gratuits' not in txt, f'{t} élève : pas de formule avec essai')
-        R.check('25 % de moins pendant 12 mois' in txt and 'renouvelle automatiquement' in txt and 'au moins 24 heures' in txt
-                and 'Conditions d\'utilisation' in txt, f'{t} élève : mentions 3.1.2')
-        layout(page, t, 'abonnement élève')
-        shot(page, LOT, f'23-tarifs-eleve-{t}')
-        page.click('[data-action="pay-student"]')
-        page.wait_for_timeout(700)
-        opened = page.evaluate('__opened')
-        R.check(len(opened) == 1 and 'apps.apple.com/redeem' in opened[0] and 'code=STUDENTCODE01' in opened[0],
-                f'{t} élève : page d\'Apple ouverte avec le code {opened}')
-        page.click('[data-action="pay-student"]')
+        R.check(page.evaluate('canWrite()') is False and 'suit plus d\'élèves que sa formule' in txt
+                and len(plans_text(page)) == 2 and '3 mois gratuits' in txt, f'{t} élève au-delà du palier : message puis formules ({txt[:200]!r})')
+        R.check(not acalls(page, 'student_offer_code') and not store_calls(page, 'purchase'), f'{t} élève au-delà du palier : rien acheté')
+        shot(page, LOT, f'25-eleve-hors-palier-{t}')
+        page.evaluate("switchTab('train')")
         page.wait_for_timeout(600)
-        R.check(page.evaluate('__opened.length') == 2 and 'code=STUDENTCODE01' in page.evaluate('__opened[1]'), f'{t} élève : même code redonné')
-        # Déjà abonné une fois : plus d'offre élève, formules habituelles
-        page.evaluate("__st.everSubscribed = true; access.studentOffer = null; delete __st.offerGiven[__sb.meId()]")
-        page.click('[data-action="pay-student"]')
-        page.wait_for_timeout(700)
-        R.check(page.locator('.pay-plan').count() == 2 and 'premier abonnement' in page.inner_text('.pay-view'), f'{t} élève déjà abonné : formules habituelles')
+        R.check('plus offert par ton coach' in banner(page), f'{t} élève au-delà du palier : bandeau ({banner(page)!r})')
+        # 4. Coach sans abonnement coach (grâce passée) : message, règle normale
+        page.evaluate("__st.setCover('ended')")
+        refresh_access(page)
+        txt = paywall(page)
+        R.check('n\'a pas d\'abonnement coach en cours' in txt and len(plans_text(page)) == 2, f'{t} coach sans abonnement : message ({txt[:160]!r})')
+        # 5. Élève qui paie lui-même et que son coach couvre (17/11/2026) : carte sobre, « Gérer mon abonnement »,
+        # jamais de remboursement ; elle disparaît quand Apple dit que l'abonnement ne se renouvelle plus
+        page.evaluate("__st.setCover('active')")
+        subscribed(page, days=30, product=MONTHLY)
+        page.evaluate("p => { __st.owned = { productId: p, originalId: 'apple-own', transactionId: 'tx-own', expiresAt: Date.now() + 30 * 86400000 }; }", MONTHLY)
+        txt = sub_text(page)
+        card = page.locator('.pay-settings-view .pay-double')
+        R.check(card.count() == 1 and 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.' in card.inner_text()
+                and card.locator('[data-action="pay-manage"]').inner_text().strip() == 'Gérer mon abonnement'
+                and not any(w in txt.lower() for w in ('rembours', 'prorata', '!')), f'{t} élève abonné et couvert : carte ({txt[:200]!r})')
+        layout(page, t, 'élève abonné et couvert')
+        shot(page, LOT, f'27-eleve-abonne-couvert-{t}')
+        # Essai d'Apple en cours : la date où il devient payant
+        subscribed(page, days=40, intro=True, product=MONTHLY)
+        txt = sub_text(page)
+        R.check('Ton essai devient payant le' in txt and 'résilie-le pour ne pas être prélevé' in txt, f'{t} élève en essai et couvert : date ({txt[:220]!r})')
+        shot(page, LOT, f'28-eleve-essai-couvert-{t}')
+        # Résilié chez Apple : la carte disparaît
+        page.evaluate("__st.owned.willAutoRenew = false")
+        sub_text(page)
+        R.check(page.locator('.pay-settings-view .pay-double').count() == 0, f'{t} abonnement résilié : plus de carte')
+        # Juste après l'acceptation du lien : même message, une fois, dans un dialogue
+        page.evaluate("__st.owned.willAutoRenew = true")
+        page.evaluate("() => { payDoubleAfterJoin(); }")   # sans attendre : la promesse attend la fermeture du dialogue
+        page.wait_for_selector('.ios-dialog', timeout=5000)
+        dlg = page.inner_text('.ios-dialog')
+        R.check('Ton coach couvre ton accès' in dlg and 'Gérer mon abonnement' in dlg and 'Plus tard' in dlg, f'{t} après le lien : dialogue ({dlg[:160]!r})')
+        page.locator('.ios-dialog__btn', has_text='Plus tard').click()
+        page.wait_for_timeout(300)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
-    # 5. Verrou éteint (TestFlight) : rien d'achetable, ni paliers coach ni offre élève
+    # 4 bis. Coach : « Tes élèves n'ont rien à payer », élèves au-delà de sa formule signalés
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
+        signin(page, username='cyril')
+        make_me_coach(page)
+        txt = paywall(page, 'coach')
+        R.check('Tes élèves n\'ont rien à payer' in txt, f'{t} coach : élèves sans rien à payer ({txt[:160]!r})')
+        page.evaluate("""async (p) => { const me = __sb.meId(); __sb.setTier(me, p);
+            for (let i = 0; i < 12; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
+            await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }""", C10)
+        page.evaluate("navigate('coach-students')")
+        page.wait_for_timeout(700)
+        b = page.locator('.coach-tier-banner')
+        R.check(b.count() == 1 and '2 élèves au-delà de ta formule' in b.inner_text(), f'{t} coach au-delà du palier : bandeau')
+        b.click()
+        page.wait_for_timeout(700)
+        pl = plans_text(page)
+        R.check(any('Conseillé' in x and '25 élèves' in x for x in pl), f'{t} coach au-delà du palier : 25 élèves conseillé {pl}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+        # Grille du 17/11 : 100 élèves au plus haut palier → « Plus de 100 élèves : écris-nous », sans achat
+        page.evaluate("""async (p) => { const me = __sb.meId(); __sb.setTier(me, p);
+            for (let i = 12; i < 100; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
+            await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }""", 'com.mdlf.training.coachmax.yearly')
+        page.evaluate("navigate('coach-students')")
+        page.wait_for_timeout(700)
+        b = page.locator('.coach-tier-banner')
+        R.check(b.count() == 1 and 'Plus de 100 élèves : écris-nous à contact@mdlf.app' in b.inner_text()
+                and (b.get_attribute('href') or '').startswith('mailto:contact@mdlf.app'), f'{t} 100 élèves : écrire, pas d\'achat')
+        txt = paywall(page, 'coach')
+        R.check('Plus de 100 élèves : écris-nous à contact@mdlf.app' in txt, f'{t} 100 élèves : phrase sur l\'écran coach')
+        shot(page, LOT, f'26-coach-100-eleves-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS (100 élèves) {page.errors}')
+
+    # 5. Verrou éteint (TestFlight) : rien d'achetable, ni paliers coach, ni rien d'offert affiché
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'products': 'all', 'paywallOn': False})
         signin(page, username='max')
@@ -1108,7 +1184,7 @@ def t_tarifs(bench, eng, dev, theme):
         refresh_access(page)
         for tab in (None, 'coach'):
             txt = paywall(page, tab)
-            R.check(page.locator('.pay-plan, .pay-student, .pay-tabs, [data-action="pay-student"]').count() == 0 and '€' not in txt,
+            R.check(page.locator('.pay-plan, .pay-cover, .pay-tabs').count() == 0 and '€' not in txt,
                     f'{t} verrou éteint ({tab or "particulier"}) : rien à acheter')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -1135,24 +1211,6 @@ def t_vie(bench, eng, dev, theme):
         pl = plans_text(page)
         R.check(len(pl) == 2 and all('en une fois' not in p for p in pl) and 'À vie' not in txt,
                 f'{t} aucun achat à vie proposé {pl}')
-        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-
-    # 2. TestFlight (Sandbox) : AUCUN code d'offre élève demandé (il ne s'utiliserait pas par la page
-    #    d'Apple et userait un des 3 codes de l'élève)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all', 'environment': 'sandbox'})
-        signin(page, username='lea')
-        page.evaluate("""async () => { const c = __sb.addPerson({ username: 'lucas', social: false }); __sb.makeCoach(c);
-            __sb.link(c, __sb.meId()); window.__opened = []; window.open = u => { __opened.push(String(u)); return null; };
-            await coachRefresh(); }""")
-        refresh_access(page)
-        paywall(page)
-        page.click('[data-action="pay-student"]')
-        page.wait_for_timeout(700)
-        sent = [json.loads(c[2]).get('env') for c in acalls(page, 'student_offer_code')]
-        toast = page.inner_text('.toast') if page.locator('.toast').count() else ''
-        R.check(sent == [] and len(store_calls(page, 'environment')) == 1 and page.evaluate('window.__opened') == []
-                and 'TestFlight' in toast, f'{t} TestFlight : aucun code d\'offre élève demandé ni ouvert {sent} ({toast!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # 3. Accès offert à vie (administrateur ou code) : rien à acheter

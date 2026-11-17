@@ -48,9 +48,11 @@ function swiftBetween(src, from, to) {
 // Toute entrée d'ici doit exister côté Swift ET côté faux StoreKit.
 const READS = {
   products:    ['products', 'missing', 'canMakePayments'],
-  productItem: ['id', 'displayName', 'displayPrice', 'introEligible', 'offer', 'period'],
+  productItem: ['id', 'displayName', 'displayPrice', 'introEligible', 'offer', 'period', 'promoOffers'],
   // Offre de lancement (essai gratuit d'Apple), lue par accessTrialOf
   offer:       ['paymentMode', 'period', 'periodCount'],
+  // Offre promotionnelle (essai coach de 2 mois, build 69), lue par accessPromoOf
+  promoOffer:  ['id', 'paymentMode', 'period', 'periodCount'],
   purchase:    ['status'],
   finish:      ['finished'],
   restore:     ['entitlements', 'cancelled'],
@@ -126,6 +128,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       environment: swiftKeys(swiftBlock(src, 'environment')),
       productItem, transaction,
       offer: swiftKeys(swiftBetween(src, 'let described: [String: Any] = [', 'out["offer"] = described')),
+      promoOffer: swiftKeys(swiftBetween(src, 'let promo: [String: Any] = [', 'promos.append(promo)')),
     };
     const missing = [];
     for (const [where, keys] of Object.entries(READS)) {
@@ -187,6 +190,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       redeemCode: new Set([...keysOf(redeem), ...keysOf(redeemCancelled)]),
       environment: keysOf(environment),
       offer: keysOf(products.products[0].offer),
+      promoOffer: keysOf(products.products.find(p => p.id.includes('.coach')).promoOffers[0]),
       transaction: keysOf(restore.entitlements[0]),
     };
     const productItem = swiftKeys(swiftBetween(src, 'private static func describe(_ product: Product)',
@@ -203,6 +207,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       environment: swiftKeys(swiftBlock(src, 'environment')),
       productItem, transaction,
       offer: swiftKeys(swiftBetween(src, 'let described: [String: Any] = [', 'out["offer"] = described')),
+      promoOffer: swiftKeys(swiftBetween(src, 'let promo: [String: Any] = [', 'promos.append(promo)')),
     };
     // Rien d'inventé par le faux : un faux plus généreux que le vrai cacherait le bogue
     const invented = [];
@@ -232,6 +237,16 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // Offre de lancement : rendue seulement si la personne y a droit (introEligible)
     assert.equal(products.products[0].introEligible, true);
     assert.equal(products.products[0].offer.paymentMode, 'freeTrial');
+    // Offre promotionnelle : liste toujours présente (vide pour le particulier), une offre gratuite par produit coach
+    sameJSON(products.products[0].promoOffers, []);
+    assert.equal(products.products.find(p => p.id.includes('.coach10.monthly')).promoOffers[0].id, 'com.mdlf.training.coach10.monthly.essai2mois');
+    // Entrée de purchase() : les noms que le Swift lit sont ceux que le pont natif envoie
+    const nativeJs = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
+    for (const k of ['promoOfferId', 'promoJws']) {
+      assert.ok(swiftSource(ROOT).src.includes(`call.getString("${k}")`), `${k} non lu par le Swift`);
+      assert.ok(nativeJs.includes(`${k}:`), `${k} non envoyé par js/platform/native.js`);
+    }
+    assert.ok(nativeJs.includes("'PROMO_REFUSED'") && swiftSource(ROOT).src.includes('"PROMO_REFUSED"'), 'refus de l\'offre : même code des deux côtés');
     // Les identifiants vendus : ceux du Swift, du faux StoreKit et du catalogue de l'app (js/data/plans.js)
     const swiftSrc = swiftSource(ROOT).src;
     const block = /subscriptionIds = \[([^\]]+)\]/.exec(swiftSrc);
@@ -283,13 +298,14 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(r[0].length, 10, 'aucune formule lue : l\'écran d\'abonnement serait vide');
     assert.equal(r[0][0][1], '6,49 €', 'le prix affiché doit être displayPrice, pas le nombre');
     assert.equal(r[0][1][1], '55,00 €');
-    assert.equal(r[0][2][1], '15,99 €', 'palier coach 10 élèves');
+    assert.equal(r[0][2][1], '11,11 €', 'palier coach 10 élèves (prix fictif du faux StoreKit)');
     assert.ok(r[0][0][2], 'le nom du produit (displayName) n\'est pas lu');
     sameJSON(r[1], { ok: true }, 'restauration : le serveur n\'a rien reçu');
     assert.equal(r[2], 1, 'le droit en cours (abonnement) doit partir');
     sameJSON(r[3], ['tx-1'], 'chaque transaction vérifiée doit être terminée chez Apple');
     // L'essai gratuit est lu chez StoreKit (offre de lancement), jamais écrit dans l'app
-    sameJSON(r[5], Array(10).fill({ unit: 'month', value: 3 }), 'essai lu dans offer (StoreKit), pas inventé');
+    // 3 mois pour le particulier, 2 pour les formules coach (17/11/2026)
+    sameJSON(r[5], [...Array(2).fill({ unit: 'month', value: 3 }), ...Array(8).fill({ unit: 'month', value: 2 })], 'essai lu dans offer (StoreKit), pas inventé');
     assert.equal(r[4], true, 'accès rendu après la restauration');
   });
 

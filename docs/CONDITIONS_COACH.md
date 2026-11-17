@@ -26,12 +26,14 @@ TTC, vendus par Apple) :
 
 | Formule | Par mois | Par an | Élèves suivis |
 |---|---|---|---|
-| Coach 10 | 15,99 € | 134,99 € | jusqu'à 10 |
-| Coach 20 | 19,99 € | 169,00 € | jusqu'à 20 |
-| Coach 30 | 24,99 € | 209,99 € | jusqu'à 30 |
-| Coach illimité | 29,99 € | 250,00 € | sans limite |
+| Coach 10 | 19,99 € | 169,00 € | jusqu'à 10 |
+| Coach 25 | 39,99 € | 339,00 € | jusqu'à 25 |
+| Coach 50 | 69,99 € | 589,00 € | jusqu'à 50 |
+| Coach 100 | 119,99 € | 999,00 € | jusqu'à 100 |
 
-- 3 mois gratuits au premier abonnement, offerts par Apple (un seul essai par identifiant Apple, même si tu
+Plus de 100 élèves : écris-nous à contact@mdlf.app (pas de formule dans l'app).
+
+- 2 mois gratuits au premier abonnement (3 mois pour la formule particulier), offerts par Apple (un seul essai par identifiant Apple, même si tu
   as déjà eu l'essai en particulier : pas de second essai).
 - Palier plein : un nouvel élève ne peut pas te rejoindre tant que tu n'es pas passé au palier supérieur ;
   les élèves déjà là restent. Monter de palier est immédiat (Apple rembourse le reste de la période au
@@ -43,8 +45,12 @@ TTC, vendus par Apple) :
 - Tu reçois **un code permanent** (12 caractères, `XXXX-XXXX-XXXX`) à partager. Une personne qui rejoint
   ton équipe avec ce code :
   - est suivie par toi dans l'app (ce que tu vois de ses séances : page Confidentialité, section Coach) ;
-  - a **−25 % sur l'abonnement particulier mensuel pendant 12 mois** (4,89 € au lieu de 6,49 € par mois,
-    puis 6,49 €), **sans essai gratuit**, si elle ne s'est jamais abonnée ;
+  - **n'a rien à payer** tant que tu as un abonnement coach et qu'elle fait partie des élèves que ta formule
+    comprend (les premiers arrivés, jusqu'au nombre d'élèves de ta formule) ; si tu arrêtes ton abonnement
+    coach ou passes à une formule plus petite, son accès reste offert 7 jours, puis elle peut s'abonner
+    elle-même (décision du 16/11/2026, remplace l'ancienne offre à 4,89 € par mois) ;
+  - si elle avait déjà son propre abonnement (ou un essai), elle le garde tant qu'elle ne le résilie pas chez
+    Apple : l'app le lui signale. Les mois qu'elle a déjà payés ne sont pas remboursés ;
   - **t'est rattachée** pour ta commission, si elle n'avait pas déjà un parrain (un seul parrain par compte,
     le premier, jamais changé ensuite, même si elle quitte ton équipe ou en rejoint une autre).
 - Ton propre compte ne peut pas t'être rattaché.
@@ -58,7 +64,6 @@ TTC, vendus par Apple) :
 
   | Abonnement de l'élève | Revenu net | Ta commission |
   |---|---|---|
-  | Offre élève, 4,89 € par mois | ≈ 3,46 € par mois | ≈ 0,69 € par mois |
   | Mensuel, 6,49 € par mois | ≈ 4,60 € par mois | ≈ 0,92 € par mois |
   | Annuel, 55,00 € par an | ≈ 38,96 € | ≈ 7,79 € (une fois) |
 
@@ -114,7 +119,11 @@ TTC, vendus par Apple) :
 - **Cohérence vérifiée** : prix et paliers identiques à `docs/PAYANT_V1.md` et `cgv.html` ; 20 %, 12 mois,
   seuil de 20 €, une seule attribution : identiques à `docs/PARRAINAGE.md` (`private.referral_coach_rate()`,
   `private.referral_coach_months()`, `private.referral_payout_min_cents()`).
-- **Revenu net** : 4,89 € / 1,20 × 0,85 = 3,46 € ; 6,49 € / 1,20 × 0,85 = 4,60 € ; 55,00 € / 1,20 × 0,85 =
+- **Élèves offerts (16/11/2026)** : un élève offert par l'abonnement de son coach ne paie rien, donc ne
+  rapporte aucune commission ; la commission ne porte plus que sur les abonnés qui paient eux-mêmes (élèves
+  au-delà du palier, anciens élèves abonnés, comptes parrainés par le code). À revoir avec Maxence : garder
+  le programme de commission pour les coachs, ou le réserver aux partenaires.
+- **Revenu net** : 6,49 € / 1,20 × 0,85 = 4,60 € ; 55,00 € / 1,20 × 0,85 =
   38,96 €. Le contrat du payant écrivait « 6,49 → 4,60 € (après TVA et 30 % d'Apple) » : le calcul donne 4,60 €
   avec **15 %** (3,79 € avec 30 %). Corrigé dans `docs/PAYANT_V1.md` à l'intégration de nuit (31/10).
 - **Écran d'acceptation** (date et version de ce texte) : pas encore dans l'app, à faire avec le programme

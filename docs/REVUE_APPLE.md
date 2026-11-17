@@ -32,7 +32,7 @@ de démo se tape directement dans App Store Connect.
 >
 > Demo account (verified coach, Google sign-in): [ADRESSE DU COMPTE GOOGLE DE DÉMO] / [MOT DE PASSE DU COMPTE GOOGLE DE DÉMO]. You can also sign in with your own Apple ID to see the personal plans.
 >
-> Student offer: a student who joins a coach with the coach's code gets 25% off the monthly plan for 12 months through a single-use Apple offer code distributed by our server; it cannot be tested without a coach code and a Sandbox offer code.
+> Coach plans and students: a verified coach buys an auto-renewable coach subscription in the app (In-App Purchase, tiers of 10, 20, 30 or unlimited students). Students who join that coach with the coach's code get full access paid by the coach's subscription, within the number of students of the coach's tier; they never pay and are never charged. If the coach's subscription ends, students keep access for 7 days, then they can subscribe themselves through In-App Purchase like any user.
 >
 > Codes: the only code that can be entered in the iOS app is an Apple subscription offer code ("J'ai un code d'offre Apple", which opens Apple's own redemption sheet). The app has no license keys or other code of its own to unlock features.
 >
@@ -234,10 +234,10 @@ disaient que la photo « reste sur ton iPhone », alors qu'une photo du coffre p
 de bilan). Nouveaux textes (ios/App/App/Info.plist) :
 
 - `NSCameraUsageDescription` : « MDLF Training utilise l'appareil photo pour scanner le code-barres d'un
-  aliment et pour tes photos de progression. Elles sont gardées chiffrées dans ton coffre sur ton iPhone ;
+  aliment, pour ta photo de profil et pour tes photos de progression. Elles sont gardées chiffrées dans ton coffre sur ton iPhone ;
   seules celles que tu choisis d'envoyer à ton coach comme photos de bilan partent, chiffrées pour lui seul. »
-- `NSPhotoLibraryUsageDescription` : « MDLF Training ouvre ta photothèque pour choisir une photo de
-  progression. Elle est gardée chiffrée dans ton coffre sur ton iPhone ; elle ne part que si tu choisis de
+- `NSPhotoLibraryUsageDescription` : « MDLF Training ouvre ta photothèque pour choisir ta photo de profil,
+  visible de tes amis et de ton coach, ou une photo de progression. Une photo de progression est gardée chiffrée dans ton coffre sur ton iPhone ; elle ne part que si tu choisis de
   l'envoyer à ton coach comme photo de bilan, chiffrée pour lui seul. »
 
 Info.plist fait partie de l'empreinte `runtime` : ce changement demande une **nouvelle build** (commit à part,

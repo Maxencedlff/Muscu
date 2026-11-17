@@ -74,6 +74,7 @@ const SCRIPTS = [
   'js/data/progress-photos.js',
   'js/data/photo-vault.js',
   'js/data/coach-photos.js',
+  'js/data/profile-photo.js',
   'js/data/session-review.js',
   'js/data/health-workouts.js',
   'js/data/health-export.js',
@@ -1949,6 +1950,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./access.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Contrat du module natif StoreKit : clés réellement envoyées par le Swift (store-contract.mjs) ──
 (await import('./store-contract.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Essai coach par offre promotionnelle d'Apple (promo-coach.mjs) ──
+(await import('./promo-coach.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Version minimale de l'app : app_config.min_build, lien App Store ou TestFlight (min-build.mjs) ──
 (await import('./min-build.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──
@@ -2030,6 +2033,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 
 // ── Content-Security-Policy de la WebView (tests dans csp.mjs) ──
 (await import('./csp.mjs')).default({ test, assert, ROOT });
+// ── Photo de profil (tests dans profile-photo.mjs) ──
+(await import('./profile-photo.mjs')).default({ test, run, app, assert, sameJSON, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

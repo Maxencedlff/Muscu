@@ -30,12 +30,17 @@ function signInButtonsHtml() {
 }
 
 // Pastille d'avatar : l'emoji choisi, sinon l'initiale du pseudo sur un disque gris (comme Contacts),
-// sinon (déconnecté ou sans pseudo) une silhouette dans un cercle, comme Réglages d'iOS (l'haltère est l'onglet Entraînement)
-function avatarHtml(size = 'm', emoji = account.profile?.avatar, username = account.profile?.username) {
+// sinon (déconnecté ou sans pseudo) une silhouette dans un cercle, comme Réglages d'iOS (l'haltère est l'onglet Entraînement).
+// uid (compte montré, le mien par défaut) : sa photo de profil, si je peux la voir, est posée PAR-DESSUS
+// (js/data/profile-photo.js) ; pas encore lue, ou image qui ne charge pas : l'emoji ou l'initiale reste visible.
+function avatarHtml(size = 'm', emoji = account.profile?.avatar, username = account.profile?.username, uid = account.user?.id) {
   const e = account.user ? validAvatar(emoji) : null, initial = account.user ? avatarInitial(username) : '';
-  if (e) return `<span class="avatar avatar--${size}" aria-hidden="true">${esc(e)}</span>`;
-  if (initial) return `<span class="avatar avatar--${size} avatar--initial" aria-hidden="true">${esc(initial)}</span>`;
-  return `<span class="avatar avatar--${size} avatar--empty" aria-hidden="true">${icon('person.crop.circle', size === 'xl' ? 40 : 28)}</span>`;
+  const id = account.user && typeof uid === 'string' && PPH_ID_RE.test(uid) ? uid : null;
+  const url = id ? profilePhotoUrl(id) : null;
+  const tag = id ? ` data-pph="${id}"` : '', photo = url ? pphImgHtml(url) : '', on = url ? ' avatar--photo' : '';
+  if (e) return `<span class="avatar avatar--${size}${on}" aria-hidden="true"${tag}>${esc(e)}${photo}</span>`;
+  if (initial) return `<span class="avatar avatar--${size} avatar--initial${on}" aria-hidden="true"${tag}>${esc(initial)}${photo}</span>`;
+  return `<span class="avatar avatar--${size} avatar--empty${on}" aria-hidden="true"${tag}>${icon('person.crop.circle', size === 'xl' ? 40 : 28)}${photo}</span>`;
 }
 function accountName() { return account.profile?.username || 'Mon compte'; }
 function providerLine(user = account.user) {
@@ -162,9 +167,10 @@ function renderAccount() {
             ${validAvatar(p?.avatar) ? `<span class="cell__value account-emoji" aria-label="${esc(avatarName(p.avatar))}">${esc(p.avatar)}</span>`
               : '<span class="cell__value">Aucun</span>'}
             ${icon('chevron.right', 16)}
-          </button>
+          </button>${profilePhotoCellHtml()}
         </div>
-        <div class="group-foot">Ton pseudo et ton avatar te représentent auprès de tes amis, une fois le social activé. Sans cela, ils ne sont visibles que par toi.</div>
+        <div class="group-foot">${profilePhotoOn() ? 'Ton pseudo, ton avatar et ta photo te représentent auprès de tes amis, une fois le social activé, et de ton coach. Personne d\'autre ne voit ta photo.'
+          : 'Ton pseudo et ton avatar te représentent auprès de tes amis, une fois le social activé. Sans cela, ils ne sont visibles que par toi.'}</div>
 ${referralGroupHtml()}
 
         <div class="group-title">Moyens de connexion</div>
@@ -194,7 +200,7 @@ ${renderNewsletterGroup()}
       </div>
     </div>`;
 }
-SCREENS.set('account', { render: () => renderAccount(), enter: () => { if (account.user) newsletterRefresh({ minAge: 30_000 }); } });
+SCREENS.set('account', { render: () => renderAccount(), enter: () => { if (account.user) { newsletterRefresh({ minAge: 30_000 }); profilePhotoRefresh(); } } });
 
 // Parrainage (js/data/referral.js) : « Parrainé par … », ou la saisie du code pendant les 30 jours qui
 // suivent la création du compte ; rien ensuite. L'état est relu une fois, puis l'écran redessiné.

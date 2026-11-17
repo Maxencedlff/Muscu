@@ -241,9 +241,9 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                                                         | Quand / état                                      |
 |---|----------------------------------------------------------------------------------------------|---------------------------------------------------|
-| ○ | Élèves gratuits (le coach paie le forfait), code d'offre élève retiré dans App Store Connect | Branche eleves-gratuits, migration 20261116030000 |
+| ▶ | Élèves gratuits (le coach paie le forfait), code d'offre élève désactivé le 17/11            | Serveur en prod (17/11) · app : branche vague-serveur |
 | ○ | Écart prescrit / fait chez le coach, notification « élève a terminé »                        | Migrations 20261116010000 et 20261116020000       |
-| ○ | Photo de profil                                                                              | Branche photo-profil (serveur + build)            |
+| ▶ | Photo de profil, essai coach 2 mois, offre promo coach, grille 10/25/50/100                  | Serveur en prod (17/11) · app : branche vague-serveur, build pour le natif |
 | ○ | Build TestFlight 69 : son natif robuste, photo de profil, tout le natif en attente           | Après ton accord                                  |
 
 ### Avant le paiement · C. Tes démarches

@@ -1,6 +1,6 @@
 // Accès payant (js/data/access.js) : logique pure sans réseau (nettoyage strict de ce que renvoie le
 // serveur, décisions prises sur les dates du SERVEUR, horloge de l'appareil trafiquée, cache par compte
-// valable 7 jours hors ligne, verrou éteint = jamais bloqué, élève suivi par un coach, produits lus
+// valable 7 jours hors ligne, verrou éteint = jamais bloqué, élève offert par son coach, produits lus
 // chez StoreKit et jamais écrits en dur).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -46,8 +46,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const a = run(`cleanAccess({ status: 'active', until: '2027-01-01T00:00:00Z', paywall_on: true, trial_days: 90,
       days_left: 42, can_write: true, gift: false, coach_team: false, intro_offer: true, intro_until: '2027-01-01T00:00:00Z',
       server_now: '2026-10-28T10:00:00Z', user_id: 'secret', original_transaction_id: '1000', evil: '<img src=x>' })`);
-    sameJSON(Object.keys(a).sort(), ['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until'],
-      'liste blanche du modèle B (plus de trial_days ni d\'essai maison)');
+    sameJSON(Object.keys(a).sort(), ['can_write', 'coach_cover', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until'],
+      'liste blanche du modèle B (plus de trial_days ni d\'essai maison), offre du coach (16/11)');
     assert.equal(a.intro_offer, true);
     assert.equal(a.intro_until, Date.parse('2027-01-01T00:00:00Z'));
     // L'offre de lancement n'a de sens que pour un abonnement actif ; une date illisible n'est pas gardée
@@ -243,13 +243,12 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       assert.ok(!PRICES.test(src), `${f} : un prix est écrit en dur (les prix viennent de StoreKit)`);
       assert.ok(!/€/.test(src), `${f} : une devise est écrite en dur`);
     }
-    // Seule exception : le prix de l'offre élève (code d'offre d'Apple, que StoreKit ne donne pas), dans
-    // la table de repli de js/data/plans.js, et nulle part ailleurs dans ce fichier
+    // Plus d'exception depuis le 16/11/2026 : l'élève d'un coach ne paie rien, plus d'offre élève à 4,89 €
     const plans = fs.readFileSync(path.join(ROOT, 'js/data/plans.js'), 'utf8');
     assert.ok(!PRICES.test(plans), 'plans.js : prix d\'une formule écrit en dur');
     const euros = plans.split('\n').filter(l => /€/.test(l) && !/^\s*\/\//.test(l));
-    assert.equal(euros.length, 1, `plans.js : une seule ligne de prix (PLAN_STUDENT_PRICE) ${euros}`);
-    assert.ok(/^const PLAN_STUDENT_PRICE = /.test(euros[0]));
+    assert.equal(euros.length, 0, `plans.js : aucune ligne de prix ${euros}`);
+    assert.ok(!/4,89|PLAN_STUDENT|planRedeemUrl|student_offer_code|accessStudentOffer/.test(files.map(([, src]) => src).join('\n') + plans), 'offre élève restée');
     // Les identifiants de produits, eux, sont bien ceux du contrat
     sameJSON([MONTHLY, YEARLY, run('ACCESS_PRODUCT_IDS.slice(0, 2)'), run('ACCESS_PRODUCT_IDS.length')],
       ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'], 10]);
@@ -613,20 +612,21 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(run(`[planOf('com.mdlf.training.coach20.yearly').tier.key, planOf('com.mdlf.training.coach20.yearly').period,
       planOf('com.mdlf.training.pro.monthly').tier.coach, planOf('com.mdlf.training.access.gift'), planIsCoach('com.mdlf.training.coachmax.monthly')]`),
       ['coach20', 'year', false, null, true]);
-    // Palier conseillé : le plus petit qui contient les élèves ; au-delà de 30, illimité
-    sameJSON(run(`[0, 1, 10, 11, 20, 21, 30, 31, 500].map(n => planTierFor(n).key)`),
-      ['coach10', 'coach10', 'coach10', 'coach20', 'coach20', 'coach30', 'coach30', 'coachmax', 'coachmax']);
+    // Palier conseillé : le plus petit qui contient les élèves (grille du 17/11 : 10, 25, 50, 100) ; au-delà de 100, aucun
+    sameJSON(run(`[0, 1, 10, 11, 25, 26, 50, 51, 100, 101, 500].map(n => planTierFor(n)?.key ?? null)`),
+      ['coach10', 'coach10', 'coach10', 'coach20', 'coach20', 'coach30', 'coach30', 'coachmax', 'coachmax', null, null]);
+    sameJSON(run(`PLAN_COACH_TIERS.map(t => [t.limit, t.label])`), [[10, '10 élèves'], [25, '25 élèves'], [50, '50 élèves'], [100, '100 élèves']]);
+    assert.equal(run('PLAN_COACH_CONTACT'), 'Plus de 100 élèves : écris-nous à contact@mdlf.app');
     sameJSON(run(`['com.mdlf.training.coach10.monthly', 'com.mdlf.training.coach30.yearly', 'com.mdlf.training.coachmax.monthly', 'com.mdlf.training.pro.monthly']
       .map(id => planNextTier(id)?.key ?? null)`), ['coach20', 'coachmax', null, 'coach10']);
-    // Prix lus chez StoreKit (nombres) : 55 / 6,49 = 8,47 → 8,5 mois ; 134,99 / 15,99 = 8,44 → 8,5
-    sameJSON(run(`[planYearMonths({ amount: 6.49 }, { amount: 55 }), planYearMonths({ amount: 15.99 }, { amount: 134.99 }),
-      planYearMonths({ amount: 29.99 }, { amount: 250 }), planYearMonths({ amount: 7.77 }, { amount: 77.77 }),
+    // Prix lus chez StoreKit (nombres, fictifs ici) : 55 / 6,49 = 8,47 → 8,5 mois ; 94,4 / 11,11 = 8,50 → 8,5
+    sameJSON(run(`[planYearMonths({ amount: 6.49 }, { amount: 55 }), planYearMonths({ amount: 11.11 }, { amount: 94.4 }),
+      planYearMonths({ amount: 44.44 }, { amount: 377.7 }), planYearMonths({ amount: 7.77 }, { amount: 77.77 }),
       planYearMonths(null, { amount: 55 }), planYearMonths({ amount: 0 }, { amount: 55 }), planYearMonths({ amount: 5 }, { amount: 70 })]`),
       [8.5, 8.5, 8.5, 10, null, null, null]);
     assert.equal(run('planMonthsText(8.5)'), '8,5 mois');
-    // Offre élève : repli par devise (StoreKit ne donne pas le prix d'un code d'offre)
-    sameJSON(run(`[planStudentPrice('EUR'), planStudentPrice('JPY'), planStudentPrice(undefined)]`), ['4,89 €', null, null]);
-    assert.equal(run(`planRedeemUrl('ABC123DEF')`), 'https://apps.apple.com/redeem?ctx=offercodes&id=6823561962&code=ABC123DEF');
+    // Plus d'offre élève (16/11/2026) : ni prix de repli, ni page de code d'offre
+    sameJSON(run(`[typeof planStudentPrice, typeof planRedeemUrl, PLAN_APP_STORE_ID]`), ['undefined', 'undefined', '6823561962']);
   });
 
   test('coach : code permanent de 12 caractères, numéro de carte, palier plein', () => {
@@ -635,17 +635,37 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       ['K7M2QX9PR4TD', 'K7M2QX9P', null, 'K7M2QX9PR4TD', 'K7M2QX9P']);
     assert.equal(run(`formatCoachCode('K7M2QX9PR4TD')`), 'K7M2-QX9P-R4TD');
     assert.ok(/K7M2-QX9P-R4TD/.test(run(`coachInviteText('K7M2QX9PR4TD')`)) && !/7 jours/.test(run(`coachInviteText('K7M2QX9PR4TD')`)));
-    // Verrou éteint (aucun compte, rien lu) : pas de remise annoncée, tout est ouvert
-    assert.ok(run('paywallOn()') === false && !/25 %/.test(run(`coachInviteText('K7M2QX9PR4TD')`)), 'remise annoncée verrou éteint');
-    // Verrou allumé : la remise de l'élève est annoncée
-    assert.ok(/25 %/.test(run(`(() => { const p = paywallOn; paywallOn = () => true; try { return coachInviteText('K7M2QX9PR4TD'); } finally { paywallOn = p; } })()`)), 'remise verrou allumé');
+    // Verrou éteint (aucun compte, rien lu) : rien d'annoncé, tout est ouvert ; jamais de remise (16/11)
+    assert.ok(run('paywallOn()') === false && !/25 %|rien à payer/.test(run(`coachInviteText('K7M2QX9PR4TD')`)), 'annonce verrou éteint');
+    // Verrou allumé : « rien à payer » seulement si le coach a un abonnement coach en cours
+    const invite = product => run(`(() => { const p = paywallOn, t = coachPro.tier; paywallOn = () => true;
+      coachPro.tier = cleanCoachTier({ is_coach: true, product_id: ${JSON.stringify(product)}, limit: 10, students: 1 });
+      try { return coachInviteText('K7M2QX9PR4TD'); } finally { paywallOn = p; coachPro.tier = t; } })()`);
+    assert.ok(/rien à payer/.test(invite('com.mdlf.training.coach10.monthly')) && !/25 %/.test(invite('com.mdlf.training.coach10.monthly')), 'élève offert annoncé');
+    assert.ok(!/rien à payer/.test(invite(null)), 'sans abonnement coach : rien de promis');
     assert.equal(run(`coachErrorKind({ code: 'P0001', message: 'tier_full' })`), 'tier_full');
     sameJSON(run(`[normalizeCardNumber(' 049 12-ed0123 '), normalizeCardNumber('ab12'), normalizeCardNumber('A'.repeat(21))]`), ['04912ED0123', null, null]);
     const t = run(`cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 10, next_product: 'com.mdlf.training.coach20.monthly' })`);
     assert.equal(t.full, true);
     assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 10 }))`),
       '10 élèves sur 10 : passe au palier supérieur.');
-    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, limit: null, students: 99 }))`), null, 'illimité : jamais plein');
+    // Plus haut palier (100 élèves) plein, ou plus de 100 élèves : aucune formule au-dessus, on écrit (grille du 17/11)
+    const contact = 'Plus de 100 élèves : écris-nous à contact@mdlf.app.';
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coachmax.monthly', limit: 100, students: 100, contact: true }))`), contact);
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coachmax.yearly', limit: 100, students: 100 }))`), contact, 'contact déduit (serveur sans la clé)');
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coachmax.monthly', limit: 100, students: 99 }))`), null, '99 sur 100 : rien');
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach30.monthly', limit: 50, students: 104, uncovered: 54 }))`), contact, 'plus de 100 élèves au palier 50');
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach20.monthly', limit: 25, students: 25 }))`),
+      '25 élèves sur 25 : passe au palier supérieur.');
+    // Élèves au-delà de la formule (16/11/2026) : leur accès n'est plus offert, le coach est invité à monter
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 13, uncovered: 3 }))`),
+      '3 élèves au-delà de ta formule : leur accès n\'est plus offert. Passe au palier supérieur.');
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 11, uncovered: 1 }))`),
+      '1 élève au-delà de ta formule : son accès n\'est plus offert. Passe au palier supérieur.');
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: null, limit: 0, students: 4, uncovered: 4 }))`),
+      'Sans abonnement coach, l\'accès de tes 4 élèves n\'est pas offert. Prends un abonnement coach.');
+    // Nombre abîmé : borné au nombre d'élèves, jamais négatif
+    sameJSON(run(`[cleanCoachTier({ is_coach: true, students: 2, uncovered: 99 }).uncovered, cleanCoachTier({ students: 2, uncovered: -1 }).uncovered]`), [2, 0]);
     // Produit inconnu renvoyé par le serveur : ignoré
     assert.equal(run(`cleanCoachTier({ is_coach: true, product_id: 'autre', limit: 3, students: 1 }).product_id`), null);
     sameJSON(run(`cleanCoachRequest({ status: 'bizarre', card_name: 1 })`).status, 'none');
@@ -678,60 +698,66 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     }
   });
 
-  test('offre élève : TestFlight (Sandbox) ne demande AUCUN code d\'offre élève (il ne s\'y utiliserait pas), le reste un code de Production', async () => {
-    const r = await run(`(async () => {
-      const u = account.user, saved = { ...access }, realSb = sb, nativeStore = Native.store;
-      const out = [];
-      try {
-        account.user = { id: 'u' };
-        let asked = 0;
-        for (const env of ['sandbox', 'production', 'unknown', 'other', null, undefined]) {
-          accessReset('u'); access.storeEnv = null;
-          Native.store = { ...nativeStore, environment: async () => { asked++; return env; } };
-          let sent = null;
-          sb = { rpc: async (fn, args) => { sent = args.env; return { data: { ok: false, error: 'no_code' }, error: null }; } };
-          const first = await accessStudentOffer();
-          await accessStudentOffer();
-          out.push(sent);
-          if (env === 'sandbox') out.push(first, access.studentOffer);
-        }
-        // Coquille sans la méthode (mise à jour à chaud avant la build) : Production, sans erreur
-        accessReset('u'); access.storeEnv = null;
-        Native.store = { ...nativeStore, environment: undefined };
-        let sent = null;
-        sb = { rpc: async (fn, args) => { sent = args.env; return { data: { ok: false, error: 'no_code' }, error: null }; } };
-        await accessStudentOffer();
-        out.push(sent, asked);
-        return out;
-      } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = nativeStore; }
-    })()`);
-    // L'environnement n'est demandé qu'une fois par lancement quand il est connu
-    // TestFlight : aucun appel au serveur (aucun des 3 codes de l'élève n'est usé), refus « testflight »
-    sameJSON(r, [null, { ok: false, kind: 'testflight' }, null, 'Production', 'Production', 'Production', 'Production', 'Production', 'Production',
-      1 + 1 + 2 + 1 + 2 + 2]);
-    assert.ok(run(`accessErrorText('testflight')`).includes('TestFlight'));
+  test('élève offert par son coach (16/11/2026) : coach_cover nettoyé, accès, grâce, hors ligne', () => {
+    const team = (cover, extra = {}) => ({ status: 'coach_team', paywall_on: true, can_write: true, gift: false, coach_team: true,
+      until: cover?.until ?? null, coach_cover: cover, server_now: NOW, ...extra });
+    const look = st => run(`(() => { const u = account.user, saved = { ...access };
+      try { account.user = { id: 'u' }; accessReset('u'); access.state = cleanAccess(${JSON.stringify(st)});
+        return [canWrite(), accessStatus(), accessCoachCover(), accessUntil()]; }
+      finally { account.user = u; Object.assign(access, saved); } })()`);
+    sameJSON(look(team({ state: 'active', until: null, coach: 'lucas' })), [true, 'coach_team', { state: 'active', until: null, coach: 'lucas' }, null]);
+    // Grâce : la date de fin vient du serveur
+    const end = new Date(NOW + 5 * DAY).toISOString();
+    sameJSON(look(team({ state: 'grace', until: end, coach: 'lucas' })), [true, 'coach_team', { state: 'grace', until: Date.parse(end), coach: 'lucas' }, Date.parse(end)]);
+    // Au-delà du palier, ou plus d'abonnement coach : règle normale, le serveur fait foi (pas de droit)
+    sameJSON(look(none({ coach_cover: { state: 'over_limit', coach: 'lucas' } })).slice(0, 3), [false, 'none', { state: 'over_limit', until: null, coach: 'lucas' }]);
+    sameJSON(look(none({ coach_cover: { state: 'ended', coach: 'lucas' } }))[2], { state: 'ended', until: null, coach: 'lucas' });
+    // Réponse abîmée : état inconnu ou mauvais type → null ; pseudo borné ; until seulement en grâce
+    sameJSON(run(`[cleanCoachCover({ state: 'free' }), cleanCoachCover('active'), cleanCoachCover(null), cleanCoachCover([]),
+      cleanCoachCover({ state: 'active', until: '2027-01-01T00:00:00Z', coach: 7 }), cleanCoachCover({ state: 'grace', coach: 'x'.repeat(80) }).coach.length]`),
+      [null, null, null, null, { state: 'active', until: null, coach: null }, 40]);
+    // Hors ligne : comme tout accès sans date de fin, 7 jours puis redemandé
+    sameJSON(offline(team({ state: 'active', until: null, coach: 'lucas' }), 6), [true, 'coach_team', null, false]);
+    sameJSON(offline(team({ state: 'active', until: null, coach: 'lucas' }), 8), [false, 'unknown', null, true]);
+    // Plus aucune offre élève payante dans l'app
+    assert.equal(run('typeof accessStudentOffer'), 'undefined');
   });
 
-  test('offre élève : un refus du serveur n\'est pas une exception, le code est gardé', async () => {
-    const r = await run(`(async () => {
-      const u = account.user, saved = { ...access }, realSb = sb;
-      const calls = [];
-      try {
-        account.user = { id: 'u' };
-        accessReset('u');
-        const answer = { data: { ok: false, error: 'not_new', code: null }, error: null };
-        sb = { rpc: async (fn, args) => { calls.push([fn, args.env]); return answer; } };
-        const notNew = await accessStudentOffer();
-        const kept = access.studentOffer;
-        answer.data = { ok: true, error: null, code: 'STUDENTCODE01', expires_at: '2027-01-01T00:00:00Z' };
-        const ok = await accessStudentOffer();
-        answer.data = { ok: true, code: '<script>' };
-        const bad = await accessStudentOffer();
-        return [notNew, kept, ok.ok, ok.code, bad, calls];
-      } finally { account.user = u; Object.assign(access, saved); sb = realSb; }
-    })()`);
-    sameJSON(r, [{ ok: false, kind: 'not_new' }, { error: 'not_new' }, true, 'STUDENTCODE01', { ok: false, kind: 'server' },
-      [['student_offer_code', 'Production'], ['student_offer_code', 'Production'], ['student_offer_code', 'Production']]]);
+  test('élève couvert par son coach avec son propre abonnement (17/11/2026) : carte, essai daté, jamais de remboursement', () => {
+    const own = (cover, extra = {}) => ({ status: 'active', paywall_on: true, can_write: true, gift: false, coach_team: true,
+      until: new Date(NOW + 20 * DAY).toISOString(), coach_cover: cover, server_now: NOW, ...extra });
+    const look = (st, product, renews) => run(`(() => { const u = account.user, saved = { ...access };
+      try { account.user = { id: 'u' }; accessReset('u'); access.state = cleanAccess(${JSON.stringify(st)});
+        access.currentProduct = ${JSON.stringify(product)}; access.currentRenews = ${JSON.stringify(renews)};
+        const d = accessDoubleSub(); return d ? accessDoubleSubText(d) : null; }
+      finally { account.user = u; Object.assign(access, saved); } })()`);
+    const lucas = { state: 'active', until: null, coach: 'lucas' };
+    const MONTHLY = 'com.mdlf.training.pro.monthly';
+    assert.equal(look(own(lucas), MONTHLY, true), 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.');
+    // Renouvellement inconnu (build 68, iOS 16) : montrée quand même
+    assert.equal(look(own(lucas), MONTHLY, null), 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.');
+    // Essai d'Apple en cours : date du serveur (fin de l'offre de lancement)
+    const end = NOW + 40 * DAY;
+    const trial = look(own(lucas, { intro_offer: true, intro_until: new Date(end).toISOString() }), MONTHLY, true);
+    assert.equal(trial, `Ton coach couvre ton accès. Ton essai devient payant le ${run(`fmtDate(${end})`)} : résilie-le pour ne pas être prélevé.`);
+    // Disparaît : résilié chez Apple, pas d'abonnement sur l'iPhone, formule coach, coach qui ne couvre pas (grâce, au-delà)
+    assert.equal(look(own(lucas), MONTHLY, false), null);
+    assert.equal(look(own(lucas), null, true), null);
+    assert.equal(look(own(lucas), 'com.mdlf.training.coach10.monthly', true), null);
+    assert.equal(look(own({ state: 'grace', until: new Date(NOW + 3 * DAY).toISOString(), coach: 'lucas' }), MONTHLY, true), null);
+    assert.equal(look(own({ state: 'over_limit', coach: 'lucas' }), MONTHLY, true), null);
+    assert.equal(look(own(null), MONTHLY, true), null);
+    // Aucun texte de l'abonnement ne parle de remboursement (décision de Maxence du 17/11/2026), ni de point d'exclamation
+    const ui = fs.readFileSync(path.join(ROOT, 'js/features/paywall-ui.js'), 'utf8');
+    const code = f => fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    for (const f of ['js/features/paywall-ui.js', 'js/data/access.js', 'js/features/coach-ui.js', 'js/data/coach-pro.js', 'js/features/coach-pro-ui.js']) {
+      assert.ok(!/rembours|prorata/i.test(code(f)), `${f} : un texte parle de remboursement`);
+    }
+    assert.ok(!/couvre ton accès[^'`]*!/.test(ui), 'carte avec un point d\'exclamation');
+    // Après la grâce : jamais d'essai promis (seul StoreKit sait s'il y a droit)
+    const grace = ui.slice(ui.indexOf("if (cover.state === 'grace')"), ui.indexOf('if (mine) return null;')).split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    assert.ok(/reste offert jusqu'au/.test(grace) && !/essai|gratuit/i.test(grace), 'grâce : aucun essai promis');
+    assert.ok(!/not_student|not_new|no_code|testflight/.test(JSON.stringify(run('Object.keys(ACCESS_ERROR_TEXT)'))), 'erreurs de l\'offre élève restées');
   });
 }
 

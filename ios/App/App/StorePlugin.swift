@@ -43,6 +43,13 @@ import StoreKit
 ///   `AppTransaction.refresh()`, qui demande le mot de passe Apple, n'est jamais appelé. Ce n'est pas une
 ///   preuve d'achat et rien ne s'en sert pour ouvrir un accès.
 ///
+/// - **Offre promotionnelle signée** (17/11/2026, docs/PAYANT_V1.md « Essai coach pour qui a déjà eu un
+///   essai ») : `products()` rend aussi `promoOffers` (offres promotionnelles d'App Store Connect, lues chez
+///   StoreKit ; la clé est TOUJOURS présente depuis la build 69, même vide, pour que le web sache que
+///   `purchase()` sait les appliquer). `purchase({ promoOfferId, promoJws })` applique l'offre avec la
+///   signature JWS du serveur (fonction Edge `coach-promo-offer`) ; Apple vérifie la signature et
+///   l'éligibilité, et refuse l'achat sinon (`PROMO_REFUSED`, rien n'est débité).
+///
 /// Cible de compilation iOS 16.4 (projet Xcode) : tout StoreKit 2 est disponible et
 /// `AppStore.presentOfferCodeRedeemSheet(in:)` (iOS 16+) suffit — le repli
 /// `SKPaymentQueue.presentCodeRedemptionSheet()`, nécessaire sous iOS 16 et **déprécié depuis iOS 18**,
@@ -193,6 +200,18 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
             }
             options.insert(.appAccountToken(token))
         }
+        // Offre promotionnelle signée par le serveur (coach-promo-offer) : les deux ou aucun.
+        // promotionalOffer(_:compactJWS:) est rétroportée jusqu'à iOS 15 (SDK iOS 26, Xcode 26).
+        let promoId = call.getString("promoOfferId") ?? ""
+        let promoJws = call.getString("promoJws") ?? ""
+        if !promoId.isEmpty || !promoJws.isEmpty {
+            guard !promoId.isEmpty, !promoJws.isEmpty, promoJws.count <= 8192 else {
+                call.reject("Offre promotionnelle incomplète", "BAD_PROMO"); return
+            }
+            for option in Product.PurchaseOption.promotionalOffer(promoId, compactJWS: promoJws) {
+                options.insert(option)
+            }
+        }
         // purchase(options:) est @MainActor : c'est iOS qui présente la feuille de paiement
         Task { @MainActor in
             do {
@@ -222,6 +241,9 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             } catch StoreKitError.userCancelled {
                 call.resolve(["status": "userCancelled"])
+            } catch let error as Product.PurchaseError where !promoId.isEmpty {
+                // Offre refusée par Apple (signature, identifiant, client non éligible) : rien n'est débité
+                call.reject("Offre refusée : \(error.localizedDescription)", "PROMO_REFUSED")
             } catch {
                 call.reject("Achat impossible : \(error.localizedDescription)", "PURCHASE_FAILED")
             }
@@ -293,7 +315,15 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         for await result in StoreKit.Transaction.currentEntitlements {
             guard let transaction = verified(result) else { refused += 1; continue }
             guard subscriptionIds.contains(transaction.productID), transaction.revocationDate == nil else { continue }
-            list.append(describe(transaction, jws: result.jwsRepresentation))
+            // Renouvellement automatique encore prévu ? (iOS 17 : état de la souscription signé par Apple).
+            // Le web s'en sert pour l'élève que son coach couvre : « Tu peux résilier ton abonnement »
+            // tant qu'il se renouvelle (build 69 ; absent avant iOS 17 ou sur une build plus ancienne).
+            var renews: Bool? = nil
+            if #available(iOS 17.0, *), let state = await transaction.subscriptionStatus,
+               case .verified(let info) = state.renewalInfo {
+                renews = info.willAutoRenew
+            }
+            list.append(describe(transaction, jws: result.jwsRepresentation, willAutoRenew: renews))
         }
         return (list, refused)
     }
@@ -406,6 +436,22 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
             ]
             out["offer"] = described
         }
+        // Offres promotionnelles (essai coach de 2 mois pour qui a déjà eu un essai) : TOUJOURS une liste,
+        // même vide (build 69+). Elles ne s'appliquent qu'avec une signature du serveur (purchase, promoJws).
+        var promos: [[String: Any]] = []
+        for offer in subscription.promotionalOffers {
+            guard let offerId = offer.id else { continue }
+            let promo: [String: Any] = [
+                "id": offerId,
+                "displayPrice": offer.displayPrice,
+                "price": NSDecimalNumber(decimal: offer.price).doubleValue,
+                "paymentMode": name(offer.paymentMode),
+                "period": describe(offer.period),
+                "periodCount": offer.periodCount,
+            ]
+            promos.append(promo)
+        }
+        out["promoOffers"] = promos
         return out
     }
 
@@ -431,7 +477,7 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
     /// Une transaction vérifiée pour le web, avec son JWS (c'est lui que le serveur vérifie, l'app ne
     /// fait que le porter). Les identifiants partent en texte : ce sont des entiers 64 bits, que le JSON
     /// de la vue web arrondirait. Les dates sont en millisecondes depuis 1970, comme les autres modules.
-    private static func describe(_ transaction: StoreKit.Transaction, jws: String) -> [String: Any] {
+    private static func describe(_ transaction: StoreKit.Transaction, jws: String, willAutoRenew: Bool? = nil) -> [String: Any] {
         var out: [String: Any] = [
             "jws": jws,
             "transactionId": String(transaction.id),
@@ -445,6 +491,7 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
             "environment": name(transaction.environment),
             "subscription": subscriptionIds.contains(transaction.productID),
         ]
+        if let renews = willAutoRenew { out["willAutoRenew"] = renews }
         // Renouvellement automatique ou achat : indisponible avant iOS 17, le web s'en passe
         if #available(iOS 17.0, *) {
             out["reason"] = transaction.reason == .renewal ? "renewal" : "purchase"

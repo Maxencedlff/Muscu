@@ -1,4 +1,4 @@
-// Tests de comportement des 11 fonctions Edge (audit du 12/11, M7) : chaque handler exporté par
+// Tests de comportement des 12 fonctions Edge (audit du 12/11, M7) : chaque handler exporté par
 // supabase/functions/*/index.ts est appelé pour de vrai, avec un faux réseau et de fausses variables
 // d'environnement (tests/deno/fake.ts). Ils vérifient les refus d'entrée (méthode, CORS, jeton de session,
 // secret partagé, signature d'Apple, corps invalide) et, pour delete-account, la règle de connexion récente.
@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { call, fakeJwt, fakeUser, jsonResponse, nowS, request, USER_ID, type Handler } from './fake.ts';
 
 import { handler as appstoreNotify } from '../../supabase/functions/appstore-notify/index.ts';
+import { handler as coachPromoOffer } from '../../supabase/functions/coach-promo-offer/index.ts';
 import { handler as coachPhotosPurge } from '../../supabase/functions/coach-photos-purge/index.ts';
 import { handler as coachRequestAlert } from '../../supabase/functions/coach-request-alert/index.ts';
 import { handler as deleteAccount } from '../../supabase/functions/delete-account/index.ts';
@@ -20,14 +21,15 @@ import { handler as stravaExport } from '../../supabase/functions/strava-export/
 import { handler as verifyPurchase } from '../../supabase/functions/verify-purchase/index.ts';
 
 const ALL: Record<string, Handler> = {
-  'appstore-notify': appstoreNotify, 'coach-photos-purge': coachPhotosPurge, 'coach-request-alert': coachRequestAlert,
+  'appstore-notify': appstoreNotify, 'coach-photos-purge': coachPhotosPurge, 'coach-promo-offer': coachPromoOffer,
+  'coach-request-alert': coachRequestAlert,
   'delete-account': deleteAccount, 'push-send': pushSend, report, 'revoke-apple': revokeApple,
   'strava-connect': stravaConnect, 'strava-disconnect': stravaDisconnect, 'strava-export': stravaExport,
   'verify-purchase': verifyPurchase,
 };
 // Appelées par l'app avec un jeton de session (caller, _shared/http.ts)
 const WITH_SESSION: Record<string, Handler> = {
-  'coach-request-alert': coachRequestAlert, 'delete-account': deleteAccount, report, 'revoke-apple': revokeApple,
+  'coach-promo-offer': coachPromoOffer, 'coach-request-alert': coachRequestAlert, 'delete-account': deleteAccount, report, 'revoke-apple': revokeApple,
   'strava-connect': stravaConnect, 'strava-disconnect': stravaDisconnect, 'strava-export': stravaExport,
   'verify-purchase': verifyPurchase,
 };
@@ -153,22 +155,39 @@ Deno.test('push-send : bon secret mais clés APNs absentes → 503 avant de pren
   assert.equal(calls.length, 0, 'file prise alors que l\'envoi est impossible');
 });
 
-Deno.test('coach-photos-purge : bon secret, file vide → 200, une seule demande à la base avec la clé serveur', async () => {
+Deno.test('coach-photos-purge : bon secret, files vides → 200, une demande par compartiment avec la clé serveur', async () => {
   const { res, body, calls } = await call(coachPhotosPurge, request('POST', { headers: { 'x-purge-secret': PURGE_SECRET } }), {
     env: { PHOTOS_PURGE_SECRET: PURGE_SECRET },
-    routes: { 'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse([]) },
+    routes: {
+      'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse([]),
+      'POST /rest/v1/rpc/srv_profile_photo_purge_claim': () => jsonResponse([]),
+    },
   });
   assert.equal(res.status, 200);
   assert.deepEqual(body, { removed: 0, failed: false });
-  assert.deepEqual(calls.map((c) => `${c.method} ${c.path}`), ['POST /rest/v1/rpc/srv_coach_photo_purge_claim']);
-  assert.equal(calls[0].auth, 'Bearer faux-service-role-de-test');
-  // Base en panne : 500, rien d'effacé
+  assert.deepEqual(calls.map((c) => `${c.method} ${c.path}`), ['POST /rest/v1/rpc/srv_coach_photo_purge_claim', 'POST /rest/v1/rpc/srv_profile_photo_purge_claim']);
+  assert.ok(calls.every((c) => c.auth === 'Bearer faux-service-role-de-test'));
+  // Base en panne pour les photos de bilan : 500, rien d'effacé, mais les photos de profil sont quand même purgées
   const down = await call(coachPhotosPurge, request('POST', { headers: { 'x-purge-secret': PURGE_SECRET } }), {
     env: { PHOTOS_PURGE_SECRET: PURGE_SECRET },
-    routes: { 'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse({ code: 'XX000', message: 'panne' }, 500) },
+    routes: {
+      'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse({ code: 'XX000', message: 'panne' }, 500),
+      'POST /rest/v1/rpc/srv_profile_photo_purge_claim': () => jsonResponse([]),
+    },
   });
   assert.equal(down.res.status, 500);
   assert.ok(!down.calls.some((c) => c.path.startsWith('/storage/')), 'stockage touché malgré la panne');
+  assert.ok(down.calls.some((c) => c.path === '/rest/v1/rpc/srv_profile_photo_purge_claim'), 'photos de profil oubliées après la panne de l\'autre compartiment');
+  // Serveur sans la migration de la photo de profil (PGRST202) : les photos de bilan restent purgées
+  const old = await call(coachPhotosPurge, request('POST', { headers: { 'x-purge-secret': PURGE_SECRET } }), {
+    env: { PHOTOS_PURGE_SECRET: PURGE_SECRET },
+    routes: {
+      'POST /rest/v1/rpc/srv_coach_photo_purge_claim': () => jsonResponse([]),
+      'POST /rest/v1/rpc/srv_profile_photo_purge_claim': () => jsonResponse({ code: 'PGRST202', message: 'Could not find the function' }, 404),
+    },
+  });
+  assert.equal(old.res.status, 500, 'échec signalé (la planification le journalise)');
+  assert.equal(old.calls[0].path, '/rest/v1/rpc/srv_coach_photo_purge_claim');
 });
 
 Deno.test('appstore-notify : signature d\'Apple absente ou fausse → 401, rien d\'écrit', async () => {
@@ -188,6 +207,61 @@ Deno.test('verify-purchase : appelant valable, transaction non signée par Apple
     assert.equal(res.status, 400, JSON.stringify(body));
     assert.deepEqual(out, { error: 'invalid_jws' });
     onlyAuthServer(calls);
+  }
+});
+
+Deno.test('coach-promo-offer : corps invalide → 400 ; secrets Apple absents → 503 ; rien demandé à la base', async () => {
+  const cases: [unknown, number, string][] = [
+    [undefined, 400, 'unknown_product'], [{}, 400, 'unknown_product'],
+    [{ productId: 'com.mdlf.training.pro.monthly', introEligible: false }, 400, 'unknown_product'],
+    [{ productId: 'com.mdlf.training.coach10.monthly' }, 400, 'bad_request'],
+    [{ productId: 'com.mdlf.training.coach10.monthly', introEligible: 'non' }, 400, 'bad_request'],
+    [{ productId: 'com.mdlf.training.coach10.monthly', introEligible: false }, 503, 'apple_api_unconfigured'],
+  ];
+  for (const [body, status, error] of cases) {
+    const { res, body: out, calls } = await call(coachPromoOffer, request('POST', { headers: bearer(GOOD), body }), { users: { [GOOD]: fakeUser() } });
+    assert.equal(res.status, status, JSON.stringify(body));
+    assert.deepEqual(out, { error }, JSON.stringify(body));
+    onlyAuthServer(calls);
+  }
+});
+
+Deno.test('coach-promo-offer : droit accordé par la base → JWS ES256 vérifiable, sans exp ; refus de la base relayé', async () => {
+  const { privateKey, publicKey } = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', privateKey));
+  const pem = `-----BEGIN PRIVATE KEY-----\n${btoa(String.fromCharCode(...pkcs8))}\n-----END PRIVATE KEY-----`;
+  // Fausses valeurs, clé tirée pour le test
+  const env = { APPLE_IAP_PRIVATE_KEY: pem, APPLE_IAP_KEY_ID: 'FAUXKEY123', APPLE_ISSUER_ID: 'faux-issuer-de-test' };
+  const product = 'com.mdlf.training.coach20.yearly';
+  const rpc = (answer: unknown) => ({ 'POST /rest/v1/rpc/srv_coach_promo_grant': (c: { body: string }) => {
+    assert.deepEqual(JSON.parse(c.body), { p_user: USER_ID, p_product: product, p_intro_eligible: false });
+    return jsonResponse(answer);
+  } });
+  const ok = await call(coachPromoOffer, request('POST', { headers: bearer(GOOD), body: { productId: product, introEligible: false } }),
+    { env, users: { [GOOD]: fakeUser() }, routes: rpc({ ok: true, offer_id: `${product}.essai2mois` }) });
+  assert.equal(ok.res.status, 200);
+  const out = ok.body as { ok: boolean; offerId: string; jws: string };
+  assert.equal(out.offerId, `${product}.essai2mois`);
+  const [h, p, sig] = out.jws.split('.');
+  const dec = (s: string) => JSON.parse(atob(s.replace(/-/g, '+').replace(/_/g, '/')));
+  assert.deepEqual(dec(h), { alg: 'ES256', kid: 'FAUXKEY123', typ: 'JWT' });
+  const claims = dec(p);
+  assert.equal(claims.aud, 'promotional-offer');
+  assert.equal(claims.bid, 'com.mdlf.training');
+  assert.equal(claims.iss, 'faux-issuer-de-test');
+  assert.equal(claims.productId, product);
+  assert.equal(claims.offerIdentifier, `${product}.essai2mois`);
+  assert.match(claims.nonce, /^[0-9a-f-]{36}$/);
+  assert.ok(Math.abs(claims.iat - nowS()) <= 5);
+  assert.equal('exp' in claims, false, 'Apple refuse une signature qui porte exp');
+  const raw = Uint8Array.from(atob(sig.replace(/-/g, '+').replace(/_/g, '/')), (ch) => ch.charCodeAt(0));
+  assert.ok(await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, publicKey, raw, new TextEncoder().encode(`${h}.${p}`)));
+  // Refus de la base : relayé, rien de signé
+  for (const [error, status] of [['had_coach', 403], ['not_coach', 403], ['intro_eligible', 409], ['rate_limited', 429]] as const) {
+    const r = await call(coachPromoOffer, request('POST', { headers: bearer(GOOD), body: { productId: product, introEligible: false } }),
+      { env, users: { [GOOD]: fakeUser() }, routes: rpc({ ok: false, error }) });
+    assert.equal(r.res.status, status, error);
+    assert.deepEqual(r.body, { error }, error);
   }
 });
 

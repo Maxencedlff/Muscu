@@ -37,8 +37,8 @@ do $$ begin
   if (select count(*) from unnest(array['pro', 'coach10', 'coach20', 'coach30', 'coachmax']) t, unnest(array['monthly', 'yearly']) p
        where private.access_product_kind('com.mdlf.training.' || t || '.' || p) = 'sub') <> 10 then raise 'produits reconnus'; end if;
   if private.access_product_kind('com.mdlf.training.access.gift') is not null then raise 'accès offert revenu'; end if;
-  if private.coach_product_limit('com.mdlf.training.coach20.yearly') <> 20 or private.coach_product_limit('com.mdlf.training.pro.monthly') is not null
-     or private.coach_product_limit('com.mdlf.training.coachmax.monthly') <> 2147483647 then raise 'paliers'; end if;
+  if private.coach_product_limit('com.mdlf.training.coach20.yearly') <> 25 or private.coach_product_limit('com.mdlf.training.pro.monthly') is not null
+     or private.coach_product_limit('com.mdlf.training.coachmax.monthly') <> 100 then raise 'paliers (grille du 17/11)'; end if;
 end $$;
 
 -- ── Demande du rôle coach : envoi, saisie, refus d'un autre compte ──
@@ -88,7 +88,6 @@ set role anon;
 do $$ begin
   if pg_temp.terr($q$ select public.coach_request_submit('Anon A', '123456', 'CQP') $q$) not like 'permission denied%' then raise 'anon envoie une demande'; end if;
   if pg_temp.terr($q$ select public.coach_request_state() $q$) not like 'permission denied%' then raise 'anon lit une demande'; end if;
-  if pg_temp.terr($q$ select public.student_offer_code() $q$) not like 'permission denied%' then raise 'anon demande un code d''offre'; end if;
   if pg_temp.terr($q$ select public.coach_tier_state() $q$) not like 'permission denied%' then raise 'anon lit un palier'; end if;
 end $$;
 reset role;
@@ -169,10 +168,10 @@ begin
   perform pg_temp.tlogin(pg_temp.tu('10'));
   st := public.coach_tier_state();
   if not (st ->> 'full')::boolean or (st ->> 'students')::int <> 10 then raise 'palier plein : %', st; end if;
-  -- Montée au palier 20 (même groupe Apple : une nouvelle transaction de la même souscription)
+  -- Montée au palier 20, 25 élèves depuis la grille du 17/11 (même groupe Apple : une nouvelle transaction de la même souscription)
   if pg_temp.tsrv(format('select public.srv_access_event(%L, %L, %L, false, now() + interval ''1 second'')', 'tx-coach10',
        'com.mdlf.training.coach20.monthly', now() + interval '30 days')) is distinct from 'ok' then raise 'montée de palier'; end if;
-  if (public.coach_tier_state() ->> 'limit')::int <> 20 then raise 'palier 20 : %', public.coach_tier_state(); end if;
+  if (public.coach_tier_state() ->> 'limit')::int <> 25 then raise 'palier 20 : %', public.coach_tier_state(); end if;
   perform pg_temp.tlogin(pg_temp.tn(11));
   perform public.coach_join(c);
   -- Descente au palier 10 : les 11 restent, aucun 12e
@@ -182,7 +181,7 @@ begin
   if pg_temp.terr(format('select public.coach_join(%L)', c)) is distinct from 'tier_full' then raise '12e après la descente'; end if;
   reset role;
   if (select count(*) from public.coach_links where coach_id = pg_temp.tu('10')) <> 11 then raise 'élèves gardés après la descente'; end if;
-  -- Illimité (coachmax) : au-delà de 30 et de l'ancienne limite de 50
+  -- Palier max (coachmax, 100 élèves depuis la grille du 17/11) : au-delà de 30 et de l'ancienne limite de 50
   set role authenticated;
   if pg_temp.tsrv(format('select public.srv_access_event(%L, %L, %L, false, now() + interval ''3 seconds'')', 'tx-coach10',
        'com.mdlf.training.coachmax.yearly', now() + interval '365 days')) is distinct from 'ok' then raise 'palier illimité'; end if;
@@ -192,43 +191,33 @@ begin
   end loop;
   perform pg_temp.tlogin(pg_temp.tu('10'));
   st := public.coach_tier_state();
-  if st -> 'limit' <> 'null'::jsonb or (st ->> 'students')::int <> 31 or (st ->> 'full')::boolean or st -> 'next_product' <> 'null'::jsonb then raise 'illimité : %', st; end if;
+  if (st ->> 'limit')::int <> 100 or (st ->> 'students')::int <> 31 or (st ->> 'full')::boolean or st -> 'next_product' <> 'null'::jsonb
+     or (st ->> 'contact')::boolean then raise 'palier max : %', st; end if;
 end $$;
 reset role;
 
--- ── Élève : plus de gratuité, attribution gardée, code d'offre ──
-insert into public.coach_offer_codes (code, environment, expires_at, batch) values
-  ('PRODCODE0001', 'Production', now() + interval '90 days', 'test'),
-  ('PRODCODE0002', 'Production', now() + interval '90 days', 'test'),
-  ('SANDCODE0001', 'Sandbox',    now() + interval '90 days', 'test'),
-  ('OLDCODE00001', 'Production', now() + interval '2 days',  'test');
+-- ── Élève : offert par son coach (règle du 16/11/2026, détail dans eleves_gratuits_test.sql) ──
 set role authenticated;
 do $$
-declare st jsonb; r jsonb;
+declare st jsonb;
 begin
-  -- Élève lié par le code du coach : pas d'accès gratuit, verrou allumé
+  -- Élève lié par le code d'un coach abonné (palier illimité) : accès complet sans payer, verrou allumé
   perform pg_temp.tlogin(pg_temp.tn(1));
   st := public.my_access();
-  if st ->> 'status' <> 'none' or (st ->> 'can_write')::boolean or (st ->> 'coach_team')::boolean then raise 'élève gratuit : %', st; end if;
-  -- Son code d'offre −25 % : le même à chaque appel, jamais un code proche de l'expiration
-  r := public.student_offer_code();
-  if not (r ->> 'ok')::boolean or r ->> 'code' <> 'PRODCODE0001' or r -> 'coach' ->> 'username' <> 'marc.t1' then raise 'code élève : %', r; end if;
-  if public.student_offer_code() ->> 'code' <> 'PRODCODE0001' then raise 'code élève non idempotent'; end if;
-  if public.student_offer_code('Sandbox') ->> 'code' <> 'SANDCODE0001' then raise 'code Sandbox'; end if;
-  perform pg_temp.tlogin(pg_temp.tn(2));
-  if public.student_offer_code() ->> 'code' <> 'PRODCODE0002' then raise 'deuxième élève'; end if;
-  perform pg_temp.tlogin(pg_temp.tn(3));
-  if public.student_offer_code() ->> 'error' <> 'no_code' then raise 'stock vide : %', public.student_offer_code(); end if;
-  -- Un compte qui n'est l'élève de personne : refusé
+  if st ->> 'status' <> 'coach_team' or not (st ->> 'can_write')::boolean or not (st ->> 'coach_team')::boolean
+     or st -> 'coach_cover' ->> 'state' <> 'active' or st -> 'coach_cover' ->> 'coach' <> 'marc.t1' then raise 'élève offert : %', st; end if;
+  -- L'offre élève −25 % (code d'offre Apple) n'existe plus
+  if pg_temp.terr($q$ select public.student_offer_code() $q$) not like '%does not exist%' then raise 'offre élève restée'; end if;
+  -- Un compte qui n'est l'élève de personne : règle normale
   perform pg_temp.tlogin(pg_temp.tu('13'));
-  if public.student_offer_code() ->> 'error' <> 'not_student' then raise 'non élève'; end if;
-  -- Un élève déjà abonné : pas un nouveau client
+  if public.my_access() -> 'coach_cover' <> 'null'::jsonb or (public.my_access() ->> 'can_write')::boolean then raise 'non élève'; end if;
+  -- Un élève qui a son propre abonnement reste « active » (il peut le résilier), l'offre du coach est dite
   if pg_temp.tsrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.tn(4),
        'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-eleve4')) is distinct from 'ok' then raise 'abonnement élève'; end if;
   perform pg_temp.tlogin(pg_temp.tn(4));
-  if public.student_offer_code() ->> 'error' <> 'not_new' then raise 'déjà abonné'; end if;
-  if public.my_access() ->> 'status' <> 'active' then raise 'élève abonné : %', public.my_access(); end if;
-  -- Personne ne lit le stock ni les attributions
+  st := public.my_access();
+  if st ->> 'status' <> 'active' or st -> 'coach_cover' ->> 'state' <> 'active' then raise 'élève abonné : %', st; end if;
+  -- Personne ne lit le stock (table gardée, plus lue) ni les attributions
   if pg_temp.terr($q$ select * from public.coach_offer_codes $q$) not like 'permission denied%' then raise 'stock lisible'; end if;
   if pg_temp.terr($q$ select * from public.referral_attributions $q$) not like 'permission denied%' then raise 'attributions lisibles'; end if;
 end $$;
@@ -269,9 +258,10 @@ begin
   perform pg_temp.tlogin(pg_temp.tn(30));
   perform public.coach_leave();
   if pg_temp.terr(format('select public.coach_join(%L)', c)) is distinct from 'invalid_code' then raise 'ajout après retrait'; end if;
-  -- Sans rôle, plus de code d'offre pour ses élèves
+  -- Sans rôle, ses élèves gardent l'accès offert 7 jours (délai de grâce), puis plus rien
   perform pg_temp.tlogin(pg_temp.tn(5));
-  if public.student_offer_code() ->> 'error' <> 'not_student' then raise 'code d''offre d''un coach retiré'; end if;
+  if public.my_access() -> 'coach_cover' ->> 'state' <> 'grace' or public.my_access() ->> 'status' <> 'coach_team'
+    then raise 'élève d''un coach retiré : %', public.my_access(); end if;
   -- L'abonnement coach acheté reste un accès complet
   perform pg_temp.tlogin(pg_temp.tu('10'));
   if public.my_access() ->> 'status' <> 'active' then raise 'accès du coach retiré'; end if;

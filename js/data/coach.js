@@ -205,9 +205,11 @@ function coachInviteText(code) {
   const c = String(code || '');
   // Code permanent (12 caractères) : écrit en trois groupes, sans date de fin
   const shown = c.length === 12 ? formatCoachCode(c) : c;
-  // La remise de 25 % n'existe que verrou allumé (tout est ouvert sinon) : pas de promesse avant
+  // Élève offert (décision du 16/11/2026) : promis seulement verrou allumé ET abonnement coach en cours
+  // (tout est ouvert sinon, et sans abonnement coach rien n'est offert)
+  const offered = paywallOn() && typeof coachPro !== 'undefined' && !!coachPro.tier?.product_id;
   const end = c.length !== 12 ? 'Il est valable 7 jours.'
-    : paywallOn() ? 'Avec ce code, ton abonnement est à 25 % de moins pendant 12 mois.' : 'Ce code n\'expire pas.';
+    : offered ? 'Avec ce code, tu n\'as rien à payer : ton accès est compris dans mon abonnement coach.' : 'Ce code n\'expire pas.';
   return `Je te propose de te suivre sur MDLF Training. Dans l'app MDLF Training : onglet Social › Rejoindre un coach, puis saisis le code ${shown}. ${end}`;
 }
 // Code permanent : K7M2QX9PR4TD → K7M2-QX9P-R4TD (les tirets sont ignorés à la saisie)

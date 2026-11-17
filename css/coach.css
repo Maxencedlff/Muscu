@@ -319,6 +319,7 @@ select.coach-req-field__input:invalid { color: var(--label2); }
 .coach-req-foot { margin-top: 12px; }
 .coach-req-reason { color: var(--label); }
 .pay-banner.coach-tier-banner { margin-bottom: 16px; background: var(--cell); }   /* « Voir » en bleu lisible (contraste 4,5:1) */
+.coach-tier-banner--contact { text-decoration: none; -webkit-tap-highlight-color: transparent; }   /* lien mailto : même allure que le bandeau */
 .coach-code-cell .coach-code { letter-spacing: 1px; }
 
 /* ── Progression des élèves (js/features/coach-progress-ui.js) ──
@@ -440,8 +441,12 @@ html.type-xl .cph-daybtn span { white-space: normal; }
 .cstu .cstu__foot .cs-badges { order: 0; margin: 0; flex-wrap: wrap; }
 /* Régularité : 7 points, aujourd'hui à droite ; plein = au moins une séance ce jour-là (le vert de « fait », comme
    la semaine de l'accueil), cerclé = aujourd'hui sans séance */
-.cstu__top { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.cstu__top .social-row__name { flex: 0 1 auto; min-width: 0; }
+/* Le pseudo d'abord : s'il ne tient pas à côté des 7 points (iPhone SE, pseudo long), les points passent dessous ;
+   avant, le pseudo était coupé (« eleve… ») et 150 élèves devenaient indiscernables (mesures du 17/11, tests/charge/) */
+.cstu__top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.cstu__top .social-row__name { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+/* Pseudo plus large que la carte (20 caractères sur un téléphone étroit) : à la ligne plutôt que coupé */
+.coach-student-row.cstu .cstu__top .social-row__name { white-space: normal; overflow-wrap: anywhere; }
 .cstu__days { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
 .cstu__day { width: 9px; height: 9px; border-radius: 50%; background: var(--fill); }
 .cstu__day--on { background: var(--check-on); }

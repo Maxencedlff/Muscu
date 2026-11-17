@@ -10,9 +10,19 @@
 // 3. Ce qui est effacé n'était lisible par personne avant même cette purge : la ligne qui permettait de le lire
 //    et de le déchiffrer a disparu dans la même transaction que le retrait (crypto-effacement). La purge retire
 //    le chiffré lui-même.
-// 4. Réponse : { removed, failed } ; aucun chemin dans les journaux.
+// 4. Deuxième compartiment, profile-photos (photo de profil, docs/PHOTO_PROFIL.md) : même file et même règle,
+//    traité après le premier et séparément (PURGE_BUCKETS).
+// 5. Réponse : { removed, failed } ; aucun chemin dans les journaux.
 import { adminClient, env, json } from '../_shared/http.ts';
 import { purgeRound, PURGE_ROUNDS, sameSecret } from './purge-policy.js';
+
+// Deux compartiments, même file, même règle : photos de bilan (docs/PHOTOS_BILAN.md) et photos de profil
+// (docs/PHOTO_PROFIL.md, migration 20261117010000). Traités l'un après l'autre et séparément : un échec sur l'un
+// (migration pas encore appliquée, API Storage en panne) n'empêche jamais de purger l'autre.
+export const PURGE_BUCKETS = [
+  { bucket: 'coach-photos', claim: 'srv_coach_photo_purge_claim', done: 'srv_coach_photo_purge_done' },
+  { bucket: 'profile-photos', claim: 'srv_profile_photo_purge_claim', done: 'srv_profile_photo_purge_done' },
+];
 
 export async function handler(req: Request): Promise<Response> {
   const secret = env('PHOTOS_PURGE_SECRET');
@@ -20,27 +30,31 @@ export async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   const admin = adminClient();
   let removed = 0, failed = false;
-  for (let i = 0; i < PURGE_ROUNDS && !failed; i++) {
-    const r = await purgeRound({
-      claim: async (n: number) => {
-        const { data, error } = await admin.rpc('srv_coach_photo_purge_claim', { max_n: n });
-        if (error) throw new Error(error.code);
-        return data;
-      },
-      remove: async (paths: string[]) => {
-        const { error } = await admin.storage.from('coach-photos').remove(paths);
-        return { ok: !error };
-      },
-      done: async (paths: string[]) => {
-        const { error } = await admin.rpc('srv_coach_photo_purge_done', { paths });
-        if (error) throw new Error(error.code);
-      },
-    }).catch(() => ({ taken: 0, removed: 0, failed: true }));
-    removed += r.removed;
-    failed = r.failed;
-    if (!r.taken) break;
+  for (const b of PURGE_BUCKETS) {
+    let bucketFailed = false;
+    for (let i = 0; i < PURGE_ROUNDS && !bucketFailed; i++) {
+      const r = await purgeRound({
+        claim: async (n: number) => {
+          const { data, error } = await admin.rpc(b.claim, { max_n: n });
+          if (error) throw new Error(error.code);
+          return data;
+        },
+        remove: async (paths: string[]) => {
+          const { error } = await admin.storage.from(b.bucket).remove(paths);
+          return { ok: !error };
+        },
+        done: async (paths: string[]) => {
+          const { error } = await admin.rpc(b.done, { paths });
+          if (error) throw new Error(error.code);
+        },
+      }).catch(() => ({ taken: 0, removed: 0, failed: true }));
+      removed += r.removed;
+      bucketFailed = r.failed;
+      if (!r.taken) break;
+    }
+    if (bucketFailed) console.error(`coach-photos-purge: tour interrompu (${b.bucket}), repris à la prochaine planification`);
+    failed = failed || bucketFailed;
   }
-  if (failed) console.error('coach-photos-purge: tour interrompu, repris à la prochaine planification');
   return json({ removed, failed }, failed ? 500 : 200);
 }
 

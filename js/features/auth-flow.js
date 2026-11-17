@@ -120,7 +120,8 @@ async function refreshReferralSlot() {
 
 // Pseudo en cours de saisie (normalisé), sinon celui du compte : son initiale remplace l'avatar
 function flowUsername() { return normalizeUsername(flow.username) || account.profile?.username || ''; }
-function flowAvatarHtml() { return avatarHtml('xl', flow.avatar, flowUsername()); }
+// Sans la photo de profil : c'est l'emoji (ou l'initiale) qu'on choisit ici
+function flowAvatarHtml() { return avatarHtml('xl', flow.avatar, flowUsername(), null); }
 
 const AUTH_STEPS = {
   welcome: () => flow.context === 'paywall' ? `

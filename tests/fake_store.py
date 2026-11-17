@@ -8,7 +8,9 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md (MODÈLE B : l'essai gratuit est l'offr
 - RPC `my_access()` (crée la ligne `entitlements` au premier appel, SANS rien donner : plus d'essai
   maison) et `access_state()` (lecture seule, renvoie null sans ligne). Statuts : `none`, `active`
   (offre de lancement comprise : `intro_offer`, `intro_until`), `expired`, `gift` (code maison),
-  `coach_team` ;
+  `coach_team` (élève offert par son coach, 16/11/2026) et `coach_cover` : `__st.setCover(state, { coach,
+  days })` pose l'offre du coach du compte connecté, comme le serveur la calcule (`active`, `grace` avec
+  une fin dans `days` jours, `over_limit`, `ended`) ;
 - RPC `redeem_gift_code(code)` : code cadeau maison, saisie souple. Un refus de code n'est **pas** une
   exception : elle renvoie `{ ok, error, kind, access }` avec `error` valant `invalid_code`,
   `code_expired`, `code_used_up` ou `already_redeemed`. Seul `rate_limited` (10 essais par heure) est
@@ -26,7 +28,7 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md (MODÈLE B : l'essai gratuit est l'offr
   utilisé sur cet identifiant Apple) ;
   `purchase({ productId, appAccountToken? })` NE REJETTE PAS : il résout
   `{ status: 'success' | 'userCancelled' | 'pending' }`, et pour un succès la transaction entière ;
-  un achat avec l'offre (introEligible) est un essai gratuit de 3 mois côté serveur (`intro_offer`) ;
+  un achat avec l'offre (introEligible) est un essai gratuit (3 mois particulier, 2 mois coach) côté serveur (`intro_offer`) ;
   `finish({ transactionId })` → `{ finished, reason? }` ; `restore()` → `{ synced, cancelled,
   entitlements, unverified }` ; `current()` → `{ entitlements, unverified }` ; `status()` →
   `{ canMakePayments, subscriptionIds }` ; `redeemCode()` → `{ presented: true }` ou
@@ -69,23 +71,32 @@ FAKE_STORE = r"""
         displayPrice: '6,49 €', price: 6.49, currency: 'EUR', period: { unit: 'month', value: 1 }, introEligible: true },
       { id: 'com.mdlf.training.pro.yearly', displayName: 'MDLF Training annuel', description: 'Abonnement annuel',
         displayPrice: '55,00 €', price: 55, currency: 'EUR', period: { unit: 'year', value: 1 }, introEligible: true },
-      // Paliers coach (tarifs du 30/10), mêmes clés : visibles dans l'app pour un coach validé seulement
-      ...[['coach10', 15.99, 134.99, '10 élèves'], ['coach20', 19.99, 169, '20 élèves'], ['coach30', 24.99, 209.99, '30 élèves'],
-          ['coachmax', 29.99, 250, 'illimité']].flatMap(([k, m, y, l]) => [
+      // Paliers coach (grille du 17/11 : 10, 25, 50, 100 élèves), mêmes clés : visibles dans l'app pour un coach validé
+      // seulement. Prix volontairement FICTIFS (les vrais sont dans App Store Connect) : s'ils s'affichent, ils viennent
+      // bien de StoreKit ; annuel ≈ 8,5 mois
+      ...[['coach10', 11.11, 94.4, '10 élèves'], ['coach20', 22.22, 188.8, '25 élèves'], ['coach30', 33.33, 283.3, '50 élèves'],
+          ['coachmax', 44.44, 377.7, '100 élèves']].flatMap(([k, m, y, l]) => [
         { id: `com.mdlf.training.${k}.monthly`, displayName: `Coach ${l}`, description: 'Coach, mensuel',
           displayPrice: m.toFixed(2).replace('.', ',') + ' €', price: m, currency: 'EUR', period: { unit: 'month', value: 1 }, introEligible: true },
         { id: `com.mdlf.training.${k}.yearly`, displayName: `Coach ${l}`, description: 'Coach, annuel',
           displayPrice: y.toFixed(2).replace('.', ',') + ' €', price: y, currency: 'EUR', period: { unit: 'year', value: 1 }, introEligible: true }]),
     ],
     environment: 'production',
-    // Offre élève : codes d'offre d'Apple à usage unique distribués par student_offer_code
-    offerCodes: ['STUDENTCODE01', 'STUDENTCODE02', 'STUDENTCODE03'], offerGiven: {},
+    // Offre du coach par compte (élèves offerts, 16/11/2026) : { state, until, coach }
+    covers: {},
+    // Essai coach par offre promotionnelle (17/11/2026) : promoOffers rendu par products() (build 69 ;
+    // false = build plus ancienne, sans la clé) ; droit côté serveur par compte (coach_promo_state) ;
+    // signatures demandées à coach-promo-offer ; promoRefused : Apple refuse l'offre à l'achat.
+    promoOffers: true, coachPromo: {}, promoSigned: [], promoRefused: false,
   }, window.__stOpts || {});
   const DAY = 86400000, HOUR = 3600000;
   const BUNDLE = 'com.mdlf.training';
   const SUB_IDS = ['pro', 'coach10', 'coach20', 'coach30', 'coachmax'].flatMap(k => [`com.mdlf.training.${k}.monthly`, `com.mdlf.training.${k}.yearly`]);
   const TRIAL = { unit: 'month', value: 3 };
   const OFFER = { displayPrice: '0,00 €', price: 0, paymentMode: 'freeTrial', period: { unit: 'month', value: 3 }, periodCount: 1 };
+  // Offre promotionnelle « <produit>.essai2mois » d'App Store Connect, sur les 8 abonnements coach
+  const PROMO = { displayPrice: '0,00 €', price: 0, paymentMode: 'freeTrial', period: { unit: 'month', value: 2 }, periodCount: 1 };
+  const isCoachId = id => /^com\.mdlf\.training\.coach/.test(id);
 
   // Deux horloges : celle de l'appareil (que les tests trafiquent) et celle du serveur
   const realNow = Date.now;
@@ -113,6 +124,9 @@ FAKE_STORE = r"""
     environment: tx.environment || 'production',
     subscription: SUB_IDS.includes(tx.productId),
     reason: tx.reason || 'purchase',
+    // Seulement dans current() et restore() (état de la souscription, iOS 17, build 69) ; `__st.owned.willAutoRenew = false` :
+    // résilié chez Apple, il ne se renouvelle plus
+    ...(tx.withRenewal ? { willAutoRenew: tx.willAutoRenew !== false } : {}),
   });
 
   const me = () => (window.__sb && __sb.meId ? __sb.meId() : null);
@@ -126,33 +140,35 @@ FAKE_STORE = r"""
     }
     return e || null;
   };
-  // Élève d'un coach (état du faux coach de fake_account) : plus de gratuité depuis le 30/10
-  const coachOf = uid => (window.__sb && __sb.co ? (__sb.co.links.find(l => l.student === uid) || {}).coach || null : null);
 
   // Ce que my_access() / access_state() renvoient, calculé à l'heure du SERVEUR
-  // gift > active > expired > none ; aucun essai maison, plus d'élève gratuit (coach_team toujours faux)
+  // gift > active > coach_team > expired > none ; aucun essai maison ; élève offert par son coach (16/11)
   const stateOf = (uid, e) => {
     const now = serverNow();
-    const coach = false;
+    const cover = st.covers[uid] || null;
+    const coach = !!cover && (cover.state === 'active' || cover.state === 'grace');
     const giftDays = e.gift_until !== null && e.gift_until > now ? e.gift_until : null;
     const paid = e.expires_at !== null && e.expires_at > now ? e.expires_at : null;
     let status, until = null;
     if (e.gift) status = 'gift';
     else if (giftDays && (!paid || giftDays > paid)) { status = 'gift'; until = giftDays; }
     else if (paid) { status = 'active'; until = paid; }
-    else if (coach) status = 'coach_team';
+    else if (coach) { status = 'coach_team'; until = cover.state === 'grace' ? cover.until : null; }
     else if (e.expires_at !== null || e.gift_until !== null || e.ended !== null) {
       status = 'expired'; until = Math.max(e.expires_at || 0, e.gift_until || 0, e.ended || 0) || null;
     } else status = 'none';
     const intro = status === 'active' && !!e.intro;
-    const days = (status === 'active' || status === 'gift') && until !== null ? Math.max(0, Math.ceil((until - now) / DAY)) : null;
+    const days = (status === 'active' || status === 'gift' || status === 'coach_team') && until !== null ? Math.max(0, Math.ceil((until - now) / DAY)) : null;
     return { status, until: iso(until), paywall_on: !!st.paywallOn, days_left: days,
       can_write: !st.paywallOn || ['active', 'gift', 'coach_team'].includes(status),
       gift: !!e.gift || !!giftDays, gift_until: iso(e.gift_until), coach_team: coach,
+      coach_cover: cover ? { state: cover.state, until: iso(cover.until), coach: cover.coach } : null,
       intro_offer: intro, intro_until: intro ? iso(until) : null, server_now: iso(now) };
   };
 
   st.giveGift = () => { const e = row(me(), true); e.gift = true; };
+  st.setCover = (state, { coach = 'lucas', days = 5 } = {}) => {
+    st.covers[me()] = state ? { state, coach, until: state === 'grace' ? serverNow() + days * DAY : null } : null; };
   st.subscribe = (productId = 'com.mdlf.training.pro.yearly', days = 365, { intro = false } = {}) => {
     const e = row(me(), true); e.product_id = productId; e.intro = intro; e.status = 'active';
     e.expires_at = serverNow() + days * DAY; e.original_transaction_id = 'orig-' + (++st.n); };
@@ -192,15 +208,8 @@ FAKE_STORE = r"""
     my_access: uid => stateOf(uid, row(uid, true)),
     access_state: uid => { const e = row(uid, false); return e ? stateOf(uid, e) : null; },
     redeem_gift_code: (uid, args) => redeem(uid, args.code),
-    // Offre élève : élève d'un coach validé, jamais abonné ; même code tant qu'il n'a pas expiré
-    student_offer_code: uid => {
-      const coach = coachOf(uid);
-      const e = row(uid, true);
-      if (!coach || !(__sb.co.coachAt || {})[coach]) return { ok: false, error: 'not_student', code: null };
-      if (e.original_transaction_id || e.expires_at !== null || st.everSubscribed) return { ok: false, error: 'not_new', code: null };
-      if (!st.offerGiven[uid]) { const c = st.offerCodes.shift(); if (!c) return { ok: false, error: 'no_code', code: null }; st.offerGiven[uid] = c; }
-      return { ok: true, error: null, code: st.offerGiven[uid], expires_at: iso(serverNow() + 90 * DAY), coach: { user_id: coach } };
-    },
+    // Essai coach offert : __st.coachPromo[compte] = { eligible, reason } (défaut : pas coach)
+    coach_promo_state: uid => st.coachPromo[uid] || { eligible: false, reason: 'not_coach' },
   };
   const callAccess = async (fn, args) => {
     log('access', fn, JSON.stringify(args || {}));
@@ -240,8 +249,28 @@ FAKE_STORE = r"""
     e.expires_at = tx.expiresAt;
     e.status = 'active';
     e.intro = !!tx.intro;            // offerType 1 dans la transaction signée
+    // Un abonnement coach écrit : l'essai coach offert n'est plus jamais proposé (private.coach_sub_seen)
+    if (isCoachId(tx.productId)) st.coachPromo[uid] = { eligible: false, reason: 'had_coach' };
     e.env = tx.environment === 'sandbox' ? 'Sandbox' : 'Production';   // Sandbox ACCEPTÉ et enregistré
     return { data: { ok: true, access: stateOf(uid, e) }, error: null };
+  };
+
+  // ── coach-promo-offer : signe l'offre si le serveur y donne droit (jamais si l'essai de lancement est accordé) ──
+  const signPromo = async body => {
+    log('promoSign', JSON.stringify(body || {}));
+    if (st.fail.access === 'offline') throw new TypeError('Failed to fetch');
+    const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError',
+      message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
+    const uid = me();
+    if (!uid) return fail(401, { error: 'auth' });
+    const productId = body && body.productId;
+    if (!isCoachId(String(productId))) return fail(400, { error: 'unknown_product' });
+    if (body.introEligible !== false) return fail(409, { error: 'intro_eligible' });
+    const right = st.coachPromo[uid];
+    if (!right || !right.eligible) return fail(403, { error: (right && right.reason) || 'not_coach' });
+    const offerId = productId + '.essai2mois';
+    st.promoSigned.push({ uid, productId, offerId });
+    return { data: { ok: true, offerId, jws: 'promo.' + b64({ productId, offerId }) + '.sig' }, error: null };
   };
 
   // ── app_config : sans compte, seule la ligne paywall_on (politique anon) ──
@@ -266,26 +295,29 @@ FAKE_STORE = r"""
   const period = id => (id.endsWith('yearly') ? 365 : 30);
   // Achat : avec l'offre de lancement si la personne y a droit (3 mois gratuits, une seule fois par
   // identifiant Apple : c'est Apple qui le garantit, d'où introEligible qui passe à faux)
-  const buy = productId => {
+  // promo : offre promotionnelle appliquée (2 mois gratuits, offerType 2 : pas l'offre de lancement)
+  const buy = (productId, promo = false) => {
     const p = st.products.find(x => x.id === productId);
     if (!p) throw new Error('produit inconnu');
     const n = ++st.n;
-    const intro = !!st.introEligible;
+    const intro = !promo && !!st.introEligible;
     st.introEligible = false;
-    st.owned = { productId, originalId: 'apple-' + n, transactionId: 'tx-' + n, intro,
-      expiresAt: serverNow() + (intro ? 90 : period(productId)) * DAY };
+    st.owned = { productId, originalId: 'apple-' + n, transactionId: 'tx-' + n, intro, promo,
+      expiresAt: serverNow() + (intro ? (/\.coach/.test(productId) ? 60 : 90) : promo ? 60 : period(productId)) * DAY };
     return st.owned;
   };
   const openTx = tx => { if (!st.open.includes(tx.transactionId)) st.open.push(tx.transactionId); return tx; };
   const entitlements = () => {
-    const list = [st.owned].filter(Boolean).map(tx => { openTx(tx); return describeTx(tx); });
+    const list = [st.owned].filter(Boolean).map(tx => { openTx(tx); return describeTx({ ...tx, withRenewal: true }); });
     return { entitlements: list, unverified: st.unverified || 0 };
   };
   const describeProduct = p => {
     const eligible = !!st.introEligible && p.introEligible !== false;
     const out = { ...p, introEligible: eligible };
     delete out.offer;
-    if (eligible) out.offer = { ...OFFER };
+    // Essai d'Apple : 3 mois pour le particulier, 2 mois pour les formules coach (décision du 17/11/2026)
+    if (eligible) out.offer = /\.coach/.test(p.id) ? { ...OFFER, period: { unit: 'month', value: 2 } } : { ...OFFER };
+    if (st.promoOffers) out.promoOffers = isCoachId(p.id) ? [{ id: p.id + '.essai2mois', ...PROMO }] : [];
     return out;
   };
   const storePlugin = {
@@ -295,8 +327,20 @@ FAKE_STORE = r"""
       return { products: st.products.filter(p => !miss.includes(p.id)).map(describeProduct),
         missing: [...miss], canMakePayments: st.canMakePayments !== false };
     },
-    purchase: async ({ productId, appAccountToken }) => {
-      log('purchase', productId, appAccountToken || '');
+    purchase: async ({ productId, appAccountToken, promoOfferId, promoJws }) => {
+      log('purchase', productId, appAccountToken || '', promoOfferId || '');
+      // Offre promotionnelle : seulement avec la signature du serveur, pour CE produit ; Apple refuse sinon
+      if (promoOfferId || promoJws) {
+        let signed = null;
+        try { signed = /^promo\..*\.sig$/.test(String(promoJws)) ? unb64(String(promoJws).slice(6, -4)) : null; } catch (e) { signed = null; }
+        if (st.promoRefused || !signed || signed.productId !== productId || signed.offerId !== promoOfferId) {
+          throw Object.assign(new Error('Offre refusée'), { code: 'PROMO_REFUSED' });
+        }
+        if (st.fail.purchase === 'cancel') return { status: 'userCancelled' };
+        const tx = buy(productId, true);
+        openTx(tx);
+        return { status: 'success', ...describeTx(tx) };
+      }
       if (st.fail.purchase === 'cancel') return { status: 'userCancelled' };
       if (st.fail.purchase === 'pending') return { status: 'pending' };
       if (st.fail.purchase === 'fail') return { status: 'unknown' };
@@ -379,7 +423,8 @@ FAKE_STORE = r"""
     const rpc = c.rpc.bind(c), invoke = c.functions.invoke.bind(c.functions);
     const from = c.from.bind(c);
     c.rpc = (fn, a) => (accessRpcs[fn] ? callAccess(fn, a) : rpc(fn, a));
-    c.functions = { invoke: (fn, o) => (fn === 'verify-purchase' ? verifyPurchase(o && o.body) : invoke(fn, o)) };
+    c.functions = { invoke: (fn, o) => (fn === 'verify-purchase' ? verifyPurchase(o && o.body)
+      : fn === 'coach-promo-offer' ? signPromo(o && o.body) : invoke(fn, o)) };
     c.from = table => {
       if (table === 'app_config') return appConfigQuery();
       const chain = from(table);

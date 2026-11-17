@@ -9,6 +9,11 @@
 //    abonnements (Apple garantit un seul essai par identifiant Apple). Il n'y a plus d'essai maison :
 //    sans abonnement, cadeau maison ni coach, pas de droit d'écrire quand le verrou est allumé. Un
 //    abonné en essai est 'active' avec `intro_offer` et `intro_until` (lus dans la transaction signée).
+//  - ÉLÈVE OFFERT PAR SON COACH (décision du 16/11/2026) : un élève d'un coach abonné, dans la limite
+//    du palier de son coach, a le statut 'coach_team' sans rien payer. `coach_cover` dit pourquoi :
+//    'active' (offert), 'grace' (offert jusqu'à `until`, 7 jours après la fin de l'abonnement coach,
+//    une descente de palier ou un retrait du rôle), 'over_limit' (le coach dépasse son palier) ou
+//    'ended' (le coach n'a plus d'abonnement coach). Plus d'offre élève à −25 %.
 //  - LE SERVEUR FAIT FOI. Tout ce qu'il renvoie est nettoyé ici (cleanAccess : liste blanche, bornes),
 //    et l'écran (js/features/paywall-ui.js) échappe tout texte reçu.
 //  - L'HORLOGE DE L'APPAREIL NE DÉCIDE JAMAIS. Le droit d'écrire est celui que le serveur a calculé à
@@ -33,9 +38,8 @@
 //  - ACCÈS À VIE : seulement OFFERT (code cadeau à vie ou attribution par l'administrateur), jamais
 //    vendu (achat à vie refusé par Maxence le 31/10/2026). Le serveur le rend comme le statut 'gift'
 //    sans date de fin (accessGiftForever).
-//  - TESTFLIGHT : l'environnement StoreKit de l'app (accessStoreEnvironment) est lu. Sous TestFlight
-//    (Sandbox), AUCUN code d'offre élève n'est demandé : un code ne s'y utilise pas par la page d'Apple
-//    (voir accessStudentOffer). Ailleurs, un code de Production.
+//  - TESTFLIGHT : l'environnement StoreKit de l'app (accessStoreEnvironment) est lu, pour choisir le lien
+//    de l'écran « Mets à jour l'app » (js/app/updates.js).
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran s'abonne par onAccessChange.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -67,7 +71,9 @@ const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
 // state : dernier état lu pendant ce lancement ; cached : dernier état gardé sur l'appareil
 const access = { userId: null, state: null, cached: null, loading: false, again: false, error: null, loadedAt: 0,
   products: null, missing: null, productsAt: 0, buying: null, verifying: false, syncing: false,
-  canPay: true, refused: new Set(), currentProduct: null, studentOffer: null, storeEnv: null,
+  canPay: true, refused: new Set(), currentProduct: null, currentRenews: null, currentExpires: null, storeEnv: null,
+  // Essai coach par offre promotionnelle : { eligible, reason } lu chez le serveur (coach_promo_state), null inconnu
+  coachPromo: null,
   // Sans compte : verrou lu dans app_config (true, false, ou null tant qu'il n'a jamais été lu)
   anon: readAnonPaywall(), anonAt: 0, anonLoading: false, firstSeen: null };
 const accessListeners = [];
@@ -86,8 +92,8 @@ const accessTime = v => { const t = typeof v === 'number' ? v : Date.parse(v); r
 const accessInt = (v, max) => (Number.isInteger(v) && v >= 0 && v <= max ? v : null);
 
 // my_access() / access_state() nettoyé, ou null si inutilisable :
-// { status, until, paywall_on, days_left, can_write, gift, gift_until, coach_team, intro_offer,
-//   intro_until, server_now }.
+// { status, until, paywall_on, days_left, can_write, gift, gift_until, coach_team, coach_cover,
+//   intro_offer, intro_until, server_now }.
 // Sans `server_now`, rien n'est gardé : l'app ne saurait pas quand cet état a été lu, et l'horloge de
 // l'appareil ne sert jamais à le décider. `can_write` est forcé à vrai quand le verrou est éteint
 // (même règle que le serveur : rien ne bloque tant que `paywall_on` est faux).
@@ -108,11 +114,21 @@ function cleanAccess(raw) {
     gift: r.gift === true,
     gift_until: accessTime(r.gift_until),
     coach_team: r.coach_team === true,
+    coach_cover: cleanCoachCover(r.coach_cover),
     // Abonnement dans son offre de lancement (essai gratuit d'Apple) et fin de cette offre
     intro_offer: r.intro_offer === true && r.status === 'active',
     intro_until: r.intro_offer === true && r.status === 'active' ? accessTime(r.intro_until) : null,
     server_now: serverNow,
   };
+}
+
+// Offre du coach (coach_cover du serveur) nettoyée : { state, until, coach } ou null
+const ACCESS_COVER_STATES = ['active', 'grace', 'over_limit', 'ended'];
+function cleanCoachCover(raw) {
+  const c = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
+  if (!c || !ACCESS_COVER_STATES.includes(c.state)) return null;
+  return { state: c.state, until: c.state === 'grace' ? accessTime(c.until) : null,
+    coach: typeof c.coach === 'string' && c.coach.trim() ? c.coach.trim().slice(0, 40) : null };
 }
 
 // Âge du dernier état lu, mesuré depuis l'heure du SERVEUR (`server_now`). Une horloge en avance donne
@@ -190,6 +206,14 @@ function canWrite() {
   return st.can_write === true;
 }
 
+// Fonctions Pro (photo de profil, docs/PHOTO_PROFIL.md) : le même droit que l'enregistrement des séances, et
+// offertes aux coachs dont le rôle est actif. Seule règle côté app, reprise du serveur (private.pro_feature) : verrou
+// éteint, elle vaut toujours vrai. Il faut un compte (la photo vit sur le serveur).
+function proFeatureAllowed() {
+  if (!account.user) return false;
+  return canWrite() || coachRole().isCoach === true;
+}
+
 // Verrou réellement allumé pour ce compte (dernier état connu) : l'écran n'affiche l'abonnement que là
 function paywallOn() {
   if (!account.user) return false;
@@ -213,6 +237,32 @@ function accessIntroUntil() {
 function accessGiftForever() {
   const st = accessKnown();
   return !!(st && !st.stale && st.status === 'gift' && st.until === null && st.gift_until === null);
+}
+
+// Offre du coach à cet élève d'après le serveur ({ state, until, coach }), ou null (pas de coach,
+// état pas sûr)
+function accessCoachCover() {
+  const st = accessKnown();
+  return st && !st.stale ? st.coach_cover : null;
+}
+
+// Élève que son coach couvre ET qui a encore son propre abonnement (ou essai) qui se renouvelle chez Apple :
+// il paierait deux fois sans le savoir. Seul Apple peut arrêter un abonnement : on le lui dit, jamais de
+// remboursement promis. null, ou { trialEnds } (date où l'essai devient payant, sinon null). La carte
+// disparaît dès qu'Apple dit que l'abonnement ne se renouvelle plus (renouvellement inconnu : montrée).
+function accessDoubleSub() {
+  const cover = accessCoachCover();
+  if (!account.user || cover?.state !== 'active') return null;
+  const own = access.currentProduct;
+  if (!own || planIsCoach(own) || access.currentRenews === false) return null;
+  const trialEnds = accessIntroUntil() || null;
+  return { trialEnds };
+}
+// Texte de la carte (sobre, sans remboursement : on dit seulement qu'il peut résilier)
+function accessDoubleSubText(d) {
+  return d.trialEnds
+    ? `Ton coach couvre ton accès. Ton essai devient payant le ${fmtDate(d.trialEnds)} : résilie-le pour ne pas être prélevé.`
+    : 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.';
 }
 
 // Date de fin donnée par le serveur (fin de l'abonnement, essai d'Apple compris, ou du cadeau), ou null
@@ -243,6 +293,8 @@ const ACCESS_ERROR_TEXT = {
   bad_type: 'Ce type d\'achat n\'est pas reconnu par l\'app.',
   not_purchased: 'Cet achat n\'est pas rattaché à ton identifiant Apple. Le partage familial n\'est pas accepté.',
   invalid_transaction: 'Apple n\'a pas reconnu cette transaction.',
+  promo_unavailable: 'L\'essai coach offert n\'est pas disponible pour ton compte. Rien n\'a été débité : la formule reste au prix affiché.',
+  promo_refused: 'Apple n\'a pas accepté l\'essai coach offert. Rien n\'a été débité.',
   blocked: 'Les achats sont bloqués sur cet iPhone. Regarde dans Réglages, Temps d\'écran.',
   retry: 'Apple ne répond pas pour l\'instant. Ton achat n\'est pas perdu, on réessaiera.',
   rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
@@ -251,10 +303,6 @@ const ACCESS_ERROR_TEXT = {
   code_used_up: 'Ce code a déjà servi au maximum de fois prévu.',
   already_redeemed: 'Tu as déjà utilisé ce code.',
   cancelled: 'Achat annulé.',
-  not_student: 'L\'offre élève est réservée aux élèves d\'un coach vérifié.',
-  not_new: 'L\'offre élève est réservée à un premier abonnement. Choisis une formule ci-dessous.',
-  no_code: 'Plus d\'offre élève disponible pour l\'instant. Réessaie dans quelques jours.',
-  testflight: 'L\'offre élève n\'est pas disponible dans la version de test (TestFlight). Elle le sera dans l\'app de l\'App Store.',
   pending: 'Ton achat attend une autorisation. L\'accès arrivera dès qu\'Apple l\'aura validé.',
   no_products: 'Les formules ne sont pas encore proposées par Apple. Réessaie plus tard.',
   no_store: 'Les achats se font dans l\'app MDLF Training sur iPhone.',
@@ -282,7 +330,7 @@ function accessReset(userId) {
   accessSeq++;
   access.refused.clear();
   Object.assign(access, { userId, state: null, cached: userId ? readAccessCache(userId) : null,
-    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false, studentOffer: null });
+    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false, coachPromo: null });
 }
 
 // ── Appels au serveur ───────────────────────────────────────
@@ -477,12 +525,25 @@ async function accessVerifyPurchase(jws, transactionId = null) {
 // StoreKit dit que la personne y a droit (introEligible) et que l'offre est gratuite (freeTrial) ;
 // null sinon (déjà utilisée sur cet identifiant Apple, ou pas d'offre) : l'écran montre le prix normal.
 const ACCESS_UNITS = ['day', 'week', 'month', 'year'];
-function accessTrialOf(p) {
-  const o = p?.offer;
-  if (p?.introEligible !== true || !o || o.paymentMode !== 'freeTrial') return null;
+// Durée d'une offre gratuite de StoreKit : { unit, value } (période × nombre de périodes), null sinon
+function accessFreeDuration(o) {
+  if (!o || o.paymentMode !== 'freeTrial') return null;
   const unit = ACCESS_UNITS.includes(o.period?.unit) ? o.period.unit : null;
   const n = (Number.isInteger(o.period?.value) ? o.period.value : 0) * (Number.isInteger(o.periodCount) && o.periodCount > 0 ? o.periodCount : 1);
   return unit && n > 0 && n <= 366 ? { unit, value: n } : null;
+}
+function accessTrialOf(p) {
+  return p?.introEligible === true ? accessFreeDuration(p?.offer) : null;
+}
+// Essai coach pour qui a déjà eu un essai (docs/PAYANT_V1.md) : l'offre promotionnelle gratuite
+// « <produit>.essai2mois » d'App Store Connect, lue chez StoreKit (promoOffers, build 69 et suivantes :
+// une build plus ancienne ne la rend pas, et ne saurait pas l'appliquer). { id, unit, value } ou null.
+const ACCESS_PROMO_SUFFIX = '.essai2mois';
+function accessPromoOf(p) {
+  if (!planIsCoach(p?.id) || !Array.isArray(p?.promoOffers)) return null;
+  const o = p.promoOffers.find(x => x && x.id === p.id + ACCESS_PROMO_SUFFIX);
+  const d = accessFreeDuration(o);
+  return d ? { id: o.id, ...d } : null;
 }
 async function accessLoadProducts({ force = false } = {}) {
   if (!Native.store.available) { access.products = []; access.missing = []; return []; }
@@ -493,10 +554,10 @@ async function accessLoadProducts({ force = false } = {}) {
     .map(p => ({ id: p.id, price: p.displayPrice.trim().slice(0, 24),
       label: typeof p.displayName === 'string' ? p.displayName.slice(0, 60) : '',
       period: planOf(p.id).period,
-      // Nombre (pour « soit 8,5 mois ») et devise (prix de l'offre élève) : jamais affichés tels quels
+      // Nombre (pour « soit 8,5 mois ») et devise : jamais affichés tels quels
       amount: typeof p.price === 'number' && Number.isFinite(p.price) ? p.price : null,
       currency: typeof p.currency === 'string' ? p.currency.slice(0, 3) : null,
-      trial: accessTrialOf(p) }))
+      trial: accessTrialOf(p), introEligible: p.introEligible === true, promo: accessPromoOf(p) }))
     .sort((a, b) => ACCESS_PRODUCT_IDS.indexOf(a.id) - ACCESS_PRODUCT_IDS.indexOf(b.id));
   if (typeof raw?.canMakePayments === 'boolean') access.canPay = raw.canMakePayments;
   access.products = list;
@@ -508,8 +569,40 @@ async function accessLoadProducts({ force = false } = {}) {
   return list;
 }
 
+// Essai coach offert : le serveur dit si ce compte y a droit (coach validé, jamais abonné coach, moins de
+// 10 signatures). Lecture seule, rien n'est signé. Un échec garde l'état connu (null : pas d'offre affichée).
+async function accessLoadCoachPromo() {
+  if (!account.user) { access.coachPromo = null; return null; }
+  const r = await accessRpc('coach_promo_state');
+  if (r.ok) {
+    access.coachPromo = { eligible: r.data?.eligible === true, reason: typeof r.data?.reason === 'string' ? r.data.reason : null };
+    notifyAccess();
+  }
+  return access.coachPromo;
+}
+// La formule p s'achète-t-elle avec l'essai coach offert ? Il faut les trois : StoreKit ne propose plus
+// l'offre de lancement (déjà utilisée dans le groupe : sinon c'est elle, l'essai normal), l'offre
+// promotionnelle existe chez StoreKit, et le serveur dit que ce compte y a droit. { id, unit, value } ou null.
+function accessCoachPromoFor(p) {
+  if (!p?.promo || p.trial || p.introEligible) return null;
+  return access.coachPromo?.eligible === true ? p.promo : null;
+}
+// Signature de l'offre par la fonction Edge coach-promo-offer : { offerId, jws } ou null (refus, réseau)
+async function accessSignCoachPromo(productId) {
+  if (!sb || !account.user) return null;
+  const seq = accessSeq;
+  try {
+    const { data, error } = await sb.functions.invoke('coach-promo-offer', { body: { productId, introEligible: false } });
+    if (error || seq !== accessSeq) return null;
+    return typeof data?.offerId === 'string' && typeof data?.jws === 'string' && data.jws ? { offerId: data.offerId, jws: data.jws } : null;
+  } catch { return null; }
+}
+
 // Achat d'une formule : StoreKit rend le JWS de la transaction, que le serveur vérifie.
 // Renvoie { ok: true }, { ok: false, reason: 'cancel' } ou { ok: false, kind }.
+// Formule annoncée avec l'essai coach offert (accessCoachPromoFor) : l'achat part AVEC l'offre signée, ou
+// pas du tout (promo_unavailable) : on ne débite jamais au prix plein quelqu'un à qui l'écran promettait
+// des mois offerts. L'écran se redessine ensuite au prix normal.
 async function accessBuy(productId) {
   if (!account.user) return { ok: false, kind: 'signed_out' };
   if (!Native.store.available) return { ok: false, kind: 'no_store' };
@@ -522,7 +615,14 @@ async function accessBuy(productId) {
     // transaction et dans les notifications d'Apple. Sans lui, un achat dont la vérification échoue
     // (réseau coupé juste après le paiement) serait orphelin : le serveur ne saurait pas à qui le
     // rattacher. L'identifiant Supabase est un UUID, c'est ce qu'Apple attend.
-    const r = await Native.store.purchase(productId, account.user.id);
+    const promo = accessCoachPromoFor((access.products || []).find(p => p.id === productId));
+    let signed = null;
+    if (promo) {
+      signed = await accessSignCoachPromo(productId);
+      if (!signed || signed.offerId !== promo.id) { await accessLoadCoachPromo(); return { ok: false, kind: 'promo_unavailable' }; }
+    }
+    const r = await Native.store.purchase(productId, account.user.id, signed);
+    if (r?.status === 'promoRefused') { await accessLoadCoachPromo(); return { ok: false, kind: 'promo_refused' }; }
     if (r?.status === 'userCancelled') return { ok: false, reason: 'cancel' };
     if (r?.status === 'pending') return { ok: false, kind: 'pending' };
     if (r?.status !== 'success' || !r?.jws) return { ok: false, kind: 'server' };
@@ -603,38 +703,6 @@ async function accessRedeemCode() {
   return r?.cancelled ? { ok: false, reason: 'cancel' } : { ok: false, kind: 'server' };
 }
 
-// Offre élève (−25 % pendant 12 mois, sans essai) : un CODE D'OFFRE d'Apple à usage unique, distribué
-// par le serveur à un élève lié à un coach validé et jamais abonné (student_offer_code). Un refus n'est
-// pas une exception : { ok: false, error: 'not_student' | 'not_new' | 'no_code' }. Le même code revient
-// tant qu'il n'a pas expiré. L'app ouvre ensuite la page d'Apple, code déjà rempli (planRedeemUrl) ;
-// la transaction revient par l'écouteur permanent, comme tout achat.
-// Environnement : celui de StoreKit (accessStoreEnvironment). Sous TestFlight (Sandbox), RIEN n'est
-// demandé au serveur : { ok: false, kind: 'testflight' }. D'après Apple, un code d'offre Sandbox ne
-// s'utilise que dans les réglages du compte Sandbox de l'iPhone (iOS 16.3+), pas par la page
-// apps.apple.com/redeem (codes de Production seulement), et un testeur TestFlight a son vrai
-// identifiant Apple, pas un compte Sandbox. Demander un code userait pour rien un des 3 codes à vie de
-// l'élève (student_offer_code). Non résolu : à revoir après un essai sur un vrai iPhone TestFlight
-// (docs/PAYANT_V1.md). Partout ailleurs (App Store, navigateur, réponse inconnue) : code de Production.
-// Renvoie { ok: true, code, expiresAt } ou { ok: false, kind }. access.studentOffer garde la réponse.
-const ACCESS_STUDENT_ERRORS = ['not_student', 'not_new', 'no_code'];
-async function accessStudentOffer() {
-  if (await accessStoreEnvironment() === 'sandbox') return { ok: false, kind: 'testflight' };
-  const r = await accessRpc('student_offer_code', { env: 'Production' });
-  if (!r.ok) return r;
-  const d = r.data && typeof r.data === 'object' ? r.data : {};
-  if (d.ok !== true) {
-    const kind = ACCESS_STUDENT_ERRORS.includes(d.error) ? d.error : 'server';
-    access.studentOffer = { error: kind };
-    notifyAccess();
-    return { ok: false, kind };
-  }
-  const code = typeof d.code === 'string' && /^[A-Z0-9]{6,64}$/.test(d.code) ? d.code : null;
-  if (!code) return { ok: false, kind: 'server' };
-  access.studentOffer = { code, expiresAt: accessTime(d.expires_at) };
-  notifyAccess();
-  return { ok: true, code, expiresAt: access.studentOffer.expiresAt };
-}
-
 // Environnement StoreKit de l'app, lu une fois par lancement : 'production', 'sandbox' (TestFlight),
 // 'other', 'unknown', ou null (navigateur, ancienne coquille). Faute de réponse : Production.
 async function accessStoreEnvironment() {
@@ -653,6 +721,10 @@ async function accessLoadCurrentPlan() {
   // Partage familial : l'abonnement d'un proche n'est pas « ta formule » (rien n'est facturé à cette personne)
   const sub = list.find(e => ACCESS_PRODUCT_IDS.includes(e.productId) && !e.familyShared);
   access.currentProduct = sub ? sub.productId : null;
+  // Renouvellement prévu (StoreKit, build 69 sous iOS 17) : true, false (résilié chez Apple), null (inconnu) ;
+  // fin de la période en cours (fin de l'essai pendant l'essai)
+  access.currentRenews = sub && typeof sub.willAutoRenew === 'boolean' ? sub.willAutoRenew : null;
+  access.currentExpires = sub ? accessTime(sub.expiresAt) : null;
   if (sub && !access.products?.length) await accessLoadProducts();
   notifyAccess();
   return access.currentProduct;

@@ -30,7 +30,7 @@ let socialScrollComments = false;   // « Commenter » d'une carte : la séance 
 
 // Pseudo, ou « Compte masqué » (bloqué sans social : pseudo non renvoyé)
 function personName(p) { return p?.username || 'Compte masqué'; }
-function personAvatar(p, size = 'm') { return avatarHtml(size, p?.avatar, p?.username || '?'); }
+function personAvatar(p, size = 'm') { return avatarHtml(size, p?.avatar, p?.username || '?', p?.user_id || p?.owner || null); }
 // Couleur d'une séance d'un programme intégré ; séance perso d'un autre : gris neutre
 function publicSessionColor(s) { return PROGRAMMES[s.programme]?.sessions?.[s.category]?.color || 'var(--label3)'; }
 function seriesCount(s) { return s.exercises.reduce((a, e) => a + workSets(e.sets).length, 0); }   // sans l'échauffement
@@ -90,7 +90,7 @@ function sessionGroupOf(exercises) { return mainGroupOf(exercises, OTHERS_MUSCLE
 // owner : false sur l'écran du profil (la personne est déjà nommée), la date passe alors sous le nom de séance.
 // Texte agrandi : plus de vignette (css/muscles.css), le texte prend toute la largeur.
 function feedCardHtml(row, { owner = true } = {}) {
-  const s = row.s, p = { username: row.username, avatar: row.avatar };
+  const s = row.s, p = { user_id: row.owner, username: row.username, avatar: row.avatar };
   const mine = row.owner === social.userId;
   const art = progThumbHtml(sessionGroupOf(s.exercises), 'feed-card__img');
   return `
@@ -373,7 +373,7 @@ function renderSocialSession(owner, id) {
     return `<div class="view view--grouped social-session-view">${navBar({ title: 'Séance' })}
       <div class="scr"><div class="empty-note">Cette séance n'est plus disponible.</div></div></div>`;
   }
-  const s = row.s, p = { username: row.username, avatar: row.avatar };
+  const s = row.s, p = { user_id: row.owner, username: row.username, avatar: row.avatar };
   const mine = row.owner === social.userId;
   let when = capitalize(fmtDate(row.doneAt, 'long'));
   if (s.duration) when += ` · ${fmtTime(row.doneAt)}`;
@@ -486,7 +486,7 @@ function renderSocialProfile(uid) {
       <div class="scr">
         ${reactHintHtml()}
         <div class="account-hero">
-          ${personAvatar(p, 'xl')}
+          ${personAvatar({ ...p, user_id: uid }, 'xl')}
           <h2 class="account-hero__name">${esc(name)}</h2>
           ${sub ? `<p class="account-hero__sub">${sub}</p>` : ''}
         </div>
@@ -497,6 +497,7 @@ function renderSocialProfile(uid) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="social-block" data-uid="${esc(uid)}">Bloquer</button>
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(uid)}">Signaler</button>
+          ${profilePhotoReportCellHtml(uid)}
         </div>
         <div class="group-foot">Bloquer coupe tout dans les deux sens : recherche, demandes, séances et réactions. Personne n'en est averti.</div>`}
       </div>

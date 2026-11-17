@@ -1,14 +1,14 @@
 # Payant V1 : contrat entre l'app, le serveur et Apple
 
-Décisions de Maxence (26/10 au 28/10/2026), dont le **modèle B** voté le 28/10 au soir, puis **tarifs et rôle coach du 30/10/2026** (section « Tarifs du 30/10 », qui remplace les prix et la règle des élèves ci-dessous) :
-- **essai gratuit de 3 mois géré par Apple** : c'est une **offre de lancement** (« 3 mois gratuits ») configurée dans App Store Connect sur les deux abonnements. Apple exige un moyen de paiement et garantit **un seul essai par identifiant Apple et par groupe d'abonnements**. Le serveur ne tient plus d'essai maison ;
-- puis **tout est payant** (pas de version gratuite limitée) : particulier **6,49 €/mois** et **55,00 €/an** ; coach de **15,99 €** à **29,99 €/mois** selon le nombre d'élèves (prix du 30/10, voir « Tarifs du 30/10 ») ;
+Décisions de Maxence (26/10 au 28/10/2026), dont le **modèle B** voté le 28/10 au soir, puis **tarifs et rôle coach du 30/10/2026** (section « Tarifs du 30/10 », qui remplace les prix ci-dessous), puis **élèves offerts par leur coach du 16/11/2026** (section « Élèves offerts par leur coach », qui remplace la règle des élèves), puis **grille coach du 17/11/2026** (section « Grille coach du 17/11 », qui remplace les paliers et prix coach) :
+- **essai gratuit géré par Apple** : **3 mois** pour le particulier, **2 mois** pour les formules coach (décision du 17/11/2026, avant : 3 mois pour tous) ; c'est une **offre de lancement** configurée dans App Store Connect sur chaque abonnement. L'app lit la durée chez StoreKit (`offer.period`), jamais écrite dans le code. Apple exige un moyen de paiement et garantit **un seul essai par identifiant Apple et par groupe d'abonnements**. Le serveur ne tient plus d'essai maison ;
+- puis **tout est payant** (pas de version gratuite limitée) : particulier **6,49 €/mois** et **55,00 €/an** ; coach de **19,99 €** à **119,99 €/mois** selon le nombre d'élèves, 10, 25, 50 ou 100 (grille du 17/11, voir « Grille coach du 17/11 ») ;
 - sans abonnement : le profil et l'historique restent **consultables**, l'**export** reste possible ; on ne peut plus **enregistrer de nouvelle séance** ;
 - **compte obligatoire pour enregistrer une séance quand le verrou est allumé** (vote 8 contre 2), connexion avec Apple en premier ; verrou éteint, rien ne change ; Historique, Progrès et export restent toujours ouverts, avec ou sans compte ;
 - **« Accès offert » d'Apple supprimé** (10 voix sur 10) : le non consommable `com.mdlf.training.access.gift` n'est plus reconnu nulle part ; Maxence supprime le produit dans App Store Connect ;
 - **codes cadeaux maison** (inchangés) : les codes promotionnels d'Apple sont limités à 100 par version, expirent en 28 jours et se saisissent dans l'App Store ; nos codes sont faits par notre serveur (voir « Codes cadeaux maison ») ;
 - codes d'offre d'abonnement d'Apple : **1 an gratuit au maximum** ;
-- ~~élève suivi par un coach gratuit, 10 au plus par coach~~ : **retiré le 30/10** par Maxence. Un élève paie, avec **−25 % pendant 12 mois** grâce au code de son coach, sans essai gratuit. Le **rôle coach** est réservé aux éducateurs sportifs diplômés (demande vérifiée à la main) et le coach paie un abonnement coach à paliers.
+- **élèves de coach : rien à payer** (décision de Maxence du **16/11/2026** : « les élèves ne paient pas, ce sont les coachs qui paient un forfait élève ») : un élève lié à un coach qui a un abonnement coach en cours a l'accès complet, dans la limite du palier de son coach ; 7 jours de grâce quand l'offre s'arrête. Remplace l'offre élève du 30/10 (−25 % pendant 12 mois, 4,89 €/mois), elle-même venue après la gratuité « 10 élèves par coach » du 28/10. Le **rôle coach** est réservé aux éducateurs sportifs diplômés (demande vérifiée à la main) et le coach paie un abonnement coach à paliers.
 
 **Payant plus (31/10/2026, branche `nuit-payantplus`)** : accès à vie offerts révocables et tracés (pas d'achat à vie payant : **refusé par Maxence le 31/10**), environnement TestFlight lu (offre élève **non résolue** sous TestFlight : aucun code n'y est distribué). Voir « Payant plus » plus bas.
 
@@ -17,23 +17,30 @@ Décisions de Maxence (26/10 au 28/10/2026), dont le **modèle B** voté le 28/1
 ## Produits App Store Connect
 Groupe d'abonnement `MDLF Training Acces` (id **22520671**), app id **6823561962**. Tous dans le **même groupe** : un seul abonnement actif à la fois par identifiant Apple, et **un seul essai gratuit par identifiant Apple pour tout le groupe** (un particulier qui a déjà eu son essai n'en a pas un second en passant coach).
 
+Prix France de la **grille du 17/11/2026** ; les prix des autres pays sont réglés dans App Store Connect par un autre agent le 17/11 (équivalences d'Apple) : les relire là, ce tableau ne les recopie plus pour le coach.
+
+| Produit | Identifiant | ASC id | Niveau | France | Élèves |
+|---|---|---|---|---|---|
+| Coach 100 élèves mensuel | `com.mdlf.training.coachmax.monthly` | 6829035229 | 1 | 119,99 € | 100 |
+| Coach 100 élèves annuel | `com.mdlf.training.coachmax.yearly` | 6829035364 | 2 | 999,00 € | 100 |
+| Coach 50 élèves mensuel | `com.mdlf.training.coach30.monthly` | 6829035217 | 3 | 69,99 € | 50 |
+| Coach 50 élèves annuel | `com.mdlf.training.coach30.yearly` | 6829035393 | 4 | 589,00 € | 50 |
+| Coach 25 élèves mensuel | `com.mdlf.training.coach20.monthly` | 6829035210 | 5 | 39,99 € | 25 |
+| Coach 25 élèves annuel | `com.mdlf.training.coach20.yearly` | 6829035275 | 6 | 339,00 € | 25 |
+| Coach 10 élèves mensuel | `com.mdlf.training.coach10.monthly` | 6829035180 | 7 | 19,99 € | 10 |
+| Coach 10 élèves annuel | `com.mdlf.training.coach10.yearly` | 6829035208 | 8 | 169,00 € | 10 |
+
+Particulier (inchangé, prix des 5 pays) :
+
 | Produit | Identifiant | ASC id | Niveau | France | BEL | CHE | CAN | USA |
 |---|---|---|---|---|---|---|---|---|
-| Coach illimité mensuel | `com.mdlf.training.coachmax.monthly` | 6829035229 | 1 | 29,99 € | 29,99 € | 25,00 CHF | 34,99 $ CA | 24,99 $ |
-| Coach illimité annuel | `com.mdlf.training.coachmax.yearly` | 6829035364 | 2 | 250,00 € | 250,00 € | 200,00 CHF | 299,00 $ CA | 229,00 $ |
-| Coach 30 élèves mensuel | `com.mdlf.training.coach30.monthly` | 6829035217 | 3 | 24,99 € | 24,99 € | 20,00 CHF | 29,99 $ CA | 22,99 $ |
-| Coach 30 élèves annuel | `com.mdlf.training.coach30.yearly` | 6829035393 | 4 | 209,99 € | 209,99 € | 180,00 CHF | 249,99 $ CA | 199,99 $ |
-| Coach 20 élèves mensuel | `com.mdlf.training.coach20.monthly` | 6829035210 | 5 | 19,99 € | 19,99 € | 15,00 CHF | 24,99 $ CA | 17,99 $ |
-| Coach 20 élèves annuel | `com.mdlf.training.coach20.yearly` | 6829035275 | 6 | 169,00 € | 169,00 € | 120,00 CHF | 199,00 $ CA | 149,00 $ |
-| Coach 10 élèves mensuel | `com.mdlf.training.coach10.monthly` | 6829035180 | 7 | 15,99 € | 15,99 € | 14,00 CHF | 19,99 $ CA | 14,99 $ |
-| Coach 10 élèves annuel | `com.mdlf.training.coach10.yearly` | 6829035208 | 8 | 134,99 € | 134,99 € | 100,00 CHF | 149,99 $ CA | 119,99 $ |
 | MDLF Training mensuel | `com.mdlf.training.pro.monthly` | 6827767578 | 9 | 6,49 € | 6,49 € | 5,00 CHF | 7,99 $ CA | 5,99 $ |
 | MDLF Training annuel | `com.mdlf.training.pro.yearly` | 6827767660 | 10 | 55,00 € | 55,00 € | 40,00 CHF | 69,00 $ CA | 49,00 $ |
 
-- **Essai** : offre de lancement « 3 mois gratuits » (FREE_TRIAL, THREE_MONTHS) sur **les dix** abonnements, dans les 5 pays.
-- **Pays** : FRA, BEL, CHE, CAN, USA (disponibilité de chaque produit, `availableInNewTerritories` vrai). Prix France choisis par Maxence ; les 4 autres pays = **équivalence automatique d'Apple** (`equalizations` du prix France), sauf **CHE coachmax mensuel** relevé à **25,00 CHF** (l'équivalence donnait 20,00 CHF, le même prix que coach30). Ces équivalences sont parfois basses (CHE, USA) : à revoir par Maxence s'il veut des prix ronds par pays. Les autres pays qu'Apple ouvrirait plus tard prendront aussi l'équivalence automatique.
+- **Essai** : offre de lancement FREE_TRIAL dans les 5 pays : « 3 mois gratuits » (THREE_MONTHS) sur les deux abonnements particulier, « 2 mois gratuits » (TWO_MONTHS) sur les huit abonnements coach depuis le 17/11/2026 (changé dans App Store Connect par un autre agent).
+- **Pays** : FRA, BEL, CHE, CAN, USA (disponibilité de chaque produit, `availableInNewTerritories` vrai). Prix France choisis par Maxence ; les 4 autres pays = **équivalence automatique d'Apple** (`equalizations` du prix France) ; l'ancien relèvement de **CHE coachmax mensuel** (25,00 CHF, grille du 30/10) est à revoir avec la grille du 17/11. Ces équivalences sont parfois basses (CHE, USA) : à revoir par Maxence s'il veut des prix ronds par pays. Les autres pays qu'Apple ouvrirait plus tard prendront aussi l'équivalence automatique.
 - **Niveaux** (ordre du groupe, 1 = le plus haut) : chaque palier coach est au-dessus du palier inférieur, et tout le coach est au-dessus du particulier. Passer de coach10 à coach20 (ou de particulier à coach) est donc une **montée** : immédiate chez Apple, avec remboursement au prorata de la période en cours ; une **descente** prend effet au renouvellement suivant. Mensuel et annuel d'un même palier sont à deux niveaux voisins (l'API n'en met pas deux au même niveau) : passer du mensuel à l'annuel d'un même palier est une descente, appliquée au renouvellement.
-- **Offre élève** : code d'offre « Eleve de coach -25 pct 12 mois » (id `9a963bbc-d2c8-4478-8ba3-6bc74abc067d`) sur `pro.monthly` : nouveaux abonnés seulement (`NEW`), remplace l'essai (`REPLACE_INTRO_OFFERS`), payé chaque mois (`PAY_AS_YOU_GO`, 1 mois × 12) à **4,89 €** (BEL 4,89 €, CHE 3,00 CHF, CAN 4,99 $ CA, USA 3,99 $), puis prix normal. Voir « Élève : −25 % pendant 12 mois ».
+- ~~**Offre élève**~~ (**retirée le 16/11/2026**, à désactiver par Maxence : voir « Élèves offerts par leur coach ») : code d'offre « Eleve de coach -25 pct 12 mois » (id `9a963bbc-d2c8-4478-8ba3-6bc74abc067d`) sur `pro.monthly` : nouveaux abonnés seulement (`NEW`), remplace l'essai (`REPLACE_INTRO_OFFERS`), payé chaque mois (`PAY_AS_YOU_GO`, 1 mois × 12) à **4,89 €** (BEL 4,89 €, CHE 3,00 CHF, CAN 4,99 $ CA, USA 3,99 $), puis prix normal. Voir « Élève : −25 % pendant 12 mois ».
 - Il manque à chaque produit la **capture de revue** (état `MISSING_METADATA`) : à faire par Maxence.
 
 ## Principe de sécurité (le point le plus important)
@@ -49,26 +56,26 @@ Groupe d'abonnement `MDLF Training Acces` (id **22520671**), app id **6823561962
 
 ## Données (serveur)
 - `entitlements (user_id pk, status, product_id, expires_at, original_transaction_id unique, gift bool, gift_until, in_coach_team bool, updated_at)`.
-  - `status` : `none` (jamais eu d'accès) | `active` (abonnement Apple, particulier ou coach, offre de lancement ou code d'offre compris) | `expired` (un accès a existé, il est échu ou remboursé) | `gift` (code cadeau maison) | ~~`coach_team`~~ (élève gratuit, plus produit depuis le 30/10). `in_coach_team` : toujours faux depuis le 30/10.
+  - `status` : `none` (jamais eu d'accès) | `active` (abonnement Apple, particulier ou coach, offre de lancement ou code d'offre compris) | `expired` (un accès a existé, il est échu ou remboursé) | `gift` (code cadeau maison) | `coach_team` (élève offert par son coach : produit du 28 au 30/10, puis de nouveau depuis le 16/11, `20261116030000_eleves_gratuits.sql`). `in_coach_team` : toujours faux (instantané non tenu ; lire `status`).
   - `gift` : accès **à vie** (code cadeau maison `lifetime`). `gift_until` : fin d'un **cadeau en jours**, cumulée à chaque code. `expires_at` : la plus lointaine des deux dates (abonnement payé, cadeau en jours).
   - Plus de `trial_started_at` (retirée par `20261029000000_payant_modele_b.sql`).
   - RLS fermée sans politique, aucun GRANT : lecture seulement par RPC, écriture seulement par les fonctions du serveur.
 - `entitlement_claims (original_transaction_id pk, user_id, product_id, kind = 'sub', expires_at, revoked_at, event_at, intro_offer, environment, created_at, updated_at)` : registre **à vie** des transactions Apple vérifiées. `intro_offer` : la transaction appliquée en dernier est dans l'offre de lancement. `environment` : `Production` ou `Sandbox`. RLS fermée, aucun GRANT.
 - `app_config (key pk, value jsonb)` : `paywall_on` (booléen, défaut **false**) et `min_build` (build native minimale, défaut **0** = aucune). `trial_days` a été retiré. Les photos de bilan y ajoutent `coach_photos_on` (interrupteur, docs/PHOTOS_BILAN.md). Lisible par `authenticated` ; **anon ne lit que les lignes `paywall_on` et `min_build`** (colonnes `key`, `value`). Écrit seulement par l'administrateur.
 - `private.coach_free_limits` : plus lue depuis le 30/10 (gardée pour revenir en arrière).
-- `coach_requests`, `coach_offer_codes`, `private.tarifs_ex_coach_team`, colonne `coach_invites.permanent` : voir « Tarifs du 30/10 ». Paiements notés pour le parrainage : `subscription_payments` (docs/PARRAINAGE.md, « Branchement sur le payant »).
+- `coach_requests`, `coach_offer_codes` (plus lue depuis le 16/11, gardée vide pour le retour arrière), `private.tarifs_ex_coach_team`, colonne `coach_invites.permanent` : voir « Tarifs du 30/10 ». `private.coach_tier_log` : voir « Élèves offerts par leur coach ». Paiements notés pour le parrainage : `subscription_payments` (docs/PARRAINAGE.md, « Branchement sur le payant »).
 - `gift_codes` et `gift_redemptions` : voir « Codes cadeaux maison » ; colonnes `revoked_at` et `revoke_reason` ajoutées par le payant plus (accès à vie révocables).
 
 ## Fonctions RPC (rôle `authenticated`)
 | Fonction | Renvoie | Règles |
 |---|---|---|
-| `my_access()` | `jsonb` | `{ status, until, paywall_on, days_left, can_write, gift, gift_until, coach_team, intro_offer, intro_until, server_now }`. Accès à vie offert : `status = 'gift'`, `until` et `gift_until` à `null`. Crée la ligne `entitlements` (statut `none`) au premier appel, sans rien donner. `can_write` = droit d'enregistrer une séance : **toujours `true` tant que `paywall_on` est faux** ; verrou allumé, vrai seulement pour `active` et `gift` (plus `coach_team` depuis le 30/10). `intro_offer` / `intro_until` : l'abonnement en cours est dans l'offre de lancement d'Apple, et sa fin. |
+| `my_access()` | `jsonb` | `{ status, until, paywall_on, days_left, can_write, gift, gift_until, coach_team, coach_cover, intro_offer, intro_until, server_now }`. Accès à vie offert : `status = 'gift'`, `until` et `gift_until` à `null`. Crée la ligne `entitlements` (statut `none`) au premier appel, sans rien donner. `can_write` = droit d'enregistrer une séance : **toujours `true` tant que `paywall_on` est faux** ; verrou allumé, vrai seulement pour `active`, `gift` et `coach_team` (élève offert par son coach, de nouveau depuis le 16/11). `coach_cover` : offre du coach, voir « Élèves offerts par leur coach ». `intro_offer` / `intro_until` : l'abonnement en cours est dans l'offre de lancement d'Apple, et sa fin. |
 | `access_state()` | `jsonb` | Même état, en lecture seule, sans rien créer. |
 | `redeem_gift_code(code text)` | `jsonb` | Code cadeau maison : `{ ok, error, kind, access }`, un refus de code n'est **pas** une exception. |
 | `coach_request_state()` / `coach_request_submit(card_name, card_number, diploma)` | `jsonb` | Demande du rôle coach (« Tarifs du 30/10 »). |
 | `coach_my_code()` | `jsonb` | Code permanent du coach validé. |
-| `coach_tier_state()` | `jsonb` | Palier du coach : limite, nombre d'élèves, plein, produit suivant. |
-| `student_offer_code(env)` | `jsonb` | Code d'offre Apple −25 % d'un élève, refus dans `error`. |
+| `coach_tier_state()` | `jsonb` | Palier du coach : limite, nombre d'élèves, plein, élèves non offerts (`uncovered`), produit suivant. |
+| ~~`student_offer_code(env)`~~ | | Code d'offre Apple −25 % d'un élève : **supprimée le 16/11/2026**. |
 
 Aucune RPC d'écriture du droit d'accès venant d'Apple : les écritures d'abonnement viennent des Edge Functions.
 
@@ -79,7 +86,7 @@ Aucune RPC d'écriture du droit d'accès venant d'Apple : les écritures d'abonn
 
 ## Modèle B : l'essai gratuit est celui d'Apple (28/10/2026)
 - **Ce qui a été retiré** (migration `20261029000000_payant_modele_b.sql`, la migration du 28/10 étant déjà en production) : l'essai maison (`trial_started_at`, `trial_days`, statut `trial`), le rattachement de l'essai à l'identifiant Apple (`verify-app-transaction`, `store_installs`, purge à 2 ans, plafond « sans preuve », plateforme déclarée, `appTransaction()` du Swift et du JS), et l'« Accès offert » d'Apple. Le piège évité : sans ce retrait, un compte aurait eu 3 mois de serveur **puis** 3 mois d'Apple.
-- **Offre de lancement** : l'achat d'un abonnement par quelqu'un qui y a droit commence par 3 mois gratuits, que StoreKit annonce (`introEligible`, `offer`). Côté serveur, c'est un abonnement `active` comme un autre ; la transaction signée porte **`offerType` = 1** (`OfferType.INTRODUCTORY_OFFER` de l'App Store Server Library) et **`offerDiscountType` = `FREE_TRIAL`** (avec `offerPeriod`, par exemple `P3M`). Le serveur retient `intro_offer`, vrai seulement quand `offerType` vaut 1 **et** `offerDiscountType` vaut `FREE_TRIAL` (une offre de lancement payante ne s'affiche jamais comme « Essai gratuit »), et expose `intro_until` = la fin de cette période. Au premier renouvellement payé (sans `offerType`), `intro_offer` repasse à faux.
+- **Offre de lancement** : l'achat d'un abonnement par quelqu'un qui y a droit commence par l'essai gratuit (3 mois particulier, 2 mois coach depuis le 17/11), que StoreKit annonce (`introEligible`, `offer`). Côté serveur, c'est un abonnement `active` comme un autre ; la transaction signée porte **`offerType` = 1** (`OfferType.INTRODUCTORY_OFFER` de l'App Store Server Library) et **`offerDiscountType` = `FREE_TRIAL`** (avec `offerPeriod`, par exemple `P3M`). Le serveur retient `intro_offer`, vrai seulement quand `offerType` vaut 1 **et** `offerDiscountType` vaut `FREE_TRIAL` (une offre de lancement payante ne s'affiche jamais comme « Essai gratuit »), et expose `intro_until` = la fin de cette période. Au premier renouvellement payé (sans `offerType`), `intro_offer` repasse à faux.
 - **Écran d'abonnement** (règle 3.1.2(c) d'Apple : l'essai ne doit pas dominer le prix réellement débité) : chaque formule montre **en gros le prix et sa période** (« 55,00 € par an »), et « 3 mois gratuits » en **ligne secondaire** seulement si Apple l'accorde encore. Au-dessus des formules, ce que donne l'abonnement (« tu enregistres de nouvelles séances ; ton historique, tes progrès et l'export restent ouverts »). Le texte du haut dit exactement : « 3 mois gratuits, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai » (Apple demande de résilier au moins 24 h avant : https://support.apple.com/en-us/118428). Les mentions sous les formules disent la même chose (« sauf si tu le résilies au moins 24 heures avant la fin de l'essai », puis le renouvellement automatique « pour la même période », sans promettre « au même prix »).
 - **Verrou éteint : aucune formule n'est proposée** (relecture du 28/10). Ni « Voir les formules » dans Réglages › Abonnement, ni prix sur l'écran d'abonnement : acheter ferait commencer l'essai d'Apple pour rien, et la personne serait débitée 3 mois plus tard. « Restaurer mes achats », « Gérer chez Apple » et les codes restent.
 - **Décision de Maxence : la build part à l'examen d'Apple avec le verrou ALLUMÉ**, pour que l'abonnement débloque vraiment quelque chose (règle 3.1.2(a)). En **TestFlight**, le verrou reste éteint et les formules sont donc masquées. À côté des boutons, les **mentions de la règle 3.1.2** d'Apple : durée de l'essai, prix et période après l'essai, renouvellement automatique (sauf résiliation au moins 24 h avant la fin de la période), résiliable à tout moment dans les réglages de l'identifiant Apple, puis les liens **Conditions d'utilisation** (cgu.html, qui renvoie au contrat standard d'Apple), **Conditions de vente** (cgv.html) et **Confidentialité** (`js/data/legal-links.js`). Une phrase rappelle qu'un identifiant Apple n'a droit qu'à un seul essai et qu'un même abonnement ne sert qu'à un compte.
@@ -96,8 +103,8 @@ Aucune RPC d'écriture du droit d'accès venant d'Apple : les écritures d'abonn
   - Requête d'administration (lecture seule) qui liste les accès Sandbox :
     `select c.user_id, p.username, c.product_id, c.expires_at, c.revoked_at, c.updated_at from public.entitlement_claims c left join public.user_profiles p using (user_id) where c.environment = 'Sandbox' order by c.updated_at desc;`
 
-## Élèves de coach (28/10/2026) : remplacé le 30/10
-La gratuité des élèves (statut `coach_team`, 10 élèves gratuits par coach, `private.access_coach_free`) est **retirée** par `20261030000000_payant_tarifs.sql` : voir « Tarifs du 30/10 ».
+## Élèves de coach (28/10/2026) : remplacé le 30/10, puis rétabli autrement le 16/11
+La gratuité des élèves (statut `coach_team`, 10 élèves gratuits par coach, `private.access_coach_free`) a été **retirée** par `20261030000000_payant_tarifs.sql` (voir « Tarifs du 30/10 »), puis **rétablie le 16/11/2026** dans la limite du palier payé par le coach : voir « Élèves offerts par leur coach ».
 
 ## Grâce de fin de séance (28/10/2026)
 - **Le problème** : une séance commencée avec le droit d'écrire était refusée à « Terminer » si l'abonnement prenait fin pendant la séance.
@@ -140,6 +147,34 @@ Fabriqués par Maxence en SQL, utilisés **dans l'app** (Réglages › Abonnemen
   - **Seuls `rate_limited` et `not_found`** (aucun utilisateur) sont levés en `P0001`. `rate_limited` : plus de **10 essais par heure et par compte, réussis OU ratés**.
   - `uses` est incrémenté sous verrou de ligne : deux appareils qui utilisent le même code en même temps ne dépassent jamais `max_uses`.
 
+## Grille coach du 17/11 (décision de Maxence, migration `20261117030000_grille_coach.sql`)
+
+Remplace les paliers et les prix coach du 30/10 (section suivante, gardée pour l'historique). Les **identifiants des produits ne changent pas** (`coach20` compte désormais 25 élèves, `coach30` 50, `coachmax` 100) ; les prix se règlent dans App Store Connect et sont **lus chez StoreKit** par l'app (aucun prix écrit dans le code ni dans les tests : le faux StoreKit des tests a des prix fictifs).
+
+| Formule | Élèves | Mensuel | Annuel | Touché par mois (France) |
+|---|---|---|---|---|
+| Coach 10 | jusqu'à 10 | 19,99 € | 169,00 € | ~14,16 € |
+| Coach 25 (`coach20`) | jusqu'à 25 | 39,99 € | 339,00 € | ~28,33 € |
+| Coach 50 (`coach30`) | jusqu'à 50 | 69,99 € | 589,00 € | ~49,58 € |
+| Coach 100 (`coachmax`) | jusqu'à 100 | 119,99 € | 999,00 € | ~85,00 € |
+| Essai | **2 mois** gratuits pour toutes les formules coach (3 mois pour le particulier), lus chez StoreKit | | | |
+| Plus de 100 élèves | pas de formule : « Plus de 100 élèves : écris-nous à contact@mdlf.app » (sans achat) | | | |
+
+« Touché » : prix TTC moins la TVA de 20 % (collectée par Apple), puis 15 % d'Apple (Small Business Program) : 19,99 / 1,2 × 0,85 = 14,16. Annuel ≈ 8,5 mois (169 / 19,99 = 8,45 ; 339 / 39,99 = 8,48 ; 589 / 69,99 = 8,42 ; 999 / 119,99 = 8,33 : l'app affiche « soit 8,5 mois », calculé au demi-mois près).
+
+- `private.coach_product_limit` : 10, 25, 50, 100 (plus de palier illimité). `private.coach_student_limit` ne change pas (verrou éteint : au moins 50 ; allumé : le palier payé) : elle lit `coach_product_limit`.
+- `coach_tier_state()` → `{ is_coach, paywall_on, product_id, limit (toujours un nombre), students, full, uncovered, next_product (coach20 sous 25, coach30 sous 50, coachmax sous 100, null au palier 100), contact }` : `contact` vrai quand le coach a le palier 100 et 100 élèves ou plus. L'app affiche alors « Plus de 100 élèves : écris-nous à contact@mdlf.app » (bandeau qui ouvre un e-mail, phrase sous les formules coach), jamais un achat ; le 101e élève est refusé (`tier_full`).
+- Un coach qui suit déjà plus d'élèves que sa nouvelle limite les garde tous ; les élèves au-delà ne sont plus offerts (`over_limit`, sans grâce : la formule du coach n'a pas changé). Personne n'a d'abonnement coach en production au 17/11 : aucun cas réel.
+- Retour arrière : `supabase/rollback/20261117030000_grille_coach_down.sql` (remet 10, 20, 30, illimité ; les prix se remettent à part dans App Store Connect). Tests : `tests/sql/grille_coach_test.sql`.
+- App ancienne (avant cette mise à jour) sur ce serveur : libellés « 20 élèves », « 30 élèves », « Élèves illimités » faux tant que l'OTA n'est pas reçue ; verrou éteint, l'écran des formules coach ne s'affiche pas. App nouvelle sur un serveur sans cette migration : `contact` déduit (palier `coachmax` et 100 élèves), le reste suit les limites du serveur.
+
+### Élève couvert par son coach qui a déjà son propre abonnement (17/11/2026)
+Seul Apple peut arrêter un abonnement. Un élève qui avait son propre abonnement (ou un essai) et que son coach couvre ensuite paierait deux fois sans le savoir :
+- **Carte sobre** en tête de Réglages › Abonnement tant que c'est vrai (`accessDoubleSub`, `accessDoubleSubText` dans `js/data/access.js`, carte `payDoubleCardHtml`), et le même texte dans un dialogue juste après l'acceptation du lien (`payDoubleAfterJoin`, appelé par `coach-accept`) : en essai, « Ton coach couvre ton accès. Ton essai devient payant le <date> : résilie-le pour ne pas être prélevé. » (date `intro_until` du serveur) ; abonné, « Ton coach couvre ton accès. Tu peux résilier ton abonnement. » ; bouton « Gérer mon abonnement » (page Abonnements d'Apple, `PAY_MANAGE_URL`).
+- Conditions : `coach_cover.state = 'active'`, une formule particulier dans les droits en cours de l'iPhone (pas partagée en famille), qui se renouvelle encore. Le renouvellement vient de StoreKit (`willAutoRenew`, état de la souscription sous iOS 17, **build 69**) ; inconnu (build 68, iOS 16) : la carte reste jusqu'à la fin de l'abonnement. Montrée aussi verrou éteint : le prélèvement d'Apple est réel.
+- **Jamais de remboursement** (décision de Maxence du 17/11/2026) : les mois payés avant le coach ne sont pas remboursés ; aucun texte de l'app n'en parle (test unitaire), les CGV et CONDITIONS_COACH le disent.
+- Après le départ du coach : 7 jours de grâce (« ensuite, ton propre abonnement continue » s'il en a un, sinon « tu pourras t'abonner si tu veux continuer », sans promettre d'essai : seul StoreKit sait s'il y a droit).
+
 ## Tarifs du 30/10 (décision de Maxence, migration `20261030000000_payant_tarifs.sql`)
 
 ### Grille
@@ -150,7 +185,7 @@ Fabriqués par Maxence en SQL, utilisés **dans l'app** (Réglages › Abonnemen
 | Coach 11 à 20 | 19,99 € | 169,00 € | 3 mois | 20 |
 | Coach 21 à 30 | 24,99 € | 209,99 € | 3 mois | 30 |
 | Coach plus de 30 | 29,99 € (plafond) | 250,00 € | 3 mois | illimité |
-| Élève invité par le code de son coach | 4,89 € pendant 12 mois, puis 6,49 € | | **aucun** | |
+| Élève d'un coach (16/11/2026) | **0 €** : compris dans l'abonnement coach, dans la limite du palier | | | |
 
 Annuel = point de prix d'Apple juste en dessous de 8,5 mois (6,49 × 8,5 = 55,16 → 55,00 ; 15,99 × 8,5 = 135,91 → 134,99 ; etc.). L'abonnement coach **comprend l'accès complet** du coach lui-même. Prix touchés en France (après TVA et 15 % d'Apple, Small Business Program) : 6,49 → 4,60 € ; 15,99 → 11,33 € ; 19,99 → 14,16 € ; 24,99 → 17,70 € ; 29,99 → 21,24 € (avec 30 % d'Apple, sans le Small Business Program : 3,79 € ; 9,33 € ; 11,66 € ; 14,58 € ; 17,49 €).
 
@@ -175,13 +210,14 @@ Pour être coach il faut **vraiment** l'être : encadrer contre rémunération e
 - `coach_code_norm` accepte 8 ou 12 caractères ; saisie souple (majuscules, espaces et tirets ignorés : `ABCD-EFGH-JKLM`).
 
 ### Paliers
-- `private.coach_student_limit(coach)` : **0** si le compte n'est pas coach ; **verrou éteint** : au moins **50** (comportement d'avant, TestFlight) ; **verrou allumé** : le palier de l'abonnement coach **en cours** (10, 20, 30, illimité pour coachmax), **0 sans abonnement coach** (un coach validé doit s'abonner pour accueillir des élèves). L'ancienne limite fixe de 50 (`team_full`) disparaît.
+- `private.coach_student_limit(coach)` : **0** si le compte n'est pas coach ; **verrou éteint** : au moins **50** (comportement d'avant, TestFlight) ; **verrou allumé** : le palier de l'abonnement coach **en cours** (10, 20, 30, illimité pour coachmax ; **10, 25, 50, 100 depuis la grille du 17/11**), **0 sans abonnement coach** (un coach validé doit s'abonner pour accueillir des élèves). L'ancienne limite fixe de 50 (`team_full`) disparaît.
 - `coach_preview` et `coach_join` refusent **`tier_full`** quand l'équipe a atteint la limite : l'app dit à l'élève que son coach doit **passer au palier supérieur**. Vérifié sous le verrou par coach de `coach_join` (deux adhésions simultanées ne dépassent pas).
 - **Descente de palier** (ou fin de l'abonnement coach) : les élèves déjà là **restent**, seul l'ajout est bloqué.
 - `coach_tier_state()` → `{ is_coach, paywall_on, product_id, limit (null = illimité), students, full, next_product }` : `next_product` est le mensuel du palier suivant (`coach10` sans abonnement coach, null en illimité). L'app montre « 10 élèves sur 10 : passe au palier supérieur » et mène à ce produit.
 - Montée de palier : l'utilisateur choisit le palier supérieur dans l'app (StoreKit, même groupe) ; Apple envoie une transaction de la **même** souscription (`original_transaction_id`) avec le nouveau `productId`, que `verify-purchase` et `appstore-notify` écrivent comme d'habitude : le palier est relu à chaque appel.
 
-### Élève : −25 % pendant 12 mois, sans essai
+### Élève : −25 % pendant 12 mois, sans essai (RETIRÉ le 16/11/2026)
+**Retiré** par `20261116030000_eleves_gratuits.sql` (`student_offer_code` supprimée, `coach_offer_codes` plus lue) : l'élève d'un coach ne paie plus rien. Texte gardé pour l'historique et le retour arrière.
 - **Mécanisme choisi : codes d'offre Apple à usage unique** (« one-time-use codes »), distribués par notre serveur.
   - Les **offres promotionnelles** signées par le serveur sont exclues : Apple les réserve aux « existing and previously subscribed customers » (https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-promotional-offers-for-auto-renewable-subscriptions, lu le 30/10) ; un élève est un nouveau client.
   - Les **codes d'offre** acceptent l'éligibilité « New subscribers : customers who have never subscribed to any subscription product within the group », et le choix « No » pour l'offre de lancement : « Eligible customers will redeem the offer code first, then automatically renew to the standard subscription price without using the introductory offer » (https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-offer-codes, lu le 30/10). C'est exactement « −25 % 12 mois sans essai, puis prix normal ».
@@ -191,7 +227,7 @@ Pour être coach il faut **vraiment** l'être : encadrer contre rémunération e
   `insert into public.coach_offer_codes (code, expires_at, batch) select c, '<expiration du lot>', 'lot 2026-11' from unnest(array['…','…']) c;`
   Contrôle du stock : `select environment, count(*) filter (where assigned_at is null) as libres, min(expires_at) from public.coach_offer_codes group by 1;`
 - **`student_offer_code(env default 'Production')`** → `{ ok, error, code, expires_at, coach }`. Refus dans `error` (pas une exception, pour que le débit reste compté) : `not_student` (pas de coach, ou coach sans rôle), `not_new` (une transaction Apple connue ou un code cadeau MDLF), `no_code` (stock vide, ou déjà 3 codes reçus). Le même code est rendu tant qu'il reste valable plus d'un jour ; un nouveau n'est pris que s'il reste au moins 7 jours au lot. `rate_limited` (P0001) au-delà de 20 appels par 24 h.
-- **Dans l'app** : « 4,89 €/mois pendant 12 mois, puis 6,49 €/mois. Sans essai gratuit. » Le prix d'un code d'offre n'est **pas** donné par StoreKit : il est écrit en repli par devise (EUR 4,89 €, USD 3,99 $, CAD 4,99 $ CA, CHF 3,00), le prix d'après est lu chez StoreKit. Le bouton ouvre la page d'Apple avec le code prérempli : `https://apps.apple.com/redeem?ctx=offercodes&id=6823561962&code=<CODE>` ; la transaction revient par l'écouteur `Transaction.updates` (`verify-purchase`). Apple montre le prix exact avant de valider.
+- **Dans l'app (jusqu'au 16/11)** : « 4,89 €/mois pendant 12 mois, puis 6,49 €/mois. Sans essai gratuit. » Le prix d'un code d'offre n'est **pas** donné par StoreKit : il est écrit en repli par devise (EUR 4,89 €, USD 3,99 $, CAD 4,99 $ CA, CHF 3,00), le prix d'après est lu chez StoreKit. Le bouton ouvre la page d'Apple avec le code prérempli : `https://apps.apple.com/redeem?ctx=offercodes&id=6823561962&code=<CODE>` ; la transaction revient par l'écouteur `Transaction.updates` (`verify-purchase`). Apple montre le prix exact avant de valider.
 - **Après 12 mois**, Apple passe tout seul au prix normal. Côté serveur c'est un abonnement `active` comme un autre (`offerType` = 3 dans la transaction signée).
 
 ### Attribution élève → coach (commissions)
@@ -210,10 +246,74 @@ Pour être coach il faut **vraiment** l'être : encadrer contre rémunération e
 - Anciens élèves gratuits notés dans `private.tarifs_ex_coach_team (user_id, coach_id, noted_at)` ; `private.coach_free_limits` gardée (plus lue). Pour revenir à la gratuité : recréer `private.access_coach_free` et `private.access_own_paid` (texte dans `20261029000000_payant_modele_b.sql`) et la branche `coach_team` de `private.access_json`, puis `select private.access_refresh(user_id) from public.entitlements;`. Le statut `coach_team` reste permis par la contrainte, et la clé `coach_team` de `my_access()` vaut toujours `false`.
 - Contrôle avant la migration (production, lecture seule) : `select count(*) from public.entitlements where status = 'coach_team' or in_coach_team;` (verrou éteint : personne ne perd rien tant qu'il n'est pas allumé ; un geste éventuel : un code cadeau maison).
 
+## Élèves offerts par leur coach (décision de Maxence du 16/11/2026, migration `20261116030000_eleves_gratuits.sql`)
+« Les élèves ne paient pas, ce sont les coachs qui paient un forfait élève. » Remplace l'offre élève du 30/10. Retour arrière : `supabase/rollback/20261116030000_eleves_gratuits_down.sql`. Tests : `tests/sql/eleves_gratuits_test.sql`.
+
+### Règle (serveur, `private.coach_cover`, lue par `private.access_json`)
+- Un élève a l'**accès complet sans payer** (statut `coach_team`, `can_write` vrai) quand il est lié à un coach (`coach_links`) qui a **toujours le rôle**, un **abonnement coach en cours** (palier 10, 25, 50 ou 100 élèves depuis la grille du 17/11), et que l'élève est **dans la limite du palier** : les élèves sont rangés par date d'arrivée chez ce coach (`coach_links.created_at`, puis `student_id`), les N premiers sont offerts.
+- **Délai de grâce : 7 jours** (`private.coach_cover_grace()`), quand l'offre s'arrête : fin ou remboursement de l'abonnement coach (7 jours après la fin), **descente de palier** (7 jours après le changement, pour les élèves que l'ancien palier couvrait : journal `private.coach_tier_log`, rempli par le déclencheur `entitlement_claims_tier_log`, une souscription Apple changeant de produit sur place ; purgé après 30 jours), **rôle retiré** par l'administrateur (7 jours après `coach_requests.decided_at`). Pendant la grâce : `coach_team`, `until` = fin de la grâce. Ensuite l'élève retombe sur la règle normale : **essai gratuit d'Apple** (il n'a jamais acheté, Apple le lui accorde encore) ou abonnement. Rien n'est supprimé : historique, progrès, export.
+- **Au-delà du palier** (après la grâce) : l'élève n'est **pas** offert et **jamais facturé en silence** (rien n'est débité sans un achat qu'il confirme chez Apple) ; il voit un message clair, et le coach est invité à monter de palier (`coach_tier_state().uncovered`). L'ajout d'un élève au-delà du palier reste refusé (`tier_full`, inchangé). Un élève offert qui part libère sa place : le suivant entre dans le palier.
+- **Le coach** : rien ne change pour lui (son abonnement coach lui donne l'accès complet).
+- **Élève qui paie lui-même** : il reste `active` (ordre des statuts), `coach_cover` dit que son coach l'offre, et l'app lui dit qu'il peut résilier son propre abonnement.
+- **Verrou éteint** : rien ne bloque, comme avant ; `coach_cover` est quand même calculé, l'app ne l'affiche que verrou allumé.
+- `my_access().coach_cover` : `null` (pas de coach) ou `{ state, until, coach }` : `state` = `active` (offert), `grace` (offert jusqu'à `until`), `over_limit` (le coach a un abonnement coach mais l'élève est au-delà de son palier), `ended` (le coach n'a plus d'abonnement coach, ou plus le rôle, grâce passée) ; `coach` = pseudo du coach.
+- `coach_tier_state().uncovered` : élèves que la formule payée ne couvre pas (tous, sans abonnement coach).
+- Aucune nouvelle RPC, aucune fonction Edge modifiée : `verify-purchase` et `appstore-notify` écrivent les achats du coach comme avant, l'offre est recalculée à chaque lecture.
+- Administration (lecture seule) : `select l.coach_id, l.student_id, private.coach_cover(l.student_id) from public.coach_links l order by l.coach_id, l.created_at;` et `select * from private.coach_tier_log order by changed_at desc;`
+
+### App
+- Élève offert : Réglages › Abonnement affiche « **Offert par ton coach <nom>** », « Rien à payer » ; l'écran d'abonnement a ce titre et ne propose aucune formule. Pendant la grâce : « Offert jusqu'au <date> », un message et un bandeau sur l'accueil. Au-delà du palier ou sans abonnement coach : un message clair (« Ton coach <nom> suit plus d'élèves que sa formule n'en comprend… », « Ton coach <nom> n'a plus d'abonnement coach… ») puis les formules habituelles, essai compris.
+- Coach : l'onglet Coach de l'abonnement dit « **Tes élèves n'ont rien à payer** » ; Réglages › Coach le rappelle ; bandeau « N élèves au-delà de ta formule : leur accès n'est plus offert. Passe au palier supérieur. » (ou « Sans abonnement coach, tes N élèves n'ont plus l'accès offert »), qui mène au palier qui les contient tous. Le message d'invitation du coach dit « tu n'as rien à payer » seulement verrou allumé et abonnement coach en cours.
+- Retirés : `accessStudentOffer`, `planStudentPrice`, `planRedeemUrl`, la carte « Offre élève » et ses erreurs (`not_student`, `not_new`, `no_code`, `testflight`).
+
+### Commissions (parrainage)
+Inchangées dans le code : un coach touche 20 % du net des abonnés qu'il a apportés **et qui paient** (docs/PARRAINAGE.md). Un élève offert ne paie rien, donc ne rapporte pas de commission ; seuls les élèves au-delà du palier, ou partis puis abonnés, en rapportent. À revoir avec Maxence (docs/CONDITIONS_COACH.md).
+
+## Essai coach pour qui a déjà eu un essai (17/11/2026, migration `20261117040000_promo_coach.sql`)
+**Le problème.** Particulier et coach sont dans le **même groupe** d'abonnements : Apple n'accorde l'offre de lancement (particulier 3 mois, coach 2 mois depuis le 17/11) qu'**une fois par identifiant Apple et par groupe** (« customers who haven't previously received an introductory offer for the given product, or for any products in the same subscription group », https://developer.apple.com/documentation/storekit/implementing-introductory-offers-in-your-app). Un coach qui a déjà eu l'essai particulier n'a donc pas d'essai coach ; un abonné particulier qui passe coach non plus (« Existing subscribers are not eligible […] if they are upgrading »).
+
+### Solution choisie : offre promotionnelle d'Apple, signée par notre serveur
+- **Éligibilité d'Apple** : « existing and previously subscribed customers » (https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-promotional-offers-for-auto-renewable-subscriptions) ; « Customers can accept the offer even if they've already accepted an introductory offer » (même page) ; elle sert aussi à « promote an upgrade to a higher-ranked subscription at a special price ». C'est exactement notre cas : notre coach a eu (ou a) l'abonnement particulier. Apple vérifie lui-même qu'il a eu un abonnement du groupe ; **nous** décidons du reste (« You decide the criteria for which subscribers qualify », https://developer.apple.com/documentation/storekit/implementing-promotional-offers-in-your-app).
+- **Gratuit 2 mois possible** : mode « Free » (FREE_TRIAL), durée TWO_MONTHS acceptée par l'API d'App Store Connect (offres créées le 17/11, voir Journal). 10 offres actives au plus par abonnement ; l'offre vaut dans tous les pays où l'abonnement est vendu ; une fois créée, seul le prix se modifie.
+- **Signature** : JWS compact (ES256) signé avec la **clé In-App Purchase** (Key ID `78L95MG5FL`, la même que la relecture de `verify-purchase`), en-tête `{ alg: ES256, kid, typ: JWT }`, charge utile `{ iss, iat, aud: "promotional-offer", bid, nonce, productId, offerIdentifier }`, **sans `exp`** (« including it makes the request fail ») : https://developer.apple.com/documentation/storekit/generating-jws-to-sign-app-store-requests. Côté app : `Product.PurchaseOption.promotionalOffer(_:compactJWS:)` (rétroportée jusqu'à iOS 15, demande le SDK iOS 26 : la CI compile avec Xcode 26), https://developer.apple.com/documentation/storekit/product/purchaseoption/promotionaloffer(_:compactjws:). L'ancienne signature (`promotionalOffer(offerID:keyID:nonce:signature:timestamp:)`) est dépréciée depuis iOS 26.
+- **Règles d'examen** : 3.1.2(a) (essai gratuit décrit dans App Store Connect), 3.1.2(c) (dire ce que l'on obtient pour le prix) ; page Abonnements d'Apple : le montant débité est l'élément de prix le plus visible, durée de l'essai et prix après l'essai dits clairement, limites d'éligibilité mentionnées (https://developer.apple.com/app-store/subscriptions/, https://developer.apple.com/app-store/review/guidelines/#subscriptions).
+
+### Écartées
+- **Codes d'offre** (éligibilité « Existing » et « Expired » possible, https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-offer-codes) : lots de 500 à 25 000 codes, expirant en 6 mois au plus, stock à importer et à renouveler, saisie dans la feuille d'Apple ou une URL hors de l'app, et un code se transmet. L'offre promotionnelle fait la même chose sans stock, compte par compte, dans le parcours d'achat normal.
+- **Offres de reconquête (win-back)** : seulement pour les abonnés **partis** (« Time Since Last Subscribed » de 1 à 24 mois), après une **durée payée minimale** (1 mois au moins), critères appliqués par Apple et non par nous ; feuille dans l'app à partir d'iOS 18 (https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-win-back-offers). Un particulier en cours d'essai ou abonné qui devient coach n'y aurait pas droit.
+- **Éligibilité à l'offre de lancement signée** (`introductoryOfferEligibility(compactJWS:)`, `allowIntroductoryOffer`) : la documentation d'Apple ne dit pas qu'elle rend l'essai à quelqu'un qui l'a déjà eu dans le groupe (des éditeurs tiers l'affirment, sans source Apple), et elle ne couvre pas la montée de palier d'un abonné en cours. Non retenue tant qu'Apple ne l'écrit pas.
+
+### Règle (serveur)
+- Signée **seulement** pour un **coach validé** (`private.is_coach`), qui n'a **jamais eu d'abonnement coach** (`private.coach_sub_seen`, rempli par le déclencheur `entitlement_claims_coach_promo` et, à la migration, par les abonnements coach connus et le journal des descentes de palier : une souscription Apple change de produit sur place, la ligne de `entitlement_claims` n'en garde pas la trace), et que **StoreKit dit non éligible à l'offre de lancement** (sinon il prend l'essai normal, sans signature).
+- **Une seule fois par compte** : la première transaction coach (offre utilisée ou non) ferme l'offre pour toujours (`had_coach`). Avant cela, une signature ne sert qu'à un achat, même raté : **5 par 24 h**, **10 en tout** (`too_many`).
+- Tables : `public.coach_promo_offers` (une ligne par compte : produit, offre, première et dernière signature, nombre, `redeemed_at` et `redeemed_product` à la première transaction coach) et `private.coach_sub_seen`. RLS fermée, aucun GRANT. Vue d'administration `private.coach_promo_admin` : `select * from private.coach_promo_admin order by last_signed_at desc;`
+- RPC : `coach_promo_state()` (authenticated, lecture seule) → `{ eligible, reason }` (`not_coach`, `had_coach`, `too_many`, null) ; `srv_coach_promo_grant(p_user, p_product, p_intro_eligible)` (service_role) → `{ ok, error, offer_id }` (`unknown_product`, `not_coach`, `intro_eligible`, `had_coach`, `too_many`, `rate_limited`), refus dans `error` (pas d'exception : le compteur reste écrit).
+- Fonction Edge **`coach-promo-offer`** (`verify_jwt = false`, jeton vérifié dans le code) : `POST { productId, introEligible }` → `{ ok, offerId, jws }` ; 401 sans session, 400 corps invalide, 403 refus, 409 `intro_eligible`, 429 débit, 503 secrets absents (rien signé ni compté). Aucun identifiant de transaction ni de compte dans les journaux.
+- L'achat revient par `verify-purchase` comme tout achat (la transaction porte `offerType` 2, `offerIdentifier`). **`verify-purchase` n'est pas modifiée** : `intro_offer` reste réservé à l'offre de lancement (`offerType` 1).
+
+### App
+- Onglet Coach de l'écran d'abonnement : si StoreKit ne propose plus l'offre de lancement, que le produit porte l'offre `<produit>.essai2mois` (`promoOffers`, rendu par la build 69 et suivantes) et que `coach_promo_state` dit `eligible`, chaque palier affiche « **2 mois offerts** » en ligne secondaire (le prix débité reste en gros), le haut de l'écran « Essai coach : 2 mois offerts, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai », et les mentions « Essai coach : 2 mois offerts, puis <prix> selon la formule choisie. Le paiement est débité sur ton compte Apple à la fin de l'essai, sauf si tu le résilies au moins 24 heures avant la fin de l'essai. » et « Essai coach réservé aux coachs vérifiés qui n'ont jamais eu d'abonnement coach, une seule fois par compte. Si Apple ne l'accepte pas, rien n'est débité. » La durée est lue chez StoreKit, jamais écrite dans l'app.
+- Achat : signature demandée à `coach-promo-offer`, puis `purchase({ productId, appAccountToken, promoOfferId, promoJws })`. **Jamais d'achat au prix plein quand l'écran promettait l'essai** : refus du serveur → `promo_unavailable`, aucun achat ; refus d'Apple (`PROMO_REFUSED`) → `promo_refused`, rien de débité ; dans les deux cas le droit est relu et l'écran repasse au prix normal.
+- Build 68 et plus anciennes : pas de `promoOffers`, donc aucune offre annoncée (elles ne sauraient pas l'appliquer).
+
+### Limites connues
+- **Coach qui a eu l'essai coach (offre de lancement ou cette offre), l'a résilié et revient** : plus d'essai (`had_coach`), il paie le prix normal. Pour le faire revenir : une **offre de reconquête** d'Apple (ou une nouvelle offre promotionnelle avec une autre règle), décision de Maxence.
+- **Coach validé sur un second compte MDLF avec le même identifiant Apple** : notre règle est par compte, Apple ne limite pas le nombre d'offres promotionnelles par client. Il faudrait un second rôle coach vérifié à la main (carte professionnelle) : risque faible, accepté.
+- **Pendant les 2 mois offerts**, Réglages › Abonnement affiche « Renouvellement le <date> » et non « Essai gratuit jusqu'au » (`intro_offer` ne couvre que `offerType` 1). Corriger demanderait de modifier `verify-purchase` et `appstore-notify` (lire aussi `offerType` 2 + FREE_TRIAL) : non fait, à décider.
+- Le paiement de la période offerte est noté à son prix (0) dans `subscription_payments`, sans le drapeau `free_trial`.
+- Sous TestFlight (Sandbox), Apple accepte les offres promotionnelles comme en production ; à vérifier avec le testeur Sandbox.
+
+### Ordre de déploiement (rien n'est fait)
+1. Après les migrations du payant et des élèves offerts : `20261117040000_promo_coach.sql` (retour arrière `supabase/rollback/20261117040000_promo_coach_down.sql`, tests `tests/sql/promo_coach_test.sql`, ordre dans `tests/sql/prod_order_test.sh`).
+2. Secrets de la fonction : les mêmes que `verify-purchase` (`APPLE_IAP_KEY_ID`, `APPLE_IAP_PRIVATE_KEY`, `APPLE_ISSUER_ID`), à poser s'ils ne le sont pas déjà. Aucun nouveau secret.
+3. Fonction Edge `coach-promo-offer` (`verify_jwt = false`).
+4. **Build 69** (StorePlugin.swift change : **empreinte native nouvelle**) avec la mise à jour à chaud qui contient l'écran. Une mise à jour à chaud publiée seule n'atteint que les builds de même empreinte ; sur la build 68, l'écran ne montre jamais l'offre (pas de `promoOffers`).
+5. Tester sur un iPhone avec le testeur Sandbox (essai particulier, puis coach : « 2 mois offerts », feuille d'Apple, transaction `offerType` 2).
+
 ## Précisions du serveur
 - **Deux tables** : `entitlement_claims` (chaque transaction Apple, à vie) et `entitlements` (l'instantané du compte).
 - **L'état qui fait foi est recalculé à chaque lecture** (`private.access_json`). `entitlements.status` et `in_coach_team` ne sont que le dernier instantané.
-- **Ordre des statuts** : `gift` > `active` > `expired` > `none` (`coach_team` n'est plus produit depuis le 30/10).
+- **Ordre des statuts** : `gift` > `active` > `coach_team` > `expired` > `none` (`coach_team` : élève offert par son coach, depuis le 16/11).
 - **`until`** : fin de l'abonnement ou du cadeau en jours (`active`, `gift`) ; pour `expired`, la dernière fin d'accès (fin d'abonnement, remboursement, cadeau en jours) ; `null` sinon. **`days_left`** : jours entiers restants pour `active` et `gift`, `null` sinon.
 - **`app_config`** : une valeur absente ou du mauvais type retombe sur « éteint ». Pour allumer le verrou : `update public.app_config set value = 'true'::jsonb, updated_at = now() where key = 'paywall_on';`
 - **Produits reconnus** en dur (`private.access_product_kind`, dernière version dans `20261030000000_payant_tarifs.sql`, et `PRODUCT_KINDS` de `purchase-policy.js`, comparés par `tests/unit/payant.mjs`) : les **dix** abonnements (`sub`). Tout autre produit, dont l'ancien « Accès offert » et `com.mdlf.training.lifetime` (achat à vie refusé le 31/10), est refusé (`unknown_product`), et l'app termine cette transaction pour qu'elle ne revienne pas.
@@ -259,7 +359,8 @@ Toujours dans cet ordre, une étape seulement quand la précédente est en place
 1. **Contrôle avant la migration**, en lecture seule, sur la production : `select status, count(*) from public.entitlements group by 1;` (les lignes `trial` deviennent `none`, les anciens « Accès offert » perdent leur accès à vie ; rien d'autre ne doit surprendre). `tests/sql/upgrade_test.sh` rejoue cette montée de version sur des données réalistes.
 2. **Migrations** `20261029000000_payant_modele_b.sql` puis `20261030000000_payant_tarifs.sql` (contrôle : `select count(*) from public.entitlements where status = 'coach_team' or in_coach_team;`). `tests/sql/upgrade_test.sh` rejoue les deux.
 3. **Fonctions Edge** `verify-purchase` et `appstore-notify` (elles reconnaissent les produits coach : déployées avant la migration tarifs, la base refuserait un achat coach `unknown_product`, sans dégât), puis `coach-request-alert`. Elles envoient `p_intro` et `p_environment` : déployées AVANT la migration, la base ne connaîtrait pas ces paramètres et refuserait chaque achat et chaque notification.
-4. **Build de l'app ET mise à jour à chaud, ensemble** (une seule étape) : `StorePlugin.swift` change, donc l'**empreinte native** change, et une mise à jour à chaud publiée avant la build n'atteindrait aucun appareil. Le contenu web lit `paywall_on` et `min_build` sans compte (lecture `anon`, posée par la migration) et ne connaît plus le statut `trial` : il ne doit pas précéder la migration.
+4. **Élèves offerts** (16/11) : `20261116030000_eleves_gratuits.sql`, après les migrations du payant, avec la mise à jour à chaud qui l'affiche (aucune fonction Edge ni build native à refaire). Contrôle après : `select status, count(*) from public.entitlements group by 1;`.
+5. **Build de l'app ET mise à jour à chaud, ensemble** (une seule étape) : `StorePlugin.swift` change, donc l'**empreinte native** change, et une mise à jour à chaud publiée avant la build n'atteindrait aucun appareil. Le contenu web lit `paywall_on` et `min_build` sans compte (lecture `anon`, posée par la migration) et ne connaît plus le statut `trial` : il ne doit pas précéder la migration.
 
 **Version minimale (`min_build`)** : `app_config.min_build` (livré à 0, lisible sans compte comme `paywall_on`) est la build native minimale. Une app dont la build est plus ancienne affiche un écran plein « Mets à jour l'app » qui ne se ferme pas ; ses séances restent sur l'iPhone. Bouton : fiche App Store (`https://apps.apple.com/app/id6823561962`) pour une app installée par l'App Store (environnement StoreKit `production`), lien public TestFlight sinon. Règles (`js/data/min-build.js`, écran dans `js/app/updates.js`) : **serveur injoignable = jamais bloqué** (aucune valeur gardée sur l'appareil : un lancement hors ligne est toujours libre) ; navigateur : jamais ; jamais pendant une séance (l'écran attend le retour suivant au premier plan) ; vérifié au démarrage, au retour au premier plan et au retour du réseau ; un minimum abaissé ensuite (valeur réglée par erreur) retire l'écran à la vérification suivante. La clé, sa lecture `anon` (politique `app_config_anon_paywall`, `grant select (key, value) … to anon`) et la lecture `authenticated` existent déjà (migrations du 28 et du 29/10) : aucune migration à ajouter. Ce code part AVEC la build payante : il protège les builds suivantes. Le jour d'allumer le verrou, régler `min_build` sur la première build payante :
 `update public.app_config set value = '<build>'::jsonb, updated_at = now() where key = 'min_build';`
@@ -278,8 +379,8 @@ Les utilisateurs sans compte d'une ancienne build ne synchronisent rien : le ver
 1. Signer le contrat **Paid Apps** sur App Store Connect (RIB, fiscalité) : sans lui, StoreKit ne renvoie aucun produit (`missing`).
 2. Vérifier le statut micro-entreprise pour la vente d'applications ; demander le **Small Business Program** (15 % au lieu de 30 %).
 3. Ajouter la **capture de revue** (et vérifier nom et description) des **dix** abonnements et de l'offre de lancement ; supprimer le produit « Accès offert » (`com.mdlf.training.access.gift`) s'il est encore là.
-4. Créer un **testeur Sandbox** ; pour tester l'offre élève, un lot de **codes Sandbox** (ASC › l'abonnement mensuel › Codes d'offre › « Eleve de coach -25 pct 12 mois » › codes à usage unique, environnement Sandbox), importé avec `environment = 'Sandbox'`.
-5. Avant d'allumer le verrou : générer un **lot de codes à usage unique de production** de l'offre élève (500 au moins, expiration 6 mois au plus), télécharger le fichier et l'importer dans `public.coach_offer_codes` ; le refaire avant chaque expiration (contrôle du stock dans « Tarifs du 30/10 »).
+4. Créer un **testeur Sandbox**.
+5. ~~Lots de codes de l'offre élève~~ : **plus rien à faire** (offre élève retirée le 16/11/2026). À la place : **désactiver** le code d'offre « Eleve de coach -25 pct 12 mois » dans App Store Connect (étapes dans « Journal App Store Connect », 16/11).
 6. Fournir l'**URL de notification** à App Store Connect (fonction `appstore-notify`) et la clé d'API **In-App Purchase** (.p8 téléchargeable une seule fois) → secrets `APPLE_IAP_KEY_ID`, `APPLE_IAP_PRIVATE_KEY`, `APPLE_ISSUER_ID`. `APPLE_ALLOW_SANDBOX` n'existe plus : le retirer s'il avait été posé.
 7. Suivre l'**ordre de déploiement** ci-dessus : contrôle, migrations, `verify-purchase` (`verify_jwt = false`), `appstore-notify` (`--no-verify-jwt`), `coach-request-alert` (`verify_jwt = false`, secret `RESEND_API_KEY` déjà posé pour `report`), mise à jour à chaud, build (`StorePlugin.swift` connaît les dix produits).
 8. Valider les demandes coach (sous 48 h, comme l'écran le promet) avec `private.approve_coach` / `private.reject_coach` après vérification sur https://recherche-educateur.sports.gouv.fr.
@@ -330,3 +431,10 @@ Retour arrière : `supabase/rollback/20261031000000_payant_plus_down.sql` (à la
   - **Niveaux du groupe** remis dans l'ordre coachmax > coach30 > coach20 > coach10 > particulier (1 à 10).
   - CHE `coachmax.monthly` relevé à 25,00 CHF (équivalence à 20,00 CHF = coach30).
   - **Code d'offre** « Eleve de coach -25 pct 12 mois » créé sur `pro.monthly` (id `9a963bbc-d2c8-4478-8ba3-6bc74abc067d`) : `NEW`, `REPLACE_INTRO_OFFERS`, `PAY_AS_YOU_GO` 12 × 1 mois, 4,89 € (et équivalences), actif. **Aucun code généré** (ni production ni Sandbox) : à faire par Maxence (points 4 et 5), un lot expire en 6 mois au plus.
+- **16/11/2026 (à faire par Maxence, à la main)** : élèves offerts par leur coach, l'offre élève −25 % n'a plus lieu d'être.
+  1. App Store Connect › Apps › MDLF Training › Monétisation › Abonnements › groupe « MDLF Training Acces » › « MDLF Training mensuel » (`com.mdlf.training.pro.monthly`).
+  2. Section **Codes d'offre** › « Eleve de coach -25 pct 12 mois » › **Désactiver** l'offre (aucun code n'a été généré : personne ne l'a reçue). Ne rien supprimer d'autre.
+  3. **Garder** les huit abonnements coach (`coach10`, `coach20`, `coach30`, `coachmax`, mensuel et annuel), leurs prix et leur essai de 3 mois, et les deux abonnements particulier.
+  4. Vérifier qu'aucun autre code d'offre n'est actif sur `pro.monthly` (la liste des codes d'offre doit être vide ou tout désactivé).
+  5. Optionnel : dans la description des abonnements coach (fr-FR et en-US), ajouter « Tes élèves n'ont rien à payer » / « Your students pay nothing » (soumis avec la prochaine version).
+- **17/11/2026 (API, rien n'est soumis, état avant/après dans `~/.local/share/mdlf/sauvegardes/asc_promo_coach_{avant,apres}_20261117.json`)** : offre promotionnelle « Essai coach 2 mois <palier>.<période> » (FREE_TRIAL, TWO_MONTHS, 1 période, prix des 5 pays FRA, BEL, CHE, CAN, USA) sur les **8 abonnements coach**, identifiant d'offre `com.mdlf.training.<palier>.<période>.essai2mois` (nom et identifiant uniques dans l'app : Apple refuse un même identifiant sur deux produits). Voir « Essai coach pour qui a déjà eu un essai ».

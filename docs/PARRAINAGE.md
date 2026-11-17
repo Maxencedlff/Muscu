@@ -22,13 +22,13 @@ l'utilisateur n'a aucun accès direct). Pas de double attribution, donc pas de d
 | Comment | Sorte | Délai | Où |
 | --- | --- | --- | --- |
 | Saisie d'un code partenaire (« Code d'un coach ou d'un ami ») | `partner`, source `code` | 30 jours après la création du compte | `referral_apply` |
-| Adhésion à un coach (code d'invitation `coach_invites`, puis code unique du payant) | `coach`, source `coach` | aucun : l'élève s'abonne grâce au code du coach (−25 %) | déclencheur sur `coach_links` → `private.referral_attribute_coach` |
+| Adhésion à un coach (code d'invitation `coach_invites`, puis code unique du payant) | `coach`, source `coach` | aucun : l'élève rejoint le coach (offert par l'abonnement coach depuis le 16/11/2026) | déclencheur sur `coach_links` → `private.referral_attribute_coach` |
 | Saisie du code permanent d'un coach dans « Code d'un coach ou d'un ami » | `coach`, source `code` | 30 jours | `referral_apply` → `private.referral_resolve_coach_code` |
 
 Cas qui se croisent :
 
 - **Déjà parrainé, puis rejoint un coach** : l'attribution d'avant reste ; le coach suit l'élève et
-  l'élève garde son −25 % (payant), mais le coach ne touche rien sur lui. Dit dans les conditions.
+  l'élève est offert par l'abonnement de son coach (16/11/2026), et le coach ne touche rien sur lui. Dit dans les conditions.
 - **Rejoint un coach, puis saisit un code** : « Ton compte a déjà un parrain » (sauf le même parrain : ok).
 - **Quitte son coach, en rejoint un autre** : l'attribution reste au premier (elle ne suit pas le lien).
   À revoir si Maxence veut que la commission suive le coach actuel.
@@ -125,9 +125,10 @@ reste dû = Σ commissions depuis le début − Σ virements faits ; versé dès
 - TVA du pays de l'acheteur (France 20 % : HT = TTC ÷ 1,2) ; part d'Apple sur le HT : 15 % (Small
   Business Program, ou abonné de plus d'un an), sinon 30 %. Le plus simple et le plus juste : prendre
   les proceeds du relevé App Store Connect, déjà nets.
-- Exemple, abonnement particulier d'un élève de coach à 4,89 € TTC (−25 %), France, 15 % :
-  4,89 ÷ 1,2 = 4,075 € HT ; Apple 0,61 € ; net 3,46 € ; commission 20 % = 0,69 € par mois. Il faut donc
-  environ 29 abonnés-mois pour atteindre le seuil de 20 €.
+- Exemple, abonnement particulier mensuel à 6,49 € TTC, France, 15 % :
+  6,49 ÷ 1,2 = 5,41 € HT ; Apple 0,81 € ; net 4,60 € ; commission 20 % = 0,92 € par mois. Il faut donc
+  environ 22 abonnés-mois pour atteindre le seuil de 20 €. (Depuis le 16/11/2026, un élève offert par
+  l'abonnement de son coach ne paie rien et ne rapporte donc aucune commission.)
 - « 12 premiers mois » : comptés depuis le premier paiement de l'abonné (pas depuis l'attribution).
 
 ## Branchement sur le payant (`20261101000000_parrainage_payant.sql`)
@@ -188,7 +189,7 @@ Règles du calcul :
   l'app propose alors « Rejoindre ce coach » (Réglages › Compte) et le rappelle sous le pseudo.
 - **Code de coach saisi dans « Code d'un coach ou d'un ami »** : il parraine (le coach touche sa part),
   mais ne fait pas rejoindre le coach ; l'app le dit et propose de le rejoindre (suivi des séances,
-  offre élève).
+  accès offert par l'abonnement du coach).
 - À la validation d'un abonnement Apple, `public.referral_for_user(uid)` donne toujours le parrain.
 - Vérifié par `tests/sql/parrainage_payant_test.sql` (et `tests/sql/prod_order_test.sh` pour l'ordre de
   mise en production).

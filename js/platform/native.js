@@ -583,10 +583,14 @@ const Native = (() => {
       // { jws, transactionId } quand status vaut 'success'. La transaction n'est PAS terminée ici :
       // c'est finish() qui le fait, une fois le serveur d'accord (un achat perdu par le réseau
       // revient au lancement suivant).
-      async purchase(productId, appAccountToken = null) {
+      // promo : { offerId, jws } (offre promotionnelle signée par le serveur, build 69+). Offre refusée
+      // par Apple (signature, client non éligible) : { status: 'promoRefused' }, rien n'est débité.
+      async purchase(productId, appAccountToken = null, promo = null) {
         if (!this.available) return null;
-        try { return await Store.purchase({ productId, ...(appAccountToken ? { appAccountToken } : {}) }); }
-        catch { return null; }
+        try {
+          return await Store.purchase({ productId, ...(appAccountToken ? { appAccountToken } : {}),
+            ...(promo ? { promoOfferId: promo.offerId, promoJws: promo.jws } : {}) });
+        } catch (e) { return promo && e?.code === 'PROMO_REFUSED' ? { status: 'promoRefused' } : null; }
       },
       // OBLIGATOIRE après la vérification par le serveur : sans cet appel, Apple réannonce la même
       // transaction à chaque lancement.
@@ -623,7 +627,7 @@ const Native = (() => {
       // Environnement de l'app selon StoreKit (AppTransaction) : 'production' (App Store), 'sandbox'
       // (TestFlight, ou Xcode avec un compte Sandbox), 'other' ou 'unknown'. null hors app iOS, ou dans
       // une coquille plus ancienne que la méthode (mise à jour à chaud arrivée avant la build). Sert
-      // seulement à choisir l'environnement d'un code d'offre élève : aucune décision d'accès.
+      // seulement à choisir le lien de l'écran « Mets à jour l'app » : aucune décision d'accès.
       async environment() {
         if (!this.available) return null;
         try { const r = await Store.environment(); return typeof r?.environment === 'string' ? r.environment : null; }
