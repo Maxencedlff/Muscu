@@ -384,6 +384,7 @@ function openLibPick(cat) {
 function refreshLibPickBar() {
   const right = $('.library--pick .navbar__side--right');
   if (right) right.innerHTML = libPickRightHtml();
+  fitBackLabel();   // « Ajouter (2) » plus large : le retour se raccourcit (« Retour » ou chevron), jamais « Gro… »
 }
 SCREENS.set('library-ex', { render: name => renderLibraryEx(name), mount: () => { mountHowTo(); if (libExTab === 'chart') drawCharts(); } });
 
