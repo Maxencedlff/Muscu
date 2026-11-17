@@ -196,7 +196,8 @@ html.type-xl .feed-card__head { min-height: 0; }
 }
 @keyframes like-fade { 0% { opacity: 0; } 20%, 70% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .like-burst { animation-name: like-fade; }
+  /* La règle générale (css/components.css) ramène toute animation à 0,01 ms : le fondu, sans mouvement, garde sa durée */
+  .like-burst { animation-name: like-fade; animation-duration: .8s !important; }
 }
 .react__count { font-size: var(--fs-subhead); color: var(--label2); white-space: nowrap; }
 /* Ma séance (Mon profil) : résumé seul, à la hauteur d'un bouton */
@@ -226,14 +227,17 @@ html.type-xl .feed-card__head { min-height: 0; }
 }
 
 /* Séance d'un ami : les six réactions côte à côte, la mienne sur un disque */
-.react-row { display: flex; justify-content: space-between; gap: 4px; }
+/* Six cibles de 44 pt même à 320 pt (iPhone SE) : bord de la carte réduit à 8 px, sans espace entre elles ; le texte
+   dessous garde l'alignement de 16 px */
+.social-session__react { padding-left: 8px; padding-right: 8px; }
+.react-row { display: flex; justify-content: space-between; gap: 0; }
 .react-row__btn {
-  flex: 1; max-width: 60px; height: 52px; border: 0; border-radius: var(--r-md); padding: 0; cursor: pointer;
+  flex: 1; min-width: 44px; max-width: 60px; height: 52px; border: 0; border-radius: var(--r-md); padding: 0; cursor: pointer;
   background: none; font-size: 28px; line-height: 1; display: flex; align-items: center; justify-content: center;
 }
 .react-row__btn:active { transform: scale(1.12); }
 .react-row__btn--on { background: var(--fill); box-shadow: inset 0 0 0 2px var(--tint); }
-.react-row__foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: var(--fs-subhead); color: var(--label2); }
+.react-row__foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 0 8px; font-size: var(--fs-subhead); color: var(--label2); }
 .react-row__mine { min-width: 0; }
 .react-row__count { white-space: nowrap; }
 
