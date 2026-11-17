@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Retour arrière de la photo de profil (supabase/rollback/20261116000000_photo_profil_down.sql) : refusé tant qu'il
+# Retour arrière de la photo de profil (supabase/rollback/20261117000000_photo_profil_down.sql) : refusé tant qu'il
 # reste un fichier dans le compartiment ; ensuite tout ce que la migration a créé disparaît, le reste (photos de
 # bilan, signalements, app_config) est gardé ; puis la migration remonte et ses tests repassent.
 # Postgres local jetable, rien n'est envoyé au projet Supabase.
@@ -7,8 +7,8 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
-mig="$root/supabase/migrations/20261116000000_photo_profil.sql"
-down="$root/supabase/rollback/20261116000000_photo_profil_down.sql"
+mig="$root/supabase/migrations/20261117000000_photo_profil.sql"
+down="$root/supabase/rollback/20261117000000_photo_profil_down.sql"
 bin=$(dirname "$(command -v initdb 2>/dev/null || ls -d /usr/lib/postgresql/*/bin/initdb | sort -V | tail -1)")
 tmp=$(mktemp -d)
 port=$(( 20000 + RANDOM % 20000 ))

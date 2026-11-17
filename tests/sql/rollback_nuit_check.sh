@@ -150,7 +150,7 @@ for pair in "20261106100000:intensif_prise_test.sql" \
             "20261106200000:plans_diete_test.sql" \
             "20261107000000:photos_bilan_test.sql" \
             "20261116010000:charge_prescrite_test.sql" \
-            "20261116000000:photo_profil_test.sql" \
+            "20261117000000:photo_profil_test.sql" \
             "20261031000000:payant_plus_test.sql"; do
   t=${pair%%:*}; skip=" ${pair#*:} "
   clone ref "seul_$t"

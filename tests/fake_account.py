@@ -79,7 +79,7 @@ invalid_photo, not_adult sans la déclaration des 18 ans, too_many à 3 par jour
 le compartiment privé (client.storage.from('coach-photos') : upload, createSignedUrl, remove, list) avec les règles des
 politiques. État dans __sb.co.pkeys, __sb.co.photos, __sb.objs (fichiers, base64), __sb.trash (file de purge), __sb.signed
 (URL signées et leur durée) ; __sb.fail.photos = 'missing' (PGRST202) ou 'offline'. Lien rompu : photos effacées.
-Photo de profil (supabase/migrations/20261116000000_photo_profil.sql) : profile_photo_state, profile_photo_prepare (disabled,
+Photo de profil (supabase/migrations/20261117000000_photo_profil.sql) : profile_photo_state, profile_photo_prepare (disabled,
 not_allowed sans droit : verrou __st.paywallOn allumé, ni __sb.pp.pro[id] ni coach ; banned, rate_limited à 10), profile_photo_commit
 (not_uploaded : fichier absent, de plus de 256 ko ou ni JPEG ni WebP), profile_photo_remove, profile_photos (moi, ami accepté dans un
 sens ou l'autre, coach ou élève ; photo masquée, auteur sans droit ou photos éteintes : absente) ; compartiment profile-photos avec ses
@@ -780,7 +780,7 @@ FAKE_ACCOUNT = r"""
       return { data: Object.keys(sb.objs).filter(p => p.startsWith(folder + '/') && canRead(me, p)).map(p => ({ name: p.split('/')[1] })), error: null };
     },
   });
-  // ── Photo de profil (supabase/migrations/20261116000000_photo_profil.sql) ──
+  // ── Photo de profil (supabase/migrations/20261117000000_photo_profil.sql) ──
   // Photos { id, user, state, bytes, created_at, hidden } ; droit = verrou éteint, ou __sb.pp.pro[id], ou coach
   const pp = sb.pp = { photos: [], pro: {}, bans: {}, on: true, tries: {} };
   const ppPath = p => `${p.user}/${p.id}`;

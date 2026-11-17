@@ -8,8 +8,8 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −8 | `20261116000000_photo_profil_down.sql` (vider d'abord le compartiment `profile-photos` par l'API Storage : il refuse sinon ; redéployer ensuite `coach-photos-purge` dans sa version d'avant, qui ne connaît pas ce compartiment) | rien | oui (vérifié) |
-| −8 | `20261116030000_eleves_gratuits_down.sql` (élèves offerts par leur coach : retour à l'élève payant et au code d'offre −25 %) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et du payant attendent la règle du 16/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
+| −11 | `20261117000000_photo_profil_down.sql` (vider d'abord le compartiment `profile-photos` par l'API Storage : il refuse sinon ; redéployer ensuite `coach-photos-purge` dans sa version d'avant, qui ne connaît pas ce compartiment) | rien | oui (vérifié) |
+| −10 | `20261116030000_eleves_gratuits_down.sql` (élèves offerts par leur coach : retour à l'élève payant et au code d'offre −25 %) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et du payant attendent la règle du 16/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |
 | −9 | `20261116020000_notifications_seances_eleves_down.sql` | rien | oui (vérifié) |
 | −8 | `20261116010000_charge_prescrite_down.sql` | rien | oui (vérifié) |
 | −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
@@ -39,39 +39,34 @@ Les retours arrière marqués « oui (vérifié) » ont été lancés seuls sur 
 
 ## En production : ordre de la mise en production, et son inverse
 
-La production a reçu toutes les migrations de `main` (lot 3, notifications push et notifications des messages compris) et `20261028000000_payant.sql`. Les migrations du payant datées d'avant le lot 3 y arrivent donc **après** des migrations plus récentes qu'elles. Ordre de mise en production, vérifié par `tests/sql/prod_order_test.sh` (production simulée avec des données, schéma obtenu identique à une base neuve, tests de tous les lots, puis retours arrière dans l'ordre inverse, état d'avant retrouvé à chaque marche) :
+**État de la production relu le 17/11/2026** (lecture seule : fonctions et colonnes présentes, `entitlements` encore au format du 28/10 avec `trial_started_at` et des lignes `trial`) : toutes les migrations de `main` jusqu'au lot 3 (notifications push et des messages comprises), `20261028000000_payant.sql`, puis, dans cet ordre :
 
-1. `20261029000000_payant_modele_b.sql`
+- `20261105000000_coach_planning.sql`, `20261105010000_partage_mensurations.sql`, `20261106000000_coach_progression.sql`, `20261106100000_seance_publique_intensif_prise.sql` (07/11 vers 20 h, avant l'OTA 2026.11.7-2633219) ;
+- `20261106200000_plans_diete_coach.sql` (juste après cette OTA) ;
+- `20261107000000_photos_bilan.sql` (vague 2, avec la fonction `coach-photos-purge`, son secret et sa planification) ;
+- `20261116010000_charge_prescrite.sql`, puis la fonction Edge `push-send` redéployée (v7), puis `20261116020000_notifications_seances_eleves.sql` (12 et 13 de l'ancienne liste, en production le 17/11/2026, dans cet ordre).
+
+Chacune dans une transaction par l'éditeur SQL (API de gestion). Les migrations du payant datées d'avant (modèle B, tarifs, payant plus, lettre, parrainage du payant) n'y sont **pas** : elles arrivent donc **après** des migrations plus récentes qu'elles.
+
+### Reste à appliquer, dans cet ordre (vérifié par `tests/sql/prod_order_test.sh`)
+
+Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ; schéma obtenu identique à une base neuve, tests de tous les lots verts, puis retours arrière dans l'ordre inverse, état d'avant retrouvé à chaque marche.
+
+1. `20261029000000_payant_modele_b.sql` (contrôle avant, lecture seule : `select status, count(*) from public.entitlements group by 1;` ; les lignes `trial` deviennent `none` : sans effet tant que le verrou `paywall_on` est éteint, `can_write` reste vrai pour tous)
 2. `20261030000000_payant_tarifs.sql`
 3. `20261031000000_payant_plus.sql`
 4. `20261031230000_newsletter.sql`
 5. `20261101000000_parrainage_payant.sql`
-6. `20261105000000_coach_planning.sql`
-7. `20261105010000_partage_mensurations.sql`
-8. `20261106000000_coach_progression.sql`
-9. `20261106100000_seance_publique_intensif_prise.sql` (séance vue par un ami ou un coach : techniques d'intensification et prise ; indépendante, peut aussi passer seule)
-10. `20261106200000_plans_diete_coach.sql` (après l'OTA qui demande l'accord de l'élève : sinon les coachs ne peuvent plus envoyer de plan diète tant que leurs élèves n'ont pas la version qui sait accepter ; et après les mensurations, dont il garde la donnée)
-11. `20261107000000_photos_bilan.sql` (photos de bilan chiffrées de bout en bout, docs/PHOTOS_BILAN.md : indépendante ; avant l'OTA, avec la fonction `coach-photos-purge` et sa planification)
-12. `20261116000000_photo_profil.sql` (photo de profil, docs/PHOTO_PROFIL.md : indépendante, passe aussi seule sur la production de départ ; avec la fonction `coach-photos-purge` redéployée, qui purge aussi ce compartiment, et `delete-account` ; avant l'OTA qui montre la cellule)
-12. `20261116030000_eleves_gratuits.sql` (élèves offerts par leur coach, décision du 16/11/2026, docs/PAYANT_V1.md) : APRÈS 1 à 3 (il réécrit `access_json` des tarifs), avec l'OTA qui l'affiche. Aucune fonction Edge à redéployer.
-12. `20261116010000_charge_prescrite.sql` (charge prescrite par le coach, docs/COACH_V1.md « Charge prescrite » : le coach reçoit la prescription avec la séance de son élève ; indépendante, ne réécrit que `private.session_for_coach` ; avant ou après l'OTA, sans risque : sans elle, seul l'écart prescrit / fait n'apparaît pas chez le coach)
-13. `20261116020000_notifications_seances_eleves.sql` (notification au coach quand un élève termine une séance, docs/NOTIFICATIONS.md ; remplace des fonctions des notifications des messages, à démonter avant elles)
+6. `20261116030000_eleves_gratuits.sql` (élèves offerts par leur coach, décision du 16/11/2026, docs/PAYANT_V1.md) : APRÈS 1 à 3 (il réécrit `access_json` des tarifs) ; collée avant, elle échoue dans sa transaction sans rien changer (`prod_order_test.sh`, étape 6). Aucune fonction Edge à redéployer pour elle.
+7. `20261117000000_photo_profil.sql` (photo de profil, docs/PHOTO_PROFIL.md : indépendante, passe aussi seule sur la production de départ, étape 7 ; avec `coach-photos-purge` redéployée, qui purge aussi ce compartiment, et `delete-account` ; avant l'OTA qui montre la cellule). Renommée le 17/11 (ancien nom `20261116000000_photo_profil.sql`) pour garder l'ordre des dates égal à l'ordre de la production.
+
+Les fonctions Edge du payant (`verify-purchase`, `appstore-notify`, puis `coach-request-alert`) se déploient juste APRÈS 1 à 3 : elles envoient `p_intro` et `p_environment`, que la base du 28/10 ne connaît pas (docs/PAYANT_V1.md, « Mise en production »).
 
 Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md).
 
-**En deux temps : les neuf fichiers 1 à 9 AVANT l'OTA, le 10e (`20261106200000_plans_diete_coach.sql`) APRÈS l'OTA**, une fois la version qui sait demander l'accord des plans diète installée chez les élèves. Le 11e (photos de bilan) est indépendant : voir « Vague 2 » ci-dessous.
+Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque (et Strava).
 
-Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque, le 10e fichier compris (et Strava), avant l'OTA.
-
-**État de la production au 08/11/2026** : 6 à 9 appliqués le 07/11 vers 20 h (avant l'OTA 2026.11.7-2633219), 10 (plans diète) appliqué juste après cette OTA, chacun dans une transaction par l'éditeur SQL (API de gestion). **1 à 5 (payant, lettre d'information) PAS appliqués** : en attente de l'accord de Maxence ; essai vérifié : 6 à 10 passent sans eux sur la production simulée (seul `coach_test.sql` « équipe pleine » dépend des tarifs).
-
-### Vague 2 (Social V2 + photos de bilan) : une seule migration
-
-Pour cette vague, **appliquer seulement `20261107000000_photos_bilan.sql`** (11e de la liste), avant l'OTA, avec la fonction `coach-photos-purge`, son secret et sa planification (docs/PHOTOS_BILAN.md). Elle ne s'appuie que sur des migrations déjà en production (coach du 27/10) : `tests/sql/prod_order_test.sh` (étape 6) la passe seule sur la production simulée, lance ses tests, puis son retour arrière, qui rend la base à l'identique.
-
-Les cinq migrations du payant (1 à 5 : modèle B, tarifs, payant plus, lettre d'information, parrainage du payant) **ne font pas partie de cette vague** : elles attendent l'accord de Maxence.
-
-Pour défaire en production : l'ordre inverse de cette liste (12 → 1), avant tout retour arrière plus ancien.
+Pour défaire en production : l'ordre inverse de cette liste (7 → 1), avant tout retour arrière plus ancien (tableau du haut).
 
 ## Ce qui est mis de côté, pas effacé
 

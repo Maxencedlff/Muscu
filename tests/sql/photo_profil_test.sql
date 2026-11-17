@@ -1,4 +1,4 @@
--- Vérifications de supabase/migrations/20261116000000_photo_profil.sql (lancées par tests/sql/run.sh) : droits,
+-- Vérifications de supabase/migrations/20261117000000_photo_profil.sql (lancées par tests/sql/run.sh) : droits,
 -- compartiment privé et ses politiques (storage.objects imité par supabase_stub.sql, l'API Storage par des INSERT /
 -- SELECT sous le rôle authenticated), droit Pro ou coach (verrou éteint puis allumé), préparation, envoi, validation,
 -- qui voit la photo (moi, ami accepté dans un sens ou l'autre, coach et élève ; pas un inconnu, pas un bloqué),

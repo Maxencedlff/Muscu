@@ -2,33 +2,40 @@
 # Mise en production du payant dans l'ORDRE RÉEL de la production (supabase/rollback/ORDRE.md, « Mise en
 # production »), sur un Postgres local jetable comme run.sh. Rien n'est envoyé au projet Supabase.
 #
-# La production a déjà : toutes les migrations de main (lot 3 et notifications push compris) et
-# 20261028000000_payant.sql. Les migrations du payant datées d'AVANT le lot 3 (modèle B, tarifs, payant
-# plus) et la lettre d'information y arrivent donc APRÈS des migrations plus récentes qu'elles.
+# La production a déjà (relu en lecture seule le 17/11/2026) : toutes les migrations de main jusqu'au lot 3,
+# 20261028000000_payant.sql, puis les migrations du coach et des photos de bilan (6 à 11 de ORDRE.md, du
+# 07 au 08/11) et celles du 17/11 (20261116010000, 20261116020000). Les migrations du payant datées d'AVANT
+# (modèle B, tarifs, payant plus, lettre, parrainage du payant) y arrivent donc APRÈS des migrations plus
+# récentes qu'elles, suivies des élèves offerts (20261116030000, qui s'appuie sur les tarifs) et de la
+# photo de profil (20261117000000).
 #  1. Production simulée : migrations de prod_applied, des données réalistes (seed_20261028.sql).
 #  2. Les migrations à appliquer, dans l'ordre de la liste to_apply, chacune dans une transaction.
 #  3. Le schéma obtenu (pg_dump --schema-only normalisé) est identique à celui d'une base neuve qui a
-#     tout reçu dans l'ordre des dates (sans Strava) : aucune fonction réécrite par le lot 3 n'est
-#     écrasée par une version plus ancienne.
+#     tout reçu dans l'ordre des dates (sans Strava) : aucune fonction réécrite par une migration plus
+#     récente n'est écrasée par une version plus ancienne.
 #  4. Les tests SQL de tous les lots (*_test.sql, sauf Strava) passent sur la base de production simulée.
 #  5. Retours arrière dans l'ordre inverse de to_apply : après chacun, schéma ET données identiques à la
 #     base d'avant (pg_dump complet, archives private.*_archive_* exclues), jusqu'à la production de départ.
 #     Seule exception, documentée (supabase/rollback/ORDRE.md) : l'« Accès offert » d'Apple effacé par le
 #     modèle B ne revient pas.
-#  6. Vague 2 : les photos de bilan seules (sans le payant) sur la production revenue de l'étape 5, leurs tests,
-#     puis leur retour arrière, état d'avant retrouvé.
+#  6. Les élèves offerts collés par erreur AVANT le payant : refusés, production inchangée.
+#  7. La photo de profil seule (sans le payant) sur la production revenue de l'étape 5, ses tests, puis
+#     son retour arrière, état d'avant retrouvé.
 # Lancer : bash tests/sql/prod_order_test.sh   (Postgres 15+, python3)
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
 mig="$root/supabase/migrations"
 down="$root/supabase/rollback"
-# Déjà en production (main 384390b + le payant du 28/10), dans l'ordre où elles y sont passées
+# Déjà en production, dans l'ordre où elles y sont passées (main 384390b + le payant du 28/10, puis 6 à 11
+# de ORDRE.md le 07-08/11, puis les deux du 17/11)
 prod_applied=(20261025000000 20261026000000 20261026010000 20261026020000 20261026030000 20261026040000
   20261026050000 20261027000000 20261027100000 20261027110000 20261028000000 20261031100000 20261031200000
-  20261031300000 20261031400000 20261031500000 20261031510000 20261031900000 20261031910000)
+  20261031300000 20261031400000 20261031500000 20261031510000 20261031900000 20261031910000
+  20261105000000 20261105010000 20261106000000 20261106100000 20261106200000 20261107000000
+  20261116010000 20261116020000)
 # À appliquer, dans cet ordre (Strava, 20261031620000, reste en sommeil : jamais appliquée au lancement)
-to_apply=(20261029000000 20261030000000 20261031000000 20261031230000 20261101000000 20261105000000 20261105010000 20261106000000 20261106100000 20261106200000 20261107000000 20261116010000 20261116020000 20261116030000 20261116000000)
+to_apply=(20261029000000 20261030000000 20261031000000 20261031230000 20261101000000 20261116030000 20261117000000)
 skip_tests=" strava_test.sql "
 bin=$(dirname "$(command -v initdb 2>/dev/null || ls -d /usr/lib/postgresql/*/bin/initdb | sort -V | tail -1)")
 tmp=$(mktemp -d)
@@ -162,28 +169,23 @@ for (( i=${#to_apply[@]}-1; i>=0; i-- )); do
 done
 echo "OK : retour à la production de départ (sauf l'« Accès offert » effacé par le modèle B, ORDRE.md)"
 
-# ── 6. Cette vague seule : les photos de bilan sur la production de départ ─
-# Les migrations du payant (1 à 5 de ORDRE.md) attendent l'accord de Maxence : la vague 2 n'applique que
-# 20261107000000_photos_bilan.sql. Elle doit passer seule, ses tests être verts, et son retour arrière
-# rendre la production de départ à l'identique.
-seule=20261107000000
-# Point de départ : la production revenue de l'étape 5 (même schéma et mêmes données que la production de départ,
-# à l'« Accès offert » du modèle B près, ORDRE.md)
-psql postgres -c "create database vague template apres"
-snap vague full > "$tmp/V_depart.sql"
-psql vague -1 -f "$(file "$mig" "$seule")"
-psql postgres -c "create database vague_essais template vague"
-psql vague_essais -c "delete from auth.users;" >/dev/null
-run_test vague_essais "$here/photos_bilan_test.sql"
-psql vague -f "$(file "$down" "$seule")" 2>&1 | { /usr/bin/grep -v 'transaction in progress' || true; }
-same vague full "$tmp/V_depart.sql" "photos de bilan seules : retour arrière ≠ production de départ"
-echo "OK : vague 2, $(basename "$(file "$mig" "$seule")") seule sur la production de départ, tests verts, retour arrière à l'identique"
+# ── 6. Élèves offerts AVANT le payant : refusés sans rien changer ─
+# 20261116030000_eleves_gratuits.sql réécrit private.access_json des tarifs (20261030000000) : collée sur la
+# production de départ, elle doit échouer dans sa transaction et laisser la base à l'identique.
+psql postgres -c "create database avant_payant template apres"
+snap avant_payant full > "$tmp/AP_depart.sql"
+if psql avant_payant -1 -f "$(file "$mig" 20261116030000)" >/dev/null 2>&1; then
+  echo "ÉCHEC : élèves offerts appliqués sans le payant"; exit 1
+fi
+same avant_payant full "$tmp/AP_depart.sql" "élèves offerts refusés : production modifiée"
+echo "OK : élèves offerts refusés sans le payant, production inchangée"
 
 # ── 7. La photo de profil seule sur la production de départ ─
-# 20261116000000_photo_profil.sql (docs/PHOTO_PROFIL.md) ne s'appuie que sur ce qui est déjà en production
+# 20261117000000_photo_profil.sql (docs/PHOTO_PROFIL.md) ne s'appuie que sur ce qui est déjà en production
 # (20261028000000_payant.sql pour le droit, social et coach pour la visibilité) : elle doit passer seule, ses tests
-# être verts, et son retour arrière rendre la production de départ à l'identique.
-seule=20261116000000
+# être verts, et son retour arrière rendre la production de départ à l'identique. Point de départ : la production
+# revenue de l'étape 5 (à l'« Accès offert » du modèle B près, ORDRE.md).
+seule=20261117000000
 psql postgres -c "create database vague_pp template apres"
 snap vague_pp full > "$tmp/PP_depart.sql"
 psql vague_pp -1 -f "$(file "$mig" "$seule")"

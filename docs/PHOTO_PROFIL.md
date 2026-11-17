@@ -7,7 +7,7 @@ et OTA attendent son feu vert (« Mise en production » plus bas).
 Code : `js/data/profile-photo.js` (image, appels, lecture des photos des autres, sans écran), `js/features/profile-photo-ui.js`
 (cellule de Réglages › Compte, feuille, « Signaler la photo »), `avatarHtml` (`js/features/account-ui.js`, photo posée
 par-dessus l'emoji), `proFeatureAllowed` (`js/data/access.js`), styles en fin de `css/account.css`. Serveur :
-`supabase/migrations/20261116000000_photo_profil.sql` et son retour arrière `supabase/rollback/20261116000000_photo_profil_down.sql`,
+`supabase/migrations/20261117000000_photo_profil.sql` et son retour arrière `supabase/rollback/20261117000000_photo_profil_down.sql`,
 `supabase/functions/coach-photos-purge/index.ts` (deuxième compartiment), `supabase/functions/delete-account/index.ts`.
 Tests : `tests/unit/profile-photo.mjs`, `tests/sql/photo_profil_test.sql`, `tests/sql/photo_profil_rollback_test.sh`,
 `tests/sql/prod_order_test.sh` (étape 7), `tests/deno/edge.test.ts`, `tests/test_photo_profil.py` (faux serveur et faux
@@ -77,7 +77,7 @@ d'examen demande un « filtre », la réponse la plus sûre et sans build est l'
 L'ordre compte : serveur d'abord, l'app ensuite. Une app sur un serveur sans la migration n'affiche rien (PGRST202) ; une
 app d'avant sur le serveur à jour ne voit rien de nouveau.
 
-1. Migration `supabase/migrations/20261116000000_photo_profil.sql` (éditeur SQL ou `supabase db push`). Elle ne s'appuie
+1. Migration `supabase/migrations/20261117000000_photo_profil.sql` (éditeur SQL ou `supabase db push`). Elle ne s'appuie
    que sur ce qui est déjà en production (`20261028000000_payant.sql`, social, coach) : vérifié par
    `tests/sql/prod_order_test.sh`, étape 7 (seule sur la production de départ, tests verts, retour arrière à l'identique).
 2. Data API › Exposed schemas : vérifier que `profile_photo_rls` n'y est **pas** (comme `coach_photo_rls`).
@@ -92,7 +92,7 @@ app d'avant sur le serveur à jour ne voit rien de nouveau.
    dans « What to Test » et la note d'examen (docs/REVUE_APPLE.md), avec un compte de démonstration qui a un ami avec
    photo. Dans la même build, à revoir : les textes `NSCameraUsageDescription` et `NSPhotoLibraryUsageDescription`
    d'Info.plist, qui ne parlent pas encore de la photo de profil.
-6. Retour arrière : `supabase/rollback/20261116000000_photo_profil_down.sql` (en-tête : vider le compartiment d'abord).
+6. Retour arrière : `supabase/rollback/20261117000000_photo_profil_down.sql` (en-tête : vider le compartiment d'abord).
 
 Administration : signalements de photos `select … from public.reports where target_ref like 'photo:%'` ; voir la photo dans
 Storage › profile-photos ; décider `select private.profile_photo_moderate('<photo>', 'remove' | 'restore' | 'ban', 'note');`.

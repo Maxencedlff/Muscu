@@ -1,5 +1,5 @@
 """Photo de profil (docs/PHOTO_PROFIL.md, app iOS simulée, faux serveur de tests/fake_account.py, règles de
-20261116000000_photo_profil.sql) :
+20261117000000_photo_profil.sql) :
 - Réglages › Compte : cellule « Photo de profil » avec la mention « Pro » (aucune pour un coach) ; feuille, choix d'une
   image (sélecteur de fichier ouvert dans le geste), aperçu du carré, « Utiliser cette photo » ; fichier envoyé carré,
   512 px, JPEG ou WebP, léger, sans EXIF ni localisation ; photo posée sur l'avatar ; « Retirer la photo » : effacée
