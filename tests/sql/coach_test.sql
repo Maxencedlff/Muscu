@@ -605,7 +605,7 @@ end $$;
 
 -- ── Limites de débit ─────────────────────────────────────
 do $$
-declare i int; c text;
+declare i int; c text; n int; team int;
 begin
   -- 10 aperçus ou adhésions réussis par heure (les essais en échec sont annulés avec la transaction,
   -- voir l'en-tête de la migration)
@@ -623,13 +623,20 @@ begin
   set role authenticated;
   if public.coach_join(c) ->> 'username' is distinct from 'kevin.c1' then raise 'limite horaire non libérée'; end if;
 
-  -- 30 envois de programme par 24 h, mises à jour comprises (compteur remis à zéro : K a déjà envoyé)
+  -- 30 envois de programme par 24 h, mises à jour comprises (compteur remis à zéro : K a déjà envoyé) ; depuis
+  -- 20261117000000_charge_coach.sql, 30 + 2 par élève suivi (tests/sql/charge_coach_test.sql) : les deux règles
+  -- sont acceptées ici, ce test passant aussi quand cette migration est défaite (tests/sql/rollback_nuit_check.sh)
   reset role;
   delete from private.social_rate where user_id = pg_temp.cu('k') and action = 'coach_send';
   set role authenticated;
   perform pg_temp.clogin('k');
   for i in 1..30 loop perform public.coach_send_programme(pg_temp.cu('u'), 'p' || (i % 3), '{"name": "x"}'); end loop;
-  if pg_temp.cerr($q$ select public.coach_send_programme(pg_temp.cu('u'), 'p1', '{"name": "x"}') $q$) is distinct from 'rate_limited' then raise '31e envoi'; end if;
+  n := 30;
+  while pg_temp.cerr($q$ select public.coach_send_programme(pg_temp.cu('u'), 'p1', '{"name": "x"}') $q$) = 'ok' and n < 1000 loop n := n + 1; end loop;
+  reset role;
+  team := (select count(*) from public.coach_links where coach_id = pg_temp.cu('k'));
+  set role authenticated;
+  if n not in (30, 30 + 2 * team) then raise 'envois acceptés en 24 h : % (30 ou %)', n, 30 + 2 * team; end if;
   reset role;
   update private.social_rate set at = now() - interval '25 hours' where user_id = pg_temp.cu('k') and action = 'coach_send';
   set role authenticated;

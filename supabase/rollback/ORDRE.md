@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −10 | `20261117000000_charge_coach_down.sql` (fonctions d'avant : mêmes réponses, plus lentes ; envoi de programmes revenu à 30 par 24 h) | rien | oui (vérifié) |
 | −9 | `20261116020000_notifications_seances_eleves_down.sql` | rien | oui (vérifié) |
 | −8 | `20261116010000_charge_prescrite_down.sql` | rien | oui (vérifié) |
 | −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
@@ -52,6 +53,7 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 11. `20261107000000_photos_bilan.sql` (photos de bilan chiffrées de bout en bout, docs/PHOTOS_BILAN.md : indépendante ; avant l'OTA, avec la fonction `coach-photos-purge` et sa planification)
 12. `20261116010000_charge_prescrite.sql` (charge prescrite par le coach, docs/COACH_V1.md « Charge prescrite » : le coach reçoit la prescription avec la séance de son élève ; indépendante, ne réécrit que `private.session_for_coach` ; avant ou après l'OTA, sans risque : sans elle, seul l'écart prescrit / fait n'apparaît pas chez le coach)
 13. `20261116020000_notifications_seances_eleves.sql` (notification au coach quand un élève termine une séance, docs/NOTIFICATIONS.md ; remplace des fonctions des notifications des messages, à démonter avant elles)
+14. `20261117000000_charge_coach.sql` (charge côté coach, mesures de `tests/charge/` : séances lues 3 fois plus vite à réponse identique, progression sans relire 182 jours, envoi de programmes à 30 + 2 par élève sur 24 h ; indépendante, après la 12 et la 10 dont elle réécrit les fonctions ; sans OTA)
 
 Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md).
 
