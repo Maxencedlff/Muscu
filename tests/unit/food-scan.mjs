@@ -92,9 +92,10 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal((await lookup({ status: 503, ok: false, json: async () => ({}) })).status, 'error');
     assert.equal((await lookup({ status: 200, ok: true, json: async () => { throw new SyntaxError('x'); } })).status, 'error', 'réponse illisible');
     assert.equal((await lookup(() => { throw new TypeError('Load failed'); })).status, 'offline', 'réseau absent');
-    // Délai dépassé : la requête est abandonnée (AbortController)
+    // Délai dépassé, appareil en ligne : Open Food Facts est lent (pas « pas de réseau », retour du 17/11)
     const slow = init => new Promise((res, rej) => init.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' }))));
-    assert.equal((await lookup(slow, ', timeout: 20')).status, 'offline');
+    assert.equal((await lookup(slow, ', timeout: 20')).status, 'slow');
+    assert.ok(Number(run('OFF_TIMEOUT')) >= 15000, 'délai assez long pour un produit hors du cache d\'Open Food Facts');
     const n = calls.length;
     assert.equal(JSON.parse(JSON.stringify(await run("offLookup('123', { fetchImpl: __f })"))).status, 'unknown', 'code invalide');
     assert.equal(calls.length, n, 'code invalide : aucune requête');

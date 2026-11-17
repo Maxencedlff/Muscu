@@ -17,7 +17,7 @@
 'use strict';
 
 const OFF_FIELDS  = 'product_name,product_name_fr,brands,nutriments,quantity,serving_size,serving_quantity';   // portion : js/data/food-portions.js (offPortion)
-const OFF_TIMEOUT = 6000;   // ms : au-delà, le réseau est jugé absent (salle de sport, sous-sol)
+const OFF_TIMEOUT = 20000;  // ms : Open Food Facts peut mettre 10 à 20 s pour un produit hors de son cache (mesuré le 17/11)
 const OFF_SALT_MAX = 100;   // g de sel pour 100 g (sel fin : 99)
 const BARCODE_RE  = /^\d{8}$|^\d{13}$/;   // forme gardée : EAN-8 ou EAN-13
 const offProductUrl = code => `https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${OFF_FIELDS}`;
@@ -116,13 +116,15 @@ function offUserAgent(version, platform = 'ios') {
   const v = typeof version === 'string' && /^[0-9][0-9.]{0,15}$/.test(version) ? version : '1.0';
   return `MDLF Training/${v} (${platform === 'android' ? 'Android' : platform === 'web' ? 'Web' : 'iOS'})`;
 }
-// Recherche d'un code sur Open Food Facts : offParse(…) ou { status: 'offline' } (pas de réseau, délai
-// dépassé) | { status: 'error' } (serveur en panne, réponse illisible). Jamais d'exception
+// Recherche d'un code sur Open Food Facts : offParse(…) ou { status: 'offline' } (pas de réseau) |
+// { status: 'slow' } (délai dépassé alors que l'appareil est en ligne : serveur lent) |
+// { status: 'error' } (serveur en panne, réponse illisible). Jamais d'exception
 async function offLookup(code, { fetchImpl = fetch, timeout = OFF_TIMEOUT, userAgent = offUserAgent(null) } = {}) {
   if (!BARCODE_RE.test(code || '')) return { status: 'unknown' };
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return { status: 'offline' };
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), timeout);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, timeout);
   try {
     // X-User-Agent : un navigateur peut ignorer User-Agent ; Open Food Facts accepte les deux (CORS)
     const r = await fetchImpl(offProductUrl(code), { signal: ctl.signal, credentials: 'omit', referrerPolicy: 'no-referrer',
@@ -131,7 +133,9 @@ async function offLookup(code, { fetchImpl = fetch, timeout = OFF_TIMEOUT, userA
     if (!r.ok) return { status: 'error' };
     return offParse(await r.json(), code);
   } catch (e) {
-    return { status: e?.name === 'SyntaxError' ? 'error' : 'offline' };
+    if (e?.name === 'SyntaxError') return { status: 'error' };
+    // Délai dépassé avec le réseau présent : c'est Open Food Facts qui est lent, pas la connexion
+    return { status: timedOut && !(typeof navigator !== 'undefined' && navigator.onLine === false) ? 'slow' : 'offline' };
   } finally { clearTimeout(timer); }
 }
 

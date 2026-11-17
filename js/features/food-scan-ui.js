@@ -66,6 +66,7 @@ const FSCAN_STATES = {
   unknown: { title: 'Produit introuvable', text: 'Ce code-barres n\'est pas dans Open Food Facts. Crée l\'aliment avec les valeurs de l\'étiquette : il sera retrouvé à ton prochain scan.' },
   incomplete: { title: 'Valeurs incomplètes', text: 'Open Food Facts connaît ce produit, mais pas toutes ses valeurs pour 100 g. Recopie-les depuis l\'étiquette : l\'aliment sera retrouvé à ton prochain scan.' },
   offline: { title: 'Pas de réseau', text: 'La recherche du produit demande une connexion. Réessaie, ou crée l\'aliment avec les valeurs de l\'étiquette.', retry: true },
+  slow: { title: 'Open Food Facts est lent', text: 'Le site ne répond pas pour ce produit en ce moment. Réessaie, ou crée l\'aliment avec les valeurs de l\'étiquette.', retry: true },
   error: { title: 'Open Food Facts ne répond pas', text: 'Réessaie dans un moment, ou crée l\'aliment avec les valeurs de l\'étiquette.', retry: true },
 };
 const fscanCodeHtml = code => `<p class="fscan__code num">Code-barres ${dietSrPair(barcodeShown(code), barcodeSpoken(code))}</p>`;
@@ -159,7 +160,10 @@ function foodScanSheet(code) {
     if (busy) return;
     busy = true;
     show(fscanLoadingHtml(code));
+    // Au-delà de 5 s : dire que c'est le site qui est lent (sinon on croit l'app bloquée)
+    const slowTimer = setTimeout(() => { const t = root.querySelector('.fscan__state[role="status"] .fscan__title'); if (t) t.textContent = 'Open Food Facts répond lentement…'; }, 5000);
     const r = await offLookup(code, { userAgent: await foodScanUserAgent() });
+    clearTimeout(slowTimer);
     busy = false;
     if (!root.isConnected) return;   // feuille fermée pendant la recherche
     if (r.status === 'found') {
