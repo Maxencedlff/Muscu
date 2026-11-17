@@ -265,8 +265,8 @@ def t_rapides(bench, eng, dev, theme):
         open_friend_session(page)
         quick = page.locator('#commentQuick .comment-quick__btn')
         texts = quick.all_inner_texts()
-        base = ['Belle séance 💪', 'Régulier 🔥', 'Respect', 'Lâche rien']
-        R.check(texts in (base, ['Gros record !'] + base), f'{t} rangée proposée {texts}')
+        base = ['Belle séance', 'Régulier', 'Respect', 'Solide']
+        R.check(texts in (base, ['Beau record'] + base), f'{t} rangée proposée {texts}')
         R.check(page.get_attribute('#commentQuick', 'aria-label') == 'Réponses rapides'
                 and quick.nth(0).get_attribute('aria-label').startswith('Envoyer : '), f'{t} rangée nommée pour VoiceOver')
         st = small_targets(page, '.comment-quick button')
@@ -285,10 +285,10 @@ def t_rapides(bench, eng, dev, theme):
         layout(page, t, 'réponses rapides')
         # Serveur qui refuse (hors ligne) : erreur dite, rien d'écrit, la réponse reste proposée
         page.evaluate('__sb.fail.social = "offline"')
-        page.locator('#commentQuick .comment-quick__btn', has_text='Lâche rien').click()
+        page.locator('#commentQuick .comment-quick__btn', has_text='Solide').click()
         page.wait_for_timeout(500)
         R.check(toast(page) != '' and page.evaluate("__sb.so.comments.filter(c => c.user === __sb.meId()).length") == 1, f'{t} hors ligne : erreur dite ({toast(page)!r})')
-        R.check('Lâche rien' in page.locator('#commentQuick').inner_text(), f'{t} hors ligne : réponse toujours proposée')
+        R.check('Solide' in page.locator('#commentQuick').inner_text(), f'{t} hors ligne : réponse toujours proposée')
         page.evaluate('__sb.fail.social = null')
         # Ma séance : pas de réponses rapides
         R.check(not page.evaluate(f"commentsGroupHtml('{ids['me']}', '{ids['sid']}').includes('comment-quick')"), f'{t} ma séance : pas de rangée')

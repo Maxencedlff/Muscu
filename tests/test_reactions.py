@@ -240,7 +240,7 @@ def t_mon_profil(bench, eng, dev, theme):
         R.check(reg.count() == 1 and 'par semaine en moyenne sur' in reg.get_attribute('aria-label') and 'cette semaine' in reg.get_attribute('aria-label'), f'{t} régularité : résumé VoiceOver {reg.get_attribute("aria-label") if reg.count() else None!r}')
         R.check(page.locator('.reg__bar').count() == 12 and page.locator('.reg__bar--now').count() == 1, f'{t} régularité : 12 barres, la semaine en cours marquée')
         titles = page.locator('.social-me-view h2.group-title--large').all_inner_texts()
-        R.check(titles[0] == 'Mes séances' and titles[-1] == 'Activité', f'{t} grands titres {titles}')
+        R.check(titles[0] == 'Séances' and titles[-1] == 'Activité', f'{t} grands titres {titles}')
         # Activité groupée : les réactions de Léa et Paul à la même séance tiennent en une ligne
         group = page.locator('.activity-row--group')
         gtxt = group.locator('.social-row__text').inner_text() if group.count() == 1 else ''

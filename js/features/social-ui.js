@@ -206,7 +206,7 @@ function friendsBodyHtml(st = friendsState()) {
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
-          <p class="social-hero__sub">Suis les séances de tes amis et encourage-les d'une réaction. Il faut un compte, gratuit et facultatif.</p>
+          <p class="social-hero__sub">Suis les séances de tes amis et réagis-y. Il faut un compte gratuit.</p>
         </div>
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>`;
   if (st === 'age') return ageHiddenHtml();
@@ -244,7 +244,7 @@ function activationHtml() {
   const name = account.profile?.username;
   const ready = !!name && socialAgeOk;
   const coached = coachRole().hasCoach;
-  const sub = 'Suis leurs séances et encourage-les d\'une réaction. Ton compte reste privé\u00a0: seules les personnes que tu acceptes voient tes séances.';
+  const sub = 'Suis leurs séances et réagis-y. Seules les personnes que tu acceptes voient les tiennes.';
   return `
         ${coached ? `<div class="group-title">Social (facultatif)</div>
         <p class="social-optional">${sub}</p>` : `
@@ -265,7 +265,7 @@ function activationHtml() {
           </button>
         </div>
         <button class="btn ${coached ? 'btn--secondary' : 'btn--primary'} btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>${coached ? 'Ajouter aussi des amis' : 'Activer'}</button>
-        <div class="group-foot">${name ? 'On te trouve avec ce pseudo.' : 'Il faut un pseudo pour qu\'on te trouve.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que voient ceux qui te suivent.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à ceux qui te suivent.${coachRole().hasCoach ? ' Ton coach voit en plus tes séances et leur note de séance, et ton poids si tu choisis de le partager.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>`;
+        <div class="group-foot">${name ? 'On te trouve avec ce pseudo.' : 'Il faut un pseudo pour qu\'on te trouve.'}${socialTeenByAge() ? ' Tes séances sont masquées par défaut. Tu choisis celles à montrer.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à ceux qui te suivent.${coachRole().hasCoach ? ' Ton coach voit en plus tes séances et leur note de séance, et ton poids si tu choisis de le partager.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>`;
 }
 
 function enabledBodyHtml() {
@@ -298,10 +298,10 @@ function feedEmptyHtml() {
   return `
         <div class="social-hero social-hero--empty">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
-          <h2 class="social-hero__title">${following ? 'Pas encore de séance' : 'Ton fil t\'attend'}</h2>
+          <h2 class="social-hero__title">${following ? 'Pas encore de séance' : 'Aucune personne suivie'}</h2>
           <p class="social-hero__sub">${following
             ? 'Les séances des personnes que tu suis s\'afficheront ici, avec leurs records.'
-            : `Invite un ami : il te trouve avec ton pseudo${name ? ` <b>${esc(name)}</b>` : ''}. Vous verrez vos séances et pourrez vous encourager.`}</p>
+            : `Invite un ami. Il te trouve avec ton pseudo${name ? ` <b>${esc(name)}</b>` : ''}.`}</p>
         </div>
         <button class="btn btn--primary btn--full" data-action="social-invite">${icon('square.and.arrow.up', 20)}<span>Inviter un ami</span></button>`;
 }
@@ -414,7 +414,7 @@ function renderSocialSession(owner, id) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(row.owner)}" data-ref="${esc(row.id)}">Signaler cette séance</button>
         </div>`}
-        ${vol > 0 ? '<div class="group-foot">Volume = charge notée × reps, sans l\'échauffement, poids du corps non compté (lest compris).</div>' : ''}
+        ${vol > 0 ? '<div class="group-foot">Volume : charge × reps, hors échauffement. Le poids du corps ne compte pas, le lest oui.</div>' : ''}
       </div>
     </div>`;
 }
@@ -498,7 +498,7 @@ function renderSocialProfile(uid) {
           <button class="cell cell--destructive" data-action="social-block" data-uid="${esc(uid)}">Bloquer</button>
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(uid)}">Signaler</button>
         </div>
-        <div class="group-foot">Bloquer coupe tout dans les deux sens : recherche, demandes, séances et réactions. Personne n'en est averti.</div>`}
+        <div class="group-foot">Bloquer coupe tout contact dans les deux sens. Personne n'en est averti.</div>`}
       </div>
     </div>`;
 }
@@ -536,7 +536,7 @@ function renderSocialManage() {
         <div class="group">
           <button class="cell cell--destructive" data-action="social-disable">Désactiver le social</button>
         </div>
-        <div class="group-foot">Tu disparais de la recherche et ceux qui te suivent ne voient plus tes séances. Les personnes que tu suis et qui te suivent sont gardées si tu réactives.</div>
+        <div class="group-foot">Tu disparais de la recherche et tes séances sont masquées. Tes listes Suivis et Te suivent reviennent si tu réactives.</div>
       </div>
     </div>`;
 }
@@ -560,7 +560,7 @@ function renderSocialRules() {
         <div class="group">${rules.map(([t, d]) => `
           <div class="cell"><span class="cell__body"><span class="cell__title">${t}</span><span class="cell__sub">${d}</span></span></div>`).join('')}
         </div>
-        <div class="group-foot">Chaque signalement est lu sous 24 heures. Un contenu contraire aux règles est retiré, et son auteur peut perdre son compte. Contact : contact@mdlf.app. <button class="link-inline" data-action="social-rules-web">Confidentialité</button></div>
+        <div class="group-foot">Chaque signalement est lu sous 24 heures. Un contenu contraire aux règles est retiré. Son auteur peut perdre son compte. Écris à contact@mdlf.app. <button class="link-inline" data-action="social-rules-web">Confidentialité</button></div>
       </div>
     </div>`;
 }
@@ -580,7 +580,7 @@ function socialDefaultVisibleCell() {
           <button class="cell" data-action="setting-visible-default" role="switch" aria-checked="${on}">
             ${cellIco('eye', 'blue')}
             <span class="cell__body"><span class="cell__title">Séances visibles par défaut</span>
-              <span class="cell__sub">Préremplit « Visible sur mon profil » au bilan de chaque séance</span></span>
+              <span class="cell__sub">Allume « Visible sur mon profil » à chaque bilan</span></span>
             ${switchHtml(on)}
           </button>`;
 }
@@ -603,7 +603,7 @@ function summarySocialGroup(h) {
         <div class="sum-section-title">Social</div>
         <div class="sum-list">
           <button class="sum-row sum-row--action" data-action="summary-visible" data-id="${esc(h.id)}" role="switch" aria-checked="${on}">
-            <div class="sum-row__main"><div class="sum-row__name">Visible sur mon profil</div><div class="sum-row__sub">Ceux qui te suivent verront cette séance (jamais tes notes ni ton poids).</div></div>
+            <div class="sum-row__main"><div class="sum-row__name">Visible sur mon profil</div><div class="sum-row__sub">Ceux qui te suivent verront cette séance, sans tes notes ni ton poids.</div></div>
             ${switchHtml(on)}
           </button>
         </div>`;
@@ -629,7 +629,7 @@ function historySocialGroup(h) {
           </button>
         </div>
         <div class="group-foot">${hidden ? 'Ceux qui te suivent ne voient pas cette séance.'
-          : 'Ceux qui te suivent voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.'}</div>
+          : 'Ceux qui te suivent voient le nom, la date, la durée et les séries.'}</div>
         ${historyWhoHtml(h)}
         ${historyCommentsHtml(h)}`;
 }
@@ -697,7 +697,7 @@ registerActions({
     render();
   },
   'social-disable': async () => {
-    if (!(await confirmSheet('Désactiver le social ?', 'Tu disparais de la recherche et ceux qui te suivent ne voient plus tes séances. Les personnes que tu suis et qui te suivent sont gardées si tu réactives.', 'Désactiver'))) return;
+    if (!(await confirmSheet('Désactiver le social ?', 'Tu disparais de la recherche et tes séances sont masquées. Tes listes Suivis et Te suivent reviennent si tu réactives.', 'Désactiver'))) return;
     const r = await socialDisable();
     if (!socialToast(r, 'Social désactivé')) return;
     socialAgeOk = false;
@@ -726,7 +726,7 @@ registerActions({
     const text = friendInviteText(account.profile?.username || '');
     if (Native.isNative) { if ((await Native.shareText(text, 'Invitation')) === 'failed') showToast('Partage impossible', { error: true }); return; }
     if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
-    try { await navigator.clipboard.writeText(text); showToast('Invitation copiée, colle-la dans un message'); }
+    try { await navigator.clipboard.writeText(text); showToast('Invitation copiée'); }
     catch { showToast('Partage impossible', { error: true }); }
   },
   // Fil vide : le champ de recherche, juste au-dessus (focus dans le geste : le clavier s'ouvre)

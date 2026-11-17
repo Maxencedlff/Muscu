@@ -66,10 +66,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(run(`cleanActivityRow({ kind: 'poke', user_id: 'u1', at: '2026-10-31T10:00:00Z' })`), null, 'sorte inconnue : écartée');
   });
   test('commentaires : réponses rapides (record seulement s\'il y en a un, déjà laissée retirée, acceptées par le serveur)', () => {
-    sameJSON(run('quickComments([])'), ['Belle séance 💪', 'Régulier 🔥', 'Respect', 'Lâche rien']);
-    assert.equal(run('quickComments([], { record: true })[0]'), 'Gros record !');
+    sameJSON(run('quickComments([])'), ['Belle séance', 'Régulier', 'Respect', 'Solide']);
+    assert.equal(run('quickComments([], { record: true })[0]'), 'Beau record');
     const rows = [{ mine: true, body: 'Respect' }, { mine: false, body: 'Belle séance 💪' }, null];
-    sameJSON(run(`quickComments(${JSON.stringify(rows)})`), ['Belle séance 💪', 'Régulier 🔥', 'Lâche rien'], 'celle d\'un autre reste proposée');
+    sameJSON(run(`quickComments(${JSON.stringify(rows)})`), ['Belle séance', 'Régulier', 'Solide'], 'celle d\'un autre reste proposée');
     // Chaque phrase : un commentaire valable, et dans la liste vérifiée contre le filtre du serveur
     const sql = fs.readFileSync(path.join(ROOT, 'tests/sql/commentaires_test.sql'), 'utf8');
     for (const t of run('quickComments([], { record: true })')) {

@@ -98,7 +98,7 @@ function meActivityHtml() {
   if (!a.rows.length) {
     if (a.loading || (!a.loadedAt && !a.error)) return '<div class="group"><div class="cell"><span class="cell__sub">Chargement…</span></div></div>';
     if (a.error) return offlineNote(a.error === 'offline' ? 'Pas d\'Internet : l\'activité s\'affichera quand le réseau reviendra.' : socialErrorText(a.error));
-    return '<div class="group"><div class="cell"><span class="cell__sub social-empty">Rien pour l\'instant. Les réactions et commentaires sur tes séances et les personnes qui commencent à te suivre s\'afficheront ici.</span></div></div>';
+    return '<div class="group"><div class="cell"><span class="cell__sub social-empty">Aucune activité. Les réactions, les commentaires et les nouvelles personnes qui te suivent s\'affichent ici.</span></div></div>';
   }
   const groups = groupActivity(a.rows);
   const shown = meActivityAll ? groups : groups.slice(0, ME_ACTIVITY_SHOWN);
@@ -178,7 +178,7 @@ function mySessionRowHtml(row) {
 function meSessionsHtml(st) {
   const f = socialFeed(SOCIAL_ME);
   if (meSessionsAll || !f.rows.length) {
-    return feedListHtml(SOCIAL_ME, { owner: false, empty: 'Aucune séance visible pour l\'instant. Une séance apparaît ici quand « Visible sur mon profil » est allumé.' });
+    return feedListHtml(SOCIAL_ME, { owner: false, empty: 'Aucune séance visible. Allume « Visible sur mon profil » au bilan d\'une séance.' });
   }
   const rest = f.rows.slice(1, 1 + ME_SESSIONS_SHOWN);
   const total = Math.max(st.shown_sessions ?? 0, f.rows.length);
@@ -225,9 +225,9 @@ function renderSocialMe() {
           </div>
           ${regularityHtml()}
         </section>
-        <h2 class="group-title group-title--large" id="meSessions">Mes séances</h2>
+        <h2 class="group-title group-title--large" id="meSessions">Séances</h2>
         ${meSessionsHtml(st)}
-        <p class="group-foot">Compte privé : seules les personnes que tu acceptes voient tes séances, avec le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.</p>
+        <p class="group-foot">Seules les personnes que tu acceptes voient tes séances.</p>
         ${meRecordsHtml()}
         <h2 class="group-title group-title--large">Activité</h2>
         ${meActivityHtml()}

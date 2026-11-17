@@ -118,7 +118,7 @@ begin
                            'Le squat ça tue, toi tu en fais combien ?', 'Cette séance m''a tué, toi ça va ?',
                            'Ça tue. Toi aussi ?', 'Ça me tue ! Toi ?',
                            -- réponses rapides de l'app (COMMENT_QUICK, js/data/comments.js)
-                           'Belle séance 💪', 'Gros record !', 'Régulier 🔥', 'Respect', 'Lâche rien',
+                           'Belle séance', 'Beau record', 'Régulier', 'Respect', 'Solide',
                            'On se fait un pique-nique après la séance ?', 'pique-niquer dimanche', 'Bravo Nazim !', 'GG Naziha', 'Mon pote Nazir'] loop
     if private.comment_forbidden(t) then raise 'phrase courante refusée : %', t; end if;
   end loop;
