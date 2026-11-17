@@ -8,7 +8,8 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −9 | `20261116020000_notifications_seances_eleves_down.sql` | rien | oui (vérifié) |
+| −10 | `20261117000000_reaction_jaime_down.sql` (chaque ❤️ redevient un 👏) | rien | oui (vérifié) |
+| −9 | `20261116020000_notifications_seances_eleves_down.sql` | J'aime (−10) : il remplace son `push_claim` | oui pour les autres lots (vérifié) ; défaire −10 avant pour garder le texte de la notification |
 | −8 | `20261116010000_charge_prescrite_down.sql` | rien | oui (vérifié) |
 | −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
@@ -25,7 +26,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | 4 | `20261031400000_parrainage_down.sql` | parrainage du payant (−1) : la table des paiements référence les attributions | non, refuse sans rien changer |
 | 5 | `20261031300000_partage_coach_down.sql` | mensurations partagées (−3) : leur table s'appuie sur `coach_shares` ; plans diète du coach (−6) : son accord et son déclencheur sont sur `coach_shares` | non |
 | 6 | `20261031230000_newsletter_down.sql` | rien | oui (vérifié) |
-| 7 | `20261031200000_reactions_profil_down.sql` | commentaires (3) | non |
+| 7 | `20261031200000_reactions_profil_down.sql` | J'aime (−10) : il réécrit `set_reaction` et `reaction_top` ; commentaires (3) | non |
 | 8 | `20261031100000_records_series_down.sql` | progression des élèves (−4) : `coach_progress` lit `private.session_records` ; séance publique (−5) de préférence avant (seul, il remplace aussi son `session_public`) | non (seul, tout le reste marche : vérifié sans les tests de la progression ni de la séance publique) |
 | 9 | `20261031000000_payant_plus_down.sql` | rien | oui (vérifié) |
 | 10 | `20261030000000_payant_tarifs_down.sql` | payant plus (9) | non, refuse sans rien changer |
@@ -52,6 +53,7 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 11. `20261107000000_photos_bilan.sql` (photos de bilan chiffrées de bout en bout, docs/PHOTOS_BILAN.md : indépendante ; avant l'OTA, avec la fonction `coach-photos-purge` et sa planification)
 12. `20261116010000_charge_prescrite.sql` (charge prescrite par le coach, docs/COACH_V1.md « Charge prescrite » : le coach reçoit la prescription avec la séance de son élève ; indépendante, ne réécrit que `private.session_for_coach` ; avant ou après l'OTA, sans risque : sans elle, seul l'écart prescrit / fait n'apparaît pas chez le coach)
 13. `20261116020000_notifications_seances_eleves.sql` (notification au coach quand un élève termine une séance, docs/NOTIFICATIONS.md ; remplace des fonctions des notifications des messages, à démonter avant elles)
+14. `20261117000000_reaction_jaime.sql` (réaction ❤️ « J'aime », docs/SOCIAL_V1.md « J'aime ») : **avant** la fonction `push-send` à jour, elle-même **avant** l'OTA. Une app à jour sur un serveur d'avant ne peut pas aimer (`invalid_reaction`) ; une app d'avant sur ce serveur ignore les ❤️ sans planter. push-send peut passer juste avant ou juste après la migration : sans les nouveaux champs il dit « lea a aimé ta séance », l'ancien push-send dit encore « Bravo ! » tant qu'il n'est pas redéployé. Retour arrière : l'ordre inverse (OTA d'avant, puis `20261117000000_reaction_jaime_down.sql` ; push-send peut rester).
 
 Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md).
 
@@ -93,6 +95,7 @@ bash tests/sql/rollback_lot3_check.sh     # lot 3 : démontage complet et chaque
 bash tests/sql/rollback_check.sh          # réactions, avec données
 bash tests/sql/rollback_social_check.sh   # commentaires et chat, avec données
 bash tests/sql/rollback_push_check.sh     # notifications push
+bash tests/sql/rollback_reaction_jaime_check.sh   # J'aime : ❤️ redevenu 👏, base identique
 bash tests/sql/photos_bilan_rollback_test.sh   # photos de bilan : planification et secret de la purge retirés
 ```
 

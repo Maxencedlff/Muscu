@@ -20,6 +20,8 @@ for m in "$root"/supabase/migrations/*.sql; do psql -f "$m"; done
 psql -c "insert into auth.users (id) values ('00000000-0000-0000-0000-0000000007a1'), ('00000000-0000-0000-0000-0000000007a2');
   insert into public.sessions (user_id, id, data) values ('00000000-0000-0000-0000-0000000007a1', 's1', '{\"date\": 1}');
   insert into public.bravos (session_owner, session_id, user_id, kind) values ('00000000-0000-0000-0000-0000000007a1', 's1', '00000000-0000-0000-0000-0000000007a2', 'fire');"
+# Du plus récent au plus ancien (supabase/rollback/ORDRE.md) : J'aime d'abord
+psql -f "$root/supabase/rollback/20261117000000_reaction_jaime_down.sql"
 psql -f "$root/supabase/rollback/20261031200000_reactions_profil_down.sql"
 psql -c "do \$\$ begin
   if exists (select 1 from information_schema.columns where table_name = 'bravos' and column_name in ('kind', 'updated_at')) then raise 'colonnes restées'; end if;

@@ -2,7 +2,7 @@
 
 Décisions de Maxence (26/10/2026) :
 - 5e onglet « Amis » (renommé « Social » le 06/11/2026, et « Coach » pour un compte coach : docs/SOCIAL_V2.md) ;
-- réaction « Bravo » sans texte (31/10/2026 : cinq réactions, voir « Réactions et Mon profil ») ;
+- réaction sans texte (31/10/2026 : cinq réactions, voir « Réactions et Mon profil » ; 17/11/2026 : ❤️ « J'aime » d'un toucher, voir « J'aime ») ;
 - 13+ déclaré à Apple et case « J'ai 15 ans ou plus » à l'activation ;
 - tranche d'âge partagée par Apple (Declared Age Range, iOS 26, IOS.md « Tranche d'âge ») : tranche qui n'exclut pas moins de 15 ans, ou mineur avec « Limites de communication » → Amis masqué partout (`socialEnabled`, point unique : onglet, bilan, Historique › Séance, commentaires, Réglages ; nouvelles séances masquées), et `social_disable` appelé si Amis était activé ; moins de 15 ans → « Rejoindre un coach » masqué aussi ; « Limites de communication » → messages du coach coupés ; 15-17 ans → séances masquées par défaut ; refus ou indisponible → rien ne change (la tranche reste sur l'appareil, le serveur n'en sait rien) ;
 - pseudo obligatoire pour être trouvé ;
@@ -110,6 +110,29 @@ Décisions de Maxence (30/10/2026) :
 - **Historique** : « 🔥 2 » (la plus fréquente et le total) à côté du titre d'une séance qui a reçu des réactions ; dans le détail, « Réactions (N) » et la liste de qui a réagi.
 - **privacy.html** : « Réactions » remplace « Bravos » (FR et EN), avec qui voit qui a réagi et la date de consultation de l'activité.
 
+## J'aime (17/11/2026, migration `20261117000000_reaction_jaime.sql`)
+
+Décisions de Maxence (17/11/2026) :
+- un toucher = ❤️ `like` « J'aime », en tête de la liste fermée : ❤️ `like`, 👏 `clap`, 🔥 `fire`, 💪 `strong`, 🏆 `trophy`, 😮 `wow` ;
+- les autres visibles sans appui long : « + » à côté du cœur ouvre 🔥 💪 🏆 👏 😮 (l'appui long reste) ;
+- double toucher sur le résumé d'une carte du fil (muscles, chiffres, record) = ❤️, avec un cœur qui apparaît et s'efface (sobre, ni lueur ni dégradé) ; le reste de la carte s'ouvre au premier toucher, sans attente ;
+- plus de « Bravo » nulle part : Réglages › Notifications « Réactions », notification « lea a réagi ❤️ à ta séance Push », Historique « ❤️ 3 · 🔥 1 », activité « a réagi ».
+
+### Serveur
+- `bravos_kind` accepte `like` ; défaut de la colonne toujours `clap` (`toggle_bravo` des anciennes versions pose 👏, inchangé).
+- `set_reaction` accepte `like` ; `reaction_top` départage les égalités ❤️ d'abord (`my_reactions.top`).
+- `push_claim` rend pour une réaction `reaction` et `label` (voir docs/NOTIFICATIONS.md).
+- **Anciennes versions de l'app** : elles écartent une sorte inconnue sans planter (`cleanReactionCounts`, `cleanWhoRow`, `cleanActivityRow` de js/data/social.js, vérifié) : un ❤️ n'y apparaît pas (ni compte, ni « qui a réagi », ni activité) ; si ma propre réaction est ❤️, elles l'affichent comme « pas de réaction » et un toucher y pose 👏 à la place. Pas de cas d'erreur. L'app à jour garde la même règle pour une sorte future.
+- **Ordre de mise en production** : la migration, puis la fonction `push-send`, puis l'OTA (supabase/rollback/ORDRE.md, 14). Une app à jour sur un serveur d'avant ne peut pas aimer (`invalid_reaction`, réaction annulée) mais « + » et la rangée marchent.
+- **Retour arrière** : `supabase/rollback/20261117000000_reaction_jaime_down.sql` (chaque ❤️ redevient un 👏, ligne et date gardées), vérifié par `tests/sql/rollback_reaction_jaime_check.sh` et `tests/sql/rollback_nuit_check.sh`. Remettre l'OTA d'avant d'abord.
+
+### App (js/features/reactions-ui.js)
+- **Fil** : le cœur (emoji seul ; plein à la teinte quand ❤️ est ma réaction ; VoiceOver « J'aime », bouton bascule) : un toucher pose ❤️, le retire, ou remplace une autre réaction par ❤️ ; appui long (0,42 s) : bulle des cinq autres. À côté, « + » (VoiceOver « Autres réactions », menu) : la même bulle ; il montre ma réaction quand c'en est une autre (« Autres réactions, la tienne : Chaud »). Puis le résumé « ❤️🔥 3 ». Deux boutons de 44 pt au moins.
+- **Double toucher** : la carte a deux parties, le haut (nom et vignette) est le bouton qui ouvre la séance au premier toucher ; le résumé dessous (`.feed-card__sum`, `data-like-zone` : muscles, trois chiffres, record) n'ouvre rien. Deux `click` sur le résumé de la même séance en 350 ms et à moins de 30 px : ❤️ si je n'ai pas réagi (une réaction choisie n'est jamais retirée ni remplacée : son emoji apparaît à la place), et un cœur de 76 px au centre du résumé qui grossit puis s'efface en 0,8 s (calque fixe, `aria-hidden`). Réduire les animations : fondu seul. Rien au pointerdown ; un `click` sans toucher (clavier, VoiceOver : `detail` 0) ne compte pas : avec VoiceOver, le cœur sert à aimer. Pas sur mes propres séances.
+- **Séance d'un ami** : rangée des six, ❤️ d'abord.
+- **Historique** : « ❤️ 3 · 🔥 1 » (chaque sorte, la plus fréquente d'abord, trois au plus) ; VoiceOver « 4 réactions : 3 J'aime, 1 Chaud ».
+- **Réglages › Notifications** : « Réactions » · « Quand quelqu'un réagit à une de tes séances ».
+
 ## Commentaires (31/10/2026, migration `20261031500000_commentaires.sql`)
 
 Demande de Maxence (feuille de route « Plus tard » : commentaires libres), choix pris par défaut (les plus sûrs et les plus simples, à valider) :
@@ -170,7 +193,7 @@ Migration d'abord, puis l'OTA. Une app à jour sur un serveur d'avant affiche «
   - sans compte : explication et bouton « Se connecter » ;
   - sans social : carte d'activation avec le pseudo (obligatoire, sinon lien pour le choisir), la case « J'ai 15 ans ou plus », un lien vers les règles de la communauté et le bouton « Activer » ;
   - social activé : champ de recherche, demandes reçues, puis le fil.
-- **Fil** : chaque carte montre l'avatar et le pseudo, depuis quand, le nom de la séance, durée, volume et séries, le record noté le plus marquant (en or), les muscles les plus travaillés, puis réagir et « Commenter » (V2, docs/SOCIAL_V2.md), avec le bouton de réaction et le résumé des réactions (voir « Réactions et Mon profil »). Un toucher ouvre le détail des séries.
+- **Fil** : chaque carte montre l'avatar et le pseudo, depuis quand, le nom de la séance, durée, volume et séries, le record noté le plus marquant (en or), les muscles les plus travaillés, puis réagir et « Commenter » (V2, docs/SOCIAL_V2.md), avec le cœur, « + » et le résumé des réactions (voir « J'aime »). Un toucher sur le haut de la carte (nom, vignette) ouvre le détail des séries ; le résumé (muscles, chiffres, record) attend un double toucher (❤️).
 - **Profil d'un autre** : ses séances (`feed` avec `only_user`), puis les actions : se désabonner ou annuler la demande, Bloquer, Signaler.
 - **Commentaires** : voir « Commentaires » ci-dessus.
 - **Gestion** : demandes envoyées, bloqués (avec « Débloquer »), et « Désactiver le social » ; abonnés (avec « Retirer ») et abonnements dans Mon profil.

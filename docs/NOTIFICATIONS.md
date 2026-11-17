@@ -6,7 +6,7 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
 
 | Réglage (Réglages › Social et coach › Notifications) | Déclencheur côté serveur | Texte | Toucher |
 |---|---|---|---|
-| Bravos | ligne ajoutée dans `bravos` (séance à moi) | « Bravo ! » · « max.dlf t'a dit bravo pour ta séance » | Historique › la séance (Historique si elle n'est pas sur l'iPhone) |
+| Réactions | ligne ajoutée dans `bravos` (première réaction d'une personne à une séance à moi) | « Nouvelle réaction » · « max.dlf a réagi ❤️ à ta séance Push » (emoji de sa réaction et nom de MA séance, 40 caractères, relus à l'envoi ; sans nom : « …à ta séance » ; réaction retirée entre-temps ou push_claim d'avant le 17/11 : « max.dlf a aimé ta séance ») | Historique › la séance (Historique si elle n'est pas sur l'iPhone) |
 | Demandes d'abonnement | ligne `follows` en `pending` (jamais `ghost`) | « Nouvelle demande » · « max.dlf veut suivre tes séances » | Onglet Social (segment Social pour un coach) |
 | Commentaires | ligne ajoutée dans `session_comments` par un autre sur une séance à moi | « Nouveau commentaire » · « max.dlf a commenté ta séance » | Historique › la séance (Historique si elle n'est pas sur l'iPhone) |
 | Mon coach | `coach_notes` ajouté ou texte changé ; `coach_programmes` ajouté ou contenu changé | « Ton coach » · « kevin a commenté ta séance » / « kevin t'a envoyé un programme » | Historique › la séance ; Social › Mon coach |
@@ -29,6 +29,8 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
   répond pas, Réglages › Notifications de l'app. L'autorisation est relue au retour au premier plan.
 - **Écran verrouillé** : seul le pseudo de l'auteur apparaît, jamais le texte d'un commentaire, d'un
   message ni le nom d'un programme. La file ne garde d'ailleurs que l'id du commentaire ou du message.
+  Exceptions, relues par `push_claim` à l'envoi : la séance d'un élève (nom et durée, au coach) et une
+  réaction (son emoji, liste fermée, et le nom de ma propre séance ; décision de Maxence du 17/11).
 - **Pas de doublon** : la même notification (destinataire, type, auteur, objet) n'est pas recréée pendant
   24 h (bravo retiré puis remis, commentaire retouché).
 - **Anti-rafale (commentaires, messages)** : une salve d'un même auteur sonne une fois. Pas de nouvelle
@@ -76,7 +78,7 @@ RLS activée sans politique et aucun GRANT de table : tout passe par des fonctio
 | `push_release(token)` | authenticated | retire ce jeton s'il est à un AUTRE compte (laissé sur cet iPhone par une session finie hors de l'app) ; le mien n'est jamais touché |
 | `push_prefs()` | authenticated | `{ reactions, follows, coach, comments, messages, student_sessions }` |
 | `push_set_prefs(reactions, follows, coach, comments, messages, student_sessions)` | authenticated | `null` = inchangé ; un type éteint vide sa file en attente. Les versions à 3 et 5 arguments restent (apps d'avant) et ne touchent pas aux types suivants |
-| `push_claim(max_rows)` | service_role | prend la file (une ligne par appareil, `wanted` relu avec la modération), `ref` = écran à ouvrir (séance du commentaire ; conversation : `@coach` pour l'élève, id de l'élève pour le coach, sans dépendre du compte chargé dans l'app), ménage : file de plus de 7 jours, appareils muets depuis 60 jours |
+| `push_claim(max_rows)` | service_role | prend la file (une ligne par appareil, `wanted` relu avec la modération), réaction : `reaction` (sorte actuelle, absente si retirée) et `label` (nom de ma séance, absent sans nom ou supprimée), `ref` = écran à ouvrir (séance du commentaire ; conversation : `@coach` pour l'élève, id de l'élève pour le coach, sans dépendre du compte chargé dans l'app), ménage : file de plus de 7 jours, appareils muets depuis 60 jours |
 | `push_done(ids, dead_tokens)` | service_role | solde les notifications traitées, retire les jetons morts |
 | `push_auth_get()` | service_role | jeton du fournisseur APNs gardé `{ token, iat, key_id }`, ou `null` |
 | `push_auth_swap(expected, token, iat, key_id)` | service_role | le remplace seulement s'il porte encore `expected` (`null` : pas encore de ligne) ; rend la ligne gagnante |

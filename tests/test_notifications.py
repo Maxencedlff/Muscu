@@ -68,6 +68,9 @@ def t_reglages(bench, eng, dev, theme):
         R.check(switches(page) == [['reactions', 'false'], ['comments', 'false'], ['follows', 'false'], ['coach', 'false'], ['messages', 'false']], f'{t} tout éteint au départ {switches(page)}')
         R.check(not any('request' in c or 'register' in c for c in push_calls(page)), f'{t} aucune fenêtre d\'iOS ni jeton sans toucher {push_calls(page)}')
         R.check("jamais le texte d'un commentaire ou d'un message" in page.inner_text('.push-view'), f'{t} pied : ce que montre la notification')
+        # 17/11 : plus de « Bravo » nulle part ; l'interrupteur s'appelle « Réactions »
+        pv = page.inner_text('.push-view')
+        R.check('Réactions' in pv and 'réagit à une de tes séances' in pv and 'bravo' not in pv.lower(), f'{t} « Réactions », plus de « Bravos » ({pv[:160]!r})')
         sizes = page.evaluate("[...document.querySelectorAll('[data-action=\"push-toggle\"]')].map(b => b.getBoundingClientRect().height)")
         R.check(all(h >= 44 for h in sizes), f'{t} cibles d\'au moins 44 pt {sizes}')
         R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} pas de défilement horizontal')

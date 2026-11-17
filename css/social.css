@@ -113,7 +113,13 @@ body.has-livebar .social-enable { bottom: calc(var(--tabbar-h) + 72px + env(safe
 .feed-card__who-text { min-width: 0; display: flex; flex-direction: column; }
 .feed-card__name { font-size: var(--fs-body); line-height: 1.3; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .feed-card__date { font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); white-space: nowrap; }
-.feed-card__main { flex-direction: column; gap: 10px; min-height: 44px; padding: 8px 16px 14px; }
+.feed-card__main { flex-direction: column; gap: 10px; min-height: 44px; padding: 8px 16px 6px; }
+/* Résumé (muscles, chiffres, record) : zone du double toucher « J'aime » (js/features/reactions-ui.js), qui
+   n'ouvre rien et ne s'éclaire pas ; ni loupe, ni sélection, ni zoom au double toucher */
+.feed-card__sum {
+  display: flex; flex-direction: column; gap: 10px; padding: 4px 16px 14px;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
 /* Haut de la séance, illustré comme l'Historique (refonte Coach v2, 15/11) : nom et muscles à gauche, vignette 3D du
    groupe le plus travaillé à droite (img/muscles/<groupe>.webp, 600 × 400, bord gauche fondu, muscles en rouge),
    entière (contain) et décorative. La colonne de texte s'arrête avant le personnage ; un nom long revient à la ligne
@@ -158,8 +164,9 @@ html.type-xl .feed-card__head { min-height: 0; }
   .feed-card__comment span { display: none; }
 }
 
-/* Réaction (js/features/reactions-ui.js) : bouton sobre, emoji seul (👏 ou ma réaction), plein à la teinte une fois donnée.
-   Appui long : pas de loupe ni de menu d'iOS, pas de sélection de texte. */
+/* Réaction (js/features/reactions-ui.js) : le cœur (emoji seul, plein à la teinte une fois donné), puis « + » (les
+   autres ; ma réaction à sa place si c'en est une autre). Appui long : pas de loupe ni de menu d'iOS, pas de sélection. */
+.react-pair { display: inline-flex; align-items: center; gap: 4px; }
 .react {
   min-height: 44px; min-width: 52px; padding: 0 14px; justify-content: center; border: 0; cursor: pointer; background: none; position: relative; z-index: 0;
   display: inline-flex; align-items: center; gap: 6px; margin-left: -4px;
@@ -171,6 +178,26 @@ html.type-xl .feed-card__head { min-height: 0; }
 .react--on::before { background: var(--tint-fill); }
 .react:active { opacity: .6; }
 .react__emoji { font-size: 1.1rem; line-height: 1; }
+.react--more { min-width: 44px; padding: 0 12px; margin-left: 0; color: var(--label2); }
+.react--more.react--on { color: var(--on-tint); }
+
+/* Double toucher sur le résumé : un cœur apparaît au centre puis s'efface (0,8 s), sans lueur ni dégradé ;
+   réduire les animations : il apparaît et s'efface, sans grossir */
+.like-burst {
+  position: fixed; z-index: 950; pointer-events: none; transform: translate(-50%, -50%);
+  font-size: 76px; line-height: 1; animation: like-burst .8s ease-out forwards;
+}
+@keyframes like-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.4); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+  32% { transform: translate(-50%, -50%) scale(1); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes like-fade { 0% { opacity: 0; } 20%, 70% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .like-burst { animation-name: like-fade; }
+}
 .react__count { font-size: var(--fs-subhead); color: var(--label2); white-space: nowrap; }
 /* Ma séance (Mon profil) : résumé seul, à la hauteur d'un bouton */
 .react-own { min-height: 44px; display: inline-flex; align-items: center; }
@@ -198,7 +225,7 @@ html.type-xl .feed-card__head { min-height: 0; }
   .react-picker__btn, .react::before { transition: none; }
 }
 
-/* Séance d'un ami : les cinq réactions côte à côte, la mienne sur un disque */
+/* Séance d'un ami : les six réactions côte à côte, la mienne sur un disque */
 .react-row { display: flex; justify-content: space-between; gap: 4px; }
 .react-row__btn {
   flex: 1; max-width: 60px; height: 52px; border: 0; border-radius: var(--r-md); padding: 0; cursor: pointer;
@@ -213,7 +240,7 @@ html.type-xl .feed-card__head { min-height: 0; }
 /* Qui a réagi : la réaction à droite de la personne */
 .who__emoji { flex-shrink: 0; font-size: 24px; line-height: 1; padding-left: 8px; }
 
-/* Historique : « 👏 2 » discret à côté du titre */
+/* Historique : « ❤️ 3 · 🔥 1 » discret à côté du titre */
 .react-mark { margin-left: 8px; font-size: var(--fs-footnote); font-weight: 500; color: var(--label2); white-space: nowrap; }
 
 /* ── Séance d'un ami ── */
