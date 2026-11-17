@@ -1489,3 +1489,139 @@ def p_photos_bilan(r):
             r.toucher('.cph-row [data-action="cph-remove"]', 'Retirer')
             r.choisir('Retirer')
             eleve.wait_for_function("() => document.querySelectorAll('.cph-row').length === 1", timeout=10000)
+
+
+# ─────────────────────────────────────────────────────────────
+#  Payant (verrou allumé simulé), élèves offerts par leur coach, photo de profil (branche serveur-1711)
+# ─────────────────────────────────────────────────────────────
+def _coquille_payante(r):
+    """Faux StoreKit (tests/fake_store.py, les dix formules) et verrou payant allumé : à appeler avant lancer()."""
+    from fake_store import FAKE_STORE
+    r.coquille_native('window.__stOpts = { paywallOn: true };\n' + FAKE_STORE)
+
+
+def _abonnement(r):
+    """Réglages › Abonnement depuis l'accueil."""
+    reglages(r)
+    r.defiler('.settings-view [data-action="access-open-settings"]', 'cellule Abonnement')
+    r.toucher('.settings-view [data-action="access-open-settings"]', 'Abonnement')
+    r.attendre('.pay-settings-view', 'Réglages › Abonnement')
+
+
+@parcours('abonnement', 'Abonnement d\'un particulier (verrou payant allumé)', 'pratiquant')
+def p_abonnement(r):
+    """Max, sans abonnement, verrou payant allumé (simulé : il est éteint en vrai) : Réglages › Abonnement, puis
+    les formules (essai de 3 mois, mensuel, annuel « soit 8,5 mois »), mentions d'Apple sous les boutons."""
+    _coquille_payante(r)
+    r.lancer(REALISTE)
+    r.connecter('max')
+    cle = 'Voir les formules d\'abonnement'
+    with r.etape('reglages-abonnement', 'Réglages › Abonnement : état, « Voir les formules »', cle=cle):
+        _abonnement(r)
+    with r.etape('formules', 'Formules : essai de 3 mois, mensuel, annuel', cle=cle):
+        r.toucher('.pay-settings-view [data-action="pay-open"]', 'Voir les formules')
+        r.attendre('.pay-view', 'écran d\'abonnement')
+    with r.etape('mentions', 'Bas de l\'écran : mentions d\'Apple, codes, conditions'):
+        r.defiler('.pay-view [data-action="pay-terms"]', 'conditions')
+
+
+@parcours('eleve-offert', 'Élève d\'un coach abonné : « Offert par ton coach »', 'coach')
+def p_eleve_offert(r):
+    """Léa est l'élève de lucas, coach abonné (palier 10 élèves) : elle n'a rien à payer. Réglages › Abonnement
+    dit « Offert par ton coach lucas », l'écran d'abonnement ne propose aucune formule ; puis lucas arrête son
+    abonnement : 7 jours de grâce, bandeau daté sur l'accueil."""
+    _coquille_payante(r)
+    r.lancer(REALISTE)
+    r.connecter('lea')
+    r.raccourci("""async () => { const c = __sb.addPerson({ username: 'lucas', avatar: '🦁', social: false }); __sb.makeCoach(c);
+        __sb.link(c, __sb.meId(), Date.now() - 20 * 86400000); __st.setCover('active'); await coachRefresh();
+        access.loadedAt = 0; await accessRefresh(); render(); }""", 'coach lucas abonné, Léa dans son palier')
+    cle = 'Savoir que son coach offre l\'accès'
+    with r.etape('reglages-abonnement', 'Réglages › Abonnement : « Offert par ton coach lucas », rien à payer', cle=cle):
+        _abonnement(r)
+    with r.etape('ecran-abonnement', 'Écran d\'abonnement : rien à acheter', cle=cle):
+        r.raccourci("navigate(makeRoute('paywall', 'offer'))", 'écran d\'abonnement ouvert (lien de l\'accueil verrou allumé)')
+        r.attendre('.pay-view', 'écran d\'abonnement')
+    with r.etape('grace-accueil', 'Coach qui a arrêté : bandeau « Offert par ton coach jusqu\'au … »'):
+        r.raccourci("async () => { __st.setCover('grace', { days: 5 }); access.loadedAt = 0; await accessRefresh(); }",
+                    'lucas a arrêté son abonnement coach il y a 2 jours')
+        r.onglet('train', 'Entraînement')
+    with r.etape('grace-reglages', 'Réglages › Abonnement pendant la grâce : date de fin'):
+        r.toucher('.pay-banner', 'bandeau')
+        r.attendre('.pay-settings-view', 'Réglages › Abonnement')
+
+
+@parcours('abonnement-coach', 'Coach : forfait selon ses élèves, « Tes élèves n\'ont rien à payer »', 'coach')
+def p_abonnement_coach(r):
+    """Max est coach validé (palier 10 élèves) et suit 12 élèves : Réglages › Abonnement, formules coach (« Tes
+    élèves n'ont rien à payer »), puis Élèves : bandeau des 2 élèves au-delà de sa formule, palier 20 conseillé."""
+    _coquille_payante(r)
+    r.lancer(REALISTE)
+    r.connecter('max')
+    r.raccourci("""async () => { const me = __sb.meId(); __sb.makeCoach(me); __sb.setTier(me, 'com.mdlf.training.coach10.monthly');
+        for (let i = 0; i < 12; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + (i + 1), social: false }), Date.now() - (30 - i) * 86400000);
+        await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); access.loadedAt = 0; await accessRefresh(); render(); }""",
+                'max coach validé, abonné au palier 10 élèves, 12 élèves')
+    cle = 'Choisir son forfait coach'
+    with r.etape('reglages-abonnement', 'Réglages › Abonnement du coach', cle=cle):
+        _abonnement(r)
+    with r.etape('formules-coach', 'Formules coach : « Tes élèves n\'ont rien à payer », 4 paliers', cle=cle):
+        r.toucher('.pay-settings-view [data-action="pay-open"][data-tab="coach"]', 'Changer de palier coach')
+        r.attendre('.pay-view', 'écran d\'abonnement')
+    with r.etape('eleves-au-dela', 'Élèves : bandeau « 2 élèves au-delà de ta formule »', cle='Voir les élèves non couverts'):
+        r.onglet('friends', 'Coach')
+        r.raccourci("navigate('coach-students')", 'liste complète des élèves')
+        r.attendre('.coach-tier-banner', 'bandeau du palier')
+    with r.etape('palier-conseille', 'Palier 20 élèves conseillé', cle='Voir les élèves non couverts'):
+        r.toucher('.coach-tier-banner', 'bandeau du palier')
+        r.attendre('.pay-view', 'écran d\'abonnement')
+
+
+_PHOTO_B64 = {}
+
+
+def _photo_ami_b64():
+    """Photo de profil d'un ami : anneaux de couleur (aucune personne), JPEG 512 px en base64."""
+    if 'ami' not in _PHOTO_B64:
+        import base64
+        import io
+        from PIL import Image, ImageDraw
+        img = Image.new('RGB', (512, 512), (40, 110, 90))
+        d = ImageDraw.Draw(img)
+        for i, rr in enumerate(range(240, 0, -60)):
+            d.ellipse([256 - rr, 256 - rr, 256 + rr, 256 + rr], fill=(235, 225, 210) if i % 2 == 0 else (40, 110, 90))
+        buf = io.BytesIO()
+        img.save(buf, 'JPEG', quality=80)
+        _PHOTO_B64['ami'] = base64.b64encode(buf.getvalue()).decode()
+    return _PHOTO_B64['ami']
+
+
+@parcours('photo-profil', 'Photo de profil : choisir, aperçu, vue par un ami', 'pratiquant')
+def p_photo_profil(r):
+    """Max, abonné (photo comprise dans MDLF Pro) : Réglages › Compte › Photo de profil, feuille, choix d'une image
+    (sélecteur d'iOS), aperçu recadré, « Utiliser cette photo » ; puis le profil de Léa, une amie qui a une photo."""
+    r.lancer(REALISTE)
+    r.raccourci("""async (b64) => { await accountSignInWith('apple', async () => 'add');
+        await accountSaveProfile({ username: 'max', avatar: '🦁' }); await socialEnable(true);
+        const lea = __sb.addPerson({ username: 'lea', avatar: '🦊' }); __sb.follow(__sb.meId(), lea);
+        __sb.setPhoto(lea, b64, 'image/jpeg'); window.__lea = lea; await socialRefresh(); }""",
+                'connecté (max), Social activé, amie Léa avec une photo', _photo_ami_b64())
+    cle = 'Mettre une photo de profil'
+    with r.etape('compte', 'Réglages › Compte : cellule « Photo de profil »', cle=cle):
+        reglages(r)
+        r.toucher('.settings-view [data-action="go-account"]', 'Compte')
+        r.attendre('[data-action="pph-open"]', 'cellule Photo de profil')
+    with r.etape('feuille', 'Feuille « Photo de profil » : qui la voit, choisir', cle=cle):
+        r.toucher('[data-action="pph-open"]', 'Photo de profil')
+        r.attendre('.sheet .pph-sheet', 'feuille')
+    with r.etape('apercu', 'Aperçu du carré recadré', cle=cle):
+        with r.page.expect_file_chooser() as fc:
+            r.toucher('.sheet [data-action="pph-pick"]', 'Choisir une photo (sélecteur d\'iOS)')
+        fc.value.set_files(image_bilan('profil.jpg', (40, 70, 120), (230, 140, 60)))
+        r.attendre('.sheet .pph-preview__img', 'aperçu')
+    with r.etape('enregistree', 'Photo posée sur l\'avatar du compte', cle=cle):
+        r.toucher('.sheet [data-action="pph-use"]', 'Utiliser cette photo')
+        r.page.wait_for_function("() => !document.querySelector('.sheet .pph-sheet')", timeout=10000)
+    with r.etape('profil-amie', 'Profil de Léa : sa photo, « Signaler la photo »'):
+        r.raccourci("navigate(makeRoute('social-profile', window.__lea))", 'profil de Léa ouvert depuis le fil')
+        r.attendre('.social-profile-view .account-hero', 'profil')
