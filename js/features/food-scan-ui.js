@@ -112,7 +112,7 @@ function fscanFoundHtml(food, units = [], { kept = true } = {}) {
     <p class="fscan__total num" id="fscanTotal" aria-live="polite"></p>
     ${units.length ? '' : dietMacroLegendHtml()}
     <p class="diet-form__err" id="fscanErr" role="alert"></p>
-    ${food.src === 'off' ? fscanSrcHtml() : '<p class="fscan__src">Valeurs que tu as saisies.</p>'}
+    ${food.src === 'off' ? fscanSrcHtml() : '<p class="fscan__src">Ton aliment, avec tes valeurs.</p>'}
     ${kept ? '<p class="fscan__src">Gardé dans Mes aliments, reconnu au prochain scan.</p>'
       : `<div class="fscan__full" role="note"><p>Mes aliments est plein (${DIET_FOODS_MAX}). Ce produit s'ajoute au repas sans y être gardé.</p>
       <button class="btn btn--secondary btn--full" data-fscan="foods">Gérer Mes aliments</button></div>`}`;

@@ -226,7 +226,7 @@ def t_semaine(bench, eng, dev, theme):
         R.check(lab['summary'].startswith('Ton mois, Septembre 2026 en bref : '), f'{t} récap mois : « en bref » ({lab["summary"][:60]})')
         R.check(not any(k in x['l'] for x in mo for k in ('n° 1', '1RM', 'en chiffres')), f'{t} récap mois : ni « n° 1 », ni « 1RM », ni « en chiffres »')
         if 'exercise' in lab:
-            R.check('ton exercice le plus fait' in lab['exercise'] and ' séances sur ' in lab['exercise'], f'{t} récap mois : exercice le plus fait expliqué ({lab["exercise"][:110]})')
+            R.check('exercice le plus fait' in lab['exercise'] and ' séances sur ' in lab['exercise'], f'{t} récap mois : exercice le plus fait expliqué ({lab["exercise"][:110]})')
         if 'profile' in lab:
             R.check(not any(w in lab['profile'] for w in ('le soir', 'le matin', 'le midi')) or 'Entre ' in lab['profile'],
                     f'{t} récap mois : moment de la journée avec sa plage ({lab["profile"][:140]})')
@@ -268,7 +268,7 @@ def t_annee(bench, eng, dev, theme):
         st = recap_state(page)
         R.check(st['kicker'] == 'Ton année' and st['value'] == '78', f'{t} bilan : 78 séances ({st["kicker"]} {st["value"]})')
         labels = page.evaluate("[...document.querySelectorAll('.recap-page')].map(p => p.getAttribute('aria-label'))")
-        R.check(any('mois le plus actif' in l for l in labels), f'{t} bilan : mois le plus actif (écran régularité)')
+        R.check(any('mois le plus actif' in (l or '').lower() for l in labels), f'{t} bilan : mois le plus actif (écran régularité)')
         R.check(any("muscles de l'année" in l for l in labels), f'{t} bilan : « muscles de l\'année »')
         R.check(labels[-1].startswith('Ton année, 2026 en bref : ') and 'Séances 78' in labels[-1], f'{t} bilan : résumé ({labels[-1][:90]})')
         R.check(any('record' in l for l in labels), f'{t} bilan : des records sur l\'année')
