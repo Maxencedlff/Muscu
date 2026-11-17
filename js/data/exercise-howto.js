@@ -293,6 +293,8 @@ const EXERCISE_HOWTO = {
     'Saute en tendant tout le corps', 'Reçois-toi en douceur, genoux fléchis, et enchaîne'], 'Atterrir jambes tendues ou genoux qui rentrent'],
   'Squat gobelet': [['Haltère tenu contre la poitrine, coudes vers le bas', 'Pieds un peu plus larges que les épaules',
     'Descends entre les genoux, buste droit', 'Remonte en poussant dans tout le pied'], 'Buste qui plonge vers l\'avant'],
+  'Squat haltères': [['Un haltère dans chaque main, bras tendus le long du corps', 'Pieds largeur d\'épaules, pointes légèrement ouvertes',
+    'Descends en poussant les hanches en arrière, buste droit', 'Remonte en poussant dans tout le pied'], 'Genoux qui rentrent vers l\'intérieur'],
   'Squat gobelet kettlebell': [['Kettlebell tenue par les cornes contre la poitrine', 'Pieds un peu plus larges que les épaules',
     'Descends entre les genoux, buste droit', 'Remonte en poussant dans tout le pied'], 'Buste qui plonge vers l\'avant'],
   'Squat élastique': [['Debout sur l\'élastique, poignées à hauteur d\'épaules', 'Pieds largeur d\'épaules',

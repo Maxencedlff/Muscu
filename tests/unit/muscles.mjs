@@ -124,7 +124,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     'Curl biceps haltères': 'Curl biceps haltères', 'Barre au front': 'Barre au front', 'Curl marteau': 'Curl marteau',
     'Extension triceps poulie': 'Extension triceps poulie haute', 'Curl pupitre': 'Curl pupitre',
     'Extension triceps poulie bas': 'Extension triceps poulie basse', 'Dead lift': 'Soulevé de terre', 'Rowing barre': 'Rowing barre',
-    'Tirage horizontal poulie': 'Tirage horizontal câble', 'Rowing haltère unilatéral': 'Rowing haltère unilatéral',
+    'Tirage horizontal poulie': 'Tirage horizontal câble', 'Rowing haltère unilatéral': 'Rowing haltère unilatéral', 'Squat haltère': 'Squat haltères', 'Dumbbell squat': 'Squat haltères',
     'Pull over': 'Pull-over poulie', 'Développe couché': 'Développé couché barre', 'Développé incliné haltères': 'Développé incliné haltères',
     'Chest press': 'Développé couché machine', 'Dips': 'Dips', 'Pec fly': 'Pec deck', 'Hip thrusts': 'Hip thrust',
     'Hack squats': 'Hack squat', 'Rdl': 'Soulevé de terre roumain', 'Legs extension': 'Extension quadriceps',
@@ -133,9 +133,9 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     'Oiseau poulie vis à vis': 'Oiseau poulie vis-à-vis', 'Développé militaire haltères': 'Développé militaire haltères',
     'Élévation latérale machine': 'Élévations latérales machine',
   };
-  test('muscles : les 27 noms tapés par un testeur sont reconnus, avec les bons muscles', () => {
+  test('muscles : les 29 noms tapés par un testeur sont reconnus, avec les bons muscles', () => {
     reset();
-    assert.equal(Object.keys(TESTER_NAMES).length, 27);
+    assert.equal(Object.keys(TESTER_NAMES).length, 29);
     for (const [typed, name] of Object.entries(TESTER_NAMES)) {
       const e = run(`catalogueEntry(${JSON.stringify(typed)})`);
       assert.ok(e, `${typed} : non reconnu`);
