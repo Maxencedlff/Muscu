@@ -74,6 +74,7 @@ const SCRIPTS = [
   'js/data/progress-photos.js',
   'js/data/photo-vault.js',
   'js/data/coach-photos.js',
+  'js/data/profile-photo.js',
   'js/data/session-review.js',
   'js/data/health-workouts.js',
   'js/data/health-export.js',
@@ -2022,6 +2023,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 
 // ── Content-Security-Policy de la WebView (tests dans csp.mjs) ──
 (await import('./csp.mjs')).default({ test, assert, ROOT });
+// ── Photo de profil (tests dans profile-photo.mjs) ──
+(await import('./profile-photo.mjs')).default({ test, run, app, assert, sameJSON, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

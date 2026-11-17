@@ -233,7 +233,7 @@ function payYearMonths(list, p) {
 }
 
 // Ce que donne l'abonnement, dit avant les formules
-const PAY_BENEFITS = 'Avec l\'abonnement, tu enregistres de nouvelles séances. Ton historique, tes progrès et l\'export restent ouverts, abonné ou non.';
+const PAY_BENEFITS = 'Avec l\'abonnement, tu enregistres de nouvelles séances et tu peux mettre une vraie photo de profil. Ton historique, tes progrès et l\'export restent ouverts, abonné ou non.';
 const PAY_COACH_BENEFITS = 'Tes élèves n\'ont rien à payer : l\'abonnement coach comprend ton propre accès complet, le leur et leur suivi. Tu peux changer de palier à tout moment chez Apple.';
 
 // Mentions exigées par Apple (règle 3.1.2) à côté des boutons d'achat : durée de l'essai, prix et

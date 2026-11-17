@@ -79,6 +79,12 @@ invalid_photo, not_adult sans la déclaration des 18 ans, too_many à 3 par jour
 le compartiment privé (client.storage.from('coach-photos') : upload, createSignedUrl, remove, list) avec les règles des
 politiques. État dans __sb.co.pkeys, __sb.co.photos, __sb.objs (fichiers, base64), __sb.trash (file de purge), __sb.signed
 (URL signées et leur durée) ; __sb.fail.photos = 'missing' (PGRST202) ou 'offline'. Lien rompu : photos effacées.
+Photo de profil (supabase/migrations/20261116000000_photo_profil.sql) : profile_photo_state, profile_photo_prepare (disabled,
+not_allowed sans droit : verrou __st.paywallOn allumé, ni __sb.pp.pro[id] ni coach ; banned, rate_limited à 10), profile_photo_commit
+(not_uploaded : fichier absent, de plus de 256 ko ou ni JPEG ni WebP), profile_photo_remove, profile_photos (moi, ami accepté dans un
+sens ou l'autre, coach ou élève ; photo masquée, auteur sans droit ou photos éteintes : absente) ; compartiment profile-photos avec ses
+politiques ; signalement « photo:<id> » par la fonction report, masquée au 2e signalant. État dans __sb.pp (photos, pro, bans, on) ;
+__sb.setPhoto(id, b64?, type?) pose une photo prête (image PNG 1 px, ou les octets donnés en base64) ; __sb.fail.pphoto = 'missing' (PGRST202) ou 'offline'.
 Progression (supabase/migrations/20261106000000_coach_progression.sql) : coach_progress (séances des 35 derniers
 jours avec leurs records notés, first_at, last_record_at, unnoted_at sur 182 jours, mes élèves seulement, encore
 coach) ; __sb.fail.progress = 'missing' (PGRST202 : serveur sans la fonction, l'app lit les séances page par page).
@@ -663,7 +669,7 @@ FAKE_ACCOUNT = r"""
   const pageFetch = window.fetch.bind(window);
   window.fetch = (input, init) => {
     const u = typeof input === 'string' ? input : input?.url;
-    if (u && u.startsWith(SIGNED_PREFIX)) {
+    if (u && (u.startsWith(SIGNED_PREFIX) || u.startsWith(SIGNED_PREFIX.replace('/coach-photos/', '/profile-photos/')))) {
       const b = signedBlobs.get(u);
       return Promise.resolve(b ? new Response(b, { status: 200 }) : new Response('not found', { status: 400 }));
     }
@@ -738,11 +744,13 @@ FAKE_ACCOUNT = r"""
       log('storage', 'upload', JSON.stringify({ bucket, path, upsert: o.upsert, contentType: o.contentType, cacheControl: o.cacheControl }));
       if (sb.fail.photos === 'offline' || sb.fail.upload === 'offline') return stErr('Failed to fetch', '');
       const me = sb.meId();
-      if (bucket !== 'coach-photos' || !me) return stErr('new row violates row-level security policy');
-      if (!co.photos.some(p => phPath(p) === path && p.student === me && p.state === 'pending')) return stErr('new row violates row-level security policy');
+      if (!['coach-photos', 'profile-photos'].includes(bucket) || !me) return stErr('new row violates row-level security policy');
+      if (bucket === 'coach-photos' && !co.photos.some(p => phPath(p) === path && p.student === me && p.state === 'pending')) return stErr('new row violates row-level security policy');
+      if (bucket === 'profile-photos' && !(pp.on && pp.photos.some(p => ppPath(p) === path && p.user === me && p.state === 'pending'))) return stErr('new row violates row-level security policy');
       if (sb.objs[path]) return stErr('The resource already exists', '409');
       const bytes = new Uint8Array(await blob.arrayBuffer());
-      if (bytes.length > 1048576) return stErr('The object exceeded the maximum allowed size', '413');
+      if (bytes.length > (bucket === 'profile-photos' ? 262144 : 1048576)) return stErr('The object exceeded the maximum allowed size', '413');
+      if (bucket === 'profile-photos' && !['image/jpeg', 'image/webp'].includes(o.contentType)) return stErr('mime type not supported', '415');
       let bin = ''; bytes.forEach(x => { bin += String.fromCharCode(x); });
       sb.objs[path] = { b64: btoa(bin), size: bytes.length, owner: me, type: o.contentType || blob.type, at: now() };
       return { data: { path }, error: null };
@@ -750,13 +758,13 @@ FAKE_ACCOUNT = r"""
     createSignedUrl: async (path, expiresIn) => {
       log('storage', 'sign', JSON.stringify({ bucket, path, expiresIn }));
       const me = sb.meId(), o = sb.objs[path];
-      if (!me || !o || !canRead(me, path)) return stErr('Object not found', '400');
+      if (!me || !o || !(bucket === 'profile-photos' ? ppCanRead(me, path) : canRead(me, path))) return stErr('Object not found', '400');
       sb.signed.push([path, expiresIn]);
       const bin = atob(o.b64), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       // Adresse du vrai stockage (permise par la CSP d'index.html), servie par le fetch de la page sans réseau
-      const url = SIGNED_PREFIX + encodeURIComponent(path) + '?token=faux-' + sb.signed.length;
-      signedBlobs.set(url, new Blob([bytes], { type: 'application/octet-stream' }));
+      const url = (bucket === 'profile-photos' ? SIGNED_PREFIX.replace('/coach-photos/', '/profile-photos/') : SIGNED_PREFIX) + encodeURIComponent(path) + '?token=faux-' + sb.signed.length;
+      signedBlobs.set(url, new Blob([bytes], { type: bucket === 'profile-photos' ? (o.type || 'image/webp') : 'application/octet-stream' }));
       return { data: { signedUrl: url }, error: null };
     },
     remove: async paths => {
@@ -772,6 +780,80 @@ FAKE_ACCOUNT = r"""
       return { data: Object.keys(sb.objs).filter(p => p.startsWith(folder + '/') && canRead(me, p)).map(p => ({ name: p.split('/')[1] })), error: null };
     },
   });
+  // ── Photo de profil (supabase/migrations/20261116000000_photo_profil.sql) ──
+  // Photos { id, user, state, bytes, created_at, hidden } ; droit = verrou éteint, ou __sb.pp.pro[id], ou coach
+  const pp = sb.pp = { photos: [], pro: {}, bans: {}, on: true, tries: {} };
+  const ppPath = p => `${p.user}/${p.id}`;
+  const ppAllowed = me => !(window.__st && window.__st.paywallOn) || !!pp.pro[me] || !!co.coachAt[me];
+  const ppLinked = (a, b) => co.links.some(l => (l.coach === a && l.student === b) || (l.coach === b && l.student === a));
+  const ppVisible = (viewer, owner) => viewer === owner || canSee(viewer, owner) || canSee(owner, viewer) || ppLinked(viewer, owner);
+  const ppDrop = pred => { pp.photos.filter(pred).forEach(p => sb.trash.push(ppPath(p))); pp.photos = pp.photos.filter(p => !pred(p)); };
+  const ppUuid = () => crypto.randomUUID();
+  sb.setPhoto = (id, bytes = null, type = 'image/webp') => {
+    ppDrop(p => p.user === id);
+    const p = { id: ppUuid(), user: id, state: 'ready', bytes: 0, created_at: now(), hidden: false };
+    // PNG 1 × 1 orange (rien d'une vraie photo) servi comme image/webp : le navigateur le décode quand même
+    const b64 = bytes || 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+    sb.objs[ppPath(p)] = { b64, size: atob(b64).length, owner: id, type, at: now() };
+    p.bytes = sb.objs[ppPath(p)].size;
+    pp.photos.push(p);
+    return p.id;
+  };
+  const ppRpc = {
+    profile_photo_state: me => {
+      const p = pp.photos.find(x => x.user === me && x.state === 'ready');
+      return { enabled: pp.on, allowed: ppAllowed(me), banned: !!pp.bans[me], photo: p ? { id: p.id, path: ppPath(p), hidden: p.hidden } : null };
+    },
+    profile_photo_prepare: me => {
+      if (!pp.on) return pgErr('disabled');
+      if (pp.bans[me]) return pgErr('banned');
+      if (!ppAllowed(me)) return pgErr('not_allowed');
+      const tries = (pp.tries[me] || []).filter(t => t > now() - 86400_000);
+      if (tries.length >= 10) return pgErr('rate_limited');
+      pp.tries[me] = [...tries, now()];
+      ppDrop(p => p.user === me && p.state === 'pending');
+      const p = { id: ppUuid(), user: me, state: 'pending', bytes: null, created_at: now(), hidden: false };
+      pp.photos.push(p);
+      return { id: p.id, path: ppPath(p) };
+    },
+    profile_photo_commit: (me, { photo }) => {
+      const p = pp.photos.find(x => x.id === photo && x.user === me);
+      if (!p) return pgErr('not_found');
+      if (p.state === 'ready') return { id: p.id, path: ppPath(p), hidden: p.hidden };
+      if (!pp.on) return pgErr('disabled');
+      if (!ppAllowed(me) || pp.bans[me]) return pgErr('not_allowed');
+      const o = sb.objs[ppPath(p)];
+      if (!o || o.size < 1 || o.size > 262144 || !['image/jpeg', 'image/webp'].includes(o.type)) return pgErr('not_uploaded');
+      ppDrop(x => x.user === me && x.state === 'ready');
+      Object.assign(p, { state: 'ready', bytes: o.size });
+      return { id: p.id, path: ppPath(p), hidden: false };
+    },
+    profile_photo_remove: me => { ppDrop(p => p.user === me); return null; },
+    profile_photos: (me, { uids }) => {
+      if (!pp.on) return [];
+      const want = (uids || []).slice(0, 200);
+      return pp.photos.filter(p => want.includes(p.user) && p.state === 'ready' && !p.hidden && ppVisible(me, p.user) && ppAllowed(p.user) && !pp.bans[p.user])
+        .map(p => ({ user_id: p.user, id: p.id, path: ppPath(p) }));
+    },
+  };
+  // Signalement d'une photo (fonction report, kind 'profile', target_ref 'photo:<id>') : masquée au 2e signalant distinct
+  sb.ppReported = r => {
+    const m = /^photo:([0-9a-f-]{36})$/.exec(r.target_ref || '');
+    if (r.kind !== 'profile' || !m) return;
+    const by = new Set(so.reports.filter(x => x.target_user === r.target_user && x.target_ref === r.target_ref).map(x => x.by));
+    if (by.size >= 2) pp.photos.filter(p => p.id === m[1] && p.user === r.target_user).forEach(p => { p.hidden = true; });
+  };
+  const callPphoto = async (fn, args = {}) => {
+    log('pphoto', fn, JSON.stringify(args));
+    if (sb.fail.pphoto === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
+    if (sb.fail.pphoto === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    const me = sb.meId();
+    if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
+    const out = ppRpc[fn](me, args);
+    return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
+  };
+  const ppCanRead = (me, path) => path.split('/')[0] === me
+    || (pp.on && pp.photos.some(p => ppPath(p) === path && p.state === 'ready' && !p.hidden && ppVisible(me, p.user) && ppAllowed(p.user) && !pp.bans[p.user]));
   const cperson = (id, since) => ({ ...person(id, since || 0), since: since == null ? null : new Date(since).toISOString() });
   const validInvite = code => co.invites.find(i => i.code === code && i.expires > now());
   const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1185,7 +1267,7 @@ FAKE_ACCOUNT = r"""
             if (sb.fail.strava === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
             return sb.session ? { data: stravaStatus(), error: null } : { data: null, error: { code: '42501', message: 'permission denied' } };
           }
-          if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn] || photoRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (nlRpc[fn]) return callNewsletter(fn, args); if (pushRpc[fn]) return callPush(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+          if (ppRpc[fn]) return callPphoto(fn, args); if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn] || photoRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (nlRpc[fn]) return callNewsletter(fn, args); if (pushRpc[fn]) return callPush(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
@@ -1228,6 +1310,7 @@ FAKE_ACCOUNT = r"""
               || (b.details != null && String(b.details).length > 500)) return fail(400, { error: 'invalid' });
             if (so.reports.filter(r => r.by === sb.meId()).length >= 10) return fail(429, { error: 'rate_limited' });
             so.reports.push({ ...b, id: so.reports.length + 1, by: sb.meId(), notified: true });
+            sb.ppReported(so.reports[so.reports.length - 1]);
             return { data: { ok: true }, error: null };
           }
           const u = me(), nowS = now() / 1000;

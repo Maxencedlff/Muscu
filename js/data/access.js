@@ -204,6 +204,14 @@ function canWrite() {
   return st.can_write === true;
 }
 
+// Fonctions Pro (photo de profil, docs/PHOTO_PROFIL.md) : le même droit que l'enregistrement des séances, et
+// offertes aux coachs dont le rôle est actif. Seule règle côté app, reprise du serveur (private.pro_feature) : verrou
+// éteint, elle vaut toujours vrai. Il faut un compte (la photo vit sur le serveur).
+function proFeatureAllowed() {
+  if (!account.user) return false;
+  return canWrite() || coachRole().isCoach === true;
+}
+
 // Verrou réellement allumé pour ce compte (dernier état connu) : l'écran n'affiche l'abonnement que là
 function paywallOn() {
   if (!account.user) return false;
