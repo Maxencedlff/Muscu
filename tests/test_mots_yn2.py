@@ -92,6 +92,13 @@ def t_seance_libre(bench, eng, dev, theme):
         R.check(page.evaluate('activeSession.exercises.length') == 1, f'{t} séance libre : premier exercice ajouté')
         R.check(page.evaluate('JSON.stringify(data.programmes)') == before and not page.evaluate("'free' in data.programmes"),
                 f'{t} séance libre : programmes inchangés')
+        # Recopie de la charge (yn2-seance) dans une séance libre : séries suivantes vides remplies
+        page.evaluate("(() => { activeSession.exercises[0].sets.forEach(s => { s.weight = ''; s.plannedWeight = ''; s.prev = null; s.reps = ''; }); render(); })()")
+        page.wait_for_timeout(200)
+        page.locator('[data-action="set-weight"][data-ei="0"][data-si="0"]').click(); page.keyboard.type('40')
+        work = page.evaluate("activeSession.exercises[0].sets.filter(s => !isWarmupSet(s)).map(s => s.weight)")
+        R.check(len(work) >= 2 and all(w == '40' for w in work), f'{t} séance libre : charge recopiée dans les séries suivantes {work}')
+        page.locator('[data-action="set-weight"][data-ei="0"][data-si="0"]').blur()
         shot(page, LOT, f'3-libre-exercice-{t}')
         # Accueil pendant la séance : la ligne dit « Reprendre »
         page.evaluate("routeTo('dashboard')")
