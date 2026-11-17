@@ -8,7 +8,9 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md (MODÈLE B : l'essai gratuit est l'offr
 - RPC `my_access()` (crée la ligne `entitlements` au premier appel, SANS rien donner : plus d'essai
   maison) et `access_state()` (lecture seule, renvoie null sans ligne). Statuts : `none`, `active`
   (offre de lancement comprise : `intro_offer`, `intro_until`), `expired`, `gift` (code maison),
-  `coach_team` ;
+  `coach_team` (élève offert par son coach, 16/11/2026) et `coach_cover` : `__st.setCover(state, { coach,
+  days })` pose l'offre du coach du compte connecté, comme le serveur la calcule (`active`, `grace` avec
+  une fin dans `days` jours, `over_limit`, `ended`) ;
 - RPC `redeem_gift_code(code)` : code cadeau maison, saisie souple. Un refus de code n'est **pas** une
   exception : elle renvoie `{ ok, error, kind, access }` avec `error` valant `invalid_code`,
   `code_expired`, `code_used_up` ou `already_redeemed`. Seul `rate_limited` (10 essais par heure) est
@@ -78,8 +80,8 @@ FAKE_STORE = r"""
           displayPrice: y.toFixed(2).replace('.', ',') + ' €', price: y, currency: 'EUR', period: { unit: 'year', value: 1 }, introEligible: true }]),
     ],
     environment: 'production',
-    // Offre élève : codes d'offre d'Apple à usage unique distribués par student_offer_code
-    offerCodes: ['STUDENTCODE01', 'STUDENTCODE02', 'STUDENTCODE03'], offerGiven: {},
+    // Offre du coach par compte (élèves offerts, 16/11/2026) : { state, until, coach }
+    covers: {},
   }, window.__stOpts || {});
   const DAY = 86400000, HOUR = 3600000;
   const BUNDLE = 'com.mdlf.training';
@@ -126,33 +128,35 @@ FAKE_STORE = r"""
     }
     return e || null;
   };
-  // Élève d'un coach (état du faux coach de fake_account) : plus de gratuité depuis le 30/10
-  const coachOf = uid => (window.__sb && __sb.co ? (__sb.co.links.find(l => l.student === uid) || {}).coach || null : null);
 
   // Ce que my_access() / access_state() renvoient, calculé à l'heure du SERVEUR
-  // gift > active > expired > none ; aucun essai maison, plus d'élève gratuit (coach_team toujours faux)
+  // gift > active > coach_team > expired > none ; aucun essai maison ; élève offert par son coach (16/11)
   const stateOf = (uid, e) => {
     const now = serverNow();
-    const coach = false;
+    const cover = st.covers[uid] || null;
+    const coach = !!cover && (cover.state === 'active' || cover.state === 'grace');
     const giftDays = e.gift_until !== null && e.gift_until > now ? e.gift_until : null;
     const paid = e.expires_at !== null && e.expires_at > now ? e.expires_at : null;
     let status, until = null;
     if (e.gift) status = 'gift';
     else if (giftDays && (!paid || giftDays > paid)) { status = 'gift'; until = giftDays; }
     else if (paid) { status = 'active'; until = paid; }
-    else if (coach) status = 'coach_team';
+    else if (coach) { status = 'coach_team'; until = cover.state === 'grace' ? cover.until : null; }
     else if (e.expires_at !== null || e.gift_until !== null || e.ended !== null) {
       status = 'expired'; until = Math.max(e.expires_at || 0, e.gift_until || 0, e.ended || 0) || null;
     } else status = 'none';
     const intro = status === 'active' && !!e.intro;
-    const days = (status === 'active' || status === 'gift') && until !== null ? Math.max(0, Math.ceil((until - now) / DAY)) : null;
+    const days = (status === 'active' || status === 'gift' || status === 'coach_team') && until !== null ? Math.max(0, Math.ceil((until - now) / DAY)) : null;
     return { status, until: iso(until), paywall_on: !!st.paywallOn, days_left: days,
       can_write: !st.paywallOn || ['active', 'gift', 'coach_team'].includes(status),
       gift: !!e.gift || !!giftDays, gift_until: iso(e.gift_until), coach_team: coach,
+      coach_cover: cover ? { state: cover.state, until: iso(cover.until), coach: cover.coach } : null,
       intro_offer: intro, intro_until: intro ? iso(until) : null, server_now: iso(now) };
   };
 
   st.giveGift = () => { const e = row(me(), true); e.gift = true; };
+  st.setCover = (state, { coach = 'lucas', days = 5 } = {}) => {
+    st.covers[me()] = state ? { state, coach, until: state === 'grace' ? serverNow() + days * DAY : null } : null; };
   st.subscribe = (productId = 'com.mdlf.training.pro.yearly', days = 365, { intro = false } = {}) => {
     const e = row(me(), true); e.product_id = productId; e.intro = intro; e.status = 'active';
     e.expires_at = serverNow() + days * DAY; e.original_transaction_id = 'orig-' + (++st.n); };
@@ -192,15 +196,6 @@ FAKE_STORE = r"""
     my_access: uid => stateOf(uid, row(uid, true)),
     access_state: uid => { const e = row(uid, false); return e ? stateOf(uid, e) : null; },
     redeem_gift_code: (uid, args) => redeem(uid, args.code),
-    // Offre élève : élève d'un coach validé, jamais abonné ; même code tant qu'il n'a pas expiré
-    student_offer_code: uid => {
-      const coach = coachOf(uid);
-      const e = row(uid, true);
-      if (!coach || !(__sb.co.coachAt || {})[coach]) return { ok: false, error: 'not_student', code: null };
-      if (e.original_transaction_id || e.expires_at !== null || st.everSubscribed) return { ok: false, error: 'not_new', code: null };
-      if (!st.offerGiven[uid]) { const c = st.offerCodes.shift(); if (!c) return { ok: false, error: 'no_code', code: null }; st.offerGiven[uid] = c; }
-      return { ok: true, error: null, code: st.offerGiven[uid], expires_at: iso(serverNow() + 90 * DAY), coach: { user_id: coach } };
-    },
   };
   const callAccess = async (fn, args) => {
     log('access', fn, JSON.stringify(args || {}));

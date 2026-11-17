@@ -51,11 +51,20 @@ function cleanCoachTier(raw) {
   const product = planIsCoach(r.product_id) ? r.product_id : null;
   const next = planIsCoach(r.next_product) ? r.next_product : null;
   const students = n(r.students) ?? 0, limit = n(r.limit);
+  // uncovered : élèves que la formule ne couvre pas (au-delà du palier, ou tous sans abonnement coach)
   return { is_coach: r.is_coach === true, paywall_on: r.paywall_on === true, product_id: product, limit, students,
-    full: r.full === true || (limit !== null && students >= limit), next_product: next };
+    full: r.full === true || (limit !== null && students >= limit), next_product: next,
+    uncovered: Math.min(n(r.uncovered) ?? 0, students) };
 }
-// Le palier est plein : « 10 élèves sur 10 : passe au palier supérieur ». null sinon.
+// Des élèves ne sont plus offerts (au-delà du palier, ou sans abonnement coach) : le coach est invité à
+// monter de palier. Sinon le palier est plein : « 10 élèves sur 10 : passe au palier supérieur ». null sinon.
 function coachTierFullText(tier) {
+  if (tier?.is_coach && tier.uncovered > 0) {
+    const who = tier.uncovered > 1 ? `${tier.uncovered} élèves` : '1 élève';
+    return tier.product_id
+      ? `${who} au-delà de ta formule : ${tier.uncovered > 1 ? 'leur' : 'son'} accès n'est plus offert. Passe au palier supérieur.`
+      : `Sans abonnement coach, ${tier.uncovered > 1 ? `tes ${tier.uncovered} élèves n'ont` : 'ton élève n\'a'} plus l'accès offert. Prends un abonnement coach.`;
+  }
   if (!tier || !tier.is_coach || !tier.full || tier.limit === null) return null;
   return tier.limit === 0
     ? 'Prends un abonnement coach pour accueillir des élèves.'

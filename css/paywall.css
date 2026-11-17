@@ -95,14 +95,12 @@
 .pay-terms + .pay-legal { margin-top: 4px; }
 .pay-intro-line { color: var(--label); }
 
-/* ── Tarifs du 30/10 : onglets Particulier / Coach, période, palier en cours, offre élève ── */
+/* ── Tarifs du 30/10 : onglets Particulier / Coach, période, palier en cours ── */
 .pay-tabs, .pay-period { display: flex; margin: 0 0 16px; }
 .pay-tabs .segmented, .pay-period .segmented { flex: 1; }
 /* Formule en cours : bien lisible (pas grisée), sans être touchable */
 .pay-plan--current:disabled { color: var(--label); box-shadow: inset 0 0 0 1.5px var(--tint); }
-.pay-student {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
-  margin: 0 0 4px; padding: 14px 16px 16px; border-radius: var(--r-md); background: var(--cell); color: var(--label);
-}
-.pay-student .pay-plan__trial { text-wrap: pretty; }
-.pay-student__btn { margin-top: 10px; }
+/* Élève offert par son coach (16/11/2026) : titre sur toute la largeur dans Réglages › Abonnement */
+.pay-cover-cell .cell__title { white-space: normal; text-wrap: pretty; }
+/* Offre arrêtée ou en délai de grâce : lue d'un coup d'œil, sans couleur d'alerte */
+.pay-cover--warn { color: var(--label); }

@@ -35,8 +35,8 @@ la rémunération prévue à l'article 4. Le contrat vise un public établi en F
    sur les comptes listés à l'article 1, pendant la durée du contrat.
 2. Contenu : présentation honnête de l'Application, de ce qu'elle fait réellement, et du code
    personnel de l'Influenceur, qui donne aux nouveaux abonnés l'offre en vigueur (à la signature :
-   abonnement particulier mensuel à 4,89 € par mois pendant 12 mois au lieu de 6,49 €, sans essai
-   gratuit).
+   [À DÉCIDER : l'offre à 4,89 € par mois des élèves de coach a été retirée le 16/11/2026 ; le code
+   partenaire donne aujourd'hui l'essai de 3 mois d'Apple et le rattachement au parrain]).
 3. Calendrier : [À COMPLÉTER].
 4. Relecture : l'Influenceur peut soumettre ses contenus à l'Annonceur avant publication. L'Annonceur
    répond sous 48 heures et ne peut demander que la correction d'une information inexacte sur

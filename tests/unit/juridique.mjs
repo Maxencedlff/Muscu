@@ -35,7 +35,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(!/quelques jours la ligne d'une photo|for a few days \(its day/.test(page), 'plus de « quelques jours » pour les sauvegardes');
     assert.ok(page.includes('id="sauvegardes"') && page.includes('id="backups"'), 'ancres FR et EN');
     // Date de mise à jour, FR et EN, identiques
-    assert.ok(fr.includes('mise à jour le 12 novembre 2026') && en.includes('updated November 12, 2026'), 'date du 12/11/2026');
+    assert.ok(fr.includes('mise à jour le 16 novembre 2026') && en.includes('updated November 16, 2026'), 'date du 16/11/2026');
   });
 
   test('confidentialité : copie iCloud décrite sans poids, mensurations, repas ni sexe (règle 5.1.3(ii)), FR et EN', () => {
@@ -211,13 +211,15 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     }
   });
 
-  test('conditions de vente : prix France identiques au contrat (docs/PAYANT_V1.md) et à l\'offre élève de l\'app', () => {
+  test('conditions de vente : prix France identiques au contrat (docs/PAYANT_V1.md), élèves de coach sans rien à payer', () => {
     const cgv = read('cgv.html'), contract = read('docs/PAYANT_V1.md');
     const rows = [...contract.matchAll(/^\| [^|]+ \| `com\.mdlf\.training\.(\w+)\.(monthly|yearly)` \| \d+ \| \d+ \| ([\d,]+) € \|/gm)];
     assert.equal(rows.length, 10, 'dix produits dans le contrat');
     for (const [, tier, period, price] of rows) assert.ok(cgv.includes(`${price} €`), `${tier} ${period} : ${price} € absent des CGV`);
-    const student = run('planStudentPrice("EUR")');
-    assert.ok(cgv.includes(`${student.replace(/ /g, ' ').replace(' €', '')} € par mois pendant 12 mois`), `offre élève ${student}`);
+    // Décision du 16/11/2026 : l'élève d'un coach ne paie rien (plus d'offre à 4,89 €), 7 jours de grâce
+    assert.ok(cgv.includes('<strong>ne paie rien</strong>') && cgv.includes('<strong>7 jours</strong>') && cgv.includes('pay nothing'), 'élève offert, FR et EN');
+    assert.ok(!/4,89|€4\.89|Offre élève|Student offer|25 %/.test(cgv), 'CGV : ancienne offre élève');
+    assert.ok(!/4,89|25 % de moins|25% off|remise élève|student discount/.test(read('privacy.html')), 'confidentialité : ancienne offre élève');
     for (const s of ['3 mois gratuits', 'au moins 24 heures avant la fin de l\'essai', 'reportaproblem.apple.com', 'TVA non applicable, art. 293 B du CGI']) {
       assert.ok(cgv.includes(s), `CGV : « ${s} » absent`);
     }

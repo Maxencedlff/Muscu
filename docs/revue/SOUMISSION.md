@@ -67,7 +67,7 @@ l'app personnalisé » **vide** (Apple affiche alors le nom de l'app). Rien à c
 
 ## 3. Note d'examen générale (App Review Information › Notes)
 Le texte complet, prêt à coller, est dans **docs/REVUE_APPLE.md, section 2** (abonnements 3.1.2, compte
-5.1.1(v), offre élève). Ce qui doit y figurer, vérifié dans le code :
+5.1.1(v), élèves offerts par l'abonnement de leur coach depuis le 16/11/2026). Ce qui doit y figurer, vérifié dans le code :
 
 - **Où trouver l'abonnement** : onglet Entraînement › roue dentée en haut à droite (Réglages) ›
   **Abonnement** (`js/features/paywall-ui.js:398-409` : la ligne n'apparaît **qu'avec un compte
