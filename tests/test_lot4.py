@@ -315,10 +315,10 @@ def t_restore(bench, eng, dev, theme):
         shot(page, LOT, f'restauration-{t}')
         page.locator('.ex-card--collapsed .ex-summary').first.click(no_wait_after=True); page.wait_for_timeout(300)
         R.check(page.locator('.ex-card[data-ei="0"] .session-set--done').count() == 4, f'{t} exercice replié : se déplie au tap')
-        # Fin du repos : « C'est reparti »
+        # Fin du repos : « Repos terminé »
         page.evaluate('restEndTime = Date.now() + 300')
         page.wait_for_timeout(700)
-        R.check("C'est reparti" in (page.locator('.rest-mini').inner_text() if page.locator('.rest-mini').count() else ''), f'{t} fin du repos : « C\'est reparti »')
+        R.check("Repos terminé" in (page.locator('.rest-mini').inner_text() if page.locator('.rest-mini').count() else ''), f'{t} fin du repos : « Repos terminé »')
         R.check(page.locator('.timer-flash').count() == 0, f'{t} pas de flash plein écran')
         page.wait_for_timeout(2200)
         R.check(page.locator('.rest-mini').count() == 0, f'{t} barre retirée après 2 s')

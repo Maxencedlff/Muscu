@@ -25,7 +25,7 @@ function exMusclesSubHtml(ex, cls = 'cell__sub') {
 
 // Silhouette et pastilles d'un exercice (Programme › Exercice, Progrès › Exercice)
 // Muscle profond seul (vacuum) : le personnage sans aucun rouge, le muscle nommé en gris, et pourquoi rien n'est coloré
-const DEEP_MUSCLE_NOTE = 'Muscle profond, invisible en surface : rien n\'est coloré sur le personnage.';
+const DEEP_MUSCLE_NOTE = 'Muscle profond, invisible en surface. Rien n\'est coloré sur le personnage.';
 function deepMusclesNames(m) { return (m.deep || []).map(id => deepMuscleLabel(id, true)).filter(Boolean).join(', '); }
 function exMusclesPanelHtml(m) {
   if (!m.primary.length && m.deep?.length) {
@@ -50,8 +50,8 @@ function exMusclesPanelHtml(m) {
 // ── Muscles vérifiés de la bibliothèque : modifier, rétablir ─
 
 // Exercice de la bibliothèque : muscles vérifiés par défaut, modifiables après confirmation, rétablis d'un toucher
-const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en rouge plein, secondaires en rouge atténué.';
-const MODIFIED_MUSCLES_FOOT = 'Muscles modifiés par toi : ils remplacent ceux de la bibliothèque dans Progrès et la récupération.';
+const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque. Principaux en rouge plein, secondaires en rouge atténué.';
+const MODIFIED_MUSCLES_FOOT = 'Muscles modifiés par toi. Ils remplacent ceux de la bibliothèque dans Progrès et la récupération.';
 const RESET_MUSCLES_LABEL = 'Rétablir les muscles par défaut';
 
 // Demandée une fois, quand le choix s'écarte des muscles vérifiés (déjà modifiés : pas de nouvelle question)
@@ -110,7 +110,7 @@ function exEditMusclesHtml(d) {
   const m = draftExMuscles(d);
   const c = musclesControlsHtml(m, d.name, { pick: 'data-action="pick-ex-muscles"', reset: 'data-action="reset-ex-muscles"' });
   const foot = c.foot || (m.source === 'user' ? 'Muscles choisis par toi.'
-    : m.source === 'none' && d.name.trim() ? 'Nom non reconnu : choisis les muscles travaillés.'
+    : m.source === 'none' && d.name.trim() ? 'Nom non reconnu. Choisis les muscles travaillés.'
     : 'Reconnus d\'après le nom de l\'exercice.');
   return `
     <div class="group-title">Muscles ciblés</div>
@@ -187,8 +187,8 @@ async function declareMusclesFor(name, { ask = false, check = false } = {}) {
   const like = musclesKnown(m) && !check ? [] : similarExercises(name);
   // Guillemets à espaces insécables : « » jamais seuls en début de ligne
   const quoted = `«\u00a0${esc(name)}\u00a0»`;
-  const intro = check ? `Devinés d'après le nom ${quoted}. Corrige-les si besoin : ils comptent pour la récupération et Progrès.`
-    : ask ? `L'app ne reconnaît pas ${quoted}. Choisis ce qu'il travaille pour la récupération et Progrès.` : esc(name);
+  const intro = check ? `Devinés d'après le nom ${quoted}. Corrige-les si besoin, ils comptent dans Progrès et la récupération.`
+    : ask ? `L'app ne reconnaît pas ${quoted}. Choisis ses muscles pour Progrès et la récupération.` : esc(name);
   const res = await pickMusclesSheet({
     title: check ? 'Vérifier les muscles' : ask ? 'Quels muscles ?' : 'Muscles ciblés', intro,
     current: m.primary, currentSecondary: m.secondary, like, cancel: ask || check ? 'Plus tard' : undefined, auto: !ask && !check && m.source === 'user',
@@ -305,7 +305,7 @@ function renderStatsMuscles() {
         <div class="mdetail__legend">${muscleLegendHtml(load.span, null, { unit: false })}</div>
         <div class="group-title">${weeklyTitle(load.span)}</div>
         <div class="group">${muscleWeekRowsHtml(load, ids)}</div>
-        <div class="group-foot">La couleur de la barre est le palier de la légende. Une série compte entière pour les muscles principaux d'un exercice et pour moitié pour ses muscles secondaires. Repère : 10 séries par semaine et par muscle ; jusqu'à 20, les gains continuent, plus lentement.</div>
+        <div class="group-foot">La couleur suit les paliers de la légende. Une série compte 1 pour les muscles principaux et ½ pour les secondaires. Repère : 10 séries par semaine et par muscle. Jusqu'à 20, les gains continuent, plus lentement.</div>
       </div>
     </div>`;
 }
@@ -336,7 +336,7 @@ function renderMusclesUnknown() {
       ${navBar({ title: 'Sans muscles' })}
       <div class="scr">${list.length ? `
         <div class="group">${rows}</div>
-        <div class="group-foot">L'app ne reconnaît pas ces exercices d'après leur nom. Une fois leurs muscles choisis, ils comptent dans la carte des muscles et pour la récupération, dans tous tes programmes.</div>`
+        <div class="group-foot">L'app ne reconnaît pas ces exercices d'après leur nom. Choisis leurs muscles pour les compter dans la carte et la récupération.</div>`
         : '<div class="empty-note">Tous tes exercices ont leurs muscles.</div>'}
       </div>
     </div>`;

@@ -1,5 +1,5 @@
 """Programme sur mesure (générateur à règles) : accès par Ajouter un programme, questions courtes, aperçu,
-« Modifier mes réponses », « Utiliser ce programme » avec confirmation (rien remplacé sans accord), et premier
+« Modifier les réponses », « Utiliser ce programme » avec confirmation (rien remplacé sans accord), et premier
 lancement : lien discret seulement, « Plus tard » ne relance rien. Règles testées sans navigateur
 (tests/unit/program-generator.mjs).
 """
@@ -83,7 +83,7 @@ def t_generateur(bench, eng, dev, theme):
         seed(page, theme, json.dumps(d, ensure_ascii=False))
         before = page.evaluate('[data.activeProgramme, data.myProgrammes]')
 
-        # Programme › Mes programmes › Ajouter : « Créer mon programme sur mesure » en première ligne
+        # Programme › Mes programmes › Ajouter : « Programme sur mesure » en première ligne
         page.locator('.tabbar [role=tab]').nth(3).click()
         page.wait_for_timeout(350)
         tap(page, '[data-action="go-my-programmes"]')
@@ -114,7 +114,7 @@ def t_generateur(bench, eng, dev, theme):
         ok_screen(page, t, 'aperçu')
         shot(page, LOT, f'5-apercu-{t}')
 
-        # Modifier mes réponses : retour au début, réponses gardées
+        # Modifier les réponses : retour au début, réponses gardées
         tap(page, '[data-action="gen-edit"]')
         R.check(step(page) == 'prog-gen:toi', f'{t} Modifier : retour au début')
         tap(page, '[data-action="gen-next"][data-step="toi"]')

@@ -16,14 +16,14 @@ function importOtherAppText(text) {
   const measures = readMeasuresCsv(text);
   if (measures.reason !== 'format') {
     if (measures.ok) openMeasuresImport(measures);
-    else showToast(measures.reason === 'size' ? 'Fichier trop gros (25 Mo au plus)' : 'Aucune mesure lisible dans ce fichier', { error: true, duration: 6000 });
+    else showToast(measures.reason === 'size' ? 'Fichier trop gros (25 Mo au plus)' : 'Aucune mensuration lisible dans ce fichier', { error: true, duration: 6000 });
     return;
   }
   const plan = readImportCsv(text);
   if (!plan.ok) {
     const msg = plan.reason === 'size' ? 'Fichier trop gros (25 Mo au plus)'
       : plan.reason === 'empty' ? 'Aucune séance lisible dans ce fichier'
-      : 'Fichier non reconnu. Exporte tes séances depuis Hevy (Export Workouts) ou Strong (Export Data), ou tes mesures depuis Hevy (Export Measurements), au format CSV.';
+      : 'Fichier non reconnu. Exporte un CSV depuis Hevy (Export Workouts ou Export Measurements) ou Strong (Export Data).';
     showToast(msg, { error: true, duration: 6000 });
     return;
   }
@@ -111,7 +111,7 @@ function runImport() {
   imp = null;
   if (!r.added) {
     data = JSON.parse(previous);
-    showToast(r.duplicates ? 'Rien à importer : ces séances sont déjà dans l\'historique' : 'Rien à importer');
+    showToast(r.duplicates ? 'Rien à importer, déjà dans l\'historique' : 'Rien à importer');
     return;
   }
   try { localStorage.setItem(BACKUP_KEY, previous); } catch { /* copie de secours facultative */ }
@@ -149,12 +149,12 @@ function measuresPreviewHtml(plan) {
       </ul>
       ${r.dropped ? `<p class="imp__foot">${plural(r.dropped, 'mesure ancienne non importée', 'mesures anciennes non importées')} : limite de ${BODY_MEASURE_MAX} par mesure, tes valeurs déjà notées sont gardées.</p>` : ''}
       ${plan.ignored.length ? `<p class="imp__foot">Pas suivis dans l'app : ${esc(plan.ignored.join(', '))}.</p>` : ''}
-      <p class="imp__foot">Une mesure déjà notée le même jour garde ta valeur. ${healthEnabled() ? 'Ton poids affiché reste celui de Santé. ' : ''}Privé : reste sur ton iPhone et dans sa sauvegarde, jamais sur nos serveurs.</p>
+      <p class="imp__foot">Une mesure déjà notée le même jour garde ta valeur. ${healthEnabled() ? 'Ton poids affiché reste celui de Santé. ' : ''}Ces données restent sur ${thisPhone()} et dans sa sauvegarde, jamais sur nos serveurs.</p>
     </div>`;
 }
 
 async function openMeasuresImport(plan) {
-  await sheet({ title: 'Mesures Hevy', cancel: 'Annuler', confirm: 'Importer',
+  await sheet({ title: 'Mensurations Hevy', cancel: 'Annuler', confirm: 'Importer',
     body: measuresPreviewHtml(plan), onConfirm: () => { runMeasuresImport(plan); return true; } });
 }
 
@@ -163,7 +163,7 @@ function runMeasuresImport(plan) {
   const r = applyMeasuresImport(plan);
   if (!r.weights && !r.measures) {
     data = JSON.parse(previous);
-    showToast(r.kept ? 'Rien à importer : ces mesures sont déjà notées' : 'Rien à importer');
+    showToast(r.kept ? 'Rien à importer, déjà noté' : 'Rien à importer');
     return;
   }
   try { localStorage.setItem(BACKUP_KEY, previous); } catch { /* copie de secours facultative */ }

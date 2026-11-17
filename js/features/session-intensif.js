@@ -131,7 +131,7 @@ async function openTechSheet(ei, si) {
   if (!s || isWarmupSet(s) || !canTech(ex)) return;
   const cur = setTech(s);
   const t = await dialog({ type: 'sheet', title: `${setSpokenName(ex, si)} · ${ex.name}`,
-    message: 'Drop set : tu baisses la charge et tu continues sans repos. Rest-pause, cluster : même charge après 15 à 20 s de pause. Top set : ta série la plus lourde. Back-off : une série allégée après.', actions: [
+    message: 'Drop set : charge baissée, sans repos. Rest-pause, cluster : même charge après 15 à 20 s de repos. Top set : la série la plus lourde. Back-off : une série allégée ensuite.', actions: [
       ...TECH_IDS.map(id => ({ label: `${id === cur ? '✓ ' : ''}${TECHS[id].label}`, value: id })),
       ...(cur && !techPrescribed(ex) ? [{ label: 'Retirer la technique', value: 'none', style: 'destructive' }] : []),
       { label: 'Annuler', style: 'cancel' },
@@ -167,7 +167,7 @@ function validateSub(ds) {
   restoreClearedInput(wIn); restoreClearedInput(rIn);
   if (wIn && !weightOk(wIn.value)) { flagInvalid(wIn, weightMsg()); return; }
   const reps = num(String(x.reps ?? '').trim() || x.prev?.reps || '', 1, MEASURES.reps.max, true);
-  if (reps === null) { flagInvalid(rIn, 'Note tes répétitions'); return; }
+  if (reps === null) { flagInvalid(rIn, 'Note tes reps'); return; }
   const wasAuto = !!x.auto, wasReps = x.reps;
   // Repos : seulement si la sous-série suit la dernière validation ; un rattrapage ou une correction
   // laisse le repos en cours tel quel
@@ -231,7 +231,7 @@ function exIntensHtml(d) {
             ${icon('chevron.right', 16)}
           </button>
         </div>
-        <div class="group-foot">Posée sur les séries à chaque séance, à remplir sous la série. Un élève la reçoit avec ton programme.</div>`;
+        <div class="group-foot">Ajoutée aux séries à chaque séance. Un élève la reçoit avec le programme.</div>`;
 }
 
 registerActions({
@@ -252,7 +252,7 @@ registerActions({
   },
   'ex-intens': async () => {
     if (!exDraft) return;
-    const v = await dialog({ type: 'sheet', title: 'Technique d\'intensification', message: 'Posée sur les séries de l\'exercice à chaque séance.', actions: [
+    const v = await dialog({ type: 'sheet', title: 'Technique d\'intensification', message: 'Ajoutée aux séries de l\'exercice à chaque séance.', actions: [
       ...Object.keys(INTENS_PLANS).map(k => ({ label: `${exDraft.intens === k ? '✓ ' : ''}${INTENS_PLANS[k].label}`, value: k })),
       ...(exDraft.intens ? [{ label: 'Aucune', value: 'none', style: 'destructive' }] : []),
       { label: 'Annuler', style: 'cancel' },

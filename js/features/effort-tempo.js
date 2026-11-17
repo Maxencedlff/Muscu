@@ -68,7 +68,7 @@ function stopTempoEarly(e) {
   const c = tempoClock(e), now = Date.now();
   if (c.phase === 'prep') { e.start = now; persistSession(); updateTempoUI(e); return; }
   const done = c.rep - 1;
-  if (done < 1) { cancelEffort(); showToast('Aucune répétition complète'); return; }
+  if (done < 1) { cancelEffort(); showToast('Aucune rep complète'); return; }
   finishEffort(now, done);
 }
 

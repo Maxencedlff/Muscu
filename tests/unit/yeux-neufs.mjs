@@ -31,7 +31,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     seedRow('Rowing barre', null);
     run(`startSession('pull')`);
     const ex = 'activeSession.exercises[0]';
-    assert.match(run(`exFirstTimeHtml(${ex})`), /Première fois : prends un poids que tu soulèves 15 fois facilement/);
+    assert.match(run(`exFirstTimeHtml(${ex})`), /Première fois : prends une charge que tu soulèves 15 fois facilement/);
     // Une série validée : la ligne s'en va
     run(`${ex}.sets[0].weight = '40'; ${ex}.sets[0].reps = '10'; ${ex}.sets[0].done = true`);
     assert.equal(run(`exFirstTimeHtml(${ex})`), '', 'une série validée : plus de ligne');

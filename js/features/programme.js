@@ -128,8 +128,8 @@ function renderProgrammes() {
         ${keys.map(c => editing ? editCell(c, pid) : progSessionCardHtml(c, pid)).join('')}
         ${user && !editing ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
       </div>
-      ${editing ? `<div class="group-foot">Fais glisser ≡ pour ranger tes séances, par exemple dans l'ordre de ta semaine.</div>` : ''}
-      ${user ? '' : `<div class="group-foot">Les séances d'un programme intégré sont fixes, mais tu peux modifier leurs exercices. Pour composer tes propres séances, crée un programme.</div>`}`;
+      ${editing ? `<div class="group-foot">Fais glisser ≡ pour changer l'ordre des séances.</div>` : ''}
+      ${user ? '' : `<div class="group-foot">Les séances de ce programme sont fixes. Leurs exercices se modifient. Pour composer tes séances, crée un programme.</div>`}`;
   const manage = pid.startsWith('u_') ? `
       <div class="group group--gap">
         <button class="cell cell--nav" data-action="rename-programme">
@@ -155,7 +155,7 @@ function renderProgrammes() {
           <button class="cell cell--nav" data-action="go-library">
             ${progListIconHtml('books.vertical')}
             <span class="cell__body"><span class="cell__title">Bibliothèque d'exercices</span>
-              <span class="cell__sub">${EXERCISE_CATALOGUE.length} exercices, leurs muscles et leur matériel</span></span>
+              <span class="cell__sub">${EXERCISE_CATALOGUE.length} exercices</span></span>
             ${icon('chevron.right', 16)}
           </button>
           ${dietProgrammeCellHtml(progListIconHtml('fork.knife'))}
@@ -164,7 +164,7 @@ function renderProgrammes() {
           <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
           <button class="cell cell--action" data-action="share-programme">${icon('square.and.arrow.up', 20)}<span>Envoyer ce programme</span></button>
         </div>
-        <div class="group-foot">Envoie tes séances et tes exercices par message. Tes charges, records et ton historique restent sur ton téléphone.</div>
+        <div class="group-foot">Envoie les séances et les exercices par message. Tes charges et ton historique ne partent pas.</div>
         ${manage}
       </div>
     </div>`;
@@ -226,11 +226,11 @@ function renderMyProgrammes() {
       <div class="scr">
         <div class="group mp-list">${ids.map(editing ? editRow : row).join('')}</div>
         ${editing
-          ? '<div class="group-foot">Fais glisser ≡ pour ranger tes programmes. Un programme retiré reste dans « Tous les programmes ».</div>'
+          ? '<div class="group-foot">Fais glisser ≡ pour changer l\'ordre. Un programme retiré reste dans « Tous les programmes ».</div>'
           : `<div class="group group--gap">
                <button class="cell cell--action" data-action="go-prog-add">${icon('plus', 20)}<span>Ajouter un programme</span></button>
              </div>
-             <div class="group-foot">Ton historique reste disponible quand tu changes de programme.</div>`}
+             <div class="group-foot">Changer de programme garde l'historique.</div>`}
       </div>
     </div>`;
 }
@@ -260,13 +260,13 @@ function renderProgAdd() {
         <div class="group plist">
           <button class="cell cell--nav" data-action="go-prog-gen">
             ${progListIconHtml('slider.horizontal.3')}
-            <span class="cell__body"><span class="cell__title">Créer mon programme sur mesure</span>
-              <span class="cell__sub">Selon ton temps, ton matériel et ton objectif</span></span>
+            <span class="cell__body"><span class="cell__title">Programme sur mesure</span>
+              <span class="cell__sub">${GEN_QUESTIONS} questions, puis un programme modifiable</span></span>
             ${icon('chevron.right', 16)}
           </button>
           <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
         </div>
-        <div class="group-foot">Sur mesure : quelques questions, puis un programme que tu peux modifier. Sinon tes séances et tes exercices, vide ou à partir d'un programme existant.</div>
+        <div class="group-foot">« Créer un programme » part de zéro ou d'un programme existant.</div>
         <div class="group-title">Tous les programmes</div>
         <div class="group">${catalogueProgrammeIds().map(row).join('')}</div>
       </div>
@@ -379,7 +379,7 @@ registerActions({
   'prog-info-add': (e, el) => {
     if (!addMyProgramme(el.dataset.id)) return;
     save(); render(); haptic();
-    showToast(`${progMeta(el.dataset.id).name} ajouté à tes programmes`);
+    showToast(`${progMeta(el.dataset.id).name} ajouté`);
   },
   // Utiliser = ajouter et activer, puis retour à la racine de l'onglet (Programme ou Entraînement)
   'prog-info-use': (e, el) => {
@@ -400,7 +400,7 @@ registerActions({
   'select-prog': async (e, el) => {
     const id = el.dataset.id;
     if (id === data.activeProgramme) { goBack(); return; }
-    if (!(await confirmSheet(`Passer à ${progMeta(id).name} ?`, 'Ton historique reste disponible.', 'Changer de programme', false))) return;
+    if (!(await confirmSheet(`Passer à ${progMeta(id).name} ?`, 'L\'historique est gardé.', 'Changer de programme', false))) return;
     activateProgramme(id);
     save();
     goBack();
@@ -410,7 +410,7 @@ registerActions({
     const name = await askText({ title: 'Nouveau programme', message: 'Donne-lui un nom.', placeholder: 'Ex : Force 5×5', confirm: 'Suivant' });
     if (!name) return;
     const start = await dialog({ type: 'sheet', title: `Partir de quoi pour « ${name} » ?`,
-      message: 'Tu pourras ensuite ajouter, renommer ou supprimer des séances et des exercices.',
+      message: 'Séances et exercices restent modifiables ensuite.',
       actions: [
         { label: 'Programme vide', value: 'empty', style: 'preferred' },
         ...Object.entries(PROGRAMMES).filter(([k]) => k !== 'custom').map(([k, pm]) => ({ label: `Copie ${elide('de', pm.name)}`, value: k })),
@@ -439,7 +439,7 @@ registerActions({
     const text = programmeShareText(programmeSharePayload(data.activeProgramme));
     if (Native.isNative) { if ((await Native.shareText(text, progMeta().name)) === 'failed') showToast('Partage impossible', { error: true }); return; }
     if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
-    try { await navigator.clipboard.writeText(text); showToast('Programme copié, colle-le dans un message'); }
+    try { await navigator.clipboard.writeText(text); showToast('Copié, à coller dans un message'); }
     catch { showToast('Partage impossible', { error: true }); }
   },
   'rename-programme': async () => {

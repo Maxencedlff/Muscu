@@ -160,7 +160,7 @@ function restEndBody() {
   if (sub) { const p = nextSetParts(); return `${p.step} · ${p.name}${p.load}`; }
   const nx = activeSession && currentSet();
   // Numéro affiché (setSpokenName) : avec 3 échauffements, la série 1 n'est pas « Série 4 »
-  return nx ? `${setSpokenName(activeSession.exercises[nx.ei], nx.si)} · ${activeSession.exercises[nx.ei].name}` : 'C\'est reparti';
+  return nx ? `${setSpokenName(activeSession.exercises[nx.ei], nx.si)} · ${activeSession.exercises[nx.ei].name}` : 'Série suivante';
 }
 
 // Relance l'affichage du chrono sans toucher à l'heure de fin (retour au premier plan, restauration)
@@ -207,7 +207,7 @@ function restFinished() {
   const bar = $('.rest-mini');
   if (bar) {
     bar.classList.add('rest-mini--done');
-    bar.innerHTML = `<div class="rest-mini__go">C'est reparti</div>`;
+    bar.innerHTML = `<div class="rest-mini__go">Repos terminé</div>`;
     setTimeout(() => {
       if (restActive) return; // un nouveau repos a commencé entre-temps
       bar.remove();

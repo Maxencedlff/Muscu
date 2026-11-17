@@ -8,7 +8,7 @@
 //  serveur passe par esc() ; retours à la ligne gardés par le CSS (white-space: pre-wrap), jamais en HTML.
 //  Saisie : le brouillon est gardé par séance pendant la frappe (sans redessiner) ; un changement reçu
 //  pendant que le champ a le focus ne redessine que la liste (refreshCommentsList), le clavier reste.
-//  Réponses rapides (séance d'un ami) : « Belle séance 💪 »… envoyées en un toucher comme un commentaire tapé.
+//  Réponses rapides (séance d'un ami) : « Belle séance »… envoyées en un toucher comme un commentaire tapé.
 //  iOS : rien au pointerdown, un seul toucher sur chaque bouton.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -83,8 +83,8 @@ function commentsGroupHtml(owner, id, { writable = true, quick = false, record =
         <div class="group-title">Commentaires${n && t.end ? ` (${n})` : ''}</div>
         <div class="group comments" id="commentsList">${commentsListHtml(owner, id)}</div>
         ${composer}
-        <div class="group-foot">${writable ? 'Reste bienveillant : les insultes sont refusées et un commentaire signalé plusieurs fois est masqué.'
-          : 'Séance masquée : personne d\'autre ne voit ces commentaires, et on ne peut plus en ajouter.'}</div>`;
+        <div class="group-foot">${writable ? 'Les insultes sont refusées. Un commentaire signalé plusieurs fois est masqué.'
+          : 'Séance masquée. Personne d\'autre ne voit ces commentaires et on ne peut plus en ajouter.'}</div>`;
 }
 
 // Changement reçu pendant la saisie : la liste seule, le champ garde le focus et le clavier
@@ -174,7 +174,7 @@ async function commentMenu(owner, id, cid) {
   const r = await commentsReport(owner, id, cid, reason);
   if (!socialToast(r)) return;
   haptic();
-  const block = await dialog({ title: 'Commentaire signalé', message: `Merci. Il est masqué pour toi. Tu peux aussi bloquer ${name} : vous ne verrez plus les séances ni les commentaires l'un de l'autre.`,
+  const block = await dialog({ title: 'Commentaire signalé', message: `Il est masqué pour toi. Tu peux aussi bloquer ${name}.`,
     actions: [{ label: 'Bloquer', value: true, style: 'destructive' }, { label: 'OK', style: 'preferred' }] });
   if (block !== true) return;
   // Pas blockFlow : bloquer l'auteur d'un commentaire ne quitte pas la séance affichée (sauf si c'est la sienne)

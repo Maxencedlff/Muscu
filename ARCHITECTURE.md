@@ -61,7 +61,7 @@ android/              coquille Android en préparation (Capacitor, modules Kotli
 | `home.css` | Accueil (onglet Entraînement) : carte de la prochaine séance (« À battre aujourd'hui » et Démarrer dedans), « Cette semaine » (pastilles des jours), « Ensuite » ; une seule couleur d'accent, aucune couleur de séance ; carte resserrée en petite hauteur (iPhone SE) |
 | `session.css` | Séance active (cartes d'exercice illustrées : vignette du muscle principal à gauche du nom, cerclée d'orange sur l'exercice de la série à faire, atténuée sur un exercice fait ; vignettes côte à côte en tête d'un superset de 2 ou 3), repos, bilan ; texte agrandi : sans vignettes |
 | `muscles.css` | Silhouette musculaire, pastilles de muscles, carte « Muscles » de Progrès, écran Séries par muscle, feuille « Muscles ciblés » |
-| `share.css` | Partage de séance : bouton « Partager ma séance », aperçu de l'image au format 9:16 |
+| `share.css` | Partage de séance : bouton « Partager la séance », aperçu de l'image au format 9:16 |
 | `recap.css` | Récaps : carte « Ta semaine » de l'accueil, écrans côte à côte (scroll-snap), chiffre énorme en SF Rounded, listes et tuiles du résumé, points et flèches, arrivée légère (coupée avec prefers-reduced-motion) |
 | `strength-levels.css` | Niveau de force : échelle à cinq segments des fiches d'exercice, « Nouveau palier » du bilan |
 | `account.css` | Compte : calque plein écran (Bienvenue, e-mail, code, pseudo, avatar), boutons de connexion aux chartes Apple et Google (tokens `--siwa-*`, `--gsi-*`), écran Compte, cellule des Réglages, carte de l'accueil |

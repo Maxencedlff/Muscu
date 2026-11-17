@@ -43,7 +43,7 @@ function renderTrash() {
   const sessions = data.trash || [];
   const progs    = archivedProgrammes();
   const body = !sessions.length && !progs.length
-    ? `<div class="empty-note">Rien à récupérer.<br>Les séances et programmes supprimés apparaîtront ici.</div>`
+    ? `<div class="empty-note">Aucun élément supprimé.<br>Les séances et programmes supprimés s'affichent ici.</div>`
     : `${progs.length ? `
         <div class="group-title">Programmes</div>
         <div class="group">${progs.map(trashProgrammeCell).join('')}</div>
@@ -51,9 +51,9 @@ function renderTrash() {
       ${sessions.length ? `
         <div class="group-title">Séances</div>
         <div class="group">${sessions.map(trashSessionCell).join('')}</div>
-        <div class="group-foot">Chaque séance est effacée définitivement ${TRASH_DAYS} jours après sa suppression.</div>
+        <div class="group-foot">Les séances sont supprimées définitivement au bout de ${TRASH_DAYS} jours.</div>
         <div class="group group--gap">
-          <button class="cell cell--destructive" data-action="trash-empty">${sessions.length > 1 ? `Effacer les ${sessions.length} séances définitivement` : 'Effacer la séance définitivement'}</button>
+          <button class="cell cell--destructive" data-action="trash-empty">${sessions.length > 1 ? `Supprimer les ${sessions.length} séances` : 'Supprimer la séance'}</button>
         </div>` : ''}`;
   return `
     <div class="view trash-view view--grouped">
@@ -70,7 +70,7 @@ registerActions({
     const meta = sessionMeta(t.entry.category, entryProg(t.entry));
     const choice = await dialog({ type: 'sheet', title: `${meta.label} du ${fmtDate(t.entry.date)}`, actions: [
       { label: 'Restaurer dans l\'historique', value: 'restore', style: 'preferred' },
-      { label: 'Effacer définitivement', value: 'purge', style: 'destructive' },
+      { label: 'Supprimer définitivement', value: 'purge', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' },
     ] });
     if (choice === 'restore') {
@@ -78,22 +78,22 @@ registerActions({
       historyChanged();
       render(); showToast('Séance restaurée');
     } else if (choice === 'purge') {
-      if (!(await confirmSheet('Effacer cette séance ?', 'Elle ne pourra plus être récupérée.', 'Effacer définitivement'))) return;
+      if (!(await confirmSheet('Supprimer définitivement ?', 'La séance ne pourra plus être restaurée.', 'Supprimer'))) return;
       purgeFromTrash(t.entry.id);
-      save(); render(); showToast('Séance effacée');
+      save(); render(); showToast('Séance supprimée');
     }
   },
   'trash-programme': async (e, el) => {
     const up = data.userProgrammes?.[el.dataset.id];
     if (!up?.archived) return;
-    if (!(await confirmSheet(`Restaurer « ${up.name} » ?`, 'Il revient dans tes programmes, avec ses séances et ses exercices.', 'Restaurer', false))) return;
+    if (!(await confirmSheet(`Restaurer « ${up.name} » ?`, 'Il revient dans tes programmes avec ses séances.', 'Restaurer', false))) return;
     restoreProgramme(el.dataset.id);
     save(); render(); showToast('Programme restauré');
   },
   'trash-empty': async () => {
     const n = (data.trash || []).length;
     if (!n) return;
-    if (!(await confirmSheet(n > 1 ? `Effacer les ${n} séances définitivement ?` : 'Effacer la séance définitivement ?', 'Elles ne pourront plus être récupérées.', 'Tout effacer'))) return;
+    if (!(await confirmSheet(n > 1 ? `Supprimer les ${n} séances définitivement ?` : 'Supprimer la séance définitivement ?', n > 1 ? 'Elles ne pourront plus être restaurées.' : 'Elle ne pourra plus être restaurée.', 'Tout supprimer'))) return;
     emptyTrash();
     save(); render(); showToast('Corbeille vidée');
   },

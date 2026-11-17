@@ -223,7 +223,7 @@ def t_mesures_hevy(bench, eng, dev, theme):
         page.evaluate("""() => { const d = new Date(2026, 0, 19, 9).getTime();
             data.bodyWeightLog = [{ date: d, kg: 75 }]; data.bodyMeasures = { waist: [{ date: d, cm: 90 }] }; save(); render(); }""")
         open_import(page, csv_file('hevy_mesures_exemple.csv'))
-        R.check(page.locator('.sheet__title').inner_text() == 'Mesures Hevy', f'{t} mesures : titre')
+        R.check(page.locator('.sheet__title').inner_text() == 'Mensurations Hevy', f'{t} mesures : titre')
         lead = page.locator('#impSheet .imp__lead').inner_text()
         R.check(lead == '4 jours de mesures du 5 janv. au 1 mars 2026.', f'{t} mesures : « {lead} »')
         rw = rows(page)
@@ -258,7 +258,7 @@ def t_mesures_hevy(bench, eng, dev, theme):
         R.check(rw.get('Pesées à ajouter') == '0' and rw.get('Mensurations à ajouter') == '0' and rw.get('Déjà notées ce jour-là') == '35', f'{t} réimport mesures : {rw}')
         page.click('.sheet__btn--confirm')
         txt = toast_text(page)
-        R.check(txt.startswith('Rien à importer : ces mesures sont déjà notées'), f'{t} réimport mesures : « {txt} »')
+        R.check(txt.startswith('Rien à importer, déjà noté'), f'{t} réimport mesures : « {txt} »')
         R.check(len(json.loads(ls(page, 'ppl_v2'))['bodyWeightLog']) == 4, f'{t} réimport mesures : toujours 4 pesées')
         R.check(not page.errors, f'{t} mesures : aucune erreur JS {page.errors}')
 

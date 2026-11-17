@@ -390,7 +390,7 @@ function dietInboxHtml() {
         <div class="group">
           <button class="cell" data-action="diet-coach-toggle" role="switch" aria-checked="${on}">
             <span class="cell__body"><span class="cell__title">Recevoir les plans de nutrition ${elide('de', esc(coachName()))}</span>
-              <span class="cell__sub">${on ? 'Gardés sur le serveur jusqu\'à ce que tu retires ton accord.' : 'Sans ton accord, ton coach ne peut pas t\'en envoyer.'}</span></span>
+              <span class="cell__sub">${on ? 'Gardés sur le serveur jusqu\'au retrait de ton accord.' : 'Sans accord, ton coach ne peut pas t\'en envoyer.'}</span></span>
             ${switchHtml(on)}
           </button>
         </div>
@@ -402,7 +402,7 @@ function dietEmptyHtml() {
         <div class="diet-empty">
           <span class="diet-empty__icon" aria-hidden="true">${icon('fork.knife', 34)}</span>
           <h2 class="diet-empty__title">Pas encore de plan de nutrition</h2>
-          <p class="diet-empty__sub">Ton coach peut t'en envoyer un. Tu peux aussi créer le tien : tes repas, tes aliments et leurs quantités, les macros se calculent seules.</p>
+          <p class="diet-empty__sub">Ton coach peut t'en envoyer un, ou crée le tien. Les calories et les macros se calculent seules.</p>
           <button class="btn btn--primary diet-empty__btn" data-action="diet-new-plan">Créer mon plan</button>
         </div>`;
 }
@@ -411,22 +411,22 @@ function dietEmptyHtml() {
 // Nutrition, la ligne d'écoute des troubles alimentaires, toujours visible
 function dietSourceFoot({ help = false } = {}) {
   return `<div class="diet-foot">
-      <p class="group-foot">Source des valeurs : table Ciqual 2025 de l'Anses (version du 03/11/2025), doi.org/10.57745/RDMHWY, Licence Ouverte Etalab 2.0. Valeurs arrondies ; pour quelques aliments, l'énergie est calculée par l'app. L'Anses ne valide pas ces plans.</p>
-      <p class="group-foot">Produits scannés : Open Food Facts (openfoodfacts.org), © les contributeurs d'Open Food Facts, base libre sous licence ODbL (Open Database License) ; valeurs à vérifier sur l'étiquette.</p>
-      <p class="group-foot">Ces chiffres sont des repères pour suivre un plan, pas un avis médical ni diététique. Pour un régime lié à une maladie, une grossesse ou un trouble alimentaire, parles-en à un médecin ou à un diététicien.</p>
+      <p class="group-foot">Source des valeurs : table Ciqual 2025 de l'Anses (version du 03/11/2025), doi.org/10.57745/RDMHWY, Licence Ouverte Etalab 2.0. Valeurs arrondies. L'énergie de quelques aliments est calculée par l'app. L'Anses ne valide pas ces plans.</p>
+      <p class="group-foot">Produits scannés : Open Food Facts (openfoodfacts.org), © les contributeurs d'Open Food Facts, base libre sous licence ODbL. Valeurs à vérifier sur l'étiquette.</p>
+      <p class="group-foot">Ces chiffres sont des repères, pas un avis médical ni diététique. En cas de maladie, de grossesse ou de trouble alimentaire, parles-en à un médecin ou à un diététicien.</p>
       ${help ? '<p class="group-foot diet-help">Si manger, compter ou te peser devient une source d\'angoisse, tu peux en parler : Anorexie Boulimie Info Écoute, 0810 037 037 (lundi, mardi, jeudi et vendredi, de 16 h à 18 h).</p>' : ''}
     </div>`;
 }
 // Objectif très bas : information, jamais un blocage (NICE NG246)
 // own : objectif de calories fixé (« Cet objectif »), sinon total du plan (« Ce plan »)
 function dietLowNoteHtml(own = true) {
-  return `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>${own ? 'Cet objectif' : 'Ce plan'} est très bas pour un adulte qui s'entraîne. Les recommandations de santé réservent les régimes sous 1 200 kcal par jour à un suivi médical. Tu peux en parler à un médecin ou à un diététicien.</span></p>`;
+  return `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>${own ? 'Cet objectif' : 'Ce plan'} est très bas pour un adulte qui s'entraîne. Les recommandations de santé réservent les régimes sous 1 200 kcal par jour à un suivi médical. Parles-en à un médecin ou à un diététicien.</span></p>`;
 }
 // Bas de l'écran Nutrition : réglages (repas du jour, chiffres, série, accord). Le choix des repas du jour y est dit
 // (« Repas du jour : pré-remplis par le plan ») : on sait qu'il existe sans ouvrir les réglages
 function dietSettingsCellHtml() {
   return `<div class="group group--gap"><button class="cell cell--nav" data-action="go-diet-settings">
-      <span class="cell__body"><span class="cell__title">Réglages de la nutrition</span><span class="cell__sub">Repas du jour : ${dietEmptyDaysFor(data, data.dietActive) ? 'vides, je note ce que je mange' : 'pré-remplis par le plan'}</span></span>${icon('chevron.right', 16)}</button></div>`;
+      <span class="cell__body"><span class="cell__title">Réglages de la nutrition</span><span class="cell__sub">Repas du jour : ${dietEmptyDaysFor(data, data.dietActive) ? 'vides' : 'pré-remplis par le plan'}</span></span>${icon('chevron.right', 16)}</button></div>`;
 }
 
 function renderNutrition(dayParam) {
@@ -577,7 +577,7 @@ function dietProgrammeCellHtml(iconHtml = '') {
           <button class="cell cell--nav" data-action="go-diet-plans">
             ${iconHtml}
             <span class="cell__body"><span class="cell__title">Plans de nutrition</span>
-              <span class="cell__sub">Repas, aliments et quantités ; macros calculées</span></span>
+              <span class="cell__sub">Repas, quantités et objectifs du jour</span></span>
             <span class="cell__value">${plan ? esc(plan.name) : 'Aucun'}</span>
             ${icon('chevron.right', 16)}
           </button>`;
@@ -628,7 +628,7 @@ async function dietSwapSheet(itemId, day) {
         ${dietShownMeals(plan).length > 1 ? '<button class="diet-cand" data-swap="move"><span class="diet-cand__body"><span class="diet-cand__name">Déplacer vers…</span></span></button>' : ''}
         <button class="diet-cand diet-cand--off" data-swap="off"><span class="diet-cand__body"><span class="diet-cand__name">Retirer pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'}</span></span></button>
       </div>
-      <p class="diet-swap__foot">Seulement pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ton plan ne change pas.</p>
+      <p class="diet-swap__foot">Seulement pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'}. Le plan ne change pas.</p>
     </div>`;
   const p = sheet({ title: 'Remplacer', cancel: 'Annuler', confirm: '', body });
   const root = [...document.querySelectorAll('.sheet-root')].pop();
@@ -731,7 +731,7 @@ registerActions({
     const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
     if (!meal) return;
     const when = day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
-    const v = await dialog({ type: 'sheet', title: meal.name, message: `Seulement pour ${when} : ton plan ne change pas.`,
+    const v = await dialog({ type: 'sheet', title: meal.name, message: `Seulement pour ${when}. Le plan ne change pas.`,
       actions: [{ label: `Retirer ce repas pour ${when}`, value: 'off', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
     if (v !== 'off') return;
     const gone = dietSetMealOff(data, planId, mealId, day);
@@ -750,7 +750,7 @@ registerActions({
     if (!ok) return;
     // Jour vide : « Remettre le repas prévu » remet aussi son plan (sinon le repas revient vide, contrairement à l'annonce)
     if (el.dataset.op !== 'copy' && dietDay(data, planId, day).blank === true) dietCopyMealPlan(data, planId, mealId, day);
-    save(); haptic(); render(); announce(`${meal.name} : plan du repas remis, à cocher une fois mangé`);
+    save(); haptic(); render(); announce(`${meal.name} remis`);
   },
   // Jour vide : « Reprendre le repas d'hier » : ce qui a été mangé devient des ajouts du jour, Annuler dans le toast
   'diet-meal-reuse': (e, el) => {
@@ -782,7 +782,7 @@ registerActions({
     const it = (dietDay(data, planId, day).extras[mealId] || []).find(x => x.id === el.dataset.extra);
     if (!it || !dietSetExtra(data, planId, mealId, it.id, null, day)) return;
     save(); haptic('light'); render();
-    showToast(`Supprimé : ${foodName(it.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
+    showToast(`Retiré : ${foodName(it.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
       dietAddExtra(data, planId, mealId, it, day); save(); render(); announce(`Remis : ${foodName(it.name)}`);
     } });
   },
@@ -818,7 +818,7 @@ registerActions({
     const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
     const it = (dietDay(data, planId, day).extras[mealId] || []).find(x => x.id === el.dataset.extra);
     if (!it) return;
-    const choice = await dialog({ type: 'sheet', title: foodName(it.name), message: `${dietQtyText(it)}, ajouté pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ton plan ne change pas.`,
+    const choice = await dialog({ type: 'sheet', title: foodName(it.name), message: `${dietQtyText(it)}, ajouté pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'}. Le plan ne change pas.`,
       actions: [{ label: 'Changer la quantité', value: 'g' },
         ...(dietShownMeals(dietActivePlan(data)).length > 1 ? [{ label: 'Déplacer vers…', value: 'move' }] : []),
         { label: 'Retirer', value: 'del', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
@@ -857,7 +857,7 @@ registerActions({
     haptic();
     coachMarkInboxSeen('programme', it.id);
     const before = Object.keys(data.dietPlans || {}).length > 1;
-    showToast(before ? `Plan en cours : ${it.data.name}. L'ancien reste dans tes plans` : `Plan en cours : ${it.data.name}`);
+    showToast(before ? `Plan en cours : ${it.data.name}. Ancien plan gardé` : `Plan en cours : ${it.data.name}`);
     render();
   },
   'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },

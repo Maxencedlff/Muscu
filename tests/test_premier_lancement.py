@@ -139,7 +139,7 @@ def t_parcours(bench, eng, dev, theme):
         page.evaluate("startSession(sessionKeys(data.activeProgramme)[0])")
         page.wait_for_selector('.view.session .ex-card')
         first = page.locator('.ex-card[data-ei="0"] .ex-first')
-        R.check(first.count() == 1 and first.inner_text().strip() == 'Première fois : prends un poids que tu soulèves 15 fois facilement'
+        R.check(first.count() == 1 and first.inner_text().strip() == 'Première fois : prends une charge que tu soulèves 15 fois facilement'
                 and page.evaluate("getComputedStyle(document.querySelector('.ex-first')).color") == page.evaluate("getComputedStyle(document.querySelector('.ex-card__sub')).color"),
                 f'{t} 1re séance : « Première fois » en gris sous le nom')
         R.check(no_hscroll(page), f'{t} 1re séance : pas de défilement horizontal')

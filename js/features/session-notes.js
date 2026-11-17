@@ -17,12 +17,12 @@
 const NOTE_CLEAR = Object.freeze({ clear: true });   // valeur du choix « Effacer » (dialog la rend telle quelle)
 
 // Saisie d'une note : { text } à enregistrer, { clear: true } à effacer (ou champ vidé), null si annulé.
-// Une ligne de 140 caractères dans l'alerte iOS à champ ; « Effacer » seulement s'il y a une note.
+// Une ligne de 140 caractères dans l'alerte iOS à champ ; « Supprimer » seulement s'il y a une note.
 // « Visible par toi seul » : vrai tant que le serveur ne transmet ni les notes d'exercice ni celles de série au coach
 // (private.session_for_coach) ; à revoir le jour où il les transmettra. La note de séance, elle, part au coach.
 async function askNote({ title, message, value = '', canClear = false, placeholder = 'Ex. siège cran 4' }) {
   const actions = canClear
-    ? [{ label: 'Enregistrer', style: 'preferred' }, { label: 'Effacer', value: NOTE_CLEAR, style: 'destructive' }, { label: 'Annuler', style: 'cancel' }]
+    ? [{ label: 'Enregistrer', style: 'preferred' }, { label: 'Supprimer', value: NOTE_CLEAR, style: 'destructive' }, { label: 'Annuler', style: 'cancel' }]
     : [{ label: 'Annuler', style: 'cancel' }, { label: 'Enregistrer', style: 'preferred' }];
   const r = await dialog({ title, message, input: { value, placeholder, text: true, max: NOTE_MAX, label: 'Note' }, actions });
   if (r === null || r === undefined) return null;
@@ -73,13 +73,13 @@ async function editExerciseNote(ei) {
   const ex = activeSession?.exercises[ei];
   if (!ex) return;
   const shown = exNoteShown(ex);
-  const r = await askNote({ title: ex.name, message: 'Relue la prochaine fois sur cet exercice. Visible par toi seul.', value: shown?.text || '', canClear: !!shown });
+  const r = await askNote({ title: ex.name, message: 'Affichée à ta prochaine séance de cet exercice. Visible par toi seul.', value: shown?.text || '', canClear: !!shown });
   if (!r || !activeSession || activeSession.exercises[ei] !== ex) return;
   if (r === NOTE_CLEAR) {
     // La note de la séance d'abord ; sans elle, celle de la dernière fois, retirée de sa séance (synchronisée)
     if (ex.note !== undefined) delete ex.note;
     else if (shown?.last && clearHistoryExerciseNote(shown.last.hid, shown.last.xi)) save();
-    announce('Note effacée');
+    announce('Note supprimée');
   } else {
     if (!shown?.own && shown?.text === r.text) return;   // « Dernière note » relue sans changement
     ex.note = r.text;
@@ -132,7 +132,7 @@ async function editSetNote(ei, si) {
   const r = await askNote({ title: `Note · ${setSpokenName(ex, si)}`, message: `${ex.name}.${last ? ` La dernière fois : ${last}.` : ''} Visible par toi seul.`, value: had || '', canClear: !!had,
     placeholder: 'Ex. dernière rep difficile, épaule OK' });
   if (activeSession?.exercises[ei]?.sets[si] !== s) return;
-  if (r === NOTE_CLEAR) { delete s.note; announce('Note effacée'); }
+  if (r === NOTE_CLEAR) { delete s.note; announce('Note supprimée'); }
   else if (r) { s.note = r.text; announce('Note enregistrée'); }
   if (r) haptic();
   persistSession();

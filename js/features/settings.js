@@ -174,7 +174,7 @@ ${renderConnectionsGroup()}
         <div class="group">
           <button class="cell cell--destructive" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
         </div>
-        ${account.user ? '<div class="group-foot">Efface cet appareil seulement. Pour effacer aussi ton compte : Compte › Supprimer mon compte.</div>' : ''}
+        ${account.user ? '<div class="group-foot">Supprime les données de cet appareil seulement. Le compte se supprime dans Compte › Supprimer mon compte.</div>' : ''}
 
         <div class="group-title">Aide</div>
         <div class="group">
@@ -266,8 +266,8 @@ function renderBackup() {
   const last = data.lastExport;
   const stale = exportStale();
   const lead = account.user
-    ? 'Tes séances et tes programmes sont sauvegardés sur ton compte et te suivent sur tes appareils. Le poids du corps et les données Santé restent sur cet iPhone.'
-    : 'Sans compte, tes données ne sont stockées que sur cet appareil. Exporte-les régulièrement, ou connecte-toi pour les sauvegarder sur un compte.';
+    ? `Tes séances et tes programmes sont enregistrés sur ton compte. Le poids du corps et les données Santé restent sur ${thisPhone()}.`
+    : `Sans compte, tes données ne sont que sur ${thisPhone()}. Exporte-les toutes les 2 semaines ou connecte-toi.`;
   return `
     <div class="view backup-view view--grouped">
       ${navBar({ title: 'Sauvegarde' })}
@@ -281,14 +281,14 @@ function renderBackup() {
           </div>
         </div>
         <div class="group-foot">${account.user
-          ? 'L\'export te donne en plus un fichier (JSON) à garder où tu veux. Importer un fichier ajoute ses séances à celles de ton compte.'
-          : 'L\'export est un fichier (JSON) à garder où tu veux : Fichiers, iCloud Drive, un e-mail. Importer une sauvegarde remplace les données actuelles.'} ${photosAllowedHere() ? 'L\'export contient tes mensurations, pas tes photos de progression (trop lourdes) : elles restent sur cet appareil, et « Supprimer toutes les données » les efface aussi.' : 'L\'export contient aussi tes mensurations.'}</div>
+          ? 'L\'export crée un fichier JSON à garder où tu veux. Importer un fichier ajoute ses séances à celles du compte.'
+          : 'L\'export crée un fichier JSON à garder dans Fichiers, iCloud Drive ou un e-mail. Importer une sauvegarde remplace les données actuelles.'} ${photosAllowedHere() ? 'Il contient tes mensurations, pas tes photos de progression. Elles restent sur cet appareil.' : 'Il contient aussi tes mensurations.'}</div>
         <div class="group">
           <button class="cell cell--action" data-action="export-csv"><span class="cell__body"><span class="cell__title">Exporter les séances (CSV)</span><span class="cell__sub">Une ligne par série, pour un tableur</span></span></button>
         </div>
-        <div class="group-foot">Date, séance, exercice, série, kg, reps, RIR et note : à ouvrir dans Excel, Numbers ou Google Sheets. Ce fichier ne remplace pas la sauvegarde : il ne se réimporte pas.</div>
+        <div class="group-foot">S'ouvre dans Excel, Numbers ou Google Sheets. Ce fichier ne se réimporte pas.</div>
         <div class="group">
-          <button class="cell cell--action" data-action="import-other-app"><span class="cell__body"><span class="cell__title">Importer depuis une autre app</span><span class="cell__sub">Hevy (séances ou mesures), Strong : fichier CSV</span></span></button>
+          <button class="cell cell--action" data-action="import-other-app"><span class="cell__body"><span class="cell__title">Importer depuis une autre app</span><span class="cell__sub">Fichier CSV de Hevy ou Strong</span></span></button>
         </div>
         <div class="group-foot">Ajoute les séances d'un export Hevy ou Strong à ton historique, après un aperçu.</div>
       </div>
@@ -438,17 +438,17 @@ registerActions({
     save(); render();
   },
   'wipe-data': async () => {
-    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? `Séances, programmes, réglages, ${wipedExtras()} seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tes séances et programmes.` : `Séances, programmes, réglages, ${wipedExtras()} seront effacés de cet appareil.`, 'Tout supprimer'))) return;
+    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? `Séances, programmes, réglages, ${wipedExtras()} seront supprimés de cet appareil. Il sera déconnecté. Ton compte garde séances et programmes.` : `Séances, programmes, réglages, ${wipedExtras()} seront supprimés de cet appareil.`, 'Tout supprimer'))) return;
     const n = (data.history || []).length;
     // Compte : dernière sauvegarde tentée avant d'effacer ; on ne promet que ce qui est vraiment dessus
     if (account.user) await syncNow();
     const pending = account.user ? accountPendingCount(account.user.id) : n;
     const lost = !account.user
-      ? `${n} séance${n > 1 ? 's' : ''} seront perdue${n > 1 ? 's' : ''} définitivement. Pense à exporter avant.`
+      ? `${n} séance${n > 1 ? 's' : ''} seront perdue${n > 1 ? 's' : ''}. Exporte-les d'abord pour les garder.`
       : pending
-        ? `${plural(pending, 'séance n\'est pas encore sauvegardée', 'séances ne sont pas encore sauvegardées')} sur ton compte${account.error === 'offline' ? ' (pas d\'Internet ?)' : ''} et ${pending > 1 ? 'seront perdues' : 'sera perdue'}. Réessaie avec du réseau, ou exporte avant.`
-        : `${plural(n, 'séance sera effacée', 'séances seront effacées')} de cet iPhone. Elles restent sur ton compte\u00a0: reconnecte-toi pour les retrouver.`;
-    if (!(await dialog({ title: 'Es-tu sûr ?', message: lost,
+        ? `${plural(pending, 'séance n\'est pas encore enregistrée', 'séances ne sont pas encore enregistrées')} sur ton compte${account.error === 'offline' ? ' (pas d\'Internet ?)' : ''} et ${pending > 1 ? 'seront perdues' : 'sera perdue'}. Réessaie avec du réseau, ou exporte avant.`
+        : `${plural(n, 'séance sera supprimée', 'séances seront supprimées')} de ${thisPhone()}. Elles restent sur ton compte. Reconnecte-toi pour les retrouver.`;
+    if (!(await dialog({ title: 'Confirmer la suppression ?', message: lost,
       actions: [{ label: 'Annuler', value: false, style: 'cancel' }, { label: account.user && pending ? 'Supprimer quand même' : 'Supprimer', value: true, style: 'destructive' }] }))) return;
     await accountForgetDevice();   // même déconnecté : l'état du dernier compte est oublié, le compte garde tout
     wipeLocalData();
@@ -466,8 +466,8 @@ registerActions({
   },
   'backup-card-open': async () => {
     const choice = await dialog({ type: 'sheet', title: 'Sauvegarder tes séances',
-      message: accountAvailable() ? 'Un compte les garde à jour tout seul et te les rend sur un autre téléphone. Un fichier est une copie à garder où tu veux.'
-        : 'Un fichier est une copie à garder où tu veux : Fichiers, iCloud Drive, un e-mail.',
+      message: accountAvailable() ? 'Un compte les garde à jour sur tous tes appareils. Un fichier est une copie à garder où tu veux.'
+        : 'Un fichier est une copie à garder dans Fichiers, iCloud Drive ou un e-mail.',
       actions: [
         ...(accountAvailable() ? [{ label: 'Créer un compte', value: 'account', style: 'preferred' }] : []),
         { label: 'Exporter un fichier', value: 'file', ...(accountAvailable() ? {} : { style: 'preferred' }) },

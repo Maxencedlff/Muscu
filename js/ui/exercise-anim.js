@@ -89,7 +89,7 @@ function howToHtml(name) {
   return `
     <div class="group-title">Comment faire</div>
     <div class="group howto">
-      ${move ? `<svg class="howto__anim" viewBox="${moveViewBox(move)}" role="img" aria-label="Animation du mouvement : ${esc(name)}" data-move="${esc(name)}">
+      ${move ? `<svg class="howto__anim" viewBox="${moveViewBox(move)}" role="img" aria-label="Animation de l'exercice : ${esc(name)}" data-move="${esc(name)}">
         <g class="mv-ghost">${moveSvgInner(move, movePose(move, 1), working)}</g>
         <g class="mv-live">${moveSvgInner(move, movePose(move, 0), working)}</g>
       </svg>` : ''}

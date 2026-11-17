@@ -24,7 +24,7 @@ function medalSvg(size = 20) {
 // before et si elle est connue : jamais pour la séance d'un ami), nouvelle valeur. Historique › Séance,
 // séance d'un ami, séance d'un élève. Textes échappés : le nom d'exercice d'un autre vient du serveur.
 // Libellé en toutes lettres dans une cellule pleine largeur (« Record reps » reste sur les badges étroits de la séance)
-const NOTED_LONG = { 'Record reps': 'Record de répétitions' };
+const NOTED_LONG = { 'Record reps': 'Record de reps' };
 function notedRecordCell(r, { before = true } = {}) {
   const label = notedLabel(r);
   return `

@@ -199,7 +199,7 @@ function recapRecordGain(rec) {
   if (b == null) return '';
   const kg = v => `${fmtW(recapRound(v))} ${u}`;
   switch (r.kind) {
-    case 'reps':     return `+${plural(r.after - b, 'répétition', 'répétitions')}`;
+    case 'reps':     return `+${plural(r.after - b, 'rep', 'reps')}`;
     case 'lest':     return `+${kg(r.after - b)}`;   // lest parti de 0 compris (« +10 kg »)
     case 'aide':     return `−${kg(b - r.after)} d'aide`;
     case 'temps':    return `+${fmtSeconds(r.after - b)}`;
@@ -221,7 +221,7 @@ function recapRecordTexts(rec) {
   const day = ts => new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
   const since = rec.before?.date ? ` depuis ton record du ${day(rec.before.date)}` : '';
   const g = recapRecordGain(rec), gain = g ? `${g}${since}` : '';   // même gain que la liste (recapRecordGain)
-  const reps = `× ${plural(rec.r, 'répétition', 'répétitions')}`;
+  const reps = `× ${plural(rec.r, 'rep', 'reps')}`;
   const kg = v => `${fmtW(recapRound(v))} ${u}`;
   switch (r.kind) {
     case 'reps': {
@@ -369,7 +369,7 @@ const RECAP_GROUPS = [
 ];
 const RECAP_FOCUS_SHARE = 0.3;    // un groupe « d'abord » : au moins 30 % des séries et seul en tête
 const RECAP_ALL_BODY = { groups: 4, share: 0.12, max: 0.3 };   // « Tout le corps » : 4 groupes à 12 % ou plus, aucun à 30 %
-const RECAP_EARLY_HOUR = 8;       // « Lève-tôt » : toutes les séances chronométrées commencées avant 8 h
+const RECAP_EARLY_HOUR = 8;       // « Tôt le matin » : toutes les séances chronométrées commencées avant 8 h
 
 // Profil de la période, composé uniquement de faits : { title, lines: [[libellé, valeur]], levels, muscles }
 // title : ce qui a été travaillé (« Jambes d'abord », « Tout le corps », « Quadriceps en tête »), jamais une
@@ -402,7 +402,7 @@ function recapProfile(history, p, sessions, favSlot, favDay, now = Date.now()) {
   }
   const timed = sessions.filter(h => h.duration > 0);
   if (timed.length >= 2 && timed.every(h => recapSlotOf(recapStartOf(h)) === 'matin' && new Date(recapStartOf(h)).getHours() < RECAP_EARLY_HOUR)) {
-    lines.push(['Lève-tôt', `Toujours commencé avant ${RECAP_EARLY_HOUR} h · ${timed.length} séances ${recapTimedOf(timed.length, sessions.length)}`]);
+    lines.push(['Tôt le matin', `Toujours commencé avant ${RECAP_EARLY_HOUR} h · ${timed.length} séances ${recapTimedOf(timed.length, sessions.length)}`]);
   } else if (favSlot) lines.push(recapSlotLine(favSlot));
   if (favDay) lines.push([`Le ${favDay.label} le plus souvent`, `${favDay.count} séances sur ${sessions.length}`]);
   if (!parts.length && !muscles.length) return null;
@@ -605,20 +605,20 @@ function recapDay(ts, kind) {
 // Palier de séances franchi dans la semaine ou le mois (le plus haut), en une phrase : « Ce mois-ci : ta
 // 25e séance depuis tes débuts, le 4 octobre » (« depuis tes débuts » : sous « 7 séances », « ta 25e
 // séance » seul se lirait « du mois »). Il n'a plus d'écran à lui (il passait trop vite pour ce qu'il dit) ; seul le
-// bilan de l'année garde l'écran « Ton palier ».
+// bilan de l'année garde l'écran « Palier ».
 function recapMilestoneText(st) {
   const m = st.milestones.at(-1);
-  return m ? `${recapCap(RECAP_SPAN[st.period.kind])} : ta ${m.n}e séance depuis tes débuts, le ${recapDay(m.date, st.period.kind)}` : '';
+  return m ? `${recapCap(RECAP_SPAN[st.period.kind])} : ${m.n}e séance depuis tes débuts, le ${recapDay(m.date, st.period.kind)}` : '';
 }
 
 // Pourquoi le premier record est mis en avant, en une formule toujours vraie : les records sont classés par
-// type (charge d'abord) puis par hausse en % (recapRecords). « Ta plus forte progression » seulement s'il a
+// type (charge d'abord) puis par hausse en % (recapRecords). « Plus forte progression » seulement s'il a
 // la plus forte hausse de tous ; sinon la plus forte de son type (« hausse de charge »), sinon le plus lourd.
 function recapBestWhy(records) {
   const r = records[0], heavy = ['charge', 'lest'].includes(r.kind);
-  if (r.rel != null && records.every(x => x.rel == null || x.rel <= r.rel)) return 'Ta plus forte progression';
-  if (r.rel != null && heavy) return 'Ta plus forte hausse de charge';
-  return heavy ? 'Ton record le plus lourd' : 'Ton record le plus marquant';
+  if (r.rel != null && records.every(x => x.rel == null || x.rel <= r.rel)) return 'Plus forte progression';
+  if (r.rel != null && heavy) return 'Plus forte hausse de charge';
+  return heavy ? 'Record le plus lourd' : 'Record mis en avant';
 }
 
 // Écrans du récap, dans l'ordre. Chacun : { id, tone, kicker, sub?, lead?, title?, value?, unit?, from?,
@@ -648,11 +648,11 @@ function recapPages(st) {
     chips: [st.duration >= 60_000 ? recapNb(fmtDuration(st.duration)) : '', st.records.length ? plural(st.records.length, 'record', 'records') : ''].filter(Boolean),
     body: st.profile && Object.keys(st.profile.levels).length ? st.profile.levels : null, share: 'Partager' });
 
-  // Profil (année : « ton année en un corps »)
+  // Profil (année : « muscles de l'année »)
   const pr = st.profile;
   const profile = pr && {
-    id: 'profile', tone: 'night', kicker: kind === 'year' ? 'TON ANNÉE EN UN CORPS' : `TON PROFIL ${SPAN}`,
-    title: pr.title, lines: pr.lines, body: pr.tiers, scale: pr.perWeekAvg ? 'séries en moyenne par semaine' : 'séries par semaine', pills: pr.muscles.map(m => [m.label, plural(m.sets, 'série', 'séries')]), share: 'Partager mon profil' };
+    id: 'profile', tone: 'night', kicker: kind === 'year' ? 'MUSCLES DE L\'ANNÉE' : `MUSCLES ${SPAN}`,
+    title: pr.title, lines: pr.lines, body: pr.tiers, scale: pr.perWeekAvg ? 'séries en moyenne par semaine' : 'séries par semaine', pills: pr.muscles.map(m => [m.label, plural(m.sets, 'série', 'séries')]), share: 'Partager' };
 
   // Volume (ou les séries quand rien n'est chargé), séries et durée en tuiles
   const gain = recapVolumeGain(st);
@@ -676,7 +676,7 @@ function recapPages(st) {
       caption: t.sub,
       box: t.gain ? `${recapGainPct(r)}${t.since}` : '',
       curve: !many && r.curve ? r.curve.map(x => ({ date: x.date, w: x.w, label: new Date(x.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) })) : null,
-      listTitle: rest.length ? (rest.length > 1 ? 'Tes autres records' : 'Ton autre record') : '',
+      listTitle: rest.length ? (rest.length > 1 ? 'Autres records' : 'Autre record') : '',
       list: rest.slice(0, RECAP_OTHER_RECORDS).map(x => ({ name: x.name, value: recapNb(x.value), gain: recapGainPct(x) })),
       more: rest.length > RECAP_OTHER_RECORDS ? `et ${plural(rest.length - RECAP_OTHER_RECORDS, 'autre record', 'autres records')}` : '',
       share: 'Partager ce record' };
@@ -684,7 +684,7 @@ function recapPages(st) {
 
   // Exercice le plus fait (mois, année : progression de la force estimée, expliquée)
   const top = st.topExercise;
-  const ex = top && { id: 'exercise', tone: 'night', kicker: 'TON EXERCICE LE PLUS FAIT', title: top.name,
+  const ex = top && { id: 'exercise', tone: 'night', kicker: 'EXERCICE LE PLUS FAIT', title: top.name,
     caption: `dans ${top.sessions} séances sur ${st.sessions} · ${plural(top.sets, 'série', 'séries')}`,
     box: st.progress ? `Force estimée : ${fmtW(st.progress.from)} → ${fmtW(st.progress.to)} ${unitLbl()}` : '',
     foot: st.progress ? 'La charge que tu pourrais soulever une seule fois, calculée d\'après tes séries' : '', share: 'Partager' };
@@ -694,19 +694,19 @@ function recapPages(st) {
   // séances par mois.
   let streak = null;
   if (kind === 'year') {
-    streak = { id: 'streak', tone: 'accent', kicker: 'TA RÉGULARITÉ', value: String(st.activeWeeks), caption: st.activeWeeks > 1 ? 'semaines actives' : 'semaine active',
-      note: st.streak.longest >= 2 ? `Plus longue série : ${st.streak.longest} semaines d'affilée` : '',
+    streak = { id: 'streak', tone: 'accent', kicker: 'RÉGULARITÉ', value: String(st.activeWeeks), caption: st.activeWeeks > 1 ? 'semaines actives' : 'semaine active',
+      note: st.streak.longest >= 2 ? `Au plus long : ${st.streak.longest} semaines d'affilée` : '',
       bars: st.months ? { values: st.months, top: st.topMonth ? st.topMonth.m : -1 } : null,
-      box: st.topMonth ? `${st.topMonth.label}, ton mois le plus actif : ${plural(st.topMonth.count, 'séance', 'séances')}` : '', share: 'Partager' };
+      box: st.topMonth ? `Mois le plus actif : ${st.topMonth.label}, ${plural(st.topMonth.count, 'séance', 'séances')}` : '', share: 'Partager' };
   } else if (recapRegShown(reg)) {
     const short = ts => new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    streak = { id: 'streak', tone: 'accent', kicker: 'TA RÉGULARITÉ', value: String(reg.hit), unit: kind === 'week' ? '' : `sur ${reg.total}`,
+    streak = { id: 'streak', tone: 'accent', kicker: 'RÉGULARITÉ', value: String(reg.hit), unit: kind === 'week' ? '' : `sur ${reg.total}`,
       caption: kind === 'week' ? `semaines sur les ${reg.total} dernières avec ${reg.target} séances ou plus` : `semaines avec ${reg.target} séances ou plus`,
       note: recapRegIsUsual(reg)
-        ? `Ton rythme habituel les 2 mois d'avant : ${reg.target} séances par semaine`
-        : `Objectif : ${reg.target} séances par semaine (ton rythme habituel les 2 mois d'avant : ${fmtNum(reg.usual)})`,
+        ? `Rythme des 2 mois d'avant : ${reg.target} séances par semaine`
+        : `Objectif : ${reg.target} séances par semaine, contre ${fmtNum(reg.usual)} les 2 mois d'avant`,
       strip: reg.weeks.map(w => ({ n: w.n, on: w.hit, label: short(w.start) })),
-      stripNote: `Séances de chaque semaine, du lundi au dimanche. Rempli : ${reg.target} séances ou plus.`, share: 'Partager' };
+      stripNote: `Séances par semaine, du lundi au dimanche. Case pleine à ${reg.target} séances ou plus.`, share: 'Partager' };
   }
 
   // Palier de séances (année seulement : semaine et mois le disent à l'ouverture) : le plus haut en grand,
@@ -714,7 +714,7 @@ function recapPages(st) {
   let milestone = null;
   if (kind === 'year' && st.milestones.length) {
     const m = st.milestones.at(-1);
-    milestone = { id: 'milestone', tone: 'night', kicker: 'TON PALIER', value: `${m.n}e`, caption: `séance, le ${recapDay(m.date, kind)}`,
+    milestone = { id: 'milestone', tone: 'night', kicker: 'PALIER', value: `${m.n}e`, caption: `séance, le ${recapDay(m.date, kind)}`,
       list: st.milestones.slice(0, -1).reverse().slice(0, 4).map(x => ({ name: `${x.n}e séance`, value: recapDay(x.date, kind) })), share: 'Partager' };
   }
 
@@ -740,7 +740,7 @@ function recapSummaryPage(st) {
   if (st.topExercise) lines.push(['Exercice le plus fait', st.topExercise.name]);
   const r = st.bestRecord;
   if (r) {
-    const why = recapCap(recapBestWhy(st.records).replace(/^(Ta|Ton) /, ''));   // « Plus forte progression », « Record le plus lourd »
+    const why = recapBestWhy(st.records);   // « Plus forte progression », « Record le plus lourd »
     lines.push([why, `${r.name} · ${r.rel != null ? recapGainPct(r) : recapNb(r.value)}`]);   // le libellé court tient sur une ligne
   }
   if (kind === 'year' && st.topMonth) lines.push(['Mois le plus actif', `${st.topMonth.label} · ${plural(st.topMonth.count, 'séance', 'séances')}`]);

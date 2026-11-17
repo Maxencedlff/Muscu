@@ -164,7 +164,7 @@ function renderEditor() {
           <button class="cell cell--action" data-action="add-ex">${icon('plus', 20)}<span>Ajouter un exercice</span></button>
           ${list.length >= 2 ? `<button class="cell cell--action" data-action="ed-superset">${icon('link', 20)}<span>Créer un superset</span></button>` : ''}
         </div>
-        ${list.length >= 2 ? '<div class="group-foot">Superset : des exercices enchaînés sans repos, tour par tour.</div>' : ''}
+        ${list.length >= 2 ? '<div class="group-foot">Superset : 2 ou 3 exercices enchaînés sans repos.</div>' : ''}
         <div class="group-title">Réglages de la séance</div>
         <div class="group">
           <div class="cell cell--ctl cell--flow">
@@ -184,7 +184,7 @@ function renderEditor() {
             ${icon('chevron.right', 16)}
           </button>` : ''}
         </div>
-        <div class="group-foot">La récupération règle le délai avant que la séance soit de nouveau prête.</div>
+        <div class="group-foot">Récupération : délai avant que la séance soit de nouveau prête.</div>
         ${isUserProg(data.activeProgramme) ? `
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="delete-custom-session" data-id="${esc(cat)}">Supprimer la séance</button>
@@ -224,12 +224,12 @@ function exTempoHtml(d) {
           </div>` : ''}
           ${t && d.tempoGuide ? `<div class="cell cell--ctl cell--wrap">
             <span class="cell__body"><span class="cell__title">Préparation</span></span>
-            <div class="segmented seg-full" role="group" aria-label="Temps de préparation avant la première répétition">
+            <div class="segmented seg-full" role="group" aria-label="Temps de préparation avant la première rep">
               ${TEMPO_PREP_CHOICES.map(s => `<button class="segmented__btn ${d.tempoPrep === s ? 'segmented__btn--active' : ''}" aria-pressed="${d.tempoPrep === s}" data-action="ex-tempo-prep" data-prep="${s}">${s} s</button>`).join('')}
             </div>
           </div>` : ''}
         </div>
-        <div class="group-foot">${t ? `${esc(tempoSentence(t, d.name))}. Plus lent, c'est plus dur : baisse la charge.` : 'Descente, pause, montée, en secondes (X = explosif). Ex. 3-1-1 : 3 s pour descendre, 1 s en bas, 1 s pour remonter.'}</div>`;
+        <div class="group-foot">${t ? `${esc(tempoSentence(t, d.name))}. Plus lent, c'est plus dur : baisse la charge.` : 'En secondes : descente, arrêt en bas, montée. X = explosif.'}</div>`;
 }
 function refreshExTempo() { const box = $('#exTempo'); if (box && exDraft) box.innerHTML = exTempoHtml(exDraft); }
 
@@ -262,7 +262,7 @@ function exProgressionHtml(d) {
             </span>
           </div>
         </div>
-        <div class="group-foot">Le ▶ de la séance décompte jusqu'à cette durée. Pour progresser, ajoute quelques secondes à une série.</div>`;
+        <div class="group-foot">En séance, ▶ décompte jusqu'à cette durée. Ajoute quelques secondes pour progresser.</div>`;
   if (m !== 'reps') return '';
   const target = d.targetText ?? (d.target ? fmtW(d.target) : '');
   const repMax = d.repMaxText ?? String(d.repMax ?? 12);
@@ -313,8 +313,8 @@ function exProgressionHtml(d) {
           </div>${fields}
         </div>
         <div class="group-foot">${fixed
-    ? `Le même nombre à chaque série : <span class="num">${setsRepsHtml({ sets, repMax: n, repFixed: true, measure: 'reps' })}</span>. Quand toutes tes séries l'atteignent, l'app te propose d'augmenter la charge, toujours avec ce nombre.`
-    : 'Quand toutes tes séries atteignent le haut, l\'app te propose d\'augmenter la charge et repart du bas (par exemple de 8 à 12). Bas vide : 4 reps sous le haut.'}</div>`;
+    ? `Le même nombre à chaque série : <span class="num">${setsRepsHtml({ sets, repMax: n, repFixed: true, measure: 'reps' })}</span>. Quand toutes les séries l'atteignent, l'app propose plus de charge.`
+    : 'Quand toutes les séries atteignent le haut, l\'app propose plus de charge. Tu repars alors du bas. Laisse le bas vide pour 4 reps sous le haut.'}</div>`;
 }
 function refreshExProgression() {
   const box = $('#exProg');
@@ -343,7 +343,7 @@ function exSupersetHtml(i, d) {
             <button class="ed-ss-btn" data-action="ex-ss-leave" aria-pressed="${d.ssLeave}">${d.ssLeave ? 'Garder' : 'Retirer'}</button>
           </div>
         </div>
-        <div class="group-foot">Enchaînés sans repos ; le repos du dernier exercice part à la fin de chaque tour.</div>`;
+        <div class="group-foot">Enchaînés sans repos. Le repos vient après le dernier exercice du tour.</div>`;
 }
 
 function renderExEdit() {
@@ -402,7 +402,7 @@ function renderExEdit() {
             </div>
           </div>
         </div>
-        <div class="group-foot">Durée pour les maintiens (gainage, chaise), cardio pour la distance et les minutes. Choisie d'après le nom si tu n'y touches pas.</div>
+        <div class="group-foot">Durée pour le gainage ou la chaise, cardio pour la distance. Par défaut, choisie d'après le nom.</div>
         <div id="exGrip">${exGripHtml(d)}</div>
         <div id="exTempo">${exTempoHtml(d)}</div>
         <div id="exProg">${exProgressionHtml(d)}</div>

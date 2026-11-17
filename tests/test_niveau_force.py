@@ -171,7 +171,7 @@ def t_niveau(bench, eng, dev, theme):
         R.check('Non précisé' in cell.inner_text() and page.evaluate('data.strengthSex') == 'none', f'{tag} réglages : Ne pas préciser')
         open_library(page, 'Squat barre')
         txt = page.inner_text('.library-ex')
-        R.check('Pas de palier sans sexe indiqué' in txt and page.locator('.library-ex [data-action="set-strength-sex"]').count() == 0,
+        R.check('Indique ton sexe pour voir le palier' in txt and page.locator('.library-ex [data-action="set-strength-sex"]').count() == 0,
                 f'{tag} Ne pas préciser : pas de palier, pas de relance')
         R.check(not page.errors, f'{tag} réglages : aucune erreur JS {page.errors}')
     finally:
@@ -181,7 +181,7 @@ def t_niveau(bench, eng, dev, theme):
     cm, page = open_app(bench, eng, dev, theme, barbell_data(body_kg=None, sex='male'))
     try:
         open_library(page, 'Squat barre')
-        R.check(page.locator('.library-ex [data-action="set-body-weight"]').count() == 1, f'{tag} sans poids : « Ajoute ton poids du corps »')
+        R.check(page.locator('.library-ex [data-action="set-body-weight"]').count() == 1, f'{tag} sans poids : « Ajouter ton poids du corps »')
     finally:
         cm.__exit__(None, None, None)
 

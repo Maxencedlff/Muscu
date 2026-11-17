@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Progrès › Mesures › Photos : le coffre (Face ID, galerie, avant / après)
+//  Progrès › Mensurations › Photos : le coffre (Face ID, galerie, avant / après)
 // ═══════════════════════════════════════════════════════════
 //
 // Logique du coffre (clé du trousseau, chiffrement, verrouillage) : js/data/photo-vault.js. Ici, l'écran :
@@ -79,7 +79,7 @@ function pvCenterHtml() {
       : 'Le coffre n\'existe que dans l\'app iPhone.' },
     error: { title: 'Coffre à photos', text: 'Le coffre ne s\'ouvre pas pour l\'instant.', retry: 'Réessayer' },
     nopasscode: { title: 'Code de l\'iPhone requis', text: 'Le coffre s\'ouvre avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code, puis reviens ici.', retry: 'Réessayer' },
-    missing: { title: 'Coffre illisible pour l\'instant', text: `La clé de ton coffre n'est pas encore sur cet iPhone${pv.count ? ` (${plural(pv.count, 'photo', 'photos')})` : ''}. Sur un nouvel iPhone, elle arrive avec le trousseau iCloud, parfois après un moment : réessaie plus tard. Si le trousseau iCloud était désactivé sur l'ancien iPhone, la clé y est restée.`, retry: 'Réessayer', reset: true },
+    missing: { title: 'Coffre illisible pour l\'instant', text: `La clé du coffre n'est pas encore sur cet iPhone${pv.count ? ` (${plural(pv.count, 'photo', 'photos')})` : ''}. Elle arrive avec le trousseau iCloud, parfois après un moment. Réessaie plus tard. Si le trousseau était coupé sur l'ancien iPhone, la clé y est restée.`, retry: 'Réessayer', reset: true },
   }[ph] || { title: 'Coffre à photos', text: '' };
   return `
         <div class="pv-center">
@@ -98,15 +98,15 @@ function pvIntroHtml() {
         <div class="pv-intro">
           <div class="pv-glyph" aria-hidden="true">${icon('lock', 34)}</div>
           <h1 class="pv-title" id="pvTitle" tabindex="-1">Coffre à photos</h1>
-          <p class="pv-lead">Tes photos de progression, à l'abri des regards.</p>
+          <p class="pv-lead">Photos de progression visibles seulement par toi.</p>
           <ul class="pv-feats">
-            ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, pvIos() ? 'Pas de code en plus à retenir. Chiffrées sur ton iPhone, jusque dans ses sauvegardes.'
-              : 'Pas de code en plus à retenir. Chiffrées sur cet appareil.')}
-            ${feat('timer', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
-            ${feat('eye.slash', 'Rien ne sort sans toi', cphStudentShown() && cph.state?.ready
-              ? `Ni dans ta ${pvIos() ? 'pellicule' : 'galerie'}, ni dans l'export. Ton coach ne reçoit que les photos que tu choisis d'envoyer, chiffrées pour ton coach seulement.`
-              : `Ni dans ta ${pvIos() ? 'pellicule' : 'galerie'}, ni dans l'export, ni ailleurs sans toi.`)}
-            ${pvIos() ? feat('info.circle', 'Te suit sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour retrouver ton coffre sur un nouvel iPhone.') : ''}
+            ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, pvIos() ? 'Aucun code en plus. Chiffrées sur ton iPhone et dans ses sauvegardes.'
+              : 'Aucun code en plus. Chiffrées sur cet appareil.')}
+            ${feat('timer', 'Verrouillage automatique', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
+            ${feat('eye.slash', 'Privées', cphStudentShown() && cph.state?.ready
+              ? `Ni dans la ${pvIos() ? 'pellicule' : 'galerie'} ni dans l'export. Ton coach ne reçoit que les photos que tu choisis d'envoyer.`
+              : `Ni dans la ${pvIos() ? 'pellicule' : 'galerie'} ni dans l'export.`)}
+            ${pvIos() ? feat('info.circle', 'Sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour rouvrir le coffre sur un autre iPhone.') : ''}
           </ul>
           ${pv.legacy ? `<p class="pv-note">${plural(pv.legacy, 'photo déjà prise y sera rangée', 'photos déjà prises y seront rangées')}.</p>` : ''}
           ${pv.err ? `<p class="pv-sub pv-sub--err" id="pvMsg" role="alert">${esc(pv.msg)}</p>` : ''}
@@ -149,10 +149,10 @@ function pvOpenHtml() {
         <div class="group">${list.length ? add : ''}
           ${list.length ? `<div class="cell"><div class="pgal">${days}</div></div>` : `<div class="cell pv-empty">
             <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
-            <p class="cell__sub">Une photo de temps en temps, pour voir ce que la balance ne dit pas.</p></div>`}
+            <p class="cell__sub">Prends une photo de face, de profil ou de dos pour comparer plus tard.</p></div>`}
         </div>
         <div class="group-foot">Tes photos restent sur ${pvIos() ? 'ton iPhone' : 'cet appareil'}, chiffrées. ${cphVaultFoot()}</div>
-        <div class="group-foot">${pvIos() ? 'Elles ne sont ni dans l\'export ni dans la copie iCloud de l\'app ; elles sont chiffrées dans la sauvegarde de l\'iPhone et se rouvrent sur un nouvel iPhone grâce au trousseau iCloud.'
+        <div class="group-foot">${pvIos() ? 'Ni dans l\'export ni dans la copie iCloud de l\'app. Le trousseau iCloud les rouvre sur un nouvel iPhone.'
           : 'Elles ne sont pas dans l\'export.'}</div>`;
 }
 
@@ -267,7 +267,7 @@ async function pvLoadPhotos() {
   photoCache = res ? res.photos : [];
   // Envois au coach : relus pour les boutons « Envoyer à mon coach » (serveur sans la fonction : rien)
   cphRefresh({ minAge: 60_000 }).then(ok => { if (ok && vaultIsOpen()) pvPaint(); });
-  if (!res) showToast('Lecture du coffre impossible, réessaie', { error: true });
+  if (!res) showToast('Coffre illisible, réessaie', { error: true });
   else if (res.broken) showToast(plural(res.broken, 'photo illisible ignorée', 'photos illisibles ignorées'), { error: true });
   pvPaint();
   if (pvPendingFile) { const f = pvPendingFile; pvPendingFile = null; newPhotoSheet(f); }
@@ -345,15 +345,15 @@ async function pvOpenVault() {
 // ── Coffre illisible : le vider en dernier recours (la clé peut encore arriver par le trousseau iCloud) ──
 async function pvReset() {
   const n = pv.count || await photoRowsCount().catch(() => 0);
-  const ok1 = await dialog({ title: n ? `Effacer ${plural(n, 'photo', 'photos')} ?` : 'Vider le coffre ?',
-    message: 'Si la clé arrive plus tard par le trousseau iCloud, il sera trop tard : ces photos seront supprimées de cet iPhone. Tu pourras ensuite créer un nouveau coffre.',
-    actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Effacer', value: true, style: 'destructive' }] });
+  const ok1 = await dialog({ title: n ? `Supprimer ${plural(n, 'photo', 'photos')} ?` : 'Vider le coffre ?',
+    message: 'Ces photos seront supprimées de cet iPhone, même si la clé arrive plus tard. Il sera trop tard pour les rouvrir. Tu pourras créer un nouveau coffre.',
+    actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Supprimer', value: true, style: 'destructive' }] });
   if (!ok1) return;
   const ok = await vaultReset({ keep: true });
   const legacy = await vaultLegacyCount();
   pv = { ...pv, phase: 'intro', legacy, count: 0, msg: '', err: false };
   pvPaint();
-  showToast(ok ? 'Coffre vidé' : 'Effacement incomplet, réessaie', { error: !ok });
+  showToast(ok ? 'Coffre vidé' : 'Suppression incomplète', { error: !ok });
 }
 
 // ── Photos : ajout, ouverture, suppression ─────────────────
@@ -491,8 +491,8 @@ registerActions({
     const sent = cphStudentListed() ? cphSentOf(id) : null;
     // État des envois inconnu ici (hors ligne, autre iPhone) alors qu'on a un coach : on ne promet pas « nulle part ailleurs »
     const unsure = !sent && account.user && coachRole().hasCoach;
-    const msg = sent ? 'Elle est aussi retirée de chez ton coach. Pas de corbeille.'
-      : unsure ? 'Pas de corbeille. Si tu l\'as envoyée à ton coach, retire-la aussi dans Mon coach › Photos de bilan.' : 'Elle n\'est nulle part ailleurs : pas de corbeille.';
+    const msg = sent ? 'Elle est aussi retirée chez ton coach. Il n\'y a pas de corbeille.'
+      : unsure ? 'Il n\'y a pas de corbeille. Si tu l\'as envoyée à ton coach, retire-la dans Mon coach › Photos de bilan.' : 'Elle n\'existe nulle part ailleurs et il n\'y a pas de corbeille.';
     if (!(await confirmSheet('Supprimer cette photo ?', msg, 'Supprimer'))) return;
     if (!vaultIsOpen()) return;   // refermé pendant la confirmation : rien sans rouvrir le coffre
     if (sent) { const r = await cphRemove(sent.id); if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return; } }

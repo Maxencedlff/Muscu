@@ -18,7 +18,7 @@ const PUSH_KEY = 'mdlf_push';   // { userId, token } : dernier jeton inscrit, po
 // later : types arrivés avec 20261031910000_notifications_messages.sql. Un serveur d'avant ne les renvoie
 // pas dans push_prefs : leurs interrupteurs ne sont pas montrés, et push_set_prefs part avec 3 arguments.
 const PUSH_TYPES = [
-  { id: 'reactions', title: 'Bravos', sub: 'Quand quelqu’un dit bravo pour une de tes séances' },
+  { id: 'reactions', title: 'Réactions', sub: 'Quand quelqu’un réagit à une de tes séances' },
   { id: 'comments', title: 'Commentaires', sub: 'Quand quelqu’un commente une de tes séances', later: true },
   { id: 'follows', title: 'Demandes d’abonnement', sub: 'Quand quelqu’un veut suivre tes séances' },
   { id: 'coach', title: 'Mon coach', sub: 'Commentaire sur une séance, nouveau programme' },

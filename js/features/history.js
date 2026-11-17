@@ -268,7 +268,7 @@ function setsSpoken(sets, measure, kind) {
   const load = s => parseFloat(s.weight) > 0 ? `${pre}${fmtW(s.weight)} ${unit}` : '';
   const n = plural(ok.length, 'série', 'séries');
   if (ok.every(s => load(s) === load(ok[0]))) return `${n}${load(ok[0]) ? ` à ${load(ok[0])}` : ''} : ${and(ok.map(s => s.reps))} reps`;
-  return `${n} : ${and(ok.map(s => `${load(s) || 'sans charge'}, ${s.reps} reps`))}`;
+  return `${n} : ${and(ok.map(s => `${load(s) || 'poids du corps'}, ${s.reps} reps`))}`;
 }
 // Prise d'un exercice reçu d'un ami ou d'un élève (js/data/grips.js : libellés fixes, échappés quand même)
 function reviewGripHtml(e) {
@@ -378,7 +378,7 @@ function historyChanged(removed = null) {
 // Depuis la liste, seule sa cellule disparaît (pas de re-rendu complet) ; « Annuler » pendant 5 s.
 async function deleteSession(id) {
   const ok = await confirmSheet('Supprimer cette séance ?',
-    `Elle sera retirée de l'historique et des statistiques. Tu pourras la récupérer pendant ${TRASH_DAYS} jours dans Réglages › Supprimés récemment.`,
+    `Elle sera retirée de l'historique et des statistiques. Tu pourras la restaurer pendant ${TRASH_DAYS} jours dans Réglages › Supprimés récemment.`,
     'Supprimer de l\'historique');   // « Supprimer la séance » : retirer une séance d'un programme
   if (!ok) { closeOpenRows(); return; }
   const removed = moveToTrash(id);

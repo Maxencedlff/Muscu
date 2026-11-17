@@ -85,7 +85,7 @@ const INTENS_PLANS = {
   'rp-all':       { tech: 'rp',      on: 'all',  label: 'Toutes les séries en rest-pause', short: 'toutes en rest-pause' },
   'cluster-last': { tech: 'cluster', on: 'last', label: 'Dernière série en cluster',      short: 'dernière en cluster' },
   'cluster-all':  { tech: 'cluster', on: 'all',  label: 'Toutes les séries en cluster',   short: 'toutes en cluster' },
-  topback:        { tech: 'top',     on: 'first', label: '1re série la plus lourde, puis séries allégées', short: '1re série la plus lourde, puis allégées' },
+  topback:        { tech: 'top',     on: 'first', label: '1re série lourde, puis allégées', short: '1re lourde, puis allégées' },
 };
 function cleanIntens(v) { return typeof v === 'string' && Object.hasOwn(INTENS_PLANS, v) ? v : null; }
 function intensLabel(v) { return INTENS_PLANS[cleanIntens(v)]?.label || ''; }

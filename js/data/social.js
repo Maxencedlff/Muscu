@@ -363,7 +363,7 @@ const SOCIAL_ERROR_TEXT = {
   comment_forbidden: 'Ce commentaire contient un mot interdit par les règles de la communauté.',
   invalid_reason: 'Choisis un motif pour signaler.',
   busy: 'Envoi déjà en cours.',
-  server: 'Action impossible pour l\'instant, réessaie dans un moment.',
+  server: 'Action impossible. Réessaie plus tard.',
 };
 function socialErrorText(kind) { return SOCIAL_ERROR_TEXT[kind] || SOCIAL_ERROR_TEXT.server; }
 

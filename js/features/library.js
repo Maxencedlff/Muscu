@@ -329,7 +329,7 @@ function renderLibraryEx(name) {
   const done = [...exerciseIndex().values()].find(it => catalogueEntry(it.name)?.name === e.name);
   const st = done ? exStatsParts(done, { fiche: true }) : null;
   const more = done ? `<div class="group"><button class="cell cell--nav" data-action="open-stats-ex" data-ex="${esc(done.exId)}">
-            <span class="cell__body"><span class="cell__title">Voir mes progrès</span></span>${icon('chevron.right', 16)}</button></div>` : '';
+            <span class="cell__body"><span class="cell__title">Voir les progrès</span></span>${icon('chevron.right', 16)}</button></div>` : '';
   const panels = {
     about: libExAboutHtml(e, name),
     history: st ? `${libExNotesHtml(e.name, 5)}<div class="group">${st.sessions}</div>${more}` : libExEmptyHtml('history'),

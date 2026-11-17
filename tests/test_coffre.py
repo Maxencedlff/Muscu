@@ -385,7 +385,7 @@ def t_illisible(bench):
         n_create, n_unlock = calls(page, 'create'), calls(page, 'unlock')
         reenter(page)
         txt = page.inner_text('.view.photo-vault')
-        R.check(page.inner_text('#pvTitle') == 'Coffre illisible pour l\'instant' and 'trousseau iCloud' in txt and '1 photo' in txt and 'réessaie plus tard' in txt,
+        R.check(page.inner_text('#pvTitle') == 'Coffre illisible pour l\'instant' and 'trousseau iCloud' in txt and '1 photo' in txt and 'Réessaie plus tard' in txt,
                 f'clé absente : illisible pour l\'instant, trousseau iCloud expliqué {txt[:400]!r}')
         R.check(calls(page, 'create') == n_create, 'clé absente : aucune nouvelle clé créée pour ce coffre')
         R.check(not page.evaluate('vaultIsOpen()') and page.locator('.view.photo-vault img').count() == 0, 'clé absente : rien d\'ouvert')
@@ -403,11 +403,11 @@ def t_illisible(bench):
         reenter(page)
         page.click('[data-action="pv-reset"]')
         page.wait_for_selector('.ios-dialog')
-        R.check('Effacer 1 photo' in page.inner_text('.ios-dialog') and 'trop tard' in page.inner_text('.ios-dialog'), f'vider : confirmation {page.inner_text(".ios-dialog")!r}')
+        R.check('Supprimer 1 photo' in page.inner_text('.ios-dialog') and 'trop tard' in page.inner_text('.ios-dialog'), f'vider : confirmation {page.inner_text(".ios-dialog")!r}')
         tap_dialog(page, 'Annuler')
         R.check(len(page.evaluate(RAW_ROWS)['rows']) == 1, 'vider annulé : photo gardée')
         page.click('[data-action="pv-reset"]')
-        tap_dialog(page, 'Effacer')
+        tap_dialog(page, 'Supprimer')
         page.wait_for_selector('.pv-intro')
         raw = page.evaluate(RAW_ROWS)
         R.check(raw['rows'] == [] and raw['meta'] == '[]' and calls(page, 'forget') == 0, 'vidé : plus de photo ni de réglage, clé jamais effacée')
@@ -421,7 +421,7 @@ def t_illisible(bench):
         reenter(page)
         R.check(page.inner_text('#pvTitle') == 'Coffre illisible pour l\'instant', 'clé qui ne correspond pas : illisible')
         page.click('[data-action="pv-reset"]')
-        tap_dialog(page, 'Effacer')
+        tap_dialog(page, 'Supprimer')
         page.wait_for_selector('.pv-intro')
         # Coffre vide et clé absente : rien à perdre, retour direct à la présentation
         create_vault(page)

@@ -366,7 +366,7 @@ function freeSessionRowHtml() {
       <div class="home-card home-free">
         <button class="home-cell" data-action="${live ? 'resume-session' : 'start-free-session'}">
           <span class="home-cell__text"><span class="home-cell__name">Séance libre</span>
-            <span class="home-cell__sub">${live ? 'En cours' : 'Hors programme : tu ajoutes tes exercices au fur et à mesure'}</span></span>
+            <span class="home-cell__sub">${live ? 'En cours' : 'Ajoute tes exercices au fil de la séance'}</span></span>
           ${live ? '<span class="home-cell__status home-cell__status--live">Reprendre</span>' : ''}
           ${icon('chevron.right', 14)}
         </button>
@@ -429,7 +429,7 @@ async function sessionActions(cat) {
   const choice = await dialog({ type: 'sheet', title: sessionTitle(cat),
     ...(st.by ? { message: `Muscles encore en récupération. ${recoveryReason(st.by)}` } : {}), actions: [
     { label: 'Démarrer', value: 'start', style: 'preferred' },
-    ...(!st.ready ? [{ label: 'Passer le délai de récupération', value: 'skip' }] : []),
+    ...(!st.ready ? [{ label: 'Ignorer le délai', value: 'skip' }] : []),
     { label: 'Voir les exercices', value: 'see' },
     { label: 'Annuler', style: 'cancel' },
   ] });
@@ -488,14 +488,14 @@ async function startSessionFlow(cat) {
   if (!(await accessGate())) return;
   const free = cat === FREE;
   if (!free && !(prog().exercises[cat] || []).length) {
-    await dialog({ title: 'Aucun exercice', message: 'Ajoute des exercices à cette séance avant de la démarrer.', actions: [{ label: 'OK', style: 'preferred' }] });
+    await dialog({ title: 'Aucun exercice', message: 'Ajoute un exercice pour démarrer cette séance.', actions: [{ label: 'OK', style: 'preferred' }] });
     return;
   }
   if (activeSession) {
     const choice = await dialog({ type: 'sheet', title: 'Une séance est déjà en cours',
       message: `${rawLabel(activeSession.category, activeSession.programme)} a commencé il y a ${fmtDuration(Date.now() - activeSession.startedAt)}.`,
       actions: [
-        { label: 'Reprendre la séance en cours', value: 'resume', style: 'preferred' },
+        { label: 'Reprendre', value: 'resume', style: 'preferred' },
         { label: `Abandonner et démarrer ${free ? 'une séance libre' : rawLabel(cat)}`, value: 'replace', style: 'destructive' },
         { label: 'Annuler', style: 'cancel' },
       ] });

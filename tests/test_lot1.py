@@ -428,7 +428,7 @@ def t_custom_delete(bench, eng, dev, theme):
         R.check(page.locator('.ios-dialog__title').inner_text() == 'Cette séance est en cours', f'{t} suppression Perso : séance en cours signalée')
         tap_dialog(page, 'Supprimer')
         msg = page.locator('.ios-dialog__msg').inner_text()
-        R.check('3 séances de l\'historique seront effacées' in msg, f'{t} suppression Perso : « {msg} »')
+        R.check('3 séances de l\'historique seront supprimés' in msg, f'{t} suppression Perso : « {msg} »')
         shot(page, LOT, f'suppr-perso-{t}')
         tap_dialog(page, 'Supprimer')
         R.check(page.evaluate('activeSession') is None and ls(page, 'ppl_active_session') is None, f'{t} suppression Perso : séance abandonnée')

@@ -42,10 +42,10 @@ def save_png(raw, name):
 
 
 def open_preview(page, t, where, title):
-    """Touche « Partager ma séance », attend l'image, vérifie l'aperçu ; renvoie le PNG (data URL)."""
+    """Touche « Partager la séance », attend l'image, vérifie l'aperçu ; renvoie le PNG (data URL)."""
     btn = page.locator('[data-action="share-story"]')
-    R.check(btn.count() == 1 and btn.is_visible(), f'{t} {where} : bouton « Partager ma séance » visible')
-    R.check('Partager ma séance' in btn.inner_text(), f'{t} {where} : libellé du bouton')
+    R.check(btn.count() == 1 and btn.is_visible(), f'{t} {where} : bouton « Partager la séance » visible')
+    R.check('Partager la séance' in btn.inner_text(), f'{t} {where} : libellé du bouton')
     btn.scroll_into_view_if_needed()
     btn.click()
     page.wait_for_selector('.share-preview__img')
