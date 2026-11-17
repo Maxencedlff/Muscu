@@ -179,7 +179,7 @@ def t_custom_colors(bench, eng, dev, theme):
         page.wait_for_timeout(150)
         # Push est la prochaine séance ; Pull et Legs dans « Ensuite ». Une seule couleur d'accent sur
         # l'accueil : ni pastille de séance, ni surtitre teinté
-        R.check(page.locator('.view.dashboard .cat-badge').count() == 0 and page.locator('.home-cell').count() == 2, f'{t} accueil : aucune pastille de couleur de séance')
+        R.check(page.locator('.view.dashboard .cat-badge').count() == 0 and page.locator('.home-list .home-cell').count() == 2, f'{t} accueil : aucune pastille de couleur de séance')
         neutral = page.evaluate("""() => { const c = s => getComputedStyle(document.querySelector(s)).color;
             return [c('.hero__eyebrow'), c('.targets__title'), c('.home-list__title')]; }""")
         R.check(len(set(neutral)) == 1, f'{t} surtitres du même gris, sans couleur de Push {neutral}')

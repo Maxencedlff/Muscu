@@ -311,7 +311,7 @@ function backupHomeCard() {
   let closedAt = null;
   try { closedAt = Number(localStorage.getItem(BACKUP_CARD_KEY)) || null; } catch { /* stockage indisponible : carte montrée */ }
   if (!backupCardShown({ sessions: (data.history || []).length, ready: !accountAvailable() || account.ready,
-    signedIn: !!account.user, stale: exportStale(), closedAt })) return '';
+    signedIn: !!account.user, hadAccount: !!syncOwner(), stale: exportStale(), closedAt })) return '';
   return `
     <section class="home-card account-card backup-card" aria-labelledby="backupCardTitle">
       <div class="account-card__text">

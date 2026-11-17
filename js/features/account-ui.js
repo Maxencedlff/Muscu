@@ -541,7 +541,8 @@ registerActions({
   'go-account': () => navigate('account'),
   'account-referral': () => { openAuthFlow({ step: 'referral', mode: 'referral' }); },
   'account-privacy': () => { window.open(PRIVACY_URL, '_blank'); },
-  'account-card-close': () => { setLsFlag(ACCOUNT_CARD_KEY); haptic(); render(); },
+  // Fermer la carte du compte ferme aussi la carte « Sauvegarde tes séances » (même titre) pour 30 jours (js/data/backup.js)
+  'account-card-close': () => { setLsFlag(ACCOUNT_CARD_KEY); try { localStorage.setItem(BACKUP_CARD_KEY, String(Date.now())); } catch { /* rien */ } haptic(); render(); },
   'account-reconnect-close': () => { accountDismissReconnect(); haptic(); render(); },
   // Carte de reconnexion : le moyen d'avant directement (Apple, Google), l'adresse préremplie (code)
   'account-reconnect': async () => {

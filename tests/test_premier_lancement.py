@@ -75,7 +75,7 @@ def t_parcours(bench, eng, dev, theme):
         R.check(step(page) == 'result', f'{t} résultat')
         R.check(page.locator('#onbTitle').inner_text().strip() == 'PPL', f'{t} salle, 3 fois, déjà entraîné : PPL')
         rows = page.locator('.onb .prog-sess').all_inner_texts()
-        R.check(len(rows) == 3 and 'pousser' in rows[0] and 'pectoraux' in rows[0], f'{t} séances en clair {rows[:1]}')
+        R.check(len(rows) == 3 and 'Pousser (Push)' in rows[0] and 'pectoraux' in rows[0], f'{t} séances en clair {rows[:1]}')
         R.check(page.locator('.onb [data-action="onb-later"]').count() == 0, f'{t} résultat : pas de « Plus tard »')
 
         # Niveau débutant : Full Body, phrase explicative

@@ -63,6 +63,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(shown({ signedIn: true }), false, 'compte : déjà sauvegardé');
     assert.equal(shown({ stale: false }), false, 'export récent');
     assert.equal(shown({ ready: false }), false, 'compte pas encore lu');
+    assert.equal(shown({ hadAccount: true }), false, 'appareil qui a déjà eu un compte (déconnecté, session finie)');
     assert.equal(shown({ closedAt: now - 5 * day }), false, 'fermée il y a 5 jours');
     assert.equal(shown({ closedAt: now - 31 * day }), true, 'fermée il y a 31 jours : revient');
     assert.equal(shown({ closedAt: now + day }), true, 'date de fermeture dans le futur (horloge reculée) : ignorée');

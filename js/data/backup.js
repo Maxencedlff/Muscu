@@ -149,10 +149,12 @@ async function exportHistoryCsv() {
 // ── Carte « Sauvegarde tes séances » de l'accueil ───────────
 // Regard neuf du 16/11 (« j'ai peur de tout perdre ») : après 3 séances, sans compte ni export récent (exportStale,
 // js/features/settings.js), une carte discrète le dit. Fermée : elle revient 30 jours plus tard si rien n'a changé.
+// Jamais sur un appareil qui a déjà eu un compte (hadAccount : propriétaire de la synchro connu, déconnexion voulue ou
+// session finie) : ses séances sont sur le compte, et la carte de reconnexion parle déjà de sauvegarde.
 const BACKUP_CARD_KEY = 'ppl_backup_card_closed';   // date de fermeture (ms)
 const BACKUP_CARD_MIN_SESSIONS = 3;
 const BACKUP_CARD_SNOOZE_MS = 30 * 86400000;
-function backupCardShown({ sessions, ready, signedIn, stale, closedAt, now = Date.now() }) {
-  if (sessions < BACKUP_CARD_MIN_SESSIONS || !ready || signedIn || !stale) return false;
+function backupCardShown({ sessions, ready, signedIn, hadAccount = false, stale, closedAt, now = Date.now() }) {
+  if (sessions < BACKUP_CARD_MIN_SESSIONS || !ready || signedIn || hadAccount || !stale) return false;
   return !(Number.isFinite(closedAt) && now - closedAt >= 0 && now - closedAt < BACKUP_CARD_SNOOZE_MS);
 }
