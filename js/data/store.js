@@ -556,6 +556,7 @@ function normalizeData(d, rawJson = null) {
   d.bodyWeightKg = Number.isFinite(d.bodyWeightKg) && d.bodyWeightKg >= 25 && d.bodyWeightKg <= 300 ? d.bodyWeightKg : null;
   d.musicOn  = d.musicOn === true;    // app iOS : Apple Music (désactivé par défaut)
   d.rirOn    = d.rirOn === 'auto' ? 'auto' : d.rirOn !== false;   // choix explicite, sinon 'auto' (donnée neuve) ou montré
+  if (typeof d.recordOn !== 'boolean') delete d.recordOn;   // ligne Record en séance : choix explicite, sinon automatique (headRecordShown)
   // Liste écrite en dur : muscles.js (EQUIPMENT) est chargé après ce fichier ; concordance vérifiée par les tests
   if (!EQUIP_IDS.includes(d.exEquip)) d.exEquip = 'all';
   d.onboarded = d.onboarded === true;

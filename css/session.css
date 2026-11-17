@@ -931,3 +931,6 @@ html.type-xl .session-set .set-note-prev { grid-column: 1 / -1; }
 .hex__note > span { min-width: 0; }
 .hex__note-lbl { font-weight: 600; }
 .ex-notecell .cell__title { overflow-wrap: anywhere; white-space: normal; }
+/* « kg » puis « par haltère » en petit dessous (loadHeader) : la charge d'un haltère, pas des deux */
+.sets__unit { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.sets__unit small { font-size: 0.706rem; font-weight: 400; white-space: nowrap; }

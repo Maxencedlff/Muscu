@@ -475,7 +475,7 @@ function liveHeadRecord(ex, pr) {
   }, pr || null);
 }
 function exSubHtml(ex, ei, allDone) {
-  const pr   = measureOf(ex) === 'reps' && sessExData(ex)?.pr ? liveHeadRecord(ex, sessExData(ex).pr) : null;
+  const pr   = measureOf(ex) === 'reps' && headRecordShown() && sessExData(ex)?.pr ? liveHeadRecord(ex, sessExData(ex).pr) : null;
   const rest = fmtRest(exRest(ex));
   const tempo = parseTempo(ex.tempo) && measureOf(ex) === 'reps'
     ? `<span class="tempo-pill num" aria-label="Tempo ${esc(shortTempo(ex.tempo))}${ex.tempoGuide === true ? ', guidé au son' : ''}">${ex.tempoGuide === true ? icon('music', 12) : ''}Tempo ${esc(shortTempo(ex.tempo))}</span> `
@@ -615,7 +615,7 @@ function renderGroupCard(members, cur, tags) {
       <div class="sets${exs.some(ex => ex.sets.some(isWarmupSet)) ? ' sets--warm' : ''}" role="group" aria-label="Séries du ${kind.toLowerCase()}">
         <div class="sets__head" aria-hidden="true">
           <span>Exo</span><span>Avant</span>
-          <span>${loadHeader(m0)}</span><span>${MEASURES[measureOf(m0)].count}</span>
+          <span>${loadHeader(m0, exs.every(isDumbbellExercise))}</span><span>${MEASURES[measureOf(m0)].count}</span>
           <span>${icon('checkmark', 14)}</span>
         </div>
         ${rounds}
@@ -711,17 +711,20 @@ function rirBadgeHtml(s) {
   return r === null ? '' : `<span class="set-badge"><span class="rir-badge num">${rirTxt(r)} en réserve</span></span>`;
 }
 
-// En-tête de la colonne de charge : kg (barre, haltères), +kg (lest ajouté au poids du corps, comme
-// « 8 reps · +10 kg »), Aide (machine d'assistance), km (cardio)
-function loadHeader(ex) {
+// En-tête de la colonne de charge : kg (barre), kg par haltère (sur deux lignes, isDumbbellExercise), +kg (lest ajouté
+// au poids du corps, comme « 8 reps · +10 kg »), Aide (machine d'assistance), km (cardio)
+// Superset : « par haltère » seulement si tous ses exercices sont aux haltères (perDb)
+function loadHeader(ex, perDb = isDumbbellExercise(ex)) {
   const m = measureOf(ex);
   if (m !== 'reps') return MEASURES[m].load();
+  if (perDb) return `<span class="sets__unit">${unitLbl()}<small>par haltère</small></span>`;
   return { charge: unitLbl(), lest: `+${unitLbl()}`, aide: 'Aide' }[loadKind(ex)];
 }
 // Même colonne, en toutes lettres pour VoiceOver (en-tête et champs) : « Charge ajoutée » plutôt que « Lest »
 function loadSpoken(ex) {
   const m = measureOf(ex);
   if (m === 'cardio') return 'Distance';
+  if (m === 'reps' && isDumbbellExercise(ex)) return 'Charge par haltère';
   return m === 'time' ? 'Charge ajoutée' : { charge: 'Charge', lest: 'Charge ajoutée', aide: 'Aide' }[loadKind(ex)];
 }
 
@@ -946,6 +949,40 @@ function carryWeightToNextSet(ex, si) {
   return undo;
 }
 
+// Saisie d'une charge (ou de reps) sur une série de travail à faire : recopiée dans les séries de travail suivantes à
+// faire dont la case est vide (Mehdi, regard neuf du 16/11 : « 100 » tapé en série 1, séries 2 et 3 restées à « — »).
+// Jamais une valeur déjà là, jamais l'échauffement, ni une charge prescrite par le coach (pk) ni un back-off (sa
+// charge allégée vient du top set, js/data/intensif.js). Une case remplie ainsi suit la frappe (« 1 », « 10 », « 100 »)
+// tant qu'on ne l'a pas touchée soi-même : autoFilled, gardé en mémoire seulement (un rechargement la fige).
+// Renvoie les index des séries changées.
+const autoFilled = new WeakMap();   // série → { weight, reps } : la série d'où vient la copie de ce champ
+function fillFollowingSets(ex, si, field) {
+  const s = ex?.sets[si];
+  if (autoFilled.get(s)) delete autoFilled.get(s)[field];   // tapée à la main : n'est plus une copie
+  if (!s || s.done || isWarmupSet(s) || measureOf(ex) === 'cardio') return [];
+  const changed = [];
+  for (let j = si + 1; j < ex.sets.length; j++) {
+    const t = ex.sets[j];
+    if (t.done || isWarmupSet(t) || setTech(t) === 'backoff' || String(t.pk ?? '') !== String(s.pk ?? '')) continue;
+    // Vide, ou copie d'une série au-dessus (celle-ci ou une plus haute) : une case suit la série tapée la plus proche
+    const from = autoFilled.get(t)?.[field];
+    if (from ? ex.sets.indexOf(from) > si : String(t[field] ?? '').trim() !== '') continue;
+    if (t[field] === s[field]) continue;
+    t[field] = s[field];
+    if (!autoFilled.has(t)) autoFilled.set(t, {});
+    autoFilled.get(t)[field] = s;
+    changed.push(j);
+  }
+  return changed;
+}
+// Les cases à l'écran suivent la donnée, sans re-rendu (le clavier reste sur la case tapée)
+function syncFilledInputs(ex, ei, field, list) {
+  for (const j of list) {
+    const el = document.querySelector(`[data-action="set-${field}"][data-ei="${ei}"][data-si="${j}"]`);
+    if (el && el !== document.activeElement) el.value = field === 'weight' ? fmtW(ex.sets[j].weight, { plain: true }) : ex.sets[j].reps;
+  }
+}
+
 // « Annuler » du toast : la série redevient à faire et le repos s'arrête
 function undoValidate(u) {
   if (!activeSession || !u.s.done) return;
@@ -1029,6 +1066,9 @@ function scrollToCurrent(smooth = true, focus = false) {
 // nom de l'exercice n'était plus visible nulle part). Le nom remplace « Push » / « Pull »… le temps qu'il est caché,
 // le compteur et le chrono restent dessous. La copie de la barre est cachée à VoiceOver : le nom de la carte reste
 // celui qu'il lit, une seule fois.
+// Seulement tant que la carte de la série à faire est celle qui passe sous la barre (Mehdi, regard neuf du 16/11 :
+// défilé plus bas, ou une autre carte amenée sous la barre par scrollToCard, le titre nommait un exercice qu'on ne
+// voyait plus) : sinon le nom de la séance revient. Le titre ne nomme jamais une carte qui n'est pas là.
 let curNameObserver = null;
 function observeCurrentExName() {
   curNameObserver?.disconnect();
@@ -1040,13 +1080,16 @@ function observeCurrentExName() {
   if (!slot || !name || !ex || !('IntersectionObserver' in window)) return;
   slot.textContent = ex.name;   // superset : l'exercice de la série à faire, pas « Superset »
   const top = bar.getBoundingClientRect().height;
-  // Repris dès que le nom COMMENCE à passer sous la barre ; un nom coupé par le bas de l'écran ne compte pas
-  curNameObserver = new IntersectionObserver(([en]) => {
+  // Repris dès que le nom COMMENCE à passer sous la barre (un nom coupé par le bas de l'écran ne compte pas), tant
+  // que la carte couvre encore le haut de l'écran. Positions relues à chaque passage d'un seuil : celui du nom
+  // (entrée, sortie sous la barre) ou celui de la carte (sa fin qui passe sous la barre, ratio 0)
+  curNameObserver = new IntersectionObserver(() => {
     if (!bar.isConnected) return;
-    const under = en.intersectionRatio < 1 && en.boundingClientRect.top < (en.rootBounds?.top ?? top) + 1;
-    bar.classList.toggle('navbar--ex', under);
+    const n = name.getBoundingClientRect(), c = card.getBoundingClientRect();
+    bar.classList.toggle('navbar--ex', n.top < top + 1 && c.bottom > top + 1);
   }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: [0, 0.99, 1] });
   curNameObserver.observe(name);
+  curNameObserver.observe(card);
 }
 
 // Carte d'un exercice (et sa ligne « … · Annuler ») juste sous la barre, après un geste qui la modifie

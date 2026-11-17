@@ -25,9 +25,13 @@ document.addEventListener('input', e => {
     const ei = parseInt(e.target.dataset.ei);
     const si = parseInt(e.target.dataset.si);
     if (!isNaN(ei) && !isNaN(si)) {
-      if (action === 'set-weight') activeSession.exercises[ei].sets[si].weight = storeW(e.target.value);
-      if (action === 'set-reps')   activeSession.exercises[ei].sets[si].reps   = repsInput(e.target);
-      if (action === 'set-dist')   setDist(activeSession.exercises[ei].sets[si], e.target.value);
+      const ex = activeSession.exercises[ei];
+      if (action === 'set-weight') ex.sets[si].weight = storeW(e.target.value);
+      if (action === 'set-reps')   ex.sets[si].reps   = repsInput(e.target);
+      if (action === 'set-dist')   setDist(ex.sets[si], e.target.value);
+      // Charge ou reps recopiées dans les séries suivantes vides (js/features/session.js)
+      const field = { 'set-weight': 'weight', 'set-reps': 'reps' }[action];
+      if (field) syncFilledInputs(ex, ei, field, fillFollowingSets(ex, si, field));
     }
   }
 

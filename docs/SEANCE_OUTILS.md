@@ -62,7 +62,13 @@ obligatoire : valider une série reste un seul toucher sur ✓.
   apparaît sous la dernière série validée, avec l'équivalent RPE du choix (RIR 0 = RPE 10, 1 = 9, 2 = 8, 3 = 7,
   4+ = ≤ 6 : échelle de Zourdos et al., *J Strength Cond Res*, 2016). Même toucher = effacé. Une série validée
   rouverte montre aussi le sélecteur ; les autres séries notées portent un badge « RIR 2 ».
-- Réglage : Réglages › Entraînement › « Noter le RIR » (`data.rirOn`, vrai par défaut, propre à l'appareil).
+- Réglage : Réglages › Entraînement › « Reps en réserve » (`data.rirOn`, propre à l'appareil ; `'auto'` sur une donnée
+  neuve : montré si l'historique en a, jamais au niveau « Je débute »). Même logique pour la ligne « Record » sous le nom
+  de chaque exercice : « Record en séance » (`data.recordOn`, absent = caché au niveau « Je débute », `headRecordShown`).
+- Saisie : une charge ou des reps tapées (ou posées par « Disques ») sur une série de travail à faire remplissent les
+  séries de travail suivantes à faire dont la case est vide (`fillFollowingSets`, js/features/session.js), jamais
+  l'échauffement, un back-off ni une charge prescrite ; une case remplie ainsi suit la frappe tant qu'on ne l'a pas tapée.
+- Haltères : l'en-tête de la colonne dit « kg par haltère » (`isDumbbellExercise`, js/data/plates.js).
 - Stockage : `rir` entier 0 à 4 sur la série, absent sinon (`cleanRir`).
 - Affichage : Historique › Séance, ligne « RIR 2 · — · 1 » sous les séries ; Progrès › Exercice, courbe
   « Effort » (RPE moyen des séries notées, échelle fixe 6 à 10, sans tendance en %) dès qu'une séance en a,

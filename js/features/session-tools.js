@@ -248,6 +248,7 @@ registerActions({
     if (!s || s.done) return;
     const r = platesPerSide(pl.target, plateSetup().bar, plateSetup().plates);
     s.weight = storeW(String(r.total));
+    fillFollowingSets(ex, pl.si, 'weight');   // comme une charge tapée : recopiée dans les séries suivantes vides
     pl.target = r.total;
     haptic();
     persistSession();
