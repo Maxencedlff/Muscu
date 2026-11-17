@@ -83,11 +83,11 @@ function progSessionCardHtml(cat, progId) {
   const muscles = meta.desc || sessionMusclesSummary(progId, cat);
   const facts = c.n ? [plural(c.n, 'exercice', 'exercices'), plural(c.sets, 'série', 'séries')] : ['Aucun exercice'];
   const shown = [...facts, mins ? `≈ ${mins} min` : ''].filter(Boolean).join(' · ');
-  const spoken = [meta.label, muscles, ...facts, mins ? `environ ${mins} minutes` : ''].filter(Boolean).join(', ');
+  const spoken = [esc(sessionTitle(cat, progId)), muscles, ...facts, mins ? `environ ${mins} minutes` : ''].filter(Boolean).join(', ');
   return `
       <button class="cell cell--nav mgc pcard" data-action="open-prog-session" data-cat="${esc(cat)}" data-id="${esc(cat)}" aria-label="${spoken}">
         <span class="cell__body mgc__text">
-          <span class="cell__title pcard__name">${meta.label}</span>
+          <span class="cell__title pcard__name">${esc(sessionTitle(cat, progId))}</span>
           ${muscles ? `<span class="pcard__muscles">${muscles}</span>` : ''}
           <span class="cell__sub pcard__facts num">${shown}</span>
         </span>
@@ -180,7 +180,7 @@ function renderMyProgrammes() {
     const pm = progMeta(id), keys = sessionKeys(id);
     const names = isUserProg(id)
       ? (keys.map(k => esc(rawLabel(k, id))).join(' · ') || 'Aucune séance')
-      : Object.values(pm.sessions).map(x => x.label).join(' · ');
+      : Object.values(pm.sessions).map(x => sessionPlainName(x.label) || x.label).join(' · ');
     return { pm, names };
   };
   const row = id => {
@@ -248,7 +248,7 @@ function renderProgAdd() {
         <span class="cell__body">
           <span class="cell__title">${esc(pm.name)}</span>
           ${state ? `<span class="cell__sub prog-add__state">${state}</span>` : ''}
-          <span class="cell__sub">${adv ? `<span class="psq-freq-txt">${adv.perWeek} séances par semaine · </span>` : ''}${Object.values(pm.sessions).map(x => esc(x.label)).join(' · ')}</span>
+          <span class="cell__sub">${adv ? `<span class="psq-freq-txt">${adv.perWeek} séances par semaine · </span>` : ''}${Object.values(pm.sessions).map(x => esc(sessionPlainName(x.label) || x.label)).join(' · ')}</span>
         </span>
         ${icon('chevron.right', 16)}
       </button>`;
@@ -273,14 +273,14 @@ function renderProgAdd() {
     </div>`;
 }
 
-// Séances d'un programme intégré expliquées en français (« Push · pousser », muscles en dessous) :
+// Séances d'un programme intégré expliquées en français (« Pousser (Push) », muscles en dessous) :
 // écran de résultat du premier lancement et fiche du catalogue
 function programmeSessionsHtml(id) {
   return programmePreview(id).map(s => `
     <div class="cell prog-sess">
       ${catBadge(s.color)}
       <span class="cell__body">
-        <span class="cell__title">${esc(s.label)}${s.plain ? ` <span class="prog-sess__plain">· ${esc(s.plain.toLowerCase())}</span>` : ''}</span>
+        <span class="cell__title">${s.plain ? `${esc(s.plain)} <span class="prog-sess__plain">(${esc(s.label)})</span>` : esc(s.label)}</span>
         <span class="cell__sub">${esc(s.muscles)}</span>
       </span>
     </div>`).join('');

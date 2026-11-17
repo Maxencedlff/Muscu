@@ -78,12 +78,6 @@ function recommendReason(id, { perWeek, level, orMore = true } = {}) {
   }
 }
 
-// Noms anglais des séances, en clair (affichés pendant le premier lancement ; les données gardent
-// leurs clés et libellés, l'historique et la synchro en dépendent)
-const SESSION_PLAIN = {
-  push: 'Pousser', pull: 'Tirer', legs: 'Jambes', upper: 'Haut du corps', lower: 'Bas du corps',
-};
-
 // Séances d'un programme intégré pour l'écran de résultat : { cat, label, plain, muscles, color }
 // plain : traduction du nom quand il est en anglais, sinon '' ; muscles en minuscules, séparés par « · »
 function programmePreview(id) {

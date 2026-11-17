@@ -692,8 +692,8 @@ def t_verrou_eteint(bench, eng, dev, theme):
         # Réglages : l'état est dit en clair, sans rien promettre
         page.evaluate("routeTo('settings')")
         page.wait_for_selector('[data-action="access-open-settings"]')
-        R.check(page.inner_text('[data-action="access-open-settings"] .cell__value').strip() == 'Ouvert',
-                f'{t} verrou éteint : Réglages le disent')
+        R.check(page.inner_text('[data-action="access-open-settings"] .cell__value').strip() == 'Accès complet',
+                f'{t} verrou éteint : Réglages le disent (« Accès complet », jamais « Gratuit » : il n'y a pas de version gratuite)')
         # Sur 320 pt : le titre « Abonnement » garde sa largeur, 8 px au moins avant la valeur (panel reglages-v2)
         vp = page.viewport_size
         page.set_viewport_size({'width': 320, 'height': vp['height']})
@@ -711,7 +711,9 @@ def t_verrou_eteint(bench, eng, dev, theme):
         R.check(av == [44, 44], f'{t} Réglages texte agrandi, connecté : avatar de 44 px gardé ({av})')
         page.click('[data-action="access-open-settings"]')
         page.wait_for_selector('.pay-settings-view')
-        R.check('Tout est ouvert pour l\'instant' in page.inner_text('.pay-settings-view'), f'{t} Abonnement : verrou éteint expliqué')
+        stxt = page.inner_text('.pay-settings-view')
+        R.check('Accès complet' in stxt and 'pas encore demandé' in stxt and 'deviendra payante' in stxt and 'Gratuit' not in stxt,
+                f'{t} Abonnement : verrou éteint expliqué, sans promettre une version gratuite')
         # B-1 : verrou éteint, AUCUNE formule proposée (l'essai d'Apple serait grillé pour rien) ;
         # restaurer, gérer chez Apple et les codes restent
         R.check(page.locator('[data-action="pay-open"]').count() == 0, f'{t} verrou éteint : pas de « Voir les formules »')

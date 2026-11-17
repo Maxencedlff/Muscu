@@ -14,9 +14,9 @@
 
 const dietOpenMeals = new Set();   // repas cochés dépliés à la main (identifiants), le temps de la session
 const DIET_MACROS = [
-  { k: 'p', label: 'Protéines', short: 'P' },
-  { k: 'c', label: 'Glucides', short: 'G' },
-  { k: 'f', label: 'Lipides', short: 'L' },
+  { k: 'p', label: 'Protéines', short: 'Prot.' },
+  { k: 'c', label: 'Glucides', short: 'Gluc.' },
+  { k: 'f', label: 'Lipides', short: 'Lip.' },
 ];
 
 const dietN = v => fmtNum(Math.round(v));
@@ -24,12 +24,17 @@ const dietN = v => fmtNum(Math.round(v));
 // les données gardent le nom d'origine (recherche, synchro)
 const foodName = n => String(n ?? '').replace(/\b([OoBb]?)([Oo])e(ufs?)\b/g, (m, b, o, r) => b + (o === 'O' ? 'Œ' : 'œ') + r);
 const elideName = n => (n.length > 60 ? n.slice(0, 58) + '…' : n);
-// « 620 kcal · P 45 · G 70 · L 15 » et sa version dite par VoiceOver
-// Lettre et chiffre insécables (« L\u00a01 » ne se coupe jamais, panel t6 : le « 1 » passait seul à la ligne)
-function dietMacroLine(m) { return `${dietN(m.kcal)}\u00a0kcal · P\u00a0${dietN(m.p)} · G\u00a0${dietN(m.c)} · L\u00a0${dietN(m.f)}`; }
+// Macros abrégées des petits espaces : « Prot. 45 · Gluc. 70 · Lip. 15 » (avant le 17/11, « P 45 · G 70 · L 15 » : des
+// lettres seules qu'un débutant ne lisait pas, regard neuf du 16/11). Abréviation et chiffre insécables (le « 1 » ne
+// passe jamais seul à la ligne, panel t6). unit : « \u00a0g » après chaque nombre ; fmt : arrondi (dietN) ou décimales
+function dietMacroAbbr(m, { fmt = dietN, unit = '' } = {}) {
+  return DIET_MACROS.map(x => `${x.short}\u00a0${fmt(m[x.k])}${unit}`).join(' · ');
+}
+// « 620 kcal · Prot. 45 · Gluc. 70 · Lip. 15 » et sa version dite par VoiceOver
+function dietMacroLine(m) { return `${dietN(m.kcal)}\u00a0kcal · ${dietMacroAbbr(m)}`; }
 function dietMacroSpoken(m) { return `${dietN(m.kcal)} kilocalories, ${dietMacroGramsSpoken(m)}`; }
 function dietMacroGramsSpoken(m) { return `${dietN(m.p)} grammes de protéines, ${dietN(m.c)} de glucides, ${dietN(m.f)} de lipides`; }
-// Ligne abrégée à l'écran (« P 4 · G 47 »), dite en toutes lettres par VoiceOver (sinon « P 4 g » lettre par lettre)
+// Ligne abrégée à l'écran (« Prot. 4 · Gluc. 47 »), dite en toutes lettres par VoiceOver (sinon « P 4 g » lettre par lettre)
 function dietSrPair(visible, spoken) { return `<span aria-hidden="true">${visible}</span><span class="sr-text">${spoken}</span>`; }
 // ── Visuels qui portent du sens (refonte illustrée, comme l'accueil) ──
 // Icône de la famille d'un aliment (famille d'équivalence de la table Ciqual, scripts/prepare-foods.py) : viande, féculent,
@@ -54,15 +59,16 @@ function dietMixHtml(m, extra = '') {
 }
 // Texte d'un dialogue (message lu tel quel) : en toutes lettres pour tous, « 4 g de protéines, 47 g de glucides… »
 function dietMacroWords(m, fmt = dietN) { return `${fmt(m.p)} g de protéines, ${fmt(m.c)} g de glucides, ${fmt(m.f)} g de lipides`; }
-// Légende des lettres, une fois par écran ou par feuille, au-dessus de la première ligne « P 7 · G 77 · L 1 » : les lignes
-// restent courtes (iPhone SE, texte agrandi), la débutante sait ce que veut dire chaque lettre (demande de Maxence,
-// vague 4). Cachée à VoiceOver : chaque ligne y est déjà dite en toutes lettres. Rien quand les chiffres sont masqués
-// Pastilles de couleur partout (recherche, remplacer, fiche scannée, Mon plan, journal) : la même couleur dit la même
-// macro sur tous les écrans (panel nutri-v2) ; dots: false pour un texte sans couleur
+// Légende des couleurs, une fois par écran ou par feuille, au-dessus de la première ligne de macros : la pastille de
+// chaque macro et son nom (« ● Protéines · ● Glucides · ● Lipides »). Avant le 17/11 elle expliquait aussi les lettres
+// (« P protéines ») ; les lignes disent désormais « Prot. », « Gluc. », « Lip. » (dietMacroAbbr). Cachée à VoiceOver :
+// chaque ligne y est déjà dite en toutes lettres. Rien quand les chiffres sont masqués. Pastilles de couleur partout
+// (recherche, remplacer, fiche scannée, Mon plan, journal) : la même couleur dit la même macro sur tous les écrans
+// (panel nutri-v2) ; dots: false pour un texte sans couleur
 function dietMacroLegendHtml(extra = '', { dots = true } = {}) {
   if (data.dietHideNumbers === true) return '';
   const dot = k => (dots ? '<i class="diet-dot diet-dot--' + k + '"></i>' : '');
-  return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k">${dot(m.k)}<b>${m.short}</b>\u00a0${m.label.toLowerCase()}</span>`).join(' · ')}</p>`;
+  return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k">${dot(m.k)}${m.label}</span>`).join(' · ')}</p>`;
 }
 function dietDayTitle(day) {
   const today = dietDayKey();
@@ -234,7 +240,7 @@ function dietItemRowHtml(it, pr, day) {
               <span class="diet-item__back">Remettre</span>
             </button>`;
   const swap = pr.swaps[it.id], eat = swap || it, m = dietItemMacros(eat), qty = dietIsQtyChange(it, swap);
-  const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
+  const nums = data.dietHideNumbers ? '' : ` · ${dietMacroLine(m)}`;
   const note = !swap ? '' : qty ? `Prévu : ${dietQtyText(it)}` : `Remplace ${foodName(it.name)}`;
   return `
             <button class="diet-item" data-action="diet-swap" data-swipe-del="diet-item-del" data-item="${esc(it.id)}" data-day="${day}"
@@ -251,7 +257,7 @@ function dietItemRowHtml(it, pr, day) {
 // Aliment ajouté pour la journée, hors plan : « Ajouté aujourd'hui » en couleur d'action ; ⋯ : quantité ou retirer
 function dietExtraRowHtml(it, meal, day) {
   const m = dietItemMacros(it), when = !day || day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
-  const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
+  const nums = data.dietHideNumbers ? '' : ` · ${dietMacroLine(m)}`;
   return `
             <button class="diet-item diet-item--extra" data-action="diet-extra" data-swipe-del="diet-extra-del" data-meal="${esc(meal.id)}" data-extra="${esc(it.id)}" data-day="${day}"
               aria-label="${esc(foodName(it.name))}, ${esc(dietQtySpoken(it))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}, ajouté ${when}, hors plan. Modifier">

@@ -254,7 +254,7 @@ def t_flow(bench, eng, dev, theme):
         page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
         tap_dialog(page, 'Enregistrer la séance')
         page.wait_for_selector('.view.summary')
-        R.check(page.locator('.sum-title').inner_text() == 'Push', f'{t} bilan : titre')
+        R.check(page.locator('.sum-title').inner_text() == 'Pousser (Push)', f'{t} bilan : titre en clair')
         recs = page.locator('.sum-record').all_inner_texts()
         R.check(len(recs) == 1 and 'Développé couché haltères' in recs[0] and 'Record charge' in recs[0], f'{t} bilan : records attendus {recs}')
         R.check(page.locator('.sum-tile').count() == 3, f'{t} bilan : 3 tuiles')

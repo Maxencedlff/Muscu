@@ -278,6 +278,10 @@ function renderBackup() {
           ? 'L\'export te donne en plus un fichier (JSON) à garder où tu veux. Importer un fichier ajoute ses séances à celles de ton compte.'
           : 'L\'export est un fichier (JSON) à garder où tu veux : Fichiers, iCloud Drive, un e-mail. Importer une sauvegarde remplace les données actuelles.'} ${photosAllowedHere() ? 'L\'export contient tes mensurations, pas tes photos de progression (trop lourdes) : elles restent sur cet appareil, et « Supprimer toutes les données » les efface aussi.' : 'L\'export contient aussi tes mensurations.'}</div>
         <div class="group">
+          <button class="cell cell--action" data-action="export-csv"><span class="cell__body"><span class="cell__title">Exporter les séances (CSV)</span><span class="cell__sub">Une ligne par série, pour un tableur</span></span></button>
+        </div>
+        <div class="group-foot">Date, séance, exercice, série, kg, reps, RIR et note : à ouvrir dans Excel, Numbers ou Google Sheets. Ce fichier ne remplace pas la sauvegarde : il ne se réimporte pas.</div>
+        <div class="group">
           <button class="cell cell--action" data-action="import-other-app"><span class="cell__body"><span class="cell__title">Importer depuis une autre app</span><span class="cell__sub">Hevy (séances ou mesures), Strong : fichier CSV</span></span></button>
         </div>
         <div class="group-foot">Ajoute les séances d'un export Hevy ou Strong à ton historique, après un aperçu.</div>
@@ -298,6 +302,25 @@ function fillAppVersion() {
 function refreshLastExport() {
   const t = $('#lastExportTxt');
   if (t) { t.textContent = `${lastExportLabel()} : aujourd'hui`; t.classList.remove('txt-warn'); }
+}
+
+// Carte de l'accueil « Sauvegarde tes séances » (backupCardShown, js/data/backup.js) : après 3 séances sans compte ni
+// sauvegarde récente. Même gabarit que la carte du compte (titre, action, croix) ; jamais en même temps qu'elle
+// (js/features/dashboard.js). Le bouton propose les deux moyens : un compte (si l'app en a) ou un fichier.
+function backupHomeCard() {
+  let closedAt = null;
+  try { closedAt = Number(localStorage.getItem(BACKUP_CARD_KEY)) || null; } catch { /* stockage indisponible : carte montrée */ }
+  if (!backupCardShown({ sessions: (data.history || []).length, ready: !accountAvailable() || account.ready,
+    signedIn: !!account.user, stale: exportStale(), closedAt })) return '';
+  return `
+    <section class="home-card account-card backup-card" aria-labelledby="backupCardTitle">
+      <div class="account-card__text">
+        <h2 class="account-card__title" id="backupCardTitle">Sauvegarde tes séances</h2>
+        <p class="account-card__sub">Elles ne sont que sur ${thisPhone()}.</p>
+      </div>
+      <button class="account-card__btn" data-action="backup-card-open">Sauvegarder</button>
+      <button class="account-card__close" data-action="backup-card-close" aria-label="Fermer">${icon('xmark', 16)}</button>
+    </section>`;
 }
 
 // Avec un compte, « sauvegarde » désigne le compte : le fichier s'appelle export
@@ -428,6 +451,25 @@ registerActions({
   },
   'export': async () => {
     if (await exportData(themePref())) refreshLastExport();
+  },
+  'export-csv': async () => {
+    if (await exportHistoryCsv() === 'empty') showToast('Aucune séance à exporter');
+  },
+  'backup-card-open': async () => {
+    const choice = await dialog({ type: 'sheet', title: 'Sauvegarder tes séances',
+      message: accountAvailable() ? 'Un compte les garde à jour tout seul et te les rend sur un autre téléphone. Un fichier est une copie à garder où tu veux.'
+        : 'Un fichier est une copie à garder où tu veux : Fichiers, iCloud Drive, un e-mail.',
+      actions: [
+        ...(accountAvailable() ? [{ label: 'Créer un compte', value: 'account', style: 'preferred' }] : []),
+        { label: 'Exporter un fichier', value: 'file', ...(accountAvailable() ? {} : { style: 'preferred' }) },
+        { label: 'Annuler', style: 'cancel' },
+      ] });
+    if (choice === 'account') navigate('account');
+    else if (choice === 'file' && await exportData(themePref())) { render(); showToast('Sauvegarde exportée'); }
+  },
+  'backup-card-close': () => {
+    try { localStorage.setItem(BACKUP_CARD_KEY, String(Date.now())); } catch { /* revient au prochain affichage */ }
+    haptic(); render();
   },
   'import': async () => {
     if (!(await confirmSheet('Importer une sauvegarde ?', account.user ? 'Les séances du fichier seront ajoutées à celles de ton compte. Tes programmes actuels ne changent pas.' : 'Les données actuelles seront remplacées par celles du fichier.', 'Choisir un fichier', false))) return;

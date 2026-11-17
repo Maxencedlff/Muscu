@@ -67,7 +67,14 @@ function restoreSession() {
   } catch { activeSession = null; return null; }
 }
 
-// Programme auquel appartient la séance en cours (peut différer du programme affiché)
+// Programme auquel appartient la séance en cours (peut différer du programme affiché). Séance libre : aucun
+// programme (FREE n'a jamais d'entrée dans data.programmes) ; un programme vide, propre à cette séance et jamais
+// enregistré, reçoit ce que la séance y écrirait (superset, exercice ajouté) sans toucher au programme actif
+let freeSessProg = null;
 function sessProg() {
+  if (activeSession?.programme === FREE) {
+    if (freeSessProg?.startedAt !== activeSession.startedAt) freeSessProg = { startedAt: activeSession.startedAt, exercises: {}, timers: {}, cooldowns: {} };
+    return freeSessProg;
+  }
   return (activeSession && data.programmes[activeSession.programme]) || prog();
 }

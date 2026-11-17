@@ -277,7 +277,7 @@ function heroParts(keys, next, liveHere) {
     const passed = passedOverNote(keys, next);
     if (passed) more += `<p class="hero__why hero__why--passed">${esc(passed)}</p>`;
     btn = st.ready
-      ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${meta.label}">${icon('play', 18)}Démarrer</button>`
+      ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${esc(sessionTitle(next))}">${icon('play', 18)}Démarrer</button>`
       : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
   }
   const desc = meta.desc || coachSessionDesc(data.activeProgramme, next);
@@ -303,7 +303,7 @@ function heroHtml(keys, next, liveHere) {
       <div class="hero__top">
         <div class="hero__text">
           <p class="hero__eyebrow">${h.eyebrow}</p>
-          <h2 class="hero__name">${h.meta.label}</h2>
+          <h2 class="hero__name">${esc(sessionTitle(next))}</h2>
           ${h.spot === 'top' ? h.btn : ''}
           ${h.desc}
           ${h.facts}
@@ -350,11 +350,27 @@ function otherSessionHtml(cat) {
   const desc = meta.desc || coachSessionDesc(data.activeProgramme, cat);
   return `
       <button class="home-cell mgc" data-action="session-actions" data-cat="${esc(cat)}">
-        <span class="home-cell__text mgc__text"><span class="home-cell__name">${meta.label}</span>${desc ? `<span class="home-cell__desc">${desc}</span>` : ''}<span class="home-cell__sub num">${facts}</span>
+        <span class="home-cell__text mgc__text"><span class="home-cell__name">${esc(sessionTitle(cat))}</span>${desc ? `<span class="home-cell__desc">${desc}</span>` : ''}<span class="home-cell__sub num">${facts}</span>
           <span class="home-cell__right" data-status-cat="${esc(cat)}">${cellStatusHtml(cat)}</span></span>
         ${sessionThumbHtml(cat, 'home-cell__img')}
         ${icon('chevron.right', 14)}
       </button>`;
+}
+
+// « Séance libre » (regard neuf du 16/11 : rien pour s'entraîner hors programme, en direct) : une ligne sous les séances,
+// qui démarre une séance vide où l'on ajoute ses exercices (séance en cours habituelle, programme FREE : rien ne change
+// dans le programme, l'historique et les progrès la comptent). En cours : elle se reprend d'ici
+function freeSessionRowHtml() {
+  const live = activeSession?.programme === FREE;
+  return `
+      <div class="home-card home-free">
+        <button class="home-cell" data-action="${live ? 'resume-session' : 'start-free-session'}">
+          <span class="home-cell__text"><span class="home-cell__name">Séance libre</span>
+            <span class="home-cell__sub">${live ? 'En cours' : 'Hors programme : tu ajoutes tes exercices au fur et à mesure'}</span></span>
+          ${live ? '<span class="home-cell__status home-cell__status--live">Reprendre</span>' : ''}
+          ${icon('chevron.right', 14)}
+        </button>
+      </div>`;
 }
 
 // Libellé suivi du chevron : le dernier mot et le chevron ne se séparent jamais (chevron seul sur sa ligne en AX33, panel t6)
@@ -386,8 +402,11 @@ function renderDashboard() {
 
   const week = keys.length ? weekCard(weekStats()) : '';
   const othersList = others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Autres séances</h2><div class="home-card">${others}</div></section>` : '';
-  // Toutes les séances d'abord (la prochaine, puis les autres), puis les cartes (récap, compte, coach), Nutrition et la semaine
-  const cards = hero ? `${recapHomeCard()}${accountHomeCard()}${coachHomeCard()}` : `${accountHomeCard()}${recapHomeCard()}`;
+  // Toutes les séances d'abord (la prochaine, les autres, la séance libre), puis Nutrition, les cartes (récap, compte,
+  // sauvegarde, coach) et la semaine. Nutrition (seulement avec un plan, donc choisie) passe devant les cartes : elle
+  // sert chaque jour, elles de temps en temps ; jamais devant les séances (l'accueil reste celui de l'entraînement)
+  const saveCard = accountHomeCard() || backupHomeCard();   // une seule carte de sauvegarde à la fois
+  const cards = hero ? `${recapHomeCard()}${saveCard}${coachHomeCard()}` : `${saveCard}${recapHomeCard()}`;
 
   return `
     <div class="view dashboard">
@@ -396,8 +415,9 @@ function renderDashboard() {
         ${accessBannerHtml()}
         ${hero || emptyCustom}
         ${othersList}
-        ${cards}
+        ${freeSessionRowHtml()}
         ${nutritionHomeCard()}
+        ${cards}
         ${week}
       </div>
     </div>`;
@@ -406,7 +426,7 @@ function renderDashboard() {
 // Feuille d'actions d'une séance de l'accueil
 async function sessionActions(cat) {
   const st = catStatus(cat);
-  const choice = await dialog({ type: 'sheet', title: rawLabel(cat),
+  const choice = await dialog({ type: 'sheet', title: sessionTitle(cat),
     ...(st.by ? { message: `Muscles encore en récupération. ${recoveryReason(st.by)}` } : {}), actions: [
     { label: 'Démarrer', value: 'start', style: 'preferred' },
     ...(!st.ready ? [{ label: 'Passer le délai de récupération', value: 'skip' }] : []),
@@ -461,12 +481,13 @@ function startTicker() {
   ticker = setInterval(tick, 1000);
 }
 
-// Démarrer une séance : refusée si elle est vide ; si une autre séance est en cours,
-// on propose de la reprendre ou de l'abandonner
+// Démarrer une séance : refusée si elle est vide (sauf la séance libre, vide par nature) ; si une autre séance est
+// en cours, on propose de la reprendre ou de l'abandonner. cat FREE : séance libre en direct
 async function startSessionFlow(cat) {
   // Mode lecture seule (verrou allumé, plus le droit d'écrire) : l'abonnement est proposé, rien n'est touché
   if (!(await accessGate())) return;
-  if (!(prog().exercises[cat] || []).length) {
+  const free = cat === FREE;
+  if (!free && !(prog().exercises[cat] || []).length) {
     await dialog({ title: 'Aucun exercice', message: 'Ajoute des exercices à cette séance avant de la démarrer.', actions: [{ label: 'OK', style: 'preferred' }] });
     return;
   }
@@ -475,7 +496,7 @@ async function startSessionFlow(cat) {
       message: `${rawLabel(activeSession.category, activeSession.programme)} a commencé il y a ${fmtDuration(Date.now() - activeSession.startedAt)}.`,
       actions: [
         { label: 'Reprendre la séance en cours', value: 'resume', style: 'preferred' },
-        { label: `Abandonner et démarrer ${rawLabel(cat)}`, value: 'replace', style: 'destructive' },
+        { label: `Abandonner et démarrer ${free ? 'une séance libre' : rawLabel(cat)}`, value: 'replace', style: 'destructive' },
         { label: 'Annuler', style: 'cancel' },
       ] });
     if (choice === 'resume') { navigate('session'); return; }
@@ -485,6 +506,7 @@ async function startSessionFlow(cat) {
   playMelody('tick');
   haptic();
   startSession(cat);
+  if (free) openAddExSheet();   // séance vide : on choisit tout de suite son premier exercice
 }
 
 // ── Actions ─────────────────────────────────────────────────
@@ -494,5 +516,8 @@ registerActions({
   },
   'start-session': async (e, el) => {
     await startSessionFlow(el.dataset.cat);
+  },
+  'start-free-session': async () => {
+    await startSessionFlow(FREE);
   },
 });

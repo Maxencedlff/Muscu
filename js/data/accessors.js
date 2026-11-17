@@ -101,6 +101,26 @@ function rawLabel(cat, progId) {
   return PROGRAMMES[progId]?.sessions[cat]?.label || cat;
 }
 
+// Nom en clair d'un libellé anglais de séance (« Push » → « Pousser »), '' sinon. Tiré des programmes intégrés et
+// de SESSION_PLAIN (js/data/programmes.js) : les copies de ces programmes (Mes programmes, coach) portent le même
+// libellé et sont traduites aussi ; un nom déjà en français (« Jambes » du Bro Split) n'a pas de traduction.
+let sessionPlainByLabel = null;
+function sessionPlainName(label) {
+  if (!sessionPlainByLabel) {
+    sessionPlainByLabel = new Map();
+    Object.values(PROGRAMMES).forEach(p => Object.entries(p.sessions).forEach(([cat, s]) => {
+      if (SESSION_PLAIN[cat] && SESSION_PLAIN[cat] !== s.label) sessionPlainByLabel.set(s.label, SESSION_PLAIN[cat]);
+    }));
+  }
+  return sessionPlainByLabel.get(String(label ?? '').trim()) || '';
+}
+// Nom d'une séance là où la place le permet (titres, accueil, programme) : « Pousser (Push) ». Texte brut, à échapper.
+// Les pastilles, la mini-barre et les petits espaces gardent le nom court (rawLabel, sessionMeta().label).
+function sessionTitle(cat, progId) {
+  const raw = rawLabel(cat, progId), plain = sessionPlainName(raw);
+  return plain ? `${plain} (${raw})` : raw;
+}
+
 function firstSession() {
   return sessionKeys()[0] || '';
 }

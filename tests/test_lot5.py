@@ -481,7 +481,7 @@ def t_programme(bench, eng, dev, theme):
                 f'{t} cartes : vignette du groupe principal {[c["src"] for c in cards]}')
         R.check(all(c['hidden'] for c in cards) and all(c['apart'] for c in cards), f'{t} cartes : vignette décorative, à côté du texte {cards}')
         R.check([c['src'] for c in cards][2:] == ['img/muscles/quads.webp'], f'{t} carte Legs : vignette des quadriceps, cités en premier')
-        R.check(cards and cards[0]['name'] == 'Push' and cards[0]['muscles'] == 'Pectoraux · Épaules · Triceps', f'{t} carte Push : nom et muscles {cards[:1]}')
+        R.check(cards and cards[0]['name'] == 'Pousser (Push)' and cards[0]['muscles'] == 'Pectoraux · Épaules · Triceps', f'{t} carte Push : nom et muscles {cards[:1]}')
         R.check(all(c['label'].startswith(c['name'] + ', ') and 'exercices' in c['label'] and 'séries' in c['label'] and '≈' not in c['label'] for c in cards),
                 f'{t} cartes : intitulé VoiceOver complet {[c["label"] for c in cards]}')
         R.check(page.locator('.plist [data-action="go-my-programmes"] .plist__icon').count() == 1

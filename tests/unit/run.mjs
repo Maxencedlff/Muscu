@@ -1864,6 +1864,8 @@ test('Native.sound.diagnostics : null hors app ou build sans la méthode, état 
 // ── Séance libre (tests dans free-session.mjs) ─────────────
 
 (await import('./free-session.mjs')).default({ test, app, run, reset, assert });
+// ── Regard neuf du 16/11, mots et accès : noms en clair, export CSV, carte de sauvegarde (tests dans mots-yn2.mjs) ──
+(await import('./mots-yn2.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Extension triceps poulie haute et basse (tests dans triceps-poulies.mjs) ──
 
