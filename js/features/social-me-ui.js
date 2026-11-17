@@ -218,6 +218,7 @@ function renderSocialMe() {
             <span class="athlete__text"><h2 class="athlete__name">${esc(name)}</h2>${since ? `<span class="athlete__sub">Membre depuis ${esc(fmtDate(since, 'month'))}</span>` : ''}</span>
             <button class="social-pill athlete__edit" data-action="social-edit-profile" aria-label="Modifier mon pseudo et mon avatar">Modifier</button>
           </div>
+          ${cardBadgeHtml(account.user?.id, 'card-badge--me')}
           <div class="me-stats">
             ${stat(st.shown_sessions, 'séance visible', 'séances visibles', 'social-me-sessions')}
             ${stat(st.followers.length, 'te suit', 'te suivent', 'social-people', 'data-list="followers"')}
@@ -246,6 +247,7 @@ function renderSocialMe() {
 
 // Ouverture : état, activité et mes séances relus, puis activité vue (la pastille s'éteint)
 async function socialMeEnter() {
+  if (coachRole().isCoach) coachBadgeLoad(account.user?.id);
   meActivityAll = false;
   meSessionsAll = false;
   socialRefresh({ minAge: 5000 });

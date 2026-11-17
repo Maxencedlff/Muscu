@@ -45,7 +45,11 @@ listé dans removed, ses codes de ce coach répondent invalid_code jusqu'à coac
 students[].sent : programmes que je lui ai envoyés, { id, sent_at, seen }.
 Rôle coach (tarifs du 30/10, docs/PAYANT_V1.md) : coach_request_state, coach_request_submit (invalid_name,
 invalid_card, invalid_diploma, already_coach, rate_limited 5 par 24 h), coach_tier_state, coach_my_code, fonction
-Edge coach-request-alert (__sb.co.alerts) ; codes de 8 ou 12 caractères ; un élève de trop : tier_full (verrou
+Edge coach-request-alert (__sb.co.alerts) ; codes de 8 ou 12 caractères ;
+badge carte pro (20261117090000_badge_carte_pro.sql) : coach_card_state, coach_card_declare (not_coach, invalid_card,
+card_suspended, card_removed, rate_limited 5 par 24 h), coach_card_withdraw, coach_card_badge (jamais le numéro, blocage),
+report_coach_card (ligne de __sb.so.reports, alerte dès le 1er, badge suspendu à partir de 2 comptes différents) ; état dans __sb.co.cards,
+__sb.setCard(id, numéro, état) en pose un, __sb.fail.card = 'missing' (PGRST202 : serveur sans le badge) ; un élève de trop : tier_full (verrou
 allumé : limite de la formule coach, 0 sans formule ; éteint : 50, ou plus selon le palier).
 État dans __sb.co ; __sb.makeCoach(id) valide le rôle (coach_at, code permanent, demande « approved »),
 __sb.rejectCoach(id, motif) refuse la demande, __sb.setTier(id, produit) pose la formule coach
@@ -593,7 +597,18 @@ FAKE_ACCOUNT = r"""
   // ── Coach (docs/COACH_V1.md) ──
   // État dans __sb.co : coachs (coach_at), codes, liens élève → coach (coach_seen_at), programmes envoyés, commentaires
   const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [], shares: [], weights: {}, measures: {}, phases: [], phaseN: 0, msgs: [], reads: {}, chatReports: [],
-    requests: {}, reqTries: {}, tierProduct: {}, permCode: {}, alerts: 0 };
+    requests: {}, reqTries: {}, tierProduct: {}, permCode: {}, alerts: 0, cards: {}, cardTries: {} };
+  // Badge carte pro (20261117090000_badge_carte_pro.sql) : { card_number, status, declared_at, suspended_at, removed_reason }
+  const CARD_RE = /^[0-9]{2}[0-9AB][0-9]{2}ED[0-9]{4,5}$/;
+  const cardJson = id => { const c = co.cards[id];
+    return c ? { status: c.status, card_number: c.card_number, declared_at: c.declared_at, suspended_at: c.suspended_at || null, removed_reason: c.removed_reason || null }
+      : { status: 'none', card_number: null, declared_at: null, suspended_at: null, removed_reason: null }; };
+  const cardShown = (viewer, coachId) => !!co.coachAt[coachId] && ['declared', 'verified'].includes(co.cards[coachId]?.status)
+    && (viewer === coachId || !sb.so.blocks.some(k => (k.blocker === viewer && k.blocked === coachId) || (k.blocker === coachId && k.blocked === viewer)));
+  // __sb.setCard(id, numéro, état) : déclaration posée directement (état 'declared' par défaut)
+  sb.setCard = (id, card_number, status = 'declared', extra = {}) => {
+    co.cards[id] = { card_number, status, declared_at: new Date(now()).toISOString(), ...(status === 'suspended' ? { suspended_at: new Date(now()).toISOString() } : {}), ...extra };
+  };
   // Partage : consentement { student, coach, kind, granted_at } du coach actuel ; pesées par élève (du plus récent)
   const shareOf = (student, kind = 'weight') => co.shares.find(x => x.student === student && x.kind === kind && x.coach === linkOf(student)?.coach);
   const dropShares = student => { co.shares = co.shares.filter(x => x.student !== student); delete co.weights[student]; delete co.measures[student]; };
@@ -1095,6 +1110,44 @@ FAKE_ACCOUNT = r"""
         contact: k === 'coachmax' && n >= 100 };
     },
     coach_my_code: me => (co.coachAt[me] ? { code: co.permCode[me], created_at: new Date(co.coachAt[me]).toISOString() } : pgErr('not_coach')),
+    coach_card_state: me => cardJson(me),
+    coach_card_declare: (me, { card_number }) => {
+      if (!co.coachAt[me]) return pgErr('not_coach');
+      const num = String(card_number || '').toUpperCase().replace(/[\s.\-/]/g, '');
+      if (!CARD_RE.test(num)) return pgErr('invalid_card');
+      const cur = co.cards[me];
+      if (cur?.status === 'removed') return pgErr('card_removed');
+      if (cur?.status === 'suspended') return pgErr('card_suspended');
+      if (cur?.card_number === num) return cardJson(me);
+      const tries = (co.cardTries[me] || []).filter(t => t > now() - 86400_000);
+      if (tries.length >= 5) return pgErr('rate_limited');
+      co.cardTries[me] = [...tries, now()];
+      co.cards[me] = { card_number: num, status: 'declared', declared_at: new Date(now()).toISOString() };
+      return cardJson(me);
+    },
+    coach_card_withdraw: me => {
+      const st = co.cards[me]?.status;
+      if (st === 'removed') return pgErr('card_removed');
+      if (st === 'suspended') return pgErr('card_suspended');
+      delete co.cards[me];
+      return cardJson(me);
+    },
+    coach_card_badge: (me, { coach: id }) => (cardShown(me, id) ? { shown: true, declared_at: co.cards[id].declared_at } : { shown: false, declared_at: null }),
+    report_coach_card: (me, { coach: id, details = null }) => {
+      const c = co.cards[id];
+      const blocked = sb.so.blocks.some(k => (k.blocker === me && k.blocked === id) || (k.blocker === id && k.blocked === me));
+      if (!id || id === me || !c || !['declared', 'verified', 'suspended'].includes(c.status) || !co.coachAt[id] || blocked) return pgErr('not_found');
+      if (sb.so.reports.some(r => r.by === me && r.target_user === id && r.target_ref === 'coach_card' && r.at >= Date.parse(c.declared_at))) return null;
+      if (sb.so.reports.filter(r => r.by === me).length >= 10) return pgErr('rate_limited');
+      const rid = sb.so.reports.length + 1;
+      sb.so.reports.push({ id: rid, by: me, target_user: id, kind: 'profile', target_ref: 'coach_card', reason: 'autre',
+        details: ('Badge « Carte pro déclarée » signalé' + (details ? ' : ' + details : '')).slice(0, 500), notified: false, at: now() });
+      // Suspendu à partir de 2 comptes différents depuis la déclaration ou la dernière revue
+      const since = Math.max(Date.parse(c.declared_at), c.reviewed_at ? Date.parse(c.reviewed_at) : 0);
+      const n = new Set(sb.so.reports.filter(r => r.target_user === id && r.target_ref === 'coach_card' && r.at >= since).map(r => r.by)).size;
+      if (c.status !== 'suspended' && n >= 2) Object.assign(c, { status: 'suspended', suspended_at: new Date(now()).toISOString() });
+      return rid;
+    },
     coach_revoke_invite: (me, { code }) => { co.invites = co.invites.filter(i => !(i.coach === me && i.code === code)); return null; },
     coach_preview: (me, { code }) => { const r = joinCheck(me, code); return typeof r === 'string' ? pgErr(r) : cperson(r.coach, null); },
     coach_join: (me, { code }) => {
@@ -1166,6 +1219,8 @@ FAKE_ACCOUNT = r"""
     if (planFn && sb.fail.plan === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     if (photoRpc[fn] && sb.fail.photos === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     if (photoRpc[fn] && sb.fail.photos === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    const cardFn = fn.startsWith('coach_card_') || fn === 'report_coach_card';
+    if (cardFn && sb.fail.card === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     const me = sb.meId();
     if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
     const out = (photoRpc[fn] || coachRpc[fn])(me, args);

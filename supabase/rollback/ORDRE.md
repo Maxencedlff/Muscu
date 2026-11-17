@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −16 | `20261117090000_badge_carte_pro_down.sql` (efface les déclarations ; les signalements restent dans `public.reports`) | rien | oui (vérifié) |
 | −15 | `20261117050000_reaction_jaime_down.sql` (chaque ❤️ redevient un 👏) | rien | oui (vérifié) |
 | −14 | `20261117040000_promo_coach_down.sql` (supprimer d'abord la fonction Edge `coach-promo-offer` ; demandes d'offre et comptes déjà coachs mis de côté dans `private.promo_coach_archive_*`) | rien | oui (vérifié) |
 | −13 | `20261117030000_grille_coach_down.sql` (grille coach du 17/11 : retour aux limites 10, 20, 30, illimité ; remettre aussi les prix dans App Store Connect) | rien | non lancé seul dans `rollback_nuit_check.sh` étape 5 : les tests des tarifs et des élèves offerts attendent la grille du 17/11 ; vérifié marche par marche (étapes 2, 3, 6) et dans `prod_order_test.sh` |

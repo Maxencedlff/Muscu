@@ -11,6 +11,10 @@
 //    (au plus haut palier, 100 élèves : « Plus de 100 élèves : écris-nous à contact@mdlf.app », sans achat)
 //    l'onglet Coach de l'abonnement avec le palier suivant mis en avant. Élèves au-delà de la formule
 //    (descente de palier, abonnement coach arrêté) : leur accès n'est plus offert, le bandeau le dit.
+//  - Badge « Carte pro déclarée » (docs/COACH_V1.md, « Badge carte pro ») : section « Carte professionnelle »
+//    de Réglages › Coach (déclarer, changer de numéro, retirer ; état suspendu ou retiré), pastille
+//    (cardBadgeHtml) sur le profil du coach, Mon coach, l'aperçu « Rejoindre » et Mon profil, et
+//    « Signaler ce badge » (cardBadgeReportCell). Le libellé ne dit jamais « vérifiée » ni « certifié ».
 //  Tout texte venu du serveur passe par esc(). Rien au pointerdown : actions au clic seulement.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -78,6 +82,7 @@ function renderCoachProGroup() {
           </div>` : `<div class="cell"><span class="cell__sub">${coachPro.error ? esc(coachProErrorText(coachPro.error)) : 'Chargement…'}</span></div>`}
         </div>
         <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre un coach.${paywallOn() ? ' Tes élèves n\'ont rien à payer : ta formule coach comprend leur accès, dans la limite de son nombre d\'élèves.' : ''}</div>
+        ${coachCardGroupHtml()}
         <div class="group-title">Abonnement coach</div>
         <div class="group">
           <button class="cell cell--nav" data-action="pay-open" data-reason="offer" data-tab="coach">
@@ -87,6 +92,102 @@ function renderCoachProGroup() {
           </button>
         </div>`;
 }
+
+// ── Badge « Carte pro déclarée » ────────────────────────────
+
+const CARD_BADGE_VIEWS = ['coach', 'coach-join', 'coach-mine', 'social-profile', 'social-me'];
+const CARD_BADGE_PRIVATE = 'Ton numéro n\'est visible que par toi et l\'administrateur de MDLF Training. Déclarer la carte d\'une autre personne entraîne la suppression du compte.';
+
+// Pastille montrée à tous (lue par coach_card_badge) : « déclarée », jamais « vérifiée »
+function cardBadgeHtml(uid, cls = '') {
+  if (!coachBadgeShown(uid)) return '';
+  return `<span class="card-badge${cls ? ` ${cls}` : ''}">${icon('doc.text', 13)}<span>${COACH_BADGE_LABEL}</span></span>`;
+}
+// « Signaler ce badge » : sur le badge d'un autre, seulement quand il est montré
+function cardBadgeReportCell(uid) {
+  if (!uid || uid === account.user?.id || !coachBadgeShown(uid)) return '';
+  return `<button class="cell cell--destructive" data-action="coach-card-report" data-uid="${esc(uid)}">Signaler ce badge</button>`;
+}
+
+// Réglages › Coach (coach validé) : ma carte, son état et ce que je peux faire
+function coachCardGroupHtml() {
+  const c = coachPro.card;
+  if (!c) return '';   // pas encore lu, hors ligne, ou serveur sans le badge
+  const title = '<div class="group-title">Carte professionnelle</div>';
+  if (c.status === 'none') {
+    return `${title}
+        <div class="group">
+          <button class="cell cell--action" data-action="coach-card-declare"><span class="cell__title">Déclarer ma carte pro</span></button>
+        </div>
+        <div class="group-foot">Le badge « ${COACH_BADGE_LABEL} » s'affiche alors sur ton profil et quand un élève te rejoint. ${CARD_BADGE_PRIVATE}</div>`;
+  }
+  const state = { declared: 'Affiché', suspended: 'Suspendu', removed: 'Retiré' }[c.status];
+  const rows = `
+          <div class="cell"><span class="cell__body"><span class="cell__title">Numéro</span></span><span class="cell__value num">${esc(c.card_number || '')}</span></div>
+          ${c.declared_at ? `<div class="cell"><span class="cell__body"><span class="cell__title">Déclarée le</span></span><span class="cell__value">${esc(fmtDate(c.declared_at))}</span></div>` : ''}
+          <div class="cell"><span class="cell__body"><span class="cell__title">Badge</span></span><span class="cell__value">${state}</span></div>`;
+  if (c.status === 'suspended') {
+    return `${title}<div class="group">${rows}</div>
+        <div class="group-foot">Ton badge a été signalé par plusieurs personnes : il est masqué le temps que l'équipe vérifie ta carte sur le site du ministère des Sports. Il revient si tout est en ordre.</div>`;
+  }
+  if (c.status === 'removed') {
+    return `${title}<div class="group">${rows}</div>
+        <div class="group-foot">${c.removed_reason ? `Motif : ${esc(c.removed_reason)} ` : ''}Pour contester, écris à contact@mdlf.app.</div>`;
+  }
+  return `${title}
+        <div class="group">${rows}
+          <button class="cell cell--action" data-action="coach-card-declare"><span class="cell__title">Changer de numéro</span></button>
+        </div>
+        <div class="group">
+          <button class="cell cell--destructive" data-action="coach-card-withdraw">Retirer le badge</button>
+        </div>
+        <div class="group-foot">Le badge dit que tu as déclaré ta carte : il ne dit pas qu'elle a été vérifiée. ${CARD_BADGE_PRIVATE}</div>`;
+}
+
+// Saisie du numéro : erreur dans la feuille (saisie gardée), « Envoi… » pendant l'appel
+function coachCardSheet() {
+  const c = coachPro.card;
+  // Prérempli : numéro déjà déclaré, sinon celui de la demande du rôle coach s'il a la bonne forme
+  const pre = c?.card_number || normalizeBadgeCard(coachPro.request?.card_number) || '';
+  return sheet({
+    title: 'Carte pro', confirm: 'Déclarer', focus: '#coachCardNum',
+    body: `<div class="coach-sheet">
+        <label class="coach-sheet__label" for="coachCardNum">Numéro de ta carte d'éducateur sportif</label>
+        <input class="coach-code-input" id="coachCardNum" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off"
+               spellcheck="false" enterkeyhint="done" maxlength="20" placeholder="Ex : 04912ED0123" value="${esc(pre)}" aria-describedby="coachCardHelp">
+        <p class="coach-sheet__hint" id="coachCardHelp" aria-live="polite">Il est écrit sur ta carte professionnelle. ${CARD_BADGE_PRIVATE}</p>
+      </div>`,
+    onConfirm: async panel => {
+      const input = panel.querySelector('#coachCardNum'), help = panel.querySelector('#coachCardHelp');
+      const btn = panel.querySelector('.sheet__btn--confirm');
+      btn.disabled = true; btn.textContent = 'Envoi…';
+      const r = await coachCardDeclare(input.value);
+      btn.disabled = false; btn.textContent = 'Déclarer';
+      if (r.ok) return true;
+      help.textContent = coachProErrorText(r.kind);
+      help.classList.add('coach-sheet__hint--bad');
+      input.setAttribute('aria-invalid', 'true');
+      haptic('medium');
+      return false;
+    },
+  });
+}
+
+async function coachCardReportFlow(uid) {
+  const p = (myCoach()?.user_id === uid ? myCoach() : null) || (coach.preview?.person?.user_id === uid ? coach.preview.person : null)
+    || (typeof socialPerson === 'function' ? socialPerson(uid) : null);
+  const name = personName(p || {});
+  const ok = await confirmSheet('Signaler ce badge ?',
+    `Si tu penses que cette carte n'est pas celle de ${name} ou n'est plus valable, l'équipe la vérifie sur le site du ministère des Sports. ${name} ne saura pas que c'est toi.`,
+    'Signaler');
+  if (!ok) return;
+  const r = await coachCardReport(uid);
+  if (!r.ok) { showToast(coachProErrorText(r.kind), { error: true }); return; }
+  haptic('success');
+  showToast(r.already ? 'Tu as déjà signalé ce badge' : 'Signalement envoyé');
+}
+
+onCoachBadgeChange(() => { if (CARD_BADGE_VIEWS.includes(currentView()) && !coachTyping()) render(); });
 
 // ── Écran « Devenir coach » ─────────────────────────────────
 
@@ -164,6 +265,20 @@ SCREENS.set('coach-request', {
 // ── Actions ─────────────────────────────────────────────────
 
 registerActions({
+  'coach-card-declare': async () => {
+    if (!(await coachCardSheet())) return;
+    haptic('success');
+    render();
+    showToast('Carte déclarée');
+  },
+  'coach-card-withdraw': async () => {
+    if (!(await confirmSheet('Retirer le badge ?', `Le badge « ${COACH_BADGE_LABEL} » disparaît de ton profil. Tu pourras déclarer ta carte de nouveau.`, 'Retirer'))) return;
+    const r = await coachCardWithdraw();
+    if (!r.ok) { showToast(coachProErrorText(r.kind), { error: true }); return; }
+    render();
+    showToast('Badge retiré');
+  },
+  'coach-card-report': async (e, el) => { await coachCardReportFlow(el.dataset.uid); },
   'coach-request-edit': () => { coachRequestEditing = true; render(); },
   'coach-request-send': async (e, el) => {
     if (coachRequestBusy) return;
