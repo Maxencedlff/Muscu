@@ -85,7 +85,7 @@ const EXERCISE_CATALOGUE = [
   ['Tirage vertical prise serrée',     'lats',                   'biceps', 'salle', 'close grip lat pulldown|close grip pulldown|tirage vertical serré'],
   ['Tirage horizontal câble',          'lats traps',             'rear_delts biceps', 'salle', 'seated row|rowing assis|tirage assis|poulie basse|tirage horizontal poulie|tirage horizontal|seated cable row|cable row|rowing poulie basse|tirage poulie basse'],
   ['Rowing barre',                     'lats traps',             'rear_delts biceps lower_back', 'salle', 'barbell row|rowing buste penché barre|bent over row|bent over barbell row|rowing barre buste penché|rowing barre penché|pendlay row'],
-  ['Rowing haltère unilatéral',        'lats',                   'traps rear_delts biceps', 'halteres', 'dumbbell row|rowing un bras|one arm dumbbell row|single arm dumbbell row|rowing unilatéral|rowing 1 bras'],
+  ['Rowing haltère unilatéral',        'lats',                   'traps rear_delts biceps', 'halteres', 'dumbbell row|rowing un bras|one arm dumbbell row|single arm dumbbell row|rowing unilatéral|rowing 1 bras|rowing bûcheron|rowing bûcheron un bras|rowing bûcheron 1 bras'],
   ['Rowing barre T',                     'lats traps',             'rear_delts biceps', 'salle', 'rowing t-bar|t bar|t bar row'],
   ['Pull-over poulie',                 'lats',                   'chest triceps', 'salle', 'pull over|cable pullover'],
   ['Haussements d\'épaules haltères',                  'traps',                  'forearms', 'halteres', 'shrugs haltères|shrug|haussements d\'épaules|dumbbell shrug'],

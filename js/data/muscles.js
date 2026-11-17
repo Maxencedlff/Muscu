@@ -197,7 +197,7 @@ const MUSCLE_RULES = [
   [/menton|upright/,                                                                      'side_delts traps', 'front_delts biceps brachialis'],
   [/shrug|haussement|trapeze/,                                                            'traps', 'forearms'],
   // Obliques avant les abdominaux : rotations et flexions latérales du buste, gainage sur le côté, anti-rotation
-  [/oblique|russian|rotations? russes?|twist|rotations? (du )?(buste|tronc)|torso rotation|trunk rotation|bucheron|wood ?chop|pallof|anti ?rotation|flexions? laterales?|side bend|inclinaisons? laterales?|gainage lateral|planche laterale|side (plank|bridge)|crunch (croise|lateral|velo|bicyclette)|bicycle crunch|suitcase|valise|windmill|moulin/, 'obliques', 'abs'],
+  [/oblique|russian|rotations? russes?|twist|rotations? (du )?(buste|tronc)|torso rotation|trunk rotation|(?<!rowing )bucheron|wood ?chop|pallof|anti ?rotation|flexions? laterales?|side bend|inclinaisons? laterales?|gainage lateral|planche laterale|side (plank|bridge)|crunch (croise|lateral|velo|bicyclette)|bicycle crunch|suitcase|valise|windmill|moulin/, 'obliques', 'abs'],
   [/crunch|abdo|gainage|planche|plank|\breleve|leg raise|roue|ab wheel|sit ?up|mountain|grimpeur|hollow(?!ing)|get ?up|turc|dead bug|\bl sit|toes to bar/, 'abs', ''],
   [/militaire|military|epaule|arnold|overhead|shoulder press|\bohp\b|push press|\bz press|viking|landmine|developpe nuque|halo/, 'front_delts', 'side_delts triceps traps'],
   [/ecarte|pec deck|\bpecs?\b|butterfly|\bfly\b|vis a vis|crossover|croise/,               'chest', 'front_delts'],

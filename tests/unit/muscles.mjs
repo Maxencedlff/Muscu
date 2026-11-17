@@ -65,7 +65,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     const cases = {
       'Close grip bench': 'triceps', 'Military press': 'front_delts', 'Push press': 'front_delts',
       'Z press': 'front_delts', 'Landmine press': 'front_delts', 'JM press': 'triceps', 'Tate press': 'triceps',
-      'Pallof press': 'obliques', 'Hammer strength chest press': 'chest', 'Rowing machine hammer': 'lats',
+      'Pallof press': 'obliques', 'Rowing bûcheron un bras': 'lats', 'Rowing bûcheron haltère': 'lats', 'Bûcheron': 'obliques', 'Hammer strength chest press': 'chest', 'Rowing machine hammer': 'lats',
       'Pec deck inversé': 'rear_delts', 'Butterfly inversé': 'rear_delts', 'Glute ham raise': 'hamstrings',
       'Développé incliné smith': 'front_delts', 'DC': 'chest', 'DC incliné smith': 'front_delts', 'DM assis': 'front_delts',
       'SDT sumo': 'glutes', 'Dév couché haltères': 'chest', 'Hack': 'quads', 'Bulgare': 'quads',
