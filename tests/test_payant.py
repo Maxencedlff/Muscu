@@ -693,7 +693,7 @@ def t_verrou_eteint(bench, eng, dev, theme):
         page.evaluate("routeTo('settings')")
         page.wait_for_selector('[data-action="access-open-settings"]')
         R.check(page.inner_text('[data-action="access-open-settings"] .cell__value').strip() == 'Accès complet',
-                f'{t} verrou éteint : Réglages le disent (« Accès complet », jamais « Gratuit » : il n'y a pas de version gratuite)')
+                f'{t} verrou éteint : Réglages le disent (« Accès complet », jamais « Gratuit » : pas de version gratuite)')
         # Sur 320 pt : le titre « Abonnement » garde sa largeur, 8 px au moins avant la valeur (panel reglages-v2)
         vp = page.viewport_size
         page.set_viewport_size({'width': 320, 'height': vp['height']})
