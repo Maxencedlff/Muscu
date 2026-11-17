@@ -46,10 +46,12 @@ def t_seance(bench, eng, dev, theme):
         R.check(goal.count() == 1 and goal.inner_text().strip() == f'Objectif {target}', f'{t} objectif en séance = accueil ({goal.inner_text() if goal.count() else None!r} / {target!r})')
         fs = page.evaluate("parseFloat(getComputedStyle(document.querySelector('.ex-goal')).fontSize)")
         R.check(fs >= 12, f'{t} objectif : police {fs}px')
-        # Série qui le bat : « Objectif atteint ». La case est déjà à l'objectif (panel « yeux neufs » du 16/11) : un ✓ suffit
+        # Série qui le bat : « Objectif atteint ». La case reprend la dernière fois (règle du 17/11) : on tape l'objectif
         r = page.locator('[data-action="set-reps"][data-ei="0"][data-si="0"]')
         goal_r = page.locator('.ex-card[data-ei="0"] .ex-goal').inner_text().strip().split('×')[-1].strip()
-        R.check(r.input_value() == goal_r, f'{t} 1re série pré-remplie à l\'objectif ({r.input_value()} / {goal_r})')
+        prev_r = page.evaluate('activeSession.exercises[0].sets[0].prev.reps')
+        R.check(r.input_value() == prev_r, f'{t} 1re série pré-remplie avec la dernière fois ({r.input_value()} / {prev_r})')
+        r.fill(goal_r); blur(page)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
         R.check(page.locator('.ex-card[data-ei="0"] .ex-goal--done').inner_text().strip() == 'Objectif atteint', f'{t} objectif atteint')
         # 5. Volume en clair

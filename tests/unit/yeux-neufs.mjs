@@ -47,29 +47,31 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     }
   }));
 
-  test('yeux neufs 2 : cases pré-remplies avec l\'objectif du jour, « Avant » garde la dernière fois', () => withSession(() => {
+  test('yeux neufs 2 (règle du 17/11) : cases pré-remplies avec la dernière fois, sans hausse d\'office', () => withSession(() => {
     reset();
     const ex = 'activeSession.exercises[0]';
-    // Meilleure série + 1 rep : la série qui était la meilleure prend l'objectif, les autres gardent leurs reps
+    // Chaque série reprend sa dernière fois, charge et reps : aucune rep ajoutée (Maxence : « 24 × 12 » devenait « 24 × 13 »)
     seedRow('Rowing barre', [set('32', '9'), set('32', '9'), set('32', '8'), set('30', '10')]);
     run(`startSession('pull')`);
-    assert.equal(run(`exerciseGoal('pull', data.programmes.ppl.exercises.pull[0]).text`), '32 kg × 10');
-    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps)`), ['32×10', '32×9', '32×8', '30×10'], 'objectif sur la 1re série à 32 kg, le reste comme avant');
-    sameJSON(run(`${ex}.sets.map(s => s.prev.reps)`), ['9', '9', '8', '10'], '« Avant » : la dernière fois');
-    // Hausse de charge (toutes les séries en haut de fourchette) : posée d'office, au bas de la fourchette, sans puce
+    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps)`), ['32×9', '32×9', '32×8', '30×10'], 'cases = « Avant »');
+    sameJSON(run(`${ex}.sets.map(s => s.prev.weight + '×' + s.prev.reps)`), ['32×9', '32×9', '32×8', '30×10'], '« Avant » : la dernière fois');
+    seedRow('Rowing haltère', [set('24', '12'), set('24', '10'), set('24', '9')], { sets: 3, repMin: 8, repMax: 10 });
+    run(`startSession('pull')`);
+    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps)`), ['24×12', '24×10', '24×9'], 'cas de la capture : 24 × 12 reste 24 × 12');
+    // Toutes les séries en haut de fourchette : la charge n'est pas montée d'office, la puce ↑ le propose
     seedRow('Rowing barre', [set('30', '12'), set('30', '12'), set('30', '12')], { sets: 3, repMin: 8, repMax: 12 });
     run(`startSession('pull')`);
-    sameJSON(run(`exerciseGoal('pull', data.programmes.ppl.exercises.pull[0]).goal`), { w: 32.5, r: 8 });
-    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps)`), ['32.5×8', '32.5×8', '32.5×8'], 'comme « Objectif 32,5 kg × 8 »');
-    assert.equal(run(`bumpReady(${ex})`), false, 'hausse déjà posée : plus de puce');
-    assert.equal(run(`${ex}.sets[1].plannedWeight`), '32.5', 'charge prévue : la série suivante n\'est pas « modifiée »');
-    // Échauffement gardé à ses paliers
-    run(`${ex}.sets.unshift({ weight: '15', reps: '8', warmup: true, done: false }); ${ex}.bumped = false; bumpExerciseLoad(${ex})`);
-    assert.equal(run(`${ex}.sets[0].weight`), '15', 'échauffement inchangé');
-    // Jamais fait : rien à pré-remplir
+    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps)`), ['30×12', '30×12', '30×12'], 'pas de hausse de charge dans les cases');
+    assert.equal(run(`${ex}.bumped`), undefined);
+    assert.equal(run(`bumpReady(${ex})`), true, 'la puce ↑ reste pour monter soi-même');
+    // Touchée : + 2,5 kg au bas de la fourchette, échauffement gardé à ses paliers
+    run(`${ex}.sets.unshift({ weight: '15', reps: '8', warmup: true, done: false }); bumpExerciseLoad(${ex})`);
+    sameJSON(run(`${ex}.sets.map(s => s.weight + '×' + s.reps)`), ['15×8', '32.5×8', '32.5×8', '32.5×8'], 'puce touchée');
+    // Jamais fait : rien à pré-remplir (aide « Première fois »)
     seedRow('Rowing barre', null);
     run(`startSession('pull')`);
     sameJSON(run(`${ex}.sets.map(s => s.weight)`), ['', '', '', '']);
+    assert.match(run(`exFirstTimeHtml(${ex})`), /Première fois/);
   }));
 
   test('yeux neufs 3 : programme du coach, sa prescription reprise et aucune hausse décidée par l\'app', () => withSession(() => {

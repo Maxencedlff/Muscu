@@ -94,7 +94,7 @@ function prescSpoken(ex) {
 // ── Séance de l'élève ────────────────────────────────────────
 // Séries de travail à faire posées sur la prescription de d (exercice du programme) : charge prescrite,
 // reps prescrites. Reps fixes : ce nombre. Fourchette : la charge est celle de la dernière fois → les reps
-// pré-remplies (objectif du jour, goalPrefill) ramenées dans la fourchette ; une autre charge → le bas de
+// de la dernière fois (« Avant », sans rep ajoutée) ramenées dans la fourchette ; une autre charge → le bas de
 // la fourchette (même règle qu'après une hausse de charge, goalRepsAfterBump). « Avant » ne bouge pas.
 // Renvoie true si une charge est prescrite.
 function prescPrefill(ex, d) {
