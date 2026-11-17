@@ -505,4 +505,79 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     });
     run(`localStorage.removeItem('mdlf_push_ask')`);
   });
+
+  // ── Rappel à l'ouverture « Notifications désactivées » ──
+  test('push rappel : qui le voit (permission, types allumés, rôle)', () => {
+    const P6 = { reactions: false, comments: false, follows: false, coach: false, messages: false, student_sessions: false };
+    const D = o => run(`pushRemindDecision(${JSON.stringify({ role: 'student', permission: 'prompt', prefs: P6, state: {}, askState: {}, now: 1e12, firstLaunch: false, ...o })})`);
+    assert.equal(D({}), 'show', 'jamais demandé à iOS');
+    assert.equal(D({ permission: 'denied' }), 'show', 'refusé dans iOS : rappelé (Activer ouvre Réglages)');
+    assert.equal(D({ permission: 'granted' }), 'show', 'iOS d\'accord mais aucun type allumé');
+    assert.equal(D({ permission: 'granted', prefs: { ...P6, reactions: true } }), 'done', 'reçoit déjà quelque chose');
+    assert.equal(D({ permission: 'prompt', prefs: { ...P6, messages: true } }), 'show', 'réinstallation : allumé sur le compte, rien ici');
+    assert.equal(D({ permission: 'denied', prefs: { ...P6, messages: true } }), 'show', 'allumé sur le compte, coupé dans iOS');
+    assert.equal(D({ permission: 'unavailable' }), 'skip', 'build sans le module, navigateur');
+    assert.equal(D({ permission: null }), 'skip');
+    assert.equal(D({ prefs: null }), 'skip', 'réglages illisibles (hors ligne)');
+    for (const role of ['student', 'coach', 'solo']) assert.equal(D({ role }), 'show', role);
+    assert.equal(D({ role: null }), 'skip', 'ni coach, ni élève, ni social : rien n\'arriverait');
+    assert.equal(D({ role: 'solo', prefs: { follows: false, coach: false } }), 'skip', 'serveur sans aucun type utile');
+    assert.equal(D({ role: 'solo', prefs: { reactions: false, follows: false, coach: false } }), 'show', 'serveur d\'avant : les bravos suffisent');
+    // Rôle
+    assert.equal(run(`pushRemindRole({ isCoach: true, hasCoach: true, social: true })`), 'coach');
+    assert.equal(run(`pushRemindRole({ isCoach: false, hasCoach: true, social: false })`), 'student');
+    assert.equal(run(`pushRemindRole({ isCoach: false, hasCoach: false, social: true })`), 'solo');
+    assert.equal(run(`pushRemindRole({ isCoach: false, hasCoach: false, social: false })`), null);
+    // Types allumés par « Activer »
+    sameJSON(run(`pushAskWanted('solo', ${JSON.stringify(P6)})`), ['reactions', 'comments']);
+    sameJSON(run(`pushAskWanted('student', ${JSON.stringify(P6)})`), ['messages', 'coach', 'comments']);
+    sameJSON(run(`pushAskWanted('coach', ${JSON.stringify(P6)})`), ['messages', 'coach', 'student_sessions']);
+  });
+
+  test('push rappel : premier lancement, séance, 7 jours, 3 fois, demande en contexte récente', () => {
+    const P6 = { reactions: false, comments: false, follows: false, coach: false, messages: false, student_sessions: false };
+    const DAY = 86400_000, NOW = 1e12;
+    const D = o => run(`pushRemindDecision(${JSON.stringify({ role: 'coach', permission: 'prompt', prefs: P6, state: {}, askState: {}, now: NOW, firstLaunch: false, ...o })})`);
+    assert.equal(D({}), 'show', 'première ouverture après la mise à jour : tout de suite');
+    assert.equal(D({ firstLaunch: true }), 'skip', 'premier lancement d\'un nouveau venu');
+    assert.equal(D({ inSession: true }), 'skip', 'séance en cours');
+    assert.equal(D({ state: { n: 1, at: NOW - 6 * DAY } }), 'skip', '6 jours après « Plus tard »');
+    assert.equal(D({ state: { n: 1, at: NOW - 7 * DAY } }), 'show', '7 jours après');
+    assert.equal(D({ state: { n: 2, at: NOW - 30 * DAY } }), 'show', 'troisième fois');
+    assert.equal(D({ state: { n: 3, at: 1 } }), 'skip', '3 fois au plus');
+    assert.equal(D({ state: { done: true } }), 'skip', 'activé par le rappel');
+    assert.equal(D({ askState: { n: 1, at: NOW - 2 * DAY } }), 'skip', 'demande en contexte il y a 2 jours : une à la fois');
+    assert.equal(D({ askState: { n: 1, at: NOW - 8 * DAY } }), 'show');
+    assert.equal(D({ askState: { done: true } }), 'show', 'demande en contexte répondue, notifications toujours coupées');
+    // Mémoire de l'iPhone
+    run(`localStorage.removeItem('mdlf_push_remind'); pushRemindLater(5); pushRemindLater(9)`);
+    sameJSON(run(`pushRemindStored()`), { n: 2, at: 9 });
+    run(`pushRemindDone()`);
+    sameJSON(run(`pushRemindStored()`), { n: 2, at: 9, done: true });
+    run(`localStorage.setItem('mdlf_push_remind', '{pas du json')`);
+    sameJSON(run(`pushRemindStored()`), {}, 'mémoire illisible : rien');
+    // Rappel montré il y a moins de 7 jours : la demande en contexte attend
+    assert.equal(run(`pushRemindRecent(${NOW}, { n: 1, at: ${NOW - DAY} })`), true);
+    assert.equal(run(`pushRemindRecent(${NOW}, { done: true })`), false);
+    run(`localStorage.removeItem('mdlf_push_remind')`);
+  });
+
+  test('push rappel : lecture de l\'état, « Activer » d\'un élève sans coach (bravos et commentaires)', async () => {
+    const P6 = { reactions: false, comments: false, follows: false, coach: false, messages: false, student_sessions: false };
+    // iOS déjà d'accord (fin du repos) mais aucun type allumé
+    await withFakes({ permission: 'granted', prefs: P6 }, async () => {
+      run(`localStorage.removeItem('mdlf_push_remind'); localStorage.removeItem('mdlf_push_ask')`);
+      assert.equal(await run(`pushRemindCheck('solo', { now: 1e12, firstLaunch: false })`), 'show');
+      assert.equal(await run(`pushRemindCheck('solo', { now: 1e12, firstLaunch: true })`), 'skip');
+      assert.equal(await run(`pushRemindCheck(null, { now: 1e12, firstLaunch: false })`), 'skip');
+      run('__calls = []');
+      sameJSON(await run(`pushEnableFor('solo')`), { ok: true });
+      assert.ok(run('__calls').includes('push_set_prefs:{"reactions":true,"comments":true,"follows":null,"coach":null,"messages":null}'), run('__calls').join(' | '));
+      assert.equal(await run(`pushRemindCheck('solo', { now: 1e12, firstLaunch: false })`), 'done', 'reçoit désormais');
+      // Demande en contexte : attend 7 jours après le rappel
+      run(`pushRemindLater(1e12 - 86400_000)`);
+      assert.equal(await run(`pushAskCheck('student', 1e12, false)`), 'skip', 'rappel d\'hier : pas de demande en contexte');
+    });
+    run(`localStorage.removeItem('mdlf_push_remind')`);
+  });
 }

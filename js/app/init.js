@@ -154,7 +154,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // sans compte) : décidées par onboardingNeeded() une fois les données du compte arrivées (première
   // synchro, whenAccountSettled), sans bloquer le démarrage. Un compte existant retrouvé apporte ses
   // séances et son choix déjà fait (data.onboarded) : pas de questions.
-  const questions = () => whenAccountSettled().then(() => { try { maybeShowOnboarding(); } catch { /* l'accueil reste utilisable */ } });
+  // Ensuite seulement, le rappel « Notifications désactivées » (js/features/push-ui.js) : rien si une de ces
+  // feuilles est ouverte, au premier lancement ni pendant une séance
+  const questions = () => whenAccountSettled().then(() => {
+    try { maybeShowOnboarding(); } catch { /* l'accueil reste utilisable */ }
+    pushRemindAtLaunch().catch(() => {});
+  });
   if (welcome) welcome.closed.then(questions);
   else questions();
   Native.hideSplash();
