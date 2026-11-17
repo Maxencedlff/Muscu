@@ -1909,6 +1909,8 @@ test('Native.sound.diagnostics : null hors app ou build sans la méthode, état 
 (await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Tarifs du 30/10 : demande du rôle coach (tests dans coach-request.mjs) ──
 (await import('./coach-request.mjs')).default({ test, assert, ROOT });
+// ── Badge « Carte pro déclarée » des coachs (tests dans coach-card.mjs) ──
+(await import('./coach-card.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Juridique : lettre d'information, pages juridiques, prix des CGV (tests dans juridique.mjs) ──
 (await import('./juridique.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Payant : signature d'Apple, achats et notifications (tests dans payant.mjs) ──

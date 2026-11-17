@@ -100,6 +100,30 @@ Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris p
 ### Ordre de mise en production
 Migration d'abord, puis la fonction Edge `report` (mode `{ report_id }`), puis l'OTA (une app à jour sur un serveur d'avant cache la cellule ; avec une fonction `report` d'avant, le signalement est enregistré mais l'alerte ne part pas : `notified_at` nul, requête de rattrapage). Retour arrière : `supabase/rollback/20261031510000_chat_coach_down.sql`, vérifié par `tests/sql/rollback_social_check.sh`.
 
+## Badge carte pro (17/11/2026, migration `20261117090000_badge_carte_pro.sql`, ÉCRITE, PAS APPLIQUÉE)
+
+Validé par Maxence le 17/11, en deux temps : d'abord un badge **déclaratif**, plus tard une vérification d'identité (FranceConnect, dossier dans `~/.local/share/mdlf/franceconnect/`).
+
+- **Qui** : un coach validé (`user_profiles.coach_at`). Réglages › Coach › « Carte professionnelle » : déclarer, changer de numéro, retirer le badge. Prérempli avec le numéro de sa demande du rôle coach s'il a la bonne forme.
+- **Libellé exact** : « Carte pro déclarée ». Jamais « vérifiée » ni « certifié » (test `tests/unit/coach-card.mjs`). La section du coach rappelle que le badge ne dit pas que la carte a été vérifiée.
+- **Format** : celui des cartes du portail EAPS, `^[0-9]{2}[0-9AB][0-9]{2}ED[0-9]{4,5}$` (département sur 3 caractères dont 02A/02B et 971…, année sur 2 chiffres, `ED`, numéro d'ordre ; ex. `04912ED0123`). Espaces, points, tirets, barres ignorés ; minuscules acceptées. Format relevé sur des cartes publiées, pas sur un texte officiel qui le décrit (voir le README FranceConnect).
+- **Qui voit quoi** : le numéro, le coach (`coach_card_state`) et l'administrateur (éditeur SQL) seulement ; `public.coach_cards` n'a aucun GRANT client. Tout compte connecté lit `coach_card_badge(coach)` = `{ shown, declared_at }`, `shown` faux si pas de déclaration, suspendue, retirée, coach sans rôle, ou blocage entre les deux comptes.
+- **Où** : profil d'un autre (`social-profile`, sous le nom), Mon coach (élève), aperçu « Rejoindre » (`coach-join`), Mon profil du coach. Lu à l'arrivée sur ces écrans, gardé 5 min (`coachBadgeLoad`).
+- **Signaler ce badge** (profil d'un coach, Mon coach) : `report_coach_card(coach, details)` écrit dans `public.reports` (`kind = 'profile'`, `target_ref = 'coach_card'`, `reason = 'autre'`, détails préfixés « Badge « Carte pro déclarée » signalé »), puis l'app demande l'alerte e-mail à la fonction Edge `report` (`{ report_id }`, inchangée). **Dès le premier signalement, le badge est suspendu** jusqu'à la revue. Un signalement par compte et par déclaration (rejoué : `null`). Limite commune : 10 signalements par 24 h (`rate_limited`).
+- **Revue** (éditeur SQL) : `select * from private.coach_cards_review;` puis `select private.coach_card_restore('<uuid>', 'note');` (badge rendu) ou `select private.coach_card_remove('<uuid>', 'motif');` (retiré : le coach voit le motif et ne peut plus redéclarer ; `delete from public.coach_cards where user_id = '<uuid>'` le lui permet de nouveau). Usurpation : suppression du compte (CGU, « Social et coach »).
+- **Suspendu ou retiré** : le coach ne peut ni changer de numéro ni retirer le badge (`card_suspended`, `card_removed`), sinon il effacerait la suspension.
+- **Plus tard** : `verified_at`, `verify_method = 'franceconnect'`, état `verified`. Aucune fonction ne les écrit ; l'app montre `verified` comme `declared`. Changer de numéro efface la vérification ; la revue d'un badge vérifié le rend vérifié.
+
+| Fonction | Renvoie | Règles |
+|---|---|---|
+| `coach_card_state()` | `jsonb` | `{ status: none\|declared\|suspended\|removed\|verified, card_number, declared_at, suspended_at, removed_reason }`, le sien seulement. |
+| `coach_card_declare(card_number text)` | `jsonb` (état) | `not_coach`, `invalid_card`, `card_suspended`, `card_removed`, `rate_limited` (5 par 24 h ; le même numéro ne compte pas et ne change pas la date). |
+| `coach_card_withdraw()` | `jsonb` (état) | Efface la déclaration ; `card_suspended`, `card_removed`. |
+| `coach_card_badge(coach uuid)` | `jsonb` | `{ shown, declared_at }`, jamais le numéro. |
+| `report_coach_card(coach uuid, details text default null)` | `bigint` ou `null` | Id de la ligne de `public.reports` ; `not_found` (pas de badge, soi-même, bloqué, ex-coach), `rate_limited`. |
+
+**Ordre de mise en production** : migration d'abord (la fonction `report` n'a pas à changer), puis l'OTA. Une app à jour sur un serveur d'avant cache la section (RPC absente) et ne montre aucun badge. Retour arrière : `supabase/rollback/20261117090000_badge_carte_pro_down.sql` (les signalements restent dans `public.reports`), vérifié par `tests/sql/rollback_nuit_check.sh`.
+
 ## Plan diète (05/11/2026, sans migration)
 Le coach envoie un plan diète par le même canal que les programmes : `coach_send_programme(student, 'diet_<plan>', { kind: 'diet', v: 1, diet })`. Sans `name` au premier niveau, une app d'avant la nutrition l'écarte ; l'app actuelle le range dans `inbox.diets` et le retire des « Programmes envoyés ». Contrat complet : `docs/NUTRITION_V1.md`, « Coach : envoi sans migration ».
 

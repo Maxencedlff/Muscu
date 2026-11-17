@@ -558,3 +558,19 @@ html.type-xl .coach-presc-view .cell--ctl { flex-wrap: wrap; }
 .chat-push-off { display: block; min-height: 44px; margin: 0 auto; padding: 10px var(--gutter); background: none; border: 0;
   font: inherit; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
 .chat-push-off__link { color: var(--tint); }
+
+/* Badge « Carte pro déclarée » (js/features/coach-pro-ui.js) : pastille grise, sans coche ni couleur d'action :
+   elle dit une déclaration, pas une vérification. Profil d'un autre (centrée sous le nom), Mon coach, aperçu
+   « Rejoindre » et Mon profil (sous le nom, alignée à gauche). Texte agrandi : retour à la ligne, jamais coupée. */
+.card-badge {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+  margin-top: 6px; padding: 3px 9px 3px 7px; border-radius: 999px;
+  background: var(--fill); color: var(--label2);
+  font-size: var(--fs-footnote); line-height: 1.3; font-weight: 600;
+}
+.card-badge .icon { flex: none; color: var(--label2); }
+.card-badge > span { overflow-wrap: anywhere; }
+.card-badge--who { align-self: flex-start; }
+.card-badge--hero { margin-top: 0; }
+/* Mon profil : sur sa propre ligne sous le nom, pour ne pas se tasser à côté de « Modifier » (iPhone SE) */
+.card-badge--me { align-self: flex-start; margin: 8px 0 0; }

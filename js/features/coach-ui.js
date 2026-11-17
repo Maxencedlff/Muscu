@@ -279,7 +279,7 @@ function renderCoachJoin(code) {
       <div class="scr">
         <div class="coach-join__who">
           ${personAvatar(pv, 'l')}
-          <span><span class="coach-join__name">${name}</span><span class="coach-join__sub">veut être ton coach</span></span>
+          <span><span class="coach-join__name">${name}</span><span class="coach-join__sub">veut être ton coach</span>${cardBadgeHtml(pv.user_id, 'card-badge--who')}</span>
         </div>
         ${coachTitle(`Ce ${elide('que', name)} verra`)}
         ${list([['Toutes tes séances', 'Y compris celles d\'avant, avec exercices, séries et notes, même les séances masquées à ceux qui te suivent.']])}
@@ -302,7 +302,7 @@ function renderCoachJoin(code) {
       </div>
     </div>`;
 }
-SCREENS.set('coach-join', { render: code => renderCoachJoin(code) });
+SCREENS.set('coach-join', { render: code => renderCoachJoin(code), enter: () => { coachBadgeLoad(coach.preview?.person?.user_id); } });
 
 // ── Élève : Mon coach ───────────────────────────────────────
 
@@ -452,7 +452,7 @@ function renderCoachMine() {
         <div class="cmine-hero">
           <div class="coach-join__who coach-mine__who">
             ${personAvatar(p, 'l')}
-            <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(personName(p))}</span><span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span></span>
+            <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(personName(p))}</span><span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span>${cardBadgeHtml(p.user_id, 'card-badge--who')}</span>
           </div>
           ${coachMineProgHtml(inbox)}
         </div>
@@ -465,6 +465,7 @@ function renderCoachMine() {
         <div class="coach-progs">${progs}</div>
         ${dietInboxHtml()}
         <div class="group group--gap">
+          ${cardBadgeReportCell(p.user_id)}
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
         <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances, et vos messages seront effacés.</div>
@@ -475,6 +476,7 @@ SCREENS.set('coach-mine', {
   render: () => renderCoachMine(),
   // Relu à chaque arrivée (retour compris) ; commentaires listés ici : vus
   enter: async () => {
+    coachBadgeLoad(myCoach()?.user_id);
     await coachRefresh(); cphRefresh({ minAge: 30_000 });
     const fresh = (coach.inbox?.notes || []).filter(n => !n.seen);
     coachMineFresh = new Set(fresh.map(n => n.session_id));

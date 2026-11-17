@@ -489,6 +489,7 @@ function renderSocialProfile(uid) {
           ${personAvatar(p, 'xl')}
           <h2 class="account-hero__name">${esc(name)}</h2>
           ${sub ? `<p class="account-hero__sub">${sub}</p>` : ''}
+          ${cardBadgeHtml(uid, 'card-badge--hero')}
         </div>
         ${incoming}
         <div class="social-profile__action">${main}</div>
@@ -497,6 +498,7 @@ function renderSocialProfile(uid) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="social-block" data-uid="${esc(uid)}">Bloquer</button>
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(uid)}">Signaler</button>
+          ${cardBadgeReportCell(uid)}
         </div>
         <div class="group-foot">Bloquer coupe tout dans les deux sens : recherche, demandes, séances et réactions. Personne n'en est averti.</div>`}
       </div>
@@ -509,8 +511,9 @@ function followedProfileShown() {
 }
 SCREENS.set('social-profile', {
   render: uid => renderSocialProfile(uid),
-  // Ses séances : chargées à l'arrivée si je le suis
+  // Ses séances : chargées à l'arrivée si je le suis ; son badge carte pro s'il est coach (js/data/coach-pro.js)
   enter: () => {
+    coachBadgeLoad(routeParams(currentRoute())[0]);
     const uid = followedProfileShown();
     if (uid && !socialFeed(uid).loadedAt) socialLoadFeed(uid);
   },
