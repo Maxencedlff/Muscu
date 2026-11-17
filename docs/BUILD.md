@@ -21,6 +21,20 @@ Sur une build plus ancienne, le web reste sûr de toute façon : `saveWorkouts` 
 avant ; `sleep` absent → pas de ligne ; `MdlfPush` absent → « Mets l'app à jour » dans Réglages ›
 Notifications.
 
+## Build 69 (branche `serveur-1711`, 17/11/2026)
+
+Natif changé depuis la build 68 (`dc1a67c`, run iOS n° 75) : rien d'autre n'attendait (toutes les branches
+natives, son compris, étaient déjà dans la 68).
+
+| Sujet | Natif | Web | Serveur |
+|---|---|---|---|
+| Son de fin de repos plus robuste | `SoundPlugin.swift` : catégorie `.playback` refixée si un autre l'a changée (vérifiée au son suivant et à `routeChange .categoryChange`), moteur arrêté au début d'une interruption | inchangé (`haptics-audio.js` relit déjà l'état après chaque son) | — |
+| Photo de profil | textes `NSCameraUsageDescription` et `NSPhotoLibraryUsageDescription` qui la nomment (règle 5.1.1) | `profile-photo.js`, `profile-photo-ui.js` (aucun module natif : `<input type="file">`) | `20261117000000_photo_profil.sql`, `coach-photos-purge`, `delete-account` |
+
+Pas dedans : le droit « Time Sensitive » de la notification de fin de repos (capacité à cocher d'abord sur
+l'identifiant de l'app dans developer.apple.com et profil `appstore.mobileprovision` à régénérer, sinon la
+signature échoue). L'empreinte native change : les mises à jour à chaud suivantes ne vont qu'à la 69.
+
 ## Mises à jour à chaud ou build : la règle
 
 Règles 2.5.2, 2.3.1(a) et 2.5.19 de l'App Store (texte cité dans IOS.md, « Règle Apple ») :

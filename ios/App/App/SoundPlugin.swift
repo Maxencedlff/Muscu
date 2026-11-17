@@ -21,7 +21,8 @@ import Capacitor
 /// Robustesse : iOS peut couper la session (appel, Siri, alarme : interruptionNotification), changer la
 /// sortie (écouteurs débranchés : routeChange, AVAudioEngineConfigurationChange, moteur arrêté) ou
 /// relancer tout son service audio (mediaServicesWereReset : moteur et nœuds deviennent inutilisables).
-/// Les deux premiers cas sont rattrapés au son suivant (session réactivée, moteur relancé) ; le
+/// Les deux premiers cas sont rattrapés au son suivant (session réactivée, moteur relancé, catégorie refixée
+/// si un autre l'a changée : build 69) ; le
 /// troisième reconstruit moteur et lecteur. Chaque incident est noté dans un petit journal (console
 /// Xcode, et `Capacitor.Plugins.MdlfSound.diagnostics()` depuis l'inspecteur web de Safari).
 ///
@@ -151,6 +152,13 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
         // « duckOthers »), d'où la session rendue puis réactivée. Le retour sans duck se fait seulement
         // dans restoreMix (programmé) : un son ordinaire pendant le décompte joue sans rien changer.
         let wantsDuck: Bool = duck && !ducking
+        // Catégorie changée par un autre (vue web qui lit une vidéo, autre module) : refixée ici, sinon les
+        // sons suivants suivraient une catégorie coupée par le bouton silencieux (build 69)
+        if categorySet && session.category != .playback {
+            remember("catégorie trouvée en \(session.category.rawValue) : refixée en lecture")
+            categorySet = false
+            sessionActive = false
+        }
         if !categorySet || wantsDuck {
             if wantsDuck && sessionActive { deactivate() }
             var options: AVAudioSession.CategoryOptions = [.mixWithOthers]
@@ -287,15 +295,25 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
         let began: Bool = AVAudioSession.InterruptionType(rawValue: rawType) == .began
         remember(began ? "interruption (début)" : "interruption (fin)")
         sessionActive = false
-        if began && ducking { restoreMix() }
+        if began {
+            if ducking { restoreMix() }
+            // Moteur arrêté nous-mêmes (Apple, « Handling audio interruptions ») : isRunning dit vrai, et
+            // prepare le relance proprement au son suivant au lieu de croire qu'il tourne encore
+            if engine.isRunning { engine.stop() }
+        }
     }
 
     /// Écouteurs branchés ou débranchés, AirPods, CarPlay… : noté ; le moteur arrêté est relancé au son suivant
     private func routeChanged(rawReason: UInt) {
         let reason: AVAudioSession.RouteChangeReason = AVAudioSession.RouteChangeReason(rawValue: rawReason) ?? .unknown
-        // .categoryChange n'est pas noté : le duck de chaque fin de repos en produirait deux
         if reason == .newDeviceAvailable || reason == .oldDeviceUnavailable {
             remember("sortie audio changée (raison \(rawReason))")
+        }
+        // .categoryChange : le duck de chaque fin de repos en produit deux (notre propre catégorie, rien à
+        // faire) ; une catégorie posée par un autre est notée et refixée au son suivant (build 69)
+        if reason == .categoryChange && categorySet && AVAudioSession.sharedInstance().category != .playback {
+            remember("catégorie changée par un autre : \(AVAudioSession.sharedInstance().category.rawValue)")
+            categorySet = false
         }
     }
 
