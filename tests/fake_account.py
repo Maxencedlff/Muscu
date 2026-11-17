@@ -100,7 +100,8 @@ already au second envoi, not_connected sans liaison) et strava-disconnect (revok
 État dans __sb.st ; __sb.stravaAuthorize() simule l'accord donné dans Safari (prénom Léa), __sb.stravaRevokeAtStrava()
 l'accès retiré chez Strava. Corps reçus dans __sb.st.sent. __sb.fail.strava = 'offline' pour le hors ligne.
 
-Demande en contexte des notifications : marquée déjà répondue (mdlf_push_ask) sauf __fakeOpts.pushAsk.
+Demande en contexte des notifications : marquée déjà répondue (mdlf_push_ask) sauf __fakeOpts.pushAsk ; rappel
+« Notifications désactivées » de l'ouverture : marqué fini (mdlf_push_remind) sauf __fakeOpts.pushRemind.
 
 Notifications push (docs/NOTIFICATIONS.md) : module MdlfPush (autorisation d'iOS __sb.push.permission :
 'prompt' | 'granted' | 'denied', réponse à la fenêtre __sb.push.answer, faux jeton __sb.push.token, '' :
@@ -123,6 +124,8 @@ FAKE_ACCOUNT = r"""
   // Demande en contexte des notifications (js/features/push-ui.js) : déjà répondue sur ce faux iPhone, sauf
   // __fakeOpts.pushAsk (sinon sa feuille s'ouvrirait dans tous les tests du coach et des messages)
   if (!opts.pushAsk) { try { localStorage.setItem('mdlf_push_ask', '{"done":true}'); } catch { /* pas de stockage */ } }
+  // Rappel « Notifications désactivées » à l'ouverture : de même, sauf __fakeOpts.pushRemind
+  if (!opts.pushRemind) { try { localStorage.setItem('mdlf_push_remind', '{"done":true}'); } catch { /* pas de stockage */ } }
   const log = (...a) => sb.calls.push(a);
   const err = (code, message = code, status = 400) => ({ name: 'AuthApiError', code, message, status });
 

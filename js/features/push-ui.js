@@ -184,3 +184,71 @@ async function pushOpenIosSettingsChat() {
   if (!(await Native.push.openSettings())) navigate('notifications');
 }
 registerActions({ 'push-open-ios-settings-chat': () => { pushOpenIosSettingsChat(); } });
+
+// ── Rappel à l'ouverture « Notifications désactivées » (js/data/push.js, pushRemindCheck) ─────
+// Appelé une fois par lancement (init.js), une fois les données du compte arrivées et Bienvenue / les
+// questions de départ ouvertes s'il le fallait : rien s'il y a déjà une feuille, un écran plein, une séance.
+// Une phrase sur ce qui n'arrive pas, selon le rôle ; « Activer » : fenêtre d'iOS puis les types utiles
+// (pushEnableFor), ou, refusées dans iOS, les réglages de l'app dans l'app Réglages.
+const PUSH_REMIND_TEXT = {
+  student: 'Tu ne reçois pas les messages et les programmes de ton coach.',
+  coach: 'Tu ne reçois pas les messages de tes élèves.',
+  solo: 'Tu ne reçois pas les bravos et les commentaires sur tes séances.',
+};
+const PUSH_SETTINGS_PATH = 'Réglages › MDLF Training › Notifications';
+const PUSH_REMIND_DELAY_MS = 800;   // l'accueil dessiné d'abord ; Bienvenue ou les questions ouvertes avant
+let pushRemindTried = false;
+
+function pushRemindBlocked() {
+  return !!activeSession || document.visibilityState === 'hidden'
+    || !!document.querySelector('.auth, .onb, .min-build, ' + OPEN_MODAL_SEL);
+}
+
+function pushRemindRoleNow() {
+  const r = coachRole();
+  return pushRemindRole({ isCoach: r.isCoach, hasCoach: r.hasCoach, social: socialEnabled() });
+}
+
+async function pushRemindAtLaunch({ delay = PUSH_REMIND_DELAY_MS } = {}) {
+  if (pushRemindTried) return;
+  pushRemindTried = true;
+  if (delay) await new Promise(r => setTimeout(r, delay));
+  if (pushAsking || pushRemindBlocked()) return;
+  const role = pushRemindRoleNow();
+  pushAsking = true;   // la demande en contexte attend (une feuille à la fois)
+  try {
+    const d = await pushRemindCheck(role, { inSession: !!activeSession });
+    if (d === 'done') { pushRemindDone(); return; }
+    if (d !== 'show' || pushRemindBlocked()) return;
+    const denied = push.permission === 'denied';
+    const message = PUSH_REMIND_TEXT[role] + (denied ? ` Elles se rallument dans ${PUSH_SETTINGS_PATH}.` : '');
+    pushRemindLater();   // compté dès qu'il est montré (app fermée sans répondre comprise)
+    const v = await dialog({ type: 'sheet', title: 'Notifications désactivées', message,
+      actions: [{ label: 'Activer', value: 'on', style: 'preferred' }, { label: 'Plus tard', style: 'cancel' }] });
+    if (v !== 'on') return;
+    haptic();
+    if (denied) { await pushRemindOpenSettings(role); return; }
+    const r = await pushEnableFor(role);
+    if (r.ok) { pushRemindDone(); showToast('Notifications activées'); return; }
+    // Refusées dans la fenêtre d'iOS à l'instant, ou build sans le module : on ne revient pas à la charge
+    if (r.reason === 'denied' || r.reason === 'unavailable') { pushRemindDone(); return; }
+    await pushExplainFailure(r.reason);
+  } catch { /* réseau, écran parti : redemandé à l'ouverture suivante (dans la limite) */ } finally { pushAsking = false; }
+}
+
+// Refusées dans iOS : réglages de l'app dans l'app Réglages (MdlfPush.openSettings, présent dans toute build qui a
+// le module). Au retour, autorisées : les types utiles sont allumés (le toucher sur « Activer » le demandait).
+// Réglages qui ne s'ouvrent pas : le chemin, en clair.
+async function pushRemindOpenSettings(role) {
+  if (!(await Native.push.openSettings())) { showToast(PUSH_SETTINGS_PATH, { duration: 5000 }); return; }
+  const back = async () => {
+    if (document.visibilityState !== 'visible') return;
+    document.removeEventListener('visibilitychange', back);
+    await pushRefreshPermission();
+    if (push.permission !== 'granted') return;
+    if (pushAnyOn(push.prefs)) { pushRemindDone(); return; }
+    const r = await pushEnableFor(role);
+    if (r.ok) { pushRemindDone(); showToast('Notifications activées'); }
+  };
+  document.addEventListener('visibilitychange', back);
+}

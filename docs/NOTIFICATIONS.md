@@ -24,6 +24,19 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
   d'iOS, jeton, puis `push_set_prefs` avec `messages` et `coach` à vrai, plus `comments` pour l'élève et
   `student_sessions` pour le coach, le reste à `null` (inchangé). « Plus tard » : pas avant 7 jours, 2 fois au plus. Plus demandé une fois
   activé, refusé dans iOS ou déjà allumé ici. Mémoire sur l'iPhone : `mdlf_push_ask` `{ n, at, done }`.
+- **Rappel à l'ouverture** (`pushRemindAtLaunch`, js/features/push-ui.js ; règles `pushRemindDecision`,
+  js/data/push.js) : pour qui a un compte et ne reçoit rien (iOS pas d'accord, ou d'accord mais aucun type
+  allumé ; jamais `unavailable`), feuille « Notifications désactivées » avec une phrase selon le rôle : coach
+  « Tu ne reçois pas les messages de tes élèves. », élève d'un coach « …les messages et les programmes de ton
+  coach. », social activé sans coach « …les bravos et les commentaires sur tes séances. » (ni coach, ni coach à
+  soi, ni social : rien n'arriverait, pas de rappel). « Activer » : `prompt` ou `granted` → `pushEnableFor` (types
+  de la demande en contexte, `reactions` et `comments` pour le social seul) ; `denied` → `openSettings` (présent
+  dans toute build qui a le module), le chemin « Réglages › MDLF Training › Notifications » est dans la phrase,
+  et au retour dans l'app, autorisées : les types allumés. Une fois par lancement, après les données du compte
+  et Bienvenue / les questions de départ ; jamais au premier lancement, pendant une séance, avec une autre
+  feuille ou un écran plein ouvert. Première fois : l'ouverture qui suit la mise à jour ; puis pas avant 7 jours,
+  3 fois au plus (compté dès qu'il est montré). Une demande à la fois : pas de rappel dans les 7 jours qui suivent
+  la demande en contexte, et inversement. Mémoire : `mdlf_push_remind` `{ n, at, done }`.
 - **Refus d'iOS** : la conversation montre « Notifications désactivées · Réglages », qui ouvre les
   réglages de l'app dans l'app Réglages (`openSettings`, `UIApplication.openSettingsURLString`) ; s'il ne
   répond pas, Réglages › Notifications de l'app. L'autorisation est relue au retour au premier plan.
@@ -137,6 +150,6 @@ messages : réglages, salve, lu, masqué, signalé, bloqué, lien rompu, écran 
 | `ios/App/App/App.entitlements` | `aps-environment = production` |
 | `js/platform/native.js` | `Native.push.*` (sans effet dans le navigateur et sur une build antérieure : `unavailable`) |
 | `js/data/push.js` | réglages, jeton, déconnexion, écran du toucher (`pushTarget`), logique testée par `tests/unit/push.mjs`. Les types « Commentaires » et « Messages » ne sont montrés que si le serveur les renvoie (serveur d'avant : 3 interrupteurs, `push_set_prefs` à 3 arguments) |
-| `js/features/push-ui.js` | Réglages › Notifications, cellule des Réglages, toucher d'une notification |
+| `js/features/push-ui.js` | Réglages › Notifications, cellule des Réglages, toucher d'une notification, demande en contexte, rappel à l'ouverture |
 
-E2E : `tests/test_notifications.py` (faux module `MdlfPush` et fausses RPC dans `tests/fake_account.py` ; demande en contexte marquée répondue sauf `__fakeOpts.pushAsk`).
+E2E : `tests/test_notifications.py` (faux module `MdlfPush` et fausses RPC dans `tests/fake_account.py` ; demande en contexte marquée répondue sauf `__fakeOpts.pushAsk`, rappel à l'ouverture marqué fini sauf `__fakeOpts.pushRemind`).

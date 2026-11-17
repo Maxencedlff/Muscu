@@ -252,9 +252,9 @@ function pushAskLater(now = Date.now()) {
 }
 function pushAskDone() { pushAskStore({ ...pushAskStored(), done: true }); }
 
-// Types que « Activer » allume, parmi ceux que le serveur connaît
+// Types que « Activer » allume, parmi ceux que le serveur connaît (rôle 'solo' : rappel à l'ouverture seulement)
 function pushAskWanted(role, prefs) {
-  return (PUSH_ASK_TYPES[role] || []).filter(id => !!prefs && id in prefs);
+  return (PUSH_REMIND_TYPES[role] || []).filter(id => !!prefs && id in prefs);
 }
 
 // Mémoire locale seule (sans réseau) : la demande est-elle encore possible ?
@@ -279,7 +279,8 @@ function pushAskDecision({ role, permission, prefs, state, now, firstLaunch = PU
 
 // Lit l'état (mémoire, puis autorisation et réglages) et décide, pour role 'student' | 'coach'
 async function pushAskCheck(role, now = Date.now(), firstLaunch = PUSH_ASK_FIRST_LAUNCH) {
-  if (!pushPossible() || !pushAskOpen(pushAskStored(), now, firstLaunch)) return 'skip';
+  // Rappel « Notifications désactivées » montré il y a moins de 7 jours : une demande à la fois
+  if (!pushPossible() || !pushAskOpen(pushAskStored(), now, firstLaunch) || pushRemindRecent(now)) return 'skip';
   if (!(await pushLoad())) return 'skip';
   return pushAskDecision({ role, permission: push.permission, prefs: push.prefs, state: pushAskStored(), now, firstLaunch });
 }
@@ -299,6 +300,64 @@ async function pushEnableFor(role) {
     push.prefs = cleanPushPrefs(r.data);
     return { ok: true };
   } finally { push.busy = null; notifyPush(); }
+}
+
+// ── Rappel à l'ouverture : « Notifications désactivées » ────
+// Pour qui a un compte et ne reçoit rien (iOS pas d'accord, ou d'accord mais aucun type allumé) : une feuille
+// à l'ouverture de l'app, la première fois juste après la mise à jour, puis pas avant 7 jours après « Plus
+// tard », 3 fois au plus. Jamais au premier lancement (la demande en contexte vient plus tard), jamais
+// pendant une séance, jamais avec une autre feuille ouverte, ni dans les 7 jours qui suivent la demande en
+// contexte (une demande à la fois). Mémoire sur cet iPhone : { n, at, done }.
+// Rôle : 'coach' (messages des élèves), 'student' (élève avec coach : messages et programmes), 'solo'
+// (social activé : bravos et commentaires) ; sans coach ni social, rien n'arrive : pas de rappel.
+const PUSH_REMIND_KEY = 'mdlf_push_remind';
+const PUSH_REMIND_MAX = 3;
+// Types que « Activer » allume ; coach et élève : les mêmes que la demande en contexte (PUSH_ASK_TYPES)
+const PUSH_REMIND_TYPES = { ...PUSH_ASK_TYPES, solo: ['reactions', 'comments'] };
+
+function pushRemindStored() {
+  try { const v = JSON.parse(localStorage.getItem(PUSH_REMIND_KEY)); return v && typeof v === 'object' ? v : {}; } catch { return {}; }
+}
+function pushRemindStore(v) { try { localStorage.setItem(PUSH_REMIND_KEY, JSON.stringify(v)); } catch { /* remontré plus tard, au pire */ } }
+function pushRemindLater(now = Date.now()) {
+  const s = pushRemindStored();
+  pushRemindStore({ ...s, n: (Number.isInteger(s.n) ? s.n : 0) + 1, at: now });
+}
+function pushRemindDone() { pushRemindStore({ ...pushRemindStored(), done: true }); }
+// Montré (ou « Plus tard ») il y a moins de 7 jours : la demande en contexte attend aussi
+function pushRemindRecent(now = Date.now(), state = pushRemindStored()) {
+  return Number.isFinite(state?.at) && now - state.at < PUSH_ASK_WAIT_MS;
+}
+
+// Rôle du rappel, d'après le rôle connu (coachRole) et le social : 'coach' | 'student' | 'solo' | null
+function pushRemindRole({ isCoach, hasCoach, social }) {
+  return isCoach ? 'coach' : hasCoach ? 'student' : social ? 'solo' : null;
+}
+
+// Mémoire locale seule (sans réseau) : le rappel est-il encore possible ?
+function pushRemindOpen({ state, askState, now, firstLaunch = PUSH_ASK_FIRST_LAUNCH, inSession = false }) {
+  if (firstLaunch || inSession || state?.done) return false;
+  if ((Number.isInteger(state?.n) ? state.n : 0) >= PUSH_REMIND_MAX) return false;
+  return !pushRemindRecent(now, state) && !pushRemindRecent(now, askState);
+}
+
+// → 'show' (montrer), 'done' (reçoit déjà : plus jamais), 'skip' (pas maintenant)
+function pushRemindDecision({ role, permission, prefs, state, askState, now, firstLaunch = PUSH_ASK_FIRST_LAUNCH, inSession = false }) {
+  if (!pushRemindOpen({ state, askState, now, firstLaunch, inSession }) || !prefs || !PUSH_REMIND_TYPES[role]) return 'skip';
+  // Build sans le module, navigateur : rien à proposer
+  if (permission !== 'prompt' && permission !== 'granted' && permission !== 'denied') return 'skip';
+  if (permission === 'granted' && pushAnyOn(prefs)) return 'done';
+  // Serveur qui ne connaît aucun des types utiles : rien d'utile à allumer
+  if (!PUSH_REMIND_TYPES[role].some(id => id in prefs)) return 'skip';
+  return 'show';
+}
+
+// Lit l'état (mémoire, puis autorisation et réglages) et décide
+async function pushRemindCheck(role, { now = Date.now(), firstLaunch = PUSH_ASK_FIRST_LAUNCH, inSession = false } = {}) {
+  const base = { askState: pushAskStored(), now, firstLaunch, inSession };
+  if (!pushPossible() || !PUSH_REMIND_TYPES[role] || !pushRemindOpen({ ...base, state: pushRemindStored() })) return 'skip';
+  if (!(await pushLoad())) return 'skip';
+  return pushRemindDecision({ ...base, role, permission: push.permission, prefs: push.prefs, state: pushRemindStored() });
 }
 
 // Autorisation d'iOS relue (retour des Réglages de l'iPhone) ; prévient l'écran si elle a changé

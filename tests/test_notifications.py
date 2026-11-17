@@ -519,5 +519,151 @@ def o_toucher_seance_eleve(bench):
         R.check(not page.errors, f'aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_ancien_serveur, t_absent, t_toucher, t_sommeil, t_demande_eleve, t_demande_refusee],
-         once=[o_coach_segment, o_demande_plus_tard, o_demande_premier_lancement, o_demande_coach, o_demande_lien_accepte, o_toucher_seance_eleve])
+# ── Rappel à l'ouverture « Notifications désactivées » (testeurs sans notifications) ──
+
+def remind(page):
+    """Ouverture de l'app simulée (le compte est connecté après le démarrage dans ces tests)."""
+    # Sans attendre la promesse : elle ne se tient qu'une fois la feuille fermée
+    page.evaluate("() => { pushRemindTried = false; window.__remind = pushRemindAtLaunch({ delay: 0 }); }")
+    page.wait_for_timeout(400)
+
+
+def remind_state(page):
+    return page.evaluate("JSON.parse(localStorage.getItem('mdlf_push_remind') || '{}')")
+
+
+def age_remind(page, days=8):
+    page.evaluate("d => { const s = JSON.parse(localStorage.getItem('mdlf_push_remind')); s.at -= d * 86400e3; localStorage.setItem('mdlf_push_remind', JSON.stringify(s)); }", days)
+
+
+def t_rappel(bench, eng, dev, theme):
+    """Élève d'un coach, notifications jamais demandées : feuille sobre à l'ouverture, « Activer » → iOS, jeton, types du coach."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), {'pushRemind': True})
+        signin(page)
+        with_coach(page)
+        remind(page)
+        page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
+        txt = ask_sheet(page)
+        R.check('Notifications désactivées' in txt and 'Tu ne reçois pas les messages et les programmes de ton coach.' in txt, f'{t} titre et phrase de l\'élève ({txt!r})')
+        R.check('!' not in txt and 'Réglages ›' not in txt, f'{t} sobre, sans chemin des Réglages tant qu\'iOS n\'a pas refusé')
+        btns = page.evaluate("[...document.querySelectorAll('.ios-dialog__btn')].map(b => [b.textContent.trim(), Math.round(b.getBoundingClientRect().height)])")
+        R.check([b[0] for b in btns] == ['Activer', 'Plus tard'] and all(h >= 44 for _, h in btns), f'{t} « Activer » et « Plus tard », 44 pt {btns}')
+        R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} pas de défilement horizontal')
+        shot(page, LOT, f'rappel-eleve-{t}')
+        R.check(remind_state(page).get('n') == 1, f'{t} compté une fois {remind_state(page)}')
+        R.check(not any(c in ('request', 'register') for c in push_calls(page)), f'{t} fenêtre d\'iOS seulement après « Activer »')
+        tap_dialog(page, 'Activer')
+        page.wait_for_function("() => (__sb.push.prefs[__sb.meId()] || {}).messages === true", timeout=3000)
+        prefs = page.evaluate('__sb.push.prefs[__sb.meId()]')
+        R.check(prefs == {'reactions': False, 'follows': False, 'coach': True, 'comments': True, 'messages': True, 'student_sessions': False}, f'{t} messages, coach et commentaires {prefs}')
+        R.check(remind_state(page).get('done') is True, f'{t} plus jamais rappelé')
+        remind(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0, f'{t} activées : rien à l\'ouverture suivante')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def o_rappel_regles(bench):
+    """« Plus tard » : 7 jours, 3 fois au plus ; reçoit déjà : rien ; séance ou autre feuille : rien ; une demande à la fois."""
+    with bench.page('webkit', 'iPhone 13', 'light') as page:
+        open_app(page, 'light', ppl_v2_today_json(), {'pushRemind': True, 'pushAsk': True})
+        signin(page)
+        with_coach(page)
+        # Autre feuille ouverte (ici une alerte) : pas de rappel, rien compté
+        page.evaluate("() => { dialog({ title: 'Autre', actions: [{ label: 'OK', style: 'preferred' }] }); }")
+        remind(page)
+        R.check(page.locator('.ios-dialog').count() == 1 and remind_state(page) == {}, f'autre feuille ouverte : pas de rappel {remind_state(page)}')
+        tap_dialog(page, 'OK')
+        # Séance en cours : rien
+        page.evaluate("window.__s = activeSession; activeSession = { exercises: [] }")
+        remind(page)
+        page.evaluate("activeSession = window.__s")
+        R.check(page.locator('.ios-dialog--sheet').count() == 0 and remind_state(page) == {}, 'séance en cours : pas de rappel')
+        remind(page)
+        page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
+        tap_dialog(page, 'Plus tard')
+        R.check(not any(c in ('request', 'register') or c.startswith('push_set_prefs') for c in push_calls(page)), f'« Plus tard » : rien demandé {push_calls(page)}')
+        # Une demande à la fois : la conversation n'enchaîne pas avec la demande en contexte
+        open_chat(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0, 'rappel d\'aujourd\'hui : pas de demande en contexte')
+        leave_chat(page)
+        remind(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0, 'pas avant 7 jours')
+        age_remind(page)
+        remind(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 1, 'deuxième fois après 7 jours')
+        tap_dialog(page, 'Plus tard')
+        age_remind(page)
+        remind(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 1, 'troisième fois')
+        tap_dialog(page, 'Plus tard')
+        age_remind(page)
+        remind(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0 and remind_state(page).get('n') == 3, f'jamais plus de 3 fois {remind_state(page)}')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+    # Reçoit déjà quelque chose (iOS d'accord, un type allumé) : rien, et plus jamais
+    with bench.page('webkit', 'iPhone 13', 'light') as page:
+        open_app(page, 'light', ppl_v2_today_json(), {'pushRemind': True, 'push': {'permission': 'granted'}})
+        signin(page)
+        page.evaluate("__sb.push.prefs[__sb.meId()] = { reactions: true, follows: false, coach: false, comments: false, messages: false, student_sessions: false }")
+        with_coach(page)
+        remind(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0 and remind_state(page).get('done') is True, f'déjà activées : rien {remind_state(page)}')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+    # Ni coach, ni élève, ni social : rien n'arriverait, pas de rappel
+    with bench.page('webkit', 'iPhone 13', 'light') as page:
+        open_app(page, 'light', ppl_v2_today_json(), {'pushRemind': True})
+        signin(page)
+        remind(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0, 'compte seul, sans social : pas de rappel')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+    # Premier lancement d'un nouveau venu : jamais
+    with bench.page('webkit', 'iPhone 13', 'light') as page:
+        open_app(page, 'light', None, {'pushRemind': True})
+        signin(page)
+        with_coach(page)
+        page.evaluate("document.querySelector('.onb')?.remove()")
+        remind(page)
+        R.check(page.locator('.ios-dialog--sheet').count() == 0, 'premier lancement : pas de rappel')
+
+
+def o_rappel_roles_refus(bench):
+    """Coach et social seul : leur phrase ; refusées dans iOS : « Activer » ouvre Réglages, puis allumées au retour."""
+    for theme in ('light', 'dark'):
+        with bench.page('webkit', 'iPhone 13', theme) as page:
+            open_app(page, theme, ppl_v2_today_json(), {'pushRemind': True, 'push': {'permission': 'denied'}})
+            signin(page)
+            page.evaluate("async () => { const me = __sb.meId(); __sb.makeCoach(me); await coachRefresh(); }")
+            remind(page)
+            page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
+            txt = ask_sheet(page)
+            R.check('Tu ne reçois pas les messages de tes élèves.' in txt and 'Réglages › MDLF Training › Notifications' in txt, f'{theme} coach refusé : phrase et chemin ({txt!r})')
+            shot(page, LOT, f'rappel-coach-refus-iPhone_13-{theme}')
+            tap_dialog(page, 'Activer')
+            R.check('openSettings' in push_calls(page) and 'request' not in push_calls(page), f'{theme} ouvre les Réglages de l\'iPhone {push_calls(page)}')
+            # Autorisées dans Réglages, retour dans l'app : les types du coach allumés
+            page.evaluate("__sb.push.permission = 'granted'; document.dispatchEvent(new Event('visibilitychange'))")
+            page.wait_for_function("() => (__sb.push.prefs[__sb.meId()] || {}).student_sessions === true", timeout=3000)
+            prefs = page.evaluate('__sb.push.prefs[__sb.meId()]')
+            R.check(prefs.get('messages') and prefs.get('coach') and not prefs.get('reactions'), f'{theme} retour des Réglages : messages, coach, séances des élèves {prefs}')
+            R.check(remind_state(page).get('done') is True, f'{theme} plus jamais rappelé')
+            R.check(not page.errors, f'{theme} aucune erreur JS {page.errors}')
+    with bench.page('webkit', 'iPhone SE', 'dark') as page:
+        open_app(page, 'dark', ppl_v2_today_json(), {'pushRemind': True})
+        signin(page)
+        page.evaluate("async () => { await socialEnable(true); }")
+        remind(page)
+        page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
+        R.check('Tu ne reçois pas les bravos et les commentaires sur tes séances.' in ask_sheet(page), f'social seul : bravos et commentaires ({ask_sheet(page)!r})')
+        shot(page, LOT, 'rappel-social-iPhone_SE-dark')
+        tap_dialog(page, 'Activer')
+        page.wait_for_function("() => (__sb.push.prefs[__sb.meId()] || {}).reactions === true", timeout=3000)
+        prefs = page.evaluate('__sb.push.prefs[__sb.meId()]')
+        R.check(prefs.get('comments') and not prefs.get('messages'), f'bravos et commentaires allumés {prefs}')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_ancien_serveur, t_absent, t_toucher, t_sommeil, t_demande_eleve, t_demande_refusee, t_rappel],
+         once=[o_coach_segment, o_demande_plus_tard, o_demande_premier_lancement, o_demande_coach, o_demande_lien_accepte, o_toucher_seance_eleve,
+               o_rappel_regles, o_rappel_roles_refus])
