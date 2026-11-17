@@ -59,7 +59,7 @@ function renderDietPlans() {
 function dietTargetsText(plan) {
   const t = plan.targets;
   if (!t) return 'Selon le plan';
-  return [t.kcal ? `${dietN(t.kcal)} kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${m.short}\u00a0${t[m.k]}` : ''))].filter(Boolean).join(' · ');
+  return [t.kcal ? `${dietN(t.kcal)} kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${m.short}\u00a0${t[m.k]}` : '')), t.water ? `Eau ${fmtNum(t.water, 2)}\u00a0L` : ''].filter(Boolean).join(' · ');
 }
 // Objectifs en toutes lettres, unités au choix : « 2 000 kilocalories, 150 grammes de protéines » (VoiceOver) ou
 // « 2 000 kcal, 150 g de protéines » (confirmation d'envoi au coach, où « P 150 » ne se comprenait pas à côté de
@@ -67,7 +67,8 @@ function dietTargetsText(plan) {
 function dietTargetsWords(plan, kcal, g) {
   const t = plan.targets;
   if (!t) return 'Selon le plan';
-  return [t.kcal ? `${dietN(t.kcal)}${kcal}` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]}${g} de ${m.label.toLowerCase()}` : ''))].filter(Boolean).join(', ');
+  return [t.kcal ? `${dietN(t.kcal)}${kcal}` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]}${g} de ${m.label.toLowerCase()}` : '')),
+    t.water ? `${fmtNum(t.water, 2)} ${kcal === ' kcal' ? 'L' : 'litres'} d'eau` : ''].filter(Boolean).join(', ');
 }
 function dietTargetsSpoken(plan) { return dietTargetsWords(plan, ' kilocalories', ' grammes'); }
 function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), esc(dietTargetsSpoken(plan))); }
@@ -347,9 +348,14 @@ function dietTargetsEditHtml(t, total, kg, plan, auto) {
   // Carte « Proposition » en tête (auto : pas pour un coach) ; sinon le lien « Me proposer des objectifs » d'avant
   const card = auto ? '<section class="diet-tg__card" id="dietTCard" aria-label="Proposition d\'objectifs"></section>' : '';
   const propose = auto ? '' : '<button type="button" class="diet-tg__link" data-tpropose>Me proposer des objectifs</button>';
+  // Eau (docs/EAU.md) : seulement dans un plan préparé par un coach ; la personne règle la sienne sur la carte Eau
+  const water = dietPersonal(plan) ? '' : `<label class="diet-field"><span class="diet-field__label">Eau</span>
+        <input id="dietT_water" class="diet-field__input num" type="text" inputmode="decimal" autocomplete="off"
+          value="${t.water == null ? '' : fmtNum(t.water, 2)}" placeholder="Aucun" aria-label="Eau par jour, en litres. Vide : aucun objectif">
+        <span class="diet-field__unit" aria-hidden="true">L</span></label>`;
   return `<div data-tstep="edit">
       ${card}
-      <div class="diet-fields">${DIET_T_ROWS.map(r => row(...r)).join('')}</div>
+      <div class="diet-fields">${DIET_T_ROWS.map(r => row(...r)).join('')}${water}</div>
       <p class="diet-tg__pkg num" id="dietTPkg" aria-live="polite"></p>
       <p class="diet-form__hint num">${hint}</p>
       <p class="diet-form__err" id="dietTErr" role="alert"></p>
@@ -433,6 +439,12 @@ async function dietTargetsSheet(plan) {
       }
       out[k] = Math.round(v);
     }
+    const wIn = $('#dietT_water', panel), wRaw = wIn ? wIn.value.trim() : '';
+    if (wRaw) {
+      const w = num(wRaw, 0.5, 6);
+      if (w === null) { $('#dietTErr', panel).textContent = 'Eau : de 0,5 à 6 L.'; wIn.focus(); return false; }
+      out.water = w;
+    }
     if (kg) { if (perKg) data.dietProteinPerKg = true; else delete data.dietProteinPerKg; }
     return { targets: cleanDietTargets(out) };
   } });
@@ -503,7 +515,7 @@ async function dietTargetsSheet(plan) {
     if (el.matches('[data-tcgoal]')) {
       data.dietEstGoal = el.dataset.tcgoal; save(); haptic('light'); paintCard();
     } else if (el.matches('[data-tapply]') && cardProp) {
-      root._close({ targets: cleanDietTargets({ kcal: cardProp.kcal, p: cardProp.p, c: cardProp.c, f: cardProp.f }) });
+      root._close({ targets: cleanDietTargets({ kcal: cardProp.kcal, p: cardProp.p, c: cardProp.c, f: cardProp.f, water: t.water }) });
     } else if (el.matches('[data-tcadjust]') && cardProp) {
       fill(cardProp); haptic('light');
       $('#dietT_kcal', root)?.focus({ preventScroll: true });
@@ -516,7 +528,7 @@ async function dietTargetsSheet(plan) {
       if (g) { pIn.value = perKg ? fmtNum(dietProteinPerKg(g, kg), 1) : String(Math.round(g)); pExact = Math.round(g); }
       paintP(); haptic('light');
     } else if (el.matches('[data-tclear]')) {
-      fill(null); $('#dietTErr', root).textContent = ''; haptic('light');
+      fill(null); if ($('#dietT_water', root)) $('#dietT_water', root).value = ''; $('#dietTErr', root).textContent = ''; haptic('light');
       showToast('Objectifs vidés : touche OK pour enregistrer');
     } else if (el.matches('[data-tpropose]')) show('ask');
     else if (el.matches('[data-tback], [data-tadjust]')) {
@@ -566,7 +578,7 @@ async function dietTargetsSheet(plan) {
       $('#dietEWhyM', root).textContent = proposal.whyMacros;
       show('result');
     } else if (el.matches('[data-tuse]') && proposal) {
-      root._close({ targets: cleanDietTargets({ kcal: proposal.kcal, p: proposal.p, c: proposal.c, f: proposal.f }) });
+      root._close({ targets: cleanDietTargets({ kcal: proposal.kcal, p: proposal.p, c: proposal.c, f: proposal.f, water: t.water }) });
     }
   });
   return p;

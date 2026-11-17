@@ -362,6 +362,10 @@ consentement explicite). Deux accords séparés, chacun daté et retirable :
 - Ordre de mise en production : l'OTA qui sait accepter, PUIS la migration (sinon aucun coach ne peut plus
   envoyer tant que ses élèves n'ont pas la version) ; supabase/rollback/ORDRE.md, étape 10.
 
+## Eau (17/11/2026)
+
+Objectif en litres, verres notés d'un toucher, `targets.water` dans le plan du coach : contrat dans `docs/EAU.md`.
+
 ## Où ça vit dans l'app, et pourquoi
 
 - **Entraînement › Nutrition** (écran du jour) et une **carte sur l'accueil** quand un plan est suivi.

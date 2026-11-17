@@ -38,6 +38,7 @@ const SCRIPTS = [
   'js/data/food-portions.js',
   'js/data/nutrition.js',
   'js/data/diet-estimate.js',
+  'js/data/water.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -119,6 +120,7 @@ const SCRIPTS = [
   'js/features/home-widget.js',
   'js/features/siri.js',
   'js/features/nutrition-ui.js',   // carte Nutrition de l'accueil (nutritionHomeCard)
+  'js/features/water-ui.js',       // ligne Eau de cette carte (waterHomeRowHtml)
 ];
 
 // ── Environnement simulé ────────────────────────────────────
@@ -1013,7 +1015,7 @@ test('native : clés retirées d\'iCloud = clés jamais envoyées au serveur (SY
   const localOnly = run('SYNC_LOCAL_ONLY');
   for (const k of keys) assert.ok(localOnly.includes(k), `${k} dans SYNC_LOCAL_ONLY`);
   const store = fs.readFileSync(path.join(ROOT, 'js/data/store.js'), 'utf8') + fs.readFileSync(path.join(ROOT, 'js/data/body-measures.js'), 'utf8')
-    + fs.readFileSync(path.join(ROOT, 'js/data/nutrition.js'), 'utf8');
+    + fs.readFileSync(path.join(ROOT, 'js/data/nutrition.js'), 'utf8') + fs.readFileSync(path.join(ROOT, 'js/data/water.js'), 'utf8');
   for (const k of [...keys, 'bodyKg']) assert.ok(new RegExp(`\\b${k}\\b`).test(store), `${k} : nom de clé encore utilisé par data`);
   assert.match(fs.readFileSync(path.join(ROOT, 'docs/REVUE_APPLE.md'), 'utf8'), /5\.1\.3\(ii\)[\s\S]*cloudCopy/, 'choix justifié dans docs/REVUE_APPLE.md');
 });
@@ -2016,6 +2018,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./nutrition-regles.mjs')).default({ test, run, reset, assert, sameJSON });
 // Objectifs du jour : proposition estimée (Mifflin-St Jeor) et protéines en g/kg
 (await import('./diet-estimate.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// Eau : objectif en litres, ajouts, journal, plan du coach (docs/EAU.md)
+(await import('./water.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Scanner un aliment : codes-barres, réponse d'Open Food Facts, Mes aliments (tests dans food-scan.mjs)
 (await import('./food-scan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Quantités à l'unité : portions courantes, conversions, unité du paquet (tests dans food-portions.mjs)

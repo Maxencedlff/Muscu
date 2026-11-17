@@ -442,7 +442,7 @@ function renderNutrition(dayParam) {
   if (!plan) {
     return `<div class="view view--grouped nutrition-view">${head}<div class="scr">
         ${pending ? `<div class="coach-progs">${dietInboxCardHtml(pending)}</div>` : ''}
-        ${dietEmptyHtml()}${dietSettingsCellHtml()}${dietSourceFoot({ help: true })}</div></div>`;
+        ${waterShown() ? waterCardHtml(dietDayKey()) : ''}${dietEmptyHtml()}${waterShown() ? '' : waterInviteHtml()}${dietSettingsCellHtml()}${dietSourceFoot({ help: true })}</div></div>`;
   }
   const pr = dietDayProgress(data, data.dietActive, day);
   // Plan du coach : « envoyé par max » (« · de max » se lisait comme une quantité, panel Apple vague 4)
@@ -467,6 +467,7 @@ function renderNutrition(dayParam) {
         <h2 class="group-title">Repas</h2>
         ${pr.meals.length ? dietMacroLegendHtml() : ''}
         <div class="diet-meals">${meals}</div>
+        ${waterNutritionHtml(day, { past })}
         ${dietSettingsCellHtml()}
         ${dietSourceFoot({ help: true })}
       </div>
@@ -518,12 +519,13 @@ function nutritionHomeCard() {
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
     </section>` : '';
   const plan = dietActivePlan(data);
-  if (!plan) return card;
+  // Sans carte Nutrition, l'eau suivie a sa petite carte (js/features/water-ui.js)
+  if (!plan) return card + waterHomeCard();
   const day = dietDayKey(), pr = dietDayProgress(data, data.dietActive, day);
   // Plan sans aucun aliment et rien de noté : la carte seulement avec un objectif de calories (« 0 sur 2 800 kcal » :
   // repas qui changent chaque jour, on suit ses calories, demande de Maxence du 17/11) ; sans objectif, rien à suivre
   // (pas de « 0 sur 0 kcal »). Jour vide ou repas retirés : la carte reste (le repère du plan, ce qu'on a noté)
-  if (!pr.meals.some(x => x.meal.items.length || x.extras.length) && !(pr.goal.kcal > 0)) return card;
+  if (!pr.meals.some(x => x.meal.items.length || x.extras.length) && !(pr.goal.kcal > 0)) return card + waterHomeCard();
   // Aucun aliment prévu dans le plan : ses repas se remplissent au fil du jour, comme un jour vide
   const noFood = !pr.meals.some(x => x.meal.items.length);
   const next = pr.next;
@@ -565,7 +567,7 @@ function nutritionHomeCard() {
       </button>
       <div class="diet-home__meals" data-action="go-nutrition">${rows}
         ${moreText ? `<div class="diet-home__more" aria-hidden="true">${moreText}</div>` : ''}
-      </div>
+      </div>${waterHomeRowHtml()}
     </section>`;
 }
 
