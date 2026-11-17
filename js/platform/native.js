@@ -583,10 +583,14 @@ const Native = (() => {
       // { jws, transactionId } quand status vaut 'success'. La transaction n'est PAS terminée ici :
       // c'est finish() qui le fait, une fois le serveur d'accord (un achat perdu par le réseau
       // revient au lancement suivant).
-      async purchase(productId, appAccountToken = null) {
+      // promo : { offerId, jws } (offre promotionnelle signée par le serveur, build 69+). Offre refusée
+      // par Apple (signature, client non éligible) : { status: 'promoRefused' }, rien n'est débité.
+      async purchase(productId, appAccountToken = null, promo = null) {
         if (!this.available) return null;
-        try { return await Store.purchase({ productId, ...(appAccountToken ? { appAccountToken } : {}) }); }
-        catch { return null; }
+        try {
+          return await Store.purchase({ productId, ...(appAccountToken ? { appAccountToken } : {}),
+            ...(promo ? { promoOfferId: promo.offerId, promoJws: promo.jws } : {}) });
+        } catch (e) { return promo && e?.code === 'PROMO_REFUSED' ? { status: 'promoRefused' } : null; }
       },
       // OBLIGATOIRE après la vérification par le serveur : sans cet appel, Apple réannonce la même
       // transaction à chaque lancement.

@@ -72,6 +72,8 @@ const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
 const access = { userId: null, state: null, cached: null, loading: false, again: false, error: null, loadedAt: 0,
   products: null, missing: null, productsAt: 0, buying: null, verifying: false, syncing: false,
   canPay: true, refused: new Set(), currentProduct: null, storeEnv: null,
+  // Essai coach par offre promotionnelle : { eligible, reason } lu chez le serveur (coach_promo_state), null inconnu
+  coachPromo: null,
   // Sans compte : verrou lu dans app_config (true, false, ou null tant qu'il n'a jamais été lu)
   anon: readAnonPaywall(), anonAt: 0, anonLoading: false, firstSeen: null };
 const accessListeners = [];
@@ -272,6 +274,8 @@ const ACCESS_ERROR_TEXT = {
   bad_type: 'Ce type d\'achat n\'est pas reconnu par l\'app.',
   not_purchased: 'Cet achat n\'est pas rattaché à ton identifiant Apple. Le partage familial n\'est pas accepté.',
   invalid_transaction: 'Apple n\'a pas reconnu cette transaction.',
+  promo_unavailable: 'L\'essai coach offert n\'est pas disponible pour ton compte. Rien n\'a été débité : la formule reste au prix affiché.',
+  promo_refused: 'Apple n\'a pas accepté l\'essai coach offert. Rien n\'a été débité.',
   blocked: 'Les achats sont bloqués sur cet iPhone. Regarde dans Réglages, Temps d\'écran.',
   retry: 'Apple ne répond pas pour l\'instant. Ton achat n\'est pas perdu, on réessaiera.',
   rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
@@ -307,7 +311,7 @@ function accessReset(userId) {
   accessSeq++;
   access.refused.clear();
   Object.assign(access, { userId, state: null, cached: userId ? readAccessCache(userId) : null,
-    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false });
+    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false, coachPromo: null });
 }
 
 // ── Appels au serveur ───────────────────────────────────────
@@ -502,12 +506,25 @@ async function accessVerifyPurchase(jws, transactionId = null) {
 // StoreKit dit que la personne y a droit (introEligible) et que l'offre est gratuite (freeTrial) ;
 // null sinon (déjà utilisée sur cet identifiant Apple, ou pas d'offre) : l'écran montre le prix normal.
 const ACCESS_UNITS = ['day', 'week', 'month', 'year'];
-function accessTrialOf(p) {
-  const o = p?.offer;
-  if (p?.introEligible !== true || !o || o.paymentMode !== 'freeTrial') return null;
+// Durée d'une offre gratuite de StoreKit : { unit, value } (période × nombre de périodes), null sinon
+function accessFreeDuration(o) {
+  if (!o || o.paymentMode !== 'freeTrial') return null;
   const unit = ACCESS_UNITS.includes(o.period?.unit) ? o.period.unit : null;
   const n = (Number.isInteger(o.period?.value) ? o.period.value : 0) * (Number.isInteger(o.periodCount) && o.periodCount > 0 ? o.periodCount : 1);
   return unit && n > 0 && n <= 366 ? { unit, value: n } : null;
+}
+function accessTrialOf(p) {
+  return p?.introEligible === true ? accessFreeDuration(p?.offer) : null;
+}
+// Essai coach pour qui a déjà eu un essai (docs/PAYANT_V1.md) : l'offre promotionnelle gratuite
+// « <produit>.essai2mois » d'App Store Connect, lue chez StoreKit (promoOffers, build 69 et suivantes :
+// une build plus ancienne ne la rend pas, et ne saurait pas l'appliquer). { id, unit, value } ou null.
+const ACCESS_PROMO_SUFFIX = '.essai2mois';
+function accessPromoOf(p) {
+  if (!planIsCoach(p?.id) || !Array.isArray(p?.promoOffers)) return null;
+  const o = p.promoOffers.find(x => x && x.id === p.id + ACCESS_PROMO_SUFFIX);
+  const d = accessFreeDuration(o);
+  return d ? { id: o.id, ...d } : null;
 }
 async function accessLoadProducts({ force = false } = {}) {
   if (!Native.store.available) { access.products = []; access.missing = []; return []; }
@@ -521,7 +538,7 @@ async function accessLoadProducts({ force = false } = {}) {
       // Nombre (pour « soit 8,5 mois ») et devise : jamais affichés tels quels
       amount: typeof p.price === 'number' && Number.isFinite(p.price) ? p.price : null,
       currency: typeof p.currency === 'string' ? p.currency.slice(0, 3) : null,
-      trial: accessTrialOf(p) }))
+      trial: accessTrialOf(p), introEligible: p.introEligible === true, promo: accessPromoOf(p) }))
     .sort((a, b) => ACCESS_PRODUCT_IDS.indexOf(a.id) - ACCESS_PRODUCT_IDS.indexOf(b.id));
   if (typeof raw?.canMakePayments === 'boolean') access.canPay = raw.canMakePayments;
   access.products = list;
@@ -533,8 +550,40 @@ async function accessLoadProducts({ force = false } = {}) {
   return list;
 }
 
+// Essai coach offert : le serveur dit si ce compte y a droit (coach validé, jamais abonné coach, moins de
+// 10 signatures). Lecture seule, rien n'est signé. Un échec garde l'état connu (null : pas d'offre affichée).
+async function accessLoadCoachPromo() {
+  if (!account.user) { access.coachPromo = null; return null; }
+  const r = await accessRpc('coach_promo_state');
+  if (r.ok) {
+    access.coachPromo = { eligible: r.data?.eligible === true, reason: typeof r.data?.reason === 'string' ? r.data.reason : null };
+    notifyAccess();
+  }
+  return access.coachPromo;
+}
+// La formule p s'achète-t-elle avec l'essai coach offert ? Il faut les trois : StoreKit ne propose plus
+// l'offre de lancement (déjà utilisée dans le groupe : sinon c'est elle, l'essai normal), l'offre
+// promotionnelle existe chez StoreKit, et le serveur dit que ce compte y a droit. { id, unit, value } ou null.
+function accessCoachPromoFor(p) {
+  if (!p?.promo || p.trial || p.introEligible) return null;
+  return access.coachPromo?.eligible === true ? p.promo : null;
+}
+// Signature de l'offre par la fonction Edge coach-promo-offer : { offerId, jws } ou null (refus, réseau)
+async function accessSignCoachPromo(productId) {
+  if (!sb || !account.user) return null;
+  const seq = accessSeq;
+  try {
+    const { data, error } = await sb.functions.invoke('coach-promo-offer', { body: { productId, introEligible: false } });
+    if (error || seq !== accessSeq) return null;
+    return typeof data?.offerId === 'string' && typeof data?.jws === 'string' && data.jws ? { offerId: data.offerId, jws: data.jws } : null;
+  } catch { return null; }
+}
+
 // Achat d'une formule : StoreKit rend le JWS de la transaction, que le serveur vérifie.
 // Renvoie { ok: true }, { ok: false, reason: 'cancel' } ou { ok: false, kind }.
+// Formule annoncée avec l'essai coach offert (accessCoachPromoFor) : l'achat part AVEC l'offre signée, ou
+// pas du tout (promo_unavailable) : on ne débite jamais au prix plein quelqu'un à qui l'écran promettait
+// des mois offerts. L'écran se redessine ensuite au prix normal.
 async function accessBuy(productId) {
   if (!account.user) return { ok: false, kind: 'signed_out' };
   if (!Native.store.available) return { ok: false, kind: 'no_store' };
@@ -547,7 +596,14 @@ async function accessBuy(productId) {
     // transaction et dans les notifications d'Apple. Sans lui, un achat dont la vérification échoue
     // (réseau coupé juste après le paiement) serait orphelin : le serveur ne saurait pas à qui le
     // rattacher. L'identifiant Supabase est un UUID, c'est ce qu'Apple attend.
-    const r = await Native.store.purchase(productId, account.user.id);
+    const promo = accessCoachPromoFor((access.products || []).find(p => p.id === productId));
+    let signed = null;
+    if (promo) {
+      signed = await accessSignCoachPromo(productId);
+      if (!signed || signed.offerId !== promo.id) { await accessLoadCoachPromo(); return { ok: false, kind: 'promo_unavailable' }; }
+    }
+    const r = await Native.store.purchase(productId, account.user.id, signed);
+    if (r?.status === 'promoRefused') { await accessLoadCoachPromo(); return { ok: false, kind: 'promo_refused' }; }
     if (r?.status === 'userCancelled') return { ok: false, reason: 'cancel' };
     if (r?.status === 'pending') return { ok: false, kind: 'pending' };
     if (r?.status !== 'success' || !r?.jws) return { ok: false, kind: 'server' };

@@ -607,7 +607,7 @@ iPhone. Détails : IOS.md et docs/ANDROID.md ; cohérence vérifiée par `tests/
   jamais), chacun vérifié par un script de `tests/sql/`.
 - `supabase/functions/_shared/auth-guard.js` : garde pure de l'appelant (`requireCaller` : jeton Bearer relu par
   `auth.getUser`, null sinon), utilisée par `caller()` de `_shared/http.ts` pour toutes les fonctions déployées
-  avec `verify_jwt = false` (delete-account, revoke-apple, report, verify-purchase) ;
+  avec `verify_jwt = false` (delete-account, revoke-apple, report, verify-purchase, coach-promo-offer) ;
   `tests/unit/auth-guard.mjs` prouve le 401 avant tout travail. `http.ts` porte aussi `bodyJws`.
 - `supabase/functions/verify-purchase/` : un achat StoreKit 2. Signature d'Apple VRAIMENT vérifiée
   (`_shared/apple-jws.js` : chaîne jusqu'à Apple Root CA G3 épinglée dans le dépôt, dates, contraintes de base,
@@ -615,6 +615,11 @@ iPhone. Détails : IOS.md et docs/ANDROID.md ; cohérence vérifiée par `tests/
   relecture de la transaction auprès de l'App Store Server API (jeton ES256, secrets `APPLE_IAP_*`,
   `APPLE_ISSUER_ID`) avant d'écrire. Production et Sandbox acceptés (l'examen d'Apple achète en Sandbox),
   environnement et offre de lancement (`offerType` 1) transmis au serveur.
+- `supabase/functions/coach-promo-offer/` (17/11/2026, pas déployée) : essai coach de 2 mois pour qui a déjà eu un
+  essai. Signe l'offre promotionnelle d'Apple `<produit>.essai2mois` (JWS ES256, `aud: promotional-offer`, sans
+  `exp`, clé In-App Purchase : mêmes secrets que verify-purchase) après accord de la base
+  (`public.srv_coach_promo_grant`, migration `20261117020000_promo_coach.sql`). Règles pures dans
+  `promo-policy.js` (`tests/unit/promo-coach.mjs`). Contrat : `docs/PAYANT_V1.md`.
 - `supabase/functions/appstore-notify/` : App Store Server Notifications V2, à déployer avec `--no-verify-jwt`
   (Apple n'a pas de jeton Supabase). Signature invalide : 401, rien d'écrit. `notify-policy.js` traite SUBSCRIBED,
   DID_RENEW, DID_CHANGE_RENEWAL_STATUS, DID_FAIL_TO_RENEW, EXPIRED, GRACE_PERIOD_EXPIRED, REFUND et REVOKE ;
