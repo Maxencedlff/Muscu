@@ -486,7 +486,7 @@ def t_silhouette(bench, eng, dev, theme):
             page.wait_for_timeout(300)
         seg = page.locator('.onb [data-action="onb-silhouette"]')
         R.check(seg.count() == 2, f'{t} premier lancement : les deux silhouettes sur le résultat')
-        R.check(page.locator('.onb [data-val="male"]').get_attribute('aria-pressed') == 'true', f'{t} homme par défaut')
+        R.check(page.locator('.onb [aria-pressed="true"][data-action="onb-silhouette"]').count() == 0, f'{t} aucune silhouette cochée d\'office')
         page.click('.onb [data-action="onb-silhouette"][data-val="female"]')
         page.wait_for_timeout(250)
         R.check(page.evaluate('data.silhouette') == 'female' and page.evaluate('data.onboarded') is False, f'{t} femme choisie, résultat toujours là')

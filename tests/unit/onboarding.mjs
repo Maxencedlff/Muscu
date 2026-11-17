@@ -5,9 +5,9 @@ export default function ({ test, run, assert }) {
 
   test('premier lancement : règle de choix du programme (tableau complet)', () => {
     const expected = {
-      salle:    { debutant: ['fullbody', 'fullbody', 'upper_lower', 'upper_lower'], confirme: ['fullbody', 'ppl', 'upper_lower', 'ppl'] },
-      halteres: { debutant: Array(4).fill('maison_halteres'), confirme: Array(4).fill('maison_halteres') },
-      rien:     { debutant: Array(4).fill('maison'), confirme: Array(4).fill('maison') },
+      salle:    { debutant: Array(4).fill('fullbody'), reprise: Array(4).fill('fullbody'), confirme: ['fullbody', 'ppl', 'upper_lower', 'ppl'] },
+      halteres: { debutant: Array(4).fill('maison_halteres'), reprise: Array(4).fill('maison_halteres'), confirme: Array(4).fill('maison_halteres') },
+      rien:     { debutant: Array(4).fill('maison'), reprise: Array(4).fill('maison'), confirme: Array(4).fill('maison') },
     };
     for (const [place, levels] of Object.entries(expected)) {
       for (const [level, ids] of Object.entries(levels)) {
@@ -20,7 +20,7 @@ export default function ({ test, run, assert }) {
     const ids = run('Object.keys(PROGRAMMES)');
     for (const place of ['salle', 'halteres', 'rien', undefined, 'autre']) {
       for (const n of [2, 3, 4, 5, 7, 0, undefined, '4']) {
-        for (const level of ['debutant', 'confirme', undefined]) {
+        for (const level of ['debutant', 'reprise', 'confirme', undefined]) {
           const id = pick(place, n, level);
           assert.ok(ids.includes(id) && id !== 'custom', `${place}/${n}/${level} → ${id}`);
         }
@@ -28,7 +28,7 @@ export default function ({ test, run, assert }) {
     }
     assert.equal(run('recommendProgramme()'), 'ppl', 'aucune réponse : salle, 3 fois, déjà entraîné');
     assert.equal(pick('salle', 7, 'confirme'), 'ppl', '7 fois compte comme 5 ou plus');
-    assert.equal(pick('salle', '4', 'debutant'), 'upper_lower', 'nombre en texte (data-val)');
+    assert.equal(pick('salle', '4', 'confirme'), 'upper_lower', 'nombre en texte (data-val)');
   });
 
   test('premier lancement : chaque programme proposé a son explication', () => {
@@ -40,7 +40,8 @@ export default function ({ test, run, assert }) {
       }
     }
     assert.equal(run("recommendReason('fullbody', { perWeek: 3, level: 'debutant' })"),
-      '3 séances par semaine, tout le corps à chaque fois. Idéal pour débuter.');
+      '3 séances par semaine, tout le corps à chaque fois. Idéal pour débuter : machines et haltères, environ 45 min.');
+    assert.equal(run("recommendReason('fullbody', { perWeek: 3, level: 'reprise' })"), run("recommendReason('fullbody', { perWeek: 3, level: 'debutant' })"));
     assert.equal(run("recommendReason('custom', {})"), '');
     for (const id of ['bro', 'arnold']) assert.ok(run(`recommendReason('${id}', { perWeek: 5 })`).startsWith('5 séances ou plus'), `${id} : catalogue`);
   });
@@ -57,6 +58,23 @@ export default function ({ test, run, assert }) {
     assert.deepEqual([...run("programmePreview('maison')").map(s => s.plain)], ['', '']);
     assert.equal(run("programmePreview('inconnu')").length, 0);
     assert.equal(run("PROGRAMMES.ppl.sessions.push.label"), 'Push', 'libellé des données inchangé');
+  });
+
+  // Regard neuf du 16/11 : débutant ou reprise tombaient sur un squat barre en premier, 55 à 70 min
+  test('premier lancement : Full Body guidé (machines, haltères), environ 45 min', () => {
+    const list = run('PROGRAMMES.fullbody.defaults.fullbody');
+    const names = list.map(([n]) => n);
+    assert.ok(names.every(n => !/barre/i.test(n)), `pas de barre libre : ${names}`);
+    names.forEach(n => assert.ok(run(`EXERCISE_CATALOGUE.some(e => e.name === ${JSON.stringify(n)})`), `${n} dans le catalogue`));
+    // Durée selon le calcul du Sur mesure, repos par défaut de l'app (90 s, data.defaultRest), échauffement compris
+    const secs = run(`genSessionSeconds(${JSON.stringify(list.map(([name, sets]) => ({ name, sets, rest: 90 })))}, 45)`);
+    assert.ok(secs <= 47 * 60, `séance d'environ 45 min : ${Math.round(secs / 60)} min`);
+  });
+
+  test('premier lancement : la reprise ouvre le Sur mesure, comptée comme un débutant', () => {
+    assert.ok(run("Object.keys(ONB_LEVELS)").includes('reprise'));
+    assert.ok(run("Object.hasOwn(GEN_LEVELS, 'reprise')"), 'même niveau dans le générateur');
+    assert.ok(run('GEN_MINUTES').includes(40), 'Sur mesure : 40 min possible');
   });
 
   test('premier lancement : filtres de matériel connus', () => {

@@ -4,6 +4,9 @@
 //  Où ? → Combien de fois par semaine ? → Ton niveau ? → résultat (programme en clair, pourquoi,
 //  silhouettes Femme et Homme aux muscles du programme surlignés, séances). Un toucher sur une
 //  réponse passe à la suivante ; « Retour » en haut à gauche, « Plus tard » en haut à droite (rien n'est imposé, comme avant).
+//  Sur mesure (js/features/program-generator-ui.js) visible sans être imposé (regard neuf du 16/11) : niveau « Je reprends
+//  ou j'ai une douleur », et « Ajuster à mon temps et mon matériel » sous « Commencer ». Première question : « J'ai déjà
+//  un programme » (catalogue, création) et « Je suis coach » (demande du rôle, js/features/coach-pro-ui.js).
 //  Plein écran plutôt qu'une carte de l'accueil : sans explication, l'accueil montrait « Push » à qui
 //  ne sait pas ce qu'est un PPL ; les questions passent avant, une par écran, comme Bienvenue.
 //  Calque bâti comme celui des écrans du compte (css/account.css, .auth) : app inerte dessous (MODAL_SEL).
@@ -91,9 +94,14 @@ function onbQuestion(title, lead, options) {
 }
 
 const ONB_STEPS = {
-  place: () => onbQuestion('Où t\'entraînes\u2011tu&nbsp;?',   // trait d'union insécable : jamais « entraînes- / tu »
+  // Trait d'union insécable dans le titre : jamais « entraînes- / tu »
+  place: () => `${onbQuestion('Où t\'entraînes\u2011tu&nbsp;?',
     'L\'app choisit un programme et des exercices adaptés. Tu pourras tout changer.',
-    Object.entries(ONB_PLACES).map(([k, p]) => onbOption('onb-place', k, p.label, p.sub, onb.place === k)).join('')),
+    Object.entries(ONB_PLACES).map(([k, p]) => onbOption('onb-place', k, p.label, p.sub, onb.place === k)).join(''))}
+      <div class="onb__links">
+        <button class="auth__skip onb__link" data-action="onb-have">J'ai déjà un programme</button>
+        <button class="auth__skip onb__link onb__link--quiet" data-action="onb-coach">Je suis coach</button>
+      </div>`,
 
   freq: () => onbQuestion('Combien de séances par semaine&nbsp;?',
     'Sur une semaine normale. C\'est aussi ton objectif sur l\'accueil.',
@@ -110,12 +118,12 @@ const ONB_STEPS = {
       <p class="onb__eyebrow">Ton programme</p>
       <h1 class="auth__title auth__title--left" id="onbTitle" tabindex="-1">${esc(PROGRAMMES[id].name)}</h1>
       <p class="auth__lead auth__lead--left onb__reason">${recommendReason(id, onb)}</p>
-      <p class="onb__label" id="onbBodies">Muscles travaillés. Touche ta silhouette.</p>
+      <p class="onb__label" id="onbBodies">Quelle silhouette te ressemble&nbsp;? Les muscles travaillés sont en couleur.</p>
       <div class="onb__bodies" role="group" aria-labelledby="onbBodies">${onbBodiesHtml(programmeMuscleLevels(id))}</div>
       <div class="group onb__group">${programmeSessionsHtml(id)}</div>
-      <button class="auth__skip onb__custom" data-action="onb-custom">Créer mon programme sur mesure</button>
       <div class="onb__actions">
         <button class="btn btn--primary auth__primary" data-action="onb-start">Commencer</button>
+        <button class="auth__skip onb__custom" data-action="onb-custom">Ajuster à mon temps et mon matériel</button>
         <button class="auth__skip" data-action="onb-others">Voir les autres programmes</button>
       </div>`;
   },
@@ -123,8 +131,10 @@ const ONB_STEPS = {
 
 // Silhouettes Femme et Homme côte à côte, muscles du programme surlignés : un toucher choisit
 // (data.silhouette, comme Réglages › Affichage). La choisie est encadrée et cochée, l'autre atténuée.
+// Rien de coché tant qu'on n'a pas répondu (regard neuf du 16/11 : « Homme » coché d'office) ; ailleurs,
+// bodySilhouette() garde son dessin par défaut.
 function onbBodiesHtml(levels) {
-  const cur = bodySilhouette();
+  const cur = SILHOUETTES.some(([v]) => v === data.silhouette) ? data.silhouette : null;
   return SILHOUETTES.map(([v, l]) => `
     <button class="onb__body${cur === v ? ' onb__body--on' : ''}" data-action="onb-silhouette" data-val="${v}"
       aria-pressed="${cur === v}" aria-label="Silhouette ${l.toLowerCase()}">
@@ -141,15 +151,30 @@ function applyOnboarding() {
   activateProgramme(id);
   data.exEquip = ONB_PLACES[onb.place]?.equip || 'all';
   if (onb.perWeek) data.weeklyGoal = onb.perWeek;
-  if (TRAINING_LEVELS.includes(onb.level)) data.level = onb.level;
+  const level = onb.level === 'reprise' ? 'debutant' : onb.level;   // repère de séries d'un débutant
+  if (TRAINING_LEVELS.includes(level)) data.level = level;
   data.onboarded = true;
   save();
+}
+
+// Sur mesure prérempli avec les réponses données ; le conseil est appliqué d'abord : quitter le générateur le laisse
+function onbOpenGenerator() {
+  const pre = { place: onb.place, perWeek: onb.perWeek, level: onb.level };
+  applyOnboarding();
+  closeOnboarding();
+  openProgGen(pre);
 }
 
 registerActions({
   'onb-place': (e, el) => { onb.place = el.dataset.val in ONB_PLACES ? el.dataset.val : null; haptic(); onbGo('freq'); },
   'onb-freq': (e, el) => { onb.perWeek = ONB_FREQS.find(f => f.n === +el.dataset.val)?.n || null; haptic(); onbGo('level'); },
-  'onb-level': (e, el) => { onb.level = el.dataset.val in ONB_LEVELS ? el.dataset.val : null; haptic(); onbGo('result'); },
+  'onb-level': (e, el) => {
+    onb.level = el.dataset.val in ONB_LEVELS ? el.dataset.val : null;
+    haptic();
+    // Reprise ou douleur : directement le Sur mesure (niveau « reprise », limites à cocher), le conseil débutant en attendant
+    if (onb.level === 'reprise') onbOpenGenerator();
+    else onbGo('result');
+  },
   'onb-back': () => onbBack(),
   // Comme l'ancien « Plus tard » : aucun choix imposé, la question ne revient plus
   'onb-later': () => { data.onboarded = true; save(); closeOnboarding(); render(); },
@@ -170,5 +195,13 @@ registerActions({
   'onb-others': () => { applyOnboarding(); closeOnboarding(); navigate('prog-add'); },
   // Sur mesure (lien discret, jamais imposé) : conseil appliqué comme « Voir les autres », puis le générateur
   // prérempli avec les trois réponses ; le quitter laisse le programme conseillé
-  'onb-custom': () => { const pre = { place: onb.place, perWeek: onb.perWeek, level: onb.level }; applyOnboarding(); closeOnboarding(); openProgGen(pre); },
+  'onb-custom': () => onbOpenGenerator(),
+  // Déjà un programme : rien n'est imposé, Ajouter un programme (le créer, ou le prendre dans le catalogue)
+  'onb-have': () => { data.onboarded = true; save(); haptic(); closeOnboarding(); navigate('prog-add'); },
+  // Coach : la demande du rôle (connexion d'abord si besoin) ; ses séances à lui se règlent plus tard
+  'onb-coach': async () => {
+    data.onboarded = true; save(); haptic(); closeOnboarding(); render();
+    if (!account.user && (await openAuthFlow()) !== 'signed-in') return;
+    navigate('coach-request');
+  },
 });

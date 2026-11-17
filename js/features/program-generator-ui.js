@@ -2,8 +2,8 @@
 //  Programme sur mesure : questions courtes façon iOS, puis l'aperçu du programme généré
 //
 //  Accès principal : Programme › Mes programmes › Ajouter un programme › « Créer mon programme sur mesure ».
-//  Au premier lancement, seulement un lien discret sous le programme conseillé : rien n'est imposé, « Plus tard »
-//  ne relance rien. Une question par écran (route prog-gen:<étape>), le retour d'iOS revient à la précédente.
+//  Au premier lancement, jamais imposé : niveau « Je reprends ou j'ai une douleur », ou « Ajuster à mon temps et mon
+//  matériel » sous le programme conseillé ; « Plus tard » ne relance rien. Une question par écran (route prog-gen:<étape>), le retour d'iOS revient à la précédente.
 //  Âge, taille, poids et sexe : ceux des Réglages (mêmes clés et mêmes actions : set-profile-age,
 //  set-profile-height, set-body-weight, set-strength-sex), modifiables ici. Les autres réponses restent sur
 //  l'appareil (GEN_ANSWERS_KEY), jamais sur le compte. Règles : js/data/program-generator.js.
@@ -53,7 +53,7 @@ function openProgGen(prefill = null) {
     else if (prefill.place === 'halteres') { genAns.gym = false; genAns.equip = ['halteres', 'banc']; }
     else if (prefill.place === 'rien') { genAns.gym = false; genAns.equip = []; }
     if (prefill.perWeek) genAns.days = Math.min(6, Math.max(2, prefill.perWeek));
-    if (prefill.level) { genAns.level = prefill.level === 'debutant' ? 'debutant' : 'intermediaire'; genAns.levelGuess = false; }
+    if (prefill.level) { genAns.level = { debutant: 'debutant', reprise: 'reprise' }[prefill.level] || 'intermediaire'; genAns.levelGuess = false; }
   }
   navigate(makeRoute('prog-gen', 'toi'));
 }

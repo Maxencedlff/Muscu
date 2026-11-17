@@ -55,6 +55,8 @@ def t_parcours(bench, eng, dev, theme):
         R.check(page.locator('.onb [data-action="onb-place"]').count() == 3, f'{t} trois lieux')
         R.check(page.get_attribute('.onb__progress', 'aria-valuenow') == '1', f'{t} avancement 1 sur 3')
         R.check(small_targets(page) == 0 and not overflowing(page) and no_hscroll(page), f'{t} lieu : 44 pt, rien de coupé {overflowing(page)}')
+        R.check(page.locator('.onb [data-action="onb-have"]').inner_text().strip() == 'J\'ai déjà un programme'
+                and page.locator('.onb [data-action="onb-coach"]').inner_text().strip() == 'Je suis coach', f'{t} 1re question : déjà un programme, coach')
         shot(page, LOT, f'1-ou-{t}')
 
         tap(page, '[data-action="onb-place"][data-val="salle"]')
@@ -64,7 +66,7 @@ def t_parcours(bench, eng, dev, theme):
         R.check(small_targets(page) == 0 and not overflowing(page), f'{t} fréquence : 44 pt, rien de coupé')
         tap(page, '[data-action="onb-freq"][data-val="3"]')
         R.check(step(page) == 'level', f'{t} niveau')
-        R.check(page.locator('.onb [data-action="onb-level"]').count() == 2, f'{t} deux niveaux')
+        R.check(page.locator('.onb [data-action="onb-level"]').count() == 3, f'{t} trois niveaux, dont la reprise')
 
         # Retour : réponse précédente cochée
         tap(page, '[data-action="onb-back"]')
@@ -82,14 +84,15 @@ def t_parcours(bench, eng, dev, theme):
         tap(page, '[data-action="onb-back"]')
         tap(page, '[data-action="onb-level"][data-val="debutant"]')
         R.check(page.locator('#onbTitle').inner_text().strip() == 'Full Body', f'{t} débutant, 3 fois : Full Body')
-        R.check(page.locator('.onb__reason').inner_text().strip() == '3 séances par semaine, tout le corps à chaque fois. Idéal pour débuter.',
+        R.check(page.locator('.onb__reason').inner_text().strip() == '3 séances par semaine, tout le corps à chaque fois. Idéal pour débuter : machines et haltères, environ 45 min.',
                 f'{t} phrase du Full Body')
 
         # Silhouettes : Femme et Homme côte à côte, muscles du programme surlignés, un toucher choisit
         bodies = page.locator('.onb .onb__body')
         R.check(bodies.count() == 2 and bodies.nth(0).get_attribute('aria-label') == 'Silhouette femme'
                 and bodies.nth(1).get_attribute('aria-label') == 'Silhouette homme', f'{t} deux silhouettes nommées pour VoiceOver')
-        R.check(page.locator('.onb [data-action="onb-silhouette"][data-val="male"]').get_attribute('aria-pressed') == 'true', f'{t} homme par défaut')
+        R.check(page.locator('.onb [aria-pressed="true"][data-action="onb-silhouette"]').count() == 0, f'{t} aucune silhouette cochée d\'office')
+        R.check(page.locator('#onbBodies').inner_text().replace('\u00a0', ' ').startswith('Quelle silhouette te ressemble ?'), f'{t} question de la silhouette')
         lit = page.evaluate("[...document.querySelectorAll('.onb__body[data-val=\"male\"] [data-muscle][data-heat]')].map(p => p.dataset.muscle)")
         R.check({'chest', 'quads', 'lats'} <= set(lit), f'{t} muscles du Full Body surlignés {sorted(set(lit))[:6]}')
         R.check(page.locator('.onb .segmented').count() == 0, f'{t} plus de contrôle segmenté')
@@ -166,12 +169,39 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         tap(page, '[data-action="onb-place"][data-val="salle"]')
         tap(page, '[data-action="onb-freq"][data-val="5"]')
         tap(page, '[data-action="onb-level"][data-val="debutant"]')
-        R.check(page.locator('#onbTitle').inner_text().strip() == 'Upper / Lower', f'{t} débutant, 5 fois : Upper / Lower')
+        R.check(page.locator('#onbTitle').inner_text().strip() == 'Full Body', f'{t} débutant, 5 fois : Full Body')
         tap(page, '[data-action="onb-others"]')
         page.wait_for_selector('.view.prog-add')
-        row = page.locator('.prog-add [data-action="open-prog-info"][data-id="upper_lower"]')
-        R.check('Actif' in row.inner_text(), f'{t} Voir les autres : catalogue, Upper / Lower actif')
-        R.check(page.evaluate('[data.activeProgramme, data.myProgrammes]') == ['upper_lower', ['upper_lower']], f'{t} conseil appliqué et dans Mes programmes')
+        row = page.locator('.prog-add [data-action="open-prog-info"][data-id="fullbody"]')
+        R.check('Actif' in row.inner_text(), f'{t} Voir les autres : catalogue, Full Body actif')
+        R.check(page.evaluate('[data.activeProgramme, data.myProgrammes]') == ['fullbody', ['fullbody']], f'{t} conseil appliqué et dans Mes programmes')
+        first = page.evaluate("data.programmes.fullbody.exercises.fullbody.map(e => e.name)")
+        R.check(first[0] == 'Presse à cuisses' and not any('barre' in n.lower() for n in first), f'{t} débutant : machines et haltères, pas de barre {first}')
+
+        # « Je reprends ou j'ai une douleur » : Sur mesure directement, niveau « reprise », conseil débutant en attendant
+        seed(page, theme, None)
+        page.wait_for_selector('.onb__page--place')
+        tap(page, '[data-action="onb-place"][data-val="salle"]')
+        tap(page, '[data-action="onb-freq"][data-val="3"]')
+        tap(page, '[data-action="onb-level"][data-val="reprise"]')
+        R.check(page.locator('.onb').count() == 0 and page.evaluate('currentRoute()') == 'prog-gen:toi', f'{t} reprise : Sur mesure ouvert')
+        R.check(page.evaluate('[data.activeProgramme, data.level, data.onboarded, genAns.level]') == ['fullbody', 'debutant', True, 'reprise'],
+                f'{t} reprise : Full Body en attendant, niveau reprise prérempli')
+
+        # « J'ai déjà un programme » : rien d'imposé, Ajouter un programme
+        seed(page, theme, None)
+        page.wait_for_selector('.onb__page--place')
+        tap(page, '[data-action="onb-have"]')
+        page.wait_for_selector('.view.prog-add')
+        R.check(page.locator('.onb').count() == 0 and page.evaluate('[data.onboarded, data.weeklyGoal ?? null]') == [True, None],
+                f'{t} déjà un programme : Ajouter un programme, rien d\'imposé')
+
+        # « Je suis coach » sans compte : connexion d'abord ; fermée, on reste sur l'app
+        seed(page, theme, None)
+        page.wait_for_selector('.onb__page--place')
+        tap(page, '[data-action="onb-coach"]')
+        page.wait_for_selector('.auth')
+        R.check(page.locator('.onb').count() == 0 and page.evaluate('data.onboarded') is True, f'{t} coach : questions fermées, connexion proposée')
         R.check(page.evaluate('[data.weeklyGoal, data.onboarded]') == [5, True], f'{t} objectif 5, questions passées')
 
         # Panel « yeux neufs » du 16/11 : « Tu viens de Strong ou Hevy ? » sous les niveaux, ouvre le choix du fichier

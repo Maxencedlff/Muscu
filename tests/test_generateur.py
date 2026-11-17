@@ -163,14 +163,15 @@ def t_premier_lancement(bench, eng, dev, theme):
         R.check(page.evaluate('view') == 'programmes' and page.locator('.view.prog-gen').count() == 0, f'{t} Plus tard : onglet Programme normal')
         R.check(ls(page, 'mdlf_gen_answers') is None, f'{t} Plus tard : aucune réponse gardée')
 
-        # Lien discret sous le programme conseillé : générateur prérempli avec les trois réponses
+        # Lien sous « Commencer » : générateur prérempli avec les trois réponses
         seed(page, theme, None)
         page.wait_for_selector('.onb__page--place')
         tap(page, '[data-action="onb-place"][data-val="salle"]')
         tap(page, '[data-action="onb-freq"][data-val="4"]')
         tap(page, '[data-action="onb-level"][data-val="confirme"]')
         link = page.locator('.onb [data-action="onb-custom"]')
-        R.check(link.count() == 1 and 'auth__skip' in (link.get_attribute('class') or ''), f'{t} lien discret « sur mesure »')
+        R.check(link.count() == 1 and link.inner_text().strip() == 'Ajuster à mon temps et mon matériel'
+                and page.locator('.onb__actions [data-action="onb-custom"]').count() == 1, f'{t} « Ajuster à mon temps et mon matériel » sous Commencer')
         R.check(page.evaluate("(() => { const r = document.querySelector('[data-action=\"onb-start\"]').getBoundingClientRect(); return r.bottom <= innerHeight; })()"),
                 f'{t} « Commencer » toujours visible')
         shot(page, LOT, f'7-premier-lancement-{t}')

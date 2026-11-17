@@ -335,6 +335,12 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
 .onb { padding-bottom: 0; }
 /* « Tu viens de Strong ou Hevy ? » sous les niveaux : lien discret, aligné sur la liste */
 .onb__import { align-self: flex-start; margin-top: 12px; padding: 0 4px; text-align: left; font-size: var(--fs-subhead); }
+/* Première question : « J'ai déjà un programme » (orange, comme les liens d'iOS), « Je suis coach » plus discret */
+.onb__links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; margin-top: 12px; }
+.onb__link { align-self: auto; margin-top: 0; padding: 0 4px; text-align: left; font-size: var(--fs-subhead); }
+.onb__link--quiet { color: var(--label2); }
+/* Sur mesure sous « Commencer » : même lien qu'« Autres programmes », en gras pour se voir */
+.onb__actions .onb__custom { font-weight: 600; }
 .onb__page:not(.onb__page--result) { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 /* Petite hauteur (iPhone SE, paysage) : silhouettes plus basses, boutons plus serrés, pour voir au moins une séance
    entière au-dessus de « Commencer » (on ne voyait qu'une demi-ligne « Push · pousser ») */
