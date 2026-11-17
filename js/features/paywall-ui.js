@@ -106,7 +106,7 @@ function payDoubleCardHtml() {
   if (!d) return '';
   return `
         <div class="group pay-double" role="note">
-          <div class="cell pay-double__cell"><span class="cell__body"><span class="cell__title pay-double__text">${esc(accessDoubleSubText(d))}</span></span></div>
+          <div class="cell pay-cover-cell pay-double__cell"><span class="cell__body"><span class="cell__title pay-double__text">${esc(accessDoubleSubText(d))}</span></span></div>
           ${Native.store.available ? '<button class="cell cell--action" data-action="pay-manage"><span class="cell__title">Gérer mon abonnement</span></button>' : ''}
         </div>`;
 }

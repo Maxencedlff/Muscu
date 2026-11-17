@@ -107,3 +107,4 @@
 
 /* Élève couvert par son coach qui a encore son propre abonnement : carte sobre, texte sur plusieurs lignes */
 .pay-double .pay-double__text { white-space: normal; text-wrap: pretty; line-height: 1.35; }
+.pay-settings-view .pay-double .cell__body, .pay-settings-view .pay-cover-cell .cell__body { flex: 1 1 0; min-width: 0; }
