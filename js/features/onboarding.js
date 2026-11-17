@@ -118,7 +118,7 @@ const ONB_STEPS = {
       <p class="onb__eyebrow">Ton programme</p>
       <h1 class="auth__title auth__title--left" id="onbTitle" tabindex="-1">${esc(PROGRAMMES[id].name)}</h1>
       <p class="auth__lead auth__lead--left onb__reason">${recommendReason(id, onb)}</p>
-      <p class="onb__label" id="onbBodies">Quelle silhouette te ressemble&nbsp;? Les muscles travaillés sont en couleur.</p>
+      <p class="onb__label" id="onbBodies">Quelle silhouette te ressemble&nbsp;?</p>
       <div class="onb__bodies" role="group" aria-labelledby="onbBodies">${onbBodiesHtml(programmeMuscleLevels(id))}</div>
       <div class="group onb__group">${programmeSessionsHtml(id)}</div>
       <button class="auth__skip onb__others" data-action="onb-others">Voir les autres programmes</button>

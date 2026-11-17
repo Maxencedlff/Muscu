@@ -177,6 +177,7 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         R.check(page.evaluate('[data.activeProgramme, data.myProgrammes]') == ['fullbody', ['fullbody']], f'{t} conseil appliqué et dans Mes programmes')
         first = page.evaluate("data.programmes.fullbody.exercises.fullbody.map(e => e.name)")
         R.check(first[0] == 'Presse à cuisses' and not any('barre' in n.lower() for n in first), f'{t} débutant : machines et haltères, pas de barre {first}')
+        R.check(page.evaluate('[data.weeklyGoal, data.onboarded]') == [5, True], f'{t} objectif 5, questions passées')
 
         # « Je reprends ou j'ai une douleur » : Sur mesure directement, niveau « reprise », conseil débutant en attendant
         seed(page, theme, None)
@@ -202,7 +203,6 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         tap(page, '[data-action="onb-coach"]')
         page.wait_for_selector('.auth')
         R.check(page.locator('.onb').count() == 0 and page.evaluate('data.onboarded') is True, f'{t} coach : questions fermées, connexion proposée')
-        R.check(page.evaluate('[data.weeklyGoal, data.onboarded]') == [5, True], f'{t} objectif 5, questions passées')
 
         # Panel « yeux neufs » du 16/11 : « Tu viens de Strong ou Hevy ? » sous les niveaux, ouvre le choix du fichier
         # (réponses données appliquées, niveau sans réponse : déjà entraîné)
