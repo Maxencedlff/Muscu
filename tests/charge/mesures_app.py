@@ -9,6 +9,8 @@ Pour chaque taille, sur iPhone SE (WebKit) et Pixel 7 (Chromium) :
 - recherche d'un élève (frappe, filtre) ;
 - fiche d'un élève (150 séances) : ouverture, page suivante ; conversation de 500 messages : ouverture,
   messages plus anciens ;
+- boîte de réception du coach (segment Messages, 17/11) : ouverture, lignes dessinées (40 d'abord), hauteur, défilement
+  jusqu'à la dernière conversation (affichage progressif), recherche, relecture des conversations ;
 - captures des écrans (taille 150) dans le dossier donné.
 
 Lancer depuis tests/ (serveur local sur un port libre, jamais 8731) :
@@ -112,12 +114,15 @@ def measure(bench, eng, dev, n, shots):
         # Onglet Coach : jusqu'à ce que toutes les lignes soient là, et la progression reçue
         t0 = time.perf_counter()
         page.click('.tabbar [data-tab="friends"]')
-        page.wait_for_function(f'() => document.querySelectorAll(".coach-team .coach-student-row").length >= {n}', timeout=120_000)
+        # Liste par pages de 40 depuis le 17/11 (COACH_PAGE) : la première page
+        page.wait_for_function(f'() => document.querySelectorAll(".coach-team .coach-student-row").length >= {min(n, 40)}', timeout=120_000)
         out['onglet_coach_ms'] = ms_since(t0)
         page.wait_for_function('() => typeof progress === "object" && progress.facts && !progress.loading', timeout=60_000)
         page.wait_for_timeout(300)
         out['onglet_coach_complet_ms'] = ms_since(t0)
         out['noeuds_dom'] = nodes(page)
+        out['hauteur_eleves_px'] = page.evaluate('document.documentElement.scrollHeight')
+        out['filtres'] = page.evaluate("Object.fromEntries([...document.querySelectorAll('.coach-filter')].map(b => [b.dataset.filter, b.querySelector('.coach-filter__n').textContent]))")
         out['heap_mo'] = heap(page)
         out['badge'] = page.evaluate('(document.querySelector(".tabbar [data-tab=friends] .tabbar__badge") || {}).textContent || ""')
         out['lignes_decroche'] = page.evaluate('document.querySelectorAll(".coach-student-row .progress-sig--warn").length')
@@ -140,13 +145,46 @@ def measure(bench, eng, dev, n, shots):
         if page.locator('#coachSearch').count():
             t0 = time.perf_counter()
             page.fill('#coachSearch', 'eleve042' if n > 42 else 'eleve001')
-            page.wait_for_function('() => [...document.querySelectorAll(".coach-team .coach-student-row")].filter(r => !r.hidden).length === 1')
+            page.wait_for_function('() => document.querySelectorAll(".coach-team .coach-student-row").length === 1')
             out['recherche_ms'] = ms_since(t0)
             if shots and n == 150:
                 page.screenshot(path=os.path.join(shots, f'04-recherche-{dev}.png'.replace(' ', '_')))
             page.fill('#coachSearch', '')
         else:
             out['recherche_ms'] = None
+        # Boîte de réception : segment Messages
+        t0 = time.perf_counter()
+        page.click('.social-seg [data-seg="messages"]')
+        page.wait_for_selector('#chatRows .chat-row', timeout=60_000)
+        out['messages_ms'] = ms_since(t0)
+        page.wait_for_timeout(300)
+        out['messages_lignes'] = page.locator('#chatRows .chat-row').count()
+        out['messages_hauteur_px'] = page.evaluate('document.documentElement.scrollHeight')
+        out['messages_noeuds_dom'] = nodes(page)
+        out['messages_defilement'] = page.evaluate(SCROLL)
+        if shots and n in (150, 300):
+            page.screenshot(path=os.path.join(shots, f'08-messages-{n}-{dev}.png'.replace(' ', '_')))
+        # Jusqu'à la dernière conversation : pages chargées en défilant
+        t0 = time.perf_counter()
+        for _ in range(20):
+            if not page.locator('.chat-more-rows').count():
+                break
+            page.locator('.chat-more-rows').scroll_into_view_if_needed()
+            page.wait_for_timeout(120)
+        out['messages_toutes_ms'] = ms_since(t0)
+        out['messages_toutes_lignes'] = page.locator('#chatRows .chat-row').count()
+        out['messages_toutes_hauteur_px'] = page.evaluate('document.documentElement.scrollHeight')
+        page.evaluate('window.scrollTo(0, 0)')
+        t0 = time.perf_counter()
+        page.fill('#chatSearch', 'eleve042' if n > 42 else 'eleve001')
+        page.wait_for_function('() => document.querySelectorAll("#chatRows .chat-row").length === 1')
+        out['messages_recherche_ms'] = ms_since(t0)
+        page.fill('#chatSearch', '')
+        rr = []
+        for _ in range(3):
+            rr.append(page.evaluate('async () => { const t = performance.now(); await chatRefresh(); await new Promise(r => requestAnimationFrame(() => r())); return Math.round(performance.now() - t); }'))
+        out['messages_relecture_ms'] = statistics.median(rr)
+        out['messages_rendu_ms'] = page.evaluate('() => { const t = performance.now(); document.querySelector("#chatRows").__html = null; refreshChatInbox(); return Math.round(performance.now() - t); }')
         # Fiche de l'élève cible (150 séances, 500 messages)
         t0 = time.perf_counter()
         page.evaluate(f'navigate(makeRoute("coach-student", "{ids[0]}"))')

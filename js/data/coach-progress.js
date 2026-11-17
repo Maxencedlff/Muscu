@@ -219,6 +219,25 @@ function teamWeekSummary(students, prOf, unreadOf = () => 0) {
   return { records, warn, fresh };
 }
 
+// Filtres de Mes élèves, au-delà de COACH_FILTER_MIN élèves (test de charge du 17/11 : 300 élèves en une seule
+// liste de 35 000 px). Compteurs exacts, jamais « 99+ » (réservé à la pastille de l'onglet).
+// warn : à relancer (même règle que le signal orange) ; fresh : séances pas vues ou messages non lus ;
+// noprog : aucun programme envoyé par moi (un plan diète ne compte pas ; serveur sans « sent » : inconnu, jamais compté)
+const COACH_FILTER_MIN = 21;
+const COACH_FILTERS = Object.freeze([['all', 'Tous'], ['warn', 'À relancer'], ['fresh', 'Nouveautés'], ['noprog', 'Sans programme']]);
+function coachStudentIn(kind, st, pr, unread = 0) {
+  if (kind === 'warn') return pr?.tone === 'warn';
+  if (kind === 'fresh') return (st.new_sessions || 0) + (unread || 0) > 0;
+  if (kind === 'noprog') return Array.isArray(st.sent) && !st.sent.some(x => !String(x.id).startsWith('diet_'));
+  return true;
+}
+// Nombre d'élèves de chaque filtre. rows : [{ st, pr }] (sortStudentsByProgress) ; unreadOf : non-lus d'un élève
+function coachFilterCounts(rows, unreadOf = () => 0) {
+  const out = Object.fromEntries(COACH_FILTERS.map(([k]) => [k, 0]));
+  for (const { st, pr } of rows) for (const [k] of COACH_FILTERS) if (coachStudentIn(k, st, pr, unreadOf(st))) out[k]++;
+  return out;
+}
+
 // ── État et lecture du serveur ──────────────────────────────
 
 function progressReset(userId) {

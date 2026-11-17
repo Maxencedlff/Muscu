@@ -23,7 +23,7 @@ async function coachSendDiet(student, planId) {
   // Nom envoyé gardé sur l'appareil (coach_state ne renvoie que l'identifiant) : la ligne de l'envoi garde ce nom
   // même si je supprime ou renomme mon plan ensuite
   if (r?.ok) coachRecordSent(student, progId, Date.now(), payload.diet.name);
-  return r;
+  return coachSendRate(r);
 }
 
 // Mes plans que je peux envoyer : les miens (pas ceux reçus d'un coach), non archivés, avec au moins un aliment

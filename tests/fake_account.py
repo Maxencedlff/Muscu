@@ -948,6 +948,15 @@ FAKE_ACCOUNT = r"""
       const th = chatThread(me, student); if (!th) return pgErr('not_found');
       const ms = chatMsgs(th).filter(m => up_to == null || m.id <= up_to); chatMark(th, ms.length ? ms[ms.length - 1].id : 0); return null;
     },
+    // Notifications coupées chez mes élèves (supabase/migrations/20261117050000_messages_coach.sql) : aucun appareil
+    // inscrit ou « Messages » éteint ; __sb.fail.pushOff = 'missing' : serveur sans la fonction
+    coach_push_off: me => {
+      if (sb.fail.pushOff === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.coach_push_off' } };
+      if (!co.coachAt[me]) return [];
+      const devs = Object.values(sb.push.devices);
+      return co.links.filter(l => l.coach === me).map(l => l.student)
+        .filter(s => !devs.includes(s) || sb.push.prefs[s]?.messages !== true);
+    },
     // Copie des 50 derniers messages (co.chatReports, gardée après la rupture du lien) et ligne de la file commune
     report_chat: (me, { reason, student = null } = {}) => {
       if (!['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'].includes(reason)) return pgErr('invalid_reason');

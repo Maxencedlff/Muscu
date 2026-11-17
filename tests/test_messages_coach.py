@@ -89,7 +89,11 @@ def t_eleve(bench, eng, dev, theme):
         R.check(page.evaluate('chatUnreadTotal()') == 2 and badge(page) == '2', f'{t} badge de l\'onglet : 2 messages ({badge(page)!r})')
         page.click('.tabbar [data-tab="friends"]')
         page.wait_for_selector('[data-action="coach-open-mine"]')
-        R.check('2' in page.inner_text('[data-action="coach-open-mine"] .coach-count'), f'{t} « Mon coach » : 2')
+        # Élève (17/11) : « Messages » juste sous « Mon coach », la conversation à un toucher avec ses non-lus ; « Mon coach »
+        # ne les compte plus une deuxième fois
+        row = page.locator('.coach-head .chat-cell--coach')
+        R.check(row.count() == 1 and row.locator('.coach-count').inner_text() == '2' and 'Pense à t' in row.inner_text(), f'{t} Social : « Messages » avec 2 non lus')
+        R.check(page.locator('[data-action="coach-open-mine"] .coach-count').count() == 0, f'{t} « Mon coach » : pas de doublon des messages')
         page.click('[data-action="coach-open-mine"]')
         page.wait_for_selector('.chat-cell')
         # Information unique : ce que la messagerie permet (liens créés avant elle)

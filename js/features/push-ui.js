@@ -91,7 +91,8 @@ function openPushTarget(p) {
   // d'un abonné) prépare le segment Social, le reste (messages, programmes) Élèves. Bravo et commentaire ouvrent la
   // séance dans l'Historique ; l'onglet Coach s'ouvre ensuite sur Social, là où est l'activité.
   const social = PUSH_SOCIAL_KINDS.has(p?.kind);
-  if (t.tab === 'friends' || social) setSocialSeg(social ? 'friends' : 'students');
+  if (t.tab === 'friends' || social) setSocialSeg(social ? 'friends' : t.seg || 'students');
+  if (t.filter) { coachFilter = t.filter; coachShownN = COACH_PAGE; }
   switchTab(t.tab, { reset: true });
   // Social masqué par la tranche d'âge (js/data/age-range.js) : l'onglet seul, jamais un écran du social
   if (t.screen && !(socialHiddenByAge() && String(t.screen).startsWith('social-'))) {

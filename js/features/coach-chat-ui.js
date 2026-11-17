@@ -200,6 +200,7 @@ async function chatMenu(key) {
 
 registerActions({
   'chat-open': (e, el) => navigate(makeRoute('coach-chat', el.dataset.key)),
+  'chat-inbox-more': () => { chatInboxN += CHAT_INBOX_PAGE; refreshChatInbox(); },
   'chat-send': (e, el) => { sendChat(el.dataset.key); },
   'chat-more': (e, el) => { chatLoad(el.dataset.key, { more: true }); },
   'chat-menu': (e, el) => { chatMenu(el.dataset.key); },
@@ -236,6 +237,91 @@ onCoachChange(() => {
   if (key && document.activeElement?.id === 'chatInput') refreshChatList(key);
 });
 
+// ── Boîte de réception du coach (segment Messages de l'onglet Coach) ─────────
+// Comme Messages d'iOS : avatar (ou photo), pseudo, heure, dernier message sur une ligne ; les non-lues en tête avec
+// leur nombre ; recherche par pseudo (aussi les élèves sans conversation, pour en commencer une). Dessinée par
+// CHAT_INBOX_PAGE lignes, la suite en défilant. Recherche et relecture ne redessinent que la liste (#chatRows).
+let chatInboxQ = '';
+let chatInboxN = CHAT_INBOX_PAGE;
+let chatInboxObserver = null;
+
+// Nombre de non-lus sur le bouton Messages du segment (exact)
+function chatSegCountHtml() {
+  const n = chatAvailable() ? chatUnreadTotal() : 0;
+  return n ? ` <span class="seg-count num" aria-hidden="true">${n}</span><span class="visually-hidden">, ${plural(n, 'non lu', 'non lus')}</span>` : '';
+}
+function chatInboxRowHtml({ st, unread, last }, now) {
+  const name = personName(st);
+  const preview = last ? `${last.mine ? 'Toi : ' : ''}${last.body.replace(/\s+/g, ' ')}` : 'Aucun message';
+  const time = last ? chatListTime(last.at, now) : '';
+  return `
+          <button class="cell cell--nav chat-row${unread ? ' chat-row--unread' : ''}" data-action="chat-open" data-key="${esc(st.user_id)}">
+            ${personAvatar(st)}
+            <span class="chat-row__body">
+              <span class="chat-row__top"><span class="chat-row__name">${esc(name)}</span>${pushOffMarkHtml(st.user_id)}<span class="chat-row__time num">${esc(time)}</span></span>
+              <span class="chat-row__last">${unread ? `<span class="visually-hidden">${plural(unread, 'message non lu', 'messages non lus')}, </span>` : ''}${esc(preview)}</span>
+            </span>
+            ${unread ? `<span class="coach-count num" aria-hidden="true">${unread}</span>` : ''}
+            ${icon('chevron.right', 16)}
+          </button>`;
+}
+function chatInboxRowsHtml() {
+  const st = coach.state;
+  const all = chatInboxRows(st?.students || [], chat.threads, chatInboxQ, normName);
+  const page = all.slice(0, chatInboxN), rest = all.length - page.length, now = Date.now();
+  if (!all.length) {
+    return `<div class="cell" id="chatInboxNone"><span class="cell__sub social-empty">${chatInboxQ ? 'Aucun élève ne correspond.'
+      : 'Aucune conversation pour l\'instant. Cherche un élève par son pseudo pour lui écrire.'}</span></div>`;
+  }
+  return page.map(r => chatInboxRowHtml(r, now)).join('') + (rest > 0
+    ? `<button class="cell cell--action chat-more-rows" data-action="chat-inbox-more">Afficher ${plural(Math.min(rest, CHAT_INBOX_PAGE), 'conversation de plus', 'conversations de plus')}</button>` : '');
+}
+function chatInboxScreenHtml() {
+  const st = coach.state;
+  if (!st) return `<div id="chatInbox">${coach.error ? coachOfflineNote(coach.error, 'Pas d\'Internet. Tes messages s\'afficheront quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>'}</div>`;
+  if (!chatAvailable()) return `<div id="chatInbox"><div class="empty-note">${chatHiddenByAge() ? esc(coachErrorText('age_limited')) : 'Les messages ne sont pas encore disponibles.'}</div></div>`;
+  if (!st.students.length) return '<div id="chatInbox"><div class="empty-note">Tes conversations avec tes élèves s\'afficheront ici.</div></div>';
+  return `<div id="chatInbox">
+        <div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="chatSearch" class="search social-search__input" placeholder="Rechercher" aria-label="Rechercher un élève par son pseudo"
+            autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(chatInboxQ)}"></div>
+        ${chat.error && !chat.threads ? `<p class="social-inline-error" role="status">${esc(chat.error === 'offline' ? 'Pas d\'Internet : pas à jour.' : coachErrorText(chat.error))}</p>` : ''}
+        <div class="group chat-inbox" id="chatRows">${chatInboxRowsHtml()}</div>
+        ${chatPushOff.ids?.size ? `<div class="group-foot">${icon('bell.slash', 13)} : notifications coupées chez cet élève, il verra tes messages en ouvrant l'app.</div>` : ''}
+      </div>`;
+}
+// Liste seule (relecture, recherche) ; segment Messages affiché seulement
+function refreshChatInbox() {
+  if (currentView() !== 'friends' || friendsSeg() !== 'messages') return;
+  const rows = $('#chatRows');
+  if (!rows) { const box = $('#chatInbox'); if (box && !coachTyping()) { box.outerHTML = chatInboxScreenHtml(); chatInboxWatchMore(); } return; }
+  setHtmlIfChanged(rows, chatInboxRowsHtml());
+  chatInboxWatchMore();
+}
+// Nombre de non-lus du bouton Messages, quel que soit le segment affiché
+function refreshChatSegCount() {
+  const seg = $('.social-seg [data-seg="messages"]');
+  if (seg) setHtmlIfChanged(seg, `Messages${chatSegCountHtml()}`);
+}
+function chatInboxWatchMore() {
+  chatInboxObserver?.disconnect();
+  const btn = $('.chat-more-rows');
+  if (!btn || typeof IntersectionObserver !== 'function') return;
+  chatInboxObserver = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { chatInboxObserver.disconnect(); chatInboxN += CHAT_INBOX_PAGE; refreshChatInbox(); } }, { rootMargin: '600px 0px' });
+  chatInboxObserver.observe(btn);
+}
+// Arrivée sur Messages : état et résumés des conversations relus (chatRefresh suit coachRefresh), cloches
+function chatInboxEnter() {
+  coachRefresh({ minAge: 10_000 }).then(() => chatPushOffRefresh());
+  if (coach.state && chat.loadedAt && Date.now() - chat.loadedAt > 10_000) chatRefresh();
+}
+document.addEventListener('input', e => {
+  if (e.target.id !== 'chatSearch') return;
+  chatInboxQ = e.target.value;
+  chatInboxN = CHAT_INBOX_PAGE;
+  refreshChatInbox();
+});
+onCoachChange(() => { refreshChatSegCount(); refreshChatInbox(); });
+
 // ── Cellules d'entrée ───────────────────────────────────────
 
 function chatIntroSeen() { try { return localStorage.getItem(CHAT_INTRO_KEY) === '1'; } catch { return false; } }
@@ -254,7 +340,19 @@ function chatIntroHtml() {
 
 // Pastille des non-lus d'une conversation
 function chatBadgeHtml(n) {
-  return n ? `<span class="chat-count num" aria-hidden="true">${icon('text.bubble', 14)}${n > 99 ? '99+' : n}</span>` : '';
+  return n ? `<span class="chat-count num" aria-hidden="true">${icon('text.bubble', 14)}${n}</span>` : '';
+}
+// Élève : « Messages » juste sous « Mon coach », en tête de l'onglet Social : la conversation à un toucher, avec ses non-lus
+function chatCoachRowHtml() {
+  const th = chatThreadOf(CHAT_COACH), n = chatUnreadOf(CHAT_COACH);
+  const last = th?.last ? `${th.last.mine ? 'Toi : ' : ''}${th.last.body.replace(/\s+/g, ' ')}` : 'Écris à ton coach';
+  return `
+      <button class="cell cell--nav coach-cell chat-cell chat-cell--coach" data-action="chat-open" data-key="${CHAT_COACH}">
+        <span class="coach-cell__icon" aria-hidden="true">${icon('text.bubble', 20)}</span>
+        <span class="cell__body"><span class="cell__title">Messages${n ? `<span class="sr-text">, ${plural(n, 'non lu', 'non lus')},</span>` : ''}</span><span class="cell__sub chat-cell__last chat-cell__last--one">${esc(last)}</span></span>
+        ${n ? `<span class="coach-count num" aria-hidden="true">${n}</span>` : ''}
+        ${icon('chevron.right', 16)}
+      </button>`;
 }
 // Cellule « Messages » (Mon coach, fiche d'un élève) ; rien si le serveur n'a pas la messagerie
 function chatCellHtml(key) {
@@ -268,7 +366,7 @@ function chatCellHtml(key) {
           <button class="cell cell--nav chat-cell" data-action="chat-open" data-key="${esc(key)}">
             <span class="coach-cell__icon" aria-hidden="true">${icon('text.bubble', 20)}</span>
             <span class="cell__body"><span class="cell__title">Messages${n ? `<span class="sr-text">, ${plural(n, 'non lu', 'non lus')},</span>` : ''}</span><span class="cell__sub chat-cell__last">${esc(last)}</span></span>
-            ${n ? `<span class="coach-count num" aria-hidden="true">${n > 99 ? '99+' : n}</span>` : ''}
+            ${n ? `<span class="coach-count num" aria-hidden="true">${n}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>
         </div>`;

@@ -91,6 +91,69 @@ function chatDayLabel(at, now = Date.now()) {
   return long.charAt(0).toUpperCase() + long.slice(1);
 }
 
+// ── Boîte de réception du coach (segment Messages de l'onglet Coach) ─────────
+
+const CHAT_INBOX_PAGE = 40;   // conversations dessinées d'un coup (puis 40 de plus en défilant)
+
+// Heure d'une ligne de la boîte, comme Messages d'iOS : « 14:05 » aujourd'hui, « Hier », le jour de la
+// semaine jusqu'à 6 jours, sinon la date courte (« 3 nov. », « 3 nov. 2025 » une autre année)
+function chatListTime(at, now = Date.now()) {
+  const d = new Date(at), today = new Date(now);
+  if (!Number.isFinite(d.getTime())) return '';
+  const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(today) - day(d)) / 86400000);
+  if (diff <= 0) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  if (diff === 1) return 'Hier';
+  if (diff < 7) { const w = d.toLocaleDateString('fr-FR', { weekday: 'long' }); return w.charAt(0).toUpperCase() + w.slice(1); }
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', ...(d.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}) });
+}
+
+// Lignes de la boîte : une par élève qui a une conversation (au moins un message), les non-lues en tête, puis
+// la plus récente d'abord. Avec une recherche (pseudo, sans accents ni capitales), tous les élèves qui
+// correspondent, même sans message (pour en commencer une). students : coach_state ; threads : chat_threads
+// nettoyé (cleanChatThreads) ; norm : normalisation des pseudos (normName). → [{ st, unread, last }]
+function chatInboxRows(students, threads, query = '', norm = x => String(x).toLowerCase()) {
+  const q = norm(query || '').trim();
+  const rows = [];
+  for (const st of students || []) {
+    const th = threads?.students?.[st.user_id] || null;
+    const last = th?.last || null, unread = th?.unread || 0;
+    if (q ? !norm(st.username || '').includes(q) : !last && !unread) continue;
+    rows.push({ st, unread, last });
+  }
+  rows.sort((a, b) => ((b.unread > 0) - (a.unread > 0)) || ((b.last?.at ?? -Infinity) - (a.last?.at ?? -Infinity))
+    || String(a.st.username || '').localeCompare(String(b.st.username || ''), 'fr'));
+  return rows;
+}
+
+// ── Notifications coupées chez mes élèves (coach) ───────────
+// coach_push_off() : identifiants de mes élèves qui ne recevraient pas mes messages en notification (aucun
+// iPhone inscrit, ou « Messages » éteint). Une information oui / non, rien d'autre. Relue au plus toutes les
+// CHAT_PUSH_OFF_MS, à l'arrivée sur Élèves ou Messages. Serveur sans la fonction : aucune cloche.
+const CHAT_PUSH_OFF_MS = 5 * 60_000;
+const chatPushOff = { ids: null, loadedAt: 0, loading: false, available: null };
+function cleanPushOff(raw) {
+  return new Set((Array.isArray(raw) ? raw : []).filter(x => typeof x === 'string' && x.length <= 64));
+}
+function chatPushOffOf(uid) { return !!chatPushOff.ids?.has(uid); }
+async function chatPushOffRefresh({ minAge = CHAT_PUSH_OFF_MS } = {}) {
+  if (!sb || !account.user || chatPushOff.loading || chatPushOff.available === false || !coachRole().isCoach) return false;
+  if (minAge && chatPushOff.ids && Date.now() - chatPushOff.loadedAt < minAge) return true;
+  chatPushOff.loading = true;
+  const seq = chatSeq;
+  const r = await coachRpc('coach_push_off');
+  if (seq !== chatSeq) return false;
+  chatPushOff.loading = false;
+  if (!r.ok) { if (r.kind === 'missing') chatPushOff.available = false; return false; }
+  chatPushOff.available = true;
+  const ids = cleanPushOff(r.data);
+  const changed = !chatPushOff.ids || ids.size !== chatPushOff.ids.size || [...ids].some(x => !chatPushOff.ids.has(x));
+  chatPushOff.ids = ids;
+  chatPushOff.loadedAt = Date.now();
+  if (changed) notifyCoach();
+  return true;
+}
+
 // ── État ────────────────────────────────────────────────────
 
 function readChatCache(userId) {
@@ -108,6 +171,7 @@ function chatReset(userId) {
   chatSeq++;
   Object.assign(chat, { userId, available: null, threads: null, cachedUnread: userId ? readChatCache(userId) : 0,
     loading: false, error: null, loadedAt: 0, convs: {} });
+  Object.assign(chatPushOff, { ids: null, loadedAt: 0, loading: false, available: null });
 }
 
 // Messagerie possible avec cette conversation : lien connu (coach_state) et serveur à jour, et pas de

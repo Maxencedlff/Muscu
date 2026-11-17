@@ -20,7 +20,7 @@
 'use strict';
 
 const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share', 'coach-chat', 'coach-request',
-  'coach-plan', 'coach-planning', 'coach-measures', 'coach-measure', 'coach-photos', 'coach-photos-mine'];
+  'coach-plan', 'coach-planning', 'coach-measures', 'coach-measure', 'coach-photos', 'coach-photos-mine', 'coach-send-many'];
 const COACH_SEND_DRAFT_KEY = 'mdlf_coach_send_draft';   // brouillon de l'écran Envoyer (retour arrière, relance)
 const coachTipClosed = new Set();   // séance en cours : consignes repliées (identifiant d'exercice, '' : programme)
 const coachProgOpen = new Set();    // Mon coach : programmes reçus dont les exercices sont dépliés
@@ -34,7 +34,7 @@ function coachName() { return personName(myCoach()); }
 // État d'un programme reçu de mon coach actuel (js/data/coach.js : coachProgrammeStatus)
 function coachStatus(item) { return coachProgrammeStatus(data, item, myCoach()?.user_id || null); }
 function coachBadgeHtml(n, label) {
-  return n ? `<span class="coach-count num" aria-hidden="true">${n > 99 ? '99+' : n}</span><span class="visually-hidden">, ${esc(label)}</span>` : '';
+  return n ? `<span class="coach-count num" aria-hidden="true">${n}</span><span class="visually-hidden">, ${esc(label)}</span>` : '';
 }
 // Nouvelles séances d'un élève (ligne de Mes élèves) : haltère et nombre, « nouvelles » écrit dessous en petit (« à voir »
 // était ambigu, « séances » doublait « 6 séances cette sem. » à côté : panels de la vague 3)
@@ -42,7 +42,7 @@ function coachBadgeHtml(n, label) {
 // la pastille reste étroite et la ligne garde ses 3 lignes sur iPhone SE) ; le rouge reste aux
 // comptes de l'onglet et de « Mes élèves »
 function sessionsBadgeHtml(n) {
-  return n ? `<span class="coach-count coach-count--sessions num" aria-hidden="true">${icon('dumbbell', 12)}${n > 99 ? '99+' : n}<span class="coach-count__sub">${n > 1 ? 'nouvelles' : 'nouvelle'}</span></span><span class="visually-hidden">, ${esc(plural(n, 'nouvelle séance à voir', 'nouvelles séances à voir'))}</span>` : '';
+  return n ? `<span class="coach-count coach-count--sessions num" aria-hidden="true">${icon('dumbbell', 12)}${n}<span class="coach-count__sub">${n > 1 ? 'nouvelles' : 'nouvelle'}</span></span><span class="visually-hidden">, ${esc(plural(n, 'nouvelle séance à voir', 'nouvelles séances à voir'))}</span>` : '';
 }
 // « Push · ton programme · hier » (dernière séance d'un élève)
 function studentLastLine(st) {
@@ -72,7 +72,7 @@ function coachTitle(html) { return `<h2 class="group-title coach-title">${html}<
 function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
-  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-presc': 'Charge et reps', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
+  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-send-many': 'Plusieurs élèves', 'coach-presc': 'Charge et reps', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
     'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure', 'coach-photos': 'Photos de bilan',
     'coach-photos-mine': 'Photos de bilan' }[name] || null;
 }
@@ -114,14 +114,16 @@ function coachCellHtml() {
       </div>`);
   }
   if (hasCoach) {
-    const p = myCoach(), badge = coachBadgeStudent() + chatUnreadOf(CHAT_COACH);
+    // Messages : leur propre ligne juste dessous (conversation à un toucher), leurs non-lus n'y sont plus comptés deux fois
+    const chatRow = chatAvailable() ? chatCoachRowHtml() : '';
+    const p = myCoach(), badge = coachBadgeStudent() + (chatRow ? 0 : chatUnreadOf(CHAT_COACH));
     const label = ['Mon coach', p ? personName(p) : '', badge ? plural(badge, 'nouveauté', 'nouveautés') : ''].filter(Boolean).join(', ');
     rows.push(`<button class="cell cell--nav coach-cell coach-cell--mine" data-action="coach-open-mine" aria-label="${esc(label)}">
         ${p ? personAvatar(p) : `<span class="coach-cell__icon" aria-hidden="true">${icon('coach', 20)}</span>`}
         <span class="cell__body"><span class="cell__title">Mon coach</span>${p ? `<span class="cell__sub">${esc([personName(p), studentPlanSub()].filter(Boolean).join(' · '))}</span>` : ''}</span>
-        ${badge ? `<span class="coach-count num" aria-hidden="true">${badge > 99 ? '99+' : badge}</span>` : ''}
+        ${badge ? `<span class="coach-count num" aria-hidden="true">${badge}</span>` : ''}
         ${icon('chevron.right', 16)}
-      </button>`);
+      </button>${chatRow}`);
   } else if (!isCoach && !coachJoinHiddenByAge()) {   // moins de 15 ans possible (js/data/age-range.js) : rien
     rows.push(`<button class="cell cell--nav coach-cell coach-cell--join" data-action="coach-join-start">
         <span class="coach-cell__icon" aria-hidden="true">${icon('coach', 20)}</span>
@@ -139,6 +141,8 @@ function refreshCoachCell() {
   const top = $('#coachCell'), team = $('#studentsBody');
   if (top) top.innerHTML = coachCellHtml();
   if (team) setHtmlIfChanged(team, coachTeamHtml());
+  if (team) coachWatchMore();
+  if (typeof refreshChatInbox === 'function') refreshChatInbox();
 }
 // Segment Élèves redessiné à chaque nouveauté du coach (état, conversations, planning, progression : 4 à 6 fois
 // par relecture) : avec 300 élèves, ~10 000 nœuds refaits à chaque fois pour un contenu le plus souvent identique
@@ -666,23 +670,64 @@ function coachNotesHint() {
 // ── Coach : Mes élèves ──────────────────────────────────────
 
 // Plus de COACH_SEARCH_FROM élèves : un champ filtre la liste par pseudo, sans quitter l'écran (panel Apple de la vague 3 :
-// les coachs partenaires suivent beaucoup d'élèves). Filtrage dans la page (coachFilterStudents), le champ garde le clavier.
+// les coachs partenaires suivent beaucoup d'élèves). Au-delà de 20 élèves, des filtres (Tous, À relancer, Nouveautés,
+// Sans programme, compteurs exacts) ; la liste se dessine par COACH_PAGE cartes, la suite en défilant (test de charge
+// du 17/11 : 300 élèves faisaient une seule liste de 35 000 px). Recherche et filtre ne redessinent que la liste
+// (#coachRows) : le champ garde le clavier.
 const COACH_SEARCH_FROM = 9;
+const COACH_PAGE = 40;
 let coachSearchQ = '';
-function coachFilterStudents() {
+let coachFilter = 'all';        // filtre de Mes élèves (COACH_FILTERS, js/data/coach-progress.js)
+let coachShownN = COACH_PAGE;   // cartes dessinées
+let coachRowsObserver = null;   // « Afficher plus » touché tout seul quand il arrive à l'écran
+function coachTeamView() {
+  const st = coach.state, now = Date.now();
+  const sorted = coachSortedStudents(st.students, now);
+  const many = st.students.length >= COACH_FILTER_MIN;
+  const unreadOf = s => chatUnreadOf(s.user_id);
+  const counts = many ? coachFilterCounts(sorted, unreadOf) : null;
+  const filter = many && counts[coachFilter] !== undefined ? coachFilter : 'all';
   const q = normName(coachSearchQ);
-  let shown = 0;
-  document.querySelectorAll('.coach-team .coach-student-row').forEach(r => {
-    const on = !q || normName(r.dataset.name || '').includes(q);
-    r.hidden = !on; if (on) shown++;
-  });
-  const none = $('#coachSearchNone');
-  if (none) none.hidden = shown > 0;
+  const shown = sorted.filter(({ st: s, pr }) => coachStudentIn(filter, s, pr, unreadOf(s)) && (!q || normName(personName(s)).includes(q)));
+  return { sorted, counts, filter, shown, now };
 }
+function coachRowsHtml(v = coachTeamView()) {
+  const page = v.shown.slice(0, coachShownN);
+  const rest = v.shown.length - page.length;
+  const none = !v.shown.length && coach.state.students.length
+    ? `<div class="cell" id="coachSearchNone"><span class="cell__sub social-empty">${coachSearchQ ? 'Aucun élève ne correspond.' : 'Aucun élève dans ce filtre.'}</span></div>` : '';
+  return `${page.map(({ st, pr }) => coachStudentRowHtml(st, pr, v.now)).join('') || none || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}${rest > 0
+    ? `<button class="cell cell--action coach-more-rows" data-action="coach-more-rows">Afficher ${plural(Math.min(rest, COACH_PAGE), 'élève de plus', 'élèves de plus')}</button>` : ''}`;
+}
+function coachFiltersHtml(v) {
+  if (!v.counts) return '';
+  return `<div class="coach-filters" role="group" aria-label="Filtrer les élèves">${COACH_FILTERS.map(([k, l]) =>
+    `<button class="coach-filter${v.filter === k ? ' coach-filter--on' : ''}" data-action="coach-filter" data-filter="${k}" aria-pressed="${v.filter === k}">${esc(l)} <span class="coach-filter__n num">${v.counts[k]}</span></button>`).join('')}</div>`;
+}
+// Liste seule redessinée (recherche, filtre, « Afficher plus ») ; le compteur des filtres suit
+function coachRefreshRows() {
+  const el = $('#coachRows');
+  if (!el || !coach.state) return;
+  const v = coachTeamView();
+  setHtmlIfChanged(el, coachRowsHtml(v));
+  const f = $('#coachFilters');
+  if (f) setHtmlIfChanged(f, coachFiltersHtml(v));
+  coachWatchMore();
+}
+// Bas de la liste atteint : 40 cartes de plus, sans toucher (le bouton reste pour VoiceOver et sans IntersectionObserver)
+function coachWatchMore() {
+  coachRowsObserver?.disconnect();
+  const btn = $('.coach-more-rows');
+  if (!btn || typeof IntersectionObserver !== 'function') return;
+  coachRowsObserver = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { coachRowsObserver.disconnect(); coachShowMoreRows(); } }, { rootMargin: '600px 0px' });
+  coachRowsObserver.observe(btn);
+}
+function coachShowMoreRows() { coachShownN += COACH_PAGE; coachRefreshRows(); }
 document.addEventListener('input', e => {
   if (e.target.id !== 'coachSearch') return;
   coachSearchQ = e.target.value;
-  coachFilterStudents();
+  coachShownN = COACH_PAGE;
+  coachRefreshRows();
 });
 
 // Petite hauteur (iPhone SE) : résumé de la semaine sur une ligne (css/coach.css, même seuil) et Planning sous la liste
@@ -697,8 +742,8 @@ function coachTeamHtml() {
   if (!st) return coach.error
     ? coachOfflineNote(coach.error, 'Pas d\'Internet. Tes élèves s\'afficheront quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>';
   if (!st.is_coach) return `<div class="empty-note">${esc(coachErrorText('not_coach'))}</div>`;
-  // Lignes triées, avec le signal de progression de chaque élève (js/features/coach-progress-ui.js)
-  const rows = coachStudentRowsHtml(st.students);
+  // Lignes triées, avec le signal de progression de chaque élève (js/features/coach-progress-ui.js), filtrées et par pages
+  const v = coachTeamView();
   const compact = coachCompact();
   const invites = st.invites.map(i => `
           <div class="cell coach-invite">
@@ -719,8 +764,8 @@ function coachTeamHtml() {
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
         ${st.students.length >= COACH_SEARCH_FROM ? `<div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="coachSearch" class="search social-search__input" placeholder="Rechercher un élève" aria-label="Rechercher un élève par son pseudo"
             autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(coachSearchQ)}"></div>` : ''}
-        <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}
-          <div class="cell" id="coachSearchNone" hidden><span class="cell__sub social-empty">Aucun élève ne correspond.</span></div></div>
+        <div id="coachFilters">${coachFiltersHtml(v)}</div>
+        <div class="group" id="coachRows">${coachRowsHtml(v)}</div>
         <div class="group-foot">${st.students.length > 1 ? PROGRESS_SORT_FOOT : 'Tes élèves ne se voient pas entre eux.'}</div>
         ${compact ? coachPlanningCellHtml() : ''}
         ${cphTeamSetupHtml(st.students)}
@@ -757,7 +802,7 @@ function renderCoachStudents() {
 function coachTeamEnter() {
   const view = currentView();
   coachAskHere = () => currentView() === view && (view !== 'friends' || friendsSeg() === 'students');
-  coachRefresh().then(() => coachProgressRefresh({ minAge: 30_000 }));
+  coachRefresh().then(() => { coachProgressRefresh({ minAge: 30_000 }); chatPushOffRefresh(); });
   if (cphCoach.key === undefined) cphCoachRefresh();   // « Recevoir les photos de bilan » proposé sous la liste
   coachProRefresh({ minAge: 30_000 });
 }
@@ -772,7 +817,7 @@ onCoachChange(() => {
   coachAskHere = null;
   pushAskInContext('coach', here);
 });
-SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachTeamEnter(); } });
+SCREENS.set('coach-students', { render: () => renderCoachStudents(), mount: () => coachWatchMore(), enter: () => { coachTeamEnter(); } });
 
 // ── Coach : un élève et ses séances ─────────────────────────
 
@@ -1140,11 +1185,103 @@ function renderCoachSend(uid, progId) {
         <div class="group-foot">Les consignes sont facultatives et gardées pour tes prochains envois. ${who} les voit dans le programme et pendant la séance.</div>
         ${groups}
         <button class="btn btn--primary btn--full coach-send-btn" data-action="coach-send-go" data-uid="${esc(uid)}" data-prog="${esc(progId)}">Envoyer à ${who}</button>
+        ${(coach.state?.students.length || 0) > 1 ? `<div class="group coach-send-many-group"><button class="cell cell--nav" data-action="coach-send-many" data-uid="${esc(uid)}" data-prog="${esc(progId)}">
+            <span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span><span class="cell__body"><span class="cell__title">Envoyer à plusieurs élèves</span><span class="cell__sub">Mêmes consignes, la charge prescrite à chacun</span></span>${icon('chevron.right', 16)}</button></div>` : ''}
         <div class="group-foot">Tes charges, tes records et ton historique ne sont pas envoyés, seulement les charges que tu prescris. Un nouvel envoi du même programme le met à jour chez ton élève : change la charge d'une semaine sur l'autre et renvoie.</div>
       </div>
     </div>`;
 }
 SCREENS.set('coach-send', { render: (uid, progId) => renderCoachSend(uid, progId) });
+
+// ── Envoi à plusieurs élèves (Programme › Envoyer › Envoyer à plusieurs élèves) ──
+// Route coach-send-many:UID:PROG, UID = l'élève d'où l'on vient (coché d'office). Mêmes consignes que l'écran Envoyer
+// (son brouillon) ; charges et reps : celles prescrites à chaque élève lors de son dernier envoi de ce programme
+// (coachPrescFor), celles du brouillon pour l'élève d'origine. Un appel coach_send_programme par élève, 4 à la fois ;
+// la limite du serveur (30 + 2 par élève sur 24 h) est dite avant, et un refus arrête l'envoi en disant la vraie durée.
+let coachMany = null;   // { key, ids: Set, q, busy, done }
+function coachManyFor(uid, progId) {
+  const key = `${uid}/${progId}`;
+  if (coachMany?.key !== key) coachMany = { key, ids: new Set(coachStudent(uid) ? [uid] : []), q: '', busy: false, done: 0 };
+  return coachMany;
+}
+function coachManyRowsHtml(m) {
+  const q = normName(m.q);
+  const list = (coach.state?.students || []).slice().sort((a, b) => personName(a).localeCompare(personName(b), 'fr'))
+    .filter(st => !q || normName(personName(st)).includes(q));
+  return list.map(st => {
+    const on = m.ids.has(st.user_id);
+    return `<button class="cell coach-pick${on ? ' coach-pick--on' : ''}" role="checkbox" aria-checked="${on}" data-action="coach-many-pick" data-uid="${esc(st.user_id)}" ${m.busy ? 'disabled' : ''}>
+            <span class="coach-pick__box" aria-hidden="true">${on ? icon('checkmark', 14) : ''}</span>${personAvatar(st, 's')}
+            <span class="cell__body"><span class="cell__title">${esc(personName(st))}${pushOffMarkHtml(st.user_id)}</span></span>
+          </button>`;
+  }).join('') || '<div class="cell"><span class="cell__sub social-empty">Aucun élève ne correspond.</span></div>';
+}
+function coachManyBtnText(m) {
+  if (m.busy) return `Envoi… ${m.done} sur ${m.ids.size}`;
+  return m.ids.size ? `Envoyer à ${plural(m.ids.size, 'élève', 'élèves')}` : 'Choisis des élèves';
+}
+function renderCoachSendMany(uid, progId) {
+  const m = coachManyFor(uid, progId), all = coach.state?.students || [];
+  const allOn = all.length > 0 && all.every(st => m.ids.has(st.user_id));
+  const limit = coachSendLimit(all.length);
+  return `
+    <div class="view view--grouped coach-send-many-view">
+      ${navBar({ title: 'Plusieurs élèves', large: false })}
+      <div class="scr">
+        <h1 class="scr-title">${esc(progMeta(progId).name)}</h1>
+        <p class="scr-sub">Les consignes de l'écran Envoyer. Pour la charge, chaque élève reçoit celle que tu lui as prescrite la dernière fois.</p>
+        ${all.length >= COACH_SEARCH_FROM ? `<div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="coachManySearch" class="search social-search__input" placeholder="Rechercher un élève" aria-label="Rechercher un élève par son pseudo"
+            autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(m.q)}"></div>` : ''}
+        <div class="group">
+          <button class="cell coach-pick coach-pick--all${allOn ? ' coach-pick--on' : ''}" role="checkbox" aria-checked="${allOn}" data-action="coach-many-all" ${m.busy ? 'disabled' : ''}>
+            <span class="coach-pick__box" aria-hidden="true">${allOn ? icon('checkmark', 14) : ''}</span>
+            <span class="cell__body"><span class="cell__title">Tous</span></span><span class="cell__value num">${all.length}</span>
+          </button>
+        </div>
+        <div class="group" id="coachManyRows">${coachManyRowsHtml(m)}</div>
+        <div class="group-foot">Limite d'envoi : ${limit} sur 24 heures (30, plus 2 par élève). Un programme déjà envoyé à un élève est mis à jour chez lui.</div>
+        <button class="btn btn--primary btn--full coach-send-btn" id="coachManyGo" data-action="coach-many-go" data-uid="${esc(uid)}" data-prog="${esc(progId)}" ${m.busy || !m.ids.size ? 'disabled' : ''}>${esc(coachManyBtnText(m))}</button>
+      </div>
+    </div>`;
+}
+SCREENS.set('coach-send-many', { render: (uid, progId) => renderCoachSendMany(uid, progId) });
+document.addEventListener('input', e => {
+  if (e.target.id !== 'coachManySearch' || !coachMany) return;
+  coachMany.q = e.target.value;
+  const rows = $('#coachManyRows');
+  if (rows) rows.innerHTML = coachManyRowsHtml(coachMany);
+});
+// Consignes de l'envoi gardées dans mon programme (perso : up.consigne ; intégré : programmes[id].consigne) : le
+// prochain envoi les reprend
+function coachKeepConsignes(prog, dr) {
+  const c = cleanConsigne(dr.prog), up = data.userProgrammes?.[prog], pd = data.programmes[prog] ||= makeProgData(prog);
+  if (up) { if (c) up.consigne = c; else delete up.consigne; }
+  else if (c) pd.consigne = c; else delete pd.consigne;
+  Object.entries(dr.ex).forEach(([cat, mm]) => (pd.exercises?.[cat] || []).forEach(x => {
+    if (!(x.id in mm)) return;
+    const xc = cleanConsigne(mm[x.id]);
+    if (xc) x.consigne = xc; else delete x.consigne;
+  }));
+  save();
+}
+// Envoi à chacun, 4 à la fois ; arrêté au premier refus de limite. → { sent: [uid], failed: [{ uid, kind }], rate }
+async function coachSendMany(uids, progId, dr, origin) {
+  const queue = uids.slice(), sent = [], failed = [];
+  let rate = false;
+  const worker = async () => {
+    while (queue.length && !rate) {
+      const uid = queue.shift();
+      const presc = uid === origin ? dr.presc || {} : coachPrescFor(uid, progId);
+      const r = await coachSendProgramme(uid, progId, { prog: dr.prog, ex: dr.ex, presc });
+      if (r.ok) { sent.push(uid); coachPrescRemember(uid, progId, presc); }
+      else if (r.kind === 'send_rate') { rate = true; failed.push({ uid, kind: r.kind }); }
+      else failed.push({ uid, kind: r.kind });
+      if (coachMany) { coachMany.done = sent.length + failed.length; const b = $('#coachManyGo'); if (b) b.textContent = coachManyBtnText(coachMany); }
+    }
+  };
+  await Promise.all([1, 2, 3, 4].map(worker));
+  return { sent, failed, rate, left: queue.length };
+}
 
 // Charge et reps prescrites d'un exercice (écran coach-presc, js/features/coach-presc-ui.js) : « Charge : 60 kg × 8 ·
 // Modifier », sinon « Prescrire une charge » ; lien en orange, comme les autres actions
@@ -1272,6 +1409,64 @@ registerActions({
     coachToast(await coachRevokeInvite(el.dataset.code), 'Code retiré', { inline: true });
   },
   'coach-open-student': (e, el) => navigate(makeRoute('coach-student', el.dataset.uid)),
+  'coach-filter': (e, el) => {
+    const f = COACH_FILTERS.some(([k]) => k === el.dataset.filter) ? el.dataset.filter : 'all';
+    if (f === coachFilter) return;
+    coachFilter = f;
+    coachShownN = COACH_PAGE;
+    haptic();
+    coachRefreshRows();
+  },
+  'coach-more-rows': () => coachShowMoreRows(),
+  'coach-send-many': (e, el) => { coachMany = null; navigate(makeRoute('coach-send-many', el.dataset.uid, el.dataset.prog)); },
+  'coach-many-pick': (e, el) => {
+    if (!coachMany || coachMany.busy) return;
+    const id = el.dataset.uid;
+    if (coachMany.ids.has(id)) coachMany.ids.delete(id); else coachMany.ids.add(id);
+    haptic();
+    render();
+  },
+  'coach-many-all': () => {
+    if (!coachMany || coachMany.busy) return;
+    const all = coach.state?.students || [];
+    const allOn = all.every(st => coachMany.ids.has(st.user_id));
+    coachMany.ids = new Set(allOn ? [] : all.map(st => st.user_id));
+    haptic();
+    render();
+  },
+  'coach-many-go': async (e, el) => {
+    const m = coachMany, { uid, prog } = el.dataset;
+    if (!m || m.busy || !m.ids.size) return;
+    const ids = [...m.ids].filter(id => coachStudent(id));
+    const limit = coachSendLimit();
+    if (ids.length > limit) {
+      await dialog({ title: 'Trop d\'élèves d\'un coup', message: `La limite est de ${limit} envois sur 24 heures (30, plus 2 par élève). Décoche ${plural(ids.length - limit, 'élève', 'élèves')}.`, actions: [{ label: 'OK', style: 'preferred' }] });
+      return;
+    }
+    const dr = coachSendDraftFor(makeRoute('coach-send', uid, prog));
+    m.busy = true; m.done = 0;
+    render();
+    const r = await coachSendMany(ids, prog, dr, uid);
+    m.busy = false;
+    if (r.sent.length) { coachKeepConsignes(prog, dr); haptic(); }
+    const name = progMeta(prog).name;
+    if (!r.failed.length) {
+      showToast(`« ${name} » envoyé à ${plural(r.sent.length, 'élève', 'élèves')}`);
+      coachSendDraft = null; coachSaveSendDraft(); coachMany = null;
+      const back = makeRoute('coach-student', uid);
+      if (nav.stacks[nav.tab].includes(back)) routeTo(back); else goBack();
+      coachRefresh();
+      return;
+    }
+    // Échecs : les élèves déjà servis sont décochés, il reste ceux à refaire
+    r.sent.forEach(id => m.ids.delete(id));
+    const rest = r.failed.length + r.left;
+    const why = r.rate ? coachErrorText('send_rate') : coachErrorText(r.failed[0].kind);
+    await dialog({ title: r.sent.length ? `Envoyé à ${r.sent.length} sur ${ids.length}` : 'Rien n\'a été envoyé',
+      message: `${why} ${plural(rest, 'élève reste coché', 'élèves restent cochés')} pour un nouvel essai.`, actions: [{ label: 'OK', style: 'preferred' }] });
+    render();
+    coachRefresh();
+  },
   'coach-open-session': (e, el) => navigate(makeRoute('coach-session', el.dataset.uid, el.dataset.id)),
   'coach-more': (e, el) => { coachLoadSessions(el.dataset.uid, { more: true }); },
   'coach-remove': async (e, el) => {
@@ -1317,17 +1512,7 @@ registerActions({
     el.disabled = true;
     const r = await coachSendProgramme(uid, prog, { prog: dr.prog, ex: dr.ex, presc: dr.presc || {} });
     if (!coachToast(r, `Programme envoyé à ${personName(coachStudent(uid))}`, { inline: true })) { el.disabled = false; return; }
-    // Consignes gardées dans mon programme (perso : up.consigne ; intégré : programmes[id].consigne) : le
-    // prochain envoi les reprend
-    const c = cleanConsigne(dr.prog), up = data.userProgrammes?.[prog], pd = data.programmes[prog] ||= makeProgData(prog);
-    if (up) { if (c) up.consigne = c; else delete up.consigne; }
-    else if (c) pd.consigne = c; else delete pd.consigne;
-    Object.entries(dr.ex).forEach(([cat, m]) => (pd.exercises?.[cat] || []).forEach(x => {
-      if (!(x.id in m)) return;
-      const xc = cleanConsigne(m[x.id]);
-      if (xc) x.consigne = xc; else delete x.consigne;
-    }));
-    save();
+    coachKeepConsignes(prog, dr);
     coachPrescRemember(uid, prog, dr.presc || {});   // repris au prochain envoi à cet élève (js/data/coach-presc.js)
     haptic();
     coachSendDraft = null;

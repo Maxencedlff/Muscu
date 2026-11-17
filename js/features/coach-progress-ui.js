@@ -66,27 +66,33 @@ function studentPicHtml(st) {
   return `<span class="cstu__pic${g ? '' : ' cstu__pic--avatar'}">${g ? progThumbHtml(g, 'cstu__img') : ''}${personAvatar(st)}</span>`;
 }
 
-// Mes élèves : les cartes triées (sortStudentsByProgress) ; texte en 3 lignes au plus (nom et régularité à sa droite,
-// signal, dernière séance ou phase), les pastilles sur une ligne à part dessous
-function coachStudentRowsHtml(students) {
-  const now = Date.now();
-  return sortStudentsByProgress(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id)).map(({ st: s, pr }) => {
-    const unread = chatUnreadOf(s.user_id);
-    // « Pas encore de séance » (signal) dit déjà ce que dirait « Aucune séance pour l'instant » : un seul message
-    // (panel Apple de la vague 3) ; la 3e ligne ne reste que pour un planning
-    const third = coachStudentPlanLine(s.user_id) || (pr.kind === 'never' ? '' : `<span class="cell__sub">${esc(studentLastLine(s))}</span>`);
-    const days = studentDaysHtml(studentDays(s, now));
-    const badges = s.new_sessions || unread ? `<span class="cs-badges">${sessionsBadgeHtml(s.new_sessions)}${chatBadgeHtml(unread)}</span>${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}` : '';
-    return `
-          <button class="cell cell--nav social-row coach-student-row cstu${pr.tone === 'warn' ? ' cstu--warn' : ''}" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}" data-name="${esc(personName(s))}"${coachSearchQ && !normName(personName(s)).includes(normName(coachSearchQ)) ? ' hidden' : ''}>
+// Mes élèves : les élèves triés (sortStudentsByProgress), avec leur signal
+function coachSortedStudents(students, now = Date.now()) {
+  return sortStudentsByProgress(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id))
+    .map(({ st, pr }) => ({ st, pr }));
+}
+// Cloche barrée : cet élève ne reçoit pas mes messages en notification (coach_push_off, js/data/coach-chat.js)
+function pushOffMarkHtml(uid) {
+  return chatPushOffOf(uid) ? `<span class="push-off-mark" aria-hidden="true">${icon('bell.slash', 14)}</span><span class="visually-hidden">, notifications coupées</span>` : '';
+}
+// Carte d'un élève : texte en 3 lignes au plus (nom et régularité à sa droite, signal, dernière séance ou phase), les
+// pastilles sur une ligne à part dessous
+function coachStudentRowHtml(s, pr, now = Date.now()) {
+  const unread = chatUnreadOf(s.user_id);
+  // « Pas encore de séance » (signal) dit déjà ce que dirait « Aucune séance pour l'instant » : un seul message
+  // (panel Apple de la vague 3) ; la 3e ligne ne reste que pour un planning
+  const third = coachStudentPlanLine(s.user_id) || (pr.kind === 'never' ? '' : `<span class="cell__sub">${esc(studentLastLine(s))}</span>`);
+  const days = studentDaysHtml(studentDays(s, now));
+  const badges = s.new_sessions || unread ? `<span class="cs-badges">${sessionsBadgeHtml(s.new_sessions)}${chatBadgeHtml(unread)}</span>${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}` : '';
+  return `
+          <button class="cell cell--nav social-row coach-student-row cstu${pr.tone === 'warn' ? ' cstu--warn' : ''}" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}" data-name="${esc(personName(s))}">
             <span class="social-row__main">${studentPicHtml(s)}<span class="cstu__col"><span class="social-row__text">
-              <span class="cstu__top"><span class="social-row__name">${esc(personName(s))}</span>${days}</span>
+              <span class="cstu__top"><span class="social-row__name">${esc(personName(s))}</span>${pushOffMarkHtml(s.user_id)}${days}</span>
               ${pr.kind === 'new' && !coachStudentPlanLine(s.user_id) ? '' : progressSignalHtml(pr)}
               ${third}
             </span>${badges ? `<span class="cstu__foot">${badges}</span>` : ''}</span></span>
             ${icon('chevron.right', 16)}
           </button>`;
-  }).join('');
 }
 
 // Séances prévues par semaine : celles du programme de sa phase en cours, si c'est un de mes programmes

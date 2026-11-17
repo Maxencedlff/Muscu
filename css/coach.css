@@ -563,3 +563,44 @@ html.type-xl .coach-presc-view .cell--ctl { flex-wrap: wrap; }
 .chat-push-off { display: block; min-height: 44px; margin: 0 auto; padding: 10px var(--gutter); background: none; border: 0;
   font: inherit; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
 .chat-push-off__link { color: var(--tint); }
+
+/* ── Boîte de réception du coach : segment Messages de l'onglet Coach (17/11, js/features/coach-chat-ui.js) ──
+   Comme Messages d'iOS : avatar, pseudo et heure sur la 1re ligne, dernier message sur une seule ligne dessous */
+.seg-count { display: inline-block; min-width: 18px; height: 18px; margin-left: 4px; padding: 0 5px; border-radius: var(--r-pill);
+  background: #D70015; color: var(--white); font-size: .706rem; font-weight: 600; line-height: 18px; text-align: center; vertical-align: 1px; }
+.view--grouped .cell.chat-row { min-height: 64px; padding-top: 8px; padding-bottom: 8px; gap: 10px; align-items: center; }
+.chat-row__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.chat-row__top { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.chat-row__name { flex: 0 1 auto; min-width: 0; font-size: var(--fs-body); font-weight: 600; color: var(--label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-row__time { margin-left: auto; flex-shrink: 0; font-size: var(--fs-subhead); color: var(--label2); }
+.chat-row__last { font-size: var(--fs-subhead); color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-row--unread .chat-row__last { color: var(--label); }
+.chat-row--unread .chat-row__time { color: var(--label); font-weight: 600; }
+html.type-xl .chat-row__top { flex-wrap: wrap; }
+html.type-xl .chat-row__time { margin-left: 0; flex-basis: 100%; order: 3; }
+html.type-xl .chat-row__last { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+/* Élève : « Messages » sous « Mon coach », dernier message sur une ligne */
+.chat-cell__last--one { -webkit-line-clamp: 1; line-clamp: 1; }
+/* Cloche barrée : l'élève ne reçoit pas les notifications (coach_push_off) */
+.push-off-mark { flex-shrink: 0; display: inline-flex; align-self: center; margin-left: 4px; color: var(--label2); }
+.group-foot .icon--bell-slash { vertical-align: -2px; }
+
+/* ── Filtres de Mes élèves (au-delà de 20 élèves) : pastilles de 44 pt de zone, compteur exact ── */
+.coach-filters { display: flex; flex-wrap: wrap; gap: 0 8px; margin: 0 var(--gutter) 6px; }
+.coach-filter {
+  min-height: 44px; padding: 0 12px; border: 0; background: none; cursor: pointer; position: relative; z-index: 0;
+  font: inherit; font-size: var(--fs-subhead); font-weight: 500; color: var(--label); white-space: nowrap;
+}
+.coach-filter::before { content: ''; position: absolute; inset: 6px 0; border-radius: var(--r-pill); background: var(--fill); z-index: -1; }
+.coach-filter--on { color: var(--on-tint); font-weight: 600; }
+.coach-filter--on::before { background: var(--tint-fill); }
+.coach-filter__n { margin-left: 2px; opacity: .8; }
+.coach-more-rows, .chat-more-rows { justify-content: center; }
+
+/* ── Envoi à plusieurs élèves : cases à cocher façon iOS (rond, coche dedans) ── */
+.coach-send-many-group { margin-top: 12px; }
+.view--grouped .cell.coach-pick { gap: 10px; min-height: 52px; width: 100%; text-align: left; }
+.coach-pick__box { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--label3);
+  display: inline-flex; align-items: center; justify-content: center; color: var(--on-tint); }
+.coach-pick--on .coach-pick__box { background: var(--tint-fill); border-color: transparent; }
+.coach-pick .cell__title { display: inline-flex; align-items: center; min-width: 0; }
