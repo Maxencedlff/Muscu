@@ -141,6 +141,7 @@ const EXERCISE_CATALOGUE = [
   ['Squat barre',                      'quads glutes',           'adductors lower_back', 'salle', 'back squat|barbell squat|squat arrière'],
   ['Squat avant',                      'quads',                  'glutes abs', 'salle', 'front squat|squat avant barre'],
   ['Squat gobelet',                     'quads glutes',           'adductors', 'halteres', 'goblet squat|squat goblet|squat gobelet haltère'],
+  ['Squat haltères',                    'quads glutes',           'adductors hamstrings', 'halteres', 'squat haltère|squat aux haltères|squat avec haltères|dumbbell squat|squat 2 haltères'],
   ['Hack squat',                       'quads',                  'glutes', 'salle', 'squat machine|hack squats'],
   ['Presse à cuisses',                 'quads glutes',           'adductors', 'salle', 'leg press|presse|presse cuisses|presse jambes|presse à jambes|presse 45'],
   ['Fentes marchées haltères',         'quads glutes',           'hamstrings adductors', 'halteres', 'walking lunges|fentes marchées'],
