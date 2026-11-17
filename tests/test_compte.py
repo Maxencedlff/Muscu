@@ -61,7 +61,8 @@ def age_session(page, seconds=3600):
 
 NEW_ACCOUNT_NOTICE = 'Nouveau compte créé. Déjà un compte ?'
 LAST_CODE_ONLY = 'Seul le code du dernier e-mail envoyé est valable (regarde l\'heure).'
-SESSION_ENDED = 'Tu as été déconnecté : ton compte a été supprimé ou ta connexion a expiré. Tes séances sont toujours sur cet iPhone.'
+# « cet iPhone » sur un iPhone, « ce téléphone » ailleurs (phoneName, js/platform/native.js ; Pixel 7, Galaxy)
+SESSION_ENDED = 'Tu as été déconnecté : ton compte a été supprimé ou ta connexion a expiré. Tes séances sont toujours sur '
 CANCEL_EXPIRED = 'Ce nouveau compte (vide) a plus de 10 minutes : supprime-le dans Réglages › Compte › Supprimer mon compte. Ton ancien compte n\'est pas touché.'
 OWNER_1 = '00000000-0000-0000-0000-000000000002'   # premier compte créé par le faux serveur (1 : son identité)
 
@@ -357,7 +358,8 @@ def t_compte(bench, eng, dev, theme):
         R.check(not one_line(page, '.account-view .auth-btn span'), f'{t} Compte : boutons sur une ligne {one_line(page, ".account-view .auth-btn span")}')
         R.check('tu peux masquer ton e' in page.inner_text('.account-foot') and page.evaluate("getComputedStyle(document.querySelector('.account-foot')).textAlign") == 'center', f'{t} mention centrée')
         hero = page.inner_text('.account-hero')
-        R.check('Retrouve tes séances sur un nouvel iPhone. Facultatif.' in hero and 'Déjà un compte ? Utilise le même moyen qu\'avant.' in hero, f'{t} Compte déconnecté : intro courte {hero!r}')
+        phone = 'nouvel iPhone' if page.evaluate("phoneName()") == 'iPhone' else 'nouveau téléphone'
+        R.check(f'Retrouve tes séances sur un {phone}. Facultatif.' in hero and 'Déjà un compte ? Utilise le même moyen qu\'avant.' in hero, f'{t} Compte déconnecté : intro courte {hero!r}')
         R.check(lines(page, '.account-hero__name') == 1, f'{t} titre sur une ligne')
         R.check(above_tabbar(page, '.account-view .auth-btn--mail'), f'{t} « Continuer avec un e-mail » au-dessus de la barre d\'onglets')
         shot(page, LOT, f'7-compte-deconnecte-{t}')

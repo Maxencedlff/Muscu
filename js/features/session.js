@@ -184,8 +184,8 @@ function startSession(cat) {
   sessionNotes  = '';
   persistWarned = false;
   editingSet    = null;
-  const progKey = data.activeProgramme;
-  const exList  = prog().exercises[cat] || [];
+  const progKey = cat === FREE ? FREE : data.activeProgramme;   // séance libre en direct : vide, hors programme (startFreeSession)
+  const exList  = (progKey === FREE ? null : prog().exercises[cat]) || [];
   activeSession = {
     category:  cat,
     programme: progKey,

@@ -304,11 +304,11 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
             <button data-action="ax-sets" data-d="1" aria-label="Une série de plus">${icon('plus', 18)}</button>
           </div>
         </div>
-        ${rep || target !== 'session' ? '' : `${axPlaceHtml()}
+        ${rep || target !== 'session' ? '' : `${axPlaceHtml()}${activeSession?.programme === FREE ? '' : `
         <label class="ax__opt">
           <span>Ajouter au programme</span>
           <input type="checkbox" id="axToProg" class="ax-switch" role="switch">
-        </label>`}
+        </label>`}`}
       </div>
       <div class="ax__list" id="axList">${axListHtml('')}</div>
     </div>`;

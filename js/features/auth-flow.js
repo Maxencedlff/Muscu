@@ -131,13 +131,13 @@ const AUTH_STEPS = {
       </div>
       <div class="auth-buttons">${signInButtonsHtml()}</div>
       <p class="auth__again">Déjà un compte ? Utilise le même moyen qu'avant.</p>
-      <p class="auth__foot">Tes séances déjà faites restent sur cet iPhone, avec l'historique, les progrès et l'export. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
+      <p class="auth__foot">Tes séances déjà faites restent sur ${thisPhone()}, avec l'historique, les progrès et l'export. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
       <p class="auth__error" id="authError" role="alert"></p>` : `
       <div class="auth__hero">
         <div class="auth__logo">${appIconSvg(DEFAULT_APP_ICON, { attrs: 'aria-hidden="true" focusable="false"' })}</div>
         <h1 class="auth__title auth__title--welcome" id="authTitle" tabindex="-1">Bienvenue dans MDLF&nbsp;Training</h1>
         <p class="auth__tagline">Ton carnet de muscu qui te dit quoi soulever pour progresser.</p>
-        <p class="auth__lead">Crée un compte pour sauvegarder tes séances et les retrouver sur un nouvel iPhone.</p>
+        <p class="auth__lead">Crée un compte pour sauvegarder tes séances et les retrouver sur un ${newPhone()}.</p>
       </div>
       <div class="auth-buttons">${signInButtonsHtml()}</div>
       <p class="auth__again">Déjà un compte ? Utilise le même moyen qu'avant.</p>

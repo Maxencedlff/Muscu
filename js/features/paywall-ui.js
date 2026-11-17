@@ -61,9 +61,14 @@ function accessStatusText() {
   return ACCESS_STATUS_TEXT[st] || ACCESS_STATUS_TEXT.unknown;
 }
 
-// Valeur courte affichée dans la cellule des Réglages (un mot : sur 320 pt, « Tout est ouvert » collait au titre)
+// Verrou éteint (lancement) : tout est accessible, mais l'app n'a PAS de version gratuite (essai puis abonnement,
+// docs/PAYANT_V1.md) : jamais « Gratuit ». « Ouvert » seul ne se comprenait pas (regard neuf du 16/11)
+const ACCESS_OFF_VALUE = 'Accès complet';
+const ACCESS_OFF_NOTE = 'Toutes les fonctions sont ouvertes pendant le lancement : l\'abonnement n\'est pas encore demandé. L\'app deviendra payante, avec un essai gratuit au départ.';
+
+// Valeur courte affichée dans la cellule des Réglages (deux mots au plus : sur 320 pt, « Tout est ouvert » collait au titre)
 function accessShortValue() {
-  if (!paywallOn()) return 'Ouvert';
+  if (!paywallOn()) return ACCESS_OFF_VALUE;
   return accessStatusText();
 }
 
@@ -432,7 +437,7 @@ function renderSubscription() {
   const plan = intro ? (access.products || []).find(p => p.id === access.currentProduct) : null;
   const introLine = intro ? `Essai gratuit jusqu'au ${fmtDate(intro)}${plan ? `, puis ${plan.price} ${payPer(plan)}` : ''}` : '';
   const offNote = !on ? `
-        <div class="group-foot">Tout est ouvert pour l'instant : l'abonnement n'est pas encore demandé.</div>` : '';
+        <div class="group-foot">${ACCESS_OFF_NOTE}</div>` : '';
   // Accès à vie offert ET abonnement particulier lu sur cet iPhone : peut-être encore facturé (le
   // renouvellement automatique n'est pas lu, d'où le conditionnel). Un palier coach, lui, reste utile :
   // il donne le nombre d'élèves
@@ -442,7 +447,7 @@ function renderSubscription() {
         <div class="group">
           <div class="cell">
             <span class="cell__body"><span class="cell__title">État</span></span>
-            <span class="cell__value">${esc(on ? accessStatusText() : 'Tout est ouvert')}</span>
+            <span class="cell__value">${esc(on ? accessStatusText() : ACCESS_OFF_VALUE)}</span>
           </div>
           ${!introLine && until ? `<div class="cell">
             <span class="cell__body"><span class="cell__title">${endLabel}</span></span>

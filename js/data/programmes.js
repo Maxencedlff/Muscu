@@ -83,7 +83,7 @@ const PROGRAMMES = {
     },
   },
   maison_halteres: {
-    name: 'Maison haltères', desc: 'Haltères et banc · Push · Pull · Legs', icon: icon('dumbbell'),
+    name: 'Maison haltères', desc: 'Haltères et banc · Pousser · Tirer · Jambes', icon: icon('dumbbell'),
     sessions: {
       push: { label: 'Push', desc: 'Pectoraux · Épaules · Triceps', color: 'var(--orange)' },
       pull: { label: 'Pull', desc: 'Dos · Biceps · Trapèzes',       color: 'var(--indigo)' },
@@ -99,6 +99,13 @@ const PROGRAMMES = {
     name: 'Perso', desc: 'Séances personnalisées', icon: icon('pencil'),
     sessions: {}, defaults: {},
   },
+};
+
+// Noms anglais des séances, en clair. Affichage seulement : les données gardent leurs clés et leurs libellés
+// (« Push »), l'historique et la synchro en dépendent. Premier lancement (programmePreview, js/data/onboarding.js)
+// et partout où la place le permet (sessionTitle, js/data/accessors.js : « Pousser (Push) »)
+const SESSION_PLAIN = {
+  push: 'Pousser', pull: 'Tirer', legs: 'Jambes', upper: 'Haut du corps', lower: 'Bas du corps',
 };
 
 // Bibliothèque : exercices déjà faits (les plus récents d'abord), puis ceux des programmes et du

@@ -121,9 +121,9 @@ function renderAccount() {
     // finie hors de l'app (compte supprimé, connexion expirée) : on le dit, avec le moyen d'avant
     const info = accountReconnectInfo();
     const title = info?.ended ? 'Ta session a pris fin' : info ? 'Reconnecte-toi' : 'Sauvegarde tes séances';
-    const lead = info?.ended ? `${SESSION_ENDED_TEXT} ${reconnectLine(info)}.`
+    const lead = info?.ended ? `${sessionEndedText()} ${reconnectLine(info)}.`
       : info ? `${reconnectLine(info)}. Utilise le même moyen pour reprendre la sauvegarde.`
-      : 'Retrouve tes séances sur un nouvel iPhone. Facultatif.';
+      : `Retrouve tes séances sur un ${newPhone()}. Facultatif.`;
     return `
     <div class="view view--grouped account-view account-view--out">
       ${navBar(back)}
@@ -238,7 +238,7 @@ function reconnectLine(info) {
 
 // La déconnexion est toujours locale (aucun appareil n'en déconnecte un autre) : compte supprimé, ou
 // jeton refusé par le serveur, ou accès Apple retiré
-const SESSION_ENDED_TEXT = 'Tu as été déconnecté : ton compte a été supprimé ou ta connexion a expiré. Tes séances sont toujours sur cet iPhone.';
+const sessionEndedText = () => `Tu as été déconnecté : ton compte a été supprimé ou ta connexion a expiré. Tes séances sont toujours sur ${thisPhone()}.`;
 
 // Bouton de la carte : le moyen d'avant nommé (Apple, Google : sa fenêtre directement ; e-mail :
 // l'adresse préremplie, account-reconnect)
@@ -258,7 +258,7 @@ function accountHomeCard() {
     <section class="home-card account-card account-card--reconnect" aria-labelledby="accountCardTitle">
       <div class="account-card__text">
         <h2 class="account-card__title" id="accountCardTitle">Ta session a pris fin</h2>
-        <p class="account-card__sub">${SESSION_ENDED_TEXT}</p>
+        <p class="account-card__sub">${sessionEndedText()}</p>
         ${info.method || info.username ? `<p class="account-card__sub">${esc(reconnectLine(info))}</p>` : ''}
       </div>
       ${info.method ? `<button class="account-card__btn" data-action="account-reconnect">${esc(reconnectButtonLabel(info))}</button>`
@@ -541,7 +541,8 @@ registerActions({
   'go-account': () => navigate('account'),
   'account-referral': () => { openAuthFlow({ step: 'referral', mode: 'referral' }); },
   'account-privacy': () => { window.open(PRIVACY_URL, '_blank'); },
-  'account-card-close': () => { setLsFlag(ACCOUNT_CARD_KEY); haptic(); render(); },
+  // Fermer la carte du compte ferme aussi la carte « Sauvegarde tes séances » (même titre) pour 30 jours (js/data/backup.js)
+  'account-card-close': () => { setLsFlag(ACCOUNT_CARD_KEY); try { localStorage.setItem(BACKUP_CARD_KEY, String(Date.now())); } catch { /* rien */ } haptic(); render(); },
   'account-reconnect-close': () => { accountDismissReconnect(); haptic(); render(); },
   // Carte de reconnexion : le moyen d'avant directement (Apple, Google), l'adresse préremplie (code)
   'account-reconnect': async () => {

@@ -72,9 +72,10 @@ const GUIDE_SECTIONS = [
           'Si la récupération n\'est pas finie, le bouton devient [Démarrer quand même].',
           'Les séries sont déjà remplies avec ce que tu as fait la dernière fois. Sous le nom de l\'exercice, [Objectif] rappelle la série à battre : il passe au vert quand tu l\'atteins. L\'écran reste allumé.',
           'La flèche en haut à gauche réduit la séance sans l\'arrêter. Une barre en bas de l\'écran permet d\'y revenir.',
+          'Hors programme, touche [Séance libre] sous tes séances : elle commence vide, tu ajoutes tes exercices au fur et à mesure. Ton programme ne change pas.',
         ],
         related: ['noter-serie', 'terminer', 'recuperation'],
-        actions: ['start-session', 'session-actions', 'resume-session'],
+        actions: ['start-session', 'session-actions', 'resume-session', 'start-free-session'],
       },
       {
         id: 'noter-serie', title: 'Noter une série', icon: 'checkmark', color: 'green',

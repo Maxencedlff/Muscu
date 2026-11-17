@@ -971,7 +971,7 @@ def p_nutrition(r):
         r.toucher(f'{feuille} [data-tseg="sex"][data-v="male"]', 'Homme')
         r.saisir(f'{feuille} #dietEAge', 25, 'âge')
         r.saisir(f'{feuille} #dietECm', 180, 'taille')
-    with r.etape('proposition', 'Carte « Proposition » : 2 980 kcal · P 134 · G 460 · L 67, explication, « Appliquer » ou « Ajuster »', cle=cle):
+    with r.etape('proposition', 'Carte « Proposition » : 2 980 kcal · Prot. 134 · Gluc. 460 · Lip. 67, explication, « Appliquer » ou « Ajuster »', cle=cle):
         r.toucher(f'{feuille} [data-tcalc]', 'Enregistrer')
         r.attendre(f'{feuille} [data-tapply]', 'Appliquer')
     with r.etape('proposition-utilisee', '« Appliquer » : objectifs enregistrés sur le plan', cle=cle):

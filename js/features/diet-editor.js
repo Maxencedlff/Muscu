@@ -84,7 +84,7 @@ function dietTargetsCellHtml(plan) {
 function dietPlanItemCell(plan, meal, it, ro) {
   const m = dietItemMacros(it);
   const inner = `${dietFoodIconHtml(it)}<span class="cell__body"><span class="cell__title">${esc(foodName(it.name))}</span>
-      <span class="cell__sub num">${dietSrPair(`${esc(dietQtyText(it))} · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`,
+      <span class="cell__sub num">${dietSrPair(`${esc(dietQtyText(it))} · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · ${dietMacroAbbr(m)}`,
         `${esc(dietQtySpoken(it))}, ${dietN(m.kcal)} kilocalories${it.ecalc ? ' calculées' : ''}, ${dietMacroGramsSpoken(m)}`)}</span></span>`;
   return ro ? `<div class="cell">${inner}</div>`
     : `<button class="cell cell--nav" data-action="diet-item-menu" data-swipe-del="diet-plan-item-del" data-meal="${esc(meal.id)}" data-item="${esc(it.id)}">${inner}${icon('chevron.right', 16)}</button>`;
@@ -118,11 +118,12 @@ function renderDietPlan(id) {
           ${on ? `<div class="cell"><span class="cell__body"><span class="cell__title">Plan en cours</span><span class="cell__sub">Il s'affiche chaque jour dans Entraînement › Nutrition</span></span><span class="diet-on-mark" aria-hidden="true">${icon('checkmark', 18)}</span></div>`
             : `<button class="cell cell--action" data-action="diet-follow" data-id="${esc(id)}">${icon('checkmark', 20)}<span>Utiliser ce plan</span></button>`}
         </div>
+        <div class="group-foot diet-plan-lead">Le plan, c'est le modèle, le même chaque jour : ${personal ? 'tes objectifs et tes repas types' : 'les objectifs et les repas prévus'}. Ce que tu manges vraiment se coche et s'ajoute jour par jour dans Nutrition, sans changer le plan.</div>
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <div class="group-title">Par jour</div>
         ${dietMacroLegendHtml()}
         <div class="group">
-          ${personal && !filled ? '' : `<div class="cell"><span class="cell__body"><span class="cell__title">${personal ? 'Total des repas types' : 'Total prévu'}</span><span class="cell__sub num">${dietSrPair(`P\u00a0${dietN(total.p)}\u00a0g · G\u00a0${dietN(total.c)}\u00a0g · L\u00a0${dietN(total.f)}\u00a0g`, dietMacroGramsSpoken(total))}</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>`}
+          ${personal && !filled ? '' : `<div class="cell"><span class="cell__body"><span class="cell__title">${personal ? 'Total des repas types' : 'Total prévu'}</span><span class="cell__sub num">${dietSrPair(DIET_MACROS.map(x => `${x.label}\u00a0${dietN(total[x.k])}\u00a0g`).join(' · '), dietMacroGramsSpoken(total))}</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>`}
           ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsHtml(plan)}</span></span></div>`
             : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsCellHtml(plan)}</span></span>${icon('chevron.right', 16)}</button>`}
         </div>
@@ -185,7 +186,7 @@ function dietFoodRowHtml(x, i) {
         <button class="diet-cand" data-pick="${i}">
           ${dietFoodIconHtml(x.food)}
           <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(x.food.name))}</span>
-            <span class="diet-cand__sub num">${tag ? `<span class="diet-tag" aria-hidden="true">${tag}</span>` : ''}${x.own ? 'Mon aliment · ' : ''}${dietSrPair(`100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · P ${fmtNum(x.food.per.p)} · G ${fmtNum(x.food.per.c)} · L ${fmtNum(x.food.per.f)}`,
+            <span class="diet-cand__sub num">${tag ? `<span class="diet-tag" aria-hidden="true">${tag}</span>` : ''}${x.own ? 'Mon aliment · ' : ''}${dietSrPair(`100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · ${dietMacroAbbr(x.food.per, { fmt: fmtNum })}`,
               `pour 100 grammes, ${x.food.per.k} kilocalories${x.food.ecalc ? ' calculées' : ''}, ${dietMacroWords(x.food.per, fmtNum).replace(/ g /g, ' grammes ')}`)}</span></span>
         </button>`;
 }
@@ -478,7 +479,7 @@ async function dietTargetsSheet(plan) {
     if (!cardProp) { box.innerHTML = head + '<p class="diet-tg__cardtxt">Pas de proposition pour ces valeurs : vérifie ton âge, ta taille et ton poids dans Réglages.</p>'; return; }
     const segBtn = ([v, l]) => '<button type="button" class="segmented__btn' + (v === a.inputs.goal ? ' segmented__btn--active' : '') + '" data-tcgoal="' + v + '" aria-pressed="' + (v === a.inputs.goal) + '">' + l + '</button>';
     const options = Object.entries(DIET_EST_ACTIVITY).map(([k, x]) => '<option value="' + k + '"' + (k === a.inputs.activity ? ' selected' : '') + '>' + x.label + '</option>').join('');
-    const line = fmtNum(cardProp.kcal) + '\u00a0kcal · P\u00a0' + cardProp.p + ' · G\u00a0' + cardProp.c + ' · L\u00a0' + cardProp.f;
+    const line = fmtNum(cardProp.kcal) + '\u00a0kcal · ' + dietMacroAbbr(cardProp, { fmt: String });
     const spoken = fmtNum(cardProp.kcal) + ' kilocalories, ' + cardProp.p + ' grammes de protéines, ' + cardProp.c + ' de glucides, ' + cardProp.f + ' de lipides';
     box.innerHTML = head
       + '<div class="segmented seg-full diet-tg__seg" role="group" aria-label="Ton objectif">' + Object.entries(DIET_EST_GOALS).map(([k, g]) => [k, g.label]).map(segBtn).join('') + '</div>'

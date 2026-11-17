@@ -155,7 +155,7 @@ function renderEditor() {
   const cd = getCooldown(cat);
   return `
     <div class="view editor view--grouped">
-      ${navBar({ title: meta.label, right: list.length ? `<button class="navbar__text ${editorEditing ? 'navbar__text--bold' : ''}" data-action="toggle-edit-mode">${editorEditing ? 'OK' : 'Modifier'}</button>` : '' })}
+      ${navBar({ title: esc(sessionTitle(cat)), right: list.length ? `<button class="navbar__text ${editorEditing ? 'navbar__text--bold' : ''}" data-action="toggle-edit-mode">${editorEditing ? 'OK' : 'Modifier'}</button>` : '' })}
       <div class="scr">
         ${coachEditorConsigneHtml(data.activeProgramme)}
         <div class="group-title">Exercices</div>

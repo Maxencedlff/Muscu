@@ -815,3 +815,15 @@ const Native = (() => {
     },
   };
 })();
+
+// Nom de l'appareil dans les textes : « iPhone » dans l'app iOS et dans Safari d'un iPhone, « téléphone » ailleurs
+// (app Android, navigateur d'un autre téléphone ou d'un ordinateur). Regard neuf du 16/11 : « ton nouvel iPhone » lu
+// sur un Pixel. iPad : « iPhone » aussi, l'app n'existe qu'en version iPhone.
+function phoneName() {
+  if (Native.platform === 'ios') return 'iPhone';
+  if (Native.platform === 'android') return 'téléphone';
+  return /iPhone|iPad|iPod/.test(navigator.userAgent || '') ? 'iPhone' : 'téléphone';
+}
+// Avec l'élision : « cet iPhone » / « ce téléphone », « nouvel iPhone » / « nouveau téléphone »
+function thisPhone() { return phoneName() === 'iPhone' ? 'cet iPhone' : 'ce téléphone'; }
+function newPhone() { return phoneName() === 'iPhone' ? 'nouvel iPhone' : 'nouveau téléphone'; }

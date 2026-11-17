@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Sauvegarde : import et export JSON
+//  Sauvegarde : import et export JSON, export CSV des séances, carte « Sauvegarde tes séances »
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -93,4 +93,68 @@ function downloadBlob(blob, fname) {
   a.href = url; a.download = fname;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// ── Export CSV des séances ──────────────────────────────────
+// Une ligne par série (sous-séries d'un drop set, d'un rest-pause ou d'un cluster comprises), de la plus ancienne à
+// la plus récente : Date ; Séance ; Exercice ; Série ; Kg ; Reps ; RIR ; Note. Pour un tableur (Excel, Numbers,
+// Google Sheets), pas une sauvegarde : il ne se réimporte pas (l'export JSON, lui, si). Format français d'Excel :
+// point-virgule, virgule décimale, BOM UTF-8 (sans lui, Excel lit « SÃ©ance »). Charges en kg, comme elles sont
+// stockées. Séries en durée : « 45 s » ; cardio : « 30 min · 5 km » dans la colonne Reps. Échauffement : « É ».
+// Texte de la personne (nom, note) : une cellule qui commence par = + - @ serait lue comme une formule par le
+// tableur (injection CSV, OWASP) : elle est précédée d'une apostrophe.
+const CSV_HEADER = ['Date', 'Séance', 'Exercice', 'Série', 'Kg', 'Reps', 'RIR', 'Note'];
+function csvCell(v) {
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+const csvNum = v => (v === '' || v == null || !Number.isFinite(Number(v)) ? '' : String(Number(v)).replace('.', ','));
+function csvDate(ts) {
+  const d = new Date(ts);
+  return `${localISO(ts)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function historyCsv(d = data) {
+  const rows = [CSV_HEADER];
+  const hist = [...(d.history || [])].sort((a, b) => a.date - b.date);
+  for (const h of hist) {
+    const date = csvDate(h.date), label = rawLabel(h.category, entryProg(h));
+    let sessionNote = typeof h.notes === 'string' ? h.notes.trim() : '';
+    for (const ex of h.exercises || []) {
+      const m = measureOf(ex);
+      const reps = st => (m === 'time' ? `${st.reps} s` : m === 'cardio' ? `${st.reps} min${st.dist ? ` · ${csvNum(st.dist)} km` : ''}` : st.reps);
+      let n = 0, exNote = ex.note || '';
+      for (const st of ex.sets || []) {
+        const warm = isWarmupSet(st);
+        const no = warm ? 'É' : String(++n);
+        const note = [sessionNote, exNote, st.note || ''].filter(Boolean).join(' · ');
+        sessionNote = ''; exNote = '';   // une fois, sur la première ligne de la séance ou de l'exercice
+        rows.push([date, label, ex.name, no, m === 'cardio' ? '' : csvNum(st.weight), reps(st), Number.isInteger(st.rir) ? String(st.rir) : '', note]);
+        subSetsOf(st).forEach((x, k) => rows.push([date, label, ex.name, `${no}.${k + 1}`, csvNum(x.weight), x.reps, '', TECHS[setTech(st)].label]));
+      }
+    }
+  }
+  return '\uFEFF' + rows.map(r => r.map(csvCell).join(';')).join('\r\n') + '\r\n';
+}
+
+// Fichier CSV remis par la feuille de partage (comme l'export JSON), sinon téléchargé.
+// Renvoie 'empty' (aucune séance), 'cancelled', 'shared' ou 'downloaded'.
+async function exportHistoryCsv() {
+  if (!(data.history || []).length) return 'empty';
+  const csv = historyCsv(), fname = `mdlf-seances-${localISO()}.csv`;
+  if (typeof File !== 'function') { downloadBlob(new Blob([csv], { type: 'text/csv' }), fname); return 'downloaded'; }
+  return shareOrDownload(new File([csv], fname, { type: 'text/csv' }), 'Séances MDLF Training');
+}
+
+// ── Carte « Sauvegarde tes séances » de l'accueil ───────────
+// Regard neuf du 16/11 (« j'ai peur de tout perdre ») : après 3 séances, sans compte ni export récent (exportStale,
+// js/features/settings.js), une carte discrète le dit. Fermée : elle revient 30 jours plus tard si rien n'a changé.
+// Jamais sur un appareil qui a déjà eu un compte (hadAccount : propriétaire de la synchro connu, déconnexion voulue ou
+// session finie) : ses séances sont sur le compte, et la carte de reconnexion parle déjà de sauvegarde.
+const BACKUP_CARD_KEY = 'ppl_backup_card_closed';   // date de fermeture (ms)
+const BACKUP_CARD_MIN_SESSIONS = 3;
+const BACKUP_CARD_SNOOZE_MS = 30 * 86400000;
+function backupCardShown({ sessions, ready, signedIn, hadAccount = false, stale, closedAt, now = Date.now() }) {
+  if (sessions < BACKUP_CARD_MIN_SESSIONS || !ready || signedIn || hadAccount || !stale) return false;
+  return !(Number.isFinite(closedAt) && now - closedAt >= 0 && now - closedAt < BACKUP_CARD_SNOOZE_MS);
 }

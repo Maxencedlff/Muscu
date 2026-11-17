@@ -162,6 +162,10 @@ html.type-xl .week__text { overflow: visible; }
 .home-cell__desc { font-size: var(--fs-subhead); line-height: 1.3; color: var(--label); }
 .home-cell.mgc .home-cell__right { margin-top: 2px; }
 .home-cell.mgc > .icon { margin-left: auto; }
+/* Séance libre : une ligne de liste iOS sous les séances (freeSessionRowHtml, js/features/dashboard.js) */
+.home-free { padding: 0 16px; }
+.home-free .home-cell { min-height: 60px; }
+.home-free .home-cell__sub { line-height: 1.3; }
 .home-cell .home-cell__img { top: 8px; right: 22px; height: calc(100% - 16px); max-width: 44%; object-fit: contain; object-position: right center; }
 
 /* Petite hauteur (iPhone SE) : la carte se resserre, Démarrer reste visible sans défiler */

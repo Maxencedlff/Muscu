@@ -377,9 +377,9 @@ def t_creer_plan(bench, eng, dev, theme):
         it = page.evaluate("Object.values(data.dietPlans)[0].meals[0].items[0]")
         R.check(it and it['name'] == first and it['g'] == 150 and it['per']['k'] > 0, f'{t} aliment ajouté avec ses valeurs ({it and it["name"]})')
         R.check('150 g' in page.inner_text('.diet-plan-view'), f'{t} éditeur : quantité affichée')
-        # VoiceOver : lignes abrégées (« P 4 · G 47 », Total prévu) cachées, dites en toutes lettres à côté
-        sr = page.evaluate("""[...document.querySelectorAll('.diet-plan-view .cell__sub')].filter(e => /\\bP\\s/.test(e.textContent))
-            .map(e => [!!e.querySelector('[aria-hidden="true"]') && !/\\bP\\s/.test(e.querySelector('.sr-text')?.textContent || 'P '), e.querySelector('.sr-text')?.textContent || ''])""")
+        # VoiceOver : lignes de macros (« Prot. 4 · Gluc. 47 », Total prévu « Protéines 120 g ») cachées, dites en toutes lettres à côté
+        sr = page.evaluate("""[...document.querySelectorAll('.diet-plan-view .cell__sub')].filter(e => /Prot\\.\\s|Protéines\\s\\d/.test(e.textContent))
+            .map(e => [!!e.querySelector('[aria-hidden="true"]') && !/Prot\\./.test(e.querySelector('.sr-text')?.textContent || 'Prot.'), e.querySelector('.sr-text')?.textContent || ''])""")
         R.check(len(sr) >= 2 and all(ok and 'grammes de protéines' in txt for ok, txt in sr), f'{t} éditeur : macros dites en toutes lettres ({sr})')
         # Panel du 06/11 (iPhone SE) : le titre passait sur le chevron Retour (à droite, « Renommer » prend sa place)
         ov = page.evaluate("""(() => { const b = document.querySelector('.diet-plan-view .navbar__back').getBoundingClientRect(),
@@ -1008,7 +1008,7 @@ def t_vague4(bench, eng, dev, theme):
         page.locator('.diet-home__meal[data-meal="m3"] .diet-home__mtext').click()
         page.wait_for_selector('.nutrition-view .diet-sum')
         leg = page.locator('.nutrition-view .diet-legend')
-        R.check(leg.count() == 1 and ''.join(nb(leg.inner_text()).split()) == 'Pprotéines·Gglucides·Llipides' and leg.get_attribute('aria-hidden') == 'true',
+        R.check(leg.count() == 1 and ''.join(nb(leg.inner_text()).split()) == 'Protéines·Glucides·Lipides' and leg.get_attribute('aria-hidden') == 'true',
                 f'{t} v4 Nutrition : légende des macros, une fois ({leg.count()}, {leg.inner_text()!r})')
         layout(page, t, 'v4 Nutrition légende')
         # Recherche : « whey » absent de Ciqual → « Créer « whey » » en tête, nom prérempli
@@ -1373,7 +1373,7 @@ def t_objectifs(bench, eng, dev, theme):
         R.check(page.evaluate('[data.birthYear, data.heightCm, data.strengthSex, data.dietEstGoal, data.dietEstActivity]') == [year - 25, 180, 'male', 'gain', 'mid'],
                 f'{t} infos gardées dans Réglages, objectif et activité retenus')
         card = nb(page.inner_text(f'{sh} #dietTCard'))
-        R.check('2 980 kcal · P 134 · G 460 · L 67' in card and 'besoins estimés' in card and 'pas un avis médical' in card and 'Mifflin' in card,
+        R.check('2 980 kcal · Prot. 134 · Gluc. 460 · Lip. 67' in card and 'besoins estimés' in card and 'pas un avis médical' in card and 'Mifflin' in card,
                 f'{t} carte : proposition expliquée ({card[:160]!r})')
         R.check(page.evaluate(plan_t) is None, f'{t} jamais appliquée sans « Appliquer »')
         layout(page, t, 'carte proposition', scope=f'{sh} .diet-tg')
@@ -1392,7 +1392,7 @@ def t_objectifs(bench, eng, dev, theme):
         page.evaluate("data.bodyWeightKg = 80; save(); render()")
         page.click('[data-action="diet-targets"]')
         page.wait_for_selector(f'{sh} #dietTCard [data-tapply]')
-        R.check('P 144' in nb(page.inner_text(f'{sh} #dietTCard')) and page.evaluate(plan_t)['p'] == 134, f'{t} nouveau poids : carte à jour, objectifs inchangés')
+        R.check('Prot. 144' in nb(page.inner_text(f'{sh} #dietTCard')) and page.evaluate(plan_t)['p'] == 134, f'{t} nouveau poids : carte à jour, objectifs inchangés')
         page.click(f'{sh} .sheet__btn--cancel')
         page.wait_for_timeout(300)
         # 5. Plan du coach : objectifs lus, jamais modifiables

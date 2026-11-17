@@ -164,7 +164,7 @@ function summaryOrderHtml(sm, h) {
   if (sm.orderKept) return `
         <div class="sum-list sum-order" id="sumOrder" role="status" tabindex="-1">
           <div class="sum-row">
-            <div class="sum-row__main"><div class="sum-row__name">Ordre gardé</div><div class="sum-row__sub">La prochaine séance ${esc(sessionMeta(sm.category, sm.programme).label)} suivra cet ordre</div></div>
+            <div class="sum-row__main"><div class="sum-row__name">Ordre gardé</div><div class="sum-row__sub">La prochaine séance ${esc(sessionTitle(sm.category, sm.programme))} suivra cet ordre</div></div>
             <span class="sum-order__check" aria-hidden="true">${icon('checkmark', 18)}</span>
           </div>
         </div>`;
@@ -191,7 +191,7 @@ function renderSummary() {
     <div class="view summary${pop ? ' summary--pop' : ''}" style="--cat-color:${meta.color}">
       <div class="summary-content">
         <div class="sum-head">
-          <h1 class="sum-title">${esc(meta.label)}</h1>
+          <h1 class="sum-title">${esc(sessionTitle(sm.category, sm.programme))}</h1>
           <div class="sum-date">${esc(date)}</div>
           <p class="sum-line">${sm.recordCount ? medalSvg(18) : ''}<span>${esc(summaryLine(sm))}</span></p>
         </div>
@@ -301,8 +301,9 @@ function sessionHistoryEntry(sp, sc) {
 // d'exporter (séance comprise) avant de tout remettre comme avant. Renvoie l'entrée, ou null.
 async function saveSessionEntry() {
   const sp = activeSession.programme, sc = activeSession.category;
-  if (!data.programmes[sp]) data.programmes[sp] = { exercises: {}, timers: {}, cooldowns: {} };
-  const timers    = data.programmes[sp].timers;
+  // Séance libre : ni programme ni délai de récupération (FREE n'entre jamais dans data.programmes)
+  if (sp !== FREE && !data.programmes[sp]) data.programmes[sp] = { exercises: {}, timers: {}, cooldowns: {} };
+  const timers    = sp === FREE ? {} : data.programmes[sp].timers;
   const prevTimer = timers[sc] ?? null;
   const entry     = sessionHistoryEntry(sp, sc);
   // Records battus, notés dans la séance (partagés avec elle : amis, coach) ; tableau vide sans record
