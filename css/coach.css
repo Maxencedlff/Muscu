@@ -444,6 +444,8 @@ html.type-xl .cph-daybtn span { white-space: normal; }
    avant, le pseudo était coupé (« eleve… ») et 150 élèves devenaient indiscernables (mesures du 17/11, tests/charge/) */
 .cstu__top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 .cstu__top .social-row__name { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+/* Pseudo plus large que la carte (20 caractères sur un téléphone étroit) : à la ligne plutôt que coupé */
+.coach-student-row.cstu .cstu__top .social-row__name { white-space: normal; overflow-wrap: anywhere; }
 .cstu__days { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
 .cstu__day { width: 9px; height: 9px; border-radius: 50%; background: var(--fill); }
 .cstu__day--on { background: var(--check-on); }
