@@ -29,7 +29,7 @@ natives, son compris, étaient déjà dans la 68).
 | Sujet | Natif | Web | Serveur |
 |---|---|---|---|
 | Son de fin de repos plus robuste | `SoundPlugin.swift` : catégorie `.playback` refixée si un autre l'a changée (vérifiée au son suivant et à `routeChange .categoryChange`), moteur arrêté au début d'une interruption | inchangé (`haptics-audio.js` relit déjà l'état après chaque son) | — |
-| Photo de profil | textes `NSCameraUsageDescription` et `NSPhotoLibraryUsageDescription` qui la nomment (règle 5.1.1) | `profile-photo.js`, `profile-photo-ui.js` (aucun module natif : `<input type="file">`) | `20261117000000_photo_profil.sql`, `coach-photos-purge`, `delete-account` |
+| Photo de profil | textes `NSCameraUsageDescription` et `NSPhotoLibraryUsageDescription` qui la nomment (règle 5.1.1) | `profile-photo.js`, `profile-photo-ui.js` (aucun module natif : `<input type="file">`) | `20261117010000_photo_profil.sql`, `coach-photos-purge`, `delete-account` |
 
 Pas dedans : le droit « Time Sensitive » de la notification de fin de repos (capacité à cocher d'abord sur
 l'identifiant de l'app dans developer.apple.com et profil `appstore.mobileprovision` à régénérer, sinon la

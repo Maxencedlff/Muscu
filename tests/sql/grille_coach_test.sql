@@ -1,4 +1,4 @@
--- Vérifications de 20261117010000_grille_coach.sql (grille coach du 17/11/2026 : 10, 25, 50, 100 élèves),
+-- Vérifications de 20261117030000_grille_coach.sql (grille coach du 17/11/2026 : 10, 25, 50, 100 élèves),
 -- lancées par tests/sql/run.sh. Postgres local jetable. Comptes simulés …000000000f00 à …f6a : C est le
 -- coach (rôle validé), S001 à S105 ses élèves dans l'ordre d'arrivée (liens posés directement).
 

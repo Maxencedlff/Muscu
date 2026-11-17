@@ -138,7 +138,16 @@ function refreshCoachCell() {
   if (friendsLayoutChanged()) { render(); return; }
   const top = $('#coachCell'), team = $('#studentsBody');
   if (top) top.innerHTML = coachCellHtml();
-  if (team) team.innerHTML = coachTeamHtml();
+  if (team) setHtmlIfChanged(team, coachTeamHtml());
+}
+// Segment Élèves redessiné à chaque nouveauté du coach (état, conversations, planning, progression : 4 à 6 fois
+// par relecture) : avec 300 élèves, ~10 000 nœuds refaits à chaque fois pour un contenu le plus souvent identique
+// (mesures du 17/11, tests/charge/). Le DOM n'est réécrit que si le texte a changé depuis la dernière écriture.
+function setHtmlIfChanged(el, html) {
+  if (el.__html === html) return false;
+  el.innerHTML = html;
+  el.__html = html;
+  return true;
 }
 
 // ── Réglages › Coach ────────────────────────────────────────

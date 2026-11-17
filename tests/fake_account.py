@@ -79,7 +79,7 @@ invalid_photo, not_adult sans la déclaration des 18 ans, too_many à 3 par jour
 le compartiment privé (client.storage.from('coach-photos') : upload, createSignedUrl, remove, list) avec les règles des
 politiques. État dans __sb.co.pkeys, __sb.co.photos, __sb.objs (fichiers, base64), __sb.trash (file de purge), __sb.signed
 (URL signées et leur durée) ; __sb.fail.photos = 'missing' (PGRST202) ou 'offline'. Lien rompu : photos effacées.
-Photo de profil (supabase/migrations/20261117000000_photo_profil.sql) : profile_photo_state, profile_photo_prepare (disabled,
+Photo de profil (supabase/migrations/20261117010000_photo_profil.sql) : profile_photo_state, profile_photo_prepare (disabled,
 not_allowed sans droit : verrou __st.paywallOn allumé, ni __sb.pp.pro[id] ni coach ; banned, rate_limited à 10), profile_photo_commit
 (not_uploaded : fichier absent, de plus de 256 ko ou ni JPEG ni WebP), profile_photo_remove, profile_photos (moi, ami accepté dans un
 sens ou l'autre, coach ou élève ; photo masquée, auteur sans droit ou photos éteintes : absente) ; compartiment profile-photos avec ses
@@ -637,7 +637,7 @@ FAKE_ACCOUNT = r"""
   sb.rejectCoach = (id, reason) => { if (co.requests[id]) Object.assign(co.requests[id], { status: 'rejected', reason, decided_at: new Date(now()).toISOString() }); };
   // Formule coach en cours chez Apple (abonnement vérifié par le serveur) : sa limite d'élèves
   sb.setTier = (id, product) => { co.tierProduct[id] = product; };
-  const TIER_LIMIT = { coach10: 10, coach20: 25, coach30: 50, coachmax: 100 };   // grille du 17/11 (20261117010000_grille_coach.sql)
+  const TIER_LIMIT = { coach10: 10, coach20: 25, coach30: 50, coachmax: 100 };   // grille du 17/11 (20261117030000_grille_coach.sql)
   const TIER_ORDER = ['coach10', 'coach20', 'coach30', 'coachmax'];
   const tierKey = product => { const m = /^com\.mdlf\.training\.(coach\w+)\.(monthly|yearly)$/.exec(product || ''); return m && m[1] in TIER_LIMIT ? m[1] : null; };
   // Limite d'élèves : verrou allumé, celle de la formule coach (0 sans formule) ; éteint, 50 comme avant
@@ -780,7 +780,7 @@ FAKE_ACCOUNT = r"""
       return { data: Object.keys(sb.objs).filter(p => p.startsWith(folder + '/') && canRead(me, p)).map(p => ({ name: p.split('/')[1] })), error: null };
     },
   });
-  // ── Photo de profil (supabase/migrations/20261117000000_photo_profil.sql) ──
+  // ── Photo de profil (supabase/migrations/20261117010000_photo_profil.sql) ──
   // Photos { id, user, state, bytes, created_at, hidden } ; droit = verrou éteint, ou __sb.pp.pro[id], ou coach
   const pp = sb.pp = { photos: [], pro: {}, bans: {}, on: true, tries: {} };
   const ppPath = p => `${p.user}/${p.id}`;
@@ -1125,7 +1125,8 @@ FAKE_ACCOUNT = r"""
       if (JSON.stringify(data).length > 200 * 1024) return pgErr('too_long');
       if (prog_id.startsWith('diet_') && !opts.dietServerless && !shareOf(student, 'diet')) return pgErr('diet_not_accepted');
       co.sends[me] = (co.sends[me] || 0) + 1;
-      if (co.sends[me] > 30) return pgErr('rate_limited');
+      // 30 + 2 par élève suivi sur 24 h (supabase/migrations/20261117020000_charge_coach.sql)
+      if (co.sends[me] > 30 + 2 * co.links.filter(l => l.coach === me).length) return pgErr('rate_limited');
       co.progs = co.progs.filter(p => !(p.student === student && p.id === prog_id));
       co.progs.push({ coach: me, student, id: prog_id, data: JSON.parse(JSON.stringify(data)), sent_at: new Date(now()).toISOString(), seen: false });
       return null;

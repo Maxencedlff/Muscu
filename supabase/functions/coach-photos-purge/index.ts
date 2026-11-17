@@ -17,7 +17,7 @@ import { adminClient, env, json } from '../_shared/http.ts';
 import { purgeRound, PURGE_ROUNDS, sameSecret } from './purge-policy.js';
 
 // Deux compartiments, même file, même règle : photos de bilan (docs/PHOTOS_BILAN.md) et photos de profil
-// (docs/PHOTO_PROFIL.md, migration 20261117000000). Traités l'un après l'autre et séparément : un échec sur l'un
+// (docs/PHOTO_PROFIL.md, migration 20261117010000). Traités l'un après l'autre et séparément : un échec sur l'un
 // (migration pas encore appliquée, API Storage en panne) n'empêche jamais de purger l'autre.
 export const PURGE_BUCKETS = [
   { bucket: 'coach-photos', claim: 'srv_coach_photo_purge_claim', done: 'srv_coach_photo_purge_done' },

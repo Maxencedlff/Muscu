@@ -42,7 +42,7 @@
 --  auth.uid() ; anon n'exécute rien. Fonctions des politiques dans le schéma profile_photo_rls (non exposé par
 --  l'API : à vérifier dans Data API › Exposed schemas, comme coach_photo_rls).
 --
---  Réversible : supabase/rollback/20261117000000_photo_profil_down.sql (compartiment vidé d'abord par l'API).
+--  Réversible : supabase/rollback/20261117010000_photo_profil_down.sql (compartiment vidé d'abord par l'API).
 -- ═══════════════════════════════════════════════════════════
 
 -- ── Données ──────────────────────────────────────────────

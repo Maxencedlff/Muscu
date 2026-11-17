@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
---  Retour arrière de supabase/migrations/20261117010000_grille_coach.sql (à lancer à la main, dans
+--  Retour arrière de supabase/migrations/20261117030000_grille_coach.sql (à lancer à la main, dans
 --  l'éditeur SQL, seulement si Maxence revient à la grille du 30/10 : 10, 20, 30 élèves, illimité).
 --  Pas dans migrations/ : Supabase ne l'applique jamais de lui-même. Remet le texte exact de
 --  private.coach_product_limit (20261030000000_payant_tarifs.sql) et de public.coach_tier_state

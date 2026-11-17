@@ -1,0 +1,63 @@
+name: Charge coach
+
+# Mesures de l'app côté coach avec 50, 150 et 300 élèves (tests/charge/mesures_app.py), dans le navigateur simulé
+# (faux serveur, aucune requête ne sort), une machine par appareil ; résultats (JSON) et captures en artefact.
+# À chaque envoi sur une branche test-charge-*, ou à la main (une fois ce fichier dans main) :
+# gh workflow run charge-coach.yml --ref <branche> [-f tailles=50,150,300]
+on:
+  push:
+    branches: ['test-charge-*']
+  workflow_dispatch:
+    inputs:
+      tailles:
+        description: Nombres d'élèves, séparés par des virgules
+        type: string
+        default: '50,150,300'
+
+permissions:
+  contents: read
+
+jobs:
+  mesures:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        appareil: ['iPhone SE', 'Pixel 7']
+    name: ${{ matrix.appareil }}
+    env:
+      PLAYWRIGHT_VERSION: 1.62.0
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Navigateurs en cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+      - name: Playwright, WebKit et Chromium
+        run: |
+          pip install "playwright==$PLAYWRIGHT_VERSION"
+          python -m playwright install --with-deps chromium webkit
+      - name: Serveur local de l'app
+        run: |
+          python -m http.server 8731 > /tmp/serveur.log 2>&1 &
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:8731/ && break; sleep 0.5; done
+      - name: Mesures
+        env:
+          PPL_URL: http://localhost:8731/
+          TAILLES: ${{ inputs.tailles || '50,150,300' }}
+          APPAREIL: ${{ matrix.appareil }}
+        run: cd tests && python -u charge/mesures_app.py --tailles "$TAILLES" --appareil "$APPAREIL" --captures "$RUNNER_TEMP/charge" --json "$RUNNER_TEMP/charge/mesures.json"
+      - name: Résultats et captures
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: charge-${{ matrix.appareil == 'iPhone SE' && 'iphone-se' || 'pixel-7' }}
+          path: ${{ runner.temp }}/charge
+          retention-days: 7

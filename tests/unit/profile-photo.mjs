@@ -108,7 +108,7 @@ export default function ({ test, run, app, assert, sameJSON, ROOT }) {
   });
 
   test('photo de profil : migration (GRANT, RLS, compartiment privé, droit unique), rollback, purge et suppression du compte', () => {
-    const mig = read('supabase/migrations/20261117000000_photo_profil.sql');
+    const mig = read('supabase/migrations/20261117010000_photo_profil.sql');
     assert.match(mig, /values \('profile-photos', 'profile-photos', false, 262144, array\['image\/jpeg', 'image\/webp'\]\)/);
     assert.match(mig, /create function private\.pro_feature\(uid uuid\)[\s\S]*?private\.access_json\(uid\) ->> 'can_write'[\s\S]*?private\.is_coach\(uid\)/);
     for (const f of ['profile_photo_state()', 'profile_photo_prepare()', 'profile_photo_commit(uuid)', 'profile_photo_remove()', 'profile_photos(uuid[])']) {
@@ -117,7 +117,7 @@ export default function ({ test, run, app, assert, sameJSON, ROOT }) {
     }
     assert.match(mig, /alter table public\.profile_photos enable row level security;/);
     assert.ok(!/create policy [^\n]* for update/.test(mig), 'aucune politique UPDATE (pas de remplacement de fichier)');
-    assert.ok(fs.existsSync(path.join(ROOT, 'supabase/rollback/20261117000000_photo_profil_down.sql')), 'retour arrière');
+    assert.ok(fs.existsSync(path.join(ROOT, 'supabase/rollback/20261117010000_photo_profil_down.sql')), 'retour arrière');
     const purge = read('supabase/functions/coach-photos-purge/index.ts');
     assert.match(purge, /\{ bucket: 'profile-photos', claim: 'srv_profile_photo_purge_claim', done: 'srv_profile_photo_purge_done' \}/);
     const del = read('supabase/functions/delete-account/index.ts');

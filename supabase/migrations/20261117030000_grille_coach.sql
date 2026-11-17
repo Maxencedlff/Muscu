@@ -2,7 +2,7 @@
 --  Payant V1, NOUVELLE GRILLE COACH (décision de Maxence du 17/11/2026, contrat : docs/PAYANT_V1.md,
 --  « Tarifs »). Après 20261116030000_eleves_gratuits.sql (qui réécrit coach_tier_state). Rien de ce
 --  fichier n'est appliqué en production sans le feu vert de Maxence.
---  Retour arrière : supabase/rollback/20261117010000_grille_coach_down.sql.
+--  Retour arrière : supabase/rollback/20261117030000_grille_coach_down.sql.
 --
 --  Les identifiants des produits Apple ne changent pas, seules les limites (et les prix, réglés dans App
 --  Store Connect, jamais ici) :

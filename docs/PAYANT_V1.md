@@ -147,7 +147,7 @@ Fabriqués par Maxence en SQL, utilisés **dans l'app** (Réglages › Abonnemen
   - **Seuls `rate_limited` et `not_found`** (aucun utilisateur) sont levés en `P0001`. `rate_limited` : plus de **10 essais par heure et par compte, réussis OU ratés**.
   - `uses` est incrémenté sous verrou de ligne : deux appareils qui utilisent le même code en même temps ne dépassent jamais `max_uses`.
 
-## Grille coach du 17/11 (décision de Maxence, migration `20261117010000_grille_coach.sql`)
+## Grille coach du 17/11 (décision de Maxence, migration `20261117030000_grille_coach.sql`)
 
 Remplace les paliers et les prix coach du 30/10 (section suivante, gardée pour l'historique). Les **identifiants des produits ne changent pas** (`coach20` compte désormais 25 élèves, `coach30` 50, `coachmax` 100) ; les prix se règlent dans App Store Connect et sont **lus chez StoreKit** par l'app (aucun prix écrit dans le code ni dans les tests : le faux StoreKit des tests a des prix fictifs).
 
@@ -165,7 +165,7 @@ Remplace les paliers et les prix coach du 30/10 (section suivante, gardée pour 
 - `private.coach_product_limit` : 10, 25, 50, 100 (plus de palier illimité). `private.coach_student_limit` ne change pas (verrou éteint : au moins 50 ; allumé : le palier payé) : elle lit `coach_product_limit`.
 - `coach_tier_state()` → `{ is_coach, paywall_on, product_id, limit (toujours un nombre), students, full, uncovered, next_product (coach20 sous 25, coach30 sous 50, coachmax sous 100, null au palier 100), contact }` : `contact` vrai quand le coach a le palier 100 et 100 élèves ou plus. L'app affiche alors « Plus de 100 élèves : écris-nous à contact@mdlf.app » (bandeau qui ouvre un e-mail, phrase sous les formules coach), jamais un achat ; le 101e élève est refusé (`tier_full`).
 - Un coach qui suit déjà plus d'élèves que sa nouvelle limite les garde tous ; les élèves au-delà ne sont plus offerts (`over_limit`, sans grâce : la formule du coach n'a pas changé). Personne n'a d'abonnement coach en production au 17/11 : aucun cas réel.
-- Retour arrière : `supabase/rollback/20261117010000_grille_coach_down.sql` (remet 10, 20, 30, illimité ; les prix se remettent à part dans App Store Connect). Tests : `tests/sql/grille_coach_test.sql`.
+- Retour arrière : `supabase/rollback/20261117030000_grille_coach_down.sql` (remet 10, 20, 30, illimité ; les prix se remettent à part dans App Store Connect). Tests : `tests/sql/grille_coach_test.sql`.
 - App ancienne (avant cette mise à jour) sur ce serveur : libellés « 20 élèves », « 30 élèves », « Élèves illimités » faux tant que l'OTA n'est pas reçue ; verrou éteint, l'écran des formules coach ne s'affiche pas. App nouvelle sur un serveur sans cette migration : `contact` déduit (palier `coachmax` et 100 élèves), le reste suit les limites du serveur.
 
 ### Élève couvert par son coach qui a déjà son propre abonnement (17/11/2026)

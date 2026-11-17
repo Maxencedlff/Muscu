@@ -7,7 +7,7 @@
 # 07 au 08/11) et celles du 17/11 (20261116010000, 20261116020000). Les migrations du payant datées d'AVANT
 # (modèle B, tarifs, payant plus, lettre, parrainage du payant) y arrivent donc APRÈS des migrations plus
 # récentes qu'elles, suivies des élèves offerts (20261116030000, qui s'appuie sur les tarifs) et de la
-# photo de profil (20261117000000).
+# photo de profil (20261117010000).
 #  1. Production simulée : migrations de prod_applied, des données réalistes (seed_20261028.sql).
 #  2. Les migrations à appliquer, dans l'ordre de la liste to_apply, chacune dans une transaction.
 #  3. Le schéma obtenu (pg_dump --schema-only normalisé) est identique à celui d'une base neuve qui a
@@ -35,7 +35,7 @@ prod_applied=(20261025000000 20261026000000 20261026010000 20261026020000 202610
   20261105000000 20261105010000 20261106000000 20261106100000 20261106200000 20261107000000
   20261116010000 20261116020000)
 # À appliquer, dans cet ordre (Strava, 20261031620000, reste en sommeil : jamais appliquée au lancement)
-to_apply=(20261029000000 20261030000000 20261031000000 20261031230000 20261101000000 20261116030000 20261117000000 20261117010000)
+to_apply=(20261029000000 20261030000000 20261031000000 20261031230000 20261101000000 20261116030000 20261117010000 20261117020000 20261117030000)
 skip_tests=" strava_test.sql "
 bin=$(dirname "$(command -v initdb 2>/dev/null || ls -d /usr/lib/postgresql/*/bin/initdb | sort -V | tail -1)")
 tmp=$(mktemp -d)
@@ -181,11 +181,11 @@ same avant_payant full "$tmp/AP_depart.sql" "élèves offerts refusés : product
 echo "OK : élèves offerts refusés sans le payant, production inchangée"
 
 # ── 7. La photo de profil seule sur la production de départ ─
-# 20261117000000_photo_profil.sql (docs/PHOTO_PROFIL.md) ne s'appuie que sur ce qui est déjà en production
+# 20261117010000_photo_profil.sql (docs/PHOTO_PROFIL.md) ne s'appuie que sur ce qui est déjà en production
 # (20261028000000_payant.sql pour le droit, social et coach pour la visibilité) : elle doit passer seule, ses tests
 # être verts, et son retour arrière rendre la production de départ à l'identique. Point de départ : la production
 # revenue de l'étape 5 (à l'« Accès offert » du modèle B près, ORDRE.md).
-seule=20261117000000
+seule=20261117010000
 psql postgres -c "create database vague_pp template apres"
 snap vague_pp full > "$tmp/PP_depart.sql"
 psql vague_pp -1 -f "$(file "$mig" "$seule")"

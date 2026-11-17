@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 //  Photo de profil : image préparée sur l'appareil, envoi, lecture des photos des autres, signalement local
 //  (sans écran). Contrat, choix, sources et limites : docs/PHOTO_PROFIL.md ; serveur :
-//  supabase/migrations/20261117000000_photo_profil.sql ; écrans : js/features/profile-photo-ui.js.
+//  supabase/migrations/20261117010000_photo_profil.sql ; écrans : js/features/profile-photo-ui.js.
 //
 //  - Droit : proFeatureAllowed() (js/data/access.js), la même règle que les autres fonctions Pro : abonné, ou
 //    coach actif ; verrou éteint, ouvert à tous. Le serveur refait le contrôle (not_allowed) à chaque envoi.

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
---  Retour arrière de supabase/migrations/20261117000000_photo_profil.sql (à lancer à la main, dans l'éditeur SQL,
+--  Retour arrière de supabase/migrations/20261117010000_photo_profil.sql (à lancer à la main, dans l'éditeur SQL,
 --  seulement si Maxence décide de retirer la photo de profil). Pas dans migrations/ : Supabase ne l'applique jamais
 --  de lui-même.
 --
