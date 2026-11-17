@@ -22,7 +22,7 @@ function recapToneColors(tone, light) {
 }
 // Personnage du profil (écran noir) : le rouge des muscles de Progrès en sombre, l'intensité dit le palier ;
 // palier le plus haut : le rose pâle du dernier palier (comme .is-peak, css/recap.css)
-const RECAP_BODY = { heat: '#C94A3F', peak: '#FDD4CC' };
+const RECAP_BODY = { heat: '#C94A3F', peak: '#FFE0DA' };
 const RECAP_STORY = {
   HEAD: 40,          // « MA SEMAINE · 12 – 18 OCTOBRE »
   NUM_MAX: 300, NUM_MIN: 140,

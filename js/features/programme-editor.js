@@ -134,7 +134,7 @@ function renderEditor() {
             ${coachExConsigneSub(data.activeProgramme, ex)}
           </span>
           <button class="ed-del" data-action="del-ex" data-i="${i}">Supprimer</button>
-          <span class="ed-handle" data-i="${i}" role="button" aria-label="Déplacer ${esc(ex.name)}">${icon('line.3.horizontal', 22)}</span>
+          <button class="ed-handle" data-action="reorder-menu" aria-label="Déplacer ${esc(ex.name)}">${icon('line.3.horizontal', 22)}</button>
         </div>`;
     }
     // Vignette du muscle principal, comme la liste de Progrès ; pas en mode Modifier, où ⊖ et ≡ prennent sa place
@@ -434,6 +434,15 @@ makeReorderable({
     save();
     if (left) { render(); showToast('Retiré du superset'); }
     else if (arr.indexOf(moved) !== to) render();
+  },
+  nameOf: i => prog().exercises[editorCatOf()]?.[i]?.name || '',
+  // Monter / Descendre (VoiceOver) : comme le menu de la séance, un superset n'est jamais coupé (js/data/supersets.js)
+  step: (i, dir, dry) => {
+    const cat = editorCatOf(), arr = prog().exercises[cat];
+    const moved = arr && ssMove(arr, i, dir);
+    if (!moved) return -1;
+    if (!dry) { const ex = arr[i]; arr.splice(0, arr.length, ...moved); save(); return arr.indexOf(ex); }
+    return moved.indexOf(arr[i]);
   },
 });
 

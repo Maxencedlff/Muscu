@@ -657,7 +657,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}">
-          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm || holdGuide(ex) ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
+          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm || holdGuide(ex) ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}${tag ? `, ${esc(ex.name)}` : ''}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
           ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m))}
           <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
@@ -757,7 +757,7 @@ function setNumHtml(ex, si, tag) {
 function setPlatesHtml(ex, ei, s, si) {
   const kg = s.weight !== '' ? s.weight : s.prev?.weight;
   const load = kg !== '' && kg != null ? `${fmtW(kg, { plain: true })} ${unitLbl()}` : '';
-  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}, ${esc(ex.name)}"><span class="num">${isWarmupSet(s) ? 'É' : setDisplayNo(ex.sets, si)}</span>${icon('plate', 16)}</button>`;   // échauffement : « É », comme sa ligne validée (jamais « 0 »)
+  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}"><span class="num">${isWarmupSet(s) ? 'É' : setDisplayNo(ex.sets, si)}</span>${icon('plate', 16)}</button>`;   // échauffement : « É », comme sa ligne validée (jamais « 0 »)
 }
 
 // ▶ de la série à faire : chrono d'un maintien, série guidée au tempo, ou chrono d'une machine de cardio
@@ -803,18 +803,25 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
   const first = ex.sets.findIndex(x => !x.done);
   const waitFor = !editing && first >= 0 && first < si ? first : -1;
   const name  = setSpokenName(ex, si), ref = setRefName(ex, si), warm = isWarmupSet(s);
+  // VoiceOver (regard neuf du 16/11, lecteur d'écran) : le groupe dit l'exercice (« Séries de … »), la tête de ligne la
+  // série ; les champs ne disent que ce qu'ils attendent. Le ✓ garde la série (il se cherche aussi seul, rotor Boutons) ;
+  // le nom de l'exercice ne revient que dans un superset, où les séries de plusieurs exercices alternent
+  const exOf  = tag ? `, ${esc(ex.name)}` : '';
   const check = editing
-    ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer ${ref}, ${esc(ex.name)}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
+    ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer ${ref}${exOf}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
     : waitFor >= 0
       // Une série plus haut n'est pas faite : on valide dans l'ordre (le ✓ grisé le rappelle au toucher)
-      ? `<button class="set-check-zone set-check-zone--wait" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-disabled="true" aria-label="${name}, ${esc(ex.name)} : valide d'abord ${setRefName(ex, waitFor)}"><span class="set-check"></span></button>`
-      : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider ${ref}, ${esc(ex.name)}"><span class="set-check"></span></button>`;
+      ? `<button class="set-check-zone set-check-zone--wait" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-disabled="true" aria-label="${name}${exOf} : valide d'abord ${setRefName(ex, waitFor)}"><span class="set-check"></span></button>`
+      : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider ${ref}${exOf}"><span class="set-check"></span></button>`;
   // Première colonne de la série à faire : ▶ (chrono, tempo, machine), sinon « Disques » sur une barre, sinon le numéro
   const isNext = !editing && si === first;
   const play   = isNext && (m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true) || hasMachineClock(ex));
   // Ailleurs, le numéro d'une série de travail ouvre le choix d'une technique d'intensification (comme Hevy)
+  // Simple numéro : caché, la tête de ligne lue est « Série 2 » (« Série 2, Rowing barre » dans un superset) ; ▶, Disques et
+  // le numéro des techniques sont des boutons qui disent déjà la série
   const firstCol = play ? setPlayHtml(ex, ei, s, si) : isNext && !tag && isBarbellExercise(ex) ? setPlatesHtml(ex, ei, s, si)
-    : !tag && !warm && canTech(ex) ? setTechNumHtml(ex, ei, si) : setNumHtml(ex, si, tag);
+    : !tag && !warm && canTech(ex) ? setTechNumHtml(ex, ei, si)
+    : `<span class="visually-hidden">${name}${exOf}</span>${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}`;
   // Série validée rouverte : le RIR se corrige là aussi (js/data/rir.js)
   const rir = editing && m === 'reps' && !warm && rirShown() ? rirPickerHtml(ei, si, s, ex) : '';
   return `
@@ -824,9 +831,9 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
         ${firstCol}
         ${undoForSet(ex, si) ? setUndoHtml(undoForSet(ex, si)) : setNoteBtnHtml(ex, ei, s, si, `${s.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}`, prevSpoken(s, m))}
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
-               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
+               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
-               value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}">
+               value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)}">
         ${check}
         ${techPillHtml(s) ? `<span class="set-badge">${techPillHtml(s)}</span>` : ''}
         ${setNotePreviewHtml(ei, s, si)}

@@ -242,6 +242,12 @@ def _lab(rgb):
     return 116 * h(Y) - 16, 500 * (h(X) - h(Y)), 200 * (h(Y) - h(Z))
 
 
+def _rel_lum(rgb):
+    f = lambda x: x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4
+    r, g, b = (f(c / 255) for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
 def _delta_e(a, b):
     return sum((x - y) ** 2 for x, y in zip(_lab(a), _lab(b))) ** .5
 
@@ -266,6 +272,12 @@ def t_silhouette_paliers(bench):
             L = [round(_lab(c)[0]) for c in seen]
             mono = all(L[i] > L[i + 1] for i in range(4)) if theme == 'light' else all(L[i] < L[i + 1] for i in range(4))
             R.check(len(gaps) == 4 and min(gaps) >= 15 and mono, f'{t} paliers distincts et dans l\'ordre de clarté (ΔE {gaps}, L* {L})')
+            # Regard neuf du 16/11 (malvoyance) : sur le personnage, la couleur est multipliée par l'ombrage gris du calque
+            # (médiane 0,68) ; les paliers voisins doivent rester distincts en luminance, pas seulement en teinte
+            toks = page.evaluate("() => [1, 2, 3, 4].map(i => getComputedStyle(document.body).getPropertyValue(`--body-tier-${i}`).trim())")
+            lum = [_rel_lum([int(h[k:k + 2], 16) * 0.68 for k in (1, 3, 5)]) for h in toks]
+            ratios = [round((max(a, b) + .05) / (min(a, b) + .05), 2) for a, b in zip(lum, lum[1:])]
+            R.check(min(ratios) >= 1.55, f'{t} paliers sur le personnage : contraste de luminance entre voisins {ratios} ({toks})')
             page.locator('.mcard').first.scroll_into_view_if_needed()
             shot(page, LOT, f'silhouette-paliers-{t}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')

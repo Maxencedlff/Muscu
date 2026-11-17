@@ -427,6 +427,7 @@ html.type-xl .hcal .cal__d--today > .num { width: 1.5em; height: 1.5em; line-hei
 .ed-handle {
   width: 44px; height: 44px; margin: -11px -10px -11px 0; display: flex; align-items: center; justify-content: center;
   color: var(--label3); touch-action: none; cursor: grab; flex-shrink: 0;
+  border: none; background: none; padding: 0; font: inherit;   /* bouton : Monter / Descendre sans glisser (js/ui/reorder.js) */
 }
 
 /* ═════════ Accessibilité et finitions de bord ═════════ */
