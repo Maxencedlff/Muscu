@@ -2020,6 +2020,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // ── Charge prescrite par le coach, 16/11 (tests dans coach-charges.mjs) ──
 (await import('./coach-charges.mjs')).default({ test, run, reset, assert, sameJSON });
 
+// ── Saisie en séance, regard neuf du 16/11 (tests dans seance-saisie.mjs) ──
+(await import('./seance-saisie.mjs')).default({ test, run, reset, assert, sameJSON });
+
 // ── Content-Security-Policy de la WebView (tests dans csp.mjs) ──
 (await import('./csp.mjs')).default({ test, assert, ROOT });
 

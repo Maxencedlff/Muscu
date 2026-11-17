@@ -30,9 +30,12 @@ function rirTxt(rir) {
 // personne a choisi (Réglages) ; 'auto' sur une donnée neuve (freshData) : montré seulement si l'historique a
 // déjà des reps en réserve notées (installation sur un nouvel iPhone puis synchro du compte, import).
 // Le parcours de l'historique est gardé tant qu'il ne change pas (dataVersion, +1 à chaque save()).
+// Niveau « Je débute » (data.level, premier lancement) : coupé en automatique, même avec un historique noté (Léna et
+// Jacqueline, regard neuf du 16/11 : « Reps en réserve » sous chaque série perd une débutante) ; Réglages le rallume.
 let rirAutoMemo = null;
 function rirShown(d = data) {
   if (d.rirOn !== 'auto') return d.rirOn !== false;
+  if (d.level === 'debutant') return false;
   const h = d.history || [], key = `${typeof dataVersion === 'number' ? dataVersion : 0}:${h.length}`;
   if (rirAutoMemo?.h !== h || rirAutoMemo.key !== key) {
     rirAutoMemo = { h, key, v: h.some(x => (x?.exercises || []).some(e => (e?.sets || []).some(s => cleanRir(s?.rir) !== null))) };

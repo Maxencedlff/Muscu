@@ -131,6 +131,12 @@ function bodySilhouette() { return data?.silhouette === 'female' ? 'female' : 'm
 // Ne sert qu'au repère de séries de la bulle des muscles (muscleTarget). Valeurs : TRAINING_LEVELS (store.js)
 function trainingLevel() { return TRAINING_LEVELS.includes(data?.level) ? data.level : null; }
 
+// Ligne « Record 32 × 9 » sous le nom de chaque exercice en séance (exSubHtml, js/features/session.js) : data.recordOn,
+// true ou false une fois choisi (Réglages › Entraînement), absent = automatique : cachée au niveau « Je débute » (regard
+// neuf du 16/11 : « Objectif », « Record » et « Avant » empilés ; l'objectif suffit, les records restent dans Progrès
+// et le badge d'une série qui en bat un reste affiché)
+function headRecordShown(d = data) { return typeof d?.recordOn === 'boolean' ? d.recordOn : d?.level !== 'debutant'; }
+
 // ── Unités ──────────────────────────────────────────────────
 // Les charges sont toujours stockées en kg (chaîne) ; l'affichage suit data.unit.
 const KG_TO_LBS = 2.20462;

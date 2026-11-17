@@ -457,6 +457,12 @@ def t_titre_seance_replie(bench):
                 R.check(s['under'] and s['on'] and s['text'] == s['want'] and s['exOp'] > .9 and s['mainOp'] < .1 and s['hidden'] == 'true' and s['exFits'] and s['clear'],
                         f'{t} nom sous la barre : la barre affiche « {s["want"]} », caché à VoiceOver {s}')
                 shot(page, LOT, f'titre-seance-{t}')
+                # Regard neuf du 16/11 (Mehdi) : défilé jusqu'à la carte suivante, le titre ne nomme plus l'exercice qu'on ne voit plus
+                page.evaluate("""(() => { const c = currentSetRow().closest('.ex-card'), h = document.querySelector('#app .navbar').getBoundingClientRect().bottom;
+                    window.scrollBy(0, c.getBoundingClientRect().bottom - h + 40); })()""")
+                page.wait_for_timeout(500)
+                s = page.evaluate(st_js)
+                R.check(not s['on'] and s['mainOp'] > .9, f'{t} autre carte sous la barre : nom de la séance en titre {s}')
                 page.evaluate('window.scrollTo(0, 0)'); page.wait_for_timeout(500)
                 s = page.evaluate(st_js)
                 R.check(not s['on'] and s['mainOp'] > .9, f'{t} retour en haut : titre normal {s}')

@@ -40,7 +40,7 @@ const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'c
 const SYNC_DIET_CONSENT_KEYS = ['dietPlans', 'dietActive', 'dietFoods', 'dietFoodsGone'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
 // lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud).
-// rirOn (sélecteur RIR) et plates (barre et disques de la salle) : préférences d'affichage et de matériel,
+// rirOn (sélecteur RIR), recordOn (ligne Record en séance) et plates (barre et disques de la salle) : préférences d'affichage et de matériel,
 // comme les sons : propres à l'appareil.
 // bodyMeasures : mensurations (js/data/body-measures.js), aussi privées que le poids ; les photos de
 // progression ne sont même pas dans data (IndexedDB, js/data/progress-photos.js).
@@ -51,7 +51,7 @@ const SYNC_DIET_CONSENT_KEYS = ['dietPlans', 'dietActive', 'dietFoods', 'dietFoo
 // dietLog (repas cochés et aliments remplacés, js/data/nutrition.js) : ce que la personne a mangé, jour par
 // jour ; sur l'appareil seulement en V1 (le montrer au coach demandera son accord, docs/NUTRITION_V1.md)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'soundLevel', 'duckMusic', 'vibrateOn',
-  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex', 'dietLog',
+  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'recordOn', 'plates', 'recapCardOff', 'strengthSex', 'dietLog',
   'dietConsentAsked', 'dietHideNumbers', 'dietStreakOff', 'dietEmptyDays', 'dietCoachConsent', 'dietProteinPerKg',
   'birthYear', 'heightCm', 'dietEstGoal', 'dietEstActivity', 'dietEstSex'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :

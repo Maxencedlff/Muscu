@@ -300,7 +300,59 @@ def t_rir_derniere(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-TESTS = [t_outils, t_persist, t_rir_derniere]
+def t_saisie_debutant(bench, eng, dev, theme):
+    """Regard neuf du 16/11 : charge et reps tapées recopiées dans les séries suivantes vides (clavier gardé sur la case
+    tapée) ; niveau « Je débute » : ni « Reps en réserve » ni ligne Record, rallumables dans Réglages ; « kg par haltère »."""
+    t = f'{dev}-{theme}'
+    with bench.page(eng, dev, theme) as page:
+        d = ppl_v2_today()
+        d['level'] = 'debutant'
+        d['rirOn'] = 'auto'
+        seed(page, theme, json.dumps(d, ensure_ascii=False))
+        start(page, 'legs')
+        # Squat barre comme ajouté en cours de route, jamais fait : cases vides
+        page.evaluate("(() => { activeSession.exercises[0].sets.forEach(s => { s.weight = ''; s.plannedWeight = ''; s.prev = null; s.reps = ''; }); render(); })()")
+        page.wait_for_timeout(200)
+        w0 = page.locator('[data-action="set-weight"][data-ei="0"][data-si="0"]')
+        w0.click(); page.keyboard.type('60')
+        vals = [page.locator(f'[data-action="set-weight"][data-ei="0"][data-si="{i}"]').input_value() for i in (1, 2)]
+        R.check(vals == ['60', '60'], f'{t} charge tapée : recopiée à l\'écran dans les séries suivantes vides {vals}')
+        R.check(page.evaluate("document.activeElement?.dataset.si") == '0', f'{t} le clavier reste sur la case tapée')
+        page.locator('[data-action="set-reps"][data-ei="0"][data-si="0"]').click(); page.keyboard.type('8')
+        cells = page.evaluate("activeSession.exercises[0].sets.map(s => s.weight + 'x' + s.reps)")
+        R.check(all(c == '60x8' for c in cells), f'{t} reps tapées recopiées aussi {cells}')
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
+        skip_rest(page)
+        cur = page.locator('[data-action="set-weight"][data-ei="0"][data-si="1"]').input_value()
+        R.check(page.evaluate("activeSession.exercises[0].sets[0].done") is True and cur == '60', f'{t} après ✓ : série 2 à 60 ({cur})')
+        # Débutant : pas de « Reps en réserve » sous la série validée ni de ligne Record sous le nom
+        R.check(page.locator('.rir').count() == 0, f'{t} débutant : pas de sélecteur Reps en réserve')
+        subs = ' '.join(page.locator('.ex-card__sub').all_inner_texts())
+        R.check('Record' not in subs, f'{t} débutant : pas de ligne Record ({subs[:80]})')
+        shot(page, LOT, f'{t}-debutant-seance')
+        # Réglages › Entraînement : les deux se rallument
+        page.evaluate("navigate('settings')"); page.wait_for_selector('.settings-view'); page.wait_for_timeout(200)
+        for act in ('setting-rir', 'setting-record'):
+            sw = page.locator(f'[data-action="{act}"]')
+            R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'false', f'{t} réglage {act} présent, coupé pour un débutant')
+            sw.click(); page.wait_for_timeout(150)
+            R.check(page.locator(f'[data-action="{act}"]').get_attribute('aria-checked') == 'true', f'{t} réglage {act} rallumé')
+        shot(page, LOT, f'{t}-debutant-reglages')
+        page.evaluate("navigate('session')"); page.wait_for_selector('.view.session'); page.wait_for_timeout(300)
+        R.check(page.locator('.rir').count() == 1, f'{t} rallumé : sélecteur sous la série validée')
+        # Haltères : la colonne dit « par haltère »
+        heads = page.evaluate("[...document.querySelectorAll('.ex-card')].map(c => [c.querySelector('.ex-card__name')?.textContent.trim(), c.querySelector('.sets__head > span:nth-child(3)')?.textContent.trim()])")
+        sw_ = page.evaluate('document.documentElement.scrollWidth')
+        vw = page.evaluate('window.innerWidth')
+        R.check(sw_ <= vw, f'{t} rien ne déborde ({sw_} > {vw})')
+        for name, head in heads:
+            if name and head:
+                want = 'kgpar haltère' if page.evaluate(f"isDumbbellExercise({{ name: {json.dumps(name)} }})") else 'kg'
+                R.check(head in (want, '+kg', 'Aide'), f'{t} {name} : en-tête « {head} »')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+TESTS = [t_outils, t_persist, t_rir_derniere, t_saisie_debutant]
 
 if __name__ == '__main__':
     run_main(R, TESTS, once=[t_reglage])

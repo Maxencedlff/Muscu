@@ -58,6 +58,16 @@ function isBarbellExercise(ex) {
   return BARBELL_RE.test(k) && !NOT_BARBELL_RE.test(k);
 }
 
+// Exercice aux haltères (nom de la fiche, ses alias, ou nom tapé) : la charge notée est celle d'UN haltère, comme
+// les racks (« 2 × 20 kg » s'écrit 20) et les repères de l'app (haltères de 4 à 7 kg, measures.js ; back-off 30 → 27,5,
+// docs/INTENSIFICATION.md). L'en-tête de la colonne le dit (« kg par haltère », regard neuf du 16/11 : un ou les deux ?)
+const DUMBBELL_RE = /halter|dumbbell|\bdb\b/;
+function isDumbbellExercise(ex) {
+  if (measureOf(ex) !== 'reps' || loadKind(ex) !== 'charge') return false;
+  const entry = catalogueEntry(ex?.name || '');
+  return (entry ? [entry.name, ...entry.aliases] : [ex?.name || '']).some(n => DUMBBELL_RE.test(ruleKey(n)));
+}
+
 // Disques d'un côté pour la cible (unité affichée) : la charge atteignable la plus proche sous la cible (ou
 // égale), avec le moins de disques. Programmation dynamique sur les quarts (0,25) : un jeu incomplet est bien
 // servi là où le glouton échoue (15 + 15 = 30 quand il n'y a pas de 20 ni de 10).

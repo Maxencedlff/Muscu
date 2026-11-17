@@ -78,6 +78,12 @@ ${renderAccessSettingsGroup()}
               <span class="cell__sub">Après chaque série, facultatif</span></span>
             ${switchHtml(rirShown())}
           </button>
+          <button class="cell" data-action="setting-record" role="switch" aria-checked="${headRecordShown()}">
+            ${cellIco('medal', 'blue')}
+            <span class="cell__body"><span class="cell__title">Record en séance</span>
+              <span class="cell__sub">Sous chaque exercice</span></span>
+            ${switchHtml(headRecordShown())}
+          </button>
         </div>
 
         <div class="group-title">Sons et vibrations</div>
@@ -388,6 +394,9 @@ registerActions({
   },
   'setting-rir': () => {
     data.rirOn = !rirShown(); save(); render();
+  },
+  'setting-record': () => {
+    data.recordOn = !headRecordShown(); save(); render();
   },
   'setting-rest': async () => {
     const v = await askNumber({ title: 'Repos par défaut', message: 'Durée entre deux séries, en secondes.', value: data.defaultRest, unit: 's', min: 10, max: 600 });
