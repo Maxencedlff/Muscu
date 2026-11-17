@@ -1131,7 +1131,7 @@ def t_tarifs(bench, eng, dev, theme):
         R.check(page.locator('.pay-settings-view .pay-double').count() == 0, f'{t} abonnement résilié : plus de carte')
         # Juste après l'acceptation du lien : même message, une fois, dans un dialogue
         page.evaluate("__st.owned.willAutoRenew = true")
-        page.evaluate("payDoubleAfterJoin()")
+        page.evaluate("() => { payDoubleAfterJoin(); }")   # sans attendre : la promesse attend la fermeture du dialogue
         page.wait_for_selector('.ios-dialog', timeout=5000)
         dlg = page.inner_text('.ios-dialog')
         R.check('Ton coach couvre ton accès' in dlg and 'Gérer mon abonnement' in dlg and 'Plus tard' in dlg, f'{t} après le lien : dialogue ({dlg[:160]!r})')
