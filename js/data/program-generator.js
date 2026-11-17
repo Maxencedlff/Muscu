@@ -42,7 +42,7 @@ const GEN_LEVELS = {
   avance:        { label: 'Avancé', sub: 'Plus de trois ans, avec régularité' },
 };
 const GEN_DAYS = [2, 3, 4, 5, 6];
-const GEN_MINUTES = [30, 45, 60, 75, 90];
+const GEN_MINUTES = [30, 40, 45, 60, 75, 90];
 // Matériel : 'salle' = salle complète (tout, barres à dips comprises). Le poids du corps est toujours compté.
 const GEN_EQUIP = [
   { id: 'barre',          label: 'Barre et rack' },

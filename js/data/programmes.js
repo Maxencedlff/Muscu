@@ -34,7 +34,10 @@ const PROGRAMMES = {
       fullbody: { label: 'Full Body', desc: 'Corps entier', color: 'var(--teal)' },
     },
     defaults: {
-      fullbody: [['Squat barre',3],['Développé couché haltères',3],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie haute',3],['Mollets debout',3]],
+      // Conseillé à qui débute ou reprend (js/data/onboarding.js) : machines et haltères, pas de barre libre,
+      // 15 séries, environ 45 min. Changé le 17/11 (squat barre en premier, 21 séries) : seuls les programmes
+      // activés ensuite le prennent, les exercices sont copiés à l'activation (makeProgData)
+      fullbody: [['Presse à cuisses',3],['Développé couché machine',3],['Tirage vertical prise large',3],['Développé militaire haltères',2],['Leg curl machine',2],['Curl biceps haltères',2]],
     },
   },
   bro: {

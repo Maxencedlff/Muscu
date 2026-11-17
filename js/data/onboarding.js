@@ -22,19 +22,24 @@ const ONB_FREQS = [
 const ONB_LEVELS = {
   debutant: { label: 'Je débute',            sub: 'Moins de six mois de musculation' },
   confirme: { label: 'Je m\'entraîne déjà',  sub: 'Six mois ou plus, avec régularité' },
+  // Ouvre le Sur mesure (niveau « reprise », limites à cocher) ; le programme conseillé reste celui d'un débutant
+  reprise:  { label: 'Je reprends ou j\'ai une douleur', sub: 'Un programme sur mesure, en douceur' },
 };
+// Réponses qui comptent comme un débutant pour le choix du programme et data.level
+const ONB_GENTLE = ['debutant', 'reprise'];
 
 // Programme conseillé, parmi les programmes intégrés seulement.
 // - Sans matériel : Maison, le seul programme au poids du corps.
 // - Haltères : Maison haltères, quel que soit le reste. Le filtre de matériel ne touche que la feuille
 //   d'ajout d'exercice : Full Body ou Upper / Lower garderaient squat barre, presse et poulies.
 // - En salle, la fréquence décide, le niveau départage :
-//     2 fois : Full Body, seul moyen de travailler chaque muscle deux fois en deux séances ;
-//     3 fois : Full Body pour qui débute (mouvements de base répétés souvent, séances courtes),
-//              PPL sinon (plus de volume par muscle, une fois par semaine chacun) ;
-//     4 fois : Upper / Lower, chaque muscle deux fois par semaine, pour tous ;
-//     5 fois ou plus : Upper / Lower pour qui débute (deux séances à retenir), PPL sinon (le cycle
-//              de trois repasse dans la semaine, chaque muscle presque deux fois).
+//     qui débute ou reprend : Full Body quelle que soit la fréquence (regard neuf du 16/11 : Upper / Lower et PPL
+//              commencent par le squat barre et durent 55 à 70 min). Full Body : machines et haltères d'abord,
+//              une seule séance à retenir, environ 45 min ;
+//     sinon, 2 fois : Full Body, seul moyen de travailler chaque muscle deux fois en deux séances ;
+//            3 fois : PPL (plus de volume par muscle, une fois par semaine chacun) ;
+//            4 fois : Upper / Lower, chaque muscle deux fois par semaine ;
+//            5 fois ou plus : PPL (le cycle de trois repasse dans la semaine, chaque muscle presque deux fois).
 //   Bro Split et Arnold Split ne sont jamais proposés d'office : un muscle une fois par semaine,
 //   avec beaucoup de séances. Ils restent dans « Voir les autres programmes ».
 // Réponse inconnue ou absente : la valeur la plus courante (salle, 3 fois, déjà entraîné).
@@ -42,11 +47,8 @@ function recommendProgramme({ place, perWeek, level } = {}) {
   if (place === 'rien') return 'maison';
   if (place === 'halteres') return 'maison_halteres';
   const n = Math.max(2, Math.min(5, parseInt(perWeek, 10) || 3));
-  const beginner = level === 'debutant';
-  if (n === 2) return 'fullbody';
-  if (n === 3) return beginner ? 'fullbody' : 'ppl';
-  if (n === 4) return 'upper_lower';
-  return beginner ? 'upper_lower' : 'ppl';
+  if (ONB_GENTLE.includes(level) || n === 2) return 'fullbody';
+  return n === 4 ? 'upper_lower' : 'ppl';
 }
 
 // Pourquoi ce programme, en une ou deux phrases (écran de résultat, catalogue « Tous les programmes »).
@@ -54,10 +56,10 @@ function recommendProgramme({ place, perWeek, level } = {}) {
 function recommendReason(id, { perWeek, level, orMore = true } = {}) {
   const n = Math.max(2, Math.min(5, parseInt(perWeek, 10) || 3));
   const times = n >= 5 && orMore ? '5 séances ou plus' : `${n} séances`;
-  const beginner = level === 'debutant';
+  const beginner = ONB_GENTLE.includes(level);
   switch (id) {
     case 'fullbody':
-      return `${times} par semaine, tout le corps à chaque fois.${beginner ? ' Idéal pour débuter.' : ' Chaque muscle travaille souvent, sans longues séances.'}`;
+      return `${times} par semaine, tout le corps à chaque fois.${beginner ? ' Idéal pour débuter : machines et haltères, environ 45 min.' : ' Chaque muscle travaille souvent, sans longues séances.'}`;
     case 'upper_lower':
       return `${times} par semaine : le haut du corps, puis le bas, en alternance. Chaque muscle travaille deux fois par semaine.`;
     case 'ppl':
