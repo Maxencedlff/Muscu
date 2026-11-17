@@ -523,8 +523,9 @@ def o_toucher_seance_eleve(bench):
 
 def remind(page):
     """Ouverture de l'app simulée (le compte est connecté après le démarrage dans ces tests)."""
-    page.evaluate("async () => { pushRemindTried = false; await pushRemindAtLaunch({ delay: 0 }); }")
-    page.wait_for_timeout(300)
+    # Sans attendre la promesse : elle ne se tient qu'une fois la feuille fermée
+    page.evaluate("() => { pushRemindTried = false; window.__remind = pushRemindAtLaunch({ delay: 0 }); }")
+    page.wait_for_timeout(400)
 
 
 def remind_state(page):
@@ -570,7 +571,7 @@ def o_rappel_regles(bench):
         signin(page)
         with_coach(page)
         # Autre feuille ouverte (ici une alerte) : pas de rappel, rien compté
-        page.evaluate("dialog({ title: 'Autre', actions: [{ label: 'OK', style: 'preferred' }] })")
+        page.evaluate("() => { dialog({ title: 'Autre', actions: [{ label: 'OK', style: 'preferred' }] }); }")
         remind(page)
         R.check(page.locator('.ios-dialog').count() == 1 and remind_state(page) == {}, f'autre feuille ouverte : pas de rappel {remind_state(page)}')
         tap_dialog(page, 'OK')
