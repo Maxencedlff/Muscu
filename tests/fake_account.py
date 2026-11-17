@@ -1038,7 +1038,8 @@ FAKE_ACCOUNT = r"""
       if (JSON.stringify(data).length > 200 * 1024) return pgErr('too_long');
       if (prog_id.startsWith('diet_') && !opts.dietServerless && !shareOf(student, 'diet')) return pgErr('diet_not_accepted');
       co.sends[me] = (co.sends[me] || 0) + 1;
-      if (co.sends[me] > 30) return pgErr('rate_limited');
+      // 30 + 2 par élève suivi sur 24 h (supabase/migrations/20261117000000_charge_coach.sql)
+      if (co.sends[me] > 30 + 2 * co.links.filter(l => l.coach === me).length) return pgErr('rate_limited');
       co.progs = co.progs.filter(p => !(p.student === student && p.id === prog_id));
       co.progs.push({ coach: me, student, id: prog_id, data: JSON.parse(JSON.stringify(data)), sent_at: new Date(now()).toISOString(), seen: false });
       return null;

@@ -77,6 +77,12 @@ SCROLL = """async () => {
 }"""
 
 
+def full_shot(page, path):
+    """Capture de toute la page si elle tient dans une image (32 767 px au plus, densité comprise), sinon l'écran."""
+    tall = page.evaluate('document.documentElement.scrollHeight * devicePixelRatio') < 32_000
+    page.screenshot(path=path, full_page=tall)
+
+
 def ms_since(t0):
     return round((time.perf_counter() - t0) * 1000)
 
@@ -120,7 +126,7 @@ def measure(bench, eng, dev, n, shots):
             page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight / 2)')
             page.wait_for_timeout(300)
             page.screenshot(path=os.path.join(shots, f'02-liste-milieu-{dev}.png'.replace(' ', '_')))
-            page.screenshot(path=os.path.join(shots, f'03-liste-entiere-{dev}.png'.replace(' ', '_')), full_page=True)
+            full_shot(page, os.path.join(shots, f'03-liste-entiere-{dev}.png'.replace(' ', '_')))
             page.evaluate('window.scrollTo(0, 0)')
         sc = page.evaluate(SCROLL)
         out['defilement'] = sc
@@ -150,7 +156,7 @@ def measure(bench, eng, dev, n, shots):
         if shots and n == 150:
             page.wait_for_timeout(500)
             page.screenshot(path=os.path.join(shots, f'05-fiche-{dev}.png'.replace(' ', '_')))
-            page.screenshot(path=os.path.join(shots, f'06-fiche-entiere-{dev}.png'.replace(' ', '_')), full_page=True)
+            full_shot(page, os.path.join(shots, f'06-fiche-entiere-{dev}.png'.replace(' ', '_')))
         more = page.locator('[data-action="coach-more"]')
         if more.count():
             t0 = time.perf_counter()
