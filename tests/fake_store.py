@@ -28,7 +28,7 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md (MODÈLE B : l'essai gratuit est l'offr
   utilisé sur cet identifiant Apple) ;
   `purchase({ productId, appAccountToken? })` NE REJETTE PAS : il résout
   `{ status: 'success' | 'userCancelled' | 'pending' }`, et pour un succès la transaction entière ;
-  un achat avec l'offre (introEligible) est un essai gratuit de 3 mois côté serveur (`intro_offer`) ;
+  un achat avec l'offre (introEligible) est un essai gratuit (3 mois particulier, 2 mois coach) côté serveur (`intro_offer`) ;
   `finish({ transactionId })` → `{ finished, reason? }` ; `restore()` → `{ synced, cancelled,
   entitlements, unverified }` ; `current()` → `{ entitlements, unverified }` ; `status()` →
   `{ canMakePayments, subscriptionIds }` ; `redeemCode()` → `{ presented: true }` ou
@@ -84,12 +84,19 @@ FAKE_STORE = r"""
     environment: 'production',
     // Offre du coach par compte (élèves offerts, 16/11/2026) : { state, until, coach }
     covers: {},
+    // Essai coach par offre promotionnelle (17/11/2026) : promoOffers rendu par products() (build 69 ;
+    // false = build plus ancienne, sans la clé) ; droit côté serveur par compte (coach_promo_state) ;
+    // signatures demandées à coach-promo-offer ; promoRefused : Apple refuse l'offre à l'achat.
+    promoOffers: true, coachPromo: {}, promoSigned: [], promoRefused: false,
   }, window.__stOpts || {});
   const DAY = 86400000, HOUR = 3600000;
   const BUNDLE = 'com.mdlf.training';
   const SUB_IDS = ['pro', 'coach10', 'coach20', 'coach30', 'coachmax'].flatMap(k => [`com.mdlf.training.${k}.monthly`, `com.mdlf.training.${k}.yearly`]);
   const TRIAL = { unit: 'month', value: 3 };
   const OFFER = { displayPrice: '0,00 €', price: 0, paymentMode: 'freeTrial', period: { unit: 'month', value: 3 }, periodCount: 1 };
+  // Offre promotionnelle « <produit>.essai2mois » d'App Store Connect, sur les 8 abonnements coach
+  const PROMO = { displayPrice: '0,00 €', price: 0, paymentMode: 'freeTrial', period: { unit: 'month', value: 2 }, periodCount: 1 };
+  const isCoachId = id => /^com\.mdlf\.training\.coach/.test(id);
 
   // Deux horloges : celle de l'appareil (que les tests trafiquent) et celle du serveur
   const realNow = Date.now;
@@ -201,6 +208,8 @@ FAKE_STORE = r"""
     my_access: uid => stateOf(uid, row(uid, true)),
     access_state: uid => { const e = row(uid, false); return e ? stateOf(uid, e) : null; },
     redeem_gift_code: (uid, args) => redeem(uid, args.code),
+    // Essai coach offert : __st.coachPromo[compte] = { eligible, reason } (défaut : pas coach)
+    coach_promo_state: uid => st.coachPromo[uid] || { eligible: false, reason: 'not_coach' },
   };
   const callAccess = async (fn, args) => {
     log('access', fn, JSON.stringify(args || {}));
@@ -240,8 +249,28 @@ FAKE_STORE = r"""
     e.expires_at = tx.expiresAt;
     e.status = 'active';
     e.intro = !!tx.intro;            // offerType 1 dans la transaction signée
+    // Un abonnement coach écrit : l'essai coach offert n'est plus jamais proposé (private.coach_sub_seen)
+    if (isCoachId(tx.productId)) st.coachPromo[uid] = { eligible: false, reason: 'had_coach' };
     e.env = tx.environment === 'sandbox' ? 'Sandbox' : 'Production';   // Sandbox ACCEPTÉ et enregistré
     return { data: { ok: true, access: stateOf(uid, e) }, error: null };
+  };
+
+  // ── coach-promo-offer : signe l'offre si le serveur y donne droit (jamais si l'essai de lancement est accordé) ──
+  const signPromo = async body => {
+    log('promoSign', JSON.stringify(body || {}));
+    if (st.fail.access === 'offline') throw new TypeError('Failed to fetch');
+    const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError',
+      message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
+    const uid = me();
+    if (!uid) return fail(401, { error: 'auth' });
+    const productId = body && body.productId;
+    if (!isCoachId(String(productId))) return fail(400, { error: 'unknown_product' });
+    if (body.introEligible !== false) return fail(409, { error: 'intro_eligible' });
+    const right = st.coachPromo[uid];
+    if (!right || !right.eligible) return fail(403, { error: (right && right.reason) || 'not_coach' });
+    const offerId = productId + '.essai2mois';
+    st.promoSigned.push({ uid, productId, offerId });
+    return { data: { ok: true, offerId, jws: 'promo.' + b64({ productId, offerId }) + '.sig' }, error: null };
   };
 
   // ── app_config : sans compte, seule la ligne paywall_on (politique anon) ──
@@ -266,14 +295,15 @@ FAKE_STORE = r"""
   const period = id => (id.endsWith('yearly') ? 365 : 30);
   // Achat : avec l'offre de lancement si la personne y a droit (3 mois gratuits, une seule fois par
   // identifiant Apple : c'est Apple qui le garantit, d'où introEligible qui passe à faux)
-  const buy = productId => {
+  // promo : offre promotionnelle appliquée (2 mois gratuits, offerType 2 : pas l'offre de lancement)
+  const buy = (productId, promo = false) => {
     const p = st.products.find(x => x.id === productId);
     if (!p) throw new Error('produit inconnu');
     const n = ++st.n;
-    const intro = !!st.introEligible;
+    const intro = !promo && !!st.introEligible;
     st.introEligible = false;
-    st.owned = { productId, originalId: 'apple-' + n, transactionId: 'tx-' + n, intro,
-      expiresAt: serverNow() + (intro ? (/\.coach/.test(productId) ? 60 : 90) : period(productId)) * DAY };
+    st.owned = { productId, originalId: 'apple-' + n, transactionId: 'tx-' + n, intro, promo,
+      expiresAt: serverNow() + (intro ? (/\.coach/.test(productId) ? 60 : 90) : promo ? 60 : period(productId)) * DAY };
     return st.owned;
   };
   const openTx = tx => { if (!st.open.includes(tx.transactionId)) st.open.push(tx.transactionId); return tx; };
@@ -287,6 +317,7 @@ FAKE_STORE = r"""
     delete out.offer;
     // Essai d'Apple : 3 mois pour le particulier, 2 mois pour les formules coach (décision du 17/11/2026)
     if (eligible) out.offer = /\.coach/.test(p.id) ? { ...OFFER, period: { unit: 'month', value: 2 } } : { ...OFFER };
+    if (st.promoOffers) out.promoOffers = isCoachId(p.id) ? [{ id: p.id + '.essai2mois', ...PROMO }] : [];
     return out;
   };
   const storePlugin = {
@@ -296,8 +327,20 @@ FAKE_STORE = r"""
       return { products: st.products.filter(p => !miss.includes(p.id)).map(describeProduct),
         missing: [...miss], canMakePayments: st.canMakePayments !== false };
     },
-    purchase: async ({ productId, appAccountToken }) => {
-      log('purchase', productId, appAccountToken || '');
+    purchase: async ({ productId, appAccountToken, promoOfferId, promoJws }) => {
+      log('purchase', productId, appAccountToken || '', promoOfferId || '');
+      // Offre promotionnelle : seulement avec la signature du serveur, pour CE produit ; Apple refuse sinon
+      if (promoOfferId || promoJws) {
+        let signed = null;
+        try { signed = /^promo\..*\.sig$/.test(String(promoJws)) ? unb64(String(promoJws).slice(6, -4)) : null; } catch (e) { signed = null; }
+        if (st.promoRefused || !signed || signed.productId !== productId || signed.offerId !== promoOfferId) {
+          throw Object.assign(new Error('Offre refusée'), { code: 'PROMO_REFUSED' });
+        }
+        if (st.fail.purchase === 'cancel') return { status: 'userCancelled' };
+        const tx = buy(productId, true);
+        openTx(tx);
+        return { status: 'success', ...describeTx(tx) };
+      }
       if (st.fail.purchase === 'cancel') return { status: 'userCancelled' };
       if (st.fail.purchase === 'pending') return { status: 'pending' };
       if (st.fail.purchase === 'fail') return { status: 'unknown' };
@@ -380,7 +423,8 @@ FAKE_STORE = r"""
     const rpc = c.rpc.bind(c), invoke = c.functions.invoke.bind(c.functions);
     const from = c.from.bind(c);
     c.rpc = (fn, a) => (accessRpcs[fn] ? callAccess(fn, a) : rpc(fn, a));
-    c.functions = { invoke: (fn, o) => (fn === 'verify-purchase' ? verifyPurchase(o && o.body) : invoke(fn, o)) };
+    c.functions = { invoke: (fn, o) => (fn === 'verify-purchase' ? verifyPurchase(o && o.body)
+      : fn === 'coach-promo-offer' ? signPromo(o && o.body) : invoke(fn, o)) };
     c.from = table => {
       if (table === 'app_config') return appConfigQuery();
       const chain = from(table);

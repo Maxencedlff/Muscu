@@ -43,6 +43,13 @@ import StoreKit
 ///   `AppTransaction.refresh()`, qui demande le mot de passe Apple, n'est jamais appelé. Ce n'est pas une
 ///   preuve d'achat et rien ne s'en sert pour ouvrir un accès.
 ///
+/// - **Offre promotionnelle signée** (17/11/2026, docs/PAYANT_V1.md « Essai coach pour qui a déjà eu un
+///   essai ») : `products()` rend aussi `promoOffers` (offres promotionnelles d'App Store Connect, lues chez
+///   StoreKit ; la clé est TOUJOURS présente depuis la build 69, même vide, pour que le web sache que
+///   `purchase()` sait les appliquer). `purchase({ promoOfferId, promoJws })` applique l'offre avec la
+///   signature JWS du serveur (fonction Edge `coach-promo-offer`) ; Apple vérifie la signature et
+///   l'éligibilité, et refuse l'achat sinon (`PROMO_REFUSED`, rien n'est débité).
+///
 /// Cible de compilation iOS 16.4 (projet Xcode) : tout StoreKit 2 est disponible et
 /// `AppStore.presentOfferCodeRedeemSheet(in:)` (iOS 16+) suffit — le repli
 /// `SKPaymentQueue.presentCodeRedemptionSheet()`, nécessaire sous iOS 16 et **déprécié depuis iOS 18**,
@@ -193,6 +200,18 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
             }
             options.insert(.appAccountToken(token))
         }
+        // Offre promotionnelle signée par le serveur (coach-promo-offer) : les deux ou aucun.
+        // promotionalOffer(_:compactJWS:) est rétroportée jusqu'à iOS 15 (SDK iOS 26, Xcode 26).
+        let promoId = call.getString("promoOfferId") ?? ""
+        let promoJws = call.getString("promoJws") ?? ""
+        if !promoId.isEmpty || !promoJws.isEmpty {
+            guard !promoId.isEmpty, !promoJws.isEmpty, promoJws.count <= 8192 else {
+                call.reject("Offre promotionnelle incomplète", "BAD_PROMO"); return
+            }
+            for option in Product.PurchaseOption.promotionalOffer(promoId, compactJWS: promoJws) {
+                options.insert(option)
+            }
+        }
         // purchase(options:) est @MainActor : c'est iOS qui présente la feuille de paiement
         Task { @MainActor in
             do {
@@ -222,6 +241,9 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             } catch StoreKitError.userCancelled {
                 call.resolve(["status": "userCancelled"])
+            } catch let error as Product.PurchaseError where !promoId.isEmpty {
+                // Offre refusée par Apple (signature, identifiant, client non éligible) : rien n'est débité
+                call.reject("Offre refusée : \(error.localizedDescription)", "PROMO_REFUSED")
             } catch {
                 call.reject("Achat impossible : \(error.localizedDescription)", "PURCHASE_FAILED")
             }
@@ -414,6 +436,22 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
             ]
             out["offer"] = described
         }
+        // Offres promotionnelles (essai coach de 2 mois pour qui a déjà eu un essai) : TOUJOURS une liste,
+        // même vide (build 69+). Elles ne s'appliquent qu'avec une signature du serveur (purchase, promoJws).
+        var promos: [[String: Any]] = []
+        for offer in subscription.promotionalOffers {
+            guard let offerId = offer.id else { continue }
+            let promo: [String: Any] = [
+                "id": offerId,
+                "displayPrice": offer.displayPrice,
+                "price": NSDecimalNumber(decimal: offer.price).doubleValue,
+                "paymentMode": name(offer.paymentMode),
+                "period": describe(offer.period),
+                "periodCount": offer.periodCount,
+            ]
+            promos.append(promo)
+        }
+        out["promoOffers"] = promos
         return out
     }
 

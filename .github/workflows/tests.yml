@@ -4,7 +4,7 @@ name: Tests
 #  1. unit : syntaxe de tous les scripts, tests unitaires (dont le pont natif), contenu de l'app iOS ;
 #  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
 #     Playwright en thème sombre ;
-#  3. edge : les 11 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
+#  3. edge : les 12 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
 #     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
 #  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
 #     https://muscu-eta.vercel.app (la version web est arrêtée : seule l'app iOS reste). Vercel ne publie plus seul (vercel.json : git.deploymentEnabled).

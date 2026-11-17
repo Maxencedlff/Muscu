@@ -238,11 +238,14 @@ function accessBannerHtml() {
 function payPlanHtml(p, opts = {}) {
   const label = opts.label || PAY_PLAN_LABEL[p.id] || 'Abonnement';
   const tag = opts.current ? 'Ta formule' : opts.tag || (p.id === ACCESS_YEARLY_ID ? 'Le plus avantageux' : '');
-  const trial = p.trial ? `${payDurationText(p.trial)} ${p.trial.value > 1 || p.trial.unit === 'month' ? 'gratuits' : 'gratuit'}` : '';
+  // Essai coach offert (offre promotionnelle signée) : seulement quand l'essai de lancement n'est plus accordé
+  const promo = opts.current ? null : accessCoachPromoFor(p);
+  const trial = p.trial ? `${payDurationText(p.trial)} ${p.trial.value > 1 || p.trial.unit === 'month' ? 'gratuits' : 'gratuit'}`
+    : promo ? `${payDurationText(promo)} ${promo.value > 1 || promo.unit === 'month' ? 'offerts' : 'offert'}` : '';
   const months = opts.months ? `soit ${planMonthsText(opts.months)}` : '';
   const sub = [months, trial].filter(Boolean).join(', ');
   return `
-          <button class="pay-plan${opts.current ? ' pay-plan--current' : ''}" data-action="pay-buy" data-id="${esc(p.id)}" ${access.buying || opts.current ? 'disabled' : ''}>
+          <button class="pay-plan${opts.current ? ' pay-plan--current' : ''}" data-action="pay-buy" data-id="${esc(p.id)}"${promo ? ' data-promo="1"' : ''} ${access.buying || opts.current ? 'disabled' : ''}>
             <span class="pay-plan__name">${esc(label)}${tag ? `<span class="pay-plan__tag">${esc(tag)}</span>` : ''}</span>
             <span class="pay-plan__price num">${access.buying === p.id ? 'Achat…' : `${esc(p.price)} <span class="pay-plan__per">${payPer(p)}</span>`}</span>
             ${sub ? `<span class="pay-plan__trial">${esc(sub)}</span>` : ''}
@@ -265,13 +268,18 @@ const PAY_COACH_BENEFITS = 'Tes élèves n\'ont rien à payer : l\'abonnement co
 // StoreKit ; les liens Conditions et Confidentialité suivent (payLegalHtml).
 function payTermsHtml(list) {
   const trial = list.find(p => p.trial);
+  const promo = trial ? null : list.map(p => accessCoachPromoFor(p)).find(Boolean);
   const prices = list.map(p => `${esc(p.price)} ${payPer(p)}`).join(' ou ');
   const first = trial
     ? `Essai gratuit de ${esc(payDurationText(trial.trial))}, puis ${prices} selon la formule choisie. Le paiement est débité sur ton compte Apple à la fin de l'essai, sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
+    : promo
+    ? `Essai coach : ${esc(payDurationText(promo))} offerts, puis ${prices} selon la formule choisie. Le paiement est débité sur ton compte Apple à la fin de l'essai, sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
     : `${prices} selon la formule choisie, débité sur ton compte Apple à la confirmation de l'achat.`;
+  // Conditions de l'offre (règle 3.1.2 et page Abonnements d'Apple : dire les limites d'éligibilité)
+  const promoRule = promo ? '<p>Essai coach réservé aux coachs vérifiés qui n\'ont jamais eu d\'abonnement coach, une seule fois par compte. Si Apple ne l\'accepte pas, rien n\'est débité.</p>' : '';
   return `
         <div class="pay-terms" role="note">
-          <p>${first}</p>
+          <p>${first}</p>${promoRule}
           <p>L'abonnement se renouvelle automatiquement pour la même période, sauf si tu le résilies au moins 24 heures avant la fin de la période en cours. Tu peux le résilier à tout moment dans les réglages de ton identifiant Apple.</p>
         </div>`;
 }
@@ -392,6 +400,8 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
   const coachTab = tab === 'coach' && coachRole().isCoach;
   const shown = (access.products || []).filter(p => planIsCoach(p.id) === coachTab);
   const trial = shown.find(p => p.trial);
+  // Onglet Coach sans essai de lancement : l'essai coach offert, s'il est accordé
+  const promo = coachTab && !trial ? shown.map(p => accessCoachPromoFor(p)).find(Boolean) : null;
   const off = !paywallOn();
   // Élève offert par son coach : « Offert par ton coach <nom> », rien à acheter
   const offered = !off && !coachTab && accessStatus() === 'coach_team';
@@ -406,6 +416,8 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
     : offered ? 'Tu n\'as rien à payer tant que ton coach te suit.'
     : trial
     ? `${esc(payDurationText(trial.trial))} gratuits, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
+    : promo
+    ? `Essai coach : ${esc(payDurationText(promo))} offerts, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
     : 'Pour enregistrer de nouvelles séances, choisis une formule.';
   const stale = accessStale() && account.user ? `<p class="social-inline-error" role="status">${esc(access.error === 'offline' ? 'Pas d\'Internet : état pas à jour.' : 'État pas à jour.')}</p>` : '';
   const planned = Native.store.available && access.products?.length && !off;
@@ -438,6 +450,8 @@ SCREENS.set('paywall', {
   enter: () => {
     accessRefresh(); accessLoadStoreStatus(); accessLoadProducts();
     if (account.user) coachProRefresh({ minAge: 30_000 });
+    // Essai coach offert : seulement pour un coach validé (les autres ne voient pas les paliers)
+    if (account.user && coachRole().isCoach) accessLoadCoachPromo();
   },
 });
 
