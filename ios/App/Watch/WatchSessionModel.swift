@@ -23,8 +23,19 @@ final class WatchSessionModel: NSObject, ObservableObject {
 
     private var pendingTimeout: Task<Void, Never>?
 
+    /// Mode démonstration (Debug seulement) : état figé, aucun lien avec l'iPhone
+    private var demo = false
+
     override init() {
         super.init()
+        #if DEBUG
+        if let requested = WatchDemo.requested() {
+            demo = true
+            state = requested.state
+            reachable = requested.reachable
+            return
+        }
+        #endif
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         session.delegate = self
@@ -43,6 +54,7 @@ final class WatchSessionModel: NSObject, ObservableObject {
     func adjustRest(_ seconds: Int) { send(.restAdjust(seconds), haptic: .click) }
 
     func requestState() {
+        guard !demo else { return }
         let session = WCSession.default
         guard session.activationState == .activated else { return }
         apply(session.receivedApplicationContext)
@@ -51,6 +63,7 @@ final class WatchSessionModel: NSObject, ObservableObject {
     }
 
     private func send(_ action: WatchAction, haptic: WKHapticType) {
+        guard !demo else { return }
         let session = WCSession.default
         guard !pending, session.activationState == .activated, session.isReachable,
               let json = action.json() else {
@@ -122,3 +135,51 @@ extension WatchSessionModel: WCSessionDelegate {
         }
     }
 }
+
+// MARK: - Démonstration (Debug seulement)
+
+#if DEBUG
+/// `-MDLFWatchDemo <état>` au lancement (CI : .github/workflows/montre.yml, xcrun simctl launch …) :
+/// la montre affiche un état figé sans iPhone, pour photographier chaque écran et lire ses libellés
+/// VoiceOver. Compilé seulement en Debug : la version envoyée sur TestFlight n'en contient rien.
+/// États : aucune, serie, repos, duree, fini, long (nom d'exercice très long), horsportee.
+enum WatchDemo {
+    static func requested(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> (state: WatchSessionState, reachable: Bool)? {
+        guard let i = arguments.firstIndex(of: "-MDLFWatchDemo"), i + 1 < arguments.count else { return nil }
+        return state(arguments[i + 1])
+    }
+
+    static func state(_ name: String) -> (state: WatchSessionState, reachable: Bool)? {
+        let v = Companion.watchStateVersion
+        var s = WatchSessionState(v: v, active: true, title: "Push", tint: "#FF7A1A",
+                                  startedAt: Date().addingTimeInterval(-1_500).timeIntervalSince1970 * 1000,
+                                  done: 5, total: 18, cur: .init(ei: 1, si: 1), exercise: "Développé couché",
+                                  setNo: 2, setCount: 4, load: "80 kg × 8", canValidate: true, blocked: "")
+        switch name {
+        case "aucune":
+            return (WatchSessionState(v: v, active: false, next: .init(title: "Pull", tint: "#FF7A1A")), true)
+        case "serie":
+            return (s, true)
+        case "repos":
+            s.rest = .init(endTime: Date().addingTimeInterval(75).timeIntervalSince1970 * 1000, total: 120)
+            return (s, true)
+        case "duree":
+            s.exercise = "Gainage"; s.load = "45 s"; s.setNo = 1; s.setCount = 3
+            s.canValidate = false; s.blocked = "Série à saisir sur l'iPhone"
+            return (s, true)
+        case "fini":
+            s.done = 18; s.cur = nil; s.exercise = ""; s.setNo = 0; s.setCount = 0; s.load = ""; s.canValidate = false
+            return (s, true)
+        case "long":
+            s.title = "Haut du corps (programme coach)"
+            s.exercise = "Développé incliné haltères prise neutre sur banc à 30 degrés"
+            s.load = "32,5 kg × 10 à 12"
+            return (s, true)
+        case "horsportee":
+            return (s, false)
+        default:
+            return nil
+        }
+    }
+}
+#endif

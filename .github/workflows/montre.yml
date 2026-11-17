@@ -1,0 +1,237 @@
+name: Montre
+
+# App Apple Watch vue et touchée pour de vrai, sur simulateurs (aucun secret Apple) :
+#  1. compile l'app iPhone et la montre pour le simulateur (comme le mode contrôle de ios.yml) ;
+#  2. Apple Watch 42 mm seule et Apple Watch 46 mm appairée à un iPhone (xcrun simctl pair) ;
+#  3. captures de chaque écran de la montre (xcrun simctl io … screenshot) grâce au mode démonstration
+#     `-MDLFWatchDemo <état>` (Debug seulement, WatchSessionModel.swift) : un état figé sans iPhone,
+#     plus fiable que de piloter l'app iPhone jusqu'à chaque écran ;
+#  4. libellés VoiceOver de chaque écran lus par XCUITest (ios/App/WatchUITests), vérifiés en français ;
+#  5. aller-retour réel avec l'iPhone : app iPhone lancée avec `-MDLFWatchCI` (Debug seulement,
+#     MainViewController.swift : démarre une séance Push), la montre la reçoit, XCUITest touche
+#     « Valider » puis « Passer » et l'iPhone le confirme dans son journal.
+# La cible de tests MDLFWatchUITests n'existe que le temps du workflow (scripts/ios/add-watch-uitests.rb) :
+# le projet commité, donc l'empreinte de la build, n'en dépend pas.
+# Lancer : gh workflow run montre.yml -R Maxencedlff/Muscu --ref <branche>
+permissions: {}
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ios/App/Watch/**'
+      - 'ios/App/Shared/**'
+      - 'ios/App/Widgets/**'
+      - 'ios/App/WatchUITests/**'
+      - 'scripts/ios/add-watch-uitests.rb'
+      - '.github/workflows/montre.yml'
+
+concurrency:
+  group: montre-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT: ios/App/App.xcodeproj
+  WATCH_BUNDLE: com.mdlf.training.watchkitapp
+  # États du mode démonstration (WatchDemo, WatchSessionModel.swift)
+  DEMO_STATES: aucune serie repos duree fini long horsportee
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  montre:
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Dépendances
+        run: npm ci
+
+      - name: Contenu web et synchronisation iOS
+        run: npm run web:build && npx cap sync ios
+
+      - name: Xcode 26 et simulateurs disponibles
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$X" ]; then echo "Xcode 26 absent de l'image :"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$X"
+          xcodebuild -version
+          xcrun simctl list runtimes
+          xcrun simctl list devicetypes | grep -E 'iPhone 1[6-9]|Apple Watch' || true
+
+      - name: Paquets Swift
+        run: |
+          RESOLVED="$PROJECT/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          FLAGS=""; [ -f "$RESOLVED" ] && FLAGS="-onlyUsePackageVersionsFromResolvedFile"
+          echo "SPM_FLAGS=$FLAGS" >> "$GITHUB_ENV"
+          xcodebuild -project "$PROJECT" -scheme App -derivedDataPath build -resolvePackageDependencies $FLAGS | tail -5
+
+      # Comme le mode contrôle d'ios.yml : la destination iOS suffit, Xcode compile la montre pour son simulateur
+      - name: Compilation de l'app et de la montre (simulateur)
+        run: |
+          xcodebuild -project "$PROJECT" -scheme App -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build $SPM_FLAGS CODE_SIGNING_ALLOWED=NO build > xcodebuild.log 2>&1 || {
+              grep -E -A4 'error:|BUILD FAILED' xcodebuild.log | head -120; exit 1; }
+          grep -E 'warning: .*(Watch/|Shared/|Widgets/)' xcodebuild.log | sort -u | head -40 || true
+          APP=build/Build/Products/Debug-iphonesimulator/App.app
+          test -d "$APP/Watch/MDLFWatch.app" || { echo "App Apple Watch absente de l'app"; exit 1; }
+          # Signature ad hoc d'une copie (le simulateur n'enregistre une extension que signée), comme ios.yml
+          SIGNED="$RUNNER_TEMP/signed"; rm -rf "$SIGNED"; mkdir -p "$SIGNED"; cp -R "$APP" "$SIGNED/"
+          SAPP="$SIGNED/App.app"
+          adhoc() { codesign --force --sign - --timestamp=none "$1"; }
+          for f in "$SAPP"/Frameworks/*.framework "$SAPP"/Frameworks/*.dylib; do
+            if [ -e "$f" ]; then adhoc "$f"; fi
+          done
+          adhoc "$SAPP/Watch/MDLFWatch.app" && adhoc "$SAPP/PlugIns/RestActivity.appex" && adhoc "$SAPP"
+          echo "PHONE_APP=$SAPP" >> "$GITHUB_ENV"
+          echo "WATCH_APP=$SAPP/Watch/MDLFWatch.app" >> "$GITHUB_ENV"
+
+      - name: Cible de tests d'interface de la montre (CI seulement)
+        run: |
+          # xcodeproj vient avec CocoaPods sur l'image macOS ; sinon installé
+          ruby -e "require 'xcodeproj'" 2>/dev/null || gem install xcodeproj --no-document || sudo gem install xcodeproj --no-document
+          ruby scripts/ios/add-watch-uitests.rb
+          xcodebuild -project "$PROJECT" -scheme MDLFWatchUITests -configuration Debug \
+            -destination 'generic/platform=watchOS Simulator' -derivedDataPath build-tests $SPM_FLAGS \
+            CODE_SIGNING_ALLOWED=NO build-for-testing > tests-build.log 2>&1 || {
+              grep -E -A4 'error:|BUILD FAILED|TEST BUILD FAILED' tests-build.log | head -80; exit 1; }
+          ls build-tests/Build/Products/
+          echo "XCTESTRUN=$(ls build-tests/Build/Products/*.xctestrun | head -1)" >> "$GITHUB_ENV"
+
+      - name: Simulateurs (iPhone + Apple Watch 46 mm appairées, Apple Watch 42 mm seule)
+        run: |
+          IOS_RT=$(xcrun simctl list runtimes -j | jq -r '[.runtimes[] | select(.isAvailable and .platform == "iOS")] | sort_by(.version | split(".") | map(tonumber)) | last | .identifier')
+          WOS_RT=$(xcrun simctl list runtimes -j | jq -r '[.runtimes[] | select(.isAvailable and .platform == "watchOS")] | sort_by(.version | split(".") | map(tonumber)) | last | .identifier')
+          echo "iOS : $IOS_RT · watchOS : $WOS_RT"
+          [ "$WOS_RT" != "null" ] && [ -n "$WOS_RT" ] || { echo "Aucun simulateur watchOS dans l'image"; exit 1; }
+          types=$(xcrun simctl list devicetypes -j)
+          pick() { echo "$types" | jq -r --arg re "$1" '[.devicetypes[] | select(.name | test($re))] | last | .identifier'; }
+          PHONE_T=$(pick '^iPhone 1[6-9] Pro$')
+          W46_T=$(pick '^Apple Watch Series [0-9]+ \(46mm\)$')
+          W42_T=$(pick '^Apple Watch Series [0-9]+ \(42mm\)$')
+          echo "Types : $PHONE_T · $W46_T · $W42_T"
+          PHONE=$(xcrun simctl create "iPhone CI" "$PHONE_T" "$IOS_RT")
+          W46=$(xcrun simctl create "Montre 46 mm" "$W46_T" "$WOS_RT")
+          W42=$(xcrun simctl create "Montre 42 mm" "$W42_T" "$WOS_RT")
+          PAIR=$(xcrun simctl pair "$W46" "$PHONE")
+          echo "Paire : $PAIR"
+          xcrun simctl list pairs
+          { echo "PHONE=$PHONE"; echo "W46=$W46"; echo "W42=$W42"; echo "PAIR=$PAIR"; } >> "$GITHUB_ENV"
+
+      # Montre seule, sans iPhone : le mode démonstration n'en a pas besoin
+      - name: Apple Watch 42 mm, captures et libellés VoiceOver
+        run: |
+          mkdir -p shots
+          xcrun simctl boot "$W42"; xcrun simctl bootstatus "$W42" -b > /dev/null
+          xcrun simctl install "$W42" "$WATCH_APP"
+          sleep 10   # fin du démarrage du système de la montre
+          for st in $DEMO_STATES; do
+            xcrun simctl launch --terminate-running-process "$W42" "$WATCH_BUNDLE" -MDLFWatchDemo "$st" > /dev/null
+            sleep 6
+            xcrun simctl io "$W42" screenshot "shots/montre-42mm-$st.png" > /dev/null 2>&1
+            echo "Capture 42 mm : $st"
+          done
+          xcrun simctl terminate "$W42" "$WATCH_BUNDLE" || true
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN" -destination "id=$W42" \
+            -only-testing:MDLFWatchUITests/WatchUITests/testLibellesVoiceOver \
+            -resultBundlePath shots/voiceover-42mm.xcresult > tests-42.log 2>&1 && R=0 || R=$?
+          grep -E '^MDLF-AX\|' tests-42.log | sed 's/^/42mm|/' > shots/libelles-voiceover-42mm.txt || true
+          grep -E 'error:|Test Case .* (passed|failed)|TEST (SUCCEEDED|FAILED)' tests-42.log | head -60 || true
+          xcrun simctl shutdown "$W42" || true
+          exit $R
+
+      - name: Apple Watch 46 mm appairée, captures et libellés VoiceOver
+        run: |
+          xcrun simctl boot "$PHONE"; xcrun simctl boot "$W46"
+          xcrun simctl bootstatus "$PHONE" -b > /dev/null; xcrun simctl bootstatus "$W46" -b > /dev/null
+          xcrun simctl pair_activate "$PAIR" || true
+          xcrun simctl list pairs
+          xcrun simctl install "$PHONE" "$PHONE_APP"
+          xcrun simctl install "$W46" "$WATCH_APP"
+          sleep 10
+          for st in $DEMO_STATES; do
+            xcrun simctl launch --terminate-running-process "$W46" "$WATCH_BUNDLE" -MDLFWatchDemo "$st" > /dev/null
+            sleep 6
+            xcrun simctl io "$W46" screenshot "shots/montre-46mm-$st.png" > /dev/null 2>&1
+            echo "Capture 46 mm : $st"
+          done
+          xcrun simctl terminate "$W46" "$WATCH_BUNDLE" || true
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN" -destination "id=$W46" \
+            -only-testing:MDLFWatchUITests/WatchUITests/testLibellesVoiceOver \
+            -resultBundlePath shots/voiceover-46mm.xcresult > tests-46.log 2>&1 && R=0 || R=$?
+          grep -E '^MDLF-AX\|' tests-46.log | sed 's/^/46mm|/' > shots/libelles-voiceover-46mm.txt || true
+          grep -E 'error:|Test Case .* (passed|failed)|TEST (SUCCEEDED|FAILED)' tests-46.log | head -60 || true
+          exit $R
+
+      # Vraie séance : l'iPhone la démarre (JS de l'app), WatchConnectivity la porte à la montre,
+      # XCUITest touche « Valider » puis « Passer » au poignet, l'iPhone écrit l'état de ses séries
+      - name: Aller-retour iPhone ↔ montre (WatchConnectivity)
+        id: allerretour
+        continue-on-error: true
+        run: |
+          BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PHONE_APP/Info.plist")
+          # Sortie de l'app (console JS relayée par Capacitor en Debug) écrite dans un fichier
+          xcrun simctl launch --stdout="$PWD/shots/iphone-sortie.txt" --stderr="$PWD/shots/iphone-erreurs.txt" \
+            "$PHONE" "$BUNDLE" -MDLFWatchCI
+          sleep 25   # chargement de la vue web + 6 s avant le démarrage de la séance
+          xcrun simctl io "$PHONE" screenshot shots/iphone-1-seance-demarree.png > /dev/null 2>&1 || true
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN" -destination "id=$W46" \
+            -only-testing:MDLFWatchUITests/WatchUITests/testAllerRetourAvecIPhone \
+            -resultBundlePath shots/aller-retour.xcresult > tests-rt.log 2>&1 && R=0 || R=$?
+          grep -E '^MDLF-RT\|' tests-rt.log > shots/aller-retour.txt || true
+          grep -E 'error:|Test Case .* (passed|failed)|TEST (SUCCEEDED|FAILED)' tests-rt.log | head -40 || true
+          xcrun simctl io "$PHONE" screenshot shots/iphone-2-apres-montre.png > /dev/null 2>&1 || true
+          # Preuves côté iPhone : séance démarrée, séries cochées par la montre, repos
+          xcrun simctl spawn "$PHONE" log show --last 10m --style compact --predicate 'process == "App"' \
+            > shots/journal-iphone.txt 2>&1 || true
+          cat shots/journal-iphone.txt shots/iphone-sortie.txt 2>/dev/null | grep 'MDLF-CI' | head -80 > shots/iphone-etat-series.txt || true
+          head -5 shots/iphone-etat-series.txt; echo "…"; tail -5 shots/iphone-etat-series.txt
+          # Diagnostic WatchConnectivity des deux côtés
+          xcrun simctl spawn "$PHONE" log show --last 10m --style compact \
+            --predicate 'subsystem BEGINSWITH "com.apple.wcd" OR process == "wcd" OR eventMessage CONTAINS[c] "WCSession"' \
+            > shots/journal-wc-iphone.txt 2>&1 || true
+          xcrun simctl spawn "$W46" log show --last 10m --style compact \
+            --predicate 'process == "MDLFWatch" OR subsystem BEGINSWITH "com.apple.wcd" OR eventMessage CONTAINS[c] "WCSession"' \
+            > shots/journal-montre.txt 2>&1 || true
+          grep -icE 'error|fail' shots/journal-wc-iphone.txt || true
+          exit $R
+
+      - name: Pièces jointes des tests (captures XCUITest)
+        if: always()
+        run: |
+          for r in shots/*.xcresult; do
+            [ -d "$r" ] || continue
+            out="shots/xcuitest-$(basename "$r" .xcresult)"; mkdir -p "$out"
+            xcrun xcresulttool export attachments --path "$r" --output-path "$out" > /dev/null 2>&1 || true
+          done
+          ls -R shots | head -100 || true
+          echo "Aller-retour : ${{ steps.allerretour.outcome }}"
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: captures-montre
+          path: |
+            shots/
+            !shots/*.xcresult
+          if-no-files-found: warn
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: journaux-montre
+          path: '*.log'
+          if-no-files-found: warn

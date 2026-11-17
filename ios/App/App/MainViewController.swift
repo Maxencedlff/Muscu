@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import WebKit
 
 /// Contrôleur principal de l'app : la vue web Capacitor, plus les modules natifs propres à l'app
 /// (Santé, Apple Music, Live Activity du repos, icône de l'app, copie iCloud, bips, compte, abonnement, notifications push, Apple Watch, widget, Siri, coffre à photos, tranche d'âge, lecteur de code-barres), enregistrés ici car ils ne viennent
@@ -22,5 +23,37 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(VaultPlugin())
         bridge?.registerPluginInstance(AgeRangePlugin())
         bridge?.registerPluginInstance(ScannerPlugin())
+        #if DEBUG
+        startWatchRoundTripIfRequested()
+        #endif
     }
+
+    #if DEBUG
+    /// `-MDLFWatchCI` au lancement (Debug seulement, .github/workflows/montre.yml) : démarre une séance
+    /// Push quelques secondes après le chargement, comme un toucher sur « Démarrer », puis écrit l'état
+    /// des séries dans le journal toutes les 2 s. La CI vérifie ainsi l'aller-retour réel avec la montre
+    /// appairée : la séance part vers la montre, « Valider » au poignet coche la série ici.
+    private func startWatchRoundTripIfRequested() {
+        guard ProcessInfo.processInfo.arguments.contains("-MDLFWatchCI") else { return }
+        let js = """
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            try {
+              if (!activeSession) startSession('push');
+              console.log('MDLF-CI séance démarrée ' + JSON.stringify(currentWatchState()));
+            } catch (e) { console.log('MDLF-CI erreur ' + e); }
+            setInterval(function () {
+              try {
+                console.log('MDLF-CI état ' + JSON.stringify({
+                  series: activeSession ? activeSession.exercises[0].sets.map(function (s) { return !!s.done; }) : null,
+                  repos: !!restActive }));
+              } catch (e) { console.log('MDLF-CI erreur ' + e); }
+            }, 2000);
+          }, 6000);
+        });
+        """
+        webView?.configuration.userContentController.addUserScript(
+            WKUserScript(source: js, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+    }
+    #endif
 }
