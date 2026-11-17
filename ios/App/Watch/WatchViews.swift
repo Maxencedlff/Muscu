@@ -43,21 +43,28 @@ private struct IdleView: View {
     let next: WatchSessionState.NextSession?
 
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "figure.strengthtraining.traditional")
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(WatchTint.color(next?.tint))
-                .accessibilityHidden(true)
-            if let next {
-                Text("Prochaine séance").font(.footnote).foregroundStyle(.secondary)
-                Text(next.title).font(.headline).multilineTextAlignment(.center)
+        // ScrollView : sur la 42 mm, la phrase tenait sur une ligne coupée (« …sur l'iPh… »)
+        ScrollView {
+            VStack(spacing: 8) {
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(WatchTint.color(next?.tint))
+                    .accessibilityHidden(true)
+                VStack(spacing: 4) {
+                    if let next {
+                        Text("Prochaine séance").font(.footnote).foregroundStyle(.secondary)
+                        Text(next.title).font(.headline).multilineTextAlignment(.center)
+                    }
+                    Text("Démarre ta séance sur l'iPhone")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
             }
-            Text("Démarre ta séance sur l'iPhone")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
         }
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -113,27 +120,18 @@ private struct RestView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
-                ZStack {
-                    ProgressView(timerInterval: rest.interval, countsDown: true) {
-                        EmptyView()
-                    } currentValueLabel: {
-                        EmptyView()
-                    }
-                    .progressViewStyle(.circular)
-                    .tint(WatchTint.color(state.tint))
-                    .accessibilityHidden(true)
-                    Text(timerInterval: rest.interval, countsDown: true)
-                        .font(.system(.title2, design: .rounded).weight(.semibold).monospacedDigit())
-                        .accessibilityLabel("Repos restant")
-                }
-                .frame(width: 96, height: 96)
-                HStack(spacing: 6) {
+                // −15 et +15 de part et d'autre du compte à rebours : « Passer », le geste principal,
+                // reste visible sans défiler sur la 42 mm (avant, il tombait sous le bord de l'écran)
+                HStack(spacing: 4) {
                     Button { model.adjustRest(-15) } label: { Text("−15") }
                         .accessibilityLabel("Moins 15 secondes")
+                    RestRing(rest: rest, tint: WatchTint.color(state.tint))
                     Button { model.adjustRest(15) } label: { Text("+15") }
                         .accessibilityLabel("Plus 15 secondes")
                 }
-                .font(.body.monospacedDigit())
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .font(.footnote.weight(.semibold).monospacedDigit())
                 .disabled(model.pending || !model.reachable)
                 Button("Passer", action: model.skipRest)
                     .buttonStyle(.borderedProminent)
@@ -149,6 +147,43 @@ private struct RestView: View {
                 ConnectionNote()
             }
         }
+    }
+}
+
+/// Anneau du repos et temps restant. L'anneau est dessiné ici (Circle tronqué, redessiné une fois par
+/// seconde par TimelineView) : la ProgressView circulaire du système garde sa petite taille fixe sur la
+/// montre, et le texte du compte à rebours débordait sur l'anneau. Le texte reste Text(timerInterval:),
+/// tenu à jour par le système.
+private struct RestRing: View {
+    let rest: WatchSessionState.Rest
+    let tint: Color
+    private let size: CGFloat = 78
+    private let line: CGFloat = 6
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(Color(white: 0.2), lineWidth: line)
+            TimelineView(.periodic(from: rest.startDate, by: 1)) { context in
+                Circle()
+                    .trim(from: 0, to: remaining(at: context.date))
+                    .stroke(tint, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .accessibilityHidden(true)
+            Text(timerInterval: rest.interval, countsDown: true)
+                .font(.system(.title3, design: .rounded).weight(.semibold).monospacedDigit())
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+                .padding(.horizontal, line + 4)
+                .accessibilityLabel("Repos restant")
+        }
+        .frame(width: size, height: size)
+    }
+
+    private func remaining(at date: Date) -> CGFloat {
+        let total = rest.endDate.timeIntervalSince(rest.startDate)
+        guard total > 0 else { return 0 }
+        return CGFloat(min(1, max(0, rest.endDate.timeIntervalSince(date) / total)))
     }
 }
 
