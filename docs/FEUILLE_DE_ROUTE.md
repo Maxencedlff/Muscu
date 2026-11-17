@@ -1,6 +1,6 @@
 # MDLF Training · feuille de route complète
 
-Mise à jour le 2 novembre 2026. De la PWA « PPL Training » d'avril 2026 à l'app iPhone MDLF Training, puis la suite, dans l'ordre.
+Mise à jour le 17 novembre 2026. De la PWA « PPL Training » d'avril 2026 à l'app iPhone MDLF Training, puis la suite, dans l'ordre.
 
 Légende : ✓ = fait, ▶ = en cours, ○ = à faire. OTA = mise à jour à chaud (sans passer par l'App Store).
 Build = nouvelle version de l'app compilée (TestFlight, puis App Store). Les codes comme 2b0a3fd sont les repères Git de la publication.
@@ -193,134 +193,90 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ✓ | 02/11 | Carrousel Instagram « version coach » (7 images)                              | Bureau › MDLF Instagram › post2_coach |
 | ✓ | 02/11 | fitby_dylan passé coach                                                       | Serveur                     |
 
+### 3 → 17 novembre · Vagues 1 à 4, design sobre, nutrition, coach, générateur
+
+|   | Date  | Quoi                                                                                  | Comment publié                                |
+|---|-------|---------------------------------------------------------------------------------------|-----------------------------------------------|
+| ✓ | 03/11 | Payant complet fusionné dans main (verrou éteint), build 45 sur TestFlight            | Build 45, main 263fc0d, ppl-v123              |
+| ✓ | 03/11 | Recherche d'exercices : filtre par groupe puis par muscle                             | OTA f883710, ppl-v124                         |
+| ✓ | 04/11 | Story : toutes les séries ; élastiques des tractions et dips ; volume des bips        | OTA, ppl-v125 à v127                          |
+| ✓ | 05/11 | Retours des coachs : fourchette de reps, « Avant » d'un autre programme, 5 exercices  | main da8855d                                  |
+| ✓ | 07/11 | Vague 1 : suivi du coach, prise et ordre, nutrition, techniques d'intensification     | OTA 2026.11.7-3768be4, ppl-v130               |
+| ✓ | 08/11 | Vague 2 : onglet Coach, photos de bilan chiffrées, sauvegarde quotidienne de la base  | OTA 2026.11.8-5d6f6ae, ppl-v132               |
+| ✓ | 10/11 | Vague 3 : finitions des experts Apple, texte agrandi, scan de code-barres             | Build 67                                      |
+| ✓ | 10/11 | Nutrition : quantités à l'unité, feuille au-dessus du clavier, retour sur aujourd'hui | OTA 2026.11.10-2a0998d puis aa8da2c, ppl-v145 |
+| ✓ | 12/11 | RIR sur la dernière série seulement                                                   | OTA f50f417, ppl-v147                         |
+| ✓ | 13/11 | Vague 4 : design sobre (un seul orange, noir pur), muscles 3D en rouge, reps fixes    | Build 68, ppl-v152                            |
+| ✓ | 13/11 | Vague 4 : repas retirables, sons natifs, mises à jour à chaud signées                 | Build 68                                      |
+| ✓ | 13/11 | Bibliothèque illustrée, fiche d'exercice refaite, repas vides par défaut              | OTA 2026.11.13-74703ef, ppl-v158              |
+| ✓ | 15/11 | Programme, Historique (personnage par séance), Progrès par muscle                     | OTA f49ee47 à d30aac2, ppl-v170 à v176        |
+| ✓ | 15/11 | Coach et Social illustrés, son de fin de repos natif, tempo                           | OTA 344ce65 et 861f613                        |
+| ✓ | 16/11 | Nutrition illustrée, Réglages façon iOS, séance en cours avec vignettes               | OTA 42dcdf7, ppl-v183                         |
+| ✓ | 16/11 | Nutrition : objectifs du jour, déplacer un aliment, repas types facultatifs           | OTA efbd8b3, ppl-v193                         |
+| ✓ | 17/11 | Coach : charges et reps prescrites, notifications en contexte                         | OTA 2026.11.17-4f8d900, ppl-v201              |
+| ✓ | 17/11 | Générateur de programme à règles, vacuum guidé, ajout d'exercices, retours testeurs   | OTA 2026.11.17-4f8d900, ppl-v201              |
+| ✓ | 17/11 | Muscles : rowing bûcheron compté pour le dos, 52 noms corrigés (audit de 1 913)       | OTA 2026.11.17-d34120e, ppl-v202              |
+
 ---
 
 ## 2. En cours
 
-|   | Quoi                                                                     | Où                     | État                                   |
-|---|--------------------------------------------------------------------------|------------------------|----------------------------------------|
-| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | **Build 45 sur TestFlight (03/11)**, revue bêta externe en cours · 7 chantiers de la nuit + story corrigée · fusionnée dans main le 03/11 · attend le SIRET puis le médiateur |
-| ✓ | OTA : payant-final fusionnée dans main le 03/11 (verrou éteint) | ota.yml | main a l'empreinte native de la build 45 : les OTA l'atteignent. Gardes juridiques en avertissement tant que MDLF_SORTIE n'est pas à true |
-| ▶ | Page de confidentialité « store » + mentions légales, CGU, CGV          | payant-final           | Prête · adresse perso et téléphone mis · attend SIRET, médiateur, dates d'entrée en vigueur |
-| ▶ | Strava                                                                    | Branche nuit-integration | En sommeil, rallumé par une build    |
+|   | Quoi                                                                                                        | Où          | État                                       |
+|---|-------------------------------------------------------------------------------------------------------------|-------------|--------------------------------------------|
+| ▶ | Vague « regard neuf » : premier lancement, saisie en séance, mots, séance libre, CSV, sauvegarde, VoiceOver | Branche yn2 | Intégration, puis panel 40 juges, puis OTA |
 
 ---
 
 ## 3. À faire, dans l'ordre
 
-### Reste du lot 2
+### Avant le paiement · A. Code
 
-|   | Quoi                                                 | Quand / état             |
-|---|------------------------------------------------------|--------------------------|
-| ✓ | @mdlftraining sur la story et les récaps            | OTA d127b26 (01/11)      |
+|   | Quoi                                                                         | Quand / état              |
+|---|------------------------------------------------------------------------------|---------------------------|
+| ▶ | Vague « regard neuf » yn2 : intégration, panel 40 juges, OTA et mail         | En cours (17/11)          |
+| ○ | Nouveau passage des 12 profils « regard neuf » (6,6/10 le 17/11, objectif 8) | Après yn2                 |
+| ○ | Dépôt Muscu remis en privé                                                   | Quand plus aucun chantier |
 
-### Lot 3 · Serveur
+### Avant le paiement · B. Prêt, attend ton feu vert (serveur ou build)
 
-|   | Quoi                                            | Quand / état                     |
-|---|-------------------------------------------------|----------------------------------|
-| ✓ | Records, réactions, Mon profil, partage du poids | Publié le 31/10                 |
-| ○ | Export vers Strava                              | En sommeil                       |
-| ○ | Mise en ligne du payant                         | Prêt · après les papiers         |
+|   | Quoi                                                                                         | Quand / état                                      |
+|---|----------------------------------------------------------------------------------------------|---------------------------------------------------|
+| ○ | Élèves gratuits (le coach paie le forfait), code d'offre élève retiré dans App Store Connect | Branche eleves-gratuits, migration 20261116030000 |
+| ○ | Écart prescrit / fait chez le coach, notification « élève a terminé »                        | Migrations 20261116010000 et 20261116020000       |
+| ○ | Photo de profil                                                                              | Branche photo-profil (serveur + build)            |
+| ○ | Build TestFlight 69 : son natif robuste, photo de profil, tout le natif en attente           | Après ton accord                                  |
 
-### Build 45 (TestFlight, puis App Store) · publiée le 03/11
+### Avant le paiement · C. Tes démarches
 
-|   | Quoi                                                  | Quand / état                        |
-|---|-------------------------------------------------------|-------------------------------------|
-| ✓ | Sommeil, séances dans Santé, notifications, montre    | Build 31                            |
-| ✓ | Paiement Apple (StoreKit)                             | Build 40                            |
-| ✓ | Face ID du coffre photos                              | Build 33                            |
-| ✓ | Feuille de partage refermée au retour d'Instagram     | Build 45 (corrigée : la build 40 la laissait sous le panneau d'Instagram) |
-| ✓ | Vérification de l'âge par Apple pour l'onglet Amis    | Build 45 · capacité Declared Age Range activée et profil régénéré le 03/11 |
-| ✓ | Écran « mets à jour l'app » avant d'allumer le verrou | Build 45, réglé par app_config.min_build (laissé à 0) |
-| ○ | Bips : musique baissée le temps du bip de fin de repos (.duckOthers, session rendue avec notifyOthersOnDeactivation à la fin réelle du son), interrupteur dans Réglages | Codé le 12/11 sur la branche natif-68 (build 68, à compiler) : décompte 3-2-1 et GO baissent la musique, retour 1,2 s après le dernier bip, Réglages › « Baisser la musique » (oui par défaut, visible seulement avec la build 68) · décidé le 04/11 · recherche du 04/11 : Strava, NRC, Runna, Seconds le font ; piège n°1 = musique qui reste baissée |
+|   | Quoi                                                                                       | Quand / état                                         |
+|---|--------------------------------------------------------------------------------------------|------------------------------------------------------|
+| ○ | Pages juridiques : téléphone pro, médiateur (CM2C conseillé), date de mise en ligne, SIRET | Vérifier si le transfert d'adresse a changé le SIRET |
+| ○ | App Store Connect : DSA en commerçant, code postal du support, Small Business Program      | À faire                                              |
+| ○ | App Store Connect : testeur Sandbox, captures de revue des abonnements, confidentialité    | Liste du 12/11                                       |
+| ○ | Contrats des coachs partenaires (3 projets dans docs/juridique)                            | À relire et signer                                   |
+| ○ | MDLF_SORTIE=true, build de soumission, soumission App Store, verrou payant allumé          | En dernier                                           |
 
-### Démarches Apple et légales
+### Avant le paiement · D. Questions ouvertes
 
-|   | Quoi                                                                 | Quand / état     |
-|---|----------------------------------------------------------------------|------------------|
-| ○ | Micro-entreprise : ajouter l'activité « édition d'apps » (APE 62.01Z → 58.29C), RCS, n° TVA intracom | Recherche faite le 03/11 (docs/juridique) · après la validation INPI |
-| ✓ | Contrat Paid Apps (RIB, fiscal, DAC7)                                | Actif le 30/10   |
-| ✓ | Clé In-App Purchase (.p8)                                            | Créée            |
-| ✓ | Testeur Sandbox                                                      | Inutile : achats TestFlight gratuits avec ton identifiant |
-| ✓ | Small Business Program (15 % au lieu de 30 %)                        | Demandé le 02/11 · réponse d'Apple attendue |
-| ○ | Statut de commerçant (DSA), adresse perso                            | INPI signée le 02/11 · attend l'extrait RNE à Saint-Cyr |
-| ○ | Mentions légales pro, CGU, CGV, médiateur (SIRET)                    | Textes prêts · manquent SIRET et médiateur |
-| ○ | Fiche Confidentialité de l'app (11 types)                            | Réponses prêtes dans docs/revue/SOUMISSION.md · manifeste complété |
-| ○ | URL de confidentialité de la fiche → mdlf.app/privacy.html           | À la publication |
-| ○ | Âge 13+, prix et pays, mode de publication                           | À la soumission  |
-| ○ | Capture de revue, note d'examen, compte de test, URL de notification | 20 captures et textes prêts (docs/revue) · reste le compte de test |
+|   | Quoi                                                                  | Quand / état     |
+|---|-----------------------------------------------------------------------|------------------|
+| ○ | « Garder cet ordre » sur un programme envoyé par le coach ?           | À trancher       |
+| ○ | Pull over seul : poulie (dos) ou haltère (pecs + dos) ?               | À trancher       |
+| ○ | Consignes et objectifs « max » ou en secondes dans un programme perso | Proposé le 17/11 |
 
-### Sortie App Store
+### Après la sortie
 
-|   | Quoi                                          | Quand / état              |
-|---|-----------------------------------------------|---------------------------|
-| ○ | Codes gratuit à vie (Maxence et les testeurs) | Le jour de l'allumage     |
-| ○ | Précommande App Store + lien en bio           | Quand la build est prête  |
-| ○ | Allumer le verrou payant                      | Après les démarches Apple |
-
-### Partenariat coachs (vidéos d'exercices et pubs Instagram)
-
-|   | Quoi                                                      | Quand / état         |
-|---|-----------------------------------------------------------|----------------------|
-| ○ | Décider du partenariat avec les deux coachs               | En attente           |
-| ○ | Contrat vidéos : cession de droits + droit à l'image      | Projet prêt (docs/juridique/contrats/A) · à faire relire |
-| ○ | Contrat d'influence (mention « Publicité » obligatoire)   | Projet prêt (contrats/B) · à faire relire |
-| ○ | Commission : proposition 20 à 25 % du net pendant 12 mois | Projet de contrat prêt (contrats/C) · taux à décider |
-| ○ | Vérifier leur carte pro et leur statut pour facturer      | À faire              |
-| ○ | Code par coach : compter les abonnés qu'il apporte        | Avec le lot 3        |
-| ○ | Vidéos hébergées en ligne, 20 à 30 exercices d'abord      | Chaîne prête (payant-final, docs/VIDEOS_EXERCICES.md), Supabase Storage recommandé · attend les vidéos |
-| ✓ | Vidéos aussi dans le mode coach, pour leurs élèves        | Prêt (03/11)         |
-
-### Instagram
-
-|   | Quoi                                       | Quand / état           |
-|---|--------------------------------------------|------------------------|
-| ✓ | Compte @mdlftraining (Créateur), photo, bio | Créé le 01/11         |
-| ✓ | Premier carrousel (6 images)               | Publié le 01/11        |
-| ○ | Carrousel « version coach » (7 images)     | Prêt · à publier par toi |
-| ○ | Publication automatique (Buffer)           | Attend ton compte Buffer |
-| ○ | Page mdlf.app de présentation (lien en bio) | Prête (branche vitrine) · captures à refaire au nouveau design, en ligne avec le payant |
-| ○ | Reels, 3 ou 4 par semaine                  | À faire                |
-| ○ | 5 à 10 petits créateurs contre codes à vie | Dès la précommande     |
-| ○ | Pub payante sur un Reel qui a déjà marché  | Jamais avant la sortie |
-
-### Personnage 3D animé
-
-|   | Quoi                                        | Quand / état   |
-|---|---------------------------------------------|----------------|
-| ○ | Animation : squat + curl d'abord, sur le PC | Après le lot 2 |
-| ○ | Puis toute la bibliothèque (Colab)          | Après l'essai  |
-| ○ | Version femme, matériel, vues de profil     | Ensuite        |
-
-### Android
-
-|   | Quoi                                                    | Quand / état           |
-|---|---------------------------------------------------------|------------------------|
-| ○ | Compte Google Play (25 $), 12 testeurs pendant 14 jours | Après la sortie iPhone |
-| ▶ | Parties natives, paiement Google Play, pré-inscription  | Préparé (branche nuit-android, non compilé), plan : docs/ANDROID.md |
-
-### Après le payant · parrainage et tarifs
-
-|   | Quoi                                                                                      | Quand / état              |
-|---|-------------------------------------------------------------------------------------------|---------------------------|
-| ○ | Parrainage entre utilisateurs : 1 mois offert à l'ami et au parrain (quand l'ami paie)    | Après le payant + clé IAP |
-| ○ | Coachs vérifiés (carte pro), code unique, 20 % du net pendant 12 mois sur leurs élèves    | Branche payant (en cours) |
-| ○ | Tarifs : 6,49 €/mois, coach 15,99 à 29,99 € selon les élèves, annuel = 8,5 mois, élève −25 % | Branche payant (en cours) |
-| ○ | Payant plus : accès à vie offerts révocables, TestFlight reconnu, main fusionnée (achat à vie : refusé par Maxence le 31/10) | Branche nuit-payantplus · build |
-
-### Plus tard
-
-|   | Quoi                                                          | Quand / état          |
-|---|---------------------------------------------------------------|-----------------------|
-| ○ | Marque INPI                                                   | Plus tard (J00296666944 était le transfert d'adresse, signé le 02/11) |
-| ✓ | Messages tout faits en réaction                               | payant-final (03/11)  |
-| ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |
-| ○ | Programmes envoyés entre amis, programmes publics             | Plus tard             |
-| ○ | Liens de profil mdlf.app/u/… (demandent une build)            | Plus tard             |
-| ○ | Vraie version anglaise                                        | Plus tard             |
-| ○ | Autre app de musique (Spotify fermé ; YouTube, Deezer à voir) | Plus tard             |
-| ○ | Chronomètre de vitesse dans l'app (vrais temps sur iPhone)    | Si l'app paraît lente |
-| ✓ | Import des mensurations depuis Hevy                           | payant-final (03/11) · format à confirmer avec un vrai export |
+|   | Quoi                                                                             | Quand / état           |
+|---|----------------------------------------------------------------------------------|------------------------|
+| ○ | Progression automatique expliquée (« pourquoi ce poids »), sans décharge imposée | Après la sortie        |
+| ○ | Suivi du cycle menstruel                                                         | Recherche faite        |
+| ○ | Vraies vidéos d'exercices filmées par les coachs                                 | Attend les vidéos      |
+| ○ | Instagram : 3 ou 4 publications par semaine, petits créateurs                    | Après la sortie        |
+| ○ | Android : Google Play (25 $), 12 testeurs pendant 14 jours, paiement Google Play | Après la sortie iPhone |
+| ○ | Personnage 3D animé                                                              | Après la sortie        |
+| ○ | Strava                                                                           | En sommeil             |
+| ○ | Appli web pour les coachs                                                        | Seulement si besoin    |
+| ○ | Marque INPI                                                                      | Quand l'app rapporte   |
 
 ---
 
