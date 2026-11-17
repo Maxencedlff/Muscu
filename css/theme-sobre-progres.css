@@ -13,18 +13,21 @@
    « chair » (teinte LCh 34°), plus sombre et moins saturé que le rouge Supprimer d'iOS (#FF453A sombre, #D70015 clair :
    écart CIELAB de 25 au moins). Muscle principal : #C94A3F en sombre (3,7:1 sur la cellule #1C1C1E, 4,5:1 sur le noir),
    #A31B19 en clair (7,7:1 sur blanc). Secondaires : même teinte, plus claire : rosé #EFA195 en sombre (L* 74 contre 49 : l'ancien #9E5A50, à L* 46, se confondait avec le principal sur les petits personnages de l'historique, 15/11), #C37367 en clair (3,5:1).
-   Panel vague 4 : 4 paliers nettement étagés (L* 67, 50, 35, 22 en clair ; 40, 57, 73, 88 en sombre), dans les deux
-   thèmes. En sombre, plus de séries = plus lumineux ; en clair, plus foncé. En hex et non en color-mix :
+   Panel vague 4 : 4 paliers nettement étagés, dans les deux thèmes. En sombre, plus de séries = plus lumineux ; en clair,
+   plus foncé. Regard neuf du 16/11 (malvoyance) : écarts mesurés sur le rendu réel (couleur × ombrage gris du calque,
+   médiane 0,68, multiply) et non sur la pastille : contraste de luminance d'au moins 1,6:1 entre paliers voisins dans
+   les deux thèmes (avant : 1,3 à 1,6), et le premier palier se détache du corps gris non travaillé (1,8:1 en clair).
+   Guère plus possible en restant rouge : le blanc × 0,68 est le plafond du multiply. En hex et non en color-mix :
    js/ui/body-map.js lit ces jetons pour teinter le canvas. */
 :root {
   --body-heat: #C94A3F; --body-heat-max: #C94A3F; --body-heat-sec: #EFA195;
-  --body-tier-1: #A73830; --body-tier-2: #E15F51; --body-tier-3: #F89B8C; --body-tier-4: #FDD4CC;
+  --body-tier-1: #9A1D17; --body-tier-2: #E2493A; --body-tier-3: #FE9584; --body-tier-4: #FFE0DA;
   --sp-chart-line: #FF7A1A;
 }
 body.light {
   /* Muscle principal d'un exercice : le rouge des images 3D (7,7:1 sur blanc) ; secondaires plus clairs (3,5:1) */
   --body-heat: #A31B19; --body-heat-max: #A31B19; --body-heat-sec: #C37367;
-  --body-tier-1: #E68B7D; --body-tier-2: #CE4A3F; --body-tier-3: #A11C1D; --body-tier-4: #641A15;
+  --body-tier-1: #FFA090; --body-tier-2: #EB5A49; --body-tier-3: #B32319; --body-tier-4: #5A0E0B;
   /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #E57000 × 0,7 = #A04E00,
      l'orange d'action de l'app (5,9:1 sur la carte blanche) */
   --sp-chart-line: #E57000;

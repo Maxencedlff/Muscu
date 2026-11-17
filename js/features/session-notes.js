@@ -100,9 +100,10 @@ async function editExerciseNote(ei) {
 // prevHtml : contenu de la case (« 32 × 9 », ou « — »), prevSpoken : la même valeur pour VoiceOver (WCAG 2.5.3)
 function setNoteBtnHtml(ex, ei, s, si, prevHtml, prevSpoken) {
   const own = cleanNote(s?.note), last = !own && !s?.done ? cleanNote(s?.prev?.note) : null;
-  const what = own ? `Note de ${setRefName(ex, si)} : ${esc(own)}. Modifier la note`
-    : `Ajouter une note à ${setRefName(ex, si)}${last ? `. La dernière fois : ${esc(last)}` : ''}`;
-  return `<button class="set-prev set-note-btn num${own ? ' set-note-btn--on' : ''}" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-label="${prevSpoken ? `Avant ${prevSpoken}. ` : ''}${what}, ${esc(ex.name)}"><span class="set-note-btn__val">${prevHtml}</span><span class="set-note-btn__ico">${icon(own ? 'note.fill' : 'note', 14)}${own ? '' : '<span class="set-note-btn__word" aria-hidden="true">Note</span>'}</span></button>`;
+  // La série et l'exercice sont dits par la tête de ligne et le groupe (js/features/session.js, renderSetRow)
+  const what = own ? `Note : ${esc(own)}. Modifier la note`
+    : `Ajouter une note${last ? `. La dernière fois : ${esc(last)}` : ''}`;
+  return `<button class="set-prev set-note-btn num${own ? ' set-note-btn--on' : ''}" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-label="${prevSpoken ? `Avant ${prevSpoken}. ` : ''}${what}"><span class="set-note-btn__val">${prevHtml}</span><span class="set-note-btn__ico">${icon(own ? 'note.fill' : 'note', 14)}${own ? '' : '<span class="set-note-btn__word" aria-hidden="true">Note</span>'}</span></button>`;
 }
 // Sous la ligne, seulement quand il y a quoi lire : la note de la série, sinon (série à faire) celle de la même série la
 // dernière fois. Lue par VoiceOver dans le bouton ci-dessus et la phrase de la série validée ; ici, un toucher l'ouvre

@@ -33,7 +33,7 @@ function techNextSub() {
 // choix « Technique… » du menu ⋯ de la série (techMenuActions) ; zone de 44 px (session.css)
 function setTechNumHtml(ex, ei, si) {
   const t = setTech(ex.sets[si]);
-  return `<button class="set-n set-tech-n num" data-action="tech-set" data-ei="${ei}" data-si="${si}" aria-label="${setSpokenName(ex, si)}, ${esc(ex.name)} : technique d'intensification${t ? `, ${TECHS[t].label}` : ''}">${setDisplayNo(ex.sets, si)}</button>`;
+  return `<button class="set-n set-tech-n num" data-action="tech-set" data-ei="${ei}" data-si="${si}" aria-label="${setSpokenName(ex, si)} : technique d'intensification${t ? `, ${TECHS[t].label}` : ''}">${setDisplayNo(ex.sets, si)}</button>`;
 }
 
 // Technique prescrite par le programme d'un coach (intens) : l'élève ne la retire pas d'un toucher (pas de ×, ni

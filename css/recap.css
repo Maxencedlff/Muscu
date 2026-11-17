@@ -16,8 +16,8 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
    theme-sobre-progres.css), sinon le palier le plus haut, le plus foncé en clair, serait le moins visible sur le noir.
    Palier le plus haut (.is-peak) : le rose pâle du dernier palier de Progrès, distinct du rouge des autres */
 .tone-night {
-  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #C94A3F; --body-heat-max: #FDD4CC; --body-heat-sec: #9E5A50;
-  --body-tier-1: #A73830; --body-tier-2: #E15F51; --body-tier-3: #F89B8C; --body-tier-4: #FDD4CC;
+  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #C94A3F; --body-heat-max: #FFE0DA; --body-heat-sec: #9E5A50;
+  --body-tier-1: #9A1D17; --body-tier-2: #E2493A; --body-tier-3: #FE9584; --body-tier-4: #FFE0DA;
 }
 
 /* ── Accueil : carte « Ta semaine », une cellule comme les autres (pas d'aplat sur l'accueil) ── */

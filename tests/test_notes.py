@@ -83,7 +83,7 @@ def t_notes(bench, eng, dev, theme):
         # ── Note de série : la case « Avant » de la série, avant même de la valider
         row = page.locator('.session-set[data-ei="1"][data-si="0"]')
         cell = row.locator('.set-note-btn')
-        R.check(cell.get_attribute('aria-label').startswith('Avant ') and 'Ajouter une note à la série 1, Presse à cuisses' in cell.get_attribute('aria-label'), f'{t} VoiceOver : valeur d\'avant puis « Ajouter une note » ({cell.get_attribute("aria-label")})')
+        R.check(cell.get_attribute('aria-label').startswith('Avant ') and cell.get_attribute('aria-label').endswith('Ajouter une note'), f'{t} VoiceOver : valeur d\'avant puis « Ajouter une note » ({cell.get_attribute("aria-label")})')
         R.check(cell.locator('use').get_attribute('href') == '#i-note', f'{t} sans note : icône au trait')
         cell.click(); page.wait_for_timeout(300)
         R.check(page.locator('.ios-dialog__title').inner_text().startswith('Note'), f'{t} alerte de la note de série')

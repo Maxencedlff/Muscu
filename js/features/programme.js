@@ -112,7 +112,7 @@ function renderProgrammes() {
     return `
       <div class="cell ed-row--edit ps-row">
         <span class="cell__body"><span class="cell__title">${label}</span></span>
-        <span class="ed-handle ps-handle" role="button" aria-label="Déplacer ${label}">${icon('line.3.horizontal', 22)}</span>
+        <button class="ed-handle ps-handle" data-action="reorder-menu" aria-label="Déplacer ${label}">${icon('line.3.horizontal', 22)}</button>
       </div>`;
   };
   const user = isUserProg(pid);
@@ -214,7 +214,7 @@ function renderMyProgrammes() {
           ${active ? '<span class="cell__sub">Programme actif</span>' : ''}
         </span>
         ${active ? '' : `<button class="ed-del" data-action="${created ? 'delete-programme' : 'remove-my-prog'}" data-id="${esc(id)}">${verb}</button>`}
-        <span class="ed-handle mp-handle" role="button" aria-label="Déplacer ${esc(pm.name)}">${icon('line.3.horizontal', 22)}</span>
+        <button class="ed-handle mp-handle" data-action="reorder-menu" aria-label="Déplacer ${esc(pm.name)}">${icon('line.3.horizontal', 22)}</button>
       </div>`;
   };
   const editing = myProgEditing;
@@ -342,12 +342,14 @@ function openProgramme(id) {
 makeReorderable({
   view: 'my-programmes', list: '.mp-list', row: '.mp-row', handle: '.mp-handle',
   onMove: (from, to) => { if (moveMyProgramme(from, to)) save(); },
+  nameOf: i => progMeta((data.myProgrammes || [])[i]).name,
 });
 
 // Ordre des séances d'un programme perso
 makeReorderable({
   view: 'programmes', list: '.ps-list', row: '.ps-row', handle: '.ps-handle',
   onMove: (from, to) => { if (moveSession(data.activeProgramme, from, to)) save(); },
+  nameOf: i => sessionMeta(sessionKeys(data.activeProgramme)[i], data.activeProgramme).label,
 });
 
 // ── Actions ─────────────────────────────────────────────────
