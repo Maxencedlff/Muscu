@@ -1106,7 +1106,7 @@ def t_tarifs(bench, eng, dev, theme):
         page.evaluate("__st.setCover('ended')")
         refresh_access(page)
         txt = paywall(page)
-        R.check('n\'a plus d\'abonnement coach' in txt and len(plans_text(page)) == 2, f'{t} coach sans abonnement : message ({txt[:160]!r})')
+        R.check('n\'a pas d\'abonnement coach en cours' in txt and len(plans_text(page)) == 2, f'{t} coach sans abonnement : message ({txt[:160]!r})')
         # 5. Élève qui paie lui-même et que son coach offre : il peut résilier
         page.evaluate("__st.setCover('active')")
         subscribed(page, days=30, product=MONTHLY)
