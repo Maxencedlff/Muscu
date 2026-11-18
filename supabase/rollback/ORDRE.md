@@ -103,6 +103,8 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
 12. `20261117060000_reaction_jaime.sql` (réaction ❤️ « J'aime », docs/SOCIAL_V1.md « J'aime ») : APRÈS 11, dont elle reprend `push_claim` (résumé des séances) en y ajoutant la réaction ; renommée le 17/11 (ancien nom `20261117000000`, plus ancien que la production) ; **avant** l'OTA. Une app à jour sur un serveur d'avant ne peut pas aimer (`invalid_reaction`) ; une app d'avant sur ce serveur ignore les ❤️ sans planter. push-send peut passer juste avant ou juste après la migration : sans les nouveaux champs il dit « lea a aimé ta séance », l'ancien push-send dit encore « Bravo ! » tant qu'il n'est pas redéployé. Retour arrière : l'ordre inverse (OTA d'avant, puis `20261117060000_reaction_jaime_down.sql` ; push-send peut rester).
 13. `20261117090000_badge_carte_pro.sql` (badge « Carte pro déclarée », docs/COACH_V1.md « Badge carte pro ») : indépendante (nouvelle table `coach_cards`, aucune fonction existante réécrite), aucune fonction Edge ; avant l'OTA qui montre la section « Carte professionnelle ». Une app d'avant l'ignore.
 
+14. `20261118010000_suivi_diete_coach.sql` (suivi de la diète par le coach, docs/NUTRITION_V1.md « Suivi de la diète par le coach » : consentement `diet_log`, table `coach_shared_diet_days`, 90 jours glissants, purge pg_cron `purge-diete-coach-90-jours`) : APRÈS `20261106200000_plans_diete_coach.sql` (en production), dont elle reprend `student_shares` et `private.share_kind_open` ; indépendante des autres. Aucune fonction Edge. Avant ou après l'OTA, au choix : une app d'avant ignore `diet_log`, une app à jour sur un serveur d'avant ne montre ni la case ni la carte. **Avant d'appliquer : feu vert de Maxence sur le consentement et sur la durée de 90 jours.** Contrôle après : `select jobname, schedule from cron.job where jobname = 'purge-diete-coach-90-jours';` (une ligne). Retour arrière : OTA d'avant si voulu, puis `20261118010000_suivi_diete_coach_down.sql` (efface les jours partagés et leurs consentements), AVANT tout retour arrière des plans diète.
+
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 
 Les fonctions Edge du payant (`verify-purchase`, `appstore-notify`, puis `coach-request-alert`) se déploient juste APRÈS 1 à 3 : elles envoient `p_intro` et `p_environment`, que la base du 28/10 ne connaît pas (docs/PAYANT_V1.md, « Mise en production »).
@@ -111,7 +113,7 @@ Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.
 
 Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque (et Strava).
 
-Pour défaire en production : l'ordre inverse de cette liste (13 → 1), avant tout retour arrière plus ancien (tableau du haut).
+Pour défaire en production : l'ordre inverse de cette liste (14 → 1), avant tout retour arrière plus ancien (tableau du haut).
 
 ## Ce qui est mis de côté, pas effacé
 

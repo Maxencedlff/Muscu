@@ -29,7 +29,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const calls = () => shareLog().map(c => c[0]);
 
   test('partage coach : données prévues dans le modèle, seul le poids affiché ; mêmes données que le serveur', () => {
-    sameJSON(run('COACH_SHARE_KINDS.map(k => k.kind)'), ['weight', 'sleep', 'steps', 'resting_hr', 'measures', 'diet']);
+    sameJSON(run('COACH_SHARE_KINDS.map(k => k.kind)'), ['weight', 'sleep', 'steps', 'resting_hr', 'measures', 'diet', 'diet_log']);
     sameJSON(run('coachShareKindsShown().map(k => k.kind)'), ['weight'], 'sommeil, pas, FC : pas avant la build HealthKit ; mensurations : pas sans l\'accord du serveur');
     const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261031300000_partage_coach.sql'), 'utf8');
     assert.match(sql, /\$\$ select kind = 'weight' \$\$/, 'partage du poids : seul le poids ouvert');
@@ -37,7 +37,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const sqlM = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261105010000_partage_mensurations.sql'), 'utf8');
     assert.match(sqlM, /kind in \('weight', 'sleep', 'steps', 'resting_hr', 'measures'\)/, 'liste du serveur = COACH_SHARE_KINDS');
     assert.match(sqlM, /\$\$ select kind in \('weight', 'measures'\) \$\$/, 'ouvertes côté serveur = ouvertes dans l\'app');
-    sameJSON(run('COACH_SHARE_KINDS.filter(k => k.open).map(k => k.kind)'), ['weight', 'measures']);
+    sameJSON(run('COACH_SHARE_KINDS.filter(k => k.open).map(k => k.kind)'), ['weight', 'measures', 'diet_log'], 'suivi de la diète : 20261118010000');
     // Serveur à jour : il annonce ce qu'il accepte (kinds) ; inconnu de l'app : ignoré ; 'diet' jamais dans l'écran du partage
     run(`coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'measures', 'diet', 'photos'], shares: {} })`);
     sameJSON(run('coachShareKindsShown().map(k => k.kind)'), ['weight', 'measures']);

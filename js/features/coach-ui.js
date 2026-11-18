@@ -812,7 +812,7 @@ function renderCoachStudents() {
 function coachTeamEnter() {
   const view = currentView();
   coachAskHere = () => currentView() === view && (view !== 'friends' || friendsSeg() === 'students');
-  coachRefresh().then(() => { coachProgressRefresh({ minAge: 30_000 }); chatPushOffRefresh(); });
+  coachRefresh().then(() => { coachProgressRefresh({ minAge: 30_000 }); coachDietOverviewRefresh({ minAge: 30_000 }); chatPushOffRefresh(); });
   if (cphCoach.key === undefined) cphCoachRefresh();   // « Recevoir les photos de bilan » proposé sous la liste
   coachProRefresh({ minAge: 30_000 });
 }
@@ -968,6 +968,7 @@ function renderCoachStudent(uid) {
         </div>
         ${sent}
         ${coachDietGroupHtml(uid)}
+        ${coachDietTrackHtml(uid, esc(personName(p)))}
         ${coachBilanHtml(uid, esc(personName(p)))}
         <div class="group-title">Séances</div>
         ${list}
@@ -988,6 +989,7 @@ SCREENS.set('coach-student', {
     coachLoadSessions(uid);
     coachLoadWeights(uid);
     coachLoadMeasures(uid);
+    coachLoadDiet(uid);   // suivi de la diète partagé (carte Diète)
     cphCoachRefresh().then(() => { if (cphCoach.key) cphCoachLoad(uid); });   // photos de bilan (liste chiffrée, rien d'ouvert)
     if (!plan.coach && plan.available !== false) coachPlanRefresh();   // planning (serveur sans planification : rien)
     coachProgressRefresh();   // résumé « 7 derniers jours » (5 min au plus entre deux lectures)

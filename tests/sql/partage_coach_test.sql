@@ -184,7 +184,9 @@ do $$ begin
                and p.proname not in ('student_shares', 'student_set_share', 'student_share_weights', 'coach_student_weights',
                                      'coach_student_sessions', 'coach_has_share', 'coach_session_body',
                                      -- mensurations (20261105010000_partage_mensurations.sql), même consentement
-                                     'student_share_measures', 'coach_student_measures')) then
+                                     'student_share_measures', 'coach_student_measures',
+                                     -- suivi de la diète (20261118010000_suivi_diete_coach.sql), même consentement
+                                     'student_share_diet_days', 'coach_student_diet', 'coach_diet_overview')) then
     raise 'une autre fonction lit le partage : %', (select string_agg(p.proname, ', ') from pg_proc p
       where p.prosrc ilike '%coach_shared_weights%' or p.prosrc ilike '%coach_shares%' or p.prosrc ilike '%coach_session_body%');
   end if;

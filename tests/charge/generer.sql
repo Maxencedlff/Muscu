@@ -97,6 +97,18 @@ insert into public.coach_shared_measures (student_id, part, at, cm)
   from gen_student, unnest(array['chest', 'waist', 'hips', 'shoulders', 'neck', 'armL', 'armR', 'thighL', 'thighR', 'calf']) p,
        generate_series(0, 11) m;
 
+-- ── Suivi de la diète (20261118010000) : chaque élève partage 90 jours, 4 repas, un sur 5 décroche depuis 4 jours ──
+insert into public.coach_shares (student_id, coach_id, kind, granted_at)
+  select student_id, coach_id, 'diet_log', now() - interval '120 days' from gen_student;
+insert into public.coach_shared_diet_days (student_id, day, plan_id, plan_name, variant, meals, kcal, p, c, f,
+    goal_kcal, goal_p, goal_c, goal_f, water_ml, water_goal_ml, water_min_ml, salt_g, salt_min, salt_max)
+  select student_id, (now() at time zone 'utc')::date - d, 'd_seche' || (i % 7), 'Sèche semaine ' || (1 + d / 7), case when d % 7 in (2, 5) then 'r' else 't' end,
+         jsonb_build_array(jsonb_build_object('n', 'Petit-déjeuner', 'ok', true), jsonb_build_object('n', 'Déjeuner', 'ok', i % 5 <> 0 or d > 3),
+                           jsonb_build_object('n', 'Collation', 'ok', d % 3 = 0), jsonb_build_object('n', 'Dîner', 'ok', i % 5 <> 0 or d > 3)),
+         case when i % 5 = 0 and d <= 3 then 400 else 1700 + ((i * 37 + d * 11) % 700) end, 120, 220, 55,
+         2300, 150, 270, 55, 1500 + (d % 4) * 500, 5000, 3000, 3.5 + (d % 3), 3, 5
+  from gen_student, generate_series(0, 89) d;
+
 -- ── Messages : 200 à 400 par élève, dans l'ordre chronologique ──
 insert into public.coach_messages (student_id, coach_id, from_coach, body, created_at)
   select student_id, coach_id, random() < 0.5,
@@ -158,6 +170,7 @@ union all select 'séances', count(*) from public.sessions
 union all select 'messages', count(*) from public.coach_messages
 union all select 'pesées', count(*) from public.coach_shared_weights
 union all select 'mensurations', count(*) from public.coach_shared_measures
+union all select 'jours de diète', count(*) from public.coach_shared_diet_days
 union all select 'programmes', count(*) from public.coach_programmes
 union all select 'commentaires coach', count(*) from public.coach_notes
 union all select 'Mo séances', (pg_total_relation_size('public.sessions') / 1048576)::bigint;

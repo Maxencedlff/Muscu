@@ -664,6 +664,7 @@ function save(quiet = false) {
     localStorage.setItem(KEY, json);
     Native.backup(json);   // app iOS : copie de sécurité dans les fichiers de l'app
     if (typeof scheduleSync === 'function') scheduleSync();   // compte connecté : envoi groupé (js/data/account.js)
+    if (typeof dietShareSchedule === 'function') dietShareSchedule();   // suivi de la diète partagé : résumé renvoyé s'il a changé
     return true;
   }
   catch {

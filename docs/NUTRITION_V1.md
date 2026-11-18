@@ -482,14 +482,70 @@ mode Semaine le fait, jour par jour).
 | 4 | 8 | 8 | 8 | 8 | 8 | « Repos » en pastille dans la bande des 7 jours ; « + Pincée 0,4 g » d'un toucher ; eau et sel une fois dans l'aperçu s'ils sont les mêmes chaque jour |
 | 5 | 8 | 8 | 8 | 8 | 8 | écart de l'aperçu dès 5 % ; « 175 g cuit » dans Remplacer |
 
-Non traité, et pourquoi : voir côté coach les coches de l'élève (accord par donnée et migration serveur : chantier à part,
-« Coches visibles par le coach » de Hors V1) ; toast qui recouvre le bas de l'écran et rond à cocher de la carte de
-l'accueil (composants communs à toute l'app, hors de ce chantier).
+Non traité ici, fait ensuite (branche nutri-suivi-coach) : voir côté coach les coches de l'élève (« Suivi de la diète par le
+coach ») ; toast qui recouvrait le bas de l'écran (plus serré, plus bas, seul son bouton se touche : le texte laisse passer les
+touchers) et rond à cocher de la carte de l'accueil (dessiné à 26 pt dans sa zone de 44 pt, comme les ronds des repas faits).
 
 ### Tests
 `tests/unit/nutrition-coachs.mjs` (sel et alias de la base, pomme de terre → riz, jours, copies, envoi et taille, eau,
 sel, récents) ; `tests/test_nutri_coachs.py` (lot `nutri_coachs` : éditeur du coach, élève jour de repos et d'entraînement,
 Remplacer, eau en verres, sel, semaine et glissé ; iPhone SE et 13, clair et sombre, texte agrandi).
+
+## Suivi de la diète par le coach (18/11/2026, branche nutri-suivi-coach, PAS EN PRODUCTION)
+
+Demande la plus citée par les coachs du mini-panel (plafond à 8/10) : voir si l'élève suit sa diète. Migration
+`20261118010000_suivi_diete_coach.sql` écrite et testée, **pas appliquée** ; ordre dans supabase/rollback/ORDRE.md, étape 14.
+
+**Consentement** (même modèle que le poids, docs/COACH_V1.md « Partage avec le coach ») : case « Suivi de ma diète » dans
+Réglages › Social et coach › Partager avec mon coach (« Repas cochés, eau, sel et écart avec l'objectif, jour par jour »),
+décochée par défaut, montrée seulement si le serveur l'annonce (`student_shares().kinds` contient `diet_log`). Une ligne
+`coach_shares` kind **`diet_log`**, datée, pour le coach actuel. `diet` reste l'accord « recevoir les plans diète » : deux
+finalités, deux accords, retirer l'un ne touche pas l'autre (testé). Décocher, quitter le coach, être retiré ou supprimer
+un compte efface tous les jours envoyés (cascade). Texte de l'écran : ce que le coach voit, « jamais le détail des aliments
+ni les heures, 90 jours au plus » ; sans plan suivi, une ligne dit que le coach ne verra rien.
+
+**Données minimales** (`dietShareDay`, js/data/diet-share.js) : par jour `{ day, plan, name, kind ('t' | 'r' | null), meals:
+[{ n, ok }], kcal, p, c, f, goal: { kcal, p, c, f }, water (ml), waterGoal, waterMin (ml, objectif du plan seulement), salt,
+saltMin, saltMax }`. Repas : ceux à faire ce jour-là (`dietDayRequired`), cochés selon `dietMealSatisfied` ; mangé = la règle
+de l'écran (`dietDayProgress`) ; objectif = celui du jour, sinon le total prévu (repère de l'écran). Jamais un aliment, un
+remplacement ou une heure (testé). Jour envoyé : un jour du journal, un jour avec de l'eau ou du sel, et aujourd'hui avec le
+plan suivi. L'écart en % se calcule à la lecture (`dietShareGap`) : rien de dérivé n'est stocké.
+
+**Conservation : 90 jours glissants.** Justification (RGPD art. 5.1.c minimisation et 5.1.e limitation de la conservation ;
+CNIL, données de santé) : la finalité est de juger si une phase de diète a été suivie ; la plus longue phase du planning du
+coach fait 12 semaines (docs/COACH_SUIVI.md), plus une semaine de marge. Au-delà, plus rien ne sert au suivi. Tenue de quatre
+façons : l'app n'envoie que 90 jours, le serveur écarte tout jour plus ancien et les efface à chaque envoi, la lecture du
+coach ne les rend jamais, et une purge quotidienne pg_cron (`purge-diete-coach-90-jours`, 03:41 UTC) efface ceux d'un élève
+qui n'ouvre plus l'app. Le coach remonte 12 semaines au plus (chevrons), sous les 90 jours. **À valider par Maxence** (30 jours
+suffiraient pour un bilan mensuel, mais pas pour juger une phase de 8 à 12 semaines).
+
+**Envoi** : miroir de l'appareil comme les pesées (`coachShareUploadKind('diet_log')`, empreinte, « cet appareil a déjà
+envoyé ») : au cochage, puis 5 s après un `save()` si le résumé a changé (`dietShareSchedule`, option `ifChanged`), et à la
+relecture du partage. Serveur : 92 jours et 128 Ko au plus, chaque champ borné (noms de 40 caractères sans contrôle, 8 repas,
+kcal 0 à 20 000…), 120 envois par heure (`coach_share_dup`), décocher jamais limité ; RLS fermée, aucun GRANT sur la table,
+RPC security definer.
+
+**Coach** (js/features/coach-diet-ui.js) : carte « Diète » de la fiche, sous l'envoi d'un plan : 7 jours en pastilles (vert
+plein et coche = **suivi**, écart de calories de 10 % au plus ; anneau vert et point = **partiel**, 25 % au plus ; gris et trait
+= **pas suivi** ; pointillé = rien de noté ; aujourd'hui non fini : anneau simple, « en cours », jamais « pas suivi »). Sans
+objectif de calories : tous les repas cochés = suivi, une partie = partiel. Légende des seuils sous la bande. Un toucher sur un
+jour : son détail dessous (plan et type du jour, repas cochés et ceux qui manquent, calories et écart en clair, macros sur
+objectifs, eau, sel). Semaine d'avant / d'après (12 semaines). Élève qui ne partage pas : « Non partagé par l'élève » et où il
+peut le partager, aucun chiffre. Serveur sans la fonction (PGRST202) ou lecture en échec : rien.
+
+**À relancer** (Mes élèves) : `coach_diet_overview()` (un appel pour tous les élèves, 4 derniers jours en bref) ; un élève qui
+partage sa diète depuis au moins 3 jours et dont les 3 jours d'avant aujourd'hui sont tous « pas suivi » ou sans rien de noté
+prend le signal orange « 3 jours hors diète » (après l'inactivité et la baisse de séances, avant les records). Il compte alors
+dans le filtre « À relancer », le résumé de la semaine et le tri.
+
+**Mise en production** : OTA d'abord ou migration d'abord, au choix : une app d'avant ignore `diet_log` (elle ne montre pas la
+case, et `cleanShareState` écarte la donnée) ; une app à jour sur un serveur d'avant ne montre pas la case (absente de `kinds`)
+ni la carte (PGRST202). Retour arrière : `20261118010000_suivi_diete_coach_down.sql` (efface jours et consentements).
+
+**Tests** : `tests/sql/suivi_diete_test.sql` (droits, RLS, bornes, 90 jours, lecture du seul coach consenti, retrait, quitter,
+rôle retiré, limites, cascade), `rollback_nuit_check.sh`, `prod_order_test.sh`, charge 300 élèves (`tests/charge/serveur.sh`) ;
+`tests/unit/diet-share.mjs` ; `tests/test_suivi_diete.py` (lot `suivi_diete` : case de l'élève, envoi, retrait ; carte du
+coach, détail, semaine d'avant, « Non partagé », À relancer ; iPhone SE et 13, clair et sombre, texte agrandi).
 
 ## Où ça vit dans l'app, et pourquoi
 
@@ -524,6 +580,8 @@ dietLog: { 'AAAA-MM-JJ': { plan, done: [id de repas], swaps: { [id d'aliment]: a
 dietConsent: { on, at },             // accord daté (profil, part toujours)
 dietConsentAsked, dietHideNumbers, dietStreakOff, dietEmptyDays, dietProteinPerKg: true,   // réglages de l'appareil (SYNC_LOCAL_ONLY)
 dietCoachConsent: { on, at },        // accord « plans du coach » gardé ici quand le serveur n'est pas à jour (SYNC_LOCAL_ONLY)
+// Suivi partagé avec le coach (18/11) : aucune clé de plus ; le consentement vit sur le serveur (coach_shares 'diet_log'),
+// l'empreinte du dernier envoi dans localStorage mdlf_coach_share_d
 ```
 
 - Un plan est **autonome** : chaque aliment garde ses valeurs pour 100 g, relevées au moment du choix. Une
@@ -582,8 +640,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 - ~~**Code-barres, Open Food Facts**~~ : fait le 09/11/2026 (voir « Scanner un produit »).
 - **Photo d'un repas, reconnaissance par IA** : fiabilité des macros, coût, données envoyées à un tiers.
 - **Journal libre** (« j'ai mangé autre chose ») : V2. ~~Portions en unités (« 3 œufs »)~~ : fait le 10/11/2026 (voir « Quantités à l'unité »).
-- **Coches visibles par le coach** : il faut le consentement de l'élève, donnée par donnée, comme le poids
-  (`coach_shares`, kind `diet` à ouvrir, migration à écrire) ; en V1 le journal reste sur l'iPhone.
+- ~~**Coches visibles par le coach**~~ : écrit le 18/11/2026, pas en production (voir « Suivi de la diète par le coach »).
 - ~~**Plusieurs plans selon le jour**~~ : fait le 18/11/2026 (voir « Retours des coachs du 18/11 »). Recettes, liste de courses : plus tard.
 - ~~**Calcul des besoins**~~ : proposition sur demande depuis le 16/11/2026 (voir « Santé »).
 - **Apple Santé** (écrire les macros) : demande une build et la déclaration de confidentialité.
@@ -605,6 +662,8 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 | `js/data/food-swap.js` | Base (chargement, recherche) et règle des équivalences |
 | `js/data/diet-estimate.js` | Objectifs du jour : proposition estimée (Mifflin-St Jeor), protéines en g/kg (fonctions pures) |
 | `js/data/coach-diet.js` | Envoi par le coach, état des envois, plans reçus |
+| `js/data/diet-share.js` | Suivi de la diète partagé avec le coach : résumé d'un jour, envoi, statut par seuils d'écart, À relancer, lecture du coach |
+| `js/features/coach-diet-ui.js` | Carte « Diète » de la fiche d'un élève (7 jours en pastilles, détail du jour, semaines d'avant) |
 | `js/features/nutrition-ui.js` | Écran du jour, carte de l'accueil, remplacement, entrées Programme et coach |
 | `js/data/food-portions.js` | Portions courantes (table), unité du paquet scanné (`offPortion`), textes « 2 œufs » (chargé avant `nutrition.js`) |
 | `js/features/diet-qty.js` | Contrôle de quantité « Grammes \| unité » et feuille de quantité (`dietAskQty`) |

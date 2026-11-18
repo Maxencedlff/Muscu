@@ -19,11 +19,14 @@
 //  - Mensurations (05/11/2026, docs/COACH_SUIVI.md « Bilan ») : même modèle, une case de plus
 //    (student_share_measures, data.bodyMeasures), montrée seulement si le serveur l'accepte
 //    (student_shares().kinds, migration 20261105010000_partage_mensurations.sql). Jamais les photos.
+//  - Suivi de la diète (18/11/2026, js/data/diet-share.js) : même modèle, un résumé par jour (student_share_diet_days),
+//    montré seulement si le serveur l'accepte (migration 20261118010000_suivi_diete_coach.sql).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 const COACH_SHARE_KEY = 'mdlf_coach_share';   // { userId, coachId, hash } : dernier envoi des pesées de cet appareil (hash null : en attente)
 const COACH_SHARE_M_KEY = 'mdlf_coach_share_m';   // même chose pour les mensurations
+const COACH_SHARE_D_KEY = 'mdlf_coach_share_d';   // même chose pour le suivi de la diète
 const COACH_SHARE_MAX = 400;                  // pesées envoyées au plus (comme le serveur et BODY_LOG_MAX)
 // Données que l'élève peut partager ; open : affichée et acceptée par le serveur (private.share_kind_open)
 const COACH_SHARE_KINDS = [
@@ -35,6 +38,8 @@ const COACH_SHARE_KINDS = [
   // Plans diète du coach (migration 20261106200000) : accord à part, dans Nutrition (js/data/coach-diet.js),
   // jamais dans l'écran « Partager avec mon coach » (own : pas listé ici)
   { kind: 'diet', label: 'Plans de nutrition', open: false, own: true },
+  // Suivi de la diète (migration 20261118010000) : repas cochés, eau, sel, écart avec l'objectif, un résumé par jour
+  { kind: 'diet_log', label: 'Suivi de ma diète', open: true },
 ];
 const COACH_SHARE_KIND_IDS = COACH_SHARE_KINDS.map(k => k.kind);
 // Bornes de date du serveur (student_share_weights, student_share_measures) : après le 1er janvier 2000,
@@ -157,6 +162,8 @@ const SHARE_UPLOADS = {
     count: p => p.length, lastAt: p => p[0]?.date ?? null },
   measures: { key: COACH_SHARE_M_KEY, rpc: 'student_share_measures', arg: 'measures', payload: () => sharedMeasuresPayload(),
     count: measuresCount, lastAt: measuresLast },
+  diet_log: { key: COACH_SHARE_D_KEY, rpc: 'student_share_diet_days', arg: 'days', payload: () => dietSharePayload(),
+    count: p => p.length, lastAt: p => (p[0] ? new Date(`${p[0].day}T00:00:00`).getTime() : null) },
 };
 
 function readShareSent(key = COACH_SHARE_KEY) {
@@ -171,7 +178,7 @@ function writeShareSent(v, key = COACH_SHARE_KEY) {
 // Relit ce que je partage (élève seulement), puis renvoie les pesées si elles ont changé
 async function coachShareRefresh() {
   if (!account.user || !coachRole().hasCoach) {
-    if (coachShare.state) { coachShare.state = null; writeShareSent(null); writeShareSent(null, COACH_SHARE_M_KEY); notifyCoach(); }
+    if (coachShare.state) { coachShare.state = null; writeShareSent(null); writeShareSent(null, COACH_SHARE_M_KEY); writeShareSent(null, COACH_SHARE_D_KEY); notifyCoach(); }
     return false;
   }
   if (coachShare.loading) return false;
@@ -184,7 +191,7 @@ async function coachShareRefresh() {
   coachShare.state = cleanShareState(r.data);
   coachShare.error = null;
   notifyCoach();
-  await Promise.all([coachShareUpload(), coachShareUploadKind('measures'), dietCoachCarryOver()]);
+  await Promise.all([coachShareUpload(), coachShareUploadKind('measures'), coachShareUploadKind('diet_log'), dietCoachCarryOver()]);
   return true;
 }
 
@@ -216,9 +223,10 @@ async function coachShareSet(kind, on) {
 // force : geste sur cet appareil (case cochée ici, pesée saisie ici) : la liste de l'appareil part.
 // Sans geste (relecture) : seulement si cet appareil a déjà envoyé pour ce coach. Les pesées ne se
 // synchronisent pas : un second appareil sans pesées n'écrase jamais, à la connexion, celles du premier.
-// Même règle pour les mensurations (coachShareUploadKind('measures')).
+// Même règle pour les mensurations (coachShareUploadKind('measures')) et le suivi de la diète ('diet_log').
+// ifChanged : geste ici, mais rien ne part si cet appareil a déjà envoyé exactement ça (save() sans rien de diète).
 function coachShareUpload(opts) { return coachShareUploadKind('weight', opts); }
-async function coachShareUploadKind(kind, { force = false } = {}) {
+async function coachShareUploadKind(kind, { force = false, ifChanged = false } = {}) {
   const u = SHARE_UPLOADS[kind];
   if (!u || !coachShareOn(kind)) return { ok: true, skipped: true };
   // Envoi déjà en cours : la liste a pu changer depuis son départ (pesée saisie pendant l'envoi) ; il est
@@ -233,6 +241,7 @@ async function coachShareUploadKind(kind, { force = false } = {}) {
   const last = readShareSent(u.key);
   const mine = last && last.coachId === coachId;
   if (!force && (!mine || last.hash === hash)) return { ok: true, skipped: true };
+  if (ifChanged && mine && last.hash === hash) return { ok: true, skipped: true };
   // Geste ici, premier envoi pour ce coach : marque « en attente » (hash null) posée avant l'envoi, pour
   // qu'un échec (hors ligne) soit retenté à la relecture (mine, et hash différent)
   if (!mine) writeShareSent({ coachId, hash: null }, u.key);

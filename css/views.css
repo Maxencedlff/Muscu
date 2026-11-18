@@ -96,7 +96,7 @@
   position: fixed; top: calc(var(--sp-3) + env(safe-area-inset-top, 0px));
   left: 50%; transform: translateX(-50%);
   background: var(--dlg-bg); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
-  color: var(--label); padding: var(--sp-3) var(--sp-5); border-radius: 22px;
+  color: var(--label); padding: var(--sp-2) var(--sp-4); border-radius: 20px;
   font-size: var(--fs-subhead); font-weight: 600; z-index: 300;
   box-shadow: var(--toast-shadow);
   animation: toastIn .25s ease, toastOut .3s ease calc(var(--toast-duration, 2200ms) - 400ms) forwards;
@@ -118,9 +118,12 @@ body:has(.sess-sheet:not(.sess-sheet--out)) .toast { z-index: 450; }   /* messag
    il passe dessous, aligné à droite */
 .toast--action {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; column-gap: 8px; text-align: left;
-  pointer-events: auto; padding: 6px 6px 6px 18px;
+  pointer-events: none; padding: 2px 4px 2px 16px;
 }
-.toast--action > span { flex: 1 1 9em; min-width: 9em; padding: 6px 0; -webkit-line-clamp: 3; line-clamp: 3; }
+/* Seul le bouton du toast se touche : le texte laisse passer les touchers vers l'écran dessous (panel nutrition du 18/11 :
+   le toast « Annuler » cachait et bloquait le bas de l'écran pendant 6 s). Plus bas et plus serré qu'avant. */
+.toast--action .toast__action { pointer-events: auto; }
+.toast--action > span { flex: 1 1 9em; min-width: 9em; padding: 4px 0; -webkit-line-clamp: 3; line-clamp: 3; }
 .toast__action {
   flex-shrink: 0; min-height: 44px; padding: 0 12px; border: none; border-radius: var(--r-pill);
   background: transparent; color: var(--tint); font-size: var(--fs-subhead); font-weight: 600; cursor: pointer;

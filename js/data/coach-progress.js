@@ -250,8 +250,14 @@ function coachProgressFacts(uid) {
   return progressFactsFromRows(coach.sessions?.[uid]);
 }
 // Signal d'un élève avec tout ce que l'app sait
+// Diète (js/data/diet-share.js) : un élève qui partage le suivi de sa diète et l'a laissée 3 jours est à relancer, après
+// l'inactivité et la baisse de séances (signal d'entraînement d'abord), avant les records
 function coachStudentProgress(st, now = Date.now()) {
-  return studentProgress(st, { facts: coachProgressFacts(st.user_id), phases: typeof planOfStudent === 'function' && planAvailable() ? planOfStudent(st.user_id) : null, now });
+  const pr = studentProgress(st, { facts: coachProgressFacts(st.user_id), phases: typeof planOfStudent === 'function' && planAvailable() ? planOfStudent(st.user_id) : null, now });
+  if (pr.tone !== 'warn' && typeof coachDietWarn === 'function' && coachDietWarn(st.user_id, now)) {
+    return { ...pr, kind: 'diet', tone: 'warn', text: DIET_SHARE_WARN_TEXT, daysSince: pr.daysSince ?? 0 };
+  }
+  return pr;
 }
 
 async function coachProgressRefresh({ minAge = PROGRESS_MAX_AGE_MS } = {}) {
