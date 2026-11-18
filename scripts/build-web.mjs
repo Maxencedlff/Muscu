@@ -52,7 +52,15 @@ const d    = new Date(git.seq * 1000);
 const BUILD = {
   runtime: runtimeVersion(ROOT, PLATFORM),
   seq: git.seq,
-  ...(() => { const r = runtimeSince(ROOT, PLATFORM); return Number.isFinite(r) ? { runtimeSeq: r } : {}; })(),
+  ...(() => {
+    const r = runtimeSince(ROOT, PLATFORM);
+    if (Number.isFinite(r)) return { runtimeSeq: r };
+    // Sans runtimeSeq, l'app ne sait pas dire si c'est la build ou la mise à jour qui est en retard
+    // (js/app/live-update.js) : elle répond « Pas de mise à jour pour l'instant ».
+    console.warn('::warning::runtimeSeq absent : historique git superficiel (fetch-depth 0 requis) ou coquille '
+      + 'introuvable dans les 300 derniers commits des fichiers natifs (scripts/runtime-version.mjs, runtimeSince)');
+    return {};
+  })(),
   version: `${d.getUTCFullYear()}.${d.getUTCMonth() + 1}.${d.getUTCDate()}-${git.sha}`,
 };
 fs.writeFileSync(path.join(OUT, 'js', 'platform', 'build-info.js'),

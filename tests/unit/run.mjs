@@ -1526,7 +1526,30 @@ test('mise à jour à chaud : empreinte différente, build en retard (OTA pour u
   const d = (m, c) => run(`liveUpdateDecision(${JSON.stringify(m)}, ${JSON.stringify(c)})`);
   const r = d(otaManifest({ runtime: 'r2', runtimeSeq: 1500 }), otaCtx({ build: { version: 'x', seq: 1000, runtime: 'r1', runtimeSeq: 800 } }));
   sameJSON(r, { download: false, reason: 'nouvelle build' });
-  assert.equal(await run('liveUpdateNoneText("nouvelle build")'), 'Une nouvelle version de l\'app est disponible dans TestFlight');
+  // « disponible » seulement si app_config.min_build dépasse la build installée ; sinon « arrive bientôt »
+  const text = async ({ min = null, build = 91, env = null } = {}) => {
+    ctx.__min = min; ctx.__build = build; ctx.__env = env;
+    run(`__lu = { mb: minBuildFetch, ab: Native.appBuild, se: accessStoreEnvironment };
+         minBuildFetch = async () => (__min === null ? { ok: false } : { ok: true, min: __min });
+         Native.appBuild = async () => __build;
+         accessStoreEnvironment = async () => __env;`);
+    try { return await run('liveUpdateNoneText("nouvelle build")'); }
+    finally { run('minBuildFetch = __lu.mb; Native.appBuild = __lu.ab; accessStoreEnvironment = __lu.se;'); }
+  };
+  assert.equal(await text({ min: 95 }), 'Une nouvelle version de l\'app est disponible dans TestFlight');
+  assert.equal(await text({ min: 91 }), 'Une nouvelle version de l\'app arrive bientôt dans TestFlight', 'minimum déjà atteint : rien ne prouve une build');
+  assert.equal(await text(), 'Une nouvelle version de l\'app arrive bientôt dans TestFlight', 'serveur injoignable');
+  assert.equal(await text({ min: 95, env: 'production' }), 'Une nouvelle version de l\'app est disponible dans l\'App Store', 'app installée par l\'App Store');
+  assert.equal(await text({ env: 'production' }), 'Une nouvelle version de l\'app arrive bientôt dans l\'App Store');
+});
+
+test('mise à jour à chaud : dates réelles du 17/11/2026 (build 91 et OTA 67b30b6) → « pas encore publiée »', () => {
+  const d = (m, c) => run(`liveUpdateDecision(${JSON.stringify(m)}, ${JSON.stringify(c)})`);
+  // Build 91 (build69-son, eb9b51d) : contenu 1794925349, coquille 1794920307 ; OTA 67b30b6 (main) : contenu
+  // 1794950908, plus récent, mais pour l'ancienne coquille (1794566743). Valeurs de runtimeSince sur le dépôt.
+  const r = d(otaManifest({ runtime: 'r90', seq: 1794950908, runtimeSeq: 1794566743 }),
+    otaCtx({ build: { version: '2026.11.17-eb9b51d', seq: 1794925349, runtime: 'r91', runtimeSeq: 1794920307 }, shellRuntime: 'r91' }));
+  sameJSON(r, { download: false, reason: 'pas encore publiée' });
 });
 
 test('mise à jour à chaud : empreinte différente, OTA pas encore publiée pour cette build (build 91, 17/11/2026)', async () => {

@@ -96,6 +96,29 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
     } finally { repo.done(); }
   });
 
+  test('empreinte native : fusion de deux coquilles différentes → date de la fusion (accepté)', () => {
+    const repo = fakeRepo();
+    const git = (args, date) => execFileSync('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args], { cwd: repo.dir, stdio: 'ignore',
+      env: { ...process.env, GIT_AUTHOR_DATE: `@${date} +0000`, GIT_COMMITTER_DATE: `@${date} +0000`,
+        GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' } });
+    const commit = (msg, date) => { git(['add', '-A'], date); git(['commit', '-q', '-m', msg], date); };
+    try {
+      git(['init', '-q', '-b', 'main'], 1000);
+      repo.put('ios/App/App/Other.swift', 'A');
+      commit('coquille A', 1000);
+      git(['checkout', '-q', '-b', 'b1'], 2000);
+      repo.put('ios/App/App/HealthPlugin.swift', 'import HealthKit // B1');
+      commit('coquille B1', 2000);
+      git(['checkout', '-q', 'main'], 3000);
+      repo.put('ios/App/App/Other.swift', 'A2');
+      commit('coquille A2', 3000);
+      assert.equal(runtimeSince(repo.dir, 'ios'), 3000);
+      git(['merge', '-q', '--no-edit', 'b1'], 4000);
+      // L'empreinte fusionnée (B1 + A2) ne ressemble à aucun parent : la fusion fait apparaître la coquille
+      assert.equal(runtimeSince(repo.dir, 'ios'), 4000, 'date de la fusion');
+    } finally { repo.done(); }
+  });
+
   test('android : modules natifs comptés par plateforme (sans la CLI ni la coquille de l\'autre)', () => {
     const lock = { packages: {
       'node_modules/@capacitor/android': { version: '8.5.3' }, 'node_modules/@capacitor/ios': { version: '8.5.3' },

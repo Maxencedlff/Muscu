@@ -167,6 +167,9 @@ export function runtimeSince(root, platform = 'ios', { maxCommits = 300 } = {}) 
     const head = at('HEAD');
     const log = git(['log', `--max-count=${maxCommits}`, '--format=%H %ct', 'HEAD', '--', ...paths])
       .split('\n').filter(Boolean);
+    // Fusion de deux branches qui changent chacune la coquille : son empreinte ne ressemble à aucun parent,
+    // runtimeSince rend la date de la fusion. C'est accepté : la coquille fusionnée est bien nouvelle, et
+    // une build faite avant la fusion vient de l'une des branches (empreinte différente, date plus ancienne).
     for (const line of log) {
       const [sha, ct] = line.split(' ');
       if (at(sha) === head && at(`${sha}^`) !== head) return Number(ct);

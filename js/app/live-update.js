@@ -170,9 +170,13 @@ async function liveUpdateNoneText(reason) {
   if (reason === 'à jour') return 'Tu as la dernière version';
   if (reason === 'pas encore publiée') return 'Pas de mise à jour pour l\'instant';
   if (reason === 'nouvelle build') {
-    let store = 'TestFlight';
+    // « disponible » seulement si le serveur annonce une build minimale plus récente que celle installée
+    // (app_config.min_build, js/data/min-build.js) : une OTA peut précéder sa build, ou un changement
+    // natif être annulé. Sinon « arrive bientôt » (relecture de l'auditeur, 18/11/2026).
+    let store = 'TestFlight', available = false;
     try { if (!minBuildUpdateUrl(await accessStoreEnvironment()).includes('testflight')) store = 'l\'App Store'; } catch {}
-    return `Une nouvelle version de l'app est disponible dans ${store}`;
+    try { const r = await minBuildFetch(); available = r.ok && minBuildBlocks(await Native.appBuild(), r.min); } catch {}
+    return `Une nouvelle version de l'app ${available ? 'est disponible' : 'arrive bientôt'} dans ${store}`;
   }
   return `Pas de mise à jour : ${reason}`;
 }
