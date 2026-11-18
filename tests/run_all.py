@@ -6,6 +6,9 @@ PPL_DEVICES (« iPhone 13,Pixel 7 ») et PPL_THEMES (« dark ») restreignent le
 PPL_DEVICES=recents lance les iPhone récents et le Duo pliable (fixtures.RECENT_DEVICES), « tous » les deux listes.
 Un processus en échec est relancé une fois (PPL_RETRY=0 pour l'éviter) : s'il passe, il est signalé
 « INSTABLE » sans faire échouer la suite ; sinon, échec.
+PPL_SHARD=k/N (CI) ne lance que la part k sur N : les processus sont répartis entre les N parts selon leur
+durée mesurée sur la CI (ci_durees.json, régénéré par ci_durees.py), le plus long d'abord vers la part la
+moins chargée. Chaque part calcule la même répartition : tout processus tourne dans exactement une part.
 PPL_JOBS (défaut 6) règle le nombre de processus simultanés. Garde-fou mémoire : aucun
 processus ne démarre tant que la mémoire disponible de WSL est sous 2,5 Go (évite de faire planter WSL).
 """
@@ -37,9 +40,10 @@ def pick(asked, known, what):
     return asked
 
 
+stem = lambda f: os.path.basename(f)[len('test_'):-len('.py')]   # « lot7_ecrans », « muscles »
 if sys.argv[1:]:
-    pick(sys.argv[1:], [lot_of(f) for f in files], 'Lot')
-    files = [f for f in files if lot_of(f) in sys.argv[1:]]
+    pick(sys.argv[1:], sorted({lot_of(f) for f in files} | {stem(f) for f in files}), 'Lot')
+    files = [f for f in files if lot_of(f) in sys.argv[1:] or stem(f) in sys.argv[1:]]
 env_list = lambda k: [x.strip() for x in os.environ.get(k, '').split(',') if x.strip()]
 devices = [d for _, d in selected_devices()]   # noms inconnus refusés (fixtures.selected_devices)
 themes = pick(env_list('PPL_THEMES'), THEMES, 'Thème') or THEMES
@@ -69,6 +73,36 @@ for f in files:
         jobs.append((f, {'PPL_ONCE': '1'}, 'unique'))
     if not counts[f]['tests'] and not counts[f]['once']:
         sys.exit(f'{os.path.basename(f)} : aucun test déclaré dans run_main')
+
+
+def shard(jobs, spec):
+    """Part k/N de `jobs` (voir l'en-tête). Durée inconnue : moyenne du même fichier, sinon 60 s."""
+    m = re.fullmatch(r'(\d+)/(\d+)', spec)
+    if not m or not 1 <= int(m.group(1)) <= int(m.group(2)):
+        sys.exit(f'PPL_SHARD={spec!r} : attendu k/N avec 1 <= k <= N')
+    k, n = int(m.group(1)), int(m.group(2))
+    try:
+        with open(os.path.join(here, 'ci_durees.json'), encoding='utf-8') as fh:
+            known = json.load(fh)['durees']
+    except (OSError, ValueError, KeyError):
+        known = {}
+    def cost(job):
+        name, label = os.path.basename(job[0]), job[2]
+        if f'{name}|{label}' in known:
+            return known[f'{name}|{label}']
+        same = [v for key, v in known.items() if key.startswith(name + '|') and not key.endswith('|unique')]
+        return sum(same) / len(same) if same and label != 'unique' else known.get(f'{name}|unique', 60)
+    loads, parts = [0.0] * n, [[] for _ in range(n)]
+    for job in sorted(jobs, key=lambda j: (-cost(j), os.path.basename(j[0]), j[2])):
+        i = min(range(n), key=lambda b: (loads[b], b))
+        loads[i] += cost(job); parts[i].append(job)
+    print(f'Part {k}/{n} : {len(parts[k - 1])} processus sur {len(jobs)}, ~{loads[k - 1]:.0f} s de processus estimés '
+          f'(parts : {", ".join(f"{x:.0f}" for x in loads)} s)', flush=True)
+    return parts[k - 1]
+
+
+if os.environ.get('PPL_SHARD'):
+    jobs = shard(jobs, os.environ['PPL_SHARD'])
 
 
 def mem_available_mb():

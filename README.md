@@ -50,13 +50,29 @@ PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_lot1.py   # un lot sur un appare
 
 Variables utiles : `PPL_JOBS` (processus simultanés, 6 par défaut), `PPL_URL` (adresse de l'app),
 `PPL_SCRATCH` (dossier des captures), `PPL_DEVICES` et `PPL_THEMES` (ex. `"iPhone 13,Pixel 7"`,
-`dark`). Un nom de lot ou d'appareil inconnu est refusé. Un processus en échec est relancé une
+`dark`), `PPL_SHARD` (`k/N` : seulement la part k sur N, répartie selon les durées de la CI de
+`tests/ci_durees.json`, à régénérer avec `tests/ci_durees.py`). Un nom de lot ou d'appareil inconnu est refusé. Un processus en échec est relancé une
 fois : s'il passe, il est signalé « INSTABLE » (à surveiller) sans faire échouer la suite.
+
+Batterie complète sur la CI (`.github/workflows/tests-complet.yml`, tous les appareils, 14 machines),
+ou seulement quelques appareils sur 2 à 4 machines, à préférer pour vérifier un écran (les 20 machines
+du compte sont partagées entre les branches) :
+
+```sh
+gh workflow run tests-complet.yml -R Maxencedlff/Muscu --ref <branche> -f appareils="iPhone SE,iPhone 17"
+gh workflow run tests-complet.yml -R Maxencedlff/Muscu --ref <branche> -f appareils="Pixel 7" -f lots="nutrition"
+```
+
+Noms d'appareils : `iPhone 13`, `iPhone SE`, `Pixel 7`, `Galaxy S8`, `Galaxy S9+`, `iPhone 17`,
+`iPhone 17 Pro Max`, `iPhone Air`, `iPhone Duo ferme`, `iPhone Duo ouvert`, `iPhone Duo paysage`,
+`iPhone Duo grand paysage` (`recents` : les iPhone récents et le Duo). Une nouvelle batterie, ou un
+nouvel envoi, sur une branche annule celle en cours de la même branche ; jamais sur `main`.
 
 ## Déploiement
 
 Chaque push lance le workflow **Tests** (`.github/workflows/tests.yml`) : tests unitaires, puis
-toute la suite Playwright sur iPhone 13 (WebKit) et Pixel 7 (Chromium) en sombre. Sur `main`, et
+toute la suite Playwright sur iPhone 13 (WebKit) et Pixel 7 (Chromium) en sombre, répartie sur
+4 machines dans le conteneur officiel de Playwright (`tests/ci_conteneur.sh`). Sur `main`, et
 seulement si tout est vert, le job `deploy` publie en production sur https://muscu-eta.vercel.app
 (CLI Vercel figée, secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_WEB_PROJECT_ID`). Vercel ne
 publie plus seul (`vercel.json` : `git.deploymentEnabled: false`) : un push rouge ne part jamais en
