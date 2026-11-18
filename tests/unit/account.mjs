@@ -361,8 +361,8 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.match(call('authErrorText("identity_exists")'), /a son propre compte MDLF/);
     // Moyen déjà relié ailleurs : retrouver ce compte (séances possibles), jamais « supprime-le » d'abord
     assert.equal(call('identityExistsTitle("google")'), 'Compte Google déjà utilisé');
-    assert.equal(call('identityExistsText("google")'), 'Ce compte Google a son propre compte MDLF, peut-être avec des séances. Pour le retrouver : déconnecte-toi (tes séances restent sur cet iPhone), puis connecte-toi avec Google.');
-    assert.match(call('identityExistsText("apple")'), /^Cet identifiant Apple .* connecte-toi avec Apple\.$/);
+    assert.equal(call('identityExistsText("google")'), 'Ce compte Google a son propre compte MDLF, peut-être avec des séances. Pour le retrouver, déconnecte-toi puis connecte-toi avec Google. Les séances restent sur cet iPhone.');
+    assert.match(call('identityExistsText("apple")'), /^Cet identifiant Apple .* connecte-toi avec Apple\. Les séances restent sur cet iPhone\.$/);
     for (const p of ['apple', 'google', 'email']) assert.ok(!/supprime/i.test(call(`identityExistsText("${p}")`)), p);
     assert.ok(call('Object.values(AUTH_ERROR_TEXT).every(t => /[.?!]$/.test(t))'), 'chaque message finit par un point');
     assert.match(call('authErrorText("invalid")'), /Code incorrect/);

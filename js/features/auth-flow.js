@@ -34,8 +34,8 @@ function referralLinkHtml() {
   const v = referralView();
   // Parrain coach : le code parraine sans faire rejoindre ce coach, on le dit (Social › Rejoindre un coach)
   if (v.referrer) return `<p class="auth__referral-done">${icon('checkmark', 16)}<span>${esc(`Parrainé par ${v.referrer}`)}</span></p>`
-    + (referralSuggestJoin(v) ? `<p class="auth__referral-join">${esc(`Pour que ${v.referrer} suive tes séances, rejoins ce coach ensuite dans Social › Rejoindre un coach.`)}</p>` : '');
-  return v.canEnter ? '<button class="auth__link auth__referral-link" data-action="auth-referral">J\'ai un code d\'un coach ou d\'un ami</button>' : '';
+    + (referralSuggestJoin(v) ? `<p class="auth__referral-join">${esc(`Pour que ${v.referrer} suive tes séances : Social › Rejoindre un coach.`)}</p>` : '');
+  return v.canEnter ? '<button class="auth__link auth__referral-link" data-action="auth-referral">Code d\'un coach ou d\'un ami</button>' : '';
 }
 
 // context : 'coach' quand le pseudo est demandé pour rejoindre un coach (texte du pseudo adapté) ;
@@ -128,17 +128,17 @@ const AUTH_STEPS = {
       <div class="auth__hero">
         <div class="auth__logo">${appIconSvg(DEFAULT_APP_ICON, { attrs: 'aria-hidden="true" focusable="false"' })}</div>
         <h1 class="auth__title auth__title--welcome" id="authTitle" tabindex="-1">Un compte pour enregistrer</h1>
-        <p class="auth__lead">Connecte-toi ou crée un compte pour enregistrer tes séances. Ton abonnement, et son essai gratuit, y seront rattachés.</p>
+        <p class="auth__lead">Il faut un compte pour enregistrer des séances. L'abonnement et son essai gratuit y sont rattachés.</p>
       </div>
       <div class="auth-buttons">${signInButtonsHtml()}</div>
       <p class="auth__again">Déjà un compte ? Utilise le même moyen qu'avant.</p>
-      <p class="auth__foot">Tes séances déjà faites restent sur ${thisPhone()}, avec l'historique, les progrès et l'export. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
+      <p class="auth__foot">Les séances déjà faites restent sur ${thisPhone()}, consultables et exportables. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
       <p class="auth__error" id="authError" role="alert"></p>` : `
       <div class="auth__hero">
         <div class="auth__logo">${appIconSvg(DEFAULT_APP_ICON, { attrs: 'aria-hidden="true" focusable="false"' })}</div>
         <h1 class="auth__title auth__title--welcome" id="authTitle" tabindex="-1">Bienvenue dans MDLF&nbsp;Training</h1>
-        <p class="auth__tagline">Ton carnet de muscu qui te dit quoi soulever pour progresser.</p>
-        <p class="auth__lead">Crée un compte pour sauvegarder tes séances et les retrouver sur un ${newPhone()}.</p>
+        <p class="auth__tagline">Le carnet de muscu qui te dit quoi soulever pour progresser.</p>
+        <p class="auth__lead">Crée un compte pour retrouver tes séances sur un ${newPhone()}.</p>
       </div>
       <div class="auth-buttons">${signInButtonsHtml()}</div>
       <p class="auth__again">Déjà un compte ? Utilise le même moyen qu'avant.</p>
@@ -147,8 +147,8 @@ const AUTH_STEPS = {
       <p class="auth__error" id="authError" role="alert"></p>`,
 
   email: () => `
-      <h1 class="auth__title auth__title--left" id="authTitle" tabindex="-1">${flow.mode === 'link' ? 'Ajouter une adresse e‑mail' : 'Ton adresse e‑mail'}</h1>
-      <p class="auth__lead auth__lead--left">${flow.mode === 'link' ? 'Tu recevras un code pour la confirmer. Tu pourras ensuite te connecter avec.' : 'On t\'envoie un code à 6 chiffres. Pas de mot de passe à retenir.'}</p>
+      <h1 class="auth__title auth__title--left" id="authTitle" tabindex="-1">${flow.mode === 'link' ? 'Ajouter une adresse e‑mail' : 'Adresse e‑mail'}</h1>
+      <p class="auth__lead auth__lead--left">${flow.mode === 'link' ? 'Un code arrive par e‑mail pour la confirmer. Elle servira ensuite à te connecter.' : 'Un code à 6 chiffres arrive par e‑mail. Aucun mot de passe.'}</p>
       <form class="auth__form" data-form="email" novalidate>
         <label class="visually-hidden" for="authEmail">Adresse e-mail</label>
         <input class="auth__input" id="authEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none"
@@ -159,7 +159,7 @@ const AUTH_STEPS = {
 
   code: () => `
       <h1 class="auth__title auth__title--left" id="authTitle" tabindex="-1">Saisis le code</h1>
-      <p class="auth__lead auth__lead--left">Envoyé à <strong class="auth__email">${esc(flow.email)}</strong>. Il est valable 10 minutes. Pense à regarder dans les indésirables.</p>
+      <p class="auth__lead auth__lead--left">Envoyé à <strong class="auth__email">${esc(flow.email)}</strong>. Valable 10 minutes. Regarde aussi dans les indésirables.</p>
       <p class="auth__last-code" id="authLastCode" ${flow.resent ? '' : 'hidden'}>${LAST_CODE_ONLY}</p>
       <form class="auth__form" data-form="code" novalidate>
         <label class="visually-hidden" for="authCode">Code à 6 chiffres</label>
@@ -181,7 +181,7 @@ const AUTH_STEPS = {
         ${flowAvatarHtml()}<span class="auth__avatar-edit" aria-hidden="true">Modifier</span>
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
-      <p class="auth__lead">${flow.context === 'coach' ? 'Ton coach te reconnaîtra avec ce pseudo.' : 'Tes amis te trouveront avec ce pseudo, une fois le social activé.'}</p>
+      <p class="auth__lead">${flow.context === 'coach' ? 'Ton coach te reconnaîtra avec ce pseudo.' : 'Tes amis te trouveront avec ce pseudo si le social est activé.'}</p>
       ${flow.first && flow.cancelExpired ? cancelExpiredHtml()
         : flow.first && flow.notice ? `<div class="auth__notice" role="note"><p>${esc(flow.notice)}</p>
         <button class="auth__notice-btn" data-action="auth-cancel-account">Me reconnecter autrement</button></div>` : ''}
@@ -209,7 +209,7 @@ const AUTH_STEPS = {
         <p class="auth__error" id="authError" role="alert"></p>
         <button class="btn btn--primary auth__primary" type="submit" data-role="referral" ${normalizeReferralCode(flow.referralCode) ? '' : 'disabled'}>Valider</button>
       </form>
-      <p class="auth__foot" id="authReferralNote">Le code est gardé avec ton compte pour rémunérer la personne qui t'a fait connaître l'app. Il ne lui donne accès ni à ton compte ni à tes séances. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>`,
+      <p class="auth__foot" id="authReferralNote">Le code, gardé sur le compte, sert à rémunérer la personne qui t'a parlé de l'app. Il ne lui donne accès ni au compte ni aux séances. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>`,
 
   avatar: () => `
       <h1 class="auth__title" id="authTitle" tabindex="-1">Choisis ton avatar</h1>
@@ -223,7 +223,7 @@ const AUTH_STEPS = {
 
 // Annulation refusée (compte de plus de 10 min) : seul ce message reste, à la place de « Nouveau
 // compte créé. Déjà un compte ? » et de son bouton (qui ne peut plus rien faire)
-const CANCEL_EXPIRED_TEXT = 'Ce nouveau compte (vide) a plus de 10 minutes : supprime-le dans Réglages › Compte › Supprimer mon compte. Ton ancien compte n\'est pas touché.';
+const CANCEL_EXPIRED_TEXT = 'Ce nouveau compte vide a plus de 10 minutes. Supprime-le dans Réglages › Compte › Supprimer mon compte. L\'ancien compte reste intact.';
 function cancelExpiredHtml() {
   return `<div class="auth__notice auth__notice--alone" role="alert"><p>${esc(CANCEL_EXPIRED_TEXT)}</p></div>`;
 }
@@ -344,7 +344,7 @@ async function submitCode(code) {
   if (input) input.readOnly = false;
   if (flow.mode === 'link') {
     if (!r.ok) return codeFailed(r.kind);
-    closeAuthFlow('linked'); showToast('Adresse e-mail ajoutée : tu peux te connecter avec');
+    closeAuthFlow('linked'); showToast('Adresse e-mail ajoutée aux moyens de connexion');
     return;
   }
   if (flow.mode === 'reauth') {
@@ -557,8 +557,8 @@ registerActions({
     if (!r.ok) {
       el.disabled = false;
       const status = flow.root.querySelector('#authUsernameStatus');
-      status.textContent = r.reason === 'kept' ? 'Ce compte contient déjà des données : il est gardé. Tu peux te déconnecter dans Réglages › Compte.'
-        : navigator.onLine === false ? authErrorText('offline') : 'Annulation impossible pour l\'instant, réessaie dans un moment.';
+      status.textContent = r.reason === 'kept' ? 'Ce compte contient déjà des données, il est gardé. Pour te déconnecter : Réglages › Compte.'
+        : navigator.onLine === false ? authErrorText('offline') : 'Annulation impossible. Réessaie dans un moment.';
       status.className = 'auth__status auth__status--bad';
       haptic('medium');
       return;

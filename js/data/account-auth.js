@@ -95,13 +95,13 @@ const USERNAME_TEXT = {
   dots: 'Pas deux points de suite.',
   taken: 'Ce pseudo n\'est pas disponible.',
   // Premier pseudo d'un compte tout neuf : souvent le même utilisateur avec un autre moyen de connexion
-  taken_first: 'Ce pseudo est déjà pris. Si c\'est le tien, tu as déjà un compte : reconnecte-toi avec le même moyen qu\'avant.',
+  taken_first: 'Ce pseudo est déjà pris. Si c\'est le tien, reconnecte-toi avec le même moyen qu\'avant.',
   forbidden: 'Ce pseudo n\'est pas autorisé.',
   too_soon: 'Tu as déjà changé de pseudo il y a moins de 30 jours.',
-  required: 'Ton pseudo ne peut pas être retiré, seulement changé.',
+  required: 'Le pseudo est obligatoire. Tu peux le changer.',
   avatar: 'Cet avatar n\'est pas encore disponible. Choisis-en un autre.',
   offline: 'Pas d\'Internet : réessaie avec du réseau.',
-  server: 'Enregistrement impossible pour l\'instant, réessaie dans un moment.',
+  server: 'Enregistrement impossible. Réessaie dans un moment.',
 };
 const USERNAME_HELP = '3 à 20 caractères : lettres sans accent, chiffres, point, tiret bas. Modifiable une fois par mois.';
 
@@ -294,21 +294,21 @@ const AUTH_ERROR_TEXT = {
   code: 'Code incorrect ou expiré.',
   rate: 'Trop de demandes : attends une minute avant de redemander un code.',
   email: 'Cette adresse e-mail n\'est pas valable.',
-  not_authorized: 'L\'envoi des codes par e-mail n\'est pas encore ouvert. Utilise Apple pour l\'instant.',
-  identity_exists: 'Ce moyen de connexion a son propre compte MDLF, peut-être avec des séances. Pour le retrouver : déconnecte-toi (tes séances restent sur cet iPhone), puis connecte-toi avec ce moyen.',
+  not_authorized: 'L\'envoi des codes par e-mail n\'est pas encore ouvert. Utilise Apple.',
+  identity_exists: 'Ce moyen de connexion a son propre compte MDLF, peut-être avec des séances. Pour le retrouver, déconnecte-toi puis connecte-toi avec ce moyen. Les séances restent sur cet iPhone.',
   last_identity: 'Garde au moins un moyen de connexion.',
   linking_disabled: 'Ajout d\'un moyen de connexion indisponible pour l\'instant.',
   disabled: 'Ce moyen de connexion n\'est pas encore ouvert.',
   no_account: 'Aucun compte avec cette adresse.',
   same_email: 'Cette adresse sert déjà à te connecter.',
-  has_email: 'Ton compte a déjà une adresse e-mail : tu peux recevoir un code de connexion à cette adresse.',
+  has_email: 'Le compte a déjà une adresse e-mail. Les codes de connexion y arrivent.',
   email_unconfirmed: 'L\'adresse n\'a pas pu être confirmée. Réessaie dans un moment.',
   other_account: 'Ce n\'est pas le compte relié à MDLF. Choisis le même compte qu\'à la connexion.',
   provider: 'Connexion impossible. Réessaie dans un moment.',
-  server: 'Connexion impossible pour l\'instant, réessaie dans un moment.',
+  server: 'Connexion impossible. Réessaie dans un moment.',
 };
 // Après un « Renvoyer le code » : l'ancien code ne marche plus (Supabase n'en garde qu'un)
-const LAST_CODE_ONLY = 'Seul le code du dernier e-mail envoyé est valable (regarde l\'heure).';
+const LAST_CODE_ONLY = 'Seul le code du dernier e-mail est valable. Regarde l\'heure d\'envoi.';
 function authErrorText(kind) { return AUTH_ERROR_TEXT[kind] || AUTH_ERROR_TEXT.server; }
 
 // Moyen déjà relié à un autre compte MDLF (ajout refusé) : titre et marche à suivre, nommés. Pas de
@@ -319,6 +319,6 @@ const IDENTITY_SIGNIN = { apple: 'avec Apple', google: 'avec Google', email: 'av
 function identityExistsTitle(provider) { return IDENTITY_TITLE[provider] || 'Déjà relié à un autre compte'; }
 function identityExistsText(provider) {
   if (!IDENTITY_OWNER[provider]) return AUTH_ERROR_TEXT.identity_exists;
-  return `${IDENTITY_OWNER[provider]} a son propre compte MDLF, peut-être avec des séances. Pour le retrouver : déconnecte-toi (tes séances restent sur cet iPhone), puis connecte-toi ${IDENTITY_SIGNIN[provider]}.`;
+  return `${IDENTITY_OWNER[provider]} a son propre compte MDLF, peut-être avec des séances. Pour le retrouver, déconnecte-toi puis connecte-toi ${IDENTITY_SIGNIN[provider]}. Les séances restent sur cet iPhone.`;
 }
 

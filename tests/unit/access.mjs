@@ -411,7 +411,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     })()`);
     sameJSON(r.slice(0, 3), [{ ok: false, kind: 'retry' }, { ok: false, kind: 'bad_bundle' }, { ok: false, kind: 'transaction_taken' }]);
     sameJSON(r[3], ['tx-2'], 'seul un refus définitif termine la transaction');
-    assert.match(run('accessErrorText("retry")'), /réessaiera/);
+    assert.match(run('accessErrorText("retry")'), /nouvel essai automatique/);
     // Trop d'appels (429) : message juste, pas « action impossible »
     const limited = await run(`(async () => {
       const u = account.user, saved = { ...access }, realSb = sb, store = Native.store;
@@ -659,9 +659,9 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       '25 élèves sur 25 : passe au palier supérieur.');
     // Élèves au-delà de la formule (16/11/2026) : leur accès n'est plus offert, le coach est invité à monter
     assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 13, uncovered: 3 }))`),
-      '3 élèves au-delà de ta formule : leur accès n\'est plus offert. Passe au palier supérieur.');
+      '3 élèves au-delà de ton palier : leur accès n\'est plus offert. Passe au palier supérieur.');
     assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 11, uncovered: 1 }))`),
-      '1 élève au-delà de ta formule : son accès n\'est plus offert. Passe au palier supérieur.');
+      '1 élève au-delà de ton palier : son accès n\'est plus offert. Passe au palier supérieur.');
     assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: null, limit: 0, students: 4, uncovered: 4 }))`),
       'Sans abonnement coach, l\'accès de tes 4 élèves n\'est pas offert. Prends un abonnement coach.');
     // Nombre abîmé : borné au nombre d'élèves, jamais négatif
@@ -733,13 +733,13 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       finally { account.user = u; Object.assign(access, saved); } })()`);
     const lucas = { state: 'active', until: null, coach: 'lucas' };
     const MONTHLY = 'com.mdlf.training.pro.monthly';
-    assert.equal(look(own(lucas), MONTHLY, true), 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.');
+    assert.equal(look(own(lucas), MONTHLY, true), 'Ton coach couvre l\'accès. Tu peux résilier ton abonnement.');
     // Renouvellement inconnu (build 68, iOS 16) : montrée quand même
-    assert.equal(look(own(lucas), MONTHLY, null), 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.');
+    assert.equal(look(own(lucas), MONTHLY, null), 'Ton coach couvre l\'accès. Tu peux résilier ton abonnement.');
     // Essai d'Apple en cours : date du serveur (fin de l'offre de lancement)
     const end = NOW + 40 * DAY;
     const trial = look(own(lucas, { intro_offer: true, intro_until: new Date(end).toISOString() }), MONTHLY, true);
-    assert.equal(trial, `Ton coach couvre ton accès. Ton essai devient payant le ${run(`fmtDate(${end})`)} : résilie-le pour ne pas être prélevé.`);
+    assert.equal(trial, `Ton coach couvre l'accès. L'essai devient payant le ${run(`fmtDate(${end})`)} : résilie-le pour ne pas être prélevé.`);
     // Disparaît : résilié chez Apple, pas d'abonnement sur l'iPhone, formule coach, coach qui ne couvre pas (grâce, au-delà)
     assert.equal(look(own(lucas), MONTHLY, false), null);
     assert.equal(look(own(lucas), null, true), null);
@@ -753,10 +753,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     for (const f of ['js/features/paywall-ui.js', 'js/data/access.js', 'js/features/coach-ui.js', 'js/data/coach-pro.js', 'js/features/coach-pro-ui.js']) {
       assert.ok(!/rembours|prorata/i.test(code(f)), `${f} : un texte parle de remboursement`);
     }
-    assert.ok(!/couvre ton accès[^'`]*!/.test(ui), 'carte avec un point d\'exclamation');
+    assert.ok(!/couvre l.accès[^'`]*!/.test(ui), 'carte avec un point d\'exclamation');
     // Après la grâce : jamais d'essai promis (seul StoreKit sait s'il y a droit)
     const grace = ui.slice(ui.indexOf("if (cover.state === 'grace')"), ui.indexOf('if (mine) return null;')).split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
-    assert.ok(/reste offert jusqu'au/.test(grace) && !/essai|gratuit/i.test(grace), 'grâce : aucun essai promis');
+    assert.ok(/reste offert/.test(grace) && /jusqu'au/.test(grace) && !/essai|gratuit/i.test(grace), 'grâce : aucun essai promis');
     assert.ok(!/not_student|not_new|no_code|testflight/.test(JSON.stringify(run('Object.keys(ACCESS_ERROR_TEXT)'))), 'erreurs de l\'offre élève restées');
   });
 }

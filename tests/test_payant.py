@@ -171,7 +171,7 @@ def t_essai(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         # Le bandeau dit ce qui bloque (abonnement nécessaire, ou séances de l'iPhone refusées par le
         # compte), jamais plus « il te reste N jours »
-        R.check(('Abonnement nécessaire' in banner(page) or 'pas sauvegardée' in banner(page)) and 'il te reste' not in banner(page),
+        R.check(('Abonnement nécessaire' in banner(page) or 'pas enregistrée' in banner(page)) and 'il te reste' not in banner(page),
                 f'{t} accueil : plus de bandeau « il te reste N jours » ({banner(page)!r})')
         # Écran d'abonnement : l'offre de lancement lue chez StoreKit, et les mentions de la règle 3.1.2
         page.evaluate("navigate(makeRoute('paywall', 'offer'))")
@@ -194,7 +194,7 @@ def t_essai(bench, eng, dev, theme):
                 and 'sauf si tu le résilies au moins 24 heures avant la fin de l\'essai' in txt and 'résilier à tout moment' in txt
                 and 'Conditions d\'utilisation' in txt and 'Confidentialité' in txt,
                 f'{t} mentions 3.1.2 : durée, prix après l\'essai, renouvellement, résiliation, liens')
-        R.check('Un identifiant Apple n\'a droit qu\'à un seul essai gratuit' in txt, f'{t} un essai par identifiant Apple : dit')
+        R.check('Un seul essai gratuit par identifiant Apple' in txt, f'{t} un essai par identifiant Apple : dit')
         layout(page, t, 'écran d\'abonnement avec essai')
         shot(page, LOT, f'2-abonnement-{t}')
         # Achat : Apple donne l'essai (offre de lancement), le serveur écrit un abonnement actif
@@ -248,7 +248,7 @@ def t_lecture_seule(bench, eng, dev, theme):
                 f'{t} sans abonnement : pas le droit d\'écrire')
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
-        R.check('Abonnement nécessaire' in banner(page) or 'pas sauvegardée' in banner(page), f'{t} accueil : bandeau du mode lecture seule ({banner(page)!r})')
+        R.check('Abonnement nécessaire' in banner(page) or 'pas enregistrée' in banner(page), f'{t} accueil : bandeau du mode lecture seule ({banner(page)!r})')
         layout(page, t, 'accueil après l\'essai')
         shot(page, LOT, f'3-fin-essai-accueil-{t}')
         # 1. Démarrer une séance : l'abonnement est proposé, aucune séance démarrée
@@ -399,7 +399,7 @@ def t_achat(bench, eng, dev, theme):
         page.click('[data-action="pay-restore"]')
         page.wait_for_timeout(1000)
         dlg = page.inner_text('.ios-dialog') if page.locator('.ios-dialog').count() else ''
-        R.check('autre compte' in dlg and 'Voir mon compte' in dlg,
+        R.check('autre compte' in dlg and 'Voir le compte' in dlg,
                 f'{t} transaction prise : refus expliqué avec une action ({dlg[:120]!r})')
         R.check(page.evaluate('canWrite()') is False, f'{t} transaction prise : aucun accès')
         shot(page, LOT, f'7-restauration-refusee-{t}')
@@ -426,7 +426,7 @@ def t_achat(bench, eng, dev, theme):
         page.wait_for_selector('[data-action="pay-code"]')
         # Code mal formé : refusé sur l'appareil, aucun essai brûlé côté serveur
         page.click('[data-action="pay-code"]')
-        R.check(code_sheet(page, 'abc', ok=False).startswith('Code introuvable'), f'{t} code mal formé : erreur dans la feuille')
+        R.check(code_sheet(page, 'abc', ok=False).startswith('Code trop court'), f'{t} code mal formé : erreur dans la feuille')
         R.check(len(acalls(page, 'redeem_gift_code')) == 0, f'{t} code mal formé : rien n\'est envoyé au serveur')
         # Code inconnu, puis expiré : refus du serveur, SANS exception, saisie gardée
         help_ = code_sheet(page, 'ZZZZZZZZZZZZ', ok=False)
@@ -616,7 +616,7 @@ def t_verrou_serveur(bench, eng, dev, theme):
         # L'accueil propose l'abonnement et dit ce qui n'est pas sauvegardé
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(400)
-        R.check('pas sauvegardée' in banner(page), f'{t} verrou : l\'accueil le dit ({banner(page)!r})')
+        R.check('pas enregistrée' in banner(page), f'{t} verrou : l\'accueil le dit ({banner(page)!r})')
         layout(page, t, 'séance refusée par le compte')
         shot(page, LOT, f'14-verrou-serveur-{t}')
         page.click('.pay-banner')
@@ -1104,7 +1104,7 @@ def t_tarifs(bench, eng, dev, theme):
         shot(page, LOT, f'25-eleve-hors-palier-{t}')
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(600)
-        R.check('plus offert par ton coach' in banner(page), f'{t} élève au-delà du palier : bandeau ({banner(page)!r})')
+        R.check('n\'offre plus l\'accès' in banner(page), f'{t} élève au-delà du palier : bandeau ({banner(page)!r})')
         # 4. Coach sans abonnement coach (grâce passée) : message, règle normale
         page.evaluate("__st.setCover('ended')")
         refresh_access(page)
@@ -1117,7 +1117,7 @@ def t_tarifs(bench, eng, dev, theme):
         page.evaluate("p => { __st.owned = { productId: p, originalId: 'apple-own', transactionId: 'tx-own', expiresAt: Date.now() + 30 * 86400000 }; }", MONTHLY)
         txt = sub_text(page)
         card = page.locator('.pay-settings-view .pay-double')
-        R.check(card.count() == 1 and 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.' in card.inner_text()
+        R.check(card.count() == 1 and 'Ton coach couvre l\'accès. Tu peux résilier ton abonnement.' in card.inner_text()
                 and card.locator('[data-action="pay-manage"]').inner_text().strip() == 'Gérer mon abonnement'
                 and not any(w in txt.lower() for w in ('rembours', 'prorata', '!')), f'{t} élève abonné et couvert : carte ({txt[:200]!r})')
         layout(page, t, 'élève abonné et couvert')
@@ -1136,7 +1136,7 @@ def t_tarifs(bench, eng, dev, theme):
         page.evaluate("() => { payDoubleAfterJoin(); }")   # sans attendre : la promesse attend la fermeture du dialogue
         page.wait_for_selector('.ios-dialog', timeout=5000)
         dlg = page.inner_text('.ios-dialog')
-        R.check('Ton coach couvre ton accès' in dlg and 'Gérer mon abonnement' in dlg and 'Plus tard' in dlg, f'{t} après le lien : dialogue ({dlg[:160]!r})')
+        R.check('Ton coach couvre l\'accès' in dlg and 'Gérer mon abonnement' in dlg and 'Plus tard' in dlg, f'{t} après le lien : dialogue ({dlg[:160]!r})')
         page.locator('.ios-dialog__btn', has_text='Plus tard').click()
         page.wait_for_timeout(300)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -1154,7 +1154,7 @@ def t_tarifs(bench, eng, dev, theme):
         page.evaluate("navigate('coach-students')")
         page.wait_for_timeout(700)
         b = page.locator('.coach-tier-banner')
-        R.check(b.count() == 1 and '2 élèves au-delà de ta formule' in b.inner_text(), f'{t} coach au-delà du palier : bandeau')
+        R.check(b.count() == 1 and '2 élèves au-delà de ton palier' in b.inner_text(), f'{t} coach au-delà du palier : bandeau')
         b.click()
         page.wait_for_timeout(700)
         pl = plans_text(page)
@@ -1223,7 +1223,7 @@ def t_vie(bench, eng, dev, theme):
         R.check('Accès offert à vie' in txt and 'Renouvellement' not in txt, f'{t} accès offert à vie : Réglages ({txt[:120]!r})')
         shot(page, LOT, f'41-offert-a-vie-reglages-{t}')
         txt = paywall(page)
-        R.check(page.locator('.pay-plan').count() == 0 and 'On t\'a offert l\'accès à vie' in txt
+        R.check(page.locator('.pay-plan').count() == 0 and 'Accès offert à vie : rien d' in txt
                 and 'Accès offert à vie' in page.inner_text('.pay-hero') and 'seul essai gratuit' not in txt,
                 f'{t} accès offert à vie : rien à acheter, le haut de l\'écran le dit')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')

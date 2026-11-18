@@ -278,7 +278,7 @@ def t_serveur_ancien(bench, eng, dev, theme):
         page.wait_for_selector('.account-view')
         page.wait_for_timeout(500)
         R.check(page.locator('[data-action="pph-open"]').count() == 0, f'{t} serveur ancien : pas de cellule')
-        R.check('Ton pseudo et ton avatar te représentent' in page.inner_text('.account-view'), f'{t} serveur ancien : texte d\'avant')
+        R.check('Tes amis voient ton pseudo et ton avatar' in page.inner_text('.account-view'), f'{t} serveur ancien : texte d\'avant')
         page.evaluate(f"navigate(makeRoute('social-profile', '{ids['lea']}'))")
         page.wait_for_selector('.social-profile-view')
         page.wait_for_timeout(500)

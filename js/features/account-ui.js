@@ -64,7 +64,7 @@ function renderAccountGroupInner() {
   const signedIn = !!account.user;
   const name = signedIn ? accountName() : 'Se connecter';
   const info = signedIn ? null : accountReconnectInfo();
-  const sub = signedIn ? 'Compte et sauvegarde' : info?.ended ? 'Ta session a pris fin' : info ? 'Reconnecte-toi pour reprendre la sauvegarde' : 'Sauvegarde tes séances sur un compte';
+  const sub = signedIn ? 'Compte et sauvegarde' : info?.ended ? 'Connexion expirée' : info ? 'Reconnecte-toi pour reprendre la sauvegarde' : 'Sauvegarde des séances sur un compte';
   return `
           <button class="cell cell--nav account-cell${signedIn ? '' : ' account-cell--out'}" data-action="go-account" aria-label="${esc(signedIn ? `${name}, ${sub}` : `${name}. ${sub}`)}">
             ${avatarHtml('l')}
@@ -87,7 +87,7 @@ function savedAtText(ts) {
 function syncStatusText() {
   if (account.syncing) return 'Sauvegarde…';
   if (account.error === 'offline') return 'Pas d\'Internet : sauvegarde dès que le réseau revient';
-  if (account.error) return 'Sauvegarde impossible pour l\'instant. Tes séances restent sur cet iPhone, nouvel essai automatique';
+  if (account.error) return `Sauvegarde impossible. Séances gardées sur ${thisPhone()}, nouvel essai automatique`;
   // Heure fixe plutôt que « il y a N min » : la ligne n'est redessinée qu'à la sauvegarde suivante
   if (account.lastSync) return `Sauvegardé ${savedAtText(account.lastSync)} · ${plural((data.history || []).length, 'séance', 'séances')}`;
   return 'Sauvegarde en attente';
@@ -125,7 +125,7 @@ function renderAccount() {
     // iPhone restauré (compte de l'appareil sans session) : on dit avec quoi se reconnecter ; session
     // finie hors de l'app (compte supprimé, connexion expirée) : on le dit, avec le moyen d'avant
     const info = accountReconnectInfo();
-    const title = info?.ended ? 'Ta session a pris fin' : info ? 'Reconnecte-toi' : 'Sauvegarde tes séances';
+    const title = info?.ended ? 'Connexion expirée' : info ? 'Reconnecte-toi' : 'Sauvegarde des séances';
     const lead = info?.ended ? `${sessionEndedText()} ${reconnectLine(info)}.`
       : info ? `${reconnectLine(info)}. Utilise le même moyen pour reprendre la sauvegarde.`
       : `Retrouve tes séances sur un ${newPhone()}. Facultatif.`;
@@ -140,7 +140,7 @@ function renderAccount() {
           ${info ? '' : '<p class="account-hero__sub">Déjà un compte ? Utilise le même moyen qu\'avant.</p>'}
         </div>
         <div class="auth-buttons">${signInButtonsHtml()}</div>
-        <p class="account-foot">Avec Apple, tu peux masquer ton e‑mail. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
+        <p class="account-foot">Avec Apple, tu peux masquer ton e‑mail. Poids du corps et données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
       </div>
     </div>`;
   }
@@ -169,13 +169,13 @@ function renderAccount() {
             ${icon('chevron.right', 16)}
           </button>${profilePhotoCellHtml()}
         </div>
-        <div class="group-foot">${profilePhotoOn() ? 'Ton pseudo, ton avatar et ta photo te représentent auprès de tes amis, une fois le social activé, et de ton coach. Personne d\'autre ne voit ta photo.'
-          : 'Ton pseudo et ton avatar te représentent auprès de tes amis, une fois le social activé. Sans cela, ils ne sont visibles que par toi.'}</div>
+        <div class="group-foot">${profilePhotoOn() ? 'Tes amis (si le social est activé) et ton coach voient ton pseudo, ton avatar et ta photo. Personne d\'autre ne voit la photo.'
+          : 'Tes amis voient ton pseudo et ton avatar si le social est activé. Sinon, ils ne sont visibles que par toi.'}</div>
 ${referralGroupHtml()}
 
         <div class="group-title">Moyens de connexion</div>
         <div class="group">${methods.map(methodCellHtml).join('')}</div>
-        <div class="group-foot">Tu peux te connecter avec n'importe lequel. Il en faut au moins un.</div>
+        <div class="group-foot">Chacun permet de te connecter. Il en faut au moins un.</div>
 
         <div class="group-title">Sauvegarde</div>
         <div class="group">
@@ -187,13 +187,13 @@ ${referralGroupHtml()}
           </div>
           <button class="cell cell--action" data-action="account-sync" ${account.syncing ? 'disabled' : ''}><span class="cell__title">Sauvegarder maintenant</span></button>
         </div>
-        <div class="group-foot">Après chaque séance. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></div>
+        <div class="group-foot">Après chaque séance. Poids du corps et données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></div>
 ${renderNewsletterGroup()}
 
         <div class="group group--gap">
           <button class="cell cell--action" data-action="account-sign-out"><span class="cell__title">Se déconnecter</span></button>
         </div>
-        <div class="group-foot">Se déconnecter garde tes données sur cet iPhone.</div>
+        <div class="group-foot">Les données restent sur ${thisPhone()} après la déconnexion.</div>
         <div class="group">
           <button class="cell cell--destructive" data-action="account-delete"><span class="cell__title">Supprimer mon compte</span></button>
         </div>
@@ -213,7 +213,7 @@ function referralGroupHtml() {
             <span class="cell__body"><span class="cell__title">${esc(`Parrainé par ${v.referrer}`)}</span></span>
           </div>
           ${referralSuggestJoin(v) ? `<button class="cell cell--action" data-action="coach-join">
-            <span class="cell__body"><span class="cell__title">Rejoindre ce coach</span><span class="cell__sub">${esc(`Pour que ${v.referrer} suive tes séances (avec son code)`)}</span></span>
+            <span class="cell__body"><span class="cell__title">Rejoindre ce coach</span><span class="cell__sub">${esc(`Avec son code, ${v.referrer} suit tes séances`)}</span></span>
           </button>` : ''}
         </div>
         <div class="group-foot">Ce parrainage ne donne accès ni à ton compte ni à tes séances.</div>
@@ -227,7 +227,7 @@ function referralGroupHtml() {
             ${icon('chevron.right', 16)}
           </button>
         </div>
-        <div class="group-foot">${esc(`Facultatif : si quelqu'un t'a fait découvrir l'app.${until}`)}</div>
+        <div class="group-foot">${esc(`Facultatif, si quelqu'un t'a fait découvrir l'app.${until}`)}</div>
 `;
 }
 
@@ -244,7 +244,7 @@ function reconnectLine(info) {
 
 // La déconnexion est toujours locale (aucun appareil n'en déconnecte un autre) : compte supprimé, ou
 // jeton refusé par le serveur, ou accès Apple retiré
-const sessionEndedText = () => `Tu as été déconnecté : ton compte a été supprimé ou ta connexion a expiré. Tes séances sont toujours sur ${thisPhone()}.`;
+const sessionEndedText = () => `Compte supprimé ou connexion expirée. Les séances sont toujours sur ${thisPhone()}.`;
 
 // Bouton de la carte : le moyen d'avant nommé (Apple, Google : sa fenêtre directement ; e-mail :
 // l'adresse préremplie, account-reconnect)
@@ -263,7 +263,7 @@ function accountHomeCard() {
     return `
     <section class="home-card account-card account-card--reconnect" aria-labelledby="accountCardTitle">
       <div class="account-card__text">
-        <h2 class="account-card__title" id="accountCardTitle">Ta session a pris fin</h2>
+        <h2 class="account-card__title" id="accountCardTitle">Connexion expirée</h2>
         <p class="account-card__sub">${sessionEndedText()}</p>
         ${info.method || info.username ? `<p class="account-card__sub">${esc(reconnectLine(info))}</p>` : ''}
       </div>
@@ -277,7 +277,7 @@ function accountHomeCard() {
     return `
     <section class="home-card account-card account-card--reconnect" aria-labelledby="accountCardTitle">
       <div class="account-card__text">
-        <h2 class="account-card__title" id="accountCardTitle">Reprends ta sauvegarde</h2>
+        <h2 class="account-card__title" id="accountCardTitle">Reprendre la sauvegarde</h2>
         <p class="account-card__sub">${esc(reconnectLine(info))}</p>
       </div>
       <button class="account-card__btn" data-action="account-reconnect">${esc(reconnectButtonLabel(info))}</button>
@@ -385,7 +385,7 @@ async function askMergeOtherAccount(n, pending, previous = null) {
   const from = previous ? [LOGIN_PROVIDERS.find(p => p.provider === previous.method)?.label, previous.username].filter(Boolean).join(' · ') : '';
   const where = previous ? `${n > 1 ? 'Ces séances viennent' : 'Cette séance vient'} de ton compte précédent${from ? ` (${from})` : ''}. ${n > 1 ? 'Les ajouter' : 'L\'ajouter'} à ce compte ?`
     : !pending ? `${n > 1 ? 'Elles restent' : 'Elle reste'} sur l'autre compte.`
-    : `${pending === n ? (n > 1 ? 'Elles' : 'Elle') : `${pending} d'entre elles`} ne ${pending > 1 ? 'sont' : 'est'} sauvegardée${s} nulle part ailleurs : les retirer les effacerait.`;
+    : `${pending === n ? (n > 1 ? 'Elles' : 'Elle') : `${pending} d'entre elles`} ne ${pending > 1 ? 'sont' : 'est'} enregistrée${s} nulle part ailleurs : les retirer les supprimerait.`;
   const choice = await dialog({ type: 'sheet', title: 'Des séances sont déjà sur cet iPhone',
     message: previous ? `Cet iPhone contient ${plural(n, 'séance', 'séances')}. ${where}` : `Cet iPhone contient ${plural(n, 'séance', 'séances')} d'un autre compte. ${where}`,
     actions: [
@@ -409,14 +409,14 @@ function newAccountNotice(res) {
 // synchro ratée : réseau ou serveur, « récupération » sur un iPhone qui n'avait encore rien
 function signedInToast(res) {
   if (res.reason === 'sync') {
-    const what = res.newDevice ? 'récupération de tes séances' : 'sauvegarde';
+    const what = res.newDevice ? 'chargement des séances' : 'sauvegarde';
     return res.error === 'offline' ? `Connecté. Pas d'Internet : ${what} dès que le réseau revient`
-      : `Connecté. ${what[0].toUpperCase() + what.slice(1)} impossible pour l'instant, nouvel essai automatique`;
+      : `Connecté. ${what[0].toUpperCase() + what.slice(1)} impossible, nouvel essai automatique`;
   }
   // Court (une ligne de toast sur un iPhone SE) : « 120 séances récupérées, 3 sauvegardées »
   const parts = [];
   if (res.received) parts.push(plural(res.received, 'séance récupérée', 'séances récupérées'));
-  if (res.sent) parts.push(res.received ? `${res.sent} sauvegardée${res.sent > 1 ? 's' : ''}` : plural(res.sent, 'séance sauvegardée', 'séances sauvegardées'));
+  if (res.sent) parts.push(res.received ? `${res.sent} enregistrée${res.sent > 1 ? 's' : ''}` : plural(res.sent, 'séance enregistrée', 'séances enregistrées'));
   return parts.length ? parts.join(', ') : 'Connecté : tout est à jour';
 }
 const SIGNED_IN_TOAST_MS = 3500;
@@ -425,11 +425,11 @@ const SIGNED_IN_TOAST_MS = 3500;
 async function identityRecentDialog(retryAt) {
   const when = retryAt ? ` à partir du ${fmtDate(retryAt, 'day')} à ${fmtTime(retryAt)}` : ' dans 24 heures';
   await dialog({ title: 'Suppression possible plus tard',
-    message: `Un moyen de connexion vient de changer. Par sécurité, tu pourras supprimer ton compte${when}.`,
+    message: `Un moyen de connexion vient de changer. Par sécurité, la suppression du compte sera possible${when}.`,
     actions: [{ label: 'OK', style: 'preferred' }] });
 }
 
-const APPLE_MANUAL_REVOKE = 'Pour retirer aussi l\'accès dans ton identifiant Apple : Réglages de l\'iPhone › ton nom › Connexion et sécurité › Se connecter avec Apple › MDLF Training › Arrêter d\'utiliser.';
+const APPLE_MANUAL_REVOKE = 'Pour retirer aussi l\'accès côté Apple : Réglages de l\'iPhone › ton nom › Connexion et sécurité › Se connecter avec Apple › MDLF Training › Arrêter d\'utiliser.';
 
 // Supprime le compte après la confirmation d'identité, puis propose de garder les données locales
 async function deleteAccountFlow() {
@@ -453,7 +453,7 @@ async function deleteAccountFlow() {
     message: 'Que faire des données de cet iPhone ?',
     actions: [
       { label: 'Les garder sur cet iPhone', value: 'keep', style: 'preferred' },
-      { label: 'Les effacer aussi', value: 'wipe', style: 'destructive' },
+      { label: 'Les supprimer aussi', value: 'wipe', style: 'destructive' },
     ] });
   if (wipe === 'wipe') wipeLocalData();
   if (currentView() === 'account') goBack(); else render();
@@ -494,11 +494,11 @@ async function methodAction(provider) {
   const label = LOGIN_PROVIDERS.find(p => p.provider === provider)?.label || provider;
   if (identityOf(account.user, provider)) {
     if (!canUnlink(account.user, provider)) {
-      await dialog({ title: `${label} est ton seul moyen de connexion`, message: 'Ajoute d\'abord un autre moyen de connexion pour pouvoir retirer celui-ci.', actions: [{ label: 'OK', style: 'preferred' }] });
+      await dialog({ title: `${label} est ton seul moyen de connexion`, message: 'Ajoute d\'abord un autre moyen de connexion, puis retire celui-ci.', actions: [{ label: 'OK', style: 'preferred' }] });
       return;
     }
     const apple = provider === 'apple';
-    if (!(await confirmSheet(`Retirer ${label} ?`, `Tu ne pourras plus te connecter avec ${PROVIDER_NAMES[provider]}. Ton compte et tes données ne changent pas.${apple ? ' Apple te demandera de confirmer ton identité.' : ''}`, `Retirer ${label}`))) return;
+    if (!(await confirmSheet(`Retirer ${label} ?`, `Tu ne pourras plus te connecter avec ${PROVIDER_NAMES[provider]}. Le compte et les données ne changent pas.${apple ? ' Apple te demandera de confirmer ton identité.' : ''}`, `Retirer ${label}`))) return;
     const r = await accountUnlink(provider);
     if (r.reason === 'cancel') return;
     // Retrait d'Apple non révoqué : l'alerte (qui remplace tout toast) le dit elle-même
@@ -521,7 +521,7 @@ async function methodAction(provider) {
   if (r.reason === 'cancel') return;
   // Déjà relié à un autre compte : la marche à suivre, pas une impasse
   if (r.kind === 'identity_exists') { await identityExistsDialog(provider); return; }
-  showToast(r.ok ? `${label} ajouté : tu peux te connecter avec` : authErrorText(r.kind || 'provider'), { error: !r.ok });
+  showToast(r.ok ? `${label} ajouté aux moyens de connexion` : authErrorText(r.kind || 'provider'), { error: !r.ok });
 }
 
 async function identityExistsDialog(provider) {
@@ -538,8 +538,8 @@ function reconnectHint() {
 // « Se déconnecter ? » : ce qui n'est pas encore sauvegardé et avec quoi revenir
 function signOutMessage() {
   const n = account.user ? accountPendingCount(account.user.id) : 0;
-  const pending = n ? `${plural(n, 'séance pas encore sauvegardée', 'séances pas encore sauvegardées')} : ${n > 1 ? 'elles restent' : 'elle reste'} sur cet iPhone et ${n > 1 ? 'partiront' : 'partira'} quand tu te reconnecteras à ce compte.`
-    : 'Tes données restent sur cet iPhone et sur ton compte.';
+  const pending = n ? `${plural(n, 'séance pas encore enregistrée', 'séances pas encore enregistrées')} sur le compte : ${n > 1 ? 'elles restent' : 'elle reste'} sur ${thisPhone()} et ${n > 1 ? 'partiront' : 'partira'} à la reconnexion.`
+    : `Les données restent sur ${thisPhone()} et sur le compte.`;
   return `${pending} ${reconnectHint()}`;
 }
 
@@ -576,13 +576,13 @@ registerActions({
   },
   'account-delete': async () => {
     const apple = hasApple(account.user);
-    const message = `Ton compte, ton pseudo et tout ce qui est sauvegardé dessus seront effacés définitivement. Les séances de cet iPhone ne sont pas touchées : tu choisiras ensuite de les garder ou non. Tes autres appareils seront déconnectés et garderont leurs séances. ${apple ? 'Apple te demandera de confirmer ton identité.' : 'Tu confirmeras ton identité en te reconnectant.'}`;
+    const message = `Le compte, le pseudo et tout ce qui est enregistré dessus seront supprimés pour de bon. Les séances de ${thisPhone()} restent : tu choisiras ensuite de les garder ou non. Tes autres appareils seront déconnectés et garderont leurs séances. ${apple ? 'Apple te demandera de confirmer ton identité.' : 'Tu confirmeras ton identité en te reconnectant.'}`;
     // Abonnement en cours : supprimer le compte ne l'arrête pas, c'est Apple qui facture. On le dit et
     // on mène à la gestion chez Apple (exigence d'Apple pour la suppression de compte :
     // https://developer.apple.com/support/offering-account-deletion-in-your-app/)
     if (typeof accessStatus === 'function' && accessStatus() === 'active') {
       const choice = await dialog({ type: 'sheet', title: 'Supprimer ton compte ?',
-        message: `Ton abonnement continuera d'être facturé par Apple : supprimer ton compte ne l'arrête pas. Résilie-le d'abord dans « Gérer chez Apple ». ${message}`,
+        message: `Supprimer le compte n'arrête pas l'abonnement : Apple continuera de le facturer. Résilie-le d'abord dans « Gérer chez Apple ». ${message}`,
         actions: [
           { label: 'Gérer chez Apple', value: 'manage', style: 'preferred' },
           { label: 'Supprimer mon compte', value: 'delete', style: 'destructive' },

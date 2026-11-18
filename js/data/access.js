@@ -261,8 +261,8 @@ function accessDoubleSub() {
 // Texte de la carte (sobre, sans remboursement : on dit seulement qu'il peut résilier)
 function accessDoubleSubText(d) {
   return d.trialEnds
-    ? `Ton coach couvre ton accès. Ton essai devient payant le ${fmtDate(d.trialEnds)} : résilie-le pour ne pas être prélevé.`
-    : 'Ton coach couvre ton accès. Tu peux résilier ton abonnement.';
+    ? `Ton coach couvre l'accès. L'essai devient payant le ${fmtDate(d.trialEnds)} : résilie-le pour ne pas être prélevé.`
+    : 'Ton coach couvre l\'accès. Tu peux résilier ton abonnement.';
 }
 
 // Date de fin donnée par le serveur (fin de l'abonnement, essai d'Apple compris, ou du cadeau), ou null
@@ -293,22 +293,22 @@ const ACCESS_ERROR_TEXT = {
   bad_type: 'Ce type d\'achat n\'est pas reconnu par l\'app.',
   not_purchased: 'Cet achat n\'est pas rattaché à ton identifiant Apple. Le partage familial n\'est pas accepté.',
   invalid_transaction: 'Apple n\'a pas reconnu cette transaction.',
-  promo_unavailable: 'L\'essai coach offert n\'est pas disponible pour ton compte. Rien n\'a été débité : la formule reste au prix affiché.',
+  promo_unavailable: 'L\'essai coach offert n\'est pas disponible pour ce compte. Rien n\'a été débité, la formule reste au prix affiché.',
   promo_refused: 'Apple n\'a pas accepté l\'essai coach offert. Rien n\'a été débité.',
   blocked: 'Les achats sont bloqués sur cet iPhone. Regarde dans Réglages, Temps d\'écran.',
-  retry: 'Apple ne répond pas pour l\'instant. Ton achat n\'est pas perdu, on réessaiera.',
-  rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
+  retry: 'Apple ne répond pas. L\'achat n\'est pas perdu, nouvel essai automatique.',
+  rate_limited: 'Trop d\'essais. Réessaie dans une heure.',
   invalid_code: 'Ce code n\'existe pas. Vérifie les lettres et les chiffres.',
   code_expired: 'Ce code a expiré.',
-  code_used_up: 'Ce code a déjà servi au maximum de fois prévu.',
+  code_used_up: 'Ce code a atteint son nombre d\'utilisations.',
   already_redeemed: 'Tu as déjà utilisé ce code.',
   cancelled: 'Achat annulé.',
-  pending: 'Ton achat attend une autorisation. L\'accès arrivera dès qu\'Apple l\'aura validé.',
+  pending: 'Achat en attente d\'autorisation. L\'accès s\'ouvrira dès qu\'Apple l\'aura validé.',
   no_products: 'Les formules ne sont pas encore proposées par Apple. Réessaie plus tard.',
   no_store: 'Les achats se font dans l\'app MDLF Training sur iPhone.',
   nothing: 'Aucun achat à restaurer sur cet identifiant Apple.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
-  server: 'Action impossible pour l\'instant, réessaie dans un moment.',
+  server: 'Action impossible. Réessaie dans un moment.',
 };
 function accessErrorText(kind) { return ACCESS_ERROR_TEXT[kind] || ACCESS_ERROR_TEXT.server; }
 
