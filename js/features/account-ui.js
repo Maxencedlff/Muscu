@@ -538,7 +538,7 @@ function reconnectHint() {
 // « Se déconnecter ? » : ce qui n'est pas encore sauvegardé et avec quoi revenir
 function signOutMessage() {
   const n = account.user ? accountPendingCount(account.user.id) : 0;
-  const pending = n ? `${plural(n, 'séance pas encore enregistrée', 'séances pas encore enregistrées')} sur le compte : ${n > 1 ? 'elles restent' : 'elle reste'} sur ${thisPhone()} et ${n > 1 ? 'seront enregistrées' : 'sera enregistrée'} sur le compte quand tu te reconnecteras.`
+  const pending = n ? `${plural(n, 'séance pas encore enregistrée', 'séances pas encore enregistrées')} sur le compte : ${n > 1 ? 'elles restent' : 'elle reste'} sur ${thisPhone()} et ${n > 1 ? 'le seront' : 'le sera'} quand tu te reconnecteras.`
     : `Les données restent sur ${thisPhone()} et sur le compte.`;
   return `${pending} ${reconnectHint()}`;
 }

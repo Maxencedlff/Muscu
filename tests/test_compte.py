@@ -460,7 +460,7 @@ def t_compte(bench, eng, dev, theme):
         page.click('[data-action="account-sign-out"]')
         page.wait_for_timeout(300)
         txt = page.inner_text('.ios-dialog')
-        R.check('1 séance pas encore enregistrée' in txt and 'sera enregistrée sur le compte quand tu te reconnecteras' in txt and 'utilise Apple' in txt, f'{t} déconnexion : séance en attente et moyen rappelés {txt!r}')
+        R.check('1 séance pas encore enregistrée' in txt and 'le sera quand tu te reconnecteras' in txt and 'utilise Apple' in txt, f'{t} déconnexion : séance en attente et moyen rappelés {txt!r}')
         shot(page, LOT, f'11-deconnexion-{t}')
         tap_dialog(page, 'Se déconnecter')
         page.wait_for_timeout(400)

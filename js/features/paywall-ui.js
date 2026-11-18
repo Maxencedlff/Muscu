@@ -186,7 +186,7 @@ function payCodeSheet() {
       const input = panel.querySelector('#payCode'), help = panel.querySelector('#payCodeHelp');
       const btn = panel.querySelector('.sheet__btn--confirm');
       const fail = msg => { help.textContent = msg; help.classList.add('coach-sheet__hint--bad'); input.setAttribute('aria-invalid', 'true'); haptic('medium'); return false; };
-      if (!normalizeGiftCode(input.value)) return fail('Code non valide : il compte au moins 10 lettres ou chiffres.');
+      if (!normalizeGiftCode(input.value)) return fail('Code non valide : il faut au moins 10 lettres ou chiffres.');
       btn.disabled = true; btn.textContent = 'Vérification…';
       const r = await accessRedeemGiftCode(input.value);
       btn.disabled = false; btn.textContent = 'Valider';

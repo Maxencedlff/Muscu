@@ -314,7 +314,7 @@ function renderCphCoach(uid) {
       missing: 'La clé de tes photos n\'est pas encore sur cet iPhone. Elle arrive par le trousseau iCloud, parfois avec du retard. Réessaie plus tard.',
       nopasscode: 'Les photos s\'ouvrent avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code.',
       mismatch: cphCoach.own
-        ? 'Le serveur donne à tes élèves une autre clé que la tienne. Leurs photos ne seraient plus chiffrées pour toi uniquement. Republie ta clé, puis vérifiez le code ensemble. Les photos reçues avec l\'autre clé seront supprimées.'
+        ? 'Tes élèves reçoivent une autre clé que la tienne : leurs photos ne seraient plus visibles par toi uniquement. Touche Republier ma clé, puis compare avec eux le code de ta clé affiché ici. Les photos reçues avec l\'autre clé seront supprimées.'
         : 'Le serveur donne à tes élèves une autre clé que la tienne, et la tienne n\'est pas sur cet iPhone. Crée une nouvelle clé, puis vérifiez le code ensemble.',
     }[ph] || '';
     const myCode = ph === 'mismatch' && cphCoach.myCode ? `<p class="pv-sub">Code de ta clé : <span class="num cph-code">${esc(cphCoach.myCode)}</span></p>` : '';

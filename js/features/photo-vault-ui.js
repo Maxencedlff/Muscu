@@ -152,7 +152,7 @@ function pvOpenHtml() {
             <p class="cell__sub">Prends une photo de face, de profil ou de dos pour comparer plus tard.</p></div>`}
         </div>
         <div class="group-foot">Les photos restent sur ${pvIos() ? 'ton iPhone' : 'cet appareil'}, chiffrées. ${cphVaultFoot()}</div>
-        <div class="group-foot">${pvIos() ? 'Elles ne sont ni dans l\'export ni dans la sauvegarde iCloud de l\'app. Sur un nouvel iPhone, le trousseau iCloud permet de les rouvrir.'
+        <div class="group-foot">${pvIos() ? 'Elles ne sont ni dans l\'export ni dans la sauvegarde iCloud de l\'app. Seule la clé passe par le trousseau iCloud, pour les rouvrir sur un nouvel iPhone.'
           : 'Elles ne sont pas dans l\'export.'}</div>`;
 }
 
