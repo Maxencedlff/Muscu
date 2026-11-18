@@ -61,6 +61,8 @@ def calls(n, s):
          f"select public.chat_mark_read('{s}', {msg_max})"),
         ('coach_student_weights (156 pesées)', 'auth', f"select public.coach_student_weights('{s}')"),
         ('coach_student_measures (120 mesures)', 'auth', f"select public.coach_student_measures('{s}')"),
+        ('coach_student_diet (90 jours)', 'auth', f"select public.coach_student_diet('{s}')"),
+        ('coach_diet_overview (Mes élèves)', 'auth', 'select public.coach_diet_overview()'),
         ('push_claim (50 lignes, nettoyage compris)', 'pg', 'select public.push_claim(50)'),
     ]
 
@@ -156,8 +158,20 @@ def send_limit(n):
                 'programme envoyé à chaque élève')
 
 
+def diet_upload(n):
+    """Un élève renvoie ses 90 jours de diète (student_share_diet_days), dans une transaction annulée."""
+    s = student_of(n)
+    days, _ = psql(f"select jsonb_agg(private.diet_day_json(d) order by d.day desc) from public.coach_shared_diet_days d where d.student_id = '{s}'")
+    out, _ = psql(f"""begin; create temp table t0 on commit drop as select clock_timestamp() as t; grant select on t0 to authenticated;
+set local role authenticated; select set_config('request.jwt.claim.sub', '{s}', true);
+select public.student_share_diet_days($j${days.strip()}$j$::jsonb);
+select extract(epoch from clock_timestamp() - t) * 1000 from t0; rollback;""")
+    kept, ms = out.split()[-2:]
+    return {'eleves': n, 'jours_gardes': int(kept), 'ms': round(float(ms), 1)}
+
+
 def main():
-    res = {'appels': [], 'rafale': [], 'limites_chat': [], 'envoi_programmes': []}
+    res = {'appels': [], 'rafale': [], 'limites_chat': [], 'envoi_programmes': [], 'envoi_diete': []}
     for n in COACHS:
         s = student_of(n)
         for name, role, call in calls(n, s):
@@ -170,11 +184,17 @@ def main():
         print(n, res['limites_chat'][-1], flush=True)
         res['envoi_programmes'].append(send_limit(n))
         print(n, res['envoi_programmes'][-1], flush=True)
+        res['envoi_diete'].append(diet_upload(n))
+        print(n, res['envoi_diete'][-1], flush=True)
     slow = [r for r in res['appels'] if r['ms'] > SEUIL_MS]
     print(f"\nAu-delà de {SEUIL_MS} ms : " + (', '.join(f"{r['appel']} à {r['eleves']} élèves ({r['ms']} ms)" for r in slow) or 'aucun'))
+    blocked = [r for r in res['limites_chat'] + res['envoi_programmes'] if r['bloque']]
+    slow += [r for r in res['envoi_diete'] if r['ms'] > SEUIL_MS]
     if '--json' in sys.argv:
         with open(sys.argv[sys.argv.index('--json') + 1], 'w', encoding='utf-8') as f:
             json.dump(res, f, ensure_ascii=False, indent=1)
+    if '--strict' in sys.argv and (slow or blocked):
+        sys.exit(1)
 
 
 if __name__ == '__main__':

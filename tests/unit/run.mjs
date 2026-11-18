@@ -54,6 +54,7 @@ const SCRIPTS = [
   'js/data/coach-share.js',
   'js/data/coach-chat.js',
   'js/data/coach-diet.js',
+  'js/data/diet-share.js',
   'js/data/coach-plan.js',
   'js/data/coach-progress.js',
   'js/data/referral.js',
@@ -2100,6 +2101,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./csp.mjs')).default({ test, assert, ROOT });
 // ── Photo de profil (tests dans profile-photo.mjs) ──
 (await import('./profile-photo.mjs')).default({ test, run, app, assert, sameJSON, ROOT });
+
+// ── Suivi de la diète par le coach, 18/11 (tests dans diet-share.mjs) ──
+(await import('./diet-share.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

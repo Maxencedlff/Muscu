@@ -19,7 +19,7 @@ body.has-tabbar.has-livebar .update-banner { bottom: calc(var(--tabbar-h) + 72px
 
 /* Le toast s'affiche en bas, au-dessus de la tab bar : jamais sur la barre de navigation */
 .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px)); }
+body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 6px + env(safe-area-inset-bottom, 0px)); }
 body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── Barre de navigation ── */

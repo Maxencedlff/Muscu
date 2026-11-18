@@ -634,3 +634,47 @@ html.type-xl .social-seg .segmented__btn { font-size: 17px; white-space: normal;
 html.type-xl .social-seg .seg-count { font-size: 13px; position: absolute; top: 0; right: 0; margin-left: 0; }
 /* Place gardée à droite du libellé pour la pastille : elle ne cache plus le « s » de « Messages » (iPhone SE) */
 html.type-xl .social-seg .segmented__btn:has(.seg-count) { padding-right: 16px; }
+
+/* ── Diète d'un élève (suivi partagé, js/features/coach-diet-ui.js) ──
+   7 jours en pastilles : vert plein et coche = suivi, anneau vert et point = partiel, gris et trait = pas suivi, anneau
+   en pointillé = rien de noté, anneau simple = aujourd'hui en cours. Vert de l'avancée seulement (jamais l'orange des
+   actions, jamais le rouge des muscles). La bande est posée sur le fond, sur toute la largeur de l'écran : 7 cibles de
+   44 pt tiennent sur un iPhone SE (320 pt) ; le détail du jour choisi est la liste dessous. */
+.cdiet { padding-top: 2px; }
+.cdiet__head { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
+.cdiet__range { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.cdiet__range-t { font-size: var(--fs-subhead); font-weight: 600; }
+.cdiet__count { font-size: var(--fs-footnote); color: var(--label2); }
+.cdiet__nav { flex-shrink: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border: none; background: none; color: var(--tint); border-radius: 50%; cursor: pointer; }
+.cdiet__nav:disabled { color: var(--label3); cursor: default; }
+.cdiet__nav:not(:disabled):active { background: var(--fill2); }
+.cdiet__days { display: flex; margin: 2px -16px 0; padding: 0 4px; }
+.cdiet__day { flex: 1 1 0; min-width: 44px; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border: none; background: none; font: inherit; color: var(--label2); cursor: pointer; padding: 4px 0; }
+.cdiet__wd { font-size: var(--fs-caption); font-weight: 600; }
+.cdiet__day--today .cdiet__wd { color: var(--label); }
+.cdiet__day--sel .cdiet__wd { color: var(--label); }
+.cdiet__day--sel .cdiet__dot { outline: 2px solid var(--label); outline-offset: 2px; }
+.cdiet__dot { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; }
+.cdiet__dot .icon { width: 14px; height: 14px; }
+.cdiet__dot--ok { background: var(--check-on); color: var(--check-mark); }
+.cdiet__dot--part { box-shadow: inset 0 0 0 2.5px var(--check-on); }
+.cdiet__dot--part::after { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--check-on); }
+.cdiet__dot--off { background: var(--fill2); color: var(--label2); }
+.cdiet__dot--none { border: 2px dashed var(--set-ring); }
+.cdiet__dot--today { box-shadow: inset 0 0 0 2px var(--set-ring); }
+.cdiet__legend { margin: 2px 0 10px; display: flex; flex-wrap: wrap; justify-content: center; column-gap: 12px; row-gap: 4px;
+  font-size: var(--fs-footnote); color: var(--label2); }
+.cdiet__key { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.cdiet__key .cdiet__dot { width: 14px; height: 14px; }
+.cdiet__key .cdiet__dot .icon { width: 9px; height: 9px; }
+.cdiet__key .cdiet__dot--part::after { width: 5px; height: 5px; }
+.cdiet__key .cdiet__dot--part { box-shadow: inset 0 0 0 1.5px var(--check-on); }
+.cdiet__detail .cell__sub { overflow-wrap: anywhere; }
+.cdiet__state { flex-shrink: 0; font-size: var(--fs-footnote); font-weight: 600; color: var(--label2); }
+.cdiet__state--ok { color: var(--check-on); }
+/* Texte agrandi : lettres plus grandes, pastilles gardées (elles portent le sens), légende sur plusieurs lignes */
+html.type-xl .cdiet__legend { flex-direction: column; align-items: flex-start; }
+html.type-xl .cdiet__key { white-space: normal; }
+.cdiet__val { font-variant-numeric: tabular-nums; }   /* chiffres alignés, sans le compteur animé des .num (vivant.js) */

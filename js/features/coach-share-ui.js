@@ -34,10 +34,12 @@ function coachShareSettingsCell() {
 function coachShareStatusText(st, kind = 'weight') {
   if (!st) return '';
   const since = st.grantedAt ? ` depuis le ${fmtDate(st.grantedAt, 'short')}` : '';
-  const [one, many, none] = kind === 'measures' ? ['mesure partagée', 'mesures partagées', 'aucune mensuration'] : ['pesée partagée', 'pesées partagées', 'aucune pesée'];
+  const [one, many, none] = kind === 'measures' ? ['mesure partagée', 'mesures partagées', 'aucune mensuration']
+    : kind === 'diet_log' ? ['jour partagé', 'jours partagés', 'aucun jour'] : ['pesée partagée', 'pesées partagées', 'aucune pesée'];
   return st.n ? `${plural(st.n, one, many)}${since}` : `Partagé${since}, ${none} pour l'instant`;
 }
-const SHARE_OFF_SUB = { weight: 'Tes pesées saisies dans l\'app', measures: 'Taille, bras, cuisses… notés dans Progrès › Mensurations' };
+const SHARE_OFF_SUB = { weight: 'Tes pesées saisies dans l\'app', measures: 'Taille, bras, cuisses… notés dans Progrès › Mensurations',
+  diet_log: 'Repas cochés, eau, sel et écart avec l\'objectif, jour par jour' };
 
 function renderCoachShare() {
   const head = navBar({ title: 'Partager', large: false });
@@ -49,7 +51,7 @@ function renderCoachShare() {
   if (!st) {
     return view(coachShare.error ? coachOfflineNote(coachShare.error, 'Pas d\'Internet. Le partage demande du réseau.') : '<div class="empty-note">Chargement…</div>');
   }
-  const kinds = coachShareKindsShown(), withM = kinds.some(k => k.kind === 'measures');
+  const kinds = coachShareKindsShown(), withM = kinds.some(k => k.kind === 'measures'), withD = kinds.some(k => k.kind === 'diet_log');
   const cells = kinds.map(k => {
     const on = coachShareOn(k.kind), busy = coachShare.busy === k.kind;
     const sub = on ? coachShareStatusText(st.shares[k.kind], k.kind) : SHARE_OFF_SUB[k.kind] || '';
@@ -63,13 +65,15 @@ function renderCoachShare() {
   const fromHealth = typeof healthEnabled === 'function' && healthEnabled();
   const empty = coachShareOn('weight') && !sharedWeightsPayload().length;
   const emptyM = coachShareOn('measures') && !Object.keys(sharedMeasuresPayload()).length;
-  const hint = fromHealth || empty || emptyM ? `<div class="group-foot">${[
+  const emptyD = coachShareOn('diet_log') && !dietActivePlan(data);
+  const hint = fromHealth || empty || emptyM || emptyD ? `<div class="group-foot">${[
     fromHealth ? 'Les pesées lues dans Santé ne sont jamais partagées.' : '',
     empty ? 'Aucune pesée saisie dans l\'app. Ajoute ton poids dans Réglages › Entraînement › Poids du corps.' : '',
     emptyM ? 'Aucune mensuration. Ajoute-les dans Progrès › Mensurations.' : '',
+    emptyD ? 'Aucun plan de nutrition suivi. Ton coach verra ta diète dès que tu en suis un (Entraînement › Nutrition).' : '',
   ].filter(Boolean).join(' ')}</div>` : '';
   const sees = withM
-    ? `seulement ce que tu coches : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration. Avec les pesées, le volume des exercices au poids du corps inclut ton poids. Jamais tes données Santé. Tes photos ne partent que si tu les envoies.`
+    ? `seulement ce que tu coches : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration${withD ? ', et chaque jour de ta diète : repas cochés, calories, macros, eau, sel et écart avec l\'objectif (sans le détail des aliments ni les heures, 90 jours au plus)' : ''}. Avec les pesées, le volume des exercices au poids du corps inclut ton poids. Jamais tes données Santé. Tes photos ne partent que si tu les envoies.`
     : `${name} verra la date et le poids de chaque pesée saisie dans l'app. Le volume des exercices au poids du corps sera calculé avec ton poids. Jamais tes données Santé.`;
   return view(`
         ${coachTitle(`Avec ${name}`)}
@@ -246,8 +250,9 @@ registerActions({
     haptic();
     const r = await coachShareSet(kind, on);
     if (!r.ok) { if (r.kind !== 'busy') showToast(coachErrorText(r.kind), { error: true }); return; }
-    const m = kind === 'measures';
-    if (r.uploadFailed) showToast(r.uploadFailed === 'offline' ? `Partage activé. Tes ${m ? 'mensurations' : 'pesées'} partiront avec du réseau.` : coachErrorText(m && r.uploadFailed === 'invalid_data' ? 'invalid_measures' : r.uploadFailed), { error: r.uploadFailed !== 'offline' });
-    else showToast(on ? (m ? 'Mensurations partagées avec ton coach' : 'Poids partagé avec ton coach') : `Partage arrêté, ${m ? 'mensurations' : 'pesées'} supprimées du serveur`);
+    const m = kind === 'measures', dl = kind === 'diet_log';
+    const what = m ? 'mensurations' : dl ? 'journées' : 'pesées';
+    if (r.uploadFailed) showToast(r.uploadFailed === 'offline' ? `Partage activé. Tes ${what} partiront avec du réseau.` : coachErrorText(m && r.uploadFailed === 'invalid_data' ? 'invalid_measures' : r.uploadFailed), { error: r.uploadFailed !== 'offline' });
+    else showToast(on ? (m ? 'Mensurations partagées avec ton coach' : dl ? 'Suivi de ta diète partagé avec ton coach' : 'Poids partagé avec ton coach') : `Partage arrêté, ${what} supprimées du serveur`);
   },
 });

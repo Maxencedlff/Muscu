@@ -73,6 +73,10 @@ Mensurations (supabase/migrations/20261105010000_partage_mensurations.sql) : stu
 consentement, remplace tout, mesures connues seulement), coach_student_measures ; état dans __sb.co.measures ;
 __sb.shareMeasures(élève, { waist: [{ date, cm }] }) coche et dépose ; __sb.fail.measures = 'missing' : serveur
 d'avant (pas de kinds, invalid_kind, PGRST202).
+Suivi de la diète (supabase/migrations/20261118010000_suivi_diete_coach.sql) : kinds annonce 'diet_log' (sauf
+__sb.fail.dietLog = 'missing' : serveur d'avant, invalid_kind, PGRST202), student_share_diet_days (not_shared sans
+consentement, remplace tout, 92 jours au plus), coach_student_diet, coach_diet_overview ; état dans __sb.co.dietDays ;
+__sb.shareDiet(élève, [jours]) coche et dépose.
 Planification (supabase/migrations/20261105000000_coach_planning.sql) : coach_plans, student_plan (sans la
 note ni l'identifiant des phases), coach_plan_save (invalid_phase, too_long, overlap, too_many à 30, not_found), coach_plan_delete ; effacée
 avec le lien. État dans __sb.co.phases ; __sb.addPhase(élève, { goal, start, weeks, name?, prog_name?, note? })
@@ -596,7 +600,7 @@ FAKE_ACCOUNT = r"""
 
   // ── Coach (docs/COACH_V1.md) ──
   // État dans __sb.co : coachs (coach_at), codes, liens élève → coach (coach_seen_at), programmes envoyés, commentaires
-  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [], shares: [], weights: {}, measures: {}, phases: [], phaseN: 0, msgs: [], reads: {}, chatReports: [],
+  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [], shares: [], weights: {}, measures: {}, dietDays: {}, phases: [], phaseN: 0, msgs: [], reads: {}, chatReports: [],
     requests: {}, reqTries: {}, tierProduct: {}, permCode: {}, alerts: 0, cards: {}, cardTries: {} };
   // Badge carte pro (20261117090000_badge_carte_pro.sql) : { card_number, status, declared_at, suspended_at, removed_reason }
   const CARD_RE = /^[0-9]{2}[0-9AB][0-9]{2}ED[0-9]{4,5}$/;
@@ -611,14 +615,19 @@ FAKE_ACCOUNT = r"""
   };
   // Partage : consentement { student, coach, kind, granted_at } du coach actuel ; pesées par élève (du plus récent)
   const shareOf = (student, kind = 'weight') => co.shares.find(x => x.student === student && x.kind === kind && x.coach === linkOf(student)?.coach);
-  const dropShares = student => { co.shares = co.shares.filter(x => x.student !== student); delete co.weights[student]; delete co.measures[student]; };
+  const dropShares = student => { co.shares = co.shares.filter(x => x.student !== student); delete co.weights[student]; delete co.measures[student]; delete co.dietDays[student]; };
   const mCount = m => Object.values(m || {}).reduce((a, l) => a + l.length, 0);
   const mLast = m => Math.max(0, ...Object.values(m || {}).map(l => l[0]?.date || 0)) || null;
-  const sharesState = me => ({ coach: !!linkOf(me), ...(sb.fail.measures === 'missing' ? {} : { kinds: ['weight', 'measures', ...(opts.dietServerless ? [] : ['diet'])] }),
+  const sharesState = me => ({ coach: !!linkOf(me), ...(sb.fail.measures === 'missing' ? {} : { kinds: ['weight', 'measures', ...(opts.dietServerless ? [] : ['diet']), ...(sb.fail.dietLog === 'missing' ? [] : ['diet_log'])] }),
     shares: Object.fromEntries(co.shares.filter(x => x.student === me && x.coach === linkOf(me)?.coach)
     .map(x => [x.kind, x.kind === 'measures' ? { granted_at: x.granted_at, n: mCount(co.measures[me]), last_at: mLast(co.measures[me]) }
+      : x.kind === 'diet_log' ? { granted_at: x.granted_at, n: (co.dietDays[me] || []).length, last_at: (co.dietDays[me] || [])[0] ? Date.parse(co.dietDays[me][0].day + 'T00:00:00Z') : null }
       : { granted_at: x.granted_at, n: (co.weights[me] || []).length, last_at: (co.weights[me] || [])[0]?.date ?? null }])) });
   const MEASURE_KEYS = ['chest', 'waist', 'hips', 'shoulders', 'neck', 'armL', 'armR', 'thighL', 'thighR', 'calf'];
+  sb.shareDiet = (student, days = []) => {
+    if (!shareOf(student, 'diet_log')) co.shares.push({ student, coach: linkOf(student).coach, kind: 'diet_log', granted_at: new Date(now() - 30 * 86400000).toISOString() });
+    co.dietDays[student] = days.slice().sort((a, b) => (a.day < b.day ? 1 : -1));
+  };
   sb.shareMeasures = (student, measures = {}) => {
     if (!shareOf(student, 'measures')) co.shares.push({ student, coach: linkOf(student).coach, kind: 'measures', granted_at: new Date(now()).toISOString() });
     co.measures[student] = Object.fromEntries(Object.entries(measures).map(([k, l]) => [k, l.slice().sort((a, b) => b.date - a.date)]));
@@ -987,13 +996,13 @@ FAKE_ACCOUNT = r"""
     student_set_share: (me, { kind, enabled }) => {
       // Serveur à jour : poids, mensurations (sb.fail.measures === 'missing' : serveur d'avant) et plans diète
       // (opts.dietServerless : serveur d'avant 20261106200000)
-      const open = [...(sb.fail.measures === 'missing' ? ['weight'] : ['weight', 'measures']), ...(opts.dietServerless ? [] : ['diet'])];
+      const open = [...(sb.fail.measures === 'missing' ? ['weight'] : ['weight', 'measures']), ...(opts.dietServerless ? [] : ['diet']), ...(sb.fail.dietLog === 'missing' ? [] : ['diet_log'])];
       if (!open.includes(kind) || typeof enabled !== 'boolean') return pgErr('invalid_kind');
       const l = linkOf(me); if (!l) return pgErr('not_found');
       if (enabled && !shareOf(me, kind)) co.shares.push({ student: me, coach: l.coach, kind, granted_at: new Date(now()).toISOString() });
       if (!enabled) {
         co.shares = co.shares.filter(x => !(x.student === me && x.kind === kind));
-        if (kind === 'weight') delete co.weights[me]; else if (kind === 'measures') delete co.measures[me];
+        if (kind === 'weight') delete co.weights[me]; else if (kind === 'measures') delete co.measures[me]; else if (kind === 'diet_log') delete co.dietDays[me];
         // Retrait de l'accord diète : les plans diète gardés pour l'élève sont effacés (déclencheur)
         else if (kind === 'diet') co.progs = co.progs.filter(p => !(p.student === me && p.id.startsWith('diet_')));
       }
@@ -1008,6 +1017,28 @@ FAKE_ACCOUNT = r"""
       if (es.some(([, l]) => l.some(v => !v || !Number.isInteger(v.date) || typeof v.cm !== 'number' || v.cm < 10 || v.cm > 250))) return pgErr('invalid_data');
       co.measures[me] = Object.fromEntries(es.filter(([, l]) => l.length).map(([k, l]) => [k, l.map(v => ({ date: v.date, cm: Math.round(v.cm * 10) / 10 })).sort((a, b) => b.date - a.date)]));
       return mCount(co.measures[me]);
+    },
+    student_share_diet_days: (me, { days }) => {
+      if (!shareOf(me, 'diet_log')) return pgErr('not_shared');
+      if (!Array.isArray(days)) return pgErr('invalid_data');
+      if (days.length > 92) return pgErr('too_long');
+      if (days.some(v => !v || !/^\d{4}-\d{2}-\d{2}$/.test(v.day) || !Number.isInteger(v.kcal) || !Array.isArray(v.meals || []) || (v.meals || []).length > 8)) return pgErr('invalid_data');
+      const first = new Date(now() - 89 * 86400000).toISOString().slice(0, 10);
+      const by = {};
+      days.forEach(v => { if (v.day >= first) by[v.day] = JSON.parse(JSON.stringify(v)); });
+      co.dietDays[me] = Object.values(by).sort((a, b) => (a.day < b.day ? 1 : -1));
+      return co.dietDays[me].length;
+    },
+    coach_student_diet: (me, { student }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      const sh = shareOf(student, 'diet_log');
+      return sh ? { shared: true, since: sh.granted_at, days: co.dietDays[student] || [] } : { shared: false, since: null, days: [] };
+    },
+    coach_diet_overview: me => {
+      if (!co.coachAt[me]) return { students: [] };
+      const first = new Date(now() - 3 * 86400000).toISOString().slice(0, 10);
+      return { students: co.shares.filter(x => x.kind === 'diet_log' && x.coach === me && linkOf(x.student)?.coach === me).map(x => ({ student_id: x.student, since: x.granted_at,
+        days: (co.dietDays[x.student] || []).filter(v => v.day >= first).map(v => [v.day, v.kcal, v.goal?.kcal ?? null, (v.meals || []).filter(m => m.ok).length, (v.meals || []).length]) })) };
     },
     coach_student_measures: (me, { student }) => {
       if (!coachOf(me, student)) return pgErr('not_found');
@@ -1224,6 +1255,7 @@ FAKE_ACCOUNT = r"""
     if (fn === 'coach_progress' && sb.fail.progress === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     const planFn = ['coach_plans', 'student_plan', 'coach_plan_save', 'coach_plan_delete'].includes(fn);
     const measFn = ['student_share_measures', 'coach_student_measures'].includes(fn);
+    if (['student_share_diet_days', 'coach_student_diet', 'coach_diet_overview'].includes(fn) && sb.fail.dietLog === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     if ((planFn && sb.fail.plan === 'missing') || (measFn && sb.fail.measures === 'missing')) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     if (planFn && sb.fail.plan === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     if (photoRpc[fn] && sb.fail.photos === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };

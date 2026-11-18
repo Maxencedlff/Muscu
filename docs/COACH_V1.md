@@ -62,6 +62,8 @@ App : Réglages › Social et coach › « Partager avec mon coach » (élève s
 
 Mensurations partagées (05/11/2026) : même modèle, case « Mensurations », contrat dans `docs/COACH_SUIVI.md` (« Bilan »). Planification des phases par élève : même document.
 
+Suivi de la diète (18/11/2026, migration `20261118010000_suivi_diete_coach.sql`, ÉCRITE, PAS APPLIQUÉE) : même modèle, case « Suivi de ma diète », kind `diet_log` (distinct de `diet`, l'accord des plans envoyés). Un résumé par jour, 90 jours glissants, table `coach_shared_diet_days`. Fonctions : `student_share_diet_days(days jsonb)` (miroir, 92 jours et 128 Ko au plus, 120 envois par heure, `not_shared` / `invalid_data` / `too_long`), `coach_student_diet(student uuid)` (`{ shared, since, days }`, `not_found` sinon), `coach_diet_overview()` (`{ students: [{ student_id, since, days: [[jour, kcal, objectif, cochés, repas]] }] }`, 4 derniers jours, pour « À relancer »). App : carte « Diète » de la fiche, signal « 3 jours hors diète ». Contrat complet : `docs/NUTRITION_V1.md`, « Suivi de la diète par le coach ».
+
 ## Messages (31/10/2026, migration `20261031510000_chat_coach.sql`)
 
 Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris par défaut (à valider) :
