@@ -294,7 +294,7 @@ def t_import_bad(bench, eng, dev, theme):
             tap_dialog(page, 'Choisir un fichier')
         fc.value.set_files(files=[{'name': 'bad.json', 'mimeType': 'application/json', 'buffer': bad.encode()}])
         txt = toast_text(page)
-        R.check('Fichier invalide' in txt, f'{t} import corrompu : toast d\'erreur « {txt} »')
+        R.check('Fichier non reconnu' in txt, f'{t} import corrompu : toast d\'erreur « {txt} »')
         shot(page, LOT, f'import-invalide-{t}')
         R.check(ls(page, 'ppl_v2') == before and page.evaluate('data.history.length') == 30, f'{t} import corrompu : données intactes')
         page.click('[data-action="back"]'); page.wait_for_timeout(300)   # Sauvegarde → Réglages

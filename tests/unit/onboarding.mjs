@@ -40,7 +40,7 @@ export default function ({ test, run, assert }) {
       }
     }
     assert.equal(run("recommendReason('fullbody', { perWeek: 3, level: 'debutant' })"),
-      '3 séances par semaine, tout le corps à chaque fois. Idéal pour débuter : machines et haltères, environ 45 min.');
+      '3 séances par semaine, tout le corps à chaque fois. Pour débuter : machines et haltères, environ 45 min.');
     assert.equal(run("recommendReason('fullbody', { perWeek: 3, level: 'reprise' })"), run("recommendReason('fullbody', { perWeek: 3, level: 'debutant' })"));
     assert.equal(run("recommendReason('custom', {})"), '');
     for (const id of ['bro', 'arnold']) assert.ok(run(`recommendReason('${id}', { perWeek: 5 })`).startsWith('5 séances ou plus'), `${id} : catalogue`);

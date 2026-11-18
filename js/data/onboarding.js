@@ -23,7 +23,7 @@ const ONB_LEVELS = {
   debutant: { label: 'Je débute',            sub: 'Moins de six mois de musculation' },
   confirme: { label: 'Je m\'entraîne déjà',  sub: 'Six mois ou plus, avec régularité' },
   // Ouvre le Sur mesure (niveau « reprise », limites à cocher) ; le programme conseillé reste celui d'un débutant
-  reprise:  { label: 'Je reprends ou j\'ai une douleur', sub: 'Un programme sur mesure, en douceur' },
+  reprise:  { label: 'Je reprends ou j\'ai une douleur', sub: 'Programme adapté à tes limites' },
 };
 // Réponses qui comptent comme un débutant pour le choix du programme et data.level
 const ONB_GENTLE = ['debutant', 'reprise'];
@@ -59,22 +59,22 @@ function recommendReason(id, { perWeek, level, orMore = true } = {}) {
   const beginner = ONB_GENTLE.includes(level);
   switch (id) {
     case 'fullbody':
-      return `${times} par semaine, tout le corps à chaque fois.${beginner ? ' Idéal pour débuter : machines et haltères, environ 45 min.' : ' Chaque muscle travaille souvent, sans longues séances.'}`;
+      return `${times} par semaine, tout le corps à chaque fois.${beginner ? ' Pour débuter : machines et haltères, environ 45 min.' : ' Chaque muscle travaille souvent, sans longues séances.'}`;
     case 'upper_lower':
       return `${times} par semaine : le haut du corps, puis le bas, en alternance. Chaque muscle travaille deux fois par semaine.`;
     case 'ppl':
       return n >= 5
-        ? `${times} par semaine : pousser, tirer, puis jambes. Le cycle repasse dans la semaine, chaque muscle travaille presque deux fois.`
+        ? `${times} par semaine : pousser, tirer, puis jambes. Chaque muscle travaille presque deux fois par semaine.`
         : `${times} par semaine : pousser, tirer, puis jambes. Plus de volume par muscle, avec le temps de récupérer.`;
     case 'maison':
-      return `${times} par semaine, au poids du corps : le haut du corps, puis le bas, en alternance. Aucun matériel.`;
+      return `${times} par semaine, sans matériel : le haut du corps, puis le bas, en alternance.`;
     case 'maison_halteres':
       return `${times} par semaine avec des haltères : pousser, tirer, puis jambes, en alternance.`;
     // Jamais conseillés par les questions, décrits dans le catalogue (js/data/my-programmes.js)
     case 'bro':
       return `${times} par semaine : un groupe de muscles par séance. Chaque muscle travaille une fois par semaine, avec beaucoup de volume.`;
     case 'arnold':
-      return `${times} par semaine : pectoraux et dos, épaules et bras, puis jambes. Avec 5 séances ou plus, le cycle repasse dans la semaine.`;
+      return `${times} par semaine : pectoraux et dos, épaules et bras, puis jambes. Avec 5 séances ou plus, chaque muscle travaille presque deux fois.`;
     default:
       return '';
   }

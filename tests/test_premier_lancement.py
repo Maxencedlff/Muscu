@@ -84,7 +84,7 @@ def t_parcours(bench, eng, dev, theme):
         tap(page, '[data-action="onb-back"]')
         tap(page, '[data-action="onb-level"][data-val="debutant"]')
         R.check(page.locator('#onbTitle').inner_text().strip() == 'Full Body', f'{t} débutant, 3 fois : Full Body')
-        R.check(page.locator('.onb__reason').inner_text().strip() == '3 séances par semaine, tout le corps à chaque fois. Idéal pour débuter : machines et haltères, environ 45 min.',
+        R.check(page.locator('.onb__reason').inner_text().strip() == '3 séances par semaine, tout le corps à chaque fois. Pour débuter : machines et haltères, environ 45 min.',
                 f'{t} phrase du Full Body')
 
         # Silhouettes : Femme et Homme côte à côte, muscles du programme surlignés, un toucher choisit
@@ -204,14 +204,14 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         page.wait_for_selector('.auth')
         R.check(page.locator('.onb').count() == 0 and page.evaluate('data.onboarded') is True, f'{t} coach : questions fermées, connexion proposée')
 
-        # Panel « yeux neufs » du 16/11 : « Tu viens de Strong ou Hevy ? » sous les niveaux, ouvre le choix du fichier
+        # Panel « yeux neufs » du 16/11 : « Importer depuis Strong ou Hevy » sous les niveaux, ouvre le choix du fichier
         # (réponses données appliquées, niveau sans réponse : déjà entraîné)
         seed(page, theme, None)
         page.wait_for_selector('.onb__page--place')
         tap(page, '[data-action="onb-place"][data-val="salle"]')
         tap(page, '[data-action="onb-freq"][data-val="4"]')
         link = page.locator('.onb [data-action="onb-import"]')
-        R.check(link.count() == 1 and link.inner_text().replace('\u00a0', ' ').strip() == 'Tu viens de Strong ou Hevy ? Importer ton historique'
+        R.check(link.count() == 1 and link.inner_text().replace('\u00a0', ' ').strip() == 'Importer depuis Strong ou Hevy'
                 and link.bounding_box()['height'] >= 44, f'{t} niveau : lien d\'import Strong / Hevy, 44 pt')
         R.check(link.bounding_box()['y'] > page.locator('.onb .onb__group').bounding_box()['y'], f'{t} lien sous les niveaux')
         R.check(small_targets(page) == 0 and no_hscroll(page), f'{t} niveau : 44 pt, pas de défilement horizontal')

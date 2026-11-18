@@ -21,8 +21,8 @@ const PUSH_TYPES = [
   { id: 'reactions', title: 'Réactions', sub: 'Quand quelqu’un réagit à une de tes séances' },
   { id: 'comments', title: 'Commentaires', sub: 'Quand quelqu’un commente une de tes séances', later: true },
   { id: 'follows', title: 'Demandes d’abonnement', sub: 'Quand quelqu’un veut suivre tes séances' },
-  { id: 'coach', title: 'Mon coach', sub: 'Commentaire sur une séance, nouveau programme' },
-  { id: 'messages', title: 'Messages', sub: 'Quand ton coach ou un de tes élèves t’écrit', later: true },
+  { id: 'coach', title: 'Mon coach', sub: 'Ses commentaires et ses programmes' },
+  { id: 'messages', title: 'Messages', sub: 'Quand ton coach ou un élève t’écrit', later: true },
   // 20261116020000_notifications_seances_eleves.sql ; montré aux coachs seulement (ou s'il est déjà allumé)
   { id: 'student_sessions', title: 'Séances de mes élèves', sub: 'Quand un élève termine une séance', later: true, coachOnly: true },
 ];

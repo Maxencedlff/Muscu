@@ -105,9 +105,9 @@ registerActions({
   },
   'strength-info': async () => {
     await dialog({ title: 'Niveau de force',
-      message: 'Ton 1RM estimé sur 90 jours est divisé par ton poids du corps. '
-        + 'Il est comparé aux compétiteurs de force athlétique de ton sexe et de ton poids. '
-        + 'Ils sont à leur première compétition, sans équipement et contrôlés antidopage. Source : OpenPowerlifting. '
+      message: '1RM estimé : la charge que tu pourrais soulever une fois, calculée sur 90 jours. '
+        + 'Divisé par ton poids du corps, il est comparé à des compétiteurs de force athlétique de même sexe et de même poids. '
+        + 'Ils sont à leur première compétition, sans équipement, contrôlés antidopage. Source : OpenPowerlifting. '
         + 'Intermédiaire : pratiquant régulier depuis quelques années. Avancé : compétiteur médian. Élite : les 10 % les plus forts.',
       actions: [{ label: 'OK', value: true, style: 'preferred' }] });
   },

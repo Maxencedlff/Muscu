@@ -42,7 +42,7 @@ function renderPushSettings() {
         <div class="group">
           <button class="cell cell--action" data-action="push-reactivate"${push.busy ? ' aria-disabled="true"' : ''}${push.busy === 'reactivate' ? ' aria-busy="true"' : ''}>
             <span class="cell__body"><span class="cell__title">Réactiver sur cet iPhone</span>
-              <span class="cell__sub">Tes réglages sont gardés sur ton compte. L'iPhone te demandera ton accord.</span></span>
+              <span class="cell__sub">Réglages gardés sur le compte. L'iPhone demandera ton accord.</span></span>
           </button>
         </div>` : denied ? `
         <div class="group">
@@ -68,7 +68,7 @@ function renderPushSettings() {
         <div class="group-title">M'avertir</div>
         <div class="group${blocked ? ' group--disabled' : ''}">${rows}
         </div>
-        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo de la personne, jamais le texte d'un commentaire ou d'un message (pour la séance d'un élève : son nom et sa durée, jamais les charges). Les rappels de fin de repos ne changent pas.</div>
+        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo, jamais le texte d'un commentaire ou d'un message. Séance d'un élève : son nom et sa durée, sans les charges. La fin de repos ne dépend pas de ces réglages.</div>
       </div></div>`;
 }
 
@@ -118,7 +118,7 @@ async function pushExplainFailure(reason) {
 }
 
 const PUSH_FAIL_TEXT = {
-  register: 'Inscription aux notifications impossible pour l’instant. Réessaie plus tard.',
+  register: 'Notifications non activées. Réessaie dans un moment.',
   offline: 'Pas d’Internet. Réessaie une fois connecté.',
 };
 
@@ -153,9 +153,9 @@ registerActions({
 // feuille n'est ouverte. Le serveur ne montre jamais le texte d'un message : c'est dit dans la feuille.
 const PUSH_ASK_TEXT = {
   student: { title: 'Être prévenu quand ton coach t’écrit ?',
-    message: 'Aussi quand il commente une séance ou t’envoie un programme. La notification montre son pseudo, jamais le texte. Modifiable dans Réglages › Notifications.' },
-  coach: { title: 'Être prévenu quand un élève t’écrit ou termine une séance ?',
-    message: 'La notification montre son pseudo, le nom de la séance et sa durée ; jamais le texte d’un message ni les charges. Modifiable dans Réglages › Notifications.' },
+    message: 'Aussi quand il commente une séance ou envoie un programme. La notification montre son pseudo, jamais le texte. Tu pourras le changer dans Réglages › Notifications.' },
+  coach: { title: 'Être prévenu des messages et séances des élèves ?',
+    message: 'La notification montre le pseudo, le nom de la séance et sa durée, jamais le texte ni les charges. Tu pourras le changer dans Réglages › Notifications.' },
 };
 let pushAsking = false;
 async function pushAskInContext(role, stillHere = () => true) {
@@ -194,7 +194,7 @@ registerActions({ 'push-open-ios-settings-chat': () => { pushOpenIosSettingsChat
 const PUSH_REMIND_TEXT = {
   student: 'Tu ne reçois pas les messages et les programmes de ton coach.',
   coach: 'Tu ne reçois pas les messages de tes élèves.',
-  solo: 'Tu ne reçois pas les bravos et les commentaires sur tes séances.',
+  solo: 'Tu ne reçois pas les réactions et les commentaires sur tes séances.',
 };
 const PUSH_SETTINGS_PATH = 'Réglages › MDLF Training › Notifications';
 const PUSH_REMIND_DELAY_MS = 800;   // l'accueil dessiné d'abord ; Bienvenue ou les questions ouvertes avant

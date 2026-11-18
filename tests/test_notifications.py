@@ -468,7 +468,7 @@ def o_demande_coach(bench):
             page.evaluate("switchTab('friends', { reset: true }); navigate('coach-students')")
             page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
             txt = ask_sheet(page)
-            R.check('Être prévenu quand un élève t’écrit ou termine une séance ?' in txt and 'jamais' in txt and 'charges' in txt, f'{theme} coach : la question ({txt!r})')
+            R.check('Être prévenu des messages et séances des élèves ?' in txt and 'jamais' in txt and 'charges' in txt, f'{theme} coach : la question ({txt!r})')
             shot(page, LOT, f'demande-coach-iPhone_13-{theme}')
             tap_dialog(page, 'Activer')
             page.wait_for_function("() => (__sb.push.prefs[__sb.meId()] || {}).messages === true", timeout=3000)
@@ -483,7 +483,7 @@ def o_demande_coach(bench):
 
 
 def o_demande_lien_accepte(bench):
-    """Élève qui accepte le lien d'un coach : après « C'est fait ! », la feuille de notifications."""
+    """Élève qui accepte le lien d'un coach : après « Max est ton coach », la feuille de notifications."""
     with bench.page('webkit', 'iPhone 13', 'light') as page:
         open_app(page, 'light', ppl_v2_today_json(), {'pushAsk': True})
         signin(page, 'lea')
@@ -493,7 +493,7 @@ def o_demande_lien_accepte(bench):
         page.wait_for_selector('[data-action="coach-accept"]:not([disabled])')
         page.click('[data-action="coach-accept"]')
         page.wait_for_selector('.ios-dialog', timeout=3000)
-        R.check("C'est fait" in page.inner_text('.ios-dialog'), 'message de bienvenue d\'abord')
+        R.check('est ton coach' in page.inner_text('.ios-dialog'), 'message de bienvenue d\'abord')
         tap_dialog(page, 'OK')
         page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
         R.check('quand ton coach t’écrit' in ask_sheet(page), f'puis la feuille ({ask_sheet(page)!r})')
@@ -658,7 +658,7 @@ def o_rappel_roles_refus(bench):
         page.evaluate("async () => { await socialEnable(true); }")
         remind(page)
         page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
-        R.check('Tu ne reçois pas les bravos et les commentaires sur tes séances.' in ask_sheet(page), f'social seul : bravos et commentaires ({ask_sheet(page)!r})')
+        R.check('Tu ne reçois pas les réactions et les commentaires sur tes séances.' in ask_sheet(page), f'social seul : réactions et commentaires ({ask_sheet(page)!r})')
         shot(page, LOT, 'rappel-social-iPhone_SE-dark')
         tap_dialog(page, 'Activer')
         page.wait_for_function("() => (__sb.push.prefs[__sb.meId()] || {}).reactions === true", timeout=3000)

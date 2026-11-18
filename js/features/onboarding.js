@@ -104,13 +104,13 @@ const ONB_STEPS = {
       </div>`,
 
   freq: () => onbQuestion('Combien de séances par semaine&nbsp;?',
-    'Sur une semaine normale. C\'est aussi ton objectif sur l\'accueil.',
+    'Sur une semaine normale. Ce sera l\'objectif affiché sur l\'accueil.',
     ONB_FREQS.map(f => onbOption('onb-freq', f.n, f.label, '', onb.perWeek === f.n)).join('')),
 
   // Panel « yeux neufs » du 16/11 : qui vient de Strong ou de Hevy ne trouvait pas l'import (Réglages › Données seulement)
   level: () => `${onbQuestion('Ton niveau&nbsp;?', '',
     Object.entries(ONB_LEVELS).map(([k, l]) => onbOption('onb-level', k, l.label, l.sub, onb.level === k)).join(''))}
-      <button class="auth__skip onb__import" data-action="onb-import">Tu viens de Strong ou Hevy&nbsp;? Importer ton historique</button>`,
+      <button class="auth__skip onb__import" data-action="onb-import">Importer depuis Strong ou Hevy</button>`,
 
   result: () => {
     const id = recommendProgramme(onb);

@@ -52,8 +52,8 @@ export const PUSH_KINDS = Object.freeze({
       body: emoji ? `${who} a réagi ${emoji} à ta séance${label ? ` ${label}` : ''}` : `${who} a aimé ta séance` };
   },
   follow_request:  (who) => ({ title: 'Nouvelle demande', body: `${who} veut suivre tes séances` }),
-  coach_note:      (who) => ({ title: 'Ton coach', body: `${who} a commenté ta séance` }),
-  coach_programme: (who) => ({ title: 'Ton coach', body: `${who} t’a envoyé un programme` }),
+  coach_note:      (who) => ({ title: 'Commentaire du coach', body: `${who} a commenté ta séance` }),
+  coach_programme: (who) => ({ title: 'Nouveau programme', body: `${who} t’a envoyé un programme` }),
   comment:         (who) => ({ title: 'Nouveau commentaire', body: `${who} a commenté ta séance` }),
   chat_message:    (who) => ({ title: 'Nouveau message', body: `${who} t’a envoyé un message` }),
   // Séance d'un de mes élèves (coach) : nom de la séance et durée seulement, jamais une charge ni un exercice
@@ -85,7 +85,7 @@ export function pushMessage(row) {
   const ref = typeof row.ref === 'string' ? row.ref.slice(0, 64) : '';
   // Plan diète envoyé par le canal des programmes (id diet_<…>, docs/NUTRITION_V1.md) : dit comme tel
   if (row.kind === 'coach_programme' && ref.startsWith('diet_')) {
-    return { title: 'Ton coach', body: `${actorName(row.actor_name)} t’a envoyé un plan de nutrition`, kind: row.kind, ref };
+    return { title: 'Plan de nutrition', body: `${actorName(row.actor_name)} t’a envoyé un plan de nutrition`, kind: row.kind, ref };
   }
   return { ...make(actorName(row.actor_name), row), kind: row.kind, ref };
 }
