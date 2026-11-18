@@ -104,7 +104,7 @@ function dietDayHeadHtml(id, plan, di, ro) {
           </button>`).join('')}</div>`
     : `<div class="segmented seg-full diet-daypick" role="group" aria-label="Jour du plan">${[0, 1].map(i => `<button class="segmented__btn${i === di ? ' segmented__btn--active' : ''}" data-action="diet-goto-day" data-id="${esc(id)}" data-dayi="${i}" aria-pressed="${i === di}">${i ? 'Repos' : 'Entraînement'}</button>`).join('')}</div>`;
   const kind = plan.days.mode === 'week' && !ro ? `<div class="group-title">Type de jour</div>
-        <div class="segmented seg-full diet-daykind" role="group" aria-label="Type de ${esc(DIET_WEEKDAYS[di])}">${[['t', 'Jour d\'entraînement'], ['r', 'Jour de repos']].map(([k, l]) => `
+        <div class="segmented seg-full diet-daykind" role="group" aria-label="Type de ${esc(DIET_WEEKDAYS[di])}">${[['t', 'Entraînement'], ['r', 'Repos']].map(([k, l]) => `
           <button class="segmented__btn${dietDayKindAt(plan, di) === k ? ' segmented__btn--active' : ''}" data-action="diet-day-set-kind" data-k="${k}" aria-pressed="${dietDayKindAt(plan, di) === k}">${l}</button>`).join('')}</div>` : '';
   return `<p class="diet-plan-from"><b>${esc(plan.name)}</b>${di === today ? ' · aujourd\'hui' : ''}</p>${pick}${kind}`;
 }
