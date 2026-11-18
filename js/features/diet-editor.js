@@ -30,11 +30,15 @@ function dietMealsNoun(plan) { return dietPersonal(plan) ? 'Tes repas types' : '
 // l'écran du plan ne montre que les objectifs)
 const dietComposing = new Set();
 
+// Titre de la liste : « Mes diètes » pour un coach (ses modèles, envoyés à ses élèves), sinon « Plans de nutrition »
+function dietPlansTitle() { return coachRole().isCoach ? 'Mes diètes' : 'Plans de nutrition'; }
+// Organisation des jours en deux mots (liste des plans, cellule Jours)
+function dietDaysWord(plan) { return plan?.days?.mode === 'week' ? 'Semaine' : plan?.days?.mode === 'session' ? 'Entraînement et repos' : 'Tous les jours pareils'; }
 function renderDietPlans() {
   const ids = dietPlanIds(data);
   const row = id => {
     const p = data.dietPlans[id], t = dietPlanMacros(p), on = data.dietActive === id;
-    const sub = [plural(p.meals.length, 'repas', 'repas'), `${dietN(t.kcal)} kcal`, p.fromCoach ? elide('de', p.fromCoach.name || 'ton coach') : ''].filter(Boolean).join(' · ');
+    const sub = [p.days ? dietDaysWord(p) : plural(dietShownMeals(p).length, 'repas', 'repas'), `${dietN(t.kcal)} kcal${p.days ? ' le 1er jour' : ''}`, p.fromCoach ? elide('de', p.fromCoach.name || 'ton coach') : ''].filter(Boolean).join(' · ');
     return `<button class="cell cell--nav" data-action="diet-open-plan" data-id="${esc(id)}" aria-label="${esc(p.name)}, ${esc(sub)}${on ? ', en cours' : ''}">
         <span class="cell__body"><span class="cell__title">${esc(p.name)}</span><span class="cell__sub num">${esc(sub)}</span></span>
         ${on ? '<span class="cell__value diet-on">En cours</span>' : ''}
@@ -44,11 +48,11 @@ function renderDietPlans() {
   const isCoach = coachRole().isCoach;
   return `
     <div class="view view--grouped diet-plans-view">
-      ${navBar({ title: 'Plans de nutrition' })}
+      ${navBar({ title: dietPlansTitle() })}
       <div class="scr">
         <div class="group">
           ${ids.map(row).join('')}
-          <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>Créer un plan</span></button>
+          <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>${isCoach ? 'Créer une diète' : 'Créer un plan'}</span></button>
         </div>
         ${dietSettingsCellHtml()}
         <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Coach › Élèves). ' : ''}Le plan en cours s'affiche chaque jour dans Entraînement › Nutrition.</div>
@@ -59,7 +63,8 @@ function renderDietPlans() {
 function dietTargetsText(plan) {
   const t = plan.targets;
   if (!t) return 'Selon le plan';
-  return [t.kcal ? `${dietN(t.kcal)} kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${m.short}\u00a0${t[m.k]}` : '')), t.water ? `Eau ${fmtNum(t.water, 2)}\u00a0L` : ''].filter(Boolean).join(' · ');
+  return [t.kcal ? `${dietN(t.kcal)} kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${m.short}\u00a0${t[m.k]}` : '')),
+    t.water ? `Eau ${t.waterMin ? `${fmtNum(t.waterMin, 2)} à ` : ''}${fmtNum(t.water, 2)}\u00a0L` : '', dietSaltTargetText(t)].filter(Boolean).join(' · ');
 }
 // Objectifs en toutes lettres, unités au choix : « 2 000 kilocalories, 150 grammes de protéines » (VoiceOver) ou
 // « 2 000 kcal, 150 g de protéines » (confirmation d'envoi au coach, où « P 150 » ne se comprenait pas à côté de
@@ -68,7 +73,13 @@ function dietTargetsWords(plan, kcal, g) {
   const t = plan.targets;
   if (!t) return 'Selon le plan';
   return [t.kcal ? `${dietN(t.kcal)}${kcal}` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]}${g} de ${m.label.toLowerCase()}` : '')),
-    t.water ? `${fmtNum(t.water, 2)} ${kcal === ' kcal' ? 'L' : 'litres'} d'eau` : ''].filter(Boolean).join(', ');
+    t.water ? `${t.waterMin ? `${fmtNum(t.waterMin, 2)} à ` : ''}${fmtNum(t.water, 2)} ${kcal === ' kcal' ? 'L' : 'litres'} d'eau` : '',
+    dietSaltTargetText(t, kcal === ' kcal' ? 'g' : 'grammes')].filter(Boolean).join(', ');
+}
+// « Sel 3 à 5 g », « Sel 5 g au plus »
+function dietSaltTargetText(t, unit = 'g') {
+  const g = dietSaltGoal({ targets: t });
+  return g ? `Sel ${dietSaltGoalText(g).replace('\u00a0g', `\u00a0${unit}`)}` : '';
 }
 function dietTargetsSpoken(plan) { return dietTargetsWords(plan, ' kilocalories', ' grammes'); }
 function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), esc(dietTargetsSpoken(plan))); }
@@ -91,14 +102,18 @@ function dietPlanItemCell(plan, meal, it, ro) {
     : `<button class="cell cell--nav" data-action="diet-item-menu" data-swipe-del="diet-plan-item-del" data-meal="${esc(meal.id)}" data-item="${esc(it.id)}">${inner}${icon('chevron.right', 16)}</button>`;
 }
 
-function renderDietPlan(id) {
-  const plan = dietPlanOf(id);
+function renderDietPlan(id, dayParam) {
+  const root = dietPlanOf(id);
   // Grand titre : le nom du plan entier, même long (iPhone SE) ; la barre compacte, qui le coupe, vient au défilement
-  if (!plan) return `<div class="view view--grouped diet-plan-view">${navBar({ title: 'Plan de nutrition' })}<div class="scr"><div class="empty-note">Ce plan n'existe plus.</div></div></div>`;
+  if (!root) return `<div class="view view--grouped diet-plan-view">${navBar({ title: 'Plan de nutrition' })}<div class="scr"><div class="empty-note">Ce plan n'existe plus.</div></div></div>`;
+  // Plan à plusieurs jours : la vue des jours (dietWeekHtml), puis un écran par jour (diet-plan:ID:I)
+  const di = dietRouteDayIndex(root, dayParam);
+  if (root.days && di === null) return renderDietWeek(id, root);
+  const plan = di ? dietDayView(root, di) : root, dayScreen = di !== null;
   const ro = !!plan.fromCoach, on = data.dietActive === id, total = dietPlanMacros(plan);
   const personal = dietPersonal(plan), filled = dietHasMealItems(plan);
   const showMeals = !personal || filled || dietComposing.has(id), gap = dietTargetGap(plan, dietMealsNoun(plan));
-  const right = ro ? '' : `<button class="navbar__text" data-action="diet-rename" data-id="${esc(id)}">Renommer</button>`;
+  const right = ro || dayScreen ? '' : `<button class="navbar__text" data-action="diet-rename" data-id="${esc(id)}">Renommer</button>`;
   const meals = dietShownMeals(plan).map(meal => `
         <div class="group-title group-title--row diet-meal-title">
           <span>${esc(meal.name)}</span>
@@ -113,20 +128,20 @@ function renderDietPlan(id) {
           : meal.note ? `<div class="group-foot">${esc(meal.note)}</div>` : ''}`).join('');   /* repas vide : pas de ligne de zéros (panel Apple vague 4) */
   return `
     <div class="view view--grouped diet-plan-view">
-      ${navBar({ title: esc(plan.name), right, large: true })}
-      <div class="scr">
-        <div class="group">
+      ${navBar({ title: esc(dayScreen ? dietDayName(root, di) : plan.name), right, large: true })}
+      <div class="scr${dayScreen ? ' diet-dayswipe' : ''}"${dayScreen ? ` data-plan="${esc(id)}" data-dayi="${di}"` : ''}>
+        ${dayScreen ? dietDayHeadHtml(id, root, di, ro) : `<div class="group">
           ${on ? `<div class="cell"><span class="cell__body"><span class="cell__title">Plan en cours</span><span class="cell__sub">Il s'affiche chaque jour dans Entraînement › Nutrition</span></span><span class="diet-on-mark" aria-hidden="true">${icon('checkmark', 18)}</span></div>`
             : `<button class="cell cell--action" data-action="diet-follow" data-id="${esc(id)}">${icon('checkmark', 20)}<span>Utiliser ce plan</span></button>`}
         </div>
         <div class="group-foot diet-plan-lead">Le plan donne chaque jour ${personal ? 'tes objectifs et tes repas types' : 'les objectifs et les repas prévus'}. Ce que tu manges se note dans Nutrition, sans changer le plan.</div>
-        ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
-        <div class="group-title">Par jour</div>
+        ${dietPlanInfoHtml(id, root, ro)}`}
+        <div class="group-title">${dayScreen ? 'Objectifs' : 'Par jour'}</div>
         ${dietMacroLegendHtml()}
         <div class="group">
           ${personal && !filled ? '' : `<div class="cell"><span class="cell__body"><span class="cell__title">${personal ? 'Total des repas types' : 'Total prévu'}</span><span class="cell__sub num">${dietSrPair(DIET_MACROS.map(x => `${x.label}\u00a0${dietN(total[x.k])}\u00a0g`).join(' · '), dietMacroGramsSpoken(total))}</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>`}
           ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsHtml(plan)}</span></span></div>`
-            : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsCellHtml(plan)}</span></span>${icon('chevron.right', 16)}</button>`}
+            : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"${dayScreen ? ` data-dayi="${di}"` : ''}><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsCellHtml(plan)}</span></span>${icon('chevron.right', 16)}</button>`}
         </div>
         ${gap ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(gap)}</span></p>` : ''}
         <div class="group-foot">${ro ? `Plan et objectifs fixés par ${esc(plan.fromCoach.name || 'ton coach')}, qui seul peut les modifier. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
@@ -141,13 +156,7 @@ function renderDietPlan(id) {
         ${personal && filled ? `<div class="group group--gap"><button class="cell cell--action" data-action="diet-clear-meals" data-id="${esc(id)}">${icon('trash', 20)}<span>Vider les repas types</span></button></div>` : ''}
         ${!ro && personal ? dietHiddenMealsHtml(plan) : ''}
         ${ro || !showMeals || plan.meals.length >= DIET_MEAL_MAX ? '' : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-add-meal" data-id="${esc(id)}">${icon('plus', 20)}<span>Ajouter un repas</span></button></div>`}
-        <div class="group group--gap">
-          ${!ro && coachRole().isCoach ? `<button class="cell cell--action" data-action="diet-send-student" data-id="${esc(id)}">${icon('paperplane', 20)}<span>Envoyer à un élève</span></button>` : ''}
-          <button class="cell cell--action" data-action="diet-duplicate" data-id="${esc(id)}">${icon('doc.on.doc', 20)}<span>${ro ? 'Dupliquer pour le modifier' : 'Dupliquer le plan'}</span></button>
-        </div>
-        <div class="group group--gap">
-          <button class="cell cell--destructive" data-action="diet-delete" data-id="${esc(id)}">Supprimer le plan</button>
-        </div>
+        ${dayScreen ? dietDayFootHtml(id, root, di, ro) : dietPlanActsHtml(id, root, ro)}
         ${dietSourceFoot()}
       </div>
     </div>`;
@@ -161,15 +170,33 @@ function dietHiddenMealsHtml(plan) {
         <div class="group-foot">Un repas masqué n'apparaît plus dans ta journée ; ses aliments sont gardés.</div>`;
 }
 SCREENS.set('diet-plans', { render: () => renderDietPlans(), enter: () => { dietMaybeAskConsent(); } });
-SCREENS.set('diet-plan', { render: id => renderDietPlan(id), enter: () => { loadFoods(); } });
+SCREENS.set('diet-plan', { render: (id, day) => renderDietPlan(id, day), enter: () => { loadFoods(); } });
 
-// Plan affiché par l'éditeur (route diet-plan:ID), modifiable seulement s'il est à moi
+// Plan affiché par l'éditeur (route diet-plan:ID ou diet-plan:ID:JOUR), modifiable seulement s'il est à moi.
+// plan : le jour affiché (ses repas et objectifs ; le plan lui-même pour le jour 1), root : le plan, day : son index
 function dietEditedPlan() {
-  const [name, id] = [routeName(currentRoute()), routeParams(currentRoute())[0]];
-  const plan = name === 'diet-plan' ? dietPlanOf(id) : null;
-  return plan && !plan.fromCoach ? { id, plan } : null;
+  const [name, id, dp] = [routeName(currentRoute()), ...routeParams(currentRoute())];
+  const root = name === 'diet-plan' ? dietPlanOf(id) : null;
+  if (!root || root.fromCoach) return null;
+  const day = dietRouteDayIndex(root, dp) ?? 0;
+  return { id, root, day, plan: dietDayObj(root, day) };
 }
-function dietSaved() { const e = dietEditedPlan(); if (e) dietTouch(e.plan); save(); render(); }
+// Jour du plan relu après un geste (Annuler) : celui de ed
+const dietEdDay = ed => dietDayObj(dietPlanOf(ed.id), ed.day);
+function dietSaved() { const e = dietEditedPlan(); if (e) dietTouch(e.root); save(); render(); }
+// Index du jour d'une route (null : la vue des jours, ou un plan d'un seul jour)
+function dietRouteDayIndex(plan, dp) {
+  if (!plan?.days || dp == null || dp === '') return null;
+  const i = Number(dp);
+  return Number.isInteger(i) && i >= 0 && i < dietPlanDays(plan).length ? i : null;
+}
+// Le plan vu comme un seul jour (rendu, feuille des objectifs) : ses champs, avec les repas et objectifs du jour i
+function dietDayView(plan, i) {
+  if (!i) return plan;
+  const o = dietDayObj(plan, i), v = { ...plan, meals: o.meals };
+  if (o.targets) v.targets = o.targets; else delete v.targets;
+  return v;
+}
 
 // ── Feuille de recherche d'un aliment ───────────────────────
 
@@ -187,27 +214,44 @@ function dietFoodRowHtml(x, i) {
         <button class="diet-cand" data-pick="${i}">
           ${dietFoodIconHtml(x.food)}
           <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(x.food.name))}</span>
+            ${x.food.of ? `<span class="diet-cand__of">Valeurs Ciqual : ${esc(foodName(x.food.of))}</span>` : ''}
             <span class="diet-cand__sub num">${tag ? `<span class="diet-tag" aria-hidden="true">${tag}</span>` : ''}${x.own ? 'Mon aliment · ' : ''}${dietSrPair(`100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · ${dietMacroAbbr(x.food.per, { fmt: fmtNum })}`,
               `pour 100 grammes, ${x.food.per.k} kilocalories${x.food.ecalc ? ' calculées' : ''}, ${dietMacroWords(x.food.per, fmtNum).replace(/ g /g, ' grammes ')}`)}</span></span>
         </button>`;
 }
 function dietFoodResultsHtml(q, res = searchFoods(q, { own: data.dietFoods || [] })) {
   if (!foodDb && !(data.dietFoods || []).length) return `${dietFoodCreateHtml(q)}<p class="diet-pick__note">Base d'aliments indisponible. Tu peux créer ton aliment.</p>`;
-  if (!q.trim()) return `<p class="diet-pick__note">Tape un aliment : « riz », « poulet », « skyr »… ${foodDb ? `${dietN(foodDb.foods.length)} aliments de la table Ciqual.` : ''}</p>`;
+  if (!q.trim()) return `${dietRecentHtml()}<p class="diet-pick__note">Tape un aliment : « riz », « poulet », « crème de riz ». ${foodDb ? `${dietN(foodDb.byCode.size)} aliments de la table Ciqual, sans rien scanner.` : ''}</p>`;
   const create = foodSearchExact(q, res) ? '' : dietFoodCreateHtml(q);
   if (!res.length) return `${create}<p class="diet-pick__note">Rien pour « ${esc(q)} ». Crée ton aliment avec ses valeurs pour 100 g.</p>`;
   return `${create}${dietMacroLegendHtml('diet-legend--list')}${res.map(dietFoodRowHtml).join('')}`;
+}
+// Derniers aliments choisis (saisie rapide) : en tête de la feuille tant que rien n'est tapé, avec la dernière quantité
+function dietRecentFoodOf(it) {
+  return { code: it.food || null, name: it.name, fam: it.fam, per: it.per, src: it.src, ...(it.ecalc ? { ecalc: true } : {}), ...(it.of ? { of: it.of } : {}) };
+}
+function dietRecentHtml() {
+  const list = cleanDietRecent(data.dietRecentFoods).slice(0, 5);
+  if (!list.length) return '';
+  return `<p class="diet-pick__head">Récents</p>${list.map((it, i) => `
+        <button class="diet-cand" data-pick="r${i}">
+          ${dietFoodIconHtml(it)}
+          <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(it.name))}</span>
+            <span class="diet-cand__sub num">${esc(dietQtyText(it))} la dernière fois</span></span>
+        </button>`).join('')}`;
 }
 // Renvoie l'aliment choisi ({ food } de searchFoods), 'new' (créer un aliment), { create: nom } (créer, nom tapé),
 // 'scan' (code-barres) ou null
 async function dietPickFood() {
   await loadFoods();
   let results = [], query = '';
+  // Recherche d'abord (la table Ciqual suffit, retour des coachs du 18/11 : « il faut scanner chaque aliment ? ») ; le
+  // scan ensuite, pour un produit de marque
   const body = `
     <div class="diet-pick">
-      ${foodScanButtonHtml()}
       <div class="social-search diet-pick__search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
-        <input type="search" id="dietFoodSearch" class="search social-search__input" placeholder="Rechercher" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment"></div>
+        <input type="search" id="dietFoodSearch" class="search social-search__input" placeholder="Rechercher un aliment" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment"></div>
+      ${foodScanButtonHtml()}
       <div class="diet-pick__list" id="dietFoodList">${dietFoodResultsHtml('')}</div>
       <p class="sr-text" id="dietFoodCount" aria-live="polite"></p>
       <button class="diet-cand diet-cand--new" data-pick="new">${icon('plus', 18)}<span class="diet-cand__name">Créer un aliment</span></button>
@@ -230,6 +274,11 @@ async function dietPickFood() {
     const b = ev.target.closest('[data-pick]');
     if (!b) return;
     const k = b.dataset.pick;
+    if (/^r\d$/.test(k)) {
+      const it = cleanDietRecent(data.dietRecentFoods)[Number(k.slice(1))];
+      root._close(it ? { food: dietRecentFoodOf(it), recent: it, query: '' } : null);
+      return;
+    }
     const hit = results[Number(k)];
     root._close(k === 'new' || k === 'scan' ? k : k === 'create' ? { create: dietCutName(query) } : hit ? { ...hit, query } : null);
   });
@@ -239,6 +288,11 @@ async function dietPickFood() {
 // Choix d'un aliment (recherche, code-barres ou création) puis de sa quantité : { food, g, por } ou null (por : unité choisie).
 // Sert au plan ; réutilisable partout où l'on ajoute un aliment
 async function dietChooseFood() {
+  const r = await dietChooseFood0();
+  if (r?.food) dietNoteRecent(data, foodToItem(r.food, r.g, r.por));
+  return r;
+}
+async function dietChooseFood0() {
   const pick = await dietPickFood();
   if (pick === 'scan') return foodScanFlow();
   // Nom tapé repris avec une majuscule (« whey » → « Whey »), comme le clavier le ferait
@@ -246,7 +300,8 @@ async function dietChooseFood() {
   if (!chosen?.food) return null;
   // Rappel cru / cuit : la feuille de quantité peut rendre l'autre version (q.food). Pas quand la recherche disait déjà
   // « cuit » ou « cru » : la version est choisie exprès (panel vague 4, « riz blanc cuit » puis « Pesé cru ? »)
-  const q = await dietAskQty(chosen.food, null, { twin: !foodQuerySaysCook(chosen.query) });
+  // Récent : la dernière quantité proposée d'office
+  const q = await dietAskQty(chosen.food, chosen.recent || null, { twin: !chosen.recent && !foodQuerySaysCook(chosen.query) });
   return q && { food: q.food || chosen.food, g: q.g, por: q.por };
 }
 
@@ -349,15 +404,22 @@ function dietTargetsEditHtml(t, total, kg, plan, auto) {
   const card = auto ? '<section class="diet-tg__card" id="dietTCard" aria-label="Proposition d\'objectifs"></section>' : '';
   const propose = auto ? '' : '<button type="button" class="diet-tg__link" data-tpropose>Me proposer des objectifs</button>';
   // Eau (docs/EAU.md) : seulement dans un plan préparé par un coach ; la personne règle la sienne sur la carte Eau
-  const water = dietPersonal(plan) ? '' : `<label class="diet-field"><span class="diet-field__label">Eau</span>
-        <input id="dietT_water" class="diet-field__input num" type="text" inputmode="decimal" autocomplete="off"
-          value="${t.water == null ? '' : fmtNum(t.water, 2)}" placeholder="Aucun" aria-label="Eau par jour, en litres. Vide : aucun objectif">
-        <span class="diet-field__unit" aria-hidden="true">L</span></label>`;
+  // Fourchette (18/11, « entre 3 et 5 L ») : deux champs, « de » et « à » ; un seul rempli : un objectif simple
+  const range = (k, label, unit, lo, hi, digits, what) => `<div class="diet-field diet-field--range"><span class="diet-field__label">${label}</span>
+        <input id="dietT_${k}Min" class="diet-field__input diet-field__input--lo num" type="text" inputmode="decimal" autocomplete="off"
+          value="${lo == null ? '' : fmtNum(lo, digits)}" placeholder="de" aria-label="${what}, au moins, en ${unit === 'L' ? 'litres' : 'grammes'}. Facultatif">
+        <span class="diet-field__to" aria-hidden="true">à</span>
+        <input id="dietT_${k}Max" class="diet-field__input num" type="text" inputmode="decimal" autocomplete="off"
+          value="${hi == null ? '' : fmtNum(hi, digits)}" placeholder="Aucun" aria-label="${what}, au plus, en ${unit === 'L' ? 'litres' : 'grammes'}. Vide : aucun objectif">
+        <span class="diet-field__unit" aria-hidden="true">${unit}</span></div>`;
+  const water = dietPersonal(plan) ? '' : range('water', 'Eau', 'L', t.waterMin, t.water, 2, 'Eau par jour');
+  const salt = range('salt', 'Sel', 'g', t.saltMin, t.saltMax, 1, 'Sel par jour');
   return `<div data-tstep="edit">
       ${card}
-      <div class="diet-fields">${DIET_T_ROWS.map(r => row(...r)).join('')}${water}</div>
+      <div class="diet-fields">${DIET_T_ROWS.map(r => row(...r)).join('')}${water}${salt}</div>
       <p class="diet-tg__pkg num" id="dietTPkg" aria-live="polite"></p>
       <p class="diet-form__hint num">${hint}</p>
+      <p class="diet-form__hint diet-tg__saltnote" id="dietTSaltNote" aria-live="polite"></p>
       <p class="diet-form__err" id="dietTErr" role="alert"></p>
       <div class="diet-tg__links">
         ${propose}
@@ -439,12 +501,22 @@ async function dietTargetsSheet(plan) {
       }
       out[k] = Math.round(v);
     }
-    const wIn = $('#dietT_water', panel), wRaw = wIn ? wIn.value.trim() : '';
-    if (wRaw) {
-      const w = num(wRaw, 0.5, 6);
-      if (w === null) { $('#dietTErr', panel).textContent = 'Eau : de 0,5 à 6 L.'; wIn.focus(); return false; }
-      out.water = w;
-    }
+    // Eau et sel : « de … à … » ; un seul champ rempli vaut objectif simple (eau) ou plafond / plancher (sel)
+    const pair = (k, lo, hi, digits) => {
+      const a = $(`#dietT_${k}Min`, panel), b = $(`#dietT_${k}Max`, panel);
+      if (!a || !b) return { ok: true };
+      const ra = a.value.trim(), rb = b.value.trim(), va = ra ? num(ra, lo, hi) : null, vb = rb ? num(rb, lo, hi) : null;
+      const name = k === 'water' ? 'Eau' : 'Sel', unit = k === 'water' ? 'L' : 'g';
+      if ((ra && va === null) || (rb && vb === null)) { $('#dietTErr', panel).textContent = `${name} : de ${fmtNum(lo, digits)} à ${fmtNum(hi, digits)} ${unit}.`; (ra && va === null ? a : b).focus(); return { ok: false }; }
+      if (va !== null && vb !== null && va >= vb) { $('#dietTErr', panel).textContent = `${name} : la première valeur doit être plus petite que la seconde.`; a.focus(); return { ok: false }; }
+      return { ok: true, va, vb };
+    };
+    const w = pair('water', 0.5, 6, 1), sl = pair('salt', DIET_SALT_T[0], DIET_SALT_T[1], 1);
+    if (!w.ok || !sl.ok) return false;
+    if (w.vb !== null && w.vb !== undefined) { out.water = w.vb; if (w.va !== null) out.waterMin = w.va; }
+    else if (w.va !== null && w.va !== undefined) out.water = w.va;
+    if (sl.vb != null) out.saltMax = sl.vb;
+    if (sl.va != null) out.saltMin = sl.va;
     if (kg) { if (perKg) data.dietProteinPerKg = true; else delete data.dietProteinPerKg; }
     return { targets: cleanDietTargets(out) };
   } });
@@ -508,6 +580,14 @@ async function dietTargetsSheet(plan) {
     data.dietEstActivity = ev.target.value; save(); paintCard();
   });
   pIn.addEventListener('input', () => { pExact = null; paintP(); });
+  // Sel au-dessus du repère de l'OMS : dit au coach, sans rien bloquer
+  const paintSalt = () => {
+    const v = ['#dietT_saltMax', '#dietT_saltMin'].map(q => num($(q, root)?.value || '', DIET_SALT_T[0], DIET_SALT_T[1])).find(x => x != null);
+    const note = $('#dietTSaltNote', root);
+    if (note) note.textContent = v != null && v > DIET_SALT_WHO ? 'Repère de l\'OMS pour un adulte : moins de 5 g de sel par jour.' : '';
+  };
+  root.addEventListener('input', ev => { if (/^dietT_salt/.test(ev.target.id || '')) paintSalt(); });
+  paintSalt();
   const fill = v => { pExact = v?.p ?? null; for (const k of DIET_TARGET_KEYS) $(`#dietT_${k}`, root).value = v?.[k] != null ? (k === 'p' && perKg ? fmtNum(dietProteinPerKg(v.p, kg), 1) : k === 'kcal' ? fmtNum(v[k]) : String(v[k])) : ''; paintP(); };
   root.addEventListener('click', ev => {
     const el = ev.target.closest('[data-tunit], [data-tclear], [data-tpropose], [data-tback], [data-tcalc], [data-tuse], [data-tadjust], [data-tseg], [data-tcgoal], [data-tapply], [data-tcadjust], [data-tcomplete]');
@@ -515,7 +595,7 @@ async function dietTargetsSheet(plan) {
     if (el.matches('[data-tcgoal]')) {
       data.dietEstGoal = el.dataset.tcgoal; save(); haptic('light'); paintCard();
     } else if (el.matches('[data-tapply]') && cardProp) {
-      root._close({ targets: cleanDietTargets({ kcal: cardProp.kcal, p: cardProp.p, c: cardProp.c, f: cardProp.f, water: t.water }) });
+      root._close({ targets: cleanDietTargets({ kcal: cardProp.kcal, p: cardProp.p, c: cardProp.c, f: cardProp.f, water: t.water, waterMin: t.waterMin, saltMin: t.saltMin, saltMax: t.saltMax }) });
     } else if (el.matches('[data-tcadjust]') && cardProp) {
       fill(cardProp); haptic('light');
       $('#dietT_kcal', root)?.focus({ preventScroll: true });
@@ -528,7 +608,8 @@ async function dietTargetsSheet(plan) {
       if (g) { pIn.value = perKg ? fmtNum(dietProteinPerKg(g, kg), 1) : String(Math.round(g)); pExact = Math.round(g); }
       paintP(); haptic('light');
     } else if (el.matches('[data-tclear]')) {
-      fill(null); if ($('#dietT_water', root)) $('#dietT_water', root).value = ''; $('#dietTErr', root).textContent = ''; haptic('light');
+      fill(null); for (const q of ['#dietT_waterMin', '#dietT_waterMax', '#dietT_saltMin', '#dietT_saltMax']) { const x = $(q, root); if (x) x.value = ''; }
+      $('#dietTErr', root).textContent = ''; paintSalt(); haptic('light');
       showToast('Objectifs vidés : touche OK pour enregistrer');
     } else if (el.matches('[data-tpropose]')) show('ask');
     else if (el.matches('[data-tback], [data-tadjust]')) {
@@ -578,7 +659,7 @@ async function dietTargetsSheet(plan) {
       $('#dietEWhyM', root).textContent = proposal.whyMacros;
       show('result');
     } else if (el.matches('[data-tuse]') && proposal) {
-      root._close({ targets: cleanDietTargets({ kcal: proposal.kcal, p: proposal.p, c: proposal.c, f: proposal.f, water: t.water }) });
+      root._close({ targets: cleanDietTargets({ kcal: proposal.kcal, p: proposal.p, c: proposal.c, f: proposal.f, water: t.water, waterMin: t.waterMin, saltMin: t.saltMin, saltMax: t.saltMax }) });
     }
   });
   return p;
@@ -597,13 +678,13 @@ async function dietMovePlanItem(ed, meal, it) {
   haptic();
   dietSaved();
   showToast(`Déplacé vers ${target.name}`, { action: 'Annuler', duration: 6000, onAction: () => {
-    const p = dietPlanOf(ed.id), from = dietMealOf(p, meal.id), back = dietMealOf(p, target.id);
+    const p = dietEdDay(ed), from = dietMealOf(p, meal.id), back = dietMealOf(p, target.id);
     if (!from || !back) return;
     const j = back.items.findIndex(x => x.id === it.id);
     if (j < 0) return;
     back.items.splice(j, 1);
     from.items.splice(Math.min(i, from.items.length), 0, it);
-    dietTouch(p); save(); render();
+    dietTouch(dietPlanOf(ed.id)); save(); render();
   } });
 }
 
@@ -645,14 +726,14 @@ registerActions({
     dietSaved();
   },
   'diet-targets': async (e, el) => {
-    const plan = dietPlanOf(el.dataset.id);
+    const plan = dietPlanOf(el.dataset.id), di = Number(el.dataset.dayi) || 0;
     if (!plan || plan.fromCoach) return;
-    const r = await dietTargetsSheet(plan);
+    const r = await dietTargetsSheet(dietDayView(plan, di));
     if (!r) return;
     // Plan relu après la feuille et enregistré quel que soit l'écran affiché (dietSaved ne garde que sur l'éditeur)
-    const p = dietPlanOf(el.dataset.id);
-    if (!p || p.fromCoach) return;
-    if (r.targets) p.targets = r.targets; else delete p.targets;
+    const p = dietPlanOf(el.dataset.id), o = dietDayObj(p, di);
+    if (!p || p.fromCoach || !o) return;
+    if (r.targets) o.targets = r.targets; else delete o.targets;
     dietTouch(p); save(); render();
   },
   'diet-compose': (e, el) => { dietComposing.add(el.dataset.id); render(); },
@@ -686,7 +767,8 @@ registerActions({
     const i = ed.plan.meals.indexOf(meal);
     const choice = await dialog({ type: 'sheet', title: meal.name, actions: [
       { label: 'Renommer', value: 'rename' },
-      ...(ed.plan.meals.length < DIET_MEAL_MAX ? [{ label: 'Copier ce repas', value: 'copy' }] : []),
+      ...(ed.plan.meals.length < DIET_MEAL_MAX ? [{ label: 'Dupliquer ce repas', value: 'copy' }] : []),
+      ...(ed.root.days ? [{ label: 'Copier vers d\'autres jours…', value: 'days' }] : []),
       { label: meal.note ? 'Modifier la consigne' : 'Ajouter une consigne', value: 'note' },
       ...(i > 0 ? [{ label: 'Monter', value: 'up' }] : []),
       ...(i < ed.plan.meals.length - 1 ? [{ label: 'Descendre', value: 'down' }] : []),
@@ -694,6 +776,7 @@ registerActions({
       meal.base ? { label: 'Masquer ce repas', value: 'hide' } : { label: 'Supprimer le repas', value: 'delete', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' },
     ] });
+    if (choice === 'days') { await dietCopyMealFlow(ed, meal); return; }
     if (choice === 'copy') {
       dietCopyMeal(ed.plan, meal.id);
       showToast(`${meal.name} copié`);
@@ -714,7 +797,7 @@ registerActions({
       meal.hidden = true;
       dietSaved();
       showToast(`${meal.name} masqué`, { action: 'Annuler', duration: 6000, onAction: () => {
-        const m = dietMealOf(dietPlanOf(ed.id), meal.id);
+        const m = dietMealOf(dietEdDay(ed), meal.id);
         if (m) { delete m.hidden; dietTouch(dietPlanOf(ed.id)); save(); render(); }
       } });
       return;
@@ -723,10 +806,10 @@ registerActions({
       ed.plan.meals.splice(i, 1);
       dietSaved();
       showToast(`${meal.name} supprimé`, { action: 'Annuler', duration: 6000, onAction: () => {
-        const p = dietPlanOf(ed.id);
+        const p = dietEdDay(ed);
         if (!p || p.meals.some(m => m.id === meal.id) || p.meals.length >= DIET_MEAL_MAX) return;
         p.meals.splice(Math.min(i, p.meals.length), 0, meal);
-        dietTouch(p); save(); render();
+        dietTouch(dietPlanOf(ed.id)); save(); render();
       } });
       return;
     } else return;
@@ -750,18 +833,41 @@ registerActions({
     meal.items.push(it);
     haptic();
     dietSaved();
+    // Saisie rapide : Annuler retire l'aliment ajouté
+    showToast(`Ajouté : ${foodName(it.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      const m = dietMealOf(dietEdDay(ed), meal.id), j = m ? m.items.findIndex(x => x.id === it.id) : -1;
+      if (j < 0) return;
+      m.items.splice(j, 1); dietTouch(dietPlanOf(ed.id)); save(); render(); announce(`Retiré : ${foodName(it.name)}`);
+    } });
   },
   'diet-item-menu': async (e, el) => {
     const ed = dietEditedPlan(), meal = dietMealOf(ed?.plan, el.dataset.meal);
     const it = meal?.items.find(x => x.id === el.dataset.item);
     if (!it) return;
-    const choice = await dialog({ type: 'sheet', title: foodName(it.name), message: `${dietQtyText(it)} : ${dietN(dietItemMacros(it).kcal)} kcal, ${dietMacroWords(dietItemMacros(it))}`, actions: [
+    const choice = await dialog({ type: 'sheet', title: foodName(it.name), message: `${dietQtyText(it)} : ${dietN(dietItemMacros(it).kcal)} kcal, ${dietMacroWords(dietItemMacros(it))}${it.of ? `. Valeurs Ciqual : ${foodName(it.of)}` : ''}`, actions: [
+      { label: 'Remplacer par un équivalent', value: 'swap' },
       { label: 'Changer la quantité', value: 'qty' },
       ...(dietShownMeals(ed.plan).length > 1 ? [{ label: 'Déplacer vers…', value: 'move' }] : []),
       { label: 'Retirer du repas', value: 'remove', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' },
     ] });
-    if (choice === 'qty') {
+    if (choice === 'swap') {
+      // Équivalent dans le plan lui-même (le coach change l'aliment pour tous les jours où il est) ; Annuler le remet
+      const c = await dietPickSwap(it);
+      if (!c) return;
+      const nu = cleanDietItem({ name: c.food.name, food: c.food.code, fam: c.food.fam, g: c.g, per: c.food.per, src: c.food.code ? 'ciqual-2025' : 'perso', id: it.id });
+      const j = meal.items.indexOf(it);
+      if (!nu || j < 0) return;
+      meal.items[j] = nu;
+      haptic();
+      dietSaved();
+      showToast(`Remplacé par ${foodName(nu.name)}`, { action: 'Annuler', duration: 6000, onAction: () => {
+        const m = dietMealOf(dietEdDay(ed), meal.id), k = m ? m.items.findIndex(x => x.id === nu.id) : -1;
+        if (k < 0) return;
+        m.items[k] = it; dietTouch(dietPlanOf(ed.id)); save(); render();
+      } });
+      return;
+    } else if (choice === 'qty') {
       const q = await dietAskQty(it, it);
       if (!q) return;
       it.g = q.g;
@@ -783,7 +889,7 @@ registerActions({
     haptic('light');
     dietSaved();
     showToast(`Retiré du repas : ${foodName(it.name)}`, { action: 'Annuler', duration: 5000, onAction: () => {
-      const m = dietMealOf(dietPlanOf(ed.id), meal.id);
+      const m = dietMealOf(dietEdDay(ed), meal.id);
       if (!m || m.items.some(x => x.id === it.id)) return;
       m.items.splice(Math.min(i, m.items.length), 0, it);
       dietTouch(dietPlanOf(ed.id)); save(); render();
@@ -800,20 +906,6 @@ registerActions({
     haptic();
     navigate(makeRoute('diet-plan', nid), { replace: true });
     showToast('Plan dupliqué');
-  },
-  // Coach : envoyer ce plan à un élève, sans passer par sa fiche
-  'diet-send-student': async (e, el) => {
-    const planId = el.dataset.id, plan = dietPlanOf(planId);
-    const students = coach.state?.students || [];
-    if (!plan) return;
-    if (!students.length) { showToast(coach.state ? 'Aucun élève' : coachErrorText('offline'), { error: !coach.state }); return; }
-    const uid2 = await dialog({ type: 'sheet', title: `Envoyer « ${plan.name} »`, message: 'Un nouvel envoi du même plan le met à jour chez ton élève.',
-      actions: [...students.map(st => ({ label: personName(st), value: st.user_id })), { label: 'Annuler', style: 'cancel' }] });
-    if (!uid2) return;
-    el.disabled = true;
-    const r = await coachSendDiet(uid2, planId);
-    el.disabled = false;
-    if (coachToast(r, `Plan envoyé à ${personName(students.find(st => st.user_id === uid2))}`)) { haptic(); coachRefresh(); }
   },
   'diet-delete': async (e, el) => {
     const id = el.dataset.id, plan = dietPlanOf(id);

@@ -11,19 +11,24 @@
 
 // Suivi affiché : activé par la personne, ou objectif fixé dans le plan de nutrition (coach)
 function waterShown(d = data) {
-  return d.waterOn === true || cleanWaterLitres(dietActivePlan(d)?.targets?.water) !== null;
+  return d.waterOn === true || dietPlanDays(dietActivePlan(d)).some(o => cleanWaterLitres(o.targets?.water) !== null);
 }
 function waterSex() { return strengthSex(data) || data.dietEstSex || null; }
 // État d'un jour : bu (ml), objectif ({ l, src, plus… }), jour d'entraînement
 function waterState(day = localISO()) {
   const training = waterTrainingDay(data, day, { live: typeof activeSession !== 'undefined' && !!activeSession });
-  const goal = waterGoalFor(data, { plan: dietActivePlan(data), sex: waterSex(), training });
+  // Plan du jour (entraînement / repos, jour de la semaine) : son objectif d'eau
+  const plan = data.dietActive ? dietDayPlan(data, data.dietActive, day) : null;
+  const goal = waterGoalFor(data, { plan: plan && !plan.archived ? plan : null, sex: waterSex(), training });
   const ml = waterDayMl(data, day);
-  return { day, ml, goal, training, ratio: goal.l > 0 ? Math.min(1, ml / (goal.l * 1000)) : 0, reached: ml >= Math.round(goal.l * 1000) };
+  return { day, ml, goal, training, ratio: goal.l > 0 ? Math.min(1, ml / (goal.l * 1000)) : 0, reached: ml >= Math.round(waterGoalLow(goal) * 1000) };
 }
 // « 1,2 sur 2,8 L », lu « 1,2 litre sur 2,8 »
-function waterValText(st, sep = 'sur') { return `${waterLitres(st.ml)} ${sep} ${fmtNum(st.goal.l, 2)}\u00a0L`; }
-function waterValSpoken(st) { return `${waterLitres(st.ml)} litre${st.ml >= 2000 ? 's' : ''} sur ${fmtNum(st.goal.l, 2)}${st.goal.plus ? ', dont 0,5 litre pour la séance' : ''}`; }
+function waterValText(st, sep = 'sur') { return `${waterLitres(st.ml)} ${sep} ${waterGoalText(st.goal)}`; }
+function waterValSpoken(st) {
+  const l = `${waterLitres(st.ml)} litre${st.ml >= 2000 ? 's' : ''}`;
+  return st.goal.min != null ? `${l}, objectif ${waterGoalSpoken(st.goal)}` : `${l} sur ${fmtNum(st.goal.l, 2)}${st.goal.plus ? ', dont 0,5 litre pour la séance' : ''}`;
+}
 // « (dont +0,5 L séance) » : le total du jour dit d'où vient la hausse (option C du 17/11)
 function waterPlusHtml(st) { return st.goal.plus ? ` <span class="water-card__plus">(dont +${fmtNum(st.goal.plus, 2)}\u00a0L séance)</span>` : ''; }
 
@@ -36,8 +41,25 @@ function waterGlassSvg(ratio, size = 44) {
       <rect class="water-glass__fill" x="0" y="${y.toFixed(1)}" width="44" height="${(bottom - y).toFixed(1)}" clip-path="url(#${id})"/>
       <path class="water-glass__line" d="${shape}"/></svg>`;
 }
-function waterBarHtml(ratio) {
-  return `<span class="water-bar" aria-hidden="true"><i class="water-bar__fill" style="width:${Math.round(ratio * 1000) / 10}%"></i></span>`;
+// Jauge ; zone [min, 1] (fourchette, en part du haut) : bande plus claire de la zone à viser
+function waterBarHtml(ratio, zoneFrom = null) {
+  const zone = zoneFrom != null && zoneFrom > 0 && zoneFrom < 1 ? `<i class="water-bar__zone" style="left:${Math.round(zoneFrom * 1000) / 10}%"></i>` : '';
+  return `<span class="water-bar${zone ? ' water-bar--zone' : ''}" aria-hidden="true">${zone}<i class="water-bar__fill" style="width:${Math.round(ratio * 1000) / 10}%"></i></span>`;
+}
+const waterZoneFrom = st => (st.goal.min != null ? st.goal.min / st.goal.l : null);
+// Verres à cocher (fourchette du coach ou objectif) : un toucher sur un verre vide l'ajoute, sur le dernier plein le retire
+function waterGlassesHtml(st, attrDay) {
+  const { ml, n } = waterGlassPlan(st.goal), full = Math.min(n, Math.floor(st.ml / ml));
+  const low = Math.ceil(Math.round(waterGoalLow(st.goal) * 1000) / ml);
+  const size = waterQtyText(ml);
+  const cells = Array.from({ length: n }, (_, i) => {
+    const on = i < full, last = i === full - 1;
+    const label = on ? (last ? `Verre ${i + 1} sur ${n}, ${waterQtySpoken(ml)}, bu. Retirer` : `Verre ${i + 1} sur ${n}, bu`) : `Verre ${i + 1} sur ${n}. Ajouter ${waterQtySpoken(ml)}`;
+    return `<button class="water-cup${on ? ' water-cup--on' : ''}${i >= low ? ' water-cup--extra' : ''}" data-action="water-glass" data-ml="${ml}" data-op="${on ? (last ? 'del' : 'none') : 'add'}"${attrDay ? ` data-day="${esc(attrDay)}"` : ''}
+        aria-pressed="${on}" aria-label="${esc(label)}"${on && !last ? ' aria-disabled="true"' : ''}>${waterGlassSvg(on ? 1 : 0, 28)}</button>`;
+  }).join('');
+  return `<div class="water-cups" role="group" aria-label="${esc(`${n} verres de ${waterQtySpoken(ml)}`)}">${cells}</div>
+          <p class="water-cups__note num">${esc(`Un verre = ${size}${st.goal.min != null ? ` · ${low} au moins` : ''}`)}</p>`;
 }
 // Bouton d'ajout : « + Verre 25 cl » ; day vide : aujourd'hui, lu au toucher
 function waterAddBtnHtml(cup, day = '', extra = '') {
@@ -59,12 +81,13 @@ function waterCardHtml(day, { past = false } = {}) {
           <button class="water-card__top" data-action="water-goal" aria-label="${esc(`Eau : ${waterValSpoken(st)}${st.reached ? ', objectif atteint' : ''}. Changer l'objectif`)}">
             <span class="water-card__glass">${waterGlassSvg(st.ratio)}</span>
             <span class="water-card__text" aria-hidden="true">
-              <span class="water-card__val num"><b>${waterLitres(st.ml)}</b> sur ${fmtNum(st.goal.l, 2)}\u00a0L${waterPlusHtml(st)}</span>
+              <span class="water-card__val num"><b>${waterLitres(st.ml)}</b> ${st.goal.min != null ? `L · objectif ${waterGoalText(st.goal)}` : `sur ${fmtNum(st.goal.l, 2)}\u00a0L`}${waterPlusHtml(st)}</span>
               <span class="water-card__goal">${st.reached ? `${icon('checkmark', 12)}Objectif atteint` : st.goal.src === 'plan' ? 'Objectif du plan' : st.goal.src === 'me' ? 'Objectif choisi' : 'Objectif conseillé'}</span>
             </span>
             ${icon('chevron.right', 16)}
           </button>
-          ${waterBarHtml(st.ratio)}
+          ${waterBarHtml(st.ratio, waterZoneFrom(st))}
+          ${waterGlassesHtml(st, attrDay)}
           <div class="water-card__btns">
             ${waterCups(data).map(c => waterAddBtnHtml(c, attrDay)).join('')}
             <button class="water-add water-add--other" data-action="water-other"${attrDay ? ` data-day="${esc(attrDay)}"` : ''}>Autre</button>
@@ -90,8 +113,8 @@ function waterHomeRowHtml() {
   return `
       <div class="water-home">
         <button class="water-home__open" data-action="go-nutrition" aria-label="${esc(`Eau : ${waterValSpoken(st)}${st.reached ? ', objectif atteint' : ''}. Ouvrir Nutrition`)}">
-          <span class="water-home__line" aria-hidden="true"><span class="water-home__label">Eau</span><span class="water-home__val num"><b>${waterLitres(st.ml)}</b> / ${fmtNum(st.goal.l, 2)}\u00a0L</span></span>
-          ${waterBarHtml(st.ratio)}
+          <span class="water-home__line" aria-hidden="true"><span class="water-home__label">Eau</span><span class="water-home__val num"><b>${waterLitres(st.ml)}</b> / ${waterGoalText(st.goal)}</span></span>
+          ${waterBarHtml(st.ratio, waterZoneFrom(st))}
         </button>
         ${waterAddBtnHtml(glass, '', ' water-add--home')}
       </div>`;
@@ -113,7 +136,7 @@ async function waterGoalSheet() {
   const todayText = v => (plusToday ? `Aujourd'hui : ${fmtNum(v + plusToday, 2)}\u00a0L (dont +0,5\u00a0L séance)` : '');
   if (g.src === 'plan') {
     await sheet({ title: 'Objectif d\'eau', cancel: '', confirm: 'OK', body: `<div class="water-gs">
-        <p class="water-gs__val num">${fmtNum(g.l, 2)}\u00a0L</p><p class="water-gs__why">${esc(waterGoalWhy(g))}</p></div>` });
+        <p class="water-gs__val num">${waterGoalText(g)}</p><p class="water-gs__why">${esc(waterGoalWhy(g))}</p></div>` });
     return;
   }
   let l = g.base;
@@ -167,7 +190,7 @@ function waterLogBodyHtml(day) {
     return `<div class="water-log__day${k === day ? ' water-log__day--on' : ''}">
           <span class="water-log__dname">${esc(dietDayTitle(k))}</span>
           <span class="water-log__dval num">${waterValText(st, '/')}</span>
-          ${waterBarHtml(st.ratio)}
+          ${waterBarHtml(st.ratio, waterZoneFrom(st))}
         </div>`;
   }).join('');
   return `<div class="water-log">
@@ -278,6 +301,19 @@ registerActions({
     const ml = Number(el.dataset.ml);
     if (!Number.isFinite(ml)) return;
     waterAddNow(ml, el.dataset.day || localISO());
+  },
+  // Verre à cocher : vide → un verre de plus ; dernier plein → retire le dernier ajout de cette taille (Annuler)
+  'water-glass': (e, el) => {
+    const ml = Number(el.dataset.ml), day = el.dataset.day || localISO();
+    if (!Number.isFinite(ml)) return;
+    if (el.dataset.op === 'add') { waterAddNow(ml, day); return; }
+    if (el.dataset.op !== 'del') return;
+    const list = waterDay(data, day), last = [...list].reverse().find(x => x.ml === ml) || list[list.length - 1];
+    if (!last || !waterRemove(data, day, last.id)) return;
+    save(); haptic('light'); render();
+    showToast(`Retiré : ${waterQtyText(last.ml)} · ${waterValText(waterState(day))}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      waterAdd(data, last.ml, day, last.at || Date.now()); save(); render();
+    } });
   },
   'water-other': async (e, el) => {
     const day = el.dataset.day || localISO();

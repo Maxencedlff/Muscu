@@ -21,7 +21,8 @@ async function foodScanUserAgent() {
 
 // Bouton en tête de la feuille « Ajouter un aliment » : même icône et même sens, scanné ou tapé
 function foodScanButtonHtml() {
-  return `<button class="diet-cand diet-cand--scan" data-pick="scan">${icon('barcode', 22)}<span class="diet-cand__name">${Native.scanner.available ? 'Scanner un code-barres' : 'Saisir un code-barres'}</span></button>`;
+  // En second, sous la recherche : la base Ciqual suffit pour un plan, le scan sert aux produits de marque
+  return `<button class="diet-cand diet-cand--scan" data-pick="scan">${icon('barcode', 20)}<span class="diet-cand__name">Produit de marque\u00a0? <b>${Native.scanner.available ? 'Scanner' : 'Saisir le code-barres'}</b></span></button>`;
 }
 
 // Chiffres tapés à la main : code normalisé (EAN-13 ou EAN-8) ou null (annulé)

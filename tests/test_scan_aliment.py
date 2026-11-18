@@ -1,7 +1,7 @@
 """Scanner un aliment (docs/NUTRITION_V1.md, « Scanner un produit ») : feuille « Ajouter un aliment » avec
-« Scanner un code-barres » en tête, produit trouvé sur Open Food Facts (fiche, grammes, kcal et macros, source),
+recherche en tête puis « Produit de marque ? Scanner » (18/11), produit trouvé sur Open Food Facts (fiche, grammes, kcal et macros, source),
 déjà scanné (retrouvé sans réseau), introuvable (« Créer l'aliment », code gardé), hors ligne (« Réessayer »),
-caméra refusée, et sans module natif (« Saisir un code-barres »).
+caméra refusée, et sans module natif (« Produit de marque ? Saisir le code-barres »).
 
 Le module natif MdlfScanner est simulé (window.Capacitor, comme tests/test_coffre.py) et Open Food Facts est
 intercepté (route Playwright) : aucune requête ne sort. Captures : $PPL_SCRATCH/shots/lotscan/.
@@ -125,11 +125,11 @@ def t_scan(bench, eng, dev, theme):
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         off = open_plan(page, theme)
         add_food_sheet(page)
-        # Bouton en tête, avant la recherche, avec son icône
+        # Recherche en tête, le scan juste dessous (18/11 : la base Ciqual suffit, le scan sert aux produits de marque)
         order = page.evaluate("[...document.querySelector('.diet-pick').children].map(e => e.className.split(' ').pop() || e.id)")
-        R.check(order[:2] == ['diet-cand--scan', 'diet-pick__search'], f'{t} feuille : « Scanner » en tête, avant la recherche {order[:3]}')
-        R.check(page.inner_text('.diet-cand--scan').strip() == 'Scanner un code-barres' and page.locator('.diet-cand--scan svg use[href="#i-barcode"]').count() == 1,
-                f'{t} feuille : « Scanner un code-barres » et son icône')
+        R.check(order[:2] == ['diet-pick__search', 'diet-cand--scan'], f'{t} feuille : la recherche, puis « Produit de marque ? Scanner » {order[:3]}')
+        R.check(page.inner_text('.diet-cand--scan').strip().replace('\u00a0', ' ') == 'Produit de marque ? Scanner' and page.locator('.diet-cand--scan svg use[href="#i-barcode"]').count() == 1,
+                f'{t} feuille : « Produit de marque ? Scanner » et son icône')
         sheet_layout(page, t, 'feuille Ajouter un aliment')
         page.evaluate('document.activeElement.blur()')   # capture sans clavier
         shot(page, LOT, f'1-feuille-scanner-{t}')
@@ -260,14 +260,14 @@ def t_pot(bench, eng, dev, theme):
 
 
 def t_sans_module(bench):
-    """Navigateur (aucun module natif) : « Saisir un code-barres », chiffres vérifiés, même fiche ; caméra refusée."""
+    """Navigateur (aucun module natif) : « Saisir le code-barres », chiffres vérifiés, même fiche ; caméra refusée."""
     for theme in THEMES:
         t = tag('iPhone 13', theme)
         with bench.frozen_page(NOW, 'webkit', 'iPhone 13', theme) as page:
             off = open_plan(page, theme, shell=False)
             off.mode[FOUND] = 'found'
             add_food_sheet(page)
-            R.check(page.inner_text('.diet-cand--scan').strip() == 'Saisir un code-barres', f'{t} sans caméra : « Saisir un code-barres »')
+            R.check(page.inner_text('.diet-cand--scan').strip().replace('\u00a0', ' ') == 'Produit de marque ? Saisir le code-barres', f'{t} sans caméra : « Saisir le code-barres »')
             page.click('.diet-cand--scan')
             page.wait_for_selector('.ios-dialog__input')
             R.check(page.get_attribute('.ios-dialog__input', 'inputmode') == 'numeric', f'{t} saisie : clavier numérique')

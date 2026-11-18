@@ -36,7 +36,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
   test('Une icône = un sens : avion en papier pour les envois privés, partage d\'iOS pour la feuille système', () => {
     // Envois chiffrés dans l'app (coach, élève) : jamais l'icône de la feuille de partage
     for (const [file, action] of [['js/features/coach-photos-ui.js', 'cph-send-day'], ['js/features/coach-ui.js', 'coach-send'],
-      ['js/features/nutrition-ui.js', 'coach-send-diet'], ['js/features/diet-editor.js', 'diet-send-student'],
+      ['js/features/nutrition-ui.js', 'coach-send-diet'], ['js/features/diet-week.js', 'diet-send-student'],
       ['js/features/coach-photos-ui.js', 'cph-send-from-vault']]) {
       assert.equal(iconOf(file, action), 'paperplane', `${action} (${file})`);
     }
