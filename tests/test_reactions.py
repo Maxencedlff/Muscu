@@ -173,7 +173,10 @@ def t_reagir(bench, eng, dev, theme):
         h.click()
         page.wait_for_timeout(400)
         R.check(mine(page) == ['like'] and calls(page, 'set_reaction')[-1]['kind'] == 'like', f'{t} un toucher : ❤️ envoyé {mine(page)}')
-        R.check(heart(page).get_attribute('aria-pressed') == 'true' and '❤️ 1' in page.locator('.feed-card').first.inner_text(), f'{t} cœur plein, résumé « ❤️ 1 »')
+        cnt = page.locator('.feed-card').first.locator('.react__count')
+        R.check(heart(page).get_attribute('aria-pressed') == 'true' and cnt.inner_text().strip() == '1' and '--bare' in (cnt.get_attribute('class') or ''),
+                f'{t} cœur plein, résumé : le nombre seul, sans second cœur ({cnt.inner_text()!r})')
+        R.check(cnt.get_attribute('aria-label') == '1 réaction : 1 J\'aime', f'{t} résumé dit en entier à VoiceOver ({cnt.get_attribute("aria-label")!r})')
         shot(page, LOT, f'1a-coeur-{t}')
         heart(page).click()
         page.wait_for_timeout(400)

@@ -177,7 +177,7 @@ html.type-xl .feed-card__head { min-height: 0; }
 .react--on { color: var(--on-tint); }
 .react--on::before { background: var(--tint-fill); }
 .react:active { opacity: .6; }
-.react__emoji { font-size: 1.1rem; line-height: 1; }
+.react__emoji { font-size: min(1.1rem, 22px); line-height: 1; }   /* plafonné : en texte agrandi le cœur débordait de sa pastille */
 .react--more { min-width: 44px; padding: 0 12px; margin-left: 0; color: var(--label2); }
 .react--more.react--on { color: var(--on-tint); }
 
@@ -200,6 +200,8 @@ html.type-xl .feed-card__head { min-height: 0; }
   .like-burst { animation-name: like-fade; animation-duration: .8s !important; }
 }
 .react__count { font-size: var(--fs-subhead); color: var(--label2); white-space: nowrap; }
+/* Nombre seul (❤️ uniquement) : collé au cœur, comme le compteur d'Instagram ou de Photos */
+.react__count--bare { margin-left: -2px; }
 /* Ma séance (Mon profil) : résumé seul, à la hauteur d'un bouton */
 .react-own { min-height: 44px; display: inline-flex; align-items: center; }
 .react-own__none { font-size: var(--fs-subhead); color: var(--label2); }
@@ -432,3 +434,5 @@ html.type-xl .feed-card__stats { display: flex; flex-wrap: wrap; gap: 8px 24px; 
 html.type-xl .feed-card__stat { flex: 0 0 auto; }
 html.type-xl .feed-card__stat + .feed-card__stat { padding-left: 0; box-shadow: none; }
 html.type-xl .feed-card__comment span { display: none; }
+
+.nowrap { white-space: nowrap; }

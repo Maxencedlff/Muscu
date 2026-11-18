@@ -213,7 +213,7 @@ function friendsBodyHtml(st = friendsState()) {
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
-          <p class="social-hero__sub">Suis les séances de tes amis et réagis-y. Il faut un compte gratuit.</p>
+          <p class="social-hero__sub">Suis les séances de tes amis et <span class="nowrap">réagis-y</span>. Il faut un compte gratuit.</p>
         </div>
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>`;
   if (st === 'age') return ageHiddenHtml();
@@ -251,7 +251,7 @@ function activationHtml() {
   const name = account.profile?.username;
   const ready = !!name && socialAgeOk;
   const coached = coachRole().hasCoach;
-  const sub = 'Suis leurs séances et réagis-y. Seules les personnes que tu acceptes voient les tiennes.';
+  const sub = 'Suis leurs séances et <span class="nowrap">réagis-y</span>. Seules les personnes que tu acceptes voient les tiennes.';
   return `
         ${coached ? `<div class="group-title">Social (facultatif)</div>
         <p class="social-optional">${sub}</p>` : `

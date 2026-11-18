@@ -203,4 +203,16 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.match(src('js/features/account-ui.js'), /avatar--empty[^\n]*icon\('person\.crop\.circle'/);
     for (const id of ['bubble.left', 'person.crop.circle']) assert.match(src('index.html'), new RegExp(`<symbol id="i-${id.replace('.', '\\.')}"`));
   });
+
+  test('Panel vague 3 : « réagis-y » jamais coupé au trait d\'union, cœur et nombre seul à côté du cœur', () => {
+    const social = src('js/features/social-ui.js');
+    assert.ok(!/(?<!<span class="nowrap">)réagis-y/.test(social), 'chaque « réagis-y » dans <span class="nowrap">');
+    assert.equal((social.match(/<span class="nowrap">réagis-y<\/span>/g) || []).length, 2);
+    assert.match(src('css/social.css'), /\.nowrap \{ white-space: nowrap; \}/);
+    // Le cœur ne grandit plus au-delà de sa pastille ; la pastille des non-lus reste en haut à droite du segment
+    assert.match(src('css/social.css'), /\.react__emoji \{ font-size: min\(1\.1rem, 22px\)/);
+    assert.match(src('css/coach.css'), /html\.type-xl \.social-seg \.seg-count \{[^}]*position: absolute/);
+    // Résumé de ❤️ seulement : le nombre seul, à côté du cœur du fil (rendu vérifié par test_reactions.py)
+    assert.match(src('js/features/reactions-ui.js'), /reactionsSummaryHtml\(row\.reactions, 'react__count', \{ onlyHeartBare: true \}\)/);
+  });
 }

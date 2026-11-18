@@ -629,5 +629,8 @@ html.type-xl .chat-row__last { white-space: normal; display: -webkit-box; -webki
 .coach-pick .cell__title { display: inline-flex; align-items: center; min-width: 0; }
 /* Texte agrandi : trois segments sur 320 pt. Comme UISegmentedControl, le texte ne grandit plus au-delà de 17 pt et
    ne se coupe jamais au milieu d'un mot (« Messa / ges » sur iPhone SE) ; le nombre passe dessous si besoin */
-html.type-xl .social-seg .segmented__btn { font-size: 17px; white-space: normal; overflow-wrap: normal; word-break: keep-all; hyphens: none; line-height: 1.15; padding: 0 6px; }
-html.type-xl .social-seg .seg-count { font-size: 13px; }
+html.type-xl .social-seg .segmented__btn { font-size: 17px; white-space: normal; overflow-wrap: normal; word-break: keep-all; hyphens: none; line-height: 1.15; padding: 12px 6px; position: relative; }
+/* La pastille des non-lus reste sur la ligne du libellé : en haut à droite du segment, comme une pastille d'iOS */
+html.type-xl .social-seg .seg-count { font-size: 13px; position: absolute; top: 0; right: 0; margin-left: 0; }
+/* Place gardée à droite du libellé pour la pastille : elle ne cache plus le « s » de « Messages » (iPhone SE) */
+html.type-xl .social-seg .segmented__btn:has(.seg-count) { padding-right: 16px; }

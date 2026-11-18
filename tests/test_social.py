@@ -286,7 +286,7 @@ def t_fil(bench, eng, dev, theme):
         bravo.click()
         page.wait_for_timeout(300)
         bravo = page.locator('.feed-card').first.locator('[data-action="social-react"]')
-        R.check(bravo.get_attribute('aria-pressed') == 'true' and '❤️ 1' in page.locator('.feed-card').first.inner_text(), f'{t} ❤️ donné')
+        R.check(bravo.get_attribute('aria-pressed') == 'true' and page.locator('.feed-card').first.locator('.react__count').inner_text().strip() == '1', f'{t} ❤️ donné, « 1 » à côté du cœur')
         R.check(page.evaluate('__sb.so.bravos.map(b => b.kind)') == ['like'], f'{t} ❤️ enregistré')
         R.check(small_targets(page, '.react') == [], f'{t} cœur et « + » : 44 pt')
         shot(page, LOT, f'4b-bravo-{t}')

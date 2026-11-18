@@ -21,9 +21,14 @@ const REACT_MOVE_PX = 10;       // au-delà, c'est un défilement : pas d'appui 
 // ── Gabarits ────────────────────────────────────────────────
 
 // Résumé des réactions reçues : « 🔥👏 3 » (rien sans réaction), annoncé en entier par VoiceOver
-function reactionsSummaryHtml(counts, cls = 'react__count') {
+// onlyHeartBare : sur le fil, à côté du cœur, un résumé fait de ❤️ seulement devient le nombre seul (« 1 » collé
+// au bouton, pas deux cœurs côte à côte, panel vague 3) ; VoiceOver lit toujours « 1 réaction : 1 J'aime »
+function reactionsSummaryHtml(counts, cls = 'react__count', { onlyHeartBare = false } = {}) {
   const txt = reactionsSummary(counts);
-  return txt ? `<span class="${cls} num" role="img" aria-label="${esc(reactionsSpoken(counts))}">${esc(txt)}</span>` : `<span class="${cls}"></span>`;
+  if (!txt) return `<span class="${cls}"></span>`;
+  const bare = onlyHeartBare && Object.keys(counts || {}).every(k => k === REACTION_DEFAULT || !(counts[k] > 0));
+  const shown = bare ? String(reactionTotal(counts)) : txt;
+  return `<span class="${cls}${bare ? ` ${cls}--bare` : ''} num" role="img" aria-label="${esc(reactionsSpoken(counts))}">${esc(shown)}</span>`;
 }
 
 // Boutons du fil : le cœur, emoji seul (plein à la teinte quand ❤️ est ma réaction), puis « + » (ou ma
@@ -43,7 +48,7 @@ function reactionBarHtml(row) {
         ${other ? `<span class="react__emoji" aria-hidden="true">${other.emoji}</span>` : icon('plus', 18)}
       </button>
     </span>
-    ${reactionsSummaryHtml(row.reactions)}`;
+    ${reactionsSummaryHtml(row.reactions, 'react__count', { onlyHeartBare: true })}`;
 }
 // Consigne lue par VoiceOver après le nom du cœur (une seule par écran)
 function reactHintHtml() {
