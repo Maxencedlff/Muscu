@@ -133,10 +133,11 @@ def t_journee(bench, eng, dev, theme):
         R.check(card.count() == 1 and 'nutrition' in card.inner_text().lower() and 'Petit-déjeuner' in card.inner_text(), f'{t} accueil : carte Nutrition avec le prochain repas')
         R.check(small_targets(page, '.diet-home button') == [], f'{t} carte : 44 pt')
         # Bouton à cocher (panel vague 4) : rond vide gris, le même qu'une série à valider en séance ; la coche n'est
-        # dessinée qu'une fois coché (rond orange avec sa coche : lu « déjà fait »)
+        # dessinée qu'une fois coché (rond orange avec sa coche : lu « déjà fait »). Rond dessiné par ::before (26 pt dans
+        # la zone de 44 pt, panel nutrition du 18/11)
         ring = page.evaluate("""() => { const b = document.querySelector('.diet-home .diet-check'), probe = document.createElement('span');
             probe.style.color = 'var(--set-ring)'; document.body.append(probe); const set = getComputedStyle(probe).color; probe.remove();
-            return { ring: getComputedStyle(b).boxShadow, set, op: getComputedStyle(b.querySelector('.icon')).opacity }; }""")
+            return { ring: getComputedStyle(b, '::before').boxShadow, set, op: getComputedStyle(b.querySelector('.icon')).opacity }; }""")
         R.check(page.locator('.diet-home .diet-check').count() == 1 and float(ring['op']) == 0 and ring['set'] in ring['ring'],
                 f'{t} carte : rond vide gris comme en séance, sans coche avant de cocher {ring}')
         shot(page, LOT, f'1-accueil-{t}')
