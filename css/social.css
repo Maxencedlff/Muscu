@@ -424,6 +424,11 @@ html.type-xl .feed-card__head { min-height: 0; }
 html.type-xl :is(.rec-row, .review-rec) { flex-wrap: wrap; row-gap: 2px; }
 html.type-xl :is(.rec-row, .review-rec) .cell__body { flex: 1 1 8em; min-width: 0; }
 html.type-xl :is(.rec-row, .review-rec) .cell__title { overflow-wrap: normal; word-break: normal; hyphens: none; }
-/* Texte agrandi : un chiffre trop large passe à la ligne entre la valeur et l'unité (« 55 / min ») au lieu de
-   déborder sur la colonne voisine (« 55 mi1,4 t » sur iPhone SE en AX3) */
-html.type-xl .feed-card__stat-val { white-space: normal; overflow-wrap: break-word; }
+/* Texte agrandi : chaque chiffre à sa largeur, le dernier passe à la ligne s'il ne tient pas, au lieu de trois
+   tiers égaux où « 55 min » débordait sur la colonne voisine (« 55 mi1,4 t » sur iPhone SE en AX3) ;
+   « Commenter » en icône seule, comme sur 320 pt (nom gardé pour VoiceOver) */
+html.type-xl .feed-card__stats { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+/* Sans filet vertical : il resterait en tête de la rangée du chiffre passé à la ligne */
+html.type-xl .feed-card__stat { flex: 0 0 auto; }
+html.type-xl .feed-card__stat + .feed-card__stat { padding-left: 0; box-shadow: none; }
+html.type-xl .feed-card__comment span { display: none; }
