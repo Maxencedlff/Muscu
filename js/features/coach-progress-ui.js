@@ -82,6 +82,7 @@ function coachStudentRowHtml(s, pr, now = Date.now()) {
   // « Pas encore de séance » (signal) dit déjà ce que dirait « Aucune séance pour l'instant » : un seul message
   // (panel Apple de la vague 3) ; la 3e ligne ne reste que pour un planning
   const third = coachStudentPlanLine(s.user_id) || (pr.kind === 'never' ? '' : `<span class="cell__sub">${esc(studentLastLine(s))}</span>`);
+  const diet = coachStudentDietLine(s.user_id, now);
   const days = studentDaysHtml(studentDays(s, now));
   const badges = s.new_sessions || unread ? `<span class="cs-badges">${sessionsBadgeHtml(s.new_sessions)}${chatBadgeHtml(unread)}</span>${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}` : '';
   return `
@@ -89,10 +90,23 @@ function coachStudentRowHtml(s, pr, now = Date.now()) {
             <span class="social-row__main">${studentPicHtml(s)}<span class="cstu__col"><span class="social-row__text">
               <span class="cstu__top"><span class="social-row__name">${esc(personName(s))}</span>${pushOffMarkHtml(s.user_id)}${days}</span>
               ${pr.kind === 'new' && !coachStudentPlanLine(s.user_id) ? '' : progressSignalHtml(pr)}
-              ${third}
+              ${third}${diet}
             </span>${badges ? `<span class="cstu__foot">${badges}</span>` : ''}</span></span>
             ${icon('chevron.right', 16)}
           </button>`;
+}
+
+// Diète (js/data/diet-share.js), une ligne à part dès qu'un élève au moins partage : les 7 jours en mini-pastilles et
+// « 3 j suivis sur 7 » (panel du 18/11 : voir tout le groupe sans ouvrir de fiche), « Diète non partagée » pour les autres.
+// Aucun élève ne partage : rien (aucun bruit pour un coach qui ne suit pas de diète).
+function coachStudentDietLine(uid, now = Date.now()) {
+  if (typeof dietOverview === 'undefined' || dietOverview.available !== true || !Object.keys(dietOverview.students).length) return '';
+  const ov = dietOverview.students[uid];
+  if (!ov) return '<span class="cell__sub cstu__diet cstu__diet--off">Diète non partagée</span>';
+  const today = dietDayKey(now), days = dietShareWeekDays(0, now);
+  const dots = days.map(d => `<span class="cstu__ddot cdiet__dot cdiet__dot--${dietShareStatus(ov.days[d] || null, { today: d === today })}"></span>`).join('');
+  const n = dietShareWeekCount(ov, now);
+  return `<span class="cell__sub cstu__diet"><span>Diète</span><span class="cstu__ddots" aria-hidden="true">${dots}</span><span>${n} sur 7 suivi${n > 1 ? 's' : ''}</span></span>`;
 }
 
 // Séances prévues par semaine : celles du programme de sa phase en cours, si c'est un de mes programmes

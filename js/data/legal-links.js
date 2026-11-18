@@ -11,6 +11,7 @@ const LEGAL_URLS = Object.freeze({
   privacy:    `${LEGAL_SITE}/privacy.html`,
   newsletter: `${LEGAL_SITE}/privacy.html#newsletter`,
   nutrition:  `${LEGAL_SITE}/privacy.html#nutrition`,
+  coachShare: `${LEGAL_SITE}/privacy.html#partage-coach`,
   mentions:   `${LEGAL_SITE}/mentions-legales.html`,
   terms:      `${LEGAL_SITE}/cgu.html`,
   sales:      `${LEGAL_SITE}/cgv.html`,

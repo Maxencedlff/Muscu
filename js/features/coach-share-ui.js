@@ -72,17 +72,20 @@ function renderCoachShare() {
     emptyM ? 'Aucune mensuration pour l\'instant : ajoute-les dans Progrès › Mesures.' : '',
     emptyD ? 'Aucun plan de nutrition suivi : ton coach ne verra ta diète qu\'une fois un plan suivi (Entraînement › Nutrition).' : '',
   ].filter(Boolean).join(' ')}</div>` : '';
-  const sees = withM
-    ? `ce que tu coches, et seulement ça : la date et le poids de chaque pesée que tu saisis dans l'app (le volume de tes séances comptera alors ton poids du corps), la date et la valeur de chaque mensuration${withD ? ', et pour chaque jour de ta diète : le plan, les repas cochés, les calories et macros, l\'eau, le sel et l\'écart avec l\'objectif (jamais le détail des aliments ni les heures, 90 jours au plus)' : ''}. Tes photos restent dans ton coffre, sauf celles que tu envoies toi-même, une à une (Mon coach › Photos de bilan). Jamais tes données de Santé.`
-    : `${name} verra la date et le poids de chaque pesée que tu saisis dans l'app, et le volume de tes séances comptera ton poids du corps. Rien d'autre : ni mensurations, ni données de Santé ; tes photos seulement si tu les envoies toi-même.`;
+  // Serveur à jour (mensurations annoncées) : trois paragraphes courts, ce que le coach voit, ce qui ne part jamais,
+  // comment arrêter (panel du 18/11 : le bloc d'un seul tenant n'était pas lu), puis « En savoir plus »
+  const foot = withM ? `
+        <div class="group-foot"><b>${name} voit</b> seulement ce que tu coches : la date et le poids de chaque pesée que tu saisis dans l'app (le volume de tes séances comptera alors ton poids du corps), la date et la valeur de chaque mensuration${withD ? ', et pour chaque jour de ta diète : les repas cochés, calories, macros, eau, sel et l\'écart avec l\'objectif' : ''}.</div>
+        <div class="group-foot"><b>Jamais</b> : tes données de Santé${withD ? ', le détail de tes aliments, les heures' : ''} ; tes photos, sauf celles que tu envoies toi-même, une à une (Mon coach › Photos de bilan). Tes amis ne voient rien de tout ça.</div>
+        <div class="group-foot"><b>Arrêter</b> : tout est décoché tant que tu ne le coches pas. Tu peux arrêter à tout moment, donnée par donnée : ce que tu décoches est alors effacé du serveur et ${name} ne le voit plus, même ce qu'il avait déjà vu. Quitter ton coach arrête aussi le partage.${withD ? ' La diète est gardée 90 jours au plus.' : ''}</div>
+        <div class="group coach-share-more"><button class="cell cell--action" data-action="open-legal" data-page="coachShare"><span>En savoir plus sur le partage</span></button></div>`
+    : `
+        <div class="group-foot">${name} verra la date et le poids de chaque pesée que tu saisis dans l'app, et le volume de tes séances comptera ton poids du corps. Rien d'autre : ni mensurations, ni données de Santé ; tes photos seulement si tu les envoies toi-même. Tes amis ne voient rien de tout ça.</div>
+        <div class="group-foot">Tout est décoché tant que tu ne le coches pas. Tu peux arrêter à tout moment : tes pesées sont alors effacées du serveur et ${name} ne les voit plus, même celles qu'il avait déjà vues. Quitter ton coach arrête aussi le partage.</div>`;
   return view(`
         ${coachTitle(`Avec ${name}`)}
         <div class="group">${cells}
-        </div>
-        <div class="group-foot">${withM ? `${name} voit ` : ''}${sees} Tes amis ne voient rien de tout ça.</div>
-        <div class="group-foot">Tout est décoché tant que tu ne le coches pas. ${withM
-    ? `Tu peux arrêter à tout moment, donnée par donnée : ce que tu décoches est alors effacé du serveur et ${name} ne le voit plus, même ce qu'il avait déjà vu.`
-    : `Tu peux arrêter à tout moment : tes pesées sont alors effacées du serveur et ${name} ne les voit plus, même celles qu'il avait déjà vues.`} Quitter ton coach arrête aussi le partage.</div>
+        </div>${foot}
         ${hint}
         ${cphMineCellHtml()}`);
 }
@@ -255,6 +258,9 @@ registerActions({
     const m = kind === 'measures', dl = kind === 'diet_log';
     const what = m ? 'mensurations' : dl ? 'journées' : 'pesées';
     if (r.uploadFailed) showToast(r.uploadFailed === 'offline' ? `Partage activé. Tes ${what} partiront avec du réseau.` : coachErrorText(m && r.uploadFailed === 'invalid_data' ? 'invalid_measures' : r.uploadFailed), { error: r.uploadFailed !== 'offline' });
-    else showToast(on ? (m ? 'Mensurations partagées avec ton coach' : dl ? 'Suivi de ta diète partagé avec ton coach' : 'Poids partagé avec ton coach') : `Partage arrêté, ${what} effacées du serveur`);
+    // Partage donné : Annuler d'un toucher (panel du 18/11 : une donnée sensible se reprend aussi vite qu'elle se donne)
+    else if (on) showToast(m ? 'Mensurations partagées avec ton coach' : dl ? 'Diète partagée avec ton coach' : 'Poids partagé avec ton coach',
+      { action: 'Annuler', onAction: () => coachShareSet(kind, false).then(u => { if (!u.ok && u.kind !== 'busy') showToast(coachErrorText(u.kind), { error: true }); }) });
+    else showToast(`Partage arrêté, ${what} effacées du serveur`);
   },
 });

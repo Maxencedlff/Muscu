@@ -74,6 +74,10 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(st(x(500, null, [{ ok: true }, { ok: false }])), 'part');
     assert.equal(st(x(0, null, [{ ok: false }])), 'off');
     assert.equal(run(`dietShareGap(${j(x(1840, 2300))})`), -20);
+    // Protéines : des calories justes sans les protéines ne font qu'un jour partiel ; au-dessus ne compte pas contre
+    assert.equal(st({ kcal: 2300, p: 100, goal: { kcal: 2300, p: 150 }, meals: [] }), 'part');
+    assert.equal(st({ kcal: 2300, p: 135, goal: { kcal: 2300, p: 150 }, meals: [] }), 'ok', '90 % des protéines');
+    assert.equal(st({ kcal: 2300, p: 220, goal: { kcal: 2300, p: 150 }, meals: [] }), 'ok');
   });
 
   test('suivi diète : « À relancer » après 3 jours pas suivis, jamais avant le partage', () => {
@@ -99,7 +103,10 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     sameJSON(run(`cleanCoachDiet({ shared: false, days: [{ day: '2026-11-18', kcal: 1 }] })`), { shared: false, since: null, days: {} });
     const ov = run(`cleanDietOverview({ students: [{ student_id: 'u2', since: '2026-11-01T10:00:00Z', days: [['2026-11-17', 1800, 2300, 2, 3], ['bad']] }, { x: 1 }] })`);
     sameJSON(Object.keys(ov), ['u2']);
-    sameJSON(ov.u2.days['2026-11-17'], { kcal: 1800, goal: { kcal: 2300 }, meals: [{ ok: true }, { ok: true }, { ok: false }] });
+    sameJSON(ov.u2.days['2026-11-17'], { kcal: 1800, goal: { kcal: 2300, p: 0 }, p: 0, meals: [{ ok: true }, { ok: true }, { ok: false }] });
+    const ov2 = run(`cleanDietOverview({ students: [{ student_id: 'u3', since: '2026-11-01T10:00:00Z', days: [['2026-11-18', 2300, 2300, 4, 4, 150, 150], ['2026-11-17', 2300, 2300, 4, 4, 100, 150], ['2026-11-16', 2250, 2300, 4, 4, 140, 150]] }] })`);
+    assert.equal(run(`dietShareWeekCount(${j(ov2.u3)}, ${new Date(2026, 10, 18, 12, 30).getTime()})`), 2, 'jours suivis sur 7 : aujourd\'hui compris s\'il est suivi, protéines comprises');
+    assert.equal(run('dietShareWeekCount(null)'), null);
     sameJSON(run(`dietShareWeekDays(0, ${NOW})`), ['2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15', '2026-11-16', '2026-11-17', '2026-11-18']);
     sameJSON(run(`dietShareWeekDays(1, ${NOW})`)[6], '2026-11-11');
   });

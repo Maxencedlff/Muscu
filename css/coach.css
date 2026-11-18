@@ -652,24 +652,33 @@ html.type-xl .social-seg .segmented__btn:has(.seg-count) { padding-right: 16px; 
 .cdiet__days { display: flex; margin: 2px -16px 0; padding: 0 4px; }
 .cdiet__day { flex: 1 1 0; min-width: 44px; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   border: none; background: none; font: inherit; color: var(--label2); cursor: pointer; padding: 4px 0; }
-.cdiet__wd { font-size: var(--fs-caption); font-weight: 600; }
+.cdiet__wd { font-size: var(--fs-footnote); font-weight: 600; }
 .cdiet__day--today .cdiet__wd { color: var(--label); }
 .cdiet__day--sel .cdiet__wd { color: var(--label); }
 .cdiet__day--sel .cdiet__dot { outline: 2px solid var(--label); outline-offset: 2px; }
 .cdiet__dot { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; }
 .cdiet__dot .icon { width: 14px; height: 14px; }
 .cdiet__dot--ok { background: var(--check-on); color: var(--check-mark); }
-.cdiet__dot--part { box-shadow: inset 0 0 0 2.5px var(--check-on); }
-.cdiet__dot--part::after { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--check-on); }
+.cdiet__dot--part { position: relative; overflow: hidden; box-shadow: inset 0 0 0 2.5px var(--check-on); }
+/* Partiel : moitié gauche pleine (se lit sans la couleur : plein, demi, trait, pointillé) */
+.cdiet__dot--part::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 50%; background: var(--check-on); }
 .cdiet__dot--off { background: var(--fill2); color: var(--label2); }
 .cdiet__dot--none { border: 2px dashed var(--set-ring); }
 .cdiet__dot--today { box-shadow: inset 0 0 0 2px var(--set-ring); }
-.cdiet__legend { margin: 2px 0 10px; display: flex; flex-wrap: wrap; justify-content: center; column-gap: 12px; row-gap: 4px;
-  font-size: var(--fs-footnote); color: var(--label2); }
+.cdiet__legend { margin: 4px 0 2px; display: flex; flex-wrap: wrap; justify-content: center; column-gap: 14px; row-gap: 6px;
+  font-size: var(--fs-subhead); color: var(--label); }
+.cdiet__rule { margin: 0 0 6px; text-align: center; font-size: var(--fs-subhead); color: var(--label2); }
+.cdiet__rule summary { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; color: var(--tint); cursor: pointer; list-style: none; }
+.cdiet__rule summary::-webkit-details-marker { display: none; }
+.cdiet__rule p { margin: 0 0 6px; }
+.cdiet__avg { margin: 0 0 10px; text-align: center; font-size: var(--fs-subhead); color: var(--label); }
+.cdiet__why { color: var(--label); }
+.cdiet__write .cell__body { display: flex; flex-direction: column; align-items: flex-start; }
+.cdiet__write .cell__sub { font-weight: 400; color: var(--label2); }
+.cdiet__warn { margin-bottom: 10px; }
 .cdiet__key { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.cdiet__key .cdiet__dot { width: 14px; height: 14px; }
+.cdiet__key .cdiet__dot { width: 18px; height: 18px; }
 .cdiet__key .cdiet__dot .icon { width: 9px; height: 9px; }
-.cdiet__key .cdiet__dot--part::after { width: 5px; height: 5px; }
 .cdiet__key .cdiet__dot--part { box-shadow: inset 0 0 0 1.5px var(--check-on); }
 .cdiet__detail .cell__sub { overflow-wrap: anywhere; }
 .cdiet__state { flex-shrink: 0; font-size: var(--fs-footnote); font-weight: 600; color: var(--label2); }
@@ -678,3 +687,11 @@ html.type-xl .social-seg .segmented__btn:has(.seg-count) { padding-right: 16px; 
 html.type-xl .cdiet__legend { flex-direction: column; align-items: flex-start; }
 html.type-xl .cdiet__key { white-space: normal; }
 .cdiet__val { font-variant-numeric: tabular-nums; }   /* chiffres alignés, sans le compteur animé des .num (vivant.js) */
+/* Mes élèves : ligne Diète (mini-pastilles des 7 jours, mêmes formes que la carte de la fiche) */
+.cstu .cell__sub.cstu__diet { display: flex; align-items: center; flex-wrap: wrap; column-gap: 8px; row-gap: 2px; }
+.cstu__ddots { display: inline-flex; gap: 4px; }
+.cstu__ddot.cdiet__dot { width: 13px; height: 13px; }
+.cstu__ddot.cdiet__dot--part { box-shadow: inset 0 0 0 1.5px var(--check-on); }
+.cstu__ddot.cdiet__dot--none { border-width: 1.5px; }
+.cstu__ddot.cdiet__dot--today { box-shadow: inset 0 0 0 1.5px var(--set-ring); }
+.cstu__diet--off { color: var(--label2); }
