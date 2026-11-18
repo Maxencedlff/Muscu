@@ -150,7 +150,7 @@ const vaultRefused = r => ({ ok: false, ...(r && !r.key ? r : { failed: true }) 
 // Création : identifiant écrit d'abord (une création interrompue reprend la même clé au lieu d'en laisser une
 // orpheline dans le trousseau iCloud), clé tirée par iOS après Face ID (ou le code), réglages complétés, puis
 // migration (une coupure est rattrapée à l'ouverture suivante). { ok, migrated } ou l'échec d'iOS.
-async function vaultSetup(reason = 'Créer ton coffre à photos') {
+async function vaultSetup(reason = 'Créer le coffre à photos') {
   const prev = await vaultMeta();
   if (vaultReady(prev)) throw new Error('coffre déjà créé');
   const epoch = vaultEpoch;
@@ -169,7 +169,7 @@ async function vaultSetup(reason = 'Créer ton coffre à photos') {
 // Ouverture : Face ID (ou le code) puis clé du trousseau, vérifiée par le témoin. { ok } ou l'échec d'iOS ;
 // { missing } : clé pas (encore) sur cet iPhone, ou qui ne correspond pas au témoin. Jamais de nouvelle clé ici.
 // epoch : relevé AVANT la feuille d'iOS (un verrouillage pendant la feuille doit annuler l'ouverture).
-async function vaultUnlock(reason = 'Ouvrir ton coffre à photos', epoch = vaultEpoch) {
+async function vaultUnlock(reason = 'Ouvrir le coffre à photos', epoch = vaultEpoch) {
   const meta = await vaultMeta();
   if (!vaultReady(meta)) return { ok: false, failed: true };
   const r = await Native.vault.unlock(reason, meta.id);

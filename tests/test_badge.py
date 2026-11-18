@@ -82,7 +82,7 @@ def t_coach_declare(bench, eng, dev, theme):
         page.evaluate("navigate('coach')")
         page.wait_for_selector('[data-action="coach-card-declare"]')
         txt = page.inner_text('.coach-view')
-        R.check('Carte professionnelle' in txt and 'Déclarer ma carte pro' in txt and 'visible que par toi et l\'administrateur' in txt
+        R.check('Carte professionnelle' in txt and 'Déclarer ma carte pro' in txt and 'Seuls toi et l\'administrateur' in txt
                 and 'suppression du compte' in txt, f'{t} Réglages › Coach : section Carte professionnelle, numéro privé, usurpation')
         layout(page, t, 'section carte, sans déclaration')
         page.locator('[data-action="coach-card-declare"]').scroll_into_view_if_needed()
@@ -107,7 +107,7 @@ def t_coach_declare(bench, eng, dev, theme):
         txt = page.inner_text('.coach-view')
         R.check(NUM in txt and 'Déclarée le' in txt and 'Affiché' in txt and 'Changer de numéro' in txt and 'Retirer le badge' in txt,
                 f'{t} section : numéro, date, badge affiché')
-        R.check('il ne dit pas qu\'elle a été vérifiée' in txt, f'{t} le coach sait que le badge ne vaut pas vérification')
+        R.check('pas une carte vérifiée' in txt, f'{t} le coach sait que le badge ne vaut pas vérification')
         layout(page, t, 'section carte déclarée')
         page.locator('[data-action="coach-card-withdraw"]').scroll_into_view_if_needed()
         shot(page, LOT, f'3-reglages-declaree-{t}')

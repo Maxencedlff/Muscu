@@ -106,7 +106,7 @@ function coachTierFullText(tier) {
   if (tier?.is_coach && tier.uncovered > 0) {
     const who = tier.uncovered > 1 ? `${tier.uncovered} élèves` : '1 élève';
     return tier.product_id
-      ? `${who} au-delà de ta formule : ${tier.uncovered > 1 ? 'leur' : 'son'} accès n'est plus offert. Passe au palier supérieur.`
+      ? `${who} au-delà de ton palier : ${tier.uncovered > 1 ? 'leur' : 'son'} accès n'est plus offert. Passe au palier supérieur.`
       : `Sans abonnement coach, l'accès de ${tier.uncovered > 1 ? `tes ${tier.uncovered} élèves n'est` : 'ton élève n\'est'} pas offert. Prends un abonnement coach.`;
   }
   if (!tier || !tier.is_coach || !tier.full || tier.limit === null) return null;
@@ -121,13 +121,13 @@ const COACH_PRO_ERRORS = ['already_coach', 'invalid_name', 'invalid_card', 'inva
 const COACH_PRO_TEXT = {
   already_coach: 'Ton compte est déjà un compte coach.',
   invalid_name: 'Écris ton nom tel qu\'il figure sur ta carte (2 à 80 caractères).',
-  invalid_card: 'Numéro de carte introuvable : 6 à 20 lettres et chiffres, comme sur ta carte.',
+  invalid_card: 'Saisis 6 à 20 lettres et chiffres, comme sur ta carte.',
   invalid_diploma: 'Choisis ton diplôme.',
   not_coach: 'Ton compte n\'est pas un compte coach.',
   rate_limited: 'Trop d\'envois pour aujourd\'hui. Réessaie demain.',
   not_found: 'Connecte-toi d\'abord à ton compte.',
-  card_suspended: 'Ton badge est en cours de revue après un signalement. Tu pourras le modifier ensuite.',
-  card_removed: 'Ton badge a été retiré par l\'équipe. Écris à contact@mdlf.app pour en parler.',
+  card_suspended: 'Badge suspendu après des signalements. Tu pourras le modifier après la vérification.',
+  card_removed: 'Badge retiré par l\'équipe. Pour en parler, écris à contact@mdlf.app.',
   invalid_badge_card: 'Ce numéro n\'a pas le bon format. Recopie-le comme sur ta carte, par exemple 04912ED0123.',
 };
 function coachProErrorKind(error) {

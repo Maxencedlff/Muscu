@@ -182,7 +182,7 @@ def t_tout_supprimer(bench):
         page.wait_for_timeout(400)
         R.check(page.locator('.bm-cell .cell__sub').count() == 0, 'écran Mesures vide après la suppression')
         bm = page.inner_text('.bm-private')
-        R.check('Rien n\'est montré à personne.' in bm and 'coach' not in bm, f'sans coach : « Rien n\'est montré à personne. » ({bm!r})')
+        R.check('Personne d\'autre ne les voit.' in bm and 'coach' not in bm, f'sans coach : « Personne d\'autre ne les voit. » ({bm!r})')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 

@@ -187,11 +187,11 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check('ni à ton coach' not in early and 'Ton coach ne voit que les photos' in early, f'{t} Mesures, état pas encore lu : bandeau vrai ({early!r})')
         sp.evaluate("s => { cph.state = JSON.parse(s); render(); }", keep)
         bm = sp.inner_text('.bm-private')
-        R.check('Ton coach ne voit que les photos que tu lui envoies toi-même' in bm and 'ni à ton coach' not in bm, f'{t} Mesures : bandeau vrai ({bm!r})')
+        R.check('Ton coach voit seulement celles que tu lui envoies' in bm and 'Ni tes amis ni ton coach' not in bm, f'{t} Mesures : bandeau vrai ({bm!r})')
         sp.evaluate("coach.preview = { code: 'ESSAI1', person: { user_id: 'x', username: 'max', avatar: '🦁' } }; navigate(makeRoute('coach-join', 'ESSAI1'))")
         sp.wait_for_selector('.coach-join-view .coach-join__item')
         cj = sp.inner_text('.coach-join-view')
-        R.check('Des photos de bilan' in cj and 'les photos de ton coffre que tu ne lui envoies pas' in cj and 'ni tes photos' not in cj, f'{t} aperçu « Rejoindre » : photos de bilan dites')
+        R.check('Des photos de bilan' in cj and 'les autres photos du coffre' in cj and 'ni tes photos' not in cj, f'{t} aperçu « Rejoindre » : photos de bilan dites')
         sp.evaluate("navigate('photo-vault')")
         sp.wait_for_selector('[data-action="pv-start"]')
         intro = sp.inner_text('.pv-feats')
@@ -214,7 +214,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check(sp.locator('.sheet .cphs__item[aria-checked="true"]').count() == 0 and go.is_disabled(), f'{t} feuille : rien de coché, Envoyer grisé')
         sp.locator('.sheet .cphs__item').first.click()
         ok_txt = sp.locator('.sheet .cphs__item').first.locator('.cphs__ok')
-        R.check(ok_txt.is_visible() and 'Ton coach verra cette photo. Tu peux la retirer quand tu veux.' in ok_txt.inner_text()
+        R.check(ok_txt.is_visible() and 'Ton coach la verra. Tu pourras la retirer.' in ok_txt.inner_text()
                 and not sp.locator('.sheet .cphs__item').nth(1).locator('.cphs__ok').is_visible(), f'{t} accord affiché sous la photo cochée seulement')
         # announce() remplit la zone VoiceOver 30 ms après l'avoir vidée (js/core/dialogs.js) : on attend la phrase
         try:
@@ -271,7 +271,7 @@ def t_envoi_complet(bench, eng, dev, theme):
                 f'{t} feuille d\'envoi ouverte sur le jour qui reste ({sp.inner_text(".sheet .cphs__day")!r})')
         lead = sp.inner_text('.sheet .cphs__lead')
         # Panel v4 t1 : où va la photo, en tête (chiffrée avant l'envoi, ouverte par le coach seul)
-        R.check('Chiffrée avant l\'envoi : seul ton coach' in lead and 'Tu peux la retirer quand tu veux.' in lead and 'sur ton iPhone' not in sp.inner_text('.sheet'),
+        R.check('Chiffrée avant l\'envoi, pour ' in lead and 'Tu pourras la retirer.' in lead and 'sur ton iPhone' not in sp.inner_text('.sheet'),
                 f'{t} photo seule : accord affiché ({lead!r})')
         sp.wait_for_timeout(400)   # feuille montée en entier (mesurée en pleine animation, « Annuler » paraissait petit)
         layout(sp, t, 'Feuille d\'envoi (une photo)')
@@ -405,7 +405,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         layout(cp, t, 'Photo en grand (coach)')
         shot(cp, LOT, f'11-coach-photo-{t}')
         cp.click('.sheet [data-action="cph-hide"]')
-        tap_dialog(cp, 'Effacer')
+        tap_dialog(cp, 'Supprimer')
         cp.wait_for_function("() => document.querySelectorAll('.coach-photos-view .pgal__item img[src^=\"blob:\"]').length === 1", timeout=10000)
         R.check(cp.evaluate('__sb.co.photos.length') == 1 and cp.evaluate('__sb.trash.length') == 4, f'{t} coach : photo effacée de chez lui et du serveur')
         copy_server(cp, sp)
@@ -544,7 +544,7 @@ def t_cle_serveur(bench, eng, dev, theme):
         cp.wait_for_timeout(300)
         srv = cp.evaluate(f"() => __sb.co.pkeys['{ids['max']}']")
         R.check(srv['public_key'] == mine['public_key'] and srv['key_id'] == mine['key_id'], f'{t} ma clé republiée sur le serveur')
-        R.check('Ta clé est republiée' in toast(cp) and my_code in cp.inner_text('.coach-photos-view'), f'{t} ouvert avec ma clé, son code affiché')
+        R.check('Clé republiée' in toast(cp) and my_code in cp.inner_text('.coach-photos-view'), f'{t} ouvert avec ma clé, son code affiché')
         # Secret absent du trousseau, rien de retenu ici : « Clé absente de cet iPhone »
         cp.evaluate("() => { cphLock('test'); localStorage.removeItem('mdlf_coach_photo_mykey'); sessionStorage.removeItem('__fakeKeychain'); }")
         cp.click('[data-action="cph-unlock"]')

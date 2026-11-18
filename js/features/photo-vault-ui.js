@@ -47,7 +47,7 @@ function photoVaultCellHtml() {
           <button class="cell cell--nav pv-entry" data-action="go-photo-vault">
             <span class="pv-entry__glyph" aria-hidden="true">${icon('lock', 18)}</span>
             <span class="cell__body"><span class="cell__title">Coffre à photos</span>
-              <span class="cell__sub">${pvIos() ? 'Tes photos de progression, protégées par Face ID' : 'Tes photos de progression, dans l\'app iPhone pour l\'instant'}</span></span>
+              <span class="cell__sub">${pvIos() ? 'Photos de progression, protégées par Face ID' : 'Photos de progression, dans l\'app iPhone seulement'}</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
@@ -77,9 +77,9 @@ function pvCenterHtml() {
       ? 'Le coffre arrive avec la prochaine version de l\'app. Tes photos déjà prises restent sur ton iPhone et y seront rangées.'
       : Native.isNative ? 'Le coffre n\'existe pour l\'instant que dans l\'app iPhone. Tes photos déjà prises restent sur ce téléphone.'
       : 'Le coffre n\'existe que dans l\'app iPhone.' },
-    error: { title: 'Coffre à photos', text: 'Le coffre ne s\'ouvre pas pour l\'instant.', retry: 'Réessayer' },
+    error: { title: 'Coffre à photos', text: 'Ouverture du coffre impossible.', retry: 'Réessayer' },
     nopasscode: { title: 'Code de l\'iPhone requis', text: 'Le coffre s\'ouvre avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code, puis reviens ici.', retry: 'Réessayer' },
-    missing: { title: 'Coffre illisible pour l\'instant', text: `La clé du coffre n'est pas encore sur cet iPhone${pv.count ? ` (${plural(pv.count, 'photo', 'photos')})` : ''}. Elle arrive avec le trousseau iCloud, parfois après un moment. Réessaie plus tard. Si le trousseau était coupé sur l'ancien iPhone, la clé y est restée.`, retry: 'Réessayer', reset: true },
+    missing: { title: 'Coffre illisible pour l\'instant', text: `La clé du coffre n'est pas encore sur cet iPhone${pv.count ? ` (${plural(pv.count, 'photo', 'photos')})` : ''}. Elle arrive par le trousseau iCloud, parfois avec du retard. Si le trousseau était coupé sur l'ancien iPhone, la clé y est restée.`, retry: 'Réessayer', reset: true },
   }[ph] || { title: 'Coffre à photos', text: '' };
   return `
         <div class="pv-center">
@@ -151,7 +151,7 @@ function pvOpenHtml() {
             <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
             <p class="cell__sub">Prends une photo de face, de profil ou de dos pour comparer plus tard.</p></div>`}
         </div>
-        <div class="group-foot">Tes photos restent sur ${pvIos() ? 'ton iPhone' : 'cet appareil'}, chiffrées. ${cphVaultFoot()}</div>
+        <div class="group-foot">Les photos restent sur ${pvIos() ? 'ton iPhone' : 'cet appareil'}, chiffrées. ${cphVaultFoot()}</div>
         <div class="group-foot">${pvIos() ? 'Ni dans l\'export ni dans la copie iCloud de l\'app. Le trousseau iCloud les rouvre sur un nouvel iPhone.'
           : 'Elles ne sont pas dans l\'export.'}</div>`;
 }
@@ -303,7 +303,7 @@ window.addEventListener('scroll', () => vaultTouch(), { passive: true });
 function pvRefusal(r, epoch) {
   if (r.nopasscode) { pv = { ...pv, phase: 'nopasscode', msg: '', err: false }; pvPaint(); return true; }
   if (r.missing) { pvMissing(epoch); return true; }
-  pv.msg = r.canceled ? '' : 'Ouverture impossible pour l\'instant, réessaie.';
+  pv.msg = r.canceled ? '' : 'Ouverture impossible. Réessaie.';
   pv.err = !r.canceled;
   pvPaint();
   return false;
@@ -314,7 +314,7 @@ async function pvCreate() {
   const epoch = vaultEpoch;
   pvBusy = true; pv.msg = ''; pv.err = false; pvPaint();
   let r;
-  try { r = await vaultSetup('Créer ton coffre à photos'); } catch { r = { ok: false, failed: true }; }
+  try { r = await vaultSetup('Créer le coffre à photos'); } catch { r = { ok: false, failed: true }; }
   pvBusy = false;
   if (!pvCurrent(epoch) || r.stale) {   // écran quitté ou app partie pendant la feuille d'iOS
     if (r.stale && currentView() === 'photo-vault') { pv = { ...pv, phase: 'locked', msg: '', err: false }; pvPaint(); }
@@ -332,7 +332,7 @@ async function pvOpenVault() {
   const epoch = vaultEpoch;
   pvBusy = true; pvPaint();
   let r;
-  try { r = await vaultUnlock('Ouvrir ton coffre à photos', epoch); } catch { r = { ok: false, failed: true }; }
+  try { r = await vaultUnlock('Ouvrir le coffre à photos', epoch); } catch { r = { ok: false, failed: true }; }
   pvBusy = false;
   if (!pvCurrent(epoch) || r.stale) { if (currentView() === 'photo-vault') pvPaint(); return; }
   if (!r.ok) { pvRefusal(r, epoch); return; }
@@ -346,7 +346,7 @@ async function pvOpenVault() {
 async function pvReset() {
   const n = pv.count || await photoRowsCount().catch(() => 0);
   const ok1 = await dialog({ title: n ? `Supprimer ${plural(n, 'photo', 'photos')} ?` : 'Vider le coffre ?',
-    message: 'Ces photos seront supprimées de cet iPhone, même si la clé arrive plus tard. Il sera trop tard pour les rouvrir. Tu pourras créer un nouveau coffre.',
+    message: 'Ces photos seront supprimées de cet iPhone. Si la clé arrive ensuite, elles ne pourront plus s\'ouvrir. Tu pourras créer un nouveau coffre.',
     actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Supprimer', value: true, style: 'destructive' }] });
   if (!ok1) return;
   const ok = await vaultReset({ keep: true });
@@ -491,7 +491,7 @@ registerActions({
     const sent = cphStudentListed() ? cphSentOf(id) : null;
     // État des envois inconnu ici (hors ligne, autre iPhone) alors qu'on a un coach : on ne promet pas « nulle part ailleurs »
     const unsure = !sent && account.user && coachRole().hasCoach;
-    const msg = sent ? 'Elle est aussi retirée chez ton coach. Il n\'y a pas de corbeille.'
+    const msg = sent ? 'Elle sera aussi retirée de chez ton coach. Il n\'y a pas de corbeille.'
       : unsure ? 'Il n\'y a pas de corbeille. Si tu l\'as envoyée à ton coach, retire-la dans Mon coach › Photos de bilan.' : 'Elle n\'existe nulle part ailleurs et il n\'y a pas de corbeille.';
     if (!(await confirmSheet('Supprimer cette photo ?', msg, 'Supprimer'))) return;
     if (!vaultIsOpen()) return;   // refermé pendant la confirmation : rien sans rouvrir le coffre

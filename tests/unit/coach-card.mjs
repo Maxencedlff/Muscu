@@ -49,8 +49,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const start = ui.indexOf('// ── Badge « Carte pro déclarée »'), end = ui.indexOf('// ── Écran « Devenir coach »');
     assert.ok(start > 0 && end > start, 'section du badge introuvable');
     const shown = ui.slice(start, end).split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
-    const plain = shown.replace("il ne dit pas qu'elle a été vérifiée", '');
-    assert.ok(shown.includes("il ne dit pas qu'elle a été vérifiée"), 'le coach est prévenu que le badge ne vaut pas vérification');
+    const plain = shown.replace("pas une carte vérifiée", '');
+    assert.ok(shown.includes("pas une carte vérifiée"), 'le coach est prévenu que le badge ne vaut pas vérification');
     assert.ok(!/certifi|vérifié/i.test(plain), 'promesse de vérification dans les textes du badge');
     // Le numéro n'est affiché que dans la section du coach lui-même (coachPro.card), jamais pour un autre
     assert.ok(!/coachBadges[^\n]*card_number/.test(read('js/data/coach-pro.js')), 'numéro gardé avec les badges des autres');

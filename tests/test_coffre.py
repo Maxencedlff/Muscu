@@ -385,7 +385,7 @@ def t_illisible(bench):
         n_create, n_unlock = calls(page, 'create'), calls(page, 'unlock')
         reenter(page)
         txt = page.inner_text('.view.photo-vault')
-        R.check(page.inner_text('#pvTitle') == 'Coffre illisible pour l\'instant' and 'trousseau iCloud' in txt and '1 photo' in txt and 'Réessaie plus tard' in txt,
+        R.check(page.inner_text('#pvTitle') == 'Coffre illisible pour l\'instant' and 'trousseau iCloud' in txt and '1 photo' in txt and 'parfois avec du retard' in txt,
                 f'clé absente : illisible pour l\'instant, trousseau iCloud expliqué {txt[:400]!r}')
         R.check(calls(page, 'create') == n_create, 'clé absente : aucune nouvelle clé créée pour ce coffre')
         R.check(not page.evaluate('vaultIsOpen()') and page.locator('.view.photo-vault img').count() == 0, 'clé absente : rien d\'ouvert')
@@ -403,7 +403,7 @@ def t_illisible(bench):
         reenter(page)
         page.click('[data-action="pv-reset"]')
         page.wait_for_selector('.ios-dialog')
-        R.check('Supprimer 1 photo' in page.inner_text('.ios-dialog') and 'trop tard' in page.inner_text('.ios-dialog'), f'vider : confirmation {page.inner_text(".ios-dialog")!r}')
+        R.check('Supprimer 1 photo' in page.inner_text('.ios-dialog') and 'ne pourront plus s\'ouvrir' in page.inner_text('.ios-dialog'), f'vider : confirmation {page.inner_text(".ios-dialog")!r}')
         tap_dialog(page, 'Annuler')
         R.check(len(page.evaluate(RAW_ROWS)['rows']) == 1, 'vider annulé : photo gardée')
         page.click('[data-action="pv-reset"]')
@@ -582,7 +582,7 @@ def t_panel_apple(bench):
             return [!!p.querySelector('.icon--chevron-up-chevron-down'), getComputedStyle(s).color === getComputedStyle(document.querySelector('.navbar__text')).color]; })""")
         R.check(sel == [[True, True], [True, True]], f'coffre : menus Avant / Après avec chevrons, valeur en couleur d\'action {sel}')
         foot = page.locator('.view.photo-vault .group-foot').first.inner_text()
-        R.check(foot.startswith('Tes photos restent sur ton iPhone, chiffrées.'), f'coffre : la promesse d\'abord, la technique ensuite ({foot!r})')
+        R.check(foot.startswith('Les photos restent sur ton iPhone, chiffrées.'), f'coffre : la promesse d\'abord, la technique ensuite ({foot!r})')
         bar = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
             return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity, cut: ti.scrollWidth > ti.clientWidth + 1 }; }""")
         page.evaluate('window.scrollTo(0, 0)')

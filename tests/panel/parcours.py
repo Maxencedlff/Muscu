@@ -1509,7 +1509,7 @@ def p_photos_bilan(r):
         with r.etape('envoyer', '« Envoyer à mon coach » : chaque photo à cocher, rien de coché', cle='Élève : envoyer une photo de bilan'):
             r.toucher('[data-action="cph-send-day"]', 'Envoyer à mon coach (aujourd\'hui)')
             r.attendre('.sheet .cphs__item', 'photos à cocher')
-        with r.etape('cocher', 'Photo de face cochée : « Ton coach verra cette photo… »', cle='Élève : envoyer une photo de bilan'):
+        with r.etape('cocher', 'Photo de face cochée : « Ton coach la verra… »', cle='Élève : envoyer une photo de bilan'):
             r.toucher('.sheet .cphs__item', 'photo de face', texte='Face')
         with r.etape('age', 'Premier envoi : 18 ans ou plus', cle='Élève : envoyer une photo de bilan'):
             r.toucher('.sheet .cphs__go', 'Envoyer')
@@ -1630,7 +1630,7 @@ def p_abonnement_coach(r):
     with r.etape('formules-coach', 'Formules coach : « Tes élèves n\'ont rien à payer », 4 paliers', cle=cle):
         r.toucher('.pay-settings-view [data-action="pay-open"][data-tab="coach"]', 'Changer de palier coach')
         r.attendre('.pay-view', 'écran d\'abonnement')
-    with r.etape('eleves-au-dela', 'Élèves : bandeau « 2 élèves au-delà de ta formule »', cle='Voir les élèves non couverts'):
+    with r.etape('eleves-au-dela', 'Élèves : bandeau « 2 élèves au-delà de ton palier »', cle='Voir les élèves non couverts'):
         r.onglet('friends', 'Coach')
         r.raccourci("navigate('coach-students')", 'liste complète des élèves')
         r.attendre('.coach-tier-banner', 'bandeau du palier')

@@ -19,7 +19,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const COACH_REQUEST_INTRO = 'Le rôle coach est réservé aux éducateurs sportifs diplômés titulaires d\'une carte professionnelle. On vérifie ta carte sur le site du ministère des Sports, sous 48 h.';
+const COACH_REQUEST_INTRO = 'Le rôle coach est réservé aux éducateurs sportifs diplômés, titulaires d\'une carte professionnelle. L\'équipe vérifie la carte sur le site du ministère des Sports, sous 48 h.';
 const COACH_REQUEST_STATUS_TEXT = {
   pending: 'En vérification', approved: 'Validée', rejected: 'Refusée', revoked: 'Rôle retiré',
 };
@@ -77,11 +77,11 @@ function renderCoachProGroup() {
         <div class="group-title">Ton code coach</div>
         <div class="group">
           ${code ? `<div class="cell coach-invite coach-code-cell">
-            <span class="cell__body"><span class="cell__title coach-code num">${esc(formatCoachCode(code))}</span><span class="cell__sub">Ton code à toi, sans date de fin</span></span>
+            <span class="cell__body"><span class="cell__title coach-code num">${esc(formatCoachCode(code))}</span><span class="cell__sub">Sans date de fin</span></span>
             <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(code)}" aria-label="Partager ton code coach">${icon('square.and.arrow.up', 20)}</button>
           </div>` : `<div class="cell"><span class="cell__sub">${coachPro.error ? esc(coachProErrorText(coachPro.error)) : 'Chargement…'}</span></div>`}
         </div>
-        <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre un coach.${paywallOn() ? ' Tes élèves n\'ont rien à payer : ta formule coach comprend leur accès, dans la limite de son nombre d\'élèves.' : ''}</div>
+        <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre un coach.${paywallOn() ? ' Ils n\'ont rien à payer : ton abonnement coach couvre leur accès, jusqu\'à son nombre d\'élèves.' : ''}</div>
         ${coachCardGroupHtml()}
         <div class="group-title">Abonnement coach</div>
         <div class="group">
@@ -96,7 +96,7 @@ function renderCoachProGroup() {
 // ── Badge « Carte pro déclarée » ────────────────────────────
 
 const CARD_BADGE_VIEWS = ['coach', 'coach-join', 'coach-mine', 'social-profile', 'social-me'];
-const CARD_BADGE_PRIVATE = 'Ton numéro n\'est visible que par toi et l\'administrateur de MDLF Training. Déclarer la carte d\'une autre personne entraîne la suppression du compte.';
+const CARD_BADGE_PRIVATE = 'Seuls toi et l\'administrateur de MDLF Training voient ce numéro. Déclarer la carte d\'une autre personne entraîne la suppression du compte.';
 
 // Pastille montrée à tous (lue par coach_card_badge) : « déclarée », jamais « vérifiée »
 function cardBadgeHtml(uid, cls = '') {
@@ -128,7 +128,7 @@ function coachCardGroupHtml() {
           <div class="cell"><span class="cell__body"><span class="cell__title">Badge</span></span><span class="cell__value">${state}</span></div>`;
   if (c.status === 'suspended') {
     return `${title}<div class="group">${rows}</div>
-        <div class="group-foot">Badge masqué après plusieurs signalements. L'équipe vérifie ta carte sur le site du ministère des Sports et le remet si tout est en ordre.</div>`;
+        <div class="group-foot">Badge masqué après plusieurs signalements. L'équipe vérifie la carte sur le site du ministère des Sports, puis remet le badge si elle est valide.</div>`;
   }
   if (c.status === 'removed') {
     return `${title}<div class="group">${rows}</div>
@@ -141,7 +141,7 @@ function coachCardGroupHtml() {
         <div class="group">
           <button class="cell cell--destructive" data-action="coach-card-withdraw">Retirer le badge</button>
         </div>
-        <div class="group-foot">Le badge dit que tu as déclaré ta carte : il ne dit pas qu'elle a été vérifiée. ${CARD_BADGE_PRIVATE}</div>`;
+        <div class="group-foot">Le badge indique une carte déclarée, pas une carte vérifiée. ${CARD_BADGE_PRIVATE}</div>`;
 }
 
 // Saisie du numéro : erreur dans la feuille (saisie gardée), « Envoi… » pendant l'appel
@@ -214,7 +214,7 @@ function coachRequestFormHtml(req) {
         </div>
         <p class="coach-req-error" id="coachReqError" role="alert" aria-live="polite"></p>
         <button class="btn btn--primary btn--full" data-action="coach-request-send" ${coachRequestBusy ? 'disabled' : ''}>${coachRequestBusy ? 'Envoi…' : keep ? 'Renvoyer ma demande' : 'Envoyer ma demande'}</button>
-        <div class="group-foot coach-req-foot">Le numéro est sur ta carte professionnelle d'éducateur sportif. Ces informations servent seulement à vérifier ta carte : seul l'administrateur de MDLF Training les voit.</div>`;
+        <div class="group-foot coach-req-foot">Ces informations servent seulement à vérifier la carte. Seul l'administrateur de MDLF Training les voit.</div>`;
 }
 
 function renderCoachRequest() {
@@ -237,7 +237,7 @@ function renderCoachRequest() {
   if (coachRole().isCoach || req?.is_coach || req?.status === 'approved') {
     return `<div class="view view--grouped coach-req-view">${head}<div class="scr">${hero}
         <div class="group"><div class="cell"><span class="cell__body"><span class="cell__title">Demande</span></span><span class="cell__value">Validée</span></div></div>
-        <div class="group-foot">Ton rôle coach est validé. Ton code et tes abonnements coach sont dans Réglages › Coach.</div>
+        <div class="group-foot">Rôle coach validé. Code et abonnement coach : Réglages › Coach.</div>
         <button class="btn btn--primary btn--full" data-action="coach-open-settings">Voir mon espace coach</button>
       </div></div>`;
   }
@@ -272,7 +272,7 @@ registerActions({
     showToast('Carte déclarée');
   },
   'coach-card-withdraw': async () => {
-    if (!(await confirmSheet('Retirer le badge ?', `Le badge « ${COACH_BADGE_LABEL} » disparaît de ton profil. Tu pourras déclarer ta carte de nouveau.`, 'Retirer'))) return;
+    if (!(await confirmSheet('Retirer le badge ?', `Le badge « ${COACH_BADGE_LABEL} » disparaîtra de ton profil. Tu pourras redéclarer ta carte.`, 'Retirer'))) return;
     const r = await coachCardWithdraw();
     if (!r.ok) { showToast(coachProErrorText(r.kind), { error: true }); return; }
     render();
