@@ -11,7 +11,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runtimeVersion, nativeModules } from '../../scripts/runtime-version.mjs';
+import { execFileSync } from 'node:child_process';
+import { runtimeSince, runtimeVersion, nativeModules } from '../../scripts/runtime-version.mjs';
 
 const KOTLIN = 'android/app/src/main/java/com/mdlf/training';
 
@@ -65,6 +66,33 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
       repo.put('android/app/src/main/res/values/colors.xml', '<resources/>');
       assert.notEqual(runtimeVersion(repo.dir, 'android'), b, 'ressource modifiée : nouvelle coquille');
       assert.throws(() => runtimeVersion(repo.dir, 'windows'), /Plateforme inconnue/);
+    } finally { repo.done(); }
+  });
+
+  test('empreinte native : runtimeSeq = date du commit qui a fait apparaître la coquille (branche comprise)', () => {
+    const repo = fakeRepo();
+    const git = (args, date) => execFileSync('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args], { cwd: repo.dir, stdio: 'ignore',
+      env: { ...process.env, GIT_AUTHOR_DATE: `@${date} +0000`, GIT_COMMITTER_DATE: `@${date} +0000`,
+        GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' } });
+    const commit = (msg, date) => { git(['add', '-A'], date); git(['commit', '-q', '-m', msg], date); };
+    try {
+      git(['init', '-q', '-b', 'main'], 1000);
+      commit('coquille A', 1000);
+      repo.put('js/app.js', 'contenu');
+      commit('contenu seul', 2000);
+      assert.equal(runtimeSince(repo.dir, 'ios'), 1000, 'un commit de contenu ne change pas la date de la coquille');
+      // Branche de la build : nouvelle coquille B à 3000
+      git(['checkout', '-q', '-b', 'build'], 3000);
+      repo.put('ios/App/App/HealthPlugin.swift', 'import HealthKit // B');
+      commit('coquille B', 3000);
+      assert.equal(runtimeSince(repo.dir, 'ios'), 3000);
+      // main publie plus tard (contenu plus récent) pour la coquille A : sa coquille reste plus ancienne
+      git(['checkout', '-q', 'main'], 4000);
+      repo.put('js/app.js', 'contenu 2');
+      commit('contenu plus récent', 4000);
+      assert.equal(runtimeSince(repo.dir, 'ios'), 1000, 'OTA de main : coquille plus ancienne que celle de la build');
+      git(['merge', '-q', '--no-edit', 'build'], 5000);
+      assert.equal(runtimeSince(repo.dir, 'ios'), 3000, 'après la fusion : même date que la build');
     } finally { repo.done(); }
   });
 

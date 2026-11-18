@@ -1511,7 +1511,8 @@ test('mise à jour à chaud : décision (version, empreinte native, échecs, man
   assert.equal(d(otaManifest(), otaCtx()).download, true);
   assert.equal(d(otaManifest({ seq: 1000 }), otaCtx()).reason, 'à jour', 'même contenu');
   assert.equal(d(otaManifest({ seq: 900 }), otaCtx()).download, false, 'jamais de retour en arrière');
-  assert.equal(d(otaManifest({ runtime: 'r2' }), otaCtx()).reason, 'nécessite une nouvelle version de l\'app');
+  assert.equal(d(otaManifest({ runtime: 'r2' }), otaCtx()).reason, 'pas encore publiée',
+    'empreintes différentes sans date de coquille : rien n\'est affirmé');
   assert.equal(d(otaManifest({ runtime: 'r2', seq: 900 }), otaCtx()).reason, 'à jour',
     'OTA faite pour une build précédente, plus ancienne que le contenu en place : rien à demander');
   assert.equal(d(otaManifest(), otaCtx({ failed: ['2026.10.20-abc1234'] })).download, false, 'version en échec jamais retentée');
@@ -1519,6 +1520,22 @@ test('mise à jour à chaud : décision (version, empreinte native, échecs, man
   assert.equal(d(otaManifest({ checksum: 'abc' }), otaCtx()).reason, 'manifeste invalide', 'SHA-256 obligatoire');
   assert.equal(d(null, otaCtx()).reason, 'manifeste invalide');
   assert.equal(d(otaManifest(), otaCtx({ build: null })).download, false, 'PWA : jamais');
+});
+
+test('mise à jour à chaud : empreinte différente, build en retard (OTA pour une coquille plus récente)', async () => {
+  const d = (m, c) => run(`liveUpdateDecision(${JSON.stringify(m)}, ${JSON.stringify(c)})`);
+  const r = d(otaManifest({ runtime: 'r2', runtimeSeq: 1500 }), otaCtx({ build: { version: 'x', seq: 1000, runtime: 'r1', runtimeSeq: 800 } }));
+  sameJSON(r, { download: false, reason: 'nouvelle build' });
+  assert.equal(await run('liveUpdateNoneText("nouvelle build")'), 'Une nouvelle version de l\'app est disponible dans TestFlight');
+});
+
+test('mise à jour à chaud : empreinte différente, OTA pas encore publiée pour cette build (build 91, 17/11/2026)', async () => {
+  const d = (m, c) => run(`liveUpdateDecision(${JSON.stringify(m)}, ${JSON.stringify(c)})`);
+  // Contenu de la build plus ancien que l'OTA (seq), mais coquille de la build plus récente (runtimeSeq)
+  const r = d(otaManifest({ runtime: 'r0', seq: 2000, runtimeSeq: 500 }), otaCtx({ build: { version: 'x', seq: 1000, runtime: 'r1', runtimeSeq: 800 } }));
+  sameJSON(r, { download: false, reason: 'pas encore publiée' });
+  assert.equal(await run('liveUpdateNoneText("pas encore publiée")'), 'Pas de mise à jour pour l\'instant');
+  assert.equal(await run('liveUpdateNoneText("à jour")'), 'Tu as la dernière version');
 });
 
 test('mise à jour à chaud : paquet accepté seulement sous https://mdlf-ota.vercel.app/bundles/ (audit M1)', () => {
@@ -1650,9 +1667,9 @@ test('mise à jour à chaud : déjà téléchargée → pas de nouveau télécha
   assert.equal(ko.result.status, 'none'); assert.equal(ko.calls.length, 0);
 });
 
-test('mise à jour à chaud : coquille native différente → rien (il faut passer par l\'App Store)', async () => {
+test('mise à jour à chaud : coquille native différente → rien n\'est téléchargé', async () => {
   const { result, calls } = await otaScenario({ manifest: otaManifest({ runtime: 'autre' }) });
-  assert.equal(result.reason, 'nécessite une nouvelle version de l\'app'); assert.equal(calls.length, 0);
+  assert.equal(result.status, 'none'); assert.equal(calls.length, 0);
 });
 
 test('son : joué par iOS seulement si la coquille a le module (build 22+), sinon Web Audio', async () => {

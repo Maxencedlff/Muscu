@@ -61,9 +61,15 @@ function otaChecksumValid(manifest) {
 }
 
 // Décision pure : faut-il télécharger ce manifeste ? Renvoie { download, reason }.
-//   build        : contenu en place { version, seq, runtime }
+//   build        : contenu en place { version, seq, runtime, runtimeSeq }
 //   shellRuntime : empreinte native de l'app installée
 //   failed       : versions déjà tentées et en échec (jamais retentées)
+// Empreintes différentes : runtimeSeq (date d'apparition de la coquille, scripts/runtime-version.mjs)
+// dit laquelle est la plus récente. seq ne le dit pas : la build 91, faite depuis une branche, avait un
+// contenu plus ancien que l'OTA publiée ensuite depuis main pour la coquille précédente (17/11/2026).
+//   'nouvelle build'      : l'OTA vise une coquille plus récente, la build installée est en retard ;
+//   'pas encore publiée'  : l'OTA vise une coquille plus ancienne, celle de cette build n'est pas sortie ;
+//                           aussi quand l'une des deux dates manque (rien n'est affirmé sans preuve).
 function liveUpdateDecision(manifest, { build, shellRuntime, failed = [] }) {
   const no = reason => ({ download: false, reason });
   if (!build) return no('contenu sans informations de version');
@@ -74,7 +80,10 @@ function liveUpdateDecision(manifest, { build, shellRuntime, failed = [] }) {
   // Avant l'empreinte : une OTA plus ancienne que le contenu en place (faite pour une build
   // précédente) ne demande rien, l'app est à jour
   if (!(manifest.seq > build.seq)) return no('à jour');
-  if (manifest.runtime !== shellRuntime) return no('nécessite une nouvelle version de l\'app');
+  if (manifest.runtime !== shellRuntime) {
+    const m = manifest.runtimeSeq, b = build.runtimeSeq;
+    return no(Number.isFinite(m) && Number.isFinite(b) && m > b ? 'nouvelle build' : 'pas encore publiée');
+  }
   if (failed.includes(manifest.version)) return no('version déjà en échec');
   return { download: true, reason: 'nouvelle version ' + manifest.version };
 }
@@ -156,12 +165,24 @@ function liveUpdateLabel() {
   return b ? `Contenu ${b.version}` : '';
 }
 
+// Texte du toast quand rien n'est téléchargé
+async function liveUpdateNoneText(reason) {
+  if (reason === 'à jour') return 'Tu as la dernière version';
+  if (reason === 'pas encore publiée') return 'Pas de mise à jour pour l\'instant';
+  if (reason === 'nouvelle build') {
+    let store = 'TestFlight';
+    try { if (!minBuildUpdateUrl(await accessStoreEnvironment()).includes('testflight')) store = 'l\'App Store'; } catch {}
+    return `Une nouvelle version de l'app est disponible dans ${store}`;
+  }
+  return `Pas de mise à jour : ${reason}`;
+}
+
 registerActions({
   'live-update-check': async () => {
     if (activeSession) { showToast('Termine ta séance avant de mettre à jour'); return; }
     showToast('Recherche d\'une mise à jour…');
     const r = await checkLiveUpdate({ now: true });
-    if (r.status === 'none') showToast(r.reason === 'à jour' ? 'Tu as la dernière version' : `Pas de mise à jour : ${r.reason}`);
+    if (r.status === 'none') showToast(await liveUpdateNoneText(r.reason));
     else if (r.status === 'ready') showToast('Mise à jour prête, appliquée au prochain lancement');
     else if (r.status === 'error') showToast(`Mise à jour impossible : ${r.reason}`, { error: true });
     // 'applied' : l'app se recharge sur le nouveau contenu

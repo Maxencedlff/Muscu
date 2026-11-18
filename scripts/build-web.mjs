@@ -6,7 +6,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runtimeVersion } from './runtime-version.mjs';
+import { runtimeSince, runtimeVersion } from './runtime-version.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT  = path.join(ROOT, 'dist');
@@ -36,6 +36,8 @@ fs.copyFileSync(SUPABASE, path.join(OUT, 'js', 'vendor', 'supabase.js'));
 //   (scripts/runtime-version.mjs). Une mise à jour web n'est appliquée que dans une app dont la coquille a
 //   la même empreinte (même principe que le runtimeVersion d'Expo).
 // - seq : date du commit (secondes) ; une mise à jour plus ancienne que le contenu en place est ignorée.
+// - runtimeSeq : date (secondes) du commit qui a fait apparaître cette coquille ; quand les empreintes
+//   diffèrent, dit si c'est la build ou la mise à jour qui est en retard. Absente sans historique git.
 // - version : identifiant lisible du contenu (date du commit + commit court).
 const PLATFORM = process.argv.includes('--android') ? 'android' : 'ios';
 function gitInfo() {
@@ -50,6 +52,7 @@ const d    = new Date(git.seq * 1000);
 const BUILD = {
   runtime: runtimeVersion(ROOT, PLATFORM),
   seq: git.seq,
+  ...(() => { const r = runtimeSince(ROOT, PLATFORM); return Number.isFinite(r) ? { runtimeSeq: r } : {}; })(),
   version: `${d.getUTCFullYear()}.${d.getUTCMonth() + 1}.${d.getUTCDate()}-${git.sha}`,
 };
 fs.writeFileSync(path.join(OUT, 'js', 'platform', 'build-info.js'),

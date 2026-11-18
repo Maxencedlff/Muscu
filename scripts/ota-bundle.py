@@ -3,7 +3,7 @@
     npm run web:build && python3 scripts/ota-bundle.py
 
 ota-site/
-  manifest.json           { version, seq, runtime, url, checksum, [sessionKey], fileSha256, size, publishedAt }
+  manifest.json           { version, seq, runtime, [runtimeSeq], url, checksum, [sessionKey], fileSha256, size, publishedAt }
                           (jamais mis en cache)
   bundles/<version>.zip   contenu de dist/ avec index.html à la racine (immuable)
   vercel.json             en-têtes de cache, réveil quotidien du serveur des comptes
@@ -126,6 +126,7 @@ def main():
         'version': build['version'],
         'seq': build['seq'],
         'runtime': build['runtime'],
+        **({'runtimeSeq': build['runtimeSeq']} if 'runtimeSeq' in build else {}),
         'url': f'{BASE_URL}/bundles/{zip_name}',
         'checksum': signature[0] if signature else checksum,
         **({'sessionKey': signature[1]} if signature else {}),

@@ -387,6 +387,11 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
   (préparer Android ne bloque jamais les mises à jour des iPhone) ; celle d'Android est à part
   (`android-…`, docs/ANDROID.md).
 - **Jamais de retour en arrière** : `seq` (date du commit) doit être plus récent que le contenu en place.
+- **Empreintes différentes** : `runtimeSeq` (date du commit qui a fait apparaître la coquille, `runtimeSince`
+  dans `scripts/runtime-version.mjs`, historique git complet requis) dit laquelle est la plus récente. OTA pour
+  une coquille plus récente : « Une nouvelle version de l'app est disponible dans TestFlight » (ou l'App Store) ;
+  OTA pour une coquille plus ancienne, ou date absente : « Pas de mise à jour pour l'instant » (build 91 installée
+  avant l'OTA faite pour elle, 17/11/2026 : `seq` seul ne le voit pas).
 - **Démarrage confirmé** : `notifyAppReady` n'est appelé qu'après un démarrage réussi (pas sur
   l'écran de secours) ; sinon le module revient seul au contenu précédent au bout de 10 s, et la
   version fautive n'est jamais retentée.

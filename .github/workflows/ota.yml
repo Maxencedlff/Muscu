@@ -72,6 +72,8 @@ jobs:
         with:
           ref: ${{ needs.gate.outputs.sha }}
           persist-credentials: false
+          # Historique complet : runtimeSeq du manifeste (scripts/runtime-version.mjs, runtimeSince)
+          fetch-depth: 0
 
       # Pas de cache npm : un cache empoisonné par un autre workflow ne doit jamais entrer dans un paquet
       # exécuté sur tous les iPhone
