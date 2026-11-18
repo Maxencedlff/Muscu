@@ -130,7 +130,9 @@ def t_eleve(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         page.evaluate('render()')
         cell = page.locator('.settings-view [data-action="coach-open-share"]')
-        R.check(cell.count() == 1 and 'Rien' in cell.inner_text(), f'{t} Réglages › Social et coach : « Partager avec mon coach · Rien » ({cell.inner_text() if cell.count() else ""!r})')
+        # text_content : sur 320 pt avec la police de secours de Linux (CI), la valeur cède toute sa place au titre
+        # (theme-sobre-reglages.css) ; c'est la valeur calculée qu'on vérifie ici, pas sa place à l'écran
+        R.check(cell.count() == 1 and 'Rien' in cell.text_content(), f'{t} Réglages › Social et coach : « Partager avec mon coach · Rien » ({cell.text_content() if cell.count() else ""!r})')
         R.check(ccalls(page, 'student_share_weights') == [], f'{t} par défaut : aucune pesée envoyée')
         R.check(page.evaluate(f"__sb.co.weights['{ids['me']}']") is None, f'{t} par défaut : rien sur le serveur')
         cell.click()
