@@ -187,7 +187,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check('ni à ton coach' not in early and 'Ton coach ne voit que les photos' in early, f'{t} Mesures, état pas encore lu : bandeau vrai ({early!r})')
         sp.evaluate("s => { cph.state = JSON.parse(s); render(); }", keep)
         bm = sp.inner_text('.bm-private')
-        R.check('Ton coach voit seulement celles que tu lui envoies' in bm and 'Ni tes amis ni ton coach' not in bm, f'{t} Mesures : bandeau vrai ({bm!r})')
+        R.check('Ton coach ne voit que les photos que tu lui envoies toi-même' in bm and 'Ni tes amis ni ton coach' not in bm, f'{t} Mesures : bandeau vrai ({bm!r})')
         sp.evaluate("coach.preview = { code: 'ESSAI1', person: { user_id: 'x', username: 'max', avatar: '🦁' } }; navigate(makeRoute('coach-join', 'ESSAI1'))")
         sp.wait_for_selector('.coach-join-view .coach-join__item')
         cj = sp.inner_text('.coach-join-view')

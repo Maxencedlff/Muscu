@@ -712,8 +712,8 @@ def t_verrou_eteint(bench, eng, dev, theme):
         page.click('[data-action="access-open-settings"]')
         page.wait_for_selector('.pay-settings-view')
         stxt = page.inner_text('.pay-settings-view')
-        R.check('Accès complet' in stxt and 'sans abonnement' in stxt and 'deviendra payante' in stxt and 'Gratuit' not in stxt,
-                f'{t} Abonnement : verrou éteint expliqué, sans promettre une version gratuite')
+        R.check('Accès complet' in stxt and 'sans abonnement' in stxt and 'deviendra ensuite payante' in stxt and 'Gratuit' not in stxt,
+                f'{t} Abonnement : verrou éteint expliqué, sans promettre une version gratuite ({stxt[:300]!r})')
         # B-1 : verrou éteint, AUCUNE formule proposée (l'essai d'Apple serait grillé pour rien) ;
         # restaurer, gérer chez Apple et les codes restent
         R.check(page.locator('[data-action="pay-open"]').count() == 0, f'{t} verrou éteint : pas de « Voir les formules »')
