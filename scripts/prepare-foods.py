@@ -20,7 +20,9 @@ Protéines : « N x 6,25 », la valeur de l'étiquetage et celle qu'utilise l'é
 règlement, 4 P + 4 G + 9 L + 2 fibres + 7 alcool, SEULEMENT si protéines, fibres et alcool sont connus ; sinon
 l'aliment est écarté (une eau-de-vie dont l'alcool est inconnu donnerait 0 kcal). Ces aliments portent e = 1.
 Colonnes écrites : code, nom, famille, kcal, protéines, glucides, lipides, sucres (null si inconnus),
-sous-groupe Ciqual (entier, 301 = pâtes, riz et céréales), e (1 : énergie calculée par l'app).
+sous-groupe Ciqual (entier, 301 = pâtes, riz et céréales), e (1 : énergie calculée par l'app), sel (g pour 100 g,
+« Sel chlorure de sodium », null si inconnu ; « traces » et « < x » : 0, comme les autres colonnes).
+Alias (ALIASES) : [nom, code], écrits à part ; une app qui ne les connaît pas les ignore.
 Aliments infantiles (groupe 11) et ligne « aliment moyen » (groupe 00) écartés.
 
 Famille d'équivalence (colonne « fam », règle des remplacements : docs/NUTRITION_V1.md, js/data/food-swap.js),
@@ -32,6 +34,7 @@ tirée du sous-groupe Ciqual :
 """
 import json
 import re
+from decimal import Decimal, ROUND_HALF_UP
 import sys
 import zipfile
 import xml.etree.ElementTree as ET
@@ -62,7 +65,24 @@ COLS = {
     'c': lambda h: h.startswith('Glucides'),
     'f': lambda h: h.startswith('Lipides'),
     's': lambda h: h.startswith('Sucres'),
+    # « Sel chlorure de sodium (g/100 g) » (le sel des étiquettes ; Ciqual donne aussi le sodium en mg)
+    'salt': lambda h: h.startswith('Sel chlorure de sodium'),
 }
+
+# Alias recherchables : un nom courant en salle pour un aliment Ciqual dont les valeurs conviennent, sans aucune valeur
+# inventée. L'app affiche le nom de l'alias et, dessous, l'aliment Ciqual dont viennent les valeurs (« Valeurs Ciqual :
+# Farine de riz »). Ajouter un alias seulement si l'aliment Ciqual est vraiment le même produit (« blanc de poulet » =
+# filet de poulet), jamais un voisin (whey ≠ lactosérum en poudre, skyr ≠ fromage blanc : absents de Ciqual)
+ALIASES = [
+    ('Crème de riz', 9520),               # farine de riz fine, vendue « crème de riz » en salle : Farine de riz
+    ('Blanc de poulet, cru', 36017),      # Poulet, filet sans peau cru
+    ('Blanc de poulet, grillé', 36018),   # Poulet, filet sans peau grillé/poêlé
+    ('Filet de poulet, cru', 36017),
+    ('Filet de poulet, grillé', 36018),
+    ('Blanc de dinde, grillé', 36306),    # Dinde, escalope grillée/poêlée
+    ('Porridge à l\'eau', 9313),          # Flocons d'avoine bouillis/cuits à l'eau
+    ('Lait d\'amande', 18107),            # Boisson à l'amande, nature, sans sucres ajoutés
+]
 
 
 def read_sheet(path):
@@ -98,6 +118,11 @@ def value(raw):
         return None
 
 
+def half_up(v, step):
+    """Arrondi au plus proche, demi vers le haut (0,045 g → 0,05 g ; round() de Python donnerait 0,04)."""
+    return float(Decimal(repr(v)).quantize(Decimal(step), rounding=ROUND_HALF_UP))
+
+
 def clean_name(name):
     return re.sub(r'\s+', ' ', str(name or '')).strip()
 
@@ -125,10 +150,11 @@ def main(src, dst):
                 skipped += 1
                 continue
             kcal, calc = 4 * p + 4 * c + 9 * f + 2 * fib + 7 * alc, 1
-        sugar = value(r.get(head['s']))
+        sugar, salt = value(r.get(head['s'])), value(r.get(head['salt']))
         # Sucres (null si inconnus) et sous-groupe Ciqual : départagent les remplaçants (même rayon d'abord)
         foods.append([int(code), name, fam, round(kcal), round(p, 1), round(c, 1), round(f, 1),
-                      None if sugar is None else round(sugar, 1), int(r.get(head['grp'])), calc])
+                      None if sugar is None else round(sugar, 1), int(r.get(head['grp'])), calc,
+                      None if salt is None else half_up(salt, '0.01')])
     foods.sort(key=lambda x: x[0])
     out = {
         'v': 1,
@@ -136,8 +162,9 @@ def main(src, dst):
         'version': 'Ciqual 2025, version du 03/11/2025',
         'licence': 'Licence Ouverte Etalab 2.0',
         'url': 'https://doi.org/10.57745/RDMHWY',
-        'cols': ['code', 'nom', 'fam', 'kcal', 'p', 'g', 'l', 'sucres', 'ssgrp', 'e'],
+        'cols': ['code', 'nom', 'fam', 'kcal', 'p', 'g', 'l', 'sucres', 'ssgrp', 'e', 'sel'],
         'foods': foods,
+        'alias': [[name, code] for name, code in ALIASES if any(f[0] == code for f in foods)],
     }
     with open(dst, 'w', encoding='utf-8') as fh:
         json.dump(out, fh, ensure_ascii=False, separators=(',', ':'))

@@ -2073,6 +2073,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Nutrition, règles fines (bornes et branches repérées par le test de mutation, tests dans nutrition-regles.mjs)
 (await import('./nutrition-regles.mjs')).default({ test, run, reset, assert, sameJSON });
+// Retours des coachs du 18/11 : alias, équivalences, jours du plan, envoi, eau en fourchette, sel
+(await import('./nutrition-coachs.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Objectifs du jour : proposition estimée (Mifflin-St Jeor) et protéines en g/kg
 (await import('./diet-estimate.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Eau : objectif en litres, ajouts, journal, plan du coach (docs/EAU.md)

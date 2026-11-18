@@ -116,13 +116,30 @@ function waterTrainingDay(d, day, { live = false } = {}) {
 // Bonus d'un jour de séance (« +0,5 L les jours de séance », allumé par défaut, vote du 17/11 : option C) : sur le repère
 // comme sur l'objectif choisi (3 L choisis = 3,5 L un jour de séance), jamais sur celui du coach (il décide)
 function waterTrainBonusOn(d) { return d?.waterTrainOff !== true; }
+// Fourchette du plan (18/11, « entre 3 et 5 L en sèche ») : l = le haut, min = le bas ; atteint dès le bas
 function waterGoalFor(d, { plan = null, sex = null, training = false } = {}) {
   const fromPlan = cleanWaterLitres(plan?.targets?.water);
-  if (fromPlan !== null) return { l: fromPlan, src: 'plan', base: fromPlan, plus: 0, coach: plan.fromCoach?.name || (plan.fromCoach ? '' : null) };
+  if (fromPlan !== null) {
+    const min = cleanWaterLitres(plan.targets.waterMin);
+    return { l: fromPlan, src: 'plan', base: fromPlan, plus: 0, coach: plan.fromCoach?.name || (plan.fromCoach ? '' : null), ...(min !== null && min < fromPlan ? { min } : {}) };
+  }
   const bonus = training && waterTrainBonusOn(d);
   const own = cleanWaterLitres(d.waterGoalL);
   if (own !== null) { const plus = bonus ? WATER_TRAIN_L : 0; return { l: Math.round((own + plus) * 100) / 100, src: 'me', base: own, plus, coach: null }; }
   return { ...waterAutoGoal({ sex, training: bonus }), src: 'auto', coach: null };
+}
+// Litres qui suffisent à l'objectif : le bas de la fourchette, sinon l'objectif
+function waterGoalLow(g) { return g.min ?? g.l; }
+// « 3 à 5 L » ou « 2,5 L »
+function waterGoalText(g) { return g.min != null ? `${fmtNum(g.min, 2)} à ${fmtNum(g.l, 2)}\u00a0L` : `${fmtNum(g.l, 2)}\u00a0L`; }
+function waterGoalSpoken(g) { return g.min != null ? `entre ${fmtNum(g.min, 2)} et ${fmtNum(g.l, 2)} litres` : `${fmtNum(g.l, 2)} litres`; }
+// Verres à cocher : contenant de 1 L si la fourchette est large (1 L ou plus entre le bas et le haut), sinon le verre de
+// 25 cl ; jamais plus de 16 verres (au-delà, 50 cl puis 1 L). { ml, n } : n verres pour atteindre le haut
+const WATER_GLASSES_MAX = 16;
+function waterGlassPlan(g) {
+  let ml = g.min != null && g.l - g.min >= 1 ? 1000 : 250;
+  while (Math.ceil(g.l * 1000 / ml) > WATER_GLASSES_MAX && ml < 1000) ml *= 2;
+  return { ml, n: Math.max(1, Math.ceil(Math.round(g.l * 1000) / ml)) };
 }
 // Pas de 0,25 L : depuis 2,3 L, « + » donne 2,5 et « − » 2,25 (la grille de 0,25), bornés de 0,5 à 6 L
 function waterStepGoal(l, dir) {

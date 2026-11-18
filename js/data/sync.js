@@ -55,7 +55,8 @@ const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'b
   'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'recordOn', 'plates', 'recapCardOff', 'strengthSex', 'dietLog',
   'dietConsentAsked', 'dietHideNumbers', 'dietStreakOff', 'dietEmptyDays', 'dietCoachConsent', 'dietProteinPerKg',
   'birthYear', 'heightCm', 'dietEstGoal', 'dietEstActivity', 'dietEstSex',
-  'waterLog', 'waterOn', 'waterGoalL', 'waterCups', 'waterTrainOff'];
+  'waterLog', 'waterOn', 'waterGoalL', 'waterCups', 'waterTrainOff',
+  'saltLog', 'dietRecentFoods'];   // sel ajouté (docs/NUTRITION_V1.md, « Sel ») et derniers aliments choisis : sur l'appareil seulement
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les

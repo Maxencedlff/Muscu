@@ -50,6 +50,11 @@ Dans cet ordre (`waterGoalFor`, js/data/water.js) :
 - Aucune allégation médicale : « Des repères, pas un avis médical. » sous la feuille de l'objectif ; pas d'alerte, pas
   de rouge, rien de bloquant.
 
+### Fourchette du coach et verres (18/11/2026)
+`targets.waterMin` (bas) avec `targets.water` (haut) : « 3 à 5 L », atteint dès le bas, verres à cocher de 1 L (fourchette
+de 1 L ou plus) sinon de 25 cl. Détail : docs/NUTRITION_V1.md, « Retours des coachs du 18/11 ». Plan à plusieurs jours :
+l'objectif d'eau est celui du jour du plan.
+
 ## Noter ce qu'on boit
 
 - **Nutrition** : carte « Eau » sous les repas (avant les réglages), au jour de la frise. Verre qui se remplit et jauge,

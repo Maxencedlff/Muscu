@@ -8,11 +8,13 @@
 //    perso d'abord, puis les noms courts (« Riz blanc, cuit » avant les plats préparés).
 //  - Équivalence d'un aliment (règle unique, testée par tests/unit/nutrition.mjs) :
 //      1. même famille d'aliments (viandes et poissons, féculents, laitiers, fruits…) ;
-//      2. quantité recalculée pour garder la même chose que l'original : les protéines pour une source
-//         de protéines (viandes, poissons, œufs, laitiers), les calories pour tout le reste ;
-//      3. gardé seulement si les macros restent proches à cette quantité : calories à 15 % près (30 kcal
-//         au moins), protéines, glucides et lipides chacun à 25 % près (5 g au moins), quantité entre le
-//         quart et le quadruple de l'original ;
+//      2. quantité recalculée pour garder le macro principal de la famille (règle des listes d'équivalences,
+//         demande des coachs du 18/11) : les protéines pour une source de protéines (viandes, poissons, œufs,
+//         laitiers), les glucides pour les féculents et les fruits, les lipides pour les matières grasses, les
+//         calories pour le reste (légumes, produits sucrés, boissons, plats) ;
+//      3. gardé seulement si les macros restent proches à cette quantité : calories à 20 % près quand on garde un
+//         macro (15 % quand on garde les calories), 30 kcal au moins ; protéines, glucides et lipides chacun à 25 %
+//         près (5 g au moins), quantité entre le quart et le quadruple de l'original. L'écart de kcal est affiché ;
 //      4. classé par écart pondéré par l'énergie (1 kcal, 4 par g de protéines ou glucides, 9 par g de
 //         lipides, 2 par g de sucres quand la base les connaît), avec des pénalités fixes : autre rayon
 //         de Ciqual (riz contre céréales soufflées), l'un cru et l'autre cuit ; un aliment courant
@@ -25,6 +27,7 @@ const FOODS_URL = 'data/foods.json';
 const SWAP_LIMIT = 10;
 const SWAP_PER_WORD = 2;
 const SWAP_KCAL_TOL = { rel: 0.15, abs: 30 };
+const SWAP_KCAL_TOL_MACRO = { rel: 0.2, abs: 30 };   // macro principal gardé : les kcal peuvent bouger un peu plus (écart affiché)
 const SWAP_MACRO_TOL = { rel: 0.25, abs: 5 };
 const SWAP_RATIO = { min: 0.25, max: 4 };
 const SWAP_STATE_PENALTY = 60;
@@ -38,14 +41,22 @@ const SWAP_COMMON = ['poulet', 'dinde', 'boeuf', 'veau', 'porc', 'jambon', 'thon
   'amande', 'noix', 'noisette', 'cacahuete', 'beurre de cacahuete', 'huile d olive', 'huile de colza', 'beurre', 'avocat', 'brocoli',
   'haricots verts', 'courgette', 'tomate', 'carotte', 'epinard', 'salade', 'tofu'];
 const swapCommon = key => SWAP_COMMON.some(w => key === w || key.startsWith(w + ' '));
+// Aliments de base des plans de sportif (codes Ciqual 2025) : proposés en premier dans leur famille (« Riz blanc, cuit »
+// avant le riz semi-complet ou étuvé, demande des coachs du 18/11 : « l'équivalent en riz »)
+const SWAP_STAPLES = new Set([9104, 9125, 9811, 9683, 9341, 4003, 4102, 32140, 7001, 20587,
+  36018, 36306, 6251, 26039, 22010, 19644, 13004, 15202, 17270]);
+const SWAP_STAPLE_BONUS = 45;
 // Abats et morceaux rares : proposés après les autres
 const SWAP_RARE = /\b(queue|pied|gesier|ris|langue|cervelle|rognon|tripes?|joue|coeur|hachage|tete|oreille|museau|abats?)\b/;
 const SWAP_RARE_PENALTY = 20;
 // Variantes (sans gluten, bio, label rouge, enrichi) : après le produit de base
 const SWAP_VARIANT = /\b(sans gluten|bio|label rouge|enrichie?s?)\b/;
 const SWAP_VARIANT_PENALTY = 12;
-// Familles dont on garde les protéines (sinon les calories) ; aides culinaires jamais remplacées
+// Macro gardé par famille : protéines (viandes, laitiers), glucides (féculents, fruits), lipides (matières grasses) ;
+// sinon les calories. Aides culinaires jamais remplacées
 const SWAP_PROTEIN_FAMS = ['v', 'l'];
+const SWAP_CARB_FAMS = ['f', 'r'];
+const SWAP_FAT_FAMS = ['g'];
 const SWAP_NONE_FAMS = ['a'];
 const FOOD_FAM_LABEL = { v: 'Viandes, poissons, œufs', f: 'Féculents', l: 'Produits laitiers', g: 'Matières grasses',
   r: 'Fruits', e: 'Légumes', s: 'Produits sucrés', b: 'Boissons', p: 'Plats composés', a: 'Aides culinaires' };
@@ -61,14 +72,22 @@ function cleanFoodDb(raw) {
   const foods = [], byCode = new Map();
   for (const r of raw.foods) {
     if (!Array.isArray(r) || r.length < 7) continue;
-    const [code, name, fam, k, p, c, f, sugar, grp, ecalc] = r;
-    const per = cleanDietPer({ k, p, c, f });
+    const [code, name, fam, k, p, c, f, sugar, grp, ecalc, salt] = r;
+    const per = cleanDietPer({ k, p, c, f, ...(typeof salt === 'number' ? { s: salt } : {}) });
     if (!Number.isInteger(code) || code <= 0 || typeof name !== 'string' || !name.trim() || !DIET_FAMS.includes(fam) || !per || byCode.has(code)) continue;
     const food = { code, name: name.trim(), fam, per, key: foodKey(name),
       sugar: typeof sugar === 'number' && sugar >= 0 && sugar <= 100 ? sugar : null, grp: Number.isInteger(grp) ? grp : null,
       ...(ecalc === 1 ? { ecalc: true } : {}) };
     foods.push(food);
     byCode.set(code, food);
+  }
+  // Alias (« Crème de riz » : valeurs de « Farine de riz ») : une ligne de recherche de plus, aux valeurs de l'aliment Ciqual,
+  // qui dit d'où elles viennent (of) ; pas dans byCode ni dans les équivalences (l'aliment Ciqual y est déjà)
+  for (const a of Array.isArray(raw.alias) ? raw.alias.slice(0, 200) : []) {
+    const [name, code] = Array.isArray(a) ? a : [];
+    const src = byCode.get(code);
+    if (!src || typeof name !== 'string' || !name.trim() || name.length > 60) continue;
+    foods.push({ ...src, name: name.trim(), key: foodKey(name), alias: true, of: src.name });
   }
   const s = v => (typeof v === 'string' ? v.slice(0, 200) : '');
   return { meta: { source: s(raw.source), version: s(raw.version), licence: s(raw.licence), url: /^https:\/\//.test(raw.url || '') ? s(raw.url) : '' }, foods, byCode };
@@ -107,17 +126,25 @@ function searchFoods(query, { limit = 40, own = [] } = {}) {
 }
 // Aliment choisi → aliment du plan (valeurs pour 100 g recopiées)
 function foodToItem(food, g, por = null) {
-  return cleanDietItem({ name: food.name, food: food.code || null, fam: food.fam, g, per: food.per,
+  // Alias : le nom courant (« Crème de riz »), le code et les valeurs de l'aliment Ciqual (src ciqual-2025, of gardé)
+  // Sel d'un produit scanné (salt, fiche Open Food Facts) : compté avec ses valeurs pour 100 g (per.s)
+  const per = food.salt != null && food.per?.s == null ? { ...food.per, s: food.salt } : food.per;
+  return cleanDietItem({ name: food.name, food: food.code || null, fam: food.fam, g, per, ...(food.of ? { of: food.of } : {}),
     src: food.code ? 'ciqual-2025' : food.src === 'off' ? 'off' : 'perso', ecalc: food.ecalc === true, ...(por ? { por } : {}) });
 }
 
 // ── Équivalences ────────────────────────────────────────────
 
 // Grandeur gardée par le remplacement : 'p' (protéines) ou 'kcal'
+// Grandeur gardée par le remplacement : 'p' (protéines), 'c' (glucides), 'f' (lipides) ou 'kcal'
 function swapAnchor(item) {
-  return SWAP_PROTEIN_FAMS.includes(item.fam) && item.per.p >= 5 ? 'p' : 'kcal';
+  if (SWAP_PROTEIN_FAMS.includes(item.fam)) return item.per.p >= 5 ? 'p' : 'kcal';
+  if (SWAP_CARB_FAMS.includes(item.fam)) return item.per.c >= 5 ? 'c' : 'kcal';
+  if (SWAP_FAT_FAMS.includes(item.fam)) return item.per.f >= 5 ? 'f' : 'kcal';
+  return 'kcal';
 }
-const swapAnchorOf = (per, anchor) => (anchor === 'p' ? per.p : per.k);
+const swapAnchorOf = (per, anchor) => (anchor === 'kcal' ? per.k : per[anchor]);
+const SWAP_ANCHOR_MIN = { p: 5, c: 5, f: 5, kcal: 10 };   // teneur pour 100 g au moins chez le remplaçant
 // Quantité arrondie comme on la pèse : au gramme sous 50 g, aux 5 g au-dessus
 function swapRoundG(g) { return g < 50 ? Math.max(1, Math.round(g)) : Math.round(g / 5) * 5; }
 // Cru ou cuit d'après le nom Ciqual, null si le nom ne le dit pas
@@ -174,24 +201,25 @@ function swapCandidates(item, { limit = SWAP_LIMIT, own = [] } = {}) {
   // Sucres et rayon de l'original : ceux de la base quand il en vient (un aliment perso n'en a pas)
   const base = item.food ? foodDb?.byCode.get(item.food) : null;
   const refSugar = base?.sugar != null ? base.sugar * item.g / 100 : null, grp = base?.grp ?? null;
-  const pool = [...own.map(x => ({ code: null, name: x.name, fam: x.fam, per: x.per, key: foodKey(x.name), ownId: x.id })), ...(foodDb?.foods || [])];
+  const pool = [...own.map(x => ({ code: null, name: x.name, fam: x.fam, per: x.per, key: foodKey(x.name), ownId: x.id })), ...(foodDb?.foods || []).filter(f => !f.alias)];
+  const kcalTol = anchor === 'kcal' ? SWAP_KCAL_TOL : SWAP_KCAL_TOL_MACRO;
   const out = [];
   for (const f of pool) {
     if (f.fam !== item.fam || (item.food && f.code === item.food) || f.key === name) continue;
     // Boissons alcoolisées (sous-groupe Ciqual 603) : jamais croisées avec les autres boissons, dans aucun sens
     if ((grp === SWAP_ALCOHOL_GRP) !== (f.grp === SWAP_ALCOHOL_GRP)) continue;
     const a = swapAnchorOf(f.per, anchor);
-    if (!(a >= (anchor === 'p' ? 5 : 10))) continue;
+    if (!(a >= SWAP_ANCHOR_MIN[anchor])) continue;
     const g = swapRoundG(item.g * aRef / a);
     if (g < 5 || g > DIET_G_MAX || g < item.g * SWAP_RATIO.min || g > item.g * SWAP_RATIO.max) continue;
     const macros = dietItemMacros({ g, per: f.per }), delta = swapDelta(ref, macros);
-    if (!swapWithin(delta.kcal, ref.kcal, SWAP_KCAL_TOL)) continue;
+    if (!swapWithin(delta.kcal, ref.kcal, kcalTol)) continue;
     if (!['p', 'c', 'f'].every(k => swapWithin(delta[k], ref[k], SWAP_MACRO_TOL))) continue;
     const fs = foodState(f.name);
     const sugar = refSugar != null && f.sugar != null ? 2 * Math.abs(f.sugar * g / 100 - refSugar) : 0;
     const score = Math.abs(delta.kcal) + 4 * Math.abs(delta.p) + 4 * Math.abs(delta.c) + 9 * Math.abs(delta.f) + sugar
       + (state && fs && state !== fs ? SWAP_STATE_PENALTY : 0) + (grp && f.grp && grp !== f.grp ? SWAP_GROUP_PENALTY : 0)
-      - (swapCommon(f.key) ? SWAP_COMMON_BONUS : 0) + (SWAP_RARE.test(f.key) ? SWAP_RARE_PENALTY : 0)
+      - (swapCommon(f.key) ? SWAP_COMMON_BONUS : 0) - (SWAP_STAPLES.has(f.code) ? SWAP_STAPLE_BONUS : 0) + (SWAP_RARE.test(f.key) ? SWAP_RARE_PENALTY : 0)
       + (SWAP_VARIANT.test(f.key) && !SWAP_VARIANT.test(name) ? SWAP_VARIANT_PENALTY : 0) + f.name.length / 10;
     out.push({ food: f, g, macros, delta, score });
   }
@@ -209,5 +237,5 @@ function swapDeltaText(v, unit) {
   return r === 0 ? '=' : `${r > 0 ? '+' : '−'}${Math.abs(r)} ${unit}`;
 }
 function swapRuleText(item) {
-  return swapAnchor(item) === 'p' ? 'Même quantité de protéines' : 'Mêmes calories';
+  return { p: 'Même quantité de protéines', c: 'Même quantité de glucides', f: 'Même quantité de lipides', kcal: 'Mêmes calories' }[swapAnchor(item)];
 }

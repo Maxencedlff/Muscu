@@ -15,7 +15,7 @@ async function coachSendDiet(student, planId) {
   const plan = data.dietPlans?.[planId];
   if (!plan || plan.archived || plan.fromCoach) return { ok: false, kind: 'server' };
   const payload = dietToSent(plan);
-  if (!payload || !payload.diet.meals.some(m => m.items.length)) return { ok: false, kind: 'empty_diet' };
+  if (!payload || !dietPlanHasItems(payload.diet)) return { ok: false, kind: 'empty_diet' };
   if (sentProgrammeBytes(payload) > COACH_PROG_BYTES) return { ok: false, kind: 'too_big' };
   const progId = dietSentId(planId);
   if (!COACH_PROG_ID_RE.test(progId)) return { ok: false, kind: 'server' };
@@ -28,7 +28,7 @@ async function coachSendDiet(student, planId) {
 
 // Mes plans que je peux envoyer : les miens (pas ceux reçus d'un coach), non archivés, avec au moins un aliment
 function coachSendableDiets(d = data) {
-  return dietPlanIds(d).filter(id => !d.dietPlans[id].fromCoach && d.dietPlans[id].meals.some(m => m.items.length));
+  return dietPlanIds(d).filter(id => !d.dietPlans[id].fromCoach && dietPlanHasItems(d.dietPlans[id]));
 }
 
 // Coach : plans envoyés à cet élève, d'après coach_state ({ id, sentAt, seen }) : { …, planId, name, gone }.

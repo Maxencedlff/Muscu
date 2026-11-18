@@ -297,18 +297,20 @@ export default function ({ test, run, reset: reset0, assert, sameJSON }) {
   const pr = (day = D) => clone(run(`dietDayProgress(data, 'd_a', '${day}')`));
   const entry = (day = D) => clone(run(`data.dietLog?.['${day}'] ?? null`));
 
+  // Sel (s, su) compté à part depuis le 18/11 : ces tests comparent les quatre grandeurs d'avant
+  const macOnly = m => ({ kcal: m.kcal, p: m.p, c: m.c, f: m.f });
   test('macros : aliment sans valeurs ni quantité = 0, repas avec remplacements et retraits, plan avec remplacements', () => {
-    sameJSON(clone(run(`dietItemMacros({})`)), { kcal: 0, p: 0, c: 0, f: 0 });
-    sameJSON(clone(run(`dietItemMacros(null)`)), { kcal: 0, p: 0, c: 0, f: 0 });
-    sameJSON(clone(run(`dietItemMacros({ g: 50, per: { k: 100 } })`)), { kcal: 50, p: 0, c: 0, f: 0 });
-    sameJSON(clone(run(`dietItemMacros(${JSON.stringify(it('x', 200, P2))})`)), { kcal: 200, p: 20, c: 20, f: 4 });
+    sameJSON(macOnly(clone(run(`dietItemMacros({})`))), { kcal: 0, p: 0, c: 0, f: 0 });
+    sameJSON(macOnly(clone(run(`dietItemMacros(null)`))), { kcal: 0, p: 0, c: 0, f: 0 });
+    sameJSON(macOnly(clone(run(`dietItemMacros({ g: 50, per: { k: 100 } })`))), { kcal: 50, p: 0, c: 0, f: 0 });
+    sameJSON(macOnly(clone(run(`dietItemMacros(${JSON.stringify(it('x', 200, P2))})`))), { kcal: 200, p: 20, c: 20, f: 4 });
     const meal = { id: 'm', items: [it('a', 100, P2), it('b', 200, P2)] };
-    sameJSON(clone(run(`dietMealMacros(${JSON.stringify(meal)})`)), { kcal: 300, p: 30, c: 30, f: 6 });
-    sameJSON(clone(run(`dietMealMacros(${JSON.stringify(meal)}, null, ['b'])`)), { kcal: 100, p: 10, c: 10, f: 2 }, 'retiré : compté pour rien');
-    sameJSON(clone(run(`dietMealMacros(${JSON.stringify(meal)}, { a: ${JSON.stringify(it('a', 50, P2))} })`)), { kcal: 250, p: 25, c: 25, f: 5 }, 'remplacé');
-    sameJSON(clone(run(`dietMealMacros(null)`)), { kcal: 0, p: 0, c: 0, f: 0 });
+    sameJSON(macOnly(clone(run(`dietMealMacros(${JSON.stringify(meal)})`))), { kcal: 300, p: 30, c: 30, f: 6 });
+    sameJSON(macOnly(clone(run(`dietMealMacros(${JSON.stringify(meal)}, null, ['b'])`))), { kcal: 100, p: 10, c: 10, f: 2 }, 'retiré : compté pour rien');
+    sameJSON(macOnly(clone(run(`dietMealMacros(${JSON.stringify(meal)}, { a: ${JSON.stringify(it('a', 50, P2))} })`))), { kcal: 250, p: 25, c: 25, f: 5 }, 'remplacé');
+    sameJSON(macOnly(clone(run(`dietMealMacros(null)`))), { kcal: 0, p: 0, c: 0, f: 0 });
     sameJSON(clone(run(`dietPlanMacros({ meals: [${JSON.stringify(meal)}, ${JSON.stringify(meal)}] }, { b: ${JSON.stringify(it('b', 0.5, P2))} })`)).kcal, 201, 'remplacement compté dans chaque repas');
-    sameJSON(clone(run(`dietPlanMacros(null)`)), { kcal: 0, p: 0, c: 0, f: 0 });
+    sameJSON(macOnly(clone(run(`dietPlanMacros(null)`))), { kcal: 0, p: 0, c: 0, f: 0 });
     const g = clone(run(`dietGoal({ meals: [${JSON.stringify(meal)}], targets: { kcal: 2000, f: 70 } })`));
     sameJSON(g, { goal: { kcal: 2000, p: 30, c: 30, f: 70 }, own: { kcal: true, p: false, c: false, f: true } });
     sameJSON(clone(run(`dietGoal(null)`)).goal, { kcal: 0, p: 0, c: 0, f: 0 });
