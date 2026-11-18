@@ -122,7 +122,7 @@ def t_compte_envoi_retrait(bench, eng, dev, theme):
         cell = page.inner_text('[data-action="pph-open"]')
         R.check('Photo de profil' in cell and 'Pro' in cell and 'Aucune' in cell, f'{t} Compte : cellule « Photo de profil », mention Pro ({cell!r})')
         foot = page.inner_text('.account-view')
-        R.check('Personne d\'autre ne voit ta photo' in foot, f'{t} Compte : qui voit la photo, dit sous le groupe')
+        R.check('Personne d\'autre ne voit la photo' in foot, f'{t} Compte : qui voit la photo, dit sous le groupe')
         layout(page, t, 'Compte')
         shot(page, LOT, f'01-compte-{t}')
 

@@ -188,7 +188,7 @@ def t_essai(bench, eng, dev, theme):
         R.check(sizes[0] > sizes[1], f'{t} formule : prix en gros, essai en ligne secondaire {sizes}')
         R.check('3 mois gratuits, puis l\'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l\'essai' in txt
                 and 'choisis de continuer' not in txt and 'tu l\'arrêtes' not in txt, f'{t} texte du haut exact (règle des 24 h)')
-        R.check('tu enregistres de nouvelles séances' in txt and 'l\'export restent ouverts' in txt, f'{t} ce que donne l\'abonnement')
+        R.check('permet d\'enregistrer des séances' in txt and 'export restent ouverts' in txt, f'{t} ce que donne l\'abonnement')
         R.check('Essai gratuit de 3 mois, puis 7,77 € par mois ou 77,77 € par an' in txt
                 and 'renouvelle automatiquement pour la même période' in txt and 'au même prix' not in txt
                 and 'sauf si tu le résilies au moins 24 heures avant la fin de l\'essai' in txt and 'résilier à tout moment' in txt
@@ -358,7 +358,7 @@ def t_achat(bench, eng, dev, theme):
         page.click('[data-action="account-delete"]')
         page.wait_for_selector('.ios-dialog')
         dlg = page.inner_text('.ios-dialog')
-        R.check('continuera d\'être facturé par Apple' in dlg and 'Gérer chez Apple' in dlg and 'Supprimer mon compte' in dlg,
+        R.check('Apple continuera de le facturer' in dlg and 'Gérer chez Apple' in dlg and 'Supprimer mon compte' in dlg,
                 f'{t} suppression avec abonnement : facturation et gestion chez Apple ({dlg[:160]!r})')
         shot(page, LOT, f'6b-suppression-abonne-{t}')
         page.evaluate("() => { window.__opened = []; window.open = u => { window.__opened.push(u); return null; }; }")
@@ -712,7 +712,7 @@ def t_verrou_eteint(bench, eng, dev, theme):
         page.click('[data-action="access-open-settings"]')
         page.wait_for_selector('.pay-settings-view')
         stxt = page.inner_text('.pay-settings-view')
-        R.check('Accès complet' in stxt and 'pas encore demandé' in stxt and 'deviendra payante' in stxt and 'Gratuit' not in stxt,
+        R.check('Accès complet' in stxt and 'sans abonnement' in stxt and 'deviendra payante' in stxt and 'Gratuit' not in stxt,
                 f'{t} Abonnement : verrou éteint expliqué, sans promettre une version gratuite')
         # B-1 : verrou éteint, AUCUNE formule proposée (l'essai d'Apple serait grillé pour rien) ;
         # restaurer, gérer chez Apple et les codes restent
@@ -1030,7 +1030,7 @@ def t_tarifs(bench, eng, dev, theme):
         R.check(page.locator('.pay-tabs .segmented__btn').count() == 2 and len(pl) == 4
                 and '11,11 € par mois' in pl[0] and '10 élèves' in pl[0] and 'Conseillé' in pl[0]
                 and '44,44 € par mois' in pl[3] and '100 élèves' in pl[3] and 'illimit' not in ' '.join(pl), f'{t} coach : 4 paliers mensuels {pl}')
-        R.check('Tu suis 0 élève' in txt and 'ton propre accès complet' in txt, f'{t} coach : élèves suivis, accès compris')
+        R.check('Tu suis 0 élève' in txt and 'ton accès et celui de tes élèves' in txt, f'{t} coach : élèves suivis, accès compris')
         R.check('2 mois gratuits' in pl[0] and 'Essai gratuit de 2 mois, puis 11,11 € par mois' in txt and '3 mois' not in ' '.join(pl),
                 f'{t} coach : essai de 2 mois lu chez StoreKit, mentions')
         layout(page, t, 'abonnement coach')
@@ -1076,7 +1076,7 @@ def t_tarifs(bench, eng, dev, theme):
         R.check(page.evaluate('accessStatus()') == 'coach_team' and page.evaluate('canWrite()') is True,
                 f'{t} élève offert : accès complet sans payer')
         txt = paywall(page)
-        R.check('Offert par ton coach lucas' in page.inner_text('.pay-hero') and 'rien à payer' in txt
+        R.check('Offert par ton coach lucas' in page.inner_text('.pay-hero') and 'rien à payer' in txt.lower()
                 and page.locator('.pay-plan, [data-action="pay-buy"]').count() == 0 and '4,89' not in txt and '25 %' not in txt
                 and 'seul essai gratuit' not in txt, f'{t} élève offert : écran d\'abonnement sans formule ({txt[:160]!r})')
         layout(page, t, 'abonnement élève offert')
@@ -1125,7 +1125,7 @@ def t_tarifs(bench, eng, dev, theme):
         # Essai d'Apple en cours : la date où il devient payant
         subscribed(page, days=40, intro=True, product=MONTHLY)
         txt = sub_text(page)
-        R.check('Ton essai devient payant le' in txt and 'résilie-le pour ne pas être prélevé' in txt, f'{t} élève en essai et couvert : date ({txt[:220]!r})')
+        R.check('L\'essai devient payant le' in txt and 'résilie-le pour ne pas être prélevé' in txt, f'{t} élève en essai et couvert : date ({txt[:220]!r})')
         shot(page, LOT, f'28-eleve-essai-couvert-{t}')
         # Résilié chez Apple : la carte disparaît
         page.evaluate("__st.owned.willAutoRenew = false")
@@ -1147,7 +1147,7 @@ def t_tarifs(bench, eng, dev, theme):
         signin(page, username='cyril')
         make_me_coach(page)
         txt = paywall(page, 'coach')
-        R.check('Tes élèves n\'ont rien à payer' in txt, f'{t} coach : élèves sans rien à payer ({txt[:160]!r})')
+        R.check('qui ne paient rien' in txt, f'{t} coach : élèves sans rien à payer ({txt[:160]!r})')
         page.evaluate("""async (p) => { const me = __sb.meId(); __sb.setTier(me, p);
             for (let i = 0; i < 12; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
             await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }""", C10)

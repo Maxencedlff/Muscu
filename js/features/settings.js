@@ -282,7 +282,7 @@ function renderBackup() {
         </div>
         <div class="group-foot">${account.user
           ? 'L\'export crée un fichier JSON à garder où tu veux. Importer un fichier ajoute ses séances à celles du compte.'
-          : 'L\'export crée un fichier JSON à garder où tu veux. Importer une sauvegarde remplace les données actuelles.'} ${photosAllowedHere() ? `Il contient les mensurations. Les photos restent sur ${thisPhone()}.` : 'Il contient aussi les mensurations.'}</div>
+          : 'L\'export crée un fichier JSON à garder où tu veux. Importer une sauvegarde remplace les données actuelles.'} ${photosAllowedHere() ? `Il contient les mensurations, pas les photos : elles restent sur ${thisPhone()}.` : 'Il contient aussi les mensurations.'}</div>
         <div class="group">
           <button class="cell cell--action" data-action="export-csv"><span class="cell__body"><span class="cell__title">Exporter les séances (CSV)</span><span class="cell__sub">Une ligne par série, pour un tableur</span></span></button>
         </div>

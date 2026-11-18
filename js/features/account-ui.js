@@ -277,7 +277,7 @@ function accountHomeCard() {
     return `
     <section class="home-card account-card account-card--reconnect" aria-labelledby="accountCardTitle">
       <div class="account-card__text">
-        <h2 class="account-card__title" id="accountCardTitle">Reprendre la sauvegarde</h2>
+        <h2 class="account-card__title" id="accountCardTitle">Reprends ta sauvegarde</h2>
         <p class="account-card__sub">${esc(reconnectLine(info))}</p>
       </div>
       <button class="account-card__btn" data-action="account-reconnect">${esc(reconnectButtonLabel(info))}</button>

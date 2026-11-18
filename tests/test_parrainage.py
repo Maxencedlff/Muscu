@@ -88,7 +88,7 @@ def t_nouveau_compte(bench, eng, dev, theme):
         page.wait_for_selector('.auth__page--username')
         page.wait_for_timeout(300)
         link = page.locator('[data-action="auth-referral"]')
-        R.check(link.count() == 1 and "J'ai un code" in link.inner_text(), f'{t} pseudo d\'un compte neuf : lien vers le code')
+        R.check(link.count() == 1 and "Code d'un coach" in link.inner_text(), f'{t} pseudo d\'un compte neuf : lien vers le code')
         layout(page, t, 'pseudo avec lien', '.auth')
         shot(page, LOT, f'01-pseudo-lien-{t}')
         link.click()

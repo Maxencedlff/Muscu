@@ -604,7 +604,7 @@ def t_reconnect(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         card = page.locator('.account-card')
         txt = card.inner_text() if card.count() else ''
-        R.check('Reprendre la sauvegarde' in txt and 'Tu étais connecté avec Apple · max.dlf' in txt, f'{t} carte de reconnexion {txt!r}')
+        R.check('Reprends ta sauvegarde' in txt and 'Tu étais connecté avec Apple · max.dlf' in txt, f'{t} carte de reconnexion {txt!r}')
         R.check(lines(page, '.account-card__title') == 1, f'{t} titre de la carte sur une ligne')
         R.check(small_targets(page, '.account-card button') == 0, f'{t} reconnexion : cibles de 44 pt')
         R.check(in_view(page, '.hero__btn'), f'{t} reconnexion : « Démarrer » visible')
@@ -887,7 +887,7 @@ def t_icloud_only(bench, eng, dev, theme):
         open_app(page, theme, json.dumps(d), extra={'ppl_welcome_seen': '1'})
         page.wait_for_selector('.account-card')
         txt = page.locator('.account-card').inner_text()
-        R.check('Reprendre la sauvegarde' in txt and 'Tu étais connecté avec Google · max.dlf' in txt and 'Me reconnecter avec Google' in txt, f'{t} copie iCloud seule : carte de reconnexion {txt!r}')
+        R.check('Reprends ta sauvegarde' in txt and 'Tu étais connecté avec Google · max.dlf' in txt and 'Me reconnecter avec Google' in txt, f'{t} copie iCloud seule : carte de reconnexion {txt!r}')
         R.check(lines(page, '.account-card__title') == 1, f'{t} titre de la carte sur une ligne')
         shot(page, LOT, f'6e-carte-copie-icloud-{t}')
         # Rien de cette clé ne part au serveur

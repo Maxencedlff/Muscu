@@ -223,7 +223,7 @@ def t_envoi_complet(bench, eng, dev, theme):
             pass
         vo = sp.evaluate("""() => { const b = document.querySelector('.sheet .cphs__item'), d = document.getElementById(b.getAttribute('aria-describedby') || '-');
             return [d && d.textContent, document.getElementById('sr-polite')?.textContent]; }""")
-        R.check(vo[0] and 'Tu peux la retirer' in vo[0] and 'Tu peux la retirer' in (vo[1] or ''), f'{t} VoiceOver : l\'accord lié à la case (aria-describedby) et dit en la cochant {vo}')
+        R.check(vo[0] and 'Tu pourras la retirer' in vo[0] and 'Tu pourras la retirer' in (vo[1] or ''), f'{t} VoiceOver : l\'accord lié à la case (aria-describedby) et dit en la cochant {vo}')
         sp.locator('.sheet .cphs__item').nth(1).click()
         R.check(go.inner_text() == 'Envoyer 2 photos', f'{t} bouton « Envoyer 2 photos » ({go.inner_text()!r})')
         layout(sp, t, 'Feuille d\'envoi')
@@ -322,7 +322,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.wait_for_selector('.coach-photos-mine-view .cph-code')
         code = sp.inner_text('.coach-photos-mine-view .cph-code')
         txt = sp.inner_text('.coach-photos-mine-view')
-        R.check('comparez' not in txt and 'hébergeur' not in txt and 'demande à ton coach le code' in txt, f'{t} code : tutoiement, mots simples, où le coach le trouve')
+        R.check('comparez' not in txt and 'hébergeur' not in txt and 'en bas de sa page Photos de bilan' in txt, f'{t} code : tutoiement, mots simples, où le coach le trouve')
         R.check(code == sp.evaluate('cph.code') and sp.get_attribute('[data-action="cph-verify"]', 'aria-expanded') == 'true', f'{t} déplié : code de la clé de ton coach ({code!r})')
         shot(sp, LOT, f'07b-verifier-cle-{t}')
         sp.click('[data-action="cph-verify"]')

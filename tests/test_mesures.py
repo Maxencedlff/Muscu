@@ -165,7 +165,7 @@ def t_tout_supprimer(bench):
         open_measures(page, 'dark', now)
         page.evaluate("navigate('backup')")
         page.wait_for_selector('.backup-view [data-action="export"]')
-        R.check('pas tes photos' in page.inner_text('.backup-view'), 'Réglages › Sauvegarde : l\'export n\'inclut pas les photos, dit sous le groupe')
+        R.check('pas les photos' in page.inner_text('.backup-view'), 'Réglages › Sauvegarde : l\'export n\'inclut pas les photos, dit sous le groupe')
         page.evaluate("navigate('settings')")
         page.wait_for_selector('[data-action="wipe-data"]')
         page.click('[data-action="wipe-data"]')
