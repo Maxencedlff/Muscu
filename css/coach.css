@@ -443,11 +443,13 @@ html.type-xl .cph-daybtn span { white-space: normal; }
    la semaine de l'accueil), cerclé = aujourd'hui sans séance */
 /* Le pseudo d'abord : s'il ne tient pas à côté des 7 points (iPhone SE, pseudo long), les points passent dessous ;
    avant, le pseudo était coupé (« eleve… ») et 150 élèves devenaient indiscernables (mesures du 17/11, tests/charge/) */
-.cstu__top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.cstu__top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
 .cstu__top .social-row__name { flex: 0 1 auto; min-width: 0; max-width: 100%; }
 /* Pseudo plus large que la carte (20 caractères sur un téléphone étroit) : à la ligne plutôt que coupé */
 .coach-student-row.cstu .cstu__top .social-row__name { white-space: normal; overflow-wrap: anywhere; }
-.cstu__days { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
+.cstu__days { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; flex: none; }
+/* Cloche barrée à côté du pseudo : l'écart du flex suffit (sinon pseudo, cloche et 7 jours passent sur 2 lignes à 320-360 pt) */
+.cstu__top .push-off-mark { margin-left: 0; }
 .cstu__day { width: 9px; height: 9px; border-radius: 50%; background: var(--fill); }
 .cstu__day--on { background: var(--check-on); }
 .cstu__day--today:not(.cstu__day--on) { background: none; box-shadow: inset 0 0 0 1.5px var(--label2); }
