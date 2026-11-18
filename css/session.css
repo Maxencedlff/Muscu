@@ -293,13 +293,13 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
 /* En sombre, la mini-barre est sur --cell2 (plus clair que la cellule) : bleu éclairci pour 5:1 (4:1 avec #64AFFF) */
 body:not(.light) .rest-mini .rest-mini__skip { color: #8AC4FF; }
 .rest-mini__btn:active, .rest-mini .rest-mini__skip:active { opacity: .6; }
-/* « Ensuite : nom · S2 · 32,5 kg × 10 » : le nom se coupe (points de suspension), jamais la série */
+/* « Ensuite : nom · S2 · 32,5 kg × 10 » : jamais coupé. Trop long pour une ligne (« Rowing haltère unilatéral » sur
+   iPhone 17), la série passe dessous, entière ; le nom va à la ligne plutôt que de finir en « unilaté… » */
 .rest-mini__next {
-  grid-column: 1 / -1; display: flex; min-width: 0; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2);
-  white-space: nowrap;
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; min-width: 0; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2);
 }
-.rest-mini__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.rest-mini__tail { flex-shrink: 0; }
+.rest-mini__name { min-width: 0; overflow-wrap: anywhere; }
+.rest-mini__tail { flex-shrink: 0; white-space: nowrap; }
 .rest-mini--done { animation: restGo 1s ease 2; }
 @keyframes restGo { 30% { background: color-mix(in srgb, var(--cat-color) 55%, var(--cell2)); } }
 .rest-mini__go { grid-column: 1 / -1; text-align: center; font-size: 1.294rem; font-weight: 700; color: var(--label); }
