@@ -262,7 +262,7 @@ function accessDoubleSub() {
 function accessDoubleSubText(d) {
   return d.trialEnds
     ? `Ton coach t'offre l'accès. Ton propre essai devient payant le ${fmtDate(d.trialEnds)} : résilie-le dans « Gérer chez Apple » pour ne pas être prélevé.`
-    : 'Ton coach couvre l\'accès. Tu peux résilier ton abonnement.';
+    : 'Ton coach t\'offre l\'accès. Tu peux résilier ton abonnement.';
 }
 
 // Date de fin donnée par le serveur (fin de l'abonnement, essai d'Apple compris, ou du cadeau), ou null

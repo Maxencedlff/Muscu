@@ -1030,7 +1030,7 @@ def t_tarifs(bench, eng, dev, theme):
         R.check(page.locator('.pay-tabs .segmented__btn').count() == 2 and len(pl) == 4
                 and '11,11 € par mois' in pl[0] and '10 élèves' in pl[0] and 'Conseillé' in pl[0]
                 and '44,44 € par mois' in pl[3] and '100 élèves' in pl[3] and 'illimit' not in ' '.join(pl), f'{t} coach : 4 paliers mensuels {pl}')
-        R.check('Tu suis 0 élève' in txt and 'ton accès et celui de tes élèves' in txt, f'{t} coach : élèves suivis, accès compris')
+        R.check('Tu suis 0 élève' in txt and 'ton accès et le leur' in txt, f'{t} coach : élèves suivis, accès compris')
         R.check('2 mois gratuits' in pl[0] and 'Essai gratuit de 2 mois, puis 11,11 € par mois' in txt and '3 mois' not in ' '.join(pl),
                 f'{t} coach : essai de 2 mois lu chez StoreKit, mentions')
         layout(page, t, 'abonnement coach')
@@ -1117,7 +1117,7 @@ def t_tarifs(bench, eng, dev, theme):
         page.evaluate("p => { __st.owned = { productId: p, originalId: 'apple-own', transactionId: 'tx-own', expiresAt: Date.now() + 30 * 86400000 }; }", MONTHLY)
         txt = sub_text(page)
         card = page.locator('.pay-settings-view .pay-double')
-        R.check(card.count() == 1 and 'Ton coach couvre l\'accès. Tu peux résilier ton abonnement.' in card.inner_text()
+        R.check(card.count() == 1 and 'Ton coach t\'offre l\'accès. Tu peux résilier ton abonnement.' in card.inner_text()
                 and card.locator('[data-action="pay-manage"]').inner_text().strip() == 'Gérer mon abonnement'
                 and not any(w in txt.lower() for w in ('rembours', 'prorata', '!')), f'{t} élève abonné et couvert : carte ({txt[:200]!r})')
         layout(page, t, 'élève abonné et couvert')
@@ -1125,7 +1125,7 @@ def t_tarifs(bench, eng, dev, theme):
         # Essai d'Apple en cours : la date où il devient payant
         subscribed(page, days=40, intro=True, product=MONTHLY)
         txt = sub_text(page)
-        R.check('L\'essai devient payant le' in txt and 'résilie-le pour ne pas être prélevé' in txt, f'{t} élève en essai et couvert : date ({txt[:220]!r})')
+        R.check('Ton propre essai devient payant le' in txt and 'pour ne pas être prélevé' in txt, f'{t} élève en essai et couvert : date ({txt[:220]!r})')
         shot(page, LOT, f'28-eleve-essai-couvert-{t}')
         # Résilié chez Apple : la carte disparaît
         page.evaluate("__st.owned.willAutoRenew = false")
@@ -1136,7 +1136,7 @@ def t_tarifs(bench, eng, dev, theme):
         page.evaluate("() => { payDoubleAfterJoin(); }")   # sans attendre : la promesse attend la fermeture du dialogue
         page.wait_for_selector('.ios-dialog', timeout=5000)
         dlg = page.inner_text('.ios-dialog')
-        R.check('Ton coach couvre l\'accès' in dlg and 'Gérer mon abonnement' in dlg and 'Plus tard' in dlg, f'{t} après le lien : dialogue ({dlg[:160]!r})')
+        R.check('Ton coach t\'offre l\'accès' in dlg and 'Gérer mon abonnement' in dlg and 'Plus tard' in dlg, f'{t} après le lien : dialogue ({dlg[:160]!r})')
         page.locator('.ios-dialog__btn', has_text='Plus tard').click()
         page.wait_for_timeout(300)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -1147,7 +1147,7 @@ def t_tarifs(bench, eng, dev, theme):
         signin(page, username='cyril')
         make_me_coach(page)
         txt = paywall(page, 'coach')
-        R.check('qui ne paient rien' in txt, f'{t} coach : élèves sans rien à payer ({txt[:160]!r})')
+        R.check('Tes élèves ne paient rien' in txt, f'{t} coach : élèves sans rien à payer ({txt[:160]!r})')
         page.evaluate("""async (p) => { const me = __sb.meId(); __sb.setTier(me, p);
             for (let i = 0; i < 12; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
             await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }""", C10)

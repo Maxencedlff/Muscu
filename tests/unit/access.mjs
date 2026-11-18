@@ -733,9 +733,9 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       finally { account.user = u; Object.assign(access, saved); } })()`);
     const lucas = { state: 'active', until: null, coach: 'lucas' };
     const MONTHLY = 'com.mdlf.training.pro.monthly';
-    assert.equal(look(own(lucas), MONTHLY, true), 'Ton coach couvre l\'accès. Tu peux résilier ton abonnement.');
+    assert.equal(look(own(lucas), MONTHLY, true), 'Ton coach t\'offre l\'accès. Tu peux résilier ton abonnement.');
     // Renouvellement inconnu (build 68, iOS 16) : montrée quand même
-    assert.equal(look(own(lucas), MONTHLY, null), 'Ton coach couvre l\'accès. Tu peux résilier ton abonnement.');
+    assert.equal(look(own(lucas), MONTHLY, null), 'Ton coach t\'offre l\'accès. Tu peux résilier ton abonnement.');
     // Essai d'Apple en cours : date du serveur (fin de l'offre de lancement)
     const end = NOW + 40 * DAY;
     const trial = look(own(lucas, { intro_offer: true, intro_until: new Date(end).toISOString() }), MONTHLY, true);
@@ -753,7 +753,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     for (const f of ['js/features/paywall-ui.js', 'js/data/access.js', 'js/features/coach-ui.js', 'js/data/coach-pro.js', 'js/features/coach-pro-ui.js']) {
       assert.ok(!/rembours|prorata/i.test(code(f)), `${f} : un texte parle de remboursement`);
     }
-    assert.ok(!/couvre l.accès[^'`]*!/.test(ui), 'carte avec un point d\'exclamation');
+    assert.ok(!/offre l.accès[^'`]*!/.test(ui), 'carte avec un point d\'exclamation');
     // Après la grâce : jamais d'essai promis (seul StoreKit sait s'il y a droit)
     const grace = ui.slice(ui.indexOf("if (cover.state === 'grace')"), ui.indexOf('if (mine) return null;')).split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
     assert.ok(/reste offert/.test(grace) && /jusqu'au/.test(grace) && !/essai|gratuit/i.test(grace), 'grâce : aucun essai promis');
