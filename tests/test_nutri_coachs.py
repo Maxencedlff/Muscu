@@ -269,7 +269,7 @@ def t_eleve(bench):
                 R.check("Aujourd'hui : jour de repos" in line and 'Changer' in line and 'Pas de séance prévue' in line, f'{t} « Non » : jour de repos, retenu ({line[:70]!r})')
                 R.check(page.evaluate("data.dietLog[localISO()].kindBy") == 'ask', f'{t} réponse gardée pour la journée')
                 R.check(page.evaluate("dietDayProgress(data, data.dietActive).goal.kcal") == 2000, f'{t} repos : 2 000 kcal')
-                layout(page, t, 'jour de repos', '.nutrition-view')
+                layout(page, t, 'jour de repos', '.nutrition-view .scr')
                 shot(page, LOT, f'7-eleve-repos-{t}')
                 page.click('[data-action="diet-day-kind"]')
                 page.wait_for_timeout(250)
