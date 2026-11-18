@@ -19,6 +19,9 @@ jobs:
         mode: [hote, conteneur]
     name: sonde · ${{ matrix.mode }}
     container: ${{ matrix.mode == 'conteneur' && fromJSON('{"image":"mcr.microsoft.com/playwright/python:v1.62.0-noble@sha256:aa81288e738725378becba5b3e06cb0f3a7f012a610e87e8d767a090ea3f740d","options":"--ipc=host"}') || null }}
+    defaults:
+      run:
+        shell: bash
     env:
       PLAYWRIGHT_VERSION: 1.62.0
     steps:
@@ -41,13 +44,7 @@ jobs:
           time python -m playwright install --with-deps chromium webkit
       - name: Installation (conteneur)
         if: matrix.mode == 'conteneur'
-        run: |
-          set -x
-          command -v python python3 pip pip3 curl || true
-          python3 -c "import importlib.metadata as m; print('playwright', m.version('playwright'))" || true
-          python3 -m pip install --break-system-packages "playwright==$PLAYWRIGHT_VERSION" "pillow==12.1.1" || python3 -m pip install "playwright==$PLAYWRIGHT_VERSION" "pillow==12.1.1"
-          echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH"; ls "${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}"
-          id; cat /etc/os-release | head -3
+        run: time bash tests/ci_conteneur.sh
       - name: Environnement
         run: |
           PY=$(command -v python || command -v python3)
@@ -83,9 +80,9 @@ jobs:
           PPL_THEMES: dark
           PPL_JOBS: '3'
           PPL_RETRY: '0'
-          PPL_SCRATCH: ${{ runner.temp }}/ppl-tests
         run: |
           PY=$(command -v python || command -v python3)
+          export PPL_SCRATCH="$RUNNER_TEMP/ppl-tests"
           cd tests && time $PY -u run_all.py 1 5 nutrition
       - if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

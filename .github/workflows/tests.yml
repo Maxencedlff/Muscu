@@ -3,7 +3,7 @@ name: Tests
 # À chaque envoi :
 #  1. unit : syntaxe de tous les scripts, tests unitaires (dont le pont natif), contenu de l'app iOS ;
 #  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
-#     Playwright en thème sombre ;
+#     Playwright en thème sombre, répartie sur 4 machines (e2e 1/4 à 4/4) ;
 #  3. edge : les 12 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
 #     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
 #  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
@@ -68,44 +68,51 @@ jobs:
         run: npm run lint
 
   e2e:
-    # ubuntu-24.04 fixé : sur ubuntu-26.04 (ubuntu-latest depuis le 01/11/2026), les navigateurs de Playwright 1.62 ne démarrent pas
+    # Conteneur officiel de Playwright (navigateurs et dépendances système déjà dedans) : plus d'installation
+    # apt à chaque job, qui prenait jusqu'à 20 min chez GitHub (18/11). Image figée par empreinte, à la
+    # version EXACTE de PLAYWRIGHT_VERSION (les navigateurs de l'image ne servent qu'à ce paquet-là).
+    # La suite est répartie en 4 parts parallèles (run_all.py, PPL_SHARD) d'après les durées mesurées sur
+    # la CI (tests/ci_durees.json) : ~8 min chacune au lieu de 25 à 47 min en série. Le workflow n'est vert
+    # que si les 4 parts le sont (c'est lui que lisent ota.yml, ios.yml et publier.sh, pas le nom du job).
     runs-on: ubuntu-24.04
-    timeout-minutes: 75   # 40 min dépassées le 18/11 (suite agrandie + installation de Playwright lente chez GitHub)
+    timeout-minutes: 30
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.62.0-noble@sha256:aa81288e738725378becba5b3e06cb0f3a7f012a610e87e8d767a090ea3f740d
+      options: --ipc=host   # mémoire partagée de l'hôte : /dev/shm de Docker (64 Mo) fait planter Chromium
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4]
+    name: e2e ${{ matrix.part }}/4
+    defaults:
+      run:
+        shell: bash
     env:
       PLAYWRIGHT_VERSION: 1.62.0
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.12'
-      - name: Navigateurs en cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
-      - name: Playwright, WebKit et Chromium
-        run: |
-          pip install "playwright==$PLAYWRIGHT_VERSION" "pillow==12.1.1"   # pillow : JPEG avec EXIF et GPS du test des photos de bilan
-          python -m playwright install --with-deps chromium webkit
+      - name: Playwright et polices
+        run: bash tests/ci_conteneur.sh
       - name: Serveur local de l'app
         run: |
           python -m http.server 8731 > /tmp/serveur.log 2>&1 &
-          for i in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:8731/ && break; sleep 0.5; done
-      - name: Suite Playwright (iPhone 13 et Pixel 7, sombre)
+          for i in $(seq 1 20); do python -c "import urllib.request as u; u.urlopen('http://localhost:8731/')" 2>/dev/null && break; sleep 0.5; done
+      - name: Suite Playwright (iPhone 13 et Pixel 7, sombre), part ${{ matrix.part }}/4
         env:
           PPL_URL: http://localhost:8731/
           PPL_DEVICES: iPhone 13,Pixel 7
           PPL_THEMES: dark
           PPL_JOBS: '3'
-          PPL_SCRATCH: ${{ runner.temp }}/ppl-tests
-        run: cd tests && python -u run_all.py
+          PPL_SHARD: ${{ matrix.part }}/4
+        # RUNNER_TEMP du conteneur (/__w/_temp) : ${{ runner.temp }} donnerait le chemin de l'hôte
+        run: cd tests && PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u run_all.py
       - name: Captures en cas d'échec
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: captures-playwright
+          name: captures-playwright-${{ matrix.part }}
           path: ${{ runner.temp }}/ppl-tests/shots
           retention-days: 7
 
