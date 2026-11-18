@@ -538,6 +538,18 @@ partage sa diète depuis au moins 3 jours et dont les 3 jours d'avant aujourd'hu
 prend le signal orange « 3 jours hors diète » (après l'inactivité et la baisse de séances, avant les records). Il compte alors
 dans le filtre « À relancer », le résumé de la semaine et le tri.
 
+**Mini-panel du 18/11** (les 5 profils du mini-panel nutrition, une planche de 7 écrans élève et coach, JSON court) :
+
+| Tour | Coach 1 | Coach 2 (prépa) | Pratiquante | Ergonomie | Coach débutant | Corrigé ensuite |
+|---|---|---|---|---|---|---|
+| 1 | 7 | 6 | 8 | 8 | 6 | texte du partage en 3 paragraphes et « En savoir plus » ; « Annuler » sur le toast du partage donné ; fiche ouverte sur hier (aujourd'hui « en cours », sans %) ; suivi = calories ET protéines (90 %) ; une ligne par macro avec son écart ; eau et sel situés ; partiel en demi-disque, légende en mots ; « Écrire à » ; ligne Diète dans Mes élèves |
+| 2 | 8 | 8 | 9 | 9 | 8 | 7 mini-pastilles et « Diète non partagée » dans Mes élèves ; règle repliée (« Comment c'est compté ») ; moyenne de la semaine ; eau et sel chiffrés ; pourquoi un jour est partiel ; message déjà écrit (jamais envoyé seul) |
+| 3 | 9 | 8 | 9 | 9 | 9 | moyenne avec l'objectif et l'écart (demande du coach 2), mini-pastilles agrandies : faits après le tour 3, non renotés |
+
+Écarté : rappel « Partagé avec max » sur la carte de l'accueil (pratiquante, pour 10 : la carte de l'accueil est partagée par
+tous et resserrée en petite hauteur, à voir avec Maxence) ; compteur « hors diète » dans le résumé de Mes élèves (« à relancer »
+compte déjà ces élèves) ; texte agrandi plus compact (comportement commun des listes de l'app).
+
 **Mise en production** : OTA d'abord ou migration d'abord, au choix : une app d'avant ignore `diet_log` (elle ne montre pas la
 case, et `cleanShareState` écarte la donnée) ; une app à jour sur un serveur d'avant ne montre pas la case (absente de `kinds`)
 ni la carte (PGRST202). Retour arrière : `20261118010000_suivi_diete_coach_down.sql` (efface jours et consentements).

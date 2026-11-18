@@ -132,11 +132,11 @@ begin
   if r::text like '%secret%' then raise 'clé inconnue gardée'; end if;
   if r -> 'days' -> 2 is distinct from jsonb_build_object('day', to_char((now() at time zone 'utc')::date - 2, 'YYYY-MM-DD'), 'meals', '[]'::jsonb,
        'kcal', 1850, 'p', 120, 'c', 210, 'f', 50, 'water', 0) then raise 'jour sans plan ni objectif : %', r -> 'days' -> 2; end if;
-  -- Vue d'ensemble : S seul, 3 jours en bref [jour, kcal, objectif, cochés, repas]
+  -- Vue d'ensemble : S seul, 3 jours en bref [jour, kcal, objectif, cochés, repas, protéines, objectif protéines]
   ov := public.coach_diet_overview();
   if jsonb_array_length(ov -> 'students') <> 1 or ov -> 'students' -> 0 ->> 'student_id' <> pg_temp.du('s')::text then raise 'vue d''ensemble : %', ov; end if;
-  if ov -> 'students' -> 0 -> 'days' -> 0 is distinct from jsonb_build_array(to_char((now() at time zone 'utc')::date, 'YYYY-MM-DD'), 1850, 2300, 2, 3)
-     or ov -> 'students' -> 0 -> 'days' -> 2 is distinct from jsonb_build_array(to_char((now() at time zone 'utc')::date - 2, 'YYYY-MM-DD'), 1850, null, 0, 0)
+  if ov -> 'students' -> 0 -> 'days' -> 0 is distinct from jsonb_build_array(to_char((now() at time zone 'utc')::date, 'YYYY-MM-DD'), 1850, 2300, 2, 3, 120, 150)
+     or ov -> 'students' -> 0 -> 'days' -> 2 is distinct from jsonb_build_array(to_char((now() at time zone 'utc')::date - 2, 'YYYY-MM-DD'), 1850, null, 0, 0, 120, null)
     then raise 'jours en bref : %', ov -> 'students' -> 0 -> 'days'; end if;
   if (public.coach_student_diet(pg_temp.du('t')) ->> 'shared')::boolean then raise 'T partage sans avoir coché'; end if;
   -- Les autres partages ne bougent pas

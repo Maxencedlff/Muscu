@@ -1036,9 +1036,9 @@ FAKE_ACCOUNT = r"""
     },
     coach_diet_overview: me => {
       if (!co.coachAt[me]) return { students: [] };
-      const first = new Date(now() - 3 * 86400000).toISOString().slice(0, 10);
+      const first = new Date(now() - 7 * 86400000).toISOString().slice(0, 10);
       return { students: co.shares.filter(x => x.kind === 'diet_log' && x.coach === me && linkOf(x.student)?.coach === me).map(x => ({ student_id: x.student, since: x.granted_at,
-        days: (co.dietDays[x.student] || []).filter(v => v.day >= first).map(v => [v.day, v.kcal, v.goal?.kcal ?? null, (v.meals || []).filter(m => m.ok).length, (v.meals || []).length]) })) };
+        days: (co.dietDays[x.student] || []).filter(v => v.day >= first).map(v => [v.day, v.kcal, v.goal?.kcal ?? null, (v.meals || []).filter(m => m.ok).length, (v.meals || []).length, v.p ?? 0, v.goal?.p ?? null]) })) };
     },
     coach_student_measures: (me, { student }) => {
       if (!coachOf(me, student)) return pgErr('not_found');

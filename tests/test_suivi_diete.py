@@ -146,13 +146,13 @@ def t_eleve(bench):
                 R.check('Repas cochés, eau, sel' in nb(sw.inner_text()), f'{t} ce que la case partage, dit dessous ({nb(sw.inner_text())!r})')
                 R.check(dcalls(page, 'student_share_diet_days') == [], f'{t} par défaut : rien envoyé')
                 txt = nb(page.inner_text('.coach-share-view'))
-                R.check('jamais le détail des aliments ni les heures, 90 jours au plus' in txt, f'{t} écran : ce que le coach verra, une fois')
+                R.check('le détail de tes aliments, les heures' in txt and 'gardée 90 jours au plus' in txt and txt.count('90 jours') == 1, f'{t} écran : ce que le coach verra, une fois')
                 layout(page, t, 'partage', '.coach-share-view')
                 shot(page, LOT, f'1-partage-off-{t}')
                 sw.click()
                 page.wait_for_timeout(600)
                 R.check(sw.get_attribute('aria-checked') == 'true', f'{t} cochée')
-                R.check(toast(page).startswith('Suivi de ta diète partagé'), f'{t} toast ({toast(page)!r})')
+                R.check(toast(page).startswith('Diète partagée avec ton coach') and 'Annuler' in toast(page), f'{t} toast ({toast(page)!r})')
                 sent = page.evaluate(f"__sb.co.dietDays['{me}'] || []")
                 R.check(len(sent) == 1 and sent[0]['day'] == TODAY and [m['ok'] for m in sent[0]['meals']] == [True, False, True, False] and sent[0]['water'] == 1500,
                         f'{t} envoi : aujourd\'hui, repas cochés, eau ({sent[:1]})')
@@ -211,10 +211,23 @@ def t_coach(bench):
                 page.wait_for_selector('.coach-students-view')
                 page.wait_for_timeout(800)
                 txt = nb(page.inner_text('.coach-students-view'))
-                R.check('3 jours hors diète' in txt, f'{t} Mes élèves : « 3 jours hors diète » ({txt[:300]!r})')
+                R.check('Diète manquée 3 jours' in txt and 'Diète\n3 sur 7 suivis' in txt or 'Diète 3 sur 7 suivis' in txt.replace('\n', ' ') and 'Diète non partagée' in txt, f'{t} Mes élèves : « Diète manquée 3 jours », jours suivis de Léa ({txt[:400]!r})')
                 R.check(page.evaluate(f"coachStudentProgress(coachStudent('{ids['zoe']}')).tone") == 'warn'
                         and page.evaluate(f"coachStudentProgress(coachStudent('{ids['lea']}')).tone") != 'warn', f'{t} Zoé à relancer, pas Léa')
                 shot(page, LOT, f'3-eleves-{t}')
+                # Fiche de Zoé : la carte dit pourquoi elle est à relancer et propose de lui écrire
+                page.evaluate(f"navigate(makeRoute('coach-student', '{ids['zoe']}'))")
+                page.wait_for_selector('.cdiet__warn')
+                page.wait_for_timeout(400)
+                warn = nb(page.inner_text('.cdiet__warn'))
+                R.check('zoe n\'a pas suivi sa diète ces 3 derniers jours' in warn and 'Écrire à zoe' in warn and 'Moyenne de' in nb(page.inner_text('.cdiet')), f'{t} Zoé : pourquoi et « Écrire à zoe » ({warn!r})')
+                page.locator('.cdiet__days').scroll_into_view_if_needed()
+                shot(page, LOT, f'3b-fiche-zoe-{t}')
+                page.click('.cdiet__write')
+                page.wait_for_selector('#chatInput')
+                draft = page.input_value('#chatInput')
+                R.check('ta diète a été difficile ces 3 derniers jours' in draft and dcalls(page, 'chat_send') == [], f'{t} message prêt, pas envoyé ({draft!r})')
+
                 # Fiche de Léa : carte Diète
                 page.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
                 page.wait_for_selector('.cdiet__days')
@@ -223,8 +236,8 @@ def t_coach(bench):
                 dots = page.evaluate("[...document.querySelectorAll('.cdiet__days .cdiet__dot')].map(e => e.className.replace('cdiet__dot cdiet__dot--', ''))")
                 R.check(dots == ['ok', 'off', 'ok', 'none', 'part', 'ok', 'today'], f'{t} 7 pastilles : suivi, pas suivi, rien, partiel, en cours ({dots})')
                 card = nb(page.inner_text('.cdiet'))
-                R.check('3 jours suivis · 1 partiel' in card and 'à 10 % de l\'objectif' in card, f'{t} compte et seuils dits ({card[:200]!r})')
-                R.check('Aujourd\'hui' in card or 'Mercredi 18 novembre' in card, f'{t} aujourd\'hui choisi d\'office')
+                R.check('3 jours suivis · 1 partiel' in card and 'calories à 10 % près de l\'objectif du jour et protéines atteintes' in nb(page.text_content('.cdiet__rule')), f'{t} compte et seuils dits ({card[:200]!r})')
+                R.check('Mardi 17 novembre' in card, f'{t} hier choisi d\'office (aujourd\'hui pas fini)')
                 layout(page, t, 'carte diète', '.coach-student-view .scr')
                 shot(page, LOT, f'4-fiche-diete-{t}')
                 # Toucher lundi (partiel) : détail
@@ -232,7 +245,7 @@ def t_coach(bench):
                 page.wait_for_timeout(300)
                 det = nb(page.inner_text('.cdiet'))
                 R.check('Lundi 16 novembre' in det and 'Repos' in det and '3 sur 4' in det and 'pas coché : Dîner' in det
-                        and '1 980 / 2 300 kcal' in det and '14 % sous l\'objectif' in det and 'objectif 3 à 5 L' in det, f'{t} détail du lundi ({det[-400:]!r})')
+                        and '1 980 / 2 300 kcal' in det and '14 % sous l\'objectif' in det and 'objectif 3 à 5 L · −0,5 L sous l\'objectif' in det and 'Partiel : calories 14 % sous l\'objectif' in det and 'Protéines' in det, f'{t} détail du lundi ({det[-400:]!r})')
                 R.check(page.locator(f'.cdiet__day[data-day="{day_iso(2)}"]').get_attribute('aria-pressed') == 'true', f'{t} jour choisi marqué')
                 shot(page, LOT, f'5-detail-jour-{t}')
                 # Semaine d'avant
@@ -244,6 +257,8 @@ def t_coach(bench):
                 page.wait_for_selector('.cdiet-off')
                 off = nb(page.inner_text('.cdiet-off'))
                 R.check('Non partagé par l\'élève' in off and 'kcal' not in off, f'{t} Tom : « Non partagé par l\'élève » ({off!r})')
+                page.locator('.cdiet-off').scroll_into_view_if_needed()
+                shot(page, LOT, f'9-non-partage-{t}')
                 if dev == 'iPhone SE':
                     page.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
                     page.wait_for_selector('.cdiet__days')

@@ -19,6 +19,8 @@
 const DIET_SHARE_DAYS = 90;          // jours envoyés et gardés (le serveur écarte le reste)
 const DIET_SHARE_OK_PCT = 10;        // suivi : à 10 % de l'objectif de calories, ou moins
 const DIET_SHARE_PART_PCT = 25;      // partiel : à 25 % ; au-delà : pas suivi
+const DIET_SHARE_PROT_SHARE = 0.9;   // suivi : protéines atteintes à 90 % au moins (panel du 18/11 : des kcal justes sans les
+                                     // protéines ne sont pas une diète suivie ; au-dessus de l'objectif ne compte pas contre)
 const DIET_SHARE_WARN_DAYS = 3;      // à relancer : les 3 jours d'avant aujourd'hui, tous pas suivis ou sans rien de noté
 const DIET_SHARE_WEEKS = 12;         // semaines que le coach peut remonter (84 jours, sous les 90 gardés)
 const DIET_SHARE_DEBOUNCE_MS = 5000; // un envoi au plus toutes les 5 s pendant qu'on coche
@@ -95,13 +97,15 @@ function dietShareGap(x) {
   return g > 0 ? Math.round((x.kcal - g) / g * 100) : null;
 }
 // 'ok' (suivi), 'part' (partiel), 'off' (pas suivi), 'none' (rien de noté), 'today' (aujourd'hui, pas encore suivi).
-// Par l'écart de calories ; sans objectif, par les repas cochés
+// Par l'écart de calories (suivi : à 10 % près ET protéines atteintes à 90 %, quand le jour en a un objectif ; sinon
+// partiel) ; sans objectif de calories, par les repas cochés
 function dietShareStatus(x, { today = false } = {}) {
   if (!x) return today ? 'today' : 'none';
   const gap = dietShareGap(x), meals = Array.isArray(x.meals) ? x.meals : [];
   const done = meals.filter(m => m.ok).length;
+  const gp = Number(x.goal?.p) || 0, protOk = !(gp > 0) || !Number.isFinite(Number(x.p)) || Number(x.p) >= gp * DIET_SHARE_PROT_SHARE;
   let s;
-  if (gap !== null) s = Math.abs(gap) <= DIET_SHARE_OK_PCT ? 'ok' : Math.abs(gap) <= DIET_SHARE_PART_PCT ? 'part' : 'off';
+  if (gap !== null) s = Math.abs(gap) <= DIET_SHARE_OK_PCT ? (protOk ? 'ok' : 'part') : Math.abs(gap) <= DIET_SHARE_PART_PCT ? 'part' : 'off';
   else s = meals.length && done === meals.length ? 'ok' : done ? 'part' : 'off';
   return today && s !== 'ok' ? 'today' : s;
 }
@@ -130,16 +134,16 @@ function cleanCoachDiet(raw) {
   if (shared && Array.isArray(r.days)) r.days.slice(0, DIET_SHARE_DAYS + 2).forEach(v => { const x = cleanDietShareDay(v); if (x) days[x.day] = x; });
   return { shared, since: shared ? coachTime(r.since) : null, days };
 }
-// coach_diet_overview() nettoyé : { [élève]: { since, days: { jour: { kcal, goal: { kcal }, meals } } } }
+// coach_diet_overview() nettoyé : { [élève]: { since, days: { jour: { kcal, p, goal: { kcal, p }, meals } } } }
 function cleanDietOverview(raw) {
   const out = {};
   (Array.isArray(raw?.students) ? raw.students : []).forEach(s => {
     if (!s || typeof s.student_id !== 'string') return;
     const days = {};
-    (Array.isArray(s.days) ? s.days : []).slice(0, 8).forEach(a => {
+    (Array.isArray(s.days) ? s.days : []).slice(0, 10).forEach(a => {
       if (!Array.isArray(a) || !DS_DAY_RE.test(a[0])) return;
       const done = Math.max(0, Number(a[3]) || 0), n = Math.max(0, Number(a[4]) || 0);
-      days[a[0]] = { kcal: Number(a[1]) || 0, goal: { kcal: Number(a[2]) || 0 }, meals: Array.from({ length: n }, (_, i) => ({ ok: i < done })) };
+      days[a[0]] = { kcal: Number(a[1]) || 0, goal: { kcal: Number(a[2]) || 0, p: Number(a[6]) || 0 }, p: Number(a[5]) || 0, meals: Array.from({ length: n }, (_, i) => ({ ok: i < done })) };
     });
     out[s.student_id] = { since: coachTime(s.since), days };
   });
@@ -166,7 +170,14 @@ function dietShareWarn(ov, now = Date.now()) {
   if (!Number.isFinite(ov.since) || ov.since > first) return false;
   return days.every(day => ['off', 'none'].includes(dietShareStatus(ov.days[day] || null)));
 }
-const DIET_SHARE_WARN_TEXT = '3 jours hors diète';
+const DIET_SHARE_WARN_TEXT = 'Diète manquée 3 jours';
+// Jours suivis sur les 7 derniers (aujourd'hui compté seulement s'il est déjà suivi), pour la ligne de Mes élèves ;
+// null sans partage
+function dietShareWeekCount(ov, now = Date.now()) {
+  if (!ov) return null;
+  const today = dietDayKey(now);
+  return dietShareWeekDays(0, now).filter(d => dietShareStatus(ov.days[d] || null, { today: d === today }) === 'ok').length;
+}
 
 // ── Coach : état et lecture ─────────────────────────────────
 

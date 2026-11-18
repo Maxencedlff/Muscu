@@ -22,7 +22,7 @@
 --    (12 semaines, docs/COACH_SUIVI.md) plus une semaine de marge : juger si une phase a été suivie.
 --  - Envoi : student_share_diet_days refuse (not_shared) sans consentement actif ; il remplace tout (miroir de
 --    l'appareil, comme les pesées), 92 jours au plus, 128 Ko au plus, chaque champ borné (invalid_data sinon).
---  - Lecture : seul le coach consenti, encore coach (coach_student_diet, coach_diet_overview) ; un autre coach,
+--  - Lecture : seul le coach consenti, encore coach (coach_student_diet, coach_diet_overview : 8 derniers jours en bref) ; un autre coach,
 --    un ami, l'élève lui-même par ces fonctions : not_found ou rien. Rien pour les amis.
 --  - Aucune lecture ni écriture directe : RLS activée sans politique, aucun GRANT sur la table ; RPC security
 --    definer, search_path vide, utilisateur pris dans auth.uid() ; anon n'exécute rien.
@@ -259,8 +259,9 @@ begin
 end
 $$;
 
--- Coach : pour « À relancer » de Mes élèves, en un appel : chaque élève qui me partage sa diète, depuis quand, et
--- ses 4 derniers jours en bref [jour, kcal, objectif kcal, repas cochés, repas]. Pas coach : liste vide.
+-- Coach : pour Mes élèves (« À relancer », jours suivis sur 7), en un appel : chaque élève qui me partage sa diète, depuis
+-- quand, et ses 7 derniers jours en bref [jour, kcal, objectif kcal, repas cochés, repas, protéines, objectif protéines].
+-- Pas coach : liste vide.
 create function public.coach_diet_overview() returns jsonb
   language sql stable security definer set search_path = '' as
 $$
@@ -274,9 +275,9 @@ $$
     'student_id', s.student_id, 'since', s.granted_at,
     'days', coalesce((select jsonb_agg(jsonb_build_array(to_char(d.day, 'YYYY-MM-DD'), d.kcal, d.goal_kcal,
                                 (select count(*) from jsonb_array_elements(d.meals) m where (m ->> 'ok')::boolean),
-                                jsonb_array_length(d.meals)) order by d.day desc)
+                                jsonb_array_length(d.meals), d.p, d.goal_p) order by d.day desc)
                       from public.coach_shared_diet_days d
-                      where d.student_id = s.student_id and d.day >= (now() at time zone 'utc')::date - 3), '[]'::jsonb))), '[]'::jsonb))
+                      where d.student_id = s.student_id and d.day >= (now() at time zone 'utc')::date - 7), '[]'::jsonb))), '[]'::jsonb))
   from s
 $$;
 
