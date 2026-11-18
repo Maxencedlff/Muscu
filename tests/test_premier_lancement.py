@@ -211,7 +211,7 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         tap(page, '[data-action="onb-place"][data-val="salle"]')
         tap(page, '[data-action="onb-freq"][data-val="4"]')
         link = page.locator('.onb [data-action="onb-import"]')
-        R.check(link.count() == 1 and link.inner_text().replace('\u00a0', ' ').strip() == 'Importer depuis Strong ou Hevy'
+        R.check(link.count() == 1 and link.inner_text().replace('\u00a0', ' ').strip() == 'Importer mon historique Strong ou Hevy'
                 and link.bounding_box()['height'] >= 44, f'{t} niveau : lien d\'import Strong / Hevy, 44 pt')
         R.check(link.bounding_box()['y'] > page.locator('.onb .onb__group').bounding_box()['y'], f'{t} lien sous les niveaux')
         R.check(small_targets(page) == 0 and no_hscroll(page), f'{t} niveau : 44 pt, pas de défilement horizontal')

@@ -238,7 +238,7 @@ function renderBodyWeightSetting() {
   return `<button class="cell cell--nav" data-action="set-body-weight">
             ${cellIco('bathroom.scale', 'gray')}
             <span class="cell__body"><span class="cell__title">Poids du corps</span>
-              <span class="cell__sub">Volume des tractions, dips, pompes</span></span>
+              <span class="cell__sub">Pour le volume des tractions, dips, pompes</span></span>
             <span class="cell__value num"${data.bodyWeightKg ? '' : ' aria-label="Non renseigné"'}>${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : '—'}</span>
             ${icon('chevron.right', 16)}
           </button>`;

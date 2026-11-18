@@ -42,7 +42,7 @@ function renderPushSettings() {
         <div class="group">
           <button class="cell cell--action" data-action="push-reactivate"${push.busy ? ' aria-disabled="true"' : ''}${push.busy === 'reactivate' ? ' aria-busy="true"' : ''}>
             <span class="cell__body"><span class="cell__title">Réactiver sur cet iPhone</span>
-              <span class="cell__sub">Réglages gardés sur le compte. L'iPhone demandera ton accord.</span></span>
+              <span class="cell__sub">Tes réglages restent sur ton compte. L'iPhone te demandera ton accord.</span></span>
           </button>
         </div>` : denied ? `
         <div class="group">
@@ -68,7 +68,7 @@ function renderPushSettings() {
         <div class="group-title">M'avertir</div>
         <div class="group${blocked ? ' group--disabled' : ''}">${rows}
         </div>
-        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo, jamais le texte d'un commentaire ou d'un message. Séance d'un élève : son nom et sa durée, sans les charges. La fin de repos ne dépend pas de ces réglages.</div>
+        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo, jamais le texte d'un commentaire ou d'un message. Séance d'un élève : son nom et sa durée, sans les charges. Le rappel de fin de repos ne dépend pas de ces réglages.</div>
       </div></div>`;
 }
 
@@ -118,7 +118,7 @@ async function pushExplainFailure(reason) {
 }
 
 const PUSH_FAIL_TEXT = {
-  register: 'Notifications non activées. Réessaie dans un moment.',
+  register: 'Impossible d\'activer les notifications. Réessaie dans un moment.',
   offline: 'Pas d’Internet. Réessaie une fois connecté.',
 };
 

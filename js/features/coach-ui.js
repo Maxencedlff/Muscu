@@ -164,7 +164,7 @@ function renderCoachSettings() {
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
-          <p class="social-hero__sub">Ton coach suit tes séances et t'envoie des programmes. Il faut un compte gratuit.</p>
+          <p class="social-hero__sub">Ton coach suit tes séances et t'envoie des programmes. Il faut un compte, c'est gratuit.</p>
         </div>
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>
       </div></div>`;
@@ -191,7 +191,7 @@ function renderCoachSettings() {
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
-          <p class="social-hero__sub">Entre le code donné par ton coach. Avant d'accepter, tu vois ce que ton coach pourra voir et faire.</p>
+          <p class="social-hero__sub">Entre le code donné par ton coach. Avant d'accepter, tu verras ce qu'il pourra voir et faire.</p>
         </div>
         <div class="group">
           <button class="cell cell--action" data-action="coach-join"><span class="cell__title">Rejoindre un coach</span></button>
@@ -252,7 +252,7 @@ function coachJoinAgeHtml() {
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Coach indisponible</h2>
-          <p class="social-hero__sub">Suivre un coach est réservé aux 15 ans et plus, d'après la tranche d'âge transmise par Apple. Le reste de l'app fonctionne.</p>
+          <p class="social-hero__sub">Suivre un coach est réservé aux 15 ans et plus, d'après la tranche d'âge transmise par Apple. Tout le reste de l'app reste disponible.</p>
         </div>`;
 }
 
@@ -305,7 +305,7 @@ function renderCoachJoin(code) {
         ${list([['Poids et mensurations', 'Rien au départ. Tu choisis dans Réglages › Social et coach › Partager avec mon coach.'],
           ...(photos ? [['Des photos de bilan', 'Celles que tu envoies depuis ton coffre, chiffrées pour ton coach seul. Tu peux les retirer.']] : [])])}
         ${coachTitle('Jamais visible')}
-        ${list([['Le reste', `Ni tes données Santé, ni ${photos ? 'les autres photos du coffre' : 'tes photos'}, ni tes programmes perso. Ses autres élèves et toi ne vous voyez pas.`]])}
+        ${list([['Le reste', `Ni tes données Santé, ni ${photos ? 'les autres photos du coffre' : 'tes photos'}, ni tes programmes perso. Tu ne vois pas ses autres élèves, et eux ne te voient pas.`]])}
         <div class="coach-join__foot">
           <button class="cell coach-join__age" data-action="coach-age" role="switch" aria-checked="${ok}">
             <span class="cell__body"><span class="cell__title" id="coachAgeHint">J'ai 15 ans ou plus</span></span>
@@ -974,7 +974,7 @@ function renderCoachStudent(uid) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="coach-remove" data-uid="${esc(uid)}">Retirer l'élève</button>
         </div>
-        <div class="group-foot">Tu ne verras plus ses séances. Tes codes ne marcheront plus pour cette personne, sauf si tu l'autorises à revenir.</div>
+        <div class="group-foot">Tu ne verras plus ses séances. Vos messages et tes commentaires seront supprimés. Tes codes ne fonctionneront plus pour cette personne, sauf si tu l'autorises à revenir dans Mes élèves.</div>
       </div>
     </div>`;
 }
@@ -1192,12 +1192,12 @@ function renderCoachSend(uid, progId) {
         <p class="scr-sub">Pour ${who} · ${plural(sessions.length, 'séance', 'séances')}</p>
         <div class="group-title">Consigne du programme</div>
         <div class="group group--pad">${ta('data-prog="1"', dr.prog, 'Consigne du programme', 'Ex : 3 séances par semaine', 'coach-textarea--prog')}</div>
-        <div class="group-foot">Facultatives, gardées pour les prochains envois. ${who} les voit dans le programme et en séance.</div>
+        <div class="group-foot">Facultative, gardée pour les prochains envois. ${who} la voit dans le programme et en séance.</div>
         ${groups}
         <button class="btn btn--primary btn--full coach-send-btn" data-action="coach-send-go" data-uid="${esc(uid)}" data-prog="${esc(progId)}">Envoyer à ${who}</button>
         ${(coach.state?.students.length || 0) > 1 ? `<div class="group coach-send-many-group"><button class="cell cell--nav" data-action="coach-send-many" data-uid="${esc(uid)}" data-prog="${esc(progId)}">
             <span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span><span class="cell__body"><span class="cell__title">Envoyer à plusieurs élèves</span><span class="cell__sub">Mêmes consignes, la charge prescrite à chacun</span></span>${icon('chevron.right', 16)}</button></div>` : ''}
-        <div class="group-foot">Tes charges, records et historique ne partent pas. Renvoyer le même programme le met à jour chez l'élève.</div>
+        <div class="group-foot">Seules les charges que tu prescris sont envoyées, pas tes propres charges, records ni historique. Pour changer une charge d'une semaine à l'autre, modifie-la et renvoie le programme : il se met à jour chez l'élève.</div>
       </div>
     </div>`;
 }
@@ -1314,7 +1314,7 @@ async function shareCoachInvite(code) {
   const text = coachInviteText(code);
   if (Native.isNative) { if ((await Native.shareText(text, 'Invitation')) === 'failed') showToast('Partage impossible', { error: true }); return; }
   if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
-  try { await navigator.clipboard.writeText(text); showToast('Invitation copiée'); }
+  try { await navigator.clipboard.writeText(text); showToast('Invitation copiée, colle-la dans un message'); }
   catch { showToast(`Code : ${code}`); }
 }
 
@@ -1415,7 +1415,7 @@ registerActions({
     el._copied = setTimeout(() => { if (el.isConnected) { el.innerHTML = icon('doc.on.doc', 20); el.setAttribute('aria-label', 'Copier ton code coach'); } }, 2000);
   },
   'coach-revoke-invite': async (e, el) => {
-    if (!(await confirmSheet(`Supprimer le code ${el.dataset.code} ?`, 'Il ne marchera plus. Tes élèves actuels restent suivis.', 'Supprimer le code'))) return;
+    if (!(await confirmSheet(`Supprimer le code ${el.dataset.code} ?`, 'Il ne fonctionnera plus. Tes élèves actuels restent suivis.', 'Supprimer le code'))) return;
     coachToast(await coachRevokeInvite(el.dataset.code), 'Code supprimé', { inline: true });
   },
   'coach-open-student': (e, el) => navigate(makeRoute('coach-student', el.dataset.uid)),

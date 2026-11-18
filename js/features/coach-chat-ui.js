@@ -40,7 +40,7 @@ function chatListHtml(key) {
   if (!c.rows.length) {
     if (c.loading || (!c.loadedAt && !c.error)) return '<p class="chat-empty">Chargement…</p>';
     if (c.error) return coachOfflineNote(c.error, 'Pas d\'Internet. Les messages s\'afficheront quand le réseau reviendra.');
-    return `<p class="chat-empty">${key === CHAT_COACH ? 'Pose une question ou signale une gêne en séance.'
+    return `<p class="chat-empty">${key === CHAT_COACH ? 'Pose une question ou dis à ton coach si un exercice te gêne.'
       : 'Envoie une consigne ou une question à ton élève.'}</p>`;
   }
   let day = '', html = '';
@@ -83,7 +83,7 @@ function renderCoachChat(key) {
     <div class="view view--grouped coach-chat-view">
       ${head}
       <div class="scr chat">
-        <p class="chat-intro">Vous seuls lisez ces messages. Ils sont supprimés si le suivi s'arrête.</p>
+        <p class="chat-intro">Vous seuls lisez ces messages, sauf en cas de signalement. Ils sont supprimés si le suivi s'arrête.</p>
         <div id="chatPushLine">${chatPushLineHtml()}</div>
         <div class="chat-list" id="chatList" role="log" aria-live="polite" aria-relevant="additions">${chatListHtml(key)}</div>
         <div class="chat-compose">
@@ -331,7 +331,7 @@ function chatIntroHtml() {
   return `
         <div class="group">
           <div class="cell coach-lost chat-intro-note" role="status">
-            <span class="cell__body"><span class="cell__title">Ton coach peut t'écrire</span><span class="cell__sub">Un message te gêne ? Signale-le depuis la conversation.</span></span>
+            <span class="cell__body"><span class="cell__title">Ton coach peut t'écrire</span><span class="cell__sub">Un message te gêne ? Signale-le depuis la conversation, ou quitte ton coach.</span></span>
             <button class="social-x" data-action="chat-intro-ok" aria-label="OK, fermer">${icon('xmark', 14)}</button>
           </div>
         </div>`;

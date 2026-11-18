@@ -87,3 +87,5 @@ html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value:n
   html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value:not(:empty))) { padding-right: 24px; }
   html.type-xl .settings-view .cell--nav:has(> .set-ico):not(:has(> .cell__value:not(:empty))) > .icon:last-child { right: 6px; }
 }
+/* Réglages › Abonnement : « Accès complet » passe à la ligne au lieu d'être coupé sur 320 pt (panel textes-2) */
+.settings-view .cell[data-action="access-open-settings"]:has(> .set-ico) > .cell__value, .settings-view .cell[data-action="access-open-settings"] > .cell__value { overflow: visible; text-overflow: clip; white-space: normal; text-align: right; line-height: 1.2; }

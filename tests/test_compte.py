@@ -62,7 +62,7 @@ def age_session(page, seconds=3600):
 NEW_ACCOUNT_NOTICE = 'Nouveau compte créé. Déjà un compte ?'
 LAST_CODE_ONLY = 'Seul le code du dernier e-mail est valable. Regarde l\'heure d\'envoi.'
 # « cet iPhone » sur un iPhone, « ce téléphone » ailleurs (phoneName, js/platform/native.js ; Pixel 7, Galaxy)
-SESSION_ENDED = 'Compte supprimé ou connexion expirée. Les séances sont toujours sur '
+SESSION_ENDED = 'Tu as été déconnecté : compte supprimé ou connexion expirée. Les séances restent sur '
 CANCEL_EXPIRED = 'Ce nouveau compte vide a plus de 10 minutes. Supprime-le dans Réglages › Compte › Supprimer mon compte. L\'ancien compte reste intact.'
 OWNER_1 = '00000000-0000-0000-0000-000000000002'   # premier compte créé par le faux serveur (1 : son identité)
 
@@ -460,7 +460,7 @@ def t_compte(bench, eng, dev, theme):
         page.click('[data-action="account-sign-out"]')
         page.wait_for_timeout(300)
         txt = page.inner_text('.ios-dialog')
-        R.check('1 séance pas encore enregistrée' in txt and 'partira à la reconnexion' in txt and 'utilise Apple' in txt, f'{t} déconnexion : séance en attente et moyen rappelés {txt!r}')
+        R.check('1 séance pas encore enregistrée' in txt and 'sera enregistrée sur le compte quand tu te reconnecteras' in txt and 'utilise Apple' in txt, f'{t} déconnexion : séance en attente et moyen rappelés {txt!r}')
         shot(page, LOT, f'11-deconnexion-{t}')
         tap_dialog(page, 'Se déconnecter')
         page.wait_for_timeout(400)
@@ -741,7 +741,7 @@ def t_session_ended(bench, eng, dev, theme):
         page.click('[data-action="back"]')
         page.wait_for_selector('.account-card')
         card = page.locator('.account-card').inner_text()
-        R.check('Connexion expirée' in card and SESSION_ENDED in card and 'Tu étais connecté avec Apple' in card, f'{t} carte « Connexion expirée » {card!r}')
+        R.check('Déconnecté' in card and SESSION_ENDED in card and 'Tu étais connecté avec Apple' in card, f'{t} carte « Connexion expirée » {card!r}')
         R.check(page.locator('.account-card [data-action="account-reconnect"]').inner_text().strip() == 'Me reconnecter avec Apple', f'{t} carte : « Me reconnecter avec Apple »')
         R.check('autre appareil' not in card, f'{t} carte : pas de « déconnecté sur un autre appareil »')
         R.check(small_targets(page, '.account-card button') == 0, f'{t} carte : cibles de 44 pt')
@@ -750,7 +750,7 @@ def t_session_ended(bench, eng, dev, theme):
         page.evaluate("navigate('account')")
         page.wait_for_selector('.account-view')
         hero = page.inner_text('.account-hero')
-        R.check('Connexion expirée' in hero and SESSION_ENDED in hero and 'Tu étais connecté avec Apple' in hero, f'{t} écran Compte : session finie, moyen d\'avant {hero!r}')
+        R.check('Déconnecté' in hero and SESSION_ENDED in hero and 'Tu étais connecté avec Apple' in hero, f'{t} écran Compte : session finie, moyen d\'avant {hero!r}')
         R.check(above_tabbar(page, '.account-view .auth-btn--mail'), f'{t} moyens visibles au-dessus de la barre d\'onglets')
         shot(page, LOT, f'7c-compte-session-finie-{t}')
         page.click('[data-action="back"]')

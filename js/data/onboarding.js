@@ -65,7 +65,7 @@ function recommendReason(id, { perWeek, level, orMore = true } = {}) {
     case 'ppl':
       return n >= 5
         ? `${times} par semaine : pousser, tirer, puis jambes. Chaque muscle travaille presque deux fois par semaine.`
-        : `${times} par semaine : pousser, tirer, puis jambes. Plus de volume par muscle, avec le temps de récupérer.`;
+        : `${times} par semaine : pousser, tirer, puis jambes. Chaque muscle travaille plus, avec le temps de récupérer.`;
     case 'maison':
       return `${times} par semaine, sans matériel : le haut du corps, puis le bas, en alternance.`;
     case 'maison_halteres':
@@ -74,7 +74,7 @@ function recommendReason(id, { perWeek, level, orMore = true } = {}) {
     case 'bro':
       return `${times} par semaine : un groupe de muscles par séance. Chaque muscle travaille une fois par semaine, avec beaucoup de volume.`;
     case 'arnold':
-      return `${times} par semaine : pectoraux et dos, épaules et bras, puis jambes. Avec 5 séances ou plus, chaque muscle travaille presque deux fois.`;
+      return `${times} par semaine : pectoraux et dos, épaules et bras, puis jambes. Avec 5 séances ou plus, chaque muscle travaille presque deux fois par semaine.`;
     default:
       return '';
   }

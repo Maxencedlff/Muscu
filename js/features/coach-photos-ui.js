@@ -31,7 +31,7 @@ function cphVerifyHtml(code) {
             <span class="cell__body"><span class="cell__title">Vérifier le code avec ton coach</span></span>
             ${icon(cphVerifyOpen ? 'chevron.up' : 'chevron.down', 16)}
           </button>${cphVerifyOpen ? `
-          <div class="cell"><span class="cell__body"><span class="cell__sub">Les photos envoyées s'ouvrent uniquement chez ton coach, pas chez l'équipe de MDLF Training. Ce code doit être le même que celui en bas de sa page Photos de bilan : <span class="num cph-code">${esc(code)}</span>. S'il est différent, n'envoie plus de photo et écris à ton coach.</span></span></div>` : ''}
+          <div class="cell"><span class="cell__body"><span class="cell__sub">Seul ton coach peut ouvrir les photos envoyées. Ni l'équipe de MDLF Training ni personne d'autre ne le peut. Ce code doit être le même que celui en bas de sa page Photos de bilan : <span class="num cph-code">${esc(code)}</span>. S'il est différent, n'envoie plus de photo et écris à ton coach.</span></span></div>` : ''}
         </div>`;
 }
 
@@ -96,15 +96,15 @@ async function cphSendSheet(day) {
   };
   // Où va la photo, en tête de la feuille (panel v4 t1 : « Chiffrées sur ton iPhone », en bas, faisait croire qu'elle
   // restait sur le téléphone, et sortait de l'écran en texte agrandi)
-  const lead = single ? `<p class="cphs__lead">Chiffrée avant l'envoi, pour ${cphCoachName()} uniquement. Tu pourras la retirer.</p>`
-    : `<p class="cphs__lead">Chiffrées avant l'envoi, pour ${cphCoachName()} uniquement. Choisis les photos à envoyer${free < unsent.length ? ` (${free} au plus)` : ''}.</p>`;
+  const lead = single ? `<p class="cphs__lead">Chiffrée avant l'envoi : seul ton coach, ${cphCoachName()}, pourra l'ouvrir. Tu pourras la retirer.</p>`
+    : `<p class="cphs__lead">Chiffrées avant l'envoi : seul ton coach, ${cphCoachName()}, pourra les ouvrir. Choisis les photos à envoyer${free < unsent.length ? ` (${free} au plus)` : ''}.</p>`;
   // Titre : ce qui est montré, pas le verbe du bouton (panel t5)
   await sheet({ title: 'Photos à envoyer', cancel: 'Annuler', confirm: '', body: `
     <p class="cphs__day">${esc(fmtDate(cphDayTs(day)))}</p>
     ${lead}
     <div class="cphs__list">${list.map(item).join('')}</div>
     <button class="btn btn--primary btn--full cphs__go" data-action="cph-send-go" data-day="${esc(day)}" ${single ? `data-one="${esc(unsent[0].id)}"` : 'disabled'}>${single ? 'Envoyer cette photo' : 'Envoyer'}</button>
-    <p class="mpick__foot">Envoyée${single ? '' : 's'} sans la localisation ni aucune autre donnée de la photo.</p>` });
+    <p class="mpick__foot">Envoyée${single ? '' : 's'} sans la localisation ni aucune autre donnée de la photo. Si tu quittes ton coach ou supprimes ton compte, toutes les photos envoyées lui sont retirées.</p>` });
   cphPicked = new Set();
 }
 function cphPickToggle(el) {
@@ -165,7 +165,7 @@ async function cphSendGo(el) {
   showToast(done + cphErrorText(r.kind), { error: true });
 }
 const CPH_ERRORS = {
-  locked: 'Le coffre s\'est refermé. Rouvre-le pour envoyer le reste.',
+  locked: 'Le coffre s\'est refermé. Les autres photos ne sont pas parties : rouvre-le pour les envoyer.',
   not_ready: 'Ton coach n\'a pas encore activé la réception des photos.',
   key_changed: 'Ton coach a changé de clé : réessaie.',
   too_many: 'Limite de photos atteinte chez ton coach. Retires-en pour en envoyer d\'autres.',
@@ -225,7 +225,7 @@ function renderCphMine() {
         <div class="group-title">Envoyées</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub">Aucune photo envoyée.</span></div>'}</div>
         <div class="group-foot">${name} voit seulement les photos envoyées, avec leur jour et leur pose. Une photo retirée reste dans ton coffre.</div>
-        <div class="group-foot">Quitter ton coach ou supprimer ton compte les retire toutes. Une photo retirée a pu être vue avant : envoie seulement ce que tu acceptes de montrer.</div>
+        <div class="group-foot">Si tu quittes ton coach ou supprimes ton compte, toutes les photos envoyées lui sont retirées. Ton coach a pu voir une photo avant que tu la retires : envoie seulement ce que tu acceptes de montrer.</div>
         ${st.ready && cphStudentShown() ? cphVerifyHtml(cph.code) : ''}`);
 }
 SCREENS.set('coach-photos-mine', { render: () => renderCphMine(), enter: () => { cphRefresh(); } });
@@ -259,7 +259,7 @@ function cphSetupGroupHtml() {
         <div class="group">
           <button class="cell cell--action" data-action="cph-setup" ${cphCoach.busy ? 'disabled' : ''}><span>Recevoir les photos de bilan</span></button>
         </div>
-        <div class="group-foot">Tes élèves pourront t'envoyer des photos chiffrées pour toi uniquement. Tu les ouvres avec Face ID. Valable pour tous tes élèves.</div>`;
+        <div class="group-foot">Tes élèves pourront t'envoyer des photos chiffrées pour toi uniquement. Tu les ouvres avec Face ID. Une seule activation pour tous tes élèves.</div>`;
 }
 // Mes élèves : l'entrée tant que la réception n'est pas activée, puis son état, durable (panel v4 t1 : la ligne
 // disparaissait, et seul un toast disait que c'était fait)
@@ -314,7 +314,7 @@ function renderCphCoach(uid) {
       missing: 'La clé de tes photos n\'est pas encore sur cet iPhone. Elle arrive par le trousseau iCloud, parfois avec du retard. Réessaie plus tard.',
       nopasscode: 'Les photos s\'ouvrent avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code.',
       mismatch: cphCoach.own
-        ? 'Le serveur donne à tes élèves une autre clé que la tienne. Leurs photos ne seraient plus chiffrées pour toi uniquement. Republie ta clé, puis vérifiez le code ensemble.'
+        ? 'Le serveur donne à tes élèves une autre clé que la tienne. Leurs photos ne seraient plus chiffrées pour toi uniquement. Republie ta clé, puis vérifiez le code ensemble. Les photos reçues avec l\'autre clé seront supprimées.'
         : 'Le serveur donne à tes élèves une autre clé que la tienne, et la tienne n\'est pas sur cet iPhone. Crée une nouvelle clé, puis vérifiez le code ensemble.',
     }[ph] || '';
     const myCode = ph === 'mismatch' && cphCoach.myCode ? `<p class="pv-sub">Code de ta clé : <span class="num cph-code">${esc(cphCoach.myCode)}</span></p>` : '';
@@ -444,7 +444,7 @@ async function cphViewSheet(id) {
   await sheet({ title: cphPoseDay(p), cancel: 'Fermer', confirm: '', body: `
     <div class="cph-big"><img class="cphs__img pview__img" src="${cphPhotoUrl(p)}" alt="${esc(cphPoseDay(p))}" draggable="false"></div>
     <button class="btn btn--danger btn--full" data-action="cph-hide" data-id="${esc(p.id)}">Ne plus voir cette photo</button>
-    <p class="mpick__foot">Elle sera supprimée. Pour signaler un envoi déplacé : ⋯ › Signaler, dans vos messages.</p>` });
+    <p class="mpick__foot">Elle est supprimée. Photo inappropriée ? Ouvre vos messages, touche ⋯ puis Signaler.</p>` });
 }
 
 // Fermeture (écran quitté, arrière-plan, inactivité, compte) : images libérées, feuilles retirées
@@ -506,18 +506,18 @@ registerActions({
   'cph-setup': async () => {
     const r = await cphCoachSetup();
     if (r.ok) { haptic('success'); announce('Réception des photos activée'); render(); return; }   // l'état reste écrit dans la liste
-    if (!r.canceled) showToast(r.nopasscode ? 'Active d\'abord un code sur ton iPhone' : coachErrorText(r.kind), { error: true });
+    if (!r.canceled) showToast(r.nopasscode ? 'Active d\'abord le code de verrouillage de ton iPhone' : coachErrorText(r.kind), { error: true });
     render();
   },
   'cph-republish': async () => {
-    const ok = await dialog({ title: 'Republier ta clé ?', message: 'Ta clé remplace celle du serveur. Les photos reçues avec l\'autre clé seront supprimées, tes élèves pourront les renvoyer. Vérifiez ensuite le code ensemble.',
+    const ok = await dialog({ title: 'Republier ta clé ?', message: 'Ta clé remplace celle du serveur. Les photos reçues avec l\'autre clé seront supprimées. Tes élèves pourront les renvoyer. Vérifiez ensuite le code ensemble.',
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Republier', value: true, style: 'preferred' }] });
     if (!ok) return;
     const r = await cphCoachRepublish();
     if (!r.ok) {
       if (r.mismatch) showToast('Le serveur donne encore une autre clé. Réessaie.', { error: true });
       else if (r.missing) showToast('Ta clé n\'est pas sur cet iPhone : crée une nouvelle clé.', { error: true });
-      else if (!r.canceled) showToast(r.nopasscode ? 'Active d\'abord un code sur ton iPhone' : coachErrorText(r.kind), { error: true });
+      else if (!r.canceled) showToast(r.nopasscode ? 'Active d\'abord le code de verrouillage de ton iPhone' : coachErrorText(r.kind), { error: true });
       cphPaint();
       return;
     }

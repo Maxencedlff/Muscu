@@ -249,7 +249,7 @@ const COACH_ERROR_TEXT = {
   team_full: 'Ce coach suit déjà 50 élèves.',
   tier_full: 'Ton coach a atteint la limite de son abonnement : il doit passer au palier supérieur.',
   not_found: 'Introuvable : ce code est peut-être le tien, ou l\'élève ne te suit plus.',
-  rate_limited: 'Trop d\'essais. Réessaie dans une heure.',
+  rate_limited: 'Trop de tentatives. Réessaie dans une heure.',
   // Envoi d'un programme ou d'un plan diète : limite glissante sur 24 h (20261117020000_charge_coach.sql, point 3)
   send_rate: 'Limite d\'envoi atteinte : 30 envois plus 2 par élève, sur 24 heures. Réessaie dans 24 h.',
   too_long: 'Texte trop long.',

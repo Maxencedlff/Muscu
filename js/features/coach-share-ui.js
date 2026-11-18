@@ -69,14 +69,14 @@ function renderCoachShare() {
     emptyM ? 'Aucune mensuration. Ajoute-les dans Progrès › Mensurations.' : '',
   ].filter(Boolean).join(' ')}</div>` : '';
   const sees = withM
-    ? `seulement ce que tu coches : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration. Avec les pesées, le volume de tes séances compte ton poids du corps. Jamais tes données Santé. Tes photos ne partent que si tu les envoies.`
-    : `${name} verra la date et le poids de chaque pesée saisie dans l'app. Le volume de tes séances comptera ton poids du corps. Jamais tes données Santé.`;
+    ? `seulement ce que tu coches : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration. Avec les pesées, le volume des exercices au poids du corps inclut ton poids. Jamais tes données Santé. Tes photos ne partent que si tu les envoies.`
+    : `${name} verra la date et le poids de chaque pesée saisie dans l'app. Le volume des exercices au poids du corps sera calculé avec ton poids. Jamais tes données Santé.`;
   return view(`
         ${coachTitle(`Avec ${name}`)}
         <div class="group">${cells}
         </div>
         <div class="group-foot">${withM ? `${name} voit ` : ''}${sees} Tes amis ne voient rien.</div>
-        <div class="group-foot">Rien n'est coché par défaut. Tu peux arrêter à tout moment : ce que tu décoches est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ton coach arrête aussi le partage.</div>
+        <div class="group-foot">Tu peux arrêter à tout moment : ce que tu décoches est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ton coach arrête aussi le partage.</div>
         ${hint}
         ${cphMineCellHtml()}`);
 }

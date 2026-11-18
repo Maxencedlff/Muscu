@@ -426,7 +426,7 @@ def t_achat(bench, eng, dev, theme):
         page.wait_for_selector('[data-action="pay-code"]')
         # Code mal formé : refusé sur l'appareil, aucun essai brûlé côté serveur
         page.click('[data-action="pay-code"]')
-        R.check(code_sheet(page, 'abc', ok=False).startswith('Saisis au moins 10 lettres'), f'{t} code mal formé : erreur dans la feuille')
+        R.check(code_sheet(page, 'abc', ok=False).startswith('Code non valide'), f'{t} code mal formé : erreur dans la feuille')
         R.check(len(acalls(page, 'redeem_gift_code')) == 0, f'{t} code mal formé : rien n\'est envoyé au serveur')
         # Code inconnu, puis expiré : refus du serveur, SANS exception, saisie gardée
         help_ = code_sheet(page, 'ZZZZZZZZZZZZ', ok=False)

@@ -271,7 +271,7 @@ def t_envoi_complet(bench, eng, dev, theme):
                 f'{t} feuille d\'envoi ouverte sur le jour qui reste ({sp.inner_text(".sheet .cphs__day")!r})')
         lead = sp.inner_text('.sheet .cphs__lead')
         # Panel v4 t1 : où va la photo, en tête (chiffrée avant l'envoi, ouverte par le coach seul)
-        R.check('Chiffrée avant l\'envoi, pour ' in lead and 'Tu pourras la retirer.' in lead and 'sur ton iPhone' not in sp.inner_text('.sheet'),
+        R.check('Chiffrée avant l\'envoi : seul ton coach' in lead and 'Tu pourras la retirer.' in lead and 'sur ton iPhone' not in sp.inner_text('.sheet'),
                 f'{t} photo seule : accord affiché ({lead!r})')
         sp.wait_for_timeout(400)   # feuille montée en entier (mesurée en pleine animation, « Annuler » paraissait petit)
         layout(sp, t, 'Feuille d\'envoi (une photo)')

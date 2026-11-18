@@ -105,8 +105,8 @@ registerActions({
   },
   'strength-info': async () => {
     await dialog({ title: 'Niveau de force',
-      message: '1RM estimé : la charge que tu pourrais soulever une fois, calculée sur 90 jours. '
-        + 'Divisé par ton poids du corps, il est comparé à des compétiteurs de force athlétique de même sexe et de même poids. '
+      message: '1RM estimé : la charge que tu pourrais soulever une fois, d\'après tes séances des 90 derniers jours. '
+        + 'Ce 1RM, divisé par ton poids du corps, est comparé à des compétiteurs de force athlétique de même sexe et de même poids. '
         + 'Ils sont à leur première compétition, sans équipement, contrôlés antidopage. Source : OpenPowerlifting. '
         + 'Intermédiaire : pratiquant régulier depuis quelques années. Avancé : compétiteur médian. Élite : les 10 % les plus forts.',
       actions: [{ label: 'OK', value: true, style: 'preferred' }] });

@@ -251,7 +251,7 @@ function activationHtml() {
   const name = account.profile?.username;
   const ready = !!name && socialAgeOk;
   const coached = coachRole().hasCoach;
-  const sub = 'Suis leurs séances et <span class="nowrap">réagis-y</span>. Seules les personnes que tu acceptes voient les tiennes.';
+  const sub = 'Suis les séances de tes amis et <span class="nowrap">réagis-y</span>. Seules les personnes que tu acceptes voient les tiennes.';
   return `
         ${coached ? `<div class="group-title">Social (facultatif)</div>
         <p class="social-optional">${sub}</p>` : `
@@ -592,7 +592,7 @@ function socialDefaultVisibleCell() {
           <button class="cell" data-action="setting-visible-default" role="switch" aria-checked="${on}">
             ${cellIco('eye', 'blue')}
             <span class="cell__body"><span class="cell__title">Séances visibles par défaut</span>
-              <span class="cell__sub">Allume « Visible sur mon profil » à chaque bilan</span></span>
+              <span class="cell__sub">Active « Visible sur mon profil » à chaque bilan</span></span>
             ${switchHtml(on)}
           </button>`;
 }
@@ -738,7 +738,7 @@ registerActions({
     const text = friendInviteText(account.profile?.username || '');
     if (Native.isNative) { if ((await Native.shareText(text, 'Invitation')) === 'failed') showToast('Partage impossible', { error: true }); return; }
     if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
-    try { await navigator.clipboard.writeText(text); showToast('Invitation copiée'); }
+    try { await navigator.clipboard.writeText(text); showToast('Invitation copiée, colle-la dans un message'); }
     catch { showToast('Partage impossible', { error: true }); }
   },
   // Fil vide : le champ de recherche, juste au-dessus (focus dans le geste : le clavier s'ouvre)

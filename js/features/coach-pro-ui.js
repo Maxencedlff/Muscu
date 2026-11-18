@@ -77,11 +77,11 @@ function renderCoachProGroup() {
         <div class="group-title">Ton code coach</div>
         <div class="group">
           ${code ? `<div class="cell coach-invite coach-code-cell">
-            <span class="cell__body"><span class="cell__title coach-code num">${esc(formatCoachCode(code))}</span><span class="cell__sub">Sans date de fin</span></span>
+            <span class="cell__body"><span class="cell__title coach-code num">${esc(formatCoachCode(code))}</span><span class="cell__sub">Code permanent, à mettre dans ta bio</span></span>
             <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(code)}" aria-label="Partager ton code coach">${icon('square.and.arrow.up', 20)}</button>
           </div>` : `<div class="cell"><span class="cell__sub">${coachPro.error ? esc(coachProErrorText(coachPro.error)) : 'Chargement…'}</span></div>`}
         </div>
-        <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre un coach.${paywallOn() ? ' Ils n\'ont rien à payer : ton abonnement coach couvre leur accès, jusqu\'à son nombre d\'élèves.' : ''}</div>
+        <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre un coach.${paywallOn() ? ' Ils n\'ont rien à payer : ton abonnement coach couvre leur accès, dans la limite d\'élèves de ton palier.' : ''}</div>
         ${coachCardGroupHtml()}
         <div class="group-title">Abonnement coach</div>
         <div class="group">
@@ -128,7 +128,7 @@ function coachCardGroupHtml() {
           <div class="cell"><span class="cell__body"><span class="cell__title">Badge</span></span><span class="cell__value">${state}</span></div>`;
   if (c.status === 'suspended') {
     return `${title}<div class="group">${rows}</div>
-        <div class="group-foot">Badge masqué après plusieurs signalements. L'équipe vérifie la carte sur le site du ministère des Sports, puis remet le badge si elle est valide.</div>`;
+        <div class="group-foot">Badge suspendu après plusieurs signalements. L'équipe vérifie la carte sur le site du ministère des Sports, puis remet le badge si elle est valide.</div>`;
   }
   if (c.status === 'removed') {
     return `${title}<div class="group">${rows}</div>

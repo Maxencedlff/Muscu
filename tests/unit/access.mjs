@@ -411,7 +411,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     })()`);
     sameJSON(r.slice(0, 3), [{ ok: false, kind: 'retry' }, { ok: false, kind: 'bad_bundle' }, { ok: false, kind: 'transaction_taken' }]);
     sameJSON(r[3], ['tx-2'], 'seul un refus définitif termine la transaction');
-    assert.match(run('accessErrorText("retry")'), /nouvel essai automatique/);
+    assert.match(run('accessErrorText("retry")'), /réessaiera toute seule/);
     // Trop d'appels (429) : message juste, pas « action impossible »
     const limited = await run(`(async () => {
       const u = account.user, saved = { ...access }, realSb = sb, store = Native.store;
@@ -739,7 +739,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // Essai d'Apple en cours : date du serveur (fin de l'offre de lancement)
     const end = NOW + 40 * DAY;
     const trial = look(own(lucas, { intro_offer: true, intro_until: new Date(end).toISOString() }), MONTHLY, true);
-    assert.equal(trial, `Ton coach couvre l'accès. L'essai devient payant le ${run(`fmtDate(${end})`)} : résilie-le pour ne pas être prélevé.`);
+    assert.equal(trial, `Ton coach t'offre l'accès. Ton propre essai devient payant le ${run(`fmtDate(${end})`)} : résilie-le dans « Gérer chez Apple » pour ne pas être prélevé.`);
     // Disparaît : résilié chez Apple, pas d'abonnement sur l'iPhone, formule coach, coach qui ne couvre pas (grâce, au-delà)
     assert.equal(look(own(lucas), MONTHLY, false), null);
     assert.equal(look(own(lucas), null, true), null);

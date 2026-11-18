@@ -110,7 +110,7 @@ const ONB_STEPS = {
   // Panel « yeux neufs » du 16/11 : qui vient de Strong ou de Hevy ne trouvait pas l'import (Réglages › Données seulement)
   level: () => `${onbQuestion('Ton niveau&nbsp;?', '',
     Object.entries(ONB_LEVELS).map(([k, l]) => onbOption('onb-level', k, l.label, l.sub, onb.level === k)).join(''))}
-      <button class="auth__skip onb__import" data-action="onb-import">Importer depuis Strong ou Hevy</button>`,
+      <button class="auth__skip onb__import" data-action="onb-import">Importer mon historique Strong ou Hevy</button>`,
 
   result: () => {
     const id = recommendProgramme(onb);

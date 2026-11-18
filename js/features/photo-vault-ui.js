@@ -77,7 +77,7 @@ function pvCenterHtml() {
       ? 'Le coffre arrive avec la prochaine version de l\'app. Tes photos déjà prises restent sur ton iPhone et y seront rangées.'
       : Native.isNative ? 'Le coffre n\'existe pour l\'instant que dans l\'app iPhone. Tes photos déjà prises restent sur ce téléphone.'
       : 'Le coffre n\'existe que dans l\'app iPhone.' },
-    error: { title: 'Coffre à photos', text: 'Ouverture du coffre impossible.', retry: 'Réessayer' },
+    error: { title: 'Coffre à photos', text: 'Le coffre ne s\'ouvre pas.', retry: 'Réessayer' },
     nopasscode: { title: 'Code de l\'iPhone requis', text: 'Le coffre s\'ouvre avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code, puis reviens ici.', retry: 'Réessayer' },
     missing: { title: 'Coffre illisible pour l\'instant', text: `La clé du coffre n'est pas encore sur cet iPhone${pv.count ? ` (${plural(pv.count, 'photo', 'photos')})` : ''}. Elle arrive par le trousseau iCloud, parfois avec du retard. Si le trousseau était coupé sur l'ancien iPhone, la clé y est restée.`, retry: 'Réessayer', reset: true },
   }[ph] || { title: 'Coffre à photos', text: '' };
@@ -152,7 +152,7 @@ function pvOpenHtml() {
             <p class="cell__sub">Prends une photo de face, de profil ou de dos pour comparer plus tard.</p></div>`}
         </div>
         <div class="group-foot">Les photos restent sur ${pvIos() ? 'ton iPhone' : 'cet appareil'}, chiffrées. ${cphVaultFoot()}</div>
-        <div class="group-foot">${pvIos() ? 'Ni dans l\'export ni dans la copie iCloud de l\'app. Le trousseau iCloud les rouvre sur un nouvel iPhone.'
+        <div class="group-foot">${pvIos() ? 'Elles ne sont ni dans l\'export ni dans la sauvegarde iCloud de l\'app. Sur un nouvel iPhone, le trousseau iCloud permet de les rouvrir.'
           : 'Elles ne sont pas dans l\'export.'}</div>`;
 }
 

@@ -1000,7 +1000,7 @@ def t_demande_coach(bench, eng, dev, theme):
         page.select_option('#coachReqDiploma', 'BPJEPS')
         page.click('[data-action="coach-request-send"]')
         page.wait_for_timeout(400)
-        R.check('Saisis 6 à 20 lettres et chiffres' in page.inner_text('#coachReqError')
+        R.check('saisis 6 à 20 lettres et chiffres' in page.inner_text('#coachReqError')
                 and page.evaluate("__sb.calls.filter(c => c[0] === 'coach' && c[1] === 'coach_request_submit').length") == 0,
                 f'{t} numéro mal formé : refusé sans appel')
         page.fill('#coachReqCard', '049 12 ED 0123')
@@ -1031,7 +1031,7 @@ def t_demande_coach(bench, eng, dev, theme):
         page.wait_for_timeout(800)
         txt = page.inner_text('.coach-view')
         code = page.evaluate("coachPro.code")
-        R.check(code and len(code) == 12 and formatted(code) in txt and 'sans date de fin' in txt.lower() and 'abonnement coach' in txt.lower(),
+        R.check(code and len(code) == 12 and formatted(code) in txt and 'Code permanent' in txt and 'abonnement coach' in txt.lower(),
                 f'{t} coach validé : code permanent et abonnement ({code})')
         layout(page, t, 'Réglages › Coach validé')
         shot(page, LOT, f'32-coach-valide-{t}')
