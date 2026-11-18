@@ -17,11 +17,13 @@ permissions:
   contents: read
 
 concurrency:
-  # Jamais interrompus : la build TestFlight (ios.yml, job gate) attend les tests de SON commit, et
-  # un envoi plus récent qui les annulait faisait échouer la build (03/11/2026, build 41). Sur main,
-  # un seul groupe : les publications du site passent l'une après l'autre, dans l'ordre.
-  group: ${{ github.ref == 'refs/heads/main' && format('tests-{0}', github.ref) || format('tests-{0}-{1}', github.ref, github.sha) }}
-  cancel-in-progress: false
+  # Sur main, jamais interrompus et un seul groupe : la garde de l'OTA (ota.yml) et de TestFlight (ios.yml)
+  # attend les tests de SON commit, et les publications du site passent l'une après l'autre, dans l'ordre.
+  # Sur une autre branche, un nouvel envoi annule les tests en cours de la même branche (les 20 machines
+  # du compte sont partagées, 18/11). Conséquence : une build TestFlight lancée depuis une branche doit
+  # l'être après le dernier envoi de cette branche (annulés, ses tests font échouer la garde, build 41 du 03/11).
+  group: tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   unit:

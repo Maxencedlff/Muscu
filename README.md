@@ -54,6 +54,20 @@ Variables utiles : `PPL_JOBS` (processus simultanés, 6 par défaut), `PPL_URL` 
 `tests/ci_durees.json`, à régénérer avec `tests/ci_durees.py`). Un nom de lot ou d'appareil inconnu est refusé. Un processus en échec est relancé une
 fois : s'il passe, il est signalé « INSTABLE » (à surveiller) sans faire échouer la suite.
 
+Batterie complète sur la CI (`.github/workflows/tests-complet.yml`, tous les appareils, 14 machines),
+ou seulement quelques appareils sur 2 à 4 machines, à préférer pour vérifier un écran (les 20 machines
+du compte sont partagées entre les branches) :
+
+```sh
+gh workflow run tests-complet.yml -R Maxencedlff/Muscu --ref <branche> -f appareils="iPhone SE,iPhone 17"
+gh workflow run tests-complet.yml -R Maxencedlff/Muscu --ref <branche> -f appareils="Pixel 7" -f lots="nutrition"
+```
+
+Noms d'appareils : `iPhone 13`, `iPhone SE`, `Pixel 7`, `Galaxy S8`, `Galaxy S9+`, `iPhone 17`,
+`iPhone 17 Pro Max`, `iPhone Air`, `iPhone Duo ferme`, `iPhone Duo ouvert`, `iPhone Duo paysage`,
+`iPhone Duo grand paysage` (`recents` : les iPhone récents et le Duo). Une nouvelle batterie, ou un
+nouvel envoi, sur une branche annule celle en cours de la même branche ; jamais sur `main`.
+
 ## Déploiement
 
 Chaque push lance le workflow **Tests** (`.github/workflows/tests.yml`) : tests unitaires, puis

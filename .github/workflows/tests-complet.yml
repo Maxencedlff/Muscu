@@ -2,7 +2,9 @@ name: Tests complets
 
 # La batterie E2E complète (5 appareils × 2 thèmes + iPhone récents), répartie sur 14 machines GitHub
 # en parallèle (~15 min) au lieu d'un seul PC (~2 h 30). Lancée à chaque envoi sur une branche de
-# vague, ou à la main : gh workflow run tests-complet.yml --ref <branche> [-f lots="lot7_ecrans coach"].
+# vague, ou à la main : gh workflow run tests-complet.yml --ref <branche> [-f lots="lot7_ecrans coach"]
+# [-f appareils="iPhone SE,iPhone 17"]. Avec « appareils », seulement ces appareils (2 thèmes) sur 2 à 4
+# machines au lieu de 14 : à préférer pour vérifier un écran, les 20 machines du compte sont partagées.
 # Une seule suite (PPL_DEVICES=tous, les 2 thèmes) coupée en 14 parts de durée égale (run_all.py,
 # PPL_SHARD, durées de tests/ci_durees.json) : chaque processus (fichier × appareil × thème, ou
 # « unique ») tourne dans exactement une part. 14 machines + les 6 de tests.yml lancées par le même
@@ -17,16 +19,50 @@ on:
         description: Lots à lancer, séparés par des espaces (ex. « lot7_ecrans commentaires ») ; vide = tous
         type: string
         default: ''
+      appareils:
+        description: Appareils seulement, séparés par des virgules (ex. « iPhone SE,iPhone 17 »), sur 2 à 4 machines ; vide = tous sur 14
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
+  # Une nouvelle batterie sur une branche annule la précédente de la même branche (machines partagées) ;
+  # jamais sur main
   group: tests-complet-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Nombre de parts et appareils : 14 parts sur tous les appareils, ou 2 à 4 parts (une par appareil,
+  # au moins 2, au plus 4) avec l'entrée « appareils ». Les noms sont vérifiés par run_all.py (inconnu = refus).
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      parts: ${{ steps.p.outputs.parts }}
+      total: ${{ steps.p.outputs.total }}
+      appareils: ${{ steps.p.outputs.appareils }}
+    steps:
+      - id: p
+        env:
+          APPAREILS: ${{ inputs.appareils }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, re
+          raw = os.environ.get('APPAREILS', '')
+          names = [x.strip() for x in raw.split(',') if x.strip()]
+          if any(not re.fullmatch(r"[A-Za-z0-9+ ]{2,40}", n) for n in names):
+              raise SystemExit(f'appareils invalides : {raw!r}')
+          count = sum({'recents': 7, 'tous': 12}.get(n, 1) for n in names)   # groupes de fixtures.py
+          total = min(4, max(2, count)) if names else 14
+          print('parts=' + json.dumps(list(range(1, total + 1))))
+          print(f'total={total}')
+          print('appareils=' + (','.join(names) or 'tous'))
+          PY
+
   e2e:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     container:
@@ -35,8 +71,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-    name: part ${{ matrix.part }}/14
+        part: ${{ fromJSON(needs.plan.outputs.parts) }}
+    name: part ${{ matrix.part }}/${{ needs.plan.outputs.total }}
     defaults:
       run:
         shell: bash
@@ -52,12 +88,12 @@ jobs:
         run: |
           python -m http.server 8731 > /tmp/serveur.log 2>&1 &
           for i in $(seq 1 20); do python -c "import urllib.request as u; u.urlopen('http://localhost:8731/')" 2>/dev/null && break; sleep 0.5; done
-      - name: Suite Playwright, part ${{ matrix.part }}/14
+      - name: Suite Playwright, part ${{ matrix.part }}/${{ needs.plan.outputs.total }}
         env:
           PPL_URL: http://localhost:8731/
-          PPL_DEVICES: tous
+          PPL_DEVICES: ${{ needs.plan.outputs.appareils }}
           PPL_JOBS: '3'
-          PPL_SHARD: ${{ matrix.part }}/14
+          PPL_SHARD: ${{ matrix.part }}/${{ needs.plan.outputs.total }}
           LOTS: ${{ inputs.lots }}
         # RUNNER_TEMP du conteneur (/__w/_temp) : ${{ runner.temp }} donnerait le chemin de l'hôte
         # shellcheck disable=SC2086
