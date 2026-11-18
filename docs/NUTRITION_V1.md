@@ -411,8 +411,13 @@ Vocaux WhatsApp de deux coachs, puis demande de Maxence sur l'éditeur du coach.
   ou en cours aujourd'hui (`dietTrainedOn`, même règle que l'eau), sinon repos ; le choix à la main se garde dans le
   journal (`dietLog[jour].kind`, « Aujourd'hui : jour de repos · Changer », un toucher, Annuler). `week` : le jour de la
   semaine. Tout le calcul du jour (coches, totaux, journée complète, eau, sel) lit le plan du jour.
-- **Limite connue** : un jour de séance, le matin avant la séance, l'app montre le jour de repos ; « Changer » le corrige
-  d'un toucher (pas de programme daté dans l'app pour le savoir avant).
+- **Le matin d'un jour ON** (demande du 18/11) : aujourd'hui, sans séance ni réponse, l'app montre le **jour d'entraînement**
+  et pose « Séance aujourd'hui ? Oui | Non » (carte Nutrition de l'accueil et haut de Nutrition), une fois par jour ; la
+  réponse est gardée pour la journée (`dietLog[jour].kind` + `kindBy: 'ask'`), une séance faite ensuite passe devant,
+  « Changer » (choix à la main, `kind` sans `kindBy`) passe devant tout. Ordre complet : `dietDayIndex` (manual, session,
+  ask, guess, none). Écarté : déduire du programme (séance suivante disponible selon la récupération) : il dit quand une
+  séance est possible, pas si la personne s'entraîne, et se tromperait les semaines irrégulières ; la question est juste et
+  coûte un toucher. Jour passé sans séance ni réponse : repos.
 - **Éditeur** : cellule « Jours » (Tous les jours pareils, Entraînement et repos, Semaine ; revenir à un seul jour garde le
   premier, confirmation et Annuler), cellule « Consigne » du plan ; vue des jours (une ligne par jour : type, repas, kcal,
   macros, objectifs), écran d'un jour (`diet-plan:ID:I`, choix des 7 jours ou entraînement / repos en tête, type du jour,
@@ -467,6 +472,19 @@ manque 1 569 kcal » ; envoi : confirmation qui nomme les élèves et dit les jo
 du mauvais élève) ; toast « Jours : semaine » → « 7 jours, copies du premier jour ». Écarté : macros « Pas d'objectif »
 (choix du coach, règle d'avant) ; type de jour prévu d'avance en mode entraînement / repos (voir la limite connue : le
 mode Semaine le fait, jour par jour).
+
+### Itérations du panel (mêmes 5 profils, une planche, note et « la chose pour passer à 9 »)
+| Tour | Coach 1 | Coach 2 | Pratiquante | Ergonomie | Coach débutant | Corrigé ensuite |
+|---|---|---|---|---|---|---|
+| 1 | 7 | 7 | 7 | 7 | 7 | voir plus haut |
+| 2 | 8 | 8 | 8 | 8 | 7 | question du jour expliquée ; « Copier vers les autres jours de repos » ; aperçu sur deux lignes, le jour s'ouvre d'un toucher ; « Ce qu'il a déjà coché reste » |
+| 3 | 8 | 7 | 8 | 8 | 7 | question pleine largeur, Oui / Non dessous ; « repas des jours de séance » ; écarts dits en clair et « Revoir les jours » ; captures avec un plan réaliste (objectifs propres au jour de repos) |
+| 4 | 8 | 8 | 8 | 8 | 8 | « Repos » en pastille dans la bande des 7 jours ; « + Pincée 0,4 g » d'un toucher ; eau et sel une fois dans l'aperçu s'ils sont les mêmes chaque jour |
+| 5 | 8 | 8 | 8 | 8 | 8 | écart de l'aperçu dès 5 % ; « 175 g cuit » dans Remplacer |
+
+Non traité, et pourquoi : voir côté coach les coches de l'élève (accord par donnée et migration serveur : chantier à part,
+« Coches visibles par le coach » de Hors V1) ; toast qui recouvre le bas de l'écran et rond à cocher de la carte de
+l'accueil (composants communs à toute l'app, hors de ce chantier).
 
 ### Tests
 `tests/unit/nutrition-coachs.mjs` (sel et alias de la base, pomme de terre → riz, jours, copies, envoi et taille, eau,
