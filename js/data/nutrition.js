@@ -251,15 +251,28 @@ function dietTrainedOn(d, day) {
   const live = day === dietDayKey() && typeof activeSession !== 'undefined' && !!activeSession;
   return live || (Array.isArray(d.history) ? d.history : []).some(h => Number.isFinite(h?.date) && localISO(h.date) === day);
 }
-// Jour du plan suivi pour une date : { i, kind, auto } ; session : le choix fait à la main ce jour-là (journal, kind),
-// sinon la séance du jour ; semaine : le jour de la semaine. e : entrée du journal à lire (par défaut celle du jour)
+// Jour du plan suivi pour une date : { i, kind, auto, src } ; semaine : le jour de la semaine. Entraînement / repos, dans
+// cet ordre (retour des coachs du 18/11 : « le matin d'un jour ON, il prend le petit-déjeuner du jour OFF ») :
+//   1. 'manual' : « Changer », choix à la main du jour (journal : kind, sans kindBy) ;
+//   2. 'session' : une séance faite ou commencée ce jour-là (jour d'entraînement) ;
+//   3. 'ask' : la réponse à « Séance aujourd'hui ? Oui | Non », posée une fois par jour (kind + kindBy 'ask') ;
+//   4. 'guess' : aujourd'hui sans réponse : jour d'entraînement, et la question est posée (ask: true). Un jour de séance,
+//      le matin, l'élève a ainsi le bon menu sans rien faire ; un jour de repos, il répond Non d'un toucher.
+//   5. 'none' : jour passé, sans séance ni réponse : repos.
+// Pourquoi pas le programme (séance suivante disponible selon la récupération) : il dit quand une séance est possible,
+// pas si la personne s'entraîne ; une question d'un toucher est juste et se comprend sans explication.
+// e : entrée du journal à lire (par défaut celle du jour)
 function dietDayIndex(d, planId, day, e = d.dietLog?.[day]) {
   const plan = d.dietPlans?.[planId], m = plan?.days?.mode;
-  if (m === 'week') { const i = dietWeekdayOf(day); return { i, kind: dietDayKindAt(plan, i), auto: false }; }
-  if (m !== 'session') return { i: 0, kind: null, auto: false };
-  const manual = e && e.plan === planId && (e.kind === 't' || e.kind === 'r') ? e.kind : null;
-  const kind = manual || (dietTrainedOn(d, day) ? 't' : 'r');
-  return { i: kind === 't' ? 0 : 1, kind, auto: !manual };
+  if (m === 'week') { const i = dietWeekdayOf(day); return { i, kind: dietDayKindAt(plan, i), auto: false, src: 'week' }; }
+  if (m !== 'session') return { i: 0, kind: null, auto: false, src: 'one' };
+  const mine = e && e.plan === planId && (e.kind === 't' || e.kind === 'r') ? e : null;
+  const out = (kind, src, extra = {}) => ({ i: kind === 't' ? 0 : 1, kind, auto: src !== 'manual', src, ...extra });
+  if (mine && mine.kindBy !== 'ask') return out(mine.kind, 'manual');
+  if (dietTrainedOn(d, day)) return out('t', 'session');
+  if (mine) return out(mine.kind, 'ask');
+  if (day === dietDayKey()) return out('t', 'guess', { ask: true });
+  return out('r', 'none');
 }
 // Plan tel qu'il vaut ce jour-là : le plan, avec les repas et les objectifs du jour choisi (dayIndex, dayKind en plus)
 function dietDayPlan(d, planId, day, e) {
@@ -450,10 +463,10 @@ function cleanDietLog(v, now = Date.now()) {
     // Repas du plan ce jour-là (instantané) : un jour passé reste jugé avec le plan de ce jour
     const meals = Array.isArray(e.meals) ? [...new Set(e.meals.filter(id => typeof id === 'string' && DIET_PART_RE.test(id)))].slice(0, DIET_MEAL_MAX) : null;
     const blank = e.blank === true, off = cleanDietMealIds(e.off), copied = cleanDietMealIds(e.copied);
-    const kind = e.kind === 't' || e.kind === 'r' ? e.kind : null;
+    const kind = e.kind === 't' || e.kind === 'r' ? e.kind : null, kindBy = kind && e.kindBy === 'ask' ? 'ask' : null;
     if (done.length || Object.keys(swaps).length || Object.keys(extras).length || removed.length || off.length || copied.length || blank || kind) {
       out[day] = { plan: e.plan, done, swaps, ...(Object.keys(extras).length ? { extras } : {}), ...(removed.length ? { removed } : {}), ...(meals ? { meals } : {}),
-        ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}), ...(kind ? { kind } : {}) };
+        ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}), ...(kind ? { kind } : {}), ...(kindBy ? { kindBy } : {}) };
     }
   }
   return out;
@@ -716,7 +729,8 @@ function dietWriteDay(d, day, e) {
   const extras = Object.fromEntries(Object.entries(e.extras || {}).filter(([id, list]) => meals.has(id) && list?.length));
   const removed = (e.removed || []).filter(id => items.has(id));
   const off = (e.off || []).filter(id => meals.has(id)), copied = (e.copied || []).filter(id => meals.has(id)), blank = e.blank === true;
-  const kind = e.kind === 't' || e.kind === 'r' ? e.kind : null;   // jour choisi à la main (plan entraînement / repos)
+  const kind = e.kind === 't' || e.kind === 'r' ? e.kind : null;   // jour choisi (plan entraînement / repos)
+  const kindBy = kind && e.kindBy === 'ask' ? 'ask' : null;          // réponse à « Séance aujourd'hui ? »
   d.dietLog ||= {};
   // Instantané : les repas à faire ce jour-là (un repas retiré n'en est plus, « Journée complète » sans lui)
   const snapshot = dietDayRequired(dietShownMeals(plan), { removed, off, copied, blank });
@@ -724,15 +738,16 @@ function dietWriteDay(d, day, e) {
   // Jour vide (blank) gardé même sans rien d'autre : sinon il redeviendrait « pré-rempli » ou « vide » selon le réglage du moment
   if (done.length || Object.keys(swaps).length || hasExtras || removed.length || off.length || copied.length || blank || kind) {
     d.dietLog[day] = { plan: e.plan, done, swaps, ...(hasExtras ? { extras } : {}), ...(removed.length ? { removed } : {}), meals: snapshot,
-      ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}), ...(kind ? { kind } : {}) };
+      ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}), ...(kind ? { kind } : {}), ...(kindBy ? { kindBy } : {}) };
   }
   else delete d.dietLog[day];
   if (!Object.keys(d.dietLog).length) delete d.dietLog;
 }
-// Jour choisi à la main (plan entraînement / repos) : kind 't', 'r', ou null (selon la séance du jour)
-function dietSetDayKind(d, planId, day, kind) {
-  const e = dietDay(d, planId, day);
-  dietWriteDay(d, day, { ...e, kind: kind === 't' || kind === 'r' ? kind : null });
+// Jour choisi (plan entraînement / repos) : kind 't', 'r', ou null (selon la séance du jour) ; by 'ask' : réponse à
+// « Séance aujourd'hui ? » (une séance faite ensuite passe devant), sinon choix à la main (« Changer », passe devant tout)
+function dietSetDayKind(d, planId, day, kind, by = 'manual') {
+  const e = dietDay(d, planId, day), ok = kind === 't' || kind === 'r';
+  dietWriteDay(d, day, { ...e, kind: ok ? kind : null, kindBy: ok && by === 'ask' ? 'ask' : null });
 }
 // Coche ou décoche un repas ; renvoie le nouvel état (true : coché)
 function dietToggleMeal(d, planId, mealId, day = dietDayKey()) {

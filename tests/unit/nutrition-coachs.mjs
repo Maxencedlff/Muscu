@@ -69,8 +69,9 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     { id: 'm1', name: 'Déjeuner', items: [{ id: 'i1', name: 'Riz', food: RIZ, fam: 'f', g: 250, per: { k: 155, p: 3.3, c: 33.2, f: 0.7 } }] },
     { id: 'm2', name: 'Dîner', items: [{ id: 'i2', name: 'Poulet', food: 36018, fam: 'v', g: 200, per: { k: 120, p: 26, c: 0, f: 1.5 } }] }] });
 
-  test('jours : entraînement / repos, copie du jour 1 (mêmes identifiants), séance du jour, choix à la main', () => {
+  test('jours : entraînement / repos, copie du jour 1 (mêmes identifiants), séance, question du jour, choix à la main', () => {
     reset();
+    const P = '2026-11-10', PT = new Date(2026, 10, 10, 12).getTime();   // jour passé (le test ne dépend pas de la date du jour)
     run(`data.dietPlans = { d_a: ${j(coachPlan())} }; data.dietActive = 'd_a'; data.dietEmptyDays = false; data.history = []`);
     run(`dietSetDayMode(data.dietPlans.d_a, 'session')`);
     const p = run('clone(data.dietPlans.d_a)');
@@ -78,24 +79,31 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(p.days.more[0].meals[0].id, 'm1', 'repas copiés avec leurs identifiants');
     // Jour de repos : moins de riz, 2 000 kcal
     run(`data.dietPlans.d_a.days.more[0].meals[0].items[0].g = 150; data.dietPlans.d_a.days.more[0].targets = { kcal: 2000, p: 180 }`);
-    sameJSON(run(`clone(dietDayIndex(data, 'd_a', '${D}'))`), { i: 1, kind: 'r', auto: true }, 'sans séance : repos');
-    assert.equal(run(`dietDayProgress(data, 'd_a', '${D}').goal.kcal`), 2000);
-    run(`data.history = [{ id: 's', date: ${NOW}, exercises: [] }]`);
-    sameJSON(run(`clone(dietDayIndex(data, 'd_a', '${D}'))`), { i: 0, kind: 't', auto: true }, 'séance faite ce jour-là : entraînement');
-    assert.equal(run(`dietDayProgress(data, 'd_a', '${D}').goal.kcal`), 2300);
-    // Repas coché un jour d'entraînement, puis l'élève passe en repos à la main : la coche reste (même identifiant)
-    run(`dietToggleMeal(data, 'd_a', 'm1', '${D}'); dietSetDayKind(data, 'd_a', '${D}', 'r')`);
-    assert.equal(run(`data.dietLog['${D}'].kind`), 'r');
-    assert.equal(run(`dietDayProgress(data, 'd_a', '${D}').goal.kcal`), 2000);
-    assert.ok(run(`data.dietLog['${D}'].done.includes('m1')`), 'coche gardée');
-    assert.equal(Math.round(run(`dietDayProgress(data, 'd_a', '${D}').eaten.kcal`)), Math.round(155 * 1.5), 'mangé : la quantité du jour de repos');
-    run(`dietSetDayKind(data, 'd_a', '${D}', null)`);
-    assert.equal(run(`data.dietLog['${D}'].kind`), undefined, 'retour à la séance du jour');
-    // Journal relu (sanitize) : kind gardé, valeur inconnue retirée
-    run(`data.dietLog['${D}'].kind = 'r'; sanitizeDiet(data, ${NOW})`);
-    assert.equal(run(`data.dietLog['${D}'].kind`), 'r');
-    run(`data.dietLog['${D}'].kind = 'x'; sanitizeDiet(data, ${NOW})`);
-    assert.equal(run(`data.dietLog['${D}'].kind`), undefined);
+    sameJSON(run(`clone(dietDayIndex(data, 'd_a', '${P}'))`), { i: 1, kind: 'r', auto: true, src: 'none' }, 'jour passé sans séance : repos');
+    assert.equal(run(`dietDayProgress(data, 'd_a', '${P}').goal.kcal`), 2000);
+    // Aujourd'hui sans séance ni réponse : jour d'entraînement, et la question « Séance aujourd'hui ? » est posée
+    sameJSON(run(`clone(dietDayIndex(data, 'd_a', dietDayKey()))`), { i: 0, kind: 't', auto: true, src: 'guess', ask: true }, 'le matin : pas « repos » par défaut');
+    run(`dietSetDayKind(data, 'd_a', dietDayKey(), 'r', 'ask')`);
+    sameJSON(run(`clone(dietDayIndex(data, 'd_a', dietDayKey()))`), { i: 1, kind: 'r', auto: true, src: 'ask' }, 'réponse Non : repos, retenu pour la journée');
+    run(`data.history = [{ id: 's0', date: Date.now(), exercises: [] }]`);
+    assert.equal(run(`dietDayIndex(data, 'd_a', dietDayKey()).src`), 'session', 'séance faite ensuite : elle passe devant la réponse');
+    run(`data.history = [{ id: 's', date: ${PT}, exercises: [] }]`);
+    sameJSON(run(`clone(dietDayIndex(data, 'd_a', '${P}'))`), { i: 0, kind: 't', auto: true, src: 'session' }, 'séance faite ce jour-là : entraînement');
+    assert.equal(run(`dietDayProgress(data, 'd_a', '${P}').goal.kcal`), 2300);
+    // Repas coché un jour d'entraînement, puis « Changer » à la main : la coche reste (même identifiant), le choix passe devant la séance
+    run(`dietToggleMeal(data, 'd_a', 'm1', '${P}'); dietSetDayKind(data, 'd_a', '${P}', 'r')`);
+    assert.equal(run(`data.dietLog['${P}'].kind`), 'r');
+    assert.equal(run(`data.dietLog['${P}'].kindBy`), undefined, 'choix à la main');
+    assert.equal(run(`dietDayProgress(data, 'd_a', '${P}').goal.kcal`), 2000);
+    assert.ok(run(`data.dietLog['${P}'].done.includes('m1')`), 'coche gardée');
+    assert.equal(Math.round(run(`dietDayProgress(data, 'd_a', '${P}').eaten.kcal`)), Math.round(155 * 1.5), 'mangé : la quantité du jour de repos');
+    run(`dietSetDayKind(data, 'd_a', '${P}', null)`);
+    assert.equal(run(`data.dietLog['${P}'].kind`), undefined, 'retour à la séance du jour');
+    // Journal relu (sanitize) : kind et kindBy gardés, valeurs inconnues retirées
+    run(`data.dietLog['${P}'].kind = 'r'; data.dietLog['${P}'].kindBy = 'ask'; sanitizeDiet(data, ${NOW})`);
+    sameJSON([run(`data.dietLog['${P}'].kind`), run(`data.dietLog['${P}'].kindBy`)], ['r', 'ask']);
+    run(`data.dietLog['${P}'].kind = 'x'; sanitizeDiet(data, ${NOW})`);
+    assert.equal(run(`data.dietLog['${P}'].kind`), undefined);
   });
 
   test('jours : semaine (lundi à dimanche), jour du calendrier, copier un repas et un jour, Annuler', () => {

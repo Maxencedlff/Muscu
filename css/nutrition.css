@@ -517,3 +517,17 @@ html.type-xl .diet-daynav { flex-direction: column; }
 .diet-tg__saltnote:empty { display: none; }
 .diet-sendday__gap { display: flex; align-items: baseline; gap: 4px; }
 .diet-sendday__gap .icon { flex-shrink: 0; width: 1em; height: 1em; align-self: center; }
+/* « Séance aujourd'hui ? Oui | Non » (une fois par jour, plan entraînement / repos) */
+.diet-dayask__btns { flex-shrink: 0; display: flex; gap: 8px; }
+.diet-home__ask { display: flex; align-items: center; gap: 12px; margin: 4px 0 2px; padding: 6px 12px 6px 16px; border-top: .5px solid var(--sep); }
+html.type-xl .diet-dayask, html.type-xl .diet-home__ask { flex-wrap: wrap; }
+html.type-xl .diet-dayask__btns { flex: 1 1 100%; }
+html.type-xl .diet-dayask__btns .diet-dayline__btn { flex: 1; }
+/* Tour 3 du panel : question pleine largeur, Oui | Non dessous */
+.diet-dayask, .diet-home__ask { flex-direction: column; align-items: stretch; gap: 8px; }
+.diet-dayask .diet-dayline__txt { flex: none; }
+.diet-dayask__btns { width: 100%; }
+.diet-dayask__btns .diet-dayline__btn { flex: 1; }
+/* Bande des 7 jours : un jour de repos se voit d'un coup d'œil (pastille grise, sans couleur d'état) */
+.diet-week__kind--r { padding: 1px 4px; border-radius: 4px; background: var(--fill); color: var(--label); font-weight: 600; }
+.diet-salt__add .water-add__qty { font-size: var(--fs-footnote); font-weight: 500; }

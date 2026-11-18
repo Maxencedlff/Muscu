@@ -25,13 +25,23 @@ DEVS = ['iPhone SE', 'iPhone 13']
 
 PDT = {'id': 'i1', 'name': "Pomme de terre, bouillie/cuite à l'eau", 'food': 4003, 'fam': 'f', 'g': 350, 'per': {'k': 81, 'p': 1.8, 'c': 16.8, 'f': 0.3, 's': 0.05}}
 POULET = {'id': 'i2', 'name': 'Poulet, filet sans peau grillé/poêlé', 'food': 36018, 'fam': 'v', 'g': 180, 'per': {'k': 121, 'p': 26.2, 'c': 0, 'f': 1.8, 's': 0.2}}
-PAIN = {'id': 'i3', 'name': 'Pain blanc (par ex. : baguette, boule…)', 'food': 7001, 'fam': 'f', 'g': 80, 'per': {'k': 287, 'p': 9.1, 'c': 58.3, 'f': 1.4, 's': 1.2}}
+PAIN = {'id': 'i3', 'name': 'Pain blanc (par ex. : baguette, boule…)', 'food': 7001, 'fam': 'f', 'g': 80, 'per': {'k': 287, 'p': 9.1, 'c': 58.3, 'f': 1.4, 's': 1.25}}
 
 
+def ciq(iid, name, code, fam, g, k, p, c, f, s):
+    return {'id': iid, 'name': name, 'food': code, 'fam': fam, 'g': g, 'per': {'k': k, 'p': p, 'c': c, 'f': f, 's': s}}
+
+
+# Plan réaliste (valeurs Ciqual 2025) : 2 232 kcal prévues pour 2 300 visées, glucides et lipides fixés aussi
 def plan_coach():
-    return {'name': 'Sèche semaine 1', 'targets': {'kcal': 2300, 'p': 180, 'water': 5, 'waterMin': 3, 'saltMin': 3, 'saltMax': 5}, 'meals': [
-        {'id': 'm1', 'name': 'Déjeuner', 'items': [dict(PDT), dict(POULET)]},
-        {'id': 'm2', 'name': 'Dîner', 'items': [dict(PAIN)]}]}
+    return {'name': 'Sèche semaine 1', 'targets': {'kcal': 2300, 'p': 150, 'c': 270, 'f': 55, 'water': 5, 'waterMin': 3, 'saltMin': 3, 'saltMax': 5}, 'meals': [
+        {'id': 'm1', 'name': 'Déjeuner', 'items': [dict(PDT), dict(POULET), ciq('i4', "Huile d'olive vierge extra", 17270, 'g', 15, 899, 0.2, 0, 99.9, 0)]},
+        {'id': 'm2', 'name': 'Dîner', 'items': [dict(PAIN), ciq('i5', 'Riz blanc, cuit, sans sel ajouté', 9104, 'f', 250, 155, 3.3, 33.2, 0.7, 0.05),
+                                               ciq('i6', 'Boeuf, steak haché 5% MG cuit', 6251, 'v', 150, 155, 25.5, 0, 5.8, 0.16)]},
+        {'id': 'm3', 'name': 'Petit-déjeuner', 'items': [ciq('i7', "Flocons d'avoine", 32140, 'f', 80, 369, 11.4, 57.7, 7.8, 0.01),
+                                                         ciq('i8', 'Fromage blanc, nature, 0% MG', 19644, 'l', 250, 48, 7.2, 4.2, 0, 0.09),
+                                                         ciq('i9', 'Banane, chair sans peau, crue', 13005, 'r', 120, 88, 1.1, 19.7, 0, 0)]},
+        {'id': 'm4', 'name': 'Collation', 'items': [ciq('i10', 'Amande, émondée, sans sel ajouté', 15041, 'g', 30, 631, 25.8, 8.8, 52.5, 0.05)]}]}
 
 
 def nb(v):
@@ -111,6 +121,11 @@ def t_editeur(bench):
                 tap_dialog(page, 'Semaine (lundi à dimanche)')
                 page.wait_for_timeout(300)
                 R.check(page.locator('.diet-dayrow').count() == 7 and toast(page).startswith('7 jours, copies du premier jour') and 'Annuler' in toast(page), f'{t} semaine : 7 jours, toast clair, Annuler ({toast(page)!r})')
+                # Semaine réaliste pour les captures : mardi, samedi et dimanche de repos, 2 000 kcal et moins de féculents
+                page.evaluate("""() => { const p = data.dietPlans.d_seche001; p.days.kinds = ['t', 'r', 't', 't', 't', 'r', 'r'];
+                    for (const i of [0, 4, 5]) { const o = p.days.more[i]; o.targets = { ...o.targets, kcal: 2000, c: 200 };
+                      o.meals[1].items[0].g = 50; o.meals[1].items[1].g = 120; o.meals[0].items[0].g = 250; } save(); render(); }""")
+                page.wait_for_timeout(200)
                 layout(page, t, 'vue des jours', '.diet-plan-view .scr')
                 shot(page, LOT, f'1-semaine-{t}')
                 # Lundi
@@ -162,11 +177,28 @@ def t_editeur(bench):
                 page.locator('.toast__action').click()
                 page.wait_for_timeout(250)
                 R.check(not page.evaluate("data.dietPlans.d_seche001.days.more[1].meals[0].items.some(x => x.name === 'Crème de riz')"), f'{t} Annuler : mercredi comme avant')
+                # Jours de repos : mardi marqué repos, le lundi passé en repos se copie d'un toucher vers « les autres jours de repos »
+                page.click('[data-action="diet-goto-day"][data-dayi="1"]')
+                page.click('[data-action="diet-day-set-kind"][data-k="r"]')
+                page.click('[data-action="diet-goto-day"][data-dayi="0"]')
+                page.click('[data-action="diet-day-set-kind"][data-k="r"]')
+                same = page.locator('[data-action="diet-day-same"]')
+                R.check(same.count() == 1 and 'mardi' in same.inner_text(), f'{t} « Copier vers les autres jours de repos » : mardi')
+                same.scroll_into_view_if_needed()
+                shot(page, LOT, f'2b-jours-repos-{t}')
+                same.click()
+                tap_dialog(page, 'Copier')
+                R.check(toast(page).startswith('Lundi copié : mardi') and page.evaluate("data.dietPlans.d_seche001.days.kinds[1]") == 'r', f'{t} lundi copié sur mardi, jour de repos ({toast(page)!r})')
+                page.locator('.toast__action').click()
+                page.wait_for_timeout(250)
+                page.click('[data-action="diet-day-set-kind"][data-k="t"]')
+                page.wait_for_timeout(400)
                 # Objectifs : eau 3 à 5 L, sel 3 à 7 g (repère de l'OMS dit, rien de bloqué)
                 page.click('[data-action="diet-targets"]')
                 page.wait_for_selector('#dietT_saltMax')
+                page.wait_for_timeout(400)   # feuille ouverte
                 page.fill('#dietT_saltMax', '7')
-                page.wait_for_timeout(150)
+                page.wait_for_timeout(300)
                 R.check("moins de 5 g" in nb(page.inner_text('#dietTSaltNote')), f'{t} sel au-dessus de 5 g : repère de l\'OMS dit au coach')
                 shot(page, LOT, f'5-objectifs-{t}')
                 if dev == 'iPhone SE':
@@ -188,20 +220,23 @@ def t_editeur(bench):
                 page.click('#dietSendGo')
                 page.wait_for_selector('.ios-dialog')
                 dlg = nb(page.inner_text('.ios-dialog'))
-                R.check('Envoyer « Sèche semaine 1 » à lea et tom ?' in dlg and 'loin de leur objectif' in dlg, f'{t} confirmation : élèves nommés, jours incomplets dits ({dlg[:120]!r})')
+                R.check('Envoyer « Sèche semaine 1 » à lea et tom ?' in dlg and 'Ce qu\'il a déjà coché reste' in dlg and 'Samedi : il manque 173 kcal' in dlg and 'Mardi : 122 kcal en trop' in dlg and 'Revoir les jours' in dlg, f'{t} confirmation : élèves nommés, jours incomplets dits ({dlg[:120]!r})')
                 shot(page, LOT, f'6b-confirmation-{t}')
                 tap_dialog(page, 'Envoyer')
                 page.wait_for_timeout(800)
                 sent = page.evaluate("__sb.co.progs.filter(p => p.id === dietSentId('d_seche001')).map(p => [p.student, p.data.v, p.data.diet.days.mode, p.data.diet.meals.length])")
-                R.check(len(sent) == 2 and all(s[1] == 1 and s[2] == 'week' and s[3] == 2 for s in sent), f'{t} envoyé à 2 élèves, format v1 + jours ({sent})')
+                R.check(len(sent) == 2 and all(s[1] == 1 and s[2] == 'week' and s[3] == 4 for s in sent), f'{t} envoyé à 2 élèves, format v1 + jours ({sent})')
                 R.check(page.evaluate("!!data.dietPlans.d_seche001"), f'{t} le plan reste dans Mes diètes')
                 R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 
 def plan_eleve():
     p = plan_coach()
-    rest = json.loads(json.dumps({'meals': p['meals'], 'targets': {'kcal': 2000, 'p': 180, 'water': 5, 'waterMin': 3, 'saltMin': 3, 'saltMax': 5}}))
+    # Jour de repos : glucides baissés (riz 120 g, pain 50 g, pomme de terre 250 g), 2 000 kcal
+    rest = json.loads(json.dumps({'meals': p['meals'], 'targets': {'kcal': 2000, 'p': 150, 'c': 200, 'f': 55, 'water': 5, 'waterMin': 3, 'saltMin': 3, 'saltMax': 5}}))
     rest['meals'][0]['items'][0]['g'] = 250
+    rest['meals'][1]['items'][0]['g'] = 50
+    rest['meals'][1]['items'][1]['g'] = 120
     p['days'] = {'mode': 'session', 'more': [rest]}
     p['fromCoach'] = {'coachId': 'c1', 'name': 'max', 'sentAt': 1}
     return p
@@ -219,10 +254,20 @@ def t_eleve(bench):
                 d['dietActive'] = 'dc_c1_seche'
                 d['dietEmptyDays'] = False
                 open_app(page, theme, d)
+                # Matin, pas encore de séance : pas « repos » d'office, la question du jour (accueil et Nutrition)
+                R.check(page.locator('.diet-home .diet-home__ask').count() == 1, f'{t} accueil : « Séance aujourd\'hui ? » sur la carte Nutrition')
+                R.check(page.evaluate("dietDayProgress(data, data.dietActive).goal.kcal") == 2300, f'{t} avant la réponse : menu du jour d\'entraînement')
+                page.locator('.diet-home').scroll_into_view_if_needed()
+                layout(page, t, 'accueil question', '.diet-home')
+                shot(page, LOT, f'7a-accueil-question-{t}')
                 page.evaluate("navigate('nutrition')")
-                page.wait_for_selector('.nutrition-view .diet-dayline')
+                page.wait_for_selector('.nutrition-view .diet-dayask')
+                shot(page, LOT, f'7b-question-{t}')
+                page.click('.nutrition-view .diet-dayask [data-v="r"]')
+                page.wait_for_selector('.nutrition-view .diet-dayline:not(.diet-dayask)')
                 line = nb(page.inner_text('.diet-dayline'))
-                R.check("Aujourd'hui : jour de repos" in line and 'Changer' in line, f'{t} sans séance : jour de repos ({line[:60]!r})')
+                R.check("Aujourd'hui : jour de repos" in line and 'Changer' in line and 'Pas de séance prévue' in line, f'{t} « Non » : jour de repos, retenu ({line[:70]!r})')
+                R.check(page.evaluate("data.dietLog[localISO()].kindBy") == 'ask', f'{t} réponse gardée pour la journée')
                 R.check(page.evaluate("dietDayProgress(data, data.dietActive).goal.kcal") == 2000, f'{t} repos : 2 000 kcal')
                 layout(page, t, 'jour de repos', '.nutrition-view')
                 shot(page, LOT, f'7-eleve-repos-{t}')
@@ -238,7 +283,7 @@ def t_eleve(bench):
                 page.wait_for_selector('.sheet .diet-cands')
                 cands = [nb(x) for x in page.locator('.sheet .diet-cand[data-swap]').all_inner_texts()]
                 riz = [c for c in cands if c.startswith('Riz blanc, cuit')]
-                R.check(riz and '175 g' in riz[0] and '−13 kcal' in riz[0], f'{t} 350 g de pomme de terre → riz blanc cuit 175 g, −13 kcal ({riz[:1]})')
+                R.check(riz and '175 g cuit' in riz[0] and '−13 kcal' in riz[0], f'{t} 350 g de pomme de terre → riz blanc cuit 175 g, −13 kcal ({riz[:1]})')
                 R.check('Même quantité de glucides' in nb(page.inner_text('.sheet .diet-swap__rule')), f'{t} règle dite')
                 page.wait_for_timeout(400)   # feuille ouverte (fin de l'animation) avant de mesurer les cibles
                 layout(page, t, 'remplacer', '.sheet')
@@ -258,11 +303,15 @@ def t_eleve(bench):
                 # Sel : ligne du bilan, sel ajouté
                 page.locator('.diet-salt').scroll_into_view_if_needed()
                 R.check('objectif 3 à 5 g' in nb(page.inner_text('.diet-salt')), f'{t} sel : « objectif 3 à 5 g »')
+                R.check('Pincée' in page.inner_text('.diet-salt__add') and '0,4' in nb(page.inner_text('.diet-salt__add')), f'{t} « + Pincée 0,4 g » dit ce qu\'il ajoute')
                 page.click('.diet-salt__add')
-                page.wait_for_selector('.sheet .diet-saltsheet')
-                page.click('.sheet [data-salt="0.4"]')
                 page.wait_for_timeout(200)
-                R.check(abs(page.evaluate("saltAddedG(data, localISO())") - 0.4) < 1e-6, f'{t} pincée : 0,4 g')
+                R.check(abs(page.evaluate("saltAddedG(data, localISO())") - 0.4) < 1e-6 and 'Annuler' in toast(page), f'{t} pincée ajoutée d\'un toucher, Annuler')
+                page.click('.diet-salt__open')
+                page.wait_for_selector('.sheet .diet-saltsheet')
+                page.click('.sheet [data-salt="6"]')
+                page.wait_for_timeout(200)
+                R.check(abs(page.evaluate("saltAddedG(data, localISO())") - 6.4) < 1e-6, f'{t} cuillère à café : 6 g de plus')
                 R.check('USDA' in page.inner_text('.sheet .diet-saltsheet'), f'{t} source des mesures dite')
                 layout(page, t, 'sel', '.sheet')
                 shot(page, LOT, f'11-sel-{t}')

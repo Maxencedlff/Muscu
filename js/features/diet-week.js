@@ -39,13 +39,18 @@ function dietDayGoalLine(o) {
   if (!t) return 'Sans objectif : le total sert de repère';
   return `Objectif ${dietTargetsText({ targets: t })}`;
 }
-// Écart pour l'aperçu, une ligne par jour, au-delà de 10 % : « 731 kcal prévues sur 2 300 : il manque 1 569 kcal »
+// Écart pour l'aperçu, une ligne par jour, au-delà de 5 % : « 731 kcal prévues sur 2 300 : il manque 1 569 kcal »
 // (« 1 569 kcal sous l'objectif » se lisait comme 1 569 kcal prévues, panel du 18/11) ; jour sans aliment : dit aussi
 function dietGapShort(sum) {
   const goal = Number(sum.targets?.kcal) || 0, kcal = Math.round(sum.macros.kcal), diff = kcal - goal;
   if (!sum.meals) return 'Aucun aliment ce jour-là';
-  if (!goal || Math.abs(diff) <= goal * 0.1) return '';
-  return `${fmtNum(kcal)}\u00a0kcal prévues sur ${fmtNum(goal)} : ${diff < 0 ? 'il manque' : 'en trop'} ${fmtNum(Math.abs(diff))}\u00a0kcal`;
+  // Plus de 5 % (panel, tour 5 : « 1 827 kcal pour 2 000 », 8,6 %, passait sans rien dire)
+  if (!goal || Math.abs(diff) <= goal * 0.05) return '';
+  return `${fmtNum(kcal)}\u00a0kcal prévues sur ${fmtNum(goal)} : ${diff < 0 ? `il manque ${fmtNum(-diff)}\u00a0kcal` : `${fmtNum(diff)}\u00a0kcal en trop`}`;
+}
+// « Eau 3 à 5 L · Sel 3 à 5 g » d'un jour (objectifs), '' sans
+function dietWaterSaltText(t) {
+  return [t.water ? `Eau ${t.waterMin ? `${fmtNum(t.waterMin, 2)} à ` : ''}${fmtNum(t.water, 2)}\u00a0L` : '', dietSaltTargetText(t)].filter(Boolean).join(' · ');
 }
 // Jour du plan suivi aujourd'hui (vue des jours de l'élève : « Aujourd'hui »)
 function dietTodayIndex(id) { return data.dietActive === id ? dietDayIndex(data, id, dietDayKey()).i : -1; }
@@ -94,7 +99,7 @@ function dietDayHeadHtml(id, plan, di, ro) {
           <button class="diet-week__day${i === di ? ' diet-week__day--on' : ''}" data-action="diet-goto-day" data-id="${esc(id)}" data-dayi="${i}" aria-pressed="${i === di}"
             aria-label="${esc(`${n}, ${dietKindWord(dietDayKindAt(plan, i)).toLowerCase()}${i === today ? ', aujourd\'hui' : ''}`)}">
             <span class="diet-week__letter" aria-hidden="true">${n.slice(0, 3)}</span>
-            <span class="diet-week__kind" aria-hidden="true">${dietDayKindAt(plan, i) === 'r' ? 'Rep.' : 'Ent.'}</span>
+            <span class="diet-week__kind${dietDayKindAt(plan, i) === 'r' ? ' diet-week__kind--r' : ''}" aria-hidden="true">${dietDayKindAt(plan, i) === 'r' ? 'Repos' : 'Ent.'}</span>
             <span class="diet-week__dot${i === today ? ' diet-week__dot--done' : ''}" aria-hidden="true"></span>
           </button>`).join('')}</div>`
     : `<div class="segmented seg-full diet-daypick" role="group" aria-label="Jour du plan">${[0, 1].map(i => `<button class="segmented__btn${i === di ? ' segmented__btn--active' : ''}" data-action="diet-goto-day" data-id="${esc(id)}" data-dayi="${i}" aria-pressed="${i === di}">${i ? 'Repos' : 'Entraînement'}</button>`).join('')}</div>`;
@@ -114,9 +119,17 @@ function dietDayFootHtml(id, plan, di, ro) {
   if (ro) return nav;
   return `<div class="group group--gap">
           <button class="cell cell--action" data-action="diet-copy-day" data-dayi="${di}">${icon('doc.on.doc', 20)}<span>${week ? 'Copier ce jour vers…' : `Copier vers le ${di ? 'jour d\'entraînement' : 'jour de repos'}`}</span></button>
+          ${week && dietSameKindDays(plan, di).length ? `<button class="cell cell--action" data-action="diet-day-same" data-dayi="${di}">${icon('doc.on.doc', 20)}<span class="cell__body"><span>Copier vers les autres jours ${dietDayKindAt(plan, di) === 'r' ? 'de repos' : 'd\'entraînement'}</span>
+            <span class="cell__sub">${esc(dietSameKindDays(plan, di).map(i => DIET_WEEKDAYS[i].toLowerCase()).join(', '))}</span></span></button>` : ''}
           ${week ? `<button class="cell cell--action" data-action="diet-day-all" data-dayi="${di}">${icon('calendar', 20)}<span>Mettre pareil sur les 7 jours</span></button>` : ''}
         </div>
         ${nav}`;
+}
+
+// Les autres jours du même type (semaine) : un menu de repos fait une fois, mis d'un toucher sur tous les jours de repos
+function dietSameKindDays(plan, di) {
+  const k = dietDayKindAt(plan, di);
+  return plan.days?.mode === 'week' ? DIET_WEEKDAYS.map((_, i) => i).filter(i => i !== di && dietDayKindAt(plan, i) === k) : [];
 }
 
 // ── Choisir des jours (copies) ──────────────────────────────
@@ -212,13 +225,22 @@ function renderDietSend(planId, uid) {
   if (!plan || plan.fromCoach) return `<div class="view view--grouped">${navBar({ title: 'Envoyer' })}<div class="scr"><div class="empty-note">Ce plan n'existe plus.</div></div></div>`;
   const m = dietSendFor(planId, uid), all = (coach.state?.students || []).slice().sort((a, b) => personName(a).localeCompare(personName(b), 'fr'));
   const allOn = all.length > 0 && all.every(st => m.ids.has(st.user_id));
+  const wsAll = dietPlanDays(plan).map(o => dietWaterSaltText(o.targets || {}));
+  const sameWs = wsAll.every(x => x === wsAll[0]) && wsAll[0] ? wsAll[0] : null;
   const days = dietPlanDays(plan).map((o, i) => {
     const sum = dietDaySummary(plan, i), gap = dietGapShort(sum);
     const name = plan.days ? `${sum.name}${plan.days.mode === 'week' ? ` · ${dietKindWord(sum.kind)}` : ''}` : 'Chaque jour';
-    return `<div class="cell diet-sendday"><span class="cell__body"><span class="cell__title">${esc(name)}</span>
-          <span class="cell__sub num">${sum.meals ? `${plural(sum.meals, 'repas', 'repas')} · ${dietN(sum.macros.kcal)} kcal · ${dietSrPair(esc(dietMacroAbbr(sum.macros)), esc(dietMacroGramsSpoken(sum.macros)))}` : 'Aucun aliment'}</span>
-          <span class="cell__sub num">${esc(dietDayGoalLine(o))}</span>
-          ${gap ? `<span class="cell__sub diet-sendday__gap">${icon('info.circle', 12)}${esc(gap)}</span>` : ''}</span></div>`;
+    // Deux lignes par jour (panel du 18/11, tour 2) : calories prévues sur l'objectif et l'écart, puis macros, eau et
+    // sel ; le détail s'ouvre d'un toucher (l'écran du jour)
+    const goal = Number(o?.targets?.kcal) || 0, t = o?.targets || {};
+    const l1 = !sum.meals ? 'Aucun aliment' : `${dietN(sum.macros.kcal)}${goal ? ` sur ${dietN(goal)}` : ''}\u00a0kcal${gap ? ` · ${gap.replace(/^.*: /, '')}` : ''}`;
+    // Eau et sel : une fois sous « Aperçu » quand ils sont les mêmes chaque jour (deux lignes par jour, panel tour 4)
+    const ws = dietWaterSaltText(t);
+    const l2 = [sum.meals ? dietMacroAbbr(sum.macros) : '', ws === sameWs ? '' : ws].filter(Boolean).join(' · ');
+    const tag = plan.days ? `<button class="cell cell--nav diet-sendday" data-action="diet-open-day" data-id="${esc(planId)}" data-dayi="${i}">` : '<div class="cell diet-sendday">';
+    return `${tag}<span class="cell__body"><span class="cell__title">${esc(name)}</span>
+          <span class="cell__sub num${gap ? ' diet-sendday__gap' : ''}">${gap ? icon('info.circle', 12) : ''}${esc(l1)}</span>
+          ${l2 ? `<span class="cell__sub num">${esc(l2)}</span>` : ''}</span>${plan.days ? `${icon('chevron.right', 16)}</button>` : '</div>'}`;
   }).join('');
   const rows = all.map(st => {
     const on = m.ids.has(st.user_id);
@@ -233,6 +255,7 @@ function renderDietSend(planId, uid) {
         <h1 class="scr-title">${esc(plan.name)}</h1>
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <div class="group-title">Aperçu</div>
+        ${sameWs ? `<p class="diet-plan-from num">Chaque jour : ${esc(sameWs)}</p>` : ''}
         ${dietMacroLegendHtml()}
         <div class="group">${days}</div>
         <div class="group-title">Élèves</div>
@@ -321,6 +344,18 @@ registerActions({
       const p = dietPlanOf(ed.id); dietRestoreDays(p, before); dietTouch(p); save(); render(); announce('Copie annulée');
     } });
   },
+  'diet-day-same': async (e, el) => {
+    const ed = dietEditedPlan();
+    if (ed?.root.days?.mode !== 'week') return;
+    const to = dietSameKindDays(ed.root, ed.day), name = dietDayName(ed.root, ed.day), word = dietDayKindAt(ed.root, ed.day) === 'r' ? 'de repos' : 'd\'entraînement';
+    if (!to.length || !(await confirmSheet(`Copier ${name.toLowerCase()} sur les autres jours ${word} ?`, `${dietDaysListText(ed.root, to).replace(/^./, c => c.toUpperCase())} : repas et objectifs remplacés.`, 'Copier'))) return;
+    const before = dietCopyDayToDays(ed.root, ed.day, to);
+    if (!before) return;
+    dietTouch(ed.root); save(); haptic(); render();
+    showToast(`${name} copié : ${dietDaysListText(ed.root, to)}`, { action: 'Annuler', duration: 6000, onAction: () => {
+      const p = dietPlanOf(ed.id); dietRestoreDays(p, before); dietTouch(p); save(); render(); announce('Copie annulée');
+    } });
+  },
   'diet-day-all': async (e, el) => {
     const ed = dietEditedPlan();
     if (ed?.root.days?.mode !== 'week') return;
@@ -357,13 +392,15 @@ registerActions({
     // d'écraser le plan du mauvais élève », « rien ne m'empêche d'envoyer un plan à moitié rempli »)
     const names = ids.map(id => personName(coachStudent(id)));
     const who = names.length > 3 ? plural(names.length, 'élève', 'élèves') : names.join(', ').replace(/, ([^,]*)$/, ' et $1');
-    const off = dietPlanDays(plan).filter((_, i) => dietGapShort(dietDaySummary(plan, i))).length;
-    const msg = [off ? (off > 1 ? `${off} jours sont loin de leur objectif ou vides.` : '1 jour est loin de son objectif ou vide.') : '',
-      'Un plan déjà envoyé est mis à jour chez l\'élève.'].filter(Boolean).join(' ');
+    // Écarts dits en clair (« Lundi : il manque 1 569 kcal ») et « Revoir les jours » à côté d'Envoyer (panel, tour 3)
+    const gaps = dietPlanDays(plan).map((_, i) => [i, dietGapShort(dietDaySummary(plan, i))]).filter(([, g]) => g)
+      .map(([i, g]) => `${plan.days ? dietDayName(plan, i) : 'Chaque jour'} : ${g.replace(/^.*: /, '')}`);
+    const gapText = !gaps.length ? '' : gaps.length > 2 ? `${gaps.slice(0, 2).join('. ')}, et ${plural(gaps.length - 2, 'autre jour', 'autres jours')}.` : `${gaps.join('. ')}.`;
+    const msg = [gapText, 'Un plan déjà envoyé est mis à jour chez l\'élève. Ce qu\'il a déjà coché reste.'].filter(Boolean).join(' ');
     // Alerte à deux boutons (pas une feuille destructive : envoyer n'efface rien)
     const go = await dialog({ title: `Envoyer « ${plan.name} » à ${who} ?`, message: msg,
-      actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
-    if (go !== true) return;
+      actions: [{ label: gaps.length ? 'Revoir les jours' : 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
+    if (go !== true) { if (gaps.length) window.scrollTo({ top: 0, behavior: reduceMotion.matches ? 'auto' : 'smooth' }); return; }
     m.busy = true; m.done = 0; render();
     const r = await dietSendMany(ids, planId);
     m.busy = false;

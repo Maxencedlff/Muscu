@@ -437,8 +437,10 @@ function dietDayLineHtml(plan, day) {
   if (!mode) return '';
   const idx = dietDayIndex(data, data.dietActive, day), today = day === dietDayKey();
   if (mode === 'session') {
+    // Aujourd'hui sans réponse ni séance : la question, une fois par jour ; le menu du jour d'entraînement d'ici là
+    if (idx.ask) return dietDayAskHtml('diet-dayline');
     const word = idx.kind === 'r' ? 'jour de repos' : 'jour d\'entraînement';
-    const why = idx.auto ? (idx.kind === 't' ? 'Séance faite ou commencée' : 'Pas de séance pour l\'instant') : 'Choisi à la main';
+    const why = { manual: 'Choisi à la main', session: 'Séance faite ou commencée', ask: idx.kind === 't' ? 'Tu as prévu une séance' : 'Pas de séance prévue', none: 'Aucune séance ce jour-là' }[idx.src] || '';
     return `<div class="diet-dayline">
           <p class="diet-dayline__txt"><b>${today ? 'Aujourd\'hui' : esc(dietDayTitle(day))} : ${word}</b><span>${why}</span></p>
           <button class="diet-dayline__btn" data-action="diet-day-kind"${today ? '' : ` data-day="${day}"`} aria-label="Changer : passer en ${idx.kind === 'r' ? 'jour d\'entraînement' : 'jour de repos'}">Changer</button>
@@ -447,6 +449,18 @@ function dietDayLineHtml(plan, day) {
   return `<div class="diet-dayline">
           <p class="diet-dayline__txt"><b>${DIET_WEEKDAYS[idx.i]} · ${dietKindWord(idx.kind)}</b><span>Le plan change chaque jour de la semaine</span></p>
           <button class="diet-dayline__btn" data-action="diet-open-day" data-id="${esc(data.dietActive)}" data-dayi="${idx.i}">Voir la semaine</button>
+        </div>`;
+}
+// « Séance aujourd'hui ? Oui | Non » : posée une fois par jour (plan entraînement / repos), en haut de Nutrition et sur la
+// carte de l'accueil ; la réponse vaut pour la journée, une séance faite ensuite passe devant, « Changer » reste possible
+function dietDayAskHtml(cls) {
+  // Question et explication sur toute la largeur, Oui | Non dessous en pleine largeur (panel du 18/11, tour 3 : tassé à côté)
+  return `<div class="${cls} diet-dayask">
+          <p class="diet-dayline__txt"><b>Séance aujourd'hui ?</b><span>Oui : repas des jours de séance. Non : repas des jours de repos.</span></p>
+          <span class="diet-dayask__btns">
+            <button class="diet-dayline__btn" data-action="diet-day-ask" data-v="t" aria-label="Oui, séance aujourd'hui : jour d'entraînement">Oui</button>
+            <button class="diet-dayline__btn" data-action="diet-day-ask" data-v="r" aria-label="Non, pas de séance aujourd'hui : jour de repos">Non</button>
+          </span>
         </div>`;
 }
 // Sel du jour (18/11) : une ligne sobre sous les macros, « Sel 2,1 g sur 3 à 5 g » et « + Sel ajouté ». Affichée avec un
@@ -463,14 +477,14 @@ function dietSaltRowHtml(pr) {
   const attrDay = pr.day === dietDayKey() ? '' : ` data-day="${pr.day}"`;
   // « 2,1 g · objectif 3 à 5 g » (« sur 3 à 5 g » ne disait pas si c'était à viser ou un plafond, panel du 18/11)
   const val = `<b>${fmtNum(dietR1(salt.g), 1)}</b>\u00a0g${goal ? ` · objectif ${dietSaltGoalText(goal)}` : ''}`;
-  const spoken = `Sel : ${fmtNum(dietR1(salt.g), 1)} grammes${goal ? `, objectif ${dietSaltGoalText(goal).replace(/\u00a0g/g, ' grammes')}` : ''}. Détail et sel ajouté`;
+  const spoken = `Sel : ${fmtNum(dietR1(salt.g), 1)} grammes${goal ? `, objectif ${dietSaltGoalText(goal).replace(/\u00a0g/g, ' grammes')}` : ''}. Détail, cuillère ou autre quantité`;
   return `
         <div class="diet-salt">
           <button class="diet-salt__open" data-action="diet-salt"${attrDay} aria-label="${esc(spoken)}">
             <span class="diet-salt__line" aria-hidden="true"><span class="diet-salt__label">Sel</span><span class="diet-salt__val num">${val}</span></span>
             ${goal ? waterBarHtml(ratio, zone) : ''}
           </button>
-          <button class="diet-salt__add" data-action="diet-salt"${attrDay} aria-label="Ajouter du sel">${icon('plus', 14)}<span>Sel ajouté</span></button>
+          <button class="water-add diet-salt__add" data-action="diet-salt-pinch"${attrDay} aria-label="Ajouter une pincée de sel, environ 0,4 gramme">${icon('plus', 14)}<span class="water-add__lbl">Pincée <small class="water-add__qty">0,4\u00a0g</small></span></button>
         </div>`;
 }
 
@@ -612,6 +626,7 @@ function nutritionHomeCard() {
           ${dietProgressFinished(pr) ? `<span class="diet-home__next">${icon('checkmark', 12)}${dietStatusText(pr)}</span>` : ''}
         </span>
       </button>
+      ${plan.days?.mode === 'session' && dietDayIndex(data, data.dietActive, day).ask ? dietDayAskHtml('diet-home__ask') : ''}
       <div class="diet-home__meals" data-action="go-nutrition">${rows}
         ${moreText ? `<div class="diet-home__more" aria-hidden="true">${moreText}</div>` : ''}
       </div>${waterHomeRowHtml()}
@@ -661,7 +676,7 @@ async function dietSwapSheet(itemId, day) {
       <button class="diet-cand" data-swap="${i}">
         ${dietFoodIconHtml(c.food)}
         <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(c.food.name))}</span>
-          <span class="diet-cand__sub num"><b class="diet-cand__qty">${c.g}\u00a0g</b>${hide ? '' : dietSrPair(` · ${dietMacroLine(c.macros)}`, `, ${dietMacroSpoken(c.macros)}`)}</span></span>
+          <span class="diet-cand__sub num"><b class="diet-cand__qty">${c.g}\u00a0g${foodCookTag(c.food) ? ` ${foodCookTag(c.food)}` : ''}</b>${hide ? '' : dietSrPair(` · ${dietMacroLine(c.macros)}`, `, ${dietMacroSpoken(c.macros)}`)}</span></span>
         ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(shownGap(c), 'kilocalories')}">${swapDeltaText(shownGap(c), 'kcal')}</span>`}
       </button>`;
   const body = `
@@ -716,7 +731,7 @@ async function dietPickSwap(it) {
       <button class="diet-cand" data-swap="${i}">
         ${dietFoodIconHtml(c.food)}
         <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(c.food.name))}</span>
-          <span class="diet-cand__sub num"><b class="diet-cand__qty">${c.g}\u00a0g</b>${dietSrPair(` · ${dietMacroLine(c.macros)}`, `, ${dietMacroSpoken(c.macros)}`)}</span></span>
+          <span class="diet-cand__sub num"><b class="diet-cand__qty">${c.g}\u00a0g${foodCookTag(c.food) ? ` ${foodCookTag(c.food)}` : ''}</b>${dietSrPair(` · ${dietMacroLine(c.macros)}`, `, ${dietMacroSpoken(c.macros)}`)}</span></span>
         <span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(Math.round(c.macros.kcal) - Math.round(ref.kcal), 'kilocalories')}">${swapDeltaText(Math.round(c.macros.kcal) - Math.round(ref.kcal), 'kcal')}</span>
       </button>`).join('');
   const body = `<div class="diet-swap">
@@ -813,17 +828,31 @@ async function dietSaltSheet(day) {
 registerActions({
   'go-nutrition': () => navigate('nutrition'),
   'diet-salt': (e, el) => dietSaltSheet(el.dataset.day || dietDayKey()),
+  // « + Pincée 0,4 g » : ajoutée d'un toucher, comme « + Verre 25 cl » (panel du 18/11, tour 4) ; la ligne ouvre le détail
+  'diet-salt-pinch': (e, el) => {
+    const day = el.dataset.day || dietDayKey(), g = SALT_ADDS[0].g, added = saltAdd(data, g, day);
+    if (!added) { showToast(`${SALT_DAY_MAX} ajouts au plus par jour`, { error: true }); return; }
+    save(); haptic('light'); render();
+    showToast(`+ ${fmtNum(g, 1)} g de sel`, { action: 'Annuler', duration: 5000, onAction: () => { saltRemove(data, day, added.id); save(); render(); announce('Annulé'); } });
+  },
   // Plan entraînement / repos : un toucher passe à l'autre jour ; revenir au jour choisi par la séance efface le choix
   'diet-day-kind': (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey();
     if (!dietActivePlan(data)?.days) return;
     const cur = dietDayIndex(data, planId, day), next = cur.kind === 'r' ? 't' : 'r';
-    const auto = dietTrainedOn(data, day) ? 't' : 'r';
-    const prev = dietDay(data, planId, day).kind || null;
-    dietSetDayKind(data, planId, day, next === auto ? null : next);
+    const e0 = dietDay(data, planId, day), prev = e0.kind || null, prevBy = e0.kindBy || 'manual';
+    dietSetDayKind(data, planId, day, next);
     save(); haptic(); render();
     const word = next === 'r' ? 'Jour de repos' : 'Jour d\'entraînement';
-    showToast(word, { action: 'Annuler', duration: 5000, onAction: () => { dietSetDayKind(data, planId, day, prev); save(); render(); announce('Annulé'); } });
+    showToast(word, { action: 'Annuler', duration: 5000, onAction: () => { dietSetDayKind(data, planId, day, prev, prevBy); save(); render(); announce('Annulé'); } });
+  },
+  // Réponse à « Séance aujourd'hui ? » : retenue pour la journée
+  'diet-day-ask': (e, el) => {
+    const planId = data.dietActive, day = dietDayKey(), v = el.dataset.v;
+    if (!dietActivePlan(data)?.days || !['t', 'r'].includes(v)) return;
+    dietSetDayKind(data, planId, day, v, 'ask');
+    save(); haptic(); render();
+    announce(v === 'r' ? 'Jour de repos' : 'Jour d\'entraînement');
   },
   'diet-day': (e, el) => {
     const day = el.dataset.day, today = dietDayKey();
