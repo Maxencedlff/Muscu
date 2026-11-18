@@ -4,10 +4,16 @@ name: Captures du panel
 # réparties sur ~20 machines GitHub (~25 min au lieu de ~2 h 15 sur un seul PC). Une machine par
 # mode (complet, recents, grand-texte) et par groupe de parcours ; la dernière tâche rassemble chaque
 # mode dans un seul dossier (captures, index.md, resume.md, etapes.json) et le dépose en artefact.
-# Lancement : gh workflow run captures-panel.yml --ref <branche> ; récupération : gh run download <id>.
+# Lancement : gh workflow run captures-panel.yml --ref <branche> [-f parcours=accueil] ; récupération : gh run download <id>.
+# Conteneur officiel de Playwright et tests/ci_conteneur.sh, comme tests.yml : pas d'installation apt par job.
 # verif-ui (dépôt privé) n'est pas disponible ici : contrôles automatiques simples (controles.js).
 on:
   workflow_dispatch:
+    inputs:
+      parcours:
+        description: Un essai court sur ces parcours seulement (ex. « accueil »), mode complet, une machine ; vide = tout
+        type: string
+        default: ''
   push:
     branches: ['vague*-t*']
 
@@ -19,51 +25,59 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Matrice des machines : tests/panel/matrice.json (une machine par mode et groupe de parcours), ou une
+  # seule machine en mode complet quand l'entrée « parcours » est donnée (essai court)
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrice: ${{ steps.m.outputs.matrice }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          sparse-checkout: tests/panel/matrice.json
+          sparse-checkout-cone-mode: false
+      - id: m
+        env:
+          PARCOURS: ${{ inputs.parcours }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, re
+          p = os.environ.get('PARCOURS', '').strip()
+          if p and not re.fullmatch(r'[a-z0-9-]+(,[a-z0-9-]+)*', p):
+              raise SystemExit(f'parcours invalide : {p!r}')
+          m = [{'mode': 'complet', 'opt': '', 'groupe': 'essai', 'parcours': p}] if p else json.load(open('tests/panel/matrice.json'))
+          print('matrice=' + json.dumps(m))
+          PY
+
   capture:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.62.0-noble@sha256:aa81288e738725378becba5b3e06cb0f3a7f012a610e87e8d767a090ea3f740d
+      options: --ipc=host   # mémoire partagée de l'hôte : /dev/shm de Docker (64 Mo) fait planter Chromium
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { mode: complet, opt: '', groupe: a, parcours: 'seance' }
-          - { mode: complet, opt: '', groupe: b, parcours: 'nutrition,photos-bilan,guide' }
-          - { mode: complet, opt: '', groupe: c, parcours: 'coach,eleve-coach,hors-ligne' }
-          - { mode: complet, opt: '', groupe: d, parcours: 'seance-outils,coach-suivi,social' }
-          - { mode: complet, opt: '', groupe: e, parcours: 'reglages,programme,progres,intensif,prise,premier-lancement,rejoindre-coach,devenir-coach,historique,bibliotheque,accueil' }
-          - { mode: recents, opt: '--recents', groupe: a, parcours: 'seance' }
-          - { mode: recents, opt: '--recents', groupe: b, parcours: 'nutrition,photos-bilan' }
-          - { mode: recents, opt: '--recents', groupe: c, parcours: 'coach,eleve-coach,guide' }
-          - { mode: recents, opt: '--recents', groupe: d, parcours: 'seance-outils,coach-suivi,hors-ligne' }
-          - { mode: recents, opt: '--recents', groupe: e, parcours: 'social,reglages,programme' }
-          - { mode: recents, opt: '--recents', groupe: f, parcours: 'progres,intensif,prise,premier-lancement' }
-          - { mode: recents, opt: '--recents', groupe: g, parcours: 'rejoindre-coach,devenir-coach,historique,bibliotheque,accueil' }
-          - { mode: grand-texte, opt: '--grand-texte', groupe: a, parcours: 'seance' }
-          - { mode: grand-texte, opt: '--grand-texte', groupe: b, parcours: 'nutrition,accueil,reglages' }
-          - { mode: grand-texte, opt: '--grand-texte', groupe: c, parcours: 'coach,social,photos-bilan' }
+        include: ${{ fromJSON(needs.plan.outputs.matrice) }}
     name: ${{ matrix.mode }} · ${{ matrix.groupe }}
+    defaults:
+      run:
+        shell: bash
     env:
       PLAYWRIGHT_VERSION: 1.62.0
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.12'
-      - name: Navigateurs en cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
-      - name: Playwright, WebKit et Chromium
-        run: |
-          pip install "playwright==$PLAYWRIGHT_VERSION" pillow==12.1.1
-          python -m playwright install --with-deps chromium webkit
+      - name: Playwright et polices
+        run: bash tests/ci_conteneur.sh
       - name: Serveur local de l'app
         run: |
           python -m http.server 8731 > /tmp/serveur.log 2>&1 &
-          for i in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:8731/ && break; sleep 0.5; done
+          for i in $(seq 1 20); do python -c "import urllib.request as u; u.urlopen('http://localhost:8731/')" 2>/dev/null && break; sleep 0.5; done
       - name: Captures
         env:
           PPL_URL: http://localhost:8731/
