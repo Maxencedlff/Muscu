@@ -1129,7 +1129,7 @@ PLAN_SCAN = {'name': 'Mon plan', 'meals': [{'id': 'm1', 'name': 'Déjeuner', 'it
 
 @parcours('scan', 'Nutrition : scanner un code-barres', 'pratiquant')
 def p_scan(r):
-    """Plan diète ouvert, « Ajouter un aliment » : « Scanner un code-barres » en tête. Un paquet de pâtes est trouvé
+    """Plan diète ouvert, « Ajouter un aliment » : recherche en tête, « Produit de marque ? Scanner » ensuite. Un paquet de pâtes est trouvé
     sur Open Food Facts (12 g de protéines pour 100 g) : fiche, 80 g, ajouté au déjeuner. Le même paquet scanné pour
     le dîner, sans réseau : retrouvé dans Mes aliments. Un code inconnu : « Produit introuvable », puis « Créer
     l'aliment » avec le code gardé et le nom à écrire. Lecteur natif et Open Food Facts simulés."""
@@ -1151,13 +1151,13 @@ def p_scan(r):
     r.lancer(json.dumps(d, ensure_ascii=False, separators=(',', ':')))
     r.raccourci("navigate(makeRoute('diet-plan', 'd_scan01')); dietComposing.add('d_scan01'); render()", 'plan de nutrition « Mon plan » ouvert, repas types affichés (Programme › Plans de nutrition)')
     cle = 'Scanner un produit et l\'ajouter'
-    with r.etape('feuille', 'Ajouter un aliment : « Scanner un code-barres » en tête', cle=cle):
+    with r.etape('feuille', 'Ajouter un aliment : recherche en tête, « Produit de marque ? Scanner » ensuite', cle=cle):
         r.toucher('[data-action="diet-add-food"][data-meal="m1"]', 'Ajouter un aliment (Déjeuner)')
         r.attendre('.diet-cand--scan', 'bouton Scanner')
         r.page.evaluate('document.activeElement && document.activeElement.blur()')   # clavier de la recherche refermé pour la capture
     r.raccourci(f"() => {{ window.__scan = {{ code: '{PATES}', type: 'ean13' }}; }}", f'le lecteur lira le paquet de pâtes ({PATES})')
     with r.etape('trouve', 'Produit trouvé sur Open Food Facts : fiche pour 100 g', cle=cle):
-        r.toucher('.diet-cand--scan', 'Scanner un code-barres')
+        r.toucher('.diet-cand--scan', 'Produit de marque ? Scanner')
         r.attendre('.fscan__name', 'fiche du produit')
     with r.etape('grammes', 'Quantité : 80 g, kcal et macros recalculées', cle=cle):
         r.saisir('#fscanG', 80, 'quantité')
@@ -1170,7 +1170,7 @@ def p_scan(r):
     cle = 'Rescanner sans réseau'
     with r.etape('sans-reseau', 'Même paquet pour le dîner, sans réseau : retrouvé dans Mes aliments', cle=cle):
         r.toucher('[data-action="diet-add-food"][data-meal="m2"]', 'Ajouter un aliment (Dîner)')
-        r.toucher('.diet-cand--scan', 'Scanner un code-barres')
+        r.toucher('.diet-cand--scan', 'Produit de marque ? Scanner')
         r.attendre('.fscan__name', 'fiche du produit')
     with r.etape('sans-reseau-ajoute', 'Ajouté au dîner (100 g d\'office)', cle=cle):
         r.toucher('.sheet-root .sheet__btn--confirm', 'Ajouter')
@@ -1179,7 +1179,7 @@ def p_scan(r):
     cle = 'Code introuvable : créer l\'aliment'
     with r.etape('introuvable', 'Code inconnu : « Produit introuvable »', cle=cle):
         r.toucher('[data-action="diet-add-food"][data-meal="m2"]', 'Ajouter un aliment (Dîner)')
-        r.toucher('.diet-cand--scan', 'Scanner un code-barres')
+        r.toucher('.diet-cand--scan', 'Produit de marque ? Scanner')
         r.attendre('[data-fscan="create"]', 'Créer l\'aliment')
     with r.etape('creer', '« Créer l\'aliment » : code gardé, nom à écrire', cle=cle):
         r.toucher('[data-fscan="create"]', 'Créer l\'aliment')

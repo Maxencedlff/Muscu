@@ -194,6 +194,7 @@ function dietSummaryHtml(pr) {
         ${line}
         ${own.kcal || own.p || own.c || own.f || !dietHasMealItems(pr.plan) ? '' : `<p class="diet-sum__hint">Repère : ${dietPersonal(pr.plan) ? 'le total de tes repas types' : 'le total prévu par ton plan'}${Object.keys(pr.swaps).length ? ', remplacements du jour compris' : ''}.</p>`}
         ${dietLowKcal(pr.plan) ? dietLowNoteHtml(!!pr.plan.targets?.kcal) : ''}
+        ${dietSaltRowHtml(pr)}
       </section>`;
 }
 
@@ -244,13 +245,13 @@ function dietItemRowHtml(it, pr, day) {
   const note = !swap ? '' : qty ? `Prévu : ${dietQtyText(it)}` : `Remplace ${foodName(it.name)}`;
   return `
             <button class="diet-item" data-action="diet-swap" data-swipe-del="diet-item-del" data-item="${esc(it.id)}" data-day="${day}"
-              aria-label="${esc(foodName(eat.name))}, ${esc(dietQtySpoken(eat))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}${swap ? `, ${qty ? `prévu ${esc(dietQtySpoken(it))}` : `remplace ${esc(foodName(it.name))}`}` : ''}. Modifier">
+              aria-label="${esc(foodName(eat.name))}, ${esc(dietQtySpoken(eat))}${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}${swap ? `, ${qty ? `prévu ${esc(dietQtySpoken(it))}` : `remplace ${esc(foodName(it.name))}`}` : ''}. Remplacer ou modifier">
               ${dietFoodIconHtml(eat)}
               <span class="diet-item__body">
                 <span class="diet-item__name">${esc(foodName(eat.name))}</span>
                 <span class="diet-item__sub num">${note ? `<span class="diet-item__swapped">${esc(note)}</span>` : ''}${esc(dietQtyText(eat))}${nums}</span>
               </span>
-              <span class="diet-item__swap" aria-hidden="true">${icon('arrow.left.arrow.right', 18)}</span>
+              <span class="diet-item__swap diet-item__swap--txt" aria-hidden="true">${icon('arrow.left.arrow.right', 16)}<span>Remplacer</span></span>
             </button>`;
 }
 
@@ -429,9 +430,53 @@ function dietSettingsCellHtml() {
       <span class="cell__body"><span class="cell__title">Réglages de la nutrition</span><span class="cell__sub">Repas du jour : ${dietEmptyDaysFor(data, data.dietActive) ? 'vides' : 'pré-remplis par le plan'}</span></span>${icon('chevron.right', 16)}</button></div>`;
 }
 
+// Plan à plusieurs jours : quel jour du plan vaut aujourd'hui. Entraînement / repos : « Aujourd'hui : jour de repos ·
+// Changer » (un toucher passe à l'autre ; selon la séance par défaut) ; semaine : « Mardi · Repos · Voir la semaine »
+function dietDayLineHtml(plan, day) {
+  const mode = plan?.days?.mode;
+  if (!mode) return '';
+  const idx = dietDayIndex(data, data.dietActive, day), today = day === dietDayKey();
+  if (mode === 'session') {
+    const word = idx.kind === 'r' ? 'jour de repos' : 'jour d\'entraînement';
+    const why = idx.auto ? (idx.kind === 't' ? 'Séance faite ou commencée' : 'Pas de séance pour l\'instant') : 'Choisi à la main';
+    return `<div class="diet-dayline">
+          <p class="diet-dayline__txt"><b>${today ? 'Aujourd\'hui' : esc(dietDayTitle(day))} : ${word}</b><span>${why}</span></p>
+          <button class="diet-dayline__btn" data-action="diet-day-kind"${today ? '' : ` data-day="${day}"`} aria-label="Changer : passer en ${idx.kind === 'r' ? 'jour d\'entraînement' : 'jour de repos'}">Changer</button>
+        </div>`;
+  }
+  return `<div class="diet-dayline">
+          <p class="diet-dayline__txt"><b>${DIET_WEEKDAYS[idx.i]} · ${dietKindWord(idx.kind)}</b><span>Le plan change chaque jour de la semaine</span></p>
+          <button class="diet-dayline__btn" data-action="diet-open-day" data-id="${esc(data.dietActive)}" data-dayi="${idx.i}">Voir la semaine</button>
+        </div>`;
+}
+// Sel du jour (18/11) : une ligne sobre sous les macros, « Sel 2,1 g sur 3 à 5 g » et « + Sel ajouté ». Affichée avec un
+// objectif de sel, ou dès qu'un sel ajouté est noté. Aucune alerte, aucun rouge
+function dietSaltGoalText(g) {
+  if (!g) return '';
+  return g.min != null && g.max != null ? `${fmtNum(g.min, 1)} à ${fmtNum(g.max, 1)}\u00a0g` : g.max != null ? `${fmtNum(g.max, 1)}\u00a0g au plus` : `${fmtNum(g.min, 1)}\u00a0g au moins`;
+}
+function dietSaltRowHtml(pr) {
+  const goal = dietSaltGoal(pr.plan), salt = dietDaySalt(data, pr);
+  if (!goal && !salt.added) return '';
+  const top = goal ? (goal.max ?? goal.min) : null;
+  const ratio = top ? Math.min(1, salt.g / top) : 0, zone = goal?.min != null && goal.max != null ? goal.min / goal.max : null;
+  const attrDay = pr.day === dietDayKey() ? '' : ` data-day="${pr.day}"`;
+  const val = `<b>${fmtNum(dietR1(salt.g), 1)}</b>${goal ? ` sur ${dietSaltGoalText(goal)}` : '\u00a0g'}`;
+  const spoken = `Sel : ${fmtNum(dietR1(salt.g), 1)} grammes${goal ? `, objectif ${dietSaltGoalText(goal).replace(/\u00a0g/g, ' grammes')}` : ''}. Détail et sel ajouté`;
+  return `
+        <div class="diet-salt">
+          <button class="diet-salt__open" data-action="diet-salt"${attrDay} aria-label="${esc(spoken)}">
+            <span class="diet-salt__line" aria-hidden="true"><span class="diet-salt__label">Sel</span><span class="diet-salt__val num">${val}</span></span>
+            ${goal ? waterBarHtml(ratio, zone) : ''}
+          </button>
+          <button class="diet-salt__add" data-action="diet-salt"${attrDay} aria-label="Ajouter du sel">${icon('plus', 14)}<span>Sel ajouté</span></button>
+        </div>`;
+}
+
 function renderNutrition(dayParam) {
-  const plan = dietActivePlan(data);
+  const plan0 = dietActivePlan(data);
   const day = dietRouteDay(dayParam);
+  const plan = plan0 ? dietDayPlan(data, data.dietActive, day) : null;
   const pending = account.user && myCoach() ? dietPending() : null;
   // « Mon plan » : le plan suivi, dont le retour dira « Nutrition » (panel vague 4 : « Plan » seul, et un écran titré
   // « Aujourd'hui » ouvert depuis la carte « Nutrition », faisaient trois noms pour un même endroit)
@@ -460,6 +505,7 @@ function renderNutrition(dayParam) {
         ${pending ? `<div class="coach-progs">${dietInboxCardHtml(pending)}</div>` : ''}
         ${dietWeekHtml(day)}
         ${past ? '<button class="btn btn--secondary diet-today" data-action="diet-today">Revenir à aujourd\'hui</button>' : ''}
+        ${dietDayLineHtml(plan0, day)}
         ${dietSummaryHtml(pr)}
         ${!data.dietHideNumbers && !dietPersonal(plan) && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan, dietMealsNoun(plan)))}${plan.fromCoach
           ? ` Suis le plan de ${esc(plan.fromCoach.name || 'ton coach')} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
@@ -600,7 +646,7 @@ function coachDietGroupHtml(uid) {
 // ── Remplacer un aliment pour la journée ────────────────────
 
 async function dietSwapSheet(itemId, day) {
-  const planId = data.dietActive, plan = dietActivePlan(data);
+  const planId = data.dietActive, plan = dietDayPlan(data, data.dietActive, day);
   const it = plan?.meals.flatMap(m => m.items).find(x => x.id === itemId);
   if (!it) return;
   await loadFoods();
@@ -614,13 +660,13 @@ async function dietSwapSheet(itemId, day) {
       <button class="diet-cand" data-swap="${i}">
         ${dietFoodIconHtml(c.food)}
         <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(c.food.name))}</span>
-          <span class="diet-cand__sub num">${hide ? `${c.g} g` : dietSrPair(`${c.g} g · ${dietMacroLine(c.macros)}`, `${c.g} grammes, ${dietMacroSpoken(c.macros)}`)}</span></span>
+          <span class="diet-cand__sub num"><b class="diet-cand__qty">${c.g}\u00a0g</b>${hide ? '' : dietSrPair(` · ${dietMacroLine(c.macros)}`, `, ${dietMacroSpoken(c.macros)}`)}</span></span>
         ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(shownGap(c), 'kilocalories')}">${swapDeltaText(shownGap(c), 'kcal')}</span>`}
       </button>`;
   const body = `
     <div class="diet-swap">
       <p class="diet-swap__orig"><b>${esc(foodName(it.name))}</b><span class="num">${hide ? esc(dietQtyText(it)) : dietSrPair(`${esc(dietQtyText(it))} · ${dietMacroLine(ref)}`, `${esc(dietQtySpoken(it))}, ${dietMacroSpoken(ref)}`)}</span></p>
-      <p class="diet-swap__rule">${swapRuleText(it)}, macros proches, même famille d'aliments.</p>
+      <p class="diet-swap__rule">${swapRuleText(it)}, quantité déjà calculée. L'écart de calories est à droite.</p>
       ${dietMacroLegendHtml()}
       ${current ? `<button class="diet-cand diet-cand--back" data-swap="back"><span class="diet-cand__body"><span class="diet-cand__name">Remettre ${esc(foodName(it.name))}</span><span class="diet-cand__sub">Aujourd'hui, tu manges ${esc(foodName(current.name))}</span></span>${icon('arrow.clockwise', 18)}</button>` : ''}
       ${cands.length ? `<div class="diet-cands">${cands.map(row).join('')}</div>`
@@ -661,6 +707,31 @@ async function dietSwapSheet(itemId, day) {
   render();
 }
 
+// Éditeur du plan : choisir un équivalent (même règle et même liste que dans la journée) ; renvoie le candidat ou null
+async function dietPickSwap(it) {
+  await loadFoods();
+  const cands = swapCandidates(it, { own: data.dietFoods || [] }), ref = dietItemMacros(it);
+  const rows = cands.map((c, i) => `
+      <button class="diet-cand" data-swap="${i}">
+        ${dietFoodIconHtml(c.food)}
+        <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(c.food.name))}</span>
+          <span class="diet-cand__sub num"><b class="diet-cand__qty">${c.g}\u00a0g</b>${dietSrPair(` · ${dietMacroLine(c.macros)}`, `, ${dietMacroSpoken(c.macros)}`)}</span></span>
+        <span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(Math.round(c.macros.kcal) - Math.round(ref.kcal), 'kilocalories')}">${swapDeltaText(Math.round(c.macros.kcal) - Math.round(ref.kcal), 'kcal')}</span>
+      </button>`).join('');
+  const body = `<div class="diet-swap">
+      <p class="diet-swap__orig"><b>${esc(foodName(it.name))}</b><span class="num">${dietSrPair(`${esc(dietQtyText(it))} · ${dietMacroLine(ref)}`, `${esc(dietQtySpoken(it))}, ${dietMacroSpoken(ref)}`)}</span></p>
+      <p class="diet-swap__rule">${swapRuleText(it)}, quantité déjà calculée. L'écart de calories est à droite.</p>
+      ${dietMacroLegendHtml()}
+      ${cands.length ? `<div class="diet-cands">${rows}</div>` : `<p class="diet-swap__none">${foodDb ? 'Aucun équivalent assez proche dans la base pour cet aliment.' : 'Base d\'aliments indisponible pour l\'instant.'}</p>`}
+      <p class="diet-swap__foot">Remplace l'aliment dans ce repas du plan.</p>
+    </div>`;
+  const p = sheet({ title: 'Remplacer', cancel: 'Annuler', confirm: '', body });
+  const root = [...document.querySelectorAll('.sheet-root')].pop();
+  root?.addEventListener('click', ev => { const b = ev.target.closest('[data-swap]'); if (b) root._close(b.dataset.swap); });
+  const choice = await p;
+  return choice == null ? null : cands[Number(choice)] || null;
+}
+
 // Retirer pour la journée : la ligne reste, barrée, avec « Remettre » ; Annuler dans le toast
 function dietRemovePlanItem(planId, it, day) {
   dietSetRemoved(data, planId, it.id, true, day);
@@ -673,8 +744,8 @@ function dietRemovePlanItem(planId, it, day) {
 // Déplacer un aliment de la journée vers un autre repas, pour ce jour seulement (le plan ne change pas) : un ajout du jour
 // change de repas ; un aliment prévu est retiré de son repas et ajouté à l'autre. Annuler remet tout comme avant
 async function dietMoveDayItem(planId, day, meal, eat, { extra = null, planItem = null } = {}) {
-  const to = meal && await dietPickMeal(dietActivePlan(data), meal.id, `Déplacer ${foodName(eat.name)} vers…`);
-  const target = to && dietActivePlan(data)?.meals.find(m => m.id === to);
+  const to = meal && await dietPickMeal(dietDayPlan(data, data.dietActive, day), meal.id, `Déplacer ${foodName(eat.name)} vers…`);
+  const target = to && dietDayPlan(data, data.dietActive, day)?.meals.find(m => m.id === to);
   if (!target) return;
   if (extra && !dietSetExtra(data, planId, meal.id, extra.id, null, day)) return;
   if (planItem) dietSetRemoved(data, planId, planItem.id, true, day);
@@ -697,8 +768,62 @@ async function dietMoveDayItem(planId, day, meal, eat, { extra = null, planItem 
 
 // ── Actions ─────────────────────────────────────────────────
 
+// Sel ajouté : pincée, cuillère à café, autre quantité ; les ajouts du jour (Supprimer) ; le sel des aliments
+function dietSaltBodyHtml(day) {
+  const pr = dietDayProgress(data, data.dietActive, day), salt = dietDaySalt(data, pr), goal = dietSaltGoal(pr.plan);
+  const list = Array.isArray(data.saltLog?.[day]) ? data.saltLog[day] : [];
+  const time = at => (at ? new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
+  return `<div class="diet-saltsheet">
+      <p class="diet-saltsheet__val num"><b>${fmtNum(dietR1(salt.g), 1)}\u00a0g</b>${goal ? ` sur ${dietSaltGoalText(goal)}` : ''}</p>
+      <p class="diet-saltsheet__why num">Aliments mangés : ${fmtNum(dietR1(salt.food), 1)}\u00a0g${salt.unknown ? ` (${plural(salt.unknown, 'aliment sans valeur de sel', 'aliments sans valeur de sel')})` : ''} · ajouté : ${fmtNum(dietR1(salt.added), 1)}\u00a0g</p>
+      <div class="diet-saltsheet__btns">
+        ${SALT_ADDS.map(x => `<button type="button" class="water-add diet-saltsheet__add" data-salt="${x.g}" aria-label="Ajouter ${esc(x.label.toLowerCase())}, environ ${fmtNum(x.g, 1)} gramme${x.g >= 2 ? 's' : ''}">${icon('plus', 14)}<span class="water-add__lbl">${x.label}<small class="water-add__qty">environ ${fmtNum(x.g, 1)}\u00a0g</small></span></button>`).join('')}
+        <button type="button" class="water-add diet-saltsheet__add" data-salt="other">Autre</button>
+      </div>
+      ${list.length ? `<div class="water-log__list">${list.slice().reverse().map(x => `
+        <div class="water-log__row"><span class="water-log__txt num">${time(x.at) ? `${time(x.at)} · ` : ''}${fmtNum(x.g, 1)}\u00a0g</span>
+          <button type="button" class="water-log__del" data-saltdel="${esc(x.id)}" aria-label="Supprimer ${fmtNum(x.g, 1)} gramme de sel">Supprimer</button></div>`).join('')}</div>` : ''}
+      <p class="water-gs__src">Pincée et cuillère à café rase : poids moyens de l'USDA (FoodData Central, sel de table). Le sel des aliments vient de la table Ciqual ou de l'étiquette. Des repères, pas un avis médical.</p>
+    </div>`;
+}
+async function dietSaltSheet(day) {
+  const p = sheet({ title: 'Sel', cancel: '', confirm: 'OK', body: dietSaltBodyHtml(day) });
+  const root = [...document.querySelectorAll('.sheet-root')].pop();
+  const paint = () => { const b = root && $('.sheet__body', root); if (b) b.innerHTML = dietSaltBodyHtml(day); };
+  root?.addEventListener('click', async ev => {
+    const add = ev.target.closest('[data-salt]'), del = ev.target.closest('[data-saltdel]');
+    if (add) {
+      let g = Number(add.dataset.salt);
+      if (add.dataset.salt === 'other') {
+        const raw = await dialog({ title: 'Sel ajouté', message: 'En grammes, par exemple 1,5.', input: { decimal: true, value: '', placeholder: '1', unit: 'g', label: 'Sel ajouté, en grammes' },
+          actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Ajouter', style: 'preferred' }] });
+        if (raw == null || !String(raw).trim()) return;
+        g = num(raw, 0.1, SALT_ADD_MAX_G);
+        if (g === null) { showToast(`Sel : de 0,1 à ${SALT_ADD_MAX_G} g`, { error: true }); return; }
+      }
+      if (!saltAdd(data, g, day)) { showToast(`${SALT_DAY_MAX} ajouts au plus par jour`, { error: true }); return; }
+      save(); haptic('light'); paint(); announce(`Ajouté : ${fmtNum(g, 1)} gramme de sel`);
+    } else if (del && saltRemove(data, day, del.dataset.saltdel)) { save(); haptic('light'); paint(); announce('Supprimé'); }
+  });
+  await p;
+  render();
+}
+
 registerActions({
   'go-nutrition': () => navigate('nutrition'),
+  'diet-salt': (e, el) => dietSaltSheet(el.dataset.day || dietDayKey()),
+  // Plan entraînement / repos : un toucher passe à l'autre jour ; revenir au jour choisi par la séance efface le choix
+  'diet-day-kind': (e, el) => {
+    const planId = data.dietActive, day = el.dataset.day || dietDayKey();
+    if (!dietActivePlan(data)?.days) return;
+    const cur = dietDayIndex(data, planId, day), next = cur.kind === 'r' ? 't' : 'r';
+    const auto = dietTrainedOn(data, day) ? 't' : 'r';
+    const prev = dietDay(data, planId, day).kind || null;
+    dietSetDayKind(data, planId, day, next === auto ? null : next);
+    save(); haptic(); render();
+    const word = next === 'r' ? 'Jour de repos' : 'Jour d\'entraînement';
+    showToast(word, { action: 'Annuler', duration: 5000, onAction: () => { dietSetDayKind(data, planId, day, prev); save(); render(); announce('Annulé'); } });
+  },
   'diet-day': (e, el) => {
     const day = el.dataset.day, today = dietDayKey();
     dietPick = day === today ? null : { day, today, at: Date.now() };
@@ -730,7 +855,7 @@ registerActions({
   // Annuler dans le toast (ne défait que le retrait) ; la ligne « Remettre le repas prévu » le remet. Le plan ne change pas
   'diet-day-meal-menu': async (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
-    const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
+    const meal = dietDayPlan(data, data.dietActive, day)?.meals.find(m => m.id === mealId);
     if (!meal) return;
     const when = day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
     const v = await dialog({ type: 'sheet', title: meal.name, message: `Seulement pour ${when}. Le plan ne change pas.`,
@@ -747,7 +872,7 @@ registerActions({
   // Repas retiré : « Remettre le repas prévu » ; jour vide : « Copier le plan de ce repas ». Un toucher, à cocher ensuite
   'diet-meal-back': (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
-    const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
+    const meal = dietDayPlan(data, data.dietActive, day)?.meals.find(m => m.id === mealId);
     const ok = meal && (el.dataset.op === 'copy' ? dietCopyMealPlan(data, planId, mealId, day) : dietSetMealOn(data, planId, mealId, day));
     if (!ok) return;
     // Jour vide : « Remettre le repas prévu » remet aussi son plan (sinon le repas revient vide, contrairement à l'annonce)
@@ -757,7 +882,7 @@ registerActions({
   // Jour vide : « Reprendre le repas d'hier » : ce qui a été mangé devient des ajouts du jour, Annuler dans le toast
   'diet-meal-reuse': (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
-    const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
+    const meal = dietDayPlan(data, data.dietActive, day)?.meals.find(m => m.id === mealId);
     const r = meal && dietReuseMeal(data, planId, mealId, day);
     if (!r) return;
     dietOpenMeals.add(mealId);
@@ -776,7 +901,7 @@ registerActions({
   'diet-swap': async (e, el) => { await dietSwapSheet(el.dataset.item, el.dataset.day || dietDayKey()); },
   // Balayé vers la gauche (js/ui/swipe-row.js) : aliment prévu retiré pour la journée, ajout du jour supprimé ; Annuler
   'diet-item-del': (e, el) => {
-    const day = el.dataset.day || dietDayKey(), it = dietActivePlan(data)?.meals.flatMap(m => m.items).find(x => x.id === el.dataset.item);
+    const day = el.dataset.day || dietDayKey(), it = dietDayPlan(data, data.dietActive, day)?.meals.flatMap(m => m.items).find(x => x.id === el.dataset.item);
     if (it) dietRemovePlanItem(data.dietActive, it, day);
   },
   'diet-extra-del': (e, el) => {
@@ -791,7 +916,7 @@ registerActions({
   'diet-today': () => { dietGoToday(); announce('Aujourd\'hui'); },
   'diet-restore': (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey();
-    const it = dietActivePlan(data)?.meals.flatMap(m => m.items).find(x => x.id === el.dataset.item);
+    const it = dietDayPlan(data, data.dietActive, day)?.meals.flatMap(m => m.items).find(x => x.id === el.dataset.item);
     if (!it) return;
     dietSetRemoved(data, planId, it.id, false, day);
     save(); haptic(); render(); announce(`Remis : ${foodName(it.name)}`);
@@ -800,7 +925,7 @@ registerActions({
   // dans son état, ses totaux et ceux du jour se recalculent ; le plan ne change pas
   'diet-day-add': async (e, el) => {
     const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
-    const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
+    const meal = dietDayPlan(data, data.dietActive, day)?.meals.find(m => m.id === mealId);
     if (!meal) return;
     if ((dietDay(data, planId, day).extras[mealId] || []).length >= DIET_ITEM_MAX) { showToast(`${DIET_ITEM_MAX} ajouts au plus par repas`, { error: true }); return; }
     const pick = await dietChooseFood();
@@ -822,14 +947,14 @@ registerActions({
     if (!it) return;
     const choice = await dialog({ type: 'sheet', title: foodName(it.name), message: `${dietQtyText(it)}, ajouté pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'}. Le plan ne change pas.`,
       actions: [{ label: 'Changer la quantité', value: 'g' },
-        ...(dietShownMeals(dietActivePlan(data)).length > 1 ? [{ label: 'Déplacer vers…', value: 'move' }] : []),
+        ...(dietShownMeals(dietDayPlan(data, data.dietActive, day)).length > 1 ? [{ label: 'Déplacer vers…', value: 'move' }] : []),
         { label: 'Retirer', value: 'del', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
     if (choice === 'g') {
       const q = await dietAskQty(it, it);
       if (!q || !dietSetExtra(data, planId, mealId, it.id, q, day)) return;
       save(); haptic(); render(); announce(`${foodName(it.name)} : ${dietQtySpoken(q)}`);
     } else if (choice === 'move') {
-      await dietMoveDayItem(planId, day, dietActivePlan(data).meals.find(m => m.id === mealId), it, { extra: it });
+      await dietMoveDayItem(planId, day, dietDayPlan(data, data.dietActive, day).meals.find(m => m.id === mealId), it, { extra: it });
     } else if (choice === 'del') {
       const before = { g: it.g, por: it.por };
       dietSetExtra(data, planId, mealId, it.id, null, day);
@@ -875,26 +1000,10 @@ registerActions({
     const planId = await dialog({ type: 'sheet', title: 'Envoyer un plan de nutrition', message: `Choisis un de tes plans pour ${who}. Un nouvel envoi du même plan le met à jour chez ${who}.`,
       actions: [...ids.map(id => ({ label: data.dietPlans[id].name, value: id })), { label: 'Annuler', style: 'cancel' }] });
     if (!planId) return;
-    // Relecture avant l'envoi, comme un programme (écran Envoyer, bouton « Envoyer à … ») : un plan diète
-    // touche à la santé de l'élève, jamais envoyé au premier toucher (panel du 07/11)
-    const plan = data.dietPlans[planId];
-    // Texte court, unités abrégées comme à l'écran, l'écart avec l'objectif en premier (panel t5 : la phrase VoiceOver
-    // « 2 000 kilocalories, 150 grammes » s'affichait telle quelle, à côté de « 575 kcal »)
-    // ; l'élève voit le même écart sous le plan, dans sa Nutrition du jour : dit au coach (panel t7)
-    // Une ligne (panel v4 t1 : sept lignes de chiffres, on ne savait pas si c'était une erreur) : repas et kcal prévues,
-    // l'objectif et l'écart entre parenthèses ; l'écart se lit comme une information, pas un blocage
-    const meals = plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas');
-    const kcal = Math.round(dietPlanMacros(plan).kcal), goal = Math.round(Number(plan.targets?.kcal) || 0);
-    const diff = Math.max(kcal, goal) + -Math.min(kcal, goal), gap = goal && diff > goal * 0.1 ? ' (' + (kcal < goal ? '−' : '+') + dietN(diff) + ')' : '';
-    const ok = await dialog({ title: `Envoyer « ${plan.name} » à\u00a0${who}\u00a0?`,
-      message: goal ? `${meals} · ${dietN(kcal)} kcal prévues pour ${dietN(goal)} visées${gap}.`
-        : `${meals} · ${dietN(kcal)} kcal prévues, sans objectif du jour.`,
-      actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
-    if (ok !== true) return;
-    el.disabled = true;
-    const r = await coachSendDiet(uid, planId);
-    el.disabled = false;
-    if (coachToast(r, `Plan envoyé à ${who}`, { inline: true })) { haptic(); coachRefresh(); }   // « Envoyé le … » sous le plan
+    // Aperçu avant l'envoi (jour par jour : kcal, macros, eau, sel), l'élève coché d'office ; jamais envoyé au premier
+    // toucher (panel du 07/11 : un plan diète touche à la santé de l'élève). js/features/diet-week.js
+    dietSendSel = null;
+    navigate(makeRoute('diet-send', planId, uid));
   },
 });
 

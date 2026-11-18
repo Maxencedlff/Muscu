@@ -440,3 +440,78 @@ body.light .diet-tg__card { background: var(--cell); }
 .diet-tg__prop { margin: 10px 0 0; font-size: var(--fs-body); font-weight: 600; }
 .diet-tg__cardacts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-top: 12px; padding-bottom: 8px; }
 .diet-tg__apply { min-height: 44px; }
+
+/* ═══ 18/11 : retours des coachs (Remplacer visible, jours du plan, sel, recherche d'abord) ═══ */
+
+/* « Remplacer » écrit à droite de chaque aliment du jour (avant : une icône seule, que les coachs ne voyaient pas) */
+.diet-item__swap--txt { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-footnote); font-weight: 600; }
+html.type-xl .diet-item__swap--txt span { display: none; }
+.diet-cand__qty { color: var(--label); font-weight: 700; }
+.diet-cand__of { display: block; font-size: var(--fs-footnote); color: var(--label2); }
+
+/* Feuille « Ajouter un aliment » : recherche en tête, puis « Produit de marque ? Scanner », discret */
+.diet-pick__search + .diet-cand--scan { margin: 8px 0 10px; min-height: 44px; background: none; padding-left: 4px; }
+.diet-cand--scan .diet-cand__name { color: var(--label2); font-weight: 400; }
+.diet-cand--scan .diet-cand__name b { color: var(--tint); font-weight: 600; }
+.diet-cand--scan .icon { color: var(--label2); }
+.diet-pick__head { margin: 4px 4px 6px; font-size: var(--fs-footnote); font-weight: 600; color: var(--label2); }
+
+/* Jour du plan (Nutrition) : « Aujourd'hui : jour de repos · Changer » */
+.diet-dayline { display: flex; align-items: center; gap: 12px; margin: 12px 0 0; padding: 8px 8px 8px 16px; background: var(--cell); border-radius: var(--r-md); }
+.diet-dayline__txt { flex: 1; min-width: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-subhead); }
+.diet-dayline__txt span { font-size: var(--fs-footnote); color: var(--label2); }
+.diet-dayline__btn { flex-shrink: 0; min-height: 44px; min-width: 44px; padding: 0 12px; border: none; border-radius: var(--r-md); background: var(--fill); color: var(--tint-on-fill); font: inherit; font-size: var(--fs-subhead); font-weight: 600; cursor: pointer; }
+.diet-dayline__btn:active { opacity: .6; }
+html.type-xl .diet-dayline { flex-wrap: wrap; }
+html.type-xl .diet-dayline__btn { flex: 1 1 100%; }
+
+/* Sel : une ligne sous les macros, sans couleur d'alerte */
+.diet-salt { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 6px; border-top: .5px solid var(--sep); }
+.diet-salt__open { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 0; border: none; background: none; font: inherit; color: var(--label); text-align: left; cursor: pointer; }
+.diet-salt__open:active { opacity: .7; }
+.diet-salt__line { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 8px; font-size: var(--fs-subhead); }
+.diet-salt__label { font-weight: 600; }
+.diet-salt__val { color: var(--label2); }
+.diet-salt__val b { color: var(--label); }
+.diet-salt__add { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px; border: none; border-radius: var(--r-md); background: var(--fill); color: var(--tint-on-fill); font: inherit; font-size: var(--fs-subhead); font-weight: 600; cursor: pointer; }
+.diet-salt__add:active { opacity: .6; }
+.diet-salt__add .icon { width: 1em; height: 1em; }
+html.type-xl .diet-salt { flex-wrap: wrap; }
+html.type-xl .diet-salt__add { flex: 1 1 100%; justify-content: center; }
+.diet-saltsheet { padding: 4px 0; }
+.diet-saltsheet__val { margin: 0; font-size: var(--fs-title3, 1.18rem); text-align: center; }
+.diet-saltsheet__why { margin: 6px 0 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+.diet-saltsheet__btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
+.diet-saltsheet__btns .water-add { flex-direction: row; justify-content: flex-start; gap: 6px; min-height: 52px; padding: 4px 8px; }
+.diet-saltsheet__btns .water-add__lbl { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.diet-saltsheet__btns .water-add__qty { font-size: var(--fs-footnote); font-weight: 500; }
+html.type-xl .diet-saltsheet__btns { grid-template-columns: minmax(0, 1fr); }
+
+/* Objectifs : fourchette « de … à … » (eau, sel) */
+.diet-field--range .diet-field__input { text-align: right; }
+.diet-field--range .diet-field__input--lo { flex: 0 1 4em; }
+.diet-field__to { flex-shrink: 0; color: var(--label2); font-size: var(--fs-callout); }
+.diet-field--range .diet-field__label { min-width: 64px; }
+html.type-xl .diet-field--range { flex-wrap: wrap; }
+
+/* Jours du plan : lignes de la vue des jours, choix du jour, type du jour, jour précédent et suivant */
+.diet-dayrow .cell__title { display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.diet-dayrow__today { font-size: var(--fs-footnote); font-weight: 600; color: var(--check-on-text, var(--label2)); }
+.diet-daypick { margin-top: 10px; margin-bottom: 4px; }
+.diet-week__kind { font-size: var(--fs-caption2); color: var(--label2); line-height: 1; }
+.diet-daypick .diet-week__letter { font-size: var(--fs-footnote); }
+.diet-week__day--on .diet-week__letter { color: var(--label); font-weight: 800; }
+.diet-daypick .diet-week__day--on { background: var(--fill); }
+.diet-daykind { margin: 0 0 8px; }
+.diet-daynav { display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; }
+.diet-daynav__btn { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px; border: none; border-radius: var(--r-md); background: var(--fill); color: var(--tint-on-fill); font: inherit; font-size: var(--fs-subhead); font-weight: 600; cursor: pointer; }
+.diet-daynav__btn:active { opacity: .6; }
+.diet-daynav__btn .icon { width: 1em; height: 1em; }
+html.type-xl .diet-daypick .diet-week__kind { display: none; }
+html.type-xl .diet-daynav { flex-direction: column; }
+.diet-sendday__gap { color: var(--label); }
+.diet-saltsheet__btns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.diet-saltsheet__btns .water-add span { overflow-wrap: normal; }
+.diet-saltsheet__btns [data-salt="other"] { grid-column: 1 / -1; justify-content: center; min-height: 44px; }
+.sheet .diet-pick .diet-cand--scan, body.light .sheet .diet-pick .diet-cand--scan { background: none; }
+.diet-tg__saltnote:empty { display: none; }

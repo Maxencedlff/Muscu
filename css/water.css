@@ -110,3 +110,16 @@ html.type-xl .water-home__val { white-space: normal; }
 html.type-xl .water-log__day { grid-template-columns: 1fr; }
 html.type-xl .water-log__dval { white-space: normal; }
 html.type-xl .water-card__plus { white-space: normal; }
+
+/* Fourchette (18/11) : zone à viser plus claire sur la piste, du bas au haut de la fourchette (pas de dégradé) */
+.water-bar--zone { position: relative; }
+.water-bar__zone { position: absolute; top: 0; bottom: 0; right: 0; background: var(--check-zone, color-mix(in srgb, var(--check-on) 28%, var(--fill))); }
+.water-bar--zone .water-bar__fill { position: relative; }
+
+/* Verres à cocher : 44 pt, en grille ; plein = vert de l'avancée ; au-delà du bas de la fourchette : même dessin */
+.water-cups { display: flex; flex-wrap: wrap; gap: 2px; margin: 10px -4px 0; }
+.water-cup { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 10px; background: none; cursor: pointer; }
+.water-cup:active { opacity: .6; }
+.water-cup[aria-disabled="true"] { cursor: default; }
+.water-cup .water-glass__line { stroke: var(--label3); }
+.water-cups__note { margin: 2px 0 0; font-size: var(--fs-footnote); color: var(--label2); }
