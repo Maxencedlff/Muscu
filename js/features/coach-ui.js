@@ -109,7 +109,7 @@ function coachCellHtml() {
   const lost = account.user && !hasCoach ? coachLost() : null;
   if (lost) {
     rows.push(`<div class="cell coach-lost" role="status">
-        <span class="cell__body"><span class="cell__title">Tu ne suis plus ${esc(lost)}</span><span class="cell__sub">Ses commentaires et vos messages sont effacés. Les programmes ajoutés restent chez toi.</span></span>
+        <span class="cell__body"><span class="cell__title">Tu ne suis plus ${esc(lost)}</span><span class="cell__sub">Ses commentaires et vos messages sont supprimés. Les programmes ajoutés restent chez toi.</span></span>
         <button class="social-x" data-action="coach-lost-ok" aria-label="OK, fermer">${icon('xmark', 14)}</button>
       </div>`);
   }
@@ -164,7 +164,7 @@ function renderCoachSettings() {
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
-          <p class="social-hero__sub">Ton coach voit tes séances, t'envoie des programmes et commente tes séances. Il faut un compte, gratuit.</p>
+          <p class="social-hero__sub">Ton coach suit tes séances et t'envoie des programmes. Il faut un compte gratuit.</p>
         </div>
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>
       </div></div>`;
@@ -187,16 +187,16 @@ function renderCoachSettings() {
         <div class="group">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu quittes ton coach, tes séances ne lui sont plus visibles. Les programmes déjà ajoutés restent dans tes programmes.</div>` : coachJoinHiddenByAge() ? coachJoinAgeHtml() : `
+        <div class="group-foot">Si tu quittes ton coach, tes séances ne sont plus partagées. Les programmes ajoutés restent chez toi.</div>` : coachJoinHiddenByAge() ? coachJoinAgeHtml() : `
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
-          <p class="social-hero__sub">Ton coach te donne un code, à entrer dans « Rejoindre un coach ». Tu lui ouvres alors tes séances : ton coach peut les commenter, t'envoyer des programmes et t'écrire des messages.</p>
+          <p class="social-hero__sub">Entre le code donné par ton coach. Avant d'accepter, tu vois ce que ton coach pourra voir et faire.</p>
         </div>
         <div class="group">
           <button class="cell cell--action" data-action="coach-join"><span class="cell__title">Rejoindre un coach</span></button>
         </div>
-        <div class="group-foot">Tu peux arrêter à tout moment. Tu ne vois pas ses autres élèves, et ils ne te voient pas.</div>`;
+        <div class="group-foot">Tu peux quitter ton coach à tout moment.</div>`;
   const students = isCoach ? `
         <div class="group-title">Tu es coach</div>
         <div class="group">
@@ -252,7 +252,7 @@ function coachJoinAgeHtml() {
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Coach indisponible</h2>
-          <p class="social-hero__sub">Suivre un coach est réservé aux 15 ans et plus, d'après la tranche d'âge partagée avec Apple. Le reste de l'app fonctionne normalement.</p>
+          <p class="social-hero__sub">Suivre un coach est réservé aux 15 ans et plus, d'après la tranche d'âge transmise par Apple. Le reste de l'app fonctionne.</p>
         </div>`;
 }
 
@@ -296,16 +296,16 @@ function renderCoachJoin(code) {
           <span><span class="coach-join__name">${name}</span><span class="coach-join__sub">veut être ton coach</span>${cardBadgeHtml(pv.user_id, 'card-badge--who')}</span>
         </div>
         ${coachTitle(`Ce ${elide('que', name)} verra`)}
-        ${list([['Toutes tes séances', 'Y compris celles d\'avant, avec exercices, séries et notes, même les séances masquées à ceux qui te suivent.']])}
+        ${list([['Toutes tes séances', 'Anciennes et nouvelles, avec exercices, séries et notes. Même celles masquées à ceux qui te suivent.']])}
         ${coachTitle(`Ce ${elide('que', name)} pourra faire`)}
-        ${list([['Des programmes pour toi', 'Avec ses consignes. Tu choisis de les ajouter.'], ['Ses commentaires', 'Sous tes séances, dans ton historique.'],
-          ['Des messages', 'Texte seul, entre vous deux. Effacés quand le coaching s\'arrête. Tu peux signaler un message.'],
-          ['Des plans de nutrition', 'Seulement si tu acceptes ses plans. Tu choisis de les suivre.']])}
+        ${list([['Des programmes pour toi', 'Avec ses consignes. Tu choisis de les ajouter.'], ['Ses commentaires', 'Sous tes séances, dans l\'historique.'],
+          ['Des messages', 'Texte seul, entre vous deux. Supprimés si le suivi s\'arrête. Tu peux en signaler un.'],
+          ['Des plans de nutrition', 'Si tu les acceptes. Tu choisis de les suivre.']])}
         ${coachTitle('Seulement si tu le choisis')}
-        ${list([['Ton poids et tes mensurations', 'Rien n\'est partagé au départ. Tu coches ce que tu veux dans Réglages › Social et coach › Partager avec mon coach.'],
-          ...(photos ? [['Des photos de bilan', 'Seulement celles que tu lui envoies toi-même depuis ton coffre, chiffrées pour ton coach seulement. Tu peux les retirer quand tu veux.']] : [])])}
+        ${list([['Poids et mensurations', 'Rien au départ. Tu choisis dans Réglages › Social et coach › Partager avec mon coach.'],
+          ...(photos ? [['Des photos de bilan', 'Celles que tu envoies depuis ton coffre, chiffrées pour ton coach seul. Tu peux les retirer.']] : [])])}
         ${coachTitle('Jamais visible')}
-        ${list([['Le reste', `Ni tes données Santé, ni ${photos ? 'les photos de ton coffre que tu ne lui envoies pas' : 'tes photos'}, ni tes programmes perso. Tu ne vois pas ses autres élèves, et ils ne te voient pas.`]])}
+        ${list([['Le reste', `Ni tes données Santé, ni ${photos ? 'les autres photos du coffre' : 'tes photos'}, ni tes programmes perso. Ses autres élèves et toi ne vous voyez pas.`]])}
         <div class="coach-join__foot">
           <button class="cell coach-join__age" data-action="coach-age" role="switch" aria-checked="${ok}">
             <span class="cell__body"><span class="cell__title" id="coachAgeHint">J'ai 15 ans ou plus</span></span>
@@ -456,7 +456,7 @@ function renderCoachMine() {
   const inbox = coach.inbox;
   const stale = !coach.state && coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : dernières nouvelles gardées sur l\'iPhone.' : coachErrorText(coach.error))}</p>` : '';
   const progs = inbox ? (inbox.programmes.length ? inbox.programmes.map(coachProgCardHtml).join('')
-    : '<div class="empty-note coach-empty">Aucun programme reçu pour l\'instant.</div>') : '<div class="empty-note coach-empty">Chargement…</div>';
+    : '<div class="empty-note coach-empty">Aucun programme reçu.</div>') : '<div class="empty-note coach-empty">Chargement…</div>';
   const notes = inbox?.notes.length ? `<div class="group-title">Commentaires</div>${coachNotesHtml(inbox.notes)}` : '';
   return `
     <div class="view view--grouped coach-mine-view">
@@ -482,7 +482,7 @@ function renderCoachMine() {
           ${cardBadgeReportCell(p.user_id)}
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances, et vos messages seront effacés.</div>
+        <div class="group-foot">Si tu quittes ton coach, tes séances ne sont plus partagées et vos messages sont supprimés.</div>
       </div>
     </div>`;
 }
@@ -553,22 +553,22 @@ async function addCoachProgrammeFlow(progId, { take = false } = {}) {
   // Séance en cours sur ce programme : la mise à jour attend la fin de la séance (ses exercices et ses
   // séances changeraient en pleine séance)
   if (status === 'update' && activeSession?.programme === localId) {
-    await dialog({ title: 'Séance en cours', message: `Termine d'abord ta séance, puis mets à jour « ${name} ». La nouvelle version t'attend dans Mon coach.`,
+    await dialog({ title: 'Séance en cours', message: `Termine la séance, puis mets à jour « ${name} » depuis Mon coach.`,
       actions: [{ label: 'OK', style: 'preferred' }] });
     return;
   }
   if (take) {
-    if (!(await confirmSheet('Prendre sa version ?', `Tes changements de « ${name} » sont remplacés. Tes séances déjà faites restent dans l'historique.`, 'Prendre sa version'))) return;
+    if (!(await confirmSheet('Prendre sa version ?', `Tes changements de « ${name} » seront remplacés. Les séances faites restent dans l'historique.`, 'Prendre sa version'))) return;
   } else if (status === 'update' && st.modified) {
     const choice = await dialog({ type: 'sheet', title: 'Remplacer tes changements ?',
-      message: `Tu as modifié « ${name} ». La nouvelle version ${elide('de', coachName())} remplace tes changements. Tes séances déjà faites restent dans l'historique.`,
+      message: `Tu as modifié « ${name} ». La nouvelle version ${elide('de', coachName())} remplace tes changements. Les séances faites restent dans l'historique.`,
       actions: [{ label: 'Prendre la nouvelle version', value: 'replace', style: 'destructive' }, { label: 'Garder ma version', value: 'keep' }, { label: 'Annuler', style: 'cancel' }] });
     if (!choice) return;
     if (choice === 'keep') {
       keepMyCoachProgramme(data, item, myCoach()?.user_id || null);
       save();
       coachMarkInboxSeen('programme', item.id);
-      showToast('Ta version est gardée');
+      showToast('Version gardée');
       render();
       return;
     }
@@ -582,7 +582,7 @@ async function addCoachProgrammeFlow(progId, { take = false } = {}) {
   if (status === 'update') { showToast(`« ${name} » mis à jour`); render(); return; }
   render();
   if (data.activeProgramme === id || activeSession) { showToast(`« ${name} » ajouté à tes programmes`); return; }
-  const go = await dialog({ title: 'Programme ajouté', message: `Passer à « ${name} » maintenant ? Ton historique reste disponible.`,
+  const go = await dialog({ title: 'Programme ajouté', message: `Passer à « ${name} » maintenant ? L'historique est conservé.`,
     actions: [{ label: 'Plus tard', style: 'cancel' }, { label: 'Passer à ce programme', value: true, style: 'preferred' }] });
   if (go === true) { activateProgramme(id); save(); showToast(`Programme : ${name}`); render(); }
 }
@@ -759,7 +759,7 @@ function coachTeamHtml() {
           <div class="cell coach-invite">
             <span class="cell__body"><span class="cell__title coach-code num">${esc(i.code)}</span><span class="cell__sub">Jusqu'au ${esc(fmtDate(i.expires_at, 'short'))}</span></span>
             <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(i.code)}" aria-label="Partager le code ${esc(i.code)}">${icon('square.and.arrow.up', 20)}</button>
-            <button class="social-x" data-action="coach-revoke-invite" data-code="${esc(i.code)}" aria-label="Retirer le code ${esc(i.code)}">${icon('xmark', 14)}</button>
+            <button class="social-x" data-action="coach-revoke-invite" data-code="${esc(i.code)}" aria-label="Supprimer le code ${esc(i.code)}">${icon('xmark', 14)}</button>
           </div>`).join('');
   const removed = st.removed.length ? `
         <div class="group-title">Retirés</div>
@@ -795,7 +795,7 @@ function coachPermanentCodeHtml() {
   if (!code) return '';
   const shown = formatCoachCode(code);
   return `<div class="cell coach-code-cell coach-code-cell--main">
-            <span class="cell__body"><span class="cell__title coach-code num">${esc(shown)}</span><span class="cell__sub">Ton code à toi, sans date de fin · à mettre dans ta bio</span></span>
+            <span class="cell__body"><span class="cell__title coach-code num">${esc(shown)}</span><span class="cell__sub">Code permanent, à mettre dans ta bio</span></span>
             <button class="coach-icon-btn coach-copy-btn" data-action="coach-copy-code" data-code="${esc(shown)}" aria-label="Copier ton code coach">${icon('doc.on.doc', 20)}</button>
             <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(code)}" aria-label="Partager ton code coach">${icon('square.and.arrow.up', 20)}</button>
           </div>`;
@@ -920,7 +920,7 @@ function coachStudentHeroHtml(uid) {
     const on = days.map((x, i) => { const d = new Date(now); d.setDate(d.getDate() - (6 - i)); return x ? WEEK_NAMES[(d.getDay() + 6) % 7] : ''; }).filter(Boolean);
     week = `
           <div class="cstu-hero__week">
-            <span class="cstu-hero__week-head"><span class="cstu-hero__eyebrow">Jours d'entraînement</span><span class="cstu-hero__count num" aria-hidden="true"><b>${days.filter(Boolean).length}</b> sur 7</span></span>
+            <span class="cstu-hero__week-head"><span class="cstu-hero__eyebrow">Jours de séance</span><span class="cstu-hero__count num" aria-hidden="true"><b>${days.filter(Boolean).length}</b> sur 7</span></span>
             <span class="week__days" aria-hidden="true">${dots}</span>
             <span class="visually-hidden">${on.length ? `${on.length} sur les 7 derniers jours : ${on.join(', ')}.` : 'Aucun sur les 7 derniers jours.'}</span>
           </div>`;
@@ -974,7 +974,7 @@ function renderCoachStudent(uid) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="coach-remove" data-uid="${esc(uid)}">Retirer l'élève</button>
         </div>
-        <div class="group-foot">Tu ne verras plus ses séances, et tes codes ne marcheront plus pour cette personne, sauf si tu autorises son retour.</div>
+        <div class="group-foot">Tu ne verras plus ses séances. Tes codes ne marcheront plus pour cette personne, sauf si tu l'autorises à revenir.</div>
       </div>
     </div>`;
 }
@@ -1115,7 +1115,7 @@ SCREENS.set('coach-session', { render: (uid, id) => renderCoachSession(uid, id) 
 function coachTextSheet({ title, value, placeholder, max, existing, confirm = 'Envoyer' }) {
   const p = sheet({ title, confirm, focus: '#coachSheetText',
     body: `<div class="coach-sheet"><textarea class="coach-textarea" id="coachSheetText" rows="6" maxlength="${max}" placeholder="${esc(placeholder)}" aria-label="${esc(title)}" aria-describedby="coachSheetCount">${esc(value)}</textarea>
-      <p class="coach-sheet__hint"><span>${existing ? 'Laisse vide pour retirer le commentaire.' : ''}</span><span class="num coach-sheet__count" id="coachSheetCount">${String(value || '').length}/${max}</span></p></div>`,
+      <p class="coach-sheet__hint"><span>${existing ? 'Laisse vide pour supprimer le commentaire.' : ''}</span><span class="num coach-sheet__count" id="coachSheetCount">${String(value || '').length}/${max}</span></p></div>`,
     onConfirm: panel => panel.querySelector('#coachSheetText').value,
     // Texte changé : Annuler, le fond, Échap ou le glissé demandent avant de le perdre (panel t5), comme iOS
     onCancel: async panel => {
@@ -1192,12 +1192,12 @@ function renderCoachSend(uid, progId) {
         <p class="scr-sub">Pour ${who} · ${plural(sessions.length, 'séance', 'séances')}</p>
         <div class="group-title">Consigne du programme</div>
         <div class="group group--pad">${ta('data-prog="1"', dr.prog, 'Consigne du programme', 'Ex : 3 séances par semaine', 'coach-textarea--prog')}</div>
-        <div class="group-foot">Les consignes sont facultatives et gardées pour tes prochains envois. ${who} les voit dans le programme et pendant la séance.</div>
+        <div class="group-foot">Facultatives, gardées pour les prochains envois. ${who} les voit dans le programme et en séance.</div>
         ${groups}
         <button class="btn btn--primary btn--full coach-send-btn" data-action="coach-send-go" data-uid="${esc(uid)}" data-prog="${esc(progId)}">Envoyer à ${who}</button>
         ${(coach.state?.students.length || 0) > 1 ? `<div class="group coach-send-many-group"><button class="cell cell--nav" data-action="coach-send-many" data-uid="${esc(uid)}" data-prog="${esc(progId)}">
             <span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span><span class="cell__body"><span class="cell__title">Envoyer à plusieurs élèves</span><span class="cell__sub">Mêmes consignes, la charge prescrite à chacun</span></span>${icon('chevron.right', 16)}</button></div>` : ''}
-        <div class="group-foot">Tes charges, tes records et ton historique ne sont pas envoyés, seulement les charges que tu prescris. Un nouvel envoi du même programme le met à jour chez ton élève : change la charge d'une semaine sur l'autre et renvoie.</div>
+        <div class="group-foot">Tes charges, records et historique ne partent pas. Renvoyer le même programme le met à jour chez l'élève.</div>
       </div>
     </div>`;
 }
@@ -1249,7 +1249,7 @@ function renderCoachSendMany(uid, progId) {
           </button>
         </div>
         <div class="group" id="coachManyRows">${coachManyRowsHtml(m)}</div>
-        <div class="group-foot">Limite d'envoi : ${limit} sur 24 heures (30, plus 2 par élève). Un programme déjà envoyé à un élève est mis à jour chez lui.</div>
+        <div class="group-foot">Limite d'envoi : ${limit} sur 24 heures (30, plus 2 par élève). Un programme déjà envoyé est mis à jour chez l'élève.</div>
         <button class="btn btn--primary btn--full coach-send-btn" id="coachManyGo" data-action="coach-many-go" data-uid="${esc(uid)}" data-prog="${esc(progId)}" ${m.busy || !m.ids.size ? 'disabled' : ''}>${esc(coachManyBtnText(m))}</button>
       </div>
     </div>`;
@@ -1314,7 +1314,7 @@ async function shareCoachInvite(code) {
   const text = coachInviteText(code);
   if (Native.isNative) { if ((await Native.shareText(text, 'Invitation')) === 'failed') showToast('Partage impossible', { error: true }); return; }
   if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
-  try { await navigator.clipboard.writeText(text); showToast('Invitation copiée, colle-la dans un message'); }
+  try { await navigator.clipboard.writeText(text); showToast('Invitation copiée'); }
   catch { showToast(`Code : ${code}`); }
 }
 
@@ -1322,7 +1322,7 @@ async function shareCoachInvite(code) {
 // amis : sans pseudo, explication puis écran du pseudo (texte du coach). force : le serveur l'a demandé
 async function coachEnsureUsername(force = false) {
   if (account.profile?.username && !force) return true;
-  const go = await dialog({ title: 'Choisis un pseudo', message: 'Ton coach te reconnaîtra avec ton pseudo.',
+  const go = await dialog({ title: 'Choisis un pseudo', message: 'Le pseudo permet à ton coach de te reconnaître.',
     actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Choisir', value: true, style: 'preferred' }] });
   if (go !== true) return false;
   await openAuthFlow({ step: 'username', mode: 'profile', context: 'coach' });
@@ -1351,7 +1351,7 @@ registerActions({
     if (!coachToast(r)) { el.disabled = false; return; }
     haptic();
     goBack();
-    await dialog({ title: 'C\'est fait !', message: `Les programmes ${elide('de', name)} arriveront dans Social › Mon coach.`,
+    await dialog({ title: `${name} est ton coach`, message: `Les programmes ${elide('de', name)} arriveront dans Social › Mon coach.`,
       actions: [{ label: 'OK', style: 'preferred' }] });
     // Couvert par son coach alors qu'il a son propre abonnement ou essai chez Apple : le lui dire (paywall-ui.js)
     await payDoubleAfterJoin();
@@ -1362,7 +1362,7 @@ registerActions({
     const name = coachName();
     const lost = (coach.inbox?.programmes || []).filter(p => coachStatus(p).status === 'new').map(p => `« ${p.data.name} »`);
     const extra = lost.length ? ` ${lost.length > 1 ? `Les programmes ${lost.join(', ')} que tu n'as pas ajoutés seront perdus.` : `Le programme ${lost[0]} que tu n'as pas ajouté sera perdu.`}` : '';
-    if (!(await confirmSheet(`Quitter ${name} ?`, `${name} ne verra plus tes séances. Ses commentaires et vos messages sont effacés. Les programmes déjà ajoutés restent dans tes programmes.${extra}`, 'Quitter mon coach'))) return;
+    if (!(await confirmSheet(`Quitter ${name} ?`, `${name} ne verra plus tes séances. Ses commentaires et vos messages seront supprimés. Les programmes ajoutés restent chez toi.${extra}`, 'Quitter mon coach'))) return;
     const me = account.user?.id;
     const r = await coachLeave();
     if (!coachToast(r, `Tu ne suis plus ${name}`)) return;
@@ -1415,8 +1415,8 @@ registerActions({
     el._copied = setTimeout(() => { if (el.isConnected) { el.innerHTML = icon('doc.on.doc', 20); el.setAttribute('aria-label', 'Copier ton code coach'); } }, 2000);
   },
   'coach-revoke-invite': async (e, el) => {
-    if (!(await confirmSheet(`Retirer le code ${el.dataset.code} ?`, 'Il ne servira plus à personne. Tes élèves actuels restent suivis.', 'Retirer le code'))) return;
-    coachToast(await coachRevokeInvite(el.dataset.code), 'Code retiré', { inline: true });
+    if (!(await confirmSheet(`Supprimer le code ${el.dataset.code} ?`, 'Il ne marchera plus. Tes élèves actuels restent suivis.', 'Supprimer le code'))) return;
+    coachToast(await coachRevokeInvite(el.dataset.code), 'Code supprimé', { inline: true });
   },
   'coach-open-student': (e, el) => navigate(makeRoute('coach-student', el.dataset.uid)),
   'coach-filter': (e, el) => {
@@ -1481,7 +1481,7 @@ registerActions({
   'coach-more': (e, el) => { coachLoadSessions(el.dataset.uid, { more: true }); },
   'coach-remove': async (e, el) => {
     const name = personName(coachStudent(el.dataset.uid));
-    if (!(await confirmSheet(`Retirer ${name} ?`, `${name} ne pourra plus revenir avec tes codes, sauf si tu l'autorises dans Mes élèves. Tu ne verras plus ses séances ; tes commentaires, vos messages et les programmes pas encore ajoutés sont effacés.`, 'Retirer l\'élève'))) return;
+    if (!(await confirmSheet(`Retirer ${name} ?`, `Tu ne verras plus ses séances. Tes commentaires, vos messages et les programmes non ajoutés seront supprimés. ${name} ne pourra revenir que si tu l'autorises dans Mes élèves.`, 'Retirer l\'élève'))) return;
     const r = await coachRemoveStudent(el.dataset.uid);
     if (!coachToast(r, `${name} ne fait plus partie de tes élèves`)) return;
     // Retour à Mes élèves : l'écran s'il est dans la pile (Réglages › Coach), sinon le segment Élèves de l'onglet
@@ -1500,12 +1500,12 @@ registerActions({
     const key = uid + '/' + id;
     const value = coachNoteDraft?.key === key ? coachNoteDraft.text : row.note;
     const text = await coachTextSheet({ title: row.note ? 'Modifier' : 'Commenter', value, existing: !!row.note,
-      placeholder: 'Ex : Belle séance, garde 2 minutes de repos sur le squat.', max: COACH_NOTE_MAX });
+      placeholder: 'Ex : garde 2 minutes de repos sur le squat.', max: COACH_NOTE_MAX });
     if (text === null) return;
     const r = await coachSetNote(uid, id, text);
     // Échec (hors ligne) : le texte est gardé pour le prochain essai
     coachNoteDraft = r.ok ? null : { key, text };
-    if (coachToast(r, text.trim() ? 'Commentaire envoyé' : 'Commentaire retiré', { inline: true })) haptic();
+    if (coachToast(r, text.trim() ? 'Commentaire envoyé' : 'Commentaire supprimé', { inline: true })) haptic();
     render();
   },
   'coach-send': async (e, el) => {

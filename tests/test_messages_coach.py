@@ -169,7 +169,7 @@ def t_eleve(bench, eng, dev, theme):
         # Le coach me retire : conversation effacée
         page.evaluate(f"__sb.co.links = __sb.co.links.filter(l => l.student !== __sb.meId()); __sb.co.msgs = []; coachRefresh()")
         page.wait_for_timeout(600)
-        R.check('effacés' in page.inner_text('.coach-chat-view'), f'{t} lien rompu : conversation effacée ({page.inner_text(".coach-chat-view")[:80]!r})')
+        R.check('supprimés' in page.inner_text('.coach-chat-view'), f'{t} lien rompu : conversation effacée ({page.inner_text(".coach-chat-view")[:80]!r})')
         R.check(len(page.evaluate("__sb.co.chatReports")[0]['messages']) > 0, f'{t} lien rompu : la copie signalée reste')
         # Information vue (conversation ouverte) : plus redite
         R.check(page.evaluate("localStorage.getItem('mdlf_chat_intro_seen')") == '1', f'{t} information notée vue')

@@ -11,7 +11,7 @@
 'use strict';
 
 const PROGRESS_SUMMARY_RECORDS = 3;   // fiche : records listés, les suivants comptés (« Et 2 autres records »)
-const PROGRESS_SORT_FOOT = 'En haut, les nouveautés à lire, puis les élèves à relancer, puis ceux qui ont battu un record ces 7 derniers jours, puis les autres. Tes élèves ne se voient pas entre eux.';
+const PROGRESS_SORT_FOOT = 'Ordre : nouveautés à lire, élèves à relancer, records des 7 derniers jours, puis les autres. Tes élèves ne se voient pas entre eux.';
 
 // Signal d'une ligne : « 2 records en 7 jours » (médaille), « 9 jours sans séance » (à relancer)…
 // À relancer : un triangle d'alerte devant le texte, au texte courant (l'orange reste à l'action, le rouge aux muscles)
@@ -58,7 +58,7 @@ function studentDays(st, now = Date.now()) {
 function studentDaysHtml(days) {
   if (!days) return '';
   const n = days.filter(Boolean).length;
-  return `<span class="cstu__days" aria-hidden="true">${days.map((x, i) => `<span class="cstu__day${x ? ' cstu__day--on' : ''}${i === 6 ? ' cstu__day--today' : ''}"></span>`).join('')}</span><span class="visually-hidden">, ${n ? `${plural(n, 'jour', 'jours')} d'entraînement sur les 7 derniers` : 'aucune séance ces 7 derniers jours'}</span>`;
+  return `<span class="cstu__days" aria-hidden="true">${days.map((x, i) => `<span class="cstu__day${x ? ' cstu__day--on' : ''}${i === 6 ? ' cstu__day--today' : ''}"></span>`).join('')}</span><span class="visually-hidden">, ${n ? `${plural(n, 'jour', 'jours')} de séance sur les 7 derniers` : 'aucune séance ces 7 derniers jours'}</span>`;
 }
 // Vignette (ou avatar seul) de la carte
 function studentPicHtml(st) {

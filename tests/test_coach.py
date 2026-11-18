@@ -195,14 +195,14 @@ def t_eleve(bench, eng, dev, theme):
         page.wait_for_selector('.coach-join-view')
         txt = page.inner_text('.coach-join-view')
         R.check('max' in txt and 'ce que max verra' in txt.lower() and 'masquées' in txt and 'poids' in txt, f'{t} aperçu : coach et ce qu\'il verra')
-        R.check('Des messages' in txt and 'Effacés quand le coaching s\'arrête' in txt, f'{t} aperçu : le coach pourra écrire des messages')
+        R.check('Des messages' in txt and 'Supprimés si le suivi s\'arrête' in txt, f'{t} aperçu : le coach pourra écrire des messages')
         R.check(ccalls(page, 'coach_preview')[-1] == {'code': 'K7M2QX9P'} and not ccalls(page, 'coach_join'), f'{t} aperçu sans rien créer')
         layout(page, t, 'aperçu du coach')
         shot(page, LOT, f'2-apercu-{t}')
         # Âge déclaré avant d'accepter (même règle que les amis)
         # Panel du 07/11 : « Jamais… ton poids » alors que le poids (et les mensurations) peuvent être partagés
         never = page.locator('.coach-join__item', has_text='Le reste').inner_text()
-        R.check('poids' not in never and 'Ton poids et tes mensurations' in txt and 'Partager avec mon coach' in txt and 'Des plans de nutrition' in txt,
+        R.check('poids' not in never and 'Poids et mensurations' in txt and 'Partager avec mon coach' in txt and 'Des plans de nutrition' in txt,
                 f'{t} aperçu : poids et mensurations « seulement si tu le choisis », plans diète listés')
         R.check(page.locator('[data-action="coach-accept"]').is_disabled() and page.get_attribute('[data-action="coach-accept"]', 'aria-describedby') == 'coachAgeHint',
                 f'{t} « Accepter » grisé, décrit par l\'interrupteur 15 ans')
@@ -226,7 +226,7 @@ def t_eleve(bench, eng, dev, theme):
         page.click('[data-action="coach-accept"]')
         page.wait_for_selector('.coach-view [data-action="coach-leave"]')
         R.check(page.evaluate(f"__sb.co.links.some(l => l.coach === '{ids['max']}' && l.student === __sb.meId())"), f'{t} lien créé')
-        R.check("C'est fait" in page.inner_text('.ios-dialog') and 'Social › Mon coach' in page.inner_text('.ios-dialog'), f'{t} message de bienvenue')
+        R.check('est ton coach' in page.inner_text('.ios-dialog') and 'Social › Mon coach' in page.inner_text('.ios-dialog'), f'{t} message de bienvenue')
         tap_dialog(page, 'OK')
         shot(page, LOT, f'3-reglages-suivi-{t}')
         # Le coach envoie un programme : badge et carte de l'accueil
@@ -579,14 +579,14 @@ def t_coach(bench, eng, dev, theme):
         codes = page.evaluate('coach.state.invites.map(i => i.code)')
         R.check(len(codes) == 1 and page.locator('.coach-invite').count() == 1, f'{t} code d\'invitation créé ({codes})')
         R.check(len(ccalls(page, 'coach_create_invite')) == 1, f'{t} double toucher : un seul code créé ({len(ccalls(page, "coach_create_invite"))})')
-        R.check('onglet Social › Rejoindre un coach' in page.evaluate(f"coachInviteText('{codes[0]}')") if codes else False, f'{t} invitation : dit où aller')
+        R.check('Social › Rejoindre un coach' in page.evaluate(f"coachInviteText('{codes[0]}')") if codes else False, f'{t} invitation : dit où aller')
         layout(page, t, 'Mes élèves avec code')
         page.locator('.coach-team [data-action="coach-invite"]').evaluate("e => e.scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'12-invitation-{t}')
         R.check(page.evaluate(f"coachInviteText('{codes[0]}')").count(codes[0]) == 1 and ' - ' not in page.evaluate(f"coachInviteText('{codes[0]}')"), f'{t} texte d\'invitation')
         page.click('[data-action="coach-revoke-invite"]')
         page.wait_for_timeout(300)
-        tap_dialog(page, 'Retirer le code')
+        tap_dialog(page, 'Supprimer le code')
         page.wait_for_timeout(400)
         R.check(page.locator('.coach-invite').count() == 0, f'{t} code retiré')
         # Séances de Léa : vues à l'ouverture, « Ton programme », liste blanche
@@ -988,7 +988,7 @@ def t_demande_coach(bench, eng, dev, theme):
         page.wait_for_selector('.coach-req-view')
         page.wait_for_timeout(400)
         txt = page.inner_text('.coach-req-view')
-        R.check('réservé aux éducateurs sportifs diplômés titulaires d\'une carte professionnelle' in txt and 'ministère des Sports, sous 48 h' in txt,
+        R.check('réservé aux éducateurs sportifs diplômés, titulaires d\'une carte professionnelle' in txt and 'ministère des Sports, sous 48 h' in txt,
                 f'{t} demande : explication honnête')
         R.check(page.locator('#coachReqName').count() == 1 and page.locator('#coachReqCard').count() == 1
                 and page.locator('#coachReqDiploma option').count() == 8, f'{t} demande : nom, numéro de carte, diplôme')
@@ -1000,7 +1000,7 @@ def t_demande_coach(bench, eng, dev, theme):
         page.select_option('#coachReqDiploma', 'BPJEPS')
         page.click('[data-action="coach-request-send"]')
         page.wait_for_timeout(400)
-        R.check('Numéro de carte introuvable' in page.inner_text('#coachReqError')
+        R.check('Saisis 6 à 20 lettres et chiffres' in page.inner_text('#coachReqError')
                 and page.evaluate("__sb.calls.filter(c => c[0] === 'coach' && c[1] === 'coach_request_submit').length") == 0,
                 f'{t} numéro mal formé : refusé sans appel')
         page.fill('#coachReqCard', '049 12 ED 0123')
@@ -1031,7 +1031,7 @@ def t_demande_coach(bench, eng, dev, theme):
         page.wait_for_timeout(800)
         txt = page.inner_text('.coach-view')
         code = page.evaluate("coachPro.code")
-        R.check(code and len(code) == 12 and formatted(code) in txt and 'sans date de fin' in txt and 'abonnement coach' in txt.lower(),
+        R.check(code and len(code) == 12 and formatted(code) in txt and 'Code permanent' in txt and 'abonnement coach' in txt.lower(),
                 f'{t} coach validé : code permanent et abonnement ({code})')
         layout(page, t, 'Réglages › Coach validé')
         shot(page, LOT, f'32-coach-valide-{t}')

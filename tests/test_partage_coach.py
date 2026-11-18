@@ -142,7 +142,7 @@ def t_eleve(bench, eng, dev, theme):
         R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'false', f'{t} case du poids, décochée')
         R.check(page.locator('[data-action="coach-share-toggle"]').count() == 2, f'{t} deux cases : poids et mensurations (docs/COACH_SUIVI.md)')
         R.check('Sommeil' not in txt and 'Pas' not in txt.replace('Partager', '') and 'cardiaque' not in txt, f'{t} sommeil, pas, FC : pas encore affichés')
-        R.check('date et le poids de chaque pesée' in txt and 'données de Santé' in txt and 'arrêter à tout moment' in txt and 'effacé du serveur' in txt,
+        R.check('date et le poids de chaque pesée' in txt and 'données Santé' in txt and 'arrêter à tout moment' in txt and 'supprimé du serveur' in txt,
                 f'{t} texte : ce que le coach verra, rien de Santé, révocable')
         layout(page, t, 'Partager (décoché)')
         shot(page, LOT, f'1-partager-off-{t}')

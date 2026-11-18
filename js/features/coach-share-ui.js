@@ -37,7 +37,7 @@ function coachShareStatusText(st, kind = 'weight') {
   const [one, many, none] = kind === 'measures' ? ['mesure partagée', 'mesures partagées', 'aucune mensuration'] : ['pesée partagée', 'pesées partagées', 'aucune pesée'];
   return st.n ? `${plural(st.n, one, many)}${since}` : `Partagé${since}, ${none} pour l'instant`;
 }
-const SHARE_OFF_SUB = { weight: 'Tes pesées saisies dans l\'app', measures: 'Taille, bras, cuisses… notés dans Progrès › Mesures' };
+const SHARE_OFF_SUB = { weight: 'Tes pesées saisies dans l\'app', measures: 'Taille, bras, cuisses… notés dans Progrès › Mensurations' };
 
 function renderCoachShare() {
   const head = navBar({ title: 'Partager', large: false });
@@ -65,20 +65,18 @@ function renderCoachShare() {
   const emptyM = coachShareOn('measures') && !Object.keys(sharedMeasuresPayload()).length;
   const hint = fromHealth || empty || emptyM ? `<div class="group-foot">${[
     fromHealth ? 'Les pesées lues dans Santé ne sont jamais partagées.' : '',
-    empty ? 'Aucune pesée saisie dans l\'app pour l\'instant : ajoute ton poids dans Réglages › Entraînement › Poids du corps.' : '',
-    emptyM ? 'Aucune mensuration pour l\'instant : ajoute-les dans Progrès › Mesures.' : '',
+    empty ? 'Aucune pesée saisie dans l\'app. Ajoute ton poids dans Réglages › Entraînement › Poids du corps.' : '',
+    emptyM ? 'Aucune mensuration. Ajoute-les dans Progrès › Mensurations.' : '',
   ].filter(Boolean).join(' ')}</div>` : '';
   const sees = withM
-    ? `ce que tu coches, et seulement ça : la date et le poids de chaque pesée que tu saisis dans l'app (le volume de tes séances comptera alors ton poids du corps), la date et la valeur de chaque mensuration. Tes photos restent dans ton coffre, sauf celles que tu envoies toi-même, une à une (Mon coach › Photos de bilan). Jamais tes données de Santé.`
-    : `${name} verra la date et le poids de chaque pesée que tu saisis dans l'app, et le volume de tes séances comptera ton poids du corps. Rien d'autre : ni mensurations, ni données de Santé ; tes photos seulement si tu les envoies toi-même.`;
+    ? `seulement ce que tu coches : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration. Avec les pesées, le volume de tes séances compte ton poids du corps. Jamais tes données Santé. Tes photos ne partent que si tu les envoies.`
+    : `${name} verra la date et le poids de chaque pesée saisie dans l'app. Le volume de tes séances comptera ton poids du corps. Jamais tes données Santé.`;
   return view(`
         ${coachTitle(`Avec ${name}`)}
         <div class="group">${cells}
         </div>
-        <div class="group-foot">${withM ? `${name} voit ` : ''}${sees} Tes amis ne voient rien de tout ça.</div>
-        <div class="group-foot">Tout est décoché tant que tu ne le coches pas. ${withM
-    ? `Tu peux arrêter à tout moment, donnée par donnée : ce que tu décoches est alors effacé du serveur et ${name} ne le voit plus, même ce qu'il avait déjà vu.`
-    : `Tu peux arrêter à tout moment : tes pesées sont alors effacées du serveur et ${name} ne les voit plus, même celles qu'il avait déjà vues.`} Quitter ton coach arrête aussi le partage.</div>
+        <div class="group-foot">${withM ? `${name} voit ` : ''}${sees} Tes amis ne voient rien.</div>
+        <div class="group-foot">Rien n'est coché par défaut. Tu peux arrêter à tout moment : ce que tu décoches est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ton coach arrête aussi le partage.</div>
         ${hint}
         ${cphMineCellHtml()}`);
 }
@@ -95,11 +93,11 @@ function coachWeightGroupHtml(uid, who) {
     if (!f.loadedAt || f.error) return '';
     return `
         <div class="group-title">Poids du corps</div>
-        <div class="group"><div class="cell coach-weight-off"><span class="cell__body"><span class="cell__sub">${who} ne partage pas son poids. Ce partage se règle de son côté, dans Réglages › Social et coach › Partager avec mon coach.</span></span></div></div>`;
+        <div class="group"><div class="cell coach-weight-off"><span class="cell__body"><span class="cell__sub">${who} ne partage pas son poids. Le réglage est de son côté : Réglages › Social et coach › Partager avec mon coach.</span></span></div></div>`;
   }
   const unit = unitLbl();
   const since = f.since ? ` depuis le ${esc(fmtDate(f.since, 'short'))}` : '';
-  const foot = `<div class="group-foot">${who} partage son poids avec toi et peut arrêter à tout moment : tout disparaît alors.${since ? ` Partagé${since}.`.replace('..', '.') : ''}</div>`;
+  const foot = `<div class="group-foot">${who} partage son poids avec toi. Ces données disparaissent si le partage s'arrête.${since ? ` Partagé${since}.`.replace('..', '.') : ''}</div>`;
   if (!f.weights.length) {
     return `
         <div class="group-title">Poids du corps</div>
@@ -181,7 +179,7 @@ function renderCoachMeasures(uid) {
   return view(`
         ${coachTitle(`Bilan ${elide('de', who)}`)}
         <div class="group">${rows || '<div class="cell"><span class="cell__sub">Aucune mensuration pour l\'instant.</span></div>'}</div>
-        <div class="group-foot">${who} partage ses mensurations avec toi${f.since ? ` depuis le ${esc(fmtDate(f.since, 'short'))}` : ''} et peut arrêter à tout moment : tout disparaît alors. En ${unit === 'in' ? 'pouces' : 'centimètres'}.</div>`);
+        <div class="group-foot">${who} partage ses mensurations avec toi${f.since ? ` depuis le ${esc(fmtDate(f.since, 'short'))}` : ''}. Elles disparaissent si le partage s'arrête. En ${unit === 'in' ? 'pouces' : 'centimètres'}.</div>`);
 }
 SCREENS.set('coach-measures', {
   render: uid => renderCoachMeasures(uid),
@@ -250,6 +248,6 @@ registerActions({
     if (!r.ok) { if (r.kind !== 'busy') showToast(coachErrorText(r.kind), { error: true }); return; }
     const m = kind === 'measures';
     if (r.uploadFailed) showToast(r.uploadFailed === 'offline' ? `Partage activé. Tes ${m ? 'mensurations' : 'pesées'} partiront avec du réseau.` : coachErrorText(m && r.uploadFailed === 'invalid_data' ? 'invalid_measures' : r.uploadFailed), { error: r.uploadFailed !== 'offline' });
-    else showToast(on ? (m ? 'Mensurations partagées avec ton coach' : 'Poids partagé avec ton coach') : `Partage arrêté, ${m ? 'mensurations' : 'pesées'} effacées du serveur`);
+    else showToast(on ? (m ? 'Mensurations partagées avec ton coach' : 'Poids partagé avec ton coach') : `Partage arrêté, ${m ? 'mensurations' : 'pesées'} supprimées du serveur`);
   },
 });

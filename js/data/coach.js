@@ -210,7 +210,7 @@ function coachInviteText(code) {
   const offered = paywallOn() && typeof coachPro !== 'undefined' && !!coachPro.tier?.product_id;
   const end = c.length !== 12 ? 'Il est valable 7 jours.'
     : offered ? 'Avec ce code, tu n\'as rien à payer : ton accès est compris dans mon abonnement coach.' : 'Ce code n\'expire pas.';
-  return `Je te propose de te suivre sur MDLF Training. Dans l'app MDLF Training : onglet Social › Rejoindre un coach, puis saisis le code ${shown}. ${end}`;
+  return `Je te propose de te suivre sur MDLF Training. Dans l'app : Social › Rejoindre un coach, puis saisis le code ${shown}. ${end}`;
 }
 // Code permanent : K7M2QX9PR4TD → K7M2-QX9P-R4TD (les tirets sont ignorés à la saisie)
 function formatCoachCode(code) {
@@ -249,7 +249,7 @@ const COACH_ERROR_TEXT = {
   team_full: 'Ce coach suit déjà 50 élèves.',
   tier_full: 'Ton coach a atteint la limite de son abonnement : il doit passer au palier supérieur.',
   not_found: 'Introuvable : ce code est peut-être le tien, ou l\'élève ne te suit plus.',
-  rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
+  rate_limited: 'Trop d\'essais. Réessaie dans une heure.',
   // Envoi d'un programme ou d'un plan diète : limite glissante sur 24 h (20261117020000_charge_coach.sql, point 3)
   send_rate: 'Limite d\'envoi atteinte : 30 envois plus 2 par élève, sur 24 heures. Réessaie dans 24 h.',
   too_long: 'Texte trop long.',
@@ -271,19 +271,19 @@ const COACH_ERROR_TEXT = {
   // Photos de bilan (js/data/coach-photos.js)
   not_ready: 'Ton coach n\'a pas encore activé la réception des photos.',
   key_changed: 'Ton coach a changé de clé : réessaie.',
-  key_exists: 'La réception des photos est déjà activée sur un autre appareil.',
+  key_exists: 'La réception des photos est déjà activée sur un autre iPhone.',
   invalid_photo: 'Cette photo ne peut pas être envoyée.',
   not_uploaded: 'Envoi interrompu, rien n\'est resté sur le serveur. Réessaie.',
   invalid_key: 'Clé illisible : réessaie.',
   not_adult: 'Les photos de bilan sont réservées aux 18 ans et plus.',
-  disabled: 'Les photos de bilan ne sont pas disponibles pour l\'instant.',
+  disabled: 'Les photos de bilan sont indisponibles en ce moment.',
   // Messages (js/data/coach-chat.js)
   empty_message: 'Écris quelque chose avant d\'envoyer.',
   busy: 'Envoi déjà en cours.',
   missing: 'Pas encore disponible : réessaie après la prochaine mise à jour.',
   age_limited: 'Le contrôle parental de cet iPhone limite les échanges : les messages ne sont pas disponibles.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
-  server: 'Action impossible pour l\'instant, réessaie dans un moment.',
+  server: 'Action impossible. Réessaie dans un moment.',
 };
 function coachErrorText(kind) { return COACH_ERROR_TEXT[kind] || COACH_ERROR_TEXT.server; }
 

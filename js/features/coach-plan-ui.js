@@ -145,7 +145,7 @@ function renderCoachPlanning() {
   const view = body => `<div class="view view--grouped coach-planning-view">${head}<div class="scr">${body}</div></div>`;
   const st = coach.state;
   if (!st || !planAvailable()) return view(plan.coachError || coach.error ? coachOfflineNote(plan.coachError || coach.error, 'Pas d\'Internet. Le planning s\'affichera quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>');
-  if (!st.students.length) return view('<div class="empty-note">Aucun élève pour l\'instant. Invite ton premier élève depuis Mes élèves.</div>');
+  if (!st.students.length) return view('<div class="empty-note">Aucun élève. Invite-en un depuis Mes élèves.</div>');
   const today = planToday(), t = planDayNum(today);
   // Fenêtre : du lundi de la semaine d'il y a 3 semaines, sur 16 semaines
   const monday = t - ((new Date(t * 86_400_000).getUTCDay() + 6) % 7);

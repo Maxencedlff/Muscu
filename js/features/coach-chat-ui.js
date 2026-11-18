@@ -40,8 +40,8 @@ function chatListHtml(key) {
   if (!c.rows.length) {
     if (c.loading || (!c.loadedAt && !c.error)) return '<p class="chat-empty">Chargement…</p>';
     if (c.error) return coachOfflineNote(c.error, 'Pas d\'Internet. Les messages s\'afficheront quand le réseau reviendra.');
-    return `<p class="chat-empty">${key === CHAT_COACH ? 'Écris à ton coach : une question, ton ressenti, une gêne pendant une séance.'
-      : 'Écris à ton élève : un encouragement, une consigne, une question.'}</p>`;
+    return `<p class="chat-empty">${key === CHAT_COACH ? 'Pose une question ou signale une gêne en séance.'
+      : 'Envoie une consigne ou une question à ton élève.'}</p>`;
   }
   let day = '', html = '';
   for (const m of c.rows) {
@@ -75,7 +75,7 @@ function renderCoachChat(key) {
   if (chatHiddenByAge()) return `<div class="view view--grouped coach-chat-view">${head}<div class="scr"><div class="empty-note">${coachErrorText('age_limited')}</div></div></div>`;
   if (!p) {
     return `<div class="view view--grouped coach-chat-view">${head}<div class="scr"><div class="empty-note">${coach.state
-      ? (key === CHAT_COACH ? 'Tu n\'as plus de coach : les messages ont été effacés.' : 'Cette personne ne fait plus partie de tes élèves : les messages ont été effacés.')
+      ? (key === CHAT_COACH ? 'Tu n\'as plus de coach. Les messages ont été supprimés.' : 'Cette personne ne fait plus partie de tes élèves. Les messages ont été supprimés.')
       : 'Chargement…'}</div></div></div>`;
   }
   const c = chatConv(key), draft = chatDrafts[key] || '';
@@ -83,8 +83,7 @@ function renderCoachChat(key) {
     <div class="view view--grouped coach-chat-view">
       ${head}
       <div class="scr chat">
-        <p class="chat-intro">${esc(key === CHAT_COACH ? `Messages avec ton coach ${name}. Vous seuls les lisez.` : `Messages avec ${name}. Vous seuls les lisez.`)}
-          Ils sont effacés si le coaching s'arrête.</p>
+        <p class="chat-intro">Vous seuls lisez ces messages. Ils sont supprimés si le suivi s'arrête.</p>
         <div id="chatPushLine">${chatPushLineHtml()}</div>
         <div class="chat-list" id="chatList" role="log" aria-live="polite" aria-relevant="additions">${chatListHtml(key)}</div>
         <div class="chat-compose">
@@ -187,13 +186,13 @@ async function chatMenu(key) {
   const choice = await dialog({ type: 'sheet', title: name, actions: [{ label: `Signaler ${name}`, value: 'report', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
   if (choice !== 'report') return;
   const reason = await dialog({ type: 'sheet', title: `Signaler ${name}`,
-    message: `Pourquoi ? ${name} ne saura pas que c'est toi. Les 50 derniers messages de la conversation sont joints au signalement pour l'équipe de modération.`,
+    message: `Pourquoi ? ${name} ne saura pas que c'est toi. Les 50 derniers messages sont joints pour l'équipe de modération.`,
     actions: [...REPORT_REASONS.map(x => ({ label: x.label, value: x.reason })), { label: 'Annuler', style: 'cancel' }] });
   if (!reason) return;
   const r = await chatReport(key, reason);
   if (!r.ok) { showToast(r.kind === 'report_rate' ? socialErrorText(r.kind) : coachErrorText(r.kind), { error: true }); return; }
   haptic();
-  await dialog({ title: 'Signalement envoyé', message: `Merci. Il sera traité sous 24 heures. La copie des messages est gardée même si le coaching s'arrête. ${key === CHAT_COACH
+  await dialog({ title: 'Signalement envoyé', message: `Il sera traité sous 24 heures. La copie des messages est gardée même si le suivi s'arrête. ${key === CHAT_COACH
     ? 'Pour ne plus échanger avec ton coach : Mon coach › Quitter mon coach.' : 'Pour ne plus échanger avec cet élève, retire-le depuis sa fiche.'}`,
     actions: [{ label: 'OK', style: 'preferred' }] });
 }
@@ -280,13 +279,13 @@ function chatInboxScreenHtml() {
   const st = coach.state;
   if (!st) return `<div id="chatInbox">${coach.error ? coachOfflineNote(coach.error, 'Pas d\'Internet. Tes messages s\'afficheront quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>'}</div>`;
   if (!chatAvailable()) return `<div id="chatInbox"><div class="empty-note">${chatHiddenByAge() ? esc(coachErrorText('age_limited')) : 'Les messages ne sont pas encore disponibles.'}</div></div>`;
-  if (!st.students.length) return '<div id="chatInbox"><div class="empty-note">Tes conversations avec tes élèves s\'afficheront ici.</div></div>';
+  if (!st.students.length) return '<div id="chatInbox"><div class="empty-note">Les conversations avec tes élèves s\'affichent ici.</div></div>';
   return `<div id="chatInbox">
         <div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="chatSearch" class="search social-search__input" placeholder="Rechercher" aria-label="Rechercher un élève par son pseudo"
             autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(chatInboxQ)}"></div>
         ${chat.error && !chat.threads ? `<p class="social-inline-error" role="status">${esc(chat.error === 'offline' ? 'Pas d\'Internet : pas à jour.' : coachErrorText(chat.error))}</p>` : ''}
         <div class="group chat-inbox" id="chatRows">${chatInboxRowsHtml()}</div>
-        ${chatPushOff.ids?.size ? `<div class="group-foot">${icon('bell.slash', 13)} : notifications coupées chez cet élève, il verra tes messages en ouvrant l'app.</div>` : ''}
+        ${chatPushOff.ids?.size ? `<div class="group-foot">${icon('bell.slash', 13)} : notifications coupées chez cet élève. Il verra tes messages en ouvrant l'app.</div>` : ''}
       </div>`;
 }
 // Liste seule (relecture, recherche) ; segment Messages affiché seulement
@@ -332,7 +331,7 @@ function chatIntroHtml() {
   return `
         <div class="group">
           <div class="cell coach-lost chat-intro-note" role="status">
-            <span class="cell__body"><span class="cell__title">Ton coach peut t'écrire</span><span class="cell__sub">Messages texte seul, que vous seuls lisez, effacés quand le coaching s'arrête. Un message te gêne ? Signale-le depuis la conversation, ou quitte ton coach.</span></span>
+            <span class="cell__body"><span class="cell__title">Ton coach peut t'écrire</span><span class="cell__sub">Un message te gêne ? Signale-le depuis la conversation.</span></span>
             <button class="social-x" data-action="chat-intro-ok" aria-label="OK, fermer">${icon('xmark', 14)}</button>
           </div>
         </div>`;
@@ -360,7 +359,7 @@ function chatCellHtml(key) {
   const th = chatThreadOf(key), n = chatUnreadOf(key);
   // Nom lu par VoiceOver = texte du bouton (« Messages, 2 non lus, » puis le dernier message) : pas d'aria-label,
   // qui cachait le dernier message affiché
-  const last = th?.last ? `${th.last.mine ? 'Toi : ' : ''}${th.last.body.replace(/\s+/g, ' ')}` : 'Aucun message pour l\'instant';
+  const last = th?.last ? `${th.last.mine ? 'Toi : ' : ''}${th.last.body.replace(/\s+/g, ' ')}` : 'Aucun message';
   return `
         <div class="group">
           <button class="cell cell--nav chat-cell" data-action="chat-open" data-key="${esc(key)}">

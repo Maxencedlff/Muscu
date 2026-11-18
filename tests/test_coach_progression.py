@@ -158,7 +158,7 @@ def t_liste(bench, eng, dev, theme):
         lines = row_lines(page)
         R.check(lines and max(lines) <= 3, f'{t} 3 lignes au plus par élève ({lines})')
         foot = page.locator('.coach-students-view .group-foot').first.inner_text()
-        R.check(foot.startswith('En haut, les nouveautés à lire, puis les élèves à relancer') and ' - ' not in foot, f'{t} règle du tri sous la liste ({foot!r})')
+        R.check(foot.startswith('Ordre') and 'élèves à relancer' in foot and ' - ' not in foot, f'{t} règle du tri sous la liste ({foot!r})')
         R.check(len(ccalls(page, 'coach_progress')) == 1, f'{t} un seul appel pour tous les élèves')
         R.check(not ccalls(page, 'coach_student_sessions'), f'{t} aucune page de séances lue pour la liste')
         layout(page, t, 'Mes élèves')

@@ -328,7 +328,7 @@ def t_mesures_eleve(bench, eng, dev, theme):
         m = page.locator('[data-action="coach-share-toggle"][data-kind="measures"]')
         txt = page.inner_text('.coach-share-view')
         R.check(m.get_attribute('aria-checked') == 'false' and ccalls(page, 'student_share_measures') == [], f'{t} mensurations : décochées par défaut, rien d\'envoyé')
-        R.check('chaque mensuration' in txt and 'photos' in txt and 'effacé du serveur' in txt, f'{t} texte : ce que voit le coach, pas les photos, révocable')
+        R.check('chaque mensuration' in txt and 'photos' in txt and 'supprimé du serveur' in txt, f'{t} texte : ce que voit le coach, pas les photos, révocable')
         layout(page, t, 'Partager (mensurations)')
         shot(page, LOT, f'9-partager-mensurations-{t}')
         m.click()
@@ -357,7 +357,7 @@ def t_mesures_eleve(bench, eng, dev, theme):
         page.click('[data-action="coach-share-toggle"][data-kind="measures"]')
         page.wait_for_timeout(400)
         R.check(page.evaluate(f"__sb.co.measures['{me}']") is None and page.evaluate('__sb.co.shares.length') == 0, f'{t} décocher : mensurations effacées')
-        R.check('effacées du serveur' in toast(page), f'{t} toast ({toast(page)!r})')
+        R.check('supprimées du serveur' in toast(page), f'{t} toast ({toast(page)!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

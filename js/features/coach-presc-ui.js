@@ -78,7 +78,7 @@ function renderCoachPresc(uid) {
           <label class="cell cell--ctl"><span class="cell__body"><span class="cell__title">Série ${i + 1}</span>${tag ? `<span class="cell__sub">${esc(tag)}</span>` : ''}</span>${inKg(`cpSet${i}`, v, `Charge de la série ${i + 1}${tag ? `, ${tag}` : ''}, en ${u === 'kg' ? 'kilos' : 'livres'}`, d.load || '—', `data-i="${i}"`)}</label>`;
         }).join('')}
         </div>
-        <div class="group-foot">Vide : la charge de toutes les séries. Utile pour un top set plus lourd et des back-off allégés.</div>` : '';
+        <div class="group-foot">Vide : la charge de toutes les séries. Utile pour une série plus lourde suivie de séries allégées.</div>` : '';
   return `
     <div class="view view--grouped coach-presc-view">
       ${navBar({ title: 'Charge et reps', large: false,
@@ -96,7 +96,7 @@ function renderCoachPresc(uid) {
         <div class="group">
           <label class="cell cell--ctl"><span class="cell__body"><span class="cell__title">Toutes les séries</span></span>${inKg('cpLoad', d.load, `Charge de toutes les séries, en ${u === 'kg' ? 'kilos' : 'livres'}`)}</label>${lastCell}
         </div>
-        <div class="group-foot">Facultatif. Vide : ${who} part de sa charge de la dernière fois. De 0 à ${prescUnitMax()} ${u}, ${u === 'kg' ? 'demi-kilos' : 'demi-livres'} acceptés. Il peut toujours noter ce qu'il a vraiment fait : tu verras l'écart dans ses séances.</div>
+        <div class="group-foot">Facultatif. Vide : ${who} reprend sa charge de la dernière fois. De 0 à ${prescUnitMax()} ${u}, ${u === 'kg' ? 'demi-kilos' : 'demi-livres'} acceptés. L'écart avec ce qui est fait s'affiche dans ses séances.</div>
         ${perSet}
       </div>
     </div>`;

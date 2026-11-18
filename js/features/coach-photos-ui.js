@@ -332,7 +332,7 @@ function renderCphCoach(uid) {
   }
   const f = cphStudentOf(uid), list = f.photos.filter(x => cphUrls.has(x.id));
   const days = cphDays(list);
-  const foot = `<div class="group-foot">Envoyées par ${who}, chiffrées pour toi uniquement. ${who} peut les retirer, et elles disparaissent si le coaching s'arrête. Sans son accord écrit, ne les enregistre pas et ne les partage pas.${cphCoach.session?.code ? ` Code de ta clé : <span class="num cph-code">${esc(cphCoach.session.code)}</span>. ${who} voit le même dans son app.` : ''}</div>`;
+  const foot = `<div class="group-foot">Envoyées par ${who}, chiffrées pour toi uniquement. ${who} peut les retirer, et elles disparaissent si le suivi s'arrête. Sans son accord écrit, ne les enregistre pas et ne les partage pas.${cphCoach.session?.code ? ` Code de ta clé : <span class="num cph-code">${esc(cphCoach.session.code)}</span>. ${who} voit le même dans son app.` : ''}</div>`;
   if (!days.length) {
     const msg = f.loading || cphView.done < f.photos.length ? 'Ouverture des photos…' : f.photos.length ? 'Ces photos ne s\'ouvrent pas sur cet iPhone.' : `${who} ne t'a pas encore envoyé de photo.`;
     return view(`<h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1><p class="scr-sub">${who}</p><div class="empty-note">${msg}</div>${foot}`);
