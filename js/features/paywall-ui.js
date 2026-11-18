@@ -101,7 +101,7 @@ function payCoverNote() {
   }
   if (mine) return null;
   return { tone: 'warn', text: cover.state === 'over_limit'
-    ? `${who} suit plus d'élèves que sa formule n'en compte : l'accès n'est plus offert. Il peut changer de formule, ou tu peux t'abonner.`
+    ? `${who} suit plus d'élèves que sa formule n'en compte : l'accès n'est plus offert. Une formule plus grande le rétablit, ou tu peux t'abonner.`
     : `${who} n'a pas d'abonnement coach en cours : l'accès n'est pas offert. Tu peux t'abonner, l'historique reste là.` };
 }
 // Élève couvert par son coach qui a encore son propre abonnement (ou essai) chez Apple : seul Apple peut l'arrêter.
@@ -186,7 +186,7 @@ function payCodeSheet() {
       const input = panel.querySelector('#payCode'), help = panel.querySelector('#payCodeHelp');
       const btn = panel.querySelector('.sheet__btn--confirm');
       const fail = msg => { help.textContent = msg; help.classList.add('coach-sheet__hint--bad'); input.setAttribute('aria-invalid', 'true'); haptic('medium'); return false; };
-      if (!normalizeGiftCode(input.value)) return fail('Code trop court : il compte au moins 10 lettres et chiffres.');
+      if (!normalizeGiftCode(input.value)) return fail('Saisis au moins 10 lettres et chiffres.');
       btn.disabled = true; btn.textContent = 'Vérification…';
       const r = await accessRedeemGiftCode(input.value);
       btn.disabled = false; btn.textContent = 'Valider';
