@@ -33,8 +33,9 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(foods.url, 'https://doi.org/10.57745/RDMHWY');
     loadDb();
     const n = run('foodDb.foods.length');
-    assert.ok(n > 3000 && n === foods.foods.length, `toutes les lignes acceptées (${n})`);
-    sameJSON(run(`foodDb.byCode.get(${RIZ_CUIT}).per`), { k: 155, p: 3.3, c: 33.2, f: 0.7 }, 'riz blanc cuit : valeurs Ciqual non retouchées, protéines N × 6,25');
+    assert.ok(n > 3000 && n === foods.foods.length + foods.alias.length, `toutes les lignes acceptées, alias compris (${n})`);
+    assert.equal(run('foodDb.byCode.size'), foods.foods.length, 'alias hors de byCode');
+    sameJSON(run(`foodDb.byCode.get(${RIZ_CUIT}).per`), { k: 155, p: 3.3, c: 33.2, f: 0.7, s: 0.05 }, 'riz blanc cuit : valeurs Ciqual non retouchées, protéines N × 6,25, sel 0,045 g arrondi à 0,05');
     assert.equal(run(`foodDb.byCode.get(${RIZ_CUIT}).fam`), 'f');
     assert.equal(run(`foodDb.byCode.get(${POULET_GRILLE}).fam`), 'v');
     // Aucun aliment infantile (groupe 11), aucune ligne sans protéines, glucides ou lipides connus
@@ -411,16 +412,17 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run(`data.dietLog['${day}'].extras`), undefined);
   });
 
-  test('équivalences : même famille, calories ou protéines gardées, macros proches, quantité pesable', () => {
+  test('équivalences : même famille, macro principal gardé, macros proches, quantité pesable', () => {
     loadDb();
-    // Féculent : mêmes calories, à 15 % près ; chaque macro à 25 % (5 g au moins)
+    // Féculent : mêmes glucides (18/11), calories à 20 % près ; chaque macro à 25 % (5 g au moins)
     const riz = item(RIZ_CUIT, 150), ref = run(`dietItemMacros(${JSON.stringify(riz)})`);
-    assert.equal(run(`swapRuleText(${JSON.stringify(riz)})`), 'Mêmes calories');
+    assert.equal(run(`swapRuleText(${JSON.stringify(riz)})`), 'Même quantité de glucides');
     const c1 = run(`swapCandidates(${JSON.stringify(riz)})`);
     assert.ok(c1.length >= 5 && c1.length <= 10, `${c1.length} remplaçants`);
     for (const c of c1) {
       assert.equal(c.food.fam, 'f', `${c.food.name} : même famille`);
-      assert.ok(Math.abs(c.macros.kcal - ref.kcal) <= Math.max(30, 0.15 * ref.kcal), `${c.food.name} : calories proches`);
+      assert.ok(Math.abs(c.macros.c - ref.c) <= 2.5, `${c.food.name} : glucides gardés (${c.macros.c.toFixed(1)} / ${ref.c.toFixed(1)})`);
+      assert.ok(Math.abs(c.macros.kcal - ref.kcal) <= Math.max(30, 0.2 * ref.kcal), `${c.food.name} : calories proches`);
       for (const k of ['p', 'c', 'f']) assert.ok(Math.abs(c.macros[k] - ref[k]) <= Math.max(5, 0.25 * ref[k]) + 1e-9, `${c.food.name} : ${k} proche`);
       assert.ok(c.g >= 50 ? c.g % 5 === 0 : Number.isInteger(c.g), `${c.food.name} : ${c.g} g, arrondi pesable`);
       assert.ok(c.g >= 150 / 4 && c.g <= 150 * 4);

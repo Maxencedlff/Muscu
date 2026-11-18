@@ -47,6 +47,10 @@ const DIET_BASE_KEYS = ['b', 'l', 's', 'd'];
 // Repère de santé (NICE NG246, 2025) : sous 1 200 kcal par jour, un régime relève d'un suivi médical.
 // L'app le dit sans rien bloquer (dietLowKcal)
 const DIET_LOW_KCAL = 1200;
+const DIET_SALT_T = [0.5, 15];   // objectif de sel du plan, g par jour
+// Repère de l'OMS pour un adulte : moins de 5 g de sel par jour (fiche « Réduction de la consommation de sel »,
+// who.int/fr/news-room/fact-sheets/detail/salt-reduction). Seulement dit, jamais bloquant
+const DIET_SALT_WHO = 5;
 const DIET_SRC = ['ciqual-2025', 'perso', 'off'];   // origine des valeurs d'un aliment du plan (off : Open Food Facts, produit scanné)
 
 const dietIsObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
@@ -62,12 +66,14 @@ function dietCutName(v, max = DIET_FOOD_NAME_MAX) {
 
 // ── Nettoyage (sanitizeData, réception d'un plan de coach) ──
 
-// Valeurs pour 100 g : kcal 0 à 900, macros 0 à 100 g et 101 g au plus à elles trois (arrondis de Ciqual)
+// Valeurs pour 100 g : kcal 0 à 900, macros 0 à 100 g et 101 g au plus à elles trois (arrondis de Ciqual) ; s : sel
+// (g pour 100 g, facultatif : « Sel chlorure de sodium » de Ciqual, sel d'un produit scanné), absent s'il est inconnu
 function cleanDietPer(per) {
   if (!dietIsObj(per)) return null;
   const k = num(per.k, 0, 900), p = num(per.p, 0, 100), c = num(per.c, 0, 100), f = num(per.f, 0, 100);
   if ([k, p, c, f].includes(null) || p + c + f > 101) return null;
-  return { k: Math.round(k), p: dietR1(p), c: dietR1(c), f: dietR1(f) };
+  const salt = typeof per.s === 'number' ? num(per.s, 0, 100) : null;
+  return { k: Math.round(k), p: dietR1(p), c: dietR1(c), f: dietR1(f), ...(salt !== null ? { s: Math.round(salt * 100) / 100 } : {}) };
 }
 // Famille d'équivalence d'un aliment perso, tirée de ses macros (part de l'énergie) : protéines d'abord
 function dietFamOf(per) {
@@ -87,9 +93,11 @@ function cleanDietItem(it) {
   // src : valeurs de Ciqual 2025 ou saisies (aliment perso) ; ecalc : énergie calculée par l'app (Ciqual sans énergie)
   const src = DIET_SRC.includes(it.src) ? it.src : food ? 'ciqual-2025' : 'perso';
   const por = cleanDietPortion(it.por, Math.round(g));
+  // of : aliment Ciqual dont un alias tient ses valeurs (« Crème de riz » : « Farine de riz »), dit sous son nom
+  const of = food ? dietCutName(it.of) : '';
   return { id: typeof it.id === 'string' && DIET_PART_RE.test(it.id) ? it.id : uid(), name, food,
     fam: DIET_FAMS.includes(it.fam) ? it.fam : dietFamOf(per), g: Math.round(g), per, src, ...(it.ecalc === true ? { ecalc: true } : {}),
-    ...(por ? { por } : {}) };
+    ...(por ? { por } : {}), ...(of && of !== name ? { of } : {}) };
 }
 // Unité choisie pour afficher la quantité (« 2 œufs ») : { n, u, pl, g } (n unités de g grammes, js/data/food-portions.js).
 // Gardée seulement si elle redonne la quantité en grammes (à 1 g près) : it.g fait toujours foi
@@ -160,6 +168,13 @@ function cleanDietTargets(t) {
   // DIET_TARGET_KEYS (macros) : une app d'avant l'eau l'ignore sans rien casser
   const w = num(t.water, 0.5, 6);
   if (w !== null) out.water = Math.round(w * 20) / 20;
+  // Fourchette d'eau (18/11) : water reste le haut (lu seul par une app d'avant), waterMin le bas, plus petit
+  const wMin = out.water ? num(t.waterMin, 0.5, 6) : null;
+  if (wMin !== null && Math.round(wMin * 20) / 20 < out.water) out.waterMin = Math.round(wMin * 20) / 20;
+  // Sel (g par jour, fourchette facultative : l'un, l'autre ou les deux), au dixième de gramme
+  const sMin = num(t.saltMin, DIET_SALT_T[0], DIET_SALT_T[1]), sMax = num(t.saltMax, DIET_SALT_T[0], DIET_SALT_T[1]);
+  if (sMax !== null) out.saltMax = dietR1(sMax);
+  if (sMin !== null && (sMax === null || dietR1(sMin) < out.saltMax)) out.saltMin = dietR1(sMin);
   return Object.keys(out).length ? out : null;
 }
 // Plan : { name, meals, targets?, consigne?, archived?, fromCoach? }, null s'il est inutilisable
@@ -171,6 +186,8 @@ function cleanDietPlan(p) {
   const out = { name: dietText(p.name, DIET_NAME_MAX) || 'Plan de nutrition', meals };
   const targets = cleanDietTargets(p.targets);
   if (targets) out.targets = targets;
+  const days = cleanDietDays(p.days);
+  if (days) out.days = days;
   const consigne = cleanConsigne(p.consigne);   // store.js (résolu à l'appel)
   if (consigne) out.consigne = consigne;
   if (p.archived === true) out.archived = true;
@@ -182,6 +199,150 @@ function cleanDietPlan(p) {
   }
   return out;
 }
+// ── Jours du plan (18/11 : « jour on 2 300 kcal, jour off 2 000 kcal » ; vue sur 7 jours) ──
+// Le plan garde ses repas et objectifs au premier niveau : c'est le jour 1, le seul que lit une app d'avant (elle
+// affiche donc le lundi, ou le jour d'entraînement, tous les jours, sans rien casser). days, facultatif :
+//   { mode: 'session', more: [jour de repos] }                 l'app choisit selon la séance du jour (faite ou commencée)
+//   { mode: 'week', kinds: [7 × 't' | 'r'], more: [6 jours] }  lundi (premier niveau) puis mardi … dimanche, chacun marqué
+//                                                               entraînement (t) ou repos (r) par le coach
+// Chaque jour : { targets?, meals } ; les repas d'un jour copié gardent leurs identifiants (les coches du jour suivent
+// un changement entraînement / repos fait dans la journée)
+const DIET_DAY_MODES = { session: 1, week: 6 };
+const DIET_WEEKDAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+function cleanDietDayObj(x) {
+  const ids = new Set();
+  const meals = (Array.isArray(x?.meals) ? x.meals : []).slice(0, DIET_MEAL_MAX).map(cleanDietMeal).filter(Boolean)
+    .map(m => { delete m.hidden; while (ids.has(m.id)) m.id = uid(); ids.add(m.id); return m; });
+  const out = { meals };
+  const t = cleanDietTargets(x?.targets);
+  if (t) out.targets = t;
+  return out;
+}
+function cleanDietDays(v) {
+  if (!dietIsObj(v) || !Object.hasOwn(DIET_DAY_MODES, v.mode) || !Array.isArray(v.more)) return null;
+  const n = DIET_DAY_MODES[v.mode];
+  if (v.more.length < n) return null;
+  const out = { mode: v.mode, more: v.more.slice(0, n).map(cleanDietDayObj) };
+  if (v.mode === 'week') out.kinds = Array.from({ length: 7 }, (_, i) => (Array.isArray(v.kinds) && v.kinds[i] === 'r' ? 'r' : 't'));
+  return out;
+}
+// Jours du plan : [plan (jour 1), ...days.more] ; chaque jour a meals et targets (le premier est le plan lui-même)
+function dietPlanDays(plan) { return plan ? [plan, ...(plan.days?.more || [])] : []; }
+function dietDayObj(plan, i) { return dietPlanDays(plan)[i] || plan || null; }
+// Type d'un jour du plan : 't' (entraînement) ou 'r' (repos) ; plan d'un seul jour : null
+function dietDayKindAt(plan, i) {
+  const m = plan?.days?.mode;
+  if (m === 'session') return i === 0 ? 't' : 'r';
+  if (m === 'week') return plan.days.kinds[i] || 't';
+  return null;
+}
+// Nom d'un jour : « Jour d'entraînement », « Jour de repos », « Lundi »…
+function dietDayName(plan, i) {
+  const m = plan?.days?.mode;
+  if (m === 'session') return i === 0 ? 'Jour d\'entraînement' : 'Jour de repos';
+  if (m === 'week') return DIET_WEEKDAYS[i] || '';
+  return '';
+}
+const dietKindWord = k => (k === 'r' ? 'Repos' : k === 't' ? 'Entraînement' : '');
+// Lundi = 0 … dimanche = 6 d'une date AAAA-MM-JJ
+function dietWeekdayOf(day) { return (new Date(`${day}T12:00:00`).getDay() + 6) % 7; }
+// Séance ce jour-là : enregistrée à cette date, ou en cours aujourd'hui (même règle que l'eau, waterTrainingDay)
+function dietTrainedOn(d, day) {
+  const live = day === dietDayKey() && typeof activeSession !== 'undefined' && !!activeSession;
+  return live || (Array.isArray(d.history) ? d.history : []).some(h => Number.isFinite(h?.date) && localISO(h.date) === day);
+}
+// Jour du plan suivi pour une date : { i, kind, auto } ; session : le choix fait à la main ce jour-là (journal, kind),
+// sinon la séance du jour ; semaine : le jour de la semaine. e : entrée du journal à lire (par défaut celle du jour)
+function dietDayIndex(d, planId, day, e = d.dietLog?.[day]) {
+  const plan = d.dietPlans?.[planId], m = plan?.days?.mode;
+  if (m === 'week') { const i = dietWeekdayOf(day); return { i, kind: dietDayKindAt(plan, i), auto: false }; }
+  if (m !== 'session') return { i: 0, kind: null, auto: false };
+  const manual = e && e.plan === planId && (e.kind === 't' || e.kind === 'r') ? e.kind : null;
+  const kind = manual || (dietTrainedOn(d, day) ? 't' : 'r');
+  return { i: kind === 't' ? 0 : 1, kind, auto: !manual };
+}
+// Plan tel qu'il vaut ce jour-là : le plan, avec les repas et les objectifs du jour choisi (dayIndex, dayKind en plus)
+function dietDayPlan(d, planId, day, e) {
+  const plan = d.dietPlans?.[planId];
+  if (!plan?.days) return plan || null;
+  const { i, kind } = dietDayIndex(d, planId, day, e), o = dietDayObj(plan, i);
+  if (i === 0) return plan;
+  const view = { ...plan, meals: o.meals, dayIndex: i, dayKind: kind };
+  if (o.targets) view.targets = o.targets; else delete view.targets;
+  return view;
+}
+// Aliment prévu un jour ou l'autre du plan (tous les jours)
+function dietPlanHasItems(plan) { return dietPlanDays(plan).some(o => o.meals.some(m => m.items.length)); }
+// Change l'organisation des jours d'un plan : 'one' (un seul jour), 'session' ou 'week'. Les jours ajoutés sont des copies
+// du jour 1 (mêmes identifiants de repas et d'aliments) ; passer à un seul jour garde le jour 1. Renvoie l'ancien days
+// (pour Annuler)
+function dietSetDayMode(plan, mode) {
+  const before = plan.days ? JSON.parse(JSON.stringify(plan.days)) : null;
+  const copy = () => cleanDietDayObj(JSON.parse(JSON.stringify({ meals: dietShownMeals(plan), targets: plan.targets })));
+  if (mode === 'one') delete plan.days;
+  else if (mode === 'session') {
+    // Depuis la semaine : le premier jour marqué repos devient le jour de repos
+    const ri = plan.days?.mode === 'week' ? plan.days.kinds.indexOf('r') : -1;
+    const rest = ri > 0 ? cleanDietDayObj(JSON.parse(JSON.stringify(plan.days.more[ri - 1]))) : plan.days?.mode === 'session' ? plan.days.more[0] : copy();
+    plan.days = { mode: 'session', more: [rest] };
+  } else if (mode === 'week') {
+    plan.days = { mode: 'week', kinds: Array(7).fill('t'), more: Array.from({ length: 6 }, copy) };
+  }
+  return before;
+}
+// Copie le repas mealId du jour from vers les jours to : il remplace le repas du même nom (ou du même identifiant), sinon
+// il s'ajoute (place libre seulement). Renvoie l'état d'avant (dietRestoreDays) ou null
+function dietCopyMealToDays(plan, from, mealId, to) {
+  const src = dietDayObj(plan, from)?.meals.find(m => m.id === mealId);
+  if (!src) return null;
+  const before = dietDaysSnapshot(plan);
+  let n = 0;
+  for (const i of to) {
+    const o = dietDayObj(plan, i);
+    if (!o || i === from) continue;
+    const k = dietNameKey(src.name), j = o.meals.findIndex(m => m.id === src.id || dietNameKey(m.name) === k);
+    const copy = { ...JSON.parse(JSON.stringify(src)), hidden: undefined };
+    delete copy.hidden;
+    if (j >= 0) { copy.id = o.meals[j].id; copy.name = o.meals[j].name; if (o.meals[j].base) copy.base = o.meals[j].base; o.meals[j] = copy; n++; }
+    else if (o.meals.length < DIET_MEAL_MAX) { if (o.meals.some(m => m.id === copy.id)) copy.id = uid(); delete copy.base; o.meals.push(copy); n++; }
+  }
+  return n ? before : null;
+}
+// Copie un jour entier (repas et objectifs) vers les jours to ; renvoie l'état d'avant ou null
+function dietCopyDayToDays(plan, from, to) {
+  const src = dietDayObj(plan, from);
+  if (!src) return null;
+  const before = dietDaysSnapshot(plan);
+  let n = 0;
+  for (const i of to) {
+    if (i === from || !dietDayObj(plan, i)) continue;
+    const c = cleanDietDayObj(JSON.parse(JSON.stringify({ meals: dietShownMeals(src), targets: src.targets })));
+    if (i === 0) {
+      // Jour 1 : les repas de base masqués (plan perso) restent, les autres sont remplacés
+      plan.meals = [...c.meals, ...plan.meals.filter(m => m.hidden && !c.meals.some(x => x.id === m.id))];
+      if (c.targets) plan.targets = c.targets; else delete plan.targets;
+    } else plan.days.more[i - 1] = c;
+    n++;
+  }
+  return n ? before : null;
+}
+// Instantané des jours (repas et objectifs de chaque jour) et retour à cet instantané (Annuler)
+function dietDaysSnapshot(plan) {
+  return JSON.parse(JSON.stringify({ meals: plan.meals, targets: plan.targets ?? null, days: plan.days ?? null }));
+}
+function dietRestoreDays(plan, snap) {
+  if (!plan || !snap) return;
+  plan.meals = snap.meals;
+  if (snap.targets) plan.targets = snap.targets; else delete plan.targets;
+  if (snap.days) plan.days = snap.days; else delete plan.days;
+}
+// Résumé d'un jour pour l'aperçu avant l'envoi : macros prévues, sel connu, objectifs
+function dietDaySummary(plan, i) {
+  const o = dietDayObj(plan, i);
+  return { name: dietDayName(plan, i), kind: dietDayKindAt(plan, i), macros: dietPlanMacros(o), targets: o?.targets || null,
+    meals: dietShownMeals(o).filter(m => m.items.length).length };
+}
+
 function cleanDietPlans(v) {
   if (!dietIsObj(v)) return {};
   const out = {};
@@ -289,9 +450,10 @@ function cleanDietLog(v, now = Date.now()) {
     // Repas du plan ce jour-là (instantané) : un jour passé reste jugé avec le plan de ce jour
     const meals = Array.isArray(e.meals) ? [...new Set(e.meals.filter(id => typeof id === 'string' && DIET_PART_RE.test(id)))].slice(0, DIET_MEAL_MAX) : null;
     const blank = e.blank === true, off = cleanDietMealIds(e.off), copied = cleanDietMealIds(e.copied);
-    if (done.length || Object.keys(swaps).length || Object.keys(extras).length || removed.length || off.length || copied.length || blank) {
+    const kind = e.kind === 't' || e.kind === 'r' ? e.kind : null;
+    if (done.length || Object.keys(swaps).length || Object.keys(extras).length || removed.length || off.length || copied.length || blank || kind) {
       out[day] = { plan: e.plan, done, swaps, ...(Object.keys(extras).length ? { extras } : {}), ...(removed.length ? { removed } : {}), ...(meals ? { meals } : {}),
-        ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}) };
+        ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}), ...(kind ? { kind } : {}) };
     }
   }
   return out;
@@ -325,6 +487,8 @@ function sanitizeDiet(d, now = Date.now()) {
   if (d.dietFoods !== undefined) { d.dietFoods = cleanDietFoods(d.dietFoods); if (!d.dietFoods.length) delete d.dietFoods; }
   if (d.dietFoodsGone !== undefined) { d.dietFoodsGone = cleanDietFoodsGone(d.dietFoodsGone); if (!d.dietFoodsGone.length) delete d.dietFoodsGone; }
   if (d.dietLog !== undefined) { d.dietLog = cleanDietLog(d.dietLog, now); if (!Object.keys(d.dietLog).length) delete d.dietLog; }
+  if (d.saltLog !== undefined) { d.saltLog = cleanSaltLog(d.saltLog, now); if (!Object.keys(d.saltLog).length) delete d.saltLog; }
+  if (d.dietRecentFoods !== undefined) { d.dietRecentFoods = cleanDietRecent(d.dietRecentFoods); if (!d.dietRecentFoods.length) delete d.dietRecentFoods; }
   // Accord pour copier les plans sur le compte : { on, at (date ISO du choix) }, retiré s'il est illisible
   if (d.dietConsent !== undefined) {
     const c = d.dietConsent, ok = dietIsObj(c) && typeof c.on === 'boolean' && typeof c.at === 'string' && c.at.length <= 40 && Number.isFinite(Date.parse(c.at));
@@ -345,6 +509,81 @@ function sanitizeDiet(d, now = Date.now()) {
   }
   return d;
 }
+// ── Sel ajouté (« + Sel ajouté » du bilan du jour) ──
+// saltLog : { 'AAAA-MM-JJ': [{ id, g, at }] }, 120 jours, sur l'appareil seulement (comme waterLog). Le sel des aliments
+// vient de leurs valeurs (per.s) ; celui-ci est le sel mis dans l'assiette ou la cuisson.
+// Mesures : pincée environ 0,4 g (USDA FoodData Central, « Salt, table », mesure « dash ») ; cuillère à café rase environ
+// 6 g (même fiche, « 1 tsp »). Valeurs moyennes, affichées « environ »
+const SALT_ADDS = [{ id: 'pincee', label: 'Pincée', g: 0.4 }, { id: 'cafe', label: 'Cuillère à café', g: 6 }];
+const SALT_ADD_MAX_G = 20, SALT_DAY_MAX = 40;
+function cleanSaltLog(v, now = Date.now()) {
+  if (!dietIsObj(v)) return {};
+  const oldest = localISO(now - DIET_LOG_DAYS * 86400000), newest = localISO(now + 2 * 86400000);
+  const out = {};
+  for (const [day, list] of Object.entries(v)) {
+    if (!DIET_DAY_RE.test(day) || day < oldest || day > newest || !Array.isArray(list)) continue;
+    const ids = new Set();
+    const items = list.slice(0, SALT_DAY_MAX).map(x => {
+      const g = dietIsObj(x) ? num(x.g, 0.1, SALT_ADD_MAX_G) : null;
+      if (g === null) return null;
+      let id = typeof x.id === 'string' && /^[a-z0-9]{1,12}$/.test(x.id) ? x.id : uid();
+      while (ids.has(id)) id = uid();
+      ids.add(id);
+      return { id, g: dietR1(g), at: Number.isFinite(x.at) && x.at > 0 ? Math.round(x.at) : 0 };
+    }).filter(Boolean);
+    if (items.length) out[day] = items;
+  }
+  return out;
+}
+function saltAddedG(d, day) { return (Array.isArray(d.saltLog?.[day]) ? d.saltLog[day] : []).reduce((a, x) => a + (Number(x?.g) || 0), 0); }
+function saltAdd(d, g, day = dietDayKey(), now = Date.now()) {
+  const list = Array.isArray(d.saltLog?.[day]) ? d.saltLog[day] : [];
+  const v = num(g, 0.1, SALT_ADD_MAX_G);
+  if (v === null || list.length >= SALT_DAY_MAX) return null;
+  const e = { id: uid(), g: dietR1(v), at: now };
+  d.saltLog = cleanSaltLog({ ...(dietIsObj(d.saltLog) ? d.saltLog : {}), [day]: [...list, e] }, now);
+  return e;
+}
+function saltRemove(d, day, id) {
+  const list = Array.isArray(d.saltLog?.[day]) ? d.saltLog[day] : [];
+  if (!list.some(x => x.id === id)) return false;
+  const rest = list.filter(x => x.id !== id);
+  if (rest.length) d.saltLog[day] = rest; else delete d.saltLog[day];
+  if (!Object.keys(d.saltLog).length) delete d.saltLog;
+  return true;
+}
+// Sel du jour : aliments mangés (valeurs connues) + sel ajouté ; su : aliments mangés au sel inconnu
+function dietDaySalt(d, pr) {
+  const added = saltAddedG(d, pr.day);
+  return { g: (pr.eaten.s || 0) + added, food: pr.eaten.s || 0, added, unknown: pr.eaten.su || 0 };
+}
+// Objectif de sel du jour : { min, max } (l'un peut manquer), null sans objectif. Au-dessus du repère de l'OMS : over
+function dietSaltGoal(plan) {
+  const t = plan?.targets;
+  if (!t || (t.saltMin == null && t.saltMax == null)) return null;
+  return { min: t.saltMin ?? null, max: t.saltMax ?? null, over: (t.saltMax ?? t.saltMin) > DIET_SALT_WHO };
+}
+
+// ── Derniers aliments choisis (saisie rapide : proposés en tête de la recherche) ──
+const DIET_RECENT_MAX = 8;
+function cleanDietRecent(v) {
+  if (!Array.isArray(v)) return [];
+  const seen = new Set(), out = [];
+  for (const x of v) {
+    if (out.length >= DIET_RECENT_MAX || !dietIsObj(x)) continue;
+    const it = cleanDietItem({ ...x, g: x.g ?? 100 });
+    if (!it || seen.has(dietNameKey(it.name))) continue;
+    seen.add(dietNameKey(it.name));
+    out.push(it);
+  }
+  return out;
+}
+// Garde l'aliment choisi en tête (sa quantité aussi : proposée la fois suivante)
+function dietNoteRecent(d, it) {
+  if (!it) return;
+  d.dietRecentFoods = cleanDietRecent([it, ...(Array.isArray(d.dietRecentFoods) ? d.dietRecentFoods : []).filter(x => dietNameKey(x?.name) !== dietNameKey(it.name))]);
+}
+
 // Accord donné (plans copiés sur le compte et plans du coach reçus)
 function dietConsentOn(d) { return d.dietConsent?.on === true; }
 function dietSetConsent(d, on, now = new Date()) {
@@ -387,16 +626,17 @@ function dietTargetGap(plan, noun = 'Les repas prévus') {
 
 // ── Macros ──────────────────────────────────────────────────
 
-const DIET_ZERO = () => ({ kcal: 0, p: 0, c: 0, f: 0 });
-// Apport d'un aliment à sa quantité (non arrondi : on arrondit à l'affichage)
+const DIET_ZERO = () => ({ kcal: 0, p: 0, c: 0, f: 0, s: 0, su: 0 });
+// Apport d'un aliment à sa quantité (non arrondi : on arrondit à l'affichage). s : sel en grammes (valeur connue
+// seulement), su : aliments dont le sel est inconnu (comptés, pour le dire)
 function dietItemMacros(it) {
-  const r = (it?.g || 0) / 100, per = it?.per || {};
-  return { kcal: (per.k || 0) * r, p: (per.p || 0) * r, c: (per.c || 0) * r, f: (per.f || 0) * r };
+  const r = (it?.g || 0) / 100, per = it?.per || {}, known = typeof per.s === 'number';
+  return { kcal: (per.k || 0) * r, p: (per.p || 0) * r, c: (per.c || 0) * r, f: (per.f || 0) * r, s: known ? per.s * r : 0, su: known ? 0 : 1 };
 }
 // Quantité affichée : « 2 œufs · 100 g » (unité choisie) ou « 100 g » ; spoken : « 2 œufs, 100 grammes »
 function dietQtyText(it) { return it?.por ? `${portionText(it.por.n, it.por)} · ${it.g}\u00a0g` : `${it?.g}\u00a0g`; }
 function dietQtySpoken(it) { return it?.por ? `${portionSpoken(it.por.n, it.por)}, ${it.g} grammes` : `${it?.g} grammes`; }
-function dietAdd(a, b) { return { kcal: a.kcal + b.kcal, p: a.p + b.p, c: a.c + b.c, f: a.f + b.f }; }
+function dietAdd(a, b) { return { kcal: a.kcal + b.kcal, p: a.p + b.p, c: a.c + b.c, f: a.f + b.f, s: (a.s || 0) + (b.s || 0), su: (a.su || 0) + (b.su || 0) }; }
 // Aliment tel qu'il sera mangé ce jour-là : le remplaçant choisi, sinon celui du plan
 function dietEffectiveItem(it, swaps) { return swaps && Object.hasOwn(swaps, it.id) ? swaps[it.id] : it; }
 // Même aliment à une autre quantité (« Changer la quantité »), pas un remplaçant
@@ -467,7 +707,7 @@ function dietMealSatisfied(e, id) {
   return e.blank === true && !e.copied?.includes(id) ? (e.extras?.[id] || []).length > 0 : e.done.includes(id);
 }
 function dietWriteDay(d, day, e) {
-  const plan = d.dietPlans?.[e.plan];
+  const plan = dietDayPlan(d, e.plan, day, e);
   // Repas et aliments qui n'existent plus dans le plan : oubliés
   const meals = new Set((plan?.meals || []).map(m => m.id));
   const items = new Set((plan?.meals || []).flatMap(m => m.items.map(it => it.id)));
@@ -476,17 +716,23 @@ function dietWriteDay(d, day, e) {
   const extras = Object.fromEntries(Object.entries(e.extras || {}).filter(([id, list]) => meals.has(id) && list?.length));
   const removed = (e.removed || []).filter(id => items.has(id));
   const off = (e.off || []).filter(id => meals.has(id)), copied = (e.copied || []).filter(id => meals.has(id)), blank = e.blank === true;
+  const kind = e.kind === 't' || e.kind === 'r' ? e.kind : null;   // jour choisi à la main (plan entraînement / repos)
   d.dietLog ||= {};
   // Instantané : les repas à faire ce jour-là (un repas retiré n'en est plus, « Journée complète » sans lui)
   const snapshot = dietDayRequired(dietShownMeals(plan), { removed, off, copied, blank });
   const hasExtras = Object.keys(extras).length > 0;
   // Jour vide (blank) gardé même sans rien d'autre : sinon il redeviendrait « pré-rempli » ou « vide » selon le réglage du moment
-  if (done.length || Object.keys(swaps).length || hasExtras || removed.length || off.length || copied.length || blank) {
+  if (done.length || Object.keys(swaps).length || hasExtras || removed.length || off.length || copied.length || blank || kind) {
     d.dietLog[day] = { plan: e.plan, done, swaps, ...(hasExtras ? { extras } : {}), ...(removed.length ? { removed } : {}), meals: snapshot,
-      ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}) };
+      ...(off.length ? { off } : {}), ...(copied.length ? { copied } : {}), ...(blank ? { blank } : {}), ...(kind ? { kind } : {}) };
   }
   else delete d.dietLog[day];
   if (!Object.keys(d.dietLog).length) delete d.dietLog;
+}
+// Jour choisi à la main (plan entraînement / repos) : kind 't', 'r', ou null (selon la séance du jour)
+function dietSetDayKind(d, planId, day, kind) {
+  const e = dietDay(d, planId, day);
+  dietWriteDay(d, day, { ...e, kind: kind === 't' || kind === 'r' ? kind : null });
 }
 // Coche ou décoche un repas ; renvoie le nouvel état (true : coché)
 function dietToggleMeal(d, planId, mealId, day = dietDayKey()) {
@@ -507,7 +753,7 @@ function dietSetSwap(d, planId, itemId, newItem, day = dietDayKey()) {
 // Change la quantité d'un aliment du plan pour ce jour (q : { g, por }, por null en grammes) : gardée comme un
 // remplacement par le même aliment (le remplaçant choisi garde son nom). La quantité prévue remet le plan
 function dietSetPlanQty(d, planId, itemId, q, day = dietDayKey()) {
-  const it = d.dietPlans?.[planId]?.meals.flatMap(m => m.items).find(x => x.id === itemId);
+  const it = dietDayPlan(d, planId, day)?.meals.flatMap(m => m.items).find(x => x.id === itemId);
   if (!it || !q) return false;
   const cur = dietEffectiveItem(it, dietDay(d, planId, day).swaps);
   const back = dietIsQtyChange(it, cur) && Math.round(q.g) === it.g && (q.por?.n ?? null) === (it.por?.n ?? null);
@@ -527,7 +773,7 @@ function dietSetRemoved(d, planId, itemId, off = true, day = dietDayKey()) {
 // et ses ajouts partent avec lui (pas mangés) ; renvoie de quoi Annuler (dietUndoMealOff), null si le repas n'existe pas.
 // Ce qu'on y ajoute ensuite (on a mangé autre chose) compte tout de suite. Le plan ne change pas
 function dietSetMealOff(d, planId, mealId, day = dietDayKey()) {
-  const meal = d.dietPlans?.[planId]?.meals.find(m => m.id === mealId);
+  const meal = dietDayPlan(d, planId, day)?.meals.find(m => m.id === mealId);
   if (!meal) return null;
   const e = dietDay(d, planId, day);
   const gone = { extras: e.extras[mealId] || [], done: e.done.includes(mealId) };
@@ -538,7 +784,7 @@ function dietSetMealOff(d, planId, mealId, day = dietDayKey()) {
 }
 // « Remettre le repas prévu » : ses aliments prévus reviennent, à cocher (les ajouts partis restent partis)
 function dietSetMealOn(d, planId, mealId, day = dietDayKey()) {
-  if (!d.dietPlans?.[planId]?.meals.some(m => m.id === mealId)) return false;
+  if (!dietDayPlan(d, planId, day)?.meals.some(m => m.id === mealId)) return false;
   const e = dietDay(d, planId, day);
   dietWriteDay(d, day, { ...e, off: e.off.filter(id => id !== mealId) });
   return true;
@@ -553,7 +799,7 @@ function dietUndoMealOff(d, planId, mealId, gone, day = dietDayKey()) {
 }
 // Jour vide : « Copier le plan de ce repas » (ses aliments prévus, à cocher ; ce qui est déjà noté reste compté)
 function dietCopyMealPlan(d, planId, mealId, day = dietDayKey()) {
-  if (!d.dietPlans?.[planId]?.meals.some(m => m.id === mealId)) return false;
+  if (!dietDayPlan(d, planId, day)?.meals.some(m => m.id === mealId)) return false;
   const e = dietDay(d, planId, day);
   dietWriteDay(d, day, { ...e, copied: [...e.copied.filter(id => id !== mealId), mealId], off: e.off.filter(id => id !== mealId) });
   return true;
@@ -561,7 +807,7 @@ function dietCopyMealPlan(d, planId, mealId, day = dietDayKey()) {
 // Ce qui a vraiment été mangé à ce repas ce jour-là : ses aliments prévus s'il a été coché (remplacements du jour
 // compris, retirés exclus, plan copié pour un jour vide) et ses ajouts, comptés comme dans dietDayProgress
 function dietMealEaten(d, planId, mealId, day) {
-  const meal = d.dietPlans?.[planId]?.meals.find(m => m.id === mealId);
+  const meal = dietDayPlan(d, planId, day)?.meals.find(m => m.id === mealId);
   const e = d.dietLog?.[day];
   if (!meal || !e || e.plan !== planId) return [];
   const x = dietDay(d, planId, day), live = dietMealLive(meal, x), extras = x.extras[mealId] || [];
@@ -604,7 +850,7 @@ function dietUndoReuseMeal(d, planId, mealId, ids, day = dietDayKey()) {
 // (pas de double compte, ses ajouts comptent). Un repas retiré le reste. Les jours passés ne changent jamais
 function dietSetEmptyDays(d, blank, day = dietDayKey()) {
   d.dietEmptyDays = !!blank;
-  const e = d.dietLog?.[day], plan = e && d.dietPlans?.[e.plan];
+  const e = d.dietLog?.[day], plan = e && dietDayPlan(d, e.plan, day);
   if (!plan || (e.blank === true) === !!blank) return;
   const cur = dietDay(d, e.plan, day);
   if (blank) { dietWriteDay(d, day, { ...cur, blank: true, copied: [...cur.done] }); return; }
@@ -619,7 +865,7 @@ function dietSetEmptyDays(d, blank, day = dietDayKey()) {
 // Ajoute un aliment à un repas pour ce jour seulement (repas coché ou non : il reste dans son état) ;
 // renvoie l'aliment ajouté (id neuf), null si illisible ou si le repas est plein
 function dietAddExtra(d, planId, mealId, newItem, day = dietDayKey()) {
-  const meal = d.dietPlans?.[planId]?.meals.find(m => m.id === mealId);
+  const meal = dietDayPlan(d, planId, day)?.meals.find(m => m.id === mealId);
   const e = dietDay(d, planId, day), list = e.extras[mealId] || [];
   const c = meal ? cleanDietItem({ ...newItem, id: uid() }) : null;
   if (!c || list.length >= DIET_ITEM_MAX) return null;
@@ -647,7 +893,7 @@ function dietSetExtra(d, planId, mealId, extraId, g, day = dietDayKey()) {
 // Repère sans objectif fixé : le total prévu ce jour-là, remplacements compris (un équivalent de 217 kcal
 // pour 215 prévues ne fait pas « 217 sur 215 »)
 function dietDayProgress(d, planId, day = dietDayKey()) {
-  const plan = d.dietPlans?.[planId];
+  const plan = dietDayPlan(d, planId, day);
   if (!plan) return null;
   const e = dietDay(d, planId, day);
   // Ajouts du jour : comptés dans le repas (mangé une fois coché), jamais dans le prévu ni le repère
@@ -677,7 +923,7 @@ function dietDayComplete(d, day, planId = null) {
   const e = d.dietLog?.[day];
   if (!e || (planId && e.plan !== planId)) return false;
   // Instantané du jour (repas à faire ce jour-là) ; journal d'avant l'instantané : le plan actuel, repas retirés exclus
-  const ids = Array.isArray(e.meals) ? e.meals : dietDayRequired(dietShownMeals(d.dietPlans?.[e.plan]), e);
+  const ids = Array.isArray(e.meals) ? e.meals : dietDayRequired(dietShownMeals(dietDayPlan(d, e.plan, day)), e);
   return ids.length > 0 && ids.every(id => dietMealSatisfied(e, id));
 }
 // Journée « finie » à l'écran (point vert, coche, son, « journée complète » lu par VoiceOver). Menu d'un coach : tous
@@ -691,7 +937,7 @@ function dietPersonalDone(plan, eatenKcal) {
 }
 function dietProgressFinished(pr) { return !!pr && (pr.plan.fromCoach ? pr.complete : dietPersonalDone(pr.plan, pr.eaten.kcal)); }
 function dietDayFinished(d, day, planId = null) {
-  const e = d.dietLog?.[day], plan = e && d.dietPlans?.[e.plan];
+  const e = d.dietLog?.[day], plan = e && dietDayPlan(d, e.plan, day);
   if (!e || (planId && e.plan !== planId)) return false;
   if (!plan || plan.fromCoach) return dietDayComplete(d, day, planId);
   return dietPersonalDone(plan, dietDayProgress(d, e.plan, day).eaten.kcal);
@@ -776,6 +1022,7 @@ function dietArchivePlan(d, id) {
   p.archived = true;
   p.meals = [];
   delete p.targets;
+  delete p.days;
   if (d.dietActive === id) delete d.dietActive;
 }
 function dietTouch(plan) { plan.updatedAt = Date.now(); }
@@ -794,6 +1041,8 @@ function dietToSent(plan) {
       ...(it.por ? { por: it.por } : {}) })) })) };
   if (c.targets) diet.targets = c.targets;
   if (c.consigne) diet.consigne = c.consigne;
+  // Jours (entraînement / repos, semaine) : en plus, format v1 gardé ; une app d'avant affiche le jour 1 chaque jour
+  if (c.days) diet.days = c.days;
   return { kind: 'diet', v: 1, diet };
 }
 // Ce que l'app accepte d'un envoi : { name, consigne?, targets?, meals } nettoyé, null sinon

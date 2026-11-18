@@ -202,6 +202,8 @@ peu près la même chose ([annexe](https://mtsu.pressbooks.pub/nutrition2/back-m
 [Fédération des diabétiques](https://afd29.federationdesdiabetiques.org/public/content/58/doc/Les%20Equivalences%20glucidiques.pdf) ;
 référence de méthode pour ce document seulement, jamais citée dans l'app).
 
+(Règle 2 changée le 18/11/2026 : le macro principal de la famille, voir « Retours des coachs du 18/11 ».)
+
 1. **Même famille** (sous-groupe Ciqual ramené à 10 familles) : viandes, poissons, œufs (`v`) ; féculents
    (`f` : tubercules, légumineuses, céréales, pains) ; laitiers (`l`) ; matières grasses (`g`, oléagineux
    compris) ; fruits (`r`) ; légumes (`e`) ; produits sucrés (`s`) ; boissons (`b`) ; plats composés (`p`) ;
@@ -366,6 +368,102 @@ consentement explicite). Deux accords séparés, chacun daté et retirable :
 
 Objectif en litres, verres notés d'un toucher, `targets.water` dans le plan du coach : contrat dans `docs/EAU.md`.
 
+## Retours des coachs du 18/11/2026 (branche nutri-coachs)
+
+Vocaux WhatsApp de deux coachs, puis demande de Maxence sur l'éditeur du coach. Rien en production.
+
+### Recherche avant le scan, alias
+- Un coach croyait qu'il fallait scanner chaque aliment. Feuille « Ajouter un aliment » : **recherche en tête**, puis une
+  ligne discrète « Produit de marque ? Scanner » (« Saisir le code-barres » sans caméra), puis les résultats. Champ vide :
+  « Récents » (5 derniers aliments choisis, avec leur dernière quantité, `data.dietRecentFoods`, 8 au plus, sur l'appareil)
+  puis « … aliments de la table Ciqual, sans rien scanner ». Un ajout au plan dit « Ajouté : … » avec **Annuler**.
+- **Alias** (`ALIASES` de `scripts/prepare-foods.py`, clé `alias` de `data/foods.json`, ignorée par une app d'avant) : un nom de
+  salle pour un aliment Ciqual qui est le même produit, aux valeurs Ciqual inchangées, avec la source dite sous le nom
+  (« Valeurs Ciqual : Farine de riz ») et gardée dans l'aliment (`of`). Liste : Crème de riz (9520 Farine de riz), Blanc
+  et Filet de poulet cru / grillé (36017, 36018), Blanc de dinde grillé (36306 escalope), Porridge à l'eau (9313 flocons
+  d'avoine cuits à l'eau), Lait d'amande (18107 boisson à l'amande nature).
+- Vérifiés sans alias (déjà trouvés) : flocons d'avoine (32140), beurre de cacahuète (15202), riz basmati cuit (9125),
+  steak haché 5 %, thon au naturel, fromage blanc 0 %, blanc d'œuf. **Absents de Ciqual, aucun alias** : whey, skyr,
+  cottage cheese, caséine (« Créer « whey » » reste en tête de la recherche).
+
+### Équivalences en un toucher
+- Journée : chaque aliment prévu porte « Remplacer » écrit à droite (avant : une icône seule). La feuille donne la
+  quantité déjà calculée en gras (« Riz blanc, cuit · **175 g** · 271 kcal… ») et l'écart de kcal à droite.
+- Éditeur : « Remplacer par un équivalent » dans le menu d'un aliment (le plan change, Annuler).
+- **Règle 2, nouvelle** (`swapAnchor`) : on garde le **macro principal de la famille**, protéines (viandes, laitiers),
+  **glucides** (féculents, fruits), **lipides** (matières grasses), calories sinon ; kcal à 20 % près quand on garde un
+  macro (15 % pour les calories). Aliments de base (`SWAP_STAPLES` : riz blanc et basmati cuits, pâtes cuites, semoule,
+  quinoa, pomme de terre, patate douce, flocons d'avoine, pain blanc, lentilles, poulet, dinde, steak 5 %, thon, œuf dur,
+  fromage blanc 0 %, avocat, beurre de cacahuète, huile d'olive) proposés en premier.
+- Exemple réel (Ciqual 2025) : 350 g de « Pomme de terre, bouillie/cuite à l'eau » (16,8 g de glucides, 81 kcal pour 100 g)
+  → **175 g de « Riz blanc, cuit »** (33,2 g, 155 kcal) : 350 × 16,8 / 33,2 = 177 g, arrondi aux 5 g ; 271 kcal pour 284,
+  « −13 kcal ». Testé (`tests/unit/nutrition-coachs.mjs`). Pas d'IA : un calcul.
+
+### Jours du plan : entraînement / repos, semaine
+- **Données** : le jour 1 reste au premier niveau (`meals`, `targets`) ; `days` facultatif :
+  `{ mode: 'session', more: [jour de repos] }` ou `{ mode: 'week', kinds: [7 × 't' | 'r'], more: [mardi … dimanche] }`, chaque
+  jour `{ targets?, meals }`. Les jours ajoutés sont des copies du jour 1 **avec les mêmes identifiants** de repas et
+  d'aliments : les coches restent quand l'élève change de jour dans la journée. Choix : « les mêmes repas avec d'autres
+  quantités » par défaut (copie), libres ensuite ; le plus simple à comprendre pour un coach (Everfit fait pareil :
+  objectifs de repos « Any day there are no workouts » ou « Specific days of the week »,
+  help.everfit.io/en/articles/4578482).
+- **Quel jour** (`dietDayIndex`, `dietDayPlan`) : `session`, jour d'entraînement si une séance est enregistrée ce jour-là
+  ou en cours aujourd'hui (`dietTrainedOn`, même règle que l'eau), sinon repos ; le choix à la main se garde dans le
+  journal (`dietLog[jour].kind`, « Aujourd'hui : jour de repos · Changer », un toucher, Annuler). `week` : le jour de la
+  semaine. Tout le calcul du jour (coches, totaux, journée complète, eau, sel) lit le plan du jour.
+- **Limite connue** : un jour de séance, le matin avant la séance, l'app montre le jour de repos ; « Changer » le corrige
+  d'un toucher (pas de programme daté dans l'app pour le savoir avant).
+- **Éditeur** : cellule « Jours » (Tous les jours pareils, Entraînement et repos, Semaine ; revenir à un seul jour garde le
+  premier, confirmation et Annuler), cellule « Consigne » du plan ; vue des jours (une ligne par jour : type, repas, kcal,
+  macros, objectifs), écran d'un jour (`diet-plan:ID:I`, choix des 7 jours ou entraînement / repos en tête, type du jour,
+  jour précédent et suivant, **glisser** à gauche ou à droite). Copies : « Copier vers d'autres jours… » (menu d'un repas,
+  jours à cocher, remplace le repas du même nom), « Copier ce jour vers… », « Mettre pareil sur les 7 jours »
+  (confirmation sobre, Annuler). Réordonner (Monter, Descendre) et « Dupliquer ce repas » existaient.
+- **Élève** : la ligne du jour sous la frise ; plan à 7 jours, « Mercredi · Repos · Voir la semaine » ouvre le jour, on glisse
+  vers les autres.
+
+### Envoi
+- « Aperçu et envoi » (`diet-send:ID[:ÉLÈVE]`, `js/features/diet-week.js`) : une ligne par jour (repas, kcal, macros,
+  objectifs dont eau et sel, écart court « Prévu : 1 569 kcal sous l'objectif »), élèves à cocher (« Tous »), un envoi par
+  élève (3 à la fois, limite de 24 h), le plan reste dans **Mes diètes** (titre de la liste pour un coach). Depuis la fiche
+  d'un élève, l'élève est coché d'office (remplace l'alerte de relecture).
+- **Format** : `{ kind: 'diet', v: 1, diet: { …, days? } }`. `v` reste 1 : une app d'avant lit `meals` et `targets` et affiche
+  le jour 1 tous les jours, sans planter (elle ignore `days`) ; un plan v1 sans `days` s'affiche comme avant. **Aucune
+  migration** : le serveur ne lit pas `data` (forme, 200 Ko). Taille testée : 7 jours × 6 repas × 8 aliments sous 200 Ko ;
+  au-delà, « Plan trop gros pour être envoyé : retire des jours ou des aliments ».
+- Synchro (accord de nutrition) : `days` voyage avec le plan. Un appareil resté sur une version d'avant qui réécrit le plan
+  le perd (même risque que tout champ ajouté, comme `targets.water`).
+
+### Eau en verres, avec une fourchette
+- Objectif du plan en fourchette : `targets.water` reste le **haut** (une app d'avant le lit seul), `targets.waterMin` le bas.
+  Feuille Objectifs du jour : « Eau de … à … L » (un seul champ : objectif simple). Atteint dès le bas.
+- Carte Eau : « 1 L · objectif 3 à 5 L », jauge avec la zone du bas au haut, **verres à cocher** (`waterGlassPlan` : 1 L si
+  la fourchette fait 1 L ou plus, sinon 25 cl, 16 verres au plus), « Un verre = 1 L · 3 au moins » ; un toucher sur un verre
+  vide l'ajoute, sur le dernier plein le retire (Annuler). Boutons rapides gardés. Accueil : « 1,2 / 3 à 5 L ».
+
+### Sel
+- Ciqual : colonne « Sel chlorure de sodium (g/100 g) » ajoutée à `data/foods.json` (11e colonne, `per.s`, arrondi demi vers
+  le haut au centième) ; « traces » et « < x » : 0 ; « - » : inconnu (119 aliments), jamais inventé. Produit scanné : le sel
+  d'Open Food Facts (`salt`) compte aussi. Fichier source retéléchargé le 18/11 sur recherche.data.gouv.fr
+  (doi:10.57745/RDMHWY, fichier 666260, `Table Ciqual 2025_FR_2025_11_03.xlsx`, sha256 5555c572…fbb0), licence lue dans
+  l'API : **Licence Ouverte Etalab 2.0** (pas ODbL, qui est celle d'Open Food Facts) ; même sortie qu'avant pour les autres
+  colonnes.
+- Objectif en fourchette (`targets.saltMin`, `saltMax`, 0,5 à 15 g ; l'un, l'autre ou les deux), pour le coach comme pour
+  un plan perso. Au-dessus de 5 g, la feuille du **coach** dit « Repère de l'OMS pour un adulte : moins de 5 g de sel par
+  jour » (who.int/fr/news-room/fact-sheets/detail/salt-reduction : « moins de 5 g de sel par jour, soit un peu moins
+  d'une cuillère à café »). Rien n'est bloqué, et rien n'est dit à l'élève : aucune règle ne l'exige, et il n'existe pas
+  de repère officiel plus haut pour les sportifs (l'EFSA note seulement des pertes par la sueur plus fortes à l'effort).
+- Bilan du jour : une ligne « Sel 2,1 sur 3 à 5 g » et « + Sel ajouté », affichée avec un objectif ou du sel ajouté.
+  Feuille Sel : sel des aliments mangés (et combien n'ont pas de valeur), sel ajouté, **Pincée environ 0,4 g** et
+  **Cuillère à café environ 6 g** (USDA FoodData Central, « Salt, table », mesures « dash » et « 1 tsp » ; aucune source
+  officielle française pour la pincée), Autre en grammes, Supprimer. `data.saltLog` (120 jours) : sur l'appareil seulement
+  (SYNC_LOCAL_ONLY, hors copie iCloud). Aucune alerte, aucun rouge.
+
+### Tests
+`tests/unit/nutrition-coachs.mjs` (sel et alias de la base, pomme de terre → riz, jours, copies, envoi et taille, eau,
+sel, récents) ; `tests/test_nutri_coachs.py` (lot `nutri_coachs` : éditeur du coach, élève jour de repos et d'entraînement,
+Remplacer, eau en verres, sel, semaine et glissé ; iPhone SE et 13, clair et sombre, texte agrandi).
+
 ## Où ça vit dans l'app, et pourquoi
 
 - **Entraînement › Nutrition** (écran du jour) et une **carte sur l'accueil** quand un plan est suivi.
@@ -387,7 +485,8 @@ Objectif en litres, verres notés d'un toucher, `targets.water` dans le plan du 
 
 ```js
 dietPlans: { [id]: {                 // profil, AVEC ACCORD seulement ; fusion par union (comme userProgrammes)
-  name, consigne?, targets?: { kcal?, p?, c?, f? }, archived?, updatedAt?,
+  name, consigne?, targets?: { kcal?, p?, c?, f?, water?, waterMin?, saltMin?, saltMax? }, archived?, updatedAt?,
+  days?: { mode: 'session' | 'week', kinds?: ['t' | 'r' × 7], more: [{ targets?, meals }] },   // jours 2 et suivants (18/11)
   fromCoach?: { coachId, name, sentAt },                // plan reçu : lecture seule
   meals: [{ id, name, note?, items: [{ id, name, food: code Ciqual | null, fam, g, per: { k, p, c, f }, src, ecalc?,
     por?: { n, u, pl, g } }] }] } },   // por : unité choisie (« 2 œufs »), g fait foi
@@ -458,7 +557,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 - **Journal libre** (« j'ai mangé autre chose ») : V2. ~~Portions en unités (« 3 œufs »)~~ : fait le 10/11/2026 (voir « Quantités à l'unité »).
 - **Coches visibles par le coach** : il faut le consentement de l'élève, donnée par donnée, comme le poids
   (`coach_shares`, kind `diet` à ouvrir, migration à écrire) ; en V1 le journal reste sur l'iPhone.
-- **Plusieurs plans selon le jour** (jour d'entraînement, jour de repos), recettes, liste de courses.
+- ~~**Plusieurs plans selon le jour**~~ : fait le 18/11/2026 (voir « Retours des coachs du 18/11 »). Recettes, liste de courses : plus tard.
 - ~~**Calcul des besoins**~~ : proposition sur demande depuis le 16/11/2026 (voir « Santé »).
 - **Apple Santé** (écrire les macros) : demande une build et la déclaration de confidentialité.
 
@@ -483,6 +582,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 | `js/data/food-portions.js` | Portions courantes (table), unité du paquet scanné (`offPortion`), textes « 2 œufs » (chargé avant `nutrition.js`) |
 | `js/features/diet-qty.js` | Contrôle de quantité « Grammes \| unité » et feuille de quantité (`dietAskQty`) |
 | `js/features/diet-editor.js` | Plans diète, éditeur, recherche d'aliment, aliment perso, objectifs |
+| `js/features/diet-week.js` | Jours du plan (vue des jours, écran d'un jour, glisser), copies de repas et de jours, aperçu et envoi à plusieurs élèves |
 | `js/features/diet-settings.js` | Réglages de la nutrition (Mes aliments, chiffres masqués, série, accord) et question de l'accord |
 | `css/nutrition.css` | Styles (couleurs : tokens `--macro-*`, `--check-*` de `css/base.css`) |
 | `tests/unit/nutrition.mjs` | Bornes, macros, coches, série, équivalences sur la vraie base, plan du coach, notification |
