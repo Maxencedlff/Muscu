@@ -137,9 +137,9 @@ def t_coach_declare(bench, eng, dev, theme):
         page.evaluate(f"async () => {{ __sb.setCard(__sb.meId(), '{NUM}', 'suspended'); coachPro.loadedAt = 0; await coachProRefresh(); }}")
         page.wait_for_timeout(300)
         txt = page.inner_text('.coach-view')
-        R.check('Suspendu' in txt and 'signalé' in txt and page.locator('[data-action="coach-card-withdraw"]').count() == 0
+        R.check('Suspendu' in txt and 'signalements' in txt and page.locator('[data-action="coach-card-withdraw"]').count() == 0
                 and page.locator('[data-action="coach-card-declare"]').count() == 0, f'{t} suspendu : expliqué, sans bouton')
-        page.locator('.coach-view .group-foot', has_text='signalé').scroll_into_view_if_needed()
+        page.locator('.coach-view .group-foot', has_text='signalements').scroll_into_view_if_needed()
         shot(page, LOT, f'5-reglages-suspendu-{t}')
         R.check(page.evaluate(f"(async () => (await coachCardDeclare('04912ED0999')).kind)()") == 'card_suspended', f'{t} suspendu : changement refusé')
         page.evaluate(f"async () => {{ __sb.setCard(__sb.meId(), '{NUM}', 'removed', {{ removed_reason: 'Numéro d\\'une autre personne.' }}); coachPro.loadedAt = 0; await coachProRefresh(); }}")
@@ -200,7 +200,7 @@ def t_eleve_signale(bench, eng, dev, theme):
         # Signaler : confirmation, ligne dans la file commune, badge suspendu et caché tout de suite, alerte demandée
         rep.click()
         page.wait_for_selector('.ios-dialog')
-        R.check('l\'équipe vérifiera la carte' in page.inner_text('.ios-dialog') and 'ne saura pas que c\'est toi' in page.inner_text('.ios-dialog'),
+        R.check('vérifiera la carte' in page.inner_text('.ios-dialog') and 'ne saura pas que c\'est toi' in page.inner_text('.ios-dialog'),
                 f'{t} confirmation : vérification et anonymat expliqués')
         shot(page, LOT, f'8-signaler-confirmation-{t}')
         tap_dialog(page, 'Signaler')
