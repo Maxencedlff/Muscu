@@ -110,7 +110,7 @@ def t_editeur(bench):
                 page.wait_for_timeout(400)
                 tap_dialog(page, 'Semaine (lundi à dimanche)')
                 page.wait_for_timeout(300)
-                R.check(page.locator('.diet-dayrow').count() == 7 and 'Annuler' in toast(page), f'{t} semaine : 7 jours, Annuler')
+                R.check(page.locator('.diet-dayrow').count() == 7 and toast(page).startswith('7 jours, copies du premier jour') and 'Annuler' in toast(page), f'{t} semaine : 7 jours, toast clair, Annuler ({toast(page)!r})')
                 layout(page, t, 'vue des jours', '.diet-plan-view .scr')
                 shot(page, LOT, f'1-semaine-{t}')
                 # Lundi
@@ -186,6 +186,11 @@ def t_editeur(bench):
                 layout(page, t, 'aperçu', '.diet-send-view')
                 shot(page, LOT, f'6-apercu-{t}')
                 page.click('#dietSendGo')
+                page.wait_for_selector('.ios-dialog')
+                dlg = nb(page.inner_text('.ios-dialog'))
+                R.check('Envoyer « Sèche semaine 1 » à lea et tom ?' in dlg and 'loin de leur objectif' in dlg, f'{t} confirmation : élèves nommés, jours incomplets dits ({dlg[:120]!r})')
+                shot(page, LOT, f'6b-confirmation-{t}')
+                tap_dialog(page, 'Envoyer')
                 page.wait_for_timeout(800)
                 sent = page.evaluate("__sb.co.progs.filter(p => p.id === dietSentId('d_seche001')).map(p => [p.student, p.data.v, p.data.diet.days.mode, p.data.diet.meals.length])")
                 R.check(len(sent) == 2 and all(s[1] == 1 and s[2] == 'week' and s[3] == 2 for s in sent), f'{t} envoyé à 2 élèves, format v1 + jours ({sent})')
@@ -235,6 +240,7 @@ def t_eleve(bench):
                 riz = [c for c in cands if c.startswith('Riz blanc, cuit')]
                 R.check(riz and '175 g' in riz[0] and '−13 kcal' in riz[0], f'{t} 350 g de pomme de terre → riz blanc cuit 175 g, −13 kcal ({riz[:1]})')
                 R.check('Même quantité de glucides' in nb(page.inner_text('.sheet .diet-swap__rule')), f'{t} règle dite')
+                page.wait_for_timeout(400)   # feuille ouverte (fin de l'animation) avant de mesurer les cibles
                 layout(page, t, 'remplacer', '.sheet')
                 shot(page, LOT, f'9-remplacer-{t}')
                 page.locator('.sheet .diet-cand[data-swap]', has_text='Riz blanc, cuit').first.click()
@@ -251,7 +257,7 @@ def t_eleve(bench):
                 shot(page, LOT, f'10-eau-{t}')
                 # Sel : ligne du bilan, sel ajouté
                 page.locator('.diet-salt').scroll_into_view_if_needed()
-                R.check('sur 3 à 5 g' in nb(page.inner_text('.diet-salt')), f'{t} sel : « sur 3 à 5 g »')
+                R.check('objectif 3 à 5 g' in nb(page.inner_text('.diet-salt')), f'{t} sel : « objectif 3 à 5 g »')
                 page.click('.diet-salt__add')
                 page.wait_for_selector('.sheet .diet-saltsheet')
                 page.click('.sheet [data-salt="0.4"]')

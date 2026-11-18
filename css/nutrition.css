@@ -515,3 +515,5 @@ html.type-xl .diet-daynav { flex-direction: column; }
 .diet-saltsheet__btns [data-salt="other"] { grid-column: 1 / -1; justify-content: center; min-height: 44px; }
 .sheet .diet-pick .diet-cand--scan, body.light .sheet .diet-pick .diet-cand--scan { background: none; }
 .diet-tg__saltnote:empty { display: none; }
+.diet-sendday__gap { display: flex; align-items: baseline; gap: 4px; }
+.diet-sendday__gap .icon { flex-shrink: 0; width: 1em; height: 1em; align-self: center; }

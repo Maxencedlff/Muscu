@@ -472,7 +472,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         # envoyé au premier toucher (panel du 07/11)
         page.wait_for_selector('.diet-send-view')
         prev = page.inner_text('.diet-send-view').replace('\u00a0', ' ').replace('\u202f', ' ')
-        R.check('Sèche Léa' in prev and 'Chaque jour' in prev and 'kcal' in prev and "sous l'objectif" in prev and page.locator('.coach-pick--on').count() == 1,
+        R.check('Sèche Léa' in prev and 'Chaque jour' in prev and 'kcal prévues sur' in prev and 'il manque' in prev and page.locator('.coach-pick--on').count() == 1,
                 f'{t} coach : aperçu avant l\'envoi, lea cochée ({prev[:160]!r})')
         shot(page, LOT, f'8b-envoi-plan-relecture-{t}')
         page.evaluate('goBack()')
@@ -483,7 +483,8 @@ def t_coach_eleve(bench, eng, dev, theme):
         tap_dialog(page, 'Sèche Léa')
         page.wait_for_selector('.diet-send-view')
         page.click('#dietSendGo')
-        page.wait_for_selector('.ios-dialog')
+        tap_dialog(page, 'Envoyer')
+        page.wait_for_selector('.ios-dialog:has-text("Rien n\'a été envoyé")')
         R.check("Ton élève doit d'abord accepter les plans de nutrition dans son app." in page.inner_text('.ios-dialog') and not page.evaluate("__sb.co.progs.length"), f'{t} coach : refus clair sans l\'accord de l\'élève')
         tap_dialog(page, 'OK')
         page.evaluate(f"__sb.co.shares.push({{ student: '{uid}', coach: __sb.meId(), kind: 'diet', granted_at: new Date().toISOString() }})")
@@ -494,6 +495,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         tap_dialog(page, 'Sèche Léa')
         page.wait_for_selector('.diet-send-view')
         page.click('#dietSendGo')
+        tap_dialog(page, 'Envoyer')   # confirmation qui nomme l'élève (18/11)
         page.wait_for_timeout(500)
         sent = page.evaluate("__sb.co.progs.find(p => p.id === 'diet_lea00001')")
         R.check(sent and sent['data']['kind'] == 'diet' and 'name' not in sent['data'] and sent['data']['diet']['name'] == 'Sèche Léa', f'{t} coach : plan envoyé par le canal des programmes, sans nom au premier niveau')
@@ -530,6 +532,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         page.locator('[data-action="diet-send-pick"]', has_text='tom').click()
         shot(page, LOT, f'10c-envoyer-{t}')
         page.click('#dietSendGo')
+        tap_dialog(page, 'Envoyer')   # confirmation qui nomme l'élève (18/11)
         page.wait_for_timeout(500)
         R.check(page.evaluate(f"__sb.co.progs.some(p => p.id === dietSentId('{nid}') && p.student !== '{uid}')"), f'{t} plan envoyé au 2e élève depuis le plan')
     # Élève : accepte les plans de son coach, reçoit, suit

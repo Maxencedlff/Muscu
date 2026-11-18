@@ -39,11 +39,13 @@ function dietDayGoalLine(o) {
   if (!t) return 'Sans objectif : le total sert de repère';
   return `Objectif ${dietTargetsText({ targets: t })}`;
 }
-// Écart court pour l'aperçu, une ligne par jour : « 1 569 kcal sous l'objectif » (au-delà de 10 %), sinon ''
+// Écart pour l'aperçu, une ligne par jour, au-delà de 10 % : « 731 kcal prévues sur 2 300 : il manque 1 569 kcal »
+// (« 1 569 kcal sous l'objectif » se lisait comme 1 569 kcal prévues, panel du 18/11) ; jour sans aliment : dit aussi
 function dietGapShort(sum) {
-  const goal = Number(sum.targets?.kcal) || 0, diff = Math.round(sum.macros.kcal) - goal;
-  if (!goal || !sum.meals || Math.abs(diff) <= goal * 0.1) return '';
-  return `Prévu : ${fmtNum(Math.abs(diff))}\u00a0kcal ${diff < 0 ? 'sous' : 'au-dessus de'} l'objectif`;
+  const goal = Number(sum.targets?.kcal) || 0, kcal = Math.round(sum.macros.kcal), diff = kcal - goal;
+  if (!sum.meals) return 'Aucun aliment ce jour-là';
+  if (!goal || Math.abs(diff) <= goal * 0.1) return '';
+  return `${fmtNum(kcal)}\u00a0kcal prévues sur ${fmtNum(goal)} : ${diff < 0 ? 'il manque' : 'en trop'} ${fmtNum(Math.abs(diff))}\u00a0kcal`;
 }
 // Jour du plan suivi aujourd'hui (vue des jours de l'élève : « Aujourd'hui »)
 function dietTodayIndex(id) { return data.dietActive === id ? dietDayIndex(data, id, dietDayKey()).i : -1; }
@@ -216,7 +218,7 @@ function renderDietSend(planId, uid) {
     return `<div class="cell diet-sendday"><span class="cell__body"><span class="cell__title">${esc(name)}</span>
           <span class="cell__sub num">${sum.meals ? `${plural(sum.meals, 'repas', 'repas')} · ${dietN(sum.macros.kcal)} kcal · ${dietSrPair(esc(dietMacroAbbr(sum.macros)), esc(dietMacroGramsSpoken(sum.macros)))}` : 'Aucun aliment'}</span>
           <span class="cell__sub num">${esc(dietDayGoalLine(o))}</span>
-          ${gap ? `<span class="cell__sub diet-sendday__gap">${esc(gap)}</span>` : ''}</span></div>`;
+          ${gap ? `<span class="cell__sub diet-sendday__gap">${icon('info.circle', 12)}${esc(gap)}</span>` : ''}</span></div>`;
   }).join('');
   const rows = all.map(st => {
     const on = m.ids.has(st.user_id);
@@ -293,7 +295,9 @@ registerActions({
     const snap = dietDaysSnapshot(plan);
     dietSetDayMode(plan, v);
     dietTouch(plan); save(); haptic(); render();
-    showToast(`Jours : ${dietDaysWord(plan).toLowerCase()}`, { action: 'Annuler', duration: 6000, onAction: () => {
+    const said = { one: `Un seul jour : ${dietDayName({ days: { mode: cur } }, 0).toLowerCase() || 'le premier'} gardé`, session: 'Jour de repos ajouté, copie du premier jour',
+      week: '7 jours, copies du premier jour' }[v];
+    showToast(said, { action: 'Annuler', duration: 6000, onAction: () => {
       const p = dietPlanOf(el.dataset.id); dietRestoreDays(p, snap); dietTouch(p); save(); render();
     } });
   },
@@ -349,6 +353,17 @@ registerActions({
     if (!m || m.busy || !m.ids.size || !plan) return;
     const ids = [...m.ids].filter(id => coachStudent(id)), limit = coachSendLimit();
     if (ids.length > limit) { showToast(`${limit} envois au plus sur 24 heures`, { error: true }); return; }
+    // Confirmation qui nomme les élèves et dit les jours loin de l'objectif (coach débutant, panel du 18/11 : « peur
+    // d'écraser le plan du mauvais élève », « rien ne m'empêche d'envoyer un plan à moitié rempli »)
+    const names = ids.map(id => personName(coachStudent(id)));
+    const who = names.length > 3 ? plural(names.length, 'élève', 'élèves') : names.join(', ').replace(/, ([^,]*)$/, ' et $1');
+    const off = dietPlanDays(plan).filter((_, i) => dietGapShort(dietDaySummary(plan, i))).length;
+    const msg = [off ? (off > 1 ? `${off} jours sont loin de leur objectif ou vides.` : '1 jour est loin de son objectif ou vide.') : '',
+      'Un plan déjà envoyé est mis à jour chez l\'élève.'].filter(Boolean).join(' ');
+    // Alerte à deux boutons (pas une feuille destructive : envoyer n'efface rien)
+    const go = await dialog({ title: `Envoyer « ${plan.name} » à ${who} ?`, message: msg,
+      actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
+    if (go !== true) return;
     m.busy = true; m.done = 0; render();
     const r = await dietSendMany(ids, planId);
     m.busy = false;

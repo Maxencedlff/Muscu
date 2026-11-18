@@ -54,12 +54,14 @@ function waterGlassesHtml(st, attrDay) {
   const size = waterQtyText(ml);
   const cells = Array.from({ length: n }, (_, i) => {
     const on = i < full, last = i === full - 1;
-    const label = on ? (last ? `Verre ${i + 1} sur ${n}, ${waterQtySpoken(ml)}, bu. Retirer` : `Verre ${i + 1} sur ${n}, bu`) : `Verre ${i + 1} sur ${n}. Ajouter ${waterQtySpoken(ml)}`;
+    // « Verre » seulement pour 25 cl (comme le bouton « Verre 25 cl ») ; 50 cl et 1 L : « case » (panel du 18/11)
+    const w = ml === 250 ? 'Verre' : 'Case';
+    const label = on ? (last ? `${w} ${i + 1} sur ${n}, ${waterQtySpoken(ml)}, bu. Retirer` : `${w} ${i + 1} sur ${n}, bu`) : `${w} ${i + 1} sur ${n}. Ajouter ${waterQtySpoken(ml)}`;
     return `<button class="water-cup${on ? ' water-cup--on' : ''}${i >= low ? ' water-cup--extra' : ''}" data-action="water-glass" data-ml="${ml}" data-op="${on ? (last ? 'del' : 'none') : 'add'}"${attrDay ? ` data-day="${esc(attrDay)}"` : ''}
         aria-pressed="${on}" aria-label="${esc(label)}"${on && !last ? ' aria-disabled="true"' : ''}>${waterGlassSvg(on ? 1 : 0, 28)}</button>`;
   }).join('');
   return `<div class="water-cups" role="group" aria-label="${esc(`${n} verres de ${waterQtySpoken(ml)}`)}">${cells}</div>
-          <p class="water-cups__note num">${esc(`Un verre = ${size}${st.goal.min != null ? ` · ${low} au moins` : ''}`)}</p>`;
+          <p class="water-cups__note num">${esc(`${ml === 250 ? 'Un verre' : 'Une case'} = ${size}${st.goal.min != null ? ` · ${low} au moins` : ''}`)}</p>`;
 }
 // Bouton d'ajout : « + Verre 25 cl » ; day vide : aujourd'hui, lu au toucher
 function waterAddBtnHtml(cup, day = '', extra = '') {

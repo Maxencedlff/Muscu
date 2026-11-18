@@ -459,6 +459,15 @@ Vocaux WhatsApp de deux coachs, puis demande de Maxence sur l'éditeur du coach.
   officielle française pour la pincée), Autre en grammes, Supprimer. `data.saltLog` (120 jours) : sur l'appareil seulement
   (SYNC_LOCAL_ONLY, hors copie iCloud). Aucune alerte, aucun rouge.
 
+### Mini-panel du 18/11 (5 agents, une planche de 7 écrans : 7/10 chacun)
+Deux coachs nutrition, une pratiquante en sèche, un expert ergonomie Apple, un coach débutant en tech. Corrigé :
+« Un verre = 1 L » contredisait « Verre 25 cl » (4 sur 5) → « Une case = 1 L », « verre » gardé pour 25 cl ; sel « sur 3 à 5 g »
+ambigu → « objectif 3 à 5 g » ; aperçu « 1 569 kcal sous l'objectif » lu comme prévu → « 731 kcal prévues sur 2 300 : il
+manque 1 569 kcal » ; envoi : confirmation qui nomme les élèves et dit les jours loin de l'objectif (peur d'écraser le plan
+du mauvais élève) ; toast « Jours : semaine » → « 7 jours, copies du premier jour ». Écarté : macros « Pas d'objectif »
+(choix du coach, règle d'avant) ; type de jour prévu d'avance en mode entraînement / repos (voir la limite connue : le
+mode Semaine le fait, jour par jour).
+
 ### Tests
 `tests/unit/nutrition-coachs.mjs` (sel et alias de la base, pomme de terre → riz, jours, copies, envoi et taille, eau,
 sel, récents) ; `tests/test_nutri_coachs.py` (lot `nutri_coachs` : éditeur du coach, élève jour de repos et d'entraînement,
