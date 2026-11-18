@@ -461,7 +461,8 @@ function dietSaltRowHtml(pr) {
   const top = goal ? (goal.max ?? goal.min) : null;
   const ratio = top ? Math.min(1, salt.g / top) : 0, zone = goal?.min != null && goal.max != null ? goal.min / goal.max : null;
   const attrDay = pr.day === dietDayKey() ? '' : ` data-day="${pr.day}"`;
-  const val = `<b>${fmtNum(dietR1(salt.g), 1)}</b>${goal ? ` sur ${dietSaltGoalText(goal)}` : '\u00a0g'}`;
+  // « 2,1 g · objectif 3 à 5 g » (« sur 3 à 5 g » ne disait pas si c'était à viser ou un plafond, panel du 18/11)
+  const val = `<b>${fmtNum(dietR1(salt.g), 1)}</b>\u00a0g${goal ? ` · objectif ${dietSaltGoalText(goal)}` : ''}`;
   const spoken = `Sel : ${fmtNum(dietR1(salt.g), 1)} grammes${goal ? `, objectif ${dietSaltGoalText(goal).replace(/\u00a0g/g, ' grammes')}` : ''}. Détail et sel ajouté`;
   return `
         <div class="diet-salt">
@@ -774,7 +775,7 @@ function dietSaltBodyHtml(day) {
   const list = Array.isArray(data.saltLog?.[day]) ? data.saltLog[day] : [];
   const time = at => (at ? new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
   return `<div class="diet-saltsheet">
-      <p class="diet-saltsheet__val num"><b>${fmtNum(dietR1(salt.g), 1)}\u00a0g</b>${goal ? ` sur ${dietSaltGoalText(goal)}` : ''}</p>
+      <p class="diet-saltsheet__val num"><b>${fmtNum(dietR1(salt.g), 1)}\u00a0g</b>${goal ? ` · objectif ${dietSaltGoalText(goal)}` : ''}</p>
       <p class="diet-saltsheet__why num">Aliments mangés : ${fmtNum(dietR1(salt.food), 1)}\u00a0g${salt.unknown ? ` (${plural(salt.unknown, 'aliment sans valeur de sel', 'aliments sans valeur de sel')})` : ''} · ajouté : ${fmtNum(dietR1(salt.added), 1)}\u00a0g</p>
       <div class="diet-saltsheet__btns">
         ${SALT_ADDS.map(x => `<button type="button" class="water-add diet-saltsheet__add" data-salt="${x.g}" aria-label="Ajouter ${esc(x.label.toLowerCase())}, environ ${fmtNum(x.g, 1)} gramme${x.g >= 2 ? 's' : ''}">${icon('plus', 14)}<span class="water-add__lbl">${x.label}<small class="water-add__qty">environ ${fmtNum(x.g, 1)}\u00a0g</small></span></button>`).join('')}
