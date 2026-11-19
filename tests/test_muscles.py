@@ -747,8 +747,9 @@ def t_muscle_filter(bench, eng, dev, theme):
         rows = page.locator('.library .mgcs .mgc')
         ids = [rows.nth(i).get_attribute('data-group') for i in range(rows.count())]
         R.check(ids == ['pectoraux', 'dos', 'epaules', 'bras', 'abdominaux', 'jambes'], f'{t} Bibliothèque : groupes illustrés {ids}')
-        lab = rows.first.get_attribute('aria-label') or ''
-        R.check(re.fullmatch(r'Pectoraux, \d+ exercices', lab) is not None, f'{t} groupe : libellé VoiceOver « {lab} »')
+        # Intitulé VoiceOver = le texte affiché (WCAG 2.5.3) : pas d'aria-label, le nom et le nombre lus à la suite
+        lab = ' '.join(rows.first.inner_text().split())
+        R.check(rows.first.get_attribute('aria-label') is None and re.fullmatch(r'Pectoraux \d+ exercices', lab) is not None, f'{t} groupe : libellé VoiceOver « {lab} »')
         R.check(page.locator('.library .mgcs .mgc img[alt=""]').count() == 6, f'{t} groupes : images décoratives (alt vide)')
         page.wait_for_function("[...document.querySelectorAll('.library .mgcs .mgc img')].every(i => i.complete && i.naturalWidth > 0)", timeout=5000)
         R.check(min(rows.nth(i).bounding_box()['height'] for i in range(6)) >= 44, f'{t} groupes : 44 px au moins')
@@ -791,8 +792,10 @@ def t_muscle_filter(bench, eng, dev, theme):
             const n = [...document.querySelectorAll('#libList .mgc--ex .mgc__sub')].filter(el => el.scrollWidth > el.clientWidth + 1).length;
             document.documentElement.classList.remove('type-xl'); return n; }""")
         R.check(xl_cut == 0, f'{t} texte agrandi : sous-titres entiers ({xl_cut} coupés)')
-        lab = page.locator('#libList .mgc--ex[data-name="Soulevé de terre"]').get_attribute('aria-label') or ''
-        R.check(lab.startswith('Soulevé de terre, ') and 'Ischio-jambiers' in lab and lab.endswith('Salle'), f'{t} ligne : libellé VoiceOver complet « {lab} »')
+        # Intitulé VoiceOver = le texte affiché (WCAG 2.5.3, 19/11) : nom, muscles, matériel, sans aria-label
+        row = page.locator('#libList .mgc--ex[data-name="Soulevé de terre"]')
+        lab = ' '.join(row.inner_text().split())
+        R.check(row.get_attribute('aria-label') is None and lab.startswith('Soulevé de terre ') and 'Ischio' in lab and lab.endswith('Salle'), f'{t} ligne : libellé VoiceOver = texte affiché « {lab} »')
         shot(page, LOT, f'exos-biblio-{t}')
         # Le toucher ouvre la feuille d'actions du matériel ; le choix filtre et s'affiche sur la pastille
         n_all = page.locator('#libList .mgc--ex').count()

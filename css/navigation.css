@@ -50,6 +50,12 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 .navbar__bar--wide-back:has(.navbar__back--icon) { column-gap: 4px; }
 /* « Annuler » / « OK » gardent leur largeur : c'est le titre qui se tronque (écrans étroits) */
 .navbar__side:has(> .navbar__text) { min-width: max-content; }
+/* Titre qui ne tient pas entre les boutons, même décentré (texte agrandi, 320 pt) : sur sa ligne, sous les boutons
+   (fitBackLabelNow, js/ui/navbar.js) */
+.navbar__bar--stack { grid-template-columns: max-content minmax(0, 1fr) max-content; grid-template-areas: "gauche . droite" "titre titre titre"; }
+.navbar__bar--stack > .navbar__side--left { grid-area: gauche; }
+.navbar__bar--stack > .navbar__side--right { grid-area: droite; }
+.navbar__bar--stack > .navbar__title { grid-area: titre; max-width: none; white-space: normal; overflow: visible; padding-bottom: 6px; }
 .navbar__side--right { justify-content: flex-end; }
 /* Le retour garde toujours sa place (44 pt, chevron seul au besoin) : à droite, « Renommer » en max-content
    écrasait la colonne de gauche et le titre passait sur le chevron (iPhone SE, panel du 06/11) */

@@ -89,12 +89,11 @@ function libRowHtml(e) {
   const q = EQUIPMENT.find(x => x.id === e.equip);
   const m = exerciseMuscles({ name: e.name }), id = m.primary?.[0];
   const f = libMuscle.muscle, shown = f && m.primary.includes(f) ? { ...m, primary: [f, ...m.primary.filter(x => x !== f)] } : m;
-  const muscles = [...new Set([...m.primary.map(muscleLabel), ...(m.deep || []).map(id => deepMuscleLabel(id, true))])];
   const hint = LIB_HINTS[e.name] || (!m.primary.length && m.deep?.length ? deepMusclesNames(m) : null);
-  const label = [e.name, hint, ...muscles, q?.label].filter(Boolean).join(', ');
   const sub = hint ? `<span class="mgc__mus">${esc(hint)}</span>` : libSubHtml(shown, q?.short || q?.label || '');
-  if (libPickOn) return libPickRowHtml(e, label, sub, id);
-  return `<button class="cell mgc mgc--ex" data-action="open-library-ex" data-name="${esc(e.name)}" aria-label="${esc(label)}">
+  if (libPickOn) return libPickRowHtml(e, sub, id);
+  // Intitulé VoiceOver = le texte affiché (WCAG 2.5.3, panel du 19/11) : nom, puis muscles et matériel
+  return `<button class="cell mgc mgc--ex" data-action="open-library-ex" data-name="${esc(e.name)}">
       <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
         <span class="mgc__sub">${sub}</span></span>
       ${isMuscleId(id) ? muscleImgHtml(id, true) : ''}
@@ -102,11 +101,11 @@ function libRowHtml(e) {
 }
 // Ligne du mode choix : même ligne illustrée ; en sélection multiple, une case ronde à gauche (comme Photos d'iOS),
 // lue « case à cocher » par VoiceOver. Déjà dans la séance : dit en sous-titre, grisé, jamais ajouté deux fois.
-function libPickRowHtml(e, label, sub, id) {
+function libPickRowHtml(e, sub, id) {
   const has = libPickHas(e.name), on = libPick.sel.includes(e.name), multi = libPick.multi && !has;
   const state = multi ? ` role="checkbox" aria-checked="${on}"` : '';
-  return `<button class="cell mgc mgc--ex${libPick.multi ? ' mgc--pick' : ''}${has ? ' mgc--has' : ''}" data-action="lib-pick" data-name="${esc(e.name)}"${state}
-        aria-label="${esc(has ? `${e.name}, déjà dans la séance` : label)}"${has ? ' aria-disabled="true"' : ''}>
+  // Intitulé VoiceOver = le texte affiché (WCAG 2.5.3, panel du 19/11) : nom, puis muscles et matériel ou « Déjà dans la séance »
+  return `<button class="cell mgc mgc--ex${libPick.multi ? ' mgc--pick' : ''}${has ? ' mgc--has' : ''}" data-action="lib-pick" data-name="${esc(e.name)}"${state}${has ? ' aria-disabled="true"' : ''}>
       ${libPick.multi ? `<span class="mgc__check" aria-hidden="true">${icon('checkmark', 14)}</span>` : ''}
       <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
         <span class="mgc__sub">${has ? '<span class="mgc__mus">Déjà dans la séance</span>' : sub}</span></span>
@@ -144,7 +143,7 @@ function muscleImgHtml(id, lazy = false) {
 function muscleGroupsHtml(action) {
   const rows = MUSCLE_GROUPS.map(g => {
     const count = exercisesCountLabel(libMatches({ group: g.id, muscle: null }).filter(e => libMainMatch(e, { group: g.id, muscle: null })).length);
-    return `<button class="cell mgc" data-action="${action}" data-group="${g.id}" aria-label="${esc(g.label)}, ${count}">
+    return `<button class="cell mgc" data-action="${action}" data-group="${g.id}">
         <span class="mgc__text"><span class="mgc__title">${esc(g.label)}</span><span class="mgc__sub">${count}</span></span>
         ${muscleImgHtml(g.id)}
       </button>`;

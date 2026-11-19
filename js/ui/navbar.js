@@ -176,6 +176,19 @@ function fitBackLabelNow(scope = document) {
     const title = bar?.querySelector('.navbar__title');
     if (title && title.scrollWidth > title.clientWidth + 1) bar.classList.add('navbar__bar--wide-back');
   });
+  // Titre encore coupé (texte agrandi : « Nouvel exercice » entre « Annuler » et « OK », « Exercices » entre « Annuler »
+  // et « Sélectionner » sur 320 pt) : centré entre les deux côtés, puis, s'il ne tient toujours pas, sur sa propre
+  // ligne sous les boutons, en entier
+  scope.querySelectorAll('.navbar__bar').forEach(bar => {
+    const title = bar.querySelector(':scope > .navbar__title');
+    if (!title || !title.getClientRects().length || !title.textContent.trim()) return;
+    bar.classList.remove('navbar__bar--stack');
+    if (!bar.querySelector('.navbar__back')) bar.classList.remove('navbar__bar--wide-back');
+    const cut = () => title.scrollWidth > title.clientWidth + 1;
+    if (!cut()) return;
+    bar.classList.add('navbar__bar--wide-back');
+    if (cut()) bar.classList.add('navbar__bar--stack');
+  });
 }
 let backFitFrame = 0;
 function fitBackLabel(scope = document) {

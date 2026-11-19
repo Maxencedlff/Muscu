@@ -95,7 +95,10 @@ html.type-xl .psq--img, html.type-xl .psq--body { display: none; }
 /* Catalogue : fréquence conseillée en gros ; le texte « N séances par semaine » reste pour VoiceOver et le texte agrandi */
 .psq--freq { width: 42px; height: 42px; background: var(--fill2); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; line-height: 1.1; color: var(--label2); }
 .psq--freq b { font-size: 20px; font-weight: 700; color: var(--label); }
-html:not(.type-xl) .psq-freq-txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Taille normale : le chiffre est dans la vignette, la phrase est pour VoiceOver seul (sr-text) ; texte agrandi : la
+   vignette disparaît, la phrase s'affiche */
+html:not(.type-xl) .psq-freq-txt { display: none; }
+html.type-xl .psq-freq-sr { display: none; }
 html.type-xl .psq--freq { display: none; }
 /* Mini-personnages : pas de fondu (une centaine de calques animés à la fois pour rien à 42 px) */
 .psq--body .body-map__m { animation: none; }
@@ -114,3 +117,9 @@ html.type-xl .ex-edit .seg-full .segmented__btn::before { display: none; }
 #exTempoIn { width: 6.5em; max-width: 100%; }
 html.type-xl .cell:has(> #exTempoIn) { flex-wrap: wrap; row-gap: 6px; }
 html.type-xl #exTempoIn { width: 100%; text-align: left; }
+/* Champs chiffrés de l'exercice : cible de 44 pt (la ligne entière reste touchable : <label>) */
+.ex-edit .field--num { min-height: 44px; margin-block: -6px; }
+/* Texte agrandi : le nom (« Bas de fourchette ») garde toute la largeur, le champ passe dessous, jamais un mot coupé */
+html.type-xl .ex-edit label.cell--ctl:has(.field-suffix) { flex-wrap: wrap; row-gap: 4px; }
+html.type-xl .ex-edit label.cell--ctl:has(.field-suffix) > .cell__body { flex: 1 1 100%; }
+html.type-xl .ex-edit label.cell--ctl .cell__title { overflow-wrap: normal; hyphens: none; }

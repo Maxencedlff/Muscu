@@ -83,13 +83,13 @@ function progSessionCardHtml(cat, progId) {
   const muscles = meta.desc || sessionMusclesSummary(progId, cat);
   const facts = c.n ? [plural(c.n, 'exercice', 'exercices'), plural(c.sets, 'série', 'séries')] : ['Aucun exercice'];
   // « ≈ 55 min » à l'écran, « environ 55 minutes » pour VoiceOver : l'intitulé reste le texte affiché (WCAG 2.5.3)
-  const duration = mins ? ` · <span aria-hidden="true">≈ ${mins} min</span><span class="sr-text">environ ${mins} minutes</span>` : '';
+  const duration = mins ? `\u00a0· <span aria-hidden="true">≈ ${mins} min</span><span class="sr-text">environ ${mins} minutes</span>` : '';
   return `
       <button class="cell cell--nav mgc pcard" data-action="open-prog-session" data-cat="${esc(cat)}" data-id="${esc(cat)}">
         <span class="cell__body mgc__text">
           <span class="cell__title pcard__name">${esc(sessionTitle(cat, progId))}</span>
           ${muscles ? `<span class="pcard__muscles">${muscles}</span>` : ''}
-          <span class="cell__sub pcard__facts num">${facts.join(' · ')}${duration}</span>
+          <span class="cell__sub pcard__facts num">${facts.join('\u00a0· ')}${duration}</span>
         </span>
         ${progSessionThumbHtml(cat)}
         ${icon('chevron.right', 16)}
@@ -256,7 +256,7 @@ function renderProgAdd() {
         <span class="cell__body">
           <span class="cell__title">${esc(pm.name)}</span>
           ${state ? `<span class="cell__sub prog-add__state">${state}</span>` : ''}
-          <span class="cell__sub">${adv ? `<span class="psq-freq-txt">${adv.perWeek} séances par semaine · </span>` : ''}${Object.values(pm.sessions).map(x => esc(sessionPlainName(x.label) || x.label)).join(' · ')}</span>
+          <span class="cell__sub">${adv ? `<span class="psq-freq-txt">${adv.perWeek} séances par semaine\u00a0· </span><span class="sr-text psq-freq-sr">${adv.perWeek} séances par semaine, </span>` : ''}${Object.values(pm.sessions).map(x => esc(sessionPlainName(x.label) || x.label)).join(' · ')}</span>
         </span>
         ${icon('chevron.right', 16)}
       </button>`;

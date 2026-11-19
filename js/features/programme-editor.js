@@ -120,7 +120,8 @@ function renderEditor() {
     const last = lastPerf(data.activeProgramme, cat, ex);
     const best = last ? bestSet(last.ex.sets, ex) : null;
     const plan = canTech(ex) ? INTENS_PLANS[cleanIntens(ex.intens)]?.short : '';   // technique prescrite
-    const sub  = `${setsRangeHtml(ex)}${plan ? ` · ${plan}` : ''}${best ? ` · <span class="ed-last">dernier ${setTxt(best, ex)}</span>` : ''}`;
+    // « · » collé au mot d'avant (espace insécable) : la ligne se coupe après, jamais devant
+    const sub  = `${setsRangeHtml(ex)}${plan ? `\u00a0· ${plan}` : ''}${best ? `\u00a0· <span class="ed-last">dernier ${setTxt(best, ex)}</span>` : ''}`;
     const tag  = ssTagHtml(list, i);
     if (editorEditing) {
       return `
