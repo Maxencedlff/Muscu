@@ -1,4 +1,4 @@
-// Ordre des séances (dashboard.js : nextSessionCat, rotationFrom, otherSessions) et tronc qui ne bloque plus une
+// File des séances (dashboard.js : nextSessionCat, sessionQueue, otherSessions) et tronc qui ne bloque plus une
 // séance entière (sessionBlockingMuscles). Cas réel du 19/11 : « Split séquentiel » Pecs, Dos, Jambes, Épaules, Bras.
 export default function ({ test, run, reset, assert }) {
   const H = 3600_000;
@@ -11,12 +11,11 @@ export default function ({ test, run, reset, assert }) {
     bras:    ['Curl biceps haltères', 'Dead bug'],
   };
   const KEYS = Object.keys(SESSIONS);
-  // Programme créé, séances dans cet ordre ; rotation : réglage du programme (absent = dans l'ordre)
-  const split = (rotation) => {
+  // Programme créé, séances dans cet ordre
+  const split = () => {
     reset();
     run(`data.userProgrammes.${PID} = { name: 'Split séquentiel', archived: false, order: ${JSON.stringify(KEYS)},
            sessions: Object.fromEntries(${JSON.stringify(KEYS)}.map(k => [k, { label: k, icon: '', desc: '', color: '#FF9500' }])) };
-         ${rotation ? `data.userProgrammes.${PID}.rotation = '${rotation}';` : ''}
          data.programmes.${PID} = { exercises: {}, timers: {}, cooldowns: {} };
          Object.entries(${JSON.stringify(SESSIONS)}).forEach(([k, names]) => {
            data.programmes.${PID}.exercises[k] = names.map(n => makeExercise(n, 3));
@@ -36,7 +35,7 @@ export default function ({ test, run, reset, assert }) {
   const others = () => JSON.parse(run(`JSON.stringify(otherSessions(sessionKeys(), nextSessionCat(sessionKeys())))`));
 
   test('tronc : Pecs puis Jambes finie par une planche, la séance proposée est Dos (cas réel du 19/11)', () => {
-    split('recovery');
+    split();
     done('pecs', 36);    // mar. 17/11, 22 h
     done('jambes', 15);  // mer. 18/11, 19 h
     assert.equal(run(`catStatus('dos').ready`), true, 'le Dead bug de Dos n\'attend pas les abdos de la planche');
@@ -54,90 +53,80 @@ export default function ({ test, run, reset, assert }) {
   });
 
   test('tronc : une séance d\'abdos seule attend toujours ses abdos', () => {
-    split('recovery');
+    split();
     run(`prog().exercises.bras = [makeExercise('Crunch', 3), makeExercise('Gainage (planche)', 3)]`);
     done('jambes', 10);
     assert.equal(run(`catStatus('bras').ready`), false);
     assert.equal(run(`catStatus('bras').by.muscle`), 'abs');
   });
 
-  test('ordre : jamais rien fait, la première séance, puis les autres dans l\'ordre', () => {
+  // File (règle de Maxence, 19/11) : faire une séance la renvoie en fin de file, la proposée est la tête de file
+  const queue = () => [next(), ...others()];
+
+  test('file : jamais rien fait, l\'ordre du programme', () => {
     split();
-    assert.equal(run(`inOrder()`), true, 'programme créé : dans l\'ordre par défaut');
     assert.equal(next(), 'pecs');
     assert.deepEqual(others(), ['dos', 'jambes', 'epaules', 'bras']);
   });
 
-  test('ordre : dernière faite au milieu, la suivante est proposée, « Ensuite » en boucle', () => {
+  test('file : cas de Maxence, Pecs puis Jambes, proposée Dos', () => {
+    split();
+    done('pecs', 36);
+    done('jambes', 15);
+    assert.deepEqual(queue(), ['dos', 'epaules', 'bras', 'pecs', 'jambes']);
+  });
+
+  test('file : dernière faite au milieu, les jamais faites d\'abord puis la plus ancienne', () => {
     split();
     done('pecs', 50);
     done('dos', 26);
-    assert.equal(next(), 'jambes');
-    assert.deepEqual(others(), ['epaules', 'bras', 'pecs', 'dos']);
+    assert.deepEqual(queue(), ['jambes', 'epaules', 'bras', 'pecs', 'dos']);
     assert.equal(run(`passedOverNote(sessionKeys(), 'jambes')`), '', 'rien n\'est sauté');
   });
 
-  test('ordre : dernière faite en fin de liste, retour au début', () => {
+  test('file : tout fait dans l\'ordre, la dernière de la liste faite, retour au début', () => {
     split();
     KEYS.forEach((k, i) => done(k, 24 * (KEYS.length - i)));
-    assert.equal(next(), 'pecs');
-    assert.deepEqual(others(), ['dos', 'jambes', 'epaules', 'bras']);
+    assert.deepEqual(queue(), KEYS);
   });
 
-  test('ordre : séance proposée pas reposée, gardée avec son attente, aucune séance sautée', () => {
+  test('file : séance proposée pas reposée, gardée en tête, Démarrer possible, avertissement', () => {
     split();
     run(`prog().exercises.epaules.push(makeExercise('Squat barre', 3))`);   // les quadriceps de Jambes la retiennent
-    done('pecs', 60);
-    done('jambes', 10);
-    assert.equal(next(), 'epaules', 'la suivante de Jambes, même pas prête');
+    KEYS.forEach((k, i) => done(k, 24 * (10 - i)));   // tout fait, Bras il y a 6 jours
+    done('pecs', 30); done('dos', 20); done('jambes', 10);
+    assert.equal(next(), 'epaules', 'tête de file, même pas reposée');
     assert.equal(run(`catStatus('epaules').ready`), false);
-    assert.equal(run(`catStatus('epaules').by.muscle`), 'quads', 'raison donnée sur la carte (recoveryReason)');
+    assert.match(run(`recoveryWarning(catStatus('epaules'))`), /^Attention : quadriceps en récupération, encore /);
   });
 
-  test('ordre : autre séance faite aujourd\'hui (touchée dans Ensuite), la rotation repart après elle', () => {
+  test('file : autre séance faite aujourd\'hui (touchée dans Ensuite), elle passe en fin de file', () => {
     split();
     done('pecs', 48);
     assert.equal(next(), 'dos');
     done('epaules', 1);   // Dos était proposée, Épaules faite à la place
-    assert.equal(next(), 'bras');
-    assert.deepEqual(others(), ['pecs', 'dos', 'jambes', 'epaules']);
+    assert.deepEqual(queue(), ['dos', 'jambes', 'bras', 'pecs', 'epaules']);
   });
 
-  test('ordre : séance en cours hors de l\'ordre, « Ensuite » suit celle-là', () => {
+  test('file : séance en cours, « Ensuite » montre la file sans elle', () => {
     split();
     done('pecs', 48);
-    assert.deepEqual(JSON.parse(run(`JSON.stringify(otherSessions(sessionKeys(), 'jambes'))`)), ['epaules', 'bras', 'pecs', 'dos']);
+    assert.deepEqual(JSON.parse(run(`JSON.stringify(otherSessions(sessionKeys(), 'jambes'))`)), ['dos', 'epaules', 'bras', 'pecs']);
   });
 
-  test('ordre : l\'ordre changé suit tout de suite (moveSession)', () => {
+  test('file : l\'ordre changé suit tout de suite pour les séances jamais faites (moveSession)', () => {
     split();
     done('pecs', 30);
     assert.equal(next(), 'dos');
     run(`moveSession('${PID}', 3, 1)`);   // Épaules juste après Pecs
-    assert.deepEqual(JSON.parse(run(`JSON.stringify(sessionKeys())`)), ['pecs', 'epaules', 'dos', 'jambes', 'bras']);
+    assert.deepEqual(JSON.parse(run(`JSON.stringify(sessionKeys())`)), ['pecs', 'epaules', 'dos', 'jambes', 'bras'], 'affichage : l\'ordre choisi');
     assert.equal(next(), 'epaules');
   });
 
-  test('ordre : réglage « selon la récupération » et programmes intégrés inchangés', () => {
-    split();
-    done('pecs', 100);
-    done('jambes', 30);
-    assert.equal(next(), 'epaules', 'dans l\'ordre : après Jambes');
-    split('recovery');
-    done('pecs', 100);
-    done('jambes', 30);
-    assert.equal(run(`inOrder()`), false);
-    assert.equal(next(), 'dos', 'selon la récupération : Dos, jamais faite');
+  test('file : programmes intégrés inchangés (selon la récupération)', () => {
     reset();
-    assert.equal(run(`inOrder('ppl')`), false, 'PPL : selon la récupération');
     run(`data.programmes.ppl.timers.push = Date.now() - 100 * ${H}; data.programmes.ppl.timers.pull = Date.now() - 200 * ${H};`);
-    assert.equal(next(), 'legs', 'PPL : jamais faite d\'abord, pas « après Push »');
+    assert.equal(next(), 'legs', 'PPL : jamais faite d\'abord');
     assert.equal(run(`otherSessions(sessionKeys(), 'legs').join()`), 'pull,push', 'autres séances par récupération');
-  });
-
-  test('ordre : réglage gardé par sanitizeData et par une mise à jour du coach', () => {
-    split('recovery');
-    run(`sanitizeData(data)`);
-    assert.equal(run(`data.userProgrammes.${PID}.rotation`), 'recovery');
   });
 }

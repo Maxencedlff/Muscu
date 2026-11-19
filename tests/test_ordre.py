@@ -108,60 +108,105 @@ def t_ordre(bench, eng, dev, theme):
 
 
 def t_accueil_ordre(bench, eng, dev, theme):
-    """Accueil → « Changer l'ordre » → glisser → accueil à jour : rotation dans l'ordre (retour de Maxence, 19/11)."""
+    """Accueil → « Changer l'ordre » → page du programme en mode ordre → glisser → accueil à jour (règle du 19/11 :
+    la file, faire une séance la renvoie en fin de file ; la récupération n'est qu'un avertissement)."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         d = json.loads(semaine_json())
         keys = list(d['userProgrammes'][PID]['sessions'])
-        # Mardi fait il y a 2 jours : la rotation propose Mercredi, puis Jeudi… jusqu'à Mardi
-        two_days = 2 * 86400_000
         seed(page, theme, json.dumps(d, ensure_ascii=False))
-        page.evaluate("""([pid, k, ms]) => { const date = Date.now() - ms; data.programmes[pid].timers[k] = date;
+        # Mardi fait il y a 2 jours (Développé couché : toutes les séances attendent les pectoraux)
+        page.evaluate("""([pid, k]) => { const date = Date.now() - 2 * 86400000; data.programmes[pid].timers[k] = date;
             data.history.unshift({ id: 'hmardi', date, programme: pid, category: k, exercises: [{ name: 'Développé couché', sets: [{ weight: '40', reps: '10' }] }] });
-            save(); render(); }""", [PID, keys[1], two_days])
+            save(); render(); }""", [PID, keys[1]])
         page.wait_for_timeout(200)
-        R.check(page.locator('.hero__name').inner_text().strip() == 'Mercredi', f'{t} accueil : la suivante de Mardi (Mercredi)')
-        R.check(page.locator('#homeNext').inner_text().strip() == 'Ensuite', f'{t} titre « Ensuite » (dans l\'ordre)')
-        attendu = JOURS[3:] + JOURS[:2]
-        R.check(labels(page, '.home-cell__name')[:6] == attendu, f'{t} Ensuite en boucle {labels(page, ".home-cell__name")[:6]}')
-        page.click('[data-action="toggle-home-order"]')
-        page.wait_for_selector('.ho-handle')
-        R.check(labels(page, '.ho-row .cell__title') == JOURS, f'{t} mode ordre : toutes les séances, ordre du programme')
-        shot(page, LOT, f'accueil_ordre_{t}')
-        # Glisser Mercredi (3e) tout en bas
-        page.locator('.home-order').scroll_into_view_if_needed()
-        hb = page.locator('.ho-handle').nth(2).bounding_box()
-        rh = page.locator('.ho-row').first.bounding_box()['height']
+        R.check(page.locator('.hero__name').inner_text().strip() == 'Lundi', f'{t} accueil : tête de file Lundi (jamais faite)')
+        R.check(page.locator('#homeNext').inner_text().strip() == 'Ensuite', f'{t} titre « Ensuite »')
+        file_ = JOURS[2:] + ['Mardi']
+        R.check(labels(page, '.home-cell__name')[:6] == file_, f'{t} Ensuite : Mardi, faite, en fin de file {labels(page, ".home-cell__name")[:6]}')
+        warn = page.locator('.hero .hero__wait').inner_text().strip()
+        R.check(warn.startswith('Attention : pectoraux en récupération, encore '), f'{t} avertissement de récupération ({warn})')
+        btn = page.locator('.hero [data-action="start-session"]')
+        R.check('Démarrer' == btn.inner_text().strip() and 'hero__btn--gray' not in (btn.get_attribute('class') or ''), f'{t} Démarrer reste le bouton plein')
+        shot(page, LOT, f'accueil_file_{t}')
+
+        page.click('[data-action="open-session-order"]')
+        page.wait_for_selector('.view.programmes .ps-handle')
+        R.check(page.evaluate('nav.tab') == 'program', f'{t} Changer l\'ordre : onglet Programme, page du programme')
+        R.check(labels(page, '.ps-row .cell__title') == JOURS, f'{t} mode ordre : l\'ordre du programme')
+        shot(page, LOT, f'page_ordre_{t}')
+        # Lundi (1er) glissé tout en bas
+        page.evaluate("document.querySelector('.ps-list').previousElementSibling.scrollIntoView({ block: 'start' })")
+        page.wait_for_timeout(150)
+        hb = page.locator('.ps-handle').nth(0).bounding_box()
+        rh = page.locator('.ps-row').first.bounding_box()['height']
         x, y = hb['x'] + hb['width'] / 2, hb['y'] + hb['height'] / 2
         page.mouse.move(x, y)
         page.mouse.down()
         for k in range(1, 13):
-            page.mouse.move(x, y + rh * 4 * k / 12)
+            page.mouse.move(x, y + rh * 6 * k / 12)
         page.mouse.up()
-        page.wait_for_selector('.ho-row')
-        nouvel = ['Lundi', 'Mardi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche', 'Mercredi']
-        R.check(labels(page, '.ho-row .cell__title') == nouvel, f'{t} glisser : Mercredi en dernier {labels(page, ".ho-row .cell__title")}')
-        stored = json.loads(ls(page, 'ppl_v2'))['userProgrammes'][PID]
-        R.check([stored['sessions'][k]['label'] for k in stored['order']] == nouvel, f'{t} ordre enregistré')
-        page.click('[data-action="toggle-home-order"]')
-        page.wait_for_selector('.hero__name')
-        R.check(page.locator('.hero__name').inner_text().strip() == 'Jeudi', f'{t} accueil à jour : Jeudi suit Mardi')
-        R.check(labels(page, '.home-cell__name')[:6] == ['Vendredi', 'Samedi', 'Dimanche', 'Mercredi', 'Lundi', 'Mardi'], f'{t} Ensuite à jour')
+        page.wait_for_selector('.ps-row')
+        nouvel = JOURS[1:] + ['Lundi']
+        R.check(labels(page, '.ps-row .cell__title') == nouvel, f'{t} glisser : Lundi en dernier {labels(page, ".ps-row .cell__title")}')
+        page.click('[data-action="toggle-prog-order"]')
+        page.wait_for_selector('.view.programmes [data-action="open-prog-session"]')
+        R.check(labels(page, '[data-action="open-prog-session"] .cell__title') == nouvel, f'{t} page : séances dans l\'ordre choisi')
+        page.click('.tabbar [data-tab="train"]')
+        page.wait_for_selector('.view.dashboard .hero__name')
+        R.check(page.locator('.hero__name').inner_text().strip() == 'Mercredi', f'{t} accueil à jour : Mercredi en tête ({page.locator(".hero__name").inner_text().strip()})')
+        R.check(labels(page, '.home-cell__name')[:6] == ['Jeudi', 'Vendredi', 'Samedi', 'Dimanche', 'Lundi', 'Mardi'], f'{t} Ensuite à jour {labels(page, ".home-cell__name")[:6]}')
         shot(page, LOT, f'accueil_apres_{t}')
-        # La feuille d'une séance propose aussi « Changer l'ordre »
+        # La feuille d'une séance propose aussi « Changer l'ordre », qui ouvre la même page
         page.locator('.home-cell[data-action="session-actions"]').first.click()
         page.wait_for_selector('.ios-dialog--sheet')
         R.check(page.locator('.ios-dialog__btn', has_text="Changer l'ordre").count() == 1, f'{t} feuille : « Changer l\'ordre »')
+        R.check(page.locator('.ios-dialog__btn', has_text='Ignorer le délai').count() == 0, f'{t} feuille : pas d\'« Ignorer le délai » (la file ne bouge pas)')
         tap_dialog(page, "Changer l'ordre")
-        page.wait_for_selector('.ho-handle')
-        R.check(page.locator('.ho-row').count() == 7, f'{t} feuille : ouvre le mode ordre')
+        page.wait_for_selector('.view.programmes .ps-handle')
+        R.check(page.locator('.ps-row').count() == 7, f'{t} feuille : page du programme en mode ordre')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:3]}')
 
     # Programme intégré : selon la récupération, « Autres séances », pas de « Changer l'ordre »
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
-        R.check(page.locator('[data-action="toggle-home-order"]').count() == 0, f'{t} PPL : pas de « Changer l\'ordre »')
+        R.check(page.locator('[data-action="open-session-order"]').count() == 0, f'{t} PPL : pas de « Changer l\'ordre »')
         R.check(page.locator('#homeNext').inner_text().strip() == 'Autres séances', f'{t} PPL : « Autres séances »')
+
+
+def t_programmes(bench, eng, dev, theme):
+    """Onglet Programme (vote du 19/11) : la liste Programmes, toucher l'actif ouvre sa page, un autre sa fiche avec
+    « Utiliser ce programme » ; « Programme … › » de l'accueil mène à la liste."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        d = json.loads(semaine_json())
+        d['myProgrammes'] = [PID, 'ppl']
+        seed(page, theme, json.dumps(d, ensure_ascii=False))
+        page.click('.navbar__sub[data-action="go-my-programmes"]')
+        page.wait_for_selector('.view.my-programmes')
+        R.check(page.evaluate('nav.tab') == 'program', f'{t} accueil › Programme : onglet Programme')
+        R.check(page.locator('.navbar__large').inner_text().strip() == 'Programmes', f'{t} grand titre « Programmes »')
+        R.check(page.locator('.mp-active').count() == 1, f'{t} « Programme actif » sur une seule ligne')
+        shot(page, LOT, f'liste_{t}')
+        page.locator('[data-action="open-my-prog"]').nth(0).click()
+        page.wait_for_selector('.view.programmes .ps-list')
+        R.check(page.locator('.navbar__large').inner_text().strip() == 'Ma semaine', f'{t} page : nom du programme en grand titre')
+        R.check('Programmes' in page.locator('.navbar__back').inner_text(), f'{t} page : retour « Programmes »')
+        R.check(page.locator('[data-action="go-my-programmes"]').count() == 0, f'{t} page : plus de lien « Mes programmes »')
+        page.click('.navbar__back')
+        page.wait_for_selector('.view.my-programmes')
+        page.locator('[data-action="open-my-prog"]').nth(1).click()
+        page.wait_for_selector('.view.prog-info [data-action="prog-info-use"]')
+        shot(page, LOT, f'fiche_autre_{t}')
+        page.click('[data-action="prog-info-use"]')
+        page.wait_for_selector('.view.programmes')
+        R.check(page.evaluate('data.activeProgramme') == 'ppl', f'{t} Utiliser ce programme : PPL actif')
+        R.check(page.locator('.navbar__large').inner_text().strip() == progname(page), f'{t} Utiliser : sa page s\'ouvre')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:3]}')
+
+
+def progname(page):
+    return page.evaluate('progMeta().name')
 
 
 def sr_text(page):
@@ -262,4 +307,4 @@ def t_monter_descendre(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:3]}')
 
 
-run_main(R, [t_ordre, t_accueil_ordre, t_monter_descendre])
+run_main(R, [t_ordre, t_accueil_ordre, t_programmes, t_monter_descendre])

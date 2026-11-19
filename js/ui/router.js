@@ -10,12 +10,12 @@ const TABS = {
   train:    { root: 'dashboard', label: 'Entraînement', icon: 'dumbbell',      action: 'go-home' },
   history:  { root: 'history',   label: 'Historique',   icon: 'clock.history', action: 'go-history' },
   progress: { root: 'stats',     label: 'Progrès',      icon: 'chart',         action: 'go-stats' },
-  program:  { root: 'programmes', label: 'Programme',    icon: 'list.bullet',   action: 'go-program' },
+  program:  { root: 'my-programmes', label: 'Programme',    icon: 'list.bullet',   action: 'go-program' },
   friends:  { root: 'friends',   label: 'Social',       icon: 'person.2',      action: 'go-friends' },   // js/features/social-ui.js ; « Coach » pour un compte coach (friendsTabMeta)
 };
 const TAB_OF_ROOT = Object.fromEntries(Object.entries(TABS).map(([t, v]) => [v.root, t]));
 
-let nav = { tab: 'train', stacks: { train: ['dashboard'], history: ['history'], progress: ['stats'], program: ['programmes'], friends: ['friends'] } };
+let nav = { tab: 'train', stacks: { train: ['dashboard'], history: ['history'], progress: ['stats'], program: ['my-programmes'], friends: ['friends'] } };
 let navIndex   = 0;     // position dans l'historique du navigateur
 let navHist    = [];    // copie des états poussés, pour savoir si history.back() mène au bon écran
 let navDup     = [];    // entrées poussées à l'ouverture d'une feuille (même écran que la précédente)
@@ -247,7 +247,7 @@ function render() { paint(); }
 //   shown()           : juste après le dessin de la navigation (défilement voulu, au lieu du haut de page)
 const SCREENS = new Map([
   ['dashboard',      { render: () => renderDashboard(), mount: () => { mountHealthWorkouts('dashboard', render); mountSleep(); } }],   // Santé : récupération, sommeil
-  ['programmes',     { render: () => renderProgrammes() }],
+  ['programmes',     { render: () => renderProgrammes() }],      // Programmes › page du programme actif
   ['session',        { render: () => activeSession ? renderSession() : renderDashboard(),
                        mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante
                        enter: () => requestWakeLock(), leave: () => { releaseWakeLock(); curNameObserver?.disconnect(); curNameObserver = null; } }],
@@ -266,7 +266,7 @@ const SCREENS = new Map([
   ['body-measure',   { render: key => renderBodyMeasure(key), mount: () => drawCharts() }],   // courbe d'une mensuration
   ['recaps',         { render: () => renderRecaps() }],                                 // Progrès › Récaps
   ['recap',          { render: key => renderRecap(key), mount: () => recapMount(), leave: () => recapLeave() }],   // écrans d'un récap (js/features/recap.js)
-  ['my-programmes',  { render: () => renderMyProgrammes() }],   // Programme › Mes programmes (et sous-titre de l'accueil)
+  ['my-programmes',  { render: () => renderMyProgrammes() }],   // racine de l'onglet Programme : la liste Programmes
   ['prog-add',       { render: () => renderProgAdd() }],
   ['prog-info',      { render: id => renderProgInfo(id) }],      // fiche d'un programme de « Tous les programmes »
   ['ex-edit',        { render: () => renderExEdit() }],

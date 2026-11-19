@@ -111,12 +111,14 @@ function progListIconHtml(name) {
   return `<span class="plist__icon" aria-hidden="true">${icon(name, 18)}</span>`;
 }
 
-// Onglet Programme : les séances en cartes illustrées d'abord, puis Mes programmes, la Bibliothèque et les plans de
-// nutrition en liste iOS, puis créer et partager
+// Page du programme actif (vote du 19/11, 7 juges sur 7 : « un programme, une page ») : tout ce qui règle le programme
+// y vit, et seulement là. Ses séances dans l'ordre choisi (jamais triées par la récupération), « Ordre des séances »,
+// « Ajouter une séance », puis l'envoyer, le renommer, le supprimer. On y arrive depuis la liste Programmes (racine de
+// l'onglet), « Changer l'ordre » de l'accueil, ou en activant un programme.
 function renderProgrammes() {
   const pid  = data.activeProgramme;
   const pm   = progMeta(pid);
-  // Ligne du mode Modifier : la séance ne s'ouvre pas, la poignée ≡ la déplace (js/ui/reorder.js)
+  // Ligne du mode ordre : la séance ne s'ouvre pas, la poignée ≡ la déplace (js/ui/reorder.js)
   const editCell = (cat, progId) => {
     const label = sessionMeta(cat, progId).label;
     return `
@@ -131,7 +133,7 @@ function renderProgrammes() {
   const editing = canReorder && progEditing;
   const sessions = `
       <div class="group-title group-title--row">
-        <span>Séances ${elide('de', esc(pm.name))}</span>
+        <span>${editing ? 'Ordre des séances' : 'Séances'}</span>
         ${editing ? '<button class="group-title__btn group-title__btn--bold" data-action="toggle-prog-order">OK</button>' : ''}
       </div>
       <div class="group ps-list">
@@ -139,15 +141,10 @@ function renderProgrammes() {
         ${canReorder && !editing ? orderSessionsCellHtml() : ''}
         ${user && !editing ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
       </div>
-      ${editing ? `<div class="group-foot">Fais glisser ≡ pour changer l'ordre des séances.</div>` : ''}
+      ${editing ? `<div class="group-foot">Fais glisser ≡ pour changer l'ordre. L'accueil te propose les séances dans cet ordre.</div>` : ''}
       ${user ? '' : `<div class="group-foot">Les séances de ce programme sont fixes. Leurs exercices se modifient. Pour composer tes séances, crée un programme.</div>`}`;
   const manage = pid.startsWith('u_') ? `
       <div class="group group--gap">
-        <button class="cell cell--nav" data-action="pick-rotation">
-          <span class="cell__body"><span class="cell__title">Séance proposée</span></span>
-          <span class="cell__value">${inOrder(pid) ? 'Dans l\'ordre' : 'Selon la récupération'}</span>
-          ${icon('chevron.right', 16)}
-        </button>
         <button class="cell cell--nav" data-action="rename-programme">
           <span class="cell__body"><span class="cell__title">Renommer le programme</span></span>
           ${icon('chevron.right', 16)}
@@ -157,38 +154,24 @@ function renderProgrammes() {
 
   return `
     <div class="view programmes view--grouped">
-      ${navBar({ title: 'Programme', right: settingsButtonHtml() })}
+      ${navBar({ title: esc(pm.name), large: true })}
       <div class="scr">
         ${coachEditorConsigneHtml(data.activeProgramme)}
         ${sessions}
-        <div class="group group--gap plist">
-          <button class="cell cell--nav" data-action="go-my-programmes">
-            ${progListIconHtml('list.bullet')}
-            <span class="cell__body"><span class="cell__title">Mes programmes</span></span>
-            <span class="cell__value">${esc(pm.name)}</span>
-            ${icon('chevron.right', 16)}
-          </button>
-          <button class="cell cell--nav" data-action="go-library">
-            ${progListIconHtml('books.vertical')}
-            <span class="cell__body"><span class="cell__title">Bibliothèque d'exercices</span>
-              <span class="cell__sub">${EXERCISE_CATALOGUE.length} exercices</span></span>
-            ${icon('chevron.right', 16)}
-          </button>
-          ${dietProgrammeCellHtml(progListIconHtml('fork.knife'))}
-        </div>
+        ${editing ? '' : `
         <div class="group group--gap">
-          <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
           <button class="cell cell--action" data-action="share-programme">${icon('square.and.arrow.up', 20)}<span>Envoyer ce programme</span></button>
         </div>
         <div class="group-foot">Envoie les séances et les exercices par message. Tes charges et ton historique ne partent pas.</div>
-        ${manage}
+        ${manage}`}
       </div>
     </div>`;
 }
 
-// Mes programmes : la liste choisie (data.myProgrammes), dans son ordre ; coche sur l'actif, un toucher
-// l'active. « Modifier » : poignées ≡ pour ranger, ⊖ pour retirer un programme intégré (il reste dans
-// « Tous les programmes ») ou supprimer un programme créé (confirmation, comme dans l'onglet).
+// Programmes (racine de l'onglet Programme) : mes programmes (data.myProgrammes), dans leur ordre ; toucher un programme
+// ouvre sa page (le programme actif : ses réglages ; un autre : sa fiche et « Utiliser ce programme »). « Modifier » :
+// poignées ≡ pour ranger les programmes, ⊖ pour retirer un programme intégré (il reste dans « Tous les programmes ») ou
+// supprimer un programme créé. Dessous : la Bibliothèque d'exercices et les plans de nutrition.
 let myProgEditing = false;
 function renderMyProgrammes() {
   const ids = data.myProgrammes || [];
@@ -203,14 +186,15 @@ function renderMyProgrammes() {
     const { pm, names } = info(id);
     const on = data.activeProgramme === id;
     return `
-      <button class="cell cell--pick" data-action="select-prog" data-id="${esc(id)}" aria-pressed="${on}">
+      <button class="cell cell--nav" data-action="open-my-prog" data-id="${esc(id)}">
         ${progSquareHtml(id, pm)}
         <span class="cell__body">
           <span class="cell__title">${esc(pm.name)}</span>
+          ${on ? '<span class="cell__sub mp-active">Programme actif</span>' : ''}
           <span class="cell__sub mp-names">${names}</span>
           ${coachFromLine(id) ? `<span class="cell__sub coach-from">${coachFromLine(id)}</span>` : ''}
         </span>
-        <span class="cell__check">${on ? icon('checkmark', 20) : ''}</span>
+        ${icon('chevron.right', 16)}
       </button>`;
   };
   // Mode Modifier : même ligne que les exercices d'une séance (⊖ puis bouton rouge, poignée ≡)
@@ -235,20 +219,26 @@ function renderMyProgrammes() {
   };
   const editing = myProgEditing;
   // Grand titre : « Mes programmes » compact ne laissait au retour que « Retour » (iPhone 13) ou le chevron (SE)
-  const right = `<button class="navbar__text ${editing ? 'navbar__text--bold' : ''}" data-action="toggle-my-prog-edit">${editing ? 'OK' : 'Modifier'}</button>`;
+  const right = `<button class="navbar__text ${editing ? 'navbar__text--bold' : ''}" data-action="toggle-my-prog-edit">${editing ? 'OK' : 'Modifier'}</button>${editing ? '' : settingsButtonHtml()}`;
   return `
     <div class="view my-programmes view--grouped">
-      ${navBar({ title: 'Mes programmes', right, large: true })}
+      ${navBar({ title: 'Programmes', right, large: true })}
       <div class="scr">
-        <div class="group mp-list">${ids.map(editing ? editRow : row).join('')}</div>
+        <div class="group mp-list">${ids.map(editing ? editRow : row).join('')}
+          ${editing ? '' : `<button class="cell cell--action" data-action="go-prog-add">${icon('plus', 20)}<span>Ajouter un programme</span></button>`}
+        </div>
         ${editing
-          ? '<div class="group-foot">Fais glisser ≡ pour changer l\'ordre des programmes. Un programme retiré reste dans « Tous les programmes ».</div>'
-          : `${canReorderSessions() ? `<div class="group group--gap">${orderSessionsCellHtml('open-session-order', esc(progMeta().name))}</div>
-             <div class="group-foot">Les séances du programme actif, dans l'ordre où tu les fais.</div>` : ''}
-             <div class="group group--gap">
-               <button class="cell cell--action" data-action="go-prog-add">${icon('plus', 20)}<span>Ajouter un programme</span></button>
-             </div>
-             <div class="group-foot">Changer de programme garde l'historique.</div>`}
+          ? '<div class="group-foot">Fais glisser ≡ pour ranger tes programmes. Un programme retiré reste dans « Tous les programmes ».</div>'
+          : `<div class="group-foot">Touche un programme pour ses séances et ses réglages. Changer de programme garde l'historique.</div>
+             <div class="group group--gap plist">
+               <button class="cell cell--nav" data-action="go-library">
+                 ${progListIconHtml('books.vertical')}
+                 <span class="cell__body"><span class="cell__title">Bibliothèque d'exercices</span>
+                   <span class="cell__sub">${EXERCISE_CATALOGUE.length} exercices</span></span>
+                 ${icon('chevron.right', 16)}
+               </button>
+               ${dietProgrammeCellHtml(progListIconHtml('fork.knife'))}
+             </div>`}
       </div>
     </div>`;
 }
@@ -306,6 +296,7 @@ function programmeSessionsHtml(id) {
 
 // Fiche d'un programme du catalogue : pourquoi, muscles travaillés, séances ; l'ajouter ou l'utiliser
 function renderProgInfo(id) {
+  if (isUserProg(id) && id !== 'custom' && !data.userProgrammes[id]?.archived) return renderUserProgInfo(id);
   const pm = PROGRAMMES[id];
   if (!pm || id === 'custom') return renderProgAdd();
   const adv = PROGRAMME_ADVICE[id] || {};
@@ -315,12 +306,7 @@ function renderProgInfo(id) {
       ${navBar({ title: pm.name, large: true })}
       <div class="scr">
         <p class="prog-info__why">${recommendReason(id, { ...adv, orMore: false })}</p>
-        <div class="group group--pad prog-info__map">
-          ${bodyMapHtml(programmeMuscleLevels(id), { captions: true, label: `Muscles travaillés par ${pm.name}` })}
-        </div>
-        <div class="group-title">Séances</div>
-        <div class="group">${programmeSessionsHtml(id)}</div>
-        <div class="prog-info__actions">
+        <div class="prog-info__actions prog-info__actions--top">
           ${active
             ? '<p class="prog-info__state">Programme actif</p>'
             : `<button class="btn btn--primary prog-info__btn" data-action="prog-info-use" data-id="${esc(id)}">Utiliser ce programme</button>`}
@@ -328,8 +314,53 @@ function renderProgInfo(id) {
             ? (active ? '' : '<p class="prog-info__state">Dans mes programmes</p>')
             : `<button class="btn btn--secondary prog-info__btn" data-action="prog-info-add" data-id="${esc(id)}">Ajouter à mes programmes</button>`}
         </div>
+        <div class="group group--pad prog-info__map">
+          ${bodyMapHtml(programmeMuscleLevels(id), { captions: true, label: `Muscles travaillés par ${pm.name}` })}
+        </div>
+        <div class="group-title">Séances</div>
+        <div class="group">${programmeSessionsHtml(id)}</div>
       </div>
     </div>`;
+}
+
+// Fiches : « Utiliser ce programme » juste sous le nom, avant la silhouette (visible sans défiler sur iPhone SE).
+// Fiche d'un programme créé qui n'est pas l'actif : ses séances dans leur ordre, les muscles travaillés, « Utiliser ce
+// programme ». Ses réglages (ordre, exercices, nom) s'ouvrent une fois actif, dans sa page : un seul endroit.
+function renderUserProgInfo(id) {
+  const pm = progMeta(id), keys = sessionKeys(id), exs = programmeExercises(id);
+  const levels = exs.length ? programmeLevels(exs) : {};
+  const rows = keys.map(k => `
+    <div class="cell prog-sess">
+      ${catBadge(sessionMeta(k, id).color)}
+      <span class="cell__body"><span class="cell__title">${esc(sessionTitle(k, id))}</span>
+        <span class="cell__sub">${plural((data.programmes[id]?.exercises?.[k] || []).length, 'exercice', 'exercices')}</span></span>
+    </div>`).join('');
+  return `
+    <div class="view prog-info view--grouped">
+      ${navBar({ title: esc(pm.name), large: true })}
+      <div class="scr">
+        ${coachFromLine(id) ? `<p class="prog-info__why">${coachFromLine(id)}</p>` : ''}
+        <div class="prog-info__actions prog-info__actions--top">
+          <button class="btn btn--primary prog-info__btn" data-action="prog-info-use" data-id="${esc(id)}">Utiliser ce programme</button>
+        </div>
+        <div class="group-foot">Une fois actif, tu règles ici ses séances, leur ordre et ses exercices.</div>
+        ${Object.keys(levels).length ? `<div class="group group--pad prog-info__map">
+          ${bodyMapHtml(levels, { captions: true, label: `Muscles travaillés par ${esc(pm.name)}` })}
+        </div>` : ''}
+        <div class="group-title">Séances</div>
+        <div class="group">${rows || '<div class="cell"><span class="cell__body">Aucune séance</span></div>'}</div>
+      </div>
+    </div>`;
+}
+
+// Ordre des séances, depuis l'accueil (« Changer l'ordre ») : la page du programme actif, en mode ordre, dans
+// l'onglet Programme (Programmes › le programme)
+function openSessionOrder() {
+  progEditing = true;
+  const next = navClone(nav);
+  next.tab = 'program';
+  next.stacks.program = [TABS.program.root, 'programmes'];
+  navCommit(next, 'fade', 'push');
 }
 
 // Active un programme (intégré ou créé) et prépare ses données à la première utilisation
@@ -349,11 +380,15 @@ function activateProgramme(id) {
   syncTimersFromHistory();
 }
 
-// Programme activé depuis l'onglet : enregistré, retour à la liste des séances
+// Programme activé depuis l'onglet (créé, ou suivant d'un programme supprimé) : enregistré, puis sa page,
+// juste sous la liste Programmes
 function openProgramme(id) {
   activateProgramme(id);
   save();
-  routeTo('programmes');
+  if (nav.tab !== 'program') { routeTo('programmes'); return; }
+  const next = navClone(nav);
+  next.stacks.program = [TABS.program.root, 'programmes'];
+  navCommit(next, 'push', 'replace');
 }
 
 // Ordre de Mes programmes
@@ -375,33 +410,14 @@ registerActions({
   'toggle-prog-order': () => {
     progEditing = !progEditing; render();
   },
-  // Depuis Mes programmes : l'ordre des séances, sur l'accueil s'il les montre dans l'ordre, sinon dans l'onglet Programme
-  'open-session-order': () => {
-    if (nav.tab === 'train' && inOrder()) { homeOrderEditing = true; routeTo('dashboard'); return; }
-    progEditing = true;
-    if (nav.tab === 'program') routeTo('programmes');
-    else switchTab('program', { reset: true });
-  },
-  // Séance proposée sur l'accueil : dans l'ordre du programme (par défaut) ou selon la récupération des muscles
-  'pick-rotation': async () => {
-    const up = data.userProgrammes[data.activeProgramme];
-    if (!up) return;
-    const now = inOrder() ? 'dans l\'ordre des séances' : 'selon la récupération des muscles';
-    const choice = await dialog({ type: 'sheet', title: 'Séance proposée', message: `Sur l'accueil, pour l'instant ${now}.`, actions: [
-      { label: 'Dans l\'ordre', value: 'order' },
-      { label: 'Selon la récupération', value: 'recovery' },
-      { label: 'Annuler', style: 'cancel' },
-    ] });
-    if (!choice) return;
-    if (choice === 'recovery') up.rotation = 'recovery'; else delete up.rotation;
-    save(); render();
-  },
+  'open-session-order': () => openSessionOrder(),
   'go-program': () => {
     switchTab('program');
   },
+  // « Programme … › » de l'accueil : la liste Programmes, racine de l'onglet Programme
   'go-my-programmes': () => {
     myProgEditing = false;
-    navigate('my-programmes');
+    switchTab('program', { reset: true });
   },
   'toggle-my-prog-edit': () => {
     myProgEditing = !myProgEditing; render();
@@ -421,29 +437,27 @@ registerActions({
     showToast(`${progMeta(el.dataset.id).name} ajouté`);
   },
   // Utiliser = ajouter et activer, puis retour à la racine de l'onglet (Programme ou Entraînement)
+  // Depuis la liste Programmes : la page du programme devenu actif ; ailleurs (catalogue de l'accueil) : la racine
   'prog-info-use': (e, el) => {
     const id = el.dataset.id;
-    if (!PROGRAMMES[id]) return;
+    if (!PROGRAMMES[id] && !(data.userProgrammes[id] && !data.userProgrammes[id].archived)) return;
     addMyProgramme(id);
     activateProgramme(id);
     save();
     haptic();
-    routeTo(nav.stacks[nav.tab][0]);
+    if (nav.tab === 'program' && nav.stacks.program.length === 2) navigate('programmes', { replace: true });
+    else routeTo(nav.stacks[nav.tab][0]);
     showToast(`Programme : ${progMeta(id).name}`);
   },
   'open-prog-session': (e, el) => {
     editorEditing = false;
     navigate(makeRoute('editor', el.dataset.cat));
   },
-  // Mes programmes : un toucher active, puis retour à l'écran d'où l'on vient (onglet Programme ou accueil)
-  'select-prog': async (e, el) => {
+  // Programmes : un toucher ouvre la page du programme (l'actif) ou sa fiche avec « Utiliser ce programme »
+  'open-my-prog': (e, el) => {
     const id = el.dataset.id;
-    if (id === data.activeProgramme) { goBack(); return; }
-    if (!(await confirmSheet(`Passer à ${progMeta(id).name} ?`, 'L\'historique est gardé.', 'Changer de programme', false))) return;
-    activateProgramme(id);
-    save();
-    goBack();
-    showToast(`Programme : ${progMeta().name}`);
+    if (id === data.activeProgramme) { progEditing = false; navigate('programmes'); return; }
+    navigate(makeRoute('prog-info', id));
   },
   'new-programme': async () => {
     const name = await askText({ title: 'Nouveau programme', message: 'Donne-lui un nom.', placeholder: 'Ex : Force 5×5', confirm: 'Suivant' });

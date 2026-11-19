@@ -132,20 +132,17 @@ html.type-xl .week__line { white-space: normal; }
 html.type-xl .week__text { overflow: visible; }
 
 /* Ensuite : les autres séances, liste sobre */
-.home-list { margin-top: 20px; scroll-margin-top: calc(env(safe-area-inset-top) + 64px); }   /* « Changer l'ordre » : titre sous la barre */
+.home-list { margin-top: 20px; }
 .home-list__title { margin: 0 0 6px 4px; }
 .home-list .home-card { margin-top: 0; padding: 0 16px; }
-/* « Changer l'ordre » à droite du titre (programme créé, dans l'ordre) ; en mode ordre, toutes les séances avec ≡ */
-.home-list__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px 0 -6px; }
+/* « Changer l'ordre » à droite de « Ensuite » (programme créé) : ouvre l'ordre des séances de la page du programme */
+.home-list__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
 .home-list__head .home-list__title { margin-bottom: 0; }
 .home-list__btn {
-  flex-shrink: 0; min-height: 44px; margin-right: -8px; padding: 0 8px; border: 0; background: none; cursor: pointer;
+  flex-shrink: 0; min-height: 44px; margin: -12px -8px -12px 0; padding: 0 8px; text-align: right; border: 0; background: none; cursor: pointer;
   font: inherit; font-size: var(--fs-subhead); color: var(--tint);
 }
-.home-list__btn--bold { font-weight: 600; }
 .home-list__btn:active { opacity: .5; }
-.home-list .home-order { padding: 0; }
-.home-list__foot { margin: 7px 16px 0; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
 .home-cell {
   position: relative; width: 100%; min-height: 56px; border: none; background: none; cursor: pointer;
   display: flex; align-items: center; gap: 10px; padding: 8px 0;

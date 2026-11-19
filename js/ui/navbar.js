@@ -188,6 +188,8 @@ document.fonts?.ready.then(() => fitBackLabel());
 
 // Libellé du bouton retour vers une route de la pile
 function routeTitle(route, isRoot) {
+  if (route === 'my-programmes') return 'Programmes';   // racine de l'onglet Programme : son grand titre
+  if (route === 'programmes') return progMeta().name;    // page du programme actif : son nom
   if (isRoot && TAB_OF_ROOT[route]) return tabMeta(TAB_OF_ROOT[route]).label;
   const name = routeName(route);
   if (name === 'editor') { const cat = editorCatOf(route); return cat ? rawLabel(cat) : 'Séance'; }
@@ -198,7 +200,7 @@ function routeTitle(route, isRoot) {
     programmes: 'Programme', settings: 'Réglages', guide: 'Guide', account: 'Compte', session: 'Séance', summary: 'Bilan',
     'history-detail': 'Séance', 'stats-ex': 'Exercice', 'stats-overview': 'Vue d\'ensemble', recaps: 'Récaps', recap: 'Récap',
     'body-measures': 'Mensurations', 'photo-vault': 'Coffre', 'body-measure': bodyMeasureLabel(routeParams(route)[0]) || 'Mesure',
-    'my-programmes': 'Mes programmes', 'prog-add': 'Ajouter', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
+    'prog-add': 'Ajouter', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
     friends: tabMeta('friends').label, 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
     'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil', strava: 'Strava',
     notifications: 'Notifications',
