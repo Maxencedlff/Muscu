@@ -1318,6 +1318,7 @@ def t_objectifs(bench, eng, dev, theme):
                 f'{t} champ vide : « Aucun », jamais le total des repas en gris')
         R.check('Repas types' in page.inner_text(f'{sh} .diet-form__hint'), f'{t} total des repas types écrit à part')
         R.check(nb(page.inner_text(f'{sh} .diet-field__label >> nth=0')) == 'Calories', f'{t} libellé « Calories »')
+        settle(page)   # feuille posée (mise en page finale) avant de mesurer les cibles
         layout(page, t, 'feuille des objectifs', scope=f'{sh} .diet-tg')   # barre Annuler / OK : celle de toutes les feuilles
         shot(page, LOT, f'o1-objectifs-{t}')
         page.fill(f'{sh} #dietT_kcal', '2900')
