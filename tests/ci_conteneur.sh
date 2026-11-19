@@ -26,13 +26,20 @@ for entry in "${DEBS[@]}"; do
   read -r path sum <<< "$entry"
   file="$dir/${path##*/}"
   python - "$POOL/$path" "$file" <<'EOF'
-import sys, time, urllib.request
+import shutil, sys, time, urllib.request
+# archive.ubuntu.com répond 403 à l'agent par défaut de urllib depuis le 19/11/2026 (machines GitHub) : agent nommé,
+# puis un miroir officiel en secours (même fichier, l'empreinte SHA-256 est vérifiée ensuite)
+urls = [sys.argv[1], sys.argv[1].replace('http://archive.ubuntu.com/ubuntu/', 'https://mirrors.edge.kernel.org/ubuntu/')]
 for attempt in range(4):
+    url = urls[attempt % 2]
     try:
-        urllib.request.urlretrieve(sys.argv[1], sys.argv[2]); break
+        req = urllib.request.Request(url, headers={'User-Agent': 'Wget/1.21.4'})
+        with urllib.request.urlopen(req, timeout=60) as r, open(sys.argv[2], 'wb') as f:
+            shutil.copyfileobj(r, f)
+        break
     except OSError as e:
         if attempt == 3: raise
-        print(f'{sys.argv[1]} : {e}, nouvel essai', flush=True); time.sleep(3 * (attempt + 1))
+        print(f'{url} : {e}, nouvel essai', flush=True); time.sleep(3 * (attempt + 1))
 EOF
   echo "$sum  $file" | sha256sum --check --quiet
 done
