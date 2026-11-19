@@ -60,7 +60,7 @@
 .cell--destructive.cell--left { justify-content: flex-start !important; }
 .cell--ctl { cursor: default; }
 /* Réglages › Sons › Tester les hauteurs : numéros éteints, allumés au fur et à mesure des bips */
-.pitch-steps { color: var(--label3); font-variant-numeric: tabular-nums; }
+.pitch-steps { color: var(--label2); font-variant-numeric: tabular-nums; }
 .pitch-steps__n--on { color: var(--tint); font-weight: 600; }
 /* Réglages › Sons › Diagnostic du son : texte brut, petit, sélectionnable (capture à nous envoyer) */
 .sound-diag { padding: 2px 16px 12px; }

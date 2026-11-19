@@ -119,7 +119,7 @@ ${renderAccessSettingsGroup()}
           ${soundOn ? `<button class="cell cell--action" data-action="sound-test-pitch">
             ${cellIco('music', 'sable')}
             <span class="cell__body"><span class="cell__title">Tester les hauteurs</span>
-              <span class="cell__sub">4 bips du grave à l'aigu : retiens le dernier que tu entends</span></span>
+              <span class="cell__sub">Note le dernier bip que tu entends</span></span>
             <span class="cell__value pitch-steps" aria-hidden="true">${PITCH_TEST.map((_, i) => `<span class="pitch-steps__n">${i + 1}</span>`).join(' · ')}</span>
           </button>` : ''}
           <button class="cell cell--action" data-action="sound-diagnostics" aria-expanded="false" aria-controls="sound-diag">
