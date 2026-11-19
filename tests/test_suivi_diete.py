@@ -226,7 +226,7 @@ def t_coach(bench):
                 page.click('.cdiet__write')
                 page.wait_for_selector('#chatInput')
                 draft = page.input_value('#chatInput')
-                R.check('ta diète a été difficile ces 3 derniers jours' in draft and dcalls(page, 'chat_send') == [], f'{t} message prêt, pas envoyé ({draft!r})')
+                R.check('ça se passe comment avec la diète ces derniers jours' in draft and dcalls(page, 'chat_send') == [], f'{t} message prêt, pas envoyé ({draft!r})')
 
                 # Fiche de Léa : carte Diète
                 page.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")

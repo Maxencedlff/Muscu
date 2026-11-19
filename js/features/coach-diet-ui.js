@@ -139,7 +139,7 @@ function coachDietTrackHtml(uid, who) {
 // « Écrire à lea » : la conversation avec l'élève (Messages), un message déjà écrit dans le champ, jamais envoyé seul
 // (panel du 18/11 : le coach débutant ne savait pas quoi écrire). Brouillon déjà commencé : gardé tel quel
 const CDIET_MSG = {
-  warn: who => `Salut ${who}, j'ai vu que ta diète a été difficile ces 3 derniers jours. On en parle ?`,
+  warn: who => `Salut ${who}, ça se passe comment avec la diète ces derniers jours ?`,
   share: () => 'Salut, si tu veux que je suive ta diète, active « Suivi de ma diète » dans Réglages › Social et coach › Partager avec mon coach. Tu peux l\'arrêter quand tu veux.',
 };
 function cdietWriteBtn(uid, who, kind) {
