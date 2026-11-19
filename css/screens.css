@@ -740,7 +740,7 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 /* ── Mes programmes (mode Modifier) et fiche d'un programme du catalogue ── */
 .mp-keep { width: 22px; flex-shrink: 0; }   /* programme actif : pas de ⊖, la ligne garde son alignement */
 /* Légende sous le nom d'un programme (« Déjà dans tes programmes », « De ton coach … ») : un état, pas un bouton */
-.prog-info__note { margin: 0 16px 4px; font-size: var(--fs-subhead); line-height: 1.3; color: var(--label2); }
+.prog-info__note { margin: 0 0 8px; font-size: var(--fs-subhead); line-height: 1.3; color: var(--label2); }
 .navbar__largewrap .prog-page__state { margin: 2px 0 0; }   /* page du programme actif : sous son grand titre */
 /* Ordre des séances : la tête de file marquée « Prochaine », texte et contour, jamais la couleur seule */
 .ps-next { display: inline-block; margin-left: 6px; padding: 1px 8px; border: 1px solid var(--sep-strong, var(--label3)); border-radius: var(--r-pill);

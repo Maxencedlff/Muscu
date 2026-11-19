@@ -143,7 +143,7 @@ function renderProgrammes() {
         ${canReorder && !editing ? orderSessionsCellHtml() : ''}
         ${user && !editing ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
       </div>
-      ${editing ? `<div class="group-foot">Fais glisser ≡ pour changer l'ordre. La prochaine séance est celle qui attend depuis le plus longtemps ; une séance faite repart à la fin.</div>` : ''}
+      ${editing ? `<div class="group-foot">Fais glisser ≡, ou touche-le pour Monter ou Descendre. La prochaine séance est celle qui attend depuis le plus longtemps ; une séance faite repart à la fin.</div>` : ''}
       ${user ? '' : `<div class="group-foot">Les séances de ce programme sont fixes. Leurs exercices se modifient. Pour composer tes séances, crée un programme.</div>`}`;
   const manage = pid.startsWith('u_') ? `
       <div class="group group--gap">

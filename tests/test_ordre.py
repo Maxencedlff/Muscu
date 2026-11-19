@@ -129,6 +129,9 @@ def t_accueil_ordre(bench, eng, dev, theme):
         R.check(warn.startswith('Attention : il reste ') and warn.endswith(' de récupération (pectoraux)'), f'{t} avertissement de récupération ({warn})')
         btn = page.locator('.hero [data-action="start-session"]')
         R.check('Démarrer' == btn.inner_text().strip() and 'hero__btn--gray' not in (btn.get_attribute('class') or ''), f'{t} Démarrer reste le bouton plein')
+        R.check(btn.get_attribute('aria-describedby') == 'hero-warn' and page.locator('#hero-warn').count() == 1, f'{t} Démarrer relié à l\'avertissement (aria-describedby)')
+        above = page.evaluate("document.querySelector('#hero-warn').getBoundingClientRect().bottom <= document.querySelector('.hero [data-action=\"start-session\"]').getBoundingClientRect().top + 1")
+        R.check(above, f'{t} avertissement au-dessus de Démarrer')
         shot(page, LOT, f'accueil_file_{t}')
 
         R.check('(pectoraux)' in page.locator('.home-cell [data-status-cat]').first.inner_text(), f'{t} Ensuite : le muscle qui récupère ({page.locator(".home-cell [data-status-cat]").first.inner_text()})')

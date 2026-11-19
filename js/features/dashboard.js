@@ -298,7 +298,7 @@ function heroFactsHtml(cat, last) {
 // seul bouton plein. Pas prête : l'attente, ce qui la fixe et « Démarrer quand même » en gris.
 function heroParts(keys, next, liveHere) {
   const meta = sessionMeta(next), st = catStatus(next);
-  let facts, more = '', btn;
+  let facts, more = '', btn, warn = '';
   if (liveHere) {
     facts = `<p class="hero__info hero__info--live">En cours · <span class="num" id="hero-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span></p>`;
     btn  = `<button class="hero__btn" data-action="resume-session">${icon('play', 18)}Reprendre</button>`;
@@ -306,15 +306,15 @@ function heroParts(keys, next, liveHere) {
     facts = heroFactsHtml(next, lastEntryOf(next));
     // Programme créé : la file décide, la récupération n'est qu'un avertissement, Démarrer reste le bouton plein
     const queue = isUserProg(data.activeProgramme);
-    if (!st.ready) more += queue
-      ? `<p class="hero__wait">${esc(recoveryWarning(st))}</p>`
-      : `<p class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</p>`;
+    // L'avertissement est relié à Démarrer (aria-describedby) et toujours au-dessus de lui, texte agrandi compris (heroHtml)
+    if (!st.ready && queue) warn = `<p class="hero__wait" id="hero-warn">${esc(recoveryWarning(st))}</p>`;
+    else if (!st.ready) more += `<p class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</p>`;
     if (st.by) more += `<p class="hero__why">${esc(recoveryReason(st.by))}</p>`;
     more += sleepHomeHtml();   // Santé : la nuit, une ligne (js/features/apple-services.js)
     const passed = passedOverNote(keys, next);
     if (passed) more += `<p class="hero__why hero__why--passed">${esc(passed)}</p>`;
     btn = st.ready || queue
-      ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${esc(sessionTitle(next))}">${icon('play', 18)}Démarrer</button>`
+      ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${esc(sessionTitle(next))}"${warn ? ' aria-describedby="hero-warn"' : ''}>${icon('play', 18)}Démarrer</button>`
       : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
   }
   const desc = meta.desc || coachSessionDesc(data.activeProgramme, next);
@@ -323,7 +323,7 @@ function heroParts(keys, next, liveHere) {
   const targets = liveHere ? '' : targetsHtml(next);
   const edit = targets ? '' : `<button class="hero__edit" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>`;
   return {
-    meta, facts, more, btn, targets, edit, spot: heroBtnSpot(),
+    meta, facts, more, btn, warn, targets, edit, spot: heroBtnSpot(),
     eyebrow: liveHere ? 'Séance en cours' : 'Prochaine séance',
     desc: desc ? `<p class="hero__desc">${desc}</p>` : '',
   };
@@ -341,13 +341,13 @@ function heroHtml(keys, next, liveHere) {
         <div class="hero__text">
           <p class="hero__eyebrow">${h.eyebrow}</p>
           <h2 class="hero__name">${esc(sessionTitle(next))}</h2>
-          ${h.spot === 'top' ? h.btn : ''}
+          ${h.spot === 'top' ? h.warn + h.btn : ''}
           ${h.desc}
           ${h.facts}
         </div>
         ${art}
       </div>
-      ${h.more}
+      ${h.spot === 'top' ? '' : h.warn}${h.more}
       ${h.spot === 'mid' ? h.btn : ''}${h.targets}
       ${h.edit}
     </section>`;
@@ -469,7 +469,8 @@ async function sessionActions(cat) {
   const st = catStatus(cat);
   const queue = isUserProg(data.activeProgramme), canReorder = queue && sessionKeys().length > 1;
   const choice = await dialog({ type: 'sheet', title: sessionTitle(cat),
-    ...(st.by ? { message: `Un muscle de cette séance récupère encore. ${recoveryReason(st.by)}` } : {}), actions: [
+    // Le temps restant d'abord, comme sur la carte (« Il reste 1 j 18 h de récupération (épaules antérieures) »)
+    ...(st.by ? { message: `${recoveryWarning(st).replace(/^Attention : i/, 'I')}. ${recoveryReason(st.by)}` } : {}), actions: [
     { label: 'Démarrer', value: 'start', style: 'preferred' },
     ...(!st.ready && !queue ? [{ label: 'Ignorer le délai', value: 'skip' }] : []),
     { label: 'Voir les exercices', value: 'see' },
