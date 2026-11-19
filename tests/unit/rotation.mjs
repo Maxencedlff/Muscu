@@ -97,7 +97,7 @@ export default function ({ test, run, reset, assert }) {
     done('pecs', 30); done('dos', 20); done('jambes', 10);
     assert.equal(next(), 'epaules', 'tête de file, même pas reposée');
     assert.equal(run(`catStatus('epaules').ready`), false);
-    assert.match(run(`recoveryWarning(catStatus('epaules'))`), /^Attention : quadriceps en récupération, encore /);
+    assert.match(run(`recoveryWarning(catStatus('epaules'))`), /^Attention : il reste .+ de récupération \(quadriceps\)$/);
   });
 
   test('file : autre séance faite aujourd\'hui (touchée dans Ensuite), elle passe en fin de file', () => {

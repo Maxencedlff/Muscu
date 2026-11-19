@@ -229,7 +229,7 @@ function renderMyProgrammes() {
         </div>
         ${editing
           ? '<div class="group-foot">Fais glisser ≡ pour ranger tes programmes. Un programme retiré reste dans « Tous les programmes ».</div>'
-          : `<div class="group-foot">Touche un programme pour ses séances et ses réglages. Changer de programme garde l'historique.</div>
+          : `<div class="group-foot">Touche un programme pour voir ses séances et ses réglages. Changer de programme garde l'historique.</div>
              <div class="group group--gap plist">
                <button class="cell cell--nav" data-action="go-library">
                  ${progListIconHtml('books.vertical')}

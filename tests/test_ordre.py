@@ -125,7 +125,7 @@ def t_accueil_ordre(bench, eng, dev, theme):
         file_ = JOURS[2:] + ['Mardi']
         R.check(labels(page, '.home-cell__name')[:6] == file_, f'{t} Ensuite : Mardi, faite, en fin de file {labels(page, ".home-cell__name")[:6]}')
         warn = page.locator('.hero .hero__wait').inner_text().strip()
-        R.check(warn.startswith('Attention : pectoraux en récupération, encore '), f'{t} avertissement de récupération ({warn})')
+        R.check(warn.startswith('Attention : il reste ') and warn.endswith(' de récupération (pectoraux)'), f'{t} avertissement de récupération ({warn})')
         btn = page.locator('.hero [data-action="start-session"]')
         R.check('Démarrer' == btn.inner_text().strip() and 'hero__btn--gray' not in (btn.get_attribute('class') or ''), f'{t} Démarrer reste le bouton plein')
         shot(page, LOT, f'accueil_file_{t}')

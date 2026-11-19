@@ -162,10 +162,11 @@ function passedOverNote(keys, next) {
   const rec = sessionRecovery(expected);
   return rec && rec.date > own(expected) ? `${label} passe après (${lowerFirst(recoveryReason(rec))})` : '';
 }
-// « Attention : quadriceps en récupération, encore 1 j 18 h » ; sans muscle connu, la séance elle-même
+// « Attention : il reste 1 j 18 h de récupération (quadriceps) » : une phrase sans accord à faire avec le muscle
+// (« Grand dorsal », « Épaules antérieures ») ; sans muscle connu, le délai de la séance elle-même
 function recoveryWarning(st) {
-  const what = st.by ? `${lowerFirst(muscleLabel(st.by.muscle))} en récupération` : 'récupération en cours';
-  return `Attention : ${what}, encore ${fmtWait(st.remaining)}`;
+  const what = st.by ? ` (${lowerFirst(muscleLabel(st.by.muscle))})` : '';
+  return `Attention : il reste ${fmtWait(st.remaining)} de récupération${what}`;
 }
 function lowerFirst(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; }
 
