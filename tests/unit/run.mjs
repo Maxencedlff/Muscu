@@ -70,6 +70,9 @@ const SCRIPTS = [
   'js/data/trash.js',
   'js/data/muscles.js',
   'js/data/exercise-catalogue.js',
+  'js/data/body-parts.js',
+  'js/data/exercise-parts.js',
+  'js/data/atlas.js',
   'js/data/measures.js',
   'js/data/import-csv.js',
   'js/data/import-measures.js',
@@ -98,6 +101,7 @@ const SCRIPTS = [
   'js/ui/forms.js',
   'js/ui/body-map.js',
   'js/ui/body-tip.js',
+  'js/ui/body-zoom.js',
   'js/ui/medal.js',
   'js/app/actions.js',
   'js/ui/exercise-video.js',
@@ -1912,6 +1916,7 @@ test('Native.sound.diagnostics : null hors app ou build sans la méthode, état 
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 
 (await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert, ROOT });
+(await import('./atlas.mjs')).default({ test, app, run, sameJSON, assert, ROOT });
 (await import('./supersets.mjs')).default({ test, app, run, reset, sameJSON, assert });
 
 // ── Partage de séance (tests dans share.mjs) ────────────────

@@ -236,6 +236,9 @@ function bodyTipAvoid(anchor) {
   return [...(anchor?.closest('.group')?.querySelectorAll('.segmented') || [])].map(e => e.getBoundingClientRect());
 }
 
+// Mise en valeur posée par un autre module (atlas détaillé, js/ui/body-zoom.js) : retirée à la fermeture
+function bodyTipSetMark(el) { bodyTipMarkEl = el || null; }
+
 function closeBodyTip() {
   bodyTipSeq++;
   bodyTipEl?.remove();
@@ -304,7 +307,7 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     if (!bodyTipEl || !e.isTrusted) return;
     const t = e.target;
     if (t.closest?.('.btip [data-action]')) { setTimeout(closeBodyTip, 0); return; }
-    if (t.closest?.('.btip, [data-action="body-tap"]')) return;
+    if (t.closest?.('.btip, [data-action="body-tap"], .azoom')) return;   // .azoom : vue agrandie de l'atlas (ses touchers)
     closeBodyTip();
   }, true);
   document.addEventListener('scroll', bodyTipScrolled, { capture: true, passive: true });

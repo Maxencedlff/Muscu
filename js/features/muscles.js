@@ -27,7 +27,9 @@ function exMusclesSubHtml(ex, cls = 'cell__sub') {
 // Muscle profond seul (vacuum) : le personnage sans aucun rouge, le muscle nommé en gris, et pourquoi rien n'est coloré
 const DEEP_MUSCLE_NOTE = 'Muscle profond, invisible en surface. Rien n\'est coloré sur le personnage.';
 function deepMusclesNames(m) { return (m.deep || []).map(id => deepMuscleLabel(id, true)).filter(Boolean).join(', '); }
-function exMusclesPanelHtml(m) {
+// atlas : nom de l'exercice de la bibliothèque (fiche) : sous-muscles détaillés (js/data/atlas.js), nom au toucher et
+// vue agrandie (js/ui/body-zoom.js) ; ailleurs (Programme, Progrès) la carte des 18 muscles, inchangée
+function exMusclesPanelHtml(m, { atlas = '' } = {}) {
   if (!m.primary.length && m.deep?.length) {
     return `
     <div class="cell mpanel mpanel--deep">
@@ -39,6 +41,14 @@ function exMusclesPanelHtml(m) {
   if (!m.primary.length) {
     return `<div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Muscles non reconnus</span>
       <span class="cell__sub">Choisis les muscles travaillés pour les voir dans Progrès.</span></span></div>`;
+  }
+  if (atlas) {
+    return `
+    <div class="cell mpanel mpanel--atlas">
+      ${bodyAtlasHtml(exercisePartLevels(atlas, m).levels, { className: 'mpanel__map', title: atlas, tap: true })}
+      <button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 20)}</button>
+      <div class="cell__body">${musclePillsHtml(m)}</div>
+    </div>`;
   }
   return `
     <div class="cell mpanel">
@@ -77,15 +87,16 @@ function musclesControlsHtml(m, name, { pick, reset }) {
   };
 }
 
-// Muscles d'un exercice hors programme (Progrès, fiche) : { name, exId? } ; textOnly : « Muscles : Fessiers » sans secondaire
-function exMusclesGroupHtml(ex, title = 'Muscles ciblés', { textOnly = false } = {}) {
+// Muscles d'un exercice hors programme (Progrès, fiche) : { name, exId? } ; textOnly : « Muscles : Fessiers » sans secondaire ;
+// atlas : sous-muscles détaillés (fiche de la bibliothèque, exMusclesPanelHtml)
+function exMusclesGroupHtml(ex, title = 'Muscles ciblés', { textOnly = false, atlas = false } = {}) {
   const m = exerciseMuscles(ex);
   const c = musclesControlsHtml(m, ex.name, { pick: `data-action="declare-muscles" data-name="${esc(ex.name)}"`,
     reset: `data-action="reset-muscles" data-name="${esc(ex.name)}" data-ex="${esc(ex.exId || '')}"` });
   const deepLine = textOnly && !m.primary.length && m.deep?.length && `<div class="cell mline"><span class="cell__body"><span class="cell__title cell__title--reg">${esc(deepMusclesNames(m))}</span><span class="cell__sub">${DEEP_MUSCLE_NOTE}</span></span></div>`;
   const line = deepLine || textOnly && m.primary.length && !m.secondary.length && `<div class="cell mline"><span class="cell__body"><span class="cell__title cell__title--reg">${esc([...new Set(m.primary.map(muscleLabel))].join(', '))}</span></span></div>`;
   return `<div class="group-title">${title}</div>
-    <div class="group">${line || exMusclesPanelHtml(m)}${c.rows}</div>
+    <div class="group">${line || exMusclesPanelHtml(m, { atlas: atlas ? ex.name : '' })}${c.rows}</div>
     ${c.foot ? `<div class="group-foot">${c.foot}</div>` : ''}`;
 }
 

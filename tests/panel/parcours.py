@@ -572,6 +572,56 @@ def p_bibliotheque(r):
 
 
 
+def _toucher_sous_muscle(r, racine, part, quoi, double=False):
+    """Toucher (compté) au milieu d'un sous-muscle coloré de l'atlas : un doigt, pas un clic DOM."""
+    xy = r.page.evaluate("""([racine, part]) => { const l = document.querySelector(`${racine} .body-map__front [data-part="${part}"]`);
+        if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * 0.3, b.top + b.height * 0.5]; }""", [racine, part])
+    if not xy:
+        raise Absent(f'introuvable : {quoi}')
+    for k in range(2 if double else 1):
+        r.page.mouse.click(*xy)   # click, comme un toucher sur iPhone (touchscreen.tap n'en tire pas sous WebKit)
+        r.page.wait_for_timeout(90)
+    r._note(quoi)
+    r.page.wait_for_timeout(900)   # bulle, ou ouverture de la vue agrandie et images 3× décodées
+
+
+@parcours('atlas', 'Fiche exercice : sous-muscles détaillés, nom au toucher, vue agrandie', 'pratiquant')
+def p_atlas(r):
+    """Fiche du développé incliné barre : le personnage montre les sous-muscles (pectoral claviculaire en rouge plein,
+    sterno-costal et deltoïde antérieur en rouge atténué, triceps en soutien). Un toucher donne le nom de salle et le
+    nom officiel ; toucher deux fois (ou pincer) ouvre la vue agrandie, zoomée là où le doigt a touché."""
+    r.lancer(REALISTE)
+    with r.etape('fiche', 'Fiche du développé incliné barre : personnage détaillé', cle='Voir les muscles d\'un exercice en détail'):
+        r.onglet('program', 'Programme')
+        r.defiler('[data-action="go-library"]', 'liste sous les cartes')
+        r.toucher('[data-action="go-library"]', 'Bibliothèque')
+        r.attendre('.view.library', 'Bibliothèque')
+        r.saisir('#libSearch', 'Développé incliné barre', 'recherche')
+        r.toucher('[data-action="open-library-ex"][data-name="Développé incliné barre"]', 'Développé incliné barre')
+        r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
+        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+    with r.etape('nom', 'Toucher le haut des pectoraux : nom de salle et nom officiel', cle='Voir les muscles d\'un exercice en détail'):
+        _toucher_sous_muscle(r, '.mpanel__map', 'chest_clavicular', 'haut des pectoraux')
+        r.attendre('.btip', 'bulle du muscle')
+    with r.etape('zoom', 'Toucher deux fois : vue agrandie, zoomée sur la poitrine', cle='Voir les muscles d\'un exercice en détail'):
+        _toucher_sous_muscle(r, '.mpanel__map', 'chest_clavicular', 'deux touchers sur la poitrine', double=True)
+        r.attendre('.azoom', 'vue agrandie')
+        r.page.wait_for_function("() => atlasViewerState()?.hi === 'front'", timeout=8000)
+    with r.etape('zoom-nom', 'Vue agrandie : toucher un muscle', cle='Voir les muscles d\'un exercice en détail'):
+        _toucher_sous_muscle(r, '.azoom', 'chest_clavicular', 'haut des pectoraux, vue agrandie')
+        r.attendre('.btip', 'bulle du muscle')
+    with r.etape('vue-entiere', 'Vue agrandie : toucher deux fois pour revenir au personnage entier'):
+        xy = r.page.evaluate("() => { const b = document.querySelector('.azoom').getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height * 0.8]; }")
+        for _ in range(2):
+            r.page.mouse.click(*xy)
+            r.page.wait_for_timeout(90)
+        r._note('deux touchers : retour au personnage entier')
+        r.page.wait_for_timeout(600)
+    with r.etape('fermer', 'OK : retour à la fiche'):
+        r.toucher('.sheet-root--atlas .sheet__btn--confirm', 'OK')
+        r.page.wait_for_timeout(400)
+
+
 def _avec_vacuum():
     """Données réalistes, plus du vacuum en fin de séance Jambes : une séance d'avant en séries × reps (ancienne
     version), deux en secondes (maintiens)."""

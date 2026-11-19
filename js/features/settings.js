@@ -195,6 +195,7 @@ ${renderConnectionsGroup()}
                  <span class="cell__sub">${esc(liveUpdateLabel())}</span></span></button>`
             : `<button class="cell cell--action" data-action="force-update">${cellIco('arrow.down.circle', 'gray')}<span class="cell__body"><span class="cell__title">Rechercher une mise à jour</span></span></button>`}
         </div>
+        <div class="group-foot credit-foot">${BODY_PARTS_CREDIT}</div>
 
         <div class="group-title">Informations légales</div>
         <div class="group">
@@ -300,6 +301,10 @@ function renderBackup() {
       </div>
     </div>`;
 }
+
+// Crédit de l'atlas du personnage (fiche exercice, img/body2/) : texte exact demandé par la licence CC BY 4.0 de
+// BodyParts3D (mdlf-perso/sources/bodyparts3d/LICENCE.md), aussi dans mentions-legales.html
+const BODY_PARTS_CREDIT = 'Formes musculaires adaptées de BodyParts3D, © The Database Center for Life Science, licence CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modifiées : recalées sur un autre corps, projetées et redessinées.';
 
 // Version affichée dans À propos : lue dans le nom du cache du service worker (ppl-vNN)
 function fillAppVersion() {

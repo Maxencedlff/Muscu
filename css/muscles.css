@@ -37,6 +37,34 @@
 .body-map__caps { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--fs-caption); line-height: 1; }
 .body-map__caps > span { flex: 0 0 var(--fig); text-align: center; }
 
+/* ── Atlas détaillé de la fiche exercice (js/ui/body-map.js, bodyAtlasHtml ; js/ui/body-zoom.js) ──
+   Calques recadrés sur chaque sous-muscle, posés à leur boîte (style en ligne : left, top, width, height). */
+.body-map--atlas[data-action="body-tap"] { touch-action: pan-y; }   /* le pincement ouvre la vue agrandie, pas le zoom de la page */
+.mpanel--atlas { position: relative; }
+.mpanel__zoom {
+  position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 50%; background: none; color: var(--tint);
+}
+.mpanel__zoom:active { background: var(--fill2); }
+.btip__latin { margin-top: 1px; font-size: var(--fs-footnote); line-height: 1.059rem; font-style: italic; color: var(--label2); }
+.btip.btip--top { z-index: 1000; }   /* bulle de la vue agrandie, au-dessus de sa feuille */
+.credit-foot { overflow-wrap: anywhere; }   /* crédit de l'atlas (Réglages) : adresse de la licence coupée au besoin */
+/* Vue agrandie : feuille à sa hauteur maximale, le personnage prend la place que laissent le titre et la consigne
+   (en AX33, titre sur deux lignes et consigne entière, sans rien couper) */
+.sheet-root--atlas .sheet { height: 92vh; height: 92dvh; }
+.sheet-root--atlas .sheet__body { display: flex; flex-direction: column; padding: 0 0 12px; overflow: hidden; }
+.azoom {
+  position: relative; flex: 1 1 auto; min-height: 160px; overflow: hidden; touch-action: none;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.azoom__stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.azoom__stage .body-map__row { height: 100%; }
+.azoom__stage--anim { transition: transform .32s cubic-bezier(.2, .8, .2, 1); }
+.azoom__lay { position: absolute; inset: 0; }
+.azoom__lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.azoom__hint { padding: 8px 16px 0; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .azoom__stage--anim { transition: none; } }
+
 /* ── Pastilles « Pectoraux » ── */
 .mpills { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; }
 .mpill {

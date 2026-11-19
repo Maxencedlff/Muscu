@@ -46,10 +46,13 @@ function bodyImageUrls() {
 
 // Calques chargés d'avance, quand la page est au repos (≈ 310 Ko, fichiers locaux) : sinon un muscle
 // pouvait apparaître sans couleur le temps que son masque CSS se charge, au premier affichage d'une carte.
+// Plus les deux bases 1× de l'atlas du personnage choisi (≈ 60 Ko, fiche exercice : bodyAtlasHtml) : la fiche
+// s'ouvre avec son personnage déjà là, sans charger plus d'images qu'avant l'atlas (tests/test_atlas.py)
 const bodyPreloaded = [];
 function bodyPreload() {
   if (bodyPreloaded.length) return;
-  for (const u of bodyImageUrls()) { const i = new Image(); i.decoding = 'async'; i.src = u; bodyPreloaded.push(i); }
+  const atlas = ['front', 'back'].map(v => `${BODY2_DIR}/${bodyKind(bodySilhouette())}/${v}/base.webp`);
+  for (const u of [...bodyImageUrls(), ...atlas]) { const i = new Image(); i.decoding = 'async'; i.src = u; bodyPreloaded.push(i); }
 }
 if (typeof window !== 'undefined' && typeof document !== 'undefined' && document.readyState) {
   const idle = window.requestIdleCallback || (f => setTimeout(f, 300));
@@ -133,6 +136,47 @@ function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), labe
   const a11y = label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"';
   const act = tap ? ' data-action="body-tap"' : '';
   return `<div class="body-map ${esc(className)}" data-body="${kind}"${act}${a11y}><span class="body-map__row" style="aspect-ratio:${ratio};--body-ar:${(rowW * BODY_IMG.w / BODY_IMG.h).toFixed(4)};--fig:${fig}">${figs}</span>${caps}</div>`;
+}
+
+// ── Atlas détaillé (fiche exercice de la bibliothèque) ──────
+
+// Sous-muscles au lieu des 18 muscles, d'après BODY_PARTS (js/data/body-parts.js, img/body2/) : même composition
+// CSS (couleur × calque, masque = alpha du calque), mais chaque calque est RECADRÉ sur son sous-muscle et posé à
+// sa boîte (en % de la vue). Rendu propre de l'atlas : ses images ne se mêlent jamais à celles de img/body (autre
+// rendu du personnage, autre cadrage). Le 1× s'affiche ici ; le 3× ne se charge qu'au zoom (js/ui/body-zoom.js).
+const BODY2_DIR = 'img/body2';
+const BODY_PART_SEC_OPACITY = 0.8;    // rouge atténué : opacité des secondaires de la fiche (bodyHeatOpacity(SECONDARY_INTENSITY))
+const BODY_PART_DEEP_OPACITY = 0.6;   // profond, vu « à travers » le muscle qui le couvre (convention des planches)
+
+function body2Url(kind, view, file) { return `${BODY2_DIR}/${kind}/${view}/${file}`; }
+
+// Calques d'une vue de l'atlas. levels : { id de sous-muscle: 2|1 } ; res : 1 ou 3 (p/ ou p3/).
+// Ordre : superficiels dans l'ordre de BODY_PARTS, puis les profonds par-dessus, en transparence.
+function bodyAtlasLayersHtml(kind, view, levels, res = 1) {
+  const boxes = BODY_PARTS.boxes[kind]?.[view] || {};
+  const W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h;
+  const pct = v => `${Math.round(v * 1e5) / 1e3}%`;
+  const on = BODY_PARTS.parts.filter(p => boxes[p.id] && levels[p.id] > 0);
+  on.sort((a, b) => Number(!!a.deep) - Number(!!b.deep));
+  return on.map(p => {
+    const b = boxes[p.id][res === 3 ? 1 : 0], lv = levels[p.id];
+    const url = `url(${body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${p.id}.webp`)})`;
+    const op = p.deep ? BODY_PART_DEEP_OPACITY : lv >= 2 ? 1 : BODY_PART_SEC_OPACITY;
+    const cls = `body-map__m body-map__p${lv >= 2 ? '' : ' body-map__m--sec'}${p.deep ? ' body-map__p--deep' : ''}`;
+    return `<i class="${cls}" data-part="${p.id}" data-muscle="${p.parent || ''}" data-level="${lv}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)};background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
+  }).join('');
+}
+
+// Carte de l'atlas, face et dos côte à côte, en texte HTML (même gabarit que bodyMapHtml : .body-map__row,
+// .body-map__fig, d'où les mêmes places de bulle). levels : exercisePartLevels(…).levels (js/data/atlas.js).
+// Options : body (personnage), className, title (nom de l'exercice, titre de la vue agrandie), tap (bulle
+// du sous-muscle touché, zoom au double toucher ou au pincement : js/ui/body-zoom.js)
+function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false } = {}) {
+  const kind = bodyKind(body), safe = levels && typeof levels === 'object' ? levels : {};
+  const rowW = 2 + BODY_GAP, fig = `${Math.round(10000 / rowW) / 100}%`;
+  const figs = ['front', 'back'].map(v => `<span class="body-map__fig body-map__${v}"><img class="body-map__base" src="${body2Url(kind, v, 'base.webp')}" alt="" draggable="false" decoding="async">${bodyAtlasLayersHtml(kind, v, safe)}</span>`).join('');
+  const act = tap ? ' data-action="body-tap"' : '';
+  return `<div class="body-map body-map--atlas ${esc(className)}" data-body="${kind}" data-atlas="${esc(JSON.stringify(safe))}" data-title="${esc(title)}"${act} aria-hidden="true"><span class="body-map__row" style="aspect-ratio:${Math.round(rowW * BODY_PARTS.w)} / ${BODY_PARTS.h};--body-ar:${(rowW * BODY_PARTS.w / BODY_PARTS.h).toFixed(4)};--fig:${fig}">${figs}</span></div>`;
 }
 
 // ── Image partagée (canvas) ─────────────────────────────────

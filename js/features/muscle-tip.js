@@ -34,8 +34,15 @@ function muscleTipExerciseHtml(id, mapEl) {
 // puis la marge extérieure. Dans tous les cas, jamais sur un muscle coloré s'il reste une autre place.
 registerActions({
   'body-tap': (e, el) => {
+    // Atlas détaillé de la fiche exercice : sous-muscle (nom de salle, latin, rôle), zoom au double toucher
+    if (el.classList.contains('body-map--atlas')) return atlasTap(e, el);
     const progress = el.classList.contains('mcard__map');
     return bodyTipTap(e, el, (id, mapEl) => (progress ? muscleTipLoadHtml(id) : muscleTipExerciseHtml(id, mapEl)),
       progress ? ['outer', 'under'] : ['under', 'outer']);
+  },
+  // Bouton « Agrandir » de la fiche exercice : vue agrandie de l'atlas, sans zoom (VoiceOver, gestes inconnus)
+  'atlas-open': (e, el) => {
+    const map = el.closest('.mpanel')?.querySelector('.body-map--atlas');
+    if (map) openAtlasViewer(map, null);
   },
 });

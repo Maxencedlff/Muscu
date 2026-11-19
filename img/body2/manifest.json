@@ -1,0 +1,1305 @@
+{
+ "w": 384,
+ "h": 840,
+ "w3": 1152,
+ "h3": 2520,
+ "hit": [
+  576,
+  1260
+ ],
+ "parts": [
+  {
+   "id": "chest_clavicular",
+   "name": "Pectoraux, faisceau claviculaire (haut)",
+   "latin": "Pectoralis major, pars clavicularis",
+   "parent": "chest"
+  },
+  {
+   "id": "chest_sternal",
+   "name": "Pectoraux, faisceau sterno-costal (milieu)",
+   "latin": "Pectoralis major, pars sternocostalis",
+   "parent": "chest"
+  },
+  {
+   "id": "chest_abdominal",
+   "name": "Pectoraux, faisceau abdominal (bas)",
+   "latin": "Pectoralis major, pars abdominalis",
+   "parent": "chest"
+  },
+  {
+   "id": "pec_minor",
+   "name": "Petit pectoral (profond)",
+   "latin": "Pectoralis minor",
+   "parent": "chest",
+   "deep": true
+  },
+  {
+   "id": "serratus",
+   "name": "Dentelé antérieur",
+   "latin": "Serratus anterior",
+   "parent": "chest"
+  },
+  {
+   "id": "delt_anterior",
+   "name": "Deltoïde, faisceau antérieur",
+   "latin": "Deltoideus, pars clavicularis",
+   "parent": "front_delts"
+  },
+  {
+   "id": "delt_lateral",
+   "name": "Deltoïde, faisceau latéral",
+   "latin": "Deltoideus, pars acromialis",
+   "parent": "side_delts"
+  },
+  {
+   "id": "delt_posterior",
+   "name": "Deltoïde, faisceau postérieur",
+   "latin": "Deltoideus, pars spinalis",
+   "parent": "rear_delts"
+  },
+  {
+   "id": "traps_upper",
+   "name": "Trapèze supérieur",
+   "latin": "Trapezius, pars descendens",
+   "parent": "traps"
+  },
+  {
+   "id": "traps_middle",
+   "name": "Trapèze moyen",
+   "latin": "Trapezius, pars transversa",
+   "parent": "traps"
+  },
+  {
+   "id": "traps_lower",
+   "name": "Trapèze inférieur",
+   "latin": "Trapezius, pars ascendens",
+   "parent": "traps"
+  },
+  {
+   "id": "levator_scapulae",
+   "name": "Élévateur de la scapula",
+   "latin": "Levator scapulae",
+   "parent": "traps"
+  },
+  {
+   "id": "rhomboid_minor",
+   "name": "Petit rhomboïde (profond)",
+   "latin": "Rhomboideus minor",
+   "parent": "traps",
+   "deep": true
+  },
+  {
+   "id": "rhomboid_major",
+   "name": "Grand rhomboïde (profond)",
+   "latin": "Rhomboideus major",
+   "parent": "traps",
+   "deep": true
+  },
+  {
+   "id": "lats",
+   "name": "Grand dorsal",
+   "latin": "Latissimus dorsi",
+   "parent": "lats"
+  },
+  {
+   "id": "teres",
+   "name": "Grand rond",
+   "latin": "Teres major",
+   "parent": "lats"
+  },
+  {
+   "id": "infraspinatus",
+   "name": "Infra-épineux (coiffe)",
+   "latin": "Infraspinatus",
+   "parent": "rear_delts"
+  },
+  {
+   "id": "teres_minor",
+   "name": "Petit rond (coiffe)",
+   "latin": "Teres minor",
+   "parent": "rear_delts"
+  },
+  {
+   "id": "erector",
+   "name": "Érecteurs du rachis",
+   "latin": "Erector spinae",
+   "parent": "lower_back"
+  },
+  {
+   "id": "rectus_abdominis",
+   "name": "Droit de l'abdomen",
+   "latin": "Rectus abdominis",
+   "parent": "abs"
+  },
+  {
+   "id": "external_oblique",
+   "name": "Oblique externe",
+   "latin": "Obliquus externus abdominis",
+   "parent": "obliques"
+  },
+  {
+   "id": "scm",
+   "name": "Sterno-cléido-mastoïdien",
+   "latin": "Sternocleidomastoideus",
+   "parent": null
+  },
+  {
+   "id": "biceps_long",
+   "name": "Biceps, chef long",
+   "latin": "Biceps brachii, caput longum",
+   "parent": "biceps"
+  },
+  {
+   "id": "biceps_short",
+   "name": "Biceps, chef court",
+   "latin": "Biceps brachii, caput breve",
+   "parent": "biceps"
+  },
+  {
+   "id": "brachialis",
+   "name": "Brachial",
+   "latin": "Brachialis",
+   "parent": "brachialis"
+  },
+  {
+   "id": "coracobrachialis",
+   "name": "Coraco-brachial",
+   "latin": "Coracobrachialis",
+   "parent": null
+  },
+  {
+   "id": "triceps_long",
+   "name": "Triceps, chef long",
+   "latin": "Triceps brachii, caput longum",
+   "parent": "triceps"
+  },
+  {
+   "id": "triceps_lateral",
+   "name": "Triceps, chef latéral",
+   "latin": "Triceps brachii, caput laterale",
+   "parent": "triceps"
+  },
+  {
+   "id": "triceps_medial",
+   "name": "Triceps, chef médial",
+   "latin": "Triceps brachii, caput mediale",
+   "parent": "triceps"
+  },
+  {
+   "id": "brachioradialis",
+   "name": "Brachio-radial",
+   "latin": "Brachioradialis",
+   "parent": "forearms"
+  },
+  {
+   "id": "wrist_flexors",
+   "name": "Fléchisseurs du poignet",
+   "latin": "Mm. flexores carpi",
+   "parent": "forearms"
+  },
+  {
+   "id": "radial_extensors",
+   "name": "Extenseurs radiaux du poignet",
+   "latin": "Mm. extensores carpi radiales",
+   "parent": "forearms"
+  },
+  {
+   "id": "finger_extensors",
+   "name": "Extenseurs des doigts",
+   "latin": "M. extensor digitorum",
+   "parent": "forearms"
+  },
+  {
+   "id": "glute_max",
+   "name": "Grand fessier",
+   "latin": "Gluteus maximus",
+   "parent": "glutes"
+  },
+  {
+   "id": "glute_med",
+   "name": "Moyen fessier",
+   "latin": "Gluteus medius",
+   "parent": "glutes"
+  },
+  {
+   "id": "tfl",
+   "name": "Tenseur du fascia lata",
+   "latin": "Tensor fasciae latae",
+   "parent": null
+  },
+  {
+   "id": "sartorius",
+   "name": "Sartorius",
+   "latin": "Sartorius",
+   "parent": null
+  },
+  {
+   "id": "rectus_femoris",
+   "name": "Quadriceps, droit fémoral",
+   "latin": "Rectus femoris",
+   "parent": "quads"
+  },
+  {
+   "id": "vastus_lateralis",
+   "name": "Quadriceps, vaste latéral",
+   "latin": "Vastus lateralis",
+   "parent": "quads"
+  },
+  {
+   "id": "vastus_medialis",
+   "name": "Quadriceps, vaste médial",
+   "latin": "Vastus medialis",
+   "parent": "quads"
+  },
+  {
+   "id": "adductors",
+   "name": "Adducteurs (long adducteur, gracile)",
+   "latin": "Adductor longus, gracilis",
+   "parent": "adductors"
+  },
+  {
+   "id": "adductor_magnus",
+   "name": "Grand adducteur",
+   "latin": "Adductor magnus",
+   "parent": "adductors"
+  },
+  {
+   "id": "biceps_femoris",
+   "name": "Ischios, biceps fémoral",
+   "latin": "Biceps femoris",
+   "parent": "hamstrings"
+  },
+  {
+   "id": "semitendinosus",
+   "name": "Ischios, semi-tendineux",
+   "latin": "Semitendinosus",
+   "parent": "hamstrings"
+  },
+  {
+   "id": "semimembranosus",
+   "name": "Ischios, semi-membraneux",
+   "latin": "Semimembranosus",
+   "parent": "hamstrings"
+  },
+  {
+   "id": "gastro_medial",
+   "name": "Mollet, gastrocnémien médial",
+   "latin": "Gastrocnemius, caput mediale",
+   "parent": "calves"
+  },
+  {
+   "id": "gastro_lateral",
+   "name": "Mollet, gastrocnémien latéral",
+   "latin": "Gastrocnemius, caput laterale",
+   "parent": "calves"
+  },
+  {
+   "id": "soleus",
+   "name": "Mollet, soléaire",
+   "latin": "Soleus",
+   "parent": "calves"
+  },
+  {
+   "id": "tibialis",
+   "name": "Tibial antérieur",
+   "latin": "Tibialis anterior",
+   "parent": null
+  },
+  {
+   "id": "peroneus",
+   "name": "Long fibulaire",
+   "latin": "Fibularis longus",
+   "parent": null
+  }
+ ],
+ "bodies": {
+  "male": {
+   "front": {
+    "muscles": {
+     "chest": [
+      235,
+      459,
+      917,
+      809
+     ],
+     "front_delts": [
+      233,
+      432,
+      919,
+      610
+     ],
+     "side_delts": [
+      146,
+      443,
+      1006,
+      743
+     ],
+     "traps": [
+      400,
+      353,
+      752,
+      450
+     ],
+     "biceps": [
+      136,
+      621,
+      1016,
+      866
+     ],
+     "brachialis": [
+      118,
+      678,
+      1034,
+      871
+     ],
+     "triceps": [
+      136,
+      629,
+      1016,
+      864
+     ],
+     "forearms": [
+      57,
+      791,
+      1095,
+      1084
+     ],
+     "abs": [
+      470,
+      743,
+      682,
+      1200
+     ],
+     "obliques": [
+      356,
+      696,
+      796,
+      1262
+     ],
+     "quads": [
+      305,
+      1206,
+      847,
+      1815
+     ],
+     "adductors": [
+      411,
+      1178,
+      741,
+      1508
+     ],
+     "calves": [
+      248,
+      1837,
+      904,
+      2258
+     ]
+    },
+    "parts": {
+     "chest_clavicular": [
+      282,
+      459,
+      870,
+      569
+     ],
+     "chest_sternal": [
+      270,
+      497,
+      882,
+      725
+     ],
+     "chest_abdominal": [
+      235,
+      579,
+      917,
+      759
+     ],
+     "pec_minor": [
+      330,
+      484,
+      822,
+      716
+     ],
+     "serratus": [
+      321,
+      646,
+      831,
+      809
+     ],
+     "delt_anterior": [
+      234,
+      432,
+      918,
+      610
+     ],
+     "delt_lateral": [
+      146,
+      443,
+      1006,
+      743
+     ],
+     "traps_upper": [
+      400,
+      356,
+      752,
+      450
+     ],
+     "rectus_abdominis": [
+      470,
+      743,
+      682,
+      1200
+     ],
+     "external_oblique": [
+      356,
+      696,
+      796,
+      1262
+     ],
+     "biceps_long": [
+      136,
+      688,
+      1016,
+      866
+     ],
+     "biceps_short": [
+      155,
+      621,
+      998,
+      846
+     ],
+     "brachialis": [
+      118,
+      678,
+      1034,
+      871
+     ],
+     "triceps_long": [
+      230,
+      629,
+      922,
+      802
+     ],
+     "triceps_medial": [
+      195,
+      758,
+      957,
+      864
+     ],
+     "brachioradialis": [
+      57,
+      791,
+      1095,
+      1026
+     ],
+     "wrist_flexors": [
+      63,
+      863,
+      1089,
+      1084
+     ],
+     "tfl": [
+      324,
+      1151,
+      828,
+      1310
+     ],
+     "sartorius": [
+      380,
+      1163,
+      772,
+      1585
+     ],
+     "rectus_femoris": [
+      360,
+      1221,
+      792,
+      1740
+     ],
+     "vastus_lateralis": [
+      305,
+      1224,
+      847,
+      1697
+     ],
+     "vastus_medialis": [
+      385,
+      1480,
+      767,
+      1815
+     ],
+     "adductors": [
+      411,
+      1178,
+      741,
+      1508
+     ],
+     "gastro_medial": [
+      350,
+      1837,
+      802,
+      2200
+     ],
+     "soleus": [
+      248,
+      1967,
+      904,
+      2258
+     ],
+     "tibialis": [
+      280,
+      1807,
+      872,
+      2259
+     ],
+     "peroneus": [
+      256,
+      1867,
+      896,
+      2060
+     ]
+    }
+   },
+   "back": {
+    "muscles": {
+     "side_delts": [
+      146,
+      447,
+      1006,
+      766
+     ],
+     "rear_delts": [
+      225,
+      466,
+      927,
+      669
+     ],
+     "traps": [
+      266,
+      286,
+      886,
+      875
+     ],
+     "lats": [
+      275,
+      583,
+      877,
+      1056
+     ],
+     "lower_back": [
+      462,
+      773,
+      690,
+      1161
+     ],
+     "triceps": [
+      133,
+      622,
+      1019,
+      874
+     ],
+     "forearms": [
+      62,
+      776,
+      1090,
+      1079
+     ],
+     "obliques": [
+      357,
+      949,
+      796,
+      1137
+     ],
+     "glutes": [
+      347,
+      1055,
+      805,
+      1345
+     ],
+     "hamstrings": [
+      314,
+      1296,
+      838,
+      1784
+     ],
+     "adductors": [
+      504,
+      1287,
+      648,
+      1495
+     ],
+     "calves": [
+      248,
+      1775,
+      904,
+      2287
+     ]
+    },
+    "parts": {
+     "delt_lateral": [
+      146,
+      447,
+      1006,
+      766
+     ],
+     "delt_posterior": [
+      227,
+      466,
+      925,
+      657
+     ],
+     "traps_upper": [
+      410,
+      286,
+      742,
+      427
+     ],
+     "traps_middle": [
+      266,
+      369,
+      886,
+      552
+     ],
+     "traps_lower": [
+      381,
+      506,
+      771,
+      875
+     ],
+     "rhomboid_minor": [
+      456,
+      382,
+      696,
+      545
+     ],
+     "rhomboid_major": [
+      447,
+      425,
+      705,
+      702
+     ],
+     "lats": [
+      318,
+      653,
+      834,
+      1056
+     ],
+     "teres": [
+      275,
+      583,
+      877,
+      700
+     ],
+     "infraspinatus": [
+      326,
+      529,
+      826,
+      669
+     ],
+     "teres_minor": [
+      310,
+      565,
+      842,
+      613
+     ],
+     "erector": [
+      462,
+      773,
+      690,
+      1161
+     ],
+     "external_oblique": [
+      357,
+      949,
+      796,
+      1137
+     ],
+     "triceps_long": [
+      152,
+      622,
+      1000,
+      872
+     ],
+     "triceps_lateral": [
+      133,
+      639,
+      1019,
+      852
+     ],
+     "triceps_medial": [
+      137,
+      795,
+      1015,
+      874
+     ],
+     "brachioradialis": [
+      88,
+      776,
+      1064,
+      879
+     ],
+     "radial_extensors": [
+      62,
+      799,
+      1090,
+      1014
+     ],
+     "finger_extensors": [
+      62,
+      856,
+      1090,
+      1079
+     ],
+     "glute_max": [
+      352,
+      1060,
+      800,
+      1344
+     ],
+     "glute_med": [
+      347,
+      1056,
+      805,
+      1206
+     ],
+     "adductor_magnus": [
+      504,
+      1294,
+      648,
+      1495
+     ],
+     "biceps_femoris": [
+      314,
+      1296,
+      838,
+      1777
+     ],
+     "semitendinosus": [
+      415,
+      1331,
+      738,
+      1710
+     ],
+     "semimembranosus": [
+      416,
+      1392,
+      736,
+      1784
+     ],
+     "gastro_medial": [
+      291,
+      1776,
+      860,
+      2224
+     ],
+     "gastro_lateral": [
+      251,
+      1775,
+      901,
+      2103
+     ],
+     "soleus": [
+      248,
+      2000,
+      904,
+      2285
+     ]
+    }
+   }
+  },
+  "female": {
+   "front": {
+    "muscles": {
+     "chest": [
+      306,
+      501,
+      846,
+      867
+     ],
+     "front_delts": [
+      310,
+      471,
+      842,
+      636
+     ],
+     "side_delts": [
+      230,
+      473,
+      922,
+      799
+     ],
+     "traps": [
+      396,
+      406,
+      756,
+      488
+     ],
+     "biceps": [
+      210,
+      673,
+      942,
+      891
+     ],
+     "brachialis": [
+      194,
+      713,
+      958,
+      896
+     ],
+     "triceps": [
+      223,
+      674,
+      930,
+      890
+     ],
+     "forearms": [
+      135,
+      822,
+      1017,
+      1115
+     ],
+     "abs": [
+      490,
+      788,
+      662,
+      1255
+     ],
+     "obliques": [
+      340,
+      732,
+      812,
+      1329
+     ],
+     "quads": [
+      297,
+      1215,
+      855,
+      1798
+     ],
+     "adductors": [
+      396,
+      1220,
+      756,
+      1526
+     ],
+     "calves": [
+      270,
+      1822,
+      881,
+      2257
+     ]
+    },
+    "parts": {
+     "chest_clavicular": [
+      338,
+      501,
+      814,
+      619
+     ],
+     "chest_sternal": [
+      333,
+      541,
+      819,
+      721
+     ],
+     "chest_abdominal": [
+      306,
+      619,
+      846,
+      770
+     ],
+     "pec_minor": [
+      371,
+      527,
+      781,
+      739
+     ],
+     "serratus": [
+      370,
+      692,
+      781,
+      867
+     ],
+     "delt_anterior": [
+      311,
+      471,
+      841,
+      636
+     ],
+     "delt_lateral": [
+      230,
+      473,
+      922,
+      799
+     ],
+     "traps_upper": [
+      396,
+      407,
+      756,
+      488
+     ],
+     "rectus_abdominis": [
+      490,
+      788,
+      662,
+      1255
+     ],
+     "external_oblique": [
+      340,
+      732,
+      812,
+      1329
+     ],
+     "biceps_long": [
+      210,
+      711,
+      942,
+      891
+     ],
+     "biceps_short": [
+      226,
+      673,
+      926,
+      873
+     ],
+     "brachialis": [
+      194,
+      713,
+      958,
+      896
+     ],
+     "triceps_long": [
+      291,
+      674,
+      860,
+      831
+     ],
+     "triceps_medial": [
+      259,
+      785,
+      893,
+      890
+     ],
+     "brachioradialis": [
+      135,
+      822,
+      1017,
+      1055
+     ],
+     "wrist_flexors": [
+      146,
+      881,
+      1006,
+      1115
+     ],
+     "tfl": [
+      317,
+      1143,
+      835,
+      1343
+     ],
+     "sartorius": [
+      352,
+      1157,
+      800,
+      1593
+     ],
+     "rectus_femoris": [
+      356,
+      1215,
+      796,
+      1737
+     ],
+     "vastus_lateralis": [
+      297,
+      1265,
+      855,
+      1695
+     ],
+     "vastus_medialis": [
+      393,
+      1498,
+      759,
+      1798
+     ],
+     "adductors": [
+      396,
+      1220,
+      756,
+      1526
+     ],
+     "gastro_medial": [
+      371,
+      1822,
+      781,
+      2189
+     ],
+     "soleus": [
+      271,
+      1962,
+      881,
+      2257
+     ],
+     "tibialis": [
+      305,
+      1793,
+      847,
+      2261
+     ],
+     "peroneus": [
+      274,
+      1860,
+      878,
+      2073
+     ]
+    }
+   },
+   "back": {
+    "muscles": {
+     "side_delts": [
+      229,
+      474,
+      923,
+      830
+     ],
+     "rear_delts": [
+      305,
+      505,
+      847,
+      700
+     ],
+     "traps": [
+      331,
+      328,
+      821,
+      903
+     ],
+     "lats": [
+      335,
+      631,
+      817,
+      1108
+     ],
+     "lower_back": [
+      478,
+      796,
+      674,
+      1213
+     ],
+     "triceps": [
+      209,
+      670,
+      943,
+      902
+     ],
+     "forearms": [
+      137,
+      808,
+      1015,
+      1113
+     ],
+     "obliques": [
+      360,
+      1016,
+      792,
+      1122
+     ],
+     "glutes": [
+      347,
+      1104,
+      805,
+      1401
+     ],
+     "hamstrings": [
+      307,
+      1336,
+      845,
+      1774
+     ],
+     "adductors": [
+      502,
+      1363,
+      650,
+      1517
+     ],
+     "calves": [
+      270,
+      1763,
+      881,
+      2287
+     ]
+    },
+    "parts": {
+     "delt_lateral": [
+      229,
+      474,
+      923,
+      830
+     ],
+     "delt_posterior": [
+      306,
+      505,
+      846,
+      700
+     ],
+     "traps_upper": [
+      404,
+      328,
+      748,
+      466
+     ],
+     "traps_middle": [
+      331,
+      412,
+      821,
+      595
+     ],
+     "traps_lower": [
+      400,
+      550,
+      752,
+      903
+     ],
+     "rhomboid_minor": [
+      455,
+      422,
+      697,
+      579
+     ],
+     "rhomboid_major": [
+      458,
+      471,
+      694,
+      711
+     ],
+     "lats": [
+      371,
+      687,
+      782,
+      1108
+     ],
+     "teres": [
+      335,
+      631,
+      817,
+      721
+     ],
+     "infraspinatus": [
+      368,
+      573,
+      784,
+      683
+     ],
+     "teres_minor": [
+      358,
+      610,
+      793,
+      655
+     ],
+     "erector": [
+      478,
+      796,
+      674,
+      1213
+     ],
+     "external_oblique": [
+      360,
+      1016,
+      792,
+      1122
+     ],
+     "triceps_long": [
+      222,
+      670,
+      930,
+      900
+     ],
+     "triceps_lateral": [
+      210,
+      673,
+      942,
+      889
+     ],
+     "triceps_medial": [
+      209,
+      822,
+      943,
+      902
+     ],
+     "brachioradialis": [
+      140,
+      808,
+      1012,
+      979
+     ],
+     "radial_extensors": [
+      137,
+      828,
+      1015,
+      1047
+     ],
+     "finger_extensors": [
+      144,
+      883,
+      1008,
+      1113
+     ],
+     "glute_max": [
+      358,
+      1104,
+      794,
+      1401
+     ],
+     "glute_med": [
+      347,
+      1105,
+      805,
+      1255
+     ],
+     "adductor_magnus": [
+      502,
+      1364,
+      650,
+      1516
+     ],
+     "biceps_femoris": [
+      307,
+      1336,
+      845,
+      1759
+     ],
+     "semitendinosus": [
+      406,
+      1376,
+      746,
+      1708
+     ],
+     "semimembranosus": [
+      419,
+      1419,
+      733,
+      1774
+     ],
+     "gastro_medial": [
+      316,
+      1766,
+      836,
+      2229
+     ],
+     "gastro_lateral": [
+      272,
+      1763,
+      880,
+      2099
+     ],
+     "soleus": [
+      273,
+      2013,
+      879,
+      2286
+     ]
+    }
+   }
+  }
+ }
+}

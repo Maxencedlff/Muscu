@@ -307,7 +307,7 @@ function libExAboutHtml(e, name) {
   return `${howToHtml(e.name)}
         ${howToTipHtml(e.name)}
         ${libExNotesHtml(e.name, 1)}
-        ${exMusclesGroupHtml({ name }, 'Muscles', { textOnly: !exerciseVideoHtml(name) })}
+        ${exMusclesGroupHtml({ name }, 'Muscles', { textOnly: !exerciseVideoHtml(name), atlas: true })}
         <div class="group">
           <div class="cell"><span class="cell__body"><span class="cell__title">Matériel</span></span>
             <span class="cell__value">${esc(EQUIPMENT.find(q => q.id === e.equip)?.label || '—')}</span></div>
