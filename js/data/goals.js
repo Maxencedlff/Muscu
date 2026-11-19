@@ -113,8 +113,7 @@ function setsRepsSpoken(ex) {
 // HTML : le texte affiché, lu par VoiceOver dans sa forme parlée (classe visually-hidden, css/screens.css, que les contrôles de textes coupés ignorent)
 function setsRepsHtml(ex) {
   const shown = setsRepsText(ex), spoken = setsRepsSpoken(ex);
-  // Texte VoiceOver d'abord : le texte affiché reste le dernier avant un « · » qui le suit (coupures de ligne mesurées au bon endroit)
-  return shown === spoken ? esc(shown) : `<span class="visually-hidden">${esc(spoken)}</span><span aria-hidden="true">${esc(shown)}</span>`;
+  return shown === spoken ? esc(shown) : `<span aria-hidden="true">${esc(shown)}</span><span class="visually-hidden">${esc(spoken)}</span>`;
 }
 
 // Liste d'une séance du programme : la prescription entière, fourchette comprise (« 3 × 8–12 », bas vide : 4 sous le
@@ -127,7 +126,7 @@ function repSpanOf(ex) {
 function setsRangeHtml(ex) {
   const span = repSpanOf(ex);
   if (!span) return setsRepsHtml(ex);
-  return `<span class="visually-hidden">${esc(`${plural(ex.sets, 'série', 'séries')} de ${span[0]} à ${span[1]} reps`)}</span><span aria-hidden="true">${ex.sets}\u00a0×\u00a0${span[0]}–${span[1]}</span>`;
+  return `<span aria-hidden="true">${ex.sets}\u00a0×\u00a0${span[0]}–${span[1]}</span><span class="visually-hidden">${esc(`${plural(ex.sets, 'série', 'séries')} de ${span[0]} à ${span[1]} reps`)}</span>`;
 }
 
 function exerciseTarget(cat, ex) {

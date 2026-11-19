@@ -189,7 +189,8 @@ function fitBackLabelNow(scope = document) {
     const cut = () => title.scrollWidth > title.clientWidth + 1;
     if (!cut()) return;
     bar.classList.add('navbar__bar--wide-back');
-    if (cut()) bar.classList.add('navbar__bar--stack');
+    // Sur sa ligne seulement en texte agrandi : en taille normale, le titre se tronque comme sur iOS (barre d'une ligne)
+    if (cut() && document.documentElement.classList.contains('type-xl')) bar.classList.add('navbar__bar--stack');
   });
 }
 let backFitFrame = 0;

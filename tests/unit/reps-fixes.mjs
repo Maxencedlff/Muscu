@@ -60,7 +60,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`setsRepsSpoken(${JSON.stringify(fx)})`), '4 séries de 12 reps');
     assert.equal(run(`setsRepsSpoken(${JSON.stringify({ ...fx, sets: 1, repMax: 1 })})`), '1 série de 1 rep');
     const html = run(`setsRepsHtml(${JSON.stringify(fx)})`);
-    assert.equal(html, `<span class="visually-hidden">4 séries de 12 reps</span><span aria-hidden="true">4${NB}×${NB}12</span>`);
+    assert.equal(html, `<span aria-hidden="true">4${NB}×${NB}12</span><span class="visually-hidden">4 séries de 12 reps</span>`);
     assert.equal(run(`setsRepsText(${JSON.stringify({ name: 'Rowing', sets: 4, repMax: 12 })})`), '4 séries', 'fourchette : « 4 séries »');
     assert.equal(run(`setsRepsHtml(${JSON.stringify({ name: 'Rowing', sets: 4, repMax: 12 })})`), '4 séries');
     assert.equal(run(`setsRepsText(${JSON.stringify({ ...fx, name: 'Gainage', measure: 'time' })})`), '4 séries', 'hors répétitions : pas de reps');
