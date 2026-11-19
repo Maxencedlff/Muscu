@@ -1626,7 +1626,7 @@ def p_nutri_eleve_jours(r):
     with r.etape('sel-ferme', 'Feuille fermée : bilan du jour à jour', cle=cle):
         r.toucher('.sheet__btn--confirm', 'OK')
         r.defiler('.diet-salt', 'ligne Sel')
-    r.raccourci("""p => { data.dietPlans = { dc_c1_sem: p }; data.dietActive = 'dc_c1_sem'; save(); navigate('nutrition'); render(); }""",
+    r.raccourci("""p => { data.dietPlans = { dc_c1_sem: p }; data.dietActive = 'dc_c1_sem'; save(); switchTab('train', { reset: true }); navigate('nutrition'); render(); }""",
                 'le coach a envoyé la version de 7 jours du plan (mardi, mercredi, samedi et dimanche de repos)', plan_seche_eleve('week'))
     cle = 'Élève : voir la semaine du plan'
     with r.etape('semaine-ligne', 'Nutrition : « Mercredi · Repos » sous la frise', cle=cle):
