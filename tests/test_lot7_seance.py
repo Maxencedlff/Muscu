@@ -19,7 +19,7 @@ def skip_rest(page):
         if page.locator(sel).count():
             page.locator(sel).first.click()
             break
-    page.wait_for_timeout(120)
+    settle(page)
 
 
 def t_seance(bench, eng, dev, theme):
@@ -27,7 +27,7 @@ def t_seance(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
         start(page)
-        page.wait_for_timeout(200)
+        settle(page)
 
         # Virgule décimale dans les champs kg (valeurs et indications)
         vals = page.evaluate("[...document.querySelectorAll('[data-action=\"set-weight\"]')].map(i => i.value + '|' + i.placeholder)")
@@ -61,7 +61,7 @@ def t_seance(bench, eng, dev, theme):
         r = page.locator('[data-action="set-reps"][data-ei="0"][data-si="0"]')
         w.fill('35,5'); r.fill('11')
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets[0].weight') in ('35.5', 35.5), f'{t} « 35,5 » enregistré 35.5')
         # Vague 3 : aucun toast en séance, « Annuler » en ligne dans la série
         R.check(page.locator('.toast').count() == 0 and page.locator('.ex-card[data-ei="0"] [data-action="sess-undo"]').count() == 1, f'{t} série validée : « Annuler » en ligne, pas de toast')
@@ -75,7 +75,7 @@ def t_seance(bench, eng, dev, theme):
         page.evaluate("activeSession.exercises[0].sets.forEach((s, i) => { if (!s.done) { s.weight = '5'; s.reps = '5'; } })")
         for si in (1, 2, 3):
             page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]')
-            page.wait_for_timeout(120)
+            settle(page)
             skip_rest(page)
             sub = page.locator('.ex-card[data-ei="0"] .ex-card__sub')
             if sub.count():
@@ -88,10 +88,10 @@ def t_seance(bench, eng, dev, theme):
 
         # Bilan : aucun toast (ni sur le titre ni sur « Terminé »), baisse sans double signe
         page.evaluate("activeSession.exercises[0].sets.forEach(s => { s.weight = '5'; s.reps = '5'; })")
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
         page.wait_for_selector('.view.summary')
-        page.wait_for_timeout(300)
+        settle(page)
         tb = page.evaluate("(() => { const t = document.querySelector('.toast'), b = document.querySelector('.sum-done'); if (!t) return null; const a = t.getBoundingClientRect(), c = b.getBoundingClientRect(); return [t.textContent, a.bottom <= c.top && a.top < 120]; })()")
         # Depuis le 16/10 : aucun toast sur le bilan (il masquait le titre) ; confirmation annoncée à VoiceOver
         R.check(tb is None, f'{t} aucun toast sur le bilan {tb}')

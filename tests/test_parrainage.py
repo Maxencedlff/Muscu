@@ -12,6 +12,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 from fake_account import FAKE_ACCOUNT
 
 LOT = 'parrainage'
@@ -27,12 +29,12 @@ def open_app(page, theme, old=False):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='lea'):
     page.evaluate("""async u => { await accountSignInWith('apple', async () => 'add'); if (u) await accountSaveProfile({ username: u }); }""", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def rcalls(page, fn):
@@ -74,7 +76,7 @@ def type_code(page, code):
     page.fill('#authReferral', '')
     page.type('#authReferral', code)
     page.click('[data-role="referral"]')
-    page.wait_for_timeout(350)
+    settle(page)
 
 
 def t_nouveau_compte(bench, eng, dev, theme):
@@ -86,7 +88,7 @@ def t_nouveau_compte(bench, eng, dev, theme):
         page.wait_for_selector('[data-action="auth-provider"][data-provider="apple"]')
         page.click('[data-action="auth-provider"][data-provider="apple"]')
         page.wait_for_selector('.auth__page--username')
-        page.wait_for_timeout(300)
+        settle(page)
         link = page.locator('[data-action="auth-referral"]')
         R.check(link.count() == 1 and "Code d'un coach" in link.inner_text(), f'{t} pseudo d\'un compte neuf : lien vers le code')
         layout(page, t, 'pseudo avec lien', '.auth')
@@ -105,14 +107,14 @@ def t_nouveau_compte(bench, eng, dev, theme):
         R.check('Code inconnu' in page.inner_text('#authError'), f'{t} code inactif : refusé comme inconnu')
         type_code(page, ' lucas ')
         page.wait_for_selector('.auth__page--username')
-        page.wait_for_timeout(200)
+        settle(page)
         done = page.locator('.auth__referral-done')
         R.check(done.count() == 1 and 'Parrainé par Lucas' in done.inner_text() and page.locator('[data-action="auth-referral"]').count() == 0,
                 f'{t} retour au pseudo : « Parrainé par Lucas »')
         R.check(rcalls(page, 'referral_apply')[-1] == {'code': 'LUCAS'}, f'{t} code envoyé normalisé {rcalls(page, "referral_apply")}')
         shot(page, LOT, f'03-pseudo-parraine-{t}')
         page.click('[data-action="auth-later"]')
-        page.wait_for_timeout(500)
+        settle(page)
         txt = page.inner_text('#app')
         R.check('Parrainé par Lucas' in txt and page.locator('[data-action="account-referral"]').count() == 0, f'{t} écran Compte : parrain affiché, plus de saisie')
         R.check(json.loads(ls(page, 'mdlf_referral'))['name'] == 'Lucas', f'{t} parrain gardé sur l\'appareil')
@@ -130,7 +132,7 @@ def t_reglages(bench, eng, dev, theme):
         signin(page)
         page.evaluate("navigate('account')")
         page.wait_for_selector('[data-action="account-referral"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(len(rcalls(page, 'referral_state')) == 1, f'{t} état lu une fois {rcalls(page, "referral_state")}')
         foot = page.locator('[data-action="account-referral"]').locator('xpath=../following-sibling::div[1]').inner_text()
         R.check('Jusqu' in foot, f'{t} date limite affichée ({foot!r})')
@@ -138,7 +140,7 @@ def t_reglages(bench, eng, dev, theme):
         shot(page, LOT, f'05-compte-saisir-{t}')
         page.click('[data-action="account-referral"]')
         page.wait_for_selector('#authReferral')
-        page.wait_for_timeout(250)
+        settle(page)
         layout(page, t, 'étape du code', '.auth')
         shot(page, LOT, f'06-etape-code-{t}')
         # Hors ligne : message, saisie gardée
@@ -147,10 +149,10 @@ def t_reglages(bench, eng, dev, theme):
         R.check('Pas d' in page.inner_text('#authError') and page.input_value('#authReferral') == 'LUCAS', f'{t} hors ligne : message, saisie gardée')
         page.evaluate('__sb.fail.referral = null')
         page.click('[data-role="referral"]')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.auth').count() == 0 or page.locator('.auth--out').count() == 1, f'{t} code valable : étape fermée')
         R.check('Parrainé par Lucas' in toast(page), f'{t} toast « Parrainé par Lucas » ({toast(page)!r})')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Parrainé par Lucas' in page.inner_text('#app') and page.locator('[data-action="account-referral"]').count() == 0, f'{t} Compte : parrain affiché')
         # Changer de parrain : impossible (serveur), et l'app ne le propose plus
         r = page.evaluate("referralApply('PAUL')")
@@ -179,7 +181,7 @@ def t_vieux_compte(bench, eng, dev, theme):
         signin(page)
         page.evaluate("navigate('account')")
         page.wait_for_selector('.account-view')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('[data-action="account-referral"]').count() == 0 and 'Parrainé' not in page.inner_text('#app'), f'{t} compte ancien : rien proposé')
         R.check(not rcalls(page, 'referral_apply'), f'{t} compte ancien : aucune saisie envoyée')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -187,7 +189,7 @@ def t_vieux_compte(bench, eng, dev, theme):
         open_app(page, theme)
         page.evaluate("navigate('account')")
         page.wait_for_selector('.account-view--out')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate("__sb.calls.filter(c => c[0] === 'referral').length") == 0, f'{t} sans compte : aucun appel')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

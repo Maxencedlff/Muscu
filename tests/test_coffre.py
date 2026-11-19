@@ -121,13 +121,13 @@ def open_vault(page, theme, legacy=False):
     page.wait_for_selector('.view.body-measures')
     page.click('[data-action="go-photo-vault"]')
     page.wait_for_selector('.view.photo-vault .pv-intro, .view.photo-vault .pv-lock, .view.photo-vault .pv-center h1, .view.photo-vault [data-action="photo-add"]')
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def create_vault(page):
     page.click('[data-action="pv-start"]')
     page.wait_for_selector('.view.photo-vault [data-action="photo-add"]', timeout=15000)
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def reenter(page):
@@ -136,21 +136,21 @@ def reenter(page):
     page.wait_for_selector('.view.body-measures')
     page.click('[data-action="go-photo-vault"]')
     page.wait_for_selector('.view.photo-vault .pv-intro, .view.photo-vault .pv-lock, .view.photo-vault .pv-center h1, .view.photo-vault [data-action="photo-add"]', timeout=8000)
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def add_photo(page, path, pose=None, date=None):
     n = page.locator('.pgal__item').count()
     page.set_input_files('#photoFile', path)
     page.wait_for_selector('.sheet-root .pnew__img')
-    page.wait_for_timeout(250)
+    settle(page)
     if pose:
         page.click(f'.pnew__pose [data-pose="{pose}"]')
     if date:
         page.fill('#phDate', date)
     page.click('.sheet__btn--confirm')
     page.wait_for_function(f"document.querySelectorAll('.pgal__item').length > {n}", timeout=15000)
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 # Lignes brutes du coffre (IndexedDB « mdlf-vault ») : ce qu'un voleur de la sauvegarde verrait
@@ -265,7 +265,7 @@ def t_coffre(bench, eng, dev, theme):
         # Ouvrir une photo, puis quitter l'écran : refermé ; revenir : Face ID d'emblée
         page.locator('.pgal__item').first.click()
         page.wait_for_selector('.sheet-root .pview__img')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('300 × 400 px' in page.inner_text('.sheet-root'), f'{t} photo ouverte')
         page.locator('.sheet__btn--cancel').click()
         page.wait_for_selector('.sheet-root', state='detached')
@@ -296,7 +296,7 @@ def t_verrouillages(bench):
         R.check(not page.evaluate("document.body.classList.contains('pv-shield')"), 'app active : contenu rendu')
         # Arrière-plan
         page.evaluate(HIDE)
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(not page.evaluate('vaultIsOpen()') and page.locator('.pv-lock').count() == 1, 'arrière-plan : refermé sur-le-champ')
         R.check('shield:false' in page.evaluate('__vaultCalls'), 'écran natif désarmé coffre fermé')
         page.evaluate(SHOW)
@@ -310,29 +310,29 @@ def t_verrouillages(bench):
         page.clock.run_for(59_000)
         R.check(page.evaluate('vaultIsOpen()'), 'un toucher relance la minute')
         page.clock.run_for(2_000)
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(not page.evaluate('vaultIsOpen()') and 'une minute' in page.inner_text('#pvMsg'), 'inactif 1 min : refermé, message')
         R.check(calls(page, 'unlock') == n, 'après l\'inactivité : Face ID pas redemandé tout seul')
         # Face ID annulé : fermé, sans message d'erreur ; en échec : message
         page.evaluate("__vaultMode = 'cancel'")
         page.click('[data-action="pv-open"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(not page.evaluate('vaultIsOpen()') and page.locator('.pv-sub--err').count() == 0 and page.locator('[data-action="pv-open"]').is_enabled(),
                 'Face ID annulé : fermé, sans erreur, bouton prêt')
         page.evaluate("__vaultMode = 'fail'")
         page.click('[data-action="pv-open"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Ouverture impossible' in page.inner_text('#pvMsg') and page.locator('.pv-sub--err').count() == 1, 'Face ID en échec : message')
         shot(page, LOT, 'echec-iPhone_13-dark')
         # Feuille d'iOS ouverte, l'app part en arrière-plan, puis la clé arrive : rien ne s'ouvre
         page.evaluate("__vaultMode = 'hold'")
         page.click('[data-action="pv-open"]')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.locator('[data-action="pv-open"]').is_disabled(), 'feuille d\'iOS ouverte : bouton inactif')
         page.evaluate(HIDE)
         page.evaluate(SHOW)
         page.evaluate('__vaultRelease()')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(not page.evaluate('vaultIsOpen()') and page.locator('[data-action="pv-open"]').is_enabled(), 'refermé pendant la feuille : resté fermé, bouton prêt')
         page.evaluate("__vaultMode = 'ok'")
         page.click('[data-action="pv-open"]')
@@ -355,7 +355,7 @@ def t_migration(bench):
         R.check('2 photos déjà prises' in page.inner_text('.pv-intro'), f'présentation : photos existantes annoncées {page.inner_text(".pv-intro")[:300]!r}')
         page.evaluate("__vaultMode = 'cancel'")
         page.click('[data-action="pv-start"]')
-        page.wait_for_timeout(400)
+        settle(page)
         meta = page.evaluate(RAW_ROWS)['meta']
         R.check(page.locator('.pv-intro').count() == 1 and page.evaluate(LEGACY_EXISTS) is True and '"pending":true' in meta and 'check' not in meta,
                 f'création annulée : présentation, photos en clair intactes, seulement l\'identifiant de clé {meta}')
@@ -485,7 +485,7 @@ def t_tout_supprimer(bench):
         tap_dialog(page, 'Tout supprimer')
         page.wait_for_selector('.ios-dialog')
         tap_dialog(page, 'Supprimer')
-        page.wait_for_timeout(800)
+        settle(page)
         raw = page.evaluate(RAW_ROWS)
         R.check(raw['rows'] == [] and raw['meta'] == '[]', 'Supprimer toutes les données : coffre vidé')
         R.check(calls(page, 'forget') == 1 and page.evaluate('__fakeKeychain.all()') == {}, 'Supprimer toutes les données : clé retirée du trousseau')
@@ -504,23 +504,23 @@ def t_interruptions(bench):
         page.wait_for_selector('.sheet-root .pnew__img')
         page.evaluate(HIDE)
         page.evaluate(SHOW)
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.sheet-root').count() == 0 and page.locator('.view.photo-vault img').count() == 0, 'verrouillé : feuille et image retirées')
         R.check('ranger ta photo' in page.inner_text('#pvMsg'), f'verrouillé : la photo attend l\'ouverture {page.inner_text("#pvMsg")!r}')
         page.click('[data-action="pv-open"]')
         page.wait_for_selector('.sheet-root .pnew__img', timeout=15000)
-        page.wait_for_timeout(300)
+        settle(page)
         page.click('.sheet__btn--confirm')
         page.wait_for_selector('.pgal__item', timeout=8000)
         R.check(page.locator('.pgal__item').count() == 1, 'photo rangée après l\'ouverture')
         # Confirmation de suppression ouverte, inactivité : fermée, la photo reste
         page.locator('.pgal__item').first.click()
         page.wait_for_selector('[data-action="photo-delete"]')
-        page.wait_for_timeout(300)
+        settle(page)
         page.click('[data-action="photo-delete"]')
         page.wait_for_selector('.ios-dialog')
         page.clock.run_for(61_000)
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.ios-dialog').count() == 0 and not page.evaluate('vaultIsOpen()'), 'inactivité : confirmation fermée, coffre fermé')
         R.check(len(page.evaluate(RAW_ROWS)['rows']) == 1, 'la photo n\'a pas été supprimée sans rouvrir le coffre')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
@@ -572,11 +572,11 @@ def t_panel_apple(bench):
                 f'coffre : même pose à deux dates, la pose dans le titre, dates entières dans les menus (SE) {title!r} {sel} {page.inner_text(".pcmp__gap")!r}')
         # Panel Apple vague 3 : choisir une autre date garde le focus sur le menu (VoiceOver ne repart pas en haut), l'écart est dit
         opts = page.evaluate("[...document.querySelector('#pcmp-a').options].map(o => o.value)"); was = page.evaluate("document.querySelector('#pcmp-a').value")
-        page.focus('#pcmp-a'); page.select_option('#pcmp-a', opts[-1]); page.wait_for_timeout(250)
+        page.focus('#pcmp-a'); page.select_option('#pcmp-a', opts[-1]); settle(page)
         foc = page.evaluate("[document.activeElement?.id, document.getElementById('sr-polite')?.textContent]")
         R.check(foc[0] == 'pcmp-a' and ('écart' in (foc[1] or '') or 'Même jour' in (foc[1] or '')),
                 f'coffre : date changée, focus gardé sur « Avant », écart annoncé {foc}')
-        page.select_option('#pcmp-a', was); page.wait_for_timeout(250)
+        page.select_option('#pcmp-a', was); settle(page)
         # Menus Avant / Après : chevrons haut / bas, valeur en couleur d'action (pas un texte fixe)
         sel = page.evaluate("""() => [...document.querySelectorAll('.pcmp__pick')].map(p => { const s = p.querySelector('select');
             return [!!p.querySelector('.icon--chevron-up-chevron-down'), getComputedStyle(s).color === getComputedStyle(document.querySelector('.navbar__text')).color]; })""")
@@ -586,11 +586,11 @@ def t_panel_apple(bench):
         bar = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
             return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity, cut: ti.scrollWidth > ti.clientWidth + 1 }; }""")
         page.evaluate('window.scrollTo(0, 0)')
-        page.wait_for_timeout(400)
+        settle(page)
         b = bar()
         R.check(not b['collapsed'] and b['op'] == '0', f'coffre en haut : grand titre dans l\'écran, barre sans titre visible {b}')
         page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-        page.wait_for_timeout(500)
+        settle(page)
         b = bar()
         R.check(b['collapsed'] and b['text'] == page.inner_text('#pvTitle') and float(b['op']) > .9 and not b['cut'], f'coffre défilé : titre replié = grand titre, entier, à côté de « Verrouiller » {b}')
         shot(page, LOT, 'panel-titre-replie-iPhone_SE')

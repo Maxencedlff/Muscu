@@ -68,14 +68,14 @@ def open_app(bench, eng, dev, theme, data):
 
 def snap(page, name):
     os.makedirs(OUT, exist_ok=True)
-    page.wait_for_timeout(300)
+    settle(page)
     page.screenshot(path=os.path.join(OUT, name.replace(' ', '_') + '.png'), full_page=False)
 
 
 def open_library(page, name):
     page.evaluate(f"switchTab('programme'); navigate(makeRoute('library-ex', {json.dumps(name)}))")
     page.wait_for_selector('.library-ex')
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def t_niveau(bench, eng, dev, theme):

@@ -53,15 +53,15 @@ def open_app(page):
     page.add_init_script(FAKE_SHELL)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, THEME, ppl_v2_today_json())
-    page.wait_for_timeout(500)
+    settle(page)
 
 
 def end_rest_soon(page, ms=2600):
     """Séance push, repos ouvert, puis fin du repos ramenée à `ms` ms (notification reprogrammée)."""
     page.evaluate("startSession('push')")
-    page.wait_for_timeout(200)
+    settle(page)
     page.evaluate(f"openRest(90); restEndTime = Date.now() + {ms}; resumeRestCountdown(); syncNativeRest();")
-    page.wait_for_timeout(150)
+    page.wait_for_timeout(150)   # attente voulue : vider ce que l'ouverture du repos a joué, bien avant le décompte (repère des sons attendus)
     page.evaluate("__snd.plays = []; __snd.notif = []")
 
 
@@ -107,7 +107,7 @@ def t_fin_repos_saine(bench):
         page.evaluate(f'window.__end = {end}')
         page.wait_for_function("(() => { const i = __snd.notif.findIndex(n => n.op === 'schedule' && n.at >= __end + 2000);"
                                " return i >= 0 && __snd.notif.slice(i + 1).some(n => n.op === 'cancel'); })()", timeout=7000)
-        page.wait_for_timeout(300)
+        settle(page)
         plays, notif = page.evaluate('__snd.plays'), page.evaluate('__snd.notif')
         R.check([p['freq'] for p in plays] == [880, 880, 1050] or [p['freq'] for p in plays] == [880, 880, 880, 1050],
                 f'fin de repos : décompte puis GO {[p["freq"] for p in plays]}')
@@ -126,7 +126,7 @@ def t_fin_repos_panne(bench):
         end = page.evaluate('restEndTime')
         page.evaluate("__snd.diag.category = 'AVAudioSessionCategoryAmbient'")
         page.wait_for_function('__snd.plays.filter(p => p.freq === 1050).length >= 2', timeout=7000)
-        page.wait_for_timeout(800)
+        settle(page)
         plays, notif = page.evaluate('__snd.plays'), page.evaluate('__snd.notif')
         gos = [p for p in plays if p['freq'] == 1050]
         R.check(len(gos) == 2 and gos[1]['duck'], f'lecture en panne : GO rejoué une fois en forçant la remise en état {gos}')
@@ -141,7 +141,7 @@ def t_fin_repos_cachee(bench):
         end_rest_soon(page, ms=1800)
         page.evaluate("Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })")
         page.wait_for_function('!restActive', timeout=6000)
-        page.wait_for_timeout(800)
+        settle(page)
         notif = page.evaluate('__snd.notif')
         R.check(not any(n['op'] == 'cancel' for n in notif), f'app cachée à la fin : notification jamais annulée {notif}')
         R.check(not page.errors, f'cachée : aucune erreur JS {page.errors[:2]}')

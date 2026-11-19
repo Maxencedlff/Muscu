@@ -9,6 +9,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 
 LOT = 'premier_lancement'
 R = Results(LOT)
@@ -24,7 +26,7 @@ def step(page):
 
 def tap(page, sel):
     page.click(sel)
-    page.wait_for_timeout(350)
+    settle(page)
 
 
 def small_targets(page):
@@ -124,7 +126,7 @@ def t_parcours(bench, eng, dev, theme):
         tap(page, '[data-action="onb-level"][data-val="debutant"]')
         R.check(page.locator('#onbTitle').inner_text().strip() == 'Maison haltères', f'{t} haltères : Maison haltères')
         tap(page, '[data-action="onb-start"]')
-        page.wait_for_timeout(300)
+        settle(page)
         got = page.evaluate('[data.activeProgramme, data.exEquip, data.weeklyGoal, data.onboarded]')
         R.check(got == ['maison_halteres', 'halteres', 4, True], f'{t} Commencer : programme, matériel, objectif {got}')
         R.check(page.evaluate('data.myProgrammes') == ['maison_halteres'], f'{t} Mes programmes : le conseil seul')
@@ -132,7 +134,7 @@ def t_parcours(bench, eng, dev, theme):
         R.check(page.evaluate("document.getElementById('app').inert") is False, f'{t} app de nouveau active')
         page.reload()
         page.wait_for_selector('#app > *')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.onb').count() == 0, f'{t} questions jamais deux fois')
         R.check(page.evaluate('trainingLevel()') == 'debutant', f'{t} niveau gardé (repère de la bulle des muscles)')
         # Panel « yeux neufs » du 16/11 : première séance, aucune charge proposée ; une ligne grise dit laquelle prendre
@@ -146,7 +148,7 @@ def t_parcours(bench, eng, dev, theme):
         shot(page, LOT, f'3-premiere-seance-{t}')
         page.fill('[data-action="set-weight"][data-ei="0"][data-si="0"]', '10')
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.ex-card[data-ei="0"] .ex-first').count() == 0, f'{t} série validée : la ligne s\'en va')
         page.evaluate("activeSession = null; persistSession()")
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -220,7 +222,7 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
             link.click()
         R.check(fc.value is not None and page.evaluate('[data.activeProgramme, data.weeklyGoal, data.onboarded]') == ['upper_lower', 4, True],
                 f'{t} import : choix du fichier ouvert, réponses appliquées')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.onb').count() == 0, f'{t} import : questions fermées')
         # Même cellule dans Réglages › Données (pas seulement dans Sauvegarde)
         page.evaluate("navigate('settings')")
@@ -230,7 +232,7 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
 
         # Utilisateur existant (séances) : rien
         seed(page, theme, ppl_v2_today_json())
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.onb').count() == 0, f'{t} utilisateur existant : pas de questions')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

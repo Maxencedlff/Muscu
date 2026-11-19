@@ -69,13 +69,13 @@ def sweep(page, label, cat, hid):
     for r in ROUTES:
         r = r.format(c=cat, h=hid)
         page.evaluate('r => navigate(r)', r)
-        page.wait_for_timeout(120)
+        settle(page)
     # Aperçu de la story depuis le détail de la séance
     page.evaluate('r => navigate(r)', f'history-detail:{hid}')
     btn = page.locator('[data-action*="share"]')
     if btn.count():
         btn.first.click()
-        page.wait_for_timeout(600)
+        settle(page)
     hits = page.evaluate('window.__hits || []')
     R.check(not hits, f'{label} : aucune balise interprétée {sorted(set(hits))}')
 
@@ -122,15 +122,15 @@ def t_chevrons(bench):
         with bench.page(eng, dev, 'light') as page:
             seed(page, 'light', json.dumps(d, ensure_ascii=False))
             page.evaluate("r => navigate(r)", 'history')
-            page.wait_for_timeout(250)
+            settle(page)
             R.check(f'Programme {name}' in page.inner_text('#app'), f'{eng} historique : nom du programme affiché tel quel')
             R.check(page.locator('hiver').count() == 0, f'{eng} historique : aucun élément <hiver>')
             page.evaluate("r => navigate(r)", 'history-detail:hb')
-            page.wait_for_timeout(250)
+            settle(page)
             txt = page.inner_text('#app')
             R.check(name in txt and '<ok>' in txt, f'{eng} détail : nom et note affichés tels quels')
             page.evaluate("r => navigate(r)", 'stats')
-            page.wait_for_timeout(250)
+            settle(page)
             R.check(page.locator('hiver').count() == 0, f'{eng} Progrès : aucun élément <hiver>')
 
 
@@ -142,7 +142,7 @@ def t_wipe(bench):
             n = page.evaluate('data.history.length')
             page.evaluate("r => navigate(r)", 'settings')
             page.locator('[data-action="wipe-data"]').click()
-            page.wait_for_timeout(300)
+            settle(page)
             tap_dialog(page, 'Tout supprimer')
             tap_dialog(page, 'Supprimer')
             R.check(page.evaluate('data.history.length') == 0, f'{eng} données supprimées')

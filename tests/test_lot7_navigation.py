@@ -17,9 +17,6 @@ LOT = 7
 R = Results(LOT)
 
 
-def settle(page, ms=450):
-    page.wait_for_timeout(ms)
-
 
 def route(page):
     return page.evaluate('location.hash')
@@ -34,14 +31,14 @@ def t_summary_tab(bench, eng, dev, theme):
         seed(page, theme, ppl_v2_today_json())
         t = tag(dev, theme)
         page.click('[data-action="start-session"][data-cat="push"]'); settle(page)
-        page.locator('[data-action="validate-set"]').first.click(); page.wait_for_timeout(200)
+        page.locator('[data-action="validate-set"]').first.click(); settle(page)
         if page.locator('.rest-overlay [data-action="minimize-rest"]').count():
-            page.click('.rest-overlay [data-action="minimize-rest"]'); page.wait_for_timeout(100)
+            page.click('.rest-overlay [data-action="minimize-rest"]'); settle(page)
         page.locator('.view.session [data-action="back"]').click(); settle(page)
         page.click('.tabbar [data-tab="program"]'); settle(page)
         page.click('.livebar'); settle(page)
         R.check(route(page) == '#program/session', f'{t} séance rouverte depuis Programme ({route(page)})')
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(300)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance'); settle(page)
         R.check(route(page) == '#train/summary' and page.locator('.view.summary').count() == 1, f'{t} bilan dans #train/summary ({route(page)})')
         page.click('[data-action="summary-done"]'); settle(page)
@@ -61,7 +58,7 @@ def t_back_dialogs(bench, eng, dev, theme):
         t = tag(dev, theme)
         start_url = page.url
         # 3. Feuille d'actions à la racine : le retour la ferme, l'app reste
-        page.locator('[data-action="session-actions"]').first.click(); page.wait_for_timeout(350)
+        page.locator('[data-action="session-actions"]').first.click(); settle(page)
         R.check(page.locator('.ios-dialog').count() == 1, f'{t} feuille d\'actions ouverte')
         page.go_back(); settle(page)
         R.check(page.url.startswith(BASE_URL) and page.locator('.view.dashboard').count() == 1, f'{t} retour : l\'app reste ouverte ({page.url})')
@@ -71,27 +68,27 @@ def t_back_dialogs(bench, eng, dev, theme):
         page.click('.tabbar [data-tab="history"]'); settle(page)
         page.locator('[data-action="open-history"]').first.click(); settle(page)
         n0 = page.evaluate('data.history.length')
-        page.click('[data-action="delete-session"]'); page.wait_for_timeout(350)
+        page.click('[data-action="delete-session"]'); settle(page)
         R.check(page.locator('.ios-dialog').count() == 1, f'{t} feuille de suppression ouverte')
         page.go_back(); settle(page)
         R.check(page.locator('.ios-dialog').count() == 0, f'{t} retour : feuille de suppression fermée')
         R.check(page.locator('.view.history-detail').count() == 1, f'{t} retour : on reste sur la séance ({route(page)})')
         R.check(page.evaluate('data.history.length') == n0, f'{t} rien supprimé')
         # Annuler puis retour système : on revient à la liste en un seul retour
-        page.click('[data-action="delete-session"]'); page.wait_for_timeout(350)
-        tap_dialog(page, 'Annuler'); settle(page, 300)
+        page.click('[data-action="delete-session"]'); settle(page)
+        tap_dialog(page, 'Annuler'); settle(page)
         page.go_back(); settle(page)
         R.check(route(page) == '#history' and page.locator('.view.history').count() == 1, f'{t} Annuler puis retour → liste ({route(page)})')
         # Supprimer depuis le dialogue : retour à la liste, une séance en moins, pile cohérente
         page.locator('[data-action="open-history"]').first.click(); settle(page)
-        page.click('[data-action="delete-session"]'); page.wait_for_timeout(350)
+        page.click('[data-action="delete-session"]'); settle(page)
         tap_dialog(page, 'Supprimer'); settle(page)
         R.check(route(page) == '#history' and page.evaluate('data.history.length') == n0 - 1, f'{t} suppression → liste ({route(page)})')
         # En séance : menu ⋯ puis retour → menu fermé, séance toujours affichée
         page.click('.tabbar [data-tab="train"]'); settle(page)
         # La séance supprimée fixait le délai de Legs : il a reculé, Legs passe en « Prochaine séance »
         page.click('[data-action="start-session"][data-cat="legs"]'); settle(page)
-        page.locator('[data-action="ex-menu"]').first.click(); page.wait_for_timeout(350)
+        page.locator('[data-action="ex-menu"]').first.click(); settle(page)
         R.check(page.locator('.ios-dialog').count() == 1, f'{t} menu ⋯ ouvert')
         page.go_back(); settle(page)
         R.check(page.locator('.ios-dialog').count() == 0 and page.locator('.view.session').count() == 1, f'{t} retour : menu ⋯ fermé, séance affichée ({route(page)})')
@@ -131,7 +128,7 @@ def t_narrow_navbar(bench, eng, dev, theme):
         # 5. Toast : jamais sur la barre de navigation
         page.goto(BASE_URL); page.wait_for_selector('#app > *')
         page.evaluate("showToast('Programme : Upper / Lower', { duration: 6000 })")
-        page.wait_for_timeout(350)
+        settle(page)
         tb = page.evaluate("document.querySelector('.toast').getBoundingClientRect().top")
         nb = page.evaluate("document.querySelector('.navbar').getBoundingClientRect().bottom")
         R.check(tb > nb + 40, f'{t} toast sous la barre de navigation ({tb:.0f} / {nb:.0f})')

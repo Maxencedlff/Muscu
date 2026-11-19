@@ -69,7 +69,7 @@ def tag(device, theme):
 
 def screen(page, t, name, expect=()):
     """Vérifie un écran : rien d'exécuté ni d'injecté, charges attendues affichées telles quelles, pas de largeur en trop."""
-    page.wait_for_timeout(350)
+    settle(page)
     r = page.evaluate(INSPECT)
     R.check(not r['hits'], f'{t} {name} : aucune charge exécutée {sorted(set(r["hits"]))}')
     R.check(not r['injected'], f'{t} {name} : aucun élément ni attribut injecté {sorted(set(r["injected"]))}')
@@ -86,7 +86,7 @@ def open_app(page, theme, ppl_v2=None, clock=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2 if ppl_v2 is not None else ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='max', social=False):
@@ -95,7 +95,7 @@ def signin(page, username='max', social=False):
         await accountSaveProfile({ username: u });
         if (s) await socialEnable(true);
     }""", [username, social])
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def ws(page, sel):
@@ -153,7 +153,7 @@ def t_social(bench, eng, dev, theme):
         s = setup_social(page)
         page.click('.tabbar [data-tab="friends"]')
         ws(page, '.feed-card')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.feed-card').count() == len(keys), f'{t} fil : une carte par ami hostile ({page.locator(".feed-card").count()})')
         screen(page, t, 'fil', keys)
         for k in keys:
@@ -193,7 +193,7 @@ def view_only_social(page, t, s):
     R.check(page.locator('.comment__name', has_text='Compte masqué').count() == 0, f'{t} vue seule : pseudos des commentaires injectés')
     page.evaluate("routeTo('friends')")
     ws(page, '.feed-card')
-    page.wait_for_timeout(300)
+    settle(page)
     if page.locator('.feed-card__name', has_text='Compte masqué').count():   # fil relu entre-temps : pseudos remis
         page.evaluate("""([charges, ids]) => { const byId = Object.fromEntries(Object.entries(ids).map(([k, id]) => [id, charges[k]]));
             for (const r of socialFeed('').rows) if (byId[r.owner]) r.username = byId[r.owner]; render(); }""", [CHARGES, s['ids']])
@@ -243,7 +243,7 @@ def t_eleve(bench, eng, dev, theme):
         }""", [CHARGES, HOSTILE_PROG])
         page.evaluate('coachRefresh()')
         page.wait_for_function('coach.inbox && coach.inbox.programmes.length === 1 && coach.inbox.notes.length === 1')
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("routeTo('dashboard')")
         ws(page, '.coach-home')
         screen(page, t, 'accueil (carte du coach)', ['img'])
@@ -265,16 +265,16 @@ def t_eleve(bench, eng, dev, theme):
         page.evaluate("routeTo('friends'); navigate('coach-mine')")
         ws(page, '.coach-prog [data-action="coach-add-prog"]')
         page.click('.coach-prog [data-action="coach-add-prog"]')
-        page.wait_for_timeout(400)
+        settle(page)
         tap_dialog(page, 'Passer à ce programme')
-        page.wait_for_timeout(300)
+        settle(page)
         pid = page.evaluate('data.activeProgramme')
         R.check(pid.startswith('u_c') and pid.endswith('_u_evil'), f'{t} programme du coach ajouté et actif ({pid})')
         page.evaluate("routeTo('dashboard')")
         ws(page, '.dashboard')
         screen(page, t, 'accueil (programme du coach)', ['img'])
         page.evaluate("routeTo('programmes')")
-        page.wait_for_timeout(300)
+        settle(page)
         screen(page, t, 'page Programme', ['img', 'script', 'ent', 'rtl'])
         go(page, "'my-programmes'", '#app')
         screen(page, t, 'Mes programmes', ['img', 'rtl'])
@@ -284,7 +284,7 @@ def t_eleve(bench, eng, dev, theme):
         ws(page, '.ex-card')
         screen(page, t, 'séance du programme du coach', ['script', 'js', 'emoji'])
         page.evaluate("activeSession = null; persistSession(); routeTo('history')")
-        page.wait_for_timeout(300)
+        settle(page)
         go(page, f"'history-detail:{ids['sid']}'", '.coach-note')
         screen(page, t, 'commentaire du coach sur ma séance', ['img', 'ent'])
         R.check(not page.errors, f'{t} élève : aucune erreur JS {page.errors[:3]}')
@@ -334,7 +334,7 @@ def t_off(bench, eng, dev, theme):
         page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
         page.route('https://world.openfoodfacts.org/**', off_route)
         seed(page, theme, json.dumps(d, ensure_ascii=False), extra={'ppl_welcome_seen': '1'})
-        page.wait_for_timeout(300)
+        settle(page)
         go(page, "makeRoute('diet-plan', 'd_evil')", '.diet-plan-view')
         page.locator('[data-action="diet-compose"]').click() if page.locator('[data-action="diet-compose"]').count() else None   # plan perso vide : repas types facultatifs, cachés
         page.wait_for_selector('.diet-plan-view [data-action="diet-add-food"]')
@@ -342,13 +342,13 @@ def t_off(bench, eng, dev, theme):
             label = ', '.join(expect)
             page.locator('[data-action="diet-add-food"]').nth(meal).click()
             ws(page, '.diet-cand--scan')
-            page.wait_for_timeout(250)
+            settle(page)
             page.evaluate('c => { window.__scan = { code: c, type: "ean13" }; }', code)
             page.click('.diet-cand--scan')
             ws(page, '.fscan__name')
             screen(page, t, f'fiche Open Food Facts ({label})', expect)
             page.click('.sheet-root .sheet__btn--confirm')
-            page.wait_for_timeout(400)
+            settle(page)
         screen(page, t, 'plan diète avec les produits scannés', list(CHARGES))
         R.check(not page.errors, f'{t} Open Food Facts : aucune erreur JS {page.errors[:3]}')
 
@@ -376,7 +376,7 @@ def t_coach_face_eleve(bench):
                 return { ev, rtl };
             }""", [CHARGES, hostile_session('s_evil', 'script', now - DAY)])
             page.evaluate('coachRefresh()')
-            page.wait_for_timeout(500)
+            settle(page)
             page.click('.tabbar [data-tab="friends"]')
             ws(page, '.coach-team .coach-student-row')
             screen(page, t, 'Mes élèves (pseudos refusés)', ['script'])

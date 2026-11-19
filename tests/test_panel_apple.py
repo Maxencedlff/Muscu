@@ -32,7 +32,7 @@ def t_titre_replie(bench):
             page.wait_for_selector('.view.history')
             page.locator('[data-action="open-history"]').first.click()
             page.wait_for_selector('.view.history-detail .scr-title')
-            page.wait_for_timeout(300)
+            settle(page)
             st = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
                 return { echo: b.classList.contains('navbar--echo'), collapsed: b.classList.contains('navbar--collapsed'),
                          text: ti.textContent, op: getComputedStyle(ti).opacity, hidden: ti.getAttribute('aria-hidden'),
@@ -41,12 +41,12 @@ def t_titre_replie(bench):
             R.check(s['echo'] and not s['collapsed'] and s['text'] == s['h1'] and s['op'] == '0' and s['hidden'] == 'true',
                     f'{t} titre dans le contenu : barre prête, titre compact caché {s}')
             page.evaluate('window.scrollTo(0, 400)')
-            page.wait_for_timeout(500)
+            settle(page)
             s = st()
             R.check(s['collapsed'] and s['text'] == s['h1'] and float(s['op']) > .9, f'{t} défilé : la barre montre « {s["h1"]} » {s}')
             # Grand titre à moitié sous la barre : déjà repliée, titre compact affiché (jamais un titre coupé sous une barre vide)
             page.evaluate("(() => { const h = document.querySelector('#app .scr-title'), b = document.querySelector('#app .navbar').getBoundingClientRect().bottom; window.scrollTo(0, 0); const r = h.getBoundingClientRect(); window.scrollTo(0, r.top - b + r.height / 2); })()")
-            page.wait_for_timeout(400)
+            settle(page)
             s = st()
             R.check(s['collapsed'] and float(s['op']) > .9, f'{t} grand titre à moitié sous la barre : titre compact déjà là {s}')
             shot(page, LOT, f'titre-replie-{t}')
@@ -57,7 +57,7 @@ def start_session(page, theme='light', cat='push'):
     seed(page, theme, ppl_v2_today_json())
     page.click(f'[data-action="start-session"][data-cat="{cat}"]')
     page.wait_for_selector('.view.session')
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def validate_first_set(page):
@@ -65,7 +65,7 @@ def validate_first_set(page):
     page.wait_for_selector('[data-action="expand-rest"]')
     page.click('[data-action="expand-rest"]')   # le repos s'agrandit en feuille (et son voile)
     page.wait_for_selector('.sess-sheet--rest')
-    page.wait_for_timeout(450)
+    settle(page)
 
 
 def t_annuler_en_ligne(bench):
@@ -77,29 +77,29 @@ def t_annuler_en_ligne(bench):
         with bench.page(eng, dev, 'light') as page:
             start_session(page)
             page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
-            page.wait_for_timeout(450)
+            settle(page)
             row = page.locator('.ex-card[data-ei="0"] .session-set').first
             R.check(page.locator('.toast').count() == 0 and row.locator('[data-action="sess-undo"]').count() == 1,
                     f'{t} série validée : pas de toast, « Annuler » dans sa ligne')
             said = page.evaluate("document.getElementById('sr-polite').textContent")
             R.check('validée' in said and 'Annuler' in said, f'{t} VoiceOver : état annoncé ({said!r})')
             if page.locator('[data-action="expand-rest"]').count():
-                page.click('[data-action="expand-rest"]'); page.wait_for_selector('.sess-sheet--rest'); page.wait_for_timeout(400)
+                page.click('[data-action="expand-rest"]'); page.wait_for_selector('.sess-sheet--rest'); settle(page)
                 R.check(page.locator('.toast').count() == 0, f'{t} feuille Repos : aucun toast sur ses contrôles')
-                page.evaluate('closeSessSheets()'); page.wait_for_timeout(300)
+                page.evaluate('closeSessSheets()'); settle(page)
             shot(page, LOT, f'annuler-serie-{t}')
             page.click('.ex-card[data-ei="0"] [data-action="sess-undo"]')
-            page.wait_for_timeout(300)
+            settle(page)
             R.check(not page.evaluate("activeSession.exercises[0].sets[0].done") and page.locator('[data-action="sess-undo"]').count() == 0,
                     f'{t} « Annuler » touché : série dévalidée, bouton parti')
             # Plus tard : la ligne « <nom> mis en dernier · Annuler » au-dessus de l'exercice qui prend la suite (à l'écran)
             name0 = page.evaluate("activeSession.exercises[0].name"); name1 = page.evaluate("activeSession.exercises[1].name")
             page.click('[data-action="ex-later"][data-ei="0"]')
-            page.wait_for_timeout(400)
+            settle(page)
             m = page.evaluate("""n => { const u = document.querySelector('.ex-undo'); if (!u) return null; const card = u.nextElementSibling;
                 return { text: u.textContent.trim(), next: card && card.textContent.includes(n), toast: !!document.querySelector('.toast') }; }""", name1)
             R.check(m and m['text'].startswith(f'{name0} mis en dernier') and m['next'] and not m['toast'], f'{t} Plus tard : ligne au-dessus de l\'exercice suivant {m}')
-            page.wait_for_timeout(6300)
+            page.wait_for_timeout(6300)   # attente voulue : la ligne s'en va après 6 s
             R.check(page.locator('.ex-undo, [data-action="sess-undo"]').count() == 0, f'{t} après 6 s : la ligne s\'en va')
             # Tout autre message en séance (superset, exercice ajouté…) : en ligne aussi, jamais de toast flottant
             make_superset(page)
@@ -128,13 +128,13 @@ def t_repos_44(bench):
 def make_superset(page):
     """⋯ du 1er exercice › Superset avec… › le 3e."""
     page.click('.ex-card__more[data-ei="0"]')
-    page.wait_for_timeout(300)
+    settle(page)
     tap_dialog(page, 'Superset avec')
     page.wait_for_selector('.ssp')
     page.locator('.ssp .mpick__row').nth(1).click()
     page.click('.sheet__btn--confirm')
     page.wait_for_selector('.ss-card')
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def t_superset_noms(bench):
@@ -145,7 +145,7 @@ def t_superset_noms(bench):
             start_session(page, theme)
             make_superset(page)
             page.evaluate("activeSession.exercises[0].name = 'Tirage vertical poulie prise serrée'; render()")
-            page.wait_for_timeout(300)
+            settle(page)
             m = page.evaluate("""() => { const e = document.querySelector('.ss-member__name .ex-howto__text, .ss-member__name');
                 const lh = parseFloat(getComputedStyle(e).lineHeight) || 20;
                 const r = document.createRange(); r.selectNodeContents(e);
@@ -165,7 +165,7 @@ def t_menu_exercice(bench):
             page.evaluate("activeSession.exercises[0].name = 'Tirage vertical prise serrée'; render()")   # mouvement avec une prise
             page.click('.ex-card__more[data-ei="0"]')
             page.wait_for_selector('.ios-dialog--sheet')
-            page.wait_for_timeout(450)
+            settle(page)
             m = page.evaluate("""() => { const d = document.querySelector('.ios-dialog--sheet'), groups = [...d.querySelectorAll('.ios-dialog__group')];
                 const btn = l => [...d.querySelectorAll('.ios-dialog__btn')].find(b => b.textContent.trim().startsWith(l));
                 const seen = l => { const b = btn(l); if (!b) return null; const r = b.getBoundingClientRect(), g = b.closest('.ios-dialog__group').getBoundingClientRect();
@@ -178,7 +178,7 @@ def t_menu_exercice(bench):
                     f'{t} menu ⋯ : actions fréquentes visibles sans défiler, fond opaque, « Retirer » à part {m}')
             shot(page, LOT, f'menu-exercice-{t}')
             tap_dialog(page, "Plus d'options")
-            page.wait_for_timeout(400)
+            settle(page)
             more = page.locator('.ios-dialog__btn').all_inner_texts()
             R.check('Régler le repos' in more and 'Muscles ciblés' in more, f'{t} « Plus d\'options » : réglages rares {more}')
             tap_dialog(page, 'Annuler')
@@ -274,7 +274,7 @@ def t_retour_titre(bench):
                 seed(page, theme, ppl_v2_today_json())
                 page.click('.dashboard [data-action="go-settings"]')
                 page.wait_for_selector('.settings-view')
-                page.wait_for_timeout(400)
+                settle(page)
                 b = page.evaluate("""() => { const b = document.querySelector('#app .navbar__back'), l = b.querySelector('.navbar__back-label'), ti = b.closest('.navbar__bar').querySelector('.navbar__title');
                     const r = document.createRange(); r.selectNodeContents(ti); const tr = r.getBoundingClientRect(), shown = !!l.offsetParent;
                     return { text: shown ? l.textContent : '', gap: shown ? Math.round(tr.left - (l.getBoundingClientRect().left + l.scrollWidth)) : 99,
@@ -286,14 +286,14 @@ def t_retour_titre(bench):
                 # Courbe d'un exercice, Mes programmes, journal Nutrition : le nom de l'écran précédent (panels de la vague 3)
                 lbl = "(() => { const b = document.querySelector('#app .navbar__back'); return b.classList.contains('navbar__back--icon') ? 'chevron' : b.querySelector('.navbar__back-label').textContent; })()"
                 page.click('.tabbar [data-action="go-stats"]'); page.wait_for_selector('[data-action="open-stats-ex"]')
-                page.locator('[data-action="open-stats-ex"]').first.click(); page.wait_for_selector('.view.stats-ex'); page.wait_for_timeout(400)
+                page.locator('[data-action="open-stats-ex"]').first.click(); page.wait_for_selector('.view.stats-ex'); settle(page)
                 got = [page.evaluate(lbl)]
-                page.click('.tabbar [data-tab="program"]'); page.wait_for_timeout(400)
-                page.evaluate("navigate('my-programmes')"); page.wait_for_selector('.view.my-programmes'); page.wait_for_timeout(400)
+                page.click('.tabbar [data-tab="program"]'); settle(page)
+                page.evaluate("navigate('my-programmes')"); page.wait_for_selector('.view.my-programmes'); settle(page)
                 got.append(page.evaluate(lbl))
-                page.click('.tabbar [data-tab="train"]'); page.wait_for_timeout(400)
-                page.click('.tabbar [data-tab="train"]'); page.wait_for_timeout(400)   # onglet actif touché : racine
-                page.evaluate("navigate('nutrition')"); page.wait_for_timeout(500)
+                page.click('.tabbar [data-tab="train"]'); settle(page)
+                page.click('.tabbar [data-tab="train"]'); settle(page)   # onglet actif touché : racine
+                page.evaluate("navigate('nutrition')"); settle(page)
                 got.append(page.evaluate(lbl))
                 R.check(got == ['Progrès', 'Programme', 'Entraînement'], f'{t} retours titrés (courbe, Mes programmes, Nutrition) {got}')
                 R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -324,14 +324,14 @@ def t_toast_hors_seance(bench):
         with bench.page(eng, dev, 'light') as page:
             seed(page, 'light', ppl_v2_today_json())
             page.evaluate("showToast('Message de test')")
-            page.wait_for_timeout(300)
+            settle(page)
             m = page.evaluate("""() => { const t = document.querySelector('.toast').getBoundingClientRect(), tab = document.querySelector('.tabbar').getBoundingClientRect();
                 const bg = getComputedStyle(document.querySelector('.toast')).backgroundColor, room = getComputedStyle(document.querySelector('#app'), '::after').height;
                 return { above: t.bottom <= tab.top, opaque: !bg.startsWith('rgba'), room: parseFloat(room) >= t.height }; }""")
             R.check(m['above'] and m['opaque'] and m['room'], f'{t} toast : au-dessus de la barre, opaque, place gardée sous le contenu {m}')
-            page.wait_for_timeout(900)
+            wait_toast_settled(page)
             page.click('.tabbar [data-action="go-stats"]')
-            page.wait_for_timeout(400)
+            settle(page)
             R.check(page.locator('.toast').count() == 0, f'{t} changement d\'écran : le toast simple s\'en va aussi')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -356,9 +356,9 @@ def t_rest_pause_mots(bench):
         with bench.page(eng, dev, 'dark') as page:
             start_session(page, 'dark')
             page.click('[data-action="tech-set"][data-ei="0"][data-si="0"]')
-            page.wait_for_selector('.ios-dialog__btn'); page.wait_for_timeout(300)
+            page.wait_for_selector('.ios-dialog__btn'); settle(page)
             tap_dialog(page, 'Rest-pause')
-            page.wait_for_timeout(400)
+            settle(page)
             m = page.evaluate("""() => { const h = document.querySelector('.tech__hint'), tg = document.querySelector('.session-set--sub .tech-tag, .session-set--sub .set-n');
                 return { hint: h && h.textContent, shown: !!h && h.getBoundingClientRect().width > 0 && h.scrollWidth <= h.clientWidth + 1,
                          tag: tg && tg.textContent.trim(), add: document.querySelector('[data-action="tech-add-sub"]')?.textContent.trim() }; }""")
@@ -376,7 +376,7 @@ def t_roue_meme_couleur(bench):
         with bench.page('webkit', 'iPhone 13', theme) as page:
             seed(page, theme, ppl_v2_today_json())
             c1 = page.evaluate("getComputedStyle(document.querySelector('.dashboard [data-action=\"go-settings\"]')).color")
-            page.click('.tabbar [data-tab="program"]'); page.wait_for_timeout(400)
+            page.click('.tabbar [data-tab="program"]'); settle(page)
             c2 = page.evaluate("getComputedStyle(document.querySelector('.programmes [data-action=\"go-settings\"]')).color")
             R.check(c1 == c2, f'{t} roue : même couleur partout ({c1} / {c2})')
 
@@ -388,9 +388,9 @@ def t_materiaux_opaques(bench):
         t = tag('iPhone 13', theme)
         with bench.page('webkit', 'iPhone 13', theme) as page:
             seed(page, theme, ppl_v2_today_json())
-            page.evaluate('scrollTo(0, 300)'); page.wait_for_timeout(300)
+            page.evaluate('scrollTo(0, 300)'); settle(page)
             page.evaluate("() => { dialog({ type: 'sheet', title: 'Essai', actions: [{ label: 'Choix', value: 1 }, { label: 'Annuler', style: 'cancel' }] }); }")
-            page.wait_for_timeout(400)
+            settle(page)
             a = page.evaluate("""() => { const al = e => { const m = getComputedStyle(e).backgroundColor.match(/[\\d.]+/g); return m.length > 3 ? Number(m[3]) : 1; };
                 return { nav: al(document.querySelector('#app .navbar')), tab: al(document.querySelector('.tabbar')), sheet: al(document.querySelector('.ios-dialog__group')) }; }""")
             R.check(all(v >= 0.94 for v in a.values()) and a['nav'] >= 0.999 and a['tab'] >= 0.999, f'{t} barres pleines (rien ne se lit dessous), feuilles opaques à 94 % au moins {a}')
@@ -403,7 +403,7 @@ def t_alerte_empilee(bench):
         with bench.page('webkit', 'iPhone SE', theme) as page:
             seed(page, theme, ppl_v2_today_json())
             page.evaluate("() => { dialog({ title: 'As-tu 18 ans ou plus ?', message: 'Les photos de bilan sont réservées aux 18 ans et plus.', actions: [{ label: 'Non', style: 'cancel' }, { label: 'J\\'ai 18 ans ou plus', value: true, style: 'preferred' }] }); }")
-            page.wait_for_timeout(400)
+            settle(page)
             m = page.evaluate("""() => { const row = document.querySelector('.ios-dialog__row'), bs = [...row.querySelectorAll('.ios-dialog__btn')];
                 const r = b => b.getBoundingClientRect(); const [no, yes] = bs;
                 return { stack: row.classList.contains('ios-dialog__row--stack'), noLow: r(no).top > r(yes).top, oneLine: bs.every(b => b.offsetHeight <= 50) }; }""")
@@ -430,22 +430,22 @@ def t_titre_seance_replie(bench):
                     page.add_init_script(css)
                 seed(page, theme, ppl_v2_today_json())
                 page.evaluate("startSession('pull')")
-                page.wait_for_selector('.view.session'); page.wait_for_timeout(500)
+                page.wait_for_selector('.view.session'); settle(page)
                 R.check(page.locator('.set-tech-n').count() > 0 and page.locator('.set-tech-n__dot').count() == 0,
                         f'{t} numéro de série touchable, sans point gris dessous')
                 s = page.evaluate(st_js)
                 R.check(not s['on'] and s['exOp'] < .1 and s['mainOp'] > .9, f'{t} démarrage : nom visible, la barre garde son titre {s}')
                 # Série validée puis fin du repos : la séance défile vers la série à faire
-                page.click('.session-set--current [data-action="validate-set"]'); page.wait_for_timeout(700)
+                page.click('.session-set--current [data-action="validate-set"]'); settle(page)
                 for sel in ('.rest-overlay [data-action="skip-rest"]', '.rest-mini__skip'):
                     if page.locator(sel).count():
                         page.locator(sel).first.click(); break
-                page.wait_for_timeout(900)
+                settle(page)
                 s = page.evaluate(st_js)
                 if not s['under']:   # texte normal : le nom reste souvent visible ; on le fait passer sous la barre
                     R.check(not s['on'], f'{t} nom visible après la série : pas de doublon dans la barre {s}')
                     page.evaluate("(() => { const n = currentSetRow().closest('.ex-card').querySelector('.ex-card__name'); window.scrollBy(0, n.getBoundingClientRect().bottom); })()")
-                    page.wait_for_timeout(500)
+                    settle(page)
                     s = page.evaluate(st_js)
                 R.check(s['under'] and s['on'] and s['text'] == s['want'] and s['exOp'] > .9 and s['mainOp'] < .1 and s['hidden'] == 'true' and s['exFits'] and s['clear'],
                         f'{t} nom sous la barre : la barre affiche « {s["want"]} », caché à VoiceOver {s}')
@@ -453,10 +453,10 @@ def t_titre_seance_replie(bench):
                 # Regard neuf du 16/11 (Mehdi) : défilé jusqu'à la carte suivante, le titre ne nomme plus l'exercice qu'on ne voit plus
                 page.evaluate("""(() => { const c = currentSetRow().closest('.ex-card'), h = document.querySelector('#app .navbar').getBoundingClientRect().bottom;
                     window.scrollBy(0, c.getBoundingClientRect().bottom - h + 40); })()""")
-                page.wait_for_timeout(500)
+                settle(page)
                 s = page.evaluate(st_js)
                 R.check(not s['on'] and s['mainOp'] > .9, f'{t} autre carte sous la barre : nom de la séance en titre {s}')
-                page.evaluate('window.scrollTo(0, 0)'); page.wait_for_timeout(500)
+                page.evaluate('window.scrollTo(0, 0)'); settle(page)
                 s = page.evaluate(st_js)
                 R.check(not s['on'] and s['mainOp'] > .9, f'{t} retour en haut : titre normal {s}')
                 R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -471,17 +471,17 @@ def t_grand_texte(bench):
         with bench.page('webkit', 'iPhone SE', theme) as page:
             page.add_init_script(css)
             seed(page, theme, json.dumps(data, ensure_ascii=False))
-            page.wait_for_timeout(500)
+            settle(page)
             sw = lambda: page.evaluate('document.documentElement.scrollWidth')
             R.check(page.evaluate("document.documentElement.classList.contains('type-xl')") and sw() <= 320, f'{t} accueil en texte agrandi : rien ne déborde ({sw()})')
-            page.click('[data-action="start-session"]'); page.wait_for_selector('.view.session'); page.wait_for_timeout(500)
+            page.click('[data-action="start-session"]'); page.wait_for_selector('.view.session'); settle(page)
             small = page.evaluate("[...document.querySelectorAll('.session-set .set-check-zone, .set-plates')].filter(b => b.offsetParent).map(b => Math.round(b.getBoundingClientRect().width)).filter(w => w < 44)")
             R.check(sw() <= 320 and not small, f'{t} séance en texte agrandi : rien ne déborde, ✓ et disques à 44 px ({sw()}, {small})')
             # Nom du 1er exercice visible sous la barre au démarrage
             vis = page.evaluate("(() => { const n = document.querySelector('.ex-card .ex-card__name').getBoundingClientRect(), b = document.querySelector('#app .navbar').getBoundingClientRect(); return n.top >= b.bottom - 1; })()")
             R.check(vis, f'{t} démarrage : nom du 1er exercice visible sous la barre')
             # Série validée : la charge sous « kg », les reps sous « Reps » (jamais inversées) ; chrono de la mini-barre entier
-            page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(600)
+            page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
             cols = page.evaluate("""() => { const row = document.querySelector('.ex-card[data-ei="0"] .session-set--done'), w = row.querySelector('.set-val--w').getBoundingClientRect(), r = row.querySelector('.set-val--r').getBoundingClientRect();
                 const s = activeSession.exercises[0].sets[0]; return { order: w.left < r.left, w: row.querySelector('.set-val--w').textContent.trim(), r: row.querySelector('.set-val--r').textContent.trim(), reps: String(s.reps) }; }""")
             R.check(cols['order'] and cols['r'] == cols['reps'], f'{t} série validée : charge à gauche (kg), reps à droite {cols}')
@@ -490,7 +490,7 @@ def t_grand_texte(bench):
             shot(page, LOT, f'grand-texte-seance-{t}')
             # Alerte plus haute que l'écran (quantité d'un aliment) : le message défile, les boutons restent à l'écran
             page.evaluate("() => { dialog({ type: 'alert', title: 'Quantité', message: 'Combien de grammes de flocons d\\'avoine ? '.repeat(6), input: { value: '50', decimal: true, unit: 'g' }, actions: [{ label: 'Annuler', value: null, style: 'cancel' }, { label: 'OK', value: 1 }] }); }")
-            page.wait_for_selector('.ios-dialog--alert .ios-dialog__btn'); page.wait_for_timeout(400)
+            page.wait_for_selector('.ios-dialog--alert .ios-dialog__btn'); settle(page)
             al = page.evaluate("""() => { const p = document.querySelector('.ios-dialog--alert .ios-dialog__panel').getBoundingClientRect(),
                 b = [...document.querySelectorAll('.ios-dialog--alert .ios-dialog__btn')].map(x => x.getBoundingClientRect());
                 const f = document.querySelector('.ios-dialog--alert .ios-dialog__field').getBoundingClientRect(), row = document.querySelector('.ios-dialog--alert .ios-dialog__row').getBoundingClientRect();

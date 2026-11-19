@@ -10,6 +10,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 
 LOT = 'partage'
 R = Results(LOT)
@@ -78,7 +80,7 @@ def finish_push(page):
     """Séance Push : record de charge au développé couché, deux séries validées, puis Terminer."""
     page.click('[data-action="start-session"][data-cat="push"]')
     page.wait_for_selector('.view.session')
-    page.wait_for_timeout(150)
+    settle(page)
     w = page.locator('[data-action="set-weight"][data-ei="0"][data-si="0"]')
     w.fill('45')
     # 2e exercice : refait comme la dernière fois (sa 1re série est pré-remplie à l'objectif, une rep de plus : un record de plus)
@@ -86,9 +88,9 @@ def finish_push(page):
     page.evaluate("document.activeElement && document.activeElement.blur()")
     for ei, si in ((0, 0), (0, 1), (1, 0)):
         page.locator(f'[data-action="validate-set"][data-ei="{ei}"][data-si="{si}"]').click()
-        page.wait_for_timeout(250)
+        settle(page)
     page.click('[data-action="finish-session"]')
-    page.wait_for_timeout(250)
+    settle(page)
     tap_dialog(page, 'Enregistrer la séance')
     page.wait_for_selector('.view.summary')
 
@@ -107,7 +109,7 @@ def t_bilan(bench, eng, dev, theme):
         shot(page, LOT, f'apercu-bilan-{t}')
         # Partage web : le fichier PNG nommé est remis à navigator.share, la feuille se ferme
         page.click('[data-action="share-story-send"]')
-        page.wait_for_timeout(500)
+        settle(page)
         sh = page.evaluate('window.__shared')
         R.check(len(sh) == 1 and sh[0]['type'] == 'image/png' and sh[0]['name'].startswith('mdlf-training-push-')
                 and sh[0]['size'] > 40_000, f'{t} bilan : fichier PNG remis au partage {sh}')
@@ -120,7 +122,7 @@ def t_bilan(bench, eng, dev, theme):
         page.wait_for_selector('.share-preview__send:not([disabled])')
         page.click('[data-action="share-story-send"]')
         page.evaluate("() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); delete document.visibilityState; }")
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.sheet-root').count() == 0, f'{t} bilan : aperçu fermé au départ vers Instagram')
         R.check(not page.errors, f'{t} bilan : aucune erreur JS {page.errors}')
 
@@ -141,13 +143,13 @@ def t_historique(bench, eng, dev, theme):
         with page.expect_download() as dl:
             page.click('[data-action="share-story-send"]')
         R.check(dl.value.suggested_filename.endswith('.png'), f'{t} historique : image téléchargée ({dl.value.suggested_filename})')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Image enregistrée' in page.inner_text('body'), f'{t} historique : toast « Image enregistrée »')
         # « Fermer » referme l'aperçu sans rien partager
         page.locator('[data-action="share-story"]').click()
         page.wait_for_selector('.share-preview__img')
         page.click('.sheet__btn--cancel')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.sheet-root').count() == 0, f'{t} historique : « Fermer » referme l\'aperçu')
 
         # Carte des muscles de la séance : couleurs résolues, muscle le plus travaillé en plein

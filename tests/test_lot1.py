@@ -47,7 +47,7 @@ def skip_rest(page):
         page.click('.rest-overlay [data-action="skip-rest"]')
     elif page.locator('.rest-mini__skip').count():
         page.click('.rest-mini__skip')
-    page.wait_for_timeout(100)
+    settle(page)
 
 
 def active_inputs(page, ei=0):
@@ -119,12 +119,12 @@ def t_session_pr(bench, eng, dev, theme):
         R.check([str(r) for r in prev] == ['10', '10', '9', '8'], f'{t} prev conservé {prev}')
         si, w, r, v = active_inputs(page)
         R.check(w.input_value() == '32,5' and r.input_value() == '10', f'{t} champs pré-remplis 32,5 × 10 (la dernière fois)')
-        r.fill('10'); v.click(); page.wait_for_timeout(150)
+        r.fill('10'); v.click(); settle(page)
         skip_rest(page)
         R.check(page.locator('.pr-badge').count() == 0, f'{t} refaire exactement le PR : aucun badge')
         R.check(page.evaluate("activeSession.exercises[0].sets[1].reps") in ('10', 10), f'{t} reps de la série 2 non écrasées')
         si, w, r, v = active_inputs(page)
-        w.fill('35'); r.fill('6'); v.click(); page.wait_for_timeout(150)
+        w.fill('35'); r.fill('6'); v.click(); settle(page)
         skip_rest(page)
         badge = page.locator('.pr-badge').all_inner_texts()
         R.check(badge == ['Record charge'], f'{t} 35×6 : badge « Record charge » {badge}')
@@ -133,7 +133,7 @@ def t_session_pr(bench, eng, dev, theme):
         pr = pr_of(page, 'push', 'p1dcouch')
         R.check(pr == {'weight': '32.5', 'reps': '10'}, f'{t} PR inchangé pendant la séance {pr}')
         shot(page, LOT, f'seance-badge-{t}')
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Abandonner la séance')
         tap_dialog(page, 'Abandonner')
         stored = json.loads(ls(page, 'ppl_v2'))
@@ -150,9 +150,9 @@ def t_fix_typo(bench, eng, dev, theme):
         t = tag(dev, theme)
         start(page)
         si, w, r, v = active_inputs(page)
-        w.fill('325'); r.fill('11'); v.click(); page.wait_for_timeout(150)
+        w.fill('325'); r.fill('11'); v.click(); settle(page)
         # 325 kg contre 30 d'habitude : l'appli demande confirmation (faute de frappe probable)
-        tap_dialog(page, 'Valider quand même'); page.wait_for_timeout(150)
+        tap_dialog(page, 'Valider quand même'); settle(page)
         skip_rest(page)
         page.click('[data-action="edit-set"][data-ei="0"][data-si="0"]')
         page.wait_for_selector('#editSetWeight')
@@ -166,7 +166,7 @@ def t_fix_typo(bench, eng, dev, theme):
             pass
         R.check(page.evaluate("activeSession.exercises[0].sets[0].weight") == '32.5', f'{t} 32,5 accepté (virgule)')
         R.check(page.locator('.pr-badge').all_inner_texts() == ['Record reps'], f'{t} 32,5×11 : « Record reps »')
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
         txt = saved_text(page)
         R.check('Séance enregistrée' in txt and page.locator('.toast').count() == 0, f'{t} séance enregistrée « {txt} », sans toast sur le bilan')
@@ -185,11 +185,11 @@ def t_bounds(bench, eng, dev, theme):
         si, w, r, v = active_inputs(page)
         # Carte déjà défilée (son haut sous la barre) : la ligne du message doit revenir à l'écran (vague 3-t4)
         page.evaluate("(() => { const c = document.querySelector('.ex-card[data-ei=\"0\"]'), b = document.querySelector('#app .navbar').getBoundingClientRect().height; window.scrollTo(0, c.getBoundingClientRect().top + scrollY - b + 30); })()")
-        page.wait_for_timeout(200)
+        settle(page)
         r.fill('0'); v.click()
         txt = toast_text(page)
         R.check('Reps entre 1 et 100' in txt, f'{t} reps 0 refusées « {txt} »')
-        page.wait_for_timeout(200)
+        settle(page)
         seen = page.evaluate("(() => { const u = document.querySelector('.ex-undo'); return !!u && u.getBoundingClientRect().top >= document.querySelector('#app .navbar').getBoundingClientRect().bottom - 1; })()")
         R.check(seen, f'{t} reps 0 : le message est sous la barre, lisible')
         R.check(r.get_attribute('aria-invalid') == 'true' and 'set-input--error' in (r.get_attribute('class') or ''), f'{t} reps 0 : champ signalé')
@@ -259,7 +259,7 @@ def t_rename(bench, eng, dev, theme):
         page.click('[data-action="go-editor"]')
         page.click('[data-action="edit-ex"][data-i="0"]')
         page.fill('#exName', 'DC haltères')  # Fusion : écran Programme › Exercice (lot 5)
-        page.click('[data-action="save-ex"]'); page.wait_for_timeout(250)
+        page.click('[data-action="save-ex"]'); settle(page)
         msg = page.locator('.ios-dialog__msg').inner_text()
         R.check('9 séances contiennent cet exercice' in msg, f'{t} renommage : « {msg} »')
         shot(page, LOT, f'renommer-{t}')
@@ -274,7 +274,7 @@ def t_rename(bench, eng, dev, theme):
         R.check(('DC haltères' if accept else 'Développé couché haltères') in txt, f'{t} statistiques : courbe conservée après renommage')
         shot(page, LOT, f'stats-renomme-{t}')
         # Démarrer la séance : pré-remplissage toujours lié par exId
-        page.click('.tabbar [data-tab="train"]'); page.wait_for_timeout(200)
+        page.click('.tabbar [data-tab="train"]'); settle(page)
         page.click('.tabbar [data-tab="train"]')  # onglet actif touché : retour à l'accueil
         start(page)
         R.check(page.evaluate("activeSession.exercises[0].sets.map(s => String(s.reps)).join('/')") == '10/10/9/8', f'{t} pré-remplissage conservé après renommage')
@@ -297,7 +297,7 @@ def t_import_bad(bench, eng, dev, theme):
         R.check('Fichier non reconnu' in txt, f'{t} import corrompu : toast d\'erreur « {txt} »')
         shot(page, LOT, f'import-invalide-{t}')
         R.check(ls(page, 'ppl_v2') == before and page.evaluate('data.history.length') == 30, f'{t} import corrompu : données intactes')
-        page.click('[data-action="back"]'); page.wait_for_timeout(300)   # Sauvegarde → Réglages
+        page.click('[data-action="back"]'); settle(page)   # Sauvegarde → Réglages
         page.click('[data-action="setting-sound"]')  # une écriture après l'échec
         page.reload(); page.wait_for_selector('#app > *')
         R.check(page.locator('.view.dashboard').count() == 1 and page.locator('.rescue').count() == 0, f'{t} import corrompu : pas d\'écran noir au relancement')
@@ -324,7 +324,7 @@ def t_storage_full(bench, eng, dev, theme):
         t = tag(dev, theme)
         start(page)
         si, w, r, v = active_inputs(page)
-        v.click(); page.wait_for_timeout(150)
+        v.click(); settle(page)
         skip_rest(page)
         filled = page.evaluate("""() => {
             let chunk = 'x'.repeat(1 << 20), i = 0, total = 0;
@@ -334,9 +334,9 @@ def t_storage_full(bench, eng, dev, theme):
             }
             return total;
         }""")
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
-        page.wait_for_timeout(200)
+        settle(page)
         title = page.locator('.ios-dialog__title').all_inner_texts()
         R.check('Espace de stockage plein' in title, f'{t} stockage plein : dialogue affiché {title} ({filled} car.)')
         R.check('Exporte tes données pour ne pas perdre cette séance.' in page.locator('.ios-dialog__msg').inner_text(), f'{t} stockage plein : message')
@@ -347,7 +347,7 @@ def t_storage_full(bench, eng, dev, theme):
         R.check(page.evaluate('data.history.length') == 30, f'{t} stockage plein : pas d\'entrée fantôme')
         # Place libérée : la séance s'enregistre normalement
         page.evaluate("Object.keys(localStorage).filter(k => k.startsWith('fill_')).forEach(k => localStorage.removeItem(k))")
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
         R.check('Séance enregistrée' in saved_text(page) and page.evaluate('data.history.length') == 31, f'{t} après libération : séance enregistrée une seule fois')
 
@@ -361,7 +361,7 @@ def t_old_session(bench, eng, dev, theme):
         info = page.evaluate("({ b: livePrior(activeSession.exercises.find(e => e.exId === 'l1rowing')).n > 0, prev: activeSession.exercises[0].sets.every(s => 'prev' in s), notes: sessionNotes })")
         R.check(info['b'] and info['prev'] and info['notes'] == 'Bonne forme', f'{t} ancienne séance complétée {info}')
         shot(page, LOT, f'ancienne-seance-{t}')
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
         R.check('Séance enregistrée' in saved_text(page), f'{t} ancienne séance terminée')
         h = page.evaluate('data.history[0]')
@@ -376,7 +376,7 @@ def t_rest_drift(bench, eng, dev, theme):
         t = tag(dev, theme)
         start(page)
         si, w, r, v = active_inputs(page)
-        v.click(); page.wait_for_timeout(200)
+        v.click(); settle(page)
         end0 = page.evaluate('restEndTime')
         for i in range(10):
             page.evaluate("""() => {
@@ -384,7 +384,7 @@ def t_rest_drift(bench, eng, dev, theme):
                                     document.dispatchEvent(new Event('visibilitychange')); };
                 set('hidden'); set('visible');
             }""")
-            page.wait_for_timeout(120)
+            settle(page)
         end1 = page.evaluate('restEndTime')
         saved = json.loads(ls(page, 'ppl_active_session'))['rest']['endTime']
         R.check(abs(end1 - end0) < 1000 and saved == end1, f'{t} 10 allers-retours : dérive {end1 - end0} ms')
@@ -424,7 +424,7 @@ def t_custom_delete(bench, eng, dev, theme):
         # Fusion : Programme › Séance (lot 5) porte la ligne « Nom et description »
         page.click(f'[data-action="open-prog-session"][data-cat="{CUSTOM_ID}"]')
         page.click(f'[data-action="edit-custom-session"][data-id="{CUSTOM_ID}"]')
-        page.click('[data-action="delete-custom-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="delete-custom-session"]'); settle(page)
         R.check(page.locator('.ios-dialog__title').inner_text() == 'Cette séance est en cours', f'{t} suppression Perso : séance en cours signalée')
         tap_dialog(page, 'Supprimer')
         msg = page.locator('.ios-dialog__msg').inner_text()
@@ -434,7 +434,7 @@ def t_custom_delete(bench, eng, dev, theme):
         R.check(page.evaluate('activeSession') is None and ls(page, 'ppl_active_session') is None, f'{t} suppression Perso : séance abandonnée')
         R.check(page.evaluate("data.history.filter(h => h.programme === 'custom').length") == 0, f'{t} suppression Perso : historique effacé')
         page.go_back()  # bouton retour Android : ne doit rien casser
-        page.wait_for_timeout(300)
+        settle(page)
         if page.url != BASE_URL:
             page.go_forward()
         page.wait_for_selector('#app > *')
@@ -486,7 +486,7 @@ def t_service_worker(bench):
                     shot(page, LOT, f'maj-{t}')
                     page.click('.update-banner__btn')
                     page.wait_for_selector('.view.dashboard', timeout=8000)
-                    page.wait_for_timeout(500)
+                    settle(page)
                     R.check(page.locator('.update-banner').count() == 0, f'{t} SW : mise à jour appliquée')
                 with bench.page(eng, dev, theme, service_workers='allow') as page:
                     # Pendant une séance : pas de bannière
@@ -497,7 +497,9 @@ def t_service_worker(bench):
                     sw = open(os.path.join(tmp, 'sw.js'), encoding='utf-8').read()
                     open(os.path.join(tmp, 'sw.js'), 'w', encoding='utf-8').write(sw.replace("const CACHE = '", "const CACHE = 's"))
                     page.evaluate("swReg.update()")
-                    page.wait_for_timeout(2500)
+                    # Nouvelle version installée et en attente : l'app aurait déjà montré sa bannière
+                    until(page, '() => !!(swReg && swReg.waiting)', 15000)
+                    settle(page)
                     R.check(page.locator('.update-banner').count() == 0, f'{t} SW : aucune bannière pendant la séance')
     finally:
         srv.terminate()

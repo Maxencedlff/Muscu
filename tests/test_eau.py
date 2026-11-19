@@ -52,7 +52,7 @@ def data_json(now_ms, plan=True, water=True, **extra):
 def open_app(page, theme, ppl_v2):
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def total(page, day=None):
@@ -96,7 +96,7 @@ def layout(page, t, name, scope):
 def big_text(page):
     page.add_style_tag(content='html { font-size: 28px !important; }')
     page.evaluate("window.dispatchEvent(new Event('resize'))")
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def t_parcours(bench, eng, dev, theme):
@@ -114,17 +114,17 @@ def t_parcours(bench, eng, dev, theme):
         row.scroll_into_view_if_needed()
         layout(page, t, 'accueil', '.diet-home')
         page.click('.water-add--home')
-        page.wait_for_timeout(250)
+        settle(page)
         R.check(total(page) == 250, f'{t} « + Verre » : 25 cl ajoutés d\'un toucher ({total(page)})')
         toast = nb(page.inner_text('.toast')) if page.locator('.toast').count() else ''
         R.check(toast.startswith('+ 25 cl · 0,25 sur 2 L') and 'Annuler' in toast, f'{t} toast : {toast!r}')
         R.check('0,25' in nb(page.inner_text('.water-home__val')), f'{t} accueil : ligne mise à jour')
         shot(page, LOT, f'1-accueil-{t}')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(250)
+        settle(page)
         R.check(total(page) == 0, f'{t} Annuler : retiré')
         page.click('.water-add--home')
-        page.wait_for_timeout(200)
+        settle(page)
         # Nutrition : la carte Eau
         page.click('.water-home__open')
         page.wait_for_selector('.nutrition-view .water-card')
@@ -135,9 +135,9 @@ def t_parcours(bench, eng, dev, theme):
         R.check(labels == ['Verre 25 cl', 'Bouteille 50 cl', '1 L', 'Autre'], f'{t} boutons rapides {labels}')
         layout(page, t, 'Nutrition', '.water-card')
         page.click('.water-card [data-ml="500"]')
-        page.wait_for_timeout(200)
+        settle(page)
         page.click('.water-card [data-ml="1000"]')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(total(page) == 1750, f'{t} bouteille et 1 L ({total(page)})')
         # Quantité libre : 33 cl
         page.click('.water-card [data-action="water-other"]')
@@ -156,7 +156,7 @@ def t_parcours(bench, eng, dev, theme):
         R.check(nb(page.inner_text('#waterGsVal')) == '2,25 L', f'{t} objectif : pas de 0,25 L')
         shot(page, LOT, f'3-objectif-{t}')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('data.waterGoalL') == 2.25 and 'sur 2,25 L' in nb(page.inner_text('.water-card')), f'{t} objectif choisi : 2,25 L')
         # Historique : supprimer le dernier ajout
         page.click('.water-card__log')
@@ -165,10 +165,10 @@ def t_parcours(bench, eng, dev, theme):
         layout(page, t, 'historique', '.sheet')
         shot(page, LOT, f'4-historique-{t}')
         page.locator('.water-log__del').first.click()
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(total(page) == 1750 and page.locator('.water-log__row').count() == 3, f'{t} historique : le dernier ajout supprimé ({total(page)})')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 
@@ -232,17 +232,17 @@ def t_contenant(bench):
         page.fill('#waterCupName', 'Ma gourde')
         page.fill('#waterCupMl', '75')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('data.waterCups') == [{'id': page.evaluate('data.waterCups[0].id'), 'name': 'Ma gourde', 'ml': 750}], 'contenant gardé')
         shot(page, LOT, '9-contenants-iPhone_13-light')
         page.go_back()
-        page.wait_for_timeout(300)
+        settle(page)
         page.go_back()
         page.wait_for_selector('.water-card')
         btn = page.locator('.water-card [data-ml="750"]')
         R.check(btn.count() == 1 and nb(btn.inner_text()).replace('\n', ' ') == 'Ma gourde 75 cl', 'bouton « Ma gourde 75 cl »')
         btn.click()
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(total(page) == 750, 'un toucher : 75 cl')
         R.check(not page.errors, f'contenant : aucune erreur JS {page.errors[:2]}')
 
@@ -254,12 +254,12 @@ def t_minuit(bench):
     with bench.frozen_page(eve, eng, 'iPhone 13', 'dark') as page:
         open_app(page, 'dark', data_json(eve))
         page.click('.water-add--home')
-        page.wait_for_timeout(200)
+        settle(page)
         page.clock.run_for(90_000)
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('0 / 2 L' in nb(page.inner_text('.water-home__val')), f'minuit : jauge à zéro ({page.inner_text(".water-home__val")!r})')
         page.click('.water-add--home')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check([total(page, '2026-11-05'), total(page, '2026-11-06')] == [250, 250], 'minuit : chaque ajout sur son jour')
         R.check(not page.errors, f'minuit : aucune erreur JS {page.errors[:2]}')
 
@@ -306,7 +306,7 @@ def t_seance(bench):
                     f'{t} feuille : base 3 L, total du jour dit ({page.inner_text("#waterGsToday")!r})')
             shot(page, LOT, f'10-objectif-seance-{t}')
             page.click('.sheet__btn--confirm')
-            page.wait_for_timeout(300)
+            settle(page)
             val = nb(page.inner_text('.water-card__val')).replace('\n', ' ')
             R.check(page.evaluate('data.waterGoalL') == 3 and val == '0 sur 3,5 L (dont +0,5 L séance)', f'{t} choisi 3 L : {val!r}')
             layout(page, t, 'carte un jour de séance', '.water-card')
@@ -320,7 +320,7 @@ def t_seance(bench):
             page.wait_for_selector('[data-action="water-train-toggle"]')
             R.check(page.get_attribute('[data-action="water-train-toggle"]', 'aria-checked') == 'true', f'{t} réglage allumé par défaut')
             page.click('[data-action="water-train-toggle"]')
-            page.wait_for_timeout(200)
+            settle(page)
             R.check(page.evaluate('data.waterTrainOff') is True and goal(page) == 3, f'{t} réglage coupé : 3 L ({goal(page)})')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 

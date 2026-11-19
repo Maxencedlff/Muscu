@@ -20,12 +20,12 @@ def tag(device, theme):
 
 def tab(page, i):
     page.locator('.tabbar [role=tab]').nth(i).click()
-    page.wait_for_timeout(350)
+    settle(page)
 
 
 def tap(page, sel):
     page.click(sel)
-    page.wait_for_timeout(400)
+    settle(page)
 
 
 def stored(page):
@@ -87,8 +87,8 @@ def t_mes_programmes(bench, eng, dev, theme):
         R.check(page.evaluate('data.activeProgramme') == 'ppl', f'{t} ajouter n\'active pas')
 
         # Retour à Mes programmes, toucher = activer (confirmation), retour à l'onglet
-        page.click('[data-action="back"]'); page.wait_for_timeout(400)
-        page.click('[data-action="back"]'); page.wait_for_timeout(400)
+        page.click('[data-action="back"]'); settle(page)
+        page.click('[data-action="back"]'); settle(page)
         tap(page, '[data-action="select-prog"][data-id="bro"]')
         tap_dialog(page, 'Changer de programme')
         R.check(page.evaluate('[data.activeProgramme, view]') == ['bro', 'programmes'], f'{t} activé, retour à Programme')
@@ -107,7 +107,7 @@ def t_mes_programmes(bench, eng, dev, theme):
         for k in range(1, 11):
             page.mouse.move(x, y - rh * 2 * k / 10)
         page.mouse.up()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(stored(page) == ['bro', 'ppl', 'custom'], f'{t} glisser Bro Split en tête {stored(page)}')
         tap(page, '.mp-row[data-id="ppl"] .ed-minus')
         tap(page, '.mp-row[data-id="ppl"] [data-action="remove-my-prog"]')

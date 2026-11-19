@@ -37,13 +37,13 @@ def open_app(page, theme, opts=None):
     page.add_init_script('window.__shared = []; navigator.share = async o => { window.__shared.push(o); };')
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='max', enable=True):
     page.evaluate("""async ([u, en]) => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u, avatar: '😎' });
         if (en) await socialEnable(true); }""", [username, enable])
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def layout(page, t, name):
@@ -68,7 +68,7 @@ def tab_icon(page):
 
 def open_tab(page):
     page.click('.tabbar [data-tab="friends"]')
-    page.wait_for_timeout(600)
+    settle(page)
 
 
 LEGS = [{'name': 'Squat', 'sets': [{'weight': '60', 'reps': '8', 'warmup': True}, {'weight': '120', 'reps': '5'}, {'weight': '125', 'reps': '3'}]},
@@ -120,7 +120,7 @@ def t_pratiquant(bench, eng, dev, theme):
         signin(page)
         friends(page)
         page.evaluate('Promise.all([socialRefresh(), coachRefresh()])')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(tab_label(page) == 'Social' and tab_icon(page) == '#i-person.2', f'{t} onglet « Social », icône des personnes ({tab_label(page)!r})')
         open_tab(page)
         page.wait_for_selector('.feed-card[data-id="l0"]')
@@ -168,11 +168,11 @@ def t_pratiquant(bench, eng, dev, theme):
         shot(page, LOT, f'1-social-{t}')
         # Rien au pointerdown ; « Commenter » au clic : la séance, ouverte sur ses commentaires
         page.evaluate("document.querySelector('.feed-card[data-id=l0] [data-action=social-open-comments]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('view') == 'friends', f'{t} pointerdown seul : rien ne s\'ouvre')
         card.locator('[data-action="social-open-comments"]').click()
         page.wait_for_selector('.social-session-view #commentsList')
-        page.wait_for_timeout(500)
+        settle(page)
         top = page.evaluate("document.querySelector('#commentsList').previousElementSibling.getBoundingClientRect().top")
         nav = page.evaluate("document.querySelector('.navbar').getBoundingClientRect().bottom")
         # Sous la barre, ou la page défilée jusqu'en bas quand elle est trop courte pour les y amener
@@ -184,7 +184,7 @@ def t_pratiquant(bench, eng, dev, theme):
         # Mon profil : « Modifier » et « Inviter un ami »
         page.click('.navbar [data-action="social-me"]')
         page.wait_for_selector('.social-me-view .athlete')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.social-me-view [data-action="social-edit-profile"]').count() == 1 and page.locator('.social-me-view [data-action="social-invite"]').count() == 1,
                 f'{t} Mon profil : Modifier et Inviter un ami')
         layout(page, t, 'Mon profil')
@@ -208,7 +208,7 @@ def t_fil_vide(bench, eng, dev, theme):
         shot(page, LOT, f'4-fil-vide-{t}')
         page.evaluate("(() => { Native.shareText = async (text, title) => { window.__shared.push({ text, title }); return 'shared'; }; })()")   # feuille de partage d'iOS
         page.click('#friendsBody [data-action="social-invite"]')
-        page.wait_for_timeout(300)
+        settle(page)
         shared = page.evaluate('window.__shared')
         R.check(len(shared) == 1 and 'mon pseudo est max' in shared[0]['text'] and 'onglet Social' in shared[0]['text'], f'{t} Inviter un ami : feuille de partage ({shared})')
         R.check(page.locator('#socialSearch').count() == 1 and page.locator('[data-action="social-find"]').count() == 0 and 'Rechercher un pseudo' not in page.inner_text('#friendsBody'),
@@ -224,19 +224,19 @@ def t_coach(bench, eng, dev, theme):
         friends(page)
         ids = students(page)
         page.evaluate('Promise.all([socialRefresh(), coachRefresh()])')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(tab_label(page) == 'Coach' and tab_icon(page) == '#i-coach', f'{t} compte coach : onglet « Coach », icône du coach ({tab_label(page)!r}, {tab_icon(page)!r})')
         page.evaluate("() => { const l = __sb.co.links.find(x => x.coach === __sb.meId()); __sb.msg(l.student, false, 'Salut'); return coachRefresh(); }")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check((page.get_attribute('.tabbar [data-tab="friends"]', 'aria-label') or '').startswith('Coach, '), f'{t} badge (message non lu) annoncé avec « Coach »')
         page.evaluate("() => { __sb.co.msgs = []; return coachRefresh(); }")   # la suite du test sans ce message
-        page.wait_for_timeout(300)
+        settle(page)
         # « Voir qui a progressé » : un toucher depuis n'importe quel onglet
         touches = 1
         open_tab(page)
         page.wait_for_selector('.friends-view .coach-team .team-week')
         page.wait_for_selector('.coach-student-row[data-signal="records"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.inner_text('.friends-view .navbar__large').strip() == 'Coach', f'{t} grand titre « Coach »')
         R.check(page.get_attribute('.social-seg [data-seg="students"]', 'aria-pressed') == 'true', f'{t} ouvert sur Élèves')
         week = [x.replace('\n', ' ') for x in page.locator('.team-week__tile').all_inner_texts()]
@@ -255,7 +255,7 @@ def t_coach(bench, eng, dev, theme):
         # au moins visibles sans défiler
         if page.evaluate('innerHeight') <= 700:
             page.evaluate('scrollTo(0, 0)')
-            page.wait_for_timeout(200)
+            settle(page)
             vis = page.evaluate("""() => { const tab = document.querySelector('.tabbar').getBoundingClientRect().top;
                 return [...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => r.getBoundingClientRect().bottom <= tab + 1).length; }""")
             plan = page.evaluate("""() => { const p = document.querySelector('.coach-team [data-action="plan-overview"]'), l = document.querySelector('.coach-team .coach-student-row');
@@ -272,7 +272,7 @@ def t_coach(bench, eng, dev, theme):
             R.check(all(under), f'{t} moins de 400 pt : pastilles sous le nom {under}')
         # Fiche d'un élève : deux touchers
         page.evaluate("document.querySelector('.coach-student-row').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('view') == 'friends', f'{t} pointerdown seul : rien ne s\'ouvre')
         zoe.click()
         touches += 1
@@ -295,9 +295,9 @@ def t_coach(bench, eng, dev, theme):
         page.locator('.coach-student-row', has_text='hugo').click()
         page.wait_for_selector('[data-action="coach-remove"]')
         page.click('[data-action="coach-remove"]')
-        page.wait_for_timeout(300)
+        settle(page)
         tap_dialog(page, "Retirer l'élève")
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.evaluate('view') == 'friends' and page.evaluate('nav.stacks.friends.length') == 1 and page.locator('.coach-student-row').count() == 2,
                 f'{t} élève retiré : retour à Élèves ({page.evaluate("nav.stacks.friends")})')
         page.click('.tabbar [data-tab="friends"]'); page.wait_for_selector('.coach-team .coach-student-row')
@@ -308,12 +308,12 @@ def t_coach(bench, eng, dev, theme):
         page.wait_for_selector('#coachSearch')
         R.check(not page.locator('#coachSearchNone').is_visible(), f'{t} 10 élèves, recherche vide : pas de « Aucun élève ne correspond »')
         page.fill('#coachSearch', 'zo')
-        page.wait_for_timeout(200)
+        settle(page)
         vis = page.evaluate("[...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => !r.hidden).map(r => r.dataset.name)")
         R.check(vis == ['zoe'], f'{t} recherche « zo » : seule zoe ({vis})')
-        page.fill('#coachSearch', 'zzz'); page.wait_for_timeout(200)
+        page.fill('#coachSearch', 'zzz'); settle(page)
         R.check(page.locator('#coachSearchNone').is_visible(), f'{t} recherche sans résultat : « Aucun élève ne correspond »')
-        page.fill('#coachSearch', ''); page.wait_for_timeout(200)
+        page.fill('#coachSearch', ''); settle(page)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -324,7 +324,7 @@ def t_eleve(bench, eng, dev, theme):
         signin(page, username='lea', enable=False)
         page.evaluate("""() => { const c = __sb.addPerson({ username: 'coach.alex', avatar: '🦁', social: false }); __sb.makeCoach(c); __sb.link(c, __sb.meId(), Date.now() - 20 * 86400000); }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(tab_label(page) == 'Social', f'{t} élève : onglet « Social »')
         open_tab(page)
         page.wait_for_selector('#coachCell [data-action="coach-open-mine"]')
@@ -346,7 +346,7 @@ def o_coach_age(bench):
         signin(page, enable=False)
         students(page)
         page.evaluate('Promise.all([ageRangeCheck(), coachRefresh()])')   # rôle de coach connu, comme gardé sur l'appareil
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('socialHiddenByAge()'), 'social masqué par la tranche d\'âge')
         calls_before = page.evaluate("__sb.calls.filter(c => c[1] === 'coach_progress').length")
         open_tab(page)

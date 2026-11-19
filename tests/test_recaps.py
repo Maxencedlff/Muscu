@@ -13,6 +13,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 from donnees_realistes import six_mois_json
 
 LOT = 'recaps'
@@ -104,7 +106,7 @@ def share_current(page, t, where, name):
     R.check(len(raw) > 40_000, f'{t} {where} : image non vide ({len(raw)} octets)')
     path = save_png(raw, name)
     page.click('[data-action="share-story-send"]')
-    page.wait_for_timeout(500)
+    settle(page)
     sh = page.evaluate('window.__shared')
     R.check(sh and sh[-1]['type'] == 'image/png' and sh[-1]['name'].startswith('mdlf-training-recap-') and sh[-1]['size'] > 40_000,
             f'{t} {where} : fichier PNG remis au partage {sh[-1] if sh else None}')
@@ -147,21 +149,21 @@ def t_semaine(bench, eng, dev, theme):
 
         page.click('.recap-card__open')
         page.wait_for_selector('.view.recap')
-        page.wait_for_timeout(300)
+        settle(page)
         st = recap_state(page)
         R.check(st['n'] >= 5 and st['dots'] == st['n'], f'{t} récap semaine : {st["n"]} écrans et autant de barres')
         R.check(st['active'] == 0 and st['onIdx'] == 0 and st['prevOff'] and not st['nextOff'], f'{t} récap semaine : premier écran actif, flèche gauche inactive')
         R.check(st['kicker'] == 'Ta semaine' and st['value'] == '2' and st['caption'] == 'séances' and st['tone'] == 'accent', f'{t} récap semaine : « 2 séances » ({st["kicker"]}, {st["value"]} {st["caption"]}, {st["tone"]})')
         R.check(st['sw'] <= st['vw'], f'{t} récap semaine : pas de défilement horizontal de la page ({st["sw"]} > {st["vw"]})')
         R.check(not st['tabbar'], f'{t} récap semaine : plein écran, sans barre d\'onglets')
-        page.wait_for_timeout(700)   # fin de l'animation d'arrivée et du compteur
+        settle(page)   # fin de l'animation d'arrivée et du compteur
         R.check(page.evaluate("document.querySelector('.recap-page.is-active .rp-num').textContent") == '2', f'{t} récap semaine : le compteur s\'arrête sur la vraie valeur')
         shot(page, LOT, f'recap-semaine-1-{t}')
 
         # Toucher sur la droite de l'écran : écran suivant ; petite semaine : le record d'abord, avec son bouton
         box = page.locator('.recap-page.is-active').bounding_box()
         page.mouse.click(box['x'] + box['width'] * .8, box['y'] + box['height'] * .5)
-        page.wait_for_timeout(800)
+        settle(page)
         st = recap_state(page)
         R.check(st['active'] == 1 and st['onIdx'] == 1 and st['scroll'] == 1 and not st['prevOff'], f'{t} récap semaine : toucher à droite → deuxième écran ({st["active"]}, barre {st["onIdx"]}, défilement {st["scroll"]})')
         R.check(st['id'] == 'records' and st['tone'] == 'night' and st['share'] == 'Partager ce record', f'{t} petite semaine : le record en deuxième ({st["id"]}, {st["tone"]}, {st["share"]})')
@@ -170,20 +172,20 @@ def t_semaine(bench, eng, dev, theme):
         R.check(rec['from'] and rec['box'] and 'depuis ton record du' in rec['box'] and '→' in rec['label'], f'{t} écran record : avant → après et gain réels ({rec["from"]}, {rec["box"]})')
         # Toucher à gauche : retour
         page.mouse.click(box['x'] + box['width'] * .1, box['y'] + box['height'] * .5)
-        page.wait_for_timeout(800)
+        settle(page)
         R.check(recap_state(page)['active'] == 0, f'{t} récap semaine : toucher à gauche → retour')
         page.click('[data-action="recap-next"]')
-        page.wait_for_timeout(800)
+        settle(page)
         st = recap_state(page)
         shot(page, LOT, f'recap-semaine-2-{t}')
         path, name = share_current(page, t, 'écran 2', f'story-semaine-{st["active"]}-{t}')
         R.check(name.startswith('mdlf-training-recap-w2026-10-12-'), f'{t} récap semaine : nom du fichier {name}')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.view.recap').count() == 1, f'{t} récap semaine : toujours sur le récap après le partage')
 
         # Dernier écran : le résumé, partagé lui aussi
         page.evaluate("() => { const tr = document.querySelector('#recapTrack'); tr.scrollTo({ left: tr.scrollWidth, behavior: 'instant' }); }")
-        page.wait_for_timeout(500)
+        settle(page)
         st = recap_state(page)
         R.check(st['active'] == st['n'] - 1 and st['nextOff'] and st['id'] == 'summary' and st['share'] == 'Partager ma semaine', f'{t} récap semaine : balayage jusqu\'au résumé ({st["active"]}/{st["n"] - 1}, {st["id"]}, {st["share"]})')
         page.wait_for_function("(() => { const c = document.querySelector('.recap-page--summary canvas'); return c && c.toDataURL('image/png').length > 60000; })()", timeout=8000)
@@ -194,11 +196,11 @@ def t_semaine(bench, eng, dev, theme):
 
         # Retour à l'accueil : la carte reste tant que c'est le moment (seule la croix la masque)
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.recap-card').count() == 1, f'{t} carte ouverte : toujours sur l\'accueil')
         R.check(ls(page, 'ppl_recap_hidden') is None, f'{t} carte ouverte : rien de mémorisé ({ls(page, "ppl_recap_hidden")})')
         page.evaluate("switchTab('progress')")
-        page.wait_for_timeout(300)
+        settle(page)
         cell = page.locator('[data-action="go-recaps"]')
         R.check(cell.count() == 1 and 'Récaps' in cell.inner_text(), f'{t} Progrès : cellule « Récaps »')
         cell.click()
@@ -212,7 +214,7 @@ def t_semaine(bench, eng, dev, theme):
         # Récap d'un mois
         page.click('[data-action="open-recap"][data-key="m2026-09"]')
         page.wait_for_selector('.view.recap')
-        page.wait_for_timeout(600)
+        settle(page)
         st = recap_state(page)
         R.check(st['kicker'] == 'Ton mois' and st['caption'] == 'séances' and st['n'] >= 6, f'{t} récap mois : {st["value"]} séances, {st["n"]} écrans')
         sub = page.evaluate("document.querySelector('.recap-page.is-active .rp-sub')?.textContent")
@@ -238,7 +240,7 @@ def t_semaine(bench, eng, dev, theme):
         # Tous les écrans du mois en capture (planche avant / après)
         for i in range(len(ids)):
             page.evaluate(f"() => {{ const tr = document.querySelector('#recapTrack'); tr.scrollTo({{ left: {i} * tr.clientWidth, behavior: 'instant' }}); }}")
-            page.wait_for_timeout(900)
+            settle(page)
             shot(page, LOT, f'recap-mois-{i + 1:02d}-{ids[i]}-{t}')
             if ids[i] == 'profile':
                 # Profil : couleurs et légende par paliers de Progrès, à l'écran et dans l'image partagée
@@ -264,7 +266,7 @@ def t_annee(bench, eng, dev, theme):
         R.check(cell.count() == 1 and 'Bilan 2026' in cell.inner_text() and '78 séances' in cell.inner_text(), f'{t} décembre : cellule Bilan 2026 ({cell.inner_text().split(chr(10))[:2]})')
         cell.click()
         page.wait_for_selector('.view.recap')
-        page.wait_for_timeout(600)
+        settle(page)
         st = recap_state(page)
         R.check(st['kicker'] == 'Ton année' and st['value'] == '78', f'{t} bilan : 78 séances ({st["kicker"]} {st["value"]})')
         labels = page.evaluate("[...document.querySelectorAll('.recap-page')].map(p => p.getAttribute('aria-label'))")
@@ -274,7 +276,7 @@ def t_annee(bench, eng, dev, theme):
         R.check(any('record' in l for l in labels), f'{t} bilan : des records sur l\'année')
         shot(page, LOT, f'bilan-annee-{t}')
         page.evaluate("() => { const tr = document.querySelector('#recapTrack'); tr.scrollTo({ left: tr.scrollWidth, behavior: 'instant' }); }")
-        page.wait_for_timeout(500)
+        settle(page)
         st = recap_state(page)
         R.check(st['id'] == 'summary' and st['share'] == 'Partager mon année', f'{t} bilan : résumé ({st["id"]}, {st["share"]})')
         R.check(all(k in labels[-1] for k in ('Exercice le plus fait :', 'Mois le plus actif :')), f'{t} bilan : lignes du résumé')
@@ -316,11 +318,13 @@ def t_bas(bench, eng, dev, theme):
                 R.check(n_mus >= 6, f'{t} {key} : données d\'au moins 6 muscles ({n_mus})')
             page.evaluate(f"navigate(makeRoute('recap', '{key}'))")
             page.wait_for_selector('.view.recap .recap__foot')
-            page.wait_for_timeout(400)
+            settle(page)
             n = page.locator('.recap-page').count()
             for i in range(n):
                 page.evaluate(f"() => {{ const tr = document.querySelector('#recapTrack'); tr.scrollTo({{ left: {i} * tr.clientWidth, behavior: 'instant' }}); }}")
-                page.wait_for_timeout(900)
+                # L'écran affiché devient « is-active » après le défilement (observé par l'app, pas une minuterie)
+                until(page, f"() => [...document.querySelectorAll('.recap-page')].indexOf(document.querySelector('.recap-page.is-active')) === {i}", 3000)
+                settle(page)
                 m = page.evaluate(BAS_JS)
                 where = f'{t} {key} écran {i + 1} ({m["id"]})'
                 R.check(m['bottom'] <= m['footTop'] + .5, f'{where} : rien sous le pied (bas {m["bottom"]:.0f} > pied {m["footTop"]:.0f}, {m["last"]})')
@@ -357,7 +361,7 @@ def t_moments(bench):
                 R.check(page.locator('.recap-card [data-key="w2026-10-12"]').count() >= 1, f'{label} : la semaine qui se termine')
                 # Masquer : la carte part, le récap reste dans Progrès
                 page.click('.recap-card__close')
-                page.wait_for_timeout(300)
+                settle(page)
                 R.check(page.locator('.recap-card').count() == 0 and 'Progrès › Récaps' in page.inner_text('.toast'), f'{label} : Masquer retire la carte avec un mot')
                 page.evaluate("switchTab('progress'); navigate('recaps')")
                 page.wait_for_selector('.view.recaps')
@@ -373,14 +377,14 @@ def t_moments(bench):
         page.wait_for_selector('.settings-view')
         sw = page.locator('[data-action="setting-recap-card"]')
         R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'true', 'réglage : interrupteur « Carte Ta semaine » allumé')
-        sw.click(); page.wait_for_timeout(200)
+        sw.click(); settle(page)
         R.check(sw.get_attribute('aria-checked') == 'false' and page.evaluate('data.recapCardOff') is True, 'réglage : coupé → data.recapCardOff')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.recap-card').count() == 0, 'réglage coupé : pas de carte le lundi')
         page.evaluate("navigate('settings')")
         page.wait_for_selector('.settings-view')
-        page.locator('[data-action="setting-recap-card"]').click(); page.wait_for_timeout(200)
+        page.locator('[data-action="setting-recap-card"]').click(); settle(page)
         R.check(page.evaluate('data.recapCardOff') is None, 'réglage remis : champ retiré')
         R.check(not page.errors, f'réglage : aucune erreur JS {page.errors}')
     finally:
@@ -396,7 +400,7 @@ def t_moments(bench):
         page.wait_for_selector('.view.recaps')
         R.check(page.locator('.recaps .empty-note').count() == 1 and page.locator('.recaps .cell').count() == 0, 'sans données : état vide, aucune cellule')
         page.evaluate("navigate(makeRoute('recap', 'w2026-10-12'))")
-        page.wait_for_timeout(200)
+        settle(page)
         R.check('Aucune séance' in page.inner_text('.view.recap'), 'récap d\'une semaine vide : message, pas de chiffre')
         R.check(not page.errors, f'sans données : aucune erreur JS {page.errors}')
 

@@ -82,7 +82,7 @@ AUDIT_JS = r"""() => {
 
 def go(page, v, extra=''):
     page.evaluate(f"""() => {{ {extra}; if (typeof navigate === 'function') navigate('{v}'); else {{ view = '{v}'; render(); }} }}""")
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def audit(page, t, screen):
@@ -97,7 +97,7 @@ def t_screens(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
         t = f'{dev}-{theme}'
-        page.wait_for_timeout(300)
+        settle(page)
         audit(page, t, 'accueil')
         # Thème : theme-color calé sur --bg
         tc = page.evaluate("document.querySelector('meta[name=theme-color]').content")
@@ -122,11 +122,11 @@ def t_screens(bench, eng, dev, theme):
         # Basculer le thème depuis les réglages
         other = 'light' if theme == 'dark' else 'dark'
         page.click(f'[data-action="set-theme"][data-val="{other}"]')
-        page.wait_for_timeout(150)
+        settle(page)
         tc2 = page.evaluate("document.querySelector('meta[name=theme-color]').content")
         R.check(tc2.upper() == ('#000000' if other == 'dark' else '#F2F2F7'), f'{t} theme-color suit le thème ({tc2})')
         page.click(f'[data-action="set-theme"][data-val="{theme}"]')
-        page.wait_for_timeout(150)
+        settle(page)
 
         page.evaluate("localStorage.setItem('mdlf_hist_cal', '1')")   # calendrier déplié
         go(page, 'history')
@@ -135,7 +135,7 @@ def t_screens(bench, eng, dev, theme):
         yb = page.evaluate("""() => [...document.querySelectorAll('[data-action=hcal-month]')].map(b => { const r = b.getBoundingClientRect(); return [r.width, r.height]; })""")
         R.check(len(yb) == 2 and all(w >= 44 and h >= 44 for w, h in yb), f'{t} boutons de mois 44×44 {yb}')
         go(page, 'stats', "statsView = 'progress'")
-        page.wait_for_timeout(200)
+        settle(page)
         audit(page, t, 'progres')
         go(page, 'stats-overview')  # Fusion : Vue d'ensemble = écran empilé (lot 5)
         audit(page, t, 'ensemble')
@@ -151,9 +151,9 @@ def t_screens(bench, eng, dev, theme):
         page.click('[data-action="start-session"][data-cat="push"]')
         page.wait_for_selector('.view.session')
         page.locator('[data-action="validate-set"]').first.click()
-        page.wait_for_timeout(200)
+        settle(page)
         if page.locator('.rest-minimize-btn').count():
-            page.click('.rest-minimize-btn'); page.wait_for_timeout(150)
+            page.click('.rest-minimize-btn'); settle(page)
         audit(page, t, 'seance')
         mini = page.locator('.rest-mini__timer')
         if mini.count():
@@ -176,7 +176,7 @@ def t_custom_colors(bench, eng, dev, theme):
         R.check(page.locator('.cat-badge', has_text='💥').count() == 0 and page.locator('.hero__emoji').count() == 0, f'{t} séance Perso : icône gardée dans les données, plus affichée')
         shot(page, LOT, f'accueil-perso-{t}')
         page.evaluate("data.activeProgramme = 'ppl'; render()")
-        page.wait_for_timeout(150)
+        settle(page)
         # Push est la prochaine séance ; Pull et Legs dans « Ensuite ». Une seule couleur d'accent sur
         # l'accueil : ni pastille de séance, ni surtitre teinté
         R.check(page.locator('.view.dashboard .cat-badge').count() == 0 and page.locator('.home-list .home-cell').count() == 2, f'{t} accueil : aucune pastille de couleur de séance')

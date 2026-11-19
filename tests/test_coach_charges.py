@@ -31,12 +31,12 @@ def open_app(page, theme):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username):
     page.evaluate("""async u => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u }); }""", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def small_targets(page, sel):
@@ -87,7 +87,7 @@ def t_charges(bench, eng, dev, theme):
         signin(page, 'max')
         ids = setup_coach(page, lea_sessions())
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         # Fiche de Léa d'abord (ses séances chargées : sa dernière fois est connue), puis Envoyer
         page.evaluate(f"routeTo('friends'); navigate(makeRoute('coach-student', '{ids['lea']}'))")
         page.wait_for_selector('.coach-sess')
@@ -106,13 +106,13 @@ def t_charges(bench, eng, dev, theme):
         last = page.locator('[data-action="coach-presc-last"]')
         R.check(last.count() == 1 and '57,5 kg × 8' in last.inner_text().replace(' ', ' '), f'{t} « Reprendre sa dernière fois » : 57,5 kg × 8')
         last.click()
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.input_value('#cpLoad') == '57,5', f'{t} dernière fois reprise ({page.input_value("#cpLoad")!r})')
         # Validation : bornes et demi-kilos
         for bad in ['600', '60,3', 'abc']:
             page.fill('#cpLoad', bad)
             page.click('[data-action="coach-presc-ok"]')
-            page.wait_for_timeout(250)
+            settle(page)
             R.check(page.locator('.coach-presc-view').count() == 1 and page.get_attribute('#cpLoad', 'aria-invalid') == 'true' and 'demi-kilo' in toast(page),
                     f'{t} « {bad} » refusé ({toast(page)!r})')
         page.fill('#cpLoad', '60')
@@ -134,7 +134,7 @@ def t_charges(bench, eng, dev, theme):
         R.check('60 kilos, 8 reps' in aria, f'{t} VoiceOver : « 60 kilos, 8 reps » ({aria!r})')
         shot(page, LOT, f'3-envoi-avec-charges-{t}')
         page.click('[data-action="coach-send-go"]')
-        page.wait_for_timeout(500)
+        settle(page)
         prog = page.evaluate("__sb.co.progs.find(p => p.id === 'u_force').data")
         xs = prog['sessions'][0]['exercises']
         R.check(xs[0].get('load') == 60 and xs[0].get('repFixed') is True and xs[0].get('repMax') == 8 and 'loads' not in xs[0], f'{t} envoyé : 60 kg × 8 {xs[0]}')
@@ -156,13 +156,13 @@ def t_charges(bench, eng, dev, theme):
             __sb.link(max, __sb.meId(), Date.now() - 20 * 86400000);
             __sb.co.progs.push({ coach: max, student: __sb.meId(), id: 'u_force', data: p, sent_at: new Date().toISOString(), seen: false }); return max; }""", prog)
         page.evaluate("coachRefresh()")
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("routeTo('friends'); navigate('coach-mine')")
         page.wait_for_selector('.coach-prog [data-action="coach-add-prog"]')
         page.click('.coach-prog [data-action="coach-add-prog"]')
-        page.wait_for_timeout(400)
+        settle(page)
         tap_dialog(page, 'Passer à ce programme')
-        page.wait_for_timeout(300)
+        settle(page)
         pid = page.evaluate('data.activeProgramme')
         R.check(pid.startswith('u_c') and page.evaluate(f"data.programmes['{pid}'].exercises.sA[0].load") == 60, f'{t} programme importé avec sa charge ({pid})')
         # Sa dernière fois : 57,5 kg × 8 au squat
@@ -173,11 +173,11 @@ def t_charges(bench, eng, dev, theme):
             save(); }}""")
         # Accueil : « Coach : 60 kg × 8 »
         page.evaluate("routeTo('dashboard')")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Coach : 60 kg × 8' in txt(page, '.dashboard'), f'{t} accueil : « Coach : 60 kg × 8 »')
         page.evaluate("startSession('sA')")
         page.wait_for_selector('.view.session')
-        page.wait_for_timeout(300)
+        settle(page)
         card = '.ex-card[data-ei="0"]'
         goal = txt(page, f'{card} .ex-goal')
         R.check(goal.startswith('Coach : 60 kg × 8'), f'{t} séance : « Coach : 60 kg × 8 » ({goal!r})')
@@ -200,19 +200,19 @@ def t_charges(bench, eng, dev, theme):
         R.check(no_hscroll(page), f'{t} séance : pas de défilement horizontal')
         shot(page, LOT, f'4-seance-eleve-{t}')
         page.evaluate(f"document.querySelector('{dl}').scrollIntoView({{ block: 'start' }})")
-        page.wait_for_timeout(200)
+        settle(page)
         shot(page, LOT, f'5-seance-top-backoff-{t}')
         # Il prend 62,5 kg : rien ne l'en empêche
         page.evaluate(f"document.querySelector('{card}').scrollIntoView({{ block: 'start' }})")
         page.fill(f'{card} [data-action="set-weight"][data-si="0"]', '62,5')
         page.click(f'{card} [data-action="validate-set"][data-si="0"]')
-        page.wait_for_timeout(300)
+        settle(page)
         if page.locator('.ios-dialog').count():
             tap_dialog(page, 'Valider')
         R.check(page.evaluate("activeSession.exercises[0].sets[0]")['weight'] == '62.5' and page.evaluate("activeSession.exercises[0].sets[0].done") is True, f'{t} série validée à 62,5 kg')
         page.evaluate("activeSession.exercises[0].sets.slice(1).forEach(s => { s.done = true; }); activeSession.exercises.slice(1).forEach(ex => ex.sets.forEach(s => { s.done = true; s.reps = s.reps || '30'; }))")
         page.click('[data-action="finish-session"]')
-        page.wait_for_timeout(250)
+        settle(page)
         tap_dialog(page, 'Enregistrer la séance')
         page.wait_for_selector('.view.summary')
         entry = page.evaluate("data.history[0]")
@@ -226,7 +226,7 @@ def t_charges(bench, eng, dev, theme):
         signin(page, 'max')
         ids = setup_coach(page, [entry] + lea_sessions())
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate(f"routeTo('friends'); navigate(makeRoute('coach-student', '{ids['lea']}'))")
         page.wait_for_selector('.coach-sess')
         page.click(f'.coach-sess[data-id="{entry["id"]}"]')
@@ -251,13 +251,13 @@ def t_sans_charge(bench, eng, dev, theme):
         page.evaluate("""p => { const max = __sb.addPerson({ username: 'max', social: false }); __sb.makeCoach(max); __sb.link(max, __sb.meId());
             __sb.co.progs.push({ coach: max, student: __sb.meId(), id: 'u_base', data: p, sent_at: new Date().toISOString(), seen: false }); }""", prog)
         page.evaluate("coachRefresh()")
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("routeTo('friends'); navigate('coach-mine')")
         page.wait_for_selector('.coach-prog [data-action="coach-add-prog"]')
         page.click('.coach-prog [data-action="coach-add-prog"]')
-        page.wait_for_timeout(400)
+        settle(page)
         tap_dialog(page, 'Passer à ce programme')
-        page.wait_for_timeout(300)
+        settle(page)
         pid = page.evaluate('data.activeProgramme')
         page.evaluate(f"""() => {{ const ex = data.programmes['{pid}'].exercises.sA[0];
             data.history.unshift({{ id: 'h-b', programme: '{pid}', category: 'sA', date: Date.now() - 86400000, duration: 3000000,

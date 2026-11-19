@@ -23,7 +23,7 @@ def skip_rest(page):
         if page.locator(sel).count():
             page.locator(sel).first.click()
             break
-    page.wait_for_timeout(120)
+    settle(page)
 
 
 def in_view(page, sel):
@@ -51,7 +51,7 @@ def t_seance(bench, eng, dev, theme):
         # La série qui bat la dernière fois (volume, record) : l'objectif de l'accueil tapé à la main
         page.evaluate("""(() => { const ex = activeSession.exercises[0], g = exerciseGoal(activeSession.category, sessExData(ex), activeSession.programme).goal;
             ex.sets[0].weight = String(g.w); ex.sets[0].reps = String(g.r); render(); })()""")
-        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
         # 5. Volume en clair
         d = page.locator('.ex-card[data-ei="0"] .ex-vol__delta')
         R.check(d.count() == 1 and d.inner_text().endswith('de volume'), f'{t} « +… de volume »')
@@ -68,7 +68,7 @@ def t_seance(bench, eng, dev, theme):
         R.check(page.evaluate("(() => { const r = document.querySelector('.rir').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; })()"), f'{t} sélecteur dans l\'écran')
         # Panel du 07/11 : VoiceOver perdait le focus après un RIR (render() redessine tout l'écran)
         # (activation VoiceOver : un clic sur le bouton qui a le focus ; Entrée passe au champ suivant en séance)
-        page.focus('.rir__btn[data-rir="2"]'); page.evaluate('document.activeElement.click()'); page.wait_for_timeout(200)
+        page.focus('.rir__btn[data-rir="2"]'); page.evaluate('document.activeElement.click()'); settle(page)
         foc = page.evaluate("(() => { const a = document.activeElement; return a && a.dataset.action === 'set-rir' && a.dataset.rir === '2'; })()")
         R.check(foc, f'{t} RIR touché : le focus reste sur la pastille redessinée')
         # 11. En-têtes de colonnes à 12 px au moins
@@ -76,7 +76,7 @@ def t_seance(bench, eng, dev, theme):
         R.check(not small, f'{t} en-têtes de colonnes ≥ 12 px {small}')
 
         # B. Feuille « Ajouter un exercice » : Récents en tête, sans les exercices de la séance
-        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); page.wait_for_timeout(350)
+        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); settle(page)
         hints = page.locator('#axList .ax__hint').all_inner_texts()
         R.check(hints == ['Récents', 'Déjà faits', 'Mêmes muscles que ta séance', 'Tous les exercices'], f'{t} sections {hints}')
         first = page.locator('#axList .ax__item').first.get_attribute('data-name')
@@ -89,18 +89,18 @@ def t_seance(bench, eng, dev, theme):
         R.check(rows and all(rows), f'{t} filtres sur une ligne chacun {rows}')
         # Deux touchers : ouvrir la feuille, toucher l'exercice récent
         R.check(in_view(page, '#axList [data-name="Squat barre"]'), f'{t} récent visible sans défiler')
-        page.locator('#axList [data-name="Squat barre"]').click(); page.wait_for_timeout(350)
+        page.locator('#axList [data-name="Squat barre"]').click(); settle(page)
         R.check(page.evaluate("activeSession.exercises.some(e => e.name === 'Squat barre')"), f'{t} ajouté en 2 touchers')
         # Recherche : liste directe, sans sections
-        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); page.wait_for_timeout(300)
+        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); settle(page)
         page.fill('#axSearch', 'curl')
         R.check(page.locator('#axList .ax__hint', has_text='Récents').count() == 0, f'{t} recherche : liste directe')
-        page.evaluate('closeSessSheets()'); page.wait_for_timeout(300)
+        page.evaluate('closeSessSheets()'); settle(page)
 
         # 4. Bilan : ligne de progrès, « Terminé » visible sans défiler
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(300)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
-        page.wait_for_selector('.view.summary'); page.wait_for_timeout(500)
+        page.wait_for_selector('.view.summary'); settle(page)
         line = page.locator('.sum-line').inner_text().strip()
         R.check(line.startswith('1 record battu · +1 rep sur développé couché'), f'{t} ligne du bilan ({line!r})')
         R.check(page.locator('.sum-line .medal').count() == 1, f'{t} médaille du record')
@@ -110,22 +110,22 @@ def t_seance(bench, eng, dev, theme):
             return [l.textContent, l.getBoundingClientRect().top > v.getBoundingClientRect().top]; })""")
         R.check([x[0] for x in tl] == ['Durée', 'Soulevé', 'Séries'] and all(x[1] for x in tl), f'{t} bilan : chiffres dans l\'ordre du fil, libellé dessous {tl}')
         shot(page, LOT, f'bilan-{t}')
-        page.click('[data-action="summary-done"]'); page.wait_for_timeout(300)
+        page.click('[data-action="summary-done"]'); settle(page)
 
         # 11. Historique : pastille des records notés
-        page.evaluate("switchTab('history')"); page.wait_for_timeout(300)
+        page.evaluate("switchTab('history')"); settle(page)
         rec = page.locator('.hrow').first.locator('.hcell__rec')
         R.check(rec.count() == 1 and rec.inner_text().split(',')[0].strip().startswith('1'), f'{t} pastille record dans l\'historique')
 
         # 3. Progrès (16/11 : la carte des muscles en tête, puis « Tes muscles en 3 mois » et les chiffres) : les 3 derniers records restent présents
-        page.evaluate("switchTab('progress')"); page.wait_for_timeout(400)
+        page.evaluate("switchTab('progress')"); settle(page)
         R.check(page.locator('.stats-records .rec-row').count() == 3, f'{t} 3 derniers records')
         titles = [x.strip().lower() for x in page.locator('.scr > .group-title').all_inner_texts()]
         R.check(titles[:2] == ['muscles', 'muscles en 3 mois'] and 'derniers records' in titles, f'{t} carte des muscles en tête, puis les groupes, derniers records présents {titles[:4]}')
         R.check(page.locator('[data-action="muscle-span"][data-span="month"]').get_attribute('aria-pressed') == 'true', f'{t} 4 semaines par défaut')
 
         # A. Programme : la même roue que l'accueil
-        page.evaluate("switchTab('program')"); page.wait_for_timeout(300)
+        page.evaluate("switchTab('program')"); settle(page)
         R.check(page.locator('.navbar [data-action="go-settings"] .icon--gear').count() == 1
                 and page.locator('.navbar [data-action="go-settings"]').inner_text().strip() == '', f'{t} Programme : la roue, pas le mot')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -138,12 +138,12 @@ def t_nouveau(bench):
         skip_questions(page)
         R.check(page.evaluate('data.rirOn') == 'auto', f'donnée neuve : réglage automatique ({page.evaluate("data.rirOn")})')
         page.click('[data-action="start-session"]'); page.wait_for_selector('.view.session')
-        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
         R.check(page.locator('.rir').count() == 0, 'nouvel utilisateur : pas de sélecteur après la série')
         # Nouvel iPhone : la synchro du compte apporte un historique avec des reps en réserve → sélecteur montré
         page.evaluate("""() => { data.history.push({ id: 'sync1', programme: 'ppl', category: 'legs', date: Date.now() - 864e5,
             exercises: [{ name: 'Squat barre', sets: [{ weight: '60', reps: '8', rir: 2 }] }] }); save(); render(); }""")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.rir').count() == 1, 'historique synchronisé avec reps en réserve : sélecteur montré')
         R.check(page.evaluate('data.rirOn') == 'auto', 'réglage resté automatique (rien d\'écrasé)')
 
@@ -153,13 +153,13 @@ def t_chrono(bench):
     with bench.page('webkit', 'iPhone SE', 'dark') as page:
         seed(page, 'dark', ppl_v2_today_json())
         page.click('[data-action="start-session"][data-cat="push"]'); page.wait_for_selector('.view.session')
-        page.evaluate("pickExercise('Gainage')"); page.wait_for_timeout(300)
+        page.evaluate("pickExercise('Gainage')"); settle(page)
         ei = page.evaluate("activeSession.exercises.findIndex(e => e.name === 'Gainage')")
-        page.evaluate(f"startEffort({ei}, 0)"); page.wait_for_timeout(300)
+        page.evaluate(f"startEffort({ei}, 0)"); settle(page)
         labels = set()
         for _ in range(8):   # préparation (5 s) puis chrono
             labels.add(page.evaluate("document.getElementById('effortStop')?.textContent"))
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(1000)   # attente voulue : relevé du libellé chaque seconde pendant 8 s (préparation puis chrono)
         R.check('Terminer' not in labels and 'Arrêter' in labels, f'chrono : « Arrêter », jamais « Terminer » {labels}')
 
 

@@ -50,7 +50,7 @@ def open_app(page, theme, ppl_v2=None, store=None, opts=None):
     page.add_init_script(FAKE_STORE)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='max'):
@@ -58,12 +58,12 @@ def signin(page, username='max'):
         await accountSignInWith('apple', async () => 'add');
         if (u) await accountSaveProfile({ username: u });
     }""", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def refresh_access(page):
     page.evaluate('access.loadedAt = 0; accessRefresh()')
-    page.wait_for_timeout(350)
+    settle(page)
 
 
 def subscribed(page, days=365, intro=False, product=YEARLY):
@@ -91,7 +91,7 @@ def code_sheet(page, code, ok=True):
     page.wait_for_selector('#payCode')
     page.fill('#payCode', code)
     page.click('.sheet__btn--confirm')
-    page.wait_for_timeout(500)
+    settle(page)
     return '' if ok else (page.inner_text('#payCodeHelp') if page.locator('#payCode').count() else '')
 
 
@@ -119,7 +119,7 @@ def cut_texts(page):
 
 def last_above_tabbar(page):
     page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
-    page.wait_for_timeout(150)
+    settle(page)
     r = page.evaluate("""() => { const scr = document.querySelector('#app .scr'); const last = scr && [...scr.querySelectorAll('*')].filter(e => e.offsetParent).pop();
         const bar = document.querySelector('.tabbar'); if (!last || !bar || bar.hidden) return true;
         return last.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top + .5; }""")
@@ -145,10 +145,10 @@ def banner(page):
 def start_session(page):
     """Touche « Démarrer » sur l'accueil (ou la première séance proposée)."""
     page.evaluate("switchTab('train')")
-    page.wait_for_timeout(250)
+    settle(page)
     btn = page.locator('[data-action="start-session"]').first
     btn.click()
-    page.wait_for_timeout(600)
+    settle(page)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -162,13 +162,13 @@ def t_essai(bench, eng, dev, theme):
         R.check(len(acalls(page, 'my_access')) == 0, f'{t} sans compte : aucun appel d\'accès')
         R.check(banner(page) == '' and page.evaluate('canWrite()') is False, f'{t} sans compte, verrou allumé : il faut un compte')
         signin(page, username='max')
-        page.wait_for_timeout(500)
+        settle(page)
         # Compte tout neuf, verrou allumé : aucun droit, aucun essai maison
         R.check(len(acalls(page, 'my_access')) >= 1, f'{t} connexion : my_access appelé')
         R.check(page.evaluate('accessStatus()') == 'none' and page.evaluate('canWrite()') is False,
                 f'{t} compte neuf : pas d\'essai maison, pas de droit ({page.evaluate("accessStatus()")})')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         # Le bandeau dit ce qui bloque (abonnement nécessaire, ou séances de l'iPhone refusées par le
         # compte), jamais plus « il te reste N jours »
         R.check(('Abonnement nécessaire' in banner(page) or 'pas enregistrée' in banner(page)) and 'il te reste' not in banner(page),
@@ -176,7 +176,7 @@ def t_essai(bench, eng, dev, theme):
         # Écran d'abonnement : l'offre de lancement lue chez StoreKit, et les mentions de la règle 3.1.2
         page.evaluate("navigate(makeRoute('paywall', 'offer'))")
         page.wait_for_selector('.pay-plan')
-        page.wait_for_timeout(400)
+        settle(page)
         txt = page.inner_text('.pay-view')
         R.check('77,77 € par an' in txt and '7,77 € par mois' in txt and txt.count('3 mois gratuits') >= 2,
                 f'{t} formules : prix et essai lus chez StoreKit ({txt[:220]!r})')
@@ -199,12 +199,12 @@ def t_essai(bench, eng, dev, theme):
         shot(page, LOT, f'2-abonnement-{t}')
         # Achat : Apple donne l'essai (offre de lancement), le serveur écrit un abonnement actif
         page.click(f'[data-action="pay-buy"][data-id="{YEARLY}"]')
-        page.wait_for_timeout(1200)
+        settle(page)
         R.check(page.evaluate('accessStatus()') == 'active' and page.evaluate('canWrite()') is True
                 and page.evaluate('access.state.intro_offer') is True, f'{t} essai d\'Apple : abonnement actif, offre en cours')
         page.evaluate("navigate('subscription')")
         page.wait_for_selector('.pay-settings-view')
-        page.wait_for_timeout(500)
+        settle(page)
         txt = page.inner_text('.pay-settings-view')
         R.check('Essai gratuit jusqu\'au' in txt and 'puis 77,77 € par an' in txt,
                 f'{t} Réglages : « Essai gratuit jusqu\'au <date>, puis <prix> » ({txt[:200]!r})')
@@ -213,7 +213,7 @@ def t_essai(bench, eng, dev, theme):
         layout(page, t, 'Réglages › Abonnement en essai')
         shot(page, LOT, f'1-reglages-essai-{t}')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(banner(page) == '', f'{t} en essai : aucun bandeau ({banner(page)!r})')
         start_session(page)
         R.check(page.evaluate('!!activeSession'), f'{t} en essai : séance démarrée')
@@ -225,7 +225,7 @@ def t_essai(bench, eng, dev, theme):
         signin(page, username='max')
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_selector('.pay-plan')
-        page.wait_for_timeout(400)
+        settle(page)
         txt = page.inner_text('.pay-view')
         R.check('gratuit' not in txt.split('Restaurer')[0].lower().replace('essai gratuit', '') and '77,77 €' in txt
                 and 'Essai gratuit de' not in txt, f'{t} sans droit à l\'essai : prix normal, aucun essai promis ({txt[:200]!r})')
@@ -247,7 +247,7 @@ def t_lecture_seule(bench, eng, dev, theme):
         R.check(page.evaluate('accessStatus()') == 'none' and page.evaluate('canWrite()') is False,
                 f'{t} sans abonnement : pas le droit d\'écrire')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Abonnement nécessaire' in banner(page) or 'pas enregistrée' in banner(page), f'{t} accueil : bandeau du mode lecture seule ({banner(page)!r})')
         layout(page, t, 'accueil après l\'essai')
         shot(page, LOT, f'3-fin-essai-accueil-{t}')
@@ -259,49 +259,49 @@ def t_lecture_seule(bench, eng, dev, theme):
         layout(page, t, 'fin d\'essai')
         shot(page, LOT, f'4-fin-essai-{t}')
         page.evaluate("routeTo('dashboard')")
-        page.wait_for_timeout(250)
+        settle(page)
         # 2. Ajouter une séance passée
         page.evaluate("handleAction(null, document.createElement('div'), 'go-add-session'); null")   # sans await
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'paywall', f'{t} séance passée : abonnement proposé')
         page.evaluate("routeTo('dashboard')")
-        page.wait_for_timeout(250)
+        settle(page)
         # 3. Modifier une séance de l'historique
         sid = page.evaluate('data.history[0].id')
         before = page.evaluate('data.history.length')
         page.evaluate("""id => { const el = document.createElement('div'); el.dataset.id = id;
             handleAction(null, el, 'edit-session'); }""", sid)   # l'action ne rend rien : jamais d'attente
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'paywall', f'{t} modifier : abonnement proposé')
         R.check(page.evaluate('data.history.length') == before, f'{t} rien n\'est supprimé de l\'historique')
         page.evaluate("routeTo('dashboard')")
-        page.wait_for_timeout(250)
+        settle(page)
         # 4. Enregistrer une séance en cours commencée SANS le droit d'écrire : la séance reste en cours
         page.evaluate("""() => { startSession(firstSession()); validateSet(0, 0); }""")
         R.check(page.evaluate('activeSession.writeOk') is False, f'{t} séance commencée sans droit : notée')
-        page.wait_for_timeout(300)
+        settle(page)
         done = page.evaluate('activeSession.exercises[0].sets.filter(s => s.done).length')
         # Sans await : « Terminer » ouvre une feuille, la promesse n'est tenue qu'après le choix
         page.evaluate("handleAction(null, document.createElement('div'), 'finish-session'); null")
-        page.wait_for_timeout(500)
+        settle(page)
         if page.locator('.ios-dialog').count():
             tap_dialog(page, 'Enregistrer')
-        page.wait_for_timeout(900)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'paywall', f'{t} enregistrer : abonnement proposé')
         R.check(page.evaluate('!!activeSession') and page.evaluate('activeSession.exercises[0].sets.filter(s => s.done).length') == done,
                 f'{t} enregistrer refusé : la séance en cours est intacte')
         R.check(page.evaluate('data.history.length') == before, f'{t} enregistrer refusé : rien d\'ajouté ni de perdu')
         # 5. Historique, Progrès, profil et export restent ouverts
         page.evaluate("switchTab('history')")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'history' and page.locator('[data-action="open-history"]').count() > 0,
                 f'{t} lecture seule : Historique ouvert')
         shot(page, LOT, f'5-historique-ouvert-{t}')
         page.evaluate("switchTab('progress')")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'stats', f'{t} lecture seule : Progrès ouvert')
         page.evaluate("navigate('account')")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'account', f'{t} lecture seule : profil ouvert')
         exported = page.evaluate("""async () => { const before = location.href;
             const ok = await exportData('dark'); return [ok, currentView()]; }""")
@@ -322,9 +322,9 @@ def t_achat(bench, eng, dev, theme):
         page.evaluate("__st.fail.purchase = 'cancel'")
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_selector('.pay-plan')
-        page.wait_for_timeout(300)
+        settle(page)
         page.click(f'[data-action="pay-buy"][data-id="{MONTHLY}"]')
-        page.wait_for_timeout(700)
+        settle(page)
         R.check(page.evaluate('canWrite()') is False and page.evaluate('accessStatus()') == 'none'
                 and page.evaluate("__st.ents[__sb.meId()].product_id") is None,
                 f'{t} achat annulé : aucun droit donné')
@@ -332,7 +332,7 @@ def t_achat(bench, eng, dev, theme):
         # Achat accepté : JWS vérifié par le serveur, droit écrit, transaction terminée APRÈS
         page.evaluate("__st.fail.purchase = null")
         page.click(f'[data-action="pay-buy"][data-id="{YEARLY}"]')
-        page.wait_for_timeout(1200)
+        settle(page)
         R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "verify")')) == 1, f'{t} achat : verify-purchase appelé')
         R.check(page.evaluate("__st.ents[__sb.meId()].status") == 'active'
                 and page.evaluate("__st.ents[__sb.meId()].product_id") == YEARLY, f'{t} achat : droit écrit par le serveur')
@@ -340,7 +340,7 @@ def t_achat(bench, eng, dev, theme):
         R.check(len(store_calls(page, 'finish')) == 1 and page.evaluate('__st.open.length') == 0,
                 f'{t} achat : transaction terminée chez Apple après l\'accord du serveur')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(350)
+        settle(page)
         R.check(banner(page) == '', f'{t} abonné : plus de bandeau ({banner(page)!r})')
         start_session(page)
         R.check(page.evaluate('!!activeSession'), f'{t} abonné : séance démarrée')
@@ -363,7 +363,7 @@ def t_achat(bench, eng, dev, theme):
         shot(page, LOT, f'6b-suppression-abonne-{t}')
         page.evaluate("() => { window.__opened = []; window.open = u => { window.__opened.push(u); return null; }; }")
         tap_dialog(page, 'Gérer chez Apple')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('window.__opened') == ['https://apps.apple.com/account/subscriptions'] and page.evaluate('!!account.user'),
                 f'{t} « Gérer chez Apple » : réglages d\'abonnement ouverts, compte intact')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -379,7 +379,7 @@ def t_achat(bench, eng, dev, theme):
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_selector('[data-action="pay-restore"]')
         page.click('[data-action="pay-restore"]')
-        page.wait_for_timeout(1500)
+        settle(page)
         R.check(page.evaluate('canWrite()') is True, f'{t} restauration : accès rendu')
         R.check(len(store_calls(page, 'restore')) == 1 and len(store_calls(page, 'finish')) == 1,
                 f'{t} restauration : le droit envoyé puis terminé ({store_calls(page, "finish")})')
@@ -390,14 +390,14 @@ def t_achat(bench, eng, dev, theme):
             expires_at: null, product_id: null, original_transaction_id: null, intro: false, ended: null }; }""")
         refresh_access(page)
         page.click('[data-action="pay-restore"]')
-        page.wait_for_timeout(900)
+        settle(page)
         R.check('restaurer' in toast(page).lower() or 'Aucun achat' in toast(page), f'{t} rien à restaurer : message ({toast(page)!r})')
         R.check(page.evaluate('canWrite()') is False, f'{t} rien à restaurer : aucun droit inventé')
         # Transaction déjà rattachée à un autre compte : refusée
         page.evaluate("""() => { __st.taken['apple-77'] = 'un-autre-compte';
             __st.owned = { productId: 'com.mdlf.training.pro.monthly', originalId: 'apple-77', transactionId: 'tx-77', expiresAt: Date.now() + 20 * 86400000 }; }""")
         page.click('[data-action="pay-restore"]')
-        page.wait_for_timeout(1000)
+        settle(page)
         dlg = page.inner_text('.ios-dialog') if page.locator('.ios-dialog').count() else ''
         R.check('autre compte' in dlg and 'Voir le compte' in dlg,
                 f'{t} transaction prise : refus expliqué avec une action ({dlg[:120]!r})')
@@ -407,7 +407,7 @@ def t_achat(bench, eng, dev, theme):
         # La même transaction n'est pas réenvoyée à Apple : elle reste ouverte mais le quota est épargné
         before = len(page.evaluate('__st.calls.filter(c => c[0] === "verify")'))
         page.click('[data-action="pay-restore"]')
-        page.wait_for_timeout(900)
+        settle(page)
         if page.locator('.ios-dialog').count():
             tap_dialog(page, 'Plus tard')
         R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "verify")')) == before,
@@ -438,7 +438,7 @@ def t_achat(bench, eng, dev, theme):
         shot(page, LOT, f'8-code-refuse-{t}')
         # Bon code, saisi avec des espaces et des minuscules
         code_sheet(page, 'k7m2 qx9p-r4td')
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'gift',
                 f'{t} code cadeau : jours offerts, accès rendu')
         R.check('Code accepté' in toast(page), f'{t} code cadeau : message ({toast(page)!r})')
@@ -447,11 +447,11 @@ def t_achat(bench, eng, dev, theme):
         help_ = code_sheet(page, 'K7M2QX9PR4TD', ok=False)
         R.check('déjà utilisé' in help_, f'{t} même code deux fois : refusé ({help_!r})')
         page.click('.sheet__btn--cancel')
-        page.wait_for_timeout(300)
+        settle(page)
         # Code à vie
         page.click('[data-action="pay-code"]')
         code_sheet(page, 'VTEK7M2QX9PR')
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.evaluate("__st.ents[__sb.meId()].gift") is True and page.evaluate('accessStatus()') == 'gift',
                 f'{t} code à vie : accès offert')
         R.check(page.evaluate('accessUntil()') is None, f'{t} code à vie : aucune date de fin')
@@ -470,7 +470,7 @@ def t_achat(bench, eng, dev, theme):
         foot = page.inner_text('.pay-view')
         R.check('code MDLF' not in foot and 'code d\'offre Apple' in foot, f'{t} iOS : la note ne parle que du code d\'offre Apple')
         page.evaluate("navigate('subscription')")
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('[data-action="pay-code"]').count() == 0 and page.locator('[data-action="pay-apple-code"]').count() == 1,
                 f'{t} iOS : Réglages › Abonnement sans « J\'ai un code », avec le code d\'offre Apple')
         R.check(page.evaluate("guideTopic('abonnement-gerer').steps.join(' ')").find("[J'ai un code]") < 0,
@@ -485,20 +485,20 @@ def t_achat(bench, eng, dev, theme):
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_selector('[data-action="pay-apple-code"]')
         page.click('[data-action="pay-apple-code"]')
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(len(store_calls(page, 'redeemCode')) == 1, f'{t} code Apple : feuille d\'Apple ouverte')
         R.check('Apple' in toast(page), f'{t} code Apple : message clair ({toast(page)!r})')
         # Feuille d'Apple fermée : ni succès ni erreur
         page.evaluate("document.querySelectorAll('.toast').forEach(e => e.remove()); __st.fail.redeem = 'cancel'")
         page.click('[data-action="pay-apple-code"]')
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(toast(page) == '', f'{t} feuille de codes fermée : aucun message ({toast(page)!r})')
         page.evaluate("__st.fail.redeem = null")
         # Apple annonce la transaction du code d'offre utilisé (écouteur Transaction.updates) :
         # l'abonnement est écrit par le serveur, mais l'accès à vie du code cadeau passe devant
         # (ordre des statuts : gift > active > coach_team > expired > none)
         page.evaluate("__st.emitTransaction('com.mdlf.training.pro.yearly')")
-        page.wait_for_timeout(1200)
+        settle(page)
         R.check(page.evaluate("__st.ents[__sb.meId()].status") == 'active' and page.evaluate('canWrite()') is True,
                 f'{t} code d\'offre : abonnement écrit par le serveur, accès ouvert')
         R.check(page.evaluate('accessStatus()') == 'gift', f'{t} accès à vie prioritaire sur l\'abonnement')
@@ -506,13 +506,13 @@ def t_achat(bench, eng, dev, theme):
         # L'ancien « Accès offert » d'Apple n'existe plus : refusé (produit inconnu) et terminé
         n = len(store_calls(page, 'finish'))
         page.evaluate("__st.emitTransaction('com.mdlf.training.access.gift', { expiresAt: null })")
-        page.wait_for_timeout(1000)
+        settle(page)
         R.check(len(store_calls(page, 'finish')) == n + 1 and page.evaluate("__st.ents[__sb.meId()].product_id") != 'com.mdlf.training.access.gift',
                 f'{t} ancien accès offert : refusé, transaction terminée')
         # Une transaction d'une autre app est refusée et terminée pour ne pas revenir
         n = len(store_calls(page, 'finish'))
         page.evaluate("__st.emitTransaction('com.mdlf.training.pro.monthly', { bundleId: 'com.autre.app' })")
-        page.wait_for_timeout(1000)
+        settle(page)
         R.check(len(store_calls(page, 'finish')) == n + 1 and page.evaluate('__st.open.length') == 0,
                 f'{t} autre app : transaction refusée et terminée')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -529,7 +529,7 @@ def t_achats_bloques(bench, eng, dev, theme):
         signin(page, username='max')
         refresh_access(page)
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
-        page.wait_for_timeout(800)
+        settle(page)
         txt = page.inner_text('.pay-view')
         R.check(page.locator('.pay-plan').count() == 0 and 'bloqués sur cet iPhone' in txt,
                 f'{t} achats bloqués : aucune formule, message clair ({txt[:140]!r})')
@@ -556,7 +556,7 @@ def t_rattrapage(bench, eng, dev, theme):
             transactionId: 'tx-50', expiresAt: Date.now() + 300 * 86400000 }; }""")
         before = len(store_calls(page, 'restore'))
         page.evaluate('accessBoot()')
-        page.wait_for_timeout(1500)
+        settle(page)
         R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'active',
                 f'{t} rattrapage : accès rendu au lancement')
         R.check(len(store_calls(page, 'current')) >= 1 and len(store_calls(page, 'restore')) == before,
@@ -565,7 +565,7 @@ def t_rattrapage(bench, eng, dev, theme):
         # Déjà rattrapé : on ne relit plus rien
         n = len(store_calls(page, 'current'))
         page.evaluate('accessBoot()')
-        page.wait_for_timeout(800)
+        settle(page)
         R.check(len(store_calls(page, 'current')) == n, f'{t} rien à rattraper : aucun appel de plus')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -580,7 +580,7 @@ def t_verrou_serveur(bench, eng, dev, theme):
         # D'abord abonné : tout passe, les séances arrivent sur le compte
         subscribed(page, 30)
         page.evaluate('syncNow()')
-        page.wait_for_timeout(900)
+        settle(page)
         on_server = page.evaluate('(__sb.upserted || []).length')
         R.check(on_server > 0 and page.evaluate('account.error') is None, f'{t} abonné : séances sauvegardées')
         R.check(page.evaluate('accountLockedCount()') == 0, f'{t} abonné : rien de refusé')
@@ -591,7 +591,7 @@ def t_verrou_serveur(bench, eng, dev, theme):
             date: Date.now(), duration: 3000000, notes: '', exercises: [{ name: 'Dips', sets: [{ weight: '', reps: '12' }] }] });
             data.unit = 'kg'; data.defaultRest = 95; save(); }""")
         page.evaluate('syncNow()')
-        page.wait_for_timeout(1200)
+        settle(page)
         R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "locked")')) >= 1, f'{t} verrou : le serveur a refusé la séance')
         # Rien n'est perdu, rien n'est marqué envoyé, et ce n'est PAS une erreur de synchro
         R.check(page.evaluate('data.history.length') == before + 1
@@ -608,25 +608,25 @@ def t_verrou_serveur(bench, eng, dev, theme):
         page.evaluate("data.history.find(h => h.id !== 'apres-essai').notes = 'corrigée'; save()")
         n_locked = len(page.evaluate('__st.calls.filter(c => c[0] === "locked")'))
         page.evaluate('syncNow()')
-        page.wait_for_timeout(1200)
+        settle(page)
         R.check(page.evaluate("(__sb.upserted || []).some(r => r.data && r.data.notes === 'corrigée')"),
                 f'{t} verrou : une correction d\'une séance déjà sur le compte passe')
         R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "locked")')) == n_locked,
                 f'{t} verrou : la séance refusée n\'est pas renvoyée en boucle')
         # L'accueil propose l'abonnement et dit ce qui n'est pas sauvegardé
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check('pas enregistrée' in banner(page), f'{t} verrou : l\'accueil le dit ({banner(page)!r})')
         layout(page, t, 'séance refusée par le compte')
         shot(page, LOT, f'14-verrou-serveur-{t}')
         page.click('.pay-banner')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'paywall', f'{t} verrou : le bandeau mène à l\'abonnement')
         # Accès rendu par un code cadeau (saisi hors de l'app iOS, règle 3.1.1 : même appel au serveur) :
         # la séance refusée repart toute seule
         page.evaluate("__st.addCode('K7M2QX9PR4TD', { kind: 'days', days: 30 }); null")
         R.check(page.evaluate("accessRedeemGiftCode('K7M2QX9PR4TD').then(r => r.ok)") is True, f'{t} code cadeau accepté par le serveur')
-        page.wait_for_timeout(1500)
+        settle(page)
         R.check(page.evaluate('canWrite()') is True, f'{t} code accepté : droit rendu')
         R.check(page.evaluate("(__sb.upserted || []).some(r => r.id === 'apres-essai')"),
                 f'{t} droit rendu : la séance gardée part toute seule')
@@ -639,22 +639,22 @@ def t_verrou_eteint(bench, eng, dev, theme):
     # Sans compte, verrou éteint : RIEN ne change (règle 2), la séance démarre et s'enregistre
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'paywallOn': False})
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('access.anon') is False and page.evaluate('canWrite()') is True,
                 f'{t} sans compte, verrou éteint : rien ne bloque')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         start_session(page)
         R.check(page.evaluate('!!activeSession') and page.locator('.auth').count() == 0,
                 f'{t} sans compte, verrou éteint : séance démarrée sans invitation')
         before = page.evaluate('data.history.length')
         page.evaluate('validateSet(0, 0)')
-        page.wait_for_timeout(200)
+        settle(page)
         page.evaluate("handleAction(null, document.createElement('div'), 'finish-session'); null")
-        page.wait_for_timeout(500)
+        settle(page)
         if page.locator('.ios-dialog').count():
             tap_dialog(page, 'Enregistrer')
-        page.wait_for_timeout(900)
+        settle(page)
         R.check(page.evaluate('data.history.length') == before + 1 and page.locator('.auth').count() == 0,
                 f'{t} sans compte, verrou éteint : séance enregistrée')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -666,7 +666,7 @@ def t_verrou_eteint(bench, eng, dev, theme):
         R.check(page.evaluate('canWrite()') is True and page.evaluate('paywallOn()') is False,
                 f'{t} verrou éteint : rien ne bloque')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(banner(page) == '', f'{t} verrou éteint : aucun bandeau ({banner(page)!r})')
         start_session(page)
         R.check(page.evaluate('!!activeSession') and page.evaluate("currentView()") == 'session',
@@ -674,16 +674,16 @@ def t_verrou_eteint(bench, eng, dev, theme):
         # Enregistrer la séance : elle part dans l'historique comme avant
         before = page.evaluate('data.history.length')
         page.evaluate('validateSet(0, 0)')
-        page.wait_for_timeout(200)
+        settle(page)
         page.evaluate("handleAction(null, document.createElement('div'), 'finish-session'); null")   # sans await
-        page.wait_for_timeout(500)
+        settle(page)
         if page.locator('.ios-dialog').count():
             tap_dialog(page, 'Enregistrer')
-        page.wait_for_timeout(900)
+        settle(page)
         R.check(page.evaluate('data.history.length') == before + 1, f'{t} verrou éteint : séance enregistrée')
         # Séance passée et modification : rien ne demande d'abonnement
         page.evaluate("routeTo('dashboard'); handleAction(null, document.createElement('div'), 'go-add-session'); null")
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'add-session', f'{t} verrou éteint : séance passée ouverte')
         # L'horloge de l'appareil avancée ne change rien non plus
         page.evaluate('__st.deviceShift = 400 * 86400000')
@@ -697,7 +697,7 @@ def t_verrou_eteint(bench, eng, dev, theme):
         # Sur 320 pt : le titre « Abonnement » garde sa largeur, 8 px au moins avant la valeur (panel reglages-v2)
         vp = page.viewport_size
         page.set_viewport_size({'width': 320, 'height': vp['height']})
-        page.wait_for_timeout(150)
+        settle(page)
         gap = page.evaluate("""() => { const c = document.querySelector('[data-action="access-open-settings"]');
             const t = c.querySelector('.cell__title'), v = c.querySelector('.cell__value');
             const r = document.createRange(); r.selectNodeContents(t);
@@ -720,7 +720,7 @@ def t_verrou_eteint(bench, eng, dev, theme):
         R.check(page.locator('[data-action="pay-restore"]').count() == 1 and page.locator('[data-action="pay-manage"]').count() == 1,
                 f'{t} verrou éteint : restaurer et gérer chez Apple restent')
         page.evaluate("navigate(makeRoute('paywall', 'offer'))")
-        page.wait_for_timeout(700)
+        settle(page)
         ptxt = page.inner_text('.pay-view')
         R.check(page.locator('.pay-plan').count() == 0 and 'Tout est ouvert' in ptxt and '€' not in ptxt
                 and len(store_calls(page, 'purchase')) == 0, f'{t} verrou éteint : écran d\'abonnement sans formule ni prix ({ptxt[:140]!r})')
@@ -738,7 +738,7 @@ def t_compte_obligatoire(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
-        page.wait_for_timeout(300)
+        settle(page)
         # Le verrou est lu sans compte, et rien d'autre
         R.check(len(page.evaluate("__st.calls.filter(c => c[0] === 'app_config' && c[1] === 'anon')")) >= 1,
                 f'{t} sans compte : verrou lu dans app_config')
@@ -747,7 +747,7 @@ def t_compte_obligatoire(bench, eng, dev, theme):
                 f'{t} sans compte, verrou allumé : il faut un compte')
         # Démarrer une séance : invitation à se connecter (Apple, Google, e-mail), aucune séance démarrée
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         start_session(page)
         page.wait_for_selector('.auth')
         txt = page.inner_text('.auth')
@@ -760,7 +760,7 @@ def t_compte_obligatoire(bench, eng, dev, theme):
         R.check(page.evaluate('!activeSession'), f'{t} démarrer sans compte : aucune séance démarrée')
         shot(page, LOT, f'18-compte-obligatoire-{t}')
         page.click('.auth [data-action="auth-close"]')
-        page.wait_for_timeout(400)
+        settle(page)
         # Verrou jamais lu (serveur injoignable) depuis plus de 7 jours, mais pas encore mis en service
         # (PAYWALL_LAUNCHED faux, livré ainsi) : rien ne bloque
         page.evaluate("__st.fail.config = 'offline'; access.anon = null; access.firstSeen = Date.now() - 8 * 86400000")
@@ -769,7 +769,7 @@ def t_compte_obligatoire(bench, eng, dev, theme):
         # Mis en service (mise à jour à chaud de l'allumage) : une lecture est demandée, pas un compte
         page.evaluate("accessLaunch.on = true")
         start_session(page)
-        page.wait_for_timeout(300)
+        settle(page)
         dlg = page.inner_text('.ios-dialog') if page.locator('.ios-dialog').count() else ''
         R.check('Internet' in dlg and page.locator('.auth').count() == 0 and page.evaluate('!activeSession'),
                 f'{t} verrou jamais lu depuis 8 jours : lecture demandée ({dlg[:80]!r})')
@@ -781,42 +781,42 @@ def t_compte_obligatoire(bench, eng, dev, theme):
         # Séance passée : même invitation, rien n'est enregistré
         before = page.evaluate('data.history.length')
         page.evaluate("handleAction(null, document.createElement('div'), 'go-add-session'); null")
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.locator('.auth').count() == 1 and page.evaluate("currentView()") != 'add-session',
                 f'{t} séance passée sans compte : invitation à se connecter')
         page.click('.auth [data-action="auth-close"]')
-        page.wait_for_timeout(400)
+        settle(page)
         # Une séance commencée SANS le droit d'écrire (verrou allumé, sans compte) : la terminer garde la
         # séance en cours et invite à se connecter
         page.evaluate("""() => { startSession(firstSession()); validateSet(0, 0); }""")
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("handleAction(null, document.createElement('div'), 'finish-session'); null")
-        page.wait_for_timeout(500)
+        settle(page)
         if page.locator('.ios-dialog').count():
             tap_dialog(page, 'Enregistrer')
-        page.wait_for_timeout(700)
+        settle(page)
         R.check(page.locator('.auth').count() == 1 and page.evaluate('!!activeSession') and page.evaluate('data.history.length') == before,
                 f'{t} enregistrer sans compte : invitation, séance en cours intacte, rien de perdu')
         page.click('.auth [data-action="auth-close"]')
-        page.wait_for_timeout(400)
+        settle(page)
         page.evaluate('endSession()')
         # Historique, Progrès et export restent ouverts sans compte
         page.evaluate("switchTab('history')")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'history' and page.locator('.auth').count() == 0, f'{t} sans compte : Historique ouvert')
         page.evaluate("switchTab('progress')")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("currentView()") == 'stats', f'{t} sans compte : Progrès ouvert')
         exported = page.evaluate("async () => { const ok = await exportData('dark'); return [ok, currentView(), !!document.querySelector('.auth')]; }")
         R.check(exported[0] is not False and exported[2] is False, f'{t} sans compte : export possible {exported}')
         # Connexion : pas d'essai maison ; avec l'essai d'Apple pris, la séance peut être démarrée
         signin(page, username='max')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate('accessStatus()') == 'none' and page.evaluate('canWrite()') is False, f'{t} connecté : pas d\'essai maison')
         subscribed(page, 90, intro=True)
         R.check(page.evaluate('canWrite()') is True, f'{t} essai d\'Apple pris : droit d\'écrire')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         start_session(page)
         R.check(page.evaluate('!!activeSession') and page.locator('.auth').count() == 0, f'{t} connecté : séance démarrée')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -837,7 +837,7 @@ def t_horloge(bench, eng, dev, theme):
         R.check(page.evaluate('accessIntroUntil()') == until and page.evaluate('canWrite()') is True,
                 f'{t} horloge avancée de 400 jours : rien ne change')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         start_session(page)
         R.check(page.evaluate('!!activeSession'), f'{t} horloge avancée : séance démarrée quand même')
         page.evaluate('endSession()')
@@ -856,7 +856,7 @@ def t_horloge(bench, eng, dev, theme):
         # 4. Hors ligne, horloge avancée : le dernier état connu ne donne jamais de droit en plus
         page.evaluate("__st.deviceShift = 0; __st.fail.access = 'offline'")
         page.evaluate('accessReset(account.user.id)')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.evaluate('canWrite()') is False, f'{t} hors ligne : refus gardé')
         page.evaluate('__st.deviceShift = 30 * 86400000')
         R.check(page.evaluate('canWrite()') is False, f'{t} hors ligne et horloge avancée : toujours refusé')
@@ -875,32 +875,32 @@ def t_grace(bench, eng, dev, theme):
         # soient sur le compte, sinon elles seraient refusées à nouveau à la fin de l'accès
         page.evaluate('syncNow()')
         page.wait_for_function('accountLockedCount() === 0', timeout=10000)
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         start_session(page)
         R.check(page.evaluate('!!activeSession && activeSession.writeOk') is True, f'{t} séance commencée avec le droit')
         page.evaluate('validateSet(0, 0)')
         # L'abonnement prend fin pendant la séance (maintenant, après son début)
-        page.wait_for_timeout(300)
+        settle(page)
         ended(page, 0)
         R.check(page.evaluate('canWrite()') is False, f'{t} accès fini pendant la séance')
         before = page.evaluate('data.history.length')
         page.evaluate("handleAction(null, document.createElement('div'), 'finish-session'); null")
-        page.wait_for_timeout(500)
+        settle(page)
         if page.locator('.ios-dialog').count():
             tap_dialog(page, 'Enregistrer')
-        page.wait_for_timeout(900)
+        settle(page)
         R.check(page.evaluate('data.history.length') == before + 1 and page.evaluate("currentView()") != 'paywall',
                 f'{t} « Terminer » : séance enregistrée, pas d\'écran d\'abonnement')
         page.evaluate('syncNow()')
-        page.wait_for_timeout(1200)
+        settle(page)
         sid = page.evaluate('data.history[0].id')
         R.check(page.evaluate('id => (__sb.upserted || []).some(r => r.id === id)', sid) and page.evaluate('accountLockedCount()') == 0,
                 f'{t} le serveur l\'accepte dans sa grâce')
         # La séance suivante, commencée après la fin : porte fermée
         page.evaluate("routeTo('dashboard')")
-        page.wait_for_timeout(300)
+        settle(page)
         start_session(page)
         R.check(page.evaluate('!activeSession') and page.evaluate("currentView()") == 'paywall', f'{t} séance suivante : abonnement proposé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -915,21 +915,21 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(page.evaluate('accessStatus()') == 'gift', f'{t} accès à vie (code maison) lu')
         # Relance hors ligne : le dernier état connu suffit, la salle sans réseau ne bloque personne
         page.evaluate("__st.fail.access = 'offline'; accessReset(account.user.id)")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('access.state') is None and page.evaluate('accessStatus()') == 'gift'
                 and page.evaluate('canWrite()') is True, f'{t} hors ligne : état gardé sur l\'appareil')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         start_session(page)
         R.check(page.evaluate('!!activeSession'), f'{t} hors ligne : séance démarrée')
         page.evaluate('endSession()')
         # Plus de 7 jours sans réseau : l'app ne se prolonge pas elle-même, l'état est redemandé
         page.evaluate('__st.deviceShift = 8 * 86400000; accessReset(account.user.id)')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('accessStale()') is True and page.evaluate('canWrite()') is False,
                 f'{t} 8 jours hors ligne : droit périmé, état à redemander')
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
-        page.wait_for_timeout(600)
+        settle(page)
         txt = page.inner_text('.pay-view')
         R.check('Pas d\'Internet' in txt, f'{t} hors ligne : écran d\'abonnement le dit ({txt[:120]!r})')
         R.check('n\'ont pas pu' in txt or 'pas encore proposées' in txt or 'Chargement' in txt or '7,77' in txt,
@@ -939,7 +939,7 @@ def t_hors_ligne(bench, eng, dev, theme):
         # Réseau revenu : le serveur fait foi et l'essai reprend
         page.evaluate("__st.fail.access = null; __st.deviceShift = 0")
         page.evaluate('accessRefresh()')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'gift',
                 f'{t} réseau revenu : accès retrouvé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -950,7 +950,7 @@ def t_hors_ligne(bench, eng, dev, theme):
         signin(page, username='max')
         refresh_access(page)
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
-        page.wait_for_timeout(600)
+        settle(page)
         txt = page.inner_text('.pay-view')
         R.check(page.locator('.pay-plan').count() == 0 and 'sur iPhone' in txt,
                 f'{t} navigateur : aucune formule, message clair ({txt[:140]!r})')
@@ -965,7 +965,7 @@ def t_hors_ligne(bench, eng, dev, theme):
         signin(page, username='max')
         refresh_access(page)
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
-        page.wait_for_timeout(700)
+        settle(page)
         txt = page.inner_text('.pay-view')
         R.check(page.locator('.pay-plan').count() == 0 and 'pas encore proposées' in txt,
                 f'{t} formules absentes chez Apple : message clair ({txt[:140]!r})')
@@ -987,13 +987,13 @@ def paywall(page, tab=None, pre=None):
     route = "makeRoute('paywall', 'offer'%s)" % (f", 'coach'{', ' + json.dumps(pre) if pre else ''}" if tab == 'coach' else '')
     page.evaluate(f"navigate({route})")
     page.wait_for_selector('.pay-view')
-    page.wait_for_timeout(600)
+    settle(page)
     return page.inner_text('.pay-view')
 
 
 def make_me_coach(page):
     page.evaluate("async () => { __sb.makeCoach(__sb.meId()); await coachRefresh(); await coachProRefresh(); }")
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def plans_text(page):
@@ -1021,7 +1021,7 @@ def t_tarifs(bench, eng, dev, theme):
         shot(page, LOT, f'20-tarifs-particulier-{t}')
         # Le lien mène à la demande, pas à un achat
         page.click('[data-action="coach-request-open"]')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate('currentView()') == 'coach-request', f'{t} « Tu es coach ? » : écran de demande')
         # 2. Coach validé : onglet Coach, 4 paliers, mensuel puis annuel
         make_me_coach(page)
@@ -1036,33 +1036,33 @@ def t_tarifs(bench, eng, dev, theme):
         layout(page, t, 'abonnement coach')
         shot(page, LOT, f'21-tarifs-coach-{t}')
         page.click('[data-action="pay-period"][data-period="year"]')
-        page.wait_for_timeout(300)
+        settle(page)
         pl = plans_text(page)
         R.check(len(pl) == 4 and '94,40 € par an' in pl[0] and all('soit 8,5 mois' in x for x in pl), f'{t} coach annuel : « soit 8,5 mois » {pl}')
         page.click('[data-action="pay-period"][data-period="month"]')
-        page.wait_for_timeout(200)
+        settle(page)
         # Onglet Particulier toujours là pour un coach
         page.click('[data-action="pay-tab"][data-tab="pro"]')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(len(plans_text(page)) == 2 and 'Tu es coach' not in page.inner_text('.pay-view'), f'{t} coach : onglet Particulier')
         # 3. Palier plein : 10 élèves sur 10 → bandeau, palier suivant mis en avant, formule en cours marquée
         page.evaluate("""async (p) => { const me = __sb.meId(); __sb.setTier(me, p);
             for (let i = 0; i < 10; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
             await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }""", C10)
         page.evaluate("navigate('coach-students')")
-        page.wait_for_timeout(700)
+        settle(page)
         b = page.locator('.coach-tier-banner')
         R.check(b.count() == 1 and '10 élèves sur 10 : passe au palier supérieur' in b.inner_text(), f'{t} palier plein : bandeau ({b.count()})')
         shot(page, LOT, f'22-palier-plein-{t}')
         b.click()
-        page.wait_for_timeout(700)
+        settle(page)
         pl = plans_text(page)
         R.check(page.evaluate('currentView()') == 'paywall' and 'Ta formule' in pl[0] and 'Conseillé' in pl[1] and '25 élèves' in pl[1],
                 f'{t} montée de palier : 25 élèves conseillé, 10 élèves « Ta formule » {pl}')
         R.check(page.locator(f'[data-action="pay-buy"][data-id="{C10}"]').is_disabled(), f'{t} formule en cours : pas rachetable')
         # Achat du palier suivant : même groupe Apple, accès complet
         page.click('[data-action="pay-buy"][data-id="com.mdlf.training.coach20.monthly"]')
-        page.wait_for_timeout(1200)
+        settle(page)
         R.check(page.evaluate('accessStatus()') == 'active' and page.evaluate('canWrite()') is True, f'{t} palier coach acheté : accès complet')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -1092,7 +1092,7 @@ def t_tarifs(bench, eng, dev, theme):
         R.check(page.evaluate('canWrite()') is True and 'Offert jusqu\'au' in txt and 'reste offert jusqu\'au' in txt,
                 f'{t} élève en grâce : date de fin dite ({txt[:200]!r})')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(600)
+        settle(page)
         R.check('Offert par ton coach jusqu\'au' in banner(page), f'{t} élève en grâce : bandeau de l\'accueil ({banner(page)!r})')
         # 3. Coach au-delà de sa limite : message clair, formules habituelles (jamais d'achat silencieux)
         page.evaluate("__st.setCover('over_limit')")
@@ -1103,7 +1103,7 @@ def t_tarifs(bench, eng, dev, theme):
         R.check(not acalls(page, 'student_offer_code') and not store_calls(page, 'purchase'), f'{t} élève au-delà du palier : rien acheté')
         shot(page, LOT, f'25-eleve-hors-palier-{t}')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(600)
+        settle(page)
         R.check('n\'offre plus l\'accès' in banner(page), f'{t} élève au-delà du palier : bandeau ({banner(page)!r})')
         # 4. Coach sans abonnement coach (grâce passée) : message, règle normale
         page.evaluate("__st.setCover('ended')")
@@ -1138,7 +1138,7 @@ def t_tarifs(bench, eng, dev, theme):
         dlg = page.inner_text('.ios-dialog')
         R.check('Ton coach t\'offre l\'accès' in dlg and 'Gérer mon abonnement' in dlg and 'Plus tard' in dlg, f'{t} après le lien : dialogue ({dlg[:160]!r})')
         page.locator('.ios-dialog__btn', has_text='Plus tard').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # 4 bis. Coach : « Tes élèves n'ont rien à payer », élèves au-delà de sa formule signalés
@@ -1152,11 +1152,11 @@ def t_tarifs(bench, eng, dev, theme):
             for (let i = 0; i < 12; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
             await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }""", C10)
         page.evaluate("navigate('coach-students')")
-        page.wait_for_timeout(700)
+        settle(page)
         b = page.locator('.coach-tier-banner')
         R.check(b.count() == 1 and '2 élèves au-delà de ton palier' in b.inner_text(), f'{t} coach au-delà du palier : bandeau')
         b.click()
-        page.wait_for_timeout(700)
+        settle(page)
         pl = plans_text(page)
         R.check(any('Conseillé' in x and '25 élèves' in x for x in pl), f'{t} coach au-delà du palier : 25 élèves conseillé {pl}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -1165,7 +1165,7 @@ def t_tarifs(bench, eng, dev, theme):
             for (let i = 12; i < 100; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
             await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }""", 'com.mdlf.training.coachmax.yearly')
         page.evaluate("navigate('coach-students')")
-        page.wait_for_timeout(700)
+        settle(page)
         b = page.locator('.coach-tier-banner')
         R.check(b.count() == 1 and 'Plus de 100 élèves : écris-nous à contact@mdlf.app' in b.inner_text()
                 and (b.get_attribute('href') or '').startswith('mailto:contact@mdlf.app'), f'{t} 100 élèves : écrire, pas d\'achat')
@@ -1196,7 +1196,7 @@ def t_tarifs(bench, eng, dev, theme):
 def sub_text(page):
     page.evaluate("navigate('subscription')")
     page.wait_for_selector('.pay-settings-view')
-    page.wait_for_timeout(500)
+    settle(page)
     return page.inner_text('.pay-settings-view')
 
 
@@ -1235,7 +1235,7 @@ def t_vie(bench, eng, dev, theme):
         refresh_access(page)
         paywall(page)
         page.click(f'[data-action="pay-buy"][data-id="{MONTHLY}"]')
-        page.wait_for_timeout(1200)
+        settle(page)
         page.evaluate('__st.giveGift()')
         refresh_access(page)
         txt = sub_text(page)
@@ -1251,7 +1251,7 @@ def t_vie(bench, eng, dev, theme):
         make_me_coach(page)
         paywall(page, 'coach')
         page.click(f'[data-action="pay-buy"][data-id="{C10}"]')
-        page.wait_for_timeout(1200)
+        settle(page)
         page.evaluate('__st.giveGift()')
         refresh_access(page)
         txt = sub_text(page)

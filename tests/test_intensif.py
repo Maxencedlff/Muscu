@@ -17,7 +17,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def start(page, cat):
     page.evaluate(f"startSession('{cat}')")
     page.wait_for_selector('.view.session')
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def skip_rest(page):
@@ -25,7 +25,7 @@ def skip_rest(page):
         if page.locator(sel).count():
             page.locator(sel).first.click()
             break
-    page.wait_for_timeout(120)
+    settle(page)
 
 
 def small_targets(page, sel, mini=44):
@@ -44,7 +44,7 @@ def no_hscroll(page):
 
 def center(page, sel):
     page.evaluate("s => document.querySelector(s)?.scrollIntoView({ block: 'center' })", sel)
-    page.wait_for_timeout(150)
+    settle(page)
 
 
 def t_seance(bench, eng, dev, theme):
@@ -54,13 +54,13 @@ def t_seance(bench, eng, dev, theme):
         start(page, 'legs')   # Squat barre : 4 séries à 70 kg la dernière fois
 
         # ── Menu ⋯ : une seule entrée pour les techniques (panel du 06/11 : « Dernière série en drop set » faisait doublon)
-        page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); page.wait_for_timeout(300)
-        tap_dialog(page, "Plus d'options"); page.wait_for_timeout(300)
+        page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); settle(page)
+        tap_dialog(page, "Plus d'options"); settle(page)
         labels = page.locator('.ios-dialog__btn').all_inner_texts()
         R.check('Dernière série en drop set' not in labels and labels.count('Technique d\'intensification…') == 1, f'{t} menu ⋯ : une seule entrée technique ({labels})')
-        tap_dialog(page, 'Annuler'); page.wait_for_timeout(300)
+        tap_dialog(page, 'Annuler'); settle(page)
         # ── Numéro de la série 4 › Drop set : 2 touchers, sous-ligne à 80 % arrondie aux disques
-        page.click('[data-action="tech-set"][data-ei="0"][data-si="3"]'); page.wait_for_timeout(300)
+        page.click('[data-action="tech-set"][data-ei="0"][data-si="3"]'); settle(page)
         tap_dialog(page, 'Drop set')
         s3 = page.evaluate("activeSession.exercises[0].sets[3]")
         R.check(s3.get('tech') == 'drop' and len(s3.get('sub', [])) == 1 and s3['sub'][0].get('auto') is True, f'{t} drop set posé sur la série 4 {s3.get("tech")}')
@@ -75,13 +75,13 @@ def t_seance(bench, eng, dev, theme):
 
         # Sous-série avant la série : refusée avec un message
         # ✓ grisé (aria-disabled, comme une série plus bas) : touché quand même, il explique
-        page.click('[data-action="sub-validate"][data-ei="0"][data-si="3"][data-k="0"]', force=True); page.wait_for_timeout(250)
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="3"][data-k="0"]', force=True); settle(page)
         R.check('Valide d\'abord la série 4' in sess_undo_text(page), f'{t} sous-série après sa série seulement (en ligne, pas de toast)')
 
         # ── Séries 1 à 4 ; après la 4 : pas de repos, le drop suit
         for si in range(3):
-            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(150); skip_rest(page)
-        page.click('[data-action="validate-set"][data-ei="0"][data-si="3"]'); page.wait_for_timeout(300)
+            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); settle(page); skip_rest(page)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="3"]'); settle(page)
         # Panel du 07/11 : le toast dit d'abord ce que son bouton annule (la série), puis la technique qui suit
         R.check('Série 4 validée · puis drop set' in sess_undo_text(page) and page.locator('.toast').count() == 0,
                 f'{t} « Annuler » en ligne : « Série 4 validée · puis drop set » ({sess_undo_text(page)!r})')
@@ -89,13 +89,13 @@ def t_seance(bench, eng, dev, theme):
         R.check(page.locator('.session-set--subcur').count() == 1, f'{t} sous-ligne en cours mise en avant')
         # Reps du drop tapées, puis ✓ : charge proposée figée (plus « auto »)
         page.fill('[data-action="sub-reps"][data-ei="0"][data-si="3"][data-k="0"]', '6')
-        page.click('[data-action="sub-validate"][data-ei="0"][data-si="3"][data-k="0"]'); page.wait_for_timeout(300)
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="3"][data-k="0"]'); settle(page)
         x = page.evaluate("activeSession.exercises[0].sets[3].sub[0]")
         R.check(x.get('done') is True and x['reps'] == '6' and x['weight'] == '55' and 'auto' not in x, f'{t} drop validé : 55 × 6 {x}')
         R.check(page.evaluate("restActive") is True, f'{t} dernier drop : repos habituel lancé')
         R.check('Drop 1 validé' in sess_undo_text(page), f'{t} « Drop 1 validé · Annuler » en ligne')
         # Panel vague 3 : « Annuler » dans la colonne Avant de la sous-série, à l'écran (la bande au-dessus de la carte en sortait)
-        page.wait_for_timeout(500)   # défilement doux terminé
+        settle(page)   # défilement doux terminé
         pos = page.evaluate("""(() => { const b = document.querySelector('[data-action="sess-undo"]'); if (!b) return null;
             const r = b.getBoundingClientRect(), bar = document.querySelector('#app .navbar').getBoundingClientRect().bottom;
             return { place: b.closest('.session-set--sub[data-k="0"]') ? 'ligne' : b.closest('.ex-undo')?.nextElementSibling?.matches('.ex-card--collapsed[data-ei="0"]') ? 'carte repliée' : '?',
@@ -108,15 +108,15 @@ def t_seance(bench, eng, dev, theme):
         R.check(abs(vol - base - 330) < 0.01, f'{t} volume avec le drop ({vol} = {base} + 330)')
         # Exercice fini (drop compris) : la carte se replie ; rouverte, « + drop » ajoute une sous-ligne
         R.check(page.locator('.ex-card--collapsed[data-ei="0"]').count() == 1, f'{t} exercice fini : carte repliée')
-        page.click('.ex-card[data-ei="0"] [data-action="toggle-ex"]'); page.wait_for_timeout(200)
+        page.click('.ex-card[data-ei="0"] [data-action="toggle-ex"]'); settle(page)
         # + drop : une deuxième sous-ligne, 80 % de 55 → 45 (arrondi barre de 20 + paires de 2,5)
-        page.click('[data-action="tech-add-sub"][data-ei="0"][data-si="3"]'); page.wait_for_timeout(200)
+        page.click('[data-action="tech-add-sub"][data-ei="0"][data-si="3"]'); settle(page)
         R.check(page.locator('[data-action="sub-weight"][data-ei="0"][data-si="3"][data-k="1"]').input_value() == '45', f'{t} 2e drop : 45 kg proposés')
         center(page, '.ex-card[data-ei="0"] .tech')
         shot(page, LOT, f'{t}-02-drop-valide')
 
         # ── Numéro d'une série à faire : 2e toucher = rest-pause sur la Presse (même charge)
-        page.click('[data-action="tech-set"][data-ei="1"][data-si="1"]'); page.wait_for_timeout(300)
+        page.click('[data-action="tech-set"][data-ei="1"][data-si="1"]'); settle(page)
         R.check(page.locator('.ios-dialog__btn').all_inner_texts()[:5] == ['Drop set', 'Rest-pause', 'Cluster', 'Top set', 'Back-off'], f'{t} feuille : 5 techniques et Annuler')
         # Panel du 06/11 : « Top set et back-off la marquent » ne disait rien ; chaque technique expliquée en clair
         msg = page.inner_text('.ios-dialog__msg')
@@ -125,7 +125,7 @@ def t_seance(bench, eng, dev, theme):
         w = page.evaluate("activeSession.exercises[1].sets[1].weight")
         R.check(page.locator('[data-action="sub-weight"][data-ei="1"][data-si="1"][data-k="0"]').input_value() == page.evaluate(f"fmtW('{w}', {{ plain: true }})"), f'{t} rest-pause : même charge que la série')
         # Top set sur la 1re série de la presse : étiquette sans sous-ligne
-        page.click('[data-action="tech-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(300)
+        page.click('[data-action="tech-set"][data-ei="1"][data-si="0"]'); settle(page)
         tap_dialog(page, 'Top set')
         # Panel du 16/11 : top set en pastille dans la ligne de sa série (plus de ligne à part avec un ×)
         R.check(page.locator('.ex-card[data-ei="1"] .tech').count() == 1 and page.locator('.ex-card[data-ei="1"] .session-set[data-si="0"] .tech-pill').count() == 1
@@ -133,28 +133,28 @@ def t_seance(bench, eng, dev, theme):
         center(page, '.ex-card[data-ei="1"] .tech')
         shot(page, LOT, f'{t}-03-rest-pause-top-set')
         # Mollets debout (poids du corps) : technique possible ; Annuler ne pose rien
-        page.click('[data-action="tech-set"][data-ei="1"][data-si="2"]'); page.wait_for_timeout(300)
+        page.click('[data-action="tech-set"][data-ei="1"][data-si="2"]'); settle(page)
         tap_dialog(page, 'Annuler')
         R.check(page.evaluate("activeSession.exercises[1].sets[2].tech") is None, f'{t} Annuler : rien posé')
 
         # ── Séance fermée puis rouverte : techniques et sous-séries restaurées
-        page.reload(); page.wait_for_selector('#app > *'); page.wait_for_timeout(300)
-        page.evaluate("navigate('session')"); page.wait_for_selector('.view.session'); page.wait_for_timeout(300)
+        page.reload(); page.wait_for_selector('#app > *'); settle(page)
+        page.evaluate("navigate('session')"); page.wait_for_selector('.view.session'); settle(page)
         R.check(page.locator('.ex-card[data-ei="0"] .session-set--sub').count() == 2 and page.locator('.ex-card[data-ei="1"] .tech').count() == 1 and page.locator('.ex-card[data-ei="1"] .tech-pill').count() == 1, f'{t} reprise : sous-lignes restaurées')
 
         # ── Enregistrement : drop validé gardé, drop non fait écarté ; rest-pause sans sous-série validée : retiré
         page.evaluate("activeSession.exercises.slice(1).forEach(ex => ex.sets.forEach(s => { s.done = true; s.reps = s.reps || '10'; }))")
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
-        page.wait_for_selector('.view.summary'); page.wait_for_timeout(300)
+        page.wait_for_selector('.view.summary'); settle(page)
         h = page.evaluate("data.history[0].exercises.slice(0, 2).map(e => e.sets.map(s => [s.tech ?? null, s.sub ?? null]))")
         R.check(h[0][3] == ['drop', [{'weight': '55', 'reps': '6'}]] and h[0][0] == [None, None], f'{t} historique : drop set 55 × 6 {h[0]}')
         R.check(h[1][0] == ['top', None] and h[1][1] == [None, None], f'{t} historique : top set gardé, rest-pause vide retiré {h[1][:2]}')
         recs = page.evaluate("data.history[0].records.map(r => [r.ex, r.kind, r.after])")
         R.check(not any(r[0] == 'Squat barre' and r[2] in (55, 45) for r in recs), f'{t} un drop ne bat aucun record {recs}')
-        page.click('[data-action="summary-done"]'); page.wait_for_timeout(300)
-        page.click('[data-action="go-history"]'); page.wait_for_timeout(300)
-        page.locator('.hcell').first.click(); page.wait_for_selector('.view.history-detail'); page.wait_for_timeout(300)
+        page.click('[data-action="summary-done"]'); settle(page)
+        page.click('[data-action="go-history"]'); settle(page)
+        page.locator('.hcell').first.click(); page.wait_for_selector('.view.history-detail'); settle(page)
         notes = page.locator('.hex__sets--note').all_inner_texts()
         R.check('Drop set S4 : 55 kg × 6' in notes and any(n.startswith('Top set S1') for n in notes), f'{t} détail : lignes Drop set et Top set {notes}')
         page.locator('.hex__sets--note', has_text='Drop set').scroll_into_view_if_needed()
@@ -174,16 +174,16 @@ def t_programme(bench, eng, dev, theme):
         last = next(h for h in d['history'] if h['category'] == 'push')
         last['exercises'][0]['sets'][-1].update(tech='drop', sub=[{'weight': '20', 'reps': '7'}])
         seed(page, theme, json.dumps(d, ensure_ascii=False))
-        page.evaluate("navigate(makeRoute('editor', 'push'))"); page.wait_for_selector('.view.editor'); page.wait_for_timeout(300)
-        page.locator('.ed-row').first.click(); page.wait_for_selector('.view.ex-edit'); page.wait_for_timeout(300)
+        page.evaluate("navigate(makeRoute('editor', 'push'))"); page.wait_for_selector('.view.editor'); settle(page)
+        page.locator('.ed-row').first.click(); page.wait_for_selector('.view.ex-edit'); settle(page)
         cell = page.locator('[data-action="ex-intens"]')
         R.check(cell.count() == 1 and 'Aucune' in cell.inner_text(), f'{t} fiche : technique « Aucune »')
-        cell.click(); page.wait_for_timeout(300)
+        cell.click(); settle(page)
         tap_dialog(page, 'Dernière série en drop set')
         R.check('Dernière série en drop set' in cell.inner_text(), f'{t} fiche : choix affiché')
         cell.scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-05-fiche-programme')
-        page.click('[data-action="save-ex"]'); page.wait_for_selector('.view.editor'); page.wait_for_timeout(300)
+        page.click('[data-action="save-ex"]'); page.wait_for_selector('.view.editor'); settle(page)
         R.check(page.evaluate("data.programmes.ppl.exercises.push[0].intens") == 'drop-last', f'{t} programme : intens enregistré')
         R.check('dernière en drop set' in page.locator('.ed-row').first.inner_text(), f'{t} liste : « dernière en drop set »')
         # Envoyé par un coach : le champ passe le nettoyage et l'import
@@ -212,21 +212,21 @@ def t_saute(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
         start(page, 'legs')
-        page.evaluate("setTechOn(0, 0, 'drop')"); page.wait_for_timeout(150)
-        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
+        page.evaluate("setTechOn(0, 0, 'drop')"); settle(page)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
         R.check(page.locator('.session-set--subcur').count() == 1, f'{t} drop en cours juste après sa série')
         for si in (1, 2, 3):   # le drop est sauté : on enchaîne les séries
-            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(700)
+            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); settle(page)
             R.check(page.locator('.session-set--subcur').count() == 0 and in_view(page, '.session-set--current'),
                     f'{t} après la série {si + 1} : plus de drop mis en avant, série en cours visible')
             skip_rest(page)
         R.check(page.locator('.ex-card--collapsed[data-ei="0"]').count() == 1, f'{t} fin de l\'exercice : carte repliée malgré le drop sauté')
         # Rattrapage pendant le repos de la presse
-        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(300)
+        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); settle(page)
         end0 = page.evaluate('restActive && restEndTime')
-        page.click('.ex-card[data-ei="0"] [data-action="toggle-ex"]'); page.wait_for_timeout(200)
+        page.click('.ex-card[data-ei="0"] [data-action="toggle-ex"]'); settle(page)
         page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '6')
-        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(300)
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); settle(page)
         R.check(bool(end0) and page.evaluate('restActive && restEndTime') == end0, f'{t} rattrapage : repos en cours intact')
         R.check(page.evaluate('activeSession.exercises[0].sets[0].sub[0].done') is True, f'{t} rattrapage : drop noté')
         sess_undo(page)
@@ -242,18 +242,18 @@ def t_superset(bench, eng, dev, theme):
         seed(page, theme, ppl_v2_today_json())
         start(page, 'push')
         page.evaluate("activeSession.exercises[0].ss = 'a1'; activeSession.exercises[1].ss = 'a1'; ssNormalize(activeSession.exercises); persistSession(); render()")
-        page.evaluate("setTechOn(0, 0, 'drop')"); page.wait_for_timeout(200)
-        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
+        page.evaluate("setTechOn(0, 0, 'drop')"); settle(page)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
         R.check('puis drop set' in sess_undo_text(page) and page.evaluate('restActive') is False, f'{t} A1 : le drop suit, sans repos')
         R.check(page.locator('.ss-card .session-set--subcur').count() == 1, f'{t} drop mis en avant dans le tour')
         page.evaluate("document.querySelector('.ss-card .tech').scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'{t}-11-superset-drop')
         page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '6')
-        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(300)
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); settle(page)
         name1 = page.evaluate('activeSession.exercises[1].name')
         R.check(f'Drop 1 validé · enchaîne {name1}' in sess_undo_text(page)
                 and page.evaluate('restActive') is False, f'{t} après le drop : « Drop 1 validé · enchaîne {name1} », pas de repos')
-        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(300)
+        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); settle(page)
         R.check(page.evaluate('restActive') is True, f'{t} fin du tour : repos')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -291,13 +291,13 @@ def t_ami_coach(bench, eng, dev, theme):
         page.add_init_script(FAKE_ACCOUNT)
         page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
         seed(page, theme, ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("""async () => {
             await accountSignInWith('apple', async () => 'add');
             await accountSaveProfile({ username: 'max' });
             await socialEnable(true);
         }""")
-        page.wait_for_timeout(200)
+        settle(page)
         now = int(time.time() * 1000)
         sess = lambda sid: {'id': sid, 'date': now - 86400_000, 'duration': 3000_000, 'programme': 'ppl', 'category': 'pull', 'label': 'Pull',
                             'exercises': [{'name': 'Tirage vertical', 'grip': {'hand': 'neutre', 'width': 'geante', 'handle': 'fuite'},
@@ -313,9 +313,9 @@ def t_ami_coach(bench, eng, dev, theme):
             __sb.link(me, tom, Date.now() - 5 * 86400000);
         }""", [sess('f1'), sess('c1')])
         page.evaluate('Promise.all([socialRefresh(), coachRefresh()])')
-        page.wait_for_timeout(400)
+        settle(page)
         # Ami : détail de la séance
-        page.click('.tabbar [data-tab="friends"]'); page.wait_for_timeout(500)
+        page.click('.tabbar [data-tab="friends"]'); settle(page)
         page.click('.social-seg [data-seg="friends"]')   # compte coach : l'onglet Coach s'ouvre sur ses élèves
         page.wait_for_selector('.feed-card[data-id="f1"]')
         page.locator('.feed-card[data-id="f1"] .feed-card__main').click()
@@ -329,7 +329,7 @@ def t_ami_coach(bench, eng, dev, theme):
         page.locator('.social-session-view .hex__sets--note', has_text='Drop set').scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-09-seance-ami')
         # Coach : séance de l'élève
-        page.click('[data-action="back"]'); page.wait_for_timeout(400)
+        page.click('[data-action="back"]'); settle(page)
         page.click('.social-seg [data-seg="students"]'); page.wait_for_selector('.coach-team .coach-student-row')
         page.locator('.coach-student-row', has_text='tom').click(); page.wait_for_selector('.coach-sess')
         page.click('.coach-sess[data-id="c1"]'); page.wait_for_selector('.coach-session-view')
@@ -365,10 +365,10 @@ def t_pause_annonce(bench, eng, dev, theme):
         seed(page, theme, ppl_v2_today_json())
         start(page, 'legs')
         page.evaluate("setTechOn(0, 0, 'rp'); setTechOn(1, 0, 'cluster')")
-        page.wait_for_timeout(200)
+        settle(page)
         name0, name1 = page.evaluate("activeSession.exercises.slice(0, 2).map(e => e.name)")
         kg0 = page.evaluate("fmtW(subWeightKg(activeSession.exercises[0].sets[0], 0), { plain: true })")
-        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(400)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
         R.check(page.evaluate("restActive && restTotal === 15"), f'{t} rest-pause : pause de 15 s')
         # VoiceOver : le bouton de la barre dit le temps restant (avant : « Repos en cours » seul)
         lbl = page.get_attribute('.rest-mini__main', 'aria-label')
@@ -407,12 +407,12 @@ def t_pause_annonce(bench, eng, dev, theme):
                 f'{t} rest-pause : Live Activity {nat.get("next")}')
         # Reprise validée (aucune autre à faire) : retour au repos habituel, la série 2 est annoncée
         page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '4')
-        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(400)
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); settle(page)
         R.check('Série 2' in page.locator('.rest-mini__next').text_content() and native_rest(page).get('body', '').startswith(f'Série 2 · {name0}'), f'{t} reprise faite : la série 2 est annoncée')
         # Cluster : « Bloc +1 »
         skip_rest(page)
         page.evaluate("activeSession.lastEi = 1; persistSession(); render()")
-        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(400)
+        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); settle(page)
         nxt = ' '.join(page.locator('.rest-mini__next').text_content().replace('\u00a0', ' ').split())
         R.check('Ensuite : Bloc +1' in nxt and page.locator('.session-set--current').count() == 0, f'{t} cluster : « Ensuite » annonce le bloc, seul mis en avant ({nxt})')
         nat = native_rest(page)
@@ -443,10 +443,10 @@ def once_grand_texte(bench):
             with bench.page('webkit', dev, 'light') as page:
                 page.add_init_script(css)
                 seed(page, 'light', ppl_v2_today_json())
-                page.wait_for_timeout(400)
+                settle(page)
                 start(page, 'legs')
-                page.click('[data-action="tech-set"][data-ei="0"][data-si="1"]'); page.wait_for_timeout(300)
-                tap_dialog(page, 'Rest-pause'); page.wait_for_timeout(300)
+                page.click('[data-action="tech-set"][data-ei="0"][data-si="1"]'); settle(page)
+                tap_dialog(page, 'Rest-pause'); settle(page)
                 g = page.evaluate("""() => { const cap = document.querySelector('.ex-card[data-ei="0"] .tech__cap');
                     const r = el => el.getBoundingClientRect(), cut = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
                     const add = cap.querySelector('.tech__add'), x = cap.querySelector('.tech__x'), txt = [cap.querySelector('.tech__name'), cap.querySelector('.tech__hint')];

@@ -36,13 +36,13 @@ def open_app(page, theme, store=None):
     page.add_init_script(FAKE_STORE)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
     page.evaluate("""async () => {
         await accountSignInWith('apple', async () => 'add');
         await accountSaveProfile({ username: 'cyril' });
         __sb.makeCoach(__sb.meId()); await coachRefresh(); await coachProRefresh();
         access.loadedAt = 0; await accessRefresh(); }""")
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def promo_right(page, eligible=True, reason=None):
@@ -53,7 +53,7 @@ def promo_right(page, eligible=True, reason=None):
 def coach_paywall(page):
     page.evaluate("navigate(makeRoute('paywall', 'offer', 'coach'))")
     page.wait_for_selector('.pay-view')
-    page.wait_for_timeout(700)
+    settle(page)
     return page.inner_text('.pay-view')
 
 
@@ -103,11 +103,11 @@ def t_promo_offerte(bench, eng, dev, theme):
         shot(page, LOT, f'01-essai-coach-{t}')
         # Annuel : même offre
         page.click('[data-action="pay-period"][data-period="year"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(all('2 mois offerts' in p for p in plans(page)), f'{t} annuel : 2 mois offerts {plans(page)}')
         # Achat : signature demandée (non éligible au lancement), StoreKit appelé avec l'offre de CE produit
         page.click(f'[data-action="pay-buy"][data-id="{C20Y}"]')
-        page.wait_for_timeout(1300)
+        settle(page)
         signs = page.evaluate('__st.promoSigned')
         buys = calls(page, 'purchase')
         R.check(len(signs) == 1 and signs[0]['productId'] == C20Y, f'{t} une signature demandée pour ce produit {signs}')
@@ -132,7 +132,7 @@ def t_sans_promo(bench, eng, dev, theme):
         pl = plans(page)
         R.check(all('gratuits' in p for p in pl) and not any('offerts' in p for p in pl), f'{t} éligible au lancement : essai normal {pl}')
         page.click(f'[data-action="pay-buy"][data-id="{C10}"]')
-        page.wait_for_timeout(1200)
+        settle(page)
         R.check(not page.evaluate('__st.promoSigned') and calls(page, 'purchase')[0][3] == '', f'{t} achat sans offre signée')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
     # 2. Déjà eu un abonnement coach (le serveur refuse) : prix normal
@@ -161,7 +161,7 @@ def t_refus(bench, eng, dev, theme):
         promo_right(page)
         coach_paywall(page)
         page.click(f'[data-action="pay-buy"][data-id="{C10}"]')
-        page.wait_for_timeout(1200)
+        settle(page)
         R.check('Rien n\'a été débité' in toast(page) and page.evaluate('accessStatus()') != 'active',
                 f'{t} offre refusée par Apple : rien de débité ({toast(page)!r})')
         R.check(not page.evaluate('__st.owned'), f'{t} aucun abonnement chez Apple')
@@ -173,7 +173,7 @@ def t_refus(bench, eng, dev, theme):
         # Le droit tombe entre l'affichage et l'achat (autre appareil, administrateur) : aucun achat lancé
         promo_right(page, False, 'had_coach')
         page.click(f'[data-action="pay-buy"][data-id="{C10}"]')
-        page.wait_for_timeout(1200)
+        settle(page)
         R.check(not calls(page, 'purchase'), f'{t} refus du serveur : StoreKit jamais appelé')
         R.check('Rien n\'a été débité' in toast(page), f'{t} refus du serveur : dit ({toast(page)!r})')
         R.check(not any('offerts' in p for p in plans(page)), f'{t} refus du serveur : prix normal ensuite {plans(page)}')

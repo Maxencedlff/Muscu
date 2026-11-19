@@ -41,10 +41,10 @@ def open_guide(page, theme):
     page.wait_for_selector('.settings-view')
     cell = page.locator('[data-action="go-guide"]')
     cell.scroll_into_view_if_needed()
-    page.wait_for_timeout(150)
+    settle(page)
     cell.click()
     page.wait_for_selector('.guide-view')
-    page.wait_for_timeout(150)
+    settle(page)
 
 
 def check_screen(page, t, what):
@@ -80,25 +80,25 @@ def t_guide(bench, eng, dev, theme):
         row = page.locator('.guide-row').first
         before = page.evaluate("document.querySelector('#guideList').innerHTML")
         row.dispatch_event('pointerdown')
-        page.wait_for_timeout(120)
+        settle(page)
         R.check(page.evaluate("document.querySelector('#guideList').innerHTML") == before, f'{t} rien ne change au pointerdown')
         row.dispatch_event('pointerup')
 
         # ── Recherche ──
         search = page.locator('#guideSearch')
         search.fill('tempo')
-        page.wait_for_timeout(100)
+        settle(page)
         ids = page.evaluate("[...document.querySelectorAll('#guideList .guide-row')].map(b => b.dataset.id)")
         R.check('tempo' in ids and len(ids) < len(topics), f'{t} recherche « tempo » {ids}')
         R.check(page.evaluate("document.activeElement?.id") == 'guideSearch', f'{t} recherche : le champ garde le focus')
         search.fill('SANTE')
-        page.wait_for_timeout(100)
+        settle(page)
         R.check(page.locator('.guide-row[data-id="sante"]').count() == 1, f'{t} recherche sans accent ni majuscule')
         search.fill('zzzz')
-        page.wait_for_timeout(100)
+        settle(page)
         R.check(page.locator('#guideList .empty-note').inner_text().strip() == 'Aucun sujet ne correspond.', f'{t} recherche vide : message')
         search.fill('')
-        page.wait_for_timeout(100)
+        settle(page)
         R.check(page.locator('.guide-row').count() == len(topics), f'{t} recherche effacée : tout revient')
         page.evaluate('document.activeElement?.blur?.()')
 
@@ -109,7 +109,7 @@ def t_guide(bench, eng, dev, theme):
             btn.scroll_into_view_if_needed()
             btn.click()
             page.wait_for_selector('.guide-topic')
-            page.wait_for_timeout(60)
+            settle(page)
             w = f'{t} {x["id"]}'
             R.check(page.locator('h1.navbar__large').inner_text().strip() == x['title'], f'{w} : titre h1')
             R.check(page.locator('.guide-steps li').count() == x['steps'], f'{w} : {x["steps"]} étapes')
@@ -121,13 +121,13 @@ def t_guide(bench, eng, dev, theme):
                 shot(page, LOT, f'sujet-{x["id"]}-{t}')
             page.click('[data-action="back"]')
             page.wait_for_selector('.guide-view')
-            page.wait_for_timeout(40)
+            settle(page)
 
         # « Voir aussi » : le sujet lié remplace le sujet affiché, le retour mène à la liste
         page.locator('.guide-row[data-id="tempo"]').click()
         page.wait_for_selector('.guide-topic')
         page.locator('.guide-topic .guide-row').first.click()
-        page.wait_for_timeout(100)
+        settle(page)
         R.check(page.evaluate('nav.stacks[nav.tab].filter(r => r.startsWith("guide-topic")).length') == 1, f'{t} voir aussi : un seul sujet dans la pile')
         page.click('[data-action="back"]')
         page.wait_for_selector('.guide-view')

@@ -16,6 +16,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 from fake_account import FAKE_ACCOUNT
 
 LOT = 'reactions'
@@ -33,7 +35,7 @@ def open_app(page, theme, ppl_v2=None, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='max', enable=False):
@@ -43,7 +45,7 @@ def signin(page, username='max', enable=False):
         if (u) await accountSaveProfile({ username: u });
         if (en) await socialEnable(true);
     }""", [username, enable])
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def sessions(prefix, n, start_days=1, **extra):
@@ -65,7 +67,7 @@ def sessions(prefix, n, start_days=1, **extra):
 
 def friends_tab(page):
     page.click('.tabbar [data-tab="friends"]')
-    page.wait_for_timeout(500)
+    settle(page)
 
 
 def calls(page, fn):
@@ -105,20 +107,20 @@ def layout(page, t, name):
 def long_press(page, locator, ms=650):
     # Au centre de l'écran d'abord : sur un petit écran (iPhone SE), le bouton peut être sous la barre d'onglets
     locator.evaluate("e => e.scrollIntoView({ block: 'center' })")
-    page.wait_for_timeout(100)
+    settle(page)
     box = locator.bounding_box()
     page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
     page.mouse.down()
-    page.wait_for_timeout(ms)
+    page.wait_for_timeout(ms)   # attente voulue : durée de l'appui long
     page.mouse.up()
-    page.wait_for_timeout(250)
+    settle(page)
 
 
 def setup(page):
     """Léa (suivie, 3 séances, me suit), Paul (me suit), Tom (demande reçue), Zoé (a accepté ma demande).
     Mes séances envoyées au serveur ; Léa a réagi 🔥 à la plus récente, Paul 👏."""
     page.evaluate('syncNow()')
-    page.wait_for_timeout(300)
+    settle(page)
     return page.evaluate("""(s) => {
         const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', sessions: s });
         const paul = __sb.addPerson({ username: 'paul', avatar: '🐻' });
@@ -171,7 +173,7 @@ def t_reagir(bench, eng, dev, theme):
         R.check(small_targets(page, '.feed-card .react') == [], f'{t} cœur et « + » : 44 pt {small_targets(page, ".feed-card .react")}')
         # Un toucher : ❤️, puis retiré
         h.click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(mine(page) == ['like'] and calls(page, 'set_reaction')[-1]['kind'] == 'like', f'{t} un toucher : ❤️ envoyé {mine(page)}')
         cnt = page.locator('.feed-card').first.locator('.react__count')
         R.check(heart(page).get_attribute('aria-pressed') == 'true' and cnt.inner_text().strip() == '1' and '--bare' in (cnt.get_attribute('class') or ''),
@@ -179,11 +181,11 @@ def t_reagir(bench, eng, dev, theme):
         R.check(cnt.get_attribute('aria-label') == '1 réaction : 1 J\'aime', f'{t} résumé dit en entier à VoiceOver ({cnt.get_attribute("aria-label")!r})')
         shot(page, LOT, f'1a-coeur-{t}')
         heart(page).click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(mine(page) == [] and heart(page).get_attribute('aria-pressed') == 'false', f'{t} retouché : ❤️ retiré')
         # « + » : la bulle des cinq autres, sans geste caché
         more(page).click()
-        page.wait_for_timeout(250)
+        settle(page)
         R.check(page.locator('.react-picker').count() == 1 and more(page).get_attribute('aria-expanded') == 'true', f'{t} « + » : bulle ouverte')
         labels = page.evaluate("[...document.querySelectorAll('.react-picker__btn')].map(b => b.getAttribute('aria-label'))")
         R.check(labels == ['Applaudissements', 'Chaud', 'Costaud', 'Record', 'Impressionnant'], f'{t} bulle : les cinq autres, noms VoiceOver {labels}')
@@ -192,11 +194,11 @@ def t_reagir(bench, eng, dev, theme):
         R.check(all(r), f'{t} bulle dans l\'écran {r}')
         shot(page, LOT, f'1-bulle-{t}')
         page.keyboard.press('Escape')
-        page.wait_for_timeout(150)
+        settle(page)
         R.check(page.locator('.react-layer').count() == 0 and more(page).get_attribute('aria-expanded') is None, f'{t} Échap ferme la bulle')
         more(page).click()
         page.locator('.react-picker__btn[data-kind="fire"]').click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(mine(page) == ['fire'], f'{t} « + » puis 🔥 : envoyé {mine(page)}')
         m = more(page)
         R.check(m.inner_text().strip() == '🔥' and m.get_attribute('aria-label') == 'Autres réactions, la tienne : Chaud' and 'react--on' in m.get_attribute('class')
@@ -205,18 +207,18 @@ def t_reagir(bench, eng, dev, theme):
         long_press(page, heart(page))
         R.check(page.locator('.react-picker').count() == 1 and mine(page) == ['fire'], f'{t} appui long : bulle ouverte, rien de posé {mine(page)}')
         page.locator('.react-picker__btn[data-kind="trophy"]').click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(mine(page) == ['trophy'], f'{t} réaction changée, une seule {mine(page)}')
         # Le cœur remplace une autre réaction ; retoucher la mienne dans la bulle la retire
         heart(page).click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(mine(page) == ['like'] and more(page).get_attribute('aria-label') == 'Autres réactions', f'{t} cœur : 🏆 remplacé par ❤️ {mine(page)}')
         more(page).click()
         page.locator('.react-picker__btn[data-kind="wow"]').click()
-        page.wait_for_timeout(400)
+        settle(page)
         more(page).click()
         page.locator('.react-picker__btn[data-kind="wow"]').click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(mine(page) == [], f'{t} bulle : retoucher la mienne la retire {mine(page)}')
         # Séance d'un ami : rangée des six, sans geste
         page.locator('.feed-card').first.locator('.feed-card__main').click()
@@ -224,18 +226,18 @@ def t_reagir(bench, eng, dev, theme):
         kinds = page.evaluate("[...document.querySelectorAll('.react-row__btn')].map(b => b.dataset.kind)")
         R.check(kinds == ['like', 'clap', 'fire', 'strong', 'trophy', 'wow'] and small_targets(page, '.react-row__btn') == [], f'{t} séance d\'un ami : 6 réactions de 44 pt, ❤️ d\'abord {kinds}')
         page.locator('.react-row__btn[data-kind="strong"]').click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.react-row__btn[data-kind="strong"]').get_attribute('aria-pressed') == 'true' and 'Ta réaction : Costaud' in page.inner_text('.react-row__foot'), f'{t} rangée : 💪 posée')
         layout(page, t, 'séance d\'un ami')
         page.evaluate("document.querySelector('.react-row').scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'2-seance-ami-{t}')
         page.locator('.react-row__btn[data-kind="strong"]').click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(mine(page) == [], f'{t} rangée : retouchée, retirée')
         # Hors ligne : affichée tout de suite puis annulée
         page.evaluate('__sb.fail.social = "offline"')
         page.locator('.react-row__btn[data-kind="wow"]').click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.react-row__btn--on').count() == 0 and 'Pas d\'Internet' in toast(page), f'{t} hors ligne : réaction annulée ({toast(page)!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -260,56 +262,57 @@ def t_double_toucher(bench, eng, dev, theme):
         R.check(zone.locator('.sr-text').inner_text().startswith('Muscles : '), f'{t} VoiceOver : muscles lus')
         # Un toucher sur le résumé : rien (ni ouverture ni réaction)
         zone.click()
-        page.wait_for_timeout(450)
+        settle(page)
         R.check(page.evaluate('currentView()') == 'friends' and mine(page) == [], f'{t} un toucher sur le résumé : rien ({page.evaluate("currentView()")})')
         # Clavier ou VoiceOver (click sans toucher, detail 0) : deux de suite ne valent pas un double toucher
         page.evaluate("(() => { const z = document.querySelector('.feed-card__sum'); for (let i = 0; i < 2; i++) z.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 })); })()")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(mine(page) == [], f'{t} VoiceOver : pas de ❤️ par deux activations {mine(page)}')
         # Deux touchers lents : rien non plus
         zone.click()
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(450)   # attente voulue : au-delà de LIKE_TAP_MS (350 ms), deux touchers distincts
         zone.click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(mine(page) == [], f'{t} deux touchers espacés : rien {mine(page)}')
-        page.wait_for_timeout(400)
+        settle(page)
         # Double toucher : ❤️ et le cœur qui apparaît puis s'efface
         zone.dblclick()
-        page.wait_for_timeout(120)
+        until(page, '() => !!document.querySelector(".like-burst")', 3000)   # le cœur, pendant son animation
         burst = page.locator('.like-burst')
         R.check(burst.count() == 1 and burst.inner_text() == '❤️' and burst.get_attribute('aria-hidden') == 'true', f'{t} double toucher : cœur affiché')
         anim = page.evaluate("getComputedStyle(document.querySelector('.like-burst')).animationName") if burst.count() else None
         R.check(anim == 'like-burst', f'{t} animation du cœur ({anim})')
         shot(page, LOT, f'7-double-toucher-{t}')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(mine(page) == ['like'] and heart(page).get_attribute('aria-pressed') == 'true', f'{t} double toucher : ❤️ envoyé {mine(page)}')
-        page.wait_for_timeout(1000)
+        until(page, '() => !document.querySelector(".like-burst")', 2000)
         R.check(page.locator('.like-burst').count() == 0, f'{t} le cœur s\'est effacé')
         R.check(page.evaluate('currentView()') == 'friends', f'{t} double toucher : la carte ne s\'ouvre pas')
         # Déjà ❤️ : un double toucher ne le retire pas
         page.locator('.feed-card').first.locator('.feed-card__sum').dblclick()
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(mine(page) == ['like'], f'{t} déjà aimé : double toucher sans effet {mine(page)}')
         # Une autre réaction choisie : jamais remplacée par le double toucher
         more(page).click()
         page.locator('.react-picker__btn[data-kind="fire"]').click()
-        page.wait_for_timeout(400)
+        settle(page)
         page.locator('.feed-card').first.locator('.feed-card__sum').dblclick()
-        page.wait_for_timeout(150)
+        until(page, '() => !!document.querySelector(".like-burst")', 3000)   # le cœur, pendant son animation
         R.check(page.locator('.like-burst').inner_text() == '🔥' if page.locator('.like-burst').count() else False, f'{t} 🔥 déjà choisi : c\'est lui qui apparaît')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(mine(page) == ['fire'] and len([c for c in calls(page, 'set_reaction') if c['kind'] == 'like']) == 1, f'{t} 🔥 gardé {mine(page)}')
         # Réduire les animations : le cœur apparaît et s'efface sans grossir
         page.emulate_media(reduced_motion='reduce')
         heart(page).click()
         heart(page).click()   # ❤️ puis retiré : plus de réaction
-        page.wait_for_timeout(500)
+        settle(page)
         page.locator('.feed-card').first.locator('.feed-card__sum').dblclick()
-        page.wait_for_timeout(100)
+        until(page, '() => !!document.querySelector(".like-burst")', 3000)   # le cœur, pendant son animation
         anim = page.evaluate("(() => { const b = document.querySelector('.like-burst'); return b && getComputedStyle(b).animationName; })()")
         R.check(anim == 'like-fade', f'{t} réduire les animations : fondu seul ({anim})')
         page.emulate_media(reduced_motion='no-preference')
-        page.wait_for_timeout(1000)
+        until(page, '() => !document.querySelector(".like-burst")', 2000)
+        settle(page)
         # Le reste de la carte s'ouvre au premier toucher, tout de suite (même juste après un toucher sur le résumé)
         page.locator('.feed-card').first.locator('.feed-card__sum').click()
         ms = page.evaluate("""() => new Promise(res => {
@@ -326,7 +329,7 @@ def t_double_toucher(bench, eng, dev, theme):
         before = page.evaluate("document.querySelector('.feed-card').outerHTML")
         for sel in ['[data-action="social-react"]', '[data-action="social-react-more"]', '.feed-card__sum']:
             page.locator('.feed-card').first.locator(sel).dispatch_event('pointerdown')
-        page.wait_for_timeout(150)
+        page.wait_for_timeout(150)   # attente voulue : avant la fin de l'appui long (420 ms), rien ne doit encore s'ouvrir
         R.check(page.evaluate("document.querySelector('.feed-card').outerHTML") == before and page.locator('.react-layer').count() == 0, f'{t} rien au pointerdown')
         page.locator('.feed-card').first.locator('[data-action="social-react"]').dispatch_event('pointerup')
         layout(page, t, 'fil')
@@ -341,7 +344,7 @@ def t_mon_profil(bench, eng, dev, theme):
         signin(page, enable=True)
         ids = setup(page)
         page.evaluate('socialRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         badge = page.locator('.tabbar [data-tab="friends"] .tabbar__badge')
         # 1 demande (Tom) + 3 nouveautés : réactions de Léa (2 h) et de Paul (hier), Zoé qui a accepté (10 min)
         n = page.evaluate('socialBadge()')
@@ -353,7 +356,7 @@ def t_mon_profil(bench, eng, dev, theme):
         R.check(small_targets(page, '.navbar [data-action="social-me"]') == [], f'{t} mon avatar : 44 pt')
         me_btn.click()
         page.wait_for_selector('.social-me-view')
-        page.wait_for_timeout(500)
+        settle(page)
         txt = page.inner_text('.social-me-view')
         stats = page.evaluate("[...document.querySelectorAll('.me-stat')].map(b => b.innerText.replace(/\\s+/g, ' ').trim())")
         R.check(stats[1] == '2 te suivent' and stats[2] == '2 suivis' and stats[0].endswith('séances visibles'), f'{t} chiffres {stats}')
@@ -380,7 +383,7 @@ def t_mon_profil(bench, eng, dev, theme):
         R.check(page.locator('.activity-row__new').count() == 2, f'{t} nouveautés marquées : Zoé et le groupe ({page.locator(".activity-row__new").count()})')
         # « Tout voir » : la suite, dont la demande de Tom avec « Accepter »
         page.click('[data-action="social-activity-more"]')
-        page.wait_for_timeout(300)
+        settle(page)
         txt = page.inner_text('.social-me-view')
         R.check('tom veut voir tes séances' in txt and page.locator('.activity [data-action="social-accept"]').count() == 1, f'{t} activité : demande reçue avec « Accepter »')
         R.check('lea a commencé à te suivre' in txt, f'{t} activité : abonnée')
@@ -399,7 +402,7 @@ def t_mon_profil(bench, eng, dev, theme):
         shot(page, LOT, f'3b-mon-profil-seances-{t}')
         own.locator('.last__main').click()
         page.wait_for_selector('.social-session-view')
-        page.wait_for_timeout(400)
+        settle(page)
         who = page.evaluate("[...document.querySelectorAll('.who-list .social-row')].map(r => r.innerText.replace(/\\s+/g, ' ').trim())")
         R.check(len(who) == 2 and 'lea' in who[0] and '🔥' in who[0] and 'paul' in who[1] and '👏' in who[1], f'{t} ma séance : qui a réagi {who}')
         R.check(page.locator('.react-row').count() == 0 and page.locator('[data-action="social-report"]').count() == 0, f'{t} ma séance : ni réagir ni signaler')
@@ -410,13 +413,13 @@ def t_mon_profil(bench, eng, dev, theme):
         # Ligne des réactions groupées : vers ma séance (Historique › Séance), avec qui a réagi
         page.locator('.activity-row--group [data-action="social-open-my-session"]').click()
         page.wait_for_selector('.history-detail')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.history-detail .who-list .social-row').count() == 2 and 'RÉACTIONS (2)' in page.inner_text('.history-detail').upper(), f'{t} Historique › Séance : qui a réagi')
         page.evaluate("document.querySelector('.who-list').scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'5-historique-qui-{t}')
         # Retirer Paul de mes abonnés : sa réaction ne compte plus
         page.evaluate(f"socialRemoveFollower('{ids['paul']}')")
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.history-detail .who-list .social-row').count() == 1, f'{t} abonné retiré : plus dans la liste')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -429,11 +432,11 @@ def t_mon_profil_suite(bench, eng, dev, theme):
         signin(page, enable=True)
         setup(page)
         page.evaluate('socialRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         friends_tab(page)
         page.click('.navbar [data-action="social-me"]')
         page.wait_for_selector('.social-me-view .last')
-        page.wait_for_timeout(300)
+        settle(page)
         # Records : valeurs fixées par l'historique de test (ppl_v2_today, tests/fixtures.py), pas relues dans
         # l'app. Charge +2,5 kg toutes les deux semaines, plafonnée à +10 kg : à la dernière semaine (k = 8),
         # seuls les exercices j % 3 == 0 montent encore. Séances les plus récentes : Legs (il y a 4 j : Squat
@@ -455,17 +458,17 @@ def t_mon_profil_suite(bench, eng, dev, theme):
         R.check(btn.count() == 1 and btn.inner_text().strip().startswith('Tout voir'), f'{t} mes séances : « Tout voir » ({n_own} visibles)')
         if btn.count():
             btn.click()
-            page.wait_for_timeout(300)
+            settle(page)
             R.check(page.locator('.social-me-view .last').count() == 0 and page.locator('.social-me-view .feed-card').count() == n_own,
                     f'{t} « Tout voir » : {page.locator(".social-me-view .feed-card").count()} cartes sur {n_own}')
             layout(page, t, 'Mon profil, toutes mes séances')
         # Hors ligne : l'aperçu reste, avec la note du fil
         page.click('[data-action="back"]')
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate('__sb.fail.social = "offline"')
         page.click('.navbar [data-action="social-me"]')
         page.wait_for_selector('.social-me-view .last')
-        page.wait_for_timeout(500)
+        settle(page)
         note = page.locator('.social-me-view .social-inline-error')
         R.check(note.count() == 1 and 'Pas d\'Internet' in note.inner_text() and page.locator('.mysess').count() >= 1,
                 f'{t} hors ligne : aperçu gardé avec la note ({note.inner_text() if note.count() else None!r})')
@@ -482,9 +485,9 @@ def t_historique(bench, eng, dev, theme):
         ids = setup(page)
         page.evaluate(f"__sb.react('{ids['paul']}', __sb.meId(), '{ids['sid']}', 'like')")   # Paul passe à ❤️ : ❤️ 1 · 🔥 1
         page.evaluate('socialRefresh()')   # comme au retour au premier plan
-        page.wait_for_timeout(300)
+        settle(page)
         page.click('.tabbar [data-tab="history"]')
-        page.wait_for_timeout(600)
+        settle(page)
         mark = page.locator(f'.hrow[data-id="{ids["sid"]}"] .react-mark')
         R.check(mark.count() == 1 and mark.inner_text().strip() == '❤️ 1 · 🔥 1', f'{t} « ❤️ 1 · 🔥 1 » ({mark.inner_text() if mark.count() else None})')
         R.check(mark.get_attribute('aria-label') == '2 réactions : 1 J\'aime, 1 Chaud', f'{t} « ❤️ 1 · 🔥 1 » annoncé par VoiceOver ({mark.get_attribute("aria-label")})')

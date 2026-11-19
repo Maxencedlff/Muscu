@@ -33,12 +33,12 @@ def skip_rest(page):
         if loc.count() and loc.first.is_visible():
             loc.first.click()
             break
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def validate(page, ei, si):
     page.click(f'[data-action="validate-set"][data-ei="{ei}"][data-si="{si}"]')
-    page.wait_for_timeout(350)
+    settle(page)
 
 
 def push_prog(page):
@@ -55,12 +55,12 @@ def t_seance(bench, eng, dev, theme):
 
         # ⋯ du 1er exercice › Superset avec… › le 3e
         page.click('.ex-card__more[data-ei="0"]')
-        page.wait_for_timeout(300)
+        settle(page)
         tap_dialog(page, 'Superset avec')
         page.wait_for_selector('.ssp')
         page.locator('.ssp .mpick__row').nth(1).click()
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.ss-card').count() == 1, f'{t} une carte de superset')
         members = [n.strip() for n in page.locator('.ss-member__name').all_inner_texts()]
         R.check(members == [names[0], names[2]], f'{t} le 3e exercice rejoint le 1er {members}')
@@ -102,11 +102,11 @@ def t_seance(bench, eng, dev, theme):
 
         # Retirer du superset : séance et programme
         page.click('.ss-member .ex-card__more[data-ei="0"]')
-        page.wait_for_timeout(300)
+        settle(page)
         tap_dialog(page, "Plus d'options")
-        page.wait_for_timeout(300)
+        settle(page)
         tap_dialog(page, 'Retirer du superset')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.ss-card').count() == 0, f'{t} superset défait')
         R.check(not any(e.get('ss') for e in push_prog(page)), f'{t} programme défait')
         R.check(not page.errors, f'{t} erreurs JS {page.errors}')
@@ -123,7 +123,7 @@ def t_editeur(bench, eng, dev, theme):
         page.locator('.ssp .mpick__row').nth(3).click()
         page.locator('.ssp .mpick__row').nth(4).click()
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(500)
+        settle(page)
         tags = [x.strip() for x in page.locator('.ed-row .ss-tag').all_inner_texts()]
         R.check(tags == ['A1', 'A2'], f'{t} éditeur : pastilles {tags}')
         pull = json.loads(ls(page, 'ppl_v2'))['programmes']['ppl']['exercises']['pull']
@@ -134,7 +134,7 @@ def t_editeur(bench, eng, dev, theme):
         page.wait_for_selector('[data-action="ex-ss-leave"]')
         page.click('[data-action="ex-ss-leave"]')
         page.click('[data-action="save-ex"]')
-        page.wait_for_timeout(500)
+        settle(page)
         pull = json.loads(ls(page, 'ppl_v2'))['programmes']['ppl']['exercises']['pull']
         R.check(not any(e.get('ss') for e in pull), f'{t} éditeur : retiré du superset')
         R.check(not page.errors, f'{t} éditeur : erreurs JS {page.errors}')

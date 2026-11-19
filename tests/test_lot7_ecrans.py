@@ -15,7 +15,7 @@ def go(page, v, *params, **state):
     sets = ''.join(f'{k} = {json.dumps(val)};' for k, val in state.items())
     route = f'makeRoute({", ".join(json.dumps(x) for x in (v, *params))})'
     page.evaluate(f'() => {{ {sets} const r = {route}; if (currentRoute() === r) render(); else routeTo(r); }}')
-    page.wait_for_timeout(150)
+    settle(page)
 
 
 # Éléments dont le texte est tronqué (contenu plus large que la boîte)
@@ -45,7 +45,7 @@ def t_screens(bench, eng, dev, theme):
 
         # 2. Modifier une séance passée : la page ne s'élargit pas
         page.evaluate("document.querySelector('[data-action=\"edit-session\"]').click()")
-        page.wait_for_timeout(300)
+        settle(page)
         sw = page.evaluate('document.documentElement.scrollWidth')
         R.check(sw <= vw, f'{tag} modifier la séance : pas de débordement horizontal ({sw} > {vw})')
         di = page.evaluate("(() => { const r = document.querySelector('#addDate').getBoundingClientRect(); return r.right; })()")
@@ -94,7 +94,7 @@ def t_screens(bench, eng, dev, theme):
 
         # 5 et 6. Détail exercice : carte du graphique, axe Y homogène, dates espacées
         go(page, 'stats-ex', 'p1dcouch', statsMode='volume')
-        page.wait_for_timeout(250)
+        settle(page)
         card = page.evaluate("""() => { const c = getComputedStyle(document.querySelector('#exChart')).backgroundColor;
             const cv = getComputedStyle(document.querySelector('#exChart canvas')).backgroundColor;
             const g = getComputedStyle(document.querySelector('.stats-ex .group')).backgroundColor;

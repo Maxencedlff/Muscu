@@ -39,7 +39,7 @@ def open_import(page, file):
         page.click('[data-action="import-other-app"]')
     fc.value.set_files(files=[file])
     page.wait_for_selector('.sheet-root:not(.sheet-root--out) .imp', timeout=5000)
-    page.wait_for_timeout(400)
+    settle(page)
 
 
 def rows(page):
@@ -49,8 +49,8 @@ def rows(page):
 
 def tab(page, name):
     t = page.locator(f'.tabbar [data-tab="{name}"]')
-    t.click(); page.wait_for_timeout(300)
-    t.click(); page.wait_for_timeout(300)
+    t.click(); settle(page)
+    t.click(); settle(page)
 
 
 def t_hevy(bench, eng, dev, theme):
@@ -77,20 +77,20 @@ def t_hevy(bench, eng, dev, theme):
         page.wait_for_selector('#impSearch')
         R.check(page.locator('.imp-pick').count() >= 1, f'{t} lien : suggestions proposées sans rien taper')
         page.fill('#impSearch', 'rotations')
-        page.wait_for_timeout(150)
+        settle(page)
         shot(page, LOT, f'lien-{t}')
         page.locator('.imp-pick', has_text='Rotations russes').first.click()
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.sheet-root:not(.sheet-root--out)').count() == 1, f'{t} lien : feuille de lien fermée, aperçu toujours là')
         rw = rows(page)
         R.check(rw.get('Exercices reconnus') == '17 / 17' and 'Exercices créés sous leur nom' not in rw, f'{t} lien : aperçu mis à jour {rw}')
         R.check(page.locator('#impSheet .imp-row__sub', has_text='→ Rotations russes').count() == 1, f'{t} lien : affiché sous le nom')
         # Échauffements gardés puis non
         page.click('[data-action="imp-warmups"]')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.locator('[data-action="imp-warmups"]').get_attribute('aria-checked') == 'true', f'{t} échauffements : interrupteur')
         page.click('[data-action="imp-warmups"]')
-        page.wait_for_timeout(200)
+        settle(page)
         # Importer
         page.click('.sheet__btn--confirm')
         txt = toast_text(page)
@@ -104,7 +104,7 @@ def t_hevy(bench, eng, dev, theme):
                 f'{t} import : lien appliqué')
         R.check(json.loads(ls(page, 'ppl_v2_backup'))['history'] == [], f'{t} import : copie d\'avant gardée')
         # Historique : les séances portent le nom de la séance Hevy
-        page.wait_for_timeout(IMPORT_UNDO_WAIT)
+        settle(page)
         tab(page, 'history')
         titles = page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)")
         R.check(len(titles) == 7 and 'Push Day' in titles and 'Cardio' in titles, f'{t} historique : {titles}')
@@ -112,7 +112,7 @@ def t_hevy(bench, eng, dev, theme):
         R.check(any('Hevy' in s for s in subs), f'{t} historique : mention du programme après le titre {subs[:2]}')
         page.locator('.hcell', has_text='Push Day').first.click()
         page.wait_for_selector('.view.history-detail, .hdetail, .view')
-        page.wait_for_timeout(300)
+        settle(page)
         body = page.locator('#app').inner_text()
         R.check('Développé couché barre' in body and '82,5' in body, f'{t} détail : exercice reconnu et charges')
         shot(page, LOT, f'detail-{t}')
@@ -121,7 +121,7 @@ def t_hevy(bench, eng, dev, theme):
         page.wait_for_selector('[data-action="open-stats-ex"]')
         page.locator('[data-action="open-stats-ex"]', has_text='Développé couché barre').first.click()
         page.wait_for_selector('.stats-ex')
-        page.wait_for_timeout(300)
+        settle(page)
         cells = {c.split('\n')[0].strip(): c.split('\n')[-1].strip() for c in page.locator('.stats-ex .cell').all_inner_texts() if '\n' in c}
         R.check(cells.get('Record') == '82,5 kg × 8', f'{t} progrès : record {cells.get("Record")}')
         R.check(cells.get('Record 1RM est.', '').startswith('~104,5'), f'{t} progrès : 1RM {cells.get("Record 1RM est.")}')
@@ -153,7 +153,7 @@ def t_strong(bench, eng, dev, theme):
         R.check(rw.get('Séances à ajouter') == '6' and rw.get('Exercices reconnus') == '16 / 17', f'{t} strong : aperçu {rw}')
         R.check(page.locator('#impSheet .imp__ctl').count() == 1, f'{t} strong : unité demandée (colonne Weight sans unité)')
         page.click('[data-action="imp-unit"][data-val="lbs"]')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.locator('[data-action="imp-unit"][data-val="lbs"]').get_attribute('aria-pressed') == 'true', f'{t} strong : lb choisi')
         shot(page, LOT, f'apercu-strong-{t}')
         page.click('.sheet__btn--confirm')
@@ -167,11 +167,11 @@ def t_strong(bench, eng, dev, theme):
         R.check(d['userProgrammes'].get('u_strong', {}).get('name') == 'Strong', f'{t} strong : programme créé')
         # « Annuler » dans le toast : la donnée d'avant revient
         page.click('.toast__action')
-        page.wait_for_timeout(300)
+        settle(page)
         d2 = json.loads(ls(page, 'ppl_v2'))
         R.check(d2['history'] == [] and 'u_strong' not in d2['userProgrammes'], f'{t} strong : Annuler restaure la donnée d\'avant')
         # Fichier qui n'est pas un export connu
-        page.wait_for_timeout(300)
+        settle(page)
         if page.locator('[data-action="import-other-app"]').count() == 0:
             page.evaluate("navigate('backup')")
             page.wait_for_selector('[data-action="import-other-app"]')
@@ -241,7 +241,7 @@ def t_mesures_hevy(bench, eng, dev, theme):
         R.check([p['cm'] for p in d['bodyMeasures']['waist']] == [82, 83, 90, 84] and len(d['bodyMeasures']) == 10, f'{t} mesures : mensurations {list(d["bodyMeasures"])}')
         R.check(d['history'] == [], f'{t} mesures : aucune séance créée')
         # Progrès › Mesures : valeurs importées affichées
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("navigate('body-measures')")
         page.wait_for_selector('.view.body-measures')
         cell = page.locator('[data-action="open-body-measure"][data-key="waist"]').inner_text()
@@ -253,7 +253,7 @@ def t_mesures_hevy(bench, eng, dev, theme):
             page.click('[data-action="import-other-app"]')
         fc.value.set_files(files=[csv_file('hevy_mesures_exemple.csv')])
         page.wait_for_selector('.sheet-root:not(.sheet-root--out) .imp', timeout=5000)
-        page.wait_for_timeout(400)
+        settle(page)
         rw = rows(page)
         R.check(rw.get('Pesées à ajouter') == '0' and rw.get('Mensurations à ajouter') == '0' and rw.get('Déjà notées ce jour-là') == '35', f'{t} réimport mesures : {rw}')
         page.click('.sheet__btn--confirm')
@@ -272,7 +272,7 @@ def t_mesures_annuler(bench):
         page.click('.sheet__btn--confirm')
         page.wait_for_selector('.toast__action', timeout=3000)
         page.locator('.toast__action').first.click()
-        page.wait_for_timeout(400)
+        settle(page)
         d = json.loads(ls(page, 'ppl_v2'))
         R.check(not d.get('bodyWeightLog') and not d.get('bodyMeasures'), f'mesures : Annuler remet la donnée d\'avant {list(d.get("bodyMeasures") or {})}')
         R.check(not page.errors, f'mesures annuler : aucune erreur JS {page.errors}')

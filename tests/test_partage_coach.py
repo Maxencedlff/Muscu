@@ -32,7 +32,7 @@ def open_app(page, theme, ppl_v2=None, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='max', enable=False):
@@ -42,12 +42,12 @@ def signin(page, username='max', enable=False):
         if (u) await accountSaveProfile({ username: u });
         if (en) await socialEnable(true);
     }""", [username, enable])
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def friends_tab(page):
     page.click('.tabbar [data-tab="friends"]')
-    page.wait_for_timeout(500)
+    settle(page)
 
 
 def no_hscroll(page):
@@ -70,7 +70,7 @@ def cut_texts(page):
 def last_above_tabbar(page):
     """Fin de l'écran défilé : le dernier élément passe au-dessus de la barre d'onglets."""
     page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
-    page.wait_for_timeout(150)
+    settle(page)
     r = page.evaluate("""() => { const scr = document.querySelector('#app .scr'); const last = scr && [...scr.querySelectorAll('*')].filter(e => e.offsetParent).pop();
         const bar = document.querySelector('.tabbar'); if (!last || !bar || bar.hidden) return true;
         return last.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top + .5; }""")
@@ -112,7 +112,7 @@ def open_settings_share(page):
     page.click('.tabbar [data-tab="train"]')
     page.evaluate("navigate('settings')")
     page.wait_for_selector('.settings-view')
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def t_eleve(bench, eng, dev, theme):
@@ -122,12 +122,12 @@ def t_eleve(bench, eng, dev, theme):
         signin(page, username='lea')
         # Sans coach : pas de cellule
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         open_settings_share(page)
         R.check(page.locator('[data-action="coach-open-share"]').count() == 0, f'{t} sans coach : pas de « Partager avec mon coach »')
         ids = setup_student(page)
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         page.evaluate('render()')
         cell = page.locator('.settings-view [data-action="coach-open-share"]')
         # text_content : sur 320 pt avec la police de secours de Linux (CI), la valeur cède toute sa place au titre
@@ -148,7 +148,7 @@ def t_eleve(bench, eng, dev, theme):
         shot(page, LOT, f'1-partager-off-{t}')
         # Cocher : consentement puis envoi des pesées saisies, rien d'autre
         sw.click()
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('[data-action="coach-share-toggle"][data-kind="weight"]').get_attribute('aria-checked') == 'true', f'{t} case cochée')
         sent = ccalls(page, 'student_share_weights')
         R.check(len(sent) == 1 and [w['kg'] for w in sent[0]['weights']] == [61.4, 62, 62.8] and all(set(w) == {'date', 'kg'} for w in sent[0]['weights']),
@@ -161,22 +161,22 @@ def t_eleve(bench, eng, dev, theme):
         shot(page, LOT, f'2-partager-on-{t}')
         # Nouvelle pesée : renvoyée
         page.evaluate('logBodyWeight(61, Date.now()); save(); coachShareWeightsChanged()')
-        page.wait_for_timeout(300)
+        settle(page)
         sent = ccalls(page, 'student_share_weights')
         R.check(len(sent) == 2 and sent[-1]['weights'][0]['kg'] == 61, f'{t} nouvelle pesée envoyée ({len(sent)})')
         # Décocher : tout est effacé du serveur
         page.click('[data-action="coach-share-toggle"][data-kind="weight"]')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('[data-action="coach-share-toggle"][data-kind="weight"]').get_attribute('aria-checked') == 'false', f'{t} décoché')
         R.check(page.evaluate(f"__sb.co.weights['{ids['me']}']") is None and page.evaluate('__sb.co.shares.length') == 0, f'{t} décocher : pesées et consentement effacés')
         page.evaluate('logBodyWeight(60.5, Date.now()); coachShareWeightsChanged()')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(len(ccalls(page, 'student_share_weights')) == 2, f'{t} décoché : plus rien ne part')
         # Recocher puis quitter le coach : la cellule disparaît, le partage est effacé
         page.click('[data-action="coach-share-toggle"][data-kind="weight"]')
-        page.wait_for_timeout(400)
+        settle(page)
         page.evaluate('coachLeave()')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate('__sb.co.shares.length') == 0 and page.evaluate(f"__sb.co.weights['{ids['me']}']") is None, f'{t} quitter : partage effacé')
         open_settings_share(page)
         R.check(page.locator('[data-action="coach-open-share"]').count() == 0, f'{t} quitter : plus de cellule')
@@ -190,12 +190,12 @@ def t_hors_ligne(bench, eng, dev, theme):
         signin(page, username='lea')
         setup_student(page)
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         page.evaluate("navigate('coach-share')")
         page.wait_for_selector('[data-action="coach-share-toggle"][data-kind="weight"]')
         page.evaluate('__sb.fail.coach = "offline"')
         page.click('[data-action="coach-share-toggle"][data-kind="weight"]')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('[data-action="coach-share-toggle"][data-kind="weight"]').get_attribute('aria-checked') == 'false', f'{t} hors ligne : reste décoché')
         R.check('Internet' in toast(page), f'{t} hors ligne : message clair ({toast(page)!r})')
         R.check(page.evaluate('__sb.co.shares.length') == 0, f'{t} hors ligne : rien de coché sur le serveur')
@@ -230,10 +230,10 @@ def t_coach(bench, eng, dev, theme):
         signin(page, username='max')
         ids = setup_coach(page)
         page.evaluate('data.bodyWeightKg = 95; save(); coachRefresh()')   # mon poids : jamais celui de l'élève
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
         page.wait_for_selector('.coach-student-view .coach-sess')
-        page.wait_for_timeout(500)
+        settle(page)
         txt = page.inner_text('.coach-student-view')
         R.check('poids du corps' in txt.lower() and '61,4 kg' in txt and '−1,6 kg sur 30 jours' in txt, f'{t} fiche : poids, tendance ({txt[:200]!r})')
         R.check(page.locator('#exChart canvas').count() == 1 and 'Poids du corps : de 63,1 kg' in (page.get_attribute('#exChart canvas', 'aria-label') or ''),
@@ -244,7 +244,7 @@ def t_coach(bench, eng, dev, theme):
         # Séance : volume avec le poids de Léa (61,4 kg) pour les tractions, pied de page adapté
         page.locator('.coach-sess').first.click()
         page.wait_for_selector('.coach-session-view')
-        page.wait_for_timeout(300)
+        settle(page)
         st = page.inner_text('.coach-session-view')
         share = page.evaluate("bodyShare({ name: 'Tractions pronation' })")
         expect = page.evaluate(f"fmtVolume(500 + 61.4 * {share} * 18)")
@@ -255,7 +255,7 @@ def t_coach(bench, eng, dev, theme):
         # Tom ne partage pas : ni courbe, ni poids dans le volume
         page.evaluate(f"navigate(makeRoute('coach-student', '{ids['tom']}'))")
         page.wait_for_selector('.coach-student-view .coach-sess')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check('ne partage pas son poids' in page.inner_text('.coach-student-view') and page.locator('#exChart').count() == 0 and page.locator('.coach-weight-off').count() == 1, f'{t} élève sans partage : pas de courbe (groupe expliqué, aucun chiffre)')
         page.locator('.coach-sess').first.click()
         page.wait_for_selector('.coach-session-view')
@@ -265,7 +265,7 @@ def t_coach(bench, eng, dev, theme):
         page.evaluate(f"__sb.co.shares = []; delete __sb.co.weights['{ids['lea']}']")
         page.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
         page.wait_for_selector('.coach-student-view .coach-sess')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check('ne partage pas son poids' in page.inner_text('.coach-student-view') and page.locator('#exChart').count() == 0 and page.locator('.coach-weight-off').count() == 1, f'{t} partage coupé : courbe partie (groupe expliqué, aucun chiffre)')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

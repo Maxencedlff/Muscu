@@ -18,7 +18,7 @@ def tag(device, theme):
 def start(page, cat='push'):
     page.click(f'[data-action="start-session"][data-cat="{cat}"]')
     page.wait_for_selector('.view.session')
-    page.wait_for_timeout(150)
+    settle(page)
 
 
 def row_inputs(page, ei, si):
@@ -30,7 +30,7 @@ def row_inputs(page, ei, si):
 
 def blur(page):
     page.evaluate("document.activeElement && document.activeElement.blur()")
-    page.wait_for_timeout(120)
+    settle(page)
 
 
 FIT_JS = """() => {
@@ -95,7 +95,7 @@ def t_flow(bench, eng, dev, theme):
         # Un tap sur ✓ : série validée, barre de repos, toast « Annuler »
         w0.fill('35'); blur(page)
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
-        page.wait_for_timeout(700)
+        settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets[0].done') and page.evaluate('restActive'), f'{t} série validée et repos lancé')
         R.check(page.locator('.rest-mini').is_visible(), f'{t} barre de repos visible')
         R.check('Série 1 validée' in sess_undo_text(page) and page.locator('.toast').count() == 0, f'{t} « Annuler » en ligne, pas de toast')
@@ -132,38 +132,38 @@ def t_flow(bench, eng, dev, theme):
         page.click('.rest-mini [data-d="-15"]')
         R.check(abs(page.evaluate('restEndTime') - e0) < 5, f'{t} −15 s')
         # Annuler une validation
-        v1.click(); page.wait_for_timeout(300)
+        v1.click(); settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets[1].done'), f'{t} série 2 validée')
         sess_undo(page)
         R.check(not page.evaluate('activeSession.exercises[0].sets[1].done') and not page.evaluate('restActive'), f'{t} Annuler : done=false et repos arrêté')
         R.check(page.locator('.rest-mini').count() == 0, f'{t} Annuler : barre retirée')
         # Feuille détaillée du repos
-        v1.click(); page.wait_for_timeout(400)
-        page.click('[data-action="expand-rest"]'); page.wait_for_timeout(400)
+        v1.click(); settle(page)
+        page.click('[data-action="expand-rest"]'); settle(page)
         R.check(page.locator('.sess-sheet--rest').count() == 1 and page.locator('.rs__ring svg').count() == 1, f'{t} feuille du repos ouverte')
         R.check(page.locator('#customRest').count() == 0, f'{t} plus de champ « Durée en secondes »')
-        page.click('.rs-seg__btn[data-secs="120"]'); page.wait_for_timeout(150)
+        page.click('.rs-seg__btn[data-secs="120"]'); settle(page)
         R.check(page.evaluate('restTotal') == 120 and 115 <= page.evaluate('restTimeLeft') <= 120, f'{t} préréglage 2:00')
         R.check('Fin du repos à' in page.locator('.rs__resume').inner_text(), f'{t} heure de fin du repos affichée')
         ph = page.evaluate("document.querySelector('.sess-sheet__panel').getBoundingClientRect().height <= innerHeight - 16")
         R.check(ph, f'{t} hauteur de la feuille bornée')
         shot(page, LOT, f'repos-feuille-{t}')
-        page.mouse.click(20, 30); page.wait_for_timeout(350)
+        page.mouse.click(20, 30); settle(page)
         R.check(page.locator('.sess-sheet').count() == 0 and page.evaluate('restActive'), f'{t} tap sur le fond : feuille fermée, repos continue')
-        page.click('.rest-mini__skip'); page.wait_for_timeout(150)
+        page.click('.rest-mini__skip'); settle(page)
         R.check(not page.evaluate('restActive') and page.locator('.rest-mini').count() == 0, f'{t} Passer')
         # Toucher une série validée la rouvre sur place
         page.click('[data-action="edit-set"][data-ei="0"][data-si="0"]')
         R.check(page.locator('.modal-overlay').count() == 0 and page.locator('.session-set--editing #editSetWeight').count() == 1, f'{t} édition sur place (pas de modale)')
         page.fill('#editSetReps', '9')
-        page.click('[data-action="save-edit-set"]'); page.wait_for_timeout(150)
+        page.click('[data-action="save-edit-set"]'); settle(page)
         R.check(page.evaluate("activeSession.exercises[0].sets[0].reps") == '9', f'{t} série corrigée sur place')
         # Correction sans toucher le ✓ (clavier fermé, tap ailleurs) : gardée, même après un nouveau rendu
         page.click('[data-action="edit-set"][data-ei="0"][data-si="0"]')
         page.fill('#editSetWeight', '41'); page.fill('#editSetReps', '7')
         page.evaluate('render()')   # un rendu pendant la saisie ne doit pas la remettre à l'ancienne valeur
         R.check(page.input_value('#editSetWeight') == '41' and page.input_value('#editSetReps') == '7', f'{t} saisie gardée pendant un rendu')
-        page.focus('#editSetReps'); page.evaluate('document.activeElement.blur()'); page.wait_for_timeout(250)
+        page.focus('#editSetReps'); page.evaluate('document.activeElement.blur()'); settle(page)
         s0 = page.evaluate("activeSession.exercises[0].sets[0]")
         R.check(s0['weight'] == '41' and s0['reps'] == '7' and page.locator('.session-set--editing').count() == 0,
                 f'{t} série enregistrée en quittant la saisie {s0}')
@@ -178,12 +178,12 @@ def t_flow(bench, eng, dev, theme):
         page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
         page.mouse.down()
         page.mouse.move(box['x'] + box['width'] / 2 - 130, box['y'] + box['height'] / 2 + 3, steps=8)
-        page.mouse.up(); page.wait_for_timeout(300)
+        page.mouse.up(); settle(page)
         R.check(page.locator('.set-swipe--open .set-del').count() == 1 and page.locator('.set-swipe--open .set-del').get_attribute('aria-hidden') is None,
                 f'{t} balayage : « Supprimer » révélé, lu par VoiceOver')
         shot(page, LOT, f'balayage-{t}')
         before = page.evaluate("JSON.stringify(activeSession.exercises[0].sets)")
-        page.locator('.set-swipe--open .set-del').click(); page.wait_for_timeout(150)
+        page.locator('.set-swipe--open .set-del').click(); settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets.length') == n0 - 1, f'{t} balayage : série supprimée')
         R.check(sess_undo_text(page).startswith('Série 4 supprimée') and page.locator('.ex-undo [data-action="sess-undo"]').count() == 1,
                 f'{t} « Série 4 supprimée · Annuler » ({sess_undo_text(page)!r})')
@@ -191,42 +191,42 @@ def t_flow(bench, eng, dev, theme):
         sess_undo(page)
         R.check(page.evaluate("JSON.stringify(activeSession.exercises[0].sets)") == before, f'{t} Annuler : la série revient à sa place')
         # Sans balayage (VoiceOver) : ⋯ › Plus d'options › « Retirer la dernière série », annulable aussi
-        page.click('[data-action="ex-menu"][data-ei="0"]'); page.wait_for_timeout(300)
+        page.click('[data-action="ex-menu"][data-ei="0"]'); settle(page)
         tap_dialog(page, "Plus d'options")
-        page.wait_for_timeout(300)
+        settle(page)
         tap_dialog(page, 'Retirer la dernière série')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets.length') == n0 - 1 and sess_undo_text(page).startswith('Série 4 supprimée'),
                 f'{t} ⋯ › Retirer la dernière série ({sess_undo_text(page)!r})')
         # + Série (panel du 07/11 : VoiceOver lisait « Série, bouton », sans dire quoi ni pour quel exercice)
         lbl = page.get_attribute('[data-action="add-set"][data-ei="0"]', 'aria-label')
         R.check(lbl == f"Ajouter une série, {page.evaluate('activeSession.exercises[0].name')}", f'{t} « + Série » nommé pour VoiceOver ({lbl!r})')
-        page.click('[data-action="add-set"][data-ei="0"]'); page.wait_for_timeout(100)
+        page.click('[data-action="add-set"][data-ei="0"]'); settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets.length') == n0, f'{t} « + Série » ajoute une série')
         # Retirer l'exercice : séance seulement
         name1 = page.evaluate('activeSession.exercises[1].name')
-        page.click('[data-action="ex-menu"][data-ei="1"]'); page.wait_for_timeout(300)
+        page.click('[data-action="ex-menu"][data-ei="1"]'); settle(page)
         labels = page.locator('.ios-dialog__btn').all_inner_texts()
         R.check(all(x in labels for x in ["Remplacer l'exercice", "Plus d'options…", "Retirer l'exercice"]), f'{t} menu ⋯ court {labels}')
         tap_dialog(page, "Plus d'options")
-        page.wait_for_timeout(300)
+        settle(page)
         more = page.locator('.ios-dialog__btn').all_inner_texts()
         R.check(all(x in more for x in ['Monter', 'Descendre', 'Régler le repos', 'Relancer le repos']), f'{t} « Plus d\'options » {more}')
-        tap_dialog(page, 'Annuler'); page.wait_for_timeout(300)
-        page.click('[data-action="ex-menu"][data-ei="1"]'); page.wait_for_timeout(300)
+        tap_dialog(page, 'Annuler'); settle(page)
+        page.click('[data-action="ex-menu"][data-ei="1"]'); settle(page)
         tap_dialog(page, "Retirer l'exercice")
         R.check(page.evaluate('activeSession.exercises.length') == 5 and name1 not in page.evaluate('activeSession.exercises.map(e => e.name)'), f'{t} exercice retiré de la séance')
         R.check(page.evaluate('data.programmes.ppl.exercises.push.length') == 6, f'{t} programme inchangé')
         # Repos d'un exercice : préréglages sans clavier
-        page.click('[data-action="set-ex-rest"][data-ei="0"]'); page.wait_for_timeout(350)
+        page.click('[data-action="set-ex-rest"][data-ei="0"]'); settle(page)
         R.check(page.locator('.sess-sheet--exrest input').count() == 0, f'{t} réglage du repos sans champ')
         page.click('.sess-sheet--exrest [data-secs="180"]')
         page.click('.sess-sheet--exrest [data-d="15"]')
         R.check(page.evaluate("data.programmes.ppl.exercises.push.find(e => e.id === 'p1dcouch').rest") == 195, f'{t} repos de l\'exercice 3:15 enregistré')
-        page.click('.sess-sheet--exrest [data-action="sheet-done"]'); page.wait_for_timeout(300)
+        page.click('.sess-sheet--exrest [data-action="sheet-done"]'); settle(page)
         R.check('Repos 3:15' in page.locator('.ex-card[data-ei="0"] .ex-card__sub').inner_text(), f'{t} ligne « Repos 3:15 »')
         # Ajouter un exercice : recherche insensible aux accents
-        page.click('[data-action="add-session-ex"]'); page.wait_for_timeout(350)
+        page.click('[data-action="add-session-ex"]'); settle(page)
         page.fill('#axSearch', 'developpe')
         items = page.locator('#axList .ax__item').all_inner_texts()
         R.check(any('Développé' in x for x in items) and 'Créer' in items[-1], f'{t} recherche « developpe » {items[:3]}…')
@@ -237,20 +237,20 @@ def t_flow(bench, eng, dev, theme):
         # « À la fin » (par défaut : juste après l'exercice en cours, retour du 10/11) : la suite du test vise les mêmes rangs
         if page.locator('[data-action="ax-place"][data-place="end"]').count():
             page.click('[data-action="ax-place"][data-place="end"]')
-        page.locator('.ax__item--create').click(); page.wait_for_timeout(250)
+        page.locator('.ax__item--create').click(); settle(page)
         R.check(page.evaluate('activeSession.exercises.at(-1).name') == 'Pompes lestées' and page.evaluate('activeSession.exercises.at(-1).sets.length') == 4, f'{t} exercice créé avec 4 séries')
         # En séance, aucune feuille par-dessus l'entraînement après la création (muscles vérifiés hors séance)
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.sheet .mpick').count() == 0, f'{t} création en séance : pas de feuille des muscles')
         # Delta de volume jamais rouge : série plus légère que la dernière fois (une baisse ne s'affiche plus)
         w, r, v = row_inputs(page, 1, 0)
-        w.fill('5'); blur(page); v.click(); page.wait_for_timeout(300)
+        w.fill('5'); blur(page); v.click(); settle(page)
         page.click('.rest-mini__skip')
         reds = page.evaluate("""[...document.querySelectorAll('.ex-vol__delta')].map(e => getComputedStyle(e).color)
             .filter(c => /255, (69|59), (58|48)/.test(c))""")
         R.check(not reds, f'{t} delta de volume jamais rouge {reds}')
         # Terminer → bilan
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
         page.wait_for_selector('.view.summary')
         R.check(page.locator('.sum-title').inner_text() == 'Pousser (Push)', f'{t} bilan : titre en clair')
@@ -269,13 +269,13 @@ def t_flow(bench, eng, dev, theme):
             return bad; })()""")
         R.check(not over and page.locator('.sum-tile__unit').count() >= 1, f'{t} bilan : valeurs entières dans leur tuile {over}')
         page.fill('#summaryNotes', 'Bonne séance, épaule OK')
-        page.wait_for_timeout(450)
+        settle(page)
         R.check(page.evaluate('data.history[0].notes') == 'Bonne séance, épaule OK', f'{t} bilan : notes dans data.history[0]')
         R.check(json.loads(ls(page, 'ppl_v2'))['history'][0]['notes'] == 'Bonne séance, épaule OK', f'{t} bilan : notes persistées')
         shot(page, LOT, f'bilan-{t}')
         bh = page.locator('.sum-done').bounding_box()
         R.check(bh['height'] >= 50, f'{t} bouton Terminé 50 px')
-        page.click('.sum-done'); page.wait_for_timeout(200)
+        page.click('.sum-done'); settle(page)
         R.check(page.locator('.view.dashboard').count() == 1 and page.evaluate('activeSession') is None, f'{t} Terminé : retour à l\'accueil')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -301,7 +301,7 @@ def t_restore(bench, eng, dev, theme):
         a, end = restore_session()
         seed(page, theme, ppl_v2_today_json(), active=a)
         t = tag(dev, theme)
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate('restEndTime') == end and page.locator('.rest-mini').count() == 1, f'{t} restauration : repos restant exact')
         cur = page.evaluate("(() => { const r = document.querySelector('.session-set--current'); return r && [r.dataset.ei, r.dataset.si]; })()")
         R.check(cur == ['3', '2'], f'{t} restauration : série courante = exercice 4, série 3 ({cur})')
@@ -313,14 +313,14 @@ def t_restore(bench, eng, dev, theme):
         line = page.locator('.ex-card--collapsed .ex-summary__line').first.inner_text()
         R.check(line.startswith('4 × 10 · 32,5'), f'{t} résumé replié « {line} »')
         shot(page, LOT, f'restauration-{t}')
-        page.locator('.ex-card--collapsed .ex-summary').first.click(no_wait_after=True); page.wait_for_timeout(300)
+        page.locator('.ex-card--collapsed .ex-summary').first.click(no_wait_after=True); settle(page)
         R.check(page.locator('.ex-card[data-ei="0"] .session-set--done').count() == 4, f'{t} exercice replié : se déplie au tap')
         # Fin du repos : « Repos terminé »
         page.evaluate('restEndTime = Date.now() + 300')
-        page.wait_for_timeout(700)
+        until(page, "() => (document.querySelector('.rest-mini')?.textContent || '').includes('Repos terminé')", 3000)
         R.check("Repos terminé" in (page.locator('.rest-mini').inner_text() if page.locator('.rest-mini').count() else ''), f'{t} fin du repos : « Repos terminé »')
         R.check(page.locator('.timer-flash').count() == 0, f'{t} pas de flash plein écran')
-        page.wait_for_timeout(2200)
+        until(page, '() => !document.querySelector(".rest-mini")', 2600)   # retirée 2 s après la fin
         R.check(page.locator('.rest-mini').count() == 0, f'{t} barre retirée après 2 s')
         R.check(not page.errors, f'{t} restauration : aucune erreur JS {page.errors}')
 
@@ -342,7 +342,7 @@ def t_bump(bench):
         chip = page.locator('.ex-card[data-ei="0"] .bump-chip')
         R.check(chip.count() == 1, 'progression : la puce ↑ propose la hausse')
         chip.click()
-        page.wait_for_timeout(200)
+        settle(page)
         sets = page.evaluate('activeSession.exercises[0].sets.filter(s => !s.warmup).map(s => [s.weight, s.reps])')
         R.check(all(abs(float(w) - b - 2.5) < 1e-6 for (w, _), b in zip(sets, before)) and all(r == '8' for _, r in sets),
                 f'progression : puce touchée, + 2,5 kg et retour à 8 reps {sets}')
@@ -357,7 +357,7 @@ def t_keyboard(bench):
         seed(page, 'light', ppl_v2_today_json())
         start(page)
         w, r, v = row_inputs(page, 0, 0)
-        w.focus(); page.wait_for_timeout(80)
+        w.focus(); settle(page)
         sel = page.evaluate('[document.activeElement.selectionStart, document.activeElement.selectionEnd, document.activeElement.value.length]')
         # Demande de Maxence (15/10) : toucher un champ ne sélectionne plus tout son contenu
         R.check(not (sel[2] > 0 and sel[0] == 0 and sel[1] == sel[2]), f'clavier : contenu non sélectionné au focus {sel}')
@@ -368,7 +368,7 @@ def t_keyboard(bench):
         R.check(not revealed, 'toucher une série ne révèle pas « Supprimer » (sinon double tap sur iPhone)')
         page.keyboard.press('Enter')
         R.check(page.evaluate("document.activeElement.dataset.action") == 'set-reps', 'clavier : Entrée passe aux reps')
-        page.keyboard.press('Enter'); page.wait_for_timeout(300)
+        page.keyboard.press('Enter'); settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets[0].done'), 'clavier : Entrée valide la série')
 
 
@@ -381,7 +381,7 @@ def t_toast_place(bench, eng, dev, theme):
         start(page)
         n = page.evaluate('activeSession.exercises[0].sets.length')
         for si in range(n - 1):
-            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(600)
+            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); settle(page)
             where = page.evaluate("""() => { const b = document.querySelector('[data-action="sess-undo"]'); if (!b) return null;
                 const row = b.closest('.session-set'), prev = row.querySelector('.set-val'); return { si: row.closest('.set-swipe') ? [...document.querySelectorAll('.ex-card[data-ei="0"] .set-swipe')].indexOf(row.closest('.set-swipe')) : -1,
                   left: b.getBoundingClientRect().right <= prev.getBoundingClientRect().left + 1 }; }""")
@@ -396,14 +396,14 @@ def t_toast_hold(bench):
     with bench.page('webkit', 'iPhone 13', 'light') as page:
         seed(page, 'light', ppl_v2_today_json())
         start(page)
-        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(4500)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(4500)   # attente voulue : « Annuler » doit encore être là à 4,5 s (6 s)
         R.check(page.locator('[data-action="sess-undo"]').count() == 1, '« Annuler » encore là après 4,5 s')
-        page.wait_for_timeout(2200)
+        page.wait_for_timeout(2200)   # attente voulue : effacé passé 6 s
         R.check(page.locator('[data-action="sess-undo"]').count() == 0, 'puis il s\'efface (6 s)')
-        page.click('[data-action="validate-set"][data-ei="0"][data-si="1"]'); page.wait_for_timeout(300)
-        page.focus('[data-action="sess-undo"]'); page.wait_for_timeout(7000)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="1"]'); settle(page)
+        page.focus('[data-action="sess-undo"]'); page.wait_for_timeout(7000)   # attente voulue : reste au-delà de 6 s tant qu'il a le focus
         R.check(page.locator('[data-action="sess-undo"]').count() == 1, 'focus (VoiceOver) sur « Annuler » : retenu')
-        page.click('[data-action="sess-undo"]'); page.wait_for_timeout(300)
+        page.click('[data-action="sess-undo"]'); settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets[1].done') is False, 'Annuler atteint : série 2 à refaire')
 
 
@@ -414,7 +414,7 @@ def t_focus(bench):
         start(page)
         act = lambda: page.evaluate("(a => a ? [a.dataset.action, a.dataset.ei, a.dataset.si].join(' ') : '')(document.activeElement)")
         page.focus('[data-action="validate-set"][data-ei="0"][data-si="0"]')
-        page.keyboard.press('Enter'); page.wait_for_timeout(500)
+        page.keyboard.press('Enter'); settle(page)
         R.check(act() == 'validate-set 0 1', f'valider : focus sur le ✓ de la série 2 ({act()!r})')
         R.check(page.evaluate("document.activeElement.closest('.session-set--current') !== null"), 'focus sur la série mise en avant')
         page.focus('[data-action="sess-undo"]'); page.keyboard.press('Enter')
@@ -424,8 +424,8 @@ def t_focus(bench):
         except Exception:
             pass
         R.check(act() == 'validate-set 0 0', f'Annuler : focus sur le ✓ de la série 1 ({act()!r})')
-        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(400)
-        page.focus('.rest-mini__skip'); page.keyboard.press('Enter'); page.wait_for_timeout(400)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
+        page.focus('.rest-mini__skip'); page.keyboard.press('Enter'); settle(page)
         R.check(page.locator('.rest-mini').count() == 0 and act() == 'validate-set 0 1', f'Passer le repos : focus sur le ✓ de la série 2 ({act()!r})')
         R.check(page.evaluate("document.activeElement.matches('input')") is False, 'jamais un champ (le clavier ne s\'ouvre pas)')
         R.check(not page.errors, f'aucune erreur JS {page.errors}')

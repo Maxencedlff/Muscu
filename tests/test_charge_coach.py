@@ -48,12 +48,12 @@ def open_coach(page, theme):
     page.evaluate("""async () => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: 'max' }); }""")
     ids = page.evaluate(SETUP, N)
     page.evaluate('coachRefresh()')
-    page.wait_for_timeout(300)
+    settle(page)
     page.click('.tabbar [data-tab="friends"]')
     # Liste par pages de 40 depuis le 17/11 (COACH_ROWS_PAGE) : la première page, puis la suite en défilant
     page.wait_for_function('() => document.querySelectorAll(".coach-team .coach-student-row").length === 40', timeout=60_000)
     page.wait_for_function('() => typeof progress === "object" && progress.facts && !progress.loading', timeout=30_000)
-    page.wait_for_timeout(300)
+    settle(page)
     return ids
 
 
@@ -66,7 +66,7 @@ def t_liste(bench, eng, dev, theme):
             if not page.locator('.coach-more-rows').count():
                 break
             page.locator('.coach-more-rows').scroll_into_view_if_needed()
-            page.wait_for_timeout(200)
+            settle(page)
         R.check(page.locator('.coach-team .coach-student-row').count() == N, f'{t} {N} élèves dans la liste, en défilant')
         R.check(page.evaluate("Object.fromEntries([...document.querySelectorAll('.coach-filter')].map(b => [b.dataset.filter, +b.querySelector('.coach-filter__n').textContent]))").get('all') == N,
                 f'{t} filtre Tous : {N}, compteur exact')
@@ -78,15 +78,15 @@ def t_liste(bench, eng, dev, theme):
         # Relecture sans nouveauté : la liste n'est pas refaite (même élément DOM pour la première ligne)
         page.evaluate("document.querySelector('.coach-team .coach-student-row').__mark = 1")
         page.evaluate('async () => { await coachRefresh(); await chatRefresh?.(); }')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate("document.querySelector('.coach-team .coach-student-row').__mark === 1"), f'{t} relecture sans nouveauté : liste gardée telle quelle')
         # Une vraie nouveauté (message reçu) : redessinée, la pastille apparaît
         page.evaluate(f"""async () => {{ __sb.msg('{ids[3]}', false, 'Question sur le squat'); await coachRefresh(); }}""")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("document.querySelector('.coach-team .coach-student-row').__mark !== 1"), f'{t} nouveauté : liste redessinée')
         # Recherche
         page.fill('#coachSearch', 'eleve.105')
-        page.wait_for_timeout(200)
+        settle(page)
         shown = page.evaluate("[...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => !r.hidden).map(r => r.dataset.name)")
         R.check(shown == ['eleve.105.marathon'], f'{t} recherche : un seul élève {shown}')
         shot(page, LOT, f'02-recherche-{t}')
@@ -106,7 +106,7 @@ def t_envoi_et_fiche(bench, eng, dev, theme):
         # Fiche de l'élève aux 150 séances : 30, puis 30 de plus
         page.evaluate(f'navigate(makeRoute("coach-student", "{ids[0]}"))')
         page.wait_for_selector('[data-action="coach-open-session"]')
-        page.wait_for_timeout(300)
+        settle(page)
         n1 = page.locator('[data-action="coach-open-session"]').count()
         page.locator('[data-action="coach-more"]').first.click()
         page.wait_for_function(f'() => document.querySelectorAll("[data-action=coach-open-session]").length > {n1}', timeout=15_000)

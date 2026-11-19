@@ -37,13 +37,13 @@ def open_app(page, theme, store=None, active=None):
     page.add_init_script("window.__opened = []; window.open = u => { window.__opened.push(u); return null; };")
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(), active=active, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(500)
+    settle(page)
 
 
 def foreground(page):
     """Retour de l'app au premier plan (visibilitychange)."""
     page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
-    page.wait_for_timeout(400)
+    settle(page)
 
 
 def screen(page):
@@ -103,7 +103,7 @@ def t_a_jour(bench):
                        ({'appBuild': 25, 'minBuild': 0}, 'min_build à 0')):
         with bench.page('webkit', 'iPhone 13', 'dark') as page:
             open_app(page, 'dark', store=opts)
-            page.wait_for_timeout(500)
+            settle(page)
             reads = page.evaluate("__st.calls.filter(c => c[0] === 'app_config').map(c => c[1])")
             R.check('anon' in reads, f'{name} : min_build lu sans compte {reads}')
             R.check(page.locator('.min-build').count() == 0 and not app_inert(page), f'{name} : aucun écran de mise à jour')
@@ -115,18 +115,18 @@ def t_hors_ligne(bench):
     l'écran arrive ; réseau reperdu ensuite : l'écran reste (pas de clignotement)."""
     with bench.page('webkit', 'iPhone 13', 'dark') as page:
         open_app(page, 'dark', store={'fail': {'config': 'offline'}})
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.min-build').count() == 0, 'hors ligne : aucun écran de mise à jour')
         page.evaluate("switchTab('history')")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('#app').inner_text().strip() != '' and not app_inert(page), 'hors ligne : Historique lisible')
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         page.locator('[data-action="start-session"]').first.click()
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate('!!activeSession'), 'hors ligne : séance démarrée')
         page.evaluate('endSession()')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate("Object.keys(localStorage).filter(k => /min.?build/i.test(k))") == [], 'hors ligne : rien gardé sur l\'appareil')
         # Le réseau revient : vérification aussitôt
         page.evaluate("__st.fail.config = null; window.dispatchEvent(new Event('online'))")
@@ -143,15 +143,15 @@ def t_seance(bench):
     with bench.page('webkit', 'iPhone 13', 'dark') as page:
         open_app(page, 'dark', store={'minBuild': 0})
         page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
+        settle(page)
         page.locator('[data-action="start-session"]').first.click()
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate('!!activeSession'), 'séance démarrée')
         page.evaluate('__st.minBuild = 30')
         foreground(page)
         R.check(page.locator('.min-build').count() == 0, 'séance en cours : pas d\'écran')
         page.evaluate('endSession()')
-        page.wait_for_timeout(300)
+        settle(page)
         foreground(page)
         R.check(page.locator('.min-build').count() == 1, 'séance finie : écran de mise à jour')
         R.check(page.evaluate('data.history.length') > 0, 'séance finie : historique gardé')
@@ -176,10 +176,10 @@ def t_navigateur(bench):
         page.route('**/*supabase.co/**', lambda route: (asked.append(route.request.url), route.abort()))
         page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
         seed(page, 'dark', ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate('checkMinBuild()') is False, 'navigateur : checkMinBuild ne bloque pas')
         page.evaluate("window.dispatchEvent(new Event('online')); document.dispatchEvent(new Event('visibilitychange'))")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.min-build').count() == 0, 'navigateur : aucun écran')
         R.check(asked == [], f'navigateur : aucune requête au serveur {asked}')
         R.check(not page.errors, f'navigateur : aucune erreur JS {page.errors}')

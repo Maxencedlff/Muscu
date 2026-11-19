@@ -63,7 +63,7 @@ def open_app(page, data, active=None, **kw):
     page.add_init_script(shell(**kw))
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, THEME, data, active=active)
-    page.wait_for_timeout(600)
+    settle(page)
 
 
 def saved_session(bench, data):
@@ -71,7 +71,7 @@ def saved_session(bench, data):
     with bench.page(ENGINE, DEVICE, THEME) as page:
         open_app(page, data)
         page.evaluate("startSession('push')")
-        page.wait_for_timeout(200)
+        settle(page)
         raw = ls(page, 'ppl_active_session')
     return json.loads(raw)
 
@@ -104,7 +104,7 @@ def t_montre(bench):
         # Geste périmé (série déjà validée) : rien ne change, l'état réel est renvoyé
         n = page.evaluate('__watch.sent.length')
         page.evaluate(f"__watch.emit('action', {{ type: 'validate', ei: 0, si: 0, at: {now_ms()} }})")
-        page.wait_for_timeout(150)
+        settle(page)
         after = page.evaluate("({ n: __watch.sent.length, done2: activeSession.exercises[0].sets[1].done === true, last: __watch.sent.at(-1) })")
         R.check(after['n'] == n + 1 and after['last']['cur'] == {'ei': 0, 'si': 1}, 'geste périmé : état réel renvoyé')
         R.check(not after['done2'], 'geste périmé : la série suivante n\'est pas validée à sa place')
@@ -112,31 +112,31 @@ def t_montre(bench):
         # Repos : −15 s puis passer
         end0 = page.evaluate('restEndTime')
         page.evaluate(f"__watch.emit('action', {{ type: 'restAdjust', d: -15, at: {now_ms()} }})")
-        page.wait_for_timeout(100)
+        settle(page)
         R.check(abs((end0 - page.evaluate('restEndTime')) - 15000) < 1500, 'repos : −15 s depuis la montre')
         page.evaluate(f"__watch.emit('action', {{ type: 'skipRest', at: {now_ms()} }})")
-        page.wait_for_timeout(150)
+        settle(page)
         R.check(not page.evaluate('restActive') and page.evaluate('__watch.sent.at(-1).rest') is None, 'repos passé depuis la montre')
 
         # Geste valide mais trop ancien (resté en file pendant que l'iPhone dormait) : refusé
         page.evaluate(f"__watch.emit('action', {{ type: 'validate', ei: 0, si: 1, at: {now_ms() - 60_000} }})")
-        page.wait_for_timeout(150)
+        settle(page)
         R.check(not page.evaluate('activeSession.exercises[0].sets[1].done === true'), 'geste de plus de 30 s : refusé')
         page.evaluate(f"__watch.emit('action', {{ type: 'validate', ei: 0, si: 1 }})")
-        page.wait_for_timeout(150)
+        settle(page)
         R.check(not page.evaluate('activeSession.exercises[0].sets[1].done === true'), 'geste sans heure : refusé')
 
         # Chrono d'effort en cours : la validation se fait sur l'iPhone
         page.evaluate("activeSession.effort = { ei: 0, si: 1, start: Date.now(), target: 30, sides: 1 }")
         page.evaluate(f"__watch.emit('action', {{ type: 'validate', ei: 0, si: 1, at: {now_ms()} }})")
-        page.wait_for_timeout(150)
+        settle(page)
         R.check(not page.evaluate('activeSession.exercises[0].sets[1].done === true'), 'chrono d\'effort : validation refusée')
         R.check(page.evaluate('__watch.sent.at(-1).canValidate') is False, 'chrono d\'effort : la montre reçoit « pas validable »')
         page.evaluate('delete activeSession.effort')
 
         # Série en cours, validable : validée, et le repos démarre
         page.evaluate(f"__watch.emit('action', {{ type: 'validate', ei: 0, si: 1, at: {now_ms()} }})")
-        page.wait_for_timeout(150)
+        settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets[1].done === true && restActive'), 'série 2 validée depuis la montre, repos ouvert')
         R.check(page.evaluate("JSON.parse(localStorage.getItem('ppl_active_session')).activeSession.exercises[0].sets[1].done") is True,
                 'geste de la montre sauvegardé')
@@ -144,7 +144,7 @@ def t_montre(bench):
         # La montre redemande l'état : renvoyé même s'il n'a pas changé
         n = page.evaluate('__watch.sent.length')
         page.evaluate("__watch.emit('request', {})")
-        page.wait_for_timeout(100)
+        settle(page)
         R.check(page.evaluate('__watch.sent.length') == n + 1, 'demande de la montre : état renvoyé')
         R.check(not page.errors, f'montre : aucune erreur JS {page.errors}')
 
@@ -159,7 +159,7 @@ def t_siri(bench):
     with bench.page(ENGINE, DEVICE, THEME) as page:
         open_app(page, data, active=active, inbox=dict(req, at=now_ms()), fire=True)
         page.wait_for_function('window.__sc.takes > 0', timeout=4000)
-        page.wait_for_timeout(300)
+        settle(page)
         saved = json.loads(ls(page, 'ppl_active_session'))
         R.check(saved['activeSession']['startedAt'] == started, 'Siri au démarrage : la séance en cours n\'est pas remplacée')
         R.check(page.evaluate('activeSession.startedAt') == started, 'Siri au démarrage : séance restaurée en mémoire')
@@ -171,7 +171,7 @@ def t_siri(bench):
     with bench.page(ENGINE, DEVICE, THEME) as page:
         open_app(page, data, inbox=dict(req, at=now_ms()), fire=True)
         page.wait_for_function('window.__sc.takes > 0', timeout=4000)
-        page.wait_for_timeout(300)
+        settle(page)
         st = page.evaluate("({ cat: activeSession && activeSession.category, next: nextSessionCat(sessionKeys()), view: currentView() })")
         R.check(st['cat'] is not None and st['view'] == 'session', f'Siri sans séance : séance démarrée {st}')
 
@@ -180,7 +180,7 @@ def t_siri(bench):
         open_app(page, data)
         R.check(page.evaluate('activeSession') is None, 'app ouverte sans séance')
         page.evaluate(f"__sc.inbox = {{ action: 'startSession', at: {now_ms()} }}; __sc.listeners.forEach(fn => fn({{}}))")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("currentView() === 'session' && !!activeSession"), 'Siri, app ouverte : séance démarrée')
         R.check(page.evaluate('__sc.listeners.length') == 1, 'un seul écouteur Siri')
         R.check(not page.errors, f'Siri (app ouverte) : aucune erreur JS {page.errors}')

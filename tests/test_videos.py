@@ -94,14 +94,14 @@ def open_app(page, theme, man='repo', cellular=False, coach=False):
 
 def open_fiche(page, name=EX):
     page.click('.tabbar [data-tab="program"]')
-    page.wait_for_timeout(250)
+    settle(page)
     page.evaluate("navigate('library')")
     page.wait_for_selector('#libSearch')
     page.fill('#libSearch', name)
-    page.wait_for_timeout(100)
+    settle(page)
     page.locator(f'[data-action="open-library-ex"][data-name="{name}"]').first.click()
     page.wait_for_selector('.library-ex')
-    page.wait_for_timeout(250)
+    settle(page)
 
 
 def layout_ok(page, t, what):
@@ -158,13 +158,13 @@ def t_fiche(bench, eng, dev, theme):
                 # Toucher : pause voulue, pas relancée ; rien au pointerdown
                 before = page.evaluate("document.querySelector('.exvideo video').paused")
                 page.dispatch_event('.exvideo__play', 'pointerdown')
-                page.wait_for_timeout(100)
+                settle(page)
                 R.check(page.evaluate("document.querySelector('.exvideo video').paused") == before, f'{t} rien au pointerdown')
                 page.click('.exvideo__play')
-                page.wait_for_timeout(200)
+                settle(page)
                 R.check(page.evaluate("document.querySelector('.exvideo video').paused") and page.get_attribute('.exvideo__play', 'aria-label').startswith('Lire la vidéo de'), f'{t} toucher : pause')
                 page.click('.exvideo__play')
-                page.wait_for_timeout(400)
+                settle(page)
                 R.check(not page.evaluate("document.querySelector('.exvideo video').paused"), f'{t} toucher : reprise')
         else:
             # Navigateur de test sans H.264 (Chromium de Playwright) : état « indisponible », jamais d'erreur JS
@@ -173,11 +173,11 @@ def t_fiche(bench, eng, dev, theme):
         layout_ok(page, t, 'fiche')
         # Retour : la vidéo quitte l'écran (rien ne continue en fond)
         page.click('[data-action="back"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate("[...document.querySelectorAll('#app video')].every(v => v.paused || !v.isConnected)"), f'{t} retour : plus de lecture')
         # Exercice sans vidéo : fiche inchangée
         page.fill('#libSearch', 'Curl marteau')
-        page.wait_for_timeout(100)
+        settle(page)
         page.locator('[data-action="open-library-ex"][data-name="Curl marteau"]').first.click()
         page.wait_for_selector('.library-ex')
         R.check(page.locator('.exvideo').count() == 0 and page.locator('.howto').count() == 1, f'{t} exercice sans vidéo : fiche inchangée')
@@ -191,7 +191,7 @@ def t_affiche(bench, eng, dev, theme):
         serve_videos(page)
         open_app(page, theme, manifest(), cellular=True)
         open_fiche(page)
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.locator('.exvideo--manual').count() == 1, f'{t} cellulaire : pas de lecture automatique')
         R.check(not page.evaluate("document.querySelector('.exvideo video').getAttribute('src')")
                 and not any(h[0] == 'squat-barre.mp4' for h in page.video_hits), f'{t} cellulaire : vidéo pas téléchargée')
@@ -200,7 +200,7 @@ def t_affiche(bench, eng, dev, theme):
         if dev in FULL_DEVICES:
             shot(page, LOT, f'2-fiche-affiche-{t}')
         page.click('.exvideo__play')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate("document.querySelector('.exvideo video').getAttribute('src')") == HOST + 'squat-barre.mp4', f'{t} toucher : vidéo chargée')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -218,7 +218,7 @@ def t_vide(bench, eng, dev, theme):
             R.check(page.locator('.exvideo').count() == 1 and page.locator('.exvideo--3d').count() == 1
                     and page.locator('.howto').count() == 1, f'{t} manifeste {what} : animation 3D à la place')
             page.click('[data-action="back"]')
-            page.wait_for_timeout(300)
+            settle(page)
             open_fiche(page, 'Curl marteau')
             R.check(page.locator('.exvideo').count() == 0 and page.locator('.howto').count() == 1, f'{t} manifeste {what} : sans animation, fiche comme avant')
             R.check(not page.video_hits, f'{t} manifeste {what} : aucune requête vidéo')
@@ -262,7 +262,7 @@ def t_coach(bench, eng, dev, theme):
             await coachRefresh();
         }""", COACH_PROG)
         page.click('.tabbar [data-tab="friends"]')
-        page.wait_for_timeout(400)
+        settle(page)
         page.click('[data-action="coach-open-mine"]')
         page.wait_for_selector('.coach-mine-view .coach-prog')
         page.click('[data-action="coach-prog-toggle"]')
@@ -333,10 +333,10 @@ def t_anim3d(bench, eng, dev, theme):
                 R.check(blur == 'none', f'{t} pause : fond uni, sans flou ({blur})')
                 R.check(page.locator('.exvideo--3d.exvideo--ready').count() == 1 and not page.locator('.exvideo--3d .exvideo__poster').is_visible(), f'{t} en lecture : affiche masquée')
                 page.click('.exvideo--3d .exvideo__play')
-                page.wait_for_timeout(200)
+                settle(page)
                 R.check(page.evaluate("document.querySelector('.exvideo--3d video').paused"), f'{t} toucher : pause')
                 page.click('.exvideo--3d .exvideo__play')
-                page.wait_for_timeout(400)
+                settle(page)
                 R.check(not page.evaluate("document.querySelector('.exvideo--3d video').paused"), f'{t} toucher : reprise')
         if dev in FULL_DEVICES:
             page.locator('.exvideo--3d').scroll_into_view_if_needed()
@@ -348,7 +348,7 @@ def t_anim3d(bench, eng, dev, theme):
         serve_videos(page)
         open_app(page, theme, 'repo')
         open_fiche(page, 'Développé couché barre')
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.locator('.exvideo--3d.exvideo--manual').count() == 1, f'{t} réduire les animations : pas de lecture automatique')
         R.check(page.locator('.exvideo--3d .exvideo__poster').is_visible(), f'{t} avant lecture : affiche visible, jamais de carré noir')
         R.check(not page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('src')"), f'{t} réduire les animations : rien de chargé')
@@ -358,7 +358,7 @@ def t_anim3d(bench, eng, dev, theme):
             shot(page, LOT, f'6-anim3d-affiche-{t}')
         layout_ok(page, t, 'affiche 3D')
         page.click('.exvideo--3d .exvideo__play')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check((page.evaluate("document.querySelector('.exvideo--3d video').getAttribute('src')") or '').startswith('img/anim/developpe-couche-barre.'), f'{t} toucher : animation chargée')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

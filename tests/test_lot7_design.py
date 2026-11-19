@@ -29,7 +29,7 @@ def t_clock_format(bench, eng, dev, theme):
         # Fonction de format
         vals = page.evaluate("[fmtClock(12000), fmtClock(9*60000+5000), fmtClock(42*60000+7000), fmtClock(3727000), fmtRest(89)]")
         R.check(vals == ['0:12', '9:05', '42:07', '1:02:07', '1:29'], f'{t} fmtClock au format du repos : {vals}')
-        page.wait_for_timeout(1200)
+        page.wait_for_timeout(1200)   # attente voulue : au moins un battement (1 s) des chronos
         seen = {}
         for sel in ('#session-clock', '#livebar-elapsed', '#hero-elapsed'):
             loc = page.locator(sel)
@@ -39,7 +39,7 @@ def t_clock_format(bench, eng, dev, theme):
         if page.locator('.view.session').count():
             shot(page, LOT, f'chrono-seance-{t}')
             page.locator('[data-action="back"]').first.click()
-            page.wait_for_timeout(1200)
+            page.wait_for_timeout(1200)   # attente voulue : au moins un battement (1 s) des chronos
         for sel in ('#livebar-elapsed', '#hero-elapsed'):
             loc = page.locator(sel)
             if loc.count():

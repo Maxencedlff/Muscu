@@ -66,13 +66,13 @@ def open_app(page, theme, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='max', fail=None):
     page.evaluate("""async ([u, f]) => { if (f) __sb.fail.pphoto = f; await accountSignInWith('apple', async () => 'add');
         await accountSaveProfile({ username: u, avatar: '🦁' }); await socialEnable(true); }""", [username, fail])
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def no_hscroll(page):
@@ -149,7 +149,7 @@ def t_compte_envoi_retrait(bench, eng, dev, theme):
 
         page.click('.sheet [data-action="pph-use"]')
         page.wait_for_function("() => !document.querySelector('.sheet .pph-sheet')", timeout=10000)
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Photo de profil enregistrée' in toast(page), f'{t} toast ({toast(page)!r})')
         obj = page.evaluate("""me => { const p = __sb.pp.photos.find(x => x.user === me && x.state === 'ready');
             const o = p && __sb.objs[me + '/' + p.id]; return o ? { b64: o.b64, size: o.size, type: o.type, path: me + '/' + p.id } : null; }""", me)
@@ -171,7 +171,7 @@ def t_compte_envoi_retrait(bench, eng, dev, theme):
 
         # Réglages : la cellule du compte montre la photo aussi
         page.evaluate("navigate('settings')")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(has_photo(page, '#accountGroup'), f'{t} Réglages : photo sur la cellule du compte')
 
         # Retirer : effacée du serveur, l'emoji revient
@@ -182,7 +182,7 @@ def t_compte_envoi_retrait(bench, eng, dev, theme):
         page.click('.sheet [data-action="pph-remove"]')
         tap_dialog(page, 'Retirer')
         page.wait_for_function("() => !document.querySelector('.sheet .pph-sheet')", timeout=10000)
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate("me => !__sb.pp.photos.some(p => p.user === me)", me) and obj and page.evaluate("p => __sb.trash.includes(p) && !__sb.objs[p]", obj['path']),
                 f'{t} retirée : ligne effacée, fichier en purge et retiré')
         R.check(page.locator('.account-hero .avatar__photo').count() == 0 and '🦁' in page.inner_text('.account-hero'), f'{t} l\'emoji revient')
@@ -201,7 +201,7 @@ def t_vu_par_ami(bench, eng, dev, theme):
             __sb.setPhoto(lea, a, 'image/jpeg'); __sb.setPhoto(zoe, b, 'image/jpeg'); __sb.setPhoto(bad, btoa('pas une image'));
             return { me, lea, zoe, bad }; }""", [pattern_jpeg_b64((40, 110, 90), (235, 225, 210)), pattern_jpeg_b64((90, 60, 140), (240, 200, 80))])
         page.evaluate("socialRefresh()")
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate(f"navigate(makeRoute('social-profile', '{ids['lea']}'))")
         page.wait_for_selector('.social-profile-view .account-hero')
         page.wait_for_function("() => { const i = document.querySelector('.social-profile-view .account-hero .avatar__photo'); return i && i.naturalWidth > 0; }", timeout=5000)
@@ -224,7 +224,7 @@ def t_vu_par_ami(bench, eng, dev, theme):
         R.check(rep and rep['kind'] == 'profile' and rep['target_ref'] == f'photo:{pid}' and rep['reason'] == 'autre' and 'pas cette personne' in (rep.get('details') or ''),
                 f'{t} signalement : profil, référence de la photo, motif ({rep})')
         tap_dialog(page, 'OK')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.social-profile-view .account-hero .avatar__photo').count() == 0 and '🦊' in page.inner_text('.social-profile-view .account-hero'),
                 f'{t} photo signalée : plus montrée ici, l\'emoji la remplace')
         R.check(page.locator('[data-action="pph-report"]').count() == 0, f'{t} plus de « Signaler la photo »')
@@ -232,11 +232,11 @@ def t_vu_par_ami(bench, eng, dev, theme):
         # Inconnu (zoe) : jamais sa photo ; abonné (eve) dont l'image est illisible : l'emoji reste
         page.evaluate(f"navigate(makeRoute('social-profile', '{ids['zoe']}'))")
         page.wait_for_selector('.social-profile-view .account-hero')
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.locator('.social-profile-view .avatar__photo').count() == 0, f'{t} inconnu : pas de photo')
         page.evaluate(f"navigate(makeRoute('social-profile', '{ids['bad']}'))")
         page.wait_for_selector('.social-profile-view .account-hero')
-        page.wait_for_timeout(800)
+        settle(page)
         R.check(page.locator('.social-profile-view .account-hero .avatar__photo').count() == 0 and '🦉' in page.inner_text('.social-profile-view .account-hero'),
                 f'{t} image illisible : l\'emoji reste')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -276,12 +276,12 @@ def t_serveur_ancien(bench, eng, dev, theme):
         ids = page.evaluate("() => { const lea = __sb.addPerson({ username: 'lea', avatar: '🦊' }); __sb.follow(__sb.meId(), lea); return { lea }; }")
         page.evaluate("navigate('account')")
         page.wait_for_selector('.account-view')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('[data-action="pph-open"]').count() == 0, f'{t} serveur ancien : pas de cellule')
         R.check('Tes amis voient ton pseudo et ton avatar' in page.inner_text('.account-view'), f'{t} serveur ancien : texte d\'avant')
         page.evaluate(f"navigate(makeRoute('social-profile', '{ids['lea']}'))")
         page.wait_for_selector('.social-profile-view')
-        page.wait_for_timeout(500)
+        settle(page)
         asked = page.evaluate("__sb.calls.filter(c => c[0] === 'pphoto').map(c => c[1])")
         R.check('profile_photos' not in asked, f'{t} serveur ancien : aucune demande des photos des autres ({asked})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')

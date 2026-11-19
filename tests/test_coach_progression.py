@@ -35,12 +35,12 @@ def open_app(page, theme, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username):
     page.evaluate("""async u => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u }); }""", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def layout(page, t, name):
@@ -62,7 +62,7 @@ def ccalls(page, fn):
 def go(page, route_js, sel):
     page.evaluate(f"navigate({route_js})")
     page.wait_for_selector(sel)
-    page.wait_for_timeout(400)
+    settle(page)
 
 
 def sessions(days, records=None, label='Push', prefix='x'):
@@ -138,9 +138,9 @@ def t_liste(bench, eng, dev, theme):
         signin(page, 'max')
         ids = setup(page)
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         go(page, "'coach-students'", '.coach-students-view .coach-student-row[data-signal="records"]')
-        page.wait_for_timeout(300)
+        settle(page)
         names = page.evaluate("[...document.querySelectorAll('.coach-student-row .social-row__name')].map(e => e.textContent.trim())")
         R.check(names == ['zoe', 'tom', 'nina', 'lea', 'hugo', 'paul'], f'{t} tri : nouveautés, à relancer, records, les autres ({names})')
         sig = lambda n: page.locator('.coach-student-row', has_text=n).locator('.progress-sig')
@@ -165,7 +165,7 @@ def t_liste(bench, eng, dev, theme):
         shot(page, LOT, f'1-mes-eleves-{t}')
         # Rien au pointerdown : la ligne ne s'ouvre qu'au clic
         page.evaluate("document.querySelector('.coach-student-row').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.coach-students-view').count() == 1, f'{t} pointerdown seul : rien ne s\'ouvre')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -177,12 +177,12 @@ def t_fiche(bench, eng, dev, theme):
         signin(page, 'max')
         ids = setup(page)
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         # Léa : un toucher depuis la liste
         go(page, "'coach-students'", '.coach-students-view .coach-student-row[data-signal="records"]')
         page.locator('.coach-student-row', has_text='lea').click()
         page.wait_for_selector('.coach-student-view .progress-week')
-        page.wait_for_timeout(500)
+        settle(page)
         first = page.evaluate("document.querySelector('.coach-student-view .scr .group-title')?.textContent.trim()")
         R.check(first == '7 derniers jours', f'{t} fiche : « 7 derniers jours » en tête ({first!r})')
         wk = page.inner_text('.coach-student-view .progress-week')
@@ -214,11 +214,11 @@ def t_fiche(bench, eng, dev, theme):
         # La dernière séance s'ouvre (2e toucher)
         page.locator('.cstu-hero [data-action="coach-open-session"]').click()
         page.wait_for_selector('.coach-session-view')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Haut' in page.inner_text('.coach-session-view .scr-title'), f'{t} dernière séance ouverte')
         # Tom : le signal orange repris en tête, pas de record
         go(page, f"makeRoute('coach-student', '{ids['tom']}')", '.coach-student-view .progress-week')
-        page.wait_for_timeout(400)
+        settle(page)
         wk = page.inner_text('.coach-student-view .progress-week')
         R.check('9 jours sans séance' in wk and 'Aucun' in wk, f'{t} fiche de Tom ({wk!r})')
         R.check(page.locator('.progress-week .progress-sig--warn').count() == 1, f'{t} fiche de Tom : en orange')
@@ -237,10 +237,10 @@ def t_serveur_ancien(bench, eng, dev, theme):
         ids = setup(page)
         page.evaluate("__sb.fail.progress = 'missing'")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         go(page, "'coach-students'", '.coach-students-view .coach-student-row')
         page.wait_for_selector('.coach-student-row[data-signal="records"]', timeout=5000)
-        page.wait_for_timeout(500)
+        settle(page)
         sig = page.locator('.coach-student-row', has_text='lea').locator('.progress-sig').inner_text()
         R.check('2 records en 7 jours' in sig, f'{t} serveur d\'avant : records lus dans les séances ({sig!r})')
         read = sorted(c['student'] for c in ccalls(page, 'coach_student_sessions'))

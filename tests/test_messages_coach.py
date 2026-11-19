@@ -30,12 +30,12 @@ def open_app(page, theme, ppl_v2=None, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='max'):
     page.evaluate("""async (u) => { await accountSignInWith('apple', async () => 'add'); if (u) await accountSaveProfile({ username: u }); }""", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def coach_calls(page, fn):
@@ -85,7 +85,7 @@ def t_eleve(bench, eng, dev, theme):
             __sb.msg(__sb.meId(), true, 'Pense à t\\'échauffer\\n\\nsur le squat.', Date.now() - 600e3);
             return max; }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate('chatUnreadTotal()') == 2 and badge(page) == '2', f'{t} badge de l\'onglet : 2 messages ({badge(page)!r})')
         page.click('.tabbar [data-tab="friends"]')
         page.wait_for_selector('[data-action="coach-open-mine"]')
@@ -104,7 +104,7 @@ def t_eleve(bench, eng, dev, theme):
         shot(page, LOT, f'1-mon-coach-{t}')
         cell.click()
         page.wait_for_selector('.coach-chat-view .chat-msg')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.chat-msg--theirs').count() == 2 and page.locator('.chat-msg--mine').count() == 0, f'{t} deux bulles du coach')
         days = page.evaluate("[...document.querySelectorAll('.chat-day')].map(e => e.innerText)")
         R.check(len(days) == 2 and days[1] == 'Aujourd\'hui', f'{t} séparateurs de jour {days}')
@@ -121,7 +121,7 @@ def t_eleve(bench, eng, dev, theme):
         R.check(send.is_disabled(), f'{t} Envoyer grisé tant que vide')
         page.fill('#chatInput', 'Oui, 100 kg x 5 !')
         send.click()
-        page.wait_for_timeout(500)
+        settle(page)
         sent = page.evaluate("__sb.co.msgs.filter(m => !m.fromCoach).map(m => m.body)")
         R.check(sent == ['Oui, 100 kg x 5 !'] and page.locator('.chat-msg--mine').count() == 1 and page.input_value('#chatInput') == '', f'{t} message envoyé {sent}')
         # Saisie collée au-dessus de la barre d'onglets, en bas de l'écran
@@ -135,7 +135,7 @@ def t_eleve(bench, eng, dev, theme):
         page.keyboard.type('Et demain')
         page.evaluate("__sb.msg(__sb.meId(), true, 'Top, bravo')")
         page.evaluate('chatTick()')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.chat-msg--theirs').count() == 3 and page.input_value('#chatInput') == 'Et demain'
                 and page.evaluate("document.activeElement.id") == 'chatInput', f'{t} relecture pendant la saisie : bulle ajoutée, clavier gardé')
         R.check(coach_calls(page, 'chat_messages')[-1].get('after_id') is not None, f'{t} relecture : seulement les nouveaux (after_id)')
@@ -144,7 +144,7 @@ def t_eleve(bench, eng, dev, theme):
         page.evaluate("__sb.msg(__sb.meId(), true, 'Juste avant toi')")
         page.fill('#chatInput', 'Ma réponse')
         page.click('.chat-compose .comment-compose__send')
-        page.wait_for_timeout(600)
+        settle(page)
         order = page.evaluate("[...document.querySelectorAll('.chat-msg__bubble')].map(b => b.lastChild.textContent).slice(-2)")
         R.check(order == ['Juste avant toi', 'Ma réponse'], f'{t} message de l\'autre arrivé avant ma réponse : affiché {order}')
         R.check(page.evaluate("__sb.co.reads[__sb.meId()].student") == page.evaluate("Math.max(...__sb.co.msgs.map(m => m.id))"), f'{t} puis marqué lu')
@@ -168,7 +168,7 @@ def t_eleve(bench, eng, dev, theme):
         tap_dialog(page, 'OK')
         # Le coach me retire : conversation effacée
         page.evaluate(f"__sb.co.links = __sb.co.links.filter(l => l.student !== __sb.meId()); __sb.co.msgs = []; coachRefresh()")
-        page.wait_for_timeout(600)
+        settle(page)
         R.check('supprimés' in page.inner_text('.coach-chat-view'), f'{t} lien rompu : conversation effacée ({page.inner_text(".coach-chat-view")[:80]!r})')
         R.check(len(page.evaluate("__sb.co.chatReports")[0]['messages']) > 0, f'{t} lien rompu : la copie signalée reste')
         # Information vue (conversation ouverte) : plus redite
@@ -189,7 +189,7 @@ def t_coach(bench, eng, dev, theme):
             __sb.msg(lea, false, 'J\\'ai mal au genou droit', Date.now() - 3600e3);
             return { lea, tom }; }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(badge(page) == '1', f'{t} badge de l\'onglet : 1 message ({badge(page)!r})')
         page.click('.tabbar [data-tab="friends"]')
         page.wait_for_selector('.coach-team .coach-student-row')   # onglet Coach : ses élèves d'abord
@@ -202,7 +202,7 @@ def t_coach(bench, eng, dev, theme):
         page.locator('.chat-cell').scroll_into_view_if_needed()
         page.click('.chat-cell')
         page.wait_for_selector('.coach-chat-view .chat-msg')
-        page.wait_for_timeout(400)
+        settle(page)
         bar = page.evaluate("[document.querySelector('#app .navbar__back-label')?.dataset.full, document.querySelector('#app .navbar__title').textContent.trim()]")
         R.check(bar[1] == 'Messages' and bar[0] != bar[1], f'{t} conversation ouverte depuis la fiche : « ‹ lea · Messages », pas « lea » deux fois {bar}')
         # Un seul message (panel du 06/11) : l'intro ne passe pas sous la barre de titre
@@ -210,7 +210,7 @@ def t_coach(bench, eng, dev, theme):
         R.check(top[0] >= top[1] - 1, f'{t} coach, conversation courte : intro visible sous la barre {top}')
         page.fill('#chatInput', 'Repos 2 jours, puis on adapte.')
         page.click('.chat-compose .comment-compose__send')
-        page.wait_for_timeout(500)
+        settle(page)
         msgs = page.evaluate("__sb.co.msgs.map(m => [m.student, m.fromCoach, m.body])")
         R.check(msgs[-1] == [ids['lea'], True, 'Repos 2 jours, puis on adapte.'], f'{t} envoyé à Léa seulement {msgs[-1]}')
         R.check(coach_calls(page, 'chat_send')[-1].get('student') == ids['lea'], f'{t} chat_send(student : Léa)')
@@ -228,12 +228,12 @@ def t_sans_serveur(bench, eng, dev, theme):
         page.evaluate("""() => { __sb.fail.chat = 'missing'; const max = __sb.addPerson({ username: 'coachmax', social: false });
             __sb.makeCoach(max); __sb.link(max, __sb.meId()); }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(500)
+        settle(page)
         page.click('.tabbar [data-tab="friends"]')
         page.wait_for_selector('[data-action="coach-open-mine"]')
         page.click('[data-action="coach-open-mine"]')
         page.wait_for_selector('.coach-mine-view')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.chat-cell').count() == 0, f'{t} serveur sans messagerie : pas de cellule')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -269,14 +269,14 @@ def o_retour_apres_envoi(bench):
             lilou = page.evaluate("""() => { const me = __sb.meId(); __sb.makeCoach(me);
                 const p = __sb.addPerson({ username: 'lilou', social: false }); __sb.link(me, p); return p; }""")
             page.evaluate('coachRefresh()')
-            page.wait_for_timeout(500)
+            settle(page)
             page.click('.tabbar [data-tab="friends"]')
             page.click(f'.coach-student-row[data-uid="{lilou}"]')
             page.wait_for_selector('.chat-cell')
             page.locator('.chat-cell').scroll_into_view_if_needed()
             page.click('.chat-cell')
             page.wait_for_selector('#chatInput')
-            page.wait_for_timeout(400)
+            settle(page)
             text = 'Aujourd\'hui, 10 minutes au poids du corps. Quand tu veux… Love ❤️'
             page.focus('#chatInput')
             page.keyboard.type(text[:20])
@@ -286,14 +286,14 @@ def o_retour_apres_envoi(bench):
             page.focus('#chatInput')
             page.keyboard.type(text[20:])
             page.click('.chat-compose .comment-compose__send')
-            page.wait_for_timeout(600)
+            settle(page)
             page.evaluate('document.activeElement.blur()')
             R.check(page.input_value('#chatInput') == '' and page.locator('.chat-msg--mine').count() == 1, f'{t} message envoyé, saisie vide')
             r = page.evaluate(EDGE_HALF)
             R.check(r['layer'] and r['under'], f'{t} geste à mi-chemin : écran courant qui glisse, fiche dessous {r}')
             R.check(r['value'] == '' and not r['sent'], f'{t} geste de retour : saisie vide, pas le message envoyé {r}')
             R.check(r['menu'], f'{t} geste de retour : bouton ⋯ présent {r}')
-            page.wait_for_timeout(400)
+            settle(page)
             R.check(page.locator('.edge-layer').count() == 0 and page.locator('#app .coach-chat-view').count() == 1
                     and page.input_value('#chatInput') == '', f'{t} geste abandonné : conversation intacte')
             R.check(not page.errors, f'{t} geste : aucune erreur JS {page.errors}')

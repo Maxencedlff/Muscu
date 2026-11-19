@@ -15,6 +15,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 from fake_account import FAKE_ACCOUNT
 
 LOT = 'nutrition'
@@ -60,12 +62,12 @@ def open_app(page, theme, ppl_v2=None, account=False):
         page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username):
     page.evaluate("async u => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u }); }", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def no_hscroll(page):
@@ -142,7 +144,7 @@ def t_journee(bench, eng, dev, theme):
         shot(page, LOT, f'1b-accueil-carte-{t}')
         # Cocher depuis l'accueil : un seul toucher, le repas suivant prend la place
         page.click('.diet-home [data-action="diet-check"]')
-        page.wait_for_timeout(250)
+        settle(page)
         R.check(page.evaluate("dietDayProgress(data, data.dietActive).meals[0].done") is True, f'{t} accueil : petit-déjeuner coché d\'un toucher')
         R.check(page.locator('.diet-home__meal--next[data-meal="m2"] [data-action="diet-check"]').count() == 1
                 and page.locator('.diet-home__meal--done[data-meal="m1"] .diet-home__done').count() == 1, f'{t} accueil : petit-déjeuner coché, le déjeuner a le bouton')
@@ -199,31 +201,31 @@ def t_journee(bench, eng, dev, theme):
         shot(page, LOT, f'3-remplacer-{t}')
         name = page.locator('.diet-cands .diet-cand .diet-cand__name').first.inner_text()
         page.locator('.diet-cands .diet-cand').first.click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("dietDayProgress(data, data.dietActive).swaps.i3?.name") == name, f'{t} remplacé par {name}')
         R.check('Remplace Riz blanc' in page.inner_text('.diet-item[data-item="i3"]'), f'{t} ligne : « Remplace Riz blanc… »')
         R.check(page.evaluate("data.dietPlans.d_masse01.meals[1].items[0].food") == RIZ, f'{t} le plan ne change pas')
         # Cocher le déjeuner : compté avec le remplaçant
         page.click('.diet-meal[data-meal="m2"] [data-action="diet-check"]')
-        page.wait_for_timeout(300)
+        settle(page)
         lunch = page.evaluate("Math.round(dietDayProgress(data, data.dietActive).meals[1].macros.kcal)")
         R.check(kcal_eaten(page) == before + lunch, f'{t} déjeuner compté ({before} + {lunch})')
         R.check(page.get_attribute('.diet-meal[data-meal="m2"] [data-action="diet-check"]', 'aria-pressed') == 'true', f'{t} bouton coché (aria-pressed)')
         # Déplier un repas coché, le décocher
         page.click('.diet-meal[data-meal="m1"] .diet-meal__title')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.locator('.diet-meal[data-meal="m1"] .diet-item[data-action="diet-swap"]').count() == 2, f'{t} repas coché déplié au toucher')
         # Tous les repas cochés d'un plan perso : un compte, jamais « fini » (objectif de calories pas atteint ; panel « regard neuf » du 16/11)
         for m in ('m3', 'm4'):
             page.click(f'.diet-meal[data-meal="{m}"] [data-action="diet-check"]')
-            page.wait_for_timeout(250)
+            settle(page)
         R.check('4 repas cochés sur 4' in page.inner_text('.diet-sum') and page.locator('.diet-sum--complete, .diet-week__dot--done').count() == 0, f'{t} journée complète')
         shot(page, LOT, f'4-journee-complete-{t}')
         # Bug du 09/11 (Maxence) : dîner et collation déjà cochés, journée complète, on ne pouvait plus rien y ajouter.
         # Déplier le dîner coché, « Ajouter un aliment » : il reste coché, ses totaux et ceux du jour se recalculent
         before, plan_items = kcal_eaten(page), page.evaluate("data.dietPlans.d_masse01.meals[3].items.length")
         page.click('.diet-meal[data-meal="m4"] .diet-meal__title')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.get_attribute('.diet-meal[data-meal="m4"] .diet-meal__title', 'aria-expanded') == 'true'
                 and page.locator('.diet-meal[data-meal="m4"] .diet-meal__more .icon').count() == 1, f'{t} dîner coché : chevron, déplié')
         # Panel nutri-v2 : repas coché, titre pas grisé et chevron sur la ligne du nom ; barre de composition aux teintes
@@ -255,11 +257,11 @@ def t_journee(bench, eng, dev, theme):
         page.click(add)
         page.wait_for_selector('#dietFoodSearch')
         page.fill('#dietFoodSearch', 'huile olive')
-        page.wait_for_timeout(200)
+        settle(page)
         name = page.locator('#dietFoodList .diet-cand .diet-cand__name').first.inner_text()
         page.locator('#dietFoodList .diet-cand').first.click()
         qty_grams(page, '10')   # l'huile a des cuillères : quantité choisie en grammes
-        page.wait_for_timeout(400)
+        settle(page)
         extra = page.evaluate("dietDayProgress(data, data.dietActive).meals[3].extras.map(x => [x.name, x.g])")
         R.check(extra == [[name, 10]], f'{t} ajouté au dîner : {extra}')
         row = page.locator('.diet-meal[data-meal="m4"] .diet-item--extra')
@@ -276,30 +278,30 @@ def t_journee(bench, eng, dev, theme):
         row.click()
         tap_dialog(page, 'Changer la quantité')
         qty_grams(page, '20')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate("dietDayProgress(data, data.dietActive).meals[3].extras[0].g") == 20, f'{t} quantité changée')
         page.locator('.diet-meal[data-meal="m4"] .diet-item--extra').click()
         tap_dialog(page, 'Retirer')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.diet-meal[data-meal="m4"] .diet-item--extra').count() == 0 and kcal_eaten(page) == before, f'{t} retiré, total revenu')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.diet-meal[data-meal="m4"] .diet-item--extra').count() == 1, f'{t} Annuler : remis')
         # Collation cochée : décocher d'un toucher, Annuler la recoche
         page.click('.diet-meal[data-meal="m3"] [data-action="diet-check"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Décoché : Collation' in toast(page) and '4 repas cochés sur 4' not in page.inner_text('.diet-sum'), f'{t} collation décochée ({toast(page)!r})')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.get_attribute('.diet-meal[data-meal="m3"] [data-action="diet-check"]', 'aria-pressed') == 'true'
                 and '4 repas cochés sur 4' in page.inner_text('.diet-sum'), f'{t} Annuler : collation recochée')
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
         # Hier : frise, jour vide
         page.click('.diet-week__day[data-day="2026-11-04"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.inner_text('.diet-plan-from__day').strip() == 'Hier' and page.inner_text('.navbar__large').strip() == 'Nutrition' and page.locator('.diet-meal--done').count() == 0, f'{t} hier : rien de coché')
         page.click('.diet-week__day[data-day="2026-11-05"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.diet-meal--done').count() == 4, f'{t} retour à aujourd\'hui')
         # Réglages de la nutrition : masquer les calories et les grammes, série
         page.click('[data-action="go-diet-settings"]')
@@ -308,7 +310,7 @@ def t_journee(bench, eng, dev, theme):
         layout(page, t, 'réglages de la nutrition')
         shot(page, LOT, f'4b-reglages-{t}')
         page.click('[data-action="diet-hide-numbers"]')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.get_attribute('[data-action="diet-hide-numbers"]', 'aria-checked') == 'true', f'{t} chiffres masqués')
         page.evaluate('goBack()')
         page.wait_for_selector('.nutrition-view')
@@ -354,12 +356,12 @@ def t_creer_plan(bench, eng, dev, theme):
         page.wait_for_selector('#dietFoodSearch')
         R.check(page.evaluate("document.activeElement.id") == 'dietFoodSearch', f'{t} recherche active (clavier)')
         page.fill('#dietFoodSearch', 'riz cuit')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.locator('#dietFoodList .diet-cand').count() >= 5, f'{t} recherche : résultats')
         shot(page, LOT, f'6-recherche-{t}')
         # Flocons d'avoine : le nom ne dit ni cru ni cuit, pas de rappel ; la quantité se tape dans l'alerte à champ
         page.fill('#dietFoodSearch', 'flocons avoine')
-        page.wait_for_timeout(200)
+        settle(page)
         first = page.locator('#dietFoodList .diet-cand .diet-cand__name').first.inner_text()
         page.locator('#dietFoodList .diet-cand').first.click()
         page.wait_for_selector('.ios-dialog__input')
@@ -373,7 +375,7 @@ def t_creer_plan(bench, eng, dev, theme):
                 f'{t} quantité : message court, sans abréviation ({msg!r})')
         page.fill('.ios-dialog__input', '150')
         tap_dialog(page, 'OK')
-        page.wait_for_timeout(300)
+        settle(page)
         it = page.evaluate("Object.values(data.dietPlans)[0].meals[0].items[0]")
         R.check(it and it['name'] == first and it['g'] == 150 and it['per']['k'] > 0, f'{t} aliment ajouté avec ses valeurs ({it and it["name"]})')
         R.check('150 g' in page.inner_text('.diet-plan-view'), f'{t} éditeur : quantité affichée')
@@ -405,7 +407,7 @@ def t_creer_plan(bench, eng, dev, theme):
         shot(page, LOT, f'7-nouvel-aliment-{t}')
         page.click('.sheet__btn--confirm')
         qty_grams(page, '200')   # skyr : un pot de 125 g proposé, quantité choisie en grammes
-        page.wait_for_timeout(300)
+        settle(page)
         sk = page.evaluate("Object.values(data.dietPlans)[0].meals[1].items[0]")
         R.check(sk and sk['name'] == 'Skyr nature' and sk['per']['k'] == round(4 * 11 + 4 * 4 + 9 * 0.2) and sk['fam'] == 'v', f'{t} aliment perso : énergie calculée, famille protéines ({sk})')
         R.check(page.evaluate("data.dietFoods[0].name") == 'Skyr nature', f'{t} aliment perso gardé dans mes aliments')
@@ -419,13 +421,13 @@ def t_creer_plan(bench, eng, dev, theme):
                 page.wait_for_function("() => !document.querySelector('.sheet-root:not(.sheet-root--out) .sheet')?.getAnimations().some(a => a.playState === 'running')")
                 page.fill(f'{LIVE_SHEET} #{field}', value)
                 page.evaluate("document.activeElement?.blur()")
-                page.wait_for_timeout(250)
+                settle(page)
                 page.click(f'{LIVE_SHEET} .sheet__btn--confirm')
                 try:
                     page.wait_for_function(ok_js, timeout=3000)
                     return attempt
                 except Exception:
-                    page.wait_for_timeout(400)
+                    settle(page)
             return 2
         set_targets('dietT_p', '150', "() => Object.values(data.dietPlans)[0].targets?.p === 150")
         R.check(page.evaluate("Object.values(data.dietPlans)[0].targets") == {'p': 150}, f'{t} objectif de protéines fixé ({page.evaluate("Object.values(data.dietPlans)[0].targets ?? null")})')
@@ -442,7 +444,7 @@ def t_creer_plan(bench, eng, dev, theme):
         shot(page, LOT, f'9-plans-{t}')
         # Accueil : la carte apparaît
         page.evaluate("switchTab('train', { reset: true })")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.diet-home').count() == 1, f'{t} accueil : carte du plan créé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
@@ -461,7 +463,7 @@ def t_coach_eleve(bench, eng, dev, theme):
             const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', social: false }); __sb.link(me, lea);
             const tom = __sb.addPerson({ username: 'tom', avatar: '🐼', social: false }); __sb.link(me, tom); return lea; }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate(f"switchTab('friends'); navigate(makeRoute('coach-student', '{uid}'))")
         page.wait_for_selector('[data-action="coach-send-diet"]')
         # Élève qui n'a pas accepté : refus clair, rien d'écrit
@@ -477,14 +479,14 @@ def t_coach_eleve(bench, eng, dev, theme):
                 and msg.count('.') <= 1, f'{t} coach : relecture avant l\'envoi, une ligne ({msg!r})')
         shot(page, LOT, f'8b-envoi-plan-relecture-{t}')
         tap_dialog(page, 'Annuler')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(not page.evaluate("__sb.co.progs.length") and page.locator('.ios-dialog').count() == 0, f'{t} coach : Annuler n\'envoie rien')
         page.click('[data-action="coach-send-diet"]')
         page.wait_for_selector('.ios-dialog')
         tap_dialog(page, 'Sèche Léa')
         page.wait_for_selector('.ios-dialog--alert')
         tap_dialog(page, 'Envoyer')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check("Ton élève doit d'abord accepter les plans de nutrition dans son app." in toast(page) and not page.evaluate("__sb.co.progs.length"), f'{t} coach : refus clair sans l\'accord de l\'élève')
         page.evaluate(f"__sb.co.shares.push({{ student: '{uid}', coach: __sb.meId(), kind: 'diet', granted_at: new Date().toISOString() }})")
         page.click('[data-action="coach-send-diet"]')
@@ -492,20 +494,20 @@ def t_coach_eleve(bench, eng, dev, theme):
         tap_dialog(page, 'Sèche Léa')
         page.wait_for_selector('.ios-dialog--alert')
         tap_dialog(page, 'Envoyer')
-        page.wait_for_timeout(500)
+        settle(page)
         sent = page.evaluate("__sb.co.progs.find(p => p.id === 'diet_lea00001')")
         R.check(sent and sent['data']['kind'] == 'diet' and 'name' not in sent['data'] and sent['data']['diet']['name'] == 'Sèche Léa', f'{t} coach : plan envoyé par le canal des programmes, sans nom au premier niveau')
-        page.wait_for_timeout(300)
+        settle(page)
         g = page.inner_text('.coach-student-view')
         R.check('Sèche Léa' in g and 'Pas encore ouvert' in g, f'{t} fiche : plan envoyé, pas encore ouvert')
         R.check('diet_' not in g and 'Programme supprimé' not in g, f'{t} fiche : le plan n\'est pas listé comme un programme')
         # Plan retiré de mes plans ensuite : la ligne garde le nom envoyé, « supprimé de tes plans » en complément
         page.evaluate("window.__keep = data.dietPlans.d_lea00001; delete data.dietPlans.d_lea00001; render()")
-        page.wait_for_timeout(200)
+        settle(page)
         row = page.inner_text('.coach-sent[data-diet="diet_lea00001"]')
         R.check('Sèche Léa' in row and 'supprimé de tes plans' in row and 'Plan supprimé' not in row, f'{t} fiche : plan supprimé de mes plans, nom envoyé gardé ({row!r})')
         page.evaluate("data.dietPlans.d_lea00001 = window.__keep; render()")
-        page.wait_for_timeout(200)
+        settle(page)
         layout(page, t, 'fiche de l\'élève')
         shot(page, LOT, f'10-coach-fiche-{t}')
         # Préparer le plan d'un 2e élève : dupliquer puis « Envoyer à un élève », depuis le plan
@@ -517,7 +519,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         page.locator('[data-action="diet-duplicate"]').scroll_into_view_if_needed()
         shot(page, LOT, f'10b-dupliquer-icone-{t}')
         page.click('[data-action="diet-duplicate"]')
-        page.wait_for_timeout(400)
+        settle(page)
         nid = page.evaluate("routeParams(currentRoute())[0]")
         R.check(nid != 'd_lea00001' and 'Sèche Léa (copie)' in page.inner_text('.diet-plan-view'), f'{t} dupliquer : nouvelle copie ouverte')
         layout(page, t, 'plan dupliqué')
@@ -527,7 +529,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         page.wait_for_selector('.ios-dialog')
         shot(page, LOT, f'10c-envoyer-{t}')
         tap_dialog(page, 'tom')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate(f"__sb.co.progs.some(p => p.id === dietSentId('{nid}') && p.student !== '{uid}')"), f'{t} plan envoyé au 2e élève depuis le plan')
     # Élève : accepte les plans de son coach, reçoit, suit
     with bench.frozen_page(NOW, eng, dev, theme) as page:
@@ -535,7 +537,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         signin(page, 'lea')
         page.evaluate("""() => { const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false }); __sb.makeCoach(max); __sb.link(max, __sb.meId()); window.__max = max; }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(500)
+        settle(page)
         page.evaluate("switchTab('friends'); navigate('coach-mine')")
         page.wait_for_selector('[data-action="diet-coach-toggle"]')
         R.check(page.get_attribute('[data-action="diet-coach-toggle"]', 'aria-checked') == 'false', f'{t} élève : plans du coach pas acceptés au départ')
@@ -545,20 +547,20 @@ def t_coach_eleve(bench, eng, dev, theme):
         R.check('Recevoir les plans de nutrition de max' in dlg and 'En savoir plus' in dlg and dlg.count('.') <= 4, f'{t} accord du coach : court, « En savoir plus »')
         shot(page, LOT, f'11a-accord-coach-{t}')
         tap_dialog(page, 'Accepter')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate("__sb.co.shares.some(x => x.kind === 'diet' && x.student === __sb.meId())"), f'{t} accord enregistré sur le serveur')
         payload = {'kind': 'diet', 'v': 1, 'diet': {**PLAN, 'name': 'Sèche Léa', 'consigne': 'Bois 2 L par jour.'}}
         page.evaluate("p => { __sb.co.progs.push({ coach: window.__max, student: __sb.meId(), id: 'diet_lea00001', data: p, sent_at: new Date().toISOString(), seen: false }); }", payload)
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(500)
+        settle(page)
         page.evaluate("switchTab('train', { reset: true })")
-        page.wait_for_timeout(300)
+        settle(page)
         home = page.locator('.coach-home', has_text='plan de nutrition')
         R.check(home.count() == 1 and 'Nouveau plan de nutrition de max' in home.inner_text() and 'Sèche Léa' in home.inner_text(), f'{t} élève : carte « Nouveau plan de nutrition de max »')
         R.check(page.locator('.coach-home', has_text='Nouveau programme').count() == 0, f'{t} élève : pas pris pour un programme')
         shot(page, LOT, f'11-eleve-accueil-{t}')
         home.locator('[data-action="diet-take"]').click()
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate("(data.dietActive || '').startsWith('dc_')"), f'{t} élève : plan suivi ({page.evaluate("data.dietActive")})')
         R.check(page.evaluate("__sb.co.progs[0].seen") is True, f'{t} élève : plan marqué vu')
         R.check(page.locator('.diet-home').count() == 1, f'{t} élève : carte Nutrition')
@@ -569,7 +571,7 @@ def t_coach_eleve(bench, eng, dev, theme):
         R.check('Copier tes plans sur ton compte' in dlg and 'Garder sur cet iPhone' in dlg and 'En savoir plus' in dlg, f'{t} accord du compte : court, deux choix et « En savoir plus »')
         shot(page, LOT, f'11b-accord-{t}')
         tap_dialog(page, 'Garder sur cet iPhone')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate("data.dietConsent.on") is False and page.evaluate("Object.keys(profilePayload(data)).filter(k => k.startsWith('diet'))") == ['dietConsent'], f'{t} refus daté : aucun plan vers le serveur')
         page.wait_for_selector('.nutrition-view .diet-sum')
         R.check('envoyé par max' in page.inner_text('.diet-plan-from') and 'Bois 2 L par jour.' in page.inner_text('.nutrition-view'), f'{t} élève : plan du coach et sa consigne')
@@ -630,12 +632,12 @@ def t_plan_neuf_puis_coach(bench):
             d['dietActive'] = 'd_neuf0001'
             open_app(page, theme, json.dumps(d, ensure_ascii=False))
             page.click('.diet-home [data-action="diet-check"]')
-            page.wait_for_timeout(250)
+            settle(page)
             # Équivalent du riz pour la journée (quelques kcal de plus ou de moins que prévu)
             page.evaluate("""async () => { await loadFoods(); const it = data.dietPlans.d_neuf0001.meals[0].items[0];
                 const c = swapCandidates(it).find(x => Math.round(x.macros.kcal) !== Math.round(dietItemMacros(it).kcal));
                 dietSetSwap(data, 'd_neuf0001', 'r1', foodToItem(c.food, c.g)); save(); render(); }""")
-            page.wait_for_timeout(250)
+            settle(page)
             home = page.inner_text('.diet-home').replace('\u202f', ' ').replace('\xa0', ' ')
             pr = page.evaluate("dietDayProgress(data, data.dietActive)")
             # Panel vague 4 : trois repas vides restent à remplir, ce n'est pas « Journée complète »
@@ -645,7 +647,7 @@ def t_plan_neuf_puis_coach(bench):
             R.check(pr['goal']['kcal'] == round(pr['eaten']['kcal']), f'{t} accueil : repère = prévu du jour ({round(pr["eaten"]["kcal"])} sur {pr["goal"]["kcal"]})')
             page.locator('.diet-home').scroll_into_view_if_needed()
             R.check(page.locator('.toast').count() == 0, f'{t} journée complète : aucun toast posé sur la carte d\'un repas (le haut le dit déjà)')
-            page.wait_for_timeout(300)
+            settle(page)
             shot(page, LOT, f'16-plan-neuf-accueil-{t}')
             page.click('.diet-home__open')
             page.wait_for_selector('.nutrition-view .diet-sum')
@@ -657,7 +659,7 @@ def t_plan_neuf_puis_coach(bench):
                     and page.locator('.diet-week__day[data-day="2026-11-05"] .diet-week__dot--some').count() == 1, f'{t} frise : aujourd\'hui en partie, pas vert (objectif non atteint)')
             # Plan du coach suivi le même jour : 0 coché, la frise d'aujourd'hui ne garde pas la coche de l'ancien plan
             page.evaluate("data.dietActive = 'dc_max_lea00001'; save(); render()")
-            page.wait_for_timeout(250)
+            settle(page)
             txt = page.inner_text('.diet-sum')
             R.check('0 repas coché sur 4' in txt, f'{t} plan du coach : 0 repas coché sur 4 ({txt[-60:]!r})')
             today = page.locator('.diet-week__day[data-day="2026-11-05"]')
@@ -676,15 +678,15 @@ def t_invitation(bench):
             page.add_init_script(FAKE_ACCOUNT)
             page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
             seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
-            page.wait_for_timeout(300)
+            settle(page)
             signin(page, 'lea')
             payload = {'kind': 'diet', 'v': 1, 'diet': {**PLAN, 'name': 'Plan secret'}}
             page.evaluate("""p => { const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false }); __sb.makeCoach(max); __sb.link(max, __sb.meId());
                 __sb.co.progs.push({ coach: max, student: __sb.meId(), id: 'diet_sec00001', data: p, sent_at: new Date().toISOString(), seen: false }); }""", payload)
             page.evaluate('coachRefresh()')
-            page.wait_for_timeout(500)
+            settle(page)
             page.evaluate("routeTo('dashboard')")
-            page.wait_for_timeout(300)
+            settle(page)
             home = page.locator('.coach-home', has_text='plan de nutrition')
             txt = home.inner_text() if home.count() else ''
             R.check('max veut t\'envoyer un plan de nutrition' in txt and 'Plan secret' not in txt, f'{theme} invitation sans le contenu du plan ({txt!r})')
@@ -696,7 +698,7 @@ def t_invitation(bench):
             page.click('.diet-invite [data-action="diet-take"]')
             page.wait_for_selector('.ios-dialog')
             tap_dialog(page, 'Accepter')
-            page.wait_for_timeout(500)
+            settle(page)
             R.check(page.evaluate("data.dietCoachConsent.on") is True and 'Plan secret' in page.inner_text('#app'), f'{theme} serveur d\'avant : accord gardé sur l\'appareil, plan affiché')
             R.check(page.evaluate("dietActivePlan(data)?.name") == 'Plan secret' and 'Touche Utiliser' not in toast(page), f'{theme} Recevoir : plan suivi d\'un geste ({toast(page)!r})')
             R.check(not page.errors, f'{theme} invitation : aucune erreur JS {page.errors[:2]}')
@@ -717,7 +719,7 @@ def open_editor(page):
 def pick_food(page, query, name):
     page.wait_for_selector('#dietFoodSearch')
     page.fill('#dietFoodSearch', query)
-    page.wait_for_timeout(200)
+    settle(page)
     i = page.evaluate("n => [...document.querySelectorAll('#dietFoodList .diet-cand__name')].findIndex(e => e.textContent === n)", name)
     page.locator('#dietFoodList .diet-cand').nth(max(i, 0)).click()
 
@@ -732,7 +734,7 @@ def t_unites(bench, eng, dev, theme):
         pick_food(page, 'oeuf dur', 'Œuf dur')   # « Oeuf dur » de Ciqual, écrit avec la ligature à l'écran
         page.wait_for_selector(f'{LIVE_SHEET} #qtyVal')
         R.check(page.text_content(f'{LIVE_SHEET} .sheet__title') == 'Œuf dur', f'{t} œuf : titre « Œuf dur »')
-        page.wait_for_timeout(350)
+        settle(page)
         seg = page.locator(f'{LIVE_SHEET} .qty__mode .segmented__btn').all_inner_texts()
         R.check(seg == ['Grammes', 'Œuf'] and page.get_attribute(f'{LIVE_SHEET} [data-qmode="0"]', 'aria-pressed') == 'true',
                 f'{t} œuf : « Grammes | Œuf », à l\'unité d\'office ({seg})')
@@ -760,7 +762,7 @@ def t_unites(bench, eng, dev, theme):
         page.click(f'{LIVE_SHEET} [data-qmode="0"]')
         R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '2', f'{t} œuf : 120 g → 2 œufs')
         page.click(f'{LIVE_SHEET} .sheet__btn--confirm')
-        page.wait_for_timeout(400)
+        settle(page)
         it = page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1)")
         R.check(it and it['name'] == 'Oeuf dur' and it['g'] == 100 and it.get('por') == {'n': 2, 'u': 'œuf', 'pl': 'œufs', 'g': 50}, f'{t} œuf : 100 g stockés, unité à côté ({it})')
         R.check(page.evaluate("Math.round(dietItemMacros(data.dietPlans.d_masse01.meals[2].items.at(-1)).kcal)") == 134, f'{t} œuf : 134 kcal comptées')
@@ -773,7 +775,7 @@ def t_unites(bench, eng, dev, theme):
         R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '2', f'{t} modifier : rouvert sur 2 œufs')
         page.click(f'{LIVE_SHEET} [data-qstep="1"]')
         page.click(f'{LIVE_SHEET} .sheet__btn--confirm')
-        page.wait_for_timeout(400)
+        settle(page)
         it = page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1)")
         R.check(it['g'] == 150 and it['por']['n'] == 3, f'{t} modifier : 3 œufs, 150 g ({it})')
         # Journée : la ligne du repas dit « 3 œufs · 150 g »
@@ -808,10 +810,10 @@ def t_clavier(bench):
                 page.locator('[data-action="diet-add-food"]').first.click()
                 page.wait_for_selector('#dietFoodSearch')
                 page.fill('#dietFoodSearch', 'riz')
-                page.wait_for_timeout(300)
+                settle(page)
                 kb = 260 if dev == 'iPhone SE' else 336
                 page.evaluate('px => __kb(px)', kb)
-                page.wait_for_timeout(200)
+                settle(page)
                 m = page.evaluate("""([sel, kb]) => { const r = e => document.querySelector(sel + ' ' + e).getBoundingClientRect(), body = document.querySelector(sel + ' .sheet__body');
                     const vis = innerHeight - kb, s = r('.sheet'), sc = r('.diet-cand--scan'), ok = r('.sheet__btn--cancel');
                     return { open: document.documentElement.classList.contains('kb-open'), vis, bottom: s.bottom, top: s.top, scanTop: sc.top, scanBottom: sc.bottom,
@@ -840,7 +842,7 @@ def t_clavier(bench):
                 shot(page, LOT, f'k1-clavier-ouvert-{t}')
                 page.evaluate("() => document.getElementById('fakeKb').remove()")
                 page.evaluate('() => __kb(0)')
-                page.wait_for_timeout(200)
+                settle(page)
                 back = page.evaluate("s => [document.documentElement.classList.contains('kb-open'), Math.round(document.querySelector(s + ' .sheet').getBoundingClientRect().bottom), innerHeight]", LIVE_SHEET)
                 R.check(not back[0] and abs(back[1] - back[2]) <= 1, f'{t} clavier refermé : feuille revenue en bas {back}')
                 R.check(not page.errors, f'{t} clavier : aucune erreur JS {page.errors[:2]}')
@@ -867,39 +869,39 @@ def t_jour_et_retirer(bench, eng, dev, theme):
         R.check(big_title(page) == "Aujourd'hui" and page.locator('[data-action="diet-today"]').count() == 0, f'{t} aujourd\'hui par défaut, sans bouton de retour')
         # Hier, choisi dans la frise : titre, bouton « Revenir à aujourd'hui », ajout sur hier dit dans le toast
         page.click('.diet-week__day[data-day="2026-11-04"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(big_title(page) == 'Hier' and page.locator('[data-action="diet-today"]').is_visible(), f'{t} hier : titre et « Revenir à aujourd\'hui »')
         layout(page, t, 'hier')
         shot(page, LOT, f'j1-hier-{t}')
         page.click('[data-action="diet-day-add"][data-meal="m4"]')
         page.wait_for_selector('#dietFoodSearch')
         page.fill('#dietFoodSearch', 'huile olive')
-        page.wait_for_timeout(200)
+        settle(page)
         page.locator('#dietFoodList .diet-cand').first.click()
         qty_grams(page, '10')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check('Ajouté à hier · Dîner' in toast(page), f'{t} toast « Ajouté à hier · Dîner » ({toast(page)!r})')
         R.check(page.evaluate("!!data.dietLog['2026-11-04']?.extras?.m4 && !data.dietLog['2026-11-05']"), f'{t} ajout enregistré sur hier')
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
         page.click('[data-action="diet-today"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(big_title(page) == "Aujourd'hui" and page.evaluate('currentRoute()') == 'nutrition', f'{t} « Revenir à aujourd\'hui »')
         # Hier choisi, app quittée 6 minutes : aujourd'hui au retour (1 minute : hier gardé)
         page.click('.diet-week__day[data-day="2026-11-04"]')
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate(HIDE)
         page.clock.run_for(60_000)
         page.evaluate(SHOW)
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(big_title(page) == 'Hier', f'{t} retour après 1 min : hier gardé')
         page.evaluate(HIDE)
         page.clock.run_for(5 * 60_000)
         page.evaluate(SHOW)
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(big_title(page) == "Aujourd'hui" and page.evaluate('currentRoute()') == 'nutrition', f'{t} retour après 6 min : aujourd\'hui ({page.evaluate("currentRoute()")})')
         # Route d'hier restaurée (retour système, historique) sans choix dans la frise : aujourd'hui
         page.evaluate("navigate(makeRoute('nutrition', '2026-11-04'), { replace: true })")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(big_title(page) == "Aujourd'hui", f'{t} route d\'hier restaurée : aujourd\'hui')
         # Retirer l'œuf pour aujourd'hui : feuille de l'aliment, ligne barrée « Remettre », totaux recalculés, Annuler
         page.click('.diet-meal[data-meal="m1"] .diet-item[data-item="i1"]')
@@ -912,7 +914,7 @@ def t_jour_et_retirer(bench, eng, dev, theme):
         meal0 = page.evaluate("Math.round(dietDayProgress(data, data.dietActive).meals[0].macros.kcal)")
         egg = page.evaluate("Math.round(dietItemMacros(data.dietPlans.d_masse01.meals[0].items[0]).kcal)")
         page.click(f'{LIVE_SHEET} [data-swap="off"]')
-        page.wait_for_timeout(400)
+        settle(page)
         row = page.locator('.diet-item--off[data-item="i1"]')
         R.check(row.count() == 1 and 'Remettre' in row.inner_text() and 'Retiré aujourd' in row.inner_text(), f'{t} ligne barrée « Remettre »')
         after = page.evaluate("Math.round(dietDayProgress(data, data.dietActive).meals[0].macros.kcal)")
@@ -923,21 +925,21 @@ def t_jour_et_retirer(bench, eng, dev, theme):
         page.evaluate("document.querySelector('.diet-meal[data-meal=\"m1\"]').scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'j3-aliment-retire-{t}')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.diet-item--off').count() == 0, f'{t} Annuler : remis')
         page.click('.diet-meal[data-meal="m1"] .diet-item[data-item="i1"]')
         page.click(f'{LIVE_SHEET} [data-swap="off"]')
-        page.wait_for_timeout(400)
+        settle(page)
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
         page.click('.diet-item--off[data-item="i1"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.diet-item--off').count() == 0 and abs(page.evaluate("Math.round(dietDayProgress(data, data.dietActive).meals[0].macros.kcal)") - meal0) <= 1, f'{t} « Remettre » d\'un toucher')
         # Changer la quantité de la banane : 60 g au lieu de 120, « Prévu : 120 g »
         page.click('.diet-meal[data-meal="m1"] .diet-item[data-item="i2"]')
         page.wait_for_selector(f'{LIVE_SHEET} [data-swap="qty"]')
         page.click(f'{LIVE_SHEET} [data-swap="qty"]')
         qty_grams(page, '60')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("dietDayProgress(data, data.dietActive).swaps.i2?.g") == 60, f'{t} quantité du jour : 60 g')
         R.check('Prévu' in page.inner_text('.diet-item[data-item="i2"]') and page.evaluate("data.dietPlans.d_masse01.meals[0].items[1].g") == 120, f'{t} « Prévu : 120 g », plan inchangé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
@@ -952,23 +954,23 @@ def t_minuit(bench):
         page.click('.diet-home__open')
         page.wait_for_selector('.nutrition-view .diet-sum')
         page.click('.diet-meal[data-meal="m1"] [data-action="diet-check"]')
-        page.wait_for_timeout(200)
+        settle(page)
         page.clock.run_for(150_000)   # 00 h 00 min 30, écran ouvert
-        page.wait_for_timeout(300)
+        settle(page)
         day = page.get_attribute('.diet-week__day--on', 'data-day')
         R.check(big_title(page) == "Aujourd'hui" and day == '2026-11-06' and page.locator('.diet-meal--done').count() == 0, f'minuit écran ouvert : nouvelle journée ({day})')
         page.click('.diet-meal[data-meal="m1"] [data-action="diet-check"]')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.evaluate("[data.dietLog['2026-11-05']?.done, data.dietLog['2026-11-06']?.done]") == [['m1'], ['m1']], 'coché après minuit : sur le nouveau jour, la veille intacte')
         R.check(not page.errors, f'minuit : aucune erreur JS {page.errors[:2]}')
     eve = local_ms(2026, 11, 5, 23, 59, tz=PARIS)
     with bench.frozen_page(eve, eng, 'iPhone 13', 'light') as page:
         open_app(page, 'light', with_plan(eve))
         page.click('.diet-home [data-action="diet-check"]')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.locator('.diet-home__meal--next[data-meal="m2"]').count() == 1, 'accueil 23 h 59 : petit-déjeuner coché')
         page.clock.run_for(90_000)
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.diet-home__meal--next[data-meal="m1"]').count() == 1 and page.locator('.diet-home__meal--done').count() == 0,
                 f'minuit : carte de l\'accueil sur la nouvelle journée ({page.inner_text(".diet-home")!r})')
         R.check(not page.errors, f'minuit accueil : aucune erreur JS {page.errors[:2]}')
@@ -1000,7 +1002,7 @@ def t_vague4(bench, eng, dev, theme):
         layout(page, t, 'v4 carte de l\'accueil')
         shot(page, LOT, f'v4-1-carte-{t}')
         page.click('.diet-home [data-action="diet-check"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.diet-home__meal--done[data-meal="m1"]').count() == 1 and page.locator('.diet-home__meal--next[data-meal="m2"] .diet-check').count() == 1,
                 f'{t} v4 carte : coché d\'un toucher, le suivant prend le bouton')
         shot(page, LOT, f'v4-2-carte-cochee-{t}')
@@ -1018,7 +1020,7 @@ def t_vague4(bench, eng, dev, theme):
         page.locator('[data-action="diet-add-food"]').nth(2).click()
         page.wait_for_selector('#dietFoodSearch')
         page.fill('#dietFoodSearch', 'whey')
-        page.wait_for_timeout(200)
+        settle(page)
         first = page.locator('#dietFoodList > *').first
         R.check('diet-cand--create' in (first.get_attribute('class') or '') and nb(first.locator('.diet-cand__name').inner_text()) == 'Créer « whey »',
                 f'{t} v4 recherche : « Créer « whey » » en tête')
@@ -1028,12 +1030,12 @@ def t_vague4(bench, eng, dev, theme):
         page.wait_for_selector('#dietFoodName')
         R.check(page.input_value('#dietFoodName') == 'Whey', f'{t} v4 créer : nom prérempli ({page.input_value("#dietFoodName")!r})')
         page.click(f'{LIVE_SHEET} .sheet__btn--cancel')
-        page.wait_for_timeout(350)
+        settle(page)
         # Riz blanc : trouvé pile, pas de « Créer » ; étiquettes cru / cuit
         page.locator('[data-action="diet-add-food"]').nth(2).click()
         page.wait_for_selector('#dietFoodSearch')
         page.fill('#dietFoodSearch', 'riz blanc')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.locator('#dietFoodList .diet-cand--create').count() == 0, f'{t} v4 recherche : « riz blanc » trouvé pile, pas de « Créer »')
         tags = page.evaluate("""[...document.querySelectorAll('#dietFoodList .diet-cand')].map(b => [b.querySelector('.diet-cand__name')?.textContent, b.querySelector('.diet-tag')?.textContent || ''])""")
         crus = [n for n, tg in tags if tg == 'cru']
@@ -1066,13 +1068,13 @@ def t_vague4(bench, eng, dev, theme):
         R.check(st == [] and not ct, f'{t} v4 quantité : 44 pt, aucun texte coupé {st} {ct}')
         shot(page, LOT, f'v4-5-pese-cuit-{t}')
         page.click(f'{LIVE_SHEET} [data-qtwin]')
-        page.wait_for_timeout(400)
+        settle(page)
         page.wait_for_selector(f'{LIVE_SHEET} #qtyVal, .ios-dialog__input')
         R.check(page.locator(f'{LIVE_SHEET} .qty__twin').count() == 0, f'{t} v4 version cuite : pas de second rappel')
         qty_grams(page, '180')
         # Panel vague 4 : la recherche disait déjà « cuit », la version cuite est voulue : aucun rappel « Pesé cru ? »
         R.check(page.evaluate("foodQuerySaysCook('riz blanc cuit') && foodQuerySaysCook('Poulet CRU') && !foodQuerySaysCook('riz blanc')"), f'{t} v4 recherche qui dit la cuisson reconnue')
-        page.wait_for_timeout(400)
+        settle(page)
         it = page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1)")
         R.check(it and it['food'] == RIZ and it['g'] == 180, f'{t} v4 version cuite ajoutée ({it and it["name"]}, {it and it["g"]} g)')
         R.check(not page.errors, f'{t} v4 aucune erreur JS {page.errors[:2]}')
@@ -1100,7 +1102,7 @@ def t_vague4_six_repas(bench):
             # Texte agrandi : rien de coupé, 44 pt, pas de défilement de côté
             page.add_style_tag(content='html { font-size: 28px !important; }')
             page.evaluate("window.dispatchEvent(new Event('resize'))")
-            page.wait_for_timeout(300)
+            settle(page)
             R.check(page.evaluate("document.documentElement.classList.contains('type-xl')"), f'{theme} texte agrandi actif')
             page.locator('.diet-home').scroll_into_view_if_needed()
             layout(page, f'SE-{theme}', '6 repas texte agrandi')
@@ -1136,7 +1138,7 @@ def t_vague4_plein(bench):
             shot(page, LOT, f'v4-8-plein-{theme}')
             tap_dialog(page, 'Ajouter sans le garder')
             qty_grams(page, '50')
-            page.wait_for_timeout(400)
+            settle(page)
             R.check(page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1).name") == 'Barre maison', f'{theme} plein : ajouté au repas')
             R.check(page.evaluate("[data.dietFoods.length, data.dietFoods.at(-1).id, data.dietFoods.some(x => x.name === 'Barre maison')]") == [200, 'f199', False],
                     f'{theme} plein : rien retiré, pas gardé')
@@ -1150,11 +1152,11 @@ def t_vague4_plein(bench):
             shot(page, LOT, f'v4-9-mes-aliments-{theme}')
             page.locator('.diet-foods-view [data-action="diet-food-menu"]').first.click()
             tap_dialog(page, 'Retirer de Mes aliments')
-            page.wait_for_timeout(300)
+            settle(page)
             R.check(page.evaluate("[data.dietFoods.length, data.dietFoods[0].id, data.dietFoodsGone]") == [199, 'f1', ['f0']], f'{theme} retiré, noté pour la synchro')
             R.check('199 aliments perso, 200 au plus' in nb(page.inner_text('.diet-foods-view')) and 'Retiré : Aliment perso 0' in toast(page), f'{theme} retiré : compteur et toast')
             page.locator('.toast__action').click()
-            page.wait_for_timeout(300)
+            settle(page)
             R.check(page.evaluate("[data.dietFoods.length, data.dietFoods[0].id, data.dietFoodsGone ?? null]") == [200, 'f0', None], f'{theme} Annuler : remis à sa place')
             # Réglages de la nutrition : entrée « Mes aliments »
             page.evaluate("navigate('diet-settings')")
@@ -1180,7 +1182,7 @@ def t_repas_vides(bench, eng, dev, theme):
         R.check("Retirer ce repas pour aujourd'hui" in page.inner_text('.ios-dialog'), f'{t} menu du repas : retirer pour aujourd\'hui')
         shot(page, LOT, f'r1-menu-repas-{t}')
         tap_dialog(page, "Retirer ce repas pour aujourd'hui")
-        page.wait_for_timeout(300)
+        settle(page)
         m2 = page.locator('.diet-meal[data-meal="m2"]')
         R.check(m2.locator('.diet-check').count() == 0 and m2.locator('.diet-item--plan').count() == 1 and 'Remettre le repas type' in m2.inner_text(),
                 f'{t} repas retiré : plus de rond, « Remettre le repas type » (plan perso)')
@@ -1191,14 +1193,14 @@ def t_repas_vides(bench, eng, dev, theme):
         m2.scroll_into_view_if_needed()
         shot(page, LOT, f'r2-repas-retire-{t}')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(m2.locator('.diet-check').count() == 1 and m2.locator('.diet-item[data-item]').count() == 3, f'{t} Annuler : repas remis')
         # Retiré puis « Remettre le repas prévu » d'un toucher
         page.click('.diet-meal[data-meal="m2"] [data-action="diet-day-meal-menu"]')
         tap_dialog(page, "Retirer ce repas pour aujourd'hui")
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
         page.click('.diet-meal[data-meal="m2"] .diet-item--plan')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(m2.locator('.diet-check').count() == 1 and page.evaluate("data.dietLog") is None, f'{t} « Remettre » : rien de gardé')
         # Déjeuner et dîner retirés, petit-déjeuner et collation cochés : journée complète, seuls les repas cochés comptent
         for m in ('m2', 'm4'):
@@ -1208,7 +1210,7 @@ def t_repas_vides(bench, eng, dev, theme):
         R.check(kcal_eaten(page) == 0, f'{t} rien de coché : rien de mangé')
         for m in ('m1', 'm3'):
             page.click(f'.diet-meal[data-meal="{m}"] .diet-check')
-            page.wait_for_timeout(250)
+            settle(page)
         expect = page.evaluate("Math.round(['m1', 'm3'].reduce((n, id) => n + dietMealMacros(data.dietPlans.d_masse01.meals.find(m => m.id === id)).kcal, 0))")
         R.check('2 repas cochés sur 2' in page.inner_text('.diet-sum__line') and abs(kcal_eaten(page) - expect) <= 1, f'{t} journée complète sans les repas retirés ({kcal_eaten(page)} / {expect})')
         # Réglages : Repas du jour, Vides
@@ -1216,7 +1218,7 @@ def t_repas_vides(bench, eng, dev, theme):
         page.wait_for_selector('[data-action="diet-day-mode"]')
         R.check(page.locator('[data-action="diet-day-mode"][aria-checked="true"]').inner_text().startswith('Pré-remplis'), f'{t} réglage : pré-remplis par défaut')
         page.click('[data-action="diet-day-mode"][data-blank="true"]')
-        page.wait_for_timeout(250)
+        settle(page)
         R.check(page.evaluate("data.dietEmptyDays") is True and page.locator('[data-action="diet-day-mode"][data-blank="true"]').get_attribute('aria-checked') == 'true', f'{t} réglage : vides')
         layout(page, t, 'réglages repas du jour')
         shot(page, LOT, f'r3-reglage-{t}')
@@ -1240,15 +1242,15 @@ def t_repas_vides(bench, eng, dev, theme):
         page.click('[data-action="diet-day-add"][data-meal="m1"]')
         page.wait_for_selector('#dietFoodSearch')
         page.fill('#dietFoodSearch', 'huile olive')
-        page.wait_for_timeout(200)
+        settle(page)
         page.locator('#dietFoodList .diet-cand').first.click()
         qty_grams(page, '10')
-        page.wait_for_timeout(400)
+        settle(page)
         page.evaluate("document.querySelectorAll('.toast').forEach(x => x.remove())")
         noted = kcal_eaten(page)
         R.check(noted > 50 and '1 repas noté' in nb(page.inner_text('.diet-sum__line')), f'{t} noté : compté tout de suite ({noted} kcal)')
         page.click('.diet-meal[data-meal="m2"] .diet-item--plan')
-        page.wait_for_timeout(300)
+        settle(page)
         m2 = page.locator('.diet-meal[data-meal="m2"]')
         R.check(m2.locator('.diet-check').count() == 1 and m2.locator('.diet-item[data-item]').count() == 3 and kcal_eaten(page) == noted,
                 f'{t} plan du déjeuner copié : à cocher, pas compté avant')
@@ -1281,13 +1283,13 @@ def t_repas_hier(bench, eng, dev, theme):
         page.locator('.diet-meal[data-meal="m2"]').scroll_into_view_if_needed()
         shot(page, LOT, f'r6-reprendre-hier-{t}')
         reuse('m2').click()
-        page.wait_for_timeout(300)
+        settle(page)
         m2 = page.locator('.diet-meal[data-meal="m2"]')
         R.check(m2.locator('[data-action="diet-extra"]').count() == 3 and kcal_eaten(page) > 400 and reuse('m2').count() == 0,
                 f'{t} repris : 3 ajouts comptés tout de suite ({kcal_eaten(page)} kcal)')
         R.check('Repris' in toast(page), f'{t} message avec Annuler ({toast(page)!r})')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(m2.locator('[data-action="diet-extra"]').count() == 0 and kcal_eaten(page) == 0 and reuse('m2').count() == 1, f'{t} Annuler : rien de gardé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
@@ -1324,7 +1326,7 @@ def t_objectifs(bench, eng, dev, theme):
         R.check('= 160 g' in nb(page.inner_text(f'{sh} #dietTPkg')), f'{t} grammes exacts gardés ({nb(page.inner_text(sh + " #dietTPkg"))!r})')
         shot(page, LOT, f'o2-objectifs-gkg-{t}')
         page.click(f'{sh} .sheet__btn--confirm')
-        page.wait_for_timeout(350)
+        settle(page)
         R.check(page.evaluate(plan_t) == {'kcal': 2900, 'p': 160}, f'{t} calories fixées, protéines inchangées ({page.evaluate(plan_t)})')
         R.check(page.evaluate('data.dietProteinPerKg') is True, f'{t} g/kg retenu sur l\'appareil')
         gap = page.inner_text('.diet-plan-view .diet-gap') if page.locator('.diet-plan-view .diet-gap').count() else ''
@@ -1340,7 +1342,7 @@ def t_objectifs(bench, eng, dev, theme):
         R.check('g/kg' in page.inner_text(f'{sh} #dietTErr'), f'{t} 9 g/kg refusé, feuille ouverte')
         page.fill(f'{sh} #dietT_p', '1,9')
         page.click(f'{sh} .sheet__btn--confirm')
-        page.wait_for_timeout(350)
+        settle(page)
         R.check(page.evaluate(plan_t) == {'kcal': 2900, 'p': 142}, f'{t} protéines 142 g ({page.evaluate(plan_t)})')
         # 3. Remettre à zéro : « Aucun objectif », puis OK
         page.click('[data-action="diet-targets"]')
@@ -1348,7 +1350,7 @@ def t_objectifs(bench, eng, dev, theme):
         page.click(f'{sh} [data-tclear]')
         R.check(all(page.input_value(f'{sh} #dietT_{k}') == '' for k in ('kcal', 'p', 'c', 'f')), f'{t} « Aucun objectif » vide les champs')
         page.click(f'{sh} .sheet__btn--confirm')
-        page.wait_for_timeout(350)
+        settle(page)
         R.check(page.evaluate(plan_t) is None and 'Aucun' in page.inner_text('[data-action="diet-targets"]'), f'{t} plus aucun objectif')
         # 4. Proposition automatique (demande du 16/11 : « un truc qui calcule automatiquement… on choisit ou pas de
         # l'appliquer »). Sans âge, taille ni sexe : la carte dit ce qui manque ; « Compléter » les garde dans Réglages
@@ -1388,7 +1390,7 @@ def t_objectifs(bench, eng, dev, theme):
         page.click(f'{sh} [data-tcadjust]')
         R.check(nb(page.input_value(f'{sh} #dietT_kcal')).replace(' ', '') == '2980' and page.input_value(f'{sh} #dietT_p') == '1,8', f'{t} « Ajuster » remplit la saisie (P en g/kg)')
         page.click(f'{sh} [data-tapply]')
-        page.wait_for_timeout(350)
+        settle(page)
         R.check(page.evaluate(plan_t) == {'kcal': 2980, 'p': 134, 'c': 460, 'f': 67}, f'{t} « Appliquer » ({page.evaluate(plan_t)})')
         shot(page, LOT, f'o5-objectifs-utilises-{t}')
         # Poids changé dans Réglages : la carte suit, les objectifs restent tant qu'il n'applique pas
@@ -1397,10 +1399,10 @@ def t_objectifs(bench, eng, dev, theme):
         page.wait_for_selector(f'{sh} #dietTCard [data-tapply]')
         R.check('Prot. 144' in nb(page.inner_text(f'{sh} #dietTCard')) and page.evaluate(plan_t)['p'] == 134, f'{t} nouveau poids : carte à jour, objectifs inchangés')
         page.click(f'{sh} .sheet__btn--cancel')
-        page.wait_for_timeout(300)
+        settle(page)
         # 5. Plan du coach : objectifs lus, jamais modifiables
         page.evaluate("""() => { data.dietPlans.d_masse01.fromCoach = { coachId: 'c1', name: 'max', sentAt: 1 }; data.dietPlans.d_masse01.targets = { kcal: 2600, p: 160 }; save(); render(); }""")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('[data-action="diet-targets"]').count() == 0 and 'objectifs fixés par max' in page.inner_text('.diet-plan-view'),
                 f'{t} plan du coach : objectifs en lecture seule, « fixés par max »')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
@@ -1438,7 +1440,7 @@ def t_repas_types(bench, eng, dev, theme):
         page.wait_for_selector('[data-action="diet-clear-meals"]')
         page.locator('[data-action="diet-clear-meals"]').scroll_into_view_if_needed()
         page.click('[data-action="diet-clear-meals"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(meals_js) == '[[],[],[],[]]' and page.evaluate("data.dietPlans.d_prot01.meals.length") == 4, f'{t} « Vider les repas types » : aliments retirés, repas gardés')
         v = nb(page.inner_text('.diet-plan-view'))
         R.check(page.locator('.diet-plan-view .diet-gap').count() == 0 and 'Total' not in v and page.locator('[data-action="diet-compose"]').count() == 1
@@ -1446,22 +1448,22 @@ def t_repas_types(bench, eng, dev, theme):
         R.check('Annuler' in toast(page), f'{t} toast Annuler ({toast(page)!r})')
         shot(page, LOT, f't2-repas-types-vides-{t}')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(meals_js) == '[[],["Saint Alby · Allumettes fumées"],[],[]]', f'{t} Annuler : repas types remis')
         page.click('[data-action="diet-clear-meals"]')
-        page.wait_for_timeout(300)
+        settle(page)
         # Journal du jour : un ajout reste dans la journée, le plan ne change pas, et demain rien n'est prévu
         page.evaluate("switchTab('train', { reset: true }); navigate('nutrition')")
         page.wait_for_selector('.nutrition-view [data-action="diet-day-add"][data-meal="m2"]')
         page.evaluate("""a => { dietAddExtra(data, 'd_prot01', 'm2', a); save(); render(); }""", alby)
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.evaluate(meals_js) == '[[],[],[],[]]', f'{t} ajout du journal : plan inchangé')
         R.check(page.evaluate("Object.keys(dietDay(data, 'd_prot01', dietDayKey(Date.now() + 86400000)).extras).length") == 0, f'{t} lendemain : rien de repris')
         # « Fini » sur un plan perso : seulement l'objectif de calories atteint (95 %), jamais sur un repas noté
         R.check(page.locator('.diet-sum--complete, .diet-week__dot--done').count() == 0 and 'Objectif' not in page.inner_text('.diet-sum'),
                 f'{t} un repas noté, sans objectif de calories : rien de « fini »')
         page.evaluate("data.dietPlans.d_prot01.targets = { kcal: 370, p: 144 }; save(); render()")
-        page.wait_for_timeout(200)
+        settle(page)
         R.check('Objectif de calories atteint' in page.inner_text('.diet-sum') and page.locator('.diet-week__dot--done').count() == 1,
                 f'{t} 360 kcal sur 370 : objectif atteint, point vert ({nb(page.inner_text(".diet-sum__line"))!r})')
         # Plan du coach : repas prévus gardés
@@ -1483,16 +1485,16 @@ def swipe(page, sel, frac, dy=0):
     """Balayage du doigt simulé par les événements pointer (souris de Playwright) : de 85 % de la largeur vers la gauche,
     d'une fraction frac de la largeur ; dy : dérive verticale (défilement)."""
     page.locator(sel).first.evaluate("e => e.scrollIntoView({ block: 'center' })")   # jamais sous la barre d'onglets
-    page.wait_for_timeout(100)
+    settle(page)
     box = page.locator(sel).first.bounding_box()
     x0, y0 = box['x'] + box['width'] * 0.85, box['y'] + box['height'] / 2
     page.mouse.move(x0, y0)
     page.mouse.down()
     for i in range(1, 9):
         page.mouse.move(x0 - box['width'] * frac * i / 8, y0 + dy * i / 8)
-        page.wait_for_timeout(16)
+        page.wait_for_timeout(16)   # attente voulue : rythme du glissé (une image par pas)
     page.mouse.up()
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def t_balayage(bench, eng, dev, theme):
@@ -1521,10 +1523,10 @@ def t_balayage(bench, eng, dev, theme):
         tx = page.evaluate(f"getComputedStyle(document.querySelector('{row}')).transform")
         R.check('matrix' in tx, f'{t} ligne décalée ({tx})')
         page.click('.swipe-del')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(removed) == ['i3'] and 'Annuler' in toast(page), f'{t} « Supprimer » : retiré pour la journée, Annuler ({toast(page)!r})')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(removed) == [], f'{t} Annuler : remis')
         # Balayé jusqu'au bout : supprimé sans second toucher (ajout du jour)
         extra = '.nutrition-view [data-swipe-del="diet-extra-del"][data-extra="x1"]'
@@ -1536,19 +1538,19 @@ def t_balayage(bench, eng, dev, theme):
         # Une ligne ouverte se referme d'un toucher, sans ouvrir le menu
         swipe(page, row, 0.3)
         page.locator(row).click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.swipe-del').count() == 0 and page.locator('.diet-swap').count() == 0, f'{t} toucher une ligne ouverte : refermée, rien d\'ouvert')
         # Repas types (éditeur du plan) ; le toast précédent ne doit pas couvrir la ligne
         open_editor(page)
         page.evaluate("dropScreenToast()")
-        page.wait_for_timeout(300)
+        settle(page)
         cell = '.diet-plan-view [data-swipe-del="diet-plan-item-del"][data-item="i1"]'
         page.locator(cell).scroll_into_view_if_needed()
         swipe(page, cell, 0.8)
         ids = "data.dietPlans.d_masse01.meals[0].items.map(i => i.id)"
         R.check(page.evaluate(ids) == ['i2'], f'{t} repas type : aliment retiré d\'un balayage ({page.evaluate(ids)})')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(ids) == ['i1', 'i2'], f'{t} Annuler : remis à sa place')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
@@ -1563,7 +1565,7 @@ def t_changer_jour(bench, eng, dev, theme):
         page.wait_for_selector('.nutrition-view .diet-week')
         page.evaluate("document.querySelector('.nutrition-view').__garde = 1; document.querySelector('.nutrition-view .navbar').__garde = 1")
         page.evaluate("window.scrollTo(0, 120)")
-        page.wait_for_timeout(150)
+        settle(page)
         y0 = page.evaluate('Math.round(window.scrollY)')
         title0 = page.inner_text('.diet-plan-from')
         # Toucher sans défilement automatique de Playwright (la frise est sous la barre une fois l'écran défilé)
@@ -1571,7 +1573,7 @@ def t_changer_jour(bench, eng, dev, theme):
         frames = []
         for k in range(3):
             frames.append(page.screenshot(path=shot_path(LOT, f'j{k + 1}-jour-avant-{t}')))   # suite d'images pendant le fondu
-            page.wait_for_timeout(60)
+            settle(page)
         kept = page.evaluate("[document.querySelector('.nutrition-view')?.__garde, document.querySelector('.nutrition-view .navbar')?.__garde]")
         R.check(kept == [1, 1], f'{t} vue et barre gardées, pas recréées ({kept})')
         y1 = page.evaluate('Math.round(window.scrollY)')
@@ -1580,12 +1582,12 @@ def t_changer_jour(bench, eng, dev, theme):
                 f'{t} jour choisi affiché, adresse à jour ({page.evaluate("location.hash")})')
         R.check(page.locator('.diet-week__day[data-day="2026-11-04"][aria-pressed="true"]').count() == 1, f'{t} frise : jour choisi coché')
         page.click('[data-action="diet-today"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate("document.querySelector('.nutrition-view').__garde") == 1 and not page.evaluate("location.hash").endswith('2026-11-04'),
                 f'{t} « Revenir à aujourd\'hui » : même vue')
         # Retour arrière puis retour sur Nutrition : l'écran se redessine normalement
         page.evaluate("goBack()")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 
@@ -1615,7 +1617,7 @@ def t_repas_gestion(bench, eng, dev, theme):
         R.check(page.evaluate(items)[:2] == ['i1', 'i3,i4,i5,i2'] and 'Déplacé vers Déjeuner' in toast(page), f'{t} repas type déplacé ({page.evaluate(items)})')
         shot(page, LOT, f'g1-deplace-{t}')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(items)[:2] == ['i1,i2', 'i3,i4,i5'], f'{t} Annuler : remis à sa place')
         # Repas de base : « Masquer ce repas », jamais « Supprimer »
         page.locator('[data-action="diet-meal-menu"][data-meal="m4"]').click()
@@ -1632,7 +1634,7 @@ def t_repas_gestion(bench, eng, dev, theme):
         R.check(page.locator('.diet-meal[data-meal="m4"]').count() == 0, f'{t} journal : dîner masqué absent')
         open_editor(page)
         page.locator('[data-action="diet-meal-show"]').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(names) == ['Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'], f'{t} réaffiché à sa place')
         # Nom en double refusé (casse et accents ignorés)
         page.click('[data-action="diet-add-meal"]')
@@ -1650,7 +1652,7 @@ def t_repas_gestion(bench, eng, dev, theme):
         tap_dialog(page, 'Supprimer')
         R.check(len(page.evaluate(names)) == 4 and 'Goûter supprimé' in toast(page), f'{t} repas ajouté supprimé, Annuler proposé')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(names)[-1] == 'Goûter', f'{t} Annuler : Goûter remis')
         # Journée : déplacer un ajout du jour, puis un aliment prévu (pour ce jour seulement)
         page.evaluate("switchTab('train', { reset: true }); navigate('nutrition'); dietOpenMeals.add('m2'); render()")
@@ -1670,7 +1672,7 @@ def t_repas_gestion(bench, eng, dev, theme):
         R.check("i3" in page.evaluate("dietDay(data, 'd_masse01', dietDayKey()).removed") and len(page.evaluate(day + "('m3')")) == 1
                 and page.evaluate("data.dietPlans.d_masse01.meals[1].items.some(i => i.id === 'i3')"), f'{t} aliment prévu déplacé pour la journée, plan inchangé')
         page.locator('.toast__action').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check("i3" not in page.evaluate("dietDay(data, 'd_masse01', dietDayKey()).removed") and page.evaluate(day + "('m3')") == [], f'{t} Annuler : remis')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 

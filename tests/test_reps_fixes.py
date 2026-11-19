@@ -44,14 +44,14 @@ def t_reps_fixes(bench, eng, dev, theme):
         R.check(box['height'] >= 32, f'{t} Fixe : hauteur du segment ({box["height"]:.0f})')
         # Un seul tap sur Fixe : un seul champ, le nombre gardé
         mode.nth(1).click()
-        page.wait_for_timeout(120)
+        settle(page)
         R.check(page.locator('#exRepMin').count() == 0 and page.input_value('#exRepMax') == '12', f'{t} Fixe : un seul champ, 12 gardé')
         R.check(page.locator('#exRepMax').get_attribute('aria-label') == 'Reps par série, toujours le même nombre', f'{t} Fixe : champ nommé pour VoiceOver')
         foot = page.locator('#exProg .group-foot').inner_text()
         R.check(f'4{NB}×{NB}12' in foot or '4 × 12' in foot, f'{t} Fixe : « 4 × 12 » sous la rubrique ({foot!r})')
         # « 4 × 12 » suit le nombre de séries
         page.click('[data-action="ex-sets"][data-d="1"]')
-        page.wait_for_timeout(80)
+        settle(page)
         R.check('5' in page.locator('#exProg .group-foot [aria-hidden="true"]').inner_text(), f'{t} Fixe : « 5 × 12 » après une série de plus')
         page.click('[data-action="ex-sets"][data-d="-1"]')
         page.locator('#exProg').scroll_into_view_if_needed()
@@ -80,7 +80,7 @@ def t_reps_fixes(bench, eng, dev, theme):
         page.fill('#exRepMin', '')
         page.fill('#exRepMax', '1')
         page.click('[data-action="save-ex"]')
-        page.wait_for_timeout(150)
+        settle(page)
         R.check(page.evaluate('view') == 'ex-edit', f'{t} fourchette d\'1 rep : refusée')
         page.click('[data-action="ex-rep-mode"][data-fixed="true"]')
         page.fill('#exRepMax', '12')
@@ -104,7 +104,7 @@ def t_reps_fixes(bench, eng, dev, theme):
         page.evaluate("r => navigate(r)", 'home')
         page.evaluate("startSession('pull')")
         page.wait_for_selector('.view.session')
-        page.wait_for_timeout(200)
+        settle(page)
         reps = page.evaluate('activeSession.exercises[0].sets.filter(s => !s.warmup).map(s => s.reps)')
         R.check(all(r == '12' for r in reps), f'{t} séance : reps d\'avant (13) ramenées à 12 {reps}')
         card = page.locator('.ex-card[data-ei="0"]').first
@@ -112,7 +112,7 @@ def t_reps_fixes(bench, eng, dev, theme):
         weights = page.evaluate('activeSession.exercises[0].sets.filter(s => !s.warmup).map(s => [s.weight, s.prev.weight])')
         R.check(all(w == p for w, p in weights), f'{t} cases à la charge de la dernière fois {weights}')
         R.check(card.locator('[data-action="bump-weight"]').count() == 1, f'{t} séance : la puce ↑ propose la hausse')
-        card.locator('[data-action="bump-weight"]').click(); page.wait_for_timeout(300)
+        card.locator('[data-action="bump-weight"]').click(); settle(page)
         weights = page.evaluate('activeSession.exercises[0].sets.filter(s => !s.warmup).map(s => [s.weight, s.prev.weight, s.reps])')
         R.check(len({w for w, _, _ in weights}) == 1 and all(abs(float(w) - float(p) - 2.5) < 1e-6 and r == '12' for w, p, r in weights), f'{t} puce touchée : charge augmentée sur toutes les séries, toujours 12 reps {weights}')
         page.evaluate("document.querySelectorAll('.toast').forEach(e => e.remove())")   # message de l'étape « 1 rep refusée »

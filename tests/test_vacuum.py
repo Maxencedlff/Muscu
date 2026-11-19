@@ -42,13 +42,13 @@ def vacuum_data(now):
 def open_app(page, theme):
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, vacuum_data(NOW))
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def big_text(page, on=True):
     page.evaluate("""on => { const h = document.documentElement; h.style.fontSize = on ? '24px' : '';
         h.classList.toggle('type-xl', on); window.dispatchEvent(new Event('resize')); }""", on)
-    page.wait_for_timeout(250)
+    settle(page)
 
 
 def layout_ok(page):
@@ -63,7 +63,7 @@ def t_fiche(bench, eng, dev, theme):
         open_app(page, theme)
         page.evaluate("navigate(makeRoute('library-ex', 'Vacuum'))")
         page.wait_for_selector('.view.library-ex')
-        page.wait_for_timeout(300)
+        settle(page)
         hero = page.locator('.exhero--deep')
         R.check(hero.count() == 1, f'{t} fiche : vignette du muscle profond')
         R.check(page.locator('.library-ex .body-map [data-muscle]').count() == 0, f'{t} fiche : aucun calque de muscle (aucun rouge)')
@@ -82,7 +82,7 @@ def t_fiche(bench, eng, dev, theme):
         shot(page, LOT, f'fiche-consignes-{t}')
         big_text(page)
         page.evaluate("render()")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(layout_ok(page), f'{t} fiche texte agrandi : mise en page')
         shot(page, LOT, f'fiche-xl-{t}')
         R.check(not page.errors, f'{t} fiche : aucune erreur JS {page.errors}')
@@ -102,7 +102,7 @@ def t_seance(bench, eng, dev, theme):
         # Le vacuum devient l'exercice en cours : séries des autres validées
         page.evaluate(f"""ei => {{ activeSession.exercises.forEach((e, i) => {{ if (i !== ei) e.sets.forEach(s => {{ s.done = true; s.reps = s.reps || '10'; }}); }});
             persistSession(); render(); }}""", ei)
-        page.wait_for_timeout(300)
+        settle(page)
         card = page.locator(f'.ex-card[data-ei="{ei}"]')
         card.scroll_into_view_if_needed()
         R.check(card.locator('.sets__head').inner_text().split()[0] == 'N°', f'{t} séance : colonne N°')
@@ -116,12 +116,12 @@ def t_seance(bench, eng, dev, theme):
         shot(page, LOT, f'seance-carte-{t}')
         card.locator('.set-play').click()
         page.wait_for_selector('.rs--effort')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.inner_text('#effortSub').strip() == 'Expire tout ton air', f'{t} chrono : préparation « {page.inner_text("#effortSub")} »')
         R.check(page.inner_text('.rs--effort').count('Maintien 1 sur 5') == 1, f'{t} chrono : « Maintien 1 sur 5 »')
         shot(page, LOT, f'chrono-prep-{t}')
         page.evaluate("activeSession.effort.start -= 7000; updateEffortUI()")   # 2 s dans le maintien
-        page.wait_for_timeout(150)
+        settle(page)
         sub = page.inner_text('#effortSub').strip()
         R.check(sub == 'Respire petit, dos immobile', f'{t} chrono : pendant le maintien « {sub} »')
         R.check(page.inner_text('#effortTime').strip() in ('0:13', '0:12'), f'{t} chrono : décompte depuis 15 s ({page.inner_text("#effortTime")})')
@@ -131,7 +131,7 @@ def t_seance(bench, eng, dev, theme):
         shot(page, LOT, f'chrono-xl-{t}')
         big_text(page, False)
         page.evaluate("activeSession.effort.start -= 20000; updateEffortUI()")
-        page.wait_for_timeout(400)
+        settle(page)
         s0 = page.evaluate(f"activeSession.exercises[{ei}].sets[0]")
         R.check(s0['done'] and s0['reps'] == '15' and s0['weight'] == '', f'{t} maintien validé en secondes {s0}')
         R.check(not page.errors, f'{t} séance : aucune erreur JS {page.errors}')
@@ -147,11 +147,11 @@ def t_progres(bench, eng, dev, theme):
         R.check(abs_sets == base, f'{t} Progrès : aucune série de vacuum comptée aux abdominaux {abs_sets} = {base}')
         page.click('.tabbar [data-action="go-stats"]')
         page.wait_for_selector('.view.stats')
-        page.wait_for_timeout(300)
+        settle(page)
         shot(page, LOT, f'progres-{t}')
         page.evaluate("navigate(makeRoute('stats-ex', 'vacuum01'))")
         page.wait_for_selector('.view.stats-ex')
-        page.wait_for_timeout(300)
+        settle(page)
         txt = page.inner_text('.view.stats-ex')
         R.check('Plus long maintien' in txt and '15 s' in txt, f'{t} Progrès › Vacuum : plus long maintien 15 s')
         R.check('Temps total sous tension' in txt and '1 min 56' in txt, f'{t} Progrès › Vacuum : temps total (50 + 66 s)')
@@ -163,13 +163,13 @@ def t_progres(bench, eng, dev, theme):
         shot(page, LOT, f'progres-vacuum-{t}')
         big_text(page)
         page.evaluate("render()")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(layout_ok(page), f'{t} Progrès › Vacuum texte agrandi : mise en page')
         shot(page, LOT, f'progres-vacuum-xl-{t}')
         big_text(page, False)
         # Ancienne séance (séries × reps) : lisible, rien de perdu
         page.evaluate("navigate(makeRoute('history-detail', 'hvac0'))")
-        page.wait_for_timeout(400)
+        settle(page)
         old = page.evaluate("JSON.stringify(data.history.find(h => h.id === 'hvac0').exercises[0])")
         R.check('"measure":"reps"' in old and old.count('"reps":"12"') == 3, f'{t} ancienne séance gardée en répétitions {old}')
         body = page.inner_text('#app')

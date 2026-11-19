@@ -4,6 +4,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 
 LOT = 6
 R = Results(LOT)
@@ -73,9 +75,9 @@ AUDIT_JS = r"""() => {
 }"""
 
 
-def tap(page, sel, wait=350):
+def tap(page, sel):
     page.locator(sel).first.click(timeout=8000)
-    page.wait_for_timeout(wait)
+    settle(page)
 
 
 def audit(page, t, where, small=True, wide=True):
@@ -106,7 +108,7 @@ VIEWS = [
 
 def visit(page, steps):
     page.evaluate("switchTab('train', { reset: true }); Object.keys(TABS).forEach(t => { nav.stacks[t] = [TABS[t].root]; }); render()")
-    page.wait_for_timeout(200)
+    settle(page)
     for s in steps:
         tap(page, s)
 
@@ -142,11 +144,11 @@ def t_views(bench, eng, dev, theme):
         wait = page.locator('[data-action="validate-set"][data-ei="0"][data-si="1"]')
         R.check(wait.get_attribute('aria-label') == "Série 2 : valide d'abord la série 1" and wait.get_attribute('aria-disabled') == 'true', f'{t} ✓ de la série 2 en attente')
         wait.click(force=True)   # aria-disabled : Playwright ne toucherait pas, un doigt si
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('activeSession.exercises[0].sets.every(s => !s.done)') and "Valide d'abord la série 1" in page.inner_text('body'), f'{t} série 2 non validée avant la 1')
-        page.wait_for_timeout(1500)
+        settle(page)
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('[data-action="validate-set"][data-ei="0"][data-si="1"]').get_attribute('aria-label') == 'Valider la série 2', f'{t} série 1 faite : la 2 se valide')
         lbl = page.locator('.session-set--done .sr-text').first.text_content() or ''
         R.check(lbl.startswith('Série 1 validée, 32,5 kilos, 10 répétitions'),   # 1re série à la dernière fois (32,5 × 10, règle du 17/11)
@@ -154,12 +156,12 @@ def t_views(bench, eng, dev, theme):
         R.check(page.locator('[role="timer"][aria-live="off"]').count() >= 1, f'{t} chrono role=timer aria-live=off')
         R.check(page.locator('.rest-mini [aria-label="Moins 15 secondes"]').count() == 1 and page.locator('.rest-mini [aria-label="Passer le repos"]').count() == 1, f'{t} libellés du repos')
         audit(page, t, 'séance en repos')
-        page.click('[data-action="expand-rest"]'); page.wait_for_timeout(450)
+        page.click('[data-action="expand-rest"]'); settle(page)
         audit(page, t, 'feuille du repos')
         R.check(page.evaluate("document.querySelector('#app').inert"), f'{t} #app inerte sous la feuille du repos')
         if dev == 'iPhone 13':
             shot(page, LOT, f'repos-feuille-{t}')
-        page.keyboard.press('Escape'); page.wait_for_timeout(350)
+        page.keyboard.press('Escape'); settle(page)
         R.check(page.locator('.sess-sheet').count() == 0 and not page.evaluate("document.querySelector('#app').inert"), f'{t} Échap ferme la feuille, #app réactivé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
@@ -171,16 +173,16 @@ def t_dialog_focus(bench):
             seed(page, 'dark', ppl_v2_today_json())
             tap(page, '[data-action="start-session"][data-cat="push"]')
             page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
-            page.wait_for_timeout(300)
+            settle(page)
             fin = page.locator('[data-action="finish-session"]')
             fin.focus()
-            fin.click(); page.wait_for_timeout(450)
+            fin.click(); settle(page)
             st = page.evaluate("""() => { const d = document.querySelector('.ios-dialog');
                 return { open: !!d, inside: !!d && d.contains(document.activeElement), inert: document.querySelector('#app').inert,
                          tab: !!document.querySelector('.tabbar')?.inert, lb: d && d.getAttribute('aria-labelledby'), db: d && d.getAttribute('aria-describedby') }; }""")
             R.check(st['open'] and st['inside'] and st['inert'], f'{dev} feuille Terminer : focus dedans et #app inerte {st}')
             R.check(bool(st['lb']), f'{dev} feuille Terminer : aria-labelledby {st}')
-            page.keyboard.press('Escape'); page.wait_for_timeout(400)
+            page.keyboard.press('Escape'); settle(page)
             back = page.evaluate("[document.querySelector('.ios-dialog') === null, document.activeElement?.dataset?.action, document.querySelector('#app').inert]")
             R.check(back[0] and back[1] == 'finish-session' and back[2] is False, f'{dev} fermeture : focus revenu sur Terminer {back}')
             R.check(not page.errors, f'{dev} dialogue : aucune erreur JS {page.errors[:2]}')
@@ -193,22 +195,22 @@ def t_announce(bench):
         R.check(page.locator('#sr-polite[aria-live="polite"].visually-hidden').count() == 1 and page.locator('#sr-assert[aria-live="assertive"]').count() == 1, 'régions aria-live présentes')
         tap(page, '[data-action="start-session"][data-cat="push"]')
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Série 1 validée' in page.locator('#sr-polite').inner_text(), 'toast recopié dans #sr-polite')
         page.evaluate("restEndTime = Date.now() + 9000; restTimeLeft = 9; restTotal = 90")
-        page.wait_for_timeout(800)
+        until(page, "() => document.querySelector('#sr-polite').textContent.trim() === '10 secondes'", 3000)   # prochain battement du repos
         R.check(page.locator('#sr-polite').inner_text().strip() == '10 secondes', f'jalon « 10 secondes » ({page.locator("#sr-polite").inner_text()})')
         page.evaluate("restEndTime = Date.now() + 500")
-        page.wait_for_timeout(1200)
+        until(page, "() => document.querySelector('#sr-polite').textContent.startsWith('Repos terminé')", 3000)
         txt = page.locator('#sr-polite').inner_text()
         R.check(txt.startswith('Repos terminé, série 2 de Développé couché haltères'), f'annonce de fin de repos ({txt})')
         # Échauffement avant (panel du 06/11) : le numéro affiché, jamais l'indice (« série 3 » pour la série 2)
         page.evaluate("activeSession.exercises[0].sets.unshift({ weight: '20', reps: '8', warmup: true, done: true }); render(); openRest(5); restEndTime = Date.now() + 500")
-        page.wait_for_timeout(1300)
+        until(page, "() => document.querySelector('#sr-polite').textContent.startsWith('Repos terminé')", 3000)
         txt = page.locator('#sr-polite').inner_text()
         R.check(txt.startswith('Repos terminé, série 2 de Développé couché haltères'), f'annonce avec un échauffement : numéro affiché ({txt})')
         page.evaluate("showToast('Erreur de test', { error: true })")
-        page.wait_for_timeout(3000)
+        page.wait_for_timeout(3000)   # attente voulue : le message d'erreur doit rester au moins 4 s (encore là à 3 s)
         # En séance, le message prend la ligne au-dessus de la carte (sessionNotice) : toujours ≥ 4 s et en assertif
         R.check(page.locator('.ex-undo').count() == 1 and page.locator('.toast').count() == 0 and 'Erreur de test' in page.locator('#sr-assert').inner_text(), 'erreur en séance : en ligne, ≥ 4 s et annoncée en assertif')
         R.check(not page.errors, f'annonces : aucune erreur JS {page.errors[:2]}')
@@ -220,7 +222,7 @@ def t_dynamic_type(bench):
         seed(page, 'dark', ppl_v2_today_json())
         page.add_style_tag(content='html { font-size: 28px !important; }')
         page.evaluate("window.dispatchEvent(new Event('resize'))")
-        page.wait_for_timeout(200)
+        settle(page)
         for name, steps in VIEWS:
             visit(page, steps)
             audit(page, 'AX 28 px', name, small=False)
@@ -239,6 +241,7 @@ def t_landscape(bench):
     dev = dict(bench.p.devices['iPhone 13'])
     dev['viewport'] = {'width': 844, 'height': 390}
     ctx = bench.browser('webkit').new_context(**dev, color_scheme='dark', service_workers='block')
+    track_idle(ctx)
     page = ctx.new_page()
     page.errors = []
     page.on('pageerror', lambda e: page.errors.append(str(e)))
@@ -246,8 +249,8 @@ def t_landscape(bench):
         seed(page, 'dark', ppl_v2_today_json())
         tap(page, '[data-action="start-session"][data-cat="push"]')
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
-        page.wait_for_timeout(400)
-        page.click('[data-action="expand-rest"]'); page.wait_for_timeout(500)
+        settle(page)
+        page.click('[data-action="expand-rest"]'); settle(page)
         # La feuille monte en glissant : sur la CI (lente), 500 ms ne suffisent pas toujours. On attend
         # qu'elle soit arrivée (au plus 3 s) ; si elle ne tient jamais dans l'écran, la vérification échoue
         try:
@@ -264,7 +267,7 @@ def t_landscape(bench):
         R.check(g['btn'], f'paysage : bouton « Réduire » visible {g}')
         R.check(abs(g['fs'] - 48) < 1, f'paysage : chrono 48 px {g}')
         shot(page, LOT, 'paysage-repos-iPhone_13')
-        page.click('[data-action="collapse-rest"]'); page.wait_for_timeout(350)
+        page.click('[data-action="collapse-rest"]'); settle(page)
         R.check(page.locator('.sess-sheet').count() == 0 and page.locator('.rest-mini').count() == 1, 'paysage : Réduire revient à la barre')
         R.check(not page.errors, f'paysage : aucune erreur JS {page.errors[:2]}')
     finally:
@@ -277,9 +280,10 @@ def t_reduced_motion(bench):
         seed(page, 'dark', ppl_v2_today_json())
         tap(page, '[data-action="start-session"][data-cat="push"]')
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("restEndTime = Date.now() + 300")
-        page.wait_for_timeout(700)
+        until(page, "() => (document.querySelector('.rest-mini')?.textContent || '').includes('Repos terminé')", 3000)
+        settle(page)
         an = page.evaluate("[...document.querySelectorAll('.rest-mini, .session-set--go, .livebar__dot')].map(e => getComputedStyle(e).animationName)")
         R.check(all(a == 'none' for a in an), f'mouvements réduits : aucune animation {an}')
 
@@ -289,15 +293,15 @@ def t_theme_meta(bench):
     with bench.page('webkit', 'iPhone 13', 'dark') as page:
         seed(page, 'dark', ppl_v2_today_json())
         page.evaluate("applyTheme('light')")
-        page.wait_for_timeout(150)
+        settle(page)
         meta = page.evaluate("document.querySelector('meta[name=\"apple-mobile-web-app-status-bar-style\"]').content")
         R.check(meta == 'default', f'meta barre d\'état en clair ({meta})')
         R.check(page.evaluate("typeof setThemePref") == 'function', 'setThemePref exposé')
         page.evaluate("setThemePref('dark')")
-        page.wait_for_timeout(150)
+        settle(page)
         R.check('prochain lancement' in (page.locator('.toast').inner_text() if page.locator('.toast').count() else ''), 'toast « La barre d\'état s\'adaptera au prochain lancement »')
         page.evaluate("document.querySelector('.toast')?.remove(); setThemePref('light')")
-        page.wait_for_timeout(150)
+        settle(page)
         R.check(page.locator('.toast').count() == 0, 'toast affiché une seule fois')
         R.check(page.evaluate("document.querySelector('meta[name=\"apple-mobile-web-app-status-bar-style\"]').content") == 'default', 'meta suivie')
 

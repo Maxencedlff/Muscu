@@ -33,7 +33,7 @@ def open_app(page, theme, ppl_v2=None, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='max', enable=True):
@@ -42,7 +42,7 @@ def signin(page, username='max', enable=True):
         if (u) await accountSaveProfile({ username: u });
         if (en) await socialEnable(true);
     }""", [username, enable])
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def sessions(prefix, n, start_days=1):
@@ -87,7 +87,7 @@ def setup(page):
     """Léa (suivie, me suit, 2 séances) ; Paul (suit Léa et me suit) a commenté la séance de Léa ; mes
     séances envoyées ; Léa a commenté ma plus récente il y a 1 h (nouveauté)."""
     page.evaluate('syncNow()')
-    page.wait_for_timeout(300)
+    settle(page)
     return page.evaluate("""(s) => {
         const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', sessions: s });
         const paul = __sb.addPerson({ username: 'paul', avatar: '🐻' });
@@ -107,7 +107,7 @@ def open_friend_session(page):
     page.wait_for_selector('.feed-card')
     page.locator('.feed-card').first.locator('.feed-card__main').click()
     page.wait_for_selector('.social-session-view .comments .comment')
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def t_ecrire(bench, eng, dev, theme):
@@ -131,13 +131,13 @@ def t_ecrire(bench, eng, dev, theme):
         # Mot interdit : refus du serveur, brouillon gardé
         page.fill('#commentInput', 'Quel connard')
         send.click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check('mot interdit' in toast(page) and page.input_value('#commentInput') == 'Quel connard', f'{t} mot interdit refusé, brouillon gardé ({toast(page)!r})')
         R.check(page.evaluate("__sb.so.comments.filter(c => c.user === __sb.meId()).length") == 0, f'{t} rien écrit sur le serveur')
         # Envoi : en bas de la liste, champ vidé
         page.fill('#commentInput', '  Belle perf\n\n\n\nLéa  ')
         send.click()
-        page.wait_for_timeout(500)
+        settle(page)
         mine = page.evaluate("__sb.so.comments.filter(c => c.user === __sb.meId()).map(c => [c.owner, c.sid, c.body])")
         R.check(mine == [[ids['lea'], ids['leaSid'], 'Belle perf\n\nLéa']], f'{t} commentaire envoyé, nettoyé {mine}')
         last = page.locator('.comments .comment').last
@@ -150,7 +150,7 @@ def t_ecrire(bench, eng, dev, theme):
         page.focus('#commentInput')
         page.keyboard.type('Encore')
         page.evaluate('notifySocial()')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.evaluate("document.activeElement && document.activeElement.id") == 'commentInput' and page.input_value('#commentInput') == 'Encore', f'{t} focus et brouillon gardés pendant la saisie')
         page.evaluate("document.activeElement.blur()")
         # Menu ⋯ du commentaire de Paul : Signaler (pas Supprimer), puis Bloquer
@@ -160,7 +160,7 @@ def t_ecrire(bench, eng, dev, theme):
         R.check('Signaler' in btns and 'Supprimer' not in btns, f'{t} menu d\'un autre : Signaler seulement {btns}')
         tap_dialog(page, 'Signaler')
         tap_dialog(page, 'Harcèlement')
-        page.wait_for_timeout(400)
+        settle(page)
         rep = page.evaluate("__sb.so.comments.find(c => c.body === 'Grosse séance 💪').reporters")
         R.check(rep == [page.evaluate('__sb.meId()')], f'{t} signalement envoyé {rep}')
         # Alerte par e-mail : demandée à la fonction Edge report pour la ligne de la file commune
@@ -170,7 +170,7 @@ def t_ecrire(bench, eng, dev, theme):
                 f'{t} alerte du signalement demandée {alerts} {row}')
         R.check(page.locator('.ios-dialog').count() == 1 and 'bloquer paul' in page.inner_text('.ios-dialog').lower(), f'{t} proposition de bloquer Paul')
         tap_dialog(page, 'Bloquer')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate(f"__sb.so.blocks.some(k => k.blocker === __sb.meId() && k.blocked === '{ids['paul']}')"), f'{t} Paul bloqué')
         R.check(page.locator('.social-session-view').count() == 1 and 'Grosse séance' not in page.inner_text('.comments'), f'{t} on reste sur la séance de Léa, sans le commentaire de Paul')
         # Mon commentaire : Supprimer (sans Signaler)
@@ -179,7 +179,7 @@ def t_ecrire(bench, eng, dev, theme):
         btns = page.evaluate("[...document.querySelectorAll('.ios-dialog__btn')].map(b => b.innerText.trim())")
         R.check('Supprimer' in btns and 'Signaler' not in btns, f'{t} mon commentaire : Supprimer seulement {btns}')
         tap_dialog(page, 'Supprimer')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("__sb.so.comments.filter(c => c.user === __sb.meId()).length") == 0 and 'Belle perf' not in page.inner_text('.comments'), f'{t} mon commentaire supprimé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -192,20 +192,20 @@ def t_ma_seance(bench, eng, dev, theme):
         signin(page)
         ids = setup(page)
         page.evaluate('socialRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('socialActivityNew()') == 1, f'{t} pastille : le commentaire de Léa est une nouveauté')
         page.click('.tabbar [data-tab="friends"]')
-        page.wait_for_timeout(400)
+        settle(page)
         page.click('.navbar [data-action="social-me"]')
         page.wait_for_selector('.social-me-view .activity')
-        page.wait_for_timeout(400)
+        settle(page)
         row = page.locator('.activity-row', has_text='a commenté').first
         R.check(row.count() == 1 and 'lea a commenté ta séance' in row.inner_text() and '« Bravo pour le développé ! »' in row.inner_text(), f'{t} activité : ligne du commentaire ({row.inner_text() if row.count() else None!r})')
         R.check(row.locator('.activity-row__new').count() == 1, f'{t} activité : nouveauté marquée')
         shot(page, LOT, f'2-activite-{t}')
         row.locator('[data-action="social-open-my-session"]').click()
         page.wait_for_selector('.history-detail .comments .comment')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Bravo pour le développé !' in page.inner_text('.history-detail .comments'), f'{t} Historique › Séance : commentaire de Léa')
         # Ma séance : je peux supprimer celui de Léa (avec confirmation) ; Signaler aussi
         page.locator('.history-detail .comment').first.locator('[data-action="comment-menu"]').click()
@@ -215,19 +215,19 @@ def t_ma_seance(bench, eng, dev, theme):
         tap_dialog(page, 'Supprimer')
         R.check('ne sera pas prévenu' in page.inner_text('.ios-dialog'), f'{t} confirmation avant de supprimer celui d\'un autre')
         page.locator('.ios-dialog__btn--destructive').click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate('__sb.so.comments.length') == 1 and page.locator('.history-detail .comment').count() == 0, f'{t} commentaire de Léa supprimé')
         # Je réponds sur ma séance
         page.fill('#commentInput', 'Merci !')
         page.click('.comment-compose__send')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.history-detail .comment').count() == 1, f'{t} réponse sur ma séance')
         layout(page, t, 'Historique › Séance')
         page.evaluate("document.querySelector('.comments').scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'3-historique-{t}')
         # Masquée : lecture seule
         page.locator('[data-action="history-hide"]').click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('#commentInput').count() == 0 and 'on ne peut plus en ajouter' in page.inner_text('.history-detail'), f'{t} séance masquée : plus de saisie')
         R.check(page.locator('.history-detail .comment').count() == 1, f'{t} séance masquée : commentaires d\'avant gardés')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -275,7 +275,7 @@ def t_rapides(bench, eng, dev, theme):
         page.fill('#commentInput', 'Mon brouillon')
         page.evaluate("document.activeElement.blur()")
         page.locator('#commentQuick .comment-quick__btn', has_text='Respect').click()
-        page.wait_for_timeout(500)
+        settle(page)
         mine = page.evaluate("__sb.so.comments.filter(c => c.user === __sb.meId()).map(c => [c.owner, c.sid, c.body])")
         R.check(mine == [[ids['lea'], ids['leaSid'], 'Respect']], f'{t} un toucher : commentaire envoyé {mine}')
         R.check(page.evaluate("__sb.calls.filter(c => c[1] === 'add_comment').length") == 1, f'{t} un seul envoi')
@@ -286,7 +286,7 @@ def t_rapides(bench, eng, dev, theme):
         # Serveur qui refuse (hors ligne) : erreur dite, rien d'écrit, la réponse reste proposée
         page.evaluate('__sb.fail.social = "offline"')
         page.locator('#commentQuick .comment-quick__btn', has_text='Solide').click()
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(toast(page) != '' and page.evaluate("__sb.so.comments.filter(c => c.user === __sb.meId()).length") == 1, f'{t} hors ligne : erreur dite ({toast(page)!r})')
         R.check('Solide' in page.locator('#commentQuick').inner_text(), f'{t} hors ligne : réponse toujours proposée')
         page.evaluate('__sb.fail.social = null')

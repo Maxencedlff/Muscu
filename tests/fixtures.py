@@ -348,6 +348,214 @@ def as_function(expr):
     return expr if not isinstance(expr, str) or _JS_FUNCTION.match(expr) else f'() => ({expr})'
 
 
+# ─────────────────────────────────────────────────────────────
+#  Attendre que l'app soit au repos (au lieu d'attentes fixes)
+#
+# Avant le 18/11, les tests attendaient un délai fixe après chaque geste (page.wait_for_timeout(300) :
+# ~1 580 attentes, ~590 s de sommeil par appareil et thème), trop court sur une machine lente, trop long
+# partout ailleurs. settle(page) attend à la place un état observable : l'app n'a plus rien en cours.
+# Le script IDLE_TRACKER, posé sur le contexte avant l'app, compte ce qui peut encore changer l'écran :
+#   - les minuteries courtes (setTimeout ≤ 1 s : fermeture d'une feuille 220 ms, recherche 350 ms…) ; les
+#     longues (annulation 3-6 s, synchro 4 s, toasts) ne comptent pas : aucun test n'attendait leur fin
+#     avec un délai fixe ;
+#   - les promesses lentes : fetch, crypto.subtle (coffre photos), IndexedDB, FileReader, toBlob ;
+#   - les animations CSS et Web en cours qui finissent dans 1,5 s (getAnimations ; les infinies, les longues et
+#     celles programmées plus tard, comme la sortie d'un toast, ne comptent pas) ; un défilement doux ;
+#   - les boucles requestAnimationFrame courtes (compteurs animés, 0,6 s) ; une boucle qui dure plus de 0,7 s
+#     (anneau du repos, animation d'un exercice) est l'ambiance de l'écran, pas une transition.
+# L'app est au repos quand rien de tout ça n'est en cours pendant 30 ms d'affilée (une chaîne
+# requestAnimationFrame → setTimeout(0), comme afterPaint, est vue en cours d'un bout à l'autre).
+# Les wrappers suivent un remplacement de setTimeout (page.clock.install) : la minuterie simulée est comptée.
+# ─────────────────────────────────────────────────────────────
+IDLE_TRACKER = r"""(() => {
+  if (window.__idle) return;
+  const SHORT_MS = 1000, AMBIENT_RAF_MS = 700, QUIET_MS = 30, SCROLL_MS = 80;
+  const perf = performance, now = () => perf.now();
+  const rawRaf = window.requestAnimationFrame && window.requestAnimationFrame.bind(window);   // avant tout remplacement
+  const S = window.__idle = { timers: new Map(), busy: 0, raf: new Set(), rafStreak: 0, rafLast: -1e9,
+                              scrollAt: -1e9, since: 0, tok: null };
+  const wrapped = new WeakSet();
+  const mark = f => { wrapped.add(f); return f; };
+  const wrapSet = orig => (typeof orig !== 'function' || wrapped.has(orig)) ? orig : mark(function (fn, ms, ...a) {
+    const d = Number(ms) || 0;
+    if (typeof fn !== 'function' || d > SHORT_MS) return orig.call(this, fn, ms, ...a);
+    // Appelant : la première ligne de la pile hors de ce suivi et de la minuterie simulée (page.clock). Seules
+    // comptent les minuteries posées par un script de l'app (adresse http) : celles de Playwright (moteur de
+    // page.clock, attente de wait_for_function) et des scripts de test n'ont pas d'adresse, ignorées.
+    const frames = (new Error().stack || '').split('\n').filter(l => /\S/.test(l) && !/^Error/.test(l)).slice(1)
+      .filter(l => !/setTimeout/.test(l));
+    if (!/https?:\/\//.test(frames[0] || '')) return orig.call(this, fn, ms, ...a);
+    let id;
+    id = orig.call(this, function (...b) { S.timers.delete(id); return fn.apply(this, b); }, ms, ...a);
+    S.timers.set(id, d + ' ms (' + (frames[0] || '?').trim() + ')');
+    return id;
+  });
+  const wrapClear = orig => (typeof orig !== 'function' || wrapped.has(orig)) ? orig : mark(function (id) {
+    S.timers.delete(id); return orig.call(this, id);
+  });
+  // Boucles d'ambiance connues (anneau du repos, animation d'un exercice) : elles tournent tant que l'écran est
+  // affiché, jamais au repos, donc pas suivies (les autres boucles longues passent après AMBIENT_RAF_MS)
+  const AMBIENT_RAF = /\/js\/(features\/rest|ui\/exercise-anim)\.js/;
+  const wrapRaf = orig => (typeof orig !== 'function' || wrapped.has(orig)) ? orig : mark(function (fn) {
+    const caller = (new Error().stack || '').split('\n').filter(l => /\S/.test(l) && !/^Error/.test(l))[1] || '';
+    if (AMBIENT_RAF.test(caller)) return orig.call(this, fn);
+    const t = now();
+    if (!S.raf.size && t - S.rafLast > 100) S.rafStreak = t;
+    S.rafLast = t;
+    let id;
+    id = orig.call(this, function (...b) { S.raf.delete(id); S.rafLast = now(); return fn.apply(this, b); });
+    S.raf.add(id);
+    return id;
+  });
+  const wrapCancelRaf = orig => (typeof orig !== 'function' || wrapped.has(orig)) ? orig : mark(function (id) {
+    S.raf.delete(id); return orig.call(this, id);
+  });
+  for (const [name, wrap] of [['setTimeout', wrapSet], ['clearTimeout', wrapClear], ['clearInterval', wrapClear],
+                              ['requestAnimationFrame', wrapRaf], ['cancelAnimationFrame', wrapCancelRaf]]) {
+    let cur = wrap(window[name]);
+    try {
+      Object.defineProperty(window, name, { configurable: true, enumerable: true,
+                                            get: () => cur, set: v => { cur = wrap(v); } });
+    } catch { /* propriété figée : non suivie */ }
+  }
+  const hold = p => { S.busy++; let done = false; const end = () => { if (!done) { done = true; S.busy--; } };
+                      Promise.resolve(p).then(end, end); return p; };
+  const wrapAsync = (obj, names) => { for (const n of names) { const f = obj && obj[n];
+    if (typeof f === 'function') obj[n] = function (...a) { return hold(f.apply(this, a)); }; } };
+  wrapAsync(window, ['fetch']);
+  if (window.crypto && crypto.subtle) wrapAsync(crypto.subtle, ['encrypt', 'decrypt', 'digest', 'importKey',
+    'exportKey', 'deriveKey', 'deriveBits', 'generateKey', 'sign', 'verify', 'wrapKey', 'unwrapKey']);
+  const holdEvents = (target, ends) => { S.busy++; let done = false;
+    const end = () => { if (!done) { done = true; S.busy--; } };
+    for (const e of ends) target.addEventListener(e, end); };
+  if (window.IDBFactory) { const open = IDBFactory.prototype.open;
+    IDBFactory.prototype.open = function (...a) { const r = open.apply(this, a); holdEvents(r, ['success', 'error', 'blocked']); return r; }; }
+  if (window.IDBDatabase) { const tx = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (...a) { const t = tx.apply(this, a); holdEvents(t, ['complete', 'abort', 'error']); return t; }; }
+  if (window.FileReader) for (const n of ['readAsText', 'readAsDataURL', 'readAsArrayBuffer', 'readAsBinaryString']) {
+    const f = FileReader.prototype[n];
+    if (f) FileReader.prototype[n] = function (...a) { holdEvents(this, ['loadend']); return f.apply(this, a); }; }
+  if (window.HTMLCanvasElement) { const toBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function (cb, ...a) { S.busy++;
+      return toBlob.call(this, (...b) => { S.busy--; return cb(...b); }, ...a); }; }
+  addEventListener('scroll', () => { S.scrollAt = now(); }, { capture: true, passive: true });
+  // Une animation compte si elle se joue (ou commence dans 250 ms) et finit dans 1,5 s : la sortie d'un
+  // toast, programmée 1,8 s après son entrée, et les animations longues ou infinies sont l'ambiance de l'écran.
+  const moving = a => {
+    if (a.playState !== 'running' || !a.effect || !a.effect.getComputedTiming) return false;
+    // L'anneau du repos, redessiné à chaque image par sa boucle d'ambiance, relance sa transition sans fin
+    const el = a.effect.target;
+    if (el && el.closest && el.closest('.rest-ring')) return false;
+    const tm = a.effect.getComputedTiming(), lt = tm.localTime;
+    if (lt == null || !Number.isFinite(tm.endTime)) return false;
+    const delay = tm.delay || 0;
+    if (delay - lt > 250) return false;
+    return tm.endTime - Math.max(lt, delay) <= 1500;
+  };
+  const animating = () => document.getAnimations ? document.getAnimations().some(moving) : false;
+  S.quiet = tok => {
+    const t = now();
+    // Deux images au moins depuis le début de l'attente : les événements de rendu (scroll, observateurs
+    // d'intersection et de taille, début d'une transition de vue) qui suivent le geste sont passés
+    if (tok !== S.tok) { S.tok = tok; S.since = 0; S.frames = 0;
+      if (rawRaf) rawRaf(() => { S.frames++; rawRaf(() => { S.frames++; }); }); else S.frames = 2; }
+    if (S.frames < 2) return false;
+    const busy = S.timers.size || S.busy > 0 || t - S.scrollAt < SCROLL_MS
+      || (S.raf.size && t - S.rafStreak < AMBIENT_RAF_MS) || animating();
+    if (busy) { S.since = 0; if (S.log) S.last = S.why(); return false; }
+    if (!S.since) S.since = t;
+    return t - S.since >= QUIET_MS;
+  };
+  S.why = () => {   // ce qui empêche le repos (message d'erreur de settle)
+    const t = now(), out = [];
+    if (S.timers.size) out.push('minuteries ' + [...S.timers.values()].join(','));
+    if (S.busy > 0) out.push('promesses ' + S.busy);
+    if (t - S.scrollAt < SCROLL_MS) out.push('défilement');
+    if (S.raf.size && t - S.rafStreak < AMBIENT_RAF_MS) out.push('requestAnimationFrame');
+    for (const a of document.getAnimations ? document.getAnimations() : []) {
+      if (moving(a))
+        out.push('animation ' + (a.animationName || a.transitionProperty || a.id || '?') + ' sur ' +
+                 ((a.effect.target && (a.effect.target.className || a.effect.target.tagName)) || '?'));
+    }
+    return out.join(' ; ');
+  };
+})();"""
+
+
+# Animations CSS ramenées à 1 ms (délais gardés : la sortie d'un toast reste à 1,8 s), transitions coupées, défilement
+# CSS sans douceur : chaque geste finit tout de suite dans son état final, au lieu de 250 à 450 ms d'animation
+# attendus par settle. Les fichiers qui vérifient les animations elles-mêmes (nom, durée, mouvement réduit,
+# élément présent le temps de son animation) gardent les vraies : fixtures.REAL_ANIMATIONS = True après l'import.
+REAL_ANIMATIONS = False
+FAST_ANIMATIONS = r"""(() => {
+  // Transitions à 0 s, pas 1 ms : transition-property vaut « all » par défaut, une durée de 1 ms partout ferait de
+  // chaque changement de style une transition (une lecture juste après rendrait l'ancienne valeur)
+  const css = '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 0s !important;'
+            + ' transition-delay: 0s !important;'
+            + ' scroll-behavior: auto !important; }';
+  const put = () => { try { const s = new CSSStyleSheet(); s.replaceSync(css);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, s]; } catch { /* navigateur sans CSSOM construit */ } };
+  if (document.documentElement) put(); else addEventListener('DOMContentLoaded', put);
+})();"""
+
+
+def track_idle(ctx):
+    """Pose IDLE_TRACKER sur un contexte (avant sa première page) : settle(page) s'en sert. Accélère aussi les
+    animations CSS (FAST_ANIMATIONS), sauf si le fichier de test a mis REAL_ANIMATIONS à vrai."""
+    ctx.add_init_script(IDLE_TRACKER)
+    if not REAL_ANIMATIONS:
+        ctx.add_init_script(FAST_ANIMATIONS)
+
+
+_settle_tok = [0]
+
+
+def settle(page, timeout=10_000):
+    """Attend que l'app soit au repos (voir IDLE_TRACKER) : fin des transitions, minuteries courtes, réseau
+    simulé et promesses lentes, au lieu d'un délai fixe. Échoue (TimeoutError) si l'app ne se pose jamais."""
+    _settle_tok[0] += 1
+    t0 = time.time()
+    if os.environ.get('PPL_SETTLE_LOG'):
+        page.evaluate('() => { if (window.__idle) window.__idle.log = true; }')
+    try:
+        page.wait_for_function('tok => !!window.__idle && window.__idle.quiet(tok)', arg=_settle_tok[0],
+                               polling=15, timeout=timeout)
+        # PPL_SETTLE_LOG=ms : signale les attentes plus longues (où l'app met du temps à se poser, et pourquoi)
+        if os.environ.get('PPL_SETTLE_LOG') and (time.time() - t0) * 1000 > int(os.environ['PPL_SETTLE_LOG']):
+            import traceback
+            caller = traceback.extract_stack(limit=3)[0]
+            print(f'  settle {1000 * (time.time() - t0):.0f} ms à {os.path.basename(caller.filename)}:{caller.lineno}'
+                  f' : {page.evaluate("() => window.__idle.last")}', flush=True)
+    except Exception as e:
+        try:
+            why = page.evaluate('() => window.__idle ? window.__idle.why() : "pas de suivi (IDLE_TRACKER absent)"')
+        except Exception:
+            why = '?'
+        raise TimeoutError(f'app jamais au repos en {timeout} ms : {why}') from e
+
+
+def until(page, js, timeout=5000):
+    """Attend qu'une condition JS soit vraie (vrai) ou le délai écoulé (faux), sans lever d'exception :
+    la vérification qui suit garde son libellé et son décompte, qu'elle réussisse ou non."""
+    try:
+        page.wait_for_function(js, polling=20, timeout=timeout)
+        return True
+    except Exception:
+        return False
+
+
+def wait_toast_gone(page, timeout=8000):
+    """Attend que le toast affiché soit parti (durée 2,2 s, 4 s pour une erreur, puis sa sortie)."""
+    until(page, '() => !document.querySelector(".toast")', timeout)
+    settle(page)
+
+
+def wait_toast_settled(page, timeout=3000):
+    """Attend que les toasts affichés aient plus de 0,8 s : un changement d'écran ne retire que ceux-là
+    (dropScreenToast, js/core/dialogs.js : un toast posé juste avant la navigation la suit)."""
+    until(page, "() => [...document.querySelectorAll('.toast')].every(t => Date.now() - Number(t.dataset.at || 0) > 850)", timeout)
+
+
 class Bench:
     """Lance un navigateur par moteur et fabrique des contextes (appareil, thème)."""
 
@@ -379,6 +587,7 @@ class Bench:
         """clock : instant de départ figé (ms) ; avec timezone_id=PARIS, la même heure partout (CI en UTC)."""
         ctx = self.browser(engine).new_context(**device_profile(self.p, device), color_scheme=theme,
                                                service_workers=service_workers, **extra)
+        track_idle(ctx)
         if safe_insets(device):
             simulate_safe_area(ctx, safe_insets(device))
         page = ctx.new_page()
@@ -433,14 +642,14 @@ def skip_questions(page):
     btn = page.locator('.onb [data-action="onb-later"]')
     if btn.count():
         btn.click()
-        page.wait_for_timeout(300)
+        settle(page)
 
 
 def shot(page, lot, name):
     d = os.path.join(SHOTS, 'lot%s' % lot)
     os.makedirs(d, exist_ok=True)
     path = os.path.join(d, name.replace(' ', '_').replace('+', 'plus') + '.png')
-    page.wait_for_timeout(350)  # fin des animations d'apparition (toasts, feuilles)
+    settle(page)  # fin des animations d'apparition (toasts, feuilles)
     page.screenshot(path=path)
     return path
 
@@ -452,7 +661,7 @@ def ls(page, key):
 def tap_dialog(page, label):
     """Touche un bouton des dialogues iOS de l'app (feuille ou alerte)."""
     page.locator('.ios-dialog__btn', has_text=label).first.click()
-    page.wait_for_timeout(260)
+    settle(page)
 
 
 class Results:
@@ -542,4 +751,4 @@ def sess_undo_text(page):
 def sess_undo(page):
     """Touche « Annuler » en ligne (séance)."""
     page.locator('[data-action="sess-undo"]').first.click()
-    page.wait_for_timeout(300)
+    settle(page)

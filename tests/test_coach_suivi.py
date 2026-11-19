@@ -35,12 +35,12 @@ def open_app(page, theme, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username):
     page.evaluate("""async u => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u }); }""", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def no_hscroll(page):
@@ -78,7 +78,7 @@ def layout(page, t, name):
 def go(page, route_js, sel):
     page.evaluate(f"navigate({route_js})")
     page.wait_for_selector(sel)
-    page.wait_for_timeout(400)
+    settle(page)
 
 
 def setup_coach(page, phases=True, measures=True):
@@ -113,7 +113,7 @@ def t_planning_coach(bench, eng, dev, theme):
         signin(page, 'max')
         ids = setup_coach(page)
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         # Mes élèves : cellule Planning, ligne « Mini cut Léa · sem. 3/6 »
         go(page, "'coach-students'", '.coach-students-view .coach-student-row')
         cell = page.locator('[data-action="plan-overview"]')
@@ -126,7 +126,7 @@ def t_planning_coach(bench, eng, dev, theme):
         # Vue d'ensemble
         cell.click()
         page.wait_for_selector('.coach-planning-view .plan-gantt__row')
-        page.wait_for_timeout(300)
+        settle(page)
         rows = page.locator('.plan-gantt__row')
         R.check(rows.count() == 2, f'{t} planning : une ligne par élève')
         R.check(page.locator('.plan-gantt__row', has_text='lea').locator('.plan-gantt__bar').count() == 3, f'{t} planning : les 3 phases de Léa dans la fenêtre')
@@ -147,7 +147,7 @@ def t_planning_coach(bench, eng, dev, theme):
         # Planning complet de Léa
         page.click('[data-action="plan-open"]')
         page.wait_for_selector('.coach-plan-view .plan-line')
-        page.wait_for_timeout(300)
+        settle(page)
         txt = page.inner_text('.coach-plan-view')   # titres de groupe en capitales (CSS) : comparés en minuscules
         R.check('en cours' in txt.lower() and 'à venir' in txt.lower() and 'terminées' in txt.lower() and '3 phases' in txt, f'{t} planning de Léa : sections ({txt[:160]!r})')
         R.check(page.locator('.plan-line__seg').count() == 3, f'{t} frise : 3 segments')
@@ -156,7 +156,7 @@ def t_planning_coach(bench, eng, dev, theme):
         # Ajouter une phase : début proposé après la dernière (15 mars), 4 semaines par défaut, 5 après +
         page.click('.coach-plan-view [data-action="plan-add"]')
         page.wait_for_selector('.sheet .plan-form')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.input_value('#planStart') == '2027-03-15', f'{t} nouvelle phase : début proposé le lendemain de la dernière ({page.input_value("#planStart")})')
         page.click('.plan-chip:has(input[value="cut"])')
         page.click('#planWeeksInc')
@@ -167,7 +167,7 @@ def t_planning_coach(bench, eng, dev, theme):
         page.fill('#planName', 'Sèche été')
         page.fill('#planNote', 'Vérifier le tour de taille chaque lundi')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(500)
+        settle(page)
         saved = ccalls(page, 'coach_plan_save')
         R.check(len(saved) == 1 and saved[0]['goal'] == 'cut' and saved[0]['weeks'] == 5 and saved[0]['start_date'] == '2027-03-15' and saved[0]['name'] == 'Sèche été',
                 f'{t} enregistrée sur le serveur ({saved})')
@@ -179,30 +179,30 @@ def t_planning_coach(bench, eng, dev, theme):
         page.click('.plan-chip:has(input[value="deload"])')
         page.fill('#planStart', '2026-12-01')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.sheet .plan-form').count() == 1 and 'Chevauche « Mini cut Léa »' in toast(page), f'{t} chevauchement refusé ({toast(page)!r})')
         R.check(len(ccalls(page, 'coach_plan_save')) == 1, f'{t} chevauchement : rien d\'envoyé')
         page.click('.sheet__btn--cancel')
-        page.wait_for_timeout(400)
+        settle(page)
         # Modifier la phase en cours : feuille préremplie
         page.locator('.coach-plan-view .plan-card', has_text='Mini cut Léa').click()
         page.wait_for_selector('.sheet .plan-form')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.input_value('#planName') == 'Mini cut Léa' and page.inner_text('#planWeeks') == '6 semaines'
                 and page.is_checked('input[value="mini_cut"]') and page.input_value('#planProg') == 'Sèche 4 jours', f'{t} modifier : feuille préremplie')
         shot(page, LOT, f'6-modifier-phase-{t}')
         page.click('#planWeeksDec')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(ccalls(page, 'coach_plan_save')[-1]['weeks'] == 5 and ccalls(page, 'coach_plan_save')[-1]['phase_id'] is not None, f'{t} modifiée (5 semaines)')
         R.check('Semaine 3 sur 5' in page.inner_text('.coach-plan-view'), f'{t} carte à jour')
         # Supprimer la phase ajoutée
         page.locator('.coach-plan-view .plan-card', has_text='Sèche été').click()
         page.wait_for_selector('#planDelete')
         page.click('#planDelete')
-        page.wait_for_timeout(400)
+        settle(page)
         tap_dialog(page, 'Supprimer')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(len(ccalls(page, 'coach_plan_delete')) == 1 and page.locator('.coach-plan-view .plan-card').count() == 3, f'{t} phase supprimée')
         # Hors ligne : message clair, la feuille reste ouverte avec la saisie
         page.evaluate('__sb.fail.plan = "offline"')
@@ -211,7 +211,7 @@ def t_planning_coach(bench, eng, dev, theme):
         page.click('.plan-chip:has(input[value="maintain"])')
         page.fill('#planName', 'Garder')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check('Internet' in toast(page) and page.input_value('#planName') == 'Garder', f'{t} hors ligne : message, saisie gardée ({toast(page)!r})')
         page.click('.sheet__btn--cancel')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -230,15 +230,15 @@ def t_planning_eleve(bench, eng, dev, theme):
             __sb.addPhase(__sb.meId(), { goal: 'bulk', start: '2026-12-21', weeks: 12 });
         }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(500)
+        settle(page)
         page.click('.tabbar [data-tab="friends"]')
-        page.wait_for_timeout(500)
+        settle(page)
         sub = page.locator('[data-action="coach-open-mine"] .cell__sub').inner_text()
         R.check('max · Mini cut, semaine 3 sur 6' in sub, f'{t} Social : phase discrète sous le coach ({sub!r})')
         shot(page, LOT, f'7-amis-eleve-{t}')
         page.click('[data-action="coach-open-mine"]')
         page.wait_for_selector('.coach-mine-view .plan-card')
-        page.wait_for_timeout(300)
+        settle(page)
         txt = page.inner_text('.coach-mine-view')
         R.check('ta phase' in txt.lower() and 'Semaine 3 sur 6' in txt and 'Programme : Sèche 4 jours' in txt and 'Ensuite : Prise de masse' in txt, f'{t} Mon coach : ma phase ({txt[:200]!r})')
         R.check('NOTE PRIVÉE' not in page.content(), f'{t} la note du coach n\'arrive jamais chez l\'élève')
@@ -249,7 +249,7 @@ def t_planning_eleve(bench, eng, dev, theme):
         R.check(page.evaluate("localStorage.getItem('mdlf_coach_plan')") is not None, f'{t} planning gardé sur l\'appareil (hors ligne)')
         page.evaluate("localStorage.setItem('mdlf_coach_share_m', JSON.stringify({ userId: __sb.meId(), coachId: 'x', hash: 'h' }))")
         page.evaluate('accountSignOut()')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("localStorage.getItem('mdlf_coach_plan')") is None and page.evaluate("localStorage.getItem('mdlf_coach_share_m')") is None,
                 f'{t} déconnexion : mdlf_coach_plan et mdlf_coach_share_m effacés')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -265,14 +265,14 @@ def t_echappement(bench, eng, dev, theme):
         ids = setup_coach(page, measures=False)
         page.evaluate(f"""e => {{ const p = __sb.co.phases.find(x => x.goal === 'mini_cut'); p.name = e.slice(0, 40); p.prog_name = e.slice(0, 40); p.note = e; }}""", evil)
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         for route, sel in [("'coach-students'", '.coach-students-view .coach-student-row'), ("'coach-planning'", '.coach-planning-view .plan-gantt__row'),
                            (f"makeRoute('coach-student', '{ids['lea']}')", '.coach-student-view .plan-card'), (f"makeRoute('coach-plan', '{ids['lea']}')", '.coach-plan-view .plan-card')]:
             go(page, route, sel)
             R.check(page.locator('#app img[src="x"]').count() == 0 and '<img' in page.inner_text('#app'), f'{t} {route} : texte hostile affiché tel quel')
         page.locator('.coach-plan-view .plan-card').first.click()
         page.wait_for_selector('.sheet .plan-form')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.input_value('#planName') == evil[:40] and page.locator('.sheet img[src="x"]').count() == 0, f'{t} feuille : valeur du champ, pas du HTML')
         page.click('.sheet__btn--cancel')
         R.check(page.evaluate('window.__xss') is None, f'{t} aucun script exécuté')
@@ -289,11 +289,11 @@ def t_serveur_ancien(bench, eng, dev, theme):
         ids = setup_coach(page, phases=False, measures=False)
         page.evaluate(f"__sb.share('{ids['lea']}', [{{ date: Date.now() - 86400000, kg: 61 }}, {{ date: Date.now() - 9 * 86400000, kg: 62 }}])")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         go(page, "'coach-students'", '.coach-students-view .coach-student-row')
         R.check(page.locator('[data-action="plan-overview"]').count() == 0, f'{t} ancien serveur : pas de cellule Planning')
         go(page, f"makeRoute('coach-student', '{ids['lea']}')", '.coach-student-view .coach-join__who')
-        page.wait_for_timeout(300)
+        settle(page)
         txt = page.inner_text('.coach-student-view')
         R.check('planification' not in txt.lower() and 'mensurations' not in txt.lower() and 'poids du corps' in txt.lower(), f'{t} ancien serveur : fiche sans planification ni mensurations, poids gardé')
         R.check(not page.errors, f'{t} ancien serveur : aucune erreur JS {page.errors}')
@@ -303,7 +303,7 @@ def t_serveur_ancien(bench, eng, dev, theme):
         page.evaluate("""() => { __sb.fail.plan = 'missing'; __sb.fail.measures = 'missing';
             const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false }); __sb.makeCoach(max); __sb.link(max, __sb.meId()); }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         go(page, "'coach-share'", '.coach-share-view [data-action="coach-share-toggle"]')
         R.check(page.locator('[data-action="coach-share-toggle"]').count() == 1, f'{t} ancien serveur : la case du poids seule')
         go(page, "'coach-mine'", '.coach-mine-view .coach-join__who')
@@ -323,7 +323,7 @@ def t_mesures_eleve(bench, eng, dev, theme):
             save(); return __sb.meId();
         }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         go(page, "'coach-share'", '.coach-share-view [data-kind="measures"]')
         m = page.locator('[data-action="coach-share-toggle"][data-kind="measures"]')
         txt = page.inner_text('.coach-share-view')
@@ -332,7 +332,7 @@ def t_mesures_eleve(bench, eng, dev, theme):
         layout(page, t, 'Partager (mensurations)')
         shot(page, LOT, f'9-partager-mensurations-{t}')
         m.click()
-        page.wait_for_timeout(500)
+        settle(page)
         sent = ccalls(page, 'student_share_measures')
         R.check(len(sent) == 1 and sorted(sent[0]['measures']) == ['armR', 'waist'] and len(sent[0]['measures']['waist']) == 2, f'{t} cocher : mensurations envoyées ({sent})')
         R.check(page.locator('[data-action="coach-share-toggle"][data-kind="measures"]').get_attribute('aria-checked') == 'true'
@@ -349,13 +349,14 @@ def t_mesures_eleve(bench, eng, dev, theme):
         page.wait_for_selector('.sheet .bm-in')
         page.fill('.bm-in[data-key="hips"]', '92')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(500)
+        until(page, "() => !document.querySelector('.sheet')", 5000)   # feuille fermée : mesure enregistrée
+        settle(page)
         sent = ccalls(page, 'student_share_measures')
         R.check(len(sent) == 2 and 'hips' in sent[-1]['measures'], f'{t} nouvelle mesure renvoyée')
         # Décocher : effacé du serveur
         go(page, "'coach-share'", '.coach-share-view [data-kind="measures"]')
         page.click('[data-action="coach-share-toggle"][data-kind="measures"]')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate(f"__sb.co.measures['{me}']") is None and page.evaluate('__sb.co.shares.length') == 0, f'{t} décocher : mensurations effacées')
         R.check('supprimées du serveur' in toast(page), f'{t} toast ({toast(page)!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -368,10 +369,10 @@ def t_bilan_coach(bench, eng, dev, theme):
         signin(page, 'max')
         ids = setup_coach(page)
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         go(page, f"makeRoute('coach-student', '{ids['lea']}')", '.coach-student-view [data-action="coach-open-measures"]')
         page.locator('[data-action="coach-open-measures"]').scroll_into_view_if_needed()
-        page.wait_for_timeout(300)
+        settle(page)
         txt = page.inner_text('.coach-student-view')
         R.check('poids du corps' in txt.lower() and '61,4 kg' in txt and page.locator('#exChart canvas').count() == 1, f'{t} fiche : poids et sa courbe')
         cell = page.inner_text('[data-action="coach-open-measures"]')
@@ -380,14 +381,14 @@ def t_bilan_coach(bench, eng, dev, theme):
         shot(page, LOT, f'12-fiche-bilan-{t}')
         page.click('[data-action="coach-open-measures"]')
         page.wait_for_selector('.coach-measures-view .bm-cell')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.coach-measures-view .bm-cell').count() == 3, f'{t} mensurations : 3 mesures')
         R.check('71,5 cm' in page.inner_text('.coach-measures-view'), f'{t} mensurations : dernière taille')
         layout(page, t, 'Mensurations de Léa')
         shot(page, LOT, f'13-mensurations-{t}')
         page.locator('.coach-measures-view .bm-cell', has_text='Taille').click()
         page.wait_for_selector('.coach-measure-view #exChart canvas')
-        page.wait_for_timeout(500)
+        settle(page)
         mt = page.inner_text('.coach-measure-view')
         R.check('Taille' in mt and '−2,5 cm' in mt and page.locator('.coach-measure-view .cell').count() >= 6, f'{t} courbe de la taille et historique')
         layout(page, t, 'Courbe de la taille')
@@ -395,7 +396,7 @@ def t_bilan_coach(bench, eng, dev, theme):
         # Léa arrête : la fiche relue n'a plus de mensurations
         page.evaluate(f"__sb.co.shares = __sb.co.shares.filter(x => x.kind !== 'measures'); delete __sb.co.measures['{ids['lea']}']")
         go(page, f"makeRoute('coach-student', '{ids['lea']}')", '.coach-student-view .coach-join__who')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('[data-action="coach-open-measures"]').count() == 0, f'{t} partage coupé : plus de mensurations')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -411,9 +412,9 @@ def t_apercu_message(bench, eng, dev, theme):
         ids = setup_coach(page, phases=False, measures=False)
         page.evaluate("([lea, b]) => { __sb.msg(lea, false, b, Date.now() - 3 * 3600e3); }", [ids['lea'], body])
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(400)
+        settle(page)
         go(page, f"makeRoute('coach-student', '{ids['lea']}')", '.coach-student-view .chat-cell')
-        page.wait_for_timeout(300)
+        settle(page)
         # Poids non partagé (panel du 06/11) : le groupe le dit au lieu de disparaître, sans aucun chiffre
         off = page.locator('.coach-weight-off')
         R.check(off.count() == 1 and 'ne partage pas son poids' in off.inner_text() and 'Partager avec mon coach' in off.inner_text(), f'{t} fiche : poids non partagé, expliqué')
@@ -426,7 +427,7 @@ def t_apercu_message(bench, eng, dev, theme):
         shot(page, LOT, f'15-fiche-message-{t}')
         page.click('.chat-cell')
         page.wait_for_selector('.coach-chat-view .chat-msg')
-        page.wait_for_timeout(300)
+        settle(page)
         bubble = page.locator('.chat-msg--theirs .chat-msg__bubble').last
         R.check(body in bubble.inner_text() and page.evaluate("(() => { const b = [...document.querySelectorAll('.chat-msg--theirs .chat-msg__bubble')].pop(); return b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1; })()"),
                 f'{t} conversation : message entier, jamais coupé')

@@ -5,6 +5,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 
 LOT = 3
 R = Results(LOT)
@@ -17,9 +19,6 @@ def tag(device, theme):
 def route(page):
     return page.evaluate('location.hash')
 
-
-def settle(page, ms=450):
-    page.wait_for_timeout(ms)  # fin des transitions d'écran
 
 
 def tab(page, name):
@@ -37,7 +36,7 @@ def last_content_bottom(page):
     # transition) : on redemande le bas jusqu'à l'atteindre vraiment, au lieu d'une attente fixe.
     for _ in range(30):
         page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
-        page.wait_for_timeout(100)
+        settle(page)
         if page.evaluate('Math.abs(scrollY + innerHeight - document.documentElement.scrollHeight) <= 1'):
             break
     return page.evaluate("""() => {
@@ -150,14 +149,14 @@ def t_home(bench, eng, dev, theme):
         R.check(page.locator('.streak-badge, .order-badge, .card__cooldown, .prog-pill').count() == 0, f'{t} anciens badges retirés')
         shot(page, LOT, f'accueil-{t}')
         # Feuille d'actions d'une cellule, puis « Voir les exercices » dans une feuille modale
-        cells.first.click(); page.wait_for_timeout(300)
+        cells.first.click(); settle(page)
         acts = page.locator('.ios-dialog__btn').all_inner_texts()
         R.check('Démarrer' in acts and 'Voir les exercices' in acts and 'Annuler' in acts, f'{t} feuille d\'actions {acts}')
         tap_dialog(page, 'Voir les exercices')
         sh = page.locator('.sheet[role="dialog"][aria-modal="true"]')
         R.check(sh.count() == 1 and sh.locator('.sheet-list__row').count() == 5, f'{t} feuille « Voir les exercices »')
         shot(page, LOT, f'feuille-{t}')
-        page.click('.sheet__btn--confirm'); page.wait_for_timeout(350)
+        page.click('.sheet__btn--confirm'); settle(page)
         R.check(page.locator('.sheet-root').count() == 0, f'{t} feuille fermée par OK')
         # Toutes les séances en récupération : « Démarrer quand même »
         d = ppl_v2_today()
@@ -223,7 +222,7 @@ def t_scroll(bench, eng, dev, theme):
         t = tag(dev, theme)
         tab(page, 'history')
         # Fusion : historique paginé par 3 mois (lot 5), donc plus court
-        page.evaluate('window.scrollTo(0, 900)'); page.wait_for_timeout(200)
+        page.evaluate('window.scrollTo(0, 900)'); settle(page)
         y0 = page.evaluate('scrollY')
         R.check(abs(y0 - 900) <= 2, f'{t} historique défilé à 900 ({y0})')
         # Un bouton de modification visible à l'écran
@@ -239,9 +238,9 @@ def t_scroll(bench, eng, dev, theme):
         # Fusion : ▲▼ remplacés par le mode Modifier (lot 5) ; micro-action = basculer Modifier/OK
         tab(page, 'program')
         page.locator('[data-action="open-prog-session"]').first.click(); settle(page)
-        page.evaluate('window.scrollTo(0, 30)'); page.wait_for_timeout(150)
+        page.evaluate('window.scrollTo(0, 30)'); settle(page)
         y2 = page.evaluate('scrollY')
-        page.click('[data-action="toggle-edit-mode"]'); page.wait_for_timeout(200)
+        page.click('[data-action="toggle-edit-mode"]'); settle(page)
         y3 = page.evaluate('scrollY')
         # Le mode Modifier retire « Ajouter un exercice » : la page peut raccourcir sous la position gardée
         y_max = page.evaluate('document.documentElement.scrollHeight - innerHeight')
@@ -265,9 +264,9 @@ def t_live(bench, eng, dev, theme):
         down = page.locator('.view.session [data-action="back"]')
         R.check(down.get_attribute('aria-label') == 'Réduire la séance', f'{t} chevron « Réduire la séance »')
         shot(page, LOT, f'seance-{t}')
-        page.locator('[data-action="validate-set"]').first.click(); page.wait_for_timeout(200)
+        page.locator('[data-action="validate-set"]').first.click(); settle(page)
         if page.locator('.rest-overlay [data-action="minimize-rest"]').count():
-            page.click('.rest-overlay [data-action="minimize-rest"]'); page.wait_for_timeout(100)
+            page.click('.rest-overlay [data-action="minimize-rest"]'); settle(page)
         down.click(); settle(page)
         live = page.locator('.livebar')
         R.check(page.locator('.view.dashboard').count() == 1 and live.is_visible(), f'{t} mini-barre sur l\'accueil')
@@ -306,13 +305,13 @@ def t_dirty(bench, eng, dev, theme):
         r = page.locator('[data-action="add-reps"]').first
         r.fill('7')
         R.check(page.evaluate("sessionStorage.getItem('ppl_add_draft') !== null"), f'{t} brouillon gardé dans sessionStorage')
-        page.click('[data-action="cancel-add-session"]'); page.wait_for_timeout(300)
+        page.click('[data-action="cancel-add-session"]'); settle(page)
         acts = page.locator('.ios-dialog__btn').all_inner_texts()
         R.check(acts == ['Ignorer les modifications', 'Continuer la modification'], f'{t} feuille « Ignorer les modifications » {acts}')
         shot(page, LOT, f'ignorer-{t}')
         tap_dialog(page, 'Continuer la modification')
         R.check(page.locator('.view.add-session').count() == 1, f'{t} « Continuer » garde l\'écran')
-        page.click('[data-action="cancel-add-session"]'); page.wait_for_timeout(300)
+        page.click('[data-action="cancel-add-session"]'); settle(page)
         tap_dialog(page, 'Ignorer les modifications'); settle(page)
         # Fusion : on entre par le détail de la séance (lot 5), « Ignorer » y ramène
         R.check(page.locator('.view.history-detail').count() == 1, f'{t} « Ignorer » → écran précédent')
@@ -342,7 +341,7 @@ def t_motion(bench, eng, dev, theme):
         if page.evaluate("typeof document.startViewTransition === 'function'"):
             page.click('.tabbar [data-tab="history"]'); settle(page)
             page.locator('[data-action="open-history"]').first.click()
-            page.wait_for_timeout(60)
+            until(page, "() => document.documentElement.dataset.navDir === 'push'", 3000)   # pendant la transition
             R.check(page.evaluate("document.documentElement.dataset.navDir") == 'push', f'{t} transition « push » jouée')
             settle(page)
 
@@ -359,7 +358,7 @@ def o_restore(bench):
         R.check(page.evaluate('location.pathname') == '/', 'restauration : l\'app ne se ferme pas')
         # Fin de séance : plus de séance dans la pile, retour sans écran fantôme
         page.click('.livebar'); settle(page)
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(300)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance'); settle(page)
         # Fusion : le bilan du lot 4 s'intercale (Entraînement › Bilan), sans tab bar
         R.check(page.locator('.view.summary').count() == 1 and route(page) == '#train/summary' and page.locator('.tabbar').is_hidden(), f'fin de séance : bilan ({route(page)})')
@@ -389,7 +388,7 @@ def o_edge_swipe(bench):
             if ok == 'no-touch':
                 print(f'  ({dev} : TouchEvent indisponible, geste non testé)')
                 continue
-            settle(page, 600)
+            settle(page)
             R.check(ok == 'ok', f'{dev} geste de bord : écran précédent dessous ({ok})')
             R.check(page.locator('.view.dashboard').count() == 1 and route(page) == '#train', f'{dev} geste de bord → retour')
             R.check(not page.errors, f'{dev} geste : aucune erreur JS {page.errors}')
@@ -412,7 +411,7 @@ def o_home_type_xl(bench):
             'petite hauteur : Démarrer entre les infos et les cibles')
         page.add_style_tag(content='html { font-size: 28px !important; }')
         page.evaluate("window.dispatchEvent(new Event('resize'))")
-        settle(page, 300)
+        settle(page)
         btn = page.locator('.hero__btn')
         g = page.evaluate("""() => { const b = document.querySelector('.hero__btn'), t = document.querySelector('.hero .targets');
             const r = b.getBoundingClientRect();
@@ -435,7 +434,7 @@ def o_home_type_xl(bench):
         shot(page, LOT, 'accueil-type-xl-recup-iPhone_SE')
         # Séance sans exercice : pas de cibles, le lien vers l'éditeur reste
         c = page.evaluate("(() => { const c = nextSessionCat(sessionKeys()); prog().exercises[c] = []; save(); render(); return c; })()")
-        settle(page, 200)
+        settle(page)
         ed = page.locator('.hero [data-action="go-editor"]')
         R.check(page.evaluate("nextSessionCat(sessionKeys())") == c and page.locator('.hero .targets').count() == 0
                 and ed.count() == 1 and ed.get_attribute('data-cat') == c, f'séance vide ({c}) : « Modifier les exercices » ({ed.count()})')

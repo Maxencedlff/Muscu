@@ -23,6 +23,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 from fake_account import FAKE_ACCOUNT
 from donnees_realistes import six_mois
 
@@ -209,7 +211,7 @@ def audit(page, t, ecran, insets):
     """Contrôles de mise en page de l'écran affiché, une vérification par règle."""
     sat, _, sab, _ = insets
     page.evaluate('() => { scrollTo(0, 0); document.querySelectorAll("#app .scr").forEach(e => { e.scrollTop = 0; }); }')
-    page.wait_for_timeout(120)
+    settle(page)
     o = page.evaluate(LAYOUT_JS, {'sat': sat, 'sab': sab, 'maxw': MAX_LECTURE, 'cible': CIBLE})
     R.check(not o['hscroll'], f"{t} {ecran} : pas de défilement horizontal (page de {o['hscroll']} px)")
     R.check(not o['encoche'], f"{t} {ecran} : rien sous l'encoche / Dynamic Island {o['encoche']}")
@@ -239,7 +241,7 @@ def t_ecrans(bench, eng, dev, theme):
         page.add_init_script(FAKE_ACCOUNT)
         page.route(re.compile(r'^https?://(?!127\.0\.0\.1|localhost).*'), lambda route: route.abort())
         seed(page, theme, donnees(), extra={'ppl_welcome_seen': '1'})
-        page.wait_for_timeout(400)
+        settle(page)
 
         def ecran(nom, prep, attendre=None):
             """Ouvre un écran (prep), le contrôle et le capture ; une étape ratée n'arrête pas les suivantes."""
@@ -248,7 +250,7 @@ def t_ecrans(bench, eng, dev, theme):
                 prep()
                 if attendre:
                     page.wait_for_selector(attendre, state='visible', timeout=4000)
-                page.wait_for_timeout(350)
+                settle(page)
                 # Feuille encore en train de monter (sous charge, plus de 350 ms) : on attend la fin des
                 # animations finies, sinon elle « sort par le bas » à la mesure
                 with contextlib.suppress(Exception):
@@ -273,13 +275,13 @@ def t_ecrans(bench, eng, dev, theme):
                 if not loc.count():
                     raise
                 loc.dispatch_event('click', timeout=3000)
-            page.wait_for_timeout(350)
+            settle(page)
         onglet = lambda tab: tap(f'.tabbar [data-tab="{tab}"]')
 
         ecran('accueil', lambda: None, '.view.dashboard')
         ecran('nutrition', lambda: tap('.diet-home__open'), '.nutrition-view')
         onglet('train')
-        page.wait_for_timeout(200)
+        settle(page)
         if page.locator('.nutrition-view').count():   # le 1er toucher de l'onglet actif ramène à sa racine
             onglet('train')
 
@@ -306,7 +308,7 @@ def t_ecrans(bench, eng, dev, theme):
                 tap(sel)
                 break
         page.keyboard.press('Escape')
-        page.wait_for_timeout(300)
+        settle(page)
 
         def bilan():
             page.evaluate("""() => { activeSession.startedAt = Date.now() - 52 * 60000;
@@ -315,14 +317,14 @@ def t_ecrans(bench, eng, dev, theme):
                   if (String(s.reps ?? '').trim() === '') s.reps = String(setGoal(ex, s));
                   if (String(s.weight ?? '').trim() !== '') s.done = true; }));
                 persistSession(); render(); }""")
-            page.wait_for_timeout(250)
+            settle(page)
             passer()
             tap('.view.session [data-action="finish-session"]')
             page.locator('.ios-dialog__btn', has_text='Enregistrer').first.click()
         ecran('bilan', bilan, '.view.summary')
         if page.locator('[data-action="summary-done"]').count():
             page.locator('[data-action="summary-done"]').first.click()
-            page.wait_for_timeout(400)
+            settle(page)
 
         ecran('historique', lambda: onglet('history'), '.view.history')
         ecran('progres', lambda: onglet('progress'), '.view.stats')
@@ -349,7 +351,7 @@ def t_ecrans(bench, eng, dev, theme):
         # Compte, social activé, rôle coach avec deux élèves (faux serveur, rien ne sort) : onglet Coach, segment
         # Élèves à l'ouverture, puis segment Social (docs/SOCIAL_V2.md)
         page.evaluate(PREPARE, seances_lea())
-        page.wait_for_timeout(400)
+        settle(page)
         ecran('coach-eleves', lambda: onglet('friends'), '.coach-team .coach-student-row')
         ecran('coach-social', lambda: tap('.social-seg [data-seg="friends"]'), '.feed-card, .friends-view #socialSearch')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')

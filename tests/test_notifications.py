@@ -31,7 +31,7 @@ def open_app(page, theme, ppl_v2=None, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username='max'):
@@ -39,7 +39,7 @@ def signin(page, username='max'):
         await accountSignInWith('apple', async () => 'add');
         if (u) await accountSaveProfile({ username: u });
     }""", username)
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def push_calls(page):
@@ -56,7 +56,7 @@ def open_notifications(page):
     page.wait_for_selector('.settings-view')
     page.click('[data-action="push-open"]')
     page.wait_for_selector('.push-view [data-action="push-toggle"]')
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def t_reglages(bench, eng, dev, theme):
@@ -80,7 +80,7 @@ def t_reglages(bench, eng, dev, theme):
         sw = page.locator('[data-kind="reactions"]')
         before = page.evaluate("document.querySelector('.push-view').outerHTML")
         sw.dispatch_event('pointerdown')
-        page.wait_for_timeout(120)
+        settle(page)
         R.check(page.evaluate("document.querySelector('.push-view').outerHTML") == before, f'{t} rien ne change au pointerdown')
         sw.dispatch_event('pointerup')
 
@@ -105,14 +105,14 @@ def t_reglages(bench, eng, dev, theme):
         page.wait_for_function("document.querySelector('[data-kind=\"reactions\"]').getAttribute('aria-checked') === 'false'")
         page.locator('[data-kind="coach"]').click()
         page.wait_for_function("document.querySelector('[data-kind=\"coach\"]').getAttribute('aria-checked') === 'false'")
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.evaluate('__sb.push.devices') == {}, f'{t} tout éteint : jeton retiré {page.evaluate("__sb.push.devices")}')
 
         # Rallumé puis déconnexion : jeton retiré avant la fin de session
         page.locator('[data-kind="follows"]').click()
         page.wait_for_function("document.querySelector('[data-kind=\"follows\"]').getAttribute('aria-checked') === 'true'")
         page.evaluate('accountSignOut()')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate('__sb.push.devices') == {}, f'{t} déconnexion : jeton retiré')
         R.check(page.evaluate("localStorage.getItem('mdlf_push')") is None, f'{t} déconnexion : rien gardé sur l\'iPhone')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -129,9 +129,9 @@ def t_refus(bench, eng, dev, theme):
         R.check('Notifications refusées' in page.inner_text('.ios-dialog'), f'{t} refus : explication')
         R.check(not any(c.startswith('push_set_prefs') or c.startswith('push_register') for c in push_calls(page)), f'{t} refus : rien sur le serveur')
         page.click('.ios-dialog >> text=Ouvrir Réglages')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check('openSettings' in push_calls(page), f'{t} lien vers les Réglages de l\'iPhone')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.locator('[data-action="push-open-ios-settings"]').count() == 1, f'{t} ligne « coupées sur l\'iPhone »')
         R.check(page.locator('.group--disabled').count() == 1, f'{t} interrupteurs atténués')
         R.check(all(v == 'false' for _, v in switches(page)), f'{t} interrupteurs éteints {switches(page)}')
@@ -146,14 +146,14 @@ def t_reactiver(bench, eng, dev, theme):
         open_app(page, theme, ppl_v2_today_json())
         signin(page)
         page.evaluate("__sb.push.prefs[__sb.meId()] = { reactions: true, follows: false, coach: true, comments: false, messages: true }; pushLoad()")
-        page.wait_for_timeout(200)
+        settle(page)
         page.click('[data-action="go-settings"]')
         page.wait_for_selector('.settings-view')
         cell = page.inner_text('[data-action="push-open"]')
         R.check('À réactiver' in cell, f'{t} cellule : à réactiver ({cell!r})')
         page.click('[data-action="push-open"]')
         page.wait_for_selector('[data-action="push-reactivate"]')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(all(v == 'false' for _, v in switches(page)), f"{t} rien d'affiché allumé sans accord d'iOS {switches(page)}")
         R.check(not any(c in ('request', 'register') for c in push_calls(page)), f"{t} aucune fenêtre d'iOS sans toucher {push_calls(page)}")
         h = page.evaluate("document.querySelector('[data-action=\"push-reactivate\"]').getBoundingClientRect().height")
@@ -163,7 +163,7 @@ def t_reactiver(bench, eng, dev, theme):
         btn = page.locator('[data-action="push-reactivate"]')
         before = page.evaluate("document.querySelector('.push-view').outerHTML")
         btn.dispatch_event('pointerdown')
-        page.wait_for_timeout(120)
+        settle(page)
         R.check(page.evaluate("document.querySelector('.push-view').outerHTML") == before, f'{t} rien ne change au pointerdown')
         btn.dispatch_event('pointerup')
         btn.click()
@@ -190,9 +190,9 @@ def t_autre_compte(bench, eng, dev, theme):
             a = page.evaluate('__sb.meId()')
             R.check(page.evaluate('__sb.push.devices').get(FAKE_TOKEN) == a, f'{t} jeton de A inscrit')
             page.evaluate('__sb.endSession()')
-            page.wait_for_timeout(300)
+            settle(page)
             page.evaluate("async (c) => { __sb.appleUser = 'apple-sub-2'; await accountSignInWith('apple', async () => c); }", choice)
-            page.wait_for_timeout(500)
+            settle(page)
             devices = page.evaluate('__sb.push.devices')
             label = 'B connecté' if choice else 'fusion annulée'
             R.check(FAKE_TOKEN not in devices, f'{t} {label} : jeton de A retiré {devices}')
@@ -270,7 +270,7 @@ def t_toucher(bench, eng, dev, theme):
         page.wait_for_function("r => currentRoute() === r", arg='coach-chat:' + other, timeout=3000)
         R.check(page.evaluate('currentRoute()') == 'coach-chat:' + other, f'{t} message d\'un élève → sa conversation')
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'pub', 'ref': 'x'})
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(page.evaluate('nav.tab') == 'friends', f'{t} type inconnu : rien ne bouge')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -289,14 +289,14 @@ def t_sommeil(bench, eng, dev, theme):
             Native.health.workouts = async () => []; Native.health.bodyMass = async () => [];
             resetWorkoutsAuth(); render();
         }""", [bed])
-        page.wait_for_timeout(500)
+        settle(page)
         line = page.locator('#heroSleep')
         R.check(line.count() == 1 and 'Cette nuit' in line.inner_text() and '7' in line.inner_text(), f'{t} accueil : ligne du sommeil ({line.inner_text() if line.count() else "absente"})')
         R.check(page.evaluate("getComputedStyle(document.querySelector('#heroSleep .icon')).display") != 'none', f'{t} icône lune affichée')
         shot(page, LOT, f'accueil-sommeil-{t}')
         # Pas de nuit aujourd'hui : rien
         page.evaluate("Native.health.sleep = async () => []; sleepCache = { at: 0, samples: [], failedAt: 0 }; render()")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('#heroSleep').count() == 0, f'{t} sans nuit : pas de ligne')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -310,11 +310,11 @@ def o_coach_segment(bench):
         open_app(page, 'dark', json.dumps(data))
         signin(page)
         page.evaluate("async () => { const me = __sb.meId(); __sb.makeCoach(me); const s = __sb.addPerson({ username: 'zoe', social: false }); __sb.link(me, s); await coachRefresh(); }")
-        page.wait_for_timeout(300)
+        settle(page)
         segs = {}
         for kind, ref in (('reaction', sid), ('comment', sid), ('chat_message', '00000000-0000-0000-0000-0000000000b2')):
             page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': kind, 'ref': ref})
-            page.wait_for_timeout(400)
+            settle(page)
             segs[kind] = page.evaluate('friendsSeg()')
         R.check(segs == {'reaction': 'friends', 'comment': 'friends', 'chat_message': 'messages'}, f'coach : bravo et commentaire → Social, message → Messages {segs}')
         R.check(not page.errors, f'aucune erreur JS {page.errors}')
@@ -330,12 +330,12 @@ def with_coach(page):
 def open_chat(page, key='@coach'):
     page.evaluate("k => { switchTab('friends', { reset: true }); navigate(makeRoute('coach-chat', k === '@coach' ? CHAT_COACH : k)); }", key)
     page.wait_for_selector('.coach-chat-view')
-    page.wait_for_timeout(500)
+    settle(page)
 
 
 def leave_chat(page):
     page.evaluate("switchTab('train', { reset: true })")
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def ask_sheet(page):
@@ -395,7 +395,7 @@ def t_demande_refusee(bench, eng, dev, theme):
         R.check(page.locator('.ios-dialog').count() == 0, f'{t} pas d\'alerte en plus après le refus')
         shot(page, LOT, f'conversation-notifs-desactivees-{t}')
         line.click()
-        page.wait_for_timeout(200)
+        settle(page)
         R.check('openSettings' in push_calls(page), f'{t} ouvre les Réglages de l\'iPhone')
         # Réglages ouverts mais sans réponse (build sans le module) : Réglages › Notifications de l'app
         page.evaluate("Native.push.openSettings = async () => false")
@@ -406,7 +406,7 @@ def t_demande_refusee(bench, eng, dev, theme):
         page.evaluate("__sb.push.permission = 'granted'")
         open_chat(page)
         page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.chat-push-off').count() == 0, f'{t} autorisées de nouveau : plus de ligne')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -461,10 +461,10 @@ def o_demande_coach(bench):
             signin(page)
             page.evaluate("async () => { const me = __sb.meId(); __sb.makeCoach(me); await coachRefresh(); }")
             page.evaluate("switchTab('friends', { reset: true }); navigate('coach-students')")
-            page.wait_for_timeout(700)
+            settle(page)
             R.check(page.locator('.ios-dialog--sheet').count() == 0, f'{theme} aucun élève : pas de feuille')
             page.evaluate("async () => { const me = __sb.meId(); const s = __sb.addPerson({ username: 'zoe', social: false }); __sb.link(me, s); }")
-            page.evaluate("switchTab('train', { reset: true })"); page.wait_for_timeout(150)
+            page.evaluate("switchTab('train', { reset: true })"); settle(page)
             page.evaluate("switchTab('friends', { reset: true }); navigate('coach-students')")
             page.wait_for_selector('.ios-dialog--sheet', timeout=3000)
             txt = ask_sheet(page)
@@ -511,7 +511,7 @@ def o_toucher_seance_eleve(bench):
             __sb.link(me, s); await coachRefresh(); return s; }""")
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'student_session', 'ref': f'{sid}/z-1'})
         page.wait_for_function("r => currentRoute() === r", arg=f'coach-session:{sid}:z-1', timeout=3000)
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate('nav.tab') == 'friends' and page.evaluate('friendsSeg()') == 'students', 'séance d\'élève : onglet Coach, segment Élèves')
         R.check(page.locator('.coach-session-view').count() == 1 and 'plus disponible' not in page.inner_text('.coach-session-view'), f'la séance de zoe s\'affiche ({page.inner_text(".coach-session-view")[:80]!r})')
         st = page.evaluate('nav.stacks[nav.tab]')
@@ -528,7 +528,7 @@ def remind(page):
     """Ouverture de l'app simulée (le compte est connecté après le démarrage dans ces tests)."""
     # Sans attendre la promesse : elle ne se tient qu'une fois la feuille fermée
     page.evaluate("() => { pushRemindTried = false; window.__remind = pushRemindAtLaunch({ delay: 0 }); }")
-    page.wait_for_timeout(400)
+    settle(page)
 
 
 def remind_state(page):

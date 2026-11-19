@@ -89,7 +89,7 @@ def open_plan(page, theme, shell=True):
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     off = Off(page)
     seed(page, theme, plan_json(), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
     page.evaluate("navigate(makeRoute('diet-plan', 'd_scan01'))")
     page.wait_for_selector('.diet-plan-view')
     page.locator('[data-action="diet-compose"]').click() if page.locator('[data-action="diet-compose"]').count() else None   # plan perso vide : repas types facultatifs, cachés
@@ -100,7 +100,7 @@ def open_plan(page, theme, shell=True):
 def add_food_sheet(page, meal=0):
     page.locator('[data-action="diet-add-food"]').nth(meal).click()
     page.wait_for_selector('.diet-cand--scan')
-    page.wait_for_timeout(250)
+    settle(page)
 
 
 def scan(page, code, mode='ok', type_='ean13'):
@@ -109,7 +109,7 @@ def scan(page, code, mode='ok', type_='ean13'):
 
 
 def sheet_layout(page, t, name):
-    page.wait_for_timeout(400)   # fin des animations de la feuille (mesures stables)
+    settle(page)   # fin des animations de la feuille (mesures stables)
     small = page.evaluate("""[...document.querySelectorAll('.sheet-root button, .ios-dialog button')].filter(e => e.offsetParent && getComputedStyle(e).visibility !== 'hidden')
         .filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; }).map(e => e.textContent.trim().slice(0, 30))""")
     R.check(not small, f'{t} {name} : cibles de 44 pt {small}')
@@ -156,7 +156,7 @@ def t_scan(bench, eng, dev, theme):
         sheet_layout(page, t, 'produit trouvé')
         shot(page, LOT, f'2-produit-trouve-{t}')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(400)
+        settle(page)
         it = page.evaluate("data.dietPlans.d_scan01.meals[0].items[0]")
         R.check(it and it['g'] == 30 and it['src'] == 'off' and it['per']['k'] == 539, f'{t} ajouté au repas : 30 g, source off ({it})')
         R.check('162 kcal' in page.inner_text('.diet-plan-view').replace(' ', ' '), f'{t} plan : 162 kcal affichées')
@@ -169,7 +169,7 @@ def t_scan(bench, eng, dev, theme):
         page.wait_for_selector('.fscan__name')
         R.check(len(off.calls) == 1, f'{t} déjà scanné : aucune requête ({len(off.calls)})')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate("data.dietPlans.d_scan01.meals[1].items[0]?.g") == 100, f'{t} déjà scanné : 100 g d\'office')
 
         # 3. Introuvable : « Créer l'aliment », code gardé, retrouvé au scan suivant
@@ -190,7 +190,7 @@ def t_scan(bench, eng, dev, theme):
         page.wait_for_selector('.ios-dialog__input')
         page.fill('.ios-dialog__input', '45')
         tap_dialog(page, 'OK')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(f"dietFoodByCode(data.dietFoods, '{UNKNOWN}')?.name") == 'Barre protéinée', f'{t} créé : gardé avec son code')
         R.check(page.evaluate("data.dietPlans.d_scan01.meals[1].items[1]?.g") == 45, f'{t} créé : ajouté au repas')
         n = len(off.calls)
@@ -200,7 +200,7 @@ def t_scan(bench, eng, dev, theme):
         R.check(page.inner_text('.fscan__name') == 'Barre protéinée' and len(off.calls) == n and 'Ton aliment' in page.inner_text('.fscan'),
                 f'{t} créé puis rescanné : retrouvé sur l\'appareil')
         page.click('.sheet-root .sheet__btn--cancel')
-        page.wait_for_timeout(300)
+        settle(page)
 
         # 4. Hors ligne : « Réessayer » puis trouvé
         off.mode[OFFLINE] = 'offline'
@@ -216,13 +216,13 @@ def t_scan(bench, eng, dev, theme):
         txt = page.inner_text('.fscan').replace(' ', ' ')
         R.check(page.inner_text('.fscan__name') == 'Laiterie · Skyr nature' and '63 kcal' in txt, f'{t} réessayé : trouvé, kcal depuis les kJ ({txt[:80]!r})')
         page.click('.sheet-root .sheet__btn--cancel')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate(f"!!dietFoodByCode(data.dietFoods, '{OFFLINE}')"), f'{t} annulé après la fiche : produit gardé quand même')
 
         # 5. Annulé dans le lecteur : rien
         add_food_sheet(page, 1)
         scan(page, None, mode='cancel')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.fscan').count() == 0 and page.locator('.ios-dialog').count() == 0, f'{t} lecteur fermé : rien ne s\'ouvre')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
@@ -251,7 +251,7 @@ def t_pot(bench, eng, dev, theme):
         R.check(page.input_value('.sheet-root #qtyVal') == '2' and '250 g' in page.text_content('.sheet-root #qtyEq').replace('\u00a0', ' '), f'{t} pot : + → 2 pots, 250 g')
         page.click('.sheet-root [data-qstep="-1"]')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(400)
+        settle(page)
         it = page.evaluate("data.dietPlans.d_scan01.meals[0].items[0]")
         R.check(it and it['g'] == 125 and it.get('por') == {'n': 1, 'u': 'pot', 'pl': 'pots', 'g': 125}, f'{t} pot : stocké en grammes, unité à côté ({it})')
         R.check(page.evaluate(f"dietFoodByCode(data.dietFoods, '{POT}')?.portion") == {'u': 'pot', 'pl': 'pots', 'g': 125}, f'{t} pot : unité gardée dans Mes aliments')
@@ -310,7 +310,7 @@ def t_grand_texte(bench):
             sheet_layout(page, t, 'fiche')
             shot(page, LOT, f'5-fiche-{t}')
             page.click('.sheet-root .sheet__btn--cancel')
-            page.wait_for_timeout(300)
+            settle(page)
             off.mode[POT] = 'found'
             add_food_sheet(page)
             scan(page, POT)

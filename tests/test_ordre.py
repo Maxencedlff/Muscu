@@ -61,7 +61,7 @@ def t_ordre(bench, eng, dev, theme):
 
         # Dimanche glissé tout en haut : liste entière à l'écran, comme le ferait l'utilisateur (iPhone SE compris)
         page.evaluate("document.querySelector('.ps-list').previousElementSibling.scrollIntoView({ block: 'start' })")
-        page.wait_for_timeout(150)
+        settle(page)
         vh = page.viewport_size['height']
         lb = page.locator('.ps-list').bounding_box()
         R.check(lb['y'] >= 0 and lb['y'] + lb['height'] <= vh, f'{t} 7 séances visibles d\'un coup ({lb["y"]:.0f}–{lb["y"] + lb["height"]:.0f} / {vh})')
@@ -104,7 +104,7 @@ def t_ordre(bench, eng, dev, theme):
 
 def sr_text(page):
     """Dernière annonce VoiceOver (région live #sr-polite, remplie 30 ms après)."""
-    page.wait_for_timeout(120)
+    settle(page)
     return page.locator('#sr-polite').inner_text().strip()
 
 
@@ -142,7 +142,7 @@ def t_monter_descendre(bench, eng, dev, theme):
         R.check('1 sur 7' in page.locator('.ios-dialog').inner_text(), f'{t} feuille : place actuelle « 1 sur 7 »')
         shot(page, LOT, f'monter_feuille_{t}')
         tap_dialog(page, 'Descendre')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(labels(page, '.ps-row .cell__title')[:3] == ['Mardi', 'Lundi', 'Mercredi'], f'{t} Descendre : Lundi 2e {labels(page, ".ps-row .cell__title")[:3]}')
         stored = json.loads(ls(page, 'ppl_v2'))['userProgrammes'][PID]['sessions']
         R.check([v['label'] for v in stored.values()][:2] == ['Mardi', 'Lundi'], f'{t} Descendre : enregistré')
@@ -154,7 +154,7 @@ def t_monter_descendre(bench, eng, dev, theme):
         btns = [b.strip() for b in page.locator('.ios-dialog__btn').all_inner_texts()]
         R.check(btns == ['Monter', 'Descendre', 'Annuler'], f'{t} milieu : Monter et Descendre {btns}')
         tap_dialog(page, 'Monter')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(labels(page, '.ps-row .cell__title') == JOURS, f'{t} Monter : ordre d\'origine')
         R.check(sr_text(page) == 'Lundi, 1 sur 7', f'{t} annonce « Lundi, 1 sur 7 »')
         # Annuler ne bouge rien
@@ -181,7 +181,7 @@ def t_monter_descendre(bench, eng, dev, theme):
         page.keyboard.press('Enter')
         page.wait_for_selector('.ios-dialog--sheet')
         tap_dialog(page, 'Descendre')
-        page.wait_for_timeout(300)
+        settle(page)
         names = lambda: page.evaluate("prog().exercises[editorCatOf()].map(e => e.name)")
         R.check(names() == ['Rowing barre', 'Tractions', 'Squat'], f'{t} éditeur : Squat passe sous le superset entier {names()}')
         R.check(sr_text(page) == 'Squat, 3 sur 3', f'{t} éditeur : annonce « Squat, 3 sur 3 » ({sr_text(page)})')
@@ -193,7 +193,7 @@ def t_monter_descendre(bench, eng, dev, theme):
         btns = [b.strip() for b in page.locator('.ios-dialog__btn').all_inner_texts()]
         R.check(btns == ['Monter', 'Annuler'], f'{t} éditeur : dernier du superset, Monter seulement {btns}')
         tap_dialog(page, 'Monter')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(names() == ['Tractions', 'Rowing barre', 'Squat'], f'{t} éditeur : ordre dans le superset {names()}')
         R.check(page.evaluate("prog().exercises[editorCatOf()].slice(0, 2).every(e => e.ss)"), f'{t} éditeur : superset gardé')
         shot(page, LOT, f'monter_editeur_{t}')

@@ -21,7 +21,7 @@ def tag(device, theme):
 
 def tap(page, sel):
     page.click(sel)
-    page.wait_for_timeout(380)
+    settle(page)
 
 
 def step(page):
@@ -85,7 +85,7 @@ def t_generateur(bench, eng, dev, theme):
 
         # Programme › Mes programmes › Ajouter : « Programme sur mesure » en première ligne
         page.locator('.tabbar [role=tab]').nth(3).click()
-        page.wait_for_timeout(350)
+        settle(page)
         tap(page, '[data-action="go-my-programmes"]')
         tap(page, '[data-action="go-prog-add"]')
         first = page.evaluate("document.querySelector('.prog-add .scr button')?.dataset.action")
@@ -120,7 +120,7 @@ def t_generateur(bench, eng, dev, theme):
         tap(page, '[data-action="gen-next"][data-step="toi"]')
         R.check(page.get_attribute('[data-action="gen-set"][data-val="muscle"]', 'aria-pressed') == 'true', f'{t} réponse gardée, cochée')
         page.evaluate("navigate(makeRoute('prog-gen', 'apercu'))")
-        page.wait_for_timeout(350)
+        settle(page)
 
         # Utiliser : confirmation ; Annuler ne change rien
         tap(page, '[data-action="gen-use"]')
@@ -155,11 +155,11 @@ def t_premier_lancement(bench, eng, dev, theme):
         tap(page, '.onb [data-action="onb-later"]')
         page.reload()
         page.wait_for_selector('#app > *')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.locator('.onb').count() == 0 and page.locator('.view.prog-gen').count() == 0 and page.locator('.ios-dialog').count() == 0,
                 f'{t} Plus tard : rien au lancement suivant')
         page.locator('.tabbar [role=tab]').nth(3).click()
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.evaluate('view') == 'programmes' and page.locator('.view.prog-gen').count() == 0, f'{t} Plus tard : onglet Programme normal')
         R.check(ls(page, 'mdlf_gen_answers') is None, f'{t} Plus tard : aucune réponse gardée')
 
@@ -179,7 +179,7 @@ def t_premier_lancement(bench, eng, dev, theme):
         R.check(page.locator('.onb').count() == 0 and step(page) == 'prog-gen:toi', f'{t} générateur ouvert ({step(page)})')
         R.check(page.evaluate('[data.onboarded, data.activeProgramme]') == [True, 'upper_lower'], f'{t} conseil appliqué en attendant')
         page.evaluate("navigate(makeRoute('prog-gen', 'jours'))")
-        page.wait_for_timeout(350)
+        settle(page)
         R.check(page.get_attribute('[data-action="gen-set"][data-val="4"]', 'aria-pressed') == 'true', f'{t} 4 jours repris')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

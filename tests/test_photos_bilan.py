@@ -62,12 +62,12 @@ def open_app(page, theme, opts=None, vault=True):
     page.add_init_script(VAULT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username):
     page.evaluate("""async u => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u }); }""", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def coach_page(page, theme, **kw):
@@ -80,7 +80,7 @@ def coach_page(page, theme, **kw):
         const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', social: false });
         __sb.link(me, lea, Date.now() - 40 * 86400000); return { max: me, lea }; }""")
     page.evaluate('coachRefresh()')
-    page.wait_for_timeout(300)
+    settle(page)
     return ids
 
 
@@ -91,7 +91,7 @@ def student_page(page, theme, **kw):
     signin(page, 'lea')
     ids = page.evaluate("""mx => { const me = __sb.meId(); __sb.makeCoach(mx); __sb.link(mx, me, Date.now() - 40 * 86400000); return { max: mx, lea: me }; }""", mx)
     page.evaluate('coachRefresh()')
-    page.wait_for_timeout(300)
+    settle(page)
     return ids
 
 
@@ -139,7 +139,7 @@ def add_photo(page, path, pose, days_ago):
     page.fill('#phDate', day)
     page.click('.sheet .sheet__btn--confirm')
     page.wait_for_function('() => !document.querySelector(".sheet .pnew__img")')
-    page.wait_for_timeout(500)
+    settle(page)
 
 
 def t_envoi_complet(bench, eng, dev, theme):
@@ -176,7 +176,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check(sids == ids, f'{t} mêmes identifiants des deux côtés ({sids} / {ids})')
         copy_server(cp, sp)
         sp.evaluate('cphRefresh()')
-        sp.wait_for_timeout(300)
+        settle(sp)
         # Textes de confidentialité vrais quand le coach reçoit les photos (panel du 08/11)
         # Panels de la vague 3 : texte vrai même avant que l'état des photos soit relu du serveur
         keep = sp.evaluate("JSON.stringify(cph.state)")
@@ -235,13 +235,13 @@ def t_envoi_complet(bench, eng, dev, theme):
         shot(sp, LOT, f'04b-age-{t}')
         tap_dialog(sp, "J'ai 18 ans ou plus")
         sp.wait_for_function('() => !document.querySelector(".sheet .cphs__list")', timeout=15000)
-        sp.wait_for_timeout(400)
+        settle(sp)
         R.check('2 photos envoyées à max' in toast(sp), f'{t} toast après envoi ({toast(sp)!r})')
         # Panel Apple du 08/11 : « Retirer » tout de suite dans le toast ; touché, les deux photos repartent de chez le coach
         R.check(sp.locator('.toast .toast__action').inner_text().strip() == 'Retirer', f'{t} toast d\'envoi : « Retirer », le même verbe que la liste')
         sp.click('.toast .toast__action')
         sp.wait_for_function("() => __sb.co.photos.length === 0", timeout=10000)
-        sp.wait_for_timeout(300)
+        settle(sp)
         R.check('2 photos retirées de chez ton coach' in toast(sp) and sp.locator('.pgal__sent').count() == 0, f'{t} « Retirer » : photos effacées de chez le coach ({toast(sp)!r})')
         # On les renvoie pour la suite du parcours (âge déjà déclaré)
         sp.locator('[data-action="cph-send-day"]').first.click()
@@ -250,7 +250,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.locator('.sheet .cphs__item').nth(1).click()
         sp.locator('.sheet .cphs__go').click()
         sp.wait_for_function('() => !document.querySelector(".sheet .cphs__list")', timeout=15000)
-        sp.wait_for_timeout(400)
+        settle(sp)
         # Vignettes du coffre : marque « Envoyée » sur les deux photos parties, pas sur celle d'il y a deux semaines
         marks = sp.evaluate("() => [...document.querySelectorAll('.pgal__item')].map(b => [!!b.querySelector('.pgal__sent'), b.getAttribute('aria-label')])")
         R.check([m[0] for m in marks] == [True, True, False] and all(('envoyée à ton coach' in m[1]) == m[0] for m in marks), f'{t} coffre : photos envoyées marquées {marks}')
@@ -258,7 +258,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         # Jour à une photo, depuis Mon coach › Photos de bilan › « Envoyer depuis mon coffre » (panel Apple du 08/11) : le coffre
         # s'ouvre (Face ID) directement sur la feuille d'envoi du jour le plus récent qui reste à envoyer, sans paragraphe d'explication
         R.check(sp.locator('.toast.toast--action').count() == 1, f'{t} toast d\'envoi encore là avant de changer d\'écran')
-        sp.wait_for_timeout(900)
+        wait_toast_settled(sp)
         sp.evaluate("navigate('coach-photos-mine')")
         sp.wait_for_selector('[data-action="cph-send-from-vault"]')
         # Panels de la vague 3 : un toast avec action ne suit pas sur l'écran suivant
@@ -273,12 +273,12 @@ def t_envoi_complet(bench, eng, dev, theme):
         # Panel v4 t1 : où va la photo, en tête (chiffrée avant l'envoi, ouverte par le coach seul)
         R.check('Chiffrée avant l\'envoi : seul ton coach' in lead and 'Tu pourras la retirer.' in lead and 'sur ton iPhone' not in sp.inner_text('.sheet'),
                 f'{t} photo seule : accord affiché ({lead!r})')
-        sp.wait_for_timeout(400)   # feuille montée en entier (mesurée en pleine animation, « Annuler » paraissait petit)
+        settle(sp)   # feuille montée en entier (mesurée en pleine animation, « Annuler » paraissait petit)
         layout(sp, t, 'Feuille d\'envoi (une photo)')
         shot(sp, LOT, f'05-feuille-une-photo-{t}')
         sp.click('.sheet [data-action="cph-send-go"]')
         sp.wait_for_function('() => !document.querySelector(".sheet .cphs__one")', timeout=15000)
-        sp.wait_for_timeout(400)
+        settle(sp)
         st = sp.evaluate("() => ({ n: __sb.co.photos.filter(p => p.state === 'ready').length, objs: Object.values(__sb.objs).map(o => o.b64),"
                          " ups: __sb.calls.filter(c => c[0] === 'storage' && c[1] === 'upload').map(c => JSON.parse(c[2])) })")
         R.check(st['n'] == 3 and len(st['objs']) == 3, f'{t} 3 photos prêtes, 3 fichiers ({st["n"]}, {len(st["objs"])})')
@@ -293,7 +293,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check('Envoyée à max le' in sp.inner_text('.sheet') and sp.locator('.sheet [data-action="cph-remove"]').count() == 1, f'{t} photo du coffre : envoyée, et retirable')
         shot(sp, LOT, f'06-photo-envoyee-{t}')
         sp.click('.sheet .sheet__btn--cancel')
-        sp.wait_for_timeout(300)
+        settle(sp)
 
         # ── Élève : Mon coach › Photos de bilan ──
         sp.evaluate("navigate('coach-mine')")
@@ -341,7 +341,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         copy_server(sp, cp)
         cp.evaluate(f"navigate(makeRoute('coach-photos', '{ids['lea']}'))")
         cp.wait_for_function("() => document.querySelectorAll('.coach-photos-view .pgal__item img[src^=\"blob:\"]').length === 3", timeout=20000)
-        cp.wait_for_timeout(400)
+        settle(cp)
         dec = cp.evaluate("""async () => { const out = []; for (const u of cphUrls.values()) {
             const b = new Uint8Array(await __blobOf(u).arrayBuffer()); const s = String.fromCharCode(...b.subarray(0, 4096));
             out.push({ free: jpegMetaFree(b), soi: b[0] === 0xFF && b[1] === 0xD8, exif: s.includes('Exif'), make: s.includes('FauxAppareil') }); } return out; }""")
@@ -351,15 +351,15 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check(cp.locator('.coach-photos-view .cph-pair').count() >= 1 and cp.locator('#cph-a').count() == 1, f'{t} comparer deux dates côte à côte')
         chev = cp.evaluate("() => [...document.querySelectorAll('.coach-photos-view .pcmp__pick')].map(p => !!p.querySelector('select') && !!p.querySelector('.icon--chevron-up-chevron-down'))")
         R.check(chev == [True, True], f'{t} coach : menus Avant / Après avec chevrons {chev}')
-        cp.evaluate('scrollTo(0, 0)'); cp.wait_for_timeout(300)
+        cp.evaluate('scrollTo(0, 0)'); settle(cp)
         back = cp.evaluate("(() => { const b = document.querySelector('#app .navbar__back'); return [b.classList.contains('navbar__back--icon'), b.querySelector('.navbar__back-label').textContent]; })()")
         R.check(not back[0] and back[1] in ('lea', 'Retour'), f'{t} coach : retour « ‹ lea » (au moins « Retour »), jamais le chevron seul {back}')
         lock = cp.evaluate("() => { const b = document.querySelector('.navbar [data-action=cph-lock]'); return [b.textContent.trim(), b.querySelectorAll('.icon').length]; }")
         R.check(lock == ['Verrouiller', 0], f'{t} coach : « Verrouiller » dans la barre, comme le coffre de l\'élève {lock}')
-        cp.evaluate('scrollTo(0, document.body.scrollHeight)'); cp.wait_for_timeout(500)
+        cp.evaluate('scrollTo(0, document.body.scrollHeight)'); settle(cp)
         bt = cp.evaluate("(() => { const ti = document.querySelector('#app .navbar__title'); return [ti.textContent, document.querySelector('#cphTitle').textContent, ti.scrollWidth <= ti.clientWidth + 1]; })()")
         R.check(bt[0] == 'Photos de bilan' and bt[1] == 'Photos de bilan', f'{t} coach : titre replié identique au grand titre (panel t5) {bt}')
-        cp.evaluate('scrollTo(0, 0)'); cp.wait_for_timeout(300)
+        cp.evaluate('scrollTo(0, 0)'); settle(cp)
         sel = cp.evaluate("() => [document.querySelector('#cph-a').value, document.querySelector('#cph-b').value]")
         old_day = cp.evaluate('() => localISO(Date.now() - 14 * 86400000)')
         R.check(sel == [old_day, cp.evaluate('() => localISO()')], f'{t} comparer : la plus ancienne contre la plus récente ({sel})')
@@ -375,7 +375,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         shot(cp, LOT, f'09-coach-par-date-{t}')
         # Arrière-plan : clé oubliée, images libérées, écran refermé
         cp.evaluate("() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }")
-        cp.wait_for_timeout(300)
+        settle(cp)
         R.check(cp.evaluate('cphUrls.size') == 0 and not cphopen(cp) and cp.locator('[data-action="cph-unlock"]').count() == 1, f'{t} arrière-plan : refermé')
         cp.evaluate("() => { Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }); }")
         layout(cp, t, 'Photos du coach refermées')
@@ -383,25 +383,25 @@ def t_envoi_complet(bench, eng, dev, theme):
         cp.click('[data-action="cph-unlock"]')
         cp.wait_for_function("() => document.querySelectorAll('.coach-photos-view .pgal__item img[src^=\"blob:\"]').length === 3", timeout=20000)
         cp.clock.run_for(61_000)
-        cp.wait_for_timeout(300)
+        settle(cp)
         R.check(not cphopen(cp) and 'une minute sans activité' in cp.inner_text('.coach-photos-view'), f'{t} refermées après une minute sans toucher')
 
         # ── Élève : retirer une photo, puis quitter le coach ──
         sp.locator('.cph-row').first.locator('[data-action="cph-remove"]').click()
         tap_dialog(sp, 'Retirer')
-        sp.wait_for_timeout(500)
+        settle(sp)
         st = sp.evaluate("() => ({ n: __sb.co.photos.length, objs: Object.keys(__sb.objs).length, trash: __sb.trash.length })")
         R.check(st == {'n': 2, 'objs': 2, 'trash': 3} and sp.locator('.cph-row').count() == 2, f'{t} retrait : ligne et fichier effacés {st}')
         copy_server(sp, cp)
         cp.evaluate("goBack()")
-        cp.wait_for_timeout(300)
+        settle(cp)
         cp.evaluate(f"navigate(makeRoute('coach-photos', '{ids['lea']}'))")
         cp.wait_for_function("() => document.querySelectorAll('.coach-photos-view .pgal__item img[src^=\"blob:\"]').length === 2", timeout=20000)
         R.check(True, f'{t} coach : la photo retirée n\'apparaît plus')
         # Le coach efface une photo reçue
         cp.locator('.coach-photos-view .pgal__item').first.click()
         cp.wait_for_selector('.sheet [data-action="cph-hide"]')
-        cp.wait_for_timeout(400)   # feuille montée en entier (mesurée en pleine animation, « Fermer » paraissait petit)
+        settle(cp)   # feuille montée en entier (mesurée en pleine animation, « Fermer » paraissait petit)
         layout(cp, t, 'Photo en grand (coach)')
         shot(cp, LOT, f'11-coach-photo-{t}')
         cp.click('.sheet [data-action="cph-hide"]')
@@ -413,7 +413,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.wait_for_selector('[data-action="coach-leave"]')
         sp.click('[data-action="coach-leave"]')
         tap_dialog(sp, 'Quitter mon coach')
-        sp.wait_for_timeout(800)
+        settle(sp)
         st = sp.evaluate("() => ({ n: __sb.co.photos.length, objs: Object.keys(__sb.objs).length, sent: localStorage.getItem('mdlf_coach_photos') })")
         R.check(st == {'n': 0, 'objs': 0, 'sent': None}, f'{t} quitter le coach : tout effacé {st}')
         R.check(not cp.errors and not sp.errors, f'{t} aucune erreur JS {cp.errors} {sp.errors}')
@@ -455,10 +455,10 @@ def t_serveur_ancien(bench, eng, dev, theme):
         sp.evaluate("__sb.fail.photos = 'missing'")
         sp.evaluate("navigate('coach-mine')")
         sp.wait_for_selector('.coach-mine-view')
-        sp.wait_for_timeout(500)
+        settle(sp)
         R.check(sp.locator('[data-action="cph-open-mine"]').count() == 0, f'{t} élève, serveur ancien : pas de cellule Bilan')
         sp.evaluate("navigate('coach-share')")
-        sp.wait_for_timeout(500)
+        settle(sp)
         R.check(sp.locator('[data-action="cph-open-mine"]').count() == 0, f'{t} Partager : pas de photos')
         R.check(not sp.errors, f'{t} aucune erreur JS {sp.errors}')
     with bench.frozen_page(NOW, eng, dev, theme) as cp:
@@ -466,14 +466,14 @@ def t_serveur_ancien(bench, eng, dev, theme):
         cp.evaluate("__sb.fail.photos = 'missing'")
         cp.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
         cp.wait_for_selector('.coach-student-view .coach-join__who')
-        cp.wait_for_timeout(500)
+        settle(cp)
         R.check(cp.locator('[data-action="cph-setup"], [data-action="cph-open"]').count() == 0, f'{t} coach, serveur ancien : pas de photos')
         R.check(not cp.errors, f'{t} aucune erreur JS {cp.errors}')
     with bench.frozen_page(NOW, eng, dev, theme) as cp:
         ids = coach_page(cp, theme, vault=False)
         cp.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
         cp.wait_for_selector('.coach-student-view .coach-join__who')
-        cp.wait_for_timeout(500)
+        settle(cp)
         R.check(cp.locator('[data-action="cph-setup"], [data-action="cph-open"]').count() == 0, f'{t} coquille sans le module du coffre : pas de photos')
         R.check(not cp.evaluate("__sb.calls.some(c => c[1] === 'coach_photo_key')"), f'{t} sans le module : aucun appel')
 
@@ -494,7 +494,7 @@ def t_age_apple(bench, eng, dev, theme):
         sp.click('[data-action="pv-start"]')
         sp.wait_for_selector('.view.photo-vault [data-action="photo-add"]')
         add_photo(sp, face, 'face', 0)
-        sp.wait_for_timeout(500)
+        settle(sp)
         R.check(sp.evaluate('cph.state && cph.state.ready') is True, f'{t} coach prêt à recevoir')
         R.check(sp.locator('[data-action="cph-send-day"]').count() == 0, f'{t} 15-17 ans : pas de bouton « Envoyer à mon coach »')
         R.check('ton coach' in sp.inner_text('.view.photo-vault').lower() and 'Ton coach ne voit que' not in sp.inner_text('.view.photo-vault'),
@@ -506,7 +506,7 @@ def t_age_apple(bench, eng, dev, theme):
         R.check(not sp.evaluate("__sb.calls.some(c => c[1] === 'student_photo_adult' || c[1] === 'student_photo_prepare')"), f'{t} rien d\'envoyé au serveur')
         sp.evaluate("navigate('coach-mine')")
         sp.wait_for_selector('.coach-mine-view')
-        sp.wait_for_timeout(400)
+        settle(sp)
         R.check(sp.locator('[data-action="cph-open-mine"]').count() == 0, f'{t} Mon coach : pas de photos de bilan proposées')
         R.check(not sp.errors, f'{t} aucune erreur JS {sp.errors}')
 
@@ -528,7 +528,7 @@ def t_cle_serveur(bench, eng, dev, theme):
         cp.evaluate(f"""async () => {{ const s = await vaultImportKey(bytesToB64(vaultRandom(32)));
             const {{ rec }} = await coachKeyMake(s, '{ids['max']}', '{mine['key_id']}');
             __sb.co.pkeys['{ids['max']}'].public_key = rec.public_key; cphLock('test'); await cphCoachRefresh(); render(); }}""")
-        cp.wait_for_timeout(300)
+        settle(cp)
         cell = cp.inner_text('[data-action="cph-open"]')
         R.check("n'est plus la tienne" in cell, f'{t} fiche : alerte dès la relecture ({cell!r})')
         cp.click('[data-action="cph-open"]')
@@ -541,7 +541,7 @@ def t_cle_serveur(bench, eng, dev, theme):
         cp.click('[data-action="cph-republish"]')
         tap_dialog(cp, 'Republier')
         cp.wait_for_function('() => cphIsOpen()', timeout=15000)
-        cp.wait_for_timeout(300)
+        settle(cp)
         srv = cp.evaluate(f"() => __sb.co.pkeys['{ids['max']}']")
         R.check(srv['public_key'] == mine['public_key'] and srv['key_id'] == mine['key_id'], f'{t} ma clé republiée sur le serveur')
         R.check('Clé republiée' in toast(cp) and my_code in cp.inner_text('.coach-photos-view'), f'{t} ouvert avec ma clé, son code affiché')

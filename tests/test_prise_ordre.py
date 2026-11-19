@@ -52,7 +52,7 @@ def skip_rest(page):
         if loc.count() and loc.first.is_visible():
             loc.first.click()
             break
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def data_with_past_grip():
@@ -88,7 +88,7 @@ def t_prise(bench, eng, dev, theme):
         page.locator('#exGrip').scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-1-editeur-prise')
         page.click('[data-action="save-ex"]')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(pull_prog(page)[1].get('grip') == {'hand': 'supination'}, f'{t} éditeur : enregistrée {pull_prog(page)[1].get("grip")}')
         sub = page.locator('.ed-row[data-i="1"] .grip-sub').inner_text()
         R.check(sub == 'Prise en supination', f'{t} Programme › Séance : « {sub} »')
@@ -107,17 +107,17 @@ def t_prise(bench, eng, dev, theme):
         line.click()
         page.wait_for_selector('.sess-sheet--grip .grip__chip')
         page.click('.sess-sheet--grip [data-dim="hand"][data-v="pronation"]')
-        page.wait_for_timeout(150)
+        settle(page)
         R.check('Prise en pronation' in page.locator('.sess-sheet--grip .grip__now').inner_text(), f'{t} feuille : phrase suivie')
         R.check(not small(page, '.sess-sheet--grip button'), f'{t} feuille : boutons de 44 px {small(page, ".sess-sheet--grip button")}')
         shot(page, LOT, f'{t}-4-feuille-prise')
         page.click('.sess-sheet--grip [data-action="sheet-done"]')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check('Prise en pronation' in page.locator('.ex-card[data-ei="1"] .ex-grip').inner_text(), f'{t} séance : carte à jour')
         R.check(pull_prog(page)[1].get('grip') == {'hand': 'pronation'}, f'{t} séance : programme suivi (la prochaine fois)')
         # Menu ⋯ : « Prise » pour le tirage, pas pour le curl marteau
         page.click('.ex-card__more[data-ei="4"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.ios-dialog__btn', has_text='Prise').count() == 0, f'{t} menu : pas de Prise au curl marteau')
         tap_dialog(page, 'Annuler')
         # La dernière fois (vraie séance de l'historique), autre prise : rappelée sous la ligne
@@ -125,7 +125,7 @@ def t_prise(bench, eng, dev, theme):
         R.check(before.count() == 1 and before.inner_text() == 'Avant : prise en supination', f'{t} séance : « Avant » de la prise')
         # Reprise après fermeture puis enregistrement : la prise suit l'historique
         page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]')
-        page.wait_for_timeout(300)
+        settle(page)
         page.reload()
         page.wait_for_selector('#app > *')
         page.evaluate("navigate('session')")
@@ -155,9 +155,9 @@ def t_prise(bench, eng, dev, theme):
 
 def menu_pick(page, ei, label):
     page.click(f'.ex-card__more[data-ei="{ei}"]')
-    page.wait_for_timeout(300)
+    settle(page)
     tap_dialog(page, label)
-    page.wait_for_timeout(400)
+    settle(page)
 
 
 def t_ordre(bench, eng, dev, theme):
@@ -180,7 +180,7 @@ def t_ordre(bench, eng, dev, theme):
 
         # Menu ⋯ › Faire maintenant : le 4e passe avant l'exercice en cours et devient celui en cours
         page.click('.ex-card__more[data-ei="3"]')
-        page.wait_for_timeout(300)
+        settle(page)
         first = page.locator('.ios-dialog__btn').first.inner_text().strip()
         now = page.evaluate("(() => { const b = [...document.querySelectorAll('.ios-dialog__btn')].find(x => x.textContent.trim() === 'Faire maintenant'); if (!b) return null; const r = b.getBoundingClientRect(), g = b.closest('.ios-dialog__group').getBoundingClientRect(); return r.top >= g.top && r.bottom <= g.bottom; })()")
         R.check(first == "Remplacer l'exercice" and now, f'{t} menu : « {first} » en tête, « Faire maintenant » visible sans défiler ({now})')
@@ -192,14 +192,14 @@ def t_ordre(bench, eng, dev, theme):
         R.check(fade[0] == fade[1], f'{t} menu : bas estompé seulement s\'il reste des choix sous le pli {fade}')
         shot(page, LOT, f'{t}-7-ordre-menu')
         if fade[0]:
-            page.evaluate("(g => { g.scrollTop = g.scrollHeight; })(document.querySelector('.ios-dialog__group'))"); page.wait_for_timeout(200)
+            page.evaluate("(g => { g.scrollTop = g.scrollHeight; })(document.querySelector('.ios-dialog__group'))"); settle(page)
             end = page.evaluate("""(() => { const g = document.querySelector('.ios-dialog__group'), b = [...g.querySelectorAll('.ios-dialog__btn')].at(-1).getBoundingClientRect();
                 return [!g.classList.contains('ios-dialog__group--more'), b.bottom <= g.getBoundingClientRect().bottom + 1]; })()""")
             R.check(end == [True, True], f'{t} menu : en bas, dernier choix entier et plus d\'estompe {end}')
             shot(page, LOT, f'{t}-7b-ordre-menu-bas')
-            page.evaluate("(g => { g.scrollTop = 0; })(document.querySelector('.ios-dialog__group'))"); page.wait_for_timeout(150)
+            page.evaluate("(g => { g.scrollTop = 0; })(document.querySelector('.ios-dialog__group'))"); settle(page)
         tap_dialog(page, 'Faire maintenant')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(names(page) == [start[3], start[0], start[1], start[2], start[4]], f'{t} maintenant : ordre {names(page)}')
         sess_undo(page)
         R.check(names(page) == start, f'{t} Annuler : ordre d\'avant')
@@ -208,7 +208,7 @@ def t_ordre(bench, eng, dev, theme):
         lbl = page.locator('.ex-card[data-ei="3"] [data-action="ex-now"]').get_attribute('aria-label')
         R.check(lbl.startswith(f'Faire maintenant : {start[3]}'), f'{t} pied de carte : annoncé « {lbl} »')
         page.click('.ex-card[data-ei="3"] [data-action="ex-now"]')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(names(page) == [start[3], start[0], start[1], start[2], start[4]], f'{t} maintenant (pied de carte) : ordre {names(page)}')
         R.check(cur_name(page) == start[3] and current(page) == [0, 0], f'{t} maintenant : série en cours suivie ({cur_name(page)})')
         R.check('Mis en cours' in sess_undo_text(page), f'{t} maintenant : ligne « Mis en cours · Annuler »')
@@ -218,14 +218,14 @@ def t_ordre(bench, eng, dev, theme):
 
         # Une série faite, puis Plus tard : l'exercice passe en dernier avec sa série validée, le suivant prend la main
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
-        page.wait_for_timeout(300)
+        settle(page)
         skip_rest(page)
         page.click('.ex-card[data-ei="0"] [data-action="ex-later"]')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(names(page) == start[1:] + [start[0]], f'{t} plus tard : en dernier {names(page)}')
         R.check(cur_name(page) == start[1], f'{t} plus tard : le suivant est en cours ({cur_name(page)})')
         R.check(sess_undo_text(page) == f'{start[0]} mis en dernier', f'{t} plus tard : ligne « <nom> mis en dernier · Annuler »')
-        page.wait_for_timeout(400)   # défilement doux vers le suivant
+        settle(page)   # défilement doux vers le suivant
         R.check(page.evaluate("""() => { const u = document.querySelector('.ex-undo'), bar = document.querySelector('#app .navbar');
             const r = u && u.getBoundingClientRect(); return !!r && r.top >= (bar ? bar.getBoundingClientRect().bottom : 0) - 1 && r.bottom <= innerHeight; }"""),
             f'{t} plus tard : la ligne reste à l\'écran, au-dessus du suivant')
@@ -265,13 +265,13 @@ def t_ordre_sous_serie(bench, eng, dev, theme):
         start = names(page)
         page.evaluate("activeSession.exercises.forEach(ex => ex.sets.forEach(s => { s.weight ||= '20'; s.reps ||= '10'; })); setTechOn(0, 1, 'drop')")
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
-        page.wait_for_timeout(300)
+        settle(page)
         skip_rest(page)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="1"]')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.session-set--subcur').count() == 1, f'{t} drop set en attente sous la série 2')
         page.click('.ex-card[data-ei="0"] [data-action="ex-later"]')
-        page.wait_for_timeout(900)
+        settle(page)
         R.check(names(page) == start[1:] + [start[0]] and cur_name(page) == start[1], f'{t} plus tard (drop en attente) : {start[1]} en cours ({cur_name(page)})')
         R.check(page.evaluate('activeSession.lastDone') is None and page.locator('.session-set--subcur').count() == 0, f'{t} plus tard : le drop repoussé n\'est plus « à faire »')
         vis = page.evaluate("""() => { const r = document.querySelector('.session-set--current')?.getBoundingClientRect();
@@ -280,15 +280,15 @@ def t_ordre_sous_serie(bench, eng, dev, theme):
         R.check(page.evaluate("activeSession.exercises.at(-1).sets[1].sub.length === 1"), f'{t} plus tard : le drop reste à remplir')
         shot(page, LOT, f'{t}-10-ordre-plus-tard-drop')
         sess_undo(page)
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(names(page) == start and page.locator('.session-set--subcur').count() == 1, f'{t} Annuler : ordre et drop en attente rendus')
         R.check(not page.errors, f'{t} erreurs JS {page.errors}')
 
 
 def finish(page):
-    page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+    page.click('[data-action="finish-session"]'); settle(page)
     tap_dialog(page, 'Enregistrer la séance')
-    page.wait_for_selector('.view.summary'); page.wait_for_timeout(300)
+    page.wait_for_selector('.view.summary'); settle(page)
 
 
 def t_ajout_ordre(bench, eng, dev, theme):
@@ -302,10 +302,10 @@ def t_ajout_ordre(bench, eng, dev, theme):
         start = names(page)
         n0 = len(page.evaluate("activeSession.exercises[0].sets"))
         for si in range(n0):
-            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(250)
+            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); settle(page)
             skip_rest(page)
         # Premier exercice fini : « Ensuite » par défaut, juste avant le 2e (il devient le deuxième)
-        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); page.wait_for_timeout(350)
+        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); settle(page)
         place = page.evaluate("[...document.querySelectorAll('[data-action=ax-place]')].map(b => [b.textContent.trim(), b.getAttribute('aria-pressed'), b.getAttribute('aria-label')])")
         R.check([p[:2] for p in place] == [['Ensuite', 'true'], ['À la fin', 'false']], f'{t} ajout : Ensuite par défaut {place}')
         R.check(place and place[0][2] == f'Ensuite, juste avant {start[1]}', f'{t} ajout : VoiceOver dit où ({place[0][2] if place else ""})')
@@ -315,7 +315,7 @@ def t_ajout_ordre(bench, eng, dev, theme):
         prog0 = [e['name'] for e in pull_prog(page)]
         page.click('#axToProg')
         page.fill('#axSearch', 'Face pull')
-        page.locator('#axList .ax__item', has_text='Face pull').first.click(); page.wait_for_timeout(400)
+        page.locator('#axList .ax__item', has_text='Face pull').first.click(); settle(page)
         added = page.evaluate("activeSession.exercises[1].name")
         R.check(names(page)[0] == start[0] and added.startswith('Face pull') and names(page)[2:] == start[1:], f'{t} ajout : en 2e position {names(page)}')
         R.check(cur_name(page) == added, f'{t} ajout : c\'est lui qui suit ({cur_name(page)})')
@@ -326,17 +326,17 @@ def t_ajout_ordre(bench, eng, dev, theme):
         R.check(names(page) == start and [e['name'] for e in pull_prog(page)] == prog0, f'{t} Annuler : retiré de la séance et du programme')
 
         # « À la fin » : comme avant
-        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); page.wait_for_timeout(350)
+        page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); settle(page)
         page.click('[data-action="ax-place"][data-place="end"]')
         R.check(page.locator('[data-action="ax-place"][data-place="end"]').get_attribute('aria-pressed') == 'true', f'{t} « À la fin » choisi')
         page.fill('#axSearch', 'Face pull')
-        page.locator('#axList .ax__item', has_text='Face pull').first.click(); page.wait_for_timeout(400)
+        page.locator('#axList .ax__item', has_text='Face pull').first.click(); settle(page)
         R.check(names(page)[:-1] == start and names(page)[-1].startswith('Face pull'), f'{t} à la fin {names(page)}')
         sess_undo(page)
 
         # Faire maintenant sur le 4e, une série de chaque, puis bilan : « Garder cet ordre » met le 4e en 2e au programme
-        page.locator('.ex-card[data-ei="3"] [data-action="ex-now"]').click(); page.wait_for_timeout(400)
-        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(250)
+        page.locator('.ex-card[data-ei="3"] [data-action="ex-now"]').click(); settle(page)
+        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); settle(page)
         skip_rest(page)
         finish(page)
         row = page.locator('[data-action="summary-keep-order"]')
@@ -345,11 +345,11 @@ def t_ajout_ordre(bench, eng, dev, theme):
         row.scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-13-bilan-garder-ordre')
         before = [e['name'] for e in pull_prog(page)]
-        row.click(); page.wait_for_timeout(300)
+        row.click(); settle(page)
         after = [e['name'] for e in pull_prog(page)]
         R.check(after == [start[0], start[3], start[1], start[2]] + start[4:], f'{t} bilan : programme dans l\'ordre fait {after} (avant {before})')
         R.check('Ordre gardé' in page.locator('#sumOrder').inner_text() and page.evaluate("document.activeElement?.id") == 'sumOrder', f'{t} bilan : « Ordre gardé », focus pour VoiceOver')
-        page.click('[data-action="summary-done"]'); page.wait_for_timeout(300)
+        page.click('[data-action="summary-done"]'); settle(page)
         page.evaluate("startSession('pull')")
         page.wait_for_selector('.view.session')
         R.check(names(page)[:2] == [start[0], start[3]], f'{t} séance suivante : le nouvel ordre {names(page)[:3]}')

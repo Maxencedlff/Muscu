@@ -54,7 +54,7 @@ def open_settings(page, theme, platform, available='true'):
     seed(page, theme, ppl_v2_today_json())
     page.click('[data-action="go-settings"]')
     page.wait_for_selector('.settings-view')
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def group_titles(page):
@@ -82,7 +82,7 @@ def t_android(bench, eng, dev, theme):
         shot(page, LOT, f'reglages-sante-{t}')
 
         cell.click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('__health.asked') == 1, f'{t} autorisation demandée à Health Connect')
         R.check(page.evaluate('data.healthOn') is True, f'{t} santé activée')
         R.check('Health Connect connecté' in page.inner_text('body'), f'{t} toast « Health Connect connecté »')
@@ -92,7 +92,7 @@ def t_android(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_settings(page, theme, 'android', available='false')
         page.locator('[data-action="setting-health"]').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('data.healthOn') is not True, f'{t} indisponible : reste éteint')
         R.check('Play Store' in page.inner_text('body'), f'{t} indisponible : installer depuis le Play Store')
         R.check(not page.errors, f'{t} indisponible : aucune erreur JS {page.errors}')

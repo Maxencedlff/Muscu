@@ -48,7 +48,7 @@ def open_settings(page, theme, native_name='null', supported='true'):
     seed(page, theme, ppl_v2_today_json())
     page.click('[data-action="go-settings"]')
     page.wait_for_selector('.settings-view')
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def pressed(page):
@@ -91,27 +91,27 @@ def t_natif(bench, eng, dev, theme):
         craie = page.locator('.app-icon[data-id="craie"]')
         before = page.evaluate("document.querySelector('.app-icons').outerHTML")
         craie.dispatch_event('pointerdown')
-        page.wait_for_timeout(120)
+        settle(page)
         R.check(page.evaluate("document.querySelector('.app-icons').outerHTML") == before, f'{t} rien ne change au pointerdown')
         craie.dispatch_event('pointerup')
 
         craie.click()
-        page.wait_for_timeout(250)
+        settle(page)
         R.check(page.evaluate('__icon.calls') == ['AppIcon-Craie'], f'{t} Craie : nom natif envoyé {page.evaluate("__icon.calls")}')
         R.check(pressed(page) == ['Craie'], f'{t} Craie cochée : {pressed(page)}')
         page.locator('.app-icon[data-id="craie"]').click()
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(len(page.evaluate('__icon.calls')) == 1, f'{t} icône déjà active : aucun appel')
 
         page.evaluate('__icon.fail = true')
         page.locator('.app-icon[data-id="signature"]').click()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(pressed(page) == ['Craie'], f'{t} refus d\'iOS : coche inchangée')
         R.check("n'a pas pu être changée" in page.inner_text('body'), f'{t} refus d\'iOS : message affiché')
         page.evaluate('__icon.fail = false')
 
         page.locator('.app-icon[data-id="orange"]').click()
-        page.wait_for_timeout(250)
+        settle(page)
         R.check(page.evaluate('__icon.calls')[-1] is None, f'{t} retour au défaut : nom natif null')
         R.check(pressed(page) == ['Orange'], f'{t} Orange cochée')
         R.check(not page.errors, f'{t} app : aucune erreur JS {page.errors}')

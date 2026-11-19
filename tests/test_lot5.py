@@ -6,6 +6,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+import fixtures
+fixtures.REAL_ANIMATIONS = True   # vérifie des animations elles-mêmes : pas d'accélération (fixtures.FAST_ANIMATIONS)
 
 LOT = 5
 R = Results(LOT)
@@ -19,7 +21,7 @@ def go(page, v, **state):
     """Ouvre un écran directement par sa route."""
     sets = ''.join(f'{k} = {json.dumps(val)};' for k, val in state.items())
     page.evaluate(f'() => {{ {sets} const r = {json.dumps(v)}; if (currentRoute() === r) render(); else routeTo(r); }}')
-    page.wait_for_timeout(120)
+    settle(page)
 
 
 def no_dot_decimal(page, sel):
@@ -136,21 +138,21 @@ def t_history(bench, eng, dev, theme):
         for k in range(1, 8):
             page.mouse.move(b['x'] + b['width'] - 30 - k * 20, b['y'] + b['height'] / 2)
         page.mouse.up()
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('.hrow.is-open').count() == 1, f'{t} historique : balayage révèle Supprimer')
         page.click('.hrow.is-open .hrow__del')
-        page.wait_for_timeout(250)
+        settle(page)
         # Confirmation obligatoire : rien ne part avant « Supprimer de l'historique »
         R.check(page.evaluate(f'data.history.some(h => h.id === "{hid}")') and page.locator('.ios-dialog__btn--destructive').count() == 1,
                 f'{t} historique : balayage demande confirmation')
         page.click('.ios-dialog__btn--destructive')
-        page.wait_for_timeout(250)
+        settle(page)
         gone = page.evaluate(f'!data.history.some(h => h.id === "{hid}") && data.trash[0]?.entry.id === "{hid}"')
         R.check(gone and page.locator(f'.hrow[data-id="{hid}"]').count() == 0, f'{t} historique : séance passée en corbeille sans re-rendu')
         R.check('Séance supprimée' in page.locator('.toast').inner_text(), f'{t} historique : toast Annuler')
         shot(page, LOT, f'history_undo_{dev}_{theme}')
         page.click('.toast__action')
-        page.wait_for_timeout(150)
+        settle(page)
         R.check(page.evaluate(f'data.history.some(h => h.id === "{hid}")') and page.evaluate('data.history.length') == n0,
                 f'{t} historique : Annuler restaure la séance')
         # Détail
@@ -295,7 +297,7 @@ def t_history_filtres(bench, eng, dev, theme):
         shot(page, LOT, f'history_filtres_plus_{dev}_{theme}')
         pick = rows[-1]
         page.click(f'.sheet .hist-pick[data-pick="{pick["k"]}"]')
-        page.wait_for_timeout(400)
+        settle(page)
         titles = set(page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)"))
         act = page.evaluate("""() => { const b = document.querySelector('.hist-seg .segmented__btn--active[data-action="hist-filter"]');
             return b ? { k: b.dataset.cat, vis: b.offsetWidth > 0 } : null; }""")
@@ -308,7 +310,7 @@ def t_history_filtres(bench, eng, dev, theme):
         on = page.evaluate("[...document.querySelectorAll('.sheet .hist-pick')].filter(r => r.querySelector('.hist-pick__check svg')).map(r => r.dataset.pick)")
         R.check(on == [] or on == [pick['k']], f'{t} filtres : coche sur le filtre en cours {on}')
         page.click('.sheet .sheet__btn--cancel')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(n2 <= 6, f'{t} filtres : toujours au plus 6 boutons ({n2})')
         # Texte agrandi : « Toutes » et le bouton de la feuille (nom du filtre choisi), rien d'autre
         xl = page.evaluate("""() => { document.documentElement.classList.add('type-xl');
@@ -341,10 +343,10 @@ def t_progress(bench, eng, dev, theme):
         page.click('[data-action="open-stats-ex"][data-ex="p1dcouch"]')
         page.wait_for_selector('#exChart canvas')
         page.click('[data-action="stats-mode"][data-mode="charge"]')
-        page.wait_for_timeout(150)
+        settle(page)
         box = page.locator('#exChart').bounding_box()
         page.mouse.move(box['x'] + box['width'] * 0.4, box['y'] + box['height'] / 2)
-        page.wait_for_timeout(100)
+        settle(page)
         bub = page.locator('.chart-bubble')
         R.check(bub.is_visible(), f'{t} graphique : bulle affichée')
         i = int(bub.get_attribute('data-i') or -1)
@@ -369,7 +371,7 @@ def t_progress(bench, eng, dev, theme):
         # Paysage : nouveau dessin à la nouvelle largeur
         vp = page.viewport_size
         page.set_viewport_size({'width': vp['height'], 'height': vp['width']})
-        page.wait_for_timeout(400)
+        settle(page)
         cw = page.evaluate("document.querySelector('#exChart canvas').getBoundingClientRect().width")
         bw = page.evaluate("document.querySelector('#exChart').clientWidth")
         # Grand écran : la colonne de lecture plafonne à 640 px (a6fb274), le graphique ne peut plus s'élargir
@@ -378,11 +380,11 @@ def t_progress(bench, eng, dev, theme):
         narrower = vp['height'] < vp['width']
         R.check(abs(cw - bw) < 2 and (cw > vp['width'] or capped or narrower), f'{t} graphique : redessiné à la nouvelle largeur ({cw:.0f}/{bw})')
         page.set_viewport_size(vp)
-        page.wait_for_timeout(200)
+        settle(page)
         # 1RM : bouton d'explication
         page.click('[data-action="stats-mode"][data-mode="1rm"]')
         page.click('[data-action="info-1rm"]')
-        page.wait_for_timeout(250)
+        settle(page)
         R.check('Fiable jusqu\'à 12 reps' in page.locator('.ios-dialog').inner_text(), f'{t} 1RM : explication courte')
         tap_dialog(page, 'OK')
         # Vue d'ensemble
@@ -398,24 +400,24 @@ def t_progress(bench, eng, dev, theme):
                 f'{t} historique : calendrier fermé par défaut, bouton « Calendrier » dans la barre')
         bb = tog.bounding_box()
         R.check(bb and bb['width'] >= 44 and bb['height'] >= 44, f'{t} historique : bouton calendrier de 44 pt {bb}')
-        tog.click(); page.wait_for_timeout(150)
+        tog.click(); settle(page)
         navs = page.evaluate("[...document.querySelectorAll('.hcal .cal__nav')].map(b => { const r = b.getBoundingClientRect(); return Math.min(r.width, r.height); })")
         R.check(navs and min(navs) >= 44, f'{t} historique : chevrons de 44 pt ({navs})')
-        page.click('[data-action="hcal-month"][data-d="-1"]'); page.wait_for_timeout(150)
+        page.click('[data-action="hcal-month"][data-d="-1"]'); settle(page)
         R.check(page.locator('.hcal .cal__dots i').count() >= 3, f'{t} historique : séances du mois précédent')
         day = page.locator('.hcal [data-action="hcal-day"]').first
         R.check(day.count() == 1 and day.get_attribute('aria-label'), f'{t} historique : jour annoncé « {day.get_attribute("aria-label") if day.count() else ""} »')
         n = len((day.get_attribute('aria-label') or '').split(',')) - 1
-        day.click(); page.wait_for_timeout(250)
+        day.click(); settle(page)
         R.check(page.locator('.hcal-day .hcell').count() == n and day.get_attribute('aria-pressed') == 'true', f'{t} historique : jour touché, {n} séance(s) dessous')
         R.check(page.locator('.hcal-day .hcell__map').count() >= 1 or page.evaluate("document.documentElement.classList.contains('type-xl')"), f'{t} historique : cartes illustrées (personnage)')
         shot(page, LOT, f'historique_calendrier_{dev}_{theme}')
-        page.locator('.hcal [aria-pressed="true"]').click(); page.wait_for_timeout(200)
+        page.locator('.hcal [aria-pressed="true"]').click(); settle(page)
         R.check(page.locator('.hcal-day').count() == 0, f'{t} historique : même jour retouché, séances cachées')
         R.check(tog.get_attribute('aria-expanded') == 'true', f'{t} historique : bouton dit « développé »')
         go(page, 'history')
         R.check(page.locator('.hcal .cal__grid').count() == 1, f'{t} historique : ouvert gardé')
-        page.click('.navbar [data-action="hcal-toggle"]'); page.wait_for_timeout(150)
+        page.click('.navbar [data-action="hcal-toggle"]'); settle(page)
         R.check(page.locator('.hcal').count() == 0 and page.locator('.navbar [data-action="hcal-toggle"]').get_attribute('aria-expanded') == 'false', f'{t} historique : calendrier fermé')
         R.check(not page.errors, f'{t} progrès : erreurs JS {page.errors[:2]}')
 
@@ -441,7 +443,7 @@ def t_poids(bench, eng, dev, theme):
         shot(page, LOT, f'poids_{dev}_{theme}')
         cell.click()
         page.wait_for_selector('.ios-dialog__input')
-        page.wait_for_timeout(300)   # fin de l'apparition du dialogue (machine chargée : le toucher arrivait trop tôt)
+        settle(page)   # fin de l'apparition du dialogue (machine chargée : le toucher arrivait trop tôt)
         page.fill('.ios-dialog__input', '73,4')
         page.locator('.ios-dialog button', has_text='OK').click()
         try:
@@ -510,7 +512,7 @@ def t_programme(bench, eng, dev, theme):
         for k in range(1, 11):
             page.mouse.move(x, y + rh * 2 * k / 10)
         page.mouse.up()
-        page.wait_for_timeout(200)
+        settle(page)
         after = page.evaluate("data.programmes.ppl.exercises.push.map(e => e.id)")
         exp = before[1:3] + before[:1] + before[3:]
         R.check(after == exp, f'{t} éditeur : glisser 1 → 3 ({after[:3]})')
@@ -518,7 +520,7 @@ def t_programme(bench, eng, dev, theme):
         # Supprimer un exercice : il reste dans Progrès › Autres
         page.locator('.ed-row[data-i="5"] .ed-minus').click()
         page.locator('.ed-row[data-i="5"] .ed-del').click()
-        page.wait_for_timeout(250)
+        settle(page)
         tap_dialog(page, 'Supprimer l\'exercice')
         R.check(page.evaluate("!data.programmes.ppl.exercises.push.some(e => e.id === 'p6extric')"), f'{t} éditeur : exercice supprimé')
         go(page, 'stats')
@@ -553,7 +555,7 @@ def t_programme(bench, eng, dev, theme):
         R.check(all(not x['cut'] and x['lines'] <= 2 for x in mp), f'{t} Mes programmes : séances en entier, 2 lignes au plus {mp}')
         shot(page, LOT, f'picker_{dev}_{theme}')
         page.click('[data-action="select-prog"][data-id="upper_lower"]')
-        page.wait_for_timeout(250)
+        settle(page)
         R.check(page.locator('.ios-dialog').count() == 1 and 'Passer à Upper / Lower' in page.locator('.ios-dialog').inner_text(), f'{t} programme : confirmation')
         tap_dialog(page, 'Changer de programme')
         R.check(page.evaluate('data.activeProgramme') == 'upper_lower' and page.evaluate('view') == 'programmes', f'{t} programme : changé, reste sur Programme')
@@ -647,7 +649,7 @@ def t_programme_type_xl(bench):
         seed(page, 'dark', ppl_v2_today_json())
         page.add_style_tag(content='html { font-size: 28px !important; }')
         page.evaluate("window.dispatchEvent(new Event('resize'))")
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("switchTab('program')")
         page.wait_for_selector('.ps-list .pcard')
         check = """sel => ({ xl: document.documentElement.classList.contains('type-xl'),

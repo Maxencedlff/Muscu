@@ -32,7 +32,7 @@ def open_app(page, theme):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username, enable=False):
@@ -41,7 +41,7 @@ def signin(page, username, enable=False):
         if (u) await accountSaveProfile({ username: u });
         if (en) await socialEnable(true);
     }""", [username, enable])
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def ccalls(page, fn):
@@ -68,7 +68,7 @@ def badge_text(page):
 def big_text(page):
     page.add_style_tag(content='html { font-size: 28px !important; }')
     page.evaluate("window.dispatchEvent(new Event('resize'))")
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def t_coach_declare(bench, eng, dev, theme):
@@ -95,13 +95,13 @@ def t_coach_declare(bench, eng, dev, theme):
         R.check(page.locator('#coachCardNum').bounding_box()['height'] >= 44, f'{t} champ du numéro : 44 pt')
         page.fill('#coachCardNum', '12345')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('04912ED0123' in page.inner_text('#coachCardHelp') and page.input_value('#coachCardNum') == '12345'
                 and not ccalls(page, 'coach_card_declare'), f'{t} numéro mal formé : erreur dans la feuille, saisie gardée, aucun appel')
         shot(page, LOT, f'2-feuille-erreur-{t}')
         page.fill('#coachCardNum', '049 12-ed.0123')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(600)
+        settle(page)
         card = page.evaluate("__sb.co.cards[__sb.meId()]")
         R.check(card and card['card_number'] == NUM and card['status'] == 'declared', f'{t} carte déclarée, numéro normalisé ({card})')
         txt = page.inner_text('.coach-view')
@@ -125,17 +125,17 @@ def t_coach_declare(bench, eng, dev, theme):
         R.check(page.input_value('#coachCardNum') == NUM, f'{t} changer : numéro actuel prérempli')
         page.fill('#coachCardNum', '02a24ed0042')
         page.click('.sheet__btn--confirm')
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.evaluate("__sb.co.cards[__sb.meId()].card_number") == '02A24ED0042' and '02A24ED0042' in page.inner_text('.coach-view'),
                 f'{t} numéro changé (Corse)')
         page.click('[data-action="coach-card-withdraw"]')
         tap_dialog(page, 'Retirer')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check(page.evaluate("!__sb.co.cards[__sb.meId()]") and page.locator('[data-action="coach-card-declare"]', has_text='Déclarer ma carte pro').count() == 1,
                 f'{t} badge retiré : section revenue à « Déclarer »')
         # Suspendu après un signalement : ni changement, ni retrait ; puis retiré par l'administrateur
         page.evaluate(f"async () => {{ __sb.setCard(__sb.meId(), '{NUM}', 'suspended'); coachPro.loadedAt = 0; await coachProRefresh(); }}")
-        page.wait_for_timeout(300)
+        settle(page)
         txt = page.inner_text('.coach-view')
         R.check('Suspendu' in txt and 'signalements' in txt and page.locator('[data-action="coach-card-withdraw"]').count() == 0
                 and page.locator('[data-action="coach-card-declare"]').count() == 0, f'{t} suspendu : expliqué, sans bouton')
@@ -143,14 +143,14 @@ def t_coach_declare(bench, eng, dev, theme):
         shot(page, LOT, f'5-reglages-suspendu-{t}')
         R.check(page.evaluate(f"(async () => (await coachCardDeclare('04912ED0999')).kind)()") == 'card_suspended', f'{t} suspendu : changement refusé')
         page.evaluate(f"async () => {{ __sb.setCard(__sb.meId(), '{NUM}', 'removed', {{ removed_reason: 'Numéro d\\'une autre personne.' }}); coachPro.loadedAt = 0; await coachProRefresh(); }}")
-        page.wait_for_timeout(300)
+        settle(page)
         txt = page.inner_text('.coach-view')
         R.check('Retiré' in txt and 'Motif : Numéro d\'une autre personne.' in txt and 'contact@mdlf.app' in txt, f'{t} retiré : motif et contact')
         # Aucun texte du badge ne promet une vérification
         R.check(not re.search(r'certifi|carte vérifiée|badge vérifié', page.inner_text('#app'), re.I), f'{t} jamais « vérifiée » ni « certifié »')
         # Serveur sans le badge (migration pas appliquée) : section cachée, pas d'erreur
         page.evaluate("async () => { __sb.fail.card = 'missing'; coachPro.card = null; coachPro.loadedAt = 0; await coachProRefresh(); }")
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('Carte professionnelle' not in page.inner_text('.coach-view') and 'Ton code coach' in page.inner_text('.coach-view'),
                 f'{t} serveur sans le badge : section cachée, le reste affiché')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -204,7 +204,7 @@ def t_eleve_signale(bench, eng, dev, theme):
                 f'{t} confirmation : vérification et anonymat expliqués')
         shot(page, LOT, f'8-signaler-confirmation-{t}')
         tap_dialog(page, 'Signaler')
-        page.wait_for_timeout(600)
+        settle(page)
         rows = page.evaluate("__sb.so.reports.filter(r => r.target_ref === 'coach_card')")
         R.check(len(rows) == 1 and rows[0]['target_user'] == max_id and rows[0]['kind'] == 'profile' and rows[0]['notified'] is True,
                 f'{t} 1er signalement dans la file commune, alerte e-mail demandée ({rows})')
@@ -213,11 +213,11 @@ def t_eleve_signale(bench, eng, dev, theme):
         R.check(page.evaluate(f"__sb.co.cards['{max_id}'].status") == 'declared', f'{t} 1 seul compte : badge pas suspendu')
         R.check(page.locator('.coach-mine-view .card-badge').count() == 1, f'{t} 1er signalement : badge toujours affiché')
         # Le même compte une 2e fois : ne compte pas, le dit
-        page.wait_for_timeout(2500)
+        wait_toast_gone(page)   # le toast suivant doit être le nouveau
         page.click('[data-action="coach-card-report"]')
         page.wait_for_selector('.ios-dialog')
         tap_dialog(page, 'Signaler')
-        page.wait_for_timeout(600)
+        settle(page)
         R.check(page.evaluate("__sb.so.reports.filter(r => r.target_ref === 'coach_card').length") == 1
                 and page.evaluate(f"__sb.co.cards['{max_id}'].status") == 'declared', f'{t} même compte deux fois : compté une fois')
         R.check('déjà signalé' in (page.locator('.toast').inner_text() if page.locator('.toast').count() else ''), f'{t} toast « Tu as déjà signalé ce badge »')
@@ -263,7 +263,7 @@ def t_profil_autre(bench, eng, dev, theme):
                 # Pas coach : aucun badge ni bouton
         page.evaluate(f"navigate(makeRoute('social-profile', '{nina}'))")
         page.wait_for_selector('.social-profile-view')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('.card-badge').count() == 0 and page.locator('[data-action="coach-card-report"]').count() == 0, f'{t} profil d\'un non-coach : rien')
         # Bloqué : le badge n'est plus montré
         page.evaluate(f"async () => {{ __sb.block('{max_id}', __sb.meId()); await coachBadgeLoad('{max_id}', {{ force: true }}); }}")

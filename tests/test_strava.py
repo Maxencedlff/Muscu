@@ -34,7 +34,7 @@ def open_app(page, theme, ppl_v2=None, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
     strava_on(page)
 
 def signin(page, username='max', enable=False):
@@ -44,7 +44,7 @@ def signin(page, username='max', enable=False):
         if (u) await accountSaveProfile({ username: u });
         if (en) await socialEnable(true);
     }""", [username, enable])
-    page.wait_for_timeout(200)
+    settle(page)
 
 def no_hscroll(page):
     return page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
@@ -63,7 +63,7 @@ def cut_texts(page):
 def last_above_tabbar(page):
     """Fin de l'écran défilé : le dernier élément passe au-dessus de la barre d'onglets."""
     page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
-    page.wait_for_timeout(150)
+    settle(page)
     r = page.evaluate("""() => { const scr = document.querySelector('#app .scr'); const last = scr && [...scr.querySelectorAll('*')].filter(e => e.offsetParent).pop();
         const bar = document.querySelector('.tabbar'); if (!last || !bar || bar.hidden) return true;
         return last.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top + .5; }""")
@@ -114,7 +114,7 @@ def add_sessions(page):
 def back_to_foreground(page):
     """Retour de Safari : l'app revient au premier plan (visibilitychange)."""
     page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
-    page.wait_for_timeout(400)
+    settle(page)
 
 
 def open_strava_settings(page):
@@ -122,7 +122,7 @@ def open_strava_settings(page):
     page.wait_for_selector('[data-action="strava-open-settings"]')
     page.click('[data-action="strava-open-settings"]')
     page.wait_for_selector('.strava-view')
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def t_strava(bench, eng, dev, theme):
@@ -151,7 +151,7 @@ def t_strava(bench, eng, dev, theme):
 
         # Relier : Safari s'ouvre sur la page d'autorisation, puis retour dans l'app
         btn.click()
-        page.wait_for_timeout(400)
+        settle(page)
         o = outside(page)
         R.check(len(o) == 1 and o[0].startswith('https://www.strava.com/oauth/authorize?') and 'scope=activity%3Awrite' in o[0]
                 and 'approval_prompt=force' in o[0], f'{t} relier : page d\'autorisation ouverte dans Safari ({o})')
@@ -172,7 +172,7 @@ def t_strava(bench, eng, dev, theme):
 
         # Séance passée sans durée : pas d'envoi proposé
         page.evaluate("navigate(makeRoute('history-detail', 'strv0002'))")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('[data-action="strava-export"]').count() == 0, f'{t} séance passée sans durée : rien à envoyer')
 
         # Séance terminée : envoyer, puis View on Strava
@@ -194,7 +194,7 @@ def t_strava(bench, eng, dev, theme):
         layout(page, t, 'séance envoyée')
         shot(page, LOT, f'5-envoyee-{t}')
         link.click()
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(outside(page)[-1:] == ['https://www.strava.com/activities/16000000001'] and page.evaluate('window.__opened') == [],
                 f'{t} « View on Strava » ouvre l\'activité dans Safari ({outside(page)})')
         # Une seule activité même si on relance l'envoi (autre appareil, cache vidé)
@@ -207,7 +207,7 @@ def t_strava(bench, eng, dev, theme):
         page.evaluate("navigate(makeRoute('history-detail', 'strv0003'))")
         page.wait_for_selector('[data-action="strava-export"]')
         page.click('[data-action="strava-export"]')
-        page.wait_for_timeout(500)
+        settle(page)
         R.check('plus relié' in toast(page) and page.locator('[data-action="strava-export"]').count() == 0, f'{t} accès retiré chez Strava : « plus relié » ({toast(page)!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -224,7 +224,7 @@ def t_strava(bench, eng, dev, theme):
         page.wait_for_selector('.ios-dialog__btn')
         shot(page, LOT, f'6-deconnecter-{t}')
         tap_dialog(page, 'Déconnecter')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('[data-action="strava-connect"]').count() == 1 and 'Strava déconnecté' in toast(page), f'{t} déconnecté : bouton de liaison revenu, toast')
         R.check(ls(page, 'mdlf_strava') and '"connected":false' in ls(page, 'mdlf_strava'), f'{t} déconnecté : cache à jour')
         # Strava ne confirme pas : l'app propose de retirer l'accès chez Strava
@@ -233,21 +233,21 @@ def t_strava(bench, eng, dev, theme):
         page.wait_for_selector('[data-action="strava-disconnect"]')
         page.click('[data-action="strava-disconnect"]')
         tap_dialog(page, 'Déconnecter')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check('applications autorisées' in page.inner_text('body'), f'{t} révocation non confirmée : explication')
         tap_dialog(page, 'Ouvrir Strava')
-        page.wait_for_timeout(200)
+        settle(page)
         R.check(outside(page)[-1:] == ['https://www.strava.com/settings/apps'] and page.evaluate('window.__opened') == [],
                 f'{t} révocation non confirmée : strava.com/settings/apps dans Safari ({outside(page)})')
         # Hors ligne : écran et relecture
         # Dernier état gardé sur l'appareil : affiché, « pas à jour »
         page.evaluate('__sb.fail.strava = "offline"; stravaReset(account.user.id); stravaRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate('render()')
         R.check('pas à jour' in page.inner_text('.strava-view') and page.locator('[data-action="strava-connect"]').count() == 1, f'{t} hors ligne avec cache : dernier état, « pas à jour »')
         # Rien de gardé : message et « Réessayer »
         page.evaluate('localStorage.removeItem("mdlf_strava"); stravaReset(account.user.id); stravaRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate('render()')
         txt = page.inner_text('.strava-view')
         R.check('Pas d\'Internet' in txt and page.locator('[data-action="strava-retry"]').count() == 1, f'{t} hors ligne : message et « Réessayer » ({txt!r})')
@@ -258,7 +258,7 @@ def t_strava(bench, eng, dev, theme):
         R.check(True, f'{t} réseau revenu')
         # Déconnexion du compte : cache Strava vidé
         page.evaluate('accountSignOut()')
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(ls(page, 'mdlf_strava') is None, f'{t} déconnexion du compte : cache Strava vidé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -272,13 +272,13 @@ def t_bilan(bench, eng, dev, theme):
         page.add_init_script(FAKE_ACCOUNT)
         page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
         seed(page, theme, ppl_v2_today_json(), active=old_active_session(), extra={'ppl_welcome_seen': '1'})
-        page.wait_for_timeout(300)
+        settle(page)
         strava_on(page)
         signin(page, username='lea')
         page.evaluate('__sb.stravaAuthorize("Léa")')
         page.evaluate('stravaRefresh()')
-        page.wait_for_timeout(200)
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        settle(page)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
         page.wait_for_selector('.view.summary [data-action="strava-export"]')
         page.fill('#summaryNotes', 'note du bilan')
@@ -299,26 +299,26 @@ def t_eteint(bench, eng, dev, theme):
         page.add_init_script(FAKE_ACCOUNT)
         page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
         seed(page, theme, ppl_v2_today_json(), active=old_active_session(), extra={'ppl_welcome_seen': '1'})
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.evaluate('stravaEnabled()') is False, f'{t} éteint : interrupteur livré à faux')
         signin(page, username='lea')
         page.evaluate('__sb.stravaAuthorize("Léa")')
         page.evaluate('stravaRefresh()')
-        page.wait_for_timeout(200)
+        settle(page)
         # Bilan de la séance qui vient de finir
-        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
         page.wait_for_selector('.view.summary')
-        page.wait_for_timeout(300)
+        settle(page)
         R.check(page.locator('[data-action^="strava-"]').count() == 0 and 'Strava' not in page.inner_text('.view.summary'),
                 f'{t} éteint : rien dans le bilan')
         add_sessions(page)
         page.evaluate("navigate('settings')")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('[data-action="strava-open-settings"]').count() == 0 and 'Strava' not in page.inner_text('#app')
                 and 'Connexions' not in page.inner_text('#app'), f'{t} éteint : rien dans les Réglages')
         page.evaluate("navigate(makeRoute('history-detail', 'strv0001'))")
-        page.wait_for_timeout(400)
+        settle(page)
         R.check(page.locator('[data-action^="strava-"]').count() == 0 and 'Strava' not in page.inner_text('#app'),
                 f'{t} éteint : rien dans Historique › Séance')
         # Ancien historique de la webview qui contiendrait l'écran Strava : la route est retirée
