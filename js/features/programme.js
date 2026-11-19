@@ -137,7 +137,6 @@ function renderProgrammes() {
   const sessions = `
       <div class="group-title group-title--row">
         <span>${editing ? 'Ordre des séances' : 'Séances'}</span>
-        ${editing ? '<button class="group-title__btn group-title__btn--bold" data-action="toggle-prog-order">OK</button>' : ''}
       </div>
       <div class="group ps-list">
         ${keys.map(c => editing ? editCell(c, pid) : progSessionCardHtml(c, pid)).join('')}
@@ -157,7 +156,9 @@ function renderProgrammes() {
 
   return `
     <div class="view programmes view--grouped">
-      ${navBar({ title: esc(pm.name), large: true })}
+      ${navBar({ title: esc(pm.name), large: true, sub: '<p class="prog-info__note prog-page__state">Programme actif</p>',
+        // Mode ordre : OK en haut à droite, le retour masqué le temps du réglage (comme le mode Modifier d'iOS, panel t1)
+        ...(editing ? { left: '<span aria-hidden="true"></span>', right: '<button class="navbar__text navbar__text--bold" data-action="toggle-prog-order">OK</button>' } : {}) })}
       <div class="scr">
         ${coachEditorConsigneHtml(data.activeProgramme)}
         ${sessions}

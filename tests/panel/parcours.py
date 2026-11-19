@@ -463,6 +463,7 @@ def p_page_programme(r):
         r.bas('bas de la page')
     cle = 'Passer sur un autre programme'
     with r.etape('page-accueil', 'Accueil › « Programme Split séquentiel › » : la page du programme', cle=cle):
+        r.onglet('train', 'Entraînement')
         r.toucher('.view.dashboard .navbar__sub', 'Programme Split séquentiel')
         r.attendre('.view.programmes', 'page du programme')
     with r.etape('liste', '‹ Programmes : la liste de tes programmes', cle=cle):
@@ -489,17 +490,16 @@ def _split_recup():
 def p_file_recuperation(r):
     """Le même pratiquant a fait un rowing hier soir en séance libre : Dos, en tête de file, attend son grand dorsal.
     L'accueil la propose quand même (l'ordre ne change pas), avec l'avertissement ; Démarrer reste le bouton plein ;
-    « Ensuite » dit quel muscle récupère."""
+    « Ensuite » dit quel muscle récupère ; une séance d'« Ensuite » touchée propose Démarrer."""
     r.lancer(_split_recup())
     cle = 'Démarrer une séance pas encore récupérée'
     with r.etape('accueil', 'Accueil : Dos proposée, « Attention : il reste … de récupération (grand dorsal) »', cle=cle):
         r.attendre('.view.dashboard .hero__wait', 'avertissement')
     with r.etape('ensuite', 'Ensuite : « Prête dans … (muscle) » sur chaque séance qui attend'):
         r.defiler('#homeNext', 'Ensuite')
-    with r.etape('demarrer', 'Démarrer : la séance Dos commence', cle=cle):
-        r.defiler('.view.dashboard .hero [data-action="start-session"]', 'Démarrer')
-        r.toucher('.view.dashboard .hero [data-action="start-session"]', 'Démarrer')
-        r.attendre('.view.session', 'séance en cours')
+    with r.etape('feuille', 'Toucher Épaules dans « Ensuite » : Démarrer proposé, la récupération dite', cle=cle):
+        r.toucher('.view.dashboard .home-cell[data-action="session-actions"]', '1re séance d\'Ensuite')
+        r.attendre('.ios-dialog--sheet', 'feuille de la séance')
 
 
 @parcours('generateur', 'Programme sur mesure (générateur)', 'pratiquant')
