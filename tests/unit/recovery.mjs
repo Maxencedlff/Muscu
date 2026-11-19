@@ -88,14 +88,13 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(run(`passedOverNote(sessionKeys(), 'pull')`), 'Push attend : quadriceps en récupération (encore 1 j 18 h)');
   });
 
-  test('prochaine séance : rien de prêt, la séance faite il y a le plus longtemps passe devant', () => {
+  test('prochaine séance : le gainage de Haut du corps ne bloque plus Bas du corps (tronc, 19/11)', () => {
     reset();
-    // Maison : Haut du corps (gainage) bloque Bas du corps par les abdominaux, jusqu'à la même heure
+    // Maison : avant le 19/11, les abdominaux du gainage retenaient Bas du corps jusqu'à la même heure que Haut
     run(`data.activeProgramme = 'maison'; data.programmes.maison = makeProgData('maison');
          data.history = [${entry('h', 1, 'maison', 'haut', ['Pompes', 'Gainage (planche)'])}];
          prog().timers.haut = data.history[0].date;`);
-    assert.equal(run(`catStatus('bas').by.muscle`), 'abs');
-    assert.equal(run(`catStatus('bas').readyAt === catStatus('haut').readyAt`), true);
+    assert.equal(run(`catStatus('bas').ready`), true);
     assert.equal(run(`nextSessionCat(sessionKeys())`), 'bas', 'pas la séance qu\'on vient de finir');
     assert.equal(run(`passedOverNote(sessionKeys(), 'bas')`), '');
   });

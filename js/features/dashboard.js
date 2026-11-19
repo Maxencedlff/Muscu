@@ -4,6 +4,7 @@
 'use strict';
 
 let ticker = null;
+let homeOrderEditing = false;   // accueil : mode « Changer l'ordre » (programme créé, dans l'ordre)
 
 // « dans 1 j 18 h », « dans 14 h », « dans 35 min » (jamais de secondes)
 function fmtWait(ms) {
@@ -68,9 +69,18 @@ function muscleLastWorked() {
 
 // Muscle principal de la séance qui la fait attendre le plus longtemps : { muscle, date, entry, readyAt }
 // ou null. cd : délai de la séance (ms) ; after : le travail jusqu'à cette heure est ignoré (délai passé)
-function sessionRecovery(cat, { cd = getCooldown(cat) * 3600_000, after = -Infinity } = {}) {
+// Le tronc (abdominaux, obliques) ne bloque pas une séance qui travaille aussi autre chose : un gainage ou un dead bug
+// en fin de séance ne doit pas retenir Dos, Épaules et Bras pendant trois jours (retour de Maxence, 19/11 : Jambes finie
+// par une planche, l'accueil lui reproposait Pecs). Une séance d'abdos seule attend toujours ses abdos.
+const CORE_MUSCLES = new Set(['abs', 'obliques']);
+function sessionBlockingMuscles(cat) {
   const index = chosenMusclesIndex();
-  const muscles = new Set((prog().exercises[cat] || []).flatMap(ex => exerciseMuscles(ex, index).primary));
+  const all = new Set((prog().exercises[cat] || []).flatMap(ex => exerciseMuscles(ex, index).primary));
+  const main = [...all].filter(m => !CORE_MUSCLES.has(m));
+  return new Set(main.length ? main : all);
+}
+function sessionRecovery(cat, { cd = getCooldown(cat) * 3600_000, after = -Infinity } = {}) {
+  const muscles = sessionBlockingMuscles(cat);
   if (!muscles.size) return null;
   const last = muscleLastWorked(), wait = { force: cd, cardio: Math.min(cd, CARDIO_RECOVERY_H * 3600_000) };
   let best = null;
@@ -100,11 +110,35 @@ function recoveryReason(by) {
 // la séance qu'on vient de finir. Une seule heure de référence : le tri reste cohérent.
 function nextSessionCat(keys) {
   if (!keys.length) return null;
+  if (inOrder()) return rotationFrom(keys)[0];
   const now = Date.now(), st = new Map(keys.map(k => [k, catStatus(k, now)]));
   const own = k => prog().timers[k] || 0;
   const ready = keys.filter(k => st.get(k).ready);
   if (ready.length) return ready.sort((a, b) => (st.get(a).last || 0) - (st.get(b).last || 0) || own(a) - own(b))[0];
   return keys.slice().sort((a, b) => st.get(a).readyAt - st.get(b).readyAt || own(a) - own(b))[0];
+}
+
+// Ordre des séances (retour de Maxence, 19/11 : « tu fais dans l'ordre ») : un programme créé tourne dans l'ordre de
+// ses séances, en boucle ; la récupération reste une info (attente et raison sur la carte), elle ne fait sauter
+// aucune séance. Réglable par programme (up.rotation = 'recovery' : selon la récupération, comme les programmes
+// intégrés, qui gardent ce choix sans réglage).
+function inOrder(pid = data.activeProgramme) {
+  return isUserProg(pid) && data.userProgrammes?.[pid]?.rotation !== 'recovery';
+}
+// Séances dans l'ordre du programme, à partir de celle qui suit la dernière faite (la plus récente des chronos du
+// programme), en boucle ; jamais rien fait : à partir de la première. Une séance faite hors de l'ordre (touchée dans
+// « Ensuite ») devient la dernière faite : la rotation repart après elle. after : partir après cette séance
+// (séance en cours) plutôt qu'après la dernière faite.
+function rotationFrom(keys, after = null) {
+  const t = k => prog().timers[k] || 0;
+  const last = after ?? keys.reduce((best, k) => (t(k) > (best ? t(best) : 0) ? k : best), null);
+  const i = last ? keys.indexOf(last) : -1;
+  return [...keys.slice(i + 1), ...keys.slice(0, i + 1)];
+}
+// Les autres séances de l'accueil : dans l'ordre (celles qui suivent la proposée) ou selon la récupération
+function otherSessions(keys, next) {
+  if (!inOrder()) return sessionsByReadiness(keys.filter(k => k !== next));
+  return (next ? rotationFrom(keys, next) : keys).filter(k => k !== next);
 }
 
 // « Autres séances » dans l'ordre des chronos (retour de Maxence, 15/11) : d'abord les prêtes (la moins récente
@@ -124,6 +158,7 @@ function sessionsByReadiness(keys) {
 //   « Push attend : quadriceps en récupération (encore 1 j) »  (pas prête)
 //   « Push passe après (quadriceps : il y a 4 jours, Legs) »   (prête, mais muscles moins reposés)
 function passedOverNote(keys, next) {
+  if (inOrder()) return '';   // dans l'ordre : rien n'est sauté
   const own = k => prog().timers[k] || 0;
   const expected = keys.slice().sort((a, b) => own(a) - own(b))[0];
   if (!expected || !next || expected === next) return '';
@@ -386,7 +421,10 @@ function renderDashboard() {
   const next = liveHere ? activeSession.category : nextSessionCat(keys);
 
   const hero = next ? heroHtml(keys, next, liveHere) : '';
-  const others = sessionsByReadiness(keys.filter(k => k !== next)).map(otherSessionHtml).join('');
+  const others = otherSessions(keys, next).map(otherSessionHtml).join('');
+  const ordered = inOrder();
+  const canReorder = ordered && keys.length > 1;
+  if (!canReorder) homeOrderEditing = false;
 
   const emptyCustom = isUserProg(data.activeProgramme) && keys.length === 0
     ? `<div class="empty-state">
@@ -401,7 +439,14 @@ function renderDashboard() {
   const sub = `<button class="navbar__sub" data-action="go-my-programmes" aria-label="Programme ${esc(pm.name)}${from ? `, ${from}` : ''}, mes programmes">${navSubWithChevron(`Programme ${pm.name}`)}</button>${from ? `<p class="coach-from coach-from--home">${from}</p>` : ''}`;
 
   const week = keys.length ? weekCard(weekStats()) : '';
-  const othersList = others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Autres séances</h2><div class="home-card">${others}</div></section>` : '';
+  // Dans l'ordre : « Ensuite » et « Changer l'ordre » (le même mode que l'onglet Programme, ici, sans changer d'onglet)
+  const orderBtn = canReorder
+    ? `<button class="home-list__btn${homeOrderEditing ? ' home-list__btn--bold' : ''}" data-action="toggle-home-order">${homeOrderEditing ? 'OK' : 'Changer l\'ordre'}</button>` : '';
+  const listTitle = `<div class="home-list__head"><h2 class="home-list__title" id="homeNext">${homeOrderEditing ? 'Ordre des séances' : ordered ? 'Ensuite' : 'Autres séances'}</h2>${orderBtn}</div>`;
+  const othersList = homeOrderEditing
+    ? `<section class="home-list" aria-labelledby="homeNext">${listTitle}<div class="home-card home-order">${keys.map(homeOrderRowHtml).join('')}</div>
+        <p class="home-list__foot">Fais glisser ≡ pour changer l'ordre des séances.</p></section>`
+    : others ? `<section class="home-list" aria-labelledby="homeNext">${listTitle}<div class="home-card">${others}</div></section>` : '';
   // Toutes les séances d'abord (la prochaine, les autres, la séance libre), puis Nutrition, les cartes (récap, compte,
   // sauvegarde, coach) et la semaine. Nutrition (seulement avec un plan, donc choisie) passe devant les cartes : elle
   // sert chaque jour, elles de temps en temps ; jamais devant les séances (l'accueil reste celui de l'entraînement)
@@ -423,17 +468,40 @@ function renderDashboard() {
     </div>`;
 }
 
+// Mode « Changer l'ordre » de l'accueil : toutes les séances dans l'ordre du programme, poignée ≡ (js/ui/reorder.js)
+function homeOrderRowHtml(cat) {
+  const label = sessionMeta(cat).label;
+  return `
+      <div class="cell ed-row--edit ho-row">
+        <span class="cell__body"><span class="cell__title">${label}</span></span>
+        <button class="ed-handle ho-handle" data-action="reorder-menu" aria-label="Déplacer ${label}">${icon('line.3.horizontal', 22)}</button>
+      </div>`;
+}
+makeReorderable({
+  view: 'dashboard', list: '.home-order', row: '.ho-row', handle: '.ho-handle',
+  onMove: (from, to) => { if (moveSession(data.activeProgramme, from, to)) save(); },
+  nameOf: i => rawLabel(sessionKeys()[i]),
+});
+function openHomeOrder() {
+  homeOrderEditing = true;
+  render();
+  $('#homeNext')?.closest('.home-list')?.scrollIntoView({ block: 'start' });
+}
+
 // Feuille d'actions d'une séance de l'accueil
 async function sessionActions(cat) {
   const st = catStatus(cat);
+  const canReorder = inOrder() && sessionKeys().length > 1;
   const choice = await dialog({ type: 'sheet', title: sessionTitle(cat),
     ...(st.by ? { message: `Muscles encore en récupération. ${recoveryReason(st.by)}` } : {}), actions: [
     { label: 'Démarrer', value: 'start', style: 'preferred' },
     ...(!st.ready ? [{ label: 'Ignorer le délai', value: 'skip' }] : []),
     { label: 'Voir les exercices', value: 'see' },
+    ...(canReorder ? [{ label: 'Changer l\'ordre', value: 'order' }] : []),
     { label: 'Annuler', style: 'cancel' },
   ] });
   if (choice === 'start') return startSessionFlow(cat);
+  if (choice === 'order') return openHomeOrder();
   if (choice === 'skip') {
     const p = prog();
     (p.skipped ||= {})[cat] = Date.now();
@@ -462,7 +530,7 @@ function startTicker() {
       const lr = $('#livebar-rest');
       if (lr) { lr.hidden = !restActive; if (restActive) lr.textContent = fmtRest(restTimeLeft); }
     }
-    if (currentView() !== 'dashboard') return;
+    if (currentView() !== 'dashboard' || reorderDrag) return;   // jamais de rendu pendant un glisser
     const minute = Math.floor(Date.now() / 60000);
     if (minute === tickerMinute) return;
     const first = tickerMinute === -1;
@@ -516,6 +584,10 @@ registerActions({
   },
   'start-session': async (e, el) => {
     await startSessionFlow(el.dataset.cat);
+  },
+  'toggle-home-order': () => {
+    if (homeOrderEditing) { homeOrderEditing = false; render(); return; }
+    openHomeOrder();
   },
   'start-free-session': async () => {
     await startSessionFlow(FREE);

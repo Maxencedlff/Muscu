@@ -96,6 +96,16 @@ function progSessionCardHtml(cat, progId) {
       </button>`;
 }
 
+// « Ordre des séances » : une ligne de la liste, comme « Ajouter une séance », et non un petit lien dans le titre
+// (Maxence ne trouvait pas « Modifier l'ordre », 19/11). Même icône ≡ que la poignée du mode qu'elle ouvre.
+function orderSessionsCellHtml(action = 'toggle-prog-order', value = '') {
+  return `<button class="cell cell--action" data-action="${action}">${icon('line.3.horizontal', 20)}<span class="cell__body">Ordre des séances</span>${value ? `<span class="cell__value">${value}</span>` : ''}</button>`;
+}
+// Ordre des séances modifiable : programme créé, au moins deux séances
+function canReorderSessions(pid = data.activeProgramme) {
+  return isUserProg(pid) && sessionKeys(pid).length > 1;
+}
+
 // Entrée secondaire de l'onglet en liste iOS : icône neutre dans un carré gris (l'orange reste aux actions)
 function progListIconHtml(name) {
   return `<span class="plist__icon" aria-hidden="true">${icon(name, 18)}</span>`;
@@ -117,21 +127,27 @@ function renderProgrammes() {
   };
   const user = isUserProg(pid);
   const keys = sessionKeys(pid);
-  const canReorder = user && keys.length > 1;
+  const canReorder = canReorderSessions(pid);
   const editing = canReorder && progEditing;
   const sessions = `
       <div class="group-title group-title--row">
         <span>Séances ${elide('de', esc(pm.name))}</span>
-        ${canReorder ? `<button class="group-title__btn ${editing ? 'group-title__btn--bold' : ''}" data-action="toggle-prog-order">${editing ? 'OK' : 'Modifier l\'ordre'}</button>` : ''}
+        ${editing ? '<button class="group-title__btn group-title__btn--bold" data-action="toggle-prog-order">OK</button>' : ''}
       </div>
       <div class="group ps-list">
         ${keys.map(c => editing ? editCell(c, pid) : progSessionCardHtml(c, pid)).join('')}
+        ${canReorder && !editing ? orderSessionsCellHtml() : ''}
         ${user && !editing ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
       </div>
       ${editing ? `<div class="group-foot">Fais glisser ≡ pour changer l'ordre des séances.</div>` : ''}
       ${user ? '' : `<div class="group-foot">Les séances de ce programme sont fixes. Leurs exercices se modifient. Pour composer tes séances, crée un programme.</div>`}`;
   const manage = pid.startsWith('u_') ? `
       <div class="group group--gap">
+        <button class="cell cell--nav" data-action="pick-rotation">
+          <span class="cell__body"><span class="cell__title">Séance proposée</span></span>
+          <span class="cell__value">${inOrder(pid) ? 'Dans l\'ordre' : 'Selon la récupération'}</span>
+          ${icon('chevron.right', 16)}
+        </button>
         <button class="cell cell--nav" data-action="rename-programme">
           <span class="cell__body"><span class="cell__title">Renommer le programme</span></span>
           ${icon('chevron.right', 16)}
@@ -226,8 +242,10 @@ function renderMyProgrammes() {
       <div class="scr">
         <div class="group mp-list">${ids.map(editing ? editRow : row).join('')}</div>
         ${editing
-          ? '<div class="group-foot">Fais glisser ≡ pour changer l\'ordre. Un programme retiré reste dans « Tous les programmes ».</div>'
-          : `<div class="group group--gap">
+          ? '<div class="group-foot">Fais glisser ≡ pour changer l\'ordre des programmes. Un programme retiré reste dans « Tous les programmes ».</div>'
+          : `${canReorderSessions() ? `<div class="group group--gap">${orderSessionsCellHtml('open-session-order', esc(progMeta().name))}</div>
+             <div class="group-foot">Les séances du programme actif, dans l'ordre où tu les fais.</div>` : ''}
+             <div class="group group--gap">
                <button class="cell cell--action" data-action="go-prog-add">${icon('plus', 20)}<span>Ajouter un programme</span></button>
              </div>
              <div class="group-foot">Changer de programme garde l'historique.</div>`}
@@ -356,6 +374,27 @@ makeReorderable({
 registerActions({
   'toggle-prog-order': () => {
     progEditing = !progEditing; render();
+  },
+  // Depuis Mes programmes : l'ordre des séances, sur l'accueil s'il les montre dans l'ordre, sinon dans l'onglet Programme
+  'open-session-order': () => {
+    if (nav.tab === 'train' && inOrder()) { homeOrderEditing = true; routeTo('dashboard'); return; }
+    progEditing = true;
+    if (nav.tab === 'program') routeTo('programmes');
+    else switchTab('program', { reset: true });
+  },
+  // Séance proposée sur l'accueil : dans l'ordre du programme (par défaut) ou selon la récupération des muscles
+  'pick-rotation': async () => {
+    const up = data.userProgrammes[data.activeProgramme];
+    if (!up) return;
+    const now = inOrder() ? 'dans l\'ordre des séances' : 'selon la récupération des muscles';
+    const choice = await dialog({ type: 'sheet', title: 'Séance proposée', message: `Sur l'accueil, pour l'instant ${now}.`, actions: [
+      { label: 'Dans l\'ordre', value: 'order' },
+      { label: 'Selon la récupération', value: 'recovery' },
+      { label: 'Annuler', style: 'cancel' },
+    ] });
+    if (!choice) return;
+    if (choice === 'recovery') up.rotation = 'recovery'; else delete up.rotation;
+    save(); render();
   },
   'go-program': () => {
     switchTab('program');

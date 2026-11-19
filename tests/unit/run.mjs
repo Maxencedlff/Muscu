@@ -150,6 +150,7 @@ const sandbox = {
   // Seule dépendance hors donnée : le toast « Stockage plein » de save() (js/core/dialogs.js)
   showToast: (msg, opts = {}) => { toasts.push({ msg, ...opts }); },
   announce: () => {},   // annonces VoiceOver (js/core/dialogs.js, hors de ce contexte)
+  makeReorderable: () => {},   // glisser pour réordonner (js/ui/reorder.js, hors de ce contexte : accueil « Changer l'ordre »)
 };
 sandbox.window = sandbox;
 const ctx = vm.createContext(sandbox);
@@ -1939,6 +1940,7 @@ test('Native.sound.diagnostics : null hors app ou build sans la méthode, état 
 // ── Récupération par muscle (tests dans recovery.mjs) ──────
 
 (await import('./recovery.mjs')).default({ test, app, run, reset, assert });
+(await import('./rotation.mjs')).default({ test, run, reset, assert });
 
 // ── Mesures : répétitions, durée, cardio (tests dans measures.mjs) ──
 
