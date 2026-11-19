@@ -77,7 +77,7 @@ function renderCoachShare() {
   const foot = withM ? `
         <div class="group-foot"><b>${name} voit</b> seulement ce que tu coches : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration${withD ? ', et chaque jour de ta diète : repas cochés, calories, macros, eau, sel et écart avec l\'objectif' : ''}. Avec les pesées, le volume des exercices au poids du corps inclut ton poids.</div>
         <div class="group-foot"><b>Jamais</b> : tes données Santé${withD ? ', le détail de tes aliments, les heures' : ''}. Tes photos ne partent que si tu les envoies. Tes amis ne voient rien.</div>
-        <div class="group-foot"><b>Arrêter</b> : à tout moment, donnée par donnée. Ce que tu décoches est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ton coach arrête aussi le partage.${withD ? ' Ta diète est gardée 90 jours au plus.' : ''}</div>
+        <div class="group-foot"><b>Retirer</b> : tu peux arrêter à tout moment, donnée par donnée. Ce que tu décoches est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ton coach arrête aussi le partage.${withD ? ' Ta diète est gardée 90 jours au plus.' : ''}</div>
         <div class="group coach-share-more"><button class="cell cell--action" data-action="open-legal" data-page="coachShare"><span>En savoir plus sur le partage</span></button></div>`
     : `
         <div class="group-foot">${name} verra la date et le poids de chaque pesée saisie dans l'app. Le volume des exercices au poids du corps sera calculé avec ton poids. Jamais tes données Santé. Tes amis ne voient rien.</div>
