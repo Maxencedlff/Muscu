@@ -1406,12 +1406,331 @@ def p_coach_suivi(r):
         r.defiler('[data-action="coach-send-diet"]', 'Envoyer un plan de nutrition')
         r.toucher('[data-action="coach-send-diet"]', 'Envoyer un plan de nutrition')
         r.attendre('.ios-dialog__btn', 'liste des plans')
-    with r.etape('diete-relecture', 'Plan diète : relecture avant l\'envoi', cle=cle):
+    # 18/11 : aperçu jour par jour, Léa cochée d'office, puis confirmation qui la nomme
+    with r.etape('diete-relecture', 'Plan diète : aperçu avant l\'envoi (jour par jour, Léa cochée)', cle=cle):
         r.choisir('Sèche Léa')
-        r.attendre('.ios-dialog--alert', 'relecture du plan')
+        r.attendre('.diet-send-view', 'aperçu du plan')
+    with r.etape('diete-confirmation', 'Envoyer : confirmation qui nomme l\'élève', cle=cle):
+        r.toucher('#dietSendGo', 'Envoyer')
+        r.attendre('.ios-dialog', 'confirmation')
     with r.etape('diete-envoyee', 'Plan diète envoyé : « Pas encore ouvert »', cle=cle):
         r.choisir('Envoyer')
+        r.attendre('.coach-student-view', 'fiche de l\'élève')
         r.defiler('.coach-sent[data-diet]', 'plan envoyé')
+
+
+# ─────────────────────────────────────────────────────────────
+#  Nutrition des coachs (18/11) et suivi de la diète par le coach (branche nutri-suivi-coach)
+# ─────────────────────────────────────────────────────────────
+def _ciq(iid, code, g, s):
+    """Aliment Ciqual de data/foods.json avec son sel pour 100 g (11e colonne)."""
+    x = aliment(code, g, iid)
+    x['per']['s'] = s
+    return x
+
+
+def plan_seche():
+    """Plan réaliste du coach (valeurs Ciqual 2025, comme tests/test_nutri_coachs.py) : 2 232 kcal prévues pour 2 300,
+    eau de 3 à 5 L, sel de 3 à 5 g."""
+    return {'name': 'Sèche semaine 1', 'targets': {'kcal': 2300, 'p': 150, 'c': 270, 'f': 55, 'water': 5, 'waterMin': 3, 'saltMin': 3, 'saltMax': 5},
+            'meals': [
+                {'id': 'm1', 'name': 'Déjeuner', 'items': [_ciq('i1', 4003, 350, 0.05), _ciq('i2', 36018, 180, 0.2), _ciq('i4', 17270, 15, 0)]},
+                {'id': 'm2', 'name': 'Dîner', 'items': [_ciq('i3', 7001, 80, 1.25), _ciq('i5', 9104, 250, 0.05), _ciq('i6', 6251, 150, 0.16)]},
+                {'id': 'm3', 'name': 'Petit-déjeuner', 'items': [_ciq('i7', 32140, 80, 0.01), _ciq('i8', 19644, 250, 0.09), _ciq('i9', 13005, 120, 0)]},
+                {'id': 'm4', 'name': 'Collation', 'items': [_ciq('i10', 15041, 30, 0.05)]}]}
+
+
+def plan_seche_eleve(mode='session'):
+    """Le même plan reçu par l'élève : jour d'entraînement et jour de repos (moins de féculents, 2 000 kcal), ou une
+    semaine de 7 jours (mardi, samedi et dimanche de repos ; mercredi 4/11, jour de l'horloge, de repos)."""
+    p = plan_seche()
+    rest = json.loads(json.dumps({'meals': p['meals'], 'targets': {**p['targets'], 'kcal': 2000, 'c': 200}}))
+    rest['meals'][0]['items'][0]['g'] = 250
+    rest['meals'][1]['items'][0]['g'] = 50
+    rest['meals'][1]['items'][1]['g'] = 120
+    if mode == 'session':
+        p['days'] = {'mode': 'session', 'more': [rest]}
+    else:
+        kinds = ['t', 'r', 'r', 't', 't', 'r', 'r']
+        p['days'] = {'mode': 'week', 'kinds': kinds, 'more': [json.loads(json.dumps(rest if k == 'r' else {'meals': p['meals'], 'targets': p['targets']})) for k in kinds[1:]]}
+    p['fromCoach'] = {'coachId': 'c1', 'name': 'max', 'sentAt': 1}
+    return p
+
+
+def _sans_seance_du_jour(d):
+    """Pas de séance aujourd'hui : l'app pose « Séance aujourd'hui ? » (jour d'entraînement ou de repos)."""
+    debut = days_back_ms(NOW, 0, 0, tz=PARIS)
+    d['history'] = [h for h in d['history'] if h['date'] < debut]
+    return d
+
+
+@parcours('nutri-coach-plan', 'Coach : plan sur 7 jours, copies de repas, eau et sel, aperçu et envoi', 'coach')
+def p_nutri_coach_plan(r):
+    """Coach max (élèves Léa et Tom, qui acceptent ses plans) : son plan « Sèche semaine 1 » passe en semaine de 7 jours,
+    « Crème de riz » cherchée et ajoutée au lundi, déjeuner copié vers mardi et jeudi, « Mettre pareil sur les 7 jours »
+    puis Annuler, lundi en jour de repos copié vers les autres jours de repos, objectifs d'eau et de sel (repère de l'OMS
+    au-dessus de 5 g), aperçu jour par jour et envoi aux deux élèves."""
+    d = json.loads(REALISTE)
+    d['dietPlans'] = {'d_seche001': plan_seche()}
+    d['dietConsent'] = {'on': True, 'at': '2026-11-01T10:00:00.000Z'}
+    d['dietConsentAsked'] = True
+    r.lancer(json.dumps(d, ensure_ascii=False, separators=(',', ':')))
+    r.connecter('max')
+    r.raccourci("""() => { const me = __sb.meId(); __sb.makeCoach(me);
+        for (const [u, av] of [['lea', '🦊'], ['tom', '🐼']]) { const id = __sb.addPerson({ username: u, avatar: av, social: false }); __sb.link(me, id);
+          __sb.co.shares.push({ student: id, coach: me, kind: 'diet', granted_at: new Date().toISOString() }); }
+        return coachRefresh(); }""", 'rôle coach validé, élèves Léa et Tom, qui acceptent les plans de nutrition')
+    cle = 'Coach : passer un plan sur 7 jours'
+    with r.etape('mes-dietes', 'Programme › Plans de nutrition : « Mes diètes »', cle=cle):
+        r.onglet('program', 'Programme')
+        r.defiler('[data-action="go-diet-plans"]', 'liste sous les cartes')
+        r.toucher('[data-action="go-diet-plans"]', 'Plans de nutrition')
+        r.attendre('.diet-plans-view', 'Mes diètes')
+    with r.etape('plan', 'Plan « Sèche semaine 1 » : Jours, Consigne, objectifs, repas', cle=cle):
+        r.toucher('[data-action="diet-open-plan"][data-id="d_seche001"]', 'Sèche semaine 1')
+        r.attendre('[data-action="diet-days-mode"]', 'cellule Jours')
+    with r.etape('jours-choix', 'Jours : tous pareils, entraînement et repos, semaine', cle=cle):
+        r.toucher('[data-action="diet-days-mode"]', 'Jours')
+        r.attendre('.ios-dialog__btn', 'choix des jours')
+    with r.etape('semaine', 'Semaine choisie : 7 jours, copies du premier jour (Annuler dans le message)', cle=cle):
+        r.choisir('Semaine (lundi à dimanche)')
+        r.attendre('.diet-dayrow', 'vue des jours')
+    r.raccourci("""() => { const p = data.dietPlans.d_seche001; p.days.kinds = ['t', 'r', 't', 't', 't', 'r', 'r'];
+        for (const i of [0, 4, 5]) { const o = p.days.more[i]; o.targets = { ...o.targets, kcal: 2000, c: 200 };
+          o.meals[1].items[0].g = 50; o.meals[1].items[1].g = 120; o.meals[0].items[0].g = 250; } save(); render(); }""",
+                'semaine réaliste : mardi, samedi et dimanche de repos (2 000 kcal, moins de féculents)')
+    with r.etape('semaine-vue', 'Vue des 7 jours : type, repas, kcal et macros de chaque jour', cle=cle):
+        r.defiler('.diet-dayrow[data-dayi="6"]', 'dimanche')
+    with r.etape('lundi', 'Lundi ouvert : bande des 7 jours, Entraînement | Repos, repas du jour', cle=cle):
+        r.toucher('.diet-dayrow[data-dayi="0"]', 'Lundi')
+        r.attendre('.diet-dayswipe', 'écran du lundi')
+    cle = 'Coach : ajouter un aliment par la recherche'
+    with r.etape('recherche', 'Ajouter un aliment : recherche en tête, « crème de riz » (valeurs Ciqual dites)', cle=cle):
+        r.toucher('[data-action="diet-add-food"]', 'Ajouter un aliment (Déjeuner)')
+        r.attendre('#dietFoodSearch', 'feuille de recherche')
+        r.saisir('#dietFoodSearch', 'crème de riz', 'recherche')
+        r.attendre('.sheet .diet-pick__list .diet-cand', 'résultats')
+    with r.etape('quantite', 'Crème de riz choisie : 60 g', cle=cle):
+        r.toucher('.sheet .diet-pick__list .diet-cand', 'Crème de riz')
+        alerte = r.present('.ios-dialog__input', timeout=1500)
+        r.saisir('.ios-dialog__input' if alerte else '.sheet-root:not(.sheet-root--out) #qtyVal', 60, 'quantité')
+    with r.etape('ajoute', '« Ajouté : Crème de riz » avec Annuler', cle=cle):
+        if r.present('.ios-dialog__input'):
+            r.choisir('OK')
+        else:
+            r.toucher('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm', 'OK')
+    cle = 'Coach : copier un repas vers d\'autres jours'
+    with r.etape('copier-repas', 'Déjeuner : « Copier vers d\'autres jours… », mardi et jeudi cochés', cle=cle):
+        r.toucher('[data-action="diet-meal-menu"]', 'Modifier (déjeuner)')
+        r.choisir('Copier vers d\'autres jours')
+        r.attendre('.sheet .diet-dpick', 'jours à cocher')
+        r.toucher('.sheet [data-dpick="1"]', 'Mardi')
+        r.toucher('.sheet [data-dpick="3"]', 'Jeudi')
+    with r.etape('repas-copie', 'Déjeuner copié vers mardi et jeudi', cle=cle):
+        r.toucher('.sheet__btn--confirm', 'Copier')
+    cle = 'Coach : mettre un jour sur toute la semaine'
+    with r.etape('sept-jours', '« Mettre pareil sur les 7 jours » : confirmation', cle=cle):
+        r.defiler('[data-action="diet-day-all"]', 'Mettre pareil sur les 7 jours')
+        r.toucher('[data-action="diet-day-all"]', 'Mettre pareil sur les 7 jours')
+        r.attendre('.ios-dialog', 'confirmation')
+    with r.etape('sept-jours-remplaces', '« Remplacer » : 7 jours pareils, Annuler dans le message', cle=cle):
+        r.choisir('Remplacer')
+    with r.etape('sept-jours-annule', '« Annuler » : la semaine revient comme avant', cle=cle):
+        r.toucher('.toast__action', 'Annuler')
+    cle = 'Coach : jours de repos'
+    with r.etape('repos', 'Lundi passé en Repos : « Copier vers les autres jours de repos »', cle=cle):
+        r.toucher('[data-action="diet-day-set-kind"][data-k="r"]', 'Repos')
+        r.defiler('[data-action="diet-day-same"]', 'Copier vers les autres jours de repos')
+    with r.etape('repos-copie', 'Copie vers les jours de repos : confirmation', cle=cle):
+        r.toucher('[data-action="diet-day-same"]', 'Copier vers les autres jours de repos')
+        r.attendre('.ios-dialog', 'confirmation')
+    with r.etape('repos-copie-ok', 'Lundi copié sur les jours de repos (Annuler dans le message)', cle=cle):
+        r.choisir('Copier')
+    # Lundi remis en jour d'entraînement pour la suite (préparé) : la copie est annulée
+    if r.present('.toast__action'):
+        r.page.locator('.toast__action').first.click()
+        r.page.wait_for_timeout(300)
+    if r.present('[data-action="diet-day-set-kind"][data-k="t"]'):
+        r.page.locator('[data-action="diet-day-set-kind"][data-k="t"]').first.click()
+        r.page.wait_for_timeout(300)
+    cle = 'Coach : objectifs d\'eau et de sel'
+    with r.etape('objectifs', 'Objectifs du jour : calories, macros, eau de 3 à 5 L, sel de 3 à 5 g', cle=cle):
+        r.toucher('[data-action="diet-targets"]', 'Objectifs du jour')
+        r.attendre('#dietT_saltMax', 'feuille des objectifs')
+        r.defiler('#dietT_saltMax', 'champs Eau et Sel')
+    with r.etape('objectifs-sel', 'Sel au plus 7 g : repère de l\'OMS dit au coach, rien de bloqué', cle=cle):
+        r.saisir('#dietT_saltMax', '7', 'sel au plus')
+        r.defiler('#dietTSaltNote', 'repère de l\'OMS')
+    with r.etape('objectifs-ok', 'Objectifs enregistrés', cle=cle):
+        r.toucher('.sheet__btn--confirm', 'OK')
+    cle = 'Coach : envoyer un plan à plusieurs élèves'
+    with r.etape('apercu', 'Aperçu et envoi : une ligne par jour (kcal, macros, eau, sel, écart)', cle=cle):
+        r.retour()
+        r.attendre('[data-action="diet-send-student"]', 'Aperçu et envoi')
+        r.toucher('[data-action="diet-send-student"]', 'Aperçu et envoi')
+        r.attendre('.diet-send-view', 'aperçu')
+    with r.etape('apercu-eleves', 'Élèves à cocher : Tous', cle=cle):
+        r.toucher('[data-action="diet-send-all"]', 'Tous')
+    with r.etape('confirmation', 'Envoyer : élèves nommés, jours loin de l\'objectif dits, « Revoir les jours »', cle=cle):
+        r.toucher('#dietSendGo', 'Envoyer à 2 élèves')
+        r.attendre('.ios-dialog', 'confirmation')
+    with r.etape('envoye', 'Plan envoyé aux deux élèves, gardé dans Mes diètes', cle=cle):
+        r.choisir('Envoyer')
+
+
+@parcours('nutri-eleve-jours', 'Élève : jour d\'entraînement ou de repos, Remplacer, eau en verres, sel, semaine', 'pratiquant')
+def p_nutri_eleve_jours(r):
+    """Élève qui suit « Sèche semaine 1 » de son coach (jour d'entraînement à 2 300 kcal, jour de repos à 2 000 kcal),
+    sans séance aujourd'hui : « Séance aujourd'hui ? » sur l'accueil et en haut de Nutrition, « Non » (repos), « Changer »
+    (entraînement), « Remplacer » la pomme de terre (175 g de riz cuit), verres d'eau (3 à 5 L), sel (pincée, cuillère à
+    café). Puis le même plan en semaine de 7 jours : « Mercredi · Repos », la semaine s'ouvre, jour suivant."""
+    d = _sans_seance_du_jour(json.loads(REALISTE))
+    d['dietPlans'] = {'dc_c1_seche': plan_seche_eleve('session')}
+    d['dietActive'] = 'dc_c1_seche'
+    d['dietEmptyDays'] = False
+    r.lancer(json.dumps(d, ensure_ascii=False, separators=(',', ':')))
+    cle = 'Élève : dire si on s\'entraîne aujourd\'hui'
+    with r.etape('accueil-question', 'Accueil : « Séance aujourd\'hui ? » sur la carte Nutrition', cle=cle):
+        r.defiler('.diet-home', 'carte Nutrition')
+    with r.etape('nutrition-question', 'Nutrition : la question en haut, menu du jour d\'entraînement en attendant', cle=cle):
+        r.toucher('.diet-home__open', 'carte Nutrition')
+        r.attendre('.nutrition-view .diet-dayask', 'question du jour')
+    with r.etape('repos', '« Non » : jour de repos, 2 000 kcal (« Changer » à côté)', cle=cle):
+        r.toucher('.nutrition-view .diet-dayask [data-v="r"]', 'Non')
+        r.attendre('.nutrition-view .diet-dayline', 'ligne du jour')
+    with r.etape('entrainement', '« Changer » : jour d\'entraînement, 2 300 kcal', cle=cle):
+        r.toucher('[data-action="diet-day-kind"]', 'Changer')
+    cle = 'Élève : remplacer un aliment'
+    with r.etape('remplacer', 'Pomme de terre : « Remplacer » (équivalents, quantité calculée)', cle=cle):
+        r.toucher('.diet-item[data-item="i1"]', 'Pomme de terre (Remplacer)')
+        r.attendre('.sheet .diet-cands', 'équivalents')
+    with r.etape('remplace', 'Riz blanc cuit choisi : 175 g pour la journée', cle=cle):
+        r.toucher('.sheet .diet-cand[data-swap]', 'Riz blanc, cuit', texte='Riz blanc, cuit')
+    cle = 'Élève : noter son eau'
+    with r.etape('eau', 'Carte Eau : objectif 3 à 5 L, cases de 1 L', cle=cle):
+        r.defiler('.water-card', 'carte Eau')
+    with r.etape('eau-verre', 'Une case touchée : 1 L noté', cle=cle):
+        r.toucher('.water-cup', 'première case')
+    cle = 'Élève : noter son sel'
+    with r.etape('sel', 'Bilan : « Sel … objectif 3 à 5 g », « + Pincée 0,4 g »', cle=cle):
+        r.defiler('.diet-salt', 'ligne Sel')
+    with r.etape('sel-pincee', 'Pincée ajoutée d\'un toucher (Annuler dans le message)', cle=cle):
+        r.toucher('.diet-salt__add', '+ Pincée')
+    with r.etape('sel-feuille', 'Feuille Sel : sel des aliments, sel ajouté, pincée, cuillère à café, autre', cle=cle):
+        r.toucher('.diet-salt__open', 'ligne Sel')
+        r.attendre('.sheet .diet-saltsheet', 'feuille Sel')
+    with r.etape('sel-cuillere', 'Cuillère à café ajoutée : 6 g de plus', cle=cle):
+        r.toucher('.sheet [data-salt="6"]', 'Cuillère à café')
+    with r.etape('sel-ferme', 'Feuille fermée : bilan du jour à jour', cle=cle):
+        r.toucher('.sheet__btn--confirm', 'OK')
+        r.defiler('.diet-salt', 'ligne Sel')
+    r.raccourci("""p => { data.dietPlans = { dc_c1_sem: p }; data.dietActive = 'dc_c1_sem'; save(); navigate('nutrition'); render(); }""",
+                'le coach a envoyé la version de 7 jours du plan (mardi, mercredi, samedi et dimanche de repos)', plan_seche_eleve('week'))
+    cle = 'Élève : voir la semaine du plan'
+    with r.etape('semaine-ligne', 'Nutrition : « Mercredi · Repos » sous la frise', cle=cle):
+        r.attendre('.diet-dayline', 'ligne du jour')
+    with r.etape('semaine-jour', 'La semaine s\'ouvre sur mercredi', cle=cle):
+        r.toucher('.diet-dayline [data-action="diet-open-day"]', 'Voir la semaine')
+        r.attendre('.diet-dayswipe', 'jour du plan')
+    with r.etape('semaine-suivant', 'Jour suivant : jeudi, jour d\'entraînement', cle=cle):
+        r.toucher('.diet-daynav__btn--next', 'Jeudi')
+
+
+def _jour_partage(n, kcal, faits, kind='t', water=2500, salt=4.2):
+    """Un jour envoyé par l'élève (dietShareDay), n jours avant l'horloge (mercredi 4/11/2026)."""
+    import datetime
+    noms = ['Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner']
+    jour = (datetime.date(2026, 11, 4) - datetime.timedelta(days=n)).isoformat()
+    return {'day': jour, 'plan': 'd_seche001', 'name': 'Sèche semaine 1', 'kind': kind,
+            'meals': [{'n': m, 'ok': i < faits} for i, m in enumerate(noms)], 'kcal': kcal, 'p': round(kcal * 0.065), 'c': round(kcal * 0.11),
+            'f': round(kcal * 0.024), 'goal': {'kcal': 2300, 'p': 150, 'c': 270, 'f': 55}, 'water': water, 'waterGoal': 5000, 'waterMin': 3000,
+            'salt': salt, 'saltMin': 3, 'saltMax': 5}
+
+
+# Léa : semaine réaliste (suivie, partielle, un jour sans rien, aujourd'hui en cours) ; Zoé : 3 jours à côté
+JOURS_LEA = [_jour_partage(0, 1120, 2), _jour_partage(1, 2240, 4), _jour_partage(2, 1980, 3, 'r'), _jour_partage(4, 2310, 4),
+             _jour_partage(5, 1500, 2, 'r'), _jour_partage(6, 2190, 4), _jour_partage(9, 2300, 4)]
+JOURS_ZOE = [_jour_partage(1, 600, 1), _jour_partage(2, 450, 1), _jour_partage(3, 900, 1), _jour_partage(5, 2300, 4)]
+
+
+@parcours('suivi-diete-eleve', 'Élève : partager le suivi de sa diète avec son coach (case à part)', 'coach')
+def p_suivi_diete_eleve(r):
+    """Léa, suivie par max, suit « Sèche semaine 1 » (2 repas cochés, 1,5 L d'eau aujourd'hui). Réglages › Social et coach ›
+    Partager avec mon coach : « Suivi de ma diète » décochée par défaut, séparée de l'accord des plans, ce que le coach
+    verra (jamais les aliments ni les heures, 90 jours au plus), cocher (Annuler dans le message), décocher."""
+    d = json.loads(REALISTE)
+    d['dietPlans'] = {'dc_c1_sem': plan_seche_eleve('session')}
+    d['dietActive'] = 'dc_c1_sem'
+    d['dietEmptyDays'] = False
+    auj = '2026-11-04'
+    d['dietLog'] = {auj: {'plan': 'dc_c1_sem', 'done': ['m3', 'm1'], 'swaps': {}, 'meals': ['m1', 'm2', 'm3', 'm4'], 'kind': 't'}}
+    d['waterLog'] = {auj: [{'id': 'w1', 'ml': 1000, 'at': NOW - 3600_000}, {'id': 'w2', 'ml': 500, 'at': NOW - 60_000}]}
+    r.lancer(json.dumps(d, ensure_ascii=False, separators=(',', ':')))
+    r.connecter('lea')
+    r.raccourci("""() => { const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false }); __sb.makeCoach(max);
+        __sb.link(max, __sb.meId(), Date.now() - 20 * 86400000); return coachRefresh(); }""", 'Léa suivie par le coach max depuis 20 jours')
+    cle = 'Élève : partager le suivi de sa diète'
+    with r.etape('partage', 'Partager avec mon coach : « Suivi de ma diète » décochée, ce que max verra', cle=cle):
+        reglages(r)
+        r.defiler('[data-action="coach-open-share"]', 'Partager avec mon coach')
+        r.toucher('[data-action="coach-open-share"]', 'Partager avec mon coach')
+        r.attendre('[data-action="coach-share-toggle"][data-kind="diet_log"]', 'case Suivi de ma diète')
+    with r.etape('partage-bas', 'Bas de l\'écran : voit, jamais, arrêter, « En savoir plus »'):
+        r.bas('bas du partage')
+    with r.etape('partage-coche', '« Suivi de ma diète » cochée : « Diète partagée avec ton coach » (Annuler)', cle=cle):
+        r.toucher('[data-action="coach-share-toggle"][data-kind="diet_log"]', 'Suivi de ma diète')
+    with r.etape('partage-decoche', 'Décochée : « Partage arrêté, journées supprimées du serveur »'):
+        r.page.wait_for_timeout(2500)   # message du partage donné parti
+        r.toucher('[data-action="coach-share-toggle"][data-kind="diet_log"]', 'Suivi de ma diète')
+
+
+@parcours('suivi-diete-coach', 'Coach : carte Diète de l\'élève, Mes élèves, à relancer', 'coach')
+def p_suivi_diete_coach(r):
+    """Coach max, trois élèves : Léa partage sa diète (semaine suivie en partie, aujourd'hui en cours), Zoé la partage et
+    l'a manquée 3 jours, Tom ne la partage pas. Mes élèves (7 pastilles, « Diète manquée 3 jours »), fiche de Zoé et
+    « Écrire à zoe » (message prêt, jamais envoyé seul), fiche de Léa (carte Diète, un jour touché, règle, semaine d'avant),
+    fiche de Tom (« Non partagé par l'élève »)."""
+    r.lancer(REALISTE)
+    r.connecter('max')
+    r.raccourci("""([lea, zoe]) => { const me = __sb.meId(); __sb.makeCoach(me);
+        const ids = {};
+        for (const [name, av] of [['lea', '🦊'], ['tom', '🐼'], ['zoe', '🦉']]) { ids[name] = __sb.addPerson({ username: name, avatar: av, social: false, sessions: [
+          { id: 'h1', date: Date.now() - 86400000, duration: 3600000, programme: 'ppl', category: 'push', label: 'Push', exercises: [{ name: 'Développé couché', sets: [{ weight: '60', reps: '8' }] }] }] });
+          __sb.link(me, ids[name], Date.now() - 60 * 86400000); }
+        __sb.shareDiet(ids.lea, lea); __sb.shareDiet(ids.zoe, zoe);
+        return coachRefresh(); }""", 'rôle coach validé ; Léa et Zoé partagent leur diète, Tom non', [JOURS_LEA, JOURS_ZOE])
+    cle = 'Coach : voir qui suit sa diète'
+    with r.etape('mes-eleves', 'Onglet Coach, Élèves : ligne Diète (7 pastilles), « Diète manquée 3 jours »', cle=cle):
+        r.onglet('friends', 'Coach')
+        r.attendre('.coach-team .coach-student-row', 'Élèves')
+    with r.etape('fiche-zoe', 'Fiche de Zoé : « zoe n\'a pas suivi sa diète ces 3 derniers jours », « Écrire à zoe »', cle='Coach : relancer un élève sur sa diète'):
+        r.toucher('.coach-student-row', 'Zoé', texte='zoe')
+        r.attendre('.cdiet', 'carte Diète')
+        r.defiler('.cdiet__warn', 'carte Diète')
+    with r.etape('ecrire', '« Écrire à zoe » : message déjà écrit, à relire, pas envoyé', cle='Coach : relancer un élève sur sa diète'):
+        r.toucher('.cdiet__write', 'Écrire à zoe')
+        r.attendre('#chatInput', 'conversation')
+    with r.etape('fiche-lea', 'Fiche de Léa : carte Diète, 7 jours, hier choisi d\'office', cle=cle):
+        r.retour()
+        r.retour()
+        r.attendre('.coach-team .coach-student-row', 'Élèves')
+        r.toucher('.coach-student-row', 'Léa', texte='lea')
+        r.attendre('.cdiet__days', 'carte Diète')
+        r.defiler('.cdiet', 'carte Diète')
+    with r.etape('detail-jour', 'Lundi touché (partiel) : repas cochés, calories, macros, eau, sel', cle=cle):
+        r.toucher('.cdiet__day', 'Lundi', nth=4)
+        r.defiler('.cdiet__group', 'détail du jour')
+    with r.etape('regle', '« Comment c\'est compté » : seuils de Suivi et de Partiel'):
+        r.toucher('.cdiet__rule summary', 'Comment c\'est compté')
+    with r.etape('semaine-avant', 'Semaine d\'avant', cle=cle):
+        r.toucher('[data-action="coach-diet-week"][data-dir="1"]', 'Semaine d\'avant')
+        r.defiler('.cdiet', 'carte Diète')
+    with r.etape('non-partage', 'Fiche de Tom : « Non partagé par l\'élève », aucun chiffre'):
+        r.retour()
+        r.attendre('.coach-team .coach-student-row', 'Élèves')
+        r.toucher('.coach-student-row', 'Tom', texte='tom')
+        r.attendre('.cdiet-off', 'carte Diète non partagée')
+        r.defiler('.cdiet-off', 'carte Diète')
 
 
 if __name__ == '__main__':

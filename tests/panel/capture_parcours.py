@@ -47,7 +47,8 @@ COMBOS = {
     'grand-texte': [('webkit', d, th, fs) for fs in (23, 33) for d in ('iPhone 13', 'iPhone SE') for th in ('light', 'dark')],
 }
 # Parcours du mode texte agrandi
-GRAND_TEXTE_PARCOURS = ['accueil', 'seance', 'coach', 'boite-coach', 'social', 'photos-bilan', 'nutrition', 'reglages']
+GRAND_TEXTE_PARCOURS = ['accueil', 'seance', 'coach', 'boite-coach', 'social', 'photos-bilan', 'nutrition', 'reglages',
+                        'nutri-coach-plan', 'nutri-eleve-jours', 'suivi-diete-eleve', 'suivi-diete-coach']
 THEME_FR = {'dark': 'sombre', 'light': 'clair'}
 CIBLE_MINI = 44
 POLICE_MINI = 12
@@ -206,6 +207,12 @@ class Pilote:
             loc.scroll_into_view_if_needed(timeout=ATTENTE_MS)
             loc.click(timeout=ATTENTE_MS)
         except Exception:
+            # Clic parti mais écran changé pendant que Playwright attendait (machine chargée) : l'élément n'existe
+            # plus, le toucher a bien eu lieu (sinon evaluate attendrait 30 s un élément disparu)
+            if not self._loc(sel, texte, None).count():
+                self._note(quoi)
+                self.page.wait_for_timeout(pause)
+                return
             # Élément redessiné en continu (minuteur) : Playwright ne le juge jamais « stable ». S'il est bien
             # au premier plan là où le doigt se poserait, le toucher est rejoué par un clic DOM.
             # Élément à moitié sous la barre (défilement rendu au retour) : centré, comme le ferait un doigt qui fait défiler
@@ -247,10 +254,18 @@ class Pilote:
 
     def defiler(self, sel, quoi):
         """Défilement jusqu'à un élément (geste noté, pas un toucher)."""
-        loc = self.page.locator(sel).first
-        if not loc.count():
-            raise Absent(f'introuvable : {quoi}')
-        loc.evaluate("e => e.scrollIntoView({ block: 'center' })")
+        # Élément visible d'abord (le même bouton existe parfois caché dans un autre écran), et redessiné pendant le
+        # défilement (rafraîchissement du coach) : un second essai sur le nouvel élément
+        for essai in range(2):
+            loc = self._loc(sel) if self._loc(sel, None, None).count() else self.page.locator(sel).first
+            if not loc.count():
+                raise Absent(f'introuvable : {quoi}')
+            try:
+                loc.evaluate("e => e.scrollIntoView({ block: 'center' })", timeout=ATTENTE_MS)
+                break
+            except Exception:
+                if essai:
+                    raise
         self.page.wait_for_timeout(200)
         self._note(f'défile jusqu\'à {quoi}', touche=False)
 
