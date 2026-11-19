@@ -138,13 +138,13 @@ def t_journee(bench, eng, dev, theme):
         ring = page.evaluate("""() => { const b = document.querySelector('.diet-home .diet-check'), probe = document.createElement('span');
             probe.style.color = 'var(--set-ring)'; document.body.append(probe); const set = getComputedStyle(probe).color; probe.remove();
             return { ring: getComputedStyle(b, '::before').boxShadow, set, op: getComputedStyle(b.querySelector('.icon')).opacity }; }""")
-        R.check(page.locator('.diet-home .diet-check').count() == 1 and float(ring['op']) == 0 and ring['set'] in ring['ring'],
+        R.check(page.locator('.diet-home .diet-check').count() >= 1 and float(ring['op']) == 0 and ring['set'] in ring['ring'],
                 f'{t} carte : rond vide gris comme en séance, sans coche avant de cocher {ring}')
         shot(page, LOT, f'1-accueil-{t}')
         card.scroll_into_view_if_needed()
         shot(page, LOT, f'1b-accueil-carte-{t}')
         # Cocher depuis l'accueil : un seul toucher, le repas suivant prend la place
-        page.click('.diet-home [data-action="diet-check"]')
+        page.click('.diet-home__meal--next [data-action="diet-check"]')
         settle(page)
         R.check(page.evaluate("dietDayProgress(data, data.dietActive).meals[0].done") is True, f'{t} accueil : petit-déjeuner coché d\'un toucher')
         R.check(page.locator('.diet-home__meal--next[data-meal="m2"] [data-action="diet-check"]').count() == 1
@@ -638,7 +638,7 @@ def t_plan_neuf_puis_coach(bench):
             d['dietEmptyDays'] = False   # mode pré-rempli (son propre plan commence vide par défaut depuis le 13/11)
             d['dietActive'] = 'd_neuf0001'
             open_app(page, theme, json.dumps(d, ensure_ascii=False))
-            page.click('.diet-home [data-action="diet-check"]')
+            page.click('.diet-home__meal--next [data-action="diet-check"]')
             settle(page)
             # Équivalent du riz pour la journée (quelques kcal de plus ou de moins que prévu)
             page.evaluate("""async () => { await loadFoods(); const it = data.dietPlans.d_neuf0001.meals[0].items[0];
@@ -973,7 +973,7 @@ def t_minuit(bench):
     eve = local_ms(2026, 11, 5, 23, 59, tz=PARIS)
     with bench.frozen_page(eve, eng, 'iPhone 13', 'light') as page:
         open_app(page, 'light', with_plan(eve))
-        page.click('.diet-home [data-action="diet-check"]')
+        page.click('.diet-home__meal--next [data-action="diet-check"]')
         settle(page)
         R.check(page.locator('.diet-home__meal--next[data-meal="m2"]').count() == 1, 'accueil 23 h 59 : petit-déjeuner coché')
         page.clock.run_for(90_000)
@@ -999,8 +999,9 @@ def t_vague4(bench, eng, dev, theme):
         R.check(names == ['Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'], f'{t} v4 carte : les 4 repas ({names})')
         kc = [nb(x) for x in page.locator('.diet-home__mkcal').all_inner_texts()]
         R.check(len(kc) == 4 and all(re.fullmatch(r'\d[\d ]* kcal', k) for k in kc), f'{t} v4 carte : kcal de chaque repas ({kc})')
-        R.check(page.locator('.diet-home [data-action="diet-check"]').count() == 1
-                and page.locator('.diet-home__meal--next[data-meal="m1"] [data-action="diet-check"]').count() == 1, f'{t} v4 carte : un seul bouton, sur le prochain repas')
+        # Panel nutri-final t1 : chaque repas pas encore coché se coche d'ici, le prochain reste en gras
+        R.check(page.locator('.diet-home [data-action="diet-check"]').count() == 4
+                and page.locator('.diet-home__meal--next[data-meal="m1"] [data-action="diet-check"]').count() == 1, f'{t} v4 carte : un rond par repas, le prochain en avant')
         lbl = page.get_attribute('.diet-home__open', 'aria-label') or ''
         R.check('Prise de masse' in lbl and 'Déjeuner' in lbl and 'Dîner' in lbl and lbl.endswith('Ouvrir'), f'{t} v4 carte : VoiceOver dit le plan et les repas ({lbl[:90]!r})')
         R.check(page.evaluate("[...document.querySelectorAll('.diet-home__mtext')].every(e => e.getAttribute('aria-hidden') === 'true')"), f'{t} v4 carte : lignes cachées à VoiceOver (dites par le bouton)')
@@ -1008,7 +1009,7 @@ def t_vague4(bench, eng, dev, theme):
         R.check(rows.count() == 4 and h < 330, f'{t} v4 carte : compacte ({round(h)} px)')
         layout(page, t, 'v4 carte de l\'accueil')
         shot(page, LOT, f'v4-1-carte-{t}')
-        page.click('.diet-home [data-action="diet-check"]')
+        page.click('.diet-home__meal--next [data-action="diet-check"]')
         settle(page)
         R.check(page.locator('.diet-home__meal--done[data-meal="m1"]').count() == 1 and page.locator('.diet-home__meal--next[data-meal="m2"] .diet-check').count() == 1,
                 f'{t} v4 carte : coché d\'un toucher, le suivant prend le bouton')

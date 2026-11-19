@@ -370,12 +370,13 @@ async function dietAskGrams(food, value = 100) {
   const base = `Quantité en grammes. Pour 100 g : ${food.per.k} kcal.`;
   const p = askNumber({ title: elideName(foodName(food.name)), message: base,   // macros déjà dans la liste : l'alerte reste courte en texte agrandi
     value: String(value), unit: 'g', min: 1, max: DIET_G_MAX });
-  // Total de la quantité tapée, à chaque chiffre (panel nutri-final t1 : « je dois calculer de tête »), comme la fiche du scan
+  // Calories de la quantité tapée, à chaque chiffre (panel nutri-final t1 : « je dois calculer de tête ») ; sans
+  // abréviation de macros (lues lettre par lettre, panel du 07/11)
   const inp = document.querySelector('.ios-dialog .ios-dialog__input'), msg = document.querySelector('.ios-dialog .ios-dialog__msg');
   if (inp && msg) {
     const paint = () => {
       const g = num(inp.value, 1, DIET_G_MAX);
-      msg.textContent = g ? `${fmtNum(g)}\u00a0g : ${dietMacroLine(dietItemMacros({ g, per: food.per }))}` : base;
+      msg.textContent = g && g !== 100 ? `${base} Pour ${fmtNum(g)}\u00a0g : ${fmtNum(Math.round(food.per.k * g / 100))} kcal.` : base;
     };
     inp.addEventListener('input', paint);
     paint();
