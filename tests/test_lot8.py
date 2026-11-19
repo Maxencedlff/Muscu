@@ -32,6 +32,10 @@ def tab(page, i):
 
 
 def new_programme(page, name, start_label):
+    # Liste Programmes (racine de l'onglet) › Ajouter un programme › Créer un programme
+    if not page.locator('[data-action="new-programme"]').count():
+        page.click('[data-action="go-prog-add"]')
+        settle(page)
     page.click('[data-action="new-programme"]')
     page.wait_for_selector('.ios-dialog__input')
     page.fill('.ios-dialog__input', name)
@@ -196,14 +200,16 @@ def t_programmes(bench, eng, dev, theme):
         settle(page)
         R.check('legs' not in data(page)['userProgrammes'][pid2]['sessions'], f'{t} séance supprimée depuis son écran')
 
-        # 4. Le sélecteur liste les deux sous « Mes programmes »
-        page.click('[data-action="go-my-programmes"]')
+        # 4. La liste Programmes (racine de l'onglet) montre les deux ; toucher l'autre : sa fiche, « Utiliser ce programme »
+        tab(page, 3)
         page.wait_for_selector('.view.my-programmes')
         txt = page.inner_text('.view.my-programmes')
-        R.check('Force 5×5' in txt and 'PPL perso' in txt and 'mes programmes' in txt.lower(), f'{t} sélecteur : mes programmes')
+        R.check('Force 5×5' in txt and 'PPL perso' in txt and 'programme actif' in txt.lower(), f'{t} liste : les deux programmes, l\'actif signalé')
         shot(page, LOT, f'selecteur-{t}')
-        page.locator('[data-action="select-prog"]', has_text='Force 5×5').first.click()
-        tap_dialog(page, 'Changer de programme')
+        page.locator('[data-action="open-my-prog"]', has_text='Force 5×5').first.click()
+        page.wait_for_selector('[data-action="prog-info-use"]')
+        page.click('[data-action="prog-info-use"]')
+        page.wait_for_selector('.view.programmes')
         R.check(data(page)['activeProgramme'] == pid, f'{t} bascule entre programmes créés')
 
         # 5. Suppression : l'historique reste lisible, le programme disparaît du sélecteur
@@ -216,9 +222,8 @@ def t_programmes(bench, eng, dev, theme):
         tab(page, 1)
         R.check('Haut du corps' in page.inner_text('#app'), f'{t} historique affiche encore la séance du programme supprimé')
         tab(page, 3)
-        page.click('[data-action="go-my-programmes"]')
         page.wait_for_selector('.view.my-programmes')
-        R.check('Force 5×5' not in page.inner_text('.view.my-programmes'), f'{t} programme supprimé absent du sélecteur')
+        R.check('Force 5×5' not in page.inner_text('.view.my-programmes'), f'{t} programme supprimé absent de la liste')
 
         # 6. Après rechargement, tout est conservé ; l'ancien « Perso » reste accessible
         page.reload()

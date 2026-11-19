@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 //  Programme sur mesure : questions courtes façon iOS, puis l'aperçu du programme généré
 //
-//  Accès principal : Programme › Mes programmes › Ajouter un programme › « Créer mon programme sur mesure ».
+//  Accès principal : Programme › Ajouter un programme › « Créer mon programme sur mesure ».
 //  Au premier lancement, jamais imposé : niveau « Je reprends ou j'ai une douleur », ou « Ajuster à mon temps et mon
 //  matériel » sous le programme conseillé ; « Plus tard » ne relance rien. Une question par écran (route prog-gen:<étape>), le retour d'iOS revient à la précédente.
 //  Âge, taille, poids et sexe : ceux des Réglages (mêmes clés et mêmes actions : set-profile-age,
@@ -250,7 +250,7 @@ registerActions({
     const name = genProgrammeName();
     const cur = progMeta(data.activeProgramme).name;
     if (!(await confirmSheet(`Utiliser « ${name} » ?`,
-      `Il devient le programme actif. ${cur} reste dans Mes programmes, avec son historique.`, 'Utiliser ce programme', false))) return;
+      `Il devient le programme actif. ${cur} reste dans tes programmes, avec son historique.`, 'Utiliser ce programme', false))) return;
     const id = 'u_' + uid();
     const { up, pd } = genProgrammeData(r, name);
     data.userProgrammes[id] = up;
@@ -260,7 +260,7 @@ registerActions({
     genStore();
     save();
     haptic();
-    routeTo(nav.stacks[nav.tab][0]);
+    showActiveProgramme();   // sa page, sous la liste Programmes (js/features/programme.js)
     showToast(`Programme : ${name}`);
   },
 });

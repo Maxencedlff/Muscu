@@ -83,10 +83,9 @@ def t_generateur(bench, eng, dev, theme):
         seed(page, theme, json.dumps(d, ensure_ascii=False))
         before = page.evaluate('[data.activeProgramme, data.myProgrammes]')
 
-        # Programme › Mes programmes › Ajouter : « Programme sur mesure » en première ligne
+        # Programme (liste) › Ajouter : « Programme sur mesure » en première ligne
         page.locator('.tabbar [role=tab]').nth(3).click()
         settle(page)
-        tap(page, '[data-action="go-my-programmes"]')
         tap(page, '[data-action="go-prog-add"]')
         first = page.evaluate("document.querySelector('.prog-add .scr button')?.dataset.action")
         R.check(first == 'go-prog-gen', f'{t} première ligne : sur mesure ({first})')
@@ -160,7 +159,7 @@ def t_premier_lancement(bench, eng, dev, theme):
                 f'{t} Plus tard : rien au lancement suivant')
         page.locator('.tabbar [role=tab]').nth(3).click()
         settle(page)
-        R.check(page.evaluate('view') == 'programmes' and page.locator('.view.prog-gen').count() == 0, f'{t} Plus tard : onglet Programme normal')
+        R.check(page.evaluate('view') == 'my-programmes' and page.locator('.view.prog-gen').count() == 0, f'{t} Plus tard : onglet Programme normal')
         R.check(ls(page, 'mdlf_gen_answers') is None, f'{t} Plus tard : aucune réponse gardée')
 
         # Lien sous « Commencer » : générateur prérempli avec les trois réponses

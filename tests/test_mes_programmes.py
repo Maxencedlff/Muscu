@@ -1,7 +1,9 @@
-"""Mes programmes : liste choisie et ordonnée (data.myProgrammes), catalogue « Tous les programmes ».
+"""Programmes (racine de l'onglet Programme depuis le 19/11) : liste choisie et ordonnée (data.myProgrammes),
+catalogue « Tous les programmes ».
 
-Migration d'une donnée existante, ajout depuis la fiche d'un programme, activation, ordre (poignées ≡),
-retrait d'un programme intégré (il reste au catalogue), « Utiliser ce programme », accès depuis l'accueil.
+Migration d'une donnée existante, ajout depuis la fiche d'un programme, toucher = page du programme (l'actif) ou fiche
+avec « Utiliser ce programme », ordre (poignées ≡), retrait d'un programme intégré (il reste au catalogue), accès
+depuis l'accueil.
 """
 import json
 import os
@@ -47,17 +49,14 @@ def t_mes_programmes(bench, eng, dev, theme):
         seed(page, theme, ppl_v2_today_json())
         R.check(page.evaluate('data.myProgrammes') == ['ppl', 'custom'], f'{t} migration : actif puis Perso utilisé {page.evaluate("data.myProgrammes")}')
 
-        # Onglet Programme › Mes programmes
+        # Onglet Programme : la liste Programmes à sa racine
         tab(page, 3)
-        R.check('Mes programmes' in page.inner_text('[data-action="go-my-programmes"]'), f'{t} onglet : ligne « Mes programmes »')
-        R.check(page.locator('[data-action="new-programme"]').count() == 1, f'{t} onglet : « Créer un programme » toujours là')
-        tap(page, '[data-action="go-my-programmes"]')
         # Titre compact caché (visibility) tant que le grand titre est à l'écran (fd6000a) : lu par text_content
-        R.check(page.evaluate('view') == 'my-programmes' and (page.locator('.navbar__title').text_content() or '').strip() == 'Mes programmes', f'{t} écran Mes programmes')
-        ids = page.evaluate("[...document.querySelectorAll('.mp-list [data-action=\"select-prog\"]')].map(b => b.dataset.id)")
+        R.check(page.evaluate('view') == 'my-programmes' and (page.locator('.navbar__title').text_content() or '').strip() == 'Programmes', f'{t} onglet : liste Programmes')
+        ids = page.evaluate("[...document.querySelectorAll('.mp-list [data-action=\"open-my-prog\"]')].map(b => b.dataset.id)")
         R.check(ids == ['ppl', 'custom'], f'{t} liste dans l\'ordre de data.myProgrammes {ids}')
-        R.check(page.locator('[data-action="select-prog"][data-id="ppl"]').get_attribute('aria-pressed') == 'true', f'{t} coche sur l\'actif')
-        R.check(small_targets(page, '.view.my-programmes button') == 0 and no_hscroll(page), f'{t} Mes programmes : 44 pt, pas de défilement horizontal')
+        R.check(page.locator('[data-id="ppl"] .mp-active').count() == 1 and page.locator('.mp-active').count() == 1, f'{t} « Programme actif » sur l\'actif seul')
+        R.check(small_targets(page, '.view.my-programmes button') == 0 and no_hscroll(page), f'{t} Programmes : 44 pt, pas de défilement horizontal')
         shot(page, LOT, f'1-mes-programmes-{t}')
 
         # Ajouter un programme › Tous les programmes › Bro Split › Ajouter à mes programmes
@@ -86,15 +85,24 @@ def t_mes_programmes(bench, eng, dev, theme):
         R.check('Dans mes programmes' in page.inner_text('.prog-info__actions'), f'{t} fiche : « Dans mes programmes »')
         R.check(page.evaluate('data.activeProgramme') == 'ppl', f'{t} ajouter n\'active pas')
 
-        # Retour à Mes programmes, toucher = activer (confirmation), retour à l'onglet
+        # Retour à la liste ; toucher Bro Split = sa fiche, « Utiliser ce programme » = sa page
         page.click('[data-action="back"]'); settle(page)
         page.click('[data-action="back"]'); settle(page)
-        tap(page, '[data-action="select-prog"][data-id="bro"]')
-        tap_dialog(page, 'Changer de programme')
-        R.check(page.evaluate('[data.activeProgramme, view]') == ['bro', 'programmes'], f'{t} activé, retour à Programme')
+        tap(page, '[data-action="open-my-prog"][data-id="bro"]')
+        R.check(page.evaluate('view') == 'prog-info', f'{t} toucher un programme : sa fiche')
+        tap(page, '[data-action="prog-info-use"]')
+        R.check(page.evaluate('[data.activeProgramme, view]') == ['bro', 'programmes'], f'{t} activé, sa page')
+        R.check(page.evaluate('nav.stacks.program') == ['my-programmes', 'programmes'], f'{t} page juste sous la liste {page.evaluate("nav.stacks.program")}')
+        # Toucher l'actif : sa page ; Perso (créé, pas actif) : sa fiche
+        page.click('[data-action="back"]'); settle(page)
+        tap(page, '[data-action="open-my-prog"][data-id="custom"]')
+        R.check(page.evaluate('view') == 'prog-info' and page.locator('[data-action="prog-info-use"]').count() == 1, f'{t} Perso : fiche et « Utiliser ce programme »')
+        page.click('[data-action="back"]'); settle(page)
+        tap(page, '[data-action="open-my-prog"][data-id="bro"]')
+        R.check(page.evaluate('view') == 'programmes', f'{t} toucher l\'actif : sa page')
+        page.click('[data-action="back"]'); settle(page)
 
         # Modifier : l'actif ne se retire pas ; Bro Split glissé en tête ; PPL retiré
-        tap(page, '[data-action="go-my-programmes"]')
         tap(page, '[data-action="toggle-my-prog-edit"]')
         R.check(page.locator('.mp-row[data-id="bro"] .ed-minus').count() == 0, f'{t} actif : pas de ⊖')
         R.check(page.locator('.mp-row[data-id="ppl"] .ed-minus').get_attribute('aria-label') == 'Retirer PPL', f'{t} ⊖ nommé « Retirer PPL »')
@@ -121,14 +129,12 @@ def t_mes_programmes(bench, eng, dev, theme):
         tap(page, '.prog-add [data-action="open-prog-info"][data-id="arnold"]')
         tap(page, '[data-action="prog-info-use"]')
         R.check(page.evaluate('[data.activeProgramme, view]') == ['arnold', 'programmes'] and stored(page) == ['bro', 'custom', 'arnold'],
-                f'{t} Utiliser : ajouté, activé, retour à Programme {stored(page)}')
+                f'{t} Utiliser : ajouté, activé, sa page {stored(page)}')
 
-        # Accueil : le sous-titre « Programme … › » mène à Mes programmes
+        # Accueil : le sous-titre « Programme … › » mène à la liste Programmes (onglet Programme)
         tab(page, 0)
         tap(page, '.dashboard [data-action="go-my-programmes"]')
-        R.check(page.evaluate('view') == 'my-programmes', f'{t} accueil : sous-titre vers Mes programmes')
-        back = page.locator('.navbar__back').get_attribute('aria-label')
-        R.check(back == 'Retour : Entraînement', f'{t} retour vers l\'accueil ({back})')
+        R.check(page.evaluate('[view, nav.tab]') == ['my-programmes', 'program'], f'{t} accueil : sous-titre vers la liste Programmes')
         page.reload()
         page.wait_for_selector('#app > *')
         R.check(page.evaluate('data.myProgrammes') == ['bro', 'custom', 'arnold'], f'{t} conservé après rechargement')

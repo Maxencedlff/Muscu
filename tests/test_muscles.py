@@ -246,6 +246,7 @@ def t_editor(bench, eng, dev, theme):
             xs[0].muscles = ['calves']; xs[0].musclesSecondary = ['abs'];
             xs.unshift(makeExercise('Développé maison', 3)); save(); }""")
         tab(page, 3)
+        open_active_programme(page)
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         page.wait_for_selector('.view.editor')
         lines = page.locator('.ed-row .ex-muscles').all_inner_texts()
@@ -342,6 +343,7 @@ def t_library_muscles(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
         tab(page, 3)
+        open_active_programme(page)
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         page.wait_for_selector('.view.editor')
         page.click('.ed-row[data-i="0"]')
@@ -448,6 +450,7 @@ def t_add_sheet(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
         tab(page, 3)
+        open_active_programme(page)
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         page.wait_for_selector('.view.editor')
         # Programme › Séance : la Bibliothèque en mode choix (même liste illustrée), puis le réglage de l'exercice
@@ -710,6 +713,7 @@ def t_muscle_filter(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
         tab(page, 3)
+        open_active_programme(page)
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         page.wait_for_selector('.view.editor')
         # Feuille d'ajout de la séance (séance passée : même feuille, sans démarrer de séance)

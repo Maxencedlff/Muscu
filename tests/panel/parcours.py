@@ -349,11 +349,14 @@ def p_progres(r):
 
 @parcours('programme', 'Programme', 'pratiquant')
 def p_programme(r):
-    """Onglet Programme : les séances en cartes illustrées, une séance (exercices avec leur vignette), la fiche d'un
-    exercice, Mes programmes (liste iOS sous les cartes)."""
+    """Onglet Programme : la liste Programmes, la page du programme actif (séances en cartes illustrées), une séance
+    (exercices avec leur vignette), la fiche d'un exercice, puis retour à la liste."""
     r.lancer(REALISTE)
-    with r.etape('liste', 'Onglet Programme : séances en cartes illustrées'):
+    with r.etape('programmes', 'Onglet Programme : la liste Programmes'):
         r.onglet('program', 'Programme')
+        r.attendre('.view.my-programmes', 'liste Programmes')
+    with r.etape('liste', 'Page du programme actif : séances en cartes illustrées'):
+        r.toucher('.view.my-programmes [data-action="open-my-prog"]', 'programme actif')
         r.attendre('.view.programmes .ps-list .pcard', 'cartes des séances')
     with r.etape('seance', 'Une séance du programme', cle='Modifier un exercice du programme'):
         r.toucher('.view.programmes [data-action="open-prog-session"]', '1re séance')
@@ -396,27 +399,88 @@ def p_programme(r):
     with r.etape('reps-fixes', 'Fiche de l\'exercice : reps « Fixe » (4 × 12) au lieu de la fourchette', cle='Modifier un exercice du programme'):
         r.defiler('[data-action="ex-rep-mode"]', 'choix Fourchette / Fixe')
         r.toucher('[data-action="ex-rep-mode"][data-fixed="true"]', 'Fixe')
-    with r.etape('mes-programmes', 'Mes programmes'):
+    with r.etape('mes-programmes', 'Retour à la liste Programmes'):
         r.toucher('[data-action="cancel-ex"]', 'Annuler (fiche de l\'exercice)')
         r.retour()
-        r.defiler('.view.programmes [data-action="go-my-programmes"]', 'liste sous les cartes')
-        r.toucher('.view.programmes [data-action="go-my-programmes"]', 'Mes programmes')
-        r.attendre('.view.my-programmes', 'Mes programmes')
+        r.retour()
+        r.attendre('.view.my-programmes', 'liste Programmes')
     with r.etape('tous-programmes', 'Ajouter un programme (catalogue)'):
         r.toucher('[data-action="go-prog-add"]', 'Ajouter un programme')
 
 
+def _split_seq():
+    """Programme créé « Split séquentiel » (Pecs, Dos, Jambes, Épaules, Bras), le cas de Maxence du 19/11 : Pecs fait
+    mardi soir, Jambes mercredi soir (finie par une planche), Dos, Épaules et Bras jamais faits ; PPL gardé dans la liste."""
+    d = json.loads(REALISTE)
+    pid = 'u_split'
+    sess = [('pecs', 'Pecs', ['Développé couché', 'Développé incliné haltères', 'Écarté poulie', 'Vacuum']),
+            ('dos', 'Dos', ['Tractions pronation', 'Rowing barre', 'Tirage horizontal', 'Dead bug']),
+            ('jambes', 'Jambes', ['Squat barre', 'Presse à cuisses', 'Leg curl', 'Gainage (planche)']),
+            ('epaules', 'Épaules', ['Développé militaire barre', 'Élévations latérales', 'Oiseau', 'Gainage latéral']),
+            ('bras', 'Bras', ['Curl biceps haltères', 'Extension triceps poulie', 'Curl marteau', 'Dead bug'])]
+    d['userProgrammes'] = {**d.get('userProgrammes', {}), pid: {'name': 'Split séquentiel', 'archived': False, 'order': [k for k, _, _ in sess],
+                           'sessions': {k: {'label': lab, 'icon': '', 'desc': '', 'color': '#FF9500'} for k, lab, _ in sess}}}
+    d['programmes'][pid] = {'exercises': {k: [{'id': f'{k}{i}', 'name': n, 'sets': 3} for i, n in enumerate(ex)] for k, _, ex in sess},
+                            'timers': {k: None for k, _, _ in sess}, 'cooldowns': {k: 72 for k, _, _ in sess}}
+    for k, heures in (('pecs', 44), ('jambes', 20)):
+        ex = dict((a, c) for a, _, c in sess)[k]
+        date = NOW - heures * 3600_000
+        d['history'].insert(0, {'id': 'split' + k, 'programme': pid, 'category': k, 'date': date, 'duration': 55 * 60000, 'notes': '',
+                                'exercises': [{'name': n, 'sets': [{'weight': '40', 'reps': '10'}] * 3} for n in ex]})
+        d['programmes'][pid]['timers'][k] = date
+    d['history'].sort(key=lambda h: -h['date'])
+    d['activeProgramme'] = pid
+    d['myProgrammes'] = [pid] + [x for x in d.get('myProgrammes', ['ppl']) if x != pid]
+    return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
+
+
+@parcours('page-programme', 'Ordre des séances : la file de l\'accueil, la page du programme, changer de programme', 'pratiquant')
+def p_page_programme(r):
+    """Pratiquant qui suit son propre split dans l'ordre (Pecs, Dos, Jambes, Épaules, Bras) : il a fait Pecs puis Jambes.
+    L'accueil propose Dos (tête de file), « Ensuite » montre la file ; « Changer l'ordre » ouvre la page du programme ; il
+    déplace une séance ; puis il passe sur un autre programme depuis la liste Programmes."""
+    r.lancer(_split_seq())
+    with r.etape('accueil', 'Accueil : Dos proposée, puis Épaules, Bras, Pecs, Jambes'):
+        r.attendre('.view.dashboard .hero__name', 'carte de la prochaine séance')
+    with r.etape('ensuite', 'Accueil : « Ensuite » et « Changer l\'ordre »'):
+        r.defiler('#homeNext', 'Ensuite')
+    cle = 'Changer l\'ordre des séances'
+    with r.etape('ordre', '« Changer l\'ordre » : la page du programme en mode ordre', cle=cle):
+        r.toucher('[data-action="open-session-order"]', 'Changer l\'ordre')
+        r.attendre('.view.programmes .ps-handle', 'poignées ≡')
+    with r.etape('ordre-menu', 'Toucher la poignée de Bras : Monter / Descendre (sans glisser)', cle=cle):
+        r.toucher('.ps-handle', 'poignée de Bras', nth=4)
+    with r.etape('ordre-monte', 'Monter : Bras passe avant Épaules', cle=cle):
+        r.choisir('Monter')
+    with r.etape('page', 'OK : la page du programme, séances dans l\'ordre choisi', cle=cle):
+        r.toucher('[data-action="toggle-prog-order"]', 'OK')
+        r.attendre('.view.programmes [data-action="open-prog-session"]', 'séances')
+    with r.etape('page-bas', 'Page du programme, bas : Envoyer, Renommer, Supprimer'):
+        r.bas('bas de la page')
+    with r.etape('accueil-apres', 'Accueil à jour : Dos, puis Bras avant Épaules', cle=cle):
+        r.onglet('train', 'Entraînement')
+        r.defiler('#homeNext', 'Ensuite')
+    cle = 'Passer sur un autre programme'
+    with r.etape('liste', 'Accueil › « Programme Split séquentiel › » : la liste Programmes', cle=cle):
+        r.toucher('.view.dashboard .navbar__sub', 'Programme Split séquentiel')
+        r.attendre('.view.my-programmes', 'liste Programmes')
+    with r.etape('fiche', 'Toucher PPL : sa fiche et « Utiliser ce programme »', cle=cle):
+        r.toucher('.view.my-programmes [data-action="open-my-prog"]', 'PPL', nth=1)
+        r.attendre('[data-action="prog-info-use"]', 'Utiliser ce programme')
+    with r.etape('utilise', '« Utiliser ce programme » : la page de PPL', cle=cle):
+        r.toucher('[data-action="prog-info-use"]', 'Utiliser ce programme')
+        r.attendre('.view.programmes', 'page du programme')
+
+
 @parcours('generateur', 'Programme sur mesure (générateur)', 'pratiquant')
 def p_generateur(r):
-    """Pratiquant régulier qui crée un programme sur mesure : Programme › Mes programmes › Ajouter › « Créer mon programme
+    """Pratiquant régulier qui crée un programme sur mesure : Programme › Ajouter › « Créer mon programme
     sur mesure », profil repris des Réglages, prise de muscle, intermédiaire, 4 jours, 75 min, salle complète, fessiers en
     priorité, douleur d'épaule, puis l'aperçu et « Utiliser ce programme »."""
     r.lancer(REALISTE)
     cle = 'Créer un programme sur mesure'
     with r.etape('ajouter', 'Ajouter un programme : « sur mesure » en première ligne', cle=cle):
         r.onglet('program', 'Programme')
-        r.defiler('.view.programmes [data-action="go-my-programmes"]', 'liste sous les cartes')
-        r.toucher('.view.programmes [data-action="go-my-programmes"]', 'Mes programmes')
         r.toucher('[data-action="go-prog-add"]', 'Ajouter un programme')
     with r.etape('profil', 'Profil repris des Réglages', cle=cle):
         r.toucher('[data-action="go-prog-gen"]', 'Programme sur mesure')
@@ -1241,6 +1305,7 @@ def p_prise(r):
     cle = 'Choisir la prise d\'un exercice'
     with r.etape('seance-pull', 'Programme › séance Pull', cle=cle):
         r.onglet('program', 'Programme')
+        r.toucher('.view.my-programmes [data-action="open-my-prog"]', 'programme actif')
         r.toucher('.view.programmes [data-action="open-prog-session"][data-cat="pull"]', 'séance Pull')
         r.attendre('.view.editor', 'séance du programme')
     with r.etape('fiche', 'Fiche du tirage vertical : rubrique Prise', cle=cle):
@@ -1275,6 +1340,7 @@ def p_seance_outils(r):
     cle = 'Régler une fourchette de reps'
     with r.etape('fiche', 'Programme › Push › 1er exercice : fourchette', cle=cle):
         r.onglet('program', 'Programme')
+        r.toucher('.view.my-programmes [data-action="open-my-prog"]', 'programme actif')
         r.toucher('.view.programmes [data-action="open-prog-session"][data-cat="push"]', 'séance Push')
         r.toucher('.view.editor [data-action="edit-ex"]', '1er exercice')
         r.attendre('.view.ex-edit', 'fiche de l\'exercice')

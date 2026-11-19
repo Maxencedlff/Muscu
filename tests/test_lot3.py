@@ -208,11 +208,11 @@ def t_back_stack(bench, eng, dev, theme):
         tab(page, 'train')
         R.check(page.locator('.view.dashboard').count() == 1, f'{t} onglet actif touché → racine')
         tab(page, 'program')
-        R.check(page.locator('.view.programmes').count() == 1 and page.locator('.navbar__large').inner_text() == 'Programme', f'{t} onglet Programme')
+        R.check(page.locator('.view.my-programmes').count() == 1 and page.locator('.navbar__large').inner_text() == 'Programmes', f'{t} onglet Programme')
         page.click('.navbar [data-action="go-settings"]'); settle(page)
         R.check(page.locator('.view.settings-view').count() == 1, f'{t} Programme › Réglages')
         page.click('[data-action="back"]'); settle(page)
-        R.check(page.locator('.view.programmes').count() == 1, f'{t} bouton retour → Programme')
+        R.check(page.locator('.view.my-programmes').count() == 1, f'{t} bouton retour → Programme')
         R.check(not page.errors, f'{t} pile : aucune erreur JS {page.errors}')
 
 
@@ -237,6 +237,7 @@ def t_scroll(bench, eng, dev, theme):
         R.check(page.locator('.view.history').count() == 1 and abs(y1 - 900) <= 2, f'{t} retour : scrollY restauré ({y1})')
         # Fusion : ▲▼ remplacés par le mode Modifier (lot 5) ; micro-action = basculer Modifier/OK
         tab(page, 'program')
+        open_active_programme(page)
         page.locator('[data-action="open-prog-session"]').first.click(); settle(page)
         page.evaluate('window.scrollTo(0, 30)'); settle(page)
         y2 = page.evaluate('scrollY')
@@ -291,7 +292,7 @@ def t_live(bench, eng, dev, theme):
         live.click(); settle(page)
         R.check(page.locator('.view.session').count() == 1, f'{t} tap mini-barre → séance')
         page.go_back(); settle(page)
-        R.check(page.locator('.view.programmes').count() == 1 and live.is_visible(), f'{t} retour système depuis la séance → onglet d\'origine')
+        R.check(page.locator('.view.my-programmes').count() == 1 and live.is_visible(), f'{t} retour système depuis la séance → onglet d\'origine')
         R.check(not page.errors, f'{t} séance : aucune erreur JS {page.errors}')
 
 

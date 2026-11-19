@@ -78,6 +78,7 @@ html.type-xl .view--grouped .pcard { min-height: 44px; }
 html.type-xl .plist__icon { width: 1.6em; height: 1.6em; }
 html.type-xl .plist__icon .icon { width: 1em; height: 1em; }
 html.type-xl .view--grouped .plist .cell + .cell::before { left: 16px; }
+html.type-xxl .plist__icon { display: none; }   /* AX33 sur SE : « Bibliothèque » coupé au milieu ; l'icône est décorative */
 
 /* Nom d'un exercice de la séance : en entier en texte agrandi (deux lignes au plus sinon) */
 html.type-xl .ed-name { display: block; -webkit-line-clamp: unset; overflow: visible; overflow-wrap: break-word; }

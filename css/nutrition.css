@@ -280,7 +280,7 @@ body.light .sheet .diet-fields { background: var(--cell); }
 .diet-meal-title > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 /* « Modifier » d'un repas : 44 pt de haut sans grandir le titre de groupe */
 .diet-meal-title { align-items: center; }
-.group-title__btn.diet-meal-edit { display: inline-flex; align-items: center; justify-content: flex-end; min-height: 44px; min-width: 44px; margin: -14px 0; flex-shrink: 0; white-space: nowrap; }
+.group-title__btn.diet-meal-edit { display: inline-flex; align-items: center; justify-content: flex-end; min-height: 44px; min-width: 44px; margin: -14px 0; flex-shrink: 0; white-space: nowrap; padding: 0; }
 .group-title__btn.diet-meal-edit::after { content: none; }
 /* Repère très bas (moins de 1 200 kcal) : information, jamais d'alerte rouge */
 .diet-low { display: flex; gap: 6px; margin: 10px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }

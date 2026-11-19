@@ -328,7 +328,8 @@ def t_ecrans(bench, eng, dev, theme):
 
         ecran('historique', lambda: onglet('history'), '.view.history')
         ecran('progres', lambda: onglet('progress'), '.view.stats')
-        ecran('programme', lambda: onglet('program'), '.view.programmes')
+        ecran('programmes', lambda: onglet('program'), '.view.my-programmes')
+        ecran('programme', lambda: tap('.view.my-programmes [data-action="open-my-prog"]'), '.view.programmes')
 
         def fiche():
             tap('.view.programmes [data-action="open-prog-session"]')
@@ -337,7 +338,7 @@ def t_ecrans(bench, eng, dev, theme):
         if page.locator('[data-action="cancel-ex"]').filter(visible=True).count():
             tap('[data-action="cancel-ex"]')
         onglet('program')
-        if not page.locator('.view.programmes').count():
+        if not page.locator('.view.my-programmes').count():
             onglet('program')
         ecran('bibliotheque', lambda: tap('[data-action="go-library"]'), '.view.library')
 

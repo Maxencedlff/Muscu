@@ -637,6 +637,16 @@ def seed(page, theme, ppl_v2=None, active=None, extra=None, url=None):
     page.wait_for_selector('#app > *')
 
 
+def open_active_programme(page):
+    """Onglet Programme : sa racine est la liste Programmes (vote du 19/11) ; toucher le programme actif ouvre sa page
+    (séances, ordre, réglages). Sans effet si sa page est déjà affichée."""
+    page.wait_for_selector('.view.my-programmes, .view.programmes')
+    if page.locator('.view.programmes').count():
+        return
+    page.click('.view.my-programmes [data-action="open-my-prog"][data-id="%s"]' % page.evaluate('data.activeProgramme'))
+    page.wait_for_selector('.view.programmes')
+
+
 def skip_questions(page):
     """Premier lancement (aucune séance) : « Plus tard » sur les questions, comme l'ancienne carte."""
     btn = page.locator('.onb [data-action="onb-later"]')

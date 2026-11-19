@@ -27,7 +27,9 @@ applyTheme(themePref());
 function checkTypeSize() {
   const html = document.documentElement;
   const was = html.classList.contains('type-xl');
-  const xl = html.classList.toggle('type-xl', parseFloat(getComputedStyle(html).fontSize) > 17 * 1.3);
+  const fs = parseFloat(getComputedStyle(html).fontSize);
+  const xl = html.classList.toggle('type-xl', fs > 17 * 1.3);
+  html.classList.toggle('type-xxl', fs > 17 * 1.6);   // tailles d'accessibilité les plus grandes (AX33 : 33 px)
   return xl !== was;
 }
 checkTypeSize();

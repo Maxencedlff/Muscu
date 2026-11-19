@@ -136,7 +136,7 @@ html.type-xl .week__text { overflow: visible; }
 .home-list__title { margin: 0 0 6px 4px; }
 .home-list .home-card { margin-top: 0; padding: 0 16px; }
 /* « Changer l'ordre » à droite de « Ensuite » (programme créé) : ouvre l'ordre des séances de la page du programme */
-.home-list__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.home-list__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 12px; margin-bottom: 6px; }
 .home-list__head .home-list__title { margin-bottom: 0; }
 .home-list__btn {
   flex-shrink: 0; min-height: 44px; margin: -12px -8px -12px 0; padding: 0 8px; text-align: right; border: 0; background: none; cursor: pointer;

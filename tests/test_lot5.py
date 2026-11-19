@@ -469,8 +469,7 @@ def t_programme(bench, eng, dev, theme):
         R.check(page.locator('[data-action="open-prog-session"]').count() == 3, f'{t} programme : 3 séances')
         # Programme intégré : séances fixes ; on compose les siennes en créant un programme (lot 8)
         R.check(page.locator('.cell--action', has_text='Ajouter une séance').count() == 0
-                and page.locator('[data-action="new-programme"]').count() >= 1, f'{t} programme intégré : « Créer un programme » proposé')
-        R.check(page.locator('[data-action="go-settings"]').count() == 1 and page.locator('[data-action="go-settings"] .icon--gear').count() == 1, f'{t} programme : la roue des Réglages, comme sur l\'accueil')
+                and 'crée un programme' in page.inner_text('.view.programmes'), f'{t} programme intégré : « crée un programme » proposé')
         # Séances en cartes illustrées, comme l'accueil : vignette du groupe principal (décorative), nom, muscles, infos ;
         # VoiceOver lit l'intitulé complet ; le texte ne passe jamais sous la vignette
         cards = page.evaluate("""() => [...document.querySelectorAll('.ps-list .pcard')].map(c => {
@@ -484,11 +483,18 @@ def t_programme(bench, eng, dev, theme):
         R.check(all(c['hidden'] for c in cards) and all(c['apart'] for c in cards), f'{t} cartes : vignette décorative, à côté du texte {cards}')
         R.check([c['src'] for c in cards][2:] == ['img/muscles/quads.webp'], f'{t} carte Legs : vignette des quadriceps, cités en premier')
         R.check(cards and cards[0]['name'] == 'Pousser (Push)' and cards[0]['muscles'] == 'Pectoraux · Épaules · Triceps', f'{t} carte Push : nom et muscles {cards[:1]}')
-        R.check(all(c['label'].startswith(c['name'] + ', ') and 'exercices' in c['label'] and 'séries' in c['label'] and '≈' not in c['label'] for c in cards),
-                f'{t} cartes : intitulé VoiceOver complet {[c["label"] for c in cards]}')
-        R.check(page.locator('.plist [data-action="go-my-programmes"] .plist__icon').count() == 1
-                and page.locator('.plist [data-action="go-library"] .plist__icon').count() == 1
+        # Intitulé VoiceOver = le texte affiché (WCAG 2.5.3), « ≈ 55 min » lu « environ 55 minutes » (texte masqué)
+        spoken = page.evaluate("""() => [...document.querySelectorAll('.ps-list .pcard')].map(c => ({ aria: c.getAttribute('aria-label'),
+            sr: (c.querySelector('.sr-text') || {}).textContent || '', shown: (c.querySelector('[aria-hidden="true"]:not(img)') || {}).textContent || '' }))""")
+        R.check(all(x['aria'] is None and x['sr'].startswith('environ ') and x['shown'].startswith('≈') for x in spoken),
+                f'{t} cartes : intitulé VoiceOver = texte affiché, durée dite en entier {spoken[:1]}')
+        # Liste Programmes (racine de l'onglet) : la roue des Réglages, entrées secondaires en liste iOS avec icône
+        page.locator('.tabbar [data-tab="program"]').click(); settle(page)
+        page.locator('.tabbar [data-tab="program"]').click(); settle(page)
+        R.check(page.locator('[data-action="go-settings"]').count() == 1 and page.locator('[data-action="go-settings"] .icon--gear').count() == 1, f'{t} Programmes : la roue des Réglages, comme sur l\'accueil')
+        R.check(page.locator('.plist [data-action="go-library"] .plist__icon').count() == 1
                 and page.locator('.plist [data-action="go-diet-plans"] .plist__icon').count() == 1, f'{t} entrées secondaires : liste iOS avec icône')
+        go(page, 'programmes')
         shot(page, LOT, f'programme_{dev}_{theme}')
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         widths = page.evaluate("[...document.querySelectorAll('.ed-row')].map(r => r.querySelector('.ed-name').getBoundingClientRect().width / r.getBoundingClientRect().width)")
@@ -540,13 +546,12 @@ def t_programme(bench, eng, dev, theme):
         page.click('[data-action="save-ex"]')
         ex = page.evaluate("data.programmes.ppl.exercises.pull[0]")
         R.check(ex['sets'] == 5 and ex['rest'] == 120 and ex['target'] == 32.5 and ex['repMax'] == 12, f'{t} exercice : enregistré ({ex["sets"]}, {ex["rest"]}, {ex["target"]})')
-        # Changer de programme (Mes programmes) : confirmation, retour sur Programme
-        go(page, 'programmes')
-        # Upper / Lower gardé dans Mes programmes (ajout depuis le catalogue : test_mes_programmes.py)
+        # Changer de programme (liste Programmes, racine de l'onglet) : la fiche, « Utiliser ce programme », sa page
+        # Upper / Lower gardé dans mes programmes (ajout depuis le catalogue : test_mes_programmes.py)
         page.evaluate("addMyProgramme('upper_lower'); save()")
-        page.click('[data-action="go-my-programmes"]')
-        R.check(page.locator('.cell--pick[aria-pressed="true"] .icon').count() == 1, f'{t} sélecteur : coche sur le programme actif')
-        mp = page.evaluate("""() => [...document.querySelectorAll('.mp-list .cell--pick')].map(r => { const n = r.querySelector('.mp-names');
+        go(page, 'my-programmes')
+        R.check(page.locator('.mp-list .mp-active').count() == 1, f'{t} liste : « Programme actif » sur l\'actif')
+        mp = page.evaluate("""() => [...document.querySelectorAll('.mp-list [data-action="open-my-prog"]')].map(r => { const n = r.querySelector('.mp-names');
             return { id: r.dataset.id, body: !!r.querySelector('.psq--body .body-map[aria-hidden="true"]'), img: (r.querySelector('.psq--img img') || {}).getAttribute?.('src') || '', cut: n.scrollWidth > n.clientWidth + 1 || getComputedStyle(n).textOverflow === 'ellipsis',
                      lines: Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight)) }; })""")
         # Un programme couvre plusieurs groupes : personnage entier avec ses muscles, jamais la vignette d'un seul groupe
@@ -554,11 +559,12 @@ def t_programme(bench, eng, dev, theme):
         R.check(len(multi) == 2 and all(x['body'] and not x['img'] for x in multi), f'{t} Mes programmes : PPL et Upper / Lower en personnage entier {mp}')
         R.check(all(not x['cut'] and x['lines'] <= 2 for x in mp), f'{t} Mes programmes : séances en entier, 2 lignes au plus {mp}')
         shot(page, LOT, f'picker_{dev}_{theme}')
-        page.click('[data-action="select-prog"][data-id="upper_lower"]')
+        page.click('[data-action="open-my-prog"][data-id="upper_lower"]')
         settle(page)
-        R.check(page.locator('.ios-dialog').count() == 1 and 'Passer à Upper / Lower' in page.locator('.ios-dialog').inner_text(), f'{t} programme : confirmation')
-        tap_dialog(page, 'Changer de programme')
-        R.check(page.evaluate('data.activeProgramme') == 'upper_lower' and page.evaluate('view') == 'programmes', f'{t} programme : changé, reste sur Programme')
+        R.check(page.evaluate('view') == 'prog-info' and 'Upper / Lower' in page.locator('.navbar__large').inner_text(), f'{t} programme : sa fiche')
+        page.click('[data-action="prog-info-use"]')
+        settle(page)
+        R.check(page.evaluate('data.activeProgramme') == 'upper_lower' and page.evaluate('view') == 'programmes', f'{t} programme : changé, sa page')
         go(page, 'stats')
         page.click('[data-action="open-stats-ex"][data-ex="p1dcouch"]')
         n_sess = page.evaluate("data.history.filter(h => h.exercises.some(e => e.exId === 'p1dcouch')).length")
@@ -651,6 +657,7 @@ def t_programme_type_xl(bench):
         page.evaluate("window.dispatchEvent(new Event('resize'))")
         settle(page)
         page.evaluate("switchTab('program')")
+        open_active_programme(page)
         page.wait_for_selector('.ps-list .pcard')
         check = """sel => ({ xl: document.documentElement.classList.contains('type-xl'),
             imgs: [...document.querySelectorAll(sel)].filter(i => i.getBoundingClientRect().width > 0).length,

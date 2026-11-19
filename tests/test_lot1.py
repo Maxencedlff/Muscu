@@ -421,6 +421,7 @@ def t_custom_delete(bench, eng, dev, theme):
         start(page, CUSTOM_ID)
         page.click('[data-action="back"]')
         page.click('.tabbar [data-action="go-program"]')
+        open_active_programme(page)
         # Fusion : Programme › Séance (lot 5) porte la ligne « Nom et description »
         page.click(f'[data-action="open-prog-session"][data-cat="{CUSTOM_ID}"]')
         page.click(f'[data-action="edit-custom-session"][data-id="{CUSTOM_ID}"]')

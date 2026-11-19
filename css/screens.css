@@ -23,9 +23,11 @@
 .group-title--row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .group-title__btn {
   border: none; background: none; color: var(--tint); font: inherit; font-size: 0.882rem; text-transform: none;
-  padding: 0; cursor: pointer; position: relative;
+  cursor: pointer; position: relative; flex-shrink: 0;
+  /* cible de 44 pt sans grossir la ligne du titre (« OK » de l'ordre des séances) */
+  display: inline-flex; align-items: center; justify-content: flex-end; min-height: 44px; min-width: 44px;
+  margin: -12px -8px -12px 0; padding: 0 8px;
 }
-.group-title__btn::after { content: ''; position: absolute; inset: -12px -10px; }
 .group-title__btn--bold { font-weight: 600; }
 .group-foot { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); padding: 7px 16px 0; }
 .group { background: var(--cell); border-radius: var(--r-md); overflow: hidden; flex-shrink: 0; }
@@ -429,7 +431,7 @@ html.type-xl .hcal .cal__d--today > .num { width: 1.5em; height: 1.5em; line-hei
 .ed-row.is-del .ed-handle { display: none; }
 .ed-handle {
   width: 44px; height: 44px; margin: -11px -10px -11px 0; display: flex; align-items: center; justify-content: center;
-  color: var(--label3); touch-action: none; cursor: grab; flex-shrink: 0;
+  color: var(--label2); touch-action: none; cursor: grab; flex-shrink: 0;   /* 3:1 au moins sur la cellule (--label3 : 1,7:1) */
   border: none; background: none; padding: 0; font: inherit;   /* bouton : Monter / Descendre sans glisser (js/ui/reorder.js) */
 }
 
@@ -741,7 +743,7 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 .prog-info__map { display: flex; justify-content: center; }
 .prog-info__map .body-map { width: min(100%, 240px); }
 .prog-info__actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
-.prog-info__actions--top { margin: 8px 0 20px; }   /* fiche d'un programme : sous le nom, avant la silhouette (visible sur SE) */
+.prog-info__actions--top { margin: 8px 0 16px; }   /* fiche d'un programme : juste sous le nom (visible sur SE) */
 .prog-info__btn { width: 100%; border-radius: var(--r-pill); }
 .prog-info__state { margin: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--label2); font-size: var(--fs-body); }
 

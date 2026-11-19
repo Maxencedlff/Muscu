@@ -99,8 +99,9 @@ VIEWS = [
     ('historique-detail', ['[data-action="go-history"]', '[data-action="open-history"]']),
     ('progres', ['[data-action="go-stats"]']),
     ('progres-exercice', ['[data-action="go-stats"]', '[data-action="open-stats-ex"]']),
-    ('programme', ['[data-action="go-program"]']),
-    ('editeur', ['[data-action="go-program"]', '.cell--nav[data-cat="push"]']),
+    ('programmes', ['[data-action="go-program"]']),
+    ('programme', ['[data-action="go-program"]', '[data-action="open-my-prog"][data-id="ppl"]']),
+    ('editeur', ['[data-action="go-program"]', '[data-action="open-my-prog"][data-id="ppl"]', '.cell--nav[data-cat="push"]']),
     ('reglages', ['[data-action="go-program"]', '[data-action="go-settings"]']),
     ('seance', ['[data-action="start-session"][data-cat="push"]']),
 ]

@@ -77,19 +77,19 @@ function progSquareHtml(id, pm) {
 
 // Séance du programme en carte illustrée, comme « Autres séances » sur l'accueil : nom, muscles, exercices, séries et
 // durée habituelle à gauche, vignette du groupe principal à droite (sessionThumbHtml, js/features/dashboard.js).
-// VoiceOver lit l'intitulé complet (« environ 55 minutes » et non « ≈ 55 min ») ; l'image est décorative.
+// VoiceOver lit le texte affiché, « environ 55 minutes » à la place de « ≈ 55 min » ; l'image est décorative.
 function progSessionCardHtml(cat, progId) {
   const meta = sessionMeta(cat, progId), c = exSetsCount(cat, progId), mins = sessionMinutes(cat);
   const muscles = meta.desc || sessionMusclesSummary(progId, cat);
   const facts = c.n ? [plural(c.n, 'exercice', 'exercices'), plural(c.sets, 'série', 'séries')] : ['Aucun exercice'];
-  const shown = [...facts, mins ? `≈ ${mins} min` : ''].filter(Boolean).join(' · ');
-  const spoken = [esc(sessionTitle(cat, progId)), muscles, ...facts, mins ? `environ ${mins} minutes` : ''].filter(Boolean).join(', ');
+  // « ≈ 55 min » à l'écran, « environ 55 minutes » pour VoiceOver : l'intitulé reste le texte affiché (WCAG 2.5.3)
+  const duration = mins ? ` · <span aria-hidden="true">≈ ${mins} min</span><span class="sr-text">environ ${mins} minutes</span>` : '';
   return `
-      <button class="cell cell--nav mgc pcard" data-action="open-prog-session" data-cat="${esc(cat)}" data-id="${esc(cat)}" aria-label="${spoken}">
+      <button class="cell cell--nav mgc pcard" data-action="open-prog-session" data-cat="${esc(cat)}" data-id="${esc(cat)}">
         <span class="cell__body mgc__text">
           <span class="cell__title pcard__name">${esc(sessionTitle(cat, progId))}</span>
           ${muscles ? `<span class="pcard__muscles">${muscles}</span>` : ''}
-          <span class="cell__sub pcard__facts num">${shown}</span>
+          <span class="cell__sub pcard__facts num">${facts.join(' · ')}${duration}</span>
         </span>
         ${progSessionThumbHtml(cat)}
         ${icon('chevron.right', 16)}
@@ -296,7 +296,7 @@ function programmeSessionsHtml(id) {
 
 // Fiche d'un programme du catalogue : pourquoi, muscles travaillés, séances ; l'ajouter ou l'utiliser
 function renderProgInfo(id) {
-  if (isUserProg(id) && id !== 'custom' && !data.userProgrammes[id]?.archived) return renderUserProgInfo(id);
+  if (isUserProg(id) && !data.userProgrammes[id]?.archived) return renderUserProgInfo(id);   // créé, ou « Perso »
   const pm = PROGRAMMES[id];
   if (!pm || id === 'custom') return renderProgAdd();
   const adv = PROGRAMME_ADVICE[id] || {};
@@ -305,7 +305,6 @@ function renderProgInfo(id) {
     <div class="view prog-info view--grouped">
       ${navBar({ title: pm.name, large: true })}
       <div class="scr">
-        <p class="prog-info__why">${recommendReason(id, { ...adv, orMore: false })}</p>
         <div class="prog-info__actions prog-info__actions--top">
           ${active
             ? '<p class="prog-info__state">Programme actif</p>'
@@ -314,6 +313,7 @@ function renderProgInfo(id) {
             ? (active ? '' : '<p class="prog-info__state">Dans mes programmes</p>')
             : `<button class="btn btn--secondary prog-info__btn" data-action="prog-info-add" data-id="${esc(id)}">Ajouter à mes programmes</button>`}
         </div>
+        <p class="prog-info__why">${recommendReason(id, { ...adv, orMore: false })}</p>
         <div class="group group--pad prog-info__map">
           ${bodyMapHtml(programmeMuscleLevels(id), { captions: true, label: `Muscles travaillés par ${pm.name}` })}
         </div>
@@ -323,7 +323,7 @@ function renderProgInfo(id) {
     </div>`;
 }
 
-// Fiches : « Utiliser ce programme » juste sous le nom, avant la silhouette (visible sans défiler sur iPhone SE).
+// Fiches : « Utiliser ce programme » juste sous le nom (visible sans défiler sur iPhone SE, texte agrandi compris).
 // Fiche d'un programme créé qui n'est pas l'actif : ses séances dans leur ordre, les muscles travaillés, « Utiliser ce
 // programme ». Ses réglages (ordre, exercices, nom) s'ouvrent une fois actif, dans sa page : un seul endroit.
 function renderUserProgInfo(id) {
@@ -385,6 +385,10 @@ function activateProgramme(id) {
 function openProgramme(id) {
   activateProgramme(id);
   save();
+  showActiveProgramme();
+}
+// Page du programme actif juste sous la liste Programmes (onglet Programme) ; ailleurs, poussée dans l'onglet courant
+function showActiveProgramme() {
   if (nav.tab !== 'program') { routeTo('programmes'); return; }
   const next = navClone(nav);
   next.stacks.program = [TABS.program.root, 'programmes'];
@@ -437,7 +441,7 @@ registerActions({
     showToast(`${progMeta(el.dataset.id).name} ajouté`);
   },
   // Utiliser = ajouter et activer, puis retour à la racine de l'onglet (Programme ou Entraînement)
-  // Depuis la liste Programmes : la page du programme devenu actif ; ailleurs (catalogue de l'accueil) : la racine
+  // Onglet Programme : la page du programme devenu actif ; ailleurs (catalogue depuis l'accueil) : la racine
   'prog-info-use': (e, el) => {
     const id = el.dataset.id;
     if (!PROGRAMMES[id] && !(data.userProgrammes[id] && !data.userProgrammes[id].archived)) return;
@@ -445,8 +449,9 @@ registerActions({
     activateProgramme(id);
     save();
     haptic();
-    if (nav.tab === 'program' && nav.stacks.program.length === 2) navigate('programmes', { replace: true });
-    else routeTo(nav.stacks[nav.tab][0]);
+    // Onglet Programme : sa page, dont le grand titre est le nom (pas de toast, il cacherait une séance) ; ailleurs, un toast
+    if (nav.tab === 'program') { showActiveProgramme(); return; }
+    routeTo(nav.stacks[nav.tab][0]);
     showToast(`Programme : ${progMeta(id).name}`);
   },
   'open-prog-session': (e, el) => {

@@ -289,13 +289,13 @@ def t_retour_titre(bench):
                 page.locator('[data-action="open-stats-ex"]').first.click(); page.wait_for_selector('.view.stats-ex'); settle(page)
                 got = [page.evaluate(lbl)]
                 page.click('.tabbar [data-tab="program"]'); settle(page)
-                page.evaluate("navigate('my-programmes')"); page.wait_for_selector('.view.my-programmes'); settle(page)
+                open_active_programme(page); settle(page)   # Programmes › le programme actif
                 got.append(page.evaluate(lbl))
                 page.click('.tabbar [data-tab="train"]'); settle(page)
                 page.click('.tabbar [data-tab="train"]'); settle(page)   # onglet actif touché : racine
                 page.evaluate("navigate('nutrition')"); settle(page)
                 got.append(page.evaluate(lbl))
-                R.check(got == ['Progrès', 'Programme', 'Entraînement'], f'{t} retours titrés (courbe, Mes programmes, Nutrition) {got}')
+                R.check(got == ['Progrès', 'Programmes', 'Entraînement'], f'{t} retours titrés (courbe, page du programme, Nutrition) {got}')
                 R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -377,7 +377,7 @@ def t_roue_meme_couleur(bench):
             seed(page, theme, ppl_v2_today_json())
             c1 = page.evaluate("getComputedStyle(document.querySelector('.dashboard [data-action=\"go-settings\"]')).color")
             page.click('.tabbar [data-tab="program"]'); settle(page)
-            c2 = page.evaluate("getComputedStyle(document.querySelector('.programmes [data-action=\"go-settings\"]')).color")
+            c2 = page.evaluate("getComputedStyle(document.querySelector('.my-programmes [data-action=\"go-settings\"]')).color")
             R.check(c1 == c2, f'{t} roue : même couleur partout ({c1} / {c2})')
 
 
