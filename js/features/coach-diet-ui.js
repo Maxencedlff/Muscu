@@ -32,11 +32,13 @@ function cdietGapText(gap) {
 const cdietPct = (v, goal) => (goal > 0 ? Math.round((v - goal) / goal * 100) : null);
 // Dans une fourchette : « dans l'objectif », « sous l'objectif », « au-dessus de l'objectif »
 // fmt : écart chiffré (« 0,5 L sous l'objectif », « 0,8 g au-dessus de l'objectif », panel du 18/11)
-function cdietRangeWord(v, lo, hi, fmt = null) {
+// ref : le mot du repère (« objectif » pour l'eau, « repère » pour le sel, comme chez l'élève)
+function cdietRangeWord(v, lo, hi, fmt = null, ref = 'objectif') {
+  const le = ref === 'repère' ? 'le repère' : 'l\'objectif', du = ref === 'repère' ? 'du repère' : 'de l\'objectif';
   // Sans signe : « 0,5 L sous l'objectif » (le mot dit déjà le sens, panel nutri-final t1)
-  if (lo != null && v < lo) return `${fmt ? `${fmt(lo - v)} ` : ''}sous l'objectif`;
-  if (hi != null && v > hi) return `${fmt ? `${fmt(v - hi)} ` : ''}au-dessus de l'objectif`;
-  return lo != null || hi != null ? 'dans l\'objectif' : '';
+  if (lo != null && v < lo) return `${fmt ? `${fmt(lo - v)} ` : ''}sous ${le}`;
+  if (hi != null && v > hi) return `${fmt ? `${fmt(v - hi)} ` : ''}au-dessus ${du}`;
+  return lo != null || hi != null ? `dans ${le}` : '';
 }
 // Pourquoi un jour est partiel ou pas suivi : ce qui manque, en mots
 function cdietWhy(x, status) {
@@ -67,8 +69,9 @@ function cdietDetailHtml(x, day, status) {
   const water = x.waterGoal ? [`objectif ${x.waterMin ? `${fmtNum(x.waterMin / 1000, 2)} à ` : ''}${cdietL(x.waterGoal)}`,
     live ? '' : cdietRangeWord(x.water, x.waterMin ?? x.waterGoal, x.waterMin != null ? x.waterGoal : null, ml => cdietL(ml))].filter(Boolean).join(' · ') : '';
   const salt = x.saltMin != null || x.saltMax != null
-    ? [`objectif ${x.saltMin != null && x.saltMax != null ? `${fmtNum(x.saltMin, 1)} à ${fmtNum(x.saltMax, 1)}` : x.saltMax != null ? `au plus ${fmtNum(x.saltMax, 1)}` : `au moins ${fmtNum(x.saltMin, 1)}`} g`,
-      live ? '' : cdietRangeWord(x.salt ?? 0, x.saltMin, x.saltMax, g2 => `${fmtNum(Math.round(g2 * 10) / 10, 1)} g`)].filter(Boolean).join(' · ') : '';
+    // Sel : « repère 3 à 5 g », « 5 g au plus », comme chez l'élève (panel nutri-final, tour ciblé)
+    ? [x.saltMin != null && x.saltMax != null ? `repère ${fmtNum(x.saltMin, 1)} à ${fmtNum(x.saltMax, 1)} g` : x.saltMax != null ? `${fmtNum(x.saltMax, 1)} g au plus` : `${fmtNum(x.saltMin, 1)} g au moins`,
+      live ? '' : cdietRangeWord(x.salt ?? 0, x.saltMin, x.saltMax, g2 => `${fmtNum(Math.round(g2 * 10) / 10, 1)} g`, 'repère')].filter(Boolean).join(' · ') : '';
   const row = (t, v, s) => `
           <div class="cell cdiet__detail"><span class="cell__body"><span class="cell__title">${t}</span>${s ? `<span class="cell__sub">${esc(s)}</span>` : ''}</span>${v ? `<span class="cell__value cdiet__val">${esc(v)}</span>` : ''}</div>`;
   return `

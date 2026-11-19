@@ -42,7 +42,7 @@ function coachBadgeHtml(n, label) {
 // la pastille reste étroite et la ligne garde ses 3 lignes sur iPhone SE) ; le rouge reste aux
 // comptes de l'onglet et de « Mes élèves »
 function sessionsBadgeHtml(n) {
-  return n ? `<span class="coach-count coach-count--sessions num" aria-hidden="true">${icon('dumbbell', 12)}${n}<span class="coach-count__sub">${n > 1 ? 'nouvelles' : 'nouvelle'}</span></span><span class="visually-hidden">, ${esc(plural(n, 'nouvelle séance à voir', 'nouvelles séances à voir'))}</span>` : '';
+  return n ? `<span class="coach-count coach-count--sessions num" aria-hidden="true">${icon('dumbbell', 12)}${n}<span class="coach-count__sub">${n > 1 ? 'nouvelles séances' : 'nouvelle séance'}</span></span><span class="visually-hidden">, ${esc(plural(n, 'nouvelle séance à voir', 'nouvelles séances à voir'))}</span>` : '';
 }
 // « Push · ton programme · hier » (dernière séance d'un élève)
 function studentLastLine(st) {

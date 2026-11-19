@@ -708,4 +708,4 @@ html.type-xl .cdiet__key { white-space: normal; }
 .diet-send-view #dietSendGo { position: sticky; bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); z-index: 2;
   box-shadow: 0 0 0 8px var(--bg), 0 -12px 16px 8px var(--bg); }
 /* Bouton collé encore inactif (« Choisis des élèves ») : fond opaque, le texte de l'aperçu ne passe pas au travers */
-.diet-send-view #dietSendGo:disabled { opacity: 1; background: var(--fill-solid, var(--cell)); color: var(--label3); }
+.diet-send-view #dietSendGo:disabled { opacity: 1; background: var(--cell); color: var(--label2); }   /* --cell : opaque en clair (#FFF) et en sombre (#1C1C1E) ; --fill est transparent */

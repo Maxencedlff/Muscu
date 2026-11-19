@@ -394,9 +394,13 @@ registerActions({
     const names = ids.map(id => personName(coachStudent(id)));
     const who = names.length > 3 ? plural(names.length, 'élève', 'élèves') : names.join(', ').replace(/, ([^,]*)$/, ' et $1');
     // Écarts dits en clair (« Lundi : il manque 1 569 kcal ») et « Revoir les jours » à côté d'Envoyer (panel, tour 3)
-    const gaps = dietPlanDays(plan).map((_, i) => [i, dietGapShort(dietDaySummary(plan, i))]).filter(([, g]) => g)
-      .map(([i, g]) => `${plan.days ? dietDayName(plan, i) : 'Chaque jour'} : ${g.replace(/^.*: /, '')}`);
-    const gapText = !gaps.length ? '' : gaps.length > 2 ? `${gaps.slice(0, 2).join('. ')}, et ${plural(gaps.length - 2, 'autre jour', 'autres jours')}.` : `${gaps.join('. ')}.`;
+    // Par sens (panel nutri-final, tour ciblé : « et 2 autres jours » laissait croire qu'ils étaient aussi en trop) : deux jours
+    // nommés par groupe au plus, puis « et 1 autre jour en trop » / « et 2 autres jours où il manque des kcal »
+    const gapsAll = dietPlanDays(plan).map((_, i) => [i, dietGapShort(dietDaySummary(plan, i))]).filter(([, g]) => g)
+      .map(([i, g]) => ({ over: g.includes('en trop'), txt: `${plan.days ? dietDayName(plan, i) : 'Chaque jour'} : ${g.replace(/^.*: /, '')}` }));
+    const group = (list, tail) => (!list.length ? '' : `${list.slice(0, 2).map(x => x.txt).join('. ')}${list.length > 2 ? `, et ${plural(list.length - 2, 'autre jour', 'autres jours')} ${tail}` : ''}.`);
+    const gaps = gapsAll;
+    const gapText = [group(gapsAll.filter(x => x.over), 'en trop'), group(gapsAll.filter(x => !x.over), 'où il manque des kcal')].filter(Boolean).join(' ');
     const msg = [gapText, 'Un plan déjà envoyé est mis à jour chez l\'élève. Ce qu\'il a déjà coché reste.'].filter(Boolean).join(' ');
     // Alerte à deux boutons (pas une feuille destructive : envoyer n'efface rien)
     const go = await dialog({ title: `Envoyer « ${plan.name} » à ${who} ?`, message: msg,
