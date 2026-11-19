@@ -58,12 +58,12 @@ def open_app(page, theme, d, account=False):
         page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, json.dumps(d, ensure_ascii=False), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username):
     page.evaluate("async u => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u }); }", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def toast(page):
@@ -73,7 +73,7 @@ def toast(page):
 def big_text(page):
     page.add_style_tag(content='html { font-size: 28px !important; }')
     page.evaluate("window.dispatchEvent(new Event('resize'))")
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def layout(page, t, name, scope):
@@ -107,25 +107,25 @@ def t_editeur(bench):
                     for (const s of [lea, tom]) __sb.co.shares.push({ student: s, coach: me, kind: 'diet', granted_at: new Date().toISOString() });
                     return lea; }""")
                 page.evaluate('coachRefresh()')
-                page.wait_for_timeout(300)
+                settle(page)
                 page.evaluate("switchTab('program', { reset: true }); navigate('diet-plans')")
                 page.wait_for_selector('.diet-plans-view')
                 R.check('Mes diètes' in page.inner_text('.diet-plans-view'), f'{t} coach : « Mes diètes »')
                 page.evaluate("navigate(makeRoute('diet-plan', 'd_seche001'))")
                 page.wait_for_selector('[data-action="diet-days-mode"]')
-                page.wait_for_timeout(800)
+                settle(page)
                 # Jours : semaine
                 page.click('[data-action="diet-days-mode"]')
                 page.wait_for_selector('.ios-dialog__btn')
-                page.wait_for_timeout(400)
+                settle(page)
                 tap_dialog(page, 'Semaine (lundi à dimanche)')
-                page.wait_for_timeout(300)
+                settle(page)
                 R.check(page.locator('.diet-dayrow').count() == 7 and toast(page).startswith('7 jours, copies du premier jour') and 'Annuler' in toast(page), f'{t} semaine : 7 jours, toast clair, Annuler ({toast(page)!r})')
                 # Semaine réaliste pour les captures : mardi, samedi et dimanche de repos, 2 000 kcal et moins de féculents
                 page.evaluate("""() => { const p = data.dietPlans.d_seche001; p.days.kinds = ['t', 'r', 't', 't', 't', 'r', 'r'];
                     for (const i of [0, 4, 5]) { const o = p.days.more[i]; o.targets = { ...o.targets, kcal: 2000, c: 200 };
                       o.meals[1].items[0].g = 50; o.meals[1].items[1].g = 120; o.meals[0].items[0].g = 250; } save(); render(); }""")
-                page.wait_for_timeout(200)
+                settle(page)
                 layout(page, t, 'vue des jours', '.diet-plan-view .scr')
                 shot(page, LOT, f'1-semaine-{t}')
                 # Lundi
@@ -143,18 +143,18 @@ def t_editeur(bench):
                 scan = nb(page.inner_text('.sheet .diet-cand--scan')).strip()
                 R.check(scan in ('Produit de marque ? Scanner', 'Produit de marque ? Saisir le code-barres'), f'{t} « {scan} »')
                 page.fill('#dietFoodSearch', 'crème de riz')
-                page.wait_for_timeout(250)
+                settle(page)
                 first = nb(page.locator('.sheet .diet-pick__list .diet-cand').first.inner_text())
                 R.check('Crème de riz' in first and 'Valeurs Ciqual : Farine de riz' in first, f'{t} « Crème de riz », source dite ({first[:60]!r})')
                 shot(page, LOT, f'3-recherche-{t}')
                 page.locator('.sheet .diet-pick__list .diet-cand').first.click()
-                page.wait_for_timeout(300)
+                settle(page)
                 if page.locator('.ios-dialog__input').count():
                     page.fill('.ios-dialog__input', '60')
                     tap_dialog(page, 'OK')
                 else:
                     page.click('.sheet__btn--confirm')
-                page.wait_for_timeout(300)
+                settle(page)
                 R.check(toast(page).startswith('Ajouté : Crème de riz') and 'Annuler' in toast(page), f'{t} ajout : toast avec Annuler ({toast(page)!r})')
                 R.check(page.evaluate("data.dietPlans.d_seche001.meals[0].items.some(x => x.name === 'Crème de riz' && x.food === 9520)"), f'{t} crème de riz dans le lundi')
                 # Copier le déjeuner vers mardi et jeudi
@@ -165,7 +165,7 @@ def t_editeur(bench):
                 page.click('.sheet [data-dpick="3"]')
                 shot(page, LOT, f'4-copier-repas-{t}')
                 page.click('.sheet__btn--confirm')
-                page.wait_for_timeout(300)
+                settle(page)
                 got = page.evaluate("[1, 3, 2].map(i => data.dietPlans.d_seche001.days.more[i - 1].meals[0].items.some(x => x.name === 'Crème de riz'))")
                 R.check(got == [True, True, False], f'{t} déjeuner copié vers mardi et jeudi, pas mercredi ({got})')
                 # Mettre pareil sur les 7 jours : confirmation, puis Annuler
@@ -175,7 +175,7 @@ def t_editeur(bench):
                 tap_dialog(page, 'Remplacer')
                 R.check(page.evaluate("data.dietPlans.d_seche001.days.more.every(o => o.meals[0].items.some(x => x.name === 'Crème de riz'))"), f'{t} 7 jours pareils')
                 page.locator('.toast__action').click()
-                page.wait_for_timeout(250)
+                settle(page)
                 R.check(not page.evaluate("data.dietPlans.d_seche001.days.more[1].meals[0].items.some(x => x.name === 'Crème de riz')"), f'{t} Annuler : mercredi comme avant')
                 # Jours de repos : mardi marqué repos, le lundi passé en repos se copie d'un toucher vers « les autres jours de repos »
                 page.click('[data-action="diet-goto-day"][data-dayi="1"]')
@@ -190,15 +190,15 @@ def t_editeur(bench):
                 tap_dialog(page, 'Copier')
                 R.check(toast(page).startswith('Lundi copié : mardi') and page.evaluate("data.dietPlans.d_seche001.days.kinds[1]") == 'r', f'{t} lundi copié sur mardi, jour de repos ({toast(page)!r})')
                 page.locator('.toast__action').click()
-                page.wait_for_timeout(250)
+                settle(page)
                 page.click('[data-action="diet-day-set-kind"][data-k="t"]')
-                page.wait_for_timeout(400)
+                settle(page)
                 # Objectifs : eau 3 à 5 L, sel 3 à 7 g (repère de l'OMS dit, rien de bloqué)
                 page.click('[data-action="diet-targets"]')
                 page.wait_for_selector('#dietT_saltMax')
-                page.wait_for_timeout(400)   # feuille ouverte
+                settle(page)   # feuille ouverte
                 page.fill('#dietT_saltMax', '7')
-                page.wait_for_timeout(300)
+                settle(page)
                 R.check("moins de 5 g" in nb(page.inner_text('#dietTSaltNote')), f'{t} sel au-dessus de 5 g : repère de l\'OMS dit au coach')
                 shot(page, LOT, f'5-objectifs-{t}')
                 if dev == 'iPhone SE':
@@ -206,7 +206,7 @@ def t_editeur(bench):
                     layout(page, t + '-xl', 'objectifs', '.sheet')
                     shot(page, LOT, f'5b-objectifs-xl-{t}')
                 page.click('.sheet__btn--confirm')
-                page.wait_for_timeout(300)
+                settle(page)
                 R.check(page.evaluate("data.dietPlans.d_seche001.targets.saltMax") == 7, f'{t} sel 7 g gardé')
                 # Aperçu et envoi à deux élèves
                 page.evaluate("navigate(makeRoute('diet-send', 'd_seche001'))")
@@ -223,7 +223,7 @@ def t_editeur(bench):
                 R.check('Envoyer « Sèche semaine 1 » à lea et tom ?' in dlg and 'Ce qu\'il a déjà coché reste' in dlg and 'Samedi : il manque 173 kcal' in dlg and 'Mardi : 122 kcal en trop' in dlg and 'Revoir les jours' in dlg, f'{t} confirmation : élèves nommés, jours incomplets dits ({dlg[:120]!r})')
                 shot(page, LOT, f'6b-confirmation-{t}')
                 tap_dialog(page, 'Envoyer')
-                page.wait_for_timeout(800)
+                settle(page)
                 sent = page.evaluate("__sb.co.progs.filter(p => p.id === dietSentId('d_seche001')).map(p => [p.student, p.data.v, p.data.diet.days.mode, p.data.diet.meals.length])")
                 R.check(len(sent) == 2 and all(s[1] == 1 and s[2] == 'week' and s[3] == 4 for s in sent), f'{t} envoyé à 2 élèves, format v1 + jours ({sent})')
                 R.check(page.evaluate("!!data.dietPlans.d_seche001"), f'{t} le plan reste dans Mes diètes')
@@ -272,7 +272,7 @@ def t_eleve(bench):
                 layout(page, t, 'jour de repos', '.nutrition-view .scr')
                 shot(page, LOT, f'7-eleve-repos-{t}')
                 page.click('[data-action="diet-day-kind"]')
-                page.wait_for_timeout(250)
+                settle(page)
                 R.check("jour d'entraînement" in nb(page.inner_text('.diet-dayline')) and page.evaluate("dietDayProgress(data, data.dietActive).goal.kcal") == 2300,
                         f'{t} « Changer » : jour d\'entraînement, 2 300 kcal')
                 shot(page, LOT, f'8-eleve-entrainement-{t}')
@@ -285,17 +285,17 @@ def t_eleve(bench):
                 riz = [c for c in cands if c.startswith('Riz blanc, cuit')]
                 R.check(riz and '175 g cuit' in riz[0] and '−13 kcal' in riz[0], f'{t} 350 g de pomme de terre → riz blanc cuit 175 g, −13 kcal ({riz[:1]})')
                 R.check('Même quantité de glucides' in nb(page.inner_text('.sheet .diet-swap__rule')), f'{t} règle dite')
-                page.wait_for_timeout(400)   # feuille ouverte (fin de l'animation) avant de mesurer les cibles
+                settle(page)   # feuille ouverte (fin de l'animation) avant de mesurer les cibles
                 layout(page, t, 'remplacer', '.sheet')
                 shot(page, LOT, f'9-remplacer-{t}')
                 page.locator('.sheet .diet-cand[data-swap]', has_text='Riz blanc, cuit').first.click()
-                page.wait_for_timeout(300)
+                settle(page)
                 R.check(page.evaluate("dietDay(data, data.dietActive, localISO()).swaps.i1.g") == 175, f'{t} remplacé : 175 g de riz')
                 # Eau en verres : 3 à 5 L, verres de 1 L
                 page.locator('.water-card').scroll_into_view_if_needed()
                 R.check(page.locator('.water-cup').count() == 5 and 'objectif 3 à 5 L' in nb(page.inner_text('.water-card__val')), f'{t} eau : 5 verres de 1 L, 3 à 5 L')
                 page.locator('.water-cup').first.click()
-                page.wait_for_timeout(250)
+                settle(page)
                 R.check(page.evaluate("waterDayMl(data, localISO())") == 1000 and page.locator('.water-cup--on').count() == 1, f'{t} un verre coché : 1 L')
                 R.check(page.locator('.water-card [data-ml="250"]').count() >= 1, f'{t} boutons rapides gardés')
                 layout(page, t, 'eau', '.water-card')
@@ -305,18 +305,18 @@ def t_eleve(bench):
                 R.check('objectif 3 à 5 g' in nb(page.inner_text('.diet-salt')), f'{t} sel : « objectif 3 à 5 g »')
                 R.check('Pincée' in page.inner_text('.diet-salt__add') and '0,4' in nb(page.inner_text('.diet-salt__add')), f'{t} « + Pincée 0,4 g » dit ce qu\'il ajoute')
                 page.click('.diet-salt__add')
-                page.wait_for_timeout(200)
+                settle(page)
                 R.check(abs(page.evaluate("saltAddedG(data, localISO())") - 0.4) < 1e-6 and 'Annuler' in toast(page), f'{t} pincée ajoutée d\'un toucher, Annuler')
                 page.click('.diet-salt__open')
                 page.wait_for_selector('.sheet .diet-saltsheet')
                 page.click('.sheet [data-salt="6"]')
-                page.wait_for_timeout(200)
+                settle(page)
                 R.check(abs(page.evaluate("saltAddedG(data, localISO())") - 6.4) < 1e-6, f'{t} cuillère à café : 6 g de plus')
                 R.check('USDA' in page.inner_text('.sheet .diet-saltsheet'), f'{t} source des mesures dite')
                 layout(page, t, 'sel', '.sheet')
                 shot(page, LOT, f'11-sel-{t}')
                 page.click('.sheet__btn--confirm')
-                page.wait_for_timeout(300)
+                settle(page)
                 if dev == 'iPhone SE':
                     big_text(page)
                     page.evaluate('window.scrollTo(0, 0)')
@@ -354,7 +354,7 @@ def t_eleve_semaine(bench):
                 const fire = (type, x) => { const e = new Event(type, { bubbles: true }); const t = [{ clientX: x, clientY: y }];
                   Object.defineProperty(e, 'touches', { value: type === 'touchend' ? [] : t }); Object.defineProperty(e, 'changedTouches', { value: t }); el.dispatchEvent(e); };
                 fire('touchstart', 260); fire('touchend', 120); }""", y)
-            page.wait_for_timeout(300)
+            settle(page)
             R.check(page.evaluate("routeParams(currentRoute())[1]") == '3', f'{t} glissé vers la gauche : jeudi')
             layout(page, t, 'jour de la semaine', '.diet-plan-view .scr')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')

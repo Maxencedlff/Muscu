@@ -516,8 +516,7 @@ CNIL, données de santé) : la finalité est de juger si une phase de diète a �
 coach fait 12 semaines (docs/COACH_SUIVI.md), plus une semaine de marge. Au-delà, plus rien ne sert au suivi. Tenue de quatre
 façons : l'app n'envoie que 90 jours, le serveur écarte tout jour plus ancien et les efface à chaque envoi, la lecture du
 coach ne les rend jamais, et une purge quotidienne pg_cron (`purge-diete-coach-90-jours`, 03:41 UTC) efface ceux d'un élève
-qui n'ouvre plus l'app. Le coach remonte 12 semaines au plus (chevrons), sous les 90 jours. **À valider par Maxence** (30 jours
-suffiraient pour un bilan mensuel, mais pas pour juger une phase de 8 à 12 semaines).
+qui n'ouvre plus l'app. Le coach remonte 12 semaines au plus (chevrons), sous les 90 jours. **Validé par Maxence le 19/11/2026**, avec la migration, un partage du suivi séparé de celui des plans et la règle des pastilles (suivi : calories à ±10 % et protéines à 90 % au moins ; partiel jusqu'à 25 % d'écart ; « Diète manquée » après 3 jours).
 
 **Envoi** : miroir de l'appareil comme les pesées (`coachShareUploadKind('diet_log')`, empreinte, « cet appareil a déjà
 envoyé ») : au cochage, puis 5 s après un `save()` si le résumé a changé (`dietShareSchedule`, option `ifChanged`), et à la

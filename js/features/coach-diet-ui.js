@@ -51,7 +51,7 @@ function cdietDetailHtml(x, day, status) {
   if (!x) {
     return `
           <div class="cell cdiet__detail"><span class="cell__body"><span class="cell__title">${esc(title)}</span>
-            <span class="cell__sub">${status === 'today' ? 'Rien de coché pour l\'instant aujourd\'hui.' : 'Rien de noté ce jour-là.'}</span></span></div>`;
+            <span class="cell__sub">${status === 'today' ? 'Rien de coché aujourd\'hui.' : 'Rien de noté ce jour-là.'}</span></span></div>`;
   }
   const sub = [x.name, x.kind ? dietKindWord(x.kind) : ''].filter(Boolean).join(' · ');
   const done = x.meals.filter(m => m.ok), miss = x.meals.filter(m => !m.ok);
@@ -88,7 +88,7 @@ function coachDietTrackHtml(uid, who) {
     return `
         <div class="group-title">Diète</div>
         <div class="group"><div class="cell cdiet-off"><span class="cell__body"><span class="cell__title">Non partagé par l'élève</span>
-          <span class="cell__sub">C'est ${who} qui décide de partager ses repas cochés, son eau et son sel avec toi. Tu peux le lui proposer : le message ci-dessous lui dit où l'activer.</span></span></div>${cdietWriteBtn(uid, who, 'share')}</div>`;
+          <span class="cell__sub">${who} choisit de partager sa diète avec toi ou non. Le message ci-dessous lui dit où l'activer.</span></span></div>${cdietWriteBtn(uid, who, 'share')}</div>`;
   }
   const now = Date.now(), today = dietDayKey(now);
   const weeks = Math.min(DIET_SHARE_WEEKS - 1, Math.max(0, f.weeks | 0));
@@ -127,9 +127,9 @@ function coachDietTrackHtml(uid, who) {
           </div>
           <div class="cdiet__days" role="group" aria-label="${esc(range)}">${dots}</div>
           <p class="cdiet__legend"><span class="cdiet__key">${cdietDotHtml('ok')}Suivi</span> <span class="cdiet__key">${cdietDotHtml('part')}Partiel</span> <span class="cdiet__key">${cdietDotHtml('off')}Pas suivi</span> <span class="cdiet__key">${cdietDotHtml('none')}Rien noté</span></p>
-          <details class="cdiet__rule"><summary>Comment c'est compté</summary><p>Suivi : calories à ${DIET_SHARE_OK_PCT} % près de l'objectif du jour et protéines atteintes. Partiel : calories à ${DIET_SHARE_PART_PCT} % près. Au-delà : pas suivi. Sans objectif de calories : les repas cochés.</p></details>
+          <details class="cdiet__rule"><summary>Comment c'est compté</summary><p>Suivi : calories à ${DIET_SHARE_OK_PCT} % près de l'objectif du jour et protéines à ${Math.round(DIET_SHARE_PROT_SHARE * 100)} % au moins. Partiel : calories à ${DIET_SHARE_PART_PCT} % près. Au-delà : pas suivi. Sans objectif de calories : les repas cochés.</p></details>
           ${avg}
-          ${warn ? `<div class="group cdiet__warn"><div class="cell"><span class="cell__body"><span class="cell__title">${who} n'a pas suivi sa diète ces 3 derniers jours</span><span class="cell__sub">Un message suffit souvent à relancer.</span></span></div>${writeBtn}</div>` : ''}
+          ${warn ? `<div class="group cdiet__warn"><div class="cell"><span class="cell__body"><span class="cell__title">${who} n'a pas suivi sa diète ces 3 derniers jours</span></span></div>${writeBtn}</div>` : ''}
           <div class="group cdiet__group">${cdietDetailHtml(f.days[sel] || null, sel, stOf(sel))}
           </div>
         </div>
@@ -140,7 +140,7 @@ function coachDietTrackHtml(uid, who) {
 // (panel du 18/11 : le coach débutant ne savait pas quoi écrire). Brouillon déjà commencé : gardé tel quel
 const CDIET_MSG = {
   warn: who => `Salut ${who}, j'ai vu que ta diète a été difficile ces 3 derniers jours. On en parle ?`,
-  share: () => 'Salut ! Si tu veux que je suive ta diète, active « Suivi de ma diète » dans l\'app : Réglages › Social et coach › Partager avec mon coach. Tu peux l\'arrêter quand tu veux.',
+  share: () => 'Salut, si tu veux que je suive ta diète, active « Suivi de ma diète » dans Réglages › Social et coach › Partager avec mon coach. Tu peux l\'arrêter quand tu veux.',
 };
 function cdietWriteBtn(uid, who, kind) {
   if (typeof chatAvailable !== 'function' || !chatAvailable()) return '';

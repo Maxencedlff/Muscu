@@ -61,12 +61,12 @@ def open_app(page, theme, d, account=False):
         page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, json.dumps(d, ensure_ascii=False), extra={'ppl_welcome_seen': '1'})
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def signin(page, username):
     page.evaluate("async u => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u }); }", username)
-    page.wait_for_timeout(200)
+    settle(page)
 
 
 def toast(page):
@@ -76,7 +76,7 @@ def toast(page):
 def big_text(page):
     page.add_style_tag(content='html { font-size: 28px !important; }')
     page.evaluate("window.dispatchEvent(new Event('resize'))")
-    page.wait_for_timeout(300)
+    settle(page)
 
 
 def layout(page, t, name, scope):
@@ -137,10 +137,10 @@ def t_eleve(bench):
                 me = page.evaluate("""() => { const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false }); __sb.makeCoach(max);
                     __sb.link(max, __sb.meId(), Date.now() - 20 * 86400000); return __sb.meId(); }""")
                 page.evaluate('coachRefresh()')
-                page.wait_for_timeout(300)
+                settle(page)
                 page.evaluate("navigate('coach-share')")
                 page.wait_for_selector('[data-action="coach-share-toggle"][data-kind="diet_log"]')
-                page.wait_for_timeout(300)
+                settle(page)
                 sw = page.locator('[data-action="coach-share-toggle"][data-kind="diet_log"]')
                 R.check(sw.get_attribute('aria-checked') == 'false', f'{t} « Suivi de ma diète » décoché par défaut')
                 R.check('Repas cochés, eau, sel' in nb(sw.inner_text()), f'{t} ce que la case partage, dit dessous ({nb(sw.inner_text())!r})')
@@ -150,7 +150,7 @@ def t_eleve(bench):
                 layout(page, t, 'partage', '.coach-share-view')
                 shot(page, LOT, f'1-partage-off-{t}')
                 sw.click()
-                page.wait_for_timeout(600)
+                settle(page)
                 R.check(sw.get_attribute('aria-checked') == 'true', f'{t} cochée')
                 R.check(toast(page).startswith('Diète partagée avec ton coach') and 'Annuler' in toast(page), f'{t} toast ({toast(page)!r})')
                 sent = page.evaluate(f"__sb.co.dietDays['{me}'] || []")
@@ -162,15 +162,15 @@ def t_eleve(bench):
                 n0 = len(dcalls(page, 'student_share_diet_days'))
                 page.evaluate("dietToggleMeal(data, 'dc_c1_sem', 'm2'); save();")
                 page.clock.run_for(6000)
-                page.wait_for_timeout(300)
+                settle(page)
                 R.check(len(dcalls(page, 'student_share_diet_days')) == n0 + 1 and page.evaluate(f"__sb.co.dietDays['{me}'][0].meals[1].ok"), f'{t} coche renvoyée après 5 s')
                 page.evaluate('save()')
                 page.clock.run_for(6000)
-                page.wait_for_timeout(300)
+                settle(page)
                 R.check(len(dcalls(page, 'student_share_diet_days')) == n0 + 1, f'{t} rien de changé : rien renvoyé')
                 # Décocher : effacé du serveur
                 sw.click()
-                page.wait_for_timeout(600)
+                settle(page)
                 R.check(page.evaluate(f"__sb.co.dietDays['{me}']") is None and 'supprimées du serveur' in toast(page), f'{t} décochée : effacé du serveur ({toast(page)!r})')
                 R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
     # Serveur d'avant la migration : pas de case
@@ -179,7 +179,7 @@ def t_eleve(bench):
         signin(page, 'lea')
         page.evaluate("""() => { __sb.fail.dietLog = 'missing'; const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false }); __sb.makeCoach(max); __sb.link(max, __sb.meId()); }""")
         page.evaluate('coachRefresh()')
-        page.wait_for_timeout(300)
+        settle(page)
         page.evaluate("navigate('coach-share')")
         page.wait_for_selector('[data-action="coach-share-toggle"][data-kind="weight"]')
         R.check(page.locator('[data-kind="diet_log"]').count() == 0, 'serveur d\'avant : pas de case « Suivi de ma diète »')
@@ -205,11 +205,11 @@ def t_coach(bench):
                 signin(page, 'max')
                 ids = coach_setup(page)
                 page.evaluate('coachRefresh()')
-                page.wait_for_timeout(300)
+                settle(page)
                 # Mes élèves : Zoé à relancer pour sa diète
                 page.evaluate("navigate('coach-students')")
                 page.wait_for_selector('.coach-students-view')
-                page.wait_for_timeout(800)
+                settle(page)
                 txt = nb(page.inner_text('.coach-students-view'))
                 R.check('Diète manquée 3 jours' in txt and 'Diète\n3 sur 7 suivis' in txt or 'Diète 3 sur 7 suivis' in txt.replace('\n', ' ') and 'Diète non partagée' in txt, f'{t} Mes élèves : « Diète manquée 3 jours », jours suivis de Léa ({txt[:400]!r})')
                 R.check(page.evaluate(f"coachStudentProgress(coachStudent('{ids['zoe']}')).tone") == 'warn'
@@ -218,7 +218,7 @@ def t_coach(bench):
                 # Fiche de Zoé : la carte dit pourquoi elle est à relancer et propose de lui écrire
                 page.evaluate(f"navigate(makeRoute('coach-student', '{ids['zoe']}'))")
                 page.wait_for_selector('.cdiet__warn')
-                page.wait_for_timeout(400)
+                settle(page)
                 warn = nb(page.inner_text('.cdiet__warn'))
                 R.check('zoe n\'a pas suivi sa diète ces 3 derniers jours' in warn and 'Écrire à zoe' in warn and 'Moyenne de' in nb(page.inner_text('.cdiet')), f'{t} Zoé : pourquoi et « Écrire à zoe » ({warn!r})')
                 page.locator('.cdiet__days').scroll_into_view_if_needed()
@@ -231,18 +231,18 @@ def t_coach(bench):
                 # Fiche de Léa : carte Diète
                 page.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
                 page.wait_for_selector('.cdiet__days')
-                page.wait_for_timeout(500)
+                settle(page)
                 page.locator('.cdiet').scroll_into_view_if_needed()
                 dots = page.evaluate("[...document.querySelectorAll('.cdiet__days .cdiet__dot')].map(e => e.className.replace('cdiet__dot cdiet__dot--', ''))")
                 R.check(dots == ['ok', 'off', 'ok', 'none', 'part', 'ok', 'today'], f'{t} 7 pastilles : suivi, pas suivi, rien, partiel, en cours ({dots})')
                 card = nb(page.inner_text('.cdiet'))
-                R.check('3 jours suivis · 1 partiel' in card and 'calories à 10 % près de l\'objectif du jour et protéines atteintes' in nb(page.text_content('.cdiet__rule')), f'{t} compte et seuils dits ({card[:200]!r})')
+                R.check('3 jours suivis · 1 partiel' in card and 'calories à 10 % près de l\'objectif du jour et protéines à 90 % au moins' in nb(page.text_content('.cdiet__rule')), f'{t} compte et seuils dits ({card[:200]!r})')
                 R.check('Mardi 17 novembre' in card, f'{t} hier choisi d\'office (aujourd\'hui pas fini)')
                 layout(page, t, 'carte diète', '.coach-student-view .scr')
                 shot(page, LOT, f'4-fiche-diete-{t}')
                 # Toucher lundi (partiel) : détail
                 page.click(f'.cdiet__day[data-day="{day_iso(2)}"]')
-                page.wait_for_timeout(300)
+                settle(page)
                 det = nb(page.inner_text('.cdiet'))
                 R.check('Lundi 16 novembre' in det and 'Repos' in det and '3 sur 4' in det and 'pas coché : Dîner' in det
                         and '1 980 / 2 300 kcal' in det and '14 % sous l\'objectif' in det and 'objectif 3 à 5 L · −0,5 L sous l\'objectif' in det and 'Partiel : calories 14 % sous l\'objectif' in det and 'Protéines' in det, f'{t} détail du lundi ({det[-400:]!r})')
@@ -250,7 +250,7 @@ def t_coach(bench):
                 shot(page, LOT, f'5-detail-jour-{t}')
                 # Semaine d'avant
                 page.click('[data-action="coach-diet-week"][data-dir="1"]')
-                page.wait_for_timeout(300)
+                settle(page)
                 R.check('Du 5 nov. au 11 nov.' in nb(page.inner_text('.cdiet__range')), f'{t} semaine d\'avant ({nb(page.inner_text(".cdiet__range"))!r})')
                 # Tom : non partagé, aucun chiffre
                 page.evaluate(f"navigate(makeRoute('coach-student', '{ids['tom']}'))")
@@ -277,14 +277,14 @@ def t_communs(bench):
             open_app(page, theme, eleve_data())
             page.wait_for_selector('.diet-home')
             page.locator('.diet-home').scroll_into_view_if_needed()
-            page.wait_for_timeout(200)
+            settle(page)
             ring = page.evaluate("""() => { const b = document.querySelector('.diet-home__mstate .diet-check'); if (!b) return null;
                 const r = b.getBoundingClientRect(), p = getComputedStyle(b, '::before');
                 return [Math.round(r.width), Math.round(r.height), Math.round(r.width - parseFloat(p.left) - parseFloat(p.right))]; }""")
             R.check(ring == [44, 44, 26], f'{t} rond de l\'accueil : 26 pt dessiné, 44 pt touchés ({ring})')
             shot(page, LOT, f'7-accueil-{t}')
             page.evaluate("showToast('Repas coché', { action: 'Annuler', onAction: () => {} })")
-            page.wait_for_timeout(300)
+            settle(page)
             pe = page.evaluate("[getComputedStyle(document.querySelector('.toast')).pointerEvents, getComputedStyle(document.querySelector('.toast__action')).pointerEvents, Math.round(document.querySelector('.toast').getBoundingClientRect().height)]")
             R.check(pe[0] == 'none' and pe[1] == 'auto' and pe[2] <= 52, f'{t} toast : texte traversant, bouton touchable, 52 pt au plus ({pe})')
             shot(page, LOT, f'8-toast-{t}')
