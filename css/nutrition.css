@@ -538,3 +538,17 @@ html.type-xl .diet-dayask__btns .diet-dayline__btn { flex: 1; }
 /* Bande des 7 jours : un jour de repos se voit d'un coup d'œil (pastille grise, sans couleur d'état) */
 .diet-week__kind--r { padding: 1px 4px; border-radius: 4px; background: var(--fill); color: var(--label); font-weight: 600; }
 .diet-salt__add .water-add__qty { font-size: var(--fs-footnote); font-weight: 500; }
+
+/* Feuille « Copier … vers » : liste iOS, une ligne par jour, coche à droite (panel nutri-final t1) */
+.diet-dpick .sheet-list + .sheet-list { margin-top: 20px; }
+.diet-dpick__row { width: 100%; text-align: left; background: none; border: 0; font: inherit; color: var(--label); cursor: pointer; }
+.diet-dpick__txt { display: flex; flex-direction: column; min-width: 0; }
+.diet-dpick__sub { color: var(--label2); font-size: 0.882rem; }
+.diet-dpick__mark { flex-shrink: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; color: var(--tint); }
+/* « Partagé avec max » sous la ligne du plan : mène au réglage Partager */
+.diet-plan-share { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: -6px 0 2px 16px; padding: 0; border: 0; background: none;
+  font: inherit; font-size: var(--fs-footnote); color: var(--label2); cursor: pointer; }
+.diet-plan-share .icon { width: 1em; height: 1em; flex-shrink: 0; }
+/* Texte très grand : la bande des 7 jours défile au lieu de coller « LunMarMer » (panel nutri-final t1) */
+html.type-xl .diet-week.diet-daypick { overflow-x: auto; justify-content: flex-start; gap: 4px; scrollbar-width: none; }
+html.type-xl .diet-daypick .diet-week__day { flex: 0 0 auto; min-width: 3.4em; padding: 0 4px; }

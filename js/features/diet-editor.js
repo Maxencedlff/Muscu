@@ -112,7 +112,7 @@ function renderDietPlan(id, dayParam) {
   const plan = di ? dietDayView(root, di) : root, dayScreen = di !== null;
   const ro = !!plan.fromCoach, on = data.dietActive === id, total = dietPlanMacros(plan);
   const personal = dietPersonal(plan), filled = dietHasMealItems(plan);
-  const showMeals = !personal || filled || dietComposing.has(id), gap = dietTargetGap(plan, dietMealsNoun(plan));
+  const showMeals = !personal || filled || dietComposing.has(id), gap = dietTargetGap(plan, dietMealsNoun(plan), ro && root.fromCoach ? 0.05 : 0.1);
   const right = ro || dayScreen ? '' : `<button class="navbar__text" data-action="diet-rename" data-id="${esc(id)}">Renommer</button>`;
   const meals = dietShownMeals(plan).map(meal => `
         <div class="group-title group-title--row diet-meal-title">
@@ -143,7 +143,7 @@ function renderDietPlan(id, dayParam) {
           ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsHtml(plan)}</span></span></div>`
             : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"${dayScreen ? ` data-dayi="${di}"` : ''}><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsCellHtml(plan)}</span></span>${icon('chevron.right', 16)}</button>`}
         </div>
-        ${gap ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(gap)}</span></p>` : ''}
+        ${gap ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(gap)}${ro && root.fromCoach ? ' Le suivi se fait sur l\'objectif du jour.' : ''}</span></p>` : ''}
         <div class="group-foot">${ro ? `Plan et objectifs fixés par ${esc(plan.fromCoach.name || 'ton coach')}, qui seul peut les modifier. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
           : personal ? `${plan.targets ? '' : 'Fixe tes objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. '}Ce que tu manges se note chaque jour dans Entraînement › Nutrition.`
             : 'Fixe les objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. Sans objectif, le total prévu sert de repère.'}</div>
@@ -367,9 +367,20 @@ async function dietKeepFood(food) {
 }
 
 async function dietAskGrams(food, value = 100) {
-  return askNumber({ title: elideName(foodName(food.name)),
-    message: `Quantité en grammes. Pour 100 g : ${food.per.k} kcal.`,   // macros déjà dans la liste : l'alerte reste courte en texte agrandi
+  const base = `Quantité en grammes. Pour 100 g : ${food.per.k} kcal.`;
+  const p = askNumber({ title: elideName(foodName(food.name)), message: base,   // macros déjà dans la liste : l'alerte reste courte en texte agrandi
     value: String(value), unit: 'g', min: 1, max: DIET_G_MAX });
+  // Total de la quantité tapée, à chaque chiffre (panel nutri-final t1 : « je dois calculer de tête »), comme la fiche du scan
+  const inp = document.querySelector('.ios-dialog .ios-dialog__input'), msg = document.querySelector('.ios-dialog .ios-dialog__msg');
+  if (inp && msg) {
+    const paint = () => {
+      const g = num(inp.value, 1, DIET_G_MAX);
+      msg.textContent = g ? `${fmtNum(g)}\u00a0g : ${dietMacroLine(dietItemMacros({ g, per: food.per }))}` : base;
+    };
+    inp.addEventListener('input', paint);
+    paint();
+  }
+  return p;
 }
 
 // ── Objectifs du jour ───────────────────────────────────────

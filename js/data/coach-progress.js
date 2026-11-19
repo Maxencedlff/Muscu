@@ -198,7 +198,9 @@ function progressRank(st, pr, unread = 0) {
 function sortStudentsByProgress(students, prOf, unreadOf = () => 0) {
   const rows = students.map(st => { const pr = prOf(st); return { st, pr, rank: progressRank(st, pr, unreadOf(st)) }; });
   const last = st => st.last_session?.done_at ?? -Infinity;
-  rows.sort((a, b) => (a.rank - b.rank)
+  // Parmi les nouveautés, les élèves à relancer d'abord (panel nutri-final t1 : « 1 à relancer » arrivait en dernier)
+  const warnFirst = r => (r.rank === 0 && r.pr.tone === 'warn' ? 0 : 1);
+  rows.sort((a, b) => (a.rank - b.rank) || (warnFirst(a) - warnFirst(b))
     || (a.rank === 1 ? (b.pr.daysSince ?? 0) - (a.pr.daysSince ?? 0) : 0)
     || (a.rank === 2 ? b.pr.records.length - a.pr.records.length : 0)
     || (last(b.st) - last(a.st))

@@ -138,14 +138,14 @@ function dietSameKindDays(plan, di) {
 async function dietPickDays(plan, except, title, confirm = 'Copier') {
   const days = dietPlanDays(plan).map((_, i) => i).filter(i => i !== except);
   const sel = new Set();
-  const rows = () => `<div class="group">
-        <button type="button" class="cell coach-pick coach-pick--all${sel.size === days.length ? ' coach-pick--on' : ''}" role="checkbox" aria-checked="${sel.size === days.length}" data-dpick="all">
-          <span class="coach-pick__box" aria-hidden="true">${sel.size === days.length ? icon('checkmark', 14) : ''}</span><span class="cell__body"><span class="cell__title">Tous les autres jours</span></span></button>
-      </div>
-      <div class="group">${days.map(i => `
-        <button type="button" class="cell coach-pick${sel.has(i) ? ' coach-pick--on' : ''}" role="checkbox" aria-checked="${sel.has(i)}" data-dpick="${i}">
-          <span class="coach-pick__box" aria-hidden="true">${sel.has(i) ? icon('checkmark', 14) : ''}</span>
-          <span class="cell__body"><span class="cell__title">${esc(dietDayName(plan, i))}</span>${plan.days?.mode === 'week' ? `<span class="cell__sub">${dietKindWord(dietDayKindAt(plan, i))}</span>` : ''}</span></button>`).join('')}</div>
+  // Liste iOS (panel nutri-final t1 : la grille de boutons faisait brouillon) : une ligne par jour, coche à droite,
+  // « Tous les autres jours » en tête
+  const row = (k, on, title, sub) => `
+        <button type="button" class="sheet-list__row diet-dpick__row${on ? ' diet-dpick__row--on' : ''}" role="checkbox" aria-checked="${on}" data-dpick="${k}">
+          <span class="diet-dpick__txt"><span class="diet-dpick__title">${title}</span>${sub ? `<span class="diet-dpick__sub">${sub}</span>` : ''}</span>
+          <span class="diet-dpick__mark" aria-hidden="true">${on ? icon('checkmark', 18) : ''}</span></button>`;
+  const rows = () => `<div class="sheet-list">${row('all', sel.size === days.length, 'Tous les autres jours', '')}</div>
+      <div class="sheet-list">${days.map(i => row(i, sel.has(i), esc(dietDayName(plan, i)), plan.days?.mode === 'week' ? dietKindWord(dietDayKindAt(plan, i)) : '')).join('')}</div>
       <p class="diet-form__err" id="dietDaysErr" role="alert"></p>`;
   const p = sheet({ title, confirm, body: `<div class="diet-dpick">${rows()}</div>`, onConfirm: panel => {
     if (!sel.size) { $('#dietDaysErr', panel).textContent = 'Coche au moins un jour.'; return false; }
@@ -360,7 +360,7 @@ registerActions({
     const ed = dietEditedPlan();
     if (ed?.root.days?.mode !== 'week') return;
     const name = dietDayName(ed.root, ed.day);
-    if (!(await confirmSheet(`Mettre ${name.toLowerCase()} sur les 7 jours ?`, 'Les repas et les objectifs des 6 autres jours sont remplacés.', 'Remplacer'))) return;
+    if (!(await confirmSheet(`Mettre ${name.toLowerCase()} sur les 7 jours ?`, 'Les repas, les objectifs et le type de jour (entraînement ou repos) des 6 autres jours sont remplacés.', 'Remplacer'))) return;
     const to = [0, 1, 2, 3, 4, 5, 6].filter(i => i !== ed.day);
     const before = dietCopyDayToDays(ed.root, ed.day, to);
     if (!before) return;

@@ -231,10 +231,10 @@ function swapCandidates(item, { limit = SWAP_LIMIT, own = [] } = {}) {
     return n < SWAP_PER_WORD;
   }).slice(0, limit);
 }
-// Texte d'un écart : « +12 kcal », « −3 g » (signe moins typographique), « = » à l'arrondi près
+// Texte d'un écart : « +12 kcal », « −3 g » (signe moins typographique), « mêmes kcal » à l'arrondi près (« = » seul ne se lisait pas, panel nutri-final t1)
 function swapDeltaText(v, unit) {
   const r = Math.round(v);
-  return r === 0 ? '=' : `${r > 0 ? '+' : '−'}${Math.abs(r)} ${unit}`;
+  return r === 0 ? (unit === 'kcal' ? 'mêmes kcal' : 'pareil') : `${r > 0 ? '+' : '−'}${Math.abs(r)} ${unit}`;
 }
 function swapRuleText(item) {
   return { p: 'Même quantité de protéines', c: 'Même quantité de glucides', f: 'Même quantité de lipides', kcal: 'Mêmes calories' }[swapAnchor(item)];

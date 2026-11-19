@@ -302,7 +302,7 @@ def t_eleve(bench):
                 shot(page, LOT, f'10-eau-{t}')
                 # Sel : ligne du bilan, sel ajouté
                 page.locator('.diet-salt').scroll_into_view_if_needed()
-                R.check('objectif 3 à 5 g' in nb(page.inner_text('.diet-salt')), f'{t} sel : « objectif 3 à 5 g »')
+                R.check('repère 3 à 5 g' in nb(page.inner_text('.diet-salt')) and 'Sel des repas compris' in nb(page.inner_text('.diet-salt')), f'{t} sel : « repère 3 à 5 g », repas compris')
                 R.check('Pincée' in page.inner_text('.diet-salt__add') and '0,4' in nb(page.inner_text('.diet-salt__add')), f'{t} « + Pincée 0,4 g » dit ce qu\'il ajoute')
                 page.click('.diet-salt__add')
                 settle(page)

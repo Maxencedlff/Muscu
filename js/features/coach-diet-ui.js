@@ -4,14 +4,15 @@
 //  - 7 jours en pastilles (suivi, partiel, pas suivi, rien de noté ; aujourd'hui : en cours), seuils d'écart de
 //    calories dits sous la bande ; un toucher sur un jour montre son détail dessous (repas cochés, calories et
 //    écart, macros, eau, sel). Semaines d'avant : chevrons, 12 semaines au plus (le serveur garde 90 jours).
-//  - Élève qui ne partage pas : « Non partagé par l'élève », sans aucun chiffre. Serveur sans la fonction, ou
+//  - Élève qui ne partage pas : « Diète non partagée » et où l'activer, sans aucun chiffre. Serveur sans la fonction, ou
 //    lecture en échec : rien (jamais un « non partagé » faux).
 //  - Couleurs : vert de l'avancée (--check-on, comme la nutrition) ; jamais l'orange des actions ni le rouge des
 //    muscles. Tout texte venu du serveur passe par esc(). Rien au pointerdown.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const CDIET_WD = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+// Ma / Me : deux « M » de suite ne disaient pas lequel est aujourd'hui (panel nutri-final t1)
+const CDIET_WD = ['L', 'Ma', 'Me', 'J', 'V', 'S', 'D'];
 const cdietWeekday = day => (new Date(`${day}T12:00:00`).getDay() + 6) % 7;
 const cdietTs = day => new Date(`${day}T12:00:00`).getTime();
 const cdietGr = v => `${fmtNum(Math.round(v))} g`;
@@ -30,10 +31,11 @@ function cdietGapText(gap) {
 }
 const cdietPct = (v, goal) => (goal > 0 ? Math.round((v - goal) / goal * 100) : null);
 // Dans une fourchette : « dans l'objectif », « sous l'objectif », « au-dessus de l'objectif »
-// fmt : écart chiffré (« −0,5 L sous l'objectif », « +0,8 g au-dessus de l'objectif », panel du 18/11)
+// fmt : écart chiffré (« 0,5 L sous l'objectif », « 0,8 g au-dessus de l'objectif », panel du 18/11)
 function cdietRangeWord(v, lo, hi, fmt = null) {
-  if (lo != null && v < lo) return `${fmt ? `−${fmt(lo - v)} ` : ''}sous l'objectif`;
-  if (hi != null && v > hi) return `${fmt ? `+${fmt(v - hi)} ` : ''}au-dessus de l'objectif`;
+  // Sans signe : « 0,5 L sous l'objectif » (le mot dit déjà le sens, panel nutri-final t1)
+  if (lo != null && v < lo) return `${fmt ? `${fmt(lo - v)} ` : ''}sous l'objectif`;
+  if (hi != null && v > hi) return `${fmt ? `${fmt(v - hi)} ` : ''}au-dessus de l'objectif`;
   return lo != null || hi != null ? 'dans l\'objectif' : '';
 }
 // Pourquoi un jour est partiel ou pas suivi : ce qui manque, en mots
@@ -87,8 +89,8 @@ function coachDietTrackHtml(uid, who) {
   if (!f.shared) {
     return `
         <div class="group-title">Diète</div>
-        <div class="group"><div class="cell cdiet-off"><span class="cell__body"><span class="cell__title">Non partagé par l'élève</span>
-          <span class="cell__sub">${who} choisit de partager sa diète avec toi ou non. Le message ci-dessous lui dit où l'activer.</span></span></div>${cdietWriteBtn(uid, who, 'share')}</div>`;
+        <div class="group"><div class="cell cdiet-off"><span class="cell__body"><span class="cell__title">Diète non partagée</span>
+          <span class="cell__sub">${who} choisit de la partager ou non, dans Réglages › Social et coach › Partager avec mon coach › Suivi de ma diète.</span></span></div>${cdietWriteBtn(uid, who, 'share')}</div>`;
   }
   const now = Date.now(), today = dietDayKey(now);
   const weeks = Math.min(DIET_SHARE_WEEKS - 1, Math.max(0, f.weeks | 0));
@@ -116,7 +118,16 @@ function coachDietTrackHtml(uid, who) {
   // Avec l'objectif moyen et l'écart (panel du 18/11, tour 3 : « je dois faire le calcul de tête »)
   const gmean = k => { const l = past.filter(x => x.goal?.[k] > 0); return l.length === past.length ? l.reduce((a, x) => a + x.goal[k], 0) / l.length : 0; };
   const vs = (v, g, unit) => `${fmtNum(Math.round(v))}${g ? ` / ${fmtNum(Math.round(g))}` : ''} ${unit}${g && cdietPct(v, g) ? ` (${cdietPct(v, g) > 0 ? '+' : '−'}${Math.abs(cdietPct(v, g))} %)` : ''}`;
-  const avg = past.length >= 2 ? `<p class="cdiet__avg num">Moyenne de ${plural(past.length, 'jour noté', 'jours notés')} : ${vs(mean('kcal'), gmean('kcal'), 'kcal')} · prot. ${vs(mean('p'), gmean('p'), 'g')} · eau ${cdietL(mean('water'))}${past.some(x => x.salt != null) ? ` · sel ${fmtNum(Math.round(mean('salt') * 10) / 10, 1)} g` : ''}</p>` : '';
+  // Moyenne en lignes libellé / valeur, comme le détail d'un jour (panel nutri-final t1 : le paragraphe centré se lisait mal)
+  const arow = (t, v, sub) => `
+          <div class="cell cdiet__detail"><span class="cell__body"><span class="cell__title">${t}</span>${sub ? `<span class="cell__sub">${esc(sub)}</span>` : ''}</span><span class="cell__value cdiet__val num">${esc(v)}</span></div>`;
+  const vsRow = (t, k, unit) => { const v = mean(k), g = gmean(k), pc = g ? cdietPct(v, g) : null;
+    return arow(t, `${fmtNum(Math.round(v))}${g ? ` / ${fmtNum(Math.round(g))}` : ''} ${unit}`, pc === null ? '' : cdietGapText(pc)); };
+  const avg = past.length >= 2 ? `
+          <div class="group cdiet__avg">
+          <div class="cell cdiet__detail"><span class="cell__body"><span class="cell__title">Moyenne</span><span class="cell__sub">${plural(past.length, 'jour noté', 'jours notés')}, chacun comparé à son objectif</span></span></div>
+          ${vsRow('Calories', 'kcal', 'kcal')}${vsRow('Protéines', 'p', 'g')}${arow('Eau', cdietL(mean('water')), '')}${past.some(x => x.salt != null) ? arow('Sel', `${fmtNum(Math.round(mean('salt') * 10) / 10, 1)} g`, '') : ''}
+          </div>` : '';
   return `
         <div class="group-title">Diète</div>
         <div class="cdiet">
@@ -126,7 +137,7 @@ function coachDietTrackHtml(uid, who) {
             ${nav(-1, 'Semaine d\'après', weeks === 0)}
           </div>
           <div class="cdiet__days" role="group" aria-label="${esc(range)}">${dots}</div>
-          <p class="cdiet__legend"><span class="cdiet__key">${cdietDotHtml('ok')}Suivi</span> <span class="cdiet__key">${cdietDotHtml('part')}Partiel</span> <span class="cdiet__key">${cdietDotHtml('off')}Pas suivi</span> <span class="cdiet__key">${cdietDotHtml('none')}Rien noté</span></p>
+          <p class="cdiet__legend"><span class="cdiet__key">${cdietDotHtml('ok')}Suivi</span> <span class="cdiet__key">${cdietDotHtml('part')}Partiel</span> <span class="cdiet__key">${cdietDotHtml('off')}Pas suivi</span> <span class="cdiet__key">${cdietDotHtml('none')}Rien noté</span> <span class="cdiet__key">${cdietDotHtml('today')}En cours</span></p>
           <details class="cdiet__rule"><summary>Comment c'est compté</summary><p>Suivi : calories à ${DIET_SHARE_OK_PCT} % près de l'objectif du jour et protéines à ${Math.round(DIET_SHARE_PROT_SHARE * 100)} % au moins. Partiel : calories à ${DIET_SHARE_PART_PCT} % près. Au-delà : pas suivi. Sans objectif de calories : les repas cochés.</p></details>
           ${avg}
           ${warn ? `<div class="group cdiet__warn"><div class="cell"><span class="cell__body"><span class="cell__title">${who} n'a pas suivi sa diète ces 3 derniers jours</span></span></div>${writeBtn}</div>` : ''}

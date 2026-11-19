@@ -123,3 +123,6 @@ html.type-xl .water-card__plus { white-space: normal; }
 .water-cup[aria-disabled="true"] { cursor: default; }
 .water-cup .water-glass__line { stroke: var(--label3); }
 .water-cups__note { margin: 2px 0 0; font-size: var(--fs-footnote); color: var(--label2); }
+/* Case de 50 cl ou 1 L : un carré arrondi, pas un verre (le verre reste le dessin du « Verre 25 cl ») */
+.water-case { display: block; width: 24px; height: 24px; border-radius: 6px; box-shadow: inset 0 0 0 2px var(--label3); }
+.water-case--on { background: var(--check-on); box-shadow: none; }

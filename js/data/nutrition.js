@@ -625,13 +625,14 @@ function dietLowKcal(plan) {
 // « 1 425 kcal prévues » à côté de « objectif 2 000 kcal » passait inaperçu, à l'envoi du coach comme chez
 // l'élève (panel du 07/11) ; rien n'est bloqué, c'est un signal. noun : « Les repas prévus » (plan d'un coach), « Tes
 // repas types » (plan perso : des repas d'habitude facultatifs, pas un menu imposé, retour du 16/11)
-function dietTargetGap(plan, noun = 'Les repas prévus') {
+// tol : écart toléré (10 % ; 5 % pour l'élève qui suit le plan d'un coach, panel nutri-final t1)
+function dietTargetGap(plan, noun = 'Les repas prévus', tol = 0.1) {
   const t = plan?.targets;
   if (!t || !dietShownMeals(plan).some(m => m.items?.length)) return '';
   const total = dietPlanMacros(plan);
   const parts = [['kcal', 'kcal'], ['p', 'g de protéines']].flatMap(([k, unit]) => {
     const goal = Number(t[k]) || 0, diff = Math.round(total[k]) - goal;
-    if (!goal || Math.abs(diff) <= goal * 0.1) return [];
+    if (!goal || Math.abs(diff) <= goal * tol) return [];
     return [`${fmtNum(Math.abs(diff))} ${unit} de ${diff < 0 ? 'moins' : 'plus'}`];
   });
   return parts.length ? `${noun} font ${parts.join(' et ')} que l'objectif du jour.` : '';

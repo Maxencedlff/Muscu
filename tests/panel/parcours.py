@@ -1434,10 +1434,11 @@ def plan_seche():
     eau de 3 à 5 L, sel de 3 à 5 g."""
     return {'name': 'Sèche semaine 1', 'targets': {'kcal': 2300, 'p': 150, 'c': 270, 'f': 55, 'water': 5, 'waterMin': 3, 'saltMin': 3, 'saltMax': 5},
             'meals': [
-                {'id': 'm1', 'name': 'Déjeuner', 'items': [_ciq('i1', 4003, 350, 0.05), _ciq('i2', 36018, 180, 0.2), _ciq('i4', 17270, 15, 0)]},
-                {'id': 'm2', 'name': 'Dîner', 'items': [_ciq('i3', 7001, 80, 1.25), _ciq('i5', 9104, 250, 0.05), _ciq('i6', 6251, 150, 0.16)]},
+                # Dans l'ordre de la journée, comme le rangerait un coach (panel nutri-final t1 : l'ordre des tests troublait)
                 {'id': 'm3', 'name': 'Petit-déjeuner', 'items': [_ciq('i7', 32140, 80, 0.01), _ciq('i8', 19644, 250, 0.09), _ciq('i9', 13005, 120, 0)]},
-                {'id': 'm4', 'name': 'Collation', 'items': [_ciq('i10', 15041, 30, 0.05)]}]}
+                {'id': 'm1', 'name': 'Déjeuner', 'items': [_ciq('i1', 4003, 350, 0.05), _ciq('i2', 36018, 180, 0.2), _ciq('i4', 17270, 15, 0)]},
+                {'id': 'm4', 'name': 'Collation', 'items': [_ciq('i10', 15041, 30, 0.05)]},
+                {'id': 'm2', 'name': 'Dîner', 'items': [_ciq('i3', 7001, 80, 1.25), _ciq('i5', 9104, 250, 0.05), _ciq('i6', 6251, 150, 0.16)]}]}
 
 
 def plan_seche_eleve(mode='session'):
@@ -1445,9 +1446,10 @@ def plan_seche_eleve(mode='session'):
     semaine de 7 jours (mardi, samedi et dimanche de repos ; mercredi 4/11, jour de l'horloge, de repos)."""
     p = plan_seche()
     rest = json.loads(json.dumps({'meals': p['meals'], 'targets': {**p['targets'], 'kcal': 2000, 'c': 200}}))
-    rest['meals'][0]['items'][0]['g'] = 250
-    rest['meals'][1]['items'][0]['g'] = 50
-    rest['meals'][1]['items'][1]['g'] = 120
+    repas = {m['id']: m for m in rest['meals']}
+    repas['m1']['items'][0]['g'] = 250
+    repas['m2']['items'][0]['g'] = 50
+    repas['m2']['items'][1]['g'] = 120
     if mode == 'session':
         p['days'] = {'mode': 'session', 'more': [rest]}
     else:
@@ -1467,7 +1469,7 @@ def _sans_seance_du_jour(d):
 @parcours('nutri-coach-plan', 'Coach : plan sur 7 jours, copies de repas, eau et sel, aperçu et envoi', 'coach')
 def p_nutri_coach_plan(r):
     """Coach max (élèves Léa et Tom, qui acceptent ses plans) : son plan « Sèche semaine 1 » passe en semaine de 7 jours,
-    « Crème de riz » cherchée et ajoutée au lundi, déjeuner copié vers mardi et jeudi, « Mettre pareil sur les 7 jours »
+    « Crème de riz » cherchée et ajoutée au petit-déjeuner du lundi, copié vers mardi et jeudi, « Mettre pareil sur les 7 jours »
     puis Annuler, lundi en jour de repos copié vers les autres jours de repos, objectifs d'eau et de sel (repère de l'OMS
     au-dessus de 5 g), aperçu jour par jour et envoi aux deux élèves."""
     d = json.loads(REALISTE)
@@ -1497,7 +1499,7 @@ def p_nutri_coach_plan(r):
         r.attendre('.diet-dayrow', 'vue des jours')
     r.raccourci("""() => { const p = data.dietPlans.d_seche001; p.days.kinds = ['t', 'r', 't', 't', 't', 'r', 'r'];
         for (const i of [0, 4, 5]) { const o = p.days.more[i]; o.targets = { ...o.targets, kcal: 2000, c: 200 };
-          o.meals[1].items[0].g = 50; o.meals[1].items[1].g = 120; o.meals[0].items[0].g = 250; } save(); render(); }""",
+          const m = id => o.meals.find(x => x.id === id); m('m2').items[0].g = 50; m('m2').items[1].g = 120; m('m1').items[0].g = 250; } save(); render(); }""",
                 'semaine réaliste : mardi, samedi et dimanche de repos (2 000 kcal, moins de féculents)')
     with r.etape('semaine-vue', 'Vue des 7 jours : type, repas, kcal et macros de chaque jour', cle=cle):
         r.defiler('.diet-dayrow[data-dayi="6"]', 'dimanche')
@@ -1505,8 +1507,8 @@ def p_nutri_coach_plan(r):
         r.toucher('.diet-dayrow[data-dayi="0"]', 'Lundi')
         r.attendre('.diet-dayswipe', 'écran du lundi')
     cle = 'Coach : ajouter un aliment par la recherche'
-    with r.etape('recherche', 'Ajouter un aliment : recherche en tête, « crème de riz » (valeurs Ciqual dites)', cle=cle):
-        r.toucher('[data-action="diet-add-food"]', 'Ajouter un aliment (Déjeuner)')
+    with r.etape('recherche', 'Petit-déjeuner, ajouter un aliment : recherche en tête, « crème de riz » (valeurs Ciqual dites)', cle=cle):
+        r.toucher('[data-action="diet-add-food"]', 'Ajouter un aliment (Petit-déjeuner)')
         r.attendre('#dietFoodSearch', 'feuille de recherche')
         r.saisir('#dietFoodSearch', 'crème de riz', 'recherche')
         r.attendre('.sheet .diet-pick__list .diet-cand', 'résultats')
@@ -1520,13 +1522,13 @@ def p_nutri_coach_plan(r):
         else:
             r.toucher('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm', 'OK')
     cle = 'Coach : copier un repas vers d\'autres jours'
-    with r.etape('copier-repas', 'Déjeuner : « Copier vers d\'autres jours… », mardi et jeudi cochés', cle=cle):
-        r.toucher('[data-action="diet-meal-menu"]', 'Modifier (déjeuner)')
+    with r.etape('copier-repas', 'Petit-déjeuner : « Copier vers d\'autres jours… », mardi et jeudi cochés', cle=cle):
+        r.toucher('[data-action="diet-meal-menu"]', 'Modifier (petit-déjeuner)')
         r.choisir('Copier vers d\'autres jours')
         r.attendre('.sheet .diet-dpick', 'jours à cocher')
         r.toucher('.sheet [data-dpick="1"]', 'Mardi')
         r.toucher('.sheet [data-dpick="3"]', 'Jeudi')
-    with r.etape('repas-copie', 'Déjeuner copié vers mardi et jeudi', cle=cle):
+    with r.etape('repas-copie', 'Petit-déjeuner copié vers mardi et jeudi', cle=cle):
         r.toucher('.sheet__btn--confirm', 'Copier')
     cle = 'Coach : mettre un jour sur toute la semaine'
     with r.etape('sept-jours', '« Mettre pareil sur les 7 jours » : confirmation', cle=cle):
@@ -1643,7 +1645,7 @@ def _jour_partage(n, kcal, faits, kind='t', water=2500, salt=4.2):
     jour = (datetime.date(2026, 11, 4) - datetime.timedelta(days=n)).isoformat()
     return {'day': jour, 'plan': 'd_seche001', 'name': 'Sèche semaine 1', 'kind': kind,
             'meals': [{'n': m, 'ok': i < faits} for i, m in enumerate(noms)], 'kcal': kcal, 'p': round(kcal * 0.065), 'c': round(kcal * 0.11),
-            'f': round(kcal * 0.024), 'goal': {'kcal': 2300, 'p': 150, 'c': 270, 'f': 55}, 'water': water, 'waterGoal': 5000, 'waterMin': 3000,
+            'f': round(kcal * 0.024), 'goal': {'kcal': 2000, 'p': 150, 'c': 200, 'f': 55} if kind == 'r' else {'kcal': 2300, 'p': 150, 'c': 270, 'f': 55}, 'water': water, 'waterGoal': 5000, 'waterMin': 3000,
             'salt': salt, 'saltMin': 3, 'saltMax': 5}
 
 
@@ -1679,9 +1681,12 @@ def p_suivi_diete_eleve(r):
         r.bas('bas du partage')
     with r.etape('partage-coche', '« Suivi de ma diète » cochée : « Diète partagée avec ton coach » (Annuler)', cle=cle):
         r.toucher('[data-action="coach-share-toggle"][data-kind="diet_log"]', 'Suivi de ma diète')
-    with r.etape('partage-decoche', 'Décochée : « Partage arrêté, journées supprimées du serveur »'):
+    with r.etape('partage-arret', 'Désactiver : confirmation « Arrêter le partage de ta diète ? »', cle=cle):
         r.page.wait_for_timeout(2500)   # message du partage donné parti
         r.toucher('[data-action="coach-share-toggle"][data-kind="diet_log"]', 'Suivi de ma diète')
+        r.attendre('.ios-dialog', 'confirmation')
+    with r.etape('partage-decoche', '« Arrêter » : « Partage arrêté, journées supprimées du serveur »', cle=cle):
+        r.choisir('Arrêter')
 
 
 @parcours('suivi-diete-coach', 'Coach : carte Diète de l\'élève, Mes élèves, à relancer', 'coach')
@@ -1689,7 +1694,7 @@ def p_suivi_diete_coach(r):
     """Coach max, trois élèves : Léa partage sa diète (semaine suivie en partie, aujourd'hui en cours), Zoé la partage et
     l'a manquée 3 jours, Tom ne la partage pas. Mes élèves (7 pastilles, « Diète manquée 3 jours »), fiche de Zoé et
     « Écrire à zoe » (message prêt, jamais envoyé seul), fiche de Léa (carte Diète, un jour touché, règle, semaine d'avant),
-    fiche de Tom (« Non partagé par l'élève »)."""
+    fiche de Tom (« Diète non partagée »)."""
     r.lancer(REALISTE)
     r.connecter('max')
     r.raccourci("""([lea, zoe]) => { const me = __sb.meId(); __sb.makeCoach(me);
@@ -1725,7 +1730,7 @@ def p_suivi_diete_coach(r):
     with r.etape('semaine-avant', 'Semaine d\'avant', cle=cle):
         r.toucher('[data-action="coach-diet-week"][data-dir="1"]', 'Semaine d\'avant')
         r.defiler('.cdiet', 'carte Diète')
-    with r.etape('non-partage', 'Fiche de Tom : « Non partagé par l\'élève », aucun chiffre'):
+    with r.etape('non-partage', 'Fiche de Tom : « Diète non partagée » et où l\'activer, aucun chiffre'):
         r.retour()
         r.attendre('.coach-team .coach-student-row', 'Élèves')
         r.toucher('.coach-student-row', 'Tom', texte='tom')

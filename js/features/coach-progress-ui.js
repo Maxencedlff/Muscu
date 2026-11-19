@@ -88,7 +88,7 @@ function coachStudentRowHtml(s, pr, now = Date.now()) {
   return `
           <button class="cell cell--nav social-row coach-student-row cstu${pr.tone === 'warn' ? ' cstu--warn' : ''}" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}" data-name="${esc(personName(s))}">
             <span class="social-row__main">${studentPicHtml(s)}<span class="cstu__col"><span class="social-row__text">
-              <span class="cstu__top"><span class="social-row__name">${esc(personName(s))}</span>${pushOffMarkHtml(s.user_id)}${days}</span>
+              <span class="cstu__top"><span class="social-row__name">${esc(personName(s))}</span>${pushOffMarkHtml(s.user_id)}${diet ? `<span class="cstu__days-lbl" aria-hidden="true">Séances</span>` : ''}${days}</span>
               ${pr.kind === 'new' && !coachStudentPlanLine(s.user_id) ? '' : progressSignalHtml(pr)}
               ${third}${diet}
             </span>${badges ? `<span class="cstu__foot">${badges}</span>` : ''}</span></span>

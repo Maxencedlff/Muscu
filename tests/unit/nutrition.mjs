@@ -455,7 +455,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     // Texte de l'écart
     assert.equal(run(`swapDeltaText(12.4, 'kcal')`), '+12 kcal');
     assert.equal(run(`swapDeltaText(-3.6, 'kcal')`), '−4 kcal');
-    assert.equal(run(`swapDeltaText(0.3, 'kcal')`), '=');
+    assert.equal(run(`swapDeltaText(0.3, 'kcal')`), 'mêmes kcal');
     assert.equal(run(`swapRoundG(47.4)`), 47);
     assert.equal(run(`swapRoundG(162)`), 160);
     assert.equal(run(`foodState('Pâtes sèches, standard, cuites, sans sel ajouté')`), 'cuit');

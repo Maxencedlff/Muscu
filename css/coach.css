@@ -448,6 +448,9 @@ html.type-xl .cph-daybtn span { white-space: normal; }
 /* Pseudo plus large que la carte (20 caractères sur un téléphone étroit) : à la ligne plutôt que coupé */
 .coach-student-row.cstu .cstu__top .social-row__name { white-space: normal; overflow-wrap: anywhere; }
 .cstu__days { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; flex: none; }
+/* Libellé des pastilles de séances quand la ligne Diète a les siennes (une rangée, un sens : panel nutri-final t1) */
+.cstu__days-lbl { margin-left: auto; color: var(--label2); font-size: var(--fs-caption1, 0.75rem); }
+.cstu__days-lbl + .cstu__days { margin-left: 4px; }
 /* Cloche barrée à côté du pseudo : l'écart du flex suffit (sinon pseudo, cloche et 7 jours passent sur 2 lignes à 320-360 pt) */
 .cstu__top .push-off-mark { margin-left: 0; }
 .cstu__day { width: 9px; height: 9px; border-radius: 50%; background: var(--fill); }
@@ -663,6 +666,8 @@ html.type-xl .social-seg .segmented__btn:has(.seg-count) { padding-right: 16px; 
 /* Partiel : moitié gauche pleine (se lit sans la couleur : plein, demi, trait, pointillé) */
 .cdiet__dot--part::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 50%; background: var(--check-on); }
 .cdiet__dot--off { background: var(--fill2); color: var(--label2); }
+/* Pas suivi : contour pour rester lisible sur le fond sombre (contraste 3:1, panel nutri-final t1) */
+.cdiet__dot--off { box-shadow: inset 0 0 0 1.5px var(--label3); color: var(--label); }
 .cdiet__dot--none { border: 2px dashed var(--set-ring); }
 .cdiet__dot--today { box-shadow: inset 0 0 0 2px var(--set-ring); }
 .cdiet__legend { margin: 4px 0 2px; display: flex; flex-wrap: wrap; justify-content: center; column-gap: 14px; row-gap: 6px;
@@ -671,7 +676,7 @@ html.type-xl .social-seg .segmented__btn:has(.seg-count) { padding-right: 16px; 
 .cdiet__rule summary { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; color: var(--tint); cursor: pointer; list-style: none; }
 .cdiet__rule summary::-webkit-details-marker { display: none; }
 .cdiet__rule p { margin: 0 0 6px; }
-.cdiet__avg { margin: 0 0 10px; text-align: center; font-size: var(--fs-subhead); color: var(--label); }
+.cdiet__avg { margin: 6px 0 12px; }
 .cdiet__why { color: var(--label); }
 .cdiet__write .cell__body { display: flex; flex-direction: column; align-items: flex-start; }
 .cdiet__write .cell__sub { font-weight: 400; color: var(--label2); }
@@ -695,3 +700,5 @@ html.type-xl .cdiet__key { white-space: normal; }
 .cstu__ddot.cdiet__dot--none { border-width: 1.5px; }
 .cstu__ddot.cdiet__dot--today { box-shadow: inset 0 0 0 1.5px var(--set-ring); }
 .cstu__diet--off { color: var(--label2); }
+/* Titres des cases de partage : coupés aux syllabes, jamais au milieu d'une lettre (« Mensuration / s », panel nutri-final t1) */
+.coach-share-view .cell__title { overflow-wrap: normal; word-break: normal; hyphens: auto; -webkit-hyphens: auto; }

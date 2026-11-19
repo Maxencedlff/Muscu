@@ -36,10 +36,12 @@ function coachShareStatusText(st, kind = 'weight') {
   const since = st.grantedAt ? ` depuis le ${fmtDate(st.grantedAt, 'short')}` : '';
   const [one, many, none] = kind === 'measures' ? ['mesure partagée', 'mesures partagées', 'aucune mensuration']
     : kind === 'diet_log' ? ['jour partagé', 'jours partagés', 'aucun jour'] : ['pesée partagée', 'pesées partagées', 'aucune pesée'];
+  // Diète : la date dit quand le partage a commencé, le nombre ce que le coach voit (jours d'avant compris, panel nutri-final t1)
+  if (kind === 'diet_log') return st.n ? `Partagé${since} · ${plural(st.n, 'jour visible', 'jours visibles')}` : `Partagé${since}, ${none} pour l'instant`;
   return st.n ? `${plural(st.n, one, many)}${since}` : `Partagé${since}, ${none} pour l'instant`;
 }
 const SHARE_OFF_SUB = { weight: 'Tes pesées saisies dans l\'app', measures: 'Taille, bras, cuisses… notés dans Progrès › Mensurations',
-  diet_log: 'Repas cochés, eau, sel et écart avec l\'objectif, jour par jour' };
+  diet_log: 'Repas cochés, calories et macros, eau, sel. Tes 90 derniers jours partent aussi' };
 
 function renderCoachShare() {
   const head = navBar({ title: 'Partager', large: false });
@@ -75,9 +77,9 @@ function renderCoachShare() {
   // Serveur à jour (mensurations annoncées) : trois paragraphes courts, ce que le coach voit, ce qui ne part jamais,
   // comment arrêter (panel du 18/11 : le bloc d'un seul tenant n'était pas lu), puis « En savoir plus »
   const foot = withM ? `
-        <div class="group-foot"><b>${name} voit</b> seulement ce que tu coches : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration${withD ? ', et chaque jour de ta diète : repas cochés, calories, macros, eau, sel et écart avec l\'objectif' : ''}. Avec les pesées, le volume des exercices au poids du corps inclut ton poids.</div>
+        <div class="group-foot"><b>${name} voit</b> seulement ce que tu actives : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration${withD ? ', et chaque jour de ta diète : repas cochés, calories, macros, eau, sel et écart avec l\'objectif' : ''}. Avec les pesées, le volume des exercices au poids du corps inclut ton poids.</div>
         <div class="group-foot"><b>Jamais</b> : tes données Santé${withD ? ', le détail de tes aliments, les heures' : ''}. Tes photos ne partent que si tu les envoies. Tes amis ne voient rien.</div>
-        <div class="group-foot"><b>Retirer</b> : tu peux arrêter à tout moment, donnée par donnée. Ce que tu décoches est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ton coach arrête aussi le partage.${withD ? ' Ta diète est gardée 90 jours au plus.' : ''}</div>
+        <div class="group-foot"><b>Retirer</b> : tu peux arrêter à tout moment, donnée par donnée. Ce que tu désactives est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ton coach arrête aussi le partage.${withD ? ' Ta diète est gardée 90 jours au plus.' : ''}</div>
         <div class="group coach-share-more"><button class="cell cell--action" data-action="open-legal" data-page="coachShare"><span>En savoir plus sur le partage</span></button></div>`
     : `
         <div class="group-foot">${name} verra la date et le poids de chaque pesée saisie dans l'app. Le volume des exercices au poids du corps sera calculé avec ton poids. Jamais tes données Santé. Tes amis ne voient rien.</div>
@@ -252,6 +254,11 @@ registerActions({
     const kind = el.dataset.kind;
     if (coachShare.busy) return;
     const on = !coachShareOn(kind);
+    // Arrêter le suivi de la diète supprime jusqu'à 90 jours chez le coach : confirmation d'abord (panel nutri-final t1)
+    if (!on && kind === 'diet_log') {
+      const n = coachShare.state?.shares?.diet_log?.n || 0;
+      if (!(await confirmSheet('Arrêter le partage de ta diète ?', `${coachName()} ne verra plus ${n ? plural(n, 'jour partagé', 'jours partagés') : 'tes jours partagés'}. Ils sont supprimés du serveur.`, 'Arrêter'))) return;
+    }
     haptic();
     const r = await coachShareSet(kind, on);
     if (!r.ok) { if (r.kind !== 'busy') showToast(coachErrorText(r.kind), { error: true }); return; }

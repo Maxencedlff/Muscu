@@ -83,7 +83,7 @@ function renderCoachChat(key) {
     <div class="view view--grouped coach-chat-view">
       ${head}
       <div class="scr chat">
-        <p class="chat-intro">Vous seuls lisez ces messages, sauf en cas de signalement. Ils sont supprimés si le suivi s'arrête.</p>
+        <p class="chat-intro">Personne d'autre que toi et ${esc(name)} ne lit ces messages, sauf en cas de signalement. Ils sont supprimés si le suivi s'arrête.</p>
         <div id="chatPushLine">${chatPushLineHtml()}</div>
         <div class="chat-list" id="chatList" role="log" aria-live="polite" aria-relevant="additions">${chatListHtml(key)}</div>
         <div class="chat-compose">

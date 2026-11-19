@@ -205,8 +205,8 @@ function dietSummaryHtml(pr) {
 function dietWeekHtml(day) {
   const today = dietDayKey();
   return `<div class="diet-week" role="group" aria-label="7 derniers jours">${dietWeek(data).map(w => {
-    // Lettre seule comme le Calendrier d'iOS : le numéro dessous distingue mardi et mercredi (panel vague 4)
-    const d = new Date(w.ts), letter = d.toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase();
+    // Lettre comme le Calendrier d'iOS, Ma / Me pour mardi et mercredi (panel nutri-final t1 : deux « M » de suite)
+    const d = new Date(w.ts), letter = ['D', 'L', 'Ma', 'Me', 'J', 'V', 'S'][d.getDay()];
     const label = `${w.day === today ? 'Aujourd\'hui' : fmtDate(w.ts, 'day')}${w.finished ? (dietActivePlan(data)?.fromCoach ? ', journée complète' : ', objectif atteint') : w.some ? ', en partie' : ''}`;
     return `<button class="diet-week__day${w.day === day ? ' diet-week__day--on' : ''}" data-action="diet-day" data-day="${w.day}" aria-pressed="${w.day === day}" aria-label="${esc(label)}">
         <span class="diet-week__letter" aria-hidden="true">${letter}</span>
@@ -469,20 +469,33 @@ function dietSaltGoalText(g) {
   if (!g) return '';
   return g.min != null && g.max != null ? `${fmtNum(g.min, 1)} à ${fmtNum(g.max, 1)}\u00a0g` : g.max != null ? `${fmtNum(g.max, 1)}\u00a0g au plus` : `${fmtNum(g.min, 1)}\u00a0g au moins`;
 }
+// Repère du sel (panel nutri-final t1) : « repère 3 à 5 g », « 5 g au plus » (un plafond, pas une quantité à atteindre)
+function dietSaltRefText(g) {
+  if (!g) return '';
+  return g.min != null && g.max != null ? 'repère ' + dietSaltGoalText(g) : dietSaltGoalText(g);
+}
+// Au-dessus du haut du repère : l'écart, dit en orange (le vert voulait dire « réussi »)
+function dietSaltOver(goal, g) {
+  const over = goal?.max != null ? dietR1(g + (-goal.max)) : 0;
+  return over > 0 ? over : 0;
+}
 function dietSaltRowHtml(pr) {
   const goal = dietSaltGoal(pr.plan), salt = dietDaySalt(data, pr);
   if (!goal && !salt.added) return '';
   const top = goal ? (goal.max ?? goal.min) : null;
   const ratio = top ? Math.min(1, salt.g / top) : 0, zone = goal?.min != null && goal.max != null ? goal.min / goal.max : null;
   const attrDay = pr.day === dietDayKey() ? '' : ` data-day="${pr.day}"`;
-  // « 2,1 g · objectif 3 à 5 g » (« sur 3 à 5 g » ne disait pas si c'était à viser ou un plafond, panel du 18/11)
-  const val = `<b>${fmtNum(dietR1(salt.g), 1)}</b>\u00a0g${goal ? ` · objectif ${dietSaltGoalText(goal)}` : ''}`;
-  const spoken = `Sel : ${fmtNum(dietR1(salt.g), 1)} grammes${goal ? `, objectif ${dietSaltGoalText(goal).replace(/\u00a0g/g, ' grammes')}` : ''}. Détail, cuillère ou autre quantité`;
+  const over = dietSaltOver(goal, salt.g);
+  // « 2,1 g · repère 3 à 5 g » ; le sel des aliments cochés compte déjà (dit sous la barre et dans la feuille)
+  const val = `<b>${fmtNum(dietR1(salt.g), 1)}</b>\u00a0g${goal ? ` · ${dietSaltRefText(goal)}` : ''}`;
+  const note = over ? `${fmtNum(over, 1)}\u00a0g au-dessus du repère` : goal ? 'Sel des repas compris' : '';
+  const spoken = `Sel : ${fmtNum(dietR1(salt.g), 1)} grammes, sel des repas compris${goal ? `, ${dietSaltRefText(goal).replace(/\u00a0g/g, ' grammes')}` : ''}${over ? `, ${fmtNum(over, 1)} gramme au-dessus du repère` : ''}. Détail, cuillère ou autre quantité`;
   return `
-        <div class="diet-salt">
+        <div class="diet-salt${over ? ' diet-salt--over' : ''}">
           <button class="diet-salt__open" data-action="diet-salt"${attrDay} aria-label="${esc(spoken)}">
             <span class="diet-salt__line" aria-hidden="true"><span class="diet-salt__label">Sel</span><span class="diet-salt__val num">${val}</span></span>
             ${goal ? waterBarHtml(ratio, zone) : ''}
+            ${note ? `<span class="diet-salt__note" aria-hidden="true">${note}</span>` : ''}
           </button>
           <button class="water-add diet-salt__add" data-action="diet-salt-pinch"${attrDay} aria-label="Ajouter une pincée de sel, environ 0,4 gramme">${icon('plus', 14)}<span class="water-add__lbl">Pincée <small class="water-add__qty">0,4\u00a0g</small></span></button>
         </div>`;
@@ -507,7 +520,10 @@ function renderNutrition(dayParam) {
   const pr = dietDayProgress(data, data.dietActive, day);
   // Plan du coach : « envoyé par max » (« · de max » se lisait comme une quantité, panel Apple vague 4)
   const by = plan.fromCoach ? ` · envoyé par ${esc(plan.fromCoach.name || 'ton coach')}` : '';
-  const from = `<p class="diet-plan-from"><b class="diet-plan-from__day">${esc(dietDayTitle(day))}</b> · ${esc(plan.name)}${by}</p>`;
+  // Suivi de la diète partagé : dit ici, un toucher mène au réglage (panel nutri-final t1 : « max verra-t-il ma coche ? »)
+  const shared = account.user && myCoach() && typeof coachShareOn === 'function' && coachShareOn('diet_log')
+    ? `<button class="diet-plan-share" data-action="coach-open-share">${icon('person.2', 14)}<span>Partagé avec ${esc(personName(myCoach()))}</span>${icon('chevron.right', 12)}</button>` : '';
+  const from = `<p class="diet-plan-from"><b class="diet-plan-from__day">${esc(dietDayTitle(day))}</b> · ${esc(plan.name)}${by}</p>${shared}`;
   // Aujourd'hui : pas de jour figé dans les boutons, lu au toucher (écran resté ouvert après minuit)
   const past = day !== dietDayKey(), attrDay = past ? day : '';
   const meals = pr.meals.length ? pr.meals.map(x => dietMealHtml(x, pr, attrDay)).join('')
@@ -592,7 +608,8 @@ function nutritionHomeCard() {
   const next = pr.next;
   const hide = data.dietHideNumbers === true;
   const head = hide ? (pr.nMeals ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : esc(dietStatusText(pr))) : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
-  // Tous les repas du jour (vague 4) : nom, kcal, coché ou non ; le prochain porte le bouton à cocher (un toucher).
+  // Tous les repas du jour (vague 4) : nom, kcal, coché ou non ; chacun se coche d'un toucher, le prochain en gras
+  // (panel nutri-final t1 : « je ne sais pas où cocher le petit-déjeuner déjà mangé »).
   // Plus de 4 repas : 3 autour du prochain et « et 2 autres ». Le reste de la carte ouvre Nutrition
   const { shown, more } = dietHomeMeals(pr);
   // Repas sans aliment prévu ni noté (jour vide) : pas de « 0 kcal », mais « à noter » (le repas attend une saisie)
@@ -608,7 +625,7 @@ function nutritionHomeCard() {
     return `
         <div class="diet-home__meal diet-home__meal--${state}" data-meal="${esc(x.meal.id)}">
           <span class="diet-home__mtext" aria-hidden="true"><span class="diet-home__mname">${esc(x.meal.name)}</span>${kcalOf(x)}</span>
-          <span class="diet-home__mstate">${x.done ? `<span class="diet-home__done" aria-hidden="true">${icon('checkmark', 12)}</span>` : isNext ? dietCheckBtn(x.meal, false, null) : ''}</span>
+          <span class="diet-home__mstate">${x.done ? `<span class="diet-home__done" aria-hidden="true">${icon('checkmark', 12)}</span>` : !empty(x) || isNext ? dietCheckBtn(x.meal, false, null) : ''}</span>
         </div>`;
   }).join('');
   const moreText = !blankNothing && more ? `et ${more} ${more > 1 ? 'autres' : 'autre'}` : '';
@@ -682,7 +699,7 @@ async function dietSwapSheet(itemId, day) {
   const body = `
     <div class="diet-swap">
       <p class="diet-swap__orig"><b>${esc(foodName(it.name))}</b><span class="num">${hide ? esc(dietQtyText(it)) : dietSrPair(`${esc(dietQtyText(it))} · ${dietMacroLine(ref)}`, `${esc(dietQtySpoken(it))}, ${dietMacroSpoken(ref)}`)}</span></p>
-      <p class="diet-swap__rule">${swapRuleText(it)}, quantité déjà calculée. L'écart de calories est à droite.</p>
+      <p class="diet-swap__rule">${swapRuleText(it)}, quantité déjà calculée.</p>
       ${dietMacroLegendHtml()}
       ${current ? `<button class="diet-cand diet-cand--back" data-swap="back"><span class="diet-cand__body"><span class="diet-cand__name">Remettre ${esc(foodName(it.name))}</span><span class="diet-cand__sub">Aujourd'hui, tu manges ${esc(foodName(current.name))}</span></span>${icon('arrow.clockwise', 18)}</button>` : ''}
       ${cands.length ? `<div class="diet-cands">${cands.map(row).join('')}</div>`
@@ -736,7 +753,7 @@ async function dietPickSwap(it) {
       </button>`).join('');
   const body = `<div class="diet-swap">
       <p class="diet-swap__orig"><b>${esc(foodName(it.name))}</b><span class="num">${dietSrPair(`${esc(dietQtyText(it))} · ${dietMacroLine(ref)}`, `${esc(dietQtySpoken(it))}, ${dietMacroSpoken(ref)}`)}</span></p>
-      <p class="diet-swap__rule">${swapRuleText(it)}, quantité déjà calculée. L'écart de calories est à droite.</p>
+      <p class="diet-swap__rule">${swapRuleText(it)}, quantité déjà calculée.</p>
       ${dietMacroLegendHtml()}
       ${cands.length ? `<div class="diet-cands">${rows}</div>` : `<p class="diet-swap__none">${foodDb ? 'Aucun équivalent assez proche dans la base pour cet aliment.' : 'Base d\'aliments indisponible pour l\'instant.'}</p>`}
       <p class="diet-swap__foot">Remplace l'aliment dans ce repas du plan.</p>
@@ -790,7 +807,7 @@ function dietSaltBodyHtml(day) {
   const list = Array.isArray(data.saltLog?.[day]) ? data.saltLog[day] : [];
   const time = at => (at ? new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
   return `<div class="diet-saltsheet">
-      <p class="diet-saltsheet__val num"><b>${fmtNum(dietR1(salt.g), 1)}\u00a0g</b>${goal ? ` · objectif ${dietSaltGoalText(goal)}` : ''}</p>
+      <p class="diet-saltsheet__val num${dietSaltOver(goal, salt.g) ? ' diet-saltsheet__val--over' : ''}"><b>${fmtNum(dietR1(salt.g), 1)}\u00a0g</b>${goal ? ` · ${dietSaltRefText(goal)}, sel des repas compris` : ''}${dietSaltOver(goal, salt.g) ? `<span class="diet-saltsheet__over">${fmtNum(dietSaltOver(goal, salt.g), 1)}\u00a0g au-dessus du repère</span>` : ''}</p>
       <p class="diet-saltsheet__why num">Aliments mangés : ${fmtNum(dietR1(salt.food), 1)}\u00a0g${salt.unknown ? ` (${plural(salt.unknown, 'aliment sans valeur de sel', 'aliments sans valeur de sel')})` : ''} · ajouté : ${fmtNum(dietR1(salt.added), 1)}\u00a0g</p>
       <div class="diet-saltsheet__btns">
         ${SALT_ADDS.map(x => `<button type="button" class="water-add diet-saltsheet__add" data-salt="${x.g}" aria-label="Ajouter ${esc(x.label.toLowerCase())}, environ ${fmtNum(x.g, 1)} gramme${x.g >= 2 ? 's' : ''}">${icon('plus', 14)}<span class="water-add__lbl">${x.label}<small class="water-add__qty">environ ${fmtNum(x.g, 1)}\u00a0g</small></span></button>`).join('')}
