@@ -34,7 +34,8 @@ def semaine_json():
 
 
 def labels(page, sel):
-    return [e.strip() for e in page.locator(sel).all_inner_texts()]
+    # Étiquette « Prochaine » de la tête de file (mode ordre) retirée : on compare les noms
+    return [' '.join(e.split()).removesuffix(' Prochaine') for e in page.locator(sel).all_inner_texts()]
 
 
 def t_ordre(bench, eng, dev, theme):
@@ -130,10 +131,12 @@ def t_accueil_ordre(bench, eng, dev, theme):
         R.check('Démarrer' == btn.inner_text().strip() and 'hero__btn--gray' not in (btn.get_attribute('class') or ''), f'{t} Démarrer reste le bouton plein')
         shot(page, LOT, f'accueil_file_{t}')
 
+        R.check('(pectoraux)' in page.locator('.home-cell [data-status-cat]').first.inner_text(), f'{t} Ensuite : le muscle qui récupère ({page.locator(".home-cell [data-status-cat]").first.inner_text()})')
         page.click('[data-action="open-session-order"]')
         page.wait_for_selector('.view.programmes .ps-handle')
         R.check(page.evaluate('nav.tab') == 'program', f'{t} Changer l\'ordre : onglet Programme, page du programme')
-        R.check(labels(page, '.ps-row .cell__title') == JOURS, f'{t} mode ordre : l\'ordre du programme')
+        R.check([x.replace(' Prochaine', '') for x in labels(page, '.ps-row .cell__title')] == JOURS, f'{t} mode ordre : l\'ordre du programme')
+        R.check(page.locator('.ps-row .ps-next').count() == 1 and 'Lundi' in page.locator('.ps-row', has=page.locator('.ps-next')).inner_text(), f'{t} mode ordre : « Prochaine » sur Lundi (tête de file)')
         shot(page, LOT, f'page_ordre_{t}')
         # Lundi (1er) glissé tout en bas
         page.evaluate("document.querySelector('.ps-list').previousElementSibling.scrollIntoView({ block: 'start' })")
@@ -148,12 +151,13 @@ def t_accueil_ordre(bench, eng, dev, theme):
         page.mouse.up()
         page.wait_for_selector('.ps-row')
         nouvel = JOURS[1:] + ['Lundi']
-        R.check(labels(page, '.ps-row .cell__title') == nouvel, f'{t} glisser : Lundi en dernier {labels(page, ".ps-row .cell__title")}')
+        got = [x.replace(' Prochaine', '') for x in labels(page, '.ps-row .cell__title')]
+        R.check(got == nouvel, f'{t} glisser : Lundi en dernier {got}')
+        R.check('Mercredi' in page.locator('.ps-row', has=page.locator('.ps-next')).inner_text(), f'{t} « Prochaine » suit la file : Mercredi')
+        # OK : retour à l'accueil, d'où l'on venait (panel t1)
         page.click('[data-action="toggle-prog-order"]')
-        page.wait_for_selector('.view.programmes [data-action="open-prog-session"]')
-        R.check(labels(page, '[data-action="open-prog-session"] .cell__title') == nouvel, f'{t} page : séances dans l\'ordre choisi')
-        page.click('.tabbar [data-tab="train"]')
         page.wait_for_selector('.view.dashboard .hero__name')
+        R.check(page.evaluate('nav.tab') == 'train', f'{t} OK : retour à l\'accueil')
         R.check(page.locator('.hero__name').inner_text().strip() == 'Mercredi', f'{t} accueil à jour : Mercredi en tête ({page.locator(".hero__name").inner_text().strip()})')
         R.check(labels(page, '.home-cell__name')[:6] == ['Jeudi', 'Vendredi', 'Samedi', 'Dimanche', 'Lundi', 'Mardi'], f'{t} Ensuite à jour {labels(page, ".home-cell__name")[:6]}')
         shot(page, LOT, f'accueil_apres_{t}')
@@ -182,9 +186,13 @@ def t_programmes(bench, eng, dev, theme):
         d = json.loads(semaine_json())
         d['myProgrammes'] = [PID, 'ppl']
         seed(page, theme, json.dumps(d, ensure_ascii=False))
-        page.click('.navbar__sub[data-action="go-my-programmes"]')
+        # « Programme … › » de l'accueil : la page du programme actif (panel t1), la liste juste derrière
+        page.click('.navbar__sub[data-action="go-active-programme"]')
+        page.wait_for_selector('.view.programmes')
+        R.check(page.evaluate('[nav.tab, nav.stacks.program]') == ['program', ['my-programmes', 'programmes']], f'{t} accueil › Programme : page du programme')
+        page.click('.navbar__back')
         page.wait_for_selector('.view.my-programmes')
-        R.check(page.evaluate('nav.tab') == 'program', f'{t} accueil › Programme : onglet Programme')
+        R.check(page.locator('.view.my-programmes [data-action="toggle-my-prog-edit"]').inner_text().strip() == 'Ranger', f'{t} liste : « Ranger », pas « Modifier »')
         R.check(page.locator('.navbar__large').inner_text().strip() == 'Programmes', f'{t} grand titre « Programmes »')
         R.check(page.locator('.mp-active').count() == 1, f'{t} « Programme actif » sur une seule ligne')
         shot(page, LOT, f'liste_{t}')

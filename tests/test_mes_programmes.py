@@ -82,7 +82,7 @@ def t_mes_programmes(bench, eng, dev, theme):
         shot(page, LOT, f'3-fiche-{t}')
         tap(page, '[data-action="prog-info-add"]')
         R.check(stored(page) == ['ppl', 'custom', 'bro'], f'{t} ajouté en fin de liste, enregistré {stored(page)}')
-        R.check('Dans mes programmes' in page.inner_text('.prog-info__actions'), f'{t} fiche : « Dans mes programmes »')
+        R.check('Déjà dans tes programmes' in page.inner_text('.prog-info__note') and 'programmes' not in page.inner_text('.prog-info__actions'), f'{t} fiche : légende « Déjà dans tes programmes », pas sous le bouton')
         R.check(page.evaluate('data.activeProgramme') == 'ppl', f'{t} ajouter n\'active pas')
 
         # Retour à la liste ; toucher Bro Split = sa fiche, « Utiliser ce programme » = sa page
@@ -131,10 +131,10 @@ def t_mes_programmes(bench, eng, dev, theme):
         R.check(page.evaluate('[data.activeProgramme, view]') == ['arnold', 'programmes'] and stored(page) == ['bro', 'custom', 'arnold'],
                 f'{t} Utiliser : ajouté, activé, sa page {stored(page)}')
 
-        # Accueil : le sous-titre « Programme … › » mène à la liste Programmes (onglet Programme)
+        # Accueil : le sous-titre « Programme … › » mène à la page du programme actif, sous la liste (panel t1)
         tab(page, 0)
-        tap(page, '.dashboard [data-action="go-my-programmes"]')
-        R.check(page.evaluate('[view, nav.tab]') == ['my-programmes', 'program'], f'{t} accueil : sous-titre vers la liste Programmes')
+        tap(page, '.dashboard [data-action="go-active-programme"]')
+        R.check(page.evaluate('[view, nav.tab, nav.stacks.program]') == ['programmes', 'program', ['my-programmes', 'programmes']], f'{t} accueil : sous-titre vers la page du programme actif')
         page.reload()
         page.wait_for_selector('#app > *')
         R.check(page.evaluate('data.myProgrammes') == ['bro', 'custom', 'arnold'], f'{t} conservé après rechargement')

@@ -39,12 +39,12 @@ const GUIDE_SECTIONS = [
         steps: [
           'Va dans [Programme] et touche celui que tu veux, puis [Utiliser ce programme]. Le programme actif porte la mention « Programme actif ».',
           '[Ajouter un programme] › [Tous les programmes] : chaque fiche décrit le programme et ses muscles. [Ajouter à mes programmes] le range dans ta liste. [Utiliser ce programme] l\'active tout de suite.',
-          '[Modifier], en haut de la liste, range tes programmes avec la poignée ≡. [Retirer] enlève un programme de ta liste ; il reste dans [Tous les programmes].',
-          'Sur l\'accueil, la ligne « Programme » sous la date mène aussi à cette liste.',
+          '[Ranger], en haut de la liste, range tes programmes avec la poignée ≡. [Retirer] enlève un programme de ta liste ; il reste dans [Tous les programmes].',
+          'Sur l\'accueil, la ligne « Programme » sous la date ouvre la page de ton programme.',
           'Changer de programme garde ton historique.',
         ],
         related: ['creer-programme', 'modifier-seance'],
-        actions: ['go-my-programmes', 'open-my-prog', 'go-prog-add', 'open-prog-info', 'prog-info-add', 'prog-info-use', 'toggle-my-prog-edit', 'remove-my-prog'],
+        actions: ['go-active-programme', 'go-my-programmes', 'open-my-prog', 'go-prog-add', 'open-prog-info', 'prog-info-add', 'prog-info-use', 'toggle-my-prog-edit', 'remove-my-prog'],
       },
       {
         id: 'reglages', title: 'Réglages de base', icon: 'gear', color: 'blue',

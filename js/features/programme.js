@@ -97,9 +97,9 @@ function progSessionCardHtml(cat, progId) {
 }
 
 // « Ordre des séances » : une ligne de la liste, comme « Ajouter une séance », et non un petit lien dans le titre
-// (Maxence ne trouvait pas « Modifier l'ordre », 19/11). Même icône ≡ que la poignée du mode qu'elle ouvre.
+// (Maxence ne trouvait pas « Modifier l'ordre », 19/11). Flèches haut et bas : ≡ reste à la poignée seule (panel t1).
 function orderSessionsCellHtml(action = 'toggle-prog-order', value = '') {
-  return `<button class="cell cell--action" data-action="${action}">${icon('line.3.horizontal', 20)}<span class="cell__body">Ordre des séances</span>${value ? `<span class="cell__value">${value}</span>` : ''}</button>`;
+  return `<button class="cell cell--action" data-action="${action}">${icon('arrow.up.arrow.down', 20)}<span class="cell__body">Ordre des séances</span>${value ? `<span class="cell__value">${value}</span>` : ''}</button>`;
 }
 // Ordre des séances modifiable : programme créé, au moins deux séances
 function canReorderSessions(pid = data.activeProgramme) {
@@ -119,11 +119,14 @@ function renderProgrammes() {
   const pid  = data.activeProgramme;
   const pm   = progMeta(pid);
   // Ligne du mode ordre : la séance ne s'ouvre pas, la poignée ≡ la déplace (js/ui/reorder.js)
+  // Tête de file (la séance que l'accueil propose) : « Prochaine » à côté de son nom (panel t1, 17 juges)
+  const head = isUserProg(pid) ? nextSessionCat(sessionKeys(pid)) : null;
+  const nextTag = cat => cat === head ? ' <span class="ps-next">Prochaine</span>' : '';
   const editCell = (cat, progId) => {
     const label = sessionMeta(cat, progId).label;
     return `
       <div class="cell ed-row--edit ps-row">
-        <span class="cell__body"><span class="cell__title">${label}</span></span>
+        <span class="cell__body"><span class="cell__title">${label}${nextTag(cat)}</span></span>
         <button class="ed-handle ps-handle" data-action="reorder-menu" aria-label="Déplacer ${label}">${icon('line.3.horizontal', 22)}</button>
       </div>`;
   };
@@ -141,7 +144,7 @@ function renderProgrammes() {
         ${canReorder && !editing ? orderSessionsCellHtml() : ''}
         ${user && !editing ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
       </div>
-      ${editing ? `<div class="group-foot">Fais glisser ≡ pour changer l'ordre. L'accueil te propose les séances dans cet ordre.</div>` : ''}
+      ${editing ? `<div class="group-foot">Fais glisser ≡ pour changer l'ordre. La prochaine séance est celle qui attend depuis le plus longtemps ; une séance faite repart à la fin.</div>` : ''}
       ${user ? '' : `<div class="group-foot">Les séances de ce programme sont fixes. Leurs exercices se modifient. Pour composer tes séances, crée un programme.</div>`}`;
   const manage = pid.startsWith('u_') ? `
       <div class="group group--gap">
@@ -219,7 +222,8 @@ function renderMyProgrammes() {
   };
   const editing = myProgEditing;
   // Grand titre : « Mes programmes » compact ne laissait au retour que « Retour » (iPhone 13) ou le chevron (SE)
-  const right = `<button class="navbar__text ${editing ? 'navbar__text--bold' : ''}" data-action="toggle-my-prog-edit">${editing ? 'OK' : 'Modifier'}</button>${editing ? '' : settingsButtonHtml()}`;
+  // « Ranger » et non « Modifier » (panel t1, 38 juges : trois « Modifier » qui ne faisaient pas la même chose)
+  const right = `<button class="navbar__text ${editing ? 'navbar__text--bold' : ''}" data-action="toggle-my-prog-edit">${editing ? 'OK' : 'Ranger'}</button>${editing ? '' : settingsButtonHtml()}`;
   return `
     <div class="view my-programmes view--grouped">
       ${navBar({ title: 'Programmes', right, large: true })}
@@ -305,13 +309,12 @@ function renderProgInfo(id) {
     <div class="view prog-info view--grouped">
       ${navBar({ title: pm.name, large: true })}
       <div class="scr">
+        ${mine && !active ? '<p class="prog-info__note">Déjà dans tes programmes</p>' : ''}
         <div class="prog-info__actions prog-info__actions--top">
           ${active
             ? '<p class="prog-info__state">Programme actif</p>'
             : `<button class="btn btn--primary prog-info__btn" data-action="prog-info-use" data-id="${esc(id)}">Utiliser ce programme</button>`}
-          ${mine
-            ? (active ? '' : '<p class="prog-info__state">Dans mes programmes</p>')
-            : `<button class="btn btn--secondary prog-info__btn" data-action="prog-info-add" data-id="${esc(id)}">Ajouter à mes programmes</button>`}
+          ${mine ? '' : `<button class="btn btn--secondary prog-info__btn" data-action="prog-info-add" data-id="${esc(id)}">Ajouter à mes programmes</button>`}
         </div>
         <p class="prog-info__why">${recommendReason(id, { ...adv, orMore: false })}</p>
         <div class="group group--pad prog-info__map">
@@ -339,7 +342,7 @@ function renderUserProgInfo(id) {
     <div class="view prog-info view--grouped">
       ${navBar({ title: esc(pm.name), large: true })}
       <div class="scr">
-        ${coachFromLine(id) ? `<p class="prog-info__why">${coachFromLine(id)}</p>` : ''}
+        <p class="prog-info__note">${coachFromLine(id) || 'Déjà dans tes programmes'}</p>
         <div class="prog-info__actions prog-info__actions--top">
           <button class="btn btn--primary prog-info__btn" data-action="prog-info-use" data-id="${esc(id)}">Utiliser ce programme</button>
         </div>
@@ -355,8 +358,10 @@ function renderUserProgInfo(id) {
 
 // Ordre des séances, depuis l'accueil (« Changer l'ordre ») : la page du programme actif, en mode ordre, dans
 // l'onglet Programme (Programmes › le programme)
+let progOrderFromHome = false;   // ordre ouvert par « Changer l'ordre » de l'accueil : OK y ramène
 function openSessionOrder() {
   progEditing = true;
+  progOrderFromHome = nav.tab === 'train';
   const next = navClone(nav);
   next.tab = 'program';
   next.stacks.program = [TABS.program.root, 'programmes'];
@@ -412,7 +417,20 @@ makeReorderable({
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
   'toggle-prog-order': () => {
-    progEditing = !progEditing; render();
+    progEditing = !progEditing;
+    if (!progEditing && progOrderFromHome) { progOrderFromHome = false; switchTab('train'); return; }   // OK : retour à l'accueil
+    progOrderFromHome = false;
+    render();
+  },
+  // « Programme … › » de l'accueil : la page du programme actif (panel t1 : on s'attend à son programme, pas à la liste)
+  'go-active-programme': () => {
+    myProgEditing = false;
+    progEditing = false;
+    progOrderFromHome = false;
+    const next = navClone(nav);
+    next.tab = 'program';
+    next.stacks.program = [TABS.program.root, 'programmes'];
+    navCommit(next, 'fade', 'push');
   },
   'open-session-order': () => openSessionOrder(),
   'go-program': () => {
@@ -461,6 +479,7 @@ registerActions({
   // Programmes : un toucher ouvre la page du programme (l'actif) ou sa fiche avec « Utiliser ce programme »
   'open-my-prog': (e, el) => {
     const id = el.dataset.id;
+    progOrderFromHome = false;
     if (id === data.activeProgramme) { progEditing = false; navigate('programmes'); return; }
     navigate(makeRoute('prog-info', id));
   },

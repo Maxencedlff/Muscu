@@ -138,7 +138,7 @@ def t_home(bench, eng, dev, theme):
                      css: getComputedStyle(b).order + '/' + getComputedStyle(g).order, h: innerHeight }; }""")
         R.check(not order['dom'] and not order['seen'] and order['css'] == '0/0', f'{t} Démarrer avant les cibles, dans le HTML comme à l\'écran {order}')
         eb = edit.bounding_box()
-        R.check(edit.inner_text().strip() == 'Modifier' and eb['width'] >= 44 and eb['height'] >= 44, f'{t} « Modifier » : 44 pt {eb}')
+        R.check(edit.inner_text().strip() == 'Modifier la séance' and eb['width'] >= 44 and eb['height'] >= 44, f'{t} « Modifier la séance » : 44 pt {eb}')
         # Noms coupés seulement entre deux mots, titre entier (iPhone SE compris)
         tg = page.evaluate("""() => { const t = document.querySelector('.targets__title');
             const names = [...document.querySelectorAll('.targets__name')];

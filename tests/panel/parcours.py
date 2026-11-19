@@ -452,17 +452,21 @@ def p_page_programme(r):
         r.toucher('.ps-handle', 'poignée de Bras', nth=4)
     with r.etape('ordre-monte', 'Monter : Bras passe avant Épaules', cle=cle):
         r.choisir('Monter')
-    with r.etape('page', 'OK : la page du programme, séances dans l\'ordre choisi', cle=cle):
+    with r.etape('accueil-apres', 'OK : retour à l\'accueil, à jour (Dos, puis Bras avant Épaules)', cle=cle):
         r.toucher('[data-action="toggle-prog-order"]', 'OK')
+        r.attendre('.view.dashboard', 'accueil')
+        r.defiler('#homeNext', 'Ensuite')
+    with r.etape('page', 'Onglet Programme : la page du programme, séances dans l\'ordre choisi'):
+        r.onglet('program', 'Programme')
         r.attendre('.view.programmes [data-action="open-prog-session"]', 'séances')
     with r.etape('page-bas', 'Page du programme, bas : Envoyer, Renommer, Supprimer'):
         r.bas('bas de la page')
-    with r.etape('accueil-apres', 'Accueil à jour : Dos, puis Bras avant Épaules', cle=cle):
-        r.onglet('train', 'Entraînement')
-        r.defiler('#homeNext', 'Ensuite')
     cle = 'Passer sur un autre programme'
-    with r.etape('liste', 'Accueil › « Programme Split séquentiel › » : la liste Programmes', cle=cle):
+    with r.etape('page-accueil', 'Accueil › « Programme Split séquentiel › » : la page du programme', cle=cle):
         r.toucher('.view.dashboard .navbar__sub', 'Programme Split séquentiel')
+        r.attendre('.view.programmes', 'page du programme')
+    with r.etape('liste', '‹ Programmes : la liste de tes programmes', cle=cle):
+        r.retour()
         r.attendre('.view.my-programmes', 'liste Programmes')
     with r.etape('fiche', 'Toucher PPL : sa fiche et « Utiliser ce programme »', cle=cle):
         r.toucher('.view.my-programmes [data-action="open-my-prog"]', 'PPL', nth=1)
@@ -470,6 +474,32 @@ def p_page_programme(r):
     with r.etape('utilise', '« Utiliser ce programme » : la page de PPL', cle=cle):
         r.toucher('[data-action="prog-info-use"]', 'Utiliser ce programme')
         r.attendre('.view.programmes', 'page du programme')
+
+
+def _split_recup():
+    """Même split, mais Dos (tête de file) attend son grand dorsal : un rowing en séance libre il y a 10 h."""
+    d = json.loads(_split_seq())
+    date = NOW - 10 * 3600_000
+    d['history'].insert(0, {'id': 'libre-rowing', 'programme': 'free', 'category': 'free', 'date': date, 'duration': 30 * 60000, 'notes': '',
+                            'exercises': [{'name': 'Rowing barre', 'sets': [{'weight': '50', 'reps': '10'}] * 3}]})
+    return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
+
+
+@parcours('file-recuperation', 'Ordre des séances : séance proposée encore en récupération', 'pratiquant')
+def p_file_recuperation(r):
+    """Le même pratiquant a fait un rowing hier soir en séance libre : Dos, en tête de file, attend son grand dorsal.
+    L'accueil la propose quand même (l'ordre ne change pas), avec l'avertissement ; Démarrer reste le bouton plein ;
+    « Ensuite » dit quel muscle récupère."""
+    r.lancer(_split_recup())
+    cle = 'Démarrer une séance pas encore récupérée'
+    with r.etape('accueil', 'Accueil : Dos proposée, « Attention : il reste … de récupération (grand dorsal) »', cle=cle):
+        r.attendre('.view.dashboard .hero__wait', 'avertissement')
+    with r.etape('ensuite', 'Ensuite : « Prête dans … (muscle) » sur chaque séance qui attend'):
+        r.defiler('#homeNext', 'Ensuite')
+    with r.etape('demarrer', 'Démarrer : la séance Dos commence', cle=cle):
+        r.defiler('.view.dashboard .hero [data-action="start-session"]', 'Démarrer')
+        r.toucher('.view.dashboard .hero [data-action="start-session"]', 'Démarrer')
+        r.attendre('.view.session', 'séance en cours')
 
 
 @parcours('generateur', 'Programme sur mesure (générateur)', 'pratiquant')

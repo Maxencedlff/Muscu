@@ -182,7 +182,7 @@ function cellStatusHtml(cat) {
   }
   return st.ready
     ? `<span class="home-cell__status home-cell__status--ready">Prête</span>`
-    : `<span class="home-cell__status">Prête dans ${fmtWait(st.remaining)}</span>`;
+    : `<span class="home-cell__status">Prête dans ${fmtWait(st.remaining)}${st.by ? ` (${esc(lowerFirst(muscleLabel(st.by.muscle)))})` : ''}</span>`;   // le muscle qui attend, comme sur la carte
 }
 
 // Durée habituelle d'une séance (minutes, arrondies à 5) : médiane de ses 5 dernières,
@@ -223,7 +223,7 @@ function targetsHtml(cat) {
     <div class="targets">
       <div class="targets__head">
         <h3 class="targets__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}</h3>
-        <button class="targets__edit" data-action="go-editor" data-cat="${esc(cat)}" aria-label="Modifier les exercices et les objectifs de cette séance">Modifier</button>
+        <button class="targets__edit" data-action="go-editor" data-cat="${esc(cat)}" aria-label="Modifier la séance : ses exercices et ses objectifs">Modifier la séance</button>
       </div>
       <ul class="targets__list">${exs.slice(0, HERO_TARGETS).map(ex => targetRowHtml(cat, ex)).join('')}</ul>
       ${more > 0 ? `<p class="targets__more">et ${plural(more, 'autre exercice', 'autres exercices')}</p>` : ''}
@@ -436,7 +436,7 @@ function renderDashboard() {
   const date = fmtDate(Date.now(), 'day');
   const right = settingsButtonHtml();
   const from = coachFromLine(data.activeProgramme);   // programme reçu d'un coach (js/features/coach-ui.js)
-  const sub = `<button class="navbar__sub" data-action="go-my-programmes" aria-label="Programme ${esc(pm.name)}${from ? `, ${from}` : ''}, tes programmes">${navSubWithChevron(`Programme ${pm.name}`)}</button>${from ? `<p class="coach-from coach-from--home">${from}</p>` : ''}`;
+  const sub = `<button class="navbar__sub" data-action="go-active-programme" aria-label="Programme ${esc(pm.name)}${from ? `, ${from}` : ''}">${navSubWithChevron(`Programme ${pm.name}`)}</button>${from ? `<p class="coach-from coach-from--home">${from}</p>` : ''}`;
 
   const week = keys.length ? weekCard(weekStats()) : '';
   // Programme créé : « Ensuite » (la file) et « Changer l'ordre », qui ouvre l'ordre des séances dans la page du programme
