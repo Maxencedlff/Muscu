@@ -454,7 +454,7 @@ html.type-xl .cph-daybtn span { white-space: normal; }
 .cstu__sess .cstu__days { margin-left: 0; }
 /* Cloche barrée à côté du pseudo : l'écart du flex suffit (sinon pseudo, cloche et 7 jours passent sur 2 lignes à 320-360 pt) */
 .cstu__top .push-off-mark { margin-left: 0; }
-.cstu__day { width: 9px; height: 9px; border-radius: 50%; background: var(--fill); }
+.cstu__day { width: max(9px, .55em); height: max(9px, .55em); border-radius: 50%; background: var(--fill); }
 .cstu__day--on { background: var(--check-on); }
 .cstu__day--today:not(.cstu__day--on) { background: none; box-shadow: inset 0 0 0 1.5px var(--label2); }
 /* Décroche : triangle d'alerte et texte en gras, au texte courant */
@@ -696,7 +696,7 @@ html.type-xl .cdiet__key { white-space: normal; }
 /* Mes élèves : ligne Diète (mini-pastilles des 7 jours, mêmes formes que la carte de la fiche) */
 .cstu .cell__sub.cstu__diet { display: flex; align-items: center; flex-wrap: wrap; column-gap: 8px; row-gap: 2px; }
 .cstu__ddots { display: inline-flex; gap: 4px; }
-.cstu__ddot.cdiet__dot { width: 13px; height: 13px; }
+.cstu__ddot.cdiet__dot { width: max(13px, .8em); height: max(13px, .8em); }   /* grandit avec le texte (panel nutri-final t1) */
 .cstu__ddot.cdiet__dot--part { box-shadow: inset 0 0 0 1.5px var(--check-on); }
 .cstu__ddot.cdiet__dot--none { border-width: 1.5px; }
 .cstu__ddot.cdiet__dot--today { box-shadow: inset 0 0 0 1.5px var(--set-ring); }
