@@ -469,7 +469,7 @@ async function sessionActions(cat) {
   const st = catStatus(cat);
   const queue = isUserProg(data.activeProgramme), canReorder = queue && sessionKeys().length > 1;
   const choice = await dialog({ type: 'sheet', title: sessionTitle(cat),
-    ...(st.by ? { message: `Muscles encore en récupération. ${recoveryReason(st.by)}` } : {}), actions: [
+    ...(st.by ? { message: `Un muscle de cette séance récupère encore. ${recoveryReason(st.by)}` } : {}), actions: [
     { label: 'Démarrer', value: 'start', style: 'preferred' },
     ...(!st.ready && !queue ? [{ label: 'Ignorer le délai', value: 'skip' }] : []),
     { label: 'Voir les exercices', value: 'see' },
