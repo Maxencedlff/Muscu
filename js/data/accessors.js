@@ -56,6 +56,9 @@ function moveSession(progId, from, to) {
   const visible = moveItem(sessionKeys(progId), from, to);
   const retired = Object.keys(store).filter(k => store[k]?.retired);
   if (up) up.order = [...visible, ...retired];   // ordre synchronisé (userSessionOrder)
+  // Date du dernier changement d'ordre : la file de l'accueil repart de cet ordre (sessionQueue, js/features/dashboard.js)
+  if (up) up.orderAt = Date.now();
+  else if (data.programmes[progId]) data.programmes[progId].orderAt = Date.now();   // « Perso » d'avant les programmes créés
   // Clés de l'objet dans le même ordre (versions précédentes de l'app)
   const entries = [...visible, ...retired].map(k => [k, store[k]]);
   Object.keys(store).forEach(k => { delete store[k]; });

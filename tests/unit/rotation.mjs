@@ -114,13 +114,36 @@ export default function ({ test, run, reset, assert }) {
     assert.deepEqual(JSON.parse(run(`JSON.stringify(otherSessions(sessionKeys(), 'jambes'))`)), ['dos', 'epaules', 'bras', 'pecs']);
   });
 
-  test('file : l\'ordre changé suit tout de suite pour les séances jamais faites (moveSession)', () => {
+  test('file : l\'ordre changé reprend tout de suite, depuis le début du programme (moveSession)', () => {
     split();
     done('pecs', 30);
     assert.equal(next(), 'dos');
     run(`moveSession('${PID}', 3, 1)`);   // Épaules juste après Pecs
     assert.deepEqual(JSON.parse(run(`JSON.stringify(sessionKeys())`)), ['pecs', 'epaules', 'dos', 'jambes', 'bras'], 'affichage : l\'ordre choisi');
-    assert.equal(next(), 'epaules');
+    assert.deepEqual(queue(), ['pecs', 'epaules', 'dos', 'jambes', 'bras'], 'la file reprend l\'ordre choisi (orderAt)');
+  });
+
+  test('file : tout fait, puis réordonné, l\'accueil suit le nouvel ordre (orderAt, audit du 19/11)', () => {
+    split();
+    // Historique fait dans un autre ordre (choix par récupération, avant la branche) : dos, pecs, bras, jambes, epaules
+    ['dos', 'pecs', 'bras', 'jambes', 'epaules'].forEach((k, i) => done(k, (10 - i) * 24));
+    assert.deepEqual(queue(), ['dos', 'pecs', 'bras', 'jambes', 'epaules'], 'avant : la file suit l\'historique');
+    run(`moveSession('${PID}', 4, 0)`);   // Bras en tête
+    assert.deepEqual(JSON.parse(run(`JSON.stringify(sessionKeys())`)), ['bras', 'pecs', 'dos', 'jambes', 'epaules']);
+    assert.ok(run(`data.userProgrammes.${PID}.orderAt`) > 0, 'orderAt posé');
+    assert.deepEqual(queue(), ['bras', 'pecs', 'dos', 'jambes', 'epaules'], 'après : le nouvel ordre');
+    run(`sanitizeData(data)`);
+    assert.ok(run(`data.userProgrammes.${PID}.orderAt`) > 0, 'orderAt gardé par sanitizeData');
+  });
+
+  test('file : réordonné, puis une séance faite, elle part à la fin', () => {
+    split();
+    KEYS.forEach((k, i) => done(k, (10 - i) * 24));
+    run(`moveSession('${PID}', 4, 0)`);   // Bras, Pecs, Dos, Jambes, Épaules
+    run(`prog().timers.bras = Date.now() + 1000;`);   // Bras fait juste après le changement d'ordre
+    assert.deepEqual(queue(), ['pecs', 'dos', 'jambes', 'epaules', 'bras']);
+    run(`prog().timers.pecs = Date.now() + 2000;`);
+    assert.deepEqual(queue(), ['dos', 'jambes', 'epaules', 'bras', 'pecs']);
   });
 
   test('file : programmes intégrés inchangés (selon la récupération)', () => {

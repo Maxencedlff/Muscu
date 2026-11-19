@@ -252,6 +252,7 @@ function sanitizeData(d) {
     // Consigne d'un programme que je coache (programme intégré : pas de userProgrammes, js/data/coach.js)
     if (p.consigne !== undefined) { const c = cleanConsigne(p.consigne); if (c) p.consigne = c; else delete p.consigne; }
     Object.keys(p.timers).forEach(cat => { if (p.timers[cat] != null && !Number.isFinite(p.timers[cat])) p.timers[cat] = null; });
+    if (p.orderAt !== undefined && !(Number.isFinite(p.orderAt) && p.orderAt > 0)) delete p.orderAt;   // « Perso » : dernier changement d'ordre
     // Délai passé à la main : n'a de sens que tant qu'aucune séance plus récente n'a été faite
     if (p.skipped !== undefined) {
       if (isObj(p.skipped)) {
@@ -286,6 +287,8 @@ function sanitizeData(d) {
     cleanSessions(up.sessions);
     up.archived = !!up.archived;
     up.order = userSessionOrder(up);   // ordre des séances (voir userSessionOrder)
+    // Dernier changement d'ordre (file de l'accueil, sessionQueue) : une date valide, sinon retirée
+    if (up.orderAt !== undefined && !(Number.isFinite(up.orderAt) && up.orderAt > 0)) delete up.orderAt;
     cleanFromCoach(up);   // programme reçu d'un coach (js/data/coach.js)
   });
   // Muscles déclarés par l'utilisateur pour un exercice, par nom normalisé (tous programmes,

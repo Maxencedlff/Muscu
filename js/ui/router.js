@@ -247,7 +247,7 @@ function render() { paint(); }
 //   shown()           : juste après le dessin de la navigation (défilement voulu, au lieu du haut de page)
 const SCREENS = new Map([
   ['dashboard',      { render: () => renderDashboard(), mount: () => { mountHealthWorkouts('dashboard', render); mountSleep(); } }],   // Santé : récupération, sommeil
-  ['programmes',     { render: () => renderProgrammes() }],      // Programmes › page du programme actif
+  ['programmes',     { render: () => renderProgrammes(), leave: () => leaveProgrammes() }],   // Programmes › page du programme actif ; leave : mode ordre refermé
   ['session',        { render: () => activeSession ? renderSession() : renderDashboard(),
                        mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante
                        enter: () => requestWakeLock(), leave: () => { releaseWakeLock(); curNameObserver?.disconnect(); curNameObserver = null; } }],

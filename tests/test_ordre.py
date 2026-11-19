@@ -156,13 +156,14 @@ def t_accueil_ordre(bench, eng, dev, theme):
         nouvel = JOURS[1:] + ['Lundi']
         got = [x.replace(' Prochaine', '') for x in labels(page, '.ps-row .cell__title')]
         R.check(got == nouvel, f'{t} glisser : Lundi en dernier {got}')
-        R.check('Mercredi' in page.locator('.ps-row', has=page.locator('.ps-next')).inner_text(), f'{t} « Prochaine » suit la file : Mercredi')
+        R.check('Mardi' in page.locator('.ps-row', has=page.locator('.ps-next')).inner_text(), f'{t} ordre changé : la file repart du haut, « Prochaine » sur Mardi')
         # OK : retour à l'accueil, d'où l'on venait (panel t1)
         page.click('[data-action="toggle-prog-order"]')
         page.wait_for_selector('.view.dashboard .hero__name')
         R.check(page.evaluate('nav.tab') == 'train', f'{t} OK : retour à l\'accueil')
-        R.check(page.locator('.hero__name').inner_text().strip() == 'Mercredi', f'{t} accueil à jour : Mercredi en tête ({page.locator(".hero__name").inner_text().strip()})')
-        R.check(labels(page, '.home-cell__name')[:6] == ['Jeudi', 'Vendredi', 'Samedi', 'Dimanche', 'Lundi', 'Mardi'], f'{t} Ensuite à jour {labels(page, ".home-cell__name")[:6]}')
+        # Ordre changé (orderAt) : la file reprend le nouvel ordre depuis le haut, même si Mardi était déjà fait
+        R.check(page.locator('.hero__name').inner_text().strip() == 'Mardi', f'{t} accueil à jour : Mardi en tête ({page.locator(".hero__name").inner_text().strip()})')
+        R.check(labels(page, '.home-cell__name')[:6] == ['Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche', 'Lundi'], f'{t} Ensuite à jour {labels(page, ".home-cell__name")[:6]}')
         shot(page, LOT, f'accueil_apres_{t}')
         # La feuille d'une séance propose aussi « Changer l'ordre », qui ouvre la même page
         page.locator('.home-cell[data-action="session-actions"]').first.click()
@@ -172,6 +173,13 @@ def t_accueil_ordre(bench, eng, dev, theme):
         tap_dialog(page, "Changer l'ordre")
         page.wait_for_selector('.view.programmes .ps-handle')
         R.check(page.locator('.ps-row').count() == 7, f'{t} feuille : page du programme en mode ordre')
+        # Quitter sans OK (autre onglet) referme le mode ordre : il n'est plus ouvert en revenant (audit du 19/11)
+        page.click('.tabbar [data-tab="train"]')
+        page.wait_for_selector('.view.dashboard')
+        page.click('.tabbar [data-tab="program"]')
+        page.wait_for_selector('.view.programmes [data-action="open-prog-session"]')
+        R.check(page.locator('.ps-handle').count() == 0 and page.locator('.view.programmes [data-action="toggle-prog-order"]').inner_text().strip() == 'Ordre des séances',
+                f'{t} retour dans l\'onglet : plus en mode ordre')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:3]}')
 
     # Programme intégré : selon la récupération, « Autres séances », pas de « Changer l'ordre »

@@ -123,8 +123,14 @@ function nextSessionCat(keys) {
 // jamais faites d'abord, dans l'ordre du programme, puis de la plus ancienne à la plus récente. La séance proposée est
 // la tête de file ; la récupération n'est qu'un avertissement sur sa carte, elle ne change jamais la file.
 // Programmes intégrés : selon la récupération (nextSessionCat, sessionsByReadiness), comme avant.
+// Ordre changé (orderAt, posé par moveSession ou par une mise à jour du coach) : les séances faites avant comptent comme
+// jamais faites, la file reprend l'ordre choisi ; celles faites depuis repartent à la fin, comme d'habitude.
+function sessionOrderAt(pid = data.activeProgramme) {
+  return data.userProgrammes?.[pid]?.orderAt || data.programmes[pid]?.orderAt || 0;
+}
 function sessionQueue(keys) {
-  const t = k => prog().timers[k] || 0;
+  const at = sessionOrderAt();
+  const t = k => { const d = prog().timers[k] || 0; return d < at ? 0 : d; };
   return keys.map((k, i) => [k, i]).sort((a, b) => t(a[0]) - t(b[0]) || a[1] - b[1]).map(([k]) => k);
 }
 // Les autres séances de l'accueil, sans la proposée (ou celle en cours) : la file, ou selon la récupération
@@ -470,7 +476,7 @@ async function sessionActions(cat) {
   const queue = isUserProg(data.activeProgramme), canReorder = queue && sessionKeys().length > 1;
   const choice = await dialog({ type: 'sheet', title: sessionTitle(cat),
     // Le temps restant d'abord, comme sur la carte (« Il reste 1 j 18 h de récupération (épaules antérieures) »)
-    ...(st.by ? { message: `${recoveryWarning(st).replace(/^Attention : i/, 'I')}. ${recoveryReason(st.by)}` } : {}), actions: [
+    ...(!st.ready ? { message: `${recoveryWarning(st).replace(/^Attention : i/, 'I')}.${st.by ? ` ${recoveryReason(st.by)}` : ''}` } : {}), actions: [
     { label: 'Démarrer', value: 'start', style: 'preferred' },
     ...(!st.ready && !queue ? [{ label: 'Ignorer le délai', value: 'skip' }] : []),
     { label: 'Voir les exercices', value: 'see' },
@@ -517,10 +523,11 @@ function startTicker() {
     const keys = sessionKeys();
     const statusEl = k => $(`[data-status-cat="${CSS.escape(k)}"]`);
     if (keys.some(k => { const s = statusEl(k); return s && catStatus(k).ready && !s.querySelector('.home-cell__status--ready'); })
-        || ($('#hero-wait') && catStatus(nextSessionCat(keys)).ready)) { render(); return; }
+        || (($('#hero-wait') || $('#hero-warn')) && catStatus(nextSessionCat(keys)).ready)) { render(); return; }
     keys.forEach(k => { const s = statusEl(k); if (s) s.innerHTML = cellStatusHtml(k); });
-    const hw = $('#hero-wait');
+    const hw = $('#hero-wait'), warn = $('#hero-warn');
     if (hw) hw.textContent = `Prochaine séance prête dans ${fmtWait(catStatus(nextSessionCat(keys)).remaining)}`;
+    if (warn) warn.textContent = recoveryWarning(catStatus(nextSessionCat(keys)));   // programme créé : le décompte de l'avertissement
   };
   tick();
   ticker = setInterval(tick, 1000);

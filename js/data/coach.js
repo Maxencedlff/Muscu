@@ -428,6 +428,12 @@ function importCoachProgramme(d, item, coachPerson) {
   const up = { name: sent.name, sessions, order: Object.keys(sessions), archived: false,
     fromCoach: { coachId: coachPerson?.user_id || prevUp?.fromCoach?.coachId || '', name: coachPerson?.username || prevUp?.fromCoach?.name || null, sentAt: item.sentAt || 0 } };
   if (sent.consigne) up.consigne = sent.consigne;
+  // Ordre changé par le coach : la file de l'accueil repart de son ordre (orderAt, sessionQueue) ; sinon la date d'avant
+  if (prevUp) {
+    const shown = o => userSessionOrder(o).filter(k => !o.sessions?.[k]?.retired);
+    if (JSON.stringify(shown(prevUp)) !== JSON.stringify(shown(up))) up.orderAt = Date.now();
+    else if (Number.isFinite(prevUp.orderAt)) up.orderAt = prevUp.orderAt;
+  }
   d.userProgrammes[id] = up;
   up.fromCoach.hash = coachProgrammeHash(d, id);
   if (!(d.myProgrammes || []).includes(id)) (d.myProgrammes ||= []).push(id);

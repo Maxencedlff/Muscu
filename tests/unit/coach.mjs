@@ -162,6 +162,20 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(other.programmes.u_cc1_u_force.exercises.sA[0].consigne, 'Coudes serrés');
   });
 
+  test('coach : mise à jour qui change l\'ordre des séances, orderAt posé ; même ordre, orderAt gardé', () => {
+    reset();
+    seedCoachProg();
+    const v1 = inboxItem(1000), v2 = inboxItem(2000, 'p.sessions.reverse()'), v3 = inboxItem(3000, 'p.sessions.reverse(); p.sessions[0].exercises[0].sets = 5');
+    reset();
+    run(`importCoachProgramme(data, ${JSON.stringify(v1)}, { user_id: 'c1', username: 'max' })`);
+    assert.equal(run('data.userProgrammes.u_cc1_u_force.orderAt'), undefined, 'premier envoi : rien');
+    run(`importCoachProgramme(data, ${JSON.stringify(v2)}, { user_id: 'c1', username: 'max' })`);
+    const at = run('data.userProgrammes.u_cc1_u_force.orderAt');
+    assert.ok(at > 0, 'ordre changé par le coach : orderAt posé');
+    run(`importCoachProgramme(data, ${JSON.stringify(v3)}, { user_id: 'c1', username: 'max' })`);
+    assert.equal(run('data.userProgrammes.u_cc1_u_force.orderAt'), at, 'même ordre : orderAt gardé');
+  });
+
   test('coach : mise à jour d\'un programme reçu, identifiants gardés pour l\'historique', () => {
     reset();
     seedCoachProg();

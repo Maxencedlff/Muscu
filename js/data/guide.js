@@ -27,7 +27,7 @@ const GUIDE_SECTIONS = [
           'La carte du haut montre la séance du jour. Touche [Démarrer] pour la lancer.',
           '[À battre aujourd\'hui] rappelle ta dernière performance sur les premiers exercices, avec un petit objectif en plus.',
           '[Cette semaine] compte tes séances face à ton objectif. Touche la carte pour ouvrir [Progrès].',
-          '[Ensuite] liste les autres séances et le temps de récupération restant.',
+          '[Ensuite] (ton programme) ou [Autres séances] (programme intégré) liste les autres séances et le temps de récupération restant.',
           'La roue en haut à droite ouvre les [Réglages], ton compte compris.',
         ],
         related: ['lancer-seance', 'recuperation', 'objectif'],
@@ -68,7 +68,7 @@ const GUIDE_SECTIONS = [
         id: 'lancer-seance', title: 'Lancer une séance', icon: 'play', color: 'green', ordered: true,
         lead: 'Une séance se lance depuis l\'onglet [Entraînement].',
         steps: [
-          'Touche [Démarrer] sur la prochaine séance. Pour une autre, touche-la dans [Ensuite], puis [Démarrer].',
+          'Touche [Démarrer] sur la prochaine séance. Pour une autre, touche-la dans [Ensuite] ou [Autres séances], puis [Démarrer].',
           'Si la récupération n\'est pas finie, une ligne te prévient. Dans un programme intégré, le bouton devient [Démarrer quand même] ; dans ton programme, il reste [Démarrer].',
           'Les séries sont remplies avec ta dernière séance. Sous le nom de l\'exercice, [Objectif] rappelle la série à battre. Il passe au vert quand tu l\'atteins.',
           'La flèche en haut à gauche réduit la séance sans l\'arrêter. Une barre en bas de l\'écran permet d\'y revenir.',
@@ -423,7 +423,7 @@ const GUIDE_SECTIONS = [
         lead: 'Dans un programme intégré, l\'accueil tient compte de la récupération de tes muscles pour proposer la séance suivante. Dans ton programme, il suit ton ordre et te prévient seulement si un muscle n\'est pas reposé.',
         steps: [
           'Chaque séance a un délai de 24, 48, 72 ou 96 h, réglé dans la séance du programme : [Récupération].',
-          'Dans [Ensuite], le temps qu\'il reste s\'affiche à côté de la séance.',
+          'Dans [Ensuite] ou [Autres séances], le temps qu\'il reste s\'affiche à côté de la séance, avec le muscle qui récupère.',
           'Un muscle travaillé par une autre séance compte aussi : l\'accueil te dit lequel et quand.',
           'Après du cardio, ses muscles sont bloqués 24 h au plus. Un gainage ne retient pas une séance qui travaille d\'autres muscles.',
           'Dans un programme intégré, pour ne pas attendre, touche la séance dans [Autres séances], puis [Ignorer le délai].',

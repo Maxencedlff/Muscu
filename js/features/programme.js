@@ -143,7 +143,7 @@ function renderProgrammes() {
         ${canReorder && !editing ? orderSessionsCellHtml() : ''}
         ${user && !editing ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
       </div>
-      ${editing ? `<div class="group-foot">Fais glisser ≡, ou touche-le pour Monter ou Descendre. La prochaine séance est celle qui attend depuis le plus longtemps ; une séance faite repart à la fin.</div>` : ''}
+      ${editing ? `<div class="group-foot">Fais glisser ≡, ou touche-le pour Monter ou Descendre. L'accueil reprend cet ordre depuis le haut ; une séance faite repart à la fin.</div>` : ''}
       ${user ? '' : `<div class="group-foot">Les séances de ce programme sont fixes. Leurs exercices se modifient. Pour composer tes séances, crée un programme.</div>`}`;
   const manage = pid.startsWith('u_') ? `
       <div class="group group--gap">
@@ -360,6 +360,8 @@ function renderUserProgInfo(id) {
 // Ordre des séances, depuis l'accueil (« Changer l'ordre ») : la page du programme actif, en mode ordre, dans
 // l'onglet Programme (Programmes › le programme)
 let progOrderFromHome = false;   // ordre ouvert par « Changer l'ordre » de l'accueil : OK y ramène
+// Quitter la page du programme (autre onglet, retour) referme le mode ordre : il ne reste jamais ouvert en revenant
+function leaveProgrammes() { progEditing = false; progOrderFromHome = false; }
 function openSessionOrder() {
   progEditing = true;
   progOrderFromHome = nav.tab === 'train';
