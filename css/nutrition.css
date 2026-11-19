@@ -552,3 +552,9 @@ html.type-xl .diet-dayask__btns .diet-dayline__btn { flex: 1; }
 /* Texte très grand : la bande des 7 jours défile au lieu de coller « LunMarMer » (panel nutri-final t1) */
 html.type-xl .diet-week.diet-daypick { overflow-x: auto; justify-content: flex-start; gap: 4px; scrollbar-width: none; }
 html.type-xl .diet-daypick .diet-week__day { flex: 0 0 auto; min-width: 3.4em; padding: 0 4px; }
+
+/* Sel au-dessus du repère : barre et écart en orange, comme « à relancer » (le vert voulait dire « réussi », panel nutri-final t1) */
+.diet-salt__note { display: block; margin-top: 4px; font-size: var(--fs-footnote); color: var(--label2); text-align: left; }
+.diet-salt--over .diet-salt__note { color: var(--orange-text); font-weight: 600; }
+.diet-salt--over .water-bar__fill { background: var(--orange); }
+.diet-saltsheet__over { display: block; margin-top: 2px; font-size: var(--fs-subhead); color: var(--orange-text); font-weight: 600; }

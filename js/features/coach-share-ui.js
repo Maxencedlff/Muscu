@@ -257,7 +257,7 @@ registerActions({
     // Arrêter le suivi de la diète supprime jusqu'à 90 jours chez le coach : confirmation d'abord (panel nutri-final t1)
     if (!on && kind === 'diet_log') {
       const n = coachShare.state?.shares?.diet_log?.n || 0;
-      if (!(await confirmSheet('Arrêter le partage de ta diète ?', `${coachName()} ne verra plus ${n ? plural(n, 'jour partagé', 'jours partagés') : 'tes jours partagés'}. Ils sont supprimés du serveur.`, 'Arrêter'))) return;
+      if (!(await confirmSheet('Arrêter le partage de ta diète ?', `${coachName()} ne verra plus ${n ? plural(n, 'jour partagé', 'jours partagés') : 'tes jours partagés'}. ${n === 1 ? 'Il est supprimé' : 'Ils sont supprimés'} du serveur.`, 'Arrêter'))) return;
     }
     haptic();
     const r = await coachShareSet(kind, on);

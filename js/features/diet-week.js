@@ -170,7 +170,7 @@ function dietDaysListText(plan, list) {
 }
 // Copier un repas vers d'autres jours (menu d'un repas) ; Annuler remet les jours comme avant
 async function dietCopyMealFlow(ed, meal) {
-  const to = await dietPickDays(ed.root, ed.day, `Copier ${meal.name} vers…`);
+  const to = await dietPickDays(ed.root, ed.day, 'Copier vers…');   // titre court : le nom du repas coupait le titre sur SE
   if (!to) return;
   const before = dietCopyMealToDays(ed.root, ed.day, meal.id, to);
   if (!before) { showToast(`${DIET_MEAL_MAX} repas au plus par jour`, { error: true }); return; }

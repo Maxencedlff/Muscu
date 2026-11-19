@@ -113,7 +113,10 @@ html.type-xl .water-card__plus { white-space: normal; }
 
 /* Fourchette (18/11) : zone à viser plus claire sur la piste, du bas au haut de la fourchette (pas de dégradé) */
 .water-bar--zone { position: relative; }
-.water-bar__zone { position: absolute; top: 0; bottom: 0; right: 0; background: var(--check-zone, color-mix(in srgb, var(--check-on) 28%, var(--fill))); }
+/* Zone visée : un repère (trait) au bas de la fourchette, sans aplat de couleur (à 0, l'aplat vert faisait croire à une
+   barre déjà à moitié remplie : panel nutri-final t1) */
+.water-bar__zone { position: absolute; top: -2px; bottom: -2px; right: 0; background: none; border-left: 2px solid var(--label2); z-index: 1; }
+.water-bar--zone { overflow: visible; }
 .water-bar--zone .water-bar__fill { position: relative; }
 
 /* Verres à cocher : 44 pt, en grille ; plein = vert de l'avancée ; au-delà du bas de la fourchette : même dessin */

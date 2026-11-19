@@ -449,8 +449,9 @@ html.type-xl .cph-daybtn span { white-space: normal; }
 .coach-student-row.cstu .cstu__top .social-row__name { white-space: normal; overflow-wrap: anywhere; }
 .cstu__days { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; flex: none; }
 /* Libellé des pastilles de séances quand la ligne Diète a les siennes (une rangée, un sens : panel nutri-final t1) */
-.cstu__days-lbl { margin-left: auto; color: var(--label2); font-size: var(--fs-caption1, 0.75rem); }
-.cstu__days-lbl + .cstu__days { margin-left: 4px; }
+.cstu__sess { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; flex: none; }
+.cstu__days-lbl { color: var(--label2); font-size: var(--fs-caption1, 0.75rem); }
+.cstu__sess .cstu__days { margin-left: 0; }
 /* Cloche barrée à côté du pseudo : l'écart du flex suffit (sinon pseudo, cloche et 7 jours passent sur 2 lignes à 320-360 pt) */
 .cstu__top .push-off-mark { margin-left: 0; }
 .cstu__day { width: 9px; height: 9px; border-radius: 50%; background: var(--fill); }
