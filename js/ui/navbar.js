@@ -154,6 +154,9 @@ function backLabelFits(btn, label) {
   return range.getBoundingClientRect().left - (label.getBoundingClientRect().left + label.scrollWidth) >= BACK_LABEL_GAP;
 }
 function fitBackLabelNow(scope = document) {
+  // Titre sur sa ligne retiré d'abord : le retour se mesure dans la barre d'une seule ligne (sinon un second passage le
+  // croyait entier, puis le titre revenait dans la barre et le coupait : « ‹ Pr… », texte agrandi)
+  scope.querySelectorAll('.navbar__bar--stack').forEach(bar => bar.classList.remove('navbar__bar--stack'));
   scope.querySelectorAll('.navbar__back').forEach(btn => {
     const label = btn.querySelector('.navbar__back-label');
     if (!label) return;
@@ -182,7 +185,6 @@ function fitBackLabelNow(scope = document) {
   scope.querySelectorAll('.navbar__bar').forEach(bar => {
     const title = bar.querySelector(':scope > .navbar__title');
     if (!title || !title.getClientRects().length || !title.textContent.trim()) return;
-    bar.classList.remove('navbar__bar--stack');
     if (!bar.querySelector('.navbar__back')) bar.classList.remove('navbar__bar--wide-back');
     const cut = () => title.scrollWidth > title.clientWidth + 1;
     if (!cut()) return;

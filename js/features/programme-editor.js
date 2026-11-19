@@ -120,8 +120,10 @@ function renderEditor() {
     const last = lastPerf(data.activeProgramme, cat, ex);
     const best = last ? bestSet(last.ex.sets, ex) : null;
     const plan = canTech(ex) ? INTENS_PLANS[cleanIntens(ex.intens)]?.short : '';   // technique prescrite
-    // « · » collé au mot d'avant (espace insécable) : la ligne se coupe après, jamais devant
-    const sub  = `${setsRangeHtml(ex)}${plan ? `\u00a0· ${plan}` : ''}${best ? `\u00a0· <span class="ed-last">dernier ${setTxt(best, ex)}</span>` : ''}`;
+    // Morceaux insécables suivis de leur « · » : la ligne se coupe après le point, jamais devant
+    const parts = [setsRangeHtml(ex), plan, best ? `<span class="ed-last">dernier ${setTxt(best, ex)}</span>` : ''].filter(Boolean);
+    // Le « · » est un séparateur visuel : caché à VoiceOver, qui lit « 4 séries de 8 à 12 reps, dernier … »
+    const sub  = parts.map((x, k) => k < parts.length - 1 ? `<span class="ed-seg">${x}<span aria-hidden="true">\u00a0·</span></span>` : x).join(' ');
     const tag  = ssTagHtml(list, i);
     if (editorEditing) {
       return `

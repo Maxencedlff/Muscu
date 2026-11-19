@@ -61,7 +61,7 @@
 
 
 /* Dernière performance d'un bloc : jamais « dernier » seul en fin de ligne */
-.ed-last { white-space: nowrap; }
+.ed-last, .ed-seg { white-space: nowrap; }
 html.type-xl .ed-last { white-space: normal; }
 
 /* ── Entrées secondaires : Mes programmes, Bibliothèque, Plans de nutrition ── */

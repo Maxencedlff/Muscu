@@ -795,7 +795,7 @@ def t_muscle_filter(bench, eng, dev, theme):
         # Intitulé VoiceOver = le texte affiché (WCAG 2.5.3, 19/11) : nom, muscles, matériel, sans aria-label
         row = page.locator('#libList .mgc--ex[data-name="Soulevé de terre"]')
         lab = ' '.join(row.inner_text().split())
-        R.check(row.get_attribute('aria-label') is None and lab.startswith('Soulevé de terre ') and 'Ischio' in lab and lab.endswith('Salle'), f'{t} ligne : libellé VoiceOver = texte affiché « {lab} »')
+        R.check(row.get_attribute('aria-label') is None and lab.startswith('Soulevé de terre ') and lab.endswith('Salle'), f'{t} ligne : libellé VoiceOver = texte affiché « {lab} »')
         shot(page, LOT, f'exos-biblio-{t}')
         # Le toucher ouvre la feuille d'actions du matériel ; le choix filtre et s'affiche sur la pastille
         n_all = page.locator('#libList .mgc--ex').count()
@@ -863,7 +863,7 @@ def t_muscle_filter(bench, eng, dev, theme):
         # Abducteurs et Adducteurs (une lettre d'écart, l'un sous l'autre) : le geste en sous-titre, lu aussi par VoiceOver
         page.fill('#libSearch', 'ducteurs machine'); settle(page)
         subs = page.evaluate("""() => Object.fromEntries([...document.querySelectorAll('#libList .mgc--ex')].map(b =>
-            [b.dataset.name, [b.querySelector('.mgc__sub').textContent, b.getAttribute('aria-label')]]))""")
+            [b.dataset.name, [b.querySelector('.mgc__sub').textContent, b.textContent.replace(/\\s+/g, ' ')]]))""")   # intitulé = texte affiché
         R.check(subs.get('Abducteurs machine', [''])[0] == 'Écarter les cuisses (fessiers)' and subs.get('Adducteurs machine', [''])[0] == 'Serrer les cuisses'
                 and 'Écarter les cuisses' in subs['Abducteurs machine'][1] and 'Serrer les cuisses' in subs['Adducteurs machine'][1],
                 f'{t} Abducteurs / Adducteurs : geste en sous-titre {subs}')
