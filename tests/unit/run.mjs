@@ -1804,7 +1804,7 @@ function soundContext({ diag = null, canDuck = true, data = { soundOn: true } } 
   const c = vm.createContext(box);
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8')
     + '\nthis.playMelody = playMelody; this.soundProblems = soundProblems; this.wakeAudio = wakeAudio;'
-    + ' this.testRestEndSound = testRestEndSound; this.lastCheck = () => lastSoundCheck; this.audioCtx = () => audioCtx;', c);
+    + ' this.testRestEndSound = testRestEndSound; this.testPitches = testPitches; this.lastCheck = () => lastSoundCheck; this.audioCtx = () => audioCtx;', c);
   return { c, sent, box };
 }
 const SOUND_OK = { category: 'AVAudioSessionCategoryPlayback', sessionActive: true, engineRunning: true, journal: [] };
@@ -1865,13 +1865,30 @@ test('Réglages › Tester la fin de repos : 3 bips de décompte puis le GO, ave
   box.data.soundLevel = 'normal';
   const r = await c.testRestEndSound();
   assert.equal(sent.length, 4);
-  sameJSON(sent.map(s => s.notes[0].freq), [880, 880, 880, 1050]);
+  sameJSON(sent.map(s => s.notes[0].freq), [587, 587, 587, 494]);
   assert.ok(sent.every(s => s.duck === true), 'décompte et GO baissent la musique (réglage par défaut)');
   assert.ok(sent.every(s => s.notes.every(n => n.vol === 0.6)), 'volume choisi');
   assert.equal(r.ok, true);
   box.data.duckMusic = false; sent.length = 0;
   await c.testRestEndSound();
   assert.ok(sent.every(s => s.duck === false), 'réglage coupé : musique jamais baissée');
+});
+
+test('Réglages › Tester les hauteurs : 440, 660, 880 puis 1320 Hz, un bip à la fois, numéro allumé avant chaque bip', async () => {
+  const { c, sent, box } = soundContext({ diag: SOUND_OK });
+  const steps = [];
+  const delays = [];
+  const realTimeout = box.setTimeout;
+  box.setTimeout = (f, ms) => { if (ms >= 0 && ms % 800 === 0) delays.push(ms); return realTimeout(f, ms); };
+  const r = await c.testPitches(i => steps.push([i, sent.length]));
+  sameJSON(sent.map(s => s.notes.map(n => n.freq)), [[440], [660], [880], [1320]]);
+  sameJSON(steps, [[0, 0], [1, 1], [2, 2], [3, 3]], 'le numéro s\'allume juste avant son bip');
+  assert.ok([0, 800, 1600, 2400].every(ms => delays.includes(ms)), '0,8 s entre deux bips');
+  assert.ok(sent.every(s => s.duck === false), 'test des hauteurs : musique jamais baissée');
+  assert.equal(r.ok, true);
+  box.data.soundOn = false; sent.length = 0;
+  await c.testPitches();
+  assert.equal(sent.length, 0, 'sons coupés : rien');
 });
 
 test('Native.sound.diagnostics : null hors app ou build sans la méthode, état du module sinon', async () => {

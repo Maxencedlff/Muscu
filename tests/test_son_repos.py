@@ -19,6 +19,8 @@ from fixtures import *  # noqa
 LOT = 'son_repos'
 R = Results(LOT)
 ENGINE, DEVICE, THEME = 'chromium', 'Pixel 7', 'dark'
+# Premières notes du décompte et du GO (MELODIES, js/core/haptics-audio.js : sous 800 Hz depuis le 19/11/2026)
+COUNT, GO = 587, 494
 
 FAKE_SHELL = """
 window.__snd = { plays: [], notif: [], ctx: 0,
@@ -83,7 +85,7 @@ def t_reglages(bench):
         page.click('[data-action="sound-test-rest"]')
         page.wait_for_function('__snd.plays.length >= 4', timeout=6000)
         plays = page.evaluate('__snd.plays')
-        R.check([p['freq'] for p in plays[:4]] == [880, 880, 880, 1050], f'test : 3-2-1 puis GO {[p["freq"] for p in plays]}')
+        R.check([p['freq'] for p in plays[:4]] == [COUNT, COUNT, COUNT, GO], f'test : 3-2-1 puis GO {[p["freq"] for p in plays]}')
         R.check(all(p['duck'] for p in plays[:4]), 'test : musique baissée comme en vraie fin de repos')
         gaps = [plays[i + 1]['at'] - plays[i]['at'] for i in range(3)]
         R.check(all(800 <= g <= 1400 for g in gaps), f'test : un bip par seconde {gaps}')
@@ -94,6 +96,18 @@ def t_reglages(bench):
             R.check(part in txt, f'diagnostic : « {part} » affiché')
         R.check(page.evaluate("getComputedStyle(document.querySelector('.sound-diag__text')).userSelect") in ('text', 'auto'),
                 'diagnostic : texte sélectionnable')
+        # Tester les hauteurs : 440, 660, 880, 1320 Hz, 0,8 s d'écart, numéros allumés un à un
+        R.check(page.locator('[data-action="sound-test-pitch"]').count() == 1, 'Réglages : ligne « Tester les hauteurs »')
+        R.check(page.locator('.pitch-steps__n--on').count() == 0, 'hauteurs : numéros éteints au départ')
+        page.evaluate('__snd.plays = []')
+        page.click('[data-action="sound-test-pitch"]')
+        page.wait_for_function('__snd.plays.length >= 4', timeout=6000)
+        plays = page.evaluate('__snd.plays')
+        R.check([p['freq'] for p in plays] == [440, 660, 880, 1320], f'hauteurs : 4 bips du grave à l\'aigu {[p["freq"] for p in plays]}')
+        R.check(not any(p['duck'] for p in plays), 'hauteurs : musique jamais baissée')
+        gaps = [plays[i + 1]['at'] - plays[i]['at'] for i in range(3)]
+        R.check(all(650 <= g <= 1200 for g in gaps), f'hauteurs : 0,8 s entre deux bips {gaps}')
+        R.check(page.locator('.pitch-steps__n--on').count() == 4, 'hauteurs : les 4 numéros allumés')
         R.check(page.evaluate('__snd.ctx') == 0, 'aucun contexte Web Audio créé dans l\'app')
         shot(page, LOT, f'reglages-sons-{THEME}')
         R.check(not page.errors, f'réglages : aucune erreur JS {page.errors[:2]}')
@@ -109,11 +123,11 @@ def t_fin_repos_saine(bench):
                                " return i >= 0 && __snd.notif.slice(i + 1).some(n => n.op === 'cancel'); })()", timeout=7000)
         settle(page)
         plays, notif = page.evaluate('__snd.plays'), page.evaluate('__snd.notif')
-        R.check([p['freq'] for p in plays] == [880, 880, 1050] or [p['freq'] for p in plays] == [880, 880, 880, 1050],
+        R.check([p['freq'] for p in plays] == [COUNT, COUNT, GO] or [p['freq'] for p in plays] == [COUNT, COUNT, COUNT, GO],
                 f'fin de repos : décompte puis GO {[p["freq"] for p in plays]}')
         sched = [n for n in notif if n['op'] == 'schedule']
         R.check(len(sched) == 1 and sched[0]['at'] >= end + 2000, f'notification repoussée après la fin, pas annulée avant le GO {notif}')
-        go_at = [p['at'] for p in plays if p['freq'] == 1050][0]
+        go_at = [p['at'] for p in plays if p['freq'] == GO][0]
         cancels = [n for n in (after_defer(notif, end) or []) if n['op'] == 'cancel']
         R.check(cancels and cancels[0]['at'] >= go_at, 'notification annulée seulement après le GO joué')
         R.check(not page.errors, f'fin saine : aucune erreur JS {page.errors[:2]}')
@@ -125,10 +139,10 @@ def t_fin_repos_panne(bench):
         end_rest_soon(page)
         end = page.evaluate('restEndTime')
         page.evaluate("__snd.diag.category = 'AVAudioSessionCategoryAmbient'")
-        page.wait_for_function('__snd.plays.filter(p => p.freq === 1050).length >= 2', timeout=7000)
+        page.wait_for_function('__snd.plays.filter(p => p.freq === ' + str(GO) + ').length >= 2', timeout=7000)
         settle(page)
         plays, notif = page.evaluate('__snd.plays'), page.evaluate('__snd.notif')
-        gos = [p for p in plays if p['freq'] == 1050]
+        gos = [p for p in plays if p['freq'] == GO]
         R.check(len(gos) == 2 and gos[1]['duck'], f'lecture en panne : GO rejoué une fois en forçant la remise en état {gos}')
         rest = after_defer(notif, end)
         R.check(rest is not None and not any(n['op'] == 'cancel' for n in rest), f'lecture en panne : notification gardée en filet {notif}')

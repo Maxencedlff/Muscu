@@ -95,29 +95,39 @@ function woodblock(freq, start, gain = 1, dur = .12) {
     [4700,        start, .012,      .12 * gain],
   ];
 }
-// Hauteurs du tempo : sol 5, ré 6 (une quinte, intervalle franc) ; accent de nouvelle rep : do 7. Aucune
-// ne reprend celles de la fin de repos (880, 1050, 1400, 1750 Hz) ni son timbre (sinus purs).
-const WOOD_LOW = 784, WOOD_HIGH = 1175, WOOD_ACCENT = 2093;
+// Hauteurs du tempo : sol dièse 4, ré dièse 5 (une quinte, intervalle franc) ; accent de nouvelle rep et tic
+// de chaque seconde : sol 5. Note principale de chaque coup sous 800 Hz (constat du 19/11/2026, voir
+// MELODIES) ; les partiels aigus de woodblock() restent, ils font le timbre. Aucune n'est à moins d'un
+// demi-ton de la fin de repos (494, 587, 698 Hz), dont le timbre (sinus purs) diffère aussi.
+const WOOD_LOW = 415, WOOD_HIGH = 622, WOOD_ACCENT = 784;
 // Deux coups à 75 ms forment un seul geste dont l'oreille suit le sens (aigu → grave : descente)
 const WOOD_GAP = .075;
 
+// Hauteurs sous 800 Hz. Constat du 19/11/2026 sur l'iPhone de Maxence (build 69) : 'tick' (440 Hz) et
+// 'validation' (660 Hz) s'entendent, mais jamais le décompte (880 Hz) ni le GO (1050 à 1750 Hz), quels que
+// soient le volume, le Bluetooth ou « Baisser la musique », alors que le diagnostic les dit joués. Les
+// notes au-dessus d'environ 800 Hz ne sortent pas sur cet iPhone : décompte, GO, minuteur, fin de séance
+// et record sont descendus (une octave pour les trois derniers, même dessin mélodique).
+// Réglages › Sons › « Tester les hauteurs » (PITCH_TEST) permet de vérifier jusqu'où un iPhone joue.
 const MELODIES = {
-  timer:      [[880, 0, .12], [1100, .16, .12], [1320, .32, .35]],
+  timer:      [[440, 0, .12], [550, .16, .12], [660, .32, .35]],
   validation: [[660, 0, .1]],
-  finish:     [[880, 0, .1], [1320, .16, .25]],
-  record:     [[660, 0, .12], [880, .12, .12], [1100, .24, .12], [1320, .36, .35]],
+  finish:     [[440, 0, .1], [660, .16, .25]],
+  record:     [[330, 0, .12], [440, .12, .12], [550, .24, .12], [660, .36, .35]],
   tick:       [[440, 0, .08]],
-  restCount:  [[880, 0, .11]],                               // repos : chaque bip du decompte 3-2-1 (aigu : ressort de la musique)
-  restGo:     [[1050, 0, .1], [1400, .12, .1], [1750, .26, .33]],  // repos : GO, montee nette, differente du decompte
+  // Fin de repos : décompte 3-2-1 = un bip court en ré 5, entre 'tick' (440) et 'validation' (660) ;
+  // GO = montée nette de trois notes (si 4, ré 5, fa 5) qui finit plus haut et plus long que le décompte
+  restCount:  [[587, 0, .11]],
+  restGo:     [[494, 0, .1], [587, .12, .1], [698, .26, .33]],
   // Tempo guidé. Le sens du son suit celui de la charge (on associe spontanément l'aigu au haut : effet
   // SMARC, Rusconi et al., Cognition 2006) : la descente tombe (« tic-toc »), la montée monte (« toc-tic »).
   tempoDown:  [...woodblock(WOOD_HIGH, 0, 1, .09), ...woodblock(WOOD_LOW, WOOD_GAP, 1, .18)],
   tempoUp:    [...woodblock(WOOD_LOW, 0, 1, .09), ...woodblock(WOOD_HIGH, WOOD_GAP, 1, .18)],
   // Montée explosive (« X ») : trois coups serrés qui grimpent, plus vifs que la montée normale
-  tempoX:     [...woodblock(WOOD_LOW, 0, 1, .06), ...woodblock(WOOD_HIGH, .045, 1, .06), ...woodblock(WOOD_LOW * 2, .09, 1, .12)],
+  tempoX:     [...woodblock(WOOD_LOW, 0, 1, .06), ...woodblock(WOOD_HIGH, .045, 1, .06), ...woodblock(WOOD_ACCENT, .09, 1, .12)],
   // Chaque seconde d'une phase longue et chaque pause : un coup léger (10 dB sous les phases), comme le tic
   // d'un métronome à 60 : on compte « 3 s » sans regarder l'écran, sans fatiguer sur des dizaines de reps
-  tempoTick:  woodblock(WOOD_LOW * 2, 0, .55, .06),
+  tempoTick:  woodblock(WOOD_ACCENT, 0, .55, .06),
   // Nouvelle répétition : le geste de la phase qui commence, précédé d'un coup aigu (l'accent du 1er temps
   // d'un métronome) ; la voix dit le numéro par-dessus
   tempoRepDown: [...woodblock(WOOD_ACCENT, 0, .85, .06), ...woodblock(WOOD_HIGH, WOOD_GAP * 1.2, 1, .09), ...woodblock(WOOD_LOW, WOOD_GAP * 2.2, 1, .18)],
@@ -172,10 +182,14 @@ function checkNativeSound(sentAt) {
 }
 
 // Joue la mélodie. Résout { ok } une fois l'état du module relu (lecture iOS), tout de suite sinon.
-function playMelody(name, { replay = true } = {}) {
+function playMelody(name, opts) { return playNotes(MELODIES[name], name, opts); }
+
+// Joue des notes [freq, start, dur, gain ?] au volume choisi ; name : mélodie d'origine (baisse de la
+// musique, GO rejoué), null pour des notes hors MELODIES (test des hauteurs)
+function playNotes(raw, name = null, { replay = true } = {}) {
   if (data.soundOn === false) return Promise.resolve({ ok: true, reasons: [] });
   const vol = soundVol();
-  const notes = MELODIES[name].map(([freq, start, dur, gain = 1]) => ({ freq, start, dur, vol: vol * gain }));
+  const notes = raw.map(([freq, start, dur, gain = 1]) => ({ freq, start, dur, vol: vol * gain }));
   if (Native.sound.available) {
     const wantsDuck = data.duckMusic !== false && DUCKED_MELODIES.includes(name);
     const forced = soundNeedsReset && !!Native.sound.canDuck;
@@ -218,6 +232,21 @@ function testRestEndSound() {
   return new Promise(resolve => {
     [0, 1000, 2000].forEach(t => setTimeout(restCountBeep, t));
     setTimeout(() => resolve(playMelody('restGo')), 3000);
+  });
+}
+
+// Réglages › Sons › « Tester les hauteurs » : 4 bips de plus en plus aigus, 0,8 s d'écart. Le 3e et le 4e
+// sont au-dessus de 800 Hz, la limite constatée le 19/11/2026 (voir MELODIES) : on dit jusqu'où on entend.
+// onStep(i) à chaque bip (0 à 3) ; résout une fois le dernier joué.
+const PITCH_TEST = [440, 660, 880, 1320];
+const PITCH_TEST_GAP = 800;   // ms
+function testPitches(onStep = () => {}) {
+  return new Promise(resolve => {
+    PITCH_TEST.forEach((freq, i) => setTimeout(() => {
+      onStep(i);
+      const played = playNotes([[freq, 0, .3]]);
+      if (i === PITCH_TEST.length - 1) resolve(played);
+    }, i * PITCH_TEST_GAP));
   });
 }
 

@@ -116,6 +116,12 @@ ${renderAccessSettingsGroup()}
             ${cellIco('play', 'sable')}
             <span class="cell__body"><span class="cell__title">Tester la fin de repos</span></span>
           </button>` : ''}
+          ${soundOn ? `<button class="cell cell--action" data-action="sound-test-pitch">
+            ${cellIco('music', 'sable')}
+            <span class="cell__body"><span class="cell__title">Tester les hauteurs</span>
+              <span class="cell__sub">4 bips du grave à l'aigu : retiens le dernier que tu entends</span></span>
+            <span class="cell__value pitch-steps" aria-hidden="true">${PITCH_TEST.map((_, i) => `<span class="pitch-steps__n">${i + 1}</span>`).join(' · ')}</span>
+          </button>` : ''}
           <button class="cell cell--action" data-action="sound-diagnostics" aria-expanded="false" aria-controls="sound-diag">
             ${cellIco('waveform', 'gray')}
             <span class="cell__body"><span class="cell__title">Diagnostic du son</span></span>
@@ -410,6 +416,12 @@ registerActions({
   'sound-test-rest': async () => {
     await testRestEndSound();
     if (!$('#sound-diag')?.hidden) showSoundDiagnostics();
+  },
+  // Quatre bips de 440 à 1320 Hz ; le numéro du bip en cours s'allume (on dit jusqu'où on entend)
+  'sound-test-pitch': async (e, el) => {
+    const steps = el.querySelectorAll('.pitch-steps__n');
+    steps.forEach(n => n.classList.remove('pitch-steps__n--on'));
+    await testPitches(i => steps[i]?.classList.add('pitch-steps__n--on'));
   },
   'sound-diagnostics': () => showSoundDiagnostics(),
   'setting-vibrate': () => {

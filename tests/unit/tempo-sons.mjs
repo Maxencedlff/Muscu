@@ -91,6 +91,27 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     }
   });
 
+  // Constat du 19/11/2026 (build 69) : au-dessus d'environ 800 Hz, rien ne sort sur l'iPhone de Maxence.
+  // La note principale de chaque coup (la plus forte) reste dessous ; les partiels aigus du bois peuvent
+  // dépasser, ils ne font que le timbre.
+  test('sons : aucune note principale au-dessus de 800 Hz (fin de repos et sons entendus en salle)', () => {
+    for (const name of ['restCount', 'restGo']) {
+      for (const [f] of MELODIES[name]) assert.ok(f <= 800, `${name} : ${f} Hz`);
+    }
+    for (const name of ['tick', 'validation', 'timer', 'finish', 'record', ...TEMPO]) {
+      for (const f of strokes(MELODIES[name])) assert.ok(f <= 800, `${name} : coup à ${f} Hz`);
+    }
+    // Le bip du décompte est distinct de 'tick' (440) et de 'validation' (660) ; le GO, lui, se reconnaît
+    // à sa montée de trois notes
+    const count = MELODIES.restCount.map(n => n[0]), go = MELODIES.restGo.map(n => n[0]);
+    for (const f of count) {
+      for (const other of [440, 660]) assert.ok(Math.max(f / other, other / f) >= SEMITONE, `${f} Hz trop près de ${other} Hz`);
+    }
+    assert.equal(count.length, 1, 'décompte : un seul bip');
+    assert.ok(go.length === 3 && go[0] < go[1] && go[1] < go[2], 'GO : trois notes qui montent');
+    assert.ok(go[2] > count[0], 'GO : finit plus haut que le décompte');
+  });
+
   test('sons du tempo : distincts entre eux et du décompte de fin de repos', () => {
     const sig = name => JSON.stringify(MELODIES[name]);
     for (const a of TEMPO) for (const b of TEMPO) if (a < b) assert.notEqual(sig(a), sig(b), `${a} ≠ ${b}`);
