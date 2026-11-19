@@ -97,11 +97,12 @@ function dietDayHeadHtml(id, plan, di, ro) {
   const pick = plan.days.mode === 'week'
     ? `<div class="diet-week diet-daypick" role="group" aria-label="Jours du plan">${DIET_WEEKDAYS.map((n, i) => `
           <button class="diet-week__day${i === di ? ' diet-week__day--on' : ''}" data-action="diet-goto-day" data-id="${esc(id)}" data-dayi="${i}" aria-pressed="${i === di}"
-            aria-label="${esc(`${n}, ${dietKindWord(dietDayKindAt(plan, i)).toLowerCase()}${i === today ? ', aujourd\'hui' : ''}`)}">
+            aria-label="${esc(`${n}, ${dietDayKindAt(plan, i) === 'r' ? 'jour de repos' : 'jour d\'entraînement'}${i === today ? ', aujourd\'hui' : ''}`)}">
             <span class="diet-week__letter" aria-hidden="true">${n.slice(0, 3)}</span>
-            <span class="diet-week__kind${dietDayKindAt(plan, i) === 'r' ? ' diet-week__kind--r' : ''}" aria-hidden="true">${dietDayKindAt(plan, i) === 'r' ? 'Repos' : 'Ent.'}</span>
+            <span class="diet-week__kind${dietDayKindAt(plan, i) === 'r' ? ' diet-week__kind--r' : ''}" aria-hidden="true">${dietDayKindAt(plan, i) === 'r' ? 'Repos' : icon('dumbbell', 14)}</span>
             <span class="diet-week__dot${i === today ? ' diet-week__dot--done' : ''}" aria-hidden="true"></span>
-          </button>`).join('')}</div>`
+          </button>`).join('')}</div>
+        <p class="diet-week__legend" aria-hidden="true"><span>${icon('dumbbell', 14)} jour d'entraînement</span><span><span class="diet-week__kind diet-week__kind--r">Repos</span> jour de repos</span></p>`
     : `<div class="segmented seg-full diet-daypick" role="group" aria-label="Jour du plan">${[0, 1].map(i => `<button class="segmented__btn${i === di ? ' segmented__btn--active' : ''}" data-action="diet-goto-day" data-id="${esc(id)}" data-dayi="${i}" aria-pressed="${i === di}">${i ? 'Repos' : 'Entraînement'}</button>`).join('')}</div>`;
   const kind = plan.days.mode === 'week' && !ro ? `<div class="group-title">Type de jour</div>
         <div class="segmented seg-full diet-daykind" role="group" aria-label="Type de ${esc(DIET_WEEKDAYS[di])}">${[['t', 'Entraînement'], ['r', 'Repos']].map(([k, l]) => `

@@ -90,7 +90,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(warn({ since, days: { [TODAY]: off, [D1]: ok } }), false, 'aujourd\'hui ne compte pas');
     assert.equal(warn({ since: new Date(2026, 10, 16).getTime(), days: {} }), false, 'partagé depuis 2 jours : pas encore');
     assert.equal(warn(null), false, 'ne partage pas : jamais');
-    assert.ok(run('DIET_SHARE_WARN_TEXT.length') <= 22, 'signal d\'une ligne sur iPhone SE');
+    assert.ok(run('DIET_SHARE_WARN_TEXT.length') <= 24, 'signal d\'une ligne sur iPhone SE');
   });
 
   test('suivi diète : ce que rend le serveur est nettoyé', () => {

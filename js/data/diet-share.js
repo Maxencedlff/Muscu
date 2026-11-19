@@ -170,7 +170,7 @@ function dietShareWarn(ov, now = Date.now()) {
   if (!Number.isFinite(ov.since) || ov.since > first) return false;
   return days.every(day => ['off', 'none'].includes(dietShareStatus(ov.days[day] || null)));
 }
-const DIET_SHARE_WARN_TEXT = 'Diète manquée 3 jours';
+const DIET_SHARE_WARN_TEXT = 'Diète pas suivie 3 jours';   // le mot des pastilles (« Pas suivi »), décision du 19/11
 // Jours suivis sur les 7 derniers (aujourd'hui compté seulement s'il est déjà suivi), pour la ligne de Mes élèves ;
 // null sans partage
 function dietShareWeekCount(ov, now = Date.now()) {

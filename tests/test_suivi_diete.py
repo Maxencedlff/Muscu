@@ -220,7 +220,7 @@ def t_coach(bench):
                 page.wait_for_selector('.coach-students-view')
                 settle(page)
                 txt = nb(page.inner_text('.coach-students-view'))
-                R.check('Diète manquée 3 jours' in txt and 'Diète\n3 sur 7 suivis' in txt or 'Diète 3 sur 7 suivis' in txt.replace('\n', ' ') and 'Diète non partagée' in txt, f'{t} Mes élèves : « Diète manquée 3 jours », jours suivis de Léa ({txt[:400]!r})')
+                R.check('Diète pas suivie 3 jours' in txt and 'Diète\n3 sur 7 suivis' in txt or 'Diète 3 sur 7 suivis' in txt.replace('\n', ' ') and 'Diète non partagée' in txt, f'{t} Mes élèves : « Diète manquée 3 jours », jours suivis de Léa ({txt[:400]!r})')
                 R.check(page.evaluate(f"coachStudentProgress(coachStudent('{ids['zoe']}')).tone") == 'warn'
                         and page.evaluate(f"coachStudentProgress(coachStudent('{ids['lea']}')).tone") != 'warn', f'{t} Zoé à relancer, pas Léa')
                 shot(page, LOT, f'3-eleves-{t}')

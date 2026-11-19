@@ -1692,7 +1692,7 @@ def p_suivi_diete_eleve(r):
 @parcours('suivi-diete-coach', 'Coach : carte Diète de l\'élève, Mes élèves, à relancer', 'coach')
 def p_suivi_diete_coach(r):
     """Coach max, trois élèves : Léa partage sa diète (semaine suivie en partie, aujourd'hui en cours), Zoé la partage et
-    l'a manquée 3 jours, Tom ne la partage pas. Mes élèves (7 pastilles, « Diète manquée 3 jours »), fiche de Zoé et
+    l'a manquée 3 jours, Tom ne la partage pas. Mes élèves (7 pastilles, « Diète pas suivie 3 jours »), fiche de Zoé et
     « Écrire à zoe » (message prêt, jamais envoyé seul), fiche de Léa (carte Diète, un jour touché, règle, semaine d'avant),
     fiche de Tom (« Diète non partagée »)."""
     r.lancer(REALISTE)
@@ -1705,7 +1705,7 @@ def p_suivi_diete_coach(r):
         __sb.shareDiet(ids.lea, lea); __sb.shareDiet(ids.zoe, zoe);
         return coachRefresh(); }""", 'rôle coach validé ; Léa et Zoé partagent leur diète, Tom non', [JOURS_LEA, JOURS_ZOE])
     cle = 'Coach : voir qui suit sa diète'
-    with r.etape('mes-eleves', 'Onglet Coach, Élèves : ligne Diète (7 pastilles), « Diète manquée 3 jours »', cle=cle):
+    with r.etape('mes-eleves', 'Onglet Coach, Élèves : ligne Diète (7 pastilles), « Diète pas suivie 3 jours »', cle=cle):
         r.onglet('friends', 'Coach')
         r.attendre('.coach-team .coach-student-row', 'Élèves')
     with r.etape('fiche-zoe', 'Fiche de Zoé : « zoe n\'a pas suivi sa diète ces 3 derniers jours », « Écrire à zoe »', cle='Coach : relancer un élève sur sa diète'):

@@ -558,3 +558,8 @@ html.type-xl .diet-daypick .diet-week__day { flex: 0 0 auto; min-width: 3.4em; p
 .diet-salt--over .diet-salt__note { color: var(--orange-text); font-weight: 600; }
 .diet-salt--over .water-bar__fill { background: var(--orange); }
 .diet-saltsheet__over { display: block; margin-top: 2px; font-size: var(--fs-subhead); color: var(--orange-text); font-weight: 600; }
+/* Bande des 7 jours : haltère pour un jour d'entraînement (plus d'abréviation « Ent. »), légende dessous */
+.diet-daypick .diet-week__kind .icon { width: 1em; height: 1em; color: var(--label2); }
+.diet-week__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; margin: 2px 0 8px; font-size: var(--fs-footnote); color: var(--label2); }
+.diet-week__legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.diet-week__legend .icon { width: 1em; height: 1em; }

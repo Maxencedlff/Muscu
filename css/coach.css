@@ -703,3 +703,7 @@ html.type-xl .cdiet__key { white-space: normal; }
 .cstu__diet--off { color: var(--label2); }
 /* Titres des cases de partage : coupés aux syllabes, jamais au milieu d'une lettre (« Mensuration / s », panel nutri-final t1) */
 .coach-share-view .cell__title { overflow-wrap: normal; word-break: normal; hyphens: auto; -webkit-hyphens: auto; }
+/* Aperçu d'un plan diète : « Envoyer à N élèves » collé en bas, au-dessus de la barre d'onglets, visible sans défiler
+   sur iPhone SE (grille avant panel, règle 17) */
+.diet-send-view #dietSendGo { position: sticky; bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); z-index: 2;
+  box-shadow: 0 0 0 8px var(--bg), 0 -12px 16px 8px var(--bg); }
