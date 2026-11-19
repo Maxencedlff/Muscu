@@ -41,7 +41,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(day(TODAY).kind, 'r');
   });
 
-  test('suivi diète : fenêtre de 90 jours, aujourd\'hui avec le plan suivi même sans coche', () => {
+  test('suivi diète : fenêtre de 90 jours, seulement les jours notés sur l\'appareil (jamais le plan suivi seul)', () => {
     reset(); setPlan();
     const old = new Date(NOW); old.setDate(old.getDate() - 95);
     const d89 = new Date(NOW); d89.setDate(d89.getDate() - 89);
@@ -49,9 +49,12 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     run(`data.dietLog = { ${j(k(old))}: { plan: 'd_seche1', done: ['m1'], swaps: {} }, ${j(k(d89))}: { plan: 'd_seche1', done: ['m1'], swaps: {} }, ${j(D2)}: { plan: 'd_seche1', done: ['m3'], swaps: {} } }`);
     run(`data.waterLog = { ${j(D3)}: [{ id: 'a', ml: 500, at: 1 }] }`);
     const p = run(`dietSharePayload(data, ${NOW})`);
-    sameJSON(p.map(x => x.day), [TODAY, D2, D3, k(d89)], 'du plus récent ; 95 jours : pas envoyé');
-    assert.equal(p[0].kcal, 0, 'aujourd\'hui : rien coché');
-    sameJSON([p[2].plan, p[2].water, p[2].meals], [null, 500, []], 'jour sans plan noté : l\'eau seule');
+    sameJSON(p.map(x => x.day), [D2, D3, k(d89)], 'du plus récent ; 95 jours : pas envoyé ; aujourd\'hui sans rien de noté : pas envoyé');
+    sameJSON([p[1].plan, p[1].water, p[1].meals], [null, 500, []], 'jour sans plan noté : l\'eau seule');
+    // Aujourd'hui, de l'eau notée sans journal : le résumé prend le plan suivi
+    run(`data.waterLog[${j(TODAY)}] = [{ id: 'w', ml: 250, at: 1 }]`);
+    const t = run(`dietSharePayload(data, ${NOW})`)[0];
+    sameJSON([t.day, t.plan, t.water], [TODAY, 'd_seche1', 250]);
     // Sans plan, sans eau ni sel : rien
     run('data.dietActive = null; data.dietLog = {}; data.waterLog = {};');
     sameJSON(run(`dietSharePayload(data, ${NOW})`), []);
@@ -136,6 +139,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       sameJSON(run('coachShareKindsShown().map(k => k.kind)'), ['weight', 'measures', 'diet_log']);
       run('dietShareSchedule()');
       assert.equal(run('dietShareTimer'), 0, 'pas partagé : aucun envoi prévu');
+      run(`data.dietLog = { ${j(TODAY)}: { plan: 'd_seche1', done: [], swaps: {} } }`);   // journal du jour sur cet appareil
       assert.equal((await run(`coachShareSet('diet_log', true)`)).ok, true);
       sameJSON(log(), ['student_shares', 'student_set_share', 'student_share_diet_days']);
       const sent = run('__calls').find(c => c[0] === 'student_share_diet_days')[1].days;
@@ -151,6 +155,50 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     } finally {
       run('clearTimeout(dietShareTimer); sb = null; account.user = null; coach.state = null; coachShareReset(null); delete globalThis.__calls; delete globalThis.__on;');
     }
+  });
+
+  test('suivi diète : deuxième appareil (audit du 19/11) : sans journal il n\'envoie rien ; save() n\'envoie plus ; deux appareils s\'additionnent', async () => {
+    reset(); setPlan();
+    // Faux serveur qui fusionne jour par jour, comme la migration (insert … on conflict update)
+    run(`(() => {
+      globalThis.__srv = {}; globalThis.__calls = [];
+      account.user = { id: 'u1' }; coachShareReset('u1'); coach.userId = 'u1';
+      coach.state = cleanCoachState({ is_coach: false, coach: { user_id: 'c1', username: 'max', since: '2026-10-01' } });
+      coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'measures', 'diet', 'diet_log'], shares: { diet_log: { granted_at: '2026-11-01T10:00:00Z', n: 0, last_at: null } } });
+      sb = { rpc: async (fn, args) => { __calls.push(fn);
+        if (fn === 'student_share_diet_days') { for (const x of args.days) __srv[x.day] = x; return { data: Object.keys(__srv).length, error: null }; }
+        return { data: null, error: null }; } };
+    })()`);
+    try {
+      // Appareil B : plan suivi synchronisé, aucun journal local
+      run('data.dietLog = {}; data.waterLog = {}; data.saltLog = {}; clearTimeout(dietShareTimer); dietShareTimer = 0;');
+      run('save()');
+      assert.equal(run('dietShareTimer'), 0, 'save() sans geste de diète : aucun envoi prévu');
+      sameJSON(run(`dietSharePayload(data, ${NOW})`), [], 'B sans journal : rien à envoyer');
+      // Appareil A a envoyé deux jours ; B n'efface rien en envoyant sa liste (vide : pas d'envoi du tout)
+      run(`__srv[${j(D1)}] = { day: ${j(D1)}, kcal: 2100 }; __srv[${j(D2)}] = { day: ${j(D2)}, kcal: 2000 };`);
+      await run(`coachShareUploadKind('diet_log', { force: true, ifChanged: true })`);
+      sameJSON(Object.keys(run('__srv')).sort(), [D2, D1], 'les jours de A restent');
+      // B coche un repas aujourd'hui : le geste prévoit l'envoi ; le serveur additionne
+      run(`dietToggleMeal(data, 'd_seche1', 'm1', ${j(TODAY)})`);
+      assert.ok(run('dietShareTimer'), 'coche : envoi prévu');
+      run('clearTimeout(dietShareTimer); dietShareTimer = 0;');
+      await run(`coachShareUploadKind('diet_log', { force: true, ifChanged: true })`);
+      sameJSON(Object.keys(run('__srv')).sort(), [D2, D1, TODAY], 'A et B s\'additionnent');
+      assert.equal(run('coachShare.state.shares.diet_log.n'), 3, 'le nombre vu par le coach : tous les jours gardés');
+    } finally {
+      run('clearTimeout(dietShareTimer); sb = null; account.user = null; coach.state = null; coachShareReset(null); delete globalThis.__srv; delete globalThis.__calls;');
+    }
+  });
+
+  test('synchronisation : un plan reçu sans days (vieil appareil) garde les jours du plan local', () => {
+    reset();
+    const week = { mode: 'week', kinds: ['t', 'r', 't', 't', 't', 'r', 'r'], more: [] };
+    const local = { dietConsent: { on: true, at: '2026-11-01T10:00:00.000Z' }, dietPlans: { d_a: { ...PLAN, days: week } } };
+    const remote = { dietConsent: { on: true, at: '2026-11-01T10:00:00.000Z' }, dietPlans: { d_a: { ...PLAN, name: 'Renommé' } } };
+    const out = run(`(() => { const d = {}; mergeDietProfile(d, ${j(local)}, ${j(remote)}, true); return d.dietPlans.d_a; })()`);
+    assert.equal(out.name, 'Renommé', 'le reste du plan reçu est pris');
+    sameJSON(out.days?.kinds, week.kinds, 'days du plan local gardé');
   });
 
   test('suivi diète : app et serveur d\'accord (donnée, 90 jours, seuils documentés)', () => {

@@ -334,6 +334,9 @@ function mergeDietProfile(d, local, remoteDoc, remoteFirst) {
   const lp = isObj(local.dietPlans) ? local.dietPlans : null;
   const rp = take && isObj(remoteDoc.dietPlans) ? cleanDietPlans(remoteDoc.dietPlans) : null;
   const plans = lp && rp ? (remoteFirst ? { ...lp, ...rp } : { ...rp, ...lp }) : lp || rp || undefined;
+  // Appareil resté sur une version d'avant les jours du plan : il renvoie le plan sans days. Le plan reçu sans days
+  // garde ceux du plan local au même identifiant (audit du 19/11 : sinon un vieil appareil efface la semaine)
+  if (lp && rp && plans) for (const id of Object.keys(rp)) if (plans[id] === rp[id] && !rp[id].days && lp[id]?.days) plans[id] = { ...rp[id], days: lp[id].days };
   set('dietPlans', plans && Object.keys(plans).length ? plans : undefined);
   // Aliments perso : union, sauf ceux retirés sur l'un ou l'autre appareil (dietFoodsGone, union lui aussi)
   const gone = cleanDietFoodsGone([...(take && Array.isArray(remoteDoc.dietFoodsGone) ? remoteDoc.dietFoodsGone : []), ...(Array.isArray(local.dietFoodsGone) ? local.dietFoodsGone : [])]);

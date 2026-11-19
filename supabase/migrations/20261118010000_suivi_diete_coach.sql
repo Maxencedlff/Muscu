@@ -20,8 +20,9 @@
 --    chaque envoi de l'élève, la lecture du coach ne le rend jamais, et une purge quotidienne (pg_cron, 03:41 UTC)
 --    l'efface pour l'élève qui n'ouvre plus l'app. 90 jours = la plus longue phase du planning du coach
 --    (12 semaines, docs/COACH_SUIVI.md) plus une semaine de marge : juger si une phase a été suivie.
---  - Envoi : student_share_diet_days refuse (not_shared) sans consentement actif ; il remplace tout (miroir de
---    l'appareil, comme les pesées), 92 jours au plus, 128 Ko au plus, chaque champ borné (invalid_data sinon).
+--  - Envoi : student_share_diet_days refuse (not_shared) sans consentement actif ; il FUSIONNE jour par jour (un jour
+--    reçu remplace le même jour, les autres restent : un deuxième appareil sans journal n'efface rien), 92 jours au
+--    plus, 128 Ko au plus, chaque champ borné (invalid_data sinon) ; seuls les jours de plus de 90 jours sont supprimés.
 --  - Lecture : seul le coach consenti, encore coach (coach_student_diet, coach_diet_overview : 8 derniers jours en bref) ; un autre coach,
 --    un ami, l'élève lui-même par ces fonctions : not_found ou rien. Rien pour les amis.
 --  - Aucune lecture ni écriture directe : RLS activée sans politique, aucun GRANT sur la table ; RPC security
@@ -185,9 +186,12 @@ $$
       from l join public.coach_shares c on c.student_id = l.student_id and c.coach_id = l.coach_id), '{}'::jsonb))
 $$;
 
--- Élève : envoyer mes jours de diète (remplace tout : miroir de l'appareil). days = [{ day: 'AAAA-MM-JJ', plan, name,
+-- Élève : envoyer mes jours de diète, FUSIONNÉS jour par jour : chaque jour reçu remplace le même jour sur le serveur,
+-- les autres jours restent (un deuxième appareil sans journal n'efface rien, deux appareils s'additionnent) ; seuls les
+-- jours de plus de 90 jours sont supprimés. days = [{ day: 'AAAA-MM-JJ', plan, name,
 -- kind, meals: [{ n, ok }], kcal, p, c, f, goal: { kcal, p, c, f }, water, waterGoal, waterMin, salt, saltMin,
--- saltMax }]. Les jours hors des 90 derniers (ou après demain) sont écartés sans erreur. Renvoie le nombre gardé.
+-- saltMax }]. Les jours hors des 90 derniers (ou après demain) sont écartés sans erreur. Renvoie le nombre de jours
+-- gardés pour l'élève (tous, après la fusion).
 -- Sans consentement : not_shared ; forme mauvaise ou valeur hors bornes : invalid_data ; plus de 92 jours ou de
 -- 128 Ko : too_long. Deux fois le même jour : le dernier.
 create function public.student_share_diet_days(days jsonb) returns int
@@ -218,7 +222,8 @@ begin
     raise exception 'invalid_data' using errcode = 'P0001';
   end;
   perform private.rate_limit_window(me, 'coach_share_dup', 120, interval '1 hour');
-  delete from public.coach_shared_diet_days d where d.student_id = me;
+  -- Plus de 90 jours : supprimés ; les autres jours déjà envoyés restent (fusion, pas de miroir)
+  delete from public.coach_shared_diet_days d where d.student_id = me and d.day < first_day;
   insert into public.coach_shared_diet_days (student_id, day, plan_id, plan_name, variant, meals, kcal, p, c, f,
       goal_kcal, goal_p, goal_c, goal_f, water_ml, water_goal_ml, water_min_ml, salt_g, salt_min, salt_max)
     select distinct on (x.day) me, x.day, x.v ->> 'plan', x.v ->> 'name', x.v ->> 'kind',
@@ -230,8 +235,14 @@ begin
       round((x.v ->> 'salt')::numeric, 1), round((x.v ->> 'saltMin')::numeric, 1), round((x.v ->> 'saltMax')::numeric, 1)
     from (select v, (v ->> 'day')::date as day, o from jsonb_array_elements(days) with ordinality as t(v, o)) x
     where x.day >= first_day and x.day <= first_day + 91
-    order by x.day, x.o desc;
-  get diagnostics n = row_count;
+    order by x.day, x.o desc
+  on conflict (student_id, day) do update set plan_id = excluded.plan_id, plan_name = excluded.plan_name,
+    variant = excluded.variant, meals = excluded.meals, kcal = excluded.kcal, p = excluded.p, c = excluded.c, f = excluded.f,
+    goal_kcal = excluded.goal_kcal, goal_p = excluded.goal_p, goal_c = excluded.goal_c, goal_f = excluded.goal_f,
+    water_ml = excluded.water_ml, water_goal_ml = excluded.water_goal_ml, water_min_ml = excluded.water_min_ml,
+    salt_g = excluded.salt_g, salt_min = excluded.salt_min, salt_max = excluded.salt_max;
+  -- Nombre de jours que le coach voit désormais (tous les jours gardés, pas seulement ceux de cet envoi)
+  select count(*)::int into n from public.coach_shared_diet_days d where d.student_id = me;
   return n;
 end
 $$;
@@ -260,7 +271,7 @@ end
 $$;
 
 -- Coach : pour Mes élèves (« À relancer », jours suivis sur 7), en un appel : chaque élève qui me partage sa diète, depuis
--- quand, et ses 7 derniers jours en bref [jour, kcal, objectif kcal, repas cochés, repas, protéines, objectif protéines].
+-- quand, et ses 8 derniers jours (aujourd'hui et les 7 d'avant, « Diète pas suivie 3 jours ») en bref [jour, kcal, objectif kcal, repas cochés, repas, protéines, objectif protéines].
 -- Pas coach : liste vide.
 create function public.coach_diet_overview() returns jsonb
   language sql stable security definer set search_path = '' as

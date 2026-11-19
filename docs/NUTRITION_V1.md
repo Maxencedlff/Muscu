@@ -518,11 +518,17 @@ façons : l'app n'envoie que 90 jours, le serveur écarte tout jour plus ancien 
 coach ne les rend jamais, et une purge quotidienne pg_cron (`purge-diete-coach-90-jours`, 03:41 UTC) efface ceux d'un élève
 qui n'ouvre plus l'app. Le coach remonte 12 semaines au plus (chevrons), sous les 90 jours. **Validé par Maxence le 19/11/2026**, avec la migration, un partage du suivi séparé de celui des plans et la règle des pastilles (suivi : calories à ±10 % et protéines à 90 % au moins ; partiel jusqu'à 25 % d'écart ; « Diète pas suivie 3 jours » après 3 jours ; libellé « Diète manquée » remplacé le 19/11 pour reprendre le mot des pastilles).
 
-**Envoi** : miroir de l'appareil comme les pesées (`coachShareUploadKind('diet_log')`, empreinte, « cet appareil a déjà
-envoyé ») : au cochage, puis 5 s après un `save()` si le résumé a changé (`dietShareSchedule`, option `ifChanged`), et à la
-relecture du partage. Serveur : 92 jours et 128 Ko au plus, chaque champ borné (noms de 40 caractères sans contrôle, 8 repas,
+**Envoi** (corrigé après l'audit du 19/11 : un deuxième appareil sans journal effaçait l'historique vu par le coach) :
+seuls les jours qui ont une entrée sur l'appareil (journal de diète, eau ou sel) partent, jamais un jour fabriqué à partir
+du seul plan suivi. L'envoi part au cochage de la case, puis 5 s après un geste de diète (coche d'un repas, Remplacer, retirer
+ou ajouter un aliment du jour, eau, sel : `dietShareGesture` → `dietShareSchedule`, option `ifChanged`) et à la relecture du partage, et non plus après chaque
+`save()`. Le serveur **fusionne jour par jour** (`insert … on conflict update`) : un jour reçu remplace le même jour, les
+autres restent, deux appareils s'additionnent ; il ne supprime que les jours de plus de 90 jours et renvoie le nombre de jours
+gardés. Un envoi refusé (`rate_limited`, `invalid_data`) est noté dans la console et repart au geste suivant, sans rien
+d'affiché. Serveur : 92 jours et 128 Ko au plus par envoi, chaque champ borné (noms de 40 caractères sans contrôle, 8 repas,
 kcal 0 à 20 000…), 120 envois par heure (`coach_share_dup`), décocher jamais limité ; RLS fermée, aucun GRANT sur la table,
-RPC security definer.
+RPC security definer. Synchronisation : un plan reçu sans `days` (appareil resté sur une version d'avant) garde les jours du
+plan local au même identifiant (`mergeDietProfile`).
 
 **Coach** (js/features/coach-diet-ui.js) : carte « Diète » de la fiche, sous l'envoi d'un plan : 7 jours en pastilles (vert
 plein et coche = **suivi**, écart de calories de 10 % au plus ; anneau vert et point = **partiel**, 25 % au plus ; gris et trait
@@ -532,9 +538,9 @@ jour : son détail dessous (plan et type du jour, repas cochés et ceux qui manq
 objectifs, eau, sel). Semaine d'avant / d'après (12 semaines). Élève qui ne partage pas : « Non partagé par l'élève » et où il
 peut le partager, aucun chiffre. Serveur sans la fonction (PGRST202) ou lecture en échec : rien.
 
-**À relancer** (Mes élèves) : `coach_diet_overview()` (un appel pour tous les élèves, 4 derniers jours en bref) ; un élève qui
+**À relancer** (Mes élèves) : `coach_diet_overview()` (un appel pour tous les élèves, 8 derniers jours en bref : aujourd'hui et les 7 d'avant) ; un élève qui
 partage sa diète depuis au moins 3 jours et dont les 3 jours d'avant aujourd'hui sont tous « pas suivi » ou sans rien de noté
-prend le signal orange « 3 jours hors diète » (après l'inactivité et la baisse de séances, avant les records). Il compte alors
+prend le signal orange « Diète pas suivie 3 jours » (après l'inactivité et la baisse de séances, avant les records). Il compte alors
 dans le filtre « À relancer », le résumé de la semaine et le tri.
 
 **Mini-panel du 18/11** (les 5 profils du mini-panel nutrition, une planche de 7 écrans élève et coach, JSON court) :

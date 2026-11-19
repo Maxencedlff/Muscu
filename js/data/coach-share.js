@@ -256,6 +256,10 @@ async function coachShareUploadKind(kind, { force = false, ifChanged = false } =
     } else if (r.kind === 'not_shared') {
       // Décoché ailleurs (autre appareil) : l'état se relit
       if (coachShare.state) delete coachShare.state.shares[kind];
+    } else if (r.kind === 'rate_limited' || r.kind === 'invalid_data') {
+      // Refusé (limite d'envois, donnée hors bornes) : noté, rien de visible ; l'empreinte n'est pas posée, le geste
+      // suivant renvoie (audit du 19/11)
+      console.warn(`partage ${kind} : envoi refusé (${r.kind}), nouvel essai au prochain geste`);
     }
     notifyCoach();
     return r;

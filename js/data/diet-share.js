@@ -34,14 +34,17 @@ const dsName = v => dietText(Array.from(String(v ?? ''), ch => (dsCtrl(ch) ? ' '
 
 // ── Élève : le résumé d'un jour (logique pure) ──────────────
 
-// Résumé envoyé pour ce jour, ou null s'il n'y a rien à dire (ni plan, ni eau, ni sel). Le plan est celui du journal
-// de ce jour-là (aujourd'hui sans rien de noté : le plan suivi).
+// Résumé envoyé pour ce jour, ou null si cet appareil n'en a rien noté : seulement un jour qui a une entrée locale
+// (journal de diète, eau ou sel), jamais un jour fabriqué à partir du seul plan suivi (audit du 19/11 : un deuxième
+// appareil sans journal envoyait « aujourd'hui, 0 kcal »). Le plan est celui du journal de ce jour-là ; aujourd'hui, de
+// l'eau ou du sel notés sans journal : le plan suivi.
 function dietShareDay(d, day, today = dietDayKey()) {
   const e = d.dietLog?.[day];
-  const planId = e?.plan || (day === today ? d.dietActive : null) || null;
-  const plan = planId ? dietDayPlan(d, planId, day, e) : null;
   const ml = typeof waterDayMl === 'function' ? waterDayMl(d, day) : 0;
   const added = saltAddedG(d, day);
+  if (!e && !ml && !added) return null;
+  const planId = e?.plan || (day === today ? d.dietActive : null) || null;
+  const plan = planId ? dietDayPlan(d, planId, day, e) : null;
   if (!plan && !ml && !added) return null;
   const out = { day, plan: null, name: null, kind: null, meals: [], kcal: 0, p: 0, c: 0, f: 0, goal: null, water: dsInt(ml, 0, 20000),
     waterGoal: null, waterMin: null, salt: added ? Math.round(Math.min(100, added) * 10) / 10 : null, saltMin: null, saltMax: null };
@@ -78,8 +81,11 @@ function dietSharePayload(d = data, now = Date.now()) {
   return out;
 }
 
-// Enregistrement fait (save) : renvoi du résumé dans 5 s s'il a changé (aucun envoi si rien n'est partagé)
+// Geste de diète (coche d'un repas, Remplacer, eau, sel) : renvoi du résumé dans 5 s s'il a changé (aucun envoi si
+// rien n'est partagé). Plus depuis save() : une série de muscu sur un autre appareil n'envoie rien (audit du 19/11)
 let dietShareTimer = 0;
+// Appelé par les fonctions des gestes de diète (js/data/nutrition.js, water.js) : l'envoi part 5 s après le dernier geste
+function dietShareGesture() { if (typeof dietShareSchedule === 'function') dietShareSchedule(); }
 function dietShareSchedule() {
   if (typeof account === 'undefined' || !account.user || typeof coachShareOn !== 'function' || !coachShareOn('diet_log')) return;
   clearTimeout(dietShareTimer);

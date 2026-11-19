@@ -116,6 +116,12 @@ begin
   if pg_temp.dsend(jsonb_build_array(pg_temp.dday(0, jsonb_build_object('x', repeat('a', 140000))))) <> 'too_long' then raise 'plus de 128 Ko'; end if;
   -- 92 jours envoyés : seuls les 90 derniers sont gardés ; clés en trop jamais gardées ; même jour : le dernier
   if pg_temp.dsend((select jsonb_agg(pg_temp.dday(i, '{"secret": "aliments"}')) from generate_series(0, 91) i)) <> '90' then raise '90 jours gardés'; end if;
+  if (public.student_shares() -> 'shares' -> 'diet_log' ->> 'n')::int <> 90 then raise '90 jours en base'; end if;
+  -- Repartir de zéro pour la suite : décocher efface tout, recocher garde la date de reprise
+  perform public.student_set_share('diet_log', false);
+  st := public.student_set_share('diet_log', true);
+  g := (st -> 'shares' -> 'diet_log' ->> 'granted_at')::timestamptz;
+  if coalesce((public.student_shares() -> 'shares' -> 'diet_log' ->> 'n')::int, 0) <> 0 then raise 'décocher : jours restés'; end if;
   if pg_temp.dsend(jsonb_build_array(pg_temp.dday(1), pg_temp.dday(0, '{"kcal": 100}'), pg_temp.dday(0),
        pg_temp.dday(2, '{"plan": null, "name": null, "kind": null, "goal": null, "meals": [], "waterGoal": null, "waterMin": null, "salt": null, "saltMin": null, "saltMax": null}') - 'water')) <> '3'
     then raise 'envoi'; end if;
@@ -142,6 +148,30 @@ begin
   -- Les autres partages ne bougent pas
   if public.coach_student_weights(pg_temp.du('s')) -> 'weights' <> '[]'::jsonb then raise 'diète dans le poids'; end if;
 end $$;
+
+-- Fusion : un jour de plus de 90 jours resté en base (appareil hors ligne) est supprimé au prochain envoi, les autres restent
+reset role;
+insert into public.coach_shared_diet_days (student_id, day, meals, kcal, p, c, f, water_ml)
+  values (pg_temp.du('s'), (now() at time zone 'utc')::date - 120, '[]', 1000, 50, 100, 20, 0);
+set role authenticated;
+do $$
+begin
+  perform pg_temp.dlogin('s');
+  -- Fusion jour par jour (deuxième appareil) : un envoi d'un seul jour n'efface pas les autres ; le même jour est remplacé
+  if pg_temp.dsend(jsonb_build_array(pg_temp.dday(5, '{"kcal": 1700}'))) <> '4' or (public.student_shares() -> 'shares' -> 'diet_log' ->> 'n')::int <> 4 then raise 'fusion : les autres jours doivent rester'; end if;
+  if pg_temp.dsend(jsonb_build_array(pg_temp.dday(5, '{"kcal": 1750}'))) <> '4' then raise 'fusion : même jour remplacé, pas ajouté'; end if;
+  perform pg_temp.dlogin('k');
+  if (select (x ->> 'kcal')::int from jsonb_array_elements(public.coach_student_diet(pg_temp.du('s')) -> 'days') x
+      where x ->> 'day' = to_char((now() at time zone 'utc')::date - 5, 'YYYY-MM-DD')) <> 1750 then raise 'fusion : dernière valeur du jour'; end if;
+  perform pg_temp.dlogin('s');
+  if pg_temp.dsend(jsonb_build_array(pg_temp.dday(5, '{"kcal": 1750}'))) <> '4' then raise 'fusion : vieux jour supprimé, 4 gardés'; end if;
+end $$;
+reset role;
+do $$ begin
+  if exists (select 1 from public.coach_shared_diet_days where day < (now() at time zone 'utc')::date - 89) then raise 'fusion : vieux jour gardé'; end if;
+  delete from public.coach_shared_diet_days where student_id = pg_temp.du('s') and day = (now() at time zone 'utc')::date - 5;
+end $$;
+set role authenticated;
 
 -- ── Personne d'autre ne lit ──────────────────────────────
 do $$ begin

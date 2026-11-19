@@ -550,6 +550,7 @@ function cleanSaltLog(v, now = Date.now()) {
 }
 function saltAddedG(d, day) { return (Array.isArray(d.saltLog?.[day]) ? d.saltLog[day] : []).reduce((a, x) => a + (Number(x?.g) || 0), 0); }
 function saltAdd(d, g, day = dietDayKey(), now = Date.now()) {
+  dietShareGesture();   // suivi de la diète partagé : envoi 5 s après le dernier geste (js/data/diet-share.js)
   const list = Array.isArray(d.saltLog?.[day]) ? d.saltLog[day] : [];
   const v = num(g, 0.1, SALT_ADD_MAX_G);
   if (v === null || list.length >= SALT_DAY_MAX) return null;
@@ -558,6 +559,7 @@ function saltAdd(d, g, day = dietDayKey(), now = Date.now()) {
   return e;
 }
 function saltRemove(d, day, id) {
+  dietShareGesture();   // suivi de la diète partagé : envoi 5 s après le dernier geste (js/data/diet-share.js)
   const list = Array.isArray(d.saltLog?.[day]) ? d.saltLog[day] : [];
   if (!list.some(x => x.id === id)) return false;
   const rest = list.filter(x => x.id !== id);
@@ -752,6 +754,7 @@ function dietSetDayKind(d, planId, day, kind, by = 'manual') {
 }
 // Coche ou décoche un repas ; renvoie le nouvel état (true : coché)
 function dietToggleMeal(d, planId, mealId, day = dietDayKey()) {
+  dietShareGesture();   // suivi de la diète partagé : envoi 5 s après le dernier geste (js/data/diet-share.js)
   const e = dietDay(d, planId, day);
   const on = !e.done.includes(mealId);
   dietWriteDay(d, day, { ...e, done: on ? [...e.done, mealId] : e.done.filter(id => id !== mealId) });
@@ -759,6 +762,7 @@ function dietToggleMeal(d, planId, mealId, day = dietDayKey()) {
 }
 // Remplace un aliment du plan pour ce jour (newItem null : remet l'aliment prévu)
 function dietSetSwap(d, planId, itemId, newItem, day = dietDayKey()) {
+  dietShareGesture();   // suivi de la diète partagé : envoi 5 s après le dernier geste (js/data/diet-share.js)
   const e = dietDay(d, planId, day);
   const swaps = { ...e.swaps };
   const c = newItem ? cleanDietItem({ ...newItem, id: itemId }) : null;
@@ -779,6 +783,7 @@ function dietSetPlanQty(d, planId, itemId, q, day = dietDayKey()) {
 }
 // Retire un aliment du plan pour ce jour (off false : le remet) ; le plan ne change pas
 function dietSetRemoved(d, planId, itemId, off = true, day = dietDayKey()) {
+  dietShareGesture();   // suivi de la diète partagé : envoi 5 s après le dernier geste (js/data/diet-share.js)
   const e = dietDay(d, planId, day);
   const removed = e.removed.filter(id => id !== itemId);
   if (off) removed.push(itemId);
@@ -881,6 +886,7 @@ function dietSetEmptyDays(d, blank, day = dietDayKey()) {
 // Ajoute un aliment à un repas pour ce jour seulement (repas coché ou non : il reste dans son état) ;
 // renvoie l'aliment ajouté (id neuf), null si illisible ou si le repas est plein
 function dietAddExtra(d, planId, mealId, newItem, day = dietDayKey()) {
+  dietShareGesture();   // suivi de la diète partagé : envoi 5 s après le dernier geste (js/data/diet-share.js)
   const meal = dietDayPlan(d, planId, day)?.meals.find(m => m.id === mealId);
   const e = dietDay(d, planId, day), list = e.extras[mealId] || [];
   const c = meal ? cleanDietItem({ ...newItem, id: uid() }) : null;
@@ -890,6 +896,7 @@ function dietAddExtra(d, planId, mealId, newItem, day = dietDayKey()) {
 }
 // Change la quantité d'un aliment ajouté (g, ou { g, por }) ou le retire (g null) ; renvoie true si fait
 function dietSetExtra(d, planId, mealId, extraId, g, day = dietDayKey()) {
+  dietShareGesture();   // suivi de la diète partagé : envoi 5 s après le dernier geste (js/data/diet-share.js)
   const e = dietDay(d, planId, day), list = e.extras[mealId] || [];
   const i = list.findIndex(x => x.id === extraId);
   if (i < 0) return false;

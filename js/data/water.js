@@ -154,6 +154,7 @@ function waterDay(d, day) { return Array.isArray(d.waterLog?.[day]) ? d.waterLog
 function waterDayMl(d, day) { return waterDay(d, day).reduce((s, x) => s + (Number(x?.ml) || 0), 0); }
 // Ajoute ml au jour ; renvoie l'ajout (pour Annuler), null si refusé (quantité hors bornes, jour plein)
 function waterAdd(d, ml, day = localISO(), now = Date.now()) {
+  dietShareGesture();   // suivi de la diète partagé : envoi 5 s après le dernier geste (js/data/diet-share.js)
   const e = cleanWaterEntry({ ml, at: now });
   if (!e || waterDay(d, day).length >= WATER_DAY_MAX) return null;
   if (!waterIsObj(d.waterLog)) d.waterLog = {};
@@ -164,6 +165,7 @@ function waterAdd(d, ml, day = localISO(), now = Date.now()) {
 }
 // Retire un ajout (Annuler, ou depuis la liste du jour) ; true s'il existait
 function waterRemove(d, day, id) {
+  dietShareGesture();   // suivi de la diète partagé : envoi 5 s après le dernier geste (js/data/diet-share.js)
   const list = waterDay(d, day);
   if (!list.some(x => x.id === id)) return false;
   const rest = list.filter(x => x.id !== id);
