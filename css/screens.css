@@ -560,6 +560,7 @@ html.type-xl .hcell__title, html.type-xl .social-row__name { white-space: normal
 html.type-xl .hcell__top { flex-wrap: wrap; }
 html.type-xl .chat-cell__last { -webkit-line-clamp: 3; line-clamp: 3; }
 html.type-xl .toast > span { -webkit-line-clamp: 6; line-clamp: 6; }   /* consigne lue en entier en AX33 sur SE (« Touche Utiliser pou… » à 4 lignes, panel t6) */
+html.type-xl .toast { font-size: min(var(--fs-subhead), 22px); }   /* texte très grand : le toast plafonné à 22 px, il cachait un tiers de l'écran et ses boutons (panel nutri-final t1) */
 html.type-xl .social-row__main { min-width: 44px; }
 /* Très grand texte, 3e tour : jamais de coupure au milieu d'un mot. Les textes passent à la ligne entre les mots, et
    coupent un mot trop long seulement à une césure du français (hyphens) */
