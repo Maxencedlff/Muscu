@@ -228,12 +228,18 @@ function openAtlasViewer(mapEl, from = null) {
       <div class="azoom__stage body-map body-map--atlas" data-body="${kind}" role="img" aria-label="${esc(atlasA11yLabel(levels, tiers))}">
         <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels, tiers)).join('')}</span>
       </div>
+    </div>
+    <div class="azoom__band">
+      <div class="azoom__text">
+        ${tiers ? `<p class="azoom__legend">${muscleLegendDotsHtml()}</p>`
+          : `<p class="azoom__legend"><span class="mline2__dot mline2__dot--main" aria-hidden="true"></span>Ciblé <span class="mline2__dot mline2__dot--help" aria-hidden="true"></span>Qui aide</p>`}
+        <p class="azoom__hint">Pince pour zoomer. Touche un muscle pour son nom.</p>
+      </div>
       <div class="azoom__ctl">
         <button class="azoom__btn" data-z="-1" aria-label="Dézoomer">${icon('minus', 22)}</button>
         <button class="azoom__btn" data-z="1" aria-label="Zoomer">${icon('plus', 22)}</button>
       </div>
-    </div>
-    <p class="azoom__hint">Pince ou touche deux fois pour zoomer. Touche un muscle pour son nom.</p>`;
+    </div>`;
   const done = sheet({ title: mapEl.dataset.title || 'Muscles', cancel: '', confirm: 'OK', body });
   const roots = document.querySelectorAll('.sheet-root');
   const root = roots[roots.length - 1];
@@ -440,7 +446,7 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {
     }
     lastTap = { t, ...p };
     atlasShowName(stage, kind, levels, e, { res: v => (v === hiView ? 3 : 1), zone: view, container: root, tip,
-      avoid: [root.querySelector('.sheet__bar'), view.querySelector('.azoom__ctl')] });
+      avoid: [root.querySelector('.sheet__bar')] });
   }
   // Boutons + et − : zoom autour du centre de la vue (VoiceOver, accès par contacteur)
   function step(dir) {
@@ -450,7 +456,7 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {
     zoomAt(r.w / 2, r.h / 2, dir > 0 ? s * ATLAS_STEP : s / ATLAS_STEP);
     frame();
   }
-  const btns = [...view.querySelectorAll('.azoom__btn')];
+  const btns = [...root.querySelectorAll('.azoom__btn')];   // bande du bas, hors du dessin (panel affichage-e t1)
   btns.forEach(b => b.addEventListener('click', () => step(Number(b.dataset.z))));
   function buttons() {
     for (const b of btns) b.disabled = Number(b.dataset.z) > 0 ? s >= ATLAS_MAX - 0.01 : s <= 1.01;

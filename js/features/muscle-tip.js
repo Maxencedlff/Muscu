@@ -108,12 +108,15 @@ registerActions({
     }
     const ids = (nameEl || line).dataset.ids.split(' ').filter(Boolean);
     atlasIsolate(group, ids, { line, name: nameEl });
+    // iPhone SE : le personnage peut être sorti de l'écran quand on touche la liste ; on y revient doucement
+    const map = group?.querySelector('.mpanel--atlas .body-map--atlas'), r = map?.getBoundingClientRect();
+    if (r && (r.top < 60 || r.bottom > innerHeight - 90)) map.scrollIntoView({ block: 'center', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
     announce(nameEl ? `Personnage : seul ${nameEl.dataset.label} est affiché` : `Personnage : seuls les ${line.dataset.title.toLowerCase()} sont affichés`);
     haptic();
   },
   // Bouton « Agrandir » de la fiche exercice : vue agrandie de l'atlas, sans zoom (VoiceOver, gestes inconnus)
   'atlas-open': (e, el) => {
-    const map = el.closest('.mpanel')?.querySelector('.body-map--atlas');
+    const map = el.closest('.mpanel, .mcard')?.querySelector('.body-map--atlas');
     if (map) openAtlasViewer(map, null);
   },
 });

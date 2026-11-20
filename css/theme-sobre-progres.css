@@ -21,14 +21,15 @@
    js/ui/body-map.js lit ces jetons pour teinter le canvas. */
 :root {
   --body-heat: #C94A3F; --body-heat-max: #C94A3F; --body-heat-sec: #EFA195;
-  --body-heat-help: #FF9FB2;   /* muscles qui aident (atlas, variante E) : rose franc opaque, contrastes : css/muscles.css */
+  --body-heat-help: color-mix(in srgb, var(--body-heat) 35%, var(--body-zone));   /* qui aident (pastille) : le rouge à 35 % sur le gris du corps */
   --body-tier-1: #9A1D17; --body-tier-2: #E2493A; --body-tier-3: #FE9584; --body-tier-4: #FFE0DA;
   --sp-chart-line: #FF7A1A;
 }
 body.light {
   /* Muscle principal d'un exercice : le rouge des images 3D (7,7:1 sur blanc) ; secondaires plus clairs (3,5:1) */
   --body-heat: #A31B19; --body-heat-max: #A31B19; --body-heat-sec: #C37367;
-  --body-heat-help: #E8708A;
+  --body-heat-help: color-mix(in srgb, var(--body-heat) 35%, var(--body-zone));   /* recalculé avec le rouge du thème clair */
+  
   --body-tier-1: #FFA090; --body-tier-2: #EB5A49; --body-tier-3: #B32319; --body-tier-4: #5A0E0B;
   /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #E57000 × 0,7 = #A04E00,
      l'orange d'action de l'app (5,9:1 sur la carte blanche) */

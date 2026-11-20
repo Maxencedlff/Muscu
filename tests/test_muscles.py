@@ -685,7 +685,7 @@ def t_tip(bench, eng, dev, theme):
         R.check(leg.startswith('Séries par semaine') and 'moyenne' not in leg, f'{t} légende semaine : « {leg} »')
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         txt = tip_text(page)
-        R.check(re.search(r'\d+ séries? depuis lundi', txt), f'{t} bulle semaine : « {txt} »')
+        R.check(re.search(r'(\d+ séries?|Aucune série) depuis lundi', txt), f'{t} bulle semaine : « {txt} »')
         page.locator('.mlegend').click()
         settle(page)
         # Niveau débutant (premier lancement) : repère à 10

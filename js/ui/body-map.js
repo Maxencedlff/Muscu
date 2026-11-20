@@ -69,10 +69,15 @@ function bodyHeatOpacity(i) {
 // la vague 3 : Objectif atteint plus clair que Gros volume, l'échelle ne se lisait pas). En clair, du plus pâle au plus
 // sombre ; en sombre, du plus sombre au plus lumineux (tokens --body-tier-1 à 4, css/base.css). Intensité = palier /
 // MUSCLE_LEVEL_MAX ; null : muscle non coloré.
+// Panel affichage-e t1 (38 juges sur 40) : l'échelle s'inversait entre les thèmes. Désormais UNE échelle : le rouge des
+// muscles (--body-heat) de plus en plus opaque, donc de plus en plus intense, du palier 1 au palier 4, dans les deux thèmes ;
+// « pas travaillé » reste le gris du corps. Même code que la fiche : rouge = travaillé, plus intense = plus travaillé.
+const BODY_TIER_OPACITY = [0.3, 0.5, 0.75, 1];
 function bodyTier(i) {
   const v = Math.max(0, Math.min(1, Number(i) || 0));
   if (!v) return null;
-  return { tone: `t${Math.min(4, Math.max(1, Math.round(v * 4)))}`, op: 1 };
+  const n = Math.min(4, Math.max(1, Math.round(v * 4)));
+  return { tone: `t${n}`, op: BODY_TIER_OPACITY[n - 1] };
 }
 
 const BODY_COLORS = { heat: 'var(--body-heat)', text: 'var(--label2)' };
@@ -145,8 +150,8 @@ function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), labe
 // sa boîte (en % de la vue). Rendu propre de l'atlas : ses images ne se mêlent jamais à celles de img/body (autre
 // rendu du personnage, autre cadrage). Le 1× s'affiche ici ; le 3× ne se charge qu'au zoom (js/ui/body-zoom.js).
 const BODY2_DIR = 'img/body2';
-const BODY_PART_SEC_OPACITY = 1;      // muscles qui aident : rose franc opaque (--body-heat-help, variante E du 20/11), plus
-                                      // un rouge transparent qui se perdait sur le gris du corps
+const BODY_PART_SEC_OPACITY = 0.35;   // muscles qui aident : le même rouge à 35 % sur le gris (panel affichage-e t1 : le rose
+                                      // clair éclipsait le muscle ciblé) ; le ciblé, rouge plein, se voit en premier
 const BODY_PART_DEEP_OPACITY = 0.6;   // profond, vu « à travers » le muscle qui le couvre (convention des planches)
 
 function body2Url(kind, view, file) { return `${BODY2_DIR}/${kind}/${view}/${file}`; }
@@ -163,7 +168,7 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false) {
   return on.map(p => {
     const b = boxes[p.id][res === 3 ? 1 : 0], lv = levels[p.id];
     const url = `url(${body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${p.id}.webp`)})`;
-    const op = p.deep ? BODY_PART_DEEP_OPACITY : tiers || lv >= 2 ? 1 : BODY_PART_SEC_OPACITY;
+    const op = p.deep ? BODY_PART_DEEP_OPACITY : tiers ? BODY_TIER_OPACITY[Math.min(4, Math.max(1, lv)) - 1] : lv >= 2 ? 1 : BODY_PART_SEC_OPACITY;
     const tone = tiers ? ` body-map__m--t${Math.min(4, Math.max(1, lv))}` : lv >= 2 ? '' : ' body-map__m--sec';
     const cls = `body-map__m body-map__p${tone}${p.deep ? ' body-map__p--deep' : ''}`;
     return `<i class="${cls}" data-part="${p.id}" data-muscle="${p.parent || ''}" data-level="${lv}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)};background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;

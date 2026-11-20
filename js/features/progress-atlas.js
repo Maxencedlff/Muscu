@@ -12,7 +12,15 @@
 function progressAtlasHtml(span = muscleSpan) {
   const { levels } = partLoad(span);
   const on = Object.fromEntries(Object.entries(levels).filter(([, l]) => l > 0));
-  return bodyAtlasHtml(on, { className: 'mcard__map', title: 'Muscles travaillés', tap: true, tiers: true, tip: 'load', crop: false, captions: true });
+  // Bouton Agrandir sous le personnage, comme sur la fiche (panel t1 : rien ne disait qu'on peut zoomer)
+  return `${bodyAtlasHtml(on, { className: 'mcard__map', title: 'Muscles travaillés', tap: true, tiers: true, tip: 'load', crop: false, captions: true })}
+    <div class="mpanel__foot mcard__foot"><button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 22)}</button></div>`;
+}
+
+// Légende courte de la vue agrandie : le gris « pas travaillé », puis les 4 paliers du même rouge, de peu à beaucoup
+function muscleLegendDotsHtml() {
+  return `<span class="mlegend__item">${muscleLevelDot(0)}Pas travaillé</span>
+    <span class="mlegend__item">${[1, 2, 3, 4].map(muscleLevelDot).join('')} de peu à beaucoup de séries</span>`;
 }
 
 // Bulle d'un sous-muscle touché : nom de salle, séries de la période (comme la carte des 18 muscles), palier en mots,
@@ -24,8 +32,8 @@ function atlasLoadTipHtml(part) {
   const title = simple ? muscleLabel(part.parent) : atlasPartTitle(part.id);
   const sets = simple ? pl.load.sets[part.parent] || 0 : pl.sets[part.id] || 0;
   const lvl = pl.levels[part.id] || 0, weekly = pl.weekly[part.id] || 0;
-  const count = muscleSpan === 'month'
-    ? `${setsTxt(sets)} en ${MUSCLE_SPANS.month.weeks} semaines, soit ${weekly} par semaine en moyenne`
+  const count = !roundSets(sets) ? `Aucune série ${muscleSpan === 'month' ? `en ${MUSCLE_SPANS.month.weeks} semaines` : 'depuis lundi'}`
+    : muscleSpan === 'month' ? `${setsTxt(sets)} en ${MUSCLE_SPANS.month.weeks} semaines, soit ${weekly} par semaine en moyenne`
     : `${setsTxt(sets)} depuis lundi`;
   // Exercices : le plus de séries d'abord ; pour un muscle entier, le meilleur de ses sous-muscles
   const byEx = {};

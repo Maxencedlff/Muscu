@@ -14,10 +14,8 @@
 }
 .body-map__m--sec { background-color: var(--body-heat-sec); }
 .body-map__m--peak { background-color: var(--body-heat-max); }
-.body-map__m--t1 { background-color: var(--body-tier-1); }
-.body-map__m--t2 { background-color: var(--body-tier-2); }
-.body-map__m--t3 { background-color: var(--body-tier-3); }
-.body-map__m--t4 { background-color: var(--body-tier-4); }
+/* Paliers de Progrès : le rouge des muscles, son opacité donne le palier (bodyTier, BODY_TIER_OPACITY) */
+.body-map__m--t1, .body-map__m--t2, .body-map__m--t3, .body-map__m--t4 { background-color: var(--body-heat); }
 /* Muscle touché, bulle ouverte (js/ui/body-tip.js) : copie opaque du calque, éclaircie (pulsation
    douce de la luminosité), halo autour. Le halo (drop-shadow) est sur l'enveloppe : posé sur l'élément
    masqué, le masque le couperait. */
@@ -45,22 +43,24 @@
    (soft-light) pour qu'ils restent clairs sur le gris du corps. Mesuré sur capture (iPhone 13, développé incliné, 20/11) :
    sombre, rose / gris 2,7:1, rouge plein / rose 1,9:1 ; clair, rouge plein / rose 2,0:1, rose / gris 1,2 à 1,4:1 en
    luminance (le rose s'en distingue par la teinte ; avant, rouge transparent à 0,45 : 1,0:1). Valeurs : base.css */
-.body-map--atlas .body-map__m--sec { background-color: var(--body-heat-help); background-blend-mode: soft-light; }
+.body-map--atlas .body-map__m--sec { background-color: var(--body-heat); }   /* qui aident : même rouge, à 35 % (BODY_PART_SEC_OPACITY) */
+.body-map--atlas .body-map__m { animation: none; }   /* pas de fondu d'apparition (theme-sobre-progres) : jamais un personnage gris le temps d'un fondu */
 /* Ligne touchée : seuls ses muscles restent, en rouge plein ; fondu doux entre les deux états */
 .body-map--atlas .body-map__p { transition: opacity .2s ease, background-color .2s ease; }
 .body-map--atlas[data-iso] .body-map__p:not(.is-on) { opacity: 0 !important; }
-.body-map--atlas[data-iso] .body-map__p.is-on { opacity: 1 !important; background-color: var(--body-heat); background-blend-mode: multiply; }
+/* Les muscles gardés gardent leur couleur (ciblé plein, qui aide à 35 %) : l'isolement éteint seulement les autres */
 @media (prefers-reduced-motion: reduce) { .body-map--atlas .body-map__p { transition: none; } }
 .mline2 { align-items: center; text-align: left; width: 100%; }
 .mline2__dot { width: .75em; height: .75em; border-radius: 50%; flex-shrink: 0; }   /* grandit avec le texte (AX33) */
 .mline2__dot--main { background: var(--body-heat); }
-.mline2__dot--help { background: var(--body-heat-help); }
+.mline2__dot--help { background: var(--body-heat-help); }   /* le rouge à 35 % sur le gris du corps, comme sur le dessin */
 .mline2 .cell__title { overflow-wrap: break-word; }
 .mline2__name--on { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }   /* nom isolé : couleur du texte gardée (contraste 4,5:1) */
 .mline2__more { color: var(--tint); white-space: nowrap; }
 .mline2[aria-pressed="true"] { background: var(--cell2); }
 .mpanel--atlas .mpanel__foot { justify-content: flex-end; }
-.mpanel--atlas .mpanel__zoom { margin: 0; }
+.mpanel--atlas .mpanel__zoom, .mcard__foot .mpanel__zoom { margin: 0; }
+.mcard__foot { display: flex; justify-content: flex-end; width: 100%; }
 /* Muscles travaillés tous en haut (ou tous en bas) du corps : carte cadrée sur cette moitié (bodyAtlasCrop), plus large */
 .mpanel__map.body-map--crop { width: min(100%, 330px); }
 .body-map--crop .body-map__fig { overflow: hidden; }
@@ -84,6 +84,7 @@
 /* Vue agrandie : feuille à sa hauteur maximale, le personnage prend la place que laissent le titre et la consigne
    (en AX33, titre sur deux lignes et consigne entière, sans rien couper) */
 .sheet-root--atlas .sheet { height: 92vh; height: 92dvh; }
+.sheet-root--atlas .sheet__title { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; }   /* titre à la ligne, jamais « … » */
 .sheet-root--now .sheet, .sheet-root--now .sheet__backdrop { animation: none; }   /* ouverte par un pincement : sans glissement */
 .sheet-root--atlas .sheet__body { display: flex; flex-direction: column; padding: 0 0 12px; overflow: hidden; }
 .azoom {
@@ -96,16 +97,21 @@
 .azoom__lay { position: absolute; inset: 0; }
 .azoom .body-map__m { animation: none; }   /* pas de fondu d'apparition (theme-sobre-progres) : l'échange 1× ↔ 3× ne doit rien faire clignoter */
 .azoom__lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-/* Boutons + et − (VoiceOver, accès par contacteur), en bas à droite du dessin */
-.azoom__ctl { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; z-index: 1; }
+/* Bande du bas de la vue agrandie (panel affichage-e t1 : les boutons cachaient le corps) : légende et aide à gauche,
+   boutons − et + (VoiceOver, accès par contacteur) à droite, hors du dessin */
+.azoom__band { display: flex; align-items: center; gap: 12px; padding: 8px 16px 0; }
+.azoom__text { flex: 1; min-width: 0; }
+.azoom__legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label); }
+.azoom__legend .mline2__dot { margin-right: -2px; }
+.azoom__ctl { display: flex; gap: 8px; flex: none; }
 .azoom__btn {
   width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
-  background: var(--cell); color: var(--tint); box-shadow: inset 0 0 0 .5px var(--sep);   /* lisible posé sur le corps */
+  background: var(--fill2); color: var(--tint);
 }
-.azoom__btn:disabled { color: var(--label3); }
+.azoom__btn:disabled { opacity: .35; }   /* même forme que l'autre bouton, seulement estompé */
 .type-xl .azoom__btn { width: 56px; height: 56px; }
 .type-xl .azoom__btn svg { width: 30px; height: 30px; }
-.azoom__hint { padding: 8px 16px 0; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); text-align: center; }
+.azoom__hint { margin-top: 2px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
 @media (prefers-reduced-motion: reduce) { .azoom__stage--anim { transition: none; } }
 
 /* ── Pastilles « Pectoraux » ── */
@@ -148,10 +154,8 @@
 .mlegend__dot::after { content: ''; position: absolute; inset: 0; background: var(--body-heat); opacity: var(--o, 0); }
 .mlegend__dot { flex-shrink: 0; }
 .mlegend__dot--peak::after { background: var(--body-heat-max); }
-.mlegend__dot--t1::after { background: var(--body-tier-1); }
-.mlegend__dot--t2::after { background: var(--body-tier-2); }
-.mlegend__dot--t3::after { background: var(--body-tier-3); }
-.mlegend__dot--t4::after { background: var(--body-tier-4); }
+/* Paliers : même rouge, opacité du palier (--o) */
+.type-xl .mlegend__dot { width: .75em; height: .75em; }   /* grandit avec le texte (AX33) */
 .mlegend__unit { flex-basis: 100%; text-align: center; }
 
 /* ── Progrès › Séries par muscle ── */
@@ -162,10 +166,7 @@
 .mrow__bar { display: block; height: 6px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
 .mrow__bar i { display: block; height: 100%; min-width: 0; border-radius: 3px; background: var(--body-heat); opacity: var(--o, 0); }
 .mrow__bar i.is-peak { background: var(--body-heat-max); }
-.mrow__bar i.is-t1 { background: var(--body-tier-1); }
-.mrow__bar i.is-t2 { background: var(--body-tier-2); }
-.mrow__bar i.is-t3 { background: var(--body-tier-3); }
-.mrow__bar i.is-t4 { background: var(--body-tier-4); }
+/* Barres : le rouge des muscles à l'opacité du palier (--o), comme la carte et sa légende */
 
 /* ── Feuille « Muscles ciblés » ── */
 .mpick { background: var(--cell2); border-radius: var(--r-md); overflow: hidden; }

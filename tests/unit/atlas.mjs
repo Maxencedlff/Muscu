@@ -168,7 +168,9 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
   });
 
   test('atlas : carte de la fiche en 1× seulement, rouge plein / atténué, profonds par-dessus', () => {
-    assert.equal(run('BODY_PART_SEC_OPACITY'), 1, 'muscles qui aident : rose franc opaque (variante E), plus de rouge transparent');
+    assert.equal(run('BODY_PART_SEC_OPACITY'), 0.35, 'muscles qui aident : le même rouge à 35 % (panel affichage-e t1 : le ciblé se voit en premier)');
+    // Progrès : une seule échelle, le rouge de plus en plus opaque du palier 1 au palier 4 (clair et sombre)
+    sameJSON(run('[1, 2, 3, 4].map(n => bodyTier(n / 4))'), [{ tone: 't1', op: 0.3 }, { tone: 't2', op: 0.5 }, { tone: 't3', op: 0.75 }, { tone: 't4', op: 1 }]);
     const html = run(`bodyAtlasHtml(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels, { body: 'male', tap: true, title: 'Développé incliné barre' })`);
     assert.ok(!/@3x|\/p3\/|lines|hit\.png/.test(html), 'aucune image 3× au premier affichage');
     assert.ok(/class="body-map__m body-map__p" data-part="chest_clavicular"/.test(html), 'claviculaire en rouge plein');
