@@ -588,7 +588,7 @@ html.type-xl .rest-mini .rest-mini__btn[data-d="15"] { grid-area: p15; }
 html.type-xl .rest-mini .rest-mini__skip { grid-area: skip; justify-self: end; box-sizing: border-box; max-width: 100%; }
 html.type-xl .tech-tag { white-space: nowrap; }   /* « Drop 1 » sur une ligne : la colonne du numéro est large en texte agrandi */
 html.type-xl .rest-mini .rest-mini__next { grid-area: next; }
-html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 44px; padding: 0 8px; white-space: nowrap; }
+html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 44px; padding: 0 8px; white-space: nowrap; font-size: min(0.882rem, 24px); }   /* plafonnée à 24 px : −15, +15 et Passer tiennent sur une rangée de SE, toutes polices */
 /* Feuille Repos : titre et « Réduire » l'un sous l'autre, durées sur deux rangées de trois */
 html.type-xl .rs__top { flex-wrap: wrap; justify-content: space-between; }
 html.type-xl .rs__top .rs__title { padding: 0; order: 2; flex-basis: 100%; }
