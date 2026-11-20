@@ -82,10 +82,10 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .mpanel__box:has(> .body-map--one:not(.body-map--crop)) { width: min(100%, 200px); }
 /* Texte très grand (AX33) : personnage plus petit, les lignes Ciblé et Qui aident se lisent sous lui sans défiler (panel t5) */
 .type-xl .mpanel__box { width: min(100%, 130px); }
-.type-xl .mpanel__box:has(> .body-map--crop) { width: min(100%, 180px); }
+.type-xl .mpanel__box:has(> .body-map--crop) { width: min(100%, 150px); }
 .type-xl .mpanel__box:has(> .body-map--one) { width: min(100%, 130px); }
 .type-xl .mpanel__box:has(> .body-map--one.body-map--crop) { width: min(100%, 170px); }
-.type-xl .mline2 { padding-top: 3px; padding-bottom: 3px; }   /* lignes plus serrées : les deux tiennent sous le personnage */
+.type-xl .mline2 { padding-top: 0; padding-bottom: 0; }   /* lignes plus serrées : les deux tiennent sous le personnage */
 .type-xl .mpanel--atlas { gap: 6px; padding-top: 6px; padding-bottom: 6px; }
 .body-map--crop .body-map__fig { overflow: hidden; }
 .body-map__body { position: absolute; left: 0; width: 100%; }
