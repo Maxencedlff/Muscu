@@ -126,7 +126,7 @@ function validateSide2(ds) {
   else requestAnimationFrame(focusCurrentSet);
   const done = `${sideName(ex, 2)} validé${sideFem(ex) ? 'e' : ''}`;
   const text = next.nx && setTech(s) ? `${done} · puis ${TECHS[setTech(s)].label.toLowerCase()}` : stepUndoText(ex, done, next);
-  sessionUndo(text, { target: { ex, si, k: -1, side: 2 }, onAction: () => {
+  sessionUndo(text, { target: { ex }, onAction: () => {   // « Annuler » dans le bandeau, « Avant » reste dans la ligne
     if (!activeSession || !x.done) return;
     x.done = false;
     Object.assign(x, { weight: before.weight, reps: before.reps });

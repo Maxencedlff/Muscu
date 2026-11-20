@@ -67,12 +67,12 @@ function techBlockHtml(ex, ei, s, si) {
   if (!t || !canTech(ex) || !TECHS[t].sub) return '';
   const T = TECHS[t], name = setSpokenName(ex, si).toLowerCase();
   const add = T.sub && (s.sub || []).length < TECH_SUB_MAX
-    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${hasSide2(s) ? ', de chaque côté' : ''}">${icon('plus', 14)}${T.subName}</button>` : '';
+    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${hasSide2(s) ? ', pour les 2 bras' : ''}">${icon('plus', 14)}${T.subName}</button>` : '';
   const rows = T.sub ? (s.sub || []).map((x, k) => subRowHtml(ex, ei, s, si, x, k)).join('') : '';
   return `
     <div class="tech" role="group" aria-label="${T.label}, ${name}">
       <div class="tech__cap">
-        <span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span></span>
+        <span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span>${hasSide2(s) ? '<span class="tech__hint">pour les 2 bras</span>' : ''}</span>
         <span class="tech__btns">${add}
         ${techPrescribed(ex) ? '' : `<button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button>`}</span>
       </div>
@@ -98,7 +98,7 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
     return `
       <div class="session-set session-set--done session-set--sub" data-action="sub-reopen" ${at} ${u ? '' : 'role="button" tabindex="0"'}>
         <span class="sr-text">${capitalize(spoken)} validé${T.fem ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}. Modifier</span>
-        <span class="set-n tech-tag" aria-hidden="true">${tag}</span>
+        ${withSideTag(`<span class="set-n tech-tag" aria-hidden="true">${tag}</span>`, ex, s, side)}
         ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}
         <span class="set-val set-val--w num" aria-hidden="true">${w || '—'}</span>
         <span class="set-val set-val--r num" aria-hidden="true">${esc(x.reps)}</span>
@@ -116,7 +116,7 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
   const goal = two ? side2SubRepsGoal(s, k) : String(x.reps ?? '').trim() || x.prev?.reps || '';
   return `
       <div class="session-set session-set--sub ${cur ? 'session-set--subcur' : ''}" ${cur ? 'aria-current="step" ' : ''}${at}>
-        <span class="set-n tech-tag" aria-hidden="true">${tag}</span>
+        ${withSideTag(`<span class="set-n tech-tag" aria-hidden="true">${tag}</span>`, ex, s, side)}
         <span class="set-prev num">${x.prev ? '<span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" data-action="sub-weight" ${at}
                value="${esc(fmtW(kg, { plain: true }))}" placeholder="—" aria-label="${loadSpoken(ex)}, ${spoken}, en ${unitLbl()}">
@@ -233,7 +233,8 @@ function validateSub(ds) {
   else requestAnimationFrame(focusCurrentSet);   // rattrapage : le ✓ touché a disparu, le focus va à la série à faire
   const done = `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}${two ? ` · ${sideName(ex, 2).toLowerCase()}` : ''}`;
   // Comme après une série (validateSet) : ce que « Annuler » défait d'abord, puis ce qui suit
-  sessionUndo(stepUndoText(ex, done, next), { target: { ex, si, k, side }, onAction: () => {
+  // Série notée par bras : « Annuler » dans le bandeau au-dessus de la carte, « Avant » reste dans la ligne (panel du 21/11)
+  sessionUndo(stepUndoText(ex, done, next), { target: hasSide2(s) ? { ex } : { ex, si, k, side }, onAction: () => {
     if (!activeSession || !x.done) return;
     x.done = false; x.reps = wasReps;
     if (wasAuto) x.auto = true;

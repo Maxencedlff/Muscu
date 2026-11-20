@@ -3,6 +3,7 @@ D, D allégé), repos seulement après le second côté, second côté pré-remp
 chaque bras à part » ; exercices à deux bras inchangés ; texte agrandi."""
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -52,6 +53,12 @@ def cut_texts(page, sel):
 SIDE1_DROP = '[data-action="sub-%s"][data-ei="0"][data-si="2"][data-k="0"]:not([data-side])'
 SIDE2_DROP = '[data-action="sub-%s"][data-ei="0"][data-si="2"][data-k="0"][data-side="2"]'
 SIDE2 = '[data-action="side-%s"][data-ei="0"][data-si="2"]'
+# Texte affiché de la ligne « Ensuite » de la barre de repos (sans le texte réservé à VoiceOver ni ce qui est masqué)
+NEXT_TXT = """(() => { const n = document.querySelector('.rest-mini__next'); if (!n) return '';
+    const walk = el => [...el.childNodes].map(c => c.nodeType === 3 ? c.textContent : c.nodeType === 1 && !c.matches('.sr-text, .visually-hidden')
+        && getComputedStyle(c).display !== 'none' ? walk(c) : '').join('');
+    return walk(n).replace(/\\u00a0/g, ' '); })()"""
+
 
 
 def t_drop_deux_bras(bench, eng, dev, theme):
@@ -69,7 +76,7 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(s.get('tech') == 'drop' and s.get('side2', {}).get('sub') and len(s['side2']['sub']) == 1, f'{t} drop set posé des deux côtés {s.get("side2")}')
         # Panel du 20/11 : tout l'exercice passe par bras, pas la seule série 3
         R.check(page.evaluate("activeSession.exercises[0].sets.every(s => !!s.side2)"), f'{t} les trois séries par bras')
-        lbls = page.locator('.ex-card[data-ei="0"] .set-n__side').all_inner_texts()
+        lbls = page.locator('.ex-card[data-ei="0"] .set-n__side:not(.tech-tag .set-n__side)').all_inner_texts()
         R.check(lbls == ['Gauche', 'Droit'] * 3 and page.locator('.sets__caption--side').count() == 0, f'{t} côté sous le numéro, sans titre répété ({lbls})')
         # Ordre de la série 3 : titre gauche, la ligne, Drop set, son drop, titre droit, la ligne, Drop set, son drop
         order = page.evaluate("""[...document.querySelectorAll('.ex-card[data-ei="0"] .session-set, .ex-card[data-ei="0"] .tech__name')]
@@ -78,7 +85,7 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(order == ['G', 'Drop set', 'G+1', 'D', 'Drop set', 'D+1'], f'{t} ordre G, G allégé, D, D allégé, chaque drop titré ({order})')
         # « Drop 1 » en toutes lettres, plus « +1 » (panel du 20/11)
         tags = [x.replace('\n', ' ') for x in page.locator('.ex-card[data-ei="0"] .tech-tag').all_inner_texts()]
-        R.check(tags == ['Drop 1', 'Drop 1'], f'{t} « Drop 1 » sur les deux bras ({tags})')
+        R.check(tags == ['Drop 1 Gauche', 'Drop 1 Droit'], f'{t} « Drop 1 » et son bras, sur les deux bras ({tags})')
         center(page, '.ex-card[data-ei="0"] .tech')
         shot(page, LOT, f'{t}-01-drop-pose')
 
@@ -89,7 +96,9 @@ def t_drop_deux_bras(bench, eng, dev, theme):
             page.click(f'[data-action="side-validate"][data-ei="0"][data-si="{si}"]'); settle(page); skip_rest(page)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="2"]'); settle(page)
         R.check(page.evaluate("restActive") is False, f'{t} série 3 : pas de repos avant le drop')
-        R.check('Série 3 validée · puis drop set' in sess_undo_text(page), f'{t} « Série 3 validée · puis drop set » ({sess_undo_text(page)!r})')
+        R.check('Série 3 validée, bras gauche · puis drop set' in sess_undo_text(page), f'{t} « Série 3 validée, bras gauche · puis drop set » ({sess_undo_text(page)!r})')
+        # « Annuler » dans le bandeau au-dessus de la carte, « Avant » reste dans la ligne (panel du 21/11)
+        R.check(page.locator('.ex-undo [data-action="sess-undo"]').count() == 1 and page.locator('.session-set .set-undo').count() == 0, f'{t} « Annuler » dans le bandeau, pas dans la ligne')
         R.check(page.locator(SIDE1_DROP % 'reps').evaluate("e => !!e.closest('.session-set--subcur')"), f'{t} drop du bras gauche en cours')
         w1 = page.locator(SIDE1_DROP % 'weight').input_value()
         page.fill(SIDE1_DROP % 'reps', '6')
@@ -175,9 +184,11 @@ def t_par_bras(bench, eng, dev, theme):
         R.check(page.locator('.ex-card[data-ei="0"] .session-set--side').count() == 3, f'{t} trois séries par bras')
         R.check('Chaque bras noté à part' in sess_undo_text(page), f'{t} « Chaque bras noté à part · Annuler » ({sess_undo_text(page)!r})')
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
-        R.check(page.evaluate("restActive") is False and 'Série 1 validée · puis bras droit' in sess_undo_text(page), f'{t} série 1 : bras droit sans repos ({sess_undo_text(page)!r})')
+        R.check(page.evaluate("restActive") is False and 'Série 1 validée, bras gauche · puis bras droit' in sess_undo_text(page), f'{t} série 1 : bras droit sans repos ({sess_undo_text(page)!r})')
         page.click('[data-action="side-validate"][data-ei="0"][data-si="0"]'); settle(page)
         R.check(page.evaluate("restActive") is True, f'{t} bras droit : repos lancé')
+        nxt = ' '.join(page.evaluate(NEXT_TXT).split())
+        R.check('Série 2 · bras gauche · 14 kg × 10' in nxt, f'{t} « Ensuite » : série, bras et charge ({nxt!r})')
         R.check(page.locator('.ex-card[data-ei="0"] .ex-card__count [aria-hidden="true"]').inner_text() == '1/3', f'{t} compteur à 1/3 après le bras droit')
         # Même chose que la dernière fois (14 × 10 des deux bras) : aucune hausse de volume affichée
         R.check(page.locator('.ex-card[data-ei="0"] .ex-vol__delta').count() == 0, f'{t} 14 × 10 refait des deux bras : +0, rien d\'affiché')
@@ -261,6 +272,12 @@ def once_grand_texte(bench):
                 # « + drop » et × : 44 px dessinés
                 sz = page.evaluate("""[...document.querySelectorAll('.ex-card[data-ei="0"] .tech__add, .ex-card[data-ei="0"] .tech__x')].map(b => { const r = b.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })""")
                 R.check(sz and all(w >= 44 and h >= 44 for w, h in sz), f'{t} « + drop » et × d\'au moins 44 px ({sz})')
+                # Bras droit puis son drop : la ligne du drop dit son bras ; le repos part, la ligne « Ensuite » garde ses « · »
+                page.click(SIDE2 % 'validate'); settle(page)
+                R.check(page.locator('.session-set--subcur .tech-tag .set-n__side').count() == 1, f'{t} « Drop 1 · Droit » sur la ligne en cours')
+                page.fill(SIDE2_DROP % 'reps', '5'); page.click(SIDE2_DROP % 'validate'); settle(page)
+                nxt = ' '.join(page.evaluate(NEXT_TXT).split())
+                R.check(re.search(r'Série \d+ · \d', nxt) and not re.search(r'[A-Za-zéèà]\d|\d[A-Za-zéèà]', nxt), f'{t} « Ensuite » sans chiffre collé ({nxt!r})')
                 shot(page, LOT, f'{t}-grand-texte-bras-droit')
 
 

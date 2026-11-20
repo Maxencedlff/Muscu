@@ -960,7 +960,9 @@ function validateSet(ei, si, opts = {}) {
   // Série notée par bras sans sous-série avant l'autre côté : « puis bras droit » (js/data/unilateral.js)
   const nx = setNextStep(s);
   const next = chain ? `enchaîne ${xs[chain.ei].name}` : nx?.k < 0 ? `puis ${sideName(ex, 2).toLowerCase()}` : techPause !== null ? `puis ${TECHS[setTech(s)].label.toLowerCase()}` : '';
-  sessionUndo(next ? `${doneTxt} · ${next}` : doneTxt, { target: { ex, si }, onAction: () => undoValidate(undo) });
+  // Série notée par bras : « Annuler » dans le bandeau au-dessus de la carte, « Avant » reste dans la ligne (panel du 21/11)
+  const sideTxt = hasSide2(s) ? `, ${sideWord(ex, 1)}` : '';
+  sessionUndo(next ? `${doneTxt}${sideTxt} · ${next}` : `${doneTxt}${sideTxt}`, { target: hasSide2(s) ? { ex } : { ex, si }, onAction: () => undoValidate(undo) });
 }
 
 // La série suivante garde sa valeur prévue, sauf si la charge vient d'être modifiée.
