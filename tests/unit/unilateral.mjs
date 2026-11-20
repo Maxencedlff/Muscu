@@ -84,6 +84,9 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`side2WeightKg({ weight: '14', reps: '9', side2: { auto: true, weight: '', reps: '' } })`), '14');
     assert.equal(run(`side2RepsGoal({ weight: '14', reps: '9', side2: { auto: true, weight: '', reps: '' } })`), '9');
     assert.equal(run(`side2WeightKg({ weight: '14', side2: { weight: '12' } })`), '12', 'touché : sa propre charge');
+    // Premier côté pas encore fait : le second montre sa dernière fois ; fait : ce que le premier vient de faire
+    sameJSON(run(`(() => { const s = { weight: '14', reps: '8', done: false, side2: { auto: true, weight: '', reps: '', prev: { weight: '12', reps: '10' } } };
+      const a = [side2WeightKg(s), side2RepsGoal(s)]; s.done = true; return [...a, side2WeightKg(s), side2RepsGoal(s)]; })()`), ['12', '10', '14', '8']);
     assert.equal(run(`side2RepsGoal({ weight: '14', reps: '9', side2: { reps: '7' } })`), '7');
     // Drop du second côté : la charge et les reps du drop du premier côté
     const sub = run(`(() => { const s = { weight: '14', reps: '10', tech: 'drop', sub: [{ weight: '10', reps: '6', done: true }], side2: { weight: '14', reps: '10', sub: [{ auto: true, weight: '', reps: '' }] } };
@@ -194,12 +197,16 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     // Résumé replié : le drop et les deux bras se voient
     run(`activeSession = { programme: 'ppl', category: 'pull', exercises: [] }`);
     const ex2 = `{ name: 'Curl concentration', sets: [{ weight: '14', reps: '10', done: true, side2: { weight: '14', reps: '10' } }, { weight: '14', reps: '9', done: true, tech: 'drop', sub: [{ weight: '10', reps: '6' }], side2: { weight: '14', reps: '9' } }] }`;
-    assert.equal(run(`doneSummary(${ex2})`).replace(/\u00a0/g, ' '), '2 × 10/9 · 14 kg');
-    sameJSON(run(`doneExtraLines(${ex2})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop 10 kg × 6 · 2 bras'], 'bras pareils : une ligne');
+    assert.equal(run(`doneSummary(${ex2})`).replace(/\u00a0/g, ' '), '2 × 10/9 · 14 kg · 2 bras', '« 2 bras » sur la 1re ligne');
+    sameJSON(run(`doneExtraLines(${ex2})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop : gauche 10 kg × 6 · droit —'], 'drop noté au bras gauche seulement');
+    // Drops qui diffèrent : chaque bras ; pareils : une fois
+    const dd = (a, b) => `{ name: 'Curl concentration', sets: [{ weight: '14', reps: '10', tech: 'drop', sub: [{ weight: '10', reps: '${a}' }], side2: { weight: '14', reps: '10', sub: [{ weight: '10', reps: '${b}' }] } }] }`;
+    sameJSON(run(`doneExtraLines(${dd(6, 5)})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop : gauche 10 kg × 6 · droit 10 kg × 5']);
+    sameJSON(run(`doneExtraLines(${dd(6, 6)})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop 10 kg × 6']);
     sameJSON(run(`doneExtraLines({ name: 'Curl biceps haltères', sets: [{ weight: '14', reps: '10' }] })`), []);
     // Bras différents : chaque bras sur sa ligne
     sameJSON(run(`doneExtraLines({ name: 'Curl concentration', sets: [{ weight: '14', reps: '10', side2: { weight: '14', reps: '8' } }] })`).map(l => l.replace(/\u00a0/g, ' ')),
-      ['2 bras', 'Bras gauche : 14 kg × 10', 'Bras droit : 14 kg × 8']);
+      ['Bras gauche : 14 kg × 10', 'Bras droit : 14 kg × 8']);
     run(`activeSession = null`);
     // Premier bras : réglage par exercice, nettoyé
     assert.equal(run(`sideName({ name: 'Curl concentration', sideFirst: 'droit' }, 1)`), 'Bras droit');

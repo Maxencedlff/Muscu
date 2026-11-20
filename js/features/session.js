@@ -306,7 +306,7 @@ function nextSetParts() {
   const load = String(s.reps ?? '') !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}`
     : sub && hasLoad(s.weight) ? ` · ${fmtW(s.weight, { plain: true })} ${unitLbl()}` : '';
   const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `${holdGuide(ex) ? 'Maintien' : 'Série'} ${setDisplayNo(ex.sets, cur.si)}${hasSide2(s) ? ` · ${sideWord(ex, 1)}` : ''}`;   // compte des séries de travail, comme leur ligne ; par bras : le bras qui commence
-  return { name: ex.name, step, load, tail: step + load, sub: !!sub };
+  return { name: ex.name, step, load, tail: step + load, sub: !!sub, side: !sub && hasSide2(s) };
 }
 // « Développé incliné · Série 1 · 30 kg × 10 »
 function nextSetText() {
@@ -326,20 +326,23 @@ function bumpReady(ex) {
   return goalBumpDue(sessExData(ex) || { repMax: 12, sets: work.length }, prevs);
 }
 
-// Lignes repliées sous « 3 × 10/10/9 · 14 kg » (panel du 20/11 : le drop et les bras ne se voyaient pas) : le drop et
-// les deux bras (« Drop 10 kg × 6 · 2 bras »), puis chaque bras s'ils diffèrent (« Bras gauche : 10/10/9 »,
-// « Bras droit : 10/10/8 »). [] sans technique ni bras. Espaces insécables dans chaque morceau.
+// Lignes repliées sous « 3 × 10/10/9 · 14 kg · 2 bras » (panel du 20/11 : le drop et les bras ne se voyaient pas) :
+// les sous-séries (« Drop 10 kg × 6 », ou par bras s'ils diffèrent : « Drop : gauche 10 kg × 6 · droit 10 kg × 5 »),
+// puis chaque bras s'ils diffèrent (« Bras gauche : 14 kg × 10, 10, 9 »). [] sans technique ni bras. Espaces
+// insécables dans chaque morceau : une ligne ne se coupe qu'après un « · » suivi d'un morceau entier.
 function doneExtraLines(ex) {
   if (measureOf(ex) !== 'reps') return [];
   const work = workSets(ex.sets), kind = loadKind(ex), nb = t => t.replace(/ /g, '\u00a0'), up = t => t.charAt(0).toUpperCase() + t.slice(1);
-  const parts = work.filter(s => subSetsOf(s).length)
-    .map(s => nb(`${up(TECHS[setTech(s)].subName)} ${subSetsOf(s).map(x => measureSetTxt(x, 'reps', kind)).join(', ')}`));
-  const two = work.filter(hasSide2);
-  if (two.length) parts.push(nb(`2 ${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}`));
+  const subsTxt = xs => xs.map(x => measureSetTxt(x, 'reps', kind)).join(', ');
+  const parts = work.filter(s => subSetsOf(s).length).map(s => {
+    const name = up(TECHS[setTech(s)].subName), a = subsTxt(subSetsOf(s)), b = hasSide2(s) ? subsTxt(side2SubsOf(s)) : null;
+    if (b === null || b === a) return nb(`${name} ${a}`);
+    return `${nb(`${name} :`)} ${nb(`${sideShort(ex, 1).toLowerCase()} ${a}`)} · ${nb(`${sideShort(ex, 2).toLowerCase()} ${b || '—'}`)}`;
+  });
   const lines = parts.length ? [parts.join(' · ')] : [];
-  const reps1 = two.map(s => String(s.reps)), reps2 = two.map(s => String(s.side2.reps ?? ''));
-  const w1 = two.map(s => String(s.weight)), w2 = two.map(s => String(s.side2.weight ?? ''));
-  if (two.length && (reps1.join() !== reps2.join() || w1.join() !== w2.join())) {
+  const two = work.filter(hasSide2);
+  const differ = two.some(s => String(s.reps) !== String(s.side2.reps ?? '') || String(s.weight) !== String(s.side2.weight ?? ''));
+  if (differ) {
     const txt = (sets, side) => `${sideName(ex, side)} : ${setsTextRead(sets, 'reps', kind)}`;
     lines.push(txt(two, 1), txt(two.map(s => s.side2), 2));
   }
@@ -353,7 +356,9 @@ function doneSummary(ex) {
   const reps = work.map(s => String(s.reps));
   const same = reps.every(r => r === reps[0]);
   const maxW = Math.max(0, ...work.map(s => parseFloat(s.weight) || 0));
-  return `${work.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}`;
+  // Noté par bras : « · 2 bras » sur cette ligne (panel du 20/11, 4e tour)
+  const sides = work.some(hasSide2) ? ` · 2\u00a0${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}` : '';
+  return `${work.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}${sides}`;
 }
 
 // ── Vignettes des exercices ──────────────────────────────────
@@ -509,7 +514,7 @@ function renderExerciseCard(ex, ei, cur) {
   // et ses sous-séries sous la série (js/features/session-intensif.js)
   // et ses sous-séries sous la série (js/features/session-intensif.js), puis le second côté d'une série notée par bras
   // (js/features/session-unilateral.js)
-  const rows = delUndoRows(ex, ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${sideCaptionHtml(ex, s, 1)}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}${side2RowsHtml(ex, ei, s, si)}`)).join('');
+  const rows = delUndoRows(ex, ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}${side2RowsHtml(ex, ei, s, si)}`)).join('');
 
   // Exercice de la série à faire : sa vignette cerclée d'orange (la série en cours, seul autre orange de la carte)
   const isCur = cur && cur.ei === ei;
@@ -536,7 +541,8 @@ function renderExerciseCard(ex, ei, cur) {
       </div>
       ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
-      <div class="sets${ex.sets.some(isWarmupSet) ? ' sets--warm' : ''}${holdGuide(ex) ? ' sets--noload' : ''}" role="group" aria-label="${holdGuide(ex) ? 'Maintiens' : 'Séries'} de ${esc(ex.name)}">
+      ${sideFirstLinkHtml(ex, ei)}
+      <div class="sets${ex.sets.some(isWarmupSet) ? ' sets--warm' : ''}${exBySide(ex) ? ' sets--sides' : ''}${holdGuide(ex) ? ' sets--noload' : ''}" role="group" aria-label="${holdGuide(ex) ? 'Maintiens' : 'Séries'} de ${esc(ex.name)}">
         <div class="sets__head" aria-hidden="true">
           <span>${holdGuide(ex) ? 'N°' : 'Série'}</span><span>Avant</span>
           <span>${loadHeader(ex)}</span><span>${MEASURES[measureOf(ex)].count}</span>
@@ -601,7 +607,7 @@ function renderGroupCard(members, cur, tags) {
   const rounds = ssRounds(xs, members).map((round, t) => `
         <div class="ss-round" role="group" aria-label="Tour ${t + 1}">
           <div class="ss-round__title">Tour ${t + 1}</div>
-          ${round.map(({ ei, si }) => `${sideCaptionHtml(xs[ei], xs[ei].sets[si], 1)}${renderSetRow(xs[ei], ei, xs[ei].sets[si], si, cur, tags[ei])}${techBlockHtml(xs[ei], ei, xs[ei].sets[si], si)}${side2RowsHtml(xs[ei], ei, xs[ei].sets[si], si, tags[ei])}`).join('')}
+          ${round.map(({ ei, si }) => `${renderSetRow(xs[ei], ei, xs[ei].sets[si], si, cur, tags[ei])}${techBlockHtml(xs[ei], ei, xs[ei].sets[si], si)}${side2RowsHtml(xs[ei], ei, xs[ei].sets[si], si, tags[ei])}`).join('')}
         </div>`).join('');
   const rest = fmtRest(exRest(xs[members.at(-1)]));
   const m0   = exs[0];
@@ -671,8 +677,8 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}">
           <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm || holdGuide(ex) ? '' : 'e'}, ${side ? `${sideName(ex, 1).toLowerCase()}, ` : ''}${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}${tag ? `, ${esc(ex.name)}` : ''}${record ? `, ${esc(record)}` : ''}. Modifier</span>
-          ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
-          ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m))}
+          ${withSideTag(setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" '), ex, s, 1)}
+          ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m), sideNoteWho(ex, si, s, 1))}
           <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
           <span class="set-val set-val--r num" aria-hidden="true">${esc(s.reps)}</span>
           <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
@@ -794,7 +800,7 @@ function prevSpoken(s, m) {
 function renderSetRow(ex, ei, s, si, cur, tag) {
   const m       = measureOf(ex);
   const prevF   = setFirstValue(s.prev, m);
-  const prev    = s.prev ? `${prevF ? prevF + '&nbsp;× ' : ''}${esc(s.prev.reps)}` : '—';
+  const prev    = s.prev ? `${prevF ? prevF + '&nbsp;×&nbsp;' : ''}${esc(s.prev.reps)}` : '—';   // « 14 × 10 » jamais coupé
   const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
   // Caché à VoiceOver et inactif tant que le balayage ne l'a pas révélé (setDelShown, js/features/session-gestures.js) : lu
   // avant chaque série, un double toucher supprimait sans le vouloir (panel « yeux neufs » du 16/11). Sans balayage :
@@ -835,9 +841,9 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
   // Ailleurs, le numéro d'une série de travail ouvre le choix d'une technique d'intensification (comme Hevy)
   // Simple numéro : caché, la tête de ligne lue est « Série 2 » (« Série 2, Rowing barre » dans un superset) ; ▶, Disques et
   // le numéro des techniques sont des boutons qui disent déjà la série
-  const firstCol = play ? setPlayHtml(ex, ei, s, si) : isNext && !tag && isBarbellExercise(ex) ? setPlatesHtml(ex, ei, s, si)
+  const firstCol = withSideTag(play ? setPlayHtml(ex, ei, s, si) : isNext && !tag && isBarbellExercise(ex) ? setPlatesHtml(ex, ei, s, si)
     : !tag && !warm && canTech(ex) ? setTechNumHtml(ex, ei, si)
-    : `<span class="visually-hidden">${name}${exOf}</span>${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}`;
+    : `<span class="visually-hidden">${name}${exOf}</span>${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}`, ex, s, 1);
   // Série validée rouverte : le RIR se corrige là aussi (js/data/rir.js)
   const rir = editing && m === 'reps' && !warm && rirShown() ? rirPickerHtml(ei, si, s, ex) : '';
   return `
@@ -845,7 +851,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''} ${warm ? 'session-set--warmup' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
         ${firstCol}
-        ${undoForSet(ex, si) ? setUndoHtml(undoForSet(ex, si)) : setNoteBtnHtml(ex, ei, s, si, `${s.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}`, prevSpoken(s, m))}
+        ${undoForSet(ex, si) ? setUndoHtml(undoForSet(ex, si)) : setNoteBtnHtml(ex, ei, s, si, `${s.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}`, prevSpoken(s, m), sideNoteWho(ex, si, s, 1))}
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
                value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${sideOf ? sideFieldName(ex, 1, 'w') : `${loadSpoken(ex)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}`}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}

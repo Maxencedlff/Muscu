@@ -44,12 +44,15 @@ droit lourd, puis allégé ; l'app n'avait qu'un bloc de drop set par série et 
    - **premier bras** : ⋯ › Plus d'options › « Commencer par le bras droit » (ou le gauche), retenu par exercice
      (`data.sideFirst`, synchronisé) et gardé avec la séance (`sideFirst` de l'exercice) : les noms suivent.
 3. **Ordre et titres** : série (bras gauche), ses sous-séries, bras droit, ses sous-séries (`setSteps`). Chaque côté a
-   son titre AU-DESSUS de son groupe (« Bras gauche », « Bras droit » : sous la ligne, ils se lisaient comme le titre
-   du bloc d'en dessous), et le drop du bras droit son propre titre « Drop set ». Le côté qui suit est seul mis en
+   son nom sous le numéro de la ligne (« 1 », « Gauche » ; en texte agrandi « 1 Gauche » sur la ligne) : un repère par
+   ligne, même quand le haut de la carte est sorti de l'écran, sans titre répété au-dessus de chaque ligne (4e panel) ;
+   le drop du bras droit a son propre titre « Drop set ». Lien « Commencer par le bras droit » au-dessus des séries
+   tant qu'aucune n'est validée. Le côté qui suit est seul mis en
    avant. « + drop » ajoute une sous-série de chaque côté ; le × du drop set le retire des deux (44 pt dessinés).
    **Compteur** (« 3/3 », barre du haut, « Plus tard ») : une série compte une fois le bras droit et son drop faits
    (`setComplete`). VoiceOver : « Valider la série 3, bras gauche », « Charge du bras gauche, en kilos ».
-   **Carte repliée** : « 3 × 10/10/9 · 14 kg », puis « Drop 10 kg × 6 · 2 bras », puis chaque bras s'ils diffèrent
+   **Carte repliée** : « 3 × 10/10/9 · 14 kg · 2 bras », puis « Drop 10 kg × 6 » (ou « Drop : gauche 10 kg × 6 ·
+   droit 10 kg × 5 » si les bras diffèrent), puis chaque bras s'ils diffèrent
    (« Bras gauche : 14 kg × 10, 10, 9 », « Bras droit : 14 kg × 10, 10, 8 »).
    **Sous-séries** : « Drop 1 », « Drop 2 » (« Mini-série 1 », « Bloc 1 ») en toutes lettres dans la colonne du numéro,
    plus « +1 » (3e panel : lu « +1 rep »). Leurs reps sont pré-remplies dans la case (la dernière fois ; au bras droit,

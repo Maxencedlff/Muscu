@@ -950,3 +950,19 @@ html.type-xl .session-set .set-note-prev { grid-column: 1 / -1; }
 html.type-xl .session-set { column-gap: 12px; }
 html.type-xl .session-set > .set-prev, html.type-xl .session-set .set-note-btn { min-width: 0; max-width: 100%; }
 html.type-xl .sets__head { column-gap: 12px; }   /* même écart que les lignes : « kg » et « Reps » au-dessus de leurs cases */
+
+/* Série notée par bras : le côté sous le numéro (« 1 », « Gauche » ; withSideTag), colonne élargie (4e tour du panel) */
+.sets--sides { --set-cols: 48px minmax(0,1.3fr) minmax(0,1fr) minmax(44px,.8fr) 52px; }
+@media (max-width: 374px) { .sets--sides { --set-cols: 44px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; } }
+.sets--sides .set-n { flex-direction: column; line-height: 1.1; }
+.set-n__side { display: block; font-size: 0.647rem; font-weight: 600; color: var(--label2); letter-spacing: 0; }
+html.type-xl .set-n__side { display: inline; margin-left: .35em; font-size: 0.765rem; }
+html.type-xl .sets--sides .set-n { flex-direction: row; align-items: baseline; }
+/* « Commencer par le bras droit » : au-dessus des séries tant qu'aucune n'est validée */
+.side-first-link { display: block; min-height: 44px; margin: 0 0 2px; padding: 0; border: 0; background: none; color: var(--tint); font: inherit; font-size: 0.882rem; text-align: left; cursor: pointer; }
+.side-first-link:active { opacity: .6; }
+/* Barre de repos d'un exercice noté par bras : « Série 2 · bras gauche · 14 kg × 10 » toujours entier (la série et le
+   bras même sur écran étroit), et la série passe à la ligne plutôt que de sortir de la barre */
+.rest-mini__next--side .rest-mini__step { display: inline; }
+.rest-mini__next--side .rest-mini__tail { white-space: normal; flex-shrink: 1; min-width: 0; max-width: 100%; }
+html.type-xl .rest-mini__next .rest-mini__step { display: inline; }

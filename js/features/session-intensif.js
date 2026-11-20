@@ -67,7 +67,7 @@ function techBlockHtml(ex, ei, s, si) {
   if (!t || !canTech(ex) || !TECHS[t].sub) return '';
   const T = TECHS[t], name = setSpokenName(ex, si).toLowerCase();
   const add = T.sub && (s.sub || []).length < TECH_SUB_MAX
-    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}">${icon('plus', 14)}${T.subName}</button>` : '';
+    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${hasSide2(s) ? ', de chaque côté' : ''}">${icon('plus', 14)}${T.subName}</button>` : '';
   const rows = T.sub ? (s.sub || []).map((x, k) => subRowHtml(ex, ei, s, si, x, k)).join('') : '';
   return `
     <div class="tech" role="group" aria-label="${T.label}, ${name}">
@@ -88,7 +88,7 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
   // « +1 série »), sur deux lignes dans la colonne du numéro
   const T = TECHS[setTech(s)], tag = `${capitalize(T.subName)} ${k + 1}`, kind = loadKind(ex), two = side === 2, host = two ? s.side2 : s;
   const spoken = `${T.subName} ${k + 1}, ${setSpokenName(ex, si).toLowerCase()}${hasSide2(s) ? `, ${sideName(ex, side).toLowerCase()}` : ''}, ${esc(ex.name)}`;
-  const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;× ' : ''}${esc(x.prev.reps)}` : '—';
+  const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;×&nbsp;' : ''}${esc(x.prev.reps)}` : '—';
   const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"${two ? ' data-side="2"' : ''}`;
   if (x.done) {
     const w = hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '';
@@ -121,7 +121,7 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" data-action="sub-weight" ${at}
                value="${esc(fmtW(kg, { plain: true }))}" placeholder="—" aria-label="${loadSpoken(ex)}, ${spoken}, en ${unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="set-input set-input--required num" data-action="sub-reps" ${at}
-               value="${esc(goal)}" placeholder="" aria-label="Répétitions, ${spoken}">
+               value="${esc(goal)}" placeholder="max" aria-label="Répétitions, ${spoken}">
         <button class="set-check-zone ${wait ? 'set-check-zone--wait' : ''}" data-action="sub-validate" ${at} ${wait ? 'aria-disabled="true"' : ''} aria-label="Valider ${T.fem ? 'la' : 'le'} ${spoken}"><span class="set-check"></span></button>
       </div>`;
 }

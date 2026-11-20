@@ -9,8 +9,25 @@
 // il se lisait comme le titre du bloc d'en dessous (panel du 20/11). Texte gris, pas une pastille (la pastille grise dit
 // une technique, top set ou back-off : une forme, un sens). Caché à VoiceOver : chaque ligne dit déjà son côté.
 // '' pour une série ordinaire.
-function sideCaptionHtml(ex, s, side) {
-  return hasSide2(s) ? `<div class="sets__caption sets__caption--side" aria-hidden="true">${sideName(ex, side)}</div>` : '';
+function sideCaptionHtml() { return ''; }   // remplacé par le côté dans la colonne du numéro (withSideTag), 4e tour
+// Côté dans la colonne du numéro, sous le numéro (« 1 », « Gauche ») : un repère par ligne, sans titre répété au-dessus
+// de chaque ligne (panel du 20/11, 4e tour : 6 titres pour 3 séries) ; en texte agrandi, sur la ligne en cours même
+// quand le haut de la carte est sorti de l'écran. html : la première colonne (numéro, bouton du numéro ou ▶).
+function withSideTag(html, ex, s, side) {
+  if (!hasSide2(s)) return html;
+  const tag = `<span class="set-n__side" aria-hidden="true">${sideShort(ex, side)}</span>`;
+  const i = html.lastIndexOf('</');
+  return i < 0 ? html : html.slice(0, i) + tag + html.slice(i);
+}
+// VoiceOver de la note d'une ligne notée par bras : « Note de la série 3, bras droit »
+function sideNoteWho(ex, si, s, side) {
+  return hasSide2(s) ? `de la ${setSpokenName(ex, si).toLowerCase()}, ${sideWord(ex, side)}` : '';
+}
+// Lien « Commencer par le bras droit » au-dessus des séries, tant qu'aucune série n'est validée (panel du 20/11 :
+// le réglage, rangé dans ⋯ › Plus d'options, était introuvable)
+function sideFirstLinkHtml(ex, ei) {
+  const opt = exBySide(ex) ? sideMenuActions(ex).find(a => a.value === 'side-first') : null;
+  return opt ? `<button class="side-first-link" data-action="side-first" data-ei="${ei}">${esc(opt.label)}</button>` : '';
 }
 // « le bras droit », « la jambe droite »
 function sideRef(ex, side) {
@@ -32,7 +49,7 @@ function side2RowsHtml(ex, ei, s, si, tag = '') {
   // Le bloc du second côté a son propre titre « Drop set » (sans les boutons : « + drop » et × du premier côté valent
   // pour les deux bras)
   const cap = subs ? `<div class="tech__cap" aria-hidden="true"><span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span></span></div>` : '';
-  return sideCaptionHtml(ex, s, 2) + side2RowHtml(ex, ei, s, si, tag) + (subs ? `<div class="tech" role="group" aria-label="${T.label}, ${name}">${cap}${subs}</div>` : '');
+  return side2RowHtml(ex, ei, s, si, tag) + (subs ? `<div class="tech" role="group" aria-label="${T.label}, ${name}">${cap}${subs}</div>` : '');
 }
 
 // « Avant » du second côté dit à VoiceOver (« 14 × 9 ») ; '' sans dernière fois
@@ -43,9 +60,9 @@ function side2RowHtml(ex, ei, s, si, tag) {
   const x = s.side2, kind = loadKind(ex), at = `data-ei="${ei}" data-si="${si}"`;
   const name = `${setSpokenName(ex, si)}, ${sideName(ex, 2).toLowerCase()}`;
   const exOf = tag ? `, ${esc(ex.name)}` : '';
-  const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;× ' : ''}${esc(x.prev.reps)}` : '—';
+  const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;×&nbsp;' : ''}${esc(x.prev.reps)}` : '—';
   // Même numéro que la série (c'est la même série, de l'autre côté), lettre du superset sinon
-  const no = `<span class="set-n${tag ? '' : ' num'}" aria-hidden="true">${tag ? `<span class="ss-tag">${tag}</span>` : setDisplayNo(ex.sets, si)}</span>`;
+  const no = withSideTag(`<span class="set-n${tag ? '' : ' num'}" aria-hidden="true">${tag ? `<span class="ss-tag">${tag}</span>` : setDisplayNo(ex.sets, si)}</span>`, ex, s, 2);
   if (x.done) {
     const u = undoForSet(ex, si, -1, 2);
     const record = recordSet(s).side === 2 ? liveSetBadge(ex, s, livePrior(ex)) : '';
@@ -53,7 +70,7 @@ function side2RowHtml(ex, ei, s, si, tag) {
       <div class="session-set session-set--done session-set--side" data-action="side-reopen" ${at} ${u ? '' : 'role="button" tabindex="0"'}>
         <span class="sr-text">${name} validé${sideFem(ex) ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}${exOf}${record ? `, ${esc(record)}` : ''}. Modifier</span>
         ${no}
-        ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevTxt(x))}
+        ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevTxt(x), sideNoteWho(ex, si, s, 2))}
         <span class="set-val set-val--w num" aria-hidden="true">${hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '—'}</span>
         <span class="set-val set-val--r num" aria-hidden="true">${esc(x.reps)}</span>
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
@@ -70,7 +87,7 @@ function side2RowHtml(ex, ei, s, si, tag) {
   return `
       <div class="session-set session-set--side ${cur ? 'session-set--subcur' : ''}" ${cur ? 'aria-current="step" ' : ''}${at}>
         <span class="visually-hidden">${name}${exOf}</span>${no}
-        ${setNoteBtnHtml(ex, ei, s, si, `${x.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}`, prevTxt(x))}
+        ${setNoteBtnHtml(ex, ei, s, si, `${x.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}`, prevTxt(x), sideNoteWho(ex, si, s, 2))}
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" data-action="side-weight" ${at}
                value="${esc(fmtW(side2WeightKg(s), { plain: true }))}" placeholder="—" aria-label="${sideFieldName(ex, 2, 'w')}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="set-input set-input--required num" data-action="side-reps" ${at}
@@ -168,6 +185,7 @@ document.addEventListener('input', e => {
 });
 
 registerActions({
+  'side-first': (e, el) => toggleSideFirst(parseInt(el.dataset.ei)),
   'side-validate': (e, el) => validateSide2(el.dataset),
   // Second côté validé touché : de nouveau à remplir (sa charge et ses reps restent)
   'side-reopen': (e, el) => {

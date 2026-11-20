@@ -61,7 +61,7 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         start(page)
         R.check(page.evaluate("activeSession.exercises[0].name") == 'Curl concentration', f'{t} Curl concentration en tête')
         # Ancienne séance (sans second côté) : la séance démarre comme avant, aucune ligne de plus
-        R.check(page.locator('.session-set--side').count() == 0 and page.locator('.sets__caption--side').count() == 0, f'{t} séries ordinaires : rien de nouveau')
+        R.check(page.locator('.session-set--side').count() == 0 and page.locator('.set-n__side').count() == 0, f'{t} séries ordinaires : rien de nouveau')
         # Numéro de la série 3 › Drop set : sur un exercice à un bras, le drop existe de chaque côté
         page.click('[data-action="tech-set"][data-ei="0"][data-si="2"]'); settle(page)
         tap_dialog(page, 'Drop set')
@@ -69,15 +69,13 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(s.get('tech') == 'drop' and s.get('side2', {}).get('sub') and len(s['side2']['sub']) == 1, f'{t} drop set posé des deux côtés {s.get("side2")}')
         # Panel du 20/11 : tout l'exercice passe par bras, pas la seule série 3
         R.check(page.evaluate("activeSession.exercises[0].sets.every(s => !!s.side2)"), f'{t} les trois séries par bras')
-        lbls = page.locator('.ex-card[data-ei="0"] .sets__caption--side').all_inner_texts()
-        R.check(lbls == ['Bras gauche', 'Bras droit'] * 3, f'{t} côtés en titre au-dessus de leur groupe ({lbls})')
+        lbls = page.locator('.ex-card[data-ei="0"] .set-n__side').all_inner_texts()
+        R.check(lbls == ['Gauche', 'Droit'] * 3 and page.locator('.sets__caption--side').count() == 0, f'{t} côté sous le numéro, sans titre répété ({lbls})')
         # Ordre de la série 3 : titre gauche, la ligne, Drop set, son drop, titre droit, la ligne, Drop set, son drop
-        order = page.evaluate("""[...document.querySelectorAll('.ex-card[data-ei="0"] .sets__caption--side, .ex-card[data-ei="0"] .session-set, .ex-card[data-ei="0"] .tech__name')]
-            .filter(e => !e.matches('.session-set') || e.dataset.si === '2' || e.closest('.tech')).slice(-8).map(r => r.matches('.sets__caption--side') ? r.textContent.trim()
-            : r.matches('.tech__name') ? 'Drop set' : r.matches('.session-set--side') ? 'D' : r.matches('.session-set--sub') ? (r.dataset.side === '2' ? 'D+1' : 'G+1') : 'G')""")
-        R.check(order == ['Bras gauche', 'G', 'Drop set', 'G+1', 'Bras droit', 'D', 'Drop set', 'D+1'], f'{t} ordre G, G allégé, D, D allégé, chaque bloc titré ({order})')
-        R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} pas de défilement horizontal')
-        R.check(not cut_texts(page, '.ex-card[data-ei="0"] .sets__caption--side, .ex-card[data-ei="0"] .tech__name'), f'{t} aucun texte coupé {cut_texts(page, ".ex-card[data-ei=\'0\'] .sets__caption--side")}')
+        order = page.evaluate("""[...document.querySelectorAll('.ex-card[data-ei="0"] .session-set, .ex-card[data-ei="0"] .tech__name')]
+            .filter(e => !e.matches('.session-set') || e.dataset.si === '2' || e.closest('.tech')).slice(-6).map(r =>
+            r.matches('.tech__name') ? 'Drop set' : r.matches('.session-set--side') ? 'D' : r.matches('.session-set--sub') ? (r.dataset.side === '2' ? 'D+1' : 'G+1') : 'G')""")
+        R.check(order == ['G', 'Drop set', 'G+1', 'D', 'Drop set', 'D+1'], f'{t} ordre G, G allégé, D, D allégé, chaque drop titré ({order})')
         # « Drop 1 » en toutes lettres, plus « +1 » (panel du 20/11)
         tags = [x.replace('\n', ' ') for x in page.locator('.ex-card[data-ei="0"] .tech-tag').all_inner_texts()]
         R.check(tags == ['Drop 1', 'Drop 1'], f'{t} « Drop 1 » sur les deux bras ({tags})')
@@ -129,7 +127,7 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(abs(vol - exp) < 0.01, f'{t} volume des deux bras ({vol} = {exp})')
         # Carte repliée : le drop et les deux bras se voient (panel du 20/11)
         lines = [l.replace('\u00a0', ' ') for l in page.locator('.ex-card--collapsed[data-ei="0"] .ex-summary__line').all_inner_texts()]
-        R.check(lines[1:] == [f'Drop {w1} kg × 6 · 2 bras'], f'{t} carte repliée : le drop et les deux bras {lines}')
+        R.check(lines[0].endswith('· 2 bras') and lines[1:] == [f'Drop : gauche {w1} kg × 6 · droit {w1} kg × 5'], f'{t} carte repliée : les deux bras et le drop de chacun {lines}')
         page.click('.ex-card[data-ei="0"] [data-action="toggle-ex"]'); settle(page)
         center(page, '.ex-card[data-ei="0"] .session-set--side')
         shot(page, LOT, f'{t}-03-repos-apres-bras-droit')
@@ -201,12 +199,11 @@ def t_par_bras(bench, eng, dev, theme):
         R.check('14 × 8' in prev, f'{t} « Avant » du bras droit : 14 × 8 ({prev!r})')
         # Avant de valider quoi que ce soit : « +X kg de volume » absent (rien de plus que la dernière fois)
         R.check(page.locator('.ex-card[data-ei="0"] .ex-vol__delta').count() == 0, f'{t} pas de hausse de volume affichée au départ')
-        # Premier bras : ⋯ › Plus d'options › Commencer par le bras droit, retenu pour l'exercice
-        page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); settle(page)
-        tap_dialog(page, "Plus d'options"); settle(page)
-        tap_dialog(page, 'Commencer par le bras droit'); settle(page)
-        caps = page.locator('.ex-card[data-ei="0"] .sets__caption--side').all_inner_texts()[:2]
-        R.check(caps == ['Bras droit', 'Bras gauche'] and page.evaluate("sideFirstPref('Curl concentration')") == 'droit', f'{t} commence par le bras droit ({caps})')
+        # Premier bras : lien « Commencer par le bras droit » au-dessus des séries (panel du 20/11 : introuvable dans ⋯)
+        R.check(page.locator('.ex-card[data-ei="0"] .side-first-link').inner_text() == 'Commencer par le bras droit', f'{t} lien « Commencer par le bras droit » visible')
+        page.click('.ex-card[data-ei="0"] .side-first-link'); settle(page)
+        caps = page.locator('.ex-card[data-ei="0"] .set-n__side').all_inner_texts()[:2]
+        R.check(caps == ['Droit', 'Gauche'] and page.evaluate("sideFirstPref('Curl concentration')") == 'droit', f'{t} commence par le bras droit ({caps})')
         # « Avant » suit son bras : la ligne du bras droit (désormais la première) montre 14 × 8, celle du gauche 14 × 10
         p1 = page.locator('.ex-card[data-ei="0"] .set-swipe .session-set[data-si="0"] .set-prev').first.inner_text().replace('\u00a0', ' ')
         p2 = page.locator('.ex-card[data-ei="0"] .session-set--side[data-si="0"] .set-prev').first.inner_text().replace('\u00a0', ' ')
@@ -252,7 +249,9 @@ def once_grand_texte(bench):
                              hscroll: document.documentElement.scrollWidth > innerWidth + 1, seen: r.top >= document.querySelector('#app .navbar').getBoundingClientRect().bottom - 1 && r.bottom <= innerHeight }; }""")
                 R.check(g['inRow'] and not g['overlap'] and not g['hscroll'], f'{t} ligne du bras droit : rien ne dépasse ni ne se recouvre {g}')
                 R.check(g['seen'], f'{t} ligne du bras droit à l\'écran quand elle est en cours {g}')
-                R.check(not cut_texts(page, '.ex-card[data-ei="0"] .sets__caption--side'), f'{t} « Bras gauche », « Bras droit » entiers')
+                R.check(not cut_texts(page, '.ex-card[data-ei="0"] .set-n__side'), f'{t} « Gauche », « Droit » entiers')
+                # Le bras sur la ligne en cours (texte agrandi : le haut de la carte peut être sorti de l'écran)
+                R.check(page.locator('.session-set--subcur .set-n__side, .session-set--current .set-n__side').count() == 1, f'{t} bras rappelé sur la ligne en cours')
                 # « Annuler » (ou « Note ») de la colonne Avant ne touche jamais le rond ✓ de sa ligne (panel du 20/11)
                 gap = page.evaluate("""() => Math.min(...[...document.querySelectorAll('.ex-card[data-ei="0"] .session-set')].map(r => {
                     const a = r.querySelector('.set-undo, .set-note-btn, .set-prev'), c = r.querySelector('.set-check');

@@ -58,8 +58,10 @@ function sideName(ex, side) {
   if (!n) return `Côté ${side}`;
   return n[(sideFirstOf(ex) === 'droit' ? 2 - side : side - 1)];
 }
-// « bras gauche » / « jambe droite » en minuscules, et sans le membre : « gauche », « droite »
+// « bras gauche » / « jambe droite » en minuscules
 function sideWord(ex, side) { return sideName(ex, side).toLowerCase(); }
+// Le côté seul, sans le membre : « Gauche », « Droit », « Droite » (colonne du numéro)
+function sideShort(ex, side) { const w = sideName(ex, side).split(' ').pop(); return w.charAt(0).toUpperCase() + w.slice(1); }
 
 // Nom parlé d'un champ (« Charge du bras gauche, en kilos », « Répétitions de la jambe droite ») ; what : 'w' ou 'r'
 function sideFieldName(ex, side, what) {
@@ -202,13 +204,19 @@ function syncSide2Subs(s) {
 }
 // Charge (kg stockés) et reps du second côté : saisies, sinon celles du premier côté (« pré-remplir avec ce qui a été
 // fait » : un ✓ suffit quand les deux côtés sont pareils), sinon la dernière fois
+// Tant que le premier côté n'est pas fait, le second montre ce qu'il a fait la dernière fois (« pré-remplir avec la
+// dernière fois », panel du 20/11 : le bras gauche affichait les 8 reps prévues au droit sous un « Avant 14 × 10 »)
 function side2WeightKg(s) {
   if (!hasSide2(s)) return '';
-  return s.side2.auto ? (s.weight ?? '') : (s.side2.weight ?? '');
+  if (!s.side2.auto) return s.side2.weight ?? '';
+  return !s.done && s.side2.prev ? (s.side2.prev.weight ?? '') : (s.weight ?? '');
 }
 function side2RepsGoal(s) {
   if (!hasSide2(s)) return '';
-  return String(s.side2.reps ?? '').trim() || String(s.reps ?? '').trim() || s.side2.prev?.reps || '';
+  const own = String(s.side2.reps ?? '').trim();
+  if (own) return own;
+  if (!s.done && s.side2.prev?.reps) return String(s.side2.prev.reps);
+  return String(s.reps ?? '').trim() || s.side2.prev?.reps || '';
 }
 // Sous-série k du second côté : la charge et les reps de la même sous-série du premier côté
 function side2SubWeightKg(s, k, opts = {}) {
