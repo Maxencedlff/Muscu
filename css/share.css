@@ -33,7 +33,10 @@
 html.type-xl .share-preview__zoom { height: 22vh; height: 22dvh; }
 /* Tailles d'accessibilité les plus grandes sur petit écran (6e panel) : 18 %, deux réglages au moins visibles */
 @media (max-height: 700px) { html.type-xxl .share-preview__zoom { height: 18vh; height: 18dvh; } html.type-xxl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(18dvh + 24px); } }
-.share-preview__zoom { aspect-ratio: 9 / 16; flex: 0 0 auto; }
+.share-preview__zoom { aspect-ratio: 9 / 16; flex: 0 0 auto; position: relative; }
+/* Agrandir (7e panel) : pastille en coin, sur fond opaque, qui dit qu'un toucher ouvre l'image en grand */
+.share-preview__zoomicon { position: absolute; right: 6px; bottom: 6px; display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: 50%; background: var(--cell); color: var(--label); box-shadow: 0 0 0 0.5px var(--sep); }
 .share-preview__zoom:has(.share-preview__frame--square) { aspect-ratio: 1; }
 .share-preview--tools .share-preview__frame, .share-preview--tools .share-preview__frame--square { width: 100%; height: 100%; aspect-ratio: auto; }
 .share-preview--tools .share-preview__formats { max-width: 420px; }
@@ -100,9 +103,7 @@ html.type-xl .share-preview__note-link--short .share-preview__note-full { displa
 html.type-xl .share-preview__note-link--short .share-preview__note-short { display: inline; }
 html.type-xl .share-preview__note { margin-bottom: 0; }
 html.type-xl .share-preview__note-link { padding-block: 0; }
-/* Plus grandes tailles : « Ajoute ton nom » sur une ligne ; Story / Carré passe après les réglages, Nom et
-   Silhouette restent visibles entre l'aperçu et la barre (6e panel) */
+/* Plus grandes tailles : « Ajoute ton nom » sur une ligne (Story / Carré vient après les réglages : Nom et
+   Silhouette restent visibles entre l'aperçu et la barre, 6e panel) */
 html.type-xxl .share-preview__note-link { white-space: nowrap; font-size: min(1em, 28px); }
-html.type-xxl .share-preview--tools > .share-preview__formats { order: 1; }
-html.type-xxl .share-preview--tools > .cposter-foot, html.type-xxl .share-preview--tools > .share-preview__help { order: 1; }
-html.type-xxl .share-preview--tools > .share-preview__actionbar { order: 2; }
+

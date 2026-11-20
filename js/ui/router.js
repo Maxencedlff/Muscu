@@ -115,6 +115,7 @@ function openSummary() {
 // Change d'état de navigation. mode : 'push' (nouvelle entrée), 'replace', 'back' (retour d'un cran)
 function navCommit(next, dir, mode = 'push') {
   saveScroll();
+  clearScreenToasts();
   next = navSanitize(next);
   // Entrée d'une feuille fermée : le nouvel écran la remplace, et le retour la saute
   if (mode === 'push' && navDup[navIndex]) mode = 'replace';

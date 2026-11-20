@@ -33,6 +33,8 @@ function removeToast(el) {
 // toast simple, ou avec action : showToast('Import réussi', { action: 'Annuler', onAction, duration: 6000 })
 // { error: true } : annoncé en assertif et affiché au moins 4 s. Avec action : 6 s au moins, et retenu tant
 // qu'on le touche ou que VoiceOver est dessus (sinon « Annuler » disparaîtrait sous le doigt)
+// Toasts de l'écran courant (opts.screen) : retirés au changement d'écran
+function clearScreenToasts() { document.querySelectorAll('.toast[data-screen]').forEach(t => removeToast(t)); }
 function showToast(msg, opts = {}) {
   // En séance (hors feuille) : jamais de toast flottant, la confirmation en ligne (sessionNotice, js/features/session.js)
   if (typeof sessionNotice === 'function' && sessionNotice(msg, opts)) return;
@@ -40,6 +42,7 @@ function showToast(msg, opts = {}) {
   const el = document.createElement('div');
   el.className = opts.error ? 'toast toast--error' : 'toast';
   el.dataset.at = String(Date.now());
+  if (opts.screen) el.dataset.screen = '1';   // confirmation de l'écran : retirée dès qu'on en change (navCommit)
   const duration = Math.max(opts.duration || 2200, opts.error ? 4000 : 0, opts.action ? TOAST_ACTION_MIN_MS : 0);
   announce(opts.action ? `${msg}. ${opts.action} disponible` : msg, !!opts.error);
   el.style.setProperty('--toast-duration', duration + 'ms');

@@ -47,10 +47,11 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
   test('affiche du coach : contenu exact (titre accordé à la silhouette choisie, nom, pseudo, badge, consigne, code)', () => {
     sameJSON(model(), {
       name: 'Léa Martin', specialty: '', handle: '@lea.coach', initials: 'LM', photo: true, title: 'NOUVELLE COACH',
-      badge: 'Carte pro déclarée', ctaLine: 'Télécharge MDLF Training et entre mon code', code: 'K7M2-QX9P-R4TD',
+      badge: 'Carte pro déclarée', perks: 'Programme sur mesure · Suivi · Bilans', ctaLine: 'Télécharge MDLF Training',
+      ctaWhere: 'Entre mon code dans Social › Rejoindre un coach', code: 'K7M2-QX9P-R4TD',
     });
     // Rien d'autre que ce qui vient du coach : aucun champ pour un élève
-    sameJSON(Object.keys(model()).sort(), ['badge', 'code', 'ctaLine', 'handle', 'initials', 'name', 'photo', 'specialty', 'title']);
+    sameJSON(Object.keys(model()).sort(), ['badge', 'code', 'ctaLine', 'ctaWhere', 'handle', 'initials', 'name', 'perks', 'photo', 'specialty', 'title']);
     assert.equal(model({ specialty: '  Force ·   Perte de poids ' }).specialty, 'Force · Perte de poids', 'spécialité nettoyée');
     assert.equal(model({ specialty: 'x'.repeat(60) }).specialty.length, 40, 'spécialité : 40 caractères au plus');
     assert.equal(model({ name: '', username: 'sam' }).initials, '', 'jamais d\'initiales tirées du pseudo');
@@ -65,7 +66,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     assert.equal(model({ name: '' }).handle, '@lea.coach', 'le pseudo reste, une fois');
     assert.equal(model({ name: '  Léa   Martin  ' }).name, 'Léa Martin', 'espaces resserrés');
     assert.equal(model({ name: 'x'.repeat(60) }).name.length, 40, '40 caractères au plus');
-    assert.match(app.coachPosterAlt(model()), /^Affiche « Nouvelle coach » : Léa Martin, @lea\.coach, sur MDLF Training, Carte pro déclarée, code K7M2-QX9P-R4TD$/);
+    assert.match(app.coachPosterAlt(model()), /^Affiche « Nouvelle coach » : Léa Martin, Programme sur mesure · Suivi · Bilans, @lea\.coach, sur MDLF Training, Carte pro déclarée, code K7M2-QX9P-R4TD$/);
     assert.match(app.coachPosterAlt(model({ neutral: true })), /^Affiche « Coach » : /);
   });
 
@@ -93,7 +94,11 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
         assert.ok(t.includes(w), `${tag} : « ${w} » écrit (${JSON.stringify(t)})`);
       }
       // Consigne sur une ligne, ou sur deux en story (coupée avant « et ») pour rester lisible
-      assert.ok(t.includes('Télécharge MDLF Training et entre mon code') || (t.includes('Télécharge MDLF Training') && t.includes('et entre mon code')), `${tag} : consigne écrite`);
+      // 7e panel : télécharger, le code, puis où l'entrer ; ce que l'élève gagne ; consignes de 26 px au moins
+      assert.ok(t.includes('Télécharge MDLF Training') && t.includes('Entre mon code dans Social › Rejoindre un coach') && t.includes('Programme sur mesure · Suivi · Bilans'), `${tag} : consignes et ce que l'élève gagne`);
+      for (const o of c.ops.filter(x => x.op === 'text' && ['Télécharge MDLF Training', 'Entre mon code dans Social › Rejoindre un coach', 'Carte pro déclarée'].includes(x.text))) {
+        assert.ok(parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]) >= 22, `${tag} : « ${o.text} » trop petit (${o.font})`);
+      }
       // Capitales seulement pour les gros titres en Anton (titre, nom, code) ; tout le reste en casse normale
       for (const o of c.ops.filter(x => x.op === 'text' && !/Anton/.test(x.font))) {
         assert.ok(!/[A-ZÀ-Ý]{3}/.test(o.text.replace(/MDLF/g, '')), `${tag} : « ${o.text} » en capitales hors titre`);
@@ -102,7 +107,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       if (format === 'story') {
         // Tout le texte entre 250 et 1650 px (barres d'Instagram en haut, champ de réponse en bas)
         for (const o of c.ops.filter(x => x.op === 'text')) {
-          assert.ok(o.y > 250 && o.y <= 1600, `${tag} : « ${o.text} » à y = ${Math.round(o.y)}, dans une zone couverte (250 à 1600 px)`);
+          assert.ok(o.y > 250 && o.y <= 1670, `${tag} : « ${o.text} » à y = ${Math.round(o.y)}, hors des 250 px du haut et du bas`);
         }
       }
       assert.equal(count(c, 'photo'), 1, `${tag} : photo du coach dessinée`);
@@ -150,7 +155,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       assert.ok(bd.w >= 1080 * 0.3, `${format} : entier et bien visible (${Math.round(bd.w)} px de large)`);
       // La photo domine : 560 px au moins en story, 46 % de la largeur en carré
       const photo = c.ops.find(o => o.op === 'image' && o.id === 'cover');
-      assert.ok(photo && photo.w >= (format === 'story' ? 560 : 1080 * 0.46) - 0.5, `${format} : photo de ${photo && Math.round(photo.w)} px`);
+      assert.ok(photo && photo.w >= (format === 'story' ? 560 : 1080 * 0.34) - 0.5, `${format} : photo de ${photo && Math.round(photo.w)} px`);
       if (format === 'story') assert.ok(bd.y >= 250 && bd.y + bd.h <= 1700, `story : entier dans la zone sûre (${Math.round(bd.y)} à ${Math.round(bd.y + bd.h)})`);
       // Tout texte est soit au-dessus du personnage (titre, story), soit dans la colonne de droite
       for (const o of c.ops.filter(x => x.op === 'text')) {
@@ -174,7 +179,10 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     assert.ok(titleSize(draw(model({ neutral: true, badge: false }), 'story')) >= 200, '« COACH » seul : titre agrandi');
     for (const c of [full, light]) {
       const ys = c.ops.filter(o => o.op === 'text').map(o => o.y);
-      assert.ok(Math.max(...ys) <= 1600 && Math.min(...ys) > 250, `tout entre 250 et 1600 px (${Math.round(Math.min(...ys))} à ${Math.round(Math.max(...ys))})`);
+      assert.ok(Math.max(...ys) <= 1670 && Math.min(...ys) > 250, `tout entre 250 et 1670 px (${Math.round(Math.min(...ys))} à ${Math.round(Math.max(...ys))})`);
+      // Centré : autant de noir au-dessus du titre qu'en dessous de la signature (à 60 px près)
+      const top = Math.min(...ys) - 140, bot = 1920 - Math.max(...ys);
+      assert.ok(Math.abs(top - bot) <= 120, `bloc centré (haut ${Math.round(top)}, bas ${Math.round(bot)})`);
     }
   });
 

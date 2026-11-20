@@ -57,6 +57,16 @@ aux plus grandes tailles de texte ; carte du code : Copier et Partager passent s
 Personnage jusqu'à 1780 px demandé : pas fait, il est limité par la largeur de sa colonne (environ 350 px de large pour
 790 px de haut) ; atteindre 1780 px demanderait environ 550 px de large, donc de passer sous la photo ou sous le code.
 
+**7e panel ciblé (8,69/10), corrigé en v14** (`v14/`) : story centrée, autant de noir au-dessus qu'en dessous (zone sûre
+250 à 1670 px : 250 px laissés en haut et en bas) ; sous la spécialité, ce que l'élève gagne (« Programme sur mesure ·
+Suivi · Bilans », blanc secondaire) ; bandeau : « Télécharge MDLF Training », le code, « Entre mon code dans Social ›
+Rejoindre un coach » ; carré : bandeau sur toute la largeur en bas, consignes et badge de 26 px au moins, signature
+sous le personnage, photo de 34 à 46 % de la largeur ; aperçu : Story / Carré après les réglages (Nom et Silhouette
+entiers sans défiler sur iPhone SE), pastille « agrandir » ; rond vide de l'aperçu (ni photo ni nom) : appareil photo
+et « Ta photo ici », jamais sur l'image partagée (qui demande un nom, donc ses initiales) ; Compte : vignette ronde de
+la photo sur la ligne « Photo de profil » ; « Photo de profil enregistrée » retiré au changement d'écran ; Mon coach en
+très grand texte : avatar au-dessus du nom, pseudo coupé après « _ » ou « . ».
+
 **Mon coach** : l'élève voit le nom de l'affiche de son coach en titre, @pseudo dessous, et sa photo de profil s'il en
 a mis une. Le nom part au serveur seulement quand le coach **partage** son affiche (dit sous les réglages :
 « Quand tu partages ton affiche, tes élèves voient ce nom dans Mon coach ») ; `coach_poster_name(coach)` ne le rend

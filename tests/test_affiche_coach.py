@@ -230,6 +230,14 @@ def t_coach_affiche(bench, eng, dev, theme):
                 f'{t} sans photo : personnage homme (réglage du compte)')
         R.check(page.evaluate("document.fonts.check('100px \"MDLF Anton\"')"), f'{t} police Anton chargée')
         R.check(send_visible(page), f'{t} aperçu fixé en haut, « Partager » fixé en bas, rien de recouvert')
+        # 7e panel : Nom et Silhouette entiers entre l'aperçu et la barre, sans défiler ; pastille « agrandir » sur l'aperçu
+        whole = page.evaluate("""() => { document.querySelector('.sheet .sheet__body').scrollTop = 0;
+            const top = document.querySelector('.sheet .share-preview__top').getBoundingClientRect().bottom;
+            const bar = document.querySelector('.sheet .share-preview__actionbar').getBoundingClientRect().top;
+            return [...document.querySelectorAll('.sheet .cposter-row')].slice(0, 2).every(r => { const b = r.getBoundingClientRect(); return b.top >= top - 1 && b.bottom <= bar + 1; }); }""")
+        R.check(whole, f'{t} Nom et Silhouette entiers sans défiler')
+        R.check(page.is_visible('.sheet .share-preview__zoomicon'), f'{t} pastille « agrandir » sur l\'aperçu')
+        R.check(page.evaluate("(() => { const c = document.querySelector('.sheet .share-preview__img'); return c.getAttribute('aria-label').includes('Affiche'); })()"), f'{t} aperçu sans nom ni photo dessiné')
         # Un toucher sur l'aperçu l'ouvre en plein écran, un autre le ferme
         page.locator('.sheet .share-preview__zoom').scroll_into_view_if_needed()
         page.click('.sheet .share-preview__zoom')
@@ -508,6 +516,11 @@ def photo_flow(page, t, who, free_text):
     page.wait_for_function("() => !document.querySelector('.sheet .pph-sheet')", timeout=10000)
     settle(page)
     R.check('Photo de profil enregistrée' in toast(page), f'{t} {who} : photo enregistrée ({toast(page)!r})')
+    page.evaluate("navigate('coach')")
+    page.wait_for_timeout(150)
+    R.check(page.locator('.toast').count() == 0, f'{t} {who} : le toast ne suit pas sur l\'écran suivant')
+    page.evaluate("goBack()")
+    settle(page)
 
 
 def has_photo(page, uid, scope=''):

@@ -134,9 +134,9 @@ function sharePreviewBody(alt, formats = false, tools = null) {
     return `
     <div class="share-preview share-preview--tools">
       <div class="share-preview__top">
-        <button type="button" class="share-preview__zoom" data-action="share-preview-zoom" aria-label="Voir l'image en plein écran">${frame}</button>
+        <button type="button" class="share-preview__zoom" data-action="share-preview-zoom" aria-label="Voir l'image en plein écran">${frame}<span class="share-preview__zoomicon" aria-hidden="true">${icon('arrow.up.left.and.arrow.down.right', 16)}</span></button>
       </div>
-      ${seg}${tools.rows || ''}
+      ${tools.rows || ''}${seg}
       ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--flow">${help}</p>` : ''}
       <div class="share-preview__actionbar">${note}${send.replace(/\s*<p class="share-preview__hint">[^<]*<\/p>/, '')}
         ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--bar">${help}</p>` : ''}

@@ -57,7 +57,8 @@ function profilePhotoCellHtml() {
   return `
           <button class="cell cell--nav" data-action="pph-open">
             <span class="cell__body"><span class="cell__title">Photo de profil ${pphProTag()}</span></span>
-            <span class="cell__value">${value}${value === 'Avatar' ? ` <span class="account-emoji" aria-hidden="true">${esc(av)}</span>` : ''}</span>
+            <span class="cell__value pph-cell__value">${value === 'Photo' ? `<span class="sr-text">Photo</span>${avatarHtml('m')}`
+              : `${value}${value === 'Avatar' ? ` <span class="account-emoji" aria-hidden="true">${esc(av)}</span>` : ''}`}</span>
             ${icon('chevron.right', 16)}
           </button>`;
 }
@@ -150,7 +151,7 @@ async function pphUse(el) {
   // Coach : l'image d'origine reste sur l'iPhone pour son affiche (plus nette que les 512 px envoyés)
   if (pphView.file && typeof coachPosterKeepOriginal === 'function') coachPosterKeepOriginal(pphView.file);
   document.querySelector('.pph-sheet')?.closest('.sheet-root')?._close?.(null);
-  showToast('Photo de profil enregistrée');
+  showToast('Photo de profil enregistrée', { screen: true });   // 7e panel : ne suit pas sur l'écran suivant
   if (currentView() === 'account') render();
 }
 
