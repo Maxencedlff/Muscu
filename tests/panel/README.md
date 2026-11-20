@@ -31,7 +31,7 @@ locale est coupé). Horloge de l'app figée au mercredi 4 novembre 2026, 18 h 30
 `gh.py plan` découpe : une machine par appareil du mode, parcours longs en lots d'environ 80 étapes, 20 machines au plus ; `gh.py fusionner` renumérote et rassemble au format du PC (mêmes NN, mêmes noms de fichiers, index.md, resume.md, etapes.json).
 Plusieurs chantiers peuvent lancer en même temps, même sur la même branche (aucune annulation, chacun retrouve son exécution par un jeton). Sans verrou ni navigateur sur le PC.
 Différence avec le PC : pas de verif-ui sur GitHub (dépôt privé), donc contrôles automatiques simples (`controles.js`) ; polices de la machine GitHub (DejaVu).
-Mesuré le 20/11/2026 : voir la fin de cette section.
+Mesuré le 20/11/2026 (accueil,programme) : 2 min de bout en bout en rapide comme en grand-texte, lancés ensemble ; sur le PC 1,5 et 4,4 min de capture plus 12 min d'attente du verrou. Mêmes 32 et 128 étapes, mêmes noms de fichiers.
 
 ## Ce qui sort
 
