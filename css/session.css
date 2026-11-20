@@ -973,5 +973,8 @@ html.type-xl .rest-mini__next .rest-mini__step { display: inline; }
    sur sa rangée, « Avant » ou « Annuler » dessous, les cases ensuite (« Annuler » recouvrait « Drop 1 ») */
 .set-n__side { white-space: nowrap; }
 html.type-xl .sets--sides .set-n { flex-wrap: wrap; }
-html.type-xl .session-set--sub { grid-template-areas: "n n check" "prev prev check" "w r check"; }
-html.type-xl .session-set--sub .set-undo { grid-area: prev; justify-self: start; }
+/* Lignes d'un exercice noté par bras et sous-séries : le numéro et le côté (« 1 Gauche », « Drop 1 ») sur la largeur des
+   deux colonnes, puis « Avant » (ou « Annuler ») sur la même largeur (« 14 × 10 » ne se coupe plus en « 14 × 1 / 0 »),
+   puis les cases */
+html.type-xl .sets--sides .session-set, html.type-xl .session-set.session-set--sub { grid-template-areas: "n n check" "prev prev check" "w r check"; }
+html.type-xl .sets--sides .session-set .set-undo, html.type-xl .session-set.session-set--sub .set-undo { grid-area: prev; justify-self: start; }
