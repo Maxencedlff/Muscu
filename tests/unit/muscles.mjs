@@ -481,11 +481,11 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     sameJSON(Object.keys(counts), ids(), 'tous les muscles, dans l\'ordre');
   });
 
-  test('séries par muscle : paliers 0 / 1–4 / 5–9 / 10+ par semaine, nommés (panel affichage-e t3 : 3 paliers + le gris)', () => {
-    sameJSON([0, -1, NaN, 0.5, 4.9, 5, 9.9, 10, 19.9, 20, 35].map(v => app.muscleLevel(v)), [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3]);
-    assert.equal(run('MUSCLE_LEVEL_MAX'), 3);
-    sameJSON([0, 1, 2, 3].map(l => app.muscleLevelRange(l)), ['0', '1–4', '5–9', '10+']);
-    sameJSON(run('MUSCLE_LEVEL_WORDS'), ['Pas travaillé', 'Peu', 'Travaillé', 'Objectif atteint']);
+  test('séries par muscle : 3 états 0 / 1–9 / 10+ par semaine, nommés (panel affichage-e t4)', () => {
+    sameJSON([0, -1, NaN, 0.5, 4.9, 5, 9.9, 10, 19.9, 20, 35].map(v => app.muscleLevel(v)), [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2]);
+    assert.equal(run('MUSCLE_LEVEL_MAX'), 2);
+    sameJSON([0, 1, 2].map(l => app.muscleLevelRange(l)), ['0', '1–9', '10+']);
+    sameJSON(run('MUSCLE_LEVEL_WORDS'), ['Pas travaillé', 'Sous l\'objectif', 'Objectif atteint']);
   });
 
   test('repère de la bulle : 10 par semaine pour qui débute, sinon 10 à 20 ; niveau vérifié au chargement', () => {
@@ -501,7 +501,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.ok(run("SYNC_PROFILE_KEYS.includes('level')"), 'niveau suivi d\'un appareil à l\'autre');
   });
 
-  test('muscleLoad : semaine et 4 semaines, intensités, peu travaillés sans les petits groupes', () => {
+  test('muscleLoad : semaine et 4 semaines, intensités', () => {
     reset();
     const h = [
       hist(1, [{ name: 'Développé couché haltères', sets: sets(12) }, { name: 'Squat barre', sets: sets(5) }]),
@@ -509,22 +509,19 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     ];
     const w = app.muscleLoad('week', NOW, h);
     assert.equal(w.sessions, 1);
-    assert.equal(w.levels.chest, 3, '12 séries : objectif atteint');
+    assert.equal(w.levels.chest, 2, '12 séries : objectif atteint');
     assert.equal(w.intensity.chest, 1, 'objectif atteint : palier du haut');
-    assert.equal(w.levels.quads, 2);
+    assert.equal(w.levels.quads, 1, '5 séries : sous l\'objectif');
     assert.equal(w.levels.calves, 0);
     assert.equal(w.intensity.calves, 0);
-    assert.ok(w.low.includes('calves') && w.low.includes('hamstrings'));
-    assert.ok(!w.low.includes('chest') && !w.low.includes('quads'));
-    assert.ok(!w.low.includes('forearms') && !w.low.includes('adductors'), 'petits groupes jamais signalés');
     const m = app.muscleLoad('month', NOW, h);
     assert.equal(m.sessions, 2);
     assert.equal(m.sets.chest, 20);
     assert.equal(m.perWeek.chest, 5);
-    assert.equal(m.levels.chest, 2);
+    assert.equal(m.levels.chest, 1, '5 par semaine : sous l\'objectif');
     // Palier calculé sur le nombre affiché : 9,5 séries (demi-séries) s'affichent 10, palier objectif
     const half = app.muscleLoad('week', NOW, [hist(1, [{ name: 'Développé couché haltères', sets: sets(9) }, { name: 'Dips', sets: sets(1) }])]);
-    assert.equal(app.roundSets(half.sets.triceps) >= 10 ? 3 : 2, half.levels.triceps, 'couleur = chiffre lu');
+    assert.equal(app.roundSets(half.sets.triceps) >= 10 ? 2 : 1, half.levels.triceps, 'couleur = chiffre lu');
     assert.equal(app.muscleLoad('autre', NOW, h).span, 'week', 'période inconnue → semaine');
     assert.equal(app.muscleLoad('week', NOW, []).sessions, 0);
   });
@@ -865,8 +862,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     // Progrès : les deux muscles ont leur palier ; les obliques, mineurs (surtout travaillés en secondaire),
     // ne sont jamais signalés « peu travaillés » : pas de bruit chez tout le monde après leur séparation
     const load = app.muscleLoad('week', NOW, [hist(0, [{ name: 'Crunch', sets: sets(10) }])]);
-    assert.ok('obliques' in load.levels && load.levels.abs === 3 && load.levels.obliques === 0);
-    assert.ok(!load.low.includes('obliques'));
+    assert.ok('obliques' in load.levels && load.levels.abs === 2 && load.levels.obliques === 0);
   });
 
   test('obliques : calque à part du grand droit, de face, pour les deux personnages (sw.js à jour)', () => {

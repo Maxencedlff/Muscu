@@ -14,10 +14,9 @@
 }
 .body-map__m--sec { background-color: var(--body-heat-sec); }
 .body-map__m--peak { background-color: var(--body-heat-max); }
-/* Paliers de Progrès : une couleur pleine par palier (bodyTier ; jetons --body-tier-1 à 3) */
+/* Progrès : « Sous l'objectif » en rouge pâle, « Objectif atteint » dans le rouge plein de la fiche (bodyTier) */
 .body-map__m--t1 { background-color: var(--body-tier-1); }
 .body-map__m--t2 { background-color: var(--body-tier-2); }
-.body-map__m--t3 { background-color: var(--body-tier-3); }
 /* Muscle touché, bulle ouverte (js/ui/body-tip.js) : copie opaque du calque, éclaircie (pulsation
    douce de la luminosité), halo autour. Le halo (drop-shadow) est sur l'enveloppe : posé sur l'élément
    masqué, le masque le couperait. */
@@ -49,16 +48,11 @@
 .body-map--atlas .body-map__m { animation: none; }
 /* Sombre : le muscle ciblé (et les paliers de Progrès) en rouge vif éclairé par l'ombrage (soft-light, et non multiply qui
    l'éteignait), sur un corps plus sombre (--body-atlas-bright) : ciblé / gris 2,7:1 au lieu de 1,9:1. Clair : inchangé */
-body:not(.light) .body-map--atlas .body-map__p { background-blend-mode: soft-light; }   /* qui aident aussi : à 48 %, visibles
-   (aide / gris 1,7:1, avant 1,15:1, un brun terne) et nettement plus pâles que le ciblé (écart de couleur 35), panel t3 */
-/* Paliers de Progrès en clair aussi : éclairés (soft-light), le multiply éteignait le palier du haut en brun presque noir */
-.body-map--atlas[data-tiers] .body-map__p { background-blend-mode: soft-light; }
-/* Muscles « Peu travaillés » (Progrès) : hachures fines par-dessus, découpées au muscle (bodyAtlasLayersHtml, low) */
-.body-map__low {
-  position: absolute; pointer-events: none; opacity: .7;
-  background: repeating-linear-gradient(135deg, var(--body-low-line) 0 1px, transparent 1px 4px);
-  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-}
+body:not(.light) .body-map--atlas .body-map__p { background-blend-mode: soft-light; }   /* qui aident aussi : à 40 %, visibles
+   (écart de couleur 31 avec le gris) et nettement moins vifs que le ciblé (écart 41), panels t3 et t4 */
+/* Clair : le rouge pâle éclairé par l'ombrage (soft-light : en multiply il virait au brun, trop près du gris) ; l'objectif
+   atteint reste en multiply, exactement le rouge plein de la fiche */
+.body-map--atlas[data-tiers] .body-map__m--t1 { background-blend-mode: soft-light; }
 body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--body-atlas-bright, .46)); }   /* pas de fondu d'apparition (theme-sobre-progres) : jamais un personnage gris le temps d'un fondu */
 /* Ligne touchée : seuls ses muscles restent, en rouge plein ; fondu doux entre les deux états */
 .body-map--atlas .body-map__p { transition: opacity .2s ease, background-color .2s ease; }
@@ -131,6 +125,8 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .mcard__map { width: min(100%, 216px); }
 .mcard__top + .cell::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
 .mlow { color: var(--label); font-size: var(--fs-subhead); line-height: 1.176rem; }
+/* « + N autres » d'« À travailler » : un lien dans la ligne, sa zone de toucher élargie à 44 points de haut */
+.mlow__more { display: inline-block; padding: 12px 4px; margin: -12px -4px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; white-space: nowrap; }
 
 /* Légende : un échantillon par palier, son nom et ses bornes */
 .mlegend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3px 8px; font-size: var(--fs-caption); color: var(--label2); }
@@ -141,8 +137,7 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .mlegend__dot { width: 12px; height: 12px; border-radius: 3px; background: var(--body-zone); position: relative; overflow: hidden; }
 .mlegend__dot--t1 { background: var(--body-tier-dot-1); }
 .mlegend__dot--t2 { background: var(--body-tier-dot-2); }
-.mlegend__dot--t3 { background: var(--body-tier-dot-3); }
-.mlegend__dot--low { background: var(--body-zone) repeating-linear-gradient(135deg, var(--body-low-line) 0 1px, transparent 1px 3px); }
+
 .mlegend__dot { flex-shrink: 0; }
 /* Pastilles : la couleur du palier telle qu'elle se voit sur le personnage (ombrage compris : --body-tier-dot-N) */
 .type-xl .mlegend__dot { width: .75em; height: .75em; }   /* grandit avec le texte (AX33) */
@@ -156,7 +151,6 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .mrow__bar { display: block; height: 6px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
 .mrow__bar i { display: block; height: 100%; min-width: 0; border-radius: 3px; background: var(--body-tier-dot-1); }
 .mrow__bar i.is-t2 { background: var(--body-tier-dot-2); }
-.mrow__bar i.is-t3 { background: var(--body-tier-dot-3); }
 /* Barres : la couleur du palier, comme la carte et sa légende */
 
 /* ── Feuille « Muscles ciblés » ── */

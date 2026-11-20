@@ -168,9 +168,9 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
   });
 
   test('atlas : carte de la fiche en 1× seulement, rouge plein / atténué, profonds par-dessus', () => {
-    assert.equal(run('BODY_PART_SEC_OPACITY'), 'var(--body-sec-o)', 'muscles qui aident : le même rouge, moins opaque (jeton du thème : 35 % en clair, 48 % en sombre)');
+    assert.equal(run('BODY_PART_SEC_OPACITY'), 'var(--body-sec-o)', 'muscles qui aident : le même rouge, moins opaque (jeton du thème : 35 % en clair, 40 % en sombre)');
     // Progrès : 3 paliers, chacun sa couleur pleine (panel affichage-e t3 : 4 rouges ne se distinguaient pas)
-    sameJSON(run('[1, 2, 3].map(n => bodyTier(n / 3))'), [1, 2, 3].map(n => ({ tone: `t${n}`, op: 1 })));
+    sameJSON(run('[1, 2].map(n => bodyTier(n / 2))'), [1, 2].map(n => ({ tone: `t${n}`, op: 1 })));
     assert.equal(run('bodyTier(0)'), null, 'pas travaillé : gris du corps, aucun calque');
     const html = run(`bodyAtlasHtml(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels, { body: 'male', tap: true, title: 'Développé incliné barre' })`);
     assert.ok(!/@3x|\/p3\/|lines|hit\.png/.test(html), 'aucune image 3× au premier affichage');
@@ -222,8 +222,8 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
       && html.includes('data-view="back"') && !html.includes('body-map__front'), html.slice(0, 300));
     const both = run(`bodyAtlasHtml(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels, { body: 'male' })`);
     assert.ok(both.includes('body-map__front') && both.includes('body-map__back') && !both.includes('body-map--one'), 'développé incliné : face (pectoraux) et dos (triceps)');
-    const prog = run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male', crop: false, tiers: true, low: ['lats'] })`);
-    assert.ok(prog.includes('body-map__front') && prog.includes('data-low="lats"') && /class="body-map__low" data-low="lats"/.test(prog), 'Progrès : toujours les deux faces, muscles en retard hachurés');
+    const prog = run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male', crop: false, tiers: true })`);
+    assert.ok(prog.includes('body-map__front') && prog.includes('body-map__back'), 'Progrès : toujours les deux faces');
     // Tout sous-muscle coloré reste dans le cadre
     for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) for (const kind of ['male', 'female']) {
       const lv = run(`exercisePartLevels(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)})).levels`);
@@ -292,6 +292,30 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.equal(pl.levels.glute_max, pl.load.levels.glutes, 'bas du corps : carte simple');
     assert.equal(pl.levels.delt_posterior, app.muscleLevel(pl.weekly.delt_posterior));
     assert.equal(pl.sets.rhomboid_major, 2, 'tractions : rhomboïdes secondaires, demi-série');
+  });
+
+  test('Progrès, « À travailler » : exactement les muscles gris ou rouge pâle du dessin, du moins au plus travaillé', () => {
+    const DAY = 86_400_000, now = Date.UTC(2026, 10, 19, 12);
+    const h = (d, name, n) => ({ id: name + d, date: now - d * DAY, programme: 'ppl', category: 'push',
+      exercises: [{ name, sets: Array.from({ length: n }, () => ({ weight: '40', reps: '10' })) }] });
+    // Objectif atteint sur les pectoraux (12 séries par semaine), sous l'objectif ailleurs, obliques à 0
+    const hist = [0, 1, 2, 3].flatMap(w => [h(w * 7 + 1, 'Développé couché barre', 12), h(w * 7 + 2, 'Squat barre', 4), h(w * 7 + 3, 'Tractions pronation', 3)]);
+    run(`data.history = ${JSON.stringify(hist)}`);
+    for (const kind of ['male', 'female']) {
+      const pl = run(`partLoad('month', ${now}, data.history)`);
+      const items = run(`atlasToWork(partLoad('month', ${now}, data.history), ${JSON.stringify(kind)})`);
+      const html = run(`bodyAtlasHtml(Object.fromEntries(Object.entries(partLoad('month', ${now}, data.history).levels).filter(([, l]) => l > 0)), { body: ${JSON.stringify(kind)}, tiers: true, crop: false })`);
+      // Dessin : un sous-muscle visible est gris (aucun calque), pâle (--t1) ou plein (--t2)
+      const parts = run('BODY_PARTS.parts').filter(p => !p.deep && ['front', 'back'].some(v => run('BODY_PARTS').boxes[kind][v][p.id]));
+      const shown = id => { const m = html.match(new RegExp(`class="[^"]*body-map__m--(t\\d)[^"]*" data-part="${id}"`)); return m ? m[1] : 'gris'; };
+      const notFull = parts.filter(p => shown(p.id) !== 't2').map(p => p.id).sort();
+      sameJSON(items.flatMap(it => it.ids).sort(), notFull, `${kind} : la liste = les sous-muscles gris ou pâles du dessin, et rien d'autre`);
+      assert.ok(items.some(it => it.label === run("atlasPartTitle('external_oblique')")), 'obliques à 0 série : dans la liste');
+      assert.ok(!items.some(it => it.ids.includes('chest_sternal')), 'pectoraux à l\'objectif : hors de la liste');
+      assert.ok(items.every((it, i) => !i || items[i - 1].weekly <= it.weekly), 'du moins au plus travaillé');
+      assert.ok(items.filter(it => it.key === 'quads').length === 1, 'bas du corps : le muscle entier, une seule fois');
+      assert.equal(pl.levels.chest_sternal, 2);
+    }
   });
 
   test('atlas : service worker (1× à l\'installation, jamais le 3×) et crédit BodyParts3D', () => {

@@ -411,7 +411,7 @@ const GUIDE_SECTIONS = [
         steps: [
           'Choisis la période : [4 semaines] (les 28 derniers jours, en moyenne par semaine, montrée d\'abord) ou [Cette semaine] (depuis lundi).',
           'Une série compte 1 pour les muscles principaux, ½ pour les secondaires. La couleur suit ce total par semaine : 1 à 4, 5 à 9, 10 à 19, puis 20 et plus.',
-          'Touche un muscle pour voir ses séries. Abdominaux : grand droit. Obliques : flancs. [Peu travaillés] liste les muscles en retard, [Séries par muscle] donne le détail.',
+          'Touche un muscle pour voir ses séries. Abdominaux : grand droit. Obliques : flancs. [À travailler] liste les muscles sous l\'objectif (gris ou rouge pâle sur le personnage), [Séries par muscle] donne le détail.',
           'Les muscles des exercices de la bibliothèque sont vérifiés. ··· › [Muscles ciblés] les modifie, ou les choisit pour un exercice créé. [Rétablir les muscles par défaut] annule ce choix.',
           'La silhouette se change dans [Réglages] › [Silhouette].',
         ],

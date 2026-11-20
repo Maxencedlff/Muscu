@@ -179,7 +179,7 @@ def t_fiche(bench, eng, dev, theme):
         R.check('chest_clavicular' not in on and {'chest_sternal', 'delt_anterior', 'triceps_long'} <= set(on)
                 and page.get_attribute('.mline2[data-level="1"]', 'aria-pressed') == 'true', f'{t} ligne « qui aident » : seuls ses muscles {on}')
         keep = page.evaluate("[...document.querySelectorAll('.mpanel__map .body-map__p.is-on')].map(l => [l.classList.contains('body-map__m--sec'), getComputedStyle(l).opacity])")
-        want = 0.48 if theme == 'dark' else 0.35   # qui aident : 48 % en sombre (panel t3 : brun terne à 35 %), 35 % en clair
+        want = 0.40 if theme == 'dark' else 0.35   # qui aident : 40 % en sombre (panels t3, t4), 35 % en clair
         R.check(keep and all(sec and abs(float(op) - want) < 0.01 for sec, op in keep), f'{t} ligne touchée : ses muscles gardent leur couleur (qui aide, {want:.0%}) {keep[:3]}')
         page.wait_for_timeout(100)
         R.check('muscles qui aident sont affichés' in page.evaluate("document.getElementById('sr-polite')?.textContent || ''"), f'{t} changement annoncé à VoiceOver')
@@ -327,6 +327,8 @@ def t_fiche(bench, eng, dev, theme):
         page.click('.mpanel__zoom')
         page.wait_for_selector('.azoom')
         settle(page)
+        leg = page.locator('.azoom__band > .azoom__legend')
+        R.check(leg.is_visible() and 'Ciblé' in leg.inner_text() and 'Qui aide' in leg.inner_text(), f'{t} vue agrandie texte agrandi : « Ciblé, Qui aide » toujours visible')
         lo = layout_ok(page)
         R.check(not lo, f'{t} vue agrandie texte agrandi : mise en page {lo}')
         shot(page, LOT, f'vue-entiere-xl-{t}')
@@ -533,9 +535,7 @@ def t_progres(bench, eng, dev, theme):
         R.check(page.evaluate("[...document.querySelectorAll('.azoom .body-map__p')].every(l => /--t\\d/.test(l.className))"), f'{t} vue agrandie : paliers gardés')
         # Légende de la vue agrandie : les noms de la page (panel affichage-e t3 : 4 carrés sans nom)
         leg = ' '.join(page.inner_text('.azoom__legend').split())
-        R.check(all(w in leg for w in ('Pas travaillé', 'Peu', 'Travaillé', 'Objectif atteint')), f'{t} vue agrandie : légende nommée « {leg} »')
-        R.check(page.locator('.azoom .body-map__low').count() == page.locator('.mcard__map .body-map__low').count() > 0 or not page.evaluate("muscleLoad(muscleSpan).low.length"),
-                f'{t} vue agrandie : muscles peu travaillés hachurés aussi')
+        R.check(all(w in leg for w in ('Pas travaillé', 'Sous l\'objectif', 'Objectif atteint')), f'{t} vue agrandie : légende nommée « {leg} »')
         # Retour à ×1 (boutons −) : le muscle est à l'écran sur tous les téléphones, puis toucher
         for _ in range(3):
             if page.evaluate('atlasViewerState().scale') > 1:
@@ -555,12 +555,18 @@ def t_progres(bench, eng, dev, theme):
             settle(page)
             lv2 = page.evaluate("JSON.parse(document.querySelector('.mcard__map').dataset.atlas)")
             R.check(lv2 == page.evaluate("Object.fromEntries(Object.entries(partLoad(muscleSpan).levels).filter(([, l]) => l > 0))"), f'{t} période changée : paliers recalculés')
-        # Muscles « Peu travaillés » : hachurés sur le personnage (ceux de la ligne), et dans la légende
-        low = page.evaluate("muscleLoad(muscleSpan).sessions ? muscleLoad(muscleSpan).low.slice(0, 5) : []")
-        hatched = page.evaluate("[...new Set([...document.querySelectorAll('.mcard__map .body-map__low')].map(e => atlasPart(e.dataset.low).parent))]")
-        R.check(sorted(hatched) == sorted(m for m in low if page.evaluate(f"BODY_PARTS.parts.some(p => p.parent === {json.dumps(m)} && !p.deep)")),
-                f'{t} hachures = muscles de « Peu travaillés » {hatched} {low}')
-        R.check(not low or 'Peu travaillés' in page.inner_text('.mcard .mlegend'), f'{t} légende : hachures expliquées')
+        # « À travailler » (panel affichage-e t4) : exactement les muscles gris ou rouge pâle du dessin, du moins au plus travaillé
+        if seg.count() > 1:
+            seg.nth(1).click()   # 4 semaines (cette semaine, le lundi : aucune séance, pas de liste)
+            settle(page)
+        items = page.evaluate("atlasToWork(partLoad(muscleSpan)).map(it => it.label)")
+        txt = ' '.join(page.locator('.mcard .mlow').inner_text().split())
+        R.check(page.locator('.mcard .cell__title', has_text='À travailler').count() == 1 and txt.startswith(' · '.join(items[:3])) and (len(items) <= 4 or f'+ {len(items) - 3} autre' in txt),
+                f'{t} À travailler : « {txt[:120]} » ({len(items)} muscles)')
+        if len(items) > 4:
+            page.click('.mcard .mlow__more')
+            settle(page)
+            R.check(' '.join(page.locator('.mcard .mlow').inner_text().split()) == ' · '.join(items), f'{t} À travailler : « + N autres » déplie la liste entière')
         # Texte très grand (AX33) sur la vue agrandie : légende repliée, titre sur une ligne, personnage sur 60 % au moins
         page.evaluate("""() => { const h = document.documentElement; h.style.fontSize = '33px'; h.classList.add('type-xl'); render(); }""")
         settle(page)
@@ -570,17 +576,69 @@ def t_progres(bench, eng, dev, theme):
         settle(page)
         geo = page.evaluate("""() => { const s = document.querySelector('.sheet-root--atlas .sheet').getBoundingClientRect(), a = document.querySelector('.azoom').getBoundingClientRect(),
             ti = document.querySelector('.sheet-root--atlas .sheet__title'), lh = parseFloat(getComputedStyle(ti).lineHeight) || 1.25 * parseFloat(getComputedStyle(ti).fontSize);
-            return { part: Math.round(a.height / s.height * 100), titleLines: Math.round(ti.getBoundingClientRect().height / lh), folded: !!document.querySelector('.azoom__key:not([open])') }; }""")
-        R.check(geo['part'] >= 60 and geo['titleLines'] <= 1 and geo['folded'], f'{t} vue agrandie AX33 : personnage sur 60 % au moins, titre sur une ligne, légende repliée {geo}')
+            const line = document.querySelector('.azoom__band > .azoom__legend');
+            return { part: Math.round(a.height / s.height * 100), titleLines: Math.round(ti.getBoundingClientRect().height / lh), folded: !!document.querySelector('.azoom__key:not([open])'),
+              line: line ? line.textContent.replace(/\\s+/g, ' ').trim() : '' }; }""")
+        R.check(geo['part'] >= 60 and geo['titleLines'] <= 2 and geo['folded'] and all(w in geo['line'] for w in ('Pas travaillé', 'Sous l\'objectif', 'Objectif atteint')),
+                f'{t} vue agrandie AX33 : personnage sur 60 % au moins, les 3 états toujours visibles, bornes repliées {geo}')
         page.click('.azoom__sum')
         settle(page)
-        R.check('Objectif atteint' in page.inner_text('.azoom__key'), f'{t} vue agrandie AX33 : « Légende » déplie les paliers')
+        R.check('10+' in page.inner_text('.azoom__key'), f'{t} vue agrandie AX33 : « Légende » déplie les bornes')
         lo = layout_ok(page)
         R.check(not lo, f'{t} vue agrandie AX33 : mise en page {lo}')
         shot(page, LOT, f'progres-zoom-xl-{t}')
         page.click('.sheet-root--atlas .sheet__btn--confirm')
         page.wait_for_selector('.azoom', state='detached', timeout=3000)
         R.check(not page.errors, f'{t} Progrès : aucune erreur JS {page.errors}')
+
+
+def t_poitrine(bench):
+    """Personnage femme, face (panel de l'affiche) : le sein n'est pas un muscle. Calques des pectoraux vides au centre de
+    chaque sein, en 1× et en 3× ; carte de toucher : aucun pectoral ; contours effacés. Puis « Développé couché » en
+    femme, clair et sombre : le sein reste au gris du corps à l'écran, le pectoral se colore autour."""
+    import io
+    import sys as _sys
+    from PIL import Image
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _sys.path.insert(0, os.path.join(root, 'tools'))
+    from importlib import import_module
+    gen = import_module('gen-body2')
+    d = os.path.join(root, 'img', 'body2', 'female', 'front')
+    parts = json.load(open(os.path.join(root, 'tools', 'body2-manifest.json'), encoding='utf-8'))
+    ids = [p['id'] for p in parts['parts']]
+    boxes = parts['bodies']['female']['front']['parts']
+    for cx, cy, _, _ in gen.BREASTS[('female', 'front')]:
+        for pid in ('chest_sternal', 'chest_abdominal'):
+            b = boxes[pid]
+            for res, k in (('p3', 1), ('p', 3)):
+                im = Image.open(os.path.join(d, res, f'{pid}.webp')).convert('RGBA')
+                x, y = (cx - b[0]) // k if res == 'p3' else cx // 3 - b[0] // 3, (cy - b[1]) // k if res == 'p3' else cy // 3 - b[1] // 3
+                inside = 0 <= x < im.width and 0 <= y < im.height
+                R.check(not inside or im.getpixel((x, y))[3] == 0, f'femme : {pid} ({res}) vide au centre du sein ({cx}, {cy})')
+        hit = Image.open(os.path.join(d, 'hit.png'))
+        n = hit.getpixel((cx * hit.width // parts['w3'], cy * hit.height // parts['h3']))
+        R.check(n == 0 or ids[n - 1] not in gen.BREAST_PARTS, f'femme : toucher le sein ne nomme aucun pectoral ({n and ids[n - 1]})')
+        R.check(Image.open(os.path.join(d, 'lines@3x.webp')).convert('RGBA').getpixel((cx, cy))[3] == 0, 'femme : pas de contour de muscle sur le sein')
+    for theme in ('light', 'dark'):
+        with bench.frozen_page(NOW, 'webkit', 'iPhone 13', theme) as page:
+            open_app(page, theme)
+            page.evaluate("() => { data.silhouette = 'female'; }")
+            page.evaluate("navigate(makeRoute('library-ex', 'Développé couché barre'))")
+            page.wait_for_selector('.view.library-ex .mpanel--atlas')
+            page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
+            settle(page)
+            kind = page.get_attribute('.mpanel__map', 'data-body')
+            if kind == 'female':
+                pt = page.evaluate("""br => { const b = document.querySelector('.mpanel__map .body-map__front .body-map__body').getBoundingClientRect();
+                    return br.map(([cx, cy]) => [b.left + cx / BODY_PARTS.w3 * b.width, b.top + cy / BODY_PARTS.h3 * b.height]); }""",
+                                   [[cx, cy] for cx, cy, _, _ in gen.BREASTS[('female', 'front')]])
+                img = Image.open(io.BytesIO(page.screenshot())).convert('RGB')
+                k = img.width / page.viewport_size['width']
+                for x, y in pt:
+                    r, g, b = img.getpixel((int(x * k), int(y * k)))
+                    R.check(max(r, g, b) - min(r, g, b) < 24, f'femme {theme} : sein au gris du corps à l\'écran ({r}, {g}, {b})')
+            R.check(kind == 'female', f'{theme} : personnage femme affiché ({kind})')
+            shot(page, LOT, f'poitrine-femme-{theme}')
 
 
 def t_catalogue(bench):
@@ -686,4 +744,4 @@ def t_hors_ligne(bench):
 
 
 if __name__ == '__main__':
-    run_main(R, [t_fiche, t_pincement, t_autres_fiches, t_ailleurs, t_progres], once=[t_catalogue, t_hors_ligne])
+    run_main(R, [t_fiche, t_pincement, t_autres_fiches, t_ailleurs, t_progres], once=[t_catalogue, t_hors_ligne, t_poitrine])

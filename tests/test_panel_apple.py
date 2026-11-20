@@ -237,10 +237,10 @@ TIER_PARTS = (('chest_sternal', 'front'), ('rectus_femoris', 'front'), ('lats', 
 
 
 def t_silhouette_paliers(bench):
-    """Progrès › carte Muscles : 3 paliers + le gris (panel affichage-e t3), mesurés SUR LE PERSONNAGE. Quatre cartes des
-    mêmes sous-muscles (gris, Peu, Travaillé, Objectif atteint), couleur moyenne à l'écran de chaque sous-muscle : écart
-    de couleur d'au moins 25 entre paliers voisins dans les deux thèmes, du plus clair au plus soutenu ; chaque pastille de
-    la légende a la couleur vue sur le personnage."""
+    """Progrès › carte Muscles : 3 états (panel affichage-e t4), mesurés SUR LE PERSONNAGE. Trois cartes des mêmes
+    sous-muscles (gris, Sous l'objectif, Objectif atteint), couleur moyenne à l'écran de chaque sous-muscle : écart de
+    couleur d'au moins 25 entre le gris et le rouge pâle, d'au moins 35 entre le pâle et le plein, dans les deux thèmes ;
+    chaque pastille de la légende a la couleur vue sur le personnage."""
     import io
     from PIL import Image
     for theme in ('light', 'dark'):
@@ -249,11 +249,11 @@ def t_silhouette_paliers(bench):
             seed(page, theme, ppl_v2_today_json())
             page.click('.tabbar [data-action="go-stats"]')
             page.wait_for_selector('.mlegend__dot')
-            dots = page.evaluate("""() => [...document.querySelector('.mcard .mlegend').querySelectorAll('.mlegend__dot')].slice(0, 4)
+            dots = page.evaluate("""() => [...document.querySelector('.mcard .mlegend').querySelectorAll('.mlegend__dot')].slice(0, 3)
                 .map(d => getComputedStyle(d).backgroundColor.match(/[\\d.]+/g).slice(0, 3).map(Number))""")
             page.evaluate("""ids => { const w = document.createElement('div'); w.id = 'paliers';
                 w.style.cssText = 'position:fixed;inset:0;z-index:9999;background:var(--cell);display:grid;grid-template-columns:1fr 1fr;padding:8px;gap:8px';
-                w.innerHTML = [0, 1, 2, 3].map(l => `<div>${bodyAtlasHtml(Object.fromEntries(l ? ids.map(id => [id, l]) : []), { tiers: true, crop: false, className: 'mcard__map' })}</div>`).join('');
+                w.innerHTML = [0, 1, 2].map(l => `<div>${bodyAtlasHtml(Object.fromEntries(l ? ids.map(id => [id, l]) : []), { tiers: true, crop: false, className: 'mcard__map' })}</div>`).join('');
                 document.body.append(w); }""", [p for p, _ in TIER_PARTS])
             page.wait_for_timeout(800)
             pts = page.evaluate("""async parts => { const kind = bodySilhouette(), out = [];
@@ -271,10 +271,10 @@ def t_silhouette_paliers(bench):
                 return [sum(c[i] for c in px) / max(1, len(px)) for i in range(3)]
             for pid, _ in TIER_PARTS:
                 cols = [avg(r[pid]) for r in pts]
-                gaps = [round(_delta_e(cols[i], cols[i + 1])) for i in range(3)]
+                gaps = [round(_delta_e(cols[i], cols[i + 1])) for i in range(2)]
                 L = [round(_lab(c)[0]) for c in cols]
-                # Du plus clair au plus soutenu : Peu plus clair que Travaillé, lui-même plus clair qu'Objectif atteint
-                R.check(min(gaps) >= 25 and L[1] > L[2] > L[3], f'{t} {pid} : paliers voisins distincts sur le personnage (ΔE {gaps}, L* {L})')
+                # Le rouge pâle plus clair que le rouge plein
+                R.check(gaps[0] >= 25 and gaps[1] >= 35 and L[1] > L[2], f'{t} {pid} : 3 états distincts sur le personnage (ΔE {gaps}, L* {L})')
                 if pid == 'chest_sternal':
                     near = [round(_delta_e(d, c)) for d, c in zip(dots[1:], cols[1:])]
                     R.check(max(near) <= 15, f'{t} pastilles de la légende : la couleur vue sur le personnage (ΔE {near})')

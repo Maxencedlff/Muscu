@@ -21,15 +21,15 @@
    js/ui/body-map.js lit ces jetons pour teinter le canvas. */
 :root {
   --body-heat: #FF453A; --body-heat-max: #FF453A; --body-heat-sec: #EFA195;   /* sombre : rouge vif (systemRed sombre), le muscle ciblé se repère d'un coup d'œil */
-  --body-sec-o: .48;   /* muscles qui aident : le rouge vif à 48 % (35 % donnait un brun terne, panel affichage-e t3) */
+  --body-sec-o: .40;   /* muscles qui aident : le rouge vif à 40 %, éclairé ; sur la fiche, écart de couleur 41 avec le ciblé et 31 avec
+     le gris (panel affichage-e : à 35 % en multiply, un brun terne ; à 48 %, presque aussi vif que le ciblé) */
   --body-atlas-bright: .46;   /* corps de l'atlas plus sombre en sombre : rouge vif / gris 2,7:1 (mesuré le 20/11) */
-  --body-heat-help: #A75C58;   /* qui aident (pastille) : la teinte vue sur le personnage (mesurée le 20/11) */
-  /* Paliers de Progrès (bodyTier) : Peu, Travaillé, Objectif atteint, du rouge clair et lumineux au rouge vif. Sur le
-     personnage, écarts de couleur 52, 32, 29 au moins entre voisins (gris compris, mesurés le 20/11) ; pastilles et
-     barres : la couleur vue sur le personnage */
-  --body-tier-1: #FFB3A8; --body-tier-2: #FF6B5E; --body-tier-3: #FF2D1F;
-  --body-tier-dot-1: #F9B4AA; --body-tier-dot-2: #F97165; --body-tier-dot-3: #F9382A;
-  --body-low-line: #FFFFFF;   /* hachures des muscles « Peu travaillés » */
+  --body-heat-help: #9A5C58;   /* qui aident (pastille) : la teinte vue sur le personnage (mesurée le 20/11) */
+  /* Progrès (bodyTier) : « Sous l'objectif » en rouge pâle, « Objectif atteint » en rouge vif plein. Sur le personnage,
+     écarts de couleur 52 au moins entre le gris et le pâle, 51 entre le pâle et le plein (mesurés le 20/11) ; pastilles
+     et barres : la couleur vue sur le personnage */
+  --body-tier-1: #FFB3A8; --body-tier-2: #FF453A;
+  --body-tier-dot-1: #F9B4AA; --body-tier-dot-2: #F95C51;
   --sp-chart-line: #FF7A1A;
 }
 body.light {
@@ -38,11 +38,10 @@ body.light {
   --body-sec-o: .35;
   --body-atlas-bright: 1;
   --body-heat-help: color-mix(in srgb, var(--body-heat) 35%, var(--body-zone));   /* recalculé avec le rouge du thème clair */
-  /* Paliers : du rouge clair au rouge profond, éclairés par l'ombrage (soft-light, css/muscles.css) ; écarts 31, 45, 29
-     au moins sur le personnage */
-  --body-tier-1: #FFA898; --body-tier-2: #FF4A36; --body-tier-3: #8A0A06;
-  --body-tier-dot-1: #FAAB9C; --body-tier-dot-2: #FA5644; --body-tier-dot-3: #8F130E;
-  --body-low-line: #000000;
+  /* Progrès : le rouge pâle éclairé par l'ombrage (soft-light, css/muscles.css), l'objectif atteint dans le rouge plein de
+     la fiche ; écarts 31 au moins entre le gris et le pâle, 57 entre le pâle et le plein, sur le personnage */
+  --body-tier-1: #FFA898; --body-tier-2: #A31B19;
+  --body-tier-dot-1: #FAAB9C; --body-tier-dot-2: #711715;
   /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #E57000 × 0,7 = #A04E00,
      l'orange d'action de l'app (5,9:1 sur la carte blanche) */
   --sp-chart-line: #E57000;

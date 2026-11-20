@@ -166,6 +166,25 @@ function partLoad(spanKey = 'week', now = Date.now(), history = data.history) {
   return { sets, weekly, levels, byEx, load };
 }
 
+// « À travailler » (panel affichage-e t4 : la liste « Peu travaillés » des 18 muscles ne collait pas au dessin) : EXACTEMENT
+// les muscles gris ou rouge pâle du personnage, sous l'objectif. Un nom par muscle tel qu'il est dessiné et nommé dans la
+// bulle : sous-muscle visible (atlasPartTitle), muscle entier pour le bas du corps (carte simple). Profonds exclus : non
+// colorés, ils ne se voient pas. Du moins au plus travaillé (séries par semaine, puis séries de la période).
+// [{ key, label, weekly, ids }]
+function atlasToWork(pl = partLoad(muscleSpan), kind = bodyKind(bodySilhouette())) {
+  const items = new Map();
+  for (const p of BODY_PARTS.parts) {
+    if (p.deep || !['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id])) continue;
+    if ((pl.levels[p.id] || 0) >= MUSCLE_LEVEL_MAX) continue;
+    const simple = ATLAS_SIMPLE_MUSCLES.has(p.parent), key = simple ? p.parent : p.id;
+    const it = items.get(key) || { key, label: simple ? muscleLabel(p.parent) : atlasPartTitle(p.id), weekly: pl.weekly[p.id] || 0,
+      sets: simple ? pl.load.sets[p.parent] || 0 : pl.sets[p.id] || 0, ids: [] };
+    it.ids.push(p.id);
+    items.set(key, it);
+  }
+  return [...items.values()].sort((a, b) => a.weekly - b.weekly || a.sets - b.sets || a.label.localeCompare(b.label, 'fr'));
+}
+
 // Les 3 exercices qui ont le plus travaillé un sous-muscle sur la période : [[nom, séries]]
 function partTopExercises(byEx, id, n = 3) {
   return Object.entries(byEx[id] || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n);

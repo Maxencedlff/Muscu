@@ -12,20 +12,20 @@ const MUSCLE_SPANS = {
 };
 
 
-// Séries par semaine qui ouvrent chaque palier de couleur : 1 à 4 peu, 5 à 9 travaillé, 10 et plus objectif atteint
-// (0 : pas travaillé). Panel affichage-e t3 : « Gros volume » (20+) fusionné avec « Objectif atteint », 4 rouges ne se
-// distinguaient pas sur le personnage. Sources :
+// Séries par semaine qui ouvrent chaque état : 1 à 9 sous l'objectif, 10 et plus objectif atteint (0 : pas travaillé).
+// Panel affichage-e t3 puis t4 : 4, puis 3 rouges ne se distinguaient pas assez sur le personnage ; 3 états en tout, dont
+// un seul rouge pâle. Sources :
 // - Schoenfeld, Ogborn et Krieger (J Sports Sci, 2017), méta-analyse dose-réponse : 10 séries
 //   hebdomadaires et plus par muscle donnent plus d'hypertrophie que moins de 10 (le repère « objectif ») ;
 // - Pelland et al. (SportRxiv, 2024), méta-régression sur 67 études : l'hypertrophie continue de croître
 //   avec le nombre de séries, à rendement décroissant, sans plafond net à 10 (le repère de la bulle va jusqu'à 20).
 // Les paliers sont les mêmes pour tous ; seul le repère de la bulle suit le niveau (muscleTarget).
-const MUSCLE_LEVEL_FROM = [0, 5, 10];
+const MUSCLE_LEVEL_FROM = [0, 10];
 const MUSCLE_LEVEL_MAX  = MUSCLE_LEVEL_FROM.length;
 // Nom de chaque palier (légende, bulle, VoiceOver), du palier 0 au palier MUSCLE_LEVEL_MAX
-const MUSCLE_LEVEL_WORDS = ['Pas travaillé', 'Peu', 'Travaillé', 'Objectif atteint'];
+const MUSCLE_LEVEL_WORDS = ['Pas travaillé', 'Sous l\'objectif', 'Objectif atteint'];
 
-// Bornes d'un palier en séries par semaine, pour la légende : « 0 », « 1–4 », « 5–9 », « 10+ »
+// Bornes d'un palier en séries par semaine, pour la légende : « 0 », « 1–9 », « 10+ »
 function muscleLevelRange(lvl) {
   const from = MUSCLE_LEVEL_FROM;
   if (lvl <= 0) return '0';
@@ -70,8 +70,8 @@ function muscleLevel(perWeek) {
 }
 
 // Charge de la période qui se termine à `now`, par muscle : séries de la période (sets), séries par
-// semaine, palier et intensité 0..1 (celle que reçoit bodyMapHtml) ; muscles peu travaillés
-// (palier ≤ 1, hors petits groupes), du moins au plus travaillé. Le palier se calcule sur le nombre de
+// semaine, palier et intensité 0..1 (celle que reçoit bodyMapHtml). Muscles à travailler : atlasToWork
+// (js/data/atlas.js), d'après le personnage détaillé. Le palier se calcule sur le nombre de
 // séries par semaine affiché (weekly) : la couleur ne contredit jamais le chiffre lu.
 function muscleLoad(spanKey = 'week', now = Date.now(), history = data.history) {
   const span = MUSCLE_SPANS[spanKey] || MUSCLE_SPANS.week;
@@ -86,9 +86,7 @@ function muscleLoad(spanKey = 'week', now = Date.now(), history = data.history) 
     levels[id]    = muscleLevel(weekly[id]);
     intensity[id] = levels[id] / MUSCLE_LEVEL_MAX;
   });
-  const low = MUSCLES.filter(m => !m.minor && levels[m.id] <= 1).map(m => m.id)
-    .sort((a, b) => perWeek[a] - perWeek[b]);
-  return { span: MUSCLE_SPANS[spanKey] ? spanKey : 'week', sessions, sets: counts, perWeek, weekly, levels, intensity, low };
+  return { span: MUSCLE_SPANS[spanKey] ? spanKey : 'week', sessions, sets: counts, perWeek, weekly, levels, intensity };
 }
 
 // Muscles d'une seule séance (image partagée) : intensité 0..1 rapportée au muscle le plus

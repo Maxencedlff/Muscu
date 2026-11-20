@@ -245,7 +245,7 @@ def t_semaine(bench, eng, dev, theme):
             if ids[i] == 'profile':
                 # Profil : couleurs et légende par paliers de Progrès, à l'écran et dans l'image partagée
                 leg = page.evaluate("[...document.querySelectorAll('.recap-page.is-active .rp-scale span')].map(s => s.textContent.trim())")
-                R.check(leg[:1] == ['Peu 1–4'] and leg[-1:] == ['Objectif atteint 10+'], f'{t} profil : légende des paliers de Progrès {leg}')
+                R.check(leg == ['Sous l\'objectif 1–9', 'Objectif atteint 10+'], f'{t} profil : légende des paliers de Progrès {leg}')
                 share_current(page, t, 'profil', f'story-mois-profil-{t}')
         R.check(not page.errors, f'{t} semaine : aucune erreur JS {page.errors}')
     finally:

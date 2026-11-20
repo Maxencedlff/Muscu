@@ -9,12 +9,20 @@
 // correspondance exercice → sous-muscles (partLoad, js/data/atlas.js : principal 1 série, secondaire ½). Bas du corps :
 // carte simple (le palier du muscle entier) jusqu'au détail des jambes. Zoom et nom au toucher : js/ui/body-zoom.js.
 
-// lowMuscles : les muscles de la ligne « Peu travaillés » (ids des 18 muscles) ; leurs sous-muscles sont hachurés
-function progressAtlasHtml(span = muscleSpan, lowMuscles = []) {
+function progressAtlasHtml(span = muscleSpan) {
   const { levels } = partLoad(span);
   const on = Object.fromEntries(Object.entries(levels).filter(([, l]) => l > 0));
-  const low = BODY_PARTS.parts.filter(p => lowMuscles.includes(p.parent)).map(p => p.id);
-  return atlasBoxHtml(bodyAtlasHtml(on, { className: 'mcard__map', title: 'Muscles travaillés', tap: true, tiers: true, tip: 'load', crop: false, captions: true, low }), 'mcard__box');
+  return atlasBoxHtml(bodyAtlasHtml(on, { className: 'mcard__map', title: 'Muscles travaillés', tap: true, tiers: true, tip: 'load', crop: false, captions: true }), 'mcard__box');
+}
+
+// Cellule « À travailler » : 4 noms, puis « + N autres » qui déplie la liste entière (comme les lignes de la fiche)
+const ATLAS_TO_WORK_SHOWN = 4;
+function atlasToWorkHtml(items) {
+  if (!items.length) return '<span class="cell__title cell__title--reg">Tous les muscles à l\'objectif</span>';
+  const shown = items.length > ATLAS_TO_WORK_SHOWN ? items.slice(0, ATLAS_TO_WORK_SHOWN - 1) : items, more = items.length - shown.length;
+  return `<span class="cell__title cell__title--reg">À travailler</span>
+    <span class="cell__sub mlow">${shown.map(it => esc(it.label)).join(' · ')}${more ? ` <button class="mlow__more" data-action="atlas-to-work-all" aria-label="Voir les ${more} autres muscles à travailler">+ ${more} autre${more > 1 ? 's' : ''}</button>` : ''}</span>
+    <template class="mlow__all">${items.map(it => esc(it.label)).join(' · ')}</template>`;
 }
 
 // Dessin et son bouton Agrandir, dans un coin du dessin (panel affichage-e t3 : un grand vide le séparait du
@@ -24,11 +32,10 @@ function atlasBoxHtml(mapHtml, className, corner = 'top') {
   return `<div class="atlas-box atlas-box--${corner} ${className}">${mapHtml}<button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 22)}</button></div>`;
 }
 
-// Légende des paliers (carte de Progrès et vue agrandie) : mêmes noms partout, chaque palier avec ses bornes en séries
-// par semaine ; hatch : les hachures des muscles « Peu travaillés »
-function muscleLegendItemsHtml(hatch = false) {
-  return `${MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('')}
-    ${hatch ? '<span class="mlegend__item"><i class="mlegend__dot mlegend__dot--low"></i>Peu travaillés</span>' : ''}`;
+// Légende des 3 états (carte de Progrès, Séries par muscle, vue agrandie) : mêmes mots partout ; ranges : avec les bornes
+// en séries par semaine
+function muscleLegendItemsHtml(ranges = true) {
+  return MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${ranges && lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('');
 }
 
 // Bulle d'un sous-muscle touché : nom de salle, séries de la période (comme la carte des 18 muscles), palier en mots,

@@ -118,4 +118,11 @@ registerActions({
     const map = el.closest('.mpanel, .mcard')?.querySelector('.body-map--atlas');
     if (map) openAtlasViewer(map, null);
   },
+  // Progrès, « À travailler » : « + N autres » déplie la liste entière, sur place
+  'atlas-to-work-all': (e, btn) => {
+    const cell = btn.closest('.mlow'), all = cell?.parentElement.querySelector('.mlow__all');
+    if (!all) return;
+    cell.innerHTML = all.innerHTML;
+    announce(`${cell.textContent.split(' · ').length} muscles à travailler`);
+  },
 });

@@ -143,8 +143,9 @@ def t_progress(bench, eng, dev, theme):
         R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} personnage : face et dos affichés (images chargées)')
         R.check(heat(page, 'lats') > 0 and heat(page, 'quads') > 0, f'{t} semaine : dos et jambes colorés')
         R.check(heat(page, 'chest') == 0, f'{t} semaine : pectoraux neutres (push il y a 8 jours)')
-        low = page.locator('.mlow').inner_text()
-        R.check('Pectoraux' in low and 'Grand dorsal' not in low, f'{t} peu travaillés : « {low} »')
+        low = page.evaluate("atlasToWork(partLoad(muscleSpan)).flatMap(it => it.ids)")
+        R.check('chest_sternal' in low and 'lats' not in low and page.locator('.mcard .cell__title', has_text='À travailler').count() == 1,
+                f'{t} à travailler : pectoraux (gris cette semaine), pas le grand dorsal {low[:6]}')
         sr = page.locator('.mcard .visually-hidden li').all_inner_texts()
         R.check(len(sr) == 18 and any(x.startswith('Grand dorsal : ') and 'série' in x for x in sr), f'{t} liste VoiceOver {sr[:2]}')
         R.check(page.locator('.mcard__map[aria-hidden="true"]').count() == 1, f'{t} dessin masqué à VoiceOver')
@@ -623,7 +624,7 @@ def t_tip(bench, eng, dev, theme):
         R.check(page.evaluate("MUSCLE_LEVEL_WORDS")[lvl] in txt, f'{t} bulle : palier en mots (légende) {lvl}')
         R.check(not tip_covers_selector(page), f'{t} bulle : sélecteur de période jamais couvert')
         leg = ' '.join(page.locator('.mcard .mlegend').inner_text().split())
-        R.check(all(w in leg for w in ('Pas travaillé', 'Peu 1–4', 'Travaillé 5–9', 'Objectif atteint 10+')) and 'Gros volume' not in leg and 'Entretien' not in leg
+        R.check(all(w in leg for w in ('Pas travaillé', 'Sous l\'objectif 1–9', 'Objectif atteint 10+')) and 'Gros volume' not in leg and 'Peu 1' not in leg
                 and leg.startswith('Séries en moyenne par semaine'), f'{t} légende 4 semaines : « {leg} »')
         you = page.locator('.mcard .mlegend__you')
         R.check(you.count() == 1 and you.inner_text().startswith('Toi : ') and 'muscle' in you.inner_text(), f'{t} légende : tes muscles par palier ({you.all_inner_texts()})')

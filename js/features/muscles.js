@@ -229,23 +229,21 @@ function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
 
 // Légende : l'unité en tête (panel t5), chaque palier en mots avec ses bornes ; en « 4 semaines », la moyenne par semaine.
 // load : avec la charge de la période, une ligne dit où en sont TES muscles (muscleLegendYou)
-function muscleLegendHtml(span = muscleSpan, load = null, { unit = true, hatch = false } = {}) {
+function muscleLegendHtml(span = muscleSpan, load = null, { unit = true } = {}) {
   const you = load ? muscleLegendYou(load) : '';
   return `<div class="mlegend" aria-hidden="true">
     ${unit ? `<span class="mlegend__unit">${span === 'month' ? 'Séries en moyenne par semaine' : 'Séries par semaine'}</span>` : ''}
-    ${muscleLegendItemsHtml(hatch)}
+    ${muscleLegendItemsHtml()}
     ${you ? `<span class="mlegend__you num">${esc(you)}</span>` : ''}
   </div>`;
 }
 
-// Tes muscles au palier du haut (« Toi : 4 muscles à l'objectif ») ; sans
-// aucun, le nombre au palier du dessous (« Toi : 3 muscles travaillés ») ; '' sans séance
+// Tes muscles à l'objectif (« Toi : 4 muscles à l'objectif ») ; '' sans séance ni muscle à l'objectif
 function muscleLegendYou(load) {
   if (!load.sessions) return '';
   const n = lvl => MUSCLES.filter(m => load.levels[m.id] === lvl).length;
-  const parts = n(3) ? [`${plural(n(3), 'muscle', 'muscles')} à l'objectif`] : [];
-  if (!parts.length && n(2)) parts.push(`${plural(n(2), 'muscle travaillé', 'muscles travaillés')}`);
-  return parts.length ? `Toi : ${parts.join(' · ')}` : '';
+  const top = n(MUSCLE_LEVEL_MAX);
+  return top ? `Toi : ${plural(top, 'muscle', 'muscles')} à l'objectif` : '';
 }
 
 function setsTxt(n) { return plural(roundSets(n), 'série', 'séries'); }
@@ -265,20 +263,18 @@ function periodTxt(span = muscleSpan) { return span === 'month' ? 'ces 4 derniè
 
 function renderMuscleCard() {
   const load = muscleLoad(muscleSpan);
-  const lowIds = load.sessions ? load.low.slice(0, 5) : [], low = lowIds.map(muscleLabel);   // hachurés sur le personnage
   const lowCell = !load.sessions
     ? `<div class="cell"><span class="cell__body"><span class="cell__sub">Aucune séance ${periodTxt()}.</span></span></div>`
     : `<div class="cell"><span class="cell__body">
-        <span class="cell__title cell__title--reg">${low.length ? 'Peu travaillés' : 'Tous les grands groupes travaillés'}</span>
-        ${low.length ? `<span class="cell__sub mlow">${low.join(' · ')}</span>` : ''}
+        ${atlasToWorkHtml(atlasToWork(partLoad(muscleSpan)))}
       </span></div>`;
   return `
     <div class="group-title">Muscles</div>
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
-        ${progressAtlasHtml(muscleSpan, lowIds)}
-        ${muscleLegendHtml(muscleSpan, load, { hatch: lowIds.length > 0 })}
+        ${progressAtlasHtml(muscleSpan)}
+        ${muscleLegendHtml(muscleSpan, load)}
         ${muscleSrListHtml(load)}
       </div>
       ${lowCell}

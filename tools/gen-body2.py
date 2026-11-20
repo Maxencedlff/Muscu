@@ -16,6 +16,10 @@ base.webp, base@3x.webp, p3/<sous-muscle>.webp recadrés, lines@3x.webp, hit.png
   js/data/body-parts.js                   BODY_PARTS : noms, parents, profonds, boîtes 1× et 3× par vue
   sw.js                                   bloc « body2 1× » de ASSETS (1× et cartes de toucher, jamais le 3×)
 
+Personnage femme, vue de face : le tissu mammaire n'est pas un muscle. Les calques des pectoraux (et ce qui passe
+dessous) sont évidés sur le volume des seins, de même que les contours de lines@3x et la carte de toucher : le
+pectoral ne se colore que sous et autour du sein, vers l'aisselle et le sternum (BREASTS, panel de l'affiche).
+
 Les calques 1× des 18 muscles (m/) et leurs versions 3× (m3/) ne sont pas copiés : la fiche colore toujours
 des sous-muscles (un muscle sans détail = tous ses sous-muscles, js/data/atlas.js), m/ et m3/ ne serviraient pas.
 Formes d'après BodyParts3D, © The Database Center for Life Science, CC BY 4.0, modifiées (crédit : Réglages,
@@ -28,7 +32,7 @@ import re
 import shutil
 import sys
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.expanduser(sys.argv[1] if len(sys.argv) > 1 else '~/mdlf-perso/out/detail_final')
@@ -36,6 +40,32 @@ OUT = os.path.join(ROOT, 'img', 'body2')
 MANIFEST = os.path.join(ROOT, 'tools', 'body2-manifest.json')
 SEXES, VIEWS = ('male', 'female'), ('front', 'back')
 Q1, QA1 = 78, 70   # qualité WebP des sous-muscles 1× (ombrage gris, alpha) : ~30 % de moins qu'à 82/100
+
+
+# Volume des seins (personnage femme, face), en pixels 3× de la vue : ellipses relevées sur base@3x.webp (pli sous-mammaire,
+# bord vers le sternum et vers l'aisselle), bord adouci. Calques évidés : pectoraux et ce qui passe dessous
+BREASTS = {('female', 'front'): [(428, 696, 82, 70), (722, 696, 82, 70)]}
+BREAST_PARTS = ('chest_sternal', 'chest_abdominal', 'chest_clavicular', 'pec_minor', 'serratus')
+BREAST_FEATHER = 2   # bord net (pas de halo), sans marche d'escalier
+
+
+def breast_keep(sex, view, size3):
+    """Masque 3× (L) de la vue : 255 hors des seins, 0 dedans, bord adouci ; None sans seins."""
+    if (sex, view) not in BREASTS:
+        return None
+    m = Image.new('L', size3, 255)
+    dr = ImageDraw.Draw(m)
+    for cx, cy, rx, ry in BREASTS[(sex, view)]:
+        dr.ellipse((cx - rx, cy - ry, cx + rx, cy + ry), fill=0)
+    return m.filter(ImageFilter.GaussianBlur(BREAST_FEATHER))
+
+
+def cut_alpha(img, keep, box):
+    """Image RGBA posée à box (3×) : alpha multiplié par le masque keep."""
+    img = img.convert('RGBA')
+    r, g, b, a = img.split()
+    a = ImageChops.multiply(a, keep.crop((box[0], box[1], box[0] + img.width, box[1] + img.height)))
+    return Image.merge('RGBA', (r, g, b, a))
 
 
 def box1(b):
@@ -71,13 +101,20 @@ def main():
             for f in ('base.webp', 'base@3x.webp', 'lines@3x.webp', 'hit.png'):
                 shutil.copyfile(os.path.join(s, f), os.path.join(d, f))
             parts = man['bodies'][sex][view]['parts']
+            keep = breast_keep(sex, view, (man['w3'], man['h3']))
+            if keep:
+                cut_breasts(d, keep, man, ids)
             entry = {}
             for pid in ids:            # ordre du manifest : ordre d'empilement des calques
                 if pid not in parts:
                     continue
                 b3 = parts[pid]
-                shutil.copyfile(os.path.join(s, 'p3', f'{pid}.webp'), os.path.join(d, 'p3', f'{pid}.webp'))
-                b1 = reduce_part(os.path.join(s, 'p3', f'{pid}.webp'), b3, os.path.join(d, 'p', f'{pid}.webp'))
+                if keep and pid in BREAST_PARTS:
+                    cut_alpha(Image.open(os.path.join(s, 'p3', f'{pid}.webp')), keep, b3).save(
+                        os.path.join(d, 'p3', f'{pid}.webp'), 'WEBP', quality=90, alpha_quality=90, method=6)
+                else:
+                    shutil.copyfile(os.path.join(s, 'p3', f'{pid}.webp'), os.path.join(d, 'p3', f'{pid}.webp'))
+                b1 = reduce_part(os.path.join(d, 'p3', f'{pid}.webp'), b3, os.path.join(d, 'p', f'{pid}.webp'))
                 entry[pid] = [b1, b3]
                 urls.append(f'/img/body2/{sex}/{view}/p/{pid}.webp')
             boxes[sex][view] = entry
@@ -85,6 +122,22 @@ def main():
     write_js(man, boxes)
     write_sw(sorted(urls))
     print(f'img/body2 : {len(urls)} fichiers 1× en cache d\'installation, {sum(len(v) for b in boxes.values() for v in b.values())} calques')
+
+
+def cut_breasts(d, keep, man, ids):
+    """Contours des muscles (lines@3x) effacés sur les seins ; carte de toucher : les seins ne touchent aucun pectoral."""
+    lines = os.path.join(d, 'lines@3x.webp')
+    cut_alpha(Image.open(lines), keep, (0, 0)).save(lines, 'WEBP', quality=90, alpha_quality=90, method=6)
+    hit_path = os.path.join(d, 'hit.png')
+    hit = Image.open(hit_path)
+    small = keep.resize(hit.size, Image.BILINEAR)
+    cut = {ids.index(pid) + 1 for pid in BREAST_PARTS if pid in ids}
+    px, k = hit.load(), small.load()
+    for y in range(hit.height):
+        for x in range(hit.width):
+            if k[x, y] < 128 and px[x, y] in cut:
+                px[x, y] = 0
+    hit.save(hit_path)
 
 
 def write_js(man, boxes):

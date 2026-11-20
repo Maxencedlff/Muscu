@@ -17,7 +17,7 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
    Palier le plus haut (.is-peak) : le rose pâle du dernier palier de Progrès, distinct du rouge des autres */
 .tone-night {
   --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #C94A3F; --body-heat-max: #FFE0DA; --body-heat-sec: #9E5A50;
-  --body-tier-1: #FFB3A8; --body-tier-2: #FF6B5E; --body-tier-3: #FF2D1F; --body-tier-dot-1: #F9B4AA; --body-tier-dot-2: #F97165; --body-tier-dot-3: #F9382A; --body-low-line: #FFFFFF;
+  --body-tier-1: #FFB3A8; --body-tier-2: #FF453A; --body-tier-dot-1: #F9B4AA; --body-tier-dot-2: #F95C51;
 }
 
 /* ── Accueil : carte « Ta semaine », une cellule comme les autres (pas d'aplat sur l'accueil) ── */

@@ -676,6 +676,11 @@ def p_atlas(r):
     with r.etape('fiche-femme', 'Silhouette femme : fiche du développé incliné barre'):
         r.attendre('.view.library-ex .mpanel--atlas .body-map[data-body="female"]', 'personnage femme')
         r.defiler('.library-ex .mpanel--atlas', 'personnage')
+    # Développé couché (panel de l'affiche) : le pectoral se colore autour du sein, le sein reste au gris du corps
+    r.raccourci("() => navigate(makeRoute('library-ex', 'Développé couché barre'))", 'fiche Développé couché barre')
+    with r.etape('fiche-couche-femme', 'Silhouette femme : fiche du développé couché barre (pectoraux autour du sein)'):
+        r.attendre('.view.library-ex .mpanel--atlas .body-map[data-body="female"]', 'personnage femme')
+        r.defiler('.library-ex .mpanel--atlas', 'personnage')
     r.raccourci("() => navigate(makeRoute('library-ex', 'Abducteurs machine'))", 'fiche Abducteurs machine')
     with r.etape('fiche-abducteurs-femme', 'Silhouette femme : fiche Abducteurs machine, cadrage'):
         r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
