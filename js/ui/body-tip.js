@@ -211,7 +211,7 @@ function bodyTipMarkHtml(kind, view, muscle, tint = '#FFFFFF') {
 // Couleur du muscle tel qu'il apparaît : celle de son calque mêlée de blanc selon son opacité (palier)
 function bodyTipTint(layer) {
   if (!layer) return '#FFFFFF';
-  const op = Math.round((parseFloat(layer.style.opacity) || 0) * 100);
+  const op = Math.round((parseFloat(getComputedStyle(layer).opacity) || 0) * 100);   // opacité calculée (paliers en jetons)
   return `color-mix(in srgb, ${getComputedStyle(layer).backgroundColor} ${op}%, #FFFFFF)`;
 }
 

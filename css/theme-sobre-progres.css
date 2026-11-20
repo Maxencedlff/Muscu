@@ -20,7 +20,9 @@
    Guère plus possible en restant rouge : le blanc × 0,68 est le plafond du multiply. En hex et non en color-mix :
    js/ui/body-map.js lit ces jetons pour teinter le canvas. */
 :root {
-  --body-heat: #C94A3F; --body-heat-max: #C94A3F; --body-heat-sec: #EFA195;
+  --body-heat: #FF453A; --body-heat-max: #FF453A; --body-heat-sec: #EFA195;   /* sombre : rouge vif (systemRed sombre), le muscle ciblé se repère d'un coup d'œil */
+  --body-tier-o1: .22; --body-tier-o2: .48; --body-tier-o3: .74; --body-tier-o4: 1;
+  --body-atlas-bright: .46;   /* corps de l'atlas plus sombre en sombre : rouge vif / gris 2,7:1 (mesuré le 20/11) */
   --body-heat-help: color-mix(in srgb, var(--body-heat) 35%, var(--body-zone));   /* qui aident (pastille) : le rouge à 35 % sur le gris du corps */
   --body-tier-1: #9A1D17; --body-tier-2: #E2493A; --body-tier-3: #FE9584; --body-tier-4: #FFE0DA;
   --sp-chart-line: #FF7A1A;
@@ -28,6 +30,8 @@
 body.light {
   /* Muscle principal d'un exercice : le rouge des images 3D (7,7:1 sur blanc) ; secondaires plus clairs (3,5:1) */
   --body-heat: #A31B19; --body-heat-max: #A31B19; --body-heat-sec: #C37367;
+  --body-tier-o1: .28; --body-tier-o2: .52; --body-tier-o3: .76; --body-tier-o4: 1;
+  --body-atlas-bright: 1;
   --body-heat-help: color-mix(in srgb, var(--body-heat) 35%, var(--body-zone));   /* recalculé avec le rouge du thème clair */
   
   --body-tier-1: #FFA090; --body-tier-2: #EB5A49; --body-tier-3: #B32319; --body-tier-4: #5A0E0B;

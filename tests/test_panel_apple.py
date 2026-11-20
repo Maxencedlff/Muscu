@@ -252,7 +252,7 @@ def t_silhouette_paliers(bench):
             # (en clair de plus en plus sombre, en sombre de plus en plus lumineux)
             L = [round(_lab(c)[0]) for c in seen]
             mono = all(L[i] > L[i + 1] for i in range(4)) if theme == 'light' else all(L[i] < L[i + 1] for i in range(4))
-            R.check(len(gaps) == 4 and min(gaps) >= 15 and mono, f'{t} paliers distincts et dans l\'ordre de clarté (ΔE {gaps}, L* {L})')
+            R.check(len(gaps) == 4 and min(gaps) >= (20 if theme == 'dark' else 15) and mono, f'{t} paliers distincts et dans l\'ordre de clarté (ΔE {gaps}, L* {L})')
             # Regard neuf du 16/11 (malvoyance) : sur le personnage, la couleur est multipliée par l'ombrage gris du calque
             # (médiane 0,68) ; les paliers voisins doivent rester distincts en luminance, pas seulement en teinte
             toks = page.evaluate("() => [1, 2, 3, 4].map(i => getComputedStyle(document.body).getPropertyValue(`--body-tier-${i}`).trim())")

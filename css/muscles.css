@@ -44,7 +44,11 @@
    sombre, rose / gris 2,7:1, rouge plein / rose 1,9:1 ; clair, rouge plein / rose 2,0:1, rose / gris 1,2 à 1,4:1 en
    luminance (le rose s'en distingue par la teinte ; avant, rouge transparent à 0,45 : 1,0:1). Valeurs : base.css */
 .body-map--atlas .body-map__m--sec { background-color: var(--body-heat); }   /* qui aident : même rouge, à 35 % (BODY_PART_SEC_OPACITY) */
-.body-map--atlas .body-map__m { animation: none; }   /* pas de fondu d'apparition (theme-sobre-progres) : jamais un personnage gris le temps d'un fondu */
+.body-map--atlas .body-map__m { animation: none; }
+/* Sombre : le muscle ciblé (et les paliers de Progrès) en rouge vif éclairé par l'ombrage (soft-light, et non multiply qui
+   l'éteignait), sur un corps plus sombre (--body-atlas-bright) : ciblé / gris 2,7:1 au lieu de 1,9:1. Clair : inchangé */
+body:not(.light) .body-map--atlas .body-map__p:not(.body-map__m--sec) { background-blend-mode: soft-light; }
+body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--body-atlas-bright, .46)); }   /* pas de fondu d'apparition (theme-sobre-progres) : jamais un personnage gris le temps d'un fondu */
 /* Ligne touchée : seuls ses muscles restent, en rouge plein ; fondu doux entre les deux états */
 .body-map--atlas .body-map__p { transition: opacity .2s ease, background-color .2s ease; }
 .body-map--atlas[data-iso] .body-map__p:not(.is-on) { opacity: 0 !important; }
