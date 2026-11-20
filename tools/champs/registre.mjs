@@ -114,6 +114,7 @@ export const REGISTRE = [
   { cle: 'features/photo-vault-ui.js#pcmp__range', nom: 'Curseur avant / après', genre: 'curseur' },
   { cle: 'features/photo-vault-ui.js:createElement:photoFile', nom: 'Photo de bilan', genre: 'fichier' },
   { cle: 'features/profile-photo-ui.js:createElement:pphFile', nom: 'Photo de profil', genre: 'fichier' },
+  { cle: 'features/coach-poster-ui.js:createElement:cposterFile', nom: 'Affiche du coach : photo de l\'affiche (gardée sur l\'appareil)', genre: 'fichier' },
   { cle: 'core/haptics-audio.js:createElement:checkbox', nom: 'Interrupteur caché (retour haptique iOS)', genre: 'case' },
 
   // ── Nutrition, eau, sel ────────────────────────────────────
@@ -179,6 +180,9 @@ export const REGISTRE = [
   { cle: 'features/coach-ui.js#coachCode', nom: 'Code d\'un coach', genre: 'code', longueur: { min: 8, max: 12 }, preuve: ['extractCoachCode('],
     vide: 'refuse', serveur: [{ table: 'public.coach_invites', colonne: 'code' }],
     exemption: { longueur: 'on peut coller tout le message d\'invitation : extractCoachCode y cherche le code' } },
+  { cle: 'features/coach-poster-ui.js#cposterName', nom: 'Affiche du coach : nom écrit sur l\'affiche', genre: 'texte',
+    longueur: { max: 'CPOSTER_NAME_MAX' }, preuve: ['posterName('], preuveDans: ['features/coach-poster-ui.js', 'data/coach-poster.js'],
+    vide: 'permis', serveur: null },
   { cle: 'features/coach-pro-ui.js#coachCardNum', nom: 'Numéro de carte pro (badge)', genre: 'code', longueur: { min: 11, max: 12 },
     preuve: ['normalizeBadgeCard('], preuveDans: ['features/coach-pro-ui.js', 'data/coach-pro.js'],
     vide: 'refuse', serveur: [{ fonction: 'public.coach_card_declare', variable: 'num' }] },
