@@ -161,14 +161,14 @@ function renderStatsGroup(id) {
 
 // Lignes « muscle, séries par semaine, barre » : Séries par muscle et détail d'un groupe (même unité que la carte)
 function muscleWeekRowsHtml(load, ids) {
-  const max = Math.max(MUSCLE_LEVEL_FROM.at(-1), ...MUSCLES.map(m => load.weekly[m.id]));
+  const max = Math.max(MUSCLE_LEVEL_FROM.at(-1) * 2, ...MUSCLES.map(m => load.weekly[m.id]));   // l'objectif (10) à mi-barre
   return ids.map(id => {
     const n = load.weekly[id], tier = bodyTier(load.intensity[id]);
     return `
       <div class="cell mrow${id === muscleFocus ? ' mrow--focus' : ''}" data-muscle="${id}">
         <span class="cell__body">
           <span class="mrow__top" aria-hidden="true"><span class="cell__title">${muscleLabel(id)}</span><span class="cell__value num">${n}</span></span>
-          <span class="mrow__bar" aria-hidden="true"><i${tier ? ` class="is-${tier.tone}"` : ''} style="width:${Math.round(n / max * 100)}%;--o:${tier?.op || 0}"></i></span>
+          <span class="mrow__bar" aria-hidden="true"><i${tier ? ` class="is-${tier.tone}"` : ''} style="width:${Math.round(n / max * 100)}%"></i></span>
           <span class="visually-hidden">${muscleLabel(id)} : ${weeklyTxt(n, load.span)}, ${levelWord(load.levels[id])}</span>
         </span>
       </div>`;

@@ -179,7 +179,8 @@ def t_fiche(bench, eng, dev, theme):
         R.check('chest_clavicular' not in on and {'chest_sternal', 'delt_anterior', 'triceps_long'} <= set(on)
                 and page.get_attribute('.mline2[data-level="1"]', 'aria-pressed') == 'true', f'{t} ligne « qui aident » : seuls ses muscles {on}')
         keep = page.evaluate("[...document.querySelectorAll('.mpanel__map .body-map__p.is-on')].map(l => [l.classList.contains('body-map__m--sec'), getComputedStyle(l).opacity])")
-        R.check(keep and all(sec and abs(float(op) - 0.35) < 0.01 for sec, op in keep), f'{t} ligne touchée : ses muscles gardent leur couleur (qui aide, 35 %) {keep[:3]}')
+        want = 0.48 if theme == 'dark' else 0.35   # qui aident : 48 % en sombre (panel t3 : brun terne à 35 %), 35 % en clair
+        R.check(keep and all(sec and abs(float(op) - want) < 0.01 for sec, op in keep), f'{t} ligne touchée : ses muscles gardent leur couleur (qui aide, {want:.0%}) {keep[:3]}')
         page.wait_for_timeout(100)
         R.check('muscles qui aident sont affichés' in page.evaluate("document.getElementById('sr-polite')?.textContent || ''"), f'{t} changement annoncé à VoiceOver')
         shot(page, LOT, f'fiche-aident-{t}')
@@ -194,9 +195,8 @@ def t_fiche(bench, eng, dev, theme):
         settle(page)
         sub = page.inner_text('.exhead__sub').replace('\xa0', ' ')
         R.check(sub.startswith('Haut des pectoraux') and 'Épaules' not in sub, f'{t} sous le titre : les rangs du personnage « {sub} »')
-        off = page.evaluate("""() => { const z = document.querySelector('.mpanel__zoom').getBoundingClientRect(), m = document.querySelector('.mpanel__map .body-map__row').getBoundingClientRect();
-            return z.top >= m.bottom || z.bottom <= m.top || z.left >= m.right || z.right <= m.left; }""")
-        R.check(off, f'{t} bouton Agrandir hors du dessin')
+        off = page.evaluate(ZOOM_CORNER_JS, '.mpanel__map')
+        R.check(off and off['corner'] and not off['on'], f'{t} bouton Agrandir dans le coin du dessin, sur aucun muscle coloré {off}')
         z = page.locator('.mpanel__zoom').bounding_box()
         R.check(z and z['width'] >= 44 and z['height'] >= 44, f'{t} bouton Agrandir 44 × 44 {z}')
         page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
@@ -211,7 +211,7 @@ def t_fiche(bench, eng, dev, theme):
         txt = tip_text(page)
         R.check('Haut des pectoraux' in txt and 'Pectoralis major, pars clavicularis' in txt and 'Muscle ciblé' in txt,
                 f'{t} toucher : nom de salle (celui de la pastille), latin, rôle « {txt} »')
-        R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpanel__foot', '.mline2']), f'{t} toucher : bulle dans le dessin, ni sur les pastilles ni sur Agrandir {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpanel__foot", ".mline2"], True)}')
+        R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpanel__zoom', '.mline2']), f'{t} toucher : bulle dans le dessin, ni sur les pastilles ni sur Agrandir {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpanel__zoom", ".mline2"], True)}')
         R.check(page.locator('.mpanel__map .body-map__hl[data-part="chest_clavicular"]').count() == 1, f'{t} toucher : sous-muscle mis en valeur')
         shot(page, LOT, f'fiche-nom-{t}')
         tap(page, part_point(page, '.mpanel__map', 'triceps_lateral', 'back'))
@@ -333,6 +333,26 @@ def t_fiche(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+ZOOM_CORNER_JS = """async sel => {
+    // Bouton Agrandir : dans un coin du dessin (à 12 points au plus d'un coin), et sur aucun muscle coloré (carte de toucher)
+    const m = document.querySelector(sel), z = m.parentElement.querySelector('.mpanel__zoom').getBoundingClientRect(), r = m.getBoundingClientRect();
+    const near = (a, b) => Math.abs(a - b) <= 12;
+    const corner = near(z.right, r.right) && (near(z.top, r.top) || near(z.bottom, r.bottom));
+    const lv = JSON.parse(m.dataset.atlas || '{}'), kind = bodySilhouette();
+    let on = '';
+    for (const fig of m.querySelectorAll('.body-map__fig')) {
+      const v = fig.classList.contains('body-map__back') ? 'back' : 'front', b = fig.querySelector('.body-map__body').getBoundingClientRect(), hit = await atlasHitMap(kind, v);
+      for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) {
+        const x = z.left + 6 + (z.width - 12) * i / 6, y = z.top + 6 + (z.height - 12) * j / 6;
+        const u = (x - b.left) / b.width, w = (y - b.top) / b.height;
+        if (u < 0 || u >= 1 || w < 0 || w >= 1 || y < r.top || y > r.bottom) continue;
+        const n = hit.map[Math.floor(w * hit.h) * hit.w + Math.floor(u * hit.w)], p = n && BODY_PARTS.parts[n - 1];
+        if (p && lv[p.id] > 0) on = p.id;
+      }
+    }
+    return { corner, on }; }"""
+
+
 PINCH_JS = """([sel, phase, d, cx, cy]) => {
     // Deux doigts simulés (événements touch, comme iOS) sur l'élément sel, écartés de d points autour de (cx, cy)
     // WebKit de Playwright n'a pas de constructeur Touch : un Event de même type, avec les listes que lit l'app
@@ -431,6 +451,12 @@ def t_autres_fiches(bench, eng, dev, theme):
             settle(page)
             slug = name.split()[0].lower()
             R.check(page.get_attribute('.mpanel__map', 'data-crop') == crop, f'{t} {name} : cadrage {page.get_attribute(".mpanel__map", "data-crop")}')
+            if slug == 'abducteurs':
+                # Aucun muscle de face : le dos seul, en grand (panel affichage-e t3)
+                one = page.evaluate("""() => { const m = document.querySelector('.mpanel__map'); return [m.querySelectorAll('.body-map__front').length, m.querySelectorAll('.body-map__back').length, Math.round(m.getBoundingClientRect().height)]; }""")
+                R.check(one[0] == 0 and one[1] == 1 and one[2] >= 180, f'{t} {name} : le dos seul, en grand (face, dos, hauteur ; avant : 124 points) {one}')
+            off = page.evaluate(ZOOM_CORNER_JS, '.mpanel__map')
+            R.check(off and off['corner'] and not off['on'], f'{t} {name} : Agrandir dans un coin libre du dessin {off}')
             lines = page.evaluate("""[...document.querySelectorAll('.group:has(.mpanel--atlas) .mline2')].map(b => [b.querySelector('.cell__sub').textContent, [...b.querySelectorAll('.mline2__names .mline2__name')].map(n => n.textContent), b.dataset.level | 0])""")
             flat = [[n, lv] for _, names, lv in lines for n in names]
             R.check(flat[:2] == first, f'{t} {name} : lignes {lines}')
@@ -443,7 +469,7 @@ def t_autres_fiches(bench, eng, dev, theme):
                 const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom);
                 return [!t.classList.contains('btip--free'), Math.round(Math.hypot(dx, dy)) <= 42]; }""", part_point(page, '.mpanel__map', part, view))
             R.check(all(side), f'{t} {name} : bulle avec pointe, contre le muscle touché {side}')
-            R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpanel__foot', '.mline2']), f'{t} {name} : place de la bulle {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpanel__foot", ".mline2"], True)}')
+            R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpanel__zoom', '.mline2']), f'{t} {name} : place de la bulle {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpanel__zoom", ".mline2"], True)}')
             lo = layout_ok(page)
             R.check(not lo, f'{t} {name} : mise en page {lo}')
             shot(page, LOT, f'fiche-{slug}-{t}')
@@ -505,6 +531,11 @@ def t_progres(bench, eng, dev, theme):
         page.wait_for_function("() => atlasViewerState()?.hi", timeout=10000)
         settle(page)
         R.check(page.evaluate("[...document.querySelectorAll('.azoom .body-map__p')].every(l => /--t\\d/.test(l.className))"), f'{t} vue agrandie : paliers gardés')
+        # Légende de la vue agrandie : les noms de la page (panel affichage-e t3 : 4 carrés sans nom)
+        leg = ' '.join(page.inner_text('.azoom__legend').split())
+        R.check(all(w in leg for w in ('Pas travaillé', 'Peu', 'Travaillé', 'Objectif atteint')), f'{t} vue agrandie : légende nommée « {leg} »')
+        R.check(page.locator('.azoom .body-map__low').count() == page.locator('.mcard__map .body-map__low').count() > 0 or not page.evaluate("muscleLoad(muscleSpan).low.length"),
+                f'{t} vue agrandie : muscles peu travaillés hachurés aussi')
         # Retour à ×1 (boutons −) : le muscle est à l'écran sur tous les téléphones, puis toucher
         for _ in range(3):
             if page.evaluate('atlasViewerState().scale') > 1:
@@ -524,6 +555,31 @@ def t_progres(bench, eng, dev, theme):
             settle(page)
             lv2 = page.evaluate("JSON.parse(document.querySelector('.mcard__map').dataset.atlas)")
             R.check(lv2 == page.evaluate("Object.fromEntries(Object.entries(partLoad(muscleSpan).levels).filter(([, l]) => l > 0))"), f'{t} période changée : paliers recalculés')
+        # Muscles « Peu travaillés » : hachurés sur le personnage (ceux de la ligne), et dans la légende
+        low = page.evaluate("muscleLoad(muscleSpan).sessions ? muscleLoad(muscleSpan).low.slice(0, 5) : []")
+        hatched = page.evaluate("[...new Set([...document.querySelectorAll('.mcard__map .body-map__low')].map(e => atlasPart(e.dataset.low).parent))]")
+        R.check(sorted(hatched) == sorted(m for m in low if page.evaluate(f"BODY_PARTS.parts.some(p => p.parent === {json.dumps(m)} && !p.deep)")),
+                f'{t} hachures = muscles de « Peu travaillés » {hatched} {low}')
+        R.check(not low or 'Peu travaillés' in page.inner_text('.mcard .mlegend'), f'{t} légende : hachures expliquées')
+        # Texte très grand (AX33) sur la vue agrandie : légende repliée, titre sur une ligne, personnage sur 60 % au moins
+        page.evaluate("""() => { const h = document.documentElement; h.style.fontSize = '33px'; h.classList.add('type-xl'); render(); }""")
+        settle(page)
+        page.locator('.mcard__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
+        page.click('.mcard .mpanel__zoom')
+        page.wait_for_selector('.azoom')
+        settle(page)
+        geo = page.evaluate("""() => { const s = document.querySelector('.sheet-root--atlas .sheet').getBoundingClientRect(), a = document.querySelector('.azoom').getBoundingClientRect(),
+            ti = document.querySelector('.sheet-root--atlas .sheet__title'), lh = parseFloat(getComputedStyle(ti).lineHeight) || 1.25 * parseFloat(getComputedStyle(ti).fontSize);
+            return { part: Math.round(a.height / s.height * 100), titleLines: Math.round(ti.getBoundingClientRect().height / lh), folded: !!document.querySelector('.azoom__key:not([open])') }; }""")
+        R.check(geo['part'] >= 60 and geo['titleLines'] <= 1 and geo['folded'], f'{t} vue agrandie AX33 : personnage sur 60 % au moins, titre sur une ligne, légende repliée {geo}')
+        page.click('.azoom__sum')
+        settle(page)
+        R.check('Objectif atteint' in page.inner_text('.azoom__key'), f'{t} vue agrandie AX33 : « Légende » déplie les paliers')
+        lo = layout_ok(page)
+        R.check(not lo, f'{t} vue agrandie AX33 : mise en page {lo}')
+        shot(page, LOT, f'progres-zoom-xl-{t}')
+        page.click('.sheet-root--atlas .sheet__btn--confirm')
+        page.wait_for_selector('.azoom', state='detached', timeout=3000)
         R.check(not page.errors, f'{t} Progrès : aucune erreur JS {page.errors}')
 
 

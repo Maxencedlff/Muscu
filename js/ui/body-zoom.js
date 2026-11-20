@@ -202,15 +202,15 @@ if (typeof document !== 'undefined' && document.addEventListener) {
 
 let atlasViewer = null;   // vue ouverte (une seule) : état du zoom, pour les tests (atlasViewerState)
 
-function atlasFigHtml(kind, view, levels, tiers = false) {
-  return `<span class="body-map__fig body-map__${view}" data-view="${view}"><img class="body-map__base" src="${body2Url(kind, view, 'base.webp')}" alt="" draggable="false" decoding="async"><span class="azoom__lay">${bodyAtlasLayersHtml(kind, view, levels, 1, tiers)}</span><img class="azoom__lines" alt="" draggable="false" decoding="async" hidden></span>`;
+function atlasFigHtml(kind, view, levels, tiers = false, low = []) {
+  return `<span class="body-map__fig body-map__${view}" data-view="${view}"><img class="body-map__base" src="${body2Url(kind, view, 'base.webp')}" alt="" draggable="false" decoding="async"><span class="azoom__lay">${bodyAtlasLayersHtml(kind, view, levels, 1, tiers, low)}</span><img class="azoom__lines" alt="" draggable="false" decoding="async" hidden></span>`;
 }
 
 // Description pour VoiceOver : les sous-muscles colorés, ciblés d'abord (fiche) ; Progrès (tiers) : du plus au moins travaillé
 function atlasA11yLabel(levels, tiers = false) {
   const names = test => [...new Set(BODY_PARTS.parts.filter(p => test(levels[p.id] || 0)).map(p => atlasPillLabel(p.id)))];
   if (tiers) {
-    const parts = [4, 3, 2, 1].map(l => [l, names(v => v === l)]).filter(([, n]) => n.length);
+    const parts = [3, 2, 1].map(l => [l, names(v => v === l)]).filter(([, n]) => n.length);
     return parts.length ? `Travail de la période : ${parts.map(([l, n]) => `${MUSCLE_LEVEL_WORDS[l]} : ${n.join(', ')}`).join(' ; ')}` : 'Personnage, aucun muscle travaillé sur la période';
   }
   const main = names(v => v >= 2), sec = names(v => v === 1);
@@ -222,22 +222,29 @@ function atlasA11yLabel(levels, tiers = false) {
 function openAtlasViewer(mapEl, from = null) {
   if (atlasViewer || !mapEl?.isConnected) return;
   const kind = bodyKind(mapEl.dataset.body), levels = atlasLevels(mapEl), tiers = mapEl.dataset.tiers === '1', tip = mapEl.dataset.tip || '';
+  const low = (mapEl.dataset.low || '').split(',').filter(Boolean);
   const row = mapEl.querySelector('.body-map__row')?.getBoundingClientRect();
-  // Point touché ramené au corps entier (la carte de la fiche peut être cadrée sur le haut ou le bas du corps)
+  // Point touché ramené au corps entier, face et dos (la carte de la fiche peut être cadrée sur le haut ou le bas du
+  // corps, ou ne montrer qu'une vue : data-view)
   const [c0, c1] = (mapEl.dataset.crop || `0,${BODY_PARTS.h}`).split(',').map(Number);
-  const at = from && row?.width ? { u: (from.x - row.left) / row.width,
+  const rowW = 2 + BODY_GAP, one = mapEl.dataset.view;
+  const u = r => (one ? (one === 'back' ? 1 + BODY_GAP : 0) + r : r * rowW) / rowW;
+  const at = from && row?.width ? { u: u((from.x - row.left) / row.width),
     v: (c0 + (from.y - row.top) / row.height * (c1 - c0)) / BODY_PARTS.h, scale: from.scale } : null;
-  const rowW = 2 + BODY_GAP;
+  // Légende : les noms de la page (Progrès : paliers et hachures), repliée en texte très grand (AX33 : le personnage
+  // n'avait plus que 350 points de haut sur iPhone SE) derrière « Légende », sur la ligne des boutons
+  const legend = tiers ? `<span class="azoom__legend">${muscleLegendItemsHtml(low.length > 0)}</span>`
+    : `<span class="azoom__legend"><span class="mline2__dot mline2__dot--main" aria-hidden="true"></span>Ciblé <span class="mline2__dot mline2__dot--help" aria-hidden="true"></span>Qui aide</span>`;
+  const xl = document.documentElement.classList.contains('type-xl');
   const body = `
     <div class="azoom" data-scale="1" data-hi="" data-lines="">
-      <div class="azoom__stage body-map body-map--atlas" data-body="${kind}" role="img" aria-label="${esc(atlasA11yLabel(levels, tiers))}">
-        <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels, tiers)).join('')}</span>
+      <div class="azoom__stage body-map body-map--atlas" data-body="${kind}"${tiers ? ' data-tiers="1"' : ''} role="img" aria-label="${esc(atlasA11yLabel(levels, tiers))}">
+        <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels, tiers, low)).join('')}</span>
       </div>
     </div>
     <div class="azoom__band">
       <div class="azoom__text">
-        ${tiers ? `<p class="azoom__legend">${muscleLegendDotsHtml()}</p>`
-          : `<p class="azoom__legend"><span class="mline2__dot mline2__dot--main" aria-hidden="true"></span>Ciblé <span class="mline2__dot mline2__dot--help" aria-hidden="true"></span>Qui aide</p>`}
+        ${xl ? `<details class="azoom__key"><summary class="azoom__sum">Légende</summary>${legend}</details>` : legend}
         <p class="azoom__hint">Pince pour zoomer. Touche un muscle pour son nom.</p>
       </div>
       <div class="azoom__ctl">
@@ -252,7 +259,7 @@ function openAtlasViewer(mapEl, from = null) {
   if (!view) return;
   root.classList.add('sheet-root--atlas');
   if (from?.now) root.classList.add('sheet-root--now');   // pincement en cours : la feuille est là tout de suite, sous les doigts
-  atlasViewer = atlasZoom(view, kind, levels, at, root, { tiers, tip });
+  atlasViewer = atlasZoom(view, kind, levels, at, root, { tiers, tip, low });
   done.then(() => { atlasViewer?.destroy(); atlasViewer = null; closeBodyTip(); });
 }
 
@@ -262,7 +269,7 @@ function atlasViewerState() {
 }
 
 // Zoom, déplacement et noms dans la vue agrandie
-function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {}) {
+function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', low = [] } = {}) {
   const stage = view.querySelector('.azoom__stage');
   const figs = { front: stage.querySelector('.body-map__front'), back: stage.querySelector('.body-map__back') };
   const ratio = (2 + BODY_GAP) * BODY_PARTS.w / BODY_PARTS.h;
@@ -309,7 +316,7 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {
   // Muscle touché mis en valeur : gardé à travers l'échange 1× ↔ 3×, refait à la résolution affichée
   function swapLayers(v, res) {
     const f = figs[v], hl = f.querySelector('.body-map__hl'), part = hl?.dataset.part, tint = hl?.firstElementChild?.style.backgroundColor;
-    f.querySelector('.azoom__lay').innerHTML = bodyAtlasLayersHtml(kind, v, levels, res, tiers);
+    f.querySelector('.azoom__lay').innerHTML = bodyAtlasLayersHtml(kind, v, levels, res, tiers, low);
     if (!hl) return;
     hl.remove();
     f.insertAdjacentHTML('beforeend', atlasMarkHtml(kind, v, part, res, tint || '#FFFFFF'));
@@ -325,7 +332,7 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {
   function toHi(v) {
     hiWant = v;
     const urls = [body2Url(kind, v, 'base@3x.webp'),
-      ...BODY_PARTS.parts.filter(p => levels[p.id] > 0 && BODY_PARTS.boxes[kind]?.[v]?.[p.id]).map(p => body2Url(kind, v, `p3/${p.id}.webp`))];
+      ...BODY_PARTS.parts.filter(p => (levels[p.id] > 0 || low.includes(p.id)) && BODY_PARTS.boxes[kind]?.[v]?.[p.id]).map(p => body2Url(kind, v, `p3/${p.id}.webp`))];
     // Affiché seulement une fois tout décodé : sinon un muscle clignoterait sans couleur. Une image en échec (hors
     // ligne, jamais zoomée) : rien n'est échangé, le 1× reste à l'écran
     Promise.all(urls.map(u => { const im = new Image(); im.src = u; return im.decode().then(() => true, () => false); })).then(ok => {
@@ -470,8 +477,10 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {
   view.addEventListener('pointermove', move);
   view.addEventListener('pointerup', up);
   view.addEventListener('pointercancel', up);
-  const onResize = () => { layout(); clamp(); frame(); };
-  window.addEventListener('resize', onResize);
+  // Taille de la vue : rotation, et légende dépliée ou repliée (texte très grand)
+  const onResize = () => { if (!alive) return; layout(); clamp(); frame(); };
+  const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
+  if (ro) ro.observe(view); else window.addEventListener('resize', onResize);
 
   layout();
   clamp();
@@ -487,6 +496,6 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {
     scale: () => s, hi: () => hiView, lines: () => (linesOn ? hiView : ''),
     // Toucher venu d'ailleurs (pincement commencé sur la carte) : type 'down' | 'move' | 'cancel'
     feed(type, e) { const ev = { ...e, target: view, type: type === 'cancel' ? 'pointercancel' : `pointer${type}` }; (type === 'down' ? down : type === 'move' ? move : up)(ev); },
-    destroy() { alive = false; stopGlide(); window.removeEventListener('resize', onResize); if (raf) cancelAnimationFrame(raf); },
+    destroy() { alive = false; stopGlide(); ro?.disconnect(); window.removeEventListener('resize', onResize); if (raf) cancelAnimationFrame(raf); },
   };
 }

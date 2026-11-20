@@ -481,11 +481,11 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     sameJSON(Object.keys(counts), ids(), 'tous les muscles, dans l\'ordre');
   });
 
-  test('séries par muscle : paliers 0 / 1–4 / 5–9 / 10–19 / 20+ par semaine, nommés', () => {
-    sameJSON([0, -1, NaN, 0.5, 4.9, 5, 9.9, 10, 19.9, 20, 35].map(v => app.muscleLevel(v)), [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
-    assert.equal(run('MUSCLE_LEVEL_MAX'), 4);
-    sameJSON([0, 1, 2, 3, 4].map(l => app.muscleLevelRange(l)), ['0', '1–4', '5–9', '10–19', '20+']);
-    sameJSON(run('MUSCLE_LEVEL_WORDS'), ['Pas travaillé', 'Entretien', 'Travaillé', 'Objectif atteint', 'Gros volume']);
+  test('séries par muscle : paliers 0 / 1–4 / 5–9 / 10+ par semaine, nommés (panel affichage-e t3 : 3 paliers + le gris)', () => {
+    sameJSON([0, -1, NaN, 0.5, 4.9, 5, 9.9, 10, 19.9, 20, 35].map(v => app.muscleLevel(v)), [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3]);
+    assert.equal(run('MUSCLE_LEVEL_MAX'), 3);
+    sameJSON([0, 1, 2, 3].map(l => app.muscleLevelRange(l)), ['0', '1–4', '5–9', '10+']);
+    sameJSON(run('MUSCLE_LEVEL_WORDS'), ['Pas travaillé', 'Peu', 'Travaillé', 'Objectif atteint']);
   });
 
   test('repère de la bulle : 10 par semaine pour qui débute, sinon 10 à 20 ; niveau vérifié au chargement', () => {
@@ -510,7 +510,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     const w = app.muscleLoad('week', NOW, h);
     assert.equal(w.sessions, 1);
     assert.equal(w.levels.chest, 3, '12 séries : objectif atteint');
-    assert.equal(w.intensity.chest, 0.75);
+    assert.equal(w.intensity.chest, 1, 'objectif atteint : palier du haut');
     assert.equal(w.levels.quads, 2);
     assert.equal(w.levels.calves, 0);
     assert.equal(w.intensity.calves, 0);

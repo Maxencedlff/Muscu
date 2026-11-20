@@ -72,14 +72,17 @@ function bodyHeatOpacity(i) {
 // Panel affichage-e t1 (38 juges sur 40) : l'échelle s'inversait entre les thèmes. Désormais UNE échelle : le rouge des
 // muscles (--body-heat) de plus en plus opaque, donc de plus en plus intense, du palier 1 au palier 4, dans les deux thèmes ;
 // « pas travaillé » reste le gris du corps. Même code que la fiche : rouge = travaillé, plus intense = plus travaillé.
-// Opacités par thème (jetons --body-tier-o1 à 4, theme-sobre-progres.css) : en clair 28, 52, 76, 100 % ; en sombre
-// 22, 48, 74, 100 % du rouge vif, écart de couleur d'au moins 20 entre paliers voisins (test_panel_apple)
-const BODY_TIER_OPACITY = [1, 2, 3, 4].map(n => `var(--body-tier-o${n})`);
+// Panel affichage-e t3 (33 juges sur 40) : 4 paliers de rouge se ressemblaient encore, « Entretien » se confondait avec
+// le gris. Désormais 3 paliers + le gris, chacun une COULEUR pleine (jetons --body-tier-1 à 3, theme-sobre-progres.css) :
+// Peu = rouge clair et lumineux, Travaillé = rouge moyen, Objectif atteint = rouge profond et saturé ; même sens dans les
+// deux thèmes (de plus en plus rouge), écart de couleur d'au moins 25 entre voisins, mesuré sur le personnage
+// (test_panel_apple). op : opacité du calque (pleine).
+const BODY_TIERS = 3;
 function bodyTier(i) {
   const v = Math.max(0, Math.min(1, Number(i) || 0));
   if (!v) return null;
-  const n = Math.min(4, Math.max(1, Math.round(v * 4)));
-  return { tone: `t${n}`, op: BODY_TIER_OPACITY[n - 1] };
+  const n = Math.min(BODY_TIERS, Math.max(1, Math.round(v * BODY_TIERS)));
+  return { tone: `t${n}`, op: 1 };
 }
 
 const BODY_COLORS = { heat: 'var(--body-heat)', text: 'var(--label2)' };
@@ -152,16 +155,20 @@ function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), labe
 // sa boîte (en % de la vue). Rendu propre de l'atlas : ses images ne se mêlent jamais à celles de img/body (autre
 // rendu du personnage, autre cadrage). Le 1× s'affiche ici ; le 3× ne se charge qu'au zoom (js/ui/body-zoom.js).
 const BODY2_DIR = 'img/body2';
-const BODY_PART_SEC_OPACITY = 0.35;   // muscles qui aident : le même rouge à 35 % sur le gris (panel affichage-e t1 : le rose
-                                      // clair éclipsait le muscle ciblé) ; le ciblé, rouge plein, se voit en premier
+// Muscles qui aident : le même rouge, moins opaque (jeton --body-sec-o : 35 % en clair, 48 % en sombre, où 35 % donnait
+// un brun terne, panel affichage-e t3) ; le ciblé, rouge plein, se voit en premier (t1 : le rose clair l'éclipsait)
+const BODY_PART_SEC_OPACITY = 'var(--body-sec-o)';
 const BODY_PART_DEEP_OPACITY = 0.6;   // profond, vu « à travers » le muscle qui le couvre (convention des planches)
 
 function body2Url(kind, view, file) { return `${BODY2_DIR}/${kind}/${view}/${file}`; }
 
 // Calques d'une vue de l'atlas. levels : { id de sous-muscle: 2|1 } ; res : 1 ou 3 (p/ ou p3/).
 // Ordre : superficiels dans l'ordre de BODY_PARTS, puis les profonds par-dessus, en transparence.
-// tiers : levels = paliers de Progrès (1..4, bodyTier) au lieu de plein / qui aide
-function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false) {
+// tiers : levels = paliers de Progrès (1..3, bodyTier) au lieu de plein / qui aide
+// low : sous-muscles hachurés par-dessus (Progrès : les muscles « Peu travaillés », gris ou rouge clair, se repèrent sur le
+// personnage, panel affichage-e t3). Hachures fines plutôt qu'un contour : elles se voient même sur un petit muscle, sans
+// lueur ni filtre ; blanches en sombre, noires en clair (--body-low-line)
+function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, low = []) {
   const boxes = BODY_PARTS.boxes[kind]?.[view] || {};
   const W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h;
   const pct = v => `${Math.round(v * 1e5) / 1e3}%`;
@@ -170,11 +177,21 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false) {
   return on.map(p => {
     const b = boxes[p.id][res === 3 ? 1 : 0], lv = levels[p.id];
     const url = `url(${body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${p.id}.webp`)})`;
-    const op = p.deep ? BODY_PART_DEEP_OPACITY : tiers ? BODY_TIER_OPACITY[Math.min(4, Math.max(1, lv)) - 1] : lv >= 2 ? 1 : BODY_PART_SEC_OPACITY;
-    const tone = tiers ? ` body-map__m--t${Math.min(4, Math.max(1, lv))}` : lv >= 2 ? '' : ' body-map__m--sec';
+    const op = p.deep ? BODY_PART_DEEP_OPACITY : tiers ? 1 : lv >= 2 ? 1 : BODY_PART_SEC_OPACITY;
+    const tone = tiers ? ` body-map__m--t${Math.min(BODY_TIERS, Math.max(1, lv))}` : lv >= 2 ? '' : ' body-map__m--sec';
     const cls = `body-map__m body-map__p${tone}${p.deep ? ' body-map__p--deep' : ''}`;
     return `<i class="${cls}" data-part="${p.id}" data-muscle="${p.parent || ''}" data-level="${lv}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)};background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
+  }).join('') + BODY_PARTS.parts.filter(p => boxes[p.id] && !p.deep && low.includes(p.id)).map(p => {
+    const b = boxes[p.id][res === 3 ? 1 : 0], url = `url(${body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${p.id}.webp`)})`;
+    return `<i class="body-map__low" data-low="${p.id}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)};-webkit-mask-image:${url};mask-image:${url}"></i>`;
   }).join('');
+}
+
+// Vues de la carte de la fiche : celles où un sous-muscle est coloré (abducteurs : le dos seul, en grand ; panel
+// affichage-e t3), les deux sinon
+function bodyAtlasViews(kind, levels) {
+  const used = ['front', 'back'].filter(v => BODY_PARTS.parts.some(p => levels[p.id] > 0 && BODY_PARTS.boxes[kind]?.[v]?.[p.id]));
+  return used.length === 1 ? used : ['front', 'back'];
 }
 
 // Carte de l'atlas, face et dos côte à côte, en texte HTML (même gabarit que bodyMapHtml : .body-map__row,
@@ -182,18 +199,20 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false) {
 // Options : body (personnage), className, title (nom de l'exercice, titre de la vue agrandie), tap (bulle
 // du sous-muscle touché, zoom au double toucher ou au pincement : js/ui/body-zoom.js)
 // Progrès (js/features/progress-atlas.js) : tiers (paliers au lieu de plein / qui aide), tip 'load' (bulle : volume de
-// la période et exercices), crop false (corps entier), captions (« Face », « Dos » sous les vues)
-function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false, tiers = false, tip = '', crop: cropOn = true, captions = false } = {}) {
+// la période et exercices), crop false (corps entier, les deux vues), captions (« Face », « Dos » sous les vues),
+// low (sous-muscles hachurés : bodyAtlasLayersHtml)
+function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false, tiers = false, tip = '', crop: cropOn = true, captions = false, low = [] } = {}) {
   const kind = bodyKind(body), safe = levels && typeof levels === 'object' ? levels : {};
-  const rowW = 2 + BODY_GAP, fig = `${Math.round(10000 / rowW) / 100}%`;
+  const views = cropOn ? bodyAtlasViews(kind, safe) : ['front', 'back'];
+  const rowW = views.length + (views.length - 1) * BODY_GAP, fig = `${Math.round(10000 / rowW) / 100}%`;
   const [y0, y1] = cropOn ? bodyAtlasCrop(kind, safe) : [0, BODY_PARTS.h], ch = y1 - y0;
   const inner = `top:${Math.round(-y0 / ch * 1e5) / 1e3}%;height:${Math.round(BODY_PARTS.h / ch * 1e5) / 1e3}%`;
-  const figs = ['front', 'back'].map(v => `<span class="body-map__fig body-map__${v}"><span class="body-map__body" style="${inner}"><img class="body-map__base" src="${body2Url(kind, v, 'base.webp')}" alt="" draggable="false" decoding="async">${bodyAtlasLayersHtml(kind, v, safe, 1, tiers)}</span></span>`).join('');
+  const figs = views.map(v => `<span class="body-map__fig body-map__${v}"><span class="body-map__body" style="${inner}"><img class="body-map__base" src="${body2Url(kind, v, 'base.webp')}" alt="" draggable="false" decoding="async">${bodyAtlasLayersHtml(kind, v, safe, 1, tiers, low)}</span></span>`).join('');
   const act = tap ? ' data-action="body-tap"' : '';
   const crop = ch < BODY_PARTS.h ? ' body-map--crop' : '';
-  const extra = `${tiers ? ' data-tiers="1"' : ''}${tip ? ` data-tip="${esc(tip)}"` : ''}`;
-  const caps = captions ? `<span class="body-map__caps" aria-hidden="true" style="--fig:${fig}"><span>Face</span><span>Dos</span></span>` : '';
-  return `<div class="body-map body-map--atlas${crop} ${esc(className)}" data-body="${kind}" data-atlas="${esc(JSON.stringify(safe))}" data-crop="${y0},${y1}" data-title="${esc(title)}"${extra}${act} aria-hidden="true"><span class="body-map__row" style="aspect-ratio:${Math.round(rowW * BODY_PARTS.w)} / ${ch};--body-ar:${(rowW * BODY_PARTS.w / ch).toFixed(4)};--fig:${fig}">${figs}</span>${caps}</div>`;
+  const extra = `${tiers ? ' data-tiers="1"' : ''}${tip ? ` data-tip="${esc(tip)}"` : ''}${low.length ? ` data-low="${esc(low.join(','))}"` : ''}${views.length === 1 ? ` data-view="${views[0]}"` : ''}`;
+  const caps = captions ? `<span class="body-map__caps" aria-hidden="true" style="--fig:${fig}">${views.map(v => `<span>${v === 'front' ? 'Face' : 'Dos'}</span>`).join('')}</span>` : '';
+  return `<div class="body-map body-map--atlas${crop}${views.length === 1 ? ' body-map--one' : ''} ${esc(className)}" data-body="${kind}" data-atlas="${esc(JSON.stringify(safe))}" data-crop="${y0},${y1}" data-title="${esc(title)}"${extra}${act} aria-hidden="true"><span class="body-map__row" style="aspect-ratio:${Math.round(rowW * BODY_PARTS.w)} / ${ch};--body-ar:${(rowW * BODY_PARTS.w / ch).toFixed(4)};--fig:${fig}">${figs}</span>${caps}</div>`;
 }
 
 // Cadrage de la carte de la fiche, en points 1× de la vue : [haut, bas]. Muscles travaillés tous dans le haut du

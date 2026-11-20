@@ -220,30 +220,30 @@ function spanSegmentedHtml() {
   </div>`;
 }
 
-// Pastille de couleur d'un palier (légende, bulle) : la teinte et l'opacité de la carte (bodyTier, js/ui/body-map.js)
+// Pastille de couleur d'un palier (légende, bulle) : la couleur du palier sur la carte (bodyTier, js/ui/body-map.js)
 function muscleLevelDot(lvl) {
   const tier = bodyTier(lvl / MUSCLE_LEVEL_MAX);
-  return `<i class="mlegend__dot${tier ? ` mlegend__dot--${tier.tone}` : ''}" style="--o:${tier ? tier.op : 0}"></i>`;
+  return `<i class="mlegend__dot${tier ? ` mlegend__dot--${tier.tone}` : ''}"></i>`;
 }
 function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
 
 // Légende : l'unité en tête (panel t5), chaque palier en mots avec ses bornes ; en « 4 semaines », la moyenne par semaine.
 // load : avec la charge de la période, une ligne dit où en sont TES muscles (muscleLegendYou)
-function muscleLegendHtml(span = muscleSpan, load = null, { unit = true } = {}) {
+function muscleLegendHtml(span = muscleSpan, load = null, { unit = true, hatch = false } = {}) {
   const you = load ? muscleLegendYou(load) : '';
   return `<div class="mlegend" aria-hidden="true">
     ${unit ? `<span class="mlegend__unit">${span === 'month' ? 'Séries en moyenne par semaine' : 'Séries par semaine'}</span>` : ''}
-    ${MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('')}
+    ${muscleLegendItemsHtml(hatch)}
     ${you ? `<span class="mlegend__you num">${esc(you)}</span>` : ''}
   </div>`;
 }
 
-// Tes muscles dans les deux paliers du haut (« Toi : 4 muscles à l'objectif · 2 en gros volume ») ; sans
+// Tes muscles au palier du haut (« Toi : 4 muscles à l'objectif ») ; sans
 // aucun, le nombre au palier du dessous (« Toi : 3 muscles travaillés ») ; '' sans séance
 function muscleLegendYou(load) {
   if (!load.sessions) return '';
   const n = lvl => MUSCLES.filter(m => load.levels[m.id] === lvl).length;
-  const parts = [[3, 'à l\'objectif'], [4, 'en gros volume']].filter(([l]) => n(l)).map(([l, w]) => `${plural(n(l), 'muscle', 'muscles')} ${w}`);
+  const parts = n(3) ? [`${plural(n(3), 'muscle', 'muscles')} à l'objectif`] : [];
   if (!parts.length && n(2)) parts.push(`${plural(n(2), 'muscle travaillé', 'muscles travaillés')}`);
   return parts.length ? `Toi : ${parts.join(' · ')}` : '';
 }
@@ -265,7 +265,7 @@ function periodTxt(span = muscleSpan) { return span === 'month' ? 'ces 4 derniè
 
 function renderMuscleCard() {
   const load = muscleLoad(muscleSpan);
-  const low = load.low.slice(0, 5).map(muscleLabel);
+  const lowIds = load.sessions ? load.low.slice(0, 5) : [], low = lowIds.map(muscleLabel);   // hachurés sur le personnage
   const lowCell = !load.sessions
     ? `<div class="cell"><span class="cell__body"><span class="cell__sub">Aucune séance ${periodTxt()}.</span></span></div>`
     : `<div class="cell"><span class="cell__body">
@@ -277,8 +277,8 @@ function renderMuscleCard() {
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
-        ${progressAtlasHtml(muscleSpan)}
-        ${muscleLegendHtml(muscleSpan, load)}
+        ${progressAtlasHtml(muscleSpan, lowIds)}
+        ${muscleLegendHtml(muscleSpan, load, { hatch: lowIds.length > 0 })}
         ${muscleSrListHtml(load)}
       </div>
       ${lowCell}

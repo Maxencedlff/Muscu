@@ -623,7 +623,7 @@ def t_tip(bench, eng, dev, theme):
         R.check(page.evaluate("MUSCLE_LEVEL_WORDS")[lvl] in txt, f'{t} bulle : palier en mots (légende) {lvl}')
         R.check(not tip_covers_selector(page), f'{t} bulle : sélecteur de période jamais couvert')
         leg = ' '.join(page.locator('.mcard .mlegend').inner_text().split())
-        R.check(all(w in leg for w in ('Pas travaillé', 'Entretien 1–4', 'Travaillé 5–9', 'Objectif atteint 10–19', 'Gros volume 20+'))
+        R.check(all(w in leg for w in ('Pas travaillé', 'Peu 1–4', 'Travaillé 5–9', 'Objectif atteint 10+')) and 'Gros volume' not in leg and 'Entretien' not in leg
                 and leg.startswith('Séries en moyenne par semaine'), f'{t} légende 4 semaines : « {leg} »')
         you = page.locator('.mcard .mlegend__you')
         R.check(you.count() == 1 and you.inner_text().startswith('Toi : ') and 'muscle' in you.inner_text(), f'{t} légende : tes muscles par palier ({you.all_inner_texts()})')
@@ -1007,12 +1007,13 @@ def t_fiche(bench, eng, dev, theme):
 
 
 def once_static(bench):
-    files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/ui/body-tip.js', 'js/features/muscles.js', 'js/features/muscle-tip.js', 'css/muscles.css']
+    files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/ui/body-tip.js', 'js/features/muscles.js', 'js/features/muscle-tip.js', 'css/muscles.css', 'css/atlas-zoom.css']
     for f in files:
         n = sum(1 for _ in open(os.path.join(APP_DIR, f), encoding='utf-8'))
         R.check(n <= 400, f'{f} : {n} lignes (400 au plus)')
-    css = open(os.path.join(APP_DIR, 'css/muscles.css'), encoding='utf-8').read()
-    R.check(not re.findall(r'#[0-9a-fA-F]{3,8}\b|rgba?\(', css), 'muscles.css : couleurs en tokens seulement')
+    for f in ('css/muscles.css', 'css/atlas-zoom.css'):
+        css = open(os.path.join(APP_DIR, f), encoding='utf-8').read()
+        R.check(not re.findall(r'#[0-9a-fA-F]{3,8}\b|rgba?\(', css), f'{f} : couleurs en tokens seulement')
     # Carte dessinée dans un canvas (story de partage) : images chargées, muscle teinté de la couleur voulue
     with bench.page('chromium', 'Pixel 7', 'dark') as page:
         seed(page, 'dark', ppl_v2_today_json())

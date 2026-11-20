@@ -21,20 +21,28 @@
    js/ui/body-map.js lit ces jetons pour teinter le canvas. */
 :root {
   --body-heat: #FF453A; --body-heat-max: #FF453A; --body-heat-sec: #EFA195;   /* sombre : rouge vif (systemRed sombre), le muscle ciblé se repère d'un coup d'œil */
-  --body-tier-o1: .22; --body-tier-o2: .48; --body-tier-o3: .74; --body-tier-o4: 1;
+  --body-sec-o: .48;   /* muscles qui aident : le rouge vif à 48 % (35 % donnait un brun terne, panel affichage-e t3) */
   --body-atlas-bright: .46;   /* corps de l'atlas plus sombre en sombre : rouge vif / gris 2,7:1 (mesuré le 20/11) */
-  --body-heat-help: color-mix(in srgb, var(--body-heat) 35%, var(--body-zone));   /* qui aident (pastille) : le rouge à 35 % sur le gris du corps */
-  --body-tier-1: #9A1D17; --body-tier-2: #E2493A; --body-tier-3: #FE9584; --body-tier-4: #FFE0DA;
+  --body-heat-help: #A75C58;   /* qui aident (pastille) : la teinte vue sur le personnage (mesurée le 20/11) */
+  /* Paliers de Progrès (bodyTier) : Peu, Travaillé, Objectif atteint, du rouge clair et lumineux au rouge vif. Sur le
+     personnage, écarts de couleur 52, 32, 29 au moins entre voisins (gris compris, mesurés le 20/11) ; pastilles et
+     barres : la couleur vue sur le personnage */
+  --body-tier-1: #FFB3A8; --body-tier-2: #FF6B5E; --body-tier-3: #FF2D1F;
+  --body-tier-dot-1: #F9B4AA; --body-tier-dot-2: #F97165; --body-tier-dot-3: #F9382A;
+  --body-low-line: #FFFFFF;   /* hachures des muscles « Peu travaillés » */
   --sp-chart-line: #FF7A1A;
 }
 body.light {
   /* Muscle principal d'un exercice : le rouge des images 3D (7,7:1 sur blanc) ; secondaires plus clairs (3,5:1) */
   --body-heat: #A31B19; --body-heat-max: #A31B19; --body-heat-sec: #C37367;
-  --body-tier-o1: .28; --body-tier-o2: .52; --body-tier-o3: .76; --body-tier-o4: 1;
+  --body-sec-o: .35;
   --body-atlas-bright: 1;
   --body-heat-help: color-mix(in srgb, var(--body-heat) 35%, var(--body-zone));   /* recalculé avec le rouge du thème clair */
-  
-  --body-tier-1: #FFA090; --body-tier-2: #EB5A49; --body-tier-3: #B32319; --body-tier-4: #5A0E0B;
+  /* Paliers : du rouge clair au rouge profond, éclairés par l'ombrage (soft-light, css/muscles.css) ; écarts 31, 45, 29
+     au moins sur le personnage */
+  --body-tier-1: #FFA898; --body-tier-2: #FF4A36; --body-tier-3: #8A0A06;
+  --body-tier-dot-1: #FAAB9C; --body-tier-dot-2: #FA5644; --body-tier-dot-3: #8F130E;
+  --body-low-line: #000000;
   /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #E57000 × 0,7 = #A04E00,
      l'orange d'action de l'app (5,9:1 sur la carte blanche) */
   --sp-chart-line: #E57000;

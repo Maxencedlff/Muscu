@@ -257,7 +257,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     reset();
     const sq = (d, mo, n) => ({ id: 'q' + mo + d, programme: 'ppl', category: 'legs', date: at(2026, mo, d, 19), duration: 3600_000,
       exercises: [{ exId: 'sq', name: 'Squat barre', sets: Array.from({ length: n }, () => s('80', '5')) }] });
-    const lvl = perWeek => app.muscleLevel(perWeek) / 4;   // MUSCLE_LEVEL_MAX (const, hors de app)
+    const lvl = perWeek => app.muscleLevel(perWeek) / 3;   // MUSCLE_LEVEL_MAX (const, hors de app)
     // Semaine du 19 au 26 octobre (169 h, passage à l'heure d'hiver) : 10 séries restent « Objectif atteint »
     const dst = app.recapPeriod('week', at(2026, 9, 21, 12), at(2026, 9, 27, 12));
     const wk = [sq(20, 9, 5), sq(22, 9, 5)];

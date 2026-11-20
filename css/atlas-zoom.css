@@ -1,0 +1,45 @@
+/* Vue agrandie du personnage détaillé (js/ui/body-zoom.js) : feuille, zoom, légende et boutons − + ; le dessin lui-même :
+   css/muscles.css */
+/* Vue agrandie : feuille à sa hauteur maximale, le personnage prend la place que laissent le titre et la consigne
+   (en AX33, titre sur deux lignes et consigne entière, sans rien couper) */
+.sheet-root--atlas .sheet { height: 92vh; height: 92dvh; }
+.sheet-root--atlas .sheet__title { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; }   /* titre à la ligne, jamais « … » */
+.sheet-root--now .sheet, .sheet-root--now .sheet__backdrop { animation: none; }   /* ouverte par un pincement : sans glissement */
+.sheet-root--atlas .sheet__body { display: flex; flex-direction: column; padding: 0 0 12px; overflow: hidden; }
+.azoom {
+  position: relative; flex: 1 1 auto; min-height: 160px; overflow: hidden; touch-action: none;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.azoom__stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.azoom__stage .body-map__row { height: 100%; }
+.azoom__stage--anim { transition: transform .32s cubic-bezier(.2, .8, .2, 1); }
+.azoom__lay { position: absolute; inset: 0; }
+.azoom .body-map__m { animation: none; }   /* pas de fondu d'apparition (theme-sobre-progres) : l'échange 1× ↔ 3× ne doit rien faire clignoter */
+.azoom__lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Bande du bas de la vue agrandie (panel affichage-e t1 : les boutons cachaient le corps) : légende et aide à gauche,
+   boutons − et + (VoiceOver, accès par contacteur) à droite, hors du dessin */
+.azoom__band { display: flex; align-items: center; gap: 12px; padding: 8px 16px 0; }
+.azoom__text { flex: 1; min-width: 0; }
+.azoom__legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label); }
+.azoom__legend .mline2__dot { margin-right: -2px; }
+.azoom__legend .mlegend__item { white-space: normal; }   /* la légende de Progrès passe à la ligne, jamais sous les boutons */
+.type-xl .azoom__hint { display: none; }
+/* Texte très grand (panel affichage-e t3 : sur iPhone SE en AX33, le personnage n'avait que 350 points) : la légende
+   repliée derrière « Légende », sur la ligne des boutons, et le titre sur la ligne de OK, plafonné comme la barre de
+   navigation : le personnage garde au moins 60 % de la feuille (test_atlas) */
+.azoom__key { flex: 1; min-width: 0; }
+.azoom__sum { display: flex; align-items: center; min-height: 44px; color: var(--tint); font-size: min(var(--fs-body), 22px); cursor: pointer; }
+.azoom__key[open] .azoom__sum { min-height: 32px; }
+.type-xl .azoom__band { gap: 8px; }
+html.type-xl .sheet-root--atlas .sheet__bar .sheet__title { order: 0; flex: 1 1 0; flex-basis: 0; padding: 0 4px; text-align: center; font-size: min(1rem, 22px); }
+.azoom__legend .mlegend__item { min-width: 0; flex-wrap: wrap; }   /* texte agrandi : la légende reste, l'aide (déjà sous la carte) laisse la place au personnage */
+.azoom__ctl { display: flex; gap: 8px; flex: none; }
+.azoom__btn {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
+  background: var(--fill2); color: var(--tint);
+}
+.azoom__btn:disabled { opacity: .35; }   /* même forme que l'autre bouton, seulement estompé */
+.type-xl .azoom__btn { width: 56px; height: 56px; }
+.type-xl .azoom__btn svg { width: 30px; height: 30px; }
+.azoom__hint { margin-top: 2px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
+@media (prefers-reduced-motion: reduce) { .azoom__stage--anim { transition: none; } }

@@ -168,9 +168,10 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
   });
 
   test('atlas : carte de la fiche en 1× seulement, rouge plein / atténué, profonds par-dessus', () => {
-    assert.equal(run('BODY_PART_SEC_OPACITY'), 0.35, 'muscles qui aident : le même rouge à 35 % (panel affichage-e t1 : le ciblé se voit en premier)');
-    // Progrès : une seule échelle, le rouge de plus en plus opaque du palier 1 au palier 4 (clair et sombre)
-    sameJSON(run('[1, 2, 3, 4].map(n => bodyTier(n / 4))'), [1, 2, 3, 4].map(n => ({ tone: `t${n}`, op: `var(--body-tier-o${n})` })));
+    assert.equal(run('BODY_PART_SEC_OPACITY'), 'var(--body-sec-o)', 'muscles qui aident : le même rouge, moins opaque (jeton du thème : 35 % en clair, 48 % en sombre)');
+    // Progrès : 3 paliers, chacun sa couleur pleine (panel affichage-e t3 : 4 rouges ne se distinguaient pas)
+    sameJSON(run('[1, 2, 3].map(n => bodyTier(n / 3))'), [1, 2, 3].map(n => ({ tone: `t${n}`, op: 1 })));
+    assert.equal(run('bodyTier(0)'), null, 'pas travaillé : gris du corps, aucun calque');
     const html = run(`bodyAtlasHtml(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels, { body: 'male', tap: true, title: 'Développé incliné barre' })`);
     assert.ok(!/@3x|\/p3\/|lines|hit\.png/.test(html), 'aucune image 3× au premier affichage');
     assert.ok(/class="body-map__m body-map__p" data-part="chest_clavicular"/.test(html), 'claviculaire en rouge plein');
@@ -216,7 +217,13 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     sameJSON(crop('Squat barre'), [0, 840], 'squat : érecteurs et jambes, corps entier');
     sameJSON(run("bodyAtlasCrop('male', {})"), [0, 840]);
     const html = run(`bodyAtlasHtml(exercisePartLevels('Abducteurs machine', musclesOf('Abducteurs machine')).levels, { body: 'female' })`);
-    assert.ok(html.includes('body-map--crop') && html.includes('data-crop="318,618"') && html.includes('aspect-ratio:799 / 300'), html.slice(0, 300));
+    // Une seule face utile (panel affichage-e t3) : abducteurs, le dos seul, en grand
+    assert.ok(html.includes('body-map--crop') && html.includes('data-crop="318,618"') && html.includes('aspect-ratio:384 / 300') && html.includes('body-map--one')
+      && html.includes('data-view="back"') && !html.includes('body-map__front'), html.slice(0, 300));
+    const both = run(`bodyAtlasHtml(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels, { body: 'male' })`);
+    assert.ok(both.includes('body-map__front') && both.includes('body-map__back') && !both.includes('body-map--one'), 'développé incliné : face (pectoraux) et dos (triceps)');
+    const prog = run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male', crop: false, tiers: true, low: ['lats'] })`);
+    assert.ok(prog.includes('body-map__front') && prog.includes('data-low="lats"') && /class="body-map__low" data-low="lats"/.test(prog), 'Progrès : toujours les deux faces, muscles en retard hachurés');
     // Tout sous-muscle coloré reste dans le cadre
     for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) for (const kind of ['male', 'female']) {
       const lv = run(`exercisePartLevels(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)})).levels`);

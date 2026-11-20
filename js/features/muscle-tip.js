@@ -63,8 +63,7 @@ function exAtlasPanelHtml(m, name) {
   const items = atlasRanked(name, m, levels);
   return `
     <div class="cell mpanel mpanel--atlas">
-      ${bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true })}
-      <div class="mpanel__foot"><button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 22)}</button></div>
+      ${atlasBoxHtml(bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true }), 'mpanel__box', bodyAtlasCrop(kind, levels)[0] > 0 ? 'bottom' : 'top')}
     </div>
     ${atlasLineHtml(items.filter(x => x.level >= 2), 2)}${atlasLineHtml(items.filter(x => x.level < 2), 1)}`;
 }

@@ -233,32 +233,52 @@ def _delta_e(a, b):
     return sum((x - y) ** 2 for x, y in zip(_lab(a), _lab(b))) ** .5
 
 
+TIER_PARTS = (('chest_sternal', 'front'), ('rectus_femoris', 'front'), ('lats', 'back'))
+
+
 def t_silhouette_paliers(bench):
-    """Progrès › carte Muscles : chaque palier de la légende se distingue de son voisin (écart de couleur CIELAB),
-    « Travaillé » et « Objectif atteint » surtout (avant : deux opacités du même orange, écart d'environ 17)."""
+    """Progrès › carte Muscles : 3 paliers + le gris (panel affichage-e t3), mesurés SUR LE PERSONNAGE. Quatre cartes des
+    mêmes sous-muscles (gris, Peu, Travaillé, Objectif atteint), couleur moyenne à l'écran de chaque sous-muscle : écart
+    de couleur d'au moins 25 entre paliers voisins dans les deux thèmes, du plus clair au plus soutenu ; chaque pastille de
+    la légende a la couleur vue sur le personnage."""
+    import io
+    from PIL import Image
     for theme in ('light', 'dark'):
         t = tag('iPhone 13', theme)
         with bench.page('webkit', 'iPhone 13', theme) as page:
             seed(page, theme, ppl_v2_today_json())
             page.click('.tabbar [data-action="go-stats"]')
             page.wait_for_selector('.mlegend__dot')
-            dots = page.evaluate("""() => [...document.querySelectorAll('.mcard .mlegend__dot, .mlegend__dot')].slice(0, 5).map(d => {
-                const rgb = s => s.match(/[\\d.]+/g).slice(0, 3).map(Number), a = getComputedStyle(d, '::after');
-                const al = s => { const m = s.match(/[\\d.]+/g); return m.length > 3 ? Number(m[3]) : 1; };
-                return { base: rgb(getComputedStyle(d).backgroundColor), top: rgb(a.backgroundColor), o: parseFloat(a.opacity) * al(a.backgroundColor) }; })""")
-            seen = [[round(b * (1 - d['o']) + c * d['o']) for b, c in zip(d['base'], d['top'])] for d in dots]
-            gaps = [round(_delta_e(seen[i], seen[i + 1])) for i in range(len(seen) - 1)]
-            # Vague 3 : paliers voisins nettement distincts, et clarté qui change dans le même sens du 1er au 5e palier
-            # (en clair de plus en plus sombre, en sombre de plus en plus lumineux)
-            L = [round(_lab(c)[0]) for c in seen]
-            mono = all(L[i] > L[i + 1] for i in range(4)) if theme == 'light' else all(L[i] < L[i + 1] for i in range(4))
-            R.check(len(gaps) == 4 and min(gaps) >= (20 if theme == 'dark' else 15) and mono, f'{t} paliers distincts et dans l\'ordre de clarté (ΔE {gaps}, L* {L})')
-            # Regard neuf du 16/11 (malvoyance) : sur le personnage, la couleur est multipliée par l'ombrage gris du calque
-            # (médiane 0,68) ; les paliers voisins doivent rester distincts en luminance, pas seulement en teinte
-            toks = page.evaluate("() => [1, 2, 3, 4].map(i => getComputedStyle(document.body).getPropertyValue(`--body-tier-${i}`).trim())")
-            lum = [_rel_lum([int(h[k:k + 2], 16) * 0.68 for k in (1, 3, 5)]) for h in toks]
-            ratios = [round((max(a, b) + .05) / (min(a, b) + .05), 2) for a, b in zip(lum, lum[1:])]
-            R.check(min(ratios) >= 1.55, f'{t} paliers sur le personnage : contraste de luminance entre voisins {ratios} ({toks})')
+            dots = page.evaluate("""() => [...document.querySelector('.mcard .mlegend').querySelectorAll('.mlegend__dot')].slice(0, 4)
+                .map(d => getComputedStyle(d).backgroundColor.match(/[\\d.]+/g).slice(0, 3).map(Number))""")
+            page.evaluate("""ids => { const w = document.createElement('div'); w.id = 'paliers';
+                w.style.cssText = 'position:fixed;inset:0;z-index:9999;background:var(--cell);display:grid;grid-template-columns:1fr 1fr;padding:8px;gap:8px';
+                w.innerHTML = [0, 1, 2, 3].map(l => `<div>${bodyAtlasHtml(Object.fromEntries(l ? ids.map(id => [id, l]) : []), { tiers: true, crop: false, className: 'mcard__map' })}</div>`).join('');
+                document.body.append(w); }""", [p for p, _ in TIER_PARTS])
+            page.wait_for_timeout(800)
+            pts = page.evaluate("""async parts => { const kind = bodySilhouette(), out = [];
+                for (const m of document.querySelectorAll('#paliers .body-map')) { const row = {};
+                  for (const [id, v] of parts) { const hit = await atlasHitMap(kind, v), body = m.querySelector(`.body-map__${v} .body-map__body`).getBoundingClientRect();
+                    const n = BODY_PARTS.parts.findIndex(p => p.id === id) + 1, list = [];
+                    for (let j = 0; j < hit.h; j += 2) for (let i = 0; i < hit.w; i += 2) if (hit.map[j * hit.w + i] === n) list.push([body.left + (i + .5) / hit.w * body.width, body.top + (j + .5) / hit.h * body.height]);
+                    row[id] = list; }
+                  out.push(row); }
+                return out; }""", list(TIER_PARTS))
+            img = Image.open(io.BytesIO(page.screenshot())).convert('RGB')
+            k = img.width / page.viewport_size['width']
+            def avg(lst):
+                px = [img.getpixel((int(x * k), int(y * k))) for x, y in lst if 0 <= x * k < img.width and 0 <= y * k < img.height]
+                return [sum(c[i] for c in px) / max(1, len(px)) for i in range(3)]
+            for pid, _ in TIER_PARTS:
+                cols = [avg(r[pid]) for r in pts]
+                gaps = [round(_delta_e(cols[i], cols[i + 1])) for i in range(3)]
+                L = [round(_lab(c)[0]) for c in cols]
+                # Du plus clair au plus soutenu : Peu plus clair que Travaillé, lui-même plus clair qu'Objectif atteint
+                R.check(min(gaps) >= 25 and L[1] > L[2] > L[3], f'{t} {pid} : paliers voisins distincts sur le personnage (ΔE {gaps}, L* {L})')
+                if pid == 'chest_sternal':
+                    near = [round(_delta_e(d, c)) for d, c in zip(dots[1:], cols[1:])]
+                    R.check(max(near) <= 15, f'{t} pastilles de la légende : la couleur vue sur le personnage (ΔE {near})')
+            page.evaluate("document.getElementById('paliers').remove()")
             page.locator('.mcard').first.scroll_into_view_if_needed()
             shot(page, LOT, f'silhouette-paliers-{t}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')

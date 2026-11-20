@@ -12,19 +12,20 @@ const MUSCLE_SPANS = {
 };
 
 
-// Séries par semaine qui ouvrent chaque palier de couleur : 1 à 4 entretien, 5 à 9 travaillé,
-// 10 à 19 objectif atteint, 20 et plus gros volume (0 : pas travaillé). Sources :
+// Séries par semaine qui ouvrent chaque palier de couleur : 1 à 4 peu, 5 à 9 travaillé, 10 et plus objectif atteint
+// (0 : pas travaillé). Panel affichage-e t3 : « Gros volume » (20+) fusionné avec « Objectif atteint », 4 rouges ne se
+// distinguaient pas sur le personnage. Sources :
 // - Schoenfeld, Ogborn et Krieger (J Sports Sci, 2017), méta-analyse dose-réponse : 10 séries
 //   hebdomadaires et plus par muscle donnent plus d'hypertrophie que moins de 10 (le repère « objectif ») ;
 // - Pelland et al. (SportRxiv, 2024), méta-régression sur 67 études : l'hypertrophie continue de croître
-//   avec le nombre de séries, à rendement décroissant, sans plafond net à 10 (d'où un palier au-delà).
+//   avec le nombre de séries, à rendement décroissant, sans plafond net à 10 (le repère de la bulle va jusqu'à 20).
 // Les paliers sont les mêmes pour tous ; seul le repère de la bulle suit le niveau (muscleTarget).
-const MUSCLE_LEVEL_FROM = [0, 5, 10, 20];
+const MUSCLE_LEVEL_FROM = [0, 5, 10];
 const MUSCLE_LEVEL_MAX  = MUSCLE_LEVEL_FROM.length;
 // Nom de chaque palier (légende, bulle, VoiceOver), du palier 0 au palier MUSCLE_LEVEL_MAX
-const MUSCLE_LEVEL_WORDS = ['Pas travaillé', 'Entretien', 'Travaillé', 'Objectif atteint', 'Gros volume'];
+const MUSCLE_LEVEL_WORDS = ['Pas travaillé', 'Peu', 'Travaillé', 'Objectif atteint'];
 
-// Bornes d'un palier en séries par semaine, pour la légende : « 0 », « 1–4 », « 5–9 », « 10–19 », « 20+ »
+// Bornes d'un palier en séries par semaine, pour la légende : « 0 », « 1–4 », « 5–9 », « 10+ »
 function muscleLevelRange(lvl) {
   const from = MUSCLE_LEVEL_FROM;
   if (lvl <= 0) return '0';

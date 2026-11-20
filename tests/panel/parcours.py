@@ -336,7 +336,12 @@ def p_progres(r):
         r.page.mouse.dblclick(*xy)
         r._note('deux touchers : vue agrandie')
         r.attendre('.azoom', 'vue agrandie')
-        r.page.wait_for_timeout(1200)
+        # Capture une fois la haute résolution affichée (en t3, prise avant : personnage crénelé sur iPhone SE)
+        try:
+            r.page.wait_for_function("() => atlasViewerState()?.hi", timeout=8000)
+        except Exception:
+            pass
+        r.page.wait_for_timeout(600)
     with r.etape('silhouette-fermer', 'Vue agrandie : OK'):
         r.toucher('.sheet-root--atlas .sheet__btn--confirm', 'OK')
     with r.etape('progres-bas', 'Progrès, bas de l\'écran (liste des exercices)'):

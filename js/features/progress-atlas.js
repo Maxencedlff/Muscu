@@ -3,24 +3,32 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Même lecture que la carte des 18 muscles : plus le rouge est plein, plus le sous-muscle a travaillé ; même échelle de
+// Même lecture que la carte des 18 muscles : plus le rouge est soutenu, plus le sous-muscle a travaillé ; même échelle de
 // paliers (séries par semaine : MUSCLE_LEVEL_FROM, légende muscleLegendHtml) et mêmes périodes (muscleSpan). Un
 // sous-muscle non travaillé reste gris : c'est lui qu'il faut regarder pour équilibrer. Volume : séances de la période ×
 // correspondance exercice → sous-muscles (partLoad, js/data/atlas.js : principal 1 série, secondaire ½). Bas du corps :
 // carte simple (le palier du muscle entier) jusqu'au détail des jambes. Zoom et nom au toucher : js/ui/body-zoom.js.
 
-function progressAtlasHtml(span = muscleSpan) {
+// lowMuscles : les muscles de la ligne « Peu travaillés » (ids des 18 muscles) ; leurs sous-muscles sont hachurés
+function progressAtlasHtml(span = muscleSpan, lowMuscles = []) {
   const { levels } = partLoad(span);
   const on = Object.fromEntries(Object.entries(levels).filter(([, l]) => l > 0));
-  // Bouton Agrandir sous le personnage, comme sur la fiche (panel t1 : rien ne disait qu'on peut zoomer)
-  return `${bodyAtlasHtml(on, { className: 'mcard__map', title: 'Muscles travaillés', tap: true, tiers: true, tip: 'load', crop: false, captions: true })}
-    <div class="mpanel__foot mcard__foot"><button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 22)}</button></div>`;
+  const low = BODY_PARTS.parts.filter(p => lowMuscles.includes(p.parent)).map(p => p.id);
+  return atlasBoxHtml(bodyAtlasHtml(on, { className: 'mcard__map', title: 'Muscles travaillés', tap: true, tiers: true, tip: 'load', crop: false, captions: true, low }), 'mcard__box');
 }
 
-// Légende courte de la vue agrandie : le gris « pas travaillé », puis les 4 paliers du même rouge, de peu à beaucoup
-function muscleLegendDotsHtml() {
-  return `<span class="mlegend__item">${muscleLevelDot(0)}Pas travaillé</span>
-    <span class="mlegend__item">${[1, 2, 3, 4].map(muscleLevelDot).join('')} de peu à beaucoup de séries</span>`;
+// Dessin et son bouton Agrandir, dans un coin du dessin (panel affichage-e t3 : un grand vide le séparait du
+// personnage) : en haut à droite, où ne passent ni la tête ni les bras ; carte cadrée sur les jambes : en bas à droite
+// (les mains sont en haut). Le bouton dit qu'on peut zoomer (panel t1) ; fiche et Progrès
+function atlasBoxHtml(mapHtml, className, corner = 'top') {
+  return `<div class="atlas-box atlas-box--${corner} ${className}">${mapHtml}<button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 22)}</button></div>`;
+}
+
+// Légende des paliers (carte de Progrès et vue agrandie) : mêmes noms partout, chaque palier avec ses bornes en séries
+// par semaine ; hatch : les hachures des muscles « Peu travaillés »
+function muscleLegendItemsHtml(hatch = false) {
+  return `${MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('')}
+    ${hatch ? '<span class="mlegend__item"><i class="mlegend__dot mlegend__dot--low"></i>Peu travaillés</span>' : ''}`;
 }
 
 // Bulle d'un sous-muscle touché : nom de salle, séries de la période (comme la carte des 18 muscles), palier en mots,
