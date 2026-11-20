@@ -950,11 +950,13 @@ def t_fiche(bench, eng, dev, theme):
         for k in ['history', 'chart', 'records']:
             R.check('Pas encore fait' in fiche_tab(page, k).inner_text(), f'{t} {k} vide : « Pas encore fait »')
         R.check(no_hscroll(page), f'{t} fiche : pas de défilement horizontal')
-        # Image du muscle en tête et aucun secondaire : une ligne de texte au lieu d'une deuxième silhouette
+        # Image du muscle en tête et aucun secondaire : le personnage détaillé quand même (panel atlas t1 : toute fiche a un
+        # personnage ; avant, une ligne de texte « Brachial, Biceps, Avant-bras »)
         page.evaluate("navigate(makeRoute('library-ex', 'Curl marteau'))")
         page.wait_for_selector('.library-ex .exhero__img')
-        R.check(page.locator('.library-ex .mpanel').count() == 0 and page.inner_text('.library-ex .mline').strip().startswith('Brachial'),
-                f'{t} sans secondaire : liste des muscles sans silhouette ({page.locator(".library-ex .mline").all_inner_texts()})')
+        R.check(page.locator('.library-ex .mpanel--atlas').count() == 1 and page.locator('.library-ex .mline').count() == 0
+                and 'Brachial' in page.inner_text('.library-ex .mpanel--atlas .mpills'),
+                f'{t} sans secondaire : personnage détaillé et pastilles ({page.locator(".library-ex .mpills").all_inner_texts()})')
         R.check('\u00a0· ' in typo_raw(page, "() => document.querySelector('.exhead__sub').textContent"), f'{t} « · » collé au muscle d\'avant')
         # Texte agrandi : illustration plus petite, onglets sur deux rangées, rien de coupé
         page.add_style_tag(content='html { font-size: 28px !important; }')
