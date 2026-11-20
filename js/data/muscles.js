@@ -142,9 +142,8 @@ function exercisePartialScore(name, query) {
   });
   return solid ? got / total : 0;
 }
-// Noms les plus proches d'une recherche sans résultat complet, au plus max. À égalité, les exercices de la
-// personne puis l'ordre de la bibliothèque. Les correspondances bien moins bonnes que la meilleure sont
-// écartées (une faute sur un seul des mots, par exemple).
+// Noms les plus proches d'une recherche sans résultat complet, au plus max. À égalité, les exercices de la personne puis
+// l'ordre de la bibliothèque. Les correspondances bien moins bonnes que la meilleure sont écartées (une faute sur un mot).
 function closestExercises(names, query, max = 5) {
   const scored = names.map(n => ({ n, score: exercisePartialScore(n, query), rank: catalogueRank(n) })).filter(x => x.score > 0)
     .sort((a, b) => b.score - a.score || a.rank - b.rank);
@@ -170,9 +169,8 @@ function sameMusclesFirst(ex, names) {
 function exerciseMatches(name, query) { return exerciseMatchScore(name, query) > 0; }
 
 // ── Reconnaissance d'un nom saisi librement ──────────────────
-// Testées dans l'ordre sur le nom normalisé (minuscules, sans accents) : la première qui
-// correspond l'emporte, donc les règles précises passent avant les génériques
-// (« leg curl » avant « curl », « développé militaire » avant « développé »).
+// Testées dans l'ordre sur le nom normalisé (minuscules, sans accents) : la première qui correspond l'emporte, donc les
+// règles précises passent avant les génériques (« leg curl » avant « curl », « développé militaire » avant « développé »).
 const MUSCLE_RULES = [
   [/leg curl|curl (jambes?|ischio|allonge|couche|assis)|ischio|nordi(c|que)|hamstring|glute ham/,  'hamstrings', 'calves'],
   [/developpe.*serree|close grip(?!.*(pull|row|lat|chin|curl|tirage|traction))|jm press|tate press/,                                    'triceps chest', 'front_delts'],
@@ -180,8 +178,7 @@ const MUSCLE_RULES = [
   [/curl (prise )?(inverse|pronation)|reverse (grip )?curl/,                                               'brachialis forearms', 'biceps'],
   [/marteau|hammer curl|curl hammer/,                                                     'brachialis biceps forearms', ''],
   [/curl|biceps/,                                                                         'biceps', 'brachialis forearms'],
-  // Audit des sous-muscles du 20/11 (bibliothèque alignée) : adducteurs au roumain, lombaires principaux au good morning
-  [/good morning/,                                                                                  'hamstrings glutes lower_back', ''],
+  [/good morning/,                                                                                  'hamstrings glutes lower_back', ''],   // audit du 20/11
   [/roumain|romanian|rdl|jambes tendues|stiff/,                                                     'hamstrings glutes', 'lower_back adductors'],
   [/souleve de terre|deadlift|rack pull|hex bar|trap bar/,                                'glutes hamstrings lower_back', 'quads adductors traps forearms lats'],
   [/swing|arrache|snatch|epaule jete|\bclean\b/,                               'glutes hamstrings', 'lower_back traps'],
