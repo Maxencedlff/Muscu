@@ -636,6 +636,9 @@ def p_atlas(r):
         r.page.evaluate('closeBodyTip()')
         r.toucher('.library-ex .mline2[data-level="1"] .cell__sub', 'ligne « Muscles qui aident »')
     with r.etape('isoler', 'Toucher « Triceps » : ce seul muscle sur le personnage'):
+        # Texte très grand : un nom par ligne, « + N autres » montre les suivants
+        if not r.page.locator('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]').count():
+            r.toucher('.library-ex .mline2[data-level="1"] .mline2__more', '« + N autres »')
         r.toucher('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]', 'nom « Triceps »')
     with r.etape('tout', 'Toucher de nouveau : tous les muscles reviennent'):
         r.toucher('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]', 'nom « Triceps »')

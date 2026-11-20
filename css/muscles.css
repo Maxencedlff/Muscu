@@ -43,6 +43,9 @@
 /* Muscles qui aident : clair, le rouge de la fiche à 50 % (--body-sec-o) ; sombre, ci-dessous */
 .body-map--atlas .body-map__m--sec { background-color: var(--body-heat); }
 .body-map--atlas .body-map__m { animation: none; }
+/* Profonds (rhomboïdes, petit pectoral), vus à travers le muscle qui les couvre : teinte unie, sans leur ombrage de fibres,
+   qui croisait celui du muscle du dessus en hachures (panel t5, trapèzes et rhomboïdes des tractions) */
+.body-map--atlas .body-map__p--deep { background-image: none !important; }
 /* Sombre : le muscle ciblé (et les paliers de Progrès) en rouge vif éclairé par l'ombrage (soft-light, et non multiply qui
    l'éteignait), sur un corps plus sombre (--body-atlas-bright) : ciblé / gris 2,7:1 au lieu de 1,9:1. Clair : inchangé */
 body:not(.light) .body-map--atlas .body-map__p { background-blend-mode: soft-light; }
