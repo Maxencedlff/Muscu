@@ -79,13 +79,20 @@ function cposterTitleLabel() { return cposter.silhouette === 'female' ? 'Nouvell
 
 // Réglages de l'aperçu, dans un bloc groupé sous le format : nom, silhouette, titre et photo
 function coachPosterToolsHtml() {
-  // Ordre (panel du 20/11) : Silhouette juste sous Story / Carré (visible sans défiler sur iPhone SE), puis le titre,
-  // le nom (obligatoire pour partager), la spécialité (facultative) et la photo. Plus d'aide « sticker lien » : l'app
+  // Ordre (5e panel) : le nom d'abord (obligatoire pour partager ; la note « Ajoute ton nom » y mène), puis Silhouette,
+  // le titre, la spécialité (facultative) et la photo. Plus d'aide « sticker lien » : l'app
   // n'est pas encore sur l'App Store (docs/AFFICHE_COACH.md)
   return {
-    note: 'Ajoute ton prénom pour partager ton affiche.',
+    note: 'Ajoute ton nom pour partager ton affiche.',
+    noteFocus: '#cposterName',
     rows: `
       <div class="cposter-form">
+        <label class="cposter-row" for="cposterName">
+          <span class="cposter-row__title">Nom</span>
+          <input class="cposter-row__input" id="cposterName" type="text" autocomplete="name" autocapitalize="words" autocorrect="off"
+                 spellcheck="false" enterkeyhint="done" maxlength="${CPOSTER_NAME_MAX}" placeholder="Prénom Nom" value="${esc(cposter.name)}"
+                 aria-label="Ton nom sur l'affiche">
+        </label>
         <div class="cposter-row">
           <span class="cposter-row__title" id="cposterSilLabel">Silhouette</span>
           <div class="segmented cposter-row__seg" role="group" aria-labelledby="cposterSilLabel">
@@ -98,12 +105,6 @@ function coachPosterToolsHtml() {
             ${cposterSeg('coach-poster-title', 'gendered', !cposter.neutral, cposterTitleLabel())}${cposterSeg('coach-poster-title', 'neutral', cposter.neutral, 'Coach', 'Coach, sans nouveau ni nouvelle')}
           </div>
         </div>
-        <label class="cposter-row" for="cposterName">
-          <span class="cposter-row__title">Nom</span>
-          <input class="cposter-row__input" id="cposterName" type="text" autocomplete="name" autocapitalize="words" autocorrect="off"
-                 spellcheck="false" enterkeyhint="next" maxlength="${CPOSTER_NAME_MAX}" placeholder="Ajoute ton prénom" value="${esc(cposter.name)}"
-                 aria-label="Ton nom sur l'affiche">
-        </label>
         <label class="cposter-row" for="cposterSpecialty">
           <span class="cposter-row__title">Spécialité</span>
           <input class="cposter-row__input" id="cposterSpecialty" type="text" autocomplete="off" autocapitalize="sentences" autocorrect="on"
@@ -114,7 +115,7 @@ function coachPosterToolsHtml() {
           <span class="cposter-row__title">Photo</span><span class="cposter-row__end"><span class="cposter-row__value">${cposter.photo ? 'Changer' : 'Choisir'}</span>${icon('chevron.right', 14)}</span>
         </button>
       </div>
-      <p class="cposter-foot">Spécialité facultative, ${CPOSTER_SPECIALTY_MAX} caractères au plus.</p>`,
+      <p class="cposter-foot">Spécialité facultative, ${CPOSTER_SPECIALTY_MAX} caractères au plus. Quand tu partages ton affiche, tes élèves voient ce nom dans Mon coach.</p>`,
   };
 }
 
@@ -140,6 +141,8 @@ async function openCoachPoster() {
   const state = { name: coachPosterFileName('story'), alt: coachPosterAlt(coachPosterModelNow()), formats: true,
     tools: coachPosterToolsHtml(), stats: { title: 'Mon affiche de coach' },
     canSend: () => !!mine.name,
+    // Partagée : le nom part au serveur pour Mon coach de ses élèves (dit sous les réglages)
+    onShared: () => { if (mine.name) coachPosterPublishName(mine.name); },
     onClose: () => { clearTimeout(mine.timer); if (cposter === mine) cposter = null; } };
   const opened = openStoryPreview(state, (canvas, format) => {
     const m = coachPosterModelNow();

@@ -33,11 +33,30 @@ Rendus : `~/.local/share/mdlf/panel/affiche-coach/v6/` (`comparaison.png` : v2 e
 domine (560 px au moins en story, 46 % de la largeur en carré, juste sous le titre) ; le personnage, entier et aux mêmes
 couleurs, passe second (34 à 36 % de la largeur, à gauche) ; tout entre 250 et 1600 px, signature au-dessus de la barre
 de réponse. Code en SF Pro Display Heavy (« VV » et « W », « 5 » et « S » bien distincts), jamais coupé au tiret dans
-Mes élèves. Sans nom, « Partager » est grisé (« Ajoute ton prénom pour partager ton affiche »), plus d'initiales tirées
+Mes élèves. Sans nom, « Partager » est grisé (« Ajoute ton nom pour partager ton affiche », un lien qui amène au champ Nom), plus d'initiales tirées
 du pseudo ; spécialité facultative (40 caractères, sous le nom). Silhouette femme : les faisceaux moyen et bas du grand
 pectoral restent au gris (voir plus bas). Compte : avec une photo, la ligne Avatar disparaît (« Changer l'avatar » est
 dans la feuille de la photo). Feuille : Silhouette juste sous Story / Carré, aperçu à 30 % de la hauteur sur les petits
 écrans ; « Utiliser cette photo » fixé en bas de la feuille de la photo de profil.
+
+**5e panel (8,05/10), corrigé en v12** (`v12/`, `comparaison.png` : v11 et v12) : carte du code coach (une seule,
+`coachCodeCellHtml`, dans Mes élèves › Invitations et Réglages › Coach) qui tient toujours en entier : sa taille suit la
+largeur de la carte (`cqi`, plancher de 17 px), et plus étroit encore elle passe à la ligne entre blocs entiers
+(« BM5T-PRZF- » / « 3VV3 »), sous-titre à la ligne (test E2E en AX33 sur iPhone SE). Story : le bloc remplit la zone
+sûre, le titre et la photo prennent la place libre (badge sur la ligne du pseudo quand elle tient ; « Sur MDLF
+Training » s'efface alors, l'appel et la signature le disent). Feuille : Nom en premier ; « Ajoute ton nom pour partager
+ton affiche » au-dessus de « Partager », un lien qui amène au champ et l'active ; aperçu à 22 % de la hauteur en très
+grand texte. Photo de profil en très grand texte : une phrase courte, la règle repliée dans « Ce qui est permis ».
+
+**Mon coach** : l'élève voit le nom de l'affiche de son coach en titre, @pseudo dessous, et sa photo de profil s'il en
+a mis une. Le nom part au serveur seulement quand le coach **partage** son affiche (dit sous les réglages :
+« Quand tu partages ton affiche, tes élèves voient ce nom dans Mon coach ») ; `coach_poster_name(coach)` ne le rend
+qu'au coach et à ses élèves, rien en cas de blocage. Migration `supabase/migrations/20261120010000_nom_affiche_coach.sql`
+**écrite, pas appliquée** (feu vert de Maxence), retour arrière dans `supabase/rollback/`. Sans elle, Mon coach garde
+le pseudo seul et le partage marche.
+
+**Rejoindre en un toucher** : le lien d'invitation en un toucher arrive avec la sortie App Store (build) ; d'ici là, le
+code.
 
 **À la sortie sur l'App Store** : l'aide « Ajoute un sticker lien vers l'App Store dans ta story » a été retirée (il n'y
 a pas encore de lien) ; à remettre avec un vrai lien d'invitation (le code prérempli à l'ouverture de l'app), et alors
@@ -121,7 +140,7 @@ contour noir, code noir sur #FF7A1A). La version claire (v5) et le choix Clair /
 | Sans photo | Initiales dans le rond ; jamais le personnage à la place de la photo | Demande de Maxence. |
 | Détourage | **Pas en V1** | Dans la WebView, un modèle de segmentation (plusieurs Mo de WASM, `wasm-unsafe-eval` à ouvrir dans la CSP) ; natif, l'API Vision d'iOS demande un module natif, donc une build, impossible à tester ici sans Mac. La photo ronde n'en a pas besoin. |
 | Lien ou QR | Aucun : le code en gros, avec la consigne | Pas de lien d'invitation dans l'app (TestFlight). Le coach peut ajouter le sticker « Lien » d'Instagram vers l'App Store quand l'app y sera. |
-| Partage | Aperçu commun aux images (openStoryPreview), puis feuille de partage d'iOS | Rien n'est publié ni envoyé sans ce toucher ; aucun appel au serveur (test). |
+| Partage | Aperçu commun aux images (openStoryPreview), puis feuille de partage d'iOS | Rien n'est publié ni envoyé sans ce toucher ; l'image ne part jamais au serveur, seul le nom de l'affiche part au partage, pour Mon coach (test). |
 
 Code : `js/data/coach-poster.js` (contenu, initiales, réglages et photo de l'appareil), `js/features/coach-poster-art.js`
 (dessin), `js/features/coach-poster-ui.js` (entrées, aperçu), réglages dans `sharePreviewBody` (js/features/share.js),

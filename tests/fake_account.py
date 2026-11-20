@@ -1175,6 +1175,18 @@ FAKE_ACCOUNT = r"""
       delete co.cards[me];
       return cardJson(me);
     },
+    // Nom de l'affiche (supabase/migrations/20261120010000_nom_affiche_coach.sql) ; __sb.fail.posterName = 'missing' : serveur d'avant
+    coach_set_poster_name: (me, { name }) => {
+      if (!co.coachAt[me]) return pgErr('not_coach');
+      const n = String(name ?? '').replace(/\p{Cc}/gu, ' ').replace(/\s+/g, ' ').trim();
+      if (n.length < 1 || n.length > 40) return pgErr('invalid_name');
+      (co.posterNames ||= {})[me] = n;
+      return { name: n };
+    },
+    coach_poster_name: (me, { coach: id }) => {
+      const ok = co.coachAt[id] && (me === id || (linkOf(me)?.coach === id && !blockedBetween(me, id)));
+      return { name: ok ? (co.posterNames || {})[id] ?? null : null };
+    },
     coach_card_badge: (me, { coach: id }) => (cardShown(me, id) ? { shown: true, declared_at: co.cards[id].declared_at } : { shown: false, declared_at: null }),
     report_coach_card: (me, { coach: id, details = null }) => {
       const c = co.cards[id];
@@ -1265,6 +1277,7 @@ FAKE_ACCOUNT = r"""
     if (photoRpc[fn] && sb.fail.photos === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     const cardFn = fn.startsWith('coach_card_') || fn === 'report_coach_card';
     if (cardFn && sb.fail.card === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
+    if (fn.includes('poster_name') && sb.fail.posterName === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     const me = sb.meId();
     if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
     const out = (photoRpc[fn] || coachRpc[fn])(me, args);

@@ -124,19 +124,19 @@ function sharePreviewBody(alt, formats = false, tools = null) {
   // Avec des réglages (affiche du coach) : l'aperçu de l'image entière FIXÉ en haut de la feuille (hauteur bornée, un
   // toucher l'ouvre en plein écran), les réglages qui défilent dessous, « Partager » dans une barre fixée en bas (fond
   // opaque). Choisir Femme ou Homme montre tout de suite le changement, même sur un petit écran en très grand texte.
-  // La note (ce qui manque pour partager) va dans la barre, sous le bouton
+  // La note (ce qui manque pour partager) va dans la barre, au-dessus du bouton : un lien vers le champ à remplir
+  // (tools.noteFocus)
   if (tools) {
     const help = tools.help ? esc(tools.help) : '';
-    // En très grand texte, la note passe à la fin des réglages (la barre fixée reste basse sur un petit écran)
-    const note = where => (tools.note ? `<p class="share-preview__hint share-preview__note share-preview__note--${where}" role="status" hidden>${esc(tools.note)}</p>` : '');
+    const note = tools.note ? `<p class="share-preview__note" role="status" hidden><button type="button" class="share-preview__note-link" data-action="share-preview-note">${esc(tools.note)}</button></p>` : '';
     return `
     <div class="share-preview share-preview--tools">
       <div class="share-preview__top">
         <button type="button" class="share-preview__zoom" data-action="share-preview-zoom" aria-label="Voir l'image en plein écran">${frame}</button>
       </div>
       ${seg}${tools.rows || ''}
-      ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--flow">${help}</p>` : ''}${note('flow')}
-      <div class="share-preview__actionbar">${send.replace(/\s*<p class="share-preview__hint">[^<]*<\/p>/, '')}${note('bar')}
+      ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--flow">${help}</p>` : ''}
+      <div class="share-preview__actionbar">${note}${send.replace(/\s*<p class="share-preview__hint">[^<]*<\/p>/, '')}
         ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--bar">${help}</p>` : ''}
       </div>
     </div>`;
@@ -203,6 +203,13 @@ registerActions({
   'share-story': (e, el) => { openSharePreview(el.dataset.id); },
   // Aperçu en plein écran (affiche du coach) : l'image telle qu'elle partira, fermée d'un toucher
   'share-preview-zoom': () => { sharePreviewZoom(); },
+  // Note « Ajoute ton nom… » : amène au champ (centré, entre l'aperçu et la barre fixés) et l'active
+  'share-preview-note': () => {
+    const f = shareState?.tools?.noteFocus && shareState.root?.querySelector(shareState.tools.noteFocus);
+    if (!f) return;
+    f.scrollIntoView({ block: 'center' });
+    f.focus({ preventScroll: true });
+  },
   // Story ou carré : le cadre de l'aperçu prend le format, l'image est redessinée
   'share-format': (e, el) => {
     const st = shareState, f = el.dataset.f;
@@ -246,7 +253,7 @@ registerActions({
     // Feuille de partage refermée : l'aperçu se ferme aussi, y compris 'handed' (une app choisie qui
     // renvoie une erreur : Native.shareOutcome). L'aperçu ne reste ouvert qu'en cas d'échec réel,
     // pour pouvoir réessayer.
-    if (result !== 'failed') st.close?.(true);
+    if (result !== 'failed') { st.onShared?.(result); st.close?.(true); }
   },
 });
 

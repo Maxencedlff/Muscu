@@ -23,14 +23,14 @@
 }
 
 /* Affiche du coach (js/features/coach-poster-ui.js) : aperçu de l'image entière fixé en haut de la feuille, à hauteur
-   bornée (40 % de l'écran, 30 % en très grand texte), un toucher l'ouvre en plein écran ; réglages qui défilent dessous ;
+   bornée (40 % de l'écran, 30 % sur petit écran, 22 % en très grand texte : 5e panel, Nom, Silhouette et Titre restent touchables), un toucher l'ouvre en plein écran ; réglages qui défilent dessous ;
    barre « Partager » fixée en bas */
 .share-preview--tools { gap: var(--sp-3); }
 .share-preview__top { position: sticky; top: -8px; z-index: 2; display: flex; justify-content: center; width: calc(100% + 32px);
   margin: -8px -16px 0; padding: 8px 16px var(--sp-2); background: var(--cell); box-shadow: 0 0.5px 0 var(--sep); }
 .share-preview__zoom { display: block; height: min(40vh, 460px); height: min(40dvh, 460px); padding: 0; border: 0; background: none;
   border-radius: var(--r-lg); cursor: zoom-in; }
-html.type-xl .share-preview__zoom { height: 30vh; height: 30dvh; }
+html.type-xl .share-preview__zoom { height: 22vh; height: 22dvh; }
 .share-preview__zoom { aspect-ratio: 9 / 16; flex: 0 0 auto; }
 .share-preview__zoom:has(.share-preview__frame--square) { aspect-ratio: 1; }
 .share-preview--tools .share-preview__frame, .share-preview--tools .share-preview__frame--square { width: 100%; height: 100%; aspect-ratio: auto; }
@@ -74,17 +74,18 @@ html.type-xl .cposter-row__seg .segmented__btn--active::before { display: inline
 /* Le chevron reste collé à la valeur (« Changer › ») ; trop étroit, les deux passent ensemble sous « Photo » */
 .cposter-row__end { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; white-space: nowrap; }
 .cposter-row__seg .segmented__btn { flex: 0 0 auto; padding: 0 10px; white-space: nowrap; }
-/* Très grand texte : le champ Nom passe sous son libellé, pleine largeur (« Ajoute ton prénom » entier) */
+/* Très grand texte : le champ Nom passe sous son libellé, pleine largeur (« Prénom Nom » entier) */
 html.type-xl .cposter-row__input { flex-basis: 100%; text-align: left; }
 /* Un réglage amené à l'écran (clavier, VoiceOver) s'arrête entre l'aperçu fixé en haut et la barre fixée en bas */
 .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(min(40dvh, 460px) + 24px); scroll-padding-bottom: 140px; }
-html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 24px); scroll-padding-bottom: 120px; }
+html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(22dvh + 24px); scroll-padding-bottom: 160px; }
 .cposter-foot { width: 100%; max-width: 420px; margin: -4px 4px 0; font-size: var(--fs-footnote); color: var(--label2); }
 .share-preview__note { color: var(--label); font-weight: 600; }
 /* iPhone SE et petits écrans : aperçu fixé à 30 % de la hauteur, Silhouette visible sans défiler */
 @media (max-height: 700px) { .share-preview__zoom { height: 30vh; height: 30dvh; } }
-@media (max-height: 700px) { .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 24px); } }
-/* Note « Ajoute ton prénom… » : dans la barre, ou à la fin des réglages en très grand texte */
-.share-preview__note--flow { display: none; }
-html.type-xl .share-preview__note--flow:not([hidden]) { display: block; }
-html.type-xl .share-preview__note--bar { display: none; }
+@media (max-height: 700px) { html:not(.type-xl) .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 24px); } }
+/* Note « Ajoute ton nom… » : dans la barre, au-dessus de Partager (en très grand texte aussi), un lien qui amène au
+   champ manquant et l'active (5e panel) */
+.share-preview__note { margin: 0 0 var(--sp-2); text-align: center; }
+.share-preview__note-link { min-height: 44px; padding: 6px 8px; border: 0; background: none; color: var(--tint); font: inherit;
+  font-weight: 600; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }

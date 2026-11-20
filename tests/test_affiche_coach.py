@@ -124,6 +124,25 @@ def save_affiche(page, name):
     canvas_png(page).save(os.path.join(AFFICHES, name + '.png'))
 
 
+NOTE_ABOVE_SEND = """() => { const n = document.querySelector('.sheet .share-preview__note').getBoundingClientRect();
+    const b = document.querySelector('.sheet .share-preview__send').getBoundingClientRect();
+    return n.height > 0 && n.bottom <= b.top + 1 && n.top >= 0; }"""
+
+HIT = """s => { const e = document.querySelector(s), r = e.getBoundingClientRect();
+    const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!t && (e === t || e.contains(t)); }"""
+
+
+def note_link(page, t):
+    """« Ajoute ton nom… » touché : amène au champ Nom, entre l'aperçu et la barre fixés, et l'active."""
+    page.evaluate("document.querySelector('.sheet .sheet__body').scrollTop = 1e6")
+    page.wait_for_timeout(120)
+    page.click('.sheet .share-preview__note-link')
+    page.wait_for_timeout(200)
+    R.check(page.evaluate("document.activeElement && document.activeElement.id === 'cposterName'") and page.evaluate(HIT, '#cposterName'),
+            f'{t} note touchée : champ Nom visible et activé')
+    page.evaluate("document.activeElement && document.activeElement.blur()")
+
+
 PREVIEW_SEEN = """() => { const f = document.querySelector('.sheet .share-preview__frame').getBoundingClientRect();
     const bar = document.querySelector('.sheet .share-preview__actionbar').getBoundingClientRect();
     const body = document.querySelector('.sheet .sheet__body').getBoundingClientRect();
@@ -217,9 +236,12 @@ def t_coach_affiche(bench, eng, dev, theme):
         R.check(page.evaluate("document.querySelector('.share-zoom__img').naturalHeight === 1920"), f'{t} plein écran : l\'image entière')
         page.click('.share-zoom')
         page.wait_for_function("() => !document.querySelector('.share-zoom')", timeout=5000)
-        # Sans nom : « Partager » grisé, la barre dit pourquoi
-        R.check(page.evaluate("document.querySelector('.sheet .share-preview__send').disabled") and page.is_visible('.sheet .share-preview__note--bar')
-                and 'Ajoute ton prénom pour partager' in page.inner_text('.sheet .share-preview__note--bar'), f'{t} sans nom : partage grisé, « Ajoute ton prénom »')
+        # Sans nom : « Partager » grisé, la barre dit pourquoi ; Nom en premier ; la note est un lien vers le champ
+        R.check(page.evaluate("document.querySelector('.sheet .share-preview__send').disabled") and page.is_visible('.sheet .share-preview__note')
+                and 'Ajoute ton nom pour partager' in page.inner_text('.sheet .share-preview__note'), f'{t} sans nom : partage grisé, « Ajoute ton nom »')
+        R.check(page.evaluate("!!document.querySelector('.sheet .cposter-form > .cposter-row:first-child #cposterName')"), f'{t} Nom en premier réglage')
+        R.check(page.evaluate(NOTE_ABOVE_SEND), f'{t} note au-dessus de « Partager »')
+        note_link(page, t)
         R.check(page.locator('.sheet .share-preview__help').count() == 0, f'{t} plus d\'aide « sticker lien » (pas encore sur l\'App Store)')
         layout(page, t, 'Aperçu sans photo')
         shot(page, LOT, f'02-apercu-sans-photo-{t}')
@@ -244,7 +266,7 @@ def t_coach_affiche(bench, eng, dev, theme):
         preview_ready(page)
         R.check(json.loads(ls(page, 'mdlf_coach_poster') or '{}').get('name') == 'Camille Martin', f'{t} nom gardé sur l\'appareil')
         page.wait_for_function("() => !document.querySelector('.sheet .share-preview__send').disabled", timeout=8000)
-        R.check(not page.is_visible('.sheet .share-preview__note--bar'), f'{t} nom écrit : partage possible')
+        R.check(not page.is_visible('.sheet .share-preview__note'), f'{t} nom écrit : partage possible')
         page.evaluate("document.querySelector('#cposterSpecialty').scrollIntoView({ block: 'center' })")
         page.fill('#cposterSpecialty', 'Force · Perte de poids')
         page.wait_for_function("() => (document.querySelector('.sheet .share-preview__img').getAttribute('aria-label') || '').includes('Force · Perte de poids')", timeout=5000)
@@ -284,8 +306,11 @@ def t_coach_affiche(bench, eng, dev, theme):
         png = Image.open(io.BytesIO(base64.b64decode(sh['dataUrl'].split(',', 1)[1])))
         R.check(sh['name'] == 'affiche-coach-carre.png' and png.size == (1080, 1080), f'{t} partage : {sh["name"]} {png.size}')
         # Rien d'envoyé : aucun appel d'écriture (une relecture de fond du compte peut tomber pendant le partage)
+        # Seule écriture : le nom de l'affiche, pour Mon coach de ses élèves (dit sous les réglages) ; jamais l'image
         sent = page.evaluate("b => __sb.calls.slice(b).map(c => c.map(String).join(' ')).filter(c => /upload|prepare|commit|insert|upsert|send|post|share/i.test(c))", before)
-        R.check(not sent, f'{t} partage : rien envoyé au serveur ({sent})')
+        R.check(all('coach_set_poster_name' in c for c in sent) and len(sent) == 1, f'{t} partage : rien d\'autre que le nom envoyé ({sent})')
+        page.wait_for_function("me => (__sb.co.posterNames || {})[me] === 'Camille Martin'", arg=me, timeout=8000)
+        R.check(True, f'{t} partage : nom de l\'affiche envoyé pour Mon coach')
         R.check(page.locator('.sheet .share-preview').count() == 0, f'{t} partage fait : aperçu refermé')
 
         # Réouverture : nom et photo retrouvés ; story partagée en 1080 × 1920
@@ -331,8 +356,29 @@ def t_coach_affiche(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+CODE_FITS = """() => [...document.querySelectorAll('.coach-code-cell')].filter(c => c.offsetParent).map(c => {
+    const r = c.getBoundingClientRect(), code = c.querySelector('.coach-code'), sub = c.querySelector('.cell__sub');
+    const fs = parseFloat(getComputedStyle(code).fontSize), blks = [...c.querySelectorAll('.coach-code__blk')].map(b => b.getBoundingClientRect());
+    const btns = [...c.querySelectorAll('button')].map(b => b.getBoundingClientRect());
+    return { text: code.textContent, fs, blocks: blks.length,
+      inside: blks.every(b => b.left >= r.left - 0.5 && b.right <= r.right + 0.5) && btns.every(b => b.right <= r.right + 0.5 && b.left >= r.left - 0.5),
+      blockWhole: blks.every(b => b.height < fs * 1.7), sub: sub.scrollWidth <= sub.clientWidth + 1 && sub.getBoundingClientRect().right <= r.right + 0.5,
+      noOverflow: c.scrollWidth <= c.clientWidth + 1 }; })"""
+
+
+def code_fits(page, t, where):
+    """Carte du code coach (coachCodeCellHtml) : code entier dans la carte (blocs jamais coupés), lisible (17 px au
+    moins), sous-titre entier, Copier et Partager dans la carte."""
+    cells = page.evaluate(CODE_FITS)
+    code = page.evaluate('formatCoachCode(coachPro.code)')
+    ok = len(cells) == 1 and all(c['text'] == code and c['blocks'] == 3 and c['inside'] and c['blockWhole'] and c['sub'] and c['noOverflow'] and c['fs'] >= 17 for c in cells)
+    R.check(ok, f'{t} AX33 {where} : code coach entier ({cells})')
+
+
 def t_apercu_grand_texte(bench, eng, dev, theme):
-    """Très grand texte (AX33, 33 px) sur iPhone SE : l'aperçu reste visible pendant qu'on touche Silhouette et Titre."""
+    """Très grand texte (AX33, 33 px) sur iPhone SE : carte du code entière (Mes élèves, Réglages › Coach), aperçu
+    réduit à 22 % de la hauteur, Nom, Silhouette et Titre touchables avec l'aperçu visible, note au-dessus de
+    « Partager » ; feuille de la photo de profil : phrase courte, règle repliée."""
     if dev != 'iPhone SE':
         return
     t = tag(dev, theme)
@@ -346,9 +392,19 @@ def t_apercu_grand_texte(bench, eng, dev, theme):
         page.evaluate("async () => { __sb.makeCoach(__sb.meId()); await coachRefresh(); await coachProRefresh({ minAge: 0 }); }")
         page.evaluate("navigate('coach-students')")
         page.wait_for_selector('[data-action="coach-poster-open"]', timeout=8000)
+        settle(page)
+        code_fits(page, t, 'Mes élèves › Invitations')
+        shot(page, LOT, f'10-code-mes-eleves-ax33-{t}')
         page.locator('[data-action="coach-poster-open"]').scroll_into_view_if_needed()
         page.click('[data-action="coach-poster-open"]')
         preview_ready(page)
+        h = page.evaluate("document.querySelector('.sheet .share-preview__zoom').getBoundingClientRect().height / innerHeight")
+        R.check(h <= 0.225, f'{t} AX33 : aperçu fixé à 22 % de la hauteur ({h:.3f})')
+        R.check(page.is_visible('.sheet .share-preview__note') and page.evaluate(NOTE_ABOVE_SEND), f'{t} AX33 : « Ajoute ton nom » au-dessus de « Partager »')
+        page.evaluate("document.querySelector('#cposterName').scrollIntoView({ block: 'center' })")
+        settle(page)
+        R.check(page.evaluate(PREVIEW_SEEN) and page.evaluate(HIT, '#cposterName'), f'{t} AX33 : Nom touchable et aperçu visible en même temps')
+        note_link(page, t + ' AX33')
         for action, value in (('coach-poster-silhouette', 'female'), ('coach-poster-title', 'neutral')):
             sel = f'.sheet [data-action="{action}"][data-v="{value}"]'
             page.evaluate("s => document.querySelector(s).scrollIntoView({ block: 'center' })", sel)
@@ -363,6 +419,26 @@ def t_apercu_grand_texte(bench, eng, dev, theme):
         R.check(page.get_attribute('.sheet .share-preview__img', 'aria-label').startswith('Affiche « Coach »'), f'{t} AX33 : aperçu redessiné')
         b = page.evaluate("() => { const b = document.querySelector('.sheet .share-preview__send').getBoundingClientRect(); return b.bottom <= innerHeight + 0.5 && b.top >= 0; }")
         R.check(b, f'{t} AX33 : « Partager » visible sans défiler')
+        shot(page, LOT, f'11-apercu-ax33-{t}')
+        page.click('.sheet .sheet__btn--cancel')
+        page.wait_for_function("() => !document.querySelector('.sheet .share-preview')", timeout=8000)
+        # Réglages › Coach : la même carte du code
+        page.evaluate("navigate('coach')")
+        page.wait_for_selector('.coach-code-cell', timeout=8000)
+        settle(page)
+        code_fits(page, t, 'Réglages › Coach')
+        shot(page, LOT, f'12-code-reglages-ax33-{t}')
+        # Photo de profil : une phrase courte, la règle repliée dans « Ce qui est permis »
+        page.evaluate("navigate('account')")
+        page.wait_for_selector('[data-action="pph-open"]', timeout=8000)
+        page.click('[data-action="pph-open"]')
+        page.wait_for_selector('.sheet .pph-sheet [data-action="pph-pick"]', timeout=8000)
+        settle(page)
+        R.check(page.is_visible('.sheet .pph-scope-short') and not page.is_visible('.sheet .pph-scope-full') and not page.is_visible('.sheet .pph-rules p'),
+                f'{t} AX33 photo : phrase courte, règle repliée')
+        page.click('.sheet .pph-rules summary')
+        R.check(page.is_visible('.sheet .pph-rules p') and 'nudité' in page.inner_text('.sheet .pph-rules p'), f'{t} AX33 photo : règle dépliée')
+        shot(page, LOT, f'13-photo-ax33-{t}')
         R.check(not page.errors, f'{t} AX33 : aucune erreur JS {page.errors}')
 
 
@@ -373,10 +449,23 @@ def t_eleve_sans_affiche(bench, eng, dev, theme):
         signin(page, 'lea')
         page.evaluate("""async () => { const c = __sb.addPerson({ username: 'camille_coach', avatar: '🦁', social: false }); __sb.makeCoach(c);
             __sb.link(c, __sb.meId(), Date.now() - 3 * 86400000); await coachRefresh(); }""")
+        # Serveur d'avant (migration du nom pas appliquée) : le pseudo seul
+        page.evaluate("__sb.fail.posterName = 'missing'")
         page.evaluate("routeTo('friends'); navigate('coach-mine')")
         page.wait_for_selector('.coach-mine-view', timeout=8000)
         settle(page)
+        R.check(page.inner_text('.coach-mine__who .coach-join__name') == 'camille_coach' and page.locator('.coach-mine__handle').count() == 0,
+                f'{t} Mon coach, serveur d\'avant : pseudo seul')
         R.check(page.locator('[data-action="coach-poster-open"]').count() == 0, f'{t} élève : pas d\'affiche dans Mon coach')
+        # Nom de l'affiche partagée : en titre, @pseudo dessous
+        page.evaluate("""() => { __sb.fail.posterName = null; const c = myCoach().user_id; (__sb.co.posterNames ||= {})[c] = 'Camille Martin'; coachPosterNames.clear(); }""")
+        page.evaluate("goBack()")
+        settle(page)
+        page.evaluate("navigate('coach-mine')")
+        page.wait_for_function("() => (document.querySelector('.coach-mine__who .coach-join__name') || {}).textContent === 'Camille Martin'", timeout=8000)
+        R.check(page.inner_text('.coach-mine__handle') == '@camille_coach', f'{t} Mon coach : nom de l\'affiche, @pseudo dessous')
+        layout(page, t, 'Mon coach')
+        shot(page, LOT, f'14-mon-coach-nom-{t}')
         page.evaluate("navigate('coach')")
         page.wait_for_selector('.view', timeout=8000)
         settle(page)

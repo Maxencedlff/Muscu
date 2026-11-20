@@ -66,12 +66,15 @@ function pphSheetBody() {
   const free = pphFree(), allowed = proFeatureAllowed();
   // Coach : son affiche de coach (qu'il partage lui-même) peut aussi la montrer
   const poster = coachRole().isCoach === true ? ' Ton affiche de coach montre aussi cette photo.' : '';
-  const scope = `Visible seulement de tes amis et de ton coach.${poster} Pas de nudité ni d'image choquante : une photo signalée est masquée.`;
+  // En très grand texte (5e panel), une phrase courte, la règle dans un détail repliable : les boutons restent hauts
+  const who = 'Visible seulement de tes amis et de ton coach.', rule = `${poster.trim()} Pas de nudité ni d'image choquante : une photo signalée est masquée.`.trim();
+  const scope = `<span class="pph-scope-full">${who} ${rule}</span><span class="pph-scope-short">${who}</span>`;
+  const rules = `<details class="pph-rules"><summary>Ce qui est permis</summary><p>${rule}</p></details>`;
   if (v.stage !== 'choose' && v.url) {
     const sending = v.stage === 'sending';
     return `
       <div class="pph-preview"><img class="pph-preview__img" src="${esc(v.url)}" alt="Aperçu de ta photo de profil, recadrée en carré" draggable="false"></div>
-      <p class="pph-lead">Ta photo, recadrée en carré. ${scope}</p>
+      <p class="pph-lead">Ta photo, recadrée en carré. ${scope}</p>${rules}
       <div class="pph-actionbar">
         <button class="btn btn--primary btn--full" data-action="pph-use" ${sending ? 'disabled aria-busy="true"' : ''}>${sending ? 'Envoi…' : 'Utiliser cette photo'}</button>
         <button class="btn btn--secondary btn--full pph-gap" data-action="pph-pick" ${sending ? 'disabled' : ''}>Choisir une autre photo</button>
@@ -81,7 +84,7 @@ function pphSheetBody() {
     : p && !allowed ? '<p class="pph-note" role="status">Ta photo n\'est plus montrée : elle fait partie de MDLF Pro. Ton avatar la remplace.</p>' : '';
   return `
       <div class="pph-preview">${avatarHtml('xl')}</div>
-      <p class="pph-lead">${scope}</p>
+      <p class="pph-lead">${scope}</p>${rules}
       ${notice}
       ${allowed ? `<button class="btn btn--primary btn--full" data-action="pph-pick">${p ? 'Changer de photo' : 'Choisir une photo'}</button>` : ''}
       ${p ? `<button class="btn btn--secondary btn--full pph-gap" data-action="pph-avatar">Changer l'avatar</button>` : ''}

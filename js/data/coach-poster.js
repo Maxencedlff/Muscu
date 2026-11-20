@@ -120,3 +120,34 @@ async function posterPhotoSave(uid, blob) {
   await posterDbDo('readwrite', s => s.put({ buf, type: blob.type || 'image/jpeg', at: Date.now() }, uid));
 }
 async function posterPhotoClear(uid) { if (uid) await posterDbDo('readwrite', s => s.delete(uid)); }
+
+// ── Nom de l'affiche montré aux élèves (Mon coach, 5e panel) ─
+// L'élève reconnaît la coach de l'affiche : Mon coach montre ce nom, @pseudo dessous. Le nom part au serveur
+// seulement quand le coach PARTAGE son affiche (geste explicite, dit sous les réglages) ; le serveur ne le montre
+// qu'au coach et à ses élèves (coach_poster_name). Serveur d'avant (migration pas appliquée) : rien n'est montré,
+// Mon coach garde le pseudo seul.
+const CPOSTER_NAME_TTL = 5 * 60_000;
+const coachPosterNames = new Map();   // uid du coach → { name, at, loading }
+async function coachPosterPublishName(name) {
+  const n = posterName(name);
+  if (!n || !account.user) return { ok: false, kind: 'invalid' };
+  const r = await coachProRpc('coach_set_poster_name', { name: n });
+  if (r.ok) coachPosterNames.set(account.user.id, { name: n, at: Date.now() });
+  return r;
+}
+// Nom montré pour ce coach ('' s'il n'en a pas, pas encore lu, ou serveur d'avant)
+function coachPosterNameOf(uid) { return (uid && coachPosterNames.get(uid)?.name) || ''; }
+// Lit le nom (gardé 5 min) ; onChange appelé s'il a changé
+async function coachPosterNameLoad(uid, onChange) {
+  if (!sb || !account.user || typeof uid !== 'string' || !uid) return '';
+  const old = coachPosterNames.get(uid);
+  if (old?.loading || (old && Date.now() - old.at < CPOSTER_NAME_TTL)) return old?.name || '';
+  coachPosterNames.set(uid, { name: old?.name || '', at: old?.at || 0, loading: true });
+  const r = await coachProRpc('coach_poster_name', { coach: uid });
+  if (!account.user) return '';
+  const name = r.ok && r.data && typeof r.data.name === 'string' ? posterName(r.data.name) : '';
+  coachPosterNames.set(uid, { name: r.ok ? name : old?.name || '', at: r.ok ? Date.now() : 0 });
+  if ((old?.name || '') !== coachPosterNameOf(uid)) onChange?.();
+  return coachPosterNameOf(uid);
+}
+onAccountChange(() => coachPosterNames.clear());

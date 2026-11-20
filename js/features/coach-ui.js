@@ -454,6 +454,9 @@ function renderCoachMine() {
       : coach.state ? '<div class="empty-note">Tu n\'as pas de coach. Rejoins-en un depuis l\'onglet Social.</div>' : '<div class="empty-note">Chargement…</div>'}</div></div>`;
   }
   const inbox = coach.inbox;
+  // Nom de son affiche (s'il l'a partagée) et sa photo de profil : l'élève reconnaît la coach qui l'a fait venir,
+  // @pseudo dessous (5e panel)
+  const posterNm = coachPosterNameOf(p.user_id), shownName = posterNm || personName(p);
   const stale = !coach.state && coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : dernières nouvelles gardées sur l\'iPhone.' : coachErrorText(coach.error))}</p>` : '';
   const progs = inbox ? (inbox.programmes.length ? inbox.programmes.map(coachProgCardHtml).join('')
     : '<div class="empty-note coach-empty">Aucun programme reçu.</div>') : '<div class="empty-note coach-empty">Chargement…</div>';
@@ -466,7 +469,7 @@ function renderCoachMine() {
         <div class="cmine-hero">
           <div class="coach-join__who coach-mine__who">
             ${personAvatar(p, 'l')}
-            <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(personName(p))}</span><span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span>${cardBadgeHtml(p.user_id, 'card-badge--who')}</span>
+            <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(shownName)}</span>${posterNm && p.username ? `<span class="coach-join__sub coach-mine__handle">@${esc(p.username)}</span>` : ''}<span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span>${cardBadgeHtml(p.user_id, 'card-badge--who')}</span>
           </div>
           ${coachMineProgHtml(inbox)}
         </div>
@@ -491,6 +494,7 @@ SCREENS.set('coach-mine', {
   // Relu à chaque arrivée (retour compris) ; commentaires listés ici : vus
   enter: async () => {
     coachBadgeLoad(myCoach()?.user_id);
+    coachPosterNameLoad(myCoach()?.user_id, () => { if (currentView() === 'coach-mine') render(); });
     await coachRefresh(); cphRefresh({ minAge: 30_000 });
     const fresh = (coach.inbox?.notes || []).filter(n => !n.seen);
     coachMineFresh = new Set(fresh.map(n => n.session_id));
@@ -792,11 +796,17 @@ function coachTeamHtml() {
 // Code coach permanent, en tête des invitations : c'est lui qui va dans la bio, les codes de 7 jours viennent
 // ensuite (panel v4 t1 : il n'était que dans Réglages › Coach, et le bouton principal créait des codes qui expirent)
 function coachPermanentCodeHtml() {
-  const code = coachPro.code;
-  if (!code) return '';
+  return coachPro.code ? coachCodeCellHtml(coachPro.code, { main: true }) : '';
+}
+// Carte du code coach permanent, la même dans Mes élèves › Invitations et Réglages › Coach (panel v11 t5 : coupée à
+// droite en AX33 sur iPhone SE). Le code tient toujours en entier : sa taille suit la largeur (css/coach.css,
+// .coach-code--fit), et sous le plancher lisible il passe à la ligne par blocs entiers (« BM5T-PRZF- » / « 3VV3 »),
+// jamais au milieu d'un bloc ; le sous-titre passe à la ligne
+function coachCodeCellHtml(code, { main = false } = {}) {
   const shown = formatCoachCode(code);
-  return `<div class="cell coach-code-cell coach-code-cell--main">
-            <span class="cell__body"><span class="cell__title coach-code num">${esc(shown)}</span><span class="cell__sub">Code permanent, à mettre dans ta bio</span></span>
+  const blocks = shown.split(/(?<=-)/).map(b => `<span class="coach-code__blk">${esc(b)}</span>`).join('');
+  return `<div class="cell coach-invite coach-code-cell${main ? ' coach-code-cell--main' : ''}">
+            <span class="cell__body"><span class="cell__title coach-code coach-code--fit num">${blocks}</span><span class="cell__sub">Code permanent, à mettre dans ta bio</span></span>
             <button class="coach-icon-btn coach-copy-btn" data-action="coach-copy-code" data-code="${esc(shown)}" aria-label="Copier ton code coach">${icon('doc.on.doc', 20)}</button>
             <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(code)}" aria-label="Partager ton code coach">${icon('square.and.arrow.up', 20)}</button>
           </div>`;

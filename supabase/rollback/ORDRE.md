@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −18 | `20261120010000_nom_affiche_coach_down.sql` (efface les noms d'affiche envoyés ; Mon coach revient au pseudo seul) | rien | oui |
 | −17 | `20261117090000_badge_carte_pro_down.sql` (efface les déclarations ; les signalements restent dans `public.reports`) | rien | oui (vérifié) |
 | −16 | `20261117060000_reaction_jaime_down.sql` (chaque ❤️ redevient un 👏 ; `push_claim` reprend celui du résumé des séances, −15) | rien | oui (vérifié) |
 | −15 | `20261117050000_messages_coach_down.sql` (résumé des séances et `coach_push_off` : résumés en file effacés, une notification par élève et par heure comme avant ; push-send peut rester) | J'aime (−16) : il reprend son `push_claim` | oui pour les autres lots (vérifié, sans `reaction_jaime_test.sql`) ; défaire −16 avant pour garder le texte de la notification d'une réaction |

@@ -14,7 +14,7 @@ function fakeCanvas(ops = []) {
     font: '400 10px x', fillStyle: '', strokeStyle: '', textAlign: 'left', textBaseline: 'alphabetic', letterSpacing: '0px',
     lineWidth: 1, globalAlpha: 1, globalCompositeOperation: 'source-over', clipped: 0, tx: 0, ty: 0, stack: [],
     measureText(t) { const size = parseFloat((this.font.match(/(\d+(?:\.\d+)?)px/) || [0, 10])[1]); return { width: String(t).length * size * .5 }; },
-    fillText(text, x, y) { this.spacings.push(this.letterSpacing); ops.push({ op: 'text', text, x: x + this.tx, y: y + this.ty, font: this.font, fill: this.fillStyle }); },
+    fillText(text, x, y) { this.spacings.push(this.letterSpacing); ops.push({ op: 'text', text, x: x + this.tx, y: y + this.ty, font: this.font, fill: this.fillStyle, align: this.textAlign }); },
     strokeText(text, x, y) { ops.push({ op: 'text', text, x: x + this.tx, y: y + this.ty, font: this.font, fill: this.strokeStyle, stroke: true }); },
     fillRect(x, y, w, h) { ops.push({ op: 'rect', x, y, w, h, fill: this.fillStyle }); },
     drawImage(img, x, y, w, h) { ops.push({ op: 'image', id: img.id, x, y, w, h, clipped: this.clipped }); },
@@ -85,7 +85,9 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       assert.equal(c.width, 1080, tag);
       assert.equal(c.height, format === 'story' ? 1920 : 1080, tag);
       const t = texts(c);
-      for (const w of [sil === 'female' ? 'NOUVELLE' : 'NOUVEAU', 'COACH', 'LÉA MARTIN', '@lea.coach · Sur MDLF Training', 'Carte pro déclarée',
+      // Story : badge sur la ligne du pseudo (5e panel), « Sur MDLF Training » effacé s'il ne tient pas avec lui
+      const handle = format === 'story' ? (t.includes('@lea.coach · Sur MDLF Training') ? '@lea.coach · Sur MDLF Training' : '@lea.coach') : '@lea.coach · Sur MDLF Training';
+      for (const w of [sil === 'female' ? 'NOUVELLE' : 'NOUVEAU', 'COACH', 'LÉA MARTIN', handle, 'Carte pro déclarée',
         'K7M2-QX9P-R4TD', 'MDLF Training']) {
         assert.ok(t.includes(w), `${tag} : « ${w} » écrit (${JSON.stringify(t)})`);
       }
@@ -152,13 +154,26 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       // Tout texte est soit au-dessus du personnage (titre, story), soit dans la colonne de droite
       for (const o of c.ops.filter(x => x.op === 'text')) {
         const size = parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]), half = String(o.text).length * size * 0.5 / 2;
-        const leftEdge = o.font.includes('left') ? o.x : o.x - half;
+        const leftEdge = o.align === 'left' ? o.x : o.align === 'right' ? o.x - 2 * half : o.x - half;
         assert.ok(o.y < bd.y || o.y - size > bd.y + bd.h || leftEdge >= right - 1, `${format} : « ${o.text} » posé sur le personnage (x ${Math.round(leftEdge)} < ${Math.round(right)})`);
       }
       assert.equal(c.ops.filter(o => o.op === 'text' && o.stroke).length, 0, `${format} : plus aucun contour (rien n'est posé sur le corps)`);
       const rects = c.ops.filter(o => o.op === 'rect' && !(o.x === 0 && o.y === 0 && o.w === 1080));
       assert.equal(rects.length, 0, `${format} : aucune bande ni rectangle`);
       assert.ok(c.ops.some(o => o.op === 'text' && o.text.startsWith('@') && o.fill === '#FFFFFF'), `${format} : pseudo en blanc`);
+    }
+  });
+
+  test('affiche du coach : la story remplit la zone sûre (titre et photo agrandis selon la place, 5e panel)', () => {
+    const titleSize = c => Math.max(...c.ops.filter(o => o.op === 'text' && /Anton/.test(o.font) && o.text === 'COACH').map(o => parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1])));
+    const photoW = c => c.ops.find(o => o.op === 'image' && o.id === 'cover')?.w || 0;
+    const full = draw(model({ specialty: 'Force · Perte de poids' }), 'story'), light = draw(model({ badge: false }), 'story');
+    assert.ok(photoW(full) >= 590, `photo de ${Math.round(photoW(full))} px avec tout le bloc d'identité`);
+    assert.ok(titleSize(light) > titleSize(full) && photoW(light) >= photoW(full), `moins de lignes sous la photo : titre plus grand (${titleSize(light)} contre ${titleSize(full)})`);
+    assert.ok(titleSize(draw(model({ neutral: true, badge: false }), 'story')) >= 200, '« COACH » seul : titre agrandi');
+    for (const c of [full, light]) {
+      const ys = c.ops.filter(o => o.op === 'text').map(o => o.y);
+      assert.ok(Math.max(...ys) <= 1600 && Math.min(...ys) > 250, `tout entre 250 et 1600 px (${Math.round(Math.min(...ys))} à ${Math.round(Math.max(...ys))})`);
     }
   });
 
@@ -176,7 +191,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       const c = draw(model({ name: 'Marie-Charlotte Delafontaine', username: 'marie.charlotte.coach' }), format);
       const t = texts(c);
       assert.ok(t.includes('MARIE-CHARLOTTE DELAFONTAINE'), `${format} : nom entier sur une ligne, réduit ${JSON.stringify(t)}`);
-      assert.ok(t.includes('@marie.charlotte.coach · Sur MDLF Training'), `${format} : pseudo long entier`);
+      assert.ok(t.includes('@marie.charlotte.coach · Sur MDLF Training') || (format === 'story' && t.includes('@marie.charlotte.coach')), `${format} : pseudo long entier`);
       for (const o of c.ops.filter(x => x.op === 'text')) {
         const size = parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]), w = String(o.text).length * size * .5;
         assert.ok(w <= 1080, `${format} : « ${o.text} » plus large que l'image (${Math.round(w)} px)`);
@@ -223,5 +238,26 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     assert.ok(read('js/features/coach-ui.js').includes('coachPosterCellHtml()'));
     assert.ok(read('js/features/coach-pro-ui.js').includes('coachPosterCellHtml()'));
     assert.ok(read('js/data/account.js').includes('posterPhotoClear(account.user?.id)'), 'photo de l\'affiche effacée avec le compte');
+  });
+
+  test('affiche du coach : nom montré dans Mon coach, envoyé au partage seulement, lu par le coach et ses élèves', () => {
+    const sql = read('supabase/migrations/20261120010000_nom_affiche_coach.sql');
+    const down = read('supabase/rollback/20261120010000_nom_affiche_coach_down.sql');
+    assert.ok(/PAS APPLIQUÉE EN PRODUCTION/.test(sql), 'migration marquée non appliquée');
+    for (const f of ['coach_set_poster_name(text)', 'coach_poster_name(uuid)']) {
+      assert.ok(sql.includes(`grant execute on function public.${f} to authenticated;`), `GRANT de ${f}`);
+      assert.ok(down.includes(`drop function if exists public.${f}`), `${f} absent du retour arrière`);
+    }
+    assert.ok(!/grant[^;]*on public\.coach_poster_names/.test(sql) && /revoke all on public\.coach_poster_names/.test(sql), 'table lisible par un client');
+    assert.ok(/char_length\(name\) between 1 and 40/.test(sql) && sql.includes('private.blocked_between') && sql.includes('public.coach_links'), 'nom borné, élèves seulement, blocage');
+    assert.ok(read('supabase/rollback/ORDRE.md').includes('20261120010000_nom_affiche_coach_down.sql'), 'ordre de démontage');
+    // Envoyé quand le coach partage (onShared), jamais à la frappe ; dit sous les réglages
+    const ui = read('js/features/coach-poster-ui.js');
+    assert.ok(/onShared: \(\) => \{ if \(mine\.name\) coachPosterPublishName\(mine\.name\)/.test(ui), 'envoi au partage');
+    assert.equal((ui.match(/coachPosterPublishName\(/g) || []).length, 1, 'un seul envoi du nom');
+    assert.ok(ui.includes('tes élèves voient ce nom dans Mon coach'), 'dit au coach');
+    assert.ok(read('js/features/share.js').includes("if (result !== 'failed') { st.onShared?.(result);"), 'onShared seulement après un partage réel');
+    assert.ok(read('js/features/coach-ui.js').includes('coachPosterNameOf(p.user_id)'), 'Mon coach lit le nom');
+    assert.equal(run('posterName(" Léa \\u0007  Martin ")'), 'Léa Martin');
   });
 }
