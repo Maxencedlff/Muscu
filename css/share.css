@@ -31,6 +31,8 @@
 .share-preview__zoom { display: block; height: min(40vh, 460px); height: min(40dvh, 460px); padding: 0; border: 0; background: none;
   border-radius: var(--r-lg); cursor: zoom-in; }
 html.type-xl .share-preview__zoom { height: 22vh; height: 22dvh; }
+/* Tailles d'accessibilité les plus grandes sur petit écran (6e panel) : 18 %, deux réglages au moins visibles */
+@media (max-height: 700px) { html.type-xxl .share-preview__zoom { height: 18vh; height: 18dvh; } html.type-xxl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(18dvh + 24px); } }
 .share-preview__zoom { aspect-ratio: 9 / 16; flex: 0 0 auto; }
 .share-preview__zoom:has(.share-preview__frame--square) { aspect-ratio: 1; }
 .share-preview--tools .share-preview__frame, .share-preview--tools .share-preview__frame--square { width: 100%; height: 100%; aspect-ratio: auto; }
@@ -57,6 +59,10 @@ html.type-xl .share-preview__help--bar { display: none; }
 .cposter-row__input { flex: 1 1 8em; min-width: 0; min-height: 44px; border: 0; background: none; color: var(--label);
   font: inherit; text-align: right; }
 .cposter-row__input:focus { outline: none; }
+/* Spécialité : sous son libellé, pleine largeur, sur plusieurs lignes au besoin (jamais tronquée) */
+.cposter-row--stack { padding-top: 10px; }
+.cposter-row--stack .cposter-row__input { flex-basis: 100%; text-align: left; }
+.cposter-row__area { display: block; min-height: 44px; padding: 10px 0; resize: none; overflow: hidden; line-height: 1.3; overflow-wrap: break-word; }
 .cposter-row:focus-within { box-shadow: inset 0 0 0 2px var(--tint); border-radius: var(--r-sm); }
 .cposter-row__value { margin-left: auto; color: var(--label2); white-space: nowrap; }
 .cposter-row--nav .icon { color: var(--label3); flex-shrink: 0; }

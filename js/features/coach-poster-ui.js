@@ -106,11 +106,11 @@ function coachPosterToolsHtml() {
             ${cposterSeg('coach-poster-title', 'gendered', !cposter.neutral, cposterTitleLabel())}${cposterSeg('coach-poster-title', 'neutral', cposter.neutral, 'Coach', 'Coach, sans nouveau ni nouvelle')}
           </div>
         </div>
-        <label class="cposter-row" for="cposterSpecialty">
+        <label class="cposter-row cposter-row--stack" for="cposterSpecialty">
           <span class="cposter-row__title">Spécialité</span>
-          <input class="cposter-row__input" id="cposterSpecialty" type="text" autocomplete="off" autocapitalize="sentences" autocorrect="on"
-                 enterkeyhint="done" maxlength="${CPOSTER_SPECIALTY_MAX}" placeholder="Force · Perte de poids · Rééducation" value="${esc(cposter.specialty)}"
-                 aria-label="Ta spécialité (facultatif), par exemple Force, Perte de poids, Rééducation">
+          <textarea class="cposter-row__input cposter-row__area" id="cposterSpecialty" rows="1" autocomplete="off" autocapitalize="sentences" autocorrect="on"
+                 enterkeyhint="done" maxlength="${CPOSTER_SPECIALTY_MAX}" placeholder="Force · Perte de poids · Rééducation"
+                 aria-label="Ta spécialité (facultatif), par exemple Force, Perte de poids, Rééducation">${esc(cposter.specialty)}</textarea>
         </label>
         <button type="button" class="cposter-row cposter-row--nav" data-action="coach-poster-photo" aria-label="Photo de l'affiche, gardée sur ton iPhone">
           <span class="cposter-row__title">Photo</span><span class="cposter-row__end"><span class="cposter-row__value">${cposter.photo ? 'Changer' : 'Choisir'}</span>${icon('chevron.right', 14)}</span>
@@ -151,6 +151,13 @@ async function openCoachPoster() {
     drawCoachPosterArt(canvas, m, { photo: mine.photo, icon: mine.icon, body: mine.body }, { format });
   });
   // Nom et spécialité : l'aperçu se redessine après la frappe ; sans nom, « Partager » reste grisé (canSend)
+  // Spécialité (6e panel : coupée en « Force · Perte de poi… ») : sous son libellé, sur autant de lignes qu'il faut ;
+  // Entrée ferme le clavier (jamais de retour à la ligne)
+  const area = state.root?.querySelector('#cposterSpecialty');
+  const grow = () => { if (area) { area.style.height = 'auto'; area.style.height = `${area.scrollHeight}px`; } };
+  area?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); area.blur(); } });
+  area?.addEventListener('input', grow);
+  requestAnimationFrame(grow);
   for (const [id, field] of [['#cposterName', 'name'], ['#cposterSpecialty', 'specialty']]) {
     const input = state.root?.querySelector(id);
     input?.addEventListener('input', () => {

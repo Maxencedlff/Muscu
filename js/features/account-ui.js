@@ -162,7 +162,7 @@ function renderAccount() {
             <span class="cell__value">${p?.username ? esc(p.username) : 'Choisir'}</span>
             ${icon('chevron.right', 16)}
           </button>
-          ${myProfilePhoto() && !myProfilePhoto().hidden ? '' : `<button class="cell cell--nav" data-action="account-edit-avatar">
+          ${profilePhotoOn() ? '' : `<button class="cell cell--nav" data-action="account-edit-avatar">
             <span class="cell__body"><span class="cell__title">Avatar</span></span>
             ${validAvatar(p?.avatar) ? `<span class="cell__value account-emoji" aria-label="${esc(avatarName(p.avatar))}">${esc(p.avatar)}</span>`
               : '<span class="cell__value">Aucun</span>'}

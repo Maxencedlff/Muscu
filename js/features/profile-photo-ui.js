@@ -51,11 +51,13 @@ function pphProTag() { return pphFree() ? '' : '<span class="pro-tag" aria-label
 function profilePhotoCellHtml() {
   pphShownKey = pphKey();
   if (!profilePhotoOn()) return '';
-  const p = myProfilePhoto();
+  // Une seule ligne pour la photo et l'avatar (6e panel) : la valeur dit ce qui est montré aux autres
+  const p = myProfilePhoto(), av = validAvatar(account.profile?.avatar);
+  const value = p && !p.hidden && proFeatureAllowed() ? 'Photo' : p?.hidden ? 'Masquée' : av ? 'Avatar' : 'Aucune';
   return `
           <button class="cell cell--nav" data-action="pph-open">
             <span class="cell__body"><span class="cell__title">Photo de profil ${pphProTag()}</span></span>
-            <span class="cell__value">${p ? (p.hidden ? 'Masquée' : 'Ajoutée') : 'Aucune'}</span>
+            <span class="cell__value">${value}${value === 'Avatar' ? ` <span class="account-emoji" aria-hidden="true">${esc(av)}</span>` : ''}</span>
             ${icon('chevron.right', 16)}
           </button>`;
 }
@@ -86,8 +88,9 @@ function pphSheetBody() {
       <div class="pph-preview">${avatarHtml('xl')}</div>
       <p class="pph-lead">${scope}</p>${rules}
       ${notice}
-      ${allowed ? `<button class="btn btn--primary btn--full" data-action="pph-pick">${p ? 'Changer de photo' : 'Choisir une photo'}</button>` : ''}
-      ${p ? `<button class="btn btn--secondary btn--full pph-gap" data-action="pph-avatar">Changer l'avatar</button>` : ''}
+      ${allowed ? `<button class="btn btn--primary btn--full" data-action="pph-pick">${p ? 'Changer de photo' : 'Choisir une photo'}</button>`
+        : `<button class="btn btn--primary btn--full" data-action="pph-offer">Choisir une photo ${pphProTag()}</button>`}
+      <button class="btn btn--secondary btn--full pph-gap" data-action="pph-avatar">${validAvatar(account.profile?.avatar) ? 'Changer l\'avatar' : 'Choisir un avatar'}</button>
       ${p ? `<button class="btn btn--danger btn--full pph-gap" data-action="pph-remove">Retirer la photo</button>` : ''}
       <p class="pph-foot">${PPH_FREE_TEXT[free] || 'Comprise dans MDLF Pro.'} Recadrée en carré et envoyée sans la localisation ni aucune autre donnée de la photo. Si elle ne s'affiche pas, ton avatar la remplace.</p>`;
 }
@@ -98,7 +101,6 @@ function pphSheetPaint() {
 async function pphOpenSheet() {
   if (!profilePhotoOn()) return;
   if (pph.state?.banned) { showToast(pphErrorText('banned'), { error: true }); return; }
-  if (!proFeatureAllowed() && !myProfilePhoto()) { openPaywall('offer'); return; }
   pphView = { stage: 'choose', enc: null, url: null };
   await sheet({ title: 'Photo de profil', cancel: 'Fermer', confirm: '', body: `<div class="pph-sheet">${pphSheetBody()}</div>` });
   pphClearPreview();
@@ -206,6 +208,12 @@ registerActions({
   'pph-remove': () => pphRemoveFlow(),
   // Une ligne = un sens (panel du 20/11) : avec une photo, la ligne Avatar du compte disparaît ; l'avatar (montré si la
   // photo ne charge pas) se change ici
+  // Sans accès : la photo est dans MDLF Pro, l'avatar reste au choix dans la même feuille
+  'pph-offer': async (e, el) => {
+    el?.closest('.sheet-root')?._close?.(null);
+    await new Promise(r => setTimeout(r, 300));
+    openPaywall('offer');
+  },
   'pph-avatar': async (e, el) => {
     el?.closest('.sheet-root')?._close?.(null);
     await new Promise(r => setTimeout(r, 300));

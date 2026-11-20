@@ -25,7 +25,7 @@ toujours son feu vert (docs/PHOTO_PROFIL.md, « Mise en production »).
 Une seule mise en page et un seul fond, le noir : titre énorme (NOUVEAU COACH, NOUVELLE COACH ou COACH), photo ronde
 cerclée d'un trait orange plein, le personnage 3D **en entier** derrière (corps entier, bras de chaque côté, jambes
 jusqu'en bas, à la taille et au cadrage du concept v2 gardé par Maxence), muscles rouge vif, au plus 10 %
-d'assombrissement uniforme ; nom, « @pseudo · Sur MDLF Training », badge « Carte pro déclarée », puis le code en noir
+d'assombrissement uniforme ; nom, « @pseudo », badge « Carte pro déclarée », puis le code en noir
 sur l'orange plein (« Télécharge MDLF Training et entre mon code ») ; « Programme · Suivi · Messages » en décor en bas.
 Rendus : `~/.local/share/mdlf/panel/affiche-coach/v6/` (`comparaison.png` : v2 et v6 côte à côte, `contrastes.json`).
 
@@ -47,6 +47,15 @@ sûre, le titre et la photo prennent la place libre (badge sur la ligne du pseud
 Training » s'efface alors, l'appel et la signature le disent). Feuille : Nom en premier ; « Ajoute ton nom pour partager
 ton affiche » au-dessus de « Partager », un lien qui amène au champ et l'active ; aperçu à 22 % de la hauteur en très
 grand texte. Photo de profil en très grand texte : une phrase courte, la règle repliée dans « Ce qui est permis ».
+
+**6e panel ciblé (8,56/10), corrigé en v13** (`v13/`) : spécialité sous son libellé, sur plusieurs lignes, jamais
+tronquée ; Compte : une seule ligne « Photo de profil » (valeur Photo, Avatar ou Aucune), sa feuille propose « Choisir
+une photo » (MDLF Pro sans accès) et « Choisir un avatar » ; nom long sur deux lignes (prénom puis nom), 64 px d'air de
+chaque côté dans sa colonne ; plus de « · Sur MDLF Training » sous le nom (l'appel et la signature le disent), badge sur
+la ligne du pseudo en story comme en carré, 20 px au moins au-dessus du code en carré ; aperçu à 18 % sur petit écran
+aux plus grandes tailles de texte ; carte du code : Copier et Partager passent sous le code avant qu'il ne se coupe.
+Personnage jusqu'à 1780 px demandé : pas fait, il est limité par la largeur de sa colonne (environ 350 px de large pour
+790 px de haut) ; atteindre 1780 px demanderait environ 550 px de large, donc de passer sous la photo ou sous le code.
 
 **Mon coach** : l'élève voit le nom de l'affiche de son coach en titre, @pseudo dessous, et sa photo de profil s'il en
 a mis une. Le nom part au serveur seulement quand le coach **partage** son affiche (dit sous les réglages :
@@ -132,7 +141,7 @@ contour noir, code noir sur #FF7A1A). La version claire (v5) et le choix Clair /
 | Question | Décision | Pourquoi |
 |---|---|---|
 | Où | Mes élèves › Invitations (sous le code permanent) et Réglages › Coach (sous « Ton code coach ») ; coach validé seulement | Là où le coach partage déjà son code. |
-| Contenu | Titre, nom en capitales (sinon le pseudo), @pseudo · Sur MDLF Training, badge s'il est affiché, consigne et code permanent, signature de l'app | Rien d'un élève (test unitaire). |
+| Contenu | Titre, nom en capitales (sinon le pseudo), @pseudo, badge s'il est affiché, consigne et code permanent, signature de l'app | Rien d'un élève (test unitaire). |
 | Silhouette | Femme ou homme, choix explicite dans l'aperçu, prérempli avec le réglage de silhouette du compte, gardé sur l'appareil ; donne le personnage de l'atlas (muscles superficiels en rouge) et l'accord du titre ; « COACH » seul au choix | « Attention à respecter aussi pour les femmes » ; jamais déduit du prénom. |
 | Zones d'Instagram | Rien d'important dans les 250 px du haut ni du bas (test unitaire) ; le bas n'est jamais vide | Barres de progression et champ de réponse. |
 | Police | Anton (gros titres seulement), SIL Open Font License 1.1, réduite au latin (24 ko), dans `fonts/` avec sa licence ; le reste en SF Pro | Condensée, lisible en grand ; libre d'usage commercial. |

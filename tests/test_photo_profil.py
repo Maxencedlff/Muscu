@@ -120,7 +120,8 @@ def t_compte_envoi_retrait(bench, eng, dev, theme):
         page.evaluate("navigate('account')")
         page.wait_for_selector('[data-action="pph-open"]', timeout=5000)
         cell = page.inner_text('[data-action="pph-open"]')
-        R.check('Photo de profil' in cell and 'Pro' in cell and 'Aucune' in cell, f'{t} Compte : cellule « Photo de profil », mention Pro ({cell!r})')
+        R.check('Photo de profil' in cell and 'Pro' in cell and 'Avatar' in cell, f'{t} Compte : cellule « Photo de profil », mention Pro, avatar montré ({cell!r})')
+        R.check(page.locator('[data-action="account-edit-avatar"]').count() == 0, f'{t} Compte : une seule ligne pour la photo et l\'avatar')
         foot = page.inner_text('.account-view')
         R.check('Personne d\'autre ne voit la photo' in foot, f'{t} Compte : qui voit la photo, dit sous le groupe')
         layout(page, t, 'Compte')
@@ -132,6 +133,7 @@ def t_compte_envoi_retrait(bench, eng, dev, theme):
         R.check('Visible seulement de tes amis et de ton coach' in lead and 'Comprise dans MDLF Pro' in lead and 'sans la localisation' in lead,
                 f'{t} feuille : portée, Pro, sans métadonnées')
         R.check(page.locator('.sheet [data-action="pph-remove"]').count() == 0, f'{t} sans photo : pas de « Retirer »')
+        R.check(page.locator('.sheet [data-action="pph-avatar"]').count() == 1, f'{t} feuille : l\'avatar se choisit aussi ici')
         layout(page, t, 'Feuille')
         shot(page, LOT, f'02-feuille-{t}')
 
@@ -164,7 +166,7 @@ def t_compte_envoi_retrait(bench, eng, dev, theme):
             mid, left = px.getpixel((256, 256)), px.getpixel((4, 256))
             R.check(mid[0] > 180 and mid[2] < 120 and left[0] < 120, f'{t} carré central (milieu {mid}, bord {left})')
         page.wait_for_function("() => { const i = document.querySelector('.account-hero .avatar__photo'); return i && i.naturalWidth > 0; }", timeout=5000)
-        R.check('Ajoutée' in page.inner_text('[data-action="pph-open"]'), f'{t} Compte : « Ajoutée »')
+        R.check('Photo' in page.inner_text('[data-action="pph-open"] .cell__value'), f'{t} Compte : valeur « Photo »')
         R.check(not page.evaluate("__sb.signed.some(s => s[0].startsWith(__sb.meId()))"), f'{t} ma photo affichée sans la relire du serveur')
         layout(page, t, 'Compte avec photo')
         shot(page, LOT, f'04-compte-photo-{t}')
@@ -252,8 +254,12 @@ def t_droit(bench, eng, dev, theme):
         page.evaluate("navigate('account')")
         page.wait_for_selector('[data-action="pph-open"]')
         page.click('[data-action="pph-open"]')
+        page.wait_for_selector('.sheet .pph-sheet [data-action="pph-offer"]', timeout=5000)
+        R.check(page.locator('.sheet [data-action="pph-pick"]').count() == 0 and page.locator('.sheet [data-action="pph-avatar"]').count() == 1,
+                f'{t} verrou allumé, sans abonnement : photo dans Pro, avatar au choix')
+        page.click('.sheet [data-action="pph-offer"]')
         page.wait_for_selector('.pay-view', timeout=5000)
-        R.check(page.locator('.sheet .pph-sheet').count() == 0, f'{t} verrou allumé, sans abonnement : écran d\'abonnement')
+        R.check(True, f'{t} verrou allumé, sans abonnement : écran d\'abonnement')
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme)
         signin(page)

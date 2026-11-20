@@ -85,8 +85,9 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       assert.equal(c.width, 1080, tag);
       assert.equal(c.height, format === 'story' ? 1920 : 1080, tag);
       const t = texts(c);
-      // Story : badge sur la ligne du pseudo (5e panel), « Sur MDLF Training » effacé s'il ne tient pas avec lui
-      const handle = format === 'story' ? (t.includes('@lea.coach · Sur MDLF Training') ? '@lea.coach · Sur MDLF Training' : '@lea.coach') : '@lea.coach · Sur MDLF Training';
+      // 6e panel : « · Sur MDLF Training » retiré de la ligne du pseudo (l'appel et la signature le disent)
+      const handle = '@lea.coach';
+      assert.ok(!t.some(x => x.includes('Sur MDLF Training')), `${tag} : plus de « Sur MDLF Training »`);
       for (const w of [sil === 'female' ? 'NOUVELLE' : 'NOUVEAU', 'COACH', 'LÉA MARTIN', handle, 'Carte pro déclarée',
         'K7M2-QX9P-R4TD', 'MDLF Training']) {
         assert.ok(t.includes(w), `${tag} : « ${w} » écrit (${JSON.stringify(t)})`);
@@ -190,8 +191,13 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     for (const format of ['story', 'square']) {
       const c = draw(model({ name: 'Marie-Charlotte Delafontaine', username: 'marie.charlotte.coach' }), format);
       const t = texts(c);
-      assert.ok(t.includes('MARIE-CHARLOTTE DELAFONTAINE'), `${format} : nom entier sur une ligne, réduit ${JSON.stringify(t)}`);
-      assert.ok(t.includes('@marie.charlotte.coach · Sur MDLF Training') || (format === 'story' && t.includes('@marie.charlotte.coach')), `${format} : pseudo long entier`);
+      // Une ligne, ou deux (prénom puis nom) ; 64 px d'air au moins entre le nom et le bord droit de l'image
+      assert.ok(t.includes('MARIE-CHARLOTTE DELAFONTAINE') || (t.includes('MARIE-CHARLOTTE') && t.includes('DELAFONTAINE')), `${format} : nom entier ${JSON.stringify(t)}`);
+      for (const o of c.ops.filter(x => x.op === 'text' && /MARIE|DELAFONTAINE/.test(x.text))) {
+        const size = parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]);
+        assert.ok(o.x + String(o.text).length * size * 0.5 / 2 <= 1080 - 64, `${format} : « ${o.text} » trop près du bord droit`);
+      }
+      assert.ok(t.includes('@marie.charlotte.coach'), `${format} : pseudo long entier`);
       for (const o of c.ops.filter(x => x.op === 'text')) {
         const size = parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]), w = String(o.text).length * size * .5;
         assert.ok(w <= 1080, `${format} : « ${o.text} » plus large que l'image (${Math.round(w)} px)`);

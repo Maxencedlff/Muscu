@@ -122,15 +122,20 @@
 
 /* ── Codes d'invitation ── */
 .view--grouped .cell.coach-invite, .view--grouped .cell.coach-code-cell { padding-top: 8px; padding-bottom: 8px; gap: 4px; min-height: 60px; }
-.coach-invite .cell__body, .coach-code-cell .cell__body { min-width: 0; }
+.coach-invite .cell__body { min-width: 0; }
 .coach-code-cell--main .cell__sub { overflow-wrap: anywhere; }
-/* Code permanent (coachCodeCellHtml) : tient toujours en entier. Taille selon la largeur de la carte (≈ 10,6 em
-   pour 14 signes gras), plafonnée au corps du texte, plancher lisible de 17 px ; plus étroit encore (iPhone SE en
-   AX33), retour à la ligne entre blocs seulement */
-.coach-code-cell .cell__body { container-type: inline-size; flex: 1 1 0; min-width: 0; }
-.coach-code.coach-code--fit { white-space: normal; font-size: clamp(17px, 9.4cqi, var(--fs-body)); line-height: 1.15; }
+/* Code permanent (coachCodeCellHtml) : tient toujours en entier. 6e panel : d'abord sur une ligne, Copier et Partager
+   passent dessous dès qu'il ne tient pas à côté d'eux (le corps de la carte garde la largeur du code, la carte passe à
+   la ligne) ; taille selon la largeur de la carte, plafonnée au corps du texte, plancher lisible de 17 px ; plus étroit
+   encore (très grand texte), retour à la ligne entre blocs entiers seulement */
+.view--grouped .cell.coach-code-cell { container-type: inline-size; flex-wrap: wrap; }
+.coach-code-cell .cell__body { flex: 1 1 0; min-width: min-content; max-width: 100%; }
+.coach-code.coach-code--fit { display: block; white-space: nowrap; font-size: clamp(17px, 7cqi, var(--fs-body)); line-height: 1.15; }
+html.type-xl .coach-code.coach-code--fit { white-space: normal; }
+html.type-xl .coach-code-cell .cell__body { min-width: 0; flex-basis: 100%; }
 .coach-code__blk { display: inline-block; white-space: nowrap; }
 .coach-code-cell .cell__sub { white-space: normal; overflow-wrap: break-word; }
+.coach-code-cell:has(> .coach-icon-btn) > .coach-icon-btn:first-of-type { margin-left: auto; }
 .coach-code-cell .coach-icon-btn + .coach-icon-btn { margin-left: -6px; }
 .coach-code { font-size: var(--fs-body); font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
 .coach-icon-btn {

@@ -172,16 +172,18 @@ function cpaBadge(ctx, m, cx, y, size) {
   return h;
 }
 
-// Bloc d'identité posé de haut en bas sous la photo : nom (une ligne, réduit s'il le faut), spécialité, « @pseudo · Sur
-// MDLF Training », badge. draw = false : mesure seule. Renvoie le bas du bloc
-function cpaIdentityDown(ctx, m, { x, top, maxW, name: [nMax, nMin], subSize, gap, inline = false, draw = true }) {
+// Bloc d'identité posé de haut en bas sous la photo : nom, spécialité, « @pseudo » et badge. draw = false : mesure seule.
+// Renvoie le bas du bloc. 6e panel : le nom garde 64 px d'air de chaque côté de sa colonne (nameW) ; trop large, il passe
+// sur deux lignes (prénom, puis la suite), réduit s'il le faut ; plus de « · Sur MDLF Training » (l'appel et la
+// signature le disent) ; inline : badge sur la ligne du pseudo quand elle tient
+function cpaIdentityDown(ctx, m, { x, top, maxW, nameW = maxW, name: [nMax, nMin], subSize, gap, inline = false, draw = true }) {
   let y = top;
   if (m.name) {
-    const up = m.name.toLocaleUpperCase('fr-FR');
-    let ns = cpaFit(ctx, up, maxW, nMax, nMin, cpaTitle);
-    ctx.font = cpaTitle(100); ns = Math.min(ns, 100 * maxW / Math.max(1, ctx.measureText(up).width));
-    y += ns * 0.98;   // place des accents (É) au-dessus des capitales
-    if (draw) cpaTitleText(ctx, up, x, y, ns, CPA.white);
+    for (const [line, ns] of cpaNameLayout(ctx, m.name.toLocaleUpperCase('fr-FR'), nameW, nMax, nMin)) {
+      y += ns * 0.98;   // place des accents (É) au-dessus des capitales
+      if (draw) cpaTitleText(ctx, line, x, y, ns, CPA.white);
+      y += ns * 0.08;
+    }
     y += gap;
   }
   if (m.specialty) {
@@ -190,15 +192,11 @@ function cpaIdentityDown(ctx, m, { x, top, maxW, name: [nMax, nMin], subSize, ga
     if (draw) cpaText1(ctx, m.specialty, x, y, { font: cpaText(sp, 600), color: CPA.white });
     y += gap;
   }
-  let sub = [m.handle, 'Sur MDLF Training'].filter(Boolean).join(' · ');
-  const bs = subSize * 0.8, bh = Math.round(bs * 1.8);
-  // inline (story, 5e panel) : badge sur la ligne du pseudo quand la ligne tient (la place gagnée va au titre et à la
-  // photo) ; « Sur MDLF Training » s'efface alors s'il faut, l'appel et la signature le disent déjà
-  if (inline && m.badge) {
+  const sub = m.handle, bs = subSize * 0.8, bh = Math.round(bs * 1.8);
+  if (inline && m.badge && sub) {
     ctx.font = cpaText(bs, 600);
     const bw = ctx.measureText(m.badge).width + bs * 1.6, room = maxW - bw - subSize * 0.8;
     ctx.font = cpaText(subSize, 600);
-    if (m.handle && ctx.measureText(sub).width > room) sub = m.handle;
     const sw = ctx.measureText(sub).width;
     if (sw <= room) {
       const x0 = x - (sw + subSize * 0.8 + bw) / 2, base = y + Math.max(subSize, bh * 0.75);
@@ -208,14 +206,23 @@ function cpaIdentityDown(ctx, m, { x, top, maxW, name: [nMax, nMin], subSize, ga
       }
       return base + bh * 0.3 + gap;
     }
-    sub = [m.handle, 'Sur MDLF Training'].filter(Boolean).join(' · ');
   }
-  const ss = cpaFit(ctx, sub, maxW, subSize, Math.round(subSize * 0.55), z => cpaText(z, 600));
-  y += ss;
-  if (draw) cpaSmallText(ctx, sub, x, y, ss);
-  y += gap;
+  if (sub) {
+    const ss = cpaFit(ctx, sub, maxW, subSize, Math.round(subSize * 0.55), z => cpaText(z, 600));
+    y += ss;
+    if (draw) cpaSmallText(ctx, sub, x, y, ss);
+    y += gap;
+  }
   if (m.badge) { if (draw) cpaBadge(ctx, m, x, y, bs); y += bh; }
   return y;
+}
+// Nom en capitales : une ligne à sa taille, sinon (réduit sous 80 %) deux lignes, prénom puis la suite, à la même taille
+function cpaNameLayout(ctx, up, w, nMax, nMin) {
+  const fit = t => { const s = cpaFit(ctx, t, w, nMax, nMin, cpaTitle); ctx.font = cpaTitle(100); return Math.min(s, 100 * w / Math.max(1, ctx.measureText(t).width)); };
+  const one = fit(up), k = up.indexOf(' ');
+  if (one >= nMax * 0.8 || k < 0) return [[up, one]];
+  const lines = [up.slice(0, k), up.slice(k + 1)], two = Math.min(...lines.map(fit));
+  return two > one ? lines.map(l => [l, two]) : [[up, one]];
 }
 
 // Photo ronde cerclée d'un trait orange plein, ou initiales
@@ -266,7 +273,7 @@ const CPA_LEFT = 0.36, CPA_LEFT_STORY = 0.34;
 function cpaDrawStory(ctx, m, a, W) {
   const left = W * CPA_LEFT_STORY, colX = left + 12, colW = W - colX - 32, cx = colX + colW / 2;
   const brand = 46, brandY = 1600 - brand, pill = { h: 150, y: brandY - 16 - 150 };
-  const idOpts = { x: cx, maxW: colW, name: [76, 40], subSize: 28, gap: 10, inline: true };
+  const idOpts = { x: cx, maxW: colW, nameW: colW - 128, name: [76, 40], subSize: 28, gap: 10, inline: true };
   const idH = cpaIdentityDown(ctx, m, { ...idOpts, top: 0, draw: false });
   // 5e panel : le bloc remplit toute la zone sûre (250 à 1600 px). Titre en haut de la zone, photo la plus grande que
   // permet la colonne, puis le reste de la hauteur va au titre (tant que l'identité tient au-dessus du code)
@@ -293,10 +300,11 @@ function cpaDrawSquare(ctx, m, a, W, H) {
   const brand = 32, brandY = H - 26 - brand, pill = { h: 96, y: brandY - 10 - 96 };
   cpaCodePill(ctx, m, cx, pill.y, colW, pill.h);
   cpaBrand(ctx, a.icon, cx, brandY, brand);
-  const idOpts = { x: cx, maxW: colW, name: [58, 34], subSize: 22, gap: 8 };
+  const idOpts = { x: cx, maxW: colW, nameW: colW - 128, name: [58, 34], subSize: 22, gap: 8, inline: true };
   const idH = cpaIdentityDown(ctx, m, { ...idOpts, top: 0, draw: false });
   const photoTop = titleBottom + 14;
-  const d = Math.max(W * 0.46, Math.min(W * 0.5, pill.y - 16 - photoTop - idH - 16));
+  // 6e panel : 20 px d'air au moins entre le bloc d'identité et le code
+  const d = Math.max(W * 0.46, Math.min(W * 0.5, pill.y - 20 - photoTop - idH - 32));
   cpaPhotoRound(ctx, m, a, cx, photoTop, d);
   cpaIdentityDown(ctx, m, { ...idOpts, top: photoTop + d + 32 });
 }
