@@ -782,6 +782,7 @@ function coachTeamHtml() {
         <div class="group-title">Invitations</div>
         <div class="group">
           ${coachPermanentCodeHtml()}
+          ${coachPro.code ? coachPosterCellHtml() : ''}
           ${invites}
           <button class="cell cell--action" data-action="coach-invite" ${coachInviteBusy ? 'disabled' : ''}>${icon('plus', 20)}<span>${coachPro.code ? 'Créer un code de 7 jours' : 'Inviter un élève'}</span></button>
         </div>

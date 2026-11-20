@@ -35,6 +35,7 @@ function storyPalette(catColor) {
     // Plus de couleur de séance dans l'image (direction sobre) : l'orange de l'app ne sert qu'à
     // l'icône de secours de la signature ; catColor reste accepté pour les appelants
     cat:      color('var(--tint-fill)') || color(catColor) || color('var(--green)'),
+    onTint:   color('var(--on-tint)'),   // texte posé sur l'orange plein (code de l'affiche du coach)
     font:        token('--font') || '-apple-system, system-ui, sans-serif',
     fontRounded: token('--font-rounded') || '-apple-system, system-ui, sans-serif',
   };
@@ -104,21 +105,42 @@ function blobDataUrl(blob) {
 // Formats proposés pour une séance : story (9:16) et carré (fil, messages)
 const SHARE_FORMATS = { story: { label: 'Story', hint: 'Pour une story Instagram' }, square: { label: 'Carré', hint: 'Pour le fil et les messages' } };
 
-// alt : description de l'image pour VoiceOver (shareStoryAlt, recapPageAlt) ; formats : choix story / carré
-function sharePreviewBody(alt, formats = false) {
+// alt : description de l'image pour VoiceOver (shareStoryAlt, recapPageAlt) ; formats : choix story / carré ;
+// tools : réglages propres à l'image (affiche du coach) : { rows } posés sous le choix du format
+function sharePreviewBody(alt, formats = false, tools = null) {
   const seg = formats ? `
       <div class="segmented seg-full share-preview__formats" role="group" aria-label="Format de l'image">
         ${Object.entries(SHARE_FORMATS).map(([k, f]) => `<button type="button" class="segmented__btn${k === 'story' ? ' segmented__btn--active' : ''}" aria-pressed="${k === 'story'}" data-action="share-format" data-f="${k}">${f.label}</button>`).join('')}
       </div>` : '';
-  return `
-    <div class="share-preview">${seg}
+  const frame = `
       <div class="share-preview__frame">
         <canvas class="share-preview__img" width="1080" height="1920" role="img" aria-label="${esc(alt)}"></canvas>
-      </div>
+      </div>`;
+  const send = `
       <button class="btn btn--primary btn--full share-preview__send" data-action="share-story-send" disabled>
         ${icon('square.and.arrow.up', 22)}<span>Partager</span>
       </button>
-      <p class="share-preview__hint">${SHARE_FORMATS.story.hint}</p>
+      <p class="share-preview__hint">${SHARE_FORMATS.story.hint}</p>`;
+  // Avec des réglages (affiche du coach) : l'aperçu de l'image entière FIXÉ en haut de la feuille (hauteur bornée, un
+  // toucher l'ouvre en plein écran), les réglages qui défilent dessous, « Partager » dans une barre fixée en bas (fond
+  // opaque). Choisir Femme ou Homme montre tout de suite le changement, même sur un petit écran en très grand texte.
+  // L'aide va dans la barre ; en très grand texte, à la fin des réglages (la barre reste basse)
+  if (tools) {
+    const help = tools.help ? esc(tools.help) : '';
+    return `
+    <div class="share-preview share-preview--tools">
+      <div class="share-preview__top">
+        <button type="button" class="share-preview__zoom" data-action="share-preview-zoom" aria-label="Voir l'image en plein écran">${frame}</button>
+      </div>
+      ${seg}${tools.rows || ''}
+      ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--flow">${help}</p>` : ''}
+      <div class="share-preview__actionbar">${send.replace(/\s*<p class="share-preview__hint">[^<]*<\/p>/, '')}
+        ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--bar">${help}</p>` : ''}
+      </div>
+    </div>`;
+  }
+  return `
+    <div class="share-preview">${seg}${frame}${send}
     </div>`;
 }
 
@@ -130,8 +152,8 @@ async function openStoryPreview(state, draw) {
   if (shareState) return;
   Object.assign(state, { blob: null, file: null, busy: false, format: 'story', baseName: state.name, draw, drawn: 0 });
   shareState = state;
-  sheet({ title: 'Aperçu', cancel: 'Fermer', confirm: '', body: sharePreviewBody(state.alt, !!state.formats) })
-    .then(() => { if (shareState === state) shareState = null; });
+  sheet({ title: 'Aperçu', cancel: 'Fermer', confirm: '', body: sharePreviewBody(state.alt, !!state.formats, state.tools || null) })
+    .then(() => { if (shareState === state) shareState = null; state.onClose?.(); });
   const root = [...document.querySelectorAll('.sheet-root')].pop();
   state.root   = root;
   state.close  = v => root?._close?.(v);
@@ -174,6 +196,8 @@ const SHARE_MESSAGES = { downloaded: 'Image enregistrée', failed: 'Partage impo
 
 registerActions({
   'share-story': (e, el) => { openSharePreview(el.dataset.id); },
+  // Aperçu en plein écran (affiche du coach) : l'image telle qu'elle partira, fermée d'un toucher
+  'share-preview-zoom': () => { sharePreviewZoom(); },
   // Story ou carré : le cadre de l'aperçu prend le format, l'image est redessinée
   'share-format': (e, el) => {
     const st = shareState, f = el.dataset.f;
@@ -184,7 +208,7 @@ registerActions({
       b.setAttribute('aria-pressed', String(on)); b.classList.toggle('segmented__btn--active', on);
     });
     st.root?.querySelector('.share-preview__frame')?.classList.toggle('share-preview__frame--square', f === 'square');
-    const hint = st.root?.querySelector('.share-preview__hint');
+    const hint = st.root?.querySelector('.share-preview__hint:not(.share-preview__help)');
     if (hint) hint.textContent = SHARE_FORMATS[f].hint;
     haptic();
     sharePreviewDraw(st);
@@ -220,6 +244,22 @@ registerActions({
     if (result !== 'failed') st.close?.(true);
   },
 });
+
+function sharePreviewZoom() {
+  const st = shareState;
+  if (!st?.canvas || document.querySelector('.share-zoom')) return;
+  let url;
+  try { url = st.canvas.toDataURL('image/png'); } catch { return; }
+  const el = document.createElement('div');
+  el.className = 'share-zoom';
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Image en plein écran');
+  el.innerHTML = `<img class="share-zoom__img" src="${url}" alt="${esc(st.canvas.getAttribute('aria-label') || '')}">
+    <button type="button" class="btn btn--secondary share-zoom__close">Fermer</button>`;
+  const close = () => { el.remove(); st.root?.querySelector('.share-preview__zoom')?.focus({ preventScroll: true }); };
+  el.addEventListener('click', close);
+  document.body.appendChild(el);
+  el.querySelector('.share-zoom__close').focus({ preventScroll: true });
+}
 
 // Bouton commun du bilan et du détail d'une séance
 function shareStoryButton(id, cls = '') {

@@ -394,3 +394,5 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
 .pph-note { margin: 0 0 14px; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
 .pph-gap { margin-top: 10px; }
 .pph-foot { margin: 12px 0 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+/* Très grand texte : « Utiliser cette photo » et « Choisir une autre photo » passent à la ligne au lieu d'être coupés */
+.pph-sheet .btn { white-space: normal; height: auto; min-height: 50px; padding-block: 10px; }

@@ -705,6 +705,7 @@ async function accountDelete() {
     return { ok: false, reason: 'server' };
   }
   if (!res?.deleted) return { ok: false, reason: 'server' };
+  if (typeof posterPhotoClear === 'function') await posterPhotoClear(account.user?.id);   // photo de l'affiche du coach (appareil)
   await accountForgetDevice();
   return { ok: true, apple, revoked: !!res.revoked };
 }

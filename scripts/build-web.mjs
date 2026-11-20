@@ -11,7 +11,7 @@ import { runtimeSince, runtimeVersion } from './runtime-version.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT  = path.join(ROOT, 'dist');
 const ENTRIES = ['index.html', 'manifest.json', 'privacy.html', 'legal.css', 'icon.svg', 'apple-touch-icon.png',
-                 'icon-192.png', 'icon-512.png', 'css', 'js', 'img', 'data'];
+                 'icon-192.png', 'icon-512.png', 'css', 'js', 'img', 'data', 'fonts'];
 
 fs.rmSync(OUT, { recursive: true, force: true });
 for (const entry of ENTRIES) {

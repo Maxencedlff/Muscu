@@ -21,3 +21,59 @@
 @media (max-height: 500px) {
   .share-preview__frame { height: 46vh; height: 46dvh; }
 }
+
+/* Affiche du coach (js/features/coach-poster-ui.js) : aperçu de l'image entière fixé en haut de la feuille, à hauteur
+   bornée (40 % de l'écran, 30 % en très grand texte), un toucher l'ouvre en plein écran ; réglages qui défilent dessous ;
+   barre « Partager » fixée en bas */
+.share-preview--tools { gap: var(--sp-3); }
+.share-preview__top { position: sticky; top: -8px; z-index: 2; display: flex; justify-content: center; width: calc(100% + 32px);
+  margin: -8px -16px 0; padding: 8px 16px var(--sp-2); background: var(--cell); box-shadow: 0 0.5px 0 var(--sep); }
+.share-preview__zoom { display: block; height: min(40vh, 460px); height: min(40dvh, 460px); padding: 0; border: 0; background: none;
+  border-radius: var(--r-lg); cursor: zoom-in; }
+html.type-xl .share-preview__zoom { height: 30vh; height: 30dvh; }
+.share-preview--tools .share-preview__frame { width: auto; height: 100%; aspect-ratio: 9 / 16; }
+.share-preview--tools .share-preview__frame--square { width: auto; height: 100%; aspect-ratio: 1; }
+.share-preview--tools .share-preview__formats { max-width: 420px; }
+.share-preview__help { max-width: 420px; }
+.share-preview__help--flow { display: none; }
+html.type-xl .share-preview__help--flow { display: block; }
+html.type-xl .share-preview__help--bar { display: none; }
+.share-zoom { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-3); padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); background: #000; }
+.share-zoom__img { flex: 1 1 auto; min-height: 0; max-width: 100%; object-fit: contain; }
+.share-zoom__close { min-height: 44px; }
+/* Barre d'action fixée au bas de la feuille : fond opaque de la feuille, filet au-dessus, sans dégradé ni flou. Placée
+   en fin de contenu (sticky) : sa hauteur compte dans le défilement, rien ne reste caché dessous à la fin */
+.share-preview__actionbar { position: sticky; bottom: -24px; z-index: 2; display: flex; flex-direction: column; align-items: center;
+  gap: 6px; width: calc(100% + 32px); margin: 0 -16px -24px; padding: 12px 16px 16px; background: var(--cell);
+  box-shadow: 0 -0.5px 0 var(--sep); }
+.share-preview__actionbar .share-preview__send { max-width: 420px; }
+.cposter-form { width: 100%; max-width: 420px; border-radius: var(--r-sm); background: var(--fill2); overflow: hidden; }
+.cposter-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; width: 100%; min-height: 44px; padding: 0 14px; border: 0;
+  background: none; color: var(--label); font: inherit; font-size: var(--fs-body); text-align: left; }
+.cposter-row + .cposter-row { box-shadow: inset 0 0.5px 0 var(--sep); }
+.cposter-row__title { flex-shrink: 0; }
+.cposter-row__input { flex: 1 1 8em; min-width: 0; min-height: 44px; border: 0; background: none; color: var(--label);
+  font: inherit; text-align: right; }
+.cposter-row__input:focus { outline: none; }
+.cposter-row:focus-within { box-shadow: inset 0 0 0 2px var(--tint); border-radius: var(--r-sm); }
+.cposter-row__value { margin-left: auto; color: var(--label2); white-space: nowrap; }
+.cposter-row--nav .icon { color: var(--label3); flex-shrink: 0; }
+
+/* Police des gros titres de l'affiche du coach seulement (jamais l'interface) : Anton, licence SIL Open Font
+   License 1.1 (fonts/OFL-Anton.txt), embarquée et réduite au latin */
+@font-face { font-family: 'MDLF Anton'; src: url('../fonts/anton.woff2') format('woff2'); font-weight: 400; font-display: block; }
+.cposter-row__seg { margin-left: auto; flex: 0 0 auto; }   /* trop étroit : passe sous son libellé */
+/* Très grand texte : les choix empilés en liste avec une coche, pleine largeur (« Coach » n'est plus coupé) */
+html.type-xl .cposter-row__seg { display: flex; flex-direction: column; width: 100%; margin: 4px 0 8px; padding: 0; background: none; }
+html.type-xl .cposter-row__seg .segmented__btn { margin: 0; min-height: 44px; padding: 6px 4px; text-align: left; white-space: normal; font-weight: 400; }
+html.type-xl .cposter-row__seg .segmented__btn::after, html.type-xl .cposter-row__seg .segmented__btn::before { display: none; }
+html.type-xl .cposter-row__seg .segmented__btn--active { font-weight: 600; color: var(--tint); }
+html.type-xl .cposter-row__seg .segmented__btn--active::before { display: inline; content: '✓ '; position: static; width: auto; background: none; opacity: 1; }
+/* Le chevron reste collé à la valeur (« Changer › ») ; trop étroit, les deux passent ensemble sous « Photo » */
+.cposter-row__end { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; white-space: nowrap; }
+/* Code permanent d'un bloc, jamais coupé au tiret (Mes élèves › Invitations) */
+.coach-code-cell .coach-code { white-space: nowrap; }
+.cposter-row__seg .segmented__btn { flex: 0 0 auto; padding: 0 10px; white-space: nowrap; }
+/* Très grand texte : le champ Nom passe sous son libellé, pleine largeur (« Ajoute ton prénom » entier) */
+html.type-xl .cposter-row__input { flex-basis: 100%; text-align: left; }

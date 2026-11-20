@@ -88,7 +88,7 @@ le compartiment privé (client.storage.from('coach-photos') : upload, createSign
 politiques. État dans __sb.co.pkeys, __sb.co.photos, __sb.objs (fichiers, base64), __sb.trash (file de purge), __sb.signed
 (URL signées et leur durée) ; __sb.fail.photos = 'missing' (PGRST202) ou 'offline'. Lien rompu : photos effacées.
 Photo de profil (supabase/migrations/20261117010000_photo_profil.sql) : profile_photo_state, profile_photo_prepare (disabled,
-not_allowed sans droit : verrou __st.paywallOn allumé, ni __sb.pp.pro[id] ni coach ; banned, rate_limited à 10), profile_photo_commit
+not_allowed sans droit : verrou __st.paywallOn allumé, ni __sb.pp.pro[id], ni coach, ni droit d'écrire du faux StoreKit ; banned, rate_limited à 10), profile_photo_commit
 (not_uploaded : fichier absent, de plus de 256 ko ou ni JPEG ni WebP), profile_photo_remove, profile_photos (moi, ami accepté dans un
 sens ou l'autre, coach ou élève ; photo masquée, auteur sans droit ou photos éteintes : absente) ; compartiment profile-photos avec ses
 politiques ; signalement « photo:<id> » par la fonction report, masquée au 2e signalant. État dans __sb.pp (photos, pro, bans, on) ;
@@ -811,7 +811,10 @@ FAKE_ACCOUNT = r"""
   // Photos { id, user, state, bytes, created_at, hidden } ; droit = verrou éteint, ou __sb.pp.pro[id], ou coach
   const pp = sb.pp = { photos: [], pro: {}, bans: {}, on: true, tries: {} };
   const ppPath = p => `${p.user}/${p.id}`;
-  const ppAllowed = me => !(window.__st && window.__st.paywallOn) || !!pp.pro[me] || !!co.coachAt[me];
+  // private.pro_feature : droit d'écrire du payant (faux StoreKit s'il est chargé : abonné, cadeau, élève couvert par son
+  // coach) ou rôle coach ; __sb.pp.pro[id] le donne à un autre compte du test
+  const ppAllowed = me => !(window.__st && window.__st.paywallOn) || !!pp.pro[me] || !!co.coachAt[me]
+    || !!(window.__st && typeof window.__st.canWriteOf === 'function' && window.__st.canWriteOf(me));
   const ppLinked = (a, b) => co.links.some(l => (l.coach === a && l.student === b) || (l.coach === b && l.student === a));
   const ppVisible = (viewer, owner) => viewer === owner || canSee(viewer, owner) || canSee(owner, viewer) || ppLinked(viewer, owner);
   const ppDrop = pred => { pp.photos.filter(pred).forEach(p => sb.trash.push(ppPath(p))); pp.photos = pp.photos.filter(p => !pred(p)); };
