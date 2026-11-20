@@ -2321,14 +2321,17 @@ def p_affiche_coach(r):
     with r.etape('apercu-sans-photo', 'Aperçu sans photo : le personnage aux muscles rouges', cle=cle):
         r.toucher('[data-action="coach-poster-open"]', 'Mon affiche de coach')
         r.attendre('.sheet .cposter-form', 'aperçu')
-        r.page.wait_for_function("() => { const b = document.querySelector('.sheet .share-preview__send'); return b && !b.disabled; }", timeout=8000)
+        r.page.wait_for_function("() => !!(shareState && shareState.blob)", timeout=8000)   # Partager reste grisé sans nom
     with r.etape('photo', 'Photo de l\'affiche choisie (gardée sur l\'iPhone)', cle=cle):
         with r.page.expect_file_chooser() as fc:
             r.toucher('.sheet [data-action="coach-poster-photo"]', 'Photo (sélecteur d\'iOS)')
         fc.value.set_files(image_bilan('portrait.jpg', (52, 78, 110), (226, 196, 160)))
         r.page.wait_for_function("() => !!(cposter && cposter.photo)", timeout=8000)
-    with r.etape('nom', 'Nom écrit sur l\'affiche', cle=cle):
+    with r.etape('nom', 'Nom écrit sur l\'affiche (« Partager » s\'active)', cle=cle):
         r.saisir('#cposterName', 'Camille Martin', 'nom')
+        r.page.wait_for_timeout(600)
+    with r.etape('specialite', 'Spécialité facultative, sous le nom', cle=cle):
+        r.saisir('#cposterSpecialty', 'Force · Perte de poids', 'spécialité')
         r.page.wait_for_timeout(600)
     with r.etape('femme', 'Silhouette femme : « Nouvelle coach », personnage femme', cle=cle):
         r.toucher('.sheet [data-action="coach-poster-silhouette"][data-v="female"]', 'Femme')
