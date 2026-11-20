@@ -582,7 +582,9 @@ def t_sans_migration(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         cons = []
-        page.on('console', lambda m: cons.append(m.text) if m.type == 'error' else None)
+        # Erreurs de console, et requêtes en échec hors celle des mises à jour à chaud (coupée exprès par open_app)
+        page.on('console', lambda m: cons.append(m.text) if m.type == 'error' and not m.text.startswith('Failed to load resource') else None)
+        page.on('requestfailed', lambda q: cons.append(q.url) if 'mdlf-ota' not in q.url else None)
         open_app(page, theme)
         signin(page, 'camille_coach')
         page.evaluate(FAKE_SHARE)
@@ -614,7 +616,9 @@ def t_sans_migration(bench, eng, dev, theme):
         R.check(not page.errors and not cons, f'{t} sans migration, coach : aucune erreur JS ni console {page.errors} {cons}')
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         cons = []
-        page.on('console', lambda m: cons.append(m.text) if m.type == 'error' else None)
+        # Erreurs de console, et requêtes en échec hors celle des mises à jour à chaud (coupée exprès par open_app)
+        page.on('console', lambda m: cons.append(m.text) if m.type == 'error' and not m.text.startswith('Failed to load resource') else None)
+        page.on('requestfailed', lambda q: cons.append(q.url) if 'mdlf-ota' not in q.url else None)
         open_app(page, theme)
         signin(page, 'lea')
         page.evaluate("""async () => { __sb.fail.posterName = 'missing'; const c = __sb.addPerson({ username: 'camille_coach', avatar: '🦁', social: false }); __sb.makeCoach(c);
