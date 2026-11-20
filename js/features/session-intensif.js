@@ -10,9 +10,12 @@ function techOpts(ex) {
   const setup = plateSetup(), barbell = isBarbellExercise(ex);
   return { round: v => roundLoad(v, { ...setup, barbell }), assisted: loadKind(ex) === 'aide' };
 }
+// Sous-série touchée : { s, host, side, x, k } ; host : la série (premier côté) ou son second côté (data-side="2",
+// série notée par bras : js/data/unilateral.js), dont x est la sous-série k
 function techSubAt(ds) {
   const s = activeSession?.exercises[parseInt(ds.ei)]?.sets[parseInt(ds.si)];
-  return s && setTech(s) ? { s, x: s.sub?.[parseInt(ds.k)] || null, k: parseInt(ds.k) } : null;
+  const side = ds.side === '2' ? 2 : 1, host = side === 2 ? s?.side2 : s;
+  return s && setTech(s) && host ? { s, host, side, x: host.sub?.[parseInt(ds.k)] || null, k: parseInt(ds.k) } : null;
 }
 
 // Sous-série qui suit la dernière validation (pause d'un rest-pause ou d'un cluster, ou entre deux drops) :
@@ -22,10 +25,14 @@ function techNextSub() {
   const xs = activeSession?.exercises;
   const c = xs && techCurrentSub(xs, activeSession.lastDone);
   if (!c) return null;
-  const ex = xs[c.ei], s = ex.sets[c.si], x = s.sub[c.k];
+  const ex = xs[c.ei], s = ex.sets[c.si];
+  // Second côté d'une série notée par bras (js/data/unilateral.js) : « Bras droit · 12 kg × 10 »
+  if (c.k < 0) return { ...c, label: sideName(ex, 2), set: { weight: side2WeightKg(s), reps: side2RepsGoal(s) } };
+  const two = c.side === 2;
   // « Mini-série +1 » : le même repère que la ligne (« +1 »), pas un 2e nom à relier de tête (panel vague 4)
   return { ...c, label: `${capitalize(TECHS[setTech(s)].subName)} +${c.k + 1}`,
-    set: { weight: subWeightKg(s, c.k, techOpts(ex)), reps: String(x.reps ?? '').trim() || x.prev?.reps || '' } };
+    set: { weight: two ? side2SubWeightKg(s, c.k, techOpts(ex)) : subWeightKg(s, c.k, techOpts(ex)),
+      reps: two ? side2SubRepsGoal(s, c.k) : String(s.sub[c.k].reps ?? '').trim() || s.sub[c.k].prev?.reps || '' } };
 }
 
 // Numéro d'une série de travail à faire (ou rouverte) : bouton qui ouvre le choix d'une technique.
@@ -73,17 +80,19 @@ function techBlockHtml(ex, ei, s, si) {
     </div>`;
 }
 
-function subRowHtml(ex, ei, s, si, x, k) {
+// side 2 : sous-série du second côté d'une série notée par bras (js/features/session-unilateral.js), pré-remplie avec
+// la même sous-série du premier côté (charge dans la case, reps en gris)
+function subRowHtml(ex, ei, s, si, x, k, side = 1) {
   // Numéro de la sous-série seul, sous le nom de la technique (« Rest-pause 15 s ») : un seul mot, « mini-série », partout ailleurs
-  const T = TECHS[setTech(s)], tag = `+${k + 1}`, kind = loadKind(ex);
-  const spoken = `${T.subName} ${k + 1}, ${setSpokenName(ex, si).toLowerCase()}, ${esc(ex.name)}`;
+  const T = TECHS[setTech(s)], tag = `+${k + 1}`, kind = loadKind(ex), two = side === 2, host = two ? s.side2 : s;
+  const spoken = `${T.subName} ${k + 1}, ${setSpokenName(ex, si).toLowerCase()}${hasSide2(s) ? `, ${sideName(ex, side).toLowerCase()}` : ''}, ${esc(ex.name)}`;
   const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;× ' : ''}${esc(x.prev.reps)}` : '—';
-  const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"`;
+  const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"${two ? ' data-side="2"' : ''}`;
   if (x.done) {
     const w = hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '';
     // « Annuler » dans la colonne Avant de la mini-série, comme pour une série (la bande au-dessus de la carte
     // sortait de l'écran : panel de la vague 3)
-    const u = undoForSet(ex, si, k);
+    const u = undoForSet(ex, si, k, side);
     return `
       <div class="session-set session-set--done session-set--sub" data-action="sub-reopen" ${at} ${u ? '' : 'role="button" tabindex="0"'}>
         <span class="sr-text">${capitalize(spoken)} validé${T.fem ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}. Modifier</span>
@@ -95,11 +104,12 @@ function subRowHtml(ex, ei, s, si, x, k) {
       </div>`;
   }
   // Mise en avant : seulement la sous-série qui suit la dernière série validée (une sautée reste à remplir, en gris)
-  const first = (s.sub || []).findIndex(y => !y.done);
+  const first = (host.sub || []).findIndex(y => !y.done);
   const c = techCurrentSub(activeSession.exercises, activeSession.lastDone);
-  const cur = c?.ei === ei && c.si === si && c.k === k;
-  const wait = !s.done || first < k;
-  const kg = subWeightKg(s, k, techOpts(ex));
+  const cur = c?.ei === ei && c.si === si && c.k === k && (c.side || 1) === side;
+  const wait = !host.done || first < k;
+  const kg = two ? side2SubWeightKg(s, k, techOpts(ex)) : subWeightKg(s, k, techOpts(ex));
+  const goal = two ? side2SubRepsGoal(s, k) : x.prev?.reps || '';
   return `
       <div class="session-set session-set--sub ${cur ? 'session-set--subcur' : ''}" ${cur ? 'aria-current="step" ' : ''}${at}>
         <span class="set-n tech-tag" aria-hidden="true">${tag}</span>
@@ -107,7 +117,7 @@ function subRowHtml(ex, ei, s, si, x, k) {
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" data-action="sub-weight" ${at}
                value="${esc(fmtW(kg, { plain: true }))}" placeholder="—" aria-label="${loadSpoken(ex)}, ${spoken}, en ${unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="set-input set-input--required num" data-action="sub-reps" ${at}
-               value="${esc(x.reps)}" placeholder="${esc(x.prev?.reps || '')}" aria-label="Répétitions, ${spoken}">
+               value="${esc(x.reps)}" placeholder="${esc(goal)}" aria-label="Répétitions, ${spoken}">
         <button class="set-check-zone ${wait ? 'set-check-zone--wait' : ''}" data-action="sub-validate" ${at} ${wait ? 'aria-disabled="true"' : ''} aria-label="Valider ${T.fem ? 'la' : 'le'} ${spoken}"><span class="set-check"></span></button>
       </div>`;
 }
@@ -142,31 +152,62 @@ async function openTechSheet(ei, si) {
 function setTechOn(ei, si, t) {
   const ex = activeSession?.exercises[ei], s = ex?.sets[si];
   if (!s) return;
-  const before = { tech: s.tech, sub: s.sub ? clone(s.sub) : undefined };
+  const before = { tech: s.tech, sub: s.sub ? clone(s.sub) : undefined, side2: s.side2 ? clone(s.side2) : undefined };
   if (!applyTech(s, t)) { if (t) showToast(`Déjà en ${TECHS[t].label.toLowerCase()}`); return; }
+  techSides(ex, s);   // exercice unilatéral : drop set de chaque côté (js/data/unilateral.js)
   haptic();
   persistSession();
   render();
-  const undo = () => { if (!activeSession) return; delete s.tech; delete s.sub; Object.assign(s, before.tech ? { tech: before.tech } : {}, before.sub ? { sub: before.sub } : {}); persistSession(); render(); };
+  const undo = () => {
+    if (!activeSession) return;
+    delete s.tech; delete s.sub; delete s.side2;
+    Object.assign(s, before.tech ? { tech: before.tech } : {}, before.sub ? { sub: before.sub } : {}, before.side2 ? { side2: before.side2 } : {});
+    persistSession(); render();
+  };
   // Ligne au-dessus de la carte (« Rest-pause · série 1 · Annuler ») : dans la colonne « Avant », un « Annuler » seul
   // remplaçait la valeur d'avant à côté du × de la technique, sans dire ce qu'il annulait (panel t5)
   sessionUndo(t ? `${TECHS[t].label} · ${setSpokenName(ex, si).toLowerCase()}` : `Technique retirée · ${setSpokenName(ex, si).toLowerCase()}`, { target: { ex }, onAction: undo });
 }
 
 // ── Validation d'une sous-série ──────────────────────────────
+// Repos après une étape validée dans la série s (sous-série, ou second côté d'une série notée par bras) : la courte
+// pause de la technique avant la sous-série qui suit, rien avant l'autre côté ni avant un drop, et après la dernière
+// étape comme après une série (validateSet) : l'exercice suivant d'un superset s'enchaîne sans repos, sinon le repos
+// habituel de l'exercice. follows : l'étape suit la dernière validation (un rattrapage laisse le repos tel quel).
+// Renvoie { nx: l'étape qui suit, chain: l'exercice enchaîné du superset }.
+function restAfterStep(ei, s, follows) {
+  const xs = activeSession.exercises, nx = setNextStep(s);
+  const allDone = xs.every(e => e.sets.every(st => st.done));
+  const group = ssGroupOf(xs, ei);
+  const chain = follows && !nx && !allDone && group ? ssChainAfter(xs, group, ei) : null;
+  if (follows) {
+    const pause = nx && nx.k >= 0 ? TECHS[setTech(s)].pause : 0;
+    if (nx) { if (pause) openRest(pause, false); else stopRest(); }
+    else if (allDone || chain) stopRest();
+    else openRest(exRest(xs[restEi(ei)]), false);
+  }
+  return { nx, chain };
+}
+// Texte de la ligne « Annuler » : ce qui est défait d'abord, puis ce qui suit (l'autre côté, l'exercice enchaîné)
+function stepUndoText(ex, done, { nx, chain }) {
+  if (chain) return `${done} · enchaîne ${activeSession.exercises[chain.ei].name}`;
+  return nx?.k < 0 ? `${done} · puis ${sideName(ex, 2).toLowerCase()}` : done;
+}
+
 function validateSub(ds) {
   const hit = techSubAt(ds);
   if (!hit?.x || hit.x.done) return;
-  const { s, x, k } = hit, ei = parseInt(ds.ei), si = parseInt(ds.si);
+  const { s, host, side, x, k } = hit, ei = parseInt(ds.ei), si = parseInt(ds.si), two = side === 2;
   const ex = activeSession.exercises[ei], T = TECHS[setTech(s)];
   if (!s.done) { showToast(`Valide d'abord la ${setSpokenName(ex, si).toLowerCase()}`); return; }
-  const first = s.sub.findIndex(y => !y.done);
+  if (two && !host.done) { showToast(`Valide d'abord ${sideRef(ex, 2)}`); return; }
+  const first = host.sub.findIndex(y => !y.done);
   if (first < k) { showToast(`Valide d'abord ${T.fem ? 'la' : 'le'} ${T.subName} ${first + 1}`); return; }
-  const q = sel => document.querySelector(`[data-action="${sel}"][data-ei="${ei}"][data-si="${si}"][data-k="${k}"]`);
+  const q = sel => document.querySelector(`[data-action="${sel}"][data-ei="${ei}"][data-si="${si}"][data-k="${k}"]${two ? '[data-side="2"]' : ':not([data-side])'}`);
   const wIn = q('sub-weight'), rIn = q('sub-reps');
   restoreClearedInput(wIn); restoreClearedInput(rIn);
   if (wIn && !weightOk(wIn.value)) { flagInvalid(wIn, weightMsg()); return; }
-  const reps = num(String(x.reps ?? '').trim() || x.prev?.reps || '', 1, MEASURES.reps.max, true);
+  const reps = num(two ? side2SubRepsGoal(s, k) : String(x.reps ?? '').trim() || x.prev?.reps || '', 1, MEASURES.reps.max, true);
   if (reps === null) { flagInvalid(rIn, 'Note tes reps'); return; }
   const wasAuto = !!x.auto, wasReps = x.reps;
   // Repos : seulement si la sous-série suit la dernière validation ; un rattrapage ou une correction
@@ -174,31 +215,21 @@ function validateSub(ds) {
   const xs = activeSession.exercises;
   const follows = techCurrentSub(xs, activeSession.lastDone)?.ei === ei && activeSession.lastDone.si === si;
   const restBefore = restSnapshot();
-  x.weight = wIn ? storeW(wIn.value) : subWeightKg(s, k, techOpts(ex));
+  x.weight = wIn ? storeW(wIn.value) : two ? side2SubWeightKg(s, k, techOpts(ex)) : subWeightKg(s, k, techOpts(ex));
   delete x.auto;
   x.reps = String(reps);
   x.done = true;
   haptic();
   afterPaint(validationSound);
-  const more = s.sub.some(y => !y.done);
-  // Sous-série suivante : la courte pause de la technique ; dernière : comme après une série (validateSet),
-  // l'exercice suivant d'un superset s'enchaîne sans repos, sinon le repos habituel de l'exercice
-  const group = ssGroupOf(xs, ei);
-  const allDone = xs.every(e => e.sets.every(st => st.done));
-  const chain = follows && !more && !allDone && group ? ssChainAfter(xs, group, ei) : null;
-  if (follows) {
-    if (more) { if (T.pause) openRest(T.pause, false); else stopRest(); }
-    else if (allDone || chain) stopRest();
-    else openRest(exRest(xs[restEi(ei)]), false);
-  }
+  const next = restAfterStep(ei, s, follows);
   document.activeElement?.blur?.();
   persistSession();
   render();
   if (follows) scrollToCurrent(true, true);
   else requestAnimationFrame(focusCurrentSet);   // rattrapage : le ✓ touché a disparu, le focus va à la série à faire
-  const done = `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}`;
-  // Comme après une série (validateSet) : ce que « Annuler » défait d'abord, puis l'exercice qui suit
-  sessionUndo(chain ? `${done} · enchaîne ${xs[chain.ei].name}` : done, { target: { ex, si, k }, onAction: () => {
+  const done = `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}${two ? ` · ${sideName(ex, 2).toLowerCase()}` : ''}`;
+  // Comme après une série (validateSet) : ce que « Annuler » défait d'abord, puis ce qui suit
+  sessionUndo(stepUndoText(ex, done, next), { target: { ex, si, k, side }, onAction: () => {
     if (!activeSession || !x.done) return;
     x.done = false; x.reps = wasReps;
     if (wasAuto) x.auto = true;

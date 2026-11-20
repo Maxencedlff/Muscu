@@ -96,7 +96,8 @@ function downloadBlob(blob, fname) {
 }
 
 // ── Export CSV des séances ──────────────────────────────────
-// Une ligne par série (sous-séries d'un drop set, d'un rest-pause ou d'un cluster comprises), de la plus ancienne à
+// Une ligne par série (sous-séries d'un drop set, d'un rest-pause ou d'un cluster et second côté d'une série notée par
+// bras compris), de la plus ancienne à
 // la plus récente : Date ; Séance ; Exercice ; Série ; Kg ; Reps ; RIR ; Note. Pour un tableur (Excel, Numbers,
 // Google Sheets), pas une sauvegarde : il ne se réimporte pas (l'export JSON, lui, si). Format français d'Excel :
 // point-virgule, virgule décimale, BOM UTF-8 (sans lui, Excel lit « SÃ©ance »). Charges en kg, comme elles sont
@@ -131,6 +132,12 @@ function historyCsv(d = data) {
         sessionNote = ''; exNote = '';   // une fois, sur la première ligne de la séance ou de l'exercice
         rows.push([date, label, ex.name, no, m === 'cardio' ? '' : csvNum(st.weight), reps(st), Number.isInteger(st.rir) ? String(st.rir) : '', note]);
         subSetsOf(st).forEach((x, k) => rows.push([date, label, ex.name, `${no}.${k + 1}`, csvNum(x.weight), x.reps, '', TECHS[setTech(st)].label]));
+        // Série notée par bras (js/data/unilateral.js) : le second côté et ses sous-séries, « 3 bras droit », « 3.1 bras droit »
+        if (!warm && hasSide2(st)) {
+          const side = sideName(ex, 2).toLowerCase();
+          rows.push([date, label, ex.name, `${no} ${side}`, csvNum(st.side2.weight), st.side2.reps, '', '']);
+          side2SubsOf(st).forEach((x, k) => rows.push([date, label, ex.name, `${no}.${k + 1} ${side}`, csvNum(x.weight), x.reps, '', TECHS[setTech(st)].label]));
+        }
       }
     }
   }

@@ -755,6 +755,7 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 .session-set--sub { min-height: 52px; margin-bottom: 2px; border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: inset 2px 0 0 var(--sep); }
 .session-set--subcur { background: color-mix(in srgb, var(--tint) 8%, var(--cell)); box-shadow: inset 3px 0 0 var(--tint); }
 .tech-tag { font-size: 0.706rem; font-weight: 700; letter-spacing: .02em; }
+.side-lbl { font-size: 0.706rem; font-weight: 600; color: var(--label2); white-space: nowrap; }   /* « Bras gauche » sous une série notée par bras (js/features/session-unilateral.js) */
 @media (max-width: 374px) { .tech__cap { padding-left: calc(24px + var(--set-gap)); } }
 
 /* Historique : lignes « Échauffement … » et « Reps en réserve … » sous les séries */

@@ -24,14 +24,15 @@ function coachLedProgramme(progKey) { return !!data.userProgrammes?.[progKey]?.f
 function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
   const lp = lastPerf(progKey, cat, ex);
   if (measureOf(ex) === 'reps' && hasPrescLoad(ex)) {
-    const lb = lp ? bestSet(workSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0)) : null;
+    const lb = lp ? bestSet(recordSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0)) : null;
     const r = prescReps(ex);
     return { text: prescText(ex), spoken: prescSpoken(ex), gain: '', before: lb ? setTxt(lb, ex) : '', coach: true,
       goal: { w: Math.max(...prescKgList(ex)), r: r ? r.lo : 1 } };
   }
   const planned = { text: setsRepsText(ex), gain: '', before: '', goal: null };
   if (!lp) return planned;
-  const sets = workSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);   // l'échauffement ne fixe pas la cible
+  // L'échauffement ne fixe pas la cible ; série notée par bras : son meilleur côté (js/data/unilateral.js)
+  const sets = recordSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);
   const best = bestSet(sets);
   if (!best) return planned;
   const before = setTxt(best, ex);

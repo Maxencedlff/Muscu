@@ -12,7 +12,9 @@ function exPoint(h, e) {
   const sets = workSets(e.sets).filter(s => (parseInt(s.reps) || 0) > 0);   // sans l'échauffement (js/data/warmup.js)
   if (!sets.length) return null;
   const rpe  = meanRpe(sets);   // effort moyen noté (RIR, js/data/rir.js), null sans note
-  const wts = sets.map(s => parseFloat(s.weight) || 0);
+  // Série notée par bras : charge, reps, 1RM et meilleure série du meilleur côté ; volume et reps des deux (js/data/unilateral.js)
+  const rec = sets.map(recordSet);
+  const wts = rec.map(s => parseFloat(s.weight) || 0);
   // Durée et cardio se suivent comme le poids du corps : sur le champ reps (secondes, minutes)
   // Aide sans poids du corps : la charge saisie est une aide, suivie en reps (sinon un progrès paraîtrait une baisse)
   let hasWeight = measureOf(e) === 'reps' && !isAssisted(e) && wts.some(w => w > 0);
@@ -20,19 +22,19 @@ function exPoint(h, e) {
   // soient comptées dans la même unité (kg effectifs), jamais un mélange de reps et de kg
   const bodyKg = bodyShare(e) && currentBodyKg() ? entryBodyKg(h) : null;
   if (bodyKg) {
-    const loads = sets.map(s => effectiveLoad(s, e, bodyKg));
+    const loads = rec.map(s => effectiveLoad(s, e, bodyKg));
     const volume = exVolume(e, sets, bodyKg);
-    const best1RM = Math.max(0, ...sets.map((s, i) => calc1RM(loads[i], s.reps)).filter(v => v !== null));
+    const best1RM = Math.max(0, ...rec.map((s, i) => calc1RM(loads[i], s.reps)).filter(v => v !== null));
     return { date: h.date, hid: h.id, sets, hasWeight: true, totalReps: volumeSets(sets).reduce((a, s) => a + (parseInt(s.reps) || 0), 0),
-      volume, maxLoad: Math.max(...loads), best1RM, maxReps: Math.max(...sets.map(s => parseInt(s.reps) || 0)), best: bestSet(sets, e), bodyKg, rpe };
+      volume, maxLoad: Math.max(...loads), best1RM, maxReps: Math.max(...rec.map(s => parseInt(s.reps) || 0)), best: bestSet(rec, e), bodyKg, rpe };
   }
   // Reps des sous-séries d'un drop set comprises, comme le volume (js/data/intensif.js)
   const totalReps = volumeSets(sets).reduce((a, s) => a + (parseInt(s.reps) || 0), 0);
   const volume    = hasWeight ? setsVolume(sets) : totalReps;
   const maxLoad   = hasWeight ? Math.max(...wts) : 0;
-  const best1RM   = hasWeight ? Math.max(0, ...sets.map(s => calc1RM(s.weight, s.reps)).filter(v => v !== null)) : 0;
-  const maxReps   = Math.max(...sets.map(s => parseInt(s.reps) || 0));
-  return { date: h.date, hid: h.id, sets, hasWeight, totalReps, volume, maxLoad, best1RM, maxReps, best: bestSet(sets), rpe, ...cardioPoint(e, sets) };
+  const best1RM   = hasWeight ? Math.max(0, ...rec.map(s => calc1RM(s.weight, s.reps)).filter(v => v !== null)) : 0;
+  const maxReps   = Math.max(...rec.map(s => parseInt(s.reps) || 0));
+  return { date: h.date, hid: h.id, sets, hasWeight, totalReps, volume, maxLoad, best1RM, maxReps, best: bestSet(rec), rpe, ...cardioPoint(e, sets) };
 }
 
 // « 5,2 km · 27 min · 5:12 /km » : une séance de cardio en une ligne (séries additionnées)

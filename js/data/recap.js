@@ -484,7 +484,7 @@ function recapExerciseProgress(sessions, top) {
   const e1s = sessions.map(h => {
     const ex = (h.exercises || []).filter(e => exKey(e) === top.key && measureOf(e) === 'reps' && loadKind(e) === 'charge');
     if (!ex.length) return null;
-    return Math.max(0, ...ex.flatMap(e => workSets(e.sets)).map(s => calc1RM(s.weight, s.reps) || 0)) || null;
+    return Math.max(0, ...ex.flatMap(e => recordSets(e.sets)).map(s => calc1RM(s.weight, s.reps) || 0)) || null;
   }).filter(Boolean);
   if (e1s.length < 2 || !(e1s.at(-1) > e1s[0])) return null;
   return { from: e1s[0], to: e1s.at(-1) };

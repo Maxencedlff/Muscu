@@ -48,7 +48,7 @@ function liftBestE1rm(history, lift, { now = Date.now(), before = Infinity } = {
     if (!h || !(h.date >= from) || h.date > now || h.date >= before) continue;
     for (const ex of h.exercises || []) {
       if (strengthLiftOf(ex.name)?.id !== lift.id || measureOf(ex) !== 'reps') continue;
-      for (const s of workSets(ex.sets)) {
+      for (const s of recordSets(ex.sets)) {   // série notée par bras : le meilleur côté
         const e1 = calc1RM(s.weight, s.reps);
         if (e1 && (!best || e1 > best.e1rm)) best = { e1rm: e1, date: h.date };
       }

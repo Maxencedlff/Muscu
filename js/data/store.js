@@ -30,7 +30,9 @@ function recomputePRFromHistory(d = data) {
           // ce calcul tourne au chargement, avant js/data/measures.js
           if (!exData || histEx.measure === 'time' || histEx.measure === 'cardio') return;
           if (/assist/i.test(histEx.name) && /machine/i.test(histEx.name)) return;   // aide : pas de record de charge
-          workSets(histEx.sets).forEach(s => {   // échauffement (js/data/warmup.js) : ni record ni dernière série
+          // Échauffement (js/data/warmup.js) : ni record ni dernière série ; série notée par bras : le meilleur côté
+          // (recordSets, js/data/unilateral.js)
+          recordSets(histEx.sets).forEach(s => {
             const w  = parseFloat(s.weight) || 0;
             const r  = parseInt(s.reps)     || 0;
             exData.lastWeight = s.weight;
@@ -532,6 +534,8 @@ function cleanHistoryEntry(h) {
       if (st.rir !== undefined) { const r = cleanRir(st.rir); if (r === null) delete st.rir; else st.rir = r; }
       // Technique d'intensification et sous-séries (js/data/intensif.js) : bornées, absentes sinon
       cleanTechSet(st);
+      // Second côté d'une série notée par bras (js/data/unilateral.js) : borné, absent sinon
+      cleanSideSet(st);
       // Note de série (js/data/notes.js) : même règle que la note d'exercice
       if (st.note !== undefined) { const n = cleanNote(st.note); if (n) st.note = n; else delete st.note; }
     });

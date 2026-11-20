@@ -291,6 +291,16 @@ const CATALOGUE_BY_NAME = new Map(EXERCISE_CATALOGUE.flatMap(e =>
 const CATALOGUE_BY_LOOSE_KEY = new Map(EXERCISE_CATALOGUE.flatMap(e =>
   [e.name, ...e.aliases].map(n => [looseKey(n), e])));
 
+// Exercices unilatéraux (un bras ou une jambe à la fois, toujours) : chaque série peut se noter par côté et un drop set
+// s'y fait de chaque côté (js/data/unilateral.js, docs/UNILATERAL.md). Seulement ceux qui ne se font jamais à deux
+// bras en même temps : ni « Kickback triceps », ni « Élévations latérales » (les deux se font aussi à deux bras ; un nom
+// saisi « … à un bras » est reconnu à part). Valeur : le membre, pour nommer les côtés (« Bras gauche »).
+const UNILATERAL_EXERCISES = Object.freeze({
+  'Rowing haltère unilatéral': 'bras', 'Curl concentration': 'bras', 'Extension triceps unilatéral': 'bras',
+  'Fentes bulgares': 'jambe', 'Pont fessier unilatéral': 'jambe', 'Pistol squat': 'jambe', 'Pistol squat assisté': 'jambe',
+  'Shrimp squat': 'jambe',
+});
+
 // Fiches renommées : ancien nom (normalisé) → nom actuel. Les séances, records et programmes déjà enregistrés
 // gardent leur nom et leur identifiant (rien n'est réécrit) : l'ancien nom reste un alias de la fiche, et
 // sameExerciseName rapproche les deux noms quand un identifiant doit être retrouvé par le nom (séance libre,

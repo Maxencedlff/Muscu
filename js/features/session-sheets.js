@@ -497,6 +497,8 @@ function exerciseMoreActions(xs, ei) {
     ...(!inGroup && canWarmup(ex) ? [{ label: 'Ajouter un échauffement', value: 'warmup' }] : []),
     // Techniques d'intensification (js/features/session-intensif.js)
     ...techMenuActions(ex),
+    // Exercice unilatéral : chaque bras à part, ou les deux ensemble (js/features/session-unilateral.js)
+    ...sideMenuActions(ex),
     ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
     // Seul moyen sans le balayage (VoiceOver : le « Supprimer » caché de chaque série ne lui est plus lu)
@@ -542,6 +544,9 @@ async function exerciseMenu(ei) {
     openAddExSheet({ replaceEi: ei });
   } else if (choice === 'warmup') {
     openWarmupSheet(ei);
+  } else if (choice === 'sides') {
+    toggleSides(ei);
+    return;
   } else if (choice === 'tech-pick') {
     await techMenuChoice(ei, choice);
     return;

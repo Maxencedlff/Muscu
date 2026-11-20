@@ -62,7 +62,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       { weight: '60', reps: '10', done: true, tech: 'drop', sub: [{ done: true }, { done: false }] },
       { weight: '60', reps: '10', done: true },
       { weight: '60', reps: '10', done: false }] }];
-    sameJSON(run(`techCurrentSub(${S(xs)}, { ei: 0, si: 0 })`), { ei: 0, si: 0, k: 1 });
+    sameJSON(run(`techCurrentSub(${S(xs)}, { ei: 0, si: 0 })`), { ei: 0, si: 0, k: 1, side: 1 });
     assert.equal(run(`techCurrentSub(${S(xs)}, { ei: 0, si: 1 })`), null, 'autre série validée depuis : drop sauté');
     assert.equal(run(`techCurrentSub(${S(xs)}, null)`), null);
     assert.equal(run(`techPending(${S(xs)}, { ei: 0, si: 0 }, 0)`), true);
@@ -136,9 +136,9 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       { weight: '85', reps: '6', tech: 'backoff' },
       { weight: '60', reps: '12', tech: 'drop', sub: [{ weight: '46', reps: '5' }, { weight: '36', reps: '4' }] },
     ];
-    sameJSON(run(`techLines(${S(sets)})`), ['Top set S1 · Back-off S2, S3', 'Drop set S4 : 46 kg × 5 · 36 kg × 4']);
-    sameJSON(run(`techLines([{ weight: '', reps: '10', tech: 'rp', sub: [{ weight: '', reps: '4' }] }], 'lest')`), ['Rest-pause S1 : 4 reps']);
-    sameJSON(run(`techLines([{ weight: '20', reps: '8', warmup: true }, { weight: '60', reps: '8', tech: 'cluster', sub: [{ weight: '60', reps: '2' }] }])`), ['Cluster S1 : 60 kg × 2'], 'numérotation sans l\'échauffement');
+    sameJSON(run(`techLines(${S(sets)})`), ['Top set série 1 · Back-off séries 2, 3', 'Drop set série 4 : 46 kg × 5 · 36 kg × 4']);
+    sameJSON(run(`techLines([{ weight: '', reps: '10', tech: 'rp', sub: [{ weight: '', reps: '4' }] }], 'lest')`), ['Rest-pause série 1 : 4 reps']);
+    sameJSON(run(`techLines([{ weight: '20', reps: '8', warmup: true }, { weight: '60', reps: '8', tech: 'cluster', sub: [{ weight: '60', reps: '2' }] }])`), ['Cluster série 1 : 60 kg × 2'], 'numérotation sans l\'échauffement');
     assert.equal(run(`techShareText(${S(sets)})`), 'drop set 46 kg × 5 · 36 kg × 4');
     assert.equal(run(`techShareText([{ weight: '60', reps: '8' }])`), '');
     // Image partagée : le détail se termine par le drop

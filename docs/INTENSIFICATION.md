@@ -119,8 +119,9 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
 
 ## Ailleurs
 
-- **Historique** (détail), **relecture du coach**, **séance d'un ami** : lignes « Drop set S4 : 55 kg × 6 · 45 kg × 5 »
-  et « Top set S1 · Back-off S2, S3 » (`techLines`). Historique › Modifier garde les techniques telles quelles.
+- **Historique** (détail), **relecture du coach**, **séance d'un ami** : lignes « Drop set série 4 : 55 kg × 6 · 45 kg × 5 »
+  et « Top set série 1 · Back-off séries 2, 3 » (`techLines` ; « S4 » écrit en toutes lettres depuis le 20/11, règle 11 de
+  la grille avant panel). Historique › Modifier garde les techniques telles quelles.
 - **Image partagée** : le détail des séries se termine par « , drop set 55 kg × 6 » (deux techniques au plus).
 - **Import Hevy / Strong** : une série `dropset` (Hevy) ou `D` (Strong) devient une sous-série du drop set de la
   série de travail qui la précède ; sans série avant (ou en durée, cardio), une série ordinaire.

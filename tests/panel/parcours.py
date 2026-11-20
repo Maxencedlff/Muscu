@@ -1412,6 +1412,64 @@ def p_intensif(r):
         r.toucher(f'.view.session [data-action="sub-validate"][data-ei="{ei}"][data-si="{si}"][data-k="0"]', 'valider la reprise 1')
 
 
+# Curl concentration en tête de la séance Pull, fait la dernière fois en séries ordinaires (14 kg × 10, 10, 9)
+CURL_CONCENTRATION_JS = """() => {
+  const p = data.programmes[data.activeProgramme], xs = p?.exercises?.pull;
+  if (!xs) return 'pas de séance Pull';
+  xs.unshift({ id: 'cc1curlc', name: 'Curl concentration', sets: 3 });
+  const h = data.history.filter(h => h.category === 'pull').sort((a, b) => b.date - a.date)[0];
+  if (h) h.exercises.unshift({ exId: 'cc1curlc', name: 'Curl concentration', sets: [{ weight: '14', reps: '10' }, { weight: '14', reps: '10' }, { weight: '14', reps: '9' }] });
+  save(); render(); return 'ok';
+}"""
+
+
+@parcours('unilateral', 'Séance : drop set sur un exercice à un bras (curl concentration, bras gauche puis droit)', 'pratiquant')
+def p_unilateral(r):
+    """Curl concentration : drop set sur la dernière série. Bras gauche lourd puis allégé, bras droit lourd puis
+    allégé : le bras droit et son drop sont pré-remplis avec ce que le bras gauche vient de faire, et le repos ne
+    part qu'après le drop du bras droit."""
+    r.lancer(REALISTE)
+    r.raccourci(CURL_CONCENTRATION_JS, 'Curl concentration ajouté en tête de la séance Pull (dernière fois : 14 kg × 10, 10, 9)')
+    with r.etape('demarrer', 'Séance Pull démarrée, Curl concentration en tête'):
+        demarrer(r, 'pull', 'Pull')
+    cle = 'Drop set des deux bras'
+    with r.etape('drop-pose', 'Numéro de la série 3 › Drop set : un drop de chaque côté', cle=cle):
+        r.toucher('.view.session [data-action="tech-set"][data-ei="0"][data-si="2"]', 'numéro de la série 3')
+        r.choisir('Drop set')
+        r.defiler('.view.session .ex-card[data-ei="0"] .tech', 'bloc Drop set')
+    with r.etape('bras-gauche', 'Bras gauche lourd puis allégé : le bras droit suit, pré-rempli, sans repos', cle=cle):
+        for s in range(2):
+            r.toucher(f'.view.session [data-action="validate-set"][data-ei="0"][data-si="{s}"]', f'valider la série {s + 1}')
+            passer_repos(r)
+        r.toucher('.view.session [data-action="validate-set"][data-ei="0"][data-si="2"]', 'valider la série 3 (bras gauche)')
+        r.saisir('.view.session [data-action="sub-reps"][data-ei="0"][data-si="2"][data-k="0"]:not([data-side])', 6, 'reps du drop, bras gauche')
+        r.toucher('.view.session [data-action="sub-validate"][data-ei="0"][data-si="2"][data-k="0"]:not([data-side])', 'valider le drop du bras gauche')
+    with r.etape('bras-droit', 'Bras droit validé tel que pré-rempli : son drop suit, pré-rempli', cle=cle):
+        r.toucher('.view.session [data-action="side-validate"][data-ei="0"][data-si="2"]', 'valider le bras droit')
+    with r.etape('repos', 'Drop du bras droit validé : le repos part', cle=cle):
+        r.saisir('.view.session [data-action="sub-reps"][data-ei="0"][data-si="2"][data-k="0"][data-side="2"]', 5, 'reps du drop, bras droit')
+        r.toucher('.view.session [data-action="sub-validate"][data-ei="0"][data-si="2"][data-k="0"][data-side="2"]', 'valider le drop du bras droit')
+        r.attendre('.rest-mini', 'barre de repos')
+
+
+@parcours('unilateral-bras', 'Séance : « Noter chaque bras à part » sur un exercice à un bras', 'pratiquant')
+def p_unilateral_bras(r):
+    """Curl concentration sans technique : ⋯ › Plus d'options › « Noter chaque bras à part ». Chaque série a une
+    ligne « Bras droit » pré-remplie ; le repos part après le bras droit."""
+    r.lancer(REALISTE)
+    r.raccourci(CURL_CONCENTRATION_JS, 'Curl concentration ajouté en tête de la séance Pull (dernière fois : 14 kg × 10, 10, 9)')
+    with r.etape('demarrer', 'Séance Pull démarrée'):
+        demarrer(r, 'pull', 'Pull')
+    with r.etape('choix', '⋯ › Plus d\'options › Noter chaque bras à part', cle='Noter chaque bras à part'):
+        menu_ex(r, 0, 'Curl concentration')
+        choisir_ou_absent(r, 'Noter chaque bras à part', 'choix « Noter chaque bras à part »')
+    with r.etape('serie-1', 'Série 1 (bras gauche) validée : le bras droit suit, sans repos', cle='Noter chaque bras à part'):
+        r.toucher('.view.session [data-action="validate-set"][data-ei="0"][data-si="0"]', 'valider la série 1 (bras gauche)')
+    with r.etape('bras-droit', 'Bras droit validé : le repos part'):
+        r.toucher('.view.session [data-action="side-validate"][data-ei="0"][data-si="0"]', 'valider le bras droit')
+        r.attendre('.rest-mini', 'barre de repos')
+
+
 @parcours('prise', 'Prise d\'un exercice : programme, séance', 'pratiquant')
 def p_prise(r):
     """Programme › Pull › Tirage vertical prise large : prise en supination (seuls pronation et supination sont proposés,

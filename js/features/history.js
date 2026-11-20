@@ -275,10 +275,12 @@ function reviewGripHtml(e) {
   const t = gripText(e.grip, e);
   return t ? `<span class="hex__sets hex__sets--note">${esc(t)}</span>` : '';
 }
-// Lignes « Drop set S3 : 46 kg × 5 », « Top set S1 · Back-off S2, S3 » sous les séries (js/data/intensif.js)
+// Lignes « Drop set série 3 : 46 kg × 5 », « Top set série 1 · Back-off séries 2, 3 » sous les séries (js/data/intensif.js), puis
+// « Série 3, bras droit : 12 kg × 9 » pour une série notée par bras (js/data/unilateral.js)
 function techLinesHtml(e) {
   if ((e.measure || measureOf(e)) !== 'reps') return '';
-  return techLines(e.sets, setKind(e)).map(l => `<span class="hex__sets hex__sets--note num">${esc(l)}</span>`).join('');
+  return [...techLines(e.sets, setKind(e), e), ...sideLines(e, e.sets, setKind(e))]
+    .map(l => `<span class="hex__sets hex__sets--note num">${esc(l)}</span>`).join('');
 }
 
 // Records battus par la séance : notés à l'enregistrement, sinon recalculés (séance d'avant, js/data/records.js)

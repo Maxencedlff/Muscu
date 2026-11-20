@@ -69,7 +69,8 @@ function collapseExUndo(done) {
   setTimeout(done, 250);   // pas anim.finished : la ligne peut être redessinée entre-temps
 }
 function clearSessionUndo() { clearTimeout(sessUndo?.timer); sessUndo = null; }
-const undoForSet = (ex, si, k) => (sessUndo && sessUndo.ex === ex && sessUndo.si === si && sessUndo.k === k ? sessUndo : null);
+// side : 2 pour le second côté d'une série notée par bras (js/features/session-unilateral.js), k : -1 pour sa ligne
+const undoForSet = (ex, si, k, side = 1) => (sessUndo && sessUndo.ex === ex && sessUndo.si === si && sessUndo.k === k && (sessUndo.side || 1) === side ? sessUndo : null);
 // Colonne « Avant » d'une série qui vient de changer : « Annuler » (ou l'état, « Modifiée »), à la même place à chaque fois
 function setUndoHtml(u) {
   return u.onAction ? `<button class="set-undo" data-action="sess-undo" aria-label="${esc(u.text)}, annuler">Annuler</button>`
@@ -107,8 +108,9 @@ function exUndoBefore(block, xs) {
 const openDone = new WeakSet(); // exercices terminés dépliés
 
 // Série à faire : charge et reps reprises de src, « Avant » : la même série la dernière fois
+// side2 : la même série notée par bras la dernière fois, de nouveau par bras (js/data/unilateral.js)
 function plannedSet(src, prev) {
-  return {
+  const s = {
     weight: src?.weight ?? '',
     reps:   src?.reps   ?? '',
     ...(src?.dist ? { dist: src.dist } : {}),
@@ -116,9 +118,11 @@ function plannedSet(src, prev) {
     // machine : réglages de la dernière fois, point de départ du chrono (machineStart)
     // tech, sub : technique de la dernière fois (js/data/intensif.js), « Avant » de ses sous-séries
     // note : celle de la même série la dernière fois (js/features/session-notes.js), relue sous la série à faire
-    prev:   prev ? { weight: prev.weight, reps: prev.reps, ...(prev.dist ? { dist: prev.dist } : {}), ...(prev.machine ? { machine: prev.machine } : {}), ...(cleanNote(prev.note) ? { note: cleanNote(prev.note) } : {}), ...techFields(prev) } : null,
+    prev:   prev ? { weight: prev.weight, reps: prev.reps, ...(prev.dist ? { dist: prev.dist } : {}), ...(prev.machine ? { machine: prev.machine } : {}), ...(cleanNote(prev.note) ? { note: cleanNote(prev.note) } : {}), ...techFields(prev), ...sideFields(prev) } : null,
     done:   false,
   };
+  if (s.prev?.side2) addSide2(s);
+  return s;
 }
 
 // Séries d'un exercice pré-remplies série par série avec la dernière séance (sinon la dernière série faite).
@@ -406,7 +410,7 @@ function foldedRirHtml(block) {
   const ld = activeSession.lastDone;
   if (!ld || !block.includes(ld.ei) || !rirShown()) return '';
   const ex = activeSession.exercises[ld.ei], s = ex?.sets[ld.si];
-  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps' || TECHS[setTech(s)]?.sub) return '';
+  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps' || TECHS[setTech(s)]?.sub || hasSide2(s)) return '';
   const tags = block.length > 1 ? ssTags(activeSession.exercises) : null;
   return `<div class="ex-fold-rir">${rirPickerHtml(ld.ei, ld.si, s, ex, tags ? tags[ld.ei] : '')}</div>`;
 }
@@ -451,7 +455,7 @@ function exFirstTimeHtml(ex, cls = '') {
 // l'ancien record sous une série marquée « Record » (panel de la vague 3)
 function liveHeadRecord(ex, pr) {
   if (isAssisted(ex)) return pr;
-  return workSets(ex.sets).filter(s => s.done && (parseInt(s.reps) || 0) > 0).reduce((best, s) => {
+  return recordSets(ex.sets).filter(s => s.done && (parseInt(s.reps) || 0) > 0).reduce((best, s) => {   // par bras : le meilleur côté
     const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0, bw = parseFloat(best?.weight) || 0, br = parseInt(best?.reps) || 0;
     return !best || w > bw || (w === bw && r > br) ? { weight: s.weight, reps: s.reps } : best;
   }, pr || null);
@@ -480,7 +484,9 @@ function renderExerciseCard(ex, ei, cur) {
   const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}">↑ ${bumpLabel()}</button>` : '';
   // Séries d'échauffement (js/data/warmup.js) : en tête, sous un titre gris ; technique d'intensification
   // et ses sous-séries sous la série (js/features/session-intensif.js)
-  const rows = delUndoRows(ex, ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}`)).join('');
+  // et ses sous-séries sous la série (js/features/session-intensif.js), puis le second côté d'une série notée par bras
+  // (js/features/session-unilateral.js)
+  const rows = delUndoRows(ex, ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}${side2RowsHtml(ex, ei, s, si)}`)).join('');
 
   // Exercice de la série à faire : sa vignette cerclée d'orange (la série en cours, seul autre orange de la carte)
   const isCur = cur && cur.ei === ei;
@@ -572,7 +578,7 @@ function renderGroupCard(members, cur, tags) {
   const rounds = ssRounds(xs, members).map((round, t) => `
         <div class="ss-round" role="group" aria-label="Tour ${t + 1}">
           <div class="ss-round__title">Tour ${t + 1}</div>
-          ${round.map(({ ei, si }) => `${renderSetRow(xs[ei], ei, xs[ei].sets[si], si, cur, tags[ei])}${techBlockHtml(xs[ei], ei, xs[ei].sets[si], si)}`).join('')}
+          ${round.map(({ ei, si }) => `${renderSetRow(xs[ei], ei, xs[ei].sets[si], si, cur, tags[ei])}${techBlockHtml(xs[ei], ei, xs[ei].sets[si], si)}${side2RowsHtml(xs[ei], ei, xs[ei].sets[si], si, tags[ei])}`).join('')}
         </div>`).join('');
   const rest = fmtRest(exRest(xs[members.at(-1)]));
   const m0   = exs[0];
@@ -616,7 +622,9 @@ function renderGroupCard(members, cur, tags) {
 function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const m      = measureOf(ex), M = MEASURES[m];
   const warm   = isWarmupSet(s);
-  const record = warm ? '' : liveSetBadge(ex, s, livePrior(ex));   // js/data/records.js
+  // js/data/records.js ; série notée par bras : le badge va sur la ligne du meilleur côté (js/data/unilateral.js)
+  const record = warm || recordSet(s).side === 2 ? '' : liveSetBadge(ex, s, livePrior(ex));
+  const side = sideLblHtml(ex, s, 1);
   const first  = setFirstValue(s, m);
   const kind   = m === 'cardio' ? 'charge' : m === 'time' ? 'lest' : loadKind(ex);
   const load   = first ? `${{ charge: '', lest: 'plus ', aide: 'aide de ' }[kind]}${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
@@ -627,7 +635,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const last   = activeSession.lastDone?.ei === ei && activeSession.lastDone?.si === si;
   // Pas de sélecteur sur une série suivie de mini-séries, drops ou blocs (poussée à l'échec, js/data/intensif.js) : il
   // s'intercalait entre la série et sa mini-série pendant la pause de 15 s (panel vague 4)
-  const sub    = TECHS[setTech(s)]?.sub;
+  const sub    = TECHS[setTech(s)]?.sub || hasSide2(s);   // le second côté suit, sans repos : pas de sélecteur entre les deux
   const rir    = m === 'reps' && !warm ? (last && rirShown() && !sub ? rirPickerHtml(ei, si, s, ex) : rirBadgeHtml(s)) : '';
   const rirSpoken = cleanRir(s.rir) !== null ? `, ${rirTxt(s.rir)} en réserve` : '';
   const noteSpoken = cleanNote(s.note) ? `, avec note : ${esc(cleanNote(s.note))}` : '';   // js/features/session-notes.js
@@ -639,13 +647,13 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}">
-          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm || holdGuide(ex) ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}${tag ? `, ${esc(ex.name)}` : ''}${record ? `, ${esc(record)}` : ''}. Modifier</span>
+          <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm || holdGuide(ex) ? '' : 'e'}, ${side ? `${sideName(ex, 1).toLowerCase()}, ` : ''}${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}${tag ? `, ${esc(ex.name)}` : ''}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
           ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m))}
           <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
           <span class="set-val set-val--r num" aria-hidden="true">${esc(s.reps)}</span>
           <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
-          ${record || pace || mach || techPillHtml(s) ? `<span class="set-badge" aria-hidden="true">${techPillHtml(s, { spoken: false })}${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
+          ${record || pace || mach || techPillHtml(s) || side ? `<span class="set-badge" aria-hidden="true">${side}${techPillHtml(s, { spoken: false })}${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
           ${setNotePreviewHtml(ei, s, si)}
         </div>
         ${rir}
@@ -817,7 +825,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)}">
         ${check}
-        ${techPillHtml(s) ? `<span class="set-badge">${techPillHtml(s)}</span>` : ''}
+        ${techPillHtml(s) || hasSide2(s) ? `<span class="set-badge">${sideLblHtml(ex, s, 1)}${techPillHtml(s)}</span>` : ''}
         ${setNotePreviewHtml(ei, s, si)}
       </div>
       ${rir}
@@ -917,7 +925,9 @@ function validateSet(ei, si, opts = {}) {
   // Le toast nomme d'abord ce que « Annuler » défait (la validation de la série), puis ce qui suit :
   // « Série 1 validée · puis rest-pause » (panel du 07/11). Retirer la technique : le × de son bloc.
   const doneTxt = `${setSpokenName(ex, si)} validé${isWarmupSet(s) || holdGuide(ex) ? '' : 'e'}`;
-  const next = chain ? `enchaîne ${xs[chain.ei].name}` : techPause !== null ? `puis ${TECHS[setTech(s)].label.toLowerCase()}` : '';
+  // Série notée par bras sans sous-série avant l'autre côté : « puis bras droit » (js/data/unilateral.js)
+  const nx = setNextStep(s);
+  const next = chain ? `enchaîne ${xs[chain.ei].name}` : nx?.k < 0 ? `puis ${sideName(ex, 2).toLowerCase()}` : techPause !== null ? `puis ${TECHS[setTech(s)].label.toLowerCase()}` : '';
   sessionUndo(next ? `${doneTxt} · ${next}` : doneTxt, { target: { ex, si }, onAction: () => undoValidate(undo) });
 }
 
@@ -1030,7 +1040,9 @@ function scrollToCurrent(smooth = true, focus = false) {
     // l'ancre la plus basse reste entière et la série descend juste assez pour se montrer, sans jamais la dépasser.
     const rowTop = row.getBoundingClientRect().top;
     const above = sel => card ? [...card.querySelectorAll(sel)].filter(el => el.getBoundingClientRect().top < rowTop).pop() : null;
-    const lastDone = above('.session-set--done')?.closest('.set-swipe');
+    // Dernière ligne validée au-dessus : une série (sa rangée avec le balayage), ou une sous-série ou le second côté d'une
+    // série notée par bras, sans rangée (texte agrandi : sinon la ligne du bras droit restait sous l'écran)
+    const doneAbove = above('.session-set--done'), lastDone = doneAbove?.closest('.set-swipe') || doneAbove;
     const anchors = [band, keep, keep ? null : card, keep ? null : card?.querySelector('.ex-card__name'),
       // en-tête des séries : seulement après une série faite (1re série trop basse : le nom reste visible, CI t-grand-texte)
       keep || !lastDone ? null : card?.querySelector('.sets__head'), lastDone, lastDone?.querySelector('.rir')]

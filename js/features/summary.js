@@ -10,7 +10,7 @@ let lastSummary = null;  // bilan de la séance qui vient d'être enregistrée
 // ex facultatif : avec une machine d'assistance, moins d'aide est meilleur (w comparé en négatif)
 function summaryBestSet(sets, ex = null) {
   const sign = ex && isAssisted(ex) ? -1 : 1;
-  return workSets(sets).reduce((b, s) => {   // jamais une série d'échauffement (js/data/warmup.js)
+  return recordSets(sets).reduce((b, s) => {   // jamais l'échauffement (js/data/warmup.js) ; par bras : le meilleur côté
     const w = sign * (parseFloat(s.weight) || 0), r = parseInt(s.reps) || 0;
     if (!b || w > b.w || (w === b.w && r > b.r)) return { w, r, s };
     return b;
@@ -287,7 +287,8 @@ function sessionHistoryEntry(sp, sc) {
         sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}),
           ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}),
           ...(cleanNote(s.note) ? { note: cleanNote(s.note) } : {}),   // note de série (js/data/notes.js)
-          ...techFields(s, { doneOnly: true }) })),   // technique et sous-séries validées (js/data/intensif.js)
+          ...techFields(s, { doneOnly: true }),   // technique et sous-séries validées (js/data/intensif.js)
+          ...sideFields(s, { doneOnly: true }) })),   // second côté validé d'une série notée par bras (js/data/unilateral.js)
         // Charge prescrite par le coach, alignée sur les séries validées (js/data/coach-presc.js) : le coach voit l'écart
         ...(historyPresc(ex, ex.sets.filter(s => s.done)) ? { presc: historyPresc(ex, ex.sets.filter(s => s.done)) } : {}),
       }))

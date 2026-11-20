@@ -36,8 +36,9 @@ function subSetsOf(s) {
   if (!techHasSub(setTech(s)) || !Array.isArray(s.sub)) return [];
   return s.sub.filter(x => x && typeof x === 'object' && x.done !== false);
 }
-// Séries du volume : séries de travail suivies de leurs sous-séries (l'échauffement n'y est jamais)
-function volumeSets(sets) { return workSets(sets).flatMap(s => [s, ...subSetsOf(s)]); }
+// Séries du volume : séries de travail suivies de leurs sous-séries, puis du second côté d'une série notée par bras
+// et de ses sous-séries (side2VolumeSets, js/data/unilateral.js) ; l'échauffement n'y est jamais
+function volumeSets(sets) { return workSets(sets).flatMap(s => [s, ...subSetsOf(s), ...side2VolumeSets(s)]); }
 // Une technique s'applique aux exercices en répétitions (pas aux maintiens ni au cardio)
 function canTech(ex) { return measureOf(ex) === 'reps'; }
 
@@ -124,13 +125,19 @@ function newSubSet(s, k) {
   return { weight: '', reps: '', done: false, auto: true, prev: p };
 }
 // Pose la technique t sur la série s (séance en cours) ; t null la retire. Même technique : rien ne change.
+// Série notée par bras (js/data/unilateral.js) : le second côté a autant de sous-séries ; posé par la technique et
+// pas encore fait, il part avec elle
 function applyTech(s, t) {
   if (!s || s.warmup) return false;
-  if (!t) { const had = !!s.tech; delete s.tech; delete s.sub; return had; }
-  if (!Object.hasOwn(TECHS, t) || s.tech === t) return false;
-  s.tech = t;
-  if (techHasSub(t)) s.sub = [newSubSet(s, 0)]; else delete s.sub;
-  return true;
+  if (t && (!Object.hasOwn(TECHS, t) || s.tech === t)) return false;
+  const had = !!s.tech;
+  if (!t) { delete s.tech; delete s.sub; } else {
+    s.tech = t;
+    if (techHasSub(t)) s.sub = [newSubSet(s, 0)]; else delete s.sub;
+  }
+  if (s.side2?.byTech && !techHasSub(t) && !s.side2.done) delete s.side2;
+  syncSide2Subs(s);
+  return t ? true : had;
 }
 // Sous-série de plus (bouton « + drop ») ; false au maximum
 function addSubSet(s) {
@@ -138,6 +145,7 @@ function addSubSet(s) {
   s.sub ||= [];
   if (s.sub.length >= TECH_SUB_MAX) return false;
   s.sub.push(newSubSet(s, s.sub.length));
+  syncSide2Subs(s);
   return true;
 }
 // Prescription du programme posée sur les séries d'un exercice de la séance qui commence : sur la
@@ -152,8 +160,13 @@ function applyIntensPlan(ex, plan) {
     : p.on === 'all' ? work.map(s => [s, p.tech])
     : work.map((s, i) => [s, i === 0 ? 'top' : 'backoff']);
   let n = 0;
-  for (const [s, t] of pairs) if (!s.done && !s.tech && applyTech(s, t)) n++;
+  for (const [s, t] of pairs) if (!s.done && !s.tech && applyTech(s, t)) { techSides(ex, s); n++; }
   return n;
+}
+// Exercice unilatéral (js/data/unilateral.js) : une série à sous-séries se note par bras, le drop set existe de chaque
+// côté (demande de Maxence du 19/11 : « bras gauche lourd, allégé, puis bras droit »). Renvoie true si posé.
+function techSides(ex, s) {
+  return !!unilateralLimb(ex) && techHasSub(setTech(s)) && !s.done && addSide2(s, { byTech: true });
 }
 // Back-off pré-rempli plus léger que le top set (panel du 16/11 : « Back-off allégée » à la même charge que le top set).
 // Règle annoncée (docs/INTENSIFICATION.md) : charge du top set − 10 %, arrondie à ce qui se charge (barre et disques,
@@ -187,22 +200,23 @@ function techMenuActions(ex) {
   if (!canTech(ex)) return [];
   return [{ label: 'Technique d\'intensification…', value: 'tech-pick' }];
 }
-// Après la validation de la série s : secondes de pause avant sa première sous-série (0 : enchaîner
-// sans repos), ou null s'il n'y a pas de sous-série à faire (repos habituel)
+// Après une validation dans la série s : secondes de pause avant l'étape qui suit (setNextStep, js/data/unilateral.js :
+// sous-série, ou second côté d'une série notée par bras), 0 pour enchaîner sans repos (un drop, l'autre côté), ou
+// null quand la série est finie (repos habituel)
 function techPauseAfter(s) {
-  const t = setTech(s);
-  if (!techHasSub(t) || !(s.sub || []).some(x => !x.done)) return null;
-  return TECHS[t].pause;
+  const n = s && setNextStep(s.done ? s : { ...s, done: true });   // appelé juste après la validation de la série
+  if (!n) return null;
+  return n.k < 0 ? 0 : TECHS[setTech(s)].pause;
 }
 
-// Sous-série à faire maintenant : celle de la série qu'on vient de valider (last : activeSession.lastDone,
-// { ei, si }), la première non faite ; null sinon. Une sous-série sautée (une autre série validée depuis)
-// n'est plus « à faire » : elle reste à remplir, mais ni la carte ni l'écran ne s'y arrêtent.
+// Étape à faire maintenant dans la série qu'on vient de valider (last : activeSession.lastDone, { ei, si }) : une
+// sous-série, ou le second côté d'une série notée par bras (setNextStep) ; { ei, si, k, side } (k : -1 pour la ligne
+// du second côté), null sinon. Une sous-série sautée (une autre série validée depuis) n'est plus « à faire » : elle
+// reste à remplir, mais ni la carte ni l'écran ne s'y arrêtent.
 function techCurrentSub(xs, last) {
   const s = last ? xs?.[last.ei]?.sets?.[last.si] : null;
-  if (!s?.done || !techHasSub(setTech(s))) return null;
-  const k = (s.sub || []).findIndex(x => !x.done);
-  return k >= 0 ? { ei: last.ei, si: last.si, k } : null;
+  const n = setNextStep(s);
+  return n ? { ei: last.ei, si: last.si, k: n.k, side: n.side } : null;
 }
 // L'exercice ei attend sa sous-série en cours (sa carte ne se replie pas)
 function techPending(xs, last, ei) { return techCurrentSub(xs, last)?.ei === ei; }
@@ -212,18 +226,21 @@ function techPending(xs, last, ei) { return techCurrentSub(xs, last)?.ei === ei;
 function subSetsText(s, kind = 'charge') {
   return subSetsOf(s).map(x => measureSetTxt(x, 'reps', kind)).join(' · ');
 }
-// Lignes de l'historique sous les séries d'un exercice : « Drop set S3 : 46 kg × 5 · 40 kg × 4 »,
-// « Top set S1 · Back-off S2, S3 » (étiquettes regroupées). [] sans technique.
-function techLines(sets, kind = 'charge') {
+// Lignes de l'historique sous les séries d'un exercice : « Drop set série 3 : 46 kg × 5 · 40 kg × 4 »,
+// « Top set série 1 · Back-off séries 2, 3 » (étiquettes regroupées). [] sans technique. « Série » en toutes lettres,
+// plus « S3 » (grille avant panel du 19/11, règle 11 : pas d'abréviation pour une débutante), comme en séance.
+// ex (facultatif) : une série notée par bras dit son côté (« Drop set série 3, bras gauche : … ») ; le second côté suit
+// dans sideLines (js/data/unilateral.js)
+function techLines(sets, kind = 'charge', ex = null) {
   const work = workSets(sets), lines = [], labels = new Map();
   work.forEach((s, i) => {
     const t = setTech(s);
     if (!t) return;
-    if (!techHasSub(t)) { if (!labels.has(t)) labels.set(t, []); labels.get(t).push(`S${i + 1}`); return; }
+    if (!techHasSub(t)) { if (!labels.has(t)) labels.set(t, []); labels.get(t).push(i + 1); return; }
     const txt = subSetsText(s, kind);
-    if (txt) lines.push(`${TECHS[t].label} S${i + 1} : ${txt}`);
+    if (txt) lines.push(`${TECHS[t].label} série ${i + 1}${ex && hasSide2(s) ? `, ${sideName(ex, 1).toLowerCase()}` : ''} : ${txt}`);
   });
-  const tags = [...labels.entries()].map(([t, ns]) => `${TECHS[t].label} ${ns.join(', ')}`).join(' · ');
+  const tags = [...labels.entries()].map(([t, ns]) => `${TECHS[t].label} ${ns.length > 1 ? 'séries' : 'série'} ${ns.join(', ')}`).join(' · ');
   return tags ? [tags, ...lines] : lines;
 }
 // Fin du détail des séries de l'image partagée : « drop set 46 kg × 5 · 40 kg × 4 » (deux au plus), ''

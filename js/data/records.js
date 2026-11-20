@@ -34,7 +34,7 @@ function recordLabel(s, base, ex = null) {
 function exerciseRecord(ex, base) {
   const score = s => (parseFloat(s.weight) || 0) * 100 + (+s.reps);
   let rec = null;
-  workSets(ex.sets).forEach(s => {
+  recordSets(ex.sets).forEach(s => {
     const l = recordLabel(s, base, ex);
     if (!l) return;
     const rank = RECORD_RANK[l], best = rec && RECORD_RANK[rec.label];
@@ -61,7 +61,7 @@ function historyBaseline(entry, history) {
     let prW = 0, prR = 0, e1rm = 0, seen = false;
     before.forEach(h => (h.exercises || []).forEach(he => {
       if (!sameEx(he, ex)) return;
-      workSets(he.sets).forEach(s => {
+      recordSets(he.sets).forEach(s => {
         const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
         seen = true;
         if (w > prW || (w === prW && r > prR)) { prW = w; prR = r; }
@@ -252,7 +252,7 @@ function sessionPriorOf(entry, history) {
   return (ex, m = measureOf(ex)) => {
     const k = `${m}\u0000${exIdOf(ex) || ''}\u0000${normName(ex?.name)}`;
     if (!memo.has(k)) memo.set(k, addPriorSets(emptyPrior(), before.flatMap(h => (h.exercises || [])
-      .filter(he => sameEx(he, ex) && measureOf(he) === m).flatMap(he => workSets(he.sets).filter(s => recR(s) > 0))), m === 'cardio'));
+      .filter(he => sameEx(he, ex) && measureOf(he) === m).flatMap(he => recordSets(he.sets).filter(s => recR(s) > 0))), m === 'cardio'));
     return memo.get(k);
   };
 }
@@ -272,7 +272,7 @@ function notedFromPrior(entry, priorOf) {
   const out = [];
   (entry.exercises || []).forEach(ex => {
     const m = measureOf(ex);
-    const cur = workSets(ex.sets).filter(s => recR(s) > 0);
+    const cur = recordSets(ex.sets).filter(s => recR(s) > 0);
     if (!cur.length) return;
     const prior = priorOf(ex, m);
     if (!prior?.n) return;   // première fois : rien
@@ -290,7 +290,7 @@ function priorSetsIndex() {
   return {
     add(h) {
       (h.exercises || []).forEach(he => {
-        const sets = workSets(he.sets).filter(s => recR(s) > 0);
+        const sets = recordSets(he.sets).filter(s => recR(s) > 0);
         if (!sets.length) return;
         const m = measureOf(he), id = exIdOf(he), name = `${m}\u0000${normName(he.name)}`;
         add(byName, name, sets, m === 'cardio');
@@ -465,16 +465,17 @@ function recordGainTxt(r) {
 function liveExerciseBadges(ex, prior) {
   const out = new Map();
   if (!ex || !prior?.n) return out;
-  const done = workSets(ex.sets).filter(s => s.done && recR(s) > 0);
+  // Série notée par bras : son meilleur côté (recordSets, js/data/unilateral.js), le badge revient à la série
+  const done = recordSets(ex.sets).filter(s => s.done && recR(s) > 0);
   if (!done.length) return out;
   const noted = exerciseNoted(ex, measureOf(ex), done, prior), top = new Map();
   noted.forEach(r => {
     const item = notedItem(ex, r), s = pickRecordSet(done, item);
     if (s && (!top.has(s) || NOTED_RANK[item.kind] > NOTED_RANK[top.get(s).kind])) top.set(s, item);
   });
-  top.forEach((r, s) => out.set(s, notedLabel(r)));
+  top.forEach((r, s) => out.set(recordSource(s), notedLabel(r)));
   const e1s = !noted.length && e1rmRecordSet(ex, prior, done);
-  if (e1s) out.set(e1s, 'Record 1RM est.');
+  if (e1s) out.set(recordSource(e1s), 'Record 1RM est.');
   return out;
 }
 // Badge d'une série validée de l'exercice (liveExerciseBadges) : « Record charge », « Record 5 km »,
@@ -490,7 +491,7 @@ function setBeatsE1rm(ex, s, prior) {
 }
 // Série (parmi sets, par défaut les séries de travail de l'exercice) qui bat le plus son 1RM estimé d'avant,
 // la première à égalité ; null sans (bilan et badge en direct : « Record 1RM est. »)
-function e1rmRecordSet(ex, prior, sets = workSets(ex.sets)) {
+function e1rmRecordSet(ex, prior, sets = recordSets(ex.sets)) {
   let best = null, top = 0;
   sets.forEach(s => {
     if (!setBeatsE1rm(ex, s, prior)) return;
@@ -505,7 +506,7 @@ function e1rmRecordSet(ex, prior, sets = workSets(ex.sets)) {
 // même nom, séance modifiée depuis). À valeur égale : le plus de reps (charge, aide), le plus lourd (temps),
 // le plus loin (durée, allure), le plus court (distance).
 function notedRecordSet(ex, r) {
-  return ex && r ? pickRecordSet(workSets(ex.sets).filter(s => recR(s) > 0), r) : null;
+  return ex && r ? pickRecordSet(recordSets(ex.sets).filter(s => recR(s) > 0), r) : null;
 }
 // Cœur de notedRecordSet : la série de sets (de travail, faites) qui fait le record r, null sans
 function pickRecordSet(sets, r) {
