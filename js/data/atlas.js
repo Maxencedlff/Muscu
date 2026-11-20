@@ -169,7 +169,8 @@ function partLoad(spanKey = 'week', now = Date.now(), history = data.history) {
 // « À travailler » (panel affichage-e t4 : la liste « Peu travaillés » des 18 muscles ne collait pas au dessin) : EXACTEMENT
 // les muscles gris ou rouge pâle du personnage, sous l'objectif. Un nom par muscle tel qu'il est dessiné et nommé dans la
 // bulle : sous-muscle visible (atlasPartTitle), muscle entier pour le bas du corps (carte simple). Profonds exclus : non
-// colorés, ils ne se voient pas. Du moins au plus travaillé (séries par semaine, puis séries de la période).
+// colorés, ils ne se voient pas. Du moins au plus travaillé (séries par semaine, puis séries de la période, puis les
+// grands muscles avant les petits).
 // [{ key, label, weekly, ids }]
 function atlasToWork(pl = partLoad(muscleSpan), kind = bodyKind(bodySilhouette())) {
   const items = new Map();
@@ -182,7 +183,9 @@ function atlasToWork(pl = partLoad(muscleSpan), kind = bodyKind(bodySilhouette()
     it.ids.push(p.id);
     items.set(key, it);
   }
-  return [...items.values()].sort((a, b) => a.weekly - b.weekly || a.sets - b.sets || a.label.localeCompare(b.label, 'fr'));
+  // À égalité (souvent 0 série), les grands muscles d'abord : abdominaux avant extenseurs des doigts (captures t5)
+  const minor = it => { const p = atlasPart(it.ids[0]); return !p?.parent || !!MUSCLES.find(m => m.id === p.parent)?.minor; };
+  return [...items.values()].sort((a, b) => a.weekly - b.weekly || a.sets - b.sets || minor(a) - minor(b) || a.label.localeCompare(b.label, 'fr'));
 }
 
 // Les 3 exercices qui ont le plus travaillé un sous-muscle sur la période : [[nom, séries]]

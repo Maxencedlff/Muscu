@@ -313,6 +313,9 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
       assert.ok(items.some(it => it.label === run("atlasPartTitle('external_oblique')")), 'obliques à 0 série : dans la liste');
       assert.ok(!items.some(it => it.ids.includes('chest_sternal')), 'pectoraux à l\'objectif : hors de la liste');
       assert.ok(items.every((it, i) => !i || items[i - 1].weekly <= it.weekly), 'du moins au plus travaillé');
+      const zero = items.filter(it => !it.weekly).map(it => it.label);
+      const fe = zero.indexOf(run("atlasPartTitle('finger_extensors')")), ra = zero.indexOf(run("atlasPartTitle('rectus_abdominis')"));
+      assert.ok(ra >= 0 && (fe < 0 || ra < fe), `à égalité, les grands muscles d'abord ${zero.slice(0, 5)}`);
       assert.ok(items.filter(it => it.key === 'quads').length === 1, 'bas du corps : le muscle entier, une seule fois');
       assert.equal(pl.levels.chest_sternal, 2);
     }
