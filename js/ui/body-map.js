@@ -184,22 +184,26 @@ function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', t
 }
 
 // Cadrage de la carte de la fiche, en points 1× de la vue : [haut, bas]. Muscles travaillés tous dans le haut du
-// corps : de la tête à la taille, le personnage paraît plus grand ; tous dans le bas (fessiers, jambes) : de la taille
-// aux pieds ; sinon le corps entier. Le cadre contient chaque sous-muscle coloré (tests/unit/atlas.mjs).
+// corps : de la tête à la taille, le personnage paraît plus grand. Tous dans le bas (fessiers, jambes) : la boîte des
+// sous-muscles colorés, avec une marge (taille et crête iliaque visibles au-dessus, au moins 300 points de haut), donc
+// pas jusqu'aux pieds si rien n'y est coloré (panel atlas t2 : moyen fessier collé au bord). Sinon le corps entier.
+// Le cadre contient chaque sous-muscle coloré (tests/unit/atlas.mjs).
 const BODY_ATLAS_UPPER = [0, 450];    // tête → taille (abdominaux et obliques compris)
-const BODY_ATLAS_LOWER = [330, 840];  // taille → pieds (fessiers compris)
+const BODY_ATLAS_LEG_TOP = 50, BODY_ATLAS_LEG_BOTTOM = 150, BODY_ATLAS_LEG_MIN = 300;
 const BODY_ATLAS_LEGS = new Set(['glutes', 'quads', 'hamstrings', 'adductors', 'calves']);
 const BODY_ATLAS_LEGS_OWN = new Set(['tfl', 'sartorius', 'tibialis', 'peroneus']);   // sans muscle parent
 function bodyAtlasCrop(kind, levels) {
+  const boxes = [];
   const on = BODY_PARTS.parts.filter(p => levels[p.id] > 0 && ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id]));
+  for (const p of on) for (const v of ['front', 'back']) { const b = BODY_PARTS.boxes[kind]?.[v]?.[p.id]; if (b) boxes.push(b[0]); }
   if (!on.length) return [0, BODY_PARTS.h];
+  const top = Math.min(...boxes.map(b => b[1])), bot = Math.max(...boxes.map(b => b[3]));
   const legs = p => BODY_ATLAS_LEGS.has(p.parent) || BODY_ATLAS_LEGS_OWN.has(p.id);
-  const fits = ([y0, y1]) => on.every(p => ['front', 'back'].every(v => {
-    const b = BODY_PARTS.boxes[kind]?.[v]?.[p.id];
-    return !b || (b[0][1] >= y0 && b[0][3] <= y1);
-  }));
-  if (!on.some(legs) && fits(BODY_ATLAS_UPPER)) return BODY_ATLAS_UPPER;
-  if (on.every(legs) && fits(BODY_ATLAS_LOWER)) return BODY_ATLAS_LOWER;
+  if (!on.some(legs) && bot <= BODY_ATLAS_UPPER[1]) return BODY_ATLAS_UPPER;
+  if (on.every(legs)) {
+    const y0 = Math.max(0, top - BODY_ATLAS_LEG_TOP);
+    return [y0, Math.min(BODY_PARTS.h, Math.max(bot + BODY_ATLAS_LEG_BOTTOM, y0 + BODY_ATLAS_LEG_MIN))];
+  }
   return [0, BODY_PARTS.h];
 }
 

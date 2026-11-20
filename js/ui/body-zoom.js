@@ -103,16 +103,23 @@ async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root
   if (seq !== bodyTipSeq || !root.isConnected) return;
   if (!hit) { closeBodyTip(); return; }
   const lv = levels[hit.part.id] || 0;
-  // Comme la carte des 18 muscles : la bulle évite de couvrir un sous-muscle coloré (surface des boîtes à l'écran)
-  const boxes = [...root.querySelectorAll('.body-map__p')].map(l => l.getBoundingClientRect());
-  const cost = r => boxes.reduce((t, b) => t + Math.max(0, Math.min(r.right, b.right) - Math.max(r.left, b.left))
+  // Comme la carte des 18 muscles : la bulle évite de couvrir un sous-muscle coloré (surface des boîtes à l'écran) ;
+  // un atténué compte quatre fois moins qu'un plein (panel atlas t2 : sur les tractions, les secondaires couvraient tout
+  // le dos et renvoyaient la bulle sur la vue de face, sans pointe). Au-dessus du doigt, sinon au-dessous : toujours
+  // choisi quand la place existe (spotTol 1), la pointe vers le muscle compte plus qu'un muscle couvert ; le coût ne
+  // départage que les autres places
+  const boxes = [...root.querySelectorAll('.body-map__p')].map(l => ({ r: l.getBoundingClientRect(), k: l.classList.contains('body-map__m--sec') ? 0.25 : 1 }));
+  const cost = r => boxes.reduce((t, { r: b, k }) => t + k * Math.max(0, Math.min(r.right, b.right) - Math.max(r.left, b.left))
     * Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top)), 0);
   const z = zone.getBoundingClientRect(), x = e.clientX, y = e.clientY, gap = 14;
   showBodyTip(atlasTipHtml(hit.part, lv), x, y, container ? null : root, {
     // Zone du dessin, réduite à ce qui est visible (sous la barre de navigation, au-dessus de la barre d'onglets)
-    cost, container, bounds: (b => ({ minTop: Math.max(z.top + 4, b.minTop), maxBottom: Math.min(z.bottom - 4, b.maxBottom) }))(bodyTipBounds(container ? null : root)),
+    cost, container, spotTol: 1, bounds: (b => ({ minTop: Math.max(z.top + 4, b.minTop), maxBottom: Math.min(z.bottom - 4, b.maxBottom) }))(bodyTipBounds(container ? null : root)),
     avoid: avoid.filter(Boolean).map(a => a.getBoundingClientRect()),
-    spots: (w, h) => [{ left: x - w / 2, top: y - gap - h }, { left: x - w / 2, top: y + gap }],
+    // Au-dessus puis au-dessous, centrée sur le doigt, sinon décalée (pointe près d'un bout) pour éviter un bouton
+    // puis à côté du doigt, du côté le plus large (petite carte : iPhone SE, texte agrandi), toujours avec la pointe
+    spots: (w, h) => [...[y - gap - h, y + gap].flatMap(top => [x - w / 2, x - w + 28, x - 28].map(left => ({ left, top }))),
+      ...(innerWidth - x >= x ? [x + gap, x - gap - w] : [x - gap - w, x + gap]).map(left => ({ left, top: y - h / 2 }))],
   });
   const layer = hit.fig.querySelector(`.body-map__p[data-part="${hit.part.id}"]`);
   hit.fig.insertAdjacentHTML('beforeend', atlasMarkHtml(kind, hit.view, hit.part.id, res(hit.view), bodyTipTint(layer)));

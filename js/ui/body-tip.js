@@ -103,13 +103,15 @@ async function bodyMuscleAt(mapEl, clientX, clientY) {
 // couverte, en points²), sinon celui qui en couvre le moins.
 // side : 'above' | 'below' | 'left' | 'right' (flèche vers le doigt, arrow : sa position le long du
 // bord) ou 'free' (bulle à l'écart du doigt, sans flèche)
-function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [], cost = () => 0, margin = 8, gap = 14 }) {
+// spotTol : part de la bulle (0..1) qu'une place préférée (spots) peut couvrir de muscles colorés et rester choisie,
+// avant les places plus loin du doigt (atlas détaillé : la bulle reste contre le muscle touché, pointe comprise)
+function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [], cost = () => 0, margin = 8, gap = 14, spotTol = 0 }) {
   const clampX = l => Math.max(margin, Math.min(vw - margin - w, l));
   const clampY = t => Math.max(minTop, Math.min(maxBottom - h, t));
   const hits = (p, r) => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top;
   const finger = { left: x - gap + 2, right: x + gap - 2, top: y - gap + 2, bottom: y + gap - 2 };
-  const settle = ({ left, top }) => {
-    const p = { left: clampX(left), top: clampY(top) };
+  const settle = ({ left, top, spot }) => {
+    const p = { left: clampX(left), top: clampY(top), spot };
     for (const r of avoid) if (hits(p, r)) p.top = r.bottom + margin;
     return p;
   };
@@ -123,16 +125,17 @@ function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [
   const dist = p => Math.hypot(p.left + w / 2 - x, p.top + h / 2 - y);
   grid.sort((a, b) => dist(a) - dist(b));
   // En dernier, les coins de la zone permise : une petite zone (texte agrandi, iPhone SE) où rien près du doigt ne tient
-  const corners = [minTop, maxBottom - h].flatMap(top => [margin, vw - margin - w].map(left => ({ left, top })));
+  // (du côté du doigt seulement : la bulle ne part pas sur l'autre vue du personnage)
+  const corners = [minTop, maxBottom - h].map(top => ({ left: x > vw / 2 ? vw - margin - w : margin, top }));
   const fits = (p, finger_ = true) => p.left >= margin && p.left + w <= vw - margin && p.top >= minTop && p.top + h <= maxBottom
     && !avoid.some(r => hits(p, r)) && (!finger_ || !hits(p, finger));
-  const all = [...spots, ...near.map(left => ({ left, top: y - h / 2 })),
+  const all = [...spots.map(p => ({ ...p, spot: true })), ...near.map(left => ({ left, top: y - h / 2 })),
     { left: x - w / 2, top: y + gap }, { left: x - w / 2, top: y - gap - h }, ...grid, ...corners].map(settle);
   let cands = all.filter(p => fits(p));
   if (!cands.length) cands = all.filter(p => fits(p, false));   // sinon sur le doigt, plutôt que sur un bouton
   const tol = 0.02 * w * h;
   const scored = cands.map(p => ({ p, c: cost({ left: p.left, top: p.top, right: p.left + w, bottom: p.top + h }) }));
-  let best = scored.find(s => s.c <= tol) || scored.reduce((a, b) => (b.c < a.c ? b : a), scored[0]);
+  let best = (spotTol && scored.find(s => s.p.spot && s.c <= spotTol * w * h)) || scored.find(s => s.c <= tol) || scored.reduce((a, b) => (b.c < a.c ? b : a), scored[0]);
   if (!best) best = { p: { left: clampX(x - w / 2), top: clampY(y + gap) } };
   const { left, top } = best.p;
   // Flèche : seulement si la bulle borde le doigt (à moins de 3 fois l'écart) sur l'un de ses côtés
@@ -267,7 +270,7 @@ function showBodyTip(html, x, y, anchor = null, place = {}) {
   const w = el.offsetWidth, h = el.offsetHeight;
   const spots = place.spots ? place.spots(w, h) : place.prefer && anchor ? bodyTipSpots(anchor, x, y, w, h, place.prefer) : [];
   const p = bodyTipPlace({ x, y, w, h, vw: document.documentElement.clientWidth, ...(place.bounds || bodyTipBounds(anchor)),
-    avoid: [...bodyTipAvoid(anchor), ...(place.avoid || [])], spots, cost: place.cost });
+    avoid: [...bodyTipAvoid(anchor), ...(place.avoid || [])], spots, cost: place.cost, spotTol: place.spotTol || 0 });
   el.style.left = `${p.left}px`; el.style.top = `${p.top}px`;
   el.style.setProperty('--arrow', `${p.arrow}px`);
   el.classList.add(`btip--${p.side}`);

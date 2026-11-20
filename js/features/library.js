@@ -286,7 +286,18 @@ function libExHeroHtml(name) {
       <figcaption class="exhero__cap">${esc(deepMuscleLabel(m.deep[0]))}, muscle profond, invisible en surface</figcaption></figure>`;
   }
   if (!isMuscleId(id)) return '';
-  return `<div class="exhero"><img class="exhero__img" src="img/muscles/${id}.webp" alt="" width="600" height="400" decoding="async"></div>`;
+  // L'image d'un muscle le montre entier en rouge plein : seulement si aucun de ses sous-muscles n'est en rouge atténué
+  // sur le personnage détaillé (panel atlas t2 : Abducteurs, moyen fessier plein et grand fessier atténué). Sinon un
+  // autre muscle principal qui le permet, sinon le personnage détaillé lui-même, sans toucher (la carte plus bas l'a)
+  const hero = libExHeroMuscle(name, m);
+  if (hero) return `<div class="exhero"><img class="exhero__img" src="img/muscles/${hero}.webp" alt="" width="600" height="400" decoding="async"></div>`;
+  return `<figure class="exhero exhero--deep exhero--atlas">${bodyAtlasHtml(exercisePartLevels(name, m).levels, { className: 'exhero__body' })}</figure>`;
+}
+
+// Muscle de l'image de tête : le premier muscle principal dont aucun sous-muscle n'est atténué ; null s'il n'y en a pas
+function libExHeroMuscle(name, m) {
+  const lv = exercisePartLevels(name, m).levels;
+  return m.primary.find(id => isMuscleId(id) && !atlasPartsOf(id).some(p => lv[p] === 1)) || null;
 }
 
 // Historique, Courbe ou Records d'un exercice jamais fait : un état vide qui dit quoi faire

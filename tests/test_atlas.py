@@ -309,7 +309,7 @@ def t_autres_fiches(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme)
-        for name, crop, first, view, part in [('Abducteurs machine', '330,840', [['Moyen fessier', 2], ['Grand fessier', 1]], 'back', 'glute_med'),
+        for name, crop, first, view, part in [('Abducteurs machine', '302,602', [['Moyen fessier', 2], ['Grand fessier', 1]], 'back', 'glute_med'),
                                               ('Tractions pronation', '0,450', [['Grand dorsal', 2], ['Grand rond', 2]], 'back', 'lats')]:
             page.evaluate(f"navigate(makeRoute('library-ex', {json.dumps(name)}))")
             page.wait_for_selector('.view.library-ex .mpanel--atlas')
@@ -323,6 +323,11 @@ def t_autres_fiches(bench, eng, dev, theme):
             page.wait_for_selector('.btip', timeout=5000)
             settle(page)
             R.check(tip_text(page).startswith(first[0][0]), f'{t} {name} : bulle « {tip_text(page)} »')
+            # Pointe vers le doigt, bulle contre lui (au plus 3 écarts de 14 points) : jamais partie dans un coin de l'autre vue
+            side = page.evaluate("""([x, y]) => { const t = document.querySelector('.btip'), r = t.getBoundingClientRect();
+                const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom);
+                return [!t.classList.contains('btip--free'), Math.round(Math.hypot(dx, dy)) <= 42]; }""", part_point(page, '.mpanel__map', part, view))
+            R.check(all(side), f'{t} {name} : bulle avec pointe, contre le muscle touché {side}')
             R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpills', '.mpanel__zoom']), f'{t} {name} : place de la bulle {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpills", ".mpanel__zoom"], True)}')
             lo = layout_ok(page)
             R.check(not lo, f'{t} {name} : mise en page {lo}')
@@ -359,6 +364,15 @@ def t_catalogue(bench):
             const html = libExHeroHtml(e.name) + libExAboutHtml(e, e.name);
             const ok = /class="body-map__m[ "]/.test(html) || (!e.primary.length && /exhero--deep/.test(html));
             return ok ? null : e.name; }).filter(Boolean)""")
+        # Image de tête : un muscle entier en rouge plein seulement si le personnage n'en atténue aucun sous-muscle
+        hero_bad = page.evaluate("""() => EXERCISE_CATALOGUE.map(e => {
+            const m = (libExHeroHtml(e.name).match(/img\\/muscles\\/([a-z_]+)\\.webp/) || [])[1];
+            if (!m) return null;
+            const lv = exercisePartLevels(e.name, exerciseMuscles({ name: e.name })).levels;
+            return atlasPartsOf(m).some(p => lv[p] === 1) ? `${e.name} : ${m}` : null; }).filter(Boolean)""")
+        R.check(not hero_bad, f'catalogue : image de tête en contradiction avec le personnage {hero_bad}')
+        abd = page.evaluate("libExHeroHtml('Abducteurs machine')")
+        R.check('img/muscles/' not in abd and 'body-map--atlas' in abd, 'Abducteurs machine : personnage détaillé en tête, pas l\'image des fessiers en rouge plein')
         n = page.evaluate('EXERCISE_CATALOGUE.length')
         R.check(n >= 190 and not bad, f'catalogue : {n} fiches, sans personnage : {bad}')
         R.check(not page.errors, f'catalogue : aucune erreur JS {page.errors}')

@@ -636,6 +636,26 @@ def p_atlas(r):
             r.page.mouse.click(*xy)
             r._note(f'{nom} : muscle principal')
             r.page.wait_for_timeout(700)
+    # Silhouette femme (panel t2) : la fiche du développé incliné, les abducteurs (cadrage) et le nom sur les tractions
+    r.raccourci("() => { data.silhouette = 'female'; save(); navigate(makeRoute('library-ex', 'Développé incliné barre')); }", 'silhouette femme (Réglages)')
+    with r.etape('fiche-femme', 'Silhouette femme : fiche du développé incliné barre'):
+        r.attendre('.view.library-ex .mpanel--atlas .body-map[data-body="female"]', 'personnage femme')
+        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+    r.raccourci("() => navigate(makeRoute('library-ex', 'Abducteurs machine'))", 'fiche Abducteurs machine')
+    with r.etape('fiche-abducteurs-femme', 'Silhouette femme : fiche Abducteurs machine, cadrage'):
+        r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
+        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+    r.raccourci("() => navigate(makeRoute('library-ex', 'Tractions pronation'))", 'fiche Tractions pronation')
+    with r.etape('nom-tractions-femme', 'Silhouette femme : Tractions pronation, toucher le grand dorsal'):
+        r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
+        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+        xy = r.page.evaluate("""() => { const l = document.querySelector('.mpanel__map .body-map__back [data-part="lats"]');
+            if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * 0.15, b.top + b.height * 0.5]; }""")
+        if not xy:
+            raise Absent('introuvable : grand dorsal')
+        r.page.mouse.click(*xy)
+        r._note('Tractions pronation : grand dorsal')
+        r.page.wait_for_timeout(700)
 
 
 def _avec_vacuum():

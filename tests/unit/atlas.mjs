@@ -203,19 +203,38 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
   test('atlas : carte cadrée sur le haut ou le bas du corps quand tous les muscles y sont', () => {
     const crop = n => run(`bodyAtlasCrop('male', exercisePartLevels(${JSON.stringify(n)}, musclesOf(${JSON.stringify(n)})).levels)`);
     sameJSON(crop('Développé incliné barre'), [0, 450]);
-    sameJSON(crop('Abducteurs machine'), [330, 840]);
+    sameJSON(crop('Abducteurs machine'), [302, 602], 'abducteurs : de la taille aux genoux');
+    const mc = crop('Mollets debout');
+    assert.ok(mc[1] === 840 && mc[0] > 500, `mollets : des genoux aux pieds ${mc}`);
     sameJSON(crop('Squat barre'), [0, 840], 'squat : érecteurs et jambes, corps entier');
     sameJSON(run("bodyAtlasCrop('male', {})"), [0, 840]);
     const html = run(`bodyAtlasHtml(exercisePartLevels('Abducteurs machine', musclesOf('Abducteurs machine')).levels, { body: 'female' })`);
-    assert.ok(html.includes('body-map--crop') && html.includes('data-crop="330,840"') && html.includes('aspect-ratio:799 / 510'));
+    assert.ok(html.includes('body-map--crop') && html.includes('data-crop="318,618"') && html.includes('aspect-ratio:799 / 300'), html.slice(0, 300));
     // Tout sous-muscle coloré reste dans le cadre
     for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) for (const kind of ['male', 'female']) {
       const lv = run(`exercisePartLevels(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)})).levels`);
       const [y0, y1] = run(`bodyAtlasCrop(${JSON.stringify(kind)}, ${JSON.stringify(lv)})`);
+      let first = Infinity;
       for (const v of ['front', 'back']) for (const [id, b] of Object.entries(run('BODY_PARTS').boxes[kind][v])) {
-        if (lv[id] > 0) assert.ok(b[0][1] >= y0 && b[0][3] <= y1, `${name} ${kind}/${v} : ${id} hors du cadre`);
+        if (lv[id] > 0) { assert.ok(b[0][1] >= y0 && b[0][3] <= y1, `${name} ${kind}/${v} : ${id} hors du cadre`); first = Math.min(first, b[0][1]); }
       }
+      // Cadre du bas du corps : au moins 30 points au-dessus du premier sous-muscle coloré (taille visible)
+      if (y0 > 0 && first !== Infinity) assert.ok(first - y0 >= 30, `${name} ${kind} : ${first - y0} points de marge en haut`);
     }
+  });
+
+  test('atlas : bulle contre le muscle touché malgré les secondaires (bodyTipPlace, spotTol)', () => {
+    // Doigt à 75 % de la largeur (vue de dos), muscles atténués partout (poids 0,25) : la bulle reste au-dessus du doigt,
+    // avec sa pointe, sur la même moitié de l'écran
+    const w = 180, h = 90, x = 292, y = 300, gap = 14;
+    const cost = r => 0.25 * (r.right - r.left) * (r.bottom - r.top);
+    const p = app.bodyTipPlace({ x, y, w, h, vw: 390, minTop: 100, maxBottom: 600, cost, spotTol: 0.35,
+      spots: [{ left: x - w / 2, top: y - gap - h }, { left: x - w / 2, top: y + gap }] });
+    assert.ok(p.side !== 'free' && p.left + w / 2 > 195, `bulle ${JSON.stringify(p)}`);
+    // Sans tolérance (carte des 18 muscles) : comportement d'avant, une place loin du doigt peut gagner
+    const q = app.bodyTipPlace({ x, y, w, h, vw: 390, minTop: 100, maxBottom: 600, cost,
+      spots: [{ left: x - w / 2, top: y - gap - h }] });
+    assert.ok(q.left >= 8 && q.top >= 100);
   });
 
   test('atlas : service worker (1× à l\'installation, jamais le 3×) et crédit BodyParts3D', () => {
