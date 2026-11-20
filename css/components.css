@@ -120,7 +120,8 @@
    Saisie invalide
 ═══════════════════════════════════════════════ */
 /* Champ refusé dont la valeur touchait le bord : un peu d'air à droite, dans le contour */
-.field.set-input--error, .coach-req-field__input.set-input--error, .diet-field__input.set-input--error { padding-right: 8px; }
+.field.set-input--error, .diet-field__input.set-input--error { padding-right: 8px; }
+.coach-req-field__input.set-input--error { padding-inline: 8px; }   /* champ aligné à gauche : de l'air des deux côtés */
 /* Contour d'un champ refusé : le même partout (séries, objectif, formulaires, dialogues, nouvel aliment), arrondi, 2 px */
 .set-input--error,
 .input-group:has(.set-input--error),
