@@ -166,26 +166,19 @@ function partLoad(spanKey = 'week', now = Date.now(), history = data.history) {
   return { sets, weekly, levels, byEx, load };
 }
 
-// « À travailler » (panel affichage-e t4 : la liste « Peu travaillés » des 18 muscles ne collait pas au dessin) : EXACTEMENT
-// les muscles gris ou rouge pâle du personnage, sous l'objectif. Un nom par muscle tel qu'il est dessiné et nommé dans la
-// bulle : sous-muscle visible (atlasPartTitle), muscle entier pour le bas du corps (carte simple). Profonds exclus : non
-// colorés, ils ne se voient pas. Du moins au plus travaillé (séries par semaine, puis séries de la période, puis les
-// grands muscles avant les petits).
-// [{ key, label, weekly, ids }]
-function atlasToWork(pl = partLoad(muscleSpan), kind = bodyKind(bodySilhouette())) {
-  const items = new Map();
-  for (const p of BODY_PARTS.parts) {
-    if (p.deep || !['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id])) continue;
-    if ((pl.levels[p.id] || 0) >= MUSCLE_LEVEL_MAX) continue;
-    const simple = ATLAS_SIMPLE_MUSCLES.has(p.parent), key = simple ? p.parent : p.id;
-    const it = items.get(key) || { key, label: simple ? muscleLabel(p.parent) : atlasPartTitle(p.id), weekly: pl.weekly[p.id] || 0,
-      sets: simple ? pl.load.sets[p.parent] || 0 : pl.sets[p.id] || 0, ids: [] };
-    it.ids.push(p.id);
-    items.set(key, it);
-  }
-  // À égalité (souvent 0 série), les grands muscles d'abord : abdominaux avant extenseurs des doigts (captures t5)
-  const minor = it => { const p = atlasPart(it.ids[0]); return !p?.parent || !!MUSCLES.find(m => m.id === p.parent)?.minor; };
-  return [...items.values()].sort((a, b) => a.weekly - b.weekly || a.sets - b.sets || minor(a) - minor(b) || a.label.localeCompare(b.label, 'fr'));
+// « À travailler » (panels affichage-e t4 et t5) : les muscles de salle (ceux de « Séries par muscle », js/data/muscles.js)
+// dont au moins un sous-muscle visible est gris ou rouge pâle sur le personnage ; ids : ces sous-muscles-là (isolés au
+// toucher du nom). Correspondance avec le dessin au niveau du muscle de salle : chaque nom a une zone grise ou pâle, chaque
+// zone grise ou pâle d'un muscle de salle a son nom (les sous-muscles sans muscle de salle, tenseur du fascia lata,
+// sterno-cléido-mastoïdien…, et les profonds, invisibles non colorés, n'y entrent pas). Du moins au plus de séries de la
+// période ; à égalité, les grands groupes avant les petits (minor), puis l'ordre de « Séries par muscle ».
+// [{ key, label, sets, minor, ids }]
+function atlasToWork(pl, kind = bodyKind(bodySilhouette())) {
+  const visible = p => !p.deep && ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id]);
+  const items = MUSCLES.map((m, i) => ({ key: m.id, label: m.label, sets: pl.load.sets[m.id] || 0, minor: !!m.minor, rank: i,
+    ids: BODY_PARTS.parts.filter(p => p.parent === m.id && visible(p) && (pl.levels[p.id] || 0) < MUSCLE_LEVEL_MAX).map(p => p.id) }))
+    .filter(it => it.ids.length);
+  return items.sort((a, b) => a.sets - b.sets || a.minor - b.minor || a.rank - b.rank);
 }
 
 // Les 3 exercices qui ont le plus travaillé un sous-muscle sur la période : [[nom, séries]]

@@ -125,8 +125,14 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .mcard__map { width: min(100%, 216px); }
 .mcard__top + .cell::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
 .mlow { color: var(--label); font-size: var(--fs-subhead); line-height: 1.176rem; }
-/* « + N autres » d'« À travailler » : un lien dans la ligne, sa zone de toucher élargie à 44 points de haut */
-.mlow__more { display: inline-block; padding: 12px 4px; margin: -12px -4px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; white-space: nowrap; }
+/* « À travailler » : chaque nom est une pastille à toucher (son muscle isolé sur le personnage), 44 points de haut ;
+   « + N autres » déplie la liste. Pastilles plutôt que des mots dans une phrase : les zones de toucher de deux lignes
+   ne se chevauchent pas */
+.mlow { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 6px; }
+.mlow__name, .mlow__more { min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-pill); font: inherit; cursor: pointer; }
+.mlow__name { background: var(--fill2); color: var(--label); }
+.mlow__name:active { background: var(--fill3, var(--fill2)); }
+.mlow__more { background: none; color: var(--tint); padding: 0 6px; }
 
 /* Légende : un échantillon par palier, son nom et ses bornes */
 .mlegend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3px 8px; font-size: var(--fs-caption); color: var(--label2); }

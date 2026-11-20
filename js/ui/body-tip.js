@@ -250,6 +250,9 @@ function closeBodyTip() {
   bodyTipSeq++;
   bodyTipEl?.remove();
   bodyTipMarkEl?.remove();
+  // Muscle de « À travailler » isolé sur le personnage de Progrès (js/features/progress-atlas.js) : dessin rendu entier
+  document.querySelectorAll('.body-map__hl--iso').forEach(m => m.remove());
+  document.querySelectorAll('.body-map--atlas[data-iso="load"]').forEach(m => { delete m.dataset.iso; delete m.dataset.isoMuscle; });
   bodyTipEl = bodyTipAnchor = bodyTipMarkEl = null;
 }
 
@@ -317,7 +320,8 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     if (!bodyTipEl || !e.isTrusted) return;
     const t = e.target;
     if (t.closest?.('.btip [data-action]')) { setTimeout(closeBodyTip, 0); return; }
-    if (t.closest?.('.btip, [data-action="body-tap"], .azoom')) return;   // .azoom : vue agrandie de l'atlas (ses touchers)
+    // .azoom : vue agrandie de l'atlas (ses touchers) ; un nom d'« À travailler » ouvre ou referme lui-même sa bulle
+    if (t.closest?.('.btip, [data-action="body-tap"], .azoom, [data-action="atlas-to-work"]')) return;
     closeBodyTip();
   }, true);
   document.addEventListener('scroll', bodyTipScrolled, { capture: true, passive: true });

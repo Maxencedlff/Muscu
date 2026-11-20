@@ -294,30 +294,31 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.equal(pl.sets.rhomboid_major, 2, 'tractions : rhomboïdes secondaires, demi-série');
   });
 
-  test('Progrès, « À travailler » : exactement les muscles gris ou rouge pâle du dessin, du moins au plus travaillé', () => {
+  test('Progrès, « À travailler » : les muscles de salle dont une zone est grise ou pâle sur le dessin, et eux seuls', () => {
     const DAY = 86_400_000, now = Date.UTC(2026, 10, 19, 12);
     const h = (d, name, n) => ({ id: name + d, date: now - d * DAY, programme: 'ppl', category: 'push',
       exercises: [{ name, sets: Array.from({ length: n }, () => ({ weight: '40', reps: '10' })) }] });
     // Objectif atteint sur les pectoraux (12 séries par semaine), sous l'objectif ailleurs, obliques à 0
     const hist = [0, 1, 2, 3].flatMap(w => [h(w * 7 + 1, 'Développé couché barre', 12), h(w * 7 + 2, 'Squat barre', 4), h(w * 7 + 3, 'Tractions pronation', 3)]);
     run(`data.history = ${JSON.stringify(hist)}`);
+    const muscles = run('MUSCLES'), byId = Object.fromEntries(muscles.map(m => [m.id, m]));
     for (const kind of ['male', 'female']) {
       const pl = run(`partLoad('month', ${now}, data.history)`);
       const items = run(`atlasToWork(partLoad('month', ${now}, data.history), ${JSON.stringify(kind)})`);
       const html = run(`bodyAtlasHtml(Object.fromEntries(Object.entries(partLoad('month', ${now}, data.history).levels).filter(([, l]) => l > 0)), { body: ${JSON.stringify(kind)}, tiers: true, crop: false })`);
       // Dessin : un sous-muscle visible est gris (aucun calque), pâle (--t1) ou plein (--t2)
-      const parts = run('BODY_PARTS.parts').filter(p => !p.deep && ['front', 'back'].some(v => run('BODY_PARTS').boxes[kind][v][p.id]));
+      const parts = run('BODY_PARTS.parts').filter(p => p.parent && !p.deep && ['front', 'back'].some(v => run('BODY_PARTS').boxes[kind][v][p.id]));
       const shown = id => { const m = html.match(new RegExp(`class="[^"]*body-map__m--(t\\d)[^"]*" data-part="${id}"`)); return m ? m[1] : 'gris'; };
-      const notFull = parts.filter(p => shown(p.id) !== 't2').map(p => p.id).sort();
-      sameJSON(items.flatMap(it => it.ids).sort(), notFull, `${kind} : la liste = les sous-muscles gris ou pâles du dessin, et rien d'autre`);
-      assert.ok(items.some(it => it.label === run("atlasPartTitle('external_oblique')")), 'obliques à 0 série : dans la liste');
-      assert.ok(!items.some(it => it.ids.includes('chest_sternal')), 'pectoraux à l\'objectif : hors de la liste');
-      assert.ok(items.every((it, i) => !i || items[i - 1].weekly <= it.weekly), 'du moins au plus travaillé');
-      const zero = items.filter(it => !it.weekly).map(it => it.label);
-      const fe = zero.indexOf(run("atlasPartTitle('finger_extensors')")), ra = zero.indexOf(run("atlasPartTitle('rectus_abdominis')"));
-      assert.ok(ra >= 0 && (fe < 0 || ra < fe), `à égalité, les grands muscles d'abord ${zero.slice(0, 5)}`);
-      assert.ok(items.filter(it => it.key === 'quads').length === 1, 'bas du corps : le muscle entier, une seule fois');
-      assert.equal(pl.levels.chest_sternal, 2);
+      const lowZones = parts.filter(p => shown(p.id) !== 't2');
+      // Chaque zone grise ou pâle a son muscle de salle dans la liste, et chaque nom listé a une zone grise ou pâle
+      sameJSON([...new Set(lowZones.map(p => p.parent))].sort(), items.map(it => it.key).sort(), `${kind} : muscles listés = muscles qui ont une zone grise ou pâle`);
+      sameJSON(items.flatMap(it => it.ids).sort(), lowZones.map(p => p.id).sort(), `${kind} : zones isolées au toucher = zones grises ou pâles`);
+      assert.ok(items.every(it => it.label === byId[it.key].label), 'noms de « Séries par muscle »');
+      assert.ok(items.some(it => it.key === 'obliques'), 'obliques à 0 série : dans la liste');
+      assert.ok(!(items.find(it => it.key === 'chest')?.ids || []).includes('chest_sternal') && pl.levels.chest_sternal === 2, 'pectoraux à l\'objectif : jamais isolés comme à travailler');
+      // Ordre : le moins de séries d'abord ; à égalité, les grands groupes avant les petits
+      assert.ok(items.every((it, i) => !i || items[i - 1].sets < it.sets || (items[i - 1].sets === it.sets && items[i - 1].minor <= it.minor)),
+        `ordre ${items.map(it => `${it.key}:${it.sets}${it.minor ? 'p' : ''}`).join(' ')}`);
     }
   });
 

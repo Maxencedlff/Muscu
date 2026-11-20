@@ -560,13 +560,35 @@ def t_progres(bench, eng, dev, theme):
             seg.nth(1).click()   # 4 semaines (cette semaine, le lundi : aucune séance, pas de liste)
             settle(page)
         items = page.evaluate("atlasToWork(partLoad(muscleSpan)).map(it => it.label)")
-        txt = ' '.join(page.locator('.mcard .mlow').inner_text().split())
-        R.check(page.locator('.mcard .cell__title', has_text='À travailler').count() == 1 and txt.startswith(' · '.join(items[:3])) and (len(items) <= 4 or f'+ {len(items) - 3} autre' in txt),
-                f'{t} À travailler : « {txt[:120]} » ({len(items)} muscles)')
+        names = page.locator('.mcard .mlow .mlow__name').all_inner_texts()
+        R.check(page.locator('.mcard .cell__title', has_text='À travailler').count() == 1 and names == (items if len(items) <= 4 else items[:3])
+                and (len(items) <= 4 or page.locator('.mcard .mlow__more').inner_text() == f'+ {len(items) - 3} autre{"s" if len(items) > 4 else ""}'),
+                f'{t} À travailler : muscles de salle {names} sur {len(items)}')
+        if names:
+            # Toucher un nom : ses sous-muscles gris ou pâles mis en valeur, les autres calques effacés, détail dans la bulle
+            first = page.evaluate("atlasToWork(partLoad(muscleSpan))[0]")
+            page.locator('.mcard .mlow__name').first.click()
+            page.wait_for_selector('.btip', timeout=5000)
+            settle(page)
+            iso = page.evaluate("""() => { const m = document.querySelector('.mcard__map');
+                return { iso: m.dataset.iso, marks: [...m.querySelectorAll('.body-map__hl--iso')].map(e => e.dataset.part).sort(),
+                  on: [...m.querySelectorAll('.body-map__p')].filter(l => getComputedStyle(l).opacity !== '0').map(l => l.dataset.part).sort() }; }""")
+            want = sorted(first['ids'])
+            R.check(iso['iso'] == 'load' and sorted(set(iso['marks'])) == want and all(p in want for p in iso['on']),
+                    f'{t} À travailler : « {first["label"]} » isolé sur le personnage {iso}')
+            tip = tip_text(page)
+            R.check(tip.startswith(first['label']) and all(page.evaluate(f"atlasPartTitle({json.dumps(i)})") in tip for i in first['ids'][:3]),
+                    f'{t} À travailler : la bulle détaille les sous-muscles « {tip[:160]} »')
+            shot(page, LOT, f'progres-a-travailler-{t}')
+            # Second toucher sur le même nom (sur iPhone SE, la bulle peut le couvrir : toucher direct sur le bouton)
+            page.evaluate("document.querySelector('.mcard .mlow__name').click()")
+            settle(page)
+            R.check(page.evaluate("!document.querySelector('.mcard__map').dataset.iso && !document.querySelector('.body-map__hl--iso') && !document.querySelector('.btip')"),
+                    f'{t} À travailler : second toucher, dessin entier')
         if len(items) > 4:
             page.click('.mcard .mlow__more')
             settle(page)
-            R.check(' '.join(page.locator('.mcard .mlow').inner_text().split()) == ' · '.join(items), f'{t} À travailler : « + N autres » déplie la liste entière')
+            R.check(page.locator('.mcard .mlow .mlow__name').all_inner_texts() == items, f'{t} À travailler : « + N autres » déplie la liste entière')
         # Texte très grand (AX33) sur la vue agrandie : légende repliée, titre sur une ligne, personnage sur 60 % au moins
         page.evaluate("""() => { const h = document.documentElement; h.style.fontSize = '33px'; h.classList.add('type-xl'); render(); }""")
         settle(page)
