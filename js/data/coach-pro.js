@@ -122,7 +122,7 @@ const COACH_PRO_ERRORS = ['already_coach', 'invalid_name', 'invalid_card', 'inva
 const COACH_PRO_TEXT = {
   already_coach: 'Ton compte est déjà un compte coach.',
   invalid_name: 'Écris ton nom tel qu\'il figure sur ta carte (2 à 80 caractères).',
-  invalid_card: 'Numéro de carte non valide : saisis 6 à 20 lettres et chiffres, comme sur ta carte.',
+  invalid_card: 'Recopie le numéro comme sur ta carte (ex. 04/912 ED.0123).',
   invalid_diploma: 'Choisis ton diplôme.',
   not_coach: 'Ton compte n\'est pas un compte coach.',
   rate_limited: 'Trop d\'envois pour aujourd\'hui. Réessaie demain.',

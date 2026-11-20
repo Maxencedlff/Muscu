@@ -291,10 +291,13 @@ registerActions({
     try { r = await coachRequestSubmit(fields); } finally { coachRequestBusy = false; }
     if (!r.ok) {
       if (el) { el.disabled = false; el.textContent = coachPro.request?.status && coachPro.request.status !== 'none' ? 'Renvoyer ma demande' : 'Envoyer ma demande'; }
-      if (err) err.textContent = coachProErrorText(r.kind);
+      // Champ fautif : même traitement d'erreur que partout (contour, message juste sous lui, ramené à l'écran avec son
+      // libellé) ; erreur sans champ (serveur, limite de demandes) : sous le formulaire
       const bad = { invalid_name: 'coachReqName', invalid_card: 'coachReqCard', invalid_diploma: 'coachReqDiploma' }[r.kind];
-      document.querySelectorAll('.coach-req-field__input').forEach(i => i.removeAttribute('aria-invalid'));
-      if (bad) document.getElementById(bad)?.setAttribute('aria-invalid', 'true');
+      document.querySelectorAll('.coach-req-field__input').forEach(i => { i.removeAttribute('aria-invalid'); i.classList.remove('set-input--error'); clearFieldNote(i); });
+      const badEl = bad && document.getElementById(bad);
+      if (err) err.textContent = badEl ? '' : coachProErrorText(r.kind);
+      if (badEl) flagInvalid(badEl, coachProErrorText(r.kind));
       haptic('medium');
       return;
     }

@@ -52,7 +52,7 @@ function flagInvalid(input, msg) {
     input.focus();
   }
   if (input && !input.closest('.session-set') && fieldNote(input, msg)) {
-    input.scrollIntoView?.({ block: 'center' });
+    (fieldHost(input) || input).scrollIntoView?.({ block: 'center' });   // le champ avec son libellé (texte agrandi)
     announce(msg, true);
     return;
   }
@@ -119,6 +119,10 @@ function fieldLimitNotice(e) {
   const cut = pasted || /^insertFrom(Paste|Drop)$|^insertReplacementText$/.test(e.inputType || '')
     || el.value.length - before > 1 || (typeof e.data === 'string' && e.data.length > 1);
   if (cut) {
+    // Champ d'une ligne : coupé au dernier espace avant la limite s'il y en a un (jamais au milieu d'un mot), avant que
+    // l'app lise la valeur (écouteur en capture, les autres viennent après)
+    const sp = el.matches('input') ? el.value.lastIndexOf(' ') : -1;
+    if (sp > max * 0.6) el.value = el.value.slice(0, sp).trimEnd();
     // Texte très grand : un champ d'une ligne n'en montre qu'un bout, le texte gardé est redit en entier dessous
     const xl = el.matches('input') && document.documentElement.classList.contains('type-xl');
     const msg = `Coupé à ${fmtNum(max)} caractères${xl ? `. Gardé : « ${el.value} »` : ''}`;

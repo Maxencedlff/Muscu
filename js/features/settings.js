@@ -250,13 +250,14 @@ function settingsRowNote() {
   profileRowNote = null;
   const cell = n && document.querySelector(`.settings-view [data-action="${n.row}"]`);
   if (!cell) return;
+  // Zone role=status posée vide, puis remplie : VoiceOver lit le texte ajouté ; elle reste jusqu'au prochain rendu
   const p = document.createElement('p');
-  p.className = 'field-note-ok'; p.setAttribute('role', 'status'); p.textContent = n.msg;
+  p.className = 'field-note-ok'; p.setAttribute('role', 'status');
   cell.after(p);
+  setTimeout(() => { p.textContent = n.msg; }, 60);
   cell.classList.add('cell--flash');
   cell.scrollIntoView({ block: 'center' });
   setTimeout(() => cell.classList.remove('cell--flash'), 1600);
-  setTimeout(() => p.remove(), 6000);
 }
 
 // Entraînement › Poids du corps : la pesée de Santé quand elle est activée (app iOS, js/features/apple-services.js),
