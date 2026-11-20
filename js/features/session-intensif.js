@@ -71,8 +71,8 @@ function techBlockHtml(ex, ei, s, si) {
   const rows = T.sub ? (s.sub || []).map((x, k) => subRowHtml(ex, ei, s, si, x, k)).join('') : '';
   return `
     <div class="tech" role="group" aria-label="${T.label}, ${name}">
-      <div class="tech__cap">
-        <span class="tech__label"><span class="tech__name">${T.label}${hasSide2(s) ? ' · 2 bras' : ''}</span><span class="tech__hint">${T.hint}</span></span>
+      <div class="tech__cap${hasSide2(s) ? ' tech__cap--sides' : ''}">
+        <span class="tech__label"><span class="tech__name">${T.label}${hasSide2(s) ? '&nbsp;· 2&nbsp;bras' : ''}</span><span class="tech__hint">${T.hint}</span></span>
         <span class="tech__btns">${add}
         ${techPrescribed(ex) ? '' : `<button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button>`}</span>
       </div>
