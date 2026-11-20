@@ -2353,7 +2353,8 @@ def p_photo_eleve_couvert(r):
     r.connecter('lea')
     r.raccourci("""async b64 => { const c = __sb.addPerson({ username: 'camille_coach', avatar: '🦁', social: false }); __sb.makeCoach(c);
         __sb.link(c, __sb.meId(), Date.now() - 5 * 86400000); __sb.setPhoto(c, b64, 'image/jpeg'); __st.setCover('active', { coach: c });
-        access.loadedAt = 0; await accessRefresh(); await coachRefresh(); }""", 'Léa reliée à Camille, qui couvre son accès et a une photo',
+        (__sb.co.posterNames ||= {})[c] = 'Camille Martin';
+        access.loadedAt = 0; await accessRefresh(); await coachRefresh(); }""", 'Léa reliée à Camille, qui couvre son accès, a une photo et a partagé son affiche (nom « Camille Martin »)',
                 _photo_ami_b64())
     cle = 'Mettre une photo de profil (élève couvert)'
     with r.etape('compte', 'Réglages › Compte : « Photo de profil » sans mention Pro', cle=cle):
@@ -2370,6 +2371,7 @@ def p_photo_eleve_couvert(r):
         r.attendre('.sheet .pph-preview__img', 'aperçu')
         r.toucher('.sheet [data-action="pph-use"]', 'Utiliser cette photo')
         r.page.wait_for_function("() => !document.querySelector('.sheet .pph-sheet')", timeout=10000)
-    with r.etape('mon-coach', 'Mon coach : la photo de Camille'):
+    with r.etape('mon-coach', 'Mon coach : la photo de Camille, le nom de son affiche, @camille_coach dessous'):
         r.raccourci("routeTo('friends'); navigate('coach-mine')", 'Mon coach')
         r.attendre('.coach-mine-view', 'Mon coach')
+        r.page.wait_for_function("() => !!document.querySelector('.coach-mine__handle')", timeout=8000)

@@ -66,3 +66,7 @@ begin
   if public.coach_poster_name(pg_temp.nu('a1')) ->> 'name' is not null then raise 'ancien coach : nom montré'; end if;
 end $$;
 reset role;
+
+-- ── Suppression des comptes : noms effacés ; rien ne reste pour les autres tests (rapport du parrainage) ──
+delete from auth.users where id in (select pg_temp.nu(c) from unnest(array['a1', 'e1', 'c1', '01', '11']) c);
+do $$ begin if exists (select 1 from public.coach_poster_names where user_id = pg_temp.nu('a1')) then raise 'nom resté'; end if; end $$;
