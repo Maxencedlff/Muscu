@@ -326,6 +326,15 @@ function bumpReady(ex) {
   return goalBumpDue(sessExData(ex) || { repMax: 12, sets: work.length }, prevs);
 }
 
+// Deuxième ligne repliée : technique à sous-séries et séries notées par bras (panel du 20/11 : « 3 × 10/10/9 · 14 kg »
+// cachait le drop et le bras droit) : « Drop set · 2 bras », '' sans. Sur sa ligne : jamais un « · » en bout de ligne
+function doneExtra(ex) {
+  if (measureOf(ex) !== 'reps') return '';
+  const work = workSets(ex.sets);
+  const parts = [...new Set(work.filter(s => subSetsOf(s).length).map(s => TECHS[setTech(s)].label))];
+  if (work.some(hasSide2)) parts.push(`2\u00a0${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}`);
+  return parts.map((p, i) => (i ? p.toLowerCase() : p)).join(' · ');
+}
 // Ligne repliée d'un exercice terminé : « 4 × 8 · 32,5 kg » (reps différentes : « 10/10/9/8 »), allure du cardio
 function doneSummary(ex) {
   const m = measureOf(ex);
@@ -334,11 +343,7 @@ function doneSummary(ex) {
   const reps = work.map(s => String(s.reps));
   const same = reps.every(r => r === reps[0]);
   const maxW = Math.max(0, ...work.map(s => parseFloat(s.weight) || 0));
-  // Technique à sous-séries et séries notées par bras dites aussi (panel du 20/11 : « 3 × 10/10/9 · 14 kg » cachait le
-  // drop et le bras droit) : « · drop set · 2 bras »
-  const techs = [...new Set(work.filter(s => subSetsOf(s).length).map(s => TECHS[setTech(s)].label.toLowerCase()))];
-  const sides = work.some(hasSide2) ? ` · 2\u00a0${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}` : '';   // « 2 bras » jamais coupé
-  return `${work.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}${techs.map(t => ` · ${t}`).join('')}${sides}`;
+  return `${work.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}`;
 }
 
 // ── Vignettes des exercices ──────────────────────────────────
@@ -400,6 +405,7 @@ function renderCollapsedExercise(ex, ei, records, rir = '') {
           <span class="ex-summary__text">
             <span class="ex-summary__name">${esc(ex.name)}</span>
             <span class="ex-summary__line num">${doneSummary(ex)}${records ? ` · ${medalSvg(14)}` : ''}</span>
+            ${doneExtra(ex) ? `<span class="ex-summary__line">${doneExtra(ex)}</span>` : ''}
             ${collapsedNoteLineHtml(ex)}
           </span>
           <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
@@ -559,7 +565,7 @@ function renderGroupCard(members, cur, tags) {
         <button class="ex-summary" data-action="toggle-ex" data-ei="${head}" aria-expanded="false">
           <span class="ex-summary__text">
             <span class="ex-summary__name">${kind}</span>
-            ${members.map(ei => `<span class="ex-summary__line num"><span class="ss-tag ss-tag--sm">${tags[ei]}</span>${esc(xs[ei].name)} · ${doneSummary(xs[ei])}</span>`).join('')}
+            ${members.map(ei => `<span class="ex-summary__line num"><span class="ss-tag ss-tag--sm">${tags[ei]}</span>${esc(xs[ei].name)} · ${doneSummary(xs[ei])}</span>${doneExtra(xs[ei]) ? `<span class="ex-summary__line">${doneExtra(xs[ei])}</span>` : ''}`).join('')}
           </span>
           <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
         </button>${foldedRirHtml(members)}
@@ -1123,6 +1129,13 @@ function fitSessionTitle() {
   if (main?.dataset.short && main.scrollWidth > main.clientWidth + 1) main.textContent = main.dataset.short;
 }
 
+// Barre de repos : le « · » collé au nom (rest-mini__dot, js/features/rest.js) disparaît quand la série passe à la ligne :
+// ni en début ni en fin de ligne (grille avant panel, règle 6)
+function restNextDot() {
+  const d = $('.rest-mini__dot'), t = $('.rest-mini__next .rest-mini__tail');
+  if (d && t) d.hidden = t.getBoundingClientRect().top > d.getBoundingClientRect().top + 2;
+}
+
 // Appelé par render() après l'affichage de la séance
 function afterSessionRender(entering) {
   const mini = $('.rest-mini');
@@ -1134,6 +1147,7 @@ function afterSessionRender(entering) {
   if (tipFirst) window.scrollTo(0, 0);
   else if (entering) scrollToCurrent(false);
   fitSessionTitle();
+  restNextDot();
   observeCurrentExName();
   const a = document.activeElement;
   if (!(a && a.matches?.('.set-input'))) document.body.classList.remove('kb-open');
