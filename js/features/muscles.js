@@ -263,16 +263,18 @@ function periodTxt(span = muscleSpan) { return span === 'month' ? 'ces 4 derniè
 
 function renderMuscleCard() {
   const load = muscleLoad(muscleSpan);
+  const toWork = load.sessions ? atlasToWork(partLoad(muscleSpan)) : [];
   const lowCell = !load.sessions
     ? `<div class="cell"><span class="cell__body"><span class="cell__sub">Aucune séance ${periodTxt()}.</span></span></div>`
     : `<div class="cell"><span class="cell__body">
-        ${atlasToWorkHtml(atlasToWork(partLoad(muscleSpan)))}
+        ${atlasToWorkHtml(toWork)}
       </span></div>`;
   return `
     <div class="group-title">Muscles</div>
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
+        ${atlasToWorkLineHtml(toWork)}
         ${progressAtlasHtml(muscleSpan)}
         ${muscleLegendHtml(muscleSpan, load)}
         ${muscleSrListHtml(load)}

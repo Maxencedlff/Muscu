@@ -105,7 +105,9 @@ async function bodyMuscleAt(mapEl, clientX, clientY) {
 // bord) ou 'free' (bulle à l'écart du doigt, sans flèche)
 // spotTol : part de la bulle (0..1) qu'une place préférée (spots) peut couvrir de muscles colorés et rester choisie,
 // avant les places plus loin du doigt (atlas détaillé : la bulle reste contre le muscle touché, pointe comprise)
-function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [], cost = () => 0, margin = 8, gap = 14, spotTol = 0 }) {
+// reach : distance au doigt jusqu'à laquelle la bulle garde sa pointe (atlas sur petit écran : bulle hors du dessin, pointe
+// vers le muscle)
+function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [], cost = () => 0, margin = 8, gap = 14, spotTol = 0, reach = 3 * gap }) {
   const clampX = l => Math.max(margin, Math.min(vw - margin - w, l));
   const clampY = t => Math.max(minTop, Math.min(maxBottom - h, t));
   const hits = (p, r) => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top;
@@ -138,8 +140,7 @@ function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [
   let best = (spotTol && scored.find(s => s.p.spot && s.c <= spotTol * w * h)) || scored.find(s => s.c <= tol) || scored.reduce((a, b) => (b.c < a.c ? b : a), scored[0]);
   if (!best) best = { p: { left: clampX(x - w / 2), top: clampY(y + gap) } };
   const { left, top } = best.p;
-  // Flèche : seulement si la bulle borde le doigt (à moins de 3 fois l'écart) sur l'un de ses côtés
-  const reach = 3 * gap;
+  // Flèche : seulement si la bulle borde le doigt (à moins de reach) sur l'un de ses côtés
   let side = 'free', arrow = 0;
   if (x >= left + 16 && x <= left + w - 16 && top >= y && top - y <= reach) { side = 'below'; arrow = x - left; }
   else if (x >= left + 16 && x <= left + w - 16 && top + h <= y && y - top - h <= reach) { side = 'above'; arrow = x - left; }
@@ -250,9 +251,6 @@ function closeBodyTip() {
   bodyTipSeq++;
   bodyTipEl?.remove();
   bodyTipMarkEl?.remove();
-  // Muscle de « À travailler » isolé sur le personnage de Progrès (js/features/progress-atlas.js) : dessin rendu entier
-  document.querySelectorAll('.body-map__hl--iso').forEach(m => m.remove());
-  document.querySelectorAll('.body-map--atlas[data-iso="load"]').forEach(m => { delete m.dataset.iso; delete m.dataset.isoMuscle; });
   bodyTipEl = bodyTipAnchor = bodyTipMarkEl = null;
 }
 
@@ -273,7 +271,7 @@ function showBodyTip(html, x, y, anchor = null, place = {}) {
   const w = el.offsetWidth, h = el.offsetHeight;
   const spots = place.spots ? place.spots(w, h) : place.prefer && anchor ? bodyTipSpots(anchor, x, y, w, h, place.prefer) : [];
   const p = bodyTipPlace({ x, y, w, h, vw: document.documentElement.clientWidth, ...(place.bounds || bodyTipBounds(anchor)),
-    avoid: [...bodyTipAvoid(anchor), ...(place.avoid || [])], spots, cost: place.cost, spotTol: place.spotTol || 0 });
+    avoid: [...bodyTipAvoid(anchor), ...(place.avoid || [])], spots, cost: place.cost, spotTol: place.spotTol || 0, ...(place.reach ? { reach: place.reach } : {}) });
   el.style.left = `${p.left}px`; el.style.top = `${p.top}px`;
   el.style.setProperty('--arrow', `${p.arrow}px`);
   el.classList.add(`btip--${p.side}`);

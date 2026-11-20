@@ -154,8 +154,8 @@ function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), labe
 // sa boîte (en % de la vue). Rendu propre de l'atlas : ses images ne se mêlent jamais à celles de img/body (autre
 // rendu du personnage, autre cadrage). Le 1× s'affiche ici ; le 3× ne se charge qu'au zoom (js/ui/body-zoom.js).
 const BODY2_DIR = 'img/body2';
-// Muscles qui aident : le même rouge, moins opaque (jeton --body-sec-o : 35 % en clair, 40 % en sombre, éclairé, où 35 % en multiply donnait
-// un brun terne, panel affichage-e t3) ; le ciblé, rouge plein, se voit en premier (t1 : le rose clair l'éclipsait)
+// Muscles qui aident : opacité du jeton --body-sec-o (clair : le rouge à 50 % ; sombre : un rose éteint opaque, css/muscles.css ;
+// panels affichage-e t3 et t5 : à 35 %, presque invisibles ; éclairés, presque aussi vifs que le ciblé) ; le ciblé, rouge plein, se voit en premier
 const BODY_PART_SEC_OPACITY = 'var(--body-sec-o)';
 const BODY_PART_DEEP_OPACITY = 0.6;   // profond, vu « à travers » le muscle qui le couvre (convention des planches)
 

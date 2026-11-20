@@ -43,7 +43,9 @@ function atlasFoot(foot) { return foot === VERIFIED_MUSCLES_FOOT ? 'Muscles vér
 function atlasLineHtml(items, level) {
   if (!items.length) return '';
   const n = items.length, title = level >= 2 ? (n > 1 ? 'Muscles ciblés' : 'Muscle ciblé') : (n > 1 ? 'Muscles qui aident' : 'Muscle qui aide');
-  const { shown, more } = atlasLineItems(items);
+  // Texte très grand : un nom, puis « + N autres » (panel affichage-e t5 : sur iPhone SE en AX33, les deux lignes doivent
+  // tenir sous le personnage sans défiler) ; la liste entière reste au toucher de « + N autres » et pour VoiceOver
+  const { shown, more } = atlasLineItems(items, document.documentElement.classList.contains('type-xl') ? 2 : ATLAS_LINE_MAX);
   const name = x => `<span class="mline2__name" data-ids="${esc(x.ids.join(' '))}" data-label="${esc(x.label)}">${esc(x.label)}</span>`;
   const label = `${title}, ${n} : ${items.map(x => x.label).join(', ')}. Touche pour ne voir ${n > 1 ? 'qu\'eux' : 'que lui'}`;
   return `<button class="cell mline2" data-action="atlas-isolate" data-level="${level}" data-ids="${esc(items.flatMap(x => x.ids).join(' '))}" data-title="${esc(title)}" aria-pressed="false" aria-label="${esc(label)}">
@@ -120,11 +122,14 @@ registerActions({
   },
   // Progrès, « À travailler » : un nom isole ses sous-muscles gris ou pâles sur le personnage (atlasToWorkShow)
   'atlas-to-work': (e, btn) => atlasToWorkShow(btn),
+  'atlas-to-work-reset': (e, btn) => { const card = btn.closest('.mcard'); closeBodyTip(); atlasToWorkReset(card); card?.querySelector('.mlow__name')?.focus(); },
   // Progrès, « À travailler » : « + N autres » déplie la liste entière, sur place
   'atlas-to-work-all': (e, btn) => {
     const cell = btn.closest('.mlow'), all = cell?.parentElement.querySelector('.mlow__all');
     if (!all) return;
     cell.innerHTML = all.innerHTML;
+    const iso = btn.closest('.mcard')?.querySelector('.mcard__map')?.dataset.isoMuscle, named = iso && cell.querySelector(`.mlow__name[data-muscle="${iso}"]`);
+    if (named) { named.setAttribute('aria-pressed', 'true'); named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout voir</button>'); }
     announce(`${cell.querySelectorAll('.mlow__name').length} muscles à travailler`);
   },
 });

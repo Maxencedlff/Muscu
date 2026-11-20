@@ -284,6 +284,41 @@ def t_silhouette_paliers(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_fiche_aidants(bench):
+    """Fiche « Développé incliné barre », mesurée SUR LA CAPTURE (panel affichage-e t5) : ciblé (haut des pectoraux), qui
+    aide (milieu des pectoraux) et gris du corps (grand droit), couleur moyenne à l'écran. Sombre : ciblé / aidant 45 au
+    moins (en soft-light, les aidants étaient presque aussi vifs), aidant / gris 20. Clair : aidant / gris 25 (rose pâle
+    presque invisible), ciblé / aidant 30. La pastille « Qui aide » a la couleur vue sur le dessin."""
+    import io
+    from PIL import Image
+    for theme, (main_help, help_gray) in (('dark', (45, 20)), ('light', (30, 25))):
+        t = tag('iPhone 13', theme)
+        with bench.page('webkit', 'iPhone 13', theme) as page:
+            seed(page, theme, ppl_v2_today_json())
+            page.evaluate("navigate(makeRoute('library-ex', 'Développé incliné barre'))")
+            page.wait_for_selector('.mpanel--atlas')
+            page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
+            page.wait_for_timeout(800)
+            pts = page.evaluate("""async () => { const hit = await atlasHitMap(bodySilhouette(), 'front'), body = document.querySelector('.mpanel__map .body-map__front .body-map__body').getBoundingClientRect();
+                const out = {};
+                for (const [k, id] of Object.entries({ main: 'chest_clavicular', help: 'chest_sternal', gray: 'rectus_abdominis' })) {
+                  const n = BODY_PARTS.parts.findIndex(p => p.id === id) + 1, list = [];
+                  for (let j = 0; j < hit.h; j += 2) for (let i = 0; i < hit.w; i += 2) if (hit.map[j * hit.w + i] === n) list.push([body.left + (i + .5) / hit.w * body.width, body.top + (j + .5) / hit.h * body.height]);
+                  out[k] = list; }
+                return out; }""")
+            dot = page.evaluate("getComputedStyle(document.querySelector('.mline2__dot--help')).backgroundColor.match(/[\\d.]+/g).slice(0, 3).map(Number)")
+            img = Image.open(io.BytesIO(page.screenshot())).convert('RGB')
+            k = img.width / page.viewport_size['width']
+            def avg(lst):
+                px = [img.getpixel((int(x * k), int(y * k))) for x, y in lst if 0 <= x * k < img.width and 0 <= y * k < img.height]
+                return [sum(c[i] for c in px) / max(1, len(px)) for i in range(3)]
+            m, h, g = avg(pts['main']), avg(pts['help']), avg(pts['gray'])
+            mh, hg, dh = round(_delta_e(m, h)), round(_delta_e(h, g)), round(_delta_e(dot, h))
+            R.check(mh >= main_help and hg >= help_gray, f'{t} fiche : ciblé / aidant {mh} (≥ {main_help}), aidant / gris {hg} (≥ {help_gray}) sur la capture')
+            R.check(dh <= 12, f'{t} pastille « Qui aide » : la couleur du dessin (écart {dh})')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_retour_titre(bench):
     """Bouton retour : le titre de l'écran précédent quand la place le permet (« ‹ Entraînement » au-dessus de « Réglages »
     sur iPhone 13, le titre se décale au besoin), jamais collé au titre ni coupé ; sinon « Retour » ou le chevron seul."""
@@ -520,4 +555,4 @@ def t_grand_texte(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_titre_seance_replie, t_grand_texte, t_alerte_empilee, t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_menu_exercice])
+run_main(R, [], once=[t_titre_seance_replie, t_grand_texte, t_alerte_empilee, t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_fiche_aidants, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_menu_exercice])

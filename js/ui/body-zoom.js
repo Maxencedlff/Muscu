@@ -115,7 +115,19 @@ async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root
   const cost = r => boxes.reduce((t, { r: b, k }) => t + k * Math.max(0, Math.min(r.right, b.right) - Math.max(r.left, b.left))
     * Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top)), 0);
   const z = zone.getBoundingClientRect(), x = e.clientX, y = e.clientY, gap = 14;
-  const tipEl = showBodyTip(tip === 'load' ? atlasLoadTipHtml(hit.part) : atlasTipHtml(hit.part, lv), x, y, container ? null : root, {
+  const html = tip === 'load' ? atlasLoadTipHtml(hit.part) : atlasTipHtml(hit.part, lv);
+  // Petit écran (iPhone SE, texte très grand) : la bulle au-dessus ou au-dessous du dessin, pointe vers le muscle, jamais sur
+  // le personnage (panel affichage-e t5) ; la vue agrandie garde sa bulle contre le doigt
+  const small = !container && (innerWidth <= 375 || document.documentElement.classList.contains('type-xl'));
+  if (small) {
+    const d = (root.querySelector('.body-map__row') || root).getBoundingClientRect(), block = avoid.filter(Boolean).map(a => a.getBoundingClientRect());
+    const tipEl = showBodyTip(html, x, y, root, { avoid: block, spotTol: 1, reach: Infinity,
+      spots: (w, h) => [{ left: x - w / 2, top: d.top - gap - h }, { left: x - w / 2, top: d.bottom + gap }]
+        .filter(p => !block.some(r => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top)) });
+    atlasTipShown(tipEl, root, hit, kind, res);
+    return;
+  }
+  const tipEl = showBodyTip(html, x, y, container ? null : root, {
     // Zone du dessin, réduite à ce qui est visible (sous la barre de navigation, au-dessus de la barre d'onglets)
     cost, container, spotTol: 1, bounds: (b => ({ minTop: Math.max(z.top + 4, b.minTop), maxBottom: Math.min(z.bottom - 4, b.maxBottom) }))(bodyTipBounds(container ? null : root)),
     avoid: avoid.filter(Boolean).map(a => a.getBoundingClientRect()),
@@ -124,6 +136,11 @@ async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root
     spots: (w, h) => [...[y - gap - h, y + gap].flatMap(top => [x - w / 2, x - w + 28, x - 28].map(left => ({ left, top }))),
       ...(innerWidth - x >= x ? [x + gap, x - gap - w] : [x - gap - w, x + gap]).map(left => ({ left, top: y - h / 2 }))],
   });
+  atlasTipShown(tipEl, root, hit, kind, res);
+}
+
+// Bulle posée : le muscle touché mis en valeur, vibration
+function atlasTipShown(tipEl, root, hit, kind, res) {
   // Le lien de la bulle (Progrès) n'accepte un toucher qu'après la fenêtre du double toucher : un 2e toucher posé sur la
   // bulle ouvre la vue agrandie au lieu de quitter l'écran
   tipEl.classList.add('btip--fresh');

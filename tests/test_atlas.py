@@ -89,6 +89,21 @@ def tap(page, xy, double=False, touch=False):
         page.wait_for_timeout(90)
 
 
+def tip_card_ok(page, zone, avoid, detail=False):
+    """Bulle d'une carte (fiche, Progrès). Grand écran : dans le dessin (tip_place_ok). Petit écran (iPhone SE, Galaxy S8,
+    texte très grand ; panel affichage-e t5) : au-dessus ou au-dessous du dessin, sans le couvrir, avec sa pointe."""
+    small = page.evaluate("innerWidth <= 375 || document.documentElement.classList.contains('type-xl')")
+    if not small:
+        return tip_place_ok(page, zone, avoid, detail)
+    r = page.evaluate("""([zone, avoid]) => { const el = document.querySelector('.btip'), t = el?.getBoundingClientRect(), z = document.querySelector(zone)?.getBoundingClientRect();
+        if (!t || !z) return { ok: false, why: 'absente' };
+        const hit = avoid.filter(s => { const a = document.querySelector(s)?.getBoundingClientRect();
+            return a && a.width && t.left < a.right && t.right > a.left && t.top < a.bottom && t.bottom > a.top; });
+        const out = t.bottom <= z.top + 2 || t.top >= z.bottom - 2;
+        return { ok: out && !hit.length && !el.classList.contains('btip--free'), tip: [t.top | 0, t.bottom | 0], zone: [z.top | 0, z.bottom | 0], hit, small: true }; }""", [zone, avoid])
+    return r if detail else r['ok']
+
+
 def tip_place_ok(page, zone, avoid, detail=False):
     """Bulle dans la hauteur de zone, sans toucher les éléments avoid (pastilles, en-tête de la feuille, OK, boutons)."""
     r = page.evaluate("""([zone, avoid]) => { const t = document.querySelector('.btip')?.getBoundingClientRect(), z = document.querySelector(zone)?.getBoundingClientRect();
@@ -179,7 +194,7 @@ def t_fiche(bench, eng, dev, theme):
         R.check('chest_clavicular' not in on and {'chest_sternal', 'delt_anterior', 'triceps_long'} <= set(on)
                 and page.get_attribute('.mline2[data-level="1"]', 'aria-pressed') == 'true', f'{t} ligne « qui aident » : seuls ses muscles {on}')
         keep = page.evaluate("[...document.querySelectorAll('.mpanel__map .body-map__p.is-on')].map(l => [l.classList.contains('body-map__m--sec'), getComputedStyle(l).opacity])")
-        want = 0.40 if theme == 'dark' else 0.35   # qui aident : 40 % en sombre (panels t3, t4), 35 % en clair
+        want = 1.0 if theme == 'dark' else 0.5   # qui aident : rose éteint opaque en sombre, 50 % en clair (panel t5)
         R.check(keep and all(sec and abs(float(op) - want) < 0.01 for sec, op in keep), f'{t} ligne touchée : ses muscles gardent leur couleur (qui aide, {want:.0%}) {keep[:3]}')
         page.wait_for_timeout(100)
         R.check('muscles qui aident sont affichés' in page.evaluate("document.getElementById('sr-polite')?.textContent || ''"), f'{t} changement annoncé à VoiceOver')
@@ -211,7 +226,7 @@ def t_fiche(bench, eng, dev, theme):
         txt = tip_text(page)
         R.check('Haut des pectoraux' in txt and 'Pectoralis major, pars clavicularis' in txt and 'Muscle ciblé' in txt,
                 f'{t} toucher : nom de salle (celui de la pastille), latin, rôle « {txt} »')
-        R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpanel__zoom', '.mline2']), f'{t} toucher : bulle dans le dessin, ni sur les pastilles ni sur Agrandir {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpanel__zoom", ".mline2"], True)}')
+        R.check(tip_card_ok(page, '.mpanel__map .body-map__row', ['.mpanel__zoom', '.mline2']), f'{t} toucher : bulle à sa place (dans le dessin, ou hors du dessin sur petit écran), ni sur les lignes ni sur Agrandir {tip_card_ok(page, ".mpanel__map .body-map__row", [".mpanel__zoom", ".mline2"], True)}')
         R.check(page.locator('.mpanel__map .body-map__hl[data-part="chest_clavicular"]').count() == 1, f'{t} toucher : sous-muscle mis en valeur')
         shot(page, LOT, f'fiche-nom-{t}')
         tap(page, part_point(page, '.mpanel__map', 'triceps_lateral', 'back'))
@@ -324,6 +339,14 @@ def t_fiche(bench, eng, dev, theme):
         lo = layout_ok(page)
         R.check(not lo, f'{t} fiche texte agrandi : mise en page {lo}')
         shot(page, LOT, f'fiche-xl-{t}')
+        # Personnage en haut de l'écran (sous la barre) : les deux lignes Ciblé et Qui aident visibles sans défiler (panel t5)
+        page.evaluate("""() => { const m = document.querySelector('.mpanel--atlas'), nav = document.querySelector('.view.library-ex .navbar__bar');
+            scrollBy(0, m.getBoundingClientRect().top - (nav ? nav.getBoundingClientRect().bottom : 0) - 4); }""")
+        settle(page)
+        fit = page.evaluate("""() => { const tab = document.querySelector('.tabbar').getBoundingClientRect().top, ls = [...document.querySelectorAll('.mline2')];
+            return { lines: ls.length, bottoms: ls.map(l => Math.round(l.getBoundingClientRect().bottom)), tab: Math.round(tab) }; }""")
+        R.check(fit['lines'] == 2 and all(b <= fit['tab'] + 1 for b in fit['bottoms']), f'{t} fiche texte agrandi : Ciblé et Qui aident sous le personnage, sans défiler {fit}')
+        shot(page, LOT, f'fiche-xl-lignes-{t}')
         page.click('.mpanel__zoom')
         page.wait_for_selector('.azoom')
         settle(page)
@@ -469,9 +492,9 @@ def t_autres_fiches(bench, eng, dev, theme):
             # Pointe vers le doigt, bulle contre lui (au plus 3 écarts de 14 points) : jamais partie dans un coin de l'autre vue
             side = page.evaluate("""([x, y]) => { const t = document.querySelector('.btip'), r = t.getBoundingClientRect();
                 const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom);
-                return [!t.classList.contains('btip--free'), Math.round(Math.hypot(dx, dy)) <= 42]; }""", part_point(page, '.mpanel__map', part, view))
+                return [!t.classList.contains('btip--free'), innerWidth <= 375 || Math.round(Math.hypot(dx, dy)) <= 42]; }""", part_point(page, '.mpanel__map', part, view))
             R.check(all(side), f'{t} {name} : bulle avec pointe, contre le muscle touché {side}')
-            R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpanel__zoom', '.mline2']), f'{t} {name} : place de la bulle {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpanel__zoom", ".mline2"], True)}')
+            R.check(tip_card_ok(page, '.mpanel__map .body-map__row', ['.mpanel__zoom']), f'{t} {name} : place de la bulle {tip_card_ok(page, ".mpanel__map .body-map__row", [".mpanel__zoom"], True)}')
             lo = layout_ok(page)
             R.check(not lo, f'{t} {name} : mise en page {lo}')
             shot(page, LOT, f'fiche-{slug}-{t}')
@@ -560,7 +583,10 @@ def t_progres(bench, eng, dev, theme):
             seg.nth(1).click()   # 4 semaines (cette semaine, le lundi : aucune séance, pas de liste)
             settle(page)
         items = page.evaluate("atlasToWork(partLoad(muscleSpan)).map(it => it.label)")
-        names = page.locator('.mcard .mlow .mlow__name').all_inner_texts()
+        names = [n.strip() for n in page.locator('.mcard .mlow .mlow__name').all_inner_texts()]
+        # Pastille d'état devant chaque nom : grise à 0 série (en premier), rose pâle sous l'objectif
+        dots = page.evaluate("[...document.querySelectorAll('.mcard .mlow .mlow__name')].map(b => [b.querySelector('.mlegend__dot--t1') ? 1 : 0, atlasToWork(partLoad(muscleSpan)).find(x => x.key === b.dataset.muscle).sets > 0 ? 1 : 0])")
+        R.check(dots and all(a == b for a, b in dots) and [d for d, _ in dots] == sorted(d for d, _ in dots), f'{t} À travailler : pastille grise (0 série, en premier) ou pâle {dots}')
         R.check(page.locator('.mcard .cell__title', has_text='À travailler').count() == 1 and names == (items if len(items) <= 4 else items[:3])
                 and (len(items) <= 4 or page.locator('.mcard .mlow__more').inner_text() == f'+ {len(items) - 3} autre{"s" if len(items) > 4 else ""}'),
                 f'{t} À travailler : muscles de salle {names} sur {len(items)}')
@@ -579,12 +605,16 @@ def t_progres(bench, eng, dev, theme):
             tip = tip_text(page)
             R.check(tip.startswith(first['label']) and all(page.evaluate(f"atlasPartTitle({json.dumps(i)})") in tip for i in first['ids'][:3]),
                     f'{t} À travailler : la bulle détaille les sous-muscles « {tip[:160]} »')
+            R.check(page.get_attribute('.mcard .mlow__name', 'aria-pressed') == 'true' and page.locator('.mcard .mlow__reset').count() == 1,
+                    f'{t} À travailler : nom isolé surligné, « Tout voir » à côté')
+            R.check(tip_card_ok(page, '.mcard__map .body-map__row', ['.mcard .segmented']), f'{t} À travailler : place de la bulle {tip_card_ok(page, ".mcard__map .body-map__row", [".mcard .segmented"], True)}')
             shot(page, LOT, f'progres-a-travailler-{t}')
-            # Second toucher sur le même nom (sur iPhone SE, la bulle peut le couvrir : toucher direct sur le bouton)
-            page.evaluate("document.querySelector('.mcard .mlow__name').click()")
+            # « Tout voir » (toucher direct : sur iPhone SE, la bulle peut couvrir la liste)
+            page.evaluate("document.querySelector('.mcard .mlow__reset').click()")
             settle(page)
+            R.check(page.get_attribute('.mcard .mlow__name', 'aria-pressed') == 'false' and page.locator('.mcard .mlow__reset').count() == 0, f'{t} À travailler : « Tout voir » rend la liste')
             R.check(page.evaluate("!document.querySelector('.mcard__map').dataset.iso && !document.querySelector('.body-map__hl--iso') && !document.querySelector('.btip')"),
-                    f'{t} À travailler : second toucher, dessin entier')
+                    f'{t} À travailler : « Tout voir », dessin entier')
         if len(items) > 4:
             page.click('.mcard .mlow__more')
             settle(page)
@@ -592,6 +622,10 @@ def t_progres(bench, eng, dev, theme):
         # Texte très grand (AX33) sur la vue agrandie : légende repliée, titre sur une ligne, personnage sur 60 % au moins
         page.evaluate("""() => { const h = document.documentElement; h.style.fontSize = '33px'; h.classList.add('type-xl'); render(); }""")
         settle(page)
+        todo = page.evaluate("""() => { const p = document.querySelector('.mcard__todo'), seg = document.querySelector('.mcard .segmented');
+            return p && { visible: getComputedStyle(p).display !== 'none', under: Math.round(p.getBoundingClientRect().top - seg.getBoundingClientRect().bottom), text: p.textContent }; }""")
+        R.check(not items or (todo and todo['visible'] and 0 <= todo['under'] <= 24 and todo['text'].startswith('À travailler : ' + items[0])),
+                f'{t} texte très grand : « À travailler : … » sous le choix de période {todo}')
         page.locator('.mcard__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
         page.click('.mcard .mpanel__zoom')
         page.wait_for_selector('.azoom')
