@@ -29,6 +29,17 @@ function muscleTipExerciseHtml(id, mapEl) {
   return `<p class="btip__title" id="btipTitle">${esc(muscleLabel(id))}</p><p class="btip__sub">${role}</p>`;
 }
 
+// Fiche exercice de la bibliothèque : atlas détaillé (sous-muscles, js/data/atlas.js), nom au toucher, vue agrandie
+// (js/ui/body-zoom.js) et bouton Agrandir ; ailleurs (Programme, Progrès) la carte des 18 muscles, inchangée
+function exAtlasPanelHtml(m, name) {
+  return `
+    <div class="cell mpanel mpanel--atlas">
+      ${bodyAtlasHtml(exercisePartLevels(name, m).levels, { className: 'mpanel__map', title: name, tap: true })}
+      <button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 20)}</button>
+      <div class="cell__body">${musclePillsHtml(m)}</div>
+    </div>`;
+}
+
 // Places préférées (js/ui/body-tip.js, bodyTipSpots) : Progrès, la marge extérieure de la vue touchée
 // puis sous le corps (sur la légende) ; fiche exercice, sous le personnage (au-dessus des pastilles)
 // puis la marge extérieure. Dans tous les cas, jamais sur un muscle coloré s'il reste une autre place.

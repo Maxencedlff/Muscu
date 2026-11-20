@@ -68,7 +68,8 @@ AUDIT_JS = r"""() => {
     const large = size >= 24 || (size >= 18.66 && w >= 700);
     const cr = ratio(col, bg);
     if (cr < (large ? 3 : 4.5)) fails.push(`${(el.className && el.className.baseVal === undefined ? el.className : el.tagName)} « ${txt.slice(0, 30)} » ${cr.toFixed(2)}`);
-    if (/\d\.\d/.test(txt)) decimals.push(`${el.className} « ${txt.slice(0, 40)} »`);
+    // Nom d'une licence (« CC BY 4.0 ») et adresse web : pas des nombres à virgule (crédit de l'atlas, Réglages › Aide)
+    if (/\d\.\d/.test(txt.replace(/CC BY \d\.\d|https?:\/\/\S+/g, ''))) decimals.push(`${el.className} « ${txt.slice(0, 40)} »`);
   }
   document.querySelectorAll('#app button').forEach(b => {
     // Les noms saisis pour les séances Perso sont des données de l'utilisateur (emojis permis)

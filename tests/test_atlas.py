@@ -42,8 +42,12 @@ def open_app(page, theme):
 
 
 def layout_ok(page):
-    return page.evaluate("""() => document.documentElement.scrollWidth <= innerWidth + 1
-        && [...document.querySelectorAll('.cell__title, .cell__sub, .mpill, .btip p, .azoom__hint')].every(e => e.scrollWidth <= e.clientWidth + 1 || getComputedStyle(e).textOverflow !== 'ellipsis')""")
+    """[] si rien ne déborde ; sinon ce qui déborde (défilement horizontal, texte coupé par « … »)."""
+    return page.evaluate("""() => { const bad = [];
+        if (document.documentElement.scrollWidth > innerWidth + 1) bad.push(`page ${document.documentElement.scrollWidth} > ${innerWidth}`);
+        for (const e of document.querySelectorAll('.cell__title, .cell__sub, .mpill, .btip p, .azoom__hint'))
+            if (e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow === 'ellipsis') bad.push(`${e.className} « ${e.textContent.trim().slice(0, 30)} »`);
+        return bad; }""")
 
 
 def part_point(page, root, part, view='front'):
@@ -143,7 +147,8 @@ def t_fiche(bench, eng, dev, theme):
         R.check(z and z['width'] >= 44 and z['height'] >= 44, f'{t} bouton Agrandir 44 × 44 {z}')
         page.locator('.mpanel').scroll_into_view_if_needed()
         settle(page)
-        R.check(layout_ok(page), f'{t} fiche : mise en page')
+        lo = layout_ok(page)
+        R.check(not lo, f'{t} fiche : mise en page {lo}')
         shot(page, LOT, f'fiche-{t}')
         # ── Toucher : nom de salle, nom officiel, rôle
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'))
@@ -184,7 +189,8 @@ def t_fiche(bench, eng, dev, theme):
             const e = document.elementFromPoint(t.left + t.width / 2, t.top + t.height / 2); return !!e && !!e.closest('.btip'); }""")
         R.check(on_top or page.evaluate("getComputedStyle(document.querySelector('.btip')).pointerEvents") == 'none'
                 and int(page.evaluate("getComputedStyle(document.querySelector('.btip')).zIndex")) > 900, f'{t} bulle au-dessus de la feuille')
-        R.check(layout_ok(page), f'{t} vue agrandie : mise en page')
+        lo = layout_ok(page)
+        R.check(not lo, f'{t} vue agrandie : mise en page {lo}')
         shot(page, LOT, f'zoom-nom-{t}')
         # Glisser vers la gauche jusqu'au dos : le dos passe au 3×, la face revient au 1× (une seule vue 3×)
         box = page.locator('.azoom').bounding_box()
@@ -251,12 +257,14 @@ def t_fiche(bench, eng, dev, theme):
         settle(page)
         page.locator('.mpanel').scroll_into_view_if_needed()
         settle(page)
-        R.check(layout_ok(page), f'{t} fiche texte agrandi : mise en page')
+        lo = layout_ok(page)
+        R.check(not lo, f'{t} fiche texte agrandi : mise en page {lo}')
         shot(page, LOT, f'fiche-xl-{t}')
         page.click('.mpanel__zoom')
         page.wait_for_selector('.azoom')
         settle(page)
-        R.check(layout_ok(page), f'{t} vue agrandie texte agrandi : mise en page')
+        lo = layout_ok(page)
+        R.check(not lo, f'{t} vue agrandie texte agrandi : mise en page {lo}')
         shot(page, LOT, f'vue-entiere-xl-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
