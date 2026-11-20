@@ -49,7 +49,7 @@ jobs:
       matrice: ${{ steps.m.outputs.matrice }}
       attendus: ${{ steps.m.outputs.attendus }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Paquet Python playwright, sans navigateur (tests/fixtures.py l'importe)
@@ -84,7 +84,7 @@ jobs:
     env:
       PLAYWRIGHT_VERSION: 1.62.0
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Playwright et polices
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Paquet Python playwright, sans navigateur (tests/fixtures.py l'importe)
