@@ -168,6 +168,11 @@ def t_fiche(bench, eng, dev, theme):
                 f'{t} pastilles = dessin (plein puis atténué) {pills}')
         R.check('Touche un muscle pour son nom.' in page.inner_text('.view.library-ex'), f'{t} aide « Touche un muscle pour son nom. » sous la carte')
         R.check(page.evaluate("document.querySelector('.mpanel__map').classList.contains('body-map--crop')"), f'{t} haut du corps seulement : carte cadrée, plus grande')
+        sub = page.inner_text('.exhead__sub').replace('\xa0', ' ')
+        R.check(sub.startswith('Haut des pectoraux') and 'Épaules' not in sub, f'{t} sous le titre : les rangs du personnage « {sub} »')
+        off = page.evaluate("""() => { const z = document.querySelector('.mpanel__zoom').getBoundingClientRect(), m = document.querySelector('.mpanel__map .body-map__row').getBoundingClientRect();
+            return z.top >= m.bottom || z.bottom <= m.top || z.left >= m.right || z.right <= m.left; }""")
+        R.check(off, f'{t} bouton Agrandir hors du dessin')
         z = page.locator('.mpanel__zoom').bounding_box()
         R.check(z and z['width'] >= 44 and z['height'] >= 44, f'{t} bouton Agrandir 44 × 44 {z}')
         page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")

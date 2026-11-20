@@ -45,8 +45,8 @@ function exAtlasPanelHtml(m, name) {
   return `
     <div class="cell mpanel mpanel--atlas">
       ${bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true })}
-      <button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 22)}</button>
-      <div class="cell__body"><ul class="mpills" aria-label="Muscles ciblés">${atlasPills(levels).map(pill).join('')}</ul></div>
+      <div class="cell__body mpanel__foot"><ul class="mpills" aria-label="Muscles ciblés">${atlasPills(levels).map(pill).join('')}</ul>
+        <button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 22)}</button></div>
     </div>`;
 }
 

@@ -47,8 +47,11 @@
 .body-map__body { position: absolute; left: 0; width: 100%; }
 .type-xl .mpanel__zoom svg { width: 30px; height: 30px; }
 .type-xl .btip__latin { display: none; }   /* texte agrandi : bulle plus courte, le nom de salle suffit */
+/* Bouton Agrandir à droite des pastilles, hors du dessin (sur une carte cadrée, il passait sur une main) */
+.mpanel__foot { display: flex; align-items: flex-start; gap: 8px; }
+.mpanel__foot .mpills { flex: 1; min-width: 0; }
 .mpanel__zoom {
-  position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  flex: none; margin: -10px -8px 0 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
   border: 0; border-radius: 50%; background: none; color: var(--tint);
 }
 .mpanel__zoom:active { background: var(--fill2); }

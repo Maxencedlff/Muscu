@@ -348,7 +348,13 @@ function renderLibraryEx(name) {
   };
   const q = EQUIPMENT.find(x => x.id === e.equip);
   const mSub = exerciseMuscles({ name });
-  const sub = [[...new Set([...mSub.primary.map(muscleLabel), ...(mSub.deep || []).map(id => deepMuscleLabel(id, true))])].join('\u00a0· '), q?.label].filter(Boolean).join('\u00a0· ');   // « · » collé au mot d'avant : le matériel ne se lit pas comme un muscle
+  // Muscles sous le titre : les pastilles en rouge plein du personnage détaillé (mêmes rangs, mêmes noms : « Haut des
+  // pectoraux » au développé incliné, l'épaule y est atténuée), sinon les muscles principaux
+  // (dans l'ordre des muscles principaux de la bibliothèque : « Quadriceps · Grand fessier » au squat)
+  const lv = exercisePartLevels(name, mSub).levels, rank = label => Math.min(...BODY_PARTS.parts
+    .filter(p => lv[p.id] >= 2 && atlasPillLabel(p.id) === label).map(p => { const i = mSub.primary.indexOf(p.parent); return i < 0 ? 99 : i; }));
+  const mMain = atlasPills(lv).filter(p => p.level >= 2).map(p => p.label).sort((a, b) => rank(a) - rank(b));
+  const sub = [[...new Set([...(mMain.length ? mMain : mSub.primary.map(muscleLabel)), ...(mSub.deep || []).map(id => deepMuscleLabel(id, true))])].join('\u00a0· '), q?.label].filter(Boolean).join('\u00a0· ');   // « · » collé au mot d'avant : le matériel ne se lit pas comme un muscle
   const title = catalogueAliasOf(name) ? name : e.name;
   return `
     <div class="view library-ex view--grouped">
