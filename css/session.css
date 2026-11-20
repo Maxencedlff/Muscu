@@ -757,7 +757,7 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 .tech__add:active, .tech__x:active { opacity: .6; }
 .session-set--sub { min-height: 52px; margin-bottom: 2px; border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: inset 2px 0 0 var(--sep); }
 .session-set--subcur { background: color-mix(in srgb, var(--tint) 8%, var(--cell)); box-shadow: inset 3px 0 0 var(--tint); }
-.tech-tag { font-size: 0.706rem; font-weight: 700; letter-spacing: .02em; }
+.tech-tag { font-size: 0.706rem; font-weight: 700; letter-spacing: .02em; white-space: normal; line-height: 1.1; overflow-wrap: normal; }   /* « Drop 1 » sur deux lignes dans la colonne du numéro */
 .session-set--side { margin: 0 -6px 2px; }   /* même place que les lignes de série (.set-swipe déborde de 6 px) : colonnes alignées */
 @media (max-width: 374px) { .tech__cap { padding-left: calc(24px + var(--set-gap)); } }
 

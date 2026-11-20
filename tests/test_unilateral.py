@@ -78,6 +78,9 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(order == ['Bras gauche', 'G', 'Drop set', 'G+1', 'Bras droit', 'D', 'Drop set', 'D+1'], f'{t} ordre G, G allégé, D, D allégé, chaque bloc titré ({order})')
         R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} pas de défilement horizontal')
         R.check(not cut_texts(page, '.ex-card[data-ei="0"] .sets__caption--side, .ex-card[data-ei="0"] .tech__name'), f'{t} aucun texte coupé {cut_texts(page, ".ex-card[data-ei=\'0\'] .sets__caption--side")}')
+        # « Drop 1 » en toutes lettres, plus « +1 » (panel du 20/11)
+        tags = [x.replace('\n', ' ') for x in page.locator('.ex-card[data-ei="0"] .tech-tag').all_inner_texts()]
+        R.check(tags == ['Drop 1', 'Drop 1'], f'{t} « Drop 1 » sur les deux bras ({tags})')
         center(page, '.ex-card[data-ei="0"] .tech')
         shot(page, LOT, f'{t}-01-drop-pose')
 
@@ -111,7 +114,7 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(page.evaluate("restActive") is False, f'{t} bras droit fait : pas de repos avant son drop')
         x = page.evaluate("activeSession.exercises[0].sets[2].side2")
         R.check(x.get('done') is True and x['weight'] == '14' and x['reps'] == '9' and 'auto' not in x, f'{t} bras droit validé 14 × 9 {x}')
-        R.check(page.locator(SIDE2_DROP % 'weight').input_value() == w1 and page.locator(SIDE2_DROP % 'reps').get_attribute('placeholder') == '6',
+        R.check(page.locator(SIDE2_DROP % 'weight').input_value() == w1 and page.locator(SIDE2_DROP % 'reps').input_value() == '6',
                 f'{t} drop du bras droit : charge et reps du drop gauche ({page.locator(SIDE2_DROP % "weight").input_value()} / {w1})')
         R.check(page.locator(SIDE2_DROP % 'reps').evaluate("e => !!e.closest('.session-set--subcur')"), f'{t} drop du bras droit en cours')
         page.fill(SIDE2_DROP % 'reps', '5')
@@ -125,8 +128,8 @@ def t_drop_deux_bras(bench, eng, dev, theme):
             return v(s[0]) + v(s[0].side2) + v(s[1]) + v(s[1].side2) + v(s[2]) + v(s[2].sub[0]) + v(s[2].side2) + v(s[2].side2.sub[0]); })()""")
         R.check(abs(vol - exp) < 0.01, f'{t} volume des deux bras ({vol} = {exp})')
         # Carte repliée : le drop et les deux bras se voient (panel du 20/11)
-        line = page.locator('.ex-card--collapsed[data-ei="0"] .ex-summary__line').nth(1).inner_text().replace('\u00a0', ' ')
-        R.check(line == 'Drop set · 2 bras', f'{t} carte repliée « {line} »')
+        lines = [l.replace('\u00a0', ' ') for l in page.locator('.ex-card--collapsed[data-ei="0"] .ex-summary__line').all_inner_texts()]
+        R.check(lines[1:] == [f'Drop {w1} kg × 6 · 2 bras'], f'{t} carte repliée : le drop et les deux bras {lines}')
         page.click('.ex-card[data-ei="0"] [data-action="toggle-ex"]'); settle(page)
         center(page, '.ex-card[data-ei="0"] .session-set--side')
         shot(page, LOT, f'{t}-03-repos-apres-bras-droit')

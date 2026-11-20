@@ -35,6 +35,10 @@ function side2RowsHtml(ex, ei, s, si, tag = '') {
   return sideCaptionHtml(ex, s, 2) + side2RowHtml(ex, ei, s, si, tag) + (subs ? `<div class="tech" role="group" aria-label="${T.label}, ${name}">${cap}${subs}</div>` : '');
 }
 
+// « Avant » du second côté dit à VoiceOver (« 14 × 9 ») ; '' sans dernière fois
+const prevTxt = x => (x.prev ? `${hasLoad(x.prev.weight) ? `${fmtW(x.prev.weight, { plain: true })} × ` : ''}${esc(x.prev.reps)}` : '');
+// Même mise en page que la ligne du premier côté : numéro au même endroit, « Avant » et « Note » (la note de la série,
+// la même des deux côtés : panel du 20/11)
 function side2RowHtml(ex, ei, s, si, tag) {
   const x = s.side2, kind = loadKind(ex), at = `data-ei="${ei}" data-si="${si}"`;
   const name = `${setSpokenName(ex, si)}, ${sideName(ex, 2).toLowerCase()}`;
@@ -49,7 +53,7 @@ function side2RowHtml(ex, ei, s, si, tag) {
       <div class="session-set session-set--done session-set--side" data-action="side-reopen" ${at} ${u ? '' : 'role="button" tabindex="0"'}>
         <span class="sr-text">${name} validé${sideFem(ex) ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}${exOf}${record ? `, ${esc(record)}` : ''}. Modifier</span>
         ${no}
-        ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}
+        ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevTxt(x))}
         <span class="set-val set-val--w num" aria-hidden="true">${hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '—'}</span>
         <span class="set-val set-val--r num" aria-hidden="true">${esc(x.reps)}</span>
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
@@ -66,7 +70,7 @@ function side2RowHtml(ex, ei, s, si, tag) {
   return `
       <div class="session-set session-set--side ${cur ? 'session-set--subcur' : ''}" ${cur ? 'aria-current="step" ' : ''}${at}>
         <span class="visually-hidden">${name}${exOf}</span>${no}
-        <span class="set-prev num">${x.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span><span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>
+        ${setNoteBtnHtml(ex, ei, s, si, `${x.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}`, prevTxt(x))}
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" data-action="side-weight" ${at}
                value="${esc(fmtW(side2WeightKg(s), { plain: true }))}" placeholder="—" aria-label="${sideFieldName(ex, 2, 'w')}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="set-input set-input--required num" data-action="side-reps" ${at}

@@ -326,14 +326,24 @@ function bumpReady(ex) {
   return goalBumpDue(sessExData(ex) || { repMax: 12, sets: work.length }, prevs);
 }
 
-// Deuxième ligne repliée : technique à sous-séries et séries notées par bras (panel du 20/11 : « 3 × 10/10/9 · 14 kg »
-// cachait le drop et le bras droit) : « Drop set · 2 bras », '' sans. Sur sa ligne : jamais un « · » en bout de ligne
-function doneExtra(ex) {
-  if (measureOf(ex) !== 'reps') return '';
-  const work = workSets(ex.sets);
-  const parts = [...new Set(work.filter(s => subSetsOf(s).length).map(s => TECHS[setTech(s)].label))];
-  if (work.some(hasSide2)) parts.push(`2\u00a0${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}`);
-  return parts.map((p, i) => (i ? p.toLowerCase() : p)).join(' · ');
+// Lignes repliées sous « 3 × 10/10/9 · 14 kg » (panel du 20/11 : le drop et les bras ne se voyaient pas) : le drop et
+// les deux bras (« Drop 10 kg × 6 · 2 bras »), puis chaque bras s'ils diffèrent (« Bras gauche : 10/10/9 »,
+// « Bras droit : 10/10/8 »). [] sans technique ni bras. Espaces insécables dans chaque morceau.
+function doneExtraLines(ex) {
+  if (measureOf(ex) !== 'reps') return [];
+  const work = workSets(ex.sets), kind = loadKind(ex), nb = t => t.replace(/ /g, '\u00a0'), up = t => t.charAt(0).toUpperCase() + t.slice(1);
+  const parts = work.filter(s => subSetsOf(s).length)
+    .map(s => nb(`${up(TECHS[setTech(s)].subName)} ${subSetsOf(s).map(x => measureSetTxt(x, 'reps', kind)).join(', ')}`));
+  const two = work.filter(hasSide2);
+  if (two.length) parts.push(nb(`2 ${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}`));
+  const lines = parts.length ? [parts.join(' · ')] : [];
+  const reps1 = two.map(s => String(s.reps)), reps2 = two.map(s => String(s.side2.reps ?? ''));
+  const w1 = two.map(s => String(s.weight)), w2 = two.map(s => String(s.side2.weight ?? ''));
+  if (two.length && (reps1.join() !== reps2.join() || w1.join() !== w2.join())) {
+    const txt = (sets, side) => `${sideName(ex, side)} : ${setsTextRead(sets, 'reps', kind)}`;
+    lines.push(txt(two, 1), txt(two.map(s => s.side2), 2));
+  }
+  return lines;
 }
 // Ligne repliée d'un exercice terminé : « 4 × 8 · 32,5 kg » (reps différentes : « 10/10/9/8 »), allure du cardio
 function doneSummary(ex) {
@@ -405,7 +415,7 @@ function renderCollapsedExercise(ex, ei, records, rir = '') {
           <span class="ex-summary__text">
             <span class="ex-summary__name">${esc(ex.name)}</span>
             <span class="ex-summary__line num">${doneSummary(ex)}${records ? ` · ${medalSvg(14)}` : ''}</span>
-            ${doneExtra(ex) ? `<span class="ex-summary__line">${doneExtra(ex)}</span>` : ''}
+            ${doneExtraLines(ex).map(l => `<span class="ex-summary__line num">${esc(l)}</span>`).join('')}
             ${collapsedNoteLineHtml(ex)}
           </span>
           <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
@@ -565,7 +575,7 @@ function renderGroupCard(members, cur, tags) {
         <button class="ex-summary" data-action="toggle-ex" data-ei="${head}" aria-expanded="false">
           <span class="ex-summary__text">
             <span class="ex-summary__name">${kind}</span>
-            ${members.map(ei => `<span class="ex-summary__line num"><span class="ss-tag ss-tag--sm">${tags[ei]}</span>${esc(xs[ei].name)} · ${doneSummary(xs[ei])}</span>${doneExtra(xs[ei]) ? `<span class="ex-summary__line">${doneExtra(xs[ei])}</span>` : ''}`).join('')}
+            ${members.map(ei => `<span class="ex-summary__line num"><span class="ss-tag ss-tag--sm">${tags[ei]}</span>${esc(xs[ei].name)} · ${doneSummary(xs[ei])}</span>${doneExtraLines(xs[ei]).map(l => `<span class="ex-summary__line num">${esc(l)}</span>`).join('')}`).join('')}
           </span>
           <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
         </button>${foldedRirHtml(members)}
@@ -1059,9 +1069,12 @@ function scrollToCurrent(smooth = true, focus = false) {
     // Dernière ligne validée au-dessus : une série (sa rangée avec le balayage), ou une sous-série ou le second côté d'une
     // série notée par bras, sans rangée (texte agrandi : sinon la ligne du bras droit restait sous l'écran)
     const doneAbove = above('.session-set--done'), lastDone = doneAbove?.closest('.set-swipe') || doneAbove;
+    // Série notée par bras : le titre de son côté (« Bras droit ») au-dessus de la ligne en cours reste à l'écran si
+    // possible (panel du 20/11, texte agrandi : il sortait par le haut pendant le drop du bras droit)
+    const sideCap = above('.sets__caption--side');
     const anchors = [band, keep, keep ? null : card, keep ? null : card?.querySelector('.ex-card__name'),
       // en-tête des séries : seulement après une série faite (1re série trop basse : le nom reste visible, CI t-grand-texte)
-      keep || !lastDone ? null : card?.querySelector('.sets__head'), lastDone, lastDone?.querySelector('.rir')]
+      keep || !lastDone ? null : card?.querySelector('.sets__head'), sideCap, lastDone, lastDone?.querySelector('.rir')]
       .filter(el => el && el.getBoundingClientRect().top <= rowTop);
     const barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
     const room = window.innerHeight - barH - ($('.rest-mini')?.getBoundingClientRect().height || 0) - 24;

@@ -19,7 +19,7 @@ function techSubAt(ds) {
 }
 
 // Sous-série qui suit la dernière validation (pause d'un rest-pause ou d'un cluster, ou entre deux drops) :
-// { ei, si, k, label: « Mini-série +1 », set: { weight, reps } } avec la charge proposée et l'objectif de reps ;
+// { ei, si, k, label: « Mini-série 1 », set: { weight, reps } } avec la charge proposée et l'objectif de reps ;
 // null sinon. La barre de repos, la notification de fin et la Live Activity l'annoncent (js/features/rest.js)
 function techNextSub() {
   const xs = activeSession?.exercises;
@@ -29,8 +29,8 @@ function techNextSub() {
   // Second côté d'une série notée par bras (js/data/unilateral.js) : « Bras droit · 12 kg × 10 »
   if (c.k < 0) return { ...c, label: sideName(ex, 2), set: { weight: side2WeightKg(s), reps: side2RepsGoal(s) } };
   const two = c.side === 2;
-  // « Mini-série +1 » : le même repère que la ligne (« +1 »), pas un 2e nom à relier de tête (panel vague 4)
-  return { ...c, label: `${capitalize(TECHS[setTech(s)].subName)} +${c.k + 1}`,
+  // « Mini-série 1 » : le même repère que la ligne, pas un 2e nom à relier de tête (panel vague 4)
+  return { ...c, label: `${capitalize(TECHS[setTech(s)].subName)} ${c.k + 1}`,
     set: { weight: two ? side2SubWeightKg(s, c.k, techOpts(ex)) : subWeightKg(s, c.k, techOpts(ex)),
       reps: two ? side2SubRepsGoal(s, c.k) : String(s.sub[c.k].reps ?? '').trim() || s.sub[c.k].prev?.reps || '' } };
 }
@@ -84,7 +84,9 @@ function techBlockHtml(ex, ei, s, si) {
 // la même sous-série du premier côté (charge dans la case, reps en gris)
 function subRowHtml(ex, ei, s, si, x, k, side = 1) {
   // Numéro de la sous-série seul, sous le nom de la technique (« Rest-pause 15 s ») : un seul mot, « mini-série », partout ailleurs
-  const T = TECHS[setTech(s)], tag = `+${k + 1}`, kind = loadKind(ex), two = side === 2, host = two ? s.side2 : s;
+  // « Drop 1 », « Mini-série 1 », « Bloc 1 » : le nom en toutes lettres (panel du 20/11 : « +1 » se lisait « +1 rep » ou
+  // « +1 série »), sur deux lignes dans la colonne du numéro
+  const T = TECHS[setTech(s)], tag = `${capitalize(T.subName)} ${k + 1}`, kind = loadKind(ex), two = side === 2, host = two ? s.side2 : s;
   const spoken = `${T.subName} ${k + 1}, ${setSpokenName(ex, si).toLowerCase()}${hasSide2(s) ? `, ${sideName(ex, side).toLowerCase()}` : ''}, ${esc(ex.name)}`;
   const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;× ' : ''}${esc(x.prev.reps)}` : '—';
   const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"${two ? ' data-side="2"' : ''}`;
@@ -109,7 +111,9 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
   const cur = c?.ei === ei && c.si === si && c.k === k && (c.side || 1) === side;
   const wait = !host.done || first < k;
   const kg = two ? side2SubWeightKg(s, k, techOpts(ex)) : subWeightKg(s, k, techOpts(ex));
-  const goal = two ? side2SubRepsGoal(s, k) : x.prev?.reps || '';
+  // Reps pré-remplies dans la case, comme une série (« pré-remplir avec la dernière fois » ; au bras droit : ce que le bras
+  // gauche vient de faire) : un ✓ les prend telles quelles. Le gris ne sert plus de suggestion (panel du 20/11)
+  const goal = two ? side2SubRepsGoal(s, k) : String(x.reps ?? '').trim() || x.prev?.reps || '';
   return `
       <div class="session-set session-set--sub ${cur ? 'session-set--subcur' : ''}" ${cur ? 'aria-current="step" ' : ''}${at}>
         <span class="set-n tech-tag" aria-hidden="true">${tag}</span>
@@ -117,7 +121,7 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" data-action="sub-weight" ${at}
                value="${esc(fmtW(kg, { plain: true }))}" placeholder="—" aria-label="${loadSpoken(ex)}, ${spoken}, en ${unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="set-input set-input--required num" data-action="sub-reps" ${at}
-               value="${esc(x.reps)}" placeholder="${esc(goal)}" aria-label="Répétitions, ${spoken}">
+               value="${esc(goal)}" placeholder="" aria-label="Répétitions, ${spoken}">
         <button class="set-check-zone ${wait ? 'set-check-zone--wait' : ''}" data-action="sub-validate" ${at} ${wait ? 'aria-disabled="true"' : ''} aria-label="Valider ${T.fem ? 'la' : 'le'} ${spoken}"><span class="set-check"></span></button>
       </div>`;
 }

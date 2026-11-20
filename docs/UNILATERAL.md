@@ -49,7 +49,14 @@ droit lourd, puis allégé ; l'app n'avait qu'un bloc de drop set par série et 
    avant. « + drop » ajoute une sous-série de chaque côté ; le × du drop set le retire des deux (44 pt dessinés).
    **Compteur** (« 3/3 », barre du haut, « Plus tard ») : une série compte une fois le bras droit et son drop faits
    (`setComplete`). VoiceOver : « Valider la série 3, bras gauche », « Charge du bras gauche, en kilos ».
-   **Carte repliée** : « 3 × 10/10/9 · 14 kg · drop set · 2 bras ».
+   **Carte repliée** : « 3 × 10/10/9 · 14 kg », puis « Drop 10 kg × 6 · 2 bras », puis chaque bras s'ils diffèrent
+   (« Bras gauche : 14 kg × 10, 10, 9 », « Bras droit : 14 kg × 10, 10, 8 »).
+   **Sous-séries** : « Drop 1 », « Drop 2 » (« Mini-série 1 », « Bloc 1 ») en toutes lettres dans la colonne du numéro,
+   plus « +1 » (3e panel : lu « +1 rep »). Leurs reps sont pré-remplies dans la case (la dernière fois ; au bras droit,
+   ce que le bras gauche vient de faire), pas en gris : un ✓ les prend telles quelles.
+   **Même mise en page** pour les deux bras : numéro, « Avant » et « Note » (la note de la série) aux mêmes places.
+   **Texte agrandi** : la barre de repos garde −15, +15 et « Ensuite » sur deux rangées ; le titre du côté en cours
+   reste à l'écran quand c'est possible (scrollToCurrent).
 4. **Repos** : aucun entre les deux côtés ni avant un drop ; la courte pause d'un rest-pause (15 s) ou d'un cluster
    (20 s) avant chaque mini-série, de chaque côté ; le repos habituel **seulement après le dernier bloc du second
    côté** (`techPauseAfter`, `restAfterStep`). Dans un superset, l'exercice suivant s'enchaîne à ce moment-là.
@@ -87,11 +94,10 @@ droit lourd, puis allégé ; l'app n'avait qu'un bloc de drop set par série et 
 
 - **Ancien appareil** : il voit le premier côté seul (volume du second en moins, comme les sous-séries d'un drop set) ;
   s'il modifie la séance (Historique › Modifier), il perd le second côté.
-- **Amis et coach** : la migration `supabase/migrations/20261120010000_seance_publique_par_bras.sql` fait passer
-  `side2` et `sideFirst` dans `private.session_public` (bornés comme les sous-séries ; test `tests/sql/par_bras_test.sql`,
-  retour arrière dans `supabase/rollback/`). Elle n'est PAS appliquée en production : tant qu'elle ne l'est pas, ils
-  voient le premier côté seul. Côté app, l'Historique, la séance d'un ami et la relecture du coach montrent déjà
-  « Bras gauche : … » et « Bras droit : … ».
+- **Amis et coach** : la migration `supabase/migrations/20261120010000_seance_publique_par_bras.sql`, **appliquée en
+  production le 20/11/2026**, fait passer `side2` et `sideFirst` dans `private.session_public` (bornés comme les
+  sous-séries ; test `tests/sql/par_bras_test.sql`, retour arrière dans `supabase/rollback/`, ordre dans ORDRE.md). La
+  séance d'un ami et la relecture du coach montrent « Bras gauche : … », « Bras droit : … » et les drops de chaque bras.
 - **Volume affiché d'une ancienne séance** : l'Historique et la courbe de Progrès gardent ce qui a été noté (une ligne
   = un bras) ; seules les comparaisons de séance à séance comptent la ligne unique pour les deux bras.
 - Apple Watch et Live Activity : la montre voit et valide la série ; le second côté se fait sur l'iPhone. Les
