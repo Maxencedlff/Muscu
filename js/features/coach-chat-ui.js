@@ -89,7 +89,7 @@ function renderCoachChat(key) {
         <div class="chat-compose">
           <textarea id="chatInput" class="comment-compose__input chat-compose__input" data-key="${esc(key)}" rows="1"
             aria-label="${esc(`Message à ${name}`)}" placeholder="Message" autocomplete="off" autocapitalize="sentences" aria-describedby="chatCount">${esc(draft)}</textarea>
-          <button class="comment-compose__send" data-action="chat-send" data-key="${esc(key)}" aria-label="Envoyer le message"
+          <button class="comment-compose__send" data-action="chat-send" data-key="${esc(key)}" aria-label="Envoyer le message" aria-describedby="chatCount"
             ${c.sending || chatProblem(draft) ? 'disabled' : ''}>${icon('arrow.up', 18)}</button>
         </div>
         <p class="comment-compose__count num" id="chatCount" aria-live="polite">${chatCountText(draft)}</p>

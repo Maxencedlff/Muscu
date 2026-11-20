@@ -22,12 +22,14 @@ const FIELD_HOST_SEL = '.cell, .diet-field, .coach-req-field, .date-row, .ios-di
 // Zone de texte hors ligne de formulaire (notes du bilan, séance ajoutée) : le message va juste sous elle
 function fieldHost(input) { return input?.closest?.(FIELD_HOST_SEL) || (input?.matches?.('textarea') ? input : null); }
 // Message sous le champ (cls : field-err rouge, field-hint gris), réutilisé s'il est déjà là ; retiré à la frappe
-function fieldNote(input, msg, cls = 'field-err') {
+// detail : seconde ligne en texte secondaire (texte gardé d'un collage coupé, en texte très grand)
+function fieldNote(input, msg, cls = 'field-err', detail = '') {
   const host = fieldHost(input);
   if (!host) return false;
   let p = host.nextElementSibling?.matches?.('.field-err, .field-hint, .field-warn') ? host.nextElementSibling : null;
   if (!p) { p = document.createElement('p'); host.after(p); }
   p.className = cls; p.textContent = msg; p.id ||= 'fn-' + uid();
+  if (detail) { const d = document.createElement('span'); d.className = 'field-note__detail'; d.textContent = detail; p.append(d); }
   // Erreur : lue tout de suite ; avertissement (collage coupé) : lu poliment ; aide : pas annoncée
   if (cls === 'field-err') p.setAttribute('role', 'alert'); else p.removeAttribute('role');
   if (cls === 'field-warn') p.setAttribute('aria-live', 'polite'); else p.removeAttribute('aria-live');
@@ -125,8 +127,8 @@ function fieldLimitNotice(e) {
     if (sp > max * 0.6) el.value = el.value.slice(0, sp).trimEnd();
     // Texte très grand : un champ d'une ligne n'en montre qu'un bout, le texte gardé est redit en entier dessous
     const xl = el.matches('input') && document.documentElement.classList.contains('type-xl');
-    const msg = `Coupé à ${fmtNum(max)} caractères${xl ? `. Gardé : « ${el.value} »` : ''}`;
-    if (fieldNote(el, msg, 'field-warn')) {
+    const msg = `Coupé à ${fmtNum(max)} caractères`;
+    if (fieldNote(el, msg, 'field-warn', xl ? `Gardé : « ${el.value} »` : '')) {
       announce(`Coupé à ${fmtNum(max)} caractères`);
       // Zone de texte : le message, sous elle, est ramené au-dessus des boutons fixes du bas (« Terminé » du bilan)
       if (el.matches('textarea')) document.getElementById(el.dataset.fieldNote)?.scrollIntoView({ block: 'center' });

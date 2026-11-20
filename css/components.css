@@ -223,6 +223,7 @@ html.type-xl .review-rec__val { flex: 1 0 100%; padding-left: 34px; white-space:
 .field-hint { color: var(--label2); }
 /* Collage coupé : un avertissement, pas une aide (lisible en clair comme en sombre, panel du 20/11 t2) */
 .field-warn { color: var(--warn-text); font-weight: 600; }
+.field-note__detail { display: block; margin-top: 2px; font-weight: 400; color: var(--label2); }
 /* Bulle d'un commentaire ou d'un message trop long : contour rouge, comme un champ refusé */
 .comment-compose.comment-compose--over { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
 .field-note-ok { color: var(--label); }

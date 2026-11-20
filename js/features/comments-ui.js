@@ -77,7 +77,7 @@ function commentsGroupHtml(owner, id, { writable = true, quick = false, record =
           <textarea id="commentInput" class="comment-compose__input" data-owner="${esc(owner)}" data-id="${esc(id)}" rows="1"
             aria-label="Ajouter un commentaire" placeholder="Ajouter un commentaire…" autocomplete="off" autocapitalize="sentences" aria-describedby="commentCount">${esc(draft)}</textarea>
           <button class="comment-compose__send" data-action="comment-send" data-owner="${esc(owner)}" data-id="${esc(id)}"
-            aria-label="Envoyer le commentaire" ${busy || commentProblem(draft) ? 'disabled' : ''}>${icon('arrow.up', 18)}</button>
+            aria-label="Envoyer le commentaire" aria-describedby="commentCount" ${busy || commentProblem(draft) ? 'disabled' : ''}>${icon('arrow.up', 18)}</button>
         </div>
         <p class="comment-compose__count num" id="commentCount" aria-live="polite">${commentCountHtml(draft)}</p>` : '';
   return `
