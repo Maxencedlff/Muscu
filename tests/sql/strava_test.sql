@@ -132,7 +132,12 @@ begin
   st := public.strava_status();
   if st->>'connected' <> 'true' or st->>'athlete_name' <> 'Léa' or st->>'can_write' <> 'true' then raise 'état relié : %', st; end if;
   if st->'exports' is distinct from '[{"session_id": "s1", "activity_id": "12345678901234"}]'::jsonb then raise 'envois : %', st->'exports'; end if;
-  if st::text like '%chiffre-factice%' or st::text like '%4242%' then raise 'jeton ou identifiant Strava renvoyé à l''app'; end if;
+  -- Exactement ces clés, rien d'autre ne sort. L'identifiant d'athlète (4242) se cherche hors de connected_at :
+  -- l'horodatage (now(), microsecondes au hasard) contient parfois « 4242 » (faux échec du 20/11, run 44719582286).
+  if (select array_agg(k order by k) from jsonb_object_keys(st) k)
+     is distinct from array['athlete_name', 'can_write', 'connected', 'connected_at', 'exports'] then raise 'clés de l''état : %', st; end if;
+  if st::text like '%chiffre-factice%' or (st - 'connected_at')::text like '%4242%' then raise 'jeton ou identifiant Strava renvoyé à l''app'; end if;
+  if jsonb_typeof(st->'connected_at') <> 'string' or (st->>'connected_at')::timestamptz is null then raise 'connected_at : %', st->'connected_at'; end if;
   perform pg_temp.slogin('b');
   if (public.strava_status())->>'connected' <> 'false' then raise 'B voit la liaison de A'; end if;
 end $$;
