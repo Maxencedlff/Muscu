@@ -469,7 +469,7 @@ function renderCoachMine() {
         <div class="cmine-hero">
           <div class="coach-join__who coach-mine__who">
             ${personAvatar(p, 'l')}
-            <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(shownName)}</span>${posterNm && p.username ? `<span class="coach-join__sub coach-mine__handle">@${esc(p.username)}</span>` : ''}<span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span>${cardBadgeHtml(p.user_id, 'card-badge--who')}</span>
+            <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${nameBreakHtml(shownName)}</span>${posterNm && p.username ? `<span class="coach-join__sub coach-mine__handle">@${nameBreakHtml(p.username)}</span>` : ''}<span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span>${cardBadgeHtml(p.user_id, 'card-badge--who')}</span>
           </div>
           ${coachMineProgHtml(inbox)}
         </div>
@@ -967,7 +967,7 @@ function renderCoachStudent(uid) {
       <div class="scr">
         <div class="coach-join__who">
           ${personAvatar(p, 'l')}
-          <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(personName(p))}</span><span class="coach-join__sub">${sinceText(p) ? `Élève depuis le ${esc(sinceText(p))}` : 'Élève'}</span></span>
+          <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${nameBreakHtml(personName(p))}</span><span class="coach-join__sub">${sinceText(p) ? `Élève depuis le ${esc(sinceText(p))}` : 'Élève'}</span></span>
         </div>
         ${coachStudentHeroHtml(uid)}
         ${coachWeekSummaryHtml(uid)}
@@ -1234,7 +1234,7 @@ function coachManyRowsHtml(m) {
     const on = m.ids.has(st.user_id);
     return `<button class="cell coach-pick${on ? ' coach-pick--on' : ''}" role="checkbox" aria-checked="${on}" data-action="coach-many-pick" data-uid="${esc(st.user_id)}" ${m.busy ? 'disabled' : ''}>
             <span class="coach-pick__box" aria-hidden="true">${on ? icon('checkmark', 14) : ''}</span>${personAvatar(st, 's')}
-            <span class="cell__body"><span class="cell__title">${esc(personName(st))}${pushOffMarkHtml(st.user_id)}</span></span>
+            <span class="cell__body"><span class="cell__title">${nameBreakHtml(personName(st))}${pushOffMarkHtml(st.user_id)}</span></span>
           </button>`;
   }).join('') || '<div class="cell"><span class="cell__sub social-empty">Aucun élève ne correspond.</span></div>';
 }

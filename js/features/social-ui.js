@@ -31,6 +31,9 @@ let socialScrollComments = false;   // « Commenter » d'une carte : la séance 
 
 // Pseudo, ou « Compte masqué » (bloqué sans social : pseudo non renvoyé)
 function personName(p) { return p?.username || 'Compte masqué'; }
+// Pseudo (ou nom) à afficher en HTML : coupure possible après « _ », « . » et « - » (« camille_ / coach ») plutôt
+// qu'au milieu d'un mot en très grand texte ; jamais rogné
+function nameBreakHtml(text) { return esc(text).replace(/([._-])/g, '$1<wbr>'); }
 function personAvatar(p, size = 'm') { return avatarHtml(size, p?.avatar, p?.username || '?', p?.user_id || p?.owner || null); }
 // Couleur d'une séance d'un programme intégré ; séance perso d'un autre : gris neutre
 function publicSessionColor(s) { return PROGRAMMES[s.programme]?.sessions?.[s.category]?.color || 'var(--label3)'; }

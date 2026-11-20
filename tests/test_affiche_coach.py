@@ -636,4 +636,45 @@ def t_sans_migration(bench, eng, dev, theme):
         R.check(not page.errors and not cons, f'{t} sans migration, élève : aucune erreur JS ni console {page.errors} {cons}')
 
 
-run_main(R, [t_coach_affiche, t_apercu_grand_texte, t_eleve_sans_affiche, t_photo_trois_acces, t_sans_migration])
+BREAKS = """s => [...document.querySelectorAll(s)].filter(e => e.offsetParent).map(e => {
+    const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT), chars = [];
+    for (let n; (n = w.nextNode());) for (let i = 0; i < n.length; i++) {
+      const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1); const b = r.getClientRects()[0]; if (b) chars.push([n.data[i], b.top]); }
+    const bad = [];
+    for (let i = 1; i < chars.length; i++) if (chars[i][1] > chars[i - 1][1] + 2 && !/[\\s._-]/.test(chars[i - 1][0]) && chars[i][0] !== ' ') bad.push(chars.slice(0, i).map(c => c[0]).join(''));
+    return { text: e.textContent, bad, cut: e.scrollWidth > e.clientWidth + 1 }; })"""
+
+
+def t_mon_coach_grand_texte(bench, eng, dev, theme):
+    """Mon coach en AX33 sur iPhone SE : pseudo et nom passent à la ligne après « _ », « . » ou une espace, jamais au
+    milieu d'un mot ni rognés (avec et sans le nom de l'affiche)."""
+    if dev != 'iPhone SE':
+        return
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        page.add_init_script("""(() => { const st = document.createElement('style'); st.textContent = 'html { font: 33px -apple-system, system-ui, sans-serif !important; }';
+            document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st)); })()""")
+        open_app(page, theme)
+        page.evaluate("checkTypeSize()")
+        signin(page, 'lea')
+        page.evaluate("""async () => { const c = __sb.addPerson({ username: 'camille_coach', avatar: '🦁', social: false }); __sb.makeCoach(c);
+            __sb.link(c, __sb.meId(), Date.now() - 3 * 86400000); await coachRefresh(); }""")
+        page.evaluate("routeTo('friends')")
+        for with_name in (False, True):
+            if with_name:
+                page.evaluate("() => { (__sb.co.posterNames ||= {})[myCoach().user_id] = 'Camille Martin'; coachPosterNames.clear(); }")
+            page.evaluate("navigate('coach-mine')")
+            page.wait_for_selector('.coach-mine-view', timeout=8000)
+            if with_name:
+                page.wait_for_selector('.coach-mine__handle', timeout=8000)
+            settle(page)
+            res = page.evaluate(BREAKS, '.coach-mine__who .coach-join__name, .coach-mine__handle')
+            what = 'nom de l\'affiche et pseudo' if with_name else 'pseudo seul'
+            R.check(res and all(not r['bad'] and not r['cut'] for r in res), f'{t} AX33 Mon coach, {what} : coupures propres {res}')
+            shot(page, LOT, f'15-mon-coach-ax33-{"nom" if with_name else "pseudo"}-{t}')
+            page.evaluate("goBack()")
+            settle(page)
+        R.check(not page.errors, f'{t} AX33 Mon coach : aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_coach_affiche, t_apercu_grand_texte, t_eleve_sans_affiche, t_photo_trois_acces, t_sans_migration, t_mon_coach_grand_texte])

@@ -169,7 +169,11 @@ html.type-xl .coach-code-cell .cell__body { min-width: 0; flex-basis: 100%; }
 .group-title.coach-title { text-transform: none; font-size: var(--fs-footnote); font-weight: 400; margin: 0; }
 .coach-join__who { display: flex; align-items: center; gap: 14px; padding: 8px 4px 4px; }
 .coach-join__who > span:last-child { min-width: 0; display: flex; flex-direction: column; }
-.coach-join__name { font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; overflow-wrap: anywhere; }
+.coach-join__name { font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; overflow-wrap: break-word; }
+/* Mon coach en très grand texte : l'avatar au-dessus du nom (toute la largeur pour le nom et le pseudo), pseudo coupé
+   après « _ » ou « . » (nameBreakHtml), au milieu d'un mot seulement s'il n'y a pas d'autre moyen */
+html.type-xl .coach-mine__who { flex-direction: column; align-items: flex-start; }
+.coach-mine__handle { overflow-wrap: break-word; }
 .coach-join__sub { font-size: var(--fs-subhead); color: var(--label2); }
 .coach-join__item .cell__sub { color: var(--label2); }
 /* Interrupteur 15 ans et « Accepter » collés en bas, au-dessus de la barre d'onglets, sur une ligne de 44 pt
