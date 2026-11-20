@@ -43,11 +43,21 @@ def open_app(page, theme):
 
 def layout_ok(page):
     """[] si rien ne déborde ; sinon ce qui déborde (défilement horizontal, texte coupé par « … »)."""
-    return page.evaluate("""() => { const bad = [];
-        if (document.documentElement.scrollWidth > innerWidth + 1) bad.push(`page ${document.documentElement.scrollWidth} > ${innerWidth}`);
+    bad_ = page.evaluate("""() => { const bad = [];
+        // Débordement de ce que l'atlas affiche (panneau, vue agrandie, bulle) ; le reste de la fiche a ses propres tests
+        for (const e of document.querySelectorAll('.mpanel--atlas, .mpanel--atlas *, .sheet-root--atlas .sheet, .sheet-root--atlas .sheet *:not(.azoom__stage):not(.azoom__stage *), .btip')) {
+            const r = e.getBoundingClientRect();
+            if (r.width && (r.right > innerWidth + 1 || r.left < -1)) bad.push(`${e.tagName}.${String(e.className).slice(0, 30)} ${Math.round(r.left)}..${Math.round(r.right)} > ${innerWidth}`);
+        }
+        if (document.documentElement.scrollWidth > innerWidth + 1) window.__atlasWide = `page ${document.documentElement.scrollWidth} > ${innerWidth} : ` + [...document.querySelectorAll('#app *')]
+            .filter(e => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map(e => `${e.tagName}.${String(e.className).slice(0, 30)}`).join(', ');
         for (const e of document.querySelectorAll('.cell__title, .cell__sub, .mpill, .btip p, .azoom__hint'))
             if (e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow === 'ellipsis') bad.push(`${e.className} « ${e.textContent.trim().slice(0, 30)} »`);
         return bad; }""")
+    wide = page.evaluate('window.__atlasWide || ""')
+    if wide:
+        print(f'  (hors atlas) {wide}', flush=True)
+    return bad_
 
 
 def part_point(page, root, part, view='front'):
