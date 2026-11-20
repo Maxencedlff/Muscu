@@ -109,3 +109,5 @@ html.type-xl .share-preview__note-link { padding-block: 0; }
    Silhouette restent visibles entre l'aperçu et la barre, 6e panel) */
 html.type-xxl .share-preview__note-link { white-space: nowrap; font-size: min(1em, 28px); }
 
+/* Très grand texte : « Voir en grand » sans icône (elle restait seule à gauche d'un texte sur deux lignes) */
+html.type-xl .share-preview__seebig .icon { display: none; }
