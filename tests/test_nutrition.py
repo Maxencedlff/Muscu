@@ -92,7 +92,19 @@ def cut_texts(page, scope='#app'):
         .map(e => e.textContent.trim().slice(0, 30))""", scope)
 
 
+STILL = """s => [document.querySelector(s), document.querySelector('.tabbar')].every(el => {
+    for (let n = el; n; n = n.parentElement) {
+        if (n.getAnimations().some(a => a.playState === 'running' || a.pending)) return false;
+        if (getComputedStyle(n).transform !== 'none') return false;
+    }
+    return true; })"""
+
+
 def layout(page, t, name, scope='#app'):
+    # Zone mesurée immobile : ni elle ni ses parents (feuille qui monte, sheetUp) en mouvement. Pendant la montée, WebKit
+    # rend un bouton de 44 px à 43,9999 px (translateY non entier) : « cibles de 44 pt ['g : grammes…'] » au hasard.
+    # settle reste une heuristique (repos = rien en cours pendant 30 ms) : on attend l'état lui-même
+    until(page, f'() => ({STILL})({json.dumps(scope)})', 5000)
     R.check(no_hscroll(page), f'{t} {name} : pas de défilement horizontal')
     st = small_targets(page, f'{scope} button, .tabbar button')
     R.check(not st, f'{t} {name} : cibles de 44 pt {st}')
@@ -1343,6 +1355,10 @@ def t_objectifs(bench, eng, dev, theme):
         # 2. En g/kg : 1,9 g/kg × 74,5 kg = 142 g
         page.click('[data-action="diet-targets"]')
         page.wait_for_selector(f'{sh} #dietT_p')
+        # Focus de départ posé avant de taper : sheet() le donne au bouton OK 50 ms après l'ouverture (js/ui/sheet.js).
+        # page.fill pose le focus sur le champ puis tape dans un second aller-retour : si la minuterie tombait entre
+        # les deux, « 1,9 » partait vers OK et le champ gardait « 2,1 » (« = 160 g », échec au hasard)
+        until(page, f"() => !!document.activeElement?.matches('{sh} .sheet__btn--confirm')")
         R.check(page.input_value(f'{sh} #dietT_p') == '2,1', f'{t} rouvert en g/kg')
         page.fill(f'{sh} #dietT_p', '1,9')
         R.check('= 142 g' in nb(page.inner_text(f'{sh} #dietTPkg')), f'{t} 1,9 g/kg = 142 g')
