@@ -84,6 +84,7 @@ function coachPosterToolsHtml() {
   // n'est pas encore sur l'App Store (docs/AFFICHE_COACH.md)
   return {
     note: 'Ajoute ton nom pour partager ton affiche.',
+    noteShort: 'Ajoute ton nom',
     noteFocus: '#cposterName',
     rows: `
       <div class="cposter-form">

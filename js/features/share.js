@@ -128,7 +128,9 @@ function sharePreviewBody(alt, formats = false, tools = null) {
   // (tools.noteFocus)
   if (tools) {
     const help = tools.help ? esc(tools.help) : '';
-    const note = tools.note ? `<p class="share-preview__note" role="status" hidden><button type="button" class="share-preview__note-link" data-action="share-preview-note">${esc(tools.note)}</button></p>` : '';
+    // En très grand texte, la version courte (tools.noteShort) : la barre fixée reste basse
+    const short = tools.noteShort ? `<span class="share-preview__note-short">${esc(tools.noteShort)}</span>` : '';
+    const note = tools.note ? `<p class="share-preview__note" role="status" hidden><button type="button" class="share-preview__note-link${short ? ' share-preview__note-link--short' : ''}" data-action="share-preview-note" aria-label="${esc(tools.note)}"><span class="share-preview__note-full">${esc(tools.note)}</span>${short}</button></p>` : '';
     return `
     <div class="share-preview share-preview--tools">
       <div class="share-preview__top">

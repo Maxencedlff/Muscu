@@ -805,7 +805,7 @@ function coachPermanentCodeHtml() {
 function coachCodeCellHtml(code, { main = false } = {}) {
   const shown = formatCoachCode(code);
   const blocks = shown.split(/(?<=-)/).map(b => `<span class="coach-code__blk">${esc(b)}</span>`).join('');
-  return `<div class="cell coach-invite coach-code-cell${main ? ' coach-code-cell--main' : ''}">
+  return `<div class="cell coach-code-cell${main ? ' coach-code-cell--main' : ''}">
             <span class="cell__body"><span class="cell__title coach-code coach-code--fit num">${blocks}</span><span class="cell__sub">Code permanent, à mettre dans ta bio</span></span>
             <button class="coach-icon-btn coach-copy-btn" data-action="coach-copy-code" data-code="${esc(shown)}" aria-label="Copier ton code coach">${icon('doc.on.doc', 20)}</button>
             <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(code)}" aria-label="Partager ton code coach">${icon('square.and.arrow.up', 20)}</button>

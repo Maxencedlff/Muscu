@@ -89,3 +89,6 @@ html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(
 .share-preview__note { margin: 0 0 var(--sp-2); text-align: center; }
 .share-preview__note-link { min-height: 44px; padding: 6px 8px; border: 0; background: none; color: var(--tint); font: inherit;
   font-weight: 600; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.share-preview__note-short { display: none; }
+html.type-xl .share-preview__note-link--short .share-preview__note-full { display: none; }
+html.type-xl .share-preview__note-link--short .share-preview__note-short { display: inline; }
