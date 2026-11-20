@@ -197,7 +197,7 @@ function searchHtml() {
   return `
         <div class="social-search">
           <span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
-          <input type="search" id="socialSearch" class="search social-search__input" placeholder="Pseudo" value="${esc(socialQuery)}"
+          <input type="search" id="socialSearch" maxlength="${SEARCH_MAX}" class="search social-search__input" placeholder="Pseudo" value="${esc(socialQuery)}"
                  autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Rechercher un pseudo">
         </div>`;
 }
@@ -664,7 +664,7 @@ async function reportFlow(uid, ref) {
   let details = '';
   if (reason === 'autre') {
     const t = await dialog({ title: 'Que se passe-t-il ?', message: 'Quelques mots pour nous aider (facultatif).',
-      input: { value: '', placeholder: 'Détails', text: true },
+      input: { value: '', placeholder: 'Détails', text: true, max: REPORT_DETAILS_MAX },   // ce que le serveur garde
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', style: 'preferred' }] });
     if (t === null) return;
     details = t;

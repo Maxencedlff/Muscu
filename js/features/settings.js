@@ -234,7 +234,7 @@ async function askProfileNumber({ title, message, value, unit, min, max }) {
   if (raw === null) return undefined;
   if (String(raw).trim() === '') return null;
   const v = num(raw, min, max, true);
-  if (v === null) { showToast(`Valeur entre ${min} et ${max}`, { error: true }); return undefined; }
+  if (v === null) { showToast(numRefusal(raw, min, max, true), { error: true }); return undefined; }
   return v;
 }
 

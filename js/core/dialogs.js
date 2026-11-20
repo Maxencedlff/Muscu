@@ -122,8 +122,9 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
         ${input   ? `<div class="ios-dialog__field">
             <input class="ios-dialog__input" ${input.digits ? 'type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="20"'   // code-barres : zéros de tête gardés
               : input.text ? `type="text" autocomplete="off" autocapitalize="sentences" maxlength="${input.max || 40}"`
-              : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off"'   // « 70,5 » : la virgule du clavier français
-              : 'type="number" inputmode="numeric"'}
+              : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off" maxlength="12"'   // « 70,5 » : la virgule du clavier français
+              // Entier : jamais type="number" (« 175,5 » y devient vide, donc effacé ; « 1e3 » y passe) ; num() juge
+              : 'type="text" inputmode="numeric" autocomplete="off" maxlength="12"'}
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}" aria-label="${esc(dialogInputLabel(input, title))}">
             ${input.unit ? `<span class="ios-dialog__unit" aria-hidden="true">${esc(input.unit)}</span>` : ''}
           </div>` : ''}
@@ -229,17 +230,19 @@ async function askNumber({ title, message, value, unit, min, max, decimal = fals
     { label: 'Annuler', style: 'cancel' },
     { label: 'OK', style: 'preferred' },
   ] });
-  if (raw === null || raw === '') return null;
-  const v = decimal ? num(raw, -Infinity, Infinity) ?? NaN : parseInt(raw, 10);   // num() accepte la virgule
-  if (isNaN(v) || v < min || v > max) { showToast(`Valeur entre ${min} et ${max}`, { error: true }); return null; }
+  if (raw === null || String(raw).trim() === '') return null;
+  // num() : virgule acceptée, et rien d'autre qu'un nombre écrit simplement (parseInt lisait « 1e3 » 1 et « 60abc » 60)
+  const v = num(raw, min, max, !decimal);
+  if (v === null) { showToast(numRefusal(raw, min, max, !decimal), { error: true }); return null; }
   return v;
 }
 
-async function askText({ title, message, value = '', placeholder = '', confirm = 'OK' }) {
-  const raw = await dialog({ title, message, input: { value, placeholder, text: true }, actions: [
+// max : longueur du champ (40 par défaut, celle du dialogue). Espaces et caractères invisibles seuls : null (rien saisi)
+async function askText({ title, message, value = '', placeholder = '', confirm = 'OK', max }) {
+  const raw = await dialog({ title, message, input: { value, placeholder, text: true, max }, actions: [
     { label: 'Annuler', style: 'cancel' },
     { label: confirm, style: 'preferred' },
   ] });
   const v = (raw ?? '').trim();
-  return v || null;
+  return v && hasVisible(v) ? v : null;
 }

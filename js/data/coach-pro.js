@@ -46,9 +46,10 @@ function notifyCoachBadge() { for (const fn of coachBadgeListeners) { try { fn()
 // ── Logique pure ────────────────────────────────────────────
 
 const proStr = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
-// Numéro de carte saisi : majuscules, sans espaces ni tirets ; null s'il n'a pas la bonne forme
+// Numéro de carte saisi : majuscules, sans espaces, points, tirets ni barres (comme coach_request_submit, qui les
+// ignore aussi : « 04/912 ED.0123 » était refusé ici et accepté par le serveur) ; null s'il n'a pas la bonne forme
 function normalizeCardNumber(raw) {
-  const c = String(raw ?? '').toUpperCase().replace(/[\s-]/g, '');
+  const c = String(raw ?? '').toUpperCase().replace(/[\s.\-/]/g, '');
   return COACH_CARD_RE.test(c) ? c : null;
 }
 // coach_request_state() nettoyé
@@ -195,7 +196,9 @@ async function coachProRefresh({ minAge = 0 } = {}) {
 // bornes que le serveur, pour dire tout de suite ce qui ne va pas.
 async function coachRequestSubmit({ cardName, cardNumber, diploma }) {
   const name = String(cardName ?? '').trim().replace(/\s+/g, ' ');
-  if (name.length < 2 || name.length > 80) return { ok: false, kind: 'invalid_name' };
+  // En caractères comme char_length du serveur (un emoji compte 1) ; invisibles seuls : pas un nom
+  const n = [...name].length;
+  if (n < 2 || n > 80 || !hasVisible(name)) return { ok: false, kind: 'invalid_name' };
   const card = normalizeCardNumber(cardNumber);
   if (!card) return { ok: false, kind: 'invalid_card' };
   const dip = String(diploma ?? '').trim();

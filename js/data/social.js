@@ -717,7 +717,7 @@ async function socialReport({ target, kind, ref = null, reason, details = '' }) 
   if (!REPORT_REASONS.some(r => r.reason === reason) || !['profile', 'session'].includes(kind)) return { ok: false, kind: 'server' };
   const body = { target_user: target, kind, reason };
   if (ref) body.target_ref = String(ref);
-  const d = String(details || '').trim().slice(0, REPORT_DETAILS_MAX);
+  const d = clipText(String(details || '').trim(), REPORT_DETAILS_MAX);
   if (d) body.details = d;
   try {
     const { data: res, error } = await sb.functions.invoke('report', { body });

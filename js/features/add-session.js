@@ -191,7 +191,7 @@ function renderAddSession() {
         </button>
         <div class="session-notes-block">
           <div class="session-notes-label">Notes</div>
-          <textarea class="session-notes-input" data-action="add-notes-input"
+          <textarea class="session-notes-input" data-action="add-notes-input" maxlength="${SESSION_NOTES_MAX}"
                     placeholder="Comment s'est passée la séance ? (facultatif)">${esc(addNotes)}</textarea>
         </div>
       </div>
@@ -263,10 +263,10 @@ function storePastSession(exercises) {
       ssNormalize(ssGather(exercises));
       // Même jour : on garde l'heure d'origine
       savedDate = localISO(old.date) === addDate ? old.date : timestamp;
-      entry = data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate, notes: addNotes.trim(), exercises };
+      entry = data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate, notes: clipText(addNotes.trim(), SESSION_NOTES_MAX).trim(), exercises };
     }
   } else {
-    entry = { id: uid(), programme: addProg, category: addCat, date: timestamp, notes: addNotes.trim(), exercises };
+    entry = { id: uid(), programme: addProg, category: addCat, date: timestamp, notes: clipText(addNotes.trim(), SESSION_NOTES_MAX).trim(), exercises };
     data.history.push(entry);
     addNotes = '';
   }

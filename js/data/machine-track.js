@@ -75,6 +75,15 @@ function machineRange(u, slot) {
   const U = MACHINE_UNITS[u];
   return slot?.range?.[u] || [U.min, U.max];
 }
+// Valeur tapée à la main : un nombre écrit simplement (virgule acceptée) dans la plage de la grandeur, arrondi à son
+// pas d'affichage ; null sinon. Plus strict que clampMachineValue : « 12abc » ou « 1e9 » ne deviennent pas 12 ou le
+// maximum en silence, ils sont refusés et la valeur d'avant reste
+function machineParseValue(raw, u, slot) {
+  const U = MACHINE_UNITS[u];
+  if (!U) return null;
+  const [lo, hi] = machineRange(u, slot), n = num(raw, lo, hi);
+  return n === null ? null : Math.round(n * 10 ** U.digits) / 10 ** U.digits;
+}
 function clampMachineValue(v, u, slot) {
   const U = MACHINE_UNITS[u];
   const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').trim().replace(',', '.'));

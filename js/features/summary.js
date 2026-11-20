@@ -213,7 +213,7 @@ function renderSummary() {
         ${summaryOrderHtml(sm, h)}
         ${summaryUnknownMusclesHtml(h)}
         <div class="sum-section-title">Notes</div>
-        <textarea id="summaryNotes" class="sum-notes" rows="3" placeholder="Comment s'est passée la séance ?"
+        <textarea id="summaryNotes" class="sum-notes" rows="3" maxlength="${SESSION_NOTES_MAX}" placeholder="Comment s'est passée la séance ?"
                   aria-label="Notes de séance">${esc(h?.notes || '')}</textarea>
         ${coachNotesHint()}
         ${summarySocialGroup(h)}
@@ -236,7 +236,7 @@ let summaryNotesTimer = null;
 function summaryNotesInput(value) {
   const h = lastSummary && data.history.find(x => x.id === lastSummary.id);
   if (!h) return;
-  h.notes = value.trim();
+  h.notes = clipText(value.trim(), SESSION_NOTES_MAX).trim();
   clearTimeout(summaryNotesTimer);
   summaryNotesTimer = setTimeout(() => save(), 300);
 }
@@ -271,7 +271,7 @@ function sessionHistoryEntry(sp, sc) {
     category:   sc,
     date:       Date.now(),
     duration:   Date.now() - activeSession.startedAt,
-    notes:      sessionNotes.trim(),
+    notes:      clipText(sessionNotes.trim(), SESSION_NOTES_MAX).trim(),
     ...(storableBodyKg() ? { bodyKg: storableBodyKg() } : {}),
     ...(newSessionHidden() ? { hidden: true } : {}),   // Réglages › Social et coach › Séances visibles par défaut éteint
     exercises:  orderByStart(activeSession.exercises)   // ordre où les exercices ont été commencés

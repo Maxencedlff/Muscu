@@ -772,7 +772,7 @@ function coachTeamHtml() {
         ${coachTeamWeekHtml(st.students)}
         ${compact ? '' : coachPlanningCellHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
-        ${st.students.length >= COACH_SEARCH_FROM ? `<div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="coachSearch" class="search social-search__input" placeholder="Rechercher un élève" aria-label="Rechercher un élève par son pseudo"
+        ${st.students.length >= COACH_SEARCH_FROM ? `<div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="coachSearch" maxlength="${SEARCH_MAX}" class="search social-search__input" placeholder="Rechercher un élève" aria-label="Rechercher un élève par son pseudo"
             autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(coachSearchQ)}"></div>` : ''}
         <div id="coachFilters">${coachFiltersHtml(v)}</div>
         <div class="group" id="coachRows">${coachRowsHtml(v)}</div>
@@ -1242,7 +1242,7 @@ function renderCoachSendMany(uid, progId) {
       <div class="scr">
         <h1 class="scr-title">${esc(progMeta(progId).name)}</h1>
         <p class="scr-sub">Mêmes consignes que pour ${esc(personName(coachStudent(uid)))}. Charge : la dernière que tu as prescrite à chaque élève.</p>
-        ${all.length >= COACH_SEARCH_FROM ? `<div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="coachManySearch" class="search social-search__input" placeholder="Rechercher un élève" aria-label="Rechercher un élève par son pseudo"
+        ${all.length >= COACH_SEARCH_FROM ? `<div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="coachManySearch" maxlength="${SEARCH_MAX}" class="search social-search__input" placeholder="Rechercher un élève" aria-label="Rechercher un élève par son pseudo"
             autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(m.q)}"></div>` : ''}
         <div class="group">
           <button class="cell coach-pick coach-pick--all${allOn ? ' coach-pick--on' : ''}" role="checkbox" aria-checked="${allOn}" data-action="coach-many-all" ${m.busy ? 'disabled' : ''}>

@@ -178,7 +178,8 @@ function waterCups(d) { return [...WATER_CUPS_BASE, ...cleanWaterCups(d.waterCup
 // Ajoute un contenant perso ; { ok, error? } (error : 'name', 'ml', 'taken', 'full')
 function waterAddCup(d, name, ml) {
   const n = typeof name === 'string' ? name.replace(/\s+/g, ' ').trim() : '';
-  if (!n || n.length > WATER_CUP_NAME_MAX) return { ok: false, error: 'name' };
+  // Invisibles seuls (U+200B, U+FEFF) : pas un nom, comme des espaces seuls
+  if (!n || !hasVisible(n) || n.length > WATER_CUP_NAME_MAX) return { ok: false, error: 'name' };
   if (num(ml, 50, WATER_ML_MAX) === null) return { ok: false, error: 'ml' };
   if (waterCups(d).some(c => waterNameKey(c.name) === waterNameKey(n))) return { ok: false, error: 'taken' };
   const mine = cleanWaterCups(d.waterCups);

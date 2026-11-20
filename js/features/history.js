@@ -238,7 +238,7 @@ function renderHistory() {
       <div class="scr" id="histScroll">
         ${histCalHtml()}
         <div class="hist-tools">
-          <input type="search" id="histSearch" class="search" placeholder="Rechercher" value="${esc(histQuery)}"
+          <input type="search" id="histSearch" maxlength="${SEARCH_MAX}" class="search" placeholder="Rechercher" value="${esc(histQuery)}"
                  autocomplete="off" enterkeyhint="search" aria-label="Rechercher dans l'historique">
           ${historyFiltersHtml(filters)}
         </div>

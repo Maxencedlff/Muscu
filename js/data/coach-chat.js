@@ -46,7 +46,8 @@ function chatClean(t) {
 function chatLength(t) { return [...chatClean(t)].length; }
 function chatProblem(t) {
   const n = chatLength(t);
-  return !n ? 'empty' : n > CHAT_MAX ? 'too_long' : null;
+  // Espaces insécables ou caractères invisibles seuls : pas un message (le serveur ne retire que ' \t\n')
+  return !n || !hasVisible(t) ? 'empty' : n > CHAT_MAX ? 'too_long' : null;
 }
 // Arguments des RPC pour une clé : rien (mon coach) ou { student }
 function chatArgs(key) { return key === CHAT_COACH ? {} : { student: key }; }

@@ -281,7 +281,7 @@ function chatInboxScreenHtml() {
   if (!chatAvailable()) return `<div id="chatInbox"><div class="empty-note">${chatHiddenByAge() ? esc(coachErrorText('age_limited')) : 'Les messages ne sont pas encore disponibles.'}</div></div>`;
   if (!st.students.length) return '<div id="chatInbox"><div class="empty-note">Les conversations avec tes élèves s\'affichent ici.</div></div>';
   return `<div id="chatInbox">
-        <div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="chatSearch" class="search social-search__input" placeholder="Rechercher" aria-label="Rechercher un élève par son pseudo"
+        <div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="chatSearch" maxlength="${SEARCH_MAX}" class="search social-search__input" placeholder="Rechercher" aria-label="Rechercher un élève par son pseudo"
             autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(chatInboxQ)}"></div>
         ${chat.error && !chat.threads ? `<p class="social-inline-error" role="status">${esc(chat.error === 'offline' ? 'Pas d\'Internet : pas à jour.' : coachErrorText(chat.error))}</p>` : ''}
         <div class="group chat-inbox" id="chatRows">${chatInboxRowsHtml()}</div>

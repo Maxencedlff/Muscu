@@ -55,7 +55,7 @@ function renderGuide() {
       ${navBar({ title: 'Guide' })}
       <div class="scr">
         <div class="hist-tools">
-          <input type="search" id="guideSearch" class="search" placeholder="Rechercher un sujet" value="${esc(guideQuery)}"
+          <input type="search" id="guideSearch" maxlength="${SEARCH_MAX}" class="search" placeholder="Rechercher un sujet" value="${esc(guideQuery)}"
                  autocomplete="off" enterkeyhint="search" aria-label="Rechercher dans le guide">
         </div>
         <div id="guideList">${guideListHtml()}</div>

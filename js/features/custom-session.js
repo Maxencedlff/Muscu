@@ -19,9 +19,9 @@ function renderCsEdit() {
       <div class="scr">
         <div class="group-title">Nom</div>
         <div class="group">
-          <div class="cell cell--field"><input type="text" id="csName" class="field" value="${esc(existing.label)}"
+          <div class="cell cell--field"><input type="text" id="csName" class="field" value="${esc(existing.label)}" maxlength="${SESSION_LABEL_MAX}"
                placeholder="Ex : Séance A" autocomplete="off" aria-label="Nom de la séance"></div>
-          <div class="cell cell--field"><input type="text" id="csDesc" class="field" value="${esc(existing.desc)}"
+          <div class="cell cell--field"><input type="text" id="csDesc" class="field" value="${esc(existing.desc)}" maxlength="${SESSION_DESC_MAX}"
                placeholder="Description (facultatif)" autocomplete="off" aria-label="Description"></div>
         </div>
         ${isEdit ? `
@@ -53,9 +53,10 @@ registerActions({
     csEditId = null; goBack();
   },
   'save-cs-modal': () => {
-    const name = $('#csName')?.value.trim();
-    const desc = $('#csDesc')?.value.trim() || '';
-    if (!name) { flagInvalid($('#csName'), 'Entre un nom'); return; }
+    // Collage plus long que le champ (ancienne séance, clavier tiers) : coupé ; invisible seul (U+200B) : pas un nom
+    const name = clipText($('#csName')?.value.trim(), SESSION_LABEL_MAX).trim();
+    const desc = clipText($('#csDesc')?.value.trim() || '', SESSION_DESC_MAX).trim();
+    if (!name || !hasVisible(name)) { flagInvalid($('#csName'), 'Entre un nom'); return; }
 
     const id = csEditId || newSessionId();
     const store = userSessions(csProg);

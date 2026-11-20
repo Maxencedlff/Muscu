@@ -153,7 +153,8 @@ function axSectionsHtml(names) {
 
 function axListHtml(q) {
   const nq    = normName(q);
-  const query = q.trim();
+  // Nom d'un exercice créé : au plus EX_NAME_MAX (records du serveur), jamais d'invisibles seuls (U+200B)
+  const query = hasVisible(q) ? clipText(q.trim(), EX_NAME_MAX).trim() : '';
   const eq    = data.exEquip;
   // Toute la bibliothèque (pas de coupure : un exercice ne doit jamais être introuvable sans le chercher)
   // Les exercices créés par la personne (sans matériel connu) restent visibles quel que soit le filtre
@@ -291,7 +292,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
         <span class="ax__spacer"></span>
       </div>
       ${rep ? `<div class="ax__replacing">À la place de ${esc(rep.name)}</div>${axProgressionHtml(rep.name)}` : ''}
-      <input type="search" id="axSearch" class="ax__search" placeholder="${document.documentElement.classList.contains('type-xl') ? 'Rechercher' : 'Rechercher ou créer'}" autocomplete="off"
+      <input type="search" id="axSearch" maxlength="${EX_NAME_MAX}" class="ax__search" placeholder="${document.documentElement.classList.contains('type-xl') ? 'Rechercher' : 'Rechercher ou créer'}" autocomplete="off"
              autocapitalize="sentences" enterkeyhint="done" aria-label="Rechercher un exercice">
       ${axEquipHtml()}
       ${muscleFilterHtml('ax-muscle', axMuscle)}

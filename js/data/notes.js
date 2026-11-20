@@ -24,8 +24,8 @@ const NOTE_MAX = 140;   // une ligne, lue d'un coup d'œil entre deux séries
 // null si vide ou si ce n'est pas un texte
 function cleanNote(v) {
   if (typeof v !== 'string') return null;
-  const t = v.replace(/[\p{Cc}\p{Zl}\p{Zp}]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, NOTE_MAX).trim();
-  return t || null;
+  const t = clipText(v.replace(/[\p{Cc}\p{Zl}\p{Zp}]+/gu, ' ').replace(/\s+/g, ' ').trim(), NOTE_MAX).trim();
+  return t && hasVisible(t) ? t : null;
 }
 
 // Clé d'un exercice pour ses notes : fiche de la bibliothèque (catalogueEntry, chargé plus tard mais appelé

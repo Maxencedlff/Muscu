@@ -178,7 +178,7 @@ function payCodeSheet() {
     title: 'J\'ai un code', confirm: 'Valider', focus: '#payCode',
     body: `<div class="coach-sheet">
         <label class="coach-sheet__label" for="payCode">Code reçu de MDLF Training</label>
-        <input class="coach-code-input" id="payCode" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off"
+        <input class="coach-code-input" id="payCode" type="text" maxlength="40" autocomplete="off" autocapitalize="characters" autocorrect="off"
                spellcheck="false" enterkeyhint="go" placeholder="Ex : K7M2QX9PR4TD" aria-describedby="payCodeHelp">
         <p class="coach-sheet__hint" id="payCodeHelp" aria-live="polite">Lettres et chiffres. Les espaces et les tirets sont ignorés.</p>
       </div>`,

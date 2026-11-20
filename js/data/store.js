@@ -503,6 +503,7 @@ function cleanHistoryEntry(h) {
   if (h.healthSaved !== undefined && h.healthSaved !== true) delete h.healthSaved;   // app iOS : déjà envoyée à Santé
   if (h.hidden !== undefined && h.hidden !== true) delete h.hidden;   // masquée aux abonnés (social), absent sinon
   if (h.notes !== undefined && typeof h.notes !== 'string') delete h.notes;   // note de séance (bilan) : un texte ou rien
+  else if (typeof h.notes === 'string' && h.notes.length > SESSION_NOTES_MAX) h.notes = clipText(h.notes, SESSION_NOTES_MAX);   // ce que le serveur garde
   // Poids du corps au moment de la séance (volume des exercices au poids du corps)
   if (h.bodyKg !== undefined && !(Number.isFinite(h.bodyKg) && h.bodyKg >= 25 && h.bodyKg <= 300)) delete h.bodyKg;
   h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');

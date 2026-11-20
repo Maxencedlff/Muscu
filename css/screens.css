@@ -83,6 +83,9 @@
 .txt-down { color: var(--red-text); }
 .txt-flat { color: var(--label2); }
 .empty-note { text-align: center; color: var(--label2); font-size: 0.882rem; padding: 48px 16px; line-height: 1.5; }
+/* Message qui répète la recherche tapée (« Aucun exercice pour « … » ») : un mot collé de 100 lettres passe à la ligne
+   au lieu de faire défiler la page en largeur (pire testeur, 20/11) */
+.empty-note, .diet-pick__note { overflow-wrap: anywhere; }
 /* Progrès sans aucune séance : une phrase d'invitation, en tête */
 .stats-empty { margin: 8px 4px 16px; color: var(--label2); font-size: 1rem; line-height: 1.35; text-wrap: pretty; }
 

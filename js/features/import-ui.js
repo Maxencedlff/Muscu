@@ -201,7 +201,7 @@ async function openImportLinkSheet(raw) {
   impLinkRaw = raw;
   await sheet({ title: 'Relier à un exercice', cancel: 'Annuler', confirm: '', focus: '#impSearch',
     body: `<p class="imp__lead">« ${esc(raw)} » dans le fichier devient, dans l'app :</p>
-      <input type="search" id="impSearch" class="search" placeholder="Rechercher dans la bibliothèque" autocomplete="off" aria-label="Rechercher un exercice">
+      <input type="search" id="impSearch" maxlength="${SEARCH_MAX}" class="search" placeholder="Rechercher dans la bibliothèque" autocomplete="off" aria-label="Rechercher un exercice">
       <div class="sheet-list imp-pick-list" id="impPickList">${impPickListHtml('')}</div>` });
   impLinkRaw = null;
 }

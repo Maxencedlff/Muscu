@@ -249,9 +249,32 @@ function num(v, min, max, int = false) {
   return n;
 }
 
+// Message d'un nombre refusé : « 12,5 » dans un champ d'entiers dit « nombre entier » (sinon on croirait la valeur hors
+// bornes) ; bornes écrites à la française (0,25)
+function numRefusal(raw, min, max, int) {
+  const b = `entre ${fmtNum(min)} et ${fmtNum(max)}`;
+  return int && /^\s*[+-]?\d*[.,]\d+\s*$/.test(String(raw ?? '')) ? `Nombre entier ${b}` : `Valeur ${b}`;
+}
+
 // Saisie de reps (ou de secondes, de minutes) : chiffres seuls. Un collage « 12abc » ou « 1e3 » ne
 // survit plus au rechargement ni ne s'affiche « 20 kg × abc » (audit du 12/11, m3)
 function cleanReps(v) { return String(v ?? '').replace(/\D/g, '').slice(0, 4); }
+
+// Longueurs des saisies de texte (inventaire des champs : tools/champs/registre.mjs, vérifié par tests/test_pires_testeurs.py).
+// Comme ce que le serveur garde : nom d'exercice 80 (records, left(…, 80)), nom de séance 40 (notifications, left(…, 40)),
+// notes de séance 2000 (fil et coach, left(…, 2000)). Recherche : 100, bien au-delà de tout nom cherché.
+const EX_NAME_MAX = 80, SESSION_LABEL_MAX = 40, SESSION_DESC_MAX = 120, SESSION_NOTES_MAX = 2000, SEARCH_MAX = 100;
+const TEMPO_INPUT_MAX = 12;   // « 3-1-1-0 » et ses variantes (« 3 1 1 0 », « 3-1-X-1 »)
+// Texte coupé à max unités sans jamais couper un emoji en deux : une moitié de paire UTF-16 seule s'affiche « � » et
+// Postgres la refuse (tout l'envoi échouerait)
+function clipText(s, max) {
+  const t = String(s ?? '').slice(0, max);
+  return /[\uD800-\uDBFF]$/.test(t) ? t.slice(0, -1) : t;
+}
+// Au moins un caractère visible : des espaces (insécables compris) ou des caractères invisibles (U+200B, U+FEFF,
+// marques de sens d'écriture) seuls ne font ni un nom ni un message
+const INVISIBLE_RE = /[\s\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u206a-\u206f\ufeff]/gu;
+function hasVisible(s) { return String(s ?? '').replace(INVISIBLE_RE, '') !== ''; }
 
 // Nom d'exercice comparable : minuscules, sans accents, espaces réduits
 // Exécute fn juste après le prochain affichage : un appel natif lent (son, Live Activity) ne retarde
