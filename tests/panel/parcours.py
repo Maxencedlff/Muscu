@@ -723,7 +723,8 @@ def coller(r, sel, texte, quoi):
 def p_champs_limites(r):
     """Le « pire testeur » : un nom d'exercice et un nom de séance collés trop longs (coupés à 80 et 40 caractères),
     un nom fait d'espaces invisibles, un objectif de 0 kg, un âge de 300 ans, une taille « 175,5 » (arrondie), un poids du
-    corps « 72,5 », une longue note de bilan, un aliment sans nom, un commentaire au-delà de 500 caractères."""
+    corps « 72,5 », une note de bilan collée trop longue, un aliment sans nom, un commentaire au-delà de 500 caractères, un numéro
+    de carte pro refusé puis « 04/912 ED.0123 » accepté."""
     r.lancer(REALISTE)
     long = 'Développé couché prise serrée avec pause en bas et tempo lent sur barre, banc incliné à trente degrés'
     with r.etape('exercice-nom-long', 'Fiche exercice : nom collé de 100 caractères, coupé à 80', cle='Nom d\'exercice trop long'):
@@ -764,11 +765,11 @@ def p_champs_limites(r):
         r.attendre('#dietFoodName', 'nom de l\'aliment')
         r.saisir('#dietFoodK', '120', 'énergie')
         r.toucher('.sheet__btn--confirm', 'OK')
-    with r.etape('bilan-note-longue', 'Bilan : longue note de séance', cle='Notes de séance'):
+    with r.etape('bilan-note-longue', 'Bilan : note de 2 100 caractères collée, coupée à 2 000 et dit', cle='Notes de séance'):
         r.raccourci("document.querySelectorAll('.sheet-root').forEach(s => s._close ? s._close() : s.remove()); "
                     "lastSummary = buildSummary(data.history[data.history.length - 1]); routeTo('summary')", 'bilan de la dernière séance')
         r.attendre('#summaryNotes', 'notes du bilan')
-        r.saisir('#summaryNotes', 'Bonne séance. ' * 12 + 'Épaule gauche un peu sensible sur le développé, à surveiller.', 'notes du bilan')
+        coller(r, '#summaryNotes', ('Bonne séance, épaule gauche un peu sensible sur le développé, à surveiller. ' * 30)[:2100], 'notes du bilan')
     with r.etape('commentaire-trop-long', 'Commentaire au-delà de 500 caractères : compteur rouge, Envoyer grisé', cle='Commentaires'):
         r.connecter('max', amis=True)
         r.raccourci("""() => { const now = Date.now();
@@ -781,6 +782,16 @@ def p_champs_limites(r):
         r.raccourci("() => { const t = document.querySelector('#commentInput'); t.value = 'Belle séance ! '.repeat(34); "
                     "t.dispatchEvent(new Event('input', { bubbles: true })); }", 'commentaire de 510 caractères collé')
         r.defiler('.comment-compose', 'champ du commentaire et son compteur')
+    with r.etape('carte-refusee', 'Demande de coach : numéro de carte « 12 » refusé, avec son message', cle='Carte pro'):
+        r.raccourci("navigate('coach-request')", 'Réglages › Devenir coach')
+        r.attendre('#coachReqName', 'formulaire de la demande')
+        r.saisir('#coachReqName', 'Jean Dupont', 'nom sur la carte')
+        r.saisir('#coachReqCard', '12', 'numéro de carte')
+        r.raccourci("() => { const s = document.querySelector('#coachReqDiploma'); s.selectedIndex = 1; s.dispatchEvent(new Event('change', { bubbles: true })); }", 'diplôme choisi')
+        r.toucher('[data-action="coach-request-send"]', 'Envoyer ma demande')
+    with r.etape('carte-acceptee', 'Numéro « 04/912 ED.0123 » accepté (points, barres et espaces ignorés comme par le serveur)', cle='Carte pro'):
+        r.saisir('#coachReqCard', '04/912 ED.0123', 'numéro de carte')
+        r.toucher('[data-action="coach-request-send"]', 'Envoyer ma demande')
 
 
 @parcours('reglages', 'Réglages (chaque groupe)', 'pratiquant')

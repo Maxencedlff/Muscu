@@ -55,7 +55,7 @@ function chatListHtml(key) {
 
 function chatCountText(text) {
   const n = chatLength(text);
-  return n > CHAT_MAX ? `${plural(n - CHAT_MAX, 'caractère', 'caractères')} en trop` : n >= CHAT_WARN ? `${n} / ${CHAT_MAX}` : '';
+  return n > CHAT_MAX ? `${plural(n - CHAT_MAX, 'caractère', 'caractères')} en trop, enlève-${n - CHAT_MAX > 1 ? 'les' : 'le'} pour envoyer` : n >= CHAT_WARN ? `${n} / ${CHAT_MAX}` : '';
 }
 
 // Notifications refusées dans iOS : une ligne discrète vers les Réglages de l'iPhone (js/features/push-ui.js)
@@ -157,6 +157,7 @@ document.addEventListener('input', e => {
   const send = $('.chat-compose .comment-compose__send'), count = $('#chatCount');
   if (send) send.disabled = chatConv(el.dataset.key).sending || !!chatProblem(el.value);
   if (count) { count.textContent = chatCountText(el.value); count.classList.toggle('is-over', chatLength(el.value) > CHAT_MAX); }
+  el.closest('.comment-compose')?.classList.toggle('comment-compose--over', chatLength(el.value) > CHAT_MAX);   // bulle en rouge
 });
 
 async function sendChat(key) {
@@ -171,6 +172,7 @@ async function sendChat(key) {
   if (el) { el.value = rest; fitCommentInput(el); }
   const count = $('#chatCount');
   if (count) count.textContent = rest ? chatCountText(rest) : '';
+  document.querySelector('.chat-compose')?.classList.toggle('comment-compose--over', chatLength(rest || '') > CHAT_MAX);
   announce('Message envoyé');
   if (!refreshChatList(key)) render();
   // Relu tout de suite : un message de l'autre arrivé juste avant le mien s'affiche sans attendre 15 s

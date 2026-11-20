@@ -19,7 +19,8 @@ function cellIco(name, tone = 'gray') {
 
 // Ligne d'un formulaire qui porte un champ : le message d'erreur ou de limite s'écrit juste dessous
 const FIELD_HOST_SEL = '.cell, .diet-field, .coach-req-field, .date-row, .ios-dialog__field';
-function fieldHost(input) { return input?.closest?.(FIELD_HOST_SEL) || null; }
+// Zone de texte hors ligne de formulaire (notes du bilan, séance ajoutée) : le message va juste sous elle
+function fieldHost(input) { return input?.closest?.(FIELD_HOST_SEL) || (input?.matches?.('textarea') ? input : null); }
 // Message sous le champ (cls : field-err rouge, field-hint gris), réutilisé s'il est déjà là ; retiré à la frappe
 function fieldNote(input, msg, cls = 'field-err') {
   const host = fieldHost(input);
@@ -105,19 +106,27 @@ function fieldLimitNotice(e) {
   }
   if (!el?.matches?.('input[maxlength], textarea[maxlength]') || /numeric|decimal/.test(el.inputMode || '')) return;
   if (el.getAttribute('aria-describedby')?.includes('Count')) return;   // compteur « 120/1000 » déjà affiché
-  const max = el.maxLength, before = el._lenBefore ?? 0, pasted = el._pasted;
+  const max = el.maxLength, before = el._lenBefore ?? 0, pasted = el._pasted, len = el.value.length;
   el._pasted = false;
-  if (!(max > 0) || el.value.length < max) return;
+  if (!(max > 0)) return;
+  // Zone de texte longue (notes de séance) : compteur à l'approche de la limite, comme les commentaires
+  if (len < max) {
+    if (el.matches('textarea') && max >= 200 && len >= max * 0.9) fieldNote(el, `${fmtNum(len)} / ${fmtNum(max)} caractères`, 'field-hint');
+    return;
+  }
   // Collage coupé : sur iOS, un vrai collage (insertFromPaste) arrive SANS e.data ; on le reconnaît à son type, à
   // l'événement paste, ou à un saut de plus d'un caractère (panel du 20/11, t2 : jamais signalé sur iPhone)
   const cut = pasted || /^insertFrom(Paste|Drop)$|^insertReplacementText$/.test(e.inputType || '')
     || el.value.length - before > 1 || (typeof e.data === 'string' && e.data.length > 1);
   if (cut) {
-    if (fieldNote(el, `Coupé à ${max} caractères`, 'field-warn')) announce(`Coupé à ${max} caractères`);
+    // Texte très grand : un champ d'une ligne n'en montre qu'un bout, le texte gardé est redit en entier dessous
+    const xl = el.matches('input') && document.documentElement.classList.contains('type-xl');
+    const msg = `Coupé à ${fmtNum(max)} caractères${xl ? `. Gardé : « ${el.value} »` : ''}`;
+    if (fieldNote(el, msg, 'field-warn')) announce(`Coupé à ${fmtNum(max)} caractères`);
     else showToast(`Coupé à ${max} caractères`);
     // Début du nom gardé à l'écran pour le relire ; le curseur reste où il est (la frappe suivante le ramène)
     requestAnimationFrame(() => { el.scrollLeft = 0; el.scrollTop = 0; });
-  } else if (!fieldNote(el, `${max} caractères au plus`, 'field-hint')) showToast(`${max} caractères au plus`);
+  } else if (!fieldNote(el, `${fmtNum(max)} caractères au plus`, 'field-hint')) showToast(`${max} caractères au plus`);
 }
 // Longueur juste avant chaque saisie, et collage repéré : fieldLimitNotice sait si le texte est arrivé d'un coup
 function fieldBeforeInput(e) { if (e.target?.matches?.('input, textarea')) e.target._lenBefore = e.target.value.length; }
