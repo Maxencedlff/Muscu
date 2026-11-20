@@ -135,7 +135,7 @@ html.type-xl .coach-code.coach-code--fit { white-space: normal; }
 html.type-xl .coach-code-cell .cell__body { min-width: 0; flex-basis: 100%; }
 .coach-code__blk { display: inline-block; white-space: nowrap; }
 .coach-code-cell .cell__sub { white-space: normal; overflow-wrap: break-word; }
-.coach-code-cell:has(> .coach-icon-btn) > .coach-icon-btn:first-of-type { margin-left: auto; }
+.coach-code-cell__btns { display: inline-flex; flex-shrink: 0; margin-left: auto; }   /* Copier et Partager restent ensemble */
 .coach-code-cell .coach-icon-btn + .coach-icon-btn { margin-left: -6px; }
 .coach-code { font-size: var(--fs-body); font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
 .coach-icon-btn {

@@ -366,7 +366,7 @@ CODE_FITS = """() => [...document.querySelectorAll('.coach-code-cell')].filter(c
     const r = c.getBoundingClientRect(), code = c.querySelector('.coach-code'), sub = c.querySelector('.cell__sub');
     const fs = parseFloat(getComputedStyle(code).fontSize), blks = [...c.querySelectorAll('.coach-code__blk')].map(b => b.getBoundingClientRect());
     const btns = [...c.querySelectorAll('button')].map(b => b.getBoundingClientRect());
-    return { text: code.textContent, fs, blocks: blks.length, oneLine: blks.every(b => Math.abs(b.top - blks[0].top) < 2),
+    return { text: code.textContent, fs, blocks: blks.length, together: btns.length === 2 && Math.abs(btns[0].top - btns[1].top) < 2, oneLine: blks.every(b => Math.abs(b.top - blks[0].top) < 2),
       inside: blks.every(b => b.left >= r.left - 0.5 && b.right <= r.right + 0.5) && btns.every(b => b.right <= r.right + 0.5 && b.left >= r.left - 0.5),
       blockWhole: blks.every(b => b.height < fs * 1.7), sub: sub.scrollWidth <= sub.clientWidth + 1 && sub.getBoundingClientRect().right <= r.right + 0.5,
       noOverflow: c.scrollWidth <= c.clientWidth + 1 }; })"""
@@ -377,7 +377,7 @@ def code_fits(page, t, where, one_line=False):
     moins), sous-titre entier, Copier et Partager dans la carte."""
     cells = page.evaluate(CODE_FITS)
     code = page.evaluate('formatCoachCode(coachPro.code)')
-    ok = len(cells) == 1 and all(c['text'] == code and c['blocks'] == 3 and c['inside'] and c['blockWhole'] and c['sub'] and c['noOverflow'] and c['fs'] >= 17 and (c['oneLine'] or not one_line) for c in cells)
+    ok = len(cells) == 1 and all(c['text'] == code and c['blocks'] == 3 and c['inside'] and c['blockWhole'] and c['sub'] and c['noOverflow'] and c['together'] and c['fs'] >= 17 and (c['oneLine'] or not one_line) for c in cells)
     R.check(ok, f'{t} {where} : code coach entier{" sur une ligne" if one_line else ""} ({cells})')
 
 
