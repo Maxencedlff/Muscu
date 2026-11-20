@@ -140,6 +140,9 @@ def close_all(page):
             else:
                 page.keyboard.press('Escape')
             settle(page)
+        elif page.locator('.sess-sheet').count():   # feuilles de séance (disques, outils)
+            page.evaluate("closeSessSheets()")
+            settle(page)
         elif page.locator('.sheet-root').count():
             page.evaluate("document.querySelectorAll('.sheet-root').forEach(s => s._close ? s._close() : s.remove())")
             settle(page)
@@ -372,7 +375,7 @@ def recettes():
         Champ('features/session-tools.js:askNumber:Autre disque', 'Autre disque', plates_other, '.ios-dialog__input', ok_btn(),
               lambda p: p.evaluate("JSON.stringify(plateSetup().plates)"),
               lambda a, b, s: [] if b == a else regle_nombre(0.25, 50)(None, [x for x in json.loads(b) if x not in json.loads(a)][0], s),
-              NOMBRES, valables=[('1,25', None)]),
+              NOMBRES, valables=[('0,75', None)]),   # 1,25 fait déjà partie des disques par défaut
         Champ('features/program-generator-ui.js:askText:Haltères fixes', 'Haltères fixes',
               lambda p: (p.evaluate("void openProgGen()"), settle(p), act(p, 'gen-db-loads'), p.wait_for_selector('.ios-dialog__input')),
               '.ios-dialog__input', ok_btn(), lambda p: p.evaluate('genAns.dbLoads'),
@@ -654,6 +657,7 @@ def t_avant(bench, eng, dev, theme):
     note, sess, exn = 'n' * 5000, 'S' * 60, 'E' * 120
     d = ppl_v2_today()
     d['history'][-1]['notes'] = note
+    d['history'][-1]['id'] = 'avant0001'   # identifiant à elle (ceux de la donnée de test se répètent d'une semaine à l'autre)
     d['customSessions'][CUSTOM_ID]['label'] = sess
     d['programmes']['ppl']['exercises']['push'][0]['name'] = exn
     d['heightCm'] = 175.5
