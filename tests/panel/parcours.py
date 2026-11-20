@@ -329,6 +329,10 @@ def p_progres(r):
         r.page.wait_for_timeout(700)
     with r.etape('silhouette-zoom', 'Carte Muscles : toucher deux fois, vue agrandie'):
         r.page.evaluate('closeBodyTip()')
+        r.page.locator('.mcard__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
+        r.page.wait_for_timeout(300)
+        xy = r.page.evaluate("""id => { const l = document.querySelector(`.mcard__map [data-part="${id}"]`);
+            const b = l.getBoundingClientRect(); return [b.left + b.width * 0.3, b.top + b.height * 0.5]; }""", part)
         r.page.mouse.dblclick(*xy)
         r._note('deux touchers : vue agrandie')
         r.attendre('.azoom', 'vue agrandie')

@@ -65,7 +65,9 @@
 .body-map--crop .body-map__fig { overflow: hidden; }
 .body-map__body { position: absolute; left: 0; width: 100%; }
 .type-xl .mpanel__zoom svg { width: 30px; height: 30px; }
-.type-xl .btip__latin { display: none; }   /* texte agrandi : bulle plus courte, le nom de salle suffit */
+.type-xl .btip__latin { display: none; }
+.type-xl .btip__target { display: none; }   /* texte agrandi : la bulle de Progrès garde le nom, les séries, le palier et les exercices */
+.type-xl .btip { max-width: calc(100vw - 16px); }   /* plus large, donc moins haute */   /* texte agrandi : bulle plus courte, le nom de salle suffit */
 /* Bouton Agrandir à droite des pastilles, hors du dessin (sur une carte cadrée, il passait sur une main) */
 .mpanel__foot { display: flex; align-items: flex-start; gap: 8px; }
 .mpanel__foot .mpills { flex: 1; min-width: 0; }

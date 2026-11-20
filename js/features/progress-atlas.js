@@ -35,6 +35,6 @@ function atlasLoadTipHtml(part) {
     <p class="btip__sub">${count}</p>
     <p class="btip__level">${muscleLevelDot(lvl)}<span>${MUSCLE_LEVEL_WORDS[lvl]}</span></p>
     ${top.length ? `<p class="btip__sub btip__top">Le plus : ${top.map(([ex]) => esc(ex)).join(', ')}</p>` : ''}
-    <p class="btip__sub">Repère : ${muscleTarget()}</p>
+    <p class="btip__sub btip__target">Repère : ${muscleTarget()}</p>
     ${part.parent ? `<button class="btip__link" data-action="go-stats-muscles" data-muscle="${part.parent}">Séries par muscle${icon('chevron.right', 14)}</button>` : ''}`;
 }
