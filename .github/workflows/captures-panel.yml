@@ -52,11 +52,14 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+      - name: Paquet Python playwright, sans navigateur (tests/fixtures.py l'importe)
+        run: python3 -m pip install --quiet --user --break-system-packages "playwright==1.62.0"
       - id: m
         env:
           PARCOURS: ${{ inputs.parcours }}
           MODES: ${{ github.event_name == 'push' && 'complet,recents,grand-texte' || inputs.modes }}
         run: |
+          set -o pipefail
           [[ "$PARCOURS" =~ ^[a-z0-9,-]*$ && "$MODES" =~ ^[a-z,-]+$ ]] || { echo "entrées invalides"; exit 1; }
           m=$(python3 tests/panel/gh.py plan --modes "$MODES" --parcours "$PARCOURS" | tail -1)
           echo "matrice=$m" >> "$GITHUB_OUTPUT"
@@ -115,6 +118,8 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+      - name: Paquet Python playwright, sans navigateur (tests/fixtures.py l'importe)
+        run: python3 -m pip install --quiet --user --break-system-packages "playwright==1.62.0"
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           pattern: part-*
