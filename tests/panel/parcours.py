@@ -316,6 +316,27 @@ def p_progres(r):
         r.attendre('.view.stats', 'Progrès')
     with r.etape('silhouette', 'Carte Muscles (silhouette de la semaine)'):
         r.defiler('.mcard', 'carte Muscles')
+    # Personnage détaillé de Progrès : un sous-muscle touché (séries de la période, 3 exercices), puis la vue agrandie
+    with r.etape('silhouette-nom', 'Carte Muscles : toucher le muscle le plus travaillé (séries, exercices)', cle='Voir ses muscles travaillés'):
+        part = r.page.evaluate("""() => Object.entries(partLoad(muscleSpan).sets).filter(([id]) => !ATLAS_SIMPLE_MUSCLES.has(atlasPart(id).parent) && !atlasPart(id).deep)
+            .sort((a, b) => b[1] - a[1])[0]?.[0]""")
+        xy = part and r.page.evaluate("""id => { const l = document.querySelector(`.mcard__map [data-part="${id}"]`); if (!l) return null;
+            const b = l.getBoundingClientRect(); return [b.left + b.width * 0.3, b.top + b.height * 0.5]; }""", part)
+        if not xy:
+            raise Absent('introuvable : muscle travaillé sur la carte')
+        r.page.mouse.click(*xy)
+        r._note('muscle le plus travaillé')
+        r.page.wait_for_timeout(700)
+    with r.etape('silhouette-zoom', 'Carte Muscles : toucher deux fois, vue agrandie'):
+        r.page.evaluate('closeBodyTip()')
+        for _ in range(2):
+            r.page.mouse.click(*xy)
+            r.page.wait_for_timeout(90)
+        r._note('deux touchers : vue agrandie')
+        r.attendre('.azoom', 'vue agrandie')
+        r.page.wait_for_timeout(1200)
+    with r.etape('silhouette-fermer', 'Vue agrandie : OK'):
+        r.toucher('.sheet-root--atlas .sheet__btn--confirm', 'OK')
     with r.etape('progres-bas', 'Progrès, bas de l\'écran (liste des exercices)'):
         r.bas()
     with r.etape('detail-groupe', 'Détail d\'un groupe (Pectoraux : force, exercices, séries par semaine)', cle='Voir la force d\'un groupe'):
@@ -603,6 +624,14 @@ def p_atlas(r):
     with r.etape('nom', 'Toucher le haut des pectoraux : nom de salle et nom officiel', cle='Voir les muscles d\'un exercice en détail'):
         _toucher_sous_muscle(r, '.mpanel__map', 'chest_clavicular', 'haut des pectoraux')
         r.attendre('.btip', 'bulle du muscle')
+    with r.etape('aident', 'Toucher « Muscles qui aident » : seuls ces muscles restent sur le personnage', cle='Voir les muscles d\'un exercice en détail'):
+        r.page.evaluate('closeBodyTip()')
+        r.toucher('.library-ex .mline2[data-level="1"]', 'ligne « Muscles qui aident »')
+    with r.etape('isoler', 'Toucher « Triceps » : ce seul muscle sur le personnage'):
+        r.toucher('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]', 'nom « Triceps »')
+    with r.etape('tout', 'Toucher de nouveau : tous les muscles reviennent'):
+        r.toucher('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]', 'nom « Triceps »')
+        r.defiler('.library-ex .mpanel--atlas', 'personnage')
     with r.etape('zoom', 'Toucher deux fois : vue agrandie, zoomée sur la poitrine', cle='Voir les muscles d\'un exercice en détail'):
         _toucher_sous_muscle(r, '.mpanel__map', 'chest_clavicular', 'deux touchers sur la poitrine', double=True)
         r.attendre('.azoom', 'vue agrandie')

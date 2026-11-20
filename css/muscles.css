@@ -41,6 +41,25 @@
    Calques recadrés sur chaque sous-muscle, posés à leur boîte (style en ligne : left, top, width, height). */
 .body-map--atlas[data-action="body-tap"] { touch-action: pan-y; }   /* le pincement ouvre la vue agrandie, pas le zoom de la page */
 .mpanel--atlas { position: relative; }
+/* Variante E : muscles qui aident en rose franc opaque (--body-heat-help), ombrage du calque gardé en lumière douce
+   (soft-light) pour qu'ils restent clairs sur le gris du corps. Mesuré sur capture (iPhone 13, développé incliné, 20/11) :
+   sombre #FF9FB2, rose / gris 2,7:1, rouge plein / rose 1,9:1 ; clair #E8708A, rouge plein / rose 2,0:1, rose / gris
+   1,2 à 1,4:1 en luminance (le rose s'en distingue par la teinte ; avant, rouge transparent à 0,45 : 1,0:1) */
+.body-map--atlas .body-map__m--sec { background-color: var(--body-heat-help); background-blend-mode: soft-light; }
+/* Ligne touchée : seuls ses muscles restent, en rouge plein ; fondu doux entre les deux états */
+.body-map--atlas .body-map__p { transition: opacity .2s ease, background-color .2s ease; }
+.body-map--atlas[data-iso] .body-map__p:not(.is-on) { opacity: 0 !important; }
+.body-map--atlas[data-iso] .body-map__p.is-on { opacity: 1 !important; background-color: var(--body-heat); background-blend-mode: multiply; }
+@media (prefers-reduced-motion: reduce) { .body-map--atlas .body-map__p { transition: none; } }
+.mline2 { align-items: center; text-align: left; width: 100%; }
+.mline2__dot { width: .75em; height: .75em; border-radius: 50%; flex-shrink: 0; }   /* grandit avec le texte (AX33) */
+.mline2__dot--main { background: var(--body-heat); }
+.mline2__dot--help { background: var(--body-heat-help); }
+.mline2 .cell__title { overflow-wrap: break-word; }
+.mline2__name--on { color: var(--body-heat); font-weight: 600; }
+.mline2__more { color: var(--tint); white-space: nowrap; }
+.mline2[aria-pressed="true"] { background: var(--cell2); }
+.mpanel--atlas .mpanel__foot { justify-content: flex-end; }
 /* Muscles travaillés tous en haut (ou tous en bas) du corps : carte cadrée sur cette moitié (bodyAtlasCrop), plus large */
 .mpanel__map.body-map--crop { width: min(100%, 330px); }
 .body-map--crop .body-map__fig { overflow: hidden; }
@@ -61,6 +80,7 @@
 /* Vue agrandie : feuille à sa hauteur maximale, le personnage prend la place que laissent le titre et la consigne
    (en AX33, titre sur deux lignes et consigne entière, sans rien couper) */
 .sheet-root--atlas .sheet { height: 92vh; height: 92dvh; }
+.sheet-root--now .sheet, .sheet-root--now .sheet__backdrop { animation: none; }   /* ouverte par un pincement : sans glissement */
 .sheet-root--atlas .sheet__body { display: flex; flex-direction: column; padding: 0 0 12px; overflow: hidden; }
 .azoom {
   position: relative; flex: 1 1 auto; min-height: 160px; overflow: hidden; touch-action: none;

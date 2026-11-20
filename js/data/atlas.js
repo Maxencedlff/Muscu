@@ -44,10 +44,10 @@ function exercisePartLevels(name, m) {
   return { levels, source: 'muscles' };
 }
 
-// Rôle dit dans la bulle d'un sous-muscle touché, d'après sa couleur à l'écran (comme la légende de la fiche :
-// « Principaux en rouge plein, secondaires en rouge atténué »)
+// Rôle dit dans la bulle d'un sous-muscle touché, d'après sa couleur à l'écran : les mots des deux lignes de la fiche
+// (« Muscles ciblés » en rouge plein, « Muscles qui aident » en rose)
 function atlasRole(level) {
-  return level >= 2 ? 'Muscle principal' : level === 1 ? 'Muscle secondaire' : 'Non ciblé par cet exercice';
+  return level >= 2 ? 'Muscle ciblé' : level === 1 ? 'Muscle qui aide' : 'Non ciblé par cet exercice';   // mots des deux lignes de la fiche
 }
 
 // ── Noms de salle : pastilles et titre de la bulle ──────────
@@ -92,3 +92,81 @@ function atlasPills(levels) {
   return [...by].map(([label, level]) => ({ label, level })).sort((a, b) => b.level - a.level);
 }
 
+
+// ── Fiche exercice (variante E) : deux lignes « Muscles ciblés » / « Muscles qui aident » ──
+// Rôles d'un exercice par sous-muscle : p (série entière) et s (demi-série), d'après la correspondance quand elle vaut
+// pour les muscles affichés (exercisePartLevels source 'atlas'), sinon chaque muscle entier. { p: [ids], s: [ids] }
+function exercisePartRoles(name, m) {
+  const r = exercisePartLevels(name, m), e = EXERCISE_PARTS[catalogueEntry(name)?.name];
+  if (r.source === 'atlas' && e) return { p: Object.keys(e.p), s: Object.keys(e.s) };
+  const p = (m?.primary || []).flatMap(atlasPartsOf), s = (m?.secondary || []).flatMap(atlasPartsOf).filter(id => !p.includes(id));
+  return { p, s };
+}
+
+// Noms classés pour les deux lignes : chaque nom de pastille une fois, à l'intensité la plus forte de ses sous-muscles,
+// dans l'ordre de la correspondance (le plus sollicité d'abord : principaux puis secondaires). [{ label, level, ids }]
+function atlasRanked(name, m, levels) {
+  const { p, s } = exercisePartRoles(name, m);
+  const order = [...p, ...s.filter(id => !p.includes(id))];
+  const rank = id => (levels[id] >= 2 ? 0 : 1000) + (order.includes(id) ? order.indexOf(id) : 500 + (atlasPart(id)?.rank || 0));
+  const by = new Map();
+  for (const id of Object.keys(levels).filter(id => levels[id] > 0).sort((a, b) => rank(a) - rank(b))) {
+    const label = atlasPillLabel(id), cur = by.get(label);
+    if (cur) { cur.level = Math.max(cur.level, levels[id]); cur.ids.push(id); } else by.set(label, { label, level: levels[id], ids: [id] });
+  }
+  return [...by.values()].sort((a, b) => b.level - a.level);   // tri stable : l'ordre de la correspondance reste
+}
+
+// Au-delà de max noms (4), les premiers puis « + N autres » : { shown, more }
+const ATLAS_LINE_MAX = 4;
+function atlasLineItems(items, max = ATLAS_LINE_MAX) {
+  return items.length > max ? { shown: items.slice(0, max - 1), more: items.length - (max - 1) } : { shown: items, more: 0 };
+}
+
+// ── Progrès : travail de la période par sous-muscle ─────────
+// Séries des séances de la période × correspondance : un sous-muscle principal compte la série entière, un secondaire
+// la moitié (SECONDARY_WEIGHT, comme les 18 muscles et Strava). { sets: { id: n }, byEx: { id: { nom: n } } }
+const ATLAS_SECONDARY_WEIGHT = 0.5;
+function partSetCounts(history, from = -Infinity, to = Infinity, index = chosenMusclesIndex()) {
+  const sets = {}, byEx = {};
+  const add = (id, n, ex) => {
+    sets[id] = (sets[id] || 0) + n;
+    (byEx[id] ||= {})[ex] = (byEx[id][ex] || 0) + n;
+  };
+  (history || []).forEach(h => {
+    if (!(h?.date >= from && h.date < to)) return;
+    (h.exercises || []).forEach(e => {
+      const n = workSets(e.sets).filter(s => (parseInt(s?.reps) || 0) > 0).length;
+      if (!n) return;
+      const { p, s } = exercisePartRoles(e.name, exerciseMuscles(e, index));
+      const name = catalogueEntry(e.name)?.name || e.name;
+      p.forEach(id => add(id, n, name));
+      s.forEach(id => { if (!p.includes(id)) add(id, n * ATLAS_SECONDARY_WEIGHT, name); });
+    });
+  });
+  return { sets, byEx };
+}
+
+// Muscles du bas du corps : carte simple (le palier du muscle entier sur tous ses sous-muscles) jusqu'au détail des jambes
+const ATLAS_SIMPLE_MUSCLES = new Set(['glutes', 'quads', 'hamstrings', 'adductors', 'calves']);
+
+// Charge de la période par sous-muscle, mêmes périodes et paliers que muscleLoad (séries par semaine affichées) :
+// { sets, weekly, levels: { id: 0..MUSCLE_LEVEL_MAX }, byEx, load } ; load : muscleLoad de la même période
+function partLoad(spanKey = 'week', now = Date.now(), history = data.history) {
+  const load = muscleLoad(spanKey, now, history), span = MUSCLE_SPANS[spanKey] || MUSCLE_SPANS.week;
+  const from = span.calendar ? weekStart(now) : now - span.days * 86_400_000;
+  const { sets, byEx } = partSetCounts(history, from, now + 1);
+  const weekly = {}, levels = {};
+  for (const p of BODY_PARTS.parts) {
+    if (ATLAS_SIMPLE_MUSCLES.has(p.parent)) { levels[p.id] = load.levels[p.parent] || 0; weekly[p.id] = load.weekly[p.parent] || 0; continue; }
+    const perWeek = roundSets(sets[p.id] || 0) / span.weeks;
+    weekly[p.id] = perWeek > 0 ? Math.max(1, Math.round(perWeek)) : 0;
+    levels[p.id] = muscleLevel(weekly[p.id]);
+  }
+  return { sets, weekly, levels, byEx, load };
+}
+
+// Les 3 exercices qui ont le plus travaillé un sous-muscle sur la période : [[nom, séries]]
+function partTopExercises(byEx, id, n = 3) {
+  return Object.entries(byEx[id] || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n);
+}

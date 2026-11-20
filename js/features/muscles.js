@@ -86,7 +86,7 @@ function exMusclesGroupHtml(ex, title = 'Muscles ciblés', { textOnly = false, a
   const line = deepLine || textOnly && !atlas && m.primary.length && !m.secondary.length && `<div class="cell mline"><span class="cell__body"><span class="cell__title cell__title--reg">${esc([...new Set(m.primary.map(muscleLabel))].join(', '))}</span></span></div>`;
   return `<div class="group-title">${title}</div>
     <div class="group">${line || exMusclesPanelHtml(m, { atlas: atlas ? ex.name : '' })}${c.rows}</div>
-    ${c.foot || atlas ? `<div class="group-foot">${[c.foot, atlas && !line && m.primary.length ? ATLAS_TAP_HINT : ''].filter(Boolean).join(' ')}</div>` : ''}`;
+    ${c.foot || atlas ? `<div class="group-foot">${[atlas && !line && m.primary.length ? atlasFoot(c.foot) : c.foot, atlas && !line && m.primary.length ? ATLAS_TAP_HINT : ''].filter(Boolean).join(' ')}</div>` : ''}`;
 }
 
 // ── Programme › Exercice : muscles reconnus ou choisis ──────
@@ -277,7 +277,7 @@ function renderMuscleCard() {
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
-        ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true, tiers: true, tap: true })}
+        ${progressAtlasHtml(muscleSpan)}
         ${muscleLegendHtml(muscleSpan, load)}
         ${muscleSrListHtml(load)}
       </div>

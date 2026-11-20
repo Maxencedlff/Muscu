@@ -6,9 +6,11 @@
 // Carte de la fiche exercice (bodyAtlasHtml, js/ui/body-map.js) :
 //   un toucher        bulle du sous-muscle : nom de salle, nom officiel (latin), rôle pour cet exercice
 //   deux touchers     vue agrandie, zoomée là où le doigt a touché
-//   deux doigts       vue agrandie, ouverte zoomée ×2 sur le milieu des doigts (pour zoomer plus, pincer dans la vue)
+//   deux doigts       vue agrandie, et le pincement CONTINUE dedans avec les mêmes doigts (atlasPinchFromMap) : les
+//                     touchers restent adressés à la carte (cible d'origine) même sous la feuille, on les recopie
 //   bouton Agrandir   vue agrandie (VoiceOver, et pour qui ne connaît pas les gestes)
-// Vue agrandie (feuille) : pincer, glisser, toucher deux fois (zoom ou retour), boutons + et − (VoiceOver, contacteur),
+// Vue agrandie (feuille) : pincer (le zoom suit les doigts, de ×1 à ×6, élastique aux bornes comme Photos), glisser
+// (avec inertie), toucher deux fois (×2,5 sur le point touché, puis retour), boutons + et − (VoiceOver, contacteur),
 // toucher un muscle (bulle, posée dans la feuille modale pour VoiceOver).
 // Déplacement et zoom : un seul transform CSS (translate3d + scale) sur la scène, écrit une fois par image ;
 // le compositeur de WebKit agrandit la couche sans repeindre (démo : mdlf-perso/demo-zoom).
@@ -25,7 +27,7 @@ const ATLAS_LINES_AT = 2;     // au-delà : contours des sous-muscles
 const ATLAS_MAX = 6;
 const ATLAS_DOUBLE_MS = 320;  // deux touchers à moins de 320 ms et 32 points : double toucher
 const ATLAS_DOUBLE_PX = 32;
-const ATLAS_ZOOM_TO = 2.6;    // double toucher : zoom sur le point touché
+const ATLAS_ZOOM_TO = 2.5;    // double toucher : zoom sur le point touché
 const ATLAS_STEP = 1.6;       // boutons + et − : facteur de zoom par toucher
 
 // ── Carte de toucher ────────────────────────────────────────
@@ -97,7 +99,8 @@ function atlasMarkHtml(kind, view, id, res, tint) {
 // selon les images affichées ; zone : élément dont la bulle ne sort pas en hauteur (le dessin) ; avoid : éléments
 // jamais couverts (pastilles, en-tête de la feuille, OK, boutons) ; container : parent de la bulle (feuille modale).
 // Places : au-dessus du muscle, sinon en dessous, flèche vers le doigt ; puis ailleurs dans la zone.
-async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root, avoid = [], container = null } = {}) {
+// tip : 'load' (Progrès : volume de la période, atlasLoadTipHtml de js/features/progress-atlas.js), sinon la fiche
+async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root, avoid = [], container = null, tip = '' } = {}) {
   const seq = ++bodyTipSeq;
   const hit = await atlasPartAt(root, kind, e.clientX, e.clientY);
   if (seq !== bodyTipSeq || !root.isConnected) return;
@@ -112,7 +115,7 @@ async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root
   const cost = r => boxes.reduce((t, { r: b, k }) => t + k * Math.max(0, Math.min(r.right, b.right) - Math.max(r.left, b.left))
     * Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top)), 0);
   const z = zone.getBoundingClientRect(), x = e.clientX, y = e.clientY, gap = 14;
-  showBodyTip(atlasTipHtml(hit.part, lv), x, y, container ? null : root, {
+  showBodyTip(tip === 'load' ? atlasLoadTipHtml(hit.part) : atlasTipHtml(hit.part, lv), x, y, container ? null : root, {
     // Zone du dessin, réduite à ce qui est visible (sous la barre de navigation, au-dessus de la barre d'onglets)
     cost, container, spotTol: 1, bounds: (b => ({ minTop: Math.max(z.top + 4, b.minTop), maxBottom: Math.min(z.bottom - 4, b.maxBottom) }))(bodyTipBounds(container ? null : root)),
     avoid: avoid.filter(Boolean).map(a => a.getBoundingClientRect()),
@@ -142,42 +145,71 @@ function atlasTap(e, mapEl) {
   }
   atlasLastTap = { el: mapEl, t: now, x: e.clientX, y: e.clientY };
   const panel = mapEl.closest('.mpanel');
-  atlasShowName(mapEl, bodyKind(mapEl.dataset.body), atlasLevels(mapEl), e,
-    { zone: mapEl.querySelector('.body-map__row') || mapEl, avoid: [panel?.querySelector('.mpills'), panel?.querySelector('.mpanel__zoom')] });
+  const group = mapEl.closest('.group, .mpanel');
+  atlasShowName(mapEl, bodyKind(mapEl.dataset.body), atlasLevels(mapEl), e, { tip: mapEl.dataset.tip || '',
+    zone: mapEl.querySelector('.body-map__row') || mapEl,
+    avoid: [panel?.querySelector('.mpills'), group?.querySelector('.mpanel__zoom'), ...(group ? group.querySelectorAll('.segmented, .mlegend') : [])] });
 }
 
+// Pincement commencé sur la carte de la fiche (ou de Progrès) : la vue agrandie s'ouvre et suit les mêmes doigts.
+// iOS adresse tous les touchers d'un geste à l'élément où ils ont commencé, même recouvert par la feuille : on les
+// lit ici (document) et on les passe au zoom de la vue, comme s'ils y avaient commencé. Le défilement de la page
+// n'est empêché que pendant ce pincement (preventDefault seulement à deux doigts sur une carte).
+let atlasPinch = null;   // { viewer } pendant un pincement commencé sur une carte
 if (typeof document !== 'undefined' && document.addEventListener) {
-  // Deux doigts posés sur la carte : la vue agrandie s'ouvre (la carte refuse le zoom de la page : touch-action)
+  const feed = (type, list) => {
+    for (const t of list) atlasViewer?.feed(type, { pointerId: `t${t.identifier}`, clientX: t.clientX, clientY: t.clientY });
+  };
   document.addEventListener('touchstart', e => {
-    if (e.touches.length !== 2) return;
+    if (atlasPinch || e.touches.length !== 2) return;
     const maps = [...e.touches].map(t => t.target?.closest?.('.body-map--atlas[data-action="body-tap"]'));
     if (!maps[0] || maps[0] !== maps[1]) return;
     const [a, b] = e.touches;
     closeBodyTip();
-    openAtlasViewer(maps[0], { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2, scale: 2 });
+    atlasLastTap = null;
+    openAtlasViewer(maps[0], { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2, scale: 1, now: true });
+    if (!atlasViewer) return;
+    atlasPinch = { viewer: atlasViewer };
+    feed('down', e.touches);
   }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!atlasPinch) return;
+    if (e.cancelable) e.preventDefault();   // ni défilement ni zoom de la page pendant le pincement
+    feed('move', e.touches);
+  }, { passive: false });
+  const end = e => {
+    if (!atlasPinch) return;
+    feed('cancel', e.changedTouches);
+    if (!e.touches.length) atlasPinch = null;
+  };
+  document.addEventListener('touchend', end, { passive: true });
+  document.addEventListener('touchcancel', end, { passive: true });
 }
 
 // ── Vue agrandie ────────────────────────────────────────────
 
 let atlasViewer = null;   // vue ouverte (une seule) : état du zoom, pour les tests (atlasViewerState)
 
-function atlasFigHtml(kind, view, levels) {
-  return `<span class="body-map__fig body-map__${view}" data-view="${view}"><img class="body-map__base" src="${body2Url(kind, view, 'base.webp')}" alt="" draggable="false" decoding="async"><span class="azoom__lay">${bodyAtlasLayersHtml(kind, view, levels, 1)}</span><img class="azoom__lines" alt="" draggable="false" decoding="async" hidden></span>`;
+function atlasFigHtml(kind, view, levels, tiers = false) {
+  return `<span class="body-map__fig body-map__${view}" data-view="${view}"><img class="body-map__base" src="${body2Url(kind, view, 'base.webp')}" alt="" draggable="false" decoding="async"><span class="azoom__lay">${bodyAtlasLayersHtml(kind, view, levels, 1, tiers)}</span><img class="azoom__lines" alt="" draggable="false" decoding="async" hidden></span>`;
 }
 
-// Description pour VoiceOver : les sous-muscles colorés, principaux d'abord
-function atlasA11yLabel(levels) {
-  const names = lv => BODY_PARTS.parts.filter(p => levels[p.id] === lv).map(p => p.name);
-  const main = names(2), sec = names(1);
-  return [main.length && `Principaux : ${main.join(', ')}`, sec.length && `secondaires : ${sec.join(', ')}`].filter(Boolean).join(' ; ')
+// Description pour VoiceOver : les sous-muscles colorés, ciblés d'abord (fiche) ; Progrès (tiers) : du plus au moins travaillé
+function atlasA11yLabel(levels, tiers = false) {
+  const names = test => [...new Set(BODY_PARTS.parts.filter(p => test(levels[p.id] || 0)).map(p => atlasPillLabel(p.id)))];
+  if (tiers) {
+    const parts = [4, 3, 2, 1].map(l => [l, names(v => v === l)]).filter(([, n]) => n.length);
+    return parts.length ? `Travail de la période : ${parts.map(([l, n]) => `${MUSCLE_LEVEL_WORDS[l]} : ${n.join(', ')}`).join(' ; ')}` : 'Personnage, aucun muscle travaillé sur la période';
+  }
+  const main = names(v => v >= 2), sec = names(v => v === 1);
+  return [main.length && `Muscles ciblés : ${main.join(', ')}`, sec.length && `muscles qui aident : ${sec.join(', ')}`].filter(Boolean).join(' ; ')
     || 'Personnage, aucun muscle coloré';
 }
 
 // from : { x, y, scale } point touché sur la carte de la fiche (zoom sur ce point), ou null (×1)
 function openAtlasViewer(mapEl, from = null) {
   if (atlasViewer || !mapEl?.isConnected) return;
-  const kind = bodyKind(mapEl.dataset.body), levels = atlasLevels(mapEl);
+  const kind = bodyKind(mapEl.dataset.body), levels = atlasLevels(mapEl), tiers = mapEl.dataset.tiers === '1', tip = mapEl.dataset.tip || '';
   const row = mapEl.querySelector('.body-map__row')?.getBoundingClientRect();
   // Point touché ramené au corps entier (la carte de la fiche peut être cadrée sur le haut ou le bas du corps)
   const [c0, c1] = (mapEl.dataset.crop || `0,${BODY_PARTS.h}`).split(',').map(Number);
@@ -186,8 +218,8 @@ function openAtlasViewer(mapEl, from = null) {
   const rowW = 2 + BODY_GAP;
   const body = `
     <div class="azoom" data-scale="1" data-hi="" data-lines="">
-      <div class="azoom__stage body-map body-map--atlas" data-body="${kind}" role="img" aria-label="${esc(atlasA11yLabel(levels))}">
-        <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels)).join('')}</span>
+      <div class="azoom__stage body-map body-map--atlas" data-body="${kind}" role="img" aria-label="${esc(atlasA11yLabel(levels, tiers))}">
+        <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels, tiers)).join('')}</span>
       </div>
       <div class="azoom__ctl">
         <button class="azoom__btn" data-z="-1" aria-label="Dézoomer">${icon('minus', 22)}</button>
@@ -201,7 +233,8 @@ function openAtlasViewer(mapEl, from = null) {
   const view = root?.querySelector('.azoom');
   if (!view) return;
   root.classList.add('sheet-root--atlas');
-  atlasViewer = atlasZoom(view, kind, levels, at, root);
+  if (from?.now) root.classList.add('sheet-root--now');   // pincement en cours : la feuille est là tout de suite, sous les doigts
+  atlasViewer = atlasZoom(view, kind, levels, at, root, { tiers, tip });
   done.then(() => { atlasViewer?.destroy(); atlasViewer = null; closeBodyTip(); });
 }
 
@@ -211,7 +244,7 @@ function atlasViewerState() {
 }
 
 // Zoom, déplacement et noms dans la vue agrandie
-function atlasZoom(view, kind, levels, at, root) {
+function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {}) {
   const stage = view.querySelector('.azoom__stage');
   const figs = { front: stage.querySelector('.body-map__front'), back: stage.querySelector('.body-map__back') };
   const ratio = (2 + BODY_GAP) * BODY_PARTS.w / BODY_PARTS.h;
@@ -258,7 +291,7 @@ function atlasZoom(view, kind, levels, at, root) {
   // Muscle touché mis en valeur : gardé à travers l'échange 1× ↔ 3×, refait à la résolution affichée
   function swapLayers(v, res) {
     const f = figs[v], hl = f.querySelector('.body-map__hl'), part = hl?.dataset.part, tint = hl?.firstElementChild?.style.backgroundColor;
-    f.querySelector('.azoom__lay').innerHTML = bodyAtlasLayersHtml(kind, v, levels, res);
+    f.querySelector('.azoom__lay').innerHTML = bodyAtlasLayersHtml(kind, v, levels, res, tiers);
     if (!hl) return;
     hl.remove();
     f.insertAdjacentHTML('beforeend', atlasMarkHtml(kind, v, part, res, tint || '#FFFFFF'));
@@ -306,8 +339,10 @@ function atlasZoom(view, kind, levels, at, root) {
   }
 
   // ── Gestes (Pointer Events) ──
+  // Élastique aux bornes (comme Photos) : au-delà de ×1 ou ×6, ou du bord du dessin, le geste ne suit plus qu'au quart ;
+  // au relâchement, retour souple dans les bornes. Inertie : la vitesse du doigt au lâcher se prolonge et s'amortit.
   const pts = new Map();
-  let start = null, moved = false, lastTap = null;
+  let start = null, moved = false, lastTap = null, track = [], glide = 0;
   const local = e => { const r = view.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   function snapshot() {
     const a = [...pts.values()];
@@ -315,37 +350,75 @@ function atlasZoom(view, kind, levels, at, root) {
     const d = a.length > 1 ? Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) : 0;
     return { c, d, s, x, y };
   }
+  const soft = (v, lo, hi) => (v > hi ? hi + (v - hi) * 0.25 : v < lo ? lo - (lo - v) * 0.25 : v);
+  // Échelle : élastique borné (au plus 30 % au-delà de ×6, ou en deçà de ×1), comme Photos
+  const softScale = v => (v > ATLAS_MAX ? ATLAS_MAX * (1.3 - 0.3 / (v / ATLAS_MAX)) : v < 1 ? 1 - 0.3 * (1 - v) : v);
+  function bounds(sc) {   // [xmin, xmax, ymin, ymax] permis à l'échelle sc (comme clamp)
+    const r = viewRect(), w = W * sc, h = H * sc;
+    const bx = w <= r.w ? [(r.w - w) / 2, (r.w - w) / 2] : [r.w * 0.75 - w, r.w * 0.25];
+    const by = h <= r.h ? [(r.h - h) / 2, (r.h - h) / 2] : [r.h * 0.75 - h, r.h * 0.25];
+    return [...bx, ...by];
+  }
+  function stopGlide() { if (glide) cancelAnimationFrame(glide); glide = 0; }
   function down(e) {
-    if (e.target.closest?.('button')) return;   // boutons + et − : leur propre clic
-    try { view.setPointerCapture(e.pointerId); } catch { /* pointeur synthétique (tests) */ }
+    if (e.target?.closest?.('button')) return;   // boutons + et − : leur propre clic
+    try { view.setPointerCapture(e.pointerId); } catch { /* pointeur synthétique (tests), toucher venu de la carte */ }
+    stopGlide();
     pts.set(e.pointerId, local(e));
     stage.classList.remove('azoom__stage--anim');
     start = snapshot();
     moved = pts.size > 1;
+    track = [];
   }
   function move(e) {
     if (!pts.has(e.pointerId)) return;
     pts.set(e.pointerId, local(e));
     const now = snapshot();
     if (pts.size > 1 && start.d > 0) {
-      const s2 = Math.min(ATLAS_MAX * 1.15, Math.max(0.85, start.s * now.d / start.d));
+      const s2 = softScale(start.s * now.d / start.d);
       const k = s2 / start.s;
       s = s2; x = now.c.x - (start.c.x - start.x) * k; y = now.c.y - (start.c.y - start.y) * k;
+      moved = true;
     } else {
       const dx = now.c.x - start.c.x, dy = now.c.y - start.c.y;
       if (!moved && Math.hypot(dx, dy) > 8) moved = true;
       if (!moved) return;
-      x = start.x + dx; y = start.y + dy;
+      const [x0, x1, y0, y1] = bounds(s);
+      x = soft(start.x + dx, x0, x1); y = soft(start.y + dy, y0, y1);
+      track.push({ t: performance.now(), x, y });
+      if (track.length > 5) track.shift();
     }
     closeBodyTip();
     frame();
   }
+  // Inertie : vitesse des dernières 100 ms, amortie (≈ 0,995 par ms, comme le défilement d'iOS), arrêtée au bord
+  function inertia() {
+    const a = track[0], b = track[track.length - 1], dt = b && a ? b.t - a.t : 0;
+    if (!dt || reduceMotion.matches || performance.now() - b.t > 100) return false;
+    let vx = (b.x - a.x) / dt, vy = (b.y - a.y) / dt, last = performance.now();
+    if (Math.hypot(vx, vy) < 0.1) return false;
+    const stepGlide = t => {
+      const d = t - last; last = t;
+      const [x0, x1, y0, y1] = bounds(s);
+      x += vx * d; y += vy * d;
+      if (x < x0 || x > x1) { x = Math.min(x1, Math.max(x0, x)); vx = 0; }
+      if (y < y0 || y > y1) { y = Math.min(y1, Math.max(y0, y)); vy = 0; }
+      const f = Math.pow(0.995, d); vx *= f; vy *= f;
+      apply();
+      glide = Math.hypot(vx, vy) > 0.02 && alive ? requestAnimationFrame(stepGlide) : 0;
+    };
+    glide = requestAnimationFrame(stepGlide);
+    return true;
+  }
   function up(e) {
     if (!pts.has(e.pointerId)) return;
     pts.delete(e.pointerId);
-    if (pts.size) { start = snapshot(); return; }
+    if (pts.size) { start = snapshot(); track = []; return; }
     if (!moved && e.type === 'pointerup') { tap(e); return; }
-    if (!reduceMotion.matches) stage.classList.add('azoom__stage--anim');
+    const [x0, x1, y0, y1] = bounds(Math.min(ATLAS_MAX, Math.max(1, s)));
+    const outside = s < 1 || s > ATLAS_MAX || x < x0 || x > x1 || y < y0 || y > y1;
+    if (!outside && inertia()) return;
+    if (!reduceMotion.matches) stage.classList.add('azoom__stage--anim');   // retour souple dans les bornes
     clamp(); frame();
   }
   function tap(e) {
@@ -359,7 +432,7 @@ function atlasZoom(view, kind, levels, at, root) {
       return;
     }
     lastTap = { t, ...p };
-    atlasShowName(stage, kind, levels, e, { res: v => (v === hiView ? 3 : 1), zone: view, container: root,
+    atlasShowName(stage, kind, levels, e, { res: v => (v === hiView ? 3 : 1), zone: view, container: root, tip,
       avoid: [root.querySelector('.sheet__bar'), view.querySelector('.azoom__ctl')] });
   }
   // Boutons + et − : zoom autour du centre de la vue (VoiceOver, accès par contacteur)
@@ -394,6 +467,8 @@ function atlasZoom(view, kind, levels, at, root) {
 
   return {
     scale: () => s, hi: () => hiView, lines: () => (linesOn ? hiView : ''),
-    destroy() { alive = false; window.removeEventListener('resize', onResize); if (raf) cancelAnimationFrame(raf); },
+    // Toucher venu d'ailleurs (pincement commencé sur la carte) : type 'down' | 'move' | 'cancel'
+    feed(type, e) { const ev = { ...e, target: view, type: type === 'cancel' ? 'pointercancel' : `pointer${type}` }; (type === 'down' ? down : type === 'move' ? move : up)(ev); },
+    destroy() { alive = false; stopGlide(); window.removeEventListener('resize', onResize); if (raf) cancelAnimationFrame(raf); },
   };
 }

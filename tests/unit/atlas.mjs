@@ -162,13 +162,13 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.ok(own.source === 'muscles' && own.levels.biceps_long === 2);
     // Profonds jamais colorés par le repli (montrés seulement nommés par un exercice)
     assert.ok(!app.atlasPartsOf('traps').includes('rhomboid_major') && !app.atlasPartsOf('chest').includes('pec_minor'));
-    assert.equal(app.atlasRole(2), 'Muscle principal');
-    assert.equal(app.atlasRole(1), 'Muscle secondaire');
+    assert.equal(app.atlasRole(2), 'Muscle ciblé');
+    assert.equal(app.atlasRole(1), 'Muscle qui aide');
     assert.equal(app.atlasRole(0), 'Non ciblé par cet exercice');
   });
 
   test('atlas : carte de la fiche en 1× seulement, rouge plein / atténué, profonds par-dessus', () => {
-    assert.ok(run('BODY_PART_SEC_OPACITY') <= 0.55, 'atténué nettement plus pâle que le plein (panel t1)');
+    assert.equal(run('BODY_PART_SEC_OPACITY'), 1, 'muscles qui aident : rose franc opaque (variante E), plus de rouge transparent');
     const html = run(`bodyAtlasHtml(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels, { body: 'male', tap: true, title: 'Développé incliné barre' })`);
     assert.ok(!/@3x|\/p3\/|lines|hit\.png/.test(html), 'aucune image 3× au premier affichage');
     assert.ok(/class="body-map__m body-map__p" data-part="chest_clavicular"/.test(html), 'claviculaire en rouge plein');
@@ -240,6 +240,49 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     const q = app.bodyTipPlace({ x, y, w, h, vw: 390, minTop: 100, maxBottom: 600, cost,
       spots: [{ left: x - w / 2, top: y - gap - h }] });
     assert.ok(q.left >= 8 && q.top >= 100);
+  });
+
+  test('fiche (variante E) : deux lignes classées, « + N autres » au-delà de 4 noms', () => {
+    const lines = name => { const m = app.musclesOf(name), lv = app.exercisePartLevels(name, m).levels;
+      const r = run(`atlasRanked(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)}), ${JSON.stringify(lv)})`);
+      return { main: r.filter(x => x.level >= 2).map(x => x.label), help: r.filter(x => x.level < 2).map(x => x.label) }; };
+    sameJSON(lines('Développé incliné barre'), { main: ['Haut des pectoraux'], help: ['Milieu des pectoraux', 'Épaules antérieures', 'Triceps'] });
+    // Tractions : principaux puis secondaires dans l'ordre de la correspondance (le plus sollicité d'abord)
+    const tr = lines('Tractions pronation');
+    sameJSON(tr.main, ['Grand dorsal', 'Grand rond']);
+    assert.equal(tr.help[0], 'Biceps', `tractions : biceps d'abord ${tr.help}`);
+    assert.ok(tr.help.length > 4);
+    // « + N autres » : 4 noms au plus, donc 3 et « + N »
+    const cut = run(`atlasLineItems(${JSON.stringify(tr.help.map(label => ({ label })))})`);
+    assert.equal(cut.shown.length, 3);
+    assert.equal(cut.more, tr.help.length - 3);
+    sameJSON(run(`atlasLineItems([{ label: 'a' }, { label: 'b' }, { label: 'c' }, { label: 'd' }])`).more, 0, '4 noms : tous affichés');
+    // Chaque nom de la ligne garde tous ses sous-muscles (le triceps : 3 chefs) : le toucher les allume ensemble
+    const inc = run(`atlasRanked('Développé incliné barre', musclesOf('Développé incliné barre'), exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels)`);
+    sameJSON(inc.find(x => x.label === 'Triceps').ids.sort(), ['triceps_lateral', 'triceps_long', 'triceps_medial']);
+  });
+
+  test('Progrès : séries de la période par sous-muscle (principal 1, secondaire ½), paliers, 3 exercices', () => {
+    const DAY = 86_400_000, now = Date.UTC(2026, 10, 19, 12);
+    const h = (d, name, n) => ({ id: name + d, date: now - d * DAY, programme: 'ppl', category: 'push',
+      exercises: [{ name, sets: Array.from({ length: n }, () => ({ weight: '40', reps: '10' })) }] });
+    const hist = [h(1, 'Développé incliné barre', 4), h(2, 'Développé couché barre', 3), h(3, 'Tractions pronation', 4), h(40, 'Développé incliné barre', 10)];
+    const c = run(`partSetCounts(${JSON.stringify(hist)}, ${now - 28 * DAY}, ${now + 1})`);
+    // Incliné : claviculaire principal (4) ; couché : claviculaire principal aussi (3) ; il y a 40 jours : hors période
+    assert.equal(c.sets.chest_clavicular, 7);
+    assert.equal(c.sets.chest_sternal, 4 + 3, 'sterno-costal : principal des deux développés');
+    assert.equal(c.sets.triceps_long, (4 + 3) * 0.5, 'triceps : secondaire, demi-série');
+    assert.equal(c.sets.lats, 4);
+    sameJSON(run(`partTopExercises(${JSON.stringify(c.byEx)}, 'chest_clavicular')`), [['Développé incliné barre', 4], ['Développé couché barre', 3]]);
+    // Paliers : même échelle que les 18 muscles (séries par semaine), bas du corps = palier du muscle entier
+    run(`data.history = ${JSON.stringify(hist)}`);
+    const pl = run(`partLoad('month', ${now}, data.history)`);
+    assert.equal(pl.weekly.chest_clavicular, Math.max(1, Math.round(7 / 4)));
+    assert.equal(pl.levels.chest_clavicular, app.muscleLevel(pl.weekly.chest_clavicular));
+    assert.equal(pl.levels.chest_abdominal > 0, true, 'couché : faisceau abdominal travaillé');
+    assert.equal(pl.levels.glute_max, pl.load.levels.glutes, 'bas du corps : carte simple');
+    assert.equal(pl.levels.delt_posterior, app.muscleLevel(pl.weekly.delt_posterior));
+    assert.equal(pl.sets.rhomboid_major, 2, 'tractions : rhomboïdes secondaires, demi-série');
   });
 
   test('atlas : service worker (1× à l\'installation, jamais le 3×) et crédit BodyParts3D', () => {

@@ -51,7 +51,7 @@ def layout_ok(page):
         }
         if (document.documentElement.scrollWidth > innerWidth + 1) window.__atlasWide = `page ${document.documentElement.scrollWidth} > ${innerWidth} : ` + [...document.querySelectorAll('#app *')]
             .filter(e => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map(e => `${e.tagName}.${String(e.className).slice(0, 30)}`).join(', ');
-        for (const e of document.querySelectorAll('.cell__title, .cell__sub, .mpill, .btip p, .azoom__hint'))
+        for (const e of document.querySelectorAll('.cell__title, .cell__sub, .mpill, .mline2, .btip p, .azoom__hint'))
             if (e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow === 'ellipsis') bad.push(`${e.className} « ${e.textContent.trim().slice(0, 30)} »`);
         return bad; }""")
     wide = page.evaluate('window.__atlasWide || ""')
@@ -163,11 +163,35 @@ def t_fiche(bench, eng, dev, theme):
         R.check(lv.get('b:triceps_lateral') == 1 and lv.get('b:triceps_long') == 1, f'{t} triceps en soutien (dos) {lv}')
         R.check('f:chest_abdominal' not in lv and 'f:delt_lateral' not in lv and 'b:delt_lateral' not in lv, f'{t} ni faisceau abdominal ni deltoïde latéral {lv}')
         R.check(page.locator('.mpanel__zoom[aria-label="Agrandir le personnage"]').count() == 1, f'{t} bouton Agrandir (VoiceOver)')
-        pills = page.evaluate("[...document.querySelectorAll('.mpanel--atlas .mpill')].map(p => [p.firstChild.textContent, p.classList.contains('mpill--main') ? 2 : 1])")
-        R.check(pills == [['Haut des pectoraux', 2], ['Milieu des pectoraux', 1], ['Épaules antérieures', 1], ['Triceps', 1]],
-                f'{t} pastilles = dessin (plein puis atténué) {pills}')
-        R.check('Touche un muscle pour son nom.' in page.inner_text('.view.library-ex'), f'{t} aide « Touche un muscle pour son nom. » sous la carte')
+        lines = page.evaluate("""[...document.querySelectorAll('.group:has(.mpanel--atlas) .mline2')].map(b => [b.querySelector('.cell__sub').textContent, [...b.querySelectorAll('.mline2__names .mline2__name')].map(n => n.textContent), b.dataset.level | 0])""")
+        R.check(lines == [['Muscle ciblé', ['Haut des pectoraux'], 2], ['Muscles qui aident', ['Milieu des pectoraux', 'Épaules antérieures', 'Triceps'], 1]],
+                f'{t} deux lignes : ciblés en rouge plein, ceux qui aident ensuite, du plus sollicité {lines}')
+        R.check('Touche un muscle pour le voir seul.' in page.inner_text('.view.library-ex'), f'{t} aide courte sous la carte')
+        lab = page.get_attribute('.mline2[data-level="1"]', 'aria-label')
+        R.check(lab == "Muscles qui aident, 3 : Milieu des pectoraux, Épaules antérieures, Triceps. Touche pour ne voir qu'eux", f'{t} VoiceOver : nombre et action « {lab} »')
         R.check(page.evaluate("document.querySelector('.mpanel__map').classList.contains('body-map--crop')"), f'{t} haut du corps seulement : carte cadrée, plus grande')
+        # Toucher « Muscles qui aident » : seuls ses muscles restent, en rouge plein ; puis un nom : ce seul muscle
+        vis = "() => [...document.querySelectorAll('.mpanel__map .body-map__p')].filter(l => getComputedStyle(l).opacity !== '0').map(l => l.dataset.part).sort()"
+        page.locator('.mline2[data-level="1"]').evaluate("e => e.scrollIntoView({ block: 'center' })")
+        page.click('.mline2[data-level="1"] .cell__sub')
+        page.wait_for_timeout(500)
+        on = page.evaluate(vis)
+        R.check('chest_clavicular' not in on and {'chest_sternal', 'delt_anterior', 'triceps_long'} <= set(on)
+                and page.get_attribute('.mline2[data-level="1"]', 'aria-pressed') == 'true', f'{t} ligne « qui aident » : seuls ses muscles {on}')
+        red = page.evaluate("[getComputedStyle(document.querySelector('.mpanel__map .body-map__p.is-on')).backgroundColor, getComputedStyle(document.querySelector('.mline2__dot--main')).backgroundColor]")
+        R.check(red[0] == red[1], f'{t} ligne touchée : ses muscles en rouge plein {red}')
+        page.wait_for_timeout(100)
+        R.check('muscles qui aident sont affichés' in page.evaluate("document.getElementById('sr-polite')?.textContent || ''"), f'{t} changement annoncé à VoiceOver')
+        shot(page, LOT, f'fiche-aident-{t}')
+        page.click('.mline2[data-level="1"] .mline2__name[data-label="Triceps"]')
+        page.wait_for_timeout(500)
+        on = page.evaluate(vis)
+        R.check(on and all(p.startswith('triceps') for p in on), f'{t} nom « Triceps » : ce seul muscle {on}')
+        page.click('.mline2[data-level="1"] .mline2__name[data-label="Triceps"]')
+        page.wait_for_timeout(500)
+        R.check(len(page.evaluate(vis)) >= 6 and page.get_attribute('.mline2[data-level="1"]', 'aria-pressed') == 'false', f'{t} toucher de nouveau : tous les muscles reviennent')
+        page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
+        settle(page)
         sub = page.inner_text('.exhead__sub').replace('\xa0', ' ')
         R.check(sub.startswith('Haut des pectoraux') and 'Épaules' not in sub, f'{t} sous le titre : les rangs du personnage « {sub} »')
         off = page.evaluate("""() => { const z = document.querySelector('.mpanel__zoom').getBoundingClientRect(), m = document.querySelector('.mpanel__map .body-map__row').getBoundingClientRect();
@@ -185,15 +209,15 @@ def t_fiche(bench, eng, dev, theme):
         page.wait_for_selector('.btip', timeout=5000)
         settle(page)
         txt = tip_text(page)
-        R.check('Haut des pectoraux' in txt and 'Pectoralis major, pars clavicularis' in txt and 'Muscle principal' in txt,
+        R.check('Haut des pectoraux' in txt and 'Pectoralis major, pars clavicularis' in txt and 'Muscle ciblé' in txt,
                 f'{t} toucher : nom de salle (celui de la pastille), latin, rôle « {txt} »')
-        R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpills', '.mpanel__zoom']), f'{t} toucher : bulle dans le dessin, ni sur les pastilles ni sur Agrandir {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpills", ".mpanel__zoom"], True)}')
+        R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpanel__foot', '.mline2']), f'{t} toucher : bulle dans le dessin, ni sur les pastilles ni sur Agrandir {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpanel__foot", ".mline2"], True)}')
         R.check(page.locator('.mpanel__map .body-map__hl[data-part="chest_clavicular"]').count() == 1, f'{t} toucher : sous-muscle mis en valeur')
         shot(page, LOT, f'fiche-nom-{t}')
         tap(page, part_point(page, '.mpanel__map', 'triceps_lateral', 'back'))
         page.wait_for_timeout(400)
         txt = tip_text(page)
-        R.check('Triceps, chef latéral' in txt and 'Muscle secondaire' in txt, f'{t} toucher du triceps : secondaire « {txt} »')
+        R.check('Triceps, chef latéral' in txt and 'Muscle qui aide' in txt, f'{t} toucher du triceps : qui aide « {txt} »')
         page.wait_for_timeout(400)
         # ── Double toucher : vue agrandie, zoomée, 3× de la face seulement
         hi_urls = []
@@ -203,7 +227,7 @@ def t_fiche(bench, eng, dev, theme):
         page.wait_for_function("() => atlasViewerState()?.hi === 'front' && atlasViewerState().lines === 'front'", timeout=10000)
         settle(page)
         st = page.evaluate('atlasViewerState()')
-        R.check(abs(st['scale'] - 2.6) < 0.05, f'{t} double toucher : zoom ×2,6 {st}')
+        R.check(abs(st['scale'] - 2.5) < 0.05, f'{t} double toucher : zoom ×2,5 {st}')
         R.check(hi_urls and all('/front/' in u for u in hi_urls) and not any('/back/' in u for u in hi_urls), f'{t} 3× de la face seulement {hi_urls}')
         R.check(page.evaluate("document.querySelector('.azoom .body-map__front .body-map__base').src.endsWith('base@3x.webp')"), f'{t} base 3× affichée')
         R.check(page.locator('.azoom .body-map__front [data-part="chest_clavicular"]').count() == 1
@@ -309,6 +333,91 @@ def t_fiche(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+PINCH_JS = """([sel, phase, d, cx, cy]) => {
+    // Deux doigts simulés (événements touch, comme iOS) sur l'élément sel, écartés de d points autour de (cx, cy)
+    // WebKit de Playwright n'a pas de constructeur Touch : un Event de même type, avec les listes que lit l'app
+    const el = document.querySelector(sel), mk = (id, x) => ({ identifier: id, target: el, clientX: x, clientY: cy });
+    const ts = [mk(1, cx - d / 2), mk(2, cx + d / 2)];
+    const type = { start: 'touchstart', move: 'touchmove', end: 'touchend' }[phase];
+    const ev = new Event(type, { bubbles: true, cancelable: true });
+    Object.assign(ev, {}); Object.defineProperties(ev, { touches: { value: phase === 'end' ? [] : ts }, changedTouches: { value: ts } });
+    el.dispatchEvent(ev); return ev.defaultPrevented; }"""
+
+POINTERS_JS = """([phase, pts]) => {
+    // Pointeurs « touch » simulés dans la vue agrandie : pts = [[id, x, y], …]
+    const v = document.querySelector('.azoom');
+    for (const [id, x, y] of pts) v.dispatchEvent(new PointerEvent('pointer' + phase, { bubbles: true, pointerId: id, pointerType: 'touch', clientX: x, clientY: y, isPrimary: id === 1 }));
+}"""
+
+
+def t_pincement(bench, eng, dev, theme):
+    """Vrai zoom à deux doigts : pincement commencé sur la carte de la fiche, continué dans la vue agrandie avec les
+    mêmes doigts ; zoom qui suit les doigts, élastique au-delà de ×6, glisser avec inertie, double toucher ×2,5."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme)
+        page.evaluate(f"navigate(makeRoute('library-ex', {json.dumps(EX)}))")
+        page.wait_for_selector('.mpanel--atlas')
+        page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
+        settle(page)
+        b = page.locator('.mpanel__map').bounding_box()
+        cx, cy = b['x'] + b['width'] * 0.3, b['y'] + b['height'] * 0.4
+        sel = '.mpanel__map .body-map__front'
+        # Un doigt qui défile n'ouvre rien et n'empêche pas le défilement
+        one = page.evaluate("""([sel, x, y]) => { const el = document.querySelector(sel), t = { identifier: 9, target: el, clientX: x, clientY: y };
+            const ev = (type, touches) => { const e = new Event(type, { bubbles: true, cancelable: true });
+                Object.defineProperties(e, { touches: { value: touches }, changedTouches: { value: [t] } }); el.dispatchEvent(e); return e.defaultPrevented; };
+            ev('touchstart', [t]); const m = ev('touchmove', [t]); ev('touchend', []); return m; }""", [sel, cx, cy])
+        R.check(not one, f'{t} un doigt : le défilement de la page n\'est pas empêché')
+        R.check(page.evaluate('atlasViewerState()') is None, f'{t} un doigt sur la carte : rien ne s\'ouvre, la page défile')
+        page.evaluate(PINCH_JS, [sel, 'start', 40, cx, cy])
+        R.check(page.evaluate('atlasViewerState()') is not None, f'{t} deux doigts sur la carte : vue agrandie ouverte')
+        scales = []
+        for d in (50, 70, 90, 120, 160):
+            prevented = page.evaluate(PINCH_JS, [sel, 'move', d, cx, cy])
+            page.wait_for_timeout(40)
+            scales.append(page.evaluate('atlasViewerState().scale'))
+        R.check(prevented, f'{t} pincement : la page ne défile pas pendant le geste')
+        R.check(all(b2 > a2 for a2, b2 in zip(scales, scales[1:])) and abs(scales[-1] - 4) < 0.3,
+                f'{t} le zoom suit les doigts, sans repartir de zéro (×1 → ×4 pour un écart ×4) {scales}')
+        page.evaluate(PINCH_JS, [sel, 'end', 160, cx, cy])
+        page.wait_for_timeout(500)
+        settle(page)
+        R.check(abs(page.evaluate('atlasViewerState().scale') - scales[-1]) < 0.3, f'{t} doigts levés : le zoom reste où il est')
+        try:
+            page.wait_for_function("() => atlasViewerState()?.hi", timeout=10000)
+        except Exception:
+            pass
+        R.check(page.evaluate('atlasViewerState().hi') in ('front', 'back'), f'{t} 3× chargé pendant le zoom')
+        shot(page, LOT, f'pincement-{t}')
+        # Dans la vue : pincement au-delà de ×6 (élastique), puis retour à ×6
+        v = page.locator('.azoom').bounding_box()
+        mx, my = v['x'] + v['width'] / 2, v['y'] + v['height'] / 2
+        page.evaluate(POINTERS_JS, ['down', [[1, mx - 30, my], [2, mx + 30, my]]])
+        for d in (60, 120, 240, 480):
+            page.evaluate(POINTERS_JS, ['move', [[1, mx - d / 2, my], [2, mx + d / 2, my]]])
+            page.wait_for_timeout(30)
+        over = page.evaluate('atlasViewerState().scale')
+        page.evaluate(POINTERS_JS, ['up', [[1, mx - 240, my], [2, mx + 240, my]]])
+        page.wait_for_timeout(600)
+        settle(page)
+        R.check(over > 6 and over < 8 and abs(page.evaluate('atlasViewerState().scale') - 6) < 0.01,
+                f'{t} au-delà de ×6 : élastique ({over:.2f}), puis retour à ×6')
+        # Glisser d'un doigt avec inertie : le dessin continue un peu après le lâcher (gestes à 60 images/s, dans la page)
+        a1, a2 = page.evaluate("""([mx, my]) => new Promise(res => { const vw = document.querySelector('.azoom'), st = document.querySelector('.azoom__stage');
+            const P = (t, x) => vw.dispatchEvent(new PointerEvent('pointer' + t, { bubbles: true, pointerId: 3, pointerType: 'touch', clientX: x, clientY: my }));
+            P('down', mx); let k = 0;
+            const step = () => { k++; P('move', mx - 12 * k); if (k < 6) setTimeout(step, 16); else { P('up', mx - 72); const a = st.style.transform;
+                setTimeout(() => res([a, st.style.transform]), 250); } };
+            setTimeout(step, 16); })""", [mx, my])
+        tr = lambda: a2
+        R.check(tr() != a1, f'{t} glisser : inertie après le lâcher')
+        settle(page)
+        page.click('.sheet-root--atlas .sheet__btn--confirm')
+        page.wait_for_selector('.azoom', state='detached', timeout=3000)
+        R.check(not page.errors, f'{t} pincement : aucune erreur JS {page.errors}')
+
+
 def t_autres_fiches(bench, eng, dev, theme):
     """Bas du corps (Abducteurs machine, sans vidéo ni secondaire : avant, aucun personnage) et dos (tractions)."""
     t = tag(dev, theme)
@@ -322,8 +431,9 @@ def t_autres_fiches(bench, eng, dev, theme):
             settle(page)
             slug = name.split()[0].lower()
             R.check(page.get_attribute('.mpanel__map', 'data-crop') == crop, f'{t} {name} : cadrage {page.get_attribute(".mpanel__map", "data-crop")}')
-            pills = page.evaluate("[...document.querySelectorAll('.mpanel--atlas .mpill')].map(p => [p.firstChild.textContent, p.classList.contains('mpill--main') ? 2 : 1])")
-            R.check(pills[:2] == first, f'{t} {name} : pastilles {pills}')
+            lines = page.evaluate("""[...document.querySelectorAll('.group:has(.mpanel--atlas) .mline2')].map(b => [b.querySelector('.cell__sub').textContent, [...b.querySelectorAll('.mline2__names .mline2__name')].map(n => n.textContent), b.dataset.level | 0])""")
+            flat = [[n, lv] for _, names, lv in lines for n in names]
+            R.check(flat[:2] == first, f'{t} {name} : lignes {lines}')
             tap(page, part_point(page, '.mpanel__map', part, view))
             page.wait_for_selector('.btip', timeout=5000)
             settle(page)
@@ -333,7 +443,7 @@ def t_autres_fiches(bench, eng, dev, theme):
                 const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom);
                 return [!t.classList.contains('btip--free'), Math.round(Math.hypot(dx, dy)) <= 42]; }""", part_point(page, '.mpanel__map', part, view))
             R.check(all(side), f'{t} {name} : bulle avec pointe, contre le muscle touché {side}')
-            R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpills', '.mpanel__zoom']), f'{t} {name} : place de la bulle {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpills", ".mpanel__zoom"], True)}')
+            R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpanel__foot', '.mline2']), f'{t} {name} : place de la bulle {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpanel__foot", ".mline2"], True)}')
             lo = layout_ok(page)
             R.check(not lo, f'{t} {name} : mise en page {lo}')
             shot(page, LOT, f'fiche-{slug}-{t}')
@@ -356,8 +466,59 @@ def t_ailleurs(bench, eng, dev, theme):
         page.click('.tabbar [data-action="go-stats"]')
         page.wait_for_selector('.view.stats')
         settle(page)
-        R.check(page.locator('.body-map--atlas').count() == 0, f'{t} Progrès : pas d\'atlas')
+        R.check(page.locator('.mcard .body-map--atlas[data-tiers="1"]').count() == 1, f'{t} Progrès › Muscles : personnage détaillé, par paliers')
         R.check(not page.errors, f'{t} ailleurs : aucune erreur JS {page.errors}')
+
+
+def t_progres(bench, eng, dev, theme):
+    """Progrès › Muscles : travail de la période par sous-muscle (paliers), nom, séries et 3 exercices au toucher, zoom."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme)
+        page.click('.tabbar [data-action="go-stats"]')
+        page.wait_for_selector('.view.stats .mcard__map.body-map--atlas')
+        page.locator('.mcard__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
+        settle(page)
+        lv = page.evaluate("JSON.parse(document.querySelector('.mcard__map').dataset.atlas)")
+        expect = page.evaluate("Object.fromEntries(Object.entries(partLoad(muscleSpan).levels).filter(([, l]) => l > 0))")
+        R.check(lv == expect and len(lv) > 10, f'{t} paliers par sous-muscle = calcul de la période ({len(lv)} sous-muscles)')
+        tiers = page.evaluate("[...new Set([...document.querySelectorAll('.mcard__map .body-map__p')].map(l => [...l.classList].find(c => /--t\\d/.test(c))))]")
+        R.check(tiers and all(tiers), f'{t} chaque sous-muscle travaillé dans la teinte de son palier {tiers}')
+        # Un sous-muscle travaillé : nom, séries de la période, palier, exercices qui l'ont le plus travaillé
+        part = page.evaluate("Object.entries(partLoad(muscleSpan).sets).filter(([id]) => !ATLAS_SIMPLE_MUSCLES.has(atlasPart(id).parent) && !atlasPart(id).deep).sort((a, b) => b[1] - a[1])[0][0]")
+        view = page.evaluate(f"BODY_PARTS.boxes[bodySilhouette()].front[{json.dumps(part)}] ? 'front' : 'back'")
+        tap(page, part_point(page, '.mcard__map', part, view))
+        page.wait_for_selector('.btip', timeout=5000)
+        settle(page)
+        txt = tip_text(page)
+        title = page.evaluate(f"atlasPartTitle({json.dumps(part)})")
+        R.check(txt.startswith(title) and 'série' in txt and 'Le plus :' in txt, f'{t} bulle : {part} « {txt} »')
+        n_top = page.evaluate("document.querySelector('.btip__top')?.textContent.split('),').length || 0")
+        R.check(1 <= n_top <= 3, f'{t} bulle : 3 exercices au plus ({n_top})')
+        lo = layout_ok(page)
+        R.check(not lo, f'{t} Progrès : mise en page {lo}')
+        shot(page, LOT, f'progres-nom-{t}')
+        # Zoom : double toucher, 3× de la vue, bulle de volume dans la vue agrandie
+        page.evaluate('closeBodyTip()')
+        tap(page, part_point(page, '.mcard__map', part, view), double=True)
+        page.wait_for_selector('.azoom', timeout=5000)
+        page.wait_for_function("() => atlasViewerState()?.hi", timeout=10000)
+        settle(page)
+        R.check(page.evaluate("[...document.querySelectorAll('.azoom .body-map__p')].every(l => /--t\\d/.test(l.className))"), f'{t} vue agrandie : paliers gardés')
+        tap(page, part_point(page, '.azoom', part, view), touch=True)
+        page.wait_for_selector('.sheet-root--atlas .btip', timeout=5000)
+        R.check('série' in tip_text(page), f'{t} vue agrandie : séries au toucher « {tip_text(page)} »')
+        shot(page, LOT, f'progres-zoom-{t}')
+        page.click('.sheet-root--atlas .sheet__btn--confirm')
+        page.wait_for_selector('.azoom', state='detached', timeout=3000)
+        # Période : « Cette semaine » recalcule les paliers
+        seg = page.locator('.mcard [data-action="muscle-span"]')
+        if seg.count() > 1:
+            seg.nth(0).click()
+            settle(page)
+            lv2 = page.evaluate("JSON.parse(document.querySelector('.mcard__map').dataset.atlas)")
+            R.check(lv2 == page.evaluate("Object.fromEntries(Object.entries(partLoad(muscleSpan).levels).filter(([, l]) => l > 0))"), f'{t} période changée : paliers recalculés')
+        R.check(not page.errors, f'{t} Progrès : aucune erreur JS {page.errors}')
 
 
 def t_catalogue(bench):
@@ -463,4 +624,4 @@ def t_hors_ligne(bench):
 
 
 if __name__ == '__main__':
-    run_main(R, [t_fiche, t_autres_fiches, t_ailleurs], once=[t_catalogue, t_hors_ligne])
+    run_main(R, [t_fiche, t_pincement, t_autres_fiches, t_ailleurs, t_progres], once=[t_catalogue, t_hors_ligne])
