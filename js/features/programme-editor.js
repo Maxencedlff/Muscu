@@ -479,7 +479,7 @@ function setDraftRest(e, el, action) {
 // Objectif de charge refusé : 0 n'est pas un objectif (le champ vide l'est : « aucun objectif »), d'où un message
 // différent de weightMsg (« entre 0 et 1000 kg » laissait croire que 0 passait)
 function targetMsg() {
-  return `Mets un objectif au-dessus de 0 ${unitLbl()} (${data.unit === 'lbs' ? '2205' : '1000'} ${unitLbl()} au plus), ou laisse le champ vide`;
+  return `Au-dessus de 0 ${unitLbl()} (${data.unit === 'lbs' ? '2205' : '1000'} ${unitLbl()} au plus), ou laisse vide`;
 }
 
 registerActions({

@@ -51,7 +51,8 @@ function commentsListHtml(owner, id) {
 
 function commentCountHtml(text) {
   const n = commentLength(text);
-  return n >= COMMENT_WARN ? `${n} / ${COMMENT_MAX}` : '';
+  // Au-delà : ce qu'il faut retirer, pas seulement un compteur rouge (panel du 20/11)
+  return n > COMMENT_MAX ? `${plural(n - COMMENT_MAX, 'caractère', 'caractères')} en trop` : n >= COMMENT_WARN ? `${n} / ${COMMENT_MAX}` : '';
 }
 
 // Réponses rapides (séance d'un ami) : une rangée de boutons, un toucher = un commentaire envoyé.

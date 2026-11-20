@@ -55,7 +55,7 @@ function chatListHtml(key) {
 
 function chatCountText(text) {
   const n = chatLength(text);
-  return n >= CHAT_WARN ? `${n} / ${CHAT_MAX}` : '';
+  return n > CHAT_MAX ? `${plural(n - CHAT_MAX, 'caractère', 'caractères')} en trop` : n >= CHAT_WARN ? `${n} / ${CHAT_MAX}` : '';
 }
 
 // Notifications refusées dans iOS : une ligne discrète vers les Réglages de l'iPhone (js/features/push-ui.js)

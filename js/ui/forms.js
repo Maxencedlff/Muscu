@@ -17,14 +17,43 @@ function cellIco(name, tone = 'gray') {
   return `<span class="set-ico set-ico--${t}" aria-hidden="true">${icon(name, 19)}</span>`;
 }
 
-// Signale un champ invalide (contour rouge, aria-invalid) et affiche le message
+// Ligne d'un formulaire qui porte un champ : le message d'erreur ou de limite s'écrit juste dessous
+const FIELD_HOST_SEL = '.cell, .diet-field, .coach-req-field, .date-row, .ios-dialog__field';
+function fieldHost(input) { return input?.closest?.(FIELD_HOST_SEL) || null; }
+// Message sous le champ (cls : field-err rouge, field-hint gris), réutilisé s'il est déjà là ; retiré à la frappe
+function fieldNote(input, msg, cls = 'field-err') {
+  const host = fieldHost(input);
+  if (!host) return false;
+  let p = host.nextElementSibling?.matches?.('.field-err, .field-hint') ? host.nextElementSibling : null;
+  if (!p) { p = document.createElement('p'); host.after(p); }
+  p.className = cls; p.textContent = msg; p.id ||= 'fn-' + uid();
+  if (cls === 'field-err') p.setAttribute('role', 'alert'); else p.removeAttribute('role');
+  input.setAttribute('aria-describedby', p.id);
+  input.dataset.fieldNote = p.id;
+  return true;
+}
+function clearFieldNote(input) {
+  const id = input?.dataset?.fieldNote;
+  if (!id) return;
+  document.getElementById(id)?.remove();
+  delete input.dataset.fieldNote;
+  if (input.getAttribute('aria-describedby') === id) input.removeAttribute('aria-describedby');
+}
+
+// Signale un champ invalide (contour rouge, aria-invalid) et dit pourquoi juste sous lui, ramené à l'écran (panel du
+// 20/11 : un toast de deux lignes coupait le message, loin du champ). Séries de la séance : message en ligne de la carte.
 function flagInvalid(input, msg) {
   if (input) {
     input.classList.add('set-input--error');
     input.setAttribute('aria-invalid', 'true');
     input.focus();
   }
-  showToast(msg);
+  if (input && !input.closest('.session-set') && fieldNote(input, msg)) {
+    input.scrollIntoView?.({ block: 'center' });
+    announce(msg, true);
+    return;
+  }
+  showToast(msg, { error: true });
 }
 
 // Distance (cardio) : '' accepté, sinon 0 à MAX_DIST_KM km, virgule ou point
@@ -62,17 +91,22 @@ function weightOk(raw) {
   return v !== null;
 }
 
-// Texte collé ou tapé jusqu'au bout d'un champ borné (maxlength) : la limite est dite, une fois par champ et par
-// collage, au lieu de couper la fin en silence (grille avant panel, règle 18 : jamais de saisie perdue sans prévenir).
+// Saisie dans un champ : son message d'erreur s'efface (contour rouge compris). Texte collé ou tapé jusqu'au bout d'un
+// champ borné (maxlength) : la limite est dite SOUS le champ (« Coupé à 80 caractères » pour un collage trop long),
+// jamais coupée en silence (grille avant panel, règle 18) ni en toast par-dessus une autre ligne (panel du 20/11).
 // Pas pour les nombres (leur message de refus suffit) ni pour une zone qui a déjà son compteur.
 function fieldLimitNotice(e) {
   const el = e.target;
+  if (el?.dataset?.fieldNote) {
+    clearFieldNote(el);
+    el.classList.remove('set-input--error'); el.removeAttribute('aria-invalid');
+  }
   if (!el?.matches?.('input[maxlength], textarea[maxlength]') || /numeric|decimal/.test(el.inputMode || '')) return;
   if (el.getAttribute('aria-describedby')?.includes('Count')) return;   // compteur « 120/1000 » déjà affiché
   const max = el.maxLength;
-  if (!(max > 0) || el.value.length < max) { delete el.dataset.limitTold; return; }
-  if (el.dataset.limitTold) return;
-  el.dataset.limitTold = '1';
-  showToast(`${max} caractères au plus`);
+  if (!(max > 0) || el.value.length < max) return;
+  const cut = typeof e.data === 'string' && e.data.length > 1;   // collage (ou texte inséré d'un coup) arrivé au bout
+  const msg = cut ? `Coupé à ${max} caractères` : `${max} caractères au plus`;
+  if (!fieldNote(el, msg, 'field-hint')) showToast(msg);
 }
 if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('input', fieldLimitNotice, true);

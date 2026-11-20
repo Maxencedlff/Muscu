@@ -229,12 +229,17 @@ function profileAgeHeightHtml() {
   return cell('set-profile-age', 'clock.history', 'Âge', age ? `${age} ans` : '') + cell('set-profile-height', 'ruler', 'Taille', cm ? `${fmtNum(cm)} cm` : '');
 }
 // Saisie d'un nombre du profil ; champ vidé : effacé (facultatif)
-async function askProfileNumber({ title, message, value, unit, min, max }) {
-  const raw = await dialog({ title, message, input: { value, unit }, actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'OK', style: 'preferred' }] });
+// Refus dit sous le champ, fenêtre ouverte avec la valeur tapée (panel du 20/11). round : « 175,5 » accepté et arrondi
+// à l'entier (taille), dit par un toast « Arrondi à 176 cm » ; sinon un nombre entier est demandé (âge)
+async function askProfileNumber({ title, message, value, unit, min, max, round = false }) {
+  const read = raw => { const v = num(raw, min - 0.5, max + 0.49, !round); return v === null ? null : Math.round(v); };
+  const validate = raw => (String(raw).trim() === '' || read(raw) !== null ? null : fieldNumMsg(title, min, max, true, unit));
+  const raw = await dialog({ title, message, input: { value, unit, decimal: round, validate },
+    actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'OK', style: 'preferred' }] });
   if (raw === null) return undefined;
   if (String(raw).trim() === '') return null;
-  const v = num(raw, min, max, true);
-  if (v === null) { showToast(numRefusal(raw, min, max, true), { error: true }); return undefined; }
+  const v = read(raw);
+  if (round && num(raw, -Infinity, Infinity) !== v) showToast(`Arrondi à ${v} ${unit}`);
   return v;
 }
 
@@ -385,7 +390,7 @@ registerActions({
   },
   'set-profile-height': async () => {
     const v = await askProfileNumber({ title: 'Taille', message: `Facultatif, reste sur ${thisPhone()}. Sert aux objectifs de nutrition et à choisir des tractions assistées ou non. Laisse vide pour la supprimer.`,
-      value: data.heightCm ? String(data.heightCm) : '', unit: 'cm', min: 100, max: 250 });
+      value: data.heightCm ? String(data.heightCm) : '', unit: 'cm', min: 100, max: 250, round: true });
     if (v === undefined) return;
     if (v === null) delete data.heightCm; else data.heightCm = v;
     save(); render();

@@ -108,10 +108,10 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
 
   // ── Règles corrigées dans l'app ───────────────────────────
 
-  test('saisie : numRefusal dit « nombre entier » pour une virgule dans un champ d\'entiers', () => {
-    assert.equal(run('numRefusal("175,5", 100, 250, true)'), 'Nombre entier entre 100 et 250');
-    assert.equal(run('numRefusal("1e3", 10, 600, true)'), 'Valeur entre 10 et 600');
-    assert.equal(run('numRefusal("99", 0.25, 50, false)'), 'Valeur entre 0,25 et 50');
+  test('saisie : message d\'un nombre refusé, avec le nom du champ et l\'unité', () => {
+    assert.equal(run('fieldNumMsg("Taille", 100, 250, true, "cm")'), 'Taille : nombre entier entre 100 et 250 cm');
+    assert.equal(run('fieldNumMsg("Autre disque", 0.25, 50, false, "kg")'), 'Autre disque : entre 0,25 et 50 kg');
+    assert.equal(run('fieldNumMsg("Repos", 10, 600, true)'), 'Repos : nombre entier entre 10 et 600');
   });
 
   test('saisie : clipText compte en caractères (char_length) et coupe entre deux graphèmes', () => {

@@ -38,7 +38,7 @@ function showToast(msg, opts = {}) {
   if (typeof sessionNotice === 'function' && sessionNotice(msg, opts)) return;
   document.querySelectorAll('.toast').forEach(t => t.remove());
   const el = document.createElement('div');
-  el.className = 'toast';
+  el.className = opts.error ? 'toast toast--error' : 'toast';
   el.dataset.at = String(Date.now());
   const duration = Math.max(opts.duration || 2200, opts.error ? 4000 : 0, opts.action ? TOAST_ACTION_MIN_MS : 0);
   announce(opts.action ? `${msg}. ${opts.action} disponible` : msg, !!opts.error);
@@ -127,7 +127,8 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
               : 'type="text" inputmode="numeric" autocomplete="off" maxlength="12"'}
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}" aria-label="${esc(dialogInputLabel(input, title))}">
             ${input.unit ? `<span class="ios-dialog__unit" aria-hidden="true">${esc(input.unit)}</span>` : ''}
-          </div>` : ''}
+          </div>
+          <p class="ios-dialog__err" id="${dlgId}-e" role="alert" hidden></p>` : ''}
       </div>` : '';
 
     root.innerHTML = type === 'sheet'
@@ -152,8 +153,22 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
       document.removeEventListener('keydown', onKey);
       resolve(value);
     };
+    // Valeur refusée (input.validate rend un message) : la fenêtre reste ouverte avec ce qui a été tapé, le champ
+    // entouré de rouge et le message dessous (panel du 20/11 : refermer et dire l'erreur en toast faisait tout retaper)
+    const err = root.querySelector('.ios-dialog__err');
+    const showErr = msg => {
+      err.textContent = msg; err.hidden = !msg;
+      field.closest('.ios-dialog__field').classList.toggle('ios-dialog__field--error', !!msg);
+      if (msg) { field.setAttribute('aria-invalid', 'true'); field.setAttribute('aria-describedby', err.id); field.focus(); haptic('medium'); }
+      else { field.removeAttribute('aria-invalid'); field.removeAttribute('aria-describedby'); }
+    };
+    field?.addEventListener('input', () => { if (!err.hidden) showErr(''); });
     const pick = a => {
       if (!a || a.style === 'cancel') return close(null);
+      if (field && a.value === undefined && typeof input.validate === 'function') {
+        const msg = input.validate(field.value);
+        if (msg) return showErr(msg);
+      }
       // Avec un champ, le choix rend le texte saisi ; un choix qui porte sa propre valeur (« Effacer ») la rend
       close(field && a.value === undefined ? field.value : a.value);
     };
@@ -225,21 +240,23 @@ function confirmSheet(title, message, label, destructive = true) {
   ] }).then(v => v === true);
 }
 
-async function askNumber({ title, message, value, unit, min, max, decimal = false }) {
-  const raw = await dialog({ title, message, input: { value, unit, decimal }, actions: [
+// num() : virgule acceptée, et rien d'autre qu'un nombre écrit simplement (parseInt lisait « 1e3 » 1 et « 60abc » 60).
+// Refus dit sous le champ, fenêtre ouverte (input.validate) ; label : nom du champ dans le message (le titre sinon)
+async function askNumber({ title, message, value, unit, min, max, decimal = false, label = title }) {
+  const ok = raw => String(raw).trim() === '' || num(raw, min, max, !decimal) !== null;
+  const raw = await dialog({ title, message, input: { value, unit, decimal,
+    validate: raw => (ok(raw) ? null : fieldNumMsg(label, min, max, !decimal, unit)) }, actions: [
     { label: 'Annuler', style: 'cancel' },
     { label: 'OK', style: 'preferred' },
   ] });
   if (raw === null || String(raw).trim() === '') return null;
-  // num() : virgule acceptée, et rien d'autre qu'un nombre écrit simplement (parseInt lisait « 1e3 » 1 et « 60abc » 60)
-  const v = num(raw, min, max, !decimal);
-  if (v === null) { showToast(numRefusal(raw, min, max, !decimal), { error: true }); return null; }
-  return v;
+  return num(raw, min, max, !decimal);
 }
 
 // max : longueur du champ (40 par défaut, celle du dialogue). Espaces et caractères invisibles seuls : null (rien saisi)
-async function askText({ title, message, value = '', placeholder = '', confirm = 'OK', max }) {
-  const raw = await dialog({ title, message, input: { value, placeholder, text: true, max }, actions: [
+// validate : message d'un texte refusé, dit sous le champ sans fermer la fenêtre (null : accepté)
+async function askText({ title, message, value = '', placeholder = '', confirm = 'OK', max, validate }) {
+  const raw = await dialog({ title, message, input: { value, placeholder, text: true, max, validate }, actions: [
     { label: 'Annuler', style: 'cancel' },
     { label: confirm, style: 'preferred' },
   ] });

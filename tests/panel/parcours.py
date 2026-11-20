@@ -712,7 +712,7 @@ def p_vacuum(r):
 @parcours('champs-limites', 'Champs de saisie : limites, collages trop longs et messages de refus', 'pratiquant')
 def p_champs_limites(r):
     """Le « pire testeur » : un nom d'exercice et un nom de séance collés trop longs (coupés à 80 et 40 caractères),
-    un nom fait d'espaces invisibles, un objectif de 0 kg, une taille « 175,5 » dans un champ d'entiers, un poids du
+    un nom fait d'espaces invisibles, un objectif de 0 kg, un âge de 300 ans, une taille « 175,5 » (arrondie), un poids du
     corps « 72,5 », une longue note de bilan, un aliment sans nom, un commentaire au-delà de 500 caractères."""
     r.lancer(REALISTE)
     long = 'Développé couché prise serrée avec pause en bas et tempo lent sur barre, banc incliné à trente degrés'
@@ -730,9 +730,15 @@ def p_champs_limites(r):
         r.toucher('[data-action="save-cs-modal"]', 'OK')
     with r.etape('seance-nom-long', 'Nom de séance collé trop long : coupé à 40', cle='Nom de séance'):
         r.saisir('#csName', 'Haut du corps lourd, épaules et bras, version longue du lundi', 'nom de la séance')
-    with r.etape('taille-decimale', 'Taille « 175,5 » : « Nombre entier entre 100 et 250 »', cle='Taille et poids'):
+    with r.etape('age-refuse', 'Âge « 300 » : fenêtre ouverte, valeur gardée, message sous le champ', cle='Taille et poids'):
         r.raccourci("routeTo('dashboard')", 'retour à l\'accueil')
         reglages(r)
+        r.raccourci("void handleAction(new Event('click'), document.body, 'set-profile-age')", 'Réglages › Âge')
+        r.attendre('.ios-dialog__input', 'champ de l\'âge')
+        r.saisir('.ios-dialog__input', '300', 'âge')
+        r.choisir('OK')
+    with r.etape('taille-decimale', 'Taille « 175,5 » : arrondie à 176 cm', cle='Taille et poids'):
+        r.choisir('Annuler')
         r.raccourci("void handleAction(new Event('click'), document.body, 'set-profile-height')", 'Réglages › Taille')
         r.attendre('.ios-dialog__input', 'champ de la taille')
         r.saisir('.ios-dialog__input', '175,5', 'taille')

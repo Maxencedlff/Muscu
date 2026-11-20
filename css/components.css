@@ -212,3 +212,10 @@ html.type-xl .review-rec__val { flex: 1 0 100%; padding-left: 34px; white-space:
   white-space: nowrap; transition: width .2s ease-out; }
 .swipe-del--full { justify-content: flex-start; }
 @media (prefers-reduced-motion: reduce) { .swipe-on, .swipe-del { transition: none; } }
+/* Message sous un champ (js/ui/forms.js, fieldNote ; dialogues : .ios-dialog__err) : erreur en rouge, limite en gris.
+   Champ refusé d'un dialogue : contour rouge, la fenêtre reste ouverte avec la valeur tapée (panel du 20/11) */
+.field-err, .field-hint, .ios-dialog__err { margin: 6px 16px 8px; font-size: var(--fs-footnote); line-height: 1.35; text-align: left; overflow-wrap: anywhere; }
+.field-err, .ios-dialog__err { color: var(--red-text); }
+.field-hint { color: var(--label2); }
+.ios-dialog__err { margin: 6px 2px 0; }
+.ios-dialog__field--error { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }

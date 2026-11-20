@@ -134,3 +134,5 @@ body:has(.sess-sheet:not(.sess-sheet--out)) .toast { z-index: 450; }   /* messag
 .toast.toast--held { animation: none; opacity: 1; }
 @keyframes toastIn  { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 @keyframes toastOut { to   { opacity: 0; transform: translateX(-50%) translateY(-8px); } }
+/* Toast d'erreur : jamais coupé (« ou lais… », panel du 20/11) ; les erreurs de formulaire s'écrivent sous le champ */
+.toast--error > span { -webkit-line-clamp: 4; line-clamp: 4; }

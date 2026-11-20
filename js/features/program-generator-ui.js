@@ -217,11 +217,12 @@ const GEN_SET = {
 async function genAskLoads() {
   // 100 caractères : 20 charges « 12,5 » séparées d'un espace tiennent (40, la longueur d'avant, en coupait la moitié en silence)
   const raw = await askText({ title: 'Haltères fixes', message: 'Charges en kg, séparées par un espace. Exemple : 4 8 12',
-    value: genAns.dbLoads.map(v => fmtNum(v)).join(' '), placeholder: '4 8 12', max: 100 });
+    value: genAns.dbLoads.map(v => fmtNum(v)).join(' '), placeholder: '4 8 12', max: 100,
+    // Un morceau illisible (« -4 », « 1e3 », « 2,5,5kg ») : refus dit sous le champ, fenêtre ouverte (avant : écarté en silence)
+    validate: v => { const b = genParseLoads(v).bad; return b === undefined ? null : `« ${clipText(b, 12)} » : charge de ${fmtNum(GEN_DB_MIN)} à ${GEN_DB_MAX} kg`; } });
   if (raw === null) return;
   const r = genParseLoads(raw);
-  // Un morceau illisible (« -4 », « 1e3 », « 2,5,5kg ») : refus dit, rien de changé (avant : écarté en silence)
-  if (r.bad !== undefined) { showToast(`« ${clipText(r.bad, 12)} » : une charge de ${fmtNum(GEN_DB_MIN)} à ${GEN_DB_MAX} kg`, { error: true }); return; }
+  if (r.bad !== undefined) return;
   genAns.dbLoads = r.loads;
   genStore(); render();
 }

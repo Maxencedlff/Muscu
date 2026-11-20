@@ -249,11 +249,10 @@ function num(v, min, max, int = false) {
   return n;
 }
 
-// Message d'un nombre refusé : « 12,5 » dans un champ d'entiers dit « nombre entier » (sinon on croirait la valeur hors
-// bornes) ; bornes écrites à la française (0,25)
-function numRefusal(raw, min, max, int) {
-  const b = `entre ${fmtNum(min)} et ${fmtNum(max)}`;
-  return int && /^\s*[+-]?\d*[.,]\d+\s*$/.test(String(raw ?? '')) ? `Nombre entier ${b}` : `Valeur ${b}`;
+// Message d'un nombre refusé, dit sous le champ : il nomme le champ et l'unité (« Taille : nombre entier entre 100 et
+// 250 cm »), bornes écrites à la française (0,25)
+function fieldNumMsg(label, min, max, int, unit = '') {
+  return `${label} : ${int ? 'nombre entier ' : ''}entre ${fmtNum(min)} et ${fmtNum(max)}${unit ? ` ${unit}` : ''}`;
 }
 
 // Saisie de reps (ou de secondes, de minutes) : chiffres seuls. Un collage « 12abc » ou « 1e3 » ne
