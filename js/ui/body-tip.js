@@ -122,10 +122,14 @@ function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [
   }
   const dist = p => Math.hypot(p.left + w / 2 - x, p.top + h / 2 - y);
   grid.sort((a, b) => dist(a) - dist(b));
-  const cands = [...spots, ...near.map(left => ({ left, top: y - h / 2 })),
-    { left: x - w / 2, top: y + gap }, { left: x - w / 2, top: y - gap - h }, ...grid].map(settle)
-    .filter(p => p.left >= margin && p.left + w <= vw - margin && p.top >= minTop && p.top + h <= maxBottom
-      && !avoid.some(r => hits(p, r)) && !hits(p, finger));
+  // En dernier, les coins de la zone permise : une petite zone (texte agrandi, iPhone SE) où rien près du doigt ne tient
+  const corners = [minTop, maxBottom - h].flatMap(top => [margin, vw - margin - w].map(left => ({ left, top })));
+  const fits = (p, finger_ = true) => p.left >= margin && p.left + w <= vw - margin && p.top >= minTop && p.top + h <= maxBottom
+    && !avoid.some(r => hits(p, r)) && (!finger_ || !hits(p, finger));
+  const all = [...spots, ...near.map(left => ({ left, top: y - h / 2 })),
+    { left: x - w / 2, top: y + gap }, { left: x - w / 2, top: y - gap - h }, ...grid, ...corners].map(settle);
+  let cands = all.filter(p => fits(p));
+  if (!cands.length) cands = all.filter(p => fits(p, false));   // sinon sur le doigt, plutôt que sur un bouton
   const tol = 0.02 * w * h;
   const scored = cands.map(p => ({ p, c: cost({ left: p.left, top: p.top, right: p.left + w, bottom: p.top + h }) }));
   let best = scored.find(s => s.c <= tol) || scored.reduce((a, b) => (b.c < a.c ? b : a), scored[0]);

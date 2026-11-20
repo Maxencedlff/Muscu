@@ -177,8 +177,8 @@ function openAtlasViewer(mapEl, from = null) {
     v: (c0 + (from.y - row.top) / row.height * (c1 - c0)) / BODY_PARTS.h, scale: from.scale } : null;
   const rowW = 2 + BODY_GAP;
   const body = `
-    <div class="azoom" role="img" aria-label="${esc(atlasA11yLabel(levels))}" data-scale="1" data-hi="" data-lines="">
-      <div class="azoom__stage body-map body-map--atlas" data-body="${kind}">
+    <div class="azoom" data-scale="1" data-hi="" data-lines="">
+      <div class="azoom__stage body-map body-map--atlas" data-body="${kind}" role="img" aria-label="${esc(atlasA11yLabel(levels))}">
         <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels)).join('')}</span>
       </div>
       <div class="azoom__ctl">
