@@ -238,8 +238,8 @@ def t_coach_affiche(bench, eng, dev, theme):
         R.check(whole, f'{t} Nom et Silhouette entiers sans défiler')
         # 8e panel : « Voir en grand », vrai bouton sous l'aperçu (44 pt), rien posé sur l'image ; VoiceOver lit la description
         # complète de l'image puis ce que fait le toucher
-        sb = page.evaluate("(() => { const b = document.querySelector('.sheet .share-preview__seebig').getBoundingClientRect(), f = document.querySelector('.sheet .share-preview__zoom').getBoundingClientRect(); return { h: b.height, below: b.top >= f.bottom - 1, alone: document.querySelector('.sheet .share-preview__zoom').children.length === 1 }; })()")
-        R.check(sb['h'] >= 44 and sb['below'] and sb['alone'], f'{t} « Voir en grand » sous l\'aperçu, rien sur l\'image ({sb})')
+        sb = page.evaluate("(() => { const b = document.querySelector('.sheet .share-preview__seebig').getBoundingClientRect(), f = document.querySelector('.sheet .share-preview__zoom').getBoundingClientRect(); return { h: b.height, below: b.left >= f.right - 1 || b.top >= f.bottom - 1, alone: document.querySelector('.sheet .share-preview__zoom').children.length === 1 }; })()")
+        R.check(sb['h'] >= 44 and sb['below'] and sb['alone'], f'{t} « Voir en grand » à côté de l\'aperçu, rien sur l\'image ({sb})')
         zl = page.get_attribute('.sheet .share-preview__zoom', 'aria-label')
         R.check(zl.startswith(page.get_attribute('.sheet .share-preview__img', 'aria-label').rstrip('.')) and zl.endswith('Touche deux fois pour voir en grand.') and code in zl,
                 f'{t} VoiceOver : description complète puis « Touche deux fois pour voir en grand » ({zl!r})')
