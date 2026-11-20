@@ -72,7 +72,7 @@ function techBlockHtml(ex, ei, s, si) {
   return `
     <div class="tech" role="group" aria-label="${T.label}, ${name}">
       <div class="tech__cap">
-        <span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span>${hasSide2(s) ? '<span class="tech__hint">pour les 2 bras</span>' : ''}</span>
+        <span class="tech__label"><span class="tech__name">${T.label}${hasSide2(s) ? ' · 2 bras' : ''}</span><span class="tech__hint">${T.hint}</span></span>
         <span class="tech__btns">${add}
         ${techPrescribed(ex) ? '' : `<button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button>`}</span>
       </div>
@@ -88,7 +88,8 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
   // « +1 série »), sur deux lignes dans la colonne du numéro
   const T = TECHS[setTech(s)], tag = `${capitalize(T.subName)} ${k + 1}`, kind = loadKind(ex), two = side === 2, host = two ? s.side2 : s;
   const spoken = `${T.subName} ${k + 1}, ${setSpokenName(ex, si).toLowerCase()}${hasSide2(s) ? `, ${sideName(ex, side).toLowerCase()}` : ''}, ${esc(ex.name)}`;
-  const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;×&nbsp;' : ''}${esc(x.prev.reps)}` : '—';
+  // Sans dernière fois : rien (le « — » sous « Drop 1 » se lisait comme une valeur, panel du 21/11)
+  const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;×&nbsp;' : ''}${esc(x.prev.reps)}` : '';
   const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"${two ? ' data-side="2"' : ''}`;
   if (x.done) {
     const w = hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '';
@@ -234,7 +235,9 @@ function validateSub(ds) {
   const done = `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}${two ? ` · ${sideName(ex, 2).toLowerCase()}` : ''}`;
   // Comme après une série (validateSet) : ce que « Annuler » défait d'abord, puis ce qui suit
   // Série notée par bras : « Annuler » dans le bandeau au-dessus de la carte, « Avant » reste dans la ligne (panel du 21/11)
-  sessionUndo(stepUndoText(ex, done, next), { target: hasSide2(s) ? { ex } : { ex, si, k, side }, onAction: () => {
+  // Série par bras : « au tour du droit », ou « Série 3 validée » après la dernière étape (sideStepText)
+  const txt = hasSide2(s) && !next.chain ? sideStepText(ex, s, si, k, side, next.nx) : stepUndoText(ex, done, next);
+  sessionUndo(txt, { target: hasSide2(s) ? { ex } : { ex, si, k, side }, onAction: () => {
     if (!activeSession || !x.done) return;
     x.done = false; x.reps = wasReps;
     if (wasAuto) x.auto = true;

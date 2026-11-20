@@ -514,7 +514,7 @@ function renderExerciseCard(ex, ei, cur) {
   // et ses sous-séries sous la série (js/features/session-intensif.js)
   // et ses sous-séries sous la série (js/features/session-intensif.js), puis le second côté d'une série notée par bras
   // (js/features/session-unilateral.js)
-  const rows = delUndoRows(ex, ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}${side2RowsHtml(ex, ei, s, si)}`)).join('');
+  const rows = delUndoRows(ex, ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${hasSide2(s) ? `<div class="sets__caption sets__caption--pair" aria-hidden="true">Série ${setDisplayNo(ex.sets, si)}</div>` : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}${side2RowsHtml(ex, ei, s, si)}`)).join('');
 
   // Exercice de la série à faire : sa vignette cerclée d'orange (la série en cours, seul autre orange de la carte)
   const isCur = cur && cur.ei === ei;
@@ -679,8 +679,8 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
           <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm || holdGuide(ex) ? '' : 'e'}, ${side ? `${sideName(ex, 1).toLowerCase()}, ` : ''}${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}${tag ? `, ${esc(ex.name)}` : ''}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${withSideTag(setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" '), ex, s, 1)}
           ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m), sideNoteWho(ex, si, s, 1))}
-          <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
-          <span class="set-val set-val--r num" aria-hidden="true">${esc(s.reps)}</span>
+          <span class="set-val set-val--w num" aria-hidden="true"${hasSide2(s) ? ` data-lbl="${unitLbl()}"` : ''}>${first || '—'}</span>
+          <span class="set-val set-val--r num" aria-hidden="true"${hasSide2(s) ? ' data-lbl="Reps"' : ''}>${esc(s.reps)}</span>
           <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
           ${record || pace || mach || techPillHtml(s) ? `<span class="set-badge" aria-hidden="true">${techPillHtml(s, { spoken: false })}${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
           ${setNotePreviewHtml(ei, s, si)}
@@ -960,9 +960,10 @@ function validateSet(ei, si, opts = {}) {
   // Série notée par bras sans sous-série avant l'autre côté : « puis bras droit » (js/data/unilateral.js)
   const nx = setNextStep(s);
   const next = chain ? `enchaîne ${xs[chain.ei].name}` : nx?.k < 0 ? `puis ${sideName(ex, 2).toLowerCase()}` : techPause !== null ? `puis ${TECHS[setTech(s)].label.toLowerCase()}` : '';
-  // Série notée par bras : « Annuler » dans le bandeau au-dessus de la carte, « Avant » reste dans la ligne (panel du 21/11)
-  const sideTxt = hasSide2(s) ? `, ${sideWord(ex, 1)}` : '';
-  sessionUndo(next ? `${doneTxt}${sideTxt} · ${next}` : `${doneTxt}${sideTxt}`, { target: hasSide2(s) ? { ex } : { ex, si }, onAction: () => undoValidate(undo) });
+  // Série notée par bras : « Bras gauche validé · au tour du droit » (la série n'est pas finie : panel du 21/11), puis
+  // « Annuler » dans le bandeau au-dessus de la carte, « Avant » reste dans la ligne
+  const text = hasSide2(s) ? sideStepText(ex, s, si, -1, 1, nx) : next ? `${doneTxt} · ${next}` : doneTxt;
+  sessionUndo(text, { target: hasSide2(s) ? { ex } : { ex, si }, onAction: () => undoValidate(undo) });
 }
 
 // La série suivante garde sa valeur prévue, sauf si la charge vient d'être modifiée.

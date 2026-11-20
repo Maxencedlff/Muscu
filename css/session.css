@@ -979,5 +979,11 @@ html.type-xl .sets--sides .session-set .set-undo, html.type-xl .session-set.sess
 html.type-xl .tech-tag .set-n__side::before { content: '· '; }
 html.type-xl .session-set.session-set--sub .set-n { flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-self: start; }
 /* Texte agrandi : « 14 × 10 » ne se coupe jamais (espaces insécables respectées) */
-html.type-xl .session-set .set-prev, html.type-xl .session-set .set-note-btn__val { overflow-wrap: normal; word-break: normal; }
+html.type-xl .sets--sides .session-set .set-prev, html.type-xl .sets--sides .session-set .set-note-btn__val { overflow-wrap: normal; word-break: normal; }
 .tech__label { flex-wrap: wrap; row-gap: 0; }   /* « sans repos » et « pour les 2 bras » passent l un sous l autre si la place manque */
+/* Série notée par bras : « Série 1 » au-dessus de chaque paire Gauche / Droit (6e tour du panel) */
+.sets__caption--pair { margin-top: 10px; text-transform: none; letter-spacing: 0; font-size: 0.765rem; }
+/* Texte agrandi, lignes empilées : « kg » et « Reps » au-dessus des valeurs d'une ligne validée (data-lbl) */
+html.type-xl .set-val[data-lbl]::before { content: attr(data-lbl); display: block; font-size: 0.647rem; font-weight: 600; color: var(--label2); }
+/* Reps d'un drop jamais fait : « max » en indication, plus pâle que les valeurs */
+.session-set--sub .set-input::placeholder { color: var(--label3, var(--label2)); opacity: .7; }

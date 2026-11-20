@@ -19,6 +19,18 @@ function withSideTag(html, ex, s, side) {
   const i = html.lastIndexOf('</');
   return i < 0 ? html : html.slice(0, i) + tag + html.slice(i);
 }
+// Ligne « Annuler » après une étape d'une série notée par bras (panel du 21/11 : « Série 1 validée, bras gauche puis
+// bras droit » faisait croire la série finie). k : -1 pour la ligne du côté, sinon la sous-série k. nx : l'étape qui suit.
+//  - un côté fait, l'autre à faire : « Bras gauche validé · au tour du bras droit » ;
+//  - une étape suivie d'une sous-série : « Bras droit validé · puis drop set », « Drop 1 validé · bras gauche · puis drop » ;
+//  - la dernière étape : « Série 1 validée ».
+function sideStepText(ex, s, si, k, side, nx) {
+  const fem = sideFem(ex), T = TECHS[setTech(s)];
+  if (!nx) return `${setSpokenName(ex, si)} validée`;
+  const what = k < 0 ? `${sideName(ex, side)} validé${fem ? 'e' : ''}` : `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''} · ${sideWord(ex, side)}`;
+  if (nx.k < 0) return `${what} · au tour ${fem ? 'de la' : 'du'} ${sideWord(ex, 2)}`;
+  return `${what} · puis ${k < 0 ? T.label.toLowerCase() : T.subName}`;
+}
 // VoiceOver de la note d'une ligne notée par bras : « Note de la série 3, bras droit »
 function sideNoteWho(ex, si, s, side) {
   return hasSide2(s) ? `de la ${setSpokenName(ex, si).toLowerCase()}, ${sideWord(ex, side)}` : '';
@@ -26,7 +38,7 @@ function sideNoteWho(ex, si, s, side) {
 // Lien « Commencer par le bras droit » au-dessus des séries, tant qu'aucune série n'est validée (panel du 20/11 :
 // le réglage, rangé dans ⋯ › Plus d'options, était introuvable)
 function sideFirstLinkHtml(ex, ei) {
-  const opt = exBySide(ex) ? sideMenuActions(ex).find(a => a.value === 'side-first') : null;
+  const opt = sideMenuActions(ex).find(a => a.value === 'side-first');
   return opt ? `<button class="side-first-link" data-action="side-first" data-ei="${ei}">${esc(opt.label)}</button>` : '';
 }
 // « le bras droit », « la jambe droite »
@@ -71,8 +83,8 @@ function side2RowHtml(ex, ei, s, si, tag) {
         <span class="sr-text">${name} validé${sideFem(ex) ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}${exOf}${record ? `, ${esc(record)}` : ''}. Modifier</span>
         ${no}
         ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevTxt(x), sideNoteWho(ex, si, s, 2))}
-        <span class="set-val set-val--w num" aria-hidden="true">${hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '—'}</span>
-        <span class="set-val set-val--r num" aria-hidden="true">${esc(x.reps)}</span>
+        <span class="set-val set-val--w num" aria-hidden="true" data-lbl="${unitLbl()}">${hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '—'}</span>
+        <span class="set-val set-val--r num" aria-hidden="true" data-lbl="Reps">${esc(x.reps)}</span>
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
         ${record ? `<span class="set-badge" aria-hidden="true"><span class="pr-badge">${medalSvg(13)}${esc(record)}</span></span>` : ''}
       </div>`;
@@ -124,8 +136,7 @@ function validateSide2(ds) {
   render();
   if (follows) scrollToCurrent(true, true);
   else requestAnimationFrame(focusCurrentSet);
-  const done = `${sideName(ex, 2)} validé${sideFem(ex) ? 'e' : ''}`;
-  const text = next.nx && setTech(s) ? `${done} · puis ${TECHS[setTech(s)].label.toLowerCase()}` : stepUndoText(ex, done, next);
+  const text = next.chain ? `${setSpokenName(ex, si)} validée · enchaîne ${activeSession.exercises[next.chain.ei].name}` : sideStepText(ex, s, si, -1, 2, next.nx);
   sessionUndo(text, { target: { ex }, onAction: () => {   // « Annuler » dans le bandeau, « Avant » reste dans la ligne
     if (!activeSession || !x.done) return;
     x.done = false;

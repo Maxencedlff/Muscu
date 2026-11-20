@@ -45,12 +45,13 @@ droit lourd, puis allégé ; l'app n'avait qu'un bloc de drop set par série et 
      (`data.sideFirst`, synchronisé) et gardé avec la séance (`sideFirst` de l'exercice) : les noms suivent.
 3. **Ordre et titres** : série (bras gauche), ses sous-séries, bras droit, ses sous-séries (`setSteps`). Chaque côté a
    son nom sous le numéro de la ligne (« 1 », « Gauche » ; en texte agrandi « 1 Gauche » sur la ligne) : un repère par
-   ligne, même quand le haut de la carte est sorti de l'écran, sans titre répété au-dessus de chaque ligne (4e panel) ;
+   ligne, même quand le haut de la carte est sorti de l'écran, un petit en-tête « Série 1 » au-dessus de chaque paire ;
    le drop du bras droit a son propre titre « Drop set ». Lien « Commencer par le bras droit » au-dessus des séries
    tant qu'aucune n'est validée. Le côté qui suit est seul mis en
    avant. « + drop » ajoute une sous-série de chaque côté ; le × du drop set le retire des deux (44 pt dessinés).
    **Compteur** (« 3/3 », barre du haut, « Plus tard ») : une série compte une fois le bras droit et son drop faits
-   (`setComplete`). VoiceOver : « Valider la série 3, bras gauche », « Charge du bras gauche, en kilos ».
+   (`setComplete`). Ligne « Annuler » (bandeau au-dessus de la carte) : « Bras gauche validé · au tour du bras droit »
+   après le 1er bras, « Série 1 validée » après le dernier bloc (`sideStepText`). VoiceOver : « Valider la série 3, bras gauche », « Charge du bras gauche, en kilos ».
    **Carte repliée** : « 3 × 10/10/9 · 14 kg · 2 bras », puis « Drop 10 kg × 6 » (ou « Drop : gauche 10 kg × 6 ·
    droit 10 kg × 5 » si les bras diffèrent), puis chaque bras s'ils diffèrent
    (« Bras gauche : 14 kg × 10, 10, 9 », « Bras droit : 14 kg × 10, 10, 8 »).

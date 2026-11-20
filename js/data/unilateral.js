@@ -263,7 +263,8 @@ function sideMenuActions(ex) {
     { label: all ? `Noter les deux ${plural} ensemble` : `Noter chaque ${limb} à part`, value: 'sides' },
     // Le premier bras ne compte que noté par bras, et se choisit avant la première série (après, il dirait qu'une série
     // faite d'un bras l'a été de l'autre)
-    ...(all && !work.some(s => s.done) ? [{ label: `Commencer par ${limb === 'jambe' ? 'la' : 'le'} ${other}`, value: 'side-first' }] : []),
+    // Proposé dès l'ouverture d'un exercice à un bras, avant toute série, même s'il n'est pas encore noté par bras
+    ...(!work.some(s => s.done) ? [{ label: `Commencer par ${limb === 'jambe' ? 'la' : 'le'} ${other}`, value: 'side-first' }] : []),
   ];
 }
 
