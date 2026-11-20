@@ -442,7 +442,9 @@ def essai(page, t, c, nom, saisi):
     R.check(not r['over'], f'{lbl} : aucun texte qui déborde {r["over"]}')
     R.check(not r['half'], f'{lbl} : aucune moitié d\'emoji enregistrée {r["half"]}')
     R.check(len(page.errors) == errs, f'{lbl} : aucune erreur JS {page.errors[errs:]}')
-    if apres == avant and shown.strip() and page.locator(c.sel).count():
+    # Refus à dire : une valeur visible qui n'a rien changé (des invisibles seuls dans un champ facultatif valent « vide »)
+    visible = shown.translate({ord(ch): None for ch in ' \t\n\r\u00a0\u202f\u200b\u200c\u200d\u200e\u200f\ufeff\u2060'})
+    if apres == avant and visible and page.locator(c.sel).count():
         R.check(page.evaluate(REFUS) != '', f'{lbl} : refus dit (toast, message ou champ signalé)')
     return avant, apres
 
