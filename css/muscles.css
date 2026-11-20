@@ -104,7 +104,10 @@
 .azoom__legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label); }
 .azoom__legend .mline2__dot { margin-right: -2px; }
 .azoom__legend .mlegend__item { white-space: normal; }   /* la légende de Progrès passe à la ligne, jamais sous les boutons */
-.type-xl .azoom__hint { display: none; }   /* texte agrandi : la légende reste, l'aide (déjà sous la carte) laisse la place au personnage */
+.type-xl .azoom__hint { display: none; }
+.type-xl .azoom__band { flex-direction: column; align-items: stretch; gap: 6px; }   /* légende au-dessus, boutons dessous : rien ne se chevauche */
+.type-xl .azoom__ctl { justify-content: flex-end; }
+.azoom__legend .mlegend__item { min-width: 0; flex-wrap: wrap; }   /* texte agrandi : la légende reste, l'aide (déjà sous la carte) laisse la place au personnage */
 .azoom__ctl { display: flex; gap: 8px; flex: none; }
 .azoom__btn {
   width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
