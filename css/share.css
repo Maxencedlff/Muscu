@@ -92,3 +92,5 @@ html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(
 .share-preview__note-short { display: none; }
 html.type-xl .share-preview__note-link--short .share-preview__note-full { display: none; }
 html.type-xl .share-preview__note-link--short .share-preview__note-short { display: inline; }
+html.type-xl .share-preview__note { margin-bottom: 0; }
+html.type-xl .share-preview__note-link { padding-block: 0; }

@@ -128,7 +128,7 @@
    pour 14 signes gras), plafonnée au corps du texte, plancher lisible de 17 px ; plus étroit encore (iPhone SE en
    AX33), retour à la ligne entre blocs seulement */
 .coach-code-cell .cell__body { container-type: inline-size; flex: 1 1 0; min-width: 0; }
-.coach-code--fit { white-space: normal; font-size: clamp(17px, 9.4cqi, var(--fs-body)); line-height: 1.15; }
+.coach-code.coach-code--fit { white-space: normal; font-size: clamp(17px, 9.4cqi, var(--fs-body)); line-height: 1.15; }
 .coach-code__blk { display: inline-block; white-space: nowrap; }
 .coach-code-cell .cell__sub { white-space: normal; overflow-wrap: break-word; }
 .coach-code-cell .coach-icon-btn + .coach-icon-btn { margin-left: -6px; }

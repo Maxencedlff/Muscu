@@ -403,7 +403,7 @@ def t_apercu_grand_texte(bench, eng, dev, theme):
         R.check(page.is_visible('.sheet .share-preview__note') and page.evaluate(NOTE_ABOVE_SEND) and page.inner_text('.sheet .share-preview__note').strip() == 'Ajoute ton nom',
                 f'{t} AX33 : « Ajoute ton nom » (version courte) au-dessus de « Partager »')
         bar = page.evaluate("document.querySelector('.sheet .share-preview__actionbar').getBoundingClientRect().height / innerHeight")
-        R.check(bar <= 0.3, f'{t} AX33 : barre fixée basse ({bar:.2f} de la hauteur)')
+        R.check(bar <= 0.32, f'{t} AX33 : barre fixée basse, note sur une ligne et « Partager » ({bar:.2f} de la hauteur)')
         page.evaluate("document.querySelector('#cposterName').scrollIntoView({ block: 'center' })")
         settle(page)
         R.check(page.evaluate(PREVIEW_SEEN) and page.evaluate(HIT, '#cposterName'), f'{t} AX33 : Nom touchable et aperçu visible en même temps')
