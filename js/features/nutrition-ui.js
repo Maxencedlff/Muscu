@@ -828,11 +828,12 @@ async function dietSaltSheet(day) {
     if (add) {
       let g = Number(add.dataset.salt);
       if (add.dataset.salt === 'other') {
-        const raw = await dialog({ title: 'Sel ajouté', message: 'En grammes, par exemple 1,5.', input: { decimal: true, value: '', placeholder: '1', unit: 'g', label: 'Sel ajouté, en grammes' },
+        const raw = await dialog({ title: 'Sel ajouté', message: 'En grammes, par exemple 1,5.', input: { decimal: true, value: '', placeholder: '1', unit: 'g', label: 'Sel ajouté, en grammes',
+            validate: v => (!String(v).trim() || num(v, 0.1, SALT_ADD_MAX_G) !== null ? null : fieldNumMsg('Sel', 0.1, SALT_ADD_MAX_G, false, 'g')) },
           actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Ajouter', style: 'preferred' }] });
         if (raw == null || !String(raw).trim()) return;
         g = num(raw, 0.1, SALT_ADD_MAX_G);
-        if (g === null) { showToast(`Sel : de 0,1 à ${SALT_ADD_MAX_G} g`, { error: true }); return; }
+        if (g === null) return;   // refus dit dans la fenêtre (validate)
       }
       if (!saltAdd(data, g, day)) { showToast(`${SALT_DAY_MAX} ajouts au plus par jour`, { error: true }); return; }
       save(); haptic('light'); paint(); announce(`Ajouté : ${fmtNum(g, 1)} gramme de sel`);

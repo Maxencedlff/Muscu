@@ -539,6 +539,7 @@ registerActions({
     const lbs = data.unit === 'lbs';
     const v = await askNumber({ title: 'Poids du corps',
       message: 'Sert au volume des exercices au poids du corps (tractions, dips, pompes) et aux calories quand Santé n\'a aucune pesée.',
+      messageXl: 'Pour les exercices au poids du corps.',
       value: data.bodyWeightKg ? fmtW(data.bodyWeightKg, { plain: true }) : '', unit: unitLbl(),
       min: lbs ? 55 : 25, max: lbs ? 660 : 300, decimal: true });
     if (v === null) return;

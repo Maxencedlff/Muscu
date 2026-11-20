@@ -321,11 +321,12 @@ registerActions({
   'water-other': async (e, el) => {
     const day = el.dataset.day || localISO();
     const raw = await dialog({ title: 'Quantité bue', message: 'En centilitres, par exemple 33 pour une canette.',
-      input: { decimal: true, value: '', placeholder: '33', unit: 'cl', label: 'Quantité bue, en centilitres' },
+      input: { decimal: true, value: '', placeholder: '33', unit: 'cl', label: 'Quantité bue, en centilitres',
+        validate: v => (!String(v).trim() || waterParseQty(v) !== null ? null : 'Quantité : de 1 cl à 3 L') },
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Ajouter', style: 'preferred' }] });
     if (raw == null || !String(raw).trim()) return;
     const ml = waterParseQty(raw);
-    if (ml === null) { showToast('Quantité : de 1 cl à 3 L', { error: true }); return; }
+    if (ml === null) return;   // refus dit dans la fenêtre (validate)
     waterAddNow(ml, day);
   },
   'water-goal': () => waterGoalSheet(),

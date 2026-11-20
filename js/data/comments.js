@@ -43,7 +43,8 @@ function commentLength(t) { return [...commentClean(t)].length; }
 // Problème du brouillon avant envoi : 'empty', 'too_long' ou null
 function commentProblem(t) {
   const n = commentLength(t);
-  return !n ? 'empty' : n > COMMENT_MAX ? 'too_long' : null;
+  // Espaces insécables ou caractères invisibles seuls : le serveur les garderait (btrim ne retire que ' \t\n'), ce n'est pas un commentaire
+  return !n || !hasVisible(t) ? 'empty' : n > COMMENT_MAX ? 'too_long' : null;
 }
 
 // Brouillon à garder après un envoi réussi (commentaire ou message) : le champ reste modifiable

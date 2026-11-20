@@ -68,6 +68,7 @@
 .ios-dialog__input {
   flex: 1; min-width: 0; border: none; background: none; color: var(--label);
   font: inherit; font-size: var(--fs-input); padding: 8px 10px; outline: none; -moz-appearance: textfield;
+  min-height: 44px; box-sizing: border-box;   /* zone de toucher de 44 pt (grille avant panel, règle 22) */
 }
 .ios-dialog__input::-webkit-outer-spin-button,
 .ios-dialog__input::-webkit-inner-spin-button { -webkit-appearance: none; }
@@ -118,9 +119,13 @@
 /* ═══════════════════════════════════════════════
    Saisie invalide
 ═══════════════════════════════════════════════ */
+/* Champ refusé dont la valeur touchait le bord : un peu d'air à droite, dans le contour */
+.field.set-input--error, .diet-field__input.set-input--error { padding-right: 8px; }
+.coach-req-field__input.set-input--error { padding-inline: 8px; }   /* champ aligné à gauche : de l'air des deux côtés */
+/* Contour d'un champ refusé : le même partout (séries, objectif, formulaires, dialogues, nouvel aliment), arrondi, 2 px */
 .set-input--error,
 .input-group:has(.set-input--error),
-.date-input.set-input--error { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
+.date-input.set-input--error { border-color: transparent !important; box-shadow: 0 0 0 2px var(--red); border-radius: 8px; }
 .input-group .set-input--error { box-shadow: none; }
 
 .add-copy-prev { margin-bottom: var(--sp-3); }
@@ -211,3 +216,18 @@ html.type-xl .review-rec__val { flex: 1 0 100%; padding-left: 34px; white-space:
   white-space: nowrap; transition: width .2s ease-out; }
 .swipe-del--full { justify-content: flex-start; }
 @media (prefers-reduced-motion: reduce) { .swipe-on, .swipe-del { transition: none; } }
+/* Message sous un champ (js/ui/forms.js, fieldNote ; dialogues : .ios-dialog__err) : erreur en rouge, limite en gris.
+   Champ refusé d'un dialogue : contour rouge, la fenêtre reste ouverte avec la valeur tapée (panel du 20/11) */
+.field-err, .field-hint, .field-warn, .field-note-ok, .ios-dialog__err { margin: 6px 16px 8px; font-size: var(--fs-footnote); line-height: 1.35; text-align: left; overflow-wrap: anywhere; }
+.field-err, .ios-dialog__err { color: var(--red-text); }
+.field-hint { color: var(--label2); }
+/* Collage coupé : un avertissement, pas une aide (lisible en clair comme en sombre, panel du 20/11 t2) */
+.field-warn { color: var(--warn-text); font-weight: 600; }
+.field-note__detail { display: block; margin-top: 2px; font-weight: 400; color: var(--label2); }
+/* Bulle d'un commentaire ou d'un message trop long : contour rouge, comme un champ refusé */
+.comment-compose.comment-compose--over { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
+.field-note-ok { color: var(--label); }
+.ios-dialog__err { margin: 6px 2px 0; }
+.ios-dialog__field--error { border-color: transparent; box-shadow: 0 0 0 2px var(--red); }
+/* Ligne des Réglages qui vient d'être enregistrée (« Arrondi à 176 cm ») : fond teinté un instant, sans lueur */
+.cell--flash { background: color-mix(in srgb, var(--tint) 16%, var(--cell)) !important; transition: background .3s; }

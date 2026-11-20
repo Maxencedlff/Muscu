@@ -251,7 +251,7 @@ function renderLibrary(pickCat = null) {
       ${libNavBar()}
       <div class="scr">
         <div class="hist-tools">
-          <input type="search" id="libSearch" class="search" placeholder="${document.documentElement.classList.contains('type-xl') ? 'Rechercher' : 'Nom, muscle ou matériel'}" value="${esc(libQuery)}"
+          <input type="search" id="libSearch" maxlength="${SEARCH_MAX}" class="search" placeholder="${document.documentElement.classList.contains('type-xl') ? 'Rechercher' : 'Nom, muscle ou matériel'}" value="${esc(libQuery)}"
                  autocomplete="off" enterkeyhint="search" aria-label="Rechercher un exercice par nom, muscle ou matériel">
           <div class="ax__equip lib__equip" role="group" aria-label="Matériel"${libMuscle.group ? ' hidden' : ''}>
             ${[{ id: 'all', label: 'Tout' }, ...EQUIPMENT].map(({ id, label }) =>

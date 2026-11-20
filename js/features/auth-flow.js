@@ -151,7 +151,7 @@ const AUTH_STEPS = {
       <p class="auth__lead auth__lead--left">${flow.mode === 'link' ? 'Un code arrive par e‑mail pour la confirmer. Elle servira ensuite à te connecter.' : 'Un code à 6 chiffres arrive par e‑mail. Aucun mot de passe.'}</p>
       <form class="auth__form" data-form="email" novalidate>
         <label class="visually-hidden" for="authEmail">Adresse e-mail</label>
-        <input class="auth__input" id="authEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none"
+        <input class="auth__input" id="authEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" autocapitalize="none"
           autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="nom@exemple.fr" value="${esc(flow.email)}" aria-describedby="authError">
         <p class="auth__error" id="authError" role="alert"></p>
         <button class="btn btn--primary auth__primary" type="submit" data-role="send" ${emailLooksValid(normalizeEmail(flow.email)) ? '' : 'disabled'}>Recevoir un code</button>

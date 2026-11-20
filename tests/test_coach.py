@@ -1000,7 +1000,8 @@ def t_demande_coach(bench, eng, dev, theme):
         page.select_option('#coachReqDiploma', 'BPJEPS')
         page.click('[data-action="coach-request-send"]')
         settle(page)
-        R.check('saisis 6 à 20 lettres et chiffres' in page.inner_text('#coachReqError')
+        R.check('Recopie le numéro comme sur ta carte' in page.inner_text('.coach-req-field + .field-err')
+                and page.get_attribute('#coachReqCard', 'aria-invalid') == 'true'
                 and page.evaluate("__sb.calls.filter(c => c[0] === 'coach' && c[1] === 'coach_request_submit').length") == 0,
                 f'{t} numéro mal formé : refusé sans appel')
         page.fill('#coachReqCard', '049 12 ED 0123')

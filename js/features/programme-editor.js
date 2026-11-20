@@ -217,7 +217,7 @@ function exTempoHtml(d) {
           </div>
           <label class="cell cell--ctl">
             <span class="cell__body"><span class="cell__title">Personnalisé</span></span>
-            <input type="text" id="exTempoIn" class="field field--num" autocomplete="off" inputmode="text" enterkeyhint="done"
+            <input type="text" id="exTempoIn" class="field field--num" autocomplete="off" inputmode="text" enterkeyhint="done" maxlength="${TEMPO_INPUT_MAX}"
                    value="${esc(shortTempo(cur))}" placeholder="Ex. 3-1-1" aria-label="Tempo personnalisé, par exemple 3-1-1">
           </label>
           ${t ? `<div class="cell cell--ctl cell--wrap">
@@ -365,7 +365,7 @@ function renderExEdit() {
         <div class="group-title">Nom</div>
         <div class="group">
           <div class="cell cell--field">
-            <input type="text" id="exName" class="field" value="${esc(d.name)}" placeholder="Ex : Curl biceps haltères"
+            <input type="text" id="exName" class="field" value="${esc(d.name)}" maxlength="${EX_NAME_MAX}" placeholder="Ex : Curl biceps haltères"
                    autocomplete="off" enterkeyhint="done" aria-label="Nom de l'exercice">
           </div>
         </div>
@@ -474,6 +474,12 @@ function setDraftRest(e, el, action) {
     const on = parseInt(b.dataset.s) === v;
     b.classList.toggle('segmented__btn--active', on); b.setAttribute('aria-pressed', on);
   });
+}
+
+// Objectif de charge refusé : 0 n'est pas un objectif (le champ vide l'est : « aucun objectif »), d'où un message
+// différent de weightMsg (« entre 0 et 1000 kg » laissait croire que 0 passait)
+function targetMsg() {
+  return `Au-dessus de 0 ${unitLbl()} (${data.unit === 'lbs' ? '2205' : '1000'} ${unitLbl()} au plus), ou laisse vide`;
 }
 
 registerActions({
@@ -615,8 +621,9 @@ registerActions({
     const route = currentRoute(), editorCat = editorCatOf(route), editExIdx = editExIdxOf(route);
     exDraftFor(route);
     const nameIn = $('#exName'), targetIn = $('#exTarget'), repIn = $('#exRepMax'), repMinIn = $('#exRepMin');
+    // Nom déjà plus long que le champ (fiche d'avant le maxlength) : gardé tel quel, sa clé de records en dépend
     const name = nameIn?.value.trim();
-    if (!name) { flagInvalid(nameIn, 'Entre un nom'); return; }
+    if (!name || !hasVisible(name)) { flagInvalid(nameIn, 'Entre un nom'); return; }
     const sets = exDraft?.sets ?? 3;
     const rest = exDraft?.rest ?? null;
     // Hors répétitions, la rubrique n'est pas affichée : objectif et fourchette gardent leur valeur
@@ -624,7 +631,7 @@ registerActions({
     const repFixed = exDraft?.repFixed === true;   // reps fixes : un seul nombre, jamais de bas
     if (targetIn) {
       const targetRaw = targetIn.value.trim();
-      if (targetRaw && (!weightOk(targetRaw) || !(parseFloat(storeW(targetRaw)) > 0))) { flagInvalid(targetIn, weightMsg()); return; }
+      if (targetRaw && (!weightOk(targetRaw) || !(parseFloat(storeW(targetRaw)) > 0))) { flagInvalid(targetIn, targetMsg()); return; }
       target = targetRaw ? parseFloat(storeW(targetRaw)) : null;
     }
     if (repIn) {

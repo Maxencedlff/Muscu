@@ -19,9 +19,9 @@ function renderCsEdit() {
       <div class="scr">
         <div class="group-title">Nom</div>
         <div class="group">
-          <div class="cell cell--field"><input type="text" id="csName" class="field" value="${esc(existing.label)}"
+          <div class="cell cell--field"><input type="text" id="csName" class="field" value="${esc(existing.label)}" maxlength="${SESSION_LABEL_MAX}"
                placeholder="Ex : Séance A" autocomplete="off" aria-label="Nom de la séance"></div>
-          <div class="cell cell--field"><input type="text" id="csDesc" class="field" value="${esc(existing.desc)}"
+          <div class="cell cell--field"><input type="text" id="csDesc" class="field" value="${esc(existing.desc)}" maxlength="${SESSION_DESC_MAX}"
                placeholder="Description (facultatif)" autocomplete="off" aria-label="Description"></div>
         </div>
         ${isEdit ? `
@@ -53,14 +53,16 @@ registerActions({
     csEditId = null; goBack();
   },
   'save-cs-modal': () => {
-    const name = $('#csName')?.value.trim();
-    const desc = $('#csDesc')?.value.trim() || '';
-    if (!name) { flagInvalid($('#csName'), 'Entre un nom'); return; }
-
     const id = csEditId || newSessionId();
     const store = userSessions(csProg);
     if (!store) return;
     const prev = store[id];
+    // Seul ce qui a été modifié est borné (maxlength, et clipText pour un collage) : un nom ou une description d'avant,
+    // plus long que la limite d'aujourd'hui, reste entier quand on ne change que la couleur. Invisible seul : pas un nom
+    const kept = (v, old, max) => (v === String(old ?? '').trim() ? v : clipEdit(v, old, max).trim());   // retouché : borné, jamais sous l'ancien
+    const name = kept($('#csName')?.value.trim() ?? '', prev?.label, SESSION_LABEL_MAX);
+    const desc = kept($('#csDesc')?.value.trim() || '', prev?.desc, SESSION_DESC_MAX);
+    if (!name || !hasVisible(name)) { flagInvalid($('#csName'), 'Entre un nom'); return; }
     // L'icône n'est plus choisie ni affichée : celle d'une séance existante est gardée telle quelle
     store[id] = { label: name, icon: prev?.icon || '', desc, color: csColor };
 

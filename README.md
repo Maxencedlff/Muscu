@@ -36,6 +36,19 @@ programmes perso (`userProgrammes`). Les scripts de `js/core/` et `js/data/` son
 contexte `vm` avec un `window`, un `document` et un `localStorage` réduits au minimum. Node 18 ou
 plus, aucune dépendance.
 
+### Champs de saisie (inventaire statique, Node)
+
+```sh
+node tools/champs/inventaire.mjs          # problèmes seulement ; --tout : tous les champs ; --json
+```
+
+Chaque champ de `js/` (balises, dialogues `askText` / `askNumber`, feuilles) avec ses règles côté client (maxlength,
+clavier, bornes vérifiées en JS) et côté serveur (contraintes lues dans `supabase/migrations`). Code 1 si un champ n'a
+pas de limite de longueur, accepte plus que le serveur, refuse la virgule française (`type="number"`), a une borne
+illogique, ou n'est pas décrit dans `tools/champs/registre.mjs` (tout nouveau champ doit l'être). Le comportement réel
+face aux pires valeurs (vide, invisibles, 5 000 caractères, emoji, RTL, HTML, SQL, « 12,5 », « 1e9 », double toucher)
+est vérifié par le lot Playwright `pires_testeurs` (`tests/test_pires_testeurs.py`).
+
 ### Tests de non-régression (Playwright, Python)
 
 Prérequis : `pip install playwright` puis `python3 -m playwright install chromium webkit`, et le

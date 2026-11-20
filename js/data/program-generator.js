@@ -255,6 +255,23 @@ const GEN_BMI_HEAVY = 30;
 const genSecondaryWeight = () => (typeof SECONDARY_WEIGHT === 'number' ? SECONDARY_WEIGHT : 0.5);
 
 // Réponses nettoyées, bornées ; une réponse absente prend la valeur la plus courante
+// Charges des haltères fixes tapées (« 4 8 12 », « 12,5 17,5 », « 4; 8; 12 », « 4,8,12 » collé d'un tableur, « 8kg ») :
+// { loads } triées sans doublon, 20 au plus, ou { bad } : le premier morceau refusé (pas un nombre de 0,5 à 80 kg).
+// Une virgule seule entre deux chiffres est décimale (« 12,5 ») ; plusieurs virgules sans espace sont des séparateurs.
+const GEN_DB_MIN = 0.5, GEN_DB_MAX = 80, GEN_DB_COUNT = 20;
+function genParseLoads(raw) {
+  const loads = [];
+  for (const tok of String(raw ?? '').trim().split(/[\s;]+|,\s+/).filter(Boolean)) {
+    const parts = (tok.match(/,/g) || []).length > 1 ? tok.split(',') : [tok];
+    for (const p of parts) {
+      const v = num(p.replace(/kg$/i, ''), GEN_DB_MIN, GEN_DB_MAX);   // « 8kg » : l'unité tapée par habitude
+      if (v === null) return { bad: p };
+      loads.push(v);
+    }
+  }
+  return { loads: [...new Set(loads)].sort((a, b) => a - b).slice(0, GEN_DB_COUNT) };
+}
+
 function genCleanAnswers(raw = {}) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const intIn = (v, lo, hi) => (Number.isFinite(+v) && +v >= lo && +v <= hi ? Math.round(+v) : null);

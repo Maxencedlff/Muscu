@@ -38,7 +38,7 @@ function showToast(msg, opts = {}) {
   if (typeof sessionNotice === 'function' && sessionNotice(msg, opts)) return;
   document.querySelectorAll('.toast').forEach(t => t.remove());
   const el = document.createElement('div');
-  el.className = 'toast';
+  el.className = opts.error ? 'toast toast--error' : 'toast';
   el.dataset.at = String(Date.now());
   const duration = Math.max(opts.duration || 2200, opts.error ? 4000 : 0, opts.action ? TOAST_ACTION_MIN_MS : 0);
   announce(opts.action ? `${msg}. ${opts.action} disponible` : msg, !!opts.error);
@@ -92,7 +92,9 @@ function dialogInputLabel(input, title = '') {
 // Feuille seulement : section = titre du groupe de choix qui commence là (long menu rangé en sections) ; group = groupe
 // séparé du précédent par une bande, sans titre (menu court) ;
 // apart = choix posé dans son propre bloc, au-dessus d'« Annuler », hors de la liste qui défile (action destructive)
-function dialog({ type = 'alert', title = '', message = '', actions, input = null }) {
+// messageXl : explication plus courte en texte très grand (AX33 : la longue ne tenait pas, coupée au milieu d'une ligne)
+function dialog({ type = 'alert', title = '', message = '', messageXl = '', actions, input = null }) {
+  if (messageXl && document.documentElement.classList.contains('type-xl')) message = messageXl;
   return new Promise(resolve => {
     document.querySelector('.ios-dialog')?.remove();
     // Une alerte prend toute l'attention : un toast encore affiché (action précédente) disparaît
@@ -122,11 +124,13 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
         ${input   ? `<div class="ios-dialog__field">
             <input class="ios-dialog__input" ${input.digits ? 'type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="20"'   // code-barres : zéros de tête gardés
               : input.text ? `type="text" autocomplete="off" autocapitalize="sentences" maxlength="${input.max || 40}"`
-              : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off"'   // « 70,5 » : la virgule du clavier français
-              : 'type="number" inputmode="numeric"'}
+              : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off" maxlength="12"'   // « 70,5 » : la virgule du clavier français
+              // Entier : jamais type="number" (« 175,5 » y devient vide, donc effacé ; « 1e3 » y passe) ; num() juge
+              : 'type="text" inputmode="numeric" autocomplete="off" maxlength="12"'}
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}" aria-label="${esc(dialogInputLabel(input, title))}">
             ${input.unit ? `<span class="ios-dialog__unit" aria-hidden="true">${esc(input.unit)}</span>` : ''}
-          </div>` : ''}
+          </div>
+          <p class="ios-dialog__err" id="${dlgId}-e" hidden></p>` : ''}
       </div>` : '';
 
     root.innerHTML = type === 'sheet'
@@ -151,8 +155,29 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
       document.removeEventListener('keydown', onKey);
       resolve(value);
     };
+    // Valeur refusée (input.validate rend un message) : la fenêtre reste ouverte avec ce qui a été tapé, le champ
+    // entouré de rouge et le message dessous (panel du 20/11 : refermer et dire l'erreur en toast faisait tout retaper)
+    const err = root.querySelector('.ios-dialog__err');
+    const showErr = msg => {
+      err.textContent = msg; err.hidden = !msg;
+      field.closest('.ios-dialog__field').classList.toggle('ios-dialog__field--error', !!msg);
+      // Un seul canal pour VoiceOver : champ déjà actif (touche Entrée) → message en alerte ; sinon le focus qui revient
+      // sur le champ lit son message (aria-describedby, ajouté à la liste sans écraser une aide existante)
+      if (msg) {
+        const active = document.activeElement === field;
+        if (active) err.setAttribute('role', 'alert'); else err.removeAttribute('role');
+        field.setAttribute('aria-invalid', 'true'); describedAdd(field, err.id);
+        if (!active) field.focus();
+        haptic('medium');
+      } else { err.removeAttribute('role'); field.removeAttribute('aria-invalid'); describedRemove(field, err.id); }
+    };
+    field?.addEventListener('input', () => { if (!err.hidden) showErr(''); });
     const pick = a => {
       if (!a || a.style === 'cancel') return close(null);
+      if (field && a.value === undefined && typeof input.validate === 'function') {
+        const msg = input.validate(field.value);
+        if (msg) return showErr(msg);
+      }
       // Avec un champ, le choix rend le texte saisi ; un choix qui porte sa propre valeur (« Effacer ») la rend
       close(field && a.value === undefined ? field.value : a.value);
     };
@@ -224,22 +249,26 @@ function confirmSheet(title, message, label, destructive = true) {
   ] }).then(v => v === true);
 }
 
-async function askNumber({ title, message, value, unit, min, max, decimal = false }) {
-  const raw = await dialog({ title, message, input: { value, unit, decimal }, actions: [
+// num() : virgule acceptée, et rien d'autre qu'un nombre écrit simplement (parseInt lisait « 1e3 » 1 et « 60abc » 60).
+// Refus dit sous le champ, fenêtre ouverte (input.validate) ; label : nom du champ dans le message (le titre sinon)
+async function askNumber({ title, message, messageXl, value, unit, min, max, decimal = false, label = title }) {
+  const ok = raw => String(raw).trim() === '' || num(raw, min, max, !decimal) !== null;
+  const raw = await dialog({ title, message, messageXl, input: { value, unit, decimal,
+    validate: raw => (ok(raw) ? null : fieldNumMsg(label, min, max, !decimal, unit)) }, actions: [
     { label: 'Annuler', style: 'cancel' },
     { label: 'OK', style: 'preferred' },
   ] });
-  if (raw === null || raw === '') return null;
-  const v = decimal ? num(raw, -Infinity, Infinity) ?? NaN : parseInt(raw, 10);   // num() accepte la virgule
-  if (isNaN(v) || v < min || v > max) { showToast(`Valeur entre ${min} et ${max}`, { error: true }); return null; }
-  return v;
+  if (raw === null || String(raw).trim() === '') return null;
+  return num(raw, min, max, !decimal);
 }
 
-async function askText({ title, message, value = '', placeholder = '', confirm = 'OK' }) {
-  const raw = await dialog({ title, message, input: { value, placeholder, text: true }, actions: [
+// max : longueur du champ (40 par défaut, celle du dialogue). Espaces et caractères invisibles seuls : null (rien saisi)
+// validate : message d'un texte refusé, dit sous le champ sans fermer la fenêtre (null : accepté)
+async function askText({ title, message, value = '', placeholder = '', confirm = 'OK', max, validate }) {
+  const raw = await dialog({ title, message, input: { value, placeholder, text: true, max, validate }, actions: [
     { label: 'Annuler', style: 'cancel' },
     { label: confirm, style: 'preferred' },
   ] });
   const v = (raw ?? '').trim();
-  return v || null;
+  return v && hasVisible(v) ? v : null;
 }

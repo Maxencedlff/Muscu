@@ -250,7 +250,7 @@ async function dietPickFood() {
   const body = `
     <div class="diet-pick">
       <div class="social-search diet-pick__search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
-        <input type="search" id="dietFoodSearch" class="search social-search__input" placeholder="Rechercher un aliment" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment"></div>
+        <input type="search" id="dietFoodSearch" maxlength="${SEARCH_MAX}" class="search social-search__input" placeholder="Rechercher un aliment" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment"></div>
       ${foodScanButtonHtml()}
       <div class="diet-pick__list" id="dietFoodList">${dietFoodResultsHtml('')}</div>
       <p class="sr-text" id="dietFoodCount" aria-live="polite"></p>
@@ -337,8 +337,10 @@ async function dietNewFood(name = '', { code = null } = {}) {
     const v = id => $(id, panel).value;
     const nm = dietCutName(v('#dietFoodName'));
     const k0 = num(v('#dietFoodK'), 0, 900), p = num(v('#dietFoodP') || '0', 0, 100), c = num(v('#dietFoodC') || '0', 0, 100), f = num(v('#dietFoodF') || '0', 0, 100);
-    const err = msg => { $('#dietFoodErr', panel).textContent = msg; return false; };
-    if (!nm) return err('Donne un nom à cet aliment.');
+    // Message au bas d'une longue feuille : amené à l'écran (sur iPhone SE il restait sous le pli)
+    const err = msg => { const e = $('#dietFoodErr', panel); e.textContent = msg; e.scrollIntoView({ block: 'nearest' }); return false; };
+    // Sans nom (invisibles seuls compris) : le champ Nom revient à l'écran, entouré de rouge, « Entre un nom » dessous
+    if (!nm || !hasVisible(nm)) { flagInvalid($('#dietFoodName', panel), 'Entre un nom'); return false; }
     if (p === null || c === null || f === null) return err('Protéines, glucides et lipides : de 0 à 100 g.');
     // Énergie vide : calculée comme sur une étiquette (4, 4 et 9 kcal par gramme)
     const k = k0 ?? (v('#dietFoodK').trim() ? null : Math.round(4 * p + 4 * c + 9 * f));
@@ -369,7 +371,7 @@ async function dietKeepFood(food) {
 async function dietAskGrams(food, value = 100) {
   const base = `Quantité en grammes. Pour 100 g : ${food.per.k} kcal.`;
   const p = askNumber({ title: elideName(foodName(food.name)), message: base,   // macros déjà dans la liste : l'alerte reste courte en texte agrandi
-    value: String(value), unit: 'g', min: 1, max: DIET_G_MAX });
+    value: String(value), unit: 'g', min: 1, max: DIET_G_MAX, decimal: true });   // « 12,5 » g : arrondi par dietAskQty
   // Calories de la quantité tapée, à chaque chiffre (panel nutri-final t1 : « je dois calculer de tête ») ; sans
   // abréviation de macros (lues lettre par lettre, panel du 07/11)
   const inp = document.querySelector('.ios-dialog .ios-dialog__input'), msg = document.querySelector('.ios-dialog .ios-dialog__msg');

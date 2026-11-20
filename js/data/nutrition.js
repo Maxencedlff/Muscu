@@ -55,7 +55,7 @@ const DIET_SRC = ['ciqual-2025', 'perso', 'off'];   // origine des valeurs d'un 
 
 const dietIsObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
 const dietR1 = v => Math.round(v * 10) / 10;
-const dietText = (v, max) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '').slice(0, max).trim();
+const dietText = (v, max) => clipText(typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '', max).trim();
 // Nom long coupé au dernier mot entier (« Pâtes sèches, standard, cuites, sans sel ajouté » tient)
 function dietCutName(v, max = DIET_FOOD_NAME_MAX) {
   const t = dietText(String(v ?? ''), 400);

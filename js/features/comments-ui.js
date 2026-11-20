@@ -51,7 +51,8 @@ function commentsListHtml(owner, id) {
 
 function commentCountHtml(text) {
   const n = commentLength(text);
-  return n >= COMMENT_WARN ? `${n} / ${COMMENT_MAX}` : '';
+  // Au-delà : ce qu'il faut retirer, pas seulement un compteur rouge (panel du 20/11)
+  return n > COMMENT_MAX ? `${plural(n - COMMENT_MAX, 'caractère', 'caractères')} en trop, enlève-${n - COMMENT_MAX > 1 ? 'les' : 'le'} pour envoyer` : n >= COMMENT_WARN ? `${n} / ${COMMENT_MAX}` : '';
 }
 
 // Réponses rapides (séance d'un ami) : une rangée de boutons, un toucher = un commentaire envoyé.
@@ -76,7 +77,7 @@ function commentsGroupHtml(owner, id, { writable = true, quick = false, record =
           <textarea id="commentInput" class="comment-compose__input" data-owner="${esc(owner)}" data-id="${esc(id)}" rows="1"
             aria-label="Ajouter un commentaire" placeholder="Ajouter un commentaire…" autocomplete="off" autocapitalize="sentences" aria-describedby="commentCount">${esc(draft)}</textarea>
           <button class="comment-compose__send" data-action="comment-send" data-owner="${esc(owner)}" data-id="${esc(id)}"
-            aria-label="Envoyer le commentaire" ${busy || commentProblem(draft) ? 'disabled' : ''}>${icon('arrow.up', 18)}</button>
+            aria-label="Envoyer le commentaire" aria-describedby="commentCount" ${busy || commentProblem(draft) ? 'disabled' : ''}>${icon('arrow.up', 18)}</button>
         </div>
         <p class="comment-compose__count num" id="commentCount" aria-live="polite">${commentCountHtml(draft)}</p>` : '';
   return `
@@ -115,6 +116,7 @@ document.addEventListener('input', e => {
   if (send) send.disabled = comments.busy || !!commentProblem(el.value);
   if (count) count.textContent = commentCountHtml(el.value);
   count?.classList.toggle('is-over', commentLength(el.value) > COMMENT_MAX);
+  el.closest('.comment-compose')?.classList.toggle('comment-compose--over', commentLength(el.value) > COMMENT_MAX);   // bulle en rouge
 });
 
 async function sendComment(owner, id) {
@@ -132,6 +134,7 @@ async function sendComment(owner, id) {
   if (el) { el.value = rest; fitCommentInput(el); }
   const count = $('#commentCount');
   if (count) count.textContent = rest ? commentCountHtml(rest) : '';
+  document.querySelector('.comment-compose')?.classList.toggle('comment-compose--over', commentLength(rest || '') > COMMENT_MAX);
   announce('Commentaire envoyé');
   if (!refreshCommentsList()) render();
   $('#commentsList .comment:last-child')?.scrollIntoView({ block: 'nearest', behavior: reduceMotion.matches ? 'auto' : 'smooth' });

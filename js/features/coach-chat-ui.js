@@ -55,7 +55,7 @@ function chatListHtml(key) {
 
 function chatCountText(text) {
   const n = chatLength(text);
-  return n >= CHAT_WARN ? `${n} / ${CHAT_MAX}` : '';
+  return n > CHAT_MAX ? `${plural(n - CHAT_MAX, 'caractère', 'caractères')} en trop, enlève-${n - CHAT_MAX > 1 ? 'les' : 'le'} pour envoyer` : n >= CHAT_WARN ? `${n} / ${CHAT_MAX}` : '';
 }
 
 // Notifications refusées dans iOS : une ligne discrète vers les Réglages de l'iPhone (js/features/push-ui.js)
@@ -89,7 +89,7 @@ function renderCoachChat(key) {
         <div class="chat-compose">
           <textarea id="chatInput" class="comment-compose__input chat-compose__input" data-key="${esc(key)}" rows="1"
             aria-label="${esc(`Message à ${name}`)}" placeholder="Message" autocomplete="off" autocapitalize="sentences" aria-describedby="chatCount">${esc(draft)}</textarea>
-          <button class="comment-compose__send" data-action="chat-send" data-key="${esc(key)}" aria-label="Envoyer le message"
+          <button class="comment-compose__send" data-action="chat-send" data-key="${esc(key)}" aria-label="Envoyer le message" aria-describedby="chatCount"
             ${c.sending || chatProblem(draft) ? 'disabled' : ''}>${icon('arrow.up', 18)}</button>
         </div>
         <p class="comment-compose__count num" id="chatCount" aria-live="polite">${chatCountText(draft)}</p>
@@ -157,6 +157,7 @@ document.addEventListener('input', e => {
   const send = $('.chat-compose .comment-compose__send'), count = $('#chatCount');
   if (send) send.disabled = chatConv(el.dataset.key).sending || !!chatProblem(el.value);
   if (count) { count.textContent = chatCountText(el.value); count.classList.toggle('is-over', chatLength(el.value) > CHAT_MAX); }
+  el.closest('.comment-compose')?.classList.toggle('comment-compose--over', chatLength(el.value) > CHAT_MAX);   // bulle en rouge
 });
 
 async function sendChat(key) {
@@ -171,6 +172,7 @@ async function sendChat(key) {
   if (el) { el.value = rest; fitCommentInput(el); }
   const count = $('#chatCount');
   if (count) count.textContent = rest ? chatCountText(rest) : '';
+  document.querySelector('.chat-compose')?.classList.toggle('comment-compose--over', chatLength(rest || '') > CHAT_MAX);
   announce('Message envoyé');
   if (!refreshChatList(key)) render();
   // Relu tout de suite : un message de l'autre arrivé juste avant le mien s'affiche sans attendre 15 s
@@ -281,7 +283,7 @@ function chatInboxScreenHtml() {
   if (!chatAvailable()) return `<div id="chatInbox"><div class="empty-note">${chatHiddenByAge() ? esc(coachErrorText('age_limited')) : 'Les messages ne sont pas encore disponibles.'}</div></div>`;
   if (!st.students.length) return '<div id="chatInbox"><div class="empty-note">Les conversations avec tes élèves s\'affichent ici.</div></div>';
   return `<div id="chatInbox">
-        <div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="chatSearch" class="search social-search__input" placeholder="Rechercher" aria-label="Rechercher un élève par son pseudo"
+        <div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="chatSearch" maxlength="${SEARCH_MAX}" class="search social-search__input" placeholder="Rechercher" aria-label="Rechercher un élève par son pseudo"
             autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(chatInboxQ)}"></div>
         ${chat.error && !chat.threads ? `<p class="social-inline-error" role="status">${esc(chat.error === 'offline' ? 'Pas d\'Internet : pas à jour.' : coachErrorText(chat.error))}</p>` : ''}
         <div class="group chat-inbox" id="chatRows">${chatInboxRowsHtml()}</div>

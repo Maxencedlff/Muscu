@@ -124,7 +124,7 @@ function editMachineValue(id) {
   const { u, v } = e.cur[id], [lo, hi] = machineRange(u, slot);
   const input = document.createElement('input');
   Object.assign(input, { type: 'text', className: 'mach-val mach-val--input num', value: v == null ? '' : fmtMachineValue(v, u),
-    inputMode: MACHINE_UNITS[u].digits ? 'decimal' : 'numeric', enterKeyHint: 'done', autocomplete: 'off' });
+    inputMode: MACHINE_UNITS[u].digits ? 'decimal' : 'numeric', enterKeyHint: 'done', autocomplete: 'off', maxLength: 8 });
   input.dataset.slot = id;
   input.setAttribute('aria-label', `${slot.label}, de ${fmtNum(lo)} à ${fmtNum(hi)}`);
   btn.replaceWith(input);
@@ -136,7 +136,16 @@ function commitMachineInput(input) {
   const e = activeSession?.effort, id = input.dataset.slot, slot = e?.kind === 'machine' ? machineSlot(e, id) : null;
   if (!slot) return;
   const raw = input.value.trim();
-  const v = raw === '' ? e.cur[id].v : clampMachineValue(raw, e.cur[id].u, slot);
+  const v = raw === '' ? e.cur[id].v : machineParseValue(raw, e.cur[id].u, slot);
+  if (raw !== '' && v === null) {
+    // Refus dit, la saisie reste dans le champ pour la corriger (comme ailleurs) ; avant : « 12abc » valait 12, « 1e9 »
+    // le maximum, en silence. Le champ se referme à la prochaine validation réussie (ou vidé : valeur d'avant)
+    const [lo, hi] = machineRange(e.cur[id].u, slot);
+    delete input.dataset.done;
+    input.classList.add('set-input--error'); input.setAttribute('aria-invalid', 'true');
+    showToast(`${slot.label} : de ${fmtNum(lo)} à ${fmtNum(hi)}`, { error: true });
+    return;
+  }
   if (v != null && v !== e.cur[id].v) setMachineValue(id, v); else refreshMachineSlot(e, id);
 }
 document.addEventListener('keydown', ev => {

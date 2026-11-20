@@ -506,7 +506,9 @@ function cleanHistoryEntry(h) {
   if (typeof h.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(h.id)) h.id = uid();
   if (h.healthSaved !== undefined && h.healthSaved !== true) delete h.healthSaved;   // app iOS : déjà envoyée à Santé
   if (h.hidden !== undefined && h.hidden !== true) delete h.hidden;   // masquée aux abonnés (social), absent sinon
-  if (h.notes !== undefined && typeof h.notes !== 'string') delete h.notes;   // note de séance (bilan) : un texte ou rien
+  // Note de séance (bilan) : un texte ou rien. Jamais coupée ici (lancement, synchro, restauration) : seule la saisie est
+  // bornée (SESSION_NOTES_MAX) ; une note plus longue d'avant reste entière, le serveur la garde dans sessions.data
+  if (h.notes !== undefined && typeof h.notes !== 'string') delete h.notes;
   // Poids du corps au moment de la séance (volume des exercices au poids du corps)
   if (h.bodyKg !== undefined && !(Number.isFinite(h.bodyKg) && h.bodyKg >= 25 && h.bodyKg <= 300)) delete h.bodyKg;
   h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');

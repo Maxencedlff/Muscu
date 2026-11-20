@@ -709,6 +709,91 @@ def p_vacuum(r):
     with r.etape('progres', 'Progrès › Vacuum : plus long maintien, temps total sous tension'):
         r.attendre('.view.stats-ex', 'Progrès › Vacuum')
 
+def coller(r, sel, texte, quoi):
+    """Collage comme sur iPhone : le champ touché, puis le texte coupé par le maxlength et un événement input de type
+    insertFromPaste SANS data (ce que fait Safari iOS), précédé de beforeinput et de paste."""
+    r.toucher(sel, quoi)
+    r.raccourci("""([s, t]) => { const e = document.querySelector(s); e.dispatchEvent(new Event('paste', { bubbles: true }));
+        e.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, inputType: 'insertFromPaste' }));
+        e.value = e.maxLength > 0 ? t.slice(0, e.maxLength) : t;
+        e.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' })); }""", f'{quoi} : texte collé', [sel, texte])
+
+
+@parcours('champs-limites', 'Champs de saisie : limites, collages trop longs et messages de refus', 'pratiquant')
+def p_champs_limites(r):
+    """Le « pire testeur » : un nom d'exercice et un nom de séance collés trop longs (coupés à 80 et 40 caractères),
+    un nom fait d'espaces invisibles, un objectif de 0 kg, un âge de 300 ans, une taille « 175,5 » (arrondie), un poids du
+    corps « 72,5 », une note de bilan collée trop longue, un aliment sans nom, un commentaire au-delà de 500 caractères, un numéro
+    de carte pro refusé puis « 04/912 ED.0123 » accepté."""
+    r.lancer(REALISTE)
+    long = 'Développé couché prise serrée avec pause en bas et tempo lent sur barre, banc incliné à trente degrés'
+    with r.etape('exercice-nom-long', 'Fiche exercice : nom collé de 100 caractères, coupé à 80', cle='Nom d\'exercice trop long'):
+        r.raccourci("exDraft = null; navigate(makeRoute('ex-edit', 'push', 0))", 'fiche du 1er exercice ouverte')
+        r.attendre('#exName', 'nom de l\'exercice')
+        coller(r, '#exName', long, 'nom de l\'exercice')
+    with r.etape('objectif-zero', 'Objectif de 0 kg : message de refus', cle='Objectif de charge refusé'):
+        r.saisir('#exTarget', '0', 'objectif')
+        r.toucher('[data-action="save-ex"]', 'OK')
+    with r.etape('seance-nom-invisible', 'Nouvelle séance : nom fait d\'espaces invisibles, refusé', cle='Nom de séance'):
+        r.raccourci('void openNewSession()', 'écran « Nouvelle séance » ouvert')
+        r.attendre('#csName', 'nom de la séance')
+        r.saisir('#csName', '\u200b\u200b ', 'nom de la séance')
+        r.toucher('[data-action="save-cs-modal"]', 'OK')
+    with r.etape('seance-nom-long', 'Nom de séance collé trop long : coupé à 40', cle='Nom de séance'):
+        coller(r, '#csName', 'Haut du corps lourd, épaules et bras, version longue du lundi', 'nom de la séance')
+    with r.etape('age-refuse', 'Âge « 300 » : fenêtre ouverte, valeur gardée, message sous le champ', cle='Taille et poids'):
+        r.raccourci("routeTo('dashboard')", 'retour à l\'accueil')
+        reglages(r)
+        r.raccourci("void handleAction(new Event('click'), document.body, 'set-profile-age')", 'Réglages › Âge')
+        r.attendre('.ios-dialog__input', 'champ de l\'âge')
+        r.saisir('.ios-dialog__input', '300', 'âge')
+        r.choisir('OK')
+    with r.etape('taille-decimale', 'Taille « 175,5 » : arrondie à 176 cm', cle='Taille et poids'):
+        r.choisir('Annuler')
+        r.raccourci("void handleAction(new Event('click'), document.body, 'set-profile-height')", 'Réglages › Taille')
+        r.attendre('.ios-dialog__input', 'champ de la taille')
+        r.saisir('.ios-dialog__input', '175,5', 'taille')
+        r.choisir('OK')
+    with r.etape('poids-virgule', 'Poids du corps « 72,5 » avec la virgule', cle='Taille et poids'):
+        r.raccourci("void handleAction(new Event('click'), document.body, 'set-body-weight')", 'Réglages › Poids du corps')
+        r.attendre('.ios-dialog__input', 'champ du poids')
+        r.saisir('.ios-dialog__input', '72,5', 'poids du corps')
+    with r.etape('poids-enregistre', 'Poids enregistré', cle='Taille et poids'):
+        r.choisir('OK')
+    with r.etape('aliment-sans-nom', 'Nouvel aliment sans nom : message dans la feuille', cle='Nutrition'):
+        r.raccourci('void dietNewFood()', 'feuille « Nouvel aliment » ouverte')
+        r.attendre('#dietFoodName', 'nom de l\'aliment')
+        r.saisir('#dietFoodK', '120', 'énergie')
+        r.toucher('.sheet__btn--confirm', 'OK')
+    with r.etape('bilan-note-longue', 'Bilan : note de 2 100 caractères collée, coupée à 2 000 et dit', cle='Notes de séance'):
+        r.raccourci("document.querySelectorAll('.sheet-root').forEach(s => s._close ? s._close() : s.remove()); "
+                    "lastSummary = buildSummary(data.history[data.history.length - 1]); routeTo('summary')", 'bilan de la dernière séance')
+        r.attendre('#summaryNotes', 'notes du bilan')
+        coller(r, '#summaryNotes', ('Bonne séance, épaule gauche un peu sensible sur le développé, à surveiller. ' * 30)[:2100], 'notes du bilan')
+    with r.etape('commentaire-trop-long', 'Commentaire au-delà de 500 caractères : compteur rouge, Envoyer grisé', cle='Commentaires'):
+        r.connecter('max', amis=True)
+        r.raccourci("""() => { const now = Date.now();
+            const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', sessions: [{ id: 'l01', date: now - 86400e3, duration: 3e6,
+              programme: 'ppl', category: 'push', label: 'Push', exercises: [{ name: 'Développé couché', sets: [{ weight: '80', reps: '8' }] }] }] });
+            const me = __sb.meId(); __sb.follow(me, lea); __sb.follow(lea, me); }""", 'Léa, amie qui s\'entraîne')
+        r.raccourci("routeTo('friends')", 'onglet Amis')
+        r.toucher('.feed-card .feed-card__main', 'séance de Léa')
+        r.attendre('#commentInput', 'champ du commentaire')
+        r.raccourci("() => { const t = document.querySelector('#commentInput'); t.value = 'Belle séance ! '.repeat(34); "
+                    "t.dispatchEvent(new Event('input', { bubbles: true })); }", 'commentaire de 510 caractères collé')
+        r.defiler('.comment-compose', 'champ du commentaire et son compteur')
+    with r.etape('carte-refusee', 'Demande de coach : numéro de carte « 12 » refusé, avec son message', cle='Carte pro'):
+        r.raccourci("navigate('coach-request')", 'Réglages › Devenir coach')
+        r.attendre('#coachReqName', 'formulaire de la demande')
+        r.saisir('#coachReqName', 'Jean Dupont', 'nom sur la carte')
+        r.saisir('#coachReqCard', '12', 'numéro de carte')
+        r.raccourci("() => { const s = document.querySelector('#coachReqDiploma'); s.selectedIndex = 1; s.dispatchEvent(new Event('change', { bubbles: true })); }", 'diplôme choisi')
+        r.toucher('[data-action="coach-request-send"]', 'Envoyer ma demande')
+    with r.etape('carte-acceptee', 'Numéro « 04/912 ED.0123 » accepté (points, barres et espaces ignorés comme par le serveur)', cle='Carte pro'):
+        r.saisir('#coachReqCard', '04/912 ED.0123', 'numéro de carte')
+        r.toucher('[data-action="coach-request-send"]', 'Envoyer ma demande')
+
+
 @parcours('reglages', 'Réglages (chaque groupe)', 'pratiquant')
 def p_reglages(r):
     """Réglages ouverts depuis l'accueil, puis chaque groupe amené en haut de l'écran."""

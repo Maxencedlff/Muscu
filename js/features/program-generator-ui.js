@@ -215,11 +215,15 @@ const GEN_SET = {
 };
 // Charges des haltères fixes, en kilos (« 4 8 12 », virgule décimale acceptée)
 async function genAskLoads() {
+  // 100 caractères : 20 charges « 12,5 » séparées d'un espace tiennent (40, la longueur d'avant, en coupait la moitié en silence)
   const raw = await askText({ title: 'Haltères fixes', message: 'Charges en kg, séparées par un espace. Exemple : 4 8 12',
-    value: genAns.dbLoads.map(v => fmtNum(v)).join(' '), placeholder: '4 8 12' });
+    value: genAns.dbLoads.map(v => fmtNum(v)).join(' '), placeholder: '4 8 12', max: 100,
+    // Un morceau illisible (« -4 », « 1e3 », « 2,5,5kg ») : refus dit sous le champ, fenêtre ouverte (avant : écarté en silence)
+    validate: v => { const b = genParseLoads(v).bad; return b === undefined ? null : `« ${clipText(b, 12)} » : charge de ${fmtNum(GEN_DB_MIN)} à ${GEN_DB_MAX} kg`; } });
   if (raw === null) return;
-  const loads = raw.replace(/(\d),(\d)/g, '$1.$2').split(/[\s,;]+/).map(Number).filter(v => v > 0 && v <= 80);
-  genAns.dbLoads = [...new Set(loads)].sort((a, b) => a - b).slice(0, 20);
+  const r = genParseLoads(raw);
+  if (r.bad !== undefined) return;
+  genAns.dbLoads = r.loads;
   genStore(); render();
 }
 const genToggle = (list, v) => (list.includes(v) ? list.filter(x => x !== v) : [...list, v]);

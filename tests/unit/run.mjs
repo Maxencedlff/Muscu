@@ -2115,6 +2115,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // ── Suivi de la diète par le coach, 18/11 (tests dans diet-share.mjs) ──
 (await import('./diet-share.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 
+// ── Inventaire des champs et règles de saisie, 20/11 (tests dans champs.mjs) ──
+(await import('./champs.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+
 // ── Exécution ───────────────────────────────────────────────
 
 let failed = 0;
