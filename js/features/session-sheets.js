@@ -451,7 +451,11 @@ function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name
 // dessous, demande de Maxence avec le panel Apple du 08/11)
 function howToNameHtml(name) {
   const s = String(name || '').trim(), i = s.lastIndexOf(' ');
-  return `${esc(i > 0 ? s.slice(0, i + 1) : '')}<span class="ex-howto__tail">${esc(i > 0 ? s.slice(i + 1) : s)}${icon('info.circle', 15)}</span>`;
+  // Dernier mot long (plus de 10 lettres, « concentration ») : sans le bloc insécable, pour qu'il se coupe à une césure
+  // plutôt que d'être rogné sur iPhone SE (« concentratior », panel du 20/11) ; ⓘ le suit sans espace
+  const last = i > 0 ? s.slice(i + 1) : s, head = esc(i > 0 ? s.slice(0, i + 1) : '');
+  if (last.length > 10) return `${head}<span class="ex-howto__long">${esc(last)}${icon('info.circle', 15)}</span>`;
+  return `${head}<span class="ex-howto__tail">${esc(last)}${icon('info.circle', 15)}</span>`;
 }
 // Nom tel que tapé : la fiche montre les muscles choisis pour lui (alias compris)
 function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }

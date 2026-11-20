@@ -56,6 +56,7 @@ html.type-xl .ss-thumbs { display: none; }
 .ex-howto .icon { display: inline-block; vertical-align: -2px; margin-left: 5px; color: var(--label2); }
 /* Dernier mot et ⓘ ensemble : ⓘ ne passe jamais seul à la ligne (howToNameHtml, js/features/session-sheets.js) */
 .ex-howto__tail { white-space: nowrap; }
+.ex-howto__long { -webkit-hyphens: auto; hyphens: auto; }   /* dernier mot long : coupé à une césure plutôt que rogné */
 .ex-howto:active .ex-howto__text { opacity: .5; }
 .ex-card__count { font-size: 0.882rem; color: var(--label2); flex-shrink: 0; }
 .ex-card__more {
