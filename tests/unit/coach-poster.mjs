@@ -273,7 +273,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     const ui = read('js/features/coach-poster-ui.js');
     assert.ok(/onShared: \(\) => \{ if \(mine\.name\) coachPosterPublishName\(mine\.name\)/.test(ui), 'envoi au partage');
     assert.equal((ui.match(/coachPosterPublishName\(/g) || []).length, 1, 'un seul envoi du nom');
-    assert.ok(ui.includes('tes élèves voient ce nom dans Mon coach'), 'dit au coach');
+    assert.ok(ui.includes('tes élèves voient ton nom dans Mon coach'), 'dit au coach');
     assert.ok(read('js/features/share.js').includes("if (result !== 'failed') { st.onShared?.(result);"), 'onShared seulement après un partage réel');
     assert.ok(read('js/features/coach-ui.js').includes('coachPosterNameOf(p.user_id)'), 'Mon coach lit le nom');
     assert.equal(run('posterName(" Léa \\u0007  Martin ")'), 'Léa Martin');

@@ -116,7 +116,7 @@ function coachPosterToolsHtml() {
           <span class="cposter-row__title">Photo</span><span class="cposter-row__end"><span class="cposter-row__value">${cposter.photo ? 'Changer' : 'Choisir'}</span>${icon('chevron.right', 14)}</span>
         </button>
       </div>
-      <p class="cposter-foot">Spécialité facultative, ${CPOSTER_SPECIALTY_MAX} caractères au plus. Quand tu partages ton affiche, tes élèves voient ce nom dans Mon coach.</p>`,
+      <p class="cposter-foot">Spécialité facultative, ${CPOSTER_SPECIALTY_MAX} caractères au plus. Quand tu partages ton affiche, tes élèves voient ton nom dans Mon coach.</p>`,
   };
 }
 
