@@ -25,7 +25,7 @@
 const ATLAS_HI_AT = 1.4;      // images 3× de la vue affichée, chargées dès 90 % de ce seuil (×1,26)
 const ATLAS_LINES_AT = 2;     // au-delà : contours des sous-muscles
 const ATLAS_MAX = 6;
-const ATLAS_DOUBLE_MS = 320;  // deux touchers à moins de 320 ms et 32 points : double toucher
+const ATLAS_DOUBLE_MS = 350;  // deux touchers à moins de 350 ms (comme iOS) et 32 points : double toucher
 const ATLAS_DOUBLE_PX = 32;
 const ATLAS_ZOOM_TO = 2.5;    // double toucher : zoom sur le point touché
 const ATLAS_STEP = 1.6;       // boutons + et − : facteur de zoom par toucher

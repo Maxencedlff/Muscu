@@ -329,9 +329,7 @@ def p_progres(r):
         r.page.wait_for_timeout(700)
     with r.etape('silhouette-zoom', 'Carte Muscles : toucher deux fois, vue agrandie'):
         r.page.evaluate('closeBodyTip()')
-        for _ in range(2):
-            r.page.mouse.click(*xy)
-            r.page.wait_for_timeout(90)
+        r.page.mouse.dblclick(*xy)
         r._note('deux touchers : vue agrandie')
         r.attendre('.azoom', 'vue agrandie')
         r.page.wait_for_timeout(1200)
@@ -599,9 +597,10 @@ def _toucher_sous_muscle(r, racine, part, quoi, double=False):
         if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * 0.3, b.top + b.height * 0.5]; }""", [racine, part])
     if not xy:
         raise Absent(f'introuvable : {quoi}')
-    for k in range(2 if double else 1):
+    if double:   # deux clics rapprochés (une machine chargée espacerait deux clics séparés au-delà du double toucher)
+        r.page.mouse.dblclick(*xy)
+    else:
         r.page.mouse.click(*xy)   # click, comme un toucher sur iPhone (touchscreen.tap n'en tire pas sous WebKit)
-        r.page.wait_for_timeout(90)
     r._note(quoi)
     r.page.wait_for_timeout(900)   # bulle, ou ouverture de la vue agrandie et images 3× décodées
 
@@ -626,7 +625,7 @@ def p_atlas(r):
         r.attendre('.btip', 'bulle du muscle')
     with r.etape('aident', 'Toucher « Muscles qui aident » : seuls ces muscles restent sur le personnage', cle='Voir les muscles d\'un exercice en détail'):
         r.page.evaluate('closeBodyTip()')
-        r.toucher('.library-ex .mline2[data-level="1"]', 'ligne « Muscles qui aident »')
+        r.toucher('.library-ex .mline2[data-level="1"] .cell__sub', 'ligne « Muscles qui aident »')
     with r.etape('isoler', 'Toucher « Triceps » : ce seul muscle sur le personnage'):
         r.toucher('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]', 'nom « Triceps »')
     with r.etape('tout', 'Toucher de nouveau : tous les muscles reviennent'):
@@ -641,9 +640,7 @@ def p_atlas(r):
         r.attendre('.btip', 'bulle du muscle')
     with r.etape('vue-entiere', 'Vue agrandie : toucher deux fois pour revenir au personnage entier'):
         xy = r.page.evaluate("() => { const b = document.querySelector('.azoom').getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height * 0.8]; }")
-        for _ in range(2):
-            r.page.mouse.click(*xy)
-            r.page.wait_for_timeout(90)
+        r.page.mouse.dblclick(*xy)
         r._note('deux touchers : retour au personnage entier')
         r.page.wait_for_timeout(600)
     with r.etape('fermer', 'OK : retour à la fiche'):
