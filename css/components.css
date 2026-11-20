@@ -222,7 +222,7 @@ html.type-xl .review-rec__val { flex: 1 0 100%; padding-left: 34px; white-space:
 .field-warn { color: var(--orange-text); font-weight: 600; }
 body.light .field-warn { color: #A85400; }   /* l'orange d'action (« Démarrer »), bien loin du rouge de « Entre un nom » */
 /* Bulle d'un commentaire ou d'un message trop long : contour rouge, comme un champ refusé */
-.comment-compose--over .comment-compose__input { box-shadow: 0 0 0 2px var(--red); border-color: transparent; }
+.comment-compose.comment-compose--over { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
 .field-note-ok { color: var(--label); }
 .ios-dialog__err { margin: 6px 2px 0; }
 .ios-dialog__field--error { border-color: transparent; box-shadow: 0 0 0 2px var(--red); }

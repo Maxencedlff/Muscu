@@ -122,7 +122,11 @@ function fieldLimitNotice(e) {
     // Texte très grand : un champ d'une ligne n'en montre qu'un bout, le texte gardé est redit en entier dessous
     const xl = el.matches('input') && document.documentElement.classList.contains('type-xl');
     const msg = `Coupé à ${fmtNum(max)} caractères${xl ? `. Gardé : « ${el.value} »` : ''}`;
-    if (fieldNote(el, msg, 'field-warn')) announce(`Coupé à ${fmtNum(max)} caractères`);
+    if (fieldNote(el, msg, 'field-warn')) {
+      announce(`Coupé à ${fmtNum(max)} caractères`);
+      // Zone de texte : le message, sous elle, est ramené au-dessus des boutons fixes du bas (« Terminé » du bilan)
+      if (el.matches('textarea')) document.getElementById(el.dataset.fieldNote)?.scrollIntoView({ block: 'center' });
+    }
     else showToast(`Coupé à ${max} caractères`);
     // Début du nom gardé à l'écran pour le relire ; le curseur reste où il est (la frappe suivante le ramène)
     requestAnimationFrame(() => { el.scrollLeft = 0; el.scrollTop = 0; });
