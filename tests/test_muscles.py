@@ -868,10 +868,15 @@ def t_muscle_filter(bench, eng, dev, theme):
                 and 'Écarter les cuisses' in subs['Abducteurs machine'][1] and 'Serrer les cuisses' in subs['Adducteurs machine'][1],
                 f'{t} Abducteurs / Adducteurs : geste en sous-titre {subs}')
         page.fill('#libSearch', '')
-        # Fiche sans vidéo ni animation 3D : le muscle principal en grande image ; avec l'animation 3D : l'animation (t_fiche)
-        page.evaluate("navigate(makeRoute('library-ex', 'Pec deck'))")
+        # Fiche sans vidéo ni animation 3D : le muscle principal en grande image ; avec l'animation 3D : l'animation (t_fiche).
+        # Muscle aux sous-muscles plein et atténué (Pec deck : haut des pectoraux atténué) : le personnage détaillé en tête,
+        # jamais l'image du muscle entier en rouge plein (panel atlas t2)
+        page.evaluate("navigate(makeRoute('library-ex', 'Curl marteau'))")
         page.wait_for_selector('.view.library-ex .exhero__img')
-        R.check(page.get_attribute('.library-ex .exhero__img', 'src') == 'img/muscles/chest.webp', f'{t} fiche : image du muscle principal en tête')
+        R.check(page.get_attribute('.library-ex .exhero__img', 'src') == 'img/muscles/brachialis.webp', f'{t} fiche : image du muscle principal en tête')
+        page.evaluate("navigate(makeRoute('library-ex', 'Pec deck'))")
+        page.wait_for_selector('.view.library-ex .exhero--atlas')
+        R.check(page.locator('.library-ex .exhero__img').count() == 0, f'{t} Pec deck : personnage détaillé en tête, pas l\'image des pectoraux en rouge plein')
         page.evaluate("navigate('library')")
         page.wait_for_selector('.view.library')
         R.check(no_hscroll(page), f'{t} pas de défilement horizontal de la page')
@@ -942,9 +947,9 @@ def t_fiche(bench, eng, dev, theme):
         settle(page)
         R.check(page.get_attribute('#extab-chart', 'aria-selected') == 'true', f'{t} onglet gardé après « Volume »')
         page.evaluate("navigate(makeRoute('library-ex', 'Pec deck'))")
-        page.wait_for_selector('.library-ex .exhero__img')
+        page.wait_for_selector('.library-ex .exhero--atlas')
         R.check(page.get_attribute('#extab-about', 'aria-selected') == 'true', f'{t} autre exercice : retour à À propos')
-        R.check(page.get_attribute('.exhero__img', 'alt') == '', f'{t} image décorative (le titre dit tout)')
+        R.check(page.get_attribute('.exhero--atlas .body-map', 'aria-hidden') == 'true', f'{t} image décorative (le titre dit tout)')
         R.check(page.locator('#expanel-about .mpanel').count() == 1, f'{t} Pec deck (secondaires) : silhouette gardée')
         # Jamais fait : état vide utile dans Historique, Courbe et Records
         for k in ['history', 'chart', 'records']:
