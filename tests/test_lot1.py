@@ -29,10 +29,15 @@ def saved_text(page, timeout=2500):
 
 
 def toast_text(page, timeout=2500):
-    """Texte du toast, ou en séance de la ligne qui le remplace au-dessus de la carte (vague 3 : pas de toast en séance)."""
+    """Texte du toast, ou en séance de la ligne qui le remplace au-dessus de la carte (vague 3 : pas de toast en séance),
+    ou le message sous le champ refusé d'un formulaire (flagInvalid, depuis le 20/11)."""
     try:
-        page.wait_for_selector('.toast, .ex-undo', timeout=timeout)
-        return page.locator('.toast').inner_text() if page.locator('.toast').count() else page.locator('.ex-undo').first.inner_text()
+        page.wait_for_selector('.toast, .ex-undo, .field-err', timeout=timeout)
+        if page.locator('.toast').count():
+            return page.locator('.toast').inner_text()
+        if page.locator('.field-err').count():
+            return ' · '.join(page.locator('.field-err').all_inner_texts())
+        return page.locator('.ex-undo').first.inner_text()
     except Exception:
         return ''
 

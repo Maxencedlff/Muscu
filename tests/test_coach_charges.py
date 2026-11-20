@@ -50,7 +50,11 @@ def no_hscroll(page):
 
 
 def toast(page):
-    return page.locator('.toast').inner_text() if page.locator('.toast').count() else ''
+    """Message d'un refus : sous le champ (flagInvalid, depuis le 20/11), sinon le toast."""
+    for sel in ('.field-err', '.toast'):
+        if page.locator(sel).count():
+            return page.locator(sel).first.inner_text()
+    return ''
 
 
 def txt(page, sel):
