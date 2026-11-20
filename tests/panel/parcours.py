@@ -731,7 +731,8 @@ def p_champs_limites(r):
     with r.etape('seance-nom-long', 'Nom de séance collé trop long : coupé à 40', cle='Nom de séance'):
         r.saisir('#csName', 'Haut du corps lourd, épaules et bras, version longue du lundi', 'nom de la séance')
     with r.etape('taille-decimale', 'Taille « 175,5 » : « Nombre entier entre 100 et 250 »', cle='Taille et poids'):
-        r.raccourci("history.back(); void handleAction(new Event('click'), document.body, 'set-profile-height')", 'Réglages › Taille')
+        r.raccourci("routeTo('settings')", 'Réglages ouverts')
+        r.raccourci("void handleAction(new Event('click'), document.body, 'set-profile-height')", 'Réglages › Taille')
         r.attendre('.ios-dialog__input', 'champ de la taille')
         r.saisir('.ios-dialog__input', '175,5', 'taille')
         r.choisir('OK')
@@ -757,7 +758,7 @@ def p_champs_limites(r):
             const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', sessions: [{ id: 'l01', date: now - 86400e3, duration: 3e6,
               programme: 'ppl', category: 'push', label: 'Push', exercises: [{ name: 'Développé couché', sets: [{ weight: '80', reps: '8' }] }] }] });
             const me = __sb.meId(); __sb.follow(me, lea); __sb.follow(lea, me); }""", 'Léa, amie qui s\'entraîne')
-        r.onglet('friends', 'Amis')
+        r.raccourci("routeTo('friends')", 'onglet Amis')
         r.toucher('.feed-card .feed-card__main', 'séance de Léa')
         r.attendre('#commentInput', 'champ du commentaire')
         r.raccourci("() => { const t = document.querySelector('#commentInput'); t.value = 'Belle séance ! '.repeat(34); "

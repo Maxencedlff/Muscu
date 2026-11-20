@@ -61,3 +61,18 @@ function weightOk(raw) {
   const v = num(s, 0, data.unit === 'lbs' ? 1000 * KG_TO_LBS + 0.5 : 1000);
   return v !== null;
 }
+
+// Texte collé ou tapé jusqu'au bout d'un champ borné (maxlength) : la limite est dite, une fois par champ et par
+// collage, au lieu de couper la fin en silence (grille avant panel, règle 18 : jamais de saisie perdue sans prévenir).
+// Pas pour les nombres (leur message de refus suffit) ni pour une zone qui a déjà son compteur.
+function fieldLimitNotice(e) {
+  const el = e.target;
+  if (!el?.matches?.('input[maxlength], textarea[maxlength]') || /numeric|decimal/.test(el.inputMode || '')) return;
+  if (el.getAttribute('aria-describedby')?.includes('Count')) return;   // compteur « 120/1000 » déjà affiché
+  const max = el.maxLength;
+  if (!(max > 0) || el.value.length < max) { delete el.dataset.limitTold; return; }
+  if (el.dataset.limitTold) return;
+  el.dataset.limitTold = '1';
+  showToast(`${max} caractères au plus`);
+}
+if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('input', fieldLimitNotice, true);

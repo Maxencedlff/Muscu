@@ -337,8 +337,9 @@ async function dietNewFood(name = '', { code = null } = {}) {
     const v = id => $(id, panel).value;
     const nm = dietCutName(v('#dietFoodName'));
     const k0 = num(v('#dietFoodK'), 0, 900), p = num(v('#dietFoodP') || '0', 0, 100), c = num(v('#dietFoodC') || '0', 0, 100), f = num(v('#dietFoodF') || '0', 0, 100);
-    const err = msg => { $('#dietFoodErr', panel).textContent = msg; return false; };
-    if (!nm || !hasVisible(nm)) return err('Donne un nom à cet aliment.');   // invisibles seuls (U+200B) : pas un nom
+    // Message au bas d'une longue feuille : amené à l'écran (sur iPhone SE il restait sous le pli)
+    const err = msg => { const e = $('#dietFoodErr', panel); e.textContent = msg; e.scrollIntoView({ block: 'nearest' }); return false; };
+    if (!nm || !hasVisible(nm)) { $('#dietFoodName', panel).setAttribute('aria-invalid', 'true'); return err('Donne un nom à cet aliment.'); }   // invisibles seuls (U+200B) : pas un nom
     if (p === null || c === null || f === null) return err('Protéines, glucides et lipides : de 0 à 100 g.');
     // Énergie vide : calculée comme sur une étiquette (4, 4 et 9 kcal par gramme)
     const k = k0 ?? (v('#dietFoodK').trim() ? null : Math.round(4 * p + 4 * c + 9 * f));
