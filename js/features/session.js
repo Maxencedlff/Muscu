@@ -1152,6 +1152,17 @@ function fitSessionTitle() {
   if (main?.dataset.short && main.scrollWidth > main.clientWidth + 1) main.textContent = main.dataset.short;
 }
 
+// Nom d'exercice qui ne tient pas en deux lignes à côté de sa vignette (iPhone SE : « Curl concentrati… », un mot plus
+// long que la place) : la vignette, décorative, s'efface pour lui laisser la largeur
+function fitExNames() {
+  document.querySelectorAll('.view.session .ex-card__top').forEach(top => {
+    const t = top.querySelector('.ex-howto__text, .ex-card__name');
+    if (!t || !top.querySelector('.ex-thumb')) return;
+    top.classList.remove('ex-card__top--tight');
+    if (t.scrollHeight > t.clientHeight + 1 || t.scrollWidth > t.clientWidth + 1) top.classList.add('ex-card__top--tight');
+  });
+}
+
 // Barre de repos : la série passée sous le nom de l'exercice ne commence jamais par « · » (rest.js ; grille avant
 // panel, règle 6). Mesurée sans la classe, la série commence sous la ligne du nom : passée à la ligne
 function restNextDot() {
@@ -1172,6 +1183,7 @@ function afterSessionRender(entering) {
   if (tipFirst) window.scrollTo(0, 0);
   else if (entering) scrollToCurrent(false);
   fitSessionTitle();
+  fitExNames();
   restNextDot();
   observeCurrentExName();
   const a = document.activeElement;

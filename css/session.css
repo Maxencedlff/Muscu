@@ -967,3 +967,5 @@ html.type-xl .sets--sides .set-n { flex-direction: row; align-items: baseline; }
 .rest-mini__next--side .rest-mini__step { display: inline; }
 .rest-mini__next--side .rest-mini__tail { white-space: normal; flex-shrink: 1; min-width: 0; max-width: 100%; }
 html.type-xl .rest-mini__next .rest-mini__step { display: inline; }
+/* Nom trop long pour deux lignes à côté de la vignette (fitExNames) : la vignette s'efface */
+.ex-card__top--tight > .ex-thumb { display: none; }
