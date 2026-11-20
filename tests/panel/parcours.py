@@ -731,7 +731,8 @@ def p_champs_limites(r):
     with r.etape('seance-nom-long', 'Nom de séance collé trop long : coupé à 40', cle='Nom de séance'):
         r.saisir('#csName', 'Haut du corps lourd, épaules et bras, version longue du lundi', 'nom de la séance')
     with r.etape('taille-decimale', 'Taille « 175,5 » : « Nombre entier entre 100 et 250 »', cle='Taille et poids'):
-        r.raccourci("routeTo('settings')", 'Réglages ouverts')
+        r.raccourci("routeTo('dashboard')", 'retour à l\'accueil')
+        reglages(r)
         r.raccourci("void handleAction(new Event('click'), document.body, 'set-profile-height')", 'Réglages › Taille')
         r.attendre('.ios-dialog__input', 'champ de la taille')
         r.saisir('.ios-dialog__input', '175,5', 'taille')
@@ -763,6 +764,7 @@ def p_champs_limites(r):
         r.attendre('#commentInput', 'champ du commentaire')
         r.raccourci("() => { const t = document.querySelector('#commentInput'); t.value = 'Belle séance ! '.repeat(34); "
                     "t.dispatchEvent(new Event('input', { bubbles: true })); }", 'commentaire de 510 caractères collé')
+        r.defiler('.comment-compose', 'champ du commentaire et son compteur')
 
 
 @parcours('reglages', 'Réglages (chaque groupe)', 'pratiquant')
