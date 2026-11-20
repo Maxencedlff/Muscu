@@ -282,6 +282,10 @@ function clipText(s, max) {
   }
   return out;
 }
+// Texte retouché : borné à la limite de saisie, ou à la longueur du texte d'avant s'il était plus long (audit du 20/11 :
+// corriger une lettre d'une note de 3 000 caractères la ramenait à 2 000). Un texte d'avant peut raccourcir, jamais
+// être tronqué par une limite apparue après lui.
+function clipEdit(v, old, max) { return clipText(v, Math.max(max, Array.from(String(old ?? '')).length)); }
 // Au moins un caractère visible : des espaces (insécables compris) ou des caractères invisibles (U+200B, U+FEFF,
 // marques de sens d'écriture) seuls ne font ni un nom ni un message
 // (U+2800 braille vide, U+3164 et U+FFA0 lettres coréennes vides, sélecteurs de variante U+FE00-FE0F seuls)

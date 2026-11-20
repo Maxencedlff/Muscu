@@ -266,7 +266,7 @@ function storePastSession(exercises) {
       entry = data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate,
         // Note d'avant non retouchée : gardée entière, même plus longue que la limite de saisie d'aujourd'hui
         notes: addNotes.trim() === String(old.notes ?? '').trim() ? (old.notes ?? '').trim()
-          : hasVisible(addNotes) ? clipText(addNotes.trim(), SESSION_NOTES_MAX).trim() : '', exercises };
+          : hasVisible(addNotes) ? clipEdit(addNotes.trim(), old.notes, SESSION_NOTES_MAX).trim() : '', exercises };
     }
   } else {
     entry = { id: uid(), programme: addProg, category: addCat, date: timestamp, notes: hasVisible(addNotes) ? clipText(addNotes.trim(), SESSION_NOTES_MAX).trim() : '', exercises };

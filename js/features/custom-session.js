@@ -59,7 +59,7 @@ registerActions({
     const prev = store[id];
     // Seul ce qui a été modifié est borné (maxlength, et clipText pour un collage) : un nom ou une description d'avant,
     // plus long que la limite d'aujourd'hui, reste entier quand on ne change que la couleur. Invisible seul : pas un nom
-    const kept = (v, old, max) => (v === String(old ?? '').trim() ? v : clipText(v, max).trim());
+    const kept = (v, old, max) => (v === String(old ?? '').trim() ? v : clipEdit(v, old, max).trim());   // retouché : borné, jamais sous l'ancien
     const name = kept($('#csName')?.value.trim() ?? '', prev?.label, SESSION_LABEL_MAX);
     const desc = kept($('#csDesc')?.value.trim() || '', prev?.desc, SESSION_DESC_MAX);
     if (!name || !hasVisible(name)) { flagInvalid($('#csName'), 'Entre un nom'); return; }

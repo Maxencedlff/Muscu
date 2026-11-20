@@ -237,7 +237,7 @@ function summaryNotesInput(value) {
   const h = lastSummary && data.history.find(x => x.id === lastSummary.id);
   if (!h) return;
   const v = hasVisible(value) ? value.trim() : '';   // espaces ou invisibles seuls (U+200B) : pas de note
-  h.notes = v === h.notes ? v : clipText(v, SESSION_NOTES_MAX).trim();   // seule une note retouchée est bornée
+  h.notes = v === h.notes ? v : clipEdit(v, h.notes, SESSION_NOTES_MAX).trim();   // jamais plus courte que la note d'avant
   clearTimeout(summaryNotesTimer);
   summaryNotesTimer = setTimeout(() => save(), 300);
 }

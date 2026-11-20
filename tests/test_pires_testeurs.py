@@ -677,6 +677,16 @@ def t_avant(bench, eng, dev, theme):
         sent = page.evaluate("(hid) => (__sb.upserted || []).filter(r => r.id === hid).map(r => (r.data || {}).notes?.length)", hid)
         R.check(sent and all(n == 5000 for n in sent), f'{t} synchro : note envoyée entière ({sent})')
         R.check(page.evaluate(etat, hid) == attendu, f'{t} données d\'avant intactes après la synchro')
+        # Correction automatique (insertReplacementText) sur le nom d'avant de 120 caractères : rien de coupé ni de dit
+        ex_edit(page)
+        page.evaluate("""() => { const e = document.querySelector('#exName'); e.focus(); e.setSelectionRange(0, 1);
+            e.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, inputType: 'insertReplacementText', data: 'F' }));
+            e.value = 'F' + e.value.slice(1);
+            e.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText', data: 'F' })); }""")
+        settle(page)
+        R.check(page.input_value('#exName') == 'F' + exn[1:] and page.locator('.field-warn').count() == 0,
+                f'{t} correction automatique d\'un nom d\'avant trop long : gardé entier, rien de « coupé »')
+        page.evaluate("exDraft = null")
         # Autre chose modifié : objectif de l'exercice, couleur et description de la séance, repos par défaut
         ex_edit(page)
         put(page, '#exTarget', '50')

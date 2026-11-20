@@ -1,6 +1,8 @@
 // Inventaire des champs (tools/champs) et règles de saisie corrigées le 20/11 (« pire équipe de testeurs »)
 import { champsDuCode, constantesDu, resoudre, bornesExpression, bornesSql, branchesDialogue } from '../../tools/champs/extraction.mjs';
 import { verifier, lireDepot } from '../../tools/champs/inventaire.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const DIALOGS = { chemin: 'js/core/dialogs.js', src: `const DLG_MAX = 40;
@@ -216,5 +218,42 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     // Relance après enregistrement : toujours entière
     run('save()');
     assert.equal(run('loadData().history[0].notes.length'), 5000);
+  });
+
+  // ── Audit du 20/11 : retouche d'un texte d'avant, collage (majeurs 1 et 2) ──
+
+  test('retouche : une note de 3 000 caractères dont on retire une lettre garde 2 999 caractères', () => {
+    const old = 'n'.repeat(3000), edited = old.slice(1);
+    assert.equal(run(`clipEdit(${JSON.stringify(edited)}, ${JSON.stringify(old)}, SESSION_NOTES_MAX)`).length, 2999);
+    assert.equal(run(`clipEdit("x".repeat(2500), "", SESSION_NOTES_MAX)`).length, 2000, 'texte neuf : borné à la limite');
+    assert.equal(run(`clipEdit("x".repeat(3500), "y".repeat(3000), SESSION_NOTES_MAX)`).length, 3000, 'jamais au-delà de l\'ancien');
+    // Les trois endroits qui bornent une retouche passent par clipEdit (bilan, séance perso, séance ajoutée)
+    const src = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+    assert.match(src('js/features/summary.js'), /clipEdit\(v, h\.notes, SESSION_NOTES_MAX\)/);
+    assert.match(src('js/features/custom-session.js'), /clipEdit\(v, old, max\)/);
+    assert.match(src('js/features/add-session.js'), /clipEdit\(addNotes\.trim\(\), old\.notes, SESSION_NOTES_MAX\)/);
+  });
+
+  test('collage : coupé seulement si le texte collé a vraiment été tronqué, au dernier espace DU morceau collé', () => {
+    const pc = o => run(`pasteCut(${JSON.stringify(o)})`);
+    // Pile à la limite : 70 + 10 collés = 80, rien de coupé
+    sameJSON(pc({ value: 'a'.repeat(80), before: 70, selStart: 70, inserted: 10, max: 80 }), { cut: false, value: 'a'.repeat(80), caret: null });
+    // Collé trop long en fin : recul au dernier espace du morceau
+    const r = pc({ value: 'Nom ' + 'mot '.repeat(19), before: 4, selStart: 4, inserted: 200, max: 80 });
+    assert.equal(r.cut, true);
+    assert.ok(r.value.length <= 80 && !r.value.endsWith(' ') && r.value.startsWith('Nom '));
+    // Collage au milieu : la fin déjà tapée reste, le recul ne mord que dans le morceau collé
+    const before = 'Début' + ' FIN';   // curseur après « Début »
+    const pasted = ' collé un peu trop long'.repeat(5);
+    const value = ('Début' + pasted).slice(0, 80 - 4) + ' FIN';
+    const m = pc({ value, before: before.length, selStart: 5, inserted: pasted.length, max: 80 });
+    assert.equal(m.cut, true);
+    assert.ok(m.value.startsWith('Début') && m.value.endsWith(' FIN'), `fin gardée : ${m.value}`);
+    // Valeur d'avant déjà plus longue que la limite (correction automatique d'un nom d'avant) : jamais touchée
+    const longOld = 'E'.repeat(120);
+    sameJSON(pc({ value: longOld.slice(0, 119) + 'F', before: 120, selStart: 119, selEnd: 120, inserted: 1, max: 80 }),
+      { cut: false, value: longOld.slice(0, 119) + 'F', caret: null });
+    // Longueur collée inconnue (événement sans presse-papier) : saut de plus d'un caractère jusqu'à la limite
+    assert.equal(pc({ value: 'z'.repeat(80), before: 0, selStart: 0, inserted: null, max: 80 }).cut, true);
   });
 }

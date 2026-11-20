@@ -233,7 +233,7 @@ function profileAgeHeightHtml() {
 // à l'entier (taille), dit sous sa ligne des Réglages (settingsRowNote) ; sinon un nombre entier est demandé (âge)
 async function askProfileNumber({ title, message, messageXl, value, unit, min, max, round = false, row = '' }) {
   const read = raw => { const v = num(raw, min - 0.5, max + 0.49, !round); return v === null ? null : Math.round(v); };
-  const validate = raw => (String(raw).trim() === '' || read(raw) !== null ? null : fieldNumMsg(title, min, max, true, unit));
+  const validate = raw => (String(raw).trim() === '' || read(raw) !== null ? null : fieldNumMsg(title, min, max, !round, unit));   // taille : « 175,5 » accepté (arrondi), donc pas « nombre entier »
   const raw = await dialog({ title, message, messageXl, input: { value, unit, decimal: round, validate },
     actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'OK', style: 'preferred' }] });
   if (raw === null) return undefined;

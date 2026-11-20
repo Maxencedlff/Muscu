@@ -138,9 +138,13 @@ function commitMachineInput(input) {
   const raw = input.value.trim();
   const v = raw === '' ? e.cur[id].v : machineParseValue(raw, e.cur[id].u, slot);
   if (raw !== '' && v === null) {
-    // Refus dit, valeur d'avant gardée (avant : « 12abc » valait 12, « 1e9 » le maximum, en silence)
+    // Refus dit, la saisie reste dans le champ pour la corriger (comme ailleurs) ; avant : « 12abc » valait 12, « 1e9 »
+    // le maximum, en silence. Le champ se referme à la prochaine validation réussie (ou vidé : valeur d'avant)
     const [lo, hi] = machineRange(e.cur[id].u, slot);
+    delete input.dataset.done;
+    input.classList.add('set-input--error'); input.setAttribute('aria-invalid', 'true');
     showToast(`${slot.label} : de ${fmtNum(lo)} à ${fmtNum(hi)}`, { error: true });
+    return;
   }
   if (v != null && v !== e.cur[id].v) setMachineValue(id, v); else refreshMachineSlot(e, id);
 }

@@ -130,7 +130,7 @@ function dialog({ type = 'alert', title = '', message = '', messageXl = '', acti
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}" aria-label="${esc(dialogInputLabel(input, title))}">
             ${input.unit ? `<span class="ios-dialog__unit" aria-hidden="true">${esc(input.unit)}</span>` : ''}
           </div>
-          <p class="ios-dialog__err" id="${dlgId}-e" role="alert" hidden></p>` : ''}
+          <p class="ios-dialog__err" id="${dlgId}-e" hidden></p>` : ''}
       </div>` : '';
 
     root.innerHTML = type === 'sheet'
@@ -161,8 +161,15 @@ function dialog({ type = 'alert', title = '', message = '', messageXl = '', acti
     const showErr = msg => {
       err.textContent = msg; err.hidden = !msg;
       field.closest('.ios-dialog__field').classList.toggle('ios-dialog__field--error', !!msg);
-      if (msg) { field.setAttribute('aria-invalid', 'true'); field.setAttribute('aria-describedby', err.id); field.focus(); haptic('medium'); }
-      else { field.removeAttribute('aria-invalid'); field.removeAttribute('aria-describedby'); }
+      // Un seul canal pour VoiceOver : champ déjà actif (touche Entrée) → message en alerte ; sinon le focus qui revient
+      // sur le champ lit son message (aria-describedby, ajouté à la liste sans écraser une aide existante)
+      if (msg) {
+        const active = document.activeElement === field;
+        if (active) err.setAttribute('role', 'alert'); else err.removeAttribute('role');
+        field.setAttribute('aria-invalid', 'true'); describedAdd(field, err.id);
+        if (!active) field.focus();
+        haptic('medium');
+      } else { err.removeAttribute('role'); field.removeAttribute('aria-invalid'); describedRemove(field, err.id); }
     };
     field?.addEventListener('input', () => { if (!err.hidden) showErr(''); });
     const pick = a => {
