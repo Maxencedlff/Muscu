@@ -969,3 +969,9 @@ html.type-xl .sets--sides .set-n { flex-direction: row; align-items: baseline; }
 html.type-xl .rest-mini__next .rest-mini__step { display: inline; }
 /* Nom trop long pour deux lignes à côté de la vignette (fitExNames) : la vignette s'efface */
 .ex-card__top--tight > .ex-thumb { display: none; }
+/* Texte agrandi : « 3 Droit » jamais coupé dans le mot (passe sous le numéro s'il ne tient pas) ; sous-série : « Drop 1 »
+   sur sa rangée, « Avant » ou « Annuler » dessous, les cases ensuite (« Annuler » recouvrait « Drop 1 ») */
+.set-n__side { white-space: nowrap; }
+html.type-xl .sets--sides .set-n { flex-wrap: wrap; }
+html.type-xl .session-set--sub { grid-template-areas: "n n check" "prev prev check" "w r check"; }
+html.type-xl .session-set--sub .set-undo { grid-area: prev; justify-self: start; }
