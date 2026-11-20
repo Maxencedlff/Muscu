@@ -505,6 +505,12 @@ def t_progres(bench, eng, dev, theme):
         page.wait_for_function("() => atlasViewerState()?.hi", timeout=10000)
         settle(page)
         R.check(page.evaluate("[...document.querySelectorAll('.azoom .body-map__p')].every(l => /--t\\d/.test(l.className))"), f'{t} vue agrandie : paliers gardés')
+        # Retour à ×1 (boutons −) : le muscle est à l'écran sur tous les téléphones, puis toucher
+        for _ in range(3):
+            if page.evaluate('atlasViewerState().scale') > 1:
+                page.click('.azoom__btn[data-z="-1"]')
+                page.wait_for_timeout(400)
+        settle(page)
         tap(page, part_point(page, '.azoom', part, view), touch=True)
         page.wait_for_selector('.sheet-root--atlas .btip', timeout=5000)
         R.check('série' in tip_text(page), f'{t} vue agrandie : séries au toucher « {tip_text(page)} »')

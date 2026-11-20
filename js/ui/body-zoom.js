@@ -145,10 +145,13 @@ function atlasTap(e, mapEl) {
   }
   atlasLastTap = { el: mapEl, t: now, x: e.clientX, y: e.clientY };
   const panel = mapEl.closest('.mpanel');
-  const group = mapEl.closest('.group, .mpanel');
+  const group = mapEl.closest('.group, .mpanel'), load = mapEl.dataset.tip === 'load';
+  // Progrès : la bulle (plus haute : séries, exercices, lien) peut descendre sur la légende, comme la carte des 18 muscles,
+  // jamais sur le sélecteur de période ; elle ne se pose ainsi jamais sous le doigt (le double toucher reste possible)
   atlasShowName(mapEl, bodyKind(mapEl.dataset.body), atlasLevels(mapEl), e, { tip: mapEl.dataset.tip || '',
-    zone: mapEl.querySelector('.body-map__row') || mapEl,
-    avoid: [panel?.querySelector('.mpills'), group?.querySelector('.mpanel__zoom'), ...(group ? group.querySelectorAll('.segmented, .mlegend') : [])] });
+    zone: load ? mapEl.closest('.mcard__top') || mapEl : mapEl.querySelector('.body-map__row') || mapEl,
+    avoid: [panel?.querySelector('.mpills'), group?.querySelector('.mpanel__zoom'), ...(group ? group.querySelectorAll('.segmented') : []),
+      ...(!load && group ? group.querySelectorAll('.mlegend') : [])] });
 }
 
 // Pincement commencé sur la carte de la fiche (ou de Progrès) : la vue agrandie s'ouvre et suit les mêmes doigts.
