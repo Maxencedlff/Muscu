@@ -8,6 +8,11 @@
 }
 
 .scr-title { font-size: 1.647rem; line-height: 2rem; font-weight: 700; margin: 12px 0 4px; display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }
+/* Texte agrandi (AX33, iPhone SE) : un mot plus large que l'écran (« Développé », « Abducteurs ») ne se coupait pas, le
+   texte d'un conteneur flex refusant de passer sous sa largeur minimale : la page défilait de côté (341 px pour 320).
+   Titre sans icône en bloc, césure française (lang="fr"), taille plafonnée à 11 % de la largeur de l'écran. */
+.type-xl .scr-title { font-size: min(1.647rem, 11vw); line-height: 1.2; }
+.type-xl .scr-title:not(:has(> svg, > img, > .icon, > span)) { display: block; -webkit-hyphens: auto; hyphens: auto; }
 .scr-sub { font-size: 0.882rem; color: var(--label2); margin-bottom: 4px; }
 
 /* ── Listes groupées (cellules iOS) ── */

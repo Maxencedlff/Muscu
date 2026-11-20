@@ -60,6 +60,7 @@
 .mline2__more { color: var(--tint); white-space: nowrap; }
 .mline2[aria-pressed="true"] { background: var(--cell2); }
 .mpanel--atlas .mpanel__foot { justify-content: flex-end; }
+.mpanel--atlas .mpanel__zoom { margin: 0; }
 /* Muscles travaillés tous en haut (ou tous en bas) du corps : carte cadrée sur cette moitié (bodyAtlasCrop), plus large */
 .mpanel__map.body-map--crop { width: min(100%, 330px); }
 .body-map--crop .body-map__fig { overflow: hidden; }
