@@ -709,6 +709,16 @@ def p_vacuum(r):
     with r.etape('progres', 'Progrès › Vacuum : plus long maintien, temps total sous tension'):
         r.attendre('.view.stats-ex', 'Progrès › Vacuum')
 
+def coller(r, sel, texte, quoi):
+    """Collage comme sur iPhone : le champ touché, puis le texte coupé par le maxlength et un événement input de type
+    insertFromPaste SANS data (ce que fait Safari iOS), précédé de beforeinput et de paste."""
+    r.toucher(sel, quoi)
+    r.raccourci("""([s, t]) => { const e = document.querySelector(s); e.dispatchEvent(new Event('paste', { bubbles: true }));
+        e.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, inputType: 'insertFromPaste' }));
+        e.value = e.maxLength > 0 ? t.slice(0, e.maxLength) : t;
+        e.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' })); }""", f'{quoi} : texte collé', [sel, texte])
+
+
 @parcours('champs-limites', 'Champs de saisie : limites, collages trop longs et messages de refus', 'pratiquant')
 def p_champs_limites(r):
     """Le « pire testeur » : un nom d'exercice et un nom de séance collés trop longs (coupés à 80 et 40 caractères),
@@ -719,7 +729,7 @@ def p_champs_limites(r):
     with r.etape('exercice-nom-long', 'Fiche exercice : nom collé de 100 caractères, coupé à 80', cle='Nom d\'exercice trop long'):
         r.raccourci("exDraft = null; navigate(makeRoute('ex-edit', 'push', 0))", 'fiche du 1er exercice ouverte')
         r.attendre('#exName', 'nom de l\'exercice')
-        r.saisir('#exName', long, 'nom de l\'exercice')
+        coller(r, '#exName', long, 'nom de l\'exercice')
     with r.etape('objectif-zero', 'Objectif de 0 kg : message de refus', cle='Objectif de charge refusé'):
         r.saisir('#exTarget', '0', 'objectif')
         r.toucher('[data-action="save-ex"]', 'OK')
@@ -729,7 +739,7 @@ def p_champs_limites(r):
         r.saisir('#csName', '\u200b\u200b ', 'nom de la séance')
         r.toucher('[data-action="save-cs-modal"]', 'OK')
     with r.etape('seance-nom-long', 'Nom de séance collé trop long : coupé à 40', cle='Nom de séance'):
-        r.saisir('#csName', 'Haut du corps lourd, épaules et bras, version longue du lundi', 'nom de la séance')
+        coller(r, '#csName', 'Haut du corps lourd, épaules et bras, version longue du lundi', 'nom de la séance')
     with r.etape('age-refuse', 'Âge « 300 » : fenêtre ouverte, valeur gardée, message sous le champ', cle='Taille et poids'):
         r.raccourci("routeTo('dashboard')", 'retour à l\'accueil')
         reglages(r)

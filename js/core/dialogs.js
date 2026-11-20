@@ -92,7 +92,9 @@ function dialogInputLabel(input, title = '') {
 // Feuille seulement : section = titre du groupe de choix qui commence là (long menu rangé en sections) ; group = groupe
 // séparé du précédent par une bande, sans titre (menu court) ;
 // apart = choix posé dans son propre bloc, au-dessus d'« Annuler », hors de la liste qui défile (action destructive)
-function dialog({ type = 'alert', title = '', message = '', actions, input = null }) {
+// messageXl : explication plus courte en texte très grand (AX33 : la longue ne tenait pas, coupée au milieu d'une ligne)
+function dialog({ type = 'alert', title = '', message = '', messageXl = '', actions, input = null }) {
+  if (messageXl && document.documentElement.classList.contains('type-xl')) message = messageXl;
   return new Promise(resolve => {
     document.querySelector('.ios-dialog')?.remove();
     // Une alerte prend toute l'attention : un toast encore affiché (action précédente) disparaît
@@ -242,9 +244,9 @@ function confirmSheet(title, message, label, destructive = true) {
 
 // num() : virgule acceptée, et rien d'autre qu'un nombre écrit simplement (parseInt lisait « 1e3 » 1 et « 60abc » 60).
 // Refus dit sous le champ, fenêtre ouverte (input.validate) ; label : nom du champ dans le message (le titre sinon)
-async function askNumber({ title, message, value, unit, min, max, decimal = false, label = title }) {
+async function askNumber({ title, message, messageXl, value, unit, min, max, decimal = false, label = title }) {
   const ok = raw => String(raw).trim() === '' || num(raw, min, max, !decimal) !== null;
-  const raw = await dialog({ title, message, input: { value, unit, decimal,
+  const raw = await dialog({ title, message, messageXl, input: { value, unit, decimal,
     validate: raw => (ok(raw) ? null : fieldNumMsg(label, min, max, !decimal, unit)) }, actions: [
     { label: 'Annuler', style: 'cancel' },
     { label: 'OK', style: 'preferred' },

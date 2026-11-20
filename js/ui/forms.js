@@ -24,10 +24,12 @@ function fieldHost(input) { return input?.closest?.(FIELD_HOST_SEL) || null; }
 function fieldNote(input, msg, cls = 'field-err') {
   const host = fieldHost(input);
   if (!host) return false;
-  let p = host.nextElementSibling?.matches?.('.field-err, .field-hint') ? host.nextElementSibling : null;
+  let p = host.nextElementSibling?.matches?.('.field-err, .field-hint, .field-warn') ? host.nextElementSibling : null;
   if (!p) { p = document.createElement('p'); host.after(p); }
   p.className = cls; p.textContent = msg; p.id ||= 'fn-' + uid();
+  // Erreur : lue tout de suite ; avertissement (collage coupé) : lu poliment ; aide : pas annoncée
   if (cls === 'field-err') p.setAttribute('role', 'alert'); else p.removeAttribute('role');
+  if (cls === 'field-warn') p.setAttribute('aria-live', 'polite'); else p.removeAttribute('aria-live');
   input.setAttribute('aria-describedby', p.id);
   input.dataset.fieldNote = p.id;
   return true;
@@ -103,10 +105,25 @@ function fieldLimitNotice(e) {
   }
   if (!el?.matches?.('input[maxlength], textarea[maxlength]') || /numeric|decimal/.test(el.inputMode || '')) return;
   if (el.getAttribute('aria-describedby')?.includes('Count')) return;   // compteur « 120/1000 » déjà affiché
-  const max = el.maxLength;
+  const max = el.maxLength, before = el._lenBefore ?? 0, pasted = el._pasted;
+  el._pasted = false;
   if (!(max > 0) || el.value.length < max) return;
-  const cut = typeof e.data === 'string' && e.data.length > 1;   // collage (ou texte inséré d'un coup) arrivé au bout
-  const msg = cut ? `Coupé à ${max} caractères` : `${max} caractères au plus`;
-  if (!fieldNote(el, msg, 'field-hint')) showToast(msg);
+  // Collage coupé : sur iOS, un vrai collage (insertFromPaste) arrive SANS e.data ; on le reconnaît à son type, à
+  // l'événement paste, ou à un saut de plus d'un caractère (panel du 20/11, t2 : jamais signalé sur iPhone)
+  const cut = pasted || /^insertFrom(Paste|Drop)$|^insertReplacementText$/.test(e.inputType || '')
+    || el.value.length - before > 1 || (typeof e.data === 'string' && e.data.length > 1);
+  if (cut) {
+    if (fieldNote(el, `Coupé à ${max} caractères`, 'field-warn')) announce(`Coupé à ${max} caractères`);
+    else showToast(`Coupé à ${max} caractères`);
+    // Début du nom gardé à l'écran pour le relire ; le curseur reste où il est (la frappe suivante le ramène)
+    requestAnimationFrame(() => { el.scrollLeft = 0; el.scrollTop = 0; });
+  } else if (!fieldNote(el, `${max} caractères au plus`, 'field-hint')) showToast(`${max} caractères au plus`);
 }
-if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('input', fieldLimitNotice, true);
+// Longueur juste avant chaque saisie, et collage repéré : fieldLimitNotice sait si le texte est arrivé d'un coup
+function fieldBeforeInput(e) { if (e.target?.matches?.('input, textarea')) e.target._lenBefore = e.target.value.length; }
+function fieldPaste(e) { if (e.target?.matches?.('input, textarea')) { e.target._pasted = true; e.target._lenBefore = e.target.value.length; } }
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('beforeinput', fieldBeforeInput, true);
+  document.addEventListener('paste', fieldPaste, true);
+  document.addEventListener('input', fieldLimitNotice, true);
+}

@@ -230,17 +230,33 @@ function profileAgeHeightHtml() {
 }
 // Saisie d'un nombre du profil ; champ vidé : effacé (facultatif)
 // Refus dit sous le champ, fenêtre ouverte avec la valeur tapée (panel du 20/11). round : « 175,5 » accepté et arrondi
-// à l'entier (taille), dit par un toast « Arrondi à 176 cm » ; sinon un nombre entier est demandé (âge)
-async function askProfileNumber({ title, message, value, unit, min, max, round = false }) {
+// à l'entier (taille), dit sous sa ligne des Réglages (settingsRowNote) ; sinon un nombre entier est demandé (âge)
+async function askProfileNumber({ title, message, messageXl, value, unit, min, max, round = false, row = '' }) {
   const read = raw => { const v = num(raw, min - 0.5, max + 0.49, !round); return v === null ? null : Math.round(v); };
   const validate = raw => (String(raw).trim() === '' || read(raw) !== null ? null : fieldNumMsg(title, min, max, true, unit));
-  const raw = await dialog({ title, message, input: { value, unit, decimal: round, validate },
+  const raw = await dialog({ title, message, messageXl, input: { value, unit, decimal: round, validate },
     actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'OK', style: 'preferred' }] });
   if (raw === null) return undefined;
   if (String(raw).trim() === '') return null;
   const v = read(raw);
-  if (round && num(raw, -Infinity, Infinity) !== v) showToast(`Arrondi à ${v} ${unit}`);
+  if (round && num(raw, -Infinity, Infinity) !== v) profileRowNote = { row, msg: `Arrondi à ${v} ${unit}` };
   return v;
+}
+// Message posé sous une ligne des Réglages après son enregistrement (« Arrondi à 176 cm ») : la ligne revient à l'écran,
+// sa valeur est brièvement surlignée (fond teinté, sans lueur), le message ne cache rien (panel du 20/11, t2)
+let profileRowNote = null;
+function settingsRowNote() {
+  const n = profileRowNote;
+  profileRowNote = null;
+  const cell = n && document.querySelector(`.settings-view [data-action="${n.row}"]`);
+  if (!cell) return;
+  const p = document.createElement('p');
+  p.className = 'field-note-ok'; p.setAttribute('role', 'status'); p.textContent = n.msg;
+  cell.after(p);
+  cell.classList.add('cell--flash');
+  cell.scrollIntoView({ block: 'center' });
+  setTimeout(() => cell.classList.remove('cell--flash'), 1600);
+  setTimeout(() => p.remove(), 6000);
 }
 
 // Entraînement › Poids du corps : la pesée de Santé quand elle est activée (app iOS, js/features/apple-services.js),
@@ -383,17 +399,18 @@ function settingsButtonHtml() {
 registerActions({
   'set-profile-age': async () => {
     const v = await askProfileNumber({ title: 'Âge', message: `Facultatif, reste sur ${thisPhone()}. Sert aux objectifs de nutrition et au programme sur mesure. Laisse vide pour le supprimer.`,
-      value: profileAge() ? String(profileAge()) : '', unit: 'ans', min: 10, max: 110 });
+      messageXl: 'Facultatif. Laisse vide pour le supprimer.', value: profileAge() ? String(profileAge()) : '', unit: 'ans', min: 10, max: 110 });
     if (v === undefined) return;
     if (v === null) delete data.birthYear; else data.birthYear = new Date().getFullYear() - v;
     save(); render();
   },
   'set-profile-height': async () => {
     const v = await askProfileNumber({ title: 'Taille', message: `Facultatif, reste sur ${thisPhone()}. Sert aux objectifs de nutrition et à choisir des tractions assistées ou non. Laisse vide pour la supprimer.`,
-      value: data.heightCm ? String(data.heightCm) : '', unit: 'cm', min: 100, max: 250, round: true });
+      messageXl: 'Facultatif. Laisse vide pour la supprimer.',
+      value: data.heightCm ? String(data.heightCm) : '', unit: 'cm', min: 100, max: 250, round: true, row: 'set-profile-height' });
     if (v === undefined) return;
     if (v === null) delete data.heightCm; else data.heightCm = v;
-    save(); render();
+    save(); render(); settingsRowNote();
   },
   'go-settings': () => {
     navigate('settings');

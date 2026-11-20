@@ -698,5 +698,43 @@ def t_avant(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} données d\'avant : aucune erreur JS {page.errors}')
 
 
+# ── Collage coupé (panel du 20/11, t2) ───────────────────────
+
+COLLER = """([s, t, withData]) => { const e = document.querySelector(s); e.focus();
+    e.dispatchEvent(new Event('paste', { bubbles: true }));
+    e.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, inputType: 'insertFromPaste' }));
+    e.value = t.slice(0, e.maxLength);
+    e.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste', data: withData ? t : null })); }"""
+
+
+def t_collage(bench, eng, dev, theme):
+    """Collage plus long que le champ, comme Safari iOS (insertFromPaste sans data) : « Coupé à 80 caractères » sous le
+    champ, en avertissement (pas le gris de l'aide), lu par VoiceOver, et le début du nom gardé à l'écran."""
+    if theme != 'dark':
+        return
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme)
+        page.evaluate("data.history = []; save()")
+        ex_edit(page)
+        long = 'Développé couché prise serrée avec pause en bas et tempo lent sur barre, banc incliné à trente degrés'
+        page.evaluate(COLLER, ['#exName', long, False])
+        settle(page)
+        note = page.evaluate("""() => { const e = document.querySelector('#exName'), p = document.getElementById(e.getAttribute('aria-describedby') || '');
+            return p ? { cls: p.className, txt: p.textContent, live: p.getAttribute('aria-live'), left: e.scrollLeft } : null; }""")
+        R.check(note and note['txt'] == 'Coupé à 80 caractères' and note['cls'] == 'field-warn' and note['live'] == 'polite',
+                f'{t} collage coupé signalé sous le champ, lu par VoiceOver ({note})')
+        R.check(note and note['left'] == 0, f'{t} collage coupé : début du nom à l\'écran (scrollLeft {note and note["left"]})')
+        page.evaluate("document.querySelector('#exName').value = ''; document.querySelector('#exName').dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }))")
+        settle(page)
+        R.check(page.locator('.field-warn').count() == 0, f'{t} message effacé dès qu\'on corrige le nom')
+        # Frappe lettre à lettre jusqu'à la limite : simple aide grise, pas « coupé »
+        page.fill('#exName', 'a' * 79)
+        page.focus('#exName'); page.keyboard.type('b')
+        settle(page)
+        R.check(page.locator('.field-hint').count() == 1 and page.locator('.field-warn').count() == 0, f'{t} limite atteinte en tapant : « 80 caractères au plus »')
+        R.check(not page.errors, f'{t} collage : aucune erreur JS {page.errors}')
+
+
 if __name__ == '__main__':
-    run_main(R, [t_local, t_serveur, t_recherches, t_avant])   # t_serveur en sombre, t_recherches en clair (voir leur garde)
+    run_main(R, [t_local, t_serveur, t_recherches, t_avant, t_collage])   # t_serveur en sombre, t_recherches en clair (voir leur garde)
