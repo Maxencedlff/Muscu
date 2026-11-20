@@ -92,7 +92,7 @@ function atlasMarkHtml(kind, view, id, res, tint) {
   const bb = b[res === 3 ? 1 : 0], W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h;
   const pct = v => `${Math.round(v * 1e5) / 1e3}%`;
   const url = `url(${body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${id}.webp`)})`;
-  return `<span class="body-map__hl" data-part="${id}" aria-hidden="true"><i style="left:${pct(bb[0] / W)};top:${pct(bb[1] / H)};width:${pct((bb[2] - bb[0]) / W)};height:${pct((bb[3] - bb[1]) / H)};background-color:${esc(tint)};background-image:${url};-webkit-mask-image:${url};mask-image:${url}"></i></span>`;
+  return `<span class="body-map__hl" data-part="${id}" data-muscle="${atlasPart(id)?.parent || ''}" aria-hidden="true"><i style="left:${pct(bb[0] / W)};top:${pct(bb[1] / H)};width:${pct((bb[2] - bb[0]) / W)};height:${pct((bb[3] - bb[1]) / H)};background-color:${esc(tint)};background-image:${url};-webkit-mask-image:${url};mask-image:${url}"></i></span>`;
 }
 
 // Bulle et mise en valeur d'un sous-muscle touché. root : carte ou scène de la vue agrandie ; res(vue) : 1 ou 3

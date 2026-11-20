@@ -16,7 +16,8 @@ function progressAtlasHtml(span = muscleSpan) {
 }
 
 // Bulle d'un sous-muscle touché : nom de salle, séries de la période (comme la carte des 18 muscles), palier en mots,
-// et les 3 exercices qui l'ont le plus travaillé. Bas du corps (carte simple) : le muscle entier.
+// les 3 exercices qui l'ont le plus travaillé, le repère et le lien vers « Séries par muscle » (le muscle de l'app, mis
+// en avant). Bas du corps (carte simple) : le muscle entier.
 function atlasLoadTipHtml(part) {
   const pl = partLoad(muscleSpan), simple = ATLAS_SIMPLE_MUSCLES.has(part.parent);
   const ids = simple ? BODY_PARTS.parts.filter(p => p.parent === part.parent).map(p => p.id) : [part.id];
@@ -33,5 +34,7 @@ function atlasLoadTipHtml(part) {
   return `<p class="btip__title" id="btipTitle">${esc(title)}</p>
     <p class="btip__sub">${count}</p>
     <p class="btip__level">${muscleLevelDot(lvl)}<span>${MUSCLE_LEVEL_WORDS[lvl]}</span></p>
-    ${top.length ? `<p class="btip__sub btip__top">Le plus : ${top.map(([ex, n]) => `${esc(ex)} (${setsTxt(n)})`).join(', ')}</p>` : ''}`;
+    ${top.length ? `<p class="btip__sub btip__top">Le plus : ${top.map(([ex]) => esc(ex)).join(', ')}</p>` : ''}
+    <p class="btip__sub">Repère : ${muscleTarget()}</p>
+    ${part.parent ? `<button class="btip__link" data-action="go-stats-muscles" data-muscle="${part.parent}">Séries par muscle${icon('chevron.right', 14)}</button>` : ''}`;
 }

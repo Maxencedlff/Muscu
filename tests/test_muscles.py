@@ -38,9 +38,10 @@ def no_hscroll(page):
 
 def heat(page, muscle):
     """Opacité de chaleur d'un muscle dans la carte de Progrès (0 : neutre, aucun calque coloré)."""
+    # Personnage détaillé de Progrès (affichage-e) : le palier le plus haut des sous-muscles du muscle (0 : neutre)
     return page.evaluate("""m => {
-        const z = document.querySelector(`.mcard__map [data-muscle="${m}"]`);
-        return z ? parseFloat(z.dataset.heat || '0') : 0;
+        const zs = [...document.querySelectorAll(`.mcard__map [data-muscle="${m}"]`)];
+        return Math.max(0, ...zs.map(z => z.dataset.heat ? parseFloat(z.dataset.heat) : (parseInt(z.dataset.level) || 0) / MUSCLE_LEVEL_MAX));
     }""", muscle)
 
 
@@ -518,7 +519,7 @@ def t_silhouette(bench, eng, dev, theme):
         tab(page, 2)
         R.check(body_of(page, '.mcard__map') == 'female', f'{t} Progrès : silhouette femme')
         R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} personnage femme : face et dos affichés')
-        R.check('img/body/female/' in page.evaluate("document.querySelector('.mcard__map .body-map__base').src"), f'{t} images du personnage femme')
+        R.check('img/body2/female/' in page.evaluate("document.querySelector('.mcard__map .body-map__base').src"), f'{t} images du personnage femme')
         R.check(heat(page, 'lats') > 0, f'{t} silhouette femme : coloration identique')
         page.locator('.mcard').scroll_into_view_if_needed()
         shot(page, LOT, f'silhouette-progres-{t}')
@@ -533,6 +534,18 @@ def t_silhouette(bench, eng, dev, theme):
 # de sa forme) : indépendant de la détection de l'app (js/ui/body-tip.js), qui est ce qu'on vérifie
 MUSCLE_POINT_JS = """async ([sel, m, view]) => {
   const map = document.querySelector(sel), fig = map.querySelector('.body-map__' + view);
+  if (map.classList.contains('body-map--atlas')) {
+    // Personnage détaillé : le sous-muscle de ce muscle le plus étendu sur la carte de toucher (moitié gauche)
+    const hit = await atlasHitMap(map.dataset.body, view), cnt = {};
+    for (let j = 0; j < hit.h; j++) for (let i = 0; i < hit.w / 2; i++) { const k = hit.map[j * hit.w + i]; if (k && BODY_PARTS.parts[k - 1].parent === m) cnt[k] = (cnt[k] || 0) + 1; }
+    const k = +Object.entries(cnt).sort((a, b) => b[1] - a[1])[0][0];
+    let sx = 0, sy = 0, n = 0;
+    for (let j = 0; j < hit.h; j++) for (let i = 0; i < hit.w / 2; i++) if (hit.map[j * hit.w + i] === k) { sx += i; sy += j; n++; }
+    let best = null, bd = Infinity;
+    for (let j = 0; j < hit.h; j++) for (let i = 0; i < hit.w / 2; i++) if (hit.map[j * hit.w + i] === k) { const d = (i - sx / n) ** 2 + (j - sy / n) ** 2; if (d < bd) { bd = d; best = [i, j]; } }
+    const r = (fig.querySelector('.body-map__body') || fig).getBoundingClientRect();
+    return [r.left + (best[0] + 0.5) / hit.w * r.width, r.top + (best[1] + 0.5) / hit.h * r.height];
+  }
   const img = await bodyLoadImage(bodyImgUrl(map.dataset.body, view, m));
   const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
   const x = c.getContext('2d'); x.drawImage(img, 0, 0);
@@ -599,9 +612,11 @@ def t_tip(bench, eng, dev, theme):
         R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} bulle : personnage chargé')
         tap_muscle(page, '.mcard__map', 'chest', 'front')
         txt = tip_text(page)
-        R.check(txt.startswith('Pectoraux') and re.search(r'\d+ séries en 4 semaines, soit [\d,]+ par semaine', txt)
+        R.check('pectoraux' in txt.split(' séries')[0].lower() and re.search(r'\d+ séries en 4 semaines, soit [\d,]+ par semaine', txt)
                 and 'Repère : 10 à 20 par semaine' in txt, f'{t} bulle pectoraux : « {txt} »')
-        lvl = page.evaluate("muscleLoad('month').levels.chest")
+        # Palier : celui du sous-muscle touché (personnage détaillé de Progrès)
+        hl_part = lambda: page.evaluate("document.querySelector('.body-map__hl')?.dataset.part")
+        lvl = page.evaluate(f"partLoad('month').levels[{json.dumps(hl_part())}]")
         R.check(page.evaluate("MUSCLE_LEVEL_WORDS")[lvl] in txt, f'{t} bulle : palier en mots (légende) {lvl}')
         R.check(not tip_covers_selector(page), f'{t} bulle : sélecteur de période jamais couvert')
         leg = ' '.join(page.locator('.mcard .mlegend').inner_text().split())
@@ -623,20 +638,25 @@ def t_tip(bench, eng, dev, theme):
         shot(page, LOT, f'bulle-face-{t}')
         per_week = lambda x: int((re.search(r'soit (\d+) par semaine', x) or re.search(r'(\d+) séries?', x)).group(1))   # Séries par muscle : par semaine
         n_chest = per_week(txt)
+        part_chest = hl_part()
         # Un autre muscle, de dos : la bulle suit
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         txt = tip_text(page)
         R.check(txt.startswith('Grand dorsal') and page.locator('.btip').count() == 1, f'{t} bulle grand dorsal : « {txt} »')
         R.check(not tip_covers_selector(page), f'{t} bulle dos : sélecteur non couvert')
         n_lats = per_week(txt)
+        part_lats = hl_part()
         shot(page, LOT, f'bulle-dos-{t}')
         # Toucher hors d'un muscle : entre les deux vues (fond), puis sur la tête (zone grise) : fermée
         f, b = (page.locator(f'.mcard__map .body-map__{v}').bounding_box() for v in ('front', 'back'))
         tr = page.locator('.btip').bounding_box()
         gx = (f['x'] + f['width'] + b['x']) / 2
         # Écran étroit (Galaxy S9+) : la bulle couvre tout l'entre-deux sous les épaules, le fond entre les têtes reste libre
-        gy = next(f['y'] + f['height'] * k for k in (.55, .7, .85, .95, .3, .2, .12, .06)
-                  if not (tr['x'] <= gx <= tr['x'] + tr['width'] and tr['y'] <= f['y'] + f['height'] * k <= tr['y'] + tr['height']))
+        # (personnage détaillé : la bulle se pose contre le muscle, souvent sur l'entre-deux ; on cherche un point libre)
+        free = lambda x, y: not (tr['x'] <= x <= tr['x'] + tr['width'] and tr['y'] <= y <= tr['y'] + tr['height'])
+        pts = [(gx, f['y'] + f['height'] * k) for k in (.55, .7, .85, .95, .3, .2, .12, .06, *[i / 40 for i in range(1, 40)])]
+        pts += [(f['x'] + 2, f['y'] + f['height'] * k) for k in (.5, .2, .8)] + [(b['x'] + b['width'] - 2, b['y'] + b['height'] * k) for k in (.5, .2, .8)]
+        gx, gy = next(p for p in pts if free(*p))   # entre les vues, sinon les marges extérieures (fond transparent)
         page.mouse.click(gx, gy)
         settle(page)
         R.check(page.locator('.btip').count() == 0, f'{t} toucher le fond : bulle fermée')
@@ -683,7 +703,9 @@ def t_tip(bench, eng, dev, theme):
         page.wait_for_selector('.view.stats-muscles')
         settle(page)
         val = lambda m: int(page.locator(f'.mrow[data-muscle="{m}"] .cell__value').inner_text())
-        R.check(val('chest') == n_chest and val('lats') == n_lats, f'{t} bulle = Séries par muscle ({n_chest}, {n_lats})')
+        # Bulle : séries du sous-muscle touché ; Séries par muscle : celles du muscle entier (les deux de la même période)
+        wk = page.evaluate(f"[partLoad('month').weekly[{json.dumps(part_chest)}], partLoad('month').weekly[{json.dumps(part_lats)}]]")
+        R.check(wk == [n_chest, n_lats] and val('chest') >= n_chest and val('lats') >= n_lats, f'{t} bulle = séries du sous-muscle ({n_chest}, {n_lats}) ; muscle entier {val("chest")}, {val("lats")}')
         R.check(page.locator('.mrow--focus[data-muscle="chest"]').count() == 1, f'{t} ligne Pectoraux mise en avant')
         R.check(page.locator('.btip').count() == 0, f'{t} bulle fermée après le lien')
         page.click('[data-action="back"]')

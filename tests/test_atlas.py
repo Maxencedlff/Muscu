@@ -493,7 +493,7 @@ def t_progres(bench, eng, dev, theme):
         txt = tip_text(page)
         title = page.evaluate(f"atlasPartTitle({json.dumps(part)})")
         R.check(txt.startswith(title) and 'série' in txt and 'Le plus :' in txt, f'{t} bulle : {part} « {txt} »')
-        n_top = page.evaluate("document.querySelector('.btip__top')?.textContent.split('),').length || 0")
+        n_top = page.evaluate("document.querySelector('.btip__top')?.textContent.replace('Le plus : ', '').split(', ').length || 0")
         R.check(1 <= n_top <= 3, f'{t} bulle : 3 exercices au plus ({n_top})')
         lo = layout_ok(page)
         R.check(not lo, f'{t} Progrès : mise en page {lo}')
