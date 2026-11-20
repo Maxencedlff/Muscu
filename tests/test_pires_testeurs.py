@@ -275,8 +275,9 @@ def dialog_field(action, **data):
 
 
 def session_open(page):
-    if not page.evaluate('!!activeSession'):
-        page.evaluate("startSession('push')")
+    # Séance neuve à chaque fois : une séance restée ouverte par une autre recette (disques) peut être hors de l'écran
+    if not page.locator('.view.session').count() or not page.evaluate('!!activeSession'):
+        page.evaluate("activeSession = null; startSession('push')")
     page.wait_for_selector('.view.session')
     settle(page)
 

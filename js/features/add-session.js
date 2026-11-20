@@ -265,10 +265,11 @@ function storePastSession(exercises) {
       savedDate = localISO(old.date) === addDate ? old.date : timestamp;
       entry = data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate,
         // Note d'avant non retouchée : gardée entière, même plus longue que la limite de saisie d'aujourd'hui
-        notes: addNotes.trim() === String(old.notes ?? '').trim() ? (old.notes ?? '').trim() : clipText(addNotes.trim(), SESSION_NOTES_MAX).trim(), exercises };
+        notes: addNotes.trim() === String(old.notes ?? '').trim() ? (old.notes ?? '').trim()
+          : hasVisible(addNotes) ? clipText(addNotes.trim(), SESSION_NOTES_MAX).trim() : '', exercises };
     }
   } else {
-    entry = { id: uid(), programme: addProg, category: addCat, date: timestamp, notes: clipText(addNotes.trim(), SESSION_NOTES_MAX).trim(), exercises };
+    entry = { id: uid(), programme: addProg, category: addCat, date: timestamp, notes: hasVisible(addNotes) ? clipText(addNotes.trim(), SESSION_NOTES_MAX).trim() : '', exercises };
     data.history.push(entry);
     addNotes = '';
   }

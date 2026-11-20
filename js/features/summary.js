@@ -236,7 +236,7 @@ let summaryNotesTimer = null;
 function summaryNotesInput(value) {
   const h = lastSummary && data.history.find(x => x.id === lastSummary.id);
   if (!h) return;
-  const v = value.trim();
+  const v = hasVisible(value) ? value.trim() : '';   // espaces ou invisibles seuls (U+200B) : pas de note
   h.notes = v === h.notes ? v : clipText(v, SESSION_NOTES_MAX).trim();   // seule une note retouchée est bornée
   clearTimeout(summaryNotesTimer);
   summaryNotesTimer = setTimeout(() => save(), 300);
@@ -272,7 +272,7 @@ function sessionHistoryEntry(sp, sc) {
     category:   sc,
     date:       Date.now(),
     duration:   Date.now() - activeSession.startedAt,
-    notes:      clipText(sessionNotes.trim(), SESSION_NOTES_MAX).trim(),
+    notes:      hasVisible(sessionNotes) ? clipText(sessionNotes.trim(), SESSION_NOTES_MAX).trim() : '',
     ...(storableBodyKg() ? { bodyKg: storableBodyKg() } : {}),
     ...(newSessionHidden() ? { hidden: true } : {}),   // Réglages › Social et coach › Séances visibles par défaut éteint
     exercises:  orderByStart(activeSession.exercises)   // ordre où les exercices ont été commencés
