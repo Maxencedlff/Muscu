@@ -1085,7 +1085,9 @@ function scrollToCurrent(smooth = true, focus = false) {
     if (fit) window.scrollTo({ top: Math.max(0, at(fit)), behavior });
     else if (anchors.length) {
       const need = row.getBoundingClientRect().bottom + y - barH - room;
-      window.scrollTo({ top: Math.max(0, Math.min(need, at(anchors[anchors.length - 1]))), behavior });
+      // Pendant un repos, la série à faire passe avant tout : jamais sous la barre de repos (panel du 20/11, texte agrandi :
+      // la barre sur trois rangées la cachait)
+      window.scrollTo({ top: Math.max(0, restActive ? need : Math.min(need, at(anchors[anchors.length - 1]))), behavior });
     } else row.scrollIntoView({ block: 'center', behavior });
     if (focus) focusCurrentSet();
   });

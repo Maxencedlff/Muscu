@@ -579,13 +579,14 @@ html.type-xl .social-row__name, html.type-xl .targets__name { overflow-wrap: nor
    deux rangées : le chrono et Passer, puis −15, +15 ; « Ensuite » dessous, sur sa ligne. La séance défile au-dessus
    d'elle (scrollToCurrent tient compte de sa hauteur) */
 html.type-xl .rest-mini {
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) max-content;
   grid-template-areas: "main main main skip" "m15 p15 . ." "next next next next";
 }
 html.type-xl .rest-mini .rest-mini__main { grid-area: main; }
 html.type-xl .rest-mini .rest-mini__btn[data-d="-15"] { grid-area: m15; }
 html.type-xl .rest-mini .rest-mini__btn[data-d="15"] { grid-area: p15; }
-html.type-xl .rest-mini .rest-mini__skip { grid-area: skip; }
+html.type-xl .rest-mini .rest-mini__skip { grid-area: skip; justify-self: end; box-sizing: border-box; max-width: 100%; }
+html.type-xl .tech-tag { white-space: nowrap; }   /* « Drop 1 » sur une ligne : la colonne du numéro est large en texte agrandi */
 html.type-xl .rest-mini .rest-mini__next { grid-area: next; }
 html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 44px; padding: 0 12px; white-space: nowrap; }
 /* Feuille Repos : titre et « Réduire » l'un sous l'autre, durées sur deux rangées de trois */
