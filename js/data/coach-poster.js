@@ -37,8 +37,6 @@ function posterInitials(name) {
 // code : code coach permanent ; badge : carte pro déclarée et montrée ; hasPhoto : photo lisible ; silhouette :
 // 'female' ou 'male', choisie dans l'écran de l'affiche (jamais déduite du prénom) : accord « NOUVELLE COACH » ou
 // « NOUVEAU COACH » ; neutral : « COACH » seul, sans genre
-// Ce que l'app fournit à tout coach (8e panel : rien de promis à la place du coach) ; seulement sans spécialité
-const COACH_POSTER_PERKS = 'Programme · Suivi sur MDLF Training';
 function coachPosterModel({ name = '', specialty = '', username = '', code = '', badge = false, hasPhoto = false, silhouette = 'male', neutral = false } = {}) {
   const user = String(username ?? '').replace(/^@/, '').trim();
   const n = posterName(name);
@@ -50,7 +48,6 @@ function coachPosterModel({ name = '', specialty = '', username = '', code = '',
     photo: hasPhoto === true,
     title: neutral === true ? 'COACH' : silhouette === 'female' ? 'NOUVELLE COACH' : 'NOUVEAU COACH',
     badge: badge === true ? COACH_BADGE_LABEL : null,
-    perks: posterName(specialty) ? '' : COACH_POSTER_PERKS,
     ctaLine: 'Télécharge MDLF Training',
     ctaWhere: 'Entre mon code dans Social › Rejoindre un coach',
     code: formatCoachCode(String(code ?? '').toUpperCase()),
@@ -60,7 +57,7 @@ function coachPosterModel({ name = '', specialty = '', username = '', code = '',
 // Texte lu par VoiceOver sur l'aperçu
 function coachPosterAlt(m) {
   const title = { 'NOUVELLE COACH': 'Nouvelle coach', 'NOUVEAU COACH': 'Nouveau coach' }[m.title] || 'Coach';
-  return [`Affiche « ${title} »${m.name ? ` : ${m.name}` : ''}`, m.specialty, m.perks, m.handle, 'sur MDLF Training', m.badge, `code ${m.code}`].filter(Boolean).join(', ');
+  return [`Affiche « ${title} »${m.name ? ` : ${m.name}` : ''}`, m.specialty, m.handle, 'sur MDLF Training', m.badge, `code ${m.code}`].filter(Boolean).join(', ');
 }
 
 // Nom du fichier partagé (sans le pseudo : le fichier peut être renvoyé ailleurs)

@@ -73,6 +73,18 @@ ma photo » ou « Partager sans photo », jamais de blocage) ; la ligne de l'app
 Training » (ce que l'app fournit à tout coach, rien de promis à sa place), seulement sans spécialité, 32 px, 8:1 sur le
 noir ; pseudo et badge tenus dans la même largeur que le nom ; « Choisir une photo » fixé en bas de sa feuille.
 
+**9e panel ciblé (8,72/10), corrigé en v16** (`v16/`) : la ligne « Programme · Suivi sur MDLF Training » est retirée
+(elle faisait remplissage) : sans spécialité, rien à cet endroit ; 24 px d'air au moins entre le bloc d'identité et la
+carte du code, même avec un nom long sur deux lignes (le titre puis la photo rapetissent, test unitaire) ; feuille en
+très grand texte : Femme et Homme côte à côte, « Aperçu » sur la ligne de « Fermer ».
+
+**À faire plus tard : « Ma coach » dans l'app.** Quand la coach a choisi la silhouette femme ou « NOUVELLE COACH », l'élève
+devrait lire « Ma coach », « Ta coach depuis… », « Ta coach peut t'écrire ». Ce n'est pas une petite modification :
+le serveur ne connaît que le nom de l'affiche (il faudrait ajouter l'accord à `coach_poster_names`, dans la migration
+pas encore appliquée), et « Mon coach » / « Ton coach » reviennent dans plus de 130 textes de l'app (onglet
+Social, Mon coach, messages, plans, nutrition, photos de bilan, notifications). Sans l'accord connu : « Mon coach »,
+comme aujourd'hui.
+
 **Mon coach** : l'élève voit le nom de l'affiche de son coach en titre, @pseudo dessous, et sa photo de profil s'il en
 a mis une. Le nom part au serveur seulement quand le coach **partage** son affiche (dit sous les réglages :
 « Quand tu partages ton affiche, tes élèves voient ton nom dans Mon coach ») ; `coach_poster_name(coach)` ne le rend

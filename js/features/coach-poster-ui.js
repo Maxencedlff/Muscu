@@ -96,7 +96,7 @@ function coachPosterToolsHtml() {
         </label>
         <div class="cposter-row">
           <span class="cposter-row__title" id="cposterSilLabel">Silhouette</span>
-          <div class="segmented cposter-row__seg" role="group" aria-labelledby="cposterSilLabel">
+          <div class="segmented cposter-row__seg cposter-row__seg--pair" role="group" aria-labelledby="cposterSilLabel">
             ${CPOSTER_SILHOUETTES.map(x => cposterSeg('coach-poster-silhouette', x.key, x.key === cposter.silhouette, x.label)).join('')}
           </div>
         </div>

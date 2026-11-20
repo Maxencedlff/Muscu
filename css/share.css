@@ -77,11 +77,11 @@ html.type-xl .share-preview__help--bar { display: none; }
 @font-face { font-family: 'MDLF Anton'; src: url('../fonts/anton.woff2') format('woff2'); font-weight: 400; font-display: block; }
 .cposter-row__seg { margin-left: auto; flex: 0 0 auto; }   /* trop étroit : passe sous son libellé */
 /* Très grand texte : les choix empilés en liste avec une coche, pleine largeur (« Coach » n'est plus coupé) */
-html.type-xl .cposter-row__seg { display: flex; flex-direction: column; width: 100%; margin: 4px 0 8px; padding: 0; background: none; }
-html.type-xl .cposter-row__seg .segmented__btn { margin: 0; min-height: 44px; padding: 6px 4px; text-align: left; white-space: normal; font-weight: 400; }
-html.type-xl .cposter-row__seg .segmented__btn::after, html.type-xl .cposter-row__seg .segmented__btn::before { display: none; }
-html.type-xl .cposter-row__seg .segmented__btn--active { font-weight: 600; color: var(--tint); }
-html.type-xl .cposter-row__seg .segmented__btn--active::before { display: inline; content: '✓ '; position: static; width: auto; background: none; opacity: 1; }
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) { display: flex; flex-direction: column; width: 100%; margin: 4px 0 8px; padding: 0; background: none; }
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn { margin: 0; min-height: 44px; padding: 6px 4px; text-align: left; white-space: normal; font-weight: 400; }
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn::after, html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn::before { display: none; }
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn--active { font-weight: 600; color: var(--tint); }
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn--active::before { display: inline; content: '✓ '; position: static; width: auto; background: none; opacity: 1; }
 /* Le chevron reste collé à la valeur (« Changer › ») ; trop étroit, les deux passent ensemble sous « Photo » */
 .cposter-row__end { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; white-space: nowrap; }
 .cposter-row__seg .segmented__btn { flex: 0 0 auto; padding: 0 10px; white-space: nowrap; }
@@ -111,3 +111,8 @@ html.type-xxl .share-preview__note-link { white-space: nowrap; font-size: min(1e
 
 /* Très grand texte : « Voir en grand » sans icône (elle restait seule à gauche d'un texte sur deux lignes) */
 html.type-xl .share-preview__seebig .icon { display: none; }
+/* Femme / Homme (9e panel) : deux boutons côte à côte aussi en très grand texte, pleine largeur sous « Silhouette » ;
+   « Aperçu » sur la ligne de « Fermer » (hauteur gagnée pour les réglages) */
+html.type-xl .cposter-row__seg--pair { display: flex; width: 100%; margin: 4px 0 8px; }
+html.type-xl .cposter-row__seg--pair .segmented__btn { flex: 1 1 0; min-height: 44px; }
+html.type-xl .sheet:has(.share-preview--tools) .sheet__bar .sheet__title { order: 0; flex-basis: auto; flex: 1 1 auto; padding: 0; text-align: center; white-space: nowrap; }

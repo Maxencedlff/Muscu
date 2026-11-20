@@ -23,7 +23,7 @@ function fakeCanvas(ops = []) {
     clip() { this.clipped = 1; },
     gradients: 0, spacings: [],
     createLinearGradient() { this.gradients++; return grad; }, createRadialGradient() { this.gradients++; return grad; },
-    beginPath() {}, closePath() {}, arc() {}, rect() {}, roundRect() {}, moveTo() {}, lineTo() {}, stroke() {}, arcTo() {},
+    beginPath() {}, closePath() {}, arc() {}, rect() {}, roundRect(x, y, w, h) { ops.push({ op: 'rrect', x: x + this.tx, y: y + this.ty, w, h }); }, moveTo() {}, lineTo() {}, stroke() {}, arcTo() {},
     translate(x, y) { this.tx += x; this.ty += y; }, rotate() {}, setLineDash() {},
   };
   return { width: 0, height: 0, ops, ctx, id: 'canvas', getContext: () => ctx };
@@ -47,14 +47,14 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
   test('affiche du coach : contenu exact (titre accordé à la silhouette choisie, nom, pseudo, badge, consigne, code)', () => {
     sameJSON(model(), {
       name: 'Léa Martin', specialty: '', handle: '@lea.coach', initials: 'LM', photo: true, title: 'NOUVELLE COACH',
-      badge: 'Carte pro déclarée', perks: 'Programme · Suivi sur MDLF Training', ctaLine: 'Télécharge MDLF Training',
+      badge: 'Carte pro déclarée', ctaLine: 'Télécharge MDLF Training',
       ctaWhere: 'Entre mon code dans Social › Rejoindre un coach', code: 'K7M2-QX9P-R4TD',
     });
     // Rien d'autre que ce qui vient du coach : aucun champ pour un élève
-    sameJSON(Object.keys(model()).sort(), ['badge', 'code', 'ctaLine', 'ctaWhere', 'handle', 'initials', 'name', 'perks', 'photo', 'specialty', 'title']);
+    sameJSON(Object.keys(model()).sort(), ['badge', 'code', 'ctaLine', 'ctaWhere', 'handle', 'initials', 'name', 'photo', 'specialty', 'title']);
     assert.equal(model({ specialty: '  Force ·   Perte de poids ' }).specialty, 'Force · Perte de poids', 'spécialité nettoyée');
-    // 8e panel : la ligne de ce que fournit l'app, seulement sans spécialité (rien de promis à la place du coach)
-    assert.equal(model({ specialty: 'Force' }).perks, '', 'spécialité : pas de ligne de l\'app');
+    // 9e panel : plus de ligne de remplissage (« Programme · Suivi… ») : sans spécialité, rien à cet endroit
+    assert.ok(!/Programme · Suivi|COACH_POSTER_PERKS/.test(read('js/data/coach-poster.js') + read('js/features/coach-poster-art.js')), 'ligne de remplissage retirée');
     assert.equal(run('CPA.grey'), '#A0A0A7', 'blanc secondaire à 8:1 sur le noir');
     assert.equal(model({ specialty: 'x'.repeat(60) }).specialty.length, 40, 'spécialité : 40 caractères au plus');
     assert.equal(model({ name: '', username: 'sam' }).initials, '', 'jamais d\'initiales tirées du pseudo');
@@ -69,7 +69,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     assert.equal(model({ name: '' }).handle, '@lea.coach', 'le pseudo reste, une fois');
     assert.equal(model({ name: '  Léa   Martin  ' }).name, 'Léa Martin', 'espaces resserrés');
     assert.equal(model({ name: 'x'.repeat(60) }).name.length, 40, '40 caractères au plus');
-    assert.match(app.coachPosterAlt(model()), /^Affiche « Nouvelle coach » : Léa Martin, Programme · Suivi sur MDLF Training, @lea\.coach, sur MDLF Training, Carte pro déclarée, code K7M2-QX9P-R4TD$/);
+    assert.match(app.coachPosterAlt(model()), /^Affiche « Nouvelle coach » : Léa Martin, @lea\.coach, sur MDLF Training, Carte pro déclarée, code K7M2-QX9P-R4TD$/);
     assert.match(app.coachPosterAlt(model({ neutral: true })), /^Affiche « Coach » : /);
   });
 
@@ -98,7 +98,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       }
       // Consigne sur une ligne, ou sur deux en story (coupée avant « et ») pour rester lisible
       // 7e panel : télécharger, le code, puis où l'entrer ; ce que l'élève gagne ; consignes de 26 px au moins
-      assert.ok(t.includes('Télécharge MDLF Training') && t.includes('Entre mon code dans Social › Rejoindre un coach') && t.includes('Programme · Suivi sur MDLF Training'), `${tag} : consignes et ce que l'élève gagne`);
+      assert.ok(t.includes('Télécharge MDLF Training') && t.includes('Entre mon code dans Social › Rejoindre un coach'), `${tag} : consignes`);
       for (const o of c.ops.filter(x => x.op === 'text' && ['Télécharge MDLF Training', 'Entre mon code dans Social › Rejoindre un coach', 'Carte pro déclarée'].includes(x.text))) {
         assert.ok(parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]) >= 22, `${tag} : « ${o.text} » trop petit (${o.font})`);
       }
@@ -158,7 +158,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       assert.ok(bd.w >= 1080 * 0.3, `${format} : entier et bien visible (${Math.round(bd.w)} px de large)`);
       // La photo domine : 560 px au moins en story, 46 % de la largeur en carré
       const photo = c.ops.find(o => o.op === 'image' && o.id === 'cover');
-      assert.ok(photo && photo.w >= (format === 'story' ? 560 : 1080 * 0.34) - 0.5, `${format} : photo de ${photo && Math.round(photo.w)} px`);
+      assert.ok(photo && photo.w >= (format === 'story' ? 560 : 1080 * 0.3) - 0.5, `${format} : photo de ${photo && Math.round(photo.w)} px`);
       if (format === 'story') assert.ok(bd.y >= 250 && bd.y + bd.h <= 1700, `story : entier dans la zone sûre (${Math.round(bd.y)} à ${Math.round(bd.y + bd.h)})`);
       // Tout texte est soit au-dessus du personnage (titre, story), soit dans la colonne de droite
       for (const o of c.ops.filter(x => x.op === 'text')) {
@@ -186,6 +186,16 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       // Centré : autant de noir au-dessus du titre qu'en dessous de la signature (à 60 px près)
       const top = Math.min(...ys) - 140, bot = 1920 - Math.max(...ys);
       assert.ok(Math.abs(top - bot) <= 120, `bloc centré (haut ${Math.round(top)}, bas ${Math.round(bot)})`);
+    }
+  });
+
+  test('affiche du coach : 24 px d\'air au moins entre le bloc d\'identité et la carte du code (9e panel)', () => {
+    for (const format of ['story', 'square']) for (const o of [{}, { name: 'Marie-Charlotte Delafontaine', username: 'marie.charlotte.coach', specialty: 'Rééducation · Mobilité · Pilates' }]) {
+      const c = draw(model(o), format), rr = c.ops.filter(x => x.op === 'rrect');
+      const pill = rr.find(x => x.h >= 150), badge = rr.filter(x => x.h < 80 && x.y < pill.y).pop();
+      const lastText = Math.max(...c.ops.filter(x => x.op === 'text' && x.y < pill.y).map(x => x.y));
+      const bottom = Math.max(badge ? badge.y + badge.h : 0, lastText);
+      assert.ok(pill.y - bottom >= 24, `${format} ${o.name || 'Léa'} : ${Math.round(pill.y - bottom)} px au-dessus du code`);
     }
   });
 

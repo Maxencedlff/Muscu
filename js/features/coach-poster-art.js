@@ -190,13 +190,6 @@ function cpaIdentityDown(ctx, m, { x, top, maxW, nameW = maxW, name: [nMax, nMin
     if (draw) cpaText1(ctx, m.specialty, x, y, { font: cpaText(sp, 600), color: CPA.white });
     y += gap;
   }
-  // Sans spécialité : ce que l'app fournit (8e panel), blanc secondaire (8:1 sur le noir), une ligne, 32 px environ
-  if (m.perks) {
-    const pk = cpaFit(ctx, m.perks, maxW, subSize * 1.15, subSize * 0.6, z => cpaText(z, 500));
-    y += pk;
-    if (draw) cpaText1(ctx, m.perks, x, y, { font: cpaText(pk, 500), color: CPA.grey });
-    y += gap;
-  }
   const sub = m.handle, bs = badgeSize, bh = Math.round(bs * 1.8);
   if (inline && m.badge && sub) {
     ctx.font = cpaText(bs, 600);
@@ -300,7 +293,10 @@ function cpaDrawStory(ctx, m, a, W) {
   const pillY0 = bottom - brand - 16 - pillH, upper = (tS, d) => tS * 0.9 * lines + 10 + 24 + d + 36 + idH;
   let tS = m.title === 'COACH' ? 190 : 140;
   while (tS < (lines > 1 ? 200 : 260) && titleTop0 + upper(tS + 4, dMax) <= pillY0 - 30) tS += 4;
-  const d = Math.max(560, Math.min(dMax, pillY0 - 30 - titleTop0 - upper(tS, 0)));
+  // Bloc d'identité haut (nom long sur deux lignes, spécialité, badge) : le titre rapetisse d'abord (120 px au moins),
+  // puis la photo (500 px au moins), pour garder l'air au-dessus du code (9e panel)
+  while (tS > 120 && pillY0 - 30 - titleTop0 - upper(tS, 0) < 560) tS -= 4;
+  const d = Math.max(500, Math.min(dMax, pillY0 - 30 - titleTop0 - upper(tS, 0)));
   const spare = Math.max(0, pillY0 - 30 - titleTop0 - upper(tS, d)), dy = spare / 2;
   const titleTop = titleTop0 + dy, pill = { h: pillH, y: pillY0 - dy }, brandY = bottom - brand - dy;
   const titleBottom = cpaTitleBlock(ctx, m, W / 2, titleTop, W - 100, tS);
@@ -325,7 +321,7 @@ function cpaDrawSquare(ctx, m, a, W, H) {
   const idOpts = { x: cx, maxW: colW, nameW: colW - 128, name: [56, 34], subSize: 26, badgeSize: 26, gap: 8, inline: true };
   const idH = cpaIdentityDown(ctx, m, { ...idOpts, top: 0, draw: false });
   const photoTop = titleBottom + 12;
-  const d = Math.max(W * 0.34, Math.min(W * 0.46, pill.y - 20 - photoTop - idH - 28));
+  const d = Math.max(W * 0.3, Math.min(W * 0.46, pill.y - 26 - photoTop - idH - 28));   // 24 px d'air au moins au-dessus du code (9e panel)
   cpaPhotoRound(ctx, m, a, cx, photoTop, d);
   cpaIdentityDown(ctx, m, { ...idOpts, top: photoTop + d + 28 });
   cpaCodePill(ctx, m, W / 2, pill.y, W - 80, pill.h, 28);
