@@ -1,7 +1,7 @@
 -- ═══════════════════════════════════════════════════════════
 --  Nom de l'affiche du coach montré à ses élèves (20/11/2026). Contrat : docs/AFFICHE_COACH.md, « Mon coach ».
 --  ÉCRITE, PAS APPLIQUÉE EN PRODUCTION (feu vert de Maxence attendu). Retour arrière :
---  supabase/rollback/20261120010000_nom_affiche_coach_down.sql.
+--  supabase/rollback/20261120020000_nom_affiche_coach_down.sql.
 --
 --  1. Le coach écrit son nom sur son affiche (Mes élèves › Mon affiche de coach). Ce nom part ici seulement quand il
 --     PARTAGE l'affiche (l'app le dit sous les réglages) : coach_set_poster_name. Une ligne par coach, remplacée.

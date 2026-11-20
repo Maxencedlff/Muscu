@@ -461,7 +461,7 @@ def t_eleve_sans_affiche(bench, eng, dev, theme):
                 f'{t} Mon coach, serveur d\'avant : pseudo seul')
         R.check(page.locator('[data-action="coach-poster-open"]').count() == 0, f'{t} élève : pas d\'affiche dans Mon coach')
         # Nom de l'affiche partagée : en titre, @pseudo dessous
-        page.evaluate("""() => { __sb.fail.posterName = null; const c = myCoach().user_id; (__sb.co.posterNames ||= {})[c] = 'Camille Martin'; coachPosterNames.clear(); }""")
+        page.evaluate("""() => { __sb.fail.posterName = null; const c = myCoach().user_id; (__sb.co.posterNames ||= {})[c] = 'Camille Martin'; coachPosterNames.clear(); coachPosterServer = true; }""")
         page.evaluate("goBack()")
         settle(page)
         page.evaluate("navigate('coach-mine')")
@@ -558,4 +558,65 @@ def t_photo_trois_acces(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} sans accès : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_coach_affiche, t_apercu_grand_texte, t_eleve_sans_affiche, t_photo_trois_acces])
+def poster_calls(page, fn):
+    return page.evaluate("f => __sb.calls.filter(c => c[0] === 'coach' && c[1] === f).length", fn)
+
+
+def t_sans_migration(bench, eng, dev, theme):
+    """Serveur sans la migration du nom (en attente du feu vert) : partage et Mon coach marchent sans message ni erreur,
+    pseudo seul ; l'envoi du nom est ignoré, retenté au partage suivant, et passe une fois la migration appliquée ;
+    Mon coach ne rappelle pas la fonction absente à chaque ouverture."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        cons = []
+        page.on('console', lambda m: cons.append(m.text) if m.type == 'error' else None)
+        open_app(page, theme)
+        signin(page, 'camille_coach')
+        page.evaluate(FAKE_SHARE)
+        page.evaluate("async () => { __sb.fail.posterName = 'missing'; __sb.makeCoach(__sb.meId()); await coachRefresh(); await coachProRefresh({ minAge: 0 }); }")
+        me = page.evaluate('__sb.meId()')
+        page.evaluate("navigate('coach-students')")
+        page.wait_for_selector('[data-action="coach-poster-open"]', timeout=8000)
+        for n in (1, 2):
+            page.locator('[data-action="coach-poster-open"]').scroll_into_view_if_needed()
+            page.click('[data-action="coach-poster-open"]')
+            preview_ready(page)
+            if n == 1:
+                page.evaluate("document.querySelector('#cposterName').scrollIntoView({ block: 'center' })")
+                page.fill('#cposterName', 'Camille Martin')
+                page.wait_for_function("() => !document.querySelector('.sheet .share-preview__send').disabled", timeout=8000)
+            page.click('.sheet [data-action="share-story-send"]')
+            page.wait_for_function(f'() => window.__shared.length === {n}', timeout=8000)
+            page.wait_for_function(f"() => __sb.calls.filter(c => c[0] === 'coach' && c[1] === 'coach_set_poster_name').length === {n}", timeout=8000)
+            settle(page)
+            R.check(page.locator('.sheet .share-preview').count() == 0 and toast(page) == '', f'{t} sans migration, partage {n} : fait, aucun message ({toast(page)!r})')
+        R.check(poster_calls(page, 'coach_set_poster_name') == 2, f'{t} sans migration : envoi du nom retenté au partage suivant')
+        # Migration appliquée : le partage suivant envoie le nom
+        page.evaluate("__sb.fail.posterName = null")
+        page.click('[data-action="coach-poster-open"]')
+        preview_ready(page)
+        page.click('.sheet [data-action="share-story-send"]')
+        page.wait_for_function("me => (__sb.co.posterNames || {})[me] === 'Camille Martin'", arg=me, timeout=8000)
+        R.check(True, f'{t} migration appliquée : nom envoyé au partage suivant')
+        R.check(not page.errors and not cons, f'{t} sans migration, coach : aucune erreur JS ni console {page.errors} {cons}')
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        cons = []
+        page.on('console', lambda m: cons.append(m.text) if m.type == 'error' else None)
+        open_app(page, theme)
+        signin(page, 'lea')
+        page.evaluate("""async () => { __sb.fail.posterName = 'missing'; const c = __sb.addPerson({ username: 'camille_coach', avatar: '🦁', social: false }); __sb.makeCoach(c);
+            __sb.link(c, __sb.meId(), Date.now() - 3 * 86400000); await coachRefresh(); }""")
+        page.evaluate("routeTo('friends')")
+        for n in (1, 2, 3):
+            page.evaluate("navigate('coach-mine')")
+            page.wait_for_selector('.coach-mine-view', timeout=8000)
+            settle(page)
+            R.check(page.inner_text('.coach-mine__who .coach-join__name') == 'camille_coach' and page.locator('.coach-mine__handle').count() == 0 and toast(page) == '',
+                    f'{t} sans migration, Mon coach ({n}) : pseudo seul, aucun message')
+            page.evaluate("goBack()")
+            settle(page)
+        R.check(poster_calls(page, 'coach_poster_name') == 1, f'{t} sans migration : fonction absente appelée une fois, pas à chaque ouverture ({poster_calls(page, "coach_poster_name")})')
+        R.check(not page.errors and not cons, f'{t} sans migration, élève : aucune erreur JS ni console {page.errors} {cons}')
+
+
+run_main(R, [t_coach_affiche, t_apercu_grand_texte, t_eleve_sans_affiche, t_photo_trois_acces, t_sans_migration])

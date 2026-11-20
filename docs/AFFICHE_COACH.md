@@ -51,7 +51,7 @@ grand texte. Photo de profil en très grand texte : une phrase courte, la règle
 **Mon coach** : l'élève voit le nom de l'affiche de son coach en titre, @pseudo dessous, et sa photo de profil s'il en
 a mis une. Le nom part au serveur seulement quand le coach **partage** son affiche (dit sous les réglages :
 « Quand tu partages ton affiche, tes élèves voient ce nom dans Mon coach ») ; `coach_poster_name(coach)` ne le rend
-qu'au coach et à ses élèves, rien en cas de blocage. Migration `supabase/migrations/20261120010000_nom_affiche_coach.sql`
+qu'au coach et à ses élèves, rien en cas de blocage. Migration `supabase/migrations/20261120020000_nom_affiche_coach.sql`
 **écrite, pas appliquée** (feu vert de Maxence), retour arrière dans `supabase/rollback/`. Sans elle, Mon coach garde
 le pseudo seul et le partage marche.
 

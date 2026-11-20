@@ -224,8 +224,12 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     assert.match(ui, /async function coachPosterKeepOriginal\(file\) \{\n.*\n\s+if \(!me \|\| coachRole\(\)\.isCoach !== true/, 'photo d\'origine gardée pour un coach seulement');
     assert.ok(ui.includes("silhouette: prefs ? prefs.silhouette : (bodySilhouette() === 'female' ? 'female' : 'male')"), 'silhouette : réglage du compte par défaut');
     assert.ok(!/posterName\([^)]*\)\s*[.=]=|prenom|firstName/i.test(read('js/data/coach-poster.js').split('function coachPosterModel')[1].split('}')[0]), 'genre jamais déduit du nom');
-    const all = ui + read('js/data/coach-poster.js') + read('js/features/coach-poster-art.js');
+    // Seul appel : le nom de l'affiche (section « Nom de l'affiche montré aux élèves »), jamais l'image
+    const [data, names] = read('js/data/coach-poster.js').split("// ── Nom de l'affiche montré aux élèves");
+    const all = ui + data + read('js/features/coach-poster-art.js');
     assert.ok(!/sb\.|\.rpc\(|fetch\(|functions\.invoke|storage\.from/.test(all), 'aucun appel au serveur : tout est dessiné sur l\'appareil');
+    assert.deepEqual([...new Set(names.match(/posterRpc\('([a-z_]+)'/g))], ["posterRpc('coach_set_poster_name'", "posterRpc('coach_poster_name'"], 'appels du nom seulement');
+    assert.ok(!/fetch\(|functions\.invoke|storage\.from/.test(names), 'rien d\'autre envoyé');
     const sw = read('sw.js'), html = read('index.html');
     for (const f of ['js/data/coach-poster.js', 'js/features/coach-poster-art.js', 'js/features/coach-poster-ui.js']) {
       assert.ok(sw.includes(`'/${f}'`), `${f} dans sw.js`);
@@ -241,8 +245,8 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
   });
 
   test('affiche du coach : nom montré dans Mon coach, envoyé au partage seulement, lu par le coach et ses élèves', () => {
-    const sql = read('supabase/migrations/20261120010000_nom_affiche_coach.sql');
-    const down = read('supabase/rollback/20261120010000_nom_affiche_coach_down.sql');
+    const sql = read('supabase/migrations/20261120020000_nom_affiche_coach.sql');
+    const down = read('supabase/rollback/20261120020000_nom_affiche_coach_down.sql');
     assert.ok(/PAS APPLIQUÉE EN PRODUCTION/.test(sql), 'migration marquée non appliquée');
     for (const f of ['coach_set_poster_name(text)', 'coach_poster_name(uuid)']) {
       assert.ok(sql.includes(`grant execute on function public.${f} to authenticated;`), `GRANT de ${f}`);
@@ -250,7 +254,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     }
     assert.ok(!/grant[^;]*on public\.coach_poster_names/.test(sql) && /revoke all on public\.coach_poster_names/.test(sql), 'table lisible par un client');
     assert.ok(/char_length\(name\) between 1 and 40/.test(sql) && sql.includes('private.blocked_between') && sql.includes('public.coach_links'), 'nom borné, élèves seulement, blocage');
-    assert.ok(read('supabase/rollback/ORDRE.md').includes('20261120010000_nom_affiche_coach_down.sql'), 'ordre de démontage');
+    assert.ok(read('supabase/rollback/ORDRE.md').includes('20261120020000_nom_affiche_coach_down.sql'), 'ordre de démontage');
     // Envoyé quand le coach partage (onShared), jamais à la frappe ; dit sous les réglages
     const ui = read('js/features/coach-poster-ui.js');
     assert.ok(/onShared: \(\) => \{ if \(mine\.name\) coachPosterPublishName\(mine\.name\)/.test(ui), 'envoi au partage');

@@ -125,28 +125,43 @@ async function posterPhotoClear(uid) { if (uid) await posterDbDo('readwrite', s 
 // L'élève reconnaît la coach de l'affiche : Mon coach montre ce nom, @pseudo dessous. Le nom part au serveur
 // seulement quand le coach PARTAGE son affiche (geste explicite, dit sous les réglages) ; le serveur ne le montre
 // qu'au coach et à ses élèves (coach_poster_name). Serveur d'avant (migration pas appliquée) : rien n'est montré,
-// Mon coach garde le pseudo seul.
+// Mon coach garde le pseudo seul, aucun message.
 const CPOSTER_NAME_TTL = 5 * 60_000;
 const coachPosterNames = new Map();   // uid du coach → { name, at, loading }
+// Serveur sans la migration du nom (supabase/migrations/20261120020000_nom_affiche_coach.sql, en attente) : la lecture
+// n'est plus tentée de la session (aucun appel à chaque ouverture de Mon coach) ; l'envoi, lui, est retenté à chaque
+// partage, et s'il passe (migration appliquée), la lecture reprend
+let coachPosterServer = true;
+const posterFnMissing = e => e?.code === 'PGRST202' || /could not find the function/i.test(String(e?.message || ''));
+async function posterRpc(fn, args) {
+  if (!sb || !account.user) return { ok: false, missing: false };
+  const uid = account.user.id;
+  try {
+    const { data, error } = await sb.rpc(fn, args);
+    if (account.user?.id !== uid) return { ok: false, missing: false };
+    return error ? { ok: false, missing: posterFnMissing(error) } : { ok: true, data };
+  } catch { return { ok: false, missing: false }; }   // hors ligne : rien dit, réessayé plus tard
+}
 async function coachPosterPublishName(name) {
   const n = posterName(name);
-  if (!n || !account.user) return { ok: false, kind: 'invalid' };
-  const r = await coachProRpc('coach_set_poster_name', { name: n });
-  if (r.ok) coachPosterNames.set(account.user.id, { name: n, at: Date.now() });
-  return r;
+  if (!n || !account.user) return { ok: false };
+  const me = account.user.id, r = await posterRpc('coach_set_poster_name', { name: n });
+  if (r.ok) { coachPosterServer = true; coachPosterNames.set(me, { name: n, at: Date.now() }); }
+  return r;   // échec (serveur d'avant, hors ligne) : ignoré en silence, retenté au prochain partage
 }
 // Nom montré pour ce coach ('' s'il n'en a pas, pas encore lu, ou serveur d'avant)
 function coachPosterNameOf(uid) { return (uid && coachPosterNames.get(uid)?.name) || ''; }
 // Lit le nom (gardé 5 min) ; onChange appelé s'il a changé
 async function coachPosterNameLoad(uid, onChange) {
-  if (!sb || !account.user || typeof uid !== 'string' || !uid) return '';
+  if (!coachPosterServer || !sb || !account.user || typeof uid !== 'string' || !uid) return coachPosterNameOf(uid);
   const old = coachPosterNames.get(uid);
   if (old?.loading || (old && Date.now() - old.at < CPOSTER_NAME_TTL)) return old?.name || '';
   coachPosterNames.set(uid, { name: old?.name || '', at: old?.at || 0, loading: true });
-  const r = await coachProRpc('coach_poster_name', { coach: uid });
+  const r = await posterRpc('coach_poster_name', { coach: uid });
   if (!account.user) return '';
+  if (r.missing) coachPosterServer = false;
   const name = r.ok && r.data && typeof r.data.name === 'string' ? posterName(r.data.name) : '';
-  coachPosterNames.set(uid, { name: r.ok ? name : old?.name || '', at: r.ok ? Date.now() : 0 });
+  coachPosterNames.set(uid, { name: r.ok ? name : old?.name || '', at: r.ok || r.missing ? Date.now() : 0 });
   if ((old?.name || '') !== coachPosterNameOf(uid)) onChange?.();
   return coachPosterNameOf(uid);
 }

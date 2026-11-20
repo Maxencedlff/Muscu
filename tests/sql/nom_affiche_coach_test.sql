@@ -1,4 +1,4 @@
--- Vérifications de 20261120010000_nom_affiche_coach.sql (nom de l'affiche montré dans Mon coach), lancées par
+-- Vérifications de 20261120020000_nom_affiche_coach.sql (nom de l'affiche montré dans Mon coach), lancées par
 -- tests/sql/run.sh. Comptes simulés …00000000cdXX : A coach, E son élève, K élève de A qui l'a bloqué, O autre compte,
 -- N pas coach. Rien n'est appliqué en production : Postgres local jetable.
 

@@ -1175,7 +1175,7 @@ FAKE_ACCOUNT = r"""
       delete co.cards[me];
       return cardJson(me);
     },
-    // Nom de l'affiche (supabase/migrations/20261120010000_nom_affiche_coach.sql) ; __sb.fail.posterName = 'missing' : serveur d'avant
+    // Nom de l'affiche (supabase/migrations/20261120020000_nom_affiche_coach.sql) ; __sb.fail.posterName = 'missing' : serveur d'avant
     coach_set_poster_name: (me, { name }) => {
       if (!co.coachAt[me]) return pgErr('not_coach');
       const n = String(name ?? '').replace(/\p{Cc}/gu, ' ').replace(/\s+/g, ' ').trim();
