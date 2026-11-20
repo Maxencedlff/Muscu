@@ -16,6 +16,7 @@ PPL_URL=http://localhost:8768/ flock /tmp/ppl-e2e.lock python3 tests/panel/captu
 | `--recents` | iPhone 17 (= 16 Pro à 18 Pro), 17 Pro Max, Air et iPhone Duo fermé, ouvert, paysage et « grand paysage » en sombre, plus iPhone 17 et Duo ouvert en clair ; écran entier de l'app et marges de sécurité simulées (tailles et hypothèses : `tests/fixtures.py`, RECENT_PROFILES) |
 | `--parcours seance,coach` | seulement ces parcours (`python3 tests/panel/parcours.py` les liste) |
 | `--sans-axe` | sans l'audit d'accessibilité axe-core (fait sur le premier appareil seulement) |
+| `--appareils 1,3` | seulement ces appareils du mode (numéros à partir de 1) : sert au découpage sur GitHub |
 | `--debug` | pile complète quand une étape échoue |
 
 Un seul navigateur à la fois (WebKit pour les iPhone, puis Chromium pour le Pixel). Durée mesurée le
@@ -23,6 +24,14 @@ Un seul navigateur à la fois (WebKit pour les iPhone, puis Chromium pour le Pix
 simulés par `tests/fake_account.py` : aucune requête ne sort du poste (tout ce qui n'est pas l'adresse
 locale est coupé). Horloge de l'app figée au mercredi 4 novembre 2026, 18 h 30 (Paris) ; données :
 6 mois d'entraînement réalistes (`tests/donnees_realistes.py`).
+
+## Sur GitHub plutôt que sur le PC (règle depuis le 20/11/2026)
+
+`~/.local/share/mdlf/outils/captures_gh.sh <branche> <parcours> <modes> <sortie>` (ex. `vague4 accueil,programme rapide,grand-texte ~/.local/share/mdlf/panel/<chantier>/t1`) lance `.github/workflows/captures-panel.yml` sur la branche poussée, attend et range le résultat : un seul mode dans `<sortie>`, plusieurs dans `<sortie>/<mode>/`.
+`gh.py plan` découpe : une machine par appareil du mode, parcours longs en lots d'environ 80 étapes, 20 machines au plus ; `gh.py fusionner` renumérote et rassemble au format du PC (mêmes NN, mêmes noms de fichiers, index.md, resume.md, etapes.json).
+Plusieurs chantiers peuvent lancer en même temps, même sur la même branche (aucune annulation, chacun retrouve son exécution par un jeton). Sans verrou ni navigateur sur le PC.
+Différence avec le PC : pas de verif-ui sur GitHub (dépôt privé), donc contrôles automatiques simples (`controles.js`) ; polices de la machine GitHub (DejaVu).
+Mesuré le 20/11/2026 : voir la fin de cette section.
 
 ## Ce qui sort
 

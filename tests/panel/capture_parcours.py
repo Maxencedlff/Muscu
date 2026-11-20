@@ -3,7 +3,7 @@
 pour qu'un panel (pratiquants, coachs) juge l'ergonomie sans relancer de navigateur.
 
     PPL_URL=http://localhost:8768/ flock /tmp/ppl-e2e.lock python3 tests/panel/capture_parcours.py <sortie> [--rapide]
-        [--parcours nom1,nom2] [--sans-axe]
+        [--parcours nom1,nom2] [--sans-axe] [--appareils 1,3]
 
 - rapide : iPhone 13 sombre + iPhone SE clair ; complet (défaut) : iPhone 13 et iPhone SE, clair et sombre,
   plus Pixel 7 sombre ; recents (--recents) : iPhone 17, 17 Pro Max, Air et les quatre tailles du Duo pliable
@@ -394,8 +394,9 @@ class Pilote:
 #  Passe complète : chaque parcours dans un contexte neuf
 # ─────────────────────────────────────────────────────────────
 class Run:
-    def __init__(self, sortie, combos, url, axe, debug):
+    def __init__(self, sortie, combos, url, axe, debug, joues=None):
         self.sortie, self.combos, self.url, self.axe, self.debug = sortie, combos, url, axe, debug
+        self.joues = joues or combos    # appareils joués (--appareils) ; combos reste la liste du mode (axe : le premier)
         self.lignes = []
         self.nn = 0
         self.browser = self.pw = None   # navigateur en cours (Pilote.autre_telephone)
@@ -427,7 +428,7 @@ class Run:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             for engine in ('webkit', 'chromium'):
-                combos = [c for c in self.combos if c[0] == engine]
+                combos = [c for c in self.joues if c[0] == engine]
                 if not combos:
                     continue
                 browser = p.chromium.launch(args=['--mute-audio']) if engine == 'chromium' else p.webkit.launch()
@@ -594,6 +595,8 @@ def main(argv=None):
     ap.add_argument('--parcours', default='', help='noms séparés par des virgules (défaut : tous)')
     ap.add_argument('--sans-axe', action='store_true', help='sans axe-core (accessibilité) sur le premier appareil')
     ap.add_argument('--debug', action='store_true', help='pile complète des erreurs')
+    ap.add_argument('--appareils', default='', help='seulement ces appareils du mode, numéros à partir de 1 séparés par des virgules '
+                    '(captures sur plusieurs machines, tests/panel/gh.py) ; défaut : tous')
     ap.add_argument('--grand-texte', action='store_true', help='texte agrandi (Dynamic Type AX1 23 px et AX3 33 px), iPhone 13 et SE, '
                     'parcours ' + ', '.join(GRAND_TEXTE_PARCOURS))
     a = ap.parse_args(argv)
@@ -608,7 +611,14 @@ def main(argv=None):
             os.remove(os.path.join(a.sortie, f))
     mode = 'grand-texte' if a.grand_texte else 'recents' if a.recents else 'rapide' if a.rapide else 'complet'
     url = BASE_URL if BASE_URL.endswith('/') else BASE_URL + '/'
-    run = Run(os.path.abspath(a.sortie), COMBOS[mode], url, axe=not a.sans_axe, debug=a.debug)
+    try:
+        idx = sorted({int(x) for x in a.appareils.split(',') if x.strip()})
+    except ValueError:
+        sys.exit(f'--appareils : numéros attendus, reçu {a.appareils!r}')
+    if any(not 1 <= i <= len(COMBOS[mode]) for i in idx):
+        sys.exit(f'--appareils : de 1 à {len(COMBOS[mode])} en mode {mode}')
+    joues = [COMBOS[mode][i - 1] for i in idx] or None
+    run = Run(os.path.abspath(a.sortie), COMBOS[mode], url, axe=not a.sans_axe, debug=a.debug, joues=joues)
     t0 = time.time()
     run.jouer(choisis)
     duree = time.time() - t0

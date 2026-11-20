@@ -1,60 +1,72 @@
 name: Captures du panel
 
-# Captures commentées des parcours (tests/panel/capture_parcours.py) pour le panel d'ergonomie,
-# réparties sur ~20 machines GitHub (~25 min au lieu de ~2 h 15 sur un seul PC). Une machine par
-# mode (complet, recents, grand-texte) et par groupe de parcours ; la dernière tâche rassemble chaque
-# mode dans un seul dossier (captures, index.md, resume.md, etapes.json) et le dépose en artefact.
-# Lancement : gh workflow run captures-panel.yml --ref <branche> [-f parcours=accueil] ; récupération : gh run download <id>.
-# Conteneur officiel de Playwright et tests/ci_conteneur.sh, comme tests.yml : pas d'installation apt par job.
+# Captures commentées des parcours (tests/panel/capture_parcours.py) pour le panel d'ergonomie, sur
+# plusieurs machines GitHub en parallèle au lieu du PC (un seul verrou de navigateurs pour tous les chantiers).
+# Lancement : ~/.local/share/mdlf/outils/captures_gh.sh <branche> <parcours> <modes> <sortie> (lance, attend,
+# télécharge et range), ou gh workflow run captures-panel.yml --ref <branche> -f parcours=accueil,programme
+# -f modes=rapide,grand-texte -f jeton=<unique>. Parcours vide = tous (grand-texte : ses 12 parcours).
+# Découpage (tests/panel/gh.py plan) : une machine par appareil du mode, parcours longs coupés en lots
+# (~80 étapes, ~3 min), 20 machines au plus. La dernière tâche renumérote et rassemble chaque mode en un
+# dossier au format du PC (PNG, index.md, resume.md, etapes.json) : artefact « captures-panel ».
+# Conteneur officiel de Playwright et tests/ci_conteneur.sh, comme tests-complet.yml.
 # verif-ui (dépôt privé) n'est pas disponible ici : contrôles automatiques simples (controles.js).
 on:
   workflow_dispatch:
     inputs:
       parcours:
-        description: Un essai court sur ces parcours seulement (ex. « accueil »), mode complet, une machine ; vide = tout
+        description: Parcours séparés par des virgules (ex. « accueil,programme ») ; vide = tous
+        type: string
+        default: ''
+      modes:
+        description: Modes séparés par des virgules parmi rapide, grand-texte, complet, recents
+        type: string
+        default: rapide
+      jeton:
+        description: Identifiant libre repris dans le nom de l'exécution (captures_gh.sh retrouve ainsi la sienne)
         type: string
         default: ''
   push:
     branches: ['vague*-t*']
 
+run-name: >-
+  ${{ github.event_name == 'push' && format('Captures du panel · {0}', github.ref_name)
+  || format('Captures {0} · {1} · {2}', inputs.modes, inputs.parcours || 'tous', inputs.jeton) }}
+
 permissions:
   contents: read
 
 concurrency:
-  group: captures-panel-${{ github.ref }}
+  # Envoi sur une branche de tour : le nouveau annule l'ancien. Lancement à la main : jamais annulé
+  # (plusieurs chantiers peuvent capturer la même branche en même temps)
+  group: captures-panel-${{ github.event_name == 'push' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  # Matrice des machines : tests/panel/matrice.json (une machine par mode et groupe de parcours), ou une
-  # seule machine en mode complet quand l'entrée « parcours » est donnée (essai court)
   plan:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       matrice: ${{ steps.m.outputs.matrice }}
+      attendus: ${{ steps.m.outputs.attendus }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-          sparse-checkout: tests/panel/matrice.json
-          sparse-checkout-cone-mode: false
       - id: m
         env:
           PARCOURS: ${{ inputs.parcours }}
+          MODES: ${{ github.event_name == 'push' && 'complet,recents,grand-texte' || inputs.modes }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json, os, re
-          p = os.environ.get('PARCOURS', '').strip()
-          if p and not re.fullmatch(r'[a-z0-9-]+(,[a-z0-9-]+)*', p):
-              raise SystemExit(f'parcours invalide : {p!r}')
-          m = [{'mode': 'complet', 'opt': '', 'groupe': 'essai', 'parcours': p}] if p else json.load(open('tests/panel/matrice.json'))
-          print('matrice=' + json.dumps(m))
-          PY
+          [[ "$PARCOURS" =~ ^[a-z0-9,-]*$ && "$MODES" =~ ^[a-z,-]+$ ]] || { echo "entrées invalides"; exit 1; }
+          m=$(python3 tests/panel/gh.py plan --modes "$MODES" --parcours "$PARCOURS" | tail -1)
+          echo "matrice=$m" >> "$GITHUB_OUTPUT"
+          echo "attendus=$(echo "$m" | python3 -c 'import json,sys; print(",".join(j["nom"] for j in json.load(sys.stdin)))')" >> "$GITHUB_OUTPUT"
+          echo "$m" | python3 -c 'import json,sys; [print(j["nom"], ":", j["titre"], ":", j["parcours"]) for j in json.load(sys.stdin)]'
 
   capture:
     needs: plan
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
     container:
       image: mcr.microsoft.com/playwright/python:v1.62.0-noble@sha256:aa81288e738725378becba5b3e06cb0f3a7f012a610e87e8d767a090ea3f740d
       options: --ipc=host   # mémoire partagée de l'hôte : /dev/shm de Docker (64 Mo) fait planter Chromium
@@ -62,7 +74,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrice) }}
-    name: ${{ matrix.mode }} · ${{ matrix.groupe }}
+    name: ${{ matrix.titre }}
     defaults:
       run:
         shell: bash
@@ -81,58 +93,39 @@ jobs:
       - name: Captures
         env:
           PPL_URL: http://localhost:8731/
-          MODE: ${{ matrix.mode }}
+          NOM: ${{ matrix.nom }}
           OPT: ${{ matrix.opt }}
-          GROUPE: ${{ matrix.groupe }}
+          APPAREILS: ${{ matrix.appareils }}
           PARCOURS: ${{ matrix.parcours }}
         run: |
           # shellcheck disable=SC2086
-          python -u tests/panel/capture_parcours.py "$RUNNER_TEMP/out/$MODE-$GROUPE" $OPT --parcours "$PARCOURS"
+          python -u tests/panel/capture_parcours.py "$RUNNER_TEMP/out/$NOM" $OPT --appareils "$APPAREILS" --parcours "$PARCOURS"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: part-${{ matrix.mode }}-${{ matrix.groupe }}
+          name: part-${{ matrix.nom }}
           path: ${{ runner.temp }}/out
-          retention-days: 3
+          retention-days: 1
 
   rassembler:
-    needs: capture
-    if: always()
+    needs: [plan, capture]
+    if: always() && needs.plan.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           pattern: part-*
           path: parts
           merge-multiple: true
-      - name: Un dossier par mode
-        run: |
-          python3 - <<'PY'
-          import json, os, re, shutil
-          src, dst = 'parts', 'captures'
-          for d in sorted(os.listdir(src)):
-              mode = d.rsplit('-', 1)[0]
-              out = os.path.join(dst, mode); os.makedirs(out, exist_ok=True)
-              p = os.path.join(src, d)
-              for f in os.listdir(p):
-                  if f.endswith('.png'):
-                      shutil.copy2(os.path.join(p, f), out)
-              for f in ('index.md', 'resume.md'):
-                  if os.path.exists(os.path.join(p, f)):
-                      with open(os.path.join(out, f), 'a', encoding='utf-8') as o, open(os.path.join(p, f), encoding='utf-8') as i:
-                          o.write(f'\n<!-- groupe {d} -->\n' + i.read())
-              ej = os.path.join(p, 'etapes.json')
-              if os.path.exists(ej):
-                  tout = os.path.join(out, 'etapes.json')
-                  prev = json.load(open(tout, encoding='utf-8')) if os.path.exists(tout) else []
-                  json.dump(prev + json.load(open(ej, encoding='utf-8')), open(tout, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-          for m in sorted(os.listdir(dst)):
-              n = len([f for f in os.listdir(os.path.join(dst, m)) if f.endswith('.png')])
-              e = json.load(open(os.path.join(dst, m, 'etapes.json'), encoding='utf-8'))
-              ko = sum(1 for x in e if x.get('statut') == 'erreur'); ab = sum(1 for x in e if x.get('statut') == 'absent')
-              print(f'{m} : {n} captures, {len(e)} étapes, {ab} absentes, {ko} en erreur')
-          PY
+      - name: Un dossier par mode, numéros et noms du PC
+        env:
+          ATTENDUS: ${{ needs.plan.outputs.attendus }}
+        run: python3 tests/panel/gh.py fusionner parts captures --attendus "$ATTENDUS"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
         with:
           name: captures-panel
           path: captures
