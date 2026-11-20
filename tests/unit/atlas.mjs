@@ -44,7 +44,7 @@ function pngGray(file) {
 
 export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
   const DIR = path.join(ROOT, 'img', 'body2');
-  const man = JSON.parse(fs.readFileSync(path.join(DIR, 'manifest.json'), 'utf8'));
+  const man = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'body2-manifest.json'), 'utf8'));
   const BP = () => run('BODY_PARTS');
   const SEXES = ['male', 'female'], VIEWS = ['front', 'back'];
 
@@ -70,7 +70,7 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
         assert.ok(b1[0] * 3 <= b[0] && b1[1] * 3 <= b[1] && b1[2] * 3 >= b[2] && b1[3] * 3 >= b[3], `${sex}/${view} ${id} : boîte 1× qui contient la 3×`);
       }
     }
-    sameJSON(fs.readdirSync(DIR).sort(), ['female', 'male', 'manifest.json']);
+    sameJSON(fs.readdirSync(DIR).sort(), ['female', 'male'], 'img/body2 : rien d\'autre que les images (manifest dans tools/)');
   });
 
   test('atlas : js/data/body-parts.js à jour du manifest (tools/gen-body2.py relancé)', () => {
@@ -163,7 +163,7 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
   });
 
   test('atlas : carte de la fiche en 1× seulement, rouge plein / atténué, profonds par-dessus', () => {
-    assert.equal(run('BODY_PART_SEC_OPACITY'), run('bodyHeatOpacity(SECONDARY_INTENSITY)'), 'atténué = opacité des secondaires de la fiche');
+    assert.ok(run('BODY_PART_SEC_OPACITY') <= 0.55, 'atténué nettement plus pâle que le plein (panel t1)');
     const html = run(`bodyAtlasHtml(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels, { body: 'male', tap: true, title: 'Développé incliné barre' })`);
     assert.ok(!/@3x|\/p3\/|lines|hit\.png/.test(html), 'aucune image 3× au premier affichage');
     assert.ok(/class="body-map__m body-map__p" data-part="chest_clavicular"/.test(html), 'claviculaire en rouge plein');
@@ -177,6 +177,45 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     const deep = order.findIndex(id => id.startsWith('rhomboid'));
     assert.ok(deep > 0 && order.slice(deep).every(id => id.startsWith('rhomboid')), `profonds posés en dernier ${order}`);
     assert.ok(/body-map__p--deep" data-part="rhomboid_major"[^>]*opacity:0\.6/.test(back), 'profond en transparence');
+  });
+
+  test('atlas : pastilles = ce que montre le dessin, mêmes noms que la bulle', () => {
+    const inc = run(`atlasPills(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels)`);
+    sameJSON(inc, [{ label: 'Haut des pectoraux', level: 2 }, { label: 'Milieu des pectoraux', level: 1 },
+      { label: 'Épaules antérieures', level: 1 }, { label: 'Triceps', level: 1 }]);
+    assert.equal(app.atlasPartTitle('chest_clavicular'), 'Haut des pectoraux');
+    assert.equal(app.atlasPartTitle('triceps_lateral'), 'Triceps, chef latéral');
+    // Chaque bulle commence par le nom d'une pastille
+    run('BODY_PARTS.parts').forEach(p => assert.ok(app.atlasPartTitle(p.id).startsWith(app.atlasPillLabel(p.id)), `${p.id} : ${app.atlasPartTitle(p.id)}`));
+    assert.equal(app.atlasPartTitle('gastro_medial'), 'Mollets, gastrocnémien médial');
+    assert.equal(app.atlasPartTitle('teres_minor'), 'Coiffe des rotateurs, petit rond');
+    // Toute la bibliothèque : une pastille par nom, plein d'abord, au moins une pleine
+    for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) {
+      const m = app.musclesOf(name);
+      if (!m.primary.length) continue;
+      const pills = run(`atlasPills(exercisePartLevels(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)})).levels)`);
+      assert.ok(pills.length && pills[0].level === 2, `${name} : pastille pleine en tête`);
+      assert.equal(new Set(pills.map(p => p.label)).size, pills.length, `${name} : nom en double`);
+      for (let i = 1; i < pills.length; i++) assert.ok(pills[i - 1].level >= pills[i].level, `${name} : ordre`);
+    }
+  });
+
+  test('atlas : carte cadrée sur le haut ou le bas du corps quand tous les muscles y sont', () => {
+    const crop = n => run(`bodyAtlasCrop('male', exercisePartLevels(${JSON.stringify(n)}, musclesOf(${JSON.stringify(n)})).levels)`);
+    sameJSON(crop('Développé incliné barre'), [0, 450]);
+    sameJSON(crop('Abducteurs machine'), [330, 840]);
+    sameJSON(crop('Squat barre'), [0, 840], 'squat : érecteurs et jambes, corps entier');
+    sameJSON(run("bodyAtlasCrop('male', {})"), [0, 840]);
+    const html = run(`bodyAtlasHtml(exercisePartLevels('Abducteurs machine', musclesOf('Abducteurs machine')).levels, { body: 'female' })`);
+    assert.ok(html.includes('body-map--crop') && html.includes('data-crop="330,840"') && html.includes('aspect-ratio:799 / 510'));
+    // Tout sous-muscle coloré reste dans le cadre
+    for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) for (const kind of ['male', 'female']) {
+      const lv = run(`exercisePartLevels(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)})).levels`);
+      const [y0, y1] = run(`bodyAtlasCrop(${JSON.stringify(kind)}, ${JSON.stringify(lv)})`);
+      for (const v of ['front', 'back']) for (const [id, b] of Object.entries(run('BODY_PARTS').boxes[kind][v])) {
+        if (lv[id] > 0) assert.ok(b[0][1] >= y0 && b[0][3] <= y1, `${name} ${kind}/${v} : ${id} hors du cadre`);
+      }
+    }
   });
 
   test('atlas : service worker (1× à l\'installation, jamais le 3×) et crédit BodyParts3D', () => {

@@ -248,7 +248,9 @@ function closeBodyTip() {
 
 // Ouvre la bulle près du doigt. html : contenu (dont un titre #btipTitle, nom de la bulle pour VoiceOver).
 // anchor : élément touché, dont le déplacement à l'écran (défilement) ferme la bulle
-// place : { spots, cost } (bodyTipSpots, bodyTipCoverage), facultatif
+// place : { prefer, cost } (bodyTipSpots, bodyTipCoverage), facultatif ; atlas détaillé (js/ui/body-zoom.js) :
+//   bounds { minTop, maxBottom } zone verticale à ne pas quitter (le dessin), avoid rectangles de plus à ne
+//   jamais couvrir, spots places préférées déjà calculées, container parent de la bulle (feuille modale)
 function showBodyTip(html, x, y, anchor = null, place = {}) {
   closeBodyTip();
   const el = document.createElement('div');
@@ -257,10 +259,11 @@ function showBodyTip(html, x, y, anchor = null, place = {}) {
   el.setAttribute('aria-modal', 'false');
   el.setAttribute('aria-labelledby', 'btipTitle');
   el.innerHTML = `${html}<i class="btip__arrow" aria-hidden="true"></i>`;
-  document.body.appendChild(el);
+  (place.container || document.body).appendChild(el);
   const w = el.offsetWidth, h = el.offsetHeight;
-  const p = bodyTipPlace({ x, y, w, h, vw: document.documentElement.clientWidth, ...bodyTipBounds(anchor), avoid: bodyTipAvoid(anchor),
-    spots: place.prefer && anchor ? bodyTipSpots(anchor, x, y, w, h, place.prefer) : [], cost: place.cost });
+  const spots = place.spots ? place.spots(w, h) : place.prefer && anchor ? bodyTipSpots(anchor, x, y, w, h, place.prefer) : [];
+  const p = bodyTipPlace({ x, y, w, h, vw: document.documentElement.clientWidth, ...(place.bounds || bodyTipBounds(anchor)),
+    avoid: [...bodyTipAvoid(anchor), ...(place.avoid || [])], spots, cost: place.cost });
   el.style.left = `${p.left}px`; el.style.top = `${p.top}px`;
   el.style.setProperty('--arrow', `${p.arrow}px`);
   el.classList.add(`btip--${p.side}`);

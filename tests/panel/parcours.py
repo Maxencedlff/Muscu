@@ -620,6 +620,22 @@ def p_atlas(r):
     with r.etape('fermer', 'OK : retour à la fiche'):
         r.toucher('.sheet-root--atlas .sheet__btn--confirm', 'OK')
         r.page.wait_for_timeout(400)
+    # Bas du corps (sans vidéo ni secondaire : avant le tour 1, aucun personnage) et dos
+    for nom, slug, part in [('Abducteurs machine', 'abducteurs', 'glute_med'), ('Tractions pronation', 'tractions', 'lats')]:
+        with r.etape(f'fiche-{slug}', f'Fiche {nom} : personnage cadré, pastilles du dessin', cle='Voir les muscles d\'un exercice en détail'):
+            r.retour()
+            r.saisir('#libSearch', nom, 'recherche')
+            r.toucher(f'[data-action="open-library-ex"][data-name="{nom}"]', nom)
+            r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
+            r.defiler('.library-ex .mpanel--atlas', 'personnage')
+        with r.etape(f'nom-{slug}', f'Fiche {nom} : toucher le muscle principal'):
+            xy = r.page.evaluate("""part => { const l = document.querySelector(`.mpanel__map .body-map__back [data-part="${part}"]`);
+                if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * 0.15, b.top + b.height * 0.5]; }""", part)
+            if not xy:
+                raise Absent(f'introuvable : {part}')
+            r.page.mouse.click(*xy)
+            r._note(f'{nom} : muscle principal')
+            r.page.wait_for_timeout(700)
 
 
 def _avec_vacuum():

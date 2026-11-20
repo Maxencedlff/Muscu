@@ -30,13 +30,23 @@ function muscleTipExerciseHtml(id, mapEl) {
 }
 
 // Fiche exercice de la bibliothèque : atlas détaillé (sous-muscles, js/data/atlas.js), nom au toucher, vue agrandie
-// (js/ui/body-zoom.js) et bouton Agrandir ; ailleurs (Programme, Progrès) la carte des 18 muscles, inchangée
+// (js/ui/body-zoom.js) et bouton Agrandir ; ailleurs (Programme, Progrès) la carte des 18 muscles, inchangée.
+// Pastilles : ce que montre le dessin (atlasPills) : rouge plein d'abord, puis atténué, mêmes noms que la bulle.
+// Sans aucun sous-muscle visible (cas qui ne doit pas arriver : tests/unit/atlas.mjs), la carte des 18 muscles.
+const ATLAS_TAP_HINT = 'Touche un muscle pour son nom.';
 function exAtlasPanelHtml(m, name) {
+  const levels = exercisePartLevels(name, m).levels, kind = bodyKind(bodySilhouette());
+  const shown = Object.keys(levels).some(id => levels[id] > 0 && ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[id]));
+  if (!shown) {
+    return `<div class="cell mpanel">${bodyMapHtml(exerciseIntensity(m), { className: 'mpanel__map', secondary: m.secondary, tap: true })}
+      <div class="cell__body">${musclePillsHtml(m)}</div></div>`;
+  }
+  const pill = ({ label, level }) => `<li class="mpill ${level >= 2 ? 'mpill--main' : 'mpill--sec'}">${esc(label)}<span class="visually-hidden">, ${level >= 2 ? 'principal' : 'secondaire'}</span></li>`;
   return `
     <div class="cell mpanel mpanel--atlas">
-      ${bodyAtlasHtml(exercisePartLevels(name, m).levels, { className: 'mpanel__map', title: name, tap: true })}
-      <button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 20)}</button>
-      <div class="cell__body">${musclePillsHtml(m)}</div>
+      ${bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true })}
+      <button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 22)}</button>
+      <div class="cell__body"><ul class="mpills" aria-label="Muscles ciblés">${atlasPills(levels).map(pill).join('')}</ul></div>
     </div>`;
 }
 

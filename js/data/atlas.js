@@ -49,3 +49,46 @@ function exercisePartLevels(name, m) {
 function atlasRole(level) {
   return level >= 2 ? 'Muscle principal' : level === 1 ? 'Muscle secondaire' : 'Non ciblé par cet exercice';
 }
+
+// ── Noms de salle : pastilles et titre de la bulle ──────────
+// Pastille d'un sous-muscle : son nom de salle quand le découpage compte à la salle (faisceaux du pectoral et du
+// trapèze, coiffe, rhomboïdes…), sinon le nom du muscle de l'app (les trois chefs du triceps font « Triceps »).
+// Pectoral : claviculaire = haut, sterno-costal = milieu (la plus grande partie), abdominal = bas.
+const ATLAS_PILL = {
+  chest_clavicular: 'Haut des pectoraux', chest_sternal: 'Milieu des pectoraux', chest_abdominal: 'Bas des pectoraux',
+  pec_minor: 'Petit pectoral', serratus: 'Dentelé antérieur',
+  traps_upper: 'Haut des trapèzes', traps_middle: 'Milieu des trapèzes', traps_lower: 'Bas des trapèzes',
+  levator_scapulae: 'Élévateur de la scapula', rhomboid_minor: 'Rhomboïdes', rhomboid_major: 'Rhomboïdes',
+  teres: 'Grand rond', infraspinatus: 'Coiffe des rotateurs', teres_minor: 'Coiffe des rotateurs',
+  glute_max: 'Grand fessier', glute_med: 'Moyen fessier', tfl: 'Tenseur du fascia lata', sartorius: 'Sartorius',
+  scm: 'Sterno-cléido-mastoïdien', coracobrachialis: 'Coraco-brachial', tibialis: 'Tibial antérieur', peroneus: 'Long fibulaire',
+};
+function atlasPillLabel(id) {
+  const p = atlasPart(id);
+  return ATLAS_PILL[id] || (p?.parent ? muscleLabel(p.parent) : p?.name || id);
+}
+// Titre de la bulle : le nom de la pastille s'il ne désigne que ce sous-muscle, sinon son nom précis
+// (« Triceps, chef latéral » sous la pastille « Triceps ») : la bulle commence toujours par le nom de la pastille
+function atlasPartTitle(id) {
+  const label = atlasPillLabel(id);
+  const shared = BODY_PARTS.parts.some(p => p.id !== id && atlasPillLabel(p.id) === label);
+  if (!shared) return label;
+  const name = atlasPart(id).name;
+  if (name.startsWith(label)) return name;
+  // « Mollet, gastrocnémien médial » → « Mollets, gastrocnémien médial » ; « Petit rond (coiffe) » → « Coiffe des rotateurs, petit rond »
+  const precise = (name.includes(', ') ? name.slice(name.indexOf(', ') + 2) : name).replace(/\s*\(.*\)$/, '');
+  return `${label}, ${precise.charAt(0).toLowerCase()}${precise.slice(1)}`;
+}
+// Pastilles de la fiche, dans l'ordre : rouge plein d'abord (intensité 2), puis atténué ; un nom une seule fois, à
+// l'intensité la plus forte de ses sous-muscles. [{ label, level }]
+function atlasPills(levels) {
+  const by = new Map();
+  for (const p of BODY_PARTS.parts) {
+    const lv = levels[p.id];
+    if (!(lv > 0)) continue;
+    const label = atlasPillLabel(p.id);
+    by.set(label, Math.max(by.get(label) || 0, lv));
+  }
+  return [...by].map(([label, level]) => ({ label, level })).sort((a, b) => b.level - a.level);
+}
+

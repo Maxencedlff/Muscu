@@ -7,7 +7,7 @@ Entrée : data/exercices_sous_muscles.json de mdlf-perso (data/build_corresponda
 côté) : par nom d'exercice de la bibliothèque, p / s (sous-muscles principaux / secondaires), i (intensité de
 couleur par sous-muscle : 2 = rouge plein, 1 = rouge atténué), src (études), note.
 Sortie : EXERCISE_PARTS = { nom: { p: { id: 2|1 }, s: { id: 1|2 }, src: [rang dans EXERCISE_PART_SOURCES] } }.
-Vérifié ici : chaque sous-muscle existe dans img/body2/manifest.json (tools/gen-body2.py) et a une intensité.
+Vérifié ici : chaque sous-muscle existe dans tools/body2-manifest.json (tools/gen-body2.py) et a une intensité.
 La cohérence avec le catalogue (mêmes muscles parents que la bibliothèque) est vérifiée par tests/unit/atlas.mjs,
 et à l'exécution par exercisePartLevels (js/data/atlas.js), qui retombe sinon sur les muscles entiers.
 """
@@ -34,7 +34,7 @@ def expand(ids, inten):
 
 def main():
     data = json.load(open(SRC, encoding='utf-8'))
-    man = json.load(open(os.path.join(ROOT, 'img', 'body2', 'manifest.json'), encoding='utf-8'))
+    man = json.load(open(os.path.join(ROOT, 'tools', 'body2-manifest.json'), encoding='utf-8'))
     known = {p['id'] for p in man['parts']}
     sources, out = [], {}
     for name, e in data.items():

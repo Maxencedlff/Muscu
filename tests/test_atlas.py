@@ -74,7 +74,7 @@ def part_point(page, root, part, view='front'):
         const cx = sx / n, cy = sy / n; let best = null, bd = Infinity;
         for (let j = 0; j < hit.h; j++) for (let i = 0; i < hit.w / 2; i++) if (hit.map[j * hit.w + i] === k) {
             const d = (i - cx) ** 2 + (j - cy) ** 2; if (d < bd) { bd = d; best = [i, j]; } }
-        const r = fig.getBoundingClientRect();
+        const r = (fig.querySelector('.body-map__body') || fig).getBoundingClientRect();   // corps entier (carte cadrée)
         return [r.left + (best[0] + 0.5) / hit.w * r.width, r.top + (best[1] + 0.5) / hit.h * r.height]; }""", [root, part, view])
 
 
@@ -87,6 +87,16 @@ def tap(page, xy, double=False, touch=False):
         else:
             page.mouse.click(*xy)
         page.wait_for_timeout(90)
+
+
+def tip_place_ok(page, zone, avoid, detail=False):
+    """Bulle dans la hauteur de zone, sans toucher les éléments avoid (pastilles, en-tête de la feuille, OK, boutons)."""
+    r = page.evaluate("""([zone, avoid]) => { const t = document.querySelector('.btip')?.getBoundingClientRect(), z = document.querySelector(zone)?.getBoundingClientRect();
+        if (!t || !z) return { ok: false, why: 'absente' };
+        const hit = avoid.filter(s => { const a = document.querySelector(s)?.getBoundingClientRect();
+            return a && a.width && t.left < a.right && t.right > a.left && t.top < a.bottom && t.bottom > a.top; });
+        return { ok: t.top >= z.top - 1 && t.bottom <= z.bottom + 1 && !hit.length, tip: [t.top | 0, t.bottom | 0], zone: [z.top | 0, z.bottom | 0], hit }; }""", [zone, avoid])
+    return r if detail else r['ok']
 
 
 def tip_text(page):
@@ -153,6 +163,11 @@ def t_fiche(bench, eng, dev, theme):
         R.check(lv.get('b:triceps_lateral') == 1 and lv.get('b:triceps_long') == 1, f'{t} triceps en soutien (dos) {lv}')
         R.check('f:chest_abdominal' not in lv and 'f:delt_lateral' not in lv and 'b:delt_lateral' not in lv, f'{t} ni faisceau abdominal ni deltoïde latéral {lv}')
         R.check(page.locator('.mpanel__zoom[aria-label="Agrandir le personnage"]').count() == 1, f'{t} bouton Agrandir (VoiceOver)')
+        pills = page.evaluate("[...document.querySelectorAll('.mpanel--atlas .mpill')].map(p => [p.firstChild.textContent, p.classList.contains('mpill--main') ? 2 : 1])")
+        R.check(pills == [['Haut des pectoraux', 2], ['Milieu des pectoraux', 1], ['Épaules antérieures', 1], ['Triceps', 1]],
+                f'{t} pastilles = dessin (plein puis atténué) {pills}')
+        R.check('Touche un muscle pour son nom.' in page.inner_text('.view.library-ex'), f'{t} aide « Touche un muscle pour son nom. » sous la carte')
+        R.check(page.evaluate("document.querySelector('.mpanel__map').classList.contains('body-map--crop')"), f'{t} haut du corps seulement : carte cadrée, plus grande')
         z = page.locator('.mpanel__zoom').bounding_box()
         R.check(z and z['width'] >= 44 and z['height'] >= 44, f'{t} bouton Agrandir 44 × 44 {z}')
         page.locator('.mpanel').scroll_into_view_if_needed()
@@ -165,8 +180,9 @@ def t_fiche(bench, eng, dev, theme):
         page.wait_for_selector('.btip', timeout=5000)
         settle(page)
         txt = tip_text(page)
-        R.check('Pectoraux, faisceau claviculaire (haut)' in txt and 'Pectoralis major, pars clavicularis' in txt and 'Muscle principal' in txt,
-                f'{t} toucher : nom, latin, rôle « {txt} »')
+        R.check('Haut des pectoraux' in txt and 'Pectoralis major, pars clavicularis' in txt and 'Muscle principal' in txt,
+                f'{t} toucher : nom de salle (celui de la pastille), latin, rôle « {txt} »')
+        R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpills', '.mpanel__zoom']), f'{t} toucher : bulle dans le dessin, ni sur les pastilles ni sur Agrandir {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpills", ".mpanel__zoom"], True)}')
         R.check(page.locator('.mpanel__map .body-map__hl[data-part="chest_clavicular"]').count() == 1, f'{t} toucher : sous-muscle mis en valeur')
         shot(page, LOT, f'fiche-nom-{t}')
         tap(page, part_point(page, '.mpanel__map', 'triceps_lateral', 'back'))
@@ -191,14 +207,12 @@ def t_fiche(bench, eng, dev, theme):
         R.check(not page.locator('.azoom .body-map__front .azoom__lines').evaluate('e => e.hidden'), f'{t} contours des sous-muscles au-delà de ×2')
         shot(page, LOT, f'zoom-{t}')
         tap(page, part_point(page, '.azoom', 'chest_clavicular'), touch=True)
-        page.wait_for_selector('.btip.btip--top', timeout=5000)
+        page.wait_for_selector('.sheet-root--atlas .btip', timeout=5000)
         settle(page)
         txt = tip_text(page)
-        R.check('claviculaire' in txt and 'Pectoralis major' in txt, f'{t} vue agrandie : nom au toucher « {txt} »')
-        on_top = page.evaluate("""() => { const t = document.querySelector('.btip').getBoundingClientRect();
-            const e = document.elementFromPoint(t.left + t.width / 2, t.top + t.height / 2); return !!e && !!e.closest('.btip'); }""")
-        R.check(on_top or page.evaluate("getComputedStyle(document.querySelector('.btip')).pointerEvents") == 'none'
-                and int(page.evaluate("getComputedStyle(document.querySelector('.btip')).zIndex")) > 900, f'{t} bulle au-dessus de la feuille')
+        R.check('Haut des pectoraux' in txt and 'Pectoralis major' in txt, f'{t} vue agrandie : nom au toucher « {txt} »')
+        R.check(tip_place_ok(page, '.azoom', ['.sheet-root--atlas .sheet__bar', '.azoom__ctl']),
+                f'{t} vue agrandie : bulle dans la feuille modale, sous l\'en-tête et OK {tip_place_ok(page, ".azoom", [".sheet-root--atlas .sheet__bar", ".azoom__ctl"], True)}')
         lo = layout_ok(page)
         R.check(not lo, f'{t} vue agrandie : mise en page {lo}')
         shot(page, LOT, f'zoom-nom-{t}')
@@ -231,6 +245,17 @@ def t_fiche(bench, eng, dev, theme):
         page.wait_for_timeout(500)
         settle(page)
         R.check(page.evaluate('atlasViewerState().scale') == 1, f'{t} double toucher : retour au personnage entier')
+        # Boutons + et − (VoiceOver, contacteur) : 44 pt, zoom et retour
+        bx = page.locator('.azoom__btn').evaluate_all("bs => bs.map(b => { const r = b.getBoundingClientRect(); return [b.getAttribute('aria-label'), r.width >= 44 && r.height >= 44, b.disabled]; })")
+        R.check(bx == [['Dézoomer', True, True], ['Zoomer', True, False]], f'{t} boutons − et + de 44 pt (− inactif à ×1) {bx}')
+        page.click('.azoom__btn[data-z="1"]')
+        page.wait_for_timeout(500)
+        settle(page)
+        R.check(abs(page.evaluate('atlasViewerState().scale') - 1.6) < 0.05, f'{t} bouton + : ×1,6')
+        page.click('.azoom__btn[data-z="-1"]')
+        page.wait_for_timeout(500)
+        settle(page)
+        R.check(page.evaluate('atlasViewerState().scale') == 1, f'{t} bouton − : ×1')
         page.click('.sheet-root--atlas .sheet__btn--confirm')
         page.wait_for_selector('.azoom', state='detached', timeout=3000)
         R.check(page.evaluate('atlasViewerState()') is None and page.locator('.btip').count() == 0, f'{t} OK : vue agrandie fermée, bulle fermée')
@@ -279,6 +304,33 @@ def t_fiche(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_autres_fiches(bench, eng, dev, theme):
+    """Bas du corps (Abducteurs machine, sans vidéo ni secondaire : avant, aucun personnage) et dos (tractions)."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme)
+        for name, crop, first, view, part in [('Abducteurs machine', '330,840', [['Moyen fessier', 2], ['Grand fessier', 1]], 'back', 'glute_med'),
+                                              ('Tractions pronation', '0,450', [['Grand dorsal', 2], ['Grand rond', 2]], 'back', 'lats')]:
+            page.evaluate(f"navigate(makeRoute('library-ex', {json.dumps(name)}))")
+            page.wait_for_selector('.view.library-ex .mpanel--atlas')
+            page.locator('.mpanel').scroll_into_view_if_needed()
+            settle(page)
+            slug = name.split()[0].lower()
+            R.check(page.get_attribute('.mpanel__map', 'data-crop') == crop, f'{t} {name} : cadrage {page.get_attribute(".mpanel__map", "data-crop")}')
+            pills = page.evaluate("[...document.querySelectorAll('.mpanel--atlas .mpill')].map(p => [p.firstChild.textContent, p.classList.contains('mpill--main') ? 2 : 1])")
+            R.check(pills[:2] == first, f'{t} {name} : pastilles {pills}')
+            tap(page, part_point(page, '.mpanel__map', part, view))
+            page.wait_for_selector('.btip', timeout=5000)
+            settle(page)
+            R.check(tip_text(page).startswith(first[0][0]), f'{t} {name} : bulle « {tip_text(page)} »')
+            R.check(tip_place_ok(page, '.mpanel__map .body-map__row', ['.mpills', '.mpanel__zoom']), f'{t} {name} : place de la bulle {tip_place_ok(page, ".mpanel__map .body-map__row", [".mpills", ".mpanel__zoom"], True)}')
+            lo = layout_ok(page)
+            R.check(not lo, f'{t} {name} : mise en page {lo}')
+            shot(page, LOT, f'fiche-{slug}-{t}')
+            page.evaluate('closeBodyTip()')
+        R.check(not page.errors, f'{t} autres fiches : aucune erreur JS {page.errors}')
+
+
 def t_ailleurs(bench, eng, dev, theme):
     """Progrès › Exercice et Programme gardent la carte des 18 muscles (img/body), sans atlas."""
     t = tag(dev, theme)
@@ -298,6 +350,20 @@ def t_ailleurs(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} ailleurs : aucune erreur JS {page.errors}')
 
 
+def t_catalogue(bench):
+    """Toute fiche de la bibliothèque a un personnage avec du rouge (atlas, ou carte des 18 muscles en repli), sauf le
+    muscle profond seul (vacuum : personnage sans rouge, en tête)."""
+    with bench.page('chromium', 'Pixel 7', 'dark') as page:
+        open_app(page, 'dark')
+        bad = page.evaluate("""() => EXERCISE_CATALOGUE.map(e => {
+            const html = libExHeroHtml(e.name) + libExAboutHtml(e, e.name);
+            const ok = /class="body-map__m[ "]/.test(html) || (!e.primary.length && /exhero--deep/.test(html));
+            return ok ? null : e.name; }).filter(Boolean)""")
+        n = page.evaluate('EXERCISE_CATALOGUE.length')
+        R.check(n >= 190 and not bad, f'catalogue : {n} fiches, sans personnage : {bad}')
+        R.check(not page.errors, f'catalogue : aucune erreur JS {page.errors}')
+
+
 def t_hors_ligne(bench):
     """Service worker : 1× en cache d'installation, 3× mis en cache au premier zoom, puis servi hors ligne."""
     with bench.page('chromium', 'Pixel 7', 'dark', service_workers='allow') as page:
@@ -312,6 +378,32 @@ def t_hors_ligne(bench):
         R.check('/img/body2/male/front/base.webp' in cached and '/img/body2/male/front/p/chest_clavicular.webp' in cached
                 and '/img/body2/male/front/hit.png' in cached, f'hors ligne : 1× et carte de toucher en cache d\'installation ({len(cached)})')
         R.check(not any(re.search(HI_RE.replace(r'|hit\.png', ''), p) for p in cached), 'hors ligne : aucun 3× en cache avant le premier zoom')
+        # Hors ligne, jamais zoomé : zoom puis vue de dos, le personnage reste affiché (1× gardé, rien d'échangé)
+        page.evaluate(f"navigate(makeRoute('library-ex', {json.dumps(EX)}))")
+        page.wait_for_selector('.mpanel--atlas')
+        page.locator('.mpanel').scroll_into_view_if_needed()
+        settle(page)
+        page.context.set_offline(True)
+        tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
+        page.wait_for_selector('.azoom', timeout=5000)
+        page.wait_for_timeout(2500)
+        shown = """() => [...document.querySelectorAll('.azoom .body-map__base')].map(i => [i.complete && i.naturalWidth > 0, i.getAttribute('src').endsWith('base.webp')])
+            .concat([[document.querySelectorAll('.azoom .body-map__p').length > 0, true]])"""
+        st = page.evaluate('atlasViewerState()')
+        R.check(st['hi'] == '' and all(a and b for a, b in page.evaluate(shown)), f'hors ligne sans 3× : zoom, personnage au 1× toujours affiché {st} {page.evaluate(shown)}')
+        box = page.locator('.azoom').bounding_box()
+        for _ in range(2):
+            page.mouse.move(box['x'] + box['width'] * 0.9, box['y'] + box['height'] / 2)
+            page.mouse.down()
+            for k in range(1, 13):
+                page.mouse.move(box['x'] + box['width'] * (0.9 - 0.85 * k / 12), box['y'] + box['height'] / 2)
+            page.mouse.up()
+        page.wait_for_timeout(2500)
+        R.check(all(a and b for a, b in page.evaluate(shown)) and page.evaluate('atlasViewerState().hi') == '', f'hors ligne sans 3× : vue de dos, personnage toujours affiché {page.evaluate(shown)}')
+        shot(page, LOT, 'hors-ligne-sans-3x')
+        page.click('.sheet-root--atlas .sheet__btn--confirm')
+        page.wait_for_selector('.azoom', state='detached', timeout=3000)
+        page.context.set_offline(False)
         page.evaluate(f"navigate(makeRoute('library-ex', {json.dumps(EX)}))")
         page.wait_for_selector('.mpanel--atlas')
         page.locator('.mpanel').scroll_into_view_if_needed()
@@ -336,7 +428,7 @@ def t_hors_ligne(bench):
         settle(page)
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'))
         page.wait_for_selector('.btip', timeout=5000)
-        R.check('claviculaire' in tip_text(page), 'hors ligne : nom au toucher (carte de toucher en cache)')
+        R.check('Haut des pectoraux' in tip_text(page), 'hors ligne : nom au toucher (carte de toucher en cache)')
         page.wait_for_timeout(400)
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
         try:
@@ -352,4 +444,4 @@ def t_hors_ligne(bench):
 
 
 if __name__ == '__main__':
-    run_main(R, [t_fiche, t_ailleurs], once=[t_hors_ligne])
+    run_main(R, [t_fiche, t_autres_fiches, t_ailleurs], once=[t_catalogue, t_hors_ligne])

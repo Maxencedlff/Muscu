@@ -3,6 +3,7 @@ node_modules/
 dist/
 ios/
 scripts/
+tools/
 package.json
 package-lock.json
 capacitor.config.json

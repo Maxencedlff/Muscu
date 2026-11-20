@@ -145,7 +145,8 @@ function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), labe
 // sa boîte (en % de la vue). Rendu propre de l'atlas : ses images ne se mêlent jamais à celles de img/body (autre
 // rendu du personnage, autre cadrage). Le 1× s'affiche ici ; le 3× ne se charge qu'au zoom (js/ui/body-zoom.js).
 const BODY2_DIR = 'img/body2';
-const BODY_PART_SEC_OPACITY = 0.8;    // rouge atténué : opacité des secondaires de la fiche (bodyHeatOpacity(SECONDARY_INTENSITY))
+const BODY_PART_SEC_OPACITY = 0.45;   // rouge atténué nettement plus pâle que le plein (panel atlas t1 : à 0,8 il se lisait comme le plein ; mesuré
+                                      // le 20/11 : contraste plein / atténué ≈ 2,1:1 en clair, 1,5:1 en sombre, contre 1,6 et 1,4 à 0,8)
 const BODY_PART_DEEP_OPACITY = 0.6;   // profond, vu « à travers » le muscle qui le couvre (convention des planches)
 
 function body2Url(kind, view, file) { return `${BODY2_DIR}/${kind}/${view}/${file}`; }
@@ -174,9 +175,32 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1) {
 function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false } = {}) {
   const kind = bodyKind(body), safe = levels && typeof levels === 'object' ? levels : {};
   const rowW = 2 + BODY_GAP, fig = `${Math.round(10000 / rowW) / 100}%`;
-  const figs = ['front', 'back'].map(v => `<span class="body-map__fig body-map__${v}"><img class="body-map__base" src="${body2Url(kind, v, 'base.webp')}" alt="" draggable="false" decoding="async">${bodyAtlasLayersHtml(kind, v, safe)}</span>`).join('');
+  const [y0, y1] = bodyAtlasCrop(kind, safe), ch = y1 - y0;
+  const inner = `top:${Math.round(-y0 / ch * 1e5) / 1e3}%;height:${Math.round(BODY_PARTS.h / ch * 1e5) / 1e3}%`;
+  const figs = ['front', 'back'].map(v => `<span class="body-map__fig body-map__${v}"><span class="body-map__body" style="${inner}"><img class="body-map__base" src="${body2Url(kind, v, 'base.webp')}" alt="" draggable="false" decoding="async">${bodyAtlasLayersHtml(kind, v, safe)}</span></span>`).join('');
   const act = tap ? ' data-action="body-tap"' : '';
-  return `<div class="body-map body-map--atlas ${esc(className)}" data-body="${kind}" data-atlas="${esc(JSON.stringify(safe))}" data-title="${esc(title)}"${act} aria-hidden="true"><span class="body-map__row" style="aspect-ratio:${Math.round(rowW * BODY_PARTS.w)} / ${BODY_PARTS.h};--body-ar:${(rowW * BODY_PARTS.w / BODY_PARTS.h).toFixed(4)};--fig:${fig}">${figs}</span></div>`;
+  const crop = ch < BODY_PARTS.h ? ' body-map--crop' : '';
+  return `<div class="body-map body-map--atlas${crop} ${esc(className)}" data-body="${kind}" data-atlas="${esc(JSON.stringify(safe))}" data-crop="${y0},${y1}" data-title="${esc(title)}"${act} aria-hidden="true"><span class="body-map__row" style="aspect-ratio:${Math.round(rowW * BODY_PARTS.w)} / ${ch};--body-ar:${(rowW * BODY_PARTS.w / ch).toFixed(4)};--fig:${fig}">${figs}</span></div>`;
+}
+
+// Cadrage de la carte de la fiche, en points 1× de la vue : [haut, bas]. Muscles travaillés tous dans le haut du
+// corps : de la tête à la taille, le personnage paraît plus grand ; tous dans le bas (fessiers, jambes) : de la taille
+// aux pieds ; sinon le corps entier. Le cadre contient chaque sous-muscle coloré (tests/unit/atlas.mjs).
+const BODY_ATLAS_UPPER = [0, 450];    // tête → taille (abdominaux et obliques compris)
+const BODY_ATLAS_LOWER = [330, 840];  // taille → pieds (fessiers compris)
+const BODY_ATLAS_LEGS = new Set(['glutes', 'quads', 'hamstrings', 'adductors', 'calves']);
+const BODY_ATLAS_LEGS_OWN = new Set(['tfl', 'sartorius', 'tibialis', 'peroneus']);   // sans muscle parent
+function bodyAtlasCrop(kind, levels) {
+  const on = BODY_PARTS.parts.filter(p => levels[p.id] > 0 && ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id]));
+  if (!on.length) return [0, BODY_PARTS.h];
+  const legs = p => BODY_ATLAS_LEGS.has(p.parent) || BODY_ATLAS_LEGS_OWN.has(p.id);
+  const fits = ([y0, y1]) => on.every(p => ['front', 'back'].every(v => {
+    const b = BODY_PARTS.boxes[kind]?.[v]?.[p.id];
+    return !b || (b[0][1] >= y0 && b[0][3] <= y1);
+  }));
+  if (!on.some(legs) && fits(BODY_ATLAS_UPPER)) return BODY_ATLAS_UPPER;
+  if (on.every(legs) && fits(BODY_ATLAS_LOWER)) return BODY_ATLAS_LOWER;
+  return [0, BODY_PARTS.h];
 }
 
 // ── Image partagée (canvas) ─────────────────────────────────

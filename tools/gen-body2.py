@@ -5,7 +5,8 @@
 
 Lit l'export « detail_final » de mdlf-perso (src/export_detail.py : manifest.json, puis par sexe et par vue
 base.webp, base@3x.webp, p3/<sous-muscle>.webp recadrés, lines@3x.webp, hit.png) et écrit :
-  img/body2/manifest.json                 copie du manifest (tailles, boîtes 3×, noms, parents, deep)
+  tools/body2-manifest.json               copie du manifest (tailles, boîtes 3×, noms, parents, deep) : hors de img/,
+                                          pour ne partir ni dans l'OTA ni sur Vercel (l'app lit js/data/body-parts.js)
   img/body2/<sexe>/<vue>/base.webp        corps gris 1× (affiché dans la fiche exercice, sans zoom)
   img/body2/<sexe>/<vue>/p/<id>.webp      sous-muscles 1×, RÉDUITS ici depuis p3 (boîte 1× alignée)
   img/body2/<sexe>/<vue>/base@3x.webp     \
@@ -32,6 +33,7 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.expanduser(sys.argv[1] if len(sys.argv) > 1 else '~/mdlf-perso/out/detail_final')
 OUT = os.path.join(ROOT, 'img', 'body2')
+MANIFEST = os.path.join(ROOT, 'tools', 'body2-manifest.json')
 SEXES, VIEWS = ('male', 'female'), ('front', 'back')
 Q1, QA1 = 78, 70   # qualité WebP des sous-muscles 1× (ombrage gris, alpha) : ~30 % de moins qu'à 82/100
 
@@ -57,7 +59,7 @@ def main():
     if os.path.isdir(OUT):
         shutil.rmtree(OUT)
     os.makedirs(OUT)
-    shutil.copyfile(os.path.join(SRC, 'manifest.json'), os.path.join(OUT, 'manifest.json'))
+    shutil.copyfile(os.path.join(SRC, 'manifest.json'), MANIFEST)
     ids = [p['id'] for p in man['parts']]
     boxes, urls = {}, []
     for sex in SEXES:
@@ -92,7 +94,7 @@ def write_js(man, boxes):
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Généré par tools/gen-body2.py depuis img/body2/manifest.json (export de mdlf-perso, src/export_detail.py) :
+// Généré par tools/gen-body2.py depuis tools/body2-manifest.json (export de mdlf-perso, src/export_detail.py) :
 // ne pas modifier à la main, relancer le script. Formes d'après BodyParts3D, © The Database Center for Life
 // Science, CC BY 4.0, modifiées.
 //   w, h        taille d'une vue en 1× (3× : w3, h3) ; hit : taille de la carte de toucher (hit.png)

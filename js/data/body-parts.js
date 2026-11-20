@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Généré par tools/gen-body2.py depuis img/body2/manifest.json (export de mdlf-perso, src/export_detail.py) :
+// Généré par tools/gen-body2.py depuis tools/body2-manifest.json (export de mdlf-perso, src/export_detail.py) :
 // ne pas modifier à la main, relancer le script. Formes d'après BodyParts3D, © The Database Center for Life
 // Science, CC BY 4.0, modifiées.
 //   w, h        taille d'une vue en 1× (3× : w3, h3) ; hit : taille de la carte de toucher (hit.png)

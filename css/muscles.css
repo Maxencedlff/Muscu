@@ -41,6 +41,12 @@
    Calques recadrés sur chaque sous-muscle, posés à leur boîte (style en ligne : left, top, width, height). */
 .body-map--atlas[data-action="body-tap"] { touch-action: pan-y; }   /* le pincement ouvre la vue agrandie, pas le zoom de la page */
 .mpanel--atlas { position: relative; }
+/* Muscles travaillés tous en haut (ou tous en bas) du corps : carte cadrée sur cette moitié (bodyAtlasCrop), plus large */
+.mpanel__map.body-map--crop { width: min(100%, 330px); }
+.body-map--crop .body-map__fig { overflow: hidden; }
+.body-map__body { position: absolute; left: 0; width: 100%; }
+.type-xl .mpanel__zoom svg { width: 30px; height: 30px; }
+.type-xl .btip__latin { display: none; }   /* texte agrandi : bulle plus courte, le nom de salle suffit */
 .mpanel__zoom {
   position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
   border: 0; border-radius: 50%; background: none; color: var(--tint);
@@ -62,6 +68,15 @@
 .azoom__stage--anim { transition: transform .32s cubic-bezier(.2, .8, .2, 1); }
 .azoom__lay { position: absolute; inset: 0; }
 .azoom__lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Boutons + et − (VoiceOver, accès par contacteur), en bas à droite du dessin */
+.azoom__ctl { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; z-index: 1; }
+.azoom__btn {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
+  background: var(--cell); color: var(--tint); box-shadow: inset 0 0 0 .5px var(--sep);   /* lisible posé sur le corps */
+}
+.azoom__btn:disabled { color: var(--label3); }
+.type-xl .azoom__btn { width: 56px; height: 56px; }
+.type-xl .azoom__btn svg { width: 30px; height: 30px; }
 .azoom__hint { padding: 8px 16px 0; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); text-align: center; }
 @media (prefers-reduced-motion: reduce) { .azoom__stage--anim { transition: none; } }
 
