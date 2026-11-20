@@ -103,7 +103,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           python -u tests/panel/capture_parcours.py "$RUNNER_TEMP/out/$NOM" $OPT --appareils "$APPAREILS" --parcours "$PARCOURS"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: part-${{ matrix.nom }}
           path: ${{ runner.temp }}/out
@@ -129,7 +129,7 @@ jobs:
         env:
           ATTENDUS: ${{ needs.plan.outputs.attendus }}
         run: python3 tests/panel/gh.py fusionner parts captures --attendus "$ATTENDUS"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: captures-panel
