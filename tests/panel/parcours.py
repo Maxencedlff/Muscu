@@ -1425,9 +1425,9 @@ CURL_CONCENTRATION_JS = """() => {
 
 @parcours('unilateral', 'Séance : drop set sur un exercice à un bras (curl concentration, bras gauche puis droit)', 'pratiquant')
 def p_unilateral(r):
-    """Curl concentration : drop set sur la dernière série. Bras gauche lourd puis allégé, bras droit lourd puis
-    allégé : le bras droit et son drop sont pré-remplis avec ce que le bras gauche vient de faire, et le repos ne
-    part qu'après le drop du bras droit."""
+    """Curl concentration : drop set sur la dernière série, tout l'exercice passe par bras. Bras gauche lourd puis
+    allégé, bras droit lourd puis allégé : le bras droit et son drop sont pré-remplis avec ce que le bras gauche vient
+    de faire, et le repos ne part qu'après le drop du bras droit."""
     r.lancer(REALISTE)
     r.raccourci(CURL_CONCENTRATION_JS, 'Curl concentration ajouté en tête de la séance Pull (dernière fois : 14 kg × 10, 10, 9)')
     with r.etape('demarrer', 'Séance Pull démarrée, Curl concentration en tête'):
@@ -1439,7 +1439,8 @@ def p_unilateral(r):
         r.defiler('.view.session .ex-card[data-ei="0"] .tech', 'bloc Drop set')
     with r.etape('bras-gauche', 'Bras gauche lourd puis allégé : le bras droit suit, pré-rempli, sans repos', cle=cle):
         for s in range(2):
-            r.toucher(f'.view.session [data-action="validate-set"][data-ei="0"][data-si="{s}"]', f'valider la série {s + 1}')
+            r.toucher(f'.view.session [data-action="validate-set"][data-ei="0"][data-si="{s}"]', f'valider la série {s + 1} (bras gauche)')
+            r.toucher(f'.view.session [data-action="side-validate"][data-ei="0"][data-si="{s}"]', f'valider la série {s + 1} (bras droit)')
             passer_repos(r)
         r.toucher('.view.session [data-action="validate-set"][data-ei="0"][data-si="2"]', 'valider la série 3 (bras gauche)')
         r.saisir('.view.session [data-action="sub-reps"][data-ei="0"][data-si="2"][data-k="0"]:not([data-side])', 6, 'reps du drop, bras gauche')

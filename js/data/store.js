@@ -313,6 +313,8 @@ function sanitizeData(d) {
       if (!Object.keys(d.exerciseEquip).length) delete d.exerciseEquip;
     }
   }
+  // Premier bras des exercices unilatéraux (js/data/unilateral.js) : { nom normalisé: 'droit' }, absent sinon
+  if (d.sideFirst !== undefined) { const v = cleanSideFirst(d.sideFirst); if (v) d.sideFirst = v; else delete d.sideFirst; }
   const okProg = id => PROGRAMMES[id] || (d.userProgrammes[id] && !d.userProgrammes[id].archived);
   if (!okProg(d.activeProgramme)) d.activeProgramme = 'ppl';
   const rest = parseInt(d.defaultRest);
@@ -523,6 +525,8 @@ function cleanHistoryEntry(h) {
     if (ex.grip !== undefined) { const g = cleanGrip(ex.grip); if (g) ex.grip = g; else delete ex.grip; }
     // Note d'exercice (js/data/notes.js) : une ligne bornée, retirée si vide
     if (ex.note !== undefined) { const n = cleanNote(ex.note); if (n) ex.note = n; else delete ex.note; }
+    // Premier bras d'un exercice noté par bras (js/data/unilateral.js) : 'droit' ou absent
+    if (ex.sideFirst !== undefined && ex.sideFirst !== 'droit') delete ex.sideFirst;
     ex.sets.forEach(st => {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';

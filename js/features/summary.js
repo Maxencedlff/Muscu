@@ -37,11 +37,13 @@ function buildSummary(entry) {
     cur  += v;
     // Hausse sur le même périmètre que la dernière fois : un exercice ajouté aujourd'hui n'entre pas dans
     // l'écart (sinon « ↑ 1,2 t » ne serait que le volume de l'exercice ajouté)
-    if (pex) curCommon += v;
+    if (pex) curCommon += comparableVolume(ex, ex.sets, entryBodyKg(entry));
     // Même nombre de séries de travail des deux côtés (échauffements retirés avant de couper : sinon
     // l'échauffement d'aujourd'hui ferait entrer une série de travail de plus de la dernière fois, ou
     // celui de la dernière fois en ferait sortir une)
-    prev += pex ? exVolume(pex, workSets(pex.sets).slice(0, workSets(ex.sets).length), entryBodyKg(prevH)) : 0;
+    // Exercice à un bras : une série notée sur une ligne compte pour les deux bras des deux côtés de la comparaison
+    // (comparableVolume, js/data/unilateral.js) : refaire la même chose par bras ne paraît pas une hausse
+    prev += pex ? comparableVolume(pex, workSets(pex.sets).slice(0, workSets(ex.sets).length), entryBodyKg(prevH)) : 0;
     // 1RM estimé battu sans autre record : pour soi seulement (jamais noté dans la séance ni partagé)
     const e1s = !noted.some(r => normName(r.ex) === normName(ex.name)) && e1rmRecordSet(ex, priorOf(ex));
     if (e1s) e1rm.push({ name: ex.name, label: 'Record 1RM est.', weight: e1s.weight, reps: e1s.reps, measure: 'reps', kind: setKind(ex) });
@@ -283,6 +285,8 @@ function sessionHistoryEntry(sp, sc) {
         ...(ssId(ex) ? { ss: ex.ss } : {}),         // superset, affiché comme tel dans Historique et pour les abonnés
         ...(cleanGrip(ex.grip, ex) ? { grip: cleanGrip(ex.grip, ex) } : {}),   // prise (js/data/grips.js), même exercice pour les records
         ...(cleanNote(ex.note) ? { note: cleanNote(ex.note) } : {}),   // note d'exercice (js/data/notes.js), relue la prochaine fois
+        // Premier bras d'un exercice noté par bras (js/data/unilateral.js), pour nommer les côtés dans l'historique
+        ...(ex.sideFirst === 'droit' && ex.sets.some(hasSide2) ? { sideFirst: 'droit' } : {}),
         // warmup (js/data/warmup.js) et rir (js/data/rir.js) : champs facultatifs, ignorés par une version précédente
         sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}),
           ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}),

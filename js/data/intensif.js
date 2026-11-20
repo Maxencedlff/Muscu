@@ -125,8 +125,8 @@ function newSubSet(s, k) {
   return { weight: '', reps: '', done: false, auto: true, prev: p };
 }
 // Pose la technique t sur la série s (séance en cours) ; t null la retire. Même technique : rien ne change.
-// Série notée par bras (js/data/unilateral.js) : le second côté a autant de sous-séries ; posé par la technique et
-// pas encore fait, il part avec elle
+// Série notée par bras (js/data/unilateral.js) : le second côté a autant de sous-séries (la technique retirée, il reste :
+// l'exercice reste noté par bras, « Noter les deux bras ensemble » le rassemble)
 function applyTech(s, t) {
   if (!s || s.warmup) return false;
   if (t && (!Object.hasOwn(TECHS, t) || s.tech === t)) return false;
@@ -135,7 +135,6 @@ function applyTech(s, t) {
     s.tech = t;
     if (techHasSub(t)) s.sub = [newSubSet(s, 0)]; else delete s.sub;
   }
-  if (s.side2?.byTech && !techHasSub(t) && !s.side2.done) delete s.side2;
   syncSide2Subs(s);
   return t ? true : had;
 }
@@ -163,10 +162,11 @@ function applyIntensPlan(ex, plan) {
   for (const [s, t] of pairs) if (!s.done && !s.tech && applyTech(s, t)) { techSides(ex, s); n++; }
   return n;
 }
-// Exercice unilatéral (js/data/unilateral.js) : une série à sous-séries se note par bras, le drop set existe de chaque
-// côté (demande de Maxence du 19/11 : « bras gauche lourd, allégé, puis bras droit »). Renvoie true si posé.
+// Exercice unilatéral (js/data/unilateral.js) : une technique à sous-séries fait passer tout l'exercice par bras, le
+// drop set existe de chaque côté (demande de Maxence du 19/11 : « bras gauche lourd, allégé, puis bras droit » ; panel du
+// 20/11 : toutes les séries, les validées comprises, pas la seule série du drop). Renvoie le nombre de séries changées.
 function techSides(ex, s) {
-  return !!unilateralLimb(ex) && techHasSub(setTech(s)) && !s.done && addSide2(s, { byTech: true });
+  return unilateralLimb(ex) && techHasSub(setTech(s)) ? exSides(ex) : 0;
 }
 // Back-off pré-rempli plus léger que le top set (panel du 16/11 : « Back-off allégée » à la même charge que le top set).
 // Règle annoncée (docs/INTENSIFICATION.md) : charge du top set − 10 %, arrondie à ce qui se charge (barre et disques,

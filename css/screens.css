@@ -510,7 +510,7 @@ html.type-xl .sets__head { margin: 0 -6px; }
    pour que leur zone de 44 px ne passe pas sous la sous-série */
 html.type-xl .tech__cap { flex-wrap: wrap; column-gap: 16px; row-gap: 4px; padding-bottom: 4px; }
 html.type-xl .tech__label { flex: 1 1 auto; min-width: min-content; }
-html.type-xl .tech__add { height: auto; min-height: 36px; padding-top: 4px; padding-bottom: 4px; white-space: nowrap; }
+html.type-xl .tech__add { height: auto; min-height: 44px; padding-top: 4px; padding-bottom: 4px; white-space: nowrap; }
 html.type-xl .session-set {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "n prev check" "w r check";
   row-gap: 6px; padding: 8px 6px;

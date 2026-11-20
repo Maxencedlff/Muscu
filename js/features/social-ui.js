@@ -407,7 +407,7 @@ function renderSocialSession(owner, id) {
             <div class="cell hex">
               <span class="cell__body">
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
-                <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>
+                <span class="hex__sets num">${esc(sidePrefix(e, e.sets))}${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}
                 ${reviewGripHtml(e)}

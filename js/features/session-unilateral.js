@@ -5,10 +5,12 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Nom du côté sous la ligne d'une série notée par bras (« Bras gauche ») : texte gris, pas une pastille (la pastille
-// grise dit une technique, top set ou back-off : une forme, un sens). '' pour une série ordinaire.
-function sideLblHtml(ex, s, side) {
-  return hasSide2(s) ? `<span class="side-lbl">${sideName(ex, side)}</span>` : '';
+// Nom du côté en titre AU-DESSUS de son groupe (la ligne et ses sous-séries), comme « Échauffement » : sous la ligne,
+// il se lisait comme le titre du bloc d'en dessous (panel du 20/11). Texte gris, pas une pastille (la pastille grise dit
+// une technique, top set ou back-off : une forme, un sens). Caché à VoiceOver : chaque ligne dit déjà son côté.
+// '' pour une série ordinaire.
+function sideCaptionHtml(ex, s, side) {
+  return hasSide2(s) ? `<div class="sets__caption sets__caption--side" aria-hidden="true">${sideName(ex, side)}</div>` : '';
 }
 // « le bras droit », « la jambe droite »
 function sideRef(ex, side) {
@@ -27,7 +29,10 @@ function side2RowsHtml(ex, ei, s, si, tag = '') {
   const T = TECHS[setTech(s)];
   const subs = T?.sub && canTech(ex) ? (s.side2.sub || []).map((x, k) => subRowHtml(ex, ei, s, si, x, k, 2)).join('') : '';
   const name = `${setSpokenName(ex, si).toLowerCase()}, ${sideName(ex, 2).toLowerCase()}`;
-  return side2RowHtml(ex, ei, s, si, tag) + (subs ? `<div class="tech" role="group" aria-label="${T.label}, ${name}">${subs}</div>` : '');
+  // Le bloc du second côté a son propre titre « Drop set » (sans les boutons : « + drop » et × du premier côté valent
+  // pour les deux bras)
+  const cap = subs ? `<div class="tech__cap" aria-hidden="true"><span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span></span></div>` : '';
+  return sideCaptionHtml(ex, s, 2) + side2RowHtml(ex, ei, s, si, tag) + (subs ? `<div class="tech" role="group" aria-label="${T.label}, ${name}">${cap}${subs}</div>` : '');
 }
 
 function side2RowHtml(ex, ei, s, si, tag) {
@@ -48,7 +53,7 @@ function side2RowHtml(ex, ei, s, si, tag) {
         <span class="set-val set-val--w num" aria-hidden="true">${hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '—'}</span>
         <span class="set-val set-val--r num" aria-hidden="true">${esc(x.reps)}</span>
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
-        <span class="set-badge" aria-hidden="true"><span class="side-lbl">${sideName(ex, 2)}</span>${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}</span>
+        ${record ? `<span class="set-badge" aria-hidden="true"><span class="pr-badge">${medalSvg(13)}${esc(record)}</span></span>` : ''}
       </div>`;
   }
   // Mise en avant comme une sous-série : seulement quand c'est l'étape qui suit (js/data/unilateral.js, setNextStep)
@@ -63,11 +68,10 @@ function side2RowHtml(ex, ei, s, si, tag) {
         <span class="visually-hidden">${name}${exOf}</span>${no}
         <span class="set-prev num">${x.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span><span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" data-action="side-weight" ${at}
-               value="${esc(fmtW(side2WeightKg(s), { plain: true }))}" placeholder="—" aria-label="${loadSpoken(ex)}, ${name.toLowerCase()}, en ${unitLbl()}">
+               value="${esc(fmtW(side2WeightKg(s), { plain: true }))}" placeholder="—" aria-label="${sideFieldName(ex, 2, 'w')}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="set-input set-input--required num" data-action="side-reps" ${at}
-               value="${esc(reps)}" placeholder="${esc(x.prev?.reps || '')}" aria-label="Répétitions, ${name.toLowerCase()}">
+               value="${esc(reps)}" placeholder="${esc(x.prev?.reps || '')}" aria-label="${sideFieldName(ex, 2, 'r')}">
         <button class="set-check-zone ${wait ? 'set-check-zone--wait' : ''}" data-action="side-validate" ${at} ${wait ? 'aria-disabled="true"' : ''} aria-label="Valider ${setRefName(ex, si)}, ${sideName(ex, 2).toLowerCase()}${exOf}"><span class="set-check"></span></button>
-        <span class="set-badge" aria-hidden="true"><span class="side-lbl">${sideName(ex, 2)}</span></span>
       </div>`;
 }
 
@@ -111,22 +115,40 @@ function validateSide2(ds) {
   } });
 }
 
-// ── Menu ⋯ › Plus d'options : chaque côté à part, ou les deux ensemble (sideMenuActions, js/data/unilateral.js) ──
+// ── Menu ⋯ › Plus d'options : chaque côté à part, ou les deux ensemble ; le premier bras (sideMenuActions,
+// js/data/unilateral.js) ──
+// Tout l'exercice à la fois, séries validées comprises (leur second côté noté à l'identique, corrigeable au toucher) :
+// jamais un mélange un bras / deux bras (panel du 20/11)
 function toggleSides(ei) {
   const ex = activeSession?.exercises[ei];
   if (!ex) return;
-  const todo = workSets(ex.sets).filter(s => !s.done), on = !todo.every(hasSide2);
-  const before = todo.map(s => [s, s.side2 ? clone(s.side2) : undefined]);
-  todo.forEach(s => (on ? addSide2(s) : removeSide2(s)));
+  const work = workSets(ex.sets), on = !work.every(hasSide2);
+  const before = work.map(s => [s, s.side2 ? clone(s.side2) : undefined]);
+  work.forEach(s => (on ? addSide2(s) : removeSide2(s)));
   haptic();
   persistSession();
   render();
   const plural = unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras';
   sessionUndo(on ? `Chaque ${unilateralLimb(ex)} noté${sideFem(ex) ? 'e' : ''} à part` : `Les deux ${plural} notés ensemble`, { target: { ex }, onAction: () => {
     if (!activeSession) return;
-    before.forEach(([s, v]) => { if (s.done) return; if (v) s.side2 = v; else delete s.side2; });
+    before.forEach(([s, v]) => { if (v) s.side2 = v; else delete s.side2; });
     persistSession(); render();
   } });
+}
+// Premier bras : gauche ou droit, retenu pour l'exercice (data.sideFirst) et gardé dans la séance (ex.sideFirst) ; les
+// lignes suivent (le premier côté est toujours la série, seul son nom change)
+function toggleSideFirst(ei) {
+  const ex = activeSession?.exercises[ei];
+  if (!ex) return;
+  const next = sideFirstOf(ex) === 'droit' ? 'gauche' : 'droit';
+  if (next === 'droit') ex.sideFirst = 'droit'; else delete ex.sideFirst;
+  setSideFirstPref(ex.name, next);
+  ex.sets.forEach(swapSidePrev);   // « Avant » de chaque ligne suit son bras
+  save();
+  haptic();
+  persistSession();
+  render();
+  sessionUndo(`Tu commences par ${sideRef(ex, 1)}`, { target: { ex } });
 }
 
 CLEAR_ON_FOCUS.add('side-weight');

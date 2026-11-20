@@ -742,20 +742,19 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 /* Étroit (iPhone SE) : la pause passe sous le nom de la technique, entière, plutôt que d'être coupée */
 @media (max-width: 374px) { .tech__label { flex-direction: column; align-items: flex-start; gap: 0; } }
 .tech__add, .tech__x {
-  position: relative; flex-shrink: 0; height: 36px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  position: relative; flex-shrink: 0; height: 44px; border: 0; border-radius: var(--r-pill); cursor: pointer;
   background: var(--fill); color: var(--tint-on-fill); font-family: inherit; font-size: 0.765rem; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center; gap: 2px;
 }
 .tech__add { padding: 0 10px 0 8px; }
 /* Boutons ensemble, à droite, même sans le texte d'aide (petit écran) ; passés sous le libellé, ils y restent calés à droite */
 .tech__btns { display: flex; align-items: center; gap: 16px; flex: none; margin-left: auto; }
-.tech__x { width: 36px; color: var(--label2); }
-.tech__add::after, .tech__x::after { content: ''; position: absolute; inset: -4px; }   /* 44 px de zone de toucher, 8 px libres entre les deux (panel de la vague 3) */
+.tech__x { width: 44px; color: var(--label2); }
+.tech__add::after, .tech__x::after { content: ''; position: absolute; inset: -4px; }   /* 44 px dessinés (panel du 20/11), 52 touchables, 8 px libres entre les deux */
 .tech__add:active, .tech__x:active { opacity: .6; }
 .session-set--sub { min-height: 52px; margin-bottom: 2px; border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: inset 2px 0 0 var(--sep); }
 .session-set--subcur { background: color-mix(in srgb, var(--tint) 8%, var(--cell)); box-shadow: inset 3px 0 0 var(--tint); }
 .tech-tag { font-size: 0.706rem; font-weight: 700; letter-spacing: .02em; }
-.side-lbl { font-size: 0.706rem; font-weight: 600; color: var(--label2); white-space: nowrap; }   /* « Bras gauche » sous une série notée par bras (js/features/session-unilateral.js) */
 .session-set--side { margin: 0 -6px 2px; }   /* même place que les lignes de série (.set-swipe déborde de 6 px) : colonnes alignées */
 @media (max-width: 374px) { .tech__cap { padding-left: calc(24px + var(--set-gap)); } }
 
@@ -940,3 +939,12 @@ html.type-xl .session-set .set-note-prev { grid-column: 1 / -1; }
   .sets__unit small { font-size: 0.647rem; }
   .sets__head > span:has(> .sets__unit) { margin: 0 calc(-1 * var(--set-gap)); }   /* l'en-tête déborde sur les écarts, comme « Série » */
 }
+
+/* Série notée par bras (js/features/session-unilateral.js) : « Bras gauche », « Bras droit » en titre au-dessus de leur
+   groupe (la ligne et ses sous-séries), comme « Échauffement » */
+.sets__caption--side { margin-top: 6px; text-transform: none; letter-spacing: 0; font-size: 0.765rem; }
+/* Texte agrandi : un espace entre « Annuler » ou « Note » (colonne Avant) et le rond ✓ (panel du 20/11, iPhone SE AX33) */
+html.type-xl .session-set { column-gap: 12px; }
+html.type-xl .session-set > .set-prev, html.type-xl .session-set > .set-undo, html.type-xl .session-set .set-note-btn { min-width: 0; max-width: 100%; }
+html.type-xl .session-set .set-undo { white-space: normal; text-align: left; overflow-wrap: anywhere; }
+html.type-xl .sets__head { column-gap: 12px; }   /* même écart que les lignes : « kg » et « Reps » au-dessus de leurs cases */

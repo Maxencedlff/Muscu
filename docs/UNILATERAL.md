@@ -32,14 +32,24 @@ droit lourd, puis allégé ; l'app n'avait qu'un bloc de drop set par série et 
    (docs/INTENSIFICATION.md). La série reste le premier côté. Pourquoi : le nombre de séries, les séries par muscle,
    la numérotation, « Avant », le RIR et la note ne bougent pas ; une version précédente de l'app ignore le champ et
    voit la série seule (le premier côté), au lieu de prendre le bras droit pour une 4e série.
-2. **Quand une série se note par bras** :
-   - d'elle-même, quand on pose un drop set, un rest-pause ou un cluster sur un exercice unilatéral (le problème de
-     Maxence, sans toucher de plus) ; la technique retirée, ce second côté part avec elle s'il n'est pas fait ;
-   - quand la même série était notée par bras la dernière fois (« pré-remplir avec la dernière fois ») ;
-   - à la demande : ⋯ › Plus d'options › « Noter chaque bras à part » (toutes les séries à faire), et
-     « Noter les deux bras ensemble » pour revenir. Le choix n'existe que sur un exercice unilatéral.
-3. **Ordre** : série (bras gauche), ses sous-séries, bras droit, ses sous-séries (`setSteps`). Le côté qui suit est
-   seul mis en avant. « + drop » ajoute une sous-série de chaque côté ; le × du drop set le retire des deux.
+2. **Tout l'exercice se note par bras, jamais une seule série** (panel du 20/11 : couper la seule série 3 mélangeait
+   un bras et deux bras, le volume devenait faux) :
+   - de lui-même, quand on pose un drop set, un rest-pause ou un cluster sur un exercice unilatéral (le problème de
+     Maxence, sans toucher de plus) ; les séries déjà validées reçoivent leur bras droit à l'identique, validé,
+     corrigeable au toucher ; la technique retirée, l'exercice reste par bras ;
+   - quand l'exercice était noté par bras la dernière fois (« pré-remplir avec la dernière fois ») ; une série ajoutée
+     l'est aussi ;
+   - à la demande : ⋯ › Plus d'options › « Noter chaque bras à part », et « Noter les deux bras ensemble » pour
+     revenir (avec « Annuler »). Le choix n'existe que sur un exercice unilatéral ;
+   - **premier bras** : ⋯ › Plus d'options › « Commencer par le bras droit » (ou le gauche), retenu par exercice
+     (`data.sideFirst`, synchronisé) et gardé avec la séance (`sideFirst` de l'exercice) : les noms suivent.
+3. **Ordre et titres** : série (bras gauche), ses sous-séries, bras droit, ses sous-séries (`setSteps`). Chaque côté a
+   son titre AU-DESSUS de son groupe (« Bras gauche », « Bras droit » : sous la ligne, ils se lisaient comme le titre
+   du bloc d'en dessous), et le drop du bras droit son propre titre « Drop set ». Le côté qui suit est seul mis en
+   avant. « + drop » ajoute une sous-série de chaque côté ; le × du drop set le retire des deux (44 pt dessinés).
+   **Compteur** (« 3/3 », barre du haut, « Plus tard ») : une série compte une fois le bras droit et son drop faits
+   (`setComplete`). VoiceOver : « Valider la série 3, bras gauche », « Charge du bras gauche, en kilos ».
+   **Carte repliée** : « 3 × 10/10/9 · 14 kg · drop set · 2 bras ».
 4. **Repos** : aucun entre les deux côtés ni avant un drop ; la courte pause d'un rest-pause (15 s) ou d'un cluster
    (20 s) avant chaque mini-série, de chaque côté ; le repos habituel **seulement après le dernier bloc du second
    côté** (`techPauseAfter`, `restAfterStep`). Dans un superset, l'exercice suivant s'enchaîne à ce moment-là.
@@ -48,6 +58,11 @@ droit lourd, puis allégé ; l'app n'avait qu'un bloc de drop set par série et 
    drop du bras droit reprend la charge du même drop du bras gauche, et ses reps en gris. « Avant » de chaque ligne :
    ce côté-là la dernière fois. Rien n'est jamais augmenté d'office (règle de Maxence du 17/11).
 6. **Volume et total de reps** : les deux côtés, sous-séries comprises (`volumeSets`). C'est du travail soulevé.
+   **Comparaisons d'une séance à l'autre** (« +X kg de volume » de la carte, tendance du bilan) : sur un exercice
+   unilatéral, une série notée sur une seule ligne valait pour les deux bras ; elle compte donc deux fois
+   (`comparableSets`, `comparableVolume`). Refaire 14 × 10 à l'identique donne +0, que l'une ou l'autre fois soit
+   notée par bras (panel du 20/11 : « +140 kg » faux). « Avant » du bras droit : la ligne unique de la dernière fois.
+   Records, cible et 1RM : le meilleur côté (point 7), qu'une ligne unique égale déjà.
 7. **Records, 1RM estimé, meilleure série, cible de la prochaine séance, niveau de force, courbe de Progrès** : le
    **meilleur des deux côtés** (`recordSet` : 1RM estimé, puis charge, puis reps), jamais leur somme. Pourquoi pas
    un record par côté : l'historique d'avant n'a qu'une valeur par série, sans côté ; un record « bras droit »
@@ -59,8 +74,9 @@ droit lourd, puis allégé ; l'app n'avait qu'un bloc de drop set par série et 
 
 ## Ailleurs
 
-- **Historique** : « Drop set série 3, bras gauche : 10 kg × 6 » puis « Série 3, bras droit : 14 kg × 9 · drop set
-  10 kg × 5 » (`techLines`, `sideLines`). Historique › Modifier garde le second côté tel quel.
+- **Historique, séance d'un ami, relecture du coach** : « Bras gauche : 14 kg × 10, 10, 9 », « Drop set série 3,
+  bras gauche : 10 kg × 6 », « Bras droit : 14 kg × 10, 10, 9 », « Drop set série 3, bras droit : 10 kg × 5 »
+  (`sidePrefix`, `techLines`, `sideLines`). Historique › Modifier garde le second côté tel quel.
 - **Export** : la sauvegarde JSON garde le champ ; le CSV a une ligne « 3 bras droit » et « 3.1 bras droit ».
 - **Synchro** : la séance part entière (`sessions.data`). `cleanSideSet` ne touche pas une série sans `side2` :
   l'empreinte des anciennes séances ne change pas.
@@ -71,12 +87,13 @@ droit lourd, puis allégé ; l'app n'avait qu'un bloc de drop set par série et 
 
 - **Ancien appareil** : il voit le premier côté seul (volume du second en moins, comme les sous-séries d'un drop set) ;
   s'il modifie la séance (Historique › Modifier), il perd le second côté.
-- **Amis et coach** : la séance publique (`private.session_public`) ne fait pas encore passer `side2` (liste blanche
-  côté serveur) ; ils voient le premier côté. Une migration le fera passer.
-- **Volume comparé à une séance notée en un bloc** : « +X kg de volume » sur la carte et la tendance du bilan montent
-  la première fois (le second bras n'était pas compté avant). C'est juste : il est désormais noté.
-- **Côté de départ** : le premier côté s'appelle « Bras gauche ». Qui commence par le droit lit les côtés à l'envers ;
-  les chiffres restent justes.
+- **Amis et coach** : la migration `supabase/migrations/20261120010000_seance_publique_par_bras.sql` fait passer
+  `side2` et `sideFirst` dans `private.session_public` (bornés comme les sous-séries ; test `tests/sql/par_bras_test.sql`,
+  retour arrière dans `supabase/rollback/`). Elle n'est PAS appliquée en production : tant qu'elle ne l'est pas, ils
+  voient le premier côté seul. Côté app, l'Historique, la séance d'un ami et la relecture du coach montrent déjà
+  « Bras gauche : … » et « Bras droit : … ».
+- **Volume affiché d'une ancienne séance** : l'Historique et la courbe de Progrès gardent ce qui a été noté (une ligne
+  = un bras) ; seules les comparaisons de séance à séance comptent la ligne unique pour les deux bras.
 - Apple Watch et Live Activity : la montre voit et valide la série ; le second côté se fait sur l'iPhone. Les
   courtes pauses d'un rest-pause ou d'un cluster du bras droit passent par `openRest` (notification et Live
   Activity habituelles, « Mini-série +1 »).

@@ -547,6 +547,9 @@ async function exerciseMenu(ei) {
   } else if (choice === 'sides') {
     toggleSides(ei);
     return;
+  } else if (choice === 'side-first') {
+    toggleSideFirst(ei);
+    return;
   } else if (choice === 'tech-pick') {
     await techMenuChoice(ei, choice);
     return;

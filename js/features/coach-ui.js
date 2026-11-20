@@ -1025,7 +1025,7 @@ function reviewExerciseCell(x, xs, i) {
             <div class="cell hex review-ex">
               <span class="cell__body">
                 <span class="review-ex__line"><span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>${reviewTrendHtml(x.trend)}</span>
-                <span class="review-ex__line"><span class="hex__sets num">${coachSetsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
+                <span class="review-ex__line"><span class="hex__sets num">${esc(sidePrefix(e, e.sets))}${coachSetsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}
                 ${prescGapText(e) ? `<span class="hex__sets hex__sets--note num coach-presc-gap">${esc(prescGapText(e))}</span>` : ''}

@@ -346,7 +346,7 @@ function renderHistoryDetail(id) {
               <span class="cell__body">
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
                 ${gripText(e.grip, e) ? `<span class="hex__sets hex__sets--note">${gripText(e.grip, e)}</span>` : ''}
-                <span class="hex__sets num">${setsLine(e.sets, measureOf(e), setKind(e))}</span>
+                <span class="hex__sets num">${esc(sidePrefix(e, e.sets))}${setsLine(e.sets, measureOf(e), setKind(e))}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}
                 ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}

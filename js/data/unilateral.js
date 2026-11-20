@@ -33,10 +33,39 @@ function unilateralLimb(ex) {
   const k = ruleKey(ex.name);
   return UNI_NAME_RE.test(k) ? (UNI_LEG_RE.test(k) ? 'jambe' : 'bras') : null;
 }
-// « Bras gauche » (side 1), « Bras droit » (side 2) ; « Côté 1 » si le membre est inconnu
+// Premier côté de l'exercice : 'gauche' (par défaut) ou 'droit', choisi par exercice (⋯ › Plus d'options › « Commencer
+// par le bras droit », data.sideFirst par nom) et gardé dans la séance (ex.sideFirst) pour que l'historique reste juste
+function sideFirstOf(ex) { return ex?.sideFirst === 'droit' ? 'droit' : 'gauche'; }
+function sideFirstPref(name, d = typeof data === 'undefined' ? null : data) {
+  return d?.sideFirst?.[exerciseNameKey(name)] === 'droit' ? 'droit' : 'gauche';
+}
+function setSideFirstPref(name, v, d = data) {
+  const k = exerciseNameKey(name);
+  if (!k) return;
+  if (v === 'droit') (d.sideFirst ||= {})[k] = 'droit';
+  else if (d.sideFirst) { delete d.sideFirst[k]; if (!Object.keys(d.sideFirst).length) delete d.sideFirst; }
+}
+// Choix gardé (sanitizeData) : { nom normalisé: 'droit' } seulement, 200 noms au plus
+function cleanSideFirst(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out = Object.fromEntries(Object.entries(v).filter(([k, x]) => typeof k === 'string' && k.length <= 120 && x === 'droit').slice(0, 200));
+  return Object.keys(out).length ? out : undefined;
+}
+// « Bras gauche » (side 1), « Bras droit » (side 2), ou l'inverse si l'exercice commence par le droit ; « Côté 1 » si
+// le membre est inconnu
 function sideName(ex, side) {
   const n = SIDE_NAMES[unilateralLimb(ex)];
-  return n ? n[side - 1] : `Côté ${side}`;
+  if (!n) return `Côté ${side}`;
+  return n[(sideFirstOf(ex) === 'droit' ? 2 - side : side - 1)];
+}
+// « bras gauche » / « jambe droite » en minuscules, et sans le membre : « gauche », « droite »
+function sideWord(ex, side) { return sideName(ex, side).toLowerCase(); }
+
+// Nom parlé d'un champ (« Charge du bras gauche, en kilos », « Répétitions de la jambe droite ») ; what : 'w' ou 'r'
+function sideFieldName(ex, side, what) {
+  const of = `${unilateralLimb(ex) === 'jambe' ? 'de la' : 'du'} ${sideWord(ex, side)}`;
+  if (what === 'r') return `Répétitions ${of}`;
+  return `${loadKind(ex) === 'aide' ? 'Aide' : loadKind(ex) === 'lest' ? 'Charge ajoutée' : 'Charge'} ${of}, en ${data.unit === 'lbs' ? 'livres' : 'kilos'}`;
 }
 
 function hasSide2(s) { return !!s && !isWarmupSet(s) && !!s.side2 && typeof s.side2 === 'object'; }
@@ -86,25 +115,83 @@ function cleanSideSet(st) {
 }
 
 // ── Séance en cours ──────────────────────────────────────────
+// « Avant » du second côté : ce côté la dernière fois ; une série notée sur une seule ligne valait pour les deux bras
+// (panel du 20/11 : « — » dans Avant alors que la dernière fois existait)
+function side2PrevOf(prev) {
+  if (!prev) return null;
+  return cleanSubSet(prev.side2 && typeof prev.side2 === 'object' ? prev.side2 : prev);
+}
 // Sous-série k du second côté, nouvelle : la même la dernière fois (même technique) pour l'objectif
 function newSide2Sub(s, k) {
-  const p = s?.prev?.side2 && s.prev.tech === s.tech && Array.isArray(s.prev.side2.sub) ? cleanSubSet(s.prev.side2.sub[k]) : null;
-  return { weight: '', reps: '', done: false, auto: true, prev: p };
+  const p = s?.prev && s.prev.tech === s.tech ? (s.prev.side2 && typeof s.prev.side2 === 'object' ? s.prev.side2 : s.prev) : null;
+  return { weight: '', reps: '', done: false, auto: true, prev: Array.isArray(p?.sub) ? cleanSubSet(p.sub[k]) : null };
 }
-// Le second côté posé sur s (série à faire) : charge reprise du premier côté (auto), reps du premier côté une fois fait.
-// byTech : posé par une technique à sous-séries (il part avec elle s'il n'est pas fait). false s'il y était déjà.
-function addSide2(s, { byTech = false } = {}) {
+// Le second côté posé sur s : charge reprise du premier côté (auto), reps du premier côté une fois fait. Série déjà
+// validée : le second côté est noté à l'identique, validé (sous-séries validées comprises), corrigeable au toucher.
+// false s'il y était déjà.
+function addSide2(s) {
   if (!s || isWarmupSet(s) || hasSide2(s)) return false;
-  const prev = s.prev?.side2 ? cleanSubSet(s.prev.side2) : null;
-  s.side2 = { weight: '', reps: '', done: false, auto: true, prev, ...(byTech ? { byTech: true } : {}) };
+  s.side2 = { weight: '', reps: '', done: false, auto: true, prev: side2PrevOf(s.prev) };
   syncSide2Subs(s);
+  if (s.done) {
+    Object.assign(s.side2, { weight: s.weight ?? '', reps: String(s.reps ?? ''), done: true });
+    delete s.side2.auto;
+    (s.side2.sub || []).forEach((x, k) => {
+      const y = s.sub?.[k];
+      if (!y?.done) return;
+      Object.assign(x, { weight: y.weight ?? '', reps: String(y.reps ?? ''), done: true });
+      delete x.auto;
+    });
+  }
   return true;
 }
 function removeSide2(s) {
-  if (!hasSide2(s) || s.side2.done) return false;
+  if (!hasSide2(s)) return false;
   delete s.side2;
   return true;
 }
+// Tout l'exercice par bras : chaque série de travail (panel du 20/11 : couper la seule série 3 mélangeait un bras et
+// deux bras, le volume devenait faux). Renvoie le nombre de séries changées.
+function exSides(ex) {
+  return workSets(ex?.sets).reduce((n, s) => n + (addSide2(s) ? 1 : 0), 0);
+}
+// Premier bras changé (ou différent de la dernière fois) : « Avant » de chaque ligne suit son bras. Série à faire
+// seulement : les valeurs de la dernière fois passent d'une ligne à l'autre, et la charge et les reps pré-remplies avec
+// elles si la personne n'y a pas touché.
+function swapSidePrev(s) {
+  if (!hasSide2(s) || s.done || s.side2.done || !s.prev || !s.side2.prev) return false;
+  const a = { weight: s.prev.weight, reps: s.prev.reps }, b = { weight: s.side2.prev.weight, reps: s.side2.prev.reps };
+  const untouched = String(s.weight ?? '') === String(a.weight ?? '') && String(s.reps ?? '') === String(a.reps ?? '');
+  Object.assign(s.prev, b);
+  Object.assign(s.side2.prev, a);
+  if (untouched) { s.weight = b.weight ?? ''; s.reps = String(b.reps ?? ''); s.plannedWeight = s.weight; }
+  (s.sub || []).forEach((x, k) => {
+    const y = s.side2.sub?.[k];
+    if (x && y && !x.done && !y.done) [x.prev, y.prev] = [y.prev, x.prev];
+  });
+  return true;
+}
+// Exercice noté par bras (au moins une série) : une série ajoutée l'est aussi
+function exBySide(ex) { return workSets(ex?.sets).some(hasSide2); }
+// Série finie : la série, son second côté et les sous-séries de celui-ci (le compteur « 3/3 » et la barre du haut ne
+// comptent une série notée par bras qu'une fois le bras droit fait, panel du 20/11)
+function setComplete(s) {
+  if (!s?.done) return false;
+  if (!hasSide2(s)) return true;
+  return s.side2.done === true && !(techHasSub(setTech(s)) ? s.side2.sub || [] : []).some(x => x && !x.done);
+}
+
+// ── Comparaisons d'une séance à l'autre ───────────────────────
+// Exercice unilatéral : une série notée sur une seule ligne valait pour les deux bras. Pour comparer (volume gagné,
+// tendance du bilan, courbe de Progrès), elle compte donc deux fois, comme une série notée par bras : refaire 14 × 10
+// à l'identique donne +0, que l'une ou l'autre fois soit notée par bras (panel du 20/11 : « +140 kg » faux).
+// Exercice à deux bras : les séries telles quelles.
+function comparableSets(ex, sets) {
+  if (!unilateralLimb(ex)) return sets || [];
+  return (sets || []).map(s => (isWarmupSet(s) || hasSide2(s) || s?.done === false ? s
+    : { ...s, side2: { weight: s.weight, reps: s.reps, ...(subSetsOf(s).length ? { sub: subSetsOf(s).map(x => ({ weight: x.weight, reps: x.reps })) } : {}) } }));
+}
+function comparableVolume(ex, sets, bodyKg = null) { return exVolume(ex, comparableSets(ex, sets), bodyKg); }
 // Les sous-séries du second côté suivent celles du premier (autant, pour la même technique) ; les validées restent
 function syncSide2Subs(s) {
   if (!hasSide2(s)) return;
@@ -157,22 +244,34 @@ function setNextStep(s) {
 
 // Choix du menu ⋯ › Plus d'options d'un exercice de la séance (js/features/session-sheets.js) : chaque côté à part, ou
 // les deux ensemble (toggleSides, js/features/session-unilateral.js).
-// Seulement sur un exercice unilatéral (rien de nouveau ailleurs). Une série à sous-séries s'y note déjà par côté
-// d'elle-même (techSides) ; ce choix vaut pour toutes les séries de travail à faire.
+// Seulement sur un exercice unilatéral (rien de nouveau ailleurs). Une technique à sous-séries y passe déjà tout l'exercice
+// par bras (techSides) ; ce choix vaut pour toutes ses séries de travail.
 function sideMenuActions(ex) {
-  const limb = unilateralLimb(ex), todo = workSets(ex.sets).filter(s => !s.done);
-  if (!limb || !todo.length) return [];
-  const all = todo.every(hasSide2), plural = limb === 'jambe' ? 'jambes' : 'bras';
-  return [{ label: all ? `Noter les deux ${plural} ensemble` : `Noter chaque ${limb} à part`, value: 'sides' }];
+  const limb = unilateralLimb(ex), work = workSets(ex?.sets);
+  if (!limb || !work.length) return [];
+  const all = work.every(hasSide2), plural = limb === 'jambe' ? 'jambes' : 'bras';
+  const other = SIDE_NAMES[limb][sideFirstOf(ex) === 'droit' ? 0 : 1].toLowerCase();
+  return [
+    { label: all ? `Noter les deux ${plural} ensemble` : `Noter chaque ${limb} à part`, value: 'sides' },
+    // Le premier bras ne compte que noté par bras, et se choisit avant la première série (après, il dirait qu'une série
+    // faite d'un bras l'a été de l'autre)
+    ...(all && !work.some(s => s.done) ? [{ label: `Commencer par ${limb === 'jambe' ? 'la' : 'le'} ${other}`, value: 'side-first' }] : []),
+  ];
 }
 
 // ── Textes ───────────────────────────────────────────────────
-// Lignes de l'historique : « Série 3, bras droit : 12 kg × 9 · drop set 10 kg × 6 » pour chaque série notée par côté.
-// ex : l'exercice (nom et mesure) pour le nom du côté. [] sans second côté.
+// Lignes de l'historique d'un exercice noté par bras : « Bras droit : 14 kg × 10, 10, 9 » (les séries du second côté,
+// comme la ligne des séries), puis ses sous-séries « Drop set série 3, bras droit : 10 kg × 5 ». La ligne des séries
+// du premier côté est nommée par sidePrefix. ex : l'exercice (nom, mesure, premier bras). [] sans second côté.
 function sideLines(ex, sets, kind = 'charge') {
-  return workSets(sets).map((s, i) => {
-    if (!hasSide2(s) || s.side2.done === false) return '';
-    const subs = side2SubsOf(s).map(x => measureSetTxt(x, 'reps', kind)).join(' · ');
-    return `Série ${i + 1}, ${sideName(ex, 2).toLowerCase()} : ${measureSetTxt(s.side2, 'reps', kind)}${subs ? ` · ${TECHS[setTech(s)].label.toLowerCase()} ${subs}` : ''}`;
-  }).filter(Boolean);
+  const work = workSets(sets), two = work.filter(s => hasSide2(s) && s.side2.done !== false);
+  if (!two.length) return [];
+  const lines = [`${sideName(ex, 2)} : ${setsTextRead(two.map(s => s.side2), 'reps', kind)}`];
+  work.forEach((s, i) => {
+    const subs = hasSide2(s) ? side2SubsOf(s).map(x => measureSetTxt(x, 'reps', kind)).join(' · ') : '';
+    if (subs) lines.push(`${TECHS[setTech(s)].label} série ${i + 1}, ${sideWord(ex, 2)} : ${subs}`);
+  });
+  return lines;
 }
+// « Bras gauche : » devant la ligne des séries d'un exercice noté par bras, '' sinon
+function sidePrefix(ex, sets) { return workSets(sets).some(hasSide2) ? `${sideName(ex, 1)} : ` : ''; }

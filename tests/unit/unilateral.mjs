@@ -71,8 +71,15 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     // Drop set sur un exercice unilatéral : le second côté arrive avec son drop
     const s = run(`(() => { const ex = { name: 'Curl concentration', measure: 'reps', sets: [{ weight: '14', reps: '10', done: false, prev: null }] };
       const s = ex.sets[0]; applyTech(s, 'drop'); techSides(ex, s); return s; })()`);
-    assert.equal(s.side2.byTech, true);
     assert.equal(s.side2.sub.length, 1, 'drop du bras droit');
+    // Tout l'exercice passe par bras, séries validées comprises (bras droit noté à l'identique, validé)
+    const all = run(`(() => { const ex = { name: 'Curl concentration', measure: 'reps', sets: [
+        { weight: '14', reps: '10', done: true, prev: null }, { weight: '14', reps: '9', done: false, prev: null }, { weight: '14', reps: '9', done: false, prev: null }] };
+      applyTech(ex.sets[2], 'drop'); techSides(ex, ex.sets[2]); return ex.sets.map(s => s.side2); })()`);
+    assert.equal(all.length, 3);
+    assert.ok(all.every(Boolean), 'les trois séries par bras');
+    sameJSON([all[0].done, all[0].weight, all[0].reps, 'auto' in all[0]], [true, '14', '10', false], 'série déjà validée : bras droit à l\'identique, validé');
+    assert.equal(all[1].done, false);
     // Charge et reps du second côté : celles du premier, tant qu'on n'y touche pas
     assert.equal(run(`side2WeightKg({ weight: '14', reps: '9', side2: { auto: true, weight: '', reps: '' } })`), '14');
     assert.equal(run(`side2RepsGoal({ weight: '14', reps: '9', side2: { auto: true, weight: '', reps: '' } })`), '9');
@@ -84,23 +91,24 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     sameJSON(sub, ['10', '6']);
     // « + drop » : un de plus de chaque côté
     assert.equal(run(`(() => { const s = { weight: '14', tech: 'drop', sub: [{}], side2: { sub: [{}] } }; addSubSet(s); return s.side2.sub.length; })()`), 2);
-    // Technique retirée : le second côté posé par elle (pas fait) part avec elle
-    assert.equal(run(`(() => { const s = { weight: '14', tech: 'drop', sub: [{}], side2: { byTech: true, sub: [{}] } }; applyTech(s, null); return 'side2' in s; })()`), false);
-    assert.equal(run(`(() => { const s = { weight: '14', tech: 'drop', sub: [{}], side2: { sub: [{}] } }; applyTech(s, null); return [!!s.side2, 'sub' in s.side2]; })()`).join(), 'true,false', 'noté par bras la dernière fois : reste, sans drop');
+    // Technique retirée : l'exercice reste noté par bras, sans drop
+    assert.equal(run(`(() => { const s = { weight: '14', tech: 'drop', sub: [{}], side2: { sub: [{}] } }; applyTech(s, null); return [!!s.side2, 'sub' in s.side2]; })()`).join(), 'true,false');
     // Exercice à deux bras : rien ne change
     assert.equal(run(`(() => { const ex = { name: 'Curl biceps haltères', sets: [{ weight: '14', reps: '10' }] }; applyTech(ex.sets[0], 'drop'); techSides(ex, ex.sets[0]); return 'side2' in ex.sets[0]; })()`), false);
   });
 
   test('unilatéral : la dernière fois par bras, la série repart par bras avec « Avant » de chaque côté', () => {
     reset();
-    const s = run(`plannedSet({ weight: '14', reps: '10' }, { weight: '14', reps: '10', tech: 'drop', sub: [{ weight: '10', reps: '6' }], side2: { weight: '14', reps: '9', sub: [{ weight: '10', reps: '5' }] } })`);
+    const prev = { weight: '14', reps: '10', tech: 'drop', sub: [{ weight: '10', reps: '6' }], side2: { weight: '14', reps: '9', sub: [{ weight: '10', reps: '5' }] } };
+    const s = run(`(() => { const s = plannedSet({ weight: '14', reps: '10' }, ${S(prev)}); addSide2(s); return s; })()`);
     sameJSON(s.side2.prev, { weight: '14', reps: '9' });
     assert.equal(s.side2.auto, true);
     // Technique reposée par le programme : le drop du second côté reprend son « Avant »
-    const sub = run(`(() => { const s = plannedSet({ weight: '14', reps: '10' }, { weight: '14', reps: '10', tech: 'drop', sub: [{ weight: '10', reps: '6' }], side2: { weight: '14', reps: '9', sub: [{ weight: '10', reps: '5' }] } });
-      applyTech(s, 'drop'); return s.side2.sub[0]; })()`);
+    const sub = run(`(() => { const s = plannedSet({ weight: '14', reps: '10' }, ${S(prev)}); addSide2(s); applyTech(s, 'drop'); return s.side2.sub[0]; })()`);
     sameJSON(sub.prev, { weight: '10', reps: '5' });
-    // Série ordinaire la dernière fois : rien de nouveau
+    // Série notée sur une ligne la dernière fois : elle valait pour les deux bras, « Avant » du bras droit = elle
+    sameJSON(run(`(() => { const s = plannedSet({ weight: '14', reps: '10' }, { weight: '14', reps: '9' }); addSide2(s); return s.side2.prev; })()`), { weight: '14', reps: '9' });
+    // Série ordinaire la dernière fois : plannedSet ne change rien (le passage par bras se décide pour tout l'exercice)
     assert.equal(run(`'side2' in plannedSet({ weight: '14', reps: '10' }, { weight: '14', reps: '10' })`), false);
   });
 
@@ -162,6 +170,46 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     // Historique : « Drop set S1, bras gauche : … » puis la ligne du bras droit
     const ex = kept.exercises[0];
     sameJSON(run(`[...techLines(${S(ex.sets)}, 'charge', ${S(ex)}), ...sideLines(${S(ex)}, ${S(ex.sets)})]`),
-      ['Drop set série 1, bras gauche : 10 kg × 6', 'Série 1, bras droit : 14 kg × 9 · drop set 10 kg × 5']);
+      ['Drop set série 1, bras gauche : 10 kg × 6', 'Bras droit : 14 kg × 9', 'Drop set série 1, bras droit : 10 kg × 5']);
+    assert.equal(run(`sidePrefix(${S(ex)}, ${S(ex.sets)})`), 'Bras gauche : ');
+    // Premier bras droit, gardé avec la séance : les noms suivent
+    assert.equal(run(`sideLines(${S({ ...ex, sideFirst: 'droit' })}, ${S(ex.sets)})[0]`), 'Bras gauche : 14 kg × 9');
+  });
+
+  test('unilatéral : comparaisons (une ligne vaut pour les deux bras), compteur, résumé replié, premier bras', () => {
+    reset();
+    const ex = { name: 'Curl concentration' };
+    // Refaire 14 × 10 à l'identique : +0, par bras ou en une ligne
+    const once = [{ weight: '14', reps: '10' }], two = [{ weight: '14', reps: '10', side2: { weight: '14', reps: '10' } }];
+    assert.equal(run(`comparableVolume(${S(ex)}, ${S(two)}) - comparableVolume(${S(ex)}, ${S(once)})`), 0, '+0, pas +140');
+    assert.equal(run(`comparableVolume(${S(ex)}, ${S(once)}) - comparableVolume(${S(ex)}, ${S(once)})`), 0);
+    assert.equal(run(`comparableVolume({ name: 'Curl biceps haltères' }, ${S(once)})`), 140, 'deux bras : tel quel');
+    // Drop d'une ligne : compté pour les deux bras aussi
+    assert.equal(run(`comparableVolume(${S(ex)}, [{ weight: '14', reps: '10', tech: 'drop', sub: [{ weight: '10', reps: '6' }] }])`), 2 * (140 + 60));
+    // Compteur : la série ne compte qu'une fois le bras droit et son drop faits
+    assert.equal(run(`setComplete({ done: true, side2: { done: false } })`), false);
+    assert.equal(run(`setComplete({ done: true, tech: 'drop', sub: [{ done: true }], side2: { done: true, sub: [{ done: false }] } })`), false);
+    assert.equal(run(`setComplete({ done: true, tech: 'drop', sub: [{ done: true }], side2: { done: true, sub: [{ done: true }] } })`), true);
+    assert.equal(run(`setComplete({ done: true })`), true);
+    // Résumé replié : le drop et les deux bras se voient
+    run(`activeSession = { programme: 'ppl', category: 'pull', exercises: [] }`);
+    assert.equal(run(`doneSummary({ name: 'Curl concentration', sets: [{ weight: '14', reps: '10', done: true, side2: { weight: '14', reps: '10' } }, { weight: '14', reps: '9', done: true, tech: 'drop', sub: [{ weight: '10', reps: '6' }], side2: { weight: '14', reps: '9' } }] })`).replace(/\u00a0/g, ' '),
+      '2 × 10/9 · 14 kg · drop set · 2 bras');
+    run(`activeSession = null`);
+    // Premier bras : réglage par exercice, nettoyé
+    assert.equal(run(`sideName({ name: 'Curl concentration', sideFirst: 'droit' }, 1)`), 'Bras droit');
+    assert.equal(run(`sideName({ name: 'Fentes bulgares', sideFirst: 'droit' }, 2)`), 'Jambe gauche');
+    assert.equal(run(`(() => { setSideFirstPref('Curl concentration', 'droit'); return sideFirstPref('curl CONCENTRATION'); })()`), 'droit');
+    assert.equal(run(`(() => { setSideFirstPref('Curl concentration', 'gauche'); return 'sideFirst' in data; })()`), false);
+    sameJSON(run(`cleanSideFirst({ a: 'droit', b: 'gauche', c: 1 })`), { a: 'droit' });
+    // Premier bras changé : « Avant » et valeurs pré-remplies (non touchées) suivent leur bras
+    sameJSON(run(`(() => { const s = { weight: '14', reps: '10', done: false, prev: { weight: '14', reps: '10' }, side2: { done: false, auto: true, prev: { weight: '14', reps: '8' } } };
+      swapSidePrev(s); return [s.prev.reps, s.side2.prev.reps, s.reps]; })()`), ['8', '10', '8']);
+    assert.equal(run(`swapSidePrev({ weight: '14', reps: '10', done: true, prev: {}, side2: { prev: {} } })`), false, 'série faite : rien ne bouge');
+    assert.equal(run(`sideMenuActions({ name: 'Curl concentration', sets: [{ weight: '1', reps: '1', done: true, side2: {} }] }).length`), 1, 'premier bras : seulement avant la première série');
+    assert.equal(run(`cleanSideFirst('x')`), undefined);
+    assert.equal(run(`sideMenuActions({ name: 'Curl concentration', sets: [{ weight: '1', reps: '1', side2: {} }] })[1].label`), 'Commencer par le bras droit');
+    assert.equal(run(`sideFieldName({ name: 'Curl concentration' }, 1, 'w')`), 'Charge du bras gauche, en kilos');
+    assert.equal(run(`sideFieldName({ name: 'Fentes bulgares' }, 2, 'r')`), 'Répétitions de la jambe droite');
   });
 }
