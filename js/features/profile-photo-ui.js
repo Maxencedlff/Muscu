@@ -57,7 +57,7 @@ function profilePhotoCellHtml() {
   return `
           <button class="cell cell--nav" data-action="pph-open">
             <span class="cell__body"><span class="cell__title">Photo de profil ${pphProTag()}</span></span>
-            <span class="cell__value pph-cell__value">${value === 'Photo' ? `<span class="sr-text">Photo</span>${avatarHtml('m')}`
+            <span class="cell__value pph-cell__value">${value === 'Photo' ? `<span class="visually-hidden">Photo</span>${avatarHtml('m')}`
               : `${value}${value === 'Avatar' ? ` <span class="account-emoji" aria-hidden="true">${esc(av)}</span>` : ''}`}</span>
             ${icon('chevron.right', 16)}
           </button>`;

@@ -390,7 +390,7 @@ function dietInboxHtml() {
   return `<div class="group-title">Plans de nutrition</div>
         <div class="group">
           <button class="cell" data-action="diet-coach-toggle" role="switch" aria-checked="${on}">
-            <span class="cell__body"><span class="cell__title">Recevoir les plans de nutrition ${elide('de', esc(coachName()))}</span>
+            <span class="cell__body"><span class="cell__title">Recevoir les plans de nutrition ${elide('de', nameBreakHtml(coachName()))}</span>
               <span class="cell__sub">${on ? 'Gardés sur le serveur jusqu\'au retrait de ton accord.' : 'Sans accord, ton coach ne peut pas t\'en envoyer.'}</span></span>
             ${switchHtml(on)}
           </button>
@@ -589,7 +589,7 @@ function nutritionHomeCard() {
   const card = pending ? `
     <section class="home-card account-card coach-home" aria-labelledby="dietPendingTitle">
       <div class="account-card__text">
-        <h2 class="account-card__title" id="dietPendingTitle">${!ok ? `${esc(coachName())} veut t'envoyer un plan de nutrition` : dietInboxStatus(pending).status === 'update' ? `Plan de nutrition mis à jour par ${esc(coachName())}` : `Nouveau plan de nutrition ${elide('de', esc(coachName()))}`}</h2>
+        <h2 class="account-card__title" id="dietPendingTitle">${!ok ? `${nameBreakHtml(coachName())} veut t'envoyer un plan de nutrition` : dietInboxStatus(pending).status === 'update' ? `Plan de nutrition mis à jour par ${nameBreakHtml(coachName())}` : `Nouveau plan de nutrition ${elide('de', nameBreakHtml(coachName()))}`}</h2>
         <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Ton plan actuel reste dans Plans de nutrition'}</p>
       </div>
       <button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">${ok ? 'Utiliser' : 'Recevoir'}</button>

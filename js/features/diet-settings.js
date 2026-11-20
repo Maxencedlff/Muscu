@@ -128,7 +128,7 @@ function renderDietSettings() {
         ${hasCoach ? `
         <div class="group-title">Coach</div>
         <div class="group">
-          ${sw('diet-coach-toggle', dietCoachAccepted(), `Recevoir les plans de nutrition ${elide('de', esc(coachName()))}`)}
+          ${sw('diet-coach-toggle', dietCoachAccepted(), `Recevoir les plans de nutrition ${elide('de', nameBreakHtml(coachName()))}`)}
         </div>
         <div class="group-foot">Ses plans restent sur le serveur jusqu'au retrait de l'accord ou la fin du coaching. Ton coach voit seulement si tu les as ouverts.</div>` : ''}
         <div class="group-foot diet-foot">Les plans sont sur cet iPhone, dans la copie iCloud de l'app et dans les exports. Les repas cochés et les aliments remplacés restent seulement sur cet iPhone et dans les exports.</div>
