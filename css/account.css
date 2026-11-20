@@ -410,3 +410,6 @@ html.type-xl .pph-rules { display: block; margin: -6px 0 14px; font-size: var(--
 /* Compte : la ligne « Photo de profil » montre la vignette ronde de la photo (7e panel) */
 .pph-cell__value { display: inline-flex; align-items: center; gap: 6px; }
 .pph-cell__value .avatar--m { width: 32px; height: 32px; }
+/* Feuille de la photo (8e panel) : « Choisir une photo » fixé en bas de l'écran tant qu'il est plus bas, les autres
+   boutons défilent dessous */
+.pph-actionbar--mid { margin-bottom: 0; }

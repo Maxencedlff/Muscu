@@ -47,12 +47,15 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
   test('affiche du coach : contenu exact (titre accordé à la silhouette choisie, nom, pseudo, badge, consigne, code)', () => {
     sameJSON(model(), {
       name: 'Léa Martin', specialty: '', handle: '@lea.coach', initials: 'LM', photo: true, title: 'NOUVELLE COACH',
-      badge: 'Carte pro déclarée', perks: 'Programme sur mesure · Suivi · Bilans', ctaLine: 'Télécharge MDLF Training',
+      badge: 'Carte pro déclarée', perks: 'Programme · Suivi sur MDLF Training', ctaLine: 'Télécharge MDLF Training',
       ctaWhere: 'Entre mon code dans Social › Rejoindre un coach', code: 'K7M2-QX9P-R4TD',
     });
     // Rien d'autre que ce qui vient du coach : aucun champ pour un élève
     sameJSON(Object.keys(model()).sort(), ['badge', 'code', 'ctaLine', 'ctaWhere', 'handle', 'initials', 'name', 'perks', 'photo', 'specialty', 'title']);
     assert.equal(model({ specialty: '  Force ·   Perte de poids ' }).specialty, 'Force · Perte de poids', 'spécialité nettoyée');
+    // 8e panel : la ligne de ce que fournit l'app, seulement sans spécialité (rien de promis à la place du coach)
+    assert.equal(model({ specialty: 'Force' }).perks, '', 'spécialité : pas de ligne de l\'app');
+    assert.equal(run('CPA.grey'), '#A0A0A7', 'blanc secondaire à 8:1 sur le noir');
     assert.equal(model({ specialty: 'x'.repeat(60) }).specialty.length, 40, 'spécialité : 40 caractères au plus');
     assert.equal(model({ name: '', username: 'sam' }).initials, '', 'jamais d\'initiales tirées du pseudo');
     assert.equal(model({ silhouette: 'male' }).title, 'NOUVEAU COACH');
@@ -66,7 +69,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     assert.equal(model({ name: '' }).handle, '@lea.coach', 'le pseudo reste, une fois');
     assert.equal(model({ name: '  Léa   Martin  ' }).name, 'Léa Martin', 'espaces resserrés');
     assert.equal(model({ name: 'x'.repeat(60) }).name.length, 40, '40 caractères au plus');
-    assert.match(app.coachPosterAlt(model()), /^Affiche « Nouvelle coach » : Léa Martin, Programme sur mesure · Suivi · Bilans, @lea\.coach, sur MDLF Training, Carte pro déclarée, code K7M2-QX9P-R4TD$/);
+    assert.match(app.coachPosterAlt(model()), /^Affiche « Nouvelle coach » : Léa Martin, Programme · Suivi sur MDLF Training, @lea\.coach, sur MDLF Training, Carte pro déclarée, code K7M2-QX9P-R4TD$/);
     assert.match(app.coachPosterAlt(model({ neutral: true })), /^Affiche « Coach » : /);
   });
 
@@ -95,7 +98,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       }
       // Consigne sur une ligne, ou sur deux en story (coupée avant « et ») pour rester lisible
       // 7e panel : télécharger, le code, puis où l'entrer ; ce que l'élève gagne ; consignes de 26 px au moins
-      assert.ok(t.includes('Télécharge MDLF Training') && t.includes('Entre mon code dans Social › Rejoindre un coach') && t.includes('Programme sur mesure · Suivi · Bilans'), `${tag} : consignes et ce que l'élève gagne`);
+      assert.ok(t.includes('Télécharge MDLF Training') && t.includes('Entre mon code dans Social › Rejoindre un coach') && t.includes('Programme · Suivi sur MDLF Training'), `${tag} : consignes et ce que l'élève gagne`);
       for (const o of c.ops.filter(x => x.op === 'text' && ['Télécharge MDLF Training', 'Entre mon code dans Social › Rejoindre un coach', 'Carte pro déclarée'].includes(x.text))) {
         assert.ok(parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]) >= 22, `${tag} : « ${o.text} » trop petit (${o.font})`);
       }

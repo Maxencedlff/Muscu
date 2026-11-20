@@ -89,8 +89,8 @@ function pphSheetBody() {
       <div class="pph-preview">${avatarHtml('xl')}</div>
       <p class="pph-lead">${scope}</p>${rules}
       ${notice}
-      ${allowed ? `<button class="btn btn--primary btn--full" data-action="pph-pick">${p ? 'Changer de photo' : 'Choisir une photo'}</button>`
-        : `<button class="btn btn--primary btn--full" data-action="pph-offer">Choisir une photo ${pphProTag()}</button>`}
+      <div class="pph-actionbar pph-actionbar--mid">${allowed ? `<button class="btn btn--primary btn--full" data-action="pph-pick">${p ? 'Changer de photo' : 'Choisir une photo'}</button>`
+        : `<button class="btn btn--primary btn--full" data-action="pph-offer">Choisir une photo ${pphProTag()}</button>`}</div>
       <button class="btn btn--secondary btn--full pph-gap" data-action="pph-avatar">${validAvatar(account.profile?.avatar) ? 'Changer l\'avatar' : 'Choisir un avatar'}</button>
       ${p ? `<button class="btn btn--danger btn--full pph-gap" data-action="pph-remove">Retirer la photo</button>` : ''}
       <p class="pph-foot">${PPH_FREE_TEXT[free] || 'Comprise dans MDLF Pro.'} Recadrée en carré et envoyée sans la localisation ni aucune autre donnée de la photo. Si elle ne s'affiche pas, ton avatar la remplace.</p>`;

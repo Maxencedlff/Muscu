@@ -142,6 +142,15 @@ async function openCoachPoster() {
   const state = { name: coachPosterFileName('story'), alt: coachPosterAlt(coachPosterModelNow()), formats: true,
     tools: coachPosterToolsHtml(), stats: { title: 'Mon affiche de coach' },
     canSend: () => !!mine.name,
+    // Sans photo (8e panel) : une question, jamais un blocage ; posée une fois par ouverture
+    beforeSend: async () => {
+      if (mine.photo || mine.askedPhoto) return true;
+      mine.askedPhoto = true;
+      const v = await dialog({ title: 'Une affiche avec ta photo inspire plus confiance.',
+        actions: [{ label: 'Ajouter ma photo', value: 'photo', style: 'preferred' }, { label: 'Partager sans photo', value: 'share' }] });
+      if (v === 'photo') { const inp = coachPosterPhotoInput(); inp.value = ''; inp.click(); return false; }
+      return v === 'share';
+    },
     // Partagée : le nom part au serveur pour Mon coach de ses élèves (dit sous les réglages)
     onShared: () => { if (mine.name) coachPosterPublishName(mine.name); },
     onClose: () => { clearTimeout(mine.timer); if (cposter === mine) cposter = null; } };

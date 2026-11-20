@@ -134,7 +134,8 @@ function sharePreviewBody(alt, formats = false, tools = null) {
     return `
     <div class="share-preview share-preview--tools">
       <div class="share-preview__top">
-        <button type="button" class="share-preview__zoom" data-action="share-preview-zoom" aria-label="Voir l'image en plein écran">${frame}<span class="share-preview__zoomicon" aria-hidden="true">${icon('arrow.up.left.and.arrow.down.right', 16)}</span></button>
+        <button type="button" class="share-preview__zoom" data-action="share-preview-zoom" aria-label="${esc(sharePreviewZoomLabel(alt))}">${frame}</button>
+        <button type="button" class="share-preview__seebig" data-action="share-preview-zoom">${icon('arrow.up.left.and.arrow.down.right', 16)}<span>Voir en grand</span></button>
       </div>
       ${tools.rows || ''}${seg}
       ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--flow">${help}</p>` : ''}
@@ -147,6 +148,9 @@ function sharePreviewBody(alt, formats = false, tools = null) {
     <div class="share-preview">${seg}${frame}${send}
     </div>`;
 }
+
+// Nom lu par VoiceOver sur l'aperçu touchable (8e panel) : la description complète de l'image, puis ce que fait le toucher
+function sharePreviewZoomLabel(alt) { return `${String(alt || 'Image').replace(/\.$/, '')}. Touche deux fois pour voir en grand.`; }
 
 // Feuille d'aperçu commune aux images partagées (séance, écran d'un récap : js/features/recap.js).
 // state : { stats: { title }, name (fichier), alt, … } devient shareState le temps de l'aperçu ;
@@ -173,6 +177,8 @@ async function sharePreviewDraw(state) {
   state.name = state.format === 'square' ? state.baseName.replace(/\.png$/, '-carre.png') : state.baseName;
   try {
     await state.draw(state.canvas, state.format);
+    const zoom = state.root?.querySelector('.share-preview__zoom'), alt = state.canvas?.getAttribute('aria-label');
+    if (zoom && alt) zoom.setAttribute('aria-label', sharePreviewZoomLabel(alt));
     const blob = await canvasBlob(state.canvas);
     if (n !== state.drawn) return;
     state.blob = blob;
@@ -232,6 +238,13 @@ registerActions({
   'share-story-send': async (e, el) => {
     const st = shareState;
     if (!st?.blob || st.busy || (st.canSend && !st.canSend())) return;
+    // beforeSend (affiche du coach) : une question avant le partage (sans photo) ; false : rien n'est partagé
+    if (st.beforeSend) {
+      st.busy = true;
+      const go = await st.beforeSend().catch(() => false);
+      st.busy = false;
+      if (!go || shareState !== st) return;
+    }
     st.busy = true;
     el.disabled = true;
     // Départ vers une autre app pendant le partage (Instagram « Story » ouvre la sienne) : l'aperçu

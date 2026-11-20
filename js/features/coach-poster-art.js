@@ -190,9 +190,9 @@ function cpaIdentityDown(ctx, m, { x, top, maxW, nameW = maxW, name: [nMax, nMin
     if (draw) cpaText1(ctx, m.specialty, x, y, { font: cpaText(sp, 600), color: CPA.white });
     y += gap;
   }
-  // Ce que l'élève gagne, en blanc secondaire, une ligne (7e panel)
+  // Sans spécialité : ce que l'app fournit (8e panel), blanc secondaire (8:1 sur le noir), une ligne, 32 px environ
   if (m.perks) {
-    const pk = cpaFit(ctx, m.perks, maxW, subSize, subSize * 0.6, z => cpaText(z, 500));
+    const pk = cpaFit(ctx, m.perks, maxW, subSize * 1.15, subSize * 0.6, z => cpaText(z, 500));
     y += pk;
     if (draw) cpaText1(ctx, m.perks, x, y, { font: cpaText(pk, 500), color: CPA.grey });
     y += gap;
@@ -200,7 +200,7 @@ function cpaIdentityDown(ctx, m, { x, top, maxW, nameW = maxW, name: [nMax, nMin
   const sub = m.handle, bs = badgeSize, bh = Math.round(bs * 1.8);
   if (inline && m.badge && sub) {
     ctx.font = cpaText(bs, 600);
-    const bw = ctx.measureText(m.badge).width + bs * 1.6, room = maxW - bw - subSize * 0.8;
+    const bw = ctx.measureText(m.badge).width + bs * 1.6, room = nameW - bw - subSize * 0.8;   // même air que le nom (8e panel)
     ctx.font = cpaText(subSize, 600);
     const sw = ctx.measureText(sub).width;
     if (sw <= room) {

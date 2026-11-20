@@ -58,14 +58,20 @@ Personnage jusqu'à 1780 px demandé : pas fait, il est limité par la largeur d
 790 px de haut) ; atteindre 1780 px demanderait environ 550 px de large, donc de passer sous la photo ou sous le code.
 
 **7e panel ciblé (8,69/10), corrigé en v14** (`v14/`) : story centrée, autant de noir au-dessus qu'en dessous (zone sûre
-250 à 1670 px : 250 px laissés en haut et en bas) ; sous la spécialité, ce que l'élève gagne (« Programme sur mesure ·
-Suivi · Bilans », blanc secondaire) ; bandeau : « Télécharge MDLF Training », le code, « Entre mon code dans Social ›
+250 à 1670 px : 250 px laissés en haut et en bas) ; sous la spécialité, une ligne de ce que fournit l'app (revue en v15) ; bandeau : « Télécharge MDLF Training », le code, « Entre mon code dans Social ›
 Rejoindre un coach » ; carré : bandeau sur toute la largeur en bas, consignes et badge de 26 px au moins, signature
 sous le personnage, photo de 34 à 46 % de la largeur ; aperçu : Story / Carré après les réglages (Nom et Silhouette
 entiers sans défiler sur iPhone SE), pastille « agrandir » ; rond vide de l'aperçu (ni photo ni nom) : appareil photo
 et « Ta photo ici », jamais sur l'image partagée (qui demande un nom, donc ses initiales) ; Compte : vignette ronde de
 la photo sur la ligne « Photo de profil » ; « Photo de profil enregistrée » retiré au changement d'écran ; Mon coach en
 très grand texte : avatar au-dessus du nom, pseudo coupé après « _ » ou « . ».
+
+**8e panel ciblé (8,88/10), corrigé en v15** (`v15/`) : « Voir en grand », vrai bouton texte sous l'aperçu (44 pt),
+plus rien posé sur l'image ; VoiceOver lit la description complète de l'image puis « Touche deux fois pour voir en
+grand » ; sans photo, Partager pose une fois la question « Une affiche avec ta photo inspire plus confiance. » (« Ajouter
+ma photo » ou « Partager sans photo », jamais de blocage) ; la ligne de l'app devient « Programme · Suivi sur MDLF
+Training » (ce que l'app fournit à tout coach, rien de promis à sa place), seulement sans spécialité, 32 px, 8:1 sur le
+noir ; pseudo et badge tenus dans la même largeur que le nom ; « Choisir une photo » fixé en bas de sa feuille.
 
 **Mon coach** : l'élève voit le nom de l'affiche de son coach en titre, @pseudo dessous, et sa photo de profil s'il en
 a mis une. Le nom part au serveur seulement quand le coach **partage** son affiche (dit sous les réglages :

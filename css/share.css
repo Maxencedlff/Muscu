@@ -32,11 +32,12 @@
   border-radius: var(--r-lg); cursor: zoom-in; }
 html.type-xl .share-preview__zoom { height: 22vh; height: 22dvh; }
 /* Tailles d'accessibilité les plus grandes sur petit écran (6e panel) : 18 %, deux réglages au moins visibles */
-@media (max-height: 700px) { html.type-xxl .share-preview__zoom { height: 18vh; height: 18dvh; } html.type-xxl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(18dvh + 24px); } }
+@media (max-height: 700px) { html.type-xxl .share-preview__zoom { height: 18vh; height: 18dvh; } html.type-xxl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(18dvh + 68px); } }
 .share-preview__zoom { aspect-ratio: 9 / 16; flex: 0 0 auto; position: relative; }
-/* Agrandir (7e panel) : pastille en coin, sur fond opaque, qui dit qu'un toucher ouvre l'image en grand */
-.share-preview__zoomicon { position: absolute; right: 6px; bottom: 6px; display: grid; place-items: center; width: 28px; height: 28px;
-  border-radius: 50%; background: var(--cell); color: var(--label); box-shadow: 0 0 0 0.5px var(--sep); }
+/* « Voir en grand » (8e panel) : un vrai bouton sous l'aperçu, rien posé sur l'image */
+.share-preview__top { flex-direction: column; align-items: center; }
+.share-preview__seebig { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 0;
+  background: none; color: var(--tint); font: inherit; font-size: var(--fs-subhead); font-weight: 600; cursor: pointer; }
 .share-preview__zoom:has(.share-preview__frame--square) { aspect-ratio: 1; }
 .share-preview--tools .share-preview__frame, .share-preview--tools .share-preview__frame--square { width: 100%; height: 100%; aspect-ratio: auto; }
 .share-preview--tools .share-preview__formats { max-width: 420px; }
@@ -86,13 +87,13 @@ html.type-xl .cposter-row__seg .segmented__btn--active::before { display: inline
 /* Très grand texte : le champ Nom passe sous son libellé, pleine largeur (« Prénom Nom » entier) */
 html.type-xl .cposter-row__input { flex-basis: 100%; text-align: left; }
 /* Un réglage amené à l'écran (clavier, VoiceOver) s'arrête entre l'aperçu fixé en haut et la barre fixée en bas */
-.sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(min(40dvh, 460px) + 24px); scroll-padding-bottom: 140px; }
-html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(22dvh + 24px); scroll-padding-bottom: 160px; }
+.sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(min(40dvh, 460px) + 68px); scroll-padding-bottom: 140px; }
+html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(22dvh + 68px); scroll-padding-bottom: 160px; }
 .cposter-foot { width: 100%; max-width: 420px; margin: -4px 4px 0; font-size: var(--fs-footnote); color: var(--label2); }
 .share-preview__note { color: var(--label); font-weight: 600; }
 /* iPhone SE et petits écrans : aperçu fixé à 30 % de la hauteur, Silhouette visible sans défiler */
 @media (max-height: 700px) { .share-preview__zoom { height: 30vh; height: 30dvh; } }
-@media (max-height: 700px) { html:not(.type-xl) .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 24px); } }
+@media (max-height: 700px) { html:not(.type-xl) .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 68px); } }
 /* Note « Ajoute ton nom… » : dans la barre, au-dessus de Partager (en très grand texte aussi), un lien qui amène au
    champ manquant et l'active (5e panel) */
 .share-preview__note { margin: 0 0 var(--sp-2); text-align: center; }

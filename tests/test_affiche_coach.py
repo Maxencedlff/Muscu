@@ -236,7 +236,17 @@ def t_coach_affiche(bench, eng, dev, theme):
             const bar = document.querySelector('.sheet .share-preview__actionbar').getBoundingClientRect().top;
             return [...document.querySelectorAll('.sheet .cposter-row')].slice(0, 2).every(r => { const b = r.getBoundingClientRect(); return b.top >= top - 1 && b.bottom <= bar + 1; }); }""")
         R.check(whole, f'{t} Nom et Silhouette entiers sans défiler')
-        R.check(page.is_visible('.sheet .share-preview__zoomicon'), f'{t} pastille « agrandir » sur l\'aperçu')
+        # 8e panel : « Voir en grand », vrai bouton sous l'aperçu (44 pt), rien posé sur l'image ; VoiceOver lit la description
+        # complète de l'image puis ce que fait le toucher
+        sb = page.evaluate("(() => { const b = document.querySelector('.sheet .share-preview__seebig').getBoundingClientRect(), f = document.querySelector('.sheet .share-preview__zoom').getBoundingClientRect(); return { h: b.height, below: b.top >= f.bottom - 1, alone: document.querySelector('.sheet .share-preview__zoom').children.length === 1 }; })()")
+        R.check(sb['h'] >= 44 and sb['below'] and sb['alone'], f'{t} « Voir en grand » sous l\'aperçu, rien sur l\'image ({sb})')
+        zl = page.get_attribute('.sheet .share-preview__zoom', 'aria-label')
+        R.check(zl.startswith(page.get_attribute('.sheet .share-preview__img', 'aria-label').rstrip('.')) and zl.endswith('Touche deux fois pour voir en grand.') and code in zl,
+                f'{t} VoiceOver : description complète puis « Touche deux fois pour voir en grand » ({zl!r})')
+        page.click('.sheet .share-preview__seebig')
+        page.wait_for_selector('.share-zoom .share-zoom__img', timeout=5000)
+        page.click('.share-zoom')
+        page.wait_for_function("() => !document.querySelector('.share-zoom')", timeout=5000)
         R.check(page.evaluate("(() => { const c = document.querySelector('.sheet .share-preview__img'); return c.getAttribute('aria-label').includes('Affiche'); })()"), f'{t} aperçu sans nom ni photo dessiné')
         # Un toucher sur l'aperçu l'ouvre en plein écran, un autre le ferme
         page.locator('.sheet .share-preview__zoom').scroll_into_view_if_needed()
@@ -456,6 +466,8 @@ def t_apercu_grand_texte(bench, eng, dev, theme):
         page.click('[data-action="pph-open"]')
         page.wait_for_selector('.sheet .pph-sheet [data-action="pph-pick"]', timeout=8000)
         settle(page)
+        pick = page.evaluate("(() => { const b = document.querySelector('.sheet [data-action=pph-pick]').getBoundingClientRect(); return b.top >= 0 && b.bottom <= innerHeight + 0.5; })()")
+        R.check(pick, f'{t} AX33 photo : « Choisir une photo » entier sans défiler')
         R.check(page.is_visible('.sheet .pph-scope-short') and not page.is_visible('.sheet .pph-scope-full') and not page.is_visible('.sheet .pph-rules p'),
                 f'{t} AX33 photo : phrase courte, règle repliée')
         page.click('.sheet .pph-rules summary')
@@ -613,7 +625,17 @@ def t_sans_migration(bench, eng, dev, theme):
                 page.evaluate("document.querySelector('#cposterName').scrollIntoView({ block: 'center' })")
                 page.fill('#cposterName', 'Camille Martin')
                 page.wait_for_function("() => !document.querySelector('.sheet .share-preview__send').disabled", timeout=8000)
+            # Sans photo (8e panel) : une question, jamais un blocage
             page.click('.sheet [data-action="share-story-send"]')
+            page.wait_for_selector('.ios-dialog', timeout=5000)
+            R.check('Une affiche avec ta photo inspire plus confiance.' in page.inner_text('.ios-dialog'), f'{t} sans photo, partage {n} : la question est posée')
+            if n == 1:
+                with page.expect_file_chooser():
+                    tap_dialog(page, 'Ajouter ma photo')
+                R.check(page.locator('.sheet .share-preview').count() == 1 and page.evaluate('window.__shared.length') == 0, f'{t} « Ajouter ma photo » : sélecteur ouvert, rien partagé')
+                page.click('.sheet [data-action="share-story-send"]')   # question posée une fois par ouverture
+            else:
+                tap_dialog(page, 'Partager sans photo')
             page.wait_for_function(f'() => window.__shared.length === {n}', timeout=8000)
             page.wait_for_function(f"() => __sb.calls.filter(c => c[0] === 'coach' && c[1] === 'coach_set_poster_name').length === {n}", timeout=8000)
             settle(page)
@@ -624,6 +646,8 @@ def t_sans_migration(bench, eng, dev, theme):
         page.click('[data-action="coach-poster-open"]')
         preview_ready(page)
         page.click('.sheet [data-action="share-story-send"]')
+        page.wait_for_selector('.ios-dialog', timeout=5000)
+        tap_dialog(page, 'Partager sans photo')
         page.wait_for_function("me => (__sb.co.posterNames || {})[me] === 'Camille Martin'", arg=me, timeout=8000)
         R.check(True, f'{t} migration appliquée : nom envoyé au partage suivant')
         R.check(not page.errors and not cons, f'{t} sans migration, coach : aucune erreur JS ni console {page.errors} {cons}')
