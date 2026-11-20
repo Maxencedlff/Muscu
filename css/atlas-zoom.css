@@ -31,6 +31,7 @@
 .azoom__sum { display: flex; align-items: center; min-height: 44px; color: var(--tint); font-size: min(var(--fs-body), 22px); cursor: pointer; }
 .azoom__key[open] .azoom__sum { min-height: 32px; }
 .type-xl .azoom__band { gap: 8px; }
+html.type-xl .sheet-root--atlas .sheet__btn--cancel { display: none; }   /* sans Annuler (feuille à OK seul) : la place va au titre */
 html.type-xl .sheet-root--atlas .sheet__bar .sheet__title { order: 0; flex: 1 1 0; flex-basis: 0; padding: 0 4px; text-align: center; font-size: min(1rem, 22px); }
 .azoom__legend .mlegend__item { min-width: 0; flex-wrap: wrap; }   /* texte agrandi : la légende reste, l'aide (déjà sous la carte) laisse la place au personnage */
 .azoom__ctl { display: flex; gap: 8px; flex: none; }
