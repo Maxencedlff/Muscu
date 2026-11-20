@@ -113,7 +113,9 @@ def t_flow(bench, eng, dev, theme):
         nxt = ' '.join(page.locator('.rest-mini__next').inner_text().split())
         narrow = page.evaluate('innerWidth < 380')   # écran étroit : « Série 2 » part avant que le nom soit coupé
         # iPhone SE (< 360) : la charge passe sur sa propre ligne, sans « · » en tête (7634698)
-        head = 'Ensuite : Développé couché haltères ' if page.evaluate('innerWidth < 360') else 'Ensuite : Développé couché haltères · '
+        # Série passée sous le nom (iPhone 13, 17) : sans « · » en tête non plus (grille avant panel, règle 6)
+        wrapped = page.evaluate("document.querySelector('.rest-mini__next').classList.contains('rest-mini__next--wrapped')")
+        head = 'Ensuite : Développé couché haltères ' if page.evaluate('innerWidth < 360') or wrapped else 'Ensuite : Développé couché haltères · '
         R.check(nxt.startswith(head + ('' if narrow else 'Série 2 · ')) and ('Série 2' not in nxt) == narrow and ' kg × ' in nxt, f'{t} ligne « Ensuite » ({nxt!r})')
         # Ligne trop longue : le nom se coupe (points de suspension), jamais la série (« 32,5 kg × 10 » entier)
         tail = page.evaluate("(() => { const n = document.querySelector('.rest-mini__next'), t = n.querySelector('.rest-mini__tail').getBoundingClientRect(); return t.right <= n.getBoundingClientRect().right + 1; })()")

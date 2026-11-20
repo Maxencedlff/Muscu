@@ -1129,11 +1129,13 @@ function fitSessionTitle() {
   if (main?.dataset.short && main.scrollWidth > main.clientWidth + 1) main.textContent = main.dataset.short;
 }
 
-// Barre de repos : le « · » collé au nom (rest-mini__dot, js/features/rest.js) disparaît quand la série passe à la ligne :
-// ni en début ni en fin de ligne (grille avant panel, règle 6)
+// Barre de repos : la série passée sous le nom de l'exercice ne commence jamais par « · » (rest.js ; grille avant
+// panel, règle 6). Mesurée sans la classe, la série commence sous la ligne du nom : passée à la ligne
 function restNextDot() {
-  const d = $('.rest-mini__dot'), t = $('.rest-mini__next .rest-mini__tail');
-  if (d && t) d.hidden = t.getBoundingClientRect().top > d.getBoundingClientRect().top + 2;
+  const n = $('.rest-mini__next'), t = n?.querySelector('.rest-mini__tail'), name = n?.querySelector('.rest-mini__name');
+  if (!t || !name) return;
+  n.classList.remove('rest-mini__next--wrapped');
+  n.classList.toggle('rest-mini__next--wrapped', t.getBoundingClientRect().top >= name.getBoundingClientRect().bottom - 1);
 }
 
 // Appelé par render() après l'affichage de la séance

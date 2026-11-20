@@ -308,12 +308,9 @@ body:not(.light) .rest-mini .rest-mini__skip { color: #8AC4FF; }
 @media (max-width: 379px) { .rest-ring--small { display: none; } }
 /* Écran étroit : « S2 » part avant que le nom de l'exercice soit coupé (la charge et les reps restent) */
 @media (max-width: 379px) { .rest-mini__next .rest-mini__step { display: none; } }
-/* « · » entre le nom et la série : collé au nom (rest-mini__dot) ; la série qui passe à la ligne ne commence jamais par
-   « · ». Au-dessus de 380 px, la série commence par « Série 2 » (rest-mini__sep suit l'étape) ; entre 360 et 379 px,
-   l'étape cachée, le « · » du nom tient lieu de séparateur ; sous 360 px, la charge a sa ligne, sans « · » */
-@media (min-width: 380px) { .rest-mini__next .rest-mini__step + .rest-mini__sep { display: inline; } }
-@media (max-width: 379px) { .rest-mini__next .rest-mini__sep { display: none; } }
-@media (max-width: 359px) { .rest-mini__dot { display: none; } }
+/* Série passée sous le nom (rest-mini__next--wrapped, posé par restNextDot) : elle ne commence jamais par « · » */
+.rest-mini__next--wrapped .rest-mini__lead { display: none; }
+@media (max-width: 379px) { .rest-mini__next--wrapped .rest-mini__sep { display: none; } }
 /* iPhone SE : le nom de l'exercice suivant entier (panel t6 : « Rowing haltère uni… », l'info utile pendant le repos),
    la charge sur sa propre ligne, sans « · » en tête */
 @media (max-width: 359px) {
