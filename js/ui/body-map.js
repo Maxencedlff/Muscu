@@ -72,7 +72,7 @@ function bodyHeatOpacity(i) {
 // Panel affichage-e t1 (38 juges sur 40) : l'échelle s'inversait entre les thèmes. Désormais UNE échelle : le rouge des
 // muscles (--body-heat) de plus en plus opaque, donc de plus en plus intense, du palier 1 au palier 4, dans les deux thèmes ;
 // « pas travaillé » reste le gris du corps. Même code que la fiche : rouge = travaillé, plus intense = plus travaillé.
-const BODY_TIER_OPACITY = [0.3, 0.5, 0.75, 1];
+const BODY_TIER_OPACITY = [0.28, 0.52, 0.76, 1];   // pas réguliers : chaque palier se distingue de son voisin (ΔE ≥ 15, test_panel_apple)
 function bodyTier(i) {
   const v = Math.max(0, Math.min(1, Number(i) || 0));
   if (!v) return null;

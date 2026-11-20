@@ -164,6 +164,11 @@ function atlasTap(e, mapEl) {
 // n'est empêché que pendant ce pincement (preventDefault seulement à deux doigts sur une carte).
 let atlasPinch = null;   // { viewer } pendant un pincement commencé sur une carte
 if (typeof document !== 'undefined' && document.addEventListener) {
+  // Un vrai toucher ailleurs (légende, liste…) entre deux touchers de la carte : ce n'est plus un double toucher
+  // (les clics simulés de haptic(), non « trusted », juste après un toucher, ne comptent pas)
+  document.addEventListener('click', e => {
+    if (e.isTrusted && atlasLastTap && !atlasLastTap.el.contains(e.target)) atlasLastTap = null;
+  }, true);
   const feed = (type, list) => {
     for (const t of list) atlasViewer?.feed(type, { pointerId: `t${t.identifier}`, clientX: t.clientX, clientY: t.clientY });
   };
