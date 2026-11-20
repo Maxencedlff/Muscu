@@ -575,12 +575,12 @@ html.type-xl .social-row__name, html.type-xl .targets__name { overflow-wrap: nor
 /* Mini-barre de repos : le chrono sur sa ligne, −15 / +15 dessous, puis Passer (le chrono disparaissait, « 2:0 ») */
 /* Vague 3-t4 : la mini-barre réduite au chrono et à Passer (elle couvrait la série suivante sur 4 rangées) ; −15 / +15
    et « Ensuite » restent dans la feuille Repos, qu'ouvre le chrono */
-/* Panel du 20/11 (8 juges en AX33) : réduite au chrono et à Passer, la barre perdait −15 / +15 et « Ensuite ». Sur
-   deux rangées : le chrono et Passer, puis −15, +15 ; « Ensuite » dessous, sur sa ligne. La séance défile au-dessus
+/* Panel du 20/11 (8 juges en AX33) : réduite au chrono et à Passer, la barre perdait −15 / +15 et « Ensuite ». Le chrono
+   sur sa rangée, puis −15, +15 et Passer (calé à droite) ; « Ensuite » dessous, sur sa ligne. La séance défile au-dessus
    d'elle (scrollToCurrent tient compte de sa hauteur) */
 html.type-xl .rest-mini {
-  grid-template-columns: auto auto minmax(0, 1fr) max-content;
-  grid-template-areas: "main main main skip" "m15 p15 . ." "next next next next";
+  grid-template-columns: max-content max-content minmax(0, 1fr); column-gap: 8px;
+  grid-template-areas: "main main main" "m15 p15 skip" "next next next";
 }
 html.type-xl .rest-mini .rest-mini__main { grid-area: main; }
 html.type-xl .rest-mini .rest-mini__btn[data-d="-15"] { grid-area: m15; }
@@ -588,7 +588,7 @@ html.type-xl .rest-mini .rest-mini__btn[data-d="15"] { grid-area: p15; }
 html.type-xl .rest-mini .rest-mini__skip { grid-area: skip; justify-self: end; box-sizing: border-box; max-width: 100%; }
 html.type-xl .tech-tag { white-space: nowrap; }   /* « Drop 1 » sur une ligne : la colonne du numéro est large en texte agrandi */
 html.type-xl .rest-mini .rest-mini__next { grid-area: next; }
-html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 44px; padding: 0 12px; white-space: nowrap; }
+html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 44px; padding: 0 8px; white-space: nowrap; }
 /* Feuille Repos : titre et « Réduire » l'un sous l'autre, durées sur deux rangées de trois */
 html.type-xl .rs__top { flex-wrap: wrap; justify-content: space-between; }
 html.type-xl .rs__top .rs__title { padding: 0; order: 2; flex-basis: 100%; }
