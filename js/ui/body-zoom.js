@@ -109,7 +109,8 @@ async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root
     * Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top)), 0);
   const z = zone.getBoundingClientRect(), x = e.clientX, y = e.clientY, gap = 14;
   showBodyTip(atlasTipHtml(hit.part, lv), x, y, container ? null : root, {
-    cost, container, bounds: { minTop: z.top + 4, maxBottom: z.bottom - 4 },
+    // Zone du dessin, réduite à ce qui est visible (sous la barre de navigation, au-dessus de la barre d'onglets)
+    cost, container, bounds: (b => ({ minTop: Math.max(z.top + 4, b.minTop), maxBottom: Math.min(z.bottom - 4, b.maxBottom) }))(bodyTipBounds(container ? null : root)),
     avoid: avoid.filter(Boolean).map(a => a.getBoundingClientRect()),
     spots: (w, h) => [{ left: x - w / 2, top: y - gap - h }, { left: x - w / 2, top: y + gap }],
   });
