@@ -84,3 +84,7 @@ html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(
 /* iPhone SE et petits écrans : aperçu fixé à 30 % de la hauteur, Silhouette visible sans défiler */
 @media (max-height: 700px) { .share-preview__zoom { height: 30vh; height: 30dvh; } }
 @media (max-height: 700px) { .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 24px); } }
+/* Note « Ajoute ton prénom… » : dans la barre, ou à la fin des réglages en très grand texte */
+.share-preview__note--flow { display: none; }
+html.type-xl .share-preview__note--flow:not([hidden]) { display: block; }
+html.type-xl .share-preview__note--bar { display: none; }

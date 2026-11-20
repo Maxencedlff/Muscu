@@ -213,6 +213,7 @@ async function cposterPick(el, field, keys) {
     if (t) t.textContent = cposterTitleLabel();
     const send = st.root?.querySelector('.share-preview__send');
     if (send) send.disabled = true;   // personnage en chargement : pas de partage de l'ancienne image
+    st.blob = null;
     mine.body = await cposterBody(mine);
     if (cposter !== mine || shareState !== st) return;
   }

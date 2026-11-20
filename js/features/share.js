@@ -127,15 +127,16 @@ function sharePreviewBody(alt, formats = false, tools = null) {
   // La note (ce qui manque pour partager) va dans la barre, sous le bouton
   if (tools) {
     const help = tools.help ? esc(tools.help) : '';
-    const note = tools.note ? `<p class="share-preview__hint share-preview__note" role="status" hidden>${esc(tools.note)}</p>` : '';
+    // En très grand texte, la note passe à la fin des réglages (la barre fixée reste basse sur un petit écran)
+    const note = where => (tools.note ? `<p class="share-preview__hint share-preview__note share-preview__note--${where}" role="status" hidden>${esc(tools.note)}</p>` : '');
     return `
     <div class="share-preview share-preview--tools">
       <div class="share-preview__top">
         <button type="button" class="share-preview__zoom" data-action="share-preview-zoom" aria-label="Voir l'image en plein écran">${frame}</button>
       </div>
       ${seg}${tools.rows || ''}
-      ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--flow">${help}</p>` : ''}
-      <div class="share-preview__actionbar">${send.replace(/\s*<p class="share-preview__hint">[^<]*<\/p>/, '')}${note}
+      ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--flow">${help}</p>` : ''}${note('flow')}
+      <div class="share-preview__actionbar">${send.replace(/\s*<p class="share-preview__hint">[^<]*<\/p>/, '')}${note('bar')}
         ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--bar">${help}</p>` : ''}
       </div>
     </div>`;
@@ -182,8 +183,7 @@ async function sharePreviewDraw(state) {
   }
   // canSend (affiche du coach) : partage refusé tant qu'il manque une donnée (le nom), la note dit laquelle
   const ok = !state.canSend || state.canSend();
-  const note = state.root?.querySelector('.share-preview__note');
-  if (note) note.hidden = ok;
+  state.root?.querySelectorAll('.share-preview__note').forEach(n => { n.hidden = ok; });
   if (btn && ok && (state.file || (Native.isNative && state.blob))) btn.disabled = false;
 }
 
