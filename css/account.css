@@ -396,3 +396,6 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
 .pph-foot { margin: 12px 0 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
 /* Très grand texte : « Utiliser cette photo » et « Choisir une autre photo » passent à la ligne au lieu d'être coupés */
 .pph-sheet .btn { white-space: normal; height: auto; min-height: 50px; padding-block: 10px; }
+/* Aperçu de la photo : « Utiliser cette photo » fixé en bas de la feuille (fond opaque), visible sans défiler en grand texte */
+.pph-actionbar { position: sticky; bottom: -24px; z-index: 2; margin: var(--sp-3) -16px -24px; padding: 12px 16px 16px;
+  background: var(--cell); box-shadow: 0 -0.5px 0 var(--sep); }

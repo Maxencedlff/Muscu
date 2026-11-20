@@ -162,12 +162,12 @@ function renderAccount() {
             <span class="cell__value">${p?.username ? esc(p.username) : 'Choisir'}</span>
             ${icon('chevron.right', 16)}
           </button>
-          <button class="cell cell--nav" data-action="account-edit-avatar">
+          ${myProfilePhoto() && !myProfilePhoto().hidden ? '' : `<button class="cell cell--nav" data-action="account-edit-avatar">
             <span class="cell__body"><span class="cell__title">Avatar</span></span>
             ${validAvatar(p?.avatar) ? `<span class="cell__value account-emoji" aria-label="${esc(avatarName(p.avatar))}">${esc(p.avatar)}</span>`
               : '<span class="cell__value">Aucun</span>'}
             ${icon('chevron.right', 16)}
-          </button>${profilePhotoCellHtml()}
+          </button>`}${profilePhotoCellHtml()}
         </div>
         <div class="group-foot">${profilePhotoOn() ? 'Tes amis (si le social est activé) et ton coach voient ton pseudo, ton avatar et ta photo. Personne d\'autre ne voit la photo.'
           : 'Tes amis voient ton pseudo et ton avatar si le social est activé. Sinon, ils ne sont visibles que par toi.'}</div>

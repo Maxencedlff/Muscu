@@ -29,6 +29,26 @@ d'assombrissement uniforme ; nom, « @pseudo · Sur MDLF Training », badge « C
 sur l'orange plein (« Télécharge MDLF Training et entre mon code ») ; « Programme · Suivi · Messages » en décor en bas.
 Rendus : `~/.local/share/mdlf/panel/affiche-coach/v6/` (`comparaison.png` : v2 et v6 côte à côte, `contrastes.json`).
 
+**4e panel (8,4/10, 12 juges sur 40), corrigé en v11** (`v11/`, `comparaison.png` : v10 et v11) : la photo du coach
+domine (560 px au moins en story, 46 % de la largeur en carré, juste sous le titre) ; le personnage, entier et aux mêmes
+couleurs, passe second (34 à 36 % de la largeur, à gauche) ; tout entre 250 et 1600 px, signature au-dessus de la barre
+de réponse. Code en SF Pro Display Heavy (« VV » et « W », « 5 » et « S » bien distincts), jamais coupé au tiret dans
+Mes élèves. Sans nom, « Partager » est grisé (« Ajoute ton prénom pour partager ton affiche »), plus d'initiales tirées
+du pseudo ; spécialité facultative (40 caractères, sous le nom). Silhouette femme : les faisceaux moyen et bas du grand
+pectoral restent au gris (voir plus bas). Compte : avec une photo, la ligne Avatar disparaît (« Changer l'avatar » est
+dans la feuille de la photo). Feuille : Silhouette juste sous Story / Carré, aperçu à 30 % de la hauteur sur les petits
+écrans ; « Utiliser cette photo » fixé en bas de la feuille de la photo de profil.
+
+**À la sortie sur l'App Store** : l'aide « Ajoute un sticker lien vers l'App Store dans ta story » a été retirée (il n'y
+a pas encore de lien) ; à remettre avec un vrai lien d'invitation (le code prérempli à l'ouverture de l'app), et alors
+un QR code de ce lien sur l'affiche.
+
+**À corriger dans l'atlas (img/body2, dépôt mdlf-perso)** : la silhouette femme n'a pas de maillage séparé pour le tissu
+mammaire. Les calques `img/body2/female/front/p3/chest_sternal.webp` et `chest_abdominal.webp` (et leurs versions 1×
+`p/chest_sternal.webp`, `p/chest_abdominal.webp`, parties `chest_sternal` et `chest_abdominal` de
+`js/data/body-parts.js`) couvrent la poitrine : un pectoral « ciblé » la colore en rouge dans la fiche exercice et dans
+Progrès. Sur l'affiche, ces deux parties sont laissées au gris (`CPA_FEMALE_SKIP`).
+
 **3e panel (7,9/10), corrigé en v10** (`v10/`, `comparaison.png` : v9 et v10, `comparaison_app.png`) : le corps était
 caché par le titre et la photo, et le carré plaisait davantage ; la story reprend donc la composition du carré en
 vertical (titre en haut, personnage entier à gauche, photo, nom, pseudo en blanc, badge, code et signature à droite),

@@ -73,11 +73,14 @@ html.type-xl .cposter-row__seg .segmented__btn--active { font-weight: 600; color
 html.type-xl .cposter-row__seg .segmented__btn--active::before { display: inline; content: '✓ '; position: static; width: auto; background: none; opacity: 1; }
 /* Le chevron reste collé à la valeur (« Changer › ») ; trop étroit, les deux passent ensemble sous « Photo » */
 .cposter-row__end { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; white-space: nowrap; }
-/* Code permanent d'un bloc, jamais coupé au tiret (Mes élèves › Invitations) */
-.coach-code-cell .coach-code { white-space: nowrap; }
 .cposter-row__seg .segmented__btn { flex: 0 0 auto; padding: 0 10px; white-space: nowrap; }
 /* Très grand texte : le champ Nom passe sous son libellé, pleine largeur (« Ajoute ton prénom » entier) */
 html.type-xl .cposter-row__input { flex-basis: 100%; text-align: left; }
 /* Un réglage amené à l'écran (clavier, VoiceOver) s'arrête entre l'aperçu fixé en haut et la barre fixée en bas */
 .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(min(40dvh, 460px) + 24px); scroll-padding-bottom: 140px; }
 html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 24px); scroll-padding-bottom: 120px; }
+.cposter-foot { width: 100%; max-width: 420px; margin: -4px 4px 0; font-size: var(--fs-footnote); color: var(--label2); }
+.share-preview__note { color: var(--label); font-weight: 600; }
+/* iPhone SE et petits écrans : aperçu fixé à 30 % de la hauteur, Silhouette visible sans défiler */
+@media (max-height: 700px) { .share-preview__zoom { height: 30vh; height: 30dvh; } }
+@media (max-height: 700px) { .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 24px); } }

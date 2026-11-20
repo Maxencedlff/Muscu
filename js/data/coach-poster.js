@@ -11,7 +11,8 @@
 'use strict';
 
 const CPOSTER_NAME_MAX = 40;
-const CPOSTER_PREFS_KEY = 'mdlf_coach_poster';   // { uid, name, silhouette, neutral } : cet appareil seulement
+const CPOSTER_SPECIALTY_MAX = CPOSTER_NAME_MAX;   // « Ta spécialité (facultatif) », sous le nom : 40 caractères (posterName)
+const CPOSTER_PREFS_KEY = 'mdlf_coach_poster';   // { uid, name, specialty, silhouette, neutral } : cet appareil seulement
 const CPOSTER_PHOTO_MAX = 2048;                   // côté le plus long de la photo d'origine gardée
 const CPOSTER_DB = 'mdlf-coach-poster', CPOSTER_STORE = 'photo';
 
@@ -36,13 +37,14 @@ function posterInitials(name) {
 // code : code coach permanent ; badge : carte pro déclarée et montrée ; hasPhoto : photo lisible ; silhouette :
 // 'female' ou 'male', choisie dans l'écran de l'affiche (jamais déduite du prénom) : accord « NOUVELLE COACH » ou
 // « NOUVEAU COACH » ; neutral : « COACH » seul, sans genre
-function coachPosterModel({ name = '', username = '', code = '', badge = false, hasPhoto = false, silhouette = 'male', neutral = false } = {}) {
+function coachPosterModel({ name = '', specialty = '', username = '', code = '', badge = false, hasPhoto = false, silhouette = 'male', neutral = false } = {}) {
   const user = String(username ?? '').replace(/^@/, '').trim();
   const n = posterName(name);
   return {
-    name: n,                                  // vide : pas de nom géant (jamais le @pseudo en capitales)
+    name: n,                                  // vide : pas de nom géant (jamais le @pseudo en capitales) ; partage bloqué
+    specialty: posterName(specialty),
     handle: user ? `@${user}` : '',
-    initials: posterInitials(n || user),
+    initials: n ? posterInitials(n) : '',     // jamais tirées du pseudo
     photo: hasPhoto === true,
     title: neutral === true ? 'COACH' : silhouette === 'female' ? 'NOUVELLE COACH' : 'NOUVEAU COACH',
     badge: badge === true ? COACH_BADGE_LABEL : null,
@@ -54,7 +56,7 @@ function coachPosterModel({ name = '', username = '', code = '', badge = false, 
 // Texte lu par VoiceOver sur l'aperçu
 function coachPosterAlt(m) {
   const title = { 'NOUVELLE COACH': 'Nouvelle coach', 'NOUVEAU COACH': 'Nouveau coach' }[m.title] || 'Coach';
-  return [`Affiche « ${title} »${m.name ? ` : ${m.name}` : ''}`, m.handle, 'sur MDLF Training', m.badge, `code ${m.code}`].filter(Boolean).join(', ');
+  return [`Affiche « ${title} »${m.name ? ` : ${m.name}` : ''}`, m.specialty, m.handle, 'sur MDLF Training', m.badge, `code ${m.code}`].filter(Boolean).join(', ');
 }
 
 // Nom du fichier partagé (sans le pseudo : le fichier peut être renvoyé ailleurs)
@@ -65,14 +67,14 @@ function coachPosterPrefs(uid) {
   try {
     const p = JSON.parse(localStorage.getItem(CPOSTER_PREFS_KEY) || 'null');
     if (p && p.uid === uid) {
-      return { name: posterName(p.name), silhouette: p.silhouette === 'female' ? 'female' : 'male', neutral: p.neutral === true };
+      return { name: posterName(p.name), specialty: posterName(p.specialty), silhouette: p.silhouette === 'female' ? 'female' : 'male', neutral: p.neutral === true };
     }
   } catch { /* stockage illisible : valeurs par défaut */ }
   return null;
 }
-function coachPosterSavePrefs(uid, { name, silhouette, neutral }) {
+function coachPosterSavePrefs(uid, { name, specialty, silhouette, neutral }) {
   try {
-    localStorage.setItem(CPOSTER_PREFS_KEY, JSON.stringify({ uid, name: posterName(name), silhouette: silhouette === 'female' ? 'female' : 'male',
+    localStorage.setItem(CPOSTER_PREFS_KEY, JSON.stringify({ uid, name: posterName(name), specialty: posterName(specialty), silhouette: silhouette === 'female' ? 'female' : 'male',
       neutral: neutral === true }));
   }
   catch { /* stockage plein : pas grave */ }

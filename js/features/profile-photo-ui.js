@@ -72,8 +72,10 @@ function pphSheetBody() {
     return `
       <div class="pph-preview"><img class="pph-preview__img" src="${esc(v.url)}" alt="Aperçu de ta photo de profil, recadrée en carré" draggable="false"></div>
       <p class="pph-lead">Ta photo, recadrée en carré. ${scope}</p>
-      <button class="btn btn--primary btn--full" data-action="pph-use" ${sending ? 'disabled aria-busy="true"' : ''}>${sending ? 'Envoi…' : 'Utiliser cette photo'}</button>
-      <button class="btn btn--secondary btn--full pph-gap" data-action="pph-pick" ${sending ? 'disabled' : ''}>Choisir une autre photo</button>`;
+      <div class="pph-actionbar">
+        <button class="btn btn--primary btn--full" data-action="pph-use" ${sending ? 'disabled aria-busy="true"' : ''}>${sending ? 'Envoi…' : 'Utiliser cette photo'}</button>
+        <button class="btn btn--secondary btn--full pph-gap" data-action="pph-pick" ${sending ? 'disabled' : ''}>Choisir une autre photo</button>
+      </div>`;
   }
   const notice = p?.hidden ? '<p class="pph-note" role="status">Ta photo est masquée après un signalement, le temps que nous la vérifions (24 heures au plus).</p>'
     : p && !allowed ? '<p class="pph-note" role="status">Ta photo n\'est plus montrée : elle fait partie de MDLF Pro. Ton avatar la remplace.</p>' : '';
@@ -82,6 +84,7 @@ function pphSheetBody() {
       <p class="pph-lead">${scope}</p>
       ${notice}
       ${allowed ? `<button class="btn btn--primary btn--full" data-action="pph-pick">${p ? 'Changer de photo' : 'Choisir une photo'}</button>` : ''}
+      ${p ? `<button class="btn btn--secondary btn--full pph-gap" data-action="pph-avatar">Changer l'avatar</button>` : ''}
       ${p ? `<button class="btn btn--danger btn--full pph-gap" data-action="pph-remove">Retirer la photo</button>` : ''}
       <p class="pph-foot">${PPH_FREE_TEXT[free] || 'Comprise dans MDLF Pro.'} Recadrée en carré et envoyée sans la localisation ni aucune autre donnée de la photo. Si elle ne s'affiche pas, ton avatar la remplace.</p>`;
 }
@@ -198,5 +201,12 @@ registerActions({
   'pph-pick': () => { const inp = pphInput(); inp.value = ''; inp.click(); },
   'pph-use': (e, el) => pphUse(el),
   'pph-remove': () => pphRemoveFlow(),
+  // Une ligne = un sens (panel du 20/11) : avec une photo, la ligne Avatar du compte disparaît ; l'avatar (montré si la
+  // photo ne charge pas) se change ici
+  'pph-avatar': async (e, el) => {
+    el?.closest('.sheet-root')?._close?.(null);
+    await new Promise(r => setTimeout(r, 300));
+    await openAuthFlow({ step: 'avatar', mode: 'profile' });
+  },
   'pph-report': (e, el) => pphReportFlow(el.dataset.uid),
 });

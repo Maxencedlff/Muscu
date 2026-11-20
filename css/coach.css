@@ -124,7 +124,11 @@
 .view--grouped .cell.coach-invite, .view--grouped .cell.coach-code-cell--main { padding-top: 8px; padding-bottom: 8px; gap: 4px; min-height: 60px; }
 .coach-invite .cell__body, .coach-code-cell--main .cell__body { min-width: 0; }
 .coach-code-cell--main .cell__sub { overflow-wrap: anywhere; }
-.coach-code-cell--main .coach-code { white-space: normal; }   /* petit écran, texte agrandi : passe à la ligne après un tiret */
+/* Le code ne se coupe jamais au tiret (panel du 20/11 : on le recopiait à moitié) : trop étroit (iPhone SE, texte agrandi),
+   les boutons Copier et Partager passent sous le code */
+.coach-code-cell .coach-code { white-space: nowrap; }
+.view--grouped .cell.coach-code-cell { flex-wrap: wrap; }
+.coach-code-cell .cell__body, .coach-code-cell--main .cell__body { flex: 1 0 auto; min-width: min-content; }
 .coach-code-cell--main .coach-icon-btn + .coach-icon-btn { margin-left: -6px; }
 .coach-code { font-size: var(--fs-body); font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
 .coach-icon-btn {

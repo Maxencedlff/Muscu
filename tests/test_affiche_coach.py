@@ -109,7 +109,7 @@ def toast(page):
 
 def preview_ready(page):
     page.wait_for_selector('.sheet .share-preview .cposter-form', timeout=20000)
-    page.wait_for_function("() => { const b = document.querySelector('.sheet .share-preview__send'); return b && !b.disabled; }", timeout=20000)
+    page.wait_for_function("() => !!(shareState && shareState.blob)", timeout=20000)
 
 
 def canvas_png(page):
@@ -217,7 +217,10 @@ def t_coach_affiche(bench, eng, dev, theme):
         R.check(page.evaluate("document.querySelector('.share-zoom__img').naturalHeight === 1920"), f'{t} plein écran : l\'image entière')
         page.click('.share-zoom')
         page.wait_for_function("() => !document.querySelector('.share-zoom')", timeout=5000)
-        R.check('sticker lien' in page.inner_text('.sheet .share-preview__help--bar'), f'{t} aide : sticker lien vers l\'App Store')
+        # Sans nom : « Partager » grisé, la barre dit pourquoi
+        R.check(page.evaluate("document.querySelector('.sheet .share-preview__send').disabled") and page.is_visible('.sheet .share-preview__note')
+                and 'Ajoute ton prénom pour partager' in page.inner_text('.sheet .share-preview__note'), f'{t} sans nom : partage grisé, « Ajoute ton prénom »')
+        R.check(page.locator('.sheet .share-preview__help').count() == 0, f'{t} plus d\'aide « sticker lien » (pas encore sur l\'App Store)')
         layout(page, t, 'Aperçu sans photo')
         shot(page, LOT, f'02-apercu-sans-photo-{t}')
         if dump:
@@ -235,10 +238,17 @@ def t_coach_affiche(bench, eng, dev, theme):
         R.check(page.evaluate('__sb.pp.photos.length') == sent, f'{t} photo de l\'affiche jamais envoyée')
 
         # Nom, accord au féminin
+        page.evaluate("document.querySelector('#cposterName').scrollIntoView({ block: 'center' })")
         page.fill('#cposterName', 'Camille Martin')
         page.wait_for_function("() => (document.querySelector('.sheet .share-preview__img').getAttribute('aria-label') || '').includes('Camille Martin')", timeout=5000)
         preview_ready(page)
         R.check(json.loads(ls(page, 'mdlf_coach_poster') or '{}').get('name') == 'Camille Martin', f'{t} nom gardé sur l\'appareil')
+        page.wait_for_function("() => !document.querySelector('.sheet .share-preview__send').disabled", timeout=8000)
+        R.check(not page.is_visible('.sheet .share-preview__note'), f'{t} nom écrit : partage possible')
+        page.evaluate("document.querySelector('#cposterSpecialty').scrollIntoView({ block: 'center' })")
+        page.fill('#cposterSpecialty', 'Force · Perte de poids')
+        page.wait_for_function("() => (document.querySelector('.sheet .share-preview__img').getAttribute('aria-label') || '').includes('Force · Perte de poids')", timeout=5000)
+        preview_ready(page)
         layout(page, t, 'Aperçu avec photo')
         shot(page, LOT, f'03-apercu-photo-{t}')
         if dump:
@@ -253,7 +263,7 @@ def t_coach_affiche(bench, eng, dev, theme):
             save_affiche(page, f'femme-story-{th}')
         pick_seg(page, 'coach-poster-title', 'neutral')
         R.check(page.get_attribute('.sheet .share-preview__img', 'aria-label').startswith('Affiche « Coach »'), f'{t} titre « Coach » seul')
-        R.check(json.loads(ls(page, 'mdlf_coach_poster') or '{}') == {'uid': me, 'name': 'Camille Martin', 'silhouette': 'female', 'neutral': True},
+        R.check(json.loads(ls(page, 'mdlf_coach_poster') or '{}') == {'uid': me, 'name': 'Camille Martin', 'specialty': 'Force · Perte de poids', 'silhouette': 'female', 'neutral': True},
                 f'{t} réglages gardés sur l\'appareil ({ls(page, "mdlf_coach_poster")})')
         pick_seg(page, 'coach-poster-title', 'gendered')
         pick_seg(page, 'coach-poster-silhouette', 'male')

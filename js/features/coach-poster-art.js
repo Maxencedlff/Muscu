@@ -31,8 +31,11 @@ const CPA = {
   text: '-apple-system, "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif',
   safeTop: 250,
 };
+const CPA_FEMALE_SKIP = ['chest_sternal', 'chest_abdominal'];
 const cpaTitle = s => `400 ${Math.round(s)}px ${CPA.title}`;
 const cpaText = (s, w = 600) => `${w} ${Math.round(s)}px ${CPA.text}`;
+// Code d'invitation : SF Pro Display Heavy, large et lisible (« VV » ne se lit pas « W », « 5 » pas « S »), pas l'Anton serrée
+const cpaCode = s => `800 ${Math.round(s)}px -apple-system, "SF Pro Display", system-ui, "Helvetica Neue", Arial, sans-serif`;
 
 // Police Anton chargée avant le dessin (sinon le canvas prend la police de secours)
 async function cpaFontsReady() {
@@ -104,7 +107,11 @@ async function cpaHeroBody(kind = 'male') {
   x.globalCompositeOperation = 'source-atop';
   x.fillStyle = `rgba(0,0,0,${1 - CPA.atlasBright})`; x.fillRect(0, 0, c.width, c.height);
   x.globalCompositeOperation = 'source-over';
-  const parts = BODY_PARTS.parts.filter(p => boxes[p.id] && !p.deep);
+  // Silhouette femme : les calques des faisceaux moyen et bas du grand pectoral couvrent la poitrine (l'atlas n'a pas de
+  // maillage du tissu mammaire séparé) : ils restent au gris du corps sur l'affiche ; le faisceau claviculaire, au-dessus,
+  // reste rouge
+  const skip = k === 'female' ? CPA_FEMALE_SKIP : [];
+  const parts = BODY_PARTS.parts.filter(p => boxes[p.id] && !p.deep && !skip.includes(p.id));
   const imgs = await Promise.all(parts.map(p => bodyLoadImage(body2Url(k, 'front', `p3/${p.id}.webp`))));
   parts.forEach((p, i) => {
     if (!imgs[i]) return;
@@ -150,8 +157,8 @@ function cpaCodePill(ctx, m, cx, y, w, h, minSize = 0) {
   const top = y + h * (lines.length > 1 ? 0.22 : 0.33);
   lines.forEach((l, i) => cpaText1(ctx, l, cx, top + i * ls * 1.15, { font: cpaText(ls, 600), color: CPA.bg }));
   const codeTop = top + (lines.length - 1) * ls * 1.15 + h * 0.05;
-  const s = cpaFit(ctx, m.code, w - 80, h * (lines.length > 1 ? 0.36 : 0.46), h * 0.26, cpaTitle);
-  cpaText1(ctx, m.code, cx, codeTop + s * 0.95, { font: cpaTitle(s), color: CPA.bg });
+  const s = cpaFit(ctx, m.code, w - 80, h * (lines.length > 1 ? 0.32 : 0.4), h * 0.22, cpaCode);
+  cpaText1(ctx, m.code, cx, codeTop + s * 1.0, { font: cpaCode(s), color: CPA.bg });
 }
 // Badge « Carte pro déclarée » (s'il est affiché) : pastille au trait blanc (contour noir autour), texte détouré ;
 // renvoie sa hauteur
@@ -165,21 +172,31 @@ function cpaBadge(ctx, m, cx, y, size) {
   return h;
 }
 
-// Bloc d'identité posé de bas en haut (badge, ligne « @pseudo · Sur MDLF Training », nom) ; renvoie le haut du bloc
-function cpaIdentity(ctx, m, { x, bottom, maxW, name: [nMax, nMin], subSize, gap }) {
-  let y = bottom;
-  if (m.badge) { const bh = Math.round(subSize * 0.8 * 1.8); cpaBadge(ctx, m, x, y - bh, subSize * 0.8); y -= bh + gap; }
+// Bloc d'identité posé de haut en bas sous la photo : nom (une ligne, réduit s'il le faut), spécialité, « @pseudo · Sur
+// MDLF Training », badge. draw = false : mesure seule. Renvoie le bas du bloc
+function cpaIdentityDown(ctx, m, { x, top, maxW, name: [nMax, nMin], subSize, gap, draw = true }) {
+  let y = top;
+  if (m.name) {
+    const up = m.name.toLocaleUpperCase('fr-FR');
+    let ns = cpaFit(ctx, up, maxW, nMax, nMin, cpaTitle);
+    ctx.font = cpaTitle(100); ns = Math.min(ns, 100 * maxW / Math.max(1, ctx.measureText(up).width));
+    y += ns * 0.98;   // place des accents (É) au-dessus des capitales
+    if (draw) cpaTitleText(ctx, up, x, y, ns, CPA.white);
+    y += gap;
+  }
+  if (m.specialty) {
+    const sp = cpaFit(ctx, m.specialty, maxW, subSize * 1.1, subSize * 0.6, z => cpaText(z, 600));
+    y += sp;
+    if (draw) cpaText1(ctx, m.specialty, x, y, { font: cpaText(sp, 600), color: CPA.white });
+    y += gap;
+  }
   const sub = [m.handle, 'Sur MDLF Training'].filter(Boolean).join(' · ');
   const ss = cpaFit(ctx, sub, maxW, subSize, Math.round(subSize * 0.55), z => cpaText(z, 600));
-  cpaSmallText(ctx, sub, x, y, ss);
-  y -= ss + gap;
-  if (!m.name) return y + gap;   // sans nom : le pseudo seul, une fois (pas en capitales géantes)
-  const nm = cpaNameLines(ctx, m.name, maxW, nMax, nMin), lh = nm.size * 0.94;
-  for (let i = nm.lines.length - 1; i >= 0; i--) {
-    cpaTitleText(ctx, nm.lines[i], x, y, nm.size, CPA.white);
-    y -= lh;
-  }
-  return y + lh - nm.size * 0.78;
+  y += ss;
+  if (draw) cpaSmallText(ctx, sub, x, y, ss);
+  y += gap;
+  if (m.badge) { const bh = Math.round(subSize * 0.8 * 1.8); if (draw) cpaBadge(ctx, m, x, y, subSize * 0.8); y += bh; }
+  return y;
 }
 
 // Photo ronde cerclée d'un trait orange plein, ou initiales
@@ -217,32 +234,44 @@ function drawCoachPosterArt(canvas, m, assets = {}, { format = 'story' } = {}) {
   const ctx = canvas.getContext('2d');
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = CPA.bg; ctx.fillRect(0, 0, W, H);
-  if (sq) {
-    // Carré : personnage entier à gauche (40 %), titre, photo, nom, code et signature dans la colonne de droite
-    cpaDrawSplit(ctx, m, a, { W, top: 34, bottom: H - 34, left: W * 0.4, title: { full: false, size: m.title === 'COACH' ? 150 : 118 },
-      brand: 40, pill: 120, name: [74, 36], sub: 24, gap: 10, d: [150, 300] });
-  } else {
-    // Story (3e panel : la composition du carré, en vertical) : titre sur toute la largeur en haut, puis personnage
-    // entier à gauche (45 %) et, à droite, photo, nom, pseudo, badge, code et signature ; tout entre 250 et 1650 px
-    cpaDrawSplit(ctx, m, a, { W, top: CPA.safeTop + 6, bottom: 1650, left: W * 0.45, title: { full: true, size: m.title === 'COACH' ? 230 : 190 },
-      brand: 52, pill: 220, ctaMin: 30, name: [96, 48], sub: 32, gap: 16, d: [240, 420] });
-  }
+  if (sq) cpaDrawSquare(ctx, m, a, W, H); else cpaDrawStory(ctx, m, a, W);
   return canvas;
 }
 
-// Deux colonnes : personnage ENTIER (tête aux pieds) à gauche, sans rien posé dessus ; colonne de droite, de bas en haut :
-// signature, code, badge, « @pseudo · Sur MDLF Training », nom, photo ronde ; titre en haut (sur toute la largeur en
-// story, dans la colonne en carré). Aucun chevauchement entre le corps, la photo et le texte.
-function cpaDrawSplit(ctx, m, a, g) {
-  const { W, top, bottom, left } = g, colX = left + 8, colW = W - colX - 40, cx = colX + colW / 2;
-  const titleBottom = g.title.full ? cpaTitleBlock(ctx, m, W / 2, top, W - 120, g.title.size) : cpaTitleBlock(ctx, m, cx, top, colW, g.title.size);
-  const bodyTop = g.title.full ? titleBottom + 24 : top - 4;
-  if (a.body) cpaBodyWhole(ctx, a.body, 16, bodyTop, left - 32, bottom + 10 - bodyTop);
-  const brandY = bottom - g.brand, pill = { h: g.pill, y: brandY - Math.round(g.brand * 0.35) - g.pill };
-  cpaCodePill(ctx, m, cx, pill.y, colW, pill.h, g.ctaMin || 0);
-  cpaBrand(ctx, a.icon, cx, brandY, g.brand);
-  const idTop = cpaIdentity(ctx, m, { x: cx, bottom: pill.y - g.gap * 2, maxW: colW, name: g.name, subSize: g.sub, gap: g.gap });
-  const tp = (g.title.full ? bodyTop : titleBottom + 24), bt = idTop - 30;
-  const d = Math.max(g.d[0], Math.min(g.d[1], bt - tp, colW - 40));
-  cpaPhotoRound(ctx, m, a, cx, tp + (bt - tp - d) / 2, d);
+// La photo du coach domine (4e panel) : premier élément après le titre, 560 px au moins en story ; le personnage, entier,
+// passe second (34 à 38 % de la largeur, à gauche), sans rien posé dessus
+const CPA_LEFT = 0.36;
+
+// Story : titre, puis à droite la photo ronde (560 px au moins) et l'identité, à gauche le personnage entier ; dessous,
+// sur toute la largeur, le code et la signature. Tout entre 250 et 1600 px (signature au-dessus de la barre de réponse)
+function cpaDrawStory(ctx, m, a, W) {
+  const left = W * CPA_LEFT, colX = left + 12, colW = W - colX - 40, cx = colX + colW / 2;
+  const titleBottom = cpaTitleBlock(ctx, m, W / 2, CPA.safeTop + 6, W - 120, m.title === 'COACH' ? 190 : 140);
+  const brand = 46, brandY = 1600 - brand, pill = { h: 150, y: brandY - 16 - 150 };
+  const idOpts = { x: cx, maxW: colW, name: [72, 40], subSize: 28, gap: 10 };
+  const idH = cpaIdentityDown(ctx, m, { ...idOpts, top: 0, draw: false });
+  const photoTop = titleBottom + 24, room = pill.y - 28 - photoTop - idH - 24;
+  const d = Math.max(560, Math.min(620, room, colW - 30));
+  cpaPhotoRound(ctx, m, a, cx, photoTop, d);
+  cpaIdentityDown(ctx, m, { ...idOpts, top: photoTop + d + 36 });
+  if (a.body) cpaBodyWhole(ctx, a.body, 16, titleBottom + 20, left - 24, pill.y - 24 - (titleBottom + 20));
+  cpaCodePill(ctx, m, W / 2, pill.y, W - 160, pill.h, 26);
+  cpaBrand(ctx, a.icon, W / 2, brandY, brand);
+}
+
+// Carré : personnage entier à gauche (36 %), colonne de droite : titre, photo (46 % de la largeur), identité, code,
+// signature
+function cpaDrawSquare(ctx, m, a, W, H) {
+  const left = W * CPA_LEFT, colX = left + 12, colW = W - colX - 36, cx = colX + colW / 2;
+  if (a.body) cpaBodyWhole(ctx, a.body, 16, 30, left - 24, H - 60);
+  const titleBottom = cpaTitleBlock(ctx, m, cx, 26, colW, m.title === 'COACH' ? 120 : 90);
+  const brand = 32, brandY = H - 26 - brand, pill = { h: 96, y: brandY - 10 - 96 };
+  cpaCodePill(ctx, m, cx, pill.y, colW, pill.h);
+  cpaBrand(ctx, a.icon, cx, brandY, brand);
+  const idOpts = { x: cx, maxW: colW, name: [58, 34], subSize: 22, gap: 8 };
+  const idH = cpaIdentityDown(ctx, m, { ...idOpts, top: 0, draw: false });
+  const photoTop = titleBottom + 14;
+  const d = Math.max(W * 0.46, Math.min(W * 0.5, pill.y - 16 - photoTop - idH - 16));
+  cpaPhotoRound(ctx, m, a, cx, photoTop, d);
+  cpaIdentityDown(ctx, m, { ...idOpts, top: photoTop + d + 32 });
 }

@@ -46,11 +46,14 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
 
   test('affiche du coach : contenu exact (titre accordé à la silhouette choisie, nom, pseudo, badge, consigne, code)', () => {
     sameJSON(model(), {
-      name: 'Léa Martin', handle: '@lea.coach', initials: 'LM', photo: true, title: 'NOUVELLE COACH',
+      name: 'Léa Martin', specialty: '', handle: '@lea.coach', initials: 'LM', photo: true, title: 'NOUVELLE COACH',
       badge: 'Carte pro déclarée', ctaLine: 'Télécharge MDLF Training et entre mon code', code: 'K7M2-QX9P-R4TD',
     });
     // Rien d'autre que ce qui vient du coach : aucun champ pour un élève
-    sameJSON(Object.keys(model()).sort(), ['badge', 'code', 'ctaLine', 'handle', 'initials', 'name', 'photo', 'title']);
+    sameJSON(Object.keys(model()).sort(), ['badge', 'code', 'ctaLine', 'handle', 'initials', 'name', 'photo', 'specialty', 'title']);
+    assert.equal(model({ specialty: '  Force ·   Perte de poids ' }).specialty, 'Force · Perte de poids', 'spécialité nettoyée');
+    assert.equal(model({ specialty: 'x'.repeat(60) }).specialty.length, 40, 'spécialité : 40 caractères au plus');
+    assert.equal(model({ name: '', username: 'sam' }).initials, '', 'jamais d\'initiales tirées du pseudo');
     assert.equal(model({ silhouette: 'male' }).title, 'NOUVEAU COACH');
     assert.equal(model({ neutral: true }).title, 'COACH', 'titre sans genre');
     assert.equal(model({ silhouette: 'male', neutral: true }).title, 'COACH');
@@ -96,7 +99,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       if (format === 'story') {
         // Tout le texte entre 250 et 1650 px (barres d'Instagram en haut, champ de réponse en bas)
         for (const o of c.ops.filter(x => x.op === 'text')) {
-          assert.ok(o.y > 250 && o.y <= 1650, `${tag} : « ${o.text} » à y = ${Math.round(o.y)}, dans une zone couverte`);
+          assert.ok(o.y > 250 && o.y <= 1600, `${tag} : « ${o.text} » à y = ${Math.round(o.y)}, dans une zone couverte (250 à 1600 px)`);
         }
       }
       assert.equal(count(c, 'photo'), 1, `${tag} : photo du coach dessinée`);
@@ -121,6 +124,10 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     // Personnage comme l'atlas de l'app en sombre (branche affichage-e) : rouge #FF453A en lumière douce, corps à .46
     assert.equal(run('CPA.heat'), '#FF453A'); assert.equal(run('CPA.atlasBright'), 0.46);
     assert.ok(/globalCompositeOperation = 'soft-light'/.test(read('js/features/coach-poster-art.js')), 'muscles en lumière douce (soft-light)');
+    sameJSON(run('CPA_FEMALE_SKIP'), ['chest_sternal', 'chest_abdominal'], 'silhouette femme : la poitrine reste au gris du corps');
+    // Code : police large (SF Pro Display Heavy), pas l'Anton serrée
+    const pill = draw(model()).ops.find(o => o.op === 'text' && o.text === 'K7M2-QX9P-R4TD');
+    assert.ok(/800 .*SF Pro Display/.test(pill.font) && !/Anton/.test(pill.font), `code en SF Pro Display Heavy (${pill.font})`);
     assert.match(run('CPA.grey'), /^#[0-9A-F]{6}$/i, 'gris opaque (rien du corps ne transparaît dans la lettre)');
     const src = read('js/features/coach-poster-art.js');
     assert.ok(!/create(Linear|Radial)Gradient|shadowBlur|shadowColor|\.filter\s*=/.test(src), 'aucun dégradé, aucune ombre, aucun filtre dans le dessin');
@@ -137,13 +144,16 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       const bd = body[0], right = bd.x + bd.w;
       assert.equal(bd.clipped, 0, `${format} : aucun masque sur le personnage`);
       assert.ok(bd.x >= 0 && right <= 1080 * (format === 'story' ? 0.45 : 0.4) + 0.5, `${format} : dans la colonne de gauche (${Math.round(bd.x)} à ${Math.round(right)})`);
-      assert.ok(bd.w >= 1080 * (format === 'story' ? 0.4 : 0.35), `${format} : grand (${Math.round(bd.w)} px de large)`);
+      assert.ok(bd.w >= 1080 * 0.3, `${format} : entier et bien visible (${Math.round(bd.w)} px de large)`);
+      // La photo domine : 560 px au moins en story, 46 % de la largeur en carré
+      const photo = c.ops.find(o => o.op === 'image' && o.id === 'cover');
+      assert.ok(photo && photo.w >= (format === 'story' ? 560 : 1080 * 0.46) - 0.5, `${format} : photo de ${photo && Math.round(photo.w)} px`);
       if (format === 'story') assert.ok(bd.y >= 250 && bd.y + bd.h <= 1700, `story : entier dans la zone sûre (${Math.round(bd.y)} à ${Math.round(bd.y + bd.h)})`);
       // Tout texte est soit au-dessus du personnage (titre, story), soit dans la colonne de droite
       for (const o of c.ops.filter(x => x.op === 'text')) {
         const size = parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]), half = String(o.text).length * size * 0.5 / 2;
         const leftEdge = o.font.includes('left') ? o.x : o.x - half;
-        assert.ok(o.y < bd.y || leftEdge >= right - 1, `${format} : « ${o.text} » posé sur le personnage (x ${Math.round(leftEdge)} < ${Math.round(right)})`);
+        assert.ok(o.y < bd.y || o.y - size > bd.y + bd.h || leftEdge >= right - 1, `${format} : « ${o.text} » posé sur le personnage (x ${Math.round(leftEdge)} < ${Math.round(right)})`);
       }
       assert.equal(c.ops.filter(o => o.op === 'text' && o.stroke).length, 0, `${format} : plus aucun contour (rien n'est posé sur le corps)`);
       const rects = c.ops.filter(o => o.op === 'rect' && !(o.x === 0 && o.y === 0 && o.w === 1080));
@@ -158,14 +168,14 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     const c = draw(model({ hasPhoto: false }));
     assert.equal(count(c, 'photo'), 0, 'sans photo : aucune photo');
     assert.equal(count(c, 'body'), 1, 'sans photo : le personnage reste un décor, une seule fois');
-    assert.ok(texts(c).includes('LM'), 'initiales dans le rond');
+    assert.ok(texts(c).includes('LM'), 'initiales du nom dans le rond');
   });
 
   test('affiche du coach : prénom et pseudo longs, rien de coupé ni de tronqué', () => {
     for (const format of ['story', 'square']) {
       const c = draw(model({ name: 'Marie-Charlotte Delafontaine', username: 'marie.charlotte.coach' }), format);
       const t = texts(c);
-      assert.ok(t.includes('MARIE-CHARLOTTE') && t.includes('DELAFONTAINE'), `${format} : nom sur deux lignes ${JSON.stringify(t)}`);
+      assert.ok(t.includes('MARIE-CHARLOTTE DELAFONTAINE'), `${format} : nom entier sur une ligne, réduit ${JSON.stringify(t)}`);
       assert.ok(t.includes('@marie.charlotte.coach · Sur MDLF Training'), `${format} : pseudo long entier`);
       for (const o of c.ops.filter(x => x.op === 'text')) {
         const size = parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]), w = String(o.text).length * size * .5;
@@ -181,10 +191,10 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     sameJSON(app.posterPhotoSize(0, NaN), { w: 1, h: 1 });
     app.localStorage.removeItem('mdlf_coach_poster');
     assert.equal(app.coachPosterPrefs('u1'), null);
-    app.coachPosterSavePrefs('u1', { name: ' Léa ', silhouette: 'female', neutral: true });
-    sameJSON(app.coachPosterPrefs('u1'), { name: 'Léa', silhouette: 'female', neutral: true });
+    app.coachPosterSavePrefs('u1', { name: ' Léa ', specialty: 'Force', silhouette: 'female', neutral: true });
+    sameJSON(app.coachPosterPrefs('u1'), { name: 'Léa', specialty: 'Force', silhouette: 'female', neutral: true });
     app.coachPosterSavePrefs('u1', { name: '', silhouette: 'x' });
-    sameJSON(app.coachPosterPrefs('u1'), { name: '', silhouette: 'male', neutral: false }, 'valeur inconnue ramenée');
+    sameJSON(app.coachPosterPrefs('u1'), { name: '', specialty: '', silhouette: 'male', neutral: false }, 'valeur inconnue ramenée');
     assert.equal(app.coachPosterPrefs('u2'), null, 'autre compte : rien');
     app.localStorage.setItem('mdlf_coach_poster', '{pas du json');
     assert.equal(app.coachPosterPrefs('u1'), null, 'illisible : valeurs par défaut');

@@ -124,9 +124,10 @@ function sharePreviewBody(alt, formats = false, tools = null) {
   // Avec des réglages (affiche du coach) : l'aperçu de l'image entière FIXÉ en haut de la feuille (hauteur bornée, un
   // toucher l'ouvre en plein écran), les réglages qui défilent dessous, « Partager » dans une barre fixée en bas (fond
   // opaque). Choisir Femme ou Homme montre tout de suite le changement, même sur un petit écran en très grand texte.
-  // L'aide va dans la barre ; en très grand texte, à la fin des réglages (la barre reste basse)
+  // La note (ce qui manque pour partager) va dans la barre, sous le bouton
   if (tools) {
     const help = tools.help ? esc(tools.help) : '';
+    const note = tools.note ? `<p class="share-preview__hint share-preview__note" role="status" hidden>${esc(tools.note)}</p>` : '';
     return `
     <div class="share-preview share-preview--tools">
       <div class="share-preview__top">
@@ -134,7 +135,7 @@ function sharePreviewBody(alt, formats = false, tools = null) {
       </div>
       ${seg}${tools.rows || ''}
       ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--flow">${help}</p>` : ''}
-      <div class="share-preview__actionbar">${send.replace(/\s*<p class="share-preview__hint">[^<]*<\/p>/, '')}
+      <div class="share-preview__actionbar">${send.replace(/\s*<p class="share-preview__hint">[^<]*<\/p>/, '')}${note}
         ${help ? `<p class="share-preview__hint share-preview__help share-preview__help--bar">${help}</p>` : ''}
       </div>
     </div>`;
@@ -179,7 +180,11 @@ async function sharePreviewDraw(state) {
     if (n === state.drawn) showToast('Image impossible à créer');
     return;
   }
-  if (btn && (state.file || (Native.isNative && state.blob))) btn.disabled = false;
+  // canSend (affiche du coach) : partage refusé tant qu'il manque une donnée (le nom), la note dit laquelle
+  const ok = !state.canSend || state.canSend();
+  const note = state.root?.querySelector('.share-preview__note');
+  if (note) note.hidden = ok;
+  if (btn && ok && (state.file || (Native.isNative && state.blob))) btn.disabled = false;
 }
 
 // Ouvre l'aperçu de l'image d'une séance de l'historique
@@ -217,7 +222,7 @@ registerActions({
   // busy et disabled sont posés sans rien attendre, pour garder le geste exigé par navigator.share.
   'share-story-send': async (e, el) => {
     const st = shareState;
-    if (!st?.blob || st.busy) return;
+    if (!st?.blob || st.busy || (st.canSend && !st.canSend())) return;
     st.busy = true;
     el.disabled = true;
     // Départ vers une autre app pendant le partage (Instagram « Story » ouvre la sienne) : l'aperçu

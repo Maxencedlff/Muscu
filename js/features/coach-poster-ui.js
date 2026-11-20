@@ -68,7 +68,7 @@ async function coachPosterPhoto() {
 
 function coachPosterModelNow() {
   return coachPosterModel({
-    name: cposter.name, username: account.profile?.username || '', code: coachPro.code,
+    name: cposter.name, specialty: cposter.specialty, username: account.profile?.username || '', code: coachPro.code,
     badge: coachPro.card?.status === 'declared', hasPhoto: !!cposter.photo, silhouette: cposter.silhouette, neutral: cposter.neutral,
   });
 }
@@ -79,17 +79,13 @@ function cposterTitleLabel() { return cposter.silhouette === 'female' ? 'Nouvell
 
 // Réglages de l'aperçu, dans un bloc groupé sous le format : nom, silhouette, titre et photo
 function coachPosterToolsHtml() {
+  // Ordre (panel du 20/11) : Silhouette juste sous Story / Carré (visible sans défiler sur iPhone SE), puis le titre,
+  // le nom (obligatoire pour partager), la spécialité (facultative) et la photo. Plus d'aide « sticker lien » : l'app
+  // n'est pas encore sur l'App Store (docs/AFFICHE_COACH.md)
   return {
-    // Le code se recopie : un sticker lien d'Instagram vers l'App Store le rend touchable (pas de lien d'invitation)
-    help: 'Ajoute un sticker lien vers l\'App Store dans ta story.',
+    note: 'Ajoute ton prénom pour partager ton affiche.',
     rows: `
       <div class="cposter-form">
-        <label class="cposter-row" for="cposterName">
-          <span class="cposter-row__title">Nom</span>
-          <input class="cposter-row__input" id="cposterName" type="text" autocomplete="name" autocapitalize="words" autocorrect="off"
-                 spellcheck="false" enterkeyhint="done" maxlength="${CPOSTER_NAME_MAX}" placeholder="Ajoute ton prénom" value="${esc(cposter.name)}"
-                 aria-label="Ton nom sur l'affiche">
-        </label>
         <div class="cposter-row">
           <span class="cposter-row__title" id="cposterSilLabel">Silhouette</span>
           <div class="segmented cposter-row__seg" role="group" aria-labelledby="cposterSilLabel">
@@ -102,10 +98,23 @@ function coachPosterToolsHtml() {
             ${cposterSeg('coach-poster-title', 'gendered', !cposter.neutral, cposterTitleLabel())}${cposterSeg('coach-poster-title', 'neutral', cposter.neutral, 'Coach', 'Coach, sans nouveau ni nouvelle')}
           </div>
         </div>
+        <label class="cposter-row" for="cposterName">
+          <span class="cposter-row__title">Nom</span>
+          <input class="cposter-row__input" id="cposterName" type="text" autocomplete="name" autocapitalize="words" autocorrect="off"
+                 spellcheck="false" enterkeyhint="next" maxlength="${CPOSTER_NAME_MAX}" placeholder="Ajoute ton prénom" value="${esc(cposter.name)}"
+                 aria-label="Ton nom sur l'affiche">
+        </label>
+        <label class="cposter-row" for="cposterSpecialty">
+          <span class="cposter-row__title">Spécialité</span>
+          <input class="cposter-row__input" id="cposterSpecialty" type="text" autocomplete="off" autocapitalize="sentences" autocorrect="on"
+                 enterkeyhint="done" maxlength="${CPOSTER_SPECIALTY_MAX}" placeholder="Force · Perte de poids · Rééducation" value="${esc(cposter.specialty)}"
+                 aria-label="Ta spécialité (facultatif), par exemple Force, Perte de poids, Rééducation">
+        </label>
         <button type="button" class="cposter-row cposter-row--nav" data-action="coach-poster-photo" aria-label="Photo de l'affiche, gardée sur ton iPhone">
           <span class="cposter-row__title">Photo</span><span class="cposter-row__end"><span class="cposter-row__value">${cposter.photo ? 'Changer' : 'Choisir'}</span>${icon('chevron.right', 14)}</span>
         </button>
-      </div>`,
+      </div>
+      <p class="cposter-foot">Spécialité facultative, ${CPOSTER_SPECIALTY_MAX} caractères au plus.</p>`,
   };
 }
 
@@ -123,29 +132,33 @@ async function openCoachPoster() {
   if (!coachPro.code) { showToast(coachPro.error ? coachProErrorText(coachPro.error) : 'Ton code coach n\'est pas prêt. Réessaie plus tard.', { error: true }); return; }
   const me = account.user.id;
   const prefs = coachPosterPrefs(me);
-  const mine = cposter = { name: prefs ? prefs.name : posterName(coachPro.request?.card_name),
+  const mine = cposter = { name: prefs ? prefs.name : posterName(coachPro.request?.card_name), specialty: prefs?.specialty || '',
     silhouette: prefs ? prefs.silhouette : (bodySilhouette() === 'female' ? 'female' : 'male'), neutral: prefs?.neutral === true,
     photo: null, icon: null, body: null, bodies: {}, timer: null };
   const [photo, iconImg, body] = await Promise.all([coachPosterPhoto(), loadImage('icon-192.png'), cposterBody(mine), cpaFontsReady()]);
   Object.assign(mine, { photo, icon: iconImg, body });
   const state = { name: coachPosterFileName('story'), alt: coachPosterAlt(coachPosterModelNow()), formats: true,
     tools: coachPosterToolsHtml(), stats: { title: 'Mon affiche de coach' },
+    canSend: () => !!mine.name,
     onClose: () => { clearTimeout(mine.timer); if (cposter === mine) cposter = null; } };
   const opened = openStoryPreview(state, (canvas, format) => {
     const m = coachPosterModelNow();
     canvas.setAttribute('aria-label', coachPosterAlt(m));
     drawCoachPosterArt(canvas, m, { photo: mine.photo, icon: mine.icon, body: mine.body }, { format });
   });
-  const input = state.root?.querySelector('#cposterName');
-  input?.addEventListener('input', () => {
-    clearTimeout(mine.timer);
-    mine.timer = setTimeout(() => {
-      if (cposter !== mine || shareState !== state) return;
-      mine.name = posterName(input.value);
-      coachPosterSavePrefs(me, mine);
-      sharePreviewDraw(state);
-    }, 250);
-  });
+  // Nom et spécialité : l'aperçu se redessine après la frappe ; sans nom, « Partager » reste grisé (canSend)
+  for (const [id, field] of [['#cposterName', 'name'], ['#cposterSpecialty', 'specialty']]) {
+    const input = state.root?.querySelector(id);
+    input?.addEventListener('input', () => {
+      clearTimeout(mine.timer);
+      mine.timer = setTimeout(() => {
+        if (cposter !== mine || shareState !== state) return;
+        mine[field] = posterName(input.value);
+        coachPosterSavePrefs(me, mine);
+        sharePreviewDraw(state);
+      }, 250);
+    });
+  }
   await opened;
 }
 
