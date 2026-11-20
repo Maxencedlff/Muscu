@@ -115,7 +115,7 @@ async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root
   const cost = r => boxes.reduce((t, { r: b, k }) => t + k * Math.max(0, Math.min(r.right, b.right) - Math.max(r.left, b.left))
     * Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top)), 0);
   const z = zone.getBoundingClientRect(), x = e.clientX, y = e.clientY, gap = 14;
-  showBodyTip(tip === 'load' ? atlasLoadTipHtml(hit.part) : atlasTipHtml(hit.part, lv), x, y, container ? null : root, {
+  const tipEl = showBodyTip(tip === 'load' ? atlasLoadTipHtml(hit.part) : atlasTipHtml(hit.part, lv), x, y, container ? null : root, {
     // Zone du dessin, réduite à ce qui est visible (sous la barre de navigation, au-dessus de la barre d'onglets)
     cost, container, spotTol: 1, bounds: (b => ({ minTop: Math.max(z.top + 4, b.minTop), maxBottom: Math.min(z.bottom - 4, b.maxBottom) }))(bodyTipBounds(container ? null : root)),
     avoid: avoid.filter(Boolean).map(a => a.getBoundingClientRect()),
@@ -124,6 +124,10 @@ async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root
     spots: (w, h) => [...[y - gap - h, y + gap].flatMap(top => [x - w / 2, x - w + 28, x - 28].map(left => ({ left, top }))),
       ...(innerWidth - x >= x ? [x + gap, x - gap - w] : [x - gap - w, x + gap]).map(left => ({ left, top: y - h / 2 }))],
   });
+  // Le lien de la bulle (Progrès) n'accepte un toucher qu'après la fenêtre du double toucher : un 2e toucher posé sur la
+  // bulle ouvre la vue agrandie au lieu de quitter l'écran
+  tipEl.classList.add('btip--fresh');
+  setTimeout(() => tipEl.classList.remove('btip--fresh'), ATLAS_DOUBLE_MS);
   const layer = hit.fig.querySelector(`.body-map__p[data-part="${hit.part.id}"]`);
   hit.fig.insertAdjacentHTML('beforeend', atlasMarkHtml(kind, hit.view, hit.part.id, res(hit.view), bodyTipTint(layer)));
   bodyTipSetMark(hit.fig.lastElementChild?.classList.contains('body-map__hl') ? hit.fig.lastElementChild : null);

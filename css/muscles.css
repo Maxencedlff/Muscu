@@ -76,6 +76,7 @@
 .mpanel__zoom:active { background: var(--fill2); }
 .btip__latin { margin-top: 1px; font-size: var(--fs-footnote); line-height: 1.059rem; font-style: italic; color: var(--label2); }
 .btip.btip--top { z-index: 1000; }   /* bulle de la vue agrandie, au-dessus de sa feuille */
+.btip--fresh .btip__link { pointer-events: none; }   /* bulle qui vient de s'ouvrir : le 2e toucher d'un double toucher passe dessous */
 .credit-foot { overflow-wrap: anywhere; }   /* crédit de l'atlas (Réglages) : adresse de la licence coupée au besoin */
 /* Vue agrandie : feuille à sa hauteur maximale, le personnage prend la place que laissent le titre et la consigne
    (en AX33, titre sur deux lignes et consigne entière, sans rien couper) */
@@ -90,6 +91,7 @@
 .azoom__stage .body-map__row { height: 100%; }
 .azoom__stage--anim { transition: transform .32s cubic-bezier(.2, .8, .2, 1); }
 .azoom__lay { position: absolute; inset: 0; }
+.azoom .body-map__m { animation: none; }   /* pas de fondu d'apparition (theme-sobre-progres) : l'échange 1× ↔ 3× ne doit rien faire clignoter */
 .azoom__lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 /* Boutons + et − (VoiceOver, accès par contacteur), en bas à droite du dessin */
 .azoom__ctl { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; z-index: 1; }
