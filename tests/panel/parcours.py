@@ -709,6 +709,61 @@ def p_vacuum(r):
     with r.etape('progres', 'Progrès › Vacuum : plus long maintien, temps total sous tension'):
         r.attendre('.view.stats-ex', 'Progrès › Vacuum')
 
+@parcours('champs-limites', 'Champs de saisie : limites, collages trop longs et messages de refus', 'pratiquant')
+def p_champs_limites(r):
+    """Le « pire testeur » : un nom d'exercice et un nom de séance collés trop longs (coupés à 80 et 40 caractères),
+    un nom fait d'espaces invisibles, un objectif de 0 kg, une taille « 175,5 » dans un champ d'entiers, un poids du
+    corps « 72,5 », une longue note de bilan, un aliment sans nom, un commentaire au-delà de 500 caractères."""
+    r.lancer(REALISTE)
+    long = 'Développé couché prise serrée avec pause en bas et tempo lent sur barre, banc incliné à trente degrés'
+    with r.etape('exercice-nom-long', 'Fiche exercice : nom collé de 100 caractères, coupé à 80', cle='Nom d\'exercice trop long'):
+        r.raccourci("exDraft = null; navigate(makeRoute('ex-edit', 'push', 0))", 'fiche du 1er exercice ouverte')
+        r.attendre('#exName', 'nom de l\'exercice')
+        r.saisir('#exName', long, 'nom de l\'exercice')
+    with r.etape('objectif-zero', 'Objectif de 0 kg : message de refus', cle='Objectif de charge refusé'):
+        r.saisir('#exTarget', '0', 'objectif')
+        r.toucher('[data-action="save-ex"]', 'OK')
+    with r.etape('seance-nom-invisible', 'Nouvelle séance : nom fait d\'espaces invisibles, refusé', cle='Nom de séance'):
+        r.raccourci('void openNewSession()', 'écran « Nouvelle séance » ouvert')
+        r.attendre('#csName', 'nom de la séance')
+        r.saisir('#csName', '\u200b\u200b ', 'nom de la séance')
+        r.toucher('[data-action="save-cs-modal"]', 'OK')
+    with r.etape('seance-nom-long', 'Nom de séance collé trop long : coupé à 40', cle='Nom de séance'):
+        r.saisir('#csName', 'Haut du corps lourd, épaules et bras, version longue du lundi', 'nom de la séance')
+    with r.etape('taille-decimale', 'Taille « 175,5 » : « Nombre entier entre 100 et 250 »', cle='Taille et poids'):
+        r.raccourci("history.back(); void handleAction(new Event('click'), document.body, 'set-profile-height')", 'Réglages › Taille')
+        r.attendre('.ios-dialog__input', 'champ de la taille')
+        r.saisir('.ios-dialog__input', '175,5', 'taille')
+        r.choisir('OK')
+    with r.etape('poids-virgule', 'Poids du corps « 72,5 » avec la virgule', cle='Taille et poids'):
+        r.raccourci("void handleAction(new Event('click'), document.body, 'set-body-weight')", 'Réglages › Poids du corps')
+        r.attendre('.ios-dialog__input', 'champ du poids')
+        r.saisir('.ios-dialog__input', '72,5', 'poids du corps')
+    with r.etape('poids-enregistre', 'Poids enregistré', cle='Taille et poids'):
+        r.choisir('OK')
+    with r.etape('aliment-sans-nom', 'Nouvel aliment sans nom : message dans la feuille', cle='Nutrition'):
+        r.raccourci('void dietNewFood()', 'feuille « Nouvel aliment » ouverte')
+        r.attendre('#dietFoodName', 'nom de l\'aliment')
+        r.saisir('#dietFoodK', '120', 'énergie')
+        r.toucher('.sheet__btn--confirm', 'OK')
+    with r.etape('bilan-note-longue', 'Bilan : longue note de séance', cle='Notes de séance'):
+        r.raccourci("document.querySelectorAll('.sheet-root').forEach(s => s._close ? s._close() : s.remove()); "
+                    "lastSummary = buildSummary(data.history[data.history.length - 1]); routeTo('summary')", 'bilan de la dernière séance')
+        r.attendre('#summaryNotes', 'notes du bilan')
+        r.saisir('#summaryNotes', 'Bonne séance. ' * 12 + 'Épaule gauche un peu sensible sur le développé, à surveiller.', 'notes du bilan')
+    with r.etape('commentaire-trop-long', 'Commentaire au-delà de 500 caractères : compteur rouge, Envoyer grisé', cle='Commentaires'):
+        r.connecter('max', amis=True)
+        r.raccourci("""() => { const now = Date.now();
+            const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', sessions: [{ id: 'l01', date: now - 86400e3, duration: 3e6,
+              programme: 'ppl', category: 'push', label: 'Push', exercises: [{ name: 'Développé couché', sets: [{ weight: '80', reps: '8' }] }] }] });
+            const me = __sb.meId(); __sb.follow(me, lea); __sb.follow(lea, me); }""", 'Léa, amie qui s\'entraîne')
+        r.onglet('friends', 'Amis')
+        r.toucher('.feed-card .feed-card__main', 'séance de Léa')
+        r.attendre('#commentInput', 'champ du commentaire')
+        r.raccourci("() => { const t = document.querySelector('#commentInput'); t.value = 'Belle séance ! '.repeat(34); "
+                    "t.dispatchEvent(new Event('input', { bubbles: true })); }", 'commentaire de 510 caractères collé')
+
+
 @parcours('reglages', 'Réglages (chaque groupe)', 'pratiquant')
 def p_reglages(r):
     """Réglages ouverts depuis l'accueil, puis chaque groupe amené en haut de l'écran."""
