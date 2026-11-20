@@ -302,6 +302,10 @@ body.light .mpick__auto { background: var(--cell); }
    prenait tout l'écran. Hauteur proche de la vignette 3:2 des autres fiches, rangée centrée (même règle que .onb__body) */
 .exhero--deep .exhero__body { height: clamp(140px, 24vh, 210px); }
 .exhero--deep .exhero__body .body-map__row { width: auto; height: 100%; margin-inline: auto; }
+/* Personnage détaillé en tête (image d'un muscle impossible sans contredire le dessin, libExHeroHtml) : cadré sur le haut
+   ou le bas du corps, souvent plus large que haut : à la largeur de la carte, 210 points de haut au plus */
+.exhero--atlas .exhero__body { height: auto; }
+.exhero--atlas .exhero__body .body-map__row { width: min(100%, calc(var(--body-ar) * 210px)); height: auto; }
 .exhero__cap { margin: 8px 0 0; text-align: center; font-size: 0.882rem; line-height: 1.3; color: var(--label2); }
 .exhero .exvideo__frame, .exhero .exvideo--3d .exvideo__frame { width: min(100%, calc(56vh * var(--ar, 1))); border-radius: 0; }
 .exhero:has(.exvideo--3d) { background: var(--black); }   /* animation sur noir pur : la carte prend le même fond */
