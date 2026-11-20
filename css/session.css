@@ -972,7 +972,7 @@ html.type-xl .rest-mini__next .rest-mini__step { display: inline; }
 /* Texte agrandi : « 3 Droit » jamais coupé dans le mot (passe sous le numéro s'il ne tient pas) ; sous-série : « Drop 1 »
    sur sa rangée, « Avant » ou « Annuler » dessous, les cases ensuite (« Annuler » recouvrait « Drop 1 ») */
 .set-n__side { white-space: nowrap; }
-html.type-xl .sets--sides .set-n { flex-wrap: wrap; }
+html.type-xl .sets--sides .set-n { flex-wrap: wrap; width: auto; min-width: 44px; justify-content: flex-start; justify-self: start; }   /* « 2 Gauche » calé à gauche comme les autres lignes */
 /* Lignes d'un exercice noté par bras et sous-séries : le numéro et le côté (« 1 Gauche », « Drop 1 ») sur la largeur des
    deux colonnes, puis « Avant » (ou « Annuler ») sur la même largeur (« 14 × 10 » ne se coupe plus en « 14 × 1 / 0 »),
    puis les cases */
