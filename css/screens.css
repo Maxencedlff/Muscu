@@ -532,7 +532,9 @@ html.type-xl .session-set .set-val--w, html.type-xl .session-set .set-input:not(
 html.type-xl .session-set .set-val--r, html.type-xl .session-set .set-input--required { grid-area: r; }
 html.type-xl .session-set .set-check-zone { grid-area: check; }
 html.type-xl .session-set .set-badge { grid-column: 1 / -1; }
-html.type-xl .session-set .set-undo { grid-area: prev; justify-self: start; }   /* « Annuler » en ligne à la place d'« Avant » */
+/* « Annuler » en ligne à la place d'« Avant » ; plus large qu'une colonne en AX33 sur SE (il passait sous le ✓, puis
+   se coupait en « Annul / er », panel du 20/11) : sur les deux premières colonnes, calé à droite, jamais coupé */
+html.type-xl .session-set .set-undo { grid-column: 1 / 3; grid-row: 1; justify-self: end; white-space: nowrap; }
 /* Très grand texte (Dynamic Type AX, vague 3) : noms d'exercice sur 4 lignes au plus au lieu de 2, « Ensuite » du repos
    qui revient à la ligne */
 html.type-xl .ex-card__name, html.type-xl .ex-howto__text, html.type-xl .ss-member__name, html.type-xl .ss-member__name .ex-howto__text { -webkit-line-clamp: 4; line-clamp: 4; }

@@ -337,7 +337,7 @@ function doneSummary(ex) {
   // Technique à sous-séries et séries notées par bras dites aussi (panel du 20/11 : « 3 × 10/10/9 · 14 kg » cachait le
   // drop et le bras droit) : « · drop set · 2 bras »
   const techs = [...new Set(work.filter(s => subSetsOf(s).length).map(s => TECHS[setTech(s)].label.toLowerCase()))];
-  const sides = work.some(hasSide2) ? ` · 2 ${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}` : '';
+  const sides = work.some(hasSide2) ? ` · 2\u00a0${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}` : '';   // « 2 bras » jamais coupé
   return `${work.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}${techs.map(t => ` · ${t}`).join('')}${sides}`;
 }
 
@@ -432,7 +432,7 @@ function exVolumeHtml(ex, allDone) {
   const prevVol  = comparableVolume(ex, prevSets.slice(0, doneSets.length), currentBodyKg());
   const delta    = curVol - prevVol;
   return curVol > 0 && prevVol > 0 && Math.round(delta) > 0
-    ? ` · <span class="ex-vol__delta ${allDone ? 'ex-vol__delta--up' : ''}">+${fmtVolume(delta)} de volume<span class="visually-hidden"> de plus que la dernière fois</span></span>` : '';
+    ? ` · <span class="ex-vol__delta ${allDone ? 'ex-vol__delta--up' : ''}">+${fmtVolume(delta)} de volume</span><span class="visually-hidden"> de plus que la dernière fois</span>` : '';
 }
 
 // Sous le nom : seulement la prescription du coach (« Coach : 60 kg × 8 », sa charge reste affichée toute la séance).

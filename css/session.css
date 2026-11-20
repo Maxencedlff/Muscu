@@ -308,6 +308,12 @@ body:not(.light) .rest-mini .rest-mini__skip { color: #8AC4FF; }
 @media (max-width: 379px) { .rest-ring--small { display: none; } }
 /* Écran étroit : « S2 » part avant que le nom de l'exercice soit coupé (la charge et les reps restent) */
 @media (max-width: 379px) { .rest-mini__next .rest-mini__step { display: none; } }
+/* « · » entre le nom et la série : collé au nom (rest-mini__dot) ; la série qui passe à la ligne ne commence jamais par
+   « · ». Au-dessus de 380 px, la série commence par « Série 2 » (rest-mini__sep suit l'étape) ; entre 360 et 379 px,
+   l'étape cachée, le « · » du nom tient lieu de séparateur ; sous 360 px, la charge a sa ligne, sans « · » */
+@media (min-width: 380px) { .rest-mini__next .rest-mini__step + .rest-mini__sep { display: inline; } }
+@media (max-width: 379px) { .rest-mini__next .rest-mini__sep { display: none; } }
+@media (max-width: 359px) { .rest-mini__dot { display: none; } }
 /* iPhone SE : le nom de l'exercice suivant entier (panel t6 : « Rowing haltère uni… », l'info utile pendant le repos),
    la charge sur sa propre ligne, sans « · » en tête */
 @media (max-width: 359px) {
@@ -945,6 +951,5 @@ html.type-xl .session-set .set-note-prev { grid-column: 1 / -1; }
 .sets__caption--side { margin-top: 6px; text-transform: none; letter-spacing: 0; font-size: 0.765rem; }
 /* Texte agrandi : un espace entre « Annuler » ou « Note » (colonne Avant) et le rond ✓ (panel du 20/11, iPhone SE AX33) */
 html.type-xl .session-set { column-gap: 12px; }
-html.type-xl .session-set > .set-prev, html.type-xl .session-set > .set-undo, html.type-xl .session-set .set-note-btn { min-width: 0; max-width: 100%; }
-html.type-xl .session-set .set-undo { white-space: normal; text-align: left; overflow-wrap: anywhere; }
+html.type-xl .session-set > .set-prev, html.type-xl .session-set .set-note-btn { min-width: 0; max-width: 100%; }
 html.type-xl .sets__head { column-gap: 12px; }   /* même écart que les lignes : « kg » et « Reps » au-dessus de leurs cases */

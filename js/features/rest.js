@@ -51,6 +51,8 @@ function stopRestRings() { if (restRingRaf) cancelAnimationFrame(restRingRaf); r
 
 function renderRestOverlay() {
   if (!restActive || !activeSession) return '';
+  // « Ensuite » : le « · » qui suit le nom y est collé (rest-mini__dot) : la série qui passe à la ligne ne commence
+  // jamais par « · » (grille avant panel, règle 6)
   const nxt = nextSetParts();
   const off  = RING_SMALL * (1 - restFraction());
   const meta = sessionMeta(activeSession.category, activeSession.programme);
@@ -67,7 +69,7 @@ function renderRestOverlay() {
       <button class="rest-mini__btn num" data-action="rest-adjust" data-d="15" aria-label="Plus 15 secondes">+15</button>
       <button class="rest-mini__skip" data-action="skip-rest" aria-label="Passer le repos">Passer</button>
       ${nxt ? `<div class="rest-mini__next">${nxt.sub ? `<span class="rest-mini__name">Ensuite :&nbsp;</span><span class="rest-mini__tail num">${esc(nxt.tail)}</span><span class="sr-text">, ${esc(nxt.name)}</span>`
-        : `<span class="rest-mini__name">Ensuite : ${esc(nxt.name)}</span><span class="rest-mini__tail num"><span class="rest-mini__step">&nbsp;· ${esc(nxt.step)}</span>${esc(nxt.load).replace(/^ · /, '<span class="rest-mini__sep"> · </span>')}</span>`}</div>` : ''}
+        : `<span class="rest-mini__name">Ensuite : ${esc(nxt.name)}<span class="rest-mini__dot">&nbsp;·</span></span><span class="rest-mini__tail num"><span class="rest-mini__step">&nbsp;${esc(nxt.step)}</span>${esc(nxt.load).replace(/^ · /, '<span class="rest-mini__sep"> · </span>')}</span>`}</div>` : ''}
     </div>`;
 }
 
