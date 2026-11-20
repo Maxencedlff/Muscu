@@ -116,6 +116,11 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
       Object.values({ ...e.p, ...e.s }).forEach(v => assert.ok(v === 1 || v === 2, `${name} : intensité ${v}`));
       e.src.forEach(i => assert.ok(run(`typeof EXERCISE_PART_SOURCES[${i}] === 'string'`), `${name} : source ${i}`));
       assert.equal(r.source, 'atlas', `${name} : détail refusé (muscles parents différents de la bibliothèque)`);
+      // Alignement strict (audit du 20/11) : principaux = parents des sous-muscles principaux, secondaires = parents des
+      // secondaires (hors principaux) ; pastilles, personnage, Progrès et historique comptent les mêmes muscles
+      const P = app.atlasParents(Object.keys(e.p)), S = app.atlasParents(Object.keys(e.s)).filter(id => !P.includes(id));
+      sameJSON([...P].sort(), [...m.primary].sort(), `${name} : principaux`);
+      sameJSON([...S].sort(), [...m.secondary].sort(), `${name} : secondaires`);
       if (!m.primary.length) {   // muscle profond seul (vacuum) : rien de coloré, comme aujourd'hui
         assert.ok(m.deep.length && !Object.keys(r.levels).length, `${name} : profond seul`);
         continue;

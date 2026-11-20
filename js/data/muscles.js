@@ -180,8 +180,10 @@ const MUSCLE_RULES = [
   [/curl (prise )?(inverse|pronation)|reverse (grip )?curl/,                                               'brachialis forearms', 'biceps'],
   [/marteau|hammer curl|curl hammer/,                                                     'brachialis biceps forearms', ''],
   [/curl|biceps/,                                                                         'biceps', 'brachialis forearms'],
-  [/roumain|romanian|rdl|jambes tendues|stiff|good morning/,                                       'hamstrings glutes', 'lower_back'],
-  [/souleve de terre|deadlift|rack pull|hex bar|trap bar/,                                'glutes hamstrings lower_back', 'quads adductors traps forearms'],
+  // Audit des sous-muscles du 20/11 (bibliothèque alignée) : adducteurs au roumain, lombaires principaux au good morning
+  [/good morning/,                                                                                  'hamstrings glutes lower_back', ''],
+  [/roumain|romanian|rdl|jambes tendues|stiff/,                                                     'hamstrings glutes', 'lower_back adductors'],
+  [/souleve de terre|deadlift|rack pull|hex bar|trap bar/,                                'glutes hamstrings lower_back', 'quads adductors traps forearms lats'],
   [/swing|arrache|snatch|epaule jete|\bclean\b/,                               'glutes hamstrings', 'lower_back traps'],
   [/hip th?rust|pont fessier|(releves?|elevations?|levers?) (du|de) bassin|glute|fessier|(?<!triceps? )kickback (jambe|fess|cable)|abduct|reverse hyper|hyperextensions? inversees?|pull ?through|tirage entre les jambes|clamshell|coquillage|marche laterale|monster walk/, 'glutes', 'hamstrings'],
   [/adduct|copenhag/,                                                                              'adductors', ''],
@@ -191,25 +193,26 @@ const MUSCLE_RULES = [
   [/triceps|barre au front|skull|extension nuque|kickback|pushdown|french press/,         'triceps', ''],
   [/(?<!hip )\bdips?\b/,                                                                           'chest triceps', 'front_delts'],
   [/oiseau|arriere|reverse (fly|pec|butterfly)|cuban|cubain|delto\w* post|elevations? posterieures?|(pec deck|butterfly|fly|ecarte) invers|face pull|rear delt|pull ?apart|rotation (externe|interne)/, 'rear_delts', 'traps'],
+  [/pull ?over.*(haltere|dumbbell|\bdb\b)|(haltere|dumbbell|\bdb\b).*pull ?over/,                   'chest', 'lats triceps'],   // haltère : pectoraux d'abord (audit du 20/11)
   [/pull ?over/,                                                                          'lats', 'chest triceps'],
   [/elevations? .*lateral|lateral raise|^laterales?\b|y raise|crucifix|^elevations? y\b/,                           'side_delts', 'traps'],
-  [/frontal|front raise/,                                                                 'front_delts', 'side_delts'],
+  [/frontal|front raise/,                                                                 'front_delts', 'side_delts chest traps'],
   [/menton|upright/,                                                                      'side_delts traps', 'front_delts biceps brachialis'],
   [/shrug|haussement|trapeze/,                                                            'traps', 'forearms'],
   // Obliques avant les abdominaux : rotations et flexions latérales du buste, gainage sur le côté, anti-rotation
   [/oblique|russian|rotations? russes?|twist|rotations? (du )?(buste|tronc)|torso rotation|trunk rotation|(?<!rowing )bucheron|landmine (rotation|twist)|rotations? (au )?landmine|rainbow|cross ?body crunch|wood ?chop|pallof|anti ?rotation|flexions? laterales?|side bend|inclinaisons? laterales?|gainage lateral|planche laterale|side (plank|bridge)|crunch (croise|lateral|velo|bicyclette)|bicycle crunch|suitcase|valise|windmill|moulin/, 'obliques', 'abs'],
   [/crunch|abdo|gainage(?! dorsal)|(?<!pseudo )planche(?! (dorsale|inversee))|(?<!(pseudo|reverse) )plank|\breleve|leg raise|roue|ab wheel|roll ?out|sit ?up|mountain(?! bike)|grimpeur|hollow(?!ing)|get ?up|turc|dead bug|(?<!tractions? )\bl sit|toes to bar/, 'abs', ''],
-  [/militaire|military|epaule|arnold|overhead|shoulder press|\bohp\b|push press|\bz press|viking|landmine press|developpe (a la )?landmine|^landmine$|developpe nuque|behind (the )?neck|bradford|developpe z\b|halo/, 'front_delts', 'side_delts triceps traps'],
+  [/militaire|military|epaule|arnold|overhead|shoulder press|\bohp\b|push press|\bz press|viking|landmine press|developpe (a la )?landmine|^landmine$|developpe nuque|behind (the )?neck|bradford|developpe z\b|halo/, 'front_delts', 'side_delts triceps traps chest'],
   [/ecarte|\bpeck? deck?\b|\bpecs?\b|butterfly|\bfly\b|vis a vis|crossover|croise/,               'chest', 'front_delts'],
   [/(developpe|press|bench).*incline|incline.*(press|bench)/,                             'chest front_delts', 'triceps'],
   [/developpe (couche|decline)|bench|chest press|pompe|push ?up/,                         'chest', 'front_delts triceps'],
   [/traction|pull ?up|chin ?up|muscle ?up|front lever|tirage (vertical|poitrine|nuque)|lat pull|pull ?down/,     'lats', 'biceps brachialis rear_delts'],
-  [/rowing|\brow\b|tirage|\bt ?bar\b/,                                                        'lats traps', 'rear_delts biceps'],
+  [/rowing|\brow\b|tirage|\bt ?bar\b/,                                                        'lats traps', 'rear_delts biceps brachialis forearms'],
   [/lombaire|gainage dorsal|planche (dorsale|inversee)|reverse plank|extension (du )?dos|hyperextension|back extension|superman|bird dog/,                 'lower_back', 'glutes hamstrings'],
   // Cardio après les abdos, le dos et les jambes : « Crunch vélo », « Rowing rameur » gardent leurs muscles
   [/escalier|stair|stepmill|step mill|stepper|climbmill|powermill/,                       'quads glutes', 'calves hamstrings'],
   [/course|courir|footing|jogging|running|trail|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation|ergometre|jumping jack/, 'quads calves', 'glutes'],
-  [/burpee/,                                                                              'quads chest', 'front_delts triceps abs'],
+  [/burpee/,                                                                              'quads glutes chest', 'front_delts triceps abs calves'],
   [/developpe|press/,                                                                     'chest', 'front_delts triceps'],
 ].map(([re, primary, secondary]) => [re, primary.split(' ').filter(Boolean), secondary.split(' ').filter(Boolean)]);
 

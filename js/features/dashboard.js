@@ -71,12 +71,15 @@ function muscleLastWorked() {
 // Le tronc (abdominaux, obliques) ne bloque pas une séance qui travaille aussi autre chose : un gainage ou un dead bug
 // en fin de séance ne doit pas retenir Dos, Épaules et Bras pendant trois jours (retour de Maxence, 19/11 : Jambes finie
 // par une planche, l'accueil lui reproposait Pecs). Une séance d'abdos seule attend toujours ses abdos.
+// Un exercice de tronc l'est en entier : la planche latérale (obliques et fessiers principaux depuis l'audit des
+// sous-muscles du 20/11) ne retient pas Épaules à cause des fessiers de Jambes.
 const CORE_MUSCLES = new Set(['abs', 'obliques']);
 function sessionBlockingMuscles(cat) {
   const index = chosenMusclesIndex();
-  const all = new Set((prog().exercises[cat] || []).flatMap(ex => exerciseMuscles(ex, index).primary));
-  const main = [...all].filter(m => !CORE_MUSCLES.has(m));
-  return new Set(main.length ? main : all);
+  const lists = (prog().exercises[cat] || []).map(ex => exerciseMuscles(ex, index).primary);
+  const all = new Set(lists.flat());
+  const main = new Set(lists.filter(p => !p.some(m => CORE_MUSCLES.has(m))).flat());
+  return main.size ? main : all;
 }
 function sessionRecovery(cat, { cd = getCooldown(cat) * 3600_000, after = -Infinity } = {}) {
   const muscles = sessionBlockingMuscles(cat);
