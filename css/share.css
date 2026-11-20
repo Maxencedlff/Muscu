@@ -31,8 +31,9 @@
 .share-preview__zoom { display: block; height: min(40vh, 460px); height: min(40dvh, 460px); padding: 0; border: 0; background: none;
   border-radius: var(--r-lg); cursor: zoom-in; }
 html.type-xl .share-preview__zoom { height: 30vh; height: 30dvh; }
-.share-preview--tools .share-preview__frame { width: auto; height: 100%; aspect-ratio: 9 / 16; }
-.share-preview--tools .share-preview__frame--square { width: auto; height: 100%; aspect-ratio: 1; }
+.share-preview__zoom { aspect-ratio: 9 / 16; flex: 0 0 auto; }
+.share-preview__zoom:has(.share-preview__frame--square) { aspect-ratio: 1; }
+.share-preview--tools .share-preview__frame, .share-preview--tools .share-preview__frame--square { width: 100%; height: 100%; aspect-ratio: auto; }
 .share-preview--tools .share-preview__formats { max-width: 420px; }
 .share-preview__help { max-width: 420px; }
 .share-preview__help--flow { display: none; }
