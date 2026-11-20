@@ -263,7 +263,9 @@ function storePastSession(exercises) {
       ssNormalize(ssGather(exercises));
       // Même jour : on garde l'heure d'origine
       savedDate = localISO(old.date) === addDate ? old.date : timestamp;
-      entry = data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate, notes: clipText(addNotes.trim(), SESSION_NOTES_MAX).trim(), exercises };
+      entry = data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate,
+        // Note d'avant non retouchée : gardée entière, même plus longue que la limite de saisie d'aujourd'hui
+        notes: addNotes.trim() === String(old.notes ?? '').trim() ? (old.notes ?? '').trim() : clipText(addNotes.trim(), SESSION_NOTES_MAX).trim(), exercises };
     }
   } else {
     entry = { id: uid(), programme: addProg, category: addCat, date: timestamp, notes: clipText(addNotes.trim(), SESSION_NOTES_MAX).trim(), exercises };

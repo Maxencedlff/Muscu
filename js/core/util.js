@@ -265,15 +265,28 @@ function cleanReps(v) { return String(v ?? '').replace(/\D/g, '').slice(0, 4); }
 // notes de séance 2000 (fil et coach, left(…, 2000)). Recherche : 100, bien au-delà de tout nom cherché.
 const EX_NAME_MAX = 80, SESSION_LABEL_MAX = 40, SESSION_DESC_MAX = 120, SESSION_NOTES_MAX = 2000, SEARCH_MAX = 100;
 const TEMPO_INPUT_MAX = 12;   // « 3-1-1-0 » et ses variantes (« 3 1 1 0 », « 3-1-X-1 »)
-// Texte coupé à max unités sans jamais couper un emoji en deux : une moitié de paire UTF-16 seule s'affiche « � » et
-// Postgres la refuse (tout l'envoi échouerait)
+// Texte coupé à max caractères, comptés comme char_length de Postgres (points de code : un emoji simple compte 1), et
+// toujours entre deux graphèmes : jamais une moitié de paire UTF-16 (« � », refusée par Postgres), ni un emoji composé
+// (🏋️‍♂️) ou une lettre à accent combinant (e + ◌́) coupés en deux. Sans Intl.Segmenter : coupe aux points de code.
+const CLIP_SEG = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('fr', { granularity: 'grapheme' }) : null;
 function clipText(s, max) {
-  const t = String(s ?? '').slice(0, max);
-  return /[\uD800-\uDBFF]$/.test(t) ? t.slice(0, -1) : t;
+  const t = String(s ?? '');
+  if (t.length <= max) return t;   // assez court en unités UTF-16, donc en points de code
+  const cps = Array.from(t);
+  if (cps.length <= max) return t;
+  if (!CLIP_SEG) return cps.slice(0, max).join('');
+  let out = '', n = 0;
+  for (const { segment } of CLIP_SEG.segment(t)) {
+    const k = Array.from(segment).length;
+    if (n + k > max) break;
+    out += segment; n += k;
+  }
+  return out;
 }
 // Au moins un caractère visible : des espaces (insécables compris) ou des caractères invisibles (U+200B, U+FEFF,
 // marques de sens d'écriture) seuls ne font ni un nom ni un message
-const INVISIBLE_RE = /[\s\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u206a-\u206f\ufeff]/gu;
+// (U+2800 braille vide, U+3164 et U+FFA0 lettres coréennes vides, sélecteurs de variante U+FE00-FE0F seuls)
+const INVISIBLE_RE = /[\s\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u206a-\u206f\ufeff\u2800\u3164\uffa0]|\p{Variation_Selector}/gu;
 function hasVisible(s) { return String(s ?? '').replace(INVISIBLE_RE, '') !== ''; }
 
 // Nom d'exercice comparable : minuscules, sans accents, espaces réduits

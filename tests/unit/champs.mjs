@@ -114,12 +114,21 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run('numRefusal("99", 0.25, 50, false)'), 'Valeur entre 0,25 et 50');
   });
 
-  test('saisie : clipText ne coupe jamais un emoji en deux, hasVisible refuse espaces et invisibles seuls', () => {
-    assert.equal(run('clipText("ab\\u{1F3CB}", 3)'), 'ab', 'paire UTF-16 entière ou rien');
+  test('saisie : clipText compte en caractères (char_length) et coupe entre deux graphèmes', () => {
+    assert.equal(run('clipText("ab\\u{1F3CB}", 3)'), 'ab\u{1F3CB}', 'un emoji simple compte 1 caractère, comme char_length');
+    assert.equal(run('clipText("abc\\u{1F3CB}", 3)'), 'abc');
     assert.equal(run('clipText("abc", 2)'), 'ab');
     assert.equal(run('clipText(null, 5)'), '');
-    for (const v of ['"   "', '"\\u00a0\\u202f"', '"\\u200b\\u200b"', '"\\ufeff"', '"\\u200e\\u200f"', '""', 'null']) assert.equal(run(`hasVisible(${v})`), false, v);
-    for (const v of ['"a"', '" é "', '"\\u{1F3CB}"', '"مرحبا"']) assert.equal(run(`hasVisible(${v})`), true, v);
+    const lift = '\u{1F3CB}️‍♂️';   // 🏋️‍♂️ : 5 points de code, un graphème
+    assert.equal(run(`clipText(${JSON.stringify('a' + lift)}, 4)`), 'a', 'emoji composé jamais coupé en deux');
+    assert.equal(run(`clipText(${JSON.stringify('a' + lift)}, 6)`), 'a' + lift);
+    assert.equal(run(`clipText(${JSON.stringify('café')}, 4)`), 'caf', 'e + accent combinant : gardés ensemble ou retirés ensemble');
+    assert.equal(run(`clipText(${JSON.stringify('x'.repeat(5000))}, 2000).length`), 2000);
+  });
+
+  test('saisie : hasVisible refuse espaces et caractères invisibles seuls', () => {
+    for (const v of ['"   "', '"\\u00a0\\u202f"', '"\\u200b\\u200b"', '"\\ufeff"', '"\\u200e\\u200f"', '"\\u2800\\u2800"', '"\\u3164"', '"\\ufe0f"', '""', 'null']) assert.equal(run(`hasVisible(${v})`), false, v);
+    for (const v of ['"a"', '" é "', '"\\u{1F3CB}"', '"\\u{1F3CB}\\ufe0f"', '"مرحبا"']) assert.equal(run(`hasVisible(${v})`), true, v);
   });
 
   test('saisie : haltères fixes, refus dit d\'un morceau illisible, virgule décimale ou séparateur', () => {
@@ -167,13 +176,45 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     }
   });
 
-  test('saisie : notes, noms de diète et notes de séance coupés sans demi-emoji, notes trop longues ramenées à 2000', () => {
+  test('saisie : notes et noms de diète coupés sans demi-emoji', () => {
     reset();
     assert.equal(run('cleanNote("\\u200b \\u200b")'), null, 'note invisible : pas de note');
-    const n = run(`cleanNote("a".repeat(139) + "\\u{1F3CB}")`);
-    assert.equal(n, 'a'.repeat(139), 'emoji à cheval sur la limite retiré entier');
-    assert.equal(run(`dietText("x".repeat(39) + "\\u{1F3CB}", 40)`), 'x'.repeat(39));
+    assert.equal(run('cleanNote("a".repeat(140) + "\\u{1F3CB}")'), 'a'.repeat(140), 'emoji au-delà de la limite retiré entier');
+    assert.equal(run('cleanNote("a".repeat(139) + "\\u{1F3CB}")'), 'a'.repeat(139) + '\u{1F3CB}', 'un emoji compte 1 caractère, comme char_length');
+    assert.equal(run('dietText("x".repeat(40) + "\\u{1F3CB}", 40)'), 'x'.repeat(40));
     const h = run(`(() => { const h = { id: 'a', date: 1, category: 'push', exercises: [], notes: 'n'.repeat(5000) }; cleanHistoryEntry(h); return h.notes.length; })()`);
-    assert.equal(h, run('SESSION_NOTES_MAX'));
+    assert.equal(h, 5000, 'note de séance d\'avant jamais coupée au nettoyage');
+  });
+
+  // ── Données d'avant : jamais raccourcies par une limite de saisie d'aujourd'hui (audit du 20/11, B1) ──
+
+  test('données d\'avant : note de 5 000 caractères, noms longs et taille décimale intacts au lancement et à la synchro', () => {
+    reset();
+    const note = 'n'.repeat(5000), sess = 'S'.repeat(60), exn = 'E'.repeat(120);
+    run(`localStorage.setItem('ppl_v2', ${JSON.stringify(JSON.stringify({
+      schema: 1, heightCm: 175.5,
+      customSessions: { c1: { label: sess, desc: 'D'.repeat(300), icon: '', color: '#FF9500' } },
+      programmes: { custom: { exercises: { c1: [{ id: 'e1', name: exn, sets: 3 }] }, timers: {}, cooldowns: {} } },
+      history: [{ id: 'h1', date: 1700000000000, category: 'c1', programme: 'custom', notes: note,
+                  exercises: [{ name: exn, sets: [{ weight: '20', reps: '10' }] }] }],
+    }))})`);
+    const d = run('data = loadData(); data');
+    assert.equal(d.history[0].notes.length, 5000, 'note de séance gardée entière au lancement');
+    assert.equal(d.customSessions.c1.label, sess);
+    assert.equal(d.customSessions.c1.desc.length, 300);
+    assert.equal(d.programmes.custom.exercises.c1[0].name, exn);
+    assert.equal(d.history[0].exercises[0].name, exn);
+    assert.equal(d.heightCm, 175.5, 'taille décimale d\'avant gardée');
+    // Synchro : la version distante (même note) remplace la locale sans rien couper ; ce qui part est entier
+    const r = run(`(() => {
+      const h = data.history[0], meta = { pushed: {} };
+      const res = applyRemoteSessions(data.history, [{ id: 'h1', data: sessionPayload({ ...h, notes: ${JSON.stringify(note)} }) }], meta);
+      return { notes: res.history[0].notes.length, sent: sessionPayload(res.history[0]).notes.length };
+    })()`);
+    assert.equal(r.notes, 5000, 'note reçue d\'une synchro gardée entière');
+    assert.equal(r.sent, 5000, 'note envoyée entière');
+    // Relance après enregistrement : toujours entière
+    run('save()');
+    assert.equal(run('loadData().history[0].notes.length'), 5000);
   });
 }

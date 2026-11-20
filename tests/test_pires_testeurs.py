@@ -120,12 +120,12 @@ def act(page, name, **data):
 
 
 def tap(page, sel):
-    """Toucher d'un bouton ; s'il reste masqué 8 s (clavier, toast du moteur WebKit de test), clic envoyé à l'élément et
-    avertissement affiché : la saisie reste vérifiée, le masquage est signalé sans faire échouer le lot."""
+    """Toucher d'un bouton. S'il reste masqué 8 s (clavier, toast, autre couche), le lot ÉCHOUE : un bouton qu'on ne
+    peut pas toucher est un vrai défaut. Le clic est quand même envoyé à l'élément pour vérifier la suite de la saisie."""
     try:
         page.click(sel, timeout=8000)
     except Exception as e:
-        print(f'  AVERTISSEMENT : {sel} pas touchable ({str(e).splitlines()[0][:80]}), clic envoyé à l\'élément', flush=True)
+        R.check(False, f'{sel} touchable (masqué : {str(e).splitlines()[0][:100]})')
         page.locator(sel).first.dispatch_event('click')
     settle(page)
 
@@ -316,6 +316,32 @@ def set_regle(cle):
     return r
 
 
+def plates_other(page):
+    """Disques de la barre : séance d'un exercice à la barre, feuille des disques, « Autre disque »."""
+    if not page.evaluate("!!activeSession && isBarbellExercise(activeSession.exercises[0])"):
+        page.evaluate("activeSession = null; data.programmes.ppl.exercises.push[0].name = 'Développé couché barre'; save(); startSession('push')")
+        page.wait_for_selector('.view.session')
+    if not page.locator('[data-action="pl-other"]').count():
+        page.evaluate("void openPlatesSheet(0, 0)")
+        page.wait_for_selector('[data-action="pl-other"]')
+    tap(page, '[data-action="pl-other"]')
+    page.wait_for_selector('.ios-dialog__input')
+
+
+def summary_open(page):
+    """Bilan d'une séance terminée (une série validée)."""
+    if page.locator('#summaryNotes').count():
+        return
+    page.evaluate("activeSession = null; startSession('push')")
+    page.wait_for_selector('.view.session')
+    put(page, SET_R, '10')
+    set_valider(page)
+    tap(page, '[data-action="finish-session"]')
+    page.locator('.ios-dialog__btn', has_text='Enregistrer la séance').first.click()
+    page.wait_for_selector('#summaryNotes')
+    settle(page)
+
+
 def recettes():
     T = textes
     out = [
@@ -343,7 +369,10 @@ def recettes():
         Champ('features/apple-services.js:askNumber:Poids du corps', 'Poids du corps', dialog_field('set-body-weight'), '.ios-dialog__input',
               ok_btn(), lambda p: p.evaluate('data.bodyWeightKg ?? null'), regle_nombre(25, 300), NOMBRES,
               valables=[('72,5', 72.5), ('72.5', 72.5)]),
-        Champ('features/session-tools.js:askNumber:Autre disque', 'Autre disque', None, '.ios-dialog__input', ok_btn(), None, None, NOMBRES),
+        Champ('features/session-tools.js:askNumber:Autre disque', 'Autre disque', plates_other, '.ios-dialog__input', ok_btn(),
+              lambda p: p.evaluate("JSON.stringify(plateSetup().plates)"),
+              lambda a, b, s: [] if b == a else regle_nombre(0.25, 50)(None, [x for x in json.loads(b) if x not in json.loads(a)][0], s),
+              NOMBRES, valables=[('1,25', None)]),
         Champ('features/program-generator-ui.js:askText:Haltères fixes', 'Haltères fixes',
               lambda p: (p.evaluate("void openProgGen()"), settle(p), act(p, 'gen-db-loads'), p.wait_for_selector('.ios-dialog__input')),
               '.ios-dialog__input', ok_btn(), lambda p: p.evaluate('genAns.dbLoads'),
@@ -380,7 +409,10 @@ def recettes():
               '#dietFoodK', sheet_ok, lambda p: p.evaluate("(data.dietFoods || []).map(f => f.per.k)"),
               lambda a, b, s: [] if b == a else regle_nombre(0, 900, entier=True)(None, b[-1] if b else None, s), NOMBRES,
               valables=[('120,4', None)]),
-        Champ('features/summary.js#summaryNotes', 'Notes du bilan', None, '#summaryNotes', None, None, None, []),
+        Champ('features/summary.js#summaryNotes', 'Notes du bilan', summary_open, '#summaryNotes', lambda p: (p.wait_for_timeout(350), settle(p)),
+              lambda p: p.evaluate("data.history.find(h => h.id === lastSummary.id).notes ?? ''"),
+              lambda a, b, s: [] if b == a else regle_texte(2000, False, une_ligne=False)(None, b, s), T(2000),
+              valables=[('Bonne séance\népaule OK', 'Bonne séance\népaule OK')], reste=True),
     ]
     return [c for c in out if c.ouvrir]
 
@@ -611,5 +643,53 @@ def t_recherches(bench, eng, dev, theme):
         close_all(page)
 
 
+# ── Données d'avant (audit du 20/11, B1) ─────────────────────
+
+def t_avant(bench, eng, dev, theme):
+    """Données plus longues que les limites de saisie d'aujourd'hui (note de séance de 5 000 caractères, nom de séance de 60,
+    nom d'exercice de 120, taille décimale) : intactes au lancement, après une synchro simulée et quand on modifie autre chose."""
+    if theme != 'dark':
+        return
+    t = tag(dev, theme)
+    note, sess, exn = 'n' * 5000, 'S' * 60, 'E' * 120
+    d = ppl_v2_today()
+    d['history'][-1]['notes'] = note
+    d['customSessions'][CUSTOM_ID]['label'] = sess
+    d['programmes']['ppl']['exercises']['push'][0]['name'] = exn
+    d['heightCm'] = 175.5
+    hid = d['history'][-1]['id']
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, account=True, ppl=json.dumps(d, ensure_ascii=False))
+        etat = """(hid) => ({ note: (data.history.find(h => h.id === hid) || {}).notes?.length, sess: data.customSessions['%s']?.label,
+                    ex: data.programmes.ppl.exercises.push[0].name, cm: data.heightCm ?? null })""" % CUSTOM_ID
+        attendu = {'note': 5000, 'sess': sess, 'ex': exn, 'cm': 175.5}
+        R.check(page.evaluate(etat, hid) == attendu, f'{t} données d\'avant intactes au lancement')
+        signin(page, social=False)
+        page.evaluate('syncNow()')
+        settle(page)
+        sent = page.evaluate("(hid) => (__sb.upserted || []).filter(r => r.id === hid).map(r => (r.data || {}).notes?.length)", hid)
+        R.check(sent and all(n == 5000 for n in sent), f'{t} synchro : note envoyée entière ({sent})')
+        R.check(page.evaluate(etat, hid) == attendu, f'{t} données d\'avant intactes après la synchro')
+        # Autre chose modifié : objectif de l'exercice, couleur et description de la séance, repos par défaut
+        ex_edit(page)
+        put(page, '#exTarget', '50')
+        save_ex(page)
+        page.evaluate("void (csProg = 'custom', csEditId = '%s', csColor = '#34C759', navigate('cs-edit'))" % CUSTOM_ID)
+        page.wait_for_selector('#csName')
+        tap(page, '[data-action="save-cs-modal"]')
+        close_all(page)
+        act(page, 'setting-rest')
+        page.wait_for_selector('.ios-dialog__input')
+        put(page, '.ios-dialog__input', '75')
+        ok_btn()(page)
+        R.check(page.evaluate("data.programmes.ppl.exercises.push[0].target") == 50, f'{t} objectif modifié')
+        R.check(page.evaluate(etat, hid) == attendu, f'{t} données d\'avant intactes après une autre modification {page.evaluate(etat, hid)}')
+        page.reload()
+        page.wait_for_selector('#app > *')
+        settle(page)
+        R.check(page.evaluate(etat, hid) == attendu, f'{t} données d\'avant intactes après relance')
+        R.check(not page.errors, f'{t} données d\'avant : aucune erreur JS {page.errors}')
+
+
 if __name__ == '__main__':
-    run_main(R, [t_local, t_serveur, t_recherches])   # t_serveur en sombre, t_recherches en clair (voir leur garde)
+    run_main(R, [t_local, t_serveur, t_recherches, t_avant])   # t_serveur en sombre, t_recherches en clair (voir leur garde)

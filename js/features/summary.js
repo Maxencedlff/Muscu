@@ -236,7 +236,8 @@ let summaryNotesTimer = null;
 function summaryNotesInput(value) {
   const h = lastSummary && data.history.find(x => x.id === lastSummary.id);
   if (!h) return;
-  h.notes = clipText(value.trim(), SESSION_NOTES_MAX).trim();
+  const v = value.trim();
+  h.notes = v === h.notes ? v : clipText(v, SESSION_NOTES_MAX).trim();   // seule une note retouchée est bornée
   clearTimeout(summaryNotesTimer);
   summaryNotesTimer = setTimeout(() => save(), 300);
 }

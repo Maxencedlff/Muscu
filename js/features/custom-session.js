@@ -53,15 +53,16 @@ registerActions({
     csEditId = null; goBack();
   },
   'save-cs-modal': () => {
-    // Collage plus long que le champ (ancienne séance, clavier tiers) : coupé ; invisible seul (U+200B) : pas un nom
-    const name = clipText($('#csName')?.value.trim(), SESSION_LABEL_MAX).trim();
-    const desc = clipText($('#csDesc')?.value.trim() || '', SESSION_DESC_MAX).trim();
-    if (!name || !hasVisible(name)) { flagInvalid($('#csName'), 'Entre un nom'); return; }
-
     const id = csEditId || newSessionId();
     const store = userSessions(csProg);
     if (!store) return;
     const prev = store[id];
+    // Seul ce qui a été modifié est borné (maxlength, et clipText pour un collage) : un nom ou une description d'avant,
+    // plus long que la limite d'aujourd'hui, reste entier quand on ne change que la couleur. Invisible seul : pas un nom
+    const kept = (v, old, max) => (v === String(old ?? '').trim() ? v : clipText(v, max).trim());
+    const name = kept($('#csName')?.value.trim() ?? '', prev?.label, SESSION_LABEL_MAX);
+    const desc = kept($('#csDesc')?.value.trim() || '', prev?.desc, SESSION_DESC_MAX);
+    if (!name || !hasVisible(name)) { flagInvalid($('#csName'), 'Entre un nom'); return; }
     // L'icône n'est plus choisie ni affichée : celle d'une séance existante est gardée telle quelle
     store[id] = { label: name, icon: prev?.icon || '', desc, color: csColor };
 
