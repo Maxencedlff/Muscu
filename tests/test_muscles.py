@@ -565,6 +565,9 @@ MUSCLE_POINT_JS = """async ([sel, m, view]) => {
 
 
 def tap_muscle(page, sel, muscle, view):
+    # Carte centrée d'abord : un toucher hors de l'écran (iPhone SE, après un défilement) ne fait rien
+    page.evaluate("s => { const m = document.querySelector(s), r = m.getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight) m.scrollIntoView({ block: 'center' }); }", sel)
+    page.wait_for_timeout(100)
     x, y = page.evaluate(MUSCLE_POINT_JS, [sel, muscle, view])
     page.mouse.click(x, y)
     # Premier toucher d'une vue : cartes d'étiquettes calculées avant l'ouverture (plus long sous charge)
