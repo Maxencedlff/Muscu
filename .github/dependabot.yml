@@ -1,7 +1,14 @@
-# Actions GitHub épinglées par SHA (chaîne d'approvisionnement) : Dependabot propose les mises à jour
+# Actions GitHub épinglées par SHA (chaîne d'approvisionnement) : Dependabot propose les mises à jour.
+# Regroupées en une seule demande par mois (20/11/2026) : une demande par action lançait une CI chacune
+# et bloquait les captures et tests des chantiers.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns:
+          - "*"
