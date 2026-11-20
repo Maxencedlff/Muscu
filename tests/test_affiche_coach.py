@@ -146,8 +146,16 @@ def send_visible(page):
     return ok_top and ok_end
 
 
+def tap(page, sel):
+    """Toucher un réglage de l'aperçu : amené au milieu de la feuille (entre l'aperçu fixé en haut et la barre fixée
+    en bas), comme un doigt qui fait défiler, puis touché."""
+    page.evaluate("s => document.querySelector(s).scrollIntoView({ block: 'center' })", sel)
+    page.wait_for_timeout(120)
+    page.click(sel)
+
+
 def pick_seg(page, action, value):
-    page.click(f'.sheet [data-action="{action}"][data-v="{value}"]')
+    tap(page, f'.sheet [data-action="{action}"][data-v="{value}"]')
     page.wait_for_function("([a, v]) => document.querySelector(`.sheet [data-action='${a}'][data-v='${v}']`).getAttribute('aria-pressed') === 'true'", arg=[action, value])
     preview_ready(page)
 
@@ -161,7 +169,7 @@ def athlete_jpeg(name, side=2400):
 
 
 def pick_format(page, f):
-    page.click(f'.sheet [data-action="share-format"][data-f="{f}"]')
+    tap(page, f'.sheet [data-action="share-format"][data-f="{f}"]')
     preview_ready(page)
 
 
@@ -218,7 +226,7 @@ def t_coach_affiche(bench, eng, dev, theme):
         # Photo de l'affiche choisie ici : gardée sur l'iPhone (2048 px au plus), rien d'envoyé
         sent = page.evaluate('__sb.pp.photos.length')
         with page.expect_file_chooser() as fc:
-            page.click('.sheet [data-action="coach-poster-photo"]')
+            tap(page, '.sheet [data-action="coach-poster-photo"]')
         fc.value.set_files(src)
         page.wait_for_function("() => !!(cposter && cposter.photo)", timeout=8000)
         preview_ready(page)
@@ -333,7 +341,7 @@ def t_apercu_grand_texte(bench, eng, dev, theme):
         preview_ready(page)
         for action, value in (('coach-poster-silhouette', 'female'), ('coach-poster-title', 'neutral')):
             sel = f'.sheet [data-action="{action}"][data-v="{value}"]'
-            page.locator(sel).scroll_into_view_if_needed()
+            page.evaluate("s => document.querySelector(s).scrollIntoView({ block: 'center' })", sel)
             settle(page)
             seen = page.evaluate(PREVIEW_SEEN)
             hit = page.evaluate("""s => { const e = document.querySelector(s), r = e.getBoundingClientRect();

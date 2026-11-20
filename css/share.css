@@ -77,3 +77,6 @@ html.type-xl .cposter-row__seg .segmented__btn--active::before { display: inline
 .cposter-row__seg .segmented__btn { flex: 0 0 auto; padding: 0 10px; white-space: nowrap; }
 /* Très grand texte : le champ Nom passe sous son libellé, pleine largeur (« Ajoute ton prénom » entier) */
 html.type-xl .cposter-row__input { flex-basis: 100%; text-align: left; }
+/* Un réglage amené à l'écran (clavier, VoiceOver) s'arrête entre l'aperçu fixé en haut et la barre fixée en bas */
+.sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(min(40dvh, 460px) + 24px); scroll-padding-bottom: 140px; }
+html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 24px); scroll-padding-bottom: 120px; }
