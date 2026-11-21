@@ -701,7 +701,11 @@ def t_tip(bench, eng, dev, theme):
         tap_muscle(page, '.mcard__map', 'abs', 'front')
         R.check(tip_text(page).startswith('Abdominaux'), f'{t} bulle abdominaux (grand droit) : « {tip_text(page)} »')
         page.wait_for_timeout(700)   # fin du défilement qui amène la carte d'info au-dessus des onglets
-        f = page.locator('.mcard__map .body-map__front').bounding_box()   # remesurée : la carte d'info a pu faire défiler la page
+        # La carte amenée au-dessus des onglets peut pousser la tête sous la barre du titre (iPhone SE) : tête ramenée à l'écran
+        page.evaluate("""() => { const f = document.querySelector('.mcard__map .body-map__front').getBoundingClientRect(), nav = document.querySelector('.view.stats .navbar').getBoundingClientRect().bottom;
+            const y = f.top + f.height * .04; if (y < nav + 8) scrollBy(0, y - nav - 24); }""")
+        settle(page)
+        f = page.locator('.mcard__map .body-map__front').bounding_box()   # remesurée
         hx, hy = f['x'] + f['width'] / 2, f['y'] + f['height'] * .04
         at = page.evaluate("([x, y]) => { const e = document.elementFromPoint(x, y); return e ? e.className + ' / ' + (e.closest('[class]')?.parentElement?.className || '') : null; }", [hx, hy])
         page.mouse.click(hx, hy)
