@@ -208,12 +208,12 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     // Résumé replié : le drop et les deux bras se voient
     run(`activeSession = { programme: 'ppl', category: 'pull', exercises: [] }`);
     const ex2 = `{ name: 'Curl concentration', sets: [{ weight: '14', reps: '10', done: true, side2: { weight: '14', reps: '10' } }, { weight: '14', reps: '9', done: true, tech: 'drop', sub: [{ weight: '10', reps: '6' }], side2: { weight: '14', reps: '9' } }] }`;
-    assert.equal(run(`doneSummary(${ex2})`).replace(/\u00a0/g, ' '), '2 × 10/9 · 14 kg · 2 bras', '« 2 bras » sur la 1re ligne');
-    sameJSON(run(`doneExtraLines(${ex2})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop : gauche 10 kg × 6 · droit —'], 'drop noté au bras gauche seulement');
+    assert.equal(run(`doneSummary(${ex2})`).replace(/\u00a0/g, ' '), '2 séries · 14 kg · 2 bras', 'noté par bras : séries, charge et « 2 bras », le détail dans les lignes de chaque bras');
+    sameJSON(run(`doneExtraLines(${ex2})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop : gauche 10 kg × 6 · droit —', 'Bras gauche : 14 kg × 10, 9', 'Bras droit : 14 kg × 10, 9'], 'drop noté au bras gauche seulement');
     // Drops qui diffèrent : chaque bras ; pareils : une fois
     const dd = (a, b) => `{ name: 'Curl concentration', sets: [{ weight: '14', reps: '10', tech: 'drop', sub: [{ weight: '10', reps: '${a}' }], side2: { weight: '14', reps: '10', sub: [{ weight: '10', reps: '${b}' }] } }] }`;
-    sameJSON(run(`doneExtraLines(${dd(6, 5)})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop : gauche 10 kg × 6 · droit 10 kg × 5']);
-    sameJSON(run(`doneExtraLines(${dd(6, 6)})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop 10 kg × 6']);
+    sameJSON(run(`doneExtraLines(${dd(6, 5)})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop : gauche 10 kg × 6 · droit 10 kg × 5', 'Bras gauche : 14 kg × 10', 'Bras droit : 14 kg × 10']);
+    sameJSON(run(`doneExtraLines(${dd(6, 6)})`).map(l => l.replace(/\u00a0/g, ' ')), ['Drop 10 kg × 6', 'Bras gauche : 14 kg × 10', 'Bras droit : 14 kg × 10'], 'chaque bras toujours détaillé');
     sameJSON(run(`doneExtraLines({ name: 'Curl biceps haltères', sets: [{ weight: '14', reps: '10' }] })`), []);
     // Bras différents : chaque bras sur sa ligne
     sameJSON(run(`doneExtraLines({ name: 'Curl concentration', sets: [{ weight: '14', reps: '10', side2: { weight: '14', reps: '8' } }] })`).map(l => l.replace(/\u00a0/g, ' ')),

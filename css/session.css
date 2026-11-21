@@ -999,3 +999,18 @@ html.type-xl .tech__dot { display: none; }
   .sum-record .sum-row__main { flex: 1 1 0; }
   .sum-record .sum-row__val { flex-basis: 100%; padding-left: 42px; }   /* sous le nom, la médaille et le nom gardent leur ligne */
 }
+/* « Avant 14 × 10 » : la valeur ne passe jamais à la ligne (panel du 21/11 : « 14 × 1 » / « 0 » en AX33 sur SE) ; en
+   texte agrandi, un peu plus petite que les cases pour tenir dans sa colonne */
+.set-prev__val { white-space: nowrap; }
+html.type-xl .set-prev__val { font-size: .9em; }
+/* « Drop 1 » sur une ligne (espace insécable) : la colonne du numéro s'élargit sur une carte qui a des sous-séries
+   (sets--tech) ; « Mini-série 1 » se coupe au tiret */
+.sets--tech { --set-cols: 48px minmax(0,1.3fr) minmax(0,1fr) minmax(44px,.8fr) 52px; }
+@media (max-width: 374px) { .sets--tech { --set-cols: 44px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; } }
+.tech-tag .set-n__side { white-space: nowrap; }
+/* « max » : une indication, pas une valeur (plus fine, gris lisible) */
+.session-set--sub .set-input::placeholder { color: var(--label2); opacity: 1; font-weight: 400; }
+/* Texte agrandi : « pour les 2 bras » sur la ligne de « + drop » et × */
+html.type-xl .tech__cap--foot { flex-wrap: nowrap; }
+html.type-xl .tech__cap--foot .tech__label { flex: 1 1 0; min-width: 0; }
+html.type-xl .tech__cap--foot .tech__hint { white-space: normal; }

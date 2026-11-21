@@ -361,7 +361,7 @@ def t_rest_pause_mots(bench):
             settle(page)
             m = page.evaluate("""() => { const h = document.querySelector('.tech__hint'), tg = document.querySelector('.session-set--sub .tech-tag, .session-set--sub .set-n');
                 return { hint: h && h.textContent, shown: !!h && h.getBoundingClientRect().width > 0 && h.scrollWidth <= h.clientWidth + 1,
-                         tag: tg && tg.textContent.trim(), add: document.querySelector('[data-action="tech-add-sub"]')?.textContent.trim() }; }""")
+                         tag: tg && tg.textContent.replace(/\u00a0/g, ' ').trim(), add: document.querySelector('[data-action="tech-add-sub"]')?.textContent.trim() }; }""")
             R.check(m['hint'] == '15 s' and m['shown'] and m['tag'] == 'Mini-série 1' and 'mini-série' in (m['add'] or ''), f'{t} rest-pause : « 15 s » entier, « Mini-série 1 » en toutes lettres, « + mini-série » {m}')
             g = page.evaluate("""() => { const a = document.querySelector('.tech__add').getBoundingClientRect(), x = document.querySelector('.tech__x').getBoundingClientRect();
                 return { h: Math.min(a.height, x.height), gap: Math.round(x.left - a.right) }; }""")

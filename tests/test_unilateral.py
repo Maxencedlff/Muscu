@@ -88,7 +88,7 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(names == ['Drop set · bras gauche', 'Drop set · bras droit'] and page.locator('.ex-card[data-ei="0"] .tech__add').count() == 1
                 and 'pour les 2 bras' in page.locator('.ex-card[data-ei="0"] .tech__cap--foot').inner_text(), f'{t} titres par bras, un seul jeu de boutons ({names})')
         # « Drop 1 » en toutes lettres, plus « +1 » (panel du 20/11)
-        tags = [x.replace('\n', ' ') for x in page.locator('.ex-card[data-ei="0"] .tech-tag').all_inner_texts()]
+        tags = [' '.join(x.replace('\u00a0', ' ').split()) for x in page.locator('.ex-card[data-ei="0"] .tech-tag').all_inner_texts()]
         R.check(tags == ['Drop 1 Gauche', 'Drop 1 Droit'], f'{t} « Drop 1 » et son bras, sur les deux bras ({tags})')
         center(page, '.ex-card[data-ei="0"] .tech')
         shot(page, LOT, f'{t}-01-drop-pose')
@@ -140,7 +140,8 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(abs(vol - exp) < 0.01, f'{t} volume des deux bras ({vol} = {exp})')
         # Carte repliée : le drop et les deux bras se voient (panel du 20/11)
         lines = [l.replace('\u00a0', ' ') for l in page.locator('.ex-card--collapsed[data-ei="0"] .ex-summary__line').all_inner_texts()]
-        R.check(lines[0].endswith('· 2 bras') and lines[1:] == [f'Drop : gauche {w1} kg × 6 · droit {w1} kg × 5'], f'{t} carte repliée : les deux bras et le drop de chacun {lines}')
+        R.check(lines[0] == '3 séries · 14 kg · 2 bras' and lines[1] == f'Drop : gauche {w1} kg × 6 · droit {w1} kg × 5'
+                and lines[2:] == ['Bras gauche : 14 kg × 10, 10, 9', 'Bras droit : 14 kg × 10, 10, 9'], f'{t} carte repliée : séries, drop et chaque bras {lines}')
         page.click('.ex-card[data-ei="0"] [data-action="toggle-ex"]'); settle(page)
         center(page, '.ex-card[data-ei="0"] .session-set--side')
         shot(page, LOT, f'{t}-03-repos-apres-bras-droit')
@@ -257,7 +258,11 @@ def once_grand_texte(bench):
                 seed(page, theme, uni_data())
                 settle(page)
                 start(page)
+                # « Avant 14 × 10 » sur une ligne : ligne ordinaire au démarrage (panel du 21/11 : « 14 × 1 » / « 0 »)
+                one = "[...document.querySelectorAll('.ex-card[data-ei=\"0\"] .set-prev__val')].map(e => e.getClientRects().length)"
+                R.check(all(n == 1 for n in page.evaluate(one)), f'{t} « Avant » sur une ligne, ligne ordinaire ({page.evaluate(one)})')
                 page.evaluate("setTechOn(0, 2, 'drop')"); settle(page)
+                R.check(page.evaluate(one) and all(n == 1 for n in page.evaluate(one)), f'{t} « Avant » sur une ligne, lignes par bras ({page.evaluate(one)})')
                 for si in range(2):
                     page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); settle(page)
                     page.click(f'[data-action="side-validate"][data-ei="0"][data-si="{si}"]'); settle(page); skip_rest(page)

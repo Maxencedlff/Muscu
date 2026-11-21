@@ -342,8 +342,8 @@ function doneExtraLines(ex) {
   });
   const lines = parts.length ? [parts.join(' · ')] : [];
   const two = work.filter(hasSide2);
-  const differ = two.some(s => String(s.reps) !== String(s.side2.reps ?? '') || String(s.weight) !== String(s.side2.weight ?? ''));
-  if (differ) {
+  // Chaque bras, toujours (la 1re ligne ne dit plus que « 3 séries · 14 kg · 2 bras »)
+  if (two.length) {
     const txt = (sets, side) => `${sideName(ex, side)} : ${setsTextRead(sets, 'reps', kind)}`;
     lines.push(txt(two, 1), txt(two.map(s => s.side2), 2));
   }
@@ -357,9 +357,13 @@ function doneSummary(ex) {
   const reps = work.map(s => String(s.reps));
   const same = reps.every(r => r === reps[0]);
   const maxW = Math.max(0, ...work.map(s => parseFloat(s.weight) || 0));
-  // Noté par bras : « · 2 bras » sur cette ligne (panel du 20/11, 4e tour)
-  const sides = work.some(hasSide2) ? ` · 2\u00a0${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}` : '';
-  return `${work.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}${sides}`;
+  // Noté par bras : « 3 séries · 14 kg · 2 bras », le détail de chaque bras dans les lignes « Bras gauche : … »,
+  // « Bras droit : … » (doneExtraLines ; panel du 21/11 : « 3 × 10/10/9 » ne disait que le bras gauche)
+  if (work.some(hasSide2)) {
+    const w2 = Math.max(maxW, ...work.map(s => parseFloat(s.side2?.weight) || 0));
+    return `${plural(work.length, 'série', 'séries')}${w2 ? ` · ${fmtW(w2, { plain: true })} ${unitLbl()}` : ''} · 2\u00a0${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}`;
+  }
+  return `${work.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}`;
 }
 
 // ── Vignettes des exercices ──────────────────────────────────
@@ -544,7 +548,7 @@ function renderExerciseCard(ex, ei, cur) {
       ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
       ${sideFirstLinkHtml(ex, ei)}
-      <div class="sets${ex.sets.some(isWarmupSet) ? ' sets--warm' : ''}${exBySide(ex) ? ' sets--sides' : ''}${holdGuide(ex) ? ' sets--noload' : ''}" role="group" aria-label="${holdGuide(ex) ? 'Maintiens' : 'Séries'} de ${esc(ex.name)}">
+      <div class="sets${ex.sets.some(isWarmupSet) ? ' sets--warm' : ''}${exBySide(ex) ? ' sets--sides' : ex.sets.some(st => TECHS[setTech(st)]?.sub) ? ' sets--tech' : ''}${holdGuide(ex) ? ' sets--noload' : ''}" role="group" aria-label="${holdGuide(ex) ? 'Maintiens' : 'Séries'} de ${esc(ex.name)}">
         <div class="sets__head" aria-hidden="true">
           <span>${holdGuide(ex) ? 'N°' : 'Série'}</span><span>Avant</span>
           <span>${loadHeader(ex)}</span><span>${MEASURES[measureOf(ex)].count}</span>
@@ -802,7 +806,8 @@ function prevSpoken(s, m) {
 function renderSetRow(ex, ei, s, si, cur, tag) {
   const m       = measureOf(ex);
   const prevF   = setFirstValue(s.prev, m);
-  const prev    = s.prev ? `${prevF ? prevF + '&nbsp;×&nbsp;' : ''}${esc(s.prev.reps)}` : '—';   // « 14 × 10 » jamais coupé
+  // « 14 × 10 » jamais coupé (insécable et sans retour à la ligne, set-prev__val : css/session.css)
+  const prev    = s.prev ? `<span class="set-prev__val">${prevF ? prevF + '&nbsp;×&nbsp;' : ''}${esc(s.prev.reps)}</span>` : '—';
   const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
   // Caché à VoiceOver et inactif tant que le balayage ne l'a pas révélé (setDelShown, js/features/session-gestures.js) : lu
   // avant chaque série, un double toucher supprimait sans le vouloir (panel « yeux neufs » du 16/11). Sans balayage :

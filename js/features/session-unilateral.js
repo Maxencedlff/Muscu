@@ -76,7 +76,7 @@ function side2RowHtml(ex, ei, s, si, tag) {
   const x = s.side2, kind = loadKind(ex), at = `data-ei="${ei}" data-si="${si}"`;
   const name = `${setSpokenName(ex, si)}, ${sideName(ex, 2).toLowerCase()}`;
   const exOf = tag ? `, ${esc(ex.name)}` : '';
-  const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;×&nbsp;' : ''}${esc(x.prev.reps)}` : '—';
+  const prev = x.prev ? `<span class="set-prev__val">${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;×&nbsp;' : ''}${esc(x.prev.reps)}</span>` : '—';
   // Même numéro que la série (c'est la même série, de l'autre côté), lettre du superset sinon
   const no = withSideTag(`<span class="set-n${tag ? '' : ' num'}" aria-hidden="true">${tag ? `<span class="ss-tag">${tag}</span>` : setDisplayNo(ex.sets, si)}</span>`, ex, s, 2);
   if (x.done) {

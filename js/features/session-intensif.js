@@ -101,10 +101,10 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
   // Numéro de la sous-série seul, sous le nom de la technique (« Rest-pause 15 s ») : un seul mot, « mini-série », partout ailleurs
   // « Drop 1 », « Mini-série 1 », « Bloc 1 » : le nom en toutes lettres (panel du 20/11 : « +1 » se lisait « +1 rep » ou
   // « +1 série »), sur deux lignes dans la colonne du numéro
-  const T = TECHS[setTech(s)], tag = `${capitalize(T.subName)} ${k + 1}`, kind = loadKind(ex), two = side === 2, host = two ? s.side2 : s;
+  const T = TECHS[setTech(s)], tag = `${capitalize(T.subName)}&nbsp;${k + 1}`, kind = loadKind(ex), two = side === 2, host = two ? s.side2 : s;
   const spoken = `${T.subName} ${k + 1}, ${setSpokenName(ex, si).toLowerCase()}${hasSide2(s) ? `, ${sideName(ex, side).toLowerCase()}` : ''}, ${esc(ex.name)}`;
   // Sans dernière fois : rien (le « — » sous « Drop 1 » se lisait comme une valeur, panel du 21/11)
-  const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;×&nbsp;' : ''}${esc(x.prev.reps)}` : '';
+  const prev = x.prev ? `<span class="set-prev__val">${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;×&nbsp;' : ''}${esc(x.prev.reps)}</span>` : '';
   const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"${two ? ' data-side="2"' : ''}`;
   if (x.done) {
     const w = hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '';
