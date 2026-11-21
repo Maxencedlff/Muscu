@@ -56,8 +56,8 @@ html.type-xl .sheet-root--atlas .sheet__bar .sheet__title { order: 0; flex: 1 1 
 .azoom__whole { min-height: 44px; padding: 0; border: 0; background: none; color: var(--tint); font: inherit; font-size: min(var(--fs-subhead), 20px); cursor: pointer; }
 /* Panel t11 : zoomé, le dessin ne s'arrête plus net au bord de la vue (un trait aux hanches) : fondu en haut et en bas */
 .azoom:not([data-scale="1"]):not([data-scale="1.00"]) {
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 56px), transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 56px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 24px, black calc(100% - 56px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 24px, black calc(100% - 56px), transparent);
 }
 /* Ouverte sur le ciblé : l'autre vue cachée (un bout de bras dépassait au bord), revenue dès qu'on déplace le dessin */
 .azoom[data-only="front"] .body-map__back, .azoom[data-only="back"] .body-map__front { visibility: hidden; }
