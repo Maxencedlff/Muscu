@@ -605,8 +605,9 @@ def _defiler_fiche(r):
     du titre au lieu d'y passer à moitié (panel t12 : « Haut des pectoraux » à moitié caché)."""
     r.defiler('.library-ex .mpanel--atlas', 'personnage')
     r.page.evaluate("""() => { const p = document.querySelector('.library-ex .mpanel--atlas'), bar = document.querySelector('.view.library-ex .navbar');
-        const top = p.getBoundingClientRect().top, under = bar ? bar.getBoundingClientRect().bottom + 8 : 8;
-        if (top < under) scrollBy(0, top - under); }""")
+        const g = p.closest('.group'), head = g?.previousElementSibling?.classList.contains('group-title') ? g.previousElementSibling : g || p;   // texte très grand : la ligne « Muscle ciblé » est au-dessus du dessin
+        const top = head.getBoundingClientRect().top, under = bar ? bar.getBoundingClientRect().bottom + 8 : 8;
+        if (top < under && document.documentElement.classList.contains("type-xl")) scrollBy(0, top - under); }""")
     r.page.wait_for_timeout(200)
 
 
