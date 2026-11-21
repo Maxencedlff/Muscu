@@ -42,11 +42,10 @@
 .mpanel--atlas { position: relative; }
 /* Muscles qui aident (jetons --body-sec-* du thème, theme-sobre-progres.css), règle plus bas */
 .body-map--atlas .body-map__m { animation: none; }
-/* Progrès : contour net des muscles à travailler à 0 série (bodyOutlineHtml, filtre SVG #body-ol), sans flou ni lueur */
-.body-map__defs { position: absolute; width: 0; height: 0; overflow: hidden; }
-.body-map__ol-color { flood-color: var(--body-ol); }
-.body-map__ol { position: absolute; pointer-events: none; filter: url(#body-ol); }
-.body-map__ol > i { position: absolute; inset: 0; background: var(--label); -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+/* Progrès : contour net des muscles à travailler à 0 série (bodyOutlineHtml : anneau dessiné une fois, en masque sur
+   la couleur du thème), sans flou ni lueur ni filtre recalculé à chaque image */
+.body-map__ol { position: absolute; pointer-events: none; background: var(--body-ol);
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
 /* Profonds (rhomboïdes, petit pectoral), vus à travers le muscle qui les couvre : teinte unie, sans leur ombrage de fibres,
    qui croisait celui du muscle du dessus en hachures (panel t5, trapèzes et rhomboïdes des tractions) */
 .body-map--atlas .body-map__p--deep { background-image: none !important; }

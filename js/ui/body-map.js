@@ -182,26 +182,49 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline
   }).join('') + (outline.length ? bodyOutlineHtml(kind, view, outline, res) : '');
 }
 
-// Contour net (1,5 point, sans flou ni lueur) d'un sous-muscle : copie masquée de son calque, passée dans le filtre SVG
-// #body-ol (bodyOutlineDefs) qui ne garde que l'anneau autour de la forme, à la couleur --body-ol du thème
+// Contour net (environ 1,5 point, sans flou ni lueur) d'un sous-muscle : un anneau autour de sa forme, dessiné une fois
+// dans un canvas (forme élargie moins la forme : bodyOutlineMask) et posé en masque sur un aplat --body-ol (couleur du
+// thème). Avant, un filtre SVG (feMorphology) recalculé à chaque image : avec 32 muscles cernés (« Cette semaine »), une
+// image prenait 300 ms sur le PC et plus de 10 s sur la CI (iPhone 17), la page ne se dessinait plus. Anneau en pixels de
+// l'image : 4 en 1× (1,5 point environ sur la carte), 12 en 3× (vue agrandie)
+const BODY_OL_PX = { 1: 4, 3: 12 };
+const bodyOutlineMasks = new Map();   // « sexe/vue/res/id » → adresse de l'anneau (data:), une fois dessiné
 function bodyOutlineHtml(kind, view, ids, res = 1) {
-  bodyOutlineDefs();
   const boxes = BODY_PARTS.boxes[kind]?.[view] || {};
-  const W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h;
+  const W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h, r = BODY_OL_PX[res];
   const pct = v => `${Math.round(v * 1e5) / 1e3}%`;
   return ids.filter(id => boxes[id]).map(id => {
-    const b = boxes[id][res === 3 ? 1 : 0], url = `url(${body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${id}.webp`)})`;
-    return `<span class="body-map__ol" data-ol="${id}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)}"><i style="-webkit-mask-image:${url};mask-image:${url}"></i></span>`;
+    const b = boxes[id][res === 3 ? 1 : 0], key = `${kind}/${view}/${res}/${id}`, url = bodyOutlineMasks.get(key);
+    if (!url) bodyOutlineMask(kind, view, id, res);
+    const mask = url ? `-webkit-mask-image:url(${url});mask-image:url(${url})` : '';
+    return `<span class="body-map__ol" data-ol="${id}" data-olkey="${key}" style="left:${pct((b[0] - r) / W)};top:${pct((b[1] - r) / H)};width:${pct((b[2] - b[0] + 2 * r) / W)};height:${pct((b[3] - b[1] + 2 * r) / H)};${mask}"></span>`;
   }).join('');
 }
-function bodyOutlineDefs() {
-  if (typeof document === 'undefined' || !document.body || document.getElementById('body-ol')) return;
-  document.body.insertAdjacentHTML('beforeend', `<svg class="body-map__defs" aria-hidden="true" focusable="false" width="0" height="0">
-    <filter id="body-ol" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
-      <feMorphology in="SourceAlpha" operator="dilate" radius="1.5" result="grow"/>
-      <feComposite in="grow" in2="SourceAlpha" operator="out" result="ring"/>
-      <feFlood class="body-map__ol-color"/><feComposite in2="ring" operator="in"/>
-    </filter></svg>`);
+// Dessine l'anneau (union de la forme décalée sur un cercle de rayon r, moins la forme), puis le pose sur les contours
+// déjà affichés qui l'attendent
+const bodyOutlinePending = new Set();
+async function bodyOutlineMask(kind, view, id, res) {
+  const key = `${kind}/${view}/${res}/${id}`;
+  if (bodyOutlinePending.has(key) || typeof document === 'undefined' || !document.createElement) return;
+  bodyOutlinePending.add(key);
+  const img = await bodyLoadImage(body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${id}.webp`));
+  if (!img) { bodyOutlinePending.delete(key); return; }
+  const r = BODY_OL_PX[res], c = document.createElement('canvas');
+  c.width = img.width + 2 * r; c.height = img.height + 2 * r;
+  const x = c.getContext('2d');
+  if (!x) return;
+  for (let k = 0; k < 24; k++) {
+    const a = k / 24 * 2 * Math.PI;
+    x.drawImage(img, r + Math.round(r * Math.cos(a)), r + Math.round(r * Math.sin(a)));
+  }
+  x.globalCompositeOperation = 'destination-out';
+  x.drawImage(img, r, r);
+  const url = c.toDataURL('image/png');
+  bodyOutlineMasks.set(key, url);
+  bodyOutlinePending.delete(key);
+  document.querySelectorAll(`.body-map__ol[data-olkey="${key}"]`).forEach(el => {
+    el.style.webkitMaskImage = `url(${url})`; el.style.maskImage = `url(${url})`;
+  });
 }
 
 // Vues de la carte de la fiche : celles où un sous-muscle est coloré (abducteurs : le dos seul, en grand ; panel
