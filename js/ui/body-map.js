@@ -195,7 +195,10 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline
     return `<i class="${cls}" data-part="${p.id}" data-muscle="${p.parent || ''}" data-level="${lv}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)};background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
   }).join('') + (outline.length ? bodyOutlineHtml(kind, view, outline, res) : '')
     // Fiche : le ciblé cerné d'un trait rouge d'un point (panel t8 : le haut des pectoraux, fin, se perdait dans le rose voisin)
-    + (tiers ? '' : bodyOutlineHtml(kind, view, on.filter(p => !p.deep && levels[p.id] >= 2).map(p => p.id), res, 'body-map__ol--main', true));
+    + (tiers ? '' : bodyOutlineHtml(kind, view, on.filter(p => !p.deep && levels[p.id] >= 2).map(p => p.id), res, 'body-map__ol--main', true))
+    // Aidants discrets : un remplissage léger et leur contour rose, en dedans (panel atlas-bas t3 : aux abducteurs, le grand
+    // fessier rose dominait encore à 70 %)
+    + (faint ? bodyOutlineHtml(kind, view, on.filter(p => !p.deep && levels[p.id] === 1).map(p => p.id), res, 'body-map__ol--help', true) : '');
 }
 
 // Contour net (environ 1,5 point, sans flou ni lueur) d'un sous-muscle : un anneau autour de sa forme, dessiné une fois

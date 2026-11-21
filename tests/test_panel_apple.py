@@ -286,7 +286,7 @@ def t_silhouette_paliers(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-FAINT_HELP_GRAY = 14   # aidants discrets (ciblé petit sur la vue) : écart au gris du corps, au moins
+FAINT_HELP_GRAY = 4   # aidants discrets (ciblé petit sur la vue) : remplissage à 25 %, à peine teinté ; leur contour rose les distingue
 
 
 def t_fiche_aidants(bench):
@@ -322,9 +322,11 @@ def t_fiche_aidants(bench):
             mh, hg, dh = round(_delta_e(m, h)), round(_delta_e(h, g)), round(_delta_e(dot, h))
             # Homme : la bande du haut des pectoraux fait 27 % de l'aire des aidants, ceux-ci sont discrets (panel atlas-bas t2,
             # --body-sec-o-faint) : plus près du gris, toujours distincts ; la pastille garde la couleur pleine (celle de l'isolement)
+            # (panel atlas-bas t3 : remplissage à 25 % et contour rose, c'est le contour qui le distingue du gris)
             faint = page.evaluate("!!document.querySelector('.mpanel__map .body-map__front .body-map__m--faint')")
             if faint:
-                help_gray, dot_max = (FAINT_HELP_GRAY, 25)
+                help_gray, dot_max = (FAINT_HELP_GRAY, 40)
+                R.check(page.evaluate("!!document.querySelector('.mpanel__map .body-map__front .body-map__ol--help[data-ol=\"chest_sternal\"]')"), f'{t} fiche : aidant discret cerné de rose')
             else:
                 dot_max = 12
             R.check(mh >= main_help and hg >= help_gray, f'{t} fiche : ciblé / aidant {mh} (≥ {main_help}), aidant / gris {hg} (≥ {help_gray}, discrets {faint}) sur la capture')
@@ -344,6 +346,7 @@ def t_fiche_aidants(bench):
                     return out; }""")
                 img = Image.open(io.BytesIO(page.screenshot())).convert('RGB')
                 m, h, g = avg(pa['main']), avg(pa['help']), avg(pa['gray'])
+                R.check(page.evaluate("!!document.querySelector('.mpanel__map .body-map__ol--help[data-ol=\"glute_max\"]')"), f'{t} abducteurs : grand fessier discret, cerné de rose')
                 R.check(_lab(h)[0] < _lab(m)[0] and _delta_e(h, g) >= FAINT_HELP_GRAY, f'{t} abducteurs : grand fessier (aide) sous le moyen fessier (ciblé) L* {round(_lab(h)[0])} < {round(_lab(m)[0])}, aidant / gris {round(_delta_e(h, g))}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

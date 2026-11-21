@@ -54,14 +54,18 @@ function exAtlasPanelHtml(m, name) {
   // personnage, « Moyen fessier » passait sous la barre d'onglets sur iPhone SE) ; « Muscles qui aident » reste dessous
   const xl = document.documentElement.classList.contains('type-xl');
   const main = atlasLineHtml(items.filter(x => x.level >= 2), 2), helpers = items.filter(x => x.level < 2), help = atlasLineHtml(helpers, 1);
-  // Texte très grand : « Qui aident : … » en une ligne courte sous le ciblé, visible sans défiler (panel t13) ; la ligne
-  // touchable reste sous le dessin, et VoiceOver la lit là
-  const short = xl && helpers.length ? `<p class="cell mline2__short" aria-hidden="true">Qui aident : ${esc(helpers[0].label)}${helpers.length > 1 ? ` et ${helpers.length - 1} autre${helpers.length > 2 ? 's' : ''}` : ''}</p>` : '';
+  // Texte très grand : « Qui aident : … » en une ligne courte sous le ciblé, visible sans défiler (panel t13), et seule
+  // mention des aidants (panel atlas-bas t3 : le soléaire était cité deux fois, ici et sous le dessin) : elle se touche
+  // comme les autres lignes (la ligne entière ou un nom) et VoiceOver la lit avec le nombre et l'action
+  const shortName = x => `<span class="mline2__name" data-ids="${esc(x.ids.join(' '))}" data-label="${esc(x.label)}">${esc(x.label)}</span>`;
+  const hTitle = helpers.length > 1 ? 'Muscles qui aident' : 'Muscle qui aide';
+  const short = xl && helpers.length ? `<button class="cell mline2 mline2__short" data-action="atlas-isolate" data-level="1" data-ids="${esc(helpers.flatMap(x => x.ids).join(' '))}" data-title="${hTitle}" aria-pressed="false"
+      aria-label="${esc(`${hTitle}, ${helpers.length} : ${helpers.map(x => x.label).join(', ')}. Touche pour ne voir ${helpers.length > 1 ? 'qu\'eux' : 'que lui'}`)}">Qui aident : ${shortName(helpers[0])}${helpers.length > 1 ? ` et ${helpers.length - 1} autre${helpers.length > 2 ? 's' : ''}` : ''}</button>` : '';
   return `${xl ? main + short : ''}
     <div class="cell mpanel mpanel--atlas">
       ${atlasBoxHtml(bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true, crop: !xl, one: true }), 'mpanel__box', !xl && bodyAtlasCrop(kind, levels)[0] > 0 ? 'bottom' : 'top')}
     </div>
-    ${xl ? '' : main}${help}`;
+    ${xl ? '' : main + help}`;
 }
 
 // Isole des sous-muscles sur la carte de la fiche (ids, en rouge plein), ou rend tout (ids vide)

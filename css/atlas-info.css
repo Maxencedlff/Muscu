@@ -10,3 +10,6 @@
 .type-xl .azoom__info { min-height: 0; }   /* texte très grand : la place va au personnage (60 % de la feuille au moins) */
 /* Noms longs (« Semi-membraneux », « Gastrocnémien médial ») : entiers, à la ligne aux espaces ou aux tirets seulement */
 .atlas-info, .atlas-info * { overflow-wrap: normal; word-break: normal; -webkit-hyphens: manual; hyphens: manual; }
+/* Fiche en texte très grand : la carte en bas de l'écran, au-dessus de la barre d'onglets (bottom posé par atlasInfoShow),
+   opaque, sans pousser le dessin (comme la vue agrandie, css/atlas-zoom.css) */
+.atlas-info.atlas-info--dock { position: fixed; left: 16px; right: 16px; width: auto; z-index: 55; background: var(--dlg-solid); border: 1px solid var(--sep); }

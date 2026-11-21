@@ -21,6 +21,6 @@
 .mrow__zsum .icon { transition: transform .2s; } .mrow__zsum[aria-expanded="false"] .icon { transform: rotate(-90deg); }
 .mrow__zsum[aria-expanded="false"] + .mrow__zline { display: none; }
 .mrow__zline { min-width: 0; }
-/* Fiche, texte très grand : « Qui aident : … » sous le ciblé (panel t13) ; l'en-tête ne le répète pas */
-.view .cell.mline2__short { margin: 0; padding-top: 0; padding-bottom: 8px; min-height: 0; font-size: min(var(--fs-footnote), 17px); line-height: 1.3; color: var(--label2); }   /* courte : le dessin reste à l'écran sur iPhone SE */
+/* Fiche, texte très grand : « Qui aident : … » sous le ciblé, seule ligne des aidants, touchable (panels t13, atlas-bas t3) */
+.view .cell.mline2__short { display: block; width: 100%; text-align: left; border: 0; background: none; font-family: inherit; margin: 0; padding-top: 0; padding-bottom: 8px; min-height: 44px; font-size: min(var(--fs-footnote), 17px); line-height: 1.3; color: var(--label2); }   /* courte : le dessin reste à l'écran sur iPhone SE */
 .type-xl .exhead__help { display: none; } .type-xl .exhead__sub:has(+ .exhead__help) { margin-bottom: 12px; }

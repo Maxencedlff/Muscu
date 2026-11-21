@@ -188,7 +188,7 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
   });
 
   test('atlas : pastilles = ce que montre le dessin, mêmes noms que la bulle', () => {
-    const inc = run(`atlasPills(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels)`);
+    const inc = run(`atlasPills(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels)`).map(({ label, level }) => ({ label, level }));
     sameJSON(inc, [{ label: 'Haut des pectoraux', level: 2 }, { label: 'Milieu des pectoraux', level: 1 },
       { label: 'Épaules antérieures', level: 1 }, { label: 'Triceps', level: 1 }]);
     assert.equal(app.atlasPartTitle('chest_clavicular'), 'Haut des pectoraux');
@@ -228,8 +228,11 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.ok(/class="body-map__ol" data-ol="external_oblique"/.test(ol) && ol.includes('data-ol="external_oblique"') && !/class="body-map__ol"/.test(run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male' })`)),
       'Progrès : muscles à 0 série cernés (outline), jamais sur la fiche');
     const fiche = run(`bodyAtlasHtml({ glute_med: 2, glute_max: 1 }, { body: 'male' })`);
-    assert.ok(/class="body-map__ol body-map__ol--main" data-ol="glute_med"/.test(fiche) && !/data-ol="glute_max"/.test(fiche),
+    assert.ok(/class="body-map__ol body-map__ol--main" data-ol="glute_med"/.test(fiche) && !/body-map__ol--main" data-ol="glute_max"/.test(fiche),
       'fiche : le ciblé seul cerné de rouge (panel t8), pas le muscle qui aide');
+    // Ciblé petit (moyen fessier sous le grand) : l'aidant discret garde son contour rose (panel atlas-bas t3)
+    assert.ok(/class="body-map__ol body-map__ol--help" data-ol="glute_max"/.test(fiche) && !/body-map__ol--help/.test(run(`bodyAtlasHtml({ vastus_lateralis: 2, rectus_femoris: 1 }, { body: 'male' })`)),
+      'aidant discret : contour rose ; aidant normal : aucun');
     // Zones d'un muscle de salle (panel t12) : « Haut · Milieu · Bas » pour les pectoraux, les chefs du triceps, rien
     // pour un muscle d'un seul tenant (abdominaux)
     const zones = (m, weekly) => run(`atlasMuscleZones({ weekly: ${JSON.stringify(weekly)} }, ${JSON.stringify(m)}, 'male')`);
@@ -311,22 +314,27 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     sameJSON(inc.find(x => x.label === 'Triceps').ids.sort(), ['triceps_lateral', 'triceps_long', 'triceps_medial']);
   });
 
-  test('fiche : chaque nom des deux lignes a la couleur de tous ses sous-muscles (panel atlas-bas t2, squat et mollets)', () => {
+  test('fiche : chaque nom des deux lignes a la couleur de tous ses sous-muscles, seulement ce qui est coloré sur la silhouette (panels atlas-bas t2, t3)', () => {
     const strip = t => t.replace(/\u00ad/g, '');
     const lines = (name, kind) => { const lv = app.exercisePartLevels(name, app.musclesOf(name)).levels;
       const r = run(`atlasRanked(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)}), ${JSON.stringify(lv)}, ${JSON.stringify(kind)})`);
       return { lv, r, main: r.filter(x => x.level >= 2).map(x => strip(x.label)), help: r.filter(x => x.level < 2).map(x => strip(x.label)) }; };
-    // Squat : le droit fémoral (rose) n'est plus caché sous « Quadriceps » ciblé
-    const sq = lines('Squat barre', 'male');
-    assert.ok(sq.main.includes('Vaste latéral') && sq.main.includes('Vaste médial') && !sq.main.includes('Quadriceps'), `squat : ${sq.main}`);
-    assert.ok(sq.help.includes('Droit fémoral'), `squat, qui aident : ${sq.help}`);
-    // Mollets debout : le soléaire (rose) a sa ligne « Qui aident »
-    for (const kind of SEXES) assert.ok(lines('Mollets debout', kind).help.includes('Soléaire'), `mollets ${kind} : ${lines('Mollets debout', kind).help}`);
-    // Haut du corps : un groupe d'une seule couleur garde son nom (le triceps du développé incliné)
-    assert.ok(lines('Développé incliné barre', 'male').help.includes('Triceps'));
-    sameJSON(lines('Extension triceps poulie haute', 'male'), { ...lines('Extension triceps poulie haute', 'male'), main: ['Chef latéral du triceps', 'Chef médial du triceps'], help: ['Chef long du triceps'] }, 'chefs du triceps nommés un à un');
-    // Toute la bibliothèque, homme et femme : ciblé = sous-muscles rouges (niveau 2), qui aident = roses (niveau 1) ; un nom
-    // de groupe seulement si tous ses sous-muscles visibles ont cette couleur ; tout sous-muscle coloré visible est nommé
+    // Squat : le groupe d'abord, la précision entre parenthèses ; le droit fémoral (rose) dans « Qui aident »
+    sameJSON(lines('Squat barre', 'male').main.slice(0, 1), ['Quadriceps (vastes latéral et médial)']);
+    assert.ok(lines('Squat barre', 'male').help.includes('Quadriceps (droit fémoral)'), `squat, qui aident : ${lines('Squat barre', 'male').help}`);
+    // Mollets debout : « Mollets (gastrocnémiens) » ciblés, « Mollets (soléaire) » une fois dans « Qui aident »
+    for (const kind of SEXES) {
+      const ml = lines('Mollets debout', kind);
+      sameJSON([ml.main, ml.help], [['Mollets (gastrocnémiens)'], ['Mollets (soléaire)']], `mollets ${kind}`);
+    }
+    sameJSON(lines('Extension triceps poulie haute', 'male').main, ['Triceps (chefs latéral et médial)']);
+    sameJSON(lines('Extension triceps poulie haute', 'male').help, ['Triceps (chef long)']);
+    assert.ok(lines('Développé incliné barre', 'male').help.includes('Triceps'), 'groupe d\'une seule couleur : le nom nu');
+    // Femme, soulevé de terre roumain : le grand adducteur n'a pas de calque sur sa silhouette, il n'est pas nommé
+    assert.ok(!lines('Soulevé de terre roumain', 'female').help.some(l => /grand adducteur/i.test(l)), `${lines('Soulevé de terre roumain', 'female').help}`);
+    // Toute la bibliothèque, homme et femme : ciblé = rouges (niveau 2), qui aident = roses (niveau 1), seulement des
+    // sous-muscles visibles sur la silhouette ; nom nu d'un groupe seulement s'il est d'une seule couleur ; tout
+    // sous-muscle coloré visible est nommé, une fois
     const BPd = BP(), shown = (kind, id) => VIEWS.some(v => BPd.boxes[kind][v][id]);
     let n = 0;
     for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) for (const kind of SEXES) {
@@ -334,12 +342,15 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
       if (!r.length) continue;
       n++;
       for (const x of r) {
-        assert.ok(x.ids.length && x.ids.every(id => (lv[id] >= 2) === (x.level >= 2) && lv[id] > 0), `${name} ${kind} : « ${x.label} » (${x.level}) mêle les couleurs ${x.ids.map(id => id + ':' + lv[id])}`);
-        const group = BPd.parts.filter(p => app.atlasPillLabel(p.id) === x.label && shown(kind, p.id) && (!p.deep || lv[p.id] > 0));
-        if (group.length > 1) assert.ok(group.every(p => (lv[p.id] >= 2) === (x.level >= 2) && lv[p.id] > 0), `${name} ${kind} : groupe « ${x.label} » nommé, sous-muscles ${group.map(p => p.id + ':' + (lv[p.id] || 0))}`);
+        assert.ok(x.ids.length && x.ids.every(id => (lv[id] >= 2) === (x.level >= 2) && lv[id] > 0 && shown(kind, id)), `${name} ${kind} : « ${x.label} » (${x.level}) ${x.ids.map(id => id + ':' + lv[id])}`);
+        if (!x.label.includes('(')) {
+          const group = BPd.parts.filter(p => app.atlasPillLabel(p.id) === x.label && shown(kind, p.id) && (!p.deep || lv[p.id] > 0));
+          assert.ok(group.every(p => (lv[p.id] >= 2) === (x.level >= 2) && lv[p.id] > 0), `${name} ${kind} : nom nu « ${x.label} », sous-muscles ${group.map(p => p.id + ':' + (lv[p.id] || 0))}`);
+        } else assert.ok(x.label.startsWith(app.atlasPillLabel(x.ids[0]) + ' ('), `${name} ${kind} : « ${x.label} » commence par son groupe`);
       }
-      const named = new Set(r.flatMap(x => x.ids));
-      for (const id of Object.keys(lv).filter(id => lv[id] > 0 && shown(kind, id))) assert.ok(named.has(id), `${name} ${kind} : ${id} coloré sans nom dans les lignes`);
+      const named = r.flatMap(x => x.ids);
+      assert.equal(new Set(named).size, named.length, `${name} ${kind} : sous-muscle nommé deux fois`);
+      for (const id of Object.keys(lv).filter(id => lv[id] > 0 && shown(kind, id))) assert.ok(named.includes(id), `${name} ${kind} : ${id} coloré sans nom dans les lignes`);
       assert.equal(new Set(r.map(x => x.label)).size, r.length, `${name} ${kind} : nom en double`);
     }
     assert.ok(n >= 300, `${n} fiches vérifiées`);
@@ -358,6 +369,7 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.ok(!html('Développé incliné barre', 'female', 'front').includes('body-map__m--faint'), 'développé incliné femme : aidants normaux');
     // Progrès (paliers) : jamais discrets
     assert.ok(!run(`bodyAtlasLayersHtml('male', 'back', { glute_med: 2, glute_max: 1 }, 1, true)`).includes('--faint'));
+    assert.ok(/--body-sec-o-faint: \.25;/.test(fs.readFileSync(path.join(ROOT, 'css', 'theme-sobre-progres.css'), 'utf8')), 'remplissage léger, 25 %');
     // Isolés : la couleur pleine revient
     assert.ok(/\[data-iso\] \.body-map__p\.body-map__m--faint\.is-on \{ opacity: var\(--body-sec-o\) !important/.test(fs.readFileSync(path.join(ROOT, 'css', 'muscles.css'), 'utf8')));
   });

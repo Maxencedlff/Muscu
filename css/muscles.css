@@ -48,7 +48,7 @@
 .body-map__ol { position: absolute; pointer-events: none; background: var(--body-ol);
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
 .body-map__ol--main { background: var(--body-main-ol); }   /* fiche : contour d'un point du muscle ciblé, un rouge plus sombre (sombre) ou plus vif (clair) que son aplat, pour qu'il se voie aussi sur lui */
-.body-map--atlas[data-iso] .body-map__ol--main { display: none; }   /* muscles isolés : rien d'autre ne reste cerné */
+.body-map__ol--help { background: var(--body-sec-tint); } .body-map--atlas[data-iso] :is(.body-map__ol--main, .body-map__ol--help) { display: none; }   /* aidant discret : contour rose (js/ui/body-map.js) ; isolés : rien d'autre ne reste cerné */
 /* Muscle touché (carte d'info) et muscles isolés d'« À travailler » : contour à la couleur du texte */
 .body-map__mark, .body-map__isomark { background: var(--label); }
 /* Profonds (rhomboïdes, petit pectoral), vus à travers le muscle qui les couvre : teinte unie, sans leur ombrage de fibres,

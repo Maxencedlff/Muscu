@@ -354,14 +354,14 @@ function renderLibraryEx(name) {
   const q = EQUIPMENT.find(x => x.id === e.equip);
   const mSub = exerciseMuscles({ name });
   // Muscles sous le titre : les pastilles en rouge plein du personnage détaillé (mêmes rangs, mêmes noms que les lignes de
-  // la fiche : « Haut des pectoraux » au développé incliné, « Vaste latéral » au squat), sinon les muscles principaux
-  // (dans l'ordre des muscles principaux de la bibliothèque : « Quadriceps · Grand fessier » au squat)
-  const lv = exercisePartLevels(name, mSub).levels, rank = label => Math.min(...BODY_PARTS.parts
-    .filter(p => lv[p.id] >= 2 && atlasLineLabel(p.id, lv) === label).map(p => { const i = mSub.primary.indexOf(p.parent); return i < 0 ? 99 : i; }));
-  const mMain = atlasPills(lv).filter(p => p.level >= 2).map(p => p.label).sort((a, b) => rank(a) - rank(b));
+  // la fiche : « Haut des pectoraux » au développé incliné, « Quadriceps (vastes latéral et médial) » au squat), sinon les muscles
+  // principaux ; dans l'ordre des muscles principaux de la bibliothèque
+  const lv = exercisePartLevels(name, mSub).levels, pills = atlasPills(lv);
+  const rank = it => Math.min(...it.ids.map(id => { const i = mSub.primary.indexOf(atlasPart(id).parent); return i < 0 ? 99 : i; }));
+  const mMain = pills.filter(p => p.level >= 2).sort((a, b) => rank(a) - rank(b)).map(p => p.label);
   const sub = [[...new Set([...(mMain.length ? mMain : mSub.primary.map(muscleLabel)), ...(mSub.deep || []).map(id => deepMuscleLabel(id, true))])].join('\u00a0· '), q?.label].filter(Boolean).join('\u00a0· ');   // « · » collé au mot d'avant : le matériel ne se lit pas comme un muscle
   // « Aide : Grand fessier » sous le sous-titre (panel t12 : sans défiler, on ne voyait que le ciblé) ; 3 noms au plus
-  const help = [...new Set(atlasPills(lv).filter(p => p.level === 1).map(p => p.label))];
+  const help = pills.filter(p => p.level === 1).map(p => p.label);
   const helpTxt = help.length ? `Aide : ${help.slice(0, 3).join(', ')}${help.length > 3 ? ` et ${help.length - 3} autre${help.length > 4 ? 's' : ''}` : ''}` : '';
   const title = catalogueAliasOf(name) ? name : e.name;
   return `

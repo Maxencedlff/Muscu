@@ -103,11 +103,18 @@ function atlasInfoShow(root, html, container = null, trigger = root) {
   else if (box) (box.nextElementSibling?.classList.contains('atlas-box__iso') ? box.nextElementSibling : box).insertAdjacentHTML('afterend', card);
   else return null;
   const el = document.querySelector('.atlas-info');
+  // Fiche en texte très grand (panel atlas-bas t3 : sur iPhone SE en AX33, la carte poussait le dessin) : posée en bas de
+  // l'écran, au-dessus de la barre d'onglets, comme dans la vue agrandie ; le dessin ne bouge pas
+  const dock = !slot && document.documentElement.classList.contains('type-xl') && !!root.closest('.mpanel--atlas');
+  if (dock) {
+    el.classList.add('atlas-info--dock');
+    el.style.bottom = `${Math.round(innerHeight - (document.querySelector('.tabbar')?.getBoundingClientRect().top ?? innerHeight)) + 8}px`;
+  }
   atlasInfoTrigger = trigger;
   atlasSay(el.querySelector('.atlas-info__body').textContent);
   // Carte de la page : amenée à l'écran si elle passe sous la barre d'onglets (le personnage remonte d'autant), après la
   // fenêtre du double toucher : défiler plus tôt déplacerait le personnage sous le 2e toucher (audit m8)
-  if (!slot) setTimeout(() => {
+  if (!slot && !dock) setTimeout(() => {
     if (!el.isConnected || atlasViewer) return;
     const bar = document.querySelector('.tabbar')?.getBoundingClientRect().top ?? innerHeight, over = el.getBoundingClientRect().bottom - (bar - 8);
     if (over > 0) scrollBy({ top: over, behavior: 'instant' });

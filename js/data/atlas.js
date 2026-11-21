@@ -79,41 +79,59 @@ function atlasPartTitle(id) {
   const precise = (name.includes(', ') ? name.slice(name.indexOf(', ') + 2) : name).replace(/\s*\(.*\)$/, '');
   return `${label}, ${precise.charAt(0).toLowerCase()}${precise.slice(1)}`;
 }
-// Nom court d'un sous-muscle, son nom de salle sans le muscle (« Vaste latéral », « Semi-tendineux », « Petit rond »),
-// et pour un chef « Chef long du triceps » (« Chef long » seul ne dit pas de quel muscle ; « Triceps, chef long » se lit
-// mal dans une liste séparée par des virgules)
-function atlasPartShort(id) {
+// Précision d'un sous-muscle dans son groupe, en minuscules : « vaste latéral » (Quadriceps), « chef long » (Triceps),
+// « semi-tendineux » (Ischio-jambiers), « infra-épineux » (Coiffe des rotateurs)
+function atlasPartDetail(id) {
   const label = atlasPillLabel(id), title = atlasPartTitle(id);
-  if (title === label || !title.startsWith(`${label}, `)) return title;
-  const rest = title.slice(label.length + 2), cap = rest.charAt(0).toUpperCase() + rest.slice(1);
-  return /^chef /.test(rest) ? `${cap} du ${label.toLowerCase()}` : cap;
+  const rest = title.startsWith(`${label}, `) ? title.slice(label.length + 2) : title;
+  return rest.charAt(0).toLowerCase() + rest.slice(1);
 }
-
-// Noms des lignes de la fiche (panel atlas-bas t2 : « Muscle ciblé : Quadriceps » sous un droit fémoral rose) : un nom de
-// groupe (« Quadriceps », « Mollets », « Triceps ») seulement si TOUS ses sous-muscles visibles sont à la même couleur ;
-// sinon chaque sous-muscle sous son nom court (« Vaste latéral, Vaste médial » ciblés, « Droit fémoral » qui aide).
-// Visibles : ceux qui ont un calque sur une vue du personnage (les profonds seulement quand l'exercice les colore).
-// Nom de la ligne pour le sous-muscle id, à son intensité dans levels
-function atlasLineLabel(id, levels, kind = bodyKind(bodySilhouette())) {
-  const label = atlasPillLabel(id), main = levels[id] >= 2;
-  const seen = p => ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id]) && (!p.deep || levels[p.id] > 0);
-  const whole = BODY_PARTS.parts.filter(p => atlasPillLabel(p.id) === label && (seen(p) || p.id === id))
-    .every(p => levels[p.id] > 0 && (levels[p.id] >= 2) === main);
-  return whole ? label : atlasPartShort(id);
-}
-
-// Pastilles de la fiche, dans l'ordre : rouge plein d'abord (intensité 2), puis atténué ; un nom une seule fois, à
-// l'intensité de ses sous-muscles (un groupe dont les sous-muscles n'ont pas tous la même couleur est nommé sous-muscle
-// par sous-muscle : atlasLineLabel). [{ label, level }]
-function atlasPills(levels, kind = bodyKind(bodySilhouette())) {
-  const by = new Map();
-  for (const p of BODY_PARTS.parts) {
-    const lv = levels[p.id];
-    if (!(lv > 0)) continue;
-    const label = atlasLineLabel(p.id, levels, kind);
-    by.set(label, Math.max(by.get(label) || 0, lv));
+// Précisions de plusieurs sous-muscles d'un groupe, en une parenthèse (panel atlas-bas t3) : « vastes latéral et médial »
+// (même premier mot : au pluriel, une fois), « gastrocnémiens » (tous les sous-muscles de ce mot : le mot seul),
+// « semi-tendineux et semi-membraneux »
+function atlasDetailList(ids) {
+  const parts = ids.map(atlasPartDetail), and = l => l.length > 1 ? `${l.slice(0, -1).join(', ')} et ${l.at(-1)}` : l[0];
+  const words = parts.map(d => d.split(' ')), w = words[0][0];
+  if (parts.length > 1 && words.every(x => x.length === 2 && x[0] === w)) {
+    const plural = /[sx]$/.test(w) ? w : `${w}s`;
+    const all = BODY_PARTS.parts.filter(p => p.name.replace(/\u00ad/g, '').toLowerCase().includes(w.replace(/\u00ad/g, ''))).every(p => ids.includes(p.id));
+    return all ? plural : `${plural} ${and(words.map(x => x[1]))}`;
   }
-  return [...by].map(([label, level]) => ({ label, level })).sort((a, b) => b.level - a.level);
+  return and(parts);
+}
+
+// Lignes de la fiche (panels atlas-bas t2 et t3) : on ne nomme que ce qui est coloré sur cette silhouette. Un groupe dont
+// TOUS les sous-muscles visibles ont la même couleur garde son nom nu (« Quadriceps », « Triceps ») ; sinon, à chaque
+// couleur, le groupe puis sa précision : « Quadriceps (vastes latéral et médial) » ciblés, « Quadriceps (droit fémoral) »
+// qui aide. Visibles : un calque sur une vue du personnage (les profonds seulement quand l'exercice les colore).
+function atlasSeen(id, levels, kind) {
+  const p = atlasPart(id);
+  return !!p && ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[id]) && (!p.deep || levels[id] > 0);
+}
+// Clé de ligne d'un sous-muscle : le nom nu du groupe s'il est d'une seule couleur, sinon groupe + couleur
+function atlasLineKey(id, levels, kind) {
+  const label = atlasPillLabel(id), main = levels[id] >= 2;
+  const whole = BODY_PARTS.parts.filter(p => atlasPillLabel(p.id) === label && atlasSeen(p.id, levels, kind))
+    .every(p => levels[p.id] > 0 && (levels[p.id] >= 2) === main);
+  return whole ? label : `${label}|${main ? 2 : 1}`;
+}
+// Sous-muscles colorés et visibles, regroupés en noms de ligne, dans l'ordre de ids : [{ label, level, ids }]
+function atlasLineGroups(ids, levels, kind) {
+  const by = new Map();
+  for (const id of ids.filter(id => levels[id] > 0 && atlasSeen(id, levels, kind))) {
+    const key = atlasLineKey(id, levels, kind), cur = by.get(key);
+    if (cur) { cur.ids.push(id); cur.level = Math.max(cur.level, levels[id]); } else by.set(key, { key, level: levels[id], ids: [id] });
+  }
+  return [...by.values()].map(({ key, level, ids: g }) => {
+    const label = atlasPillLabel(g[0]);
+    return { label: key === label ? label : `${label} (${atlasDetailList(g)})`, level, ids: g };
+  });
+}
+
+// Pastilles de la fiche, dans l'ordre : rouge plein d'abord (intensité 2), puis atténué ; mêmes noms que les lignes
+// (atlasLineGroups). [{ label, level, ids }]
+function atlasPills(levels, kind = bodyKind(bodySilhouette())) {
+  return atlasLineGroups(BODY_PARTS.parts.map(p => p.id), levels, kind).sort((a, b) => b.level - a.level);
 }
 
 
@@ -129,18 +147,14 @@ function exercisePartRoles(name, m) {
   return { p: ids.filter(id => lv[id] >= 2), s: ids.filter(id => lv[id] === 1) };
 }
 
-// Noms classés pour les deux lignes : chaque nom une fois (atlasLineLabel : tous ses sous-muscles à la même couleur),
-// dans l'ordre de la correspondance (le plus sollicité d'abord : principaux puis secondaires). [{ label, level, ids }]
+// Noms classés pour les deux lignes (atlasLineGroups), dans l'ordre de la correspondance (le plus sollicité d'abord :
+// principaux puis secondaires). [{ label, level, ids }]
 function atlasRanked(name, m, levels, kind = bodyKind(bodySilhouette())) {
   const { p, s } = exercisePartRoles(name, m);
   const order = [...p, ...s.filter(id => !p.includes(id))];
   const rank = id => (levels[id] >= 2 ? 0 : 1000) + (order.includes(id) ? order.indexOf(id) : 500 + (atlasPart(id)?.rank || 0));
-  const by = new Map();
-  for (const id of Object.keys(levels).filter(id => levels[id] > 0).sort((a, b) => rank(a) - rank(b))) {
-    const label = atlasLineLabel(id, levels, kind), cur = by.get(label);
-    if (cur) cur.ids.push(id); else by.set(label, { label, level: levels[id], ids: [id] });
-  }
-  return [...by.values()].sort((a, b) => b.level - a.level);   // tri stable : l'ordre de la correspondance reste
+  const ids = Object.keys(levels).sort((a, b) => rank(a) - rank(b));
+  return atlasLineGroups(ids, levels, kind).sort((a, b) => b.level - a.level);   // tri stable : l'ordre de la correspondance reste
 }
 
 // Au-delà de max noms (4), les premiers puis « + N autres » : { shown, more }
