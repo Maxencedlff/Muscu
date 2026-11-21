@@ -273,8 +273,10 @@ def t_silhouette_paliers(bench):
                 cols = [avg(r[pid]) for r in pts]
                 gaps = [round(_delta_e(cols[i], cols[i + 1])) for i in range(2)]
                 L = [round(_lab(c)[0]) for c in cols]
-                # Le rouge pâle plus clair que le rouge plein
-                R.check(gaps[0] >= 25 and gaps[1] >= 35 and L[1] > L[2], f'{t} {pid} : 3 états distincts sur le personnage (ΔE {gaps}, L* {L})')
+                # Clair : le rouge pâle plus clair que le rouge plein ; sombre : moins lumineux que lui (panel t9 : le retard
+                # ne doit pas attirer l'œil plus que ce qui est fait)
+                order = L[1] > L[2] if theme == 'light' else L[1] < L[2]
+                R.check(gaps[0] >= 25 and gaps[1] >= 35 and order, f'{t} {pid} : 3 états distincts sur le personnage (ΔE {gaps}, L* {L})')
                 if pid == 'chest_sternal':
                     near = [round(_delta_e(d, c)) for d, c in zip(dots[1:], cols[1:])]
                     R.check(max(near) <= 15, f'{t} pastilles de la légende : la couleur vue sur le personnage (ΔE {near})')

@@ -52,3 +52,5 @@ html.type-xl .sheet-root--atlas .sheet__bar .sheet__title { order: 0; flex: 1 1 
 .type-xl .azoom__btn svg { width: 30px; height: 30px; }
 .azoom__hint { margin-top: 2px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
 @media (prefers-reduced-motion: reduce) { .azoom__stage--anim { transition: none; } }
+/* Fiche : la vue s'ouvre sur le muscle ciblé (×2) ; « Vue entière » montre le personnage entier (panel t9) */
+.azoom__whole { min-height: 44px; padding: 0; border: 0; background: none; color: var(--tint); font: inherit; font-size: min(var(--fs-subhead), 20px); cursor: pointer; }

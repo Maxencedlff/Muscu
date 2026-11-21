@@ -88,13 +88,15 @@ def t_progress(bench, eng, dev, theme):
         page.wait_for_selector('.view.stats-group')
         g = page.evaluate("""() => { const v = document.querySelector('.view.stats-group'), img = v.querySelector('.exhero img');
             const rows = [...v.querySelectorAll('.mrow')].map(r => +r.querySelector('.cell__value').textContent);
-            return { img: !!img && img.alt === '' && img.getAttribute('aria-hidden') === 'true' && img.src.includes('img/muscles/dos.webp'),
+            const atlas = v.querySelector('.exhero .body-map--atlas[data-tiers="1"]');
+            const parts = atlas ? [...atlas.querySelectorAll('.body-map__p, .body-map__ol')].map(e => atlasPart(e.dataset.part || e.dataset.ol)?.parent) : [];
+            return { img: !img && !!atlas && atlas.getAttribute('aria-hidden') === 'true' && parts.length > 0 && parts.every(m => ['lats', 'traps', 'lower_back'].includes(m)),
                      title: v.querySelector('h1').textContent.trim(), back: document.querySelector('.navbar__back-label')?.textContent.trim(),
                      pct: v.querySelector('.sgrp__pct').textContent.replace(/\\s+/g, ' ').trim(), how: /12\\s+semaines/.test(v.querySelector('.sgrp__how')?.textContent || ''),
                      ex: v.querySelectorAll('[data-action="open-stats-ex"]').length, rows, muscles: [...v.querySelectorAll('.mrow')].map(r => r.dataset.muscle),
                      total: +v.querySelector('.sgrp__total .cell__value').textContent.trim(), unit: [...v.querySelectorAll('.group-title')].map(e => e.textContent.trim()),
                      sr: [...v.querySelectorAll('.mrow .visually-hidden')].map(e => e.textContent) }; }""")
-        R.check(g['img'] and g['title'] == 'Dos' and g['back'] == 'Progrès', f'{t} détail du groupe : vignette décorative, titre, retour « Progrès » {g}')
+        R.check(g['img'] and g['title'] == 'Dos' and g['back'] == 'Progrès', f'{t} détail du groupe : personnage détaillé, seulement les sous-muscles du groupe (panel t9), titre, retour « Progrès » {g}')
         R.check(g['pct'] == dos_trend and g['how'], f'{t} détail : même force que la carte ({dos_trend!r}) et son calcul {g["pct"]!r}')
         R.check(g['muscles'] == ['lats', 'traps', 'lower_back'] and sum(g['rows']) == dos_sets and g['total'] == dos_sets,
                 f'{t} détail : séries par semaine des muscles = carte ({dos_sets}) {g["rows"]} {g["total"]!r}')

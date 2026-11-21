@@ -46,7 +46,7 @@
    la couleur du thème), sans flou ni lueur ni filtre recalculé à chaque image */
 .body-map__ol { position: absolute; pointer-events: none; background: var(--body-ol);
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
-.body-map__ol--main { background: var(--body-heat); }   /* fiche : contour d'un point du muscle ciblé */
+.body-map__ol--main { background: var(--body-main-ol); }   /* fiche : contour d'un point du muscle ciblé, un rouge plus sombre (sombre) ou plus vif (clair) que son aplat, pour qu'il se voie aussi sur lui */
 .body-map--atlas[data-iso] .body-map__ol--main { display: none; }   /* muscles isolés : rien d'autre ne reste cerné */
 /* Muscle touché (carte d'info) et muscles isolés d'« À travailler » : contour à la couleur du texte */
 .body-map__mark, .body-map__isomark { background: var(--label); }
@@ -56,14 +56,16 @@
 /* Sombre : le muscle ciblé (et les paliers de Progrès) en rouge vif éclairé par l'ombrage (soft-light, et non multiply qui
    l'éteignait), sur un corps plus sombre (--body-atlas-bright) : ciblé / gris 2,7:1 au lieu de 1,9:1. Clair : inchangé */
 body:not(.light) .body-map--atlas .body-map__p { background-blend-mode: soft-light; }
-/* Muscles qui aident : un rose franc, lumineux et peu saturé, jamais en lumière douce (variante A, retenue par 10 juges
-   sur 12 contre un pastel et un contour). Ombrage du calque multiplié (sombre : éclairci de 25 %) ; mesuré sur capture
-   (développé incliné, iPhone 13) : sombre, ciblé / aidant 44, aidant / gris 40 ; clair, un cran plus foncé, ciblé / aidant
-   40, aidant / gris 35. La pastille « Qui aide » a la teinte vue sur le dessin (test_panel_apple t_fiche_aidants) */
-body .body-map--atlas .body-map__p.body-map__m--sec { background-color: var(--body-sec-tint); background-blend-mode: var(--body-sec-blend); filter: brightness(var(--body-sec-bright)); }
+/* Muscles qui aident : un rose franc UNI, la teinte exacte de la pastille « Qui aide », sans l'ombrage des fibres (variante A
+   retenue par 10 juges sur 12 ; panel t9 : avec leurs fibres, les aidants semblaient hachurés). Le ciblé garde son relief.
+   Mesuré sur capture (développé incliné, iPhone 13) : test_panel_apple t_fiche_aidants */
+body .body-map--atlas .body-map__p.body-map__m--sec { background-color: var(--body-sec-tint); background-image: none !important; background-blend-mode: var(--body-sec-blend); filter: brightness(var(--body-sec-bright)); }
 /* Clair : le rouge pâle éclairé par l'ombrage (soft-light : en multiply il virait au brun, trop près du gris) ; l'objectif
    atteint reste en multiply, exactement le rouge plein de la fiche */
 .body-map--atlas[data-tiers] .body-map__m--t1 { background-blend-mode: soft-light; }
+/* Sombre : « Sous l'objectif » ombré, moins lumineux que l'objectif atteint (panel t9 : le rose pâle, la couleur la plus
+   claire du dessin, attirait l'œil sur ce qui est en retard) ; écart de 27 au moins avec le gris, mesuré sur le personnage */
+body:not(.light) .body-map--atlas[data-tiers] .body-map__p.body-map__m--t1 { background-blend-mode: multiply; filter: brightness(1.1); }
 body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--body-atlas-bright, .46)); }   /* pas de fondu d'apparition (theme-sobre-progres) : jamais un personnage gris le temps d'un fondu */
 /* Ligne touchée : seuls ses muscles restent, en rouge plein ; fondu doux entre les deux états */
 .body-map--atlas .body-map__p { transition: opacity .2s ease, background-color .2s ease; }
@@ -84,19 +86,19 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .atlas-box > .mpanel__zoom { position: absolute; right: -8px; margin: 0; }
 .atlas-box--top > .mpanel__zoom { top: -8px; }
 .atlas-box--bottom > .mpanel__zoom { bottom: -8px; }
-/* Muscle isolé, texte très grand : son nom et « Tout voir », sur une ligne sous le personnage (atlasIsoChip) */
-.atlas-box__iso { display: none; align-self: stretch; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 8px;
+/* Muscle isolé : « Seulement : Triceps · Tout afficher », sur une ligne sous le personnage (atlasIsoChip, panel t9) */
+.atlas-box__iso { display: flex; align-self: stretch; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 8px;
   font-size: min(var(--fs-footnote), 17px); }
-.type-xl .atlas-box__iso { display: flex; }
 .atlas-box__iso-name { font-weight: 600; color: var(--label); }
 .atlas-box__iso-all { min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; white-space: nowrap; }
 /* Muscles travaillés tous en haut (ou tous en bas) du corps : carte cadrée sur cette moitié (bodyAtlasCrop), plus large ;
    une seule vue utile (abducteurs : le dos) : en grand */
 .mpanel__box:has(> .body-map--crop) { width: min(100%, 330px); }
 .mpanel__box:has(> .body-map--one:not(.body-map--crop)) { width: min(100%, 200px); }
-/* Texte très grand (AX33) : le corps entier, jamais moins de 260 points de haut (panel t7 : il rétrécissait avec le texte) */
-.type-xl .mpanel__box { width: min(100% + 32px, 250px); margin-inline: -16px; }   /* corps entier, face et dos : 263 points de haut
-   (260 au moins, panel t8 : le nom du ciblé se lit sans défiler sur iPhone SE), même sur un écran de 320 points */
+/* Texte très grand (AX33) : le corps entier, jamais moins de 230 points de haut (panel t7 : il rétrécissait avec le texte) */
+.type-xl .mpanel__box { width: min(100% + 32px, 240px); margin-inline: -16px; }   /* corps entier, face et dos : 252 points de haut
+   (230 au moins, panels t8 et t9 : le nom du ciblé se lit sans défiler sur iPhone SE), même sur un écran de 320 points */
+.type-xl .mpanel__box:has(> .body-map--one) { width: min(100%, 115px); margin-inline: 0; }   /* une seule vue utile : 251 points */
 .type-xl .mpanel__box > .mpanel__zoom { right: 0; }
 
 .body-map--crop .body-map__fig { overflow: hidden; }

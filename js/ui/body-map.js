@@ -256,9 +256,10 @@ function bodyAtlasViews(kind, levels) {
 // Progrès (js/features/progress-atlas.js) : tiers (paliers au lieu de plein / qui aide), tip 'load' (bulle : volume de
 // la période et exercices), crop false (corps entier, les deux vues), captions (« Face », « Dos » sous les vues),
 // outline (sous-muscles cernés : bodyAtlasLayersHtml)
-function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false, tiers = false, tip = '', crop: cropOn = true, captions = false, outline = [] } = {}) {
+// one : la seule vue utile même sans cadrage (fiche en texte très grand : corps entier, mais le dos seul pour les abducteurs)
+function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false, tiers = false, tip = '', crop: cropOn = true, captions = false, outline = [], one = cropOn } = {}) {
   const kind = bodyKind(body), safe = levels && typeof levels === 'object' ? levels : {};
-  const views = cropOn ? bodyAtlasViews(kind, safe) : ['front', 'back'];
+  const views = one ? bodyAtlasViews(kind, safe) : ['front', 'back'];
   const rowW = views.length + (views.length - 1) * BODY_GAP, fig = `${Math.round(10000 / rowW) / 100}%`;
   const [y0, y1] = cropOn ? bodyAtlasCrop(kind, safe) : [0, BODY_PARTS.h], ch = y1 - y0;
   const inner = `top:${Math.round(-y0 / ch * 1e5) / 1e3}%;height:${Math.round(BODY_PARTS.h / ch * 1e5) / 1e3}%`;

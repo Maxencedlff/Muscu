@@ -68,7 +68,7 @@ function exAtlasPanelHtml(m, name) {
   const xl = document.documentElement.classList.contains('type-xl');
   return `
     <div class="cell mpanel mpanel--atlas">
-      ${atlasBoxHtml(bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true, crop: !xl }), 'mpanel__box', !xl && bodyAtlasCrop(kind, levels)[0] > 0 ? 'bottom' : 'top')}
+      ${atlasBoxHtml(bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true, crop: !xl, one: true }), 'mpanel__box', !xl && bodyAtlasCrop(kind, levels)[0] > 0 ? 'bottom' : 'top')}
     </div>
     ${atlasLineHtml(items.filter(x => x.level >= 2), 2)}${atlasLineHtml(items.filter(x => x.level < 2), 1)}`;
 }
@@ -121,14 +121,14 @@ registerActions({
   },
   // Bouton « Agrandir » de la fiche exercice : vue agrandie de l'atlas, sans zoom (VoiceOver, gestes inconnus)
   'atlas-open': (e, el) => {
-    const map = el.closest('.mpanel, .mcard')?.querySelector('.body-map--atlas');
+    const map = el.closest('.mpanel, .mcard, .atlas-box')?.querySelector('.body-map--atlas');
     if (map) openAtlasViewer(map, null);
   },
   // Progrès, « À travailler » : un nom isole ses sous-muscles gris ou pâles sur le personnage (atlasToWorkShow)
   'atlas-to-work': (e, btn) => atlasToWorkShow(btn),
   // Croix de la carte d'info du muscle touché (js/ui/body-zoom.js)
   'atlas-info-close': () => closeBodyTip(),
-  // « Tout voir » posé sur le dessin (texte très grand) : Progrès comme « Tout voir » de la liste, fiche comme un second toucher
+  // « Tout afficher » posé sur le dessin (texte très grand) : Progrès comme « Tout afficher » de la liste, fiche comme un second toucher
   'atlas-iso-all': (e, btn) => {
     const card = btn.closest('.mcard');
     closeBodyTip();
@@ -145,7 +145,7 @@ registerActions({
     cell.innerHTML = all.innerHTML;
     cell.querySelector('.mlow__more')?.focus();
     const named = iso && cell.querySelector(`.mlow__name[data-muscle="${iso}"]`);
-    if (named) { named.setAttribute('aria-pressed', 'true'); named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout voir</button>'); }
+    if (named) { named.setAttribute('aria-pressed', 'true'); named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout afficher</button>'); }
     announce(`${cell.querySelectorAll('.mlow__name').length} muscles à travailler`);
   },
 });

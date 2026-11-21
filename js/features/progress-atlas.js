@@ -40,14 +40,15 @@ function atlasToWorkHtml(items) {
 // bas, sous la légende) ; masqué pour VoiceOver, qui lit la liste
 function atlasToWorkLineHtml(items) {
   if (!items.length) return '';
-  const names = items.slice(0, 2).map(it => it.label).join(', '), more = items.length - 2;   // 2 noms au plus (panel t6)
-  return `<p class="mcard__todo" aria-hidden="true">À travailler : ${esc(names)}${more > 0 ? ` + ${more}` : ''}</p>`;
+  // 2 noms au plus : ceux à 0 série s'il y en a (panel t9 : « + 10 » se lisait « +10 séries »)
+  const zero = items.filter(it => !it.sets), named = (zero.length ? zero : items).slice(0, 2), more = items.length - named.length;
+  return `<p class="mcard__todo" aria-hidden="true">À travailler : ${esc(named.map(it => it.label).join(', '))}${more > 0 ? ` et ${more} autre${more > 1 ? 's' : ''}` : ''}</p>`;
 }
 
 // Toucher un nom d'« À travailler » : sur le personnage de Progrès, seuls ses sous-muscles gris ou pâles restent mis en
 // valeur, cernés (les autres calques s'effacent, comme les lignes de la fiche), la carte d'info sous le dessin donne leurs
-// séries une à une, le nom reste surligné et « Tout voir » rend le dessin entier (panels t5, t8). L'isolement dure jusqu'à
-// « Tout voir », un second toucher sur le même nom ou un autre nom ; la carte se ferme par sa croix
+// séries une à une, le nom reste surligné et « Tout afficher » rend le dessin entier (panels t5, t8). L'isolement dure jusqu'à
+// « Tout afficher », un second toucher sur le même nom ou un autre nom ; la carte se ferme par sa croix
 function atlasToWorkShow(btn) {
   const card = btn.closest('.mcard'), map = card?.querySelector('.mcard__map');
   const it = map && atlasToWork(partLoad(muscleSpan)).find(x => x.key === btn.dataset.muscle);
@@ -62,7 +63,7 @@ function atlasToWorkShow(btn) {
     return `<p class="btip__level">${muscleLevelDot(lv)}<span>${esc(name)} : ${pl.weekly[id] ? weeklyTxt(pl.weekly[id]) : 'aucune série'}</span></p>`; }).join('');
   const html = `<p class="btip__title">${esc(it.label)}</p>${rows}
     <button class="btip__link" data-action="go-stats-muscles" data-muscle="${it.key}">Séries par muscle${icon('chevron.right', 14)}</button>`;
-  // Marques : le contour des sous-muscles (gris compris : sans calque, ils se verraient mal), qui restent jusqu'à « Tout voir »
+  // Marques : le contour des sous-muscles (gris compris : sans calque, ils se verraient mal), qui restent jusqu'à « Tout afficher »
   for (const fig of map.querySelectorAll('.body-map__fig')) {
     const view = fig.classList.contains('body-map__back') ? 'back' : 'front';
     fig.querySelector('.body-map__body').insertAdjacentHTML('beforeend', bodyOutlineHtml(kind, view, it.ids, 1, 'body-map__isomark'));
@@ -72,14 +73,14 @@ function atlasToWorkShow(btn) {
   atlasIsoChip(map, it.label);
   const named = card.querySelector(`.mlow__name[data-muscle="${it.key}"]`) || btn;
   named.setAttribute('aria-pressed', 'true');
-  named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout voir</button>');
+  named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout afficher</button>');
   atlasInfoShow(map, html);
   const r0 = map.getBoundingClientRect();
   if (r0.top < 0 || r0.bottom > innerHeight) map.scrollIntoView({ block: 'center', behavior: 'instant' });
   announce(`${it.label} : ${it.ids.map(atlasPartTitle).join(', ')}`);
 }
 
-// « Tout voir » : le dessin entier, plus de nom surligné
+// « Tout afficher » : le dessin entier, plus de nom surligné
 function atlasToWorkReset(card) {
   const map = card?.querySelector('.mcard__map');
   if (!map) return;
@@ -91,13 +92,13 @@ function atlasToWorkReset(card) {
   atlasIsoChip(map, null);
 }
 
-// Texte très grand : le muscle isolé et « Tout voir » sur la carte du dessin, juste sous le personnage (panel t6 : la
+// Texte très grand : le muscle isolé et « Tout afficher » sur la carte du dessin, juste sous le personnage (panel t6 : la
 // liste, plus bas, n'est plus à l'écran quand on regarde le personnage) ; label null : retiré
 function atlasIsoChip(map, label) {
   const box = map?.closest('.atlas-box');
   box?.parentElement?.querySelector(':scope > .atlas-box__iso')?.remove();
   if (!box || label == null) return;
-  box.insertAdjacentHTML('afterend', `<div class="atlas-box__iso"><span class="atlas-box__iso-name">${esc(label)}</span><button class="atlas-box__iso-all" data-action="atlas-iso-all">Tout voir</button></div>`);
+  box.insertAdjacentHTML('afterend', `<div class="atlas-box__iso"><span class="atlas-box__iso-name">Seulement : ${esc(label)}</span><button class="atlas-box__iso-all" data-action="atlas-iso-all">Tout afficher</button></div>`);
 }
 
 // Dessin et son bouton Agrandir, dans un coin du dessin (panel affichage-e t3 : un grand vide le séparait du

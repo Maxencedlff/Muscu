@@ -209,7 +209,19 @@ function atlasA11yLabel(levels, tiers = false) {
     || 'Personnage, aucun muscle coloré';
 }
 
-// from : { x, y, scale } point touché sur la carte de la fiche (zoom sur ce point), ou null (×1)
+// from : { x, y, scale } point touché sur la carte (zoom sur ce point) ; null : la fiche s'ouvre centrée sur le muscle
+// ciblé, à ×2 (panel t9 : « Vue entière » ou le dézoom montrent le reste), Progrès sur le personnage entier
+// Centre des muscles ciblés sur le corps entier (face, sinon dos : celle qui en montre le plus), à ×2 ; null sans ciblé
+const ATLAS_CIBLE_ZOOM = 2;
+function atlasCibleAt(kind, levels) {
+  const main = BODY_PARTS.parts.filter(p => !p.deep && levels[p.id] >= 2);
+  const area = v => main.reduce((t, p) => { const b = BODY_PARTS.boxes[kind]?.[v]?.[p.id]?.[0]; return b ? t + (b[2] - b[0]) * (b[3] - b[1]) : t; }, 0);
+  const view = area('front') >= area('back') ? 'front' : 'back', bs = main.map(p => BODY_PARTS.boxes[kind]?.[view]?.[p.id]?.[0]).filter(Boolean);
+  if (!bs.length) return null;
+  const cx = (Math.min(...bs.map(b => b[0])) + Math.max(...bs.map(b => b[2]))) / 2, cy = (Math.min(...bs.map(b => b[1])) + Math.max(...bs.map(b => b[3]))) / 2;
+  return { u: ((view === 'back' ? 1 + BODY_GAP : 0) + cx / BODY_PARTS.w) / (2 + BODY_GAP), v: cy / BODY_PARTS.h, scale: ATLAS_CIBLE_ZOOM };
+}
+
 function openAtlasViewer(mapEl, from = null) {
   if (atlasViewer || !mapEl?.isConnected) return;
   const kind = bodyKind(mapEl.dataset.body), levels = atlasLevels(mapEl), tiers = mapEl.dataset.tiers === '1', tip = mapEl.dataset.tip || '';
@@ -220,7 +232,7 @@ function openAtlasViewer(mapEl, from = null) {
   const rowW = 2 + BODY_GAP, one = mapEl.dataset.view, outline = (mapEl.dataset.ol || '').split(' ').filter(Boolean);
   const u = r => (one ? (one === 'back' ? 1 + BODY_GAP : 0) + r : r * rowW) / rowW;
   const at = from && row?.width ? { u: u((from.x - row.left) / row.width),
-    v: (c0 + (from.y - row.top) / row.height * (c1 - c0)) / BODY_PARTS.h, scale: from.scale } : null;
+    v: (c0 + (from.y - row.top) / row.height * (c1 - c0)) / BODY_PARTS.h, scale: from.scale } : tiers ? null : atlasCibleAt(kind, levels);
   // Légende : toujours une ligne visible, les noms de la page (fiche : Ciblé, Qui aide ; Progrès : les 3 états). En texte
   // très grand (AX33 : le personnage n'avait plus que 350 points sur iPhone SE), les bornes en séries passent derrière
   // « Légende » (panel affichage-e t4 : repliée, la légende ne disait plus rien)
@@ -239,7 +251,7 @@ function openAtlasViewer(mapEl, from = null) {
       <div class="azoom__text">
         ${key}
         <p class="azoom__hint">Pince pour zoomer. Touche un muscle pour son nom.</p>
-        ${tiers ? '' : '<p class="azoom__short">Touche un muscle pour son nom</p>'}
+        ${tiers ? '' : '<p class="azoom__short">Touche un muscle pour son nom</p><button class="azoom__whole">Vue entière</button>'}
       </div>
       <div class="azoom__ctl">
         <button class="azoom__btn" data-z="-1" aria-label="Dézoomer">${icon('minus', 22)}</button>
@@ -451,13 +463,15 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', outl
     atlasShowName(stage, kind, levels, e, { res: v => (v === hiView ? 3 : 1), container: root, tip });
   }
   // Boutons + et − : zoom autour du centre de la vue (VoiceOver, accès par contacteur)
+  // dir 0 : « Vue entière » (×1)
   function step(dir) {
     const r = viewRect();
     closeBodyTip();
     if (!reduceMotion.matches) stage.classList.add('azoom__stage--anim');
-    zoomAt(r.w / 2, r.h / 2, dir > 0 ? s * ATLAS_STEP : s / ATLAS_STEP);
+    zoomAt(r.w / 2, r.h / 2, dir > 0 ? s * ATLAS_STEP : dir < 0 ? s / ATLAS_STEP : 1);
     frame();
   }
+  root.querySelector('.azoom__whole')?.addEventListener('click', () => step(0));
   const btns = [...root.querySelectorAll('.azoom__btn')];   // bande du bas, hors du dessin (panel affichage-e t1)
   btns.forEach(b => b.addEventListener('click', () => step(Number(b.dataset.z))));
   function buttons() {

@@ -14,3 +14,5 @@
 /* « À travailler : … » sous le choix de période : en texte très grand seulement (sinon la liste se voit sans défiler) */
 .mcard__todo { display: none; margin: 0; width: 100%; font-size: var(--fs-subhead); color: var(--label); }
 .type-xl .mcard__todo { display: block; }
+/* Page d'un groupe (Pectoraux…) : le personnage détaillé en tête, centré */
+.sgrp__box { width: min(100%, 300px); margin-inline: auto; }

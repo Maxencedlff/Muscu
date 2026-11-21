@@ -256,13 +256,13 @@ def t_fiche(bench, eng, dev, theme):
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
         page.wait_for_selector('.azoom', timeout=5000)
         settle(page)
-        R.check(page.evaluate('atlasViewerState().scale') == 1 and page.locator('.azoom .body-map__front').count() == 1 and page.locator('.azoom .body-map__back').count() == 1,
-                f'{t} double toucher : vue agrandie entière, face et dos')
-        tap(page, part_point(page, '.azoom', 'chest_clavicular'), double=True, touch=True)
+        # Fiche (panel t9) : la vue s'ouvre centrée sur le muscle ciblé, à ×2 ; « Vue entière » montre le reste
         page.wait_for_function("() => atlasViewerState()?.hi === 'front' && atlasViewerState().lines === 'front'", timeout=10000)
         settle(page)
         st = page.evaluate('atlasViewerState()')
-        R.check(abs(st['scale'] - 2.5) < 0.05, f'{t} double toucher dans la vue : zoom ×2,5 {st}')
+        cen = page.evaluate("""() => { const v = document.querySelector('.azoom').getBoundingClientRect(), l = document.querySelector('.azoom .body-map__front [data-part="chest_clavicular"]').getBoundingClientRect();
+            return [Math.round(l.left + l.width / 2 - (v.left + v.width / 2)), Math.round(l.top + l.height / 2 - (v.top + v.height / 2))]; }""")
+        R.check(abs(st['scale'] - 2) < 0.05 and abs(cen[0]) < 60 and abs(cen[1]) < 60, f'{t} double toucher : vue agrandie centrée sur le ciblé, ×2 {st} {cen}')
         R.check(hi_urls and all('/front/' in u for u in hi_urls) and not any('/back/' in u for u in hi_urls), f'{t} 3× de la face seulement {hi_urls}')
         R.check(page.evaluate("document.querySelector('.azoom .body-map__front .body-map__base').src.endsWith('base@3x.webp')"), f'{t} base 3× affichée')
         R.check(page.locator('.azoom .body-map__front [data-part="chest_clavicular"]').count() == 1
@@ -323,12 +323,16 @@ def t_fiche(bench, eng, dev, theme):
         page.click('.sheet-root--atlas .sheet__btn--confirm')
         page.wait_for_selector('.azoom', state='detached', timeout=3000)
         R.check(page.evaluate('atlasViewerState()') is None and page.locator('.atlas-info').count() == 0, f'{t} OK : vue agrandie fermée, carte fermée')
-        # Bouton Agrandir : vue entière (×1, rien du 3×)
+        # Bouton Agrandir : centrée sur le ciblé, ×2 ; « Vue entière » : le personnage entier au 1×
         page.click('.mpanel__zoom')
         page.wait_for_selector('.azoom')
         settle(page)
+        R.check(abs(page.evaluate('atlasViewerState().scale') - 2) < 0.05, f'{t} bouton Agrandir : sur le ciblé, ×2')
+        page.click('.azoom__whole')
+        page.wait_for_timeout(500)
+        settle(page)
         st = page.evaluate('atlasViewerState()')
-        R.check(st['scale'] == 1 and st['hi'] == '', f'{t} bouton Agrandir : personnage entier au 1× {st}')
+        R.check(st['scale'] == 1, f'{t} « Vue entière » : personnage entier au 1× {st}')
         shot(page, LOT, f'vue-entiere-{t}')
         if eng == 'chromium':
             # Pincement dans la vue agrandie : zoom progressif, 3× au-delà de ×1,4
@@ -361,7 +365,7 @@ def t_fiche(bench, eng, dev, theme):
         shot(page, LOT, f'fiche-xl-{t}')
         # Texte très grand : le corps entier, au moins 300 points de haut (panel t7 : il rétrécissait avec le texte)
         hgt = page.evaluate("Math.round(document.querySelector('.mpanel__map .body-map__row').getBoundingClientRect().height)")
-        R.check(hgt >= 260 and page.get_attribute('.mpanel__map', 'data-crop') == '0,840', f'{t} fiche texte agrandi : personnage entier de {hgt} points (260 au moins)')
+        R.check(hgt >= 230 and page.get_attribute('.mpanel__map', 'data-crop') == '0,840', f'{t} fiche texte agrandi : personnage entier de {hgt} points (230 au moins)')
         # Le personnage sous la barre : le nom du muscle ciblé se lit sans défiler (panel t8, iPhone SE en AX33)
         page.evaluate("""() => { const m = document.querySelector('.mpanel--atlas'), nav = document.querySelector('.view.library-ex .navbar__bar');
             scrollBy(0, m.getBoundingClientRect().top - (nav ? nav.getBoundingClientRect().bottom : 0) - 4); }""")
@@ -370,18 +374,18 @@ def t_fiche(bench, eng, dev, theme):
             return [Math.round(n.getBoundingClientRect().bottom), Math.round(tab)]; }""")
         R.check(seen[0] <= seen[1] + 1, f'{t} fiche texte agrandi : nom du muscle ciblé visible sans défiler {seen}')
         shot(page, LOT, f'fiche-xl-lignes-{t}')
-        # Isoler en texte très grand : le nom et « Tout voir » sur le dessin même
+        # Isoler en texte très grand : le nom et « Tout afficher » sur le dessin même
         page.locator('.mline2[data-level="2"]').first.click()
         settle(page)
         chip = page.locator('.atlas-box__iso')
         geo = page.evaluate("""() => { const c = document.querySelector('.atlas-box__iso')?.getBoundingClientRect(), n = document.querySelector('.atlas-box__iso-name'),
             b = document.querySelector('.mpanel__box').getBoundingClientRect(), l = document.querySelector('.mline2').getBoundingClientRect();
             return c && { lines: Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight || 20)), under: c.top >= b.bottom - 1, clear: c.bottom <= l.top + 1 }; }""")
-        R.check(chip.count() == 1 and chip.is_visible() and 'Tout voir' in chip.inner_text() and geo and geo['under'] and geo['clear'] and geo['lines'] <= 2,
-                f'{t} texte agrandi : muscle isolé nommé sous le dessin, avec « Tout voir », sans couvrir les lignes {geo}')
+        R.check(chip.count() == 1 and chip.is_visible() and 'Tout afficher' in chip.inner_text() and geo and geo['under'] and geo['clear'] and geo['lines'] <= 2,
+                f'{t} texte agrandi : muscle isolé nommé sous le dessin, avec « Tout afficher », sans couvrir les lignes {geo}')
         page.click('.atlas-box__iso-all')
         settle(page)
-        R.check(page.locator('.atlas-box__iso').count() == 0 and not page.evaluate("document.querySelector('.mpanel__map').dataset.iso"), f'{t} texte agrandi : « Tout voir » sur le dessin rend tous les muscles')
+        R.check(page.locator('.atlas-box__iso').count() == 0 and not page.evaluate("document.querySelector('.mpanel__map').dataset.iso"), f'{t} texte agrandi : « Tout afficher » sur le dessin rend tous les muscles')
         page.click('.mpanel__zoom')
         page.wait_for_selector('.azoom')
         settle(page)
@@ -531,6 +535,22 @@ def t_autres_fiches(bench, eng, dev, theme):
             R.check(not lo, f'{t} {name} : mise en page {lo}')
             shot(page, LOT, f'fiche-{slug}-{t}')
             page.evaluate('closeBodyTip()')
+        # Texte très grand (panel t9) : sur TOUTES les fiches, le nom du muscle ciblé se lit sans défiler, le personnage sous la
+        # barre ; une seule face utile (abducteurs) : elle seule, en grand
+        page.evaluate("""() => { const h = document.documentElement; h.style.fontSize = '33px'; h.classList.add('type-xl'); }""")
+        for name in ('Développé incliné barre', 'Abducteurs machine', 'Tractions pronation', 'Squat barre'):
+            page.evaluate(f"navigate(makeRoute('library-ex', {json.dumps(name)}))")
+            page.wait_for_selector('.view.library-ex .mpanel--atlas')
+            settle(page)
+            page.evaluate("""() => { const m = document.querySelector('.mpanel--atlas'), nav = document.querySelector('.view.library-ex .navbar__bar');
+                scrollBy(0, m.getBoundingClientRect().top - (nav ? nav.getBoundingClientRect().bottom : 0) - 4); }""")
+            settle(page)
+            geo = page.evaluate("""() => { const n = document.querySelector('.mline2[data-level="2"] .mline2__names'), tab = document.querySelector('.tabbar').getBoundingClientRect().top,
+                m = document.querySelector('.mpanel__map'); return { name: Math.round(n.getBoundingClientRect().bottom), tab: Math.round(tab), h: Math.round(m.querySelector('.body-map__row').getBoundingClientRect().height),
+                views: [...m.querySelectorAll('.body-map__fig')].map(f => f.classList.contains('body-map__back') ? 'dos' : 'face') }; }""")
+            want = ['dos'] if name == 'Abducteurs machine' else ['face', 'dos']
+            R.check(geo['name'] <= geo['tab'] + 1 and geo['h'] >= 230 and geo['views'] == want, f'{t} {name}, texte très grand : nom du ciblé sans défiler, personnage de 230 points au moins {geo}')
+            shot(page, LOT, f'fiche-xl-{name.split()[0].lower()}-{t}')
         R.check(not page.errors, f'{t} autres fiches : aucune erreur JS {page.errors}')
 
 
@@ -656,16 +676,16 @@ def t_progres(bench, eng, dev, theme):
             R.check(tip.startswith(first['label']) and all(page.evaluate(f"atlasPartTitle({json.dumps(i)})") in tip for i in first['ids'][:3]),
                     f'{t} À travailler : la carte détaille les sous-muscles « {tip[:160]} »')
             R.check(page.get_attribute('.mcard .mlow__name', 'aria-pressed') == 'true' and page.locator('.mcard .mlow__reset').count() == 1,
-                    f'{t} À travailler : nom isolé surligné, « Tout voir » à côté')
+                    f'{t} À travailler : nom isolé surligné, « Tout afficher » à côté')
             ok = info_ok(page, '.mcard', ['.mcard__map .body-map__row', '.mcard .mlegend', '.mcard .mlow'])
             R.check(ok['ok'], f'{t} À travailler : carte d\'info sous le dessin, elle ne recouvre rien {ok}')
             shot(page, LOT, f'progres-a-travailler-{t}')
-            # « Tout voir »
+            # « Tout afficher »
             page.evaluate("document.querySelector('.mcard .mlow__reset').click()")
             settle(page)
-            R.check(page.get_attribute('.mcard .mlow__name', 'aria-pressed') == 'false' and page.locator('.mcard .mlow__reset').count() == 0, f'{t} À travailler : « Tout voir » rend la liste')
+            R.check(page.get_attribute('.mcard .mlow__name', 'aria-pressed') == 'false' and page.locator('.mcard .mlow__reset').count() == 0, f'{t} À travailler : « Tout afficher » rend la liste')
             R.check(page.evaluate("!document.querySelector('.mcard__map').dataset.iso && !document.querySelector('.body-map__isomark') && !document.querySelector('.atlas-info')"),
-                    f'{t} À travailler : « Tout voir », dessin entier')
+                    f'{t} À travailler : « Tout afficher », dessin entier')
         if len(items) > 3:
             page.click('.mcard .mlow__more')
             settle(page)
@@ -802,7 +822,6 @@ def t_hors_ligne(bench):
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
         page.wait_for_selector('.azoom', timeout=5000)
         settle(page)
-        tap(page, part_point(page, '.azoom', 'chest_clavicular'), double=True, touch=True)   # la vue s'ouvre entière : zoom dans la vue
         page.wait_for_timeout(2500)
         shown = """() => [...document.querySelectorAll('.azoom .body-map__base')].map(i => [i.complete && i.naturalWidth > 0, i.getAttribute('src').endsWith('base.webp')])
             .concat([[document.querySelectorAll('.azoom .body-map__p').length > 0, true]])"""
@@ -827,8 +846,6 @@ def t_hors_ligne(bench):
         settle(page)
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
         page.wait_for_selector('.azoom', timeout=5000)
-        settle(page)
-        tap(page, part_point(page, '.azoom', 'chest_clavicular'), double=True, touch=True)
         page.wait_for_function("() => atlasViewerState()?.hi === 'front' && atlasViewerState().lines === 'front'", timeout=15000)
         page.wait_for_timeout(500)
         cached = page.evaluate("""async () => { const c = await caches.open((await caches.keys()).find(k => k.startsWith('ppl-')));
@@ -853,8 +870,6 @@ def t_hors_ligne(bench):
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
         try:
             page.wait_for_selector('.azoom', timeout=5000)
-            settle(page)
-            tap(page, part_point(page, '.azoom', 'chest_clavicular'), double=True, touch=True)
             page.wait_for_function("() => atlasViewerState()?.hi === 'front' && atlasViewerState().lines === 'front'", timeout=10000)
             ok = True
         except Exception:
