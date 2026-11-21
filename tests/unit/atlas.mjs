@@ -230,6 +230,28 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     const fiche = run(`bodyAtlasHtml({ glute_med: 2, glute_max: 1 }, { body: 'male' })`);
     assert.ok(/class="body-map__ol body-map__ol--main" data-ol="glute_med"/.test(fiche) && !/data-ol="glute_max"/.test(fiche),
       'fiche : le ciblé seul cerné de rouge (panel t8), pas le muscle qui aide');
+    // Page de groupe (contre-vérification de l'auditeur, cas de probe.mjs) : vues et cadrage sur TOUS les sous-muscles du
+    // groupe, sinon ceux à 0 série de l'autre vue disparaissaient (Épaules : le deltoïde antérieur seul travaillé cachait
+    // le postérieur, au dos ; Bras : le biceps seul cachait le triceps). Pour chaque groupe et chaque sous-muscle travaillé
+    // seul, chaque sous-muscle du groupe est sur une vue affichée et dans le cadre
+    const group = (gid, levels) => run(`(() => { if (typeof muscleSpan === "undefined") globalThis.muscleSpan = "week"; const keep = partLoad; partLoad = () => ({ levels: ${JSON.stringify(levels)} });
+      try { return statsGroupAtlasHtml(MUSCLE_GROUP_BY_ID.get(${JSON.stringify(gid)})); } finally { partLoad = keep; } })()`);
+    const ep = group('epaules', { delt_anterior: 2 });
+    assert.ok(ep.includes('body-map__back') && /data-ol="[^"]*delt_posterior/.test(ep), 'Épaules, deltoïde antérieur seul : le dos et le postérieur cerné');
+    const br = group('bras', { biceps_long: 2 });
+    assert.ok(br.includes('body-map__back') && /data-ol="[^"]*triceps_lateral/.test(br), 'Bras, biceps seul : le dos et le triceps cerné');
+    for (const g of run('MUSCLE_GROUPS')) {
+      const ids = run(`BODY_PARTS.parts.filter(p => ${JSON.stringify(g.muscles)}.includes(p.parent) && !p.deep).map(p => p.id)`);
+      for (const one of ids) {
+        const html = group(g.id, { [one]: 2 }), kind = html.match(/data-body="(\w+)"/)[1];
+        const [y0, y1] = html.match(/data-crop="(\d+),(\d+)"/).slice(1).map(Number);
+        const views = ['front', 'back'].filter(v => html.includes(`body-map__${v}`));
+        for (const id of ids.filter(i => run(`['front', 'back'].some(v => BODY_PARTS.boxes[${JSON.stringify(kind)}][v][${JSON.stringify(i)}])`))) {   // l'élévateur de la scapula n'est pas dessiné
+          const seen = views.some(v => { const b = run(`BODY_PARTS.boxes[${JSON.stringify(kind)}][${JSON.stringify(v)}][${JSON.stringify(id)}]`); return b && b[0][1] >= y0 && b[0][3] <= y1; });
+          assert.ok(seen, `groupe ${g.id}, ${one} seul travaillé : ${id} hors du dessin (vues ${views}, cadre ${y0}-${y1})`);
+        }
+      }
+    }
     // Tout sous-muscle coloré reste dans le cadre
     for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) for (const kind of ['male', 'female']) {
       const lv = run(`exercisePartLevels(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)})).levels`);

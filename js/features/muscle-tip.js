@@ -1,26 +1,11 @@
 // ═══════════════════════════════════════════════════════════
-//  Bulle d'un muscle touché sur le personnage (Progrès › Muscles, fiche exercice)
+//  Muscles du personnage : bulle de la carte des 18 muscles, panneau et actions de l'atlas détaillé
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Détection et bulle : js/ui/body-tip.js. Ici, ce que dit la bulle selon la carte touchée :
-//   Progrès › Muscles  nom, séries de la période affichée (mêmes chiffres que « Séries par muscle »),
-//                      en « 4 semaines » la moyenne par semaine (celle que suit la couleur), palier en
-//                      mots (ceux de la légende), repère selon le niveau, et lien vers « Séries par muscle »
-//   fiche exercice     nom, principal ou secondaire pour cet exercice
-
-// Bulle de la carte de Progrès
-function muscleTipLoadHtml(id) {
-  const load = muscleLoad(muscleSpan), lvl = load.levels[id] || 0, n = roundSets(load.sets[id] || 0);
-  const count = load.span === 'month'
-    ? `${setsTxt(n)} en ${MUSCLE_SPANS.month.weeks} semaines, soit ${load.weekly[id]} par semaine en moyenne`
-    : `${setsTxt(n)} depuis lundi`;
-  return `<p class="btip__title" id="btipTitle">${esc(muscleLabel(id))}</p>
-    <p class="btip__sub">${count}</p>
-    <p class="btip__level">${muscleLevelDot(lvl)}<span>${MUSCLE_LEVEL_WORDS[lvl]}</span></p>
-    <p class="btip__sub">Repère : ${muscleTarget()}</p>
-    <button class="btip__link" data-action="go-stats-muscles" data-muscle="${id}">Séries par muscle${icon('chevron.right', 14)}</button>`;
-}
+// Détection et bulle : js/ui/body-tip.js. Ici, ce que dit la bulle de la carte des 18 muscles (Programme,
+// Progrès › Exercice) : nom, ciblé ou qui aide pour cet exercice. Atlas détaillé (fiche de la bibliothèque, Progrès ›
+// Muscles, page de groupe) : carte d'info sous le dessin, js/ui/body-zoom.js (atlasShowName) et atlasLoadTipHtml
 
 // Bulle de la fiche exercice : rôle lu dans la carte elle-même (calque coloré, teinte des secondaires)
 function muscleTipExerciseHtml(id, mapEl) {
@@ -88,16 +73,13 @@ function atlasIsolate(group, ids, pressed) {
   atlasIsoChip(map, on.size ? pressed?.name?.dataset.label || pressed?.line?.dataset.title || '' : null);
 }
 
-// Places préférées (js/ui/body-tip.js, bodyTipSpots) : Progrès, la marge extérieure de la vue touchée
-// puis sous le corps (sur la légende) ; fiche exercice, sous le personnage (au-dessus des pastilles)
-// puis la marge extérieure. Dans tous les cas, jamais sur un muscle coloré s'il reste une autre place.
+// Places préférées de la bulle (js/ui/body-tip.js, bodyTipSpots) : sous le personnage (au-dessus des pastilles)
+// puis la marge extérieure ; jamais sur un muscle coloré s'il reste une autre place.
 registerActions({
   'body-tap': (e, el) => {
     // Atlas détaillé de la fiche exercice : sous-muscle (nom de salle, latin, rôle), zoom au double toucher
     if (el.classList.contains('body-map--atlas')) return atlasTap(e, el);
-    const progress = el.classList.contains('mcard__map');
-    return bodyTipTap(e, el, (id, mapEl) => (progress ? muscleTipLoadHtml(id) : muscleTipExerciseHtml(id, mapEl)),
-      progress ? ['outer', 'under'] : ['under', 'outer']);
+    return bodyTipTap(e, el, muscleTipExerciseHtml, ['under', 'outer']);
   },
   // Lignes « Muscles ciblés » / « Muscles qui aident » : la ligne, un nom, ou « + N autres » (liste entière)
   'atlas-isolate': (e, line) => {

@@ -124,6 +124,8 @@ const SCRIPTS = [
   'js/features/settings.js',
   'js/features/progress.js',
   'js/features/progress-muscles.js',
+  'js/features/muscles.js',
+  'js/features/progress-atlas.js',   // atlas de Progrès (atlasBoxHtml : page de groupe)
   'js/features/watch.js',
   'js/features/home-widget.js',
   'js/features/siri.js',

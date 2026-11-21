@@ -119,7 +119,10 @@ function closeAtlasInfo() {
 }
 // Croix de la carte : fermée, le focus revient à ce qui l'a ouverte
 function atlasInfoClose() {
-  const back = atlasInfoTrigger;
+  // Dessin touché : masqué à VoiceOver (aria-hidden), le focus va à son bouton Agrandir (audit m7) ; nom de
+  // « À travailler » ou personnage de la vue agrandie (role=img) : le focus y revient
+  let back = atlasInfoTrigger;
+  if (back?.closest('[aria-hidden="true"]')) back = back.closest('.mpanel, .mcard, .atlas-box')?.querySelector('.mpanel__zoom') || null;
   closeBodyTip();
   atlasInfoTrigger = null;
   if (back?.isConnected) {

@@ -241,8 +241,6 @@ function bodyTipAvoid(anchor) {
   return [...(anchor?.closest('.group')?.querySelectorAll('.segmented') || [])].map(e => e.getBoundingClientRect());
 }
 
-// Mise en valeur posée par un autre module (atlas détaillé, js/ui/body-zoom.js) : retirée à la fermeture
-
 function closeBodyTip() {
   bodyTipSeq++;
   bodyTipEl?.remove();

@@ -261,13 +261,14 @@ function bodyAtlasViews(kind, levels) {
 // du sous-muscle touché, zoom au double toucher ou au pincement : js/ui/body-zoom.js)
 // Progrès (js/features/progress-atlas.js) : tiers (paliers au lieu de plein / qui aide), tip 'load' (bulle : volume de
 // la période et exercices), crop false (corps entier, les deux vues), captions (« Face », « Dos » sous les vues),
-// outline (sous-muscles cernés : bodyAtlasLayersHtml)
+// outline (sous-muscles cernés : bodyAtlasLayersHtml), frame (niveaux qui fixent vues et cadrage, par défaut levels)
 // one : la seule vue utile même sans cadrage (fiche en texte très grand : corps entier, mais le dos seul pour les abducteurs)
-function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false, tiers = false, tip = '', crop: cropOn = true, captions = false, outline = [], one = cropOn } = {}) {
+function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false, tiers = false, tip = '', crop: cropOn = true, captions = false, outline = [], one = cropOn, frame = null } = {}) {
   const kind = bodyKind(body), safe = levels && typeof levels === 'object' ? levels : {};
-  const views = one ? bodyAtlasViews(kind, safe) : ['front', 'back'];
+  const fr = frame || safe;   // ce qui fixe les vues et le cadrage (page de groupe : tous ses sous-muscles, travaillés ou non)
+  const views = one ? bodyAtlasViews(kind, fr) : ['front', 'back'];
   const rowW = views.length + (views.length - 1) * BODY_GAP, fig = `${Math.round(10000 / rowW) / 100}%`;
-  const [y0, y1] = cropOn ? bodyAtlasCrop(kind, safe) : [0, BODY_PARTS.h], ch = y1 - y0;
+  const [y0, y1] = cropOn ? bodyAtlasCrop(kind, fr) : [0, BODY_PARTS.h], ch = y1 - y0;
   const inner = `top:${Math.round(-y0 / ch * 1e5) / 1e3}%;height:${Math.round(BODY_PARTS.h / ch * 1e5) / 1e3}%`;
   const figs = views.map(v => `<span class="body-map__fig body-map__${v}"><span class="body-map__body" style="${inner}"><img class="body-map__base" src="${body2Url(kind, v, 'base.webp')}" alt="" draggable="false" decoding="async">${bodyAtlasLayersHtml(kind, v, safe, 1, tiers, outline)}</span></span>`).join('');
   const act = tap ? ' data-action="body-tap"' : '';

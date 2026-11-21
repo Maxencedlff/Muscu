@@ -161,11 +161,12 @@ function renderStatsGroup(id) {
 
 // Tête de la page d'un groupe : le personnage détaillé, sous-muscle par sous-muscle (haut, milieu et bas des pectoraux…)
 // dans les couleurs de la carte « Muscles » (panel affichage-e t9 : le groupe apparaissait en un seul bloc) ; ses
-// sous-muscles à 0 série cernés ; toucher : la carte d'info de Progrès ; la légende des 3 états dessous
+// sous-muscles à 0 série cernés ; vues et cadrage calculés sur tous ses sous-muscles (sinon ceux à 0 série de l'autre
+// vue, le dos de l'épaule, le triceps, restaient hors du dessin) ; toucher : la carte d'info de Progrès ; la légende des 3 états dessous
 function statsGroupAtlasHtml(g) {
   const pl = partLoad(muscleSpan), ids = BODY_PARTS.parts.filter(p => g.muscles.includes(p.parent) && !p.deep).map(p => p.id);
   const on = Object.fromEntries(ids.filter(id => pl.levels[id] > 0).map(id => [id, pl.levels[id]]));
-  const map = bodyAtlasHtml(on, { className: 'exhero__body', title: g.label, tap: true, tiers: true, tip: 'load', outline: ids.filter(id => !on[id]) });
+  const map = bodyAtlasHtml(on, { className: 'exhero__body', title: g.label, tap: true, tiers: true, tip: 'load', outline: ids.filter(id => !on[id]), frame: Object.fromEntries(ids.map(id => [id, 1])) });
   return `<figure class="exhero exhero--deep exhero--atlas">${atlasBoxHtml(map, 'sgrp__box')}
     <figcaption class="exhero__cap exhero__legend" aria-hidden="true">${muscleLegendItemsHtml()}</figcaption></figure>`;
 }

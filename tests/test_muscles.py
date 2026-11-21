@@ -688,7 +688,7 @@ def t_tip(bench, eng, dev, theme):
         page.click('.mcard .atlas-info__close')
         settle(page)
         R.check(page.locator('.atlas-info').count() == 0 and page.locator('.body-map__mark').count() == 0, f'{t} croix : carte fermée, marque retirée')
-        R.check(page.evaluate("document.activeElement === document.querySelector('.mcard__map')"), f'{t} croix : le focus revient au dessin (VoiceOver)')
+        R.check(page.evaluate("document.activeElement === document.querySelector('.mcard .mpanel__zoom')"), f'{t} croix : le focus va au bouton Agrandir (VoiceOver, le dessin est masqué)')
         R.check(page.evaluate("!!document.getElementById('atlasLive') && document.getElementById('atlasLive').getAttribute('aria-live') === 'polite'"), f'{t} région d\'annonce permanente')
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         page.click('[data-action="muscle-span"][data-span="week"]')
