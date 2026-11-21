@@ -28,22 +28,12 @@ function atlasToWorkNameHtml(it) {
 }
 function atlasToWorkHtml(items) {
   if (!items.length) return '<span class="cell__title cell__title--reg">Tous les muscles à l\'objectif</span>';
-  // Texte très grand : 2 noms (panel t8)
-  const shown = items.slice(0, document.documentElement.classList.contains('type-xl') ? 2 : ATLAS_TO_WORK_SHOWN), more = items.length - shown.length;
+  // 3 noms, texte très grand compris (panel t13 : une seule liste, 3 pastilles ; avant, 2 et une phrase en double)
+  const shown = items.slice(0, ATLAS_TO_WORK_SHOWN), more = items.length - shown.length;
   return `<span class="cell__title cell__title--reg">À travailler</span>
     <span class="cell__sub mlow">${shown.map(atlasToWorkNameHtml).join('')}${more ? `<button class="mlow__more" data-action="atlas-to-work-all" aria-expanded="false" aria-label="Voir les ${more} autres muscles à travailler">+ ${more} autre${more > 1 ? 's' : ''}</button>` : ''}</span>
     <template class="mlow__all">${items.map(atlasToWorkNameHtml).join('')}<button class="mlow__more" data-action="atlas-to-work-all" aria-expanded="true">Moins</button></template>
     <template class="mlow__few">${shown.map(atlasToWorkNameHtml).join('')}${more ? `<button class="mlow__more" data-action="atlas-to-work-all" aria-expanded="false" aria-label="Voir les ${more} autres muscles à travailler">+ ${more} autre${more > 1 ? 's' : ''}</button>` : ''}</template>`;
-}
-
-// Texte très grand : « À travailler : … » sous le dessin (panel t12 : au-dessus, il poussait le personnage sous le pli sur
-// iPhone SE), le résumé sans défiler (la liste touchable reste plus
-// bas, sous la légende) ; masqué pour VoiceOver, qui lit la liste
-function atlasToWorkLineHtml(items) {
-  if (!items.length) return '';
-  // 2 noms au plus : ceux à 0 série s'il y en a (panel t9 : « + 10 » se lisait « +10 séries »)
-  const zero = items.filter(it => !it.sets), named = (zero.length ? zero : items).slice(0, 2), more = items.length - named.length;
-  return `<p class="mcard__todo" aria-hidden="true">À travailler : ${esc(named.map(it => it.label).join(', '))}${more > 0 ? ` et ${more} autre${more > 1 ? 's' : ''}` : ''}</p>`;
 }
 
 // Toucher un nom d'« À travailler » : sur le personnage de Progrès, seuls ses sous-muscles gris ou pâles restent mis en
@@ -140,6 +130,6 @@ function atlasLoadTipHtml(part) {
     <p class="btip__sub">${count}</p>
     <p class="btip__level">${muscleLevelDot(lvl)}<span>${MUSCLE_LEVEL_WORDS[lvl]}</span></p>
     ${top.length ? `<p class="btip__sub btip__top">Le plus : ${top.map(([ex]) => esc(ex)).join(', ')}</p>` : ''}
-    <p class="btip__sub btip__target">Repère : ${muscleTarget()}</p>
+    <p class="btip__sub btip__target">Objectif : ${MUSCLE_LEVEL_FROM.at(-1)} séries par semaine</p>
     ${part.parent ? `<button class="btip__link" data-action="go-stats-muscles" data-muscle="${part.parent}">Séries par muscle${icon('chevron.right', 14)}</button>` : ''}`;
 }

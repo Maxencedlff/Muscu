@@ -18,8 +18,8 @@ const MUSCLE_SPANS = {
 // - Schoenfeld, Ogborn et Krieger (J Sports Sci, 2017), méta-analyse dose-réponse : 10 séries
 //   hebdomadaires et plus par muscle donnent plus d'hypertrophie que moins de 10 (le repère « objectif ») ;
 // - Pelland et al. (SportRxiv, 2024), méta-régression sur 67 études : l'hypertrophie continue de croître
-//   avec le nombre de séries, à rendement décroissant, sans plafond net à 10 (le repère de la bulle va jusqu'à 20).
-// Les paliers sont les mêmes pour tous ; seul le repère de la bulle suit le niveau (muscleTarget).
+//   avec le nombre de séries, à rendement décroissant, sans plafond net à 10.
+// Les paliers sont les mêmes pour tous ; la carte d'info annonce l'objectif de la légende, 10 (panel t13).
 const MUSCLE_LEVEL_FROM = [0, 10];
 const MUSCLE_LEVEL_MAX  = MUSCLE_LEVEL_FROM.length;
 // Nom de chaque palier (légende, bulle, VoiceOver), du palier 0 au palier MUSCLE_LEVEL_MAX
@@ -31,11 +31,6 @@ function muscleLevelRange(lvl) {
   if (lvl <= 0) return '0';
   if (lvl >= from.length) return `${from.at(-1)}+`;
   return `${lvl === 1 ? 1 : from[lvl - 1]}–${from[lvl] - 1}`;
-}
-
-// Repère de séries par semaine annoncé par la bulle : 10 pour qui débute (premier lancement), sinon 10 à 20
-function muscleTarget(level = trainingLevel()) {
-  return level === 'debutant' ? '10 par semaine' : '10 à 20 par semaine';
 }
 
 // Une série compte entière pour les muscles principaux de l'exercice, pour moitié pour les secondaires

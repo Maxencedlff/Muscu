@@ -65,3 +65,11 @@ html.type-xl .sheet-root--atlas .sheet__bar .sheet__title { order: 0; flex: 1 1 
 /* L'aide sous le dessin, dans la place de la carte d'info : plus de bande vide sous le personnage ; la carte la remplace */
 .azoom__info > .azoom__hint { margin: 0; padding-top: 12px; text-align: center; }
 .azoom__info:has(.atlas-info) > .azoom__hint { display: none; }
+/* « Légende » / « Masquer la légende » selon l'état (panel t13) */
+.azoom__sum-on, .azoom__key[open] .azoom__sum-off { display: none; } .azoom__key[open] .azoom__sum-on { display: inline; }
+/* Texte très grand (panel t13 : le personnage rétrécissait et remontait) : la carte d'info se pose en bas de la feuille,
+   par-dessus la bande, sans changer la place du dessin ; la consigne s'efface tant qu'elle est ouverte */
+.sheet-root--atlas .sheet__body { position: relative; }
+.type-xl .azoom__info { position: absolute; left: 0; right: 0; bottom: 12px; z-index: 2; margin: 0 16px; }
+.sheet__body:has(.atlas-info) .azoom__short, .sheet__body:has(.atlas-info) .azoom__hint { visibility: hidden; }
+.type-xl .azoom__info .atlas-info { background: var(--dlg-solid); }   /* posée sur la bande : opaque */

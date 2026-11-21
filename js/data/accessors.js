@@ -151,7 +151,7 @@ const SILHOUETTES = [['female', 'Femme'], ['male', 'Homme']];
 function bodySilhouette() { return data?.silhouette === 'female' ? 'female' : 'male'; }
 
 // Niveau répondu au premier lancement (js/features/onboarding.js) : 'debutant', 'confirme' ou null (inconnu).
-// Ne sert qu'au repère de séries de la bulle des muscles (muscleTarget). Valeurs : TRAINING_LEVELS (store.js)
+// Gardé pour les écrans qui s'adaptent au niveau. Valeurs : TRAINING_LEVELS (store.js)
 function trainingLevel() { return TRAINING_LEVELS.includes(data?.level) ? data.level : null; }
 
 // Ligne « Record 32 × 9 » sous le nom de chaque exercice en séance (exSubHtml, js/features/session.js) : data.recordOn,

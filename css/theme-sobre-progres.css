@@ -30,8 +30,8 @@
   /* Progrès (bodyTier) : « Sous l'objectif » en rouge pâle, « Objectif atteint » en rouge vif plein. Sur le personnage,
      écarts de couleur 52 au moins entre le gris et le pâle, 51 entre le pâle et le plein (mesurés le 20/11) ; pastilles
      et barres : la couleur vue sur le personnage */
-  --body-tier-1: #F0BFB5; --body-tier-2: #FF453A;
-  --body-tier-dot-1: #C9A49B; --body-tier-dot-2: #F95C51;
+  --body-tier-0: #6A6A6E; --body-tier-dot-0: #737377; --body-tier-1: #FFB8AC; --body-tier-2: #FF453A;
+  --body-tier-dot-1: #FAB4A8; --body-tier-dot-2: #F95C51;
   --sp-chart-line: #FF7A1A;
 }
 body.light {
@@ -44,7 +44,7 @@ body.light {
   --body-heat-help: #AB6B85;   /* qui aident (pastille) : la teinte vue sur le personnage, ombrage compris (mesurée le 21/11) */
   /* Progrès : le rouge pâle éclairé par l'ombrage (soft-light, css/muscles.css), l'objectif atteint dans le rouge plein de
      la fiche ; écarts 31 au moins entre le gris et le pâle, 57 entre le pâle et le plein, sur le personnage */
-  --body-tier-1: #FFA898; --body-tier-2: #A31B19;
+  --body-tier-dot-0: #C7C7CC; --body-tier-1: #FFA898; --body-tier-2: #A31B19;
   --body-tier-dot-1: #FAAB9C; --body-tier-dot-2: #711715;
   /* La courbe est assombrie × 0,7 en clair (chartLineColor, js/features/progress-chart.js) : #E57000 × 0,7 = #A04E00,
      l'orange d'action de l'app (5,9:1 sur la carte blanche) */

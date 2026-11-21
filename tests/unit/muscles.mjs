@@ -488,14 +488,11 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     sameJSON(run('MUSCLE_LEVEL_WORDS'), ['Pas travaillé', 'Sous l\'objectif', 'Objectif atteint']);
   });
 
-  test('repère de la bulle : 10 par semaine pour qui débute, sinon 10 à 20 ; niveau vérifié au chargement', () => {
+  test('niveau du premier lancement : vérifié au chargement', () => {
     reset();
     assert.equal(app.trainingLevel(), null);
-    assert.equal(app.muscleTarget(), '10 à 20 par semaine', 'niveau inconnu');
     run("data.level = 'debutant'");
-    assert.equal(app.muscleTarget(), '10 par semaine');
-    run("data.level = 'confirme'");
-    assert.equal(app.muscleTarget(), '10 à 20 par semaine');
+    assert.equal(app.trainingLevel(), 'debutant');
     const d = run("(() => { const d = makeDefaultData(); d.level = 'expert'; sanitizeData(d); return d; })()");
     assert.equal(d.level, undefined, 'valeur inconnue retirée');
     assert.ok(run("SYNC_PROFILE_KEYS.includes('level')"), 'niveau suivi d\'un appareil à l\'autre');

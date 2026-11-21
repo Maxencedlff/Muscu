@@ -152,6 +152,7 @@ function renderStatsGroup(id) {
           ${g.muscles.length > 1 ? `<div class="cell sgrp__total"><span class="cell__body"><span class="cell__title" aria-hidden="true">Tout le groupe</span><span class="visually-hidden">Tout le groupe : ${weeklyTxt(gp.perWeek, load.span)}</span></span><span class="cell__value num" aria-hidden="true">${gp.perWeek}</span></div>` : ''}
           ${muscleWeekRowsHtml(load, g.muscles)}
         </div>
+        ${g.muscles.some(id => atlasMuscleZones(partLoad(load.span), id).length) ? `<div class="group-foot">${MUSCLE_ZONES_NOTE}</div>` : ''}
         <div class="group">
           <button class="cell cell--nav" data-action="go-stats-muscles"><span class="cell__body"><span class="cell__title">Tous les muscles</span></span>${icon('chevron.right', 16)}</button>
         </div>
@@ -170,6 +171,9 @@ function statsGroupAtlasHtml(g) {
   return `<figure class="exhero exhero--deep exhero--atlas">${atlasBoxHtml(map, 'sgrp__box')}
     <figcaption class="exhero__cap exhero__legend" aria-hidden="true">${muscleLegendItemsHtml()}</figcaption></figure>`;
 }
+
+// Sous les zones (panel t13 : Pectoraux 14, mais Haut 7, Milieu 10, Bas 9) : pourquoi le muscle n'est pas leur somme
+const MUSCLE_ZONES_NOTE = 'Une série compte une fois pour le muscle, même si elle touche plusieurs zones.';
 
 // Lignes « muscle, séries par semaine, barre » : Séries par muscle et détail d'un groupe (même unité que la carte)
 function muscleWeekRowsHtml(load, ids) {

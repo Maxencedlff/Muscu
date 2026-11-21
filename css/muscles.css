@@ -15,6 +15,7 @@
 .body-map__m--sec { background-color: var(--body-heat-sec); }
 .body-map__m--peak { background-color: var(--body-heat-max); }
 /* Progrès : « Sous l'objectif » en rouge pâle, « Objectif atteint » dans le rouge plein de la fiche (bodyTier) */
+.body-map__m--t0 { background-color: var(--body-tier-0); } body.light .body-map__m--t0 { display: none; }   /* « Pas travaillé », sombre : un gris d'un cran plus clair que la peau (panel t13) */
 .body-map__m--t1 { background-color: var(--body-tier-1); }
 .body-map__m--t2 { background-color: var(--body-tier-2); }
 /* Muscle touché, bulle ouverte (js/ui/body-tip.js) : copie opaque du calque, éclaircie (pulsation
@@ -64,9 +65,9 @@ body .body-map--atlas .body-map__p.body-map__m--sec { background-color: var(--bo
 /* Clair : le rouge pâle éclairé par l'ombrage (soft-light : en multiply il virait au brun, trop près du gris) ; l'objectif
    atteint reste en multiply, exactement le rouge plein de la fiche */
 .body-map--atlas[data-tiers] .body-map__m--t1 { background-blend-mode: soft-light; }
-/* Sombre : « Sous l'objectif » ombré, moins lumineux que l'objectif atteint (panel t9 : le rose pâle, la couleur la plus
-   claire du dessin, attirait l'œil sur ce qui est en retard) ; écart de 27 au moins avec le gris, mesuré sur le personnage */
-body:not(.light) .body-map--atlas[data-tiers] .body-map__p.body-map__m--t1 { background-blend-mode: multiply; filter: brightness(1.4); }
+/* Sombre : « Sous l'objectif » en rouge pâle franc et uni, comme le saumon du clair (panel t13) ; mesuré sur le personnage :
+   55 au moins du gris, 45 au moins de l'objectif atteint (test_panel_apple) */
+body:not(.light) .body-map--atlas[data-tiers] .body-map__p.body-map__m--t1 { background-image: none !important; background-blend-mode: normal; filter: none; }   /* uni, sans les fibres (panel t13 : beige strié, pris pour la couleur d'un muscle) */
 body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--body-atlas-bright, .46)); }   /* pas de fondu d'apparition (theme-sobre-progres) : jamais un personnage gris le temps d'un fondu */
 /* Ligne touchée : seuls ses muscles restent, en rouge plein ; fondu doux entre les deux états */
 .body-map--atlas .body-map__p { transition: opacity .2s ease, background-color .2s ease; }
@@ -157,7 +158,7 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 /* Où en sont tes muscles (Progrès) : sous les paliers, avant l'unité */
 .mlegend__you { flex-basis: 100%; margin-top: 6px; text-align: center; color: var(--label); font-weight: 600; }
 .mlegend__dot { width: 12px; height: 12px; border-radius: 3px; background: var(--body-zone); position: relative; overflow: hidden; }
-.mlegend__dot--t0 { border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--body-ol); }   /* « ○ Pas travaillé » : le contour du dessin */
+.mlegend__dot--t0 { border-radius: 50%; background: var(--body-tier-dot-0, var(--body-zone)); box-shadow: inset 0 0 0 1.5px var(--body-ol); }   /* « ○ Pas travaillé » : le contour du dessin */
 .mlegend__dot--t1 { background: var(--body-tier-dot-1); }
 .mlegend__dot--t2 { background: var(--body-tier-dot-2); }
 

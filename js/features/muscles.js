@@ -275,7 +275,6 @@ function renderMuscleCard() {
       <div class="mcard__top">
         ${spanSegmentedHtml()}
         ${progressAtlasHtml(muscleSpan, toWork)}
-        ${atlasToWorkLineHtml(toWork)}
         ${muscleLegendHtml(muscleSpan, load)}
         ${muscleSrListHtml(load)}
       </div>
@@ -303,7 +302,7 @@ function renderStatsMuscles() {
         <div class="mdetail__legend">${muscleLegendHtml(load.span, null, { unit: false })}</div>
         <div class="group-title">${weeklyTitle(load.span)}</div>
         <div class="group">${muscleWeekRowsHtml(load, ids)}</div>
-        <div class="group-foot">La couleur suit les paliers de la légende. Une série compte 1 pour les muscles principaux et ½ pour les secondaires. Repère : 10 séries par semaine et par muscle. Jusqu'à 20, les gains continuent, plus lentement.</div>
+        <div class="group-foot">${MUSCLE_ZONES_NOTE} La couleur suit les paliers de la légende. Une série compte 1 pour les muscles principaux et ½ pour les secondaires. Repère : 10 séries par semaine et par muscle. Jusqu'à 20, les gains continuent, plus lentement.</div>
       </div>
     </div>`;
 }

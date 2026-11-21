@@ -12,8 +12,6 @@
 .mlow__name[aria-pressed="true"] { background: var(--tint-fill); color: var(--on-tint); font-weight: 600; }   /* nom isolé sur le personnage */
 .mlow__reset { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; }
 /* « À travailler : … » sous le choix de période : en texte très grand seulement (sinon la liste se voit sans défiler) */
-.mcard__todo { display: none; margin: 0; width: 100%; font-size: var(--fs-subhead); color: var(--label); }
-.type-xl .mcard__todo { display: block; }
 /* Page d'un groupe (Pectoraux…) : le personnage détaillé en tête, centré */
 .sgrp__box { width: min(100%, 300px); margin-inline: auto; }
 /* « Séries par muscle » et page de groupe : zones du dessin sous un muscle (« Haut 5 · Milieu 9 · Bas 0 », panel t12),
@@ -23,3 +21,6 @@
 .mrow__zsum .icon { transition: transform .2s; } .mrow__zsum[aria-expanded="false"] .icon { transform: rotate(-90deg); }
 .mrow__zsum[aria-expanded="false"] + .mrow__zline { display: none; }
 .mrow__zline { min-width: 0; }
+/* Fiche, texte très grand : « Qui aident : … » sous le ciblé (panel t13) ; l'en-tête ne le répète pas */
+.mline2__short { margin: 0; padding-top: 0; padding-bottom: 8px; min-height: 0; font-size: var(--fs-subhead); line-height: 1.3; color: var(--label2); }
+.type-xl .exhead__help { display: none; } .type-xl .exhead__sub:has(+ .exhead__help) { margin-bottom: 12px; }

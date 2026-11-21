@@ -53,8 +53,11 @@ function exAtlasPanelHtml(m, name) {
   // Texte très grand : la ligne « Muscle ciblé » AU-DESSUS du dessin, juste sous le titre « Muscles » (panel t10 : sous le
   // personnage, « Moyen fessier » passait sous la barre d'onglets sur iPhone SE) ; « Muscles qui aident » reste dessous
   const xl = document.documentElement.classList.contains('type-xl');
-  const main = atlasLineHtml(items.filter(x => x.level >= 2), 2), help = atlasLineHtml(items.filter(x => x.level < 2), 1);
-  return `${xl ? main : ''}
+  const main = atlasLineHtml(items.filter(x => x.level >= 2), 2), helpers = items.filter(x => x.level < 2), help = atlasLineHtml(helpers, 1);
+  // Texte très grand : « Qui aident : … » en une ligne courte sous le ciblé, visible sans défiler (panel t13) ; la ligne
+  // touchable reste sous le dessin, et VoiceOver la lit là
+  const short = xl && helpers.length ? `<p class="cell mline2__short" aria-hidden="true">Qui aident : ${esc(helpers[0].label)}${helpers.length > 1 ? ` et ${helpers.length - 1} autre${helpers.length > 2 ? 's' : ''}` : ''}</p>` : '';
+  return `${xl ? main + short : ''}
     <div class="cell mpanel mpanel--atlas">
       ${atlasBoxHtml(bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true, crop: !xl, one: true }), 'mpanel__box', !xl && bodyAtlasCrop(kind, levels)[0] > 0 ? 'bottom' : 'top')}
     </div>

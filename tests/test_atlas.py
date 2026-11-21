@@ -274,9 +274,12 @@ def t_fiche(bench, eng, dev, theme):
                 f'{t} sous-muscles 3× recadrés')
         R.check(not page.locator('.azoom .body-map__front .azoom__lines').evaluate('e => e.hidden'), f'{t} contours des sous-muscles au-delà de ×2')
         shot(page, LOT, f'zoom-{t}')
+        st0 = page.evaluate("(() => { const r = document.querySelector('.azoom__stage').getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round); })()")
         tap(page, part_point(page, '.azoom', 'chest_clavicular'), touch=True)
         page.wait_for_selector('.sheet-root--atlas .atlas-info', timeout=5000)
         settle(page)
+        st1 = page.evaluate("(() => { const r = document.querySelector('.azoom__stage').getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round); })()")
+        R.check(all(abs(a - b) <= 1 for a, b in zip(st0, st1)), f'{t} vue agrandie : la carte ouverte, le dessin garde sa taille et sa place (panel t13) {st0} → {st1}')
         txt = tip_text(page)
         R.check('Haut des pectoraux' in txt and 'Pectoralis major' in txt, f'{t} vue agrandie : nom au toucher « {txt} »')
         ok = info_ok(page, '.sheet-root--atlas', ['.azoom', '.azoom__band', '.sheet-root--atlas .sheet__bar'])
@@ -564,6 +567,10 @@ def t_autres_fiches(bench, eng, dev, theme):
                 return { top: Math.round(n.top), bottom: Math.round(n.bottom), nav: Math.round(nav), tab: Math.round(tab), above: n.bottom <= m.getBoundingClientRect().top,
                   h: Math.round(m.querySelector('.body-map__row').getBoundingClientRect().height), views: [...m.querySelectorAll('.body-map__fig')].map(f => f.classList.contains('body-map__back') ? 'dos' : 'face') }; }""")
             want = ['dos'] if name == 'Abducteurs machine' else ['face', 'dos']
+            # Panel t13 : « Qui aident : … » en une ligne courte sous le ciblé, visible sans défiler
+            sh = page.evaluate("""() => { const e = document.querySelector('.mline2__short'); if (!e) return null; const r = e.getBoundingClientRect();
+                return { text: e.textContent, bottom: Math.round(r.bottom), tab: Math.round(document.querySelector('.tabbar').getBoundingClientRect().top) }; }""")
+            R.check(sh and sh['text'].startswith('Qui aident : ') and sh['bottom'] < sh['tab'], f'{t} {name}, texte très grand : « Qui aident » visible sans défiler {sh}')
             R.check(geo['bottom'] < geo['tab'] and geo['top'] >= geo['nav'] - 1 and geo['above'] and geo['h'] >= 230 and geo['views'] == want,
                     f'{t} {name}, texte très grand : nom du ciblé au-dessus du dessin et de la barre d\'onglets, personnage de 230 points au moins {geo}')
             shot(page, LOT, f'fiche-xl-{name.split()[0].lower()}-{t}')
@@ -717,13 +724,14 @@ def t_progres(bench, eng, dev, theme):
         # Texte très grand (AX33) sur la vue agrandie : légende repliée, titre sur une ligne, personnage sur 60 % au moins
         page.evaluate("""() => { const h = document.documentElement; h.style.fontSize = '33px'; h.classList.add('type-xl'); render(); }""")
         settle(page)
-        # Panel t12 : sous le dessin (au-dessus, sur iPhone SE, le personnage passait sous le pli) ; le dessin commence
-        # juste sous le choix de période
-        todo = page.evaluate("""() => { const p = document.querySelector('.mcard__todo'), seg = document.querySelector('.mcard .segmented'), box = document.querySelector('.mcard .atlas-box');
-            return p && { visible: getComputedStyle(p).display !== 'none', under: Math.round(p.getBoundingClientRect().top - box.getBoundingClientRect().bottom),
-                          map: Math.round(box.getBoundingClientRect().top - seg.getBoundingClientRect().bottom), text: p.textContent }; }""")
-        R.check(not items or (todo and todo['visible'] and todo['under'] >= 0 and todo['map'] <= 24 and todo['text'].startswith('À travailler : ' + items[0])),
-                f'{t} texte très grand : « À travailler : … » sous le dessin, le dessin sous le choix de période {todo}')
+        # Panel t13 : le dessin juste sous le choix de période, la légende juste sous Face / Dos, une seule liste
+        # « À travailler » (3 pastilles, plus de phrase en double)
+        xl = page.evaluate("""() => { const seg = document.querySelector('.mcard .segmented').getBoundingClientRect(), box = document.querySelector('.mcard .atlas-box').getBoundingClientRect(),
+            leg = document.querySelector('.mcard .mlegend').getBoundingClientRect();
+            return { map: Math.round(box.top - seg.bottom), legend: Math.round(leg.top - box.bottom), todo: document.querySelectorAll('.mcard__todo').length,
+                     names: document.querySelectorAll('.mcard .mlow > .mlow__name').length }; }""")
+        R.check(xl['map'] <= 24 and 0 <= xl['legend'] <= 60 and xl['todo'] == 0 and xl['names'] == min(3, len(items)),
+                f'{t} texte très grand : dessin sous la période, légende sous Face / Dos, une liste de 3 noms {xl}')
         page.locator('.mcard__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
         page.click('.mcard .mpanel__zoom')
         page.wait_for_selector('.azoom')
@@ -739,7 +747,7 @@ def t_progres(bench, eng, dev, theme):
                 f'{t} vue agrandie AX33 : personnage sur 55 % au moins, les 3 états toujours visibles, bornes repliées {geo}')
         page.click('.azoom__sum')
         settle(page)
-        R.check('10+' in page.inner_text('.azoom__key'), f'{t} vue agrandie AX33 : « Légende » déplie les bornes')
+        R.check('10+' in page.inner_text('.azoom__key') and page.inner_text('.azoom__sum').strip() == 'Masquer la légende', f'{t} vue agrandie AX33 : « Légende » déplie les bornes, puis dit « Masquer la légende »')
         lo = layout_ok(page)
         R.check(not lo, f'{t} vue agrandie AX33 : mise en page {lo}')
         shot(page, LOT, f'progres-zoom-xl-{t}')

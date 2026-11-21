@@ -22,7 +22,7 @@ function recapToneColors(tone, light) {
 }
 // Personnage du profil (écran noir) : les paliers de Progrès en sombre, mêmes couleurs que l'écran (css/recap.css,
 // .tone-night) : « Sous l'objectif » en rouge pâle, « Objectif atteint » en rouge plein (tests/unit/recap.mjs)
-const RECAP_BODY = { tier1: '#F0BFB5', tier2: '#FF453A', dot1: '#C9A49B', dot2: '#F95C51' };
+const RECAP_BODY = { tier1: '#FFB8AC', tier2: '#FF453A', dot1: '#FAB4A8', dot2: '#F95C51' };
 const RECAP_STORY = {
   HEAD: 40,          // « MA SEMAINE · 12 – 18 OCTOBRE »
   NUM_MAX: 300, NUM_MIN: 140,

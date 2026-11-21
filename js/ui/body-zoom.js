@@ -276,7 +276,7 @@ function openAtlasViewer(mapEl, from = null) {
   const xl = document.documentElement.classList.contains('type-xl');
   const legend = tiers ? `<p class="azoom__legend">${muscleLegendItemsHtml(!xl)}</p>`
     : `<p class="azoom__legend"><span class="mline2__dot mline2__dot--main" aria-hidden="true"></span>Ciblé <span class="mline2__dot mline2__dot--help" aria-hidden="true"></span>Qui aide</p>`;
-  const key = tiers && xl ? `<details class="azoom__key"><summary class="azoom__sum">Légende</summary><span class="azoom__legend">${muscleLegendItemsHtml(true)}</span></details>` : '';
+  const key = tiers && xl ? `<details class="azoom__key"><summary class="azoom__sum"><span class="azoom__sum-off">Légende</span><span class="azoom__sum-on">Masquer la légende</span></summary><span class="azoom__legend">${muscleLegendItemsHtml(true)}</span></details>` : '';
   const body = `
     <div class="azoom" data-scale="1" data-hi="" data-lines="">
       <div class="azoom__stage body-map body-map--atlas" data-body="${kind}"${tiers ? ' data-tiers="1"' : ''} role="img" aria-label="${esc(atlasA11yLabel(levels, tiers))}">
@@ -527,7 +527,9 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', outl
   view.addEventListener('pointerup', up);
   view.addEventListener('pointercancel', up);
   // Taille de la vue : rotation, et légende dépliée ou repliée (texte très grand)
-  const onResize = () => { if (!alive) return; layout(); clamp(); frame(); };
+  // Carte d'info ouverte (sa place sous le dessin grandit) : le dessin garde sa taille, son zoom et sa place (panel t13 :
+  // il rétrécissait et remontait) ; à la fermeture, la vue retrouve sa hauteur et rien ne bouge
+  const onResize = () => { if (!alive || root?.querySelector('.atlas-info')) return; layout(); clamp(); frame(); };
   const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
   if (ro) ro.observe(view); else window.addEventListener('resize', onResize);
 
