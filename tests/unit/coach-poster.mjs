@@ -303,7 +303,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     const fn = src.slice(src.indexOf('async function openStoryPreview'), src.indexOf('\n}\n', src.indexOf('async function openStoryPreview')) + 2);
     const open = new Function('shareState', `${fn}; return openStoryPreview;`)({ tools: {} });
     assert.equal(await open({}, () => {}), false, 'refusé : false');
-    assert.ok(/await sharePreviewDraw\(state\);\n  return true;\n\}/.test(fn), 'ouvert : true');
+    assert.ok(/await sharePreviewDraw\(state\);\n {2}return true;\n\}/.test(fn), 'ouvert : true');
     // L'affiche libère cposter quand l'aperçu est refusé ou échoue
     const ui = read('js/features/coach-poster-ui.js');
     assert.ok(/ok = \(await opened\) !== false/.test(ui) && /if \(!ok && cposter === mine\) cposter = null;/.test(ui), 'cposter libéré si refusé');
