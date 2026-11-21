@@ -730,7 +730,7 @@ JAMBES = [('Squat barre', 'squat', 'front', 'vastus_lateralis'),
           ('Mollets debout', 'mollets', 'back', 'gastro_medial')]
 
 
-@parcours('atlas_jambes', 'Fiche exercice, bas du corps : sous-muscles des jambes, homme et femme', 'pratiquant')
+@parcours('atlas-jambes', 'Fiche exercice, bas du corps : sous-muscles des jambes, homme et femme', 'pratiquant')
 def p_atlas_jambes(r):
     """Fiches de 4 exercices de jambes (squat, soulevé de terre roumain, abducteurs, mollets) : personnage cadré sur le
     bas du corps, sous-muscles colorés, nom au toucher du muscle principal ; puis les mêmes en silhouette femme."""
