@@ -397,7 +397,9 @@ CODE_FITS = """() => [...document.querySelectorAll('.coach-code-cell')].filter(c
     const r = c.getBoundingClientRect(), code = c.querySelector('.coach-code'), sub = c.querySelector('.cell__sub');
     const fs = parseFloat(getComputedStyle(code).fontSize), blks = [...c.querySelectorAll('.coach-code__blk')].map(b => b.getBoundingClientRect());
     const btns = [...c.querySelectorAll('button')].map(b => b.getBoundingClientRect());
-    const title = parseFloat(getComputedStyle(c.querySelector('.cell__sub')).fontSize), ico = c.querySelector('.coach-icon-btn .icon').getBoundingClientRect().width;
+    // Taille du titre d'une cellule voisine (« Mon affiche de coach »), sur le même écran
+    const near = document.querySelector('[data-action="coach-poster-open"] .cell__title');
+    const title = near ? parseFloat(getComputedStyle(near).fontSize) : 0, ico = c.querySelector('.coach-icon-btn .icon').getBoundingClientRect().width;
     return { text: code.textContent, fs, title, ico, blocks: blks.length, together: btns.length === 2 && Math.abs(btns[0].top - btns[1].top) < 2, oneLine: blks.every(b => Math.abs(b.top - blks[0].top) < 2),
       inside: blks.every(b => b.left >= r.left - 0.5 && b.right <= r.right + 0.5) && btns.every(b => b.right <= r.right + 0.5 && b.left >= r.left - 0.5),
       blockWhole: blks.every(b => b.height < fs * 1.7), sub: sub.scrollWidth <= sub.clientWidth + 1 && sub.getBoundingClientRect().right <= r.right + 0.5,
@@ -412,8 +414,8 @@ def code_fits(page, t, where, one_line=False):
     ok = len(cells) == 1 and all(c['text'] == code and c['blocks'] == 3 and c['inside'] and c['blockWhole'] and c['sub'] and c['noOverflow'] and c['together'] and c['fs'] >= 17 and (c['oneLine'] or not one_line) for c in cells)
     R.check(ok, f'{t} {where} : code coach entier{" sur une ligne" if one_line else ""} ({cells})')
     if 'AX33' in where:
-        body = page.evaluate("(() => { const e = document.createElement('span'); e.style.fontSize = 'var(--fs-body)'; document.body.appendChild(e); const v = parseFloat(getComputedStyle(e).fontSize); e.remove(); return v; })()")
-        R.check(all(c['fs'] >= body - 0.5 and c['ico'] >= 28 for c in cells), f'{t} {where} : code à la taille du texte, icônes qui suivent ({cells})')
+        R.check(all(c['title'] > 0 and c['fs'] >= c['title'] - 0.5 and c['ico'] >= 28 for c in cells),
+                f'{t} {where} : code au moins à la taille du titre de la cellule voisine, icônes qui suivent ({cells})')
 
 
 def t_apercu_grand_texte(bench, eng, dev, theme):
@@ -453,6 +455,9 @@ def t_apercu_grand_texte(bench, eng, dev, theme):
         page.evaluate("document.querySelector('#cposterName').scrollIntoView({ block: 'center' })")
         settle(page)
         R.check(page.evaluate(PREVIEW_SEEN) and page.evaluate(HIT, '#cposterName'), f'{t} AX33 : Nom touchable et aperçu visible en même temps')
+        # « Nom » au-dessus de sa valeur (10e panel)
+        above = page.evaluate("(() => { const r = document.querySelector('label[for=cposterName]'), l = r.querySelector('.cposter-row__title').getBoundingClientRect(), i = r.querySelector('#cposterName').getBoundingClientRect(); return l.bottom <= i.top + 1; })()")
+        R.check(above, f'{t} AX33 : « Nom » au-dessus de la valeur')
         note_link(page, t + ' AX33')
         for action, value in (('coach-poster-silhouette', 'female'), ('coach-poster-title', 'neutral')):
             sel = f'.sheet [data-action="{action}"][data-v="{value}"]'
