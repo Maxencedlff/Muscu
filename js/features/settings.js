@@ -27,6 +27,7 @@ function wipeLocalData() {
   resetSelections();
   Native.eraseCloudOnNextSave();   // app iOS : la copie iCloud est vidée elle aussi
   vaultReset();                    // coffre à photos refermé et vidé, clé retirée du trousseau iCloud (js/data/photo-vault.js)
+  if (typeof coachPosterForgetDevice === 'function') coachPosterForgetDevice();   // affiche du coach : réglages et photo d'origine
   save();
 }
 

@@ -2368,3 +2368,78 @@ def p_eleve_abonne_couvert(r):
         r.attendre('.pay-double', 'carte')
     with r.etape('resilie', 'Abonnement résilié chez Apple : plus de carte'):
         r.raccourci("async () => { __st.owned.willAutoRenew = false; await accessLoadCurrentPlan(); render(); }", 'résilié dans les réglages d\'Apple')
+
+
+@parcours('affiche-coach', 'Coach : « Mon affiche de coach » (photo ronde, silhouette, photo de l\'affiche, nom, carré, partage)', 'coach')
+def p_affiche_coach(r):
+    """Camille, coach validée, carte pro déclarée, sans photo : Mes élèves › Invitations › Mon affiche de coach ;
+    aperçu (initiales dans le rond), photo de l'affiche choisie (gardée sur l'iPhone), son nom, silhouette femme
+    (« Nouvelle coach »), format carré, puis Partager (feuille d'iOS). Docs/AFFICHE_COACH.md."""
+    r.lancer(REALISTE)
+    r.connecter('camille_coach')
+    r.raccourci("""async () => { __sb.makeCoach(__sb.meId()); await coachRefresh(); await coachProRefresh({ minAge: 0 });
+        await coachCardDeclare('04912ED0123'); window.__shared = [];
+        Native.shareImage = async (d, n) => { window.__shared.push(n); return 'shared'; }; }""",
+                'rôle coach validé, code permanent, carte pro déclarée ; feuille de partage d\'iOS simulée')
+    cle = 'Créer et partager son affiche de coach'
+    with r.etape('mes-eleves', 'Mes élèves › Invitations : « Mon affiche de coach »', cle=cle):
+        r.onglet('friends', 'Coach')
+        r.raccourci("navigate('coach-students')", 'liste complète des élèves')
+        r.defiler('[data-action="coach-poster-open"]', 'cellule Mon affiche de coach')
+    with r.etape('apercu-sans-photo', 'Aperçu sans photo : le personnage aux muscles rouges', cle=cle):
+        r.toucher('[data-action="coach-poster-open"]', 'Mon affiche de coach')
+        r.attendre('.sheet .cposter-form', 'aperçu')
+        r.page.wait_for_function("() => !!(shareState && shareState.blob)", timeout=8000)   # Partager reste grisé sans nom
+    with r.etape('photo', 'Photo de l\'affiche choisie (gardée sur l\'iPhone)', cle=cle):
+        with r.page.expect_file_chooser() as fc:
+            r.toucher('.sheet [data-action="coach-poster-photo"]', 'Photo (sélecteur d\'iOS)')
+        fc.value.set_files(image_bilan('portrait.jpg', (52, 78, 110), (226, 196, 160)))
+        r.page.wait_for_function("() => !!(cposter && cposter.photo)", timeout=8000)
+    with r.etape('nom', 'Nom écrit sur l\'affiche (« Partager » s\'active)', cle=cle):
+        r.saisir('#cposterName', 'Camille Martin', 'nom')
+        r.page.wait_for_timeout(600)
+    with r.etape('specialite', 'Spécialité facultative, sous le nom', cle=cle):
+        r.saisir('#cposterSpecialty', 'Force · Perte de poids', 'spécialité')
+        r.page.wait_for_timeout(600)
+    with r.etape('femme', 'Silhouette femme : « Nouvelle coach », personnage femme', cle=cle):
+        r.toucher('.sheet [data-action="coach-poster-silhouette"][data-v="female"]', 'Femme')
+    with r.etape('carre', 'Format carré', cle=cle):
+        r.toucher('.sheet [data-action="share-format"][data-f="square"]', 'Carré')
+    with r.etape('partage', 'Partager : feuille de partage d\'iOS, aperçu refermé', cle=cle):
+        r.toucher('.sheet [data-action="share-story-send"]', 'Partager')
+    with r.etape('reglages-coach', 'Réglages › Coach : la même entrée sous « Ton code coach »'):
+        r.raccourci("navigate('coach')", 'Réglages › Coach')
+        r.defiler('[data-action="coach-poster-open"]', 'cellule Mon affiche de coach')
+
+
+@parcours('photo-eleve-couvert', 'Élève couvert par son coach : photo de profil offerte, photo du coach dans Mon coach', 'coach')
+def p_photo_eleve_couvert(r):
+    """Léa, élève de Camille (coach abonnée qui couvre son accès), verrou payant allumé : Réglages › Compte › Photo de profil
+    (« Offerte par ton coach »), choix et envoi ; puis Mon coach, avec la photo de Camille."""
+    _coquille_payante(r)
+    r.lancer(REALISTE)
+    r.connecter('lea')
+    r.raccourci("""async b64 => { const c = __sb.addPerson({ username: 'camille_coach', avatar: '🦁', social: false }); __sb.makeCoach(c);
+        __sb.link(c, __sb.meId(), Date.now() - 5 * 86400000); __sb.setPhoto(c, b64, 'image/jpeg'); __st.setCover('active', { coach: c });
+        (__sb.co.posterNames ||= {})[c] = 'Camille Martin';
+        access.loadedAt = 0; await accessRefresh(); await coachRefresh(); }""", 'Léa reliée à Camille, qui couvre son accès, a une photo et a partagé son affiche (nom « Camille Martin »)',
+                _photo_ami_b64())
+    cle = 'Mettre une photo de profil (élève couvert)'
+    with r.etape('compte', 'Réglages › Compte : « Photo de profil » sans mention Pro', cle=cle):
+        reglages(r)
+        r.toucher('.settings-view [data-action="go-account"]', 'Compte')
+        r.attendre('[data-action="pph-open"]', 'cellule Photo de profil')
+    with r.etape('feuille', 'Feuille : « Offerte par ton coach »', cle=cle):
+        r.toucher('[data-action="pph-open"]', 'Photo de profil')
+        r.attendre('.sheet .pph-sheet', 'feuille')
+    with r.etape('enregistree', 'Photo choisie et enregistrée', cle=cle):
+        with r.page.expect_file_chooser() as fc:
+            r.toucher('.sheet [data-action="pph-pick"]', 'Choisir une photo (sélecteur d\'iOS)')
+        fc.value.set_files(image_bilan('profil-lea.jpg', (60, 100, 80), (230, 200, 170)))
+        r.attendre('.sheet .pph-preview__img', 'aperçu')
+        r.toucher('.sheet [data-action="pph-use"]', 'Utiliser cette photo')
+        r.page.wait_for_function("() => !document.querySelector('.sheet .pph-sheet')", timeout=10000)
+    with r.etape('mon-coach', 'Mon coach : la photo de Camille, le nom de son affiche, @camille_coach dessous'):
+        r.raccourci("routeTo('friends'); navigate('coach-mine')", 'Mon coach')
+        r.attendre('.coach-mine-view', 'Mon coach')
+        r.page.wait_for_function("() => !!document.querySelector('.coach-mine__handle')", timeout=8000)

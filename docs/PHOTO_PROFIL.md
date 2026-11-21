@@ -103,4 +103,4 @@ Storage › profile-photos ; décider `select private.profile_photo_moderate('<p
 - **Droit perdu** : la photo reste stockée tant que l'utilisateur ne la retire pas (elle n'est plus montrée). Option :
   l'effacer après 30 jours sans droit (purge).
 - **Coach dont le rôle est retiré** : il garde sa photo seulement s'il a un abonnement ; sinon elle n'est plus montrée.
-- **Élèves d'un coach** : la photo d'un élève non abonné n'est pas offerte (verrou allumé) ; seul le coach l'a gratuite.
+- **Élèves d'un coach** : l'élève que l'offre de son coach couvre (statut `coach_team`, `can_write` vrai) a la photo, offerte (20/11, docs/AFFICHE_COACH.md) ; un élève que son coach ne couvre pas (au-delà du palier, offre finie) ne l'a qu'abonné.

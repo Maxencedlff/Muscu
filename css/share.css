@@ -21,3 +21,101 @@
 @media (max-height: 500px) {
   .share-preview__frame { height: 46vh; height: 46dvh; }
 }
+
+/* Affiche du coach (js/features/coach-poster-ui.js) : aperçu de l'image entière fixé en haut de la feuille, à hauteur
+   bornée (40 % de l'écran, 30 % sur petit écran, 22 % en très grand texte : 5e panel, Nom, Silhouette et Titre restent touchables), un toucher l'ouvre en plein écran ; réglages qui défilent dessous ;
+   barre « Partager » fixée en bas */
+.share-preview--tools { gap: var(--sp-3); }
+.share-preview__top { position: sticky; top: -8px; z-index: 2; display: flex; justify-content: center; width: calc(100% + 32px);
+  margin: -8px -16px 0; padding: 8px 16px var(--sp-2); background: var(--cell); box-shadow: 0 0.5px 0 var(--sep); }
+.share-preview__zoom { display: block; height: min(40vh, 460px); height: min(40dvh, 460px); padding: 0; border: 0; background: none;
+  border-radius: var(--r-lg); cursor: zoom-in; }
+html.type-xl .share-preview__zoom { height: 22vh; height: 22dvh; }
+/* Tailles d'accessibilité les plus grandes sur petit écran (6e panel) : 18 %, deux réglages au moins visibles */
+@media (max-height: 700px) { html.type-xxl .share-preview__zoom { height: 18vh; height: 18dvh; } html.type-xxl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(18dvh + 24px); } }
+.share-preview__zoom { aspect-ratio: 9 / 16; flex: 0 0 auto; position: relative; }
+/* « Voir en grand » (8e panel) : un vrai bouton à côté de l'aperçu (aucune hauteur prise aux réglages), rien posé
+   sur l'image */
+.share-preview__top { align-items: center; gap: 12px; }
+.share-preview__seebig { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 0;
+  background: none; color: var(--tint); font: inherit; font-size: var(--fs-subhead); font-weight: 600; cursor: pointer; }
+.share-preview__zoom:has(.share-preview__frame--square) { aspect-ratio: 1; }
+.share-preview--tools .share-preview__frame, .share-preview--tools .share-preview__frame--square { width: 100%; height: 100%; aspect-ratio: auto; }
+.share-preview--tools .share-preview__formats { max-width: 420px; }
+.share-preview__help { max-width: 420px; }
+.share-preview__help--flow { display: none; }
+html.type-xl .share-preview__help--flow { display: block; }
+html.type-xl .share-preview__help--bar { display: none; }
+.share-zoom { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-3); padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); background: #000; }
+.share-zoom__img { flex: 1 1 auto; min-height: 0; max-width: 100%; object-fit: contain; }
+.share-zoom__close { min-height: 44px; }
+/* Barre d'action fixée au bas de la feuille : fond opaque de la feuille, filet au-dessus, sans dégradé ni flou. Placée
+   en fin de contenu (sticky) : sa hauteur compte dans le défilement, rien ne reste caché dessous à la fin */
+.share-preview__actionbar { position: sticky; bottom: -24px; z-index: 2; display: flex; flex-direction: column; align-items: center;
+  gap: 6px; width: calc(100% + 32px); margin: 0 -16px -24px; padding: 12px 16px 16px; background: var(--cell);
+  box-shadow: 0 -0.5px 0 var(--sep); }
+.share-preview__actionbar .share-preview__send { max-width: 420px; }
+.cposter-form { width: 100%; max-width: 420px; border-radius: var(--r-sm); background: var(--fill2); overflow: hidden; }
+.cposter-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; width: 100%; min-height: 44px; padding: 0 14px; border: 0;
+  background: none; color: var(--label); font: inherit; font-size: var(--fs-body); text-align: left; }
+.cposter-row + .cposter-row { box-shadow: inset 0 0.5px 0 var(--sep); }
+.cposter-row__title { flex-shrink: 0; }
+.cposter-row__input { flex: 1 1 8em; min-width: 0; min-height: 44px; border: 0; background: none; color: var(--label);
+  font: inherit; text-align: right; }
+.cposter-row__input:focus { outline: none; }
+/* Spécialité : sous son libellé, pleine largeur, sur plusieurs lignes au besoin (jamais tronquée) */
+.cposter-row--stack { padding-top: 10px; }
+.cposter-row--stack .cposter-row__input { flex-basis: 100%; text-align: left; }
+.cposter-row__area { display: block; min-height: 44px; padding: 10px 0; resize: none; overflow: hidden; line-height: 1.3; overflow-wrap: break-word; }
+.cposter-row:focus-within { box-shadow: inset 0 0 0 2px var(--tint); border-radius: var(--r-sm); }
+.cposter-row__value { margin-left: auto; color: var(--label2); white-space: nowrap; }
+.cposter-row--nav .icon { color: var(--label3); flex-shrink: 0; }
+
+/* Police des gros titres de l'affiche du coach seulement (jamais l'interface) : Anton, licence SIL Open Font
+   License 1.1 (fonts/OFL-Anton.txt), embarquée et réduite au latin */
+@font-face { font-family: 'MDLF Anton'; src: url('../fonts/anton.woff2') format('woff2'); font-weight: 400; font-display: block; }
+.cposter-row__seg { margin-left: auto; flex: 0 0 auto; }   /* trop étroit : passe sous son libellé */
+/* Très grand texte : les choix empilés en liste avec une coche, pleine largeur (« Coach » n'est plus coupé) */
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) { display: flex; flex-direction: column; width: 100%; margin: 4px 0 8px; padding: 0; background: none; }
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn { margin: 0; min-height: 44px; padding: 6px 4px; text-align: left; white-space: normal; font-weight: 400; }
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn::after, html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn::before { display: none; }
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn--active { font-weight: 600; color: var(--tint); }
+html.type-xl .cposter-row__seg:not(.cposter-row__seg--pair) .segmented__btn--active::before { display: inline; content: '✓ '; position: static; width: auto; background: none; opacity: 1; }
+/* Le chevron reste collé à la valeur (« Changer › ») ; trop étroit, les deux passent ensemble sous « Photo » */
+.cposter-row__end { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; white-space: nowrap; }
+.cposter-row__seg .segmented__btn { flex: 0 0 auto; padding: 0 10px; white-space: nowrap; }
+/* Très grand texte : le champ Nom passe sous son libellé, pleine largeur (« Prénom Nom » entier) */
+html.type-xl .cposter-row__input { flex-basis: 100%; text-align: left; }
+/* Un réglage amené à l'écran (clavier, VoiceOver) s'arrête entre l'aperçu fixé en haut et la barre fixée en bas */
+.sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(min(40dvh, 460px) + 24px); scroll-padding-bottom: 140px; }
+html.type-xl .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(22dvh + 24px); scroll-padding-bottom: 160px; }
+.cposter-foot { width: 100%; max-width: 420px; margin: -4px 4px 0; font-size: var(--fs-footnote); color: var(--label2); }
+.share-preview__note { color: var(--label); font-weight: 600; }
+/* iPhone SE et petits écrans : aperçu fixé à 30 % de la hauteur, Silhouette visible sans défiler */
+@media (max-height: 700px) { .share-preview__zoom { height: 30vh; height: 30dvh; } }
+@media (max-height: 700px) { html:not(.type-xl) .sheet__body:has(.share-preview--tools) { scroll-padding-top: calc(30dvh + 24px); } }
+/* Note « Ajoute ton nom… » : dans la barre, au-dessus de Partager (en très grand texte aussi), un lien qui amène au
+   champ manquant et l'active (5e panel) */
+.share-preview__note { margin: 0 0 var(--sp-2); text-align: center; }
+.share-preview__note-link { min-height: 44px; padding: 6px 8px; border: 0; background: none; color: var(--tint); font: inherit;
+  font-weight: 600; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.share-preview__note-short { display: none; }
+html.type-xl .share-preview__note-link--short .share-preview__note-full { display: none; }
+html.type-xl .share-preview__note-link--short .share-preview__note-short { display: inline; }
+html.type-xl .share-preview__note { margin-bottom: 0; }
+html.type-xl .share-preview__note-link { padding-block: 0; }
+/* Plus grandes tailles : « Ajoute ton nom » sur une ligne (Story / Carré vient après les réglages : Nom et
+   Silhouette restent visibles entre l'aperçu et la barre, 6e panel) */
+html.type-xxl .share-preview__note-link { white-space: nowrap; font-size: min(1em, 28px); }
+
+/* Très grand texte : « Voir en grand » sans icône (elle restait seule à gauche d'un texte sur deux lignes) */
+html.type-xl .share-preview__seebig .icon { display: none; }
+/* Femme / Homme (9e panel) : deux boutons côte à côte aussi en très grand texte, pleine largeur sous « Silhouette » ;
+   « Aperçu » sur la ligne de « Fermer » (hauteur gagnée pour les réglages) */
+html.type-xl .cposter-row__seg--pair { display: flex; width: 100%; margin: 4px 0 8px; }
+html.type-xl .cposter-row__seg--pair .segmented__btn { flex: 1 1 0; min-height: 44px; }
+html.type-xl .sheet:has(.share-preview--tools) .sheet__bar .sheet__title { order: 0; flex-basis: auto; flex: 1 1 auto; padding: 0; text-align: center; white-space: nowrap; }
+/* Cellule « Mon affiche de coach » pendant la préparation (photo, personnage, polices) : dit, et pas de double toucher */
+.cell.is-loading[data-action="coach-poster-open"] { pointer-events: none; }
+.cell.is-loading[data-action="coach-poster-open"] .cell__sub { color: var(--tint); }

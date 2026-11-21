@@ -167,6 +167,12 @@ FAKE_STORE = r"""
   };
 
   st.giveGift = () => { const e = row(me(), true); e.gift = true; };
+  // Droit d'écrire du compte (access_json ->> 'can_write'), sans rien créer : repris par la photo de profil
+  // (private.pro_feature, tests/fake_account.py). Sans ligne : seule l'offre du coach peut le donner.
+  st.canWriteOf = uid => {
+    const e = row(uid, false);
+    return stateOf(uid, e || { gift: false, gift_until: null, expires_at: null, ended: null }).can_write;
+  };
   st.setCover = (state, { coach = 'lucas', days = 5 } = {}) => {
     st.covers[me()] = state ? { state, coach, until: state === 'grace' ? serverNow() + days * DAY : null } : null; };
   st.subscribe = (productId = 'com.mdlf.training.pro.yearly', days = 365, { intro = false } = {}) => {

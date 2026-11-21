@@ -17,6 +17,15 @@ LOT = 'compte'
 R = Results(LOT)
 
 
+def edit_avatar(page):
+    """Choisir l'avatar : ligne « Avatar » (serveur sans photo de profil) ou feuille « Photo de profil »."""
+    if page.locator('[data-action="account-edit-avatar"]').count():
+        page.click('[data-action="account-edit-avatar"]')
+    else:
+        page.click('[data-action="pph-open"]')
+        page.click('.sheet [data-action="pph-avatar"]')
+
+
 def tag(device, theme):
     return f'{device}-{theme}'.replace(' ', '_').replace('+', 'plus')
 
@@ -422,7 +431,7 @@ def t_compte(bench, eng, dev, theme):
         settle(page)
         R.check(page.locator('.account-hero__name').inner_text() == 'max.dlf', f'{t} pseudo affiché')
         R.check(page.locator('.account-hero button').count() == 0, f'{t} en-tête sans lien « Modifier »')
-        page.click('[data-action="account-edit-avatar"]')
+        edit_avatar(page)
         page.wait_for_selector('.avatar-grid')
         page.click('.avatar-pick[aria-label="Pieuvre"]')
         page.click('[data-action="auth-avatar-done"]')
@@ -959,7 +968,7 @@ def t_avatar_refuse(bench, eng, dev, theme):
         R.check(page.evaluate('data.history.length') == 1 and page.locator('.onb').count() == 0, f'{t} compte retrouvé avec ses séances : pas de questions')
         page.evaluate("navigate('account')")
         page.wait_for_selector('.account-view')
-        page.click('[data-action="account-edit-avatar"]')
+        edit_avatar(page)
         page.wait_for_selector('.avatar-grid')
         page.click('.avatar-pick[aria-label="Bison"]')
         page.click('[data-action="auth-avatar-done"]')

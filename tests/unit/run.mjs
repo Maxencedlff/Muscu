@@ -63,6 +63,7 @@ const SCRIPTS = [
   'js/data/min-build.js',
   'js/data/access.js',
   'js/data/coach-pro.js',
+  'js/data/coach-poster.js',
   'js/data/newsletter.js',
   'js/data/legal-links.js',
   'js/data/strava.js',
@@ -111,6 +112,7 @@ const SCRIPTS = [
   'js/app/live-update.js',
   'js/features/share-stats.js',
   'js/features/share-canvas.js',
+  'js/features/coach-poster-art.js',
   'js/features/dashboard.js',
   'js/features/session.js',
   'js/features/session-sheets.js',
@@ -2117,6 +2119,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 
 // ── Inventaire des champs et règles de saisie, 20/11 (tests dans champs.mjs) ──
 (await import('./champs.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+
+// ── Affiche du coach, 20/11 (tests dans coach-poster.mjs) ──
+(await import('./coach-poster.mjs')).default({ test, run, app, assert, sameJSON, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

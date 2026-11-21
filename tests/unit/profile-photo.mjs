@@ -99,6 +99,11 @@ export default function ({ test, run, app, assert, sameJSON, ROOT }) {
     assert.equal(allowed(state()), false, 'verrou allumé, sans abonnement');
     assert.equal(allowed(state({ status: 'active', can_write: true })), true, 'abonné');
     assert.equal(allowed(state(), { isCoach: true }), true, 'coach actif, sans abonnement');
+    // Élève couvert par l'offre de son coach (statut coach_team, droit d'écrire donné par le serveur)
+    assert.equal(allowed(state({ status: 'coach_team', can_write: true, coach_team: true,
+      coach_cover: { state: 'active', until: null, coach: F } })), true, 'élève offert par son coach');
+    assert.equal(allowed(state({ status: 'expired', coach_team: false, coach_cover: { state: 'ended', until: null, coach: F } })), false,
+      'élève dont le coach n\'a plus d\'offre, sans abonnement');
     assert.equal(allowed(state({ paywall_on: false }), { user: false }), false, 'sans compte : pas de photo');
     // Une seule règle : la fonction de l'app reprend canWrite, celle du serveur access_json.can_write
     const acc = read('js/data/access.js');
