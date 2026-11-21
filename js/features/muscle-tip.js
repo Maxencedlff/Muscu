@@ -65,12 +65,15 @@ function exAtlasPanelHtml(m, name) {
   const items = atlasRanked(name, m, levels);
   // Texte très grand : le corps entier, au moins 300 points de haut (panel affichage-e t7 : cadré sur le haut du corps, le
   // personnage rétrécissait à mesure que le texte grossissait)
+  // Texte très grand : la ligne « Muscle ciblé » AU-DESSUS du dessin, juste sous le titre « Muscles » (panel t10 : sous le
+  // personnage, « Moyen fessier » passait sous la barre d'onglets sur iPhone SE) ; « Muscles qui aident » reste dessous
   const xl = document.documentElement.classList.contains('type-xl');
-  return `
+  const main = atlasLineHtml(items.filter(x => x.level >= 2), 2), help = atlasLineHtml(items.filter(x => x.level < 2), 1);
+  return `${xl ? main : ''}
     <div class="cell mpanel mpanel--atlas">
       ${atlasBoxHtml(bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true, crop: !xl, one: true }), 'mpanel__box', !xl && bodyAtlasCrop(kind, levels)[0] > 0 ? 'bottom' : 'top')}
     </div>
-    ${atlasLineHtml(items.filter(x => x.level >= 2), 2)}${atlasLineHtml(items.filter(x => x.level < 2), 1)}`;
+    ${xl ? '' : main}${help}`;
 }
 
 // Isole des sous-muscles sur la carte de la fiche (ids, en rouge plein), ou rend tout (ids vide)

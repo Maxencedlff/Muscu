@@ -368,21 +368,21 @@ def t_fiche(bench, eng, dev, theme):
         # Texte très grand : le corps entier, au moins 300 points de haut (panel t7 : il rétrécissait avec le texte)
         hgt = page.evaluate("Math.round(document.querySelector('.mpanel__map .body-map__row').getBoundingClientRect().height)")
         R.check(hgt >= 230 and page.get_attribute('.mpanel__map', 'data-crop') == '0,840', f'{t} fiche texte agrandi : personnage entier de {hgt} points (230 au moins)')
-        # Le personnage sous la barre : le nom du muscle ciblé se lit sans défiler (panel t8, iPhone SE en AX33)
-        page.evaluate("""() => { const m = document.querySelector('.mpanel--atlas'), nav = document.querySelector('.view.library-ex .navbar__bar');
-            scrollBy(0, m.getBoundingClientRect().top - (nav ? nav.getBoundingClientRect().bottom : 0) - 4); }""")
+        # Le groupe « Muscles » sous la barre : le nom du ciblé se lit en entier, au-dessus de la barre d'onglets (panels t8, t10)
+        page.evaluate("""() => { const g = document.querySelector('.mpanel--atlas').closest('.group'), nav = document.querySelector('.view.library-ex .navbar__bar');
+            scrollBy(0, g.getBoundingClientRect().top - (nav ? nav.getBoundingClientRect().bottom : 0) - 4); }""")
         settle(page)
         seen = page.evaluate("""() => { const n = document.querySelector('.mline2[data-level="2"] .mline2__names'), tab = document.querySelector('.tabbar').getBoundingClientRect().top;
             return [Math.round(n.getBoundingClientRect().bottom), Math.round(tab)]; }""")
-        R.check(seen[0] <= seen[1] + 1, f'{t} fiche texte agrandi : nom du muscle ciblé visible sans défiler {seen}')
+        R.check(seen[0] < seen[1], f'{t} fiche texte agrandi : nom du muscle ciblé au-dessus de la barre d\'onglets {seen}')
         shot(page, LOT, f'fiche-xl-lignes-{t}')
         # Isoler en texte très grand : le nom et « Tout afficher » sur le dessin même
         page.locator('.mline2[data-level="2"]').first.click()
         settle(page)
         chip = page.locator('.atlas-box__iso')
         geo = page.evaluate("""() => { const c = document.querySelector('.atlas-box__iso')?.getBoundingClientRect(), n = document.querySelector('.atlas-box__iso-name'),
-            b = document.querySelector('.mpanel__box').getBoundingClientRect(), l = document.querySelector('.mline2').getBoundingClientRect();
-            return c && { lines: Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight || 20)), under: c.top >= b.bottom - 1, clear: c.bottom <= l.top + 1 }; }""")
+            b = document.querySelector('.mpanel__box').getBoundingClientRect(), ls = [...document.querySelectorAll('.mline2')].map(e => e.getBoundingClientRect());
+            return c && { lines: Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight || 20)), under: c.top >= b.bottom - 1, clear: ls.every(l => c.bottom <= l.top + 1 || c.top >= l.bottom - 1) }; }""")
         R.check(chip.count() == 1 and chip.is_visible() and 'Tout afficher' in chip.inner_text() and geo and geo['under'] and geo['clear'] and geo['lines'] <= 2,
                 f'{t} texte agrandi : muscle isolé nommé sous le dessin, avec « Tout afficher », sans couvrir les lignes {geo}')
         page.click('.atlas-box__iso-all')
@@ -544,14 +544,18 @@ def t_autres_fiches(bench, eng, dev, theme):
             page.evaluate(f"navigate(makeRoute('library-ex', {json.dumps(name)}))")
             page.wait_for_selector('.view.library-ex .mpanel--atlas')
             settle(page)
-            page.evaluate("""() => { const m = document.querySelector('.mpanel--atlas'), nav = document.querySelector('.view.library-ex .navbar__bar');
-                scrollBy(0, m.getBoundingClientRect().top - (nav ? nav.getBoundingClientRect().bottom : 0) - 4); }""")
+            # Le groupe « Muscles » sous la barre, comme en y arrivant : le nom du ciblé, AU-DESSUS du dessin (panel t10), se lit
+            # en entier, son bas au-dessus du haut de la barre d'onglets
+            page.evaluate("""() => { const g = document.querySelector('.mpanel--atlas').closest('.group'), t = g.previousElementSibling, nav = document.querySelector('.view.library-ex .navbar__bar');
+                scrollBy(0, (t?.classList.contains('group-title') ? t : g).getBoundingClientRect().top - (nav ? nav.getBoundingClientRect().bottom : 0) - 4); }""")
             settle(page)
-            geo = page.evaluate("""() => { const n = document.querySelector('.mline2[data-level="2"] .mline2__names'), tab = document.querySelector('.tabbar').getBoundingClientRect().top,
-                m = document.querySelector('.mpanel__map'); return { name: Math.round(n.getBoundingClientRect().bottom), tab: Math.round(tab), h: Math.round(m.querySelector('.body-map__row').getBoundingClientRect().height),
-                views: [...m.querySelectorAll('.body-map__fig')].map(f => f.classList.contains('body-map__back') ? 'dos' : 'face') }; }""")
+            geo = page.evaluate("""() => { const n = document.querySelector('.mline2[data-level="2"] .mline2__names').getBoundingClientRect(), tab = document.querySelector('.tabbar').getBoundingClientRect().top,
+                nav = document.querySelector('.view.library-ex .navbar__bar').getBoundingClientRect().bottom, m = document.querySelector('.mpanel__map');
+                return { top: Math.round(n.top), bottom: Math.round(n.bottom), nav: Math.round(nav), tab: Math.round(tab), above: n.bottom <= m.getBoundingClientRect().top,
+                  h: Math.round(m.querySelector('.body-map__row').getBoundingClientRect().height), views: [...m.querySelectorAll('.body-map__fig')].map(f => f.classList.contains('body-map__back') ? 'dos' : 'face') }; }""")
             want = ['dos'] if name == 'Abducteurs machine' else ['face', 'dos']
-            R.check(geo['name'] <= geo['tab'] + 1 and geo['h'] >= 230 and geo['views'] == want, f'{t} {name}, texte très grand : nom du ciblé sans défiler, personnage de 230 points au moins {geo}')
+            R.check(geo['bottom'] < geo['tab'] and geo['top'] >= geo['nav'] - 1 and geo['above'] and geo['h'] >= 230 and geo['views'] == want,
+                    f'{t} {name}, texte très grand : nom du ciblé au-dessus du dessin et de la barre d\'onglets, personnage de 230 points au moins {geo}')
             shot(page, LOT, f'fiche-xl-{name.split()[0].lower()}-{t}')
         R.check(not page.errors, f'{t} autres fiches : aucune erreur JS {page.errors}')
 
