@@ -224,6 +224,9 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.ok(both.includes('body-map__front') && both.includes('body-map__back') && !both.includes('body-map--one'), 'développé incliné : face (pectoraux) et dos (triceps)');
     const prog = run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male', crop: false, tiers: true })`);
     assert.ok(prog.includes('body-map__front') && prog.includes('body-map__back'), 'Progrès : toujours les deux faces');
+    const ol = run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male', crop: false, tiers: true, outline: ['external_oblique'] })`);
+    assert.ok(/class="body-map__ol" data-ol="external_oblique"/.test(ol) && ol.includes('data-ol="external_oblique"') && !run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male' })`).includes('body-map__ol'),
+      'Progrès : muscles à 0 série cernés (outline), jamais sur la fiche');
     // Tout sous-muscle coloré reste dans le cadre
     for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) for (const kind of ['male', 'female']) {
       const lv = run(`exercisePartLevels(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)})).levels`);

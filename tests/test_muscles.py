@@ -1008,11 +1008,11 @@ def t_fiche(bench, eng, dev, theme):
 
 
 def once_static(bench):
-    files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/ui/body-tip.js', 'js/features/muscles.js', 'js/features/muscle-tip.js', 'css/muscles.css', 'css/atlas-zoom.css']
+    files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/ui/body-tip.js', 'js/features/muscles.js', 'js/features/muscle-tip.js', 'css/muscles.css', 'css/atlas-zoom.css', 'css/progress-atlas.css']
     for f in files:
         n = sum(1 for _ in open(os.path.join(APP_DIR, f), encoding='utf-8'))
         R.check(n <= 400, f'{f} : {n} lignes (400 au plus)')
-    for f in ('css/muscles.css', 'css/atlas-zoom.css'):
+    for f in ('css/muscles.css', 'css/atlas-zoom.css', 'css/progress-atlas.css'):
         css = open(os.path.join(APP_DIR, f), encoding='utf-8').read()
         R.check(not re.findall(r'#[0-9a-fA-F]{3,8}\b|rgba?\(', css), f'{f} : couleurs en tokens seulement')
     # Carte dessinée dans un canvas (story de partage) : images chargées, muscle teinté de la couleur voulue

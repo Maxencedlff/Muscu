@@ -40,19 +40,25 @@
    Calques recadrés sur chaque sous-muscle, posés à leur boîte (style en ligne : left, top, width, height). */
 .body-map--atlas[data-action="body-tap"] { touch-action: pan-y; }   /* le pincement ouvre la vue agrandie, pas le zoom de la page */
 .mpanel--atlas { position: relative; }
-/* Muscles qui aident : clair, le rouge de la fiche à 50 % (--body-sec-o) ; sombre, ci-dessous */
-.body-map--atlas .body-map__m--sec { background-color: var(--body-heat); }
+/* Muscles qui aident (jetons --body-sec-* du thème, theme-sobre-progres.css), règle plus bas */
 .body-map--atlas .body-map__m { animation: none; }
+/* Progrès : contour net des muscles à travailler à 0 série (bodyOutlineHtml, filtre SVG #body-ol), sans flou ni lueur */
+.body-map__defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.body-map__ol-color { flood-color: var(--body-ol); }
+.body-map__ol { position: absolute; pointer-events: none; filter: url(#body-ol); }
+.body-map__ol > i { position: absolute; inset: 0; background: var(--label); -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
 /* Profonds (rhomboïdes, petit pectoral), vus à travers le muscle qui les couvre : teinte unie, sans leur ombrage de fibres,
    qui croisait celui du muscle du dessus en hachures (panel t5, trapèzes et rhomboïdes des tractions) */
 .body-map--atlas .body-map__p--deep { background-image: none !important; }
 /* Sombre : le muscle ciblé (et les paliers de Progrès) en rouge vif éclairé par l'ombrage (soft-light, et non multiply qui
    l'éteignait), sur un corps plus sombre (--body-atlas-bright) : ciblé / gris 2,7:1 au lieu de 1,9:1. Clair : inchangé */
 body:not(.light) .body-map--atlas .body-map__p { background-blend-mode: soft-light; }
-/* Sombre, muscles qui aident : un rose éteint, la teinte de la pastille « Qui aide », jamais ravivé par la lumière douce
-   (panel affichage-e t5 : en soft-light, presque aussi vifs que le ciblé). Ombrage du calque multiplié, assombri comme le
-   corps ; mesuré sur capture (développé incliné, iPhone 13) : ciblé / aidant 46 au moins, aidant / gris 27 */
-body:not(.light) .body-map--atlas .body-map__m--sec { background-color: var(--body-sec-tint); background-blend-mode: multiply; filter: brightness(var(--body-sec-bright)); }
+/* Muscles qui aident, la teinte de la pastille « Qui aide », mesurée sur capture (développé incliné, iPhone 13) :
+   - sombre : un rose éteint, ombrage multiplié et assombri comme le corps, jamais ravivé par la lumière douce (panel t5 :
+     presque aussi vifs que le ciblé) ; ciblé / aidant 46, aidant / gris 27 ;
+   - clair : un saumon éclairé (soft-light) sur le gris clair, le ciblé reste le rouge foncé (panel t6 : trop proches) ;
+     ciblé / aidant 51, aidant / gris 36 */
+body .body-map--atlas .body-map__p.body-map__m--sec { background-color: var(--body-sec-tint); background-blend-mode: var(--body-sec-blend); filter: brightness(var(--body-sec-bright)); }
 /* Clair : le rouge pâle éclairé par l'ombrage (soft-light : en multiply il virait au brun, trop près du gris) ; l'objectif
    atteint reste en multiply, exactement le rouge plein de la fiche */
 .body-map--atlas[data-tiers] .body-map__m--t1 { background-blend-mode: soft-light; }
@@ -76,6 +82,12 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .atlas-box > .mpanel__zoom { position: absolute; right: -8px; margin: 0; }
 .atlas-box--top > .mpanel__zoom { top: -8px; }
 .atlas-box--bottom > .mpanel__zoom { bottom: -8px; }
+/* Muscle isolé, texte très grand : son nom et « Tout voir » dans le coin haut gauche du dessin (atlasIsoChip) */
+.atlas-box__iso { display: none; position: absolute; left: 0; top: 0; z-index: 2; align-items: center; gap: 2px; max-width: 75%; padding-left: 10px;
+  border-radius: var(--r-pill); background: var(--cell2); font-size: min(var(--fs-footnote), 17px); }
+.type-xl .atlas-box__iso { display: flex; }
+.atlas-box__iso-name { font-weight: 600; color: var(--label); min-width: 0; overflow-wrap: anywhere; }
+.atlas-box__iso-all { min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; white-space: nowrap; }
 /* Muscles travaillés tous en haut (ou tous en bas) du corps : carte cadrée sur cette moitié (bodyAtlasCrop), plus large ;
    une seule vue utile (abducteurs : le dos) : en grand */
 .mpanel__box:has(> .body-map--crop) { width: min(100%, 330px); }
@@ -135,24 +147,6 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .mcard__map { width: min(100%, 216px); }
 .mcard__top + .cell::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
 .mlow { color: var(--label); font-size: var(--fs-subhead); line-height: 1.176rem; }
-/* « À travailler » : chaque nom est une pastille à toucher (son muscle isolé sur le personnage), 44 points de haut ;
-   « + N autres » déplie la liste. Pastilles plutôt que des mots dans une phrase : les zones de toucher de deux lignes
-   ne se chevauchent pas */
-.mlow { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 6px; }
-.mlow__name, .mlow__more { min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-pill); font: inherit; cursor: pointer; }
-.mlow__name { background: var(--fill2); color: var(--label); }
-.mlow__name:active { background: var(--fill3, var(--fill2)); }
-.mlow__more { background: none; color: var(--tint); padding: 0 6px; }
-.mlow__name { display: inline-flex; align-items: center; gap: 6px; }
-.mlow__name .mlegend__dot { width: .7em; height: .7em; border-radius: 50%; }
-.mlow__name[aria-pressed="true"] { background: var(--tint-fill); color: var(--on-tint); font-weight: 600; }   /* nom isolé sur le personnage */
-.mlow__reset { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; }
-/* Marques d'un muscle isolé : fixes, sans pulsation ni halo (elles restent jusqu'à « Tout voir ») */
-.body-map__hl--iso { filter: none; }
-.body-map__hl--iso > i { animation: none; filter: brightness(calc(var(--body-base-bright) * 1.15)); }
-/* « À travailler : … » sous le choix de période : en texte très grand seulement (sinon la liste se voit sans défiler) */
-.mcard__todo { display: none; margin: 0; width: 100%; font-size: var(--fs-subhead); color: var(--label); }
-.type-xl .mcard__todo { display: block; }
 
 /* Légende : un échantillon par palier, son nom et ses bornes */
 .mlegend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3px 8px; font-size: var(--fs-caption); color: var(--label2); }
@@ -161,6 +155,7 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 /* Où en sont tes muscles (Progrès) : sous les paliers, avant l'unité */
 .mlegend__you { flex-basis: 100%; margin-top: 6px; text-align: center; color: var(--label); font-weight: 600; }
 .mlegend__dot { width: 12px; height: 12px; border-radius: 3px; background: var(--body-zone); position: relative; overflow: hidden; }
+.mlegend__dot--t0 { border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--body-ol); }   /* « ○ Pas travaillé » : le contour du dessin */
 .mlegend__dot--t1 { background: var(--body-tier-dot-1); }
 .mlegend__dot--t2 { background: var(--body-tier-dot-2); }
 

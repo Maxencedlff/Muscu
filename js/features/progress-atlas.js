@@ -9,34 +9,38 @@
 // correspondance exercice → sous-muscles (partLoad, js/data/atlas.js : principal 1 série, secondaire ½). Bas du corps :
 // carte simple (le palier du muscle entier) jusqu'au détail des jambes. Zoom et nom au toucher : js/ui/body-zoom.js.
 
-function progressAtlasHtml(span = muscleSpan) {
+// toWork : la liste « À travailler » ; ses muscles à 0 série sont cernés sur le dessin (sinon couleur du corps, invisibles)
+function progressAtlasHtml(span = muscleSpan, toWork = []) {
   const { levels } = partLoad(span);
   const on = Object.fromEntries(Object.entries(levels).filter(([, l]) => l > 0));
-  return atlasBoxHtml(bodyAtlasHtml(on, { className: 'mcard__map', title: 'Muscles travaillés', tap: true, tiers: true, tip: 'load', crop: false, captions: true }), 'mcard__box');
+  const outline = toWork.filter(it => !it.sets).flatMap(it => it.ids);
+  return atlasBoxHtml(bodyAtlasHtml(on, { className: 'mcard__map', title: 'Muscles travaillés', tap: true, tiers: true, tip: 'load', crop: false, captions: true, outline }), 'mcard__box');
 }
 
-// Cellule « À travailler » : 4 noms au plus, puis « + N autres » qui déplie la liste entière. Chaque nom est une pastille à
+// Cellule « À travailler » : 3 noms au plus, puis « + N autres » qui déplie la liste entière (« Moins » la replie, panel
+// t6). Chaque nom est une pastille à
 // toucher (atlasToWorkShow), précédée de la couleur de son état : gris, aucune série sur la période ; rose pâle, sous
 // l'objectif (panel affichage-e t5 : voir d'un coup d'œil lequel n'est pas du tout travaillé ; ils viennent en premier)
-const ATLAS_TO_WORK_SHOWN = 4;
+const ATLAS_TO_WORK_SHOWN = 3;
 function atlasToWorkNameHtml(it) {
   const state = it.sets > 0 ? 1 : 0;
   return `<button class="mlow__name" data-action="atlas-to-work" data-muscle="${it.key}" aria-pressed="false" aria-label="${esc(it.label)}, ${MUSCLE_LEVEL_WORDS[state].toLowerCase()} : voir sur le personnage">${muscleLevelDot(state)}${esc(it.label)}</button>`;
 }
 function atlasToWorkHtml(items) {
   if (!items.length) return '<span class="cell__title cell__title--reg">Tous les muscles à l\'objectif</span>';
-  const shown = items.length > ATLAS_TO_WORK_SHOWN ? items.slice(0, ATLAS_TO_WORK_SHOWN - 1) : items, more = items.length - shown.length;
+  const shown = items.slice(0, ATLAS_TO_WORK_SHOWN), more = items.length - shown.length;
   return `<span class="cell__title cell__title--reg">À travailler</span>
-    <span class="cell__sub mlow">${shown.map(atlasToWorkNameHtml).join('')}${more ? `<button class="mlow__more" data-action="atlas-to-work-all" aria-label="Voir les ${more} autres muscles à travailler">+ ${more} autre${more > 1 ? 's' : ''}</button>` : ''}</span>
-    <template class="mlow__all">${items.map(atlasToWorkNameHtml).join('')}</template>`;
+    <span class="cell__sub mlow">${shown.map(atlasToWorkNameHtml).join('')}${more ? `<button class="mlow__more" data-action="atlas-to-work-all" aria-expanded="false" aria-label="Voir les ${more} autres muscles à travailler">+ ${more} autre${more > 1 ? 's' : ''}</button>` : ''}</span>
+    <template class="mlow__all">${items.map(atlasToWorkNameHtml).join('')}<button class="mlow__more" data-action="atlas-to-work-all" aria-expanded="true">Moins</button></template>
+    <template class="mlow__few">${shown.map(atlasToWorkNameHtml).join('')}${more ? `<button class="mlow__more" data-action="atlas-to-work-all" aria-expanded="false" aria-label="Voir les ${more} autres muscles à travailler">+ ${more} autre${more > 1 ? 's' : ''}</button>` : ''}</template>`;
 }
 
 // Texte très grand : « À travailler : … » sous le choix de période, le résumé sans défiler (la liste touchable reste plus
 // bas, sous la légende) ; masqué pour VoiceOver, qui lit la liste
 function atlasToWorkLineHtml(items) {
   if (!items.length) return '';
-  const names = items.slice(0, 3).map(it => it.label).join(', ');
-  return `<p class="mcard__todo" aria-hidden="true">À travailler : ${esc(names)}${items.length > 3 ? ` et ${items.length - 3} autre${items.length > 4 ? 's' : ''}` : ''}</p>`;
+  const names = items.slice(0, 2).map(it => it.label).join(', '), more = items.length - 2;   // 2 noms au plus (panel t6)
+  return `<p class="mcard__todo" aria-hidden="true">À travailler : ${esc(names)}${more > 0 ? ` et ${more} autre${more > 1 ? 's' : ''}` : ''}</p>`;
 }
 
 // Toucher un nom d'« À travailler » : sur le personnage de Progrès, seuls ses sous-muscles gris ou pâles restent mis en
@@ -70,6 +74,7 @@ function atlasToWorkShow(btn) {
   });
   map.querySelectorAll('.body-map__p').forEach(l => l.classList.toggle('is-on', it.ids.includes(l.dataset.part)));
   map.dataset.iso = 'load'; map.dataset.isoMuscle = it.key;
+  atlasIsoChip(map, it.label);
   const named = card.querySelector(`.mlow__name[data-muscle="${it.key}"]`) || btn;
   named.setAttribute('aria-pressed', 'true');
   named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout voir</button>');
@@ -77,12 +82,18 @@ function atlasToWorkShow(btn) {
   const rs = marks.map(m => m.firstElementChild.getBoundingClientRect()), gap = 14;
   const x = (Math.min(...rs.map(r => r.left)) + Math.max(...rs.map(r => r.right))) / 2;
   const y = (Math.min(...rs.map(r => r.top)) + Math.max(...rs.map(r => r.bottom))) / 2;
-  const block = [...card.querySelectorAll('.segmented, .mlow')].map(e => e.getBoundingClientRect());
+  // Jamais sur les muscles marqués (panel t6) : au-dessus, au-dessous ou à côté de leur cadre, sinon hors du dessin
+  const zoneR = { left: Math.min(...rs.map(r => r.left)), top: Math.min(...rs.map(r => r.top)), right: Math.max(...rs.map(r => r.right)), bottom: Math.max(...rs.map(r => r.bottom)) };
+  const block = [...[...card.querySelectorAll('.segmented, .mlow')].map(e => e.getBoundingClientRect()), zoneR];
   const small = innerWidth <= 375 || document.documentElement.classList.contains('type-xl');
   const d = map.querySelector('.body-map__row').getBoundingClientRect();
-  showBodyTip(html, x, y, map, { avoid: block, ...(small ? { spotTol: 1, reach: Infinity,
-    spots: (w, h) => [{ left: x - w / 2, top: d.top - gap - h }, { left: x - w / 2, top: d.bottom + gap }]
-      .filter(p => !block.some(r => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top)) } : {}) });
+  const hits = (p, w, h, r) => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top;
+  showBodyTip(html, x, y, map, { avoid: block, spotTol: 1, reach: Infinity, spots: (w, h) => {
+    const near = [{ left: x - w / 2, top: zoneR.top - gap - h }, { left: x - w / 2, top: zoneR.bottom + gap },
+      { left: zoneR.left - gap - w, top: y - h / 2 }, { left: zoneR.right + gap, top: y - h / 2 }];
+    const out = [{ left: x - w / 2, top: d.top - gap - h }, { left: x - w / 2, top: d.bottom + gap }];
+    return (small ? [...out, ...near] : [...near, ...out]).filter(p => !block.some(r => hits(p, w, h, r)));
+  } });
   announce(`${it.label} : ${it.ids.map(atlasPartTitle).join(', ')}`);
 }
 
@@ -95,6 +106,16 @@ function atlasToWorkReset(card) {
   delete map.dataset.iso; delete map.dataset.isoMuscle;
   card.querySelectorAll('.mlow__name[aria-pressed="true"]').forEach(b => b.setAttribute('aria-pressed', 'false'));
   card.querySelectorAll('.mlow__reset').forEach(b => b.remove());
+  atlasIsoChip(map, null);
+}
+
+// Texte très grand : le muscle isolé et « Tout voir » sur le dessin lui-même (panel t6 : la liste, plus bas, n'est plus à
+// l'écran quand on regarde le personnage) ; label null : retiré
+function atlasIsoChip(map, label) {
+  const box = map?.closest('.atlas-box');
+  box?.querySelector('.atlas-box__iso')?.remove();
+  if (!box || label == null) return;
+  box.insertAdjacentHTML('beforeend', `<div class="atlas-box__iso"><span class="atlas-box__iso-name">${esc(label)}</span><button class="atlas-box__iso-all" data-action="atlas-iso-all">Tout voir</button></div>`);
 }
 
 // Dessin et son bouton Agrandir, dans un coin du dessin (panel affichage-e t3 : un grand vide le séparait du

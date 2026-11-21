@@ -116,27 +116,31 @@ async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root
     * Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top)), 0);
   const z = zone.getBoundingClientRect(), x = e.clientX, y = e.clientY, gap = 14;
   const html = tip === 'load' ? atlasLoadTipHtml(hit.part) : atlasTipHtml(hit.part, lv);
-  // Petit écran (iPhone SE, texte très grand) : la bulle au-dessus ou au-dessous du dessin, pointe vers le muscle, jamais sur
-  // le personnage (panel affichage-e t5) ; la vue agrandie garde sa bulle contre le doigt
+  // Jamais sur la zone touchée (panel affichage-e t6 : la bulle cachait le moyen fessier, le haut des pectoraux, les
+  // obliques) : le cadre du sous-muscle est interdit à la bulle, qui se pose au-dessus, au-dessous ou à côté de lui, sinon
+  // au-dessus ou au-dessous du dessin, toujours avec sa pointe vers le muscle. Petit écran (iPhone SE, texte très grand,
+  // panel t5) : hors du dessin d'abord. La vue agrandie garde la bulle dans sa scène
+  const part = atlasPartRect(hit, kind), d = (root.querySelector('.body-map__row') || root).getBoundingClientRect();
+  const block = [...avoid.filter(Boolean).map(a => a.getBoundingClientRect()), part];
   const small = !container && (innerWidth <= 375 || document.documentElement.classList.contains('type-xl'));
-  if (small) {
-    const d = (root.querySelector('.body-map__row') || root).getBoundingClientRect(), block = avoid.filter(Boolean).map(a => a.getBoundingClientRect());
-    const tipEl = showBodyTip(html, x, y, root, { avoid: block, spotTol: 1, reach: Infinity,
-      spots: (w, h) => [{ left: x - w / 2, top: d.top - gap - h }, { left: x - w / 2, top: d.bottom + gap }]
-        .filter(p => !block.some(r => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top)) });
-    atlasTipShown(tipEl, root, hit, kind, res);
-    return;
-  }
-  const tipEl = showBodyTip(html, x, y, container ? null : root, {
-    // Zone du dessin, réduite à ce qui est visible (sous la barre de navigation, au-dessus de la barre d'onglets)
-    cost, container, spotTol: 1, bounds: (b => ({ minTop: Math.max(z.top + 4, b.minTop), maxBottom: Math.min(z.bottom - 4, b.maxBottom) }))(bodyTipBounds(container ? null : root)),
-    avoid: avoid.filter(Boolean).map(a => a.getBoundingClientRect()),
-    // Au-dessus puis au-dessous, centrée sur le doigt, sinon décalée (pointe près d'un bout) pour éviter un bouton
-    // puis à côté du doigt, du côté le plus large (petite carte : iPhone SE, texte agrandi), toujours avec la pointe
-    spots: (w, h) => [...[y - gap - h, y + gap].flatMap(top => [x - w / 2, x - w + 28, x - 28].map(left => ({ left, top }))),
-      ...(innerWidth - x >= x ? [x + gap, x - gap - w] : [x - gap - w, x + gap]).map(left => ({ left, top: y - h / 2 }))],
-  });
+  const hits = (p, w, h, r) => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top;
+  const spots = (w, h) => {
+    const near = [{ left: x - w / 2, top: part.top - gap - h }, { left: x - w / 2, top: part.bottom + gap },
+      { left: part.left - gap - w, top: y - h / 2 }, { left: part.right + gap, top: y - h / 2 }];
+    const out = container ? [] : [{ left: x - w / 2, top: d.top - gap - h }, { left: x - w / 2, top: d.bottom + gap }];
+    return (small ? [...out, ...near] : [...near, ...out]).filter(p => !block.some(r => hits(p, w, h, r)));
+  };
+  const bounds = container ? (b => ({ minTop: Math.max(z.top + 4, b.minTop), maxBottom: Math.min(z.bottom - 4, b.maxBottom) }))(bodyTipBounds(null)) : undefined;
+  const tipEl = showBodyTip(html, x, y, container ? null : root, { cost, container, spotTol: 1, reach: Infinity, avoid: block, spots, ...(bounds ? { bounds } : {}) });
   atlasTipShown(tipEl, root, hit, kind, res);
+}
+
+// Cadre à l'écran du sous-muscle touché (sa boîte, posée sur le corps de sa vue : carte cadrée ou vue agrandie zoomée)
+function atlasPartRect(hit, kind) {
+  const b = BODY_PARTS.boxes[kind]?.[hit.view]?.[hit.part.id]?.[0], body = (hit.fig.querySelector('.body-map__body') || hit.fig).getBoundingClientRect();
+  if (!b) return { left: 0, top: 0, right: 0, bottom: 0 };
+  const sx = body.width / BODY_PARTS.w, sy = body.height / BODY_PARTS.h;
+  return { left: body.left + b[0] * sx, top: body.top + b[1] * sy, right: body.left + b[2] * sx, bottom: body.top + b[3] * sy };
 }
 
 // Bulle posée : le muscle touché mis en valeur, vibration
@@ -219,8 +223,8 @@ if (typeof document !== 'undefined' && document.addEventListener) {
 
 let atlasViewer = null;   // vue ouverte (une seule) : état du zoom, pour les tests (atlasViewerState)
 
-function atlasFigHtml(kind, view, levels, tiers = false) {
-  return `<span class="body-map__fig body-map__${view}" data-view="${view}"><img class="body-map__base" src="${body2Url(kind, view, 'base.webp')}" alt="" draggable="false" decoding="async"><span class="azoom__lay">${bodyAtlasLayersHtml(kind, view, levels, 1, tiers)}</span><img class="azoom__lines" alt="" draggable="false" decoding="async" hidden></span>`;
+function atlasFigHtml(kind, view, levels, tiers = false, outline = []) {
+  return `<span class="body-map__fig body-map__${view}" data-view="${view}"><img class="body-map__base" src="${body2Url(kind, view, 'base.webp')}" alt="" draggable="false" decoding="async"><span class="azoom__lay">${bodyAtlasLayersHtml(kind, view, levels, 1, tiers, outline)}</span><img class="azoom__lines" alt="" draggable="false" decoding="async" hidden></span>`;
 }
 
 // Description pour VoiceOver : les sous-muscles colorés, ciblés d'abord (fiche) ; Progrès (tiers) : du plus au moins travaillé
@@ -243,7 +247,7 @@ function openAtlasViewer(mapEl, from = null) {
   // Point touché ramené au corps entier, face et dos (la carte de la fiche peut être cadrée sur le haut ou le bas du
   // corps, ou ne montrer qu'une vue : data-view)
   const [c0, c1] = (mapEl.dataset.crop || `0,${BODY_PARTS.h}`).split(',').map(Number);
-  const rowW = 2 + BODY_GAP, one = mapEl.dataset.view;
+  const rowW = 2 + BODY_GAP, one = mapEl.dataset.view, outline = (mapEl.dataset.ol || '').split(' ').filter(Boolean);
   const u = r => (one ? (one === 'back' ? 1 + BODY_GAP : 0) + r : r * rowW) / rowW;
   const at = from && row?.width ? { u: u((from.x - row.left) / row.width),
     v: (c0 + (from.y - row.top) / row.height * (c1 - c0)) / BODY_PARTS.h, scale: from.scale } : null;
@@ -257,7 +261,7 @@ function openAtlasViewer(mapEl, from = null) {
   const body = `
     <div class="azoom" data-scale="1" data-hi="" data-lines="">
       <div class="azoom__stage body-map body-map--atlas" data-body="${kind}"${tiers ? ' data-tiers="1"' : ''} role="img" aria-label="${esc(atlasA11yLabel(levels, tiers))}">
-        <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels, tiers)).join('')}</span>
+        <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels, tiers, outline)).join('')}</span>
       </div>
     </div>
     <div class="azoom__band">
@@ -265,6 +269,7 @@ function openAtlasViewer(mapEl, from = null) {
       <div class="azoom__text">
         ${key}
         <p class="azoom__hint">Pince pour zoomer. Touche un muscle pour son nom.</p>
+        ${tiers ? '' : '<p class="azoom__short">Touche un muscle pour son nom</p>'}
       </div>
       <div class="azoom__ctl">
         <button class="azoom__btn" data-z="-1" aria-label="Dézoomer">${icon('minus', 22)}</button>
@@ -278,7 +283,7 @@ function openAtlasViewer(mapEl, from = null) {
   if (!view) return;
   root.classList.add('sheet-root--atlas');
   if (from?.now) root.classList.add('sheet-root--now');   // pincement en cours : la feuille est là tout de suite, sous les doigts
-  atlasViewer = atlasZoom(view, kind, levels, at, root, { tiers, tip });
+  atlasViewer = atlasZoom(view, kind, levels, at, root, { tiers, tip, outline });
   done.then(() => { atlasViewer?.destroy(); atlasViewer = null; closeBodyTip(); });
 }
 
@@ -288,7 +293,7 @@ function atlasViewerState() {
 }
 
 // Zoom, déplacement et noms dans la vue agrandie
-function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {}) {
+function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', outline = [] } = {}) {
   const stage = view.querySelector('.azoom__stage');
   const figs = { front: stage.querySelector('.body-map__front'), back: stage.querySelector('.body-map__back') };
   const ratio = (2 + BODY_GAP) * BODY_PARTS.w / BODY_PARTS.h;
@@ -335,7 +340,7 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {
   // Muscle touché mis en valeur : gardé à travers l'échange 1× ↔ 3×, refait à la résolution affichée
   function swapLayers(v, res) {
     const f = figs[v], hl = f.querySelector('.body-map__hl'), part = hl?.dataset.part, tint = hl?.firstElementChild?.style.backgroundColor;
-    f.querySelector('.azoom__lay').innerHTML = bodyAtlasLayersHtml(kind, v, levels, res, tiers);
+    f.querySelector('.azoom__lay').innerHTML = bodyAtlasLayersHtml(kind, v, levels, res, tiers, outline);
     if (!hl) return;
     hl.remove();
     f.insertAdjacentHTML('beforeend', atlasMarkHtml(kind, v, part, res, tint || '#FFFFFF'));
@@ -351,7 +356,7 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '' } = {
   function toHi(v) {
     hiWant = v;
     const urls = [body2Url(kind, v, 'base@3x.webp'),
-      ...BODY_PARTS.parts.filter(p => levels[p.id] > 0 && BODY_PARTS.boxes[kind]?.[v]?.[p.id]).map(p => body2Url(kind, v, `p3/${p.id}.webp`))];
+      ...BODY_PARTS.parts.filter(p => (levels[p.id] > 0 || outline.includes(p.id)) && BODY_PARTS.boxes[kind]?.[v]?.[p.id]).map(p => body2Url(kind, v, `p3/${p.id}.webp`))];
     // Affiché seulement une fois tout décodé : sinon un muscle clignoterait sans couleur. Une image en échec (hors
     // ligne, jamais zoomée) : rien n'est échangé, le 1× reste à l'écran
     Promise.all(urls.map(u => { const im = new Image(); im.src = u; return im.decode().then(() => true, () => false); })).then(ok => {

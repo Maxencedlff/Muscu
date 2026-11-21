@@ -288,10 +288,10 @@ def t_fiche_aidants(bench):
     """Fiche « Développé incliné barre », mesurée SUR LA CAPTURE (panel affichage-e t5) : ciblé (haut des pectoraux), qui
     aide (milieu des pectoraux) et gris du corps (grand droit), couleur moyenne à l'écran. Sombre : ciblé / aidant 45 au
     moins (en soft-light, les aidants étaient presque aussi vifs), aidant / gris 20. Clair : aidant / gris 25 (rose pâle
-    presque invisible), ciblé / aidant 30. La pastille « Qui aide » a la couleur vue sur le dessin."""
+    presque invisible au t5), ciblé / aidant 45 (trop proches au t6). La pastille « Qui aide » a la couleur vue sur le dessin."""
     import io
     from PIL import Image
-    for theme, (main_help, help_gray) in (('dark', (45, 20)), ('light', (30, 25))):
+    for theme, (main_help, help_gray) in (('dark', (45, 20)), ('light', (45, 25))):
         t = tag('iPhone 13', theme)
         with bench.page('webkit', 'iPhone 13', theme) as page:
             seed(page, theme, ppl_v2_today_json())

@@ -164,7 +164,9 @@ function body2Url(kind, view, file) { return `${BODY2_DIR}/${kind}/${view}/${fil
 // Calques d'une vue de l'atlas. levels : { id de sous-muscle: 2|1 } ; res : 1 ou 3 (p/ ou p3/).
 // Ordre : superficiels dans l'ordre de BODY_PARTS, puis les profonds par-dessus, en transparence.
 // tiers : levels = paliers de Progrès (1..2, bodyTier) au lieu de plein / qui aide
-function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false) {
+// outline : sous-muscles cernés d'un contour net (Progrès : les muscles à 0 série de « À travailler », sinon de la couleur
+// du corps, invisibles ; panel affichage-e t6), par-dessus les calques
+function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline = []) {
   const boxes = BODY_PARTS.boxes[kind]?.[view] || {};
   const W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h;
   const pct = v => `${Math.round(v * 1e5) / 1e3}%`;
@@ -177,7 +179,29 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false) {
     const tone = tiers ? ` body-map__m--t${Math.min(BODY_TIERS, Math.max(1, lv))}` : lv >= 2 ? '' : ' body-map__m--sec';
     const cls = `body-map__m body-map__p${tone}${p.deep ? ' body-map__p--deep' : ''}`;
     return `<i class="${cls}" data-part="${p.id}" data-muscle="${p.parent || ''}" data-level="${lv}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)};background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
+  }).join('') + (outline.length ? bodyOutlineHtml(kind, view, outline, res) : '');
+}
+
+// Contour net (1,5 point, sans flou ni lueur) d'un sous-muscle : copie masquée de son calque, passée dans le filtre SVG
+// #body-ol (bodyOutlineDefs) qui ne garde que l'anneau autour de la forme, à la couleur --body-ol du thème
+function bodyOutlineHtml(kind, view, ids, res = 1) {
+  bodyOutlineDefs();
+  const boxes = BODY_PARTS.boxes[kind]?.[view] || {};
+  const W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h;
+  const pct = v => `${Math.round(v * 1e5) / 1e3}%`;
+  return ids.filter(id => boxes[id]).map(id => {
+    const b = boxes[id][res === 3 ? 1 : 0], url = `url(${body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${id}.webp`)})`;
+    return `<span class="body-map__ol" data-ol="${id}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)}"><i style="-webkit-mask-image:${url};mask-image:${url}"></i></span>`;
   }).join('');
+}
+function bodyOutlineDefs() {
+  if (typeof document === 'undefined' || !document.body || document.getElementById('body-ol')) return;
+  document.body.insertAdjacentHTML('beforeend', `<svg class="body-map__defs" aria-hidden="true" focusable="false" width="0" height="0">
+    <filter id="body-ol" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="1.5" result="grow"/>
+      <feComposite in="grow" in2="SourceAlpha" operator="out" result="ring"/>
+      <feFlood class="body-map__ol-color"/><feComposite in2="ring" operator="in"/>
+    </filter></svg>`);
 }
 
 // Vues de la carte de la fiche : celles où un sous-muscle est coloré (abducteurs : le dos seul, en grand ; panel
@@ -192,17 +216,18 @@ function bodyAtlasViews(kind, levels) {
 // Options : body (personnage), className, title (nom de l'exercice, titre de la vue agrandie), tap (bulle
 // du sous-muscle touché, zoom au double toucher ou au pincement : js/ui/body-zoom.js)
 // Progrès (js/features/progress-atlas.js) : tiers (paliers au lieu de plein / qui aide), tip 'load' (bulle : volume de
-// la période et exercices), crop false (corps entier, les deux vues), captions (« Face », « Dos » sous les vues)
-function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false, tiers = false, tip = '', crop: cropOn = true, captions = false } = {}) {
+// la période et exercices), crop false (corps entier, les deux vues), captions (« Face », « Dos » sous les vues),
+// outline (sous-muscles cernés : bodyAtlasLayersHtml)
+function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false, tiers = false, tip = '', crop: cropOn = true, captions = false, outline = [] } = {}) {
   const kind = bodyKind(body), safe = levels && typeof levels === 'object' ? levels : {};
   const views = cropOn ? bodyAtlasViews(kind, safe) : ['front', 'back'];
   const rowW = views.length + (views.length - 1) * BODY_GAP, fig = `${Math.round(10000 / rowW) / 100}%`;
   const [y0, y1] = cropOn ? bodyAtlasCrop(kind, safe) : [0, BODY_PARTS.h], ch = y1 - y0;
   const inner = `top:${Math.round(-y0 / ch * 1e5) / 1e3}%;height:${Math.round(BODY_PARTS.h / ch * 1e5) / 1e3}%`;
-  const figs = views.map(v => `<span class="body-map__fig body-map__${v}"><span class="body-map__body" style="${inner}"><img class="body-map__base" src="${body2Url(kind, v, 'base.webp')}" alt="" draggable="false" decoding="async">${bodyAtlasLayersHtml(kind, v, safe, 1, tiers)}</span></span>`).join('');
+  const figs = views.map(v => `<span class="body-map__fig body-map__${v}"><span class="body-map__body" style="${inner}"><img class="body-map__base" src="${body2Url(kind, v, 'base.webp')}" alt="" draggable="false" decoding="async">${bodyAtlasLayersHtml(kind, v, safe, 1, tiers, outline)}</span></span>`).join('');
   const act = tap ? ' data-action="body-tap"' : '';
   const crop = ch < BODY_PARTS.h ? ' body-map--crop' : '';
-  const extra = `${tiers ? ' data-tiers="1"' : ''}${tip ? ` data-tip="${esc(tip)}"` : ''}${views.length === 1 ? ` data-view="${views[0]}"` : ''}`;
+  const extra = `${tiers ? ' data-tiers="1"' : ''}${tip ? ` data-tip="${esc(tip)}"` : ''}${views.length === 1 ? ` data-view="${views[0]}"` : ''}${outline.length ? ` data-ol="${esc(outline.join(' '))}"` : ''}`;
   const caps = captions ? `<span class="body-map__caps" aria-hidden="true" style="--fig:${fig}">${views.map(v => `<span>${v === 'front' ? 'Face' : 'Dos'}</span>`).join('')}</span>` : '';
   return `<div class="body-map body-map--atlas${crop}${views.length === 1 ? ' body-map--one' : ''} ${esc(className)}" data-body="${kind}" data-atlas="${esc(JSON.stringify(safe))}" data-crop="${y0},${y1}" data-title="${esc(title)}"${extra}${act} aria-hidden="true"><span class="body-map__row" style="aspect-ratio:${Math.round(rowW * BODY_PARTS.w)} / ${ch};--body-ar:${(rowW * BODY_PARTS.w / ch).toFixed(4)};--fig:${fig}">${figs}</span>${caps}</div>`;
 }

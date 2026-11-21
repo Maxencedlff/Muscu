@@ -26,6 +26,9 @@
 .azoom__ctl { grid-column: 2; grid-row: 1 / span 2; }
 .type-xl .azoom__band > .azoom__legend { grid-column: 1 / -1; font-size: min(var(--fs-footnote), 17px); }   /* plafonnée comme la barre de navigation : le personnage garde 60 % */
 .type-xl .azoom__text, .type-xl .azoom__ctl { grid-row: 2; }
+/* Fiche, texte très grand : l'aide longue laisse la place au personnage, une aide courte reste (panel t6) */
+.azoom__short { display: none; margin: 0; font-size: min(var(--fs-footnote), 17px); line-height: 1.3; color: var(--label2); }
+.type-xl .azoom__short { display: block; }
 .azoom__legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label); }
 .azoom__legend .mline2__dot { margin-right: -2px; }
 .azoom__legend .mlegend__item { white-space: normal; }   /* la légende de Progrès passe à la ligne, jamais sous les boutons */

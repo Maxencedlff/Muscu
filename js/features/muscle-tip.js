@@ -79,6 +79,7 @@ function atlasIsolate(group, ids, pressed) {
   map.querySelectorAll('.body-map__p').forEach(l => l.classList.toggle('is-on', on.has(l.dataset.part)));
   group.querySelectorAll('.mline2').forEach(b => b.setAttribute('aria-pressed', String(b === pressed?.line && !pressed.name)));
   group.querySelectorAll('.mline2__name').forEach(n => n.classList.toggle('mline2__name--on', n === pressed?.name));
+  atlasIsoChip(map, on.size ? pressed?.name?.dataset.label || pressed?.line?.dataset.title || '' : null);
 }
 
 // Places préférées (js/ui/body-tip.js, bodyTipSpots) : Progrès, la marge extérieure de la vue touchée
@@ -122,13 +123,23 @@ registerActions({
   },
   // Progrès, « À travailler » : un nom isole ses sous-muscles gris ou pâles sur le personnage (atlasToWorkShow)
   'atlas-to-work': (e, btn) => atlasToWorkShow(btn),
+  // « Tout voir » posé sur le dessin (texte très grand) : Progrès comme « Tout voir » de la liste, fiche comme un second toucher
+  'atlas-iso-all': (e, btn) => {
+    const card = btn.closest('.mcard');
+    closeBodyTip();
+    if (card) atlasToWorkReset(card); else atlasIsolate(btn.closest('.group'), [], null);
+    announce('Personnage : tous les muscles sont affichés');
+  },
   'atlas-to-work-reset': (e, btn) => { const card = btn.closest('.mcard'); closeBodyTip(); atlasToWorkReset(card); card?.querySelector('.mlow__name')?.focus(); },
-  // Progrès, « À travailler » : « + N autres » déplie la liste entière, sur place
+  // Progrès, « À travailler » : « + N autres » déplie la liste entière, « Moins » la replie, sur place
   'atlas-to-work-all': (e, btn) => {
-    const cell = btn.closest('.mlow'), all = cell?.parentElement.querySelector('.mlow__all');
+    const open = btn.getAttribute('aria-expanded') !== 'true';
+    const cell = btn.closest('.mlow'), all = cell?.parentElement.querySelector(open ? '.mlow__all' : '.mlow__few');
     if (!all) return;
+    const iso = btn.closest('.mcard')?.querySelector('.mcard__map')?.dataset.isoMuscle;
     cell.innerHTML = all.innerHTML;
-    const iso = btn.closest('.mcard')?.querySelector('.mcard__map')?.dataset.isoMuscle, named = iso && cell.querySelector(`.mlow__name[data-muscle="${iso}"]`);
+    cell.querySelector('.mlow__more')?.focus();
+    const named = iso && cell.querySelector(`.mlow__name[data-muscle="${iso}"]`);
     if (named) { named.setAttribute('aria-pressed', 'true'); named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout voir</button>'); }
     announce(`${cell.querySelectorAll('.mlow__name').length} muscles à travailler`);
   },

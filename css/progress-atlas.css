@@ -1,0 +1,19 @@
+/* Progrès › Muscles : liste « À travailler » et muscle isolé (js/features/progress-atlas.js) ; le dessin : css/muscles.css */
+/* « À travailler » : chaque nom est une pastille à toucher (son muscle isolé sur le personnage), 44 points de haut ;
+   « + N autres » déplie la liste. Pastilles plutôt que des mots dans une phrase : les zones de toucher de deux lignes
+   ne se chevauchent pas */
+.mlow { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 6px; }
+.mlow__name, .mlow__more { min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-pill); font: inherit; cursor: pointer; }
+.mlow__name { background: var(--fill2); color: var(--label); }
+.mlow__name:active { background: var(--fill3, var(--fill2)); }
+.mlow__more { background: none; color: var(--tint); padding: 0 6px; }
+.mlow__name { display: inline-flex; align-items: center; gap: 6px; }
+.mlow__name .mlegend__dot { width: .7em; height: .7em; border-radius: 50%; }
+.mlow__name[aria-pressed="true"] { background: var(--tint-fill); color: var(--on-tint); font-weight: 600; }   /* nom isolé sur le personnage */
+.mlow__reset { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; }
+/* Marques d'un muscle isolé : fixes, sans pulsation ni halo (elles restent jusqu'à « Tout voir ») */
+.body-map__hl--iso { filter: none; }
+.body-map__hl--iso > i { animation: none; filter: brightness(calc(var(--body-base-bright) * 1.15)); }
+/* « À travailler : … » sous le choix de période : en texte très grand seulement (sinon la liste se voit sans défiler) */
+.mcard__todo { display: none; margin: 0; width: 100%; font-size: var(--fs-subhead); color: var(--label); }
+.type-xl .mcard__todo { display: block; }

@@ -223,7 +223,7 @@ function spanSegmentedHtml() {
 // Pastille de couleur d'un palier (légende, bulle) : la couleur du palier sur la carte (bodyTier, js/ui/body-map.js)
 function muscleLevelDot(lvl) {
   const tier = bodyTier(lvl / MUSCLE_LEVEL_MAX);
-  return `<i class="mlegend__dot${tier ? ` mlegend__dot--${tier.tone}` : ''}"></i>`;
+  return `<i class="mlegend__dot mlegend__dot--${tier ? tier.tone : 't0'}"></i>`;
 }
 function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
 
@@ -275,7 +275,7 @@ function renderMuscleCard() {
       <div class="mcard__top">
         ${spanSegmentedHtml()}
         ${atlasToWorkLineHtml(toWork)}
-        ${progressAtlasHtml(muscleSpan)}
+        ${progressAtlasHtml(muscleSpan, toWork)}
         ${muscleLegendHtml(muscleSpan, load)}
         ${muscleSrListHtml(load)}
       </div>
