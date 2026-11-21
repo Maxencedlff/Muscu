@@ -131,7 +131,13 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
 // 08/11). Écart minimal : 8 pt.
 // Mesure refaite après la mise en page (image suivante), au changement de taille et une fois les
 // polices chargées : une mesure prise trop tôt (boîtes vides) donnait le chevron seul à tort.
+// Écart minimal en pt à la taille de texte par défaut (17 px), agrandi avec le texte : en AX33, 8 px laissaient
+// « Entraînement » et « Réglages » se toucher à l'œil (panel du 21/11)
 const BACK_LABEL_GAP = 8;
+function backLabelGap() {
+  const root = parseFloat(getComputedStyle(document.documentElement).fontSize) || 17;
+  return Math.max(BACK_LABEL_GAP, BACK_LABEL_GAP * root / 17);
+}
 const BACK_FALLBACK = 'Retour';
 function backLabelFits(btn, label) {
   // Sans tolérance : un libellé plus large d'un seul pixel s'affichait « Coa… » (iPhone SE, panel t6). Un faux « trop
@@ -151,7 +157,7 @@ function backLabelFits(btn, label) {
   // Bord gauche du texte du titre (pas de sa boîte) ; bord droit du libellé en entier
   const range = document.createRange();
   range.selectNodeContents(title);
-  return range.getBoundingClientRect().left - (label.getBoundingClientRect().left + label.scrollWidth) >= BACK_LABEL_GAP;
+  return range.getBoundingClientRect().left - (label.getBoundingClientRect().left + label.scrollWidth) >= backLabelGap();
 }
 function fitBackLabelNow(scope = document) {
   // Titre sur sa ligne retiré d'abord : le retour se mesure dans la barre d'une seule ligne (sinon un second passage le

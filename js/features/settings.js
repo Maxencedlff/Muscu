@@ -124,7 +124,7 @@ ${renderAccessSettingsGroup()}
             <span class="cell__value pitch-steps" aria-hidden="true">${PITCH_TEST.map((_, i) => `<span class="pitch-steps__n">${i + 1}</span>`).join(' · ')}</span>
           </button>` : ''}
           ${Native.sound.canDuck ? `<button class="cell cell--action" data-action="sound-diagnostics" aria-expanded="false" aria-controls="sound-diag">
-            ${cellIco('waveform', 'gray')}
+            ${cellIco('waveform', 'sable')}
             <span class="cell__body"><span class="cell__title">Diagnostic du son</span>
               ${Native.sound.canSelfTest ? '<span class="cell__sub">Joue un son et la fin de repos, puis dit ce qui sort</span>' : ''}</span>
           </button>

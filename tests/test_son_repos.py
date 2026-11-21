@@ -41,6 +41,7 @@ window.Capacitor = {
       play: async (o) => { __snd.plays.push({ freq: o.notes[0].freq, duck: o.duck, at: Date.now() }); },
       diagnostics: async () => JSON.parse(JSON.stringify(__snd.diag)),
     };
+    if (pluginName === 'Share') return { share: async (o) => { window.__shared = o; } };
     if (pluginName === 'LocalNotifications') return {
       checkPermissions: async () => ({ display: 'granted' }),
       requestPermissions: async () => ({ display: 'granted' }),
@@ -208,7 +209,7 @@ def t_diagnostic_mesure(bench):
                 return { top: v.top, bottom: v.bottom, navBottom: nav ? nav.bottom : 0, h: innerHeight }; })()""")
             R.check(pos['top'] >= pos['navBottom'] - 1 and pos['top'] < pos['h'] / 2, f'{theme} : verdict en haut de l\'écran, visible {pos}')
             R.check(page.inner_text('.sound-diag__title') == "L'app n'a pas joué le GO", f'{theme} : verdict nommé')
-            R.check('Ferme et rouvre' in page.inner_text('.sound-diag__action'), f'{theme} : consigne')
+            R.check("Ferme l'app" in page.inner_text('.sound-diag__action'), f'{theme} : consigne')
             R.check(page.locator('.sound-diag__verdict .sound-diag__mark--bad').count() == 1, f'{theme} : croix rouge du verdict')
             rows = page.evaluate("[...document.querySelectorAll('.sound-diag__row')].map(r => [r.querySelector('dt').textContent, r.querySelector('dd').textContent])")
             got = dict(rows)
@@ -216,7 +217,14 @@ def t_diagnostic_mesure(bench):
             R.check(got.get('Volume', '').replace('\u00a0', ' ') == '80 %', f'{theme} : volume en % {got.get("Volume")!r}')
             R.check(got.get('Son enregistré') == 'Joué' and got.get('GO') == 'Pas joué', f'{theme} : joué / pas joué {got}')
             vue = page.inner_text('#sound-diag')
-            R.check('dB' not in vue and 'moteur' not in vue and 'silencieux' not in vue, f'{theme} : ni dB, ni moteur, ni mode silencieux à l\'écran')
+            R.check('dB' not in vue and 'moteur' not in vue, f'{theme} : ni dB ni moteur à l\'écran')
+            R.check(got.get('Mode silencieux') == "Sans effet sur les sons de l'app", f'{theme} : mode silencieux sans effet {got.get("Mode silencieux")}')
+            R.check(page.locator('[data-action="sound-diag-send"]').count() == 1, f'{theme} : « Envoyer le diagnostic »')
+            R.check(page.locator('.sound-diag__actions [data-action="sound-diagnostics"]', has_text='Refaire le test').count() == 1, f'{theme} : « Refaire le test »')
+            page.evaluate('window.__shared = null')
+            page.click('[data-action="sound-diag-send"]')
+            page.wait_for_function('window.__shared !== null', timeout=3000)
+            R.check('Verdict :' in page.evaluate('window.__shared.text'), f'{theme} : feuille de partage avec le texte rempli')
             R.check(page.inner_text('.sound-diag__recap').strip() == "L'app n'a pas joué le GO", f'{theme} : verdict rappelé au-dessus de la copie')
             page.click('[data-action="sound-diag-copy"]')
             page.wait_for_function('window.__copied !== null', timeout=3000)

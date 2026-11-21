@@ -50,7 +50,16 @@ function soundNames(steps) {
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names.at(-1)}` : names[0] || '';
 }
 
-const SOUND_RETRY = 'Ferme et rouvre l\'app, puis refais le test. Si ça continue, copie le diagnostic et envoie\u2011le à Maxence.';
+const SOUND_SEND = 'Si ça continue, envoie le diagnostic à Maxence.';
+const SOUND_RETRY = `Ferme l'app (glisse\u2011la vers le haut dans le sélecteur d'apps), rouvre\u2011la, puis refais le test. ${SOUND_SEND}`;
+
+// Conseil quand l'app joue bien : il suit la sortie mesurée (haut-parleur, ou appareil qui prend le son)
+function soundOutputAdvice(outputs) {
+  const o = Array.isArray(outputs) ? outputs[0] : null;
+  if (!o || o.type === 'Speaker') return 'Monte le volume avec les boutons sur le côté, et vérifie que le mode Concentration est coupé (Centre de contrôle).';
+  if (o.type === 'Receiver') return 'Le son part vers l\'écouteur du haut de l\'iPhone, comme pendant un appel : refais le test une fois l\'appel fini.';
+  return `Le son part vers ${o.name || SOUND_PORTS[o.type] || 'un autre appareil'}. Débranche\u2011le, ou vérifie son volume.`;
+}
 
 // Résultat de selfTest → { ok, title, detail, action, rows: [[libellé, valeur, joué ?]], text }. Vue simple : un son
 // est « Joué » ou « Pas joué » ; les niveaux en dB, l'état du moteur et le mode silencieux estimé ne vont que dans le
@@ -66,8 +75,8 @@ function soundDiagReport(res, ctx = {}) {
   if (steps.length && !missing.length && fileHeard) {
     ok = true;
     title = 'Le son est bien joué par l\'app';
-    detail = 'Si tu n\'as rien entendu, le son est coupé après l\'app, par l\'iPhone.';
-    action = 'Le son sort de l\'app : vérifie le volume, la sortie (Bluetooth) et le mode Concentration.';
+    detail = 'Si tu n\'as rien entendu, c\'est l\'iPhone qui le coupe.';
+    action = `${soundOutputAdvice(st.outputs)} ${SOUND_SEND}`;
   } else if (!fileHeard && !steps.some(s => s.heard)) {
     title = 'L\'app n\'a joué aucun son';
     detail = 'Le problème vient de l\'app : elle n\'arrive pas à envoyer de son à l\'iPhone.';
@@ -85,6 +94,9 @@ function soundDiagReport(res, ctx = {}) {
   const rows = [
     ['Sortie', soundOutputLabel(st.outputs)],
     ['Volume', vol],
+    // L'app joue en lecture (SoundPlugin.swift, .playback) : le bouton silencieux ne la coupe pas, quel que soit
+    // l'état estimé (gardé dans la copie)
+    ['Mode silencieux', 'Sans effet sur les sons de l\'app'],
     ['Son enregistré', fileHeard ? 'Joué' : 'Pas joué', fileHeard],
     ...steps.map(s => [s.name, s.heard ? 'Joué' : 'Pas joué', s.heard]),
     ['Autre app qui joue', st.otherAudioPlaying ? 'Oui' : 'Non'],
@@ -143,6 +155,15 @@ function soundDiagCopyBtn() {
   return '<button class="btn btn--secondary btn--full sound-diag__copy" data-action="sound-diag-copy">Copier le diagnostic</button>';
 }
 
+// Bas du résultat : envoyer (feuille de partage d'iOS, texte rempli), copier, refaire le test
+function soundDiagActions() {
+  return `<div class="sound-diag__actions">
+      <button class="btn btn--primary btn--full" data-action="sound-diag-send">Envoyer le diagnostic</button>
+      ${soundDiagCopyBtn()}
+      <button class="btn btn--secondary btn--full" data-action="sound-diagnostics">Refaire le test</button>
+    </div>`;
+}
+
 // Pastille du verdict et des lignes : coche verte (joué) ou croix rouge (pas joué) ; le mot à côté dit la même chose
 function soundMark(ok) {
   return `<span class="sound-diag__mark sound-diag__mark--${ok ? 'ok' : 'bad'}" aria-hidden="true">${icon(ok ? 'checkmark' : 'xmark', 12)}</span>`;
@@ -182,7 +203,7 @@ async function showSoundDiagnostics() {
       <dl class="sound-diag__list">${r.rows.map(([k, v, ok]) =>
         `<div class="sound-diag__row"><dt>${esc(k)}</dt><dd${ok === false ? ' class="sound-diag__bad"' : ''}>${typeof ok === 'boolean' ? soundMark(ok) : ''}${esc(v)}</dd></div>`).join('')}</dl>
       <p class="sound-diag__recap">${soundMark(r.ok)}<span>${esc(r.title)}</span></p>
-      ${soundDiagCopyBtn()}`;
+      ${soundDiagActions()}`;
     // Le verdict d'abord : amené en haut de l'écran, juste sous la barre de navigation (collante : sa hauteur,
     // encoche et texte agrandi compris, sert de marge) et lu par VoiceOver
     const verdict = box.querySelector('.sound-diag__verdict');
@@ -196,6 +217,15 @@ async function showSoundDiagnostics() {
 
 registerActions({
   'sound-diagnostics': () => showSoundDiagnostics(),
+  // Feuille de partage d'iOS (Messages, Mail…) avec le texte déjà rempli ; navigateur qui sait partager en repli,
+  // sinon copie
+  'sound-diag-send': async () => {
+    if (!soundDiagText) return;
+    const title = 'Diagnostic du son MDLF Training';
+    if (Native.isNative) { if (await Native.shareText(soundDiagText, title) === 'failed') showToast('Envoi impossible, copie le diagnostic'); return; }
+    if (navigator.share) { try { await navigator.share({ title, text: soundDiagText }); } catch { /* feuille fermée */ } return; }
+    try { await navigator.clipboard.writeText(soundDiagText); showToast('Diagnostic copié. Colle\u2011le dans un message à Maxence.'); } catch { /* rien */ }
+  },
   'sound-diag-copy': async () => {
     if (!soundDiagText) return;
     try { await navigator.clipboard.writeText(soundDiagText); showToast('Diagnostic copié. Colle\u2011le dans un message à Maxence.'); }

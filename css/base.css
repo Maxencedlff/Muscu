@@ -183,7 +183,9 @@ input, textarea, select { font-family: inherit; }
 ═══════════════════════════════════════════════ */
 .btn {
   border: none; border-radius: var(--r-md); cursor: pointer;
-  font-size: var(--fs-body); font-weight: 600; padding: 0 var(--sp-5);
+  /* Marge verticale en em : sans effet en taille normale (hauteur minimale 50), elle garde de l'air autour d'un
+     libellé passé sur deux lignes en texte agrandi (panel du 21/11 : « Copier le diagnostic » collé aux bords) */
+  font-size: var(--fs-body); font-weight: 600; padding: .6em var(--sp-5);
   min-height: 50px; line-height: 1.2;
   transition: opacity .15s;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);

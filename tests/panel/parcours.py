@@ -994,7 +994,8 @@ window.Capacitor = {
 @parcours('son-diagnostic', 'Réglages : « Diagnostic du son » (app iOS, build du 21/11)', 'pratiquant')
 def p_son_diagnostic(r):
     """App iOS à jour : Réglages › Son › « Diagnostic du son ». Le test joue un son puis la fin de repos et dit ce
-    qui sort : d'abord tout est joué, puis un GO muet (moteur arrêté, simulé), puis la copie du diagnostic."""
+    qui sort : d'abord tout est joué, puis « Refaire le test » avec un GO muet (moteur arrêté, simulé), puis l'envoi
+    et la copie du diagnostic."""
     r.coquille_native(COQUILLE_SON_DIAG)
     r.lancer(REALISTE)
     cle = 'Savoir pourquoi le son ne sort pas'
@@ -1009,11 +1010,12 @@ def p_son_diagnostic(r):
         r.defiler('.sound-diag__copy', 'bas du résultat')
     r.raccourci('() => { window.__sonMuet = true; }', 'GO de fin de repos muet (moteur arrêté) dans le prochain test')
     with r.etape('muet', 'Résultat : le GO n\'est pas joué (verdict en haut)', cle=cle):
-        r.defiler('[data-action="sound-diagnostics"]', '« Diagnostic du son »')
-        r.toucher('[data-action="sound-diagnostics"]', 'Diagnostic du son (relancé)')
+        r.toucher('.sound-diag__actions [data-action="sound-diagnostics"]', 'Refaire le test')
         r.attendre('.sound-diag__verdict .sound-diag__mark--bad', 'verdict « pas joué »')
     with r.etape('muet-bas', 'Résultat muet : détail, verdict rappelé et « Copier le diagnostic »'):
         r.defiler('.sound-diag__copy', 'bas du résultat')
+    with r.etape('envoyer', 'Envoyer le diagnostic (feuille de partage d\'iOS, simulée)', cle=cle):
+        r.toucher('[data-action="sound-diag-send"]', 'Envoyer le diagnostic')
     with r.etape('copie', 'Copier le diagnostic', cle=cle):
         r.toucher('[data-action="sound-diag-copy"]', 'Copier le diagnostic')
         r.attendre('.toast', 'message « Diagnostic copié »')
