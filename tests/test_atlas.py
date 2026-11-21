@@ -521,7 +521,7 @@ def t_autres_fiches(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme)
-        for name, crop, first, view, part in [('Abducteurs machine', '302,602', [['Moyen fessier', 2], ['Grand fessier', 1]], 'back', 'glute_med'),
+        for name, crop, first, view, part in [('Abducteurs machine', '304,604', [['Moyen fessier', 2], ['Grand fessier', 1]], 'back', 'glute_med'),
                                               ('Tractions pronation', '0,450', [['Grand dorsal', 2], ['Grand rond', 2]], 'back', 'lats')]:
             page.evaluate(f"navigate(makeRoute('library-ex', {json.dumps(name)}))")
             page.wait_for_selector('.view.library-ex .mpanel--atlas')
