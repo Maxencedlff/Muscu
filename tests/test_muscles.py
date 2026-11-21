@@ -118,6 +118,13 @@ def t_progress(bench, eng, dev, theme):
         page.locator('.view.stats-group [data-action="go-stats-muscles"]').click()
         page.wait_for_selector('.view.stats-muscles')
         settle(page)
+        top = page.evaluate("""() => { const seg = document.querySelector('.mdetail__seg').getBoundingClientRect(), bar = document.querySelector('#app .navbar').getBoundingClientRect();
+            const v = id => +document.querySelector(`.mrow[data-muscle="${id}"] .cell__value`).textContent;
+            return { y: scrollY, visible: seg.top >= bar.bottom - 1, dos: v('lats') + v('traps') + v('lower_back'),
+                     title: [...document.querySelectorAll('.stats-muscles .group-title')].map(e => e.textContent.trim()), legend: !!document.querySelector('.stats-muscles .mlegend') }; }""")
+        R.check(top['y'] < 2 and top['visible'], f'{t} « Tous les muscles » s\'ouvre en haut, sélecteur visible {top}')
+        R.check(top['dos'] == dos_sets and 'Séries par semaine, moyenne sur 4 semaines' in top['title'] and top['legend'],
+                f'{t} Séries par muscle : même unité et mêmes nombres que la carte, paliers légendés {top}')
         # Zones du dessin sous chaque muscle (panel t12) : « Haut 5 · Milieu 9 · Bas 0 », les chiffres du personnage, repliables
         zl = page.evaluate("""() => { const r = document.querySelector('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zline'), pl = partLoad(muscleSpan);
             return r && { text: r.textContent.replace(/\\u00a0/g, ' '), want: ['chest_clavicular', 'chest_sternal', 'chest_abdominal'].map(id => pl.weekly[id] || 0),
@@ -127,13 +134,6 @@ def t_progress(bench, eng, dev, theme):
         R.check(not page.locator('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zline').is_visible()
                 and page.get_attribute('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zsum', 'aria-expanded') == 'false', f'{t} « Par zone » se replie')
         page.click('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zsum')
-        top = page.evaluate("""() => { const seg = document.querySelector('.mdetail__seg').getBoundingClientRect(), bar = document.querySelector('#app .navbar').getBoundingClientRect();
-            const v = id => +document.querySelector(`.mrow[data-muscle="${id}"] .cell__value`).textContent;
-            return { y: scrollY, visible: seg.top >= bar.bottom - 1, dos: v('lats') + v('traps') + v('lower_back'),
-                     title: [...document.querySelectorAll('.stats-muscles .group-title')].map(e => e.textContent.trim()), legend: !!document.querySelector('.stats-muscles .mlegend') }; }""")
-        R.check(top['y'] < 2 and top['visible'], f'{t} « Tous les muscles » s\'ouvre en haut, sélecteur visible {top}')
-        R.check(top['dos'] == dos_sets and 'Séries par semaine, moyenne sur 4 semaines' in top['title'] and top['legend'],
-                f'{t} Séries par muscle : même unité et mêmes nombres que la carte, paliers légendés {top}')
         page.click('[data-action="back"]'); page.wait_for_selector('.view.stats-group')
         page.click('[data-action="back"]'); page.wait_for_selector('.view.stats')
         # Détail « Pectoraux » : chaque nom d'exercice se lit en entier, sur 2 lignes au plus, jamais coupé dans un mot

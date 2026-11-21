@@ -25,6 +25,7 @@
 .azoom__text { grid-column: 1; grid-row: 2; min-width: 0; }
 .azoom__ctl { grid-column: 2; grid-row: 1 / span 2; }
 .type-xl .azoom__band > .azoom__legend { grid-column: 1 / -1; font-size: var(--fs-footnote); }   /* suit le texte agrandi, sur iPhone SE aussi (panel t12) */
+.type-xl .azoom:has(.azoom__stage[data-tiers]) ~ .azoom__band > .azoom__legend { font-size: min(var(--fs-footnote), 21px); }   /* Progrès : le personnage garde 55 % de la feuille au moins (test_atlas) */
 .type-xl .azoom__text, .type-xl .azoom__ctl { grid-row: 2; }
 /* Fiche, texte très grand : l'aide longue laisse la place au personnage, une aide courte reste (panel t6) */
 .azoom__short { display: none; margin: 0; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
@@ -35,7 +36,7 @@
 .type-xl .azoom__hint { display: none; }
 /* Texte très grand (panel affichage-e t3 : sur iPhone SE en AX33, le personnage n'avait que 350 points) : la légende
    repliée derrière « Légende », sur la ligne des boutons, et le titre sur la ligne de OK, plafonné comme la barre de
-   navigation : le personnage garde au moins 60 % de la feuille (test_atlas) */
+   navigation : le personnage garde au moins 55 % de la feuille (test_atlas) */
 .azoom__key { min-width: 0; }
 .azoom__sum { display: flex; align-items: center; min-height: 44px; color: var(--tint); font-size: min(var(--fs-body), 22px); cursor: pointer; }
 .azoom__key[open] .azoom__sum { min-height: 32px; }

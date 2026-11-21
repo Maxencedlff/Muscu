@@ -100,7 +100,7 @@ function atlasIsoChip(map, label) {
   const box = map?.closest('.atlas-box');
   box?.parentElement?.querySelector(':scope > .atlas-box__iso')?.remove();
   if (!box || label == null) return;
-  box.insertAdjacentHTML('afterend', `<div class="atlas-box__iso"><span class="atlas-box__iso-name">Seulement : ${esc(label)}</span><button class="atlas-box__iso-all" data-action="atlas-iso-all">Tout afficher</button></div>`);
+  box.insertAdjacentHTML('afterend', `<div class="atlas-box__iso"><span class="atlas-box__iso-name">Seulement : ${esc(label)}</span><button class="atlas-box__iso-all" data-action="atlas-iso-all"><span class="atlas-box__iso-txt">Tout afficher</span>${icon('xmark', 18)}</button></div>`);
 }
 
 // Dessin et son bouton Agrandir, dans un coin du dessin (panel affichage-e t3 : un grand vide le séparait du

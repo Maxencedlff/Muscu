@@ -91,6 +91,7 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .atlas-box__iso { display: flex; align-self: stretch; flex-wrap: nowrap; align-items: center; justify-content: center; column-gap: 8px;   /* « Tout afficher » toujours sur la ligne du nom (panel t12) */
   font-size: min(var(--fs-footnote), 17px); }
 .atlas-box__iso-name { min-width: 0; font-weight: 600; color: var(--label); }
+.atlas-box__iso-all .icon { display: none; } .type-xl .atlas-box__iso-all { display: flex; align-items: center; justify-content: center; width: 44px; padding: 0; } .type-xl .atlas-box__iso-all .icon { display: block; } .type-xl .atlas-box__iso-txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }   /* AX33 : une croix sur la ligne du nom, « Tout afficher » lu par VoiceOver (panel t12) */
 .atlas-box__iso-all { flex: none; min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; white-space: nowrap; }
 /* Muscles travaillés tous en haut (ou tous en bas) du corps : carte cadrée sur cette moitié (bodyAtlasCrop), plus large ;
    une seule vue utile (abducteurs : le dos) : en grand */

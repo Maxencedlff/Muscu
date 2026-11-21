@@ -733,8 +733,10 @@ def t_progres(bench, eng, dev, theme):
             const line = document.querySelector('.azoom__band > .azoom__legend');
             return { part: Math.round(a.height / s.height * 100), titleLines: Math.round(ti.getBoundingClientRect().height / lh), folded: !!document.querySelector('.azoom__key:not([open])'),
               line: line ? line.textContent.replace(/\\s+/g, ' ').trim() : '' }; }""")
-        R.check(geo['part'] >= 60 and geo['titleLines'] <= 2 and geo['folded'] and all(w in geo['line'] for w in ('Pas travaillé', 'Sous l\'objectif', 'Objectif atteint')),
-                f'{t} vue agrandie AX33 : personnage sur 60 % au moins, les 3 états toujours visibles, bornes repliées {geo}')
+        # Panel t12 : la légende suit le texte agrandi (plafonnée à 21 px), sur deux lignes sur iPhone SE : 55 % au moins
+        # (60 % avec la légende en petit, panel t3 : 350 points seulement auparavant)
+        R.check(geo['part'] >= 55 and geo['titleLines'] <= 2 and geo['folded'] and all(w in geo['line'] for w in ('Pas travaillé', 'Sous l\'objectif', 'Objectif atteint')),
+                f'{t} vue agrandie AX33 : personnage sur 55 % au moins, les 3 états toujours visibles, bornes repliées {geo}')
         page.click('.azoom__sum')
         settle(page)
         R.check('10+' in page.inner_text('.azoom__key'), f'{t} vue agrandie AX33 : « Légende » déplie les bornes')
