@@ -265,6 +265,12 @@ function observeLargeTitle() {
   largeObserver.observe(h1);
   // Saut de défilement (retour sur un élément, lien interne) : l'observateur peut ne rien signaler quand le titre passe
   // d'un coup de « entier » à « loin au-dessus » ; le défilement, lui, est toujours vu (panel t7 : barre vide en clair)
-  largeScroll = () => { if (h1.isConnected) set(h1.getBoundingClientRect().top < bar.getBoundingClientRect().bottom - 1); };
+  // Marge de 12 points pour déplier : replier la barre change sa hauteur, donc la place du titre ; sans marge, la barre
+  // pourrait se replier et se déplier sans fin autour du seuil
+  largeScroll = () => {
+    if (!h1.isConnected) return;
+    const t = h1.getBoundingClientRect().top, b = bar.getBoundingClientRect().bottom;
+    set(bar.classList.contains('navbar--collapsed') ? t < b + 12 : t < b - 1);
+  };
   addEventListener('scroll', largeScroll, { capture: true, passive: true });
 }
