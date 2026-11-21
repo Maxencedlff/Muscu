@@ -72,7 +72,9 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 /* Ligne touchée : seuls ses muscles restent, en rouge plein ; fondu doux entre les deux états */
 .body-map--atlas .body-map__p { transition: opacity .2s ease, background-color .2s ease; }
 .body-map--atlas[data-iso] .body-map__p:not(.is-on) { opacity: 0 !important; }
-/* Les muscles gardés gardent leur couleur (ciblé plein, qui aide à 35 %) : l'isolement éteint seulement les autres */
+/* Les muscles gardés gardent leur couleur (ciblé plein, qui aide à 35 %) : l'isolement éteint seulement les autres ; un
+   muscle qui aide rendu discret (ciblé petit sur la vue, js/ui/body-map.js) reprend sa couleur pleine quand on l'isole */
+.body-map--atlas[data-iso] .body-map__p.body-map__m--faint.is-on { opacity: var(--body-sec-o) !important; }
 @media (prefers-reduced-motion: reduce) { .body-map--atlas .body-map__p { transition: none; } }
 .mline2 { align-items: center; text-align: left; width: 100%; }
 .mline2__dot { width: .75em; height: .75em; border-radius: 50%; flex-shrink: 0; }   /* grandit avec le texte (AX33) */

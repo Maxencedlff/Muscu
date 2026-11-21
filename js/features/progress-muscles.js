@@ -172,8 +172,9 @@ function statsGroupAtlasHtml(g) {
     <figcaption class="exhero__cap exhero__legend" aria-hidden="true">${muscleLegendItemsHtml()}</figcaption></figure>`;
 }
 
-// Sous les zones (panel t13 : Pectoraux 14, mais Haut 7, Milieu 10, Bas 9) : pourquoi le muscle n'est pas leur somme
-const MUSCLE_ZONES_NOTE = 'Une série compte une fois pour le muscle, même si elle touche plusieurs zones.';
+// Sous les zones (panel t13 : Pectoraux 14, mais Haut 7, Milieu 10, Bas 9) : pourquoi le muscle n'est pas leur somme ;
+// et pourquoi un muscle a deux couleurs sur le personnage (panel atlas-bas t2 : quadriceps à l'objectif, droit fémoral pâle)
+const MUSCLE_ZONES_NOTE = 'Par zone : chaque zone a sa couleur sur le personnage. Une zone qui aide compte ½ série : au squat, le droit fémoral avance moins vite que les vastes. Une série compte une fois pour le muscle, même si elle touche plusieurs zones.';
 
 // Lignes « muscle, séries par semaine, barre » : Séries par muscle et détail d'un groupe (même unité que la carte)
 function muscleWeekRowsHtml(load, ids) {

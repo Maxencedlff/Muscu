@@ -157,7 +157,18 @@ const BODY2_DIR = 'img/body2';
 // Muscles qui aident : opacité du jeton --body-sec-o (clair : le rouge à 50 % ; sombre : un rose éteint opaque, css/muscles.css ;
 // panels affichage-e t3 et t5 : à 35 %, presque invisibles ; éclairés, presque aussi vifs que le ciblé) ; le ciblé, rouge plein, se voit en premier
 const BODY_PART_SEC_OPACITY = 'var(--body-sec-o)';
+const BODY_PART_FAINT_OPACITY = 'var(--body-sec-o-faint)';
 const BODY_PART_DEEP_OPACITY = 0.6;   // profond, vu « à travers » le muscle qui le couvre (convention des planches)
+// Ciblé petit sur une vue (panel atlas-bas t2 : aux abducteurs, le croissant rouge du moyen fessier sous un grand fessier
+// rose ; au développé incliné, la bande du haut des pectoraux) : quand l'aire visible du ciblé fait moins de 30 % de celle
+// des muscles qui aident sur la vue, ceux-ci passent plus discrets (jeton --body-sec-o-faint, css/muscles.css), pour que le
+// rouge reste ce qu'on voit d'abord. Aires : 3e nombre de BODY_PARTS.boxes (pixels pleins, tools/gen-body2.py)
+const BODY_PART_FAINT_RATIO = 0.3;
+function bodyAtlasFaint(boxes, levels) {
+  const area = f => BODY_PARTS.parts.filter(p => !p.deep && boxes[p.id] && f(levels[p.id] || 0)).reduce((n, p) => n + (boxes[p.id][2] || 0), 0);
+  const help = area(lv => lv === 1);
+  return help > 0 && area(lv => lv >= 2) < BODY_PART_FAINT_RATIO * help;
+}
 
 function body2Url(kind, view, file) { return `${BODY2_DIR}/${kind}/${view}/${file}`; }
 
@@ -174,11 +185,12 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline
   const zero = new Set(tiers ? outline.filter(id => boxes[id] && !(levels[id] > 0)) : []);
   const on = BODY_PARTS.parts.filter(p => boxes[p.id] && (levels[p.id] > 0 || zero.has(p.id)));
   on.sort((a, b) => Number(!!a.deep) - Number(!!b.deep));
+  const faint = !tiers && bodyAtlasFaint(boxes, levels);
   return on.map(p => {
     const b = boxes[p.id][res === 3 ? 1 : 0], lv = levels[p.id] || 0;
     const url = `url(${body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${p.id}.webp`)})`;
-    const op = tiers ? 1 : p.deep ? BODY_PART_DEEP_OPACITY : lv >= 2 ? 1 : BODY_PART_SEC_OPACITY;   // Progrès : profonds pleins, à la couleur de leur état (panel t12)
-    const tone = tiers ? ` body-map__m--t${Math.min(BODY_TIERS, lv)}` : lv >= 2 ? '' : ' body-map__m--sec';
+    const op = tiers ? 1 : p.deep ? BODY_PART_DEEP_OPACITY : lv >= 2 ? 1 : faint ? BODY_PART_FAINT_OPACITY : BODY_PART_SEC_OPACITY;   // Progrès : profonds pleins, à la couleur de leur état (panel t12)
+    const tone = tiers ? ` body-map__m--t${Math.min(BODY_TIERS, lv)}` : lv >= 2 ? '' : ` body-map__m--sec${faint && !p.deep ? ' body-map__m--faint' : ''}`;
     const cls = `body-map__m body-map__p${tone}${p.deep ? ' body-map__p--deep' : ''}`;
     return `<i class="${cls}" data-part="${p.id}" data-muscle="${p.parent || ''}" data-level="${lv}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)};background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
   }).join('') + (outline.length ? bodyOutlineHtml(kind, view, outline, res) : '')

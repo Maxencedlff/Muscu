@@ -318,7 +318,7 @@ def p_progres(r):
         r.defiler('.mcard', 'carte Muscles')
     # Personnage détaillé de Progrès : un sous-muscle touché (séries de la période, 3 exercices), puis la vue agrandie
     with r.etape('silhouette-nom', 'Carte Muscles : toucher le muscle le plus travaillé (séries, exercices)', cle='Voir ses muscles travaillés'):
-        part = r.page.evaluate("""() => Object.entries(partLoad(muscleSpan).sets).filter(([id]) => !ATLAS_SIMPLE_MUSCLES.has(atlasPart(id).parent) && !atlasPart(id).deep)
+        part = r.page.evaluate("""() => Object.entries(partLoad(muscleSpan).sets).filter(([id]) => !atlasPart(id).deep)
             .sort((a, b) => b[1] - a[1])[0]?.[0]""")
         xy = part and r.page.evaluate("""id => { const l = document.querySelector(`.mcard__map [data-part="${id}"]`); if (!l) return null;
             const b = l.getBoundingClientRect(); return [b.left + b.width * 0.3, b.top + b.height * 0.5]; }""", part)
@@ -355,6 +355,9 @@ def p_progres(r):
     with r.etape('series-par-muscle', 'Séries par muscle', cle='Voir ses muscles travaillés'):
         r.toucher('.view.stats-group [data-action="go-stats-muscles"]', 'Tous les muscles')
         r.attendre('.view.stats-muscles', 'Séries par muscle')
+    # Jambes au détail (panel atlas-bas t2) : « Par zone » des quadriceps (vastes et droit fémoral, chacun sa couleur)
+    with r.etape('series-jambes', 'Séries par muscle : les quadriceps et leur ligne « Par zone »', cle='Voir ses muscles travaillés'):
+        r.defiler('.view.stats-muscles .mrow[data-muscle="quads"]', 'ligne Quadriceps')
     with r.etape('courbe-exercice', 'Courbe d\'un exercice et son record', cle='Voir la progression d\'un exercice'):
         r.retour()
         r.retour()
@@ -373,6 +376,20 @@ def p_progres(r):
     with r.etape('photos', 'Photos de progression (coffre : présentation, « Créer le coffre »)'):
         r.toucher('[data-action="go-photo-vault"]', 'Photos')
         r.attendre('.view.photo-vault', 'coffre à photos')
+    # Un muscle de la jambe à 0 série (panel atlas-bas t2 : juger son contour) : les séances sans les exercices qui
+    # touchent les mollets, puis la carte Muscles
+    with r.etape('jambe-zero', 'Carte Muscles : mollets à 0 série (contour gris, « À travailler »)', cle='Voir ses muscles travaillés'):
+        n = r.raccourci("""() => { const calf = ['gastro_medial', 'gastro_lateral', 'soleus'];
+            const hit = e => { const x = exercisePartRoles(e.name, exerciseMuscles(e)); return [...x.p, ...x.s].some(id => calf.includes(id)); };
+            let n = 0; data.history.forEach(h => { const k = (h.exercises || []).length; h.exercises = (h.exercises || []).filter(e => !hit(e)); n += k - h.exercises.length; });
+            switchTab('progress', { reset: true }); render(); return n; }""", 'séances sans exercice des mollets')
+        r.attendre('.view.stats', 'Progrès')
+        r.defiler('.mcard', 'carte Muscles')
+        if not r.page.evaluate("() => !(partLoad(muscleSpan).sets.soleus > 0) && !!document.querySelector('.mcard__map [data-ol=\"soleus\"], .mcard__map [data-part=\"soleus\"]')"):
+            raise Absent('mollets à 0 série : soléaire absent ou travaillé')
+    with r.etape('jambe-zero-nom', 'Carte Muscles : toucher « Mollets » dans « À travailler »', cle='Voir ses muscles travaillés'):
+        r.toucher('.mcard .mlow__name[data-muscle="calves"]', 'Mollets dans « À travailler »')
+        r.page.wait_for_timeout(500)
 
 
 @parcours('programme', 'Programme', 'pratiquant')

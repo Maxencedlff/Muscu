@@ -16,6 +16,8 @@ base.webp, base@3x.webp, p3/<sous-muscle>.webp recadrés, lines@3x.webp, hit.png
   js/data/body-parts.js                   BODY_PARTS : noms, parents, profonds, boîtes 1× et 3× par vue
   sw.js                                   bloc « body2 1× » de ASSETS (1× et cartes de toucher, jamais le 3×)
 
+Jambes et fessiers : ombrage des calques éclairci au niveau du haut du corps (LEG_TONE).
+
 Personnage femme, vue de face : le tissu mammaire n'est pas un muscle. Les calques des pectoraux (et ce qui passe
 dessous) sont évidés sur le volume des seins, de même que les contours de lines@3x et la carte de toucher : le
 pectoral ne se colore que sous et autour du sein, vers l'aisselle et le sternum (BREASTS, panel de l'affiche).
@@ -49,6 +51,31 @@ BREAST_PARTS = ('chest_sternal', 'chest_abdominal', 'chest_clavicular', 'pec_min
 BREAST_FEATHER = 2   # bord net (pas de halo), sans marche d'escalier
 
 
+# Jambes et fessiers : l'ombrage gris de leurs calques est plus sombre que celui du haut du corps (moyenne 112 à 135 sur
+# 255, contre 165 à 178 aux pectoraux et aux épaules), d'autres éclairages dans le rendu de mdlf-perso. En clair (multiply),
+# le ciblé y virait au rouge presque noir, bord sombre compris (panel atlas-bas t2 : « contour noir » chez la femme).
+# Éclaircis ici vers LEG_TONE (gain borné à LEG_GAIN_MAX), le relief des fibres reste
+LEG_PARTS = ('glute_max', 'glute_med', 'glute_min', 'tfl', 'sartorius', 'iliopsoas', 'rectus_femoris', 'vastus_lateralis',
+             'vastus_medialis', 'vastus_intermedius', 'adductor_longus', 'adductor_brevis', 'adductor_magnus', 'gracilis',
+             'pectineus', 'biceps_femoris_long', 'biceps_femoris_short', 'semitendinosus', 'semimembranosus', 'gastro_medial',
+             'gastro_lateral', 'soleus', 'tibialis', 'itb', 'achilles', 'knee_tendons', 'peroneus')
+LEG_TONE, LEG_GAIN_MAX = 165, 1.6
+
+
+def leg_tone(src, out):
+    """Calque 3× d'un sous-muscle de la jambe, son ombrage éclairci jusqu'à LEG_TONE en moyenne (alpha inchangé)."""
+    img = Image.open(src).convert('RGBA')
+    r, g, b, a = img.split()
+    gray, mask = r.convert('L'), a.point(lambda v: 255 if v > 128 else 0)
+    hist = gray.histogram(mask)
+    n = sum(hist)
+    mean = sum(i * c for i, c in enumerate(hist)) / n if n else LEG_TONE
+    gain = min(LEG_GAIN_MAX, LEG_TONE / mean) if mean < LEG_TONE else 1
+    if gain > 1:
+        r, g, b = (ch.point(lambda v: min(255, round(v * gain))) for ch in (r, g, b))
+    Image.merge('RGBA', (r, g, b, a)).save(out, 'WEBP', quality=90, alpha_quality=90, method=6)
+
+
 def breast_keep(sex, view, size3):
     """Masque 3× (L) de la vue : 255 hors des seins, 0 dedans, bord adouci ; None sans seins."""
     if (sex, view) not in BREASTS:
@@ -71,6 +98,12 @@ def cut_alpha(img, keep, box):
 def box1(b):
     """Boîte 3× → plus petite boîte 1× entière qui la contient."""
     return [b[0] // 3, b[1] // 3, math.ceil(b[2] / 3), math.ceil(b[3] / 3)]
+
+
+def area1(path):
+    """Aire visible d'un calque 1× : somme de son alpha, en pixels pleins (poids des muscles qui aident, js/ui/body-map.js)."""
+    h = Image.open(path).convert('RGBA').getchannel('A').histogram()
+    return round(sum(i * n for i, n in enumerate(h)) / 255)
 
 
 def reduce_part(src, b3, out):
@@ -112,10 +145,12 @@ def main():
                 if keep and pid in BREAST_PARTS:
                     cut_alpha(Image.open(os.path.join(s, 'p3', f'{pid}.webp')), keep, b3).save(
                         os.path.join(d, 'p3', f'{pid}.webp'), 'WEBP', quality=90, alpha_quality=90, method=6)
+                elif pid in LEG_PARTS:
+                    leg_tone(os.path.join(s, 'p3', f'{pid}.webp'), os.path.join(d, 'p3', f'{pid}.webp'))
                 else:
                     shutil.copyfile(os.path.join(s, 'p3', f'{pid}.webp'), os.path.join(d, 'p3', f'{pid}.webp'))
                 b1 = reduce_part(os.path.join(d, 'p3', f'{pid}.webp'), b3, os.path.join(d, 'p', f'{pid}.webp'))
-                entry[pid] = [b1, b3]
+                entry[pid] = [b1, b3, area1(os.path.join(d, 'p', f'{pid}.webp'))]
                 urls.append(f'/img/body2/{sex}/{view}/p/{pid}.webp')
             boxes[sex][view] = entry
             urls[:0] = [f'/img/body2/{sex}/{view}/base.webp', f'/img/body2/{sex}/{view}/hit.png']
@@ -154,8 +189,9 @@ def write_js(man, boxes):
 //   parts       sous-muscles dans l'ordre d'empilement : id, name (nom de salle), latin (nom officiel),
 //               parent (muscle de l'app, js/data/muscles.js ; null : muscle seulement nommé au toucher),
 //               deep (profond : jamais de zone de toucher, montré seulement quand l'exercice le travaille)
-//   boxes       par sexe et vue : {{ id: [boîte 1× de p/<id>.webp, boîte 3× de p3/<id>.webp] }}, en pixels
-//               [x0, y0, x1, y1] de la vue ; un sous-muscle absent d'une vue n'y a pas de calque
+//   boxes       par sexe et vue : {{ id: [boîte 1× de p/<id>.webp, boîte 3× de p3/<id>.webp, aire 1×] }}, boîtes en
+//               pixels [x0, y0, x1, y1] de la vue, aire en pixels pleins (alpha) ; un sous-muscle absent d'une vue
+//               n'y a pas de calque
 const BODY_PARTS = {json.dumps({'w': man['w'], 'h': man['h'], 'w3': man['w3'], 'h3': man['h3'], 'hit': man['hit'], 'parts': parts, 'boxes': boxes}, ensure_ascii=False, separators=(',', ':'))};
 """
     open(os.path.join(ROOT, 'js', 'data', 'body-parts.js'), 'w', encoding='utf-8').write(js)

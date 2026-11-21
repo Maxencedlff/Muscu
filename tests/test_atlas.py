@@ -622,7 +622,7 @@ def t_progres(bench, eng, dev, theme):
         tiers = page.evaluate("[...new Set([...document.querySelectorAll('.mcard__map .body-map__p')].map(l => [...l.classList].find(c => /--t\\d/.test(c))))]")
         R.check(tiers and all(tiers), f'{t} chaque sous-muscle travaillé dans la teinte de son palier {tiers}')
         # Un sous-muscle travaillé : nom, séries de la période, palier, exercices qui l'ont le plus travaillé
-        part = page.evaluate("Object.entries(partLoad(muscleSpan).sets).filter(([id]) => !ATLAS_SIMPLE_MUSCLES.has(atlasPart(id).parent) && !atlasPart(id).deep).sort((a, b) => b[1] - a[1])[0][0]")
+        part = page.evaluate("Object.entries(partLoad(muscleSpan).sets).filter(([id]) => !atlasPart(id).deep).sort((a, b) => b[1] - a[1])[0][0]")
         view = page.evaluate(f"BODY_PARTS.boxes[bodySilhouette()].front[{json.dumps(part)}] ? 'front' : 'back'")
         tap(page, part_point(page, '.mcard__map', part, view))
         wait_or_say(page, '.atlas-info', 'attente 1')

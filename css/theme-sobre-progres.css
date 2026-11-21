@@ -23,6 +23,7 @@
   --body-heat: #FF453A; --body-heat-max: #FF453A; --body-heat-sec: #EFA195;   /* sombre : rouge vif (systemRed sombre), le muscle ciblé se repère d'un coup d'œil */
   --body-main-ol: #A0160E;   /* contour du ciblé de la fiche */
   --body-ol: #8E8E93;   /* contour des muscles à 0 série de « À travailler » (Progrès) ; 70 % : une sélection (t7), 45 % : trop discret (t9) */
+  --body-sec-o-faint: .55;   /* qui aident discrets quand le ciblé est petit sur la vue (js/ui/body-map.js, bodyAtlasFaint) */
   --body-sec-o: 1; --body-sec-tint: #8E5868; --body-sec-blend: normal; --body-sec-bright: 1;   /* muscles qui aident : rose éteint (css/muscles.css) ; avant, à 40 %, éclairé ; écart 41 avec le ciblé et 31 avec
      le gris (panel affichage-e : à 35 % en multiply, un brun terne ; à 48 %, presque aussi vif que le ciblé) */
   --body-atlas-bright: .46;   /* corps de l'atlas plus sombre en sombre : rouge vif / gris 2,7:1 (mesuré le 20/11) */
@@ -39,6 +40,7 @@ body.light {
   --body-heat: #A31B19; --body-heat-max: #A31B19; --body-heat-sec: #C37367;
   --body-main-ol: #E0392C;
   --body-ol: #8A8A8E;
+  --body-sec-o-faint: .5;
   --body-sec-o: 1; --body-sec-tint: #AB6B85; --body-sec-blend: normal; --body-sec-bright: 1;   /* muscles qui aident : rose franc uni (css/muscles.css) */
   --body-atlas-bright: 1;
   --body-heat-help: #AB6B85;   /* qui aident (pastille) : la teinte vue sur le personnage, ombrage compris (mesurée le 21/11) */

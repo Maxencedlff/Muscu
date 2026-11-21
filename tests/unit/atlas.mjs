@@ -175,7 +175,7 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     const html = run(`bodyAtlasHtml(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels, { body: 'male', tap: true, title: 'Développé incliné barre' })`);
     assert.ok(!/@3x|\/p3\/|lines|hit\.png/.test(html), 'aucune image 3× au premier affichage');
     assert.ok(/class="body-map__m body-map__p" data-part="chest_clavicular"/.test(html), 'claviculaire en rouge plein');
-    assert.ok(/body-map__m--sec" data-part="chest_sternal"/.test(html) && /body-map__m--sec" data-part="delt_anterior"/.test(html), 'sterno-costal, deltoïde antérieur atténués');
+    assert.ok(/body-map__m--sec[^"]*" data-part="chest_sternal"/.test(html) && /body-map__m--sec[^"]*" data-part="delt_anterior"/.test(html), 'sterno-costal, deltoïde antérieur atténués');
     assert.ok(html.includes('img/body2/male/front/base.webp') && html.includes('img/body2/male/back/base.webp'));
     assert.ok(html.includes('data-action="body-tap"') && html.includes('body-map--atlas'));
     const row = run(`exercisePartLevels('Rowing barre', musclesOf('Rowing barre')).levels`);
@@ -231,13 +231,14 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.ok(/class="body-map__ol body-map__ol--main" data-ol="glute_med"/.test(fiche) && !/data-ol="glute_max"/.test(fiche),
       'fiche : le ciblé seul cerné de rouge (panel t8), pas le muscle qui aide');
     // Zones d'un muscle de salle (panel t12) : « Haut · Milieu · Bas » pour les pectoraux, les chefs du triceps, rien
-    // pour un muscle coloré en entier (fessiers)
+    // pour un muscle d'un seul tenant (abdominaux)
     const zones = (m, weekly) => run(`atlasMuscleZones({ weekly: ${JSON.stringify(weekly)} }, ${JSON.stringify(m)}, 'male')`);
     const pz = zones('chest', { chest_clavicular: 5, chest_sternal: 9 });
     sameJSON(pz.slice(0, 3), [{ label: 'Haut', n: 5 }, { label: 'Milieu', n: 9 }, { label: 'Bas', n: 0 }]);
     sameJSON(zones('traps', { traps_middle: 4 }).slice(0, 3).map(z => z.label), ['Haut', 'Milieu', 'Bas']);
     sameJSON(zones('triceps', {}).map(z => z.label), ['Chef long', 'Chef latéral', 'Chef médial']);
-    sameJSON(zones('glutes', { glute_max: 3 }), []);
+    sameJSON(zones('glutes', { glute_max: 3 }), [{ label: 'Grand fessier', n: 3 }, { label: 'Moyen fessier', n: 0 }], 'fessiers : zones depuis le détail des jambes');
+    sameJSON(zones('abs', { rectus_abdominis: 3 }), [], 'muscle d\'un seul tenant : pas de zones');
     assert.ok(new Set(zones('traps', {}).map(z => z.label)).size === zones('traps', {}).length, 'rhomboïdes : une seule zone');
     // Page de groupe (contre-vérification de l'auditeur, cas de probe.mjs) : vues et cadrage sur TOUS les sous-muscles du
     // groupe, sinon ceux à 0 série de l'autre vue disparaissaient (Épaules : le deltoïde antérieur seul travaillé cachait
@@ -310,6 +311,57 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     sameJSON(inc.find(x => x.label === 'Triceps').ids.sort(), ['triceps_lateral', 'triceps_long', 'triceps_medial']);
   });
 
+  test('fiche : chaque nom des deux lignes a la couleur de tous ses sous-muscles (panel atlas-bas t2, squat et mollets)', () => {
+    const strip = t => t.replace(/\u00ad/g, '');
+    const lines = (name, kind) => { const lv = app.exercisePartLevels(name, app.musclesOf(name)).levels;
+      const r = run(`atlasRanked(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)}), ${JSON.stringify(lv)}, ${JSON.stringify(kind)})`);
+      return { lv, r, main: r.filter(x => x.level >= 2).map(x => strip(x.label)), help: r.filter(x => x.level < 2).map(x => strip(x.label)) }; };
+    // Squat : le droit fémoral (rose) n'est plus caché sous « Quadriceps » ciblé
+    const sq = lines('Squat barre', 'male');
+    assert.ok(sq.main.includes('Vaste latéral') && sq.main.includes('Vaste médial') && !sq.main.includes('Quadriceps'), `squat : ${sq.main}`);
+    assert.ok(sq.help.includes('Droit fémoral'), `squat, qui aident : ${sq.help}`);
+    // Mollets debout : le soléaire (rose) a sa ligne « Qui aident »
+    for (const kind of SEXES) assert.ok(lines('Mollets debout', kind).help.includes('Soléaire'), `mollets ${kind} : ${lines('Mollets debout', kind).help}`);
+    // Haut du corps : un groupe d'une seule couleur garde son nom (le triceps du développé incliné)
+    assert.ok(lines('Développé incliné barre', 'male').help.includes('Triceps'));
+    sameJSON(lines('Extension triceps poulie haute', 'male'), { ...lines('Extension triceps poulie haute', 'male'), main: ['Chef latéral du triceps', 'Chef médial du triceps'], help: ['Chef long du triceps'] }, 'chefs du triceps nommés un à un');
+    // Toute la bibliothèque, homme et femme : ciblé = sous-muscles rouges (niveau 2), qui aident = roses (niveau 1) ; un nom
+    // de groupe seulement si tous ses sous-muscles visibles ont cette couleur ; tout sous-muscle coloré visible est nommé
+    const BPd = BP(), shown = (kind, id) => VIEWS.some(v => BPd.boxes[kind][v][id]);
+    let n = 0;
+    for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) for (const kind of SEXES) {
+      const { lv, r } = lines(name, kind);
+      if (!r.length) continue;
+      n++;
+      for (const x of r) {
+        assert.ok(x.ids.length && x.ids.every(id => (lv[id] >= 2) === (x.level >= 2) && lv[id] > 0), `${name} ${kind} : « ${x.label} » (${x.level}) mêle les couleurs ${x.ids.map(id => id + ':' + lv[id])}`);
+        const group = BPd.parts.filter(p => app.atlasPillLabel(p.id) === x.label && shown(kind, p.id) && (!p.deep || lv[p.id] > 0));
+        if (group.length > 1) assert.ok(group.every(p => (lv[p.id] >= 2) === (x.level >= 2) && lv[p.id] > 0), `${name} ${kind} : groupe « ${x.label} » nommé, sous-muscles ${group.map(p => p.id + ':' + (lv[p.id] || 0))}`);
+      }
+      const named = new Set(r.flatMap(x => x.ids));
+      for (const id of Object.keys(lv).filter(id => lv[id] > 0 && shown(kind, id))) assert.ok(named.has(id), `${name} ${kind} : ${id} coloré sans nom dans les lignes`);
+      assert.equal(new Set(r.map(x => x.label)).size, r.length, `${name} ${kind} : nom en double`);
+    }
+    assert.ok(n >= 300, `${n} fiches vérifiées`);
+  });
+
+  test('fiche : muscles qui aident discrets quand le ciblé est petit sur la vue (abducteurs, développé incliné)', () => {
+    const html = (name, kind, view) => run(`bodyAtlasLayersHtml(${JSON.stringify(kind)}, ${JSON.stringify(view)}, exercisePartLevels(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)})).levels)`);
+    for (const kind of SEXES) {
+      const ab = html('Abducteurs machine', kind, 'back');
+      assert.ok(/data-part="glute_max"[^>]*opacity:var\(--body-sec-o-faint\)/.test(ab) && /body-map__m--faint" data-part="glute_max"/.test(ab), `abducteurs ${kind} : grand fessier discret`);
+      assert.ok(/data-part="glute_med"[^>]*opacity:1/.test(ab), `abducteurs ${kind} : moyen fessier plein`);
+      assert.ok(!html('Squat barre', kind, 'front').includes('body-map__m--faint'), `squat ${kind} : vastes assez grands, aidants normaux`);
+    }
+    // Développé incliné, homme : la bande du haut des pectoraux, 27 % des aidants ; femme : 54 %, aidants normaux
+    assert.ok(html('Développé incliné barre', 'male', 'front').includes('body-map__m--faint'), 'développé incliné homme : aidants discrets');
+    assert.ok(!html('Développé incliné barre', 'female', 'front').includes('body-map__m--faint'), 'développé incliné femme : aidants normaux');
+    // Progrès (paliers) : jamais discrets
+    assert.ok(!run(`bodyAtlasLayersHtml('male', 'back', { glute_med: 2, glute_max: 1 }, 1, true)`).includes('--faint'));
+    // Isolés : la couleur pleine revient
+    assert.ok(/\[data-iso\] \.body-map__p\.body-map__m--faint\.is-on \{ opacity: var\(--body-sec-o\) !important/.test(fs.readFileSync(path.join(ROOT, 'css', 'muscles.css'), 'utf8')));
+  });
+
   test('Progrès : séries de la période par sous-muscle (principal 1, secondaire ½), paliers, 3 exercices', () => {
     const DAY = 86_400_000, now = Date.UTC(2026, 10, 19, 12);
     const h = (d, name, n) => ({ id: name + d, date: now - d * DAY, programme: 'ppl', category: 'push',
@@ -331,13 +383,20 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     sameJSON(bad, [], 'comptage = rôle affiché sur la fiche, pour tous les exercices');
     assert.equal(c.sets.lats, 4);
     sameJSON(run(`partTopExercises(${JSON.stringify(c.byEx)}, 'chest_clavicular')`)[0], ['Développé incliné barre', 4]);
-    // Paliers : même échelle que les 18 muscles (séries par semaine), bas du corps = palier du muscle entier
+    // Paliers : même échelle que les 18 muscles (séries par semaine), sous-muscle par sous-muscle, jambes comprises
     run(`data.history = ${JSON.stringify(hist)}`);
     const pl = run(`partLoad('month', ${now}, data.history)`);
     assert.equal(pl.weekly.chest_clavicular, Math.max(1, Math.round(7 / 4)));
     assert.equal(pl.levels.chest_clavicular, app.muscleLevel(pl.weekly.chest_clavicular));
     assert.equal(pl.levels.chest_abdominal > 0, true, 'couché : faisceau abdominal travaillé');
-    assert.equal(pl.levels.glute_max, pl.load.levels.glutes, 'bas du corps : carte simple');
+    // Jambes au détail (panel atlas-bas t2) : au squat, vastes ciblés (1 série) et droit fémoral qui aide (½) ; « Par zone »
+    // des quadriceps le dit
+    const sq = [h(1, 'Squat barre', 8), h(2, 'Squat barre', 8), h(3, 'Squat barre', 8), h(4, 'Squat barre', 8)];
+    const pq = run(`partLoad('week', ${now}, ${JSON.stringify(sq)})`);
+    assert.ok(pq.sets.vastus_lateralis > pq.sets.rectus_femoris && pq.sets.rectus_femoris > 0, `squat : vastes ${pq.sets.vastus_lateralis}, droit fémoral ${pq.sets.rectus_femoris}`);
+    const zq = run(`atlasMuscleZones(partLoad('week', ${now}, ${JSON.stringify(sq)}), 'quads', 'male')`).map(z => z.label.replace(/\u00ad/g, ''));
+    sameJSON(zq, ['Droit fémoral', 'Vaste latéral', 'Vaste médial'], 'quadriceps : une zone par chef visible');
+    sameJSON(run(`atlasMuscleZones(partLoad('week', ${now}, ${JSON.stringify(sq)}), 'calves', 'male')`).map(z => z.label.replace(/\u00ad/g, '')), ['Gastrocnémien médial', 'Gastrocnémien latéral', 'Soléaire']);
     assert.equal(pl.levels.delt_posterior, app.muscleLevel(pl.weekly.delt_posterior));
     assert.equal(pl.sets.rhomboid_major, 4 * role('Tractions pronation', 'rhomboid_major'), 'tractions : rhomboïdes au rôle de la fiche');
   });

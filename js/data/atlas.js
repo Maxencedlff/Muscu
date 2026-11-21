@@ -79,14 +79,38 @@ function atlasPartTitle(id) {
   const precise = (name.includes(', ') ? name.slice(name.indexOf(', ') + 2) : name).replace(/\s*\(.*\)$/, '');
   return `${label}, ${precise.charAt(0).toLowerCase()}${precise.slice(1)}`;
 }
+// Nom court d'un sous-muscle, son nom de salle sans le muscle (« Vaste latéral », « Semi-tendineux », « Petit rond »),
+// et pour un chef « Chef long du triceps » (« Chef long » seul ne dit pas de quel muscle ; « Triceps, chef long » se lit
+// mal dans une liste séparée par des virgules)
+function atlasPartShort(id) {
+  const label = atlasPillLabel(id), title = atlasPartTitle(id);
+  if (title === label || !title.startsWith(`${label}, `)) return title;
+  const rest = title.slice(label.length + 2), cap = rest.charAt(0).toUpperCase() + rest.slice(1);
+  return /^chef /.test(rest) ? `${cap} du ${label.toLowerCase()}` : cap;
+}
+
+// Noms des lignes de la fiche (panel atlas-bas t2 : « Muscle ciblé : Quadriceps » sous un droit fémoral rose) : un nom de
+// groupe (« Quadriceps », « Mollets », « Triceps ») seulement si TOUS ses sous-muscles visibles sont à la même couleur ;
+// sinon chaque sous-muscle sous son nom court (« Vaste latéral, Vaste médial » ciblés, « Droit fémoral » qui aide).
+// Visibles : ceux qui ont un calque sur une vue du personnage (les profonds seulement quand l'exercice les colore).
+// Nom de la ligne pour le sous-muscle id, à son intensité dans levels
+function atlasLineLabel(id, levels, kind = bodyKind(bodySilhouette())) {
+  const label = atlasPillLabel(id), main = levels[id] >= 2;
+  const seen = p => ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id]) && (!p.deep || levels[p.id] > 0);
+  const whole = BODY_PARTS.parts.filter(p => atlasPillLabel(p.id) === label && (seen(p) || p.id === id))
+    .every(p => levels[p.id] > 0 && (levels[p.id] >= 2) === main);
+  return whole ? label : atlasPartShort(id);
+}
+
 // Pastilles de la fiche, dans l'ordre : rouge plein d'abord (intensité 2), puis atténué ; un nom une seule fois, à
-// l'intensité la plus forte de ses sous-muscles. [{ label, level }]
-function atlasPills(levels) {
+// l'intensité de ses sous-muscles (un groupe dont les sous-muscles n'ont pas tous la même couleur est nommé sous-muscle
+// par sous-muscle : atlasLineLabel). [{ label, level }]
+function atlasPills(levels, kind = bodyKind(bodySilhouette())) {
   const by = new Map();
   for (const p of BODY_PARTS.parts) {
     const lv = levels[p.id];
     if (!(lv > 0)) continue;
-    const label = atlasPillLabel(p.id);
+    const label = atlasLineLabel(p.id, levels, kind);
     by.set(label, Math.max(by.get(label) || 0, lv));
   }
   return [...by].map(([label, level]) => ({ label, level })).sort((a, b) => b.level - a.level);
@@ -105,16 +129,16 @@ function exercisePartRoles(name, m) {
   return { p: ids.filter(id => lv[id] >= 2), s: ids.filter(id => lv[id] === 1) };
 }
 
-// Noms classés pour les deux lignes : chaque nom de pastille une fois, à l'intensité la plus forte de ses sous-muscles,
+// Noms classés pour les deux lignes : chaque nom une fois (atlasLineLabel : tous ses sous-muscles à la même couleur),
 // dans l'ordre de la correspondance (le plus sollicité d'abord : principaux puis secondaires). [{ label, level, ids }]
-function atlasRanked(name, m, levels) {
+function atlasRanked(name, m, levels, kind = bodyKind(bodySilhouette())) {
   const { p, s } = exercisePartRoles(name, m);
   const order = [...p, ...s.filter(id => !p.includes(id))];
   const rank = id => (levels[id] >= 2 ? 0 : 1000) + (order.includes(id) ? order.indexOf(id) : 500 + (atlasPart(id)?.rank || 0));
   const by = new Map();
   for (const id of Object.keys(levels).filter(id => levels[id] > 0).sort((a, b) => rank(a) - rank(b))) {
-    const label = atlasPillLabel(id), cur = by.get(label);
-    if (cur) { cur.level = Math.max(cur.level, levels[id]); cur.ids.push(id); } else by.set(label, { label, level: levels[id], ids: [id] });
+    const label = atlasLineLabel(id, levels, kind), cur = by.get(label);
+    if (cur) cur.ids.push(id); else by.set(label, { label, level: levels[id], ids: [id] });
   }
   return [...by.values()].sort((a, b) => b.level - a.level);   // tri stable : l'ordre de la correspondance reste
 }
@@ -149,9 +173,6 @@ function partSetCounts(history, from = -Infinity, to = Infinity, index = chosenM
   return { sets, byEx };
 }
 
-// Muscles du bas du corps : carte simple (le palier du muscle entier sur tous ses sous-muscles) jusqu'au détail des jambes
-const ATLAS_SIMPLE_MUSCLES = new Set(['glutes', 'quads', 'hamstrings', 'adductors', 'calves']);
-
 // Charge de la période par sous-muscle, mêmes périodes et paliers que muscleLoad (séries par semaine affichées) :
 // { sets, weekly, levels: { id: 0..MUSCLE_LEVEL_MAX }, byEx, load } ; load : muscleLoad de la même période
 function partLoad(spanKey = 'week', now = Date.now(), history = data.history) {
@@ -160,7 +181,6 @@ function partLoad(spanKey = 'week', now = Date.now(), history = data.history) {
   const { sets, byEx } = partSetCounts(history, from, now + 1);
   const weekly = {}, levels = {};
   for (const p of BODY_PARTS.parts) {
-    if (ATLAS_SIMPLE_MUSCLES.has(p.parent)) { levels[p.id] = load.levels[p.parent] || 0; weekly[p.id] = load.weekly[p.parent] || 0; continue; }
     const perWeek = roundSets(sets[p.id] || 0) / span.weeks;
     weekly[p.id] = perWeek > 0 ? Math.max(1, Math.round(perWeek)) : 0;
     levels[p.id] = muscleLevel(weekly[p.id]);
@@ -195,9 +215,9 @@ function partTopExercises(byEx, id, n = 3) {
 // pâle sur le dessin) : [{ label, n }], n = séries par semaine de la zone, l'unité de « Séries par muscle ». Zones
 // nommées court : « Haut », « Milieu », « Bas » (pectoraux, trapèzes), « Chef long » (triceps), sinon le nom de la
 // pastille ; deux sous-muscles de même pastille (rhomboïdes) n'en font qu'une, au plus travaillé. Vide pour les
-// muscles d'un seul tenant sur le dessin et pour ceux colorés en entier (fessiers, quadriceps… : ATLAS_SIMPLE_MUSCLES)
+// muscles d'un seul tenant sur le dessin. Jambes comprises depuis leur détail (panel atlas-bas t2 : au squat, les vastes
+// ciblés et le droit fémoral qui aide n'ont pas le même palier, « Par zone » le dit : « Vaste latéral 10 · Droit fémoral 5 »)
 function atlasMuscleZones(pl, muscleId, kind = bodyKind(bodySilhouette())) {
-  if (ATLAS_SIMPLE_MUSCLES.has(muscleId)) return [];
   const label = muscleLabel(muscleId), cap = t => t.charAt(0).toUpperCase() + t.slice(1);
   const parts = BODY_PARTS.parts.filter(p => p.parent === muscleId && ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id]));
   const pills = new Set(parts.map(p => atlasPillLabel(p.id)));
