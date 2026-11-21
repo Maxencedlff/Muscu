@@ -169,7 +169,7 @@ registerActions({
   'sound-diagnostics': () => showSoundDiagnostics(),
   'sound-diag-copy': async () => {
     if (!soundDiagText) return;
-    try { await navigator.clipboard.writeText(soundDiagText); showToast('Diagnostic copié, colle-le dans un message'); }
+    try { await navigator.clipboard.writeText(soundDiagText); showToast('Diagnostic copié, colle\u2011le dans un message'); }
     catch { showToast('Copie impossible, fais une capture d\'écran'); }
   },
 });

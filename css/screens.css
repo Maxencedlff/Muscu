@@ -78,7 +78,8 @@
 .sound-diag__row { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 12px; padding: 6px 0;
   border-top: .5px solid var(--sep); font-size: var(--fs-subhead); }
 .sound-diag__row dt { color: var(--label2); }
-.sound-diag__row dd { margin: 0; color: var(--label); text-align: right; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+.sound-diag__row dd { margin: 0 0 0 auto; color: var(--label); text-align: left; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+/* Valeur à droite sur la ligne du libellé ; passée dessous (texte agrandi), elle reste lisible de gauche à droite */
 .sound-diag__row .sound-diag__bad { color: var(--red-text); }
 .sound-diag__copy { margin-top: 4px; }
 .sound-diag__text { margin: 0; width: 100%; font: 0.706rem/1.0rem ui-monospace, "SF Mono", Menlo, monospace; color: var(--label2);
