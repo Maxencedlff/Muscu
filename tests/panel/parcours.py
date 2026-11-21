@@ -960,6 +960,62 @@ def p_reglages_sons(r):
         r.toucher('[data-action="setting-duck"]', 'Baisser la musique')
 
 
+# Coquille iOS factice de la build du 21/11/2026 : MdlfSound publie selfTest (Native.sound.canSelfTest), sans quoi
+# la ligne « Diagnostic du son » n'existe pas. Résultat simulé : tout joué, ou GO muet (moteur arrêté) quand
+# window.__sonMuet est vrai. Presse-papier simulé (window.__copie) : la copie marche sans autorisation du navigateur.
+COQUILLE_SON_DIAG = """
+window.__sonMuet = false; window.__copie = null;
+Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async t => { window.__copie = t; } } });
+const __sonEtat = { outputs: [{ type: 'Speaker', name: 'Speaker' }], outputVolume: 0.8, otherAudioPlaying: false,
+  category: 'AVAudioSessionCategoryPlayback', mode: 'AVAudioSessionModeDefault', categoryOptions: ['mixWithOthers'],
+  sessionActive: true, engineRunning: true, secondaryAudioShouldBeSilencedHint: false, sampleRate: 48000, journal: [] };
+const __son = {
+  play: async () => ({}),
+  diagnostics: async () => JSON.parse(JSON.stringify(__sonEtat)),
+  selfTest: async o => { await new Promise(r => setTimeout(r, 400)); const muet = window.__sonMuet; return {
+    before: __sonEtat, silentMode: 'off', silentMs: 512, file: { played: true, peakDb: -2.4, avgDb: -12.2, ms: 640 },
+    steps: o.steps.map((s, i) => (muet && i === o.steps.length - 1
+      ? { name: s.name, peakDb: -160, rmsDb: -160, buffers: 0, ducking: s.duck, engineRunning: false }
+      : { name: s.name, peakDb: -11.6, rmsDb: -15.2, buffers: 40, ducking: s.duck, engineRunning: true })),
+    after: { ...__sonEtat, engineRunning: !muet, journal: ['2026-11-21T10:00:00Z diagnostic du son fait'] } }; },
+};
+window.Capacitor = {
+  isNativePlatform: () => true,
+  getPlatform: () => 'ios',
+  isPluginAvailable: n => n === 'MdlfSound',
+  PluginHeaders: [{ name: 'MdlfSound', methods: [{ name: 'play' }, { name: 'diagnostics' }, { name: 'selfTest' }] }],
+  registerPlugin: name => name === 'MdlfSound' ? __son
+    : name === 'App' ? { addListener: async () => ({ remove() {} }), getInfo: async () => ({ build: '70', version: '1.3' }) }
+    : new Proxy({}, { get: (_, m) => (m === 'then' ? undefined : async () => ({})) }),
+};
+"""
+
+
+@parcours('son-diagnostic', 'Réglages : « Diagnostic du son » (app iOS, build du 21/11)', 'pratiquant')
+def p_son_diagnostic(r):
+    """App iOS à jour : Réglages › Son › « Diagnostic du son ». Le test joue un son puis la fin de repos et dit ce
+    qui sort : d'abord tout est joué, puis un GO muet (moteur arrêté, simulé), puis la copie du diagnostic."""
+    r.coquille_native(COQUILLE_SON_DIAG)
+    r.lancer(REALISTE)
+    cle = 'Savoir pourquoi le son ne sort pas'
+    with r.etape('ligne', 'Réglages, groupe des sons : « Diagnostic du son »', cle=cle):
+        reglages(r)
+        r.defiler('[data-action="sound-diagnostics"]', '« Diagnostic du son »')
+    with r.etape('joue', 'Résultat : tous les sons sont joués', cle=cle):
+        r.toucher('[data-action="sound-diagnostics"]', 'Diagnostic du son')
+        r.attendre('.sound-diag__list', 'résultat du diagnostic')
+        r.defiler('.sound-diag__copy', 'résultat entier')
+    r.raccourci('() => { window.__sonMuet = true; }', 'GO de fin de repos muet (moteur arrêté) dans le prochain test')
+    with r.etape('muet', 'Résultat : « 0 (rien n\'est joué) » pour le GO', cle=cle):
+        r.defiler('[data-action="sound-diagnostics"]', '« Diagnostic du son »')
+        r.toucher('[data-action="sound-diagnostics"]', 'Diagnostic du son (relancé)')
+        r.attendre('.sound-diag__bad', 'valeur « rien n\'est joué »')
+        r.defiler('.sound-diag__copy', 'résultat entier')
+    with r.etape('copie', 'Copier le diagnostic', cle=cle):
+        r.toucher('[data-action="sound-diag-copy"]', 'Copier le diagnostic')
+        r.attendre('.toast', 'message « Diagnostic copié »')
+
+
 @parcours('guide', 'Guide', 'pratiquant')
 def p_guide(r):
     """Guide d'utilisation depuis les Réglages, puis un sujet."""
