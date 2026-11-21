@@ -994,3 +994,11 @@ html.type-xl .session-set.session-set--sub .tech-tag { white-space: normal; min-
 html.type-xl .tech__name { white-space: normal; }
 html.type-xl .tech__side { display: block; }   /* « Drop set » puis « bras gauche » dessous */
 html.type-xl .tech__dot { display: none; }
+/* Bilan, « Nouveaux records » sur écran étroit : la valeur passe sous le nom, qui garde la largeur (iPhone SE :
+   « Curl concentratio… » coupé à côté de « 14 kg × 11 ») ; un nom très long se coupe à une césure */
+.sum-row__name { -webkit-hyphens: auto; hyphens: auto; }
+@media (max-width: 374px) {
+  .sum-record { flex-wrap: wrap; row-gap: 2px; }
+  .sum-record .sum-row__main { flex-basis: calc(100% - 36px); }
+  .sum-record .sum-row__val { margin-left: 36px; }
+}
