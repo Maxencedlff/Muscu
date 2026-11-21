@@ -173,13 +173,11 @@ async function showSoundDiagnostics() {
     const r = soundDiagReport(res, { soundOn: data.soundOn !== false, soundLevel: data.soundLevel || 'fort',
       duckMusic: data.duckMusic !== false, notifications: await Native.notificationPermission() });
     soundDiagText = r.text;
+    // Pastille dans la ligne du titre seulement : explication et consigne prennent toute la largeur (texte agrandi)
     box.innerHTML = `<div class="sound-diag__verdict" tabindex="-1">
-        ${soundMark(r.ok)}
-        <div class="sound-diag__verdict-body">
-          <p class="sound-diag__title">${esc(r.title)}</p>
-          <p class="sound-diag__detail">${esc(r.detail)}</p>
-          <p class="sound-diag__action">${esc(r.action)}</p>
-        </div>
+        <p class="sound-diag__title">${soundMark(r.ok)}<span>${esc(r.title)}</span></p>
+        <p class="sound-diag__detail">${esc(r.detail)}</p>
+        <p class="sound-diag__action">${esc(r.action)}</p>
       </div>
       <dl class="sound-diag__list">${r.rows.map(([k, v, ok]) =>
         `<div class="sound-diag__row"><dt>${esc(k)}</dt><dd${ok === false ? ' class="sound-diag__bad"' : ''}>${typeof ok === 'boolean' ? soundMark(ok) : ''}${esc(v)}</dd></div>`).join('')}</dl>
