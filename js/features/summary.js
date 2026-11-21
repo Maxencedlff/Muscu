@@ -103,7 +103,8 @@ function summarySetTxt(r) {
 // Valeur d'une tuile du bilan : l'unité (« min », « h », « t », « kg ») au corps du nombre, comme l'historique (panel t5) ;
 // elle peut passer dessous (« 19,6 k » puis « lbs ») pour tenir dans un tiers d'iPhone SE (panel du 07/11)
 function sumTileValueHtml(txt) {
-  return esc(txt).replace(/[A-Za-z]+(?: [A-Za-z]+)?/g, u => `<span class="sum-tile__unit">${u}</span>`);
+  // « 936 kg » jamais coupé entre le nombre et l'unité
+  return esc(txt).replace(/(\d) (?=[A-Za-z])/g, '$1\u00a0').replace(/[A-Za-z]+(?: [A-Za-z]+)?/g, u => `<span class="sum-tile__unit">${u}</span>`);
 }
 
 // « ↑ 32 kg sur la dernière fois » : l'écart dit par rapport à quoi (panel t5 : « ↑ 32 kg » seul se lisait comme une

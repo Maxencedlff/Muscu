@@ -60,7 +60,9 @@ function side2RowsHtml(ex, ei, s, si, tag = '') {
   // Même titre que le bloc du premier côté (« Drop set · bras droit »), puis un seul « + drop » et × après la dernière
   // ligne de drop, « pour les 2 bras » (techBtnsHtml, js/features/session-intensif.js)
   const cap = subs ? `<div class="tech__cap" aria-hidden="true">${techCapHtml(ex, s, 2)}</div>` : '';
-  const foot = subs ? `<div class="tech__cap tech__cap--foot"><span class="tech__label"><span class="tech__hint">pour les 2 ${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}</span></span>${techBtnsHtml(ex, ei, s, si)}</div>` : '';
+  // « pour les 2 bras » seulement dans le nom des boutons (VoiceOver) : le titre de chaque bloc dit déjà le bras (contrôle
+  // final du 21/11 : en AX33 sur iPhone 13, « + drop » recouvrait le texte)
+  const foot = subs ? `<div class="tech__cap tech__cap--foot">${techBtnsHtml(ex, ei, s, si)}</div>` : '';
   // Reps en réserve : sous le bras droit, une fois la série complète et tant qu'elle est la dernière validée (comme une
   // série ordinaire ; jamais après un drop, poussé à l'échec)
   const ld = activeSession.lastDone;

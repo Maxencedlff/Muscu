@@ -973,7 +973,8 @@ html.type-xl .sets--sides .set-n { flex-wrap: wrap; width: auto; min-width: 44px
 html.type-xl .sets--sides .session-set, html.type-xl .session-set.session-set--sub { grid-template-areas: "n n check" "prev prev check" "w r check"; }
 html.type-xl .sets--sides .session-set .set-undo, html.type-xl .session-set.session-set--sub .set-undo { grid-area: prev; justify-self: start; }
 /* Ligne de sous-série d'une série par bras : « Drop 1 » puis le côté (« Drop 1 · Droit » en texte agrandi) */
-html.type-xl .tech-tag .set-n__side::before { content: '· '; }
+html.type-xl .tech-tag .set-n__side { margin-left: 0; }
+html.type-xl .tech-tag .set-n__side::before { content: '\00a0· '; }   /* « · » collé à « Drop 1 » */
 html.type-xl .session-set.session-set--sub .set-n { flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-self: start; }
 /* Texte agrandi : « 14 × 10 » ne se coupe jamais (espaces insécables respectées) */
 html.type-xl .sets--sides .session-set .set-prev, html.type-xl .sets--sides .session-set .set-note-btn__val { overflow-wrap: normal; word-break: normal; }
@@ -984,8 +985,8 @@ html.type-xl .sets--sides .session-set .set-prev, html.type-xl .sets--sides .ses
 html.type-xl .set-val[data-lbl]::before { content: attr(data-lbl); display: block; font-size: 0.647rem; font-weight: 600; color: var(--label2); }
 /* Reps d'un drop jamais fait : « max » en indication, plus pâle que les valeurs */
 .session-set--sub .set-input::placeholder { color: var(--label3, var(--label2)); opacity: .7; }
-/* Boutons « + drop » et × sous le dernier drop d'une série par bras, « pour les 2 bras » à gauche */
-.tech__cap--foot { min-height: 52px; }
+/* Boutons « + drop » et × sous le dernier drop d'une série par bras, calés à droite */
+.tech__cap--foot { min-height: 52px; justify-content: flex-end; }
 /* Texte agrandi : « Drop 1 · Gauche » tient avant le rond ✓ (passe sur deux lignes au besoin) */
 html.type-xl .session-set.session-set--sub .tech-tag { white-space: normal; min-width: 0; max-width: 100%; }
 html.type-xl .tech__name { white-space: normal; }
@@ -1010,7 +1011,3 @@ html.type-xl .set-prev__val { font-size: .9em; }
 .tech-tag .set-n__side { white-space: nowrap; }
 /* « max » : une indication, pas une valeur (plus fine, gris lisible) */
 .session-set--sub .set-input::placeholder { color: var(--label2); opacity: 1; font-weight: 400; }
-/* Texte agrandi : « pour les 2 bras » sur la ligne de « + drop » et × */
-html.type-xl .tech__cap--foot { flex-wrap: nowrap; }
-html.type-xl .tech__cap--foot .tech__label { flex: 1 1 0; min-width: 0; }
-html.type-xl .tech__cap--foot .tech__hint { white-space: normal; }

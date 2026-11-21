@@ -86,7 +86,7 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         # Même titre sur les deux blocs, un seul « + drop » et × sous le dernier drop, « pour les 2 bras » (panel du 21/11)
         names = [' '.join(x.replace('\u00a0', ' ').split()) for x in page.locator('.ex-card[data-ei="0"] .tech__name').all_inner_texts()]
         R.check(names == ['Drop set · bras gauche', 'Drop set · bras droit'] and page.locator('.ex-card[data-ei="0"] .tech__add').count() == 1
-                and 'pour les 2 bras' in page.locator('.ex-card[data-ei="0"] .tech__cap--foot').inner_text(), f'{t} titres par bras, un seul jeu de boutons ({names})')
+                and 'pour les 2 bras' in (page.locator('.ex-card[data-ei="0"] .tech__add').get_attribute('aria-label') or ''), f'{t} titres par bras, un seul jeu de boutons ({names})')
         # « Drop 1 » en toutes lettres, plus « +1 » (panel du 20/11)
         tags = [' '.join(x.replace('\u00a0', ' ').split()) for x in page.locator('.ex-card[data-ei="0"] .tech-tag').all_inner_texts()]
         R.check(tags == ['Drop 1 Gauche', 'Drop 1 Droit'], f'{t} « Drop 1 » et son bras, sur les deux bras ({tags})')
@@ -246,13 +246,19 @@ def once_static(bench):
 
 
 def once_grand_texte(bench):
-    """Texte agrandi (AX33) sur iPhone SE et iPhone 13 : lignes des deux bras lisibles, rien de coupé ni de recouvert."""
-    css = ("(() => { const st = document.createElement('style'); st.textContent = 'html { font: 33px -apple-system, system-ui, sans-serif !important; }';"
-           " const put = () => { if (!document.documentElement) return false; document.documentElement.appendChild(st); return true; };"
-           " if (!put()) new MutationObserver((m, o) => { if (put()) o.disconnect(); }).observe(document, { childList: true }); })()")
+    """Texte agrandi (AX1 23 px et AX3 33 px) sur iPhone SE et iPhone 13 : lignes des deux bras lisibles, rien de coupé ni
+    de recouvert ; aucun bouton du bloc drop ne chevauche un texte voisin (contrôle final du 21/11)."""
+    for px in (23, 33):
+      css = ("(() => { const st = document.createElement('style'); st.textContent = 'html { font: %dpx -apple-system, system-ui, sans-serif !important; }';"
+             " const put = () => { if (!document.documentElement) return false; document.documentElement.appendChild(st); return true; };"
+             " if (!put()) new MutationObserver((m, o) => { if (put()) o.disconnect(); }).observe(document, { childList: true }); })()") % px
+      once_grand_texte_px(bench, css, px)
+
+
+def once_grand_texte_px(bench, css, px):
     for dev in ('iPhone SE', 'iPhone 13'):
         for theme in ('light', 'dark'):
-            t = f'{dev}-{theme}-ax33'
+            t = f'{dev}-{theme}-ax{px}'
             with bench.page('webkit', dev, theme) as page:
                 page.add_init_script(css)
                 seed(page, theme, uni_data())
@@ -288,6 +294,12 @@ def once_grand_texte(bench):
                 # « + drop » et × : 44 px dessinés
                 sz = page.evaluate("""[...document.querySelectorAll('.ex-card[data-ei="0"] .tech__add, .ex-card[data-ei="0"] .tech__x')].map(b => { const r = b.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })""")
                 R.check(sz and all(w >= 44 and h >= 44 for w, h in sz), f'{t} « + drop » et × d\'au moins 44 px ({sz})')
+                # Aucun bouton du bloc drop ne chevauche un texte voisin
+                hit = page.evaluate("""() => { const r = e => e.getBoundingClientRect(), cut = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+                    const card = document.querySelector('.ex-card[data-ei="0"]'), btns = [...card.querySelectorAll('.tech__add, .tech__x')];
+                    const texts = [...card.querySelectorAll('.tech__name, .tech__hint, .tech-tag, .set-prev, .set-n__side, .set-input')].filter(e => e.getClientRects().length);
+                    return btns.flatMap(b => texts.filter(x => !b.contains(x) && cut(r(b), r(x))).map(x => x.className)); }""")
+                R.check(not hit, f'{t} boutons du bloc drop sans chevauchement {hit}')
                 # Bras droit puis son drop : la ligne du drop dit son bras ; le repos part, la ligne « Ensuite » garde ses « · »
                 page.click(SIDE2 % 'validate'); settle(page)
                 R.check(page.locator('.session-set--subcur .tech-tag .set-n__side').count() == 1, f'{t} « Drop 1 · Droit » sur la ligne en cours')
