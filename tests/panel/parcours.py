@@ -1001,16 +1001,19 @@ def p_son_diagnostic(r):
     with r.etape('ligne', 'Réglages, groupe des sons : « Diagnostic du son »', cle=cle):
         reglages(r)
         r.defiler('[data-action="sound-diagnostics"]', '« Diagnostic du son »')
-    with r.etape('joue', 'Résultat : tous les sons sont joués', cle=cle):
+    # Après chaque test, l'app amène elle-même le verdict en haut de l'écran : la capture le montre sans défiler
+    with r.etape('joue', 'Résultat : tous les sons sont joués (verdict en haut)', cle=cle):
         r.toucher('[data-action="sound-diagnostics"]', 'Diagnostic du son')
-        r.attendre('.sound-diag__list', 'résultat du diagnostic')
-        r.defiler('.sound-diag__copy', 'résultat entier')
+        r.attendre('.sound-diag__verdict', 'verdict du diagnostic')
+    with r.etape('joue-bas', 'Résultat : détail, verdict rappelé et « Copier le diagnostic »'):
+        r.defiler('.sound-diag__copy', 'bas du résultat')
     r.raccourci('() => { window.__sonMuet = true; }', 'GO de fin de repos muet (moteur arrêté) dans le prochain test')
-    with r.etape('muet', 'Résultat : « 0 (rien n\'est joué) » pour le GO', cle=cle):
+    with r.etape('muet', 'Résultat : le GO n\'est pas joué (verdict en haut)', cle=cle):
         r.defiler('[data-action="sound-diagnostics"]', '« Diagnostic du son »')
         r.toucher('[data-action="sound-diagnostics"]', 'Diagnostic du son (relancé)')
-        r.attendre('.sound-diag__bad', 'valeur « rien n\'est joué »')
-        r.defiler('.sound-diag__copy', 'résultat entier')
+        r.attendre('.sound-diag__verdict .sound-diag__mark--bad', 'verdict « pas joué »')
+    with r.etape('muet-bas', 'Résultat muet : détail, verdict rappelé et « Copier le diagnostic »'):
+        r.defiler('.sound-diag__copy', 'bas du résultat')
     with r.etape('copie', 'Copier le diagnostic', cle=cle):
         r.toucher('[data-action="sound-diag-copy"]', 'Copier le diagnostic')
         r.attendre('.toast', 'message « Diagnostic copié »')

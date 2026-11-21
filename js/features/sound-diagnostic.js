@@ -34,11 +34,9 @@ function soundOutputLabel(outputs) {
 // « −12 dB » (vrai signe moins, arrondi au décibel)
 function fmtDb(db) { return `${Math.round(db) < 0 ? '−' : ''}${Math.abs(Math.round(db))}\u00a0dB`; }
 
-// Un son mesuré : { heard, value } ; buffers === 0 : le moteur n'a rien rendu du tout
-function soundLevel(peakDb, buffers) {
-  if (buffers === 0) return { heard: false, value: '0 (moteur arrêté, rien n\'est joué)' };
-  if (typeof peakDb !== 'number' || peakDb <= SOUND_HEARD_DB) return { heard: false, value: '0 (rien n\'est joué)' };
-  return { heard: true, value: `${fmtDb(peakDb)} (le son est joué)` };
+// Un son mesuré : joué si son pic dépasse SOUND_HEARD_DB ; buffers === 0 : le moteur n'a rien rendu du tout
+function soundHeard(peakDb, buffers) {
+  return buffers !== 0 && typeof peakDb === 'number' && peakDb > SOUND_HEARD_DB;
 }
 
 function soundIncidentTime(iso) {
@@ -46,28 +44,40 @@ function soundIncidentTime(iso) {
   return Number.isFinite(t) ? new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
 }
 
-const SILENT_LABELS = {
-  on: 'Sans doute activé (les sons de l\'app passent quand même)',
-  off: 'Sans doute désactivé',
-  unknown: 'Impossible à savoir (iOS ne le dit pas)',
-};
+// « le décompte 1 et le GO » : sons nommés dans une phrase
+function soundNames(steps) {
+  const names = steps.map(s => `le ${s.name === 'GO' ? 'GO' : s.name.charAt(0).toLowerCase() + s.name.slice(1)}`);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names.at(-1)}` : names[0] || '';
+}
 
-// Résultat de selfTest → { verdict, rows: [[libellé, valeur, ok ?]], text } ; ctx : réglages et
-// autorisation des notifications, pour le texte copié. Fonction pure (tests unitaires).
+const SOUND_RETRY = 'Ferme et rouvre l\'app, puis refais le test. Si ça continue, copie le diagnostic et envoie\u2011le à Maxence.';
+
+// Résultat de selfTest → { ok, title, detail, action, rows: [[libellé, valeur, joué ?]], text }. Vue simple : un son
+// est « Joué » ou « Pas joué » ; les niveaux en dB, l'état du moteur et le mode silencieux estimé ne vont que dans le
+// texte copié. ctx : réglages et autorisation des notifications, pour ce texte. Fonction pure (tests unitaires).
 function soundDiagReport(res, ctx = {}) {
   const st = res?.before || {};
   const after = res?.after || {};
   const file = res?.file || {};
-  const fileLevel = file.played ? soundLevel(file.peakDb) : { heard: false, value: `0 (${file.error || 'rien n\'est joué'})` };
-  const steps = (res?.steps || []).map(s => ({ ...s, level: soundLevel(s.peakDb, s.buffers) }));
-  const synthOk = steps.length > 0 && steps.every(s => s.level.heard);
-  const synthSome = steps.some(s => s.level.heard);
-  let verdict;
-  if (fileLevel.heard && synthOk) verdict = 'L\'app joue bien les sons. Si tu n\'as rien entendu, c\'est l\'iPhone qui les coupe à la sortie.';
-  else if (fileLevel.heard && synthSome) verdict = 'Le fichier sort, mais une partie des sons de fin de repos n\'est pas jouée : le problème vient de l\'app.';
-  else if (fileLevel.heard) verdict = 'Le fichier sort, pas les sons de fin de repos : le problème vient de la façon dont l\'app les fabrique.';
-  else if (synthOk || synthSome) verdict = 'Les sons de fin de repos sont joués, pas le fichier : la lecture de fichiers est bloquée.';
-  else verdict = 'Rien n\'est joué : l\'app n\'arrive pas à envoyer de son à l\'iPhone.';
+  const fileHeard = !!file.played && soundHeard(file.peakDb);
+  const steps = (res?.steps || []).map(s => ({ ...s, heard: soundHeard(s.peakDb, s.buffers) }));
+  const missing = steps.filter(s => !s.heard);
+  let ok = false, title, detail, action = SOUND_RETRY;
+  if (steps.length && !missing.length && fileHeard) {
+    ok = true;
+    title = 'Le son est bien joué par l\'app';
+    detail = 'Si tu n\'as rien entendu, le son est coupé après l\'app, par l\'iPhone.';
+    action = 'Le son sort de l\'app : vérifie le volume, la sortie (Bluetooth) et le mode Concentration.';
+  } else if (!fileHeard && !steps.some(s => s.heard)) {
+    title = 'L\'app n\'a joué aucun son';
+    detail = 'Le problème vient de l\'app : elle n\'arrive pas à envoyer de son à l\'iPhone.';
+  } else if (missing.length) {
+    title = missing.length === steps.length ? 'L\'app n\'a pas joué la fin de repos' : `L'app n'a pas joué ${soundNames(missing)}`;
+    detail = 'Le problème vient de l\'app, pas de ton iPhone.';
+  } else {
+    title = 'L\'app n\'a pas joué le son enregistré';
+    detail = 'Les sons de fin de repos sont joués : seul le son enregistré pose problème, dans l\'app.';
+  }
 
   const vol = typeof st.outputVolume === 'number' ? `${Math.round(st.outputVolume * 100)}\u00a0%` : '?';
   const inc = st.lastIncident || after.lastIncident;
@@ -75,9 +85,8 @@ function soundDiagReport(res, ctx = {}) {
   const rows = [
     ['Sortie', soundOutputLabel(st.outputs)],
     ['Volume', vol],
-    ['Mode silencieux', SILENT_LABELS[res?.silentMode] || SILENT_LABELS.unknown],
-    ['Fichier son', fileLevel.value, fileLevel.heard],
-    ...steps.map(s => [s.name, s.level.value, s.level.heard]),
+    ['Son enregistré', fileHeard ? 'Joué' : 'Pas joué', fileHeard],
+    ...steps.map(s => [s.name, s.heard ? 'Joué' : 'Pas joué', s.heard]),
     ['Autre app qui joue', st.otherAudioPlaying ? 'Oui' : 'Non'],
     ['Dernier incident', incident],
   ];
@@ -88,12 +97,13 @@ function soundDiagReport(res, ctx = {}) {
   const outputs = (st.outputs || []).map(o => `${o.type} « ${o.name} »`).join(', ') || 'aucune';
   const lines = [
     `Diagnostic du son MDLF Training, ${new Date().toLocaleString('fr-FR')}`,
-    `Verdict : ${verdict}`,
+    `Verdict : ${title}. ${detail}`,
+    `À faire : ${action}`,
     `Sortie : ${soundOutputLabel(st.outputs)} [${outputs}]`,
     `Volume : ${vol}`,
-    `Mode silencieux : ${res?.silentMode || 'unknown'} (son système fini en ${Math.round(res?.silentMs ?? -1)} ms)`,
-    `Fichier son : ${file.played ? `pic ${fmtDb(file.peakDb)}, moyen ${fmtDb(file.avgDb)}, ${Math.round(file.ms || 0)} ms` : `non joué (${file.error || '?'})`}`,
-    ...steps.map(s => `${s.name} : pic ${fmtDb(s.peakDb)}, RMS ${fmtDb(s.rmsDb)}, ${s.buffers} tampons, duck ${yes(s.ducking)}, moteur ${yes(s.engineRunning)}`),
+    `Mode silencieux : ${res?.silentMode || 'unknown'} (estimé, son système fini en ${Math.round(res?.silentMs ?? -1)} ms)`,
+    `Son enregistré : ${file.played ? `pic ${fmtDb(file.peakDb)}, moyen ${fmtDb(file.avgDb)}, ${Math.round(file.ms || 0)} ms` : `non joué (${file.error || '?'})`}`,
+    ...steps.map(s => `${s.name} : ${s.heard ? 'joué' : 'pas joué'}, pic ${fmtDb(s.peakDb)}, RMS ${fmtDb(s.rmsDb)}, ${s.buffers} tampons, duck ${yes(s.ducking)}, moteur ${yes(s.engineRunning)}`),
     `Autre app qui joue : ${yes(st.otherAudioPlaying)} · demande de silence : ${yes(st.secondaryAudioShouldBeSilencedHint)}`,
     `Session avant : ${session(st)}`,
     `Session après : ${session(after)}`,
@@ -104,7 +114,7 @@ function soundDiagReport(res, ctx = {}) {
   ];
   const journal = after.journal?.length ? after.journal : (st.journal || []);
   lines.push(journal.length ? 'Journal :' : 'Journal : vide', ...journal.slice(-12));
-  return { verdict, rows, text: lines.join('\n') };
+  return { ok, title, detail, action, rows, text: lines.join('\n') };
 }
 
 // Coquilles 68 et 69 : état du module (diagnostics), dernier contrôle fait après un son, réglages
@@ -133,7 +143,14 @@ function soundDiagCopyBtn() {
   return '<button class="btn btn--secondary btn--full sound-diag__copy" data-action="sound-diag-copy">Copier le diagnostic</button>';
 }
 
-// Ouvre la zone sous la ligne et lance le test (coquille récente) ou affiche l'état (68 et 69)
+// Pastille du verdict et des lignes : coche verte (joué) ou croix rouge (pas joué) ; le mot à côté dit la même chose
+function soundMark(ok) {
+  return `<span class="sound-diag__mark sound-diag__mark--${ok ? 'ok' : 'bad'}" aria-hidden="true">${icon(ok ? 'checkmark' : 'xmark', 12)}</span>`;
+}
+
+// Ouvre la zone sous la ligne et lance le test (coquille récente) ou affiche l'état (68 et 69). Résultat :
+// verdict en tête (amené à l'écran et lu par VoiceOver), consigne, une ligne par son, verdict rappelé
+// au-dessus de « Copier le diagnostic ».
 async function showSoundDiagnostics() {
   const box = $('#sound-diag');
   if (!box || soundDiagRunning) return;
@@ -153,13 +170,27 @@ async function showSoundDiagnostics() {
       box.innerHTML = '<p class="sound-diag__status" role="status">Le test n\'a pas pu se faire. Réessaie dans un instant.</p>';
       return;
     }
-    const report = soundDiagReport(res, { soundOn: data.soundOn !== false, soundLevel: data.soundLevel || 'fort',
+    const r = soundDiagReport(res, { soundOn: data.soundOn !== false, soundLevel: data.soundLevel || 'fort',
       duckMusic: data.duckMusic !== false, notifications: await Native.notificationPermission() });
-    soundDiagText = report.text;
-    box.innerHTML = `<p class="sound-diag__status" role="status">${esc(report.verdict)}</p>
-      <dl class="sound-diag__list">${report.rows.map(([k, v, ok]) =>
-        `<div class="sound-diag__row"><dt>${esc(k)}</dt><dd${ok === false ? ' class="sound-diag__bad"' : ''}>${esc(v)}</dd></div>`).join('')}</dl>
+    soundDiagText = r.text;
+    box.innerHTML = `<div class="sound-diag__verdict" tabindex="-1">
+        ${soundMark(r.ok)}
+        <div class="sound-diag__verdict-body">
+          <p class="sound-diag__title">${esc(r.title)}</p>
+          <p class="sound-diag__detail">${esc(r.detail)}</p>
+          <p class="sound-diag__action">${esc(r.action)}</p>
+        </div>
+      </div>
+      <dl class="sound-diag__list">${r.rows.map(([k, v, ok]) =>
+        `<div class="sound-diag__row"><dt>${esc(k)}</dt><dd${ok === false ? ' class="sound-diag__bad"' : ''}>${typeof ok === 'boolean' ? soundMark(ok) : ''}${esc(v)}</dd></div>`).join('')}</dl>
+      <p class="sound-diag__recap">${soundMark(r.ok)}<span>${esc(r.title)}</span></p>
       ${soundDiagCopyBtn()}`;
+    // Le verdict d'abord : amené en haut de l'écran, juste sous la barre de navigation (collante : sa hauteur,
+    // encoche et texte agrandi compris, sert de marge) et lu par VoiceOver
+    const verdict = box.querySelector('.sound-diag__verdict');
+    verdict.style.scrollMarginTop = `${($('.navbar')?.offsetHeight || 0) + 12}px`;
+    verdict.scrollIntoView({ block: 'start' });
+    verdict.focus({ preventScroll: true });
   } finally {
     soundDiagRunning = false;
   }
@@ -169,7 +200,7 @@ registerActions({
   'sound-diagnostics': () => showSoundDiagnostics(),
   'sound-diag-copy': async () => {
     if (!soundDiagText) return;
-    try { await navigator.clipboard.writeText(soundDiagText); showToast('Diagnostic copié, colle\u2011le dans un message'); }
+    try { await navigator.clipboard.writeText(soundDiagText); showToast('Diagnostic copié. Colle\u2011le dans un message à Maxence.'); }
     catch { showToast('Copie impossible, fais une capture d\'écran'); }
   },
 });

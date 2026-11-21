@@ -70,17 +70,31 @@
 /* Réglages › Sons › Tester les hauteurs : numéros éteints, allumés au fur et à mesure des bips */
 .pitch-steps { color: var(--label2); font-variant-numeric: tabular-nums; }
 .pitch-steps__n--on { color: var(--tint); font-weight: 600; }
-/* Réglages › Sons › Diagnostic du son : verdict, liste « libellé : valeur » (valeur en rouge si rien n'est
-   joué), bouton de copie ; coquilles 68 et 69 : texte brut, petit, sélectionnable */
+/* Réglages › Sons › Diagnostic du son : verdict en gras avec sa pastille (coche verte ou croix rouge), consigne,
+   une ligne « libellé : valeur » par mesure (valeur passée dessous en texte agrandi, lue de gauche à droite),
+   verdict rappelé au-dessus du bouton de copie ; coquilles 68 et 69 : texte brut, petit, sélectionnable */
 .sound-diag { padding: 2px 16px 12px; }
 .sound-diag__status { margin: 4px 0 8px; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label); }
+.sound-diag__verdict { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0 12px; outline: none; }
+.sound-diag__verdict p { margin: 0; }
+.sound-diag__verdict-body { flex: 1; min-width: 0; }
+.sound-diag__title { font-size: var(--fs-body); font-weight: 600; line-height: 1.3; color: var(--label); }
+.sound-diag__detail { margin-top: 2px !important; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }
+.sound-diag__action { margin-top: 8px !important; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label); }
+.sound-diag__mark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.25em; height: 1.25em;
+  border-radius: 50%; color: var(--cell); vertical-align: -0.2em; }
+.sound-diag__mark .icon { width: 0.75em; height: 0.75em; }
+.sound-diag__mark--ok { background: var(--green-text); }
+.sound-diag__mark--bad { background: var(--red-text); }
+.sound-diag__verdict > .sound-diag__mark { font-size: var(--fs-body); margin-top: 0.05em; }
 .sound-diag__list { margin: 0 0 12px; }
 .sound-diag__row { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 12px; padding: 6px 0;
   border-top: .5px solid var(--sep); font-size: var(--fs-subhead); }
 .sound-diag__row dt { color: var(--label2); }
 .sound-diag__row dd { margin: 0 0 0 auto; color: var(--label); text-align: left; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
-/* Valeur à droite sur la ligne du libellé ; passée dessous (texte agrandi), elle reste lisible de gauche à droite */
+.sound-diag__row dd .sound-diag__mark { margin-right: 6px; }
 .sound-diag__row .sound-diag__bad { color: var(--red-text); }
+.sound-diag__recap { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; font-size: var(--fs-subhead); font-weight: 600; color: var(--label); }
 .sound-diag__copy { margin-top: 4px; }
 .sound-diag__text { margin: 0; width: 100%; font: 0.706rem/1.0rem ui-monospace, "SF Mono", Menlo, monospace; color: var(--label2);
   white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
