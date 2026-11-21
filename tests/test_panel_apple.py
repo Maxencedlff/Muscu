@@ -286,12 +286,12 @@ def t_silhouette_paliers(bench):
 
 def t_fiche_aidants(bench):
     """Fiche « Développé incliné barre », mesurée SUR LA CAPTURE (panel affichage-e t5) : ciblé (haut des pectoraux), qui
-    aide (milieu des pectoraux) et gris du corps (grand droit), couleur moyenne à l'écran. Sombre : ciblé / aidant 45 au
-    moins (en soft-light, les aidants étaient presque aussi vifs), aidant / gris 20. Clair : aidant / gris 25 (rose pâle
-    presque invisible au t5), ciblé / aidant 45 (trop proches au t6). La pastille « Qui aide » a la couleur vue sur le dessin."""
+    aide (milieu des pectoraux) et gris du corps (grand droit), couleur moyenne à l'écran. Sombre : ciblé / aidant 40 au
+    moins (variante A, rose franc), aidant / gris 20. Clair : aidant / gris 33 (rose foncé d'un cran, panel t8), ciblé /
+    aidant 38. La pastille « Qui aide » a la couleur vue sur le dessin."""
     import io
     from PIL import Image
-    for theme, (main_help, help_gray) in (('dark', (45, 20)), ('light', (45, 25))):
+    for theme, (main_help, help_gray) in (('dark', (40, 20)), ('light', (38, 33))):
         t = tag('iPhone 13', theme)
         with bench.page('webkit', 'iPhone 13', theme) as page:
             seed(page, theme, ppl_v2_today_json())
@@ -315,7 +315,7 @@ def t_fiche_aidants(bench):
             m, h, g = avg(pts['main']), avg(pts['help']), avg(pts['gray'])
             mh, hg, dh = round(_delta_e(m, h)), round(_delta_e(h, g)), round(_delta_e(dot, h))
             R.check(mh >= main_help and hg >= help_gray, f'{t} fiche : ciblé / aidant {mh} (≥ {main_help}), aidant / gris {hg} (≥ {help_gray}) sur la capture')
-            R.check(dh <= 12, f'{t} pastille « Qui aide » : la couleur du dessin (écart {dh})')
+            R.check(dh <= 12, f'{t} pastille « Qui aide » : la couleur du dessin, ombrage compris (écart {dh}, 12 au plus)')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

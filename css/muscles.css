@@ -53,11 +53,10 @@
 /* Sombre : le muscle ciblé (et les paliers de Progrès) en rouge vif éclairé par l'ombrage (soft-light, et non multiply qui
    l'éteignait), sur un corps plus sombre (--body-atlas-bright) : ciblé / gris 2,7:1 au lieu de 1,9:1. Clair : inchangé */
 body:not(.light) .body-map--atlas .body-map__p { background-blend-mode: soft-light; }
-/* Muscles qui aident, la teinte de la pastille « Qui aide », mesurée sur capture (développé incliné, iPhone 13) :
-   - sombre : un rose éteint, ombrage multiplié et assombri comme le corps, jamais ravivé par la lumière douce (panel t5 :
-     presque aussi vifs que le ciblé) ; ciblé / aidant 46, aidant / gris 27 ;
-   - clair : un saumon éclairé (soft-light) sur le gris clair, le ciblé reste le rouge foncé (panel t6 : trop proches) ;
-     ciblé / aidant 51, aidant / gris 36 */
+/* Muscles qui aident : un rose franc, lumineux et peu saturé, jamais en lumière douce (variante A, retenue par 10 juges
+   sur 12 contre un pastel et un contour). Ombrage du calque multiplié (sombre : éclairci de 25 %) ; mesuré sur capture
+   (développé incliné, iPhone 13) : sombre, ciblé / aidant 44, aidant / gris 40 ; clair, un cran plus foncé, ciblé / aidant
+   40, aidant / gris 35. La pastille « Qui aide » a la teinte vue sur le dessin (test_panel_apple t_fiche_aidants) */
 body .body-map--atlas .body-map__p.body-map__m--sec { background-color: var(--body-sec-tint); background-blend-mode: var(--body-sec-blend); filter: brightness(var(--body-sec-bright)); }
 /* Clair : le rouge pâle éclairé par l'ombrage (soft-light : en multiply il virait au brun, trop près du gris) ; l'objectif
    atteint reste en multiply, exactement le rouge plein de la fiche */

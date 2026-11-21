@@ -22,10 +22,10 @@
 :root {
   --body-heat: #FF453A; --body-heat-max: #FF453A; --body-heat-sec: #EFA195;   /* sombre : rouge vif (systemRed sombre), le muscle ciblé se repère d'un coup d'œil */
   --body-ol: rgba(255, 255, 255, .45);   /* contour des muscles à 0 série de « À travailler » (Progrès) ; 70 % : on aurait dit une sélection (panel t7) */
-  --body-sec-o: 1; --body-sec-tint: #FF9488; --body-sec-blend: multiply; --body-sec-bright: .7;   /* muscles qui aident : rose éteint (css/muscles.css) ; avant, à 40 %, éclairé ; écart 41 avec le ciblé et 31 avec
+  --body-sec-o: 1; --body-sec-tint: #E89AA6; --body-sec-blend: multiply; --body-sec-bright: 1.25;   /* muscles qui aident : rose éteint (css/muscles.css) ; avant, à 40 %, éclairé ; écart 41 avec le ciblé et 31 avec
      le gris (panel affichage-e : à 35 % en multiply, un brun terne ; à 48 %, presque aussi vif que le ciblé) */
   --body-atlas-bright: .46;   /* corps de l'atlas plus sombre en sombre : rouge vif / gris 2,7:1 (mesuré le 20/11) */
-  --body-heat-help: #814B45;   /* qui aident (pastille) : la teinte vue sur le personnage (mesurée le 21/11) */
+  --body-heat-help: #E89AA6;   /* qui aident (pastille) : la teinte vue sur le personnage (mesurée le 21/11) */
   /* Progrès (bodyTier) : « Sous l'objectif » en rouge pâle, « Objectif atteint » en rouge vif plein. Sur le personnage,
      écarts de couleur 52 au moins entre le gris et le pâle, 51 entre le pâle et le plein (mesurés le 20/11) ; pastilles
      et barres : la couleur vue sur le personnage */
@@ -37,9 +37,9 @@ body.light {
   /* Muscle principal d'un exercice : le rouge des images 3D (7,7:1 sur blanc) ; secondaires plus clairs (3,5:1) */
   --body-heat: #A31B19; --body-heat-max: #A31B19; --body-heat-sec: #C37367;
   --body-ol: rgba(0, 0, 0, .6);
-  --body-sec-o: 1; --body-sec-tint: #FF968A; --body-sec-blend: soft-light; --body-sec-bright: 1;   /* muscles qui aident : saumon éclairé (css/muscles.css) */
+  --body-sec-o: 1; --body-sec-tint: #EE94B8; --body-sec-blend: multiply; --body-sec-bright: 1;   /* muscles qui aident : rose franc (css/muscles.css) */
   --body-atlas-bright: 1;
-  --body-heat-help: #FDA99F;   /* qui aident (pastille) : la teinte vue sur le personnage (mesurée le 21/11) */
+  --body-heat-help: #AB6B85;   /* qui aident (pastille) : la teinte vue sur le personnage, ombrage compris (mesurée le 21/11) */
   /* Progrès : le rouge pâle éclairé par l'ombrage (soft-light, css/muscles.css), l'objectif atteint dans le rouge plein de
      la fiche ; écarts 31 au moins entre le gris et le pâle, 57 entre le pâle et le plein, sur le personnage */
   --body-tier-1: #FFA898; --body-tier-2: #A31B19;

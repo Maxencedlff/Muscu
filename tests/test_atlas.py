@@ -89,12 +89,25 @@ def tap(page, xy, double=False, touch=False):
         page.wait_for_timeout(90)
 
 
+DIAG_JS = """() => { const t = document.querySelector('.btip')?.getBoundingClientRect();
+    const bad = [...document.images].filter(i => i.src && (!i.complete || !i.naturalWidth)).map(i => i.src.split('/img/')[1] || i.src);
+    return JSON.stringify({ btip: t ? [t.left | 0, t.top | 0, t.right | 0, t.bottom | 0] : null, lastTap: typeof atlasLastTap !== 'undefined' && atlasLastTap
+      ? Math.round(performance.now() - atlasLastTap.t) : null, viewer: !!document.querySelector('.azoom'), scrollY: Math.round(scrollY), badImgs: bad.slice(0, 8), nBad: bad.length }); }"""
+
+
 def wait_or_say(page, sel, where, state='visible'):
-    """wait_for_selector qui dit laquelle des attentes a échoué (échec intermittent en CI)."""
+    """wait_for_selector qui dit laquelle des attentes a échoué, avec l'état de la page (bulle, dernier toucher, images
+    non chargées, requêtes en échec), et une capture (échec intermittent en CI)."""
     try:
         page.wait_for_selector(sel, state=state, timeout=15000)
     except Exception as e:
-        raise RuntimeError(f'{where} : {sel} ({state}) jamais vu') from e
+        try:
+            diag = page.evaluate(DIAG_JS)
+            shot(page, LOT, f'echec-{where.split()[0]}-{where.split()[1] if len(where.split()) > 1 else ""}')
+        except Exception as e2:
+            diag = f'? ({e2})'
+        failed = getattr(page, '_failed_requests', [])[:6]
+        raise RuntimeError(f'{where} : {sel} ({state}) jamais vu ; état {diag} ; requêtes en échec {failed} ; console {getattr(page, "_console_errors", [])[:4]}') from e
 
 
 def tip_off_part(page, marks='.body-map__hl > i'):
@@ -566,6 +579,9 @@ def t_progres(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme)
+        page._failed_requests, page._console_errors = [], []
+        page.on('requestfailed', lambda q: page._failed_requests.append(f"{q.url.split('/')[-1]} {q.failure}"))
+        page.on('console', lambda m: m.type in ('error', 'warning') and page._console_errors.append(m.text[:120]))
         page.click('.tabbar [data-action="go-stats"]')
         page.wait_for_selector('.view.stats .mcard__map.body-map--atlas')
         page.locator('.mcard__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
