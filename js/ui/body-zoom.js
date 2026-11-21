@@ -89,25 +89,59 @@ function atlasTipHtml(part, level) {
 // Un toucher remplit une carte fixe, dans la page, juste sous le dessin (fiche, Progrès) ou en tête de la bande du bas
 // (vue agrandie) : elle pousse le contenu au lieu de le couvrir, se ferme par sa croix ou par un toucher hors d'un muscle.
 // Le muscle touché garde ses couleurs, cerné d'un contour fin (marque) pour le repérer
-function atlasInfoShow(root, html, container = null) {
+// trigger : l'élément qui a ouvert la carte (la carte du dessin, un nom d'« À travailler ») ; le focus y revient à la
+// fermeture par la croix (VoiceOver, audit m7). Le contenu est lu une fois par la région d'annonce de l'atlas (atlasSay)
+let atlasInfoTrigger = null;
+function atlasInfoShow(root, html, container = null, trigger = root) {
   closeAtlasInfo();
-  const card = `<section class="atlas-info" aria-live="polite" aria-label="Muscle touché">
+  const card = `<section class="atlas-info" aria-label="Muscle touché">
       <div class="atlas-info__body">${html}</div>
       <button class="atlas-info__close" data-action="atlas-info-close" aria-label="Fermer">${icon('xmark', 16)}</button>
     </section>`;
-  const band = container?.querySelector('.azoom__band'), box = root.closest('.atlas-box');
-  if (band) band.insertAdjacentHTML('beforebegin', card);   // vue agrandie : en tête de la bande du bas, au-dessus de la légende
+  const slot = container?.querySelector('.azoom__info'), box = root.closest('.atlas-box');
+  if (slot) slot.innerHTML = card;   // vue agrandie : la place réservée au-dessus de la bande du bas (audit m8)
   else if (box) (box.nextElementSibling?.classList.contains('atlas-box__iso') ? box.nextElementSibling : box).insertAdjacentHTML('afterend', card);
   else return null;
   const el = document.querySelector('.atlas-info');
-  // Carte de la page : amenée à l'écran si elle passe sous la barre d'onglets (le personnage remonte d'autant)
-  const bar = document.querySelector('.tabbar')?.getBoundingClientRect().top ?? innerHeight, over = el.getBoundingClientRect().bottom - (bar - 8);
-  if (!band && over > 0) scrollBy({ top: over, behavior: 'instant' });
+  atlasInfoTrigger = trigger;
+  atlasSay(el.querySelector('.atlas-info__body').textContent);
+  // Carte de la page : amenée à l'écran si elle passe sous la barre d'onglets (le personnage remonte d'autant), après la
+  // fenêtre du double toucher : défiler plus tôt déplacerait le personnage sous le 2e toucher (audit m8)
+  if (!slot) setTimeout(() => {
+    if (!el.isConnected || atlasViewer) return;
+    const bar = document.querySelector('.tabbar')?.getBoundingClientRect().top ?? innerHeight, over = el.getBoundingClientRect().bottom - (bar - 8);
+    if (over > 0) scrollBy({ top: over, behavior: 'instant' });
+  }, ATLAS_DOUBLE_MS);
   return el;
 }
 function closeAtlasInfo() {
   document.querySelectorAll('.atlas-info, .body-map__mark').forEach(e => e.remove());
 }
+// Croix de la carte : fermée, le focus revient à ce qui l'a ouverte
+function atlasInfoClose() {
+  const back = atlasInfoTrigger;
+  closeBodyTip();
+  atlasInfoTrigger = null;
+  if (back?.isConnected) {
+    if (!back.matches('button, [tabindex]')) back.setAttribute('tabindex', '-1');
+    back.focus({ preventScroll: true });
+  }
+}
+
+// Région d'annonce de l'atlas (VoiceOver, audit m6) : permanente, vide, posée une fois ; chaque annonce la vide puis la
+// remplit. Seule voie d'annonce de l'atlas (carte d'info, isolement, niveau de zoom)
+function atlasSay(msg) {
+  if (typeof document === 'undefined' || !document.body) return;
+  let el = document.getElementById('atlasLive');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'atlasLive'; el.className = 'visually-hidden'; el.setAttribute('aria-live', 'polite'); el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  el.textContent = '';
+  requestAnimationFrame(() => { el.textContent = String(msg || '').replace(/\s+/g, ' ').trim(); });
+}
+if (typeof document !== 'undefined' && document.body) atlasSay('');
 // Marque du muscle touché : son contour, fin, à la couleur du texte (dessin de bodyOutlineHtml), posé sur le corps de sa vue
 function atlasMarkPart(fig, kind, view, id, res) {
   fig.querySelector('.body-map__mark')?.remove();
@@ -246,6 +280,7 @@ function openAtlasViewer(mapEl, from = null) {
         <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels, tiers, outline)).join('')}</span>
       </div>
     </div>
+    <div class="azoom__info"></div>
     <div class="azoom__band">
       ${legend}
       <div class="azoom__text">
@@ -457,25 +492,29 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', outl
       if (!reduceMotion.matches) stage.classList.add('azoom__stage--anim');
       zoomAt(p.x, p.y, s > 1.3 ? 1 : ATLAS_ZOOM_TO);
       frame();
+      atlasSay(s <= 1.01 ? 'Personnage entier' : `Zoom ${String(Math.round(s * 10) / 10).replace('.', ',')} fois`);
       return;
     }
     lastTap = { t, ...p };
     atlasShowName(stage, kind, levels, e, { res: v => (v === hiView ? 3 : 1), container: root, tip });
   }
   // Boutons + et − : zoom autour du centre de la vue (VoiceOver, accès par contacteur)
-  // dir 0 : « Vue entière » (×1)
+  // dir 0 : « Vue entière » (×1) ; le niveau de zoom est annoncé (VoiceOver)
   function step(dir) {
     const r = viewRect();
+    if ((dir > 0 && s >= ATLAS_MAX - 0.01) || (dir < 0 && s <= 1.01)) return;
     closeBodyTip();
     if (!reduceMotion.matches) stage.classList.add('azoom__stage--anim');
     zoomAt(r.w / 2, r.h / 2, dir > 0 ? s * ATLAS_STEP : dir < 0 ? s / ATLAS_STEP : 1);
     frame();
+    atlasSay(s <= 1.01 ? 'Personnage entier' : `Zoom ${String(Math.round(s * 10) / 10).replace('.', ',')} fois`);
   }
   root.querySelector('.azoom__whole')?.addEventListener('click', () => step(0));
   const btns = [...root.querySelectorAll('.azoom__btn')];   // bande du bas, hors du dessin (panel affichage-e t1)
   btns.forEach(b => b.addEventListener('click', () => step(Number(b.dataset.z))));
+  // aria-disabled plutôt que disabled : le bouton reste atteignable et nommé par VoiceOver (audit m7)
   function buttons() {
-    for (const b of btns) b.disabled = Number(b.dataset.z) > 0 ? s >= ATLAS_MAX - 0.01 : s <= 1.01;
+    for (const b of btns) b.setAttribute('aria-disabled', String(Number(b.dataset.z) > 0 ? s >= ATLAS_MAX - 0.01 : s <= 1.01));
   }
   view.addEventListener('pointerdown', down);
   view.addEventListener('pointermove', move);

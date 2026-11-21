@@ -310,7 +310,7 @@ def t_fiche(bench, eng, dev, theme):
         settle(page)
         R.check(page.evaluate('atlasViewerState().scale') == 1, f'{t} double toucher : retour au personnage entier')
         # Boutons + et − (VoiceOver, contacteur) : 44 pt, zoom et retour
-        bx = page.locator('.azoom__btn').evaluate_all("bs => bs.map(b => { const r = b.getBoundingClientRect(); return [b.getAttribute('aria-label'), r.width >= 44 && r.height >= 44, b.disabled]; })")
+        bx = page.locator('.azoom__btn').evaluate_all("bs => bs.map(b => { const r = b.getBoundingClientRect(); return [b.getAttribute('aria-label'), r.width >= 44 && r.height >= 44, b.getAttribute('aria-disabled') === 'true' && !b.disabled]; })")
         R.check(bx == [['Dézoomer', True, True], ['Zoomer', True, False]], f'{t} boutons − et + de 44 pt (− inactif à ×1) {bx}')
         page.click('.azoom__btn[data-z="1"]')
         page.wait_for_timeout(500)

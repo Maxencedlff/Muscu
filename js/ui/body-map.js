@@ -187,41 +187,43 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline
 // Contour net (environ 1,5 point, sans flou ni lueur) d'un sous-muscle : un anneau autour de sa forme, dessiné une fois
 // dans un canvas (forme élargie moins la forme : bodyOutlineMask) et posé en masque sur un aplat --body-ol (couleur du
 // thème). Avant, un filtre SVG (feMorphology) recalculé à chaque image : avec 32 muscles cernés (« Cette semaine »), une
-// image prenait 300 ms sur le PC et plus de 10 s sur la CI (iPhone 17), la page ne se dessinait plus. Anneau en pixels de
-// l'image : 4 en 1× (1,5 point environ sur la carte), 12 en 3× (vue agrandie)
-const BODY_OL_PX = { 1: 4, 3: 12 };
-const bodyOutlineMasks = new Map();   // « sexe/vue/res/id » → adresse de l'anneau (data:), une fois dessiné
+// image prenait 300 ms sur le PC et plus de 10 s sur la CI (iPhone 17), la page ne se dessinait plus. Toujours d'après
+// l'image 1× (audit M3 : en 3×, environ 18 Mo par vue ; agrandi dans la vue agrandie, un trait reste un trait), anneau de
+// 4 pixels de l'image (1,5 point environ sur la carte), 3 pour l'anneau en dedans. res : ignoré (cadre de la vue)
+const BODY_OL_PX = 4;
+const bodyOutlineMasks = new Map();   // « sexe/vue/anneau/id » → adresse de l'anneau (blob:), une fois dessiné
 // cls : classe en plus (marque du muscle touché, contour du ciblé de la fiche) ; inner : anneau d'un point environ, en
 // dedans de la forme (ciblé de la fiche : il ne déborde pas sur le muscle qui aide voisin)
 function bodyOutlineHtml(kind, view, ids, res = 1, cls = '', inner = false) {
-  const boxes = BODY_PARTS.boxes[kind]?.[view] || {};
-  const W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h;
-  const r = inner ? 0 : BODY_OL_PX[res], ri = inner ? BODY_OL_PX[res] * 3 / 4 : r;
+  const boxes = BODY_PARTS.boxes[kind]?.[view] || {}, W = BODY_PARTS.w, H = BODY_PARTS.h;
+  const r = inner ? 0 : BODY_OL_PX, ri = inner ? 3 : r;
   const pct = v => `${Math.round(v * 1e5) / 1e3}%`;
   return ids.filter(id => boxes[id]).map(id => {
-    const b = boxes[id][res === 3 ? 1 : 0], key = `${kind}/${view}/${res}/${inner ? 'in' : ''}${ri}/${id}`, url = bodyOutlineMasks.get(key);
-    if (!url) bodyOutlineMask(kind, view, id, res, ri, inner);
+    const b = boxes[id][0], key = `${kind}/${view}/${inner ? 'in' : ''}${ri}/${id}`, url = bodyOutlineMasks.get(key);
+    if (!url) bodyOutlineMask(kind, view, id, ri, inner);
     const mask = url ? `-webkit-mask-image:url(${url});mask-image:url(${url})` : '';
     return `<span class="body-map__ol${cls ? ` ${cls}` : ''}" data-ol="${id}" data-olkey="${key}" style="left:${pct((b[0] - r) / W)};top:${pct((b[1] - r) / H)};width:${pct((b[2] - b[0] + 2 * r) / W)};height:${pct((b[3] - b[1] + 2 * r) / H)};${mask}"></span>`;
   }).join('');
 }
-// Dessine l'anneau (union de la forme décalée sur un cercle de rayon r, moins la forme), puis le pose sur les contours
-// déjà affichés qui l'attendent
+// Dessine l'anneau (union de la forme décalée sur un cercle de rayon r, moins la forme ; en dedans : la forme moins sa
+// forme rognée), le garde en image (blob) et le pose sur les contours qui l'attendent. Canvas vidés et image source
+// oubliée ensuite : seule reste l'image de l'anneau
 const bodyOutlinePending = new Set();
-async function bodyOutlineMask(kind, view, id, res, r = BODY_OL_PX[res], inner = false) {
-  const key = `${kind}/${view}/${res}/${inner ? 'in' : ''}${r}/${id}`;
+async function bodyOutlineMask(kind, view, id, r = BODY_OL_PX, inner = false) {
+  const key = `${kind}/${view}/${inner ? 'in' : ''}${r}/${id}`;
   if (bodyOutlinePending.has(key) || typeof document === 'undefined' || !document.createElement) return;
   bodyOutlinePending.add(key);
-  const img = await bodyLoadImage(body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${id}.webp`));
-  if (!img) { bodyOutlinePending.delete(key); return; }
-  const c = document.createElement('canvas'), m = inner ? 0 : r;
+  const src = body2Url(kind, view, `p/${id}.webp`), img = await bodyLoadImage(src);
+  bodyImageCache.delete(src);
+  const c = img && document.createElement('canvas'), m = inner ? 0 : r;
+  const x = c?.getContext('2d');
+  if (!x) { bodyOutlinePending.delete(key); return; }
   c.width = img.width + 2 * m; c.height = img.height + 2 * m;
-  const x = c.getContext('2d');
-  if (!x) return;
   const around = draw => { for (let k = 0; k < 24; k++) { const a = k / 24 * 2 * Math.PI; draw(m + Math.round(r * Math.cos(a)), m + Math.round(r * Math.sin(a))); } };
+  let e = null;
   if (inner) {
-    // Anneau en dedans : la forme moins la forme rognée (intersection de ses copies décalées)
-    const e = document.createElement('canvas'), y = e.getContext('2d');
+    e = document.createElement('canvas');
+    const y = e.getContext('2d');
     e.width = c.width; e.height = c.height;
     y.drawImage(img, 0, 0);
     y.globalCompositeOperation = 'destination-in';
@@ -234,9 +236,13 @@ async function bodyOutlineMask(kind, view, id, res, r = BODY_OL_PX[res], inner =
     x.globalCompositeOperation = 'destination-out';
     x.drawImage(img, r, r);
   }
-  const url = c.toDataURL('image/png');
-  bodyOutlineMasks.set(key, url);
+  const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+  c.width = c.height = 0;
+  if (e) e.width = e.height = 0;
   bodyOutlinePending.delete(key);
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  bodyOutlineMasks.set(key, url);
   document.querySelectorAll(`.body-map__ol[data-olkey="${key}"]`).forEach(el => {
     el.style.webkitMaskImage = `url(${url})`; el.style.maskImage = `url(${url})`;
   });
@@ -347,12 +353,13 @@ async function bodyMapImage(levels = {}, { view = 'both', body = bodySilhouette(
       f.globalCompositeOperation = 'source-over';
     }
     for (const m of BODY_IMG.bodies[kind][v]) {
-      const op = bodyHeatOpacity(levels?.[m]);
+      // Paliers de Progrès (colors.tier1, tier2 : profil du récap) : une couleur pleine par palier, comme bodyTier
+      const tier = c.tier1 ? bodyTier(levels?.[m]) : null, op = c.tier1 ? (tier ? 1 : 0) : bodyHeatOpacity(levels?.[m]);
       if (!op) continue;
       const img = await bodyLoadImage(bodyImgUrl(kind, v, m));
       if (!img) return null;
       f.globalAlpha = op;
-      f.drawImage(bodyTintLayer(img, c.peak && levels[m] >= 1 ? c.peak : c.heat), 0, 0, w, h);
+      f.drawImage(bodyTintLayer(img, tier ? c[`tier${tier.tone.slice(1)}`] : c.peak && levels[m] >= 1 ? c.peak : c.heat), 0, 0, w, h);
       f.globalAlpha = 1;
     }
     ctx.drawImage(fig, dx, 0);

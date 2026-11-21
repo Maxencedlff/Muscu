@@ -94,13 +94,15 @@ function atlasPills(levels) {
 
 
 // ── Fiche exercice (variante E) : deux lignes « Muscles ciblés » / « Muscles qui aident » ──
-// Rôles d'un exercice par sous-muscle : p (série entière) et s (demi-série), d'après la correspondance quand elle vaut
-// pour les muscles affichés (exercisePartLevels source 'atlas'), sinon chaque muscle entier. { p: [ids], s: [ids] }
+// Rôles d'un exercice par sous-muscle, selon le RÔLE AFFICHÉ sur la fiche (exercisePartLevels : niveau 2 « Muscle ciblé »,
+// niveau 1 « Qui aide ») : p compte la série entière, s la moitié (audit M1 : le comptage de Progrès suivait la
+// correspondance brute et contredisait la fiche sur 71 exercices). Ordre : celui de la correspondance quand elle vaut
+// (le plus sollicité d'abord), sinon celui de BODY_PARTS. { p: [ids], s: [ids] }
 function exercisePartRoles(name, m) {
-  const r = exercisePartLevels(name, m), e = EXERCISE_PARTS[catalogueEntry(name)?.name];
-  if (r.source === 'atlas' && e) return { p: Object.keys(e.p), s: Object.keys(e.s) };
-  const p = (m?.primary || []).flatMap(atlasPartsOf), s = (m?.secondary || []).flatMap(atlasPartsOf).filter(id => !p.includes(id));
-  return { p, s };
+  const r = exercisePartLevels(name, m), lv = r.levels, e = EXERCISE_PARTS[catalogueEntry(name)?.name];
+  const order = r.source === 'atlas' && e ? [...Object.keys(e.p), ...Object.keys(e.s)] : BODY_PARTS.parts.map(p => p.id);
+  const ids = [...new Set([...order, ...Object.keys(lv)])];
+  return { p: ids.filter(id => lv[id] >= 2), s: ids.filter(id => lv[id] === 1) };
 }
 
 // Noms classés pour les deux lignes : chaque nom de pastille une fois, à l'intensité la plus forte de ses sous-muscles,
@@ -170,14 +172,17 @@ function partLoad(spanKey = 'week', now = Date.now(), history = data.history) {
 // dont au moins un sous-muscle visible est gris ou rouge pâle sur le personnage ; ids : ces sous-muscles-là (isolés au
 // toucher du nom). Correspondance avec le dessin au niveau du muscle de salle : chaque nom a une zone grise ou pâle, chaque
 // zone grise ou pâle d'un muscle de salle a son nom (les sous-muscles sans muscle de salle, tenseur du fascia lata,
-// sterno-cléido-mastoïdien…, et les profonds, invisibles non colorés, n'y entrent pas). Du moins au plus de séries de la
+// sterno-cléido-mastoïdien…, et les profonds, invisibles non colorés, n'y entrent pas), sauf pour un muscle de salle à
+// l'objectif dans « Séries par muscle » : jamais listé. Du moins au plus de séries de la
 // période ; à égalité, les grands groupes avant les petits (minor), puis l'ordre de « Séries par muscle ».
 // [{ key, label, sets, minor, ids }]
 function atlasToWork(pl, kind = bodyKind(bodySilhouette())) {
   const visible = p => !p.deep && ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id]);
   const items = MUSCLES.map((m, i) => ({ key: m.id, label: m.label, sets: pl.load.sets[m.id] || 0, minor: !!m.minor, rank: i,
     ids: BODY_PARTS.parts.filter(p => p.parent === m.id && visible(p) && (pl.levels[p.id] || 0) < MUSCLE_LEVEL_MAX).map(p => p.id) }))
-    .filter(it => it.ids.length);
+    // Un muscle à l'objectif dans « Séries par muscle » n'est pas à travailler, même si l'un de ses sous-muscles est pâle
+    // (audit M2 : les deux listes se contredisaient)
+    .filter(it => it.ids.length && (pl.load.levels[it.key] || 0) < MUSCLE_LEVEL_MAX);
   return items.sort((a, b) => a.sets - b.sets || a.minor - b.minor || a.rank - b.rank);
 }
 

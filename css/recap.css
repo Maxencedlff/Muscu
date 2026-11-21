@@ -14,10 +14,10 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
 .tone-night  { --rc-bg: var(--rc-night);  --rc-fg: var(--rc-on-night);  --rc-heat: var(--rc-night-heat); }
 /* Écran noir, même en thème clair : la silhouette garde le rouge des muscles du sombre (Progrès,
    theme-sobre-progres.css), sinon le palier le plus haut, le plus foncé en clair, serait le moins visible sur le noir.
-   Palier le plus haut (.is-peak) : le rose pâle du dernier palier de Progrès, distinct du rouge des autres */
+   Paliers : ceux de Progrès en sombre (--body-tier-1 et 2, theme-sobre-progres.css), même ordre de couleurs */
 .tone-night {
-  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #C94A3F; --body-heat-max: #FFE0DA; --body-heat-sec: #9E5A50;
-  --body-tier-1: #FFB3A8; --body-tier-2: #FF453A; --body-tier-dot-1: #F9B4AA; --body-tier-dot-2: #F95C51;
+  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #C94A3F; --body-heat-max: var(--body-tier-2); --body-heat-sec: #9E5A50;
+  --body-tier-1: #FFA096; --body-tier-2: #FF453A; --body-tier-dot-1: #9F655F; --body-tier-dot-2: #F95C51;
 }
 
 /* ── Accueil : carte « Ta semaine », une cellule comme les autres (pas d'aplat sur l'accueil) ── */
@@ -151,7 +151,8 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
 .rp-scale small { flex-basis: 100%; text-align: center; font-size: var(--fs-caption); font-weight: 600; opacity: .8; }
 .rp-scale i { width: 11px; height: 11px; border-radius: 3px; position: relative; overflow: hidden; background: rgba(255, 255, 255, .35); }
 .rp-scale i::after { content: ''; position: absolute; inset: 0; background: var(--body-heat); opacity: var(--o, 0); }
-.rp-scale i.is-peak::after { background: var(--body-heat-max); opacity: 1; }
+.rp-scale i.is-t1::after { background: var(--body-tier-dot-1); opacity: 1; }
+.rp-scale i.is-t2::after { background: var(--body-tier-dot-2); opacity: 1; }
 /* Profil : 3 pastilles compactes, sur une ligne quand elles tiennent, sinon à la ligne entre deux pastilles */
 .rp-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; flex-shrink: 0; }
 .rp-pills .rp-pill { gap: 5px; padding: 4px 10px 4px 4px; font-size: var(--fs-footnote); }

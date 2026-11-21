@@ -25,7 +25,7 @@ function muscleTipLoadHtml(id) {
 // Bulle de la fiche exercice : rôle lu dans la carte elle-même (calque coloré, teinte des secondaires)
 function muscleTipExerciseHtml(id, mapEl) {
   const layer = mapEl.querySelector(`.body-map__m[data-muscle="${id}"]`);
-  const role = !layer ? 'Non ciblé par cet exercice' : layer.classList.contains('body-map__m--sec') ? 'Muscle secondaire' : 'Muscle principal';
+  const role = !layer ? 'Non ciblé par cet exercice' : layer.classList.contains('body-map__m--sec') ? 'Muscle qui aide' : 'Muscle ciblé';
   return `<p class="btip__title" id="btipTitle">${esc(muscleLabel(id))}</p><p class="btip__sub">${role}</p>`;
 }
 
@@ -108,7 +108,7 @@ registerActions({
     closeBodyTip();
     if (was) {
       atlasIsolate(group, [], null);
-      announce('Personnage : tous les muscles sont affichés');
+      atlasSay('Personnage : tous les muscles sont affichés');
       return;
     }
     const ids = (nameEl || line).dataset.ids.split(' ').filter(Boolean);
@@ -116,7 +116,7 @@ registerActions({
     // iPhone SE : le personnage peut être sorti de l'écran quand on touche la liste ; on y revient doucement
     const map = group?.querySelector('.mpanel--atlas .body-map--atlas'), r = map?.getBoundingClientRect();
     if (r && (r.top < 60 || r.bottom > innerHeight - 90)) map.scrollIntoView({ block: 'center', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
-    announce(nameEl ? `Personnage : seul ${nameEl.dataset.label} est affiché` : `Personnage : seuls les ${line.dataset.title.toLowerCase()} sont affichés`);
+    atlasSay(nameEl ? `Personnage : seul ${nameEl.dataset.label} est affiché` : `Personnage : seuls les ${line.dataset.title.toLowerCase()} sont affichés`);
     haptic();
   },
   // Bouton « Agrandir » de la fiche exercice : vue agrandie de l'atlas, sans zoom (VoiceOver, gestes inconnus)
@@ -127,13 +127,13 @@ registerActions({
   // Progrès, « À travailler » : un nom isole ses sous-muscles gris ou pâles sur le personnage (atlasToWorkShow)
   'atlas-to-work': (e, btn) => atlasToWorkShow(btn),
   // Croix de la carte d'info du muscle touché (js/ui/body-zoom.js)
-  'atlas-info-close': () => closeBodyTip(),
+  'atlas-info-close': () => atlasInfoClose(),
   // « Tout afficher » posé sur le dessin (texte très grand) : Progrès comme « Tout afficher » de la liste, fiche comme un second toucher
   'atlas-iso-all': (e, btn) => {
     const card = btn.closest('.mcard');
     closeBodyTip();
     if (card) atlasToWorkReset(card); else atlasIsolate(btn.closest('.group'), [], null);
-    announce('Personnage : tous les muscles sont affichés');
+    atlasSay('Personnage : tous les muscles sont affichés');
   },
   'atlas-to-work-reset': (e, btn) => { const card = btn.closest('.mcard'); closeBodyTip(); atlasToWorkReset(card); card?.querySelector('.mlow__name')?.focus(); },
   // Progrès, « À travailler » : « + N autres » déplie la liste entière, « Moins » la replie, sur place
@@ -146,6 +146,6 @@ registerActions({
     cell.querySelector('.mlow__more')?.focus();
     const named = iso && cell.querySelector(`.mlow__name[data-muscle="${iso}"]`);
     if (named) { named.setAttribute('aria-pressed', 'true'); named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout afficher</button>'); }
-    announce(`${cell.querySelectorAll('.mlow__name').length} muscles à travailler`);
+    atlasSay(`${cell.querySelectorAll('.mlow__name').length} muscles à travailler`);
   },
 });

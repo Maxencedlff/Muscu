@@ -47,7 +47,7 @@ html.type-xl .sheet-root--atlas .sheet__bar .sheet__title { order: 0; flex: 1 1 
   width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
   background: var(--fill2); color: var(--tint);
 }
-.azoom__btn:disabled { opacity: .35; }   /* même forme que l'autre bouton, seulement estompé */
+.azoom__btn[aria-disabled="true"] { opacity: .35; }   /* même forme que l'autre bouton, seulement estompé */
 .type-xl .azoom__btn { width: 56px; height: 56px; }
 .type-xl .azoom__btn svg { width: 30px; height: 30px; }
 .azoom__hint { margin-top: 2px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }

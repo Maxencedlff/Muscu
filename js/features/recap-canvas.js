@@ -20,9 +20,9 @@ function recapToneColors(tone, light) {
   const t = Object.hasOwn(RECAP_TONE_COLORS, tone) ? tone : 'accent';
   return (light && RECAP_TONE_LIGHT[t]) || RECAP_TONE_COLORS[t];
 }
-// Personnage du profil (écran noir) : le rouge des muscles de Progrès en sombre, l'intensité dit le palier ;
-// palier le plus haut : le rose pâle du dernier palier (comme .is-peak, css/recap.css)
-const RECAP_BODY = { heat: '#C94A3F', peak: '#FFE0DA' };
+// Personnage du profil (écran noir) : les paliers de Progrès en sombre, mêmes couleurs que l'écran (css/recap.css,
+// .tone-night) : « Sous l'objectif » en rouge pâle, « Objectif atteint » en rouge plein (tests/unit/recap.mjs)
+const RECAP_BODY = { tier1: '#FFA096', tier2: '#FF453A', dot1: '#9F655F', dot2: '#F95C51' };
 const RECAP_STORY = {
   HEAD: 40,          // « MA SEMAINE · 12 – 18 OCTOBRE »
   NUM_MAX: 300, NUM_MIN: 140,
@@ -273,9 +273,7 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
         let x = SIDE + maxW / 2 - (ws.reduce((a, b) => a + b, 0) + gap * (row.length - 1)) / 2;
         row.forEach((it, k) => {
           ctx.fillStyle = 'rgba(255,255,255,.35)'; roundRect(ctx, x, ry + 6, sq, sq, 6); ctx.fill();
-          ctx.globalAlpha = it.lvl >= MUSCLE_LEVEL_MAX ? 1 : bodyHeatOpacity(it.lvl / MUSCLE_LEVEL_MAX);
-          ctx.fillStyle = it.lvl >= MUSCLE_LEVEL_MAX ? RECAP_BODY.peak : RECAP_BODY.heat; roundRect(ctx, x, ry + 6, sq, sq, 6); ctx.fill();
-          ctx.globalAlpha = 1;
+          ctx.fillStyle = it.lvl >= MUSCLE_LEVEL_MAX ? RECAP_BODY.dot2 : RECAP_BODY.dot1; roundRect(ctx, x, ry + 6, sq, sq, 6); ctx.fill();
           text(it.t, f(700, 30), 1, ry + 29, x + sq + 12, ws[k]);
           x += ws[k] + gap;
         });

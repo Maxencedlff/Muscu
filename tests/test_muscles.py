@@ -86,7 +86,7 @@ def t_progress(bench, eng, dev, theme):
         dos_trend = ' '.join(page.locator('.view.stats .pgrp[data-group="dos"] .pgrp__trend').inner_text().split())
         page.locator('.view.stats .pgrp[data-group="dos"]').click()
         page.wait_for_selector('.view.stats-group')
-        g = page.evaluate("""() => { const v = document.querySelector('.view.stats-group'), img = v.querySelector('.exhero img');
+        g = page.evaluate("""() => { const v = document.querySelector('.view.stats-group'), img = v.querySelector('.exhero__img');
             const rows = [...v.querySelectorAll('.mrow')].map(r => +r.querySelector('.cell__value').textContent);
             const atlas = v.querySelector('.exhero .body-map--atlas[data-tiers="1"]');
             const parts = atlas ? [...atlas.querySelectorAll('.body-map__p, .body-map__ol')].map(e => atlasPart(e.dataset.part || e.dataset.ol)?.parent) : [];
@@ -688,6 +688,8 @@ def t_tip(bench, eng, dev, theme):
         page.click('.mcard .atlas-info__close')
         settle(page)
         R.check(page.locator('.atlas-info').count() == 0 and page.locator('.body-map__mark').count() == 0, f'{t} croix : carte fermée, marque retirée')
+        R.check(page.evaluate("document.activeElement === document.querySelector('.mcard__map')"), f'{t} croix : le focus revient au dessin (VoiceOver)')
+        R.check(page.evaluate("!!document.getElementById('atlasLive') && document.getElementById('atlasLive').getAttribute('aria-live') === 'polite'"), f'{t} région d\'annonce permanente')
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         page.click('[data-action="muscle-span"][data-span="week"]')
         settle(page)
@@ -730,9 +732,9 @@ def t_tip(bench, eng, dev, theme):
         R.check(w >= 200, f'{t} fiche : personnage agrandi ({w:.0f} px)')
         R.check(page.locator('.mpanel__map .body-map__m--sec[data-muscle="triceps"]').count() >= 1, f'{t} fiche : triceps en secondaire')
         tap_muscle(page, '.mpanel__map', 'chest', 'front')
-        R.check(tip_text(page) == 'Pectoraux Muscle principal', f'{t} fiche : « {tip_text(page)} »')
+        R.check(tip_text(page) == 'Pectoraux Muscle ciblé', f'{t} fiche : « {tip_text(page)} »')
         tap_muscle(page, '.mpanel__map', 'triceps', 'back')
-        R.check(tip_text(page) == 'Triceps Muscle secondaire', f'{t} fiche : « {tip_text(page)} »')
+        R.check(tip_text(page) == 'Triceps Muscle qui aide', f'{t} fiche : « {tip_text(page)} »')
         R.check(page.locator('.mpanel__map .body-map__back .body-map__hl[data-muscle="triceps"]').count() == 1
                 and page.locator('.body-map__hl').count() == 1, f'{t} fiche : triceps mis en valeur, seul')
         R.check(tip_inside(page), f'{t} fiche : bulle dans l\'écran')

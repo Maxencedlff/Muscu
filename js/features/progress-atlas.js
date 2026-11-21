@@ -59,8 +59,10 @@ function atlasToWorkShow(btn) {
   if (again) return;
   const kind = bodyKind(map.dataset.body), pl = partLoad(muscleSpan);
   // Une ligne par sous-muscle : son état (pastille), son nom (l'état en mots s'il porte le nom du muscle), ses séries
-  const rows = it.ids.map(id => { const lv = pl.levels[id] || 0, name = atlasPartTitle(id) === it.label ? MUSCLE_LEVEL_WORDS[lv] : atlasPartTitle(id);
-    return `<p class="btip__level">${muscleLevelDot(lv)}<span>${esc(name)} : ${pl.weekly[id] ? weeklyTxt(pl.weekly[id]) : 'aucune série'}</span></p>`; }).join('');
+  // Bas du corps (carte simple, ATLAS_SIMPLE_MUSCLES) : une seule ligne, le muscle entier (audit m5)
+  const one = ATLAS_SIMPLE_MUSCLES.has(it.key), row = (lv, name, weekly) => `<p class="btip__level">${muscleLevelDot(lv)}<span>${esc(name)} : ${weekly ? weeklyTxt(weekly) : 'aucune série'}</span></p>`;
+  const rows = one ? row(pl.load.levels[it.key] || 0, MUSCLE_LEVEL_WORDS[pl.load.levels[it.key] || 0], pl.load.weekly[it.key])
+    : it.ids.map(id => { const lv = pl.levels[id] || 0; return row(lv, atlasPartTitle(id) === it.label ? MUSCLE_LEVEL_WORDS[lv] : atlasPartTitle(id), pl.weekly[id]); }).join('');
   const html = `<p class="btip__title">${esc(it.label)}</p>${rows}
     <button class="btip__link" data-action="go-stats-muscles" data-muscle="${it.key}">Séries par muscle${icon('chevron.right', 14)}</button>`;
   // Marques : le contour des sous-muscles (gris compris : sans calque, ils se verraient mal), qui restent jusqu'à « Tout afficher »
@@ -74,10 +76,9 @@ function atlasToWorkShow(btn) {
   const named = card.querySelector(`.mlow__name[data-muscle="${it.key}"]`) || btn;
   named.setAttribute('aria-pressed', 'true');
   named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout afficher</button>');
-  atlasInfoShow(map, html);
+  atlasInfoShow(map, html, null, named);
   const r0 = map.getBoundingClientRect();
   if (r0.top < 0 || r0.bottom > innerHeight) map.scrollIntoView({ block: 'center', behavior: 'instant' });
-  announce(`${it.label} : ${it.ids.map(atlasPartTitle).join(', ')}`);
 }
 
 // « Tout afficher » : le dessin entier, plus de nom surligné

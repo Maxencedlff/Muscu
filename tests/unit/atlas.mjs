@@ -243,6 +243,22 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     }
   });
 
+  test('récap partagé : les paliers dans les couleurs de Progrès en sombre (audit B1 : « Objectif atteint » en rose pâle)', () => {
+    const css = f => fs.readFileSync(path.join(ROOT, 'css', f), 'utf8');
+    const tok = (txt, sel, name) => (txt.split(sel)[1] || '').match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1].trim();
+    const prog = css('theme-sobre-progres.css'), recap = css('recap.css');
+    const canvas = fs.readFileSync(path.join(ROOT, 'js', 'features', 'recap-canvas.js'), 'utf8');
+    const body = JSON.parse(canvas.match(/const RECAP_BODY = (\{[^}]+\})/)[1].replace(/(\w+):/g, '"$1":').replace(/'/g, '"'));
+    for (const n of ['body-tier-1', 'body-tier-2', 'body-tier-dot-1', 'body-tier-dot-2']) {
+      assert.equal(tok(recap, '.tone-night {', n), tok(prog, ':root {', n), `écran du récap : ${n} = Progrès`);
+    }
+    assert.equal(body.tier1, tok(prog, ':root {', 'body-tier-1'), 'image partagée : Sous l\'objectif = Progrès');
+    assert.equal(body.tier2, tok(prog, ':root {', 'body-tier-2'), 'image partagée : Objectif atteint = Progrès');
+    assert.equal(body.dot1, tok(prog, ':root {', 'body-tier-dot-1'));
+    assert.equal(body.dot2, tok(prog, ':root {', 'body-tier-dot-2'));
+    assert.equal(tok(recap, '.tone-night {', 'body-heat-max'), 'var(--body-tier-2)', 'palier du haut : le rouge plein, jamais le rose pâle');
+  });
+
   test('fiche (variante E) : deux lignes classées, « + N autres » au-delà de 4 noms', () => {
     const lines = name => { const m = app.musclesOf(name), lv = app.exercisePartLevels(name, m).levels;
       const r = run(`atlasRanked(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)}), ${JSON.stringify(lv)})`);
@@ -269,12 +285,21 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
       exercises: [{ name, sets: Array.from({ length: n }, () => ({ weight: '40', reps: '10' })) }] });
     const hist = [h(1, 'Développé incliné barre', 4), h(2, 'Développé couché barre', 3), h(3, 'Tractions pronation', 4), h(40, 'Développé incliné barre', 10)];
     const c = run(`partSetCounts(${JSON.stringify(hist)}, ${now - 28 * DAY}, ${now + 1})`);
-    // Incliné : claviculaire principal (4) ; couché : claviculaire principal aussi (3) ; il y a 40 jours : hors période
-    assert.equal(c.sets.chest_clavicular, 7);
-    assert.equal(c.sets.chest_sternal, 4 + 3, 'sterno-costal : principal des deux développés');
-    assert.equal(c.sets.triceps_long, (4 + 3) * 0.5, 'triceps : secondaire, demi-série');
+    // Le compte suit le RÔLE AFFICHÉ sur la fiche (audit M1) : « Muscle ciblé » 1 série, « Qui aide » ½, pour chaque exercice
+    const role = (ex, id) => ({ 2: 1, 1: 0.5 })[run(`exercisePartLevels(${JSON.stringify(ex)}, musclesOf(${JSON.stringify(ex)})).levels`)[id]] || 0;
+    const expect = id => 4 * role('Développé incliné barre', id) + 3 * role('Développé couché barre', id) + 4 * role('Tractions pronation', id);
+    for (const id of ['chest_clavicular', 'chest_sternal', 'chest_abdominal', 'triceps_long', 'lats', 'rhomboid_major', 'biceps_long']) {
+      assert.equal(c.sets[id] || 0, expect(id), `${id} : séries selon le rôle de la fiche`);
+    }
+    // Développé incliné : haut des pectoraux ciblé (1 série) ; couché : il aide (½) ; il y a 40 jours : hors période
+    assert.equal(role('Développé incliné barre', 'chest_clavicular'), 1);
+    assert.equal(c.sets.chest_clavicular, 4 + 3 * role('Développé couché barre', 'chest_clavicular'));
+    // Tout le catalogue : le compte et la fiche disent le même rôle pour chaque sous-muscle
+    const bad = run(`EXERCISE_CATALOGUE.map(e => e.name).filter(n => { const lv = exercisePartLevels(n, musclesOf(n)).levels, r = exercisePartRoles(n, musclesOf(n));
+      return Object.keys(lv).some(id => (lv[id] >= 2) !== r.p.includes(id) || (lv[id] === 1) !== r.s.includes(id)) || [...r.p, ...r.s].some(id => !(lv[id] > 0)); })`);
+    sameJSON(bad, [], 'comptage = rôle affiché sur la fiche, pour tous les exercices');
     assert.equal(c.sets.lats, 4);
-    sameJSON(run(`partTopExercises(${JSON.stringify(c.byEx)}, 'chest_clavicular')`), [['Développé incliné barre', 4], ['Développé couché barre', 3]]);
+    sameJSON(run(`partTopExercises(${JSON.stringify(c.byEx)}, 'chest_clavicular')`)[0], ['Développé incliné barre', 4]);
     // Paliers : même échelle que les 18 muscles (séries par semaine), bas du corps = palier du muscle entier
     run(`data.history = ${JSON.stringify(hist)}`);
     const pl = run(`partLoad('month', ${now}, data.history)`);
@@ -283,7 +308,7 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.equal(pl.levels.chest_abdominal > 0, true, 'couché : faisceau abdominal travaillé');
     assert.equal(pl.levels.glute_max, pl.load.levels.glutes, 'bas du corps : carte simple');
     assert.equal(pl.levels.delt_posterior, app.muscleLevel(pl.weekly.delt_posterior));
-    assert.equal(pl.sets.rhomboid_major, 2, 'tractions : rhomboïdes secondaires, demi-série');
+    assert.equal(pl.sets.rhomboid_major, 4 * role('Tractions pronation', 'rhomboid_major'), 'tractions : rhomboïdes au rôle de la fiche');
   });
 
   test('Progrès, « À travailler » : les muscles de salle dont une zone est grise ou pâle sur le dessin, et eux seuls', () => {
@@ -301,7 +326,11 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
       // Dessin : un sous-muscle visible est gris (aucun calque), pâle (--t1) ou plein (--t2)
       const parts = run('BODY_PARTS.parts').filter(p => p.parent && !p.deep && ['front', 'back'].some(v => run('BODY_PARTS').boxes[kind][v][p.id]));
       const shown = id => { const m = html.match(new RegExp(`class="[^"]*body-map__m--(t\\d)[^"]*" data-part="${id}"`)); return m ? m[1] : 'gris'; };
-      const lowZones = parts.filter(p => shown(p.id) !== 't2');
+      // Zones grises ou pâles d'un muscle de salle qui n'est pas à l'objectif dans « Séries par muscle » (audit M2)
+      const lowZones = parts.filter(p => shown(p.id) !== 't2' && pl.load.levels[p.parent] < 2);
+      for (const m of Object.keys(pl.load.levels).filter(k => pl.load.levels[k] === 2)) {
+        assert.ok(!items.some(it => it.key === m), `${kind} : ${m} à l'objectif (Séries par muscle) : jamais à travailler, même avec un sous-muscle pâle`);
+      }
       // Chaque zone grise ou pâle a son muscle de salle dans la liste, et chaque nom listé a une zone grise ou pâle
       sameJSON([...new Set(lowZones.map(p => p.parent))].sort(), items.map(it => it.key).sort(), `${kind} : muscles listés = muscles qui ont une zone grise ou pâle`);
       sameJSON(items.flatMap(it => it.ids).sort(), lowZones.map(p => p.id).sort(), `${kind} : zones isolées au toucher = zones grises ou pâles`);

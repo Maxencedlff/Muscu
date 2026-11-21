@@ -157,9 +157,10 @@ function recapPageHtml(page, i, st) {
   }
   if (page.bars) parts.push(recapBarsHtml(page.bars));
   if (page.body && page.id === 'profile') {
-    // Couleurs de Progrès (rouge des muscles, palier le plus haut en rose pâle) et sa légende par paliers
-    parts.push(`<div class="rp-figure">${bodyMapHtml(page.body, { view: 'both', className: 'rp-body', peak: true })}</div>`);
-    if (page.scale) parts.push(`<div class="rp-scale" aria-hidden="true">${MUSCLE_LEVEL_WORDS.slice(1).map((w, i) => `<span><i${i + 1 >= MUSCLE_LEVEL_MAX ? ' class="is-peak"' : ''} style="--o:${bodyHeatOpacity((i + 1) / MUSCLE_LEVEL_MAX)}"></i>${esc(w)} <b class="num">${muscleLevelRange(i + 1)}</b></span>`).join('')}<small>${esc(page.scale)}</small></div>`);
+    // Les couleurs de Progrès, palier par palier (audit : « Objectif atteint » y était en rose pâle, la couleur de
+    // « Sous l'objectif » dans Progrès) : rouge pâle, puis rouge plein ; et sa légende
+    parts.push(`<div class="rp-figure">${bodyMapHtml(page.body, { view: 'both', className: 'rp-body', tiers: true })}</div>`);
+    if (page.scale) parts.push(`<div class="rp-scale" aria-hidden="true">${MUSCLE_LEVEL_WORDS.slice(1).map((w, i) => `<span><i class="is-${bodyTier((i + 1) / MUSCLE_LEVEL_MAX).tone}"></i>${esc(w)} <b class="num">${muscleLevelRange(i + 1)}</b></span>`).join('')}<small>${esc(page.scale)}</small></div>`);
   }
   // Ouverture : le personnage de la semaine, à droite du chiffre
   const side = page.body && page.id === 'sessions'
