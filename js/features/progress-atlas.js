@@ -36,7 +36,8 @@ function atlasToWorkHtml(items) {
     <template class="mlow__few">${shown.map(atlasToWorkNameHtml).join('')}${more ? `<button class="mlow__more" data-action="atlas-to-work-all" aria-expanded="false" aria-label="Voir les ${more} autres muscles à travailler">+ ${more} autre${more > 1 ? 's' : ''}</button>` : ''}</template>`;
 }
 
-// Texte très grand : « À travailler : … » sous le choix de période, le résumé sans défiler (la liste touchable reste plus
+// Texte très grand : « À travailler : … » sous le dessin (panel t12 : au-dessus, il poussait le personnage sous le pli sur
+// iPhone SE), le résumé sans défiler (la liste touchable reste plus
 // bas, sous la légende) ; masqué pour VoiceOver, qui lit la liste
 function atlasToWorkLineHtml(items) {
   if (!items.length) return '';

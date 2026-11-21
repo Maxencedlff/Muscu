@@ -600,6 +600,16 @@ def p_bibliotheque(r):
 
 
 
+def _defiler_fiche(r):
+    """Personnage de la fiche à l'écran ; plus haut que l'écran (texte très grand), le panneau commence sous la barre
+    du titre au lieu d'y passer à moitié (panel t12 : « Haut des pectoraux » à moitié caché)."""
+    r.defiler('.library-ex .mpanel--atlas', 'personnage')
+    r.page.evaluate("""() => { const p = document.querySelector('.library-ex .mpanel--atlas'), bar = document.querySelector('.view.library-ex .navbar');
+        const top = p.getBoundingClientRect().top, under = bar ? bar.getBoundingClientRect().bottom + 8 : 8;
+        if (top < under) scrollBy(0, top - under); }""")
+    r.page.wait_for_timeout(200)
+
+
 def _toucher_sous_muscle(r, racine, part, quoi, double=False):
     """Toucher (compté) au milieu d'un sous-muscle coloré de l'atlas : un doigt, pas un clic DOM."""
     xy = r.page.evaluate("""([racine, part]) => { const l = document.querySelector(`${racine} .body-map__front [data-part="${part}"]`);
@@ -628,7 +638,7 @@ def p_atlas(r):
         r.saisir('#libSearch', 'Développé incliné barre', 'recherche')
         r.toucher('[data-action="open-library-ex"][data-name="Développé incliné barre"]', 'Développé incliné barre')
         r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
-        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+        _defiler_fiche(r)
     with r.etape('nom', 'Toucher le haut des pectoraux : nom de salle et nom officiel', cle='Voir les muscles d\'un exercice en détail'):
         _toucher_sous_muscle(r, '.mpanel__map', 'chest_clavicular', 'haut des pectoraux')
         r.attendre('.atlas-info', 'carte d\'info du muscle')
@@ -644,7 +654,7 @@ def p_atlas(r):
         r.toucher('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]', 'nom « Triceps »')
     with r.etape('tout', 'Toucher de nouveau : tous les muscles reviennent'):
         r.toucher('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]', 'nom « Triceps »')
-        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+        _defiler_fiche(r)
     with r.etape('zoom', 'Toucher deux fois : vue agrandie, le personnage entier (face et dos)', cle='Voir les muscles d\'un exercice en détail'):
         _toucher_sous_muscle(r, '.mpanel__map', 'chest_clavicular', 'deux touchers sur la poitrine', double=True)
         r.attendre('.azoom', 'vue agrandie')
@@ -670,7 +680,7 @@ def p_atlas(r):
             r.saisir('#libSearch', nom, 'recherche')
             r.toucher(f'[data-action="open-library-ex"][data-name="{nom}"]', nom)
             r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
-            r.defiler('.library-ex .mpanel--atlas', 'personnage')
+            _defiler_fiche(r)
         with r.etape(f'nom-{slug}', f'Fiche {nom} : toucher le muscle principal'):
             xy = r.page.evaluate("""part => { const l = document.querySelector(`.mpanel__map .body-map__back [data-part="${part}"]`);
                 if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * 0.15, b.top + b.height * 0.5]; }""", part)
@@ -683,20 +693,20 @@ def p_atlas(r):
     r.raccourci("() => { data.silhouette = 'female'; save(); navigate(makeRoute('library-ex', 'Développé incliné barre')); }", 'silhouette femme (Réglages)')
     with r.etape('fiche-femme', 'Silhouette femme : fiche du développé incliné barre'):
         r.attendre('.view.library-ex .mpanel--atlas .body-map[data-body="female"]', 'personnage femme')
-        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+        _defiler_fiche(r)
     # Développé couché (panel de l'affiche) : le pectoral se colore autour du sein, le sein reste au gris du corps
     r.raccourci("() => navigate(makeRoute('library-ex', 'Développé couché barre'))", 'fiche Développé couché barre')
     with r.etape('fiche-couche-femme', 'Silhouette femme : fiche du développé couché barre (pectoraux autour du sein)'):
         r.attendre('.view.library-ex .mpanel--atlas .body-map[data-body="female"]', 'personnage femme')
-        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+        _defiler_fiche(r)
     r.raccourci("() => navigate(makeRoute('library-ex', 'Abducteurs machine'))", 'fiche Abducteurs machine')
     with r.etape('fiche-abducteurs-femme', 'Silhouette femme : fiche Abducteurs machine, cadrage'):
         r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
-        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+        _defiler_fiche(r)
     r.raccourci("() => navigate(makeRoute('library-ex', 'Tractions pronation'))", 'fiche Tractions pronation')
     with r.etape('nom-tractions-femme', 'Silhouette femme : Tractions pronation, toucher le grand dorsal'):
         r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
-        r.defiler('.library-ex .mpanel--atlas', 'personnage')
+        _defiler_fiche(r)
         xy = r.page.evaluate("""() => { const l = document.querySelector('.mpanel__map .body-map__back [data-part="lats"]');
             if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * 0.15, b.top + b.height * 0.5]; }""")
         if not xy:

@@ -190,3 +190,23 @@ function atlasToWork(pl, kind = bodyKind(bodySilhouette())) {
 function partTopExercises(byEx, id, n = 3) {
   return Object.entries(byEx[id] || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n);
 }
+
+// Décomposition d'un muscle de salle en ses zones dessinées (panel t12 : Pectoraux 14 à l'objectif, mais un faisceau
+// pâle sur le dessin) : [{ label, n }], n = séries par semaine de la zone, l'unité de « Séries par muscle ». Zones
+// nommées court : « Haut », « Milieu », « Bas » (pectoraux, trapèzes), « Chef long » (triceps), sinon le nom de la
+// pastille ; deux sous-muscles de même pastille (rhomboïdes) n'en font qu'une, au plus travaillé. Vide pour les
+// muscles d'un seul tenant sur le dessin et pour ceux colorés en entier (fessiers, quadriceps… : ATLAS_SIMPLE_MUSCLES)
+function atlasMuscleZones(pl, muscleId, kind = bodyKind(bodySilhouette())) {
+  if (ATLAS_SIMPLE_MUSCLES.has(muscleId)) return [];
+  const label = muscleLabel(muscleId), cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+  const parts = BODY_PARTS.parts.filter(p => p.parent === muscleId && ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[p.id]));
+  const pills = new Set(parts.map(p => atlasPillLabel(p.id)));
+  const zones = new Map();
+  for (const p of parts) {
+    let name = pills.size > 1 ? atlasPillLabel(p.id) : atlasPartTitle(p.id);
+    if (name.startsWith(`${label}, `)) name = cap(name.slice(label.length + 2));
+    else if (name.endsWith(` des ${label.toLowerCase()}`)) name = name.slice(0, -(label.length + 5));
+    zones.set(name, Math.max(zones.get(name) ?? 0, pl.weekly[p.id] || 0));
+  }
+  return zones.size > 1 ? [...zones].map(([l, n]) => ({ label: l, n })) : [];
+}

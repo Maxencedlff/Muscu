@@ -274,8 +274,8 @@ function renderMuscleCard() {
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
-        ${atlasToWorkLineHtml(toWork)}
         ${progressAtlasHtml(muscleSpan, toWork)}
+        ${atlasToWorkLineHtml(toWork)}
         ${muscleLegendHtml(muscleSpan, load)}
         ${muscleSrListHtml(load)}
       </div>

@@ -53,6 +53,7 @@
 /* Profonds (rhomboïdes, petit pectoral), vus à travers le muscle qui les couvre : teinte unie, sans leur ombrage de fibres,
    qui croisait celui du muscle du dessus en hachures (panel t5, trapèzes et rhomboïdes des tractions) */
 .body-map--atlas .body-map__p--deep { background-image: none !important; }
+html body .body-map--atlas[data-tiers] .body-map__p.body-map__p--deep.body-map__m--t1 { background-color: var(--body-tier-dot-1); background-blend-mode: normal; filter: none; } html body .body-map--atlas[data-tiers] .body-map__p.body-map__p--deep.body-map__m--t2 { background-color: var(--body-tier-dot-2); background-blend-mode: normal; }   /* Progrès : rhomboïdes à la couleur vue de leur état (panel t12 : blanc transparent) */
 /* Sombre : le muscle ciblé (et les paliers de Progrès) en rouge vif éclairé par l'ombrage (soft-light, et non multiply qui
    l'éteignait), sur un corps plus sombre (--body-atlas-bright) : ciblé / gris 2,7:1 au lieu de 1,9:1. Clair : inchangé */
 body:not(.light) .body-map--atlas .body-map__p { background-blend-mode: soft-light; }
@@ -87,10 +88,10 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .atlas-box--top > .mpanel__zoom { top: -8px; }
 .atlas-box--bottom > .mpanel__zoom { bottom: -8px; }
 /* Muscle isolé : « Seulement : Triceps · Tout afficher », sur une ligne sous le personnage (atlasIsoChip, panel t9) */
-.atlas-box__iso { display: flex; align-self: stretch; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 8px;
+.atlas-box__iso { display: flex; align-self: stretch; flex-wrap: nowrap; align-items: center; justify-content: center; column-gap: 8px;   /* « Tout afficher » toujours sur la ligne du nom (panel t12) */
   font-size: min(var(--fs-footnote), 17px); }
-.atlas-box__iso-name { font-weight: 600; color: var(--label); }
-.atlas-box__iso-all { min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; white-space: nowrap; }
+.atlas-box__iso-name { min-width: 0; font-weight: 600; color: var(--label); }
+.atlas-box__iso-all { flex: none; min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; white-space: nowrap; }
 /* Muscles travaillés tous en haut (ou tous en bas) du corps : carte cadrée sur cette moitié (bodyAtlasCrop), plus large ;
    une seule vue utile (abducteurs : le dos) : en grand */
 .mpanel__box:has(> .body-map--crop) { width: min(100%, 330px); }
@@ -353,6 +354,7 @@ body.light .mpick__auto { background: var(--cell); }
 .exhero .exvideo__credit[hidden] { display: none; }
 .exhead__title { margin: 14px 0 2px; }
 .exhead__sub { margin: 0 0 12px; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }
+.exhead__sub:has(+ .exhead__help) { margin-bottom: 2px; } .exhead__help { margin: 0 0 12px; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }   /* « Aide : … » (panel t12) */
 .extabs { margin: 4px 0 4px; }
 /* Largeur de chaque onglet selon son nom : « Historique » tient sur iPhone SE sans toucher ses voisins */
 .extabs .segmented__btn { flex: 1 1 auto; }

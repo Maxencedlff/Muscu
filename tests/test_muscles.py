@@ -118,6 +118,15 @@ def t_progress(bench, eng, dev, theme):
         page.locator('.view.stats-group [data-action="go-stats-muscles"]').click()
         page.wait_for_selector('.view.stats-muscles')
         settle(page)
+        # Zones du dessin sous chaque muscle (panel t12) : « Haut 5 · Milieu 9 · Bas 0 », les chiffres du personnage, repliables
+        zl = page.evaluate("""() => { const r = document.querySelector('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zline'), pl = partLoad(muscleSpan);
+            return r && { text: r.textContent.replace(/\\u00a0/g, ' '), want: ['chest_clavicular', 'chest_sternal', 'chest_abdominal'].map(id => pl.weekly[id] || 0),
+                          glutes: !!document.querySelector('.view.stats-muscles .mrow[data-muscle="glutes"] .mrow__zones') }; }""")
+        R.check(zl and zl['text'].startswith(f"Haut {zl['want'][0]} · Milieu {zl['want'][1]} · Bas {zl['want'][2]}") and not zl['glutes'], f'{t} Séries par muscle : zones des pectoraux, celles du dessin {zl}')
+        page.click('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zsum')
+        R.check(not page.locator('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zline').is_visible()
+                and page.get_attribute('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zsum', 'aria-expanded') == 'false', f'{t} « Par zone » se replie')
+        page.click('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zsum')
         top = page.evaluate("""() => { const seg = document.querySelector('.mdetail__seg').getBoundingClientRect(), bar = document.querySelector('#app .navbar').getBoundingClientRect();
             const v = id => +document.querySelector(`.mrow[data-muscle="${id}"] .cell__value`).textContent;
             return { y: scrollY, visible: seg.top >= bar.bottom - 1, dos: v('lats') + v('traps') + v('lower_back'),

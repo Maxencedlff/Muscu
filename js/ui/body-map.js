@@ -175,7 +175,7 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline
   return on.map(p => {
     const b = boxes[p.id][res === 3 ? 1 : 0], lv = levels[p.id];
     const url = `url(${body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${p.id}.webp`)})`;
-    const op = p.deep ? BODY_PART_DEEP_OPACITY : tiers ? 1 : lv >= 2 ? 1 : BODY_PART_SEC_OPACITY;
+    const op = tiers ? 1 : p.deep ? BODY_PART_DEEP_OPACITY : lv >= 2 ? 1 : BODY_PART_SEC_OPACITY;   // Progrès : profonds pleins, à la couleur de leur état (panel t12)
     const tone = tiers ? ` body-map__m--t${Math.min(BODY_TIERS, Math.max(1, lv))}` : lv >= 2 ? '' : ' body-map__m--sec';
     const cls = `body-map__m body-map__p${tone}${p.deep ? ' body-map__p--deep' : ''}`;
     return `<i class="${cls}" data-part="${p.id}" data-muscle="${p.parent || ''}" data-level="${lv}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)};background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;

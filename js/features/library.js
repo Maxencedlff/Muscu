@@ -360,6 +360,9 @@ function renderLibraryEx(name) {
     .filter(p => lv[p.id] >= 2 && atlasPillLabel(p.id) === label).map(p => { const i = mSub.primary.indexOf(p.parent); return i < 0 ? 99 : i; }));
   const mMain = atlasPills(lv).filter(p => p.level >= 2).map(p => p.label).sort((a, b) => rank(a) - rank(b));
   const sub = [[...new Set([...(mMain.length ? mMain : mSub.primary.map(muscleLabel)), ...(mSub.deep || []).map(id => deepMuscleLabel(id, true))])].join('\u00a0· '), q?.label].filter(Boolean).join('\u00a0· ');   // « · » collé au mot d'avant : le matériel ne se lit pas comme un muscle
+  // « Aide : Grand fessier » sous le sous-titre (panel t12 : sans défiler, on ne voyait que le ciblé) ; 3 noms au plus
+  const help = [...new Set(atlasPills(lv).filter(p => p.level === 1).map(p => p.label))];
+  const helpTxt = help.length ? `Aide : ${help.slice(0, 3).join(', ')}${help.length > 3 ? ` et ${help.length - 3} autre${help.length > 4 ? 's' : ''}` : ''}` : '';
   const title = catalogueAliasOf(name) ? name : e.name;
   return `
     <div class="view library-ex view--grouped">
@@ -368,6 +371,7 @@ function renderLibraryEx(name) {
         ${libExHeroHtml(name)}
         <h1 class="scr-title exhead__title">${esc(title)}</h1>
         ${sub ? `<p class="exhead__sub">${esc(sub)}</p>` : ''}
+        ${sub && helpTxt ? `<p class="exhead__help">${esc(helpTxt)}</p>` : ''}
         ${aliasNoteHtml(name, 'scr-sub ex-alias library-ex__alias')}
         <div class="segmented seg-full extabs" role="tablist" aria-label="Fiche de l'exercice">
           ${LIB_EX_TABS.map(([k, l]) => `<button class="segmented__btn${libExTab === k ? ' segmented__btn--active' : ''}" role="tab" id="extab-${k}"

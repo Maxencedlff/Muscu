@@ -227,6 +227,8 @@ def t_fiche(bench, eng, dev, theme):
         R.check(off and off['corner'] and not off['on'], f'{t} bouton Agrandir dans le coin du dessin, sur aucun muscle coloré {off}')
         z = page.locator('.mpanel__zoom').bounding_box()
         R.check(z and z['width'] >= 44 and z['height'] >= 44, f'{t} bouton Agrandir 44 × 44 {z}')
+        fill = page.evaluate("getComputedStyle(document.querySelector('.mpanel__zoom')).backgroundColor")
+        R.check(fill not in ('rgba(0, 0, 0, 0)', 'transparent'), f'{t} bouton Agrandir sur un fond rond, comme − et + ({fill})')
         page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
         settle(page)
         lo = layout_ok(page)
@@ -382,12 +384,18 @@ def t_fiche(bench, eng, dev, theme):
         chip = page.locator('.atlas-box__iso')
         geo = page.evaluate("""() => { const c = document.querySelector('.atlas-box__iso')?.getBoundingClientRect(), n = document.querySelector('.atlas-box__iso-name'),
             b = document.querySelector('.mpanel__box').getBoundingClientRect(), ls = [...document.querySelectorAll('.mline2')].map(e => e.getBoundingClientRect());
-            return c && { lines: Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight || 20)), under: c.top >= b.bottom - 1, clear: ls.every(l => c.bottom <= l.top + 1 || c.top >= l.bottom - 1) }; }""")
-        R.check(chip.count() == 1 and chip.is_visible() and 'Tout afficher' in chip.inner_text() and geo and geo['under'] and geo['clear'] and geo['lines'] <= 2,
+            const nr = n.getBoundingClientRect(), br = document.querySelector('.atlas-box__iso-all').getBoundingClientRect();
+            return c && { lines: Math.round(nr.height / parseFloat(getComputedStyle(n).lineHeight || 20)), under: c.top >= b.bottom - 1, clear: ls.every(l => c.bottom <= l.top + 1 || c.top >= l.bottom - 1),
+                          same: br.top < nr.bottom && br.bottom > nr.top }; }""")
+        # Panel t12 : « Tout afficher » sur la ligne de « Seulement : … » (dessous, il passait sous la barre d'onglets)
+        R.check(chip.count() == 1 and chip.is_visible() and 'Tout afficher' in chip.inner_text() and geo and geo['under'] and geo['clear'] and geo['lines'] <= 2 and geo['same'],
                 f'{t} texte agrandi : muscle isolé nommé sous le dessin, avec « Tout afficher », sans couvrir les lignes {geo}')
         page.click('.atlas-box__iso-all')
         settle(page)
         R.check(page.locator('.atlas-box__iso').count() == 0 and not page.evaluate("document.querySelector('.mpanel__map').dataset.iso"), f'{t} texte agrandi : « Tout afficher » sur le dessin rend tous les muscles')
+        zx = page.evaluate("""() => { const b = document.querySelector('.mpanel__zoom'), r = b.getBoundingClientRect(), m = document.querySelector('.mpanel__map').getBoundingClientRect();
+            return { txt: b.querySelector('.mpanel__zoom-txt')?.offsetWidth > 0, h: Math.round(r.height), under: r.top >= m.bottom - 1, fs: parseFloat(getComputedStyle(b).fontSize) }; }""")
+        R.check(zx['txt'] and zx['h'] >= 44 and zx['under'] and zx['fs'] > 17, f'{t} texte agrandi : « Agrandir » écrit sous le dessin, à la taille du texte {zx}')
         page.click('.mpanel__zoom')
         page.wait_for_selector('.azoom')
         settle(page)
@@ -522,6 +530,8 @@ def t_autres_fiches(bench, eng, dev, theme):
                 # Aucun muscle de face : le dos seul, en grand (panel affichage-e t3)
                 one = page.evaluate("""() => { const m = document.querySelector('.mpanel__map'); return [m.querySelectorAll('.body-map__front').length, m.querySelectorAll('.body-map__back').length, Math.round(m.getBoundingClientRect().height)]; }""")
                 R.check(one[0] == 0 and one[1] == 1 and one[2] >= 180, f'{t} {name} : le dos seul, en grand (face, dos, hauteur ; avant : 124 points) {one}')
+                # Panel t12 : le muscle qui aide nommé sous le sous-titre, sans défiler
+                R.check(page.inner_text('.exhead__help').strip() == 'Aide : Grand fessier', f'{t} {name} : « Aide : Grand fessier » sous le sous-titre')
             off = page.evaluate(ZOOM_CORNER_JS, '.mpanel__map')
             R.check(off and off['corner'] and not off['on'], f'{t} {name} : Agrandir dans un coin libre du dessin {off}')
             lines = page.evaluate("""[...document.querySelectorAll('.group:has(.mpanel--atlas) .mline2')].map(b => [b.querySelector('.cell__sub').textContent, [...b.querySelectorAll('.mline2__names .mline2__name')].map(n => n.textContent), b.dataset.level | 0])""")
@@ -707,10 +717,13 @@ def t_progres(bench, eng, dev, theme):
         # Texte très grand (AX33) sur la vue agrandie : légende repliée, titre sur une ligne, personnage sur 60 % au moins
         page.evaluate("""() => { const h = document.documentElement; h.style.fontSize = '33px'; h.classList.add('type-xl'); render(); }""")
         settle(page)
-        todo = page.evaluate("""() => { const p = document.querySelector('.mcard__todo'), seg = document.querySelector('.mcard .segmented');
-            return p && { visible: getComputedStyle(p).display !== 'none', under: Math.round(p.getBoundingClientRect().top - seg.getBoundingClientRect().bottom), text: p.textContent }; }""")
-        R.check(not items or (todo and todo['visible'] and 0 <= todo['under'] <= 24 and todo['text'].startswith('À travailler : ' + items[0])),
-                f'{t} texte très grand : « À travailler : … » sous le choix de période {todo}')
+        # Panel t12 : sous le dessin (au-dessus, sur iPhone SE, le personnage passait sous le pli) ; le dessin commence
+        # juste sous le choix de période
+        todo = page.evaluate("""() => { const p = document.querySelector('.mcard__todo'), seg = document.querySelector('.mcard .segmented'), box = document.querySelector('.mcard .atlas-box');
+            return p && { visible: getComputedStyle(p).display !== 'none', under: Math.round(p.getBoundingClientRect().top - box.getBoundingClientRect().bottom),
+                          map: Math.round(box.getBoundingClientRect().top - seg.getBoundingClientRect().bottom), text: p.textContent }; }""")
+        R.check(not items or (todo and todo['visible'] and todo['under'] >= 0 and todo['map'] <= 24 and todo['text'].startswith('À travailler : ' + items[0])),
+                f'{t} texte très grand : « À travailler : … » sous le dessin, le dessin sous le choix de période {todo}')
         page.locator('.mcard__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
         page.click('.mcard .mpanel__zoom')
         page.wait_for_selector('.azoom')

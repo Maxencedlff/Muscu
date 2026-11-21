@@ -174,14 +174,18 @@ function statsGroupAtlasHtml(g) {
 // Lignes « muscle, séries par semaine, barre » : Séries par muscle et détail d'un groupe (même unité que la carte)
 function muscleWeekRowsHtml(load, ids) {
   const max = Math.max(MUSCLE_LEVEL_FROM.at(-1) * 2, ...MUSCLES.map(m => load.weekly[m.id]));   // l'objectif (10) à mi-barre
+  const pl = partLoad(load.span);
   return ids.map(id => {
     const n = load.weekly[id], tier = bodyTier(load.intensity[id]);
+    // Zones du dessin (panel t12) : « Haut 5 · Milieu 9 · Bas 0 », repliable, pour recouper la carte et le personnage
+    const zones = atlasMuscleZones(pl, id).map(z => `${esc(z.label)}\u00a0<span class="num">${z.n}</span>`).join(' · ');
     return `
       <div class="cell mrow${id === muscleFocus ? ' mrow--focus' : ''}" data-muscle="${id}">
         <span class="cell__body">
           <span class="mrow__top" aria-hidden="true"><span class="cell__title">${muscleLabel(id)}</span><span class="cell__value num">${n}</span></span>
           <span class="mrow__bar" aria-hidden="true"><i${tier ? ` class="is-${tier.tone}"` : ''} style="width:${Math.round(n / max * 100)}%"></i></span>
           <span class="visually-hidden">${muscleLabel(id)} : ${weeklyTxt(n, load.span)}, ${levelWord(load.levels[id])}</span>
+          ${zones ? `<span class="mrow__zones"><button class="mrow__zsum" data-action="mrow-zones" aria-expanded="true">Par zone${icon('chevron.down', 12)}</button><span class="mrow__zline">${zones}</span></span>` : ''}
         </span>
       </div>`;
   }).join('');
@@ -189,6 +193,8 @@ function muscleWeekRowsHtml(load, ids) {
 function weeklyTitle(span = muscleSpan) { return span === 'month' ? 'Séries par semaine, moyenne sur 4 semaines' : 'Séries cette semaine'; }
 
 registerActions({
+  // « Par zone » replié ou déplié (ligne des zones du dessin sous un muscle)
+  'mrow-zones': (e, el) => { el.setAttribute('aria-expanded', String(el.getAttribute('aria-expanded') !== 'true')); },
   'open-stats-group': (e, el) => {
     if (MUSCLE_GROUP_BY_ID.has(el.dataset.group)) navigate(makeRoute('stats-group', el.dataset.group));
   },

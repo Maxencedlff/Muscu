@@ -16,3 +16,10 @@
 .type-xl .mcard__todo { display: block; }
 /* Page d'un groupe (Pectoraux…) : le personnage détaillé en tête, centré */
 .sgrp__box { width: min(100%, 300px); margin-inline: auto; }
+/* « Séries par muscle » et page de groupe : zones du dessin sous un muscle (« Haut 5 · Milieu 9 · Bas 0 », panel t12),
+   repliables ; le chevron tourne, la ligne disparaît */
+.mrow__zones { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; margin: -6px 0 -10px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
+.mrow__zsum { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; }
+.mrow__zsum .icon { transition: transform .2s; } .mrow__zsum[aria-expanded="false"] .icon { transform: rotate(-90deg); }
+.mrow__zsum[aria-expanded="false"] + .mrow__zline { display: none; }
+.mrow__zline { min-width: 0; }

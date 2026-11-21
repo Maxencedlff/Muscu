@@ -230,6 +230,15 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     const fiche = run(`bodyAtlasHtml({ glute_med: 2, glute_max: 1 }, { body: 'male' })`);
     assert.ok(/class="body-map__ol body-map__ol--main" data-ol="glute_med"/.test(fiche) && !/data-ol="glute_max"/.test(fiche),
       'fiche : le ciblé seul cerné de rouge (panel t8), pas le muscle qui aide');
+    // Zones d'un muscle de salle (panel t12) : « Haut · Milieu · Bas » pour les pectoraux, les chefs du triceps, rien
+    // pour un muscle coloré en entier (fessiers)
+    const zones = (m, weekly) => run(`atlasMuscleZones({ weekly: ${JSON.stringify(weekly)} }, ${JSON.stringify(m)}, 'male')`);
+    const pz = zones('chest', { chest_clavicular: 5, chest_sternal: 9 });
+    sameJSON(pz.slice(0, 3), [{ label: 'Haut', n: 5 }, { label: 'Milieu', n: 9 }, { label: 'Bas', n: 0 }]);
+    sameJSON(zones('traps', { traps_middle: 4 }).slice(0, 3).map(z => z.label), ['Haut', 'Milieu', 'Bas']);
+    sameJSON(zones('triceps', {}).map(z => z.label), ['Chef long', 'Chef latéral', 'Chef médial']);
+    sameJSON(zones('glutes', { glute_max: 3 }), []);
+    assert.ok(new Set(zones('traps', {}).map(z => z.label)).size === zones('traps', {}).length, 'rhomboïdes : une seule zone');
     // Page de groupe (contre-vérification de l'auditeur, cas de probe.mjs) : vues et cadrage sur TOUS les sous-muscles du
     // groupe, sinon ceux à 0 série de l'autre vue disparaissaient (Épaules : le deltoïde antérieur seul travaillé cachait
     // le postérieur, au dos ; Bras : le biceps seul cachait le triceps). Pour chaque groupe et chaque sous-muscle travaillé
