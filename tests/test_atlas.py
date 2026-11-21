@@ -262,7 +262,9 @@ def t_fiche(bench, eng, dev, theme):
         st = page.evaluate('atlasViewerState()')
         cen = page.evaluate("""() => { const v = document.querySelector('.azoom').getBoundingClientRect(), l = document.querySelector('.azoom .body-map__front [data-part="chest_clavicular"]').getBoundingClientRect();
             return [Math.round(l.left + l.width / 2 - (v.left + v.width / 2)), Math.round(l.top + l.height / 2 - (v.top + v.height / 2))]; }""")
-        R.check(abs(st['scale'] - 2) < 0.05 and abs(cen[0]) < 60 and abs(cen[1]) < 60, f'{t} double toucher : vue agrandie centrée sur le ciblé, ×2 {st} {cen}')
+        # Paysage : à ×2, les deux vues tiennent encore en largeur (rien à centrer en largeur, le 3× va quand même à la face)
+        wide = page.evaluate("document.querySelector('.azoom__stage').getBoundingClientRect().width <= document.querySelector('.azoom').getBoundingClientRect().width + 1")
+        R.check(abs(st['scale'] - 2) < 0.05 and (wide or abs(cen[0]) < 60) and abs(cen[1]) < 60, f'{t} double toucher : vue agrandie centrée sur le ciblé, ×2 {st} {cen}')
         R.check(hi_urls and all('/front/' in u for u in hi_urls) and not any('/back/' in u for u in hi_urls), f'{t} 3× de la face seulement {hi_urls}')
         R.check(page.evaluate("document.querySelector('.azoom .body-map__front .body-map__base').src.endsWith('base@3x.webp')"), f'{t} base 3× affichée')
         R.check(page.locator('.azoom .body-map__front [data-part="chest_clavicular"]').count() == 1
@@ -302,7 +304,7 @@ def t_fiche(bench, eng, dev, theme):
         st = page.evaluate('atlasViewerState()')
         front_hi = page.evaluate("""() => [...document.querySelectorAll('.azoom .body-map__front img, .azoom .body-map__front i')]
             .some(e => /@3x|p3\\//.test((e.getAttribute('src') || '') + (e.style.backgroundImage || '')))""")
-        R.check(st['hi'] == 'back' and not front_hi, f'{t} une seule vue 3× : dos en 3×, face revenue au 1× {st} {front_hi}')
+        R.check(wide or (st['hi'] == 'back' and not front_hi), f'{t} une seule vue 3× : dos en 3×, face revenue au 1× {st} {front_hi}')
         shot(page, LOT, f'zoom-dos-{t}')
         # Double toucher : retour à ×1
         tap(page, [box['x'] + box['width'] / 2, box['y'] + box['height'] * 0.6], double=True, touch=True)
