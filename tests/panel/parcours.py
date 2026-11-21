@@ -605,7 +605,7 @@ def _defiler_fiche(r):
     du titre au lieu d'y passer à moitié (panel t12 : « Haut des pectoraux » à moitié caché)."""
     r.defiler('.library-ex .mpanel--atlas', 'personnage')
     r.page.evaluate("""() => { const p = document.querySelector('.library-ex .mpanel--atlas'), bar = document.querySelector('.view.library-ex .navbar');
-        const g = p.closest('.group'), head = g?.previousElementSibling?.classList.contains('group-title') ? g.previousElementSibling : g || p;   // texte très grand : la ligne « Muscle ciblé » est au-dessus du dessin
+        const g = p.closest('.group'), head = g?.querySelector('.mline2') || p;   // texte très grand : la ligne « Muscle ciblé », au-dessus du dessin, sous la barre (le haut du dessin reste à l'écran sur iPhone SE)
         const top = head.getBoundingClientRect().top, under = bar ? bar.getBoundingClientRect().bottom + 8 : 8;
         if (top < under && document.documentElement.classList.contains("type-xl")) scrollBy(0, top - under); }""")
     r.page.wait_for_timeout(200)
@@ -613,8 +613,13 @@ def _defiler_fiche(r):
 
 def _toucher_sous_muscle(r, racine, part, quoi, double=False):
     """Toucher (compté) au milieu d'un sous-muscle coloré de l'atlas : un doigt, pas un clic DOM."""
+    # Sous-muscle caché par la barre d'onglets ou la barre du titre (texte très grand, iPhone SE) : amené au centre d'abord
     xy = r.page.evaluate("""([racine, part]) => { const l = document.querySelector(`${racine} .body-map__front [data-part="${part}"]`);
-        if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * 0.3, b.top + b.height * 0.5]; }""", [racine, part])
+        if (!l) return null; let b = l.getBoundingClientRect();
+        const tab = document.querySelector('.tabbar')?.getBoundingClientRect().top ?? innerHeight, nav = document.querySelector('.view:not([hidden]) .navbar')?.getBoundingClientRect().bottom ?? 0;
+        const y = b.top + b.height * 0.5;
+        if (!l.closest('.azoom') && (y > tab - 8 || y < nav + 8)) { scrollBy(0, y - innerHeight / 2); b = l.getBoundingClientRect(); }
+        return [b.left + b.width * 0.3, b.top + b.height * 0.5]; }""", [racine, part])
     if not xy:
         raise Absent(f'introuvable : {quoi}')
     if double:   # deux clics rapprochés (une machine chargée espacerait deux clics séparés au-delà du double toucher)
