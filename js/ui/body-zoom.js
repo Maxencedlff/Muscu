@@ -164,7 +164,10 @@ function atlasTipShown(tipEl, root, hit, kind, res) {
 let atlasLastTap = null;
 function atlasTap(e, mapEl) {
   if (!e || (!e.clientX && !e.clientY)) return;
-  const now = performance.now();
+  // Heure du toucher lui-même (e.timeStamp), pas celle où il est traité : la bulle du premier toucher se prépare (carte de
+  // toucher, mise en page) et peut retarder le traitement du second ; mesuré à l'arrivée, un vrai double toucher passait
+  // pour deux touchers sur un appareil chargé (CI, iPhone 17 : bulle rouverte au lieu de la vue agrandie)
+  const now = e.timeStamp > 0 ? e.timeStamp : performance.now();
   const last = atlasLastTap;
   if (last && last.el === mapEl && now - last.t < ATLAS_DOUBLE_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < ATLAS_DOUBLE_PX) {
     atlasLastTap = null;

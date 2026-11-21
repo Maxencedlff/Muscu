@@ -615,13 +615,7 @@ def t_progres(bench, eng, dev, theme):
         # Zoom : double toucher, 3× de la vue, bulle de volume dans la vue agrandie
         page.evaluate('closeBodyTip()')
         tap(page, part_point(page, '.mcard__map', part, view), double=True)
-        try:
-            page.wait_for_selector('.azoom', timeout=6000)
-        except Exception:
-            # CI lente : les deux touchers peuvent arriver à plus de 350 ms l'un de l'autre (bulle et carte de toucher à
-            # préparer entre les deux) ; on refait le double toucher une fois
-            tap(page, part_point(page, '.mcard__map', part, view), double=True)
-            wait_or_say(page, '.azoom', 'attente 2 (double toucher refait)')
+        wait_or_say(page, '.azoom', 'attente 2 (double toucher)')
         page.wait_for_function("() => atlasViewerState()?.hi", timeout=10000)
         settle(page)
         R.check(page.evaluate("[...document.querySelectorAll('.azoom .body-map__p')].every(l => /--t\\d/.test(l.className))"), f'{t} vue agrandie : paliers gardés')
