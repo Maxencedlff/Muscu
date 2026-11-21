@@ -22,5 +22,5 @@
 .mrow__zsum[aria-expanded="false"] + .mrow__zline { display: none; }
 .mrow__zline { min-width: 0; }
 /* Fiche, texte très grand : « Qui aident : … » sous le ciblé (panel t13) ; l'en-tête ne le répète pas */
-.mline2__short { margin: 0; padding-top: 0; padding-bottom: 8px; min-height: 0; font-size: min(var(--fs-footnote), 17px); line-height: 1.3; color: var(--label2); }   /* courte : le dessin reste à l'écran sur iPhone SE */
+.view .cell.mline2__short { margin: 0; padding-top: 0; padding-bottom: 8px; min-height: 0; font-size: min(var(--fs-footnote), 17px); line-height: 1.3; color: var(--label2); }   /* courte : le dessin reste à l'écran sur iPhone SE */
 .type-xl .exhead__help { display: none; } .type-xl .exhead__sub:has(+ .exhead__help) { margin-bottom: 12px; }
