@@ -996,6 +996,6 @@ html.type-xl .tech__dot { display: none; }
 .sum-row__name { -webkit-hyphens: auto; hyphens: auto; }
 @media (max-width: 374px) {
   .sum-record { flex-wrap: wrap; row-gap: 2px; }
-  .sum-record .sum-row__main { flex-basis: calc(100% - 36px); }
-  .sum-record .sum-row__val { margin-left: 36px; }
+  .sum-record .sum-row__main { flex: 1 1 0; }
+  .sum-record .sum-row__val { flex-basis: 100%; padding-left: 42px; }   /* sous le nom, la médaille et le nom gardent leur ligne */
 }
