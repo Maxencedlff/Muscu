@@ -286,6 +286,9 @@ def t_silhouette_paliers(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+FAINT_HELP_GRAY = 14   # aidants discrets (ciblé petit sur la vue) : écart au gris du corps, au moins
+
+
 def t_fiche_aidants(bench):
     """Fiche « Développé incliné barre », mesurée SUR LA CAPTURE (panel affichage-e t5) : ciblé (haut des pectoraux), qui
     aide (milieu des pectoraux) et gris du corps (grand droit), couleur moyenne à l'écran. Sombre : ciblé / aidant 40 au
@@ -317,8 +320,15 @@ def t_fiche_aidants(bench):
                 return [sum(c[i] for c in px) / max(1, len(px)) for i in range(3)]
             m, h, g = avg(pts['main']), avg(pts['help']), avg(pts['gray'])
             mh, hg, dh = round(_delta_e(m, h)), round(_delta_e(h, g)), round(_delta_e(dot, h))
-            R.check(mh >= main_help and hg >= help_gray, f'{t} fiche : ciblé / aidant {mh} (≥ {main_help}), aidant / gris {hg} (≥ {help_gray}) sur la capture')
-            R.check(dh <= 12, f'{t} pastille « Qui aide » : la couleur du dessin, ombrage compris (écart {dh}, 12 au plus)')
+            # Homme : la bande du haut des pectoraux fait 27 % de l'aire des aidants, ceux-ci sont discrets (panel atlas-bas t2,
+            # --body-sec-o-faint) : plus près du gris, toujours distincts ; la pastille garde la couleur pleine (celle de l'isolement)
+            faint = page.evaluate("!!document.querySelector('.mpanel__map .body-map__front .body-map__m--faint')")
+            if faint:
+                help_gray, dot_max = (FAINT_HELP_GRAY, 25)
+            else:
+                dot_max = 12
+            R.check(mh >= main_help and hg >= help_gray, f'{t} fiche : ciblé / aidant {mh} (≥ {main_help}), aidant / gris {hg} (≥ {help_gray}, discrets {faint}) sur la capture')
+            R.check(dh <= dot_max, f'{t} pastille « Qui aide » : la couleur du dessin, ombrage compris (écart {dh}, {dot_max} au plus)')
             if theme == 'dark':
                 R.check(_lab(h)[0] < _lab(m)[0], f'{t} fiche : l\'aidant moins lumineux que le ciblé (L* {round(_lab(h)[0])} < {round(_lab(m)[0])})')
                 page.evaluate("navigate(makeRoute('library-ex', 'Abducteurs machine'))")
@@ -334,7 +344,7 @@ def t_fiche_aidants(bench):
                     return out; }""")
                 img = Image.open(io.BytesIO(page.screenshot())).convert('RGB')
                 m, h, g = avg(pa['main']), avg(pa['help']), avg(pa['gray'])
-                R.check(_lab(h)[0] < _lab(m)[0] and _delta_e(h, g) >= 20, f'{t} abducteurs : grand fessier (aide) sous le moyen fessier (ciblé) L* {round(_lab(h)[0])} < {round(_lab(m)[0])}, aidant / gris {round(_delta_e(h, g))}')
+                R.check(_lab(h)[0] < _lab(m)[0] and _delta_e(h, g) >= FAINT_HELP_GRAY, f'{t} abducteurs : grand fessier (aide) sous le moyen fessier (ciblé) L* {round(_lab(h)[0])} < {round(_lab(m)[0])}, aidant / gris {round(_delta_e(h, g))}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

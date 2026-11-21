@@ -129,7 +129,7 @@ def t_progress(bench, eng, dev, theme):
         zl = page.evaluate("""() => { const r = document.querySelector('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zline'), pl = partLoad(muscleSpan);
             return r && { text: r.textContent.replace(/\\u00a0/g, ' '), want: ['chest_clavicular', 'chest_sternal', 'chest_abdominal'].map(id => pl.weekly[id] || 0),
                           glutes: !!document.querySelector('.view.stats-muscles .mrow[data-muscle="glutes"] .mrow__zones') }; }""")
-        R.check(zl and zl['text'].startswith(f"Haut {zl['want'][0]} · Milieu {zl['want'][1]} · Bas {zl['want'][2]}") and not zl['glutes'], f'{t} Séries par muscle : zones des pectoraux, celles du dessin {zl}')
+        R.check(zl and zl['text'].startswith(f"Haut {zl['want'][0]} · Milieu {zl['want'][1]} · Bas {zl['want'][2]}") and zl['glutes'], f'{t} Séries par muscle : zones des pectoraux, celles du dessin ; fessiers aussi, depuis le détail des jambes {zl}')
         page.click('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zsum')
         R.check(not page.locator('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zline').is_visible()
                 and page.get_attribute('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zsum', 'aria-expanded') == 'false', f'{t} « Par zone » se replie')
@@ -970,7 +970,7 @@ def t_fiche(bench, eng, dev, theme):
             return !!(h.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) && h.getBoundingClientRect().width >= document.querySelector('.extabs').getBoundingClientRect().width - 1; }""")
         R.check(order and page.locator('.howto .exvideo').count() == 0 and page.locator('.exhero .exvideo__play').count() == 1,
                 f'{t} animation 3D en tête, pleine largeur, avant le titre, avec son bouton')
-        R.check(page.inner_text('.exhead__title').strip() == 'Squat barre' and page.inner_text('.exhead__sub').strip() .replace('\xa0', ' ') == 'Quadriceps · Grand fessier · Salle',
+        R.check(page.inner_text('.exhead__title').strip() == 'Squat barre' and page.inner_text('.exhead__sub').strip() .replace('\xa0', ' ') == 'Vaste latéral · Vaste médial · Grand fessier · Salle',
                 f'{t} titre et ligne « muscles · matériel » ({page.inner_text(".exhead__sub")!r})')
         # Onglets : tablist, À propos à l'ouverture, un seul panneau visible
         tabs = page.locator('.library-ex .extabs[role="tablist"] [role="tab"]')
