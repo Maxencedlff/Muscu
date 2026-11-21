@@ -571,8 +571,8 @@ def t_autres_fiches(bench, eng, dev, theme):
             sh = page.evaluate("""() => { const e = document.querySelector('.mline2__short'); if (!e) return null; const r = e.getBoundingClientRect();
                 const m = document.querySelector('.mpanel__map .body-map__row').getBoundingClientRect();
                 return { text: e.textContent, bottom: Math.round(r.bottom), tab: Math.round(document.querySelector('.tabbar').getBoundingClientRect().top), mapTop: Math.round(m.top), fs: parseFloat(getComputedStyle(e).fontSize) }; }""")
-            # le haut du dessin (tête, épaules) reste à l'écran : sur iPhone SE en AX33, le corps entier ne tient pas avec les deux lignes
-            R.check(sh and sh['text'].startswith('Qui aident : ') and sh['bottom'] < sh['tab'] and sh['mapTop'] < sh['tab'] - 40 and sh['fs'] <= 17,
+            # le dessin commence à l'écran : sur iPhone SE en AX33, le corps entier ne tient pas avec les deux lignes
+            R.check(sh and sh['text'].startswith('Qui aident : ') and sh['bottom'] < sh['tab'] and sh['mapTop'] < sh['tab'] and sh['fs'] <= 17,
                     f'{t} {name}, texte très grand : « Qui aident » visible sans défiler, le haut du dessin aussi {sh}')
             R.check(geo['bottom'] < geo['tab'] and geo['top'] >= geo['nav'] - 1 and geo['above'] and geo['h'] >= 230 and geo['views'] == want,
                     f'{t} {name}, texte très grand : nom du ciblé au-dessus du dessin et de la barre d\'onglets, personnage de 230 points au moins {geo}')

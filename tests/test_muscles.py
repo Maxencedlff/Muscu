@@ -700,10 +700,13 @@ def t_tip(bench, eng, dev, theme):
         shot(page, LOT, f'bulle-obliques-{t}')
         tap_muscle(page, '.mcard__map', 'abs', 'front')
         R.check(tip_text(page).startswith('Abdominaux'), f'{t} bulle abdominaux (grand droit) : « {tip_text(page)} »')
+        page.wait_for_timeout(700)   # fin du défilement qui amène la carte d'info au-dessus des onglets
         f = page.locator('.mcard__map .body-map__front').bounding_box()   # remesurée : la carte d'info a pu faire défiler la page
-        page.mouse.click(f['x'] + f['width'] / 2, f['y'] + f['height'] * .04)
+        hx, hy = f['x'] + f['width'] / 2, f['y'] + f['height'] * .04
+        at = page.evaluate("([x, y]) => { const e = document.elementFromPoint(x, y); return e ? e.className + ' / ' + (e.closest('[class]')?.parentElement?.className || '') : null; }", [hx, hy])
+        page.mouse.click(hx, hy)
         settle(page)
-        R.check(page.locator('.atlas-info').count() == 0, f'{t} toucher la tête (zone grise) : carte fermée')
+        R.check(page.locator('.atlas-info').count() == 0, f'{t} toucher la tête (zone grise) : carte fermée (point {round(hx)},{round(hy)} sur {at} ; carte : « {tip_text(page)[:60]} »)')
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         page.click('.mcard .atlas-info__close')
         settle(page)
