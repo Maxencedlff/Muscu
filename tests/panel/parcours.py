@@ -722,6 +722,42 @@ def p_atlas(r):
         r.page.wait_for_timeout(700)
 
 
+
+# Bas du corps (atlas, 21/11) : exercice, sous-muscle principal touché (vue de face ou de dos)
+JAMBES = [('Squat barre', 'squat', 'front', 'vastus_lateralis'),
+          ('Soulevé de terre roumain', 'sdt-roumain', 'back', 'semitendinosus'),
+          ('Abducteurs machine', 'abducteurs', 'back', 'glute_med'),
+          ('Mollets debout', 'mollets', 'back', 'gastro_medial')]
+
+
+@parcours('atlas_jambes', 'Fiche exercice, bas du corps : sous-muscles des jambes, homme et femme', 'pratiquant')
+def p_atlas_jambes(r):
+    """Fiches de 4 exercices de jambes (squat, soulevé de terre roumain, abducteurs, mollets) : personnage cadré sur le
+    bas du corps, sous-muscles colorés, nom au toucher du muscle principal ; puis les mêmes en silhouette femme."""
+    r.lancer(REALISTE)
+    r.onglet('program', 'Programme')
+    r.defiler('[data-action="go-library"]', 'liste sous les cartes')
+    r.toucher('[data-action="go-library"]', 'Bibliothèque')
+    r.attendre('.view.library', 'Bibliothèque')
+    for sexe in ('male', 'female'):
+        if sexe == 'female':
+            r.raccourci("() => { data.silhouette = 'female'; save(); }", 'silhouette femme (Réglages)')
+        for nom, slug, vue, part in JAMBES:
+            suf = '' if sexe == 'male' else '-femme'
+            with r.etape(f'fiche-{slug}{suf}', f'Fiche {nom}{" (femme)" if suf else ""} : personnage cadré sur les jambes',
+                         cle='Voir les muscles d\'un exercice en détail'):
+                r.raccourci(f"() => navigate(makeRoute('library-ex', {nom!r}))", f'fiche {nom}')
+                r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
+                r.defiler('.library-ex .mpanel--atlas', 'personnage')
+            with r.etape(f'nom-{slug}{suf}', f'Fiche {nom}{" (femme)" if suf else ""} : toucher le muscle principal'):
+                xy = r.page.evaluate("""([v, part]) => { const l = document.querySelector(`.mpanel__map .body-map__${v} [data-part="${part}"]`);
+                    if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * 0.4, b.top + b.height * 0.5]; }""", [vue, part])
+                if not xy:
+                    raise Absent(f'introuvable : {part}')
+                r.page.mouse.click(*xy)
+                r._note(f'{nom} : muscle principal')
+                r.page.wait_for_timeout(700)
+
 def _avec_vacuum():
     """Données réalistes, plus du vacuum en fin de séance Jambes : une séance d'avant en séries × reps (ancienne
     version), deux en secondes (maintiens)."""
