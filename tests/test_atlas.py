@@ -81,6 +81,13 @@ def part_point(page, root, part, view='front'):
 def tap(page, xy, double=False, touch=False):
     """Toucher (ou deux) en xy. Carte de la fiche : clic (Playwright WebKit ne tire pas de click après un
     touchscreen.tap ; l'app réagit au click, comme sur iPhone). Vue agrandie : touch=True, événements de toucher."""
+    if double and not touch:
+        # Double clic d'un seul envoi : deux clics à la suite, comme les deux touchers d'un doigt. Deux mouse.click
+        # séparés attendent chacun que la page ait traité le précédent : sur une CI lente (iPhone 17, bulle à préparer
+        # après le 1er), le 2e partait 400 à 480 ms après le 1er et l'app y voyait deux touchers simples
+        page.mouse.dblclick(*xy)
+        page.wait_for_timeout(90)
+        return
     for _ in range(2 if double else 1):
         if touch:
             page.touchscreen.tap(*xy)
