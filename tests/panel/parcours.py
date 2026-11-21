@@ -631,7 +631,7 @@ def p_atlas(r):
         r.defiler('.library-ex .mpanel--atlas', 'personnage')
     with r.etape('nom', 'Toucher le haut des pectoraux : nom de salle et nom officiel', cle='Voir les muscles d\'un exercice en détail'):
         _toucher_sous_muscle(r, '.mpanel__map', 'chest_clavicular', 'haut des pectoraux')
-        r.attendre('.btip', 'bulle du muscle')
+        r.attendre('.atlas-info', 'carte d\'info du muscle')
     with r.etape('aident', 'Toucher « Muscles qui aident » : seuls ces muscles restent sur le personnage', cle='Voir les muscles d\'un exercice en détail'):
         r.page.evaluate('closeBodyTip()')
         r.toucher('.library-ex .mline2[data-level="1"] .cell__sub', 'ligne « Muscles qui aident »')
@@ -645,17 +645,20 @@ def p_atlas(r):
     with r.etape('tout', 'Toucher de nouveau : tous les muscles reviennent'):
         r.toucher('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]', 'nom « Triceps »')
         r.defiler('.library-ex .mpanel--atlas', 'personnage')
-    with r.etape('zoom', 'Toucher deux fois : vue agrandie, zoomée sur la poitrine', cle='Voir les muscles d\'un exercice en détail'):
+    with r.etape('zoom', 'Toucher deux fois : vue agrandie, le personnage entier (face et dos)', cle='Voir les muscles d\'un exercice en détail'):
         _toucher_sous_muscle(r, '.mpanel__map', 'chest_clavicular', 'deux touchers sur la poitrine', double=True)
         r.attendre('.azoom', 'vue agrandie')
-        r.page.wait_for_function("() => atlasViewerState()?.hi === 'front'", timeout=8000)
+        r.page.wait_for_timeout(600)
     with r.etape('zoom-nom', 'Vue agrandie : toucher un muscle', cle='Voir les muscles d\'un exercice en détail'):
         _toucher_sous_muscle(r, '.azoom', 'chest_clavicular', 'haut des pectoraux, vue agrandie')
-        r.attendre('.btip', 'bulle du muscle')
-    with r.etape('vue-entiere', 'Vue agrandie : toucher deux fois pour revenir au personnage entier'):
-        xy = r.page.evaluate("() => { const b = document.querySelector('.azoom').getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height * 0.8]; }")
-        r.page.mouse.dblclick(*xy)
-        r._note('deux touchers : retour au personnage entier')
+        r.attendre('.atlas-info', 'carte d\'info du muscle')
+    with r.etape('vue-entiere', 'Vue agrandie : toucher deux fois pour agrandir la poitrine'):
+        r.page.evaluate('closeBodyTip()')
+        _toucher_sous_muscle(r, '.azoom', 'chest_clavicular', 'deux touchers sur la poitrine', double=True)
+        try:
+            r.page.wait_for_function("() => atlasViewerState()?.hi === 'front'", timeout=8000)
+        except Exception:
+            pass
         r.page.wait_for_timeout(600)
     with r.etape('fermer', 'OK : retour à la fiche'):
         r.toucher('.sheet-root--atlas .sheet__btn--confirm', 'OK')

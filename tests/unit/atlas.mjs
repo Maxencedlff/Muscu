@@ -225,8 +225,11 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     const prog = run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male', crop: false, tiers: true })`);
     assert.ok(prog.includes('body-map__front') && prog.includes('body-map__back'), 'Progrès : toujours les deux faces');
     const ol = run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male', crop: false, tiers: true, outline: ['external_oblique'] })`);
-    assert.ok(/class="body-map__ol" data-ol="external_oblique"/.test(ol) && ol.includes('data-ol="external_oblique"') && !run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male' })`).includes('body-map__ol'),
+    assert.ok(/class="body-map__ol" data-ol="external_oblique"/.test(ol) && ol.includes('data-ol="external_oblique"') && !/class="body-map__ol"/.test(run(`bodyAtlasHtml({ glute_med: 2 }, { body: 'male' })`)),
       'Progrès : muscles à 0 série cernés (outline), jamais sur la fiche');
+    const fiche = run(`bodyAtlasHtml({ glute_med: 2, glute_max: 1 }, { body: 'male' })`);
+    assert.ok(/class="body-map__ol body-map__ol--main" data-ol="glute_med"/.test(fiche) && !/data-ol="glute_max"/.test(fiche),
+      'fiche : le ciblé seul cerné de rouge (panel t8), pas le muscle qui aide');
     // Tout sous-muscle coloré reste dans le cadre
     for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) for (const kind of ['male', 'female']) {
       const lv = run(`exercisePartLevels(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)})).levels`);
@@ -238,20 +241,6 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
       // Cadre du bas du corps : au moins 30 points au-dessus du premier sous-muscle coloré (taille visible)
       if (y0 > 0 && first !== Infinity) assert.ok(first - y0 >= 30, `${name} ${kind} : ${first - y0} points de marge en haut`);
     }
-  });
-
-  test('atlas : bulle contre le muscle touché malgré les secondaires (bodyTipPlace, spotTol)', () => {
-    // Doigt à 75 % de la largeur (vue de dos), muscles atténués partout (poids 0,25) : la bulle reste au-dessus du doigt,
-    // avec sa pointe, sur la même moitié de l'écran
-    const w = 180, h = 90, x = 292, y = 300, gap = 14;
-    const cost = r => 0.25 * (r.right - r.left) * (r.bottom - r.top);
-    const p = app.bodyTipPlace({ x, y, w, h, vw: 390, minTop: 100, maxBottom: 600, cost, spotTol: 0.35,
-      spots: [{ left: x - w / 2, top: y - gap - h }, { left: x - w / 2, top: y + gap }] });
-    assert.ok(p.side !== 'free' && p.left + w / 2 > 195, `bulle ${JSON.stringify(p)}`);
-    // Sans tolérance (carte des 18 muscles) : comportement d'avant, une place loin du doigt peut gagner
-    const q = app.bodyTipPlace({ x, y, w, h, vw: 390, minTop: 100, maxBottom: 600, cost,
-      spots: [{ left: x - w / 2, top: y - gap - h }] });
-    assert.ok(q.left >= 8 && q.top >= 100);
   });
 
   test('fiche (variante E) : deux lignes classées, « + N autres » au-delà de 4 noms', () => {

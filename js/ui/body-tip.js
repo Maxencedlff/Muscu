@@ -103,11 +103,7 @@ async function bodyMuscleAt(mapEl, clientX, clientY) {
 // couverte, en points²), sinon celui qui en couvre le moins.
 // side : 'above' | 'below' | 'left' | 'right' (flèche vers le doigt, arrow : sa position le long du
 // bord) ou 'free' (bulle à l'écart du doigt, sans flèche)
-// spotTol : part de la bulle (0..1) qu'une place préférée (spots) peut couvrir de muscles colorés et rester choisie,
-// avant les places plus loin du doigt (atlas détaillé : la bulle reste contre le muscle touché, pointe comprise)
-// reach : distance au doigt jusqu'à laquelle la bulle garde sa pointe (atlas sur petit écran : bulle hors du dessin, pointe
-// vers le muscle)
-function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [], cost = () => 0, margin = 8, gap = 14, spotTol = 0, reach = 3 * gap }) {
+function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [], cost = () => 0, margin = 8, gap = 14 }) {
   const clampX = l => Math.max(margin, Math.min(vw - margin - w, l));
   const clampY = t => Math.max(minTop, Math.min(maxBottom - h, t));
   const hits = (p, r) => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top;
@@ -137,10 +133,11 @@ function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [
   if (!cands.length) cands = all.filter(p => fits(p, false));   // sinon sur le doigt, plutôt que sur un bouton
   const tol = 0.02 * w * h;
   const scored = cands.map(p => ({ p, c: cost({ left: p.left, top: p.top, right: p.left + w, bottom: p.top + h }) }));
-  let best = (spotTol && scored.find(s => s.p.spot && s.c <= spotTol * w * h)) || scored.find(s => s.c <= tol) || scored.reduce((a, b) => (b.c < a.c ? b : a), scored[0]);
+  let best = scored.find(s => s.c <= tol) || scored.reduce((a, b) => (b.c < a.c ? b : a), scored[0]);
   if (!best) best = { p: { left: clampX(x - w / 2), top: clampY(y + gap) } };
   const { left, top } = best.p;
-  // Flèche : seulement si la bulle borde le doigt (à moins de reach) sur l'un de ses côtés
+  // Flèche : seulement si la bulle borde le doigt (à moins de 3 fois l'écart) sur l'un de ses côtés
+  const reach = 3 * gap;
   let side = 'free', arrow = 0;
   if (x >= left + 16 && x <= left + w - 16 && top >= y && top - y <= reach) { side = 'below'; arrow = x - left; }
   else if (x >= left + 16 && x <= left + w - 16 && top + h <= y && y - top - h <= reach) { side = 'above'; arrow = x - left; }
@@ -245,20 +242,19 @@ function bodyTipAvoid(anchor) {
 }
 
 // Mise en valeur posée par un autre module (atlas détaillé, js/ui/body-zoom.js) : retirée à la fermeture
-function bodyTipSetMark(el) { bodyTipMarkEl = el || null; }
 
 function closeBodyTip() {
   bodyTipSeq++;
   bodyTipEl?.remove();
   bodyTipMarkEl?.remove();
   bodyTipEl = bodyTipAnchor = bodyTipMarkEl = null;
+  if (typeof closeAtlasInfo === 'function') closeAtlasInfo();   // carte d'info de l'atlas (js/ui/body-zoom.js)
 }
 
 // Ouvre la bulle près du doigt. html : contenu (dont un titre #btipTitle, nom de la bulle pour VoiceOver).
 // anchor : élément touché, dont le déplacement à l'écran (défilement) ferme la bulle
-// place : { prefer, cost } (bodyTipSpots, bodyTipCoverage), facultatif ; atlas détaillé (js/ui/body-zoom.js) :
-//   bounds { minTop, maxBottom } zone verticale à ne pas quitter (le dessin), avoid rectangles de plus à ne
-//   jamais couvrir, spots places préférées déjà calculées, container parent de la bulle (feuille modale)
+// place : { prefer, cost } (bodyTipSpots, bodyTipCoverage), facultatif. Carte des 18 muscles seulement : le personnage
+// détaillé (js/ui/body-zoom.js) a sa carte d'info dans la page, jamais de bulle par-dessus (panel affichage-e t8)
 function showBodyTip(html, x, y, anchor = null, place = {}) {
   closeBodyTip();
   const el = document.createElement('div');
@@ -267,11 +263,11 @@ function showBodyTip(html, x, y, anchor = null, place = {}) {
   el.setAttribute('aria-modal', 'false');
   el.setAttribute('aria-labelledby', 'btipTitle');
   el.innerHTML = `${html}<i class="btip__arrow" aria-hidden="true"></i>`;
-  (place.container || document.body).appendChild(el);
+  document.body.appendChild(el);
   const w = el.offsetWidth, h = el.offsetHeight;
-  const spots = place.spots ? place.spots(w, h) : place.prefer && anchor ? bodyTipSpots(anchor, x, y, w, h, place.prefer) : [];
-  const p = bodyTipPlace({ x, y, w, h, vw: document.documentElement.clientWidth, ...(place.bounds || bodyTipBounds(anchor)),
-    avoid: [...bodyTipAvoid(anchor), ...(place.avoid || [])], spots, cost: place.cost, spotTol: place.spotTol || 0, ...(place.reach ? { reach: place.reach } : {}) });
+  const spots = place.prefer && anchor ? bodyTipSpots(anchor, x, y, w, h, place.prefer) : [];
+  const p = bodyTipPlace({ x, y, w, h, vw: document.documentElement.clientWidth, ...bodyTipBounds(anchor),
+    avoid: bodyTipAvoid(anchor), spots, cost: place.cost });
   el.style.left = `${p.left}px`; el.style.top = `${p.top}px`;
   el.style.setProperty('--arrow', `${p.arrow}px`);
   el.classList.add(`btip--${p.side}`);

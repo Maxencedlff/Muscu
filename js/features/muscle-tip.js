@@ -126,6 +126,8 @@ registerActions({
   },
   // Progrès, « À travailler » : un nom isole ses sous-muscles gris ou pâles sur le personnage (atlasToWorkShow)
   'atlas-to-work': (e, btn) => atlasToWorkShow(btn),
+  // Croix de la carte d'info du muscle touché (js/ui/body-zoom.js)
+  'atlas-info-close': () => closeBodyTip(),
   // « Tout voir » posé sur le dessin (texte très grand) : Progrès comme « Tout voir » de la liste, fiche comme un second toucher
   'atlas-iso-all': (e, btn) => {
     const card = btn.closest('.mcard');

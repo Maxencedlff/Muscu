@@ -573,32 +573,36 @@ def tap_muscle(page, sel, muscle, view):
     page.mouse.click(x, y)
     # Premier toucher d'une vue : cartes d'étiquettes calculées avant l'ouverture (plus long sous charge)
     try:
-        page.wait_for_selector('.btip', timeout=3000)
+        page.wait_for_selector('.atlas-info, .btip', timeout=3000)
     except Exception:
         pass
     settle(page)
 
 
+# Personnage détaillé (fiche, Progrès) : carte d'info sous le dessin (panel affichage-e t8) ; carte des 18 muscles : bulle
+TIP = '.atlas-info, .btip'
+
+
 def tip_text(page):
-    tip = page.locator('.btip')
-    return ' '.join(tip.inner_text().split()) if tip.count() else ''
+    tip = page.locator(TIP)
+    return ' '.join(tip.first.inner_text().split()) if tip.count() else ''
 
 
 def tip_inside(page):
-    """La bulle tient dans l'écran, au-dessus de la barre d'onglets."""
-    return page.evaluate("""() => { const r = document.querySelector('.btip').getBoundingClientRect();
+    """La carte (ou la bulle) tient dans l'écran, au-dessus de la barre d'onglets."""
+    return page.evaluate("""() => { const r = document.querySelector('.atlas-info, .btip').getBoundingClientRect();
         const bar = document.querySelector('.tabbar').getBoundingClientRect();
         return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= bar.top; }""")
 
 
 def tip_rect(page):
-    return page.evaluate("""() => { const r = document.querySelector('.btip').getBoundingClientRect();
+    return page.evaluate("""() => { const r = document.querySelector('.atlas-info, .btip').getBoundingClientRect();
         return [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom), innerWidth,
                 Math.round(document.querySelector('.tabbar').getBoundingClientRect().top)]; }""")
 
 
 def tip_covers_selector(page):
-    return page.evaluate("""() => { const a = document.querySelector('.btip').getBoundingClientRect();
+    return page.evaluate("""() => { const a = document.querySelector('.atlas-info, .btip').getBoundingClientRect();
         const b = document.querySelector('.mcard .segmented').getBoundingClientRect();
         return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; }""")
 
@@ -619,7 +623,7 @@ def t_tip(bench, eng, dev, theme):
         R.check('pectoraux' in txt.split(' séries')[0].lower() and re.search(r'\d+ séries en 4 semaines, soit [\d,]+ par semaine', txt)
                 and 'Repère : 10 à 20 par semaine' in txt, f'{t} bulle pectoraux : « {txt} »')
         # Palier : celui du sous-muscle touché (personnage détaillé de Progrès)
-        hl_part = lambda: page.evaluate("document.querySelector('.body-map__hl')?.dataset.part")
+        hl_part = lambda: page.evaluate("document.querySelector('.body-map__mark')?.dataset.ol")
         lvl = page.evaluate(f"partLoad('month').levels[{json.dumps(hl_part())}]")
         R.check(page.evaluate("MUSCLE_LEVEL_WORDS")[lvl] in txt, f'{t} bulle : palier en mots (légende) {lvl}')
         R.check(not tip_covers_selector(page), f'{t} bulle : sélecteur de période jamais couvert')
@@ -630,15 +634,16 @@ def t_tip(bench, eng, dev, theme):
         R.check(you.count() == 1 and you.inner_text().startswith('Toi : ') and 'muscle' in you.inner_text(), f'{t} légende : tes muscles par palier ({you.all_inner_texts()})')
         lines = page.evaluate("new Set([...document.querySelectorAll('.mcard .mlegend__item')].map(e => Math.round(e.getBoundingClientRect().top))).size")
         R.check(lines <= (3 if page.viewport_size['width'] < 360 else 2), f'{t} légende compacte : {lines} ligne(s) de paliers')
-        R.check(page.locator('.btip[role="dialog"][aria-labelledby="btipTitle"]').count() == 1, f'{t} bulle : rôle et nom')
+        R.check(page.locator('.mcard .atlas-info[aria-label="Muscle touché"]').count() == 1, f'{t} carte d\'info : nommée pour VoiceOver')
+        # Carte d'info dans la page (panel t8) : sous le dessin, elle ne recouvre ni le personnage ni la légende
+        cover = page.evaluate("""() => { const c = document.querySelector('.mcard .atlas-info').getBoundingClientRect();
+            return ['.mcard__map .body-map__row', '.mcard .mlegend', '.mcard .segmented'].filter(s => { const r = document.querySelector(s).getBoundingClientRect();
+              return c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top; }); }""")
+        R.check(cover == [], f'{t} carte d\'info : ne recouvre rien {cover}')
         R.check(tip_inside(page), f'{t} bulle dans l\'écran, au-dessus des onglets {tip_rect(page)}')
-        R.check(page.locator('.mcard__map .body-map__front .body-map__hl[data-muscle="chest"]').count() == 1
-                and page.locator('.body-map__hl').count() == 1, f'{t} pectoraux mis en valeur sur la face')
-        anim = lambda: page.evaluate("getComputedStyle(document.querySelector('.body-map__hl > i')).animationName")
-        R.check(anim() == 'body-hl', f'{t} mise en valeur : pulsation douce')
-        page.emulate_media(reduced_motion='reduce')
-        R.check(anim() == 'none', f'{t} réduire les animations : pas de pulsation')
-        page.emulate_media(reduced_motion='no-preference')
+        mark = lambda v: page.evaluate(f"[...document.querySelectorAll('.mcard__map .body-map__{v} .body-map__mark')].map(e => atlasPart(e.dataset.ol).parent)")
+        R.check(mark('front') == ['chest'] and page.locator('.body-map__mark').count() == 1, f'{t} pectoraux cernés sur la face {mark("front")}')
+        R.check(page.evaluate("getComputedStyle(document.querySelector('.body-map__mark')).animationName") == 'none', f'{t} marque fixe, sans pulsation ni halo')
         shot(page, LOT, f'bulle-face-{t}')
         per_week = lambda x: int((re.search(r'soit (\d+) par semaine', x) or re.search(r'(\d+) séries?', x)).group(1))   # Séries par muscle : par semaine
         n_chest = per_week(txt)
@@ -646,14 +651,14 @@ def t_tip(bench, eng, dev, theme):
         # Un autre muscle, de dos : la bulle suit
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         txt = tip_text(page)
-        R.check(txt.startswith('Grand dorsal') and page.locator('.btip').count() == 1, f'{t} bulle grand dorsal : « {txt} »')
+        R.check(txt.startswith('Grand dorsal') and page.locator('.atlas-info').count() == 1, f'{t} carte grand dorsal : « {txt} »')
         R.check(not tip_covers_selector(page), f'{t} bulle dos : sélecteur non couvert')
         n_lats = per_week(txt)
         part_lats = hl_part()
         shot(page, LOT, f'bulle-dos-{t}')
         # Toucher hors d'un muscle : entre les deux vues (fond), puis sur la tête (zone grise) : fermée
         f, b = (page.locator(f'.mcard__map .body-map__{v}').bounding_box() for v in ('front', 'back'))
-        tr = page.locator('.btip').bounding_box()
+        tr = page.locator('.atlas-info').bounding_box()
         gx = (f['x'] + f['width'] + b['x']) / 2
         # Écran étroit (Galaxy S9+) : la bulle couvre tout l'entre-deux sous les épaules, le fond entre les têtes reste libre
         # (personnage détaillé : la bulle se pose contre le muscle, souvent sur l'entre-deux ; on cherche un point libre)
@@ -663,47 +668,47 @@ def t_tip(bench, eng, dev, theme):
         gx, gy = next(p for p in pts if free(*p))   # entre les vues, sinon les marges extérieures (fond transparent)
         page.mouse.click(gx, gy)
         settle(page)
-        R.check(page.locator('.btip').count() == 0, f'{t} toucher le fond : bulle fermée')
-        R.check(page.locator('.body-map__hl').count() == 0, f'{t} bulle fermée : mise en valeur retirée')
+        R.check(page.locator('.atlas-info').count() == 0, f'{t} toucher le fond : carte fermée')
+        R.check(page.locator('.body-map__mark').count() == 0, f'{t} carte fermée : marque retirée')
         tap_muscle(page, '.mcard__map', 'calves', 'front')
         R.check(tip_text(page).startswith('Mollets'), f'{t} bulle mollets : « {tip_text(page)} »')
         # Obliques (30/10) : calque à part du grand droit, sur le flanc ; la bulle les nomme
         tap_muscle(page, '.mcard__map', 'obliques', 'front')
         R.check(tip_text(page).startswith('Obliques'), f'{t} bulle obliques : « {tip_text(page)} »')
-        R.check(page.locator('.mcard__map .body-map__front .body-map__hl[data-muscle="obliques"]').count() == 1, f'{t} obliques mis en valeur')
+        R.check(mark('front') == ['obliques'], f'{t} obliques cernés {mark("front")}')
         shot(page, LOT, f'bulle-obliques-{t}')
         tap_muscle(page, '.mcard__map', 'abs', 'front')
         R.check(tip_text(page).startswith('Abdominaux'), f'{t} bulle abdominaux (grand droit) : « {tip_text(page)} »')
         page.mouse.click(f['x'] + f['width'] / 2, f['y'] + f['height'] * .04)
         settle(page)
-        R.check(page.locator('.btip').count() == 0, f'{t} toucher la tête (zone grise) : bulle fermée')
+        R.check(page.locator('.atlas-info').count() == 0, f'{t} toucher la tête (zone grise) : carte fermée')
         tap_muscle(page, '.mcard__map', 'lats', 'back')
-        page.locator('.mlegend').click()
+        page.click('.mcard .atlas-info__close')
         settle(page)
-        R.check(page.locator('.btip').count() == 0, f'{t} toucher ailleurs : bulle fermée')
+        R.check(page.locator('.atlas-info').count() == 0 and page.locator('.body-map__mark').count() == 0, f'{t} croix : carte fermée, marque retirée')
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         page.click('[data-action="muscle-span"][data-span="week"]')
         settle(page)
-        R.check(page.locator('.btip').count() == 0, f'{t} changement de période : bulle fermée')
+        R.check(page.locator('.atlas-info').count() == 0, f'{t} changement de période : carte fermée')
         leg = ' '.join(page.locator('.mcard .mlegend').inner_text().split())
         R.check(leg.startswith('Séries par semaine') and 'moyenne' not in leg, f'{t} légende semaine : « {leg} »')
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         txt = tip_text(page)
         R.check(re.search(r'(\d+ séries?|Aucune série) depuis lundi', txt), f'{t} bulle semaine : « {txt} »')
-        page.locator('.mlegend').click()
+        page.click('.mcard .atlas-info__close')
         settle(page)
         # Niveau débutant (premier lancement) : repère à 10
         page.evaluate("data.level = 'debutant'")
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         R.check('Repère : 10 par semaine' in tip_text(page), f'{t} débutant : « {tip_text(page)} »')
         page.evaluate("delete data.level")
-        page.locator('.mlegend').click()
+        page.click('.mcard .atlas-info__close')
         settle(page)
         page.click('[data-action="muscle-span"][data-span="month"]')
         settle(page)
         # Lien : « Séries par muscle », mêmes chiffres, ligne du muscle mise en avant
         tap_muscle(page, '.mcard__map', 'chest', 'front')
-        page.locator('.btip [data-action="go-stats-muscles"]').click()
+        page.locator('.atlas-info [data-action="go-stats-muscles"]').click()
         page.wait_for_selector('.view.stats-muscles')
         settle(page)
         val = lambda m: int(page.locator(f'.mrow[data-muscle="{m}"] .cell__value').inner_text())
@@ -711,7 +716,7 @@ def t_tip(bench, eng, dev, theme):
         wk = page.evaluate(f"[partLoad('month').weekly[{json.dumps(part_chest)}], partLoad('month').weekly[{json.dumps(part_lats)}]]")
         R.check(wk == [n_chest, n_lats] and val('chest') >= n_chest and val('lats') >= n_lats, f'{t} bulle = séries du sous-muscle ({n_chest}, {n_lats}) ; muscle entier {val("chest")}, {val("lats")}')
         R.check(page.locator('.mrow--focus[data-muscle="chest"]').count() == 1, f'{t} ligne Pectoraux mise en avant')
-        R.check(page.locator('.btip').count() == 0, f'{t} bulle fermée après le lien')
+        R.check(page.locator('.atlas-info, .btip').count() == 0, f'{t} carte fermée après le lien')
         page.click('[data-action="back"]')
         page.wait_for_selector('.view.stats')
         # Fiche exercice : principal / secondaire
@@ -1012,7 +1017,7 @@ def once_static(bench):
     for f in files:
         n = sum(1 for _ in open(os.path.join(APP_DIR, f), encoding='utf-8'))
         R.check(n <= 400, f'{f} : {n} lignes (400 au plus)')
-    for f in ('css/muscles.css', 'css/atlas-zoom.css', 'css/progress-atlas.css'):
+    for f in ('css/muscles.css', 'css/atlas-zoom.css', 'css/progress-atlas.css', 'css/atlas-info.css'):
         css = open(os.path.join(APP_DIR, f), encoding='utf-8').read()
         R.check(not re.findall(r'#[0-9a-fA-F]{3,8}\b|rgba?\(', css), f'{f} : couleurs en tokens seulement')
     # Carte dessinée dans un canvas (story de partage) : images chargées, muscle teinté de la couleur voulue

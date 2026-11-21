@@ -46,6 +46,10 @@
    la couleur du thème), sans flou ni lueur ni filtre recalculé à chaque image */
 .body-map__ol { position: absolute; pointer-events: none; background: var(--body-ol);
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+.body-map__ol--main { background: var(--body-heat); }   /* fiche : contour d'un point du muscle ciblé */
+.body-map--atlas[data-iso] .body-map__ol--main { display: none; }   /* muscles isolés : rien d'autre ne reste cerné */
+/* Muscle touché (carte d'info) et muscles isolés d'« À travailler » : contour à la couleur du texte */
+.body-map__mark, .body-map__isomark { background: var(--label); }
 /* Profonds (rhomboïdes, petit pectoral), vus à travers le muscle qui les couvre : teinte unie, sans leur ombrage de fibres,
    qui croisait celui du muscle du dessus en hachures (panel t5, trapèzes et rhomboïdes des tractions) */
 .body-map--atlas .body-map__p--deep { background-image: none !important; }
@@ -90,9 +94,9 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
    une seule vue utile (abducteurs : le dos) : en grand */
 .mpanel__box:has(> .body-map--crop) { width: min(100%, 330px); }
 .mpanel__box:has(> .body-map--one:not(.body-map--crop)) { width: min(100%, 200px); }
-/* Texte très grand (AX33) : le corps entier, jamais moins de 300 points de haut (panel t7 : il rétrécissait avec le texte) */
-.type-xl .mpanel__box { width: min(100% + 32px, 300px); margin-inline: -16px; }   /* corps entier, face et dos : 300 points de haut
-   au moins même sur un écran de 320 points (la boîte prend la marge intérieure de la carte) */
+/* Texte très grand (AX33) : le corps entier, jamais moins de 260 points de haut (panel t7 : il rétrécissait avec le texte) */
+.type-xl .mpanel__box { width: min(100% + 32px, 250px); margin-inline: -16px; }   /* corps entier, face et dos : 263 points de haut
+   (260 au moins, panel t8 : le nom du ciblé se lit sans défiler sur iPhone SE), même sur un écran de 320 points */
 .type-xl .mpanel__box > .mpanel__zoom { right: 0; }
 
 .body-map--crop .body-map__fig { overflow: hidden; }
@@ -110,8 +114,6 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 }
 .mpanel__zoom:active { background: var(--fill2); }
 .btip__latin { margin-top: 1px; font-size: var(--fs-footnote); line-height: 1.059rem; font-style: italic; color: var(--label2); }
-.btip.btip--top { z-index: 1000; }   /* bulle de la vue agrandie, au-dessus de sa feuille */
-.btip--fresh .btip__link { pointer-events: none; }   /* bulle qui vient de s'ouvrir : le 2e toucher d'un double toucher passe dessous */
 .credit-foot { overflow-wrap: anywhere; }   /* crédit de l'atlas (Réglages) : adresse de la licence coupée au besoin */
 
 /* ── Pastilles « Pectoraux » ── */

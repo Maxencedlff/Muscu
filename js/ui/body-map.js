@@ -179,7 +179,9 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline
     const tone = tiers ? ` body-map__m--t${Math.min(BODY_TIERS, Math.max(1, lv))}` : lv >= 2 ? '' : ' body-map__m--sec';
     const cls = `body-map__m body-map__p${tone}${p.deep ? ' body-map__p--deep' : ''}`;
     return `<i class="${cls}" data-part="${p.id}" data-muscle="${p.parent || ''}" data-level="${lv}" style="left:${pct(b[0] / W)};top:${pct(b[1] / H)};width:${pct((b[2] - b[0]) / W)};height:${pct((b[3] - b[1]) / H)};background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
-  }).join('') + (outline.length ? bodyOutlineHtml(kind, view, outline, res) : '');
+  }).join('') + (outline.length ? bodyOutlineHtml(kind, view, outline, res) : '')
+    // Fiche : le ciblé cerné d'un trait rouge d'un point (panel t8 : le haut des pectoraux, fin, se perdait dans le rose voisin)
+    + (tiers ? '' : bodyOutlineHtml(kind, view, on.filter(p => !p.deep && levels[p.id] >= 2).map(p => p.id), res, 'body-map__ol--main', true));
 }
 
 // Contour net (environ 1,5 point, sans flou ni lueur) d'un sous-muscle : un anneau autour de sa forme, dessiné une fois
@@ -189,36 +191,49 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline
 // l'image : 4 en 1× (1,5 point environ sur la carte), 12 en 3× (vue agrandie)
 const BODY_OL_PX = { 1: 4, 3: 12 };
 const bodyOutlineMasks = new Map();   // « sexe/vue/res/id » → adresse de l'anneau (data:), une fois dessiné
-function bodyOutlineHtml(kind, view, ids, res = 1) {
+// cls : classe en plus (marque du muscle touché, contour du ciblé de la fiche) ; inner : anneau d'un point environ, en
+// dedans de la forme (ciblé de la fiche : il ne déborde pas sur le muscle qui aide voisin)
+function bodyOutlineHtml(kind, view, ids, res = 1, cls = '', inner = false) {
   const boxes = BODY_PARTS.boxes[kind]?.[view] || {};
-  const W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h, r = BODY_OL_PX[res];
+  const W = res === 3 ? BODY_PARTS.w3 : BODY_PARTS.w, H = res === 3 ? BODY_PARTS.h3 : BODY_PARTS.h;
+  const r = inner ? 0 : BODY_OL_PX[res], ri = inner ? BODY_OL_PX[res] * 3 / 4 : r;
   const pct = v => `${Math.round(v * 1e5) / 1e3}%`;
   return ids.filter(id => boxes[id]).map(id => {
-    const b = boxes[id][res === 3 ? 1 : 0], key = `${kind}/${view}/${res}/${id}`, url = bodyOutlineMasks.get(key);
-    if (!url) bodyOutlineMask(kind, view, id, res);
+    const b = boxes[id][res === 3 ? 1 : 0], key = `${kind}/${view}/${res}/${inner ? 'in' : ''}${ri}/${id}`, url = bodyOutlineMasks.get(key);
+    if (!url) bodyOutlineMask(kind, view, id, res, ri, inner);
     const mask = url ? `-webkit-mask-image:url(${url});mask-image:url(${url})` : '';
-    return `<span class="body-map__ol" data-ol="${id}" data-olkey="${key}" style="left:${pct((b[0] - r) / W)};top:${pct((b[1] - r) / H)};width:${pct((b[2] - b[0] + 2 * r) / W)};height:${pct((b[3] - b[1] + 2 * r) / H)};${mask}"></span>`;
+    return `<span class="body-map__ol${cls ? ` ${cls}` : ''}" data-ol="${id}" data-olkey="${key}" style="left:${pct((b[0] - r) / W)};top:${pct((b[1] - r) / H)};width:${pct((b[2] - b[0] + 2 * r) / W)};height:${pct((b[3] - b[1] + 2 * r) / H)};${mask}"></span>`;
   }).join('');
 }
 // Dessine l'anneau (union de la forme décalée sur un cercle de rayon r, moins la forme), puis le pose sur les contours
 // déjà affichés qui l'attendent
 const bodyOutlinePending = new Set();
-async function bodyOutlineMask(kind, view, id, res) {
-  const key = `${kind}/${view}/${res}/${id}`;
+async function bodyOutlineMask(kind, view, id, res, r = BODY_OL_PX[res], inner = false) {
+  const key = `${kind}/${view}/${res}/${inner ? 'in' : ''}${r}/${id}`;
   if (bodyOutlinePending.has(key) || typeof document === 'undefined' || !document.createElement) return;
   bodyOutlinePending.add(key);
   const img = await bodyLoadImage(body2Url(kind, view, `${res === 3 ? 'p3' : 'p'}/${id}.webp`));
   if (!img) { bodyOutlinePending.delete(key); return; }
-  const r = BODY_OL_PX[res], c = document.createElement('canvas');
-  c.width = img.width + 2 * r; c.height = img.height + 2 * r;
+  const c = document.createElement('canvas'), m = inner ? 0 : r;
+  c.width = img.width + 2 * m; c.height = img.height + 2 * m;
   const x = c.getContext('2d');
   if (!x) return;
-  for (let k = 0; k < 24; k++) {
-    const a = k / 24 * 2 * Math.PI;
-    x.drawImage(img, r + Math.round(r * Math.cos(a)), r + Math.round(r * Math.sin(a)));
+  const around = draw => { for (let k = 0; k < 24; k++) { const a = k / 24 * 2 * Math.PI; draw(m + Math.round(r * Math.cos(a)), m + Math.round(r * Math.sin(a))); } };
+  if (inner) {
+    // Anneau en dedans : la forme moins la forme rognée (intersection de ses copies décalées)
+    const e = document.createElement('canvas'), y = e.getContext('2d');
+    e.width = c.width; e.height = c.height;
+    y.drawImage(img, 0, 0);
+    y.globalCompositeOperation = 'destination-in';
+    around((dx, dy) => y.drawImage(img, dx, dy));
+    x.drawImage(img, 0, 0);
+    x.globalCompositeOperation = 'destination-out';
+    x.drawImage(e, 0, 0);
+  } else {
+    around((dx, dy) => x.drawImage(img, dx, dy));
+    x.globalCompositeOperation = 'destination-out';
+    x.drawImage(img, r, r);
   }
-  x.globalCompositeOperation = 'destination-out';
-  x.drawImage(img, r, r);
   const url = c.toDataURL('image/png');
   bodyOutlineMasks.set(key, url);
   bodyOutlinePending.delete(key);

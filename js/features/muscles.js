@@ -353,7 +353,7 @@ registerActions({
   // Ouvert en haut ; depuis la bulle d'un muscle (js/features/muscle-tip.js) seulement, sa ligne est mise en avant et
   // amenée à l'écran (on a demandé CE muscle)
   'go-stats-muscles': (e, el) => {
-    muscleFocus = el.closest('.btip') && isMuscleId(el.dataset.muscle) ? el.dataset.muscle : null;
+    muscleFocus = el.closest('.btip, .atlas-info') && isMuscleId(el.dataset.muscle) ? el.dataset.muscle : null;
     navigate('stats-muscles');
     if (muscleFocus) requestAnimationFrame(() => $(`.stats-muscles .mrow[data-muscle="${muscleFocus}"]`)?.scrollIntoView({ block: 'center' }));
   },

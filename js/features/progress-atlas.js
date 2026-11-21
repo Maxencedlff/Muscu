@@ -28,7 +28,8 @@ function atlasToWorkNameHtml(it) {
 }
 function atlasToWorkHtml(items) {
   if (!items.length) return '<span class="cell__title cell__title--reg">Tous les muscles à l\'objectif</span>';
-  const shown = items.slice(0, ATLAS_TO_WORK_SHOWN), more = items.length - shown.length;
+  // Texte très grand : 2 noms (panel t8)
+  const shown = items.slice(0, document.documentElement.classList.contains('type-xl') ? 2 : ATLAS_TO_WORK_SHOWN), more = items.length - shown.length;
   return `<span class="cell__title cell__title--reg">À travailler</span>
     <span class="cell__sub mlow">${shown.map(atlasToWorkNameHtml).join('')}${more ? `<button class="mlow__more" data-action="atlas-to-work-all" aria-expanded="false" aria-label="Voir les ${more} autres muscles à travailler">+ ${more} autre${more > 1 ? 's' : ''}</button>` : ''}</span>
     <template class="mlow__all">${items.map(atlasToWorkNameHtml).join('')}<button class="mlow__more" data-action="atlas-to-work-all" aria-expanded="true">Moins</button></template>
@@ -40,13 +41,13 @@ function atlasToWorkHtml(items) {
 function atlasToWorkLineHtml(items) {
   if (!items.length) return '';
   const names = items.slice(0, 2).map(it => it.label).join(', '), more = items.length - 2;   // 2 noms au plus (panel t6)
-  return `<p class="mcard__todo" aria-hidden="true">À travailler : ${esc(names)}${more > 0 ? ` et ${more} autre${more > 1 ? 's' : ''}` : ''}</p>`;
+  return `<p class="mcard__todo" aria-hidden="true">À travailler : ${esc(names)}${more > 0 ? ` + ${more}` : ''}</p>`;
 }
 
 // Toucher un nom d'« À travailler » : sur le personnage de Progrès, seuls ses sous-muscles gris ou pâles restent mis en
-// valeur (les autres calques s'effacent, comme les lignes de la fiche), la bulle donne leurs séries une à une, le nom reste
-// surligné et « Tout voir » rend le dessin entier (panel t5). L'isolement dure jusqu'à « Tout voir », un second toucher sur
-// le même nom ou un autre nom ; la bulle, elle, se ferme comme les autres (toucher ailleurs, défilement)
+// valeur, cernés (les autres calques s'effacent, comme les lignes de la fiche), la carte d'info sous le dessin donne leurs
+// séries une à une, le nom reste surligné et « Tout voir » rend le dessin entier (panels t5, t8). L'isolement dure jusqu'à
+// « Tout voir », un second toucher sur le même nom ou un autre nom ; la carte se ferme par sa croix
 function atlasToWorkShow(btn) {
   const card = btn.closest('.mcard'), map = card?.querySelector('.mcard__map');
   const it = map && atlasToWork(partLoad(muscleSpan)).find(x => x.key === btn.dataset.muscle);
@@ -55,45 +56,26 @@ function atlasToWorkShow(btn) {
   closeBodyTip();
   atlasToWorkReset(card);
   if (again) return;
-  const r0 = map.getBoundingClientRect();
-  if (r0.top < 0 || r0.bottom > innerHeight) map.scrollIntoView({ block: 'center', behavior: 'instant' });
   const kind = bodyKind(map.dataset.body), pl = partLoad(muscleSpan);
   // Une ligne par sous-muscle : son état (pastille), son nom (l'état en mots s'il porte le nom du muscle), ses séries
   const rows = it.ids.map(id => { const lv = pl.levels[id] || 0, name = atlasPartTitle(id) === it.label ? MUSCLE_LEVEL_WORDS[lv] : atlasPartTitle(id);
     return `<p class="btip__level">${muscleLevelDot(lv)}<span>${esc(name)} : ${pl.weekly[id] ? weeklyTxt(pl.weekly[id]) : 'aucune série'}</span></p>`; }).join('');
-  const html = `<p class="btip__title" id="btipTitle">${esc(it.label)}</p>${rows}
+  const html = `<p class="btip__title">${esc(it.label)}</p>${rows}
     <button class="btip__link" data-action="go-stats-muscles" data-muscle="${it.key}">Séries par muscle${icon('chevron.right', 14)}</button>`;
-  // Marques : copies des calques des sous-muscles (comme au toucher du dessin), sans pulsation ni halo (elles restent)
-  const marks = [...map.querySelectorAll('.body-map__fig')].flatMap(fig => {
+  // Marques : le contour des sous-muscles (gris compris : sans calque, ils se verraient mal), qui restent jusqu'à « Tout voir »
+  for (const fig of map.querySelectorAll('.body-map__fig')) {
     const view = fig.classList.contains('body-map__back') ? 'back' : 'front';
-    return it.ids.filter(id => BODY_PARTS.boxes[kind]?.[view]?.[id]).map(id => {
-      fig.insertAdjacentHTML('beforeend', atlasMarkHtml(kind, view, id, 1, bodyTipTint(fig.querySelector(`.body-map__p[data-part="${id}"]`))));
-      fig.lastElementChild.classList.add('body-map__hl--iso');
-      return fig.lastElementChild;
-    });
-  });
+    fig.querySelector('.body-map__body').insertAdjacentHTML('beforeend', bodyOutlineHtml(kind, view, it.ids, 1, 'body-map__isomark'));
+  }
   map.querySelectorAll('.body-map__p').forEach(l => l.classList.toggle('is-on', it.ids.includes(l.dataset.part)));
   map.dataset.iso = 'load'; map.dataset.isoMuscle = it.key;
   atlasIsoChip(map, it.label);
   const named = card.querySelector(`.mlow__name[data-muscle="${it.key}"]`) || btn;
   named.setAttribute('aria-pressed', 'true');
   named.insertAdjacentHTML('afterend', '<button class="mlow__reset" data-action="atlas-to-work-reset">Tout voir</button>');
-  // Bulle : à côté des muscles marqués ; petit écran : au-dessus ou au-dessous du dessin, pointe vers eux
-  const rs = marks.map(m => m.firstElementChild.getBoundingClientRect()), gap = 14;
-  const x = (Math.min(...rs.map(r => r.left)) + Math.max(...rs.map(r => r.right))) / 2;
-  const y = (Math.min(...rs.map(r => r.top)) + Math.max(...rs.map(r => r.bottom))) / 2;
-  // Jamais sur les muscles marqués (panel t6) : au-dessus, au-dessous ou à côté de leur cadre, sinon hors du dessin
-  const zoneR = { left: Math.min(...rs.map(r => r.left)), top: Math.min(...rs.map(r => r.top)), right: Math.max(...rs.map(r => r.right)), bottom: Math.max(...rs.map(r => r.bottom)) };
-  const block = [...[...card.querySelectorAll('.segmented, .mlow')].map(e => e.getBoundingClientRect()), zoneR];
-  const small = innerWidth <= 375 || document.documentElement.classList.contains('type-xl');
-  const d = map.querySelector('.body-map__row').getBoundingClientRect();
-  const hits = (p, w, h, r) => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top;
-  showBodyTip(html, x, y, map, { avoid: block, spotTol: 1, reach: Infinity, spots: (w, h) => {
-    const near = [{ left: x - w / 2, top: zoneR.top - gap - h }, { left: x - w / 2, top: zoneR.bottom + gap },
-      { left: zoneR.left - gap - w, top: y - h / 2 }, { left: zoneR.right + gap, top: y - h / 2 }];
-    const out = [{ left: x - w / 2, top: d.top - gap - h }, { left: x - w / 2, top: d.bottom + gap }];
-    return (small ? [...out, ...near] : [...near, ...out]).filter(p => !block.some(r => hits(p, w, h, r)));
-  } });
+  atlasInfoShow(map, html);
+  const r0 = map.getBoundingClientRect();
+  if (r0.top < 0 || r0.bottom > innerHeight) map.scrollIntoView({ block: 'center', behavior: 'instant' });
   announce(`${it.label} : ${it.ids.map(atlasPartTitle).join(', ')}`);
 }
 
@@ -101,7 +83,7 @@ function atlasToWorkShow(btn) {
 function atlasToWorkReset(card) {
   const map = card?.querySelector('.mcard__map');
   if (!map) return;
-  map.querySelectorAll('.body-map__hl--iso').forEach(m => m.remove());
+  map.querySelectorAll('.body-map__isomark').forEach(m => m.remove());
   map.querySelectorAll('.body-map__p.is-on').forEach(l => l.classList.remove('is-on'));
   delete map.dataset.iso; delete map.dataset.isoMuscle;
   card.querySelectorAll('.mlow__name[aria-pressed="true"]').forEach(b => b.setAttribute('aria-pressed', 'false'));

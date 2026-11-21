@@ -1,0 +1,9 @@
+/* Carte d'info du muscle touché (atlasInfoShow, js/ui/body-zoom.js) : dans la page, juste sous le dessin de la fiche ou
+   de Progrès, en tête de la bande du bas de la vue agrandie ; elle pousse le contenu au lieu de le couvrir (panel t8) */
+.atlas-info { position: relative; align-self: stretch; padding: 10px 44px 10px 12px; border-radius: var(--r-md); background: var(--fill2); text-align: left; }
+.atlas-info .btip__link { width: calc(100% + 56px); margin: 6px -44px -10px -12px; padding: 0 12px; border-radius: 0 0 var(--r-md) var(--r-md); }
+.atlas-info__close {
+  position: absolute; top: 0; right: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border: 0; background: none; color: var(--label2); cursor: pointer;
+}
+.sheet-root--atlas .atlas-info { flex: none; margin: 8px 16px 0; }   /* vue agrandie : le personnage se resserre au-dessus */

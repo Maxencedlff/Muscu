@@ -51,7 +51,7 @@ def layout_ok(page):
         }
         if (document.documentElement.scrollWidth > innerWidth + 1) window.__atlasWide = `page ${document.documentElement.scrollWidth} > ${innerWidth} : ` + [...document.querySelectorAll('#app *')]
             .filter(e => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map(e => `${e.tagName}.${String(e.className).slice(0, 30)}`).join(', ');
-        for (const e of document.querySelectorAll('.cell__title, .cell__sub, .mpill, .mline2, .btip p, .azoom__hint'))
+        for (const e of document.querySelectorAll('.cell__title, .cell__sub, .mpill, .mline2, .atlas-info p, .azoom__hint'))
             if (e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow === 'ellipsis') bad.push(`${e.className} « ${e.textContent.trim().slice(0, 30)} »`);
         return bad; }""")
     wide = page.evaluate('window.__atlasWide || ""')
@@ -96,9 +96,9 @@ def tap(page, xy, double=False, touch=False):
         page.wait_for_timeout(90)
 
 
-DIAG_JS = """() => { const t = document.querySelector('.btip')?.getBoundingClientRect();
+DIAG_JS = """() => { const t = document.querySelector('.atlas-info')?.getBoundingClientRect();
     const bad = [...document.images].filter(i => i.src && (!i.complete || !i.naturalWidth)).map(i => i.src.split('/img/')[1] || i.src);
-    return JSON.stringify({ btip: t ? [t.left | 0, t.top | 0, t.right | 0, t.bottom | 0] : null, lastTap: typeof atlasLastTap !== 'undefined' && atlasLastTap
+    return JSON.stringify({ info: t ? [t.left | 0, t.top | 0, t.right | 0, t.bottom | 0] : null, lastTap: typeof atlasLastTap !== 'undefined' && atlasLastTap
       ? Math.round(performance.now() - atlasLastTap.t) : null, viewer: !!document.querySelector('.azoom'), scrollY: Math.round(scrollY), badImgs: bad.slice(0, 8), nBad: bad.length, taps: window.__taps || null }); }"""
 
 
@@ -117,51 +117,19 @@ def wait_or_say(page, sel, where, state='visible'):
         raise RuntimeError(f'{where} : {sel} ({state}) jamais vu ; état {diag} ; requêtes en échec {failed} ; console {getattr(page, "_console_errors", [])[:4]}') from e
 
 
-def tip_off_part(page, marks='.body-map__hl > i'):
-    """La bulle ne chevauche jamais le cadre de la zone touchée (panel affichage-e t6) : la marque du sous-muscle touché est
-    posée à sa boîte ; plusieurs marques (« À travailler ») : leur cadre commun."""
-    return page.evaluate("""sel => { const t = document.querySelector('.btip')?.getBoundingClientRect(), ms = [...document.querySelectorAll(sel)].map(m => m.getBoundingClientRect());
-        if (!t || !ms.length) return { ok: false, why: 'bulle ou marque absente' };
-        const z = { left: Math.min(...ms.map(r => r.left)), top: Math.min(...ms.map(r => r.top)), right: Math.max(...ms.map(r => r.right)), bottom: Math.max(...ms.map(r => r.bottom)) };
-        const over = Math.max(0, Math.min(t.right, z.right) - Math.max(t.left, z.left)) * Math.max(0, Math.min(t.bottom, z.bottom) - Math.max(t.top, z.top));
-        return { ok: over < 1, over: Math.round(over), tip: [t.left | 0, t.top | 0, t.right | 0, t.bottom | 0], zone: [z.left | 0, z.top | 0, z.right | 0, z.bottom | 0] }; }""", marks)
-
-
-def tip_card_ok(page, zone, avoid, detail=False):
-    """Bulle d'une carte (fiche, Progrès). Grand écran : dans le dessin (tip_place_ok). Petit écran (iPhone SE, Galaxy S8,
-    texte très grand ; panel affichage-e t5) : au-dessus ou au-dessous du dessin, sans le couvrir, avec sa pointe."""
-    small = page.evaluate("innerWidth <= 375 || document.documentElement.classList.contains('type-xl')")
-    if not small:
-        # Grand écran : où elle veut (au-dessus, au-dessous ou à côté du muscle touché, tip_off_part), avec sa pointe,
-        # jamais sur les éléments avoid
-        r = page.evaluate("""avoid => { const el = document.querySelector('.btip'), t = el?.getBoundingClientRect();
-            if (!t) return { ok: false, why: 'absente' };
-            const hit = avoid.filter(s => { const a = document.querySelector(s)?.getBoundingClientRect();
-                return a && a.width && t.left < a.right && t.right > a.left && t.top < a.bottom && t.bottom > a.top; });
-            return { ok: !hit.length && !el.classList.contains('btip--free'), tip: [t.top | 0, t.bottom | 0], hit }; }""", avoid)
-        return r if detail else r['ok']
-    r = page.evaluate("""([zone, avoid]) => { const el = document.querySelector('.btip'), t = el?.getBoundingClientRect(), z = document.querySelector(zone)?.getBoundingClientRect();
-        if (!t || !z) return { ok: false, why: 'absente' };
-        const hit = avoid.filter(s => { const a = document.querySelector(s)?.getBoundingClientRect();
-            return a && a.width && t.left < a.right && t.right > a.left && t.top < a.bottom && t.bottom > a.top; });
-        const out = t.bottom <= z.top + 2 || t.top >= z.bottom - 2;
-        return { ok: out && !hit.length && !el.classList.contains('btip--free'), tip: [t.top | 0, t.bottom | 0], zone: [z.top | 0, z.bottom | 0], hit, small: true }; }""", [zone, avoid])
-    return r if detail else r['ok']
-
-
-def tip_place_ok(page, zone, avoid, detail=False):
-    """Bulle dans la hauteur de zone, sans toucher les éléments avoid (pastilles, en-tête de la feuille, OK, boutons)."""
-    r = page.evaluate("""([zone, avoid]) => { const t = document.querySelector('.btip')?.getBoundingClientRect(), z = document.querySelector(zone)?.getBoundingClientRect();
-        if (!t || !z) return { ok: false, why: 'absente' };
-        const hit = avoid.filter(s => { const a = document.querySelector(s)?.getBoundingClientRect();
-            return a && a.width && t.left < a.right && t.right > a.left && t.top < a.bottom && t.bottom > a.top; });
-        return { ok: t.top >= z.top - 1 && t.bottom <= z.bottom + 1 && !hit.length, tip: [t.top | 0, t.bottom | 0], zone: [z.top | 0, z.bottom | 0], hit }; }""", [zone, avoid])
-    return r if detail else r['ok']
+def info_ok(page, scope, avoid):
+    """Carte d'info du muscle touché (panel affichage-e t8) : dans scope (la page sous le dessin, ou la bande de la vue
+    agrandie), elle ne recouvre rien : ni le dessin, ni les éléments avoid ; { ok, hit, card }."""
+    return page.evaluate("""([scope, avoid]) => { const el = document.querySelector(scope + ' .atlas-info'), c = el?.getBoundingClientRect();
+        if (!c) return { ok: false, why: 'carte absente' };
+        const hit = avoid.filter(s => [...document.querySelectorAll(s)].some(a => { const r = a.getBoundingClientRect();
+            return r.width && c.left < r.right - 1 && c.right > r.left + 1 && c.top < r.bottom - 1 && c.bottom > r.top + 1; }));
+        return { ok: !hit.length, hit, card: [c.left | 0, c.top | 0, c.right | 0, c.bottom | 0] }; }""", [scope, avoid])
 
 
 def tip_text(page):
-    tip = page.locator('.btip')
-    return ' '.join(tip.inner_text().split()) if tip.count() else ''
+    tip = page.locator('.atlas-info')
+    return ' '.join(tip.first.inner_text().split()) if tip.count() else ''
 
 
 def layers(page, root):
@@ -266,30 +234,35 @@ def t_fiche(bench, eng, dev, theme):
         shot(page, LOT, f'fiche-{t}')
         # ── Toucher : nom de salle, nom officiel, rôle
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'))
-        page.wait_for_selector('.btip', timeout=5000)
+        page.wait_for_selector('.atlas-info', timeout=5000)
         settle(page)
         txt = tip_text(page)
         R.check('Haut des pectoraux' in txt and 'Pectoralis major, pars clavicularis' in txt and 'Muscle ciblé' in txt,
                 f'{t} toucher : nom de salle (celui de la pastille), latin, rôle « {txt} »')
-        R.check(tip_card_ok(page, '.mpanel__map .body-map__row', ['.mpanel__zoom', '.mline2']), f'{t} toucher : bulle à sa place (dans le dessin, ou hors du dessin sur petit écran), ni sur les lignes ni sur Agrandir {tip_card_ok(page, ".mpanel__map .body-map__row", [".mpanel__zoom", ".mline2"], True)}')
-        off_part = tip_off_part(page)
-        R.check(off_part['ok'], f'{t} toucher : la bulle ne couvre pas le muscle touché {off_part}')
-        R.check(page.locator('.mpanel__map .body-map__hl[data-part="chest_clavicular"]').count() == 1, f'{t} toucher : sous-muscle mis en valeur')
+        ok = info_ok(page, '.mpanel--atlas', ['.mpanel__map .body-map__row', '.mpanel__zoom', '.mline2'])
+        R.check(ok['ok'] and page.evaluate("document.querySelector('.atlas-info').getBoundingClientRect().top >= document.querySelector('.mpanel__map').getBoundingClientRect().bottom - 1"),
+                f'{t} toucher : carte d\'info sous le dessin, elle ne recouvre rien {ok}')
+        R.check(page.locator('.mpanel__map .body-map__mark[data-ol="chest_clavicular"]').count() == 1 and page.locator('.body-map__mark').count() == 1,
+                f'{t} toucher : sous-muscle cerné, seul')
         shot(page, LOT, f'fiche-nom-{t}')
         tap(page, part_point(page, '.mpanel__map', 'triceps_lateral', 'back'))
         page.wait_for_timeout(400)
         txt = tip_text(page)
         R.check('Triceps, chef latéral' in txt and 'Muscle qui aide' in txt, f'{t} toucher du triceps : qui aide « {txt} »')
         page.wait_for_timeout(400)
-        # ── Double toucher : vue agrandie, zoomée, 3× de la face seulement
+        # ── Double toucher : vue agrandie, entière (face et dos, panel t8) ; double toucher dans la vue : zoom, 3× de la face
         hi_urls = []
         page.on('request', lambda q: re.search(HI_RE, q.url) and hi_urls.append(q.url.split('/img/', 1)[1]))
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
         page.wait_for_selector('.azoom', timeout=5000)
+        settle(page)
+        R.check(page.evaluate('atlasViewerState().scale') == 1 and page.locator('.azoom .body-map__front').count() == 1 and page.locator('.azoom .body-map__back').count() == 1,
+                f'{t} double toucher : vue agrandie entière, face et dos')
+        tap(page, part_point(page, '.azoom', 'chest_clavicular'), double=True, touch=True)
         page.wait_for_function("() => atlasViewerState()?.hi === 'front' && atlasViewerState().lines === 'front'", timeout=10000)
         settle(page)
         st = page.evaluate('atlasViewerState()')
-        R.check(abs(st['scale'] - 2.5) < 0.05, f'{t} double toucher : zoom ×2,5 {st}')
+        R.check(abs(st['scale'] - 2.5) < 0.05, f'{t} double toucher dans la vue : zoom ×2,5 {st}')
         R.check(hi_urls and all('/front/' in u for u in hi_urls) and not any('/back/' in u for u in hi_urls), f'{t} 3× de la face seulement {hi_urls}')
         R.check(page.evaluate("document.querySelector('.azoom .body-map__front .body-map__base').src.endsWith('base@3x.webp')"), f'{t} base 3× affichée')
         R.check(page.locator('.azoom .body-map__front [data-part="chest_clavicular"]').count() == 1
@@ -298,12 +271,12 @@ def t_fiche(bench, eng, dev, theme):
         R.check(not page.locator('.azoom .body-map__front .azoom__lines').evaluate('e => e.hidden'), f'{t} contours des sous-muscles au-delà de ×2')
         shot(page, LOT, f'zoom-{t}')
         tap(page, part_point(page, '.azoom', 'chest_clavicular'), touch=True)
-        page.wait_for_selector('.sheet-root--atlas .btip', timeout=5000)
+        page.wait_for_selector('.sheet-root--atlas .atlas-info', timeout=5000)
         settle(page)
         txt = tip_text(page)
         R.check('Haut des pectoraux' in txt and 'Pectoralis major' in txt, f'{t} vue agrandie : nom au toucher « {txt} »')
-        R.check(tip_place_ok(page, '.azoom', ['.sheet-root--atlas .sheet__bar', '.azoom__ctl']),
-                f'{t} vue agrandie : bulle dans la feuille modale, sous l\'en-tête et OK {tip_place_ok(page, ".azoom", [".sheet-root--atlas .sheet__bar", ".azoom__ctl"], True)}')
+        ok = info_ok(page, '.sheet-root--atlas', ['.azoom', '.azoom__band', '.sheet-root--atlas .sheet__bar'])
+        R.check(ok['ok'], f'{t} vue agrandie : carte d\'info dans la bande du bas, elle ne recouvre rien {ok}')
         lo = layout_ok(page)
         R.check(not lo, f'{t} vue agrandie : mise en page {lo}')
         shot(page, LOT, f'zoom-nom-{t}')
@@ -349,7 +322,7 @@ def t_fiche(bench, eng, dev, theme):
         R.check(page.evaluate('atlasViewerState().scale') == 1, f'{t} bouton − : ×1')
         page.click('.sheet-root--atlas .sheet__btn--confirm')
         page.wait_for_selector('.azoom', state='detached', timeout=3000)
-        R.check(page.evaluate('atlasViewerState()') is None and page.locator('.btip').count() == 0, f'{t} OK : vue agrandie fermée, bulle fermée')
+        R.check(page.evaluate('atlasViewerState()') is None and page.locator('.atlas-info').count() == 0, f'{t} OK : vue agrandie fermée, carte fermée')
         # Bouton Agrandir : vue entière (×1, rien du 3×)
         page.click('.mpanel__zoom')
         page.wait_for_selector('.azoom')
@@ -388,9 +361,14 @@ def t_fiche(bench, eng, dev, theme):
         shot(page, LOT, f'fiche-xl-{t}')
         # Texte très grand : le corps entier, au moins 300 points de haut (panel t7 : il rétrécissait avec le texte)
         hgt = page.evaluate("Math.round(document.querySelector('.mpanel__map .body-map__row').getBoundingClientRect().height)")
-        R.check(hgt >= 300 and page.get_attribute('.mpanel__map', 'data-crop') == '0,840', f'{t} fiche texte agrandi : personnage entier de {hgt} points (300 au moins)')
-        page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'start' })")
+        R.check(hgt >= 260 and page.get_attribute('.mpanel__map', 'data-crop') == '0,840', f'{t} fiche texte agrandi : personnage entier de {hgt} points (260 au moins)')
+        # Le personnage sous la barre : le nom du muscle ciblé se lit sans défiler (panel t8, iPhone SE en AX33)
+        page.evaluate("""() => { const m = document.querySelector('.mpanel--atlas'), nav = document.querySelector('.view.library-ex .navbar__bar');
+            scrollBy(0, m.getBoundingClientRect().top - (nav ? nav.getBoundingClientRect().bottom : 0) - 4); }""")
         settle(page)
+        seen = page.evaluate("""() => { const n = document.querySelector('.mline2[data-level="2"] .mline2__names'), tab = document.querySelector('.tabbar').getBoundingClientRect().top;
+            return [Math.round(n.getBoundingClientRect().bottom), Math.round(tab)]; }""")
+        R.check(seen[0] <= seen[1] + 1, f'{t} fiche texte agrandi : nom du muscle ciblé visible sans défiler {seen}')
         shot(page, LOT, f'fiche-xl-lignes-{t}')
         # Isoler en texte très grand : le nom et « Tout voir » sur le dessin même
         page.locator('.mline2[data-level="2"]').first.click()
@@ -544,17 +522,11 @@ def t_autres_fiches(bench, eng, dev, theme):
             flat = [[n, lv] for _, names, lv in lines for n in names]
             R.check(flat[:2] == first, f'{t} {name} : lignes {lines}')
             tap(page, part_point(page, '.mpanel__map', part, view))
-            page.wait_for_selector('.btip', timeout=5000)
+            page.wait_for_selector('.atlas-info', timeout=5000)
             settle(page)
             R.check(tip_text(page).startswith(first[0][0]), f'{t} {name} : bulle « {tip_text(page)} »')
-            # Pointe vers le doigt, bulle contre lui (au plus 3 écarts de 14 points) : jamais partie dans un coin de l'autre vue
-            side = page.evaluate("""([x, y]) => { const t = document.querySelector('.btip'), r = t.getBoundingClientRect();
-                const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom);
-                return [!t.classList.contains('btip--free'), Math.round(Math.hypot(dx, dy)) <= 240]; }""", part_point(page, '.mpanel__map', part, view))
-            R.check(all(side), f'{t} {name} : bulle avec pointe, près du muscle touché {side}')
-            R.check(tip_card_ok(page, '.mpanel__map .body-map__row', ['.mpanel__zoom']), f'{t} {name} : place de la bulle {tip_card_ok(page, ".mpanel__map .body-map__row", [".mpanel__zoom"], True)}')
-            off_part = tip_off_part(page)
-            R.check(off_part['ok'], f'{t} {name} : la bulle ne couvre pas le muscle touché {off_part}')
+            ok = info_ok(page, '.mpanel--atlas', ['.mpanel__map .body-map__row', '.mpanel__zoom', '.mline2'])
+            R.check(ok['ok'] and page.locator(f'.mpanel__map .body-map__mark[data-ol="{part}"]').count() == 1, f'{t} {name} : carte d\'info sous le dessin, muscle cerné {ok}')
             lo = layout_ok(page)
             R.check(not lo, f'{t} {name} : mise en page {lo}')
             shot(page, LOT, f'fiche-{slug}-{t}')
@@ -607,13 +579,13 @@ def t_progres(bench, eng, dev, theme):
         part = page.evaluate("Object.entries(partLoad(muscleSpan).sets).filter(([id]) => !ATLAS_SIMPLE_MUSCLES.has(atlasPart(id).parent) && !atlasPart(id).deep).sort((a, b) => b[1] - a[1])[0][0]")
         view = page.evaluate(f"BODY_PARTS.boxes[bodySilhouette()].front[{json.dumps(part)}] ? 'front' : 'back'")
         tap(page, part_point(page, '.mcard__map', part, view))
-        wait_or_say(page, '.btip', 'attente 1')
+        wait_or_say(page, '.atlas-info', 'attente 1')
         settle(page)
         txt = tip_text(page)
         title = page.evaluate(f"atlasPartTitle({json.dumps(part)})")
         R.check(txt.startswith(title) and 'série' in txt and 'Le plus :' in txt, f'{t} bulle : {part} « {txt} »')
-        off_part = tip_off_part(page)
-        R.check(off_part['ok'], f'{t} bulle : elle ne couvre pas le muscle touché {off_part}')
+        ok = info_ok(page, '.mcard', ['.mcard__map .body-map__row', '.mcard .mlegend', '.mcard .segmented', '.mcard .mlow'])
+        R.check(ok['ok'], f'{t} carte d\'info : sous le dessin, elle ne recouvre rien {ok}')
         n_top = page.evaluate("document.querySelector('.btip__top')?.textContent.replace('Le plus : ', '').split(', ').length || 0")
         R.check(1 <= n_top <= 3, f'{t} bulle : 3 exercices au plus ({n_top})')
         lo = layout_ok(page)
@@ -628,6 +600,9 @@ def t_progres(bench, eng, dev, theme):
               return orig.call(this, e, el); }; }""")
         tap(page, part_point(page, '.mcard__map', part, view), double=True)
         wait_or_say(page, '.azoom', 'attente 2 (double toucher)')
+        settle(page)
+        R.check(page.evaluate('atlasViewerState().scale') == 1, f'{t} vue agrandie : ouverte sur le personnage entier')
+        tap(page, part_point(page, '.azoom', part, view), double=True, touch=True)
         page.wait_for_function("() => atlasViewerState()?.hi", timeout=10000)
         settle(page)
         R.check(page.evaluate("[...document.querySelectorAll('.azoom .body-map__p')].every(l => /--t\\d/.test(l.className))"), f'{t} vue agrandie : paliers gardés')
@@ -641,7 +616,7 @@ def t_progres(bench, eng, dev, theme):
                 page.wait_for_timeout(400)
         settle(page)
         tap(page, part_point(page, '.azoom', part, view), touch=True)
-        wait_or_say(page, '.sheet-root--atlas .btip', 'attente 3')
+        wait_or_say(page, '.sheet-root--atlas .atlas-info', 'attente 3')
         R.check('série' in tip_text(page), f'{t} vue agrandie : séries au toucher « {tip_text(page)} »')
         shot(page, LOT, f'progres-zoom-{t}')
         page.click('.sheet-root--atlas .sheet__btn--confirm')
@@ -669,27 +644,27 @@ def t_progres(bench, eng, dev, theme):
             # Toucher un nom : ses sous-muscles gris ou pâles mis en valeur, les autres calques effacés, détail dans la bulle
             first = page.evaluate("atlasToWork(partLoad(muscleSpan))[0]")
             page.locator('.mcard .mlow__name').first.click()
-            wait_or_say(page, '.btip', 'attente 4')
+            wait_or_say(page, '.atlas-info', 'attente 4')
             settle(page)
             iso = page.evaluate("""() => { const m = document.querySelector('.mcard__map');
-                return { iso: m.dataset.iso, marks: [...m.querySelectorAll('.body-map__hl--iso')].map(e => e.dataset.part).sort(),
+                return { iso: m.dataset.iso, marks: [...m.querySelectorAll('.body-map__isomark')].map(e => e.dataset.ol).sort(),
                   on: [...m.querySelectorAll('.body-map__p')].filter(l => getComputedStyle(l).opacity !== '0').map(l => l.dataset.part).sort() }; }""")
             want = sorted(first['ids'])
             R.check(iso['iso'] == 'load' and sorted(set(iso['marks'])) == want and all(p in want for p in iso['on']),
                     f'{t} À travailler : « {first["label"]} » isolé sur le personnage {iso}')
             tip = tip_text(page)
             R.check(tip.startswith(first['label']) and all(page.evaluate(f"atlasPartTitle({json.dumps(i)})") in tip for i in first['ids'][:3]),
-                    f'{t} À travailler : la bulle détaille les sous-muscles « {tip[:160]} »')
+                    f'{t} À travailler : la carte détaille les sous-muscles « {tip[:160]} »')
             R.check(page.get_attribute('.mcard .mlow__name', 'aria-pressed') == 'true' and page.locator('.mcard .mlow__reset').count() == 1,
                     f'{t} À travailler : nom isolé surligné, « Tout voir » à côté')
-            off_part = tip_off_part(page, '.body-map__hl--iso > i')
-            R.check(off_part['ok'], f'{t} À travailler : la bulle ne couvre pas les muscles isolés {off_part}')
+            ok = info_ok(page, '.mcard', ['.mcard__map .body-map__row', '.mcard .mlegend', '.mcard .mlow'])
+            R.check(ok['ok'], f'{t} À travailler : carte d\'info sous le dessin, elle ne recouvre rien {ok}')
             shot(page, LOT, f'progres-a-travailler-{t}')
-            # « Tout voir » (toucher direct : sur iPhone SE, la bulle peut couvrir la liste)
+            # « Tout voir »
             page.evaluate("document.querySelector('.mcard .mlow__reset').click()")
             settle(page)
             R.check(page.get_attribute('.mcard .mlow__name', 'aria-pressed') == 'false' and page.locator('.mcard .mlow__reset').count() == 0, f'{t} À travailler : « Tout voir » rend la liste')
-            R.check(page.evaluate("!document.querySelector('.mcard__map').dataset.iso && !document.querySelector('.body-map__hl--iso') && !document.querySelector('.btip')"),
+            R.check(page.evaluate("!document.querySelector('.mcard__map').dataset.iso && !document.querySelector('.body-map__isomark') && !document.querySelector('.atlas-info')"),
                     f'{t} À travailler : « Tout voir », dessin entier')
         if len(items) > 3:
             page.click('.mcard .mlow__more')
@@ -826,6 +801,8 @@ def t_hors_ligne(bench):
         page.context.set_offline(True)
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
         page.wait_for_selector('.azoom', timeout=5000)
+        settle(page)
+        tap(page, part_point(page, '.azoom', 'chest_clavicular'), double=True, touch=True)   # la vue s'ouvre entière : zoom dans la vue
         page.wait_for_timeout(2500)
         shown = """() => [...document.querySelectorAll('.azoom .body-map__base')].map(i => [i.complete && i.naturalWidth > 0, i.getAttribute('src').endsWith('base.webp')])
             .concat([[document.querySelectorAll('.azoom .body-map__p').length > 0, true]])"""
@@ -849,6 +826,9 @@ def t_hors_ligne(bench):
         page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
         settle(page)
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
+        page.wait_for_selector('.azoom', timeout=5000)
+        settle(page)
+        tap(page, part_point(page, '.azoom', 'chest_clavicular'), double=True, touch=True)
         page.wait_for_function("() => atlasViewerState()?.hi === 'front' && atlasViewerState().lines === 'front'", timeout=15000)
         page.wait_for_timeout(500)
         cached = page.evaluate("""async () => { const c = await caches.open((await caches.keys()).find(k => k.startsWith('ppl-')));
@@ -867,11 +847,14 @@ def t_hors_ligne(bench):
         page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
         settle(page)
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'))
-        page.wait_for_selector('.btip', timeout=5000)
+        page.wait_for_selector('.atlas-info', timeout=5000)
         R.check('Haut des pectoraux' in tip_text(page), 'hors ligne : nom au toucher (carte de toucher en cache)')
         page.wait_for_timeout(400)
         tap(page, part_point(page, '.mpanel__map', 'chest_clavicular'), double=True)
         try:
+            page.wait_for_selector('.azoom', timeout=5000)
+            settle(page)
+            tap(page, part_point(page, '.azoom', 'chest_clavicular'), double=True, touch=True)
             page.wait_for_function("() => atlasViewerState()?.hi === 'front' && atlasViewerState().lines === 'front'", timeout=10000)
             ok = True
         except Exception:
