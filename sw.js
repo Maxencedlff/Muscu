@@ -1,8 +1,8 @@
-const CACHE = 'ppl-v225';
+const CACHE = 'ppl-v223';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/data/exercise-videos.json', '/data/foods.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
-  '/css/navigation.css', '/css/home.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/share.css', '/fonts/anton.woff2', '/css/recap.css', '/css/strength-levels.css', '/css/account.css',
+  '/css/navigation.css', '/css/home.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/atlas-zoom.css', '/css/progress-atlas.css', '/css/share.css', '/fonts/anton.woff2', '/css/recap.css', '/css/strength-levels.css', '/css/account.css',
   '/css/social.css', '/css/coach.css', '/css/coach-plan.css', '/css/paywall.css', '/css/strava.css', '/css/nutrition.css', '/css/water.css', '/css/theme-sobre.css', '/css/theme-sobre-seance.css', '/css/theme-sobre-progres.css', '/css/theme-sobre-nutrition.css', '/css/theme-sobre-coach.css', '/css/theme-sobre-reglages.css', '/css/programme.css',
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
@@ -26,7 +26,7 @@ const ASSETS = [
   '/js/features/auth-flow.js', '/js/features/social-ui.js', '/js/features/reactions-ui.js', '/js/features/comments-ui.js', '/js/features/social-me-ui.js', '/js/features/coach-ui.js', '/js/features/coach-presc-ui.js',
   '/js/features/push-ui.js', '/js/features/strava-ui.js', '/js/features/coach-pro-ui.js', '/js/features/paywall-ui.js', '/js/features/coach-share-ui.js', '/js/features/coach-diet-ui.js', '/js/features/coach-chat-ui.js', '/js/features/coach-plan-ui.js', '/js/features/coach-progress-ui.js',
   '/js/features/apple-services.js', '/js/features/app-icon.js', '/js/features/progress.js', '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/progress-muscles.js', '/js/features/body-measures-ui.js',
-  '/js/features/photo-vault-ui.js', '/js/features/coach-photos-ui.js', '/js/features/profile-photo-ui.js', '/js/features/muscles.js', '/js/features/muscle-tip.js', '/js/features/library.js', '/js/features/history.js', '/js/features/history-calendar.js', '/js/features/trash.js', '/js/features/guide.js',
+  '/js/features/photo-vault-ui.js', '/js/features/coach-photos-ui.js', '/js/features/profile-photo-ui.js', '/js/features/muscles.js', '/js/features/muscle-tip.js', '/js/features/progress-atlas.js', '/js/features/library.js', '/js/features/history.js', '/js/features/history-calendar.js', '/js/features/trash.js', '/js/features/guide.js',
   '/js/features/onboarding.js', '/js/features/program-generator-ui.js', '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/coach-poster-art.js', '/js/features/share.js', '/js/features/coach-poster-ui.js', '/js/features/recap-canvas.js', '/js/features/recap.js',
   '/js/features/strength-levels-ui.js', '/js/features/nutrition-ui.js', '/js/features/diet-qty.js', '/js/features/diet-editor.js', '/js/features/diet-week.js', '/js/features/food-scan-ui.js', '/js/features/diet-settings.js', '/js/features/water-ui.js', '/img/strava/connect-with-strava.svg',
   // Personnage 3D de la carte des muscles (js/ui/body-map.js, BODY_IMG) : base et calques par muscle
