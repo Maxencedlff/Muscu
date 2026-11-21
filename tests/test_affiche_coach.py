@@ -731,10 +731,10 @@ def t_mon_coach_grand_texte(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} AX33 Mon coach : aucune erreur JS {page.errors}')
 
 
-POSTER_LEFT = """async () => { const k = localStorage.getItem('mdlf_coach_poster') !== null;
-    const db = await new Promise(r => { const q = indexedDB.open('mdlf-coach-poster'); q.onupgradeneeded = () => { q.transaction.abort(); r(false); };
-      q.onsuccess = () => { const ok = q.result.objectStoreNames.contains('photo'); q.result.close(); r(ok); }; q.onerror = () => r(false); });
-    const ph = db ? !!(await posterPhotoLoad(__sb.meId() || 'x')) : false;
+POSTER_LEFT = """async () => { const to = (p, v) => Promise.race([p, new Promise(r => setTimeout(() => r(v), 4000))]); const k = localStorage.getItem('mdlf_coach_poster') !== null;
+    const db = await to(new Promise(r => { const q = indexedDB.open('mdlf-coach-poster'); q.onupgradeneeded = () => { q.transaction.abort(); r(false); };
+      q.onsuccess = () => { const ok = q.result.objectStoreNames.contains('photo'); q.result.close(); r(ok); }; q.onerror = () => r(false); }), 'figé');
+    const ph = db === true ? !!(await to(posterPhotoLoad(__sb.meId() || 'x'), 'figé')) : false;
     return { key: k, db, photo: ph }; }"""
 POSTER_SEED = """async () => { coachPosterSavePrefs(__sb.meId(), { name: 'Camille Martin', specialty: 'Force', silhouette: 'male', neutral: false });
     const c = document.createElement('canvas'); c.width = c.height = 8; const b = await new Promise(r => c.toBlob(r, 'image/jpeg'));
@@ -747,29 +747,34 @@ def t_donnees_effacees(bench, eng, dev, theme):
     t = tag(dev, theme)
     for parcours in ('déconnexion', 'suppression du compte', 'tout supprimer'):
         with bench.frozen_page(NOW, eng, dev, theme) as page:
+            dbg = (lambda m: print(f'  [{parcours}] {m}', flush=True)) if os.environ.get('PPL_DEBUG') else (lambda m: None)
             open_app(page, theme)
             signin(page, 'camille_coach')
             page.evaluate("async () => { __sb.makeCoach(__sb.meId()); await coachRefresh(); }")
+            dbg('seed')
             page.evaluate(POSTER_SEED)
+            dbg('before')
             before = page.evaluate(POSTER_LEFT)
             R.check(before['key'] and before['photo'], f'{t} {parcours} : affiche gardée avant ({before})')
+            dbg('action')
             uid = page.evaluate('__sb.meId()')
             if parcours == 'déconnexion':
-                page.evaluate('accountSignOut()')
+                page.evaluate("Promise.race([accountSignOut(), new Promise(r => setTimeout(r, 8000))])")
             elif parcours == 'suppression du compte':
-                r = page.evaluate('accountDelete()')
+                r = page.evaluate("Promise.race([accountDelete(), new Promise(r => setTimeout(() => r({ ok: false, reason: 'figé' }), 8000))])")
                 R.check(r.get('ok'), f'{t} suppression du compte faite ({r})')
             else:
-                page.evaluate("handleAction(null, document.createElement('button'), 'wipe-data')")
+                page.evaluate("() => { handleAction(null, document.createElement('button'), 'wipe-data'); }")   # sans attendre les dialogues
                 page.wait_for_selector('.ios-dialog', timeout=5000)
                 tap_dialog(page, 'Tout supprimer')
                 page.wait_for_timeout(400)
                 if page.locator('.ios-dialog__btn', has_text='Supprimer').count():
                     tap_dialog(page, 'Supprimer')
                 page.wait_for_function("() => localStorage.getItem('mdlf_coach_poster') === null", timeout=8000)
+            dbg('after')
             settle(page)
             left = page.evaluate(POSTER_LEFT.replace("__sb.meId() || 'x'", f"'{uid}'"))
-            R.check(not left['key'] and not left['photo'], f'{t} {parcours} : plus rien de l\'affiche sur l\'appareil ({left})')
+            R.check(not left['key'] and left['photo'] is False and left['db'] != 'figé', f'{t} {parcours} : plus rien de l\'affiche sur l\'appareil ({left})')
             R.check(not page.errors, f'{t} {parcours} : aucune erreur JS {page.errors}')
 
 
