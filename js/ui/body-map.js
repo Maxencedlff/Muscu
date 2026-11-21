@@ -190,13 +190,13 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline
 // image prenait 300 ms sur le PC et plus de 10 s sur la CI (iPhone 17), la page ne se dessinait plus. Toujours d'après
 // l'image 1× (audit M3 : en 3×, environ 18 Mo par vue ; agrandi dans la vue agrandie, un trait reste un trait), anneau de
 // 4 pixels de l'image (1,5 point environ sur la carte), 3 pour l'anneau en dedans. res : ignoré (cadre de la vue)
-const BODY_OL_PX = 4;
+const BODY_OL_PX = 4, BODY_OL_THIN = 3;   // muscle touché (blanc) : 4 ; « Pas travaillé » (gris discret, panel t11) : 3
 const bodyOutlineMasks = new Map();   // « sexe/vue/anneau/id » → adresse de l'anneau (blob:), une fois dessiné
 // cls : classe en plus (marque du muscle touché, contour du ciblé de la fiche) ; inner : anneau d'un point environ, en
 // dedans de la forme (ciblé de la fiche : il ne déborde pas sur le muscle qui aide voisin)
 function bodyOutlineHtml(kind, view, ids, res = 1, cls = '', inner = false) {
   const boxes = BODY_PARTS.boxes[kind]?.[view] || {}, W = BODY_PARTS.w, H = BODY_PARTS.h;
-  const r = inner ? 0 : BODY_OL_PX, ri = inner ? 3 : r;
+  const r = inner ? 0 : cls ? BODY_OL_PX : BODY_OL_THIN, ri = inner ? 3 : r;
   const pct = v => `${Math.round(v * 1e5) / 1e3}%`;
   return ids.filter(id => boxes[id]).map(id => {
     const b = boxes[id][0], key = `${kind}/${view}/${inner ? 'in' : ''}${ri}/${id}`, url = bodyOutlineMasks.get(key);

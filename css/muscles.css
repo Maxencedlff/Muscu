@@ -65,7 +65,7 @@ body .body-map--atlas .body-map__p.body-map__m--sec { background-color: var(--bo
 .body-map--atlas[data-tiers] .body-map__m--t1 { background-blend-mode: soft-light; }
 /* Sombre : « Sous l'objectif » ombré, moins lumineux que l'objectif atteint (panel t9 : le rose pâle, la couleur la plus
    claire du dessin, attirait l'œil sur ce qui est en retard) ; écart de 27 au moins avec le gris, mesuré sur le personnage */
-body:not(.light) .body-map--atlas[data-tiers] .body-map__p.body-map__m--t1 { background-blend-mode: multiply; filter: brightness(1.1); }
+body:not(.light) .body-map--atlas[data-tiers] .body-map__p.body-map__m--t1 { background-blend-mode: multiply; filter: brightness(1.4); }
 body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--body-atlas-bright, .46)); }   /* pas de fondu d'apparition (theme-sobre-progres) : jamais un personnage gris le temps d'un fondu */
 /* Ligne touchée : seuls ses muscles restent, en rouge plein ; fondu doux entre les deux états */
 .body-map--atlas .body-map__p { transition: opacity .2s ease, background-color .2s ease; }
@@ -99,12 +99,11 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .type-xl .mpanel__box { width: min(100% + 32px, 240px); margin-inline: -16px; }   /* corps entier, face et dos : 252 points de haut
    (230 au moins, panels t8 et t9 : le nom du ciblé se lit sans défiler sur iPhone SE), même sur un écran de 320 points */
 .type-xl .mpanel__box:has(> .body-map--one) { width: min(100%, 115px); margin-inline: 0; }   /* une seule vue utile : 251 points */
-.type-xl .mpanel__box > .mpanel__zoom { right: 0; }
 
 .body-map--crop .body-map__fig { overflow: hidden; }
 .body-map__body { position: absolute; left: 0; width: 100%; }
-.type-xl .mpanel__zoom { width: max(44px, 1.5em); height: max(44px, 1.5em); }   /* l'icône Agrandir grandit avec le texte (grille, règle 20) */
-.type-xl .mpanel__zoom svg { width: 1em; height: 1em; }
+.type-xl .atlas-box > .mpanel__zoom { position: static; width: fit-content; height: auto; min-height: 44px; margin: 8px auto 0; padding: 6px 16px; gap: 8px; border-radius: 999px; font: inherit; font-size: min(var(--fs-body), 24px); }
+.type-xl .mpanel__zoom svg { width: 1em; height: 1em; } .type-xl .mpanel__zoom-txt { display: inline; }   /* AX33 : sous le dessin, « Agrandir » écrit, grandit avec le texte (panel t11) */
 .type-xl .btip__latin { display: none; }
 .type-xl .btip__target { display: none; }   /* texte agrandi : la bulle de Progrès garde le nom, les séries, le palier et les exercices */
 .type-xl .btip { max-width: calc(100vw - 16px); }   /* plus large, donc moins haute */   /* texte agrandi : bulle plus courte, le nom de salle suffit */
@@ -113,9 +112,9 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .mpanel__foot .mpills { flex: 1; min-width: 0; }
 .mpanel__zoom {
   flex: none; margin: -10px -8px 0 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-  border: 0; border-radius: 50%; background: none; color: var(--tint);
-}
-.mpanel__zoom:active { background: var(--fill2); }
+  border: 0; border-radius: 50%; background: var(--fill2); color: var(--tint); cursor: pointer;
+}   /* fond rond, comme les boutons − et + de la vue agrandie (panel t11) */
+.mpanel__zoom:active { opacity: .6; } .mpanel__zoom-txt { display: none; }
 .btip__latin { margin-top: 1px; font-size: var(--fs-footnote); line-height: 1.059rem; font-style: italic; color: var(--label2); }
 .credit-foot { overflow-wrap: anywhere; }   /* crédit de l'atlas (Réglages) : adresse de la licence coupée au besoin */
 
@@ -344,7 +343,8 @@ body.light .mpick__auto { background: var(--cell); }
 .exhero--atlas .exhero__body .body-map__row { width: min(100%, calc(var(--body-ar) * 210px)); height: auto; }
 .exhero__cap { margin: 8px 0 0; text-align: center; font-size: 0.882rem; line-height: 1.3; color: var(--label2); }
 .exhero__legend { display: flex; justify-content: center; gap: 4px 14px; flex-wrap: wrap; color: var(--label); }
-.exhero__legend .mlegend__item { white-space: normal; flex-wrap: wrap; min-width: 0; }   /* texte très grand : « 10+ » passe à la ligne au lieu d'être coupé */
+.exhero__legend .mlegend__item { display: inline-block; white-space: normal; min-width: 0; } .mlegend__w { white-space: nowrap; } .exhero__legend .mlegend__dot { display: inline-block; margin-right: 4px; vertical-align: -.05em; }   /* AX33 : à la ligne aux espaces, « (10+) » collé à son mot */
+.type-xl .exhero__legend .mlegend__n::before { content: '('; } .type-xl .exhero__legend .mlegend__n::after { content: ')'; }
 .exhero__key { display: inline-flex; align-items: center; gap: 6px; }
 .exhero .exvideo__frame, .exhero .exvideo--3d .exvideo__frame { width: min(100%, calc(56vh * var(--ar, 1))); border-radius: 0; }
 .exhero:has(.exvideo--3d) { background: var(--black); }   /* animation sur noir pur : la carte prend le même fond */

@@ -17,7 +17,7 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
    Paliers : ceux de Progrès en sombre (--body-tier-1 et 2, theme-sobre-progres.css), même ordre de couleurs */
 .tone-night {
   --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #C94A3F; --body-heat-max: var(--body-tier-2); --body-heat-sec: #9E5A50;
-  --body-tier-1: #FFA096; --body-tier-2: #FF453A; --body-tier-dot-1: #9F655F; --body-tier-dot-2: #F95C51;
+  --body-tier-1: #F0BFB5; --body-tier-2: #FF453A; --body-tier-dot-1: #C9A49B; --body-tier-dot-2: #F95C51;
 }
 
 /* ── Accueil : carte « Ta semaine », une cellule comme les autres (pas d'aplat sur l'accueil) ── */

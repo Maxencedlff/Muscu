@@ -54,3 +54,13 @@ html.type-xl .sheet-root--atlas .sheet__bar .sheet__title { order: 0; flex: 1 1 
 @media (prefers-reduced-motion: reduce) { .azoom__stage--anim { transition: none; } }
 /* Fiche : la vue s'ouvre sur le muscle ciblé (×2) ; « Vue entière » montre le personnage entier (panel t9) */
 .azoom__whole { min-height: 44px; padding: 0; border: 0; background: none; color: var(--tint); font: inherit; font-size: min(var(--fs-subhead), 20px); cursor: pointer; }
+/* Panel t11 : zoomé, le dessin ne s'arrête plus net au bord de la vue (un trait aux hanches) : fondu en haut et en bas */
+.azoom:not([data-scale="1"]):not([data-scale="1.00"]) {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 56px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 56px), transparent);
+}
+/* Ouverte sur le ciblé : l'autre vue cachée (un bout de bras dépassait au bord), revenue dès qu'on déplace le dessin */
+.azoom[data-only="front"] .body-map__back, .azoom[data-only="back"] .body-map__front { visibility: hidden; }
+/* L'aide sous le dessin, dans la place de la carte d'info : plus de bande vide sous le personnage ; la carte la remplace */
+.azoom__info > .azoom__hint { margin: 0; padding-top: 12px; text-align: center; }
+.azoom__info:has(.atlas-info) > .azoom__hint { display: none; }

@@ -99,7 +99,7 @@ function atlasInfoShow(root, html, container = null, trigger = root) {
       <button class="atlas-info__close" data-action="atlas-info-close" aria-label="Fermer">${icon('xmark', 16)}</button>
     </section>`;
   const slot = container?.querySelector('.azoom__info'), box = root.closest('.atlas-box');
-  if (slot) slot.innerHTML = card;   // vue agrandie : la place réservée au-dessus de la bande du bas (audit m8)
+  if (slot) slot.insertAdjacentHTML('beforeend', card);   // vue agrandie : la place réservée, à la place de l'aide (audit m8)
   else if (box) (box.nextElementSibling?.classList.contains('atlas-box__iso') ? box.nextElementSibling : box).insertAdjacentHTML('afterend', card);
   else return null;
   const el = document.querySelector('.atlas-info');
@@ -256,7 +256,7 @@ function atlasCibleAt(kind, levels) {
   const view = area('front') >= area('back') ? 'front' : 'back', bs = main.map(p => BODY_PARTS.boxes[kind]?.[view]?.[p.id]?.[0]).filter(Boolean);
   if (!bs.length) return null;
   const cx = (Math.min(...bs.map(b => b[0])) + Math.max(...bs.map(b => b[2]))) / 2, cy = (Math.min(...bs.map(b => b[1])) + Math.max(...bs.map(b => b[3]))) / 2;
-  return { u: ((view === 'back' ? 1 + BODY_GAP : 0) + cx / BODY_PARTS.w) / (2 + BODY_GAP), v: cy / BODY_PARTS.h, scale: ATLAS_CIBLE_ZOOM };
+  return { u: ((view === 'back' ? 1 + BODY_GAP : 0) + cx / BODY_PARTS.w) / (2 + BODY_GAP), v: cy / BODY_PARTS.h, scale: ATLAS_CIBLE_ZOOM, view };
 }
 
 function openAtlasViewer(mapEl, from = null) {
@@ -283,12 +283,11 @@ function openAtlasViewer(mapEl, from = null) {
         <span class="body-map__row" style="--fig:${Math.round(10000 / rowW) / 100}%">${['front', 'back'].map(v => atlasFigHtml(kind, v, levels, tiers, outline)).join('')}</span>
       </div>
     </div>
-    <div class="azoom__info"></div>
+    <div class="azoom__info"><p class="azoom__hint">Pince pour zoomer. Touche un muscle pour son nom.</p></div>
     <div class="azoom__band">
       ${legend}
       <div class="azoom__text">
         ${key}
-        <p class="azoom__hint">Pince pour zoomer. Touche un muscle pour son nom.</p>
         ${tiers ? '' : '<p class="azoom__short">Touche un muscle pour son nom</p><button class="azoom__whole">Vue entière</button>'}
       </div>
       <div class="azoom__ctl">
@@ -318,7 +317,7 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', outl
   const figs = { front: stage.querySelector('.body-map__front'), back: stage.querySelector('.body-map__back') };
   const ratio = (2 + BODY_GAP) * BODY_PARTS.w / BODY_PARTS.h;
   let W = 0, H = 0, s = 1, x = 0, y = 0, raf = 0;
-  let hiView = '', hiWant = '', linesOn = false, alive = true;
+  let hiView = '', hiWant = '', linesOn = false, alive = true, only = '';
   const hiFailed = new Set();   // vue dont le 3× n'a pas pu se charger (hors ligne, jamais zoomée) : 1× gardé
 
   function layout() {
@@ -339,6 +338,7 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', outl
     if (!alive) return;
     stage.style.transform = `translate3d(${x}px,${y}px,0) scale(${s})`;
     view.dataset.scale = s.toFixed(2);
+    if (only && s <= 1.01) { only = ''; delete view.dataset.only; }   // personnage entier : les deux vues
     detail();
     buttons();
   }
@@ -451,6 +451,7 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', outl
       const dx = now.c.x - start.c.x, dy = now.c.y - start.c.y;
       if (!moved && Math.hypot(dx, dy) > 8) moved = true;
       if (!moved) return;
+      if (only) { only = ''; delete view.dataset.only; }   // l'utilisateur déplace le dessin : l'autre vue revient
       const [x0, x1, y0, y1] = bounds(s);
       x = soft(start.x + dx, x0, x1); y = soft(start.y + dy, y0, y1);
       track.push({ t: performance.now(), x, y });
@@ -537,6 +538,9 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', outl
     s = Math.min(ATLAS_MAX, Math.max(1, at.scale));
     x = r.w / 2 - at.u * W * s; y = r.h / 2 - at.v * H * s;
     clamp();
+    // Centrée sur le ciblé (panel t11 : un bout de bras de l'autre vue dépassait au bord) : l'autre vue cachée tant
+    // qu'on ne déplace pas le dessin et qu'on ne revient pas au personnage entier
+    if (at.view && W * s > r.w) { only = at.view; view.dataset.only = only; }
   }
   apply();
 

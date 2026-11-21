@@ -106,13 +106,17 @@ function atlasIsoChip(map, label) {
 // personnage) : en haut à droite, où ne passent ni la tête ni les bras ; carte cadrée sur les jambes : en bas à droite
 // (les mains sont en haut). Le bouton dit qu'on peut zoomer (panel t1) ; fiche et Progrès
 function atlasBoxHtml(mapHtml, className, corner = 'top') {
-  return `<div class="atlas-box atlas-box--${corner} ${className}">${mapHtml}<button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 22)}</button></div>`;
+  return `<div class="atlas-box atlas-box--${corner} ${className}">${mapHtml}<button class="mpanel__zoom" data-action="atlas-open" aria-label="Agrandir le personnage">${icon('arrow.up.left.and.arrow.down.right', 20)}<span class="mpanel__zoom-txt" aria-hidden="true">Agrandir</span></button></div>`;
 }
 
 // Légende des 3 états (carte de Progrès, Séries par muscle, vue agrandie) : mêmes mots partout ; ranges : avec les bornes
 // en séries par semaine
 function muscleLegendItemsHtml(ranges = true) {
-  return MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${ranges && lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('');
+  // Le dernier mot et les bornes ensemble (.mlegend__w) : à la ligne, « (1–9) » reste collé à « l'objectif » (panel t11)
+  return MUSCLE_LEVEL_WORDS.map((w, lvl) => {
+    const cut = w.lastIndexOf(' '), last = ranges && lvl ? `<span class="mlegend__w">${w.slice(cut + 1)} <span class="mlegend__n num">${muscleLevelRange(lvl)}</span></span>` : w.slice(cut + 1);
+    return `<span class="mlegend__item">${muscleLevelDot(lvl)}${w.slice(0, cut + 1)}${last}</span>`;
+  }).join('');
 }
 
 // Bulle d'un sous-muscle touché : nom de salle, séries de la période (comme la carte des 18 muscles), palier en mots,
