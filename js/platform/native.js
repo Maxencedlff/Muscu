@@ -58,7 +58,11 @@ const Native = (() => {
   const hasAgeRange  = has('MdlfAgeRange');
   const hasScanner   = has('MdlfScanner');
   // MdlfSound sait baisser la musique et rendre son état (méthode diagnostics, build 68 et suivantes)
-  const soundCanDuck = isNative && !!cap.PluginHeaders?.find?.(h => h?.name === 'MdlfSound')?.methods?.some?.(m => m?.name === 'diagnostics');
+  const soundHas = name => isNative && !!cap.PluginHeaders?.find?.(h => h?.name === 'MdlfSound')?.methods?.some?.(m => m?.name === name);
+  const soundCanDuck = soundHas('diagnostics');
+  // … et se diagnostiquer en mesurant le niveau joué, se remettre en état sans duck (selfTest et « reset »,
+  // build du 21/11/2026)
+  const soundCanSelfTest = soundHas('selfTest');
 
   // Rejet de Share.share (@capacitor/share, SharePlugin.swift : completionWithItemsHandler) traduit
   // en résultat. « Share canceled » : feuille fermée sans choisir d'app. « Error sharing item » :
@@ -512,14 +516,25 @@ const Native = (() => {
     sound: {
       available: isNative && !!cap.isPluginAvailable?.('MdlfSound'),
       canDuck: soundCanDuck,
+      canSelfTest: soundCanSelfTest,
       // alert : lu par la build 67 seulement (vrai = audible en silencieux) ; la build 68 joue tout ainsi.
       // duck : musique des autres apps baissée le temps du son ; ignoré par une build plus ancienne.
-      play(notes, alert = false, duck = false) { if (isNative) quiet(Sound.play({ notes, alert, duck })); },
+      // reset : remise en état du module avant le son (session, moteur, catégorie), envoyé seulement à
+      // une coquille qui le comprend (canSelfTest)
+      play(notes, alert = false, duck = false, reset = false) {
+        if (isNative) quiet(Sound.play(reset && soundCanSelfTest ? { notes, alert, duck, reset: true } : { notes, alert, duck }));
+      },
       // État du module et son journal (build 68 et suivantes) : { journal, category, sessionActive,
       // engineRunning, otherAudioPlaying, ducking, duckOthers } ; null hors app, build ancienne ou échec.
       async diagnostics() {
         if (!soundCanDuck) return null;
         try { return await Sound.diagnostics(); } catch { return null; }
+      },
+      // Diagnostic complet (SoundPlugin.swift, selfTest) : steps = sons à jouer [{ name, at, notes, duck }].
+      // { before, silentMode, silentMs, file, steps, after } ; null hors app, build ancienne ou échec.
+      async selfTest(steps) {
+        if (!soundCanSelfTest) return null;
+        try { return await Sound.selfTest({ steps }); } catch { return null; }
       },
     },
 

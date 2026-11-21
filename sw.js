@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v224';
+const CACHE = 'ppl-v225';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/data/exercise-videos.json', '/data/foods.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
@@ -22,7 +22,7 @@ const ASSETS = [
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',
   '/js/features/dashboard.js', '/js/features/programme.js', '/js/features/programme-editor.js', '/js/features/custom-session.js',
   '/js/features/session.js', '/js/features/rest.js', '/js/features/effort.js', '/js/features/effort-tempo.js', '/js/features/effort-machine.js', '/js/features/rest-activity.js', '/js/features/watch.js', '/js/features/home-widget.js', '/js/features/siri.js', '/js/features/session-sheets.js', '/js/features/session-tools.js', '/js/features/supersets-ui.js', '/js/features/grip-ui.js', '/js/features/session-notes.js', '/js/features/session-order-ui.js', '/js/features/session-gestures.js', '/js/features/session-intensif.js', '/js/features/session-unilateral.js',
-  '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/newsletter-ui.js', '/js/features/import-ui.js', '/js/features/account-ui.js',
+  '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/sound-diagnostic.js', '/js/features/newsletter-ui.js', '/js/features/import-ui.js', '/js/features/account-ui.js',
   '/js/features/auth-flow.js', '/js/features/social-ui.js', '/js/features/reactions-ui.js', '/js/features/comments-ui.js', '/js/features/social-me-ui.js', '/js/features/coach-ui.js', '/js/features/coach-presc-ui.js',
   '/js/features/push-ui.js', '/js/features/strava-ui.js', '/js/features/coach-pro-ui.js', '/js/features/paywall-ui.js', '/js/features/coach-share-ui.js', '/js/features/coach-diet-ui.js', '/js/features/coach-chat-ui.js', '/js/features/coach-plan-ui.js', '/js/features/coach-progress-ui.js',
   '/js/features/apple-services.js', '/js/features/app-icon.js', '/js/features/progress.js', '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/progress-muscles.js', '/js/features/body-measures-ui.js',

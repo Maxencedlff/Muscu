@@ -147,8 +147,10 @@ const DUCKED_MELODIES = ['restCount', 'restGo'];
 // Le module natif répond au JS avant de jouer (SoundPlugin.swift, play) : un échec n'y est que noté dans
 // son journal. Après chaque son, son état est relu (diagnostics, build 68 et suivantes). Lecture en
 // panne (catégorie changée par un tiers, session inactive, moteur arrêté, échec noté) : le son suivant
-// part avec « duck », seule demande qui force le module à refixer sa catégorie et à réactiver session et
-// moteur (prepare) ; le GO de fin de repos est rejoué tout de suite ainsi.
+// force la remise en état du module ; le GO de fin de repos est rejoué tout de suite ainsi. Coquille du
+// 21/11/2026 et suivantes (canSelfTest) : demande « reset » dédiée. Avant : « duck », seule demande qui
+// forçait le module à refixer sa catégorie, mais dont le changement de catégorie peut lui-même faire
+// arrêter le moteur par iOS (SoundPlugin.swift, configurationChanged).
 const SOUND_CHECK_DELAY = 350;           // ms après l'envoi : le son est préparé et lancé sur la file audio
 const PLAYBACK_CATEGORY = 'AVAudioSessionCategoryPlayback';
 let soundNeedsReset = false;
@@ -194,8 +196,9 @@ function playNotes(raw, name = null, { replay = true } = {}) {
     const wantsDuck = data.duckMusic !== false && DUCKED_MELODIES.includes(name);
     const forced = soundNeedsReset && !!Native.sound.canDuck;
     if (forced) soundNeedsReset = false;
+    const reset = forced && !!Native.sound.canSelfTest;
     const sentAt = Date.now();
-    Native.sound.play(notes, true, wantsDuck || forced);
+    Native.sound.play(notes, true, wantsDuck || (forced && !reset), reset);
     return checkNativeSound(sentAt).then(res => {
       // GO de fin de repos perdu : rejoué une fois, module remis en état par le duck forcé
       if (!res.ok && replay && name === 'restGo') return playMelody(name, { replay: false });
@@ -233,6 +236,24 @@ function testRestEndSound() {
     [0, 1000, 2000].forEach(t => setTimeout(restCountBeep, t));
     setTimeout(() => resolve(playMelody('restGo')), 3000);
   });
+}
+
+// Réglages › Sons › « Diagnostic du son » (coquille du 21/11/2026) : la vraie fin de repos (3-2-1 puis GO,
+// une seconde d'écart, volume et « Baisser la musique » choisis) confiée d'un bloc au module natif, qui
+// la joue par son chemin habituel en mesurant le niveau de chaque son. Joué même sons coupés : on le
+// demande exprès. Résout le résultat de Native.sound.selfTest (null : coquille sans diagnostic).
+function restEndTestSteps() {
+  const vol = soundVol();
+  const duck = data.duckMusic !== false;
+  const notes = raw => raw.map(([freq, start, dur, gain = 1]) => ({ freq, start, dur, vol: vol * gain }));
+  return [
+    ...[3, 2, 1].map((n, i) => ({ name: `Décompte ${n}`, at: i, notes: notes(MELODIES.restCount), duck })),
+    { name: 'GO', at: 3, notes: notes(MELODIES.restGo), duck },
+  ];
+}
+function runSoundSelfTest() {
+  if (!Native.sound?.canSelfTest) return Promise.resolve(null);
+  return Native.sound.selfTest(restEndTestSteps());
 }
 
 // Réglages › Sons › « Tester les hauteurs » : 4 bips de plus en plus aigus, 0,8 s d'écart. Le 3e et le 4e

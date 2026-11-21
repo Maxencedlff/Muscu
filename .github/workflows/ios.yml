@@ -165,6 +165,8 @@ jobs:
           test -d "$APP/PlugIns/RestActivity.appex" || { echo "Extension RestActivity absente de l'app"; exit 1; }
           # L'app Apple Watch aussi, avec l'identifiant de l'iPhone qui l'accompagne
           test -d "$APP/Watch/MDLFWatch.app" || { echo "App Apple Watch absente de l'app"; exit 1; }
+          # Fichiers du diagnostic du son (SoundPlugin.swift, selfTest) embarqués dans l'app
+          for f in mdlf-test-go.caf mdlf-silence.caf; do test -f "$APP/$f" || { echo "$f absent de l'app"; exit 1; }; done
           /usr/libexec/PlistBuddy -c 'Print :WKCompanionAppBundleIdentifier' "$APP/Watch/MDLFWatch.app/Info.plist"
           # Compilée sans signature : le système du simulateur n'enregistre une extension que signée.
           # Signature ad hoc (« - ») d'une copie, de l'intérieur vers l'extérieur (frameworks,

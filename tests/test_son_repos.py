@@ -7,7 +7,9 @@ et annulation de la notification de fin de repos.
 - aucun contexte Web Audio créé dans l'app (WebKit changerait la catégorie audio de toute l'app) ;
 - fin de repos app à l'écran, lecture saine : notification repoussée puis annulée après le GO ;
 - lecture en panne : GO rejoué en forçant la remise en état (duck), notification gardée ;
-- app cachée à la fin : notification gardée.
+- app cachée à la fin : notification gardée ;
+- coquille du 21/11/2026 (selfTest) : « Diagnostic du son » lance le test mesuré, affiche sortie, volume et
+  niveaux en clair, copie le détail ; navigateur : la ligne n'existe pas.
 Lancer : python3 test_son_repos.py (tests uniques, un appareil).
 """
 import os
@@ -90,7 +92,7 @@ def t_reglages(bench):
         gaps = [plays[i + 1]['at'] - plays[i]['at'] for i in range(3)]
         R.check(all(800 <= g <= 1400 for g in gaps), f'test : un bip par seconde {gaps}')
         page.click('[data-action="sound-diagnostics"]')
-        page.wait_for_function("document.querySelector('.sound-diag__text').textContent.includes('Catégorie')", timeout=3000)
+        page.wait_for_function("document.querySelector('.sound-diag__text')?.textContent.includes('Catégorie')", timeout=3000)
         txt = page.evaluate("document.querySelector('.sound-diag__text').textContent")
         for part in ('Catégorie : Playback', 'Session active : oui', 'moteur : oui', 'Notifications : granted', 'interruption (début)'):
             R.check(part in txt, f'diagnostic : « {part} » affiché')
@@ -161,4 +163,71 @@ def t_fin_repos_cachee(bench):
         R.check(not page.errors, f'cachée : aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [], once=[t_reglages, t_fin_repos_saine, t_fin_repos_panne, t_fin_repos_cachee])
+# Coquille du 21/11/2026 : selfTest publié, résultat factice (fichier joué, GO muet moteur arrêté) ;
+# presse-papier relevé dans window.__copied
+SELF_TEST_SHELL = FAKE_SHELL.replace(
+    "{ name: 'diagnostics', rtype: 'promise' }]",
+    "{ name: 'diagnostics', rtype: 'promise' }, { name: 'selfTest', rtype: 'promise' }]",
+).replace(
+    "diagnostics: async () => JSON.parse(JSON.stringify(__snd.diag)),",
+    """diagnostics: async () => JSON.parse(JSON.stringify(__snd.diag)),
+      selfTest: async (o) => { __snd.selfTest = o.steps; await new Promise(r => setTimeout(r, 300)); return {
+        before: { outputs: [{ type: 'Speaker', name: 'Speaker' }], outputVolume: 0.8, otherAudioPlaying: false,
+                  category: 'AVAudioSessionCategoryPlayback', mode: 'AVAudioSessionModeDefault', categoryOptions: ['mixWithOthers'],
+                  sessionActive: true, engineRunning: true, secondaryAudioShouldBeSilencedHint: false, sampleRate: 48000, journal: [] },
+        silentMode: 'unknown', silentMs: 200, file: { played: true, peakDb: -2.4, avgDb: -12.2, ms: 640 },
+        steps: o.steps.map((s, i) => ({ name: s.name, peakDb: i === 3 ? -160 : -11.6, rmsDb: -15, buffers: i === 3 ? 0 : 40,
+                                        ducking: s.duck, engineRunning: i !== 3 })),
+        after: { category: 'AVAudioSessionCategoryPlayback', sessionActive: true, engineRunning: false,
+                 journal: ['2026-11-21T10:00:00Z diagnostic du son fait'] } }; },""",
+) + """
+window.__copied = null;
+Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } });
+"""
+
+
+def t_diagnostic_mesure(bench):
+    for theme in ('dark', 'light'):
+        with bench.page(ENGINE, DEVICE, theme) as page:
+            page.add_init_script(SELF_TEST_SHELL)
+            page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+            seed(page, theme, ppl_v2_today_json())
+            settle(page)
+            page.evaluate("routeTo('settings')")
+            page.wait_for_selector('.view.settings-view')
+            cell = page.locator('[data-action="sound-diagnostics"]')
+            R.check(cell.count() == 1 and 'Joue un son' in cell.inner_text(), f'{theme} : ligne « Diagnostic du son » et sa description')
+            cell.click()
+            page.wait_for_selector('.sound-diag__list', timeout=5000)
+            steps = page.evaluate('__snd.selfTest')
+            R.check([s['name'] for s in steps] == ['Décompte 3', 'Décompte 2', 'Décompte 1', 'GO'], f'{theme} : vraie fin de repos testée {steps and [s["name"] for s in steps]}')
+            rows = page.evaluate("[...document.querySelectorAll('.sound-diag__row')].map(r => [r.querySelector('dt').textContent, r.querySelector('dd').textContent])")
+            got = dict(rows)
+            R.check(got.get('Sortie') == 'Haut-parleur', f'{theme} : sortie en clair {got.get("Sortie")}')
+            R.check(got.get('Volume', '').replace('\u00a0', ' ') == '80 %', f'{theme} : volume en % {got.get("Volume")!r}')
+            R.check(got.get('Fichier son', '').endswith('(le son est joué)'), f'{theme} : fichier joué {got.get("Fichier son")}')
+            R.check(got.get('GO', '').startswith('0 ('), f'{theme} : GO muet signalé {got.get("GO")}')
+            R.check(page.locator('.sound-diag__bad').count() == 1, f'{theme} : une seule valeur en rouge')
+            R.check('une partie des sons' in page.inner_text('.sound-diag__status'), f'{theme} : verdict')
+            page.click('[data-action="sound-diag-copy"]')
+            page.wait_for_function('window.__copied !== null', timeout=3000)
+            copied = page.evaluate('window.__copied')
+            R.check('Verdict :' in copied and 'GO : pic' in copied and 'diagnostic du son fait' in copied, f'{theme} : diagnostic copié')
+            page.locator('#sound-diag').scroll_into_view_if_needed()
+            shot(page, LOT, f'diagnostic-mesure-{theme}')
+            R.check(not page.errors, f'{theme} : diagnostic mesuré, aucune erreur JS {page.errors[:2]}')
+
+
+def t_web_sans_diagnostic(bench):
+    with bench.page(ENGINE, DEVICE, THEME) as page:
+        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        seed(page, THEME, ppl_v2_today_json())
+        settle(page)
+        page.evaluate("routeTo('settings')")
+        page.wait_for_selector('.view.settings-view')
+        R.check(page.locator('[data-action="sound-diagnostics"]').count() == 0, 'navigateur : pas de « Diagnostic du son »')
+        R.check(page.locator('#sound-diag').count() == 0, 'navigateur : pas de zone de diagnostic')
+        R.check(not page.errors, f'navigateur : aucune erreur JS {page.errors[:2]}')
+
+
+run_main(R, [], once=[t_reglages, t_fin_repos_saine, t_fin_repos_panne, t_fin_repos_cachee, t_diagnostic_mesure, t_web_sans_diagnostic])

@@ -70,8 +70,17 @@
 /* Réglages › Sons › Tester les hauteurs : numéros éteints, allumés au fur et à mesure des bips */
 .pitch-steps { color: var(--label2); font-variant-numeric: tabular-nums; }
 .pitch-steps__n--on { color: var(--tint); font-weight: 600; }
-/* Réglages › Sons › Diagnostic du son : texte brut, petit, sélectionnable (capture à nous envoyer) */
+/* Réglages › Sons › Diagnostic du son : verdict, liste « libellé : valeur » (valeur en rouge si rien n'est
+   joué), bouton de copie ; coquilles 68 et 69 : texte brut, petit, sélectionnable */
 .sound-diag { padding: 2px 16px 12px; }
+.sound-diag__status { margin: 4px 0 8px; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label); }
+.sound-diag__list { margin: 0 0 12px; }
+.sound-diag__row { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 12px; padding: 6px 0;
+  border-top: .5px solid var(--sep); font-size: var(--fs-subhead); }
+.sound-diag__row dt { color: var(--label2); }
+.sound-diag__row dd { margin: 0; color: var(--label); text-align: right; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+.sound-diag__row .sound-diag__bad { color: var(--red-text); }
+.sound-diag__copy { margin-top: 4px; }
 .sound-diag__text { margin: 0; width: 100%; font: 0.706rem/1.0rem ui-monospace, "SF Mono", Menlo, monospace; color: var(--label2);
   white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
 .cell--wrap { flex-wrap: wrap; }

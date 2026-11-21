@@ -35,6 +35,16 @@ Pas dedans : le droit « Time Sensitive » de la notification de fin de repos (c
 l'identifiant de l'app dans developer.apple.com et profil `appstore.mobileprovision` à régénérer, sinon la
 signature échoue). L'empreinte native change : les mises à jour à chaud suivantes ne vont qu'à la 69.
 
+## Build suivante : diagnostic du son (branche `son-diag`, 21/11/2026)
+
+| Sujet | Natif | Web | Serveur |
+|---|---|---|---|
+| Diagnostic mesuré du son | `SoundPlugin.selfTest` : sortie, volume, session, dernier incident, mode silencieux estimé, niveau mesuré d'un fichier embarqué (`mdlf-test-go.caf`, AVAudioPlayer) puis des vrais sons de fin de repos (prise d'écoute du mélangeur) ; `mdlf-silence.caf` pour l'estimation du mode silencieux | `js/features/sound-diagnostic.js` : Réglages › Sons › « Diagnostic du son », résultat en clair et « Copier le diagnostic » ; ligne absente sur le web et Android | — |
+| Son coupé par une reconfiguration | moteur relancé dès `AVAudioEngineConfigurationChange` et dernier son rejoué s'il n'était pas fini (avant : perdu en silence jusqu'au son suivant) | — | — |
+| Remise en état sans duck | `play({ reset: true })` | `haptics-audio.js` : après une panne relue, `reset` au lieu d'un duck forcé (coquilles qui publient `selfTest`) | — |
+
+Coquilles 68 et 69 : le web garde l'ancien diagnostic (état en texte) et le duck forcé.
+
 ## Mises à jour à chaud ou build : la règle
 
 Règles 2.5.2, 2.3.1(a) et 2.5.19 de l'App Store (texte cité dans IOS.md, « Règle Apple ») :

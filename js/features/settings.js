@@ -123,11 +123,12 @@ ${renderAccessSettingsGroup()}
               <span class="cell__sub">Note le dernier bip que tu entends</span></span>
             <span class="cell__value pitch-steps" aria-hidden="true">${PITCH_TEST.map((_, i) => `<span class="pitch-steps__n">${i + 1}</span>`).join(' · ')}</span>
           </button>` : ''}
-          <button class="cell cell--action" data-action="sound-diagnostics" aria-expanded="false" aria-controls="sound-diag">
+          ${Native.sound.canDuck ? `<button class="cell cell--action" data-action="sound-diagnostics" aria-expanded="false" aria-controls="sound-diag">
             ${cellIco('waveform', 'gray')}
-            <span class="cell__body"><span class="cell__title">Diagnostic du son</span></span>
+            <span class="cell__body"><span class="cell__title">Diagnostic du son</span>
+              ${Native.sound.canSelfTest ? '<span class="cell__sub">Joue un son et la fin de repos, puis dit ce qui sort</span>' : ''}</span>
           </button>
-          <div class="sound-diag" id="sound-diag" hidden><pre class="sound-diag__text" aria-live="polite"></pre></div>
+          <div class="sound-diag" id="sound-diag" hidden></div>` : ''}
         </div>
         <div class="group-foot">Les sons de l'app jouent même en mode silencieux.</div>
 ${renderAppleServicesGroup(switchHtml)}
@@ -441,10 +442,11 @@ registerActions({
   'setting-duck': () => {
     data.duckMusic = data.duckMusic === false; save(); render();
   },
-  // Séquence réelle de fin de repos (3-2-1 puis GO) ; le diagnostic se met à jour après le GO s'il est ouvert
+  // Séquence réelle de fin de repos (3-2-1 puis GO) ; coquilles 68 et 69, l'état affiché par le
+  // diagnostic (sound-diagnostic.js) est relu après le GO s'il est ouvert
   'sound-test-rest': async () => {
     await testRestEndSound();
-    if (!$('#sound-diag')?.hidden) showSoundDiagnostics();
+    if (!$('#sound-diag')?.hidden && !Native.sound.canSelfTest) showSoundDiagnostics();
   },
   // Quatre bips de 440 à 1320 Hz ; le numéro du bip en cours s'allume (on dit jusqu'où on entend)
   'sound-test-pitch': async (e, el) => {
@@ -452,7 +454,6 @@ registerActions({
     steps.forEach(n => n.classList.remove('pitch-steps__n--on'));
     await testPitches(i => steps[i]?.classList.add('pitch-steps__n--on'));
   },
-  'sound-diagnostics': () => showSoundDiagnostics(),
   'setting-vibrate': () => {
     data.vibrateOn = !data.vibrateOn; save(); render();
   },
@@ -535,36 +536,3 @@ registerActions({
   },
 });
 
-// Réglages › Sons › « Diagnostic du son » : état de la lecture iOS (MdlfSound.diagnostics), dernier
-// contrôle fait après un son, réglages et autorisation des notifications, en texte sélectionnable :
-// une capture juste après un son raté suffit à savoir ce qui a cassé.
-async function soundDiagnosticsText() {
-  const diag = await Native.sound.diagnostics();
-  const perm = await Native.notificationPermission();
-  const yes = v => (v === true ? 'oui' : v === false ? 'non' : '?');
-  const lines = [
-    `${new Date().toLocaleString('fr-FR')}`,
-    `App iOS : ${yes(Native.isNative)} · lecture iOS : ${yes(Native.sound.available)} · état lisible : ${yes(Native.sound.canDuck)}`,
-    `Sons : ${data.soundOn !== false ? 'oui' : 'non'} · volume : ${data.soundLevel || 'fort'} · baisser la musique : ${data.duckMusic !== false ? 'oui' : 'non'}`,
-    `Notifications : ${perm ?? 'hors app'}`,
-  ];
-  if (diag) {
-    lines.push(`Catégorie : ${String(diag.category || '?').replace('AVAudioSessionCategory', '')}${diag.duckOthers ? ' + duck' : ''}`,
-      `Session active : ${yes(diag.sessionActive)} · moteur : ${yes(diag.engineRunning)} · autre son : ${yes(diag.otherAudioPlaying)}`);
-  } else if (Native.sound.available) lines.push('État de la lecture iOS illisible (build sans diagnostics)');
-  if (lastSoundCheck) {
-    lines.push(`Dernier son : ${new Date(lastSoundCheck.at).toLocaleTimeString('fr-FR')} · ${lastSoundCheck.ok ? 'joué' : 'en panne : ' + lastSoundCheck.reasons.join(', ')}`);
-  }
-  const journal = diag?.journal || [];
-  lines.push(journal.length ? 'Journal :' : 'Journal : vide', ...journal.slice(-12));
-  return lines.join('\n');
-}
-
-async function showSoundDiagnostics() {
-  const box = $('#sound-diag');
-  if (!box) return;
-  const text = await soundDiagnosticsText();
-  box.hidden = false;
-  box.querySelector('.sound-diag__text').textContent = text;
-  $('[data-action="sound-diagnostics"]')?.setAttribute('aria-expanded', 'true');
-}

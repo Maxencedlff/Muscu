@@ -1914,6 +1914,119 @@ test('Native.sound.diagnostics : null hors app ou build sans la méthode, état 
   assert.equal(await nativeContext({ native: false }).Native.notificationPermission(), null);
 });
 
+// Coquille du 21/11/2026 : selfTest publié (diagnostic mesuré) et « reset » compris par play
+const SOUND_B70 = [{ name: 'MdlfSound', methods: [{ name: 'play' }, { name: 'diagnostics' }, { name: 'selfTest' }] }];
+
+test('Native.sound.selfTest : absent hors app, sur Android et dans les builds 68-69 ; reset envoyé seulement s\'il est compris', async () => {
+  const b68 = [{ name: 'MdlfSound', methods: [{ name: 'play' }, { name: 'diagnostics' }] }];
+  assert.equal(nativeContext({ native: false }).Native.sound.canSelfTest, false, 'navigateur');
+  assert.equal(await nativeContext({ native: false }).Native.sound.selfTest([]), null, 'navigateur : null, sans erreur');
+  assert.equal(nativeContext({ platform: 'android', available: ['MdlfSound'] }).Native.sound.canSelfTest, false, 'Android');
+  assert.equal(nativeContext({ available: ['MdlfSound'], headers: b68 }).Native.sound.canSelfTest, false, 'build 68-69');
+  const got = [];
+  const res = { file: { played: true } };
+  const n = nativeContext({ available: ['MdlfSound'], headers: SOUND_B70, plugins: { MdlfSound: {
+    play: async o => { got.push(o); }, selfTest: async o => { got.push(o); return res; } } } });
+  assert.equal(n.Native.sound.canSelfTest, true);
+  assert.equal(await n.Native.sound.selfTest([{ name: 'GO', at: 3 }]), res);
+  n.Native.sound.play([{ freq: 660, start: 0, dur: .1 }], true, false, true);
+  n.Native.sound.play([{ freq: 660, start: 0, dur: .1 }], true, false);
+  await new Promise(r => setImmediate(r));
+  sameJSON(got.map(o => o.steps ? 'selfTest' : o.reset === true), ['selfTest', true, false]);
+  assert.ok(!('reset' in got[2]), 'son ordinaire : forme d\'avant');
+  const old = []; const o68 = nativeContext({ available: ['MdlfSound'], headers: b68, plugins: { MdlfSound: { play: async o => { old.push(o); } } } });
+  o68.Native.sound.play([{ freq: 660, start: 0, dur: .1 }], true, false, true);
+  await new Promise(r => setImmediate(r));
+  assert.ok(!('reset' in old[0]), 'build 68-69 : jamais de reset');
+  const ko = nativeContext({ available: ['MdlfSound'], headers: SOUND_B70, plugins: { MdlfSound: { selfTest: async () => { throw new Error('x'); } } } });
+  assert.equal(await ko.Native.sound.selfTest([]), null, 'échec : null');
+});
+
+test('sons iOS (coquille du 21/11) : la panne relue se répare par « reset », sans changer la catégorie par un duck', async () => {
+  let state = { ...SOUND_OK, engineRunning: false };
+  const sent = [];
+  const box = { data: { soundOn: true }, navigator: {}, document: { addEventListener() {} }, Date, setTimeout: (f) => { f(); return 1; },
+                Native: { haptic: () => true, sound: { available: true, canDuck: true, canSelfTest: true,
+                  play: (notes, alert, duck, reset) => { sent.push({ duck, reset }); }, diagnostics: async () => state } } };
+  const c = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8') + '\nthis.playMelody = playMelody;', c);
+  await c.playMelody('validation');
+  state = SOUND_OK;
+  await c.playMelody('validation');
+  sameJSON(sent, [{ duck: false, reset: false }, { duck: false, reset: true }]);
+  // GO perdu : rejoué une fois avec reset ; le duck du réglage reste celui de la fin de repos
+  state = { ...SOUND_OK, engineRunning: false }; sent.length = 0;
+  await c.playMelody('restGo');
+  sameJSON(sent, [{ duck: true, reset: false }, { duck: true, reset: true }]);
+});
+
+test('Diagnostic du son : la vraie fin de repos confiée au module (3-2-1 puis GO, 1 s d\'écart, réglages)', async () => {
+  let asked = null;
+  const box = { data: { soundOn: false, soundLevel: 'bas', duckMusic: false }, navigator: {}, document: { addEventListener() {} },
+                Native: { haptic: () => true, sound: { available: true, canDuck: true, canSelfTest: true,
+                  play() {}, selfTest: async steps => { asked = steps; return { ok: 1 }; } } } };
+  const c = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8') + '\nthis.runSoundSelfTest = runSoundSelfTest;', c);
+  sameJSON(await c.runSoundSelfTest(), { ok: 1 });
+  sameJSON(asked.map(s => [s.name, s.at, s.notes[0].freq, s.duck]),
+    [['Décompte 3', 0, 587, false], ['Décompte 2', 1, 587, false], ['Décompte 1', 2, 587, false], ['GO', 3, 494, false]]);
+  assert.ok(asked.every(s => s.notes.every(n => n.vol === 0.35)), 'volume choisi, même sons coupés (test demandé exprès)');
+  box.Native.sound.canSelfTest = false;
+  assert.equal(await c.runSoundSelfTest(), null, 'coquille sans selfTest : rien');
+});
+
+// Rapport du diagnostic (js/features/sound-diagnostic.js), fonction pure
+function soundReportContext() {
+  const c = vm.createContext({ registerActions() {}, Date, Math, Number, Array, String, JSON });
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/features/sound-diagnostic.js'), 'utf8') + '\nthis.soundDiagReport = soundDiagReport;', c);
+  return c;
+}
+const SELF_OK = {
+  before: { outputs: [{ type: 'Speaker', name: 'Speaker' }], outputVolume: 0.8, otherAudioPlaying: false, category: 'AVAudioSessionCategoryPlayback',
+            mode: 'AVAudioSessionModeDefault', categoryOptions: ['mixWithOthers'], sessionActive: true, engineRunning: true,
+            secondaryAudioShouldBeSilencedHint: false, sampleRate: 48000, journal: ['2026-11-21T10:00:00Z diagnostic du son fait'] },
+  silentMode: 'on', silentMs: 4,
+  file: { played: true, peakDb: -2.4, avgDb: -12.2, ms: 640 },
+  steps: ['Décompte 3', 'Décompte 2', 'Décompte 1', 'GO'].map(name => ({ name, peakDb: -11.6, rmsDb: -15, buffers: 40, ducking: true, engineRunning: true })),
+  after: { category: 'AVAudioSessionCategoryPlayback', sessionActive: true, engineRunning: true, journal: [] },
+};
+
+test('Diagnostic du son : rapport en clair (sortie, volume, niveau joué) et verdict selon ce qui sort', () => {
+  const c = soundReportContext();
+  const r = c.soundDiagReport(SELF_OK, { soundOn: true, soundLevel: 'fort', duckMusic: true, notifications: 'granted' });
+  const row = k => r.rows.find(x => x[0] === k)?.[1];
+  assert.equal(row('Sortie'), 'Haut-parleur');
+  assert.equal(row('Volume'), '80 %');
+  assert.equal(row('Fichier son'), '−2 dB (le son est joué)');
+  assert.equal(row('GO'), '−12 dB (le son est joué)');
+  assert.ok(row('Mode silencieux').startsWith('Sans doute activé'));
+  assert.equal(row('Dernier incident'), 'Aucun');
+  assert.ok(r.verdict.includes('L\'app joue bien les sons'), r.verdict);
+  for (const part of ['Verdict :', 'Speaker « Speaker »', 'Volume : 80', 'Mode silencieux : on', 'GO : pic −12', 'Session avant : Playback · Default · mixWithOthers',
+    'Notifications : granted', 'diagnostic du son fait']) assert.ok(r.text.includes(part), `texte copié : ${part}`);
+
+  // Synthèse muette (moteur arrêté au GO), fichier entendu : la fabrication des sons est en cause
+  const mute = JSON.parse(JSON.stringify(SELF_OK));
+  mute.steps[3] = { ...mute.steps[3], peakDb: -160, buffers: 0 };
+  mute.before.outputs = [{ type: 'BluetoothA2DPOutput', name: 'AirPods de Max' }];
+  mute.before.lastIncident = { kind: 'interruption', detail: 'Interruption (appel, Siri, alarme…)', at: '2026-11-21T10:02:00Z' };
+  const m = c.soundDiagReport(mute);
+  assert.equal(m.rows.find(x => x[0] === 'GO')[1], '0 (moteur arrêté, rien n\'est joué)');
+  assert.equal(m.rows.find(x => x[0] === 'GO')[2], false, 'valeur signalée');
+  assert.equal(m.rows.find(x => x[0] === 'Sortie')[1], 'Bluetooth (AirPods de Max)');
+  assert.ok(m.rows.find(x => x[0] === 'Dernier incident')[1].startsWith('Interruption (appel'));
+  assert.ok(m.verdict.includes('une partie des sons'), m.verdict);
+
+  const silent = JSON.parse(JSON.stringify(SELF_OK));
+  silent.steps.forEach(s => { s.peakDb = -90; });
+  assert.ok(c.soundDiagReport(silent).verdict.includes('fabrique'), 'fichier seul');
+  silent.file = { played: false, error: 'lecture refusée par iOS' };
+  const none = c.soundDiagReport(silent);
+  assert.ok(none.verdict.startsWith('Rien n\'est joué'));
+  assert.equal(none.rows.find(x => x[0] === 'Fichier son')[1], '0 (lecture refusée par iOS)');
+  assert.ok(c.soundDiagReport({}).verdict.startsWith('Rien n\'est joué'), 'résultat vide : pas d\'erreur');
+});
+
 // ── Sons du tempo guidé (tests dans tempo-sons.mjs) ─────────
 
 (await import('./tempo-sons.mjs')).default({ test, assert, sameJSON, ROOT });

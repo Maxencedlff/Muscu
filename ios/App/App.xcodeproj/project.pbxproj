@@ -42,6 +42,8 @@
 		B10000000000000000000003 /* HealthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000004 /* HealthPlugin.swift */; };
 		B10000000000000000000005 /* MusicPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* MusicPlugin.swift */; };
 		B10000000000000000000008 /* AppIconPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* AppIconPlugin.swift */; };
+		B1000000000000000000502A /* mdlf-test-go.caf in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000502B /* mdlf-test-go.caf */; };
+		B1000000000000000000503A /* mdlf-silence.caf in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000503B /* mdlf-silence.caf */; };
 		B1000000000000000000501A /* SoundPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000501B /* SoundPlugin.swift */; };
 		B10000000000000000006A01 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = B10000000000000000006A02 /* GoogleSignIn */; };
 		B1000000000000000000C10A /* CloudBackupPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000C10B /* CloudBackupPlugin.swift */; };
@@ -135,6 +137,8 @@
 		B10000000000000000000006 /* MusicPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlugin.swift; sourceTree = "<group>"; };
 		B10000000000000000000007 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		B10000000000000000000009 /* AppIconPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconPlugin.swift; sourceTree = "<group>"; };
+		B1000000000000000000502B /* mdlf-test-go.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "mdlf-test-go.caf"; sourceTree = "<group>"; };
+		B1000000000000000000503B /* mdlf-silence.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "mdlf-silence.caf"; sourceTree = "<group>"; };
 		B1000000000000000000501B /* SoundPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundPlugin.swift; sourceTree = "<group>"; };
 		B1000000000000000000C10B /* CloudBackupPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBackupPlugin.swift; sourceTree = "<group>"; };
 		B1000000000000000000C20B /* AccountPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountPlugin.swift; sourceTree = "<group>"; };
@@ -251,6 +255,8 @@
 				B1000000000000000000C10B /* CloudBackupPlugin.swift */,
 				B1000000000000000000C20B /* AccountPlugin.swift */,
 				B1000000000000000000501B /* SoundPlugin.swift */,
+				B1000000000000000000502B /* mdlf-test-go.caf */,
+				B1000000000000000000503B /* mdlf-silence.caf */,
 				B1000000000000000000701B /* StorePlugin.swift */,
 				B1000000000000000000D30B /* PushPlugin.swift */,
 				B1000000000000000000E40B /* VaultPlugin.swift */,
@@ -433,6 +439,8 @@
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				A1B2C3D4E5F6A7B8C9D0E1F2 /* PrivacyInfo.xcprivacy in Resources */,
+				B1000000000000000000502A /* mdlf-test-go.caf in Resources */,
+				B1000000000000000000503A /* mdlf-silence.caf in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
