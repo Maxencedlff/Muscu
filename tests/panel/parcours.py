@@ -667,7 +667,7 @@ def p_atlas(r):
         r.attendre('.atlas-info', 'carte d\'info du muscle')
     with r.etape('aident', 'Toucher « Muscles qui aident » : seuls ces muscles restent sur le personnage', cle='Voir les muscles d\'un exercice en détail'):
         r.page.evaluate('closeBodyTip()')
-        r.toucher('.library-ex .mline2[data-level="1"] .cell__sub', 'ligne « Muscles qui aident »')
+        r.toucher('.library-ex .mline2[data-level="1"] :is(.cell__sub, .mline2__lead)', 'ligne « Muscles qui aident »')
     with r.etape('isoler', 'Toucher « Triceps » : ce seul muscle sur le personnage'):
         # Texte très grand : un nom par ligne, « + N autres » montre les suivants
         if not r.page.locator('.library-ex .mline2[data-level="1"] .mline2__name[data-label="Triceps"]').count():

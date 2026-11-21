@@ -60,7 +60,7 @@ function exAtlasPanelHtml(m, name) {
   const shortName = x => `<span class="mline2__name" data-ids="${esc(x.ids.join(' '))}" data-label="${esc(x.label)}">${esc(x.label)}</span>`;
   const hTitle = helpers.length > 1 ? 'Muscles qui aident' : 'Muscle qui aide';
   const short = xl && helpers.length ? `<button class="cell mline2 mline2__short" data-action="atlas-isolate" data-level="1" data-ids="${esc(helpers.flatMap(x => x.ids).join(' '))}" data-title="${hTitle}" aria-pressed="false"
-      aria-label="${esc(`${hTitle}, ${helpers.length} : ${helpers.map(x => x.label).join(', ')}. Touche pour ne voir ${helpers.length > 1 ? 'qu\'eux' : 'que lui'}`)}">Qui aident : ${shortName(helpers[0])}${helpers.length > 1 ? ` et ${helpers.length - 1} autre${helpers.length > 2 ? 's' : ''}` : ''}</button>` : '';
+      aria-label="${esc(`${hTitle}, ${helpers.length} : ${helpers.map(x => x.label).join(', ')}. Touche pour ne voir ${helpers.length > 1 ? 'qu\'eux' : 'que lui'}`)}"><span class="mline2__lead">Qui aident :</span> <span class="mline2__names">${shortName(helpers[0])}${helpers.length > 1 ? ` <span class="mline2__more" data-more="1">et ${helpers.length - 1} autre${helpers.length > 2 ? 's' : ''}</span>` : ''}</span><template class="mline2__all">${helpers.map(shortName).join(', ')}</template></button>` : '';
   return `${xl ? main + short : ''}
     <div class="cell mpanel mpanel--atlas">
       ${atlasBoxHtml(bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true, crop: !xl, one: true }), 'mpanel__box', !xl && bodyAtlasCrop(kind, levels)[0] > 0 ? 'bottom' : 'top')}

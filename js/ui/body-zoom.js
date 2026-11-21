@@ -109,6 +109,15 @@ function atlasInfoShow(root, html, container = null, trigger = root) {
   if (dock) {
     el.classList.add('atlas-info--dock');
     el.style.bottom = `${Math.round(innerHeight - (document.querySelector('.tabbar')?.getBoundingClientRect().top ?? innerHeight)) + 8}px`;
+    // Le muscle touché reste visible au-dessus de la carte : la page défile juste ce qu'il faut, après la fenêtre du
+    // double toucher (le dessin ne bouge pas sous le 2e toucher)
+    setTimeout(() => {
+      const mark = root.querySelector('.body-map__mark');
+      if (!el.isConnected || !mark || atlasViewer) return;
+      const m = mark.getBoundingClientRect(), top = document.querySelector('.view .navbar')?.getBoundingClientRect().bottom ?? 0;
+      const over = Math.min(m.bottom - (el.getBoundingClientRect().top - 8), m.top - top - 8);
+      if (over > 0) scrollBy({ top: over, behavior: 'instant' });
+    }, ATLAS_DOUBLE_MS);
   }
   atlasInfoTrigger = trigger;
   atlasSay(el.querySelector('.atlas-info__body').textContent);
