@@ -82,11 +82,11 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .atlas-box > .mpanel__zoom { position: absolute; right: -8px; margin: 0; }
 .atlas-box--top > .mpanel__zoom { top: -8px; }
 .atlas-box--bottom > .mpanel__zoom { bottom: -8px; }
-/* Muscle isolé, texte très grand : son nom et « Tout voir » dans le coin haut gauche du dessin (atlasIsoChip) */
-.atlas-box__iso { display: none; position: absolute; left: 0; top: 0; z-index: 2; align-items: center; gap: 2px; max-width: 75%; padding-left: 10px;
-  border-radius: var(--r-pill); background: var(--cell2); font-size: min(var(--fs-footnote), 17px); }
+/* Muscle isolé, texte très grand : son nom et « Tout voir », sur une ligne sous le personnage (atlasIsoChip) */
+.atlas-box__iso { display: none; align-self: stretch; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 8px;
+  font-size: min(var(--fs-footnote), 17px); }
 .type-xl .atlas-box__iso { display: flex; }
-.atlas-box__iso-name { font-weight: 600; color: var(--label); min-width: 0; overflow-wrap: anywhere; }
+.atlas-box__iso-name { font-weight: 600; color: var(--label); }
 .atlas-box__iso-all { min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; white-space: nowrap; }
 /* Muscles travaillés tous en haut (ou tous en bas) du corps : carte cadrée sur cette moitié (bodyAtlasCrop), plus large ;
    une seule vue utile (abducteurs : le dos) : en grand */

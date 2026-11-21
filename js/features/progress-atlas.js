@@ -109,13 +109,13 @@ function atlasToWorkReset(card) {
   atlasIsoChip(map, null);
 }
 
-// Texte très grand : le muscle isolé et « Tout voir » sur le dessin lui-même (panel t6 : la liste, plus bas, n'est plus à
-// l'écran quand on regarde le personnage) ; label null : retiré
+// Texte très grand : le muscle isolé et « Tout voir » sur la carte du dessin, juste sous le personnage (panel t6 : la
+// liste, plus bas, n'est plus à l'écran quand on regarde le personnage) ; label null : retiré
 function atlasIsoChip(map, label) {
   const box = map?.closest('.atlas-box');
-  box?.querySelector('.atlas-box__iso')?.remove();
+  box?.parentElement?.querySelector(':scope > .atlas-box__iso')?.remove();
   if (!box || label == null) return;
-  box.insertAdjacentHTML('beforeend', `<div class="atlas-box__iso"><span class="atlas-box__iso-name">${esc(label)}</span><button class="atlas-box__iso-all" data-action="atlas-iso-all">Tout voir</button></div>`);
+  box.insertAdjacentHTML('afterend', `<div class="atlas-box__iso"><span class="atlas-box__iso-name">${esc(label)}</span><button class="atlas-box__iso-all" data-action="atlas-iso-all">Tout voir</button></div>`);
 }
 
 // Dessin et son bouton Agrandir, dans un coin du dessin (panel affichage-e t3 : un grand vide le séparait du

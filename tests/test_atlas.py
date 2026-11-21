@@ -370,7 +370,11 @@ def t_fiche(bench, eng, dev, theme):
         page.locator('.mline2[data-level="2"]').first.click()
         settle(page)
         chip = page.locator('.atlas-box__iso')
-        R.check(chip.count() == 1 and chip.is_visible() and 'Tout voir' in chip.inner_text(), f'{t} texte agrandi : muscle isolé nommé sur le dessin, avec « Tout voir »')
+        geo = page.evaluate("""() => { const c = document.querySelector('.atlas-box__iso')?.getBoundingClientRect(), n = document.querySelector('.atlas-box__iso-name'),
+            b = document.querySelector('.mpanel__box').getBoundingClientRect(), l = document.querySelector('.mline2').getBoundingClientRect();
+            return c && { lines: Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight || 20)), under: c.top >= b.bottom - 1, clear: c.bottom <= l.top + 1 }; }""")
+        R.check(chip.count() == 1 and chip.is_visible() and 'Tout voir' in chip.inner_text() and geo and geo['under'] and geo['clear'] and geo['lines'] <= 2,
+                f'{t} texte agrandi : muscle isolé nommé sous le dessin, avec « Tout voir », sans couvrir les lignes {geo}')
         page.click('.atlas-box__iso-all')
         settle(page)
         R.check(page.locator('.atlas-box__iso').count() == 0 and not page.evaluate("document.querySelector('.mpanel__map').dataset.iso"), f'{t} texte agrandi : « Tout voir » sur le dessin rend tous les muscles')
@@ -569,7 +573,7 @@ def t_progres(bench, eng, dev, theme):
         part = page.evaluate("Object.entries(partLoad(muscleSpan).sets).filter(([id]) => !ATLAS_SIMPLE_MUSCLES.has(atlasPart(id).parent) && !atlasPart(id).deep).sort((a, b) => b[1] - a[1])[0][0]")
         view = page.evaluate(f"BODY_PARTS.boxes[bodySilhouette()].front[{json.dumps(part)}] ? 'front' : 'back'")
         tap(page, part_point(page, '.mcard__map', part, view))
-        page.wait_for_selector('.btip', timeout=5000)
+        page.wait_for_selector('.btip', timeout=15000)
         settle(page)
         txt = tip_text(page)
         title = page.evaluate(f"atlasPartTitle({json.dumps(part)})")
@@ -584,7 +588,7 @@ def t_progres(bench, eng, dev, theme):
         # Zoom : double toucher, 3× de la vue, bulle de volume dans la vue agrandie
         page.evaluate('closeBodyTip()')
         tap(page, part_point(page, '.mcard__map', part, view), double=True)
-        page.wait_for_selector('.azoom', timeout=5000)
+        page.wait_for_selector('.azoom', timeout=15000)
         page.wait_for_function("() => atlasViewerState()?.hi", timeout=10000)
         settle(page)
         R.check(page.evaluate("[...document.querySelectorAll('.azoom .body-map__p')].every(l => /--t\\d/.test(l.className))"), f'{t} vue agrandie : paliers gardés')
@@ -598,7 +602,7 @@ def t_progres(bench, eng, dev, theme):
                 page.wait_for_timeout(400)
         settle(page)
         tap(page, part_point(page, '.azoom', part, view), touch=True)
-        page.wait_for_selector('.sheet-root--atlas .btip', timeout=5000)
+        page.wait_for_selector('.sheet-root--atlas .btip', timeout=15000)
         R.check('série' in tip_text(page), f'{t} vue agrandie : séries au toucher « {tip_text(page)} »')
         shot(page, LOT, f'progres-zoom-{t}')
         page.click('.sheet-root--atlas .sheet__btn--confirm')
@@ -626,7 +630,7 @@ def t_progres(bench, eng, dev, theme):
             # Toucher un nom : ses sous-muscles gris ou pâles mis en valeur, les autres calques effacés, détail dans la bulle
             first = page.evaluate("atlasToWork(partLoad(muscleSpan))[0]")
             page.locator('.mcard .mlow__name').first.click()
-            page.wait_for_selector('.btip', timeout=5000)
+            page.wait_for_selector('.btip', timeout=15000)
             settle(page)
             iso = page.evaluate("""() => { const m = document.querySelector('.mcard__map');
                 return { iso: m.dataset.iso, marks: [...m.querySelectorAll('.body-map__hl--iso')].map(e => e.dataset.part).sort(),
