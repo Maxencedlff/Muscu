@@ -35,7 +35,11 @@ async function coachPosterEncode(file) {
   const { w, h } = posterPhotoSize(img.naturalWidth || img.width, img.naturalHeight || img.height);
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
-  c.getContext('2d').drawImage(img, 0, 0, w, h);
+  // Comme profilePhotoEncode : fond blanc sous une image transparente (le JPEG la rendrait noire), réduction soignée
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
   return canvasToBlob(c, 'image/jpeg', 0.9);
 }
 // Photo de profil envoyée par un coach : son image d'origine gardée pour l'affiche (appelée par profile-photo-ui.js)
@@ -45,9 +49,10 @@ async function coachPosterKeepOriginal(file) {
   try { await posterPhotoSave(me, await coachPosterEncode(file)); } catch { /* l'affiche prendra la photo du serveur */ }
 }
 
+// Image décodée d'un Blob ; l'URL d'objet est libérée dès le chargement (l'image reste dessinable)
 const blobImage = blob => new Promise(resolve => {
   const url = URL.createObjectURL(blob), img = new Image();
-  img.onload = () => resolve(img); img.onerror = () => { URL.revokeObjectURL(url); resolve(null); }; img.src = url;
+  img.onload = () => { URL.revokeObjectURL(url); resolve(img); }; img.onerror = () => { URL.revokeObjectURL(url); resolve(null); }; img.src = url;
 });
 
 // Photo de l'affiche : celle de l'appareil, sinon ma photo de profil lisible (pas masquée, droit gardé)
@@ -136,11 +141,31 @@ async function openCoachPoster() {
   if (!coachPro.code) { showToast(coachPro.error ? coachProErrorText(coachPro.error) : 'Ton code coach n\'est pas prêt. Réessaie plus tard.', { error: true }); return; }
   const me = account.user.id;
   const prefs = coachPosterPrefs(me);
-  const mine = cposter = { name: prefs ? prefs.name : posterName(coachPro.request?.card_name), specialty: prefs?.specialty || '',
+  // Nom vide au départ : jamais le nom d'état civil de la carte pro (audit du 21/11), le coach écrit celui qu'il veut
+  const mine = cposter = { name: prefs ? prefs.name : '', specialty: prefs?.specialty || '',
     silhouette: prefs ? prefs.silhouette : (bodySilhouette() === 'female' ? 'female' : 'male'), neutral: prefs?.neutral === true,
     photo: null, icon: null, body: null, bodies: {}, timer: null };
-  const [photo, iconImg, body] = await Promise.all([coachPosterPhoto(), loadImage('icon-192.png'), cposterBody(mine), cpaFontsReady()]);
-  Object.assign(mine, { photo, icon: iconImg, body });
+  // Attente de la photo, du personnage et des polices : la cellule le dit ; une ouverture qui échoue libère l'affiche
+  // (sinon cposter restait pris et plus rien ne s'ouvrait)
+  const cell = document.querySelector('[data-action="coach-poster-open"]');
+  const sub = cell?.querySelector('.cell__sub'), subText = sub?.textContent;
+  cell?.setAttribute('aria-busy', 'true'); cell?.classList.add('is-loading');
+  if (sub) sub.textContent = 'Préparation de ton affiche…';
+  let opened;
+  try {
+    const [photo, iconImg, body] = await Promise.all([coachPosterPhoto(), loadImage('icon-192.png'), cposterBody(mine), cpaFontsReady()]);
+    Object.assign(mine, { photo, icon: iconImg, body });
+    opened = coachPosterShow(me, mine);
+  } catch {
+    showToast('Affiche impossible à préparer. Réessaie.', { error: true });
+  } finally {
+    cell?.removeAttribute('aria-busy'); cell?.classList.remove('is-loading');
+    if (sub && sub.isConnected) sub.textContent = subText;
+    if (!opened && cposter === mine) cposter = null;
+  }
+  try { await opened; } catch { if (cposter === mine) cposter = null; }
+}
+function coachPosterShow(me, mine) {
   const state = { name: coachPosterFileName('story'), alt: coachPosterAlt(coachPosterModelNow()), formats: true,
     tools: coachPosterToolsHtml(), stats: { title: 'Mon affiche de coach' },
     canSend: () => !!mine.name,
@@ -181,7 +206,7 @@ async function openCoachPoster() {
       }, 250);
     });
   }
-  await opened;
+  return opened;
 }
 
 // Photo de l'affiche choisie ici : gardée sur l'appareil seulement (jamais envoyée), l'aperçu se redessine

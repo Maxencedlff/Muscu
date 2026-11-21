@@ -322,6 +322,17 @@ def t_coach_affiche(bench, eng, dev, theme):
         if dump:
             save_affiche(page, f'photo-carre-{th}')
 
+        # Feuille de partage annulée : rien n'est envoyé, pas même le nom (audit du 21/11)
+        page.evaluate("() => { window.__realShare = Native.shareImage; Native.shareImage = async () => 'cancelled'; }")
+        c0 = poster_calls(page, 'coach_set_poster_name')
+        page.click('.sheet [data-action="share-story-send"]')
+        page.wait_for_function("() => !document.querySelector('.sheet .share-preview')", timeout=8000)
+        settle(page)
+        R.check(poster_calls(page, 'coach_set_poster_name') == c0, f'{t} partage annulé : nom jamais envoyé')
+        page.evaluate("() => { Native.shareImage = window.__realShare; }")
+        page.click('[data-action="coach-poster-open"]')
+        preview_ready(page)
+        pick_format(page, 'square')
         # Partager : l'image part vers la feuille d'iOS, rien vers le serveur
         before = page.evaluate('__sb.calls.length')
         page.click('.sheet [data-action="share-story-send"]')
@@ -720,4 +731,62 @@ def t_mon_coach_grand_texte(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} AX33 Mon coach : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_coach_affiche, t_apercu_grand_texte, t_eleve_sans_affiche, t_photo_trois_acces, t_sans_migration, t_mon_coach_grand_texte])
+POSTER_LEFT = """async () => { const k = localStorage.getItem('mdlf_coach_poster') !== null;
+    const db = await new Promise(r => { const q = indexedDB.open('mdlf-coach-poster'); q.onupgradeneeded = () => { q.transaction.abort(); r(false); };
+      q.onsuccess = () => { const ok = q.result.objectStoreNames.contains('photo'); q.result.close(); r(ok); }; q.onerror = () => r(false); });
+    const ph = db ? !!(await posterPhotoLoad(__sb.meId() || 'x')) : false;
+    return { key: k, db, photo: ph }; }"""
+POSTER_SEED = """async () => { coachPosterSavePrefs(__sb.meId(), { name: 'Camille Martin', specialty: 'Force', silhouette: 'male', neutral: false });
+    const c = document.createElement('canvas'); c.width = c.height = 8; const b = await new Promise(r => c.toBlob(r, 'image/jpeg'));
+    await posterPhotoSave(__sb.meId(), b); }"""
+
+
+def t_donnees_effacees(bench, eng, dev, theme):
+    """Audit du 21/11 : réglages et photo d'origine de l'affiche effacés de l'appareil à la déconnexion, à la suppression du
+    compte et par « Supprimer toutes les données »."""
+    t = tag(dev, theme)
+    for parcours in ('déconnexion', 'suppression du compte', 'tout supprimer'):
+        with bench.frozen_page(NOW, eng, dev, theme) as page:
+            open_app(page, theme)
+            signin(page, 'camille_coach')
+            page.evaluate("async () => { __sb.makeCoach(__sb.meId()); await coachRefresh(); }")
+            page.evaluate(POSTER_SEED)
+            before = page.evaluate(POSTER_LEFT)
+            R.check(before['key'] and before['photo'], f'{t} {parcours} : affiche gardée avant ({before})')
+            uid = page.evaluate('__sb.meId()')
+            if parcours == 'déconnexion':
+                page.evaluate('accountSignOut()')
+            elif parcours == 'suppression du compte':
+                r = page.evaluate('accountDelete()')
+                R.check(r.get('ok'), f'{t} suppression du compte faite ({r})')
+            else:
+                page.evaluate("handleAction(null, document.createElement('button'), 'wipe-data')")
+                page.wait_for_selector('.ios-dialog', timeout=5000)
+                tap_dialog(page, 'Tout supprimer')
+                page.wait_for_timeout(400)
+                if page.locator('.ios-dialog__btn', has_text='Supprimer').count():
+                    tap_dialog(page, 'Supprimer')
+                page.wait_for_function("() => localStorage.getItem('mdlf_coach_poster') === null", timeout=8000)
+            settle(page)
+            left = page.evaluate(POSTER_LEFT.replace("__sb.meId() || 'x'", f"'{uid}'"))
+            R.check(not left['key'] and not left['photo'], f'{t} {parcours} : plus rien de l\'affiche sur l\'appareil ({left})')
+            R.check(not page.errors, f'{t} {parcours} : aucune erreur JS {page.errors}')
+
+
+def t_photo_bannie(bench, eng, dev, theme):
+    """Audit du 21/11 : un compte privé de photo (signalements) garde la ligne Avatar et peut changer son avatar."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme)
+        signin(page, 'zoe')
+        page.evaluate("async () => { __sb.pp.bans[__sb.meId()] = true; await profilePhotoRefresh(); }")
+        R.check(page.evaluate("!!pph.state?.banned && profilePhotoOn()"), f'{t} compte privé de photo')
+        page.evaluate("navigate('account')")
+        page.wait_for_selector('[data-action="account-edit-avatar"]', timeout=8000)
+        page.click('[data-action="account-edit-avatar"]')
+        page.wait_for_selector('.avatar-grid', timeout=8000)
+        R.check(True, f'{t} privé de photo : avatar toujours modifiable')
+        R.check(not page.errors, f'{t} privé de photo : aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_donnees_effacees, t_photo_bannie, t_coach_affiche, t_apercu_grand_texte, t_eleve_sans_affiche, t_photo_trois_acces, t_sans_migration, t_mon_coach_grand_texte])

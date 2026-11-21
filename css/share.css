@@ -116,3 +116,6 @@ html.type-xl .share-preview__seebig .icon { display: none; }
 html.type-xl .cposter-row__seg--pair { display: flex; width: 100%; margin: 4px 0 8px; }
 html.type-xl .cposter-row__seg--pair .segmented__btn { flex: 1 1 0; min-height: 44px; }
 html.type-xl .sheet:has(.share-preview--tools) .sheet__bar .sheet__title { order: 0; flex-basis: auto; flex: 1 1 auto; padding: 0; text-align: center; white-space: nowrap; }
+/* Cellule « Mon affiche de coach » pendant la préparation (photo, personnage, polices) : dit, et pas de double toucher */
+.cell.is-loading[data-action="coach-poster-open"] { pointer-events: none; }
+.cell.is-loading[data-action="coach-poster-open"] .cell__sub { color: var(--tint); }

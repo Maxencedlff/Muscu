@@ -17,8 +17,11 @@ const CPOSTER_PHOTO_MAX = 2048;                   // côté le plus long de la p
 const CPOSTER_DB = 'mdlf-coach-poster', CPOSTER_STORE = 'photo';
 
 // Nom écrit par le coach : espaces resserrés, 40 caractères au plus (coupés sans casser un emoji)
+const POSTER_INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
 function posterName(raw) {
-  const s = String(raw ?? '').replace(/\p{Cc}/gu, ' ').replace(/\s+/g, ' ').trim();   // caractères de contrôle retirés
+  // Caractères de contrôle remplacés par une espace ; caractères de mise en forme invisibles (espace sans chasse,
+  // marques et isolats de sens d'écriture, BOM) retirés : ils pourraient retourner ou cacher le texte (audit du 21/11)
+  const s = String(raw ?? '').replace(POSTER_INVISIBLE, '').replace(/\p{Cc}/gu, ' ').replace(/\s+/g, ' ').trim();
   return Array.from(s).slice(0, CPOSTER_NAME_MAX).join('').trim();
 }
 
@@ -98,8 +101,12 @@ function posterDb() {
     req.onerror = () => resolve(null);
   });
 }
+// IndexedDB qui ne répond pas (WebKit bloqué) : abandon après 3 s, l'affiche s'ouvre sans la photo d'origine
+const CPOSTER_DB_WAIT_MS = 3000;
 async function posterDbDo(mode, op) {
-  const db = await posterDb();
+  let late = false;
+  const db = await Promise.race([posterDb().then(d => { if (late) d?.close(); return d; }),
+    new Promise(r => setTimeout(() => { late = true; r(null); }, CPOSTER_DB_WAIT_MS))]);
   if (!db) return null;
   return new Promise(resolve => {
     try {
@@ -121,6 +128,18 @@ async function posterPhotoSave(uid, blob) {
   await posterDbDo('readwrite', s => s.put({ buf, type: blob.type || 'image/jpeg', at: Date.now() }, uid));
 }
 async function posterPhotoClear(uid) { if (uid) await posterDbDo('readwrite', s => s.delete(uid)); }
+// Tout ce que l'affiche garde sur cet appareil (réglages, photo d'origine) : effacé à la déconnexion, à la suppression du
+// compte et par « Supprimer toutes les données » (audit du 21/11, privacy.html « Sur ton appareil »)
+async function coachPosterForgetDevice() {
+  try { localStorage.removeItem(CPOSTER_PREFS_KEY); } catch { /* rien */ }
+  if (typeof indexedDB === 'undefined' || !indexedDB) return;
+  await new Promise(resolve => {
+    try {
+      const req = indexedDB.deleteDatabase(CPOSTER_DB);
+      req.onsuccess = req.onerror = req.onblocked = () => resolve();
+    } catch { resolve(); }
+  });
+}
 
 // ── Nom de l'affiche montré aux élèves (Mon coach, 5e panel) ─
 // L'élève reconnaît la coach de l'affiche : Mon coach montre ce nom, @pseudo dessous. Le nom part au serveur

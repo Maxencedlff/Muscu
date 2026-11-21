@@ -1178,7 +1178,7 @@ FAKE_ACCOUNT = r"""
     // Nom de l'affiche (supabase/migrations/20261120020000_nom_affiche_coach.sql) ; __sb.fail.posterName = 'missing' : serveur d'avant
     coach_set_poster_name: (me, { name }) => {
       if (!co.coachAt[me]) return pgErr('not_coach');
-      const n = String(name ?? '').replace(/\p{Cc}/gu, ' ').replace(/\s+/g, ' ').trim();
+      const n = String(name ?? '').replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').replace(/\p{Cc}/gu, ' ').replace(/\s+/g, ' ').trim();
       if (n.length < 1 || n.length > 40) return pgErr('invalid_name');
       (co.posterNames ||= {})[me] = n;
       return { name: n };

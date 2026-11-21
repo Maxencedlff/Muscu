@@ -7,13 +7,15 @@
 --     PARTAGE l'affiche (l'app le dit sous les réglages) : coach_set_poster_name. Une ligne par coach, remplacée.
 --  2. Lu par coach_poster_name(coach) : par le coach lui-même et par ses élèves (public.coach_links), personne
 --     d'autre ; rien en cas de blocage, ni si le compte n'est plus coach. Aucun GRANT client sur la table.
---  3. Nom : 1 à 40 caractères, sans caractère de contrôle, espaces resserrés (comme posterName côté app).
+--  3. Nom : 1 à 40 caractères, sans caractère de contrôle ni de mise en forme invisible (sens d'écriture, espace sans
+--     chasse, BOM), espaces resserrées (comme posterName côté app).
 --  Sans cette migration, l'app reste comme avant : Mon coach montre le pseudo seul.
 -- ═══════════════════════════════════════════════════════════
 
 create table public.coach_poster_names (
   user_id    uuid primary key references auth.users(id) on delete cascade,
-  name       text not null check (char_length(name) between 1 and 40 and name !~ '[[:cntrl:]]' and name = btrim(name)),
+  name       text not null check (char_length(name) between 1 and 40 and name !~ '[[:cntrl:]]' and name = btrim(name)
+                                  and name !~ '[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]'),
   updated_at timestamptz not null default now()
 );
 alter table public.coach_poster_names enable row level security;
@@ -24,7 +26,9 @@ create function public.coach_set_poster_name(name text) returns jsonb
 $$
 declare
   me uuid := (select auth.uid());
-  n text := btrim(regexp_replace(regexp_replace(coalesce(coach_set_poster_name.name, ''), '[[:cntrl:]]', ' ', 'g'), '\s+', ' ', 'g'));
+  -- Mise en forme invisible retirée (sens d'écriture, espace sans chasse, BOM), contrôles en espace, espaces resserrées
+  n text := btrim(regexp_replace(regexp_replace(regexp_replace(coalesce(coach_set_poster_name.name, ''),
+              '[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]', '', 'g'), '[[:cntrl:]]', ' ', 'g'), '\s+', ' ', 'g'));
 begin
   if me is null or not private.is_coach(me) then raise exception 'not_coach' using errcode = 'P0001'; end if;
   if char_length(n) < 1 or char_length(n) > 40 then raise exception 'invalid_name' using errcode = 'P0001'; end if;

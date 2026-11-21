@@ -567,6 +567,7 @@ async function accountSignOut({ voluntary = true } = {}) {
   if (!sb) return;
   if (voluntary) markSignedOut();
   clearTimeout(syncTimer);
+  if (typeof coachPosterForgetDevice === 'function') await coachPosterForgetDevice();   // affiche du coach : rien ne reste après la déconnexion
   account.user = null;
   account.profile = null;
   clearCrossUserCaches();
@@ -589,7 +590,8 @@ async function accountForgetDevice() {
   account.profile = null;
   clearSyncMetas();
   // Caches du social et du coach compris, et clés des photos de bilan retenues (privacy.html : tout est effacé de l'appareil)
-  try { [SYNC_OWNER_KEY, SESSION_ENDED_KEY, PENDING_CODE_KEY, ...CROSS_USER_CACHE_KEYS, 'mdlf_coach_photo_pin', 'mdlf_coach_photo_mykey'].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
+  try { [SYNC_OWNER_KEY, SESSION_ENDED_KEY, PENDING_CODE_KEY, ...CROSS_USER_CACHE_KEYS, 'mdlf_coach_photo_pin', 'mdlf_coach_photo_mykey', 'mdlf_coach_poster'].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
+  if (typeof coachPosterForgetDevice === 'function') await coachPosterForgetDevice();   // affiche du coach : réglages et photo d'origine
   rememberLastAccount(null);
   await pushForgetDevice();   // notifications : le jeton de cet iPhone quitte le compte (session encore valide)
   if (sb) await localAuthSignOut();

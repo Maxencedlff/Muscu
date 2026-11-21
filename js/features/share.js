@@ -268,7 +268,9 @@ registerActions({
     // Feuille de partage refermée : l'aperçu se ferme aussi, y compris 'handed' (une app choisie qui
     // renvoie une erreur : Native.shareOutcome). L'aperçu ne reste ouvert qu'en cas d'échec réel,
     // pour pouvoir réessayer.
-    if (result !== 'failed') { st.onShared?.(result); st.close?.(true); }
+    // onShared seulement pour un partage fait (audit du 21/11 : le nom partait aussi sur une feuille annulée)
+    if (['shared', 'handed', 'downloaded'].includes(result)) st.onShared?.(result);
+    if (result !== 'failed') st.close?.(true);
   },
 });
 

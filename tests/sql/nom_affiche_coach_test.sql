@@ -43,6 +43,7 @@ begin
   if pg_temp.nerr($q$ select public.coach_set_poster_name('   ') $q$) is distinct from 'invalid_name' then raise 'nom vide accepté'; end if;
   if pg_temp.nerr(format('select public.coach_set_poster_name(%L)', repeat('a', 41))) is distinct from 'invalid_name' then raise '41 caractères acceptés'; end if;
   if public.coach_set_poster_name(E'  Camille \t\n Martin ') ->> 'name' <> 'Camille Martin' then raise 'nom non nettoyé'; end if;
+  if public.coach_set_poster_name(E'Cam\u200Bille \u202EMartin\uFEFF') ->> 'name' <> 'Camille Martin' then raise 'mise en forme invisible gardée'; end if;
   if public.coach_set_poster_name('Camille Martin') ->> 'name' <> 'Camille Martin' then raise 'même nom refusé'; end if;
   -- Lecture : le coach lui-même
   if public.coach_poster_name(pg_temp.nu('a1')) ->> 'name' <> 'Camille Martin' then raise 'coach : son nom'; end if;
