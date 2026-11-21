@@ -63,9 +63,12 @@ function exAtlasPanelHtml(m, name) {
       <div class="cell__body">${musclePillsHtml(m)}</div></div>`;
   }
   const items = atlasRanked(name, m, levels);
+  // Texte très grand : le corps entier, au moins 300 points de haut (panel affichage-e t7 : cadré sur le haut du corps, le
+  // personnage rétrécissait à mesure que le texte grossissait)
+  const xl = document.documentElement.classList.contains('type-xl');
   return `
     <div class="cell mpanel mpanel--atlas">
-      ${atlasBoxHtml(bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true }), 'mpanel__box', bodyAtlasCrop(kind, levels)[0] > 0 ? 'bottom' : 'top')}
+      ${atlasBoxHtml(bodyAtlasHtml(levels, { className: 'mpanel__map', title: name, tap: true, crop: !xl }), 'mpanel__box', !xl && bodyAtlasCrop(kind, levels)[0] > 0 ? 'bottom' : 'top')}
     </div>
     ${atlasLineHtml(items.filter(x => x.level >= 2), 2)}${atlasLineHtml(items.filter(x => x.level < 2), 1)}`;
 }

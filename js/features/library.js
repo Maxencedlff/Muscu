@@ -291,7 +291,12 @@ function libExHeroHtml(name) {
   // autre muscle principal qui le permet, sinon le personnage détaillé lui-même, sans toucher (la carte plus bas l'a)
   const hero = libExHeroMuscle(name, m);
   if (hero) return `<div class="exhero"><img class="exhero__img" src="img/muscles/${hero}.webp" alt="" width="600" height="400" decoding="async"></div>`;
-  return `<figure class="exhero exhero--deep exhero--atlas">${bodyAtlasHtml(exercisePartLevels(name, m).levels, { className: 'exhero__body' })}</figure>`;
+  // Personnage détaillé : mêmes couleurs que la carte « Muscles » plus bas, et la même légende (panel affichage-e t7)
+  const lv = exercisePartLevels(name, m).levels, roles = new Set(Object.values(lv));
+  const key = [[2, 'main', 'Ciblé'], [1, 'help', 'Qui aide']].filter(([l]) => roles.has(l))
+    .map(([, k, w]) => `<span class="exhero__key"><span class="mline2__dot mline2__dot--${k}" aria-hidden="true"></span>${w}</span>`).join('');
+  return `<figure class="exhero exhero--deep exhero--atlas">${bodyAtlasHtml(lv, { className: 'exhero__body' })}
+    ${key ? `<figcaption class="exhero__cap exhero__legend" aria-hidden="true">${key}</figcaption>` : ''}</figure>`;
 }
 
 // Muscle de l'image de tête : le premier muscle principal dont aucun sous-muscle n'est atténué ; null s'il n'y en a pas

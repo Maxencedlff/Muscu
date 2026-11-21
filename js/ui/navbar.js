@@ -234,9 +234,10 @@ function routeTitle(route, isRoot) {
 // amie, séance de l'historique…) sous une barre sans titre : la barre reprend ce titre quand il sort de l'écran, comme
 // le grand titre d'iOS (panel Apple du 08/11 : barre restée vide au défilement). Le titre du contenu reste celui que
 // lit VoiceOver ; la copie de la barre lui est cachée. data-bar-title : version courte pour la barre.
-let largeObserver = null;
+let largeObserver = null, largeScroll = null;
 function observeLargeTitle() {
   largeObserver?.disconnect();
+  if (largeScroll) { removeEventListener('scroll', largeScroll, true); largeScroll = null; }
   const bar = $('#app .navbar');
   if (!bar) return;
   let h1 = bar.parentElement?.querySelector('.navbar__large');
@@ -252,12 +253,18 @@ function observeLargeTitle() {
   const top = bar.getBoundingClientRect().height;
   // Repliée dès que le grand titre COMMENCE à passer sous la barre (experts Apple, vague 3-t4 : « Coach » coupé à
   // mi-hauteur sous une barre sans titre) ; un titre coupé par le bas de l'écran ne compte pas
-  largeObserver = new IntersectionObserver(([en]) => {
-    const under = en.intersectionRatio < 1 && en.boundingClientRect.top < (en.rootBounds?.top ?? top) + 1;
+  const set = under => {
     if (bar.classList.contains('navbar--collapsed') === under) return;
     bar.classList.toggle('navbar--collapsed', under);
     h1.classList.toggle('navbar-echoed', under);   // le grand titre s'efface quand la barre le reprend : jamais deux fois, dont un coupé (panel t5)
     fitBackLabel(bar);   // le titre compact apparaît ou disparaît : le retour se raccourcit ou reprend son nom
+  };
+  largeObserver = new IntersectionObserver(([en]) => {
+    set(en.intersectionRatio < 1 && en.boundingClientRect.top < (en.rootBounds?.top ?? top) + 1);
   }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: [0, 0.99, 1] });
   largeObserver.observe(h1);
+  // Saut de défilement (retour sur un élément, lien interne) : l'observateur peut ne rien signaler quand le titre passe
+  // d'un coup de « entier » à « loin au-dessus » ; le défilement, lui, est toujours vu (panel t7 : barre vide en clair)
+  largeScroll = () => { if (h1.isConnected) set(h1.getBoundingClientRect().top < bar.getBoundingClientRect().bottom - 1); };
+  addEventListener('scroll', largeScroll, { capture: true, passive: true });
 }

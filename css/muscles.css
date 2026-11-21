@@ -92,13 +92,11 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
    une seule vue utile (abducteurs : le dos) : en grand */
 .mpanel__box:has(> .body-map--crop) { width: min(100%, 330px); }
 .mpanel__box:has(> .body-map--one:not(.body-map--crop)) { width: min(100%, 200px); }
-/* Texte très grand (AX33) : personnage plus petit, les lignes Ciblé et Qui aident se lisent sous lui sans défiler (panel t5) */
-.type-xl .mpanel__box { width: min(100%, 130px); }
-.type-xl .mpanel__box:has(> .body-map--crop) { width: min(100%, 150px); }
-.type-xl .mpanel__box:has(> .body-map--one) { width: min(100%, 130px); }
-.type-xl .mpanel__box:has(> .body-map--one.body-map--crop) { width: min(100%, 170px); }
-.type-xl .mline2 { padding-top: 0; padding-bottom: 0; }   /* lignes plus serrées : les deux tiennent sous le personnage */
-.type-xl .mpanel--atlas { gap: 6px; padding-top: 6px; padding-bottom: 6px; }
+/* Texte très grand (AX33) : le corps entier, jamais moins de 300 points de haut (panel t7 : il rétrécissait avec le texte) */
+.type-xl .mpanel__box { width: min(100% + 32px, 300px); margin-inline: -16px; }   /* corps entier, face et dos : 300 points de haut
+   au moins même sur un écran de 320 points (la boîte prend la marge intérieure de la carte) */
+.type-xl .mpanel__box > .mpanel__zoom { right: 0; }
+
 .body-map--crop .body-map__fig { overflow: hidden; }
 .body-map__body { position: absolute; left: 0; width: 100%; }
 .type-xl .mpanel__zoom svg { width: 30px; height: 30px; }
@@ -342,6 +340,8 @@ body.light .mpick__auto { background: var(--cell); }
 .exhero--atlas .exhero__body { height: auto; }
 .exhero--atlas .exhero__body .body-map__row { width: min(100%, calc(var(--body-ar) * 210px)); height: auto; }
 .exhero__cap { margin: 8px 0 0; text-align: center; font-size: 0.882rem; line-height: 1.3; color: var(--label2); }
+.exhero__legend { display: flex; justify-content: center; gap: 4px 14px; flex-wrap: wrap; color: var(--label); }
+.exhero__key { display: inline-flex; align-items: center; gap: 6px; }
 .exhero .exvideo__frame, .exhero .exvideo--3d .exvideo__frame { width: min(100%, calc(56vh * var(--ar, 1))); border-radius: 0; }
 .exhero:has(.exvideo--3d) { background: var(--black); }   /* animation sur noir pur : la carte prend le même fond */
 .exhero:has(.exvideo--3d) .exvideo__credit { color: color-mix(in srgb, var(--white) 70%, transparent); }   /* lisible sur le noir, en clair aussi */

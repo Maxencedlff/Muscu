@@ -21,7 +21,7 @@
    js/ui/body-map.js lit ces jetons pour teinter le canvas. */
 :root {
   --body-heat: #FF453A; --body-heat-max: #FF453A; --body-heat-sec: #EFA195;   /* sombre : rouge vif (systemRed sombre), le muscle ciblé se repère d'un coup d'œil */
-  --body-ol: rgba(255, 255, 255, .7);   /* contour des muscles à 0 série de « À travailler » (Progrès) */
+  --body-ol: rgba(255, 255, 255, .45);   /* contour des muscles à 0 série de « À travailler » (Progrès) ; 70 % : on aurait dit une sélection (panel t7) */
   --body-sec-o: 1; --body-sec-tint: #FF9488; --body-sec-blend: multiply; --body-sec-bright: .7;   /* muscles qui aident : rose éteint (css/muscles.css) ; avant, à 40 %, éclairé ; écart 41 avec le ciblé et 31 avec
      le gris (panel affichage-e : à 35 % en multiply, un brun terne ; à 48 %, presque aussi vif que le ciblé) */
   --body-atlas-bright: .46;   /* corps de l'atlas plus sombre en sombre : rouge vif / gris 2,7:1 (mesuré le 20/11) */

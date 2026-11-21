@@ -89,6 +89,14 @@ def tap(page, xy, double=False, touch=False):
         page.wait_for_timeout(90)
 
 
+def wait_or_say(page, sel, where, state='visible'):
+    """wait_for_selector qui dit laquelle des attentes a échoué (échec intermittent en CI)."""
+    try:
+        page.wait_for_selector(sel, state=state, timeout=15000)
+    except Exception as e:
+        raise RuntimeError(f'{where} : {sel} ({state}) jamais vu') from e
+
+
 def tip_off_part(page, marks='.body-map__hl > i'):
     """La bulle ne chevauche jamais le cadre de la zone touchée (panel affichage-e t6) : la marque du sous-muscle touché est
     posée à sa boîte ; plusieurs marques (« À travailler ») : leur cadre commun."""
@@ -358,13 +366,11 @@ def t_fiche(bench, eng, dev, theme):
         lo = layout_ok(page)
         R.check(not lo, f'{t} fiche texte agrandi : mise en page {lo}')
         shot(page, LOT, f'fiche-xl-{t}')
-        # Personnage en haut de l'écran (sous la barre) : les deux lignes Ciblé et Qui aident visibles sans défiler (panel t5)
-        page.evaluate("""() => { const m = document.querySelector('.mpanel--atlas'), nav = document.querySelector('.view.library-ex .navbar__bar');
-            scrollBy(0, m.getBoundingClientRect().top - (nav ? nav.getBoundingClientRect().bottom : 0) - 4); }""")
+        # Texte très grand : le corps entier, au moins 300 points de haut (panel t7 : il rétrécissait avec le texte)
+        hgt = page.evaluate("Math.round(document.querySelector('.mpanel__map .body-map__row').getBoundingClientRect().height)")
+        R.check(hgt >= 300 and page.get_attribute('.mpanel__map', 'data-crop') == '0,840', f'{t} fiche texte agrandi : personnage entier de {hgt} points (300 au moins)')
+        page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'start' })")
         settle(page)
-        fit = page.evaluate("""() => { const tab = document.querySelector('.tabbar').getBoundingClientRect().top, ls = [...document.querySelectorAll('.mline2')];
-            return { lines: ls.length, bottoms: ls.map(l => Math.round(l.getBoundingClientRect().bottom)), tab: Math.round(tab) }; }""")
-        R.check(fit['lines'] == 2 and all(b <= fit['tab'] + 1 for b in fit['bottoms']), f'{t} fiche texte agrandi : Ciblé et Qui aident sous le personnage, sans défiler {fit}')
         shot(page, LOT, f'fiche-xl-lignes-{t}')
         # Isoler en texte très grand : le nom et « Tout voir » sur le dessin même
         page.locator('.mline2[data-level="2"]').first.click()
@@ -564,6 +570,11 @@ def t_progres(bench, eng, dev, theme):
         page.wait_for_selector('.view.stats .mcard__map.body-map--atlas')
         page.locator('.mcard__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
         settle(page)
+        # Barre du haut : le grand titre sorti de l'écran, le petit titre « Progrès » s'y affiche (panel t7 : vide en clair)
+        nav = page.evaluate("""() => { const v = document.querySelector('.view.stats'), h1 = v.querySelector('.navbar__large'), bar = v.querySelector('.navbar');
+            return { gone: h1.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom, collapsed: bar.classList.contains('navbar--collapsed'),
+              title: getComputedStyle(bar.querySelector('.navbar__title')).visibility }; }""")
+        R.check(not nav['gone'] or (nav['collapsed'] and nav['title'] == 'visible'), f'{t} barre : petit titre « Progrès » après défilement {nav}')
         lv = page.evaluate("JSON.parse(document.querySelector('.mcard__map').dataset.atlas)")
         expect = page.evaluate("Object.fromEntries(Object.entries(partLoad(muscleSpan).levels).filter(([, l]) => l > 0))")
         R.check(lv == expect and len(lv) > 10, f'{t} paliers par sous-muscle = calcul de la période ({len(lv)} sous-muscles)')
@@ -573,7 +584,7 @@ def t_progres(bench, eng, dev, theme):
         part = page.evaluate("Object.entries(partLoad(muscleSpan).sets).filter(([id]) => !ATLAS_SIMPLE_MUSCLES.has(atlasPart(id).parent) && !atlasPart(id).deep).sort((a, b) => b[1] - a[1])[0][0]")
         view = page.evaluate(f"BODY_PARTS.boxes[bodySilhouette()].front[{json.dumps(part)}] ? 'front' : 'back'")
         tap(page, part_point(page, '.mcard__map', part, view))
-        page.wait_for_selector('.btip', timeout=15000)
+        wait_or_say(page, '.btip', 'attente 1')
         settle(page)
         txt = tip_text(page)
         title = page.evaluate(f"atlasPartTitle({json.dumps(part)})")
@@ -588,7 +599,7 @@ def t_progres(bench, eng, dev, theme):
         # Zoom : double toucher, 3× de la vue, bulle de volume dans la vue agrandie
         page.evaluate('closeBodyTip()')
         tap(page, part_point(page, '.mcard__map', part, view), double=True)
-        page.wait_for_selector('.azoom', timeout=15000)
+        wait_or_say(page, '.azoom', 'attente 2')
         page.wait_for_function("() => atlasViewerState()?.hi", timeout=10000)
         settle(page)
         R.check(page.evaluate("[...document.querySelectorAll('.azoom .body-map__p')].every(l => /--t\\d/.test(l.className))"), f'{t} vue agrandie : paliers gardés')
@@ -602,7 +613,7 @@ def t_progres(bench, eng, dev, theme):
                 page.wait_for_timeout(400)
         settle(page)
         tap(page, part_point(page, '.azoom', part, view), touch=True)
-        page.wait_for_selector('.sheet-root--atlas .btip', timeout=15000)
+        wait_or_say(page, '.sheet-root--atlas .btip', 'attente 3')
         R.check('série' in tip_text(page), f'{t} vue agrandie : séries au toucher « {tip_text(page)} »')
         shot(page, LOT, f'progres-zoom-{t}')
         page.click('.sheet-root--atlas .sheet__btn--confirm')
@@ -630,7 +641,7 @@ def t_progres(bench, eng, dev, theme):
             # Toucher un nom : ses sous-muscles gris ou pâles mis en valeur, les autres calques effacés, détail dans la bulle
             first = page.evaluate("atlasToWork(partLoad(muscleSpan))[0]")
             page.locator('.mcard .mlow__name').first.click()
-            page.wait_for_selector('.btip', timeout=15000)
+            wait_or_say(page, '.btip', 'attente 4')
             settle(page)
             iso = page.evaluate("""() => { const m = document.querySelector('.mcard__map');
                 return { iso: m.dataset.iso, marks: [...m.querySelectorAll('.body-map__hl--iso')].map(e => e.dataset.part).sort(),

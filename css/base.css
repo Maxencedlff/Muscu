@@ -45,7 +45,7 @@
   --cat-text-mix: 72%; --cat-text-base: #FFFFFF;
   --cat-color: var(--tint);      /* couleur de séance par défaut, redéfinie par écran (jamais le vert de « fait ») */
   /* Silhouette musculaire (js/ui/body-map.js) : corps, muscle au repos, muscle travaillé */
-  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #FF453A; --body-ol: rgba(255, 255, 255, .7); --body-sec-o: 1; --body-sec-tint: #FF9488; --body-sec-blend: multiply; --body-sec-bright: .7; --body-atlas-bright: .46;   /* rouge des muscles (images 3D), pas l'orange d'action ; détail : css/theme-sobre-progres.css */
+  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: #FF453A; --body-ol: rgba(255, 255, 255, .45); --body-sec-o: 1; --body-sec-tint: #FF9488; --body-sec-blend: multiply; --body-sec-bright: .7; --body-atlas-bright: .46;   /* rouge des muscles (images 3D), pas l'orange d'action ; détail : css/theme-sobre-progres.css */
   --body-heat-help: #814B45;   /* qui aident (pastille) : la teinte vue sur le personnage (sombre ; clair : body.light) */
   --body-heat-sec: #EFA195;       /* muscles secondaires (fiche, historique) : même rouge, rosé plus clair (L* 74 contre 49) */
   --body-heat-max: #C94A3F;      /* palier le plus haut (récaps) */

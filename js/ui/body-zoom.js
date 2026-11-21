@@ -121,14 +121,18 @@ async function atlasShowName(root, kind, levels, e, { res = () => 1, zone = root
   // au-dessus ou au-dessous du dessin, toujours avec sa pointe vers le muscle. Petit écran (iPhone SE, texte très grand,
   // panel t5) : hors du dessin d'abord. La vue agrandie garde la bulle dans sa scène
   const part = atlasPartRect(hit, kind), d = (root.querySelector('.body-map__row') || root).getBoundingClientRect();
-  const block = [...avoid.filter(Boolean).map(a => a.getBoundingClientRect()), part];
+  const legend = tip === 'load' && !container ? root.closest('.mcard')?.querySelector('.mlegend') : null;
+  const block = [...avoid.filter(Boolean).map(a => a.getBoundingClientRect()), part, ...(legend ? [legend.getBoundingClientRect()] : [])];
   const small = !container && (innerWidth <= 375 || document.documentElement.classList.contains('type-xl'));
   const hits = (p, w, h, r) => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top;
   const spots = (w, h) => {
     const near = [{ left: x - w / 2, top: part.top - gap - h }, { left: x - w / 2, top: part.bottom + gap },
       { left: part.left - gap - w, top: y - h / 2 }, { left: part.right + gap, top: y - h / 2 }];
     const out = container ? [] : [{ left: x - w / 2, top: d.top - gap - h }, { left: x - w / 2, top: d.bottom + gap }];
-    return (small ? [...out, ...near] : [...near, ...out]).filter(p => !block.some(r => hits(p, w, h, r)));
+    // Progrès : sous les deux vues et leur légende, d'abord (panel t7 : à côté des obliques, elle couvrait la moitié du
+    // personnage et la légende)
+    const under = legend ? [{ left: x - w / 2, top: legend.getBoundingClientRect().bottom + gap }] : [];
+    return [...under, ...(small ? [...out, ...near] : [...near, ...out])].filter(p => !block.some(r => hits(p, w, h, r)));
   };
   const bounds = container ? (b => ({ minTop: Math.max(z.top + 4, b.minTop), maxBottom: Math.min(z.bottom - 4, b.maxBottom) }))(bodyTipBounds(null)) : undefined;
   const tipEl = showBodyTip(html, x, y, container ? null : root, { cost, container, spotTol: 1, reach: Infinity, avoid: block, spots, ...(bounds ? { bounds } : {}) });
