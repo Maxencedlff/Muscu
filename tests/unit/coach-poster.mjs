@@ -47,7 +47,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
   test('affiche du coach : contenu exact (titre accordé à la silhouette choisie, nom, pseudo, badge, consigne, code)', () => {
     sameJSON(model(), {
       name: 'Léa Martin', specialty: '', handle: '@lea.coach', initials: 'LM', photo: true, title: 'NOUVELLE COACH',
-      badge: 'Carte pro déclarée', ctaLine: 'Télécharge MDLF Training',
+      badge: 'Carte pro déclarée', ctaLine: 'Rejoins-moi sur MDLF Training',
       ctaWhere: 'Entre mon code dans Social › Rejoindre un coach', code: 'K7M2-QX9P-R4TD',
     });
     // Rien d'autre que ce qui vient du coach : aucun champ pour un élève
@@ -98,8 +98,8 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       }
       // Consigne sur une ligne, ou sur deux en story (coupée avant « et ») pour rester lisible
       // 7e panel : télécharger, le code, puis où l'entrer ; ce que l'élève gagne ; consignes de 26 px au moins
-      assert.ok(t.includes('Télécharge MDLF Training') && t.includes('Entre mon code dans Social › Rejoindre un coach'), `${tag} : consignes`);
-      for (const o of c.ops.filter(x => x.op === 'text' && ['Télécharge MDLF Training', 'Entre mon code dans Social › Rejoindre un coach', 'Carte pro déclarée'].includes(x.text))) {
+      assert.ok(t.includes('Rejoins-moi sur MDLF Training') && t.includes('Entre mon code dans Social › Rejoindre un coach'), `${tag} : consignes`);
+      for (const o of c.ops.filter(x => x.op === 'text' && ['Rejoins-moi sur MDLF Training', 'Entre mon code dans Social › Rejoindre un coach', 'Carte pro déclarée'].includes(x.text))) {
         assert.ok(parseFloat(o.font.match(/(\d+(?:\.\d+)?)px/)[1]) >= 22, `${tag} : « ${o.text} » trop petit (${o.font})`);
       }
       // Capitales seulement pour les gros titres en Anton (titre, nom, code) ; tout le reste en casse normale
@@ -159,6 +159,8 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       // La photo domine : 560 px au moins en story, 46 % de la largeur en carré
       const photo = c.ops.find(o => o.op === 'image' && o.id === 'cover');
       assert.ok(photo && photo.w >= (format === 'story' ? 560 : 1080 * 0.3) - 0.5, `${format} : photo de ${photo && Math.round(photo.w)} px`);
+      // 10e panel : 60 px au moins à gauche de la main en story, 50 px au-dessus de la tête en carré
+      assert.ok(format === 'story' ? bd.x >= 60 - 0.5 : bd.y >= 50 - 0.5, `${format} : marge du personnage (x ${Math.round(bd.x)}, y ${Math.round(bd.y)})`);
       if (format === 'story') assert.ok(bd.y >= 250 && bd.y + bd.h <= 1700, `story : entier dans la zone sûre (${Math.round(bd.y)} à ${Math.round(bd.y + bd.h)})`);
       // Tout texte est soit au-dessus du personnage (titre, story), soit dans la colonne de droite
       for (const o of c.ops.filter(x => x.op === 'text')) {

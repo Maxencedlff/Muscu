@@ -48,7 +48,7 @@ function coachPosterModel({ name = '', specialty = '', username = '', code = '',
     photo: hasPhoto === true,
     title: neutral === true ? 'COACH' : silhouette === 'female' ? 'NOUVELLE COACH' : 'NOUVEAU COACH',
     badge: badge === true ? COACH_BADGE_LABEL : null,
-    ctaLine: 'Télécharge MDLF Training',
+    ctaLine: 'Rejoins-moi sur MDLF Training',   // le coach d'abord, l'app ensuite (10e panel)
     ctaWhere: 'Entre mon code dans Social › Rejoindre un coach',
     code: formatCoachCode(String(code ?? '').toUpperCase()),
   };

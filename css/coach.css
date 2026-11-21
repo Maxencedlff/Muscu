@@ -131,7 +131,9 @@
 .view--grouped .cell.coach-code-cell { container-type: inline-size; flex-wrap: wrap; }
 .coach-code-cell .cell__body { flex: 1 1 0; min-width: min-content; max-width: 100%; }
 .coach-code.coach-code--fit { display: block; white-space: nowrap; font-size: clamp(17px, 7cqi, var(--fs-body)); line-height: 1.15; }
-html.type-xl .coach-code.coach-code--fit { white-space: normal; }
+html.type-xl .coach-code.coach-code--fit { white-space: normal; font-size: var(--fs-body); }   /* au moins la taille du titre (10e panel) */
+html.type-xl .coach-code-cell .coach-icon-btn { width: auto; height: auto; min-width: 44px; min-height: 44px; padding: 8px; font-size: var(--fs-body); }
+html.type-xl .coach-code-cell .coach-icon-btn .icon { width: 1.15em; height: 1.15em; }   /* Copier et Partager suivent le texte */
 html.type-xl .coach-code-cell .cell__body { min-width: 0; flex-basis: 100%; }
 .coach-code__blk { display: inline-block; white-space: nowrap; }
 .coach-code-cell .cell__sub { white-space: normal; overflow-wrap: break-word; }

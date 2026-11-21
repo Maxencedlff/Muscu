@@ -259,6 +259,7 @@ def t_coach_affiche(bench, eng, dev, theme):
         R.check(page.evaluate("document.querySelector('.sheet .share-preview__send').disabled") and page.is_visible('.sheet .share-preview__note')
                 and 'Ajoute ton nom pour partager' in page.inner_text('.sheet .share-preview__note'), f'{t} sans nom : partage grisé, « Ajoute ton nom »')
         R.check(page.evaluate("!!document.querySelector('.sheet .cposter-form > .cposter-row:first-child #cposterName')"), f'{t} Nom en premier réglage')
+        R.check(page.get_attribute('.sheet [data-action="coach-poster-photo"]', 'aria-label') == "Photo de l'affiche : aucune, choisir", f'{t} VoiceOver : photo de l\'affiche, aucune')
         R.check(page.evaluate(NOTE_ABOVE_SEND), f'{t} note au-dessus de « Partager »')
         note_link(page, t)
         R.check(page.locator('.sheet .share-preview__help').count() == 0, f'{t} plus d\'aide « sticker lien » (pas encore sur l\'App Store)')
@@ -275,6 +276,7 @@ def t_coach_affiche(bench, eng, dev, theme):
         page.wait_for_function("() => !!(cposter && cposter.photo)", timeout=8000)
         preview_ready(page)
         R.check(page.inner_text('.sheet [data-action="coach-poster-photo"]').strip().startswith('Photo') and 'Changer' in page.inner_text('.sheet [data-action="coach-poster-photo"]'), f'{t} photo de l\'affiche : « Changer »')
+        R.check(page.get_attribute('.sheet [data-action="coach-poster-photo"]', 'aria-label') == "Photo de l'affiche : choisie, changer", f'{t} VoiceOver : photo de l\'affiche, choisie')
         R.check(poster_photo_dims(page) == [2048, 2048], f'{t} photo d\'origine gardée sur l\'appareil, réduite à 2048 px ({poster_photo_dims(page)})')
         R.check(page.evaluate('__sb.pp.photos.length') == sent, f'{t} photo de l\'affiche jamais envoyée')
 
@@ -384,7 +386,8 @@ CODE_FITS = """() => [...document.querySelectorAll('.coach-code-cell')].filter(c
     const r = c.getBoundingClientRect(), code = c.querySelector('.coach-code'), sub = c.querySelector('.cell__sub');
     const fs = parseFloat(getComputedStyle(code).fontSize), blks = [...c.querySelectorAll('.coach-code__blk')].map(b => b.getBoundingClientRect());
     const btns = [...c.querySelectorAll('button')].map(b => b.getBoundingClientRect());
-    return { text: code.textContent, fs, blocks: blks.length, together: btns.length === 2 && Math.abs(btns[0].top - btns[1].top) < 2, oneLine: blks.every(b => Math.abs(b.top - blks[0].top) < 2),
+    const title = parseFloat(getComputedStyle(c.querySelector('.cell__sub')).fontSize), ico = c.querySelector('.coach-icon-btn .icon').getBoundingClientRect().width;
+    return { text: code.textContent, fs, title, ico, blocks: blks.length, together: btns.length === 2 && Math.abs(btns[0].top - btns[1].top) < 2, oneLine: blks.every(b => Math.abs(b.top - blks[0].top) < 2),
       inside: blks.every(b => b.left >= r.left - 0.5 && b.right <= r.right + 0.5) && btns.every(b => b.right <= r.right + 0.5 && b.left >= r.left - 0.5),
       blockWhole: blks.every(b => b.height < fs * 1.7), sub: sub.scrollWidth <= sub.clientWidth + 1 && sub.getBoundingClientRect().right <= r.right + 0.5,
       noOverflow: c.scrollWidth <= c.clientWidth + 1 }; })"""
@@ -397,6 +400,9 @@ def code_fits(page, t, where, one_line=False):
     code = page.evaluate('formatCoachCode(coachPro.code)')
     ok = len(cells) == 1 and all(c['text'] == code and c['blocks'] == 3 and c['inside'] and c['blockWhole'] and c['sub'] and c['noOverflow'] and c['together'] and c['fs'] >= 17 and (c['oneLine'] or not one_line) for c in cells)
     R.check(ok, f'{t} {where} : code coach entier{" sur une ligne" if one_line else ""} ({cells})')
+    if 'AX33' in where:
+        body = page.evaluate("(() => { const e = document.createElement('span'); e.style.fontSize = 'var(--fs-body)'; document.body.appendChild(e); const v = parseFloat(getComputedStyle(e).fontSize); e.remove(); return v; })()")
+        R.check(all(c['fs'] >= body - 0.5 and c['ico'] >= 28 for c in cells), f'{t} {where} : code à la taille du texte, icônes qui suivent ({cells})')
 
 
 def t_apercu_grand_texte(bench, eng, dev, theme):

@@ -144,7 +144,7 @@ function cpaBrand(ctx, icon, cx, y, size) {
   if (icon?.width) { ctx.save(); cpaRound(ctx, x, y, size, size, size * 0.225); ctx.clip(); ctx.drawImage(icon, x, y, size, size); ctx.restore(); }
   cpaSmallText(ctx, 'MDLF Training', x + size + gap, y + size * 0.72, size * 0.62, CPA.white, 'left');
 }
-// Bloc de l'appel, en noir sur l'orange plein : « Télécharge MDLF Training », le code, puis où l'entrer (7e panel :
+// Bloc de l'appel, en noir sur l'orange plein : « Rejoins-moi sur MDLF Training », le code, puis où l'entrer (7e panel :
 // « Entre mon code dans Social › Rejoindre un coach ») ; consignes de minSize px au moins, une ligne chacune
 function cpaCodePill(ctx, m, cx, y, w, h, minSize = 26) {
   cpaRound(ctx, cx - w / 2, y, w, h, Math.min(28, h / 2)); ctx.fillStyle = CPA.orange; ctx.fill();
@@ -278,7 +278,7 @@ function drawCoachPosterArt(canvas, m, assets = {}, { format = 'story' } = {}) {
 
 // La photo du coach domine (4e panel) : premier élément après le titre, 560 px au moins en story ; le personnage, entier,
 // passe second (34 à 38 % de la largeur, à gauche), sans rien posé dessus
-const CPA_LEFT = 0.36, CPA_LEFT_STORY = 0.34;
+const CPA_LEFT = 0.36, CPA_LEFT_STORY = 0.36;   // story : 60 px laissés à la main, colonne remise à 36 % (10e panel)
 
 // Story : titre, puis à droite la photo ronde (560 px au moins) et l'identité, à gauche le personnage entier ; dessous,
 // sur toute la largeur, le code et la signature. Tout entre 250 et 1600 px (signature au-dessus de la barre de réponse)
@@ -303,7 +303,7 @@ function cpaDrawStory(ctx, m, a, W) {
   const photoTop = titleBottom + 24;
   cpaPhotoRound(ctx, m, a, cx, photoTop, d);
   cpaIdentityDown(ctx, m, { ...idOpts, top: photoTop + d + 36 });
-  if (a.body) cpaBodyWhole(ctx, a.body, 16, titleBottom + 16, left - 20, pill.y - 24 - (titleBottom + 16));
+  if (a.body) cpaBodyWhole(ctx, a.body, 60, titleBottom + 16, left - 64, pill.y - 24 - (titleBottom + 16));   // 60 px pour la main (10e panel)
   cpaCodePill(ctx, m, W / 2, pill.y, W - 140, pill.h, 30);
   cpaBrand(ctx, a.icon, W / 2, brandY, brand);
 }
@@ -315,7 +315,7 @@ function cpaDrawSquare(ctx, m, a, W, H) {
   // la signature à gauche, le titre, la photo et l'identité (badge de 26 px) à droite
   const left = W * CPA_LEFT, colX = left + 12, colW = W - colX - 36, cx = colX + colW / 2;
   const pill = { h: 176, y: H - 24 - 176 }, brand = 34, brandY = pill.y - 20 - brand;
-  if (a.body) cpaBodyWhole(ctx, a.body, 16, 26, left - 24, brandY - 16 - 26);
+  if (a.body) cpaBodyWhole(ctx, a.body, 16, 50, left - 24, brandY - 16 - 50);   // 50 px pour la tête (10e panel)
   cpaBrand(ctx, a.icon, (16 + left - 8) / 2, brandY, brand);
   const titleBottom = cpaTitleBlock(ctx, m, cx, 22, colW, m.title === 'COACH' ? 116 : 86);
   const idOpts = { x: cx, maxW: colW, nameW: colW - 128, name: [56, 34], subSize: 26, badgeSize: 26, gap: 8, inline: true };

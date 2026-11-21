@@ -78,6 +78,8 @@ const cposterSeg = (action, key, on, label, aria = '') => `<button type="button"
 function cposterTitleLabel() { return cposter.silhouette === 'female' ? 'Nouvelle coach' : 'Nouveau coach'; }
 
 // Réglages de l'aperçu, dans un bloc groupé sous le format : nom, silhouette, titre et photo
+// VoiceOver, ligne Photo (10e panel) : l'état puis l'action
+function cposterPhotoLabel(has) { return `Photo de l'affiche : ${has ? 'choisie, changer' : 'aucune, choisir'}`; }
 function coachPosterToolsHtml() {
   // Ordre (5e panel) : le nom d'abord (obligatoire pour partager ; la note « Ajoute ton nom » y mène), puis Silhouette,
   // le titre, la spécialité (facultative) et la photo. Plus d'aide « sticker lien » : l'app
@@ -112,7 +114,7 @@ function coachPosterToolsHtml() {
                  enterkeyhint="done" maxlength="${CPOSTER_SPECIALTY_MAX}" placeholder="Force · Perte de poids · Rééducation"
                  aria-label="Ta spécialité (facultatif), par exemple Force, Perte de poids, Rééducation">${esc(cposter.specialty)}</textarea>
         </label>
-        <button type="button" class="cposter-row cposter-row--nav" data-action="coach-poster-photo" aria-label="Photo de l'affiche, gardée sur ton iPhone">
+        <button type="button" class="cposter-row cposter-row--nav" data-action="coach-poster-photo" aria-label="${cposterPhotoLabel(!!cposter.photo)}">
           <span class="cposter-row__title">Photo</span><span class="cposter-row__end"><span class="cposter-row__value">${cposter.photo ? 'Changer' : 'Choisir'}</span>${icon('chevron.right', 14)}</span>
         </button>
       </div>
@@ -201,6 +203,7 @@ function coachPosterPhotoInput() {
     mine.photo = img;
     const v = st.root?.querySelector('[data-action="coach-poster-photo"] .cposter-row__value');
     if (v) v.textContent = 'Changer';
+    st.root?.querySelector('[data-action="coach-poster-photo"]')?.setAttribute('aria-label', cposterPhotoLabel(true));
     sharePreviewDraw(st);
   });
   document.body.appendChild(inp);
