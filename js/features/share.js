@@ -156,8 +156,9 @@ function sharePreviewZoomLabel(alt) { return `${String(alt || 'Image').replace(/
 // state : { stats: { title }, name (fichier), alt, … } devient shareState le temps de l'aperçu ;
 // draw(canvas) dessine l'image dans le canvas de la feuille. Un seul aperçu à la fois (double toucher).
 // draw(canvas, format) : format 'story' ou 'square' (state.formats : le choix est proposé)
+// Renvoie true si l'aperçu s'est ouvert, false s'il a été refusé (un autre aperçu déjà ouvert)
 async function openStoryPreview(state, draw) {
-  if (shareState) return;
+  if (shareState) return false;
   Object.assign(state, { blob: null, file: null, busy: false, format: 'story', baseName: state.name, draw, drawn: 0 });
   shareState = state;
   sheet({ title: 'Aperçu', cancel: 'Fermer', confirm: '', body: sharePreviewBody(state.alt, !!state.formats, state.tools || null) })
@@ -167,6 +168,7 @@ async function openStoryPreview(state, draw) {
   state.close  = v => root?._close?.(v);
   state.canvas = root.querySelector('.share-preview__img');
   await sharePreviewDraw(state);
+  return true;
 }
 
 // (Re)dessine l'image au format choisi ; un changement de format pendant un dessin l'emporte (drawn)

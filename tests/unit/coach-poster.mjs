@@ -296,4 +296,16 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     assert.equal(run('posterName(" Léa \\u0007  Martin ")'), 'Léa Martin');
     assert.equal(run('posterName("L\\u200Béa \\u202EMartin\\uFEFF\\u2066")'), 'Léa Martin', 'mise en forme invisible retirée');
   });
+
+  test('affiche du coach : aperçu refusé (un autre déjà ouvert) : openStoryPreview dit false, l\'affiche est libérée', async () => {
+    // openStoryPreview du vrai share.js, isolé : refuse quand un aperçu est déjà ouvert
+    const src = read('js/features/share.js');
+    const fn = src.slice(src.indexOf('async function openStoryPreview'), src.indexOf('\n}\n', src.indexOf('async function openStoryPreview')) + 2);
+    const open = new Function('shareState', `${fn}; return openStoryPreview;`)({ tools: {} });
+    assert.equal(await open({}, () => {}), false, 'refusé : false');
+    assert.ok(/await sharePreviewDraw\(state\);\n  return true;\n\}/.test(fn), 'ouvert : true');
+    // L'affiche libère cposter quand l'aperçu est refusé ou échoue
+    const ui = read('js/features/coach-poster-ui.js');
+    assert.ok(/ok = \(await opened\) !== false/.test(ui) && /if \(!ok && cposter === mine\) cposter = null;/.test(ui), 'cposter libéré si refusé');
+  });
 }

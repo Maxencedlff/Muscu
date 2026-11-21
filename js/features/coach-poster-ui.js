@@ -163,7 +163,10 @@ async function openCoachPoster() {
     if (sub && sub.isConnected) sub.textContent = subText;
     if (!opened && cposter === mine) cposter = null;
   }
-  try { await opened; } catch { if (cposter === mine) cposter = null; }
+  // Refusé (un autre aperçu s'est ouvert entre-temps : false) ou en échec : l'affiche est libérée
+  let ok = false;
+  try { ok = (await opened) !== false; } catch { ok = false; }
+  if (!ok && cposter === mine) cposter = null;
 }
 function coachPosterShow(me, mine) {
   const state = { name: coachPosterFileName('story'), alt: coachPosterAlt(coachPosterModelNow()), formats: true,
