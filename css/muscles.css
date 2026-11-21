@@ -344,6 +344,7 @@ body.light .mpick__auto { background: var(--cell); }
 .exhero--atlas .exhero__body .body-map__row { width: min(100%, calc(var(--body-ar) * 210px)); height: auto; }
 .exhero__cap { margin: 8px 0 0; text-align: center; font-size: 0.882rem; line-height: 1.3; color: var(--label2); }
 .exhero__legend { display: flex; justify-content: center; gap: 4px 14px; flex-wrap: wrap; color: var(--label); }
+.exhero__legend .mlegend__item { white-space: normal; flex-wrap: wrap; min-width: 0; }   /* texte très grand : « 10+ » passe à la ligne au lieu d'être coupé */
 .exhero__key { display: inline-flex; align-items: center; gap: 6px; }
 .exhero .exvideo__frame, .exhero .exvideo--3d .exvideo__frame { width: min(100%, calc(56vh * var(--ar, 1))); border-radius: 0; }
 .exhero:has(.exvideo--3d) { background: var(--black); }   /* animation sur noir pur : la carte prend le même fond */

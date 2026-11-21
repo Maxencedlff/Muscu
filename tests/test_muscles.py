@@ -109,6 +109,11 @@ def t_progress(bench, eng, dev, theme):
             page.wait_for_selector('.view.stats-group')
         settle(page)   # fin du glissement d'entrée (l'écran arrive de la droite)
         R.check(no_hscroll(page), f'{t} détail du groupe : pas de défilement horizontal')
+        # Légende des 3 états sous le personnage (grille t11 : « Objectif atteint 10+ » coupé à droite de la boîte)
+        leg = page.evaluate("""() => { const box = document.querySelector('.view.stats-group .exhero--atlas').getBoundingClientRect();
+            return [...document.querySelectorAll('.view.stats-group .exhero__legend .mlegend__item')].filter(e => { const r = document.createRange();
+              r.selectNodeContents(e); return [...r.getClientRects()].some(c => c.right > box.right + 1 || c.left < box.left - 1); }).map(e => e.textContent.trim()); }""")
+        R.check(not leg, f'{t} détail du groupe : légende entière dans la boîte {leg}')
         shot(page, LOT, f'detail-groupe-{t}')
         page.locator('.view.stats-group [data-action="go-stats-muscles"]').click()
         page.wait_for_selector('.view.stats-muscles')
@@ -204,6 +209,11 @@ def t_progres_grand_texte(bench, eng, dev, theme):
         page.wait_for_selector('.view.stats-group')
         settle(page)   # fin du glissement d'entrée (l'écran arrive de la droite)
         R.check(no_hscroll(page), f'{t} détail du groupe : pas de défilement horizontal')
+        # Légende des 3 états sous le personnage (grille t11 : « Objectif atteint 10+ » coupé à droite de la boîte)
+        leg = page.evaluate("""() => { const box = document.querySelector('.view.stats-group .exhero--atlas').getBoundingClientRect();
+            return [...document.querySelectorAll('.view.stats-group .exhero__legend .mlegend__item')].filter(e => { const r = document.createRange();
+              r.selectNodeContents(e); return [...r.getClientRects()].some(c => c.right > box.right + 1 || c.left < box.left - 1); }).map(e => e.textContent.trim()); }""")
+        R.check(not leg, f'{t} détail du groupe : légende entière dans la boîte {leg}')
         shot(page, LOT, f'detail-groupe-{t}')
         page.locator('.view.stats-group [data-action="go-stats-muscles"]').click()
         page.wait_for_selector('.view.stats-muscles')
