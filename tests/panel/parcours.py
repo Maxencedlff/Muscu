@@ -724,10 +724,12 @@ def p_atlas(r):
 
 
 # Bas du corps (atlas, 21/11) : exercice, sous-muscle principal touché (vue de face ou de dos)
-JAMBES = [('Squat barre', 'squat', 'front', 'vastus_lateralis'),
-          ('Soulevé de terre roumain', 'sdt-roumain', 'back', 'semitendinosus'),
-          ('Abducteurs machine', 'abducteurs', 'back', 'glute_med'),
-          ('Mollets debout', 'mollets', 'back', 'gastro_medial')]
+# dernier champ : abscisse du toucher dans la boîte du calque, qui couvre les DEUX jambes (0 = bord gauche de
+# l'image) : il faut viser la jambe de gauche, côté du muscle (dehors ou dedans)
+JAMBES = [('Squat barre', 'squat', 'front', 'vastus_lateralis', 0.08),
+          ('Soulevé de terre roumain', 'sdt-roumain', 'back', 'semitendinosus', 0.33),
+          ('Abducteurs machine', 'abducteurs', 'back', 'glute_med', 0.12),
+          ('Mollets debout', 'mollets', 'back', 'gastro_medial', 0.33)]
 
 
 @parcours('atlas-jambes', 'Fiche exercice, bas du corps : sous-muscles des jambes, homme et femme', 'pratiquant')
@@ -742,7 +744,7 @@ def p_atlas_jambes(r):
     for sexe in ('male', 'female'):
         if sexe == 'female':
             r.raccourci("() => { data.silhouette = 'female'; save(); }", 'silhouette femme (Réglages)')
-        for nom, slug, vue, part in JAMBES:
+        for nom, slug, vue, part, fx in JAMBES:
             suf = '' if sexe == 'male' else '-femme'
             with r.etape(f'fiche-{slug}{suf}', f'Fiche {nom}{" (femme)" if suf else ""} : personnage cadré sur les jambes',
                          cle='Voir les muscles d\'un exercice en détail'):
@@ -750,8 +752,8 @@ def p_atlas_jambes(r):
                 r.attendre('.view.library-ex .mpanel--atlas', 'personnage détaillé')
                 r.defiler('.library-ex .mpanel--atlas', 'personnage')
             with r.etape(f'nom-{slug}{suf}', f'Fiche {nom}{" (femme)" if suf else ""} : toucher le muscle principal'):
-                xy = r.page.evaluate("""([v, part]) => { const l = document.querySelector(`.mpanel__map .body-map__${v} [data-part="${part}"]`);
-                    if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * 0.4, b.top + b.height * 0.5]; }""", [vue, part])
+                xy = r.page.evaluate("""([v, part, fx]) => { const l = document.querySelector(`.mpanel__map .body-map__${v} [data-part="${part}"]`);
+                    if (!l) return null; const b = l.getBoundingClientRect(); return [b.left + b.width * fx, b.top + b.height * 0.5]; }""", [vue, part, fx])
                 if not xy:
                     raise Absent(f'introuvable : {part}')
                 r.page.mouse.click(*xy)
