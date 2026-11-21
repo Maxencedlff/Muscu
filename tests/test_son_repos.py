@@ -187,6 +187,14 @@ Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { wri
 """
 
 
+def got_head_visible(page):
+    """Ligne « Diagnostic du son » entière à l'écran, sous la barre de navigation, au-dessus du verdict"""
+    return page.evaluate("""(() => { const h = document.querySelector('.settings-view [data-action="sound-diagnostics"]').getBoundingClientRect();
+        const v = document.querySelector('.sound-diag__verdict').getBoundingClientRect();
+        const nav = document.querySelector('.navbar').getBoundingClientRect();
+        return h.top >= nav.bottom - 1 && h.bottom <= v.top + 1; })()""")
+
+
 def t_diagnostic_mesure(bench):
     for theme in ('dark', 'light'):
         with bench.page(ENGINE, DEVICE, theme) as page:
@@ -209,7 +217,10 @@ def t_diagnostic_mesure(bench):
                 return { top: v.top, bottom: v.bottom, navBottom: nav ? nav.bottom : 0, h: innerHeight }; })()""")
             R.check(pos['top'] >= pos['navBottom'] - 1 and pos['top'] < pos['h'] / 2, f'{theme} : verdict en haut de l\'écran, visible {pos}')
             R.check(page.inner_text('.sound-diag__title') == "L'app n'a pas joué le GO", f'{theme} : verdict nommé')
-            R.check("Ferme l'app" in page.inner_text('.sound-diag__action'), f'{theme} : consigne')
+            act = page.inner_text('.sound-diag__action')
+            R.check(act.startswith("Ferme l'app, rouvre") and act.endswith('puis refais le test.'), f'{theme} : action courte {act!r}')
+            R.check('au support' in page.inner_text('.sound-diag__help'), f'{theme} : aide')
+            R.check(got_head_visible(page), f'{theme} : ligne « Diagnostic du son » visible au-dessus du verdict')
             R.check(page.locator('.sound-diag__verdict .sound-diag__mark--bad').count() == 1, f'{theme} : croix rouge du verdict')
             rows = page.evaluate("[...document.querySelectorAll('.sound-diag__row')].map(r => [r.querySelector('dt').textContent, r.querySelector('dd').textContent])")
             got = dict(rows)
@@ -230,7 +241,8 @@ def t_diagnostic_mesure(bench):
             page.wait_for_function('window.__copied !== null', timeout=3000)
             copied = page.evaluate('window.__copied')
             R.check('Verdict :' in copied and 'GO : pas joué, pic' in copied and 'moteur non' in copied and 'diagnostic du son fait' in copied, f'{theme} : diagnostic copié')
-            R.check('Colle' in page.inner_text('.toast') and 'Maxence' in page.inner_text('.toast'), f'{theme} : message de copie')
+            R.check('au support' in page.inner_text('.toast'), f'{theme} : message de copie')
+            R.check('Maxence' not in page.inner_text('#sound-diag') and 'contact@mdlf.app' in copied, f'{theme} : support, jamais un prénom')
             page.locator('#sound-diag').scroll_into_view_if_needed()
             shot(page, LOT, f'diagnostic-mesure-{theme}')
             R.check(not page.errors, f'{theme} : diagnostic mesuré, aucune erreur JS {page.errors[:2]}')

@@ -50,20 +50,32 @@ function soundNames(steps) {
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names.at(-1)}` : names[0] || '';
 }
 
-const SOUND_SEND = 'Si ça continue, envoie le diagnostic à Maxence.';
-const SOUND_RETRY = `Ferme l'app (glisse\u2011la vers le haut dans le sélecteur d'apps), rouvre\u2011la, puis refais le test. ${SOUND_SEND}`;
+// Adresse du support (pages juridiques, Réglages) : écrite en tête du texte envoyé ou copié, la feuille de partage
+// d'iOS ne sachant pas préremplir un destinataire
+const SOUND_SUPPORT = 'contact@mdlf.app';
+const SOUND_SEND = 'Si ça continue, envoie le diagnostic au support.';
+const SOUND_LOW_VOLUME = 0.5;   // sous 50 % : le premier conseil est de monter le volume
+const SOUND_FOCUS = 'Vérifie que le mode Concentration est coupé (Centre de contrôle).';
 
-// Conseil quand l'app joue bien : il suit la sortie mesurée (haut-parleur, ou appareil qui prend le son)
-function soundOutputAdvice(outputs) {
+// Conseil quand l'app joue bien, dans l'ordre du plus probable : volume s'il est bas (sous 50 %), mode
+// Concentration, puis la sortie mesurée (haut-parleur, ou appareil qui prend le son). { action, help }
+function soundPlayedAdvice(outputs, volume) {
   const o = Array.isArray(outputs) ? outputs[0] : null;
-  if (!o || o.type === 'Speaker') return 'Monte le volume avec les boutons sur le côté, et vérifie que le mode Concentration est coupé (Centre de contrôle).';
-  if (o.type === 'Receiver') return 'Le son part vers l\'écouteur du haut de l\'iPhone, comme pendant un appel : refais le test une fois l\'appel fini.';
-  return `Le son part vers ${o.name || SOUND_PORTS[o.type] || 'un autre appareil'}. Débranche\u2011le, ou vérifie son volume.`;
+  const low = typeof volume === 'number' && volume < SOUND_LOW_VOLUME;
+  let output;
+  if (!o || o.type === 'Speaker') output = 'Le son sort par le haut‑parleur de l\'iPhone.';
+  else if (o.type === 'Receiver') output = 'Le son part vers l\'écouteur du haut de l\'iPhone, comme pendant un appel : refais le test une fois l\'appel fini.';
+  else output = `Le son part vers ${o.name || SOUND_PORTS[o.type] || 'un autre appareil'}. Débranche‑le, ou vérifie son volume.`;
+  return low
+    ? { action: 'Monte le volume avec les boutons sur le côté.', help: `${SOUND_FOCUS} ${output} ${SOUND_SEND}` }
+    : { action: SOUND_FOCUS, help: `${output} ${SOUND_SEND}` };
 }
 
-// Résultat de selfTest → { ok, title, detail, action, rows: [[libellé, valeur, joué ?]], text }. Vue simple : un son
-// est « Joué » ou « Pas joué » ; les niveaux en dB, l'état du moteur et le mode silencieux estimé ne vont que dans le
-// texte copié. ctx : réglages et autorisation des notifications, pour ce texte. Fonction pure (tests unitaires).
+// Résultat de selfTest → { ok, title, detail, action, help, rows: [[libellé, valeur, joué ?]], text }.
+// title : verdict ; action : la chose à faire, courte ; detail : d'où vient le problème (vide si le titre le dit
+// déjà) ; help : comment faire et la suite. Vue simple : un son est « Joué » ou « Pas joué » ; les niveaux en dB,
+// l'état du moteur et le mode silencieux estimé ne vont que dans le texte envoyé ou copié. ctx : réglages et
+// autorisation des notifications, pour ce texte. Fonction pure (tests unitaires).
 function soundDiagReport(res, ctx = {}) {
   const st = res?.before || {};
   const after = res?.after || {};
@@ -71,26 +83,31 @@ function soundDiagReport(res, ctx = {}) {
   const fileHeard = !!file.played && soundHeard(file.peakDb);
   const steps = (res?.steps || []).map(s => ({ ...s, heard: soundHeard(s.peakDb, s.buffers) }));
   const missing = steps.filter(s => !s.heard);
-  let ok = false, title, detail, action = SOUND_RETRY;
+  let ok = false, title, detail = 'Le problème vient de l\'app, pas de ton iPhone.';
+  let action = 'Ferme l\'app, rouvre‑la, puis refais le test.';
+  let help = `Pour fermer l'app, glisse‑la vers le haut dans le sélecteur d'apps. ${SOUND_SEND}`;
   if (steps.length && !missing.length && fileHeard) {
     ok = true;
-    title = 'Le son est bien joué par l\'app';
-    detail = 'Si tu n\'as rien entendu, c\'est l\'iPhone qui le coupe.';
-    action = `${soundOutputAdvice(st.outputs)} ${SOUND_SEND}`;
+    title = 'L\'app joue le son, c\'est l\'iPhone qui le bloque';
+    detail = '';
+    ({ action, help } = soundPlayedAdvice(st.outputs, st.outputVolume));
   } else if (!fileHeard && !steps.some(s => s.heard)) {
     title = 'L\'app n\'a joué aucun son';
     detail = 'Le problème vient de l\'app : elle n\'arrive pas à envoyer de son à l\'iPhone.';
   } else if (missing.length) {
     title = missing.length === steps.length ? 'L\'app n\'a pas joué la fin de repos' : `L'app n'a pas joué ${soundNames(missing)}`;
-    detail = 'Le problème vient de l\'app, pas de ton iPhone.';
   } else {
     title = 'L\'app n\'a pas joué le son enregistré';
     detail = 'Les sons de fin de repos sont joués : seul le son enregistré pose problème, dans l\'app.';
   }
+  const lost = [...(fileHeard ? [] : [{ name: 'son enregistré' }]), ...missing];
+  const during = lost.length
+    ? `${soundNames(lost).replace(/^l/, 'L')} ${lost.length > 1 ? 'pas joués' : 'pas joué'}`
+    : 'Tous les sons joués';
 
   const vol = typeof st.outputVolume === 'number' ? `${Math.round(st.outputVolume * 100)}\u00a0%` : '?';
   const inc = st.lastIncident || after.lastIncident;
-  const incident = inc ? `${inc.detail}${soundIncidentTime(inc.at) ? ` à ${soundIncidentTime(inc.at)}` : ''}` : 'Aucun';
+  const incident = inc ? `${inc.detail}${soundIncidentTime(inc.at) ? ` à ${soundIncidentTime(inc.at)}` : ''}` : 'Aucun incident';
   const rows = [
     ['Sortie', soundOutputLabel(st.outputs)],
     ['Volume', vol],
@@ -100,7 +117,10 @@ function soundDiagReport(res, ctx = {}) {
     ['Son enregistré', fileHeard ? 'Joué' : 'Pas joué', fileHeard],
     ...steps.map(s => [s.name, s.heard ? 'Joué' : 'Pas joué', s.heard]),
     ['Autre app qui joue', st.otherAudioPlaying ? 'Oui' : 'Non'],
-    ['Dernier incident', incident],
+    // Ce test (sons perdus) d'un côté, ce qu'iOS a signalé avant lui de l'autre : « Aucun » à côté d'un GO raté
+    // se lisait comme « rien ne cloche »
+    ['Pendant ce test', during, lost.length ? false : undefined],
+    ['Avant ce test', incident],
   ];
 
   const yes = v => (v === true ? 'oui' : v === false ? 'non' : '?');
@@ -108,9 +128,10 @@ function soundDiagReport(res, ctx = {}) {
   const session = x => `${cat(x.category)} · ${cat(x.mode)} · ${(x.categoryOptions || []).join(', ') || 'sans option'} · active ${yes(x.sessionActive)} · moteur ${yes(x.engineRunning)}`;
   const outputs = (st.outputs || []).map(o => `${o.type} « ${o.name} »`).join(', ') || 'aucune';
   const lines = [
-    `Diagnostic du son MDLF Training, ${new Date().toLocaleString('fr-FR')}`,
-    `Verdict : ${title}. ${detail}`,
-    `À faire : ${action}`,
+    `Diagnostic du son MDLF Training, ${new Date().toLocaleString('fr-FR')} (à envoyer à ${SOUND_SUPPORT})`,
+    `Verdict : ${title}.${detail ? ` ${detail}` : ''}`,
+    `À faire : ${action} ${help}`,
+    `Pendant ce test : ${during}`,
     `Sortie : ${soundOutputLabel(st.outputs)} [${outputs}]`,
     `Volume : ${vol}`,
     `Mode silencieux : ${res?.silentMode || 'unknown'} (estimé, son système fini en ${Math.round(res?.silentMs ?? -1)} ms)`,
@@ -126,7 +147,7 @@ function soundDiagReport(res, ctx = {}) {
   ];
   const journal = after.journal?.length ? after.journal : (st.journal || []);
   lines.push(journal.length ? 'Journal :' : 'Journal : vide', ...journal.slice(-12));
-  return { ok, title, detail, action, rows, text: lines.join('\n') };
+  return { ok, title, detail, action, help, rows, text: lines.join('\n') };
 }
 
 // Coquilles 68 et 69 : état du module (diagnostics), dernier contrôle fait après un son, réglages
@@ -164,9 +185,14 @@ function soundDiagActions() {
     </div>`;
 }
 
-// Pastille du verdict et des lignes : coche verte (joué) ou croix rouge (pas joué) ; le mot à côté dit la même chose
+// Pastille d'une ligne : coche verte (joué) ou croix rouge (pas joué) ; le mot à côté dit la même chose
 function soundMark(ok) {
   return `<span class="sound-diag__mark sound-diag__mark--${ok ? 'ok' : 'bad'}" aria-hidden="true">${icon(ok ? 'checkmark' : 'xmark', 12)}</span>`;
+}
+// Pastille du verdict : haut-parleur orange quand l'app joue (rien n'est « réussi » pour qui n'entend rien), croix
+// rouge sinon
+function soundVerdictMark(ok) {
+  return ok ? `<span class="sound-diag__mark sound-diag__mark--info" aria-hidden="true">${icon('speaker.wave.2', 12)}</span>` : soundMark(false);
 }
 
 // Ouvre la zone sous la ligne et lance le test (coquille récente) ou affiche l'état (68 et 69). Résultat :
@@ -196,23 +222,31 @@ async function showSoundDiagnostics() {
     soundDiagText = r.text;
     // Pastille dans la ligne du titre seulement : explication et consigne prennent toute la largeur (texte agrandi)
     box.innerHTML = `<div class="sound-diag__verdict" tabindex="-1">
-        <p class="sound-diag__title">${soundMark(r.ok)}<span>${esc(r.title)}</span></p>
-        <p class="sound-diag__detail">${esc(r.detail)}</p>
+        <p class="sound-diag__title">${soundVerdictMark(r.ok)}<span>${esc(r.title)}</span></p>
+        ${r.detail ? `<p class="sound-diag__detail">${esc(r.detail)}</p>` : ''}
         <p class="sound-diag__action">${esc(r.action)}</p>
+        <p class="sound-diag__help">${esc(r.help)}</p>
       </div>
       <dl class="sound-diag__list">${r.rows.map(([k, v, ok]) =>
         `<div class="sound-diag__row"><dt>${esc(k)}</dt><dd${ok === false ? ' class="sound-diag__bad"' : ''}>${typeof ok === 'boolean' ? soundMark(ok) : ''}${esc(v)}</dd></div>`).join('')}</dl>
-      <p class="sound-diag__recap">${soundMark(r.ok)}<span>${esc(r.title)}</span></p>
+      <p class="sound-diag__recap">${soundVerdictMark(r.ok)}<span>${esc(r.title)}</span></p>
       ${soundDiagActions()}`;
-    // Le verdict d'abord : amené en haut de l'écran, juste sous la barre de navigation (collante : sa hauteur,
-    // encoche et texte agrandi compris, sert de marge) et lu par VoiceOver
+    // Le verdict d'abord, sous la ligne « Diagnostic du son » qui le titre : la ligne est amenée juste sous la
+    // barre de navigation (collante : sa hauteur, encoche et texte agrandi compris, sert de marge), et VoiceOver
+    // lit le verdict
     const verdict = box.querySelector('.sound-diag__verdict');
-    verdict.style.scrollMarginTop = `${($('.navbar')?.offsetHeight || 0) + 12}px`;
-    verdict.scrollIntoView({ block: 'start' });
+    const head = $('.settings-view [data-action="sound-diagnostics"]') || verdict;
+    head.style.scrollMarginTop = `${($('.navbar')?.offsetHeight || 0) + 8}px`;
+    head.scrollIntoView({ block: 'start' });
     verdict.focus({ preventScroll: true });
   } finally {
     soundDiagRunning = false;
   }
+}
+
+// Texte agrandi : message court, sur une ligne, pour ne pas couvrir « Refaire le test » au-dessus de la barre d'onglets
+function soundCopiedToast() {
+  return document.documentElement.classList.contains('type-xl') ? 'Diagnostic copié' : 'Diagnostic copié. Colle\u2011le dans un message au support.';
 }
 
 registerActions({
@@ -224,11 +258,11 @@ registerActions({
     const title = 'Diagnostic du son MDLF Training';
     if (Native.isNative) { if (await Native.shareText(soundDiagText, title) === 'failed') showToast('Envoi impossible, copie le diagnostic'); return; }
     if (navigator.share) { try { await navigator.share({ title, text: soundDiagText }); } catch { /* feuille fermée */ } return; }
-    try { await navigator.clipboard.writeText(soundDiagText); showToast('Diagnostic copié. Colle\u2011le dans un message à Maxence.'); } catch { /* rien */ }
+    try { await navigator.clipboard.writeText(soundDiagText); showToast(soundCopiedToast()); } catch { /* rien */ }
   },
   'sound-diag-copy': async () => {
     if (!soundDiagText) return;
-    try { await navigator.clipboard.writeText(soundDiagText); showToast('Diagnostic copié. Colle\u2011le dans un message à Maxence.'); }
+    try { await navigator.clipboard.writeText(soundDiagText); showToast(soundCopiedToast()); }
     catch { showToast('Copie impossible, fais une capture d\'écran'); }
   },
 });

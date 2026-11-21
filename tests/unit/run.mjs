@@ -1991,28 +1991,35 @@ const SELF_OK = {
   after: { category: 'AVAudioSessionCategoryPlayback', sessionActive: true, engineRunning: true, journal: [] },
 };
 
-test('Diagnostic du son : verdict en tête avec consigne, « Joué » ou « Pas joué » par son, dB et moteur seulement dans la copie', () => {
+test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou « Pas joué » par son ; dB et moteur dans la copie seulement', () => {
   const c = soundReportContext();
   const r = c.soundDiagReport(SELF_OK, { soundOn: true, soundLevel: 'fort', duckMusic: true, notifications: 'granted' });
   const row = k => r.rows.find(x => x[0] === k);
   assert.equal(r.ok, true);
-  assert.equal(r.title, 'Le son est bien joué par l\'app');
-  assert.equal(r.detail, 'Si tu n\'as rien entendu, c\'est l\'iPhone qui le coupe.');
-  assert.ok(r.action.startsWith('Monte le volume avec les boutons sur le côté') && r.action.endsWith('envoie le diagnostic à Maxence.'), r.action);
-  assert.ok(!/Bluetooth/.test(r.action), 'haut-parleur : pas de conseil Bluetooth');
+  assert.equal(r.title, 'L\'app joue le son, c\'est l\'iPhone qui le bloque');
+  assert.equal(r.detail, '', 'titre suffisant : pas de phrase redite');
+  // Volume à 80 % : pas de « Monte le volume », Concentration d'abord, puis la sortie, puis le support
+  assert.equal(r.action, 'Vérifie que le mode Concentration est coupé (Centre de contrôle).');
+  assert.ok(r.help.startsWith('Le son sort par le haut‑parleur') && r.help.endsWith('envoie le diagnostic au support.'), r.help);
+  const bas = JSON.parse(JSON.stringify(SELF_OK)); bas.before.outputVolume = 0.3;
+  const rb = c.soundDiagReport(bas);
+  assert.equal(rb.action, 'Monte le volume avec les boutons sur le côté.');
+  assert.ok(rb.help.startsWith('Vérifie que le mode Concentration'), rb.help);
   assert.equal(row('Sortie')[1], 'Haut-parleur');
   assert.equal(row('Volume')[1], '80 %');
+  sameJSON(Array.from(row('Mode silencieux')), ['Mode silencieux', 'Sans effet sur les sons de l\'app'], 'état estimé : copie seulement');
   sameJSON(Array.from(row('Son enregistré')), ['Son enregistré', 'Joué', true]);
   sameJSON(Array.from(row('GO')), ['GO', 'Joué', true]);
-  sameJSON(Array.from(row('Mode silencieux')), ['Mode silencieux', 'Sans effet sur les sons de l\'app'], 'état estimé : copie seulement');
-  assert.equal(row('Dernier incident')[1], 'Aucun');
-  const vue = r.rows.map(x => `${x[0]} ${x[1]}`).join(' | ') + r.title + r.detail + r.action;
-  assert.ok(!/dB|moteur|activé|désactivé/.test(vue), `vue simple sans jargon ni état estimé : ${vue}`);
-  for (const part of ['Verdict : Le son est bien joué', 'À faire : Monte le volume', 'Speaker « Speaker »', 'Volume : 80', 'Mode silencieux : on',
-    'GO : joué, pic −12', 'moteur oui', 'Session avant : Playback · Default · mixWithOthers', 'Notifications : granted', 'diagnostic du son fait'])
+  assert.equal(row('Pendant ce test')[1], 'Tous les sons joués');
+  assert.equal(row('Avant ce test')[1], 'Aucun incident');
+  const vue = r.rows.map(x => `${x[0]} ${x[1]}`).join(' | ') + r.title + r.detail + r.action + r.help;
+  assert.ok(!/dB|moteur|activé|désactivé|Maxence/.test(vue), `vue simple sans jargon ni état estimé : ${vue}`);
+  for (const part of ['à envoyer à contact@mdlf.app', 'Verdict : L\'app joue le son', 'À faire : Vérifie que le mode Concentration', 'Speaker « Speaker »', 'Volume : 80',
+    'Mode silencieux : on', 'GO : joué, pic −12', 'moteur oui', 'Session avant : Playback · Default · mixWithOthers', 'Notifications : granted', 'diagnostic du son fait'])
     assert.ok(r.text.includes(part), `texte copié : ${part}`);
+  assert.ok(!r.text.includes('Maxence'), 'support, jamais un prénom');
 
-  // GO muet (moteur arrêté), le reste joué : verdict nommé, consigne de relance
+  // GO muet (moteur arrêté), le reste joué : verdict nommé, action courte, comment fermer l'app
   const mute = JSON.parse(JSON.stringify(SELF_OK));
   mute.steps[3] = { ...mute.steps[3], peakDb: -160, buffers: 0, engineRunning: false };
   mute.before.outputs = [{ type: 'BluetoothA2DPOutput', name: 'AirPods de Max' }];
@@ -2020,21 +2027,25 @@ test('Diagnostic du son : verdict en tête avec consigne, « Joué » ou « Pas 
   const m = c.soundDiagReport(mute);
   assert.equal(m.ok, false);
   assert.equal(m.title, 'L\'app n\'a pas joué le GO');
-  assert.ok(m.detail.includes('vient de l\'app'));
-  assert.ok(m.action.startsWith('Ferme l\'app (glisse') && m.action.includes('refais le test') && m.action.endsWith('envoie le diagnostic à Maxence.'), m.action);
-  // Tout joué vers des AirPods : le conseil nomme l'appareil qui prend le son
-  const bt = JSON.parse(JSON.stringify(SELF_OK)); bt.before.outputs = [{ type: 'BluetoothA2DPOutput', name: 'AirPods de Max' }];
-  assert.ok(c.soundDiagReport(bt).action.startsWith('Le son part vers AirPods de Max. Débranche\u2011le'), c.soundDiagReport(bt).action);
-  const wired = JSON.parse(JSON.stringify(SELF_OK)); wired.before.outputs = [{ type: 'Headphones', name: '' }];
-  assert.ok(c.soundDiagReport(wired).action.startsWith('Le son part vers Casque filaire.'));
+  assert.equal(m.detail, 'Le problème vient de l\'app, pas de ton iPhone.');
+  assert.equal(m.action, 'Ferme l\'app, rouvre‑la, puis refais le test.');
+  assert.ok(m.help.includes('sélecteur d\'apps') && m.help.endsWith('envoie le diagnostic au support.'), m.help);
   sameJSON(Array.from(m.rows.find(x => x[0] === 'GO')), ['GO', 'Pas joué', false]);
+  sameJSON(Array.from(m.rows.find(x => x[0] === 'Pendant ce test')), ['Pendant ce test', 'Le GO pas joué', false]);
+  assert.ok(m.rows.find(x => x[0] === 'Avant ce test')[1].startsWith('Interruption (appel'));
   assert.equal(m.rows.find(x => x[0] === 'Sortie')[1], 'Bluetooth (AirPods de Max)');
-  assert.ok(m.rows.find(x => x[0] === 'Dernier incident')[1].startsWith('Interruption (appel'));
-  assert.ok(m.text.includes('GO : pas joué, pic −160') && m.text.includes('moteur non'), 'détail technique dans la copie');
+  assert.ok(m.text.includes('GO : pas joué, pic −160') && m.text.includes('moteur non') && m.text.includes('Pendant ce test : Le GO pas joué'));
+  // Tout joué vers des AirPods : l'aide nomme l'appareil qui prend le son
+  const bt = JSON.parse(JSON.stringify(SELF_OK)); bt.before.outputs = [{ type: 'BluetoothA2DPOutput', name: 'AirPods de Max' }];
+  assert.ok(c.soundDiagReport(bt).help.startsWith('Le son part vers AirPods de Max. Débranche‑le'), c.soundDiagReport(bt).help);
+  const wired = JSON.parse(JSON.stringify(SELF_OK)); wired.before.outputs = [{ type: 'Headphones', name: '' }];
+  assert.ok(c.soundDiagReport(wired).help.startsWith('Le son part vers Casque filaire.'));
 
   const two = JSON.parse(JSON.stringify(SELF_OK));
   two.steps[2].peakDb = -90; two.steps[3].peakDb = -90;
-  assert.equal(c.soundDiagReport(two).title, 'L\'app n\'a pas joué le décompte 1 et le GO');
+  const t2 = c.soundDiagReport(two);
+  assert.equal(t2.title, 'L\'app n\'a pas joué le décompte 1 et le GO');
+  assert.equal(t2.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le décompte 1 et le GO pas joués');
   two.steps.forEach(s => { s.peakDb = -90; });
   assert.equal(c.soundDiagReport(two).title, 'L\'app n\'a pas joué la fin de repos', 'fichier seul');
   two.file = { played: false, error: 'lecture refusée par iOS' };
@@ -2043,7 +2054,9 @@ test('Diagnostic du son : verdict en tête avec consigne, « Joué » ou « Pas 
   assert.equal(none.rows.find(x => x[0] === 'Son enregistré')[1], 'Pas joué');
   assert.ok(none.text.includes('non joué (lecture refusée par iOS)'));
   const fileOnly = JSON.parse(JSON.stringify(SELF_OK)); fileOnly.file.peakDb = -120;
-  assert.equal(c.soundDiagReport(fileOnly).title, 'L\'app n\'a pas joué le son enregistré');
+  const fo = c.soundDiagReport(fileOnly);
+  assert.equal(fo.title, 'L\'app n\'a pas joué le son enregistré');
+  assert.equal(fo.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le son enregistré pas joué');
   assert.equal(c.soundDiagReport({}).title, 'L\'app n\'a joué aucun son', 'résultat vide : pas d\'erreur');
 });
 
