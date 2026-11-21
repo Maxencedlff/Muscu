@@ -320,7 +320,8 @@ function nextSetText() {
 function bumpReady(ex) {
   if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex) || coachLedProgramme(activeSession.programme)) return false;
   const work  = workSets(ex.sets);
-  const prevs = work.map(s => s.prev).filter(p => p && (parseInt(p.reps) || 0) > 0);
+  // Série notée par bras la dernière fois : le côté le plus faible (weakSet), même règle que l'accueil
+  const prevs = work.map(s => s.prev && weakSet(s.prev)).filter(p => p && (parseInt(p.reps) || 0) > 0);
   if (!prevs.length || prevs.length < Math.min(work.length, 2)) return false;
   // Même règle que l'objectif de l'accueil (goalBumpDue, js/data/goals.js) : haut atteint partout, ou dépassé
   return goalBumpDue(sessExData(ex) || { repMax: 12, sets: work.length }, prevs);
@@ -437,7 +438,7 @@ function foldedRirHtml(block) {
   const ld = activeSession.lastDone;
   if (!ld || !block.includes(ld.ei) || !rirShown()) return '';
   const ex = activeSession.exercises[ld.ei], s = ex?.sets[ld.si];
-  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps' || TECHS[setTech(s)]?.sub || hasSide2(s)) return '';
+  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps' || TECHS[setTech(s)]?.sub || (hasSide2(s) && !setComplete(s))) return '';
   const tags = block.length > 1 ? ssTags(activeSession.exercises) : null;
   return `<div class="ex-fold-rir">${rirPickerHtml(ld.ei, ld.si, s, ex, tags ? tags[ld.ei] : '')}</div>`;
 }
@@ -449,8 +450,9 @@ function exVolumeHtml(ex, allDone) {
   const prevSets = workSets(lastPerf(activeSession.programme, activeSession.category, ex)?.ex.sets);
   const doneSets = workSets(ex.sets).filter(s => s.done);
   // Exercice à un bras : une série notée sur une ligne compte pour les deux bras (comparableVolume, js/data/unilateral.js)
-  const curVol   = comparableVolume(ex, doneSets, currentBodyKg());
-  const prevVol  = comparableVolume(ex, prevSets.slice(0, doneSets.length), currentBodyKg());
+  const prevSl   = prevSets.slice(0, doneSets.length);
+  const curVol   = comparableVolume(ex, doneSets, currentBodyKg(), prevSl);
+  const prevVol  = comparableVolume(ex, prevSl, currentBodyKg(), doneSets);
   const delta    = curVol - prevVol;
   return curVol > 0 && prevVol > 0 && Math.round(delta) > 0
     ? ` · <span class="ex-vol__delta ${allDone ? 'ex-vol__delta--up' : ''}">+${fmtVolume(delta)} de volume</span><span class="visually-hidden"> de plus que la dernière fois</span>` : '';
@@ -653,7 +655,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const warm   = isWarmupSet(s);
   // js/data/records.js ; série notée par bras : le badge va sur la ligne du meilleur côté (js/data/unilateral.js)
   const record = warm || recordSet(s).side === 2 ? '' : liveSetBadge(ex, s, livePrior(ex));
-  const side = hasSide2(s);   // nom du côté : titre au-dessus de la ligne (sideCaptionHtml)
+  const side = hasSide2(s);   // nom du côté : dans la colonne du numéro (withSideTag)
   const first  = setFirstValue(s, m);
   const kind   = m === 'cardio' ? 'charge' : m === 'time' ? 'lest' : loadKind(ex);
   const load   = first ? `${{ charge: '', lest: 'plus ', aide: 'aide de ' }[kind]}${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
@@ -1078,9 +1080,8 @@ function scrollToCurrent(smooth = true, focus = false) {
     // Dernière ligne validée au-dessus : une série (sa rangée avec le balayage), ou une sous-série ou le second côté d'une
     // série notée par bras, sans rangée (texte agrandi : sinon la ligne du bras droit restait sous l'écran)
     const doneAbove = above('.session-set--done'), lastDone = doneAbove?.closest('.set-swipe') || doneAbove;
-    // Série notée par bras : le titre de son côté (« Bras droit ») au-dessus de la ligne en cours reste à l'écran si
-    // possible (panel du 20/11, texte agrandi : il sortait par le haut pendant le drop du bras droit)
-    const sideCap = above('.sets__caption--side');
+    // Série notée par bras : l'en-tête « Série 1 » de la paire au-dessus de la ligne en cours reste à l'écran si possible
+    const sideCap = above('.sets__caption--pair');
     const anchors = [band, keep, keep ? null : card, keep ? null : card?.querySelector('.ex-card__name'),
       // en-tête des séries : seulement après une série faite (1re série trop basse : le nom reste visible, CI t-grand-texte)
       keep || !lastDone ? null : card?.querySelector('.sets__head'), sideCap, lastDone, lastDone?.querySelector('.rir')]

@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
---  Séance publique : le second côté d'une série notée par bras (docs/UNILATERAL.md). NON appliquée en
---  production : attend le feu vert de Maxence.
+--  Séance publique : le second côté d'une série notée par bras (docs/UNILATERAL.md). Appliquée en production le
+--  20/11/2026 (feu vert de Maxence).
 --
 --  L'app range le bras droit d'une série dans la série (side2 : { weight, reps, sub? }) et le premier bras d'un
 --  exercice (sideFirst : 'droit', absent sinon). private.session_public (amis : feed ; coach :

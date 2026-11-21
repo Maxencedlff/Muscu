@@ -56,7 +56,7 @@ function updateTabBadge() {
 
 function sessionCounts(sess = activeSession) {
   const total = sess.exercises.reduce((a, ex) => a + ex.sets.length, 0);
-  const done  = sess.exercises.reduce((a, ex) => a + ex.sets.filter(st => st.done).length, 0);
+  const done  = sess.exercises.reduce((a, ex) => a + ex.sets.filter(setComplete).length, 0);   // série par bras : avec le bras droit
   return { total, done };
 }
 

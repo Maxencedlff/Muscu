@@ -64,7 +64,7 @@ function techPillHtml(s, { spoken = true } = {}) {
 // pastille dans la ligne de la série (techPillHtml)
 // « + drop » et × d'une série (sans × sur une technique prescrite par le coach)
 function techBtnsHtml(ex, ei, s, si) {
-  const T = TECHS[setTech(s)], name = setSpokenName(ex, si).toLowerCase(), two = hasSide2(s) ? ', pour les 2 bras' : '';
+  const T = TECHS[setTech(s)], name = setSpokenName(ex, si).toLowerCase(), two = hasSide2(s) ? `, pour les 2 ${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}` : '';
   const add = (s.sub || []).length < TECH_SUB_MAX
     ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${two}">${icon('plus', 14)}${T.subName}</button>` : '';
   return `<span class="tech__btns">${add}

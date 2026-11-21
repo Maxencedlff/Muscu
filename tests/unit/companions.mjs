@@ -87,6 +87,12 @@ export default function ({ test, run, reset, assert, app, sameJSON, ctx, nativeC
     assert.equal(run(`watchBlockReason(${json(timed)}, { ei: 0, si: 0 })`), 'measure');
     assert.equal(run(`watchBlockReason(${json(s)}, { ei: 0, si: 0 }, { editing: true })`), 'editing');
     assert.equal(run(`watchBlockReason(${json(s)}, { ei: 0, si: 0 }, { odd: true })`), 'odd');
+    // Série notée par bras : le bras droit attend sur l'iPhone, la montre ne valide pas la série suivante (audit du 21/11)
+    const side = { exercises: [{ name: 'Curl concentration', sets: [{ weight: '14', reps: '10', done: true, side2: { weight: '14', reps: '10', done: false } }, { weight: '14', reps: '10', done: false, side2: { done: false } }] }], lastDone: { ei: 0, si: 0 } };
+    assert.equal(run(`watchBlockReason(${json(side)}, { ei: 0, si: 1 })`), 'side');
+    assert.equal(run(`watchBlockText(${json(side)}, 'side')`), 'Bras droit à noter sur l\'iPhone');
+    const sideDone = { ...side, exercises: [{ ...side.exercises[0], sets: [{ ...side.exercises[0].sets[0], side2: { weight: '14', reps: '10', done: true } }, side.exercises[0].sets[1]] }] };
+    assert.equal(run(`watchBlockReason(${json(sideDone)}, { ei: 0, si: 1 })`), '', 'bras droit fait : la montre valide la série suivante');
     assert.equal(run(`watchBlockReason(${json(s)}, null)`), 'none');
     const st = run(`watchState(${json(s)}, { ei: 0, si: 0 }, { block: 'odd' })`);
     assert.equal(st.canValidate, false);

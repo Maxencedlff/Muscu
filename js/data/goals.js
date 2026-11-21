@@ -31,8 +31,9 @@ function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
   }
   const planned = { text: setsRepsText(ex), gain: '', before: '', goal: null };
   if (!lp) return planned;
-  // L'échauffement ne fixe pas la cible ; série notée par bras : son meilleur côté (js/data/unilateral.js)
-  const sets = recordSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);
+  // L'échauffement ne fixe pas la cible ; série notée par bras : le côté le plus faible décide de la hausse (weakSets,
+  // js/data/unilateral.js), comme la puce ↑ de la séance
+  const sets = weakSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);
   const best = bestSet(sets);
   if (!best) return planned;
   const before = setTxt(best, ex);

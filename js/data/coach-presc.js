@@ -126,6 +126,9 @@ function clampRepsToPlan(ex, d) {
     if (s.done || isWarmupSet(s)) return;
     const n = parseInt(s.reps);
     if (n > 0) s.reps = String(Math.min(r.hi, Math.max(r.lo, n)));
+    // Second côté d'une série notée par bras (js/data/unilateral.js) : ses reps prises de sa dernière fois, bornées aussi
+    const p = s.side2 && !s.side2.done ? parseInt(s.side2.prev?.reps) : 0;
+    if (p > 0 && !String(s.side2.reps ?? '').trim()) s.side2.reps = String(Math.min(r.hi, Math.max(r.lo, p)));
   });
 }
 

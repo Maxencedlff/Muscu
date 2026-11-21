@@ -42,13 +42,13 @@ function sideFirstPref(name, d = typeof data === 'undefined' ? null : data) {
 function setSideFirstPref(name, v, d = data) {
   const k = exerciseNameKey(name);
   if (!k) return;
-  if (v === 'droit') (d.sideFirst ||= {})[k] = 'droit';
-  else if (d.sideFirst) { delete d.sideFirst[k]; if (!Object.keys(d.sideFirst).length) delete d.sideFirst; }
+  // 'gauche' écrit, jamais la clé retirée : sinon l'autre appareil renverrait son « droit » (audit du 21/11, synchro)
+  (d.sideFirst ||= {})[k] = v === 'droit' ? 'droit' : 'gauche';
 }
-// Choix gardé (sanitizeData) : { nom normalisé: 'droit' } seulement, 200 noms au plus
+// Choix gardé (sanitizeData) : { nom normalisé: 'droit' | 'gauche' }, 200 noms au plus
 function cleanSideFirst(v) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
-  const out = Object.fromEntries(Object.entries(v).filter(([k, x]) => typeof k === 'string' && k.length <= 120 && x === 'droit').slice(0, 200));
+  const out = Object.fromEntries(Object.entries(v).filter(([k, x]) => typeof k === 'string' && k.length <= 120 && (x === 'droit' || x === 'gauche')).slice(0, 200));
   return Object.keys(out).length ? out : undefined;
 }
 // « Bras gauche » (side 1), « Bras droit » (side 2), ou l'inverse si l'exercice commence par le droit ; « Côté 1 » si
@@ -93,6 +93,15 @@ function recordSet(s) {
   return better ? { ...s, weight: s.side2.weight, reps: s.side2.reps, side: 2, of: s } : s;
 }
 function recordSets(sets) { return workSets(sets).map(recordSet); }
+// Série vue par la progression (hausse de charge de l'accueil et de la puce ↑ en séance) : le côté le PLUS FAIBLE, pour
+// monter seulement quand les deux bras y arrivent (audit du 21/11) ; le record, lui, reste au meilleur côté (recordSet)
+function weakSet(s) {
+  if (!hasSide2(s) || s.side2.done === false || !(parseInt(s.side2.reps) > 0)) return s;
+  const a = sideKey(s), b = sideKey(s.side2);
+  const weaker = b[0] !== a[0] ? b[0] < a[0] : b[1] !== a[1] ? b[1] < a[1] : b[2] < a[2];
+  return weaker ? { ...s, weight: s.side2.weight, reps: s.side2.reps, side: 2, of: s } : s;
+}
+function weakSets(sets) { return workSets(sets).map(weakSet); }
 // Série d'origine d'une série vue par les records
 function recordSource(s) { return s?.of || s; }
 
@@ -184,16 +193,17 @@ function setComplete(s) {
 }
 
 // ── Comparaisons d'une séance à l'autre ───────────────────────
-// Exercice unilatéral : une série notée sur une seule ligne valait pour les deux bras. Pour comparer (volume gagné,
-// tendance du bilan, courbe de Progrès), elle compte donc deux fois, comme une série notée par bras : refaire 14 × 10
-// à l'identique donne +0, que l'une ou l'autre fois soit notée par bras (panel du 20/11 : « +140 kg » faux).
-// Exercice à deux bras : les séries telles quelles.
-function comparableSets(ex, sets) {
-  if (!unilateralLimb(ex)) return sets || [];
+// Exercice unilatéral : une série notée sur une seule ligne valait pour les deux bras. Quand l'AUTRE séance comparée
+// est notée par bras (other), elle compte donc deux fois : refaire 14 × 10 à l'identique donne +0 (panel du 20/11 :
+// « +140 kg » faux). Deux séances notées sur une ligne se comparent telles quelles (audit du 21/11 : 3 × 14 × 9 puis
+// 3 × 14 × 10 donnait +84 au lieu de +42). Utilisé par le volume gagné de la carte et la tendance du bilan ; la courbe
+// de Progrès garde ce qui a été noté. Exercice à deux bras : les séries telles quelles.
+function comparableSets(ex, sets, other = []) {
+  if (!unilateralLimb(ex) || !workSets(other).some(hasSide2)) return sets || [];
   return (sets || []).map(s => (isWarmupSet(s) || hasSide2(s) || s?.done === false ? s
     : { ...s, side2: { weight: s.weight, reps: s.reps, ...(subSetsOf(s).length ? { sub: subSetsOf(s).map(x => ({ weight: x.weight, reps: x.reps })) } : {}) } }));
 }
-function comparableVolume(ex, sets, bodyKg = null) { return exVolume(ex, comparableSets(ex, sets), bodyKg); }
+function comparableVolume(ex, sets, bodyKg = null, other = []) { return exVolume(ex, comparableSets(ex, sets, other), bodyKg); }
 // Les sous-séries du second côté suivent celles du premier (autant, pour la même technique) ; les validées restent
 function syncSide2Subs(s) {
   if (!hasSide2(s)) return;

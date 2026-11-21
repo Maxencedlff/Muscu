@@ -943,9 +943,6 @@ html.type-xl .session-set .set-note-prev { grid-column: 1 / -1; }
   .sets__head > span:has(> .sets__unit) { margin: 0 calc(-1 * var(--set-gap)); }   /* l'en-tête déborde sur les écarts, comme « Série » */
 }
 
-/* Série notée par bras (js/features/session-unilateral.js) : « Bras gauche », « Bras droit » en titre au-dessus de leur
-   groupe (la ligne et ses sous-séries), comme « Échauffement » */
-.sets__caption--side { margin-top: 6px; text-transform: none; letter-spacing: 0; font-size: 0.765rem; }
 /* Texte agrandi : un espace entre « Annuler » ou « Note » (colonne Avant) et le rond ✓ (panel du 20/11, iPhone SE AX33) */
 html.type-xl .session-set { column-gap: 12px; }
 html.type-xl .session-set > .set-prev, html.type-xl .session-set .set-note-btn { min-width: 0; max-width: 100%; }

@@ -37,13 +37,14 @@ function buildSummary(entry) {
     cur  += v;
     // Hausse sur le même périmètre que la dernière fois : un exercice ajouté aujourd'hui n'entre pas dans
     // l'écart (sinon « ↑ 1,2 t » ne serait que le volume de l'exercice ajouté)
-    if (pex) curCommon += comparableVolume(ex, ex.sets, entryBodyKg(entry));
+    const prevSl = pex ? workSets(pex.sets).slice(0, workSets(ex.sets).length) : [];
+    if (pex) curCommon += comparableVolume(ex, ex.sets, entryBodyKg(entry), prevSl);
     // Même nombre de séries de travail des deux côtés (échauffements retirés avant de couper : sinon
     // l'échauffement d'aujourd'hui ferait entrer une série de travail de plus de la dernière fois, ou
     // celui de la dernière fois en ferait sortir une)
     // Exercice à un bras : une série notée sur une ligne compte pour les deux bras des deux côtés de la comparaison
     // (comparableVolume, js/data/unilateral.js) : refaire la même chose par bras ne paraît pas une hausse
-    prev += pex ? comparableVolume(pex, workSets(pex.sets).slice(0, workSets(ex.sets).length), entryBodyKg(prevH)) : 0;
+    prev += pex ? comparableVolume(pex, prevSl, entryBodyKg(prevH), ex.sets) : 0;
     // 1RM estimé battu sans autre record : pour soi seulement (jamais noté dans la séance ni partagé)
     const e1s = !noted.some(r => normName(r.ex) === normName(ex.name)) && e1rmRecordSet(ex, priorOf(ex));
     if (e1s) e1rm.push({ name: ex.name, label: 'Record 1RM est.', weight: e1s.weight, reps: e1s.reps, measure: 'reps', kind: setKind(ex) });

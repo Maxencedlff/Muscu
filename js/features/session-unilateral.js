@@ -9,7 +9,6 @@
 // il se lisait comme le titre du bloc d'en dessous (panel du 20/11). Texte gris, pas une pastille (la pastille grise dit
 // une technique, top set ou back-off : une forme, un sens). Caché à VoiceOver : chaque ligne dit déjà son côté.
 // '' pour une série ordinaire.
-function sideCaptionHtml() { return ''; }   // remplacé par le côté dans la colonne du numéro (withSideTag), 4e tour
 // Côté dans la colonne du numéro, sous le numéro (« 1 », « Gauche ») : un repère par ligne, sans titre répété au-dessus
 // de chaque ligne (panel du 20/11, 4e tour : 6 titres pour 3 séries) ; en texte agrandi, sur la ligne en cours même
 // quand le haut de la carte est sorti de l'écran. html : la première colonne (numéro, bouton du numéro ou ▶).
@@ -61,8 +60,12 @@ function side2RowsHtml(ex, ei, s, si, tag = '') {
   // Même titre que le bloc du premier côté (« Drop set · bras droit »), puis un seul « + drop » et × après la dernière
   // ligne de drop, « pour les 2 bras » (techBtnsHtml, js/features/session-intensif.js)
   const cap = subs ? `<div class="tech__cap" aria-hidden="true">${techCapHtml(ex, s, 2)}</div>` : '';
-  const foot = subs ? `<div class="tech__cap tech__cap--foot"><span class="tech__label"><span class="tech__hint">pour les 2 bras</span></span>${techBtnsHtml(ex, ei, s, si)}</div>` : '';
-  return side2RowHtml(ex, ei, s, si, tag) + (subs ? `<div class="tech" role="group" aria-label="${T.label}, ${name}">${cap}${subs}${foot}</div>` : '');
+  const foot = subs ? `<div class="tech__cap tech__cap--foot"><span class="tech__label"><span class="tech__hint">pour les 2 ${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}</span></span>${techBtnsHtml(ex, ei, s, si)}</div>` : '';
+  // Reps en réserve : sous le bras droit, une fois la série complète et tant qu'elle est la dernière validée (comme une
+  // série ordinaire ; jamais après un drop, poussé à l'échec)
+  const ld = activeSession.lastDone;
+  const rir = !T?.sub && ld?.ei === ei && ld.si === si && setComplete(s) && rirShown() ? rirPickerHtml(ei, si, s, ex) : '';
+  return side2RowHtml(ex, ei, s, si, tag) + (subs ? `<div class="tech" role="group" aria-label="${T.label}, ${name}">${cap}${subs}${foot}</div>` : '') + rir;
 }
 
 // « Avant » du second côté dit à VoiceOver (« 14 × 9 ») ; '' sans dernière fois

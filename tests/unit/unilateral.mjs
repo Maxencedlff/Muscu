@@ -184,11 +184,22 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     const ex = { name: 'Curl concentration' };
     // Refaire 14 × 10 à l'identique : +0, par bras ou en une ligne
     const once = [{ weight: '14', reps: '10' }], two = [{ weight: '14', reps: '10', side2: { weight: '14', reps: '10' } }];
-    assert.equal(run(`comparableVolume(${S(ex)}, ${S(two)}) - comparableVolume(${S(ex)}, ${S(once)})`), 0, '+0, pas +140');
-    assert.equal(run(`comparableVolume(${S(ex)}, ${S(once)}) - comparableVolume(${S(ex)}, ${S(once)})`), 0);
-    assert.equal(run(`comparableVolume({ name: 'Curl biceps haltères' }, ${S(once)})`), 140, 'deux bras : tel quel');
-    // Drop d'une ligne : compté pour les deux bras aussi
-    assert.equal(run(`comparableVolume(${S(ex)}, [{ weight: '14', reps: '10', tech: 'drop', sub: [{ weight: '10', reps: '6' }] }])`), 2 * (140 + 60));
+    assert.equal(run(`comparableVolume(${S(ex)}, ${S(two)}, null, ${S(once)}) - comparableVolume(${S(ex)}, ${S(once)}, null, ${S(two)})`), 0, '+0, pas +140');
+    // Deux séances sur une ligne : écart réel (audit du 21/11 : 3 × 14 × 9 puis 3 × 14 × 10 donnait +84 au lieu de +42)
+    const l9 = [0, 1, 2].map(() => ({ weight: '14', reps: '9' })), l10 = [0, 1, 2].map(() => ({ weight: '14', reps: '10' }));
+    assert.equal(run(`comparableVolume(${S(ex)}, ${S(l10)}, null, ${S(l9)}) - comparableVolume(${S(ex)}, ${S(l9)}, null, ${S(l10)})`), 42, 'deux séances sur une ligne : écart réel');
+    assert.equal(run(`comparableVolume({ name: 'Curl biceps haltères' }, ${S(once)}, null, ${S(two)})`), 140, 'deux bras : tel quel');
+    // Drop d'une ligne face à une séance par bras : compté pour les deux bras aussi
+    assert.equal(run(`comparableVolume(${S(ex)}, [{ weight: '14', reps: '10', tech: 'drop', sub: [{ weight: '10', reps: '6' }] }], null, ${S(two)})`), 2 * (140 + 60));
+    // Bilan : deux séances sur une ligne, écart réel
+    const sm = run(`(() => { data.history = [
+      { id: 'e', date: 2, programme: 'ppl', category: 'pull', exercises: [{ exId: 'c', name: 'Curl concentration', sets: ${S(l10)} }] },
+      { id: 'p', date: 1, programme: 'ppl', category: 'pull', exercises: [{ exId: 'c', name: 'Curl concentration', sets: ${S(l9)} }] }];
+      const r = buildSummary(data.history[0]); data.history = []; return r.delta; })()`);
+    assert.equal(Math.round(sm), 42, "bilan : +42");
+    // Progression : le côté le plus faible ; record : le meilleur
+    assert.equal(run(`weakSet({ weight: '14', reps: '12', side2: { weight: '14', reps: '10' } }).reps`), '10');
+    assert.equal(run(`recordSet({ weight: '14', reps: '12', side2: { weight: '14', reps: '10' } }).reps`), '12');
     // Compteur : la série ne compte qu'une fois le bras droit et son drop faits
     assert.equal(run(`setComplete({ done: true, side2: { done: false } })`), false);
     assert.equal(run(`setComplete({ done: true, tech: 'drop', sub: [{ done: true }], side2: { done: true, sub: [{ done: false }] } })`), false);
@@ -212,8 +223,17 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`sideName({ name: 'Curl concentration', sideFirst: 'droit' }, 1)`), 'Bras droit');
     assert.equal(run(`sideName({ name: 'Fentes bulgares', sideFirst: 'droit' }, 2)`), 'Jambe gauche');
     assert.equal(run(`(() => { setSideFirstPref('Curl concentration', 'droit'); return sideFirstPref('curl CONCENTRATION'); })()`), 'droit');
-    assert.equal(run(`(() => { setSideFirstPref('Curl concentration', 'gauche'); return 'sideFirst' in data; })()`), false);
-    sameJSON(run(`cleanSideFirst({ a: 'droit', b: 'gauche', c: 1 })`), { a: 'droit' });
+    // Retour au bras gauche : écrit 'gauche' (jamais la clé retirée, sinon l'autre appareil renverrait « droit »)
+    assert.equal(run(`(() => { setSideFirstPref('Curl concentration', 'gauche'); return JSON.stringify(data.sideFirst); })()`), '{"curl concentration":"gauche"}');
+    // Synchro entre deux appareils : B (droit) reçoit le profil de A revenu au gauche, et le garde
+    const sy = run(`(() => {
+      const b = data; setSideFirstPref('Curl concentration', 'droit', b);
+      const meta = emptySyncMeta('u'); meta.profileHash = syncHash(profilePayload(b)); meta.profileCore = profileCoreHash(profilePayload(b));
+      const a = JSON.parse(JSON.stringify(b)); setSideFirstPref('Curl concentration', 'gauche', a);
+      applyRemoteProfile(b, { doc: profilePayload(a), updated_at: '2026-11-21T10:00:00Z' }, meta);
+      return sideFirstPref('Curl concentration', b); })()`);
+    assert.equal(sy, 'gauche', 'synchro : le retour au bras gauche arrive sur l\'autre appareil');
+    sameJSON(run(`cleanSideFirst({ a: 'droit', b: 'gauche', c: 1 })`), { a: 'droit', b: 'gauche' });
     // Premier bras changé : « Avant » et valeurs pré-remplies (non touchées) suivent leur bras
     sameJSON(run(`(() => { const s = { weight: '14', reps: '10', done: false, prev: { weight: '14', reps: '10' }, side2: { done: false, auto: true, prev: { weight: '14', reps: '8' } } };
       swapSidePrev(s); return [s.prev.reps, s.side2.prev.reps, s.reps]; })()`), ['8', '10', '8']);

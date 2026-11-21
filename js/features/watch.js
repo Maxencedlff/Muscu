@@ -36,6 +36,10 @@ function watchBlockReason(session, cur, { editing = false, odd = false } = {}) {
   if (measureOf(ex) !== 'reps') return 'measure';
   if (editing) return 'editing';
   if (odd) return 'odd';
+  // Série notée par bras : le second côté (ou un drop) attend sur l'iPhone ; valider la série suivante depuis la montre
+  // le sauterait (audit du 21/11)
+  const step = techCurrentSub(session.exercises, session.lastDone);
+  if (step && hasSide2(session.exercises[step.ei]?.sets?.[step.si])) return 'side';
   return '';
 }
 
@@ -45,7 +49,14 @@ const WATCH_BLOCK_TEXT = {
   measure: 'Série à saisir sur l\'iPhone',
   editing: 'Correction en cours sur l\'iPhone',
   odd:     'À confirmer sur l\'iPhone',
+  side:    'Bras droit à noter sur l\'iPhone',   // remplacé par le vrai côté (« Jambe gauche… », watchBlockText)
 };
+// Texte d'un blocage ; 'side' : le côté qui attend (« Bras droit à noter sur l'iPhone »)
+function watchBlockText(session, block) {
+  if (block !== 'side') return WATCH_BLOCK_TEXT[block] || '';
+  const c = techCurrentSub(session.exercises, session.lastDone), ex = c && session.exercises[c.ei];
+  return ex ? `${sideName(ex, c.side || 2)} à noter sur l'iPhone` : WATCH_BLOCK_TEXT.side;
+}
 
 // État envoyé à la montre (logique pure, testée dans tests/unit/companions.mjs). Textes bruts, bornés :
 // WatchConnectivity n'accepte que des types de liste de propriétés, l'état part donc en JSON.
@@ -61,7 +72,7 @@ function watchState(session, cur, { rest = null, block = '', next = null, upcomi
   }
   const xs = session.exercises || [];
   const total = xs.reduce((a, ex) => a + ex.sets.length, 0);
-  const done  = xs.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
+  const done  = xs.reduce((a, ex) => a + ex.sets.filter(setComplete).length, 0);   // série par bras : avec le bras droit
   const set   = restActivityNext(session, (rest && upcoming) || cur);   // { exercise, set, load } ou null (tout est fait)
   const ex    = cur ? xs[cur.ei] : null;
   return {
@@ -77,7 +88,7 @@ function watchState(session, cur, { rest = null, block = '', next = null, upcomi
     setCount: ex ? ex.sets.length : 0,
     load: set ? set.load.slice(0, WATCH_MAX.load) : '',
     canValidate: !!set && block === '',
-    blocked: set && block ? (WATCH_BLOCK_TEXT[block] || '') : '',
+    blocked: set && block ? watchBlockText(session, block) : '',
     rest: rest && rest.endTime > 0 ? { endTime: Math.round(rest.endTime), total: Math.max(1, Math.round(rest.total)) } : null,
   };
 }
