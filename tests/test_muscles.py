@@ -700,6 +700,7 @@ def t_tip(bench, eng, dev, theme):
         shot(page, LOT, f'bulle-obliques-{t}')
         tap_muscle(page, '.mcard__map', 'abs', 'front')
         R.check(tip_text(page).startswith('Abdominaux'), f'{t} bulle abdominaux (grand droit) : « {tip_text(page)} »')
+        f = page.locator('.mcard__map .body-map__front').bounding_box()   # remesurée : la carte d'info a pu faire défiler la page
         page.mouse.click(f['x'] + f['width'] / 2, f['y'] + f['height'] * .04)
         settle(page)
         R.check(page.locator('.atlas-info').count() == 0, f'{t} toucher la tête (zone grise) : carte fermée')
