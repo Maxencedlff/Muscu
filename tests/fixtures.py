@@ -468,6 +468,8 @@ IDLE_TRACKER = r"""(() => {
   };
   S.why = () => {   // ce qui empêche le repos (message d'erreur de settle)
     const t = now(), out = [];
+    if ((S.frames || 0) < 2) out.push('images dessinées depuis le début de l\'attente : ' + (S.frames || 0) + ' sur 2 (la page ne dessine plus)');
+    if (S.since) out.push('au repos depuis ' + Math.round(t - S.since) + ' ms');
     if (S.timers.size) out.push('minuteries ' + [...S.timers.values()].join(','));
     if (S.busy > 0) out.push('promesses ' + S.busy);
     if (t - S.scrollAt < SCROLL_MS) out.push('défilement');
@@ -531,7 +533,9 @@ def settle(page, timeout=10_000):
             why = page.evaluate('() => window.__idle ? window.__idle.why() : "pas de suivi (IDLE_TRACKER absent)"')
         except Exception:
             why = '?'
-        raise TimeoutError(f'app jamais au repos en {timeout} ms : {why}') from e
+        import traceback
+        where = ' < '.join(f'{os.path.basename(f.filename)}:{f.lineno}' for f in traceback.extract_stack(limit=4)[:-1][::-1])
+        raise TimeoutError(f'app jamais au repos en {timeout} ms ({where}) : {why}') from e
 
 
 def until(page, js, timeout=5000):
