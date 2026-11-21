@@ -92,7 +92,7 @@ def tap(page, xy, double=False, touch=False):
 DIAG_JS = """() => { const t = document.querySelector('.btip')?.getBoundingClientRect();
     const bad = [...document.images].filter(i => i.src && (!i.complete || !i.naturalWidth)).map(i => i.src.split('/img/')[1] || i.src);
     return JSON.stringify({ btip: t ? [t.left | 0, t.top | 0, t.right | 0, t.bottom | 0] : null, lastTap: typeof atlasLastTap !== 'undefined' && atlasLastTap
-      ? Math.round(performance.now() - atlasLastTap.t) : null, viewer: !!document.querySelector('.azoom'), scrollY: Math.round(scrollY), badImgs: bad.slice(0, 8), nBad: bad.length }); }"""
+      ? Math.round(performance.now() - atlasLastTap.t) : null, viewer: !!document.querySelector('.azoom'), scrollY: Math.round(scrollY), badImgs: bad.slice(0, 8), nBad: bad.length, taps: window.__taps || null }); }"""
 
 
 def wait_or_say(page, sel, where, state='visible'):
@@ -614,6 +614,11 @@ def t_progres(bench, eng, dev, theme):
         shot(page, LOT, f'progres-nom-{t}')
         # Zoom : double toucher, 3× de la vue, bulle de volume dans la vue agrandie
         page.evaluate('closeBodyTip()')
+        # Journal des touchers reçus par la carte (diagnostic d'un échec intermittent du double toucher en CI)
+        page.evaluate("""() => { window.__taps = []; const orig = atlasTap; let n = 0; const ids = new WeakMap();
+            window.atlasTap = function (e, el) { if (!ids.has(el)) ids.set(el, ++n);
+              window.__taps.push({ el: ids.get(el), ts: Math.round(e.timeStamp), now: Math.round(performance.now()), last: atlasLastTap && { t: Math.round(atlasLastTap.t), el: ids.get(atlasLastTap.el) || 'autre', x: Math.round(atlasLastTap.x) }, x: Math.round(e.clientX) });
+              return orig.call(this, e, el); }; }""")
         tap(page, part_point(page, '.mcard__map', part, view), double=True)
         wait_or_say(page, '.azoom', 'attente 2 (double toucher)')
         page.wait_for_function("() => atlasViewerState()?.hi", timeout=10000)
