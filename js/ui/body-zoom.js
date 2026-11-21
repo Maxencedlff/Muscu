@@ -349,6 +349,8 @@ function atlasZoom(view, kind, levels, at, root, { tiers = false, tip = '', outl
   // Vue (face ou dos) au centre de l'écran : celle qui reçoit le 3×. Marge autour du milieu : on ne change de vue
   // que franchement passé (face sous 45 %, dos au-delà de 55 %), pas d'échange d'images en boucle au milieu
   function centerView() {
+    // Les deux vues tiennent en largeur (paysage) : celle du point d'ouverture (le muscle ciblé), sinon la face
+    if (W * s <= viewRect().w + 1) return hiWant || (at && at.u >= 1 / 2 ? 'back' : 'front');
     const u = (viewRect().w / 2 - x) / (W * s);
     if (hiWant === 'front') return u > 0.55 ? 'back' : 'front';
     if (hiWant === 'back') return u < 0.45 ? 'front' : 'back';

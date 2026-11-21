@@ -210,7 +210,7 @@ def t_fiche(bench, eng, dev, theme):
         want = 1.0   # qui aident : opaques, la teinte de la pastille (panels t5 et t6)
         R.check(keep and all(sec and abs(float(op) - want) < 0.01 for sec, op in keep), f'{t} ligne touchée : ses muscles gardent leur couleur (qui aide, {want:.0%}) {keep[:3]}')
         page.wait_for_timeout(100)
-        R.check('muscles qui aident sont affichés' in page.evaluate("document.getElementById('sr-polite')?.textContent || ''"), f'{t} changement annoncé à VoiceOver')
+        R.check('muscles qui aident sont affichés' in page.evaluate("document.getElementById('atlasLive')?.textContent || ''"), f'{t} changement annoncé à VoiceOver')
         shot(page, LOT, f'fiche-aident-{t}')
         page.click('.mline2[data-level="1"] .mline2__name[data-label="Triceps"]')
         page.wait_for_timeout(500)
