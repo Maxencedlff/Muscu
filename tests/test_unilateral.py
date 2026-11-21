@@ -83,6 +83,10 @@ def t_drop_deux_bras(bench, eng, dev, theme):
             .filter(e => !e.matches('.session-set') || e.dataset.si === '2' || e.closest('.tech')).slice(-6).map(r =>
             r.matches('.tech__name') ? 'Drop set' : r.matches('.session-set--side') ? 'D' : r.matches('.session-set--sub') ? (r.dataset.side === '2' ? 'D+1' : 'G+1') : 'G')""")
         R.check(order == ['G', 'Drop set', 'G+1', 'D', 'Drop set', 'D+1'], f'{t} ordre G, G allégé, D, D allégé, chaque drop titré ({order})')
+        # Même titre sur les deux blocs, un seul « + drop » et × sous le dernier drop, « pour les 2 bras » (panel du 21/11)
+        names = [' '.join(x.replace('\u00a0', ' ').split()) for x in page.locator('.ex-card[data-ei="0"] .tech__name').all_inner_texts()]
+        R.check(names == ['Drop set · bras gauche', 'Drop set · bras droit'] and page.locator('.ex-card[data-ei="0"] .tech__add').count() == 1
+                and 'pour les 2 bras' in page.locator('.ex-card[data-ei="0"] .tech__cap--foot').inner_text(), f'{t} titres par bras, un seul jeu de boutons ({names})')
         # « Drop 1 » en toutes lettres, plus « +1 » (panel du 20/11)
         tags = [x.replace('\n', ' ') for x in page.locator('.ex-card[data-ei="0"] .tech-tag').all_inner_texts()]
         R.check(tags == ['Drop 1 Gauche', 'Drop 1 Droit'], f'{t} « Drop 1 » et son bras, sur les deux bras ({tags})')

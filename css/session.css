@@ -987,7 +987,10 @@ html.type-xl .sets--sides .session-set .set-prev, html.type-xl .sets--sides .ses
 html.type-xl .set-val[data-lbl]::before { content: attr(data-lbl); display: block; font-size: 0.647rem; font-weight: 600; color: var(--label2); }
 /* Reps d'un drop jamais fait : « max » en indication, plus pâle que les valeurs */
 .session-set--sub .set-input::placeholder { color: var(--label3, var(--label2)); opacity: .7; }
-/* « Drop set · 2 bras » : le titre ne rétrécit pas ; s'il ne tient pas à côté de « + drop » et ×, les boutons passent
-   dessous, calés à droite (iPhone SE : le titre touchait « + drop ») */
-.tech__cap--sides { flex-wrap: wrap; row-gap: 4px; }
-.tech__cap--sides .tech__label { flex: 1 0 auto; }
+/* Boutons « + drop » et × sous le dernier drop d'une série par bras, « pour les 2 bras » à gauche */
+.tech__cap--foot { min-height: 52px; }
+/* Texte agrandi : « Drop 1 · Gauche » tient avant le rond ✓ (passe sur deux lignes au besoin) */
+html.type-xl .session-set.session-set--sub .tech-tag { white-space: normal; min-width: 0; max-width: 100%; }
+html.type-xl .tech__name { white-space: normal; }
+html.type-xl .tech__side { display: block; }   /* « Drop set » puis « bras gauche » dessous */
+html.type-xl .tech__dot { display: none; }

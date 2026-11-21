@@ -62,19 +62,34 @@ function techPillHtml(s, { spoken = true } = {}) {
 // Sous la série (drop set, rest-pause, cluster) : titre de la technique (+ une sous-série, retirer), puis une ligne par
 // sous-série, remplie comme une série (charge proposée, objectif de la dernière fois en gris, ✓). Top set et back-off :
 // pastille dans la ligne de la série (techPillHtml)
+// « + drop » et × d'une série (sans × sur une technique prescrite par le coach)
+function techBtnsHtml(ex, ei, s, si) {
+  const T = TECHS[setTech(s)], name = setSpokenName(ex, si).toLowerCase(), two = hasSide2(s) ? ', pour les 2 bras' : '';
+  const add = (s.sub || []).length < TECH_SUB_MAX
+    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${two}">${icon('plus', 14)}${T.subName}</button>` : '';
+  return `<span class="tech__btns">${add}
+        ${techPrescribed(ex) ? '' : `<button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}${two}">${icon('xmark', 14)}</button>`}</span>`;
+}
+// Série notée par bras (js/features/session-unilateral.js) : le même titre sur les deux blocs, « Drop set · bras gauche »
+// et « Drop set · bras droit », et un seul « + drop » et × après la dernière ligne de drop, « pour les 2 bras » (panel du
+// 21/11) ; side : le bloc de ce côté
+function techCapHtml(ex, s, side = 1) {
+  const T = TECHS[setTech(s)];
+  // Texte agrandi : le côté passe sous « Drop set », sans « · » (css/session.css, tech__side)
+  const name = hasSide2(s) ? `${T.label}<span class="tech__side"><span class="tech__dot">&nbsp;· </span>${sideWord(ex, side).replace(' ', '&nbsp;')}</span>` : T.label;
+  return `<span class="tech__label"><span class="tech__name">${name}</span><span class="tech__hint">${T.hint}</span></span>`;
+}
 function techBlockHtml(ex, ei, s, si) {
   const t = setTech(s);
   if (!t || !canTech(ex) || !TECHS[t].sub) return '';
   const T = TECHS[t], name = setSpokenName(ex, si).toLowerCase();
-  const add = T.sub && (s.sub || []).length < TECH_SUB_MAX
-    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${hasSide2(s) ? ', pour les 2 bras' : ''}">${icon('plus', 14)}${T.subName}</button>` : '';
-  const rows = T.sub ? (s.sub || []).map((x, k) => subRowHtml(ex, ei, s, si, x, k)).join('') : '';
+  const rows = (s.sub || []).map((x, k) => subRowHtml(ex, ei, s, si, x, k)).join('');
+  const sides = hasSide2(s);
   return `
-    <div class="tech" role="group" aria-label="${T.label}, ${name}">
-      <div class="tech__cap${hasSide2(s) ? ' tech__cap--sides' : ''}">
-        <span class="tech__label"><span class="tech__name">${T.label}${hasSide2(s) ? '&nbsp;· 2&nbsp;bras' : ''}</span><span class="tech__hint">${T.hint}</span></span>
-        <span class="tech__btns">${add}
-        ${techPrescribed(ex) ? '' : `<button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button>`}</span>
+    <div class="tech" role="group" aria-label="${T.label}, ${name}${sides ? `, ${sideWord(ex, 1)}` : ''}">
+      <div class="tech__cap">
+        ${techCapHtml(ex, s, 1)}
+        ${sides ? '' : techBtnsHtml(ex, ei, s, si)}
       </div>
       ${rows}
     </div>`;

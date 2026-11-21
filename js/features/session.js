@@ -305,7 +305,7 @@ function nextSetParts() {
   // Sous-série sans objectif de reps (pas faite la dernière fois) : sa charge seule, « Reprise 1 · 70 kg »
   const load = String(s.reps ?? '') !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}`
     : sub && hasLoad(s.weight) ? ` · ${fmtW(s.weight, { plain: true })} ${unitLbl()}` : '';
-  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `${holdGuide(ex) ? 'Maintien' : 'Série'} ${setDisplayNo(ex.sets, cur.si)}${hasSide2(s) ? ` · ${sideWord(ex, 1)}` : ''}`;   // compte des séries de travail, comme leur ligne ; par bras : le bras qui commence
+  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `${holdGuide(ex) ? 'Maintien' : 'Série'} ${setDisplayNo(ex.sets, cur.si)}${hasSide2(s) ? ` · ${sideWord(ex, 1)}` : unilateralLimb(ex) && !isWarmupSet(s) ? ` · 2 ${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}` : ''}`;   // compte des séries de travail, comme leur ligne ; par bras : le bras qui commence ; un bras sur une ligne : « 2 bras »
   return { name: ex.name, step, load, tail: step + load, sub: !!sub, side: !sub && hasSide2(s) };
 }
 // « Développé incliné · Série 1 · 30 kg × 10 »

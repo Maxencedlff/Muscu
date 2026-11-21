@@ -1525,6 +1525,8 @@ def p_unilateral(r):
     with r.etape('bras-gauche', 'Bras gauche lourd puis allégé : le bras droit suit, pré-rempli, sans repos', cle=cle):
         for s in range(2):
             r.toucher(f'.view.session [data-action="validate-set"][data-ei="0"][data-si="{s}"]', f'valider la série {s + 1} (bras gauche)')
+            if s == 0:   # le bras droit fait une rep de plus à la série 1 : record du meilleur bras au bilan
+                r.saisir('.view.session [data-action="side-reps"][data-ei="0"][data-si="0"]', 11, 'reps du bras droit, série 1')
             r.toucher(f'.view.session [data-action="side-validate"][data-ei="0"][data-si="{s}"]', f'valider la série {s + 1} (bras droit)')
             passer_repos(r)
         r.toucher('.view.session [data-action="validate-set"][data-ei="0"][data-si="2"]', 'valider la série 3 (bras gauche)')
@@ -1536,6 +1538,11 @@ def p_unilateral(r):
         r.saisir('.view.session [data-action="sub-reps"][data-ei="0"][data-si="2"][data-k="0"][data-side="2"]', 5, 'reps du drop, bras droit')
         r.toucher('.view.session [data-action="sub-validate"][data-ei="0"][data-si="2"][data-k="0"][data-side="2"]', 'valider le drop du bras droit')
         r.attendre('.rest-mini', 'barre de repos')
+    with r.etape('bilan', 'Séance terminée : bilan, volume du curl (deux bras additionnés) et record du meilleur bras', cle=cle):
+        passer_repos(r)
+        r.toucher('.view.session [data-action="finish-session"]', 'Terminer')
+        fermer_dialogue(r, 'Enregistrer la séance')
+        r.attendre('.view.summary', 'bilan')
 
 
 @parcours('unilateral-bras', 'Séance : « Noter chaque bras à part » sur un exercice à un bras', 'pratiquant')
@@ -1549,10 +1556,12 @@ def p_unilateral_bras(r):
     with r.etape('choix', '⋯ › Plus d\'options › Noter chaque bras à part', cle='Noter chaque bras à part'):
         menu_ex(r, 0, 'Curl concentration')
         choisir_ou_absent(r, 'Noter chaque bras à part', 'choix « Noter chaque bras à part »')
-    with r.etape('serie-1', 'Série 1 (bras gauche) validée : le bras droit suit, sans repos', cle='Noter chaque bras à part'):
-        r.toucher('.view.session [data-action="validate-set"][data-ei="0"][data-si="0"]', 'valider la série 1 (bras gauche)')
-    with r.etape('bras-droit', 'Bras droit validé : le repos part'):
-        r.toucher('.view.session [data-action="side-validate"][data-ei="0"][data-si="0"]', 'valider le bras droit')
+    with r.etape('premier-droit', '« Commencer par le bras droit » : chaque série dans l\'ordre Droit puis Gauche', cle='Noter chaque bras à part'):
+        r.toucher('.view.session [data-action="side-first"][data-ei="0"]', 'Commencer par le bras droit')
+    with r.etape('serie-1', 'Série 1 (bras droit) validée : le bras gauche suit, sans repos', cle='Noter chaque bras à part'):
+        r.toucher('.view.session [data-action="validate-set"][data-ei="0"][data-si="0"]', 'valider la série 1 (bras droit)')
+    with r.etape('bras-droit', 'Bras gauche validé : « Série 1 validée », le repos part'):
+        r.toucher('.view.session [data-action="side-validate"][data-ei="0"][data-si="0"]', 'valider le bras gauche')
         r.attendre('.rest-mini', 'barre de repos')
 
 

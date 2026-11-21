@@ -58,10 +58,11 @@ function side2RowsHtml(ex, ei, s, si, tag = '') {
   const T = TECHS[setTech(s)];
   const subs = T?.sub && canTech(ex) ? (s.side2.sub || []).map((x, k) => subRowHtml(ex, ei, s, si, x, k, 2)).join('') : '';
   const name = `${setSpokenName(ex, si).toLowerCase()}, ${sideName(ex, 2).toLowerCase()}`;
-  // Le bloc du second côté a son propre titre « Drop set » (sans les boutons : « + drop » et × du premier côté valent
-  // pour les deux bras)
-  const cap = subs ? `<div class="tech__cap" aria-hidden="true"><span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span></span></div>` : '';
-  return side2RowHtml(ex, ei, s, si, tag) + (subs ? `<div class="tech" role="group" aria-label="${T.label}, ${name}">${cap}${subs}</div>` : '');
+  // Même titre que le bloc du premier côté (« Drop set · bras droit »), puis un seul « + drop » et × après la dernière
+  // ligne de drop, « pour les 2 bras » (techBtnsHtml, js/features/session-intensif.js)
+  const cap = subs ? `<div class="tech__cap" aria-hidden="true">${techCapHtml(ex, s, 2)}</div>` : '';
+  const foot = subs ? `<div class="tech__cap tech__cap--foot"><span class="tech__label"><span class="tech__hint">pour les 2 bras</span></span>${techBtnsHtml(ex, ei, s, si)}</div>` : '';
+  return side2RowHtml(ex, ei, s, si, tag) + (subs ? `<div class="tech" role="group" aria-label="${T.label}, ${name}">${cap}${subs}${foot}</div>` : '');
 }
 
 // « Avant » du second côté dit à VoiceOver (« 14 × 9 ») ; '' sans dernière fois
