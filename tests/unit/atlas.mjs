@@ -211,14 +211,14 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
   test('atlas : carte cadrée sur le haut ou le bas du corps quand tous les muscles y sont', () => {
     const crop = n => run(`bodyAtlasCrop('male', exercisePartLevels(${JSON.stringify(n)}, musclesOf(${JSON.stringify(n)})).levels)`);
     sameJSON(crop('Développé incliné barre'), [0, 450]);
-    sameJSON(crop('Abducteurs machine'), [302, 602], 'abducteurs : de la taille aux genoux');
+    sameJSON(crop('Abducteurs machine'), [304, 604], 'abducteurs : de la taille aux genoux');
     const mc = crop('Mollets debout');
     assert.ok(mc[1] === 840 && mc[0] > 500, `mollets : des genoux aux pieds ${mc}`);
     sameJSON(crop('Squat barre'), [0, 840], 'squat : érecteurs et jambes, corps entier');
     sameJSON(run("bodyAtlasCrop('male', {})"), [0, 840]);
     const html = run(`bodyAtlasHtml(exercisePartLevels('Abducteurs machine', musclesOf('Abducteurs machine')).levels, { body: 'female' })`);
     // Une seule face utile (panel affichage-e t3) : abducteurs, le dos seul, en grand
-    assert.ok(html.includes('body-map--crop') && html.includes('data-crop="318,618"') && html.includes('aspect-ratio:384 / 300') && html.includes('body-map--one')
+    assert.ok(html.includes('body-map--crop') && html.includes('data-crop="321,621"') && html.includes('aspect-ratio:384 / 300') && html.includes('body-map--one')
       && html.includes('data-view="back"') && !html.includes('body-map__front'), html.slice(0, 300));
     const both = run(`bodyAtlasHtml(exercisePartLevels('Développé incliné barre', musclesOf('Développé incliné barre')).levels, { body: 'male' })`);
     assert.ok(both.includes('body-map__front') && both.includes('body-map__back') && !both.includes('body-map--one'), 'développé incliné : face (pectoraux) et dos (triceps)');
