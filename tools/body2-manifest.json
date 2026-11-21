@@ -316,25 +316,25 @@
   },
   {
    "id": "semitendinosus",
-   "name": "Ischios, semi-tendineux",
+   "name": "Ischios, semi-tendi­neux",
    "latin": "Semitendinosus",
    "parent": "hamstrings"
   },
   {
    "id": "semimembranosus",
-   "name": "Ischios, semi-membraneux",
+   "name": "Ischios, semi-membra­neux",
    "latin": "Semimembranosus",
    "parent": "hamstrings"
   },
   {
    "id": "gastro_medial",
-   "name": "Mollet, gastrocnémien médial",
+   "name": "Mollet, gastroc­némien médial",
    "latin": "Gastrocnemius, caput mediale",
    "parent": "calves"
   },
   {
    "id": "gastro_lateral",
-   "name": "Mollet, gastrocnémien latéral",
+   "name": "Mollet, gastroc­némien latéral",
    "latin": "Gastrocnemius, caput laterale",
    "parent": "calves"
   },

@@ -195,7 +195,7 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.equal(app.atlasPartTitle('triceps_lateral'), 'Triceps, chef latéral');
     // Chaque bulle commence par le nom d'une pastille
     run('BODY_PARTS.parts').forEach(p => assert.ok(app.atlasPartTitle(p.id).startsWith(app.atlasPillLabel(p.id)), `${p.id} : ${app.atlasPartTitle(p.id)}`));
-    assert.equal(app.atlasPartTitle('gastro_medial'), 'Mollets, gastrocnémien médial');
+    assert.equal(app.atlasPartTitle('gastro_medial').replace(/\u00ad/g, ''), 'Mollets, gastrocnémien médial');
     assert.equal(app.atlasPartTitle('teres_minor'), 'Coiffe des rotateurs, petit rond');
     // Toute la bibliothèque : une pastille par nom, plein d'abord, au moins une pleine
     for (const name of run('EXERCISE_CATALOGUE.map(e => e.name)')) {
