@@ -188,4 +188,28 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     // Montée explosive en poussant : son à part
     assert.ok(serie([2, 0, 'X', 0], false).includes('2:tempoX'), 'X : trois coups serrés');
   });
+
+  test('série au tempo à un bras : premier bras, « Change de bras » annoncé avec une vibration, second bras, puis fin', () => {
+    const played = [], told = [], shakes = [], ended = [];
+    const ex = { name: 'Rowing bûcheron un bras', sets: [{ reps: '2' }] };
+    const box = {
+      $: () => null, RING_BIG: 1, playMelody: n => played.push([box.now, n]), sayCount() {},
+      announce: m => told.push(m), haptic: () => shakes.push(box.now), finishEffort: (at, n) => ended.push([at, n]), persistSession() {},
+      activeSession: { exercises: [ex] }, unilateralLimb: () => 'bras', hasSide2: () => false, capitalize: w => w[0].toUpperCase() + w.slice(1),
+      sideName: (x, side) => (side === 1 ? 'Bras gauche' : 'Bras droit'), sideWord: (x, side) => (side === 1 ? 'bras gauche' : 'bras droit'),
+    };
+    const c = vm.createContext(box);
+    vm.runInContext('let effortLastSecond = null;\n' + fs.readFileSync(path.join(ROOT, 'js/data/effort-clock.js'), 'utf8')
+      + '\n' + fs.readFileSync(path.join(ROOT, 'js/features/effort-tempo.js'), 'utf8')
+      + '\nDate.now = () => this.now; this.updateTempoUI = updateTempoUI;', c);
+    // 1-0-1-0 : 2 s par rep, 2 reps par bras ; préparation 2 s, bras gauche de 2 à 6 s, changement de 6 à 11 s, bras droit de 11 à 15 s
+    const e = { kind: 'tempo', ei: 0, si: 0, start: 2000, prep: 2, tempo: [1, 0, 1, 0], reps: 2, reps2: 2, conFirst: true, sides: 2 };
+    box.activeSession.effort = e;
+    for (box.now = 0; box.now <= 15_000 && !ended.length; box.now += 100) c.updateTempoUI(e);
+    sameJSON(told, ['Bras gauche, rep 1', 'Dernière rep', 'Change de bras, au tour du bras droit', 'Bras droit, rep 1', 'Dernière rep']);
+    assert.ok(shakes.includes(6000), 'vibration au changement de bras');
+    assert.ok(shakes.includes(11_000), 'vibration au départ du bras droit');
+    assert.equal(played.filter(([t, n]) => t >= 6000 && t < 11_000 && n === 'tick').length, 5, 'un tic par seconde du changement');
+    sameJSON(ended, [[15_000, 2]], 'série validée après le bras droit seulement, sur une ligne (mêmes reps)');
+  });
 }

@@ -721,8 +721,20 @@ function rirEverUsed() {
   }
   return rirUsedCache.used;
 }
+// Sélecteur apparu sous le doigt juste après la validation d'une série : le toucher suivant tombait dessus (« 4+ »
+// noté sans le vouloir en séance, 22/11). Ses boutons ignorent les touchers pendant RIR_GUARD_MS après son apparition
+// (au clic, rien au pointerdown : un seul tap sur iOS). rirShownAt : 'ei:si' → instant d'apparition ; la validation
+// d'une série l'efface (rirRearm), le prochain rendu du sélecteur le repose.
+const RIR_GUARD_MS = 700;
+const rirShownAt = new Map();
+function rirRearm(ei, si) { rirShownAt.delete(`${ei}:${si}`); }
+function rirTooSoon(ei, si, now = Date.now()) {
+  const at = rirShownAt.get(`${ei}:${si}`);
+  return at !== undefined && now - at < RIR_GUARD_MS;
+}
 // tag : lettre du superset (A2) quand le sélecteur est sous le résumé replié de sa carte (foldedRirHtml)
 function rirPickerHtml(ei, si, s, ex, tag = null) {
+  if (!rirShownAt.has(`${ei}:${si}`)) rirShownAt.set(`${ei}:${si}`, Date.now());
   const r = cleanRir(s.rir), folded = tag !== null;
   return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}${folded ? `, ${esc(ex.name)}` : ''}">
             <span class="rir__lbl" aria-hidden="true">Reps en réserve${folded ? ` · ${tag ? `${tag} · ` : ''}Série ${setDisplayNo(ex.sets, si)}` : ''}</span>${rirEverUsed() ? '' : `
@@ -928,6 +940,7 @@ function validateSet(ei, si, opts = {}) {
   s.reps = String(parseInt(s.reps));
 
   s.done = true;
+  rirRearm(ei, si);              // le sélecteur RIR qui va apparaître ignore les touchers un instant
   ex.startedAt ??= Date.now();   // ordre réel de la séance dans l'historique (orderByStart, js/data/session-order.js)
   const prevLastEi = activeSession.lastEi, prevLastDone = activeSession.lastDone ?? null;
   const sameAgain  = prevLastEi === ei;   // même exercice deux fois de suite : fait seul
@@ -944,6 +957,7 @@ function validateSet(ei, si, opts = {}) {
   else if (goalTaken) undo.prevReps = '';
   if ('prevDist' in opts) undo.prevDist = opts.prevDist;
   if ('prevMachine' in opts) undo.prevMachine = opts.prevMachine;
+  if (opts.undoSides) undo.undoSides = opts.undoSides;   // tempo guidé à un bras : seconds côtés d'avant (finishTempo)
   const xs      = activeSession.exercises;
   const allDone = xs.every(e => e.sets.every(st => st.done));
   // Superset : pas de repos avant la fin du tour, on enchaîne sur l'exercice suivant du groupe.
@@ -1034,6 +1048,7 @@ function undoValidate(u) {
   // Chrono d'une machine : km et réglages notés d'avant (absents : retirés), comme si rien n'avait été enregistré
   if ('prevDist' in u) { if (u.prevDist == null) delete u.s.dist; else u.s.dist = u.prevDist; }
   if ('prevMachine' in u) { if (u.prevMachine == null) delete u.s.machine; else u.s.machine = u.prevMachine; }
+  u.undoSides?.();
   if (u.next && !u.next.done) { u.next.weight = u.nextW; u.next.reps = u.nextR; }
   stopRest();
   closeSessSheets();
@@ -1274,7 +1289,7 @@ registerActions({
     const s = activeSession?.exercises[parseInt(el.dataset.ei)]?.sets[parseInt(el.dataset.si)];
     if (!s) return;
     const r = cleanRir(el.dataset.rir);
-    if (r === null) return;
+    if (r === null || rirTooSoon(parseInt(el.dataset.ei), parseInt(el.dataset.si))) return;   // toucher qui suivait la validation
     if (s.rir === r) delete s.rir; else s.rir = r;
     haptic();
     persistSession();

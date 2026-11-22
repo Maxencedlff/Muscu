@@ -1745,6 +1745,45 @@ def p_unilateral_bras(r):
         r.attendre('.rest-mini', 'barre de repos')
 
 
+ROWING_TEMPO_JS = """() => {
+  const p = data.programmes[data.activeProgramme], xs = p?.exercises?.pull;
+  if (!xs) return 'pas de séance Pull';
+  xs.unshift({ id: 'rb1rowb', name: 'Rowing bûcheron un bras', sets: 3, tempo: '3-1-1-0', tempoGuide: true, tempoPrep: 5 });
+  save(); render(); return 'ok';
+}"""
+# Horloge de la série guidée placée à `at` ms après le départ (préparation finie), minuterie arrêtée : l'écran reste
+# à cet instant pour la capture. 3-1-1-0 en tirant : 5 s par rep, 10 reps par bras, changement de bras 5 s.
+TEMPO_A_JS = """at => { clearInterval(effortInterval); effortInterval = null;
+  if (!activeSession?.effort) return 'pas de série guidée';
+  activeSession.effort.start = Date.now() - at; updateEffortUI(); return 'ok'; }"""
+
+
+@parcours('tempo-bras', 'Séance : tempo guidé au son sur un exercice à un bras (bras gauche, changement, bras droit)', 'pratiquant')
+def p_tempo_bras(r):
+    """Rowing bûcheron un bras guidé au son (tempo 3-1-1) : ▶, préparation, les 10 reps du bras gauche, « Change de
+    bras » 5 s, les 10 reps du bras droit, puis seulement la série validée pour les deux bras et le repos."""
+    r.lancer(REALISTE)
+    r.raccourci(ROWING_TEMPO_JS, 'Rowing bûcheron un bras, tempo 3-1-1 guidé au son, en tête de la séance Pull')
+    with r.etape('demarrer', 'Séance Pull démarrée, rowing bûcheron en tête'):
+        demarrer(r, 'pull', 'Pull')
+    cle = 'Tempo guidé des deux bras'
+    r.raccourci("""() => { activeSession.exercises[0].sets.forEach(s => { s.reps = '10'; s.weight = '22'; }); persistSession(); render(); return 'ok'; }""",
+                'séries du rowing à 22 kg × 10')
+    with r.etape('preparation', '▶ : préparation du bras gauche', cle=cle):
+        r.toucher('.view.session .ex-card[data-ei="0"] .set-play', '▶ de la série 1')
+        r.attendre('.rs--effort', 'guidage au tempo')
+        r.raccourci("() => { clearInterval(effortInterval); effortInterval = null; return 'ok'; }", 'décompte arrêté pour la capture')
+    with r.etape('bras-gauche', 'Bras gauche, rep 3 sur 10', cle=cle):
+        r.raccourci(TEMPO_A_JS, 'guidage avancé à la rep 3 du bras gauche', 10_500)
+    with r.etape('changement', '« Change de bras » : 5 s, sans repos ni validation', cle=cle):
+        r.raccourci(TEMPO_A_JS, 'guidage avancé au changement de bras', 50_200)
+    with r.etape('bras-droit', 'Bras droit, rep 3 sur 10', cle=cle):
+        r.raccourci(TEMPO_A_JS, 'guidage avancé à la rep 3 du bras droit', 65_500)
+    with r.etape('valide', 'Bras droit fini : série validée pour les deux bras, le repos part', cle=cle):
+        r.raccourci(TEMPO_A_JS, 'guidage avancé à la fin du bras droit', 105_100)
+        r.attendre('.rest-mini, .sess-sheet--rest', 'repos')
+
+
 @parcours('prise', 'Prise d\'un exercice : programme, séance', 'pratiquant')
 def p_prise(r):
     """Programme › Pull › Tirage vertical prise large : prise en supination (seuls pronation et supination sont proposés,

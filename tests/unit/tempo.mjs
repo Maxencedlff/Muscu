@@ -163,4 +163,53 @@ export default function ({ test, run, assert, app, sameJSON }) {
     const free = run(`tempoClock({ start: ${t0}, tempo: [2, 0, 1, 0], conFirst: false }, ${t0 + 30_000})`);
     sameJSON(free, { phase: 'ecc', rep: 11, prepLeft: 0, phaseLeft: 2, endAt: null });
   });
+
+  test('tempoClock à deux côtés : premier bras, changement de côté de 5 s, second bras avec ses reps, puis fin', () => {
+    const t0 = 5_000_000;
+    // 1-0-1-0 en tirant : 2 s par rep ; 2 reps au premier bras, 3 au second ; changement de côté EFFORT_SWITCH_S = 5 s
+    const e = `{ start: ${t0}, tempo: [1, 0, 1, 0], reps: 2, reps2: 3, conFirst: true, sides: 2 }`;
+    const c = (now, extra = '') => run(`tempoClock({ ...${e}${extra} }, ${now})`);
+    assert.equal(run('EFFORT_SWITCH_S'), 5);
+    sameJSON(c(t0 - 1500), { side: 1, switchLeft: 0, side1Reps: null, phase: 'prep', rep: 1, prepLeft: 2, phaseLeft: 0, endAt: null });
+    const a = c(t0 + 500);
+    assert.equal(a.side, 1); assert.equal(a.phase, 'con'); assert.equal(a.rep, 1);
+    assert.equal(c(t0 + 2500).rep, 2);
+    // Fin du premier bras à t0 + 4 s : changement de côté jusqu'à t0 + 9 s, sans fin de série
+    const sw = c(t0 + 4000);
+    assert.equal(sw.phase, 'switch'); assert.equal(sw.side, 2); assert.equal(sw.switchLeft, 5); assert.equal(sw.side1Reps, 2);
+    assert.equal(c(t0 + 8100).switchLeft, 1);
+    // Second bras : rep 1 sur 3 à t0 + 9 s, fin à t0 + 15 s
+    const b = c(t0 + 9000);
+    assert.equal(b.side, 2); assert.equal(b.phase, 'con'); assert.equal(b.rep, 1); assert.equal(b.endAt, t0 + 15_000);
+    assert.equal(c(t0 + 13_500).rep, 3);
+    const end = c(t0 + 15_000);
+    assert.equal(end.phase, 'done'); assert.equal(end.side, 2); assert.equal(end.rep, 3); assert.equal(end.side1Reps, 2);
+    assert.equal(end.endAt, t0 + 15_000);
+    // Sans reps2 : les mêmes reps des deux côtés
+    assert.equal(run(`tempoClock({ start: ${t0}, tempo: [1, 0, 1, 0], reps: 2, conFirst: true, sides: 2 }, ${t0 + 13_000})`).phase, 'done');
+  });
+
+  test('tempoClock à deux côtés : premier bras arrêté tôt, reprise au second bras après l\'arrière-plan', () => {
+    const t0 = 5_000_000;
+    const e = `{ start: ${t0}, tempo: [1, 0, 1, 0], reps: 10, reps2: 10, conFirst: true, sides: 2`;
+    // « Bras suivant » après 3 reps (t0 + 6 s) : side1Reps 3, second bras après 5 s
+    const early = now => run(`tempoClock(${e}, side1Reps: 3, side2Start: ${t0 + 11_000} }, ${now})`);
+    const sw = early(t0 + 7000);
+    assert.equal(sw.phase, 'switch'); assert.equal(sw.switchLeft, 4); assert.equal(sw.side1Reps, 3);
+    assert.equal(early(t0 + 11_000).side, 2); assert.equal(early(t0 + 11_000).rep, 1);
+    assert.equal(early(t0 + 31_000).phase, 'done');
+    // Reprise au second bras, rep 4 : une préparation (pas un changement de côté), puis rep 4 du second bras
+    const back = now => run(`tempoClock(${e}, side1Reps: 10, side2Start: ${t0}, side2Prep: true, firstRep2: 4 }, ${now})`);
+    const p = back(t0 - 3000);
+    assert.equal(p.phase, 'prep'); assert.equal(p.side, 2); assert.equal(p.rep, 4); assert.equal(p.prepLeft, 3);
+    assert.equal(back(t0 + 100).rep, 4); assert.equal(back(t0 + 100).side, 2);
+    assert.equal(back(t0 + 14_000).phase, 'done', '7 reps restantes : 14 s');
+    // Reprise au premier bras, rep 6 : le second bras suit toujours
+    const first = now => run(`tempoClock(${e}, firstRep: 6 }, ${now})`);
+    assert.equal(first(t0 + 100).rep, 6); assert.equal(first(t0 + 100).side, 1);
+    assert.equal(first(t0 + 10_000).phase, 'switch');
+    // Un exercice à deux bras ne change pas : ni côté, ni changement
+    const one = run(`tempoClock({ start: ${t0}, tempo: [1, 0, 1, 0], reps: 2, conFirst: true }, ${t0 + 4000})`);
+    assert.equal(one.phase, 'done'); assert.equal(one.side, undefined);
+  });
 }

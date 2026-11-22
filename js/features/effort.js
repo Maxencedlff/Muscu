@@ -146,7 +146,8 @@ function clearEffort() {
 
 // Fin de l'effort (objectif atteint ou « Arrêter ») : durée tenue enregistrée, série validée,
 // repos calé sur la vraie fin de l'effort (si l'app revient en retard, le repos a déjà avancé)
-function finishEffort(endAt, held) {
+// opts.undoSides : série au tempo d'un exercice à un bras passée par bras (finishTempo), défait par « Annuler »
+function finishEffort(endAt, held, opts = {}) {
   if (!activeSession?.effort) return;               // déjà fini (horloge et retour au premier plan)
   const { ei, si, kind } = activeSession.effort;
   const guide = kind ? null : holdGuide(activeSession.exercises[ei]);
@@ -157,8 +158,11 @@ function finishEffort(endAt, held) {
   const prevReps = s.reps;
   s.reps = String(Math.max(1, Math.round(held)));
   Native.cancelRestEnd();
-  validateSet(ei, si, { restFrom: endAt, prevReps });
-  announce(kind === 'tempo' ? `Terminé, ${s.reps} reps` : `${guide ? guide.end : 'Terminé'}, ${fmtSeconds(s.reps)} tenues`);
+  validateSet(ei, si, { restFrom: endAt, prevReps, ...(opts.undoSides ? { undoSides: opts.undoSides } : {}) });
+  const ex = activeSession.exercises[ei], two = kind === 'tempo' && hasSide2(s);
+  const side2 = two && s.side2.done ? `, ${sideWord(ex, 2)} ${s.side2.reps}` : two ? `, au tour ${sideFem(ex) ? 'de la' : 'du'} ${sideWord(ex, 2)}` : '';
+  announce(kind !== 'tempo' ? `${guide ? guide.end : 'Terminé'}, ${fmtSeconds(s.reps)} tenues`
+    : two ? `Terminé, ${sideWord(ex, 1)} ${s.reps}${side2}` : `Terminé, ${s.reps} reps`);
 }
 
 // Bouton du bas : « Commencer » (passe la préparation ou le changement de côté), « Côté suivant »

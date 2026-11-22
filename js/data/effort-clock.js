@@ -49,21 +49,19 @@ function holdCue(guide, c) {
   return c.left != null && c.left <= 3 ? guide.last : guide.hold;
 }
 
-// Horloge d'une série guidée au tempo { start, tempo: [ecc, pause, con, haut], reps: N | null, conFirst,
-// firstRep } (firstRep : rang de la première répétition guidée depuis start, > 1 après une reprise).
-// Phases d'une répétition dans l'ordre réel du mouvement (les tirages commencent par la concentrique),
-// les phases à 0 sont sautées. Renvoie { phase: 'prep' | 'ecc' | 'bottom' | 'con' | 'top' | 'done',
-// rep, prepLeft, phaseLeft, endAt } ; fin après N répétitions (sans N : jusqu'à « Terminer »).
-function tempoClock(effort, now = Date.now()) {
-  const t = (now - effort.start) / 1000, [ecc, bottom, con, top] = effort.tempo, first = effort.firstRep || 1;
+// Horloge d'un côté d'une série guidée au tempo : départ start (fin de la préparation), reps N (null : sans fin),
+// first : rang de la première répétition guidée depuis start. Phases d'une répétition dans l'ordre réel du mouvement
+// (les tirages commencent par la concentrique), les phases à 0 sont sautées.
+function tempoRun(start, tempo, reps, conFirst, first, now) {
+  const t = (now - start) / 1000, [ecc, bottom, con, top] = tempo;
   if (t < 0) return { phase: 'prep', rep: first, prepLeft: Math.ceil(-t), phaseLeft: 0, endAt: null };
-  const order = effort.conFirst
+  const order = conFirst
     ? [['con', con], ['top', top], ['ecc', ecc], ['bottom', bottom]]
     : [['ecc', ecc], ['bottom', bottom], ['con', con], ['top', top]];
   const phases = order.map(([p, v]) => [p, v === 'X' ? 1 : v]).filter(([, d]) => d > 0);
   const repDur = phases.reduce((a, [, d]) => a + d, 0);
-  const endAt = effort.reps ? effort.start + (effort.reps - first + 1) * repDur * 1000 : null;
-  if (endAt && now >= endAt) return { phase: 'done', rep: effort.reps, prepLeft: 0, phaseLeft: 0, endAt };
+  const endAt = reps ? start + (reps - first + 1) * repDur * 1000 : null;
+  if (endAt && now >= endAt) return { phase: 'done', rep: reps, prepLeft: 0, phaseLeft: 0, endAt };
   const done = Math.floor(t / repDur), rep = first + done;
   let inRep = t - done * repDur;
   for (const [p, d] of phases) {
@@ -71,4 +69,27 @@ function tempoClock(effort, now = Date.now()) {
     inRep -= d;
   }
   return { phase: phases[0][0], rep: rep + 1, prepLeft: 0, phaseLeft: phases[0][1], endAt };
+}
+
+// Horloge d'une série guidée au tempo { start, tempo: [ecc, pause, con, haut], reps: N | null, conFirst, firstRep }
+// (firstRep : rang de la première répétition guidée depuis start, > 1 après une reprise).
+// Exercice à un bras ou une jambe (sides: 2) : les N reps du premier côté, EFFORT_SWITCH_S pour changer de côté, puis
+// les reps2 du second côté. Champs du second côté : side1Reps (reps faites au premier côté, sinon reps), side2Start
+// (début de sa première rep guidée, posé quand le premier côté s'arrête avant la fin ou après une reprise), firstRep2,
+// side2Prep (l'attente avant side2Start est une préparation après une reprise, pas un changement de côté).
+// Renvoie { phase: 'prep' | 'ecc' | 'bottom' | 'con' | 'top' | 'switch' | 'done', side, rep, prepLeft, phaseLeft,
+// switchLeft, side1Reps, endAt } (side, switchLeft et side1Reps seulement à deux côtés) ; fin après les reps du dernier côté (sans N : jusqu'à « Terminer »).
+function tempoClock(effort, now = Date.now()) {
+  const { tempo, conFirst } = effort;
+  const one = tempoRun(effort.start, tempo, effort.reps, conFirst, effort.firstRep || 1, now);
+  if (effort.sides !== 2) return one;   // un seul côté : sans side ni switchLeft
+  const base = { side: 1, switchLeft: 0, side1Reps: null };
+  if (effort.side2Start == null && one.phase !== 'done') return { ...base, ...one };
+  // Second côté : il démarre après le changement de côté, ou à side2Start
+  const s2 = effort.side2Start ?? one.endAt + EFFORT_SWITCH_S * 1000, first2 = effort.firstRep2 || 1;
+  const side1Reps = effort.side1Reps ?? effort.reps, reps2 = effort.reps2 ?? effort.reps;
+  const two = tempoRun(s2, tempo, reps2, conFirst, first2, now);
+  const out = { ...base, ...two, side: 2, side1Reps };
+  if (two.phase !== 'prep' || effort.side2Prep) return out;
+  return { ...out, phase: 'switch', prepLeft: 0, switchLeft: two.prepLeft };
 }

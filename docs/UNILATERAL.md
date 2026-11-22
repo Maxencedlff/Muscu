@@ -24,6 +24,14 @@ droit lourd, puis allégé ; l'app n'avait qu'un bloc de drop set par série et 
   « single leg » (« Élévation latérale à un bras », « Leg extension unilatérale »). Bras ou jambe selon le nom.
 - Seulement en répétitions. Les maintiens d'un côté puis de l'autre (gainage latéral) passent par le chrono, qui
   enchaîne déjà les deux côtés (`BOTH_SIDES_RE`, js/data/effort-clock.js).
+- **Tempo guidé au son** (22/11, séance de Maxence sur le rowing bûcheron : le guidage comptait un seul bras puis
+  lançait le repos) : préparation, les reps du premier bras (« Bras gauche · Rep 3 sur 10 »), « Change de bras » 5 s
+  (tic, vibration, annonce VoiceOver), les reps du second bras (ses reps cibles : `side2.reps` si la série est notée par
+  bras, sinon les mêmes), puis la série validée pour les deux bras et le repos. « Bras suivant » au premier bras garde
+  les reps faites et passe au second ; « Arrêter » au second termine (sans rep complète, le second bras reste à noter).
+  Mêmes reps des deux côtés : une ligne, comme avant ; sinon tout l'exercice passe par bras (`exSides`), « Annuler »
+  le remet. L'arrière-plan reprend au même bras et à la même rep. Horloge : `tempoClock` (sides: 2), js/data/effort-clock.js ;
+  écran : js/features/effort-tempo.js ; tests : `tests/unit/tempo.mjs`, `tests/unit/tempo-sons.mjs`, `tests/test_tempo_bras.py`.
 - Un exercice à deux bras ne change pas : aucune ligne, aucun choix de menu en plus.
 
 ## Décisions

@@ -133,6 +133,7 @@ function validateSide2(ds) {
   delete x.auto;
   x.reps = String(reps);
   x.done = true;
+  rirRearm(ei, si);   // le sélecteur RIR apparaît sous le bras droit : il ignore les touchers un instant
   haptic();
   afterPaint(validationSound);
   // Le repos part après le dernier bloc du second côté seulement (restAfterStep, js/features/session-intensif.js)
