@@ -308,4 +308,30 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     const ui = read('js/features/coach-poster-ui.js');
     assert.ok(/ok = \(await opened\) !== false/.test(ui) && /if \(!ok && cposter === mine\) cposter = null;/.test(ui), 'cposter libéré si refusé');
   });
+  test('affiche du coach : mises en page à l\'essai « hero » et « photo », aux couleurs de l\'app en sombre ; défaut inchangé', () => {
+    const drawL = (layout, format = 'story') => {
+      const c = fakeCanvas(), saved = app.document.createElement;
+      app.document.createElement = () => { const x = fakeCanvas(c.ops); x.id = 'cover'; return x; };
+      try { app.drawCoachPosterArt(c, model({ specialty: 'Force' }), { photo: img('photo'), icon: img('icon', 192, 192), body: img('body', 1152, 2520) }, { format, layout }); }
+      finally { app.document.createElement = saved; }
+      return c;
+    };
+    for (const format of ['story', 'square']) {
+      sameJSON(drawL(undefined, format).ops, draw(model({ specialty: 'Force' }), format).ops, `${format} : sans layout, la mise en page de l'app`);
+      sameJSON(drawL('inconnue', format).ops, drawL('figure', format).ops, `${format} : layout inconnu, celle de l'app`);
+      const hero = drawL('hero', format), photo = drawL('photo', format), H = format === 'square' ? 1080 : 1920;
+      assert.equal(count(hero, 'body'), 1, `${format} hero : le personnage en fond`);
+      assert.equal(count(photo, 'body'), 0, `${format} photo : sans personnage`);
+      for (const [n, c] of [['hero', hero], ['photo', photo]]) {
+        const t = c.ops.filter(o => o.op === 'text');
+        assert.ok(t.every(o => !/Anton/.test(o.font)), `${format} ${n} : SF Pro partout, pas l'Anton`);
+        assert.ok(t.every(o => o.fill !== '#000000'), `${format} ${n} : aucun texte noir (plus d'aplat orange)`);
+        assert.ok(!c.ops.some(o => o.op === 'fill' && o.fill === '#FF7A1A' && c.ops.some(r => r.op === 'text' && r.fill === '#000000')), `${format} ${n} : pas de bloc orange`);
+        assert.ok(['Nouvelle', 'coach', 'Léa Martin', 'Force', 'K7M2-QX9P-R4TD'].every(x => t.some(o => o.text.trim() === x)), `${format} ${n} : titre, nom, spécialité, code`);
+        assert.ok(!t.some(o => /@lea|Carte pro/.test(o.text)), `${format} ${n} : ni pseudo ni badge`);
+        if (format === 'story') assert.ok(t.every(o => o.y > 250 && o.y < 1670), `${format} ${n} : textes dans la zone sûre d'Instagram`);
+        assert.ok(t.every(o => o.y > 0 && o.y < H), `${format} ${n} : rien hors de l'image`);
+      }
+    }
+  });
 }
