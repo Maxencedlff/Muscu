@@ -1975,6 +1975,86 @@ test('Diagnostic du son : la vraie fin de repos confiée au module (3-2-1 puis G
   assert.equal(await c.runSoundSelfTest(), null, 'coquille sans selfTest : rien');
 });
 
+// Cas réel de la build 91 (22/11/2026, iPhone de Maxence, en séance) : moteur arrêté par une reconfiguration à
+// 15:03:03, son de 15:03:06 jamais sorti, et pourtant tout l'état relu disait « joué »
+const BUILD91_JOURNAL = ['2026-11-22T14:47:35Z interruption (début)', '2026-11-22T14:47:35Z moteur reconfiguré par iOS (en marche : false)',
+  '2026-11-22T14:47:55Z interruption (fin)', '2026-11-22T14:47:56Z moteur reconfiguré par iOS (en marche : false)',
+  '2026-11-22T14:51:06Z moteur reconfiguré par iOS (en marche : true)', '2026-11-22T15:03:03Z moteur reconfiguré par iOS (en marche : false)'];
+
+test('son, cas de la build 91 : sans confirmation d\'iOS, jamais « joué » ; son non confirmé → panne, GO rejoué avec remise en état', async () => {
+  const sentAt = Date.parse('2026-11-22T15:03:06Z');
+  const base = { ...SOUND_OK, journal: BUILD91_JOURNAL };
+  const { c } = soundContext();
+  // État relu « sain » (catégorie, session, moteur) : seul lastPlay dit la vérité
+  assert.equal(c.soundProblems(base, sentAt).length, 0, 'build 91 : rien ne permettait de voir la panne');
+  const muet = { ...base, lastPlay: { at: '2026-11-22T15:03:06Z', via: 'moteur', played: false, detail: 'sortie muette (aucune confirmation d\'iOS)' } };
+  sameJSON(Array.from(c.soundProblems(muet, sentAt)), ['son pas joué (sortie muette (aucune confirmation d\'iOS))']);
+  assert.equal(c.soundProblems({ ...base, lastPlay: { at: '2026-11-22T15:03:06Z', via: 'repli', played: true } }, sentAt).length, 0, 'repli réussi : le son est sorti');
+  assert.equal(c.soundProblems({ ...base, lastPlay: { at: '2026-11-22T15:03:06Z', via: 'son système' } }, sentAt).length, 1, 'son système seul : signalé');
+  assert.equal(c.soundProblems({ ...base, lastPlay: { at: '2026-11-22T14:00:00Z', via: 'moteur', played: false } }, sentAt).length, 0, 'ancienne lecture : ne compte pas');
+
+  // Coquille qui confirme : GO non confirmé → rejoué une fois avec « reset » ; lastSoundCheck ne dit pas « joué »
+  const sent = [];
+  let state = muet;
+  const box = { data: { soundOn: true, duckMusic: false }, navigator: {}, document: { addEventListener() {} }, Date: class extends Date { static now() { return sentAt; } },
+                setTimeout: (f) => { f(); return 1; },
+                Native: { haptic: () => true, sound: { available: true, canDuck: true, canSelfTest: true,
+                  play: (notes, alert, duck, reset) => { sent.push({ duck, reset }); }, diagnostics: async () => state } } };
+  const ctx = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8') + '\nthis.playMelody = playMelody; this.lastCheck = () => lastSoundCheck;', ctx);
+  const go = await ctx.playMelody('restGo');
+  sameJSON(sent, [{ duck: false, reset: false }, { duck: false, reset: true }], 'GO rejoué avec remise en état');
+  assert.equal(go.ok, false, 'notification de fin de repos gardée en filet');
+  assert.equal(ctx.lastCheck().played, false);
+  state = { ...base, lastPlay: { at: '2026-11-22T15:03:06Z', via: 'moteur', played: true } };
+  await ctx.playMelody('validation');
+  assert.equal(ctx.lastCheck().played, true, 'confirmé par iOS');
+  state = base;   // build sans lastPlay
+  await ctx.playMelody('validation');
+  assert.equal(ctx.lastCheck().played, null, 'build sans confirmation : inconnu, pas « joué »');
+});
+
+test('son, cas de la build 91 : relu après la fin du son et le délai de confirmation (coquille qui confirme)', async () => {
+  const delays = [];
+  const box = { data: { soundOn: true }, navigator: {}, document: { addEventListener() {} }, Date,
+                setTimeout: (f, ms) => { delays.push(ms); f(); return 1; },
+                Native: { haptic: () => true, sound: { available: true, canDuck: true, canSelfTest: true, play() {}, diagnostics: async () => SOUND_OK } } };
+  const ctx = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8') + '\nthis.playMelody = playMelody;', ctx);
+  await ctx.playMelody('restGo');   // 0,59 s de son
+  assert.ok(delays.at(-1) >= 350 + 590 + 900 - 1, `relu après la confirmation ${delays}`);
+  box.Native.sound.canSelfTest = false; delays.length = 0;
+  await ctx.playMelody('restGo');
+  assert.equal(delays.at(-1), 350, 'build 68-69 : délai d\'avant');
+});
+
+test('Diagnostic du son, cas de la build 91 : « Pas joué » quand iOS ne confirme pas, même si le mélangeur a rendu du son ; repli compté joué', () => {
+  const c = soundReportContext();
+  const r = JSON.parse(JSON.stringify(SELF_OK));
+  r.steps[3] = { ...r.steps[3], played: false, via: 'moteur' };              // niveau mesuré −11,6 dB, sortie muette
+  r.steps[2] = { ...r.steps[2], peakDb: -160, buffers: 0, played: true, via: 'repli' };   // moteur à l'arrêt, repli entendu
+  const rep = c.soundDiagReport(r);
+  sameJSON(Array.from(rep.rows.find(x => x[0] === 'GO')), ['GO', 'Pas joué', false]);
+  sameJSON(Array.from(rep.rows.find(x => x[0] === 'Décompte 1')), ['Décompte 1', 'Joué', true]);
+  assert.equal(rep.title, 'L\'app n\'a pas joué le GO');
+  assert.ok(rep.text.includes('GO : pas joué') && rep.text.includes('confirmé non') && rep.text.includes('par repli'), rep.text);
+});
+
+test('Diagnostic du son (builds 68-69 et suivantes) : « Dernier son » ne dit « joué » que si iOS l\'a confirmé', async () => {
+  const at = Date.parse('2026-11-22T15:03:09Z');
+  const make = check => {
+    const ctx = vm.createContext({ registerActions() {}, Date, Math, Number, Array, String, JSON, data: {}, lastSoundCheck: check,
+      Native: { sound: { diagnostics: async () => ({ ...SOUND_OK, journal: BUILD91_JOURNAL }) }, notificationPermission: async () => 'granted' } });
+    vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/features/sound-diagnostic.js'), 'utf8') + '\nthis.soundStateText = soundStateText;', ctx);
+    return ctx.soundStateText();
+  };
+  assert.ok((await make({ at, ok: true, reasons: [], played: null })).includes('envoyé, lecture non confirmée par iOS'));
+  assert.ok((await make({ at, ok: true, reasons: [], played: true, via: 'moteur' })).includes('joué (confirmé par iOS)'));
+  assert.ok((await make({ at, ok: true, reasons: [], played: true, via: 'repli' })).includes('joué par le repli'));
+  const ko = await make({ at, ok: false, reasons: ['son pas joué (sortie muette)'], played: false });
+  assert.ok(ko.includes('en panne : son pas joué') && !/· joué/.test(ko), ko);
+});
+
 // Rapport du diagnostic (js/features/sound-diagnostic.js), fonction pure
 function soundReportContext() {
   const c = vm.createContext({ registerActions() {}, Date, Math, Number, Array, String, JSON });

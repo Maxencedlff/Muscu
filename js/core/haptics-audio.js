@@ -165,11 +165,25 @@ function soundProblems(diag, sinceMs = 0) {
   if (diag.engineRunning === false) reasons.push('moteur arrêté');
   const fails = (diag.journal || []).filter(l => /échec/.test(l) && Date.parse(String(l).slice(0, 20)) >= sinceMs - 1000);
   if (fails.length) reasons.push(fails[fails.length - 1].replace(/^\S+ /, ''));
+  // Coquille du 21/11/2026 et suivantes : lecture confirmée par iOS (lastPlay). Repli réussi : le son est sorti.
+  const lp = soundPlayOf(diag, sinceMs);
+  if (lp?.played === false) reasons.push(`son pas joué (${lp.detail || 'sans confirmation'})`);
+  else if (lp?.via === 'son système') reasons.push('seul le son de secours a joué');
   return reasons;
 }
 
+// Dernière lecture notée par le module pour un son envoyé à sinceMs ou après (null : build sans lastPlay)
+function soundPlayOf(diag, sinceMs = 0) {
+  const lp = diag?.lastPlay;
+  return lp && Date.parse(lp.at) >= sinceMs - 1000 ? lp : null;
+}
+
 // Relit l'état du module après un son ; résout { ok, reasons } (ok vrai si rien à relire : build ancienne)
-function checkNativeSound(sentAt) {
+// Coquille qui confirme la lecture : relu après la fin du son et le délai de confirmation d'iOS (SoundPlugin.swift,
+// PLAY_CONFIRM_SLACK 0,8 s), pour lire « joué » ou « pas joué » plutôt qu'un son encore en route
+const SOUND_CONFIRM_WAIT = 900;   // ms
+function checkNativeSound(sentAt, durationMs = 0) {
+  const wait = SOUND_CHECK_DELAY + (Native.sound?.canSelfTest ? durationMs + SOUND_CONFIRM_WAIT : 0);
   return new Promise(resolve => {
     if (typeof Native.sound?.diagnostics !== 'function' || !Native.sound.canDuck) { resolve({ ok: true, reasons: [] }); return; }
     setTimeout(async () => {
@@ -177,9 +191,12 @@ function checkNativeSound(sentAt) {
       const reasons = soundProblems(diag, sentAt);
       const ok = !!diag && reasons.length === 0;
       if (!ok) soundNeedsReset = true;
-      lastSoundCheck = { at: Date.now(), ok, reasons: diag ? reasons : ['diagnostics sans réponse'], diag };
+      // played : true seulement si iOS a confirmé la lecture ; null sur une build qui ne le dit pas
+      const lp = soundPlayOf(diag, sentAt);
+      lastSoundCheck = { at: Date.now(), ok, reasons: diag ? reasons : ['diagnostics sans réponse'], diag,
+        played: lp ? lp.played === true : null, via: lp?.via || null };
       resolve({ ok, reasons });
-    }, SOUND_CHECK_DELAY);
+    }, wait);
   });
 }
 
@@ -199,7 +216,8 @@ function playNotes(raw, name = null, { replay = true } = {}) {
     const reset = forced && !!Native.sound.canSelfTest;
     const sentAt = Date.now();
     Native.sound.play(notes, true, wantsDuck || (forced && !reset), reset);
-    return checkNativeSound(sentAt).then(res => {
+    const durationMs = 1000 * Math.max(0, ...notes.map(n => n.start + n.dur));
+    return checkNativeSound(sentAt, durationMs).then(res => {
       // GO de fin de repos perdu : rejoué une fois, module remis en état par le duck forcé
       if (!res.ok && replay && name === 'restGo') return playMelody(name, { replay: false });
       return res;

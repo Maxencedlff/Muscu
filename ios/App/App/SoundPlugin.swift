@@ -22,9 +22,10 @@ import Capacitor
 /// Robustesse : iOS peut couper la session (appel, Siri, alarme : interruptionNotification), changer la
 /// sortie (écouteurs débranchés : routeChange, AVAudioEngineConfigurationChange, moteur arrêté) ou
 /// relancer tout son service audio (mediaServicesWereReset : moteur et nœuds deviennent inutilisables).
-/// Les deux premiers cas sont rattrapés au son suivant (session réactivée, moteur relancé, catégorie refixée
-/// si un autre l'a changée : build 69) ; le
-/// troisième reconstruit moteur et lecteur. Chaque incident est noté dans un petit journal (console
+/// Depuis la build du 21/11/2026 : moteur arrêté par une reconfiguration → moteur et lecteur recréés au format de
+/// sortie actuel et relancés tout de suite (son coupé rejoué) ; fin d'interruption → session réactivée et moteur
+/// relancé sans attendre ; chaque son attend la confirmation d'iOS qu'il est sorti (.dataPlayedBack), sinon il est
+/// rejoué par AVAudioPlayer (repli) et noté « pas joué » (lastPlay). Le troisième cas reconstruit moteur et lecteur. Chaque incident est noté dans un petit journal (console
 /// Xcode, et `Capacitor.Plugins.MdlfSound.diagnostics()` depuis l'inspecteur web de Safari).
 ///
 /// Réactivité : activer une session audio est bloquant (Apple le déconseille sur le fil principal) et
@@ -63,6 +64,7 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private enum SoundError: Error {
         case buffer
+        case engineStopped   // moteur toujours à l'arrêt après la relance
     }
 
     /// Un son du diagnostic : joué à « at » secondes du début du test, par le chemin réel (playNow)
@@ -105,6 +107,19 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
     private var meterEngine: AVAudioEngine?        // moteur qui porte la prise d'écoute
     private var filePlayer: AVAudioPlayer?         // gardé pendant la lecture du fichier
     private var selfTestRunning: Bool = false
+
+    // Lecture confirmée (diagnostic de la build 91, 22/11/2026 : moteur arrêté par une reconfiguration à
+    // 15:03:03, relancé au son de 15:03:06 qui n'est jamais sorti, alors que tout l'état relu disait « joué »).
+    // Chaque son attend la confirmation d'iOS (scheduleBuffer, .dataPlayedBack : données réellement remises à la
+    // sortie). Sans elle à temps, ou coupé avant sa fin : son rejoué par AVAudioPlayer (repli), graphe du moteur
+    // recréé au son suivant, et lastPlay dit « pas joué ». Le JS ne dit plus « joué » sans cette confirmation.
+    private var playSeq: Int = 0                    // numéro du dernier son lancé ; les confirmations plus anciennes sont ignorées
+    private var lastPlay: [String: Any]?            // { at, via, played (absent tant qu'iOS n'a pas répondu), detail? }
+    private var graphStale: Bool = false            // moteur et lecteur à recréer avant le prochain son
+    private var fallbackPlayer: AVAudioPlayer?
+    private var activeBeforeInterruption: Bool = false
+    private var stepPlays: [Int: [String: Any]] = [:]   // diagnostic : dernier état de lecture de chaque son testé
+    private static let PLAY_CONFIRM_SLACK: TimeInterval = 0.8   // latence de sortie (Bluetooth compris) avant de conclure
 
     // Tout le travail audio (session, moteur, tampons, état ci-dessus) se fait sur cette file, jamais
     // sur le fil principal ; les notifications d'iOS y sont renvoyées.
@@ -205,26 +220,115 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: - Lecture (file audio)
 
     private func playNow(_ notes: [Note], duck: Bool) {
+        let buffer: AVAudioPCMBuffer
+        do {
+            buffer = try render(notes)
+        } catch {
+            logError("lecture", error)
+            return
+        }
+        let duration: TimeInterval = Double(buffer.frameLength) / format.sampleRate
         do {
             try prepare(duck: duck)
             if meterOn { installMeterTap() }
-            let buffer: AVAudioPCMBuffer = try render(notes)
-            player.scheduleBuffer(buffer, at: nil, options: .interrupts, completionHandler: nil)
-            // Sans effet si le lecteur joue déjà ; indispensable après un moteur relancé
-            player.play()
-            // Tout son joué pendant un duck repousse le retour de la musique après sa propre fin
-            // (.interrupts : le dernier son programmé est celui qui finit le dernier)
-            let duration: TimeInterval = Double(buffer.frameLength) / format.sampleRate
-            lastBuffer = buffer
-            lastBufferEnd = Date().addingTimeInterval(duration)
-            if ducking { scheduleUnduck(after: duration + Self.DUCK_HOLD) }
-            scheduleRelease()
+            startPlayback(buffer, duration: duration)
         } catch {
             logError("lecture", error)
-            // Tout est repris au son suivant : session réactivée, moteur relancé, musique rendue
+            // Session réactivée et moteur recréé au son suivant ; celui-ci part par le repli, tout de suite
             sessionActive = false
-            if ducking { restoreMix() }
+            graphStale = true
+            playFallback(buffer, reason: "moteur indisponible")
         }
+        // Tout son joué pendant un duck repousse le retour de la musique après sa propre fin
+        // (.interrupts : le dernier son programmé est celui qui finit le dernier)
+        lastBuffer = buffer
+        lastBufferEnd = Date().addingTimeInterval(duration)
+        if ducking { scheduleUnduck(after: duration + Self.DUCK_HOLD) }
+        scheduleRelease()
+    }
+
+    /// Son programmé sur le moteur (qui tourne : vérifié par startEngine) et attente de la confirmation d'iOS
+    private func startPlayback(_ buffer: AVAudioPCMBuffer, duration: TimeInterval) {
+        playSeq += 1
+        let id: Int = playSeq
+        let started: Date = Date()
+        setLastPlay(["at": ISO8601DateFormatter().string(from: started), "via": "moteur"])
+        player.scheduleBuffer(buffer, at: nil, options: .interrupts, completionCallbackType: .dataPlayedBack) {
+            [weak self] (_: AVAudioPlayerNodeCompletionCallbackType) -> Void in
+            guard let self = self else { return }
+            self.audioQueue.async { [weak self] () -> Void in
+                guard let self = self else { return }
+                self.playFinished(id, buffer: buffer, started: started, duration: duration, timedOut: false)
+            }
+        }
+        // Sans effet si le lecteur joue déjà ; indispensable après un moteur relancé
+        player.play()
+        audioQueue.asyncAfter(deadline: .now() + duration + Self.PLAY_CONFIRM_SLACK) { [weak self] () -> Void in
+            guard let self = self else { return }
+            self.playFinished(id, buffer: buffer, started: started, duration: duration, timedOut: true)
+        }
+    }
+
+    /// Confirmation d'iOS, ou délai dépassé. Joué seulement si le moteur tourne encore et que le son est allé à
+    /// son terme (un lecteur arrêté rend aussi la main, mais trop tôt) ; sinon repli et graphe à recréer.
+    private func playFinished(_ id: Int, buffer: AVAudioPCMBuffer, started: Date, duration: TimeInterval, timedOut: Bool) {
+        // Son remplacé par un plus récent (.interrupts), ou déjà conclu
+        guard id == playSeq, var play = lastPlay, play["played"] == nil else { return }
+        let elapsed: TimeInterval = Date().timeIntervalSince(started)
+        let played: Bool = !timedOut && engine.isRunning && elapsed >= duration * 0.8
+        play["played"] = played
+        if !played {
+            let why: String = timedOut ? "sortie muette (aucune confirmation d'iOS)" : "son coupé, moteur arrêté"
+            play["detail"] = why
+            remember("échec lecture : \(why)")
+            graphStale = true
+        }
+        setLastPlay(play)
+        if !played { playFallback(buffer, reason: timedOut ? "sortie muette" : "son coupé") }
+    }
+
+    /// Repli : le même son, rendu en WAV et lu par AVAudioPlayer (chemin indépendant du moteur), sinon un son
+    /// système. lastPlay le dit (via « repli » ou « son système »).
+    private func playFallback(_ buffer: AVAudioPCMBuffer, reason: String) {
+        playSeq += 1   // toute confirmation encore attendue du moteur est caduque
+        var play: [String: Any] = ["at": ISO8601DateFormatter().string(from: Date()), "via": "repli", "detail": reason]
+        if let data = wavData(buffer), let p = try? AVAudioPlayer(data: data), p.prepareToPlay(), p.play() {
+            fallbackPlayer = p
+            play["played"] = true
+            remember("repli AVAudioPlayer (\(reason))")
+        } else {
+            // Son système : obéit au bouton silencieux, mieux que rien
+            AudioServicesPlaySystemSound(1_007)
+            play["via"] = "son système"
+            remember("repli son système (\(reason)) : AVAudioPlayer refusé")
+        }
+        setLastPlay(play)
+    }
+
+    /// État de lecture du dernier son, noté aussi pour le son du diagnostic en cours
+    private func setLastPlay(_ play: [String: Any]) {
+        lastPlay = play
+        guard meterOn else { return }
+        meterLock.lock()
+        let i: Int = meterStep
+        meterLock.unlock()
+        if i >= 0 { stepPlays[i] = play }
+    }
+
+    /// Tampon mono flottant → WAV PCM 16 bits (AVAudioPlayer(data:) lit le WAV en mémoire)
+    private func wavData(_ buffer: AVAudioPCMBuffer) -> Data? {
+        guard let channels = buffer.floatChannelData else { return nil }
+        let n: Int = Int(buffer.frameLength)
+        let rate: UInt32 = UInt32(format.sampleRate)
+        var d: Data = Data()
+        func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { (b: UnsafeRawBufferPointer) -> Void in d.append(contentsOf: b) } }
+        func u16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { (b: UnsafeRawBufferPointer) -> Void in d.append(contentsOf: b) } }
+        d.append(contentsOf: Array("RIFF".utf8)); u32(UInt32(36 + n * 2))
+        d.append(contentsOf: Array("WAVEfmt ".utf8)); u32(16); u16(1); u16(1); u32(rate); u32(rate * 2); u16(2); u16(16)
+        d.append(contentsOf: Array("data".utf8)); u32(UInt32(n * 2))
+        let out: UnsafeMutablePointer<Float> = channels[0]
+        for i in 0..<n { u16(UInt16(bitPattern: Int16(max(-1, min(1, out[i])) * 32_767))) }
+        return d
     }
 
     /// Catégorie, session et moteur prêts à jouer. Le moteur arrêté par iOS (interruption, autre sortie
@@ -254,6 +358,13 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
             try session.setActive(true)
             sessionActive = true
         }
+        try startEngine()
+    }
+
+    /// Moteur prêt à rendre : graphe recréé s'il est périmé (format de sortie changé par iOS : relancer l'ancien
+    /// moteur peut réussir sans que rien ne sorte), lecteur branché, moteur démarré
+    private func startEngine() throws {
+        if graphStale { resetGraph() }
         if !attached {
             engine.attach(player)
             engine.connect(player, to: engine.mainMixerNode, format: format)
@@ -263,6 +374,19 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
             engine.prepare()
             try engine.start()
         }
+        guard engine.isRunning else { throw SoundError.engineStopped }
+    }
+
+    /// Moteur et lecteur neufs, branchés au format de sortie actuel (la prise d'écoute du diagnostic part avec
+    /// l'ancien moteur et se repose au son suivant)
+    private func resetGraph() {
+        if meterEngine === engine { meterEngine?.mainMixerNode.removeTap(onBus: 0); meterEngine = nil }
+        if engine.isRunning { engine.stop() }
+        engine = AVAudioEngine()
+        player = AVAudioPlayerNode()
+        attached = false
+        graphStale = false
+        remember("moteur audio recréé")
     }
 
     /// Remise en état demandée par le JS (play, reset) : moteur arrêté, session à réactiver, catégorie
@@ -390,12 +514,30 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
         let why: String = rawReason == 1 ? ", app suspendue par iOS" : rawReason == 3 ? ", sortie déconnectée" : ""
         remember(began ? "interruption (début\(why))" : "interruption (fin)")
         if began { noteIncident("interruption", "Interruption (appel, Siri, alarme…\(why))") }
-        sessionActive = false
         if began {
+            activeBeforeInterruption = sessionActive
+            sessionActive = false
             if ducking { restoreMix() }
             // Moteur arrêté nous-mêmes (Apple, « Handling audio interruptions ») : isRunning dit vrai, et
             // prepare le relance proprement au son suivant au lieu de croire qu'il tourne encore
             if engine.isRunning { engine.stop() }
+            return
+        }
+        // Fin : session réactivée et moteur (recréé) relancé tout de suite si la séance jouait des sons avant,
+        // au lieu d'attendre le son suivant ; un échec est repris par prepare au son suivant
+        sessionActive = false
+        guard activeBeforeInterruption else { return }
+        activeBeforeInterruption = false
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+            sessionActive = true
+            graphStale = true
+            try startEngine()
+            scheduleRelease()
+        } catch {
+            logError("relance après interruption", error)
+            sessionActive = false
+            graphStale = true
         }
     }
 
@@ -425,20 +567,24 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
     private func configurationChanged() {
         let running: Bool = engine.isRunning
         remember("moteur reconfiguré par iOS (en marche : \(running))")
-        guard sessionActive, attached, !running else { return }
+        guard !running else { return }
+        // Moteur arrêté : son graphe suit l'ancien format de sortie, il est recréé (tout de suite si la session
+        // est active, sinon au son suivant). Un son coupé en route est rejoué, avec sa confirmation.
+        graphStale = true
+        guard sessionActive else { return }
         noteIncident("reconfiguration", "Moteur audio arrêté par iOS (reconfiguration), relancé")
         do {
-            engine.prepare()
-            try engine.start()
+            try startEngine()
             if let buffer = lastBuffer, Date() < lastBufferEnd {
-                player.scheduleBuffer(buffer, at: nil, options: .interrupts, completionHandler: nil)
-                lastBufferEnd = Date().addingTimeInterval(Double(buffer.frameLength) / format.sampleRate)
+                let duration: TimeInterval = Double(buffer.frameLength) / format.sampleRate
+                lastBufferEnd = Date().addingTimeInterval(duration)
                 remember("son coupé par la reconfiguration : rejoué")
+                startPlayback(buffer, duration: duration)
             }
-            player.play()
         } catch {
             logError("relance après reconfiguration", error)
             sessionActive = false   // tout est repris au son suivant
+            graphStale = true
         }
     }
 
@@ -456,6 +602,8 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
         engine = AVAudioEngine()
         player = AVAudioPlayerNode()
         attached = false
+        graphStale = false
+        playSeq += 1
         categorySet = false
         ducking = false
         sessionActive = false
@@ -485,6 +633,7 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
             "outputVolume": Double(session.outputVolume),
             "sampleRate": session.sampleRate,
         ]
+        if let play = lastPlay { state["lastPlay"] = play }
         if let incident = lastIncident { state["lastIncident"] = incident }
         return state
     }
@@ -598,6 +747,7 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
         meterStep = -1
         meterLock.unlock()
         meterOn = true
+        stepPlays = [:]
         var ducked: [Bool] = Array(repeating: false, count: steps.count)   // file audio seulement
         var running: [Bool] = Array(repeating: false, count: steps.count)
         for (i, step) in steps.enumerated() {
@@ -614,7 +764,8 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
         let end: Double = steps.map { (s: TestStep) -> Double in
             s.at + (s.notes.map { (n: Note) -> Double in n.start + n.dur }.max() ?? 0)
         }.max() ?? 0
-        audioQueue.asyncAfter(deadline: .now() + end + 0.5) { [weak self] () -> Void in
+        // Après la confirmation d'iOS du dernier son (PLAY_CONFIRM_SLACK) et son éventuel repli
+        audioQueue.asyncAfter(deadline: .now() + end + Self.PLAY_CONFIRM_SLACK + 0.4) { [weak self] () -> Void in
             guard let self = self else { return }
             self.meterOn = false
             self.meterEngine?.mainMixerNode.removeTap(onBus: 0)
@@ -626,14 +777,18 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
             var results: [[String: Any]] = []
             for (i, step) in steps.enumerated() {
                 let m: StepMeter = i < meters.count ? meters[i] : StepMeter()
-                results.append([
+                var entry: [String: Any] = [
                     "name": step.name,
                     "peakDb": Self.clampDb(Self.toDb(m.peak)),
                     "rmsDb": Self.clampDb(Self.toDb(m.rms)),
                     "buffers": m.buffers,
                     "ducking": ducked[i],
                     "engineRunning": running[i],
-                ])
+                    // Chemin pris (moteur, repli, son système) et confirmation d'iOS (absente : pas de réponse)
+                    "via": self.stepPlays[i]?["via"] as? String ?? "moteur",
+                ]
+                if let played = self.stepPlays[i]?["played"] as? Bool { entry["played"] = played }
+                results.append(entry)
             }
             done(results)
         }

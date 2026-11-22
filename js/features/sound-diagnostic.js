@@ -39,6 +39,14 @@ function soundHeard(peakDb, buffers) {
   return buffers !== 0 && typeof peakDb === 'number' && peakDb > SOUND_HEARD_DB;
 }
 
+// Un son du test : la confirmation d'iOS l'emporte (played faux : rien n'est sorti, même si le mélangeur a rendu
+// du son) ; joué par le repli ou le son système : seulement si iOS l'a accepté ; sinon le niveau mesuré
+function soundStepHeard(s) {
+  if (s.played === false) return false;
+  if (s.via && s.via !== 'moteur') return s.played === true;
+  return soundHeard(s.peakDb, s.buffers);
+}
+
 function soundIncidentTime(iso) {
   const t = Date.parse(iso);
   return Number.isFinite(t) ? new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -81,7 +89,7 @@ function soundDiagReport(res, ctx = {}) {
   const after = res?.after || {};
   const file = res?.file || {};
   const fileHeard = !!file.played && soundHeard(file.peakDb);
-  const steps = (res?.steps || []).map(s => ({ ...s, heard: soundHeard(s.peakDb, s.buffers) }));
+  const steps = (res?.steps || []).map(s => ({ ...s, heard: soundStepHeard(s) }));
   const missing = steps.filter(s => !s.heard);
   let ok = false, title, detail = 'Le problème vient de l\'app, pas de ton iPhone.';
   let action = 'Ferme l\'app, rouvre‑la, puis refais le test.';
@@ -136,7 +144,7 @@ function soundDiagReport(res, ctx = {}) {
     `Volume : ${vol}`,
     `Mode silencieux : ${res?.silentMode || 'unknown'} (estimé, son système fini en ${Math.round(res?.silentMs ?? -1)} ms)`,
     `Son enregistré : ${file.played ? `pic ${fmtDb(file.peakDb)}, moyen ${fmtDb(file.avgDb)}, ${Math.round(file.ms || 0)} ms` : `non joué (${file.error || '?'})`}`,
-    ...steps.map(s => `${s.name} : ${s.heard ? 'joué' : 'pas joué'}, pic ${fmtDb(s.peakDb)}, RMS ${fmtDb(s.rmsDb)}, ${s.buffers} tampons, duck ${yes(s.ducking)}, moteur ${yes(s.engineRunning)}`),
+    ...steps.map(s => `${s.name} : ${s.heard ? 'joué' : 'pas joué'}, pic ${fmtDb(s.peakDb)}, RMS ${fmtDb(s.rmsDb)}, ${s.buffers} tampons, duck ${yes(s.ducking)}, moteur ${yes(s.engineRunning)}, par ${s.via || '?'}, confirmé ${yes(s.played)}`),
     `Autre app qui joue : ${yes(st.otherAudioPlaying)} · demande de silence : ${yes(st.secondaryAudioShouldBeSilencedHint)}`,
     `Session avant : ${session(st)}`,
     `Session après : ${session(after)}`,
@@ -165,7 +173,12 @@ async function soundStateText() {
       `Session active : ${yes(diag.sessionActive)} · moteur : ${yes(diag.engineRunning)} · autre son : ${yes(diag.otherAudioPlaying)}`);
   } else lines.push('État de la lecture iOS illisible');
   if (lastSoundCheck) {
-    lines.push(`Dernier son : ${new Date(lastSoundCheck.at).toLocaleTimeString('fr-FR')} · ${lastSoundCheck.ok ? 'joué' : 'en panne : ' + lastSoundCheck.reasons.join(', ')}`);
+    // « joué » seulement si iOS l'a confirmé : la build 91 disait « joué » 3 s après l'arrêt du moteur, sans rien de sorti
+    const c = lastSoundCheck;
+    const state = !c.ok ? `en panne : ${c.reasons.join(', ')}`
+      : c.played === true ? (c.via === 'repli' ? 'joué par le repli' : 'joué (confirmé par iOS)')
+        : 'envoyé, lecture non confirmée par iOS';
+    lines.push(`Dernier son : ${new Date(c.at).toLocaleTimeString('fr-FR')} · ${state}`);
   }
   const journal = diag?.journal || [];
   lines.push(journal.length ? 'Journal :' : 'Journal : vide', ...journal.slice(-12));
