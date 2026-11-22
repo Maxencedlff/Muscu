@@ -50,9 +50,18 @@ function coachWord(key, form) {
 
 // ── Formes gardées sur l'appareil ───────────────────────────
 
-const coachForms = { at: new Map(), loading: new Set(), server: true };   // uid → date de lecture ; lectures en cours
+const coachForms = { at: new Map(), loading: new Map(), server: true, memo: null };   // uid → date de lecture ; lecture en cours (promesse) ; copie lue
+// Lu à chaque texte affiché : une copie en mémoire (memo) évite de relire localStorage ; vidée par coachFormSave et au
+// changement de compte. Rendu : une copie (le modifier passe par coachFormSave)
 function coachFormStore() {
   const uid = typeof account === 'object' ? account.user?.id : null;
+  const m = coachForms.memo;
+  if (m && m.userId === uid) return { ...m, of: { ...m.of } };
+  const s = coachFormRead(uid);
+  coachForms.memo = s;
+  return { ...s, of: { ...s.of } };
+}
+function coachFormRead(uid) {
   try {
     const s = JSON.parse(localStorage.getItem(COACH_FORM_KEY));
     if (s && s.userId === uid && uid) {
@@ -63,6 +72,7 @@ function coachFormStore() {
   return { userId: uid, mine: null, pending: false, of: {} };
 }
 function coachFormSave(s) {
+  coachForms.memo = null;
   if (!s.userId) return;
   const of = {};
   for (const [k, v] of Object.entries(s.of).slice(-20)) if (typeof k === 'string' && cleanCoachForm(v)) of[k] = v;
@@ -97,21 +107,25 @@ async function coachFormRpc(fn, args) {
   } catch { return { ok: false }; }   // hors ligne : la forme gardée reste
 }
 
-// Lit la forme d'un coach (gardée 5 min) ; true si elle a changé
-async function coachFormLoad(uid) {
-  if (!coachForms.server || typeof uid !== 'string' || !uid || coachForms.loading.has(uid)) return false;
-  if (Date.now() - (coachForms.at.get(uid) || 0) < COACH_FORM_TTL) return false;
-  coachForms.loading.add(uid);
-  try {
-    const r = await coachFormRpc('coach_form', { coach: uid });
-    if (!r.ok) return false;
-    coachForms.at.set(uid, Date.now());
-    const s = coachFormStore(), next = cleanCoachForm(r.data?.form), old = coachFormOf(uid);
-    if (uid === s.userId && s.pending) return false;   // mon choix pas encore parti : il prime sur le serveur
-    if (uid === s.userId) s.mine = next; else if (next) s.of[uid] = next; else delete s.of[uid];
-    coachFormSave(s);
-    return old !== next;
-  } finally { coachForms.loading.delete(uid); }
+// Lit la forme d'un coach (gardée 5 min) ; true si elle a changé. Une lecture déjà en cours est partagée (même promesse) :
+// qui l'attend (Rejoindre) a la forme dès qu'elle arrive. force : sans le délai de 5 min
+function coachFormLoad(uid, { force = false } = {}) {
+  if (!coachForms.server || typeof uid !== 'string' || !uid) return Promise.resolve(false);
+  if (coachForms.loading.has(uid)) return coachForms.loading.get(uid);
+  if (!force && Date.now() - (coachForms.at.get(uid) || 0) < COACH_FORM_TTL) return Promise.resolve(false);
+  const p = coachFormFetch(uid).finally(() => coachForms.loading.delete(uid));
+  coachForms.loading.set(uid, p);
+  return p;
+}
+async function coachFormFetch(uid) {
+  const r = await coachFormRpc('coach_form', { coach: uid });
+  if (!r.ok) return false;
+  coachForms.at.set(uid, Date.now());
+  const s = coachFormStore(), next = cleanCoachForm(r.data?.form), old = coachFormOf(uid);
+  if (uid === s.userId && s.pending) return false;   // mon choix pas encore parti : il prime sur le serveur
+  if (uid === s.userId) s.mine = next; else if (next) s.of[uid] = next; else delete s.of[uid];
+  coachFormSave(s);
+  return old !== next;
 }
 
 // Le coach choisit sa forme : gardée tout de suite sur l'appareil (en attente), envoyée au serveur ; un échec (hors
@@ -141,9 +155,21 @@ function coachFormFollow() {
   if (!account.user) return;
   const c = typeof myCoach === 'function' ? myCoach() : null;
   const isCoach = typeof coachRole === 'function' && coachRole().isCoach;
-  if (isCoach && coachFormStore().pending) coachFormSend();
-  const ids = [c?.user_id, isCoach ? account.user.id : null].filter(Boolean);
-  for (const id of ids) coachFormLoad(id).then(changed => { if (changed) notifyCoach(); });
+  const changed = ch => { if (ch) notifyCoach(); };
+  if (c?.user_id && c.user_id !== account.user.id) coachFormLoad(c.user_id).then(changed);
+  if (!isCoach) return;
+  // Ma forme : d'abord l'envoi en attente, puis la lecture (sinon une lecture partie avant la fin de l'envoi rendrait
+  // l'ancienne valeur et effacerait mon choix)
+  const me = account.user.id;
+  (coachFormStore().pending ? coachFormSend() : Promise.resolve()).then(() => coachFormLoad(me)).then(changed);
+}
+// Juste après avoir rejoint : forme du coach lue tout de suite, attendue au plus 1,5 s (sinon l'accord par défaut)
+async function coachFormAwait(uid, ms = 1500) {
+  if (!uid) return null;
+  let timer;
+  await Promise.race([coachFormLoad(uid, { force: true }).catch(() => false), new Promise(r => { timer = setTimeout(r, ms); })]);
+  clearTimeout(timer);
+  return coachFormOf(uid);
 }
 if (typeof onCoachChange === 'function') onCoachChange(coachFormFollow);
-if (typeof onAccountChange === 'function') onAccountChange(() => { coachForms.at.clear(); coachForms.server = true; });
+if (typeof onAccountChange === 'function') onAccountChange(() => { coachForms.at.clear(); coachForms.server = true; coachForms.memo = null; });

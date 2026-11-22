@@ -35,7 +35,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(!/quelques jours la ligne d'une photo|for a few days \(its day/.test(page), 'plus de « quelques jours » pour les sauvegardes');
     assert.ok(page.includes('id="sauvegardes"') && page.includes('id="backups"'), 'ancres FR et EN');
     // Date de mise à jour, FR et EN, identiques
-    assert.ok(fr.includes('mise à jour le 19 novembre 2026') && en.includes('updated November 19, 2026'), 'date du 19/11/2026 (suivi de la diète par le coach)');
+    assert.ok(fr.includes('mise à jour le 23 novembre 2026') && en.includes('updated November 23, 2026'), 'date du 23/11/2026 (accord du mot coach)');
+    assert.ok(fr.includes('id="accord-coach"') && fr.includes('Ma coach') && en.includes('Coach wording'), 'accord du mot coach dit (FR et EN)');
   });
 
   test('confidentialité : copie iCloud décrite sans poids, mensurations, repas ni sexe (règle 5.1.3(ii)), FR et EN', () => {

@@ -519,7 +519,7 @@ function renderNutrition(dayParam) {
   }
   const pr = dietDayProgress(data, data.dietActive, day);
   // Plan du coach : « envoyé par max » (« · de max » se lisait comme une quantité, panel Apple vague 4)
-  const by = plan.fromCoach ? ` · envoyé par ${esc(plan.fromCoach.name || myCoachWord('ton'))}` : '';
+  const by = plan.fromCoach ? ` · envoyé par ${esc(plan.fromCoach.name || coachWord('ton', coachFormOf(plan.fromCoach.coachId)))}` : '';
   // Suivi de la diète partagé : dit ici, un toucher mène au réglage (panel nutri-final t1 : « max verra-t-il ma coche ? »)
   const shared = account.user && myCoach() && typeof coachShareOn === 'function' && coachShareOn('diet_log')
     ? `<button class="diet-plan-share" data-action="coach-open-share">${icon('person.2', 14)}<span>Partagé avec ${esc(personName(myCoach()))}</span>${icon('chevron.right', 12)}</button>` : '';
@@ -539,7 +539,7 @@ function renderNutrition(dayParam) {
         ${dietDayLineHtml(plan0, day)}
         ${dietSummaryHtml(pr)}
         ${!data.dietHideNumbers && !dietPersonal(plan) && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan, dietMealsNoun(plan)))}${plan.fromCoach
-          ? ` Suis le plan de ${esc(plan.fromCoach.name || myCoachWord('ton'))} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
+          ? ` Suis le plan de ${esc(plan.fromCoach.name || coachWord('ton', coachFormOf(plan.fromCoach.coachId)))} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
         ${pr.meals.length ? dietMacroLegendHtml() : ''}

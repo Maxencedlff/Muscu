@@ -28,7 +28,13 @@ bouton que l'élève va chercher, avant de savoir qui est son coach.
 - Forme gardée sur l'appareil (`mdlf_coach_form`, par compte) : textes justes hors ligne et dès le démarrage, y compris
   les notifications locales. Relue au plus toutes les 5 minutes, à chaque état coach lu.
 - Choix du coach gardé tout de suite sur l'appareil, envoyé ensuite ; hors ligne ou serveur d'avant, il reste en
-  attente et repart au prochain état lu. Tant qu'il est en attente, la lecture du serveur ne l'écrase pas.
+  attente et repart au prochain état lu. L'envoi en attente part avant la relecture de ma forme (sinon une lecture
+  partie en même temps rendrait l'ancienne valeur et l'écraserait : test unitaire « course »).
+- Copie en mémoire de `mdlf_coach_form` (lue à chaque texte) : vidée par `coachFormSave` et au changement de compte.
+  La clé est effacée à la déconnexion et par « Supprimer toutes les données » (`CROSS_USER_CACHE_KEYS`).
+- Plans de nutrition d'un ancien coach : accordés à la forme de CE coach (`coachFormOf(plan.fromCoach.coachId)`),
+  pas à celle du coach actuel.
+- Confidentialité : privacy.html, « Accord du mot coach » (`#accord-coach`, FR et EN).
 - Coach encore inconnu (bouton « Rejoindre un coach », aperçu avant de rejoindre, guide, erreurs à la saisie d'un code) :
   `coachWord` sans forme, donc l'accord par défaut.
 - Constantes de textes qui parlaient du coach : devenues des fonctions ou des getters (la forme change pendant
@@ -66,6 +72,8 @@ l'ordre inverse marche aussi), puis l'OTA. Une app d'avant ignore tout ; une app
 
 ## Pas fait
 
-- Aperçu avant de rejoindre (« Rejoindre ce coach ») : la forme n'est lisible qu'une fois le lien fait, l'aperçu reste
-  à l'accord par défaut. L'ouvrir à qui détient un code valide demanderait de réécrire `coach_preview`.
+- Aperçu avant de rejoindre (« Rejoindre ce coach ») : le serveur ne donne la forme qu'une fois le lien fait. L'aperçu
+  prend la forme gardée sur l'appareil pour ce coach (`coachFormOf`, par exemple un ancien coach qu'on rejoint de
+  nouveau), sinon l'accord par défaut. L'ouvrir à qui détient un code valide demanderait de réécrire `coach_preview`.
+  Juste après « Accepter », la forme est lue tout de suite (`coachFormAwait`, 1,5 s au plus) : « Léa est ta coach ».
 - Textes du coach sur ses élèves (« ton élève ») : non concernés (le genre des élèves n'est pas demandé).

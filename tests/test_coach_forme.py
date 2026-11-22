@@ -111,6 +111,31 @@ def t_eleve_ma_coach(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_rejoindre_coach(bench, eng, dev, theme):
+    """Juste après « Accepter » : « camille_coach est ta coach » (forme lue tout de suite, pas l'accord par défaut)."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme)
+        signin(page, 'lea')
+        code = page.evaluate("""() => { const c = __sb.addPerson({ username: 'camille_coach', avatar: '🦊', social: false }); __sb.makeCoach(c);
+            __sb.setForm(c, 'elle'); return __sb.co.permCode[c]; }""")
+        R.check(page.evaluate("myCoachForm()") is None, f'{t} avant de rejoindre : forme inconnue')
+        page.evaluate("async c => { const r = await coachPreview(c); if (!r.ok) throw new Error(r.kind); routeTo('friends'); navigate(makeRoute('coach-join', c)); }", code)
+        page.wait_for_selector('[data-action="coach-age"]', timeout=8000)
+        settle(page)
+        if page.get_attribute('[data-action="coach-accept"]', 'disabled') is not None:
+            page.click('[data-action="coach-age"]')
+            page.wait_for_selector('[data-action="coach-accept"]:not([disabled])', timeout=5000)
+        page.click('[data-action="coach-accept"]')
+        page.wait_for_selector('.ios-dialog', timeout=8000)
+        title = page.inner_text('.ios-dialog .ios-dialog__title') if page.locator('.ios-dialog .ios-dialog__title').count() else page.inner_text('.ios-dialog')
+        R.check('camille_coach est ta coach' in title, f'{t} après Rejoindre : « … est ta coach » ({title!r})')
+        msg = page.inner_text('.ios-dialog')
+        R.check('Social › Ma coach' in msg, f'{t} après Rejoindre : « Social › Ma coach »')
+        shot(page, LOT, f'04-rejoindre-ta-coach-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_serveur_davant(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.frozen_page(NOW, eng, dev, theme) as page:
@@ -129,4 +154,4 @@ def t_serveur_davant(bench, eng, dev, theme):
         R.check(page.locator('.toast--error').count() == 0 and not page.errors, f'{t} aucun message ni erreur {page.errors}')
 
 
-run_main(R, [t_coach_choisit, t_eleve_ma_coach, t_serveur_davant])
+run_main(R, [t_coach_choisit, t_eleve_ma_coach, t_rejoindre_coach, t_serveur_davant])

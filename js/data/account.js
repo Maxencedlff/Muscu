@@ -558,9 +558,10 @@ const CROSS_USER_CACHE_KEYS = [PROFILE_CACHE_KEY, 'mdlf_social', 'mdlf_coach', '
   // Photos de bilan : photos du coffre envoyées à mon coach (docs/PHOTOS_BILAN.md). Pas les clés retenues
   // (mdlf_coach_photo_pin, mdlf_coach_photo_mykey) : des clés publiques rangées par compte, lues pour ce compte
   // seulement, qui doivent survivre à une déconnexion pour qu'un changement de clé se voie encore
-  'mdlf_coach_photos'];
+  'mdlf_coach_photos', 'mdlf_coach_form'];
 function clearCrossUserCaches() {
   try { CROSS_USER_CACHE_KEYS.forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
+  if (typeof coachForms === 'object') coachForms.memo = null;   // accord du coach (js/data/coach-form.js) : copie en mémoire
 }
 
 async function accountSignOut({ voluntary = true } = {}) {
@@ -591,6 +592,7 @@ async function accountForgetDevice() {
   clearSyncMetas();
   // Caches du social et du coach compris, et clés des photos de bilan retenues (privacy.html : tout est effacé de l'appareil)
   try { [SYNC_OWNER_KEY, SESSION_ENDED_KEY, PENDING_CODE_KEY, ...CROSS_USER_CACHE_KEYS, 'mdlf_coach_photo_pin', 'mdlf_coach_photo_mykey', 'mdlf_coach_poster'].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
+  if (typeof coachForms === 'object') coachForms.memo = null;   // mdlf_coach_form (dans CROSS_USER_CACHE_KEYS) : copie en mémoire aussi
   if (typeof coachPosterForgetDevice === 'function') await coachPosterForgetDevice();   // affiche du coach : réglages et photo d'origine
   rememberLastAccount(null);
   await pushForgetDevice();   // notifications : le jeton de cet iPhone quitte le compte (session encore valide)

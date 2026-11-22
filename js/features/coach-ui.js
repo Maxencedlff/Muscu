@@ -1358,10 +1358,12 @@ registerActions({
   'coach-accept': async (e, el) => {
     if (!socialAgeOk || coachJoinHiddenByAge()) return;
     el.disabled = true;
-    const name = personName(coach.preview?.person), pf = coachFormOf(coach.preview?.person?.user_id);
+    const name = personName(coach.preview?.person), uid = coach.preview?.person?.user_id;
     const r = await coachJoin(el.dataset.code);
     if (!coachToast(r)) { el.disabled = false; return; }
     haptic();
+    // Lien fait : la forme du coach se lit maintenant (« Léa est ta coach »), attendue 1,5 s au plus
+    const pf = await coachFormAwait(uid);
     goBack();
     await dialog({ title: `${name} est ${coachWord('ton', pf)}`, message: `Les programmes ${elide('de', name)} arriveront dans Social › ${coachWord('Mon', pf)}.`,
       actions: [{ label: 'OK', style: 'preferred' }] });

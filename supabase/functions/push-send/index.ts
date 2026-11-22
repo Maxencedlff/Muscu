@@ -89,7 +89,8 @@ export async function handler(req: Request): Promise<Response> {
     const formIds = rows.filter((r) => r.wanted && FORM_KINDS.includes(r.kind)).map((r) => r.id);
     if (formIds.length) {
       const { data: forms, error: formErr } = await admin.rpc('push_actor_forms', { ids: formIds });
-      if (formErr) console.error('push-send: push_actor_forms', formErr.code);
+      // PGRST202 : migration 20261122010000 pas appliquée, cas prévu, rien au journal
+      if (formErr && formErr.code !== 'PGRST202') console.error('push-send: push_actor_forms', formErr.code);
       else rows = withActorForms(rows, forms) as ClaimRow[];
     }
     const results: Result[] = [];

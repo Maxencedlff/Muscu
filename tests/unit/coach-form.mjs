@@ -78,15 +78,97 @@ export default function ({ test, app, run, assert, ROOT }) {
   test('forme gardée sur l\'appareil : par compte, mon coach et la mienne, jamais d\'un autre compte', () => {
     run(`account.user = { id: 'eleve-1' }; localStorage.removeItem(COACH_FORM_KEY);`);
     assert.equal(app.coachFormOf('coach-1'), null, 'rien de gardé : inconnue');
-    run(`localStorage.setItem(COACH_FORM_KEY, JSON.stringify({ userId: 'eleve-1', mine: null, of: { 'coach-1': 'elle', 'coach-2': 'chat' } }))`);
+    run(`localStorage.setItem(COACH_FORM_KEY, JSON.stringify({ userId: 'eleve-1', mine: null, of: { 'coach-1': 'elle', 'coach-2': 'chat' } })); coachForms.memo = null;`);
     assert.equal(app.coachFormOf('coach-1'), 'elle');
     assert.equal(app.coachFormOf('coach-2'), null, 'valeur inconnue écartée');
     run(`account.user = { id: 'autre' }`);
     assert.equal(app.coachFormOf('coach-1'), null, 'autre compte : rien');
-    run(`account.user = { id: 'coach-1' }; localStorage.setItem(COACH_FORM_KEY, JSON.stringify({ userId: 'coach-1', mine: 'neutre', of: {} }))`);
+    run(`account.user = { id: 'coach-1' }; localStorage.setItem(COACH_FORM_KEY, JSON.stringify({ userId: 'coach-1', mine: 'neutre', of: {} })); coachForms.memo = null;`);
     assert.equal(app.myOwnCoachForm(), 'neutre');
     assert.equal(app.coachFormOf('coach-1'), 'neutre', 'ma forme');
-    run(`account.user = null; localStorage.removeItem(COACH_FORM_KEY);`);
+    run(`account.user = null; localStorage.removeItem(COACH_FORM_KEY); coachForms.memo = null;`);
+  });
+
+  // Faux serveur : coach_set_form et coach_form répondent après `delay` ms ; la forme du serveur est `server.form`
+  const withServer = body => run(`(async () => {
+    const u = account.user, realSb = sb, realRole = coachRole, realMine = myCoach, realNotify = notifyCoach;
+    const server = { form: null, calls: [], delay: {} };
+    const wait = ms => new Promise(r => setTimeout(r, ms || 0));
+    try {
+      localStorage.removeItem(COACH_FORM_KEY); coachForms.memo = null; coachForms.at.clear(); coachForms.loading.clear(); coachForms.server = true;
+      sb = { rpc: async (fn, args) => {
+        server.calls.push(fn);
+        const seen = server.form;   // lue à l'arrivée de la requête ; la réponse revient après le délai
+        await wait(server.delay[fn]);
+        if (fn === 'coach_set_form') { server.form = args.form; return { data: { form: args.form }, error: null }; }
+        if (fn === 'coach_form') return { data: { form: seen }, error: null };
+        return { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } };
+      } };
+      ${body}
+    } finally {
+      account.user = u; sb = realSb; coachRole = realRole; myCoach = realMine; notifyCoach = realNotify;
+      localStorage.removeItem(COACH_FORM_KEY); coachForms.memo = null; coachForms.at.clear(); coachForms.loading.clear();
+    }
+  })()`);
+
+  test('course : un choix en attente part AVANT la relecture, jamais écrasé par l\'ancienne valeur du serveur', async () => {
+    const r = await withServer(`
+      account.user = { id: 'coach-1' }; coachRole = () => ({ isCoach: true, hasCoach: false }); myCoach = () => null; notifyCoach = () => {};
+      server.form = 'il';
+      // Choix fait hors ligne : gardé, en attente
+      const s = coachFormStore(); s.mine = 'elle'; s.pending = true; coachFormSave(s);
+      // Lecture plus lente que l'envoi : partie en même temps, sa réponse « il » arriverait après l'envoi et l'écraserait
+      server.delay.coach_set_form = 30; server.delay.coach_form = 60;
+      coachFormFollow();
+      await wait(150);
+      return { calls: server.calls, mine: myOwnCoachForm(), pending: coachFormStore().pending, server: server.form };`);
+    assert.equal(r.calls[0], 'coach_set_form', 'envoi d\'abord');
+    assert.ok(r.calls.indexOf('coach_form') === -1 || r.calls.indexOf('coach_form') > 0, `lecture après l'envoi seulement (${r.calls})`);
+    assert.equal(r.mine, 'elle', 'mon choix gardé');
+    assert.equal(r.pending, false, 'plus en attente');
+    assert.equal(r.server, 'elle', 'parti au serveur');
+  });
+
+  test('après Rejoindre : la forme est attendue (lecture partagée), 1,5 s au plus, puis l\'accord par défaut', async () => {
+    const r = await withServer(`
+      account.user = { id: 'eleve-1' }; coachRole = () => ({ isCoach: false, hasCoach: true }); myCoach = () => ({ user_id: 'coach-1' }); notifyCoach = () => {};
+      server.form = 'elle';
+      server.delay.coach_form = 20;
+      coachFormFollow();                         // lecture déjà partie (état coach lu après le lien)
+      const pf = await coachFormAwait('coach-1');  // la même lecture, pas une seconde
+      const n = server.calls.filter(c => c === 'coach_form').length;
+      // Serveur lent : au bout du délai, la forme inconnue (accord par défaut), sans attendre plus
+      server.form = 'il'; server.delay.coach_form = 500; coachForms.at.clear();
+      const t0 = Date.now(), late = await coachFormAwait('coach-2', 50), waited = Date.now() - t0;
+      return { pf, n, late, waited, word: coachWord('ton', pf) };`);
+    assert.equal(r.pf, 'elle');
+    assert.equal(r.word, 'ta coach', '« Léa est ta coach »');
+    assert.equal(r.n, 1, 'une seule lecture du serveur');
+    assert.equal(r.late, null, 'délai dépassé : forme inconnue');
+    assert.ok(r.waited < 300, `pas d'attente au-delà du délai (${r.waited} ms)`);
+  });
+
+  test('copie en mémoire : localStorage lu une fois, relu après coachFormSave et au changement de compte', () => {
+    const r = run(`(() => {
+      const u = account.user, realGet = localStorage.getItem.bind(localStorage);
+      let reads = 0;
+      try {
+        account.user = { id: 'eleve-1' }; coachForms.memo = null;
+        localStorage.setItem(COACH_FORM_KEY, JSON.stringify({ userId: 'eleve-1', mine: null, of: { c: 'elle' } }));
+        localStorage.getItem = k => { if (k === COACH_FORM_KEY) reads++; return realGet(k); };
+        for (let i = 0; i < 50; i++) coachFormOf('c');
+        const first = reads;
+        const s = coachFormStore(); s.of.c = 'il'; coachFormSave(s);
+        const after = coachFormOf('c');
+        account.user = { id: 'autre' };
+        const other = coachFormOf('c');
+        return { first, after, other, total: reads };
+      } finally { localStorage.getItem = realGet; account.user = u; localStorage.removeItem(COACH_FORM_KEY); coachForms.memo = null; }
+    })()`);
+    assert.equal(r.first, 1, '50 lectures, localStorage lu une fois');
+    assert.equal(r.after, 'il', 'relu après coachFormSave');
+    assert.equal(r.other, null, 'autre compte : rien');
+    assert.equal(r.total, 3, 'une relecture par changement');
   });
 
   test('textes : aucun « ton coach », « un coach »… en dur dans js/ ni index.html (tout passe par coachWord)', () => {
