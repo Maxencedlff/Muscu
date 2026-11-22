@@ -355,7 +355,7 @@ const CPL = {
 };
 const cplFont = (s, w = 800) => `${w} ${Math.round(s)}px ${CPL.font}`;
 // Titre en casse normale, comme les grands titres de l'app : « Nouveau » / « Nouvelle », puis « coach »
-const cplTitleWords = m => (m.title === 'COACH' ? ['Coach'] : [m.title === 'NOUVELLE COACH' ? 'Nouvelle' : 'Nouveau', 'coach']);
+const cplTitleWords = m => (m.title === 'COACH' ? ['Coach'] : [m.title.startsWith('NOUVELLE') ? 'Nouvelle' : 'Nouveau', 'coach']);
 
 function cplFit(ctx, text, maxW, max, min, w = 800) { return cpaFit(ctx, text, maxW, max, min, s => cplFont(s, w)); }
 
