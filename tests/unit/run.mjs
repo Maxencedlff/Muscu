@@ -52,6 +52,7 @@ const SCRIPTS = [
   'js/data/social.js',
   'js/data/comments.js',
   'js/data/coach.js',
+  'js/data/coach-form.js',
   'js/data/coach-share.js',
   'js/data/coach-chat.js',
   'js/data/coach-diet.js',
@@ -2350,6 +2351,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 
 // ── Affiche du coach, 20/11 (tests dans coach-poster.mjs) ──
 (await import('./coach-poster.mjs')).default({ test, run, app, assert, sameJSON, ROOT });
+
+// ── Accord du mot « coach », 22/11 (tests dans coach-form.mjs) ──
+(await import('./coach-form.mjs')).default({ test, run, app, assert, sameJSON, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

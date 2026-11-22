@@ -152,8 +152,10 @@ registerActions({
 // Feuille d'iOS, une à la fois, seulement si l'écran qui l'a demandée est toujours là et qu'aucune autre
 // feuille n'est ouverte. Le serveur ne montre jamais le texte d'un message : c'est dit dans la feuille.
 const PUSH_ASK_TEXT = {
-  student: { title: 'Être prévenu quand ton coach t’écrit ?',
-    message: 'Aussi quand il commente une séance ou envoie un programme. La notification montre son pseudo, jamais le texte. Tu pourras le changer dans Réglages › Notifications.' },
+  get student() {
+    return { title: `Être prévenu quand ${myCoachWord('ton')} t’écrit ?`,
+      message: `Aussi quand ${myCoachWord('il')} commente une séance ou envoie un programme. La notification montre son pseudo, jamais le texte. Tu pourras le changer dans Réglages › Notifications.` };
+  },
   coach: { title: 'Être prévenu des messages et séances des élèves ?',
     message: 'La notification montre le pseudo, le nom de la séance et sa durée, jamais le texte ni les charges. Tu pourras le changer dans Réglages › Notifications.' },
 };
@@ -192,7 +194,7 @@ registerActions({ 'push-open-ios-settings-chat': () => { pushOpenIosSettingsChat
 // Une phrase sur ce qui n'arrive pas, selon le rôle ; « Activer » : fenêtre d'iOS puis les types utiles
 // (pushEnableFor), ou, refusées dans iOS, les réglages de l'app dans l'app Réglages.
 const PUSH_REMIND_TEXT = {
-  student: 'Tu ne reçois pas les messages et les programmes de ton coach.',
+  get student() { return `Tu ne reçois pas les messages et les programmes de ${myCoachWord('ton')}.`; },
   coach: 'Tu ne reçois pas les messages de tes élèves.',
   solo: 'Tu ne reçois pas les réactions et les commentaires sur tes séances.',
 };

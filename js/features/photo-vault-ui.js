@@ -104,7 +104,7 @@ function pvIntroHtml() {
               : 'Aucun code en plus. Chiffrées sur cet appareil.')}
             ${feat('timer', 'Verrouillage automatique', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
             ${feat('eye.slash', 'Privées', cphStudentShown() && cph.state?.ready
-              ? `Ni dans la ${pvIos() ? 'pellicule' : 'galerie'} ni dans l'export. Ton coach ne reçoit que les photos que tu choisis d'envoyer.`
+              ? `Ni dans la ${pvIos() ? 'pellicule' : 'galerie'} ni dans l'export. ${myCoachWord('Ton')} ne reçoit que les photos que tu choisis d'envoyer.`
               : `Ni dans la ${pvIos() ? 'pellicule' : 'galerie'} ni dans l'export.`)}
             ${pvIos() ? feat('info.circle', 'Sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour rouvrir le coffre sur un autre iPhone.') : ''}
           </ul>
@@ -137,7 +137,7 @@ function pvOpenHtml() {
   const days = photoDayGroups(list).map(g => `
             <div class="pgal__day"><div class="pgal__head"><span class="pgal__date">${esc(fmtDate(g.date))}</span>${cphDaySendHtml(g)}</div>
               <div class="pgal__row">${g.photos.map(p => { const sent = cphStudentListed() && !!cphSentOf(p.id); return `
-                <button class="pgal__item" data-action="photo-open" data-id="${p.id}" aria-label="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}${sent ? ', envoyée à ton coach' : ''}">
+                <button class="pgal__item" data-action="photo-open" data-id="${p.id}" aria-label="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}${sent ? `, envoyée à ${myCoachWord('ton')}` : ''}">
                   <img src="${photoUrl(p)}" alt="" loading="lazy"><span class="pgal__pose">${photoPoseLabel(p.pose)}</span>${sent ? `
                   <span class="pgal__sent" aria-hidden="true">${icon('checkmark', 10)}<span class="pgal__sent-txt">Envoyée</span></span>` : ''}
                 </button>`; }).join('')}</div>
@@ -491,8 +491,8 @@ registerActions({
     const sent = cphStudentListed() ? cphSentOf(id) : null;
     // État des envois inconnu ici (hors ligne, autre iPhone) alors qu'on a un coach : on ne promet pas « nulle part ailleurs »
     const unsure = !sent && account.user && coachRole().hasCoach;
-    const msg = sent ? 'Elle sera aussi retirée de chez ton coach. Il n\'y a pas de corbeille.'
-      : unsure ? 'Il n\'y a pas de corbeille. Si tu l\'as envoyée à ton coach, retire-la dans Mon coach › Photos de bilan.' : 'Elle n\'existe nulle part ailleurs et il n\'y a pas de corbeille.';
+    const msg = sent ? `Elle sera aussi retirée de chez ${myCoachWord('ton')}. Il n'y a pas de corbeille.`
+      : unsure ? `Il n'y a pas de corbeille. Si tu l'as envoyée à ${myCoachWord('ton')}, retire-la dans ${myCoachWord('Mon')} › Photos de bilan.` : 'Elle n\'existe nulle part ailleurs et il n\'y a pas de corbeille.';
     if (!(await confirmSheet('Supprimer cette photo ?', msg, 'Supprimer'))) return;
     if (!vaultIsOpen()) return;   // refermé pendant la confirmation : rien sans rouvrir le coffre
     if (sent) { const r = await cphRemove(sent.id); if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return; } }

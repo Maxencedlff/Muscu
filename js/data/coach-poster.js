@@ -39,8 +39,11 @@ function posterInitials(name) {
 // prénom ») ;
 // code : code coach permanent ; badge : carte pro déclarée et montrée ; hasPhoto : photo lisible ; silhouette :
 // 'female' ou 'male', choisie dans l'écran de l'affiche (jamais déduite du prénom) : accord « NOUVELLE COACH » ou
-// « NOUVEAU COACH » ; neutral : « COACH » seul, sans genre
-function coachPosterModel({ name = '', specialty = '', username = '', code = '', badge = false, hasPhoto = false, silhouette = 'male', neutral = false } = {}) {
+// « NOUVEAU COACH » ; neutral : « COACH » seul, sans genre. form : la forme choisie dans Réglages › Coach (« Tes élèves
+// lisent », js/data/coach-form.js) ; quand elle est connue, c'est elle qui accorde le titre, plus la silhouette
+// ('neutre' : « COACH » seul)
+function coachPosterModel({ name = '', specialty = '', username = '', code = '', badge = false, hasPhoto = false, silhouette = 'male', neutral = false, form = null } = {}) {
+  const f = cleanCoachForm(form);
   const user = String(username ?? '').replace(/^@/, '').trim();
   const n = posterName(name);
   return {
@@ -49,17 +52,18 @@ function coachPosterModel({ name = '', specialty = '', username = '', code = '',
     handle: user ? `@${user}` : '',
     initials: n ? posterInitials(n) : '',     // jamais tirées du pseudo
     photo: hasPhoto === true,
-    title: neutral === true ? 'COACH' : silhouette === 'female' ? 'NOUVELLE COACH' : 'NOUVEAU COACH',
+    title: neutral === true || f === 'neutre' ? 'COACH'
+      : coachWord('nouveau', (f ? f === 'elle' : silhouette === 'female') ? 'elle' : 'il').toLocaleUpperCase('fr-FR'),
     badge: badge === true ? COACH_BADGE_LABEL : null,
     ctaLine: 'Rejoins-moi sur MDLF Training',   // le coach d'abord, l'app ensuite (10e panel)
-    ctaWhere: 'Entre mon code dans Social › Rejoindre un coach',
+    ctaWhere: `Entre mon code dans Social › Rejoindre ${coachWord('un')}`,   // le libellé du bouton, tel quel
     code: formatCoachCode(String(code ?? '').toUpperCase()),
   };
 }
 
 // Texte lu par VoiceOver sur l'aperçu : ce que montre l'image (mise en page « hero » : ni pseudo ni badge dessus)
 function coachPosterAlt(m) {
-  const title = { 'NOUVELLE COACH': 'Nouvelle coach', 'NOUVEAU COACH': 'Nouveau coach' }[m.title] || 'Coach';
+  const title = m.title.charAt(0) + m.title.slice(1).toLocaleLowerCase('fr-FR');   // « Nouvelle coach », « Coach »
   return [`Affiche « ${title} »${m.name ? ` : ${m.name}` : ''}`, m.specialty, 'sur MDLF Training', `code ${m.code}`].filter(Boolean).join(', ');
 }
 

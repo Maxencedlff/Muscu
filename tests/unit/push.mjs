@@ -11,7 +11,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   const row = (o = {}) => ({ id: 1, kind: 'reaction', ref: 's-1', token: FAKE_TOKEN, env: 'production', actor_name: 'max.dlf', wanted: true, ...o });
 
   test('push : textes par type, pseudo seul, jamais le contenu saisi', async () => {
-    const { pushMessage } = await load();
+    const { pushMessage, withActorForms, FORM_KINDS } = await load();
     // Réaction : son emoji et le nom de ma séance (relus par push_claim) ; sans sorte : texte générique, jamais « bravo »
     sameJSON(pushMessage(row({ reaction: 'like', label: 'Push' })), { title: 'Nouvelle réaction', body: 'max.dlf a réagi ❤️ à ta séance Push', kind: 'reaction', ref: 's-1' });
     assert.equal(pushMessage(row({ reaction: 'fire' })).body, 'max.dlf a réagi 🔥 à ta séance', 'séance sans nom');
@@ -22,6 +22,15 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(!/bravo/i.test(JSON.stringify([pushMessage(row()), pushMessage(row({ reaction: 'clap' }))])), 'plus de « bravo »');
     assert.equal(pushMessage(row({ kind: 'follow_request', ref: '' })).body, 'max.dlf veut suivre tes séances');
     assert.equal(pushMessage(row({ kind: 'coach_note' })).body, 'max.dlf a commenté ta séance');
+    // Accord de la coach (push_actor_forms, docs/COACH_FORME.md) : « de la coach » pour elle, sinon le texte d'avant
+    assert.equal(pushMessage(row({ kind: 'coach_note' })).title, 'Commentaire du coach', 'forme inconnue');
+    for (const f of ['il', 'neutre', 'femme', null]) assert.equal(pushMessage(row({ kind: 'coach_note', actor_form: f })).title, 'Commentaire du coach', String(f));
+    assert.equal(pushMessage(row({ kind: 'coach_note', actor_form: 'elle' })).title, 'Commentaire de la coach');
+    const formed = withActorForms([{ id: 1, kind: 'coach_note' }, { id: 2, kind: 'coach_note' }, { id: 3, kind: 'reaction' }], { 1: 'elle', 2: 'chat', 9: 'il' });
+    sameJSON(formed.map(r => r.actor_form ?? null), ['elle', null, null], 'forme posée par id, valeur inconnue écartée');
+    sameJSON(withActorForms([{ id: 1 }], null), [{ id: 1 }], 'réponse absente : lignes inchangées');
+    sameJSON(withActorForms([{ id: 1 }], ['elle']), [{ id: 1 }], 'réponse hors format : ignorée');
+    sameJSON([...FORM_KINDS], ['coach_note'], 'push_actor_forms demandé pour les commentaires seulement');
     assert.equal(pushMessage(row({ kind: 'coach_programme', ref: 'prog1' })).body, 'max.dlf t’a envoyé un programme');
     sameJSON(pushMessage(row({ kind: 'comment', ref: 's-2' })), { title: 'Nouveau commentaire', body: 'max.dlf a commenté ta séance', kind: 'comment', ref: 's-2' });
     const uid = '00000000-0000-0000-0000-0000000000aa';

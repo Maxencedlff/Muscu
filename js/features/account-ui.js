@@ -169,7 +169,7 @@ function renderAccount() {
             ${icon('chevron.right', 16)}
           </button>`}${profilePhotoCellHtml()}
         </div>
-        <div class="group-foot">${profilePhotoOn() ? 'Tes amis (si le social est activé) et ton coach voient ton pseudo, ton avatar et ta photo. Personne d\'autre ne voit la photo.'
+        <div class="group-foot">${profilePhotoOn() ? `Tes amis (si le social est activé) et ${myCoachWord('ton')} voient ton pseudo, ton avatar et ta photo. Personne d'autre ne voit la photo.`
           : 'Tes amis voient ton pseudo et ton avatar si le social est activé. Sinon, ils ne sont visibles que par toi.'}</div>
 ${referralGroupHtml()}
 
@@ -213,7 +213,7 @@ function referralGroupHtml() {
             <span class="cell__body"><span class="cell__title">${esc(`Parrainé par ${v.referrer}`)}</span></span>
           </div>
           ${referralSuggestJoin(v) ? `<button class="cell cell--action" data-action="coach-join">
-            <span class="cell__body"><span class="cell__title">Rejoindre ce coach</span><span class="cell__sub">${esc(`Entre son code pour que ${v.referrer} suive tes séances`)}</span></span>
+            <span class="cell__body"><span class="cell__title">Rejoindre ${coachWord('ce')}</span><span class="cell__sub">${esc(`Entre son code pour que ${v.referrer} suive tes séances`)}</span></span>
           </button>` : ''}
         </div>
         <div class="group-foot">Ce parrainage ne donne accès ni à ton compte ni à tes séances.</div>
@@ -223,7 +223,7 @@ function referralGroupHtml() {
   return `
         <div class="group">
           <button class="cell cell--nav" data-action="account-referral">
-            <span class="cell__body"><span class="cell__title">Code d'un coach ou d'un ami</span></span>
+            <span class="cell__body"><span class="cell__title">Code d'${coachWord('un')} ou d'un ami</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>

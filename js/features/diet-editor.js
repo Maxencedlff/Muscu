@@ -38,7 +38,7 @@ function renderDietPlans() {
   const ids = dietPlanIds(data);
   const row = id => {
     const p = data.dietPlans[id], t = dietPlanMacros(p), on = data.dietActive === id;
-    const sub = [p.days ? dietDaysWord(p) : plural(dietShownMeals(p).length, 'repas', 'repas'), `${dietN(t.kcal)} kcal${p.days ? ' le 1er jour' : ''}`, p.fromCoach ? elide('de', p.fromCoach.name || 'ton coach') : ''].filter(Boolean).join(' · ');
+    const sub = [p.days ? dietDaysWord(p) : plural(dietShownMeals(p).length, 'repas', 'repas'), `${dietN(t.kcal)} kcal${p.days ? ' le 1er jour' : ''}`, p.fromCoach ? elide('de', p.fromCoach.name || myCoachWord('ton')) : ''].filter(Boolean).join(' · ');
     return `<button class="cell cell--nav" data-action="diet-open-plan" data-id="${esc(id)}" aria-label="${esc(p.name)}, ${esc(sub)}${on ? ', en cours' : ''}">
         <span class="cell__body"><span class="cell__title">${esc(p.name)}</span><span class="cell__sub num">${esc(sub)}</span></span>
         ${on ? '<span class="cell__value diet-on">En cours</span>' : ''}
@@ -144,7 +144,7 @@ function renderDietPlan(id, dayParam) {
             : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"${dayScreen ? ` data-dayi="${di}"` : ''}><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsCellHtml(plan)}</span></span>${icon('chevron.right', 16)}</button>`}
         </div>
         ${gap ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(gap)}${ro && root.fromCoach ? ' Le suivi se fait sur l\'objectif du jour.' : ''}</span></p>` : ''}
-        <div class="group-foot">${ro ? `Plan et objectifs fixés par ${esc(plan.fromCoach.name || 'ton coach')}, qui seul peut les modifier. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
+        <div class="group-foot">${ro ? `Plan et objectifs fixés par ${esc(plan.fromCoach.name || myCoachWord('ton'))}, qui seul${myCoachWord('e')} peut les modifier. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
           : personal ? `${plan.targets ? '' : 'Fixe tes objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. '}Ce que tu manges se note chaque jour dans Entraînement › Nutrition.`
             : 'Fixe les objectifs toi-même, ou touche « Objectifs du jour » pour une estimation. Sans objectif, le total prévu sert de repère.'}</div>
         ${dietLowKcal(plan) ? dietLowNoteHtml(!!plan.targets?.kcal) : ''}
@@ -924,7 +924,7 @@ registerActions({
   'diet-delete': async (e, el) => {
     const id = el.dataset.id, plan = dietPlanOf(id);
     if (!plan) return;
-    if (!(await confirmSheet('Supprimer ce plan ?', `${plan.name} disparaît de tes plans et de Nutrition.${plan.fromCoach ? ' Ton coach pourra te le renvoyer.' : ''}`, 'Supprimer'))) return;
+    if (!(await confirmSheet('Supprimer ce plan ?', `${plan.name} disparaît de tes plans et de Nutrition.${plan.fromCoach ? ` ${myCoachWord('Ton')} pourra te le renvoyer.` : ''}`, 'Supprimer'))) return;
     dietArchivePlan(data, id);
     save();
     goBack();

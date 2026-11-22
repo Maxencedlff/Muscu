@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −20 | `20261122010000_forme_coach_down.sql` (efface les formes choisies par les coachs ; l'app revient à « ton coach », push-send à « Commentaire du coach ») | rien | oui |
 | −19 | `20261120010000_seance_publique_par_bras_down.sql` (en production depuis le 20/11/2026 ; amis et coach ne voient plus le bras droit, rien n'est effacé des séances) | rien | oui (vérifié) |
 | −18 | `20261120020000_nom_affiche_coach_down.sql` (efface les noms d'affiche envoyés ; Mon coach revient au pseudo seul) | rien | oui |
 | −17 | `20261117090000_badge_carte_pro_down.sql` (efface les déclarations ; les signalements restent dans `public.reports`) | rien | oui (vérifié) |
@@ -108,6 +109,8 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
 14. `20261118010000_suivi_diete_coach.sql` (suivi de la diète par le coach, docs/NUTRITION_V1.md « Suivi de la diète par le coach » : consentement `diet_log`, table `coach_shared_diet_days`, 90 jours glissants, purge pg_cron `purge-diete-coach-90-jours`) : APRÈS `20261106200000_plans_diete_coach.sql` (en production), dont elle reprend `student_shares` et `private.share_kind_open` ; indépendante des autres. Aucune fonction Edge. Avant ou après l'OTA, au choix : une app d'avant ignore `diet_log`, une app à jour sur un serveur d'avant ne montre ni la case ni la carte. Feu vert de Maxence le 19/11/2026 sur la migration, le consentement séparé et les 90 jours ; elle reste à appliquer avec la publication de la nutrition, après le panel. Contrôle après : `select jobname, schedule from cron.job where jobname = 'purge-diete-coach-90-jours';` (une ligne). Retour arrière : OTA d'avant si voulu, puis `20261118010000_suivi_diete_coach_down.sql` (efface les jours partagés et leurs consentements), AVANT tout retour arrière des plans diète.
 15. `20261120010000_seance_publique_par_bras.sql` (bras droit d'une série notée par bras, `side2`, et premier bras, `sideFirst`, dans la séance publique : amis et coach, docs/UNILATERAL.md) : APRÈS `20261117020000_charge_coach.sql`, dont elle reprend `private.session_public` à l'octet près. Aucune fonction Edge. **Appliquée en production le 20/11/2026** (feu vert de Maxence), après vérification que la fonction en production était bien celle de 20261117020000 ; une séance d'essai sort `side2` et `sideFirst`. Une app d'avant ignore les deux champs. Retour arrière : `20261120010000_seance_publique_par_bras_down.sql` (amis et coach ne voient plus le bras droit, rien n'est effacé des séances), AVANT tout retour arrière de 20261117020000.
 
+16. `20261122010000_forme_coach.sql` (accord « Ma coach », docs/COACH_FORME.md) : indépendante (nouvelle table `coach_forms`, aucune fonction existante réécrite, `push_claim` inchangé) ; puis `push-send` redéployée (elle tolère l'absence de `push_actor_forms`), puis l'OTA. Une app d'avant l'ignore ; une app à jour sur un serveur d'avant écrit « ton coach ». Retour arrière : `20261122010000_forme_coach_down.sql` (push-send peut rester).
+
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 
 Les fonctions Edge du payant (`verify-purchase`, `appstore-notify`, puis `coach-request-alert`) se déploient juste APRÈS 1 à 3 : elles envoient `p_intro` et `p_environment`, que la base du 28/10 ne connaît pas (docs/PAYANT_V1.md, « Mise en production »).
@@ -116,7 +119,7 @@ Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.
 
 Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque (et Strava).
 
-Pour défaire en production : l'ordre inverse de cette liste (15 → 1), avant tout retour arrière plus ancien (tableau du haut).
+Pour défaire en production : l'ordre inverse de cette liste (16 → 1), avant tout retour arrière plus ancien (tableau du haut).
 
 ## Ce qui est mis de côté, pas effacé
 

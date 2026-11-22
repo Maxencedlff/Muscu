@@ -210,7 +210,7 @@ function coachInviteText(code) {
   const offered = paywallOn() && typeof coachPro !== 'undefined' && !!coachPro.tier?.product_id;
   const end = c.length !== 12 ? 'Il est valable 7 jours.'
     : offered ? 'Avec ce code, tu n\'as rien à payer : ton accès est compris dans mon abonnement coach.' : 'Ce code n\'expire pas.';
-  return `Je te propose de te suivre sur MDLF Training. Dans l'app : Social › Rejoindre un coach, puis saisis le code ${shown}. ${end}`;
+  return `Je te propose de te suivre sur MDLF Training. Dans l'app : Social › Rejoindre ${coachWord('un')}, puis saisis le code ${shown}. ${end}`;
 }
 // Code permanent : K7M2QX9PR4TD → K7M2-QX9P-R4TD (les tirets sont ignorés à la saisie)
 function formatCoachCode(code) {
@@ -244,17 +244,17 @@ function coachErrorKind(error) {
 const COACH_ERROR_TEXT = {
   offline: 'Pas d\'Internet : réessaie avec du réseau.',
   not_coach: 'Ton compte n\'est pas un compte coach.',
-  already_coached: 'Tu as déjà un coach. Quitte-le d\'abord dans Réglages › Coach.',
-  invalid_code: 'Ce code n\'existe pas ou a expiré. Demande un nouveau code à ton coach.',
-  team_full: 'Ce coach suit déjà 50 élèves.',
-  tier_full: 'Ton coach a atteint la limite de son abonnement : il doit passer au palier supérieur.',
+  get already_coached() { return `Tu as déjà ${myCoachWord('un')}. Quitte-${myCoachWord('pron')} d'abord dans Réglages › Coach.`; },
+  get invalid_code() { return `Ce code n'existe pas ou a expiré. Demande un nouveau code à ${myCoachWord('ton')}.`; },
+  get team_full() { return `${coachWord('Ce')} suit déjà 50 élèves.`; },
+  get tier_full() { return `${myCoachWord('Ton')} a atteint la limite de son abonnement : ${myCoachWord('il')} doit passer au palier supérieur.`; },
   not_found: 'Introuvable : ce code est peut-être le tien, ou l\'élève ne te suit plus.',
   rate_limited: 'Trop de tentatives. Réessaie dans une heure.',
   // Envoi d'un programme ou d'un plan diète : limite glissante sur 24 h (20261117020000_charge_coach.sql, point 3)
   send_rate: 'Limite d\'envoi atteinte : 30 envois plus 2 par élève, sur 24 heures. Réessaie dans 24 h.',
   too_long: 'Texte trop long.',
   invalid_programme: 'Ce programme ne peut pas être envoyé.',
-  username_required: 'Choisis d\'abord un pseudo : ton coach te reconnaîtra avec.',
+  get username_required() { return `Choisis d'abord un pseudo : ${myCoachWord('ton')} te reconnaîtra avec.`; },
   too_big: 'Programme trop gros pour être envoyé.',
   // Plan diète (js/data/coach-diet.js)
   empty_diet: 'Ajoute au moins un aliment à ce plan avant de l\'envoyer.',
@@ -269,8 +269,8 @@ const COACH_ERROR_TEXT = {
   overlap: 'Cette phase chevauche une autre phase de cet élève : change sa date ou sa durée.',
   too_many: 'Cet élève a déjà 30 phases : supprime d\'anciennes phases d\'abord.',
   // Photos de bilan (js/data/coach-photos.js)
-  not_ready: 'Ton coach n\'a pas encore activé la réception des photos.',
-  key_changed: 'Ton coach a changé de clé : réessaie.',
+  get not_ready() { return `${myCoachWord('Ton')} n'a pas encore activé la réception des photos.`; },
+  get key_changed() { return `${myCoachWord('Ton')} a changé de clé : réessaie.`; },
   key_exists: 'La réception des photos est déjà activée sur un autre iPhone.',
   invalid_photo: 'Cette photo ne peut pas être envoyée.',
   not_uploaded: 'Envoi interrompu, rien n\'est resté sur le serveur. Réessaie.',

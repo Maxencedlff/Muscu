@@ -247,7 +247,7 @@ function waterSettingsGroupHtml() {
             ${switchHtml(on)}
           </button>
           <button class="cell" data-action="water-train-toggle" role="switch" aria-checked="${waterTrainBonusOn(data)}">
-            <span class="cell__body"><span class="cell__title">+0,5 L les jours de séance</span><span class="cell__sub">Sur ton objectif ; celui fixé par ton coach ne change pas</span></span>
+            <span class="cell__body"><span class="cell__title">+0,5 L les jours de séance</span><span class="cell__sub">Sur ton objectif ; celui fixé par ${myCoachWord('ton')} ne change pas</span></span>
             ${switchHtml(waterTrainBonusOn(data))}
           </button>
           <button class="cell cell--nav" data-action="go-water-cups">

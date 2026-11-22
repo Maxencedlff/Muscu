@@ -220,7 +220,7 @@ function targetRowHtml(cat, ex) {
   const before = t.gain && t.before ? `<span class="targets__before num">avant ${esc(t.before)}</span>` : '';
   return `<li class="targets__row"><span class="targets__main"><span class="targets__name">${esc(ex.name)}</span>`
     // Charge prescrite par le coach : « Coach : 60 kg × 8 », comme en séance
-    + `<span class="targets__target num">${t.coach ? `<span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ton coach : ${esc(t.spoken)}</span>` : esc(t.text)}</span></span>`
+    + `<span class="targets__target num">${t.coach ? `<span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ${myCoachWord('ton')} : ${esc(t.spoken)}</span>` : esc(t.text)}</span></span>`
     + `${before || gain ? `<span class="targets__sub">${before}${gain}</span>` : ''}</li>`;
 }
 function targetsHtml(cat) {

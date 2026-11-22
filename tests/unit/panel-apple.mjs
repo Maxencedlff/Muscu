@@ -198,7 +198,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
 
   test('Icônes : une bulle par sens, une silhouette pour se connecter', () => {
     assert.equal(iconOf('js/features/social-ui.js', 'social-open-comments'), 'bubble.left', 'Commenter : bulle vide');
-    assert.match(src('js/features/coach-ui.js'), /Commentée par ton coach">\$\{icon\('bubble\.left'/);
+    assert.match(src('js/features/coach-ui.js'), /Commentée par \$\{myCoachWord\('ton'\)\}">\$\{icon\('bubble\.left'/);
     assert.match(src('js/features/coach-chat-ui.js'), /chat-count[^\n]*icon\('text\.bubble'/, 'messages : bulle à lignes');
     assert.match(src('js/features/account-ui.js'), /avatar--empty[^\n]*icon\('person\.crop\.circle'/);
     for (const id of ['bubble.left', 'person.crop.circle']) assert.match(src('index.html'), new RegExp(`<symbol id="i-${id.replace('.', '\\.')}"`));

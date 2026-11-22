@@ -390,18 +390,18 @@ const GUIDE_SECTIONS = [
         // (photosAllowedHere, js/data/progress-photos.js, chargé avant ce fichier)
         id: 'mesures', title: GUIDE_PHOTOS ? 'Mensurations et photos' : 'Mensurations', icon: 'ruler', color: 'teal',
         lead: `Dans [Progrès] › [Mensurations], note tes tours de poitrine, de taille, de bras…${GUIDE_PHOTOS ? ' et garde des photos de progression' : ''}.`,
-        steps: [
+        get steps() { return [
           '[Ajouter des mesures] : la date, puis les mesures prises, en cm ou en pouces. Laisse vide le reste. Touche une mesure pour voir sa courbe.',
           ...(GUIDE_PHOTOS ? [
             'Les photos sont dans le [Coffre à photos]. Il s\'ouvre avec Face ID ou le code de l\'iPhone et se ferme quand tu quittes l\'app. Sa clé est dans ton trousseau iCloud : le coffre te suit sur un nouvel iPhone.',
             '[Ajouter une photo] ouvre la caméra ou la pellicule. Choisis [Face], [Profil] ou [Dos]. La photo est chiffrée dans le coffre, hors de ta pellicule. [Avant / après] compare deux dates.',
             'Les mensurations restent sur l\'iPhone et dans l\'export, hors copie iCloud. Les photos restent sur l\'iPhone seulement. Tes amis ne voient ni les unes ni les autres.',
-            'Ton coach voit une photo seulement si tu la lui envoies depuis le coffre. Elle est chiffrée pour ton coach seulement. Retire-la dans [Mon coach] › [Photos de bilan].',
+            `${myCoachWord('Ton')} voit une photo seulement si tu la lui envoies depuis le coffre. Elle est chiffrée pour ${myCoachWord('ton')} seulement. Retire-la dans [${myCoachWord('Mon')}] › [Photos de bilan].`,
           ] : [
-            'Les mensurations restent sur l\'iPhone et dans sa sauvegarde. Elles ne vont ni dans la copie iCloud ni sur nos serveurs. Ni tes amis ni ton coach ne les voient.',
+            `Les mensurations restent sur l'iPhone et dans sa sauvegarde. Elles ne vont ni dans la copie iCloud ni sur nos serveurs. Ni tes amis ni ${myCoachWord('ton')} ne les voient.`,
             'L\'export contient tes mensurations. [Supprimer toutes les données] les supprime.',
           ]),
-        ],
+        ]; },
         related: ['poids-corps', 'export'],
         actions: ['go-body-measures', 'bm-add', 'open-body-measure', ...(GUIDE_PHOTOS ? ['go-photo-vault', 'photo-add'] : [])],
       },
@@ -552,26 +552,26 @@ const GUIDE_SECTIONS = [
     id: 'coach', title: 'Coach',
     topics: [
       {
-        id: 'rejoindre-coach', title: 'Rejoindre un coach', icon: 'person.2', color: 'indigo', iphone: true, ordered: true,
-        lead: 'Ton coach suit tes séances, t\'envoie des programmes et commente tes séances. Il faut un compte.',
-        steps: [
-          'Demande un code à ton coach. Il faut un compte et un pseudo : l\'app te le demande s\'il manque.',
-          'En haut de l\'onglet [Social], touche [Rejoindre un coach] (ou [Réglages] › [Coach]), puis saisis le code ou colle le message reçu.',
-          'Tu vois qui est le coach et ce qu\'il verra : toutes tes séances et leur note de séance, ton poids et tes mensurations seulement si tu choisis de les partager, jamais Santé. Coche [J\'ai 15 ans ou plus], puis [Accepter].',
-          '[Quitter mon coach] arrête tout, quand tu veux. Les programmes déjà ajoutés restent chez toi.',
-        ],
+        id: 'rejoindre-coach', title: `Rejoindre ${coachWord('un')}`, icon: 'person.2', color: 'indigo', iphone: true, ordered: true,
+        get lead() { return `${myCoachWord('Ton')} suit tes séances, t'envoie des programmes et commente tes séances. Il faut un compte.`; },
+        get steps() { return [
+          `Demande un code à ${myCoachWord('ton')}. Il faut un compte et un pseudo : l'app te le demande s'il manque.`,
+          `En haut de l'onglet [Social], touche [Rejoindre ${coachWord('un')}] (ou [Réglages] › [Coach]), puis saisis le code ou colle le message reçu.`,
+          `Tu vois qui est ${coachWord('le')} et ce qu'${coachWord('il')} verra : toutes tes séances et leur note de séance, ton poids et tes mensurations seulement si tu choisis de les partager, jamais Santé. Coche [J'ai 15 ans ou plus], puis [Accepter].`,
+          `[Quitter ${myCoachWord('mon')}] arrête tout, quand tu veux. Les programmes déjà ajoutés restent chez toi.`,
+        ]; },
         related: ['programme-coach', 'coacher'],
         actions: ['coach-open-settings', 'coach-join', 'coach-age', 'coach-accept', 'coach-leave'],
       },
       {
-        id: 'programme-coach', title: 'Programme reçu d\'un coach', icon: 'list.bullet', color: 'indigo', iphone: true,
-        lead: 'Un programme envoyé par ton coach arrive sur l\'accueil et dans [Social] › [Mon coach].',
-        steps: [
+        id: 'programme-coach', title: `Programme reçu d'${coachWord('un')}`, icon: 'list.bullet', color: 'indigo', iphone: true,
+        get lead() { return `Un programme envoyé par ${myCoachWord('ton')} arrive sur l'accueil et dans [Social] › [${myCoachWord('Mon')}].`; },
+        get steps() { return [
           'Touche [Ajouter à mes programmes] : il rejoint tes programmes, tu peux l\'utiliser tout de suite.',
           'Ses consignes s\'affichent dans la séance du programme et pendant la séance, sous le nom de l\'exercice. Un toucher les replie.',
-          'Quand ton coach le modifie, touche [Mettre à jour]. Si tu l\'as changé toi aussi, l\'app te demande avant de remplacer ta version.',
-          'Ses commentaires sont dans [Mon coach] et dans [Historique], sous la séance. Une carte de l\'accueil te prévient.',
-        ],
+          `Quand ${myCoachWord('ton')} le modifie, touche [Mettre à jour]. Si tu l'as changé toi aussi, l'app te demande avant de remplacer ta version.`,
+          `Ses commentaires sont dans [${myCoachWord('Mon')}] et dans [Historique], sous la séance. Une carte de l'accueil te prévient.`,
+        ]; },
         related: ['rejoindre-coach', 'modifier-seance'],
         actions: ['coach-add-prog', 'coach-tip'],
       },
@@ -645,7 +645,7 @@ const GUIDE_SECTIONS = [
           'Deux formules, mensuelle ou annuelle. Les prix affichés sont ceux d\'Apple, dans ta monnaie.',
           'Après l\'essai, ton [Historique], tes [Progrès] et [Exporter les données] restent ouverts : rien n\'est supprimé.',
           'Sans abonnement, [Démarrer] une séance ou l\'enregistrer te propose les formules.',
-          'Un élève suivi par un coach garde l\'accès sans rien payer.',
+          `Un élève suivi par ${coachWord('un')} garde l'accès sans rien payer.`,
         ],
         related: ['abonnement-gerer', 'compte'],
         actions: ['pay-open', 'pay-buy'],
@@ -668,7 +668,8 @@ const GUIDE_SECTIONS = [
 ];
 
 // Tous les sujets, dans l'ordre de l'écran, chacun avec sa section
-const GUIDE_TOPICS = GUIDE_SECTIONS.flatMap(s => s.topics.map(t => ({ ...t, section: s.id })));
+// Section ajoutée en place (pas de copie) : les textes accordés au coach (getters) restent calculés à chaque lecture
+const GUIDE_TOPICS = GUIDE_SECTIONS.flatMap(s => s.topics.map(t => Object.assign(t, { section: s.id })));
 
 function guideTopic(id) { return GUIDE_TOPICS.find(t => t.id === id) || null; }
 

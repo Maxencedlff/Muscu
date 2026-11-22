@@ -138,7 +138,8 @@ fi
 echo "OK : tarifs, modèle B et parrainage refusent tant que la migration du dessus est en place"
 
 # ── 5. Retours arrière indépendants, seuls sur la pile complète ──
-for pair in "20261120020000:nom_affiche_coach_test.sql" \
+for pair in "20261122010000:forme_coach_test.sql" \
+            "20261120020000:nom_affiche_coach_test.sql" \
             "20261120010000:par_bras_test.sql" \
             "20261118010000:suivi_diete_test.sql" \
             "20261117060000:reaction_jaime_test.sql" \

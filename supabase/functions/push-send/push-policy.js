@@ -8,6 +8,8 @@
 //    (reaction, liste fermée) et le nom de MA séance (label, 40 caractères). Résumé des séances
 //    (student_digest) : un nombre d'élèves seulement (count), sans pseudo ni écran (ref vide). Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
 //    ouvrir le bon écran au toucher (PushPlugin.swift) ; ref : séance, programme, ou conversation ('@coach' ou id de l'élève).
+//    Accord du coach (actor_form, 'il' | 'elle' | 'neutre', relue par push_actor_forms pour les commentaires) :
+//    « Commentaire de la coach » pour 'elle', sinon le texte d'avant.
 // 2. Requête APNs (documentation Apple « Sending notification requests to APNs ») : HTTP/2, POST
 //    /3/device/<jeton>, en-têtes authorization (jeton du fournisseur), apns-push-type alert, apns-topic
 //    (identifiant de l'app), apns-priority 10, apns-expiration (24 h : après, la notification n'a plus de
@@ -52,7 +54,10 @@ export const PUSH_KINDS = Object.freeze({
       body: emoji ? `${who} a réagi ${emoji} à ta séance${label ? ` ${label}` : ''}` : `${who} a aimé ta séance` };
   },
   follow_request:  (who) => ({ title: 'Nouvelle demande', body: `${who} veut suivre tes séances` }),
-  coach_note:      (who) => ({ title: 'Commentaire du coach', body: `${who} a commenté ta séance` }),
+  // Commentaire du coach : accordé à la forme choisie par le coach (actor_form, lue par push_actor_forms ; 'elle' :
+  // « Commentaire de la coach »), sinon le texte d'avant (docs/COACH_FORME.md)
+  coach_note:      (who, row = {}) => ({ title: row.actor_form === 'elle' ? 'Commentaire de la coach' : 'Commentaire du coach',
+    body: `${who} a commenté ta séance` }),
   coach_programme: (who) => ({ title: 'Nouveau programme', body: `${who} t’a envoyé un programme` }),
   comment:         (who) => ({ title: 'Nouveau commentaire', body: `${who} a commenté ta séance` }),
   chat_message:    (who) => ({ title: 'Nouveau message', body: `${who} t’a envoyé un message` }),
@@ -71,6 +76,17 @@ export const PUSH_KINDS = Object.freeze({
 
 // Résumé : nombre d'élèves entier de 1 à 10 000, sinon rien à envoyer
 const validDigestCount = (n) => Number.isInteger(n) && n >= 1 && n <= 10000;
+
+// Sortes dont le titre s'accorde à la forme du coach (push_actor_forms n'est demandé que pour elles)
+export const FORM_KINDS = Object.freeze(['coach_note']);
+// Réponse de push_actor_forms ({ "<id>": forme }) posée sur les lignes ; valeur inconnue ou absente : rien
+export function withActorForms(rows, forms) {
+  const f = forms && typeof forms === 'object' && !Array.isArray(forms) ? forms : {};
+  return rows.map((r) => {
+    const v = Object.hasOwn(f, String(r.id)) ? f[String(r.id)] : null;
+    return ['il', 'elle', 'neutre'].includes(v) ? { ...r, actor_form: v } : r;
+  });
+}
 
 // Ligne de push_claim → { skip } ou { title, body, kind, ref }
 export function pushMessage(row) {

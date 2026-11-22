@@ -94,7 +94,8 @@ noir ; pseudo et badge tenus dans la même largeur que le nom ; « Choisir une p
 carte du code, même avec un nom long sur deux lignes (le titre puis la photo rapetissent, test unitaire) ; feuille en
 très grand texte : Femme et Homme côte à côte, « Aperçu » sur la ligne de « Fermer ».
 
-**À faire plus tard : « Ma coach » dans l'app.** Quand la coach a choisi la silhouette femme ou « NOUVELLE COACH », l'élève
+**« Ma coach » dans l'app : fait le 22/11, voir docs/COACH_FORME.md** (le titre de l'affiche suit désormais le choix
+« Tes élèves lisent » de Réglages › Coach quand il est fait). Note d'origine : Quand la coach a choisi la silhouette femme ou « NOUVELLE COACH », l'élève
 devrait lire « Ma coach », « Ta coach depuis… », « Ta coach peut t'écrire ». Ce n'est pas une petite modification :
 le serveur ne connaît que le nom de l'affiche (il faudrait ajouter l'accord à `coach_poster_names`, dans la migration
 pas encore appliquée), et « Mon coach » / « Ton coach » reviennent dans plus de 130 textes de l'app (onglet

@@ -72,7 +72,7 @@ function coachTitle(html) { return `<h2 class="group-title coach-title">${html}<
 function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
-  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-send-many': 'Plusieurs élèves', 'coach-presc': 'Charge et reps', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
+  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': myCoachWord('Mon'), 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-send-many': 'Plusieurs élèves', 'coach-presc': 'Charge et reps', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
     'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure', 'coach-photos': 'Photos de bilan',
     'coach-photos-mine': 'Photos de bilan' }[name] || null;
 }
@@ -117,17 +117,17 @@ function coachCellHtml() {
     // Messages : leur propre ligne juste dessous (conversation à un toucher), leurs non-lus n'y sont plus comptés deux fois
     const chatRow = chatAvailable() ? chatCoachRowHtml() : '';
     const p = myCoach(), badge = coachBadgeStudent() + (chatRow ? 0 : chatUnreadOf(CHAT_COACH));
-    const label = ['Mon coach', p ? personName(p) : '', badge ? plural(badge, 'nouveauté', 'nouveautés') : ''].filter(Boolean).join(', ');
+    const label = [myCoachWord('Mon'), p ? personName(p) : '', badge ? plural(badge, 'nouveauté', 'nouveautés') : ''].filter(Boolean).join(', ');
     rows.push(`<button class="cell cell--nav coach-cell coach-cell--mine" data-action="coach-open-mine" aria-label="${esc(label)}">
         ${p ? personAvatar(p) : `<span class="coach-cell__icon" aria-hidden="true">${icon('coach', 20)}</span>`}
-        <span class="cell__body"><span class="cell__title">Mon coach</span>${p ? `<span class="cell__sub">${esc([personName(p), studentPlanSub()].filter(Boolean).join(' · '))}</span>` : ''}</span>
+        <span class="cell__body"><span class="cell__title">${myCoachWord('Mon')}</span>${p ? `<span class="cell__sub">${esc([personName(p), studentPlanSub()].filter(Boolean).join(' · '))}</span>` : ''}</span>
         ${badge ? `<span class="coach-count num" aria-hidden="true">${badge}</span>` : ''}
         ${icon('chevron.right', 16)}
       </button>${chatRow}`);
   } else if (!isCoach && !coachJoinHiddenByAge()) {   // moins de 15 ans possible (js/data/age-range.js) : rien
     rows.push(`<button class="cell cell--nav coach-cell coach-cell--join" data-action="coach-join-start">
         <span class="coach-cell__icon" aria-hidden="true">${icon('coach', 20)}</span>
-        <span class="cell__body"><span class="cell__title">Rejoindre un coach</span><span class="cell__sub">Tu as un code de ton coach&nbsp;?</span></span>
+        <span class="cell__body"><span class="cell__title">Rejoindre ${coachWord('un')}</span><span class="cell__sub">Tu as un code de ${coachWord('ton')}&nbsp;?</span></span>
         ${icon('chevron.right', 16)}
       </button>`);
   }
@@ -163,8 +163,8 @@ function renderCoachSettings() {
     return `<div class="view view--grouped coach-view">${head}<div class="scr">
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
-          <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
-          <p class="social-hero__sub">Ton coach suit tes séances et t'envoie des programmes. Il faut un compte, c'est gratuit.</p>
+          <h2 class="social-hero__title">Entraîne-toi avec ${coachWord('un')}</h2>
+          <p class="social-hero__sub">${coachWord('Ton')} suit tes séances et t'envoie des programmes. Il faut un compte, c'est gratuit.</p>
         </div>
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>
       </div></div>`;
@@ -173,11 +173,11 @@ function renderCoachSettings() {
   const { isCoach, hasCoach } = coachRole();
   if (!st && !hasCoach && !isCoach) {
     return `<div class="view view--grouped coach-view">${head}<div class="scr">${coach.error
-      ? coachOfflineNote(coach.error, 'Pas d\'Internet. Le coach demande du réseau.') : '<div class="empty-note">Chargement…</div>'}</div></div>`;
+      ? coachOfflineNote(coach.error, `Pas d'Internet. ${coachWord('Le')} demande du réseau.`) : '<div class="empty-note">Chargement…</div>'}</div></div>`;
   }
   const stale = !st && coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : pas à jour.' : coachErrorText(coach.error))}</p>` : '';
   const mine = hasCoach && me ? `
-        <div class="group-title">Mon coach</div>
+        <div class="group-title">${myCoachWord('Mon')}</div>
         <div class="group">
           <button class="cell cell--nav social-row coach-row" data-action="coach-open-mine">
             <span class="social-row__main">${personAvatar(me)}<span class="social-row__text"><span class="social-row__name">${esc(personName(me))}</span>${sinceText(me) ? `<span class="cell__sub">Depuis le ${esc(sinceText(me))}</span>` : ''}</span></span>
@@ -185,18 +185,18 @@ function renderCoachSettings() {
           </button>${coachShareSettingsCell()}
         </div>
         <div class="group">
-          <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
+          <button class="cell cell--destructive" data-action="coach-leave">Quitter ${myCoachWord('mon')}</button>
         </div>
-        <div class="group-foot">Si tu quittes ton coach, tes séances ne sont plus partagées. Les programmes ajoutés restent chez toi.</div>` : coachJoinHiddenByAge() ? coachJoinAgeHtml() : `
+        <div class="group-foot">Si tu quittes ${myCoachWord('ton')}, tes séances ne sont plus partagées. Les programmes ajoutés restent chez toi.</div>` : coachJoinHiddenByAge() ? coachJoinAgeHtml() : `
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
-          <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
-          <p class="social-hero__sub">Entre le code donné par ton coach. Avant d'accepter, tu verras ce qu'il pourra voir et faire.</p>
+          <h2 class="social-hero__title">Entraîne-toi avec ${coachWord('un')}</h2>
+          <p class="social-hero__sub">Entre le code donné par ${coachWord('ton')}. Avant d'accepter, tu verras ce qu'${coachWord('il')} pourra voir et faire.</p>
         </div>
         <div class="group">
-          <button class="cell cell--action" data-action="coach-join"><span class="cell__title">Rejoindre un coach</span></button>
+          <button class="cell cell--action" data-action="coach-join"><span class="cell__title">Rejoindre ${coachWord('un')}</span></button>
         </div>
-        <div class="group-foot">Tu peux quitter ton coach à tout moment.</div>`;
+        <div class="group-foot">Tu peux quitter ${coachWord('ton')} à tout moment.</div>`;
   const students = isCoach ? `
         <div class="group-title">Tu es coach</div>
         <div class="group">
@@ -221,7 +221,7 @@ function coachCodeSheet() {
   return sheet({
     title: 'Rejoindre', confirm: 'Suivant', focus: '#coachCode',
     body: `<div class="coach-sheet">
-        <label class="coach-sheet__label" for="coachCode">Code reçu de ton coach</label>
+        <label class="coach-sheet__label" for="coachCode">Code reçu de ${coachWord('ton')}</label>
         <input class="coach-code-input" id="coachCode" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off"
                spellcheck="false" enterkeyhint="go" placeholder="Ex : K7M2-QX9P-R4TD" aria-describedby="coachCodeHelp">
         <p class="coach-sheet__hint" id="coachCodeHelp" aria-live="polite">8 ou 12 lettres et chiffres. Tu peux coller tout le message d'invitation.</p>
@@ -252,7 +252,7 @@ function coachJoinAgeHtml() {
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Coach indisponible</h2>
-          <p class="social-hero__sub">Suivre un coach est réservé aux 15 ans et plus, d'après la tranche d'âge transmise par Apple. Tout le reste de l'app reste disponible.</p>
+          <p class="social-hero__sub">Suivre ${coachWord('un')} est réservé aux 15 ans et plus, d'après la tranche d'âge transmise par Apple. Tout le reste de l'app reste disponible.</p>
         </div>`;
 }
 
@@ -280,7 +280,7 @@ function renderCoachJoin(code) {
   const head = navBar({ title: 'Rejoindre', large: false });
   if (coachJoinHiddenByAge()) return `<div class="view view--grouped coach-join-view">${head}<div class="scr">${coachJoinAgeHtml()}</div></div>`;
   if (!pv) return `<div class="view view--grouped coach-join-view">${head}<div class="scr"><div class="empty-note">Saisis de nouveau le code dans l'onglet Social.</div></div></div>`;
-  const name = esc(personName(pv));
+  const name = esc(personName(pv)), pf = coachFormOf(pv.user_id);
   const list = items => `<div class="group">${items.map(([t, d]) => `
           <div class="cell coach-join__item"><span class="cell__body"><span class="cell__title">${t}</span><span class="cell__sub">${d}</span></span></div>`).join('')}</div>`;
   const ok = socialAgeOk;
@@ -293,7 +293,7 @@ function renderCoachJoin(code) {
       <div class="scr">
         <div class="coach-join__who">
           ${personAvatar(pv, 'l')}
-          <span><span class="coach-join__name">${name}</span><span class="coach-join__sub">veut être ton coach</span>${cardBadgeHtml(pv.user_id, 'card-badge--who')}</span>
+          <span><span class="coach-join__name">${name}</span><span class="coach-join__sub">veut être ${coachWord('ton', pf)}</span>${cardBadgeHtml(pv.user_id, 'card-badge--who')}</span>
         </div>
         ${coachTitle(`Ce ${elide('que', name)} verra`)}
         ${list([['Toutes tes séances', 'Anciennes et nouvelles, avec exercices, séries et notes. Même celles masquées à ceux qui te suivent.']])}
@@ -302,8 +302,8 @@ function renderCoachJoin(code) {
           ['Des messages', 'Texte seul, entre vous deux. Supprimés si le suivi s\'arrête. Tu peux en signaler un.'],
           ['Des plans de nutrition', 'Si tu les acceptes. Tu choisis de les suivre.']])}
         ${coachTitle('Seulement si tu le choisis')}
-        ${list([['Poids et mensurations', 'Rien au départ. Tu choisis dans Réglages › Social et coach › Partager avec mon coach.'],
-          ...(photos ? [['Des photos de bilan', 'Celles que tu envoies depuis ton coffre, chiffrées pour ton coach seul. Tu peux les retirer.']] : [])])}
+        ${list([['Poids et mensurations', `Rien au départ. Tu choisis dans Réglages › Social et coach › Partager avec ${coachWord('mon', pf)}.`],
+          ...(photos ? [['Des photos de bilan', `Celles que tu envoies depuis ton coffre, chiffrées pour ${coachWord('ton', pf)} seul${coachWord('e', pf)}. Tu peux les retirer.`]] : [])])}
         ${coachTitle('Jamais visible')}
         ${list([['Le reste', `Ni tes données Santé, ni ${photos ? 'les autres photos du coffre' : 'tes photos'}, ni tes programmes perso. Tu ne vois pas ses autres élèves, et eux ne te voient pas.`]])}
         <div class="coach-join__foot">
@@ -446,11 +446,11 @@ function coachMineProgHtml(inbox) {
 }
 
 function renderCoachMine() {
-  const head = navBar({ title: 'Mon coach', large: true });   // grand titre replié au défilement, comme Coach et Mon profil
+  const head = navBar({ title: myCoachWord('Mon'), large: true });   // grand titre replié au défilement, comme Coach et Mon profil
   const p = myCoach();
   if (!p) {
     return `<div class="view view--grouped coach-mine-view">${head}<div class="scr">${!coach.state && coach.error
-      ? coachOfflineNote(coach.error, 'Pas d\'Internet. Ton coach s\'affichera quand le réseau reviendra.')
+      ? coachOfflineNote(coach.error, `Pas d'Internet. ${myCoachWord('Ton')} s'affichera quand le réseau reviendra.`)
       : coach.state ? '<div class="empty-note">Tu n\'as pas de coach. Rejoins-en un depuis l\'onglet Social.</div>' : '<div class="empty-note">Chargement…</div>'}</div></div>`;
   }
   const inbox = coach.inbox;
@@ -469,7 +469,7 @@ function renderCoachMine() {
         <div class="cmine-hero">
           <div class="coach-join__who coach-mine__who">
             ${personAvatar(p, 'l')}
-            <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${nameBreakHtml(shownName)}</span>${posterNm && p.username ? `<span class="coach-join__sub coach-mine__handle">@${nameBreakHtml(p.username)}</span>` : ''}<span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span>${cardBadgeHtml(p.user_id, 'card-badge--who')}</span>
+            <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${nameBreakHtml(shownName)}</span>${posterNm && p.username ? `<span class="coach-join__sub coach-mine__handle">@${nameBreakHtml(p.username)}</span>` : ''}<span class="coach-join__sub">${myCoachWord('Ton')}${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span>${cardBadgeHtml(p.user_id, 'card-badge--who')}</span>
           </div>
           ${coachMineProgHtml(inbox)}
         </div>
@@ -483,9 +483,9 @@ function renderCoachMine() {
         ${dietInboxHtml()}
         <div class="group group--gap">
           ${cardBadgeReportCell(p.user_id)}
-          <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
+          <button class="cell cell--destructive" data-action="coach-leave">Quitter ${myCoachWord('mon')}</button>
         </div>
-        <div class="group-foot">Si tu quittes ton coach, tes séances ne sont plus partagées et vos messages sont supprimés.</div>
+        <div class="group-foot">Si tu quittes ${myCoachWord('ton')}, tes séances ne sont plus partagées et vos messages sont supprimés.</div>
       </div>
     </div>`;
 }
@@ -557,7 +557,7 @@ async function addCoachProgrammeFlow(progId, { take = false } = {}) {
   // Séance en cours sur ce programme : la mise à jour attend la fin de la séance (ses exercices et ses
   // séances changeraient en pleine séance)
   if (status === 'update' && activeSession?.programme === localId) {
-    await dialog({ title: 'Séance en cours', message: `Termine la séance, puis mets à jour « ${name} » depuis Mon coach.`,
+    await dialog({ title: 'Séance en cours', message: `Termine la séance, puis mets à jour « ${name} » depuis ${myCoachWord('Mon')}.`,
       actions: [{ label: 'OK', style: 'preferred' }] });
     return;
   }
@@ -595,14 +595,14 @@ async function addCoachProgrammeFlow(progId, { take = false } = {}) {
 
 // Programme reçu d'un coach (programme perso marqué fromCoach), ou null
 function coachProgOf(progId) { return data.userProgrammes?.[progId]?.fromCoach ? data.userProgrammes[progId] : null; }
-function coachAuthor(up) { return up?.fromCoach?.name || 'ton coach'; }
+function coachAuthor(up) { return up?.fromCoach?.name || coachWord('ton', coachFormOf(up?.fromCoach?.coachId)); }
 // « De ton coach max » : Mes programmes, accueil
 // « De ton coach max » tant qu'on suit ce coach ; ensuite « Reçu de max » (ou rien si le nom manque)
 function coachFromLine(progId) {
   const up = coachProgOf(progId);
   if (!up) return '';
   const name = up.fromCoach.name;
-  if (myCoach()?.user_id && myCoach().user_id === up.fromCoach.coachId) return `De ton coach ${esc(name || myCoach().username || '')}`.trim();
+  if (myCoach()?.user_id && myCoach().user_id === up.fromCoach.coachId) return `De ${myCoachWord('ton')} ${esc(name || myCoach().username || '')}`.trim();
   return name ? `Reçu ${elide('de', esc(name))}` : '';
 }
 
@@ -656,12 +656,12 @@ function historyCoachGroup(h) {
   const n = coachNoteFor(h.id);
   if (!n) return '';
   return `
-        <div class="group-title">Commentaire de ton coach</div>
+        <div class="group-title">Commentaire de ${myCoachWord('ton')}</div>
         <div class="group group--pad"><p class="hnotes coach-note">${esc(n.text)}</p></div>`;
 }
 function coachHistoryMark(h) {
   if (!coachNoteFor(h.id)) return '';
-  return `<span class="coach-mark" role="img" aria-label="Commentée par ton coach">${icon('bubble.left', 14)}</span>`;   // bulle vide : un commentaire ; la bulle à lignes reste aux messages privés
+  return `<span class="coach-mark" role="img" aria-label="Commentée par ${myCoachWord('ton')}">${icon('bubble.left', 14)}</span>`;   // bulle vide : un commentaire ; la bulle à lignes reste aux messages privés
 }
 // Ouverture d'Historique › Séance : son commentaire est vu
 function coachHistoryMount() {
@@ -671,7 +671,7 @@ function coachHistoryMount() {
 }
 // Bilan : sous les notes, quand on a un coach
 function coachNotesHint() {
-  return account.user && myCoach() ? '<p class="coach-notes-hint">Ton coach voit la note de séance.</p>' : '';
+  return account.user && myCoach() ? `<p class="coach-notes-hint">${myCoachWord('Ton')} voit la note de séance.</p>` : '';
 }
 
 // ── Coach : Mes élèves ──────────────────────────────────────
@@ -790,7 +790,7 @@ function coachTeamHtml() {
           ${invites}
           <button class="cell cell--action" data-action="coach-invite" ${coachInviteBusy ? 'disabled' : ''}>${icon('plus', 20)}<span>${coachPro.code ? 'Créer un code de 7 jours' : 'Inviter un élève'}</span></button>
         </div>
-        <div class="group-foot">${coachPro.code ? 'Les codes de 7 jours expirent au bout d\'une semaine. ' : 'Ces codes sont valables 7 jours et servent à plusieurs élèves. '}L'élève saisit le code dans Social › Rejoindre un coach.</div>
+        <div class="group-foot">${coachPro.code ? 'Les codes de 7 jours expirent au bout d\'une semaine. ' : 'Ces codes sont valables 7 jours et servent à plusieurs élèves. '}L'élève saisit le code dans Social › Rejoindre ${coachWord('un')}.</div>
         ${removed}`;
 }
 // Code coach permanent, en tête des invitations : c'est lui qui va dans la bio, les codes de 7 jours viennent
@@ -1115,7 +1115,7 @@ function renderCoachSession(uid, id) {
           ${row.note ? `<div class="cell"><p class="hnotes coach-note">${esc(row.note)}</p></div>` : ''}
           <button class="cell cell--action" data-action="coach-comment" data-uid="${esc(uid)}" data-id="${esc(row.id)}">${icon('pencil', 18)}<span>${row.note ? 'Modifier le commentaire' : 'Commenter'}</span></button>
         </div>
-        <div class="group-foot">${who} le voit dans son historique et dans Mon coach.</div>
+        <div class="group-foot">${who} le voit dans son historique et dans ${coachWord('Mon', myOwnCoachForm())}.</div>
         ${reviewRuleFoot(f.rows, f.end, rv.bodyKg)}
       </div>
     </div>`;
@@ -1334,7 +1334,7 @@ async function shareCoachInvite(code) {
 // amis : sans pseudo, explication puis écran du pseudo (texte du coach). force : le serveur l'a demandé
 async function coachEnsureUsername(force = false) {
   if (account.profile?.username && !force) return true;
-  const go = await dialog({ title: 'Choisis un pseudo', message: 'Le pseudo permet à ton coach de te reconnaître.',
+  const go = await dialog({ title: 'Choisis un pseudo', message: `Le pseudo permet à ${coachWord('ton')} de te reconnaître.`,
     actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Choisir', value: true, style: 'preferred' }] });
   if (go !== true) return false;
   await openAuthFlow({ step: 'username', mode: 'profile', context: 'coach' });
@@ -1358,12 +1358,12 @@ registerActions({
   'coach-accept': async (e, el) => {
     if (!socialAgeOk || coachJoinHiddenByAge()) return;
     el.disabled = true;
-    const name = personName(coach.preview?.person);
+    const name = personName(coach.preview?.person), pf = coachFormOf(coach.preview?.person?.user_id);
     const r = await coachJoin(el.dataset.code);
     if (!coachToast(r)) { el.disabled = false; return; }
     haptic();
     goBack();
-    await dialog({ title: `${name} est ton coach`, message: `Les programmes ${elide('de', name)} arriveront dans Social › Mon coach.`,
+    await dialog({ title: `${name} est ${coachWord('ton', pf)}`, message: `Les programmes ${elide('de', name)} arriveront dans Social › ${coachWord('Mon', pf)}.`,
       actions: [{ label: 'OK', style: 'preferred' }] });
     // Couvert par son coach alors qu'il a son propre abonnement ou essai chez Apple : le lui dire (paywall-ui.js)
     await payDoubleAfterJoin();
@@ -1374,7 +1374,7 @@ registerActions({
     const name = coachName();
     const lost = (coach.inbox?.programmes || []).filter(p => coachStatus(p).status === 'new').map(p => `« ${p.data.name} »`);
     const extra = lost.length ? ` ${lost.length > 1 ? `Les programmes ${lost.join(', ')} que tu n'as pas ajoutés seront perdus.` : `Le programme ${lost[0]} que tu n'as pas ajouté sera perdu.`}` : '';
-    if (!(await confirmSheet(`Quitter ${name} ?`, `${name} ne verra plus tes séances. Ses commentaires et vos messages seront supprimés. Les programmes ajoutés restent chez toi.${extra}`, 'Quitter mon coach'))) return;
+    if (!(await confirmSheet(`Quitter ${name} ?`, `${name} ne verra plus tes séances. Ses commentaires et vos messages seront supprimés. Les programmes ajoutés restent chez toi.${extra}`, `Quitter ${myCoachWord('mon')}`))) return;
     const me = account.user?.id;
     const r = await coachLeave();
     if (!coachToast(r, `Tu ne suis plus ${name}`)) return;
@@ -1393,8 +1393,8 @@ registerActions({
     if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
   },
   'coach-prog-toggle': (e, el) => { const id = el.dataset.id; if (coachProgOpen.has(id)) coachProgOpen.delete(id); else coachProgOpen.add(id); render(); },
-  'coach-dismiss-prog': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
-  'coach-dismiss-note': (e, el) => { coachMarkInboxSeen('note', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
+  'coach-dismiss-prog': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast(`Il reste dans Social › ${myCoachWord('Mon')}`); },
+  'coach-dismiss-note': (e, el) => { coachMarkInboxSeen('note', el.dataset.id); render(); showToast(`Il reste dans Social › ${myCoachWord('Mon')}`); },
   'coach-open-history': (e, el) => navigate(makeRoute('history-detail', el.dataset.id)),
   'coach-tip': (e, el) => {
     const id = el.dataset.ex;

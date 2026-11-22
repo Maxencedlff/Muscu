@@ -44,7 +44,7 @@ function pphFree() {
   const cover = accessStatus() === 'coach_team' ? accessCoachCover() : null;
   return cover && ['active', 'grace'].includes(cover.state) ? 'team' : null;
 }
-const PPH_FREE_TEXT = { coach: 'Offerte aux coachs.', team: 'Offerte par ton coach.' };
+const PPH_FREE_TEXT = { coach: 'Offerte aux coachs.', get team() { return `Offerte par ${myCoachWord('ton')}.`; } };
 function pphProTag() { return pphFree() ? '' : '<span class="pro-tag" aria-label="fonction Pro">Pro</span>'; }
 
 // ── Réglages › Compte ───────────────────────────────────────
@@ -70,7 +70,7 @@ function pphSheetBody() {
   // Coach : son affiche de coach (qu'il partage lui-même) peut aussi la montrer
   const poster = coachRole().isCoach === true ? ' Ton affiche de coach montre aussi cette photo.' : '';
   // En très grand texte (5e panel), une phrase courte, la règle dans un détail repliable : les boutons restent hauts
-  const who = 'Visible seulement de tes amis et de ton coach.', rule = `${poster.trim()} Pas de nudité ni d'image choquante : une photo signalée est masquée.`.trim();
+  const who = `Visible seulement de tes amis et de ${myCoachWord('ton')}.`, rule = `${poster.trim()} Pas de nudité ni d'image choquante : une photo signalée est masquée.`.trim();
   const scope = `<span class="pph-scope-full">${who} ${rule}</span><span class="pph-scope-short">${who}</span>`;
   const rules = `<details class="pph-rules"><summary>Ce qui est permis</summary><p>${rule}</p></details>`;
   if (v.stage !== 'choose' && v.url) {
@@ -156,7 +156,7 @@ async function pphUse(el) {
 }
 
 async function pphRemoveFlow() {
-  if (!(await confirmSheet('Retirer ta photo ?', 'Elle est effacée du serveur. Ton avatar la remplace auprès de tes amis et de ton coach.', 'Retirer'))) return;
+  if (!(await confirmSheet('Retirer ta photo ?', `Elle est effacée du serveur. Ton avatar la remplace auprès de tes amis et de ${myCoachWord('ton')}.`, 'Retirer'))) return;
   const r = await profilePhotoRemove();
   if (!r.ok) { showToast(pphErrorText(r.kind), { error: true }); return; }
   if (typeof posterPhotoClear === 'function') posterPhotoClear(account.user?.id);   // et sa copie pour l'affiche

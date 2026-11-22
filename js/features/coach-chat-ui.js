@@ -42,7 +42,7 @@ function chatListHtml(key) {
   if (!c.rows.length) {
     if (c.loading || (!c.loadedAt && !c.error)) return '<p class="chat-empty">Chargement…</p>';
     if (c.error) return coachOfflineNote(c.error, 'Pas d\'Internet. Les messages s\'afficheront quand le réseau reviendra.');
-    return `<p class="chat-empty">${key === CHAT_COACH ? 'Pose une question ou dis à ton coach si un exercice te gêne.'
+    return `<p class="chat-empty">${key === CHAT_COACH ? `Pose une question ou dis à ${myCoachWord('ton')} si un exercice te gêne.`
       : 'Envoie une consigne ou une question à ton élève.'}</p>`;
   }
   let day = '', html = '';
@@ -200,7 +200,7 @@ async function chatMenu(key) {
   if (!r.ok) { showToast(r.kind === 'report_rate' ? socialErrorText(r.kind) : coachErrorText(r.kind), { error: true }); return; }
   haptic();
   await dialog({ title: 'Signalement envoyé', message: `Il sera traité sous 24 heures. La copie des messages est gardée même si le suivi s'arrête. ${key === CHAT_COACH
-    ? 'Pour ne plus échanger avec ton coach : Mon coach › Quitter mon coach.' : 'Pour ne plus échanger avec cet élève, retire-le depuis sa fiche.'}`,
+    ? `Pour ne plus échanger avec ${myCoachWord('ton')} : ${myCoachWord('Mon')} › Quitter ${myCoachWord('mon')}.` : 'Pour ne plus échanger avec cet élève, retire-le depuis sa fiche.'}`,
     actions: [{ label: 'OK', style: 'preferred' }] });
 }
 
@@ -338,7 +338,7 @@ function chatIntroHtml() {
   return `
         <div class="group">
           <div class="cell coach-lost chat-intro-note" role="status">
-            <span class="cell__body"><span class="cell__title">Ton coach peut t'écrire</span><span class="cell__sub">Un message te gêne ? Signale-le depuis la conversation, ou quitte ton coach.</span></span>
+            <span class="cell__body"><span class="cell__title">${myCoachWord('Ton')} peut t'écrire</span><span class="cell__sub">Un message te gêne ? Signale-le depuis la conversation, ou quitte ${myCoachWord('ton')}.</span></span>
             <button class="social-x" data-action="chat-intro-ok" aria-label="OK, fermer">${icon('xmark', 14)}</button>
           </div>
         </div>`;
@@ -351,7 +351,7 @@ function chatBadgeHtml(n) {
 // Élève : « Messages » juste sous « Mon coach », en tête de l'onglet Social : la conversation à un toucher, avec ses non-lus
 function chatCoachRowHtml() {
   const th = chatThreadOf(CHAT_COACH), n = chatUnreadOf(CHAT_COACH);
-  const last = th?.last ? `${th.last.mine ? 'Toi : ' : ''}${th.last.body.replace(/\s+/g, ' ')}` : 'Écris à ton coach';
+  const last = th?.last ? `${th.last.mine ? 'Toi : ' : ''}${th.last.body.replace(/\s+/g, ' ')}` : `Écris à ${myCoachWord('ton')}`;
   return `
       <button class="cell cell--nav coach-cell chat-cell chat-cell--coach" data-action="chat-open" data-key="${CHAT_COACH}">
         <span class="coach-cell__icon" aria-hidden="true">${icon('text.bubble', 20)}</span>

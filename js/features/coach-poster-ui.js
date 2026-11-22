@@ -75,12 +75,17 @@ function coachPosterModelNow() {
   return coachPosterModel({
     name: cposter.name, specialty: cposter.specialty, username: account.profile?.username || '', code: coachPro.code,
     badge: coachPro.card?.status === 'declared', hasPhoto: !!cposter.photo, silhouette: cposter.silhouette, neutral: cposter.neutral,
+    form: myOwnCoachForm(),
   });
 }
 
 // Bouton d'un segment : actif, aria-pressed, action et valeur
 const cposterSeg = (action, key, on, label, aria = '') => `<button type="button" class="segmented__btn${on ? ' segmented__btn--active' : ''}" aria-pressed="${on}"${aria ? ` aria-label="${esc(aria)}"` : ''} data-action="${action}" data-v="${key}">${esc(label)}</button>`;
-function cposterTitleLabel() { return cposter.silhouette === 'female' ? 'Nouvelle coach' : 'Nouveau coach'; }
+// Titre accordé : à la forme choisie dans Réglages › Coach si elle est connue, sinon à la silhouette (comme avant)
+function cposterTitleLabel() {
+  const f = myOwnCoachForm();
+  return coachWord('Nouveau', f === 'il' || f === 'elle' ? f : cposter.silhouette === 'female' ? 'elle' : 'il');
+}
 
 // Réglages de l'aperçu, dans un bloc groupé sous le format : nom, silhouette, titre et photo
 // VoiceOver, ligne Photo (10e panel) : l'état puis l'action
@@ -107,12 +112,12 @@ function coachPosterToolsHtml() {
             ${CPOSTER_SILHOUETTES.map(x => cposterSeg('coach-poster-silhouette', x.key, x.key === cposter.silhouette, x.label)).join('')}
           </div>
         </div>
-        <div class="cposter-row">
+        ${myOwnCoachForm() === 'neutre' ? '' : `<div class="cposter-row">
           <span class="cposter-row__title" id="cposterTitleLabel">Titre</span>
           <div class="segmented cposter-row__seg" role="group" aria-labelledby="cposterTitleLabel">
             ${cposterSeg('coach-poster-title', 'gendered', !cposter.neutral, cposterTitleLabel())}${cposterSeg('coach-poster-title', 'neutral', cposter.neutral, 'Coach', 'Coach, sans nouveau ni nouvelle')}
           </div>
-        </div>
+        </div>`}
         <label class="cposter-row cposter-row--stack" for="cposterSpecialty">
           <span class="cposter-row__title">Spécialité</span>
           <textarea class="cposter-row__input cposter-row__area" id="cposterSpecialty" rows="1" autocomplete="off" autocapitalize="sentences" autocorrect="on"
@@ -123,7 +128,7 @@ function coachPosterToolsHtml() {
           <span class="cposter-row__title">Photo</span><span class="cposter-row__end"><span class="cposter-row__value">${cposter.photo ? 'Changer' : 'Choisir'}</span>${icon('chevron.right', 14)}</span>
         </button>
       </div>
-      <p class="cposter-foot">Spécialité facultative, ${CPOSTER_SPECIALTY_MAX} caractères au plus. Quand tu partages ton affiche, tes élèves voient ton nom dans Mon coach.</p>`,
+      <p class="cposter-foot">Spécialité facultative, ${CPOSTER_SPECIALTY_MAX} caractères au plus. Quand tu partages ton affiche, tes élèves voient ton nom dans ${coachWord('Mon', myOwnCoachForm())}.${myOwnCoachForm() ? ' Titre accordé comme dans Réglages › Coach › Tes élèves lisent.' : ''}</p>`,
   };
 }
 

@@ -134,7 +134,7 @@ function renderCoachPlan(uid) {
         <div class="group group--gap">
           <button class="cell cell--action" data-action="plan-add" data-uid="${esc(uid)}" ${plan.busy ? 'disabled' : ''}>${icon('plus', 20)}<span>Ajouter une phase</span></button>
         </div>
-        <div class="group-foot">${esc(personName(p))} voit ses phases dans Mon coach, sans tes notes. Touche une phase pour la modifier.</div>`);
+        <div class="group-foot">${esc(personName(p))} voit ses phases dans ${coachWord('Mon', myOwnCoachForm())}, sans tes notes. Touche une phase pour la modifier.</div>`);
 }
 SCREENS.set('coach-plan', { render: uid => renderCoachPlan(uid), enter: () => coachPlanRefresh() });
 

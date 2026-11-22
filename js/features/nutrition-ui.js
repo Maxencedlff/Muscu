@@ -391,7 +391,7 @@ function dietInboxHtml() {
         <div class="group">
           <button class="cell" data-action="diet-coach-toggle" role="switch" aria-checked="${on}">
             <span class="cell__body"><span class="cell__title">Recevoir les plans de nutrition ${elide('de', nameBreakHtml(coachName()))}</span>
-              <span class="cell__sub">${on ? 'Gardés sur le serveur jusqu\'au retrait de ton accord.' : 'Sans accord, ton coach ne peut pas t\'en envoyer.'}</span></span>
+              <span class="cell__sub">${on ? 'Gardés sur le serveur jusqu\'au retrait de ton accord.' : `Sans accord, ${myCoachWord('ton')} ne peut pas t'en envoyer.`}</span></span>
             ${switchHtml(on)}
           </button>
         </div>
@@ -403,7 +403,7 @@ function dietEmptyHtml() {
         <div class="diet-empty">
           <span class="diet-empty__icon" aria-hidden="true">${icon('fork.knife', 34)}</span>
           <h2 class="diet-empty__title">Pas encore de plan de nutrition</h2>
-          <p class="diet-empty__sub">Ton coach peut t'en envoyer un, ou crée le tien. Les calories et les macros se calculent seules.</p>
+          <p class="diet-empty__sub">${myCoachWord('Ton')} peut t'en envoyer un, ou crée le tien. Les calories et les macros se calculent seules.</p>
           <button class="btn btn--primary diet-empty__btn" data-action="diet-new-plan">Créer mon plan</button>
         </div>`;
 }
@@ -519,7 +519,7 @@ function renderNutrition(dayParam) {
   }
   const pr = dietDayProgress(data, data.dietActive, day);
   // Plan du coach : « envoyé par max » (« · de max » se lisait comme une quantité, panel Apple vague 4)
-  const by = plan.fromCoach ? ` · envoyé par ${esc(plan.fromCoach.name || 'ton coach')}` : '';
+  const by = plan.fromCoach ? ` · envoyé par ${esc(plan.fromCoach.name || myCoachWord('ton'))}` : '';
   // Suivi de la diète partagé : dit ici, un toucher mène au réglage (panel nutri-final t1 : « max verra-t-il ma coche ? »)
   const shared = account.user && myCoach() && typeof coachShareOn === 'function' && coachShareOn('diet_log')
     ? `<button class="diet-plan-share" data-action="coach-open-share">${icon('person.2', 14)}<span>Partagé avec ${esc(personName(myCoach()))}</span>${icon('chevron.right', 12)}</button>` : '';
@@ -539,7 +539,7 @@ function renderNutrition(dayParam) {
         ${dietDayLineHtml(plan0, day)}
         ${dietSummaryHtml(pr)}
         ${!data.dietHideNumbers && !dietPersonal(plan) && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan, dietMealsNoun(plan)))}${plan.fromCoach
-          ? ` Suis le plan de ${esc(plan.fromCoach.name || 'ton coach')} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
+          ? ` Suis le plan de ${esc(plan.fromCoach.name || myCoachWord('ton'))} ; en cas de doute, demande-lui.` : ''}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
         ${pr.meals.length ? dietMacroLegendHtml() : ''}
@@ -1035,7 +1035,7 @@ registerActions({
     showToast(before ? `Plan en cours : ${it.data.name}. Ancien plan gardé` : `Plan en cours : ${it.data.name}`);
     render();
   },
-  'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
+  'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast(`Il reste dans Social › ${myCoachWord('Mon')}`); },
   'coach-send-diet': async (e, el) => {
     const uid = el.dataset.uid, ids = coachSendableDiets();
     if (!ids.length) {

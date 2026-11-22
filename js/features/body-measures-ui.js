@@ -15,7 +15,7 @@ const BM_PRIVATE = 'Elles restent sur ton iPhone et dans sa sauvegarde, jamais s
 // Élève d'un coach : « rien n'est montré à ton coach » ne serait pas sûr pour l'écran, qui mène au coffre d'où partent
 // les photos de bilan, même avant que leur état soit relu du serveur (panels de la vague 3 : texte faux à l'arrivée)
 const bmPhotosToCoach = () => !!(account.user && coachRole().hasCoach) && !cphAgeBlocked() && !cphDisabled();
-const BM_SHARED = 'Partagées avec ton coach, qui voit les valeurs et leurs dates. Tes amis ne voient rien. Tes photos restent dans le coffre, sauf celles que tu lui envoies';
+const bmSharedTxt = () => `Partagées avec ${myCoachWord('ton')}, qui voit les valeurs et leurs dates. Tes amis ne voient rien. Tes photos restent dans le coffre, sauf celles que tu lui envoies`;
 // Mensurations cochées dans Réglages › Partager avec mon coach (js/data/coach-share.js)
 function bmSharedWithCoach() { return !!account.user && coachShareOn('measures'); }
 // Une mensuration change sur cet appareil : enregistrée, puis renvoyée au coach si la case est cochée
@@ -30,7 +30,7 @@ function renderBodyMeasuresGroup() {
           <button class="cell cell--nav" data-action="go-body-measures">
             ${icon('ruler', 22)}
             <span class="cell__body"><span class="cell__title">${photosAllowedHere() ? 'Mensurations et photos' : 'Mensurations'}</span>
-              <span class="cell__sub">${bmSharedWithCoach() ? 'Partagé avec ton coach' : 'Privé'}${s.latest ? ` · ${esc(fmtDate(s.latest))}` : ''}</span></span>
+              <span class="cell__sub">${bmSharedWithCoach() ? `Partagé avec ${myCoachWord('ton')}` : 'Privé'}${s.latest ? ` · ${esc(fmtDate(s.latest))}` : ''}</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
@@ -56,8 +56,8 @@ function renderBodyMeasures() {
     <div class="view body-measures view--grouped">
       ${navBar({ title: 'Mensurations' })}
       <div class="scr">
-        <div class="bm-private">${bmSharedWithCoach() ? `${icon('person.2', 16)}<span>${BM_SHARED}. Pour arrêter : Réglages › Partager avec mon coach.</span>`
-          : `${icon('eye.slash', 16)}<span>${BM_PRIVATE}. ${bmPhotosToCoach() ? 'Personne ne voit tes mensurations. Ton coach ne voit que les photos que tu lui envoies toi-même.' : cphNobodyTxt()}</span>`}</div>
+        <div class="bm-private">${bmSharedWithCoach() ? `${icon('person.2', 16)}<span>${bmSharedTxt()}. Pour arrêter : Réglages › Partager avec ${myCoachWord('mon')}.</span>`
+          : `${icon('eye.slash', 16)}<span>${BM_PRIVATE}. ${bmPhotosToCoach() ? `Personne ne voit tes mensurations. ${myCoachWord('Ton')} ne voit que les photos que tu lui envoies toi-même.` : cphNobodyTxt()}</span>`}</div>
         <div class="group-title">Dernières valeurs</div>
         <div class="group">
           <button class="cell cell--action" data-action="bm-add">${icon('plus', 22)}<span class="cell__title">Ajouter des mesures</span></button>

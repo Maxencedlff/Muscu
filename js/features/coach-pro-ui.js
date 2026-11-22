@@ -79,7 +79,8 @@ function renderCoachProGroup() {
           ${code ? `${coachCodeCellHtml(code)}
           ${coachPosterCellHtml()}` : `<div class="cell"><span class="cell__sub">${coachPro.error ? esc(coachProErrorText(coachPro.error)) : 'Chargement…'}</span></div>`}
         </div>
-        <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre un coach.${paywallOn() ? ' Ils n\'ont rien à payer : ton abonnement coach couvre leur accès, dans la limite d\'élèves de ton palier.' : ''}</div>
+        <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre ${coachWord('un')}.${paywallOn() ? ' Ils n\'ont rien à payer : ton abonnement coach couvre leur accès, dans la limite d\'élèves de ton palier.' : ''}</div>
+        ${coachFormGroupHtml()}
         ${coachCardGroupHtml()}
         <div class="group-title">Abonnement coach</div>
         <div class="group">
@@ -89,6 +90,30 @@ function renderCoachProGroup() {
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
+}
+
+// ── Accord du mot « coach » (docs/COACH_FORME.md) ───────────
+// Le seul endroit où le coach choisit sa forme : « Mon coach » (il), « Ma coach » (elle) ou « Ne pas préciser »
+// (neutre). Elle accorde l'app de ses élèves (« Ta coach t'a envoyé un programme ») et le titre de son affiche.
+function coachFormChoices() {
+  return [
+    ['il', `« ${coachWord('Mon', 'il')} »`, `« ${coachWord('Ton', 'il')} t'a envoyé un programme »`],
+    ['elle', `« ${coachWord('Mon', 'elle')} »`, `« ${coachWord('Ton', 'elle')} t'a envoyé un programme »`],
+    ['neutre', 'Ne pas préciser', `L'app écrit « ${coachWord('ton')} », ton affiche dit « Coach »`],
+  ];
+}
+function coachFormGroupHtml() {
+  const mine = myOwnCoachForm();
+  return `
+        <div class="group-title" id="coachFormTitle">Tes élèves lisent</div>
+        <div class="group" role="radiogroup" aria-labelledby="coachFormTitle">
+          ${coachFormChoices().map(([k, title, sub]) => `
+          <button class="cell cell--pick" data-action="coach-form-set" data-v="${k}" role="radio" aria-checked="${mine === k}">
+            <span class="cell__body"><span class="cell__title">${esc(title)}</span><span class="cell__sub">${esc(sub)}</span></span>
+            <span class="cell__check">${mine === k ? icon('checkmark', 20) : ''}</span>
+          </button>`).join('')}
+        </div>
+        <div class="group-foot">Dans l'app de tes élèves et sur ton affiche. Sans choix, l'app écrit « ${coachWord('ton')} ».</div>`;
 }
 
 // ── Badge « Carte pro déclarée » ────────────────────────────
@@ -263,6 +288,16 @@ SCREENS.set('coach-request', {
 // ── Actions ─────────────────────────────────────────────────
 
 registerActions({
+  'coach-form-set': async (e, el) => {
+    const v = el?.dataset?.v;
+    if (!cleanCoachForm(v) || v === myOwnCoachForm()) return;
+    haptic();
+    const r = coachFormSet(v);   // gardée tout de suite sur l'appareil ; l'envoi suit
+    render();
+    announce(`Tes élèves lisent ${coachFormChoices().find(c => c[0] === v)[1]}`);
+    const res = await r;
+    if (!res.ok && !res.missing) showToast('Choix gardé. Il partira à tes élèves au retour du réseau.');
+  },
   'coach-card-declare': async () => {
     if (!(await coachCardSheet())) return;
     haptic('success');

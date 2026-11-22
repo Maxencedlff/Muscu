@@ -216,7 +216,7 @@ function waterParseQty(raw) {
 // Explication de l'objectif en une phrase (feuille de l'objectif)
 // bonus : réglage « +0,5 L les jours de séance » allumé (la règle est dite, séance ou non ce jour-là)
 function waterGoalWhy(g, { sex = null, bonus = true } = {}) {
-  if (g.src === 'plan') return g.coach != null ? `Fixé par ${g.coach || 'ton coach'} dans ton plan de nutrition.` : 'Fixé dans ton plan de nutrition.';
+  if (g.src === 'plan') return g.coach != null ? `Fixé par ${g.coach || myCoachWord('ton')} dans ton plan de nutrition.` : 'Fixé dans ton plan de nutrition.';
   const plus = bonus ? ', plus 0,5 L les jours de séance' : '';
   if (g.src === 'me') return `Choisi par toi${plus}.`;
   const who = sex === 'male' ? '2 L de boissons par jour pour un homme' : sex === 'female' ? '1,6 L de boissons par jour pour une femme'

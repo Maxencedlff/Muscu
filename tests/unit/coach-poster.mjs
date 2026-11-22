@@ -288,7 +288,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     const ui = read('js/features/coach-poster-ui.js');
     assert.ok(/onShared: \(\) => \{ if \(mine\.name\) coachPosterPublishName\(mine\.name\)/.test(ui), 'envoi au partage');
     assert.equal((ui.match(/coachPosterPublishName\(/g) || []).length, 1, 'un seul envoi du nom');
-    assert.ok(ui.includes('tes élèves voient ton nom dans Mon coach'), 'dit au coach');
+    assert.ok(ui.includes("tes élèves voient ton nom dans ${coachWord('Mon', myOwnCoachForm())}"), 'dit au coach');
     assert.ok(read('js/features/share.js').includes("if (['shared', 'handed', 'downloaded'].includes(result)) st.onShared?.(result);"), 'onShared seulement après un partage fait (jamais sur une feuille annulée)');
     assert.ok(!/card_name/.test(read('js/features/coach-poster-ui.js')), 'jamais le nom de la carte pro en préremplissage');
     assert.ok(/coachPosterForgetDevice/.test(read('js/data/account.js')) && /coachPosterForgetDevice/.test(read('js/features/settings.js')), 'affiche effacée de l\'appareil');

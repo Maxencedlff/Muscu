@@ -34,8 +34,8 @@ function referralLinkHtml() {
   const v = referralView();
   // Parrain coach : le code parraine sans faire rejoindre ce coach, on le dit (Social › Rejoindre un coach)
   if (v.referrer) return `<p class="auth__referral-done">${icon('checkmark', 16)}<span>${esc(`Parrainé par ${v.referrer}`)}</span></p>`
-    + (referralSuggestJoin(v) ? `<p class="auth__referral-join">${esc(`Pour que ${v.referrer} suive tes séances : Social › Rejoindre un coach.`)}</p>` : '');
-  return v.canEnter ? '<button class="auth__link auth__referral-link" data-action="auth-referral">Code d\'un coach ou d\'un ami</button>' : '';
+    + (referralSuggestJoin(v) ? `<p class="auth__referral-join">${esc(`Pour que ${v.referrer} suive tes séances : Social › Rejoindre ${coachWord('un')}.`)}</p>` : '');
+  return v.canEnter ? `<button class="auth__link auth__referral-link" data-action="auth-referral">Code d'${coachWord('un')} ou d'un ami</button>` : '';
 }
 
 // context : 'coach' quand le pseudo est demandé pour rejoindre un coach (texte du pseudo adapté) ;
@@ -181,7 +181,7 @@ const AUTH_STEPS = {
         ${flowAvatarHtml()}<span class="auth__avatar-edit" aria-hidden="true">Modifier</span>
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
-      <p class="auth__lead">${flow.context === 'coach' ? 'Ton coach te reconnaîtra avec ce pseudo.' : 'Tes amis te trouveront avec ce pseudo si le social est activé.'}</p>
+      <p class="auth__lead">${flow.context === 'coach' ? `${myCoachWord('Ton')} te reconnaîtra avec ce pseudo.` : 'Tes amis te trouveront avec ce pseudo si le social est activé.'}</p>
       ${flow.first && flow.cancelExpired ? cancelExpiredHtml()
         : flow.first && flow.notice ? `<div class="auth__notice" role="note"><p>${esc(flow.notice)}</p>
         <button class="auth__notice-btn" data-action="auth-cancel-account">Me reconnecter autrement</button></div>` : ''}
@@ -200,7 +200,7 @@ const AUTH_STEPS = {
   },
 
   referral: () => `
-      <h1 class="auth__title auth__title--left" id="authTitle" tabindex="-1">Code d'un coach ou d'un ami</h1>
+      <h1 class="auth__title auth__title--left" id="authTitle" tabindex="-1">Code d'${coachWord('un')} ou d'un ami</h1>
       <p class="auth__lead auth__lead--left">Si quelqu'un t'a fait découvrir l'app, saisis son code. Facultatif.</p>
       <form class="auth__form" data-form="referral" novalidate>
         <label class="visually-hidden" for="authReferral">Code</label>

@@ -56,7 +56,7 @@ let payBusy = false;   // un seul achat, une seule restauration à la fois
 // État en clair, pour les Réglages et l'écran d'abonnement
 const ACCESS_STATUS_TEXT = {
   none: 'Sans abonnement', active: 'Abonné', expired: 'Abonnement terminé',
-  gift: 'Accès offert', coach_team: 'Offert par ton coach', unknown: 'Pas à jour',
+  gift: 'Accès offert', get coach_team() { return `Offert par ${myCoachWord('ton')}`; }, unknown: 'Pas à jour',
 };
 function accessStatusText() {
   const st = accessStatus();
@@ -83,14 +83,14 @@ function payCoverName(cover) {
 }
 function payCoverTitle(cover) {
   const name = payCoverName(cover);
-  return name ? `Offert par ton coach ${name}` : 'Offert par ton coach';
+  return name ? `Offert par ${myCoachWord('ton')} ${name}` : `Offert par ${myCoachWord('ton')}`;
 }
 // Ce qu'on dit à l'élève de son offre : { tone: 'ok' | 'warn', text } ou null (pas de coach, verrou éteint)
 function payCoverNote() {
   const cover = accessCoachCover();
   if (!cover || !paywallOn()) return null;
   const name = payCoverName(cover);
-  const who = name ? `Ton coach ${name}` : 'Ton coach';
+  const who = name ? `${myCoachWord('Ton')} ${name}` : myCoachWord('Ton');
   const mine = accessStatus() === 'active';   // il paie aussi lui-même
   // Offert sans rien payer : le titre le dit déjà (« Offert par ton coach <nom> », « Rien à payer »)
   // Offert alors qu'il a encore son propre abonnement : la carte « Ton coach couvre ton accès » le dit (payDoubleCardHtml)
@@ -216,7 +216,7 @@ function accessBannerHtml() {
   if (canWrite() && cover?.state === 'grace' && accessStatus() === 'coach_team') {
     return `
         <button class="pay-banner" data-action="access-open-settings">
-          <span class="pay-banner__text">${esc(`Offert par ton coach jusqu'au ${cover.until ? fmtDate(cover.until) : '…'}`)}</span>
+          <span class="pay-banner__text">${esc(`Offert par ${myCoachWord('ton')} jusqu'au ${cover.until ? fmtDate(cover.until) : '…'}`)}</span>
           <span class="pay-banner__more">Voir ${icon('chevron.right', 12)}</span>
         </button>`;
   }
@@ -225,7 +225,7 @@ function accessBannerHtml() {
     const n = typeof accountLockedCount === 'function' ? accountLockedCount() : 0;
     const txt = n
       ? `${plural(n, 'séance n\'est pas enregistrée', 'séances ne sont pas enregistrées')} sur le compte`
-      : cover?.state === 'over_limit' || cover?.state === 'ended' ? 'Ton coach n\'offre plus l\'accès'
+      : cover?.state === 'over_limit' || cover?.state === 'ended' ? `${myCoachWord('Ton')} n'offre plus l'accès`
       : 'Abonnement nécessaire pour enregistrer une séance';
     return `
         <button class="pay-banner pay-banner--off" data-action="pay-open" data-reason="end">
@@ -419,7 +419,7 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
   // moins 24 h avant sa fin (https://support.apple.com/en-us/118428)
   const sub = off ? 'L\'abonnement n\'est pas encore demandé.'
     : forever ? 'Tu enregistres tes séances sans abonnement.'
-    : offered ? 'Rien à payer tant que ton coach te suit.'
+    : offered ? `Rien à payer tant que ${myCoachWord('ton')} te suit.`
     : trial
     ? `${esc(payDurationText(trial.trial))} gratuits, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
     : promo

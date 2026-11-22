@@ -648,6 +648,7 @@ FAKE_ACCOUNT = r"""
     if (!shareOf(student)) co.shares.push({ student, coach: linkOf(student).coach, kind: 'weight', granted_at: new Date(now()).toISOString() });
     co.weights[student] = weights.slice().sort((a, b) => b.date - a.date);
   };
+  sb.setForm = (id, form) => { (co.forms ||= {})[id] = form; };
   const CODE_ABC12 = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   // Rôle validé par l'administrateur (private.approve_coach) : coach_at posé, code permanent de 12 caractères
   sb.makeCoach = id => {
@@ -1175,6 +1176,18 @@ FAKE_ACCOUNT = r"""
       delete co.cards[me];
       return cardJson(me);
     },
+    // Accord du coach (supabase/migrations/20261122010000_forme_coach.sql) ; __sb.fail.form = 'missing' : serveur d'avant,
+    // 'offline' : hors ligne. État dans __sb.co.forms ; __sb.setForm(coach, forme) en pose une
+    coach_set_form: (me, { form }) => {
+      if (!co.coachAt[me]) return pgErr('not_coach');
+      if (!['il', 'elle', 'neutre'].includes(form)) return pgErr('invalid_form');
+      (co.forms ||= {})[me] = form;
+      return { form };
+    },
+    coach_form: (me, { coach: id }) => {
+      const ok = co.coachAt[id] && (me === id || (linkOf(me)?.coach === id && !blockedBetween(me, id)));
+      return { form: ok ? (co.forms || {})[id] ?? null : null };
+    },
     // Nom de l'affiche (supabase/migrations/20261120020000_nom_affiche_coach.sql) ; __sb.fail.posterName = 'missing' : serveur d'avant
     coach_set_poster_name: (me, { name }) => {
       if (!co.coachAt[me]) return pgErr('not_coach');
@@ -1277,6 +1290,8 @@ FAKE_ACCOUNT = r"""
     if (photoRpc[fn] && sb.fail.photos === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     const cardFn = fn.startsWith('coach_card_') || fn === 'report_coach_card';
     if (cardFn && sb.fail.card === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
+    if (['coach_form', 'coach_set_form'].includes(fn) && sb.fail.form === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
+    if (['coach_form', 'coach_set_form'].includes(fn) && sb.fail.form === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     if (fn.includes('poster_name') && sb.fail.posterName === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     const me = sb.meId();
     if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };

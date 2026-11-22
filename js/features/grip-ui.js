@@ -69,7 +69,7 @@ function gripSheetHtml(ei) {
       <div class="rs__title">Prise · ${esc(ex.name)}</div>
       <div class="grip__now" aria-live="polite">${g ? gripText(g, ex) : 'Aucune prise précisée'}</div>
       ${gripChipsHtml(opts, g, 'sess-grip')}
-      <div class="grip__help">${[gripHelp(opts), sessionGripStaysInSession() ? 'Pour cette séance seulement : le programme de ton coach ne change pas.' : 'Elle reste dans le programme pour la prochaine fois.'].filter(Boolean).join(' ')}</div>
+      <div class="grip__help">${[gripHelp(opts), sessionGripStaysInSession() ? `Pour cette séance seulement : le programme de ${myCoachWord('ton')} ne change pas.` : 'Elle reste dans le programme pour la prochaine fois.'].filter(Boolean).join(' ')}</div>
       <button class="rs__done" data-action="sheet-done">OK</button>
     </div>`;
 }

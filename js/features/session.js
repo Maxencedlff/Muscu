@@ -469,7 +469,7 @@ function exGoalHtml(ex, cls = '') {
   const d = sessExData(ex);
   const t = d && measureOf(d) === 'reps' && hasPrescLoad(d) ? exerciseGoal(activeSession.category, d, activeSession.programme) : null;
   if (!t?.coach) return '';
-  return `<div class="ex-goal ex-goal--coach num ${cls}"><span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ton coach : ${esc(t.spoken)}</span></div>`;
+  return `<div class="ex-goal ex-goal--coach num ${cls}"><span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ${myCoachWord('ton')} : ${esc(t.spoken)}</span></div>`;
 }
 
 // Exercice jamais fait (aucune dernière fois, aucune charge prévue) et rien de validé : une ligne grise dit quelle

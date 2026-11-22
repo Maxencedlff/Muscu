@@ -18,7 +18,7 @@ const cphUrls = new Map();   // coach : id → URL d'objet des photos déchiffr�
 let cphView = { uid: null, phase: 'loading', msg: '', a: null, b: null, done: 0, broken: 0 };
 let cphPicked = new Set();   // feuille d'envoi : photos du coffre cochées
 
-const cphCoachName = () => esc(coachName() || 'ton coach');
+const cphCoachName = () => esc(coachName() || myCoachWord('ton'));
 const cphPoseDay = p => `${photoPoseLabel(p.pose)} · ${fmtDate(cphDayTs(p.takenOn), 'short')}`;
 // Code de la clé du coach (élève) : replié sous « Vérifier le code avec ton coach » (panel du 08/11 : au milieu du texte,
 // ce code inquiétait plus qu'il n'aidait). Ouvert : le chiffrement en une phrase et le code à comparer.
@@ -28,10 +28,10 @@ function cphVerifyHtml(code) {
   return `
         <div class="group">
           <button class="cell cell--nav cph-verify" data-action="cph-verify" aria-expanded="${cphVerifyOpen}">
-            <span class="cell__body"><span class="cell__title">Vérifier le code avec ton coach</span></span>
+            <span class="cell__body"><span class="cell__title">Vérifier le code avec ${myCoachWord('ton')}</span></span>
             ${icon(cphVerifyOpen ? 'chevron.up' : 'chevron.down', 16)}
           </button>${cphVerifyOpen ? `
-          <div class="cell"><span class="cell__body"><span class="cell__sub">Seul ton coach peut ouvrir les photos envoyées. Ni l'équipe de MDLF Training ni personne d'autre ne le peut. Ce code doit être le même que celui en bas de sa page Photos de bilan : <span class="num cph-code">${esc(code)}</span>. S'il est différent, n'envoie plus de photo et écris à ton coach.</span></span></div>` : ''}
+          <div class="cell"><span class="cell__body"><span class="cell__sub">Seul ${myCoachWord('ton')} peut ouvrir les photos envoyées. Ni l'équipe de MDLF Training ni personne d'autre ne le peut. Ce code doit être le même que celui en bas de sa page Photos de bilan : <span class="num cph-code">${esc(code)}</span>. S'il est différent, n'envoie plus de photo et écris à ${myCoachWord('ton')}.</span></span></div>` : ''}
         </div>`;
 }
 
@@ -43,7 +43,7 @@ function cphDaySendHtml(g) {
   const day = g.day, sentDay = cph.state.photos.filter(p => p.takenOn === day).length;
   const unsent = g.photos.filter(p => !cphSentOf(p.id));
   if (!unsent.length || sentDay >= CPH_PER_DAY) return '';
-  return `<button class="cph-daybtn" data-action="cph-send-day" data-day="${esc(day)}">${icon('paperplane', 16)}<span>Envoyer à mon coach</span></button>`;
+  return `<button class="cph-daybtn" data-action="cph-send-day" data-day="${esc(day)}">${icon('paperplane', 16)}<span>Envoyer à ${myCoachWord('mon')}</span></button>`;
 }
 // « Envoyer depuis mon coffre » (Mon coach › Photos de bilan) : une fois le coffre ouvert, la feuille d'envoi du jour le plus
 // récent qui a encore une photo à envoyer (panel Apple du 08/11 : le bouton ouvrait le coffre et un paragraphe expliquait
@@ -63,12 +63,12 @@ function cphVaultPhotoHtml(p) {
     <button class="btn btn--danger btn--full cph-gap" data-action="cph-remove" data-id="${esc(s.id)}">Retirer de chez ${cphCoachName()}</button>`;
 }
 function cphVaultFoot() {
-  return account.user && coachRole().hasCoach && !cphAgeBlocked() && !cphDisabled() ? 'Tes amis ne les voient pas. Ton coach voit seulement celles que tu lui envoies.'
+  return account.user && coachRole().hasCoach && !cphAgeBlocked() && !cphDisabled() ? `Tes amis ne les voient pas. ${myCoachWord('Ton')} voit seulement celles que tu lui envoies.`
     : cphNobodyTxt();
 }
 // Personne ne voit rien : « ni à ton coach » seulement à qui en a un (sans coach, la phrase en supposait un)
 function cphNobodyTxt() {
-  return account.user && coachRole().hasCoach ? 'Ni tes amis ni ton coach ne les voient.' : 'Personne d\'autre ne les voit.';
+  return account.user && coachRole().hasCoach ? `Ni tes amis ni ${myCoachWord('ton')} ne les voient.` : 'Personne d\'autre ne les voit.';
 }
 
 async function cphSendSheet(day) {
@@ -91,20 +91,20 @@ async function cphSendSheet(day) {
       <span class="cphs__thumb"><img class="cphs__img" src="${photoUrl(p)}" alt="" draggable="false"><span class="cphs__check" aria-hidden="true">${icon('checkmark', 14)}</span></span>
       <span class="cphs__body"><span class="cphs__pose">${pose}</span>
         <span class="cphs__sub">${done ? 'Déjà envoyée' : 'Touche pour la choisir'}</span>
-        <span class="cphs__ok" id="cphs-ok-${esc(p.id)}">Ton coach la verra. Tu pourras la retirer.</span></span>
+        <span class="cphs__ok" id="cphs-ok-${esc(p.id)}">${myCoachWord('Ton')} la verra. Tu pourras la retirer.</span></span>
     </button>`;
   };
   // Où va la photo, en tête de la feuille (panel v4 t1 : « Chiffrées sur ton iPhone », en bas, faisait croire qu'elle
   // restait sur le téléphone, et sortait de l'écran en texte agrandi)
-  const lead = single ? `<p class="cphs__lead">Chiffrée avant l'envoi : seul ton coach, ${cphCoachName()}, pourra l'ouvrir. Tu pourras la retirer.</p>`
-    : `<p class="cphs__lead">Chiffrées avant l'envoi : seul ton coach, ${cphCoachName()}, pourra les ouvrir. Choisis les photos à envoyer${free < unsent.length ? ` (${free} au plus)` : ''}.</p>`;
+  const lead = single ? `<p class="cphs__lead">Chiffrée avant l'envoi : seul ${myCoachWord('ton')}, ${cphCoachName()}, pourra l'ouvrir. Tu pourras la retirer.</p>`
+    : `<p class="cphs__lead">Chiffrées avant l'envoi : seul ${myCoachWord('ton')}, ${cphCoachName()}, pourra les ouvrir. Choisis les photos à envoyer${free < unsent.length ? ` (${free} au plus)` : ''}.</p>`;
   // Titre : ce qui est montré, pas le verbe du bouton (panel t5)
   await sheet({ title: 'Photos à envoyer', cancel: 'Annuler', confirm: '', body: `
     <p class="cphs__day">${esc(fmtDate(cphDayTs(day)))}</p>
     ${lead}
     <div class="cphs__list">${list.map(item).join('')}</div>
     <button class="btn btn--primary btn--full cphs__go" data-action="cph-send-go" data-day="${esc(day)}" ${single ? `data-one="${esc(unsent[0].id)}"` : 'disabled'}>${single ? 'Envoyer cette photo' : 'Envoyer'}</button>
-    <p class="mpick__foot">Envoyée${single ? '' : 's'} sans la localisation ni aucune autre donnée de la photo. Si tu quittes ton coach ou supprimes ton compte, toutes les photos envoyées lui sont retirées.</p>` });
+    <p class="mpick__foot">Envoyée${single ? '' : 's'} sans la localisation ni aucune autre donnée de la photo. Si tu quittes ${myCoachWord('ton')} ou supprimes ton compte, toutes les photos envoyées lui sont retirées.</p>` });
   cphPicked = new Set();
 }
 function cphPickToggle(el) {
@@ -116,7 +116,7 @@ function cphPickToggle(el) {
   const on = cphPicked.has(id);
   el.setAttribute('aria-checked', String(on));
   el.classList.toggle('cphs__item--on', on);
-  if (on) announce('Ton coach la verra. Tu pourras la retirer.');   // la phrase qui apparaît, dite aussi
+  if (on) announce(`${myCoachWord('Ton')} la verra. Tu pourras la retirer.`);   // la phrase qui apparaît, dite aussi
   const go = $('.cphs__go', root);
   if (go) { go.disabled = !cphPicked.size; go.textContent = cphPicked.size ? `Envoyer ${plural(cphPicked.size, 'photo', 'photos')}` : 'Envoyer'; }
 }
@@ -134,7 +134,7 @@ async function cphSendChecks() {
   }
   if (cphKeyChanged()) {
     const shown = cph.state.key.public_key;   // la clé dont le code est montré : seule elle est acceptée
-    const ok = await dialog({ title: 'La clé de ton coach a changé', message: `Ton coach a peut-être changé d'iPhone. Avant d'envoyer, vérifiez ensemble que son app montre ce code : ${cph.code}.`,
+    const ok = await dialog({ title: `La clé de ${myCoachWord('ton')} a changé`, message: `${myCoachWord('Ton')} a peut-être changé d'iPhone. Avant d'envoyer, vérifiez ensemble que son app montre ce code : ${cph.code}.`,
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'C\'est le même code', value: true, style: 'preferred' }] });
     if (!ok) return false;
     cphPinKey(shown);
@@ -166,9 +166,9 @@ async function cphSendGo(el) {
 }
 const CPH_ERRORS = {
   locked: 'Le coffre s\'est refermé. Les autres photos ne sont pas parties : rouvre-le pour les envoyer.',
-  not_ready: 'Ton coach n\'a pas encore activé la réception des photos.',
-  key_changed: 'Ton coach a changé de clé : réessaie.',
-  too_many: 'Limite de photos atteinte chez ton coach. Retires-en pour en envoyer d\'autres.',
+  get not_ready() { return `${myCoachWord('Ton')} n'a pas encore activé la réception des photos.`; },
+  get key_changed() { return `${myCoachWord('Ton')} a changé de clé : réessaie.`; },
+  get too_many() { return `Limite de photos atteinte chez ${myCoachWord('ton')}. Retires-en pour en envoyer d'autres.`; },
   invalid_photo: 'Cette photo ne peut pas être envoyée.',
   not_uploaded: 'Envoi interrompu, rien n\'est resté sur le serveur. Réessaie.',
 };
@@ -187,7 +187,7 @@ function cphMineCellHtml() {
           <button class="cell cell--nav" data-action="cph-open-mine">
             ${icon('lock', 20)}
             <span class="cell__body"><span class="cell__title">Photos de bilan</span>
-              <span class="cell__sub">${n ? plural(n, 'photo envoyée', 'photos envoyées') : cph.state.ready ? 'Envoie-les depuis ton coffre' : 'Ton coach ne les reçoit pas encore'}</span></span>
+              <span class="cell__sub">${n ? plural(n, 'photo envoyée', 'photos envoyées') : cph.state.ready ? 'Envoie-les depuis ton coffre' : `${myCoachWord('Ton')} ne les reçoit pas encore`}</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
@@ -195,7 +195,7 @@ function cphMineCellHtml() {
 function renderCphMine() {
   const head = navBar({ title: 'Photos de bilan', large: false });
   const view = body => `<div class="view view--grouped coach-photos-mine-view">${head}<div class="scr">${body}</div></div>`;
-  if (!account.user || !coachRole().hasCoach) return view('<div class="empty-note">Rejoins d\'abord un coach : « Rejoindre un coach », en haut de l\'onglet Social.</div>');
+  if (!account.user || !coachRole().hasCoach) return view(`<div class="empty-note">Rejoins d'abord ${coachWord('un')} : « Rejoindre ${coachWord('un')} », en haut de l'onglet Social.</div>`);
   const st = cph.state, name = cphCoachName();
   if (!st) return view(cph.error && !cph.missing ? coachOfflineNote(cph.error, 'Pas d\'Internet. Tes photos envoyées s\'afficheront avec du réseau.') : '<div class="empty-note">Chargement…</div>');
   // Le coffre se referme dès qu'on le quitte : pas de miniature ici. Toucher la ligne ouvre la photo d'origine dans le coffre
@@ -225,7 +225,7 @@ function renderCphMine() {
         <div class="group-title">Envoyées</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub">Aucune photo envoyée.</span></div>'}</div>
         <div class="group-foot">${name} voit seulement les photos envoyées, avec leur jour et leur pose. Une photo retirée reste dans ton coffre.</div>
-        <div class="group-foot">Si tu quittes ton coach ou supprimes ton compte, toutes les photos envoyées lui sont retirées. Ton coach a pu voir une photo avant que tu la retires : envoie seulement ce que tu acceptes de montrer.</div>
+        <div class="group-foot">Si tu quittes ${myCoachWord('ton')} ou supprimes ton compte, toutes les photos envoyées lui sont retirées. ${myCoachWord('Ton')} a pu voir une photo avant que tu la retires : envoie seulement ce que tu acceptes de montrer.</div>
         ${st.ready && cphStudentShown() ? cphVerifyHtml(cph.code) : ''}`);
 }
 SCREENS.set('coach-photos-mine', { render: () => renderCphMine(), enter: () => { cphRefresh(); } });
@@ -235,17 +235,17 @@ async function cphUndoSend(ids) {
   let done = 0, fail = null;
   for (const id of ids) { const r = await cphRemove(id); if (r.ok) done++; else fail = fail || r.kind; }
   if (fail) showToast(coachErrorText(fail), { error: true });
-  else showToast(done > 1 ? `${plural(done, 'photo retirée', 'photos retirées')} de chez ton coach` : 'Photo retirée de chez ton coach');
+  else showToast(done > 1 ? `${plural(done, 'photo retirée', 'photos retirées')} de chez ${myCoachWord('ton')}` : `Photo retirée de chez ${myCoachWord('ton')}`);
   if (['photo-vault', 'coach-photos-mine'].includes(currentView())) render();
 }
 async function cphRemoveFlow(id) {
-  if (!(await confirmSheet('Retirer cette photo ?', `${coachName() || 'Ton coach'} ne la verra plus. Elle reste dans ton coffre.`, 'Retirer'))) return;
+  if (!(await confirmSheet('Retirer cette photo ?', `${coachName() || myCoachWord('Ton')} ne la verra plus. Elle reste dans ton coffre.`, 'Retirer'))) return;
   const r = await cphRemove(id);
   if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return; }
   document.querySelectorAll('.sheet-root').forEach(el => { if (el.querySelector('[data-action="cph-remove"]')) el._close?.(null); });
   // Déjà confirmé, et la ligne disparaît de la liste : pas de toast par-dessus le texte qui rassure (code de la clé), dit à
   // VoiceOver seulement (panel t5)
-  announce('Photo retirée de chez ton coach');
+  announce(`Photo retirée de chez ${myCoachWord('ton')}`);
   if (['photo-vault', 'coach-photos-mine'].includes(currentView())) render();
 }
 

@@ -261,8 +261,8 @@ function accessDoubleSub() {
 // Texte de la carte (sobre, sans remboursement : on dit seulement qu'il peut résilier)
 function accessDoubleSubText(d) {
   return d.trialEnds
-    ? `Ton coach t'offre l'accès. Ton propre essai devient payant le ${fmtDate(d.trialEnds)} : résilie-le dans « Gérer chez Apple » pour ne pas être prélevé.`
-    : 'Ton coach t\'offre l\'accès. Tu peux résilier ton abonnement.';
+    ? `${myCoachWord('Ton')} t'offre l'accès. Ton propre essai devient payant le ${fmtDate(d.trialEnds)} : résilie-le dans « Gérer chez Apple » pour ne pas être prélevé.`
+    : `${myCoachWord('Ton')} t'offre l'accès. Tu peux résilier ton abonnement.`;
 }
 
 // Date de fin donnée par le serveur (fin de l'abonnement, essai d'Apple compris, ou du cadeau), ou null

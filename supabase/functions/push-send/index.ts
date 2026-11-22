@@ -8,16 +8,17 @@
 //    Un secret absent : 503 { error: 'not_configured' } AVANT de prendre la file (rien n'est perdu).
 // 3. File prise par public.push_claim (clé serveur), 100 lignes par tour, 5 tours au plus par appel ;
 //    une ligne par appareil. Lignes plus voulues (type éteint, blocage) ou sans appareil : soldées sans
-//    envoi. Envoi à APNs 10 par 10 (HTTP/2, fetch de Deno), suite donnée par apnsOutcome.
+//    envoi. Forme du coach (« Commentaire de la coach ») : public.push_actor_forms, seulement pour les commentaires ;
+//    absente (migration 20261122010000 pas appliquée) ou en erreur : texte d'avant, rien n'est retenu. Envoi à APNs 10 par 10 (HTTP/2, fetch de Deno), suite donnée par apnsOutcome.
 // 4. public.push_done solde les notifications traitées et retire les jetons morts. Les « nouvel essai »
 //    restent en file (reprises 5 minutes plus tard, 5 essais au plus).
 // 5. Réponse : { sent, dead, retry, dropped, skipped } ; aucun jeton ni contenu dans les journaux.
 import { adminClient, env, json } from '../_shared/http.ts';
-import { apnsOutcome, apnsRequest, providerToken, providerTokenCache, pushMessage, sameSecret, settledIds } from './push-policy.js';
+import { apnsOutcome, apnsRequest, FORM_KINDS, providerToken, providerTokenCache, pushMessage, sameSecret, settledIds, withActorForms } from './push-policy.js';
 
 // reaction et label (réaction) ; label et minutes (séance d'un élève) : relus par push_claim, facultatifs
 type ClaimRow = { id: number; kind: string; ref: string; token: string | null; env: string | null; actor_name: string | null; wanted: boolean;
-  reaction?: string | null; label?: string | null; minutes?: number | null };
+  reaction?: string | null; label?: string | null; minutes?: number | null; actor_form?: string | null };
 type Result = { id: number; outcome: 'sent' | 'dead_token' | 'retry' | 'drop' | 'skip'; token?: string };
 
 const BATCH = 100;
@@ -83,8 +84,14 @@ export async function handler(req: Request): Promise<Response> {
   for (let round = 0; round < ROUNDS; round++) {
     const { data, error } = await admin.rpc('push_claim', { max_rows: BATCH });
     if (error) { console.error('push-send: push_claim', error.code); return json({ error: 'claim' }, 500); }
-    const rows = (Array.isArray(data) ? data : []) as ClaimRow[];
+    let rows = (Array.isArray(data) ? data : []) as ClaimRow[];
     if (!rows.length) break;
+    const formIds = rows.filter((r) => r.wanted && FORM_KINDS.includes(r.kind)).map((r) => r.id);
+    if (formIds.length) {
+      const { data: forms, error: formErr } = await admin.rpc('push_actor_forms', { ids: formIds });
+      if (formErr) console.error('push-send: push_actor_forms', formErr.code);
+      else rows = withActorForms(rows, forms) as ClaimRow[];
+    }
     const results: Result[] = [];
     for (let i = 0; i < rows.length; i += PARALLEL) {
       results.push(...await Promise.all(rows.slice(i, i + PARALLEL).map((r) => sendOne(r, topic))));

@@ -14,8 +14,13 @@ function appSources(ROOT) {
   });
   walk(path.join(ROOT, 'js'));
   // « l\'exercice » dans les chaînes entre apostrophes : comparé sans la barre oblique
-  return [...files, path.join(ROOT, 'index.html')].map(f => fs.readFileSync(f, 'utf8')).join('\n').replace(/\\'/g, '\'');
+  return [...files, path.join(ROOT, 'index.html')].map(f => fs.readFileSync(f, 'utf8')).join('\n').replace(/\\'/g, '\'')
+    // Libellés accordés au coach (js/data/coach-form.js) : « ${myCoachWord('Mon')} » se lit « Mon coach » (forme inconnue)
+    .replace(/\$\{\s*(?:my)?[cC]oachWord\('(\w+)'[^}]*\)\s*\}/g, (m, k) => COACH_MASC[k.toLowerCase()]
+      ?.replace(/^./, c => (k[0] === k[0].toUpperCase() ? c.toUpperCase() : c)) ?? m);
 }
+const COACH_MASC = { ton: 'ton coach', mon: 'mon coach', un: 'un coach', le: 'le coach', du: 'du coach', au: 'au coach', ce: 'ce coach',
+  nouveau: 'nouveau coach', ancien: 'ancien coach', il: 'il', pron: 'le', e: '' };
 const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export default function ({ test, run, assert, ROOT }) {

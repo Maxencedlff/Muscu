@@ -24,7 +24,7 @@ function coachShareSettingsCell() {
   return `
           <button class="cell cell--nav" data-action="coach-open-share">
             ${cellIco('square.and.arrow.up', 'blue')}
-            <span class="cell__body"><span class="cell__title">Partager avec mon coach</span></span>
+            <span class="cell__body"><span class="cell__title">Partager avec ${myCoachWord('mon')}</span></span>
             ${value !== null ? `<span class="cell__value">${esc(value)}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>`;
@@ -47,9 +47,9 @@ function renderCoachShare() {
   const head = navBar({ title: 'Partager', large: false });
   const view = body => `<div class="view view--grouped coach-share-view">${head}<div class="scr">${body}</div></div>`;
   if (!account.user || !coachRole().hasCoach) {
-    return view('<div class="empty-note">Rejoins d\'abord un coach dans Réglages › Coach.</div>');
+    return view(`<div class="empty-note">Rejoins d'abord ${coachWord('un')} dans Réglages › Coach.</div>`);
   }
-  const st = coachShare.state, name = esc(coachName() || 'ton coach');
+  const st = coachShare.state, name = esc(coachName() || myCoachWord('ton'));
   if (!st) {
     return view(coachShare.error ? coachOfflineNote(coachShare.error, 'Pas d\'Internet. Le partage demande du réseau.') : '<div class="empty-note">Chargement…</div>');
   }
@@ -72,18 +72,18 @@ function renderCoachShare() {
     fromHealth ? 'Les pesées lues dans Santé ne sont jamais partagées.' : '',
     empty ? 'Aucune pesée saisie dans l\'app. Ajoute ton poids dans Réglages › Entraînement › Poids du corps.' : '',
     emptyM ? 'Aucune mensuration. Ajoute-les dans Progrès › Mensurations.' : '',
-    emptyD ? 'Aucun plan de nutrition suivi. Ton coach verra ta diète dès que tu en suis un (Entraînement › Nutrition).' : '',
+    emptyD ? `Aucun plan de nutrition suivi. ${myCoachWord('Ton')} verra ta diète dès que tu en suis un (Entraînement › Nutrition).` : '',
   ].filter(Boolean).join(' ')}</div>` : '';
   // Serveur à jour (mensurations annoncées) : trois paragraphes courts, ce que le coach voit, ce qui ne part jamais,
   // comment arrêter (panel du 18/11 : le bloc d'un seul tenant n'était pas lu), puis « En savoir plus »
   const foot = withM ? `
         <div class="group-foot"><b>${name} voit</b> seulement ce que tu actives : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration${withD ? ', et chaque jour de ta diète : repas cochés, calories, macros, eau, sel et écart avec l\'objectif' : ''}. Avec les pesées, le volume des exercices au poids du corps inclut ton poids.</div>
         <div class="group-foot"><b>Jamais</b> : tes données Santé${withD ? ', le détail de tes aliments, les heures' : ''}. Tes photos ne partent que si tu les envoies. Tes amis ne voient rien.</div>
-        <div class="group-foot"><b>Retirer</b> : tu peux arrêter à tout moment, donnée par donnée. Ce que tu désactives est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ton coach arrête aussi le partage.${withD ? ' Ta diète est gardée 90 jours au plus.' : ''}</div>
+        <div class="group-foot"><b>Retirer</b> : tu peux arrêter à tout moment, donnée par donnée. Ce que tu désactives est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ${myCoachWord('ton')} arrête aussi le partage.${withD ? ' Ta diète est gardée 90 jours au plus.' : ''}</div>
         <div class="group coach-share-more"><button class="cell cell--action" data-action="open-legal" data-page="coachShare"><span>En savoir plus sur le partage</span></button></div>`
     : `
         <div class="group-foot">${name} verra la date et le poids de chaque pesée saisie dans l'app. Le volume des exercices au poids du corps sera calculé avec ton poids. Jamais tes données Santé. Tes amis ne voient rien.</div>
-        <div class="group-foot">Tu peux arrêter à tout moment : tes pesées sont supprimées du serveur et ${name} ne les voit plus, même les anciennes. Quitter ton coach arrête aussi le partage.</div>`;
+        <div class="group-foot">Tu peux arrêter à tout moment : tes pesées sont supprimées du serveur et ${name} ne les voit plus, même les anciennes. Quitter ${myCoachWord('ton')} arrête aussi le partage.</div>`;
   return view(`
         ${coachTitle(`Avec ${name}`)}
         <div class="group">${cells}
@@ -104,7 +104,7 @@ function coachWeightGroupHtml(uid, who) {
     if (!f.loadedAt || f.error) return '';
     return `
         <div class="group-title">Poids du corps</div>
-        <div class="group"><div class="cell coach-weight-off"><span class="cell__body"><span class="cell__sub">${who} ne partage pas son poids. Le réglage est de son côté : Réglages › Social et coach › Partager avec mon coach.</span></span></div></div>`;
+        <div class="group"><div class="cell coach-weight-off"><span class="cell__body"><span class="cell__sub">${who} ne partage pas son poids. Le réglage est de son côté : Réglages › Social et coach › Partager avec ${coachWord('mon', myOwnCoachForm())}.</span></span></div></div>`;
   }
   const unit = unitLbl();
   const since = f.since ? ` depuis le ${esc(fmtDate(f.since, 'short'))}` : '';
@@ -266,7 +266,7 @@ registerActions({
     const what = m ? 'mensurations' : dl ? 'journées' : 'pesées';
     if (r.uploadFailed) showToast(r.uploadFailed === 'offline' ? `Partage activé. Tes ${what} partiront avec du réseau.` : coachErrorText(m && r.uploadFailed === 'invalid_data' ? 'invalid_measures' : r.uploadFailed), { error: r.uploadFailed !== 'offline' });
     // Partage donné : Annuler d'un toucher (panel du 18/11 : une donnée sensible se reprend aussi vite qu'elle se donne)
-    else if (on) showToast(m ? 'Mensurations partagées avec ton coach' : dl ? 'Diète partagée avec ton coach' : 'Poids partagé avec ton coach',
+    else if (on) showToast(`${m ? 'Mensurations partagées' : dl ? 'Diète partagée' : 'Poids partagé'} avec ${myCoachWord('ton')}`,
       { action: 'Annuler', onAction: () => coachShareSet(kind, false).then(u => { if (!u.ok && u.kind !== 'busy') showToast(coachErrorText(u.kind), { error: true }); }) });
     else showToast(`Partage arrêté, ${what} supprimées du serveur`);
   },

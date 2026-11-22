@@ -93,7 +93,7 @@ function coachDietTrackHtml(uid, who) {
     return `
         <div class="group-title">Diète</div>
         <div class="group"><div class="cell cdiet-off"><span class="cell__body"><span class="cell__title">Diète non partagée</span>
-          <span class="cell__sub">${who} choisit de la partager ou non, dans Réglages › Social et coach › Partager avec mon coach › Suivi de ma diète.</span></span></div>${cdietWriteBtn(uid, who, 'share')}</div>`;
+          <span class="cell__sub">${who} choisit de la partager ou non, dans Réglages › Social et coach › Partager avec ${coachWord('mon', myOwnCoachForm())} › Suivi de ma diète.</span></span></div>${cdietWriteBtn(uid, who, 'share')}</div>`;
   }
   const now = Date.now(), today = dietDayKey(now);
   const weeks = Math.min(DIET_SHARE_WEEKS - 1, Math.max(0, f.weeks | 0));
@@ -154,7 +154,7 @@ function coachDietTrackHtml(uid, who) {
 // (panel du 18/11 : le coach débutant ne savait pas quoi écrire). Brouillon déjà commencé : gardé tel quel
 const CDIET_MSG = {
   warn: who => `Salut ${who}, ça se passe comment avec la diète ces derniers jours ?`,
-  share: () => 'Salut, si tu veux que je suive ta diète, active « Suivi de ma diète » dans Réglages › Social et coach › Partager avec mon coach. Tu peux l\'arrêter quand tu veux.',
+  share: () => `Salut, si tu veux que je suive ta diète, active « Suivi de ma diète » dans Réglages › Social et coach › Partager avec ${coachWord('mon', myOwnCoachForm())}. Tu peux l'arrêter quand tu veux.`,
 };
 function cdietWriteBtn(uid, who, kind) {
   if (typeof chatAvailable !== 'function' || !chatAvailable()) return '';
