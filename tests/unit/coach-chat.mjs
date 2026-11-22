@@ -39,6 +39,17 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(run(`chatDayLabel(${Date.parse('2026-10-31T08:00:00')}, ${now})`), 'Aujourd\'hui');
     assert.equal(run(`chatDayLabel(${Date.parse('2026-10-30T23:30:00')}, ${now})`), 'Hier');
     assert.match(run(`chatDayLabel(${Date.parse('2026-10-20T12:00:00')}, ${now})`), /^[A-Z].*20 octobre/);
+    // Juste après minuit : le message de 23 h 59 est d'hier, celui de minuit d'aujourd'hui (jours du calendrier)
+    const nuit = Date.parse('2026-11-22T00:05:00');
+    assert.equal(run(`chatDayLabel(${Date.parse('2026-11-21T23:59:00')}, ${nuit})`), 'Hier');
+    assert.equal(run(`chatDayLabel(${Date.parse('2026-11-22T00:00:00')}, ${nuit})`), 'Aujourd\'hui');
+    // Passage à l'heure d'hiver (journée de 25 h) : la veille reste « Hier »
+    assert.equal(run(`chatDayLabel(${Date.parse('2026-10-24T23:30:00')}, ${Date.parse('2026-10-25T23:30:00')})`), 'Hier');
+  });
+
+  test('messages : jour du calendrier local (liste redessinée à minuit)', () => {
+    assert.equal(run(`chatDayKey(${Date.parse('2026-11-21T23:59:59')})`), '2026-11-21');
+    assert.equal(run(`chatDayKey(${Date.parse('2026-11-22T00:00:00')})`), '2026-11-22');
   });
 
   // Faux serveur de messages (règles de chat_messages, chat_send, chat_mark_read, report_chat) : __srv.msgs,

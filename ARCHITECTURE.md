@@ -475,7 +475,7 @@ instant puis avance normalement, minuteries comprises), et calcule ses données 
 jours du calendrier (`local_ms`, `days_back_ms` de `tests/fixtures.py`), jamais en tranches de 24 h ni
 depuis `time.time()`. Les instants choisis sont piégeux exprès (tard le soir, autour du passage à l'heure
 d'hiver du 25 octobre 2026) : `test_coach.py`, `test_cardio.py`, `test_mesures.py`, `test_lot5.py`
-(records de la semaine) et `test_muscles.py` ; `test_recaps.py` remplace `Date` avant le chargement.
+(records de la semaine), `test_muscles.py` et `test_messages_coach.py` (5 minutes après minuit, `PPL_HORLOGE` pour un autre instant ; conversation ouverte au passage de minuit) ; `test_recaps.py` remplace `Date` avant le chargement.
 
 `node tests/unit/run.mjs` lance les tests unitaires de la logique pure (formats, 1RM, nettoyage et
 migrations, import, délais de récupération, clés de séance, saisie, programmes perso ; muscles

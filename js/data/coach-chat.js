@@ -81,6 +81,9 @@ function chatMerge(rows, page) {
   for (const m of page) byId.set(m.id, m);
   return [...byId.values()].sort((a, b) => a.id - b.id);
 }
+// Jour du calendrier local d'un instant (« 2026-11-22 ») : la conversation ouverte se redessine quand il
+// change (minuit passé, « Aujourd'hui » devient « Hier »)
+function chatDayKey(at = Date.now()) { const d = new Date(at); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
 // Jour d'un message, pour les séparateurs (« Aujourd'hui », « Hier », sinon la date)
 function chatDayLabel(at, now = Date.now()) {
   const d = new Date(at), today = new Date(now);

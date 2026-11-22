@@ -20,6 +20,12 @@ from fake_account import FAKE_ACCOUNT
 LOT = 'messages_coach'
 R = Results(LOT)
 
+# Horloge figée à l'heure de Paris (voir « Date et heure dans les tests », ARCHITECTURE.md) : la série échouait
+# après minuit en CI (UTC), le message « d'il y a 10 minutes » tombant la veille (22/11, 00 h 09 UTC). Instant
+# piégeux par défaut, 5 minutes après minuit ; PPL_HORLOGE='2026-11-22T23:59' (heure de Paris) en essaie un autre.
+_H = os.environ.get('PPL_HORLOGE', '2026-11-22T00:05')
+NOW = local_ms(int(_H[0:4]), int(_H[5:7]), int(_H[8:10]), int(_H[11:13]), int(_H[14:16]), PARIS)
+
 
 def tag(device, theme):
     return f'{device}-{theme}'.replace(' ', '_').replace('+', 'plus')
@@ -74,16 +80,20 @@ def badge(page):
 
 
 def t_eleve(bench, eng, dev, theme):
-    """Élève : 2 messages du coach non lus, badge, cellule, conversation, envoi, relecture."""
+    """Élève : 2 messages du coach non lus (hier soir, puis aujourd'hui), badge, cellule, conversation, envoi, relecture."""
     t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+    # Messages placés en jours du calendrier depuis l'horloge figée : la veille à 23 h 58, puis aujourd'hui
+    # 10 minutes plus tôt (minuit au plus tôt)
+    hier = days_back_ms(NOW, 1, 23, 58, PARIS)
+    recent = max(NOW - 600_000, days_back_ms(NOW, 0, 0, 0, PARIS))
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         signin(page)
-        coach_id = page.evaluate("""() => { const max = __sb.addPerson({ username: 'coachmax', avatar: '🦁', social: false });
+        coach_id = page.evaluate("""([hier, recent]) => { const max = __sb.addPerson({ username: 'coachmax', avatar: '🦁', social: false });
             __sb.makeCoach(max); __sb.link(max, __sb.meId());
-            __sb.msg(__sb.meId(), true, 'Salut ! Comment s\\'est passée ta séance ?', Date.now() - 2 * 86400e3);
-            __sb.msg(__sb.meId(), true, 'Pense à t\\'échauffer\\n\\nsur le squat.', Date.now() - 600e3);
-            return max; }""")
+            __sb.msg(__sb.meId(), true, 'Salut ! Comment s\\'est passée ta séance ?', hier);
+            __sb.msg(__sb.meId(), true, 'Pense à t\\'échauffer\\n\\nsur le squat.', recent);
+            return max; }""", [hier, recent])
         page.evaluate('coachRefresh()')
         settle(page)
         R.check(page.evaluate('chatUnreadTotal()') == 2 and badge(page) == '2', f'{t} badge de l\'onglet : 2 messages ({badge(page)!r})')
@@ -107,7 +117,7 @@ def t_eleve(bench, eng, dev, theme):
         settle(page)
         R.check(page.locator('.chat-msg--theirs').count() == 2 and page.locator('.chat-msg--mine').count() == 0, f'{t} deux bulles du coach')
         days = page.evaluate("[...document.querySelectorAll('.chat-day')].map(e => e.innerText)")
-        R.check(len(days) == 2 and days[1] == 'Aujourd\'hui', f'{t} séparateurs de jour {days}')
+        R.check(days == ['Hier', 'Aujourd\'hui'], f'{t} séparateurs de jour {days}')
         R.check(page.evaluate("getComputedStyle(document.querySelector('.chat-msg__bubble')).whiteSpace") == 'pre-wrap', f'{t} retours à la ligne gardés')
         R.check(len(coach_calls(page, 'chat_mark_read')) == 1 and page.evaluate('chatUnreadTotal()') == 0 and badge(page) == '', f'{t} ouverte : marquée lue, badge éteint')
         last_id = page.evaluate("Math.max(...__sb.co.msgs.map(m => m.id))")
@@ -299,4 +309,35 @@ def o_retour_apres_envoi(bench):
             R.check(not page.errors, f'{t} geste : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_eleve, t_coach, t_sans_serveur], once=[o_retour_apres_envoi])
+def o_minuit(bench):
+    """Conversation ouverte au passage de minuit (heure de Paris) : sans nouveau message, « Aujourd'hui » devient
+    « Hier » à la relecture suivante ; un message arrivé après minuit ouvre « Aujourd'hui »."""
+    avant = local_ms(2026, 11, 21, 23, 59, PARIS) + 50_000          # 23:59:50
+    for eng, dev in (('webkit', 'iPhone 13'), ('chromium', 'Pixel 7')):
+        t = tag(dev, 'light')
+        with bench.frozen_page(avant, eng, dev, 'light') as page:
+            open_app(page, 'light', ppl_v2_today_json(now_ms=avant))
+            signin(page)
+            page.evaluate("""at => { const max = __sb.addPerson({ username: 'coachmax', social: false });
+                __sb.makeCoach(max); __sb.link(max, __sb.meId()); __sb.msg(__sb.meId(), true, 'Bonne nuit', at); }""",
+                          local_ms(2026, 11, 21, 23, 50, PARIS))
+            page.evaluate('coachRefresh()')
+            settle(page)
+            page.click('.tabbar [data-tab="friends"]')
+            page.click('[data-action="coach-open-mine"]')
+            page.click('.chat-cell')
+            page.wait_for_selector('.coach-chat-view .chat-msg')
+            days = lambda: page.evaluate("[...document.querySelectorAll('.chat-day')].map(e => e.innerText)")
+            R.check(days() == ['Aujourd\'hui'], f'{t} 23 h 59 : « Aujourd\'hui » {days()}')
+            page.clock.fast_forward(20_000)                            # 00:00:10, relecture des 15 s passée
+            page.evaluate('chatTick()')
+            settle(page)
+            R.check(days() == ['Hier'], f'{t} minuit passé, aucun nouveau message : « Hier » {days()}')
+            page.evaluate("__sb.msg(__sb.meId(), true, 'Debout !')")
+            page.evaluate('chatTick()')
+            settle(page)
+            R.check(days() == ['Hier', 'Aujourd\'hui'], f'{t} message après minuit : sous « Aujourd\'hui » {days()}')
+            R.check(not page.errors, f'{t} minuit : aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_eleve, t_coach, t_sans_serveur], once=[o_retour_apres_envoi, o_minuit])

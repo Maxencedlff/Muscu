@@ -20,6 +20,7 @@ const chatDrafts = {};      // brouillon par conversation
 const CHAT_INTRO_KEY = 'mdlf_chat_intro_seen';
 let chatPollTimer = null;   // relecture de la conversation affichée
 let chatShownLast = null;   // dernier message dessiné (défilement en bas quand il change)
+let chatListDay = null;     // jour des séparateurs dessinés (chatDayKey) : liste redessinée après minuit
 
 function chatKeyShown() { return currentView() === 'coach-chat' ? routeParams(currentRoute())[0] || null : null; }
 // L'autre personne de la conversation (null : lien inconnu ou rompu)
@@ -37,6 +38,7 @@ function chatBubbleHtml(m) {
 
 function chatListHtml(key) {
   const c = chatConv(key);
+  chatListDay = chatDayKey();
   if (!c.rows.length) {
     if (c.loading || (!c.loadedAt && !c.error)) return '<p class="chat-empty">Chargement…</p>';
     if (c.error) return coachOfflineNote(c.error, 'Pas d\'Internet. Les messages s\'afficheront quand le réseau reviendra.');
@@ -132,6 +134,9 @@ async function chatTick() {
   const key = chatKeyShown();
   if (!key) { chatStopPoll(); return; }
   if (document.visibilityState !== 'visible') return;
+  // Minuit passé conversation ouverte (ou app rouverte le lendemain) : « Aujourd'hui » devient « Hier »
+  // même sans nouveau message
+  if (chatListDay !== chatDayKey()) refreshChatList(key);
   const r = await chatPoll(key);
   if (r.ok && r.theirs && chatKeyShown() === key) chatMarkRead(key, { force: true });
 }
