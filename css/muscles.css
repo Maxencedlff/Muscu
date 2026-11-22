@@ -88,8 +88,7 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .atlas-box > .body-map { width: 100%; }
 .atlas-box > .mpanel__zoom { position: absolute; right: -8px; margin: 0; }
 .atlas-box--top > .mpanel__zoom { top: -8px; }
-.atlas-box--bottom > .mpanel__zoom { bottom: -8px; }
-.mpanel__box.atlas-box--bottom { padding-bottom: 28px; }   /* fiche cadrée sur les jambes : le bouton sous les pieds, plus sur le dessin (panel atlas-bas t4, mollets sur SE) */
+.atlas-box--bottom > .mpanel__zoom { bottom: -8px; } .mpanel__box.atlas-box--bottom { padding-bottom: 28px; }   /* fiche cadrée sur les jambes : le bouton sous les pieds, plus sur le dessin (panel atlas-bas t4, mollets sur SE) */
 /* Muscle isolé : « Seulement : Triceps · Tout afficher », sur une ligne sous le personnage (atlasIsoChip, panel t9) */
 .atlas-box__iso { display: flex; align-self: stretch; flex-wrap: nowrap; align-items: center; justify-content: center; column-gap: 8px;   /* « Tout afficher » toujours sur la ligne du nom (panel t12) */
   font-size: min(var(--fs-footnote), 17px); }
