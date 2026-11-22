@@ -548,6 +548,12 @@ def until(page, js, timeout=5000):
         return False
 
 
+def rir_pret(page, timeout=3000):
+    """Sélecteur « Reps en réserve » : attend la fin du délai où ses boutons ignorent les touchers (RIR_GUARD_MS après
+    son apparition, js/features/session.js), comme un doigt qui revient après avoir validé la série."""
+    page.wait_for_function("() => [...rirShownAt.values()].every(at => Date.now() - at >= RIR_GUARD_MS)", polling=50, timeout=timeout)
+
+
 def wait_toast_gone(page, timeout=8000):
     """Attend que le toast affiché soit parti (durée 2,2 s, 4 s pour une erreur, puis sa sortie)."""
     until(page, '() => !document.querySelector(".toast")', timeout)

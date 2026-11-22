@@ -68,7 +68,7 @@ def t_seance(bench, eng, dev, theme):
         R.check(page.evaluate("(() => { const r = document.querySelector('.rir').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; })()"), f'{t} sélecteur dans l\'écran')
         # Panel du 07/11 : VoiceOver perdait le focus après un RIR (render() redessine tout l'écran)
         # (activation VoiceOver : un clic sur le bouton qui a le focus ; Entrée passe au champ suivant en séance)
-        page.focus('.rir__btn[data-rir="2"]'); page.evaluate('document.activeElement.click()'); settle(page)
+        rir_pret(page); page.focus('.rir__btn[data-rir="2"]'); page.evaluate('document.activeElement.click()'); settle(page)
         foc = page.evaluate("(() => { const a = document.activeElement; return a && a.dataset.action === 'set-rir' && a.dataset.rir === '2'; })()")
         R.check(foc, f'{t} RIR touché : le focus reste sur la pastille redessinée')
         # 11. En-têtes de colonnes à 12 px au moins
