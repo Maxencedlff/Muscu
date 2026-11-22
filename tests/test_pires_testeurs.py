@@ -732,7 +732,7 @@ def t_collage(bench, eng, dev, theme):
         settle(page)
         note = page.evaluate("""() => { const e = document.querySelector('#exName'), p = document.getElementById(e.getAttribute('aria-describedby') || '');
             return p ? { cls: p.className, txt: p.textContent, live: p.getAttribute('aria-live'), left: e.scrollLeft } : null; }""")
-        R.check(note and note['txt'] == 'Coupé à 80 caractères' and note['cls'] == 'field-warn' and note['live'] == 'polite',
+        R.check(note and note['txt'] == 'Coupé à 80 caractères, la fin n\'est pas gardée' and note['cls'] == 'field-warn' and note['live'] == 'polite',
                 f'{t} collage coupé signalé sous le champ, lu par VoiceOver ({note})')
         R.check(note and note['left'] == 0, f'{t} collage coupé : début du nom à l\'écran (scrollLeft {note and note["left"]})')
         page.evaluate("document.querySelector('#exName').value = ''; document.querySelector('#exName').dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }))")
@@ -746,5 +746,51 @@ def t_collage(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} collage : aucune erreur JS {page.errors}')
 
 
+def t_restes_champs(bench, eng, dev, theme):
+    """Derniers mineurs du panel controle-champs (t5) : « Arrondi à 176 cm » en texte secondaire, effacé au toucher
+    suivant (plus sous la fenêtre du poids) ; toast du poids avec la valeur gardée (72,5 kg) ; notes du bilan qui
+    grandissent avec le texte (moitié de l'écran au plus) ; collage coupé : « la fin n'est pas gardée »."""
+    if theme != 'light':
+        return
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme)
+        page.evaluate("data.bodyWeightKg = null; data.heightCm = null; save(); navigate('settings')")
+        page.wait_for_selector('.settings-view [data-action="set-profile-height"]')
+        settle(page)   # fin du glissement d'entrée
+        page.locator('.settings-view [data-action="set-profile-height"]').evaluate("e => e.scrollIntoView({ block: 'center' })")
+        settle(page)
+        tap(page, '.settings-view [data-action="set-profile-height"]')
+        page.wait_for_selector('.ios-dialog__input')
+        put(page, '.ios-dialog__input', '175,5')
+        ok_btn()(page)
+        page.wait_for_timeout(300)   # texte posé 60 ms après la zone role=status
+        note = page.evaluate("document.querySelector('.field-note-ok')?.textContent || ''")
+        R.check(note == 'Arrondi à 176 cm', f'{t} taille 175,5 : « Arrondi à 176 cm » sous la ligne ({note!r})')
+        col = page.evaluate("""() => [getComputedStyle(document.querySelector('.field-note-ok')).color,
+            getComputedStyle(document.querySelector('.settings-view .cell__sub')).color]""")
+        R.check(col[0] == col[1], f'{t} « Arrondi à 176 cm » en texte secondaire {col}')
+        page.locator('.settings-view [data-action="set-body-weight"]').evaluate("e => e.scrollIntoView({ block: 'center' })")
+        settle(page)
+        tap(page, '.settings-view [data-action="set-body-weight"]')
+        page.wait_for_selector('.ios-dialog__input')
+        R.check(page.locator('.field-note-ok').count() == 0, f'{t} fenêtre du poids : « Arrondi » d\'avant effacé')
+        put(page, '.ios-dialog__input', '72,5')
+        ok_btn()(page)
+        toast = page.evaluate("document.querySelector('.toast')?.textContent || ''")
+        R.check(toast == 'Poids enregistré : 72,5 kg', f'{t} toast du poids avec la valeur {toast!r}')
+        # Notes du bilan : 2 000 caractères collés, la zone grandit, le message dit la fin perdue
+        summary_open(page)
+        h0 = page.evaluate("document.querySelector('#summaryNotes').getBoundingClientRect().height")
+        page.evaluate(COLLER, ['#summaryNotes', 'Bonne séance, épaule gauche un peu sensible. ' * 60, False])
+        settle(page)
+        r = page.evaluate("""() => { const e = document.querySelector('#summaryNotes'), p = document.getElementById(e.dataset.fieldNote || '');
+            return { h: e.getBoundingClientRect().height, half: innerHeight / 2, txt: p ? p.firstChild.textContent : '',
+                     vis: p ? p.getBoundingClientRect().bottom <= document.querySelector('.sum-done-bar').getBoundingClientRect().top : false }; }""")
+        R.check(r['h'] > h0 + 20 and r['h'] <= r['half'] + 1, f'{t} notes longues : la zone grandit, moitié de l\'écran au plus ({h0} → {r})')
+        R.check(r['txt'] == 'Coupé à 2\u202f000 caractères, la fin n\'est pas gardée' and r['vis'], f'{t} notes coupées : fin perdue dite, message visible {r}')
+        R.check(not page.errors, f'{t} restes du contrôle des champs : aucune erreur JS {page.errors}')
+
+
 if __name__ == '__main__':
-    run_main(R, [t_local, t_serveur, t_recherches, t_avant, t_collage])   # t_serveur en sombre, t_recherches en clair (voir leur garde)
+    run_main(R, [t_local, t_serveur, t_recherches, t_avant, t_collage, t_restes_champs])   # t_serveur en sombre, t_recherches en clair (voir leur garde)

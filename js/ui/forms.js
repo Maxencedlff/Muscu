@@ -161,15 +161,18 @@ function fieldLimitNotice(e) {
     if (r.value !== el.value) { el.value = r.value; try { el.setSelectionRange(r.caret, r.caret); } catch { /* type sans sélection */ } }
     // Texte très grand : un champ d'une ligne n'en montre qu'un bout, le texte gardé est redit dessous
     const xl = el.matches('input') && document.documentElement.classList.contains('type-xl');
-    if (fieldNote(el, `Coupé à ${fmtNum(max)} caractères`, 'field-warn', xl ? `Gardé : « ${el.value} »` : '')) {
+    if (fieldNote(el, cutNoticeText(max), 'field-warn', xl ? `Gardé : « ${el.value} »` : '')) {
       // Zone de texte : le message, sous elle, est ramené au-dessus des boutons fixes du bas (« Terminé » du bilan)
       if (el.matches('textarea')) document.getElementById(el.dataset.fieldNote)?.scrollIntoView({ block: 'center' });
     }
-    else showToast(`Coupé à ${max} caractères`);
+    else showToast(cutNoticeText(max));
     // Début du nom gardé à l'écran pour le relire ; le curseur reste où il est (la frappe suivante le ramène)
     if (el.matches('input')) requestAnimationFrame(() => { el.scrollLeft = 0; });
   } else if (!fieldNote(el, `${fmtNum(max)} caractères au plus`, 'field-hint')) showToast(`${max} caractères au plus`);
 }
+// Collage coupé (panel controle-champs t5 : « Coupé à 40 caractères » laissait croire le texte entier gardé) : la
+// fin perdue est dite, en taille normale comme en texte très grand
+function cutNoticeText(max) { return `Coupé à ${fmtNum(max)} caractères, la fin n'est pas gardée`; }
 // Juste avant chaque saisie : longueur, sélection remplacée, longueur du texte inséré (presse-papier ou glisser) ;
 // fieldLimitNotice sait alors si le texte arrivé d'un coup a vraiment été coupé
 function fieldMark(el) { el._lenBefore = el.value.length; el._selStart = el.selectionStart ?? el.value.length; el._selEnd = el.selectionEnd ?? el._selStart; }

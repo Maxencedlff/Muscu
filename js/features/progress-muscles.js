@@ -154,7 +154,7 @@ function renderStatsGroup(id) {
         </div>
         ${g.muscles.some(id => atlasMuscleZones(partLoad(load.span), id).length) ? `<div class="group-foot">${MUSCLE_ZONES_NOTE}</div>` : ''}
         <div class="group">
-          <button class="cell cell--nav" data-action="go-stats-muscles"><span class="cell__body"><span class="cell__title">Tous les muscles</span></span>${icon('chevron.right', 16)}</button>
+          <button class="cell cell--nav" data-action="go-stats-muscles" data-group="${g.id}"><span class="cell__body"><span class="cell__title">Tous les muscles</span></span>${icon('chevron.right', 16)}</button>
         </div>
       </div>
     </div>`;
@@ -176,8 +176,9 @@ function statsGroupAtlasHtml(g) {
 // et pourquoi un muscle a deux couleurs sur le personnage (panel atlas-bas t2 : quadriceps à l'objectif, droit fémoral pâle)
 const MUSCLE_ZONES_NOTE = 'Par zone : chaque zone a sa couleur sur le personnage. Une zone qui aide compte ½ série, une zone ciblée 1 série : un même muscle peut avoir deux couleurs. Une série compte une fois pour le muscle, même si elle touche plusieurs zones.';
 
-// Lignes « muscle, séries par semaine, barre » : Séries par muscle et détail d'un groupe (même unité que la carte)
-function muscleWeekRowsHtml(load, ids) {
+// Lignes « muscle, séries par semaine, barre » : Séries par muscle et détail d'un groupe (même unité que la carte) ;
+// focus : muscles mis en avant (Séries par muscle seulement)
+function muscleWeekRowsHtml(load, ids, focus = []) {
   const max = Math.max(MUSCLE_LEVEL_FROM.at(-1) * 2, ...MUSCLES.map(m => load.weekly[m.id]));   // l'objectif (10) à mi-barre
   const pl = partLoad(load.span);
   return ids.map(id => {
@@ -185,7 +186,7 @@ function muscleWeekRowsHtml(load, ids) {
     // Zones du dessin (panel t12) : « Haut 5 · Milieu 9 · Bas 0 », repliable, pour recouper la carte et le personnage
     const zones = atlasMuscleZones(pl, id).map(z => `${esc(z.label)}\u00a0<span class="num">${z.n}</span>`).join(' · ');
     return `
-      <div class="cell mrow${id === muscleFocus ? ' mrow--focus' : ''}" data-muscle="${id}">
+      <div class="cell mrow${focus.includes(id) ? ' mrow--focus' : ''}" data-muscle="${id}">
         <span class="cell__body">
           <span class="mrow__top" aria-hidden="true"><span class="cell__title">${muscleLabel(id)}</span><span class="cell__value num">${n}</span></span>
           <span class="mrow__bar" aria-hidden="true"><i${tier ? ` class="is-${tier.tone}"` : ''} style="width:${Math.round(n / max * 100)}%"></i></span>

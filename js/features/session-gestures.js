@@ -145,7 +145,7 @@ document.addEventListener('input', e => {
     const list = $('#axList');
     if (list) list.innerHTML = axListHtml(e.target.value);
   }
-  if (e.target.id === 'summaryNotes') summaryNotesInput(e.target.value);
+  if (e.target.id === 'summaryNotes') { summaryNotesInput(e.target.value); fitSummaryNotes(e.target); }
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'axSearch') {

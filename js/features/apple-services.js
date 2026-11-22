@@ -546,7 +546,7 @@ registerActions({
     data.bodyWeightKg = parseFloat(storeW(v));
     logBodyWeight(data.bodyWeightKg);   // courbe de Progrès sans Santé (jamais envoyée sur le compte)
     refreshSummaryBodyKg();
-    save(); render(); showToast('Poids enregistré');
+    save(); render(); showToast(`Poids enregistré : ${fmtW(data.bodyWeightKg)} ${unitLbl()}`);   // la valeur gardée (72,5 : la virgule comprise), la ligne pouvant être hors de l'écran
     coachShareWeightsChanged();   // partagé avec le coach (case cochée) : la nouvelle pesée part aussi
   },
   'music-play':     async () => { haptic(); updateMusicBar(await Native.music.command('play')); },

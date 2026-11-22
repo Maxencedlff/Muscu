@@ -123,6 +123,10 @@ def t_progress(bench, eng, dev, theme):
             return { y: scrollY, visible: seg.top >= bar.bottom - 1, dos: v('lats') + v('traps') + v('lower_back'),
                      title: [...document.querySelectorAll('.stats-muscles .group-title')].map(e => e.textContent.trim()), legend: !!document.querySelector('.stats-muscles .mlegend') }; }""")
         R.check(top['y'] < 2 and top['visible'], f'{t} « Tous les muscles » s\'ouvre en haut, sélecteur visible {top}')
+        # Venu du groupe Dos (panel atlas-bas t4 : « ‹ Pectoraux » au-dessus des jambes) : ses lignes mises en avant, rien d'autre
+        foc = page.evaluate("[...document.querySelectorAll('.stats-muscles .mrow--focus')].map(r => r.dataset.muscle).sort()")
+        R.check(foc == ['lats', 'lower_back', 'traps'] and page.evaluate("document.querySelector('#app .navbar__back-label')?.dataset.full") == 'Dos',
+                f'{t} « Tous les muscles » depuis Dos : ses muscles mis en avant, retour « Dos » {foc}')
         R.check(top['dos'] == dos_sets and 'Séries par semaine, moyenne sur 4 semaines' in top['title'] and top['legend'],
                 f'{t} Séries par muscle : même unité et mêmes nombres que la carte, paliers légendés {top}')
         # Zones du dessin sous chaque muscle (panel t12) : « Haut 5 · Milieu 9 · Bas 0 », les chiffres du personnage, repliables
@@ -135,6 +139,7 @@ def t_progress(bench, eng, dev, theme):
                 and page.get_attribute('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zsum', 'aria-expanded') == 'false', f'{t} « Par zone » se replie')
         page.click('.view.stats-muscles .mrow[data-muscle="chest"] .mrow__zsum')
         page.click('[data-action="back"]'); page.wait_for_selector('.view.stats-group')
+        R.check(page.locator('.view.stats-group .mrow--focus').count() == 0, f'{t} retour au groupe : aucune ligne mise en avant')
         page.click('[data-action="back"]'); page.wait_for_selector('.view.stats')
         # Détail « Pectoraux » : chaque nom d'exercice se lit en entier, sur 2 lignes au plus, jamais coupé dans un mot
         # (panel Progrès t2 : « Déve co… » sur iPhone SE), avec la période de son évolution

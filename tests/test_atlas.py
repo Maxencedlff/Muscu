@@ -415,9 +415,10 @@ def t_fiche(bench, eng, dev, theme):
 
 ZOOM_CORNER_JS = """async sel => {
     // Bouton Agrandir : dans un coin du dessin (à 12 points au plus d'un coin), et sur aucun muscle coloré (carte de toucher)
+    // Coin de la boîte du dessin : en bas, elle réserve la place du bouton sous les pieds (panel atlas-bas t4)
     const m = document.querySelector(sel), z = m.parentElement.querySelector('.mpanel__zoom').getBoundingClientRect(), r = m.getBoundingClientRect();
-    const near = (a, b) => Math.abs(a - b) <= 12;
-    const corner = near(z.right, r.right) && (near(z.top, r.top) || near(z.bottom, r.bottom));
+    const near = (a, b) => Math.abs(a - b) <= 12, box = m.parentElement.getBoundingClientRect();
+    const corner = near(z.right, box.right) && (near(z.top, box.top) || near(z.bottom, box.bottom));
     const lv = JSON.parse(m.dataset.atlas || '{}'), kind = bodySilhouette();
     let on = '';
     for (const fig of m.querySelectorAll('.body-map__fig')) {
@@ -552,6 +553,22 @@ def t_autres_fiches(bench, eng, dev, theme):
             R.check(not lo, f'{t} {name} : mise en page {lo}')
             shot(page, LOT, f'fiche-{slug}-{t}')
             page.evaluate('closeBodyTip()')
+            caps = page.evaluate("[...document.querySelectorAll('.mpanel__map .body-map__caps > span')].map(e => e.textContent)")
+            R.check(caps == [], f'{t} {name} : tête dans le cadre ou une seule vue, pas d\'étiquettes Face / Dos {caps}')
+        # Mollets, cadrés sur les jambes (panel atlas-bas t4) : « Face » et « Dos » sous les vues, Agrandir sous les pieds
+        page.evaluate("navigate(makeRoute('library-ex', 'Mollets debout'))")
+        page.wait_for_selector('.view.library-ex .mpanel--atlas')
+        page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
+        settle(page)
+        g = page.evaluate("""() => { const m = document.querySelector('.mpanel__map'), row = m.querySelector('.body-map__row').getBoundingClientRect(),
+            z = document.querySelector('.mpanel__zoom').getBoundingClientRect(), caps = [...m.querySelectorAll('.body-map__caps > span')];
+            return { caps: caps.map(e => e.textContent), under: caps.every(e => e.getBoundingClientRect().top >= row.bottom - 1),
+                     zoomBelow: z.top >= row.bottom - 1, capsFree: caps.every(e => { const rg = document.createRange(); rg.selectNodeContents(e); const c = rg.getBoundingClientRect(); return c.right <= z.left || c.bottom <= z.top; }) }; }""")
+        R.check(g['caps'] == ['Face', 'Dos'] and g['under'], f'{t} Mollets debout : « Face » et « Dos » sous les vues recadrées {g}')
+        R.check(g['zoomBelow'] and g['capsFree'], f'{t} Mollets debout : Agrandir sous le dessin, sur aucune étiquette {g}')
+        off = page.evaluate(ZOOM_CORNER_JS, '.mpanel__map')
+        R.check(off and off['corner'] and not off['on'], f'{t} Mollets debout : Agrandir dans le coin, sur aucun muscle {off}')
+        shot(page, LOT, f'fiche-mollets-{t}')
         # Texte très grand (panel t9) : sur TOUTES les fiches, le nom du muscle ciblé se lit sans défiler, le personnage sous la
         # barre ; une seule face utile (abducteurs) : elle seule, en grand
         page.evaluate("""() => { const h = document.documentElement; h.style.fontSize = '33px'; h.classList.add('type-xl'); }""")
@@ -578,6 +595,10 @@ def t_autres_fiches(bench, eng, dev, theme):
                     f'{t} {name}, texte très grand : « Qui aident » visible sans défiler, le haut du dessin aussi {sh}')
             R.check(geo['bottom'] < geo['tab'] and geo['top'] >= geo['nav'] - 1 and geo['above'] and geo['h'] >= 230 and geo['views'] == want,
                     f'{t} {name}, texte très grand : nom du ciblé au-dessus du dessin et de la barre d\'onglets, personnage de 230 points au moins {geo}')
+            # Agrandir centré sous le dessin, même plus large qu'une seule vue (panel atlas-bas t4 : décalé à droite, abducteurs)
+            dx = page.evaluate("""() => { const z = document.querySelector('.mpanel__zoom').getBoundingClientRect(), m = document.querySelector('.mpanel__map').getBoundingClientRect();
+                return Math.round((z.left + z.right) / 2 - (m.left + m.right) / 2); }""")
+            R.check(abs(dx) <= 2, f'{t} {name}, texte très grand : Agrandir centré sous le dessin (écart {dx} pt)')
             shot(page, LOT, f'fiche-xl-{name.split()[0].lower()}-{t}')
         R.check(not page.errors, f'{t} autres fiches : aucune erreur JS {page.errors}')
 
@@ -701,8 +722,12 @@ def t_progres(bench, eng, dev, theme):
             R.check(iso['iso'] == 'load' and sorted(set(iso['marks'])) == want and all(p in want for p in iso['on']),
                     f'{t} À travailler : « {first["label"]} » isolé sur le personnage {iso}')
             tip = tip_text(page)
-            R.check(tip.startswith(first['label']) and all(page.evaluate(f"atlasPartTitle({json.dumps(i)})") in tip for i in first['ids'][:3]),
-                    f'{t} À travailler : la carte détaille les sous-muscles « {tip[:160]} »')
+            if first['sets']:
+                R.check(tip.startswith(first['label']) and all(page.evaluate(f"atlasPartTitle({json.dumps(i)})") in tip for i in first['ids'][:3]),
+                        f'{t} À travailler : la carte détaille les sous-muscles « {tip[:160]} »')
+            else:   # tout le groupe à 0 (panel atlas-bas t4) : une seule ligne, pas « aucune série » par sous-muscle
+                R.check(tip.count('aucune série') == 1 and f"{first['label']} : aucune série" in tip and page.locator('.atlas-info .btip__level').count() == 1,
+                        f'{t} À travailler : « {first["label"]} : aucune série » en une ligne « {tip[:160]} »')
             R.check(page.get_attribute('.mcard .mlow__name', 'aria-pressed') == 'true' and page.locator('.mcard .mlow__reset').count() == 1,
                     f'{t} À travailler : nom isolé surligné, « Tout afficher » à côté')
             ok = info_ok(page, '.mcard', ['.mcard__map .body-map__row', '.mcard .mlegend', '.mcard .mlow'])
@@ -722,6 +747,16 @@ def t_progres(bench, eng, dev, theme):
             page.click('.mcard .mlow__more')
             settle(page)
             R.check(page.locator('.mcard .mlow .mlow__name').count() == 3, f'{t} À travailler : « Moins » la replie')
+        # Mollets à 0 série (panel atlas-bas t4) : la carte dit « Mollets : aucune série » une fois, pas pour chaque sous-muscle
+        calf = page.evaluate("""() => { const ids = ['gastro_medial', 'gastro_lateral', 'soleus'], saved = JSON.stringify(data.history);
+            const hit = e => { const x = exercisePartRoles(e.name, exerciseMuscles(e)); return [...x.p, ...x.s].some(id => ids.includes(id)); };
+            data.history.forEach(h => { h.exercises = (h.exercises || []).filter(e => !hit(e)); }); render();
+            const b = document.createElement('button'); b.className = 'mlow__name'; b.dataset.muscle = 'calves'; document.querySelector('.mcard .mlow').append(b);
+            atlasToWorkShow(b); b.remove();
+            const rows = [...document.querySelectorAll('.atlas-info .btip__level')].map(e => e.textContent.trim());
+            closeBodyTip(); atlasToWorkReset(document.querySelector('.mcard')); data.history = JSON.parse(saved); render(); return rows; }""")
+        R.check(calf == ['Mollets : aucune série'], f'{t} mollets à 0 série : une seule ligne {calf}')
+        settle(page)
         # Muscles à 0 série de la liste : cernés sur le dessin (rien sur la fiche), « Pas travaillé » en rond cerné dans la légende
         zero = sorted(i for it in page.evaluate("atlasToWork(partLoad(muscleSpan)).filter(it => !it.sets)") for i in it['ids'])
         ol = sorted(set(page.evaluate("[...document.querySelectorAll('.mcard__map .body-map__ol')].map(e => e.dataset.ol)")))

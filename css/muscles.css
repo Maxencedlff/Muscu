@@ -89,6 +89,7 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 .atlas-box > .mpanel__zoom { position: absolute; right: -8px; margin: 0; }
 .atlas-box--top > .mpanel__zoom { top: -8px; }
 .atlas-box--bottom > .mpanel__zoom { bottom: -8px; }
+.mpanel__box.atlas-box--bottom { padding-bottom: 28px; }   /* fiche cadrée sur les jambes : le bouton sous les pieds, plus sur le dessin (panel atlas-bas t4, mollets sur SE) */
 /* Muscle isolé : « Seulement : Triceps · Tout afficher », sur une ligne sous le personnage (atlasIsoChip, panel t9) */
 .atlas-box__iso { display: flex; align-self: stretch; flex-wrap: nowrap; align-items: center; justify-content: center; column-gap: 8px;   /* « Tout afficher » toujours sur la ligne du nom (panel t12) */
   font-size: min(var(--fs-footnote), 17px); }
@@ -106,7 +107,7 @@ body:not(.light) .body-map--atlas .body-map__base { filter: brightness(var(--bod
 
 .body-map--crop .body-map__fig { overflow: hidden; }
 .body-map__body { position: absolute; left: 0; width: 100%; }
-.type-xl .atlas-box > .mpanel__zoom { position: static; width: fit-content; height: auto; min-height: 44px; margin: 8px auto 0; padding: 6px 16px; gap: 8px; border-radius: 999px; font: inherit; font-size: min(var(--fs-body), 24px); }
+.type-xl .atlas-box > .mpanel__zoom { position: relative; inset: auto auto auto 50%; transform: translateX(-50%); width: fit-content; height: auto; min-height: 44px; margin: 8px 0 0; padding: 6px 16px; gap: 8px; border-radius: 999px; font: inherit; font-size: min(var(--fs-body), 24px); }
 .type-xl .mpanel__zoom svg { width: 1em; height: 1em; } .type-xl .mpanel__zoom-txt { display: inline; }   /* AX33 : sous le dessin, « Agrandir » écrit, grandit avec le texte (panel t11) */
 .type-xl .btip__latin { display: none; }
 .type-xl .btip__target { display: none; }   /* texte agrandi : la bulle de Progrès garde le nom, les séries, le palier et les exercices */

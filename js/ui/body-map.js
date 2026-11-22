@@ -277,7 +277,8 @@ function bodyAtlasViews(kind, levels) {
 // Options : body (personnage), className, title (nom de l'exercice, titre de la vue agrandie), tap (bulle
 // du sous-muscle touché, zoom au double toucher ou au pincement : js/ui/body-zoom.js)
 // Progrès (js/features/progress-atlas.js) : tiers (paliers au lieu de plein / qui aide), tip 'load' (bulle : volume de
-// la période et exercices), crop false (corps entier, les deux vues), captions (« Face », « Dos » sous les vues),
+// la période et exercices), crop false (corps entier, les deux vues), captions (« Face », « Dos » sous les vues ; 'crop' :
+// seulement sur deux vues cadrées sous la tête, où l'on ne reconnaît plus la face du dos, panel atlas-bas t4),
 // outline (sous-muscles cernés : bodyAtlasLayersHtml), frame (niveaux qui fixent vues et cadrage, par défaut levels)
 // one : la seule vue utile même sans cadrage (fiche en texte très grand : corps entier, mais le dos seul pour les abducteurs)
 function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', title = '', tap = false, tiers = false, tip = '', crop: cropOn = true, captions = false, outline = [], one = cropOn, frame = null } = {}) {
@@ -291,7 +292,8 @@ function bodyAtlasHtml(levels = {}, { body = bodySilhouette(), className = '', t
   const act = tap ? ' data-action="body-tap"' : '';
   const crop = ch < BODY_PARTS.h ? ' body-map--crop' : '';
   const extra = `${tiers ? ' data-tiers="1"' : ''}${tip ? ` data-tip="${esc(tip)}"` : ''}${views.length === 1 ? ` data-view="${views[0]}"` : ''}${outline.length ? ` data-ol="${esc(outline.join(' '))}"` : ''}`;
-  const caps = captions ? `<span class="body-map__caps" aria-hidden="true" style="--fig:${fig}">${views.map(v => `<span>${v === 'front' ? 'Face' : 'Dos'}</span>`).join('')}</span>` : '';
+  const capsOn = captions === 'crop' ? y0 > 0 && views.length > 1 : captions;   // tête hors du cadre (jambes) : sinon elle suffit
+  const caps = capsOn ? `<span class="body-map__caps" aria-hidden="true" style="--fig:${fig}">${views.map(v => `<span>${v === 'front' ? 'Face' : 'Dos'}</span>`).join('')}</span>` : '';
   return `<div class="body-map body-map--atlas${crop}${views.length === 1 ? ' body-map--one' : ''} ${esc(className)}" data-body="${kind}" data-atlas="${esc(JSON.stringify(safe))}" data-crop="${y0},${y1}" data-title="${esc(title)}"${extra}${act} aria-hidden="true"><span class="body-map__row" style="aspect-ratio:${Math.round(rowW * BODY_PARTS.w)} / ${ch};--body-ar:${(rowW * BODY_PARTS.w / ch).toFixed(4)};--fig:${fig}">${figs}</span>${caps}</div>`;
 }
 

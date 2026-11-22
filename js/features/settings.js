@@ -252,10 +252,15 @@ function settingsRowNote() {
   profileRowNote = null;
   const cell = n && document.querySelector(`.settings-view [data-action="${n.row}"]`);
   if (!cell) return;
-  // Zone role=status posée vide, puis remplie : VoiceOver lit le texte ajouté ; elle reste jusqu'au prochain rendu
+  // Zone role=status posée vide, puis remplie : VoiceOver lit le texte ajouté ; elle reste jusqu'au toucher suivant
+  // (panel controle-champs t5 : « Arrondi à 176 cm » restait sous la fenêtre du poids ouverte ensuite)
   const p = document.createElement('p');
   p.className = 'field-note-ok'; p.setAttribute('role', 'status');
   cell.after(p);
+  // (les clics de la fenêtre qui se ferme, juste après, ne comptent pas)
+  const shown = Date.now();
+  const drop = () => { if (Date.now() - shown < 400) return; p.remove(); document.removeEventListener('click', drop, true); };
+  document.addEventListener('click', drop, true);
   setTimeout(() => { p.textContent = n.msg; }, 60);
   cell.classList.add('cell--flash');
   cell.scrollIntoView({ block: 'center' });

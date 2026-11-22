@@ -51,7 +51,9 @@ function atlasToWorkShow(btn) {
   const kind = bodyKind(map.dataset.body), pl = partLoad(muscleSpan);
   // Une ligne par sous-muscle : son état (pastille), son nom (l'état en mots s'il porte le nom du muscle), ses séries
   const row = (lv, name, weekly) => `<p class="btip__level">${muscleLevelDot(lv)}<span>${esc(name)} : ${weekly ? weeklyTxt(weekly) : 'aucune série'}</span></p>`;
-  const rows = it.ids.map(id => { const lv = pl.levels[id] || 0; return row(lv, atlasPartTitle(id) === it.label ? MUSCLE_LEVEL_WORDS[lv] : atlasPartTitle(id), pl.weekly[id]); }).join('');
+  // Tout le groupe à 0 (panel atlas-bas t4 : « Mollets, gastrocnémien médial : aucune série » trois fois) : une seule ligne
+  const rows = !it.sets ? row(0, it.label, 0)
+    : it.ids.map(id => { const lv = pl.levels[id] || 0; return row(lv, atlasPartTitle(id) === it.label ? MUSCLE_LEVEL_WORDS[lv] : atlasPartTitle(id), pl.weekly[id]); }).join('');
   const html = `<p class="btip__title">${esc(it.label)}</p>${rows}
     <button class="btip__link" data-action="go-stats-muscles" data-muscle="${it.key}">Séries par muscle${icon('chevron.right', 14)}</button>`;
   // Marques : le contour des sous-muscles (gris compris : sans calque, ils se verraient mal), qui restent jusqu'à « Tout afficher »

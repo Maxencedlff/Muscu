@@ -236,6 +236,14 @@ function refreshSummaryBodyKg() {
 }
 
 // Notes du bilan : enregistrées au fil de la frappe
+// Note longue (panel controle-champs t5 : 3 lignes visibles, la 4e coupée, en texte très grand) : la zone grandit avec le
+// texte jusqu'à la moitié de l'écran, puis défile ; le message d'un collage coupé reste à l'écran
+function fitSummaryNotes(el) {
+  el.style.height = 'auto';
+  el.style.height = `${Math.min(el.scrollHeight, Math.round(innerHeight * 0.5))}px`;
+  const warn = el.dataset.fieldNote && document.getElementById(el.dataset.fieldNote);
+  if (warn?.classList.contains('field-warn')) warn.scrollIntoView({ block: 'center' });
+}
 let summaryNotesTimer = null;
 function summaryNotesInput(value) {
   const h = lastSummary && data.history.find(x => x.id === lastSummary.id);

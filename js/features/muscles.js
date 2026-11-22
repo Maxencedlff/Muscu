@@ -4,7 +4,7 @@
 'use strict';
 
 let muscleSpan = 'month';  // période de Progrès (MUSCLE_SPANS) : « Cette semaine » serait grise chaque lundi
-let muscleFocus = null;    // muscle mis en avant dans « Séries par muscle » (ouvert depuis la bulle)
+let muscleFocus = [];      // muscles mis en avant dans « Séries par muscle » (ouvert depuis la bulle ou la page d'un groupe)
 
 // Intensités d'un exercice pour la silhouette de la fiche : exerciseIntensity (js/features/progress-muscles.js,
 // partagée avec les cartes de l'historique)
@@ -301,7 +301,7 @@ function renderStatsMuscles() {
         <div class="mdetail__seg">${spanSegmentedHtml()}</div>
         <div class="mdetail__legend">${muscleLegendHtml(load.span, null, { unit: false })}</div>
         <div class="group-title">${weeklyTitle(load.span)}</div>
-        <div class="group">${muscleWeekRowsHtml(load, ids)}</div>
+        <div class="group">${muscleWeekRowsHtml(load, ids, muscleFocus)}</div>
         <div class="group-foot">${MUSCLE_ZONES_NOTE} La couleur suit les paliers de la légende. Une série compte 1 pour les muscles principaux et ½ pour les secondaires. Repère : 10 séries par semaine et par muscle. Jusqu'à 20, les gains continuent, plus lentement.</div>
       </div>
     </div>`;
@@ -349,12 +349,14 @@ registerActions({
     if (!MUSCLE_SPANS[el.dataset.span] || el.dataset.span === muscleSpan) return;
     muscleSpan = el.dataset.span; render();
   },
-  // Ouvert en haut ; depuis la bulle d'un muscle (js/features/muscle-tip.js) seulement, sa ligne est mise en avant et
-  // amenée à l'écran (on a demandé CE muscle)
+  // Ouvert en haut ; depuis la bulle d'un muscle (js/features/muscle-tip.js), sa ligne est mise en avant et
+  // amenée à l'écran (on a demandé CE muscle) ; depuis « Tous les muscles » de la page d'un groupe, les lignes du
+  // groupe, sur place (panel atlas-bas t4 : « ‹ Pectoraux » au-dessus des quadriceps, on ne savait plus d'où on venait)
   'go-stats-muscles': (e, el) => {
-    muscleFocus = el.closest('.btip, .atlas-info') && isMuscleId(el.dataset.muscle) ? el.dataset.muscle : null;
+    const g = MUSCLE_GROUP_BY_ID.get(el.dataset.group);
+    muscleFocus = g ? g.muscles.slice() : el.closest('.btip, .atlas-info') && isMuscleId(el.dataset.muscle) ? [el.dataset.muscle] : [];
     navigate('stats-muscles');
-    if (muscleFocus) requestAnimationFrame(() => $(`.stats-muscles .mrow[data-muscle="${muscleFocus}"]`)?.scrollIntoView({ block: 'center' }));
+    if (muscleFocus.length && !g) requestAnimationFrame(() => $('.stats-muscles .mrow--focus')?.scrollIntoView({ block: 'center' }));   // groupe : ouvert en haut (panel Progrès t1)
   },
   'go-muscles-unknown': () => { navigate('muscles-unknown'); },
   'pick-ex-muscles': () => pickExMuscles(),

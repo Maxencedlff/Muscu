@@ -226,7 +226,7 @@ html.type-xl .review-rec__val { flex: 1 0 100%; padding-left: 34px; white-space:
 .field-note__detail { display: block; margin-top: 2px; font-weight: 400; color: var(--label2); }
 /* Bulle d'un commentaire ou d'un message trop long : contour rouge, comme un champ refusé */
 .comment-compose.comment-compose--over { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
-.field-note-ok { color: var(--label); }
+.field-note-ok { color: var(--label2); }   /* information (« Arrondi à 176 cm ») : texte secondaire, ni rouge ni orange */
 .ios-dialog__err { margin: 6px 2px 0; }
 .ios-dialog__field--error { border-color: transparent; box-shadow: 0 0 0 2px var(--red); }
 /* Ligne des Réglages qui vient d'être enregistrée (« Arrondi à 176 cm ») : fond teinté un instant, sans lueur */
