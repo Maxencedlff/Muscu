@@ -218,7 +218,9 @@ def t_fiche(bench, eng, dev, theme):
         R.check(on and all(p.startswith('triceps') for p in on), f'{t} nom « Triceps » : ce seul muscle {on}')
         page.click('.mline2[data-level="1"] .mline2__name[data-label="Triceps"]')
         page.wait_for_timeout(500)
-        R.check(len(page.evaluate(vis)) >= 6 and page.get_attribute('.mline2[data-level="1"]', 'aria-pressed') == 'false', f'{t} toucher de nouveau : tous les muscles reviennent')
+        # Tout revient : les aidants discrets (ciblé petit, sans remplissage, panel atlas-bas t4) comptent par leur contour rose
+        back = page.evaluate("() => ({ n: [...document.querySelectorAll('.mpanel__map .body-map__p')].filter(l => getComputedStyle(l).opacity !== '0' || (l.classList.contains('body-map__m--faint') && document.querySelector(`.mpanel__map .body-map__ol--help[data-ol=\"${l.dataset.part}\"]`))).length, iso: !!document.querySelector('.mpanel__map[data-iso]') })")
+        R.check(back['n'] >= 6 and not back['iso'] and page.get_attribute('.mline2[data-level="1"]', 'aria-pressed') == 'false', f'{t} toucher de nouveau : tous les muscles reviennent {back}')
         page.locator('.mpanel__map').evaluate("e => e.scrollIntoView({ block: 'center' })")
         settle(page)
         sub = page.inner_text('.exhead__sub').replace('\xa0', ' ')
