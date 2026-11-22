@@ -354,7 +354,7 @@ function renderLibraryEx(name) {
   const q = EQUIPMENT.find(x => x.id === e.equip);
   const mSub = exerciseMuscles({ name });
   // Muscles sous le titre : les pastilles en rouge plein du personnage détaillé (mêmes rangs, mêmes noms que les lignes de
-  // la fiche : « Haut des pectoraux » au développé incliné, « Quadriceps (vastes latéral et médial) » au squat), sinon les muscles
+  // la fiche : « Haut des pectoraux » au développé incliné, « Quadriceps (vastes latéral et médial) » au soulevé de terre sumo), sinon les muscles
   // principaux ; dans l'ordre des muscles principaux de la bibliothèque
   const lv = exercisePartLevels(name, mSub).levels, pills = atlasPills(lv);
   const rank = it => Math.min(...it.ids.map(id => { const i = mSub.primary.indexOf(atlasPart(id).parent); return i < 0 ? 99 : i; }));

@@ -103,30 +103,36 @@ function atlasDetailList(ids) {
 // Lignes de la fiche (panels atlas-bas t2 et t3) : on ne nomme que ce qui est coloré sur cette silhouette. Un groupe dont
 // TOUS les sous-muscles visibles ont la même couleur garde son nom nu (« Quadriceps », « Triceps ») ; sinon, à chaque
 // couleur, le groupe puis sa précision : « Quadriceps (vastes latéral et médial) » ciblés, « Quadriceps (droit fémoral) »
-// qui aide. Visibles : un calque sur une vue du personnage (les profonds seulement quand l'exercice les colore).
-function atlasSeen(id, levels, kind) {
+// qui aide. Visibles : un calque sur une des vues affichées par la fiche (bodyAtlasViews : le dos seul au soulevé de terre
+// roumain, le long adducteur de face n'y est pas nommé ; panel atlas-bas t4), les profonds seulement quand l'exercice les colore.
+function atlasSeen(id, levels, kind, views = bodyAtlasViews(kind, levels)) {
   const p = atlasPart(id);
-  return !!p && ['front', 'back'].some(v => BODY_PARTS.boxes[kind]?.[v]?.[id]) && (!p.deep || levels[id] > 0);
+  return !!p && views.some(v => BODY_PARTS.boxes[kind]?.[v]?.[id]) && (!p.deep || levels[id] > 0);
 }
 // Clé de ligne d'un sous-muscle : le nom nu du groupe s'il est d'une seule couleur, sinon groupe + couleur
-function atlasLineKey(id, levels, kind) {
+function atlasLineKey(id, levels, kind, views) {
   const label = atlasPillLabel(id), main = levels[id] >= 2;
-  const whole = BODY_PARTS.parts.filter(p => atlasPillLabel(p.id) === label && atlasSeen(p.id, levels, kind))
+  const whole = BODY_PARTS.parts.filter(p => atlasPillLabel(p.id) === label && atlasSeen(p.id, levels, kind, views))
     .every(p => levels[p.id] > 0 && (levels[p.id] >= 2) === main);
   return whole ? label : `${label}|${main ? 2 : 1}`;
 }
 // Sous-muscles colorés et visibles, regroupés en noms de ligne, dans l'ordre de ids : [{ label, level, ids }]
 function atlasLineGroups(ids, levels, kind) {
-  const by = new Map();
-  for (const id of ids.filter(id => levels[id] > 0 && atlasSeen(id, levels, kind))) {
-    const key = atlasLineKey(id, levels, kind), cur = by.get(key);
+  const by = new Map(), views = bodyAtlasViews(kind, levels);
+  for (const id of ids.filter(id => levels[id] > 0 && atlasSeen(id, levels, kind, views))) {
+    const key = atlasLineKey(id, levels, kind, views), cur = by.get(key);
     if (cur) { cur.ids.push(id); cur.level = Math.max(cur.level, levels[id]); } else by.set(key, { key, level: levels[id], ids: [id] });
   }
+  // Précision : les sous-muscles qu'on voit vraiment ; un mince filet à moins d'un cinquième de l'aire du plus grand de
+  // la parenthèse (grand adducteur de l'homme, de dos, entre les ischio-jambiers : panel atlas-bas t4) n'y est pas écrit,
+  // mais la ligne l'allume avec les autres (ids)
+  const area = id => views.reduce((n, v) => n + (BODY_PARTS.boxes[kind]?.[v]?.[id]?.[2] || 0), 0);
   return [...by.values()].map(({ key, level, ids: g }) => {
-    const label = atlasPillLabel(g[0]);
-    return { label: key === label ? label : `${label} (${atlasDetailList(g)})`, level, ids: g };
+    const label = atlasPillLabel(g[0]), big = Math.max(...g.map(area));
+    return { label: key === label ? label : `${label} (${atlasDetailList(g.filter(id => area(id) >= ATLAS_DETAIL_MIN * big))})`, level, ids: g };
   });
 }
+const ATLAS_DETAIL_MIN = 0.2;
 
 // Pastilles de la fiche, dans l'ordre : rouge plein d'abord (intensité 2), puis atténué ; mêmes noms que les lignes
 // (atlasLineGroups). [{ label, level, ids }]

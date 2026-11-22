@@ -319,9 +319,13 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     const lines = (name, kind) => { const lv = app.exercisePartLevels(name, app.musclesOf(name)).levels;
       const r = run(`atlasRanked(${JSON.stringify(name)}, musclesOf(${JSON.stringify(name)}), ${JSON.stringify(lv)}, ${JSON.stringify(kind)})`);
       return { lv, r, main: r.filter(x => x.level >= 2).map(x => strip(x.label)), help: r.filter(x => x.level < 2).map(x => strip(x.label)) }; };
-    // Squat : le groupe d'abord, la précision entre parenthèses ; le droit fémoral (rose) dans « Qui aident »
-    sameJSON(lines('Squat barre', 'male').main.slice(0, 1), ['Quadriceps (vastes latéral et médial)']);
-    assert.ok(lines('Squat barre', 'male').help.includes('Quadriceps (droit fémoral)'), `squat, qui aident : ${lines('Squat barre', 'male').help}`);
+    // Squat (panel atlas-bas t4) : droit fémoral ciblé comme les vastes (genou étendu sous charge), le quadriceps entier
+    sameJSON(lines('Squat barre', 'male').main, ['Quadriceps', 'Grand fessier']);
+    // Soulevé de terre sumo : droit fémoral qui aide, le groupe puis la précision entre parenthèses
+    sameJSON(lines('Soulevé de terre sumo', 'male').main.filter(l => l.startsWith('Quadriceps')), ['Quadriceps (vastes latéral et médial)']);
+    assert.ok(lines('Soulevé de terre sumo', 'male').help.includes('Quadriceps (droit fémoral)'), `sumo, qui aident : ${lines('Soulevé de terre sumo', 'male').help}`);
+    // Soulevé de terre roumain, homme : de dos, le grand adducteur n'est qu'un filet entre les ischio-jambiers, pas écrit
+    assert.ok(lines('Soulevé de terre roumain', 'male').help.includes('Adducteurs (long adducteur)'), `${lines('Soulevé de terre roumain', 'male').help}`);
     // Mollets debout : « Mollets (gastrocnémiens) » ciblés, « Mollets (soléaire) » une fois dans « Qui aident »
     for (const kind of SEXES) {
       const ml = lines('Mollets debout', kind);
@@ -369,7 +373,7 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.ok(!html('Développé incliné barre', 'female', 'front').includes('body-map__m--faint'), 'développé incliné femme : aidants normaux');
     // Progrès (paliers) : jamais discrets
     assert.ok(!run(`bodyAtlasLayersHtml('male', 'back', { glute_med: 2, glute_max: 1 }, 1, true)`).includes('--faint'));
-    assert.ok(/--body-sec-o-faint: \.25;/.test(fs.readFileSync(path.join(ROOT, 'css', 'theme-sobre-progres.css'), 'utf8')), 'remplissage léger, 25 %');
+    assert.ok(/--body-sec-o-faint: 0;/.test(fs.readFileSync(path.join(ROOT, 'css', 'theme-sobre-progres.css'), 'utf8')), 'aidant discret : plus de remplissage, le contour seul (panel atlas-bas t4)');
     // Isolés : la couleur pleine revient
     assert.ok(/\[data-iso\] \.body-map__p\.body-map__m--faint\.is-on \{ opacity: var\(--body-sec-o\) !important/.test(fs.readFileSync(path.join(ROOT, 'css', 'muscles.css'), 'utf8')));
   });
@@ -401,11 +405,11 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     assert.equal(pl.weekly.chest_clavicular, Math.max(1, Math.round(7 / 4)));
     assert.equal(pl.levels.chest_clavicular, app.muscleLevel(pl.weekly.chest_clavicular));
     assert.equal(pl.levels.chest_abdominal > 0, true, 'couché : faisceau abdominal travaillé');
-    // Jambes au détail (panel atlas-bas t2) : au squat, vastes ciblés (1 série) et droit fémoral qui aide (½) ; « Par zone »
+    // Jambes au détail (panel atlas-bas t2) : au soulevé de terre sumo, vastes ciblés (1 série) et droit fémoral qui aide (½) ; « Par zone »
     // des quadriceps le dit
-    const sq = [h(1, 'Squat barre', 8), h(2, 'Squat barre', 8), h(3, 'Squat barre', 8), h(4, 'Squat barre', 8)];
+    const sq = [h(1, 'Soulevé de terre sumo', 8), h(2, 'Soulevé de terre sumo', 8), h(3, 'Soulevé de terre sumo', 8), h(4, 'Soulevé de terre sumo', 8)];
     const pq = run(`partLoad('week', ${now}, ${JSON.stringify(sq)})`);
-    assert.ok(pq.sets.vastus_lateralis > pq.sets.rectus_femoris && pq.sets.rectus_femoris > 0, `squat : vastes ${pq.sets.vastus_lateralis}, droit fémoral ${pq.sets.rectus_femoris}`);
+    assert.ok(pq.sets.vastus_lateralis > pq.sets.rectus_femoris && pq.sets.rectus_femoris > 0, `sumo : vastes ${pq.sets.vastus_lateralis}, droit fémoral ${pq.sets.rectus_femoris}`);
     const zq = run(`atlasMuscleZones(partLoad('week', ${now}, ${JSON.stringify(sq)}), 'quads', 'male')`).map(z => z.label.replace(/\u00ad/g, ''));
     sameJSON(zq, ['Droit fémoral', 'Vaste latéral', 'Vaste médial'], 'quadriceps : une zone par chef visible');
     sameJSON(run(`atlasMuscleZones(partLoad('week', ${now}, ${JSON.stringify(sq)}), 'calves', 'male')`).map(z => z.label.replace(/\u00ad/g, '')), ['Gastrocnémien médial', 'Gastrocnémien latéral', 'Soléaire']);

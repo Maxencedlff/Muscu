@@ -196,8 +196,8 @@ function bodyAtlasLayersHtml(kind, view, levels, res = 1, tiers = false, outline
   }).join('') + (outline.length ? bodyOutlineHtml(kind, view, outline, res) : '')
     // Fiche : le ciblé cerné d'un trait rouge d'un point (panel t8 : le haut des pectoraux, fin, se perdait dans le rose voisin)
     + (tiers ? '' : bodyOutlineHtml(kind, view, on.filter(p => !p.deep && levels[p.id] >= 2).map(p => p.id), res, 'body-map__ol--main', true))
-    // Aidants discrets : un remplissage léger et leur contour rose, en dedans (panel atlas-bas t3 : aux abducteurs, le grand
-    // fessier rose dominait encore à 70 %)
+    // Aidants discrets : leur contour rose seul, en dedans, sans remplissage (panels atlas-bas t3 et t4 : aux abducteurs, le
+    // grand fessier rose dominait encore à 70 %, puis à 25 %)
     + (faint ? bodyOutlineHtml(kind, view, on.filter(p => !p.deep && levels[p.id] === 1).map(p => p.id), res, 'body-map__ol--help', true) : '');
 }
 

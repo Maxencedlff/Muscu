@@ -12,4 +12,7 @@
 .atlas-info, .atlas-info * { overflow-wrap: normal; word-break: normal; -webkit-hyphens: manual; hyphens: manual; }
 /* Fiche en texte très grand : la carte en bas de l'écran, au-dessus de la barre d'onglets (bottom posé par atlasInfoShow),
    opaque, sans pousser le dessin (comme la vue agrandie, css/atlas-zoom.css) */
-.atlas-info.atlas-info--dock { position: fixed; left: 16px; right: 16px; width: auto; z-index: 55; background: var(--dlg-solid); border: 1px solid var(--sep); }
+.atlas-info.atlas-info--dock { position: fixed; left: 0; right: 0; width: auto; z-index: 55; border-radius: var(--r-md) var(--r-md) 0 0; padding-left: 16px; background: var(--dlg-solid); border-top: 1px solid var(--sep); }
+.atlas-info--dock .btip__link { width: calc(100% + 60px); margin-left: -16px; border-radius: 0; }
+/* Carte ouverte : le bouton Agrandir qu'elle recouvrirait s'efface (panel atlas-bas t4) ; le double toucher reste */
+.view:has(.atlas-info--dock:not([hidden])) .mpanel--atlas .mpanel__zoom { visibility: hidden; }

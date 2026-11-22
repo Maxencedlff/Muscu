@@ -108,7 +108,7 @@ function atlasInfoShow(root, html, container = null, trigger = root) {
   const dock = !slot && document.documentElement.classList.contains('type-xl') && !!root.closest('.mpanel--atlas');
   if (dock) {
     el.classList.add('atlas-info--dock');
-    el.style.bottom = `${Math.round(innerHeight - (document.querySelector('.tabbar')?.getBoundingClientRect().top ?? innerHeight)) + 8}px`;
+    el.style.bottom = `${Math.round(innerHeight - (document.querySelector('.tabbar')?.getBoundingClientRect().top ?? innerHeight))}px`;
     // Montrée après la fenêtre du double toucher (sinon le 2e toucher tombait sur elle et la vue agrandie ne s'ouvrait
     // pas) ; le muscle touché reste visible au-dessus d'elle : la page défile juste ce qu'il faut
     el.hidden = true;
@@ -116,6 +116,10 @@ function atlasInfoShow(root, html, container = null, trigger = root) {
       const mark = root.querySelector('.body-map__mark');
       if (!el.isConnected || atlasViewer) return;
       el.hidden = false;
+      // Sous la carte, la page réserve sa hauteur (panel atlas-bas t4 : « Vérifiés » dépassait dessous) : tout le contenu
+      // reste atteignable en défilant
+      const scr = el.closest('.scr');
+      if (scr) scr.style.paddingBottom = `${Math.ceil(el.getBoundingClientRect().height)}px`;
       if (!mark) return;
       const m = mark.getBoundingClientRect(), top = document.querySelector('.view .navbar')?.getBoundingClientRect().bottom ?? 0;
       const over = Math.min(m.bottom - (el.getBoundingClientRect().top - 8), m.top - top - 8);
@@ -134,6 +138,7 @@ function atlasInfoShow(root, html, container = null, trigger = root) {
   return el;
 }
 function closeAtlasInfo() {
+  document.querySelectorAll('.atlas-info--dock').forEach(e => { const scr = e.closest('.scr'); if (scr) scr.style.paddingBottom = ''; });
   document.querySelectorAll('.atlas-info, .body-map__mark').forEach(e => e.remove());
 }
 // Croix de la carte : fermée, le focus revient à ce qui l'a ouverte

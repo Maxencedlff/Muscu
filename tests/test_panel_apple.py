@@ -286,7 +286,7 @@ def t_silhouette_paliers(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-FAINT_HELP_GRAY = 4   # aidants discrets (ciblé petit sur la vue) : remplissage à 25 %, à peine teinté ; leur contour rose les distingue
+FAINT_HELP_GRAY = 0   # aidants discrets (ciblé petit sur la vue) : sans remplissage (panel atlas-bas t4), leur contour rose les distingue
 
 
 def t_fiche_aidants(bench):
@@ -322,10 +322,10 @@ def t_fiche_aidants(bench):
             mh, hg, dh = round(_delta_e(m, h)), round(_delta_e(h, g)), round(_delta_e(dot, h))
             # Homme : la bande du haut des pectoraux fait 27 % de l'aire des aidants, ceux-ci sont discrets (panel atlas-bas t2,
             # --body-sec-o-faint) : plus près du gris, toujours distincts ; la pastille garde la couleur pleine (celle de l'isolement)
-            # (panel atlas-bas t3 : remplissage à 25 % et contour rose, c'est le contour qui le distingue du gris)
+            # (panel atlas-bas t4 : sans remplissage, le contour rose seul ; la pastille garde le rose plein de l'isolement)
             faint = page.evaluate("!!document.querySelector('.mpanel__map .body-map__front .body-map__m--faint')")
             if faint:
-                help_gray, dot_max = (FAINT_HELP_GRAY, 40)
+                help_gray, dot_max = (FAINT_HELP_GRAY, 999)
                 R.check(page.evaluate("!!document.querySelector('.mpanel__map .body-map__front .body-map__ol--help[data-ol=\"chest_sternal\"]')"), f'{t} fiche : aidant discret cerné de rose')
             else:
                 dot_max = 12
