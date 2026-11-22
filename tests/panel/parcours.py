@@ -2662,3 +2662,42 @@ def p_photo_eleve_couvert(r):
         r.raccourci("routeTo('friends'); navigate('coach-mine')", 'Mon coach')
         r.attendre('.coach-mine-view', 'Mon coach')
         r.page.wait_for_function("() => !!document.querySelector('.coach-mine__handle')", timeout=8000)
+
+
+@parcours('coach-forme', 'Accord « Ma coach » : la coach choisit, son élève lit « Ma coach »', 'coach')
+def p_coach_forme(r):
+    """Camille, coach validée : Réglages › Coach › « Tes élèves lisent » › « Ma coach ». Puis Léa, élève d'une coach qui a
+    choisi « Ma coach » : Social (« Ma coach »), Mon coach (« Ta coach depuis le… », « Quitter ma coach »), Messages
+    (« Écris à ta coach »). Docs/COACH_FORME.md."""
+    r.lancer(REALISTE)
+    r.connecter('camille_coach')
+    r.raccourci("async () => { __sb.makeCoach(__sb.meId()); await coachRefresh(); await coachProRefresh({ minAge: 0 }); }",
+                'rôle coach validé, code permanent')
+    cle = 'Choisir « Ma coach »'
+    with r.etape('reglages-forme', 'Réglages › Coach : « Tes élèves lisent », rien de coché', cle=cle):
+        r.raccourci("routeTo('settings'); navigate('coach')", 'Réglages › Coach')
+        r.defiler('[data-action="coach-form-set"][data-v="neutre"]', 'choix « Ne pas préciser »')
+    with r.etape('ma-coach', '« Ma coach » coché', cle=cle):
+        r.toucher('[data-action="coach-form-set"][data-v="elle"]', 'Ma coach')
+        r.page.wait_for_function("() => myOwnCoachForm() === 'elle'", timeout=8000)
+
+
+@parcours('eleve-ma-coach', 'Élève d\'une coach « Ma coach » : Social, Ma coach, Quitter ma coach', 'pratiquant')
+def p_eleve_ma_coach(r):
+    """Léa, élève de Camille, qui a choisi « Ma coach » dans ses réglages : Social (« Ma coach »), Mon coach (« Ta coach
+    depuis le… »), bas de l'écran (« Quitter ma coach »). Docs/COACH_FORME.md."""
+    r.lancer(REALISTE)
+    r.connecter('lea', amis=True)
+    r.raccourci("""async () => { const c = __sb.addPerson({ username: 'camille_coach', avatar: '🦊', social: false }); __sb.makeCoach(c);
+        __sb.setForm(c, 'elle'); __sb.link(c, __sb.meId(), Date.now() - 5 * 86400000); await coachRefresh(); }""",
+                'Léa reliée à Camille, qui a choisi « Ma coach »')
+    r.page.wait_for_function("() => myCoachForm() === 'elle'", timeout=8000)
+    cle = 'Lire « Ma coach » (élève)'
+    with r.etape('social', 'Social : « Ma coach »', cle=cle):
+        r.onglet('friends', 'Social')
+        r.attendre('[data-action="coach-open-mine"]', 'cellule Ma coach')
+    with r.etape('mon-coach', 'Ma coach : « Ta coach depuis le… »', cle=cle):
+        r.toucher('[data-action="coach-open-mine"]', 'Ma coach')
+        r.attendre('.coach-mine-view', 'Ma coach')
+    with r.etape('quitter', 'Bas de l\'écran : « Quitter ma coach »', cle=cle):
+        r.defiler('[data-action="coach-leave"]', 'Quitter ma coach')
