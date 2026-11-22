@@ -69,7 +69,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     assert.equal(model({ name: '' }).handle, '@lea.coach', 'le pseudo reste, une fois');
     assert.equal(model({ name: '  Léa   Martin  ' }).name, 'Léa Martin', 'espaces resserrés');
     assert.equal(model({ name: 'x'.repeat(60) }).name.length, 40, '40 caractères au plus');
-    assert.match(app.coachPosterAlt(model()), /^Affiche « Nouvelle coach » : Léa Martin, @lea\.coach, sur MDLF Training, Carte pro déclarée, code K7M2-QX9P-R4TD$/);
+    assert.match(app.coachPosterAlt(model()), /^Affiche « Nouvelle coach » : Léa Martin, sur MDLF Training, code K7M2-QX9P-R4TD$/);
     assert.match(app.coachPosterAlt(model({ neutral: true })), /^Affiche « Coach » : /);
   });
 
@@ -308,30 +308,35 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     const ui = read('js/features/coach-poster-ui.js');
     assert.ok(/ok = \(await opened\) !== false/.test(ui) && /if \(!ok && cposter === mine\) cposter = null;/.test(ui), 'cposter libéré si refusé');
   });
-  test('affiche du coach : mises en page à l\'essai « hero » et « photo », aux couleurs de l\'app en sombre ; défaut inchangé', () => {
-    const drawL = (layout, format = 'story') => {
+  test('affiche du coach : mise en page « hero » (vote du 22/11), celle de l\'écran ; aux couleurs de l\'app, aucun texte sur le personnage', () => {
+    const drawL = (o, format = 'story', layout = 'hero', assets = { photo: img('photo'), icon: img('icon', 192, 192), body: img('body', 1152, 2520) }) => {
       const c = fakeCanvas(), saved = app.document.createElement;
       app.document.createElement = () => { const x = fakeCanvas(c.ops); x.id = 'cover'; return x; };
-      try { app.drawCoachPosterArt(c, model({ specialty: 'Force' }), { photo: img('photo'), icon: img('icon', 192, 192), body: img('body', 1152, 2520) }, { format, layout }); }
-      finally { app.document.createElement = saved; }
+      try { app.drawCoachPosterArt(c, model(o), assets, { format, layout }); } finally { app.document.createElement = saved; }
       return c;
     };
+    assert.ok(/drawCoachPosterArt\([^)]*\{ format, layout: CPOSTER_LAYOUT \}\)/.test(read('js/features/coach-poster-ui.js')) && /const CPOSTER_LAYOUT = 'hero';/.test(read('js/features/coach-poster-ui.js')), 'l\'écran dessine la mise en page « hero »');
     for (const format of ['story', 'square']) {
-      sameJSON(drawL(undefined, format).ops, draw(model({ specialty: 'Force' }), format).ops, `${format} : sans layout, la mise en page de l'app`);
-      sameJSON(drawL('inconnue', format).ops, drawL('figure', format).ops, `${format} : layout inconnu, celle de l'app`);
-      const hero = drawL('hero', format), photo = drawL('photo', format), H = format === 'square' ? 1080 : 1920;
-      assert.equal(count(hero, 'body'), 1, `${format} hero : le personnage en fond`);
-      assert.equal(count(photo, 'body'), 0, `${format} photo : sans personnage`);
-      for (const [n, c] of [['hero', hero], ['photo', photo]]) {
-        const t = c.ops.filter(o => o.op === 'text');
-        assert.ok(t.every(o => !/Anton/.test(o.font)), `${format} ${n} : SF Pro partout, pas l'Anton`);
-        assert.ok(t.every(o => o.fill !== '#000000'), `${format} ${n} : aucun texte noir (plus d'aplat orange)`);
-        assert.ok(!c.ops.some(o => o.op === 'fill' && o.fill === '#FF7A1A' && c.ops.some(r => r.op === 'text' && r.fill === '#000000')), `${format} ${n} : pas de bloc orange`);
-        assert.ok(['Nouvelle', 'coach', 'Léa Martin', 'Force', 'K7M2-QX9P-R4TD'].every(x => t.some(o => o.text.trim() === x)), `${format} ${n} : titre, nom, spécialité, code`);
-        assert.ok(!t.some(o => /@lea|Carte pro/.test(o.text)), `${format} ${n} : ni pseudo ni badge`);
-        if (format === 'story') assert.ok(t.every(o => o.y > 250 && o.y < 1670), `${format} ${n} : textes dans la zone sûre d'Instagram`);
-        assert.ok(t.every(o => o.y > 0 && o.y < H), `${format} ${n} : rien hors de l'image`);
+      sameJSON(drawL({ specialty: 'Force' }, format, 'inconnue').ops, drawL({ specialty: 'Force' }, format, 'figure').ops, `${format} : layout inconnu, la mise en page d'avant`);
+      const H = format === 'square' ? 1080 : 1920;
+      for (const [n, o, a] of [['photo', { specialty: 'Force' }], ['nom long', { name: 'Marie-Charlotte Delafontaine', specialty: 'Rééducation · Mobilité · Pilates' }],
+        ['coach seul', { neutral: true }], ['sans photo', { hasPhoto: false }, { photo: null, icon: img('icon', 192, 192), body: img('body', 1152, 2520) }]]) {
+        const c = drawL(o, format, 'hero', a), t = c.ops.filter(x => x.op === 'text'), tag = `${format} ${n}`;
+        const body = c.ops.find(x => x.op === 'image' && x.id === 'body'), card = c.ops.find(x => x.op === 'rrect' && x.w > 800);
+        assert.ok(body && card, `${tag} : personnage et carte du code`);
+        assert.ok(t.every(x => !/Anton/.test(x.font)), `${tag} : SF Pro partout, pas l'Anton`);
+        assert.ok(t.every(x => x.fill !== '#000000'), `${tag} : aucun texte noir (plus d'aplat orange)`);
+        assert.deepEqual([...new Set(t.filter(x => x.fill === '#FF7A1A').map(x => x.text))], ['Rejoins-moi sur MDLF Training'], `${tag} : l'orange seulement sur « Rejoins-moi »`);
+        assert.ok(!t.some(x => /@lea|Carte pro/.test(x.text)), `${tag} : ni pseudo ni badge`);
+        assert.ok(t.some(x => x.text === 'K7M2-QX9P-R4TD'), `${tag} : le code`);
+        // Aucun texte sur le personnage : au-dessus de sa tête, ou dans la carte du code (les initiales sont dans le rond)
+        for (const x of t.filter(z => z.text !== 'LM')) assert.ok(x.y < body.y + 4 || (x.y > card.y && x.y < card.y + card.h), `${tag} : « ${x.text} » hors du personnage (y ${Math.round(x.y)}, tête ${Math.round(body.y)})`);
+        if (format === 'story') assert.ok(t.every(x => x.y > 250 && x.y < 1670) && card.y + card.h <= 1670, `${tag} : zone sûre d'Instagram`);
+        assert.ok(t.every(x => x.y > 0 && x.y < H), `${tag} : rien hors de l'image`);
+        assert.ok(c.ops.some(x => x.op === 'image' && x.id === 'icon' && x.y > card.y), `${tag} : icône de l'app dans la carte du code`);
       }
     }
+    assert.equal(run('CPL.heroAlpha'), 0.4, 'personnage à 40 % d\'opacité uniforme');
+    assert.equal(run('CPL.ring'), '#AEAEB2', 'liseré gris clair (plus d\'anneau orange)');
   });
 }

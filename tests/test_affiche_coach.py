@@ -225,7 +225,7 @@ def t_coach_affiche(bench, eng, dev, theme):
         preview_ready(page)
         alt = page.get_attribute('.sheet .share-preview__img', 'aria-label')
         code = page.evaluate('formatCoachCode(coachPro.code)')
-        R.check('Nouveau coach' in alt and '@camille_coach' in alt and code in alt and 'Carte pro déclarée' in alt, f'{t} aperçu : titre, pseudo, code, badge ({alt!r})')
+        R.check('Nouveau coach' in alt and code in alt and '@camille_coach' not in alt and 'Carte pro' not in alt, f'{t} aperçu : titre et code, ni pseudo ni badge, comme l\'image ({alt!r})')
         R.check(page.evaluate("cposter && cposter.photo === null && !!cposter.body && cposter.silhouette === 'male'"),
                 f'{t} sans photo : personnage homme (réglage du compte)')
         R.check(page.evaluate("document.fonts.check('100px \"MDLF Anton\"')"), f'{t} police Anton chargée')

@@ -1,5 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-//  Affiche du coach (20/11/2026), une seule mise en page, « photo ronde », choisie par Maxence parmi quatre concepts
+//  Depuis le vote du 22/11, l'écran dessine la mise en page « hero » (en bas du fichier, CPL_LAYOUTS) ; celle-ci,
+//  « figure », reste celle par défaut de drawCoachPosterArt.
+//  Affiche du coach (20/11/2026), mise en page « photo ronde », choisie par Maxence parmi quatre concepts
 //  (docs/AFFICHE_COACH.md) : titre énorme (NOUVEAU / NOUVELLE COACH ou COACH), photo ronde cerclée d'orange devant le
 //  personnage 3D aux muscles rouges en entier (silhouette femme ou homme choisie par le coach), nom, « Sur MDLF
 //  Training », code. Un seul fond, le noir. Personnage grand et bien visible, comme le concept du vote (v2) que
@@ -332,19 +334,23 @@ function cpaDrawSquare(ctx, m, a, W, H) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Mises en page à l'essai (22/11), aux couleurs de l'app en sombre. Retour de Maxence : le noir, le grand aplat orange
-//  au texte noir et « COACH » en orange rappelaient l'identité d'une autre marque, pas celle de l'app. Ici : fond noir
-//  (--bg), code dans une carte gris foncé arrondie (--cell), textes blancs en SF Pro (pas l'Anton), orange en accent
-//  seulement (anneau de la photo, libellé du code), rouge des muscles (#FF453A) comme couleur principale. Peu de texte :
-//  titre, photo, nom, spécialité facultative, code, signature (ni pseudo ni badge).
-//  - 'hero' : le personnage aux muscles rouges en géant derrière tout, cadré du buste aux cuisses (concept v2 retenu par
-//    Maxence), assombri par sa seule opacité (aucun dégradé, aucun halo) ; photo ronde au centre, nom énorme.
-//  - 'photo' : sans personnage ; la photo du coach en grande carte arrondie, pleine largeur, sous le titre.
+//  Mise en page « hero » (22/11), celle de l'écran Mon affiche de coach depuis le vote (A contre B, 6 contre 4) :
+//  composition du concept v2 retenu par Maxence, aux couleurs de l'app en sombre. Retour de Maxence : le noir, le grand
+//  aplat orange au texte noir et « COACH » en orange rappelaient l'identité d'une autre marque, pas celle de l'app.
+//  - Fond noir (--bg) ; le personnage aux muscles rouges (#FF453A) en géant, cadré de la tête aux cuisses, à 40 %
+//    d'opacité uniforme (aucun dégradé, aucun halo) : c'est lui qui porte la couleur de l'affiche.
+//  - Aucun texte sur le personnage (vote) : titre, nom et spécialité sur le noir, au-dessus de sa tête ; la photo ronde
+//    sur sa poitrine, cerclée d'un liseré gris clair ; le code dans une carte gris foncé (--cell) qui le recouvre.
+//  - Textes blancs en SF Pro (pas l'Anton) ; « coach » en rouge des muscles ; l'orange seulement sur « Rejoins-moi » ;
+//    l'icône de l'app en grand dans la carte du code. Peu de texte : ni pseudo ni badge sur l'image.
 // ═══════════════════════════════════════════════════════════
 const CPL = {
   cell: '#1C1C1E',          // --cell : cartes de l'app en sombre
   label2: '#98989F',        // --label2, rgba(235,235,245,.6) posé sur --cell, rendu opaque : 6,6:1
-  heroAlpha: 0.68,          // opacité du personnage géant : noir à 32 % par-dessus ; blanc sur le rouge assombri à 5,5:1
+  ring: '#AEAEB2',          // liseré de la photo : gris clair de l'app (--set-ring)
+  heroAlpha: 0.4,           // opacité uniforme du personnage géant
+  headTop: 0.004,           // haut du crâne dans l'image du personnage (1152 × 2520), homme et femme
+  neck: 0.095,              // sous le menton : la photo commence là
   font: '-apple-system, "SF Pro Display", Inter, system-ui, "Helvetica Neue", Arial, sans-serif',
 };
 const cplFont = (s, w = 800) => `${w} ${Math.round(s)}px ${CPL.font}`;
@@ -398,97 +404,85 @@ function cplIdentity(ctx, m, { x, top, maxW, name: [nMax, nMin], spec, gap, draw
   return y - top;
 }
 
-// Carte du code, comme les cartes de l'app : gris foncé arrondi ; libellé en orange (accent), code en blanc très gras,
-// où l'entrer en gris secondaire
-function cplCodeCard(ctx, m, x, y, w, h) {
-  cpaRound(ctx, x, y, w, h, Math.min(44, h * 0.2)); ctx.fillStyle = CPL.cell; ctx.fill();
-  const cx = x + w / 2, tw = w - 72;
-  const s1 = cplFit(ctx, m.ctaLine, tw, h * 0.15, 22, 600), s3 = cplFit(ctx, m.ctaWhere, tw, h * 0.13, 20, 600);
-  const sc = cplFit(ctx, m.code, tw, h * 0.34, h * 0.2, 800), gap = h * 0.075;
+// Carte du code, comme les cartes de l'app : gris foncé arrondi, l'icône de l'app en grand à gauche ; à droite, alignés
+// à gauche, « Rejoins-moi sur MDLF Training » en orange (seul orange de l'affiche), le code en blanc très gras, où
+// l'entrer en gris secondaire
+function cplCodeCard(ctx, m, icon, x, y, w, h) {
+  cpaRound(ctx, x, y, w, h, Math.min(40, h * 0.2)); ctx.fillStyle = CPL.cell; ctx.fill();
+  const pad = 32, is = Math.min(h * 0.46, 110);
+  let tx = x + pad;
+  if (icon?.width) {
+    const iy = y + (h - is) / 2;
+    ctx.save(); cpaRound(ctx, tx, iy, is, is, is * 0.225); ctx.clip(); ctx.drawImage(icon, tx, iy, is, is); ctx.restore();
+    tx += is + 26;
+  }
+  const tw = x + w - pad - tx;
+  const s1 = cplFit(ctx, m.ctaLine, tw, h * 0.15, 20, 600), s3 = cplFit(ctx, m.ctaWhere, tw, h * 0.13, 18, 600);
+  const sc = cplFit(ctx, m.code, tw, h * 0.34, h * 0.18, 800), gap = h * 0.075;
   const top = y + (h - (s1 * 0.74 + gap + sc * 0.74 + gap + s3 * 0.74)) / 2;
   const b1 = top + s1 * 0.74, b2 = b1 + gap + sc * 0.74, b3 = b2 + gap + s3 * 0.74;
-  cpaText1(ctx, m.ctaLine, cx, b1, { font: cplFont(s1, 600), color: CPA.orange });
-  cpaText1(ctx, m.code, cx, b2, { font: cplFont(sc, 800), color: CPA.white });
-  cpaText1(ctx, m.ctaWhere, cx, b3, { font: cplFont(s3, 600), color: CPL.label2 });
+  cpaText1(ctx, m.ctaLine, tx, b1, { font: cplFont(s1, 600), color: CPA.orange, align: 'left' });
+  cpaText1(ctx, m.code, tx, b2, { font: cplFont(sc, 800), color: CPA.white, align: 'left' });
+  cpaText1(ctx, m.ctaWhere, tx, b3, { font: cplFont(s3, 600), color: CPL.label2, align: 'left' });
 }
 
-// Photo en carte arrondie (mise en page 'photo') ; sans photo, les initiales sur le gris des cartes
-function cplPhotoCard(ctx, m, a, x, y, w, h, r) {
-  ctx.save(); cpaRound(ctx, x, y, w, h, r); ctx.clip();
-  if (m.photo && a.photo) ctx.drawImage(cpaCover(a.photo, w, h, { fy: 0.25 }), x, y, w, h);
+// Photo ronde (diamètre d, haut à top) dans un fin liseré gris clair ; sans photo, les initiales sur le gris des cartes
+function cplPhotoRound(ctx, m, a, cx, top, d, ring) {
+  const cy = top + d / 2;
+  ctx.beginPath(); ctx.arc(cx, cy, d / 2 + ring, 0, Math.PI * 2); ctx.fillStyle = CPL.ring; ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, d / 2, 0, Math.PI * 2); ctx.clip();
+  if (m.photo && a.photo) ctx.drawImage(cpaCover(a.photo, d, d, { fy: 0.25 }), cx - d / 2, top, d, d);
   else {
-    ctx.fillStyle = CPL.cell; ctx.fillRect(x, y, w, h);
-    if (m.initials) cpaText1(ctx, m.initials, x + w / 2, y + h / 2 + Math.min(w, h) * 0.15, { font: cplFont(Math.min(w, h) * 0.4) });
-    else cpaPhotoHint(ctx, x + w / 2, y + h / 2, Math.min(w, h));
+    ctx.fillStyle = CPL.cell; ctx.fillRect(cx - d / 2, top, d, d);
+    if (m.initials) cpaText1(ctx, m.initials, cx, cy + d * 0.14, { font: cplFont(d * 0.38) });
+    else cpaPhotoHint(ctx, cx, cy, d);   // ni photo ni nom : aperçu seulement (le partage demande un nom)
   }
   ctx.restore();
 }
 
-// Personnage géant derrière tout, du buste aux cuisses (cadrage du concept v2), assombri par sa seule opacité
-function cplHeroBody(ctx, body, W, H, sq) {
+// Réglages par format : zone utile, tailles maximales (titre, nom, spécialité), carte du code, personnage, photo
+const CPL_FORMATS = {
+  story: { top: CPA.safeTop, bottom: CPA.safeBottom, side: 60, title: 150, oneLine: false, name: [128, 64], spec: 40,
+    gap: 16, cardH: 236, bodyH: 1920 * 1.12, d: [440, 600], ring: 5 },
+  square: { top: 40, bottom: 1080 - 36, side: 50, title: 96, oneLine: true, name: [96, 52], spec: 32,
+    gap: 12, cardH: 176, bodyH: 1080 * 1.5, d: [300, 440], ring: 4 },
+};
+
+// Place de chaque bloc, de haut en bas (sans dessiner) : le titre rapetisse (jusqu'à 70 %) tant que la photo n'a pas
+// sa taille minimale ; la place en trop est partagée au-dessus du titre et entre la photo et la carte
+function cplHeroPlan(ctx, m, f, W) {
+  const idOpts = { x: W / 2, maxW: W - 2 * f.side, name: f.name, spec: f.spec, gap: f.gap };
+  const idH = cplIdentity(ctx, m, { ...idOpts, top: 0, draw: false });
+  const lines = f.oneLine || cplTitleWords(m).length === 1 ? 1 : 2, cardY = f.bottom - f.cardH, gapC = f.gap * 1.5;
+  let tS = lines === 1 && !f.oneLine ? f.title * 1.4 : f.title, plan;   // « Coach » seul : un mot, plus grand
+  for (;;) {
+    const tH = lines === 1 ? tS * 0.74 : tS * 1.7, headTop = f.top + tH + f.gap * 4 + idH + f.gap * 1.5;
+    const photoTop = headTop + CPL.neck * f.bodyH, room = cardY - gapC - photoTop - 2 * f.ring;
+    plan = { tS, lines, headTop, photoTop, room, cardY, idOpts, tH };
+    if (room >= f.d[0] || tS <= f.title * 0.7) break;
+    tS -= 4;
+  }
+  const d = Math.max(Math.min(f.d[1], plan.room), Math.min(f.d[0], plan.room)), extra = Math.max(0, plan.room - d);
+  return { ...plan, d, dy: extra / 3 };   // un tiers au-dessus du titre, le reste entre la photo et le code
+}
+
+// Le personnage géant (opacité uniforme), du crâne (headTop) jusqu'au bas de l'image
+function cplHeroBody(ctx, body, W, headTop, bodyH) {
   if (!body) return;
-  const bh = sq ? H * 1.5 : H * 1.12, bw = bh * body.width / body.height;
+  const bw = bodyH * body.width / body.height;
   ctx.globalAlpha = CPL.heroAlpha;
-  ctx.drawImage(body, (W - bw) / 2, sq ? -H * 0.02 : H * 0.07, bw, bh);
+  ctx.drawImage(body, (W - bw) / 2, headTop - CPL.headTop * bodyH, bw, bodyH);
   ctx.globalAlpha = 1;
 }
 
-// Blocs empilés de haut en bas entre top et bottom ; le reste partagé à parts égales entre les blocs et aux deux bouts
-function cplStack(top, bottom, heights) {
-  const spare = Math.max(0, bottom - top - heights.reduce((s, h) => s + h, 0)), g = spare / (heights.length + 1);
-  let y = top + g;
-  return heights.map(h => { const at = y; y += h + g; return at; });
-}
-
-// 'hero', story et carré : titre, photo ronde, nom, spécialité, carte du code, signature, sur le personnage géant
+// 'hero', story et carré : titre, nom, spécialité sur le noir ; personnage géant dessous ; photo ronde sur sa poitrine ;
+// carte du code (avec l'icône de l'app) en bas
 function cplDrawHero(ctx, m, a, W, H, sq) {
-  cplHeroBody(ctx, a.body, W, H, sq);
-  const top = sq ? 40 : CPA.safeTop, bottom = sq ? H - 32 : CPA.safeBottom;
-  const brand = sq ? 38 : 50, cardH = sq ? 168 : 236, cardW = sq ? W - 120 : W - 120;
-  const idOpts = { x: W / 2, maxW: W - 120, name: sq ? [100, 56] : [150, 72], spec: sq ? 32 : 42, gap: sq ? 14 : 20 };
-  const idH = cplIdentity(ctx, m, { ...idOpts, top: 0, draw: false });
-  const tSize = sq ? 104 : 172, tLines = sq || m.title === 'COACH' ? 1 : 2;
-  ctx.font = cplFont(tSize);
-  const tH = tLines === 1 ? tSize * 0.74 : tSize * 1.7;
-  // Photo : la plus grande que permet la place, entre 46 et 52 % de la largeur en story (anneau compris)
-  const fixed = tH + idH + cardH + brand, room = bottom - top - fixed - 6 * (sq ? 32 : 40);
-  const d = Math.max(sq ? 260 : 420, Math.min(sq ? 400 : 560, room - 32));
-  const [yT, yP, yN, yC, yB] = cplStack(top, bottom, [tH, d + 32, idH, cardH, brand]);
-  cplTitle(ctx, m, { x: W / 2, top: yT, maxW: W - 120, size: tSize, oneLine: tLines === 1 });
-  cpaPhotoRound(ctx, m, a, W / 2, yP + 16, d, z => cplFont(z * 0.9));
-  cplIdentity(ctx, m, { ...idOpts, top: yN });
-  cplCodeCard(ctx, m, (W - cardW) / 2, yC, cardW, cardH);
-  cpaBrand(ctx, a.icon, W / 2, yB, brand);
+  const f = CPL_FORMATS[sq ? 'square' : 'story'], p = cplHeroPlan(ctx, m, f, W), dy = p.dy;
+  cplHeroBody(ctx, a.body, W, p.headTop + dy, f.bodyH);
+  const tBottom = cplTitle(ctx, m, { x: W / 2, top: f.top + dy, maxW: W - 2 * f.side, size: p.tS, oneLine: p.lines === 1, accent: CPA.heat });
+  cplIdentity(ctx, m, { ...p.idOpts, top: tBottom + f.gap * 4 });
+  cplPhotoRound(ctx, m, a, W / 2, p.photoTop + dy + f.ring, p.d, f.ring);
+  cplCodeCard(ctx, m, a.icon, f.side, p.cardY, W - 2 * f.side, f.cardH);
 }
-
-// 'photo' : story, titre sur une ligne puis la photo en grande carte pleine largeur ; carré, la photo à gauche et le
-// texte à droite. « coach » en rouge des muscles, seul rappel de l'app sans le personnage
-function cplDrawPhoto(ctx, m, a, W, H, sq) {
-  if (sq) { cplDrawPhotoSquare(ctx, m, a, W, H); return; }
-  const top = CPA.safeTop, bottom = CPA.safeBottom, side = 60, brand = 50, cardH = 236;
-  const idOpts = { x: W / 2, maxW: W - 120, name: [150, 72], spec: 42, gap: 20 };
-  const idH = cplIdentity(ctx, m, { ...idOpts, top: 0, draw: false });
-  const tS = cplFit(ctx, cplTitleWords(m).join(' '), W - 2 * side, 150, 60, 800), tH = tS * 0.74;
-  const ph = Math.min(W - 2 * side, bottom - top - (tH + idH + cardH + brand) - 6 * 52);
-  const [yT, yP, yN, yC, yB] = cplStack(top, bottom, [tH, ph, idH, cardH, brand]);
-  cplTitle(ctx, m, { x: W / 2, top: yT, maxW: W - 2 * side, size: tS, oneLine: true, accent: CPA.heat });
-  cplPhotoCard(ctx, m, a, side, yP, W - 2 * side, ph, 44);
-  cplIdentity(ctx, m, { ...idOpts, top: yN });
-  cplCodeCard(ctx, m, side, yC, W - 2 * side, cardH);
-  cpaBrand(ctx, a.icon, W / 2, yB, brand);
-}
-function cplDrawPhotoSquare(ctx, m, a, W, H) {
-  const pad = 44, cardH = 164, cardY = H - pad - cardH, pw = 480, ph = cardY - 28 - pad;
-  cplPhotoCard(ctx, m, a, pad, pad, pw, ph, 40);
-  const colX = pad + pw + 28, colW = W - colX - pad, cx = colX + colW / 2, brand = 36;
-  const idOpts = { x: cx, maxW: colW, name: [110, 48], spec: 30, gap: 12 };
-  const idH = cplIdentity(ctx, m, { ...idOpts, top: 0, draw: false });
-  const words = cplTitleWords(m), tS = Math.min(...words.map(w => cplFit(ctx, w, colW, 120, 48, 800)));
-  const tH = words.length > 1 ? tS * 1.7 : tS * 0.74;
-  const [yT, yN, yB] = cplStack(pad, cardY - 28, [tH, idH, brand]);
-  cplTitle(ctx, m, { x: cx, top: yT, maxW: colW, size: tS, accent: CPA.heat });
-  cplIdentity(ctx, m, { ...idOpts, top: yN });
-  cpaBrand(ctx, a.icon, cx, yB, brand);
-  cplCodeCard(ctx, m, pad, cardY, W - 2 * pad, cardH);
-}
-const CPL_LAYOUTS = { hero: cplDrawHero, photo: cplDrawPhoto };
+const CPL_LAYOUTS = { hero: cplDrawHero };

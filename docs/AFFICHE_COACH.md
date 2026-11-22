@@ -20,6 +20,22 @@ Le serveur accepte déjà les trois cas : **aucune migration à écrire**. Seule
 (`pphFree`, js/features/profile-photo-ui.js), jamais le droit. La migration `20261117010000_photo_profil.sql` attend
 toujours son feu vert (docs/PHOTO_PROFIL.md, « Mise en production »).
 
+## Affiche : mise en page « hero », aux couleurs de l'app (22/11)
+
+Retour de Maxence sur la v17 : le noir, le grand aplat orange au texte noir et « COACH » en orange rappelaient
+l'identité d'une autre marque. Deux versions rendues avec le code de l'app (A, bonhomme géant ; B, photo seule) ;
+vote de 10 juges : A, 6 contre 4. C'est la mise en page de l'écran (`CPOSTER_LAYOUT = 'hero'`) :
+
+- fond noir ; le personnage aux muscles rouges (#FF453A) en géant, de la tête aux cuisses, à 40 % d'opacité uniforme
+  (aucun dégradé ni halo) ; c'est lui qui porte la couleur ;
+- aucun texte sur le personnage : titre (« coach » en rouge), nom et spécialité sur le noir, au-dessus de sa tête ;
+  contraste mesuré sous chaque ligne : blanc à 17:1 au moins ;
+- photo ronde sur la poitrine (environ 50 % de la largeur), fin liseré gris clair (#AEAEB2) ;
+- code dans une carte gris foncé (--cell #1C1C1E) avec l'icône de l'app ; l'orange seulement sur « Rejoins-moi » ;
+- SF Pro partout, casse normale ; ni pseudo ni badge sur l'image (le texte VoiceOver suit).
+
+La mise en page « photo ronde » ci-dessous reste dans le code (`layout: 'figure'`, défaut de drawCoachPosterArt).
+
 ## Affiche : « photo ronde » sur fond noir (20/11)
 
 Une seule mise en page et un seul fond, le noir : titre énorme (NOUVEAU COACH, NOUVELLE COACH ou COACH), photo ronde

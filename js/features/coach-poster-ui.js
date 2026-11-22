@@ -168,6 +168,8 @@ async function openCoachPoster() {
   try { ok = (await opened) !== false; } catch { ok = false; }
   if (!ok && cposter === mine) cposter = null;
 }
+// Mise en page de l'affiche : « hero », choisie au vote du 22/11 (A contre B, 6 contre 4), voir coach-poster-art.js
+const CPOSTER_LAYOUT = 'hero';
 function coachPosterShow(me, mine) {
   const state = { name: coachPosterFileName('story'), alt: coachPosterAlt(coachPosterModelNow()), formats: true,
     tools: coachPosterToolsHtml(), stats: { title: 'Mon affiche de coach' },
@@ -187,7 +189,7 @@ function coachPosterShow(me, mine) {
   const opened = openStoryPreview(state, (canvas, format) => {
     const m = coachPosterModelNow();
     canvas.setAttribute('aria-label', coachPosterAlt(m));
-    drawCoachPosterArt(canvas, m, { photo: mine.photo, icon: mine.icon, body: mine.body }, { format });
+    drawCoachPosterArt(canvas, m, { photo: mine.photo, icon: mine.icon, body: mine.body }, { format, layout: CPOSTER_LAYOUT });
   });
   // Nom et spécialité : l'aperçu se redessine après la frappe ; sans nom, « Partager » reste grisé (canSend)
   // Spécialité (6e panel : coupée en « Force · Perte de poi… ») : sous son libellé, sur autant de lignes qu'il faut ;

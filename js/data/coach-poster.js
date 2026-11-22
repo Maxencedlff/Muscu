@@ -57,10 +57,10 @@ function coachPosterModel({ name = '', specialty = '', username = '', code = '',
   };
 }
 
-// Texte lu par VoiceOver sur l'aperçu
+// Texte lu par VoiceOver sur l'aperçu : ce que montre l'image (mise en page « hero » : ni pseudo ni badge dessus)
 function coachPosterAlt(m) {
   const title = { 'NOUVELLE COACH': 'Nouvelle coach', 'NOUVEAU COACH': 'Nouveau coach' }[m.title] || 'Coach';
-  return [`Affiche « ${title} »${m.name ? ` : ${m.name}` : ''}`, m.specialty, m.handle, 'sur MDLF Training', m.badge, `code ${m.code}`].filter(Boolean).join(', ');
+  return [`Affiche « ${title} »${m.name ? ` : ${m.name}` : ''}`, m.specialty, 'sur MDLF Training', `code ${m.code}`].filter(Boolean).join(', ');
 }
 
 // Nom du fichier partagé (sans le pseudo : le fichier peut être renvoyé ailleurs)
