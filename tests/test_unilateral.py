@@ -170,6 +170,36 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_lien_par_bras(bench, eng, dev, theme):
+    """Avant la 1re série d'un exercice à un bras : « Noter chaque bras à part » sur la carte, à côté de « Commencer par
+    le bras droit » (séance du 22/11 : Maxence ne trouvait pas comment noter un bras puis l'autre), un seul toucher ;
+    l'entrée de ⋯ reste ; un exercice à deux bras n'a aucun lien."""
+    t = f'{dev}-{theme} lien'
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, uni_data())
+        start(page)
+        links = page.locator('.ex-card[data-ei="0"] .side-links .side-first-link').all_inner_texts()
+        R.check(links == ['Commencer par le bras droit', 'Noter chaque bras à part'], f'{t} deux liens sur la carte ({links})')
+        g = page.evaluate("""() => { const [a, b] = [...document.querySelectorAll('.ex-card[data-ei="0"] .side-first-link')].map(e => e.getBoundingClientRect());
+            return { gap: Math.round(b.top - a.bottom), sameLine: Math.abs(a.top - b.top) < 2, h: Math.round(Math.min(a.height, b.height)), right: Math.round(Math.max(a.right, b.right)), vw: innerWidth }; }""")
+        R.check((g['sameLine'] or 0 <= g['gap'] <= 8) and g['h'] >= 44 and g['right'] <= g['vw'], f'{t} même ligne ou juste en dessous, 44 px, dans l\'écran {g}')
+        i_two = page.evaluate("activeSession.exercises.findIndex(e => e.name === 'Curl biceps haltères')")
+        R.check(page.locator(f'.ex-card[data-ei="{i_two}"] .side-links').count() == 0, f'{t} exercice à deux bras : aucun lien')
+        page.click('.ex-card[data-ei="0"] [data-action="side-toggle"]'); settle(page)
+        R.check(page.locator('.ex-card[data-ei="0"] .session-set--side').count() == 3, f'{t} un toucher : les trois séries par bras')
+        R.check(page.locator('.ex-card[data-ei="0"] [data-action="side-toggle"]').inner_text() == 'Noter les deux bras ensemble', f'{t} le lien propose le retour')
+        R.check('Chaque bras noté à part' in sess_undo_text(page), f'{t} « Chaque bras noté à part · Annuler » ({sess_undo_text(page)!r})')
+        # L'entrée de ⋯ › Plus d'options reste
+        page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); settle(page)
+        tap_dialog(page, "Plus d'options"); settle(page)
+        R.check('Noter les deux bras ensemble' in page.locator('.ios-dialog__btn').all_inner_texts(), f'{t} entrée de ⋯ gardée')
+        tap_dialog(page, 'Annuler'); settle(page)
+        # Une série validée : les liens s'en vont
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
+        R.check(page.locator('.ex-card[data-ei="0"] .side-links').count() == 0, f'{t} après la 1re série : plus de liens')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_par_bras(bench, eng, dev, theme):
     """⋯ › Plus d'options › « Noter chaque bras à part » : toutes les séries à faire, sans technique ; un exercice à deux
     bras n'a pas ce choix ; la séance suivante reprend par bras (« pré-remplir avec la dernière fois »)."""
@@ -217,8 +247,8 @@ def t_par_bras(bench, eng, dev, theme):
         # Avant de valider quoi que ce soit : « +X kg de volume » absent (rien de plus que la dernière fois)
         R.check(page.locator('.ex-card[data-ei="0"] .ex-vol__delta').count() == 0, f'{t} pas de hausse de volume affichée au départ')
         # Premier bras : lien « Commencer par le bras droit » au-dessus des séries (panel du 20/11 : introuvable dans ⋯)
-        R.check(page.locator('.ex-card[data-ei="0"] .side-first-link').inner_text() == 'Commencer par le bras droit', f'{t} lien « Commencer par le bras droit » visible')
-        page.click('.ex-card[data-ei="0"] .side-first-link'); settle(page)
+        R.check(page.locator('.ex-card[data-ei="0"] [data-action="side-first"]').inner_text() == 'Commencer par le bras droit', f'{t} lien « Commencer par le bras droit » visible')
+        page.click('.ex-card[data-ei="0"] [data-action="side-first"]'); settle(page)
         caps = page.locator('.ex-card[data-ei="0"] .set-n__side').all_inner_texts()[:2]
         R.check(caps == ['Droit', 'Gauche'] and page.evaluate("sideFirstPref('Curl concentration')") == 'droit', f'{t} commence par le bras droit ({caps})')
         # « Avant » suit son bras : la ligne du bras droit (désormais la première) montre 14 × 8, celle du gauche 14 × 10
@@ -309,4 +339,4 @@ def once_grand_texte_px(bench, css, px):
                 shot(page, LOT, f'{t}-grand-texte-bras-droit')
 
 
-run_main(R, [t_drop_deux_bras, t_par_bras], once=[once_static, once_grand_texte])
+run_main(R, [t_drop_deux_bras, t_lien_par_bras, t_par_bras], once=[once_static, once_grand_texte])

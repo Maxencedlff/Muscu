@@ -956,7 +956,8 @@ html.type-xl .sets__head { column-gap: 12px; }   /* même écart que les lignes 
 html.type-xl .set-n__side { display: inline; margin-left: .35em; font-size: 0.765rem; }
 html.type-xl .sets--sides .set-n { flex-direction: row; align-items: baseline; }
 /* « Commencer par le bras droit » : au-dessus des séries tant qu'aucune n'est validée */
-.side-first-link { display: block; min-height: 44px; margin: 0 0 2px; padding: 0; border: 0; background: none; color: var(--tint); font: inherit; font-size: 0.882rem; text-align: left; cursor: pointer; }
+.side-links { display: flex; flex-wrap: wrap; column-gap: 24px; margin: 0 0 2px; }
+.side-first-link { display: block; min-height: 44px; margin: 0; padding: 0; border: 0; background: none; color: var(--tint); font: inherit; font-size: 0.882rem; text-align: left; cursor: pointer; }
 .side-first-link:active { opacity: .6; }
 /* Barre de repos d'un exercice noté par bras : « Série 2 · bras gauche · 14 kg × 10 » toujours entier (la série et le
    bras même sur écran étroit), et la série passe à la ligne plutôt que de sortir de la barre */

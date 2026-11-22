@@ -34,11 +34,14 @@ function sideStepText(ex, s, si, k, side, nx) {
 function sideNoteWho(ex, si, s, side) {
   return hasSide2(s) ? `de la ${setSpokenName(ex, si).toLowerCase()}, ${sideWord(ex, side)}` : '';
 }
-// Lien « Commencer par le bras droit » au-dessus des séries, tant qu'aucune série n'est validée (panel du 20/11 :
-// le réglage, rangé dans ⋯ › Plus d'options, était introuvable)
+// Liens au-dessus des séries, tant qu'aucune série n'est validée : « Commencer par le bras droit » (panel du 20/11 : le
+// réglage, rangé dans ⋯ › Plus d'options, était introuvable) et « Noter chaque bras à part » (séance du 22/11 :
+// Maxence ne trouvait pas comment noter un bras puis l'autre). Un seul toucher chacun ; les deux restent dans ⋯.
 function sideFirstLinkHtml(ex, ei) {
-  const opt = sideMenuActions(ex).find(a => a.value === 'side-first');
-  return opt ? `<button class="side-first-link" data-action="side-first" data-ei="${ei}">${esc(opt.label)}</button>` : '';
+  const acts = sideMenuActions(ex), first = acts.find(a => a.value === 'side-first'), sides = acts.find(a => a.value === 'sides');
+  if (!first) return '';
+  const btn = (a, action) => `<button class="side-first-link" data-action="${action}" data-ei="${ei}">${esc(a.label)}</button>`;
+  return `<div class="side-links">${btn(first, 'side-first')}${sides ? btn(sides, 'side-toggle') : ''}</div>`;
 }
 // « le bras droit », « la jambe droite »
 function sideRef(ex, side) {
@@ -204,6 +207,7 @@ document.addEventListener('input', e => {
 
 registerActions({
   'side-first': (e, el) => toggleSideFirst(parseInt(el.dataset.ei)),
+  'side-toggle': (e, el) => toggleSides(parseInt(el.dataset.ei)),
   'side-validate': (e, el) => validateSide2(el.dataset),
   // Second côté validé touché : de nouveau à remplir (sa charge et ses reps restent)
   'side-reopen': (e, el) => {
