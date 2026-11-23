@@ -34,6 +34,12 @@ vote de 10 juges : A, 6 contre 4. C'est la mise en page de l'écran (`CPOSTER_LA
 - code dans une carte gris foncé (--cell #1C1C1E) avec l'icône de l'app ; l'orange seulement sur « Rejoins-moi » ;
 - SF Pro partout, casse normale ; ni pseudo ni badge sur l'image (le texte VoiceOver suit).
 
+Carré (23/11, « en mode carré, l'affichage est mauvais ») : sa propre composition, pas une story raccourcie. Titre sur
+une ligne en haut ; photo ronde à gauche, posée sur la tête du personnage (elle ne dépasse jamais) et son buste visible
+autour jusqu'à la taille ; nom et spécialité à droite, sur le noir, avec de l'air ; carte du code moins haute (150 px).
+Aperçu dans l'écran : le carré entier, sans rognage (199 pt sur iPhone 13, 170 pt sur iPhone SE, même hauteur que la
+story), « Voir en grand » à côté.
+
 La mise en page « photo ronde » ci-dessous reste dans le code (`layout: 'figure'`, défaut de drawCoachPosterArt).
 
 ## Affiche : « photo ronde » sur fond noir (20/11)

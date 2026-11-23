@@ -407,7 +407,9 @@ function cplIdentity(ctx, m, { x, top, maxW, name: [nMax, nMin], spec, gap, draw
 // Carte du code, comme les cartes de l'app : gris foncé arrondi, l'icône de l'app en grand à gauche ; à droite, alignés
 // à gauche, « Rejoins-moi sur MDLF Training » en orange (seul orange de l'affiche), le code en blanc très gras, où
 // l'entrer en gris secondaire
-function cplCodeCard(ctx, m, icon, x, y, w, h) {
+// k : tailles relatives à la hauteur de la carte (carré : carte moins haute, textes plus grands en proportion)
+const CPL_CARD = { s1: 0.15, sc: 0.34, s3: 0.13, gap: 0.075 };
+function cplCodeCard(ctx, m, icon, x, y, w, h, k = CPL_CARD) {
   cpaRound(ctx, x, y, w, h, Math.min(40, h * 0.2)); ctx.fillStyle = CPL.cell; ctx.fill();
   const pad = 32, is = Math.min(h * 0.46, 110);
   let tx = x + pad;
@@ -417,8 +419,8 @@ function cplCodeCard(ctx, m, icon, x, y, w, h) {
     tx += is + 26;
   }
   const tw = x + w - pad - tx;
-  const s1 = cplFit(ctx, m.ctaLine, tw, h * 0.15, 20, 600), s3 = cplFit(ctx, m.ctaWhere, tw, h * 0.13, 18, 600);
-  const sc = cplFit(ctx, m.code, tw, h * 0.34, h * 0.18, 800), gap = h * 0.075;
+  const s1 = cplFit(ctx, m.ctaLine, tw, h * k.s1, 20, 600), s3 = cplFit(ctx, m.ctaWhere, tw, h * k.s3, 18, 600);
+  const sc = cplFit(ctx, m.code, tw, h * k.sc, h * 0.18, 800), gap = h * k.gap;
   const top = y + (h - (s1 * 0.74 + gap + sc * 0.74 + gap + s3 * 0.74)) / 2;
   const b1 = top + s1 * 0.74, b2 = b1 + gap + sc * 0.74, b3 = b2 + gap + s3 * 0.74;
   cpaText1(ctx, m.ctaLine, tx, b1, { font: cplFont(s1, 600), color: CPA.orange, align: 'left' });
@@ -444,9 +446,13 @@ function cplPhotoRound(ctx, m, a, cx, top, d, ring) {
 const CPL_FORMATS = {
   story: { top: CPA.safeTop, bottom: CPA.safeBottom, side: 60, title: 150, oneLine: false, name: [128, 64], spec: 40,
     gap: 16, cardH: 236, bodyH: 1920 * 1.12, d: [440, 600], ring: 5 },
-  square: { top: 40, bottom: 1080 - 36, side: 50, title: 96, oneLine: true, name: [96, 52], spec: 32,
-    gap: 12, cardH: 176, bodyH: 1080 * 1.5, d: [300, 440], ring: 4 },
 };
+// Carré (23/11, « l'affichage est mauvais » : titre et nom tassés, tête du personnage au-dessus de la photo, carte
+// trop haute) : sa propre composition. Titre sur une ligne en haut ; dessous, la photo ronde à gauche, posée sur la
+// tête du personnage (qui ne dépasse donc jamais), son buste jusqu'à la taille autour ; à droite, sur le noir, le nom
+// et la spécialité ; carte du code moins haute, en bas
+const CPL_SQUARE = { pad: 44, title: [112, 60], d: 460, ring: 5, bodyH: 1080 * 1.5, cardH: 150, name: [104, 48], spec: 30,
+  gap: 14, card: { s1: 0.17, sc: 0.4, s3: 0.145, gap: 0.06 } };
 
 // Place de chaque bloc, de haut en bas (sans dessiner) : le titre rapetisse (jusqu'à 70 %) tant que la photo n'a pas
 // sa taille minimale ; la place en trop est partagée au-dessus du titre et entre la photo et la carte
@@ -466,23 +472,41 @@ function cplHeroPlan(ctx, m, f, W) {
   return { ...plan, d, dy: extra / 3 };   // un tiers au-dessus du titre, le reste entre la photo et le code
 }
 
-// Le personnage géant (opacité uniforme), du crâne (headTop) jusqu'au bas de l'image
-function cplHeroBody(ctx, body, W, headTop, bodyH) {
+// Le personnage géant (opacité uniforme), centré sur cx, du crâne (headTop) jusqu'au bas de l'image
+function cplHeroBody(ctx, body, cx, headTop, bodyH) {
   if (!body) return;
   const bw = bodyH * body.width / body.height;
   ctx.globalAlpha = CPL.heroAlpha;
-  ctx.drawImage(body, (W - bw) / 2, headTop - CPL.headTop * bodyH, bw, bodyH);
+  ctx.drawImage(body, cx - bw / 2, headTop - CPL.headTop * bodyH, bw, bodyH);
   ctx.globalAlpha = 1;
 }
 
-// 'hero', story et carré : titre, nom, spécialité sur le noir ; personnage géant dessous ; photo ronde sur sa poitrine ;
-// carte du code (avec l'icône de l'app) en bas
+// 'hero', story : titre, nom, spécialité sur le noir ; personnage géant dessous ; photo ronde sur sa poitrine ; carte du
+// code (avec l'icône de l'app) en bas. Carré : cplDrawHeroSquare
 function cplDrawHero(ctx, m, a, W, H, sq) {
-  const f = CPL_FORMATS[sq ? 'square' : 'story'], p = cplHeroPlan(ctx, m, f, W), dy = p.dy;
-  cplHeroBody(ctx, a.body, W, p.headTop + dy, f.bodyH);
+  if (sq) { cplDrawHeroSquare(ctx, m, a, W, H); return; }
+  const f = CPL_FORMATS.story, p = cplHeroPlan(ctx, m, f, W), dy = p.dy;
+  cplHeroBody(ctx, a.body, W / 2, p.headTop + dy, f.bodyH);
   const tBottom = cplTitle(ctx, m, { x: W / 2, top: f.top + dy, maxW: W - 2 * f.side, size: p.tS, oneLine: p.lines === 1, accent: CPA.heat });
   cplIdentity(ctx, m, { ...p.idOpts, top: tBottom + f.gap * 4 });
   cplPhotoRound(ctx, m, a, W / 2, p.photoTop + dy + f.ring, p.d, f.ring);
   cplCodeCard(ctx, m, a.icon, f.side, p.cardY, W - 2 * f.side, f.cardH);
+}
+function cplDrawHeroSquare(ctx, m, a, W, H) {
+  const f = CPL_SQUARE, cardY = H - 40 - f.cardH;
+  const words = cplTitleWords(m), tS = cplFit(ctx, words.join(' '), W - 2 * f.pad, f.title[0], f.title[1], 800);
+  const tBottom = cplTitle(ctx, m, { x: W / 2, top: 46, maxW: W - 2 * f.pad, size: tS, oneLine: true, accent: CPA.heat });
+  // Photo à gauche, aussi haute que possible entre le titre et la carte ; le personnage centré dessous, sa tête au
+  // centre de la photo (couverte), son buste visible jusqu'à la carte
+  const top = tBottom + 40, d = Math.min(f.d, cardY - 28 - top - 2 * f.ring), cx = f.pad + f.ring + d / 2, cy = top + f.ring + d / 2;
+  cplHeroBody(ctx, a.body, cx, cy - 0.05 * f.bodyH, f.bodyH);
+  cplPhotoRound(ctx, m, a, cx, cy - d / 2, d, f.ring);
+  // Nom et spécialité à droite, au milieu de la place entre le titre et la carte, sur le noir (les bras du personnage
+  // restent à gauche de la colonne)
+  const colX = cx + d / 2 + f.ring + 44, colW = W - f.pad - colX;
+  const idOpts = { x: colX + colW / 2, maxW: colW, name: f.name, spec: f.spec, gap: f.gap };
+  const idH = cplIdentity(ctx, m, { ...idOpts, top: 0, draw: false });
+  cplIdentity(ctx, m, { ...idOpts, top: (top + cardY) / 2 - idH / 2 });
+  cplCodeCard(ctx, m, a.icon, f.pad, cardY, W - 2 * f.pad, f.cardH, f.card);
 }
 const CPL_LAYOUTS = { hero: cplDrawHero };

@@ -330,7 +330,15 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
         assert.ok(!t.some(x => /@lea|Carte pro/.test(x.text)), `${tag} : ni pseudo ni badge`);
         assert.ok(t.some(x => x.text === 'K7M2-QX9P-R4TD'), `${tag} : le code`);
         // Aucun texte sur le personnage : au-dessus de sa tête, ou dans la carte du code (les initiales sont dans le rond)
-        for (const x of t.filter(z => z.text !== 'LM')) assert.ok(x.y < body.y + 4 || (x.y > card.y && x.y < card.y + card.h), `${tag} : « ${x.text} » hors du personnage (y ${Math.round(x.y)}, tête ${Math.round(body.y)})`);
+        // Carré (23/11) : le nom et la spécialité à droite du personnage, à hauteur de ses épaules (85 % de la largeur de
+        // son image), là où ses bras ne sont pas encore écartés (30 % de sa hauteur)
+        const beside = x => format === 'square' && x.x - 0.25 * parseFloat(x.font.match(/(\d+)px/)[1]) * x.text.length >= body.x + 0.86 * body.w && x.y < body.y + 0.3 * body.h;
+        for (const x of t.filter(z => z.text !== 'LM')) assert.ok(x.y < body.y + 4 || beside(x) || (x.y > card.y && x.y < card.y + card.h), `${tag} : « ${x.text} » hors du personnage (x ${Math.round(x.x)}, y ${Math.round(x.y)}, tête ${Math.round(body.y)})`);
+        if (format === 'square') {
+          const photo = c.ops.find(o => o.op === 'image' && o.id === 'cover');   // la photo recadrée posée sur l'affiche
+          if (photo) assert.ok(photo.y <= body.y && photo.y + photo.h >= body.y + 0.09 * body.h, `${tag} : la photo couvre la tête du personnage`);
+          assert.ok(card.h <= 160, `${tag} : carte du code moins haute (${card.h})`);
+        }
         if (format === 'story') assert.ok(t.every(x => x.y > 250 && x.y < 1670) && card.y + card.h <= 1670, `${tag} : zone sûre d'Instagram`);
         assert.ok(t.every(x => x.y > 0 && x.y < H), `${tag} : rien hors de l'image`);
         assert.ok(c.ops.some(x => x.op === 'image' && x.id === 'icon' && x.y > card.y), `${tag} : icône de l'app dans la carte du code`);
