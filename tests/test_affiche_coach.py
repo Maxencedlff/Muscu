@@ -498,6 +498,51 @@ def t_apercu_grand_texte(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} AX33 : aucune erreur JS {page.errors}')
 
 
+PREVIEW_IN_WINDOW = """() => { const W = innerWidth, H = innerHeight, q = s => document.querySelector('.sheet ' + s);
+    document.querySelector('.sheet .sheet__body').scrollTop = 0;
+    const f = q('.share-preview__frame').getBoundingClientRect(), z = q('.share-preview__zoom'), b = q('.share-preview__seebig').getBoundingClientRect();
+    const top = q('.share-preview__top').getBoundingClientRect(), row = q('.cposter-row').getBoundingClientRect();
+    const inWin = r => r.left >= -0.5 && r.top >= -0.5 && r.right <= W + 0.5 && r.bottom <= H + 0.5;
+    const pts = [[f.left + 4, f.top + 4], [f.right - 4, f.top + 4], [f.left + 4, f.bottom - 4], [f.right - 4, f.bottom - 4], [(f.left + f.right) / 2, (f.top + f.bottom) / 2]];
+    const covered = pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !e || !z.contains(e); }).length;
+    const apart = b.top >= f.bottom - 0.5 || b.left >= f.right - 0.5;
+    return { frame: inWin(f), seebig: inWin(b), covered, apart, below: row.top >= top.bottom - 0.5, square: Math.abs(f.width - f.height) < 1.5,
+      ratio: f.width / f.height, fw: Math.round(f.width), fh: Math.round(f.height) }; }"""
+
+
+def t_apercu_dans_ecran(bench, eng, dev, theme):
+    """Capture de l'iPhone de Maxence (23/11) : en Carré, l'aperçu débordait à gauche, « Voir en grand » sortait à droite
+    et l'aperçu chevauchait la ligne « Titre ». En Story et en Carré, texte normal et très grand (AX33) : cadre de
+    l'aperçu et « Voir en grand » entiers dans la fenêtre, à part l'un de l'autre, rien posé sur l'aperçu, liste dessous."""
+    if dev not in ('iPhone SE', 'iPhone 13', 'iPhone 17 Pro Max'):
+        return
+    for big in (False, True):
+        t = tag(dev, theme) + (' AX33' if big else '')
+        with bench.frozen_page(NOW, eng, dev, theme) as page:
+            if big:
+                page.add_init_script("""(() => { const st = document.createElement('style'); st.textContent = 'html { font: 33px -apple-system, system-ui, sans-serif !important; }';
+                    document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st)); })()""")
+            open_app(page, theme)
+            if big:
+                page.evaluate("checkTypeSize()")
+            signin(page, 'camille_coach')
+            page.evaluate("async () => { __sb.makeCoach(__sb.meId()); await coachRefresh(); await coachProRefresh({ minAge: 0 }); }")
+            page.evaluate("navigate('coach-students')")
+            page.wait_for_selector('[data-action="coach-poster-open"]', timeout=8000)
+            page.locator('[data-action="coach-poster-open"]').scroll_into_view_if_needed()
+            page.click('[data-action="coach-poster-open"]')
+            preview_ready(page)
+            for f in ('story', 'square'):
+                pick_format(page, f)
+                settle(page)
+                r = page.evaluate(PREVIEW_IN_WINDOW)
+                R.check(r['frame'] and r['seebig'], f'{t} {f} : aperçu et « Voir en grand » entiers dans la fenêtre ({r})')
+                R.check(r['covered'] == 0 and r['apart'], f'{t} {f} : rien posé sur l\'aperçu ({r})')
+                R.check(r['below'], f'{t} {f} : la liste commence sous l\'aperçu ({r})')
+                R.check(r['square'] if f == 'square' else abs(r['ratio'] - 9 / 16) < 0.02, f'{t} {f} : proportions gardées ({r})')
+            R.check(not page.errors, f'{t} : aucune erreur JS {page.errors}')
+
+
 def t_eleve_sans_affiche(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.frozen_page(NOW, eng, dev, theme) as page:
@@ -799,4 +844,4 @@ def t_photo_bannie(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} privé de photo : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_donnees_effacees, t_photo_bannie, t_coach_affiche, t_apercu_grand_texte, t_eleve_sans_affiche, t_photo_trois_acces, t_sans_migration, t_mon_coach_grand_texte])
+run_main(R, [t_donnees_effacees, t_photo_bannie, t_coach_affiche, t_apercu_grand_texte, t_apercu_dans_ecran, t_eleve_sans_affiche, t_photo_trois_acces, t_sans_migration, t_mon_coach_grand_texte])

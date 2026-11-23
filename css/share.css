@@ -41,6 +41,12 @@ html.type-xl .share-preview__zoom { height: 22vh; height: 22dvh; }
   background: none; color: var(--tint); font: inherit; font-size: var(--fs-subhead); font-weight: 600; cursor: pointer; }
 .share-preview__zoom:has(.share-preview__frame--square) { aspect-ratio: 1; }
 .share-preview--tools .share-preview__frame, .share-preview--tools .share-preview__frame--square { width: 100%; height: 100%; aspect-ratio: auto; }
+/* Carré (23/11, capture de l'iPhone de Maxence) : à la hauteur de la story, le carré et « Voir en grand » à côté ne
+   tenaient plus dans la largeur ; l'aperçu débordait à gauche et le bouton sortait à droite. Le carré prend au plus la
+   largeur du contenu (marges de 16 px), centré, et « Voir en grand » passe dessous */
+.share-preview__top:has(.share-preview__frame--square) { flex-direction: column; gap: 0; }
+.share-preview__zoom:has(.share-preview__frame--square) { height: min(40dvh, 460px, 100vw - 32px); max-width: 100%; }
+@media (max-height: 700px) { .share-preview__zoom:has(.share-preview__frame--square) { height: min(30dvh, 100vw - 32px); } }
 .share-preview--tools .share-preview__formats { max-width: 420px; }
 .share-preview__help { max-width: 420px; }
 .share-preview__help--flow { display: none; }
@@ -119,3 +125,10 @@ html.type-xl .sheet:has(.share-preview--tools) .sheet__bar .sheet__title { order
 /* Cellule « Mon affiche de coach » pendant la préparation (photo, personnage, polices) : dit, et pas de double toucher */
 .cell.is-loading[data-action="coach-poster-open"] { pointer-events: none; }
 .cell.is-loading[data-action="coach-poster-open"] .cell__sub { color: var(--tint); }
+/* Carré : « Voir en grand » sous l'aperçu (48 px de plus) ; un réglage amené à l'écran s'arrête toujours sous l'aperçu */
+.sheet__body:has(.share-preview__frame--square) { scroll-padding-top: calc(min(40dvh, 460px, 100vw - 32px) + 72px); }
+html.type-xl .sheet__body:has(.share-preview__frame--square) { scroll-padding-top: calc(22dvh + 72px); }
+@media (max-height: 700px) {
+  html:not(.type-xl) .sheet__body:has(.share-preview__frame--square) { scroll-padding-top: calc(min(30dvh, 100vw - 32px) + 72px); }
+  html.type-xxl .sheet__body:has(.share-preview__frame--square) { scroll-padding-top: calc(18dvh + 72px); }
+}

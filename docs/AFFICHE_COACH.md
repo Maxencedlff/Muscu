@@ -37,8 +37,11 @@ vote de 10 juges : A, 6 contre 4. C'est la mise en page de l'écran (`CPOSTER_LA
 Carré (23/11, « en mode carré, l'affichage est mauvais ») : sa propre composition, pas une story raccourcie. Titre sur
 une ligne en haut ; photo ronde à gauche, posée sur la tête du personnage (elle ne dépasse jamais) et son buste visible
 autour jusqu'à la taille ; nom et spécialité à droite, sur le noir, avec de l'air ; carte du code moins haute (150 px).
-Aperçu dans l'écran : le carré entier, sans rognage (199 pt sur iPhone 13, 170 pt sur iPhone SE, même hauteur que la
-story), « Voir en grand » à côté.
+Aperçu du carré dans l'écran (capture de l'iPhone de Maxence : à la hauteur de la story, carré et « Voir en grand » à
+côté ne tenaient pas dans la largeur ; l'aperçu débordait à gauche, le bouton sortait à droite) : le carré prend au
+plus la largeur du contenu (marges de 16 px), centré, « Voir en grand » dessous. E2E `t_apercu_dans_ecran` (iPhone SE,
+13 et 17 Pro Max, texte normal et AX33, Story et Carré) : cadre et bouton entiers dans la fenêtre, rien posé dessus,
+liste dessous.
 
 La mise en page « photo ronde » ci-dessous reste dans le code (`layout: 'figure'`, défaut de drawCoachPosterArt).
 
