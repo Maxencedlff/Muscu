@@ -147,11 +147,11 @@ function capReps(src, exLike) {
   return max && parseInt(src.reps) > max ? { ...src, reps: String(max) } : src;
 }
 
-// Double progression : + 2,5 kg (5 lb) sur chaque série de travail à faire (l'échauffement garde ses paliers), aux reps
+// Double progression : + 1 cran (loadStepKg : 2,5 kg ou 5 lb par défaut) sur chaque série de travail à faire (l'échauffement garde ses paliers), aux reps
 // de l'objectif (goalRepsAfterBump, js/data/goals.js) : le bas de la fourchette, ces reps en reps fixes, sinon quelques
 // reps sous le haut. Seulement quand on touche la puce ↑ (jamais d'office : demande de Maxence du 17/11). Renvoie ces reps.
 function bumpExerciseLoad(ex) {
-  const step = data.unit === 'lbs' ? 5 : 2.5;
+  const step = toUnitW(loadStepKg(sessExData(ex) || ex));   // cran de l'exercice (machine à crans de 5 kg…), unité affichée
   const lo = measureOf(ex) === 'reps' ? goalRepsAfterBump(sessExData(ex) || {}) : null;
   ex.sets.forEach(s => {
     if (s.done || isWarmupSet(s)) return;
@@ -515,7 +515,7 @@ function renderExerciseCard(ex, ei, cur) {
   }
 
   const howTo = !allDone && hasHowTo(ex);
-  const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}">↑ ${bumpLabel()}</button>` : '';
+  const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${loadStepLabel(sessExData(ex) || ex)}">↑ ${loadStepLabel(sessExData(ex) || ex)}</button>` : '';
   // Séries d'échauffement (js/data/warmup.js) : en tête, sous un titre gris ; technique d'intensification
   // et ses sous-séries sous la série (js/features/session-intensif.js)
   // et ses sous-séries sous la série (js/features/session-intensif.js), puis le second côté d'une série notée par bras
@@ -597,7 +597,7 @@ function renderGroupCard(members, cur, tags) {
   const legend = members.map(ei => {
     const ex = xs[ei], n = ex.sets.filter(setComplete).length;
     const howTo = !allDone && hasHowTo(ex);
-    const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}, ${esc(ex.name)}">↑ ${bumpLabel()}</button>` : '';
+    const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${loadStepLabel(sessExData(ex) || ex)}, ${esc(ex.name)}">↑ ${loadStepLabel(sessExData(ex) || ex)}</button>` : '';
     return `
         <div class="ss-member">
           <span class="ss-tag" aria-hidden="true">${tags[ei]}</span>
@@ -1339,7 +1339,7 @@ registerActions({
     persistSession();
     render();
     // Reps fixes : on garde le nombre (« toujours 12 reps ») ; fourchette : on repart du bas
-    const fixed = lo && fixedReps(sessExData(ex) || {});
-    showToast(!lo ? `Charge augmentée de ${bumpLabel()}` : fixed ? `Charge augmentée de ${bumpLabel()}, toujours ${lo} reps` : `Charge augmentée de ${bumpLabel()}, retour à ${lo} reps`);
+    const fixed = lo && fixedReps(sessExData(ex) || {}), step = loadStepLabel(sessExData(ex) || ex);
+    showToast(!lo ? `Charge augmentée de ${step}` : fixed ? `Charge augmentée de ${step}, toujours ${lo} reps` : `Charge augmentée de ${step}, retour à ${lo} reps`);
   },
 });

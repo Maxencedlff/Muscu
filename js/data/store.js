@@ -222,6 +222,8 @@ function sanitizeData(d) {
         if (ex.repMin !== undefined) { const r = num(ex.repMin, 1, 99, true); if (r === null || r >= (ex.repMax ?? 12)) delete ex.repMin; else ex.repMin = r; }
         // Reps fixes (« 4 × 12 », fixedReps de js/data/goals.js) : true ou rien, jamais avec un bas de fourchette
         if (ex.repFixed !== undefined && (ex.repFixed !== true || ex.repMin !== undefined)) delete ex.repFixed;
+        // Cran de charge de l'exercice (loadStepKg, js/data/goals.js : machine à crans de 5 kg) : kg de 0,25 à 50, retiré sinon
+        if (ex.loadStep !== undefined) { const v = num(ex.loadStep, 0.25, 50); if (v === null) delete ex.loadStep; else ex.loadStep = v; }
         // Charge prescrite par le coach (js/data/coach-presc.js) : kg de 0 à 500, retirée sinon
         cleanPrescInPlace(ex);
         // Technique prescrite (js/data/intensif.js) : une clé connue ou rien

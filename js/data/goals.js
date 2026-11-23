@@ -9,6 +9,8 @@
 // travail, ou l'a dépassé sur la meilleure (Maxence le 17/11 : 24 × 12 en 8 à 10 donnait « Objectif 24 kg × 13 »,
 // « il est con cet objectif ») → charge + 2,5 kg (5 lb, le plus petit pas des haltères, machines et barres par
 // défaut), au bas de la fourchette (goalRepsAfterBump) ; sinon la meilleure série + 1 rep, jamais au-delà du haut.
+// Cran trop gros pour la charge (Maxence le 23/11 : 8 kg × 15 aux élévations latérales donnait « 10,5 kg × 12 »,
+// « c'est les reps qui seraient intéressantes ») : + 1 rep à la même charge au-delà du haut, jusqu'à repsBeforeBump.
 // Reps fixes : la règle d'avant (+ 1 rep jusqu'au nombre, puis la charge). Jamais fait → nombre de séries prévu.
 // text : « 32,5 kg × 11 », « 35 kg × 8 » ; gain : sans signe (« 1 rep », « 2,5 kg »), l'accueil le précède
 // d'une flèche ↑ ; before : la meilleure série de la dernière fois, '' si jamais fait ; goal : la série à
@@ -40,15 +42,19 @@ function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
   if (measureOf(ex) !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '', before, goal: null };   // durée, cardio : on rappelle la dernière fois
   // La rep de plus ne dépasse pas le haut (reps fixes : ce nombre ; fourchette : son haut, la charge monte ensuite).
   // Poids du corps et lest : pas de charge à monter, les reps continuent au-delà (sauf reps fixes ou coach)
+  // Cran de charge trop gros pour la charge (8 → 10,5 kg, + 31 %) : une fois le haut atteint (goalTopReached), les reps
+  // montent au-delà, jusqu'à repsBeforeBump (double progression, docs/PROGRESSION.md) ; jamais sur un programme du coach.
   const coachLed = coachLedProgramme(progKey);
-  const fixed = fixedReps(ex), repMax = fixed || (parseInt(ex.repMax) || 12);
+  const fixed = fixedReps(ex);
+  const hold = coachLed || loadKind(ex) !== 'charge' || !goalTopReached(ex, sets) ? null : repsBeforeBump(ex, best.w);
+  const repMax = fixed || hold || (parseInt(ex.repMax) || 12);
   const capped = fixed || coachLed || (best.w > 0 && loadKind(ex) !== 'lest');
   const more = { w: best.w, r: capped ? Math.min(best.r + 1, repMax) : best.r + 1 };
   if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: more.r, reps: String(more.r) }, ex), gain: more.r > best.r ? '1 rep' : '', before, goal: more };
   const bump = goalBumpDue(ex, sets, coachLed);
   if (bump) {
-    const w = best.w + bumpStepKg(), r = goalRepsAfterBump(ex);
-    return { text: setTxt({ w, weight: w, r }), gain: bumpLabel(), before, goal: { w, r } };
+    const w = best.w + loadStepKg(ex), r = goalRepsAfterBump(ex);
+    return { text: setTxt({ w, weight: w, r }), gain: loadStepLabel(ex), before, goal: { w, r } };
   }
   return { text: setTxt({ ...best, r: more.r }), gain: more.r > best.r ? '1 rep' : '', before, goal: more };
 }
@@ -56,13 +62,53 @@ function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
 // Hausse de charge due (objectif et puce ↑ de la séance, bumpReady) : séries de travail de la dernière fois
 // (reps > 0) toutes au haut (au moins 2, ou le nombre prévu s'il est plus petit), ou, en fourchette, la meilleure
 // au-delà du haut. Jamais sur un programme du coach (c'est lui qui décide), ni sans charge.
+// Cran trop gros (repsBeforeBump) : la meilleure série doit en plus atteindre ces reps à la même charge.
 function goalBumpDue(ex, sets, coachLed = false) {
-  if (coachLed || !sets.length) return false;
+  if (coachLed || !goalTopReached(ex, sets)) return false;
+  const best = bestSet(sets), hold = best ? repsBeforeBump(ex, best.w) : null;
+  return !hold || best.r >= hold;
+}
+// Haut de la fourchette atteint (règle d'avant le 23/11) : toutes les séries au haut, ou la meilleure au-delà
+function goalTopReached(ex, sets) {
+  if (!sets.length) return false;
   const fixed = fixedReps(ex), hi = fixed || (parseInt(ex.repMax) || 12);
   const reps = sets.map(s => parseInt(s.reps) || 0), w = Math.max(...sets.map(s => parseFloat(s.weight) || 0));
   if (!(w > 0)) return false;
   const all = sets.length >= Math.min(parseInt(ex.sets) || 2, 2) && reps.every(r => r >= hi);
   return all || (!fixed && Math.max(...reps) > hi);
+}
+
+// ── Cran de charge et double progression (docs/PROGRESSION.md) ──
+// Plus petit pas de charge de l'exercice, en kg : son réglage (loadStep, en kg, facultatif : machine à crans de
+// 5 kg, haltères de 2 kg en 2 kg) ; sinon barre à disques : deux fois le plus petit disque de la personne
+// (plateSetup, js/data/plates.js : 2 × 1,25 = 2,5 kg par défaut) ; sinon 2,5 kg (5 lb), le pas des racks d'haltères.
+function loadStepKg(ex) {
+  const own = parseFloat(ex?.loadStep);
+  if (own > 0) return own;
+  if (ex?.name && isBarbellExercise(ex)) {
+    const { unit, plates } = plateSetup(), step = 2 * Math.min(...plates);
+    if (step > 0) return unit === 'lb' ? step / KG_TO_LBS : step;
+  }
+  return bumpStepKg();
+}
+// « 2,5 kg », « 5 kg », « 5 lb » : sans signe, comme bumpLabel
+function loadStepLabel(ex) { return `${fmtW(loadStepKg(ex))} ${data.unit === 'lbs' ? 'lb' : 'kg'}`; }
+
+// Hausse relative au-delà de laquelle le cran est « gros » (8 → 10,5 kg = + 31 %, 100 → 102,5 kg = + 2,5 %)
+const BIG_STEP_SHARE = 0.10;
+// Reps à faire à la charge w avant de monter d'un cran, quand ce cran est gros (plus de 10 % de la charge) ou
+// ferait tomber les reps sous le bas de la fourchette ; null quand la règle de la fourchette suffit (cran petit,
+// reps fixes, sans charge). Calcul : la charge + 1 cran faite au bas de la fourchette (goalRepsAfterBump) donne
+// un 1RM estimé (Epley, comme e1rm) ; on cherche les reps qui donnent ce 1RM à la charge d'aujourd'hui. Jamais
+// moins que le haut + 1 (« nettement au-dessus »), jamais plus que 2 × le haut (30 au plus) : un cran énorme
+// (2 → 4,5 kg) finit par passer.
+//   8 kg, + 2,5 kg, 8 à 12 → 20 reps ; 18 kg → 14 ; 100 kg → null ; machine 40 kg, crans de 5 kg → 13
+function repsBeforeBump(ex, w) {
+  if (!(w > 0) || measureOf(ex) !== 'reps' || fixedReps(ex)) return null;
+  const step = loadStepKg(ex), lo = goalRepsAfterBump(ex), hi = parseInt(ex.repMax) || 12;
+  const need = Math.ceil(30 * ((w + step) * (1 + lo / 30) / w - 1) - 1e-9);
+  if (step / w <= BIG_STEP_SHARE && need <= hi) return null;
+  return Math.min(Math.max(need, hi + 1), Math.max(hi + 1, Math.min(30, 2 * hi)));
 }
 
 // Reps à faire avec la charge augmentée :

@@ -349,9 +349,11 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       '24 × 12 en 8 à 10 : 26,5 kg × 8');
     ex = seedRow([set('24', '12'), set('24', '10'), set('24', '9')], { repMin: 8, repMax: 10 });
     sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 26.5, r: 8 }, 'meilleure série au-delà du haut, les autres dessous : la charge monte');
-    // Haut atteint partout : la charge monte (règle d'avant)
+    // Haut atteint partout, mais 26,5 kg ferait tomber sous 8 reps (1RM estimé de 24 × 10) : une rep de plus d'abord
+    // (double progression du 23/11, docs/PROGRESSION.md) ; 24 × 12 suffit, comme au-dessus
     ex = seedRow([set('24', '10'), set('24', '10'), set('24', '10')], { repMin: 8, repMax: 10 });
-    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 26.5, r: 8 });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 24, r: 11 });
+    assert.equal(run(`goalBumpDue(${ex}, ${JSON.stringify([set('24', '10'), set('24', '10'), set('24', '10')])})`), false, 'puce ↑ cachée aussi');
     // Dans la fourchette : + 1 rep, jamais au-delà du haut
     ex = seedRow([set('24', '9'), set('24', '8')], { repMin: 8, repMax: 10 });
     sameJSON(run(`exerciseGoal('pull', ${ex})`).goal, { w: 24, r: 10 });

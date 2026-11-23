@@ -313,10 +313,11 @@ test('exerciseTarget : +1 rep sous le haut de la fourchette, palier de charge au
 
 test('exerciseTarget en lbs : palier de 5 lb', () => {
   reset({ unit: 'lbs' });
-  const ex = seedPull([{ weight: '20', reps: '12' }, { weight: '20', reps: '12' }]);
+  // 40 kg (88,2 lb) : 5 lb font + 6 %, la charge monte (à 20 kg, + 11 % : des reps d'abord, progression.mjs)
+  const ex = seedPull([{ weight: '40', reps: '12' }, { weight: '40', reps: '12' }]);
   const t = app.exerciseTarget('pull', ex);
   assert.equal(t.gain, '5 lb');
-  assert.equal(t.text, '49,1 lbs × 8');
+  assert.equal(t.text, '93,2 lbs × 8');
 });
 
 test('weekStats : séances depuis lundi seulement', () => {
@@ -2311,6 +2312,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // ── Reps fixes « 4 × 12 » (tests dans reps-fixes.mjs) ──
 
 (await import('./reps-fixes.mjs')).default({ test, run, reset, assert, sameJSON });
+
+// ── Double progression quand le cran de charge est gros, 23/11 (tests dans progression.mjs) ──
+(await import('./progression.mjs')).default({ test, run, reset, assert, sameJSON });
 // Nutrition : plans bornés, macros, repas cochés, équivalences sur la vraie base Ciqual, plan du coach
 (await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Nutrition, règles fines (bornes et branches repérées par le test de mutation, tests dans nutrition-regles.mjs)

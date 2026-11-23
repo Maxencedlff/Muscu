@@ -99,7 +99,6 @@
   font-size: var(--fs-footnote); font-weight: 600; color: var(--label2);
 }
 .targets__before { font-size: var(--fs-footnote); color: var(--label2); white-space: nowrap; }
-.targets .targets__more { padding-top: 2px; font-size: var(--fs-footnote); color: var(--label2); }
 
 /* ── Cartes de l'accueil ── */
 .home-card { background: var(--cell); border-radius: var(--r-lg); padding: 14px 16px; margin-top: 12px; }

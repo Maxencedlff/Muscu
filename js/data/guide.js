@@ -367,7 +367,7 @@ const GUIDE_SECTIONS = [
           'Touche-la : les séries qui restent prennent 2,5 kg de plus (5 lbs en livres).',
           'La fourchette se règle dans la fiche de l\'exercice : [Haut de fourchette] (12 par défaut) et [Bas de fourchette], facultatif. Avec un bas, la nouvelle charge repart du bas : 8 à 12, puis 8 plus lourd.',
           'En reps fixes ([Fixe], par exemple 4\u00a0×\u00a012), la pastille s\'affiche quand toutes tes séries atteignent ce nombre. La nouvelle charge garde le même nombre de reps.',
-          'Sur l\'accueil, [À battre aujourd\'hui] propose la même hausse, ou une rep de plus.',
+          'Sur l\'accueil, [À battre aujourd\'hui] propose la même hausse, ou une rep de plus. Si la hausse est grosse pour ta charge (8 à 10,5 kg), des reps en plus d\'abord.',
         ],
         related: ['regler-exercice', 'records'],
         actions: ['bump-weight'],

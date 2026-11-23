@@ -120,9 +120,9 @@ def t_home(bench, eng, dev, theme):
         aria = week.evaluate("b => [...b.querySelectorAll('.home-card__title, .sr-text')].map(e => e.textContent).join('')")
         R.check(week.get_attribute('aria-label') is None and aria.startswith('Cette semaine : ') and 'sur' in aria, f'{t} VoiceOver : {aria!r}')
         R.check(page.locator('.dashboard .navbar [data-action="go-settings"] .icon').count() == 1, f'{t} sans compte : la roue des Réglages')
-        R.check(page.locator('.hero .targets__row').count() == 3, f'{t} « À battre aujourd\'hui » dans la carte : 3 exercices')
-        n_more = page.evaluate("prog().exercises.push.length") - 3
-        R.check(f'et {n_more} autres exercices' in page.inner_text('.targets__more'), f'{t} « et {n_more} autres exercices »')
+        n_ex = page.evaluate("prog().exercises.push.length")
+        R.check(page.locator('.hero .targets__row').count() == n_ex and page.locator('.targets__more').count() == 0,
+                f'{t} « À battre aujourd\'hui » dans la carte : les {n_ex} exercices, plus de « et N autres » (23/11)')
         # Cible en gras, gain « ↑ 1 rep » (flèche et texte, sans « + »), dernière fois en gris dessous
         row = page.locator('.targets__row').first
         gain, before = row.locator('.targets__gain'), row.locator('.targets__before')

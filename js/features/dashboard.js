@@ -208,11 +208,12 @@ function sessionMinutes(cat) {
 
 // Cible du jour d'un exercice : exerciseTarget (js/data/goals.js), la même qu'en séance.
 
-// « À battre aujourd'hui », dans la carte de la prochaine séance : les premiers exercices en lignes compactes. Le nom à
+// « À battre aujourd'hui », dans la carte de la prochaine séance : tous les exercices en lignes compactes (plus de
+// « et 2 autres exercices » : « c'est chiant de pas tout voir », Maxence le 23/11 ; Démarrer est au-dessus, la liste
+// ne le repousse jamais, heroBtnSpot). Le nom à
 // gauche (deux lignes au plus, puis « … » ; VoiceOver le lit en entier), la cible en gras à droite ; dessous, en gris,
 // la dernière fois (« avant … ») et le gain avec une flèche ↑ (jamais la couleur seule : « ↑ 1 rep », sans « + »).
 // Jamais fait : « Au programme » et la cible seule.
-const HERO_TARGETS = 3;
 function targetRowHtml(cat, ex) {
   const t = exerciseTarget(cat, ex);
   const gain = t.gain
@@ -226,7 +227,6 @@ function targetRowHtml(cat, ex) {
 function targetsHtml(cat) {
   const exs = prog().exercises[cat] || [];
   if (!exs.length) return '';
-  const more = exs.length - HERO_TARGETS;
   const anyHistory = exs.some(ex => lastPerf(data.activeProgramme, cat, ex));
   return `
     <div class="targets">
@@ -234,8 +234,7 @@ function targetsHtml(cat) {
         <h3 class="targets__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}</h3>
         <button class="targets__edit" data-action="go-editor" data-cat="${esc(cat)}" aria-label="Modifier la séance : ses exercices et ses objectifs">Modifier la séance</button>
       </div>
-      <ul class="targets__list">${exs.slice(0, HERO_TARGETS).map(ex => targetRowHtml(cat, ex)).join('')}</ul>
-      ${more > 0 ? `<p class="targets__more">et ${plural(more, 'autre exercice', 'autres exercices')}</p>` : ''}
+      <ul class="targets__list">${exs.map(ex => targetRowHtml(cat, ex)).join('')}</ul>
     </div>`;
 }
 
