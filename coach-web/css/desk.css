@@ -256,3 +256,11 @@ table.wk .wn { font-weight: 600; }
   .stats.summary-inline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .stats:not(.summary-inline) .stat:nth-child(3n + 1) { border-left: 0; }
 }
+
+/* ── Se connecter avec Apple (règles d'Apple : logo et libellé, noir sur fond clair, blanc sur fond sombre) ── */
+.apple-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 50px; border-radius: 12px; background: #000; color: #fff; font: 600 17px/1 var(--font); letter-spacing: -.02em; }
+.apple-btn .apple-logo { width: 15px; height: 19px; flex: none; margin-top: -3px; }
+.apple-btn[disabled] { opacity: .55; cursor: default; }
+.or { display: flex; align-items: center; gap: 12px; margin: 16px 0 14px; color: var(--label3); font-size: 13.5px; }
+.or::before, .or::after { content: ""; flex: 1; border-top: .5px solid var(--sep); }
+@media (prefers-color-scheme: dark) { .apple-btn { background: #fff; color: #000; } }

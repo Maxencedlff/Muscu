@@ -17,6 +17,7 @@ coach-web/css/desk.css      styles (jetons clair / sombre, mise en page 768 à 1
 coach-web/js/desk/env.js    remplace js/data/account.js pour les scripts partagés (voir « Réutilisation »)
 coach-web/js/desk/model.js  logique pure : lignes du tableau de bord, semaines, courbe, chiffres
 coach-web/js/desk/api.js    connexion (code e-mail), appels RPC, lectures du tableau de bord et de la fiche
+coach-web/js/desk/apple.js  Se connecter avec Apple (Sign in with Apple JS, nonce, bouton)
 coach-web/js/desk/shell.js  cadre : barre latérale, barre d'onglets en bas, icônes, annonces
 coach-web/js/desk/dashboard.js, student.js   les deux écrans (gabarits HTML, tout texte reçu passe par esc())
 coach-web/js/desk/main.js   routes (#/, #/eleve/<id>, #/reglages), gestes, clavier, inactivité, démarrage
@@ -55,9 +56,9 @@ clé publique et l'adresse du projet sont identiques à `ACCOUNT_CONFIG` (vérif
 
 ## Connexion et sécurité
 
-- Code à 6 chiffres par e-mail (`signInWithOtp` avec `shouldCreateUser: false` : jamais de compte créé depuis le web,
-  puis `verifyOtp`). Même compte que l'iPhone, même `auth.uid()`. Un compte seulement Apple doit d'abord ajouter son
-  adresse dans l'app (Réglages › Compte › Moyens de connexion), l'écran le dit ; Apple et Google sur le web : vague 5.
+- **Se connecter avec Apple** (en haut, avant l'e-mail ; section « Connexion avec Apple » ci-dessous), ou code à 6
+  chiffres par e-mail (`signInWithOtp` avec `shouldCreateUser: false` : jamais de compte créé par l'e-mail, puis
+  `verifyOtp`). Même compte que l'iPhone, même `auth.uid()`. Google sur le web : plus tard.
 - **Seul un coach validé entre** : `coach_state().is_coach`, sinon l'écran « Réservé aux coachs ». Le vrai verrou
   reste le serveur : chaque RPC lue ici est `security definer`, `search_path = ''`, prend l'utilisateur dans
   `auth.uid()` et vérifie le lien (`private.coach_require_student` : mon élève, et je suis encore coach), tables
@@ -69,9 +70,98 @@ clé publique et l'adresse du projet sont identiques à `ACCOUNT_CONFIG` (vérif
   l'onglet et chaque minute), « Se déconnecter de cet ordinateur » (Réglages ; `signOut({ scope: 'local' })` :
   l'iPhone reste connecté). Dans le navigateur, seules la session de supabase-js (`mdlf-coach-web-auth`) et l'heure du
   dernier geste (`mdlf_coach_web_active`) sont gardées ; aucune donnée d'élève (test E2E).
-- CSP de la page : scripts et styles du site seulement, aucun script en ligne, `connect-src` vers le projet Supabase
-  seulement. En-têtes du déploiement (`coach-web/vercel.json`) : la même CSP avec `frame-ancestors 'none'`, HSTS,
-  `Referrer-Policy: no-referrer`, `Permissions-Policy` fermée, `X-Frame-Options: DENY`, `noindex`.
+- CSP de la page : scripts et styles du site seulement, plus le seul script `https://appleid.cdn-apple.com`
+  (Sign in with Apple JS), aucun script en ligne, `connect-src` vers le projet Supabase seulement, `frame-src 'none'`
+  (le script d'Apple n'ouvre aucun cadre ni aucune connexion : il ouvre une fenêtre surgissante sur appleid.apple.com,
+  que la CSP ne régit pas, et en reçoit la réponse par `postMessage`, origine vérifiée par le script). En-têtes du
+  déploiement (`coach-web/vercel.json`) : la même CSP avec `frame-ancestors 'none'`, HSTS,
+  `Referrer-Policy: no-referrer`, `Permissions-Policy` fermée, `X-Frame-Options: DENY`, `noindex`, et
+  `Cross-Origin-Opener-Policy: same-origin-allow-popups` (avec `same-origin`, la fenêtre d'Apple perdrait le lien
+  avec la page et la connexion finirait toujours en « fenêtre fermée »).
+
+## Connexion avec Apple
+
+Le compte de Maxence, et souvent celui de ses coachs, n'a qu'Apple (aucune adresse e-mail) : sans Apple, pas de site.
+
+**Méthode : Sign in with Apple JS en fenêtre surgissante + `signInWithIdToken`** (`coach-web/js/desk/apple.js`).
+Le script officiel d'Apple (`appleid.cdn-apple.com/…/fr_FR/appleid.auth.js`, chargé au démarrage de l'écran de
+connexion) ouvre la fenêtre d'Apple (`usePopup: true`) et rend un `id_token` à la page ; la page l'échange contre une
+session par `supabase.auth.signInWithIdToken({ provider: 'apple', token, nonce })`. Pourquoi pas le flux OAuth par
+redirection (`signInWithOAuth`) : il demande un secret client Apple (JWT signé par une clé .p8) à refaire tous les
+6 mois dans Supabase, et une URL de retour sur Supabase. Ici, aucun secret : Supabase vérifie la signature du jeton
+avec les clés publiques d'Apple et son audience (le Services ID doit figurer dans `external_apple_client_id` ; doc
+Supabase, « Sign in with Apple » : le flux `signInWithIdToken` accepte comme audience n'importe quel identifiant de la
+liste, dans n'importe quel ordre ; le premier ne compte que pour `signInWithOAuth`).
+
+- **Nonce** : nonce brut aléatoire (32 octets, base64url) ; Apple reçoit son SHA-256 en hexadécimal (`nonce` de
+  `AppleID.auth.init`, recopié tel quel dans le jeton), Supabase reçoit le nonce brut et compare son SHA-256 au jeton
+  (même règle que la doc Supabase pour Google et que le flux natif de l'app). Un nonce et un `state` neufs à chaque
+  essai, préparés avant le clic : `AppleID.auth.signIn()` part dans le geste, sans attente (sinon Safari bloque la
+  fenêtre). `state` revérifié à la réponse.
+- **Seul un coach validé entre** : après Apple, même contrôle `coach_state().is_coach` que pour l'e-mail. Limite
+  connue : `signInWithIdToken` crée un compte si l'identifiant Apple est inconnu (Supabase n'a pas d'option « sans
+  création » pour ce flux, contrairement à l'OTP). Ce compte vide n'a accès à rien (écran « Réservé aux coachs », avec
+  « Cet identifiant Apple n'avait pas encore de compte MDLF… ») ; c'est le même comportement que le bouton Apple de
+  l'app.
+- **Bouton** dessiné par la page selon les règles d'Apple (logo Apple, « Se connecter avec Apple », noir sur fond
+  clair, blanc sur fond sombre, 50 px de haut) : le bouton que dessine le script d'Apple pose des styles en ligne,
+  refusés par la CSP (`style-src 'self'`).
+- **Erreurs** : fenêtre fermée ou « Annuler » (c'est aussi ce que voit le coach quand Apple affiche une erreur, par
+  exemple Services ID pas encore configuré) : « Connexion avec Apple annulée. Si la fenêtre d'Apple affichait une
+  erreur… reçois un code par e-mail » ; fenêtre bloquée par le navigateur ; Services ID absent de
+  `external_apple_client_id` (« Unacceptable audience ») : « La connexion avec Apple n'est pas encore ouverte sur ce
+  site » ; hors ligne.
+- **Sans le script** (bloqueur, réseau, 10 s sans réponse, navigateur sans Web Crypto) : le bouton et le « ou »
+  disparaissent, le texte sous le formulaire dit de recharger ou d'ajouter une adresse dans l'app ; l'e-mail marche.
+- **Adresse de retour** : `location.origin + '/'`. Chaque adresse du site (aujourd'hui `https://mdlf-coach.vercel.app/`,
+  demain peut-être `https://coach.mdlf.app/`) doit être déclarée sur le Services ID, sinon Apple répond
+  « invalid_request ». Les adresses de prévisualisation de Vercel ne marchent donc pas avec Apple (e-mail seulement).
+
+### À faire par Maxence dans developer.apple.com (une fois)
+
+Vérifié sur l'aide d'Apple (« Configure Sign in with Apple for the web », developer.apple.com/help/account) le 24/11/2026.
+
+1. Ouvrir https://developer.apple.com/account/resources/identifiers/list (Certificates, Identifiers & Profiles ›
+   Identifiers).
+2. Vérifier d'abord l'App ID de l'app : cliquer sur `com.mdlf.training` ; dans la liste des Capabilities,
+   « Sign in with Apple » doit être cochée (c'est déjà le cas, la connexion Apple de l'app marche) et réglée en
+   « Enable as a primary App ID ». Revenir à la liste sans rien changer.
+3. Cliquer sur le bouton **+** (en haut à gauche, à côté de « Identifiers »).
+4. Choisir **Services IDs**, puis **Continue**.
+5. **Description** : `MDLF Coach (site web)` ; **Identifier** : `com.mdlf.training.coach`. **Continue**, puis
+   **Register**.
+6. Dans la liste des identifiants, ouvrir le menu en haut à droite (« App IDs ») et choisir **Services IDs** ; cliquer
+   sur `com.mdlf.training.coach`.
+7. Cocher **Sign in with Apple**, puis cliquer sur **Configure** à côté.
+8. Dans la fenêtre qui s'ouvre :
+   - liste des **primary App IDs** : choisir `com.mdlf.training` (MDLF Training) ;
+   - sous **Website URLs** : le domaine `mdlf-coach.vercel.app` (sans https://) dans **Domains and Subdomains**, et
+     l'adresse de retour `https://mdlf-coach.vercel.app/` (avec la barre finale, l'adresse exacte que la page envoie)
+     dans **Return URLs**. Si l'écran n'a qu'un seul champ, y mettre les deux, séparés par une virgule :
+     `mdlf-coach.vercel.app,https://mdlf-coach.vercel.app/`.
+   Puis **Done**.
+9. **Continue**, puis **Save** (confirmer si Apple le demande).
+10. Aucune clé .p8, aucun « Team ID » ni secret à créer, et rien à téléverser sur le site (Apple ne demande plus de
+    fichier de vérification du domaine). Les changements chez Apple peuvent mettre quelques minutes à s'appliquer.
+
+Si un jour le site passe sur `coach.mdlf.app` : refaire les étapes 6 à 9 pour ajouter ce domaine et
+`https://coach.mdlf.app/` (un compte individuel a droit à 10 adresses par Services ID).
+
+### Changement Supabase (fait par l'API de gestion, pas depuis le site)
+
+`external_apple_client_id` : `com.mdlf.training` → `com.mdlf.training.coach,com.mdlf.training`. Le Services ID en
+premier (la doc Supabase le demande pour un futur `signInWithOAuth`, sans effet sur `signInWithIdToken`, qui accepte
+les deux identifiants). Rien d'autre : pas de secret, `site_url` et `uri_allow_list` inchangés (pas de redirection
+vers Supabase dans ce flux).
+
+```
+PATCH https://api.supabase.com/v1/projects/yopptmdjtnezmccdvaxf/config/auth
+{ "external_apple_client_id": "com.mdlf.training.coach,com.mdlf.training" }
+```
+
+Vérification : relire la config (`GET …/config/auth`), puis sur le site, « Se connecter avec Apple » avec le compte
+Apple de l'app. Avant ce changement, Apple marche mais Supabase répond « Unacceptable audience » : la page dit « pas
+encore ouverte sur ce site ». L'app iPhone n'est pas touchée (`com.mdlf.training` reste dans la liste).
 
 ## Tableau de bord « Élèves »
 
@@ -148,13 +238,15 @@ mêmes lectures une par une (séances par pages de 30 jusqu'au début de la fen�
 - `node tests/unit/run.mjs` : `tests/unit/coach-web.mjs` (contexte vm des scripts exacts de la page) : ordre et
   liste des scripts, même projet Supabase, aucune écriture sur l'appareil, semaines ISO et plages de dates, tri par
   urgence, pastilles, segments, recherche, agrégats des semaines, courbe, un appel ou repli page par page, erreurs,
-  palier, échappement des textes reçus, onglets « bientôt ».
+  palier, échappement des textes reçus, onglets « bientôt » ; Apple : nonce brut et SHA-256, neuf à chaque essai,
+  `state` vérifié, erreurs (annulation, fenêtre bloquée, audience refusée, hors ligne).
 - `python3 tests/test_coach_web.py` (`npm run test:coach-web`, `PPL_ENGINES=chromium` pour un seul moteur) :
   Chromium, Firefox, WebKit × 1440, 1180, 820 px (tactile en tablette) × sombre, clair : liste, ordre, fond noir pur,
   pas de défilement en largeur, cibles de 44 px, barre latérale ou d'onglets, recherche, fiche, 12 semaines, CSP,
   aucune erreur, rien des élèves dans localStorage ; puis clavier, segments, invitation, un seul appel pour la fiche,
-  repli sans la migration, mauvais code, compte non coach, déconnexion, et la version construite avec le vrai
-  supabase-js. Coach et élèves factices de `tests/coach_web_fixtures.py` sur le faux serveur de
+  repli sans la migration, mauvais code, compte non coach, déconnexion, Apple avec un faux Apple JS (bouton au-dessus de
+  l'e-mail, nonce, annulation, audience refusée, identifiant Apple inconnu, script injoignable : e-mail seul), et la
+  version construite avec le vrai supabase-js. Coach et élèves factices de `tests/coach_web_fixtures.py` sur le faux serveur de
   `tests/fake_account.py` (aucun réseau, code factice).
 - `python3 tests/coach_web_captures.py <dossier> [moteur]` : captures de chaque écran, sombre et clair, 1440, 1180, 820.
 - CI : job `coach-web` de `tests.yml` (un par moteur, conteneur officiel de Playwright), syntaxe de `coach-web/js`,
@@ -167,8 +259,8 @@ mêmes lectures une par une (séances par pages de 30 jusqu'au début de la fen�
 2. Projet Vercel à part (par exemple `mdlf-coach`, domaine `coach.mdlf.app`), sans build côté Vercel (dossier
    statique) : `npx vercel@62.0.0 deploy dist-coach --prod --yes --token "$VERCEL_TOKEN"`, avec
    `VERCEL_PROJECT_ID` de ce projet. `git.deploymentEnabled: false` : rien ne part tout seul.
-3. Supabase Auth : rien à changer pour le code e-mail (aucun lien de retour). Pour Apple et Google (vague 5) : ajouter
-   l'adresse du site aux URL de retour.
+3. Supabase Auth : rien à changer pour le code e-mail (aucun lien de retour). Pour Apple : Services ID dans
+   `external_apple_client_id` (« Connexion avec Apple »), aucune URL de retour Supabase.
 4. Après la publication : `curl -sI https://coach.mdlf.app` doit rendre 200 et les en-têtes de `vercel.json`.
 
 ## Suite : vague 2 (bilans configurables)

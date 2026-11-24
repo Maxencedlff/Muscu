@@ -2,14 +2,14 @@
 //  MDLF Coach sur ordinateur : démarrage, routes, connexion, gestes (docs/COACH_WEB.md)
 //
 //  Routes (hash, aucune configuration de serveur) : #/ tableau de bord, #/eleve/<id> fiche Semaines, #/reglages.
-//  Connexion par code e-mail ; seul un compte coach validé (coach_state().is_coach) entre, et chaque RPC le revérifie
+//  Connexion avec Apple (js/desk/apple.js) ou par code e-mail ; seul un compte coach validé (coach_state().is_coach) entre, et chaque RPC le revérifie
 //  sur le serveur. 30 min sans geste : déconnexion. Données relues au retour sur l'onglet (60 s au moins d'écart).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 const DESK_REFRESH_MS = 60_000;
 const ui = { filter: 'todo', query: '', weeks: DESK_WEEKS_SHOWN, login: { step: 'email', email: '', busy: false, error: '' } };
-const view = { dash: null, dashAt: 0, dashError: null, student: null, notCoach: false };
+const view = { dash: null, dashAt: 0, dashError: null, student: null, notCoach: false, appleNew: false };
 
 const DESK_ERRORS = {
   offline: 'Pas d\'Internet : vérifie ta connexion et réessaie.',
@@ -53,7 +53,8 @@ function deskLoginHtml() {
   return `<main class="login" id="main" tabindex="-1"><div class="login-card">
     <div class="brand lg">MDLF <span>Coach</span></div>
     <h1 class="title">${email ? 'Connexion' : 'Code reçu par e-mail'}</h1>
-    <p class="sub">${email ? 'Avec le compte coach de ton app MDLF Training. Tu reçois un code à 6 chiffres par e-mail.' : `Code envoyé à ${esc(l.email)}. Il est valable 10 minutes.`}</p>
+    <p class="sub">${email ? 'Avec le compte coach de ton app MDLF Training : Apple, ou un code à 6 chiffres reçu par e-mail.' : `Code envoyé à ${esc(l.email)}. Il est valable 10 minutes.`}</p>
+    ${email ? deskAppleButtonHtml(l.busy) : ''}
     <form class="login-f" data-form="${email ? 'email' : 'code'}" novalidate>
       ${email
     ? `<label class="fld"><span>Adresse e-mail</span><input id="login-email" type="email" name="email" autocomplete="email" inputmode="email" required value="${esc(l.email)}" ${l.error ? 'aria-invalid="true" aria-describedby="login-err"' : ''}></label>`
@@ -62,14 +63,18 @@ function deskLoginHtml() {
       <button class="btn tint lg wide" ${l.busy ? 'disabled aria-busy="true"' : ''}>${email ? 'Recevoir un code' : 'Se connecter'}</button>
       ${email ? '' : '<button type="button" class="btn link" data-action="login-back">Changer d\'adresse ou renvoyer un code</button>'}
     </form>
-    <p class="note">Ton compte utilise seulement Apple ? Ajoute ton adresse e-mail dans l'app, Réglages › Compte › Moyens de connexion. La connexion avec Apple et Google arrive ensuite.</p>
+    <p class="note">${deskApple.state === 'off'
+    ? 'Ton compte utilise seulement Apple ? La connexion avec Apple n\'a pas pu se charger (réseau, bloqueur de contenu) : recharge la page, ou ajoute ton adresse e-mail dans l\'app, Réglages › Compte › Moyens de connexion.'
+    : 'Ton compte utilise seulement Apple ? Choisis « Se connecter avec Apple », avec le même identifiant Apple que dans l\'app. La connexion avec Google arrive ensuite.'}</p>
     <p class="note">Sur un ordinateur partagé, la session se ferme après 30 minutes sans activité.</p>
   </div></main>`;
 }
 function deskNotCoachHtml() {
   return `<main class="login" id="main" tabindex="-1"><div class="login-card"><div class="brand lg">MDLF <span>Coach</span></div>
     <h1 class="title">Réservé aux coachs</h1>
-    <p class="sub">Ce compte n'est pas un compte coach validé. La demande se fait dans l'app : Réglages › Coach › Devenir coach.</p>
+    <p class="sub">${view.appleNew
+    ? 'Cet identifiant Apple n\'avait pas encore de compte MDLF. Déconnecte-toi, puis reconnecte-toi avec le même identifiant Apple que dans l\'app.'
+    : 'Ce compte n\'est pas un compte coach validé. La demande se fait dans l\'app : Réglages › Coach › Devenir coach.'}</p>
     <button type="button" class="btn lg wide" data-action="signout">${deskIcon('signout', 'sm')}Se déconnecter</button></div></main>`;
 }
 function deskSettingsHtml() {
@@ -161,6 +166,7 @@ document.addEventListener('click', async e => {
   else if (a === 'more-weeks') { ui.weeks = DESK_WEEKS_MAX; deskRender(); }
   else if (a === 'reload') { if (deskRoute().name === 'student') deskOpenStudent(deskRoute().id, { force: true }); else deskRefresh({ force: true }); }
   else if (a === 'signout') deskEndSession();
+  else if (a === 'apple') deskAppleClick();
   else if (a === 'login-back') { Object.assign(ui.login, { step: 'email', error: '' }); deskRender(); document.getElementById('login-email')?.focus(); }
 });
 document.addEventListener('input', e => {
@@ -191,6 +197,19 @@ document.addEventListener('submit', async e => {
     deskRefresh({ force: true });
   }
 });
+// Apple : signIn() part dans le geste (aucune attente avant) ; seul un coach validé entre ensuite (deskRefresh)
+async function deskAppleClick() {
+  const l = ui.login;
+  if (l.busy) return;
+  const run = deskAppleSignIn();
+  Object.assign(l, { busy: true, error: '' }); deskRender();
+  const r = await run;
+  Object.assign(l, { busy: false, error: r.ok || !r.kind ? '' : DESK_APPLE_TEXT[r.kind] || deskAuthText(r.kind) });
+  if (!r.ok) { deskRender(); document.getElementById('apple-signin')?.focus(); return; }
+  view.appleNew = !!r.isNew;
+  deskRender({ focusMain: true });
+  deskRefresh({ force: true });
+}
 // Clavier : / recherche, J / K élève suivant ou précédent (Entrée ouvre : c'est un lien), Échap vide la recherche
 document.addEventListener('keydown', e => {
   deskTouch();
@@ -219,10 +238,12 @@ setInterval(() => { if (desk.user && deskIdleFor() > DESK_IDLE_MS) deskEndSessio
 
 // ── Démarrage ───────────────────────────────────────────────
 
+deskApple.onChange = () => { if (!desk.user) deskRender(); };
 (async () => {
   const r = await deskResume();
   if (!r.ok) { ui.login.error = deskAuthText(r.kind); }
   else if (r.expired) ui.login.error = 'Session fermée après 30 minutes sans activité : reconnecte-toi.';
   deskRender();
   if (desk.user) deskRefresh({ force: true });
+  else deskAppleLoad();
 })();
