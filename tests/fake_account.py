@@ -333,6 +333,7 @@ FAKE_ACCOUNT = r"""
   const KINDS = ['like', 'clap', 'fire', 'strong', 'trophy', 'wow'];   // liste fermée (20261117060000_reaction_jaime.sql)
   const pgErr = message => ({ data: null, error: { code: 'P0001', message, details: null, hint: null } });
   const blockedBetween = (a, b) => so.blocks.some(k => (k.blocker === a && k.blocked === b) || (k.blocker === b && k.blocked === a));
+  sb.blockedBetween = (a, b) => blockedBetween(a, b);
   const rel = (a, b) => so.follows.find(f => f.follower === a && f.followee === b);
   const person = (id, since) => ({ user_id: id, username: sb.profiles[id]?.username || null, avatar: sb.profiles[id]?.avatar_emoji || null, since: new Date(since).toISOString() });
   const canSee = (viewer, owner) => rel(viewer, owner)?.status === 'accepted' && !!so.at[owner] && !!so.at[viewer] && !blockedBetween(viewer, owner);
@@ -681,6 +682,7 @@ FAKE_ACCOUNT = r"""
   // seen : coach_seen_at (null tant que le coach n'a rien ouvert : new_sessions comptées depuis le lien)
   sb.link = (coachId, student, at = now()) => { co.links.push({ coach: coachId, student, at, seen: null }); };
   const linkOf = student => co.links.find(l => l.student === student);
+  sb.linkOf = linkOf;
   // L'élève de ce coach, et je suis encore coach (private.coach_require_student)
   const coachOf = (me, student) => { const l = linkOf(student); return l && l.coach === me && co.coachAt[me] ? l : null; };
   // ── Photos de bilan (supabase/migrations/20261107000000_photos_bilan.sql) ──
@@ -1225,12 +1227,13 @@ FAKE_ACCOUNT = r"""
       if (!linkOf(me)) sb.link(r.coach, me);
       return cperson(r.coach, linkOf(me).at);
     },
-    coach_leave: me => { dropShares(me); dropChat(me); dropPhases(me); dropPhotos(p => p.student === me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
+    coach_leave: me => { (sb.onUnlink || []).forEach(f => f(me)); dropShares(me); dropChat(me); dropPhases(me); dropPhotos(p => p.student === me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
     // Retirer un accès est toujours permis, même si mon rôle de coach a été retiré
     coach_remove_student: (me, { student }) => {
       const l = linkOf(student);
       if (!l || l.coach !== me) return null;
       if (!co.bans.some(b => b.coach === me && b.student === student)) co.bans.push({ coach: me, student, at: now() });
+      (sb.onUnlink || []).forEach(f => f(student));
       dropShares(student); dropChat(student); dropPhases(student); dropPhotos(p => p.student === student);
       co.links = co.links.filter(l => l.student !== student); co.progs = co.progs.filter(p => p.student !== student); co.notes = co.notes.filter(n => n.student !== student); return null;
     },
@@ -1312,7 +1315,10 @@ FAKE_ACCOUNT = r"""
     if (fn.includes('poster_name') && sb.fail.posterName === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     const me = sb.meId();
     if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
-    const out = (photoRpc[fn] || coachRpc[fn])(me, args);
+    // Bilans configurables (tests/fake_checkins.py) : RPC posées sur __sb.extraRpc par un script chargé après celui-ci
+    if (sb.extraRpc?.[fn] && sb.fail.checkins === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
+    if (sb.extraRpc?.[fn] && sb.fail.checkins === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    const out = (sb.extraRpc?.[fn] || photoRpc[fn] || coachRpc[fn])(me, args);
     return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
   };
   // ── Parrainage ──
@@ -1417,7 +1423,7 @@ FAKE_ACCOUNT = r"""
             if (sb.fail.strava === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
             return sb.session ? { data: stravaStatus(), error: null } : { data: null, error: { code: '42501', message: 'permission denied' } };
           }
-          if (ppRpc[fn]) return callPphoto(fn, args); if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn] || photoRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (nlRpc[fn]) return callNewsletter(fn, args); if (pushRpc[fn]) return callPush(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+          if (ppRpc[fn]) return callPphoto(fn, args); if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn] || photoRpc[fn] || sb.extraRpc?.[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (nlRpc[fn]) return callNewsletter(fn, args); if (pushRpc[fn]) return callPush(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });

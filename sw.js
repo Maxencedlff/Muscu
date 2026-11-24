@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v235';
+const CACHE = 'ppl-v236';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/data/exercise-videos.json', '/data/foods.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
@@ -16,7 +16,7 @@ const ASSETS = [
   '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/my-programmes.js', '/js/data/program-generator.js',
   '/js/data/import-measures.js',
   '/js/data/exercise-videos.js', '/js/data/exercise-anims.js',
-  '/js/data/food-portions.js', '/js/data/nutrition.js', '/js/data/diet-estimate.js', '/js/data/water.js', '/js/data/defis.js', '/js/data/food-swap.js', '/js/data/food-scan.js', '/js/data/coach-diet.js', '/js/data/diet-share.js',
+  '/js/data/food-portions.js', '/js/data/nutrition.js', '/js/data/diet-estimate.js', '/js/data/water.js', '/js/data/defis.js', '/js/data/food-swap.js', '/js/data/food-scan.js', '/js/data/coach-diet.js', '/js/data/diet-share.js', '/js/data/checkins.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
   '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/swipe-row.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/body-tip.js', '/js/ui/body-zoom.js', '/js/ui/exercise-anim.js', '/js/ui/exercise-video.js', '/js/ui/medal.js', '/js/ui/vivant.js', '/js/ui/vivant-nutrition.js', '/js/ui/vivant-coach.js',
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',
