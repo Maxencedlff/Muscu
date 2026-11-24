@@ -72,7 +72,9 @@ def no_hscroll(page):
 
 def small_targets(page, sel):
     return page.evaluate("""s => [...document.querySelectorAll(s)].filter(e => e.offsetParent && !e.disabled)
-        .filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; })
+        .filter(e => { const r = e.getBoundingClientRect();
+            // Jour du calendrier : 1/7 de la largeur (sept colonnes toujours), 44 pt de haut
+            return e.matches('.defi-cal__btn') ? r.height < 44 : r.width < 44 || r.height < 44; })
         .map(e => (e.getAttribute('aria-label') || e.textContent).trim().slice(0, 30))""", sel)
 
 
@@ -137,7 +139,7 @@ def t_parcours(bench, eng, dev, theme):
         page.click('[data-action="defi-open"][data-id="dpompes1"]')
         page.wait_for_selector('.defi-view')
         txt = nb(page.inner_text('.defi-view'))
-        for want in ('Jours tenus', '16 sur 18', "Record d'un jour", 'Total', 'ne comptent pas dans Progrès', 'Tenu', 'Manqué', 'Jour 19 sur 30'):
+        for want in ('Jours tenus', '16 sur 18', "Record d'un jour", 'Total', 'ne compte pas dans Progrès', 'Tenu', 'Manqué', 'Jour 19 sur 30'):
             R.check(want in txt, f'{t} fiche : « {want} »')
         R.check(page.locator('.defi-cal__dot--done').count() >= 3, f'{t} calendrier : jours tenus en vert')
         layout(page, t, 'fiche', '.defi-view')
@@ -287,6 +289,12 @@ def t_recap(bench):
             R.check('defis' in ids, f'{theme} récap d\'octobre : écran Défis ({ids})')
             pg = page.evaluate("recapPages(recapStats(recapPeriodFromKey('m2026-10'))).find(p => p.id === 'defis')")
             R.check(pg and pg['title'] == 'Pompes' and 'jours tenus sur' in pg['caption'], f'{theme} écran Défis : {pg and pg["caption"]}')
+            R.check(pg and pg['kicker'] == 'DÉFIS EN OCTOBRE', f'{theme} titre de l\'écran : la période dite (« Défis en octobre »), pas « ce mois-ci » ({pg and pg["kicker"]})')
+            # Chiffres d'octobre : 15 jours du défi (17 au 31), 2 manqués (le 24 et le 29 octobre) ; tractions : 5 jours tenus (27 au 31)
+            want = page.evaluate("""() => { const c = data.defis.dpompes1; let t = 0, held = 0;
+                for (let d = '2026-10-17'; d <= '2026-10-31'; d = defiAddDays(d, 1)) { const x = defiDayTotal(c, d); t += x; if (x >= 100) held++; } return [t, held]; }""")
+            R.check(pg and pg['value'].replace('\u202f', ' ') == f"{want[0]:,}".replace(',', ' ') and pg['caption'] == f'{want[1]} jours tenus sur 15',
+                    f'{theme} chiffres d\'octobre : {pg and pg["value"]} reps, {pg and pg["caption"]} (attendu {want})')
             page.evaluate("openRecap('m2026-10')")
             page.wait_for_selector('.recap')
             page.evaluate(f"recapIndex = {ids.index('defis')}; render()")
@@ -313,6 +321,14 @@ def t_recap(bench):
             page.click('[data-action="setting-defis-recap"]')
             settle(page)
             shot(page, LOT, f'10-reglage-{theme}')
+            # À l'écran (récap rouvert après le réglage) et dans l'image partagée : plus d'écran Défis
+            page.evaluate("openRecap('m2026-10')")
+            page.wait_for_selector('.recap')
+            R.check(page.locator('.recap-page[data-id="defis"]').count() == 0, f'{theme} réglage coupé : écran Défis retiré du récap affiché')
+            summary_alt = page.locator('.recap-page[data-id="summary"]').get_attribute('aria-label') or ''
+            R.check('Défi' not in summary_alt, f'{theme} réglage coupé : image partagée du résumé sans défi')
+            shot(page, LOT, f'11-recap-sans-{theme}')
+            page.evaluate("navigate('settings')")
             ids = page.evaluate("recapPages(recapStats(recapPeriodFromKey('m2026-10'))).map(p => p.id)")
             lines = page.evaluate("recapPages(recapStats(recapPeriodFromKey('m2026-10'))).at(-1).lines.map(l => l[0]).join('|')")
             R.check('defis' not in ids and 'Défi' not in lines, f'{theme} réglage coupé : pas de bloc ({ids})')

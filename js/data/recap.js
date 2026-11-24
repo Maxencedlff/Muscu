@@ -542,6 +542,14 @@ function recapDefis(p, now = Date.now(), d = data) {
   return defiPeriodSummary(d, localISO(p.start), localISO(p.end - 1), localISO(now))
     .filter(x => x.held > 0).sort((a, b) => b.held - a.held || b.total - a.total);
 }
+// Période de l'écran Défis, dite telle qu'elle est (un récap d'octobre lu en novembre n'est pas « ce mois-ci ») :
+// « cette semaine » ou « la semaine du 19 octobre », « en octobre » (« en octobre 2025 » une autre année), « en 2026 »
+function recapDefiSpan(p, now = Date.now()) {
+  const thisYear = new Date(now).getFullYear(), y = new Date(p.start).getFullYear();
+  if (p.kind === 'week') return now >= p.start && now < p.end ? 'cette semaine' : `la semaine du ${new Date(p.start).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
+  if (p.kind === 'month') return `en ${RECAP_MONTH_NAME(new Date(p.start).getMonth())}${y !== thisYear ? ` ${y}` : ''}`;
+  return `en ${y}`;
+}
 // « 26 jours tenus sur 30 »
 function recapDefiHeld(x) { return `${x.held} ${x.held > 1 ? 'jours tenus' : 'jour tenu'} sur ${x.days}`; }
 
@@ -735,9 +743,9 @@ function recapPages(st) {
   const dl = st.defis || [];
   if (dl.length) {
     const [f, ...rest] = dl;
-    defis = { id: 'defis', tone: 'night', kicker: `${dl.length > 1 ? 'DÉFIS' : 'DÉFI'} ${SPAN}`, title: f.name,
+    defis = { id: 'defis', tone: 'night', kicker: `${dl.length > 1 ? 'Défis' : 'Défi'} ${recapDefiSpan(p)}`.toLocaleUpperCase('fr-FR'), title: f.name,
       value: f.measure === 'time' ? recapNb(defiAmount(f.total, 'time')) : fmtNum(f.total), unit: f.measure === 'time' ? '' : (f.total > 1 ? 'reps' : 'rep'),
-      caption: recapDefiHeld(f), foot: 'En plus des séances : ne compte pas dans le volume ni les séries',
+      caption: recapDefiHeld(f), foot: 'À part de tes séances : ne compte pas dans Progrès',
       listTitle: rest.length ? (rest.length > 1 ? 'Autres défis' : 'Autre défi') : '',
       list: rest.map(x => ({ name: x.name, value: recapNb(defiAmount(x.total, x.measure)), gain: recapDefiHeld(x) })), share: 'Partager' };
   }

@@ -18,9 +18,11 @@ const RECAPS_FIRST_WEEKS = 8;
 let recapCache = null;
 function recapLoad(key) {
   const h = data.history;
-  if (recapCache && recapCache.key === key && recapCache.h === h && recapCache.n === (h || []).length) return recapCache;
+  // Défis (écran Défis, js/data/recap.js) : leur état et le réglage « Défis dans les récaps » font partie de la clé
+  const dk = `${defisRecapOn(data)}:${data.defis ? syncHash(data.defis) : ''}`;
+  if (recapCache && recapCache.key === key && recapCache.h === h && recapCache.n === (h || []).length && recapCache.dk === dk) return recapCache;
   const p = recapPeriodFromKey(key), st = p && recapStats(p);
-  recapCache = { key, h, n: (h || []).length, p, st, pages: st ? recapPages(st) : [] };
+  recapCache = { key, h, n: (h || []).length, dk, p, st, pages: st ? recapPages(st) : [] };
   return recapCache;
 }
 
@@ -252,9 +254,15 @@ function recapFootGuard() {
   recapFootObs = null;
   const view = document.querySelector('.view.recap'), foot = view?.querySelector('.recap__foot');
   if (!foot) return;
-  const set = () => { view.style.setProperty('--rc-foot-h', `${Math.ceil(foot.getBoundingClientRect().height)}px`); recapFit(); };
+  // En-tête aussi (texte agrandi : la période passe sous la marque) : les écrans commencent sous lui
+  const top = view.querySelector('.recap__top');
+  const set = () => {
+    view.style.setProperty('--rc-foot-h', `${Math.ceil(foot.getBoundingClientRect().height)}px`);
+    if (top) view.style.setProperty('--rc-head-h', `${Math.ceil(top.getBoundingClientRect().height)}px`);
+    recapFit();
+  };
   set();
-  if (typeof ResizeObserver === 'function') { recapFootObs = new ResizeObserver(set); recapFootObs.observe(foot); }
+  if (typeof ResizeObserver === 'function') { recapFootObs = new ResizeObserver(set); recapFootObs.observe(foot); if (top) recapFootObs.observe(top); }
   document.fonts?.ready.then(() => { if (view.isConnected) recapFit(); });   // polices chargées : hauteurs définitives
 }
 

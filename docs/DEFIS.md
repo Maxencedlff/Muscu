@@ -20,7 +20,7 @@ Code : `js/data/defis.js` (logique pure), `js/features/defis-ui.js` (écrans), `
   120 s de gainage, sinon 50 reps ou 60 s), la durée (30 jours, 60 jours, sans fin) et le rappel. Un exercice mesuré en
   temps (`measureOf`) donne un objectif en secondes.
 - **Noter** : un toucher sur « +10 » ajoute tout de suite (rien au pointerdown, un seul tap iOS), avec un retour
-  haptique (succès quand l'objectif est atteint). La ligne de la série devient « +10 noté » avec « Annuler » au même
+  haptique (succès quand l'objectif est atteint). La ligne de la série devient « +10 noté · 5 jours de suite » avec « Annuler » au même
   endroit et à la même hauteur : les boutons ne bougent pas et aucun toast ne les cache (règle 9 de la grille).
   « Annuler » ignore les touchers pendant 700 ms après son apparition (`DEFI_GUARD_MS`, comme les reps en réserve) :
   un double toucher sur « +10 » n'annule pas le premier. Il reste 8 s.
@@ -33,10 +33,14 @@ Code : `js/data/defis.js` (logique pure), `js/features/defis-ui.js` (écrans), `
   - On ne note ni un jour à venir, ni avant le début, ni après la fin du défi, ni plus de 58 jours en arrière.
 - **Fiche** (toucher la carte) : grand titre au nom de l'exercice, objectif, durée et rappel ; anneau du jour et les
   mêmes boutons ; « Chiffres » (série, jours tenus sur jours écoulés, record d'un jour, total) ; la phrase « Les défis
-  ne comptent pas dans Progrès » ; le calendrier du mois (rond vert plein : tenu ; gris plein : manqué ; pointillé :
+  ne comptent pas dans Progrès » (« À part de tes séances : ne compte pas dans Progrès » ; « Jours de suite » et non
+  « Série », qui veut déjà dire série de musculation) ; le calendrier du mois (rond vert plein : tenu ; gris plein : manqué ; pointillé :
   en pause ; anneau : aujourd'hui ; légende dessous ; mois précédents avec les flèches) ; le bonhomme avec le muscle
   travaillé en rouge (l'image de tête de la fiche de la bibliothèque, `libExHeroHtml`) ; « Jour par jour » (30 derniers
   jours notés) ; puis Modifier, Mettre en pause ou Reprendre, Arrêter le défi.
+- **Calendrier** : sept colonnes qui tiennent toujours dans la largeur (chaque case 1/7, rangées de 44 pt de haut ;
+  en texte agrandi les chiffres sont plafonnés et une case peut faire moins de 44 pt de large), légende sur plusieurs
+  lignes ; les jours de plus de 2 mois sont grisés.
 - **Corriger un jour** : toucher un jour du calendrier ou de la liste, taper le total. Annuler dans le toast. 0 vide
   le jour. Seulement les 58 derniers jours (`DEFI_EDIT_DAYS`) : au-delà, le jour ne garde que son total (voir
   Données) et n'est plus touchable.
@@ -71,9 +75,9 @@ de `data.history` : rien dans Progrès ne les lit.
 
 Demande de Maxence du 24/11 : « dans le récap si c'est bien, avec une option si les gens ne veulent pas ».
 
-- Un écran « Défi(s) ce mois-ci », après les autres et avant le résumé : le défi le plus tenu en grand (« Pompes,
-  1 380 reps, 13 jours tenus sur 15 »), les autres en liste, et « En plus des séances : ne compte pas dans le volume ni
-  les séries ». Le résumé ajoute une ligne « Défi Pompes » seulement s'il lui reste une place (les séances d'abord).
+- Un écran « Défis » titré par sa période (« Défis cette semaine », « Défis la semaine du 19 octobre », « Défis en
+  octobre », « Défis en 2026 » : un récap d'octobre lu en novembre n'est pas « ce mois-ci »), après les autres et avant le résumé : le défi le plus tenu en grand (« Pompes,
+  1 380 reps, 13 jours tenus sur 15 »), les autres en liste, et « À part de tes séances : ne compte pas dans Progrès ». Le résumé ajoute une ligne « Défi Pompes » seulement s'il lui reste une place (les séances d'abord).
 - **Seulement si c'est bien** : seuls les défis qui ont au moins un jour tenu sur la période (`recapDefis`). Aucun
   défi sur la période : pas d'écran, jamais de bloc vide. Les jours en pause ne comptent pas.
 - **Le réglage** : Réglages › Apparence › « Défis dans les récaps », allumé par défaut, montré seulement à qui a (eu)

@@ -44,7 +44,7 @@ function defiStepsHtml(c, t, { day = '' } = {}) {
 function defiFootHtml(c) {
   const u = defiUndoState && defiUndoState.id === c.id ? defiUndoState : null;
   if (u) {
-    return `<div class="defi-foot defi-foot--undo" id="defi-foot-${esc(c.id)}"><span class="defi-foot__text num">${esc(`${defiStepLabel(u.n, c.measure)} noté`)}</span>
+    return `<div class="defi-foot defi-foot--undo" id="defi-foot-${esc(c.id)}"><span class="defi-foot__text num">${esc(`${defiStepLabel(u.n, c.measure)} noté · ${defiStreakText(defiStreak(c))}`)}</span>
       <button class="defi-foot__undo" data-action="defi-undo" data-id="${esc(c.id)}" aria-label="${esc(`Annuler l'ajout de ${defiAmountSpoken(u.n, c.measure)}`)}">Annuler</button></div>`;
   }
   const s = defiStreak(c);
@@ -63,7 +63,7 @@ function defiHomeCardHtml(c) {
       <button class="defi-card__open" data-action="defi-open" data-id="${esc(c.id)}" aria-label="${esc(`${c.name} : ${defiSpokenToday(c, t)}, ${defiStreakText(defiStreak(c))}. Ouvrir le défi`)}">
         ${defiRingSvg(t.ratio, 44, t.reached)}
         <span class="defi-card__text" aria-hidden="true"><span class="defi-card__name">${esc(c.name)}</span>
-          <span class="defi-card__val num"><b>${defiVal(t.done)}</b> / ${defiVal(t.goal)} ${defiUnit(c)}${t.reached ? ` · <span class="defi-card__done">Fait</span>` : ''}</span></span>
+          <span class="defi-card__val num"><span class="defi-card__num"><b>${defiVal(t.done)}</b>\u00a0/\u00a0${defiVal(t.goal)}\u00a0${defiUnit(c)}</span>${t.reached ? ` · <span class="defi-card__done">Fait</span>` : ''}</span></span>
         ${icon('chevron.right', 14)}</button>
       ${defiStepsHtml(c, t)}
       ${defiFootHtml(c)}
@@ -278,7 +278,7 @@ function defiMonthHtml(c, month) {
     const editable = st !== 'out' && day >= defiEditFrom();
     cells.push(editable
       ? `<span class="defi-cal__cell" role="listitem"><button class="defi-cal__btn" data-action="defi-day" data-id="${esc(c.id)}" data-day="${day}" aria-label="${esc(`${label}. Corriger`)}"><span class="${cls}" aria-hidden="true">${dn}</span></button></span>`
-      : `<span class="defi-cal__cell" role="listitem" aria-label="${esc(label)}"><span class="${cls}" aria-hidden="true">${dn}</span></span>`);
+      : `<span class="defi-cal__cell${st !== 'out' ? ' defi-cal__cell--locked' : ''}" role="listitem" aria-label="${esc(label)}"><span class="${cls}" aria-hidden="true">${dn}</span></span>`);
   }
   const prev = defiAddDays(first, -1).slice(0, 7), next = defiAddDays(`${month}-${nDays}`, 1).slice(0, 7);
   const canPrev = prev >= c.start.slice(0, 7), canNext = next <= today.slice(0, 7);
@@ -315,7 +315,7 @@ function renderDefi(id) {
   if (!c) return `<div class="view view--grouped">${navBar({ title: 'Défi' })}<div class="scr"><div class="empty-state"><div>Défi introuvable</div><div class="empty-state__sub">Il a été supprimé.</div></div></div></div>`;
   const t = defiToday(c), s = defiStats(c), ended = !!c.endedAt;
   const month = defiMonthOf(id, c);
-  const lenLine = c.length ? `Jour ${Math.min(s.dayNo, c.length)} sur ${c.length}` : `Jour ${s.dayNo}, sans fin`;
+  const lenLine = c.length ? `Jour\u00a0${Math.min(s.dayNo, c.length)} sur\u00a0${c.length}` : `Jour\u00a0${s.dayNo}, sans fin`;
   const hero = ended ? `
       <div class="defi-hero defi-hero--ended"><div class="defi-hero__text"><p class="defi-hero__big num">${esc(defiTitle(c))}</p>
         <p class="defi-hero__sub">Terminé le ${esc(fmtDate(c.endedAt, 'day'))}</p></div></div>`
@@ -343,15 +343,15 @@ function renderDefi(id) {
         ${hero}
         <div class="group-title">Chiffres</div>
         <div class="group" role="list">
-          ${stat('Série', defiStreakText(s.streak))}
+          ${stat('Jours de suite', String(s.streak), defiStreakText(s.streak))}
           ${stat('Jours tenus', `${s.held} sur ${s.held + s.missed}`, `${s.held} jours tenus sur ${s.held + s.missed}`)}
           ${stat('Record d\'un jour', s.best ? defiAmount(s.best, c.measure) : '0', s.best ? `${defiAmountSpoken(s.best, c.measure)}${s.bestDay ? `, le ${fmtDate(defiDate(s.bestDay).getTime(), 'day')}` : ''}` : 'aucun')}
           ${stat('Total', defiAmount(s.total, c.measure), defiAmountSpoken(s.total, c.measure))}
         </div>
-        <div class="group-foot">Les défis ne comptent pas dans Progrès (séries par muscle) : 100 pompes par jour fausseraient tes séances. Leurs chiffres sont ici.</div>
+        <div class="group-foot">À part de tes séances : ne compte pas dans Progrès.</div>
         <div class="group-title">Calendrier</div>
         <div class="group defi-cal-group">${defiMonthHtml(c, month)}</div>
-        <div class="group-foot">Touche un jour pour le corriger (les ${DEFI_EDIT_DAYS} derniers jours).</div>
+        <div class="group-foot">Touche un jour pour le corriger, jusqu'à 2 mois en arrière.</div>
         ${muscles ? `<div class="group-title">Muscles travaillés</div><div class="group defi-muscles">${muscles}</div>` : ''}
         <div class="group-title">Jour par jour</div>
         <div class="group">${defiDaysListHtml(c)}</div>
@@ -386,7 +386,7 @@ async function defiDaySheet(id, day) {
   const r = defiSetDay(data, id, day, n);
   if (!r) return;
   save(); haptic(); render(); defiPlanReminders();
-  showToast(`${when} : ${defiAmount(n, c.measure)}`, { action: 'Annuler', screen: true, onAction: () => { defiRestoreDay(data, id, day, r.before); save(); render(); defiPlanReminders(); } });
+  showToast(`${when.replace(/^./, x => x.toUpperCase())} : ${defiAmount(n, c.measure)}`, { action: 'Annuler', screen: true, onAction: () => { defiRestoreDay(data, id, day, r.before); save(); render(); defiPlanReminders(); } });
 }
 
 // ── Rappels (notification locale, iPhone) ───────────────────

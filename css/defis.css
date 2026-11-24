@@ -26,8 +26,8 @@
 .defi-card__open:active { opacity: .7; }
 .defi-card__open > .icon { flex-shrink: 0; margin-left: auto; color: var(--label3); }
 .defi-card__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.defi-card__name { font-size: 1rem; font-weight: 600; overflow-wrap: break-word; }
-.defi-card__val { font-size: var(--fs-subhead); color: var(--label2); }
+.defi-card__name { font-size: 1rem; font-weight: 600; overflow-wrap: normal; word-break: normal; }
+.defi-card__val { font-size: var(--fs-subhead); color: var(--label2); white-space: nowrap; }
 .defi-card__val b { font-size: var(--fs-title3); font-weight: 700; color: var(--label); }
 .defi-card__done { color: var(--check-on); font-weight: 600; }
 .defi-card--paused { padding-bottom: 10px; }
@@ -51,7 +51,8 @@ html.type-xl .defi-steps .defi-add { flex: 1 1 40%; }
 .defi-ended-row__name { font-weight: 400; }
 
 /* ── Fiche ── */
-.defi-view__goal { margin: -4px 20px 12px; font-size: var(--fs-subhead); color: var(--label2); }
+.defi-view .scr { padding-bottom: 32px; }   /* le bandeau d'Annuler ne cache pas la dernière ligne */
+.defi-view__goal { margin: -4px 0 12px; font-size: var(--fs-subhead); color: var(--label2); }
 .defi-view .defi-hero, .defi-view > .scr > .defi-steps, .defi-view > .scr > .defi-foot { margin-left: 16px; margin-right: 16px; }
 .defi-hero { display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--cell); border-radius: var(--r-lg); }
 .defi-hero__ring { flex-shrink: 0; }
@@ -81,18 +82,21 @@ html.type-xl .defi-hero { flex-direction: column; align-items: flex-start; }
   color: var(--tint); cursor: pointer;
 }
 .defi-cal__nav:disabled { color: var(--label3); cursor: default; }
-.defi-cal__week, .defi-cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); justify-items: center; }
-.defi-cal__week { margin: 4px 0; font-size: var(--fs-caption); font-weight: 500; color: var(--label2); }
-.defi-cal__cell { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+.defi-cal__week, .defi-cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); justify-items: stretch; }
+/* Les sept colonnes tiennent toujours : chiffres plafonnés en texte agrandi (le jour reste sous sa lettre), la case
+   fait 1/7 de la largeur et 44 pt de haut au moins */
+.defi-cal__week { margin: 4px 0; font-size: min(var(--fs-caption), 15px); font-weight: 500; color: var(--label2); text-align: center; }
+.defi-cal__cell { min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 /* Bouton du jour (dans la case, élément de liste) : toute la case se touche */
 .defi-cal__btn {
-  width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: none;
+  width: 100%; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: none;
   background: none; font: inherit; color: var(--label); cursor: pointer;
 }
 .defi-cal__dot {
-  box-sizing: border-box; width: 2.1em; height: 2.1em; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: var(--fs-footnote); font-variant-numeric: tabular-nums;
+  box-sizing: border-box; width: min(2.1em, 100%); aspect-ratio: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: min(var(--fs-footnote), 15px); font-variant-numeric: tabular-nums;
 }
+.defi-cal__cell--locked .defi-cal__dot { opacity: .55; }   /* plus de 2 mois : ne se corrige plus */
 .defi-cal__dot--out { color: var(--label2); }   /* hors du défi ou à venir : texte seul, sans fond (4,5:1) */
 .defi-cal__dot--done { background: var(--check-on); color: var(--check-mark); font-weight: 700; }
 .defi-cal__dot--missed { background: var(--label2); color: var(--cell); font-weight: 600; }   /* gris plein : se voit sur le fond (3:1), à part du vert */
@@ -100,7 +104,7 @@ html.type-xl .defi-hero { flex-direction: column; align-items: flex-start; }
 .defi-cal__dot--today { color: var(--label); }
 .defi-cal__dot--now { box-shadow: inset 0 0 0 2px var(--label2); font-weight: 800; }
 .defi-cal__dot--done.defi-cal__dot--now { box-shadow: none; }
-.defi-cal__key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: var(--fs-footnote); color: var(--label2); }
+.defi-cal__key { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: var(--fs-footnote); color: var(--label2); }
 .defi-cal__key span { display: inline-flex; align-items: center; gap: 6px; }
 .defi-cal__k { display: inline-block; width: 1em; height: 1em; border-radius: 50%; }
 .defi-cal__k--done { background: var(--check-on); }
@@ -127,11 +131,6 @@ html.type-xl .defi-hero { flex-direction: column; align-items: flex-start; }
 .defi-form__err { min-height: 1em; margin: 10px 4px 0; font-size: var(--fs-footnote); color: var(--red-text); }
 .defi-form__err:empty { display: none; }
 
-/* Écran étroit (iPhone SE de 320 pt) : le calendrier passe bord à bord, sept cases de 44 pt au moins tiennent */
-@media (max-width: 359px) {
-  .defi-cal-group { margin-left: -16px; margin-right: -16px; border-radius: 0; }
-  .defi-cal { padding-left: 0; padding-right: 0; }
-}
 
 /* L'anneau grandit avec le texte (Dynamic Type, règle 20 de la grille) */
 .defi-card .defi-ring { width: 2.75rem; height: 2.75rem; }
@@ -143,3 +142,13 @@ html.type-xl .defi-form .cell__body { flex: 1 1 100%; }
 html.type-xl .defi-form .cell__title, html.type-xl .defi-form .segmented__btn { overflow-wrap: normal; word-break: normal; hyphens: none; }
 html.type-xl .defi-form__len { flex-direction: column; }
 html.type-xl .defi-form__len .segmented__btn { width: 100%; }
+
+/* Texte agrandi, carte de l'accueil : le nom sur toute la largeur (jamais coupé dans un mot), puis l'anneau plus petit
+   à gauche du compteur */
+html.type-xl .defi-card__open { flex-wrap: wrap; row-gap: 4px; }
+html.type-xl .defi-card__text { display: contents; }
+html.type-xl .defi-card__name { order: 1; flex: 1 1 calc(100% - 2.5rem); min-width: 0; }
+html.type-xl .defi-card__open > .icon { order: 2; }
+html.type-xl .defi-card .defi-ring { order: 3; width: 1.6rem; height: 1.6rem; }
+html.type-xl .defi-card__val { order: 4; flex: 1 1 0; min-width: 0; white-space: normal; }
+html.type-xl .defi-card__num { white-space: nowrap; }

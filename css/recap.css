@@ -290,3 +290,10 @@ body.light { --rc-accent: #A85400; --rc-on-accent: #FFF; }
   .rp-pills .rp-pill { padding: 3px 8px 3px 3px; font-size: var(--fs-caption); }
   .rp-pills .rp-pill i { width: 18px; height: 18px; font-size: 11px; }
 }
+
+/* Texte agrandi (AX) : la croix reste dans l'écran ; la période passe sous la marque, en entier */
+html.type-xl .recap__head { flex-wrap: wrap; row-gap: 0; }
+html.type-xl .recap__brand { flex: 1 1 auto; min-width: 0; white-space: normal; }
+html.type-xl .recap__period { order: 3; flex: 1 1 100%; text-align: left; white-space: normal; overflow: visible; }
+/* L'en-tête sur deux lignes (période dessous) : les écrans commencent sous lui */
+html.type-xl .recap-page { padding-top: calc(var(--rc-head-h, calc(env(safe-area-inset-top, 0px) + 120px)) + 8px); }
