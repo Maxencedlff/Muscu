@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- MDLF Coach sur ordinateur (docs/COACH_WEB.md). CSP : scripts et styles du site seulement, aucun script en ligne,
+       connexions vers le projet Supabase seulement. Les en-têtes du déploiement (coach-web/vercel.json) ajoutent
+       frame-ancestors 'none', HSTS, Referrer-Policy et Permissions-Policy. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://yopptmdjtnezmccdvaxf.supabase.co; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex">
+  <title>MDLF Coach</title>
+  <link rel="stylesheet" href="css/desk.css">
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><p class="noscript">MDLF Coach a besoin de JavaScript.</p></noscript>
+
+  <!-- Logique partagée avec l'app iPhone : mêmes fichiers, dans l'ordre d'index.html de l'app (aucune copie).
+       js/data/account.js n'est pas chargé : js/desk/env.js le remplace (voir son en-tête). -->
+  <script src="../js/platform/native.js"></script>
+  <script src="../js/core/util.js"></script>
+  <script src="../js/data/programmes.js"></script>
+  <script src="../js/data/tempo.js"></script>
+  <script src="../js/data/grips.js"></script>
+  <script src="../js/data/session-order.js"></script>
+  <script src="../js/data/supersets.js"></script>
+  <script src="../js/data/machine-track.js"></script>
+  <script src="../js/data/plates.js"></script>
+  <script src="../js/data/warmup.js"></script>
+  <script src="../js/data/intensif.js"></script>
+  <script src="../js/data/unilateral.js"></script>
+  <script src="../js/data/coach-presc.js"></script>
+  <script src="../js/data/rir.js"></script>
+  <script src="../js/data/notes.js"></script>
+  <script src="../js/data/body-measures.js"></script>
+  <script src="../js/data/food-portions.js"></script>
+  <script src="../js/data/nutrition.js"></script>
+  <script src="../js/data/water.js"></script>
+  <script src="../js/data/defis.js"></script>
+  <script src="../js/data/store.js"></script>
+  <script src="../js/data/records.js"></script>
+  <script src="../js/data/account-auth.js"></script>
+  <script src="js/desk/env.js"></script>
+  <script src="../js/data/social.js"></script>
+  <script src="../js/data/coach.js"></script>
+  <script src="../js/data/coach-form.js"></script>
+  <script src="../js/data/coach-share.js"></script>
+  <script src="../js/data/coach-chat.js"></script>
+  <script src="../js/data/diet-share.js"></script>
+  <script src="../js/data/coach-plan.js"></script>
+  <script src="../js/data/coach-progress.js"></script>
+  <script src="../js/data/muscles.js"></script>
+  <script src="../js/data/exercise-catalogue.js"></script>
+  <script src="../js/data/measures.js"></script>
+  <script src="../js/data/session-review.js"></script>
+  <!-- Appli web du coach -->
+  <script src="js/desk/model.js"></script>
+  <script src="js/desk/api.js"></script>
+  <script src="js/desk/shell.js"></script>
+  <script src="js/desk/dashboard.js"></script>
+  <script src="js/desk/student.js"></script>
+  <script src="js/desk/main.js"></script>
+</body>
+</html>

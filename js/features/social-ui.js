@@ -29,8 +29,7 @@ let socialScrollComments = false;   // « Commenter » d'une carte : la séance 
 
 // ── Petits gabarits ─────────────────────────────────────────
 
-// Pseudo, ou « Compte masqué » (bloqué sans social : pseudo non renvoyé)
-function personName(p) { return p?.username || 'Compte masqué'; }
+// personName (pseudo, ou « Compte masqué ») : js/data/social.js
 // Pseudo (ou nom) à afficher en HTML : coupure possible après « _ », « . » et « - » (« camille_ / coach ») plutôt
 // qu'au milieu d'un mot en très grand texte ; jamais rogné
 function nameBreakHtml(text) { return esc(text).replace(/([._-])/g, '$1<wbr>'); }

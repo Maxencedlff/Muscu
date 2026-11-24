@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −21 | `20261124010000_semaines_coach_down.sql` (fiche Semaines du web en un appel ; ne touche à aucune donnée, l'appli web revient aux lectures une par une) | rien | oui (vérifié par `tests/sql/semaines_coach_rollback_test.sh`) |
 | −20 | `20261122010000_forme_coach_down.sql` (efface les formes choisies par les coachs ; l'app revient à « ton coach », push-send à « Commentaire du coach ») | rien | oui ; à défaire avant les notifications push (0) : `push_actor_forms` lit leur file |
 | −19 | `20261120010000_seance_publique_par_bras_down.sql` (en production depuis le 20/11/2026 ; amis et coach ne voient plus le bras droit, rien n'est effacé des séances) | rien | oui (vérifié) |
 | −18 | `20261120020000_nom_affiche_coach_down.sql` (efface les noms d'affiche envoyés ; Mon coach revient au pseudo seul) | rien | oui |

@@ -2362,6 +2362,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // ── Accord du mot « coach », 22/11 (tests dans coach-form.mjs) ──
 (await import('./coach-form.mjs')).default({ test, run, app, assert, sameJSON, ROOT });
 
+// ── Appli web du coach, 24/11 (tests dans coach-web.mjs, contexte à part : scripts de coach-web/index.html) ──
+(await import('./coach-web.mjs')).default({ test, assert, ROOT });
+
 // ── Exécution ───────────────────────────────────────────────
 
 let failed = 0;

@@ -7,12 +7,12 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['dist/**', 'ios/**', 'android/**', 'node_modules/**', 'tests/shots/**', 'ota-site/**'] },
+  { ignores: ['dist/**', 'dist-coach/**', 'ios/**', 'android/**', 'node_modules/**', 'tests/shots/**', 'ota-site/**'] },
   js.configs.recommended,
   // Espaces insécables voulus dans les textes (typographie française : « 57 min », « 12 % »)
   { rules: { 'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipRegExps: true }] } },
   {
-    files: ['js/**/*.js', 'sw.js', 'web-public/*.js'],
+    files: ['js/**/*.js', 'sw.js', 'web-public/*.js', 'coach-web/js/**/*.js'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...globals.browser, ...globals.serviceworker } },
     rules: { 'no-undef': 'off', 'no-unused-vars': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
