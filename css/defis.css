@@ -76,7 +76,7 @@ html.type-xl .defi-hero { flex-direction: column; align-items: flex-start; }
 .defi-cal { padding: 8px 4px 12px; }
 .defi-cal__head, .defi-cal__key { padding: 0 8px; }
 .defi-cal__head { display: flex; align-items: center; justify-content: space-between; }
-.defi-cal__title { flex: 1; min-width: 0; margin: 0; font-size: var(--fs-body); font-weight: 600; text-align: center; }
+.defi-cal__title { flex: 1; min-width: 0; margin: 0; font-size: min(var(--fs-body), 24px);   /* « Novembre » entier entre les deux flèches en texte agrandi */ font-weight: 600; text-align: center; }
 .defi-cal__nav {
   flex-shrink: 0; width: 44px; min-width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: none; background: none;
   color: var(--tint); cursor: pointer;
