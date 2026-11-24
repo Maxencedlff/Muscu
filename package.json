@@ -8,7 +8,9 @@
     "ios:sync": "npm run web:build && cap sync ios",
     "android:sync": "node scripts/build-web.mjs --android && cap sync android",
     "test:unit": "node tests/unit/run.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "coach-web:build": "node scripts/build-coach-web.mjs",
+    "test:coach-web": "python3 tests/test_coach_web.py"
   },
   "engines": {
     "node": ">=22"

@@ -85,6 +85,8 @@ function cleanPerson(p) {
   return { user_id: p.user_id, username, avatar: validAvatar(p.avatar), since: p.since || null };
 }
 function cleanPeople(list) { return Array.isArray(list) ? list.map(cleanPerson).filter(Boolean) : []; }
+// Nom affiché d'une personne reçue (pseudo, sinon « Compte masqué ») : logique pure, aussi pour l'appli web du coach
+function personName(p) { return p?.username || 'Compte masqué'; }
 
 // social_state() nettoyé : { enabled, username, avatar, pending_in, following, followers, requested, blocked,
 // badge, activity_new, shown_sessions } (shown_sessions : null si le serveur ne le donne pas encore)

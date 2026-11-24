@@ -33,6 +33,7 @@ sw.js                 service worker : cache d'abord, une version = un cache com
 manifest.json         manifeste PWA
 data/                 données statiques versionnées : exercise-videos.json (vidéos des coachs, docs/VIDEOS_EXERCICES.md), foods.json (base d'aliments Ciqual 2025, générée par scripts/prepare-foods.py, docs/NUTRITION_V1.md)
 css/                  styles (ordre de cascade fixé par index.html)
+coach-web/            appli web du coach sur ordinateur et tablette (docs/COACH_WEB.md) : sa page, ses écrans (js/desk/), et les scripts de js/ chargés tels quels ; construite dans dist-coach/ par scripts/build-coach-web.mjs
 js/core/              briques sans écran : utilitaires, dialogues, haptique et sons
 js/data/              donnée : programmes, stockage, accès, séance en cours, sauvegardes
 js/app/actions.js     registre des actions (chargé avant les écrans qui s'y inscrivent)
@@ -628,6 +629,7 @@ iPhone. Détails : IOS.md et docs/ANDROID.md ; cohérence vérifiée par `tests/
   l'accès Strava. Secrets `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_TOKEN_KEY`, jamais dans le dépôt.
 - `supabase/migrations/20261106200000_plans_diete_coach.sql` (écrite, pas appliquée) : accord de l'élève pour recevoir les plans diète de son coach (`coach_shares` kind `'diet'` en plus du poids et des mensurations, `private.share_kind_open` et `student_shares().kinds` qui l'annoncent), `coach_send_programme` refuse un `diet_…` sans cet accord (`diet_not_accepted`), déclencheur `coach_shares_diet_revoked` qui efface les plans diète de l'élève au retrait. Contrat : `docs/NUTRITION_V1.md`, « Accords ». Retour arrière : `supabase/rollback/20261106200000_plans_diete_coach_down.sql`.
 - `supabase/migrations/20261117090000_badge_carte_pro.sql` (écrite, pas appliquée) : badge « Carte pro déclarée » des coachs (`coach_cards` sans GRANT client, `coach_card_state`, `coach_card_declare`, `coach_card_withdraw`, `coach_card_badge` sans le numéro, `report_coach_card` dans `public.reports`, alerte dès le premier, suspension à partir de 2 comptes différents (`private.coach_card_reporters`) ; revue `private.coach_cards_review` avec le lien de la fiche officielle, `coach_card_restore`, `coach_card_remove` ; colonnes `verified_at` / `verify_method` pour FranceConnect plus tard). Contrat : `docs/COACH_V1.md`, « Badge carte pro ». Retour arrière : `supabase/rollback/20261117090000_badge_carte_pro_down.sql`.
+- `supabase/migrations/20261124010000_semaines_coach.sql` (écrite, pas appliquée) : `coach_student_weeks(student, weeks)`, la fiche « Semaines » de l'appli web du coach en un appel (séances de la fenêtre, pesées, mensurations, diète, mêmes règles que les fonctions existantes). Contrat : `docs/COACH_WEB.md`. Retour arrière : `supabase/rollback/20261124010000_semaines_coach_down.sql` (vérifié par `tests/sql/semaines_coach_rollback_test.sh`).
 - `supabase/rollback/` : retours arrière des migrations, lancés à la main seulement (Supabase ne les applique
   jamais), chacun vérifié par un script de `tests/sql/`.
 - `supabase/functions/_shared/auth-guard.js` : garde pure de l'appelant (`requireCaller` : jeton Bearer relu par

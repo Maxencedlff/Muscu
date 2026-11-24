@@ -4,6 +4,8 @@ name: Tests
 #  1. unit : syntaxe de tous les scripts, tests unitaires (dont le pont natif), contenu de l'app iOS ;
 #  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
 #     Playwright en thème sombre, répartie sur 4 machines (e2e 1/4 à 4/4) ;
+#  2 bis. coach-web : l'appli web du coach (coach-web/, docs/COACH_WEB.md) dans Chromium, Firefox et WebKit, à 1440,
+#     1180 et 820 px, sombre et clair, plus sa version construite (dist-coach/) avec le vrai supabase-js ;
 #  3. edge : les 12 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
 #     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
 #  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
@@ -39,7 +41,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Syntaxe des scripts
-        run: for f in $(find js -name '*.js') sw.js; do node --check "$f"; done
+        run: for f in $(find js coach-web/js -name '*.js') sw.js; do node --check "$f"; done
       - name: Tests unitaires
         run: node tests/unit/run.mjs
       # Postgres local jetable (préinstallé sur ubuntu-latest) : RLS, GRANT et déclencheurs des migrations
@@ -64,6 +66,8 @@ jobs:
         run: bash tests/sql/prod_order_test.sh
       - name: Retour arrière de la photo de profil (refusé avec un fichier, puis complet)
         run: bash tests/sql/photo_profil_rollback_test.sh
+      - name: Retour arrière de la fiche Semaines du coach
+        run: bash tests/sql/semaines_coach_rollback_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
@@ -118,6 +122,48 @@ jobs:
           path: ${{ runner.temp }}/ppl-tests/shots
           retention-days: 7
 
+  coach-web:
+    # Appli web du coach (docs/COACH_WEB.md) : trois moteurs, trois largeurs, deux thèmes, parcours au clavier, serveur
+    # d'avant la migration 20261124010000 (repli), refus, déconnexion. Même conteneur officiel que e2e ; ~4 min.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.62.0-noble@sha256:aa81288e738725378becba5b3e06cb0f3a7f012a610e87e8d767a090ea3f740d
+      options: --ipc=host
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox, webkit]
+    name: coach-web ${{ matrix.engine }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      PLAYWRIGHT_VERSION: 1.62.0
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Playwright et polices
+        run: bash tests/ci_conteneur.sh
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      # supabase-js (version figée du package-lock) pour la version construite
+      - name: Dépendances
+        run: npm ci --ignore-scripts
+      - name: Appli web du coach, ${{ matrix.engine }}
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+        run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web.py
+      - name: Captures en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: captures-coach-web-${{ matrix.engine }}
+          path: ${{ runner.temp }}/ppl-tests/shots
+          retention-days: 7
+
   edge:
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -141,7 +187,7 @@ jobs:
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [unit, e2e, edge]
+    needs: [unit, e2e, coach-web, edge]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

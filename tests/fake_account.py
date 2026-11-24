@@ -96,6 +96,8 @@ __sb.setPhoto(id, b64?, type?) pose une photo prête (image PNG 1 px, ou les oct
 Progression (supabase/migrations/20261106000000_coach_progression.sql) : coach_progress (séances des 35 derniers
 jours avec leurs records notés, first_at, last_record_at, unnoted_at sur 182 jours, mes élèves seulement, encore
 coach) ; __sb.fail.progress = 'missing' (PGRST202 : serveur sans la fonction, l'app lit les séances page par page).
+Fiche Semaines de l'appli web du coach (supabase/migrations/20261124010000_semaines_coach.sql) : coach_student_weeks (séances de la
+fenêtre, pesées, mensurations, diète en un appel) ; __sb.fail.weeks = 'missing' (PGRST202 : lectures une par une).
 
 Parrainage (docs/PARRAINAGE.md, supabase/migrations/20261031400000_parrainage.sql) : referral_state et
 referral_apply avec les mêmes règles (un parrain par compte, fixé à la première saisie, 30 jours après la
@@ -1240,6 +1242,20 @@ FAKE_ACCOUNT = r"""
         .sort((a, b) => cmp(key(b), key(a))).slice(0, 30)
         .map(p => ({ id: p.id, done_at: p.data.date, s: withBodyKg(me, student, p.data.date, sessionForCoach(p.id, p.data)), note: co.notes.find(n => n.student === student && n.sid === p.id)?.text || null }));
     },
+    // Fiche Semaines du web (supabase/migrations/20261124010000_semaines_coach.sql) : les lectures existantes en un appel ;
+    // __sb.fail.weeks = 'missing' : serveur d'avant (PGRST202, l'appli web lit une par une)
+    coach_student_weeks: (me, { student, weeks = 12 }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      const w = Math.min(26, Math.max(1, Number.isInteger(weeks) ? weeks : 12));
+      const d = new Date(now()); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) - 7 * (w - 1) - 1);
+      const from = d.getTime();
+      const sessions = livePosts(student).filter(p => p.data.date >= from && p.data.date <= now() + 86400_000)
+        .sort((a, b) => (b.data.date - a.data.date) || (a.id < b.id ? 1 : -1)).slice(0, 150)
+        .map(p => ({ id: p.id, done_at: p.data.date, s: withBodyKg(me, student, p.data.date, sessionForCoach(p.id, p.data)) }));
+      const part = fn => { const r = coachRpc[fn](me, { student }); return r && r.error !== undefined && r.data === null ? null : r; };
+      return { weeks: w, from, sessions, weights: part('coach_student_weights'),
+        measures: sb.fail.measures === 'missing' ? null : part('coach_student_measures'), diet: sb.fail.dietLog === 'missing' ? null : part('coach_student_diet') };
+    },
     coach_allow_student: (me, { student }) => { co.bans = co.bans.filter(b => !(b.coach === me && b.student === student)); return null; },
     coach_mark_seen: (me, { student }) => { const l = coachOf(me, student); if (!l) return pgErr('not_found'); l.seen = now(); return null; },
     coach_send_programme: (me, { student, prog_id, data }) => {
@@ -1280,6 +1296,7 @@ FAKE_ACCOUNT = r"""
     if (sb.fail.coach === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     if (fn.startsWith('chat_') && sb.fail.chat === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     if (fn.startsWith('chat_') && sb.fail.chat === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    if (fn === 'coach_student_weeks' && sb.fail.weeks === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     if (fn === 'coach_progress' && sb.fail.progress === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     const planFn = ['coach_plans', 'student_plan', 'coach_plan_save', 'coach_plan_delete'].includes(fn);
     const measFn = ['student_share_measures', 'coach_student_measures'].includes(fn);
