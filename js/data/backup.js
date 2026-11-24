@@ -141,13 +141,21 @@ function historyCsv(d = data) {
       }
     }
   }
+  // Défis (js/data/defis.js) : une ligne par jour noté, après les séances. Séance « Défi », Reps : le total du jour
+  // (« 90 s » pour un défi en temps), Note : l'objectif du jour
+  for (const c of [...defiList(d), ...defiList(d, { ended: true })]) {
+    for (const day of Object.keys(c.log || {}).sort()) {
+      const t = defiDayTotal(c, day), g = defiGoalOn(c, day);
+      rows.push([day, 'Défi', c.name, '', '', c.measure === 'time' ? `${t} s` : String(t), '', `Objectif ${c.measure === 'time' ? `${g} s` : g}`]);
+    }
+  }
   return '\uFEFF' + rows.map(r => r.map(csvCell).join(';')).join('\r\n') + '\r\n';
 }
 
 // Fichier CSV remis par la feuille de partage (comme l'export JSON), sinon téléchargé.
 // Renvoie 'empty' (aucune séance), 'cancelled', 'shared' ou 'downloaded'.
 async function exportHistoryCsv() {
-  if (!(data.history || []).length) return 'empty';
+  if (!(data.history || []).length && !defiList(data).length && !defiList(data, { ended: true }).length) return 'empty';
   const csv = historyCsv(), fname = `mdlf-seances-${localISO()}.csv`;
   if (typeof File !== 'function') { downloadBlob(new Blob([csv], { type: 'text/csv' }), fname); return 'downloaded'; }
   return shareOrDownload(new File([csv], fname, { type: 'text/csv' }), 'Séances MDLF Training');

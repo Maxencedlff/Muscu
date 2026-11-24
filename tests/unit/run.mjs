@@ -40,6 +40,7 @@ const SCRIPTS = [
   'js/data/nutrition.js',
   'js/data/diet-estimate.js',
   'js/data/water.js',
+  'js/data/defis.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -132,6 +133,7 @@ const SCRIPTS = [
   'js/features/siri.js',
   'js/features/nutrition-ui.js',   // carte Nutrition de l'accueil (nutritionHomeCard)
   'js/features/water-ui.js',       // ligne Eau de cette carte (waterHomeRowHtml)
+  'js/features/defis-ui.js',       // section Défis de l'accueil, fiche, rappels (defiReminderPlan)
 ];
 
 // ── Environnement simulé ────────────────────────────────────
@@ -2325,6 +2327,7 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./diet-estimate.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Eau : objectif en litres, ajouts, journal, plan du coach (docs/EAU.md)
 (await import('./water.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+(await import('./defis.mjs')).default({ test, run, reset, assert, sameJSON });
 // Scanner un aliment : codes-barres, réponse d'Open Food Facts, Mes aliments (tests dans food-scan.mjs)
 (await import('./food-scan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Quantités à l'unité : portions courantes, conversions, unité du paquet (tests dans food-portions.mjs)

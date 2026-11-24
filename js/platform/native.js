@@ -288,6 +288,29 @@ const Native = (() => {
       try { return (await LocalNotifications.checkPermissions()).display || null; } catch { return null; }
     },
 
+    // Autorisation des notifications, demandée si iOS ne l'a encore jamais demandée ('granted', 'denied'…) ; null hors app
+    async requestNotificationPermission() {
+      if (!isNative) return null;
+      try {
+        const cur = await LocalNotifications.checkPermissions();
+        notifPermission = cur.display === 'granted' ? 'granted' : cur.display === 'denied' ? 'denied' : (await LocalNotifications.requestPermissions()).display;
+        return notifPermission;
+      } catch { return null; }
+    },
+
+    // Rappels des défis (js/features/defis-ui.js, defiReminderPlan) : la liste remplace les précédents (identifiants 7100
+    // à 7199), seulement si les notifications sont déjà accordées (jamais de demande d'iOS d'ici)
+    async scheduleDefiReminders(list) {
+      if (!isNative) return;
+      try {
+        const ids = Array.from({ length: 100 }, (_, i) => ({ id: 7100 + i }));
+        await LocalNotifications.cancel({ notifications: ids });
+        if ((await LocalNotifications.checkPermissions()).display !== 'granted' || !list.length) return;
+        await LocalNotifications.schedule({ notifications: list.slice(0, 64).map(n => ({
+          id: n.id, title: n.title, body: n.body, sound: 'default', schedule: { at: new Date(n.at), allowWhileIdle: true } })) });
+      } catch {}
+    },
+
     cancelRestEnd() {
       if (isNative) quiet(LocalNotifications.cancel({ notifications: [{ id: REST_NOTIF_ID }] }));
     },

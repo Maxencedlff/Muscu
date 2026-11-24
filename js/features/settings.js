@@ -154,7 +154,13 @@ ${renderAppleServicesGroup(switchHtml)}
             <span class="cell__body"><span class="cell__title">Carte « Ta semaine »</span>
               <span class="cell__sub">Sur l'accueil le dimanche soir et le lundi</span></span>
             ${switchHtml(data.recapCardOff !== true)}
-          </button>
+          </button>${defiList(data).length || defiList(data, { ended: true }).length ? `
+          <button class="cell" data-action="setting-defis-recap" role="switch" aria-checked="${data.defisRecapOff !== true}">
+            ${cellIco('checkmark.seal', 'green')}
+            <span class="cell__body"><span class="cell__title">Défis dans les récaps</span>
+              <span class="cell__sub">Écran et image partagée de la semaine, du mois, de l'année</span></span>
+            ${switchHtml(data.defisRecapOff !== true)}
+          </button>` : ''}
         </div>
 ${renderAppIconGroup()}
 ${renderCoachSettingsGroup()}

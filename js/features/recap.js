@@ -389,6 +389,10 @@ registerActions({
   'recap-prev':      () => { recapGo(-1); },
   'recap-next':      () => { recapGo(1); },
   'recap-share':     (e, el) => { openRecapShare(el.dataset.key); },
+  'setting-defis-recap': () => {
+    if (data.defisRecapOff === true) delete data.defisRecapOff; else data.defisRecapOff = true;
+    save(); render();
+  },
   'setting-recap-card': () => {
     if (data.recapCardOff === true) delete data.recapCardOff; else data.recapCardOff = true;
     save(); render();

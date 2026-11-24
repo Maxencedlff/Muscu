@@ -17,6 +17,8 @@ d'un dialogue), onglet, retour, saisir (toucher le champ + taper), defiler (not�
 raccourci (état préparé par JS, noté « préparé », jamais compté), attendre, present.
 Les parcours tournent dans l'ordre de ce fichier, chacun dans un contexte neuf (stockage vide).
 """
+import datetime
+from zoneinfo import ZoneInfo
 import json
 import os
 import sys
@@ -2701,3 +2703,90 @@ def p_eleve_ma_coach(r):
         r.attendre('.coach-mine-view', 'Ma coach')
     with r.etape('quitter', 'Bas de l\'écran : « Quitter ma coach »', cle=cle):
         r.defiler('[data-action="coach-leave"]', 'Quitter ma coach')
+
+
+# ─────────────────────────────────────────────────────────────
+#  Défis (docs/DEFIS.md)
+# ─────────────────────────────────────────────────────────────
+def defis_fixture(now=NOW, recap_off=False):
+    """Deux défis en cours : 100 pompes par jour depuis 19 jours (deux jours manqués, 63 aujourd'hui en deux fois) et
+    20 tractions par jour depuis 9 jours (12 aujourd'hui). Jours en heure de Paris, identifiants au format de l'app."""
+    def jour(n):
+        return datetime.datetime.fromtimestamp(days_back_ms(now, n, 12, tz=PARIS) / 1000, ZoneInfo(PARIS)).date().isoformat()
+    def ajout(k, n, h, nb):
+        return {'id': f'e{k}{n}{h}'.replace('-', '')[:12], 'n': nb, 'at': days_back_ms(now, n, h, tz=PARIS)}
+    pompes = {}
+    for n in range(18, 0, -1):
+        if n in (11, 6):
+            pompes[jour(n)] = [ajout('p', n, 8, 40)]           # jour manqué : 40 sur 100
+            continue
+        pompes[jour(n)] = [ajout('p', n, 8, 30), ajout('p', n, 12, 40), ajout('p', n, 19, 30 + (n % 3) * 10)]
+    pompes[jour(0)] = [ajout('p', 0, 8, 30), ajout('p', 0, 13, 33)]
+    tractions = {jour(n): [ajout('t', n, 9, 10), ajout('t', n, 18, 10 + (n % 2) * 2)] for n in range(8, 0, -1)}
+    tractions[jour(0)] = [ajout('t', 0, 9, 12)]
+    defis = {
+        'dpompes1': {'id': 'dpompes1', 'name': 'Pompes', 'measure': 'reps', 'goals': [{'from': jour(18), 'n': 100}], 'start': jour(18),
+                     'length': 30, 'remind': '18:00', 'pauses': [], 'at': days_back_ms(now, 18, 8, tz=PARIS), 'log': pompes, 'gone': []},
+        'dtract01': {'id': 'dtract01', 'name': 'Tractions pronation', 'measure': 'reps', 'goals': [{'from': jour(8), 'n': 20}], 'start': jour(8),
+                     'length': 0, 'remind': None, 'pauses': [], 'at': days_back_ms(now, 8, 9, tz=PARIS), 'log': tractions, 'gone': []},
+    }
+    d = json.loads(REALISTE)
+    d['defis'] = defis
+    if recap_off:
+        d['defisRecapOff'] = True
+    return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
+
+
+@parcours('defis', 'Défis : accueil, ajout rapide, fiche, création', 'pratiquant')
+def p_defis(r):
+    """Pratiquant qui fait 100 pompes et 20 tractions par jour en plus de ses séances. Il note 10 pompes depuis
+    l'accueil, ouvre la fiche du défi, puis lance un défi de dips. Enfin, sans défi : la ligne « Lancer un défi »."""
+    r.lancer(defis_fixture())
+    cle = 'Noter 10 pompes'
+    with r.etape('accueil', 'Accueil, section Défis (bas de l\'écran)', cle=cle):
+        r.attendre('.view.dashboard', 'accueil')
+        r.defiler('#homeDefis', 'section Défis')
+        r.bas('bas de l\'accueil')
+    with r.etape('ajout', '« +10 » sur Pompes : noté, Annuler à sa place', cle=cle):
+        r.toucher('[data-action="defi-add"][data-id="dpompes1"][data-n="10"]', '+10 (Pompes)')
+    with r.etape('fiche', 'Fiche du défi Pompes', cle='Ouvrir un défi'):
+        r.toucher('[data-action="defi-open"][data-id="dpompes1"]', 'carte Pompes')
+        r.attendre('.defi-view', 'fiche du défi')
+    with r.etape('fiche-calendrier', 'Fiche : chiffres et calendrier'):
+        r.defiler('.defi-cal', 'calendrier')
+    with r.etape('fiche-bas', 'Fiche : jour par jour et actions'):
+        r.bas('bas de la fiche')
+    with r.etape('corriger', 'Corriger un jour passé (toucher un jour)'):
+        r.toucher('.defi-view .cell[data-action="defi-day"]', 'un jour de la liste', nth=1)
+    with r.etape('corriger-ok', 'Total corrigé : 100'):
+        r.saisir('.ios-dialog__input', '100', 'total du jour')
+        r.choisir('OK')
+    cle = 'Lancer un défi'
+    with r.etape('nouveau', '« Nouveau défi » : choix de l\'exercice', cle=cle):
+        r.retour()
+        r.attendre('.view.dashboard', 'accueil')
+        r.toucher('[data-action="defi-new"]', 'Nouveau défi')
+        r.attendre('.sess-sheet--addex', 'feuille des exercices')
+    with r.etape('reglages', 'Dips choisi : objectif, durée, rappel', cle=cle):
+        r.toucher('.sess-sheet--addex [data-action="ax-pick"][data-name="Dips"]', 'Dips')
+        r.attendre('.defi-form', 'réglages du défi')
+    with r.etape('lance', '« Lancer » : trois défis sur l\'accueil', cle=cle):
+        r.toucher('.sheet__btn--confirm', 'Lancer')
+        r.defiler('#homeDefis', 'section Défis')
+    with r.etape('recap', 'Récap d\'octobre : écran Défis (total et jours tenus)'):
+        r.raccourci("() => { const ids = recapPages(recapStats(recapPeriodFromKey('m2026-10'))).map(p => p.id); openRecap('m2026-10'); "
+                    "recapIndex = Math.max(0, ids.indexOf('defis')); render(); }", 'récap d\'octobre ouvert sur l\'écran Défis')
+        r.attendre('.recap-page.is-active', 'écran du récap')
+        r.page.wait_for_timeout(900)
+    with r.etape('recap-reglage', 'Réglages › Apparence : « Défis dans les récaps »'):
+        r.raccourci("() => navigate('settings')", 'Réglages ouverts')
+        r.defiler('[data-action="setting-defis-recap"]', 'réglage des récaps')
+    with r.etape('recap-sans', 'Réglage coupé : le récap d\'octobre sans écran Défis (résumé)'):
+        r.toucher('[data-action="setting-defis-recap"]', 'Défis dans les récaps')
+        r.raccourci("() => { openRecap('m2026-10'); recapIndex = recapPages(recapStats(recapPeriodFromKey('m2026-10'))).length - 1; render(); }",
+                    'récap d\'octobre, dernier écran')
+        r.page.wait_for_timeout(900)
+    with r.etape('vide', 'Sans défi : une seule ligne « Lancer un défi »'):
+        r.raccourci("() => { routeTo('dashboard'); }", 'retour à l\'accueil')
+        r.raccourci("() => { delete data.defis; save(); render(); }", 'défis retirés')
+        r.bas('bas de l\'accueil')

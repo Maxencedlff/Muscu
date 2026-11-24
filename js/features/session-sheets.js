@@ -165,6 +165,13 @@ function axListHtml(q) {
   const create = query && !names.some(n => normName(n) === nq) ? axCreateHtml(query) : '';
   if (!query) {
     if (ax.replaceEi !== null) return axReplaceListHtml(names);
+    // Défi (js/features/defis-ui.js) : les suggestions d'abord (pompes, tractions…), puis toute la bibliothèque
+    if (ax.target === 'defi') {
+      const sugg = DEFI_SUGGESTIONS.map(x => x.name).filter(n => names.some(m => sameExerciseName(m, n)));
+      const keys = new Set(sugg.map(exerciseNameKey));
+      return (sugg.length ? axHintHtml('Suggestions') + sugg.map(axItemHtml).join('') + axHintHtml('Tous les exercices') : '')
+        + names.filter(n => !keys.has(exerciseNameKey(n))).map(axItemHtml).join('');
+    }
     if (names.length && !muscleFilterTargets(axMuscle)) return axSectionsHtml(names);
     return names.length ? names.map(axItemHtml).join('')
       : `<div class="ax__empty">Aucun exercice${muscleFilterTargets(axMuscle) ? ' pour ce muscle' : ''}</div>`;
@@ -288,7 +295,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
     <div class="ax">
       <div class="ax__bar">
         <button class="ax__cancel" data-action="sheet-done">Annuler</button>
-        <div class="ax__title">${rep ? 'Remplacer l\'exercice' : 'Ajouter un exercice'}</div>
+        <div class="ax__title">${rep ? 'Remplacer l\'exercice' : target === 'defi' ? 'Exercice du défi' : 'Ajouter un exercice'}</div>
         <span class="ax__spacer"></span>
       </div>
       ${rep ? `<div class="ax__replacing">À la place de ${esc(rep.name)}</div>${axProgressionHtml(rep.name)}` : ''}
@@ -296,7 +303,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
              autocapitalize="sentences" enterkeyhint="done" aria-label="Rechercher un exercice">
       ${axEquipHtml()}
       ${muscleFilterHtml('ax-muscle', axMuscle)}
-      <div class="ax__opts">
+      ${target === 'defi' ? '' : `<div class="ax__opts">
         <div class="ax__opt">
           <span>Séries</span>
           <div class="ax-stepper">
@@ -310,10 +317,10 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
           <span>Ajouter au programme</span>
           <input type="checkbox" id="axToProg" class="ax-switch" role="switch">
         </label>`}`}
-      </div>
+      </div>`}
       <div class="ax__list" id="axList">${axListHtml('')}</div>
     </div>`;
-  openSessSheet({ cls: 'sess-sheet--addex', label: rep ? 'Remplacer l\'exercice' : 'Ajouter un exercice', html, full: true });
+  openSessSheet({ cls: 'sess-sheet--addex', label: rep ? 'Remplacer l\'exercice' : target === 'defi' ? 'Exercice du défi' : 'Ajouter un exercice', html, full: true });
 }
 
 // Exercice choisi dans la feuille (liste, « Créer » ou touche Entrée), remis à sa cible
@@ -323,6 +330,7 @@ function axPick(name) {
   name = name.charAt(0).toUpperCase() + name.slice(1);  // nom créé en minuscules : « Hip thrust », pas « hip thrust »
   // Lu avant l'ajout, qui fait entrer le nom dans la bibliothèque
   const created = !exerciseLibrary().some(n => sameExerciseName(n, name));
+  if (ax.target === 'defi') { document.querySelector('.sess-sheet--addex')?._close?.(); ax.onPick?.(name); return; }
   if (ax.target === 'past') ax.onPick?.(name, axSets);
   else pickExercise(name);
   // Hors séance, nom inventé : muscles devinés proposés à la vérification (un toucher sur OK les confirme,

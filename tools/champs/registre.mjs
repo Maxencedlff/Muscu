@@ -170,6 +170,10 @@ export const REGISTRE = [
   { cle: 'features/water-ui.js#waterCupName', nom: 'Eau : nom d\'un contenant', genre: 'texte', vide: 'refuse', preuve: ['waterAddCup('], serveur: null },
   { cle: 'features/water-ui.js#waterCupMl', nom: 'Eau : quantité d\'un contenant (cl)', genre: 'nombre', virgule: true,
     preuve: ['waterParseQty('], vide: 'refuse', serveur: null, exemption: { longueur: 'valeur bornée par waterParseQty' } },
+  { cle: 'features/defis-ui.js#defiGoal', nom: 'Défi : objectif par jour (reps ou secondes)', genre: 'entier', bornes: { min: 1, max: 2000 },
+    preuve: ['defiParseAmount(', 'DEFI_GOAL_MAX'], vide: 'refuse', serveur: null,
+    avertir: 'part dans profiles.doc (jsonb que le serveur ne lit pas) ; borné à la lecture par cleanDefi (js/data/defis.js)' },
+  { cle: 'features/defis-ui.js#defiRemind', nom: 'Défi : heure du rappel', genre: 'date', vide: 'permis', serveur: null },
 
   // ── Compte, abonnement, social ─────────────────────────────
   { cle: 'features/auth-flow.js#authEmail', nom: 'Adresse e-mail', genre: 'email', longueur: { max: 254 }, preuve: ['emailLooksValid('],

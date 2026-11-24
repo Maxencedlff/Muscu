@@ -1,0 +1,134 @@
+/* ═══════════════════════════════════════════════
+   Défis (js/features/defis-ui.js, docs/DEFIS.md) : cartes de l'accueil, fiche, calendrier, feuille de réglages.
+   Vert (--check-on) : l'avancée et les jours tenus, comme la semaine de l'accueil et la jauge de l'eau. Orange : les
+   actions seulement (texte des boutons). Piste grise, aucun dégradé, aucune lueur, jamais de rouge sauf « Arrêter ».
+═══════════════════════════════════════════════ */
+
+/* Anneau du jour */
+.defi-ring { display: block; flex-shrink: 0; }
+.defi-ring__track { fill: none; stroke: var(--fill); stroke-width: 4.5; }
+.defi-ring__arc { fill: none; stroke: var(--check-on); stroke-width: 4.5; stroke-linecap: round; }
+.defi-ring__check { fill: none; stroke: var(--check-on); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Accueil ── */
+.defis-home__card { padding: 0 16px; }
+.defi-card { position: relative; padding: 10px 0 2px; }
+.defi-card + .defi-card::before, .defis-home__card .defi-ended-row::before {
+  content: ''; position: absolute; top: 0; right: 0; left: 0; height: .5px; background: var(--sep);
+}
+.defi-card__open {
+  width: 100%; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 2px 0; border: none; background: none;
+  font: inherit; color: var(--label); text-align: left; cursor: pointer;
+}
+.defi-card__open:active { opacity: .7; }
+.defi-card__open > .icon { flex-shrink: 0; margin-left: auto; color: var(--label3); }
+.defi-card__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.defi-card__name { font-size: 1rem; font-weight: 600; overflow-wrap: break-word; }
+.defi-card__val { font-size: var(--fs-subhead); color: var(--label2); }
+.defi-card__val b { font-size: var(--fs-title3); font-weight: 700; color: var(--label); }
+.defi-card__done { color: var(--check-on); font-weight: 600; }
+.defi-card--paused { padding-bottom: 10px; }
+
+/* Boutons de pas : gris au texte orange (bouton secondaire, comme « + Verre »), 44 pt, sur une ligne */
+.defi-steps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.defi-steps .defi-add { flex: 1 1 0; min-width: 56px; font-size: var(--fs-body); }
+.defi-steps .defi-add--other { flex: 1 1 0; }
+html.type-xl .defi-steps .defi-add { flex: 1 1 40%; }
+
+/* Ligne sous les boutons : la série, ou « +10 noté » et Annuler, même hauteur (rien ne bouge) */
+.defi-foot { min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 12px; }
+.defi-foot__text { font-size: var(--fs-footnote); color: var(--label2); }
+.defi-foot--undo .defi-foot__text { color: var(--label); font-weight: 600; }
+.defi-foot__undo {
+  min-height: 44px; min-width: 44px; margin-right: -8px; padding: 0 8px; border: none; background: none; cursor: pointer;
+  font: inherit; font-size: var(--fs-subhead); font-weight: 600; color: var(--tint);
+}
+.defi-foot__undo:active { opacity: .5; }
+.defis-home__card .defi-ended-row { position: relative; }
+.defi-ended-row__name { font-weight: 400; }
+
+/* ── Fiche ── */
+.defi-view__goal { margin: -4px 20px 12px; font-size: var(--fs-subhead); color: var(--label2); }
+.defi-view .defi-hero, .defi-view > .scr > .defi-steps, .defi-view > .scr > .defi-foot { margin-left: 16px; margin-right: 16px; }
+.defi-hero { display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--cell); border-radius: var(--r-lg); }
+.defi-hero__ring { flex-shrink: 0; }
+.defi-hero__text { min-width: 0; }
+.defi-hero__big { margin: 0; font-size: var(--fs-title3); color: var(--label2); }
+.defi-hero__big b { font-size: var(--fs-large); font-weight: 700; color: var(--label); }
+.defi-hero__sub { margin: 4px 0 0; font-size: var(--fs-footnote); color: var(--label2); }
+.defi-hero--ended .defi-hero__big { color: var(--label); font-weight: 600; }
+html.type-xl .defi-hero { flex-direction: column; align-items: flex-start; }
+
+.defi-day__val { display: inline-flex; align-items: center; gap: 4px; }
+.defi-day__val--done { color: var(--label); }
+.defi-day__val--done .icon { color: var(--check-on); }
+.defi-acts { margin-top: 28px; }
+.defi-act .defi-act__t { color: var(--tint); }
+.defi-act--del .cell__title { color: var(--red-text); }
+.defi-muscles { overflow: hidden; }
+.defi-muscles .exhero { margin: 0; border-radius: 0; }
+
+/* Calendrier du mois : un rond par jour, lundi en premier */
+.defi-cal { padding: 8px 4px 12px; }
+.defi-cal__head, .defi-cal__key { padding: 0 8px; }
+.defi-cal__head { display: flex; align-items: center; justify-content: space-between; }
+.defi-cal__title { flex: 1; min-width: 0; margin: 0; font-size: var(--fs-body); font-weight: 600; text-align: center; }
+.defi-cal__nav {
+  flex-shrink: 0; width: 44px; min-width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: none; background: none;
+  color: var(--tint); cursor: pointer;
+}
+.defi-cal__nav:disabled { color: var(--label3); cursor: default; }
+.defi-cal__week, .defi-cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); justify-items: center; }
+.defi-cal__week { margin: 4px 0; font-size: var(--fs-caption); font-weight: 500; color: var(--label2); }
+.defi-cal__cell {
+  width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: none;
+  background: none; font: inherit; color: var(--label); cursor: pointer;
+}
+span.defi-cal__cell { cursor: default; }
+.defi-cal__dot {
+  box-sizing: border-box; width: 2.1em; height: 2.1em; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-footnote); font-variant-numeric: tabular-nums;
+}
+.defi-cal__dot--out { color: var(--label2); }   /* hors du défi ou à venir : texte seul, sans fond (4,5:1) */
+.defi-cal__dot--done { background: var(--check-on); color: var(--check-mark); font-weight: 700; }
+.defi-cal__dot--missed { background: var(--label2); color: var(--cell); font-weight: 600; }   /* gris plein : se voit sur le fond (3:1), à part du vert */
+.defi-cal__dot--paused { border: 1.5px dashed var(--label2); color: var(--label2); background: none; }
+.defi-cal__dot--today { color: var(--label); }
+.defi-cal__dot--now { box-shadow: inset 0 0 0 2px var(--label2); font-weight: 800; }
+.defi-cal__dot--done.defi-cal__dot--now { box-shadow: none; }
+.defi-cal__key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: var(--fs-footnote); color: var(--label2); }
+.defi-cal__key span { display: inline-flex; align-items: center; gap: 6px; }
+.defi-cal__k { display: inline-block; width: 1em; height: 1em; border-radius: 50%; }
+.defi-cal__k--done { background: var(--check-on); }
+.defi-cal__k--missed { background: var(--label2); }
+.defi-cal__k--paused { border: 1.5px dashed var(--label2); box-sizing: border-box; }
+
+/* ── Feuille de réglages (création, modification) ── */
+/* .view--grouped : cellules iOS ; la feuille a le fond des cellules, les groupes prennent le remplissage gris */
+.defi-form { background: none; padding: 0 0 8px; }
+.defi-form .group { background: var(--fill2); }
+.defi-form .group-title, .defi-form .group-foot { padding-left: 4px; padding-right: 4px; }
+.defi-form__ex { margin: 4px 4px 0; font-size: var(--fs-title3); font-weight: 600; text-align: center; }
+.defi-form .group-title:first-child { margin-top: 12px; }
+.defi-form__field { display: inline-flex; align-items: baseline; gap: 6px; flex-shrink: 0; }
+.defi-form__input {
+  width: 5.5em; min-height: 44px; padding: 0 8px; border: none; border-radius: var(--r-md); background: var(--cell);
+  font: inherit; font-size: var(--fs-input); text-align: right; color: var(--label);
+}
+.defi-form__unit { font-size: var(--fs-subhead); color: var(--label2); }
+.defi-form__len { display: flex; margin: 0 0 4px; }
+.defi-form__len .segmented__btn { flex: 1; min-height: 44px; }
+.defi-form__clock { min-height: 44px; border: none; background: var(--cell); border-radius: var(--r-md); padding: 0 10px; font: inherit; font-size: var(--fs-input); color: var(--label); }
+.defi-form__time[hidden] { display: none; }
+.defi-form__err { min-height: 1em; margin: 10px 4px 0; font-size: var(--fs-footnote); color: var(--red-text); }
+.defi-form__err:empty { display: none; }
+
+/* Écran étroit (iPhone SE de 320 pt) : le calendrier passe bord à bord, sept cases de 44 pt au moins tiennent */
+@media (max-width: 359px) {
+  .defi-cal-group { margin-left: -16px; margin-right: -16px; border-radius: 0; }
+  .defi-cal { padding-left: 0; padding-right: 0; }
+}
+
+/* L'anneau grandit avec le texte (Dynamic Type, règle 20 de la grille) */
+.defi-card .defi-ring { width: 2.75rem; height: 2.75rem; }
+.defi-hero .defi-ring { width: 6rem; height: 6rem; }

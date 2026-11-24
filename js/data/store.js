@@ -363,6 +363,8 @@ function sanitizeData(d) {
   sanitizeDiet(d);
   // Eau (js/data/water.js, chargé avant) : suivi, objectif choisi, contenants, journal waterLog
   sanitizeWater(d);
+  // Défis (js/data/defis.js, chargé avant) : défis, ajouts du jour, réglage des récaps
+  sanitizeDefis(d);
   return d;
 }
 

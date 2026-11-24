@@ -530,8 +530,20 @@ function recapStats(p, history = data.history, now = Date.now()) {
   st.activeWeeks = recapActiveWeeks(sessions);
   st.milestones = recapMilestones(history, p);
   st.progress = p.kind === 'week' ? null : recapExerciseProgress(sessions, st.topExercise);
+  st.defis = recapDefis(p, now);
   return st;
 }
+
+// Défis de la période (js/data/defis.js) : seulement ceux qui y ont au moins un jour tenu, le plus de jours tenus
+// d'abord ; rien si Réglages › Apparence › « Défis dans les récaps » est coupé (data.defisRecapOff), ni à l'écran ni
+// sur l'image partagée (l'écran n'est pas produit)
+function recapDefis(p, now = Date.now(), d = data) {
+  if (!d || d.defisRecapOff === true || !d.defis) return [];
+  return defiPeriodSummary(d, localISO(p.start), localISO(p.end - 1), localISO(now))
+    .filter(x => x.held > 0).sort((a, b) => b.held - a.held || b.total - a.total);
+}
+// « 26 jours tenus sur 30 »
+function recapDefiHeld(x) { return `${x.held} ${x.held > 1 ? 'jours tenus' : 'jour tenu'} sur ${x.days}`; }
 
 // ── Quand montrer quoi ──────────────────────────────────────
 
@@ -718,8 +730,20 @@ function recapPages(st) {
       list: st.milestones.slice(0, -1).reverse().slice(0, 4).map(x => ({ name: `${x.n}e séance`, value: recapDay(x.date, kind) })), share: 'Partager' };
   }
 
+  // Défis : le premier en grand (total et jours tenus), les autres en liste. Hors des séries et du volume (docs/DEFIS.md)
+  let defis = null;
+  const dl = st.defis || [];
+  if (dl.length) {
+    const [f, ...rest] = dl;
+    defis = { id: 'defis', tone: 'night', kicker: `${dl.length > 1 ? 'DÉFIS' : 'DÉFI'} ${SPAN}`, title: f.name,
+      value: f.measure === 'time' ? recapNb(defiAmount(f.total, 'time')) : fmtNum(f.total), unit: f.measure === 'time' ? '' : (f.total > 1 ? 'reps' : 'rep'),
+      caption: recapDefiHeld(f), foot: 'En plus des séances : ne compte pas dans le volume ni les séries',
+      listTitle: rest.length ? (rest.length > 1 ? 'Autres défis' : 'Autre défi') : '',
+      list: rest.map(x => ({ name: x.name, value: recapNb(defiAmount(x.total, x.measure)), gain: recapDefiHeld(x) })), share: 'Partager' };
+  }
+
   // Petite période (1 ou 2 séances) : le record et la régularité d'abord, le volume ensuite
-  const order = st.sessions <= 2 ? [record, streak, profile, volume, ex, milestone] : [profile, volume, record, ex, streak, milestone];
+  const order = st.sessions <= 2 ? [record, streak, profile, volume, ex, milestone, defis] : [profile, volume, record, ex, streak, milestone, defis];
   order.forEach(pg => { if (pg) pages.push(pg); });
   pages.push(recapSummaryPage(st));
   return pages;
@@ -749,6 +773,9 @@ function recapSummaryPage(st) {
   const m = kind === 'year' && st.milestones.at(-1);   // semaine, mois : le palier est dit à l'ouverture
   if (m) lines.push(['Palier de séances', `${m.n}e séance, le ${recapDay(m.date, kind)}`]);
   if (st.topMuscle) lines.push(['Muscle le plus travaillé', st.topMuscle.label]);
+  // Défi : seulement s'il reste une place (les séances d'abord)
+  const df = (st.defis || [])[0];
+  if (df && lines.length < RECAP_SUMMARY_LINES) lines.push([`Défi ${df.name}`, `${recapNb(defiAmount(df.total, df.measure))} · ${recapDefiHeld(df)}`]);
   return { id: 'summary', tone: 'accent', kicker: p.label.toLocaleUpperCase('fr-FR'),
     title: `${RECAP_MINE[kind]} en bref`, tiles: tiles.slice(0, 4), lines: lines.slice(0, RECAP_SUMMARY_LINES),
     share: `Partager ${RECAP_MINE[kind].toLowerCase()}` };
