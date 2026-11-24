@@ -133,3 +133,10 @@ html.type-xl .defi-hero { flex-direction: column; align-items: flex-start; }
 /* L'anneau grandit avec le texte (Dynamic Type, règle 20 de la grille) */
 .defi-card .defi-ring { width: 2.75rem; height: 2.75rem; }
 .defi-hero .defi-ring { width: 6rem; height: 6rem; }
+
+/* Texte agrandi : le champ passe sous son libellé, la durée en trois lignes ; jamais un mot coupé */
+html.type-xl .defi-form .cell { flex-wrap: wrap; }
+html.type-xl .defi-form .cell__body { flex: 1 1 100%; }
+html.type-xl .defi-form .cell__title, html.type-xl .defi-form .segmented__btn { overflow-wrap: normal; word-break: normal; hyphens: none; }
+html.type-xl .defi-form__len { flex-direction: column; }
+html.type-xl .defi-form__len .segmented__btn { width: 100%; }

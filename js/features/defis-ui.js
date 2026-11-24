@@ -339,7 +339,7 @@ function renderDefi(id) {
     <div class="view view--grouped defi-view">
       ${navBar({ title: esc(c.name), large: true })}
       <div class="scr">
-        <p class="defi-view__goal">${esc(`${defiAmount(defiGoal(c), c.measure)} par jour · ${defiLengthText(c)}${c.remind ? ` · rappel à ${c.remind.replace(':', ' h ')}` : ''}`)}</p>
+        <p class="defi-view__goal">${esc(`${defiAmount(defiGoal(c), c.measure)} par jour · ${defiLengthText(c)}${c.remind ? ` · rappel à ${c.remind.replace(':', '\u00a0h\u00a0')}` : ''}`)}</p>
         ${hero}
         <div class="group-title">Chiffres</div>
         <div class="group" role="list">
