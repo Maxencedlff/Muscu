@@ -324,7 +324,7 @@ def t_coach_affiche(bench, eng, dev, theme):
         alt = page.get_attribute('.sheet .share-preview__img', 'aria-label')
         R.check(alt.startswith('Affiche « Nouveau coach » sans le personnage, ta photo en grand : Camille Martin'), f'{t} style « Photo seule » : VoiceOver ({alt})')
         photo_png = canvas_png(page)
-        R.check(photo_png.size == (1080, 1920) and list(photo_png.convert('RGB').getdata()) != list(hero_png.convert('RGB').getdata()), f'{t} style « Photo seule » : aperçu redessiné')
+        R.check(photo_png.size == (1080, 1920) and photo_png.convert('RGB').tobytes() != hero_png.convert('RGB').tobytes(), f'{t} style « Photo seule » : aperçu redessiné')
         R.check(json.loads(ls(page, 'mdlf_coach_poster') or '{}').get('style') == 'photo', f'{t} style gardé avec les réglages')
         shot(page, LOT, f'04b-apercu-photo-seule-{t}')
         if dump:
