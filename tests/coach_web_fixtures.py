@@ -5,7 +5,10 @@
   vrai secret : code e-mail factice 123456, adresse en exemple.test) ;
 - COACH_WEB_SEED : un coach factice et dix élèves réalistes (séances, records, pesées, mensurations, diète, eau,
   phases, messages), datés depuis l'horloge figée de la page (mardi 24 novembre 2026, 15 h, Europe/Paris) ;
-- open_desk() : contexte, horloge, thème, seed, connexion par code.
+- FAKE_APPLE_JS : faux Sign in with Apple JS servi à la place de celui d'Apple (aucun réseau) : init() garde la
+  configuration, signIn() rend un faux id_token qui porte le nonce reçu (comme Apple), ou rejette avec
+  window.__appleFail ('popup_closed_by_user'…) ;
+- open_desk() : contexte, horloge, thème, seed, faux Apple JS (apple='blocked' : script injoignable), connexion par code.
 """
 import contextlib
 import datetime
@@ -102,6 +105,29 @@ COACH_WEB_SEED = r"""
 """
 
 
+APPLE_JS_URL = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/fr_FR/appleid.auth.js'
+APPLE_SUB = '001234.facticeapple.0001'   # identifiant Apple factice du coach
+FAKE_APPLE_JS = r"""
+window.AppleID = { auth: {
+  init(o) { window.__appleInit = o; },
+  signIn() {
+    window.__appleCalls = (window.__appleCalls || 0) + 1;
+    if (window.__appleFail) return Promise.reject({ error: window.__appleFail });
+    const o = window.__appleInit, b64 = x => btoa(JSON.stringify(x)).replace(/=+$/, '');
+    return Promise.resolve({ authorization: { id_token: 'apple.' + b64({ sub: window.__appleSub, nonce: o.nonce, aud: o.clientId }) + '.sig', state: o.state, code: 'code-factice' } });
+  },
+} };
+"""
+
+
+def route_apple(ctx, mode='fake'):
+    """Script d'Apple : faux (mode 'fake') ou injoignable ('blocked'), jamais le vrai."""
+    if mode == 'blocked':
+        ctx.route('https://appleid.cdn-apple.com/**', lambda r: r.abort())
+    else:
+        ctx.route('https://appleid.cdn-apple.com/**', lambda r: r.fulfill(status=200, content_type='text/javascript', body=FAKE_APPLE_JS))
+
+
 class _Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -131,10 +157,11 @@ def launch(pw, engine):
     return getattr(pw, engine).launch(headless=True, args=args)
 
 
-def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None):
+def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake'):
     """Page de l'appli web du coach, horloge figée, faux serveur injecté, coach connecté (sauf login=False)."""
     ctx = browser.new_context(viewport={'width': width, 'height': height}, color_scheme=theme, locale='fr-FR',
                               timezone_id='Europe/Paris', has_touch=touch, device_scale_factor=1)
+    route_apple(ctx, apple)
     page = ctx.new_page()
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))

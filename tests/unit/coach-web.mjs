@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { createHash } from 'node:crypto';
 
 class MemoryStorage {
   constructor() { this.map = new Map(); }
@@ -50,7 +51,8 @@ export default function ({ test, assert, ROOT }) {
     assert.ok(srcs.indexOf('js/desk/env.js') < srcs.indexOf('../js/data/social.js'), 'env.js avant le premier onAccountChange');
     for (const f of files) assert.ok(fs.existsSync(path.join(ROOT, f)), `${f} absent`);
     assert.doesNotMatch(html, /<script>(?!<\/script>)/, 'aucun script en ligne (CSP script-src self)');
-    assert.match(html, /script-src 'self';/);
+    assert.match(html, /script-src 'self' https:\/\/appleid\.cdn-apple\.com;/, 'seul ajout : le script de Sign in with Apple JS');
+    assert.match(html, /frame-src 'none'/);
     assert.match(html, /connect-src 'self' https:\/\/yopptmdjtnezmccdvaxf\.supabase\.co;/);
   });
 
@@ -255,5 +257,68 @@ export default function ({ test, assert, ROOT }) {
     assert.equal((s.match(/aria-disabled="true"/g) || []).length, 4);
     assert.equal((s.match(/bientôt/g) || []).length, 4);
     assert.match(s, /role="status"/);
+  });
+
+  test('coach web, Apple : nonce brut pour Supabase, son SHA-256 (hex) pour Apple, neuf à chaque essai', async () => {
+    const a = await run('deskAppleNonce()'), b = await run('deskAppleNonce()');
+    assert.match(a.raw, /^[A-Za-z0-9_-]{43}$/, '32 octets en base64url');
+    assert.equal(a.hashed, createHash('sha256').update(a.raw).digest('hex'));
+    assert.match(a.hashed, /^[0-9a-f]{64}$/);
+    assert.match(a.state, /^[A-Za-z0-9_-]{22}$/);
+    assert.notEqual(a.raw, b.raw);
+    assert.notEqual(a.state, b.state);
+  });
+
+  test('coach web, Apple : erreurs d\'Apple et de Supabase en messages clairs', () => {
+    assert.equal(run("deskAppleErrorKind({ error: 'popup_closed_by_user' })"), 'apple_cancel');
+    assert.equal(run("deskAppleErrorKind({ error: 'user_cancelled_authorize' })"), 'apple_cancel');
+    assert.equal(run("deskAppleErrorKind({ error: 'popup_blocked_by_browser' })"), 'apple_blocked');
+    assert.equal(run("deskAppleErrorKind({ error: 'user_trigger_new_signin_flow' })"), null);
+    assert.equal(run("deskAppleErrorKind({ status: 400, message: 'Unacceptable audience in id_token: [com.mdlf.training.coach]' })"), 'apple_config');
+    assert.equal(run("deskAppleErrorKind({ code: 'provider_disabled', message: 'Provider is not enabled' })"), 'apple_config');
+    assert.equal(run("deskAppleErrorKind(new TypeError('Failed to fetch'))"), 'offline');
+    for (const k of ['apple_cancel', 'apple_blocked', 'apple_config']) assert.ok(run(`DESK_APPLE_TEXT.${k}`).includes('.'));
+  });
+
+  test('coach web, Apple : signIn tout de suite, jeton échangé avec le nonce brut, state vérifié, essai suivant préparé', async () => {
+    run(`globalThis.location = { origin: 'https://mdlf-coach.vercel.app' };
+      globalThis.__idt = []; globalThis.__init = [];
+      globalThis.__appleAnswer = st => ({ authorization: { id_token: 'jeton.factice.' + st, state: st, code: 'c' } });
+      globalThis.AppleID = { auth: { init: o => __init.push(o), signIn: () => Promise.resolve(__appleAnswer(__init[__init.length - 1].state)) } };
+      sb = { auth: { signInWithIdToken: async a => { __idt.push(a); return { data: { user: { id: 'u1', created_at: new Date(${NOW} - 86400000).toISOString() } }, error: null }; } } };
+      desk.user = null;`);
+    await run('deskApplePrepare()');
+    assert.equal(run('deskApple.state'), 'ready');
+    const init = run('__init[0]');
+    assert.equal(init.clientId, 'com.mdlf.training.coach');
+    assert.equal(init.redirectURI, 'https://mdlf-coach.vercel.app/');
+    assert.equal(init.usePopup, true);
+    assert.equal(init.nonce, run('deskApple.pending.hashed'));
+    const raw = run('deskApple.pending.raw');
+    const r = await run(`deskAppleSignIn(() => ${NOW})`);
+    assert.equal(r.ok, true);
+    assert.equal(r.isNew, false, 'compte d\'avant : pas « nouveau »');
+    const idt = run('__idt[0]');
+    assert.equal(idt.provider, 'apple');
+    assert.equal(idt.nonce, raw, 'Supabase reçoit le nonce brut');
+    assert.equal(createHash('sha256').update(idt.nonce).digest('hex'), init.nonce, 'Apple a reçu son SHA-256');
+    await new Promise(res => setTimeout(res, 10));
+    assert.equal(run('__init.length'), 2, 'nonce neuf pour l\'essai suivant');
+    assert.notEqual(run('__init[1].nonce'), init.nonce);
+    // Réponse dont le state ne correspond pas : refusée, aucun échange
+    run("__appleAnswer = () => ({ authorization: { id_token: 'x', state: 'autre' } })");
+    assert.equal((await run('deskAppleSignIn()')).ok, false);
+    assert.equal(run('__idt.length'), 1);
+    await new Promise(res => setTimeout(res, 10));
+    // Annulation : message clair
+    run("AppleID.auth.signIn = () => Promise.reject({ error: 'popup_closed_by_user' })");
+    assert.equal((await run('deskAppleSignIn()')).kind, 'apple_cancel');
+    await new Promise(res => setTimeout(res, 10));
+    // Services ID pas dans external_apple_client_id
+    run(`AppleID.auth.signIn = () => Promise.resolve({ authorization: { id_token: 'jeton.factice', state: __init[__init.length - 1].state } });
+      sb.auth.signInWithIdToken = async () => ({ data: {}, error: { status: 400, message: 'Unacceptable audience in id_token' } })`);
+    await new Promise(res => setTimeout(res, 10));
+    assert.equal((await run('deskAppleSignIn()')).kind, 'apple_config');
+    run('sb = null; desk.user = null; delete globalThis.AppleID');
   });
 }

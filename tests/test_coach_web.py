@@ -16,7 +16,10 @@ import traceback
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from playwright.sync_api import sync_playwright  # noqa: E402
 import fixtures  # noqa: E402,F401  (textes lus ramenés aux espaces simples, comme les autres tests : typo_norm)
-from coach_web_fixtures import static_server, launch, open_desk, COACH_EMAIL, FAKE_CODE  # noqa: E402
+import hashlib  # noqa: E402
+import base64  # noqa: E402
+import json  # noqa: E402
+from coach_web_fixtures import static_server, launch, open_desk, route_apple, COACH_EMAIL, FAKE_CODE, APPLE_SUB  # noqa: E402
 
 ENGINES = [e for e in os.environ.get('PPL_ENGINES', 'chromium,firefox,webkit').split(',') if e]
 SIZES = [(1440, 900, False), (1180, 820, True), (820, 1180, True)]
@@ -169,18 +172,91 @@ def journeys(browser, url, engine):
     ctx.close()
 
 
+def give_coach_apple(page):
+    """Le coach factice a un identifiant Apple (compte seulement Apple, comme celui de Maxence)."""
+    page.evaluate("""sub => { const u = __sb.users[__coachId]; u.identities.push({ identity_id: 'idt-apple-coach', provider: 'apple', id: sub,
+      identity_data: { sub }, created_at: u.created_at }); window.__appleSub = sub;
+      const f = sb.auth.signInWithIdToken; window.__idt = []; sb.auth.signInWithIdToken = a => { window.__idt.push(a); return f(a); }; }""", APPLE_SUB)
+
+
+def apple_journeys(browser, url, engine):
+    """Se connecter avec Apple : faux Apple JS (tests/coach_web_fixtures.py), nonce, refus, annulation, sans le script."""
+    ctx, page = open_desk(browser, url, width=1440, login=False)
+    page.wait_for_selector('#apple-signin:not([disabled])')
+    btn = page.locator('#apple-signin').bounding_box()
+    form = page.locator('#login-email').bounding_box()
+    check(btn['y'] < form['y'], 'Apple : bouton au-dessus de l\'e-mail')
+    check(btn['height'] >= 44, 'Apple : bouton de 44 px au moins')
+    check(page.locator('#apple-signin').inner_text().strip() == 'Se connecter avec Apple', 'Apple : libellé')
+    check('Choisis « Se connecter avec Apple »' in page.inner_text('.login-card'), 'Apple : texte sous le formulaire')
+    give_coach_apple(page)
+    init = page.evaluate('window.__appleInit')
+    origin = url.split('/coach-web/')[0]
+    check(init['clientId'] == 'com.mdlf.training.coach' and init['usePopup'] is True and init['redirectURI'] == origin + '/', f'Apple : init {init}')
+    page.click('#apple-signin')
+    page.wait_for_selector('.lst a.row')
+    idt = page.evaluate('window.__idt')
+    check(len(idt) == 1 and idt[0]['provider'] == 'apple', f'Apple : échange {idt}')
+    raw = idt[0]['nonce']
+    token_nonce = json.loads(base64.b64decode(idt[0]['token'].split('.')[1] + '==='))['nonce']
+    check(hashlib.sha256(raw.encode()).hexdigest() == token_nonce == init['nonce'], 'Apple : Apple a le SHA-256, Supabase le nonce brut')
+    check(page.locator('.lst a.row').count() == 10, 'Apple : tableau de bord du coach')
+    check(not page.evaluate('window.__csp'), f'Apple : CSP {page.evaluate("window.__csp")}')
+    check(not page.errors, f'Apple : erreurs {page.errors}')
+    ctx.close()
+
+    # Fenêtre d'Apple fermée (ou erreur d'Apple, Services ID pas configuré) : message clair, l'e-mail reste
+    ctx, page = open_desk(browser, url, width=1440, login=False)
+    page.wait_for_selector('#apple-signin:not([disabled])')
+    page.evaluate("window.__appleFail = 'popup_closed_by_user'")
+    page.click('#apple-signin')
+    page.wait_for_selector('#login-err:not(:empty)')
+    check('Connexion avec Apple annulée' in page.inner_text('#login-err'), 'Apple : annulation')
+    page.wait_for_selector('#apple-signin:not([disabled])')
+    # Services ID absent de external_apple_client_id : refus de Supabase
+    page.evaluate("""() => { window.__appleFail = null; sb.auth.signInWithIdToken = async () => ({ data: {}, error: { name: 'AuthApiError', status: 400, message: 'Unacceptable audience in id_token: [com.mdlf.training.coach]' } }); }""")
+    page.click('#apple-signin')
+    page.wait_for_function("document.getElementById('login-err').innerText.includes('pas encore ouverte sur ce site')")
+    check(page.locator('#login-email').is_visible(), 'Apple : e-mail toujours là')
+    ctx.close()
+
+    # Identifiant Apple inconnu de MDLF : jamais le tableau de bord
+    ctx, page = open_desk(browser, url, width=1440, login=False)
+    page.wait_for_selector('#apple-signin:not([disabled])')
+    page.evaluate("window.__appleSub = '009999.autreidentifiant.0002'")
+    page.click('#apple-signin')
+    page.wait_for_selector('text=Réservé aux coachs')
+    check('pas encore de compte MDLF' in page.inner_text('.login-card'), 'Apple : identifiant inconnu')
+    check(page.locator('.lst').count() == 0, 'Apple : identifiant inconnu, aucune liste')
+    ctx.close()
+
+    # Script d'Apple injoignable (bloqueur, réseau) : pas de bouton, l'e-mail marche
+    ctx, page = open_desk(browser, url, width=1440, login=False, apple='blocked')
+    page.wait_for_function("!document.getElementById('apple-signin') && document.querySelector('.note').innerText.includes('pas pu se charger')")
+    check(page.locator('.or').count() == 0, 'sans Apple : séparateur caché')
+    page.fill('#login-email', COACH_EMAIL)
+    page.click('form[data-form=email] button')
+    page.fill('#login-code', FAKE_CODE)
+    page.click('form[data-form=code] button')
+    page.wait_for_selector('.lst a.row')
+    check(not page.evaluate('window.__csp'), 'sans Apple : CSP')
+    check(not [e for e in page.errors if 'Failed to load resource' not in e and 'appleid' not in e], f'sans Apple : erreurs {page.errors}')
+    ctx.close()
+
+
 def built_page(browser, url):
     """Version construite (dist-coach/, scripts/build-coach-web.mjs) avec le VRAI supabase-js : la page de connexion
     s'ouvre sans erreur ni blocage de la CSP. Aucune session : aucun appel réseau vers Supabase."""
     ctx = browser.new_context(viewport={'width': 1440, 'height': 900})
+    route_apple(ctx)
     page = ctx.new_page()
     errors, outside = [], []
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
-    page.on('request', lambda r: outside.append(r.url) if not r.url.startswith(url.split('/coach-web/')[0]) else None)
+    page.on('request', lambda r: outside.append(r.url) if not r.url.startswith(url.split('/coach-web/')[0]) and not r.url.startswith('https://appleid.cdn-apple.com/') else None)
     page.add_init_script("window.__csp = []; document.addEventListener('securitypolicyviolation', e => window.__csp.push(e.effectiveDirective));")
     page.goto(url.replace('/coach-web/', '/dist-coach/'))
-    page.wait_for_selector('#login-email')
+    page.wait_for_selector('#apple-signin:not([disabled])')
     check(page.evaluate('typeof supabase.createClient') == 'function', 'version construite : supabase-js absent')
     check(not errors and not page.evaluate('window.__csp'), f'version construite : erreurs {errors} {page.evaluate("window.__csp")}')
     check(not outside, f'version construite : requêtes hors du site {outside}')
@@ -200,8 +276,9 @@ def main():
                         done += 1
                         print(f'  ok    {engine} {w}px {theme}', flush=True)
                 journeys(browser, url, engine)
+                apple_journeys(browser, url, engine)
                 built_page(browser, url)
-                print(f'  ok    {engine} : clavier, segments, invitation, un appel, repli, refus, déconnexion', flush=True)
+                print(f'  ok    {engine} : clavier, segments, invitation, un appel, repli, refus, déconnexion, Apple', flush=True)
             finally:
                 browser.close()
     print(f'\nAppli web du coach : {done} combinaisons et {len(ENGINES)} parcours OK')
