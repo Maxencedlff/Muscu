@@ -310,10 +310,25 @@ def t_coach_affiche(bench, eng, dev, theme):
             save_affiche(page, f'femme-story-{th}')
         pick_seg(page, 'coach-poster-title', 'neutral')
         R.check(page.get_attribute('.sheet .share-preview__img', 'aria-label').startswith('Affiche « Coach »'), f'{t} titre « Coach » seul')
-        R.check(json.loads(ls(page, 'mdlf_coach_poster') or '{}') == {'uid': me, 'name': 'Camille Martin', 'specialty': 'Force · Perte de poids', 'silhouette': 'female', 'neutral': True},
+        R.check(json.loads(ls(page, 'mdlf_coach_poster') or '{}') == {'uid': me, 'name': 'Camille Martin', 'specialty': 'Force · Perte de poids', 'silhouette': 'female', 'neutral': True, 'style': 'hero'},
                 f'{t} réglages gardés sur l\'appareil ({ls(page, "mdlf_coach_poster")})')
         pick_seg(page, 'coach-poster-title', 'gendered')
         pick_seg(page, 'coach-poster-silhouette', 'male')
+        # Style (24/11) : « Avec le bonhomme » par défaut ; « Photo seule » redessine l'aperçu tout de suite, change le
+        # texte VoiceOver et reste gardé avec les autres réglages
+        R.check(page.get_attribute('.sheet [data-action="coach-poster-style"][data-v="hero"]', 'aria-pressed') == 'true'
+                and page.inner_text('.sheet [data-action="coach-poster-style"][data-v="hero"]') == 'Avec le bonhomme'
+                and page.inner_text('.sheet [data-action="coach-poster-style"][data-v="photo"]') == 'Photo seule', f'{t} style : « Avec le bonhomme » par défaut')
+        hero_png = canvas_png(page)
+        pick_seg(page, 'coach-poster-style', 'photo')
+        alt = page.get_attribute('.sheet .share-preview__img', 'aria-label')
+        R.check(alt.startswith('Affiche « Nouveau coach » sans le personnage, ta photo en grand : Camille Martin'), f'{t} style « Photo seule » : VoiceOver ({alt})')
+        photo_png = canvas_png(page)
+        R.check(photo_png.size == (1080, 1920) and list(photo_png.convert('RGB').getdata()) != list(hero_png.convert('RGB').getdata()), f'{t} style « Photo seule » : aperçu redessiné')
+        R.check(json.loads(ls(page, 'mdlf_coach_poster') or '{}').get('style') == 'photo', f'{t} style gardé avec les réglages')
+        shot(page, LOT, f'04b-apercu-photo-seule-{t}')
+        if dump:
+            save_affiche(page, f'photo-seule-story-{th}')
         pick_format(page, 'square')
         img = canvas_png(page)
         R.check(img.size == (1080, 1080), f'{t} carré : 1080 × 1080 ({img.size})')
@@ -353,6 +368,8 @@ def t_coach_affiche(bench, eng, dev, theme):
         page.click('[data-action="coach-poster-open"]')
         preview_ready(page)
         R.check(page.input_value('#cposterName') == 'Camille Martin' and page.evaluate('!!cposter.photo'), f'{t} nom et photo retrouvés')
+        R.check(page.get_attribute('.sheet [data-action="coach-poster-style"][data-v="photo"]', 'aria-pressed') == 'true' and page.evaluate("cposter.style === 'photo'"),
+                f'{t} style « Photo seule » retrouvé à la réouverture')
         pick_format(page, 'story')
         page.click('.sheet [data-action="share-story-send"]')
         page.wait_for_function('() => window.__shared.length === 2', timeout=8000)
@@ -532,14 +549,21 @@ def t_apercu_dans_ecran(bench, eng, dev, theme):
             page.locator('[data-action="coach-poster-open"]').scroll_into_view_if_needed()
             page.click('[data-action="coach-poster-open"]')
             preview_ready(page)
-            for f in ('story', 'square'):
-                pick_format(page, f)
-                settle(page)
-                r = page.evaluate(PREVIEW_IN_WINDOW)
-                R.check(r['frame'] and r['seebig'], f'{t} {f} : aperçu et « Voir en grand » entiers dans la fenêtre ({r})')
-                R.check(r['covered'] == 0 and r['apart'], f'{t} {f} : rien posé sur l\'aperçu ({r})')
-                R.check(r['below'], f'{t} {f} : la liste commence sous l\'aperçu ({r})')
-                R.check(r['square'] if f == 'square' else abs(r['ratio'] - 9 / 16) < 0.02, f'{t} {f} : proportions gardées ({r})')
+            for style in ('hero', 'photo'):
+                if style == 'photo':
+                    pick_seg(page, 'coach-poster-style', 'photo')
+                for f in ('story', 'square'):
+                    pick_format(page, f)
+                    settle(page)
+                    r, ts = page.evaluate(PREVIEW_IN_WINDOW), f'{t} {style} {f}'
+                    R.check(r['frame'] and r['seebig'], f'{ts} : aperçu et « Voir en grand » entiers dans la fenêtre ({r})')
+                    R.check(r['covered'] == 0 and r['apart'], f'{ts} : rien posé sur l\'aperçu ({r})')
+                    R.check(r['below'], f'{ts} : la liste commence sous l\'aperçu ({r})')
+                    R.check(r['square'] if f == 'square' else abs(r['ratio'] - 9 / 16) < 0.02, f'{ts} : proportions gardées ({r})')
+                # La ligne Style entière dans la fenêtre, ses deux boutons touchables (44 pt) et jamais coupés
+                st = page.evaluate("""() => [...document.querySelectorAll('.sheet [data-action="coach-poster-style"]')].map(b => { const r = b.getBoundingClientRect();
+                    return { h: r.height, cut: b.scrollWidth > b.clientWidth + 1, inside: r.left >= -0.5 && r.right <= innerWidth + 0.5 }; })""")
+                R.check(len(st) == 2 and all(x['inside'] and not x['cut'] and x['h'] >= 28 for x in st), f'{t} ligne Style entière ({st})')
             R.check(not page.errors, f'{t} : aucune erreur JS {page.errors}')
 
 

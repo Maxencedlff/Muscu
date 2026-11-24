@@ -20,6 +20,24 @@ Le serveur accepte déjà les trois cas : **aucune migration à écrire**. Seule
 (`pphFree`, js/features/profile-photo-ui.js), jamais le droit. La migration `20261117010000_photo_profil.sql` attend
 toujours son feu vert (docs/PHOTO_PROFIL.md, « Mise en production »).
 
+## Style « Photo seule » au choix (24/11)
+
+Retour d'un coach partenaire : « le mannequin derrière vient un peu gâcher l'image ». Dans « Mon affiche de coach »,
+ligne **Style** (contrôle segmenté, comme Story / Carré et Titre) : **Avec le bonhomme** (mise en page « hero »
+ci-dessous, dessin inchangé, le défaut) ou **Photo seule** (`layout: 'photo'`, reprise de la version B du 22/11,
+commit 96c413cb, améliorée). Le choix est gardé avec les autres réglages (`style` dans `mdlf_coach_poster`), l'aperçu
+se redessine tout de suite et le texte VoiceOver le dit (« … sans le personnage, ta photo en grand : … », ou « tes
+initiales en grand »).
+
+Photo seule : fond noir, sans personnage ; titre sur une ligne en blanc (le rouge #FF453A de B tombait à 5,3:1 sur le
+noir, sous les 7:1 demandés, et n'a plus de sens sans les muscles) ; la photo en héros, en grande carte arrondie
+(story : 960 px de large, 520 à 920 px de haut selon la longueur du nom ; carré : à gauche, 470 px sur toute la hauteur libre) ; nom très gros,
+spécialité, carte grise du code avec l'icône de l'app ; l'orange seulement sur « Rejoins-moi ». Sans photo : un grand
+rond gris des cartes aux initiales blanches. SF Pro partout, ni dégradé ni lueur ; story entre 250 et 1670 px.
+Tests : empreinte du dessin « hero » relevée sur main (inchangé au pixel près), règles de Photo seule
+(`tests/unit/coach-poster.mjs`) ; choix, réouverture, partage et aperçu entier dans l'écran (`tests/test_affiche_coach.py`).
+Planche : `~/.local/share/mdlf/panel/affiche-coach/style/planche.png`.
+
 ## Affiche : mise en page « hero », aux couleurs de l'app (22/11)
 
 Retour de Maxence sur la v17 : le noir, le grand aplat orange au texte noir et « COACH » en orange rappelaient

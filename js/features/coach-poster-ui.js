@@ -107,6 +107,12 @@ function coachPosterToolsHtml() {
                  aria-label="Ton nom sur l'affiche">
         </label>
         <div class="cposter-row">
+          <span class="cposter-row__title" id="cposterStyleLabel">Style</span>
+          <div class="segmented cposter-row__seg" role="group" aria-labelledby="cposterStyleLabel">
+            ${CPOSTER_STYLES.map(x => cposterSeg('coach-poster-style', x.key, x.key === cposter.style, x.label)).join('')}
+          </div>
+        </div>
+        <div class="cposter-row">
           <span class="cposter-row__title" id="cposterSilLabel">Silhouette</span>
           <div class="segmented cposter-row__seg cposter-row__seg--pair" role="group" aria-labelledby="cposterSilLabel">
             ${CPOSTER_SILHOUETTES.map(x => cposterSeg('coach-poster-silhouette', x.key, x.key === cposter.silhouette, x.label)).join('')}
@@ -149,6 +155,7 @@ async function openCoachPoster() {
   // Nom vide au départ : jamais le nom d'état civil de la carte pro (audit du 21/11), le coach écrit celui qu'il veut
   const mine = cposter = { name: prefs ? prefs.name : '', specialty: prefs?.specialty || '',
     silhouette: prefs ? prefs.silhouette : (bodySilhouette() === 'female' ? 'female' : 'male'), neutral: prefs?.neutral === true,
+    style: posterStyle(prefs?.style),
     photo: null, icon: null, body: null, bodies: {}, timer: null };
   // Attente de la photo, du personnage et des polices : la cellule le dit ; une ouverture qui échoue libère l'affiche
   // (sinon cposter restait pris et plus rien ne s'ouvrait)
@@ -173,10 +180,10 @@ async function openCoachPoster() {
   try { ok = (await opened) !== false; } catch { ok = false; }
   if (!ok && cposter === mine) cposter = null;
 }
-// Mise en page de l'affiche : « hero », choisie au vote du 22/11 (A contre B, 6 contre 4), voir coach-poster-art.js
-const CPOSTER_LAYOUT = 'hero';
+// Mise en page de l'affiche : le style choisi (« Avec le bonhomme », 'hero', au vote du 22/11, reste le défaut ; « Photo
+// seule », 'photo', le 24/11), voir coach-poster-art.js
 function coachPosterShow(me, mine) {
-  const state = { name: coachPosterFileName('story'), alt: coachPosterAlt(coachPosterModelNow()), formats: true,
+  const state = { name: coachPosterFileName('story'), alt: coachPosterAlt(coachPosterModelNow(), mine.style), formats: true,
     tools: coachPosterToolsHtml(), stats: { title: 'Mon affiche de coach' },
     canSend: () => !!mine.name,
     // Sans photo (8e panel) : une question, jamais un blocage ; posée une fois par ouverture
@@ -193,8 +200,8 @@ function coachPosterShow(me, mine) {
     onClose: () => { clearTimeout(mine.timer); if (cposter === mine) cposter = null; } };
   const opened = openStoryPreview(state, (canvas, format) => {
     const m = coachPosterModelNow();
-    canvas.setAttribute('aria-label', coachPosterAlt(m));
-    drawCoachPosterArt(canvas, m, { photo: mine.photo, icon: mine.icon, body: mine.body }, { format, layout: CPOSTER_LAYOUT });
+    canvas.setAttribute('aria-label', coachPosterAlt(m, mine.style));
+    drawCoachPosterArt(canvas, m, { photo: mine.photo, icon: mine.icon, body: mine.body }, { format, layout: posterStyle(mine.style) });
   });
   // Nom et spécialité : l'aperçu se redessine après la frappe ; sans nom, « Partager » reste grisé (canSend)
   // Spécialité (6e panel : coupée en « Force · Perte de poi… ») : sous son libellé, sur autant de lignes qu'il faut ;
@@ -251,6 +258,7 @@ registerActions({
   'coach-poster-photo': () => { const inp = coachPosterPhotoInput(); inp.value = ''; inp.click(); },
   'coach-poster-silhouette': (e, el) => { cposterPick(el, 'silhouette', CPOSTER_SILHOUETTES.map(x => x.key)); },
   'coach-poster-title': (e, el) => { cposterPick(el, 'neutral', ['gendered', 'neutral']); },
+  'coach-poster-style': (e, el) => { cposterPick(el, 'style', CPOSTER_STYLES.map(x => x.key)); },
 });
 
 // Un choix des segments de l'aperçu : réglage gardé, boutons mis à jour, personnage rechargé si la silhouette change,

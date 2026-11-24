@@ -269,7 +269,8 @@ function cpaBodyWhole(ctx, body, x, y, w, h) {
 
 // Affiche dans le canvas. m : coachPosterModel ; assets : { photo (image d'origine, la plus nette), icon, body
 // (cpaHeroBody de la silhouette choisie) } ; format : 'story' (1080 × 1920) ou 'square' (1080 × 1080) ;
-// layout : 'figure' (par défaut, celle de l'app), ou à l'essai 'hero' et 'photo' (CPL_LAYOUTS, plus bas)
+// layout : 'figure' (par défaut), 'hero' (style « Avec le bonhomme » de l'écran) ou 'photo' (style « Photo seule »),
+// CPL_LAYOUTS plus bas
 function drawCoachPosterArt(canvas, m, assets = {}, { format = 'story', layout = 'figure' } = {}) {
   const sq = format === 'square', W = 1080, H = sq ? 1080 : 1920, a = assets;
   canvas.width = W; canvas.height = H;
@@ -509,4 +510,83 @@ function cplDrawHeroSquare(ctx, m, a, W, H) {
   cplIdentity(ctx, m, { ...idOpts, top: (top + cardY) / 2 - idH / 2 });
   cplCodeCard(ctx, m, a.icon, f.pad, cardY, W - 2 * f.pad, f.cardH, f.card);
 }
-const CPL_LAYOUTS = { hero: cplDrawHero };
+// ═══════════════════════════════════════════════════════════
+//  Style « Photo seule » (24/11) : un coach partenaire trouvait que « le mannequin derrière vient un peu gâcher
+//  l'image ». Choix « Style » de l'écran (« Avec le bonhomme » reste le défaut, dessin « hero » ci-dessus inchangé).
+//  Reprise de la version B du 22/11 (layout 'photo' retiré au vote, commit 96c413cb), améliorée :
+//  - fond noir, sans personnage ; la photo en héros, en grande carte arrondie (story : toute la largeur utile, 520 à
+//    920 px de haut selon la place) ; sans photo, un grand rond gris des cartes aux initiales blanches ;
+//  - titre tout en blanc (le rouge #FF453A de B tombait à 5,3:1 sur le noir, sous les 7:1 demandés, et n'a plus de sens
+//    sans les muscles), plus petit que le nom, très gros ; spécialité en blanc ; carte du code avec l'icône de l'app,
+//    l'orange seulement sur « Rejoins-moi » ;
+//  - SF Pro partout (ni Anton ni capitales espacées), aucun dégradé ni lueur ; tout entre 250 et 1670 px en story.
+// ═══════════════════════════════════════════════════════════
+
+// Photo en carte arrondie ; sans photo (ou pas encore chargée), un grand rond aux initiales centré dans la même place
+function cplPhotoHero(ctx, m, a, x, y, w, h, r) {
+  if (m.photo && a.photo) {
+    ctx.save(); cpaRound(ctx, x, y, w, h, r); ctx.clip();
+    ctx.drawImage(cpaCover(a.photo, w, h, { fy: 0.3 }), x, y, w, h);
+    ctx.restore();
+    return;
+  }
+  const d = Math.min(w, h), cx = x + w / 2, cy = y + h / 2;
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, d / 2, 0, Math.PI * 2); ctx.fillStyle = CPL.cell; ctx.fill(); ctx.clip();
+  if (m.initials) cpaText1(ctx, m.initials, cx, cy + d * 0.14, { font: cplFont(d * 0.38) });
+  else cpaPhotoHint(ctx, cx, cy, d);   // ni photo ni nom : aperçu seulement (le partage demande un nom)
+  ctx.restore();
+}
+
+// Taille du titre : sa taille maximale, et toujours nettement plus petit que le nom (nom long sur deux lignes)
+function cplPlainTitleSize(ctx, m, maxW, max, name) {
+  const cap = m.name ? cplNameLayout(ctx, m.name, maxW, name[0], name[1]).size * 0.66 : max;
+  return cplFit(ctx, cplTitleWords(m).join(' '), maxW, Math.max(28, Math.min(max, cap)), 28, 800);
+}
+// Titre sur une ligne, tout en blanc ; renvoie sa ligne de base
+function cplPlainTitle(ctx, m, x, top, maxW, size, align = 'center') {
+  const t = cplTitleWords(m).join(' '), s = cplFit(ctx, t, maxW, size, 28, 800), base = top + s * 0.74;
+  cpaText1(ctx, t, x, base, { font: cplFont(s), color: CPA.white, align });
+  return { base, size: s };
+}
+
+const CPL_PHOTO = {
+  story: { side: 60, title: 92, name: [150, 76], spec: 42, gap: 18, cardH: 236, ph: [520, 920], r: 44, air: 12,
+    gT: 40, gP: 56, gC: 52 },   // air : titre → photo, photo → nom, spécialité → carte
+  square: { pad: 44, title: 64, name: [112, 52], spec: 32, gap: 14, cardH: 150, pw: 470, r: 36,
+    card: { s1: 0.17, sc: 0.4, s3: 0.145, gap: 0.06 } },
+};
+
+// Story : titre, la photo sur toute la largeur utile, le nom très gros, la spécialité, puis la carte du code ; le bloc
+// centré dans la zone sûre, la photo prend la place libre (dans ses bornes)
+function cplDrawPhoto(ctx, m, a, W, H, sq) {
+  if (sq) { cplDrawPhotoSquare(ctx, m, a, W, H); return; }
+  const f = CPL_PHOTO.story, top = CPA.safeTop, bottom = CPA.safeBottom, w = W - 2 * f.side;
+  const idOpts = { x: W / 2, maxW: w, name: f.name, spec: f.spec, gap: f.gap };
+  const idH = cplIdentity(ctx, m, { ...idOpts, top: 0, draw: false });
+  const tS = cplPlainTitleSize(ctx, m, w, f.title, f.name), tH = tS * 0.74;
+  const fixed = tH + f.gT + f.gP + idH + f.gC + f.cardH;
+  // Photo : toute la place libre (bornée) ; nom long sur deux lignes, elle rapetisse, jamais rien sous la carte
+  const room = bottom - top - 2 * f.air - fixed, ph = Math.max(f.ph[0], Math.min(f.ph[1], room));
+  const y0 = top + f.air + Math.max(0, (room - ph) / 2);
+  cplPlainTitle(ctx, m, W / 2, y0, w, tS);
+  const pY = y0 + tH + f.gT;
+  cplPhotoHero(ctx, m, a, f.side, pY, w, ph, f.r);
+  cplIdentity(ctx, m, { ...idOpts, top: pY + ph + f.gP });
+  cplCodeCard(ctx, m, a.icon, f.side, pY + ph + f.gP + idH + f.gC, w, f.cardH);
+}
+
+// Carré : la photo à gauche sur toute la hauteur libre ; à droite, sur le noir, le titre puis le nom très gros et la
+// spécialité, centrés en hauteur ; la carte du code en bas, sur toute la largeur
+function cplDrawPhotoSquare(ctx, m, a, W, H) {
+  const f = CPL_PHOTO.square, cardY = H - f.pad - f.cardH, ph = cardY - 28 - f.pad;
+  cplPhotoHero(ctx, m, a, f.pad, f.pad, f.pw, ph, f.r);
+  const colX = f.pad + f.pw + 40, colW = W - f.pad - colX, cx = colX + colW / 2;
+  const tS = cplPlainTitleSize(ctx, m, colW, f.title, f.name), tH = tS * 0.74, gT = 30;
+  const idOpts = { x: cx, maxW: colW, name: f.name, spec: f.spec, gap: f.gap };
+  const idH = cplIdentity(ctx, m, { ...idOpts, top: 0, draw: false });
+  const y0 = f.pad + Math.max(0, (ph - tH - gT - idH) / 2);
+  cplPlainTitle(ctx, m, cx, y0, colW, tS);
+  cplIdentity(ctx, m, { ...idOpts, top: y0 + tH + gT });
+  cplCodeCard(ctx, m, a.icon, f.pad, cardY, W - 2 * f.pad, f.cardH, f.card);
+}
+const CPL_LAYOUTS = { hero: cplDrawHero, photo: cplDrawPhoto };

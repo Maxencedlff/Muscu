@@ -12,7 +12,10 @@
 
 const CPOSTER_NAME_MAX = 40;
 const CPOSTER_SPECIALTY_MAX = CPOSTER_NAME_MAX;   // « Ta spécialité (facultatif) », sous le nom : 40 caractères (posterName)
-const CPOSTER_PREFS_KEY = 'mdlf_coach_poster';   // { uid, name, specialty, silhouette, neutral } : cet appareil seulement
+const CPOSTER_PREFS_KEY = 'mdlf_coach_poster';   // { uid, name, specialty, silhouette, neutral, style } : cet appareil seulement
+// Style de l'affiche (24/11) : « Avec le bonhomme » (mise en page 'hero', le défaut) ou « Photo seule » ('photo')
+const CPOSTER_STYLES = [{ key: 'hero', label: 'Avec le bonhomme' }, { key: 'photo', label: 'Photo seule' }];
+function posterStyle(v) { return v === 'photo' ? 'photo' : 'hero'; }
 const CPOSTER_PHOTO_MAX = 2048;                   // côté le plus long de la photo d'origine gardée
 const CPOSTER_DB = 'mdlf-coach-poster', CPOSTER_STORE = 'photo';
 
@@ -61,10 +64,12 @@ function coachPosterModel({ name = '', specialty = '', username = '', code = '',
   };
 }
 
-// Texte lu par VoiceOver sur l'aperçu : ce que montre l'image (mise en page « hero » : ni pseudo ni badge dessus)
-function coachPosterAlt(m) {
+// Texte lu par VoiceOver sur l'aperçu : ce que montre l'image (ni pseudo ni badge dessus). style 'photo' (« Photo
+// seule ») : dit qu'il n'y a pas le personnage et ce qui est en grand ; 'hero' (défaut) : texte d'avant, inchangé
+function coachPosterAlt(m, style = 'hero') {
   const title = m.title.charAt(0) + m.title.slice(1).toLocaleLowerCase('fr-FR');   // « Nouvelle coach », « Coach »
-  return [`Affiche « ${title} »${m.name ? ` : ${m.name}` : ''}`, m.specialty, 'sur MDLF Training', `code ${m.code}`].filter(Boolean).join(', ');
+  const how = posterStyle(style) === 'photo' ? ` sans le personnage, ${m.photo ? 'ta photo' : 'tes initiales'} en grand` : '';
+  return [`Affiche « ${title} »${how}${m.name ? ` : ${m.name}` : ''}`, m.specialty, 'sur MDLF Training', `code ${m.code}`].filter(Boolean).join(', ');
 }
 
 // Nom du fichier partagé (sans le pseudo : le fichier peut être renvoyé ailleurs)
@@ -75,15 +80,16 @@ function coachPosterPrefs(uid) {
   try {
     const p = JSON.parse(localStorage.getItem(CPOSTER_PREFS_KEY) || 'null');
     if (p && p.uid === uid) {
-      return { name: posterName(p.name), specialty: posterName(p.specialty), silhouette: p.silhouette === 'female' ? 'female' : 'male', neutral: p.neutral === true };
+      return { name: posterName(p.name), specialty: posterName(p.specialty), silhouette: p.silhouette === 'female' ? 'female' : 'male', neutral: p.neutral === true,
+        style: posterStyle(p.style) };
     }
   } catch { /* stockage illisible : valeurs par défaut */ }
   return null;
 }
-function coachPosterSavePrefs(uid, { name, specialty, silhouette, neutral }) {
+function coachPosterSavePrefs(uid, { name, specialty, silhouette, neutral, style }) {
   try {
     localStorage.setItem(CPOSTER_PREFS_KEY, JSON.stringify({ uid, name: posterName(name), specialty: posterName(specialty), silhouette: silhouette === 'female' ? 'female' : 'male',
-      neutral: neutral === true }));
+      neutral: neutral === true, style: posterStyle(style) }));
   }
   catch { /* stockage plein : pas grave */ }
 }

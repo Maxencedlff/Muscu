@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 // Faux canvas 2D : largeur d'un texte = 0,5 × taille de police × nombre de caractères
 function fakeCanvas(ops = []) {
@@ -236,9 +237,9 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     app.localStorage.removeItem('mdlf_coach_poster');
     assert.equal(app.coachPosterPrefs('u1'), null);
     app.coachPosterSavePrefs('u1', { name: ' Léa ', specialty: 'Force', silhouette: 'female', neutral: true });
-    sameJSON(app.coachPosterPrefs('u1'), { name: 'Léa', specialty: 'Force', silhouette: 'female', neutral: true });
+    sameJSON(app.coachPosterPrefs('u1'), { name: 'Léa', specialty: 'Force', silhouette: 'female', neutral: true, style: 'hero' });
     app.coachPosterSavePrefs('u1', { name: '', silhouette: 'x' });
-    sameJSON(app.coachPosterPrefs('u1'), { name: '', specialty: '', silhouette: 'male', neutral: false }, 'valeur inconnue ramenée');
+    sameJSON(app.coachPosterPrefs('u1'), { name: '', specialty: '', silhouette: 'male', neutral: false, style: 'hero' }, 'valeur inconnue ramenée');
     assert.equal(app.coachPosterPrefs('u2'), null, 'autre compte : rien');
     app.localStorage.setItem('mdlf_coach_poster', '{pas du json');
     assert.equal(app.coachPosterPrefs('u1'), null, 'illisible : valeurs par défaut');
@@ -315,7 +316,8 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       try { app.drawCoachPosterArt(c, model(o), assets, { format, layout }); } finally { app.document.createElement = saved; }
       return c;
     };
-    assert.ok(/drawCoachPosterArt\([^)]*\{ format, layout: CPOSTER_LAYOUT \}\)/.test(read('js/features/coach-poster-ui.js')) && /const CPOSTER_LAYOUT = 'hero';/.test(read('js/features/coach-poster-ui.js')), 'l\'écran dessine la mise en page « hero »');
+    assert.ok(/drawCoachPosterArt\([^)]*\{ format, layout: posterStyle\(mine\.style\) \}\)/.test(read('js/features/coach-poster-ui.js')), 'l\'écran dessine le style choisi');
+    assert.equal(app.posterStyle(undefined), 'hero', 'sans choix : « Avec le bonhomme » (hero)');
     for (const format of ['story', 'square']) {
       sameJSON(drawL({ specialty: 'Force' }, format, 'inconnue').ops, drawL({ specialty: 'Force' }, format, 'figure').ops, `${format} : layout inconnu, la mise en page d'avant`);
       const H = format === 'square' ? 1080 : 1920;
@@ -346,5 +348,95 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     }
     assert.equal(run('CPL.heroAlpha'), 0.4, 'personnage à 40 % d\'opacité uniforme');
     assert.equal(run('CPL.ring'), '#AEAEB2', 'liseré gris clair (plus d\'anneau orange)');
+  });
+
+  // Style (24/11) : « Avec le bonhomme » (hero, défaut) ou « Photo seule » (photo)
+  const drawS = (o, format, layout, assets = { photo: img('photo'), icon: img('icon', 192, 192), body: img('body', 1152, 2520) }) => {
+    const c = fakeCanvas(), saved = app.document.createElement;
+    app.document.createElement = () => { const x = fakeCanvas(c.ops); x.id = 'cover'; return x; };
+    try { app.drawCoachPosterArt(c, model(o), assets, { format, layout }); } finally { app.document.createElement = saved; }
+    return c;
+  };
+  const noPhoto = { photo: null, icon: img('icon', 192, 192), body: img('body', 1152, 2520) };
+  const CASES = [['photo', { specialty: 'Force' }], ['homme', { name: 'Camille Martin', silhouette: 'male', specialty: 'Force · Perte de poids' }],
+    ['nom long', { name: 'Marie-Charlotte Delafontaine', specialty: 'Rééducation · Mobilité · Pilates' }], ['coach seul', { neutral: true }],
+    ['sans photo', { hasPhoto: false }, noPhoto]];
+
+  test('affiche du coach, style « Avec le bonhomme » : dessin inchangé au pixel près (empreinte de chaque opération, relevée sur main)', () => {
+    // Empreinte SHA-256 de toutes les opérations du faux canvas (textes, polices, couleurs, positions, images) : relevée
+    // avec coach-poster-art.js de main (7c92d663), avant l'ajout du style « Photo seule »
+    const GOLD = {
+      'story photo': 'af6654cacf78ddbe', 'story homme': '491fed23567fd6a5', 'story nom long': 'f8ad1a0e2c18c215', 'story coach seul': '833cbbb62c6c0a39', 'story sans photo': 'e428f57bdd5365c9',
+      'square photo': '8359c37942027cec', 'square homme': 'd3f32a65bb0f1fee', 'square nom long': '65f9bc165e0d58ef', 'square coach seul': 'e20d42489f3714ca', 'square sans photo': '1a6c2cdb76ba2f08',
+    };
+    const got = {};
+    for (const format of ['story', 'square']) for (const [n, o, a] of CASES) {
+      got[`${format} ${n}`] = crypto.createHash('sha256').update(JSON.stringify(drawS(o, format, 'hero', a).ops)).digest('hex').slice(0, 16);
+    }
+    if (process.env.CPOSTER_GOLD) console.log(JSON.stringify(got));
+    sameJSON(got, GOLD);
+    const ui = read('js/features/coach-poster-ui.js'), data = read('js/data/coach-poster.js');
+    assert.ok(/style: posterStyle\(prefs\?\.style\)/.test(ui), 'sans réglage gardé : hero');
+    assert.match(app.coachPosterAlt(model()), /^Affiche « Nouvelle coach » : Léa Martin, sur MDLF Training, code K7M2-QX9P-R4TD$/, 'texte VoiceOver d\'avant');
+    assert.ok(/CPOSTER_STYLES = \[\{ key: 'hero', label: 'Avec le bonhomme' \}, \{ key: 'photo', label: 'Photo seule' \}\]/.test(data), 'libellés du choix');
+  });
+
+  test('affiche du coach, style « Photo seule » : sans personnage ni Anton, photo en héros, orange seulement sur « Rejoins-moi », zone sûre', () => {
+    for (const format of ['story', 'square']) {
+      const H = format === 'square' ? 1080 : 1920;
+      for (const [n, o, a] of CASES) {
+        const c = drawS(o, format, 'photo', a), t = c.ops.filter(x => x.op === 'text'), tag = `${format} ${n}`;
+        const m = model(o), size = x => parseFloat(x.font.match(/(\d+(?:\.\d+)?)px/)[1]);
+        assert.ok(!c.ops.some(x => x.op === 'image' && x.id === 'body'), `${tag} : pas de personnage`);
+        assert.ok(t.every(x => !/Anton/.test(x.font)), `${tag} : SF Pro partout, pas l'Anton`);
+        assert.ok(t.every(x => ['#FFFFFF', '#FF7A1A', '#98989F', '#A0A0A7'].includes(x.fill)), `${tag} : textes blancs (ou gris secondaire dans la carte, ${[...new Set(t.map(x => x.fill))]})`);
+        assert.deepEqual([...new Set(t.filter(x => x.fill === '#FF7A1A').map(x => x.text))], ['Rejoins-moi sur MDLF Training'], `${tag} : l'orange seulement sur « Rejoins-moi »`);
+        const ctaO = t.find(x => x.fill === '#FF7A1A');
+        assert.ok(size(ctaO) <= 40, `${tag} : orange en petit (${size(ctaO)} px)`);
+        const fills = c.ops.filter(x => x.op === 'fill' || x.op === 'rect').map(x => x.fill);
+        assert.ok(!fills.includes('#FF7A1A') && !fills.includes('#FF453A'), `${tag} : aucun aplat orange ni rouge (${[...new Set(fills)]})`);
+        assert.ok(t.every(x => x.fill !== '#000000'), `${tag} : aucun texte noir`);
+        assert.ok(c.ctx.gradients === 0 && c.ctx.spacings.every(sp => sp === '0px'), `${tag} : aucun dégradé, lettres jamais espacées`);
+        const title = t.find(x => /^(Nouveau coach|Nouvelle coach|Coach)$/.test(x.text));
+        assert.ok(title && title.fill === '#FFFFFF', `${tag} : titre en blanc sur une ligne (${title?.text})`);
+        assert.equal(title.text, m.title === 'COACH' ? 'Coach' : m.title.startsWith('NOUVELLE') ? 'Nouvelle coach' : 'Nouveau coach');
+        const names = t.filter(x => m.name.split(' ').some(w => x.text.includes(w)) && x !== title && !/·/.test(x.text));
+        assert.ok(names.length && names.every(x => size(x) > size(title)), `${tag} : nom plus gros que le titre`);
+        if (m.specialty) assert.ok(t.some(x => x.text === m.specialty), `${tag} : spécialité`);
+        assert.ok(t.some(x => x.text === 'K7M2-QX9P-R4TD'), `${tag} : le code`);
+        const card = c.ops.find(x => x.op === 'rrect' && x.w > 800 && x.h <= 240);
+        assert.ok(card && c.ops.some(x => x.op === 'image' && x.id === 'icon' && x.y > card.y && x.y < card.y + card.h), `${tag} : carte du code avec l'icône de l'app`);
+        const photo = c.ops.find(x => x.op === 'image' && x.id === 'cover');
+        if (a) {
+          assert.ok(!photo && t.some(x => x.text === 'LM' && size(x) >= 170), `${tag} : sans photo, un grand rond aux initiales`);
+        } else {
+          // Photo en héros : nettement plus grande que le carré du rond « hero » (600 px au plus en story, 460 en carré)
+          assert.ok(photo && photo.w * photo.h >= (format === 'story' ? 960 * 520 : 470 * 800) && photo.w * photo.h > 1.5 * (format === 'story' ? 600 : 460) ** 2, `${tag} : photo en héros (${photo?.w} × ${photo?.h})`);
+          if (format === 'story') assert.ok(photo.y >= 250 && photo.y + photo.h <= 1670, `${tag} : photo dans la zone sûre`);
+        }
+        if (format === 'story') assert.ok(t.every(x => x.y - size(x) * 0.74 >= 249.5 && x.y + size(x) * 0.2 <= 1670.5) && card.y >= 250 && card.y + card.h <= 1670, `${tag} : tout dans la zone sûre d'Instagram (${t.map(x => `${x.text}@${Math.round(x.y - size(x) * 0.74)}-${Math.round(x.y + size(x) * 0.2)}`).join(' ')} carte ${Math.round(card.y)}+${card.h})`);
+        assert.ok(t.every(x => x.y > 0 && x.y < H), `${tag} : rien hors de l'image`);
+        // Rien sous la carte du code : chaque texte hors de la carte finit au-dessus d'elle (nom long, spécialité)
+        const inCard = x => x.y > card.y && x.y < card.y + card.h;
+        assert.ok(t.filter(x => !inCard(x)).every(x => x.y + size(x) * 0.2 <= card.y), `${tag} : aucun texte sous la carte du code`);
+        if (photo) assert.ok(photo.y + photo.h <= card.y, `${tag} : la photo au-dessus de la carte`);
+        // Rien ne déborde à droite ni à gauche (largeur du faux canvas : 0,5 × taille × caractères)
+        for (const x of t) {
+          const w = x.text.length * size(x) * 0.5, l = x.align === 'center' ? x.x - w / 2 : x.align === 'left' ? x.x : x.x - w;
+          assert.ok(l >= 40 - 0.5 && l + w <= 1040 + 0.5, `${tag} : « ${x.text} » dans la largeur (${Math.round(l)} → ${Math.round(l + w)})`);
+        }
+      }
+    }
+    assert.match(app.coachPosterAlt(model(), 'photo'), /^Affiche « Nouvelle coach » sans le personnage, ta photo en grand : Léa Martin, sur MDLF Training, code K7M2-QX9P-R4TD$/, 'VoiceOver : photo seule');
+    assert.match(app.coachPosterAlt(model({ hasPhoto: false }), 'photo'), /sans le personnage, tes initiales en grand : /, 'VoiceOver : initiales');
+    // Réglage gardé avec les autres, par compte ; valeur inconnue : hero
+    app.coachPosterSavePrefs('u1', { name: 'Léa', specialty: '', silhouette: 'female', neutral: false, style: 'photo' });
+    assert.equal(app.coachPosterPrefs('u1').style, 'photo', 'style « Photo seule » gardé');
+    app.coachPosterSavePrefs('u1', { name: 'Léa', specialty: '', silhouette: 'female', neutral: false, style: 'bizarre' });
+    assert.equal(app.coachPosterPrefs('u1').style, 'hero', 'valeur inconnue : hero');
+    // Contraste du blanc sur le noir (21:1) et du gris secondaire sur la carte, au moins 7:1 pour le texte principal
+    const lum = h => { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(u => (u <= 0.03928 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+    const ratio = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+    assert.ok(ratio('#FFFFFF', '#000000') >= 7 && ratio('#FFFFFF', '#1C1C1E') >= 7, 'blanc à 7:1 au moins sur le noir et sur la carte');
   });
 }
