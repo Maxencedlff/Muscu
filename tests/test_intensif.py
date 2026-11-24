@@ -245,7 +245,7 @@ def t_programme_series(bench, eng, dev, theme):
         page.click('[data-action="ex-intens-set"][data-n="1"]'); settle(page)
         page.click('[data-action="ex-intens-set"][data-n="3"]'); settle(page)
         page.click('[data-action="ex-intens-set"][data-n="4"]'); settle(page)
-        R.check([b.get_attribute('aria-checked') for b in boxes.all()] == ['true', 'false', 'true', 'false'], f'{t} plusieurs : séries 1 et 3 cochées')
+        R.check([b.get_attribute('aria-checked') for b in boxes.all()] == ['true', 'false', 'true', 'false'] and 'Séries 1 et 3' in page.locator('[data-action="ex-intens-where"]').inner_text(), f'{t} plusieurs : séries 1 et 3 cochées, affichées')
         page.locator('[data-action="ex-intens-set"]').last.scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-22-plusieurs-series')
         page.click('[data-action="save-ex"]'); page.wait_for_selector('.view.editor'); settle(page)

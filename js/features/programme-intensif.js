@@ -50,7 +50,7 @@ function exIntensHtml(d) {
             ${icon('chevron.right', 16)}
           </button>${sub ? `
           <button class="cell cell--nav" data-action="ex-intens-where">
-            <span class="cell__body"><span class="cell__title">Sur quelle série</span><span class="cell__sub">${esc(d.intensMulti ? 'Plusieurs séries' : intensWhereText(where))}</span></span>
+            <span class="cell__body"><span class="cell__title">Sur quelle série</span><span class="cell__sub">${esc(intensWhereText(where))}</span></span>
             ${icon('chevron.right', 16)}
           </button>${checks}` : ''}
         </div>
