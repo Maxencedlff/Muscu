@@ -335,7 +335,7 @@ function renderDefi(id) {
       <div class="defi-hero" role="group" aria-label="${esc(`Aujourd'hui, ${defiAmountSpoken(t.done, c.measure)} sur ${defiAmountSpoken(t.goal, c.measure)}${t.reached ? ', objectif atteint' : ''}${t.paused ? ', en pause' : ''}. ${lenLine.replace(/\u00a0/g, ' ')}`)}">
         <div class="defi-hero__ring" aria-hidden="true">${defiRingSvg(t.ratio, 96, t.reached)}</div>
         <div class="defi-hero__text" aria-hidden="true"><p class="defi-hero__big num"><span class="defi-hero__num"><b>${defiVal(t.done)}</b>\u00a0/\u00a0${defiVal(t.goal)}\u00a0${defiUnit(c)}</span></p>
-          <p class="defi-hero__sub">${t.paused ? 'En pause' : t.reached ? 'Fait aujourd\'hui' : 'Aujourd\'hui'}\u00a0· <span class="defi-hero__len">${esc(lenLine)}</span></p></div>
+          <p class="defi-hero__sub"><span>${t.paused ? 'En pause' : t.reached ? 'Fait aujourd\'hui' : 'Aujourd\'hui'}</span><span class="defi-hero__len">${esc(lenLine)}</span></p></div>
       </div>
       ${t.paused ? '' : `${defiStepsHtml(c, t)}${defiFootHtml(c)}`}`;
   const muscles = typeof libExHeroHtml === 'function' ? libExHeroHtml(c.name) : '';

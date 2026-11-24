@@ -2770,9 +2770,9 @@ def p_defis(r):
     with r.etape('reglages', 'Dips choisi : objectif, durée, rappel', cle=cle):
         r.toucher('.sess-sheet--addex [data-action="ax-pick"][data-name="Dips"]', 'Dips')
         r.attendre('.defi-form', 'réglages du défi')
-    with r.etape('lance', '« Lancer » : trois défis sur l\'accueil', cle=cle):
+    with r.etape('lance', '« Lancer » : l\'accueil défile jusqu\'au nouveau défi, mis en avant', cle=cle):
         r.toucher('.sheet__btn--confirm', 'Lancer')
-        r.defiler('#homeDefis', 'section Défis')
+        r.page.wait_for_timeout(700)   # défilement et mise en avant faits par l'app (2,4 s)
     with r.etape('recap', 'Récap d\'octobre : écran Défis (total et jours tenus)'):
         r.raccourci("() => { const ids = recapPages(recapStats(recapPeriodFromKey('m2026-10'))).map(p => p.id); openRecap('m2026-10'); "
                     "recapIndex = Math.max(0, ids.indexOf('defis')); render(); }", 'récap d\'octobre ouvert sur l\'écran Défis')

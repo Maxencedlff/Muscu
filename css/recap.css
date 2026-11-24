@@ -297,7 +297,7 @@ html.type-xl .recap__brand { order: 1; flex: 1 1 0; min-width: 0; white-space: n
 html.type-xl .recap__close { order: 2; align-self: flex-start; }
 html.type-xl .recap__period { order: 3; flex: 1 1 100%; text-align: left; white-space: normal; overflow: visible; }
 /* Partager grandit avec le texte */
-html.type-xl .recap__share { font-size: var(--fs-body); padding: 8px 14px; }
+html.type-xl .recap__share { font-size: min(var(--fs-body), 24px); padding: 8px 14px; }   /* grandit, sans sortir du bouton sur SE */
 html.type-xl .recap__share span { white-space: normal; overflow: visible; text-align: center; }
 /* L'en-tête sur deux lignes (période dessous) : les écrans commencent sous lui */
 html.type-xl .recap-page { padding-top: calc(var(--rc-head-h, calc(env(safe-area-inset-top, 0px) + 120px)) + 8px); }
