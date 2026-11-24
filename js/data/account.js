@@ -896,6 +896,7 @@ async function syncNow() {
     // Garde de taille (js/data/sync.js) : des plans diète trop lourds ne bloquent jamais le reste du profil
     const sized = profilePayloadForServer(data), doc = sized.doc, docHash = syncHash(doc);
     account.dietTooBig = sized.dietDropped;
+    account.defisTooBig = sized.defisDropped;   // défis restés sur l'iPhone (garde de taille, js/data/sync.js)
     if (docHash !== meta.profileHash) {
       const { data: up, error } = await sb.from('profiles').upsert({ user_id: userId, doc }, { onConflict: 'user_id' }).select('updated_at').single();
       if (error) throw error;

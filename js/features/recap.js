@@ -390,7 +390,7 @@ registerActions({
   'recap-next':      () => { recapGo(1); },
   'recap-share':     (e, el) => { openRecapShare(el.dataset.key); },
   'setting-defis-recap': () => {
-    if (data.defisRecapOff === true) delete data.defisRecapOff; else data.defisRecapOff = true;
+    data.defisRecap = { on: !defisRecapOn(data), at: Date.now() };   // daté : le choix le plus récent gagne (synchro)
     save(); render();
   },
   'setting-recap-card': () => {

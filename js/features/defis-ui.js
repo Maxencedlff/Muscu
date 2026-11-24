@@ -27,7 +27,6 @@ function defiRingSvg(ratio, size = 44, reached = false) {
   return `<svg class="defi-ring${reached ? ' defi-ring--done' : ''}" width="${size}" height="${size}" viewBox="0 0 44 44" aria-hidden="true" focusable="false">
     <circle class="defi-ring__track" cx="22" cy="22" r="${r}"/>${arc}${check}</svg>`;
 }
-function defiCountText(c, t) { return `${defiVal(t.done, c.measure)} / ${defiVal(t.goal, c.measure)}${c.measure === 'time' ? '' : ''}`; }
 function defiSpokenToday(c, t) {
   return `${defiAmountSpoken(t.done, c.measure)} sur ${defiAmountSpoken(t.goal, c.measure)} aujourd'hui${t.reached ? ', objectif atteint' : ''}`;
 }
@@ -64,7 +63,7 @@ function defiHomeCardHtml(c) {
       <button class="defi-card__open" data-action="defi-open" data-id="${esc(c.id)}" aria-label="${esc(`${c.name} : ${defiSpokenToday(c, t)}, ${defiStreakText(defiStreak(c))}. Ouvrir le défi`)}">
         ${defiRingSvg(t.ratio, 44, t.reached)}
         <span class="defi-card__text" aria-hidden="true"><span class="defi-card__name">${esc(c.name)}</span>
-          <span class="defi-card__val num"><b>${defiVal(t.done, c.measure)}</b> / ${defiVal(t.goal, c.measure)} ${defiUnit(c)}${t.reached ? ` · <span class="defi-card__done">Fait</span>` : ''}</span></span>
+          <span class="defi-card__val num"><b>${defiVal(t.done)}</b> / ${defiVal(t.goal)} ${defiUnit(c)}${t.reached ? ` · <span class="defi-card__done">Fait</span>` : ''}</span></span>
         ${icon('chevron.right', 14)}</button>
       ${defiStepsHtml(c, t)}
       ${defiFootHtml(c)}
@@ -97,9 +96,17 @@ function defiAddNow(id, n, day) {
   if (!(n > 0)) return;
   const c = defiGet(data, id);
   if (!c) return;
-  const before = defiToday(c, day || localISO()).reached;
-  const r = defiAdd(data, id, n, day || localISO());
-  if (!r) { showToast('Impossible de noter ce jour-là', { error: true }); return; }
+  day ||= localISO();
+  const before = defiToday(c, day).reached;
+  const ok = defiAddCheck(data, id, n, day);
+  if (!ok.ok) {
+    const last = defiLastDay(c);
+    showToast(ok.error === 'full' ? `${DEFI_DAY_ADDS} ajouts par jour au plus : corrige le total du jour`
+      : ok.error === 'day' && last && day > last ? 'Ce défi est fini : relance-le depuis sa fiche'
+      : ok.error === 'day' ? 'Ce jour ne peut plus être noté' : 'Nombre hors limites', { error: true });
+    return;
+  }
+  const r = defiAdd(data, id, n, day);
   save();
   const t = defiToday(c, r.day);
   haptic(!before && t.reached ? 'success' : 'light');
@@ -108,7 +115,7 @@ function defiAddNow(id, n, day) {
     timer: setTimeout(() => { defiUndoState = null; defiRefreshFoot(id); }, DEFI_UNDO_MS) };
   defiRepaint(id);
   defiPlanReminders();
-  announce(`${defiAmountSpoken(n, c.measure)} notées. ${defiSpokenToday(c, t)}. Annuler disponible`);
+  announce(`Noté : ${defiAmountSpoken(n, c.measure)}. ${defiSpokenToday(c, t)}. Annuler disponible`);
 }
 // Redessine la carte (ou la fiche) en gardant le focus sur le bouton touché (render le replace)
 function defiRepaint() { render(); }
@@ -175,9 +182,9 @@ function defiFormHtml({ measure, goal, length, remind, edit = false }) {
       <div class="group-title">Durée</div>
       <div class="segmented defi-form__len" role="group" aria-label="Durée du défi">${len(30, '30 jours')}${len(60, '60 jours')}${len(0, 'Sans fin')}</div>
       <div class="group-title">Rappel</div>
-      <div class="group">
-        <button type="button" class="cell" id="defiRemindOn" role="switch" aria-checked="${!!remind}">
-          <span class="cell__body"><span class="cell__title">Me le rappeler</span><span class="cell__sub">Une notification par jour, sauf si c'est déjà fait</span></span>${switchHtml(!!remind)}</button>
+      <div class="group${defiRemindAvailable() ? '' : ' group--disabled'}">
+        <button type="button" class="cell" id="defiRemindOn" role="switch" aria-checked="${!!remind}"${defiRemindAvailable() ? '' : ' disabled'}>
+          <span class="cell__body"><span class="cell__title">Me le rappeler</span><span class="cell__sub">${defiRemindAvailable() ? 'Une notification par jour, sauf si c\'est déjà fait' : 'Dans l\'app iPhone seulement : le navigateur n\'envoie pas de rappel'}</span></span>${switchHtml(!!remind)}</button>
         <label class="cell defi-form__time" ${remind ? '' : 'hidden'}><span class="cell__body"><span class="cell__title">Heure</span></span>
           <input id="defiRemind" type="time" class="defi-form__clock num" value="${remind || '18:00'}" aria-label="Heure du rappel"></label>
       </div>
@@ -190,6 +197,7 @@ function defiFormWire(panel, state) {
     panel.querySelectorAll('[data-len]').forEach(x => { const on = x === b; x.classList.toggle('segmented__btn--active', on); x.setAttribute('aria-pressed', String(on)); });
     haptic();
   }));
+  $('#defiGoal', panel).addEventListener('input', () => { $('#defiErr', panel).textContent = ''; });   // message d'une saisie corrigée retiré
   const sw = $('#defiRemindOn', panel);
   sw.addEventListener('click', async () => {
     const on = sw.getAttribute('aria-checked') !== 'true';
@@ -260,15 +268,17 @@ function defiMonthHtml(c, month) {
   const [y, m] = month.split('-').map(Number);
   const nDays = new Date(y, m, 0).getDate(), lead = (defiDate(first).getDay() + 6) % 7;
   const cells = [];
-  for (let i = 0; i < lead; i++) cells.push('<span class="defi-cal__cell" aria-hidden="true"></span>');
+  for (let i = 0; i < lead; i++) cells.push('<span class="defi-cal__cell defi-cal__cell--pad" aria-hidden="true"></span>');
   for (let dn = 1; dn <= nDays; dn++) {
     const day = `${month}-${String(dn).padStart(2, '0')}`, st = defiDayState(c, day, today), t = defiDayTotal(c, day);
     const cls = `defi-cal__dot defi-cal__dot--${st}${day === today ? ' defi-cal__dot--now' : ''}`;
     const word = DEFI_STATE_WORDS[st];
     const label = `${dn} ${DEFI_MONTHS[m - 1]}${word ? `, ${word}` : ''}${st !== 'out' && st !== 'paused' ? `, ${defiAmountSpoken(t, c.measure)}` : ''}`;
-    cells.push(st === 'out'
-      ? `<span class="defi-cal__cell" role="listitem" aria-label="${esc(label)}"><span class="${cls}" aria-hidden="true">${dn}</span></span>`
-      : `<button class="defi-cal__cell" role="listitem" data-action="defi-day" data-id="${esc(c.id)}" data-day="${day}" aria-label="${esc(`${label}. Corriger`)}"><span class="${cls}" aria-hidden="true">${dn}</span></button>`);
+    // La case est l'élément de liste ; le bouton (jour qu'on peut encore corriger) est dedans
+    const editable = st !== 'out' && day >= defiEditFrom();
+    cells.push(editable
+      ? `<span class="defi-cal__cell" role="listitem"><button class="defi-cal__btn" data-action="defi-day" data-id="${esc(c.id)}" data-day="${day}" aria-label="${esc(`${label}. Corriger`)}"><span class="${cls}" aria-hidden="true">${dn}</span></button></span>`
+      : `<span class="defi-cal__cell" role="listitem" aria-label="${esc(label)}"><span class="${cls}" aria-hidden="true">${dn}</span></span>`);
   }
   const prev = defiAddDays(first, -1).slice(0, 7), next = defiAddDays(`${month}-${nDays}`, 1).slice(0, 7);
   const canPrev = prev >= c.start.slice(0, 7), canNext = next <= today.slice(0, 7);
@@ -290,9 +300,14 @@ function defiDaysListHtml(c) {
   return days.map(day => {
     const t = defiDayTotal(c, day), g = defiGoalOn(c, day), st = defiDayState(c, day, today), n = (c.log[day] || []).length;
     const when = day === today ? 'Aujourd\'hui' : fmtDate(defiDate(day).getTime(), 'day');
+    if (day < defiEditFrom()) {
+      return `<div class="cell" role="group" aria-label="${esc(`${when} : ${defiAmountSpoken(t, c.measure)} sur ${defiAmountSpoken(g, c.measure)}${st === 'done' ? ', tenu' : ''}`)}">
+        <span class="cell__body" aria-hidden="true"><span class="cell__title">${esc(when.replace(/^./, s => s.toUpperCase()))}</span></span>
+        <span class="cell__value num defi-day__val${st === 'done' ? ' defi-day__val--done' : ''}" aria-hidden="true">${st === 'done' ? icon('checkmark', 12) : ''}${defiVal(t)} / ${defiVal(g)}</span></div>`;
+    }
     return `<button class="cell cell--nav" data-action="defi-day" data-id="${esc(c.id)}" data-day="${day}" aria-label="${esc(`${when} : ${defiAmountSpoken(t, c.measure)} sur ${defiAmountSpoken(g, c.measure)}${st === 'done' ? ', tenu' : ''}, en ${n} fois. Corriger`)}">
         <span class="cell__body" aria-hidden="true"><span class="cell__title">${esc(when.replace(/^./, s => s.toUpperCase()))}</span><span class="cell__sub num">${plural(n, 'ajout', 'ajouts')}</span></span>
-        <span class="cell__value num defi-day__val${st === 'done' ? ' defi-day__val--done' : ''}" aria-hidden="true">${st === 'done' ? icon('checkmark', 12) : ''}${defiVal(t, c.measure)} / ${defiVal(g, c.measure)}</span>${icon('chevron.right', 16)}</button>`;
+        <span class="cell__value num defi-day__val${st === 'done' ? ' defi-day__val--done' : ''}" aria-hidden="true">${st === 'done' ? icon('checkmark', 12) : ''}${defiVal(t)} / ${defiVal(g)}</span>${icon('chevron.right', 16)}</button>`;
   }).join('');
 }
 function renderDefi(id) {
@@ -307,7 +322,7 @@ function renderDefi(id) {
     : `
       <div class="defi-hero" role="group" aria-label="${esc(`Aujourd'hui : ${defiSpokenToday(c, t)}`)}">
         <div class="defi-hero__ring" aria-hidden="true">${defiRingSvg(t.ratio, 96, t.reached)}</div>
-        <div class="defi-hero__text" aria-hidden="true"><p class="defi-hero__big num"><b>${defiVal(t.done, c.measure)}</b> / ${defiVal(t.goal, c.measure)} ${defiUnit(c)}</p>
+        <div class="defi-hero__text" aria-hidden="true"><p class="defi-hero__big num"><b>${defiVal(t.done)}</b> / ${defiVal(t.goal)} ${defiUnit(c)}</p>
           <p class="defi-hero__sub">${t.paused ? 'En pause' : t.reached ? 'Fait aujourd\'hui' : 'Aujourd\'hui'} · ${esc(lenLine)}</p></div>
       </div>
       ${t.paused ? '' : `${defiStepsHtml(c, t)}${defiFootHtml(c)}`}`;
@@ -336,7 +351,7 @@ function renderDefi(id) {
         <div class="group-foot">Les défis ne comptent pas dans Progrès (séries par muscle) : 100 pompes par jour fausseraient tes séances. Leurs chiffres sont ici.</div>
         <div class="group-title">Calendrier</div>
         <div class="group defi-cal-group">${defiMonthHtml(c, month)}</div>
-        <div class="group-foot">Touche un jour pour le corriger.</div>
+        <div class="group-foot">Touche un jour pour le corriger (les ${DEFI_EDIT_DAYS} derniers jours).</div>
         ${muscles ? `<div class="group-title">Muscles travaillés</div><div class="group defi-muscles">${muscles}</div>` : ''}
         <div class="group-title">Jour par jour</div>
         <div class="group">${defiDaysListHtml(c)}</div>
@@ -376,10 +391,14 @@ async function defiDaySheet(id, day) {
 
 // ── Rappels (notification locale, iPhone) ───────────────────
 
+// Rappels : seulement dans l'app (notification locale) ; le navigateur n'en a pas
+function defiRemindAvailable() { return typeof Native !== 'undefined' && !!Native.isNative && typeof Native.scheduleDefiReminders === 'function'; }
 async function defiNotifAllowed() {
-  if (typeof Native === 'undefined' || !Native.isNative) return true;   // web : rien ne sonnera, le réglage reste
+  if (!defiRemindAvailable()) return false;
   return (await Native.requestNotificationPermission?.()) === 'granted';
 }
+// Premier jour qu'on peut encore noter ou corriger (avant, le jour ne garde que son total : js/data/defis.js)
+function defiEditFrom() { return localISO(Date.now() - DEFI_EDIT_DAYS * 86400000); }
 // Rappels des 14 prochains jours (un par défi et par jour), sans aujourd'hui s'il est fait ou passé, ni les jours en pause
 function defiReminderPlan(d = data, now = Date.now()) {
   const out = [];
@@ -395,10 +414,19 @@ function defiReminderPlan(d = data, now = Date.now()) {
   });
   return out;
 }
+// Replanifiés à chaque geste, au lancement, au retour au premier plan (heure locale : un fuseau changé est suivi) et
+// après chaque fusion du compte ; annulés quand les données de l'appareil sont effacées (defiCancelReminders)
 function defiPlanReminders() {
-  if (typeof Native === 'undefined' || !Native.scheduleDefiReminders) return;
+  if (!defiRemindAvailable()) return;
   Native.scheduleDefiReminders(defiReminderPlan());
 }
+function defiCancelReminders() { if (defiRemindAvailable()) Native.scheduleDefiReminders([]); }
+// Défis de 30 ou 60 jours finis : fermés (lancement, retour, minuit, fusion), puis rappels replanifiés
+function defiRefresh() {
+  if (defiCloseFinished(data)) save();
+  defiPlanReminders();
+}
+onAccountChange(kind => { if (kind === 'merged') defiPlanReminders(); });   // lancement et retour : js/app/init.js
 
 // ── Actions ─────────────────────────────────────────────────
 

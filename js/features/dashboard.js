@@ -524,7 +524,7 @@ function startTicker() {
     if (first) return;
     // Minuit passé, accueil resté ouvert : les défis repartent de zéro (jour lu à chaque minute, heure locale)
     const dh = document.querySelector('.defis-home');
-    if (dh && dh.dataset.day !== localISO()) { render(); return; }
+    if (dh && dh.dataset.day !== localISO()) { defiRefresh(); render(); return; }
     // Une séance devient prête : on redessine l'accueil (la carte « Prochaine séance » peut changer)
     const keys = sessionKeys();
     const statusEl = k => $(`[data-status-cat="${CSS.escape(k)}"]`);

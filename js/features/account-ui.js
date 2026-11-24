@@ -371,6 +371,7 @@ function keepOnlyDeviceSettings() {
   for (const k of SYNC_LOCAL_ONLY) if (k !== 'history' && k !== 'trash' && data[k] !== undefined) keep[k] = data[k];
   try { localStorage.setItem(BACKUP_KEY, JSON.stringify(data)); } catch { /* copie de secours impossible */ }
   if (activeSession) endSession();
+  defiCancelReminders();   // rappels des défis de l'autre compte (ceux du compte arrivent avec la fusion)
   data = Object.assign(freshData(), keep);
   resetSelections();
   save(true);

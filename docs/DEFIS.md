@@ -27,7 +27,10 @@ Code : `js/data/defis.js` (logique pure), `js/features/defis-ui.js` (écrans), `
   - Les pas dépendent de l'objectif (`defiSteps`) : jusqu'à 10 → +1 +2 ; jusqu'à 30 → +1 +5 ; jusqu'à 60 → +5 +10 ;
     jusqu'à 150 → +5 +10 +20 ; jusqu'à 400 → +10 +25 +50 ; au-delà +25 +50 +100. En temps : +10 s +30 s, +15 s +30 s
     +1 min, ou +30 s +1 min +2 min. « Autre » ouvre le pavé numérique (« 1:30 » accepté pour un temps).
-  - On note autant de fois qu'on veut dans la journée (40 ajouts par jour au plus).
+  - On note autant de fois qu'on veut dans la journée : 40 ajouts par jour au plus à la saisie ; le 41e est refusé
+    avec sa raison (« 40 ajouts par jour au plus : corrige le total du jour »). Une fusion de deux appareils peut en
+    donner plus : rien n'est coupé (400 gardés par jour).
+  - On ne note ni un jour à venir, ni avant le début, ni après la fin du défi, ni plus de 58 jours en arrière.
 - **Fiche** (toucher la carte) : grand titre au nom de l'exercice, objectif, durée et rappel ; anneau du jour et les
   mêmes boutons ; « Chiffres » (série, jours tenus sur jours écoulés, record d'un jour, total) ; la phrase « Les défis
   ne comptent pas dans Progrès » ; le calendrier du mois (rond vert plein : tenu ; gris plein : manqué ; pointillé :
@@ -35,10 +38,12 @@ Code : `js/data/defis.js` (logique pure), `js/features/defis-ui.js` (écrans), `
   travaillé en rouge (l'image de tête de la fiche de la bibliothèque, `libExHeroHtml`) ; « Jour par jour » (30 derniers
   jours notés) ; puis Modifier, Mettre en pause ou Reprendre, Arrêter le défi.
 - **Corriger un jour** : toucher un jour du calendrier ou de la liste, taper le total. Annuler dans le toast. 0 vide
-  le jour.
+  le jour. Seulement les 58 derniers jours (`DEFI_EDIT_DAYS`) : au-delà, le jour ne garde que son total (voir
+  Données) et n'est plus touchable.
 - **Arrêter** : confirmation, puis le défi passe dans « Défis terminés » avec ses chiffres (Annuler dans le toast).
   Depuis sa fiche : Relancer, ou Supprimer (confirmation et Annuler). Un défi de 30 ou 60 jours se termine de lui-même
-  le lendemain de son dernier jour (`defiCloseFinished`).
+  le lendemain de son dernier jour (`defiCloseFinished` : au lancement, au retour au premier plan, à minuit sur
+  l'accueil et après chaque fusion du compte). Arrêter garde le rappel réglé : Annuler ou Relancer le retrouve.
 - Pas de flamme, pas d'emoji, pas de confettis : « 12 jours de suite » et « Fait ».
 
 ## Règles de calcul
@@ -75,8 +80,10 @@ Demande de Maxence du 24/11 : « dans le récap si c'est bien, avec une option s
   un défi. Coupé : ni l'écran, ni la ligne du résumé, donc ni l'image partagée (elle est dessinée depuis les mêmes
   écrans). Choisi plutôt qu'un interrupteur dans le récap : c'est le voisin de « Carte « Ta semaine » », le réglage
   d'affichage des récaps qui existe déjà ; le récap reste un écran à regarder et à partager, sans réglage dedans, et un
-  seul réglage vaut pour la semaine, le mois et l'année. `defisRecapOff: true` quand il est coupé, synchronisé avec le
-  profil (son absence est un choix : `SYNC_ABSENT_IS_CHOICE`).
+  seul réglage vaut pour la semaine, le mois et l'année. Icône : un drapeau (`flag`, propre aux défis).
+- Stockage : `defisRecap: { on, at }`, daté, absent = allumé. Synchronisé avec le profil, le choix le plus récent
+  gagne (`mergeDefisRecap`) ; un appareil resté sur une version d'avant, qui renvoie un profil sans la clé, ne le
+  rallume pas (audit du 24/11, I2).
 
 ## Rappel (notification locale)
 
@@ -84,10 +91,13 @@ Demande de Maxence du 24/11 : « dans le récap si c'est bien, avec une option s
   (`Native.requestNotificationPermission`) ; refusée : « Notifications refusées : autorise-les dans Réglages › MDLF
   Training › Notifications. », et le rappel reste éteint.
 - `defiReminderPlan` prévoit les 14 prochains jours (un rappel par défi et par jour), **sauf aujourd'hui si c'est déjà
-  fait**, sans les jours en pause ni après la fin. Replanifié à chaque ajout, annulation, correction ou réglage
-  (`Native.scheduleDefiReminders`, identifiants 7100 à 7199, 64 au plus) ; rien n'est demandé à iOS à ce moment-là.
-  Texte factuel : « Pompes » / « Défi du jour : 100 reps ».
-- Rien dans la PWA (pas de notification locale).
+  fait**, sans les jours en pause ni après la fin. Replanifié à chaque ajout, annulation, correction ou réglage, au
+  lancement, au retour au premier plan (l'heure locale suit un changement de fuseau) et après chaque fusion du compte
+  (`defiRefresh`, `Native.scheduleDefiReminders`, identifiants 7100 à 7199, 64 au plus) ; rien n'est demandé à iOS à
+  ce moment-là. Annulés quand les données de l'appareil sont effacées (`wipeLocalData`) et quand un autre compte
+  remplace celui de l'iPhone (`keepOnlyDeviceSettings`). Texte factuel : « Pompes » / « Défi du jour : 100 reps ».
+- PWA (navigateur) : l'interrupteur est grisé, « Dans l'app iPhone seulement : le navigateur n'envoie pas de
+  rappel ».
 
 ## Données
 
@@ -101,26 +111,43 @@ defis: {
     pauses: [{ from: '2026-11-10', to?: '2026-11-12' }],
     endedAt?: 1793...,                             // arrêté (Défis terminés)
     at: 1793...,                                   // dernière modification des réglages
-    log: { '2026-11-01': [{ id: 'a1b2c3d4', n: 30, at: 1793... }] },   // ajouts, 40 par jour, 800 jours
-    gone: ['a1b2c3d4'],                            // ajouts retirés (300 derniers)
+    log: { '2026-11-01': [{ id: 'a1b2c3d4', n: 30, at: 1793... }],    // ajouts (40 par jour à la saisie), 800 jours
+           '2026-08-01': [{ id: 'c20260801', n: 100, at: 1793... }] }, // plus de 60 jours : le total seul
+    gone: [{ id: 'a1b2c3d4', at: 1793... }],       // ajouts retirés, gardés 120 jours
   },
-  'old00001': { id: 'old00001', deleted: true, at: 1793... },          // supprimé : la trace seule
+  'old00001': { id: 'old00001', deleted: true, at: 1793... },          // supprimé : la trace seule (100 au plus)
 },
-defisRecapOff: true,                               // « Défis dans les récaps » coupé (absent : allumé)
+defisRecap: { on: false, at: 1793... },            // « Défis dans les récaps » coupé (absent : allumé)
 ```
 
 - **Stockage et synchro** : dans `ppl_v2` comme le reste, et sur le compte dans le **profil** (`profiles.doc`,
   `SYNC_PROFILE_KEYS`). Le serveur ne lit pas ce document (jsonb, garde de taille 900 Ko côté app) : **aucune
-  migration**, rien à appliquer. Taille : environ 35 octets par ajout, 3 ajouts par jour et 4 défis, soit environ
-  150 Ko par an au pire ; le journal garde 800 jours.
+  migration**, rien à appliquer.
+- **Taille** (audit du 24/11, I1). Un ajout pèse environ 45 octets, un jour réduit à son total aussi. Pour la borner :
+  - un jour de plus de 60 jours ne garde que son total (`c` + date, le même identifiant sur tous les appareils ; à la
+    fusion, un total fait foi sur les ajouts qu'il remplace : jamais de double compte) ;
+  - un défi terminé garde sa dernière année ; 10 défis terminés au plus (les plus anciens deviennent des traces de
+    suppression, datées de leur fin, donc pareilles sur chaque appareil) ; 100 traces au plus ;
+  - mesuré le 24/11 (JSON des défis, après nettoyage) : 1 défi à 3 ajouts par jour pendant un an, 29 Ko ; 4 défis à
+    6 ajouts par jour pendant un an, 148 Ko ; 4 défis à 10 ajouts par jour pendant deux ans, 281 Ko ; les mêmes plus
+    10 défis terminés aussi chargés, 760 Ko (cas extrême, sous la garde de 900 Ko) ;
+  - garde de taille (`profilePayloadForServer`, 900 Ko) : d'abord les défis terminés les plus anciens, puis les plans
+    diète, enfin les journaux des défis en cours (leurs réglages partent toujours). Ce qui ne part pas reste sur
+    l'iPhone (`account.defisTooBig`).
 - **Fusion des conflits** (`mergeDefis`, appelée dans toutes les branches de `applyRemoteProfile`, comme la nutrition) :
+  - hors de l'empreinte « modifié ici » du profil (`profileCoreHash`, comme la version de l'app) : un « +10 » hors
+    ligne ne fait jamais gagner cet appareil sur l'objectif de la semaine ou le programme changés ailleurs (audit, B1) ;
   - réglages du défi : la version la plus récente (`at`) gagne ;
-  - ajouts : réunis par identifiant, moins ceux retirés d'un côté ou de l'autre (`gone`, réunis aussi). 30 pompes
+  - ajouts : réunis par identifiant, moins ceux retirés d'un côté ou de l'autre (`gone`, réunis aussi et purgés par
+    âge, jamais coupés à un nombre : couper casserait la commutativité). 30 pompes
     notées hors ligne sur l'iPhone et 40 sur l'iPad donnent 70 ; un ajout annulé ne revient jamais ;
   - suppression : une trace `deleted` (plus récente qu'une modification ailleurs, elle gagne) ;
   - commutative (testé) : l'ordre des appareils ne change rien.
 - **Sans compte, hors ligne** : tout marche sur l'appareil ; la synchro rattrape au retour.
 - **Copie iCloud et fichier de l'app** : compris (ce n'est pas une donnée de santé saisie, comme les séances).
+- **Politique de confidentialité** (privacy.html, FR et EN) : les défis sont dans « Ce qui est copié sur le
+  serveur » (exercice, objectif, durée, heure du rappel, reps ou secondes notées avec leur heure).
+- **Revue Apple** : envoi par mise à jour à chaud accepté (docs/REVUE_APPLE.md, 6.6).
 - **Export** : JSON complet (Réglages › Sauvegarde) ; CSV des séances : une ligne par jour noté, après les séances,
   « Défi » dans la colonne Séance, le total dans Reps, « Objectif 100 » dans Note.
 - **Suppression du compte** : le profil part avec le compte (fonction `delete-account`) ; rien à ajouter.
@@ -138,7 +165,11 @@ et laisser le coach proposer un défi (« 50 squats par jour pendant 30 jours »
 - `tests/unit/defis.mjs` : création bornée, ajouts en plusieurs fois, Annuler, minuit et changement d'heure, série,
   pause, objectif daté, correction d'un jour, fusion de la synchro (commutative, ajouts hors ligne des deux côtés,
   annulés jamais ressuscités, suppression), profil synchronisé dans toutes les branches, pas des boutons, textes,
-  export CSV, récap (réglage, période sans défi), rappels, arrêt et fin.
+  export CSV, récap (réglage, période sans défi), rappels, arrêt et fin. Reproductions de l'audit du 24/11 : objectif de
+  la semaine changé ailleurs gardé après un « +10 » (B1), défi de 30 jours fermé et plus rien après son dernier jour
+  (B2), jours compactés, défis terminés bornés et garde de taille avant la diète (I1), réglage des récaps gardé face à
+  un appareil d'avant (I2), traces purgées par âge et commutatives (m1), 80 ajouts gardés à la fusion (m2), rappel
+  remis après Annuler (m3).
 - `tests/test_defis.py` : accueil sur chaque appareil et thème (pas des boutons, +10, délai de garde, Annuler, cibles
   de 44 pt, textes coupés, VoiceOver), fiche, calendrier, correction ; création ; 4 défis au plus ; pause et arrêt ;
   minuit ; ligne « Lancer un défi » ; iPhone SE en texte agrandi ; Progrès inchangé ; récap avec et sans le bloc,

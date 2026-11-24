@@ -34,10 +34,13 @@
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'exerciseEquip', 'sideFirst', 'silhouette', 'myProgrammes',
   'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods', 'dietFoodsGone', 'dietConsent',
-  'defis', 'defisRecapOff'];
+  'defis', 'defisRecap'];
 // defis (js/data/defis.js, docs/DEFIS.md) : toujours fusionnés (mergeDefis : réglages au plus récent, ajouts réunis
-// moins ceux retirés), jamais recopiés tels quels, dans toutes les branches de applyRemoteProfile ; defisRecapOff
-// (« Afficher dans les récaps » coupé) : un choix, son absence aussi (SYNC_ABSENT_IS_CHOICE)
+// moins ceux retirés), jamais recopiés tels quels, dans toutes les branches de applyRemoteProfile ; defisRecap
+// (« Défis dans les récaps », { on, at }) : le choix le plus récent gagne, absent du compte il reste tel quel ici.
+// Les deux sont hors de l'empreinte « modifié ici » (profileCoreHash) : un « +10 » ne fait pas gagner cet appareil
+// sur l'objectif de la semaine ou le programme changés ailleurs (audit du 24/11, B1)
+const SYNC_DEFIS_KEYS = ['defis', 'defisRecap'];
 // Clés de nutrition copiées seulement avec l'accord de la personne (dietConsent.on, js/data/nutrition.js) :
 // sans accord, ou accord retiré, elles ne partent pas et le profil envoyé les efface du serveur. L'accord
 // lui-même ({ on, at }) part toujours : un refus fait sur un appareil vaut pour les autres.
@@ -65,7 +68,7 @@ const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'b
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les
 // connaît pas encore (myProgrammes, silhouette) renvoie un profil sans elles, il ne les a pas effacées.
-const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMusclesSecondary', 'defisRecapOff'];
+const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 // Dictionnaires du profil fusionnés élément par élément (programmes, exercices perso…) : rien n'est perdu
 const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary', 'exerciseEquip'];   // nutrition : mergeDietProfile
 
@@ -153,12 +156,29 @@ function noteAppVersion(d, version, now = new Date()) {
 // part ; dietDropped le dit à l'écran (Réglages de la nutrition)
 const SYNC_PROFILE_MAX_BYTES = 900 * 1024;
 function profileBytes(doc) { return new TextEncoder().encode(JSON.stringify(doc)).length; }
+// Ordre : d'abord les défis terminés (les plus anciens d'abord : ils restent sur l'iPhone), puis les plans diète, puis
+// les journaux des défis en cours (leurs réglages partent toujours). defisDropped : des défis ne sont pas partis
 function profilePayloadForServer(d) {
   const doc = profilePayload(d);
-  if (profileBytes(doc) <= SYNC_PROFILE_MAX_BYTES) return { doc, dietDropped: false };
+  if (profileBytes(doc) <= SYNC_PROFILE_MAX_BYTES) return { doc, dietDropped: false, defisDropped: false };
   const slim = { ...doc };
+  let defisDropped = false;
+  if (slim.defis) {
+    slim.defis = { ...slim.defis };
+    const ended = Object.values(slim.defis).filter(c => c && !c.deleted && c.endedAt).sort((a, b) => a.endedAt - b.endedAt);
+    for (const c of ended) {
+      if (profileBytes(slim) <= SYNC_PROFILE_MAX_BYTES) break;
+      delete slim.defis[c.id]; defisDropped = true;
+    }
+  }
+  if (profileBytes(slim) <= SYNC_PROFILE_MAX_BYTES) return { doc: slim, dietDropped: false, defisDropped };
   for (const k of SYNC_DIET_CONSENT_KEYS) delete slim[k];
-  return { doc: slim, dietDropped: SYNC_DIET_CONSENT_KEYS.some(k => k in doc) };
+  const dietDropped = SYNC_DIET_CONSENT_KEYS.some(k => k in doc);
+  if (profileBytes(slim) > SYNC_PROFILE_MAX_BYTES && slim.defis) {
+    slim.defis = Object.fromEntries(Object.entries(slim.defis).map(([id, c]) => [id, c && !c.deleted ? { ...c, log: {}, gone: [] } : c]));
+    defisDropped = true;
+  }
+  return { doc: slim, dietDropped, defisDropped };
 }
 
 // Profil partagé : seulement les clés autorisées
@@ -192,7 +212,7 @@ const SYNC_PROFILE_VOLATILE = ['appVersion', 'appSeenAt'];
 // appVersion) est égale à celle-ci tant que rien d'autre n'a changé
 function profileCoreHash(doc) {
   const out = { ...(doc || {}) };
-  for (const k of SYNC_PROFILE_VOLATILE) delete out[k];
+  for (const k of [...SYNC_PROFILE_VOLATILE, ...SYNC_DEFIS_KEYS]) delete out[k];
   return syncHash(out);
 }
 // Ordres locaux des séances, gardés quand le profil reçu n'en a pas encore (compte rempli par une version
@@ -354,9 +374,13 @@ function mergeDietProfile(d, local, remoteDoc, remoteFirst) {
 }
 const SYNC_DIET_ALL_KEYS = [...SYNC_DIET_CONSENT_KEYS, 'dietConsent'];
 // Défis : la version de l'appareil et celle du compte réunies (rien de perdu d'un côté ni de l'autre)
-function mergeDefisProfile(d, localDefis, remoteDoc) {
-  const m = mergeDefis(localDefis, remoteDoc.defis);
+// Défis 30 ou 60 jours finis entre-temps : fermés aussitôt (defiCloseFinished)
+function mergeDefisProfile(d, local, remoteDoc, now = Date.now()) {
+  const m = mergeDefis(local.defis, remoteDoc.defis, now);
   if (Object.keys(m).length) d.defis = m; else delete d.defis;
+  defiCloseFinished(d, now);
+  const r = mergeDefisRecap(local.defisRecap, remoteDoc.defisRecap);
+  if (r) d.defisRecap = r; else delete d.defisRecap;
 }
 
 function applyRemoteProfile(d, remote, meta) {
@@ -367,7 +391,7 @@ function applyRemoteProfile(d, remote, meta) {
   const remoteHash = syncHash(doc), localHash = syncHash(profilePayload(d));
   if (localHash === remoteHash) { meta.profileHash = localHash; meta.profileCore = profileCoreHash(doc); return false; }
   const localDiet = Object.fromEntries(SYNC_DIET_ALL_KEYS.map(k => [k, d[k]]));
-  const localDefis = d.defis;
+  const localDefis = { defis: d.defis, defisRecap: d.defisRecap };
   const blank = isBlankData(d);
   const before = Object.fromEntries(Object.entries(d.userProgrammes || {}).filter(([, up]) => Array.isArray(up?.order)).map(([k, up]) => [k, up.order.slice()]));
   // Inchangé ici : empreinte égale, ou égale sans l'ordre des séances ajouté par une version précédente,
@@ -383,7 +407,7 @@ function applyRemoteProfile(d, remote, meta) {
     const ownVersion = Object.fromEntries(SYNC_PROFILE_VOLATILE.filter(k => d[k] !== undefined).map(k => [k, d[k]]));
     // Nutrition : jamais recopiée telle quelle (ni effacée parce que le compte ne l'a pas) : mergeDietProfile
     for (const k of SYNC_PROFILE_KEYS) {
-      if (SYNC_DIET_ALL_KEYS.includes(k) || k === 'defis') continue;
+      if (SYNC_DIET_ALL_KEYS.includes(k) || SYNC_DEFIS_KEYS.includes(k)) continue;
       if (k in doc) d[k] = doc[k]; else if (blank || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k];
     }
     Object.assign(d, ownVersion);
@@ -395,7 +419,7 @@ function applyRemoteProfile(d, remote, meta) {
   }
   const remoteWins = meta.profileHash == null;
   for (const [k, v] of Object.entries(doc)) {
-    if (SYNC_DIET_ALL_KEYS.includes(k) || k === 'defis') continue;
+    if (SYNC_DIET_ALL_KEYS.includes(k) || SYNC_DEFIS_KEYS.includes(k)) continue;
     const both = SYNC_UNION_KEYS.includes(k) && v && typeof v === 'object' && d[k] && typeof d[k] === 'object';
     if (both) d[k] = remoteWins ? { ...d[k], ...v } : { ...v, ...d[k] };
     else if (remoteWins || d[k] === undefined) d[k] = v;

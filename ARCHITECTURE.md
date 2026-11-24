@@ -409,7 +409,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 ### Autres clés
 
 - Nutrition (`docs/NUTRITION_V1.md`), clés de `ppl_v2` absentes tant qu'on ne s'en sert pas : `dietPlans`, `dietActive`, `dietFoods` (profil, **seulement avec l'accord** `dietConsent = { on, at }`, qui part toujours : `profilePayload`, `SYNC_DIET_CONSENT_KEYS` ; `dietPlans` fusionné par union) ; `dietLog` (repas cochés et remplacements du jour, instantané des repas du jour), `dietConsentAsked`, `dietHideNumbers`, `dietStreakOff`, `dietCoachConsent` (`SYNC_LOCAL_ONLY`). Fusion à part : `mergeDietProfile` (accord le plus récent, union des plans) ; garde de taille `profilePayloadForServer`.
-- Défis (`docs/DEFIS.md`) : `defis` (`{ id: défi }`, profil du compte fusionné par `mergeDefis`, aucune migration) et `defisRecapOff` (« Défis dans les récaps » coupé, profil, son absence est un choix). Hors de `history` : Progrès ne les compte pas.
+- Défis (`docs/DEFIS.md`) : `defis` (`{ id: défi }`, profil du compte fusionné par `mergeDefis`, aucune migration) et `defisRecap` (`{ on, at }`, « Défis dans les récaps », profil, le choix le plus récent gagne). Hors de `history` : Progrès ne les compte pas.
 - `ppl_theme` : `'auto'`, `'light'` ou `'dark'` (lu aussi par le script en tête d'`index.html`).
 - `ppl_v2_backup` : copie brute de `ppl_v2` avant une migration, un import ou une suppression totale
   (proposée par l'écran de secours).

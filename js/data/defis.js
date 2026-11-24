@@ -6,7 +6,8 @@
 //      { id, name, measure: 'reps' | 'time', goals: [{ from: 'AAAA-MM-JJ', n }], start, length: 30 | 60 | 0,
 //        remind: 'HH:MM' | null, pauses: [{ from, to? }], endedAt?, deleted?, at, log: { jour: [{ id, n, at }] }, gone: [id] }
 //    goals : objectif par jour, daté (changer l'objectif ne réécrit pas les jours passés) ; length 0 : sans fin ;
-//    pauses : jours neutres (ni tenus ni manqués, la série continue) ; at : dernière modification des réglages.
+//    pauses : jours neutres (ni tenus ni manqués, la série continue) ; at : dernière modification des réglages ;
+//    gone : [{ id, at }] ajouts retirés (120 jours) ; un jour de plus de 60 jours ne garde que son total.
 //  - Synchro (profil du compte, comme les programmes) : réglages du défi au plus récent (at), ajouts réunis par
 //    identifiant moins ceux retirés (gone, réunis aussi) : un ajout fait hors ligne sur deux appareils n'est jamais perdu,
 //    un ajout annulé ne revient jamais. Supprimer laisse une trace (deleted) pour qu'un autre appareil ne le ressuscite pas.
@@ -23,9 +24,16 @@ const DEFI_DAY_RE      = /^\d{4}-\d{2}-\d{2}$/;
 const DEFI_NAME_MAX    = 60;
 const DEFI_GOAL_MAX    = { reps: 2000, time: 3600 };   // 2 000 reps ou 1 h par jour
 const DEFI_ADD_MAX     = { reps: 1000, time: 3600 };   // un ajout
-const DEFI_DAY_ADDS    = 40;       // ajouts par jour
+const DEFI_DAY_ADDS    = 40;       // ajouts par jour, refusés au-delà à la saisie (jamais coupés à la fusion)
+const DEFI_DAY_KEEP    = 400;      // ajouts d'un jour gardés au nettoyage (fusion de plusieurs appareils : rien de perdu)
 const DEFI_LOG_DAYS    = 800;      // jours gardés (deux ans et plus)
-const DEFI_GONE_MAX    = 300;      // ajouts retirés dont on garde la trace
+const DEFI_COMPACT_DAYS = 60;      // au-delà, un jour ne garde que son total (un seul ajout « c » + date)
+const DEFI_EDIT_DAYS   = 58;       // jours passés qu'on peut encore noter ou corriger (avant la compaction, marge d'horloge)
+const DEFI_GONE_DAYS   = 120;      // trace d'un ajout retiré gardée 120 jours (au-delà, son jour est compacté partout)
+const DEFI_GONE_MAX    = 5000;     // garde-fou seulement
+const DEFI_ENDED_KEEP  = 10;       // défis terminés gardés (les plus récents), les autres supprimés (trace)
+const DEFI_ENDED_LOG_DAYS = 365;   // journal d'un défi terminé : sa dernière année
+const DEFI_TOMBS_KEEP  = 100;      // traces de suppression gardées
 const DEFI_LENGTHS     = [30, 60, 0];
 // Suggestions en tête du choix de l'exercice (noms de la bibliothèque) et objectif proposé
 const DEFI_SUGGESTIONS = [
@@ -48,22 +56,46 @@ function defiDaysBetween(a, b) { return Math.round((defiDate(b) - defiDate(a)) /
 
 function cleanDefiEntry(e, measure) {
   if (!defiIsObj(e)) return null;
-  const n = num(e.n, 1, DEFI_ADD_MAX[measure] || DEFI_ADD_MAX.reps, true);
+  // 'total' : total compacté d'un jour (40 ajouts de 1 000 au plus)
+  const max = measure === 'total' ? DEFI_ADD_MAX.time * DEFI_DAY_KEEP : DEFI_ADD_MAX[measure] || DEFI_ADD_MAX.reps;
+  const n = num(e.n, 1, max, true);
   if (n === null || typeof e.id !== 'string' || !DEFI_ID_RE.test(e.id)) return null;
   return { id: e.id, n, at: Number.isFinite(e.at) && e.at > 0 ? Math.round(e.at) : 0 };
 }
-function cleanDefiLog(v, measure, now = Date.now()) {
+// Total d'un vieux jour : un seul ajout, d'identifiant fixe (« c20260901 »), le même sur tous les appareils
+function defiCompactId(day) { return 'c' + day.replace(/-/g, ''); }
+function defiIsCompact(e, day) { return e.id === defiCompactId(day); }
+// oldestEdit : premier jour qu'on peut encore noter ; avant lui, le jour est compacté
+function defiCompactFrom(now = Date.now()) { return localISO(now - DEFI_COMPACT_DAYS * 86400000); }
+function cleanDefiLog(v, measure, now = Date.now(), oldest = localISO(now - DEFI_LOG_DAYS * 86400000), gone = new Set()) {
   if (!defiIsObj(v)) return {};
-  const oldest = localISO(now - DEFI_LOG_DAYS * 86400000), newest = localISO(now + 2 * 86400000);
+  const newest = localISO(now + 2 * 86400000), compactBefore = defiCompactFrom(now);
   const out = {};
   for (const day of Object.keys(v).sort()) {
     const list = v[day];
     if (!DEFI_DAY_RE.test(day) || day < oldest || day > newest || !Array.isArray(list)) continue;
     const ids = new Set();
-    const items = list.map(e => cleanDefiEntry(e, measure)).filter(x => x && !ids.has(x.id) && ids.add(x.id)).slice(0, DEFI_DAY_ADDS);
+    let items = list.map(e => cleanDefiEntry({ ...e, n: e?.n }, defiIsCompact(e || {}, day) ? 'total' : measure))
+      .filter(x => x && !gone.has(x.id) && !ids.has(x.id) && ids.add(x.id)).slice(0, DEFI_DAY_KEEP);
+    // Un total compacté vaut pour tout le jour (les ajouts qu'il remplace ne comptent plus)
+    const c = items.find(e => defiIsCompact(e, day));
+    if (c) items = [c];
+    else if (day < compactBefore && items.length) {
+      items = [{ id: defiCompactId(day), n: items.reduce((t, e) => t + e.n, 0), at: Math.max(...items.map(e => e.at)) }];
+    }
     if (items.length) out[day] = items;
   }
   return out;
+}
+// Traces des ajouts retirés : { id, at } (at : quand), gardées DEFI_GONE_DAYS jours
+function cleanDefiGone(list, now = Date.now()) {
+  if (!Array.isArray(list)) return [];
+  const by = new Map(), from = now - DEFI_GONE_DAYS * 86400000;
+  for (const g of list) {
+    if (!defiIsObj(g) || typeof g.id !== 'string' || !DEFI_ID_RE.test(g.id) || !Number.isFinite(g.at) || g.at < from) continue;
+    by.set(g.id, Math.max(by.get(g.id) || 0, Math.round(g.at)));
+  }
+  return [...by.entries()].sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1)).slice(-DEFI_GONE_MAX).map(([id, at]) => ({ id, at }));
 }
 function cleanDefiGoals(list, measure) {
   if (!Array.isArray(list)) return [];
@@ -91,23 +123,40 @@ function cleanDefi(c, id, now = Date.now()) {
   if (!name || !hasVisible(name) || !goals.length || typeof c.start !== 'string' || !DEFI_DAY_RE.test(c.start)) return null;
   const out = { id, name, measure, goals, start: c.start, length: DEFI_LENGTHS.includes(c.length) ? c.length : 0,
     remind: typeof c.remind === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(c.remind) ? c.remind : null,
-    pauses: cleanDefiPauses(c.pauses), at, log: cleanDefiLog(c.log, measure, now),
-    gone: Array.isArray(c.gone) ? [...new Set(c.gone.filter(x => typeof x === 'string' && DEFI_ID_RE.test(x)))].slice(-DEFI_GONE_MAX) : [] };
+    pauses: cleanDefiPauses(c.pauses), at, log: {}, gone: cleanDefiGone(c.gone, now) };
   if (Number.isFinite(c.endedAt) && c.endedAt > 0) out.endedAt = Math.round(c.endedAt);
+  // Défi terminé : sa dernière année de journal seulement
+  out.log = cleanDefiLog(c.log, measure, now, out.endedAt ? localISO(Math.min(now, out.endedAt) - DEFI_ENDED_LOG_DAYS * 86400000) : undefined,
+    new Set(out.gone.map(g => g.id)));
   return out;
 }
+// Défis lus ; au-delà de DEFI_ENDED_KEEP défis terminés, les plus anciens deviennent des traces de suppression (datées
+// de leur fin : deux appareils font la même chose), et DEFI_TOMBS_KEEP traces au plus
 function cleanDefis(v, now = Date.now()) {
   if (!defiIsObj(v)) return {};
   const out = {};
   for (const [id, c] of Object.entries(v)) { const x = cleanDefi(c, id, now); if (x) out[id] = x; }
+  const ended = Object.values(out).filter(c => !c.deleted && c.endedAt).sort((a, b) => b.endedAt - a.endedAt || (a.id < b.id ? -1 : 1));
+  for (const c of ended.slice(DEFI_ENDED_KEEP)) out[c.id] = { id: c.id, deleted: true, at: Math.max(c.at, c.endedAt) + 1 };
+  const tombs = Object.values(out).filter(c => c.deleted).sort((a, b) => b.at - a.at || (a.id < b.id ? -1 : 1));
+  for (const c of tombs.slice(DEFI_TOMBS_KEEP)) delete out[c.id];
   return out;
+}
+// « Défis dans les récaps » : { on, at }, absent = allumé ; le choix le plus récent gagne d'un appareil à l'autre
+function cleanDefisRecap(v) {
+  return defiIsObj(v) && typeof v.on === 'boolean' && Number.isFinite(v.at) && v.at > 0 ? { on: v.on, at: Math.round(v.at) } : undefined;
+}
+function defisRecapOn(d) { return cleanDefisRecap(d?.defisRecap)?.on !== false; }
+function mergeDefisRecap(a, b) {
+  const x = cleanDefisRecap(a), y = cleanDefisRecap(b);
+  if (!x || !y) return x || y;
+  return y.at > x.at || (y.at === x.at && !y.on) ? y : x;
 }
 // Appelé par sanitizeData
 function sanitizeDefis(d, now = Date.now()) {
-  if (d.defis === undefined) return d;
-  d.defis = cleanDefis(d.defis, now);
-  if (!Object.keys(d.defis).length) delete d.defis;
-  if (d.defisRecapOff !== undefined && d.defisRecapOff !== true) delete d.defisRecapOff;
+  if (d.defis !== undefined) { d.defis = cleanDefis(d.defis, now); if (!Object.keys(d.defis).length) delete d.defis; }
+  if (d.defisRecap !== undefined) { const r = cleanDefisRecap(d.defisRecap); if (r) d.defisRecap = r; else delete d.defisRecap; }
+  delete d.defisRecapOff;   // format de la branche du 24/11, jamais publié
   return d;
 }
 
@@ -129,11 +178,11 @@ function defiDayTotal(c, day) { return (c.log?.[day] || []).reduce((s, e) => s +
 function defiPausedOn(c, day) { return (c.pauses || []).some(p => p.from <= day && (!p.to || day <= p.to)); }
 function defiPaused(c, day = localISO()) { return defiPausedOn(c, day); }
 // Dernier jour du défi (inclus), pauses comprises en plus ; null : sans fin
-function defiLastDay(c) {
+function defiLastDay(c, now = Date.now()) {
   if (!c.length) return null;
   let last = defiAddDays(c.start, c.length - 1);
   for (const p of c.pauses || []) {
-    const to = p.to || localISO();
+    const to = p.to || localISO(now);
     if (p.from > last) continue;
     last = defiAddDays(last, defiDaysBetween(p.from, to < last ? to : last) + 1);
   }
@@ -214,32 +263,44 @@ function defiCreate(d, { name, measure = 'reps', goal, length = 30, remind = nul
 }
 // Ajout du jour (ou d'un jour passé) ; renvoie l'ajout (pour Annuler), null si refusé
 function defiAdd(d, id, n, day = localISO(), now = Date.now()) {
+  return defiAddCheck(d, id, n, day, now).ok ? defiAddRaw(d, id, n, day, now) : null;
+}
+// Ajout possible ? { ok, error? } : 'gone' (défi absent ou arrêté), 'day' (jour à venir, avant le début, après la fin,
+// ou trop ancien pour être noté), 'n' (nombre hors bornes), 'full' (DEFI_DAY_ADDS ajouts ce jour-là)
+function defiAddCheck(d, id, n, day = localISO(), now = Date.now()) {
   const c = defiGet(d, id);
-  if (!c || c.endedAt || !DEFI_DAY_RE.test(day) || day > localISO(now) || day < c.start) return null;
+  if (!c || c.endedAt) return { ok: false, error: 'gone' };
+  const last = defiLastDay(c, now);
+  if (!DEFI_DAY_RE.test(day) || day > localISO(now) || day < c.start || (last && day > last) || day < localISO(now - DEFI_EDIT_DAYS * 86400000)) return { ok: false, error: 'day' };
+  if (!cleanDefiEntry({ id: 'x', n, at: now }, c.measure)) return { ok: false, error: 'n' };
+  if ((c.log[day] || []).length >= DEFI_DAY_ADDS) return { ok: false, error: 'full' };
+  return { ok: true };
+}
+function defiAddRaw(d, id, n, day, now) {
+  const c = defiGet(d, id);
   const e = cleanDefiEntry({ id: uid(), n, at: now }, c.measure);
-  if (!e || (c.log[day] || []).length >= DEFI_DAY_ADDS) return null;
   c.log[day] = [...(c.log[day] || []), e];
   return { day, entry: e };
 }
 // Retire un ajout (Annuler, ou corriger) ; true s'il existait. Sa trace (gone) l'empêche de revenir par la synchro
-function defiUndo(d, id, day, entryId) {
+function defiUndo(d, id, day, entryId, now = Date.now()) {
   const c = defiGet(d, id);
   const list = c?.log?.[day];
   if (!list || !list.some(e => e.id === entryId)) return false;
   const rest = list.filter(e => e.id !== entryId);
   if (rest.length) c.log[day] = rest; else delete c.log[day];
-  c.gone = [...c.gone.filter(x => x !== entryId), entryId].slice(-DEFI_GONE_MAX);
+  c.gone = cleanDefiGone([...c.gone, { id: entryId, at: now }], now);
   return true;
 }
 // Corriger un jour : son total devient n (0 : rien). Les ajouts du jour sont retirés et remplacés par un seul.
 // Renvoie { before } (anciens ajouts, pour Annuler) ou null
 function defiSetDay(d, id, day, n, now = Date.now()) {
   const c = defiGet(d, id);
-  if (!c || !DEFI_DAY_RE.test(day) || day > localISO(now) || day < c.start) return null;
+  if (!c || !DEFI_DAY_RE.test(day) || day > localISO(now) || day < c.start || day < localISO(now - DEFI_EDIT_DAYS * 86400000)) return null;
   const v = num(n, 0, DEFI_ADD_MAX[c.measure], true);
   if (v === null) return null;
   const before = (c.log[day] || []).slice();
-  for (const e of before) defiUndo(d, id, day, e.id);
+  for (const e of before) defiUndo(d, id, day, e.id, now);
   if (v > 0) c.log[day] = [{ id: uid(), n: v, at: now }];
   return { before };
 }
@@ -247,7 +308,7 @@ function defiSetDay(d, id, day, n, now = Date.now()) {
 function defiRestoreDay(d, id, day, entries, now = Date.now()) {
   const c = defiGet(d, id);
   if (!c) return false;
-  for (const e of c.log[day] || []) defiUndo(d, id, day, e.id);
+  for (const e of c.log[day] || []) defiUndo(d, id, day, e.id, now);
   const list = entries.map(e => cleanDefiEntry({ id: uid(), n: e.n, at: e.at || now }, c.measure)).filter(Boolean);
   if (list.length) c.log[day] = list;
   return true;
@@ -285,7 +346,7 @@ function defiPause(d, id, on, now = Date.now()) {
 function defiStop(d, id, now = Date.now()) {
   const c = defiGet(d, id);
   if (!c || c.endedAt) return false;
-  c.endedAt = now; c.remind = null; c.at = now;
+  c.endedAt = now; c.at = now;   // rappel gardé (plus planifié : le défi n'est plus en cours) : Annuler ou Relancer le retrouve
   return true;
 }
 function defiResume(d, id, now = Date.now()) {
@@ -305,8 +366,8 @@ function defiDelete(d, id, now = Date.now()) {
 function defiCloseFinished(d, now = Date.now()) {
   let n = 0;
   for (const c of defiList(d)) {
-    const last = defiLastDay(c);
-    if (last && localISO(now) > last) { c.endedAt = defiDate(last).setHours(23, 59, 0, 0); c.remind = null; c.at = now; n++; }
+    const last = defiLastDay(c, now);
+    if (last && localISO(now) > last) { c.endedAt = defiDate(last).setHours(23, 59, 0, 0); c.at = now; n++; }
   }
   return n;
 }
@@ -319,18 +380,19 @@ function mergeDefi(a, b, now = Date.now()) {
   const win = (b.at || 0) > (a.at || 0) || ((b.at || 0) === (a.at || 0) && stableJson(b) > stableJson(a)) ? b : a;
   if (win.deleted) return { id: win.id, deleted: true, at: win.at };
   if (a.deleted || b.deleted) return { ...win };   // supprimé avant une modification plus récente : la modification gagne
-  const gone = new Set([...(a.gone || []), ...(b.gone || [])]);
+  const goneList = cleanDefiGone([...(a.gone || []), ...(b.gone || [])], now), gone = new Set(goneList.map(g => g.id));
   const log = {};
-  for (const src of [a.log || {}, b.log || {}]) {
-    for (const [day, list] of Object.entries(src)) {
-      const m = new Map((log[day] || []).map(e => [e.id, e]));
-      for (const e of list) if (!gone.has(e.id) && !m.has(e.id)) m.set(e.id, e);
-      const items = [...m.values()].sort((x, y) => x.at - y.at || (x.id < y.id ? -1 : 1));
-      if (items.length) log[day] = items; else delete log[day];
-    }
+  for (const day of new Set([...Object.keys(a.log || {}), ...Object.keys(b.log || {})])) {
+    const la = a.log?.[day] || [], lb = b.log?.[day] || [];
+    // Jour compacté d'un côté : son total fait foi (les ajouts qu'il remplace ne s'ajoutent pas)
+    const cs = [...la, ...lb].filter(e => defiIsCompact(e, day) && !gone.has(e.id));
+    if (cs.length) { log[day] = [cs.sort((x, y) => y.n - x.n || y.at - x.at)[0]]; continue; }
+    const m = new Map();
+    for (const e of [...la, ...lb]) if (!gone.has(e.id) && !m.has(e.id)) m.set(e.id, e);
+    const items = [...m.values()].sort((x, y) => x.at - y.at || (x.id < y.id ? -1 : 1));
+    if (items.length) log[day] = items;
   }
-  for (const day of Object.keys(log)) { log[day] = log[day].filter(e => !gone.has(e.id)); if (!log[day].length) delete log[day]; }
-  return cleanDefi({ ...win, log, gone: [...gone] }, win.id, now);
+  return cleanDefi({ ...win, log, gone: goneList }, win.id, now);
 }
 function mergeDefis(local, remote, now = Date.now()) {
   const l = cleanDefis(local, now), r = cleanDefis(remote, now);
@@ -342,11 +404,9 @@ function mergeDefis(local, remote, now = Date.now()) {
 // ── Textes ──────────────────────────────────────────────────
 
 // « 63 » ou « 1:30 » (temps) ; avec l'unité : « 63 reps », « 1 min 30 s »
-function defiVal(n, measure) {
-  if (measure !== 'time') return fmtNum(n);
-  const m = Math.floor(n / 60), s = n % 60;
-  return m ? `${m}:${String(s).padStart(2, '0')}` : `${s}`;
-}
+// Chiffre de la carte et de la fiche, unité à part (defiUnit) : des secondes pour un temps (« 90 / 120 s », jamais
+// « 1:30 / 2:00 s »)
+function defiVal(n) { return fmtNum(n); }
 function defiUnit(c) { return c.measure === 'time' ? 's' : 'reps'; }
 function defiAmount(n, measure) {
   if (measure !== 'time') return `${fmtNum(n)} ${n > 1 ? 'reps' : 'rep'}`;

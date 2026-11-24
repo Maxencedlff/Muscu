@@ -253,3 +253,19 @@ poste de l'éditeur (30 dernières, environ un mois) ; après « Supprimer mon c
 copies jusqu'à leur expiration, sans être consultées ni restaurées pour elles-mêmes. GitHub est ajouté aux
 hébergeurs. Tests : `tests/unit/juridique.mjs`, `tests/test_juridique.py` (`t_confidentialite`).
 
+
+### 6.6 Défis par mise à jour à chaud (décision du 24/11/2026)
+
+Fonction nouvelle (docs/DEFIS.md : section Défis de l'accueil, fiche, rappel local, écran Défis des récaps).
+**Décision : l'envoi par mise à jour à chaud est accepté**, par exception à la règle du projet de la section 6.2.
+Raisons :
+- l'app est en **TestFlight** (pas encore sur l'App Store) : les testeurs reçoivent la fonction comme une bêta ;
+- l'objet de l'app ne change pas : un carnet d'entraînement qui note des répétitions. Le contrat du programme
+  développeur (Apple Developer Program License Agreement, 3.3.1(B)) permet le code interprété téléchargé tant
+  qu'il ne change pas l'objet principal de l'app tel qu'il a été présenté ; c'est le cas ici ;
+- rien de natif ne change : les rappels utilisent le module de notifications locales déjà dans la build
+  (`@capacitor/local-notifications`, celui de la fin du repos), l'autorisation n'est demandée qu'au moment où la
+  personne allume le rappel.
+
+À faire à la prochaine build soumise : décrire les défis dans « What to Test » et dans la note d'examen (section 2),
+pour que la fonction ne reste pas « non documentée » (règle 2.5.19).

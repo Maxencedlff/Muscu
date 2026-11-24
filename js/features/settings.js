@@ -23,6 +23,7 @@ function wipeLocalData() {
   // Copie de secours sans les mensurations : la confirmation promet leur effacement
   try { const { bodyMeasures, ...rest } = data; localStorage.setItem(BACKUP_KEY, JSON.stringify(rest)); } catch {}
   if (activeSession) endSession();
+  defiCancelReminders();           // rappels des défis effacés avec eux
   data = freshData();
   resetSelections();
   Native.eraseCloudOnNextSave();   // app iOS : la copie iCloud est vidée elle aussi
@@ -155,11 +156,11 @@ ${renderAppleServicesGroup(switchHtml)}
               <span class="cell__sub">Sur l'accueil le dimanche soir et le lundi</span></span>
             ${switchHtml(data.recapCardOff !== true)}
           </button>${defiList(data).length || defiList(data, { ended: true }).length ? `
-          <button class="cell" data-action="setting-defis-recap" role="switch" aria-checked="${data.defisRecapOff !== true}">
-            ${cellIco('checkmark.seal', 'green')}
+          <button class="cell" data-action="setting-defis-recap" role="switch" aria-checked="${defisRecapOn(data)}">
+            ${cellIco('flag', 'green')}
             <span class="cell__body"><span class="cell__title">Défis dans les récaps</span>
               <span class="cell__sub">Écran et image partagée de la semaine, du mois, de l'année</span></span>
-            ${switchHtml(data.defisRecapOff !== true)}
+            ${switchHtml(defisRecapOn(data))}
           </button>` : ''}
         </div>
 ${renderAppIconGroup()}

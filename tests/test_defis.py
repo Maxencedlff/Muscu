@@ -151,7 +151,7 @@ def t_parcours(bench, eng, dev, theme):
         shot(page, LOT, f'4-calendrier-{t}')
         # Corriger le jour manqué le plus récent (6 jours avant)
         d6 = jour(NOW, 6)
-        page.click(f'.defi-cal__cell[data-day="{d6}"]')
+        page.click(f'.defi-cal__btn[data-day="{d6}"]')
         page.wait_for_selector('.ios-dialog__input')
         page.fill('.ios-dialog__input', '100')
         tap_dialog(page, 'OK')

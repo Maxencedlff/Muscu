@@ -2733,7 +2733,7 @@ def defis_fixture(now=NOW, recap_off=False):
     d = json.loads(REALISTE)
     d['defis'] = defis
     if recap_off:
-        d['defisRecapOff'] = True
+        d['defisRecap'] = {'on': False, 'at': now}
     return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
 
 

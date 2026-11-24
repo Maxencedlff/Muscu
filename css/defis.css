@@ -80,11 +80,12 @@ html.type-xl .defi-hero { flex-direction: column; align-items: flex-start; }
 .defi-cal__nav:disabled { color: var(--label3); cursor: default; }
 .defi-cal__week, .defi-cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); justify-items: center; }
 .defi-cal__week { margin: 4px 0; font-size: var(--fs-caption); font-weight: 500; color: var(--label2); }
-.defi-cal__cell {
+.defi-cal__cell { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+/* Bouton du jour (dans la case, élément de liste) : toute la case se touche */
+.defi-cal__btn {
   width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: none;
   background: none; font: inherit; color: var(--label); cursor: pointer;
 }
-span.defi-cal__cell { cursor: default; }
 .defi-cal__dot {
   box-sizing: border-box; width: 2.1em; height: 2.1em; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   font-size: var(--fs-footnote); font-variant-numeric: tabular-nums;

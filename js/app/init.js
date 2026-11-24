@@ -59,6 +59,9 @@ document.addEventListener('input', e => {
 
 // iOS peut tuer l'app en arrière-plan : on sauvegarde au moment où elle disparaît
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') persistSession(); });
+// Défis (js/features/defis-ui.js) : défis finis fermés et rappels replanifiés au lancement et au retour au premier plan
+defiRefresh();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') defiRefresh(); });
 window.addEventListener('pagehide', persistSession);
 
 // ── Wake Lock ───────────────────────────────────────────────

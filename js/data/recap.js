@@ -535,10 +535,10 @@ function recapStats(p, history = data.history, now = Date.now()) {
 }
 
 // Défis de la période (js/data/defis.js) : seulement ceux qui y ont au moins un jour tenu, le plus de jours tenus
-// d'abord ; rien si Réglages › Apparence › « Défis dans les récaps » est coupé (data.defisRecapOff), ni à l'écran ni
+// d'abord ; rien si Réglages › Apparence › « Défis dans les récaps » est coupé (defisRecapOn : data.defisRecap.on à false), ni à l'écran ni
 // sur l'image partagée (l'écran n'est pas produit)
 function recapDefis(p, now = Date.now(), d = data) {
-  if (!d || d.defisRecapOff === true || !d.defis) return [];
+  if (!d || !defisRecapOn(d) || !d.defis) return [];
   return defiPeriodSummary(d, localISO(p.start), localISO(p.end - 1), localISO(now))
     .filter(x => x.held > 0).sort((a, b) => b.held - a.held || b.total - a.total);
 }

@@ -23,8 +23,8 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`defiCreate(data, { name: 'D5', goal: 10 }, ${now}).error`), 'full', '4 défis au plus');
     run(`data.defis.zz = { name: '<b>', goals: 'x' }; data.defis['bad id!'] = { name: 'x' }; sanitizeData(data)`);
     assert.equal(run('Object.keys(data.defis).length'), 4, 'défis illisibles retirés');
-    run('data.defisRecapOff = "non"; sanitizeData(data)');
-    assert.equal(run('data.defisRecapOff'), undefined);
+    run('data.defisRecap = { on: "non" }; sanitizeData(data)');
+    assert.equal(run('data.defisRecap'), undefined);
   });
 
   test('défis : noter en plusieurs fois, total du jour, Annuler', () => {
@@ -36,7 +36,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`defiDayState(data.defis['${id}'], '2026-11-01', '2026-11-01')`), 'done');
     assert.equal(run(`defiUndo(data, '${id}', '2026-11-01', '${a.entry.id}')`), true);
     assert.equal(run(`defiDayTotal(data.defis['${id}'], '2026-11-01')`), 70);
-    assert.equal(run(`data.defis['${id}'].gone.includes('${a.entry.id}')`), true, 'ajout annulé gardé dans gone');
+    assert.equal(run(`data.defis['${id}'].gone.some(g => g.id === '${a.entry.id}')`), true, 'ajout annulé gardé dans gone');
     assert.equal(run(`defiAdd(data, '${id}', 10, '2026-11-09', ${T(2026, 11, 2)})`), null, 'jamais un jour à venir');
     assert.equal(run(`defiAdd(data, '${id}', 10, '2026-10-31', ${T(2026, 11, 2)})`), null, 'jamais avant le début');
     assert.equal(run(`defiAdd(data, '${id}', 0, '2026-11-01', ${T(2026, 11, 2)})`), null);
@@ -122,7 +122,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     A[id].log['2026-11-01'].push({ id: 'aaaa1', n: 40, at: T(2026, 11, 1, 12) });
     const first = B[id].log['2026-11-01'][0].id;
     B[id].log['2026-11-01'] = [{ id: 'bbbb1', n: 30, at: T(2026, 11, 1, 13) }];
-    B[id].gone = [first];
+    B[id].gone = [{ id: first, at: T(2026, 11, 1, 13) }];
     const m1 = run(`mergeDefis(${j(A)}, ${j(B)}, ${T(2026, 11, 2)})`), m2 = run(`mergeDefis(${j(B)}, ${j(A)}, ${T(2026, 11, 2)})`);
     sameJSON(m1, m2, 'commutative');
     sameJSON(m1[id].log['2026-11-01'].map(e => e.id), ['aaaa1', 'bbbb1'], 'les deux ajouts, sans celui annulé');
@@ -142,7 +142,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     const id = make();
     run(`defiAdd(data, '${id}', 30, '2026-11-01', ${T(2026, 11, 1, 8)})`);
     assert.equal(run(`'defis' in profilePayload(data)`), true);
-    assert.equal(run(`SYNC_PROFILE_KEYS.includes('defisRecapOff') && SYNC_ABSENT_IS_CHOICE.includes('defisRecapOff')`), true);
+    assert.equal(run(`SYNC_PROFILE_KEYS.includes('defisRecap') && !SYNC_ABSENT_IS_CHOICE.includes('defisRecap')`), true);
     const remote = run(`JSON.parse(JSON.stringify(data.defis))`);
     remote[id].log['2026-11-01'].push({ id: 'rrrr1', n: 50, at: T(2026, 11, 1, 10) });
     // Profil inchangé ici (empreinte connue) : le compte ne remplace pas, il fusionne (l'ajout local reste)
@@ -164,6 +164,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run('defiStepLabel(60, "time")'), '+1 min');
     assert.equal(run('defiAmount(90, "time")'), '1 min 30 s');
     assert.equal(run('defiAmountSpoken(90, "time")'), '1 minute 30 secondes');
+    assert.equal(run('defiVal(90)'), '90', 'un temps en secondes : « 90 / 120 s », jamais « 1:30 / 2:00 s »');
     assert.equal(run('defiParseAmount("1:30", "time")'), 90);
     assert.equal(run('defiParseAmount("abc", "reps")'), null);
     const id = make();
@@ -186,9 +187,9 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     const list = run(`recapDefis(${j(p)}, ${T(2026, 11, 5)})`);
     sameJSON(list.map(x => [x.name, x.total, x.held, x.days]), [['Pompes', 350, 3, 5]], '5 jours comptés au 5 novembre');
     assert.equal(run(`recapDefiHeld(${j(list[0])})`), '3 jours tenus sur 5');
-    run('data.defisRecapOff = true');
+    run('data.defisRecap = { on: false, at: 5 }');
     sameJSON(run(`recapDefis(${j(p)}, ${T(2026, 11, 5)})`), [], 'réglage coupé : rien');
-    run('delete data.defisRecapOff');
+    run('delete data.defisRecap');
     const empty = run(`recapPeriod('month', ${T(2026, 9, 15)}, ${T(2026, 12, 2)})`);
     sameJSON(run(`recapDefis(${j(empty)}, ${T(2026, 11, 5)})`), [], 'aucun défi sur la période : pas de bloc');
   });
@@ -223,5 +224,112 @@ export default function ({ test, run, reset, assert, sameJSON }) {
   test('défis : textes sobres, sans emoji ni point d\'exclamation, ni flamme', () => {
     const src = run(`[defiStreakText(3), defiTitle({ name: 'Pompes', measure: 'reps', goals: [{ from: '2026-11-01', n: 100 }] }, 100)].join(' ')`);
     assert.doesNotMatch(src, /[!\u{1F300}-\u{1FAFF}]/u);
+  });
+
+  // ── Audit du 24/11 (repro.mjs, repro2.mjs, r3.mjs) ──
+
+  test('défis (audit B1) : un « +10 » hors ligne ne fait pas gagner cet appareil sur l\'objectif changé ailleurs', () => {
+    const id = make();
+    run(`data.history = [{ id: 'h1', date: 1, programme: 'ppl', category: 'push', exercises: [] }]; data.weeklyGoal = 3; sanitizeData(data)`);
+    run(`__meta = emptySyncMeta('u'); __meta.profileHash = syncHash(profilePayload(data)); __meta.profileCore = profileCoreHash(profilePayload(data))`);
+    run(`__remote = JSON.parse(JSON.stringify(profilePayload(data))); __remote.weeklyGoal = 5`);   // l'iPad : 5 séances
+    run(`defiAdd(data, '${id}', 10, localISO(), Date.now())`);                                      // l'iPhone, hors ligne : +10
+    run(`applyRemoteProfile(data, { doc: __remote, updated_at: '2026-11-24T10:00:00Z' }, __meta)`);
+    assert.equal(run('data.weeklyGoal'), 5, 'weeklyGoal de l\'iPad gardé');
+    assert.equal(run(`defiDayTotal(data.defis['${id}'], localISO())`), 10, 'le +10 reste');
+  });
+
+  test('défis (audit B2) : un défi de 30 jours se ferme, plus rien noté après son dernier jour', () => {
+    reset();
+    const id = run(`defiCreate(data, { name: 'Pompes', goal: 100, length: 30 }, ${T(2026, 10, 1, 9)}).id`);
+    assert.equal(run(`defiLastDay(data.defis['${id}'])`), '2026-10-30');
+    assert.equal(run(`defiAddCheck(data, '${id}', 100, '2026-10-31', ${T(2026, 10, 31, 10)}).error`), 'day', 'après le dernier jour : refusé');
+    assert.equal(run(`defiCloseFinished(data, ${T(2026, 10, 31, 8)})`), 1);
+    assert.equal(run('defiList(data).length'), 0);
+    // Fermé aussi à la fusion du compte
+    reset();
+    const id2 = run(`defiCreate(data, { name: 'Pompes', goal: 100, length: 30 }, ${T(2026, 10, 1, 9)}).id`);
+    run(`__meta = emptySyncMeta('u'); __meta.profileHash = 'x'`);
+    run(`applyRemoteProfile(data, { doc: { defis: JSON.parse(JSON.stringify(data.defis)), weeklyGoal: 4 }, updated_at: '2026-11-24T10:00:00Z' }, __meta)`);
+    assert.equal(run(`!!data.defis['${id2}'].endedAt`), true, 'fusion : défi fini fermé');
+  });
+
+  test('défis (audit I1) : vieux jours réduits à leur total, 10 défis terminés au plus, garde de taille avant la diète', () => {
+    reset();
+    const now = T(2026, 11, 24);
+    const id = run(`defiCreate(data, { name: 'Tractions pronation', goal: 20, length: 0 }, ${T(2024, 9, 1)}).id`);
+    run(`(() => { const c = data.defis['${id}']; let day = '2024-09-01'; for (let i = 0; i < 815; i++) { c.log[day] = Array.from({ length: 20 }, () => ({ id: uid(), n: 1, at: ${T(2024, 9, 1)} + i * 86400000 })); day = defiAddDays(day, 1); } })()`);
+    run(`sanitizeDefis(data, ${now})`);
+    const c = `data.defis['${id}']`;
+    assert.equal(run(`${c}.log['2026-01-10'].length`), 1, 'jour de plus de 60 jours : un seul total');
+    assert.equal(run(`${c}.log['2026-01-10'][0].id`), 'c20260110');
+    assert.equal(run(`defiDayTotal(${c}, '2026-01-10')`), 20, 'total gardé');
+    assert.equal(run(`${c}.log['2026-11-10'].length`), 20, 'jour récent : ses ajouts');
+    const bytes = run('profileBytes(profilePayload(data))');
+    assert.ok(bytes < 120000, `2 ans de 20 ajouts par jour : ${bytes} octets`);
+    // Fusion d'un jour compacté avec ses ajouts d'origine (appareil resté en retard) : pas de double compte
+    const raw = run(`({ '${id}': { ...JSON.parse(JSON.stringify(${c})), log: { '2026-01-10': Array.from({ length: 20 }, (_, k) => ({ id: 'r' + k, n: 1, at: 1 })) } } })`);
+    assert.equal(run(`defiDayTotal(mergeDefis(data.defis, ${j(raw)}, ${now})['${id}'], '2026-01-10')`), 20);
+    assert.equal(run(`defiDayTotal(mergeDefis(${j(raw)}, data.defis, ${now})['${id}'], '2026-01-10')`), 20);
+    // 12 défis terminés : les 10 plus récents restent, les autres deviennent des traces
+    reset();
+    for (let k = 0; k < 12; k++) run(`(() => { const r = defiCreate(data, { name: 'D${k}', goal: 10 }, ${T(2026, 1, 1)}); defiStop(data, r.id, ${T(2026, 2, 1)} + ${k}); })()`);
+    run(`sanitizeDefis(data, ${now})`);
+    assert.equal(run('defiList(data, { ended: true }).length'), 10);
+    assert.equal(run('Object.values(data.defis).filter(c => c.deleted).length'), 2);
+    // Défi terminé : sa dernière année de journal
+    reset();
+    const id3 = run(`defiCreate(data, { name: 'Pompes', goal: 10, length: 0 }, ${T(2024, 1, 1)}).id`);
+    run(`data.defis['${id3}'].log = { '2024-02-01': [{ id: 'a1', n: 5, at: 1 }], '2026-06-01': [{ id: 'a2', n: 5, at: 1 }] }; defiStop(data, '${id3}', ${T(2026, 7, 1)}); sanitizeDefis(data, ${now})`);
+    sameJSON(run(`Object.keys(data.defis['${id3}'].log)`), ['2026-06-01']);
+    // Garde de taille : défis terminés sacrifiés avant les plans diète
+    reset();
+    run(`data.dietConsent = { on: true, at: '2026-11-01T00:00:00Z' }; data.dietPlans = { d1: { name: 'P', meals: [], targets: { kcal: 2000 } } }`);
+    run(`(() => { const r = defiCreate(data, { name: 'Gros', goal: 10, length: 0 }, ${now}); data.defis[r.id].endedAt = ${now}; data.defis[r.id].log = { '2026-11-20': Array.from({ length: 400 }, () => ({ id: uid(), n: 1, at: 1 })) }; data.defis[r.id].pad = 'x'.repeat(950000); })()`);
+    const sized = run('profilePayloadForServer(data)');
+    assert.equal(sized.defisDropped, true);
+    assert.equal(sized.dietDropped, false, 'la diète part toujours');
+    assert.ok('dietPlans' in sized.doc);
+  });
+
+  test('défis (audit I2) : un appareil resté sur une version d\'avant ne rallume pas « Défis dans les récaps »', () => {
+    const id = make();
+    run(`data.history = [{ id: 'h1', date: 1, programme: 'ppl', category: 'push', exercises: [] }]; data.defisRecap = { on: false, at: ${T(2026, 11, 20)} }; sanitizeData(data)`);
+    run(`__meta = emptySyncMeta('u'); __meta.profileHash = syncHash(profilePayload(data)); __meta.profileCore = profileCoreHash(profilePayload(data))`);
+    run(`__old = JSON.parse(JSON.stringify(profilePayload(data))); delete __old.defis; delete __old.defisRecap; __old.appSeenAt = 'x'; __old.weeklyGoal = 4`);
+    run(`applyRemoteProfile(data, { doc: __old, updated_at: '2026-11-24T11:00:00Z' }, __meta)`);
+    assert.equal(run('defisRecapOn(data)'), false, 'toujours coupé');
+    assert.equal(run(`!!data.defis['${id}']`), true, 'défis gardés');
+    // Choix plus récent ailleurs : il gagne
+    sameJSON(run(`mergeDefisRecap({ on: false, at: 5 }, { on: true, at: 9 })`), { on: true, at: 9 });
+    sameJSON(run(`mergeDefisRecap({ on: true, at: 9 }, { on: false, at: 5 })`), { on: true, at: 9 });
+  });
+
+  test('défis (audit m1) : traces retirées purgées par âge, commutatives, jamais coupées à 300', () => {
+    const id = make();
+    const now = T(2026, 11, 3);
+    run(`__A = JSON.parse(JSON.stringify(data.defis)); __B = JSON.parse(JSON.stringify(data.defis));
+      __A['${id}'].gone = Array.from({ length: 300 }, (_, i) => ({ id: 'a' + i, at: ${now} })); __B['${id}'].gone = Array.from({ length: 300 }, (_, i) => ({ id: 'b' + i, at: ${now} }));
+      __B['${id}'].log = { '2026-11-02': [{ id: 'a5', n: 30, at: 1 }] }`);
+    assert.equal(run(`stableJson(mergeDefis(__A, __B, ${now})) === stableJson(mergeDefis(__B, __A, ${now}))`), true);
+    assert.equal(run(`defiDayTotal(mergeDefis(__A, __B, ${now})['${id}'], '2026-11-02')`), 0, 'annulé sur A : ne revient pas');
+    run(`__M = mergeDefis(__A, __B, ${now}); __C = JSON.parse(JSON.stringify(data.defis)); __C['${id}'].log = { '2026-11-02': [{ id: 'a5', n: 30, at: 1 }] }`);
+    assert.equal(run(`defiDayTotal(mergeDefis(__M, __C, ${now})['${id}'], '2026-11-02')`), 0, 'puis avec un appareil en retard : toujours pas');
+    assert.equal(run(`cleanDefiGone([{ id: 'x1', at: ${T(2026, 6, 1)} }], ${now}).length`), 0, 'trace de plus de 120 jours oubliée');
+  });
+
+  test('défis (audit m2) : 40 ajouts par jour à la saisie, rien de perdu à la fusion', () => {
+    const id = make();
+    for (let k = 0; k < 40; k++) run(`defiAdd(data, '${id}', 1, '2026-11-02', ${T(2026, 11, 2, 9)} + ${k})`);
+    assert.equal(run(`defiAddCheck(data, '${id}', 1, '2026-11-02', ${T(2026, 11, 2, 10)}).error`), 'full');
+    const other = run(`(() => { const o = JSON.parse(JSON.stringify(data.defis)); o['${id}'].log['2026-11-02'] = Array.from({ length: 40 }, (_, k) => ({ id: 'o' + k, n: 1, at: 5 })); return o; })()`);
+    assert.equal(run(`defiDayTotal(mergeDefis(data.defis, ${j(other)}, ${T(2026, 11, 3)})['${id}'], '2026-11-02')`), 80, '40 + 40 : tout reste');
+  });
+
+  test('défis (audit m3) : Arrêter puis Annuler remet le rappel', () => {
+    const id = make({ remind: '07:30' });
+    run(`defiStop(data, '${id}', ${T(2026, 11, 2)}); defiResume(data, '${id}', ${T(2026, 11, 2)})`);
+    assert.equal(run(`data.defis['${id}'].remind`), '07:30');
+    assert.ok(run(`defiReminderPlan(data, ${T(2026, 11, 2, 6)}).length`) > 0);
   });
 }
