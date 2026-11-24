@@ -33,7 +33,7 @@ Code : `js/data/defis.js` (logique pure), `js/features/defis-ui.js` (écrans), `
   - On ne note ni un jour à venir, ni avant le début, ni après la fin du défi, ni plus de 58 jours en arrière.
 - **Fiche** (toucher la carte) : grand titre au nom de l'exercice, objectif, durée et rappel ; anneau du jour et les
   mêmes boutons ; « Chiffres » (série, jours tenus sur jours écoulés, record d'un jour, total) ; la phrase « Les défis
-  ne comptent pas dans Progrès » (« À part de tes séances : ne compte pas dans Progrès » ; « Jours de suite » et non
+  ne comptent pas dans Progrès » (« Compté à part : n'entre pas dans Progrès » ; « Jours de suite » et non
   « Série », qui veut déjà dire série de musculation) ; le calendrier du mois (rond vert plein : tenu ; gris plein : manqué ; pointillé :
   en pause ; anneau : aujourd'hui ; légende dessous ; mois précédents avec les flèches) ; le bonhomme avec le muscle
   travaillé en rouge (l'image de tête de la fiche de la bibliothèque, `libExHeroHtml`) ; « Jour par jour » (30 derniers
@@ -41,7 +41,9 @@ Code : `js/data/defis.js` (logique pure), `js/features/defis-ui.js` (écrans), `
 - **Calendrier** : sept colonnes qui tiennent toujours dans la largeur (chaque case 1/7, rangées de 44 pt de haut ;
   en texte agrandi les chiffres sont plafonnés et une case peut faire moins de 44 pt de large), légende sur plusieurs
   lignes ; les jours de plus de 2 mois sont grisés.
-- **Corriger un jour** : toucher un jour du calendrier ou de la liste, taper le total. Annuler dans le toast. 0 vide
+- **Lancer** : l'accueil défile jusqu'à la carte du nouveau défi, mise en avant 2 s (fond gris sobre, sans lueur) ;
+  VoiceOver : « Dips lancé, 50 répétitions par jour ». Pompes est la première suggestion (sauf défi Pompes en cours).
+- **Corriger un jour** : feuille « Total du jour », « Remplace les 3 ajouts du lundi 2 novembre. » ; toucher un jour du calendrier ou de la liste, taper le total. Annuler dans le toast. 0 vide
   le jour. Seulement les 58 derniers jours (`DEFI_EDIT_DAYS`) : au-delà, le jour ne garde que son total (voir
   Données) et n'est plus touchable.
 - **Arrêter** : confirmation, puis le défi passe dans « Défis terminés » avec ses chiffres (Annuler dans le toast).
@@ -77,7 +79,7 @@ Demande de Maxence du 24/11 : « dans le récap si c'est bien, avec une option s
 
 - Un écran « Défis » titré par sa période (« Défis cette semaine », « Défis la semaine du 19 octobre », « Défis en
   octobre », « Défis en 2026 » : un récap d'octobre lu en novembre n'est pas « ce mois-ci »), après les autres et avant le résumé : le défi le plus tenu en grand (« Pompes,
-  1 380 reps, 13 jours tenus sur 15 »), les autres en liste, et « À part de tes séances : ne compte pas dans Progrès ». Le résumé ajoute une ligne « Défi Pompes » seulement s'il lui reste une place (les séances d'abord).
+  1 380 reps, 13 jours tenus sur 15 »), les autres en liste, et « Compté à part : n'entre pas dans Progrès ». Le résumé ajoute une ligne « Défi Pompes » seulement s'il lui reste une place (les séances d'abord).
 - **Seulement si c'est bien** : seuls les défis qui ont au moins un jour tenu sur la période (`recapDefis`). Aucun
   défi sur la période : pas d'écran, jamais de bloc vide. Les jours en pause ne comptent pas.
 - **Le réglage** : Réglages › Apparence › « Défis dans les récaps », allumé par défaut, montré seulement à qui a (eu)

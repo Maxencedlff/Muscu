@@ -139,7 +139,7 @@ def t_parcours(bench, eng, dev, theme):
         page.click('[data-action="defi-open"][data-id="dpompes1"]')
         page.wait_for_selector('.defi-view')
         txt = nb(page.inner_text('.defi-view'))
-        for want in ('Jours tenus', '16 sur 18', "Record d'un jour", 'Total', 'ne compte pas dans Progrès', 'Tenu', 'Manqué', 'Jour 19 sur 30'):
+        for want in ('Jours tenus', '16 sur 18', "Record d'un jour", 'Total', "n'entre pas dans Progrès", 'Tenu', 'Manqué', 'Jour 19 sur 30'):
             R.check(want in txt, f'{t} fiche : « {want} »')
         R.check(page.locator('.defi-cal__dot--done').count() >= 3, f'{t} calendrier : jours tenus en vert')
         layout(page, t, 'fiche', '.defi-view')
@@ -187,6 +187,15 @@ def t_creation(bench):
         page.click('.defi-form [data-len="60"]')
         shot(page, LOT, '5-creation')
         page.click('.sheet__btn--confirm')
+        page.wait_for_timeout(500)
+        dips = page.evaluate("defiList(data).find(c => c.name === 'Dips')?.id")
+        card = page.locator(f'.defi-card[data-id="{dips}"]')
+        R.check(card.count() == 1 and 'defi-card--new' in (card.get_attribute('class') or ''), 'Lancer : carte du nouveau défi mise en avant')
+        inview = card.evaluate("e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }")
+        R.check(inview, 'Lancer : l\'accueil défile jusqu\'à la carte de Dips')
+        said = page.evaluate("document.getElementById('sr-polite')?.textContent || ''")
+        R.check(said == 'Dips lancé, 40 répétitions par jour', f'Lancer : annonce VoiceOver ({said!r})')
+        shot(page, LOT, '5b-lance')
         settle(page)
         R.check(page.evaluate("defiList(data).map(c => [c.name, defiGoal(c), c.length])") == [['Pompes', 100, 30], ['Tractions pronation', 20, 0], ['Dips', 40, 60]],
                 f'trois défis {page.evaluate("defiList(data).map(c => c.name)")}')
@@ -194,6 +203,13 @@ def t_creation(bench):
         settle(page)
         R.check(page.locator('[data-action="defi-new"]').count() == 0, '4 défis : plus de « Nouveau défi »')
         R.check(not page.errors, f'création : aucune erreur JS {page.errors[:2]}')
+    # Sans défi : Pompes en tête des suggestions
+    with bench.frozen_page(NOW, eng, 'iPhone 13', 'dark') as page:
+        open_app(page, 'dark', data_json(with_defis=False))
+        page.click('[data-action="defi-new"]')
+        page.wait_for_selector('.sess-sheet--addex .ax__item')
+        first = page.locator('.sess-sheet--addex .ax__item').first.get_attribute('data-name')
+        R.check(first == 'Pompes', f'suggestions : Pompes en tête ({first!r})')
 
 
 def t_pause_arret(bench):

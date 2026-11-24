@@ -15,7 +15,10 @@
 .defis-home { margin-top: 20px; }
 .defis-home .home-card { margin-top: 0; padding: 0 16px; }
 .defis-home__card { padding: 0 16px; }
-.defi-card { position: relative; padding: 10px 0 2px; }
+.defi-card { position: relative; padding: 10px 0 2px; border-radius: var(--r-md); transition: background-color .6s ease, box-shadow .6s ease; }
+/* Défi qui vient d'être lancé : fond et contour sobres un instant (pas de lueur) */
+.defi-card--new { background: var(--fill2); box-shadow: 0 0 0 8px var(--fill2); }
+@media (prefers-reduced-motion: reduce) { .defi-card { transition: none; } }
 .defi-card + .defi-card::before, .defis-home__card .defi-ended-row::before {
   content: ''; position: absolute; top: 0; right: 0; left: 0; height: .5px; background: var(--sep);
 }
@@ -39,11 +42,12 @@
 html.type-xl .defi-steps .defi-add { flex: 1 1 40%; }
 
 /* Ligne sous les boutons : la série, ou « +10 noté » et Annuler, même hauteur (rien ne bouge) */
-.defi-foot { min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 12px; }
+.defi-foot { margin-top: 8px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 12px; }
 .defi-foot__text { font-size: var(--fs-footnote); color: var(--label2); }
-.defi-foot--undo .defi-foot__text { color: var(--label); font-weight: 600; }
+.defi-foot--undo .defi-foot__text { color: var(--label2); }
+.defi-foot--undo .defi-foot__text b { color: var(--label); font-weight: 600; }
 .defi-foot__undo {
-  min-height: 44px; min-width: 44px; margin-right: -8px; padding: 0 8px; border: none; background: none; cursor: pointer;
+  min-height: 44px; min-width: 44px; margin: 0 -8px; padding: 0 8px;   /* à la ligne : aligné sur le bord du texte */ border: none; background: none; cursor: pointer;
   font: inherit; font-size: var(--fs-subhead); font-weight: 600; color: var(--tint);
 }
 .defi-foot__undo:active { opacity: .5; }
@@ -61,7 +65,14 @@ html.type-xl .defi-steps .defi-add { flex: 1 1 40%; }
 .defi-hero__big b { font-size: var(--fs-large); font-weight: 700; color: var(--label); }
 .defi-hero__sub { margin: 4px 0 0; font-size: var(--fs-footnote); color: var(--label2); }
 .defi-hero--ended .defi-hero__big { color: var(--label); font-weight: 600; }
-html.type-xl .defi-hero { flex-direction: column; align-items: flex-start; }
+/* Texte agrandi : le chiffre à côté de l'anneau plus petit (comme la carte de l'accueil), les boutons visibles plus tôt */
+html.type-xl .defi-hero { gap: 12px; padding: 12px 16px; }
+html.type-xl .defi-hero { min-width: 0; }
+html.type-xl .defi-hero__text { flex: 1; min-width: 0; }
+/* Compteur insécable : plafonné pour tenir à côté de l'anneau sur iPhone SE (le titre et les boutons, eux, grandissent) */
+html.type-xl .defi-hero__big { font-size: min(var(--fs-body), 20px); }
+html.type-xl .defi-hero__big b { font-size: min(var(--fs-title1), 30px); }
+html.type-xl .defi-hero__num { white-space: nowrap; }
 
 .defi-day__val { display: inline-flex; align-items: center; gap: 4px; }
 .defi-day__val--done { color: var(--label); }
@@ -153,4 +164,5 @@ html.type-xl .defi-card .defi-ring { order: 3; width: 1.6rem; height: 1.6rem; }
 html.type-xl .defi-card__val { order: 4; flex: 1 1 0; min-width: 0; white-space: normal; }
 html.type-xl .defi-card__num { white-space: nowrap; }
 /* Texte agrandi, fiche : l'anneau plafonné, le compteur et les boutons restent près du haut (iPhone SE) */
-html.type-xl .defi-hero .defi-ring { width: min(6rem, 88px); height: min(6rem, 88px); }
+html.type-xl .defi-hero .defi-ring { width: min(2.4rem, 56px); height: min(2.4rem, 56px); }
+.defi-hero__len { white-space: nowrap; }

@@ -745,7 +745,7 @@ function recapPages(st) {
     const [f, ...rest] = dl;
     defis = { id: 'defis', tone: 'night', kicker: `${dl.length > 1 ? 'Défis' : 'Défi'} ${recapDefiSpan(p)}`.toLocaleUpperCase('fr-FR'), title: f.name,
       value: f.measure === 'time' ? recapNb(defiAmount(f.total, 'time')) : fmtNum(f.total), unit: f.measure === 'time' ? '' : (f.total > 1 ? 'reps' : 'rep'),
-      caption: recapDefiHeld(f), foot: 'À part de tes séances : ne compte pas dans Progrès',
+      caption: recapDefiHeld(f), foot: 'Compté à part : n\'entre pas dans Progrès',
       listTitle: rest.length ? (rest.length > 1 ? 'Autres défis' : 'Autre défi') : '',
       list: rest.map(x => ({ name: x.name, value: recapNb(defiAmount(x.total, x.measure)), gain: recapDefiHeld(x) })), share: 'Partager' };
   }
