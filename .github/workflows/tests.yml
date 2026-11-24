@@ -68,6 +68,8 @@ jobs:
         run: bash tests/sql/photo_profil_rollback_test.sh
       - name: Retour arrière de la fiche Semaines du coach
         run: bash tests/sql/semaines_coach_rollback_test.sh
+      - name: Retour arrière des bilans configurables
+        run: bash tests/sql/bilans_coach_rollback_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
@@ -152,10 +154,17 @@ jobs:
       # supabase-js (version figée du package-lock) pour la version construite
       - name: Dépendances
         run: npm ci --ignore-scripts
+      # HOME=/root : Firefox refuse de tourner en root avec le HOME de pwuser (conteneur de Playwright sur GitHub)
       - name: Appli web du coach, ${{ matrix.engine }}
         env:
           PPL_ENGINES: ${{ matrix.engine }}
+          HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web.py
+      - name: Bilans configurables (Mes bilans, onglet Bilans, Bilans reçus), ${{ matrix.engine }}
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          HOME: /root
+        run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_bilans.py
       - name: Captures en cas d'échec
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

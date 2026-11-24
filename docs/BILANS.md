@@ -256,14 +256,14 @@ Tout est en JS et CSS (passe par OTA), mais c'est une **fonction nouvelle** : d'
 - Ce que voit le coach, écrit sous le bilan : ses réponses dès l'envoi avec leur date, rien avant, un suivi passé n'est
   pas envoyé, tout lui est retiré si l'élève le quitte.
 
-### Écart de contrat à trancher : proposer le cycle
+### Proposer le cycle
 
-`student_checkins` retire le suivi `cycle` des `items` tant que l'élève n'a pas donné son accord : l'app ne peut donc
-pas savoir qu'un coach le demande, ni proposer l'accord au bon moment. L'app lit un champ **facultatif**
-`cycle.asked` (vrai si un bilan ouvert de mon coach contient le suivi, sans rien dire de plus) et propose l'accord dans
-le bilan seulement quand il est vrai. Le faux serveur (`tests/fake_checkins.py`) le rend ; **le vrai serveur ne le
-rend pas encore** : sans lui, l'accord ne se propose que depuis Mon coach, dont la cellule est prête
-(`checkinMineCellHtml`) mais pas posée (une ligne à ajouter dans `renderCoachMine`, js/features/coach-ui.js).
+`student_checkins` retire le suivi `cycle` des `items` tant que l'élève n'a pas donné son accord ; il rend
+`cycle.asked` (vrai si un bilan ouvert de mon coach contient le suivi, sans rien dire de plus, faux après l'accord,
+sans coach ou avec un blocage ; testé dans tests/sql/bilans_coach_test.sql). L'app propose alors l'accord dans le
+bilan. Mon coach a aussi sa cellule « Bilans » (`checkinMineCellHtml`) avec « Cycle menstruel » pour donner ou retirer
+l'accord. Les clés de l'appareil (`mdlf_checkins`, `mdlf_checkin_drafts`, `mdlf_checkin_outbox`, `mdlf_checkin_sent`)
+sont effacées avec les données de l'appareil (`accountForgetDevice`).
 
 ### Natif
 
