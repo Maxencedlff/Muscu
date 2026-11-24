@@ -152,3 +152,5 @@ html.type-xl .defi-card__open > .icon { order: 2; }
 html.type-xl .defi-card .defi-ring { order: 3; width: 1.6rem; height: 1.6rem; }
 html.type-xl .defi-card__val { order: 4; flex: 1 1 0; min-width: 0; white-space: normal; }
 html.type-xl .defi-card__num { white-space: nowrap; }
+/* Texte agrandi, fiche : l'anneau plafonné, le compteur et les boutons restent près du haut (iPhone SE) */
+html.type-xl .defi-hero .defi-ring { width: min(6rem, 88px); height: min(6rem, 88px); }
