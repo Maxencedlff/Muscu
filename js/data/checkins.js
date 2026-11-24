@@ -209,7 +209,7 @@ function checkinValueText(item, v) {
   if (item.type === 'number') { const u = checkinUnitText(item); return `${item.unit === 'kg' ? CHECKIN_NF1.format(v) : CHECKIN_NF.format(v)}${u ? ` ${u}` : ''}`; }
   if (item.type === 'photo') return v.ids.length === 1 ? '1 photo' : `${v.ids.length} photos`;
   if (item.type === 'auto') return item.kind === 'diet_adherence' ? `${v.done} jours sur ${v.of}` : `${v.done} sur ${v.of}`;
-  if (item.type === 'choice') return (CHECKIN_CYCLE_PHASES.find(([k]) => k === v) || [, '—'])[1];
+  if (item.type === 'choice') return CHECKIN_CYCLE_PHASES.find(([k]) => k === v)?.[1] || '—';
   return '—';
 }
 const CHECKIN_MEASURE_LABELS = { chest: 'Poitrine', waist: 'Taille', hips: 'Hanches', shoulders: 'Épaules', neck: 'Cou', armL: 'Bras gauche', armR: 'Bras droit', thighL: 'Cuisse gauche', thighR: 'Cuisse droite', calf: 'Mollet' };
@@ -237,7 +237,7 @@ function checkinMinutes(items) {
 // « Chaque semaine · dimanche 18 h », « Chaque mois · le 1er, 9 h », « À la demande »
 function checkinScheduleText(s) {
   if (!s || s.freq === 'manual') return 'À la demande';
-  const f = (CHECKIN_FREQS.find(([k]) => k === s.freq) || [, ''])[1];
+  const f = CHECKIN_FREQS.find(([k]) => k === s.freq)?.[1] || '';
   const h = Number.isInteger(s.send_hour) ? `${s.send_hour} h` : '';
   if (s.freq === 'month') return `${f} · le ${s.monthday === 1 ? '1er' : s.monthday}${h ? `, ${h}` : ''}`;
   return `${f} · ${CHECKIN_WEEKDAYS[s.weekday] || ''}${h ? ` ${h}` : ''}`;

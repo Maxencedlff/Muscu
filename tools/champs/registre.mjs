@@ -116,6 +116,18 @@ export const REGISTRE = [
     bornes: { min: 'BODY_CM_MIN', max: 'BODY_CM_MAX' }, preuve: ['storeLen(', 'BODY_CM_MAX'], vide: 'permis', serveur: null,
     exemption: { longueur: 'valeur bornée par storeLen (num, 10 à 250 cm)' } },
   { cle: 'features/body-measures-ui.js#bmDate', nom: 'Date des mensurations', genre: 'date' },
+  // ── Bilans configurables, écran de l'élève (js/features/checkin-ui.js, docs/BILANS.md) ──
+  // Validés aussi par le serveur (private.checkin_value_ok dans student_checkin_answer, migration 20261125010000_bilans_coach.sql)
+  { cle: 'features/checkin-ui.js#ck-input', nom: 'Bilan : nombre (poids, mensuration, pas, minutes, question libre)', genre: 'nombre', virgule: true,
+    preuve: ['checkinNumber(', 'ckNumberError('], preuveDans: ['features/checkin-ui.js', 'data/checkins.js'], vide: 'permis', serveur: null,
+    exemption: { longueur: 'valeur bornée par checkinNumber (CHECKIN_NUMBER_RANGE) : hors bornes, refusée et dite sous le champ, jamais coupée' },
+    avertir: 'Bornes par unité : kg 25 à 300, cm 10 à 250, pas 0 à 100 000, minutes 0 à 10 080 (mêmes règles que private.checkin_value_ok)' },
+  { cle: 'features/checkin-ui.js#ck-text', nom: 'Bilan : précision d\'un oui (douleurs…)', genre: 'texte-long', longueur: { max: 'CHECKIN_TEXT_MAX' },
+    preuve: ['CHECKIN_TEXT_MAX'], vide: 'permis', serveur: null, avertir: 'Bornée à 1 000 caractères par checkinText, comme le serveur' },
+  { cle: 'features/checkin-ui.js#ck-text~2', nom: 'Bilan : réponse écrite', genre: 'texte-long', longueur: { max: 'CHECKIN_TEXT_MAX' },
+    preuve: ['CHECKIN_TEXT_MAX'], vide: 'permis', serveur: null, avertir: 'Bornée à 1 000 caractères par checkinText, comme le serveur' },
+  { cle: 'features/checkin-ui.js:askNumber:it.label', nom: 'Bilan : jours de diète suivis ou séances faites', genre: 'entier',
+    bornes: { min: 0, max: 31 }, preuve: ['min: 0, max: 31'], vide: 'permis', serveur: null },
   { cle: 'features/photo-vault-ui.js#phDate', nom: 'Date d\'une photo', genre: 'date' },
   { cle: 'features/photo-vault-ui.js#pcmp__range', nom: 'Curseur avant / après', genre: 'curseur' },
   { cle: 'features/photo-vault-ui.js:createElement:photoFile', nom: 'Photo de bilan', genre: 'fichier' },

@@ -254,8 +254,8 @@ export default function ({ test, assert, ROOT }) {
     assert.doesNotMatch(q, /<b>x/);
     assert.match(h, /Rejoindre une coach/, 'accord de la forme du coach (coachWord)');
     const s = run(`deskStudentHtml({ row: ${J(rows[0])}, loading: true }, { weeks: 8 })`);
-    assert.equal((s.match(/aria-disabled="true"/g) || []).length, 4);
-    assert.equal((s.match(/bientôt/g) || []).length, 4);
+    assert.equal((s.match(/aria-disabled="true"/g) || []).length, 3, 'Programme, Nutrition, Messages (Bilans ouvert en vague 2)');
+    assert.equal((s.match(/bientôt/g) || []).length, 3);
     assert.match(s, /role="status"/);
   });
 

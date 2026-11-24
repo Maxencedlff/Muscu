@@ -8,6 +8,9 @@
 - FAKE_APPLE_JS : faux Sign in with Apple JS servi à la place de celui d'Apple (aucun réseau) : init() garde la
   configuration, signIn() rend un faux id_token qui porte le nonce reçu (comme Apple), ou rejette avec
   window.__appleFail ('popup_closed_by_user'…) ;
+- faux serveur des bilans (tests/fake_checkins.py) toujours chargé, vide ; COACH_WEB_CHECKINS_SEED (checkins=True) :
+  trois modèles, un groupe, des plannings, quatre bilans répondus de Léa (le dernier pas encore répondu par le coach),
+  un de Tom déjà répondu, un en attente chez Karim ;
 - open_desk() : contexte, horloge, thème, seed, faux Apple JS (apple='blocked' : script injoignable), connexion par code.
 """
 import contextlib
@@ -20,6 +23,7 @@ import threading
 from zoneinfo import ZoneInfo
 
 from fake_account import FAKE_ACCOUNT
+from fake_checkins import FAKE_CHECKINS
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TZ = ZoneInfo('Europe/Paris')
@@ -128,6 +132,52 @@ def route_apple(ctx, mode='fake'):
         ctx.route('https://appleid.cdn-apple.com/**', lambda r: r.fulfill(status=200, content_type='text/javascript', body=FAKE_APPLE_JS))
 
 
+# Bilans configurables (tests/fake_checkins.py) : modèles, groupe, plannings et bilans réalistes. Clés des questions
+# libres fixes (« q » + 8 caractères) pour que les tests les retrouvent.
+COACH_WEB_CHECKINS_SEED = r"""
+// Après le chargement des scripts de la page (checkinDefaultItem, CHECKIN_STARTERS de js/data/checkins.js)
+document.addEventListener('DOMContentLoaded', () => {
+  const sb = window.__sb, ck = sb.ck, coach = window.__coachId, now = Date.now();
+  const at = (k, h = 18, m = 0) => { const d = new Date(now); d.setHours(h, m, 0, 0); d.setDate(d.getDate() - k); return d.getTime(); };
+  const iso = k => { const d = new Date(at(k, 12)); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const [lea, tom, karim, ines] = window.__students;
+  const hebdo = [...CHECKIN_STARTERS[0].kinds.map(checkinDefaultItem), { kind: 'custom', key: 'qdifficul', type: 'text', label: 'Ta plus grande difficulté cette semaine ?' }];
+  const tHebdo = sb.ckTemplate(coach, { name: 'Hebdo sèche', items: hebdo });
+  const tMois = sb.ckTemplate(coach, { name: 'Complet du mois', items: checkinStarterItems(CHECKIN_STARTERS[1], () => 0.5) });
+  const tExpress = sb.ckTemplate(coach, { name: 'Express', items: CHECKIN_STARTERS[2].kinds.map(checkinDefaultItem) });
+  window.__tpl = { hebdo: tHebdo, mois: tMois, express: tExpress };
+  const g = sb.ckGroup(coach, 'Sèche', [lea, karim, ines]);
+  window.__group = g;
+  const sched = (template, student, group, freq, o = {}) => ck.schedules.push({ id: crypto.randomUUID(), coach, template, student, group, freq, weekday: 0, monthday: 1,
+    send_hour: 18, timezone: 'Europe/Paris', remind_after_h: 24, due_after_h: 48, paused: false, next_at: null, ...o });
+  sched(tHebdo, null, g, 'week');
+  sched(tHebdo, karim, null, '2weeks');
+  sched(tMois, tom, null, 'month', { remind_after_h: null, due_after_h: 72 });
+  // Léa : bilans des semaines 44 à 47 (période du lundi, envoyé le dimanche 18 h, répondu le soir), avec 3 photos en S47
+  const items = [...hebdo, checkinDefaultItem('photos')];
+  const ids = [];
+  [[29, 62.9, 70.5, 95.5, 55.2, 3, 3], [22, 62.6, 70, 95.2, 55, 4, 3], [15, 62.4, 69.2, 94.9, 54.8, 3, 4], [8, 62.2, 68.5, 94.5, 54.5, 3, 4]].forEach(([k, kg, waist, hips, thigh, sleep, energy], i) => {
+    const sent = at(k - 6, 18);
+    const id = sb.ckRequest(coach, lea, { name: 'Hebdo sèche', items, template: tHebdo, sentAt: sent, dueAt: sent + 48 * 3600e3, periodStart: iso(k) });
+    const ans = { weight: kg, measures: { waist, hips, thighL: thigh }, diet_adherence: { done: 5 + (i % 2), of: 7 }, training_adherence: { done: 4, of: 4 },
+      steps: 8200 + i * 230, sleep, energy, hunger: 4, stress: 2 + (i % 2), pain: { yes: false },
+      qdifficul: i === 3 ? 'La collation de 16 h au travail, je n\'ai pas toujours le temps.' : 'Rien de spécial.' };
+    if (i === 3) ans.photos = { ids: [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()] };
+    sb.ckAnswer(id, ans, sent + 2 * 3600e3);
+    if (i < 3) sb.ckReview(id, { reply: 'Bien joué, on continue.', score: 7 });
+    ids.push(id);
+  });
+  window.__leaLast = ids[3];
+  // Tom : un bilan du mois, déjà répondu par le coach
+  const tr = sb.ckRequest(coach, tom, { name: 'Complet du mois', items: checkinStarterItems(CHECKIN_STARTERS[1], () => 0.5), template: tMois, sentAt: at(23, 9), periodStart: iso(23) });
+  sb.ckAnswer(tr, { weight: 78.1, sleep: 4, energy: 4 }, at(22, 12));
+  sb.ckReview(tr, { reply: 'Parfait.', score: 8 });
+  // Karim : bilan envoyé dimanche, pas encore rempli
+  sb.ckRequest(coach, karim, { name: 'Hebdo sèche', items: hebdo, template: tHebdo, sentAt: at(2, 18), dueAt: at(0, 18) + 3600e3, periodStart: iso(8) });
+});
+"""
+
+
 class _Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -157,7 +207,7 @@ def launch(pw, engine):
     return getattr(pw, engine).launch(headless=True, args=args)
 
 
-def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake'):
+def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake', checkins=False):
     """Page de l'appli web du coach, horloge figée, faux serveur injecté, coach connecté (sauf login=False)."""
     ctx = browser.new_context(viewport={'width': width, 'height': height}, color_scheme=theme, locale='fr-FR',
                               timezone_id='Europe/Paris', has_touch=touch, device_scale_factor=1)
@@ -171,8 +221,11 @@ def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, see
     page.add_init_script('window.__fakeOpts = ' + __import__('json').dumps(opts) + ';')
     page.add_init_script("window.__csp = []; document.addEventListener('securitypolicyviolation', e => window.__csp.push(e.effectiveDirective + ' ' + e.blockedURI));")
     page.add_init_script(FAKE_ACCOUNT)
+    page.add_init_script(FAKE_CHECKINS)
     if seed:
         page.add_init_script(COACH_WEB_SEED)
+    if seed and checkins:
+        page.add_init_script(COACH_WEB_CHECKINS_SEED)
     page.goto(url)
     page.wait_for_selector('#app > *')
     if login:

@@ -1,4 +1,4 @@
-# MDLF Coach sur ordinateur (appli web du coach) : vague 1
+# MDLF Coach sur ordinateur (appli web du coach) : vagues 1 et 2
 
 Demande d'un coach partenaire (24/11/2026) : faire ses retours sur un iPhone 12 est « horrible », il travaille sur PC ou
 tablette. Décision de Maxence : une **application web dans le navigateur** (Linux, Mac, Windows, iPad, tablettes
@@ -20,7 +20,10 @@ coach-web/js/desk/api.js    connexion (code e-mail), appels RPC, lectures du tab
 coach-web/js/desk/apple.js  Se connecter avec Apple (Sign in with Apple JS, nonce, bouton)
 coach-web/js/desk/shell.js  cadre : barre latérale, barre d'onglets en bas, icônes, annonces
 coach-web/js/desk/dashboard.js, student.js   les deux écrans (gabarits HTML, tout texte reçu passe par esc())
-coach-web/js/desk/main.js   routes (#/, #/eleve/<id>, #/reglages), gestes, clavier, inactivité, démarrage
+coach-web/js/desk/checkins-model.js  vague 2 : logique pure des bilans (éditeur, comparaison, colonnes, signal)
+coach-web/js/desk/templates.js       vague 2 : écran « Mes bilans » (#/bilans), éditeur, glisser-déposer
+coach-web/js/desk/review.js          vague 2 : onglet Bilans de la fiche, liste « Bilans reçus » (#/bilans-recus)
+coach-web/js/desk/main.js   routes, gestes, clavier, inactivité, confirmation avant de quitter, démarrage
 coach-web/vercel.json       en-têtes du futur déploiement (copié dans dist-coach/ par la construction)
 scripts/build-coach-web.mjs construction : dist-coach/ (npm run coach-web:build)
 ```
@@ -263,9 +266,96 @@ mêmes lectures une par une (séances par pages de 30 jusqu'au début de la fen�
    `external_apple_client_id` (« Connexion avec Apple »), aucune URL de retour Supabase.
 4. Après la publication : `curl -sI https://coach.mdlf.app` doit rendre 200 et les en-têtes de `vercel.json`.
 
-## Suite : vague 2 (bilans configurables)
+## Vague 2 : bilans configurables (partie web du coach)
 
-Migration des modèles, groupes, plannings, demandes et réponses (NOTE.md, « Bilans configurables ») ; écran « Mes
-bilans » sur le web (éditeur, glisser-déposer au doigt, à la souris et au clavier) ; écran du bilan dans l'app iPhone
-(build soumise à Apple) ; fiche Semaines qui prend les colonnes du modèle de l'élève ; « Bilans reçus » avec réponse
-et note ; signal « bilan reçu, à répondre » dans le tableau de bord.
+Contrat serveur et logique partagée : docs/BILANS.md (`js/data/checkins.js`, chargé tel quel après `diet-share.js`).
+Rien n'est déployé ; la migration des bilans n'est pas appliquée et **l'appli web marche sans elle** : chaque écran des
+bilans dit « Les bilans ne sont pas encore ouverts » (titre, explication, Réessayer ou Voir mes élèves), le tableau de
+bord et la fiche Semaines restent entiers, aucun compteur n'est inventé.
+
+### Routes
+
+| Route | Écran |
+|---|---|
+| `#/bilans` | Mes bilans : modèles, éditeur, envoi, destinataires |
+| `#/bilans-recus` | Bilans reçus : à répondre, puis pas encore remplis ; chaque ligne ouvre l'onglet Bilans de l'élève |
+| `#/eleve/<id>/bilans[/<bilan>]` | Onglet Bilans de la fiche (le bilan donné, sinon le plus récent répondu) |
+
+La barre latérale ouvre « Bilans reçus » (compteur des bilans à répondre) et « Mes bilans » (nombre de modèles) ; la
+barre d'onglets du bas les garde aussi (« Reçus », « Mes bilans »).
+
+### Mes bilans (maquette 7-mes-bilans)
+
+- **Modèles** : nom, fréquence lisible (`checkinScheduleText`), nombre d'élèves (groupes dépliés, élèves encore liés).
+  « Nouveau bilan » : partir de zéro ou d'un modèle fourni (`CHECKIN_STARTERS` : Hebdo, Complet du mois, Express).
+  « Dupliquer » (`coach_template_duplicate`), « Supprimer ce bilan » avec confirmation (`coach_template_delete` : les
+  bilans déjà reçus restent).
+- **Éditeur** : les 17 suivis du catalogue par rubrique (Corps, Activité et plan, Ressenti) et « Tes questions ».
+  Case ronde (`role="checkbox"`) ; toucher le suivi ou son type ouvre ses réglages sur place : intitulé, type parmi
+  ceux permis (`CHECKIN_KINDS[].types`, en `radiogroup`), échelle 1 à 5 ou 1 à 10, libellés des bornes, unité d'une
+  question « nombre », mensurations et poses demandées (au moins une), réponse obligatoire (interrupteur
+  `role="switch"`, jamais pour un suivi sensible), Monter, Descendre, Supprimer (question). « Ajouter une question » :
+  texte, échelle, oui/non, nombre avec unité. En tête : « N suivis sur M · environ N minutes à remplir »
+  (`checkinMinutes`).
+- **Ordre** dans une rubrique : poignée glissée (Pointer Events à la souris, au doigt et au stylet, `touch-action: none`
+  sur la poignée seulement ; la ligne suit le pointeur, l'ordre est validé au relâchement, Échap annule), flèches haut
+  et bas, Début et Fin sur la poignée, boutons Monter et Descendre. Chaque déplacement est annoncé dans la zone
+  `aria-live` (« Sommeil déplacé en position 3 »). Rien ne dépend du survol.
+- **Envoi** : fréquence (Chaque semaine, 2 semaines, Chaque mois, À la demande, en `radiogroup`), jour et heure d'envoi,
+  rappel (interrupteur et moment : « Lundi, 18 h », 1 jour après l'envoi), date limite (« À rendre avant : Mardi,
+  18 h »). Fuseau : celui de l'ordinateur. « À la demande » : « Envoyer maintenant » avec confirmation
+  (`coach_checkin_send_now`, 30 envois par 24 h).
+- **Destinataires** (« Envoyé à », Modifier) : groupes et élèves cochés ; création et modification de groupes
+  (`coach_group_save`, `coach_group_delete` : un groupe s'enregistre tout de suite, il sert à plusieurs bilans) ;
+  fréquence propre d'un élève (« toutes les 2 sem. »), qui prime sur celle de son groupe côté serveur.
+- **Enregistrement explicite** : « Enregistrer » envoie le modèle (`coach_template_save`), puis un planning par
+  destinataire (`coach_schedule_save`, réglage du bilan ou fréquence propre), puis retire les plannings des
+  destinataires enlevés (`coach_schedule_delete`) ; plan calculé par `deskCkSavePlan`. Barre « Changements pas encore
+  enregistrés » collée en bas tant qu'il y en a. Changer de modèle, aller sur un autre écran ou fermer l'onglet avec
+  des changements : confirmation (le lien revient en arrière tant que le coach n'a pas dit oui ; `beforeunload` pour
+  l'onglet). Erreurs bloquantes dites en clair (nom vide, aucun suivi, question vide).
+- **Aperçu élève** : le bilan tel que l'élève le verra dans l'app iPhone, en lecture seule (aucun champ actif).
+- Réglage du bilan = celui du premier planning d'un groupe, sinon d'un élève ; un modèle sans destinataire n'a pas de
+  planning côté serveur, il revient donc à « Chaque semaine, dimanche 18 h » jusqu'à ce qu'il en ait un.
+
+### Onglet Bilans de la fiche élève (maquette 3-bilan)
+
+- Bilan répondu le plus récent (`coach_student_checkins`), ‹ › d'un bilan à l'autre, « face à » un bilan précédent
+  au choix (le précédent par défaut, ou aucun) : chiffres (poids, chaque mensuration, nombres) avec leur écart
+  (« −0,7 kg depuis S44 »), réponses lisibles (`checkinValueText`) avec l'écart des échelles et des suivis
+  automatiques, « Pas de réponse » pour un suivi passé.
+- **Photos** : le web ne déchiffre pas encore les photos chiffrées (vague 5) ; l'écran dit seulement « 3 photos
+  envoyées, à ouvrir dans l'app iPhone », sans rien promettre de plus.
+- Réponse du coach (2000 caractères au plus, compteur) et note de la semaine 1 à 10 (`radiogroup`, jamais montrée à
+  l'élève). « Brouillon » (`coach_checkin_review`, `send: false`) ; « Envoyer à <élève> » (`send: true`, puis la même
+  réponse dans la conversation par `chat_send { body, student }` ; si ce second envoi échoue, l'écran le dit). Une
+  réponse en cours reste en mémoire d'un bilan à l'autre ; quitter la fiche avec une réponse pas enregistrée demande
+  confirmation.
+- Bilans en attente (envoyés, pas encore remplis, avec leur date limite) et pas remplis à temps listés à côté.
+
+### Fiche Semaines et tableau de bord
+
+- Colonnes en plus : chaque suivi échelle, nombre ou automatique du bilan répondu le plus récent de l'élève (sauf poids
+  et mensurations, déjà là), avec la valeur du bilan dont la période commence dans la semaine
+  (`deskCkWeekColumns`, `deskCkWeekValues`, `checkinValueNumber`) ; rien sans bilan. Le tableau défile dans son cadre
+  si les colonnes sont nombreuses, jamais la page.
+- Tableau de bord : `coach_checkins_overview` lu avec le reste ; un bilan répondu dont le retour n'est pas envoyé
+  donne « Bilan reçu, à répondre » dans « À faire » et met l'élève dans « À traiter » (juste après les séances en
+  baisse) ; badge sur l'onglet Bilans de sa fiche.
+
+### Tests de la vague 2
+
+- `tests/unit/coach-web-bilans.mjs` (dans `node tests/unit/run.mjs`) : lignes de l'éditeur, réordonnancement et
+  annonce, réglages d'un suivi nettoyés comme le serveur, erreurs, réglage du bilan et fréquence propre, plan
+  d'enregistrement, textes d'envoi, historique, comparaison, colonnes de Semaines, signal du tableau de bord,
+  échappement des textes reçus, « pas encore ouverts » sans la migration.
+- `python3 tests/test_coach_web_bilans.py` (`PPL_ENGINES=chromium` pour un moteur) : Chromium, Firefox, WebKit ×
+  1440, 1180, 820 px (tactile en 1180 et 820 ; glisser au doigt par Pointer Events tactiles) × sombre, clair : signal
+  et compteurs, Bilans reçus, onglet Bilans (comparaison, bilan d'avant, brouillon, envoi qui crée un message),
+  colonnes de Semaines, Mes bilans (aperçu, modèle fourni, cocher, type, échelle, bornes, glisser, bouton, clavier,
+  question perso, fréquence, jour, heure, rappel, date limite, groupe, élève, nouveau groupe, fréquence propre,
+  confirmation avant de quitter, enregistrer, dupliquer, supprimer, envoyer maintenant), cibles de 44 px, pas de
+  défilement en largeur, fond noir pur, CSP, aucune erreur, localStorage ; puis le serveur sans la migration.
+  Faux serveur `tests/fake_checkins.py`, données `COACH_WEB_CHECKINS_SEED` de `tests/coach_web_fixtures.py`.
+- `python3 tests/coach_web_captures.py <dossier>` capture aussi Mes bilans (et un suivi ouvert), l'onglet Bilans et
+  Bilans reçus.

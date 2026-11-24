@@ -1,7 +1,10 @@
 // ═══════════════════════════════════════════════════════════
 //  MDLF Coach sur ordinateur : démarrage, routes, connexion, gestes (docs/COACH_WEB.md)
 //
-//  Routes (hash, aucune configuration de serveur) : #/ tableau de bord, #/eleve/<id> fiche Semaines, #/reglages.
+//  Routes (hash, aucune configuration de serveur) : #/ tableau de bord, #/eleve/<id> fiche Semaines,
+//  #/eleve/<id>/bilans[/<bilan>] onglet Bilans, #/bilans Mes bilans, #/bilans-recus Bilans reçus, #/reglages.
+//  Quitter un écran avec des changements pas enregistrés (bilan en cours d'édition, réponse en cours) demande
+//  confirmation : le lien revient en arrière tant que le coach n'a pas dit oui.
 //  Connexion avec Apple (js/desk/apple.js) ou par code e-mail ; seul un compte coach validé (coach_state().is_coach) entre, et chaque RPC le revérifie
 //  sur le serveur. 30 min sans geste : déconnexion. Données relues au retour sur l'onglet (60 s au moins d'écart).
 // ═══════════════════════════════════════════════════════════
@@ -27,22 +30,31 @@ function deskAuthText(kind) {
 
 function deskRoute() {
   const h = location.hash || '#/';
-  const m = /^#\/eleve\/([0-9a-f-]{1,64})$/i.exec(h);
-  if (m) return { name: 'student', id: decodeURIComponent(m[1]) };
+  const m = /^#\/eleve\/([0-9a-f-]{1,64})(?:\/(bilans)(?:\/([0-9a-f-]{1,64}))?)?$/i.exec(h);
+  if (m) return { name: 'student', id: decodeURIComponent(m[1]), tab: m[2] ? 'checkins' : 'weeks', request: m[3] || null };
   if (h === '#/reglages') return { name: 'settings' };
+  if (h === '#/bilans') return { name: 'bilans' };
+  if (h === '#/bilans-recus') return { name: 'received' };
   return { name: 'dash' };
 }
 
 function deskPaint(html, { focusMain = false } = {}) {
   const root = document.getElementById('app');
   const active = document.activeElement?.id;
-  const caret = active === 'q' ? document.getElementById('q').selectionStart : null;
+  const ae = document.activeElement;
+  const caret = active && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') && ae.type !== 'email' ? ae.selectionStart : null;
+  const sy = window.scrollY;
   root.innerHTML = html;
   frTypoNode(root);
   if (active && document.getElementById(active)) {
     const el = document.getElementById(active); el.focus({ preventScroll: true });
     if (caret !== null && el.setSelectionRange) el.setSelectionRange(caret, caret);
   } else if (focusMain) document.getElementById('main')?.focus({ preventScroll: true });
+  if (!focusMain && window.scrollY !== sy) window.scrollTo(0, sy);
+}
+// Compteurs de la barre latérale : bilans à répondre, modèles de bilan
+function deskCounts() {
+  return { checkins: view.dash?.ckOv ? deskCkToAnswer(view.dash.ckOv, view.dash.rows.map(r => r.id)).length : null, templates: bl.setup ? bl.setup.templates.length : null };
 }
 
 // ── Écrans ──────────────────────────────────────────────────
@@ -79,7 +91,7 @@ function deskNotCoachHtml() {
 }
 function deskSettingsHtml() {
   const email = desk.user?.email || '';
-  return deskFrame({ active: 'settings', students: view.dash?.rows.length ?? null, main: `<div class="head"><div class="grow"><h1 class="title">Réglages</h1></div></div>
+  return deskFrame({ active: 'settings', students: view.dash?.rows.length ?? null, counts: deskCounts(), main: `<div class="head"><div class="grow"><h1 class="title">Réglages</h1></div></div>
     <section class="narrow" aria-labelledby="h-acc"><h2 class="gh" id="h-acc">Compte</h2><div class="group">
       <div class="row"><div class="grow">Connecté${email ? ` avec ${esc(email)}` : ''}</div></div>
       <button type="button" class="row act" data-action="signout">${deskIcon('signout', 'sm')}<span class="grow">Se déconnecter de cet ordinateur</span></button>
@@ -96,14 +108,17 @@ function deskRender(opts = {}) {
       : '<div class="empty" role="status">Chargement de tes élèves…</div>';
     deskPaint(deskFrame({ active: 'students', main: body }), opts); return;
   }
+  const frame = (active, main) => deskFrame({ active, students: view.dash.rows.length, counts: deskCounts(), main });
   if (route.name === 'student') {
     const s = view.student && view.student.id === route.id ? view.student : null;
     const row = view.dash.rows.find(r => r.id === route.id) || null;
     const d = s ? { ...s, row } : { row, loading: !!row };
-    deskPaint(deskFrame({ active: 'students', students: view.dash.rows.length, main: deskStudentHtml(d, ui) }), opts);
+    deskPaint(frame('students', deskStudentHtml(d, ui, route.tab)), opts);
     return;
   }
-  deskPaint(deskFrame({ active: 'students', students: view.dash.rows.length, main: deskDashboardHtml(view.dash, ui) }), opts);
+  if (route.name === 'bilans') { deskPaint(frame('templates', deskBilansHtml()), opts); return; }
+  if (route.name === 'received') { deskPaint(frame('checkins', deskReceivedHtml(view.dash)), opts); return; }
+  deskPaint(frame('students', deskDashboardHtml(view.dash, ui)), opts);
 }
 
 // ── Données ─────────────────────────────────────────────────
@@ -122,14 +137,18 @@ async function deskRefresh({ force = false } = {}) {
   deskRender();
   const route = deskRoute();
   if (route.name === 'student') deskOpenStudent(route.id);
+  // Nombre de modèles (barre latérale) et écran Mes bilans : relus avec le tableau de bord
+  deskOpenBilans({ keep: true });
 }
 async function deskOpenStudent(id, { force = false } = {}) {
   if (!force && view.student?.id === id && !view.student.error && Date.now() - view.student.at < DESK_REFRESH_MS) return;
   if (!view.dash?.rows.some(r => r.id === id)) { deskRender(); return; }
   view.student = { id, loading: true, at: Date.now() };
+  rv.drafts = {};
+  rv.sel = deskRoute().request;
   deskRender();
   const now = Date.now();
-  const r = await deskLoadWeeks(id, DESK_WEEKS_MAX, now);
+  const [r, ck] = await Promise.all([deskLoadWeeks(id, DESK_WEEKS_MAX, now), deskLoadStudentCheckins(id)]);
   if (deskRoute().id !== id) return;
   if (!r.ok) {
     if (r.kind === 'signed_out') return deskEndSession();
@@ -138,7 +157,9 @@ async function deskOpenStudent(id, { force = false } = {}) {
   const phases = view.dash.plans ? view.dash.plans[id] || [] : null;
   const weeks = deskWeeks({ ...r.data, phases, now, count: DESK_WEEKS_MAX });
   view.student = { id, at: Date.now(), now, weeks, weights: r.data.weights, measures: r.data.measures, diet: r.data.diet,
-    chart: deskWeightChart(r.data.weights, now) };
+    chart: deskWeightChart(r.data.weights, now),
+    // Bilans de l'élève (null : serveur sans les bilans ou lecture refusée ; ckKind dit pourquoi)
+    checkins: ck.ok ? ck.data : null, ckKind: ck.ok ? null : ck.kind };
   deskRender();
 }
 async function deskEndSession() {
@@ -226,12 +247,32 @@ document.addEventListener('keydown', e => {
   }
 });
 document.addEventListener('pointerdown', () => deskTouch(), { passive: true });
-window.addEventListener('hashchange', () => {
+// Changement d'écran : avec des changements pas enregistrés, le lien revient en arrière et le coach confirme
+let deskHash = location.hash || '#/', deskHashBack = false;
+window.addEventListener('hashchange', async () => {
+  if (deskHashBack) { deskHashBack = false; return; }
+  const from = deskHash, to = location.hash || '#/';
+  const leavingEditor = from === '#/bilans' && to !== '#/bilans' && deskCkDirty();
+  const sameStudent = (h) => (/^#\/eleve\/([0-9a-f-]+)/i.exec(h) || [])[1];
+  const leavingReply = sameStudent(from) && sameStudent(from) !== sameStudent(to) && deskRvDirty();
+  if (desk.user && (leavingEditor || leavingReply)) {
+    deskHashBack = true;
+    history.replaceState(null, '', from);
+    deskHashBack = false;
+    const ok = leavingEditor ? await deskCkLeaveOk() : await deskRvLeaveOk();
+    if (!ok) return;
+    if (leavingEditor) deskCkSelect(bl.draft?.id || bl.sel);
+    if (leavingReply) rv.drafts = {};
+    history.replaceState(null, '', to);
+  }
+  deskHash = location.hash || '#/';
   ui.weeks = DESK_WEEKS_SHOWN;
   const route = deskRoute();
+  if (route.name === 'student' && route.request) rv.sel = route.request;
   deskRender({ focusMain: true });
   window.scrollTo(0, 0);
   if (route.name === 'student' && desk.user) deskOpenStudent(route.id);
+  if (route.name === 'bilans' && desk.user) deskOpenBilans({ keep: true });
 });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && desk.user) { if (deskIdleFor() > DESK_IDLE_MS) deskEndSession(); else deskRefresh(); } });
 setInterval(() => { if (desk.user && deskIdleFor() > DESK_IDLE_MS) deskEndSession(); }, 60_000);

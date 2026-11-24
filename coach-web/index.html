@@ -16,6 +16,7 @@
 <body>
   <div id="app"></div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="live" class="sr" aria-live="polite"></div>
   <noscript><p class="noscript">MDLF Coach a besoin de JavaScript.</p></noscript>
 
   <!-- Logique partagée avec l'app iPhone : mêmes fichiers, dans l'ordre d'index.html de l'app (aucune copie).
@@ -59,11 +60,14 @@
   <script src="../js/data/session-review.js"></script>
   <!-- Appli web du coach -->
   <script src="js/desk/model.js"></script>
+  <script src="js/desk/checkins-model.js"></script>
   <script src="js/desk/api.js"></script>
   <script src="js/desk/apple.js"></script>
   <script src="js/desk/shell.js"></script>
   <script src="js/desk/dashboard.js"></script>
   <script src="js/desk/student.js"></script>
+  <script src="js/desk/templates.js"></script>
+  <script src="js/desk/review.js"></script>
   <script src="js/desk/main.js"></script>
 </body>
 </html>

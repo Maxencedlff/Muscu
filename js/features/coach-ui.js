@@ -476,6 +476,7 @@ function renderCoachMine() {
         ${chatIntroHtml()}
         ${chatCellHtml(CHAT_COACH)}
         ${studentPlanHtml()}
+        ${typeof checkinMineCellHtml === 'function' ? checkinMineCellHtml() : ''}
         ${cphMineCellHtml()}
         ${notes}
         <div class="group-title">Programmes reçus</div>

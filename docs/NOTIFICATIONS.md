@@ -13,6 +13,8 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
 | Messages | ligne ajoutée dans `coach_messages` par l'autre personne (mon coach, ou un de mes élèves) | « Nouveau message » · « kevin t'a envoyé un message » | Social (ou Coach) › la conversation (avec mon coach, ou avec cet élève), même app fermée |
 | Séances de mes élèves (coachs seulement) | séance datée qui arrive dans `sessions` (insert avec `done_at`, ou `done_at` qui passe de null à une date) d'un élève lié, coach encore coach, séance de moins de 24 h et pas d'avant le lien | « Séance terminée » · « lea a terminé Push · 52 min » (nom et durée seulement, jamais une charge ni un exercice) | Coach › la fiche de l'élève › la séance |
 | Séances de mes élèves, résumé (coachs seulement, même réglage) | au-delà de 3 séances notifiées dans l'heure, les suivantes s'ajoutent à un résumé (`20261117050000_messages_coach.sql`) | « Séances terminées » · « 12 élèves ont terminé leur séance » (un nombre, jamais un pseudo) | Coach › Élèves, filtre « Nouveautés » |
+| Mon coach (bilan demandé, `checkin`) | demande de bilan créée pour moi : envoi « À la demande » du coach (`coach_checkin_send_now`) ou envoi planifié (`private.checkin_tick`, pg_cron toutes les 15 min) (`20261125010000_bilans_coach.sql`, docs/BILANS.md) | « Bilan à remplir » · « kevin t'a demandé ton bilan » (jamais le nom du bilan ni ses questions) | l'écran du bilan (`ref` = id de la demande) |
+| Mon coach (rappel, `checkin_reminder`) | rappel du planning (`remind_after_h` heures après l'envoi), demande toujours ouverte | « Rappel : ton bilan » · « kevin attend ton bilan » | l'écran du bilan |
 
 - **Rien sans accord** : les six réglages sont éteints par défaut (pas de ligne `push_prefs` = tout
   éteint). La fenêtre d'autorisation d'iOS ne s'ouvre qu'au toucher d'un interrupteur ou d'« Activer »
@@ -77,6 +79,11 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
   part 15 minutes après sa création, jamais dans l'heure qui suit le précédent : 3 notifications et un résumé
   par heure au plus. `push_claim` relit le nombre (`count` : élèves encore liés et non bloqués ; 0 : rien),
   `ref` vide, sans pseudo. Réglage `student_sessions` éteint : résumé en attente vidé.
+- **Bilans** (`20261125010000_bilans_coach.sql`, docs/BILANS.md) : réglage « Mon coach » (`push_prefs.coach`),
+  une notification par demande et un rappel au plus par demande (`reminded_at`). Relu à l'envoi
+  (`private.push_valid`) : demande encore ouverte (ni répondue ni fermée par la période suivante), envoyée par ce
+  coach à cet élève, toujours liés, coach encore coach, sans blocage ; sinon rien. Aucun mot accordé au coach :
+  pas de forme demandée (`FORM_KINDS`).
 - **Séance en cours** : le toucher d'une notification n'arrache jamais de l'écran de la séance.
 - Les rappels de fin de repos restent des notifications locales (`LocalNotifications`), sans serveur.
 

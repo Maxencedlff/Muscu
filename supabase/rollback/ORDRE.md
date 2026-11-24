@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −22 | `20261125010000_bilans_coach_down.sql` (bilans configurables : modèles, groupes, plannings, demandes, réponses, retours et accords du cycle EFFACÉS ; notifications `checkin` et `checkin_reminder` en file retirées ; `push_wanted`, `push_valid` et la contrainte de la file reprennent le texte de −15 ; tâches pg_cron `bilans-coach-envoi` et `bilans-coach-purge` retirées ; `push-send` peut rester) | rien | oui (vérifié par `tests/sql/bilans_coach_rollback_test.sh`, données comprises) ; à défaire avant −15, −9 (il réécrit leurs `push_wanted` et `push_valid`) et −7 (ses réponses citent `coach_photos`) |
 | −21 | `20261124010000_semaines_coach_down.sql` (fiche Semaines du web en un appel ; ne touche à aucune donnée, l'appli web revient aux lectures une par une) | rien | oui (vérifié par `tests/sql/semaines_coach_rollback_test.sh`) |
 | −20 | `20261122010000_forme_coach_down.sql` (efface les formes choisies par les coachs ; l'app revient à « ton coach », push-send à « Commentaire du coach ») | rien | oui ; à défaire avant les notifications push (0) : `push_actor_forms` lit leur file |
 | −19 | `20261120010000_seance_publique_par_bras_down.sql` (en production depuis le 20/11/2026 ; amis et coach ne voient plus le bras droit, rien n'est effacé des séances) | rien | oui (vérifié) |
@@ -112,6 +113,13 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
 
 16. `20261122010000_forme_coach.sql` (accord « Ma coach », docs/COACH_FORME.md) : indépendante (nouvelle table `coach_forms`, aucune fonction existante réécrite, `push_claim` inchangé) ; puis `push-send` redéployée (elle tolère l'absence de `push_actor_forms`), puis l'OTA. Une app d'avant l'ignore ; une app à jour sur un serveur d'avant écrit « ton coach ». Retour arrière : `20261122010000_forme_coach_down.sql` (push-send peut rester).
 
+17. `20261125010000_bilans_coach.sql` (bilans configurables par le coach, docs/BILANS.md « Mise en production ») :
+    APRÈS `20261117050000_messages_coach.sql` (en production), dont elle reprend `push_wanted`, `push_valid` et la
+    contrainte `push_outbox_kind_check`, et `20261107000000_photos_bilan.sql` (en production) ; `push_claim` inchangé.
+    `push-send` redéployée AVANT (elle doit connaître `checkin` et `checkin_reminder`), puis la migration, puis
+    contrôle `select jobname, schedule from cron.job where jobname like 'bilans-coach-%';` (deux lignes), puis
+    l'appli web du coach et l'OTA. Retour arrière : OTA et web d'avant, puis `20261125010000_bilans_coach_down.sql`.
+
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 
 Les fonctions Edge du payant (`verify-purchase`, `appstore-notify`, puis `coach-request-alert`) se déploient juste APRÈS 1 à 3 : elles envoient `p_intro` et `p_environment`, que la base du 28/10 ne connaît pas (docs/PAYANT_V1.md, « Mise en production »).
@@ -120,7 +128,7 @@ Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.
 
 Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque (et Strava).
 
-Pour défaire en production : l'ordre inverse de cette liste (16 → 1), avant tout retour arrière plus ancien (tableau du haut).
+Pour défaire en production : l'ordre inverse de cette liste (17 → 1), avant tout retour arrière plus ancien (tableau du haut).
 
 ## Ce qui est mis de côté, pas effacé
 
@@ -148,6 +156,7 @@ bash tests/sql/rollback_social_check.sh   # commentaires et chat, avec données
 bash tests/sql/rollback_push_check.sh     # notifications push
 bash tests/sql/rollback_reaction_jaime_check.sh   # J'aime : ❤️ redevenu 👏, base identique
 bash tests/sql/photos_bilan_rollback_test.sh   # photos de bilan : planification et secret de la purge retirés
+bash tests/sql/bilans_coach_rollback_test.sh   # bilans configurables : schéma, droits et données d'avant
 ```
 
 Postgres local jetable, rien n'est envoyé au projet Supabase.

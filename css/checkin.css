@@ -1,0 +1,154 @@
+/* ═══════════════════════════════════════════════
+   Bilans configurables, écran de l'élève (js/features/checkin-ui.js, maquette 8-bilan-iphone).
+   Une seule teinte d'action (l'orange) : choix d'une échelle, « Passer », bouton d'envoi teinté (fond orange pâle,
+   texte orange foncé, jamais un aplat orange). Rien ne change au toucher d'un bouton sauf l'opacité (:active),
+   comme partout dans l'app. Texte agrandi (html.type-xl) : tout passe à la ligne, rien n'est coupé.
+═══════════════════════════════════════════════ */
+
+.ck-view { --ck-on-bg: color-mix(in srgb, var(--tint) 16%, var(--cell)); --ck-on-line: var(--tint); }
+.ck-view .scr { padding-bottom: 24px; }
+
+/* En-tête : « Alex t'a demandé ton bilan » */
+.ck-title { margin: 16px 4px 8px; outline: none; }
+.ck-head { display: flex; align-items: center; gap: 12px; padding: 0 4px 4px; }
+.ck-head .avatar { flex-shrink: 0; }
+.ck-head__text { flex: 1; min-width: 0; }
+.ck-head__title { margin: 0; font-size: var(--fs-body); line-height: 1.3; font-weight: 600; overflow-wrap: break-word; }
+.ck-head__sub { margin: 4px 0 0; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }
+
+/* Un suivi */
+.ck-group { padding: 0; }
+.ck-item { position: relative; padding: 10px 16px 12px; }
+.ck-item + .ck-item::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
+.ck-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.ck-row--sub { border-top: .5px solid var(--sep); margin-right: -16px; padding-right: 16px; }
+.ck-ico { flex: none; width: 22px; display: inline-flex; justify-content: center; color: var(--label2); }
+.ck-ico .icon { width: 1.18em; height: 1.18em; }
+.ck-label { flex: 1; min-width: 0; font-size: var(--fs-body); line-height: 1.3; overflow-wrap: break-word; hyphens: none; }
+.ck-label--q { display: block; font-weight: 600; margin: 4px 0 10px; }
+
+/* Nombre : champ gris, unité visible à droite */
+.ck-field { flex: none; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; min-width: 7.2em; padding: 0 12px;
+  background: var(--fill); border-radius: var(--r-sm); }
+.ck-input { width: 4.2em; min-width: 0; flex: 1; border: none; background: none; color: var(--label); font: inherit; font-size: var(--fs-input);
+  text-align: right; height: 44px; padding: 0; outline: none; }
+.ck-input::placeholder { color: var(--label3); }
+.ck-field:focus-within { box-shadow: 0 0 0 2px var(--tint); }
+.ck-input[aria-invalid="true"] { color: var(--red-text); }
+.ck-unit { color: var(--label2); font-size: var(--fs-body); white-space: nowrap; }
+
+/* Aide sous un suivi, « Passer » à droite */
+.ck-foot { display: flex; align-items: flex-start; gap: 8px; }
+.ck-help { flex: 1; min-width: 0; margin: 2px 0 0 32px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); }
+.ck-help:empty { margin: 0; }
+.ck-help--bad { color: var(--red-text); }
+.ck-item--scale .ck-help, .ck-item--text .ck-help, .ck-group .ck-foot--cycle .ck-help { margin-left: 0; }
+.ck-skip { flex: none; min-height: 44px; min-width: 44px; margin: -8px -8px -10px 0; padding: 0 8px; border: none; background: none;
+  color: var(--tint); font: inherit; font-size: var(--fs-subhead); cursor: pointer; white-space: nowrap; }
+.ck-skip:active { opacity: .5; }
+.ck-row .ck-skip { margin: 0 -8px 0 0; }
+.ck-req { flex: none; font-size: var(--fs-footnote); color: var(--label2); white-space: nowrap; }
+.ck-passed { flex: none; color: var(--label2); font-size: var(--fs-subhead); }
+
+/* Échelle : segments (radiogroup), choisi en orange pâle bordé d'orange ; 10 crans sur deux lignes */
+.ck-scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 2px; margin-top: 6px; background: var(--fill); border-radius: var(--r-sm); }
+.ck-seg { min-height: 44px; min-width: 0; border: 1.5px solid transparent; border-radius: 8px; background: none; color: var(--label);
+  font: inherit; font-size: var(--fs-body); font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; padding: 0 4px; }
+.ck-seg--on { background: var(--ck-on-bg); border-color: var(--ck-on-line); color: var(--tint); }
+.ck-seg:active { opacity: .5; }
+.ck-bounds { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
+.ck-bounds span:last-child { text-align: right; }
+
+/* Oui / non */
+.ck-yesno { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; background: var(--fill); border-radius: var(--r-sm); min-width: 8.4em; }
+.ck-yesno .ck-seg { padding: 0 12px; }
+.ck-text { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 10px 12px; border: none; border-radius: var(--r-sm); background: var(--fill);
+  color: var(--label); font: inherit; font-size: var(--fs-input); line-height: 1.35; resize: vertical; min-height: 5.5em; outline: none; }
+.ck-text:focus { box-shadow: 0 0 0 2px var(--tint); }
+.ck-text::placeholder { color: var(--label3); }
+
+/* Automatique : la valeur, en orange (elle se corrige d'un toucher) */
+.ck-auto { flex: none; min-height: 44px; min-width: 44px; padding: 0 0 0 8px; border: none; background: none; color: var(--tint); font: inherit;
+  font-size: var(--fs-body); text-align: right; cursor: pointer; white-space: nowrap; }
+.ck-auto:active { opacity: .5; }
+
+/* Cycle : liste iOS, coche à droite */
+.ck-choices { margin: 4px -16px 0 0; }
+.ck-choice { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px 16px 8px 0; border: none; border-top: .5px solid var(--sep);
+  background: none; color: var(--label); font: inherit; font-size: var(--fs-body); text-align: left; cursor: pointer; }
+.ck-choice__label { flex: 1; min-width: 0; }
+.ck-choice .icon { color: var(--tint); flex: none; }
+.ck-choice:active { opacity: .5; }
+.ck-offer .ck-row { padding: 0 16px; gap: 10px; }
+.ck-offer .ck-row > .icon { color: var(--label2); flex: none; }
+.ck-offer .ck-foot { padding: 0 16px 12px; }
+.ck-offer .ck-help { margin-left: 32px; }
+
+/* Photos : une tuile par pose, envoyée (coche) ou à ajouter (+) */
+.ck-item--photo { padding: 0; }
+.ck-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ck-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 7.5em; min-width: 0; padding: 12px 4px;
+  border: none; border-radius: var(--r-md); background: var(--cell); color: var(--label2); font: inherit; font-size: var(--fs-subhead); cursor: pointer; }
+.ck-tile:active:not(:disabled) { opacity: .5; }
+.ck-tile__plus { display: inline-flex; align-items: center; justify-content: center; width: 2.6em; height: 2.6em; border-radius: 50%; background: var(--fill); color: var(--tint); }
+.ck-tile__plus .icon, .ck-tile__mark .icon { width: 1.3em; height: 1.3em; }
+.ck-tile__mark { display: inline-flex; align-items: center; justify-content: center; width: 2.6em; height: 2.6em; border-radius: 50%; background: var(--green); color: var(--black); }
+.ck-tile--done { cursor: default; color: var(--label); }
+.ck-tile__pose { font-weight: 600; color: var(--label); overflow-wrap: anywhere; }
+.ck-tile__sub { font-size: var(--fs-footnote); color: var(--label2); }
+.ck-foot--photo { padding: 8px 4px 0; }
+.ck-foot--photo .ck-help { margin-left: 0; }
+
+/* Ce que voit le coach ; bouton d'envoi teinté (fond orange pâle, texte orange) */
+.ck-privacy { padding: 16px 16px 0; }
+.ck-send { display: block; width: 100%; min-height: 50px; margin: 20px 0 8px; padding: 12px 16px; border: none; border-radius: 14px;
+  background: var(--ck-on-bg); color: var(--tint); font: inherit; font-size: var(--fs-body); font-weight: 600; cursor: pointer; overflow-wrap: break-word; }
+.ck-send:active:not(:disabled) { opacity: .6; }
+.ck-send:disabled { color: var(--label-disabled); background: var(--fill); }
+
+/* Envoyé, en attente, fermé */
+.ck-done { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 28px 8px 8px; }
+.ck-done__mark { display: inline-flex; align-items: center; justify-content: center; width: 3em; height: 3em; border-radius: 50%; background: var(--fill); color: var(--label2); }
+.ck-done__mark .icon { width: 1.4em; height: 1.4em; }
+.ck-done__mark--sent { background: var(--green); color: var(--black); }
+.ck-done__title { margin: 0; font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; outline: none; overflow-wrap: break-word; }
+.ck-done__name { margin: -4px 0 0; font-size: var(--fs-subhead); color: var(--label2); }
+.ck-done__sub { margin: 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); max-width: 32em; }
+.ck-reply__text { white-space: pre-wrap; overflow-wrap: break-word; }
+.ck-recap .cell__sub { font-size: var(--fs-subhead); overflow-wrap: break-word; }
+
+/* État vide ou hors ligne : titre, explication, action */
+.ck-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 48px 8px; }
+.ck-empty__title { margin: 0; font-size: var(--fs-title2); font-weight: 700; outline: none; }
+.ck-empty__text { margin: 0; color: var(--label2); font-size: var(--fs-subhead); line-height: 1.4; }
+.ck-empty__btn { margin-top: 8px; min-height: 44px; padding: 0 20px; }
+
+/* Feuille d'accord du cycle */
+.ckc__lead { margin: 0 0 12px; font-size: var(--fs-subhead); line-height: 1.45; color: var(--label); }
+.ckc__check { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; margin: 8px 0 16px; padding: 10px 14px; border: none; border-radius: var(--r-md);
+  background: var(--cell); color: var(--label); font: inherit; font-size: var(--fs-body); text-align: left; cursor: pointer; }
+.ckc__box { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.4em; height: 1.4em; border-radius: 6px; border: 2px solid var(--label3); color: transparent; }
+.ckc__box .icon { width: .9em; height: .9em; }
+.ckc__check--on .ckc__box { background: var(--tint-fill); border-color: var(--tint-fill); color: var(--on-tint); }
+
+/* Texte agrandi : libellé au-dessus du champ ou des boutons, plus rien côte à côte qui se coupe */
+html.type-xl .ck-row--num, html.type-xl .ck-row--yesno, html.type-xl .ck-row--auto { flex-wrap: wrap; padding: 4px 0; }
+html.type-xl .ck-row--num .ck-label, html.type-xl .ck-row--yesno .ck-label, html.type-xl .ck-row--auto .ck-label { flex-basis: calc(100% - 32px); }
+html.type-xl .ck-row--num .ck-field { margin-left: 0; flex: 1 1 100%; }
+html.type-xl .ck-row--sub { margin-right: 0; padding-right: 0; }
+html.type-xl .ck-row--sub .ck-ico { display: none; }
+html.type-xl .ck-yesno { flex: 1 1 100%; }
+html.type-xl .ck-auto { flex: 1 1 100%; text-align: left; padding-left: 32px; white-space: normal; }
+html.type-xl .ck-help { margin-left: 0; }
+html.type-xl .ck-foot { flex-wrap: wrap; }
+html.type-xl .ck-foot .ck-skip { margin-left: auto; }
+html.type-xl .ck-row--head { flex-wrap: wrap; }
+html.type-xl .ck-tiles { grid-template-columns: 1fr; }
+html.type-xl .ck-tile { flex-direction: row; justify-content: flex-start; min-height: 0; padding: 12px 16px; gap: 12px; }
+html.type-xl .ck-head { display: block; }
+html.type-xl .ck-head .avatar { display: none; }
+html.type-xl .ck-bounds { flex-direction: column; gap: 2px; }
+.ck-bound-n { display: none; }
+html.type-xl .ck-bound-n { display: inline; }
+html.type-xl .ck-bounds span:last-child { text-align: left; }
+html.type-xl .ck-seg { font-size: min(1rem, 26px); padding: 0; }

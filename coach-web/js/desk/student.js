@@ -4,7 +4,9 @@
 //  Un tableau semaine par semaine avec ce que l'élève partage déjà avec son coach : poids (pesées partagées),
 //  séances faites, volume, records, diète et eau (suivi de la diète partagé), mensurations partagées. Les défis ne
 //  sont pas partagés avec le coach (docs/DEFIS.md) : le pied du tableau le dit. Courbe du poids sur 90 jours.
-//  Les autres onglets (Bilans, Programme, Nutrition, Messages) sont présents et annoncés « bientôt ».
+//  Colonnes en plus (vague 2) : les suivis échelle, nombre ou automatiques du bilan le plus récent de l'élève, avec
+//  la valeur du bilan dont la période tombe dans la semaine (deskCkWeekColumns, deskCkWeekValues).
+//  Onglet « Bilans » : js/desk/review.js. Les autres (Programme, Nutrition, Messages) sont annoncés « bientôt ».
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -17,7 +19,7 @@ const deskSigned = (v, unit = '') => (v === null || v === undefined ? '' : `${v 
 // Couleur d'un écart de poids : neutre (le sens voulu dépend de la phase, l'app ne le devine pas)
 const deskNa = '<span class="faint" aria-label="Pas de donnée">—</span>';
 
-function deskWeekRowHtml(w, cols, ctx) {
+function deskWeekRowHtml(w, cols, ctx, ckCols = [], ckReq = null) {
   const name = `<b class="wn">S${w.week}</b>${w.current ? ' <span class="tag">en cours</span>' : ''}<small>${esc(w.range)}${w.phase ? ` · ${esc(w.phase)}` : ''}</small>`;
   const weight = !ctx.weightShared ? deskNa : w.weight ? `${deskKg(w.weight.avg)}${w.weight.delta !== null ? `<small>${esc(deskSigned(w.weight.delta))}</small>` : ''}` : deskNa;
   const vol = w.volume ? `${fmtNum(Math.round(w.volume / 10) / 100, 2)} t` : deskNa;
@@ -25,7 +27,9 @@ function deskWeekRowHtml(w, cols, ctx) {
   const diet = !ctx.dietShared ? deskNa : w.diet && w.diet.noted ? `${w.diet.ok} sur ${w.diet.noted}${w.diet.kcal ? `<small>${esc(fmtNum(w.diet.kcal))} kcal</small>` : ''}` : deskNa;
   const water = !ctx.dietShared ? deskNa : w.water !== null ? `${deskKg(w.water)} L` : deskNa;
   const ms = cols.map(k => `<td>${w.measures[k] !== undefined ? esc(deskKg(w.measures[k])) : deskNa}</td>`).join('');
-  return `<tr class="${w.current ? 'cur' : ''}"><th scope="row">${name}</th><td>${weight}</td><td>${w.sessions || '<span class="faint">0</span>'}</td><td>${vol}</td><td>${rec}</td><td>${diet}</td><td>${water}</td>${ms}</tr>`;
+  const ckv = ckCols.length ? deskCkWeekValues(w, ckReq, ckCols) : {};
+  const ck = ckCols.map(c => `<td>${ckv[c.key] ? esc(ckv[c.key].text) : deskNa}</td>`).join('');
+  return `<tr class="${w.current ? 'cur' : ''}"><th scope="row">${name}</th><td>${weight}</td><td>${w.sessions || '<span class="faint">0</span>'}</td><td>${vol}</td><td>${rec}</td><td>${diet}</td><td>${water}</td>${ms}${ck}</tr>`;
 }
 
 function deskChartHtml(chart, weights) {
@@ -40,22 +44,29 @@ function deskChartHtml(chart, weights) {
   </svg></figure><div class="gfoot">${esc(plural(chart.n, 'pesée', 'pesées'))} · ${esc(deskSigned(chart.delta, ' kg'))} depuis le ${esc(fmtDate(chart.first.date, 'short'))}</div>`;
 }
 
-function deskStudentHtml(d, ui) {
+// tab : 'weeks' (Semaines) ou 'checkins' (Bilans, js/desk/review.js)
+function deskStudentHtml(d, ui, tab = 'weeks') {
   const r = d.row;
   if (!r) return `<div class="crumb"><a href="#/">${deskIcon('back', 'xs')}Élèves</a></div><div class="empty">Cet élève ne te suit plus, ou le lien est faux.</div>`;
-  const tabs = DESK_TABS.map(([k, l]) => k === 'weeks'
-    ? `<button type="button" role="tab" aria-selected="true" class="on" id="tab-weeks" aria-controls="panel-weeks">${esc(l)}</button>`
+  const base = `#/eleve/${encodeURIComponent(r.id)}`;
+  const tabs = DESK_TABS.map(([k, l]) => (k === 'weeks' || k === 'checkins')
+    ? `<a role="tab" href="${k === 'weeks' ? base : `${base}/bilans`}" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" id="tab-${k}"${tab === k ? ` aria-controls="panel-${k}"` : ''}>${esc(l)}${k === 'checkins' && r.ckToAnswer ? ` <span class="badge" aria-label="${esc(plural(r.ckToAnswer, 'bilan à répondre', 'bilans à répondre'))}">${r.ckToAnswer}</span>` : ''}</a>`
     : `<button type="button" role="tab" aria-selected="false" aria-disabled="true" data-action="soon" data-what="${esc(l)}">${esc(l)}<span class="soon">bientôt</span></button>`).join('');
   const sinceTxt = r.st.since ? `suivi depuis le ${fmtDate(Date.parse(r.st.since), 'short')}` : '';
   const sub = [r.phase?.text, sinceTxt].filter(Boolean).join(' · ');
   const head = `<div class="crumb"><a href="#/">${deskIcon('back', 'xs')}Élèves</a></div>
   <div class="head st-head">${deskAvatar(r.name, 'lg')}<div class="grow"><h1>${esc(r.name)}</h1><div class="sub">${esc(sub)}</div></div></div>
   <div class="tabs"><div class="seg" role="tablist" aria-label="Fiche de ${esc(r.name)}">${tabs}</div></div>`;
+  if (tab === 'checkins') {
+    const body = d.loading ? '<div class="empty" role="status">Chargement des bilans…</div>' : d.error ? `<div class="empty" role="alert">${esc(deskErrorText(d.error))}<br><button type="button" class="btn tint" data-action="reload">Réessayer</button></div>` : deskRvPanelHtml(d, r);
+    return `${head}<div role="tabpanel" id="panel-checkins" aria-labelledby="tab-checkins">${body}</div>`;
+  }
   if (d.loading) return `${head}<div class="empty" role="status">Chargement des semaines…</div>`;
   if (d.error) return `${head}<div class="empty" role="alert">${esc(deskErrorText(d.error))}<br><button type="button" class="btn tint" data-action="reload">Réessayer</button></div>`;
   const w = d.weeks.slice(0, ui.weeks);
   const cols = deskMeasureColumns(d.measures);
   const ctx = { weightShared: !!d.weights?.shared, dietShared: !!d.diet?.shared };
+  const ckCols = d.checkins ? deskCkWeekColumns(d.checkins) : [];
   const s = deskStudentStats(d.weeks, d.weights, d.now);
   const waist = deskMeasureSummary(d.measures).find(m => m.key === 'waist') || deskMeasureSummary(d.measures)[0] || null;
   const stats = `<div class="stats" aria-label="En bref">
@@ -68,10 +79,10 @@ function deskStudentHtml(d, ui) {
   </div>`;
   const table = `<div class="group tscroll" tabindex="0" role="region" aria-label="Semaine par semaine"><table class="wk">
     <caption class="sr">Semaine par semaine, de la semaine en cours vers le passé</caption>
-    <thead><tr><th scope="col">Semaine</th><th scope="col">Poids (kg)</th><th scope="col">Séances</th><th scope="col">Volume</th><th scope="col">Records</th><th scope="col">Diète (jours)</th><th scope="col">Eau</th>${cols.map(k => `<th scope="col">${esc(bodyMeasureLabel(k))} (cm)</th>`).join('')}</tr></thead>
-    <tbody>${w.map(x => deskWeekRowHtml(x, cols, ctx)).join('')}</tbody></table></div>
+    <thead><tr><th scope="col">Semaine</th><th scope="col">Poids (kg)</th><th scope="col">Séances</th><th scope="col">Volume</th><th scope="col">Records</th><th scope="col">Diète (jours)</th><th scope="col">Eau</th>${cols.map(k => `<th scope="col">${esc(bodyMeasureLabel(k))} (cm)</th>`).join('')}${ckCols.map(c => `<th scope="col" class="ckh">${esc(c.head)}</th>`).join('')}</tr></thead>
+    <tbody>${w.map(x => deskWeekRowHtml(x, cols, ctx, ckCols, d.checkins)).join('')}</tbody></table></div>
     ${ui.weeks < d.weeks.length ? `<button type="button" class="btn link more" data-action="more-weeks">Afficher les semaines précédentes</button>` : ''}
-    <div class="gfoot">Tout se remplit seul avec ce que ${esc(r.name)} partage : pesées, séances, repas cochés, eau, mensurations. Poids : moyenne des pesées de la semaine et écart avec la semaine pesée d'avant. Diète : jours suivis sur les jours notés. Défis : pas encore partagés avec le coach. Les réponses aux bilans arrivent avec les bilans configurables.</div>`;
+    <div class="gfoot">Tout se remplit seul avec ce que ${esc(r.name)} partage : pesées, séances, repas cochés, eau, mensurations. Poids : moyenne des pesées de la semaine et écart avec la semaine pesée d'avant. Diète : jours suivis sur les jours notés. Défis : pas encore partagés avec le coach.${ckCols.length ? ' Dernières colonnes : réponses à ses bilans, semaine où commence la période du bilan.' : ''}</div>`;
   const panel = `<div class="side-panel">
     <section class="gblock" aria-labelledby="h-chart"><h2 class="gh" id="h-chart">Poids au quotidien <span class="r muted">90 jours</span></h2>${deskChartHtml(d.chart, d.weights)}</section>
     <section class="gblock" aria-labelledby="h-meas"><h2 class="gh" id="h-meas">Mensurations</h2>${d.measures?.shared && deskMeasureSummary(d.measures).length

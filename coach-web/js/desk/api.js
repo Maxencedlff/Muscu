@@ -100,9 +100,9 @@ const deskOpt = r => (r.ok ? r.data : null);   // donnée facultative : absente 
 // Tableau de bord en un passage (8 lectures en parallèle) ; seul coach_state est obligatoire
 async function deskLoadDashboard(now = Date.now()) {
   const me = desk.user?.id;
-  const [state, progress, threads, plans, diet, code, tier, form] = await Promise.all([
+  const [state, progress, threads, plans, diet, code, tier, form, ckOv] = await Promise.all([
     deskRpc('coach_state'), deskRpc('coach_progress'), deskRpc('chat_threads'), deskRpc('coach_plans'), deskRpc('coach_diet_overview'),
-    deskRpc('coach_my_code'), deskRpc('coach_tier_state'), deskRpc('coach_form', { coach: me })]);
+    deskRpc('coach_my_code'), deskRpc('coach_tier_state'), deskRpc('coach_form', { coach: me }), deskRpc('coach_checkins_overview')]);
   if (!state.ok) return state;
   const st = cleanCoachState(state.data);
   const permanent = deskOpt(code);
@@ -117,6 +117,8 @@ async function deskLoadDashboard(now = Date.now()) {
     codeExpires: typeof permanent?.code === 'string' ? null : invites[0]?.expires_at || null,
     tier: deskTier(deskOpt(tier)),
     form: cleanCoachForm(deskOpt(form)?.form),
+    // Bilans configurables (migration 20261125010000_bilans_coach.sql) : null sur un serveur d'avant
+    ckOv: ckOv.ok ? deskCkOverview(ckOv.data) : null, ckKind: ckOv.ok ? null : ckOv.kind,
   } };
 }
 // coach_tier_state() : { limit (null = illimité), students } ; null si illisible
@@ -166,3 +168,42 @@ async function deskLoadSessionsSince(student, from) {
   }
   return { ok: true, data: out };
 }
+
+// ── Bilans configurables (docs/BILANS.md) ───────────────────
+// Chaque lecture rend { ok, data } ou { ok: false, kind } ; kind 'missing' : serveur sans la migration des bilans.
+
+// Modèles, plannings et groupes du coach (coach_checkin_setup), nettoyés par les fonctions de js/data/checkins.js
+async function deskLoadSetup() {
+  const r = await deskRpc('coach_checkin_setup');
+  if (!r.ok) return r;
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  const arr = v => (Array.isArray(v) ? v : []);
+  return { ok: true, data: { templates: arr(d.templates).map(cleanCheckinTemplate).filter(Boolean),
+    schedules: arr(d.schedules).map(cleanCheckinSchedule).filter(Boolean), groups: arr(d.groups).map(cleanCheckinGroup).filter(Boolean) } };
+}
+// Bilans d'un élève, du plus récent (26 au plus)
+async function deskLoadStudentCheckins(student) {
+  const r = await deskRpc('coach_student_checkins', { student, lim: 26 });
+  if (!r.ok) return r;
+  return { ok: true, data: (Array.isArray(r.data) ? r.data : []).map(cleanCheckinRequest).filter(Boolean) };
+}
+// Enregistre un modèle et ses plannings (plan de deskCkSavePlan) ; rend le modèle enregistré.
+// S'arrête au premier refus : ce qui est déjà passé reste enregistré, l'écran relit le serveur.
+async function deskSaveTemplate(plan, timezone) {
+  const t = await deskRpc('coach_template_save', { id: plan.template.id, name: plan.template.name, items: plan.template.items });
+  if (!t.ok) return t;
+  const tpl = cleanCheckinTemplate(t.data);
+  if (!tpl) return { ok: false, kind: 'server' };
+  for (const s of plan.schedules) {
+    const r = await deskRpc('coach_schedule_save', { template: tpl.id, student: s.student, grp: s.grp, freq: s.freq, weekday: s.weekday, monthday: s.monthday,
+      send_hour: s.send_hour, timezone, remind_after_h: s.remind_after_h, due_after_h: s.due_after_h, paused: false });
+    if (!r.ok) return { ...r, template: tpl };
+  }
+  for (const id of plan.deletes) {
+    const r = await deskRpc('coach_schedule_delete', { id });
+    if (!r.ok) return { ...r, template: tpl };
+  }
+  return { ok: true, data: tpl };
+}
+// Fuseau de l'ordinateur (heure d'envoi locale du coach), Europe/Paris s'il est illisible
+function deskTimezone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris'; } catch { return 'Europe/Paris'; } }

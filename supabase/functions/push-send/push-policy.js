@@ -7,7 +7,8 @@
 //    son nom (label, 40 caractères) et sa durée (minutes), jamais une charge ; une réaction, son emoji
 //    (reaction, liste fermée) et le nom de MA séance (label, 40 caractères). Résumé des séances
 //    (student_digest) : un nombre d'élèves seulement (count), sans pseudo ni écran (ref vide). Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
-//    ouvrir le bon écran au toucher (PushPlugin.swift) ; ref : séance, programme, ou conversation ('@coach' ou id de l'élève).
+//    ouvrir le bon écran au toucher (PushPlugin.swift) ; ref : séance, programme, conversation ('@coach' ou id de l'élève),
+//    ou demande de bilan (checkin, checkin_reminder).
 //    Accord du coach (actor_form, 'il' | 'elle' | 'neutre', relue par push_actor_forms pour les commentaires) :
 //    « Commentaire de la coach » pour 'elle', sinon le texte d'avant.
 // 2. Requête APNs (documentation Apple « Sending notification requests to APNs ») : HTTP/2, POST
@@ -72,6 +73,10 @@ export const PUSH_KINDS = Object.freeze({
     title: 'Séances terminées',
     body: row.count === 1 ? '1 élève a terminé sa séance' : `${row.count} élèves ont terminé leur séance`,
   }),
+  // Bilan demandé par mon coach, et son rappel (docs/BILANS.md ; ref : id de la demande) : jamais le nom du bilan
+  // ni ses questions. Aucun mot accordé au coach : pas de forme à demander (FORM_KINDS)
+  checkin:          (who) => ({ title: 'Bilan à remplir', body: `${who} t’a demandé ton bilan` }),
+  checkin_reminder: (who) => ({ title: 'Rappel : ton bilan', body: `${who} attend ton bilan` }),
 });
 
 // Résumé : nombre d'élèves entier de 1 à 10 000, sinon rien à envoyer

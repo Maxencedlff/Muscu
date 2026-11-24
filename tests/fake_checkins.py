@@ -195,7 +195,11 @@ FAKE_CHECKINS = r"""
       if (!l || sb.blockedBetween(me, l.coach)) return { requests: [], cycle: { consented: !!ck.cycle[me] } };
       const mine = ck.requests.filter(r => r.student === me && r.coach === l.coach).sort((a, b) => b.sent_at - a.sent_at);
       const list = [...mine.filter(open), ...mine.filter(r => r.answered_at).slice(0, 5)];
-      return { requests: list.map(r => reqJson(r, true)), cycle: { consented: !!ck.cycle[me] } };
+      // asked (proposition de l'app de l'élève, docs/BILANS.md « App iPhone (élève) ») : un bilan ouvert suit le cycle,
+      // sans dire lequel ni rien montrer de plus ; l'app peut ainsi proposer l'accord dans le bilan. Faux tant que le
+      // serveur ne le rend pas
+      const asked = !ck.cycle[me] && sb.ckCycleAsked !== false && mine.some(r => open(r) && r.items.some(i => i.kind === 'cycle'));
+      return { requests: list.map(r => reqJson(r, true)), cycle: { consented: !!ck.cycle[me], ...(sb.ckCycleAsked === false ? {} : { asked }) } };
     },
     student_checkin_answer: (me, { request, answers }) => {
       const r = ck.requests.find(x => x.id === request && x.student === me);

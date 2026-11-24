@@ -1,4 +1,5 @@
 """Captures de l'appli web du coach (docs/COACH_WEB.md) : chaque écran, sombre et clair, à 1440, 1180 et 820 px.
+Vague 2 : Mes bilans (et un suivi ouvert), onglet Bilans de la fiche, Bilans reçus.
 
     python3 tests/coach_web_captures.py [dossier] [moteur]
 
@@ -39,6 +40,25 @@ def main():
                     page.screenshot(path=os.path.join(OUT, f'2-fiche-semaines_{tag}.png'), full_page=full)
                     if page.errors:
                         print(tag, 'erreurs :', page.errors)
+                    ctx.close()
+                    # Vague 2 : bilans configurables (données de COACH_WEB_CHECKINS_SEED)
+                    ctx, page = open_desk(browser, url, width=w, height=h, theme=theme, touch=w < 1200, checkins=True)
+                    page.evaluate("location.hash = '#/bilans'")
+                    page.wait_for_selector('#ck-name')
+                    page.mouse.move(0, 0)
+                    page.screenshot(path=os.path.join(OUT, f'3-mes-bilans_{tag}.png'), full_page=full)
+                    page.click('#main-sleep')
+                    page.mouse.move(0, 0)
+                    page.screenshot(path=os.path.join(OUT, f'3b-mes-bilans-suivi_{tag}.png'), full_page=full)
+                    page.evaluate("location.hash = '#/eleve/' + window.__lea + '/bilans'")
+                    page.wait_for_selector('.rv-cur')
+                    page.mouse.move(0, 0)
+                    page.screenshot(path=os.path.join(OUT, f'4-fiche-bilans_{tag}.png'), full_page=full)
+                    page.evaluate("location.hash = '#/bilans-recus'")
+                    page.wait_for_selector('#h-todo')
+                    page.screenshot(path=os.path.join(OUT, f'5-bilans-recus_{tag}.png'), full_page=full)
+                    if page.errors:
+                        print(tag, 'erreurs (bilans) :', page.errors)
                     ctx.close()
         finally:
             browser.close()

@@ -455,7 +455,8 @@ function renderDashboard() {
   // sauvegarde, coach) et la semaine. Nutrition (seulement avec un plan, donc choisie) passe devant les cartes : elle
   // sert chaque jour, elles de temps en temps ; jamais devant les séances (l'accueil reste celui de l'entraînement)
   const saveCard = accountHomeCard() || backupHomeCard();   // une seule carte de sauvegarde à la fois
-  const cards = hero ? `${recapHomeCard()}${saveCard}${coachHomeCard()}` : `${saveCard}${recapHomeCard()}`;
+  // Bilan demandé par le coach (js/features/checkin-ui.js) : avant les autres cartes du coach, il a une date limite
+  const cards = hero ? `${recapHomeCard()}${saveCard}${checkinHomeCard()}${coachHomeCard()}` : `${saveCard}${checkinHomeCard()}${recapHomeCard()}`;
 
   return `
     <div class="view dashboard">

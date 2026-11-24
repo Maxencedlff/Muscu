@@ -77,9 +77,11 @@ function deskDietDots(ov, now) {
 
 // Ce qu'il y a à faire pour un élève, du plus urgent : { kind, tone, text, n? }.
 // act = demande une action du coach (la ligne va dans « À traiter ») ; les autres informent.
-function deskTodo({ st, pr, unread, dietWarn, noprog }) {
+function deskTodo({ st, pr, unread, dietWarn, noprog, ckToAnswer = 0 }) {
   const out = [];
   if (pr.tone === 'warn') out.push({ kind: pr.kind, tone: 'warn', text: pr.text, act: true });
+  // Bilan reçu, pas encore répondu (coach_checkins_overview, js/desk/checkins-model.js)
+  if (ckToAnswer > 0) out.push({ kind: 'checkin', tone: 'warn', n: ckToAnswer, text: ckToAnswer > 1 ? `${ckToAnswer} bilans reçus, à répondre` : 'Bilan reçu, à répondre', act: true });
   if (dietWarn) out.push({ kind: 'diet', tone: 'warn', text: DIET_SHARE_WARN_TEXT, act: true });
   if (unread > 0) out.push({ kind: 'unread', tone: 'badge', n: unread, text: unread > 1 ? 'messages non lus' : 'message non lu', act: true });
   if (noprog) out.push({ kind: 'noprog', tone: 'warn', text: 'Sans programme', act: true });
@@ -91,12 +93,13 @@ function deskTodo({ st, pr, unread, dietWarn, noprog }) {
   if (!out.length) out.push({ kind: 'none', tone: 'muted', text: pr.kind === 'regular' || pr.kind === 'stable' ? pr.text : 'Rien à traiter' });
   return out;
 }
-// Rang d'urgence dans « À traiter » (plus petit = plus urgent) : sans séance depuis longtemps, en baisse, diète,
-// messages, sans programme ; puis le reste
+// Rang d'urgence dans « À traiter » (plus petit = plus urgent) : sans séance depuis longtemps, en baisse, bilan reçu
+// à répondre, diète, messages, sans programme ; puis le reste
 function deskUrgency(row) {
   const t = row.todo;
   if (t.some(x => x.kind === 'inactive' || x.kind === 'never')) return 0;
   if (t.some(x => x.kind === 'fewer')) return 1;
+  if (row.ckToAnswer) return 1.5;
   if (row.dietWarn) return 2;
   if (row.unread) return 3;
   if (row.noprog) return 4;
@@ -107,8 +110,10 @@ function deskUrgency(row) {
 
 // Lignes du tableau de bord, triées par urgence puis par dernière séance puis par nom.
 // src : { state (cleanCoachState), facts (cleanCoachProgress | null), plans (cleanCoachPlans | null),
-//         threads (cleanChatThreads | null), dietOv (cleanDietOverview | null : serveur sans le suivi), now }
-function deskStudentRows({ state, facts = null, plans = null, threads = null, dietOv = null, now }) {
+//         threads (cleanChatThreads | null), dietOv (cleanDietOverview | null : serveur sans le suivi),
+//         ckOv (deskCkOverview | null : serveur sans les bilans), now }
+function deskStudentRows({ state, facts = null, plans = null, threads = null, dietOv = null, ckOv = null, now }) {
+  const ckCounts = deskCkAnswerCounts(ckOv);
   const rows = (state?.students || []).map(st => {
     const f = facts ? facts[st.user_id] || null : null;
     const phases = plans ? plans[st.user_id] || [] : null;
@@ -120,7 +125,7 @@ function deskStudentRows({ state, facts = null, plans = null, threads = null, di
     const lastAt = Math.max(st.last_session?.done_at ?? -Infinity, f?.sessions?.[0]?.at ?? -Infinity);
     const row = { id: st.user_id, name: personName(st), st, pr, unread, dietWarn, noprog, lastAt: Number.isFinite(lastAt) ? lastAt : null,
       phase: deskPhaseLine(phases, now), sesDots: deskSessionDots(f, now), n7: pr.n7, dietDots: deskDietDots(ov, now),
-      dietShared: dietOv ? !!ov : null, dietOk7: ov ? dietShareWeekCount(ov, now) : null };
+      dietShared: dietOv ? !!ov : null, dietOk7: ov ? dietShareWeekCount(ov, now) : null, ckToAnswer: ckCounts[st.user_id] || 0 };
     row.todo = deskTodo(row);
     row.act = row.todo.some(x => x.act);
     row.urgency = deskUrgency(row);

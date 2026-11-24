@@ -591,7 +591,7 @@ async function accountForgetDevice() {
   account.profile = null;
   clearSyncMetas();
   // Caches du social et du coach compris, et clés des photos de bilan retenues (privacy.html : tout est effacé de l'appareil)
-  try { [SYNC_OWNER_KEY, SESSION_ENDED_KEY, PENDING_CODE_KEY, ...CROSS_USER_CACHE_KEYS, 'mdlf_coach_photo_pin', 'mdlf_coach_photo_mykey', 'mdlf_coach_poster'].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
+  try { [SYNC_OWNER_KEY, SESSION_ENDED_KEY, PENDING_CODE_KEY, ...CROSS_USER_CACHE_KEYS, 'mdlf_coach_photo_pin', 'mdlf_coach_photo_mykey', 'mdlf_coach_poster', 'mdlf_checkins', 'mdlf_checkin_drafts', 'mdlf_checkin_outbox', 'mdlf_checkin_sent'].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
   if (typeof coachForms === 'object') coachForms.memo = null;   // mdlf_coach_form (dans CROSS_USER_CACHE_KEYS) : copie en mémoire aussi
   if (typeof coachPosterForgetDevice === 'function') await coachPosterForgetDevice();   // affiche du coach : réglages et photo d'origine
   rememberLastAccount(null);

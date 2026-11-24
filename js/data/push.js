@@ -212,6 +212,8 @@ function pushTarget(p, history = []) {
   // Plan diète (ref diet_<…>, js/data/nutrition.js) : écran Nutrition, où il se prend d'un toucher
   if (kind === 'coach_programme' && ref.startsWith('diet_')) return { tab: 'train', screen: 'nutrition', params: [] };
   if (kind === 'coach_programme') return { tab: 'friends', screen: 'coach-mine', params: [] };
+  // Bilan demandé ou rappel (ref = id de la demande, docs/BILANS.md) : l'écran du bilan, au-dessus de l'accueil
+  if (kind === 'checkin' || kind === 'checkin_reminder') return PUSH_UUID_RE.test(ref) ? { tab: 'train', screen: 'checkin', params: [ref] } : { tab: 'train', screen: null, params: [] };
   return null;
 }
 

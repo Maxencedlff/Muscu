@@ -54,6 +54,17 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(pushMessage(row({ kind: 'student_digest', ref: 'ignoré', actor_name: 'lea', count: 12 })),
       { title: 'Séances terminées', body: '12 élèves ont terminé leur séance', kind: 'student_digest', ref: '' });
     assert.equal(pushMessage(row({ kind: 'student_digest', ref: '', actor_name: null, count: 1 })).body, '1 élève a terminé sa séance');
+    // Bilan demandé et rappel (docs/BILANS.md) : le pseudo du coach seul, ref = id de la demande, jamais le nom du bilan
+    const req = '7d1e2c3b-0000-4000-8000-000000000001';
+    sameJSON(pushMessage(row({ kind: 'checkin', ref: req, actor_name: 'kevin' })),
+      { title: 'Bilan à remplir', body: 'kevin t’a demandé ton bilan', kind: 'checkin', ref: req });
+    sameJSON(pushMessage(row({ kind: 'checkin_reminder', ref: req, actor_name: 'kevin' })),
+      { title: 'Rappel : ton bilan', body: 'kevin attend ton bilan', kind: 'checkin_reminder', ref: req });
+    assert.equal(pushMessage(row({ kind: 'checkin', ref: req, actor_name: null })).body, 'Quelqu’un t’a demandé ton bilan');
+    for (const f of ['il', 'elle', 'neutre']) assert.equal(pushMessage(row({ kind: 'checkin', ref: req, actor_form: f })).title, 'Bilan à remplir', `forme ${f} : texte neutre`);
+    assert.ok(!JSON.stringify(pushMessage(row({ kind: 'checkin_reminder', ref: req, name: 'Bilan cycle et libido', label: 'Hebdo' }))).match(/cycle|libido|Hebdo/),
+      'nom du bilan jamais montré');
+    assert.ok(!FORM_KINDS.includes('checkin') && !FORM_KINDS.includes('checkin_reminder'), 'pas de forme demandée pour un bilan');
   });
 
   test('push : rien sans accord, sans appareil ni type connu', async () => {
