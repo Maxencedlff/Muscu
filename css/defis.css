@@ -11,6 +11,9 @@
 .defi-ring__check { fill: none; stroke: var(--check-on); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ── Accueil ── */
+/* Section à part de la liste des séances (.home-list : les tests et l'ordre des séances la lisent seule), même mise en page */
+.defis-home { margin-top: 20px; }
+.defis-home .home-card { margin-top: 0; padding: 0 16px; }
 .defis-home__card { padding: 0 16px; }
 .defi-card { position: relative; padding: 10px 0 2px; }
 .defi-card + .defi-card::before, .defis-home__card .defi-ended-row::before {

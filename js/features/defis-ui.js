@@ -73,7 +73,7 @@ function defiHomeCardHtml(c) {
 function defisHomeHtml() {
   const list = defiList(data), ended = defiList(data, { ended: true });
   if (!list.length) {
-    return `<section class="home-list defis-home" aria-labelledby="homeDefis" data-day="${localISO()}"><h2 class="home-list__title" id="homeDefis">Défis</h2>
+    return `<section class="defis-home" aria-labelledby="homeDefis" data-day="${localISO()}"><h2 class="home-list__title" id="homeDefis">Défis</h2>
       <div class="home-card">
         <button class="home-cell" data-action="defi-new">
           <span class="home-cell__text"><span class="home-cell__name">Lancer un défi</span><span class="home-cell__sub">Par exemple 100 pompes par jour</span></span>
@@ -82,7 +82,7 @@ function defisHomeHtml() {
       </div></section>`;
   }
   const add = list.length < DEFI_MAX ? '<button class="home-list__btn" data-action="defi-new">Nouveau défi</button>' : '';
-  return `<section class="home-list defis-home" aria-labelledby="homeDefis" data-day="${localISO()}"><div class="home-list__head"><h2 class="home-list__title" id="homeDefis">Défis</h2>${add}</div>
+  return `<section class="defis-home" aria-labelledby="homeDefis" data-day="${localISO()}"><div class="home-list__head"><h2 class="home-list__title" id="homeDefis">Défis</h2>${add}</div>
       <div class="home-card defis-home__card">${list.map(defiHomeCardHtml).join('')}${ended.length ? defiEndedRowHtml(ended.length) : ''}</div></section>`;
 }
 function defiEndedRowHtml(n) {
