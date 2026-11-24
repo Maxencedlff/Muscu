@@ -91,6 +91,74 @@ const INTENS_PLANS = {
 function cleanIntens(v) { return typeof v === 'string' && Object.hasOwn(INTENS_PLANS, v) ? v : null; }
 function intensLabel(v) { return INTENS_PLANS[cleanIntens(v)]?.label || ''; }
 
+// Séries choisies (« Sur quelle série » : retour d'un coach du 24/11, « le cluster en première série ») : champ intensOn
+// { plan, sets } de l'exercice, à côté de intens. sets : numéros de série de travail (1 = la première), triés.
+// Compatibilité : intens garde une clé d'avant (« cluster-last »), qu'une version précédente de l'app comprend (dernière
+// série) et ne retire pas ; intensOn ne vaut que pour cette clé-là (plan) : une ancienne version qui change de technique
+// le rend caduc au lieu de poser la nouvelle sur les séries d'avant. « Dernière » et « Toutes » restent les clés d'avant,
+// sans intensOn : un programme existant ne change pas. docs/INTENSIFICATION.md, « Sur quelle série »
+const INTENS_SETS_MAX = 10;   // séries d'un exercice du programme (sanitizeData)
+function cleanIntensOn(v, intens, nSets = INTENS_SETS_MAX) {
+  const key = cleanIntens(intens);
+  if (!key || INTENS_PLANS[key].on !== 'last' || !v || typeof v !== 'object' || v.plan !== key || !Array.isArray(v.sets)) return null;
+  const max = Math.min(INTENS_SETS_MAX, Number.isInteger(nSets) && nSets > 0 ? nSets : INTENS_SETS_MAX);
+  const sets = [...new Set(v.sets.filter(n => Number.isInteger(n) && n >= 1 && n <= max))].sort((a, b) => a - b);
+  return sets.length ? { plan: key, sets } : null;
+}
+// Technique d'un exercice du programme pour l'écran (drop, rp, cluster, topback) ; null sans technique
+function intensTechOf(ex) {
+  const key = cleanIntens(ex?.intens);
+  return !key ? null : key === 'topback' ? 'topback' : INTENS_PLANS[key].tech;
+}
+// Séries visées : 'last', 'all' ou des numéros ; null pour le top set (toujours la 1re, puis back-off) ou sans technique
+function intensWhereOf(ex) {
+  const key = cleanIntens(ex?.intens), p = INTENS_PLANS[key];
+  if (!p || p.on === 'first') return null;
+  if (p.on === 'all') return 'all';
+  return cleanIntensOn(ex.intensOn, key, ex.sets)?.sets || 'last';
+}
+// Champs { intens, intensOn? } d'une technique (tech : drop, rp, cluster, topback) posée sur where pour n séries,
+// ramenés à la forme la plus simple : la seule dernière série → « X-last » ; toutes → « X-all » (ce qu'une
+// version précédente comprend) ; {} sans technique
+function intensFieldsFor(tech, where, n) {
+  if (tech === 'topback') return { intens: 'topback' };
+  if (!TECHS[tech]?.sub) return {};
+  const nSets = Math.min(INTENS_SETS_MAX, Math.max(1, parseInt(n) || 1));
+  const sets = Array.isArray(where) ? cleanIntensOn({ plan: `${tech}-last`, sets: where }, `${tech}-last`, nSets)?.sets || [] : [];
+  if (where === 'all' || (nSets > 1 && sets.length === nSets)) return { intens: `${tech}-all` };
+  if (!sets.length || (sets.length === 1 && sets[0] === nSets)) return { intens: `${tech}-last` };
+  return { intens: `${tech}-last`, intensOn: { plan: `${tech}-last`, sets } };
+}
+// « Dernière », « Toutes », « Première », « Série 2 », « Séries 1 et 3 »
+function intensWhereText(where) {
+  if (where === 'all') return 'Toutes';
+  if (!Array.isArray(where) || !where.length) return 'Dernière';
+  if (where.length === 1) return where[0] === 1 ? 'Première' : `Série ${where[0]}`;
+  return `Séries ${where.slice(0, -1).join(', ')} et ${where.at(-1)}`;
+}
+// Ce que prescrit l'exercice du programme : « Première série en cluster » (short : « 1re en cluster », liste de la
+// séance, écran Envoyer, aperçu de l'élève) ; '' sans technique
+function intensText(ex, { short = false } = {}) {
+  const key = cleanIntens(ex?.intens), p = INTENS_PLANS[key];
+  if (!p) return '';
+  const where = intensWhereOf(ex);
+  if (!Array.isArray(where)) return short ? p.short : p.label;
+  const t = TECHS[p.tech].label.toLowerCase();
+  if (where.length === 1 && where[0] === 1) return short ? `1re en ${t}` : `Première série en ${t}`;
+  const w = intensWhereText(where);
+  return `${short ? w.charAt(0).toLowerCase() + w.slice(1) : w} en ${t}`;
+}
+// Technique de chacune des n séries de travail prescrite par le programme (null : aucune) : la dernière, toutes, les
+// séries choisies (intensOn), ou top set puis back-off. Sert au démarrage de la séance et à l'écran du coach
+function intensPlanTechs(plan, on, n) {
+  const p = INTENS_PLANS[cleanIntens(plan)], len = Math.max(0, parseInt(n) || 0);
+  if (!p) return Array(len).fill(null);
+  if (p.on === 'first') return Array.from({ length: len }, (_, i) => i === 0 ? 'top' : 'backoff');
+  if (p.on === 'all') return Array(len).fill(p.tech);
+  const sets = cleanIntensOn(on, plan)?.sets;
+  return Array.from({ length: len }, (_, i) => (sets ? sets.includes(i + 1) : i === len - 1) ? p.tech : null);
+}
+
 // ── Séance en cours ──────────────────────────────────────────
 // Charge proposée (kg stockés, texte) pour la sous-série k de s, tant que la personne n'y a pas touché :
 // la même pour un rest-pause ou un cluster ; pour un drop set, celle de la dernière fois si elle est plus
@@ -147,19 +215,16 @@ function addSubSet(s) {
   syncSide2Subs(s);
   return true;
 }
-// Prescription du programme posée sur les séries d'un exercice de la séance qui commence : sur la
-// dernière série de travail, sur toutes, ou top set sur la première et back-off sur les suivantes.
+// Prescription du programme posée sur les séries d'un exercice de la séance qui commence : sur la dernière série de
+// travail, sur toutes, sur les séries choisies (on : intensOn de l'exercice du programme), ou top set sur la première
+// et back-off sur les suivantes (intensPlanTechs). Une série choisie qui n'existe pas dans la séance : rien.
 // Séries déjà faites ou portant déjà une technique : laissées telles quelles.
-function applyIntensPlan(ex, plan) {
-  const p = INTENS_PLANS[cleanIntens(plan)];
-  if (!p || !ex || !canTech(ex)) return 0;
+function applyIntensPlan(ex, plan, on = null) {
+  if (!cleanIntens(plan) || !ex || !canTech(ex)) return 0;
   const work = (ex.sets || []).filter(s => !isWarmupSet(s));
-  if (!work.length) return 0;
-  const pairs = p.on === 'last' ? [[work.at(-1), p.tech]]
-    : p.on === 'all' ? work.map(s => [s, p.tech])
-    : work.map((s, i) => [s, i === 0 ? 'top' : 'backoff']);
+  const techs = intensPlanTechs(plan, on, work.length);
   let n = 0;
-  for (const [s, t] of pairs) if (!s.done && !s.tech && applyTech(s, t)) { techSides(ex, s); n++; }
+  work.forEach((s, i) => { const t = techs[i]; if (t && !s.done && !s.tech && applyTech(s, t)) { techSides(ex, s); n++; } });
   return n;
 }
 // Exercice unilatéral (js/data/unilateral.js) : une technique à sous-séries fait passer tout l'exercice par bras, le

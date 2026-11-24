@@ -228,6 +228,8 @@ function sanitizeData(d) {
         cleanPrescInPlace(ex);
         // Technique prescrite (js/data/intensif.js) : une clé connue ou rien
         if (ex.intens !== undefined) { const v = cleanIntens(ex.intens); if (v) ex.intens = v; else delete ex.intens; }
+        // Séries choisies (« Première », « Série 2 ») : seulement pour sa technique (plan) et dans les séries de l'exercice
+        if (ex.intensOn !== undefined) { const o = cleanIntensOn(ex.intensOn, ex.intens, ex.sets); if (o) ex.intensOn = o; else delete ex.intensOn; }
         if (ex.rest   != null) ex.rest   = num(ex.rest, 10, 600, true);
         if (ex.target != null) ex.target = num(ex.target, 0, 1000);
         // Identifiants de muscles : leur validité exacte est vérifiée à la lecture (chosenMuscles)

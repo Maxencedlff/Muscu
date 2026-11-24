@@ -179,8 +179,9 @@ def t_programme(bench, eng, dev, theme):
         cell = page.locator('[data-action="ex-intens"]')
         R.check(cell.count() == 1 and 'Aucune' in cell.inner_text(), f'{t} fiche : technique « Aucune »')
         cell.click(); settle(page)
-        tap_dialog(page, 'Dernière série en drop set')
-        R.check('Dernière série en drop set' in cell.inner_text(), f'{t} fiche : choix affiché')
+        tap_dialog(page, 'Drop set')
+        where = page.locator('[data-action="ex-intens-where"]')
+        R.check('Drop set' in cell.inner_text() and where.count() == 1 and 'Dernière' in where.inner_text(), f'{t} fiche : technique, puis « Sur quelle série : Dernière » par défaut')
         cell.scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-05-fiche-programme')
         page.click('[data-action="save-ex"]'); page.wait_for_selector('.view.editor'); settle(page)
@@ -198,6 +199,166 @@ def t_programme(bench, eng, dev, theme):
         R.check(page.evaluate("activeSession.exercises[1].sets.some(s => s.tech)") is False, f'{t} autres exercices sans technique')
         center(page, '.ex-card[data-ei="0"] .tech')
         shot(page, LOT, f'{t}-06-seance-prescrite')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def open_ex_edit(page, cat, i=0):
+    page.evaluate(f"navigate(makeRoute('editor', '{cat}'))"); page.wait_for_selector('.view.editor'); settle(page)
+    page.locator('.ed-row').nth(i).click(); page.wait_for_selector('.view.ex-edit'); settle(page)
+
+
+def t_programme_series(bench, eng, dev, theme):
+    """Retour d'un coach du 24/11 : le cluster sur la PREMIÈRE série. Programme › Exercice › Sur quelle série, enregistré,
+    envoyé à l'élève, posé au démarrage ; cluster en 1re série en séance (pause de 20 s, puis repos habituel) ;
+    « Plusieurs séries » (cases)."""
+    t = f'{dev}-{theme}'
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        open_ex_edit(page, 'legs')   # Squat barre, 4 séries
+        page.click('[data-action="ex-intens"]'); settle(page)
+        tap_dialog(page, 'Cluster')
+        page.click('[data-action="ex-intens-where"]'); settle(page)
+        labels = page.locator('.ios-dialog__btn').all_inner_texts()
+        R.check(labels[:6] == ['✓ Dernière (par défaut)', 'Première', 'Toutes', 'Série 2', 'Série 3', 'Plusieurs séries…'], f'{t} « Sur quelle série ? » : Dernière, Première, Toutes, Série n, Plusieurs ({labels})')
+        shot(page, LOT, f'{t}-20-sur-quelle-serie')
+        tap_dialog(page, 'Première')
+        where = page.locator('[data-action="ex-intens-where"]')
+        R.check('Première' in where.inner_text(), f'{t} fiche : « Première » affiché ({where.inner_text()!r})')
+        where.scroll_into_view_if_needed()
+        shot(page, LOT, f'{t}-21-fiche-premiere')
+        page.click('[data-action="save-ex"]'); page.wait_for_selector('.view.editor'); settle(page)
+        ex = page.evaluate("data.programmes.ppl.exercises.legs[0]")
+        R.check(ex.get('intens') == 'cluster-last' and ex.get('intensOn') == {'plan': 'cluster-last', 'sets': [1]}, f'{t} programme : clé d\'avant + séries choisies ({ex.get("intens")}, {ex.get("intensOn")})')
+        R.check('1re en cluster' in page.locator('.ed-row').first.inner_text(), f'{t} liste : « 1re en cluster »')
+        # Coach : la prescription envoyée porte la série choisie
+        sent = page.evaluate("cleanSentProgramme(programmeToSent(data, 'ppl')).sessions.find(s => s.key === 'legs').exercises[0]")
+        R.check(sent.get('intensOn') == {'plan': 'cluster-last', 'sets': [1]}, f'{t} programme envoyé : série 1 ({sent.get("intensOn")})')
+        R.check('1re en cluster' in ' '.join(page.evaluate("coachExPlanParts(cleanSentProgramme(programmeToSent(data, 'ppl')).sessions.find(s => s.key === 'legs').exercises[0])")), f'{t} écran Envoyer : « 1re en cluster »')
+        # Plusieurs séries : cases à cocher sur la Presse (4 séries) : 1 et 3
+        open_ex_edit(page, 'legs', 1)
+        page.click('[data-action="ex-intens"]'); settle(page)
+        tap_dialog(page, 'Drop set')
+        page.click('[data-action="ex-intens-where"]'); settle(page)
+        tap_dialog(page, 'Plusieurs séries')
+        boxes = page.locator('[data-action="ex-intens-set"]')
+        R.check(boxes.count() == 4 and [b.get_attribute('aria-checked') for b in boxes.all()] == ['false', 'false', 'false', 'true'], f'{t} plusieurs : 4 cases, la dernière cochée')
+        page.click('[data-action="ex-intens-set"][data-n="1"]'); settle(page)
+        page.click('[data-action="ex-intens-set"][data-n="3"]'); settle(page)
+        page.click('[data-action="ex-intens-set"][data-n="4"]'); settle(page)
+        R.check([b.get_attribute('aria-checked') for b in boxes.all()] == ['true', 'false', 'true', 'false'], f'{t} plusieurs : séries 1 et 3 cochées')
+        page.locator('[data-action="ex-intens-set"]').last.scroll_into_view_if_needed()
+        shot(page, LOT, f'{t}-22-plusieurs-series')
+        page.click('[data-action="save-ex"]'); page.wait_for_selector('.view.editor'); settle(page)
+        ex1 = page.evaluate("data.programmes.ppl.exercises.legs[1]")
+        R.check(ex1.get('intens') == 'drop-last' and ex1.get('intensOn') == {'plan': 'drop-last', 'sets': [1, 3]}, f'{t} plusieurs : enregistré {ex1.get("intensOn")}')
+        R.check('séries 1 et 3 en drop set' in page.locator('.ed-row').nth(1).inner_text(), f'{t} liste : « séries 1 et 3 en drop set »')
+
+        # Séance : cluster sur la 1re série du squat, drops sur les séries 1 et 3 de la presse
+        start(page, 'legs')
+        R.check(page.evaluate("activeSession.exercises[0].sets.map(s => s.tech || null)") == ['cluster', None, None, None], f'{t} séance : cluster sur la série 1 seulement')
+        R.check(page.evaluate("activeSession.exercises[1].sets.map(s => s.tech || null)") == ['drop', None, 'drop', None], f'{t} séance : drops sur les séries 1 et 3')
+        R.check(page.locator('.ex-card[data-ei="0"] .tech').count() == 1, f'{t} bloc « Cluster » sous la série 1')
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
+        nxt = ' '.join(page.locator('.rest-mini__next').text_content().replace(' ', ' ').split())
+        R.check('Ensuite : Bloc 1' in nxt and page.locator('.session-set--subcur').count() == 1, f'{t} série 1 : pause de cluster, « Ensuite : Bloc 1 » ({nxt})')
+        R.check(abs(page.evaluate("Math.round((restEndTime - Date.now()) / 1000)") - 20) <= 2, f'{t} pause de 20 s avant le bloc')
+        center(page, '.ex-card[data-ei="0"] .tech')
+        shot(page, LOT, f'{t}-23-seance-cluster-premiere')
+        skip_rest(page)
+        page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '3')
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); settle(page)
+        R.check(page.evaluate("restActive") is True and 'Série 2' in page.locator('.rest-mini__next').text_content(), f'{t} bloc fait : repos habituel, la série 2 est annoncée')
+        R.check(abs(page.evaluate("Math.round((restEndTime - Date.now()) / 1000)") - page.evaluate("exRest(activeSession.exercises[0])")) <= 2, f'{t} repos de l\'exercice après le bloc')
+        skip_rest(page)
+        # Fin de séance (série par série) : volume avec le bloc, record jamais sur le bloc
+        for si in (1, 2, 3):
+            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); settle(page); skip_rest(page)
+        vol = page.evaluate("exVolume(activeSession.exercises[0], activeSession.exercises[0].sets.filter(s => s.done))")
+        base = page.evaluate("activeSession.exercises[0].sets.filter(s => s.done).reduce((a, s) => a + s.weight * s.reps, 0)")
+        blk = page.evaluate("(s => s.weight * s.reps)(activeSession.exercises[0].sets[0].sub[0])")
+        R.check(abs(vol - base - blk) < 0.01 and blk > 0, f'{t} volume : séries + bloc de la série 1 ({vol} = {base} + {blk})')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_seance_series(bench, eng, dev, theme):
+    """En séance, ⋯ › Plus d'options › Technique : drop set sur la 2e série (repos normal après la 1re, pas de repos
+    avant le drop, repos habituel après) ; « Toutes les séries » en un geste, un seul « Annuler »."""
+    t = f'{dev}-{theme}'
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        start(page, 'legs')
+        page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); settle(page)
+        tap_dialog(page, "Plus d'options"); settle(page)
+        tap_dialog(page, "Technique d'intensification"); settle(page)
+        labels = page.locator('.ios-dialog__btn').all_inner_texts()
+        R.check(len(labels) >= 6 and labels[0].startswith('Série 1') and labels[4] == 'Toutes les séries', f'{t} « Sur quelle série ? » : chaque série puis « Toutes les séries » ({labels})')
+        shot(page, LOT, f'{t}-24-seance-sur-quelle-serie')
+        tap_dialog(page, 'Série 2')
+        tap_dialog(page, 'Drop set')
+        R.check(page.evaluate("activeSession.exercises[0].sets.map(s => s.tech || null)") == [None, 'drop', None, None], f'{t} drop set sur la série 2')
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
+        R.check(page.evaluate("restActive") is True, f'{t} série 1 : repos habituel')
+        skip_rest(page)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="1"]'); settle(page)
+        R.check(page.evaluate("restActive") is False and 'Série 2 validée · puis drop set' in sess_undo_text(page), f'{t} série 2 : pas de repos, le drop suit ({sess_undo_text(page)!r})')
+        page.fill('[data-action="sub-reps"][data-ei="0"][data-si="1"][data-k="0"]', '6')
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="1"][data-k="0"]'); settle(page)
+        R.check(page.evaluate("restActive") is True and 'Série 3' in page.locator('.rest-mini__next').text_content(), f'{t} drop fait : repos habituel, série 3 annoncée')
+        skip_rest(page)
+        center(page, '.ex-card[data-ei="0"] .tech')
+        shot(page, LOT, f'{t}-25-seance-drop-serie2')
+        # Toutes les séries de la presse en rest-pause, puis Annuler : rien ne reste
+        page.click('.ex-card[data-ei="1"] [data-action="ex-menu"]'); settle(page)
+        tap_dialog(page, "Plus d'options"); settle(page)
+        tap_dialog(page, "Technique d'intensification"); settle(page)
+        tap_dialog(page, 'Toutes les séries')
+        labels = page.locator('.ios-dialog__btn').all_inner_texts()
+        R.check(labels[:3] == ['Drop set', 'Rest-pause', 'Cluster'] and 'Top set' not in labels, f'{t} toutes : drop set, rest-pause, cluster ({labels})')
+        tap_dialog(page, 'Rest-pause')
+        R.check(page.evaluate("activeSession.exercises[1].sets.every(s => s.tech === 'rp' && s.sub.length === 1)"), f'{t} toutes les séries en rest-pause')
+        R.check('Rest-pause · toutes les séries' in sess_undo_text(page), f'{t} « Annuler » : « Rest-pause · toutes les séries » ({sess_undo_text(page)!r})')
+        sess_undo(page)
+        R.check(page.evaluate("activeSession.exercises[1].sets.every(s => !s.tech && !s.sub)"), f'{t} Annuler : plus aucune technique')
+        R.check(page.evaluate("activeSession.exercises[0].sets[1].tech") == 'drop', f'{t} le drop du squat reste')
+        R.check(no_hscroll(page), f'{t} pas de défilement horizontal')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_un_bras_series(bench, eng, dev, theme):
+    """Exercice à un bras : programme « drop set sur la 1re série » ; bras gauche, son drop, bras droit, son drop, puis
+    seulement le repos ; volume des deux côtés."""
+    t = f'{dev}-{theme}'
+    with bench.page(eng, dev, theme) as page:
+        d = ppl_v2_today()
+        cc = make_ex('cc1curlc', 'Curl concentration', 3)
+        cc.update(intens='drop-last', intensOn={'plan': 'drop-last', 'sets': [1]})
+        d['programmes']['ppl']['exercises']['pull'].insert(0, cc)
+        seed(page, theme, json.dumps(d, ensure_ascii=False))
+        start(page, 'pull')
+        sets = page.evaluate("activeSession.exercises[0].sets")
+        R.check([s.get('tech') for s in sets] == ['drop', None, None] and all(s.get('side2') for s in sets) and sets[0]['side2'].get('sub'),
+                f'{t} drop set sur la série 1, les deux bras, tout l\'exercice par bras')
+        # Jamais fait : charge et reps à taper (la ligne du bras droit les reprend)
+        page.fill('[data-action="set-weight"][data-ei="0"][data-si="0"]', '14')
+        page.fill('[data-action="set-reps"][data-ei="0"][data-si="0"]', '10')
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); settle(page)
+        R.check(page.evaluate("restActive") is False, f'{t} bras gauche : pas de repos, son drop suit')
+        page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]:not([data-side])', '6')
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]:not([data-side])'); settle(page)
+        R.check(page.evaluate("restActive") is False, f'{t} drop du bras gauche : pas de repos, le bras droit suit')
+        page.click('[data-action="side-validate"][data-ei="0"][data-si="0"]'); settle(page)
+        R.check(page.evaluate("restActive") is False, f'{t} bras droit : pas de repos, son drop suit')
+        page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"][data-side="2"]', '5')
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"][data-side="2"]'); settle(page)
+        R.check(page.evaluate("restActive") is True, f'{t} drop du bras droit : le repos seulement maintenant')
+        s0 = page.evaluate("activeSession.exercises[0].sets[0]")
+        vol = page.evaluate("setsVolume([activeSession.exercises[0].sets[0]])")
+        w = lambda x: float(x.get('weight') or 0) * int(x.get('reps') or 0)
+        exp = w(s0) + w(s0['sub'][0]) + w(s0['side2']) + w(s0['side2']['sub'][0])
+        R.check(abs(vol - exp) < 0.01 and vol > 0, f'{t} volume : deux bras et leurs drops ({vol} = {exp})')
+        skip_rest(page)
+        center(page, '.ex-card[data-ei="0"] .tech')
+        shot(page, LOT, f'{t}-26-un-bras-drop-serie1')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -427,7 +588,7 @@ def once_static(bench):
         R.check(n <= 400, f'{f} : {n} lignes (400 au plus)')
     html = open(os.path.join(APP_DIR, 'index.html'), encoding='utf-8').read()
     sw = open(os.path.join(APP_DIR, 'sw.js'), encoding='utf-8').read()
-    for f in ['js/data/intensif.js', 'js/features/session-intensif.js']:
+    for f in ['js/data/intensif.js', 'js/features/session-intensif.js', 'js/features/programme-intensif.js']:
         R.check(f in html and '/' + f in sw, f'{f} chargé par index.html et mis en cache par sw.js')
 
 
@@ -465,4 +626,4 @@ def once_grand_texte(bench):
                 shot(page, LOT, f'{t}-grand-texte-rest-pause')
 
 
-run_main(R, [t_seance, t_programme, t_saute, t_superset, t_record_force, t_ami_coach, t_pause_annonce], once=[once_static, once_grand_texte])
+run_main(R, [t_seance, t_programme, t_programme_series, t_seance_series, t_un_bras_series, t_saute, t_superset, t_record_force, t_ami_coach, t_pause_annonce], once=[once_static, once_grand_texte])

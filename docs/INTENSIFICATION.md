@@ -1,6 +1,6 @@
 # Techniques d'intensification (V1)
 
-Mise à jour le 5 novembre 2026. Demande de deux coachs partenaires (vocaux du 04/11/2026) : « il fait 12
+Mise à jour le 24 novembre 2026 (techniques sur n'importe quelle série) ; créé le 5 novembre 2026. Demande de deux coachs partenaires (vocaux du 04/11/2026) : « il fait 12
 répétitions à 60 kg, et dès qu'il pose la barre il enchaîne à 46 kg… quand tu notes, il y a une petite ligne
 en dessous : drop set, et tu notes que tu en as fait 5 à 46. Ça peut être aussi top set, cluster, rest-pause,
 back-off… »
@@ -10,7 +10,8 @@ back-off… »
 | Rôle | Fichier |
 |------|---------|
 | Logique pure : techniques, sous-séries, volume, nettoyage, prescription, textes | `js/data/intensif.js` (chargé avant `store.js`) |
-| Écran : numéro de série touchable, titre et sous-lignes, validation, choix dans Programme › Exercice | `js/features/session-intensif.js` |
+| Écran de la séance : numéro de série touchable, titre et sous-lignes, validation, « Toutes les séries » | `js/features/session-intensif.js` |
+| Écran Programme › Exercice : technique et « Sur quelle série » | `js/features/programme-intensif.js` |
 | Branchements | `session.js` (lignes, validation, démarrage), `session-sheets.js` (menu ⋯, exercice ajouté), `summary.js` (enregistrement), `add-session.js` (Historique › Modifier), `store.js` (volume, nettoyage), `coach.js` (programme envoyé), `import-csv.js`, `share-stats.js`, `history.js`, `coach-ui.js`, `social-ui.js`, `social.js`, `programme-editor.js` |
 | Styles | `css/session.css` (bloc « Techniques d'intensification ») |
 | Tests | `tests/unit/intensif.mjs`, `tests/test_intensif.py` |
@@ -96,12 +97,16 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
 
 ## Programme et coach
 
-- Programme › Exercice › Intensification › Technique : « Dernière série en drop set », « Toutes les séries en
-  drop set », idem rest-pause et cluster, « 1re série top set, puis back-off ». Champ `intens` de l'exercice
-  (`INTENS_PLANS`), nettoyé par `sanitizeData` ; affiché dans la liste de la séance (« dernière en drop set »).
-- Posé au démarrage de la séance (`applyIntensPlan`) et sur un exercice du programme ajouté en cours de séance.
-- Coach : `programmeToSent` l'envoie, `cleanSentProgramme` le valide, `COACH_FIELDS` le remplace à l'import :
-  l'élève le voit en séance. Une version précédente de l'app de l'élève l'ignore.
+- Programme › Exercice › Intensification : **Technique** (drop set, rest-pause, cluster, « 1re série lourde, puis
+  allégées »), puis pour les trois premières **Sur quelle série** (voir plus bas). Champ `intens` de l'exercice
+  (`INTENS_PLANS`) et, pour une série autre que la dernière, `intensOn` ; nettoyés par `sanitizeData` ; affiché dans la
+  liste de la séance (« dernière en drop set », « 1re en cluster », « séries 1 et 3 en drop set » : `intensText`).
+- Posé au démarrage de la séance (`applyIntensPlan(ex, intens, intensOn)`) et sur un exercice du programme ajouté en
+  cours de séance.
+- Coach : `programmeToSent` envoie les deux champs, `cleanSentProgramme` les valide, `COACH_FIELDS` les remplace à
+  l'import : l'élève les voit en séance. L'écran « Charge et reps » du coach nomme la technique sous sa série
+  (« Série 1 · Cluster » : `prescSetTag`, `intensPlanTechs`). Une version précédente de l'app de l'élève ignore la
+  technique, ou seulement `intensOn` (voir « Sur quelle série », « Données et compatibilité »).
 - **Back-off allégé** (panel du 16/11 : les back-off étaient pré-remplis à la charge du top set) : au démarrage,
   une série de back-off à faire prend **la charge du top set − 10 %, arrondie à ce qui se charge** (barre et
   disques, sinon pas de 2,5 kg ou 5 lb : `roundLoad`), par `backoffPrefill` (js/data/intensif.js). Exemples :
@@ -116,6 +121,46 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
   ou ⋯ › Technique d'intensification, « Retirer la technique ». Programme d'un coach (technique prescrite par
   `intens`) : ni ×, ni « Retirer la technique » (`techPrescribed`), l'élève ne retire pas ce que son coach a
   prescrit ; le drop set, le rest-pause et le cluster gardent leur bloc de sous-séries, sans × non plus.
+
+## Sur quelle série
+
+Retour d'un coach partenaire (vocal du 24/11/2026) : « t'avais mis un moment où tu peux choisir la dernière série en
+cluster, mais moi j'aimerais bien la choisir en première série, il n'y avait pas cette possibilité. » Les techniques à
+sous-séries (drop set, rest-pause, cluster) se posent maintenant sur n'importe quelle série, ou plusieurs.
+
+- **Programme et coach** : cellule « Sur quelle série » sous « Technique », feuille « Dernière (par défaut) · Première ·
+  Toutes · Série 2 … Série n−1 · Plusieurs séries… » (cette dernière à partir de 3 séries). « Plusieurs séries » ouvre
+  des cases à cocher dans la même rubrique, une par série, comme « Répéter » d'une alarme iOS (jamais aucune cochée).
+  Changer de technique garde les séries choisies ; baisser le nombre de séries retire les numéros de trop (rien de
+  coché qui reste : la dernière). Top set et back-off restent « 1re lourde, puis allégées », sans choix de série.
+- **En séance** : le numéro d'une série (2 touchers) ou ⋯ › Plus d'options › Technique d'intensification › « Sur quelle
+  série ? » posaient déjà une technique sur n'importe quelle série ; la feuille finit par **« Toutes les séries »**
+  (drop set, rest-pause ou cluster sur chaque série de travail, validées comprises : leurs sous-séries restent à remplir
+  sans rien retenir ; « Retirer les techniques » ; un seul « Annuler »).
+- **Ce qui ne change pas** : toutes les règles plus haut sont par série, pas « dernière série » : volume (sous-séries
+  comprises), records et 1RM (jamais une sous-série), nombre de séries, repos (pas de repos avant un drop, 15 ou 20 s
+  avant une mini-série ou un bloc, puis le repos habituel avant la série suivante), drop set d'un exercice à un bras
+  (bras gauche, son drop, bras droit, son drop, puis le repos), montre (la série se valide, la sous-série s'annonce),
+  récap, historique (« Drop set série 1 : … ») et CSV (« 1.1 »). Tests : `tests/unit/intensif.mjs` (séries choisies),
+  `tests/test_intensif.py` (`t_programme_series`, `t_seance_series`, `t_un_bras_series`).
+
+### Données et compatibilité
+
+- `intens` garde **une clé d'avant** : `X-last` pour une ou plusieurs séries choisies, `X-all` pour toutes.
+  `intensOn: { plan, sets }` ne s'ajoute que pour d'autres séries que la seule dernière : `plan` répète la clé
+  (`cluster-last`), `sets` les numéros de série de travail (1 = la première, échauffements à part), triés, de 1 au
+  nombre de séries de l'exercice. Forme la plus simple à l'enregistrement (`intensFieldsFor`) : la seule dernière ou
+  toutes cochées redeviennent les clés d'avant, sans `intensOn`.
+- **Aucune migration à faire** : un programme existant (`drop-last`…) n'a pas `intensOn` et garde exactement la
+  dernière série. `sanitizeData` sert de migration douce : il retire un `intensOn` qui ne vaut plus rien (autre clé,
+  numéros hors des séries) et ne touche à rien d'autre.
+- **Version précédente de l'app** (même compte, ou élève) : elle comprend la clé, pose donc la technique sur la
+  dernière série, et garde `intensOn` sans le lire (son `sanitizeData` ne retire que les champs qu'il connaît ;
+  Programme › Exercice modifie l'exercice en place). Si elle change de technique, `plan` ne correspond plus : le
+  champ est ignoré puis retiré ici, au lieu de poser la nouvelle technique sur les anciennes séries. Synchro : le
+  programme part entier dans `profiles.doc` (`SYNC_UNION_KEYS`, fusion par programme) ; rien n'est effacé.
+- Élève sur une version précédente : son import (`cleanSentProgramme`) ne garde pas `intensOn`, il voit la technique
+  sur la dernière série jusqu'à sa mise à jour.
 
 ## Ailleurs
 
@@ -147,3 +192,5 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
 - Une version précédente de l'app qui modifie la séance (Historique › Modifier) perd les sous-séries.
 - La montre ne montre pas les sous-lignes.
 - Lien de partage d'un programme (`prog-share.js`) : ne porte pas la technique, comme la fourchette de reps.
+- Une version précédente de l'app (élève compris) pose une technique choisie sur la 1re série sur la dernière (voir
+  « Sur quelle série »).

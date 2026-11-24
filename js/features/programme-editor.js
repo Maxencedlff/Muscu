@@ -25,8 +25,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, repFixed: fixedReps(ex) !== null, intens: cleanIntens(ex.intens), measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false, grip: cleanGrip(ex.grip), equip: customEquipOf(ex.name) }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, repFixed: false, intens: null, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false, grip: null, equip: null };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, repFixed: fixedReps(ex) !== null, ...intensDraftOf(ex), measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false, grip: cleanGrip(ex.grip), equip: customEquipOf(ex.name) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, repFixed: false, ...intensDraftOf(null), measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false, grip: null, equip: null };
   exDraft._init = exDraftSnapshot(exDraft);
   return exDraft;
 }
@@ -119,7 +119,7 @@ function renderEditor() {
   const rows = list.map((ex, i) => {
     const last = lastPerf(data.activeProgramme, cat, ex);
     const best = last ? bestSet(last.ex.sets, ex) : null;
-    const plan = canTech(ex) ? INTENS_PLANS[cleanIntens(ex.intens)]?.short : '';   // technique prescrite
+    const plan = canTech(ex) ? intensText(ex, { short: true }) : '';   // technique prescrite (« 1re en cluster »)
     // Morceaux insécables suivis de leur « · » : la ligne se coupe après le point, jamais devant
     const parts = [setsRangeHtml(ex), plan, best ? `<span class="ed-last">dernier ${setTxt(best, ex)}</span>` : ''].filter(Boolean);
     // Le « · » est un séparateur visuel : caché à VoiceOver, qui lit « 4 séries de 8 à 12 reps, dernier … »
@@ -491,8 +491,7 @@ registerActions({
     refreshExTempo();
     refreshExProgression();
     refreshExGrip();
-    const intens = $('#exIntens');   // technique : répétitions seulement (js/features/session-intensif.js)
-    if (intens) intens.innerHTML = exIntensHtml(exDraft);
+    refreshExIntens();   // technique : répétitions seulement (js/features/programme-intensif.js)
     haptic();
   },
 });
@@ -577,6 +576,7 @@ registerActions({
     exDraft.sets = Math.max(1, Math.min(10, exDraft.sets + parseInt(el.dataset.d)));
     $('#exSetsVal').textContent = exDraft.sets;
     if (exDraft.repFixed) refreshExProgression();   // « 4 × 12 » du bas de la rubrique
+    if (TECHS[exDraft.intensTech]?.sub) refreshExIntens();   // « Série 2 », cases de « Plusieurs séries »
     haptic();
   },
   // Reps en fourchette (« 8 à 12 ») ou fixes (« 4 × 12 ») : le nombre saisi est gardé d'un mode à l'autre
@@ -681,8 +681,9 @@ registerActions({
       if (repMin) ex.repMin = repMin; else delete ex.repMin;
       if (repFixed) ex.repFixed = true; else delete ex.repFixed;
       applyDraftMeasure(ex, exDraft);
-      // Technique (js/data/intensif.js) : gardée en répétitions seulement, mesure tout juste appliquée
-      if (exDraft?.intens && canTech(ex)) ex.intens = exDraft.intens; else delete ex.intens;
+      // Technique et séries choisies (js/features/programme-intensif.js) : en répétitions seulement, mesure et séries
+      // tout juste appliquées
+      applyDraftIntens(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
       applyDraftGrip(ex, exDraft);
       if (exDraft?.ssLeave) editorSupersetLeave(editorCat, editExIdx);
@@ -697,8 +698,9 @@ registerActions({
       if (repMin) ex.repMin = repMin; else delete ex.repMin;
       if (repFixed) ex.repFixed = true; else delete ex.repFixed;
       applyDraftMeasure(ex, exDraft);
-      // Technique (js/data/intensif.js) : gardée en répétitions seulement, mesure tout juste appliquée
-      if (exDraft?.intens && canTech(ex)) ex.intens = exDraft.intens; else delete ex.intens;
+      // Technique et séries choisies (js/features/programme-intensif.js) : en répétitions seulement, mesure et séries
+      // tout juste appliquées
+      applyDraftIntens(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
       applyDraftGrip(ex, exDraft);
       list.push(ex);

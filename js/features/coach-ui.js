@@ -328,15 +328,15 @@ function coachExVideoBtn(name) {
 // Aperçu des exercices d'un programme reçu (avant de l'ajouter)
 // Ce que le coach prescrit en plus des séries (« 4 séries » ou « 4 × 12 » en reps fixes : setsRepsText) :
 // fourchette (« 8 à 12 reps », exercice en répétitions avec un bas de fourchette) et technique
-// d'intensification (« dernière en drop set », js/data/intensif.js). Écran Envoyer et aperçu de l'élève ;
+// d'intensification (« dernière en drop set », « 1re en cluster », js/data/intensif.js). Écran Envoyer et aperçu de l'élève ;
 // la prise a sa ligne à elle (gripText)
 function coachExPlanParts(e) {
   const out = [];
   // Fourchette, même sans bas réglé (4 sous le haut : repSpanOf) : plus de « Pompes · 3 séries » sans reps (panel vague 4)
   const span = repSpanOf(e);
   if (span) out.push(`${span[0]} à ${span[1]} reps`);
-  const it = INTENS_PLANS[cleanIntens(e.intens)];
-  if (it) out.push(it.short);
+  const it = intensText(e, { short: true });   // « 1re en cluster », « dernière en drop set »
+  if (it) out.push(it);
   return out;
 }
 

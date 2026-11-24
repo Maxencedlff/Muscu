@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
-//  Techniques d'intensification en séance : choix sur une série, sous-séries notées sous la série,
-//  validation, et réglage dans Programme › Exercice. Logique : js/data/intensif.js ;
+//  Techniques d'intensification en séance : choix sur une série (ou toutes), sous-séries notées sous la série,
+//  validation. Programme › Exercice : js/features/programme-intensif.js. Logique : js/data/intensif.js ;
 //  décisions : docs/INTENSIFICATION.md
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -149,11 +149,30 @@ async function techMenuChoice(ei, choice) {
   const idx = ex.sets.map((s, i) => i).filter(i => !isWarmupSet(ex.sets[i]));
   if (!idx.length) return;
   const kind = loadKind(ex);
+  // N'importe quelle série, ou toutes (retour d'un coach du 24/11 : le cluster en première série)
   const si = idx.length === 1 ? idx[0] : await dialog({ type: 'sheet', title: 'Sur quelle série ?', actions: [
     ...idx.map(i => { const s = ex.sets[i], t = setTech(s); return { label: `${setSpokenName(ex, i)}${s.reps !== '' || hasLoad(s.weight) ? ` · ${measureSetTxt(s, 'reps', kind)}` : ''}${t ? ` · ${TECHS[t].label}` : ''}`, value: i }; }),
+    { label: 'Toutes les séries', value: 'all' },
     { label: 'Annuler', style: 'cancel' },
   ] });
-  if (Number.isInteger(si) && activeSession?.exercises[ei] === ex) await openTechSheet(ei, si);
+  if (activeSession?.exercises[ei] !== ex) return;
+  if (si === 'all') await openTechSheetAll(ei, idx);
+  else if (Number.isInteger(si)) await openTechSheet(ei, si);
+}
+// Toutes les séries de travail (validées comprises : leurs sous-séries restent à remplir, sans rien retenir) : drop set,
+// rest-pause ou cluster (un top set sur chaque série n'a pas de sens), ou retirer ; un seul « Annuler »
+async function openTechSheetAll(ei, idx) {
+  const ex = activeSession?.exercises[ei];
+  if (!ex || !canTech(ex)) return;
+  const ts = idx.map(i => setTech(ex.sets[i])), same = ts.every(t => t && t === ts[0]) ? ts[0] : null;
+  const t = await dialog({ type: 'sheet', title: `Toutes les séries · ${ex.name}`,
+    message: 'Drop set : charge baissée, sans repos. Rest-pause, cluster : même charge après 15 à 20 s de repos.', actions: [
+      ...TECH_IDS.filter(id => TECHS[id].sub).map(id => ({ label: `${id === same ? '✓ ' : ''}${TECHS[id].label}`, value: id })),
+      ...(ts.some(Boolean) && !techPrescribed(ex) ? [{ label: 'Retirer les techniques', value: 'none', style: 'destructive' }] : []),
+      { label: 'Annuler', style: 'cancel' },
+    ] });
+  if (!t || activeSession?.exercises[ei] !== ex) return;
+  setTechOn(ei, idx, t === 'none' ? null : t);
 }
 // Feuille d'une série : les cinq techniques (celle de la série cochée), retirer, annuler
 async function openTechSheet(ei, si) {
@@ -169,24 +188,30 @@ async function openTechSheet(ei, si) {
   if (!t || activeSession?.exercises[ei]?.sets[si] !== s) return;
   setTechOn(ei, si, t === 'none' ? null : t);
 }
+// si : une série, ou plusieurs (« Toutes les séries »)
 function setTechOn(ei, si, t) {
-  const ex = activeSession?.exercises[ei], s = ex?.sets[si];
-  if (!s) return;
-  const before = { tech: s.tech, sub: s.sub ? clone(s.sub) : undefined, side2: s.side2 ? clone(s.side2) : undefined };
-  if (!applyTech(s, t)) { if (t) showToast(`Déjà en ${TECHS[t].label.toLowerCase()}`); return; }
-  techSides(ex, s);   // exercice unilatéral : drop set de chaque côté (js/data/unilateral.js)
+  const ex = activeSession?.exercises[ei], many = Array.isArray(si);
+  const ss = (many ? si : [si]).map(i => ex?.sets[i]).filter(Boolean);
+  if (!ss.length) return;
+  const before = ss.map(s => ({ s, tech: s.tech, sub: s.sub ? clone(s.sub) : undefined, side2: s.side2 ? clone(s.side2) : undefined }));
+  const changed = ss.filter(s => applyTech(s, t));
+  if (!changed.length) { if (t) showToast(many ? `Déjà toutes en ${TECHS[t].label.toLowerCase()}` : `Déjà en ${TECHS[t].label.toLowerCase()}`); return; }
+  changed.forEach(s => techSides(ex, s));   // exercice unilatéral : drop set de chaque côté (js/data/unilateral.js)
   haptic();
   persistSession();
   render();
   const undo = () => {
     if (!activeSession) return;
-    delete s.tech; delete s.sub; delete s.side2;
-    Object.assign(s, before.tech ? { tech: before.tech } : {}, before.sub ? { sub: before.sub } : {}, before.side2 ? { side2: before.side2 } : {});
+    before.forEach(({ s, ...b }) => {
+      delete s.tech; delete s.sub; delete s.side2;
+      Object.assign(s, b.tech ? { tech: b.tech } : {}, b.sub ? { sub: b.sub } : {}, b.side2 ? { side2: b.side2 } : {});
+    });
     persistSession(); render();
   };
   // Ligne au-dessus de la carte (« Rest-pause · série 1 · Annuler ») : dans la colonne « Avant », un « Annuler » seul
   // remplaçait la valeur d'avant à côté du × de la technique, sans dire ce qu'il annulait (panel t5)
-  sessionUndo(t ? `${TECHS[t].label} · ${setSpokenName(ex, si).toLowerCase()}` : `Technique retirée · ${setSpokenName(ex, si).toLowerCase()}`, { target: { ex }, onAction: undo });
+  const where = many ? 'toutes les séries' : setSpokenName(ex, si).toLowerCase();
+  sessionUndo(t ? `${TECHS[t].label} · ${where}` : `Technique retirée · ${where}`, { target: { ex }, onAction: undo });
 }
 
 // ── Validation d'une sous-série ──────────────────────────────
@@ -274,20 +299,6 @@ document.addEventListener('input', e => {
   persistSession();
 });
 
-// ── Programme › Exercice : technique prescrite (envoyée à l'élève avec le programme du coach) ──
-function exIntensHtml(d) {
-  if (measureOf({ name: d.name, ...(d.measure ? { measure: d.measure } : {}) }) !== 'reps') return '';
-  return `
-        <div class="group-title">Intensification</div>
-        <div class="group">
-          <button class="cell cell--nav" data-action="ex-intens">
-            <span class="cell__body"><span class="cell__title">Technique</span><span class="cell__sub">${esc(intensLabel(d.intens) || 'Aucune')}</span></span>
-            ${icon('chevron.right', 16)}
-          </button>
-        </div>
-        <div class="group-foot">Ajoutée aux séries à chaque séance. Un élève la reçoit avec le programme.</div>`;
-}
-
 registerActions({
   'tech-set': async (e, el) => { await openTechSheet(parseInt(el.dataset.ei), parseInt(el.dataset.si)); },
   'tech-remove': (e, el) => setTechOn(parseInt(el.dataset.ei), parseInt(el.dataset.si), null),
@@ -303,17 +314,5 @@ registerActions({
     if (!x?.done) return;
     x.done = false;
     haptic(); persistSession(); render();
-  },
-  'ex-intens': async () => {
-    if (!exDraft) return;
-    const v = await dialog({ type: 'sheet', title: 'Technique d\'intensification', message: 'Ajoutée aux séries de l\'exercice à chaque séance.', actions: [
-      ...Object.keys(INTENS_PLANS).map(k => ({ label: `${exDraft.intens === k ? '✓ ' : ''}${INTENS_PLANS[k].label}`, value: k })),
-      ...(exDraft.intens ? [{ label: 'Aucune', value: 'none', style: 'destructive' }] : []),
-      { label: 'Annuler', style: 'cancel' },
-    ] });
-    if (!v || !exDraft) return;
-    exDraft.intens = v === 'none' ? null : v;
-    const box = $('#exIntens');
-    if (box) box.innerHTML = exIntensHtml(exDraft);
   },
 });

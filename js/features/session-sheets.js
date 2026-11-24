@@ -359,7 +359,7 @@ function pickExercise(name) {
   let exId = inProg ? inProg.id : resolveExId(sp, sc, name);
   if (exId?.startsWith('n:')) exId = null; // résolu à l'enregistrement, comme avant
   const exObj = { exId, name: inProg ? inProg.name : name, measure: measureOf(inProg || { name }), ...(inProg?.tempo ? { tempo: inProg.tempo } : {}), ...(inProg?.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(inProg) } : {}), ...(cleanGrip(inProg?.grip) ? { grip: cleanGrip(inProg.grip) } : {}), sets: buildSets(sp, sc, { exId, name }, axSets, inProg || {}) };
-  applyIntensPlan(exObj, inProg?.intens);   // technique prescrite par le programme (js/data/intensif.js)
+  applyIntensPlan(exObj, inProg?.intens, inProg?.intensOn);   // technique prescrite par le programme (js/data/intensif.js)
   let target;
   if (ax.replaceEi !== null) {
     // Les séries déjà validées sont du travail fait : l'ancien exercice les garde (sans ses séries

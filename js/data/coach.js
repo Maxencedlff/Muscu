@@ -116,7 +116,7 @@ function cleanCoachSessionRow(r) {
 }
 
 // Programme envoyé, tel que l'app l'accepte : { name, consigne?, sessions: [{ key, label, color,
-// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, load?, loads?, intens?, ss?, grip?, consigne? }] }] }, null s'il est
+// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, load?, loads?, intens?, intensOn?, ss?, grip?, consigne? }] }] }, null s'il est
 // inutilisable. Mêmes bornes que la saisie (sanitizeData) ; clés de séance de SESSION_CAT_RE, uniques.
 function cleanSentProgramme(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -149,6 +149,9 @@ function cleanSentProgramme(raw) {
           if (ssId(e)) o.ss = e.ss;
           const it = cleanIntens(e.intens);   // technique prescrite (js/data/intensif.js)
           if (it) o.intens = it;
+          // Séries choisies (« Première série en cluster ») : une version précédente de l'élève l'ignore (dernière série)
+          const on = it && cleanIntensOn(e.intensOn, it, o.sets);
+          if (on) o.intensOn = on;
           // Prise (js/data/grips.js) : seulement ce qui a du sens pour ce nom
           const g = cleanGrip(e.grip, o);
           if (g) o.grip = g;
@@ -345,6 +348,7 @@ function programmeToSent(d, progId, over = null) {
         Object.assign(o, prescLoadFields(e, e.sets));   // programme reçu : sa charge prescrite (empreinte)
         applyCoachPresc(o, over?.presc?.[s.key]?.[e.id]);
         if (cleanIntens(e.intens)) o.intens = e.intens;
+        if (cleanIntensOn(e.intensOn, e.intens, e.sets)) o.intensOn = cleanIntensOn(e.intensOn, e.intens, e.sets);
         if (ssId(e)) o.ss = e.ss;
         if (cleanGrip(e.grip)) o.grip = cleanGrip(e.grip);
         const c = cleanConsigne(over?.ex?.[s.key]?.[e.id] !== undefined ? over.ex[s.key][e.id] : e.consigne);
@@ -403,7 +407,7 @@ function importCoachProgramme(d, item, coachPerson) {
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
-  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'repFixed', 'load', 'loads', 'intens', 'ss', 'grip', 'consigne'];
+  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'repFixed', 'load', 'loads', 'intens', 'intensOn', 'ss', 'grip', 'consigne'];
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };

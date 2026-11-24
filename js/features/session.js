@@ -193,7 +193,7 @@ function startSession(cat) {
     if (unilateralLimb(ex) && ex.sets.some(st => st.prev?.side2)) exSides(ex);
     // Premier bras d'aujourd'hui différent de la dernière fois : « Avant » de chaque ligne suit son bras
     if (exBySide(ex) && sideFirstOf(lastPerf(progKey, cat, ex)?.ex) !== sideFirstOf(ex)) ex.sets.forEach(swapSidePrev);
-    applyIntensPlan(ex, d?.intens);
+    applyIntensPlan(ex, d?.intens, d?.intensOn);
     if (coachLed) clampRepsToPlan(ex, d);
     backoffPrefill(ex);
     prescPrefill(ex, d);
