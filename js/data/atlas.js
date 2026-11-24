@@ -104,15 +104,18 @@ function atlasDetailList(ids) {
 // TOUS les sous-muscles visibles ont la même couleur garde son nom nu (« Quadriceps », « Triceps ») ; sinon, à chaque
 // couleur, le groupe puis sa précision : « Quadriceps (vastes latéral et médial) » ciblés, « Quadriceps (droit fémoral) »
 // qui aide. Visibles : un calque sur une des vues affichées par la fiche (bodyAtlasViews : le dos seul au soulevé de terre
-// roumain, le long adducteur de face n'y est pas nommé ; panel atlas-bas t4), les profonds seulement quand l'exercice les colore.
+// roumain, où l'on nomme le grand adducteur, visible de dos sur les deux corps depuis le rendu final_atlas_v6 ; panel
+// atlas-bas t4), les profonds seulement quand l'exercice les colore.
 function atlasSeen(id, levels, kind, views = bodyAtlasViews(kind, levels)) {
   const p = atlasPart(id);
   return !!p && views.some(v => BODY_PARTS.boxes[kind]?.[v]?.[id]) && (!p.deep || levels[id] > 0);
 }
-// Clé de ligne d'un sous-muscle : le nom nu du groupe s'il est d'une seule couleur, sinon groupe + couleur
-function atlasLineKey(id, levels, kind, views) {
+// Clé de ligne d'un sous-muscle : le nom nu du groupe s'il est d'une seule couleur sur toute la silhouette (face et
+// dos, même si la fiche n'en montre qu'une : au soulevé de terre roumain, dos seul, le grand adducteur ne s'appelle
+// pas « Adducteurs » tant que le long adducteur, de face, reste gris), sinon groupe + couleur
+function atlasLineKey(id, levels, kind) {
   const label = atlasPillLabel(id), main = levels[id] >= 2;
-  const whole = BODY_PARTS.parts.filter(p => atlasPillLabel(p.id) === label && atlasSeen(p.id, levels, kind, views))
+  const whole = BODY_PARTS.parts.filter(p => atlasPillLabel(p.id) === label && atlasSeen(p.id, levels, kind, ['front', 'back']))
     .every(p => levels[p.id] > 0 && (levels[p.id] >= 2) === main);
   return whole ? label : `${label}|${main ? 2 : 1}`;
 }
@@ -120,7 +123,7 @@ function atlasLineKey(id, levels, kind, views) {
 function atlasLineGroups(ids, levels, kind) {
   const by = new Map(), views = bodyAtlasViews(kind, levels);
   for (const id of ids.filter(id => levels[id] > 0 && atlasSeen(id, levels, kind, views))) {
-    const key = atlasLineKey(id, levels, kind, views), cur = by.get(key);
+    const key = atlasLineKey(id, levels, kind), cur = by.get(key);
     if (cur) { cur.ids.push(id); cur.level = Math.max(cur.level, levels[id]); } else by.set(key, { key, level: levels[id], ids: [id] });
   }
   // Précision : les sous-muscles qu'on voit vraiment ; un mince filet à moins d'un cinquième de l'aire du plus grand de

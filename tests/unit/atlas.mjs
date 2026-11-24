@@ -324,8 +324,14 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     // Soulevé de terre sumo : droit fémoral qui aide, le groupe puis la précision entre parenthèses
     sameJSON(lines('Soulevé de terre sumo', 'male').main.filter(l => l.startsWith('Quadriceps')), ['Quadriceps (vastes latéral et médial)']);
     assert.ok(lines('Soulevé de terre sumo', 'male').help.includes('Quadriceps (droit fémoral)'), `sumo, qui aident : ${lines('Soulevé de terre sumo', 'male').help}`);
-    // Soulevé de terre roumain, homme : de dos, le grand adducteur n'est qu'un filet entre les ischio-jambiers, pas écrit
-    assert.ok(lines('Soulevé de terre roumain', 'male').help.includes('Adducteurs (long adducteur)'), `${lines('Soulevé de terre roumain', 'male').help}`);
+    // Soulevé de terre roumain (dos seul) : le grand adducteur qui aide est nommé sur les deux corps (femme : visible de
+    // dos depuis le rendu final_atlas_v6, plus de long adducteur à sa place), avec la précision : le long adducteur et
+    // le gracile, gris, font partie des adducteurs de la silhouette
+    for (const name of ['Soulevé de terre roumain', 'Soulevé de terre roumain haltères']) {
+      sameJSON(lines(name, 'male').help, ['Lombaires', 'Adducteurs (grand adducteur)'], `${name}, homme`);
+      sameJSON(lines(name, 'female').help, ['Lombaires', 'Adducteurs (grand adducteur)'], `${name}, femme`);
+      assert.ok(!lines(name, 'female').help.some(l => /long adducteur/i.test(l)), `${name} : plus de long adducteur à la place du grand`);
+    }
     // Mollets debout : « Mollets (gastrocnémiens) » ciblés, « Mollets (soléaire) » une fois dans « Qui aident »
     for (const kind of SEXES) {
       const ml = lines('Mollets debout', kind);
@@ -334,8 +340,6 @@ export default function atlasTests({ test, app, run, sameJSON, assert, ROOT }) {
     sameJSON(lines('Extension triceps poulie haute', 'male').main, ['Triceps (chefs latéral et médial)']);
     sameJSON(lines('Extension triceps poulie haute', 'male').help, ['Triceps (chef long)']);
     assert.ok(lines('Développé incliné barre', 'male').help.includes('Triceps'), 'groupe d\'une seule couleur : le nom nu');
-    // Femme, soulevé de terre roumain : le grand adducteur n'a pas de calque sur sa silhouette, il n'est pas nommé
-    assert.ok(!lines('Soulevé de terre roumain', 'female').help.some(l => /grand adducteur/i.test(l)), `${lines('Soulevé de terre roumain', 'female').help}`);
     // Toute la bibliothèque, homme et femme : ciblé = rouges (niveau 2), qui aident = roses (niveau 1), seulement des
     // sous-muscles visibles sur la silhouette ; nom nu d'un groupe seulement s'il est d'une seule couleur ; tout
     // sous-muscle coloré visible est nommé, une fois
