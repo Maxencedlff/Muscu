@@ -19,7 +19,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const ms = { q: '', drafts: {}, extra: {}, note: null, noteBusy: false, pushOff: null, timer: 0, ticks: 0, stick: false };
+const ms = { q: '', drafts: {}, extra: {}, note: null, noteBusy: false, pushOff: null, timer: 0, ticks: 0, stick: false, failed: null };
 const deskChatOpts = { rpc: (fn, args) => deskRpc(fn, args) };
 
 // Élève dont la conversation est à l'écran (écran Messages ou onglet de la fiche), sinon null
@@ -168,6 +168,7 @@ function deskThreadHtml(id, { inFiche = false } = {}) {
     <div class="chat-in"><label class="sr" for="chat-in">${esc(`Message à ${name}`)}</label>
       <textarea id="chat-in" data-key="${esc(id)}" rows="1" placeholder="${esc(`Écrire à ${name}`)}" autocomplete="off" aria-describedby="chat-count chat-help"${cnt.over ? ' aria-invalid="true"' : ''}>${esc(draft)}</textarea>
       <button type="button" class="send" data-ms="send" aria-label="Envoyer le message" ${c.sending || chatProblem(draft) ? 'disabled' : ''}>${deskIcon('send')}</button></div>
+    ${ms.failed?.id === id ? `<p class="chat-fail" role="alert"><span class="grow">${esc(deskChatFailText(ms.failed.kind))}</span><button type="button" class="btn link" data-ms="send" ${c.sending ? 'disabled' : ''}>Réessayer</button></p>` : ''}
     <p class="chat-cnt${cnt.over ? ' over' : ''}" id="chat-count" aria-live="polite">${esc(cnt.text)}</p>
     <p class="sr" id="chat-help">Entrée envoie le message, Maj et Entrée passent à la ligne.</p>
   </section>`;
@@ -206,6 +207,8 @@ function deskStudentMessagesHtml(id) {
 
 // ── Gestes ──────────────────────────────────────────────────
 
+// Envoi refusé (limite de 60 messages par heure, réseau) : le message reste dans le champ, « Réessayer » sous le champ
+const deskChatFailText = kind => kind === 'rate_limited' ? 'Trop de messages d\'un coup : ton message n\'est pas parti. Réessaie dans un moment.' : `Message pas envoyé. ${coachErrorText(kind)}`;
 async function deskChatSend(id) {
   const el = document.getElementById('chat-in');
   const text = el ? el.value : ms.drafts[id] || '';
@@ -214,10 +217,11 @@ async function deskChatSend(id) {
   const r = await chatSend(id, text, deskChatOpts);
   if (!r.ok) {
     if (r.kind === 'signed_out') return deskEndSession();
-    if (r.kind !== 'busy') deskToast(r.kind === 'rate_limited' ? 'Trop de messages d\'un coup : réessaie dans un moment.' : coachErrorText(r.kind));
+    if (r.kind !== 'busy') ms.failed = { id, kind: r.kind };
     deskRender();
     return;
   }
+  ms.failed = null;
   const now = document.getElementById('chat-in')?.value ?? text;
   ms.drafts[id] = now.startsWith(text) ? now.slice(text.length) : now === text ? '' : now;
   ms.stick = true;

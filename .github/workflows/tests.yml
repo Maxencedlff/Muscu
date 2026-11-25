@@ -72,6 +72,8 @@ jobs:
         run: bash tests/sql/bilans_coach_rollback_test.sh
       - name: Retour arrière des programmes envoyés (appli web du coach, vague 4)
         run: bash tests/sql/programmes_envoyes_coach_rollback_test.sh
+      - name: Retour arrière du blocage qui coupe le lien coach
+        run: bash tests/sql/blocage_coupe_coach_rollback_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)

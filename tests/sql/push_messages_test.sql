@@ -194,13 +194,16 @@ do $$ begin
   insert into public.coach_messages (student_id, coach_id, from_coach, body) values (pg_temp.u('o'), pg_temp.u('k'), true, 'après signalement');
   if pg_temp.n('chat_message', 'o') <> 0 then raise 'conversation signalée : encore notifiée'; end if;
   delete from public.chat_reports where reporter_id = pg_temp.u('o');
-  -- Bloqué : le chat continue, sans notification
+  -- Bloqué : le lien est coupé avec la conversation (20261127010000_blocage_coupe_coach.sql), rien n'est notifié
   insert into public.blocks (blocker_id, blocked_id) values (pg_temp.u('k'), pg_temp.u('o'));
-  insert into public.coach_messages (student_id, coach_id, from_coach, body) values (pg_temp.u('o'), pg_temp.u('k'), true, 'bloqué');
+  if exists (select 1 from public.coach_links where student_id = pg_temp.u('o')) then raise 'blocage : lien gardé'; end if;
+  if exists (select 1 from public.coach_messages where student_id = pg_temp.u('o')) then raise 'blocage : conversation gardée'; end if;
   if pg_temp.n('chat_message', 'o') <> 0 then raise 'message entre comptes bloqués notifié'; end if;
   delete from public.blocks;
+  -- O rejoint K de nouveau
+  insert into public.coach_links (student_id, coach_id) values (pg_temp.u('o'), pg_temp.u('k'));
   -- Mis en file, puis : lu (O ouvre la conversation)
-  update public.coach_links set chat_student_read = (select max(id) from public.coach_messages) where student_id = pg_temp.u('o');
+  update public.coach_links set chat_student_read = coalesce((select max(id) from public.coach_messages), 0) where student_id = pg_temp.u('o');
   insert into public.coach_messages (student_id, coach_id, from_coach, body) values (pg_temp.u('o'), pg_temp.u('k'), true, 'à lire');
   if pg_temp.n('chat_message', 'o') <> 1 then raise 'message non mis en file'; end if;
   update public.coach_links set chat_student_read = (select max(id) from public.coach_messages) where student_id = pg_temp.u('o');

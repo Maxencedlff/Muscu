@@ -42,7 +42,7 @@ function deskCkSelect(id) {
   bl.saved = bl.draft ? deskCkSnapshot(bl.draft) : '';
   Object.assign(bl, { open: null, recip: false, group: null, own: null, tried: false, addQ: false, list: false });
 }
-async function deskOpenBilans({ force = false, keep = false } = {}) {
+async function deskOpenBilans({ force = false, keep = false, quiet = false } = {}) {
   if (!desk.user) return;
   if (!force && bl.setup && Date.now() - bl.at < DESK_REFRESH_MS) return;
   bl.loading = !bl.setup;
@@ -59,7 +59,7 @@ async function deskOpenBilans({ force = false, keep = false } = {}) {
   bl.kind = null;
   bl.setup = r.data;
   if (!keep || !bl.draft) deskCkSelect(bl.sel);
-  deskRender();   // aussi ailleurs : compteur « Mes bilans » de la barre latérale
+  deskRender({ quiet });   // aussi ailleurs : compteur « Mes bilans » de la barre latérale
 }
 
 // ── Rendu ───────────────────────────────────────────────────

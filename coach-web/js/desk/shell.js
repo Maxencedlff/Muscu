@@ -11,9 +11,9 @@
 const DESK_ICONS = {
   students: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.5 14.2c2.6-.3 4.5 1.4 5 4.3"/>',
   messages: '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17A2.5 2.5 0 0 1 4 14.5z"/>',
-  checkins: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 4.5-4 3.5 3 3-2.5 5 4"/>',
+  // Bilans : une fiche cochée (la photo garde son cadre et sa montagne : une icône = un sens)
+  checkins: '<rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9.5 3h5v3h-5zM8.5 11.5l2 2 4-4M8.5 17h7"/>',
   templates: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="m3.5 6.5 1.2 1.2 2-2.2M3.5 12l1.2 1.2 2-2.2M3.5 17.5l1.2 1.2 2-2.2"/>',
-  planning: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
   programmes: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
   diet: '<path d="M7 3v7a2 2 0 0 0 4 0V3M9 12v9M16.5 21V3c-2 1.5-3 4-3 7v3h3"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
@@ -51,21 +51,18 @@ const DESK_ICONS = {
 };
 function deskIcon(name, cls = '') { return `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${DESK_ICONS[name] || ''}</svg>`; }
 
-// Navigation : Élèves, Messages, Bilans reçus, Mes bilans et Réglages sont ouverts (vagues 1, 2 et 4), le reste est annoncé « bientôt »
+// Navigation : seulement ce qui est ouvert (vagues 1, 2 et 4). Planning, Mes programmes et Plans diète n'y sont plus
+// annoncés « bientôt » : un lien qui ne mène nulle part est du bruit ; ils y entreront le jour où ils ouvrent.
 const DESK_NAV = [
   { id: 'students', label: 'Élèves', icon: 'students', href: '#/' },
   { id: 'messages', label: 'Messages', icon: 'messages', href: '#/messages' },
-  { id: 'checkins', label: 'Bilans reçus', short: 'Reçus', icon: 'checkins', href: '#/bilans-recus' },
+  { id: 'checkins', label: 'Bilans reçus', icon: 'checkins', href: '#/bilans-recus' },
   { id: 'templates', label: 'Mes bilans', icon: 'templates', href: '#/bilans' },
-  { id: 'planning', label: 'Planning', icon: 'planning', soon: true, wide: true },
-  { id: 'programmes', label: 'Mes programmes', short: 'Programmes', icon: 'programmes', soon: true },
-  { id: 'diet', label: 'Plans diète', icon: 'diet', soon: true, wide: true },
 ];
 
-function deskNavItem(n, on, { badge = 0, count = null, bar = false } = {}) {
-  const label = bar && n.short ? n.short : n.label;
-  const extra = n.soon ? '<span class="soon">bientôt</span>' : badge ? `<span class="badge" aria-label="${badge} non lus">${badge}</span>` : count !== null && count !== undefined ? `<span class="count">${count}</span>` : '';
-  if (n.soon) return `<button type="button" class="nav-i soon-i${n.wide && bar ? ' wide' : ''}" data-action="soon" data-what="${esc(n.label)}" aria-disabled="true">${deskIcon(n.icon)}<span class="lbl">${esc(label)}</span>${extra}</button>`;
+function deskNavItem(n, on, { badge = 0, count = null } = {}) {
+  const label = n.label;
+  const extra = badge ? `<span class="badge" aria-label="${badge} non lus">${badge}</span>` : count !== null && count !== undefined ? `<span class="count">${count}</span>` : '';
   return `<a class="nav-i${on ? ' on' : ''}" href="${n.href}"${on ? ' aria-current="page"' : ''}>${deskIcon(n.icon)}<span class="lbl">${esc(label)}</span>${extra}</a>`;
 }
 
@@ -76,7 +73,7 @@ function deskFrame({ active, main, students = null, counts = null }) {
   const badges = { messages: counts?.unread || 0 };
   const items = DESK_NAV.map(n => deskNavItem(n, n.id === active, { count: cnt[n.id] ?? null, badge: badges[n.id] || 0 })).join('');
   const barItems = (deskHost?.exit ? `<button type="button" class="nav-i" data-action="host-exit">${deskIcon('back')}<span class="lbl">L'appli</span></button>` : '')
-    + DESK_NAV.filter(n => !n.wide).map(n => deskNavItem(n, n.id === active, { bar: true, badge: badges[n.id] || 0 })).join('')
+    + DESK_NAV.map(n => deskNavItem(n, n.id === active, { badge: badges[n.id] || 0 })).join('')
     + `<a class="nav-i${active === 'settings' ? ' on' : ''}" href="#/reglages"${active === 'settings' ? ' aria-current="page"' : ''}>${deskIcon('settings')}<span class="lbl">Réglages</span></a>`;
   return `<div class="app">
   <aside class="side" aria-label="Navigation">
@@ -142,6 +139,7 @@ function deskChoose({ title, text = '', options, ok = 'Choisir', danger = false 
       if (o) {
         sel = o.dataset.v;
         dlg.querySelectorAll('.ch-o').forEach(b => b.setAttribute('aria-checked', String(b.dataset.v === sel)));
+        deskRoving(dlg);
         dlg.querySelector('[data-cf="yes"]').disabled = false;
         return;
       }
@@ -149,10 +147,45 @@ function deskChoose({ title, text = '', options, ok = 'Choisir', danger = false 
       if (b) { answer = b.dataset.cf === 'yes' ? sel : null; dlg.close(); }
     });
     dlg.addEventListener('close', () => { dlg.remove(); resolve(answer); });
+    deskRoving(dlg);
     dlg.showModal();
     dlg.querySelector('.ch-o')?.focus();
   });
 }
+// Groupes de choix et onglets (ARIA APG, « roving tabindex ») : un seul arrêt de tabulation par groupe (le choix fait,
+// sinon le premier), les flèches passent d'un choix à l'autre, Début et Fin vont aux extrémités. Choix (radio) : la
+// flèche choisit aussi ; onglets : la flèche déplace seulement le focus, Entrée ouvre (ce sont des liens).
+const DESK_ROVE = '[role=radiogroup], [role=tablist]';
+const deskRoveAll = g => [...g.querySelectorAll('[role=radio], [role=tab]')].filter(el => el.closest(DESK_ROVE) === g);
+const deskRoveOk = el => !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+function deskRoving(root = document) {
+  root.querySelectorAll(DESK_ROVE).forEach(g => {
+    const items = deskRoveAll(g);
+    const on = items.find(el => el.getAttribute('aria-checked') === 'true' || el.getAttribute('aria-selected') === 'true') || items.find(deskRoveOk);
+    items.forEach(el => { el.tabIndex = el === on ? 0 : -1; });
+  });
+}
+document.addEventListener('keydown', e => {
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  const it = e.target.closest?.('[role=radio], [role=tab]'), g = it?.closest(DESK_ROVE);
+  if (!g) return;
+  const items = deskRoveAll(g).filter(deskRoveOk), i = items.indexOf(it);
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+  const next = step ? items[(i + step + items.length) % items.length] : e.key === 'Home' ? items[0] : e.key === 'End' ? items.at(-1) : null;
+  if (!next) return;
+  e.preventDefault();
+  if (next === it) return;
+  if (it.getAttribute('role') === 'tab') { it.tabIndex = -1; next.tabIndex = 0; next.focus(); return; }
+  // Le choix redessine souvent l'écran : le focus va au même rang du même groupe une fois le rendu fait
+  const scope = g.closest('dialog') || document;
+  const gi = [...scope.querySelectorAll(DESK_ROVE)].indexOf(g), ni = items.indexOf(next);
+  next.click();
+  const g2 = next.isConnected ? null : scope.querySelectorAll(DESK_ROVE)[gi];
+  const target = g2 ? deskRoveAll(g2).filter(deskRoveOk)[ni] : next;
+  deskRoving(scope);
+  target?.focus();
+});
+
 // Annonce aux lecteurs d'écran seulement (zone aria-live d'index.html), sans bandeau
 function deskAnnounce(text) {
   const el = document.getElementById('live');
