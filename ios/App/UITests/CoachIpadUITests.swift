@@ -99,7 +99,8 @@ final class CoachIpadUITests: XCTestCase {
         sleep(3)
         app.activate()
         expect("mode=1", "mode grand écran après le retour au premier plan")
-        expect("élèves=2", "appli web toujours connectée après le retour")
+        expect("onglet=bilans", "appli web toujours sur la fiche de Léa après le retour")
+        expect("session=1", "session toujours là après le retour")
         shot("7 retour au premier plan")
 
         // « Revenir à l'appli » (bouton de l'appli web du coach, ou barre de l'hôte)

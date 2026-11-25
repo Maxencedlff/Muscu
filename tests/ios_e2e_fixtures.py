@@ -60,7 +60,8 @@ MAIN = r"""(() => {
       `connecté=${typeof account !== 'undefined' && account.user ? 1 : 0}`, `cspApp=${st.csp.length}`, `cspCadre=${f.csp ?? 0}`,
       `erreursApp=${st.errors.length}`, `erreursCadre=${f.errors ?? 0}`,
       // Première violation de CSP du cadre et de l'app, pour comprendre un échec sur le simulateur
-      `cspCadreQuoi=${(f.cspFirst || '-').replace(/\s+/g, '_')}`, `cspAppQuoi=${(st.csp[0] || '-').replace(/\s+/g, '_')}`].join(' ');
+      `cspCadreQuoi=${(f.cspFirst || '-').replace(/\s+/g, '_')}`, `cspAppQuoi=${(st.csp[0] || '-').replace(/\s+/g, '_')}`,
+      `erreurAppQuoi=${(st.errors[0] || '-').slice(0, 80).replace(/\s+/g, '_')}`].join(' ');
   };
   setInterval(() => {
     if (!document.body) return;
