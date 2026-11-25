@@ -17,6 +17,7 @@ target.add_dependency(app)
 target.build_configurations.each do |c|
   c.build_settings.merge!(
     'TEST_TARGET_NAME' => 'App',
+    'PRODUCT_NAME' => 'MDLFUITests',
     'PRODUCT_BUNDLE_IDENTIFIER' => 'com.mdlf.training.uitests',
     'GENERATE_INFOPLIST_FILE' => 'YES',
     'TARGETED_DEVICE_FAMILY' => '1,2',
