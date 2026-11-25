@@ -93,6 +93,7 @@ const SCRIPTS = [
   'js/data/health-workouts.js',
   'js/data/health-export.js',
   'js/data/health-sleep.js',
+  'js/data/health-days.js',
   'js/data/effort-clock.js',
   'js/data/exercise-moves.js',
   'js/data/exercise-howto.js',
@@ -1583,12 +1584,19 @@ test('mise à jour à chaud : empreinte différente, OTA pas encore publiée pou
   assert.equal(await run('liveUpdateNoneText("à jour")'), 'Tu as la dernière version');
 });
 
-test('mise à jour à chaud : paquet accepté seulement sous https://mdlf-ota.vercel.app/bundles/ (audit M1)', () => {
+test('mise à jour à chaud : paquet accepté seulement sous /bundles/ de ota.mdlf.app ou de mdlf-ota.vercel.app (audit M1)', () => {
   const bad = url => run(`liveUpdateDecision(${JSON.stringify(otaManifest({ url }))}, ${JSON.stringify(otaCtx())})`).reason;
-  assert.equal(run('OTA_MANIFEST_URL'), 'https://mdlf-ota.vercel.app/manifest.json', 'adresse du manifeste figée');
-  assert.equal(run('OTA_BUNDLE_PREFIX'), 'https://mdlf-ota.vercel.app/bundles/');
+  sameJSON(run('OTA_ORIGINS'), ['https://ota.mdlf.app/', 'https://mdlf-ota.vercel.app/'], 'origines figées, notre domaine d\'abord');
+  assert.ok(Object.isFrozen(run('OTA_ORIGINS')));
   assert.ok(run('otaBundleUrlAllowed("https://mdlf-ota.vercel.app/bundles/2026.11.12-f50f417.zip")'));
+  assert.ok(run('otaBundleUrlAllowed("https://ota.mdlf.app/bundles/2026.11.12-f50f417.zip")'));
   for (const url of [
+    'https://ota.mdlf.app.evil.example/bundles/x.zip',          // notre domaine en préfixe d'un autre
+    'https://evil.mdlf.app/bundles/x.zip',                      // autre sous-domaine
+    'https://mdlf.app/bundles/x.zip',
+    'http://ota.mdlf.app/bundles/x.zip',
+    'https://ota.mdlf.app/bundles/../x.zip',
+    'https://ota.mdlf.app@evil.example/bundles/x.zip',
     'https://evil.example/bundles/x.zip',                       // autre domaine
     'https://mdlf-ota.vercel.app.evil.example/bundles/x.zip',   // suffixe de domaine
     'https://evil.vercel.app/bundles/x.zip',                    // autre projet Vercel
@@ -1652,24 +1660,70 @@ test('mise à jour à chaud : ota.yml publie seulement un commit dont Tests est 
 const OTA_BG   = JSON.stringify([{ kind: 'background', value: '300000' }]);
 const OTA_KILL = JSON.stringify([{ kind: 'kill' }]);
 
-async function otaScenario({ manifest = otaManifest(), session = null, now = false, bundles = [], current = 'builtin' } = {}) {
+// answers : réponse de chaque origine (« error » : réseau, DNS, délai ; sinon un code HTTP), 200 par défaut.
+// calls reçoit ['fetch', adresse] pour chaque manifeste demandé, et l'adresse du paquet passée au module natif.
+async function otaScenario({ manifest = otaManifest(), session = null, now = false, bundles = [], current = 'builtin', answers = {} } = {}) {
   const calls = [];
-  ctx.__calls = calls; ctx.__manifest = manifest; ctx.__bundles = bundles; ctx.__current = current;
+  ctx.__calls = calls; ctx.__manifest = manifest; ctx.__bundles = bundles; ctx.__current = current; ctx.__answers = answers;
   ctx.activeSession = session;
   run(`window.MDLF_BUILD = { version: 'x', seq: 1000, runtime: 'r1' };
        __ota = { isNative: Native.isNative, ota: Native.ota, fetch: globalThis.fetch };
        Native.isNative = true;
-       globalThis.fetch = async () => ({ ok: true, json: async () => __manifest });
+       globalThis.fetch = async (u) => {
+         if (!u.endsWith('/manifest.json')) throw new Error('adresse inattendue ' + u);
+         const a = __answers[u.slice(0, -'manifest.json'.length)] ?? 200;
+         if (__fetchLog) __calls.push(['fetch', u]);
+         if (a === 'error') throw new TypeError('Load failed');
+         return { ok: a >= 200 && a < 300, status: a, json: async () => __manifest };
+       };
        Native.ota = {
          current: async () => ({ bundle: { id: __current } }),
          list: async () => __bundles,
-         download: async (o) => { __calls.push(['download', o.version, o.checksum, ...(o.sessionKey ? [o.sessionKey] : [])]); return { id: 'b1', version: o.version, status: 'success' }; },
+         download: async (o) => { __calls.push(['download', o.version, o.checksum, ...(o.sessionKey ? [o.sessionKey] : []), ...(__fetchLog ? [o.url] : [])]); return { id: 'b1', version: o.version, status: 'success' }; },
          applyNow: async (id) => { __calls.push(['now', id]); return true; },
          applyAtNextLaunch: async (id, cond) => { __calls.push(['next', id]); __calls.push(['delay', JSON.stringify(cond)]); return true; },
        };`);
   try { return { result: await run(`checkLiveUpdate({ now: ${now} })`), calls }; }
   finally { run('Native.isNative = __ota.isNative; Native.ota = __ota.ota; globalThis.fetch = __ota.fetch; delete window.MDLF_BUILD;'); }
 }
+ctx.__fetchLog = false;
+
+test('mise à jour à chaud : repli sur mdlf-ota.vercel.app seulement si notre domaine ne répond pas (réseau, DNS, 5xx)', () => {
+  const fb = o => run(`otaShouldFallback(${JSON.stringify(o)})`);
+  assert.equal(fb({ error: true }), true, 'réseau, DNS, délai dépassé');
+  for (const st of [500, 502, 503, 504, 599]) assert.equal(fb({ status: st }), true, `HTTP ${st}`);
+  for (const st of [200, 204, 304, 400, 403, 404, 429]) assert.equal(fb({ status: st }), false, `HTTP ${st} : réponse nette, pas de repli`);
+  // Paquet : même origine que le manifeste qui a répondu, quel que soit l'hôte nommé par le manifeste
+  const from = (u, o) => run(`otaBundleFrom(${JSON.stringify(u)}, ${JSON.stringify(o)})`);
+  assert.equal(from('https://mdlf-ota.vercel.app/bundles/v1.zip', 'https://ota.mdlf.app/'), 'https://ota.mdlf.app/bundles/v1.zip');
+  assert.equal(from('https://ota.mdlf.app/bundles/v1.zip', 'https://mdlf-ota.vercel.app/'), 'https://mdlf-ota.vercel.app/bundles/v1.zip');
+  assert.equal(from('https://evil.example/bundles/v1.zip', 'https://ota.mdlf.app/'), null, 'paquet refusé : rien à télécharger');
+  assert.equal(from('https://ota.mdlf.app/bundles/v1.zip', 'https://evil.example/'), null, 'origine inconnue');
+});
+
+test('mise à jour à chaud : notre domaine d\'abord, repli, paquet pris sur l\'origine qui a répondu', async () => {
+  ctx.__fetchLog = true;
+  const O1 = 'https://ota.mdlf.app/', O2 = 'https://mdlf-ota.vercel.app/';
+  try {
+    const ok = await otaScenario();
+    sameJSON(ok.calls, [['fetch', O1 + 'manifest.json'], ['download', '2026.10.20-abc1234', OTA_SUM, O1 + 'bundles/2026.10.20-abc1234.zip'], ['next', 'b1'], ['delay', OTA_BG]],
+      'notre domaine répond : le repli n\'est jamais appelé, le paquet vient de notre domaine (le manifeste nomme Vercel)');
+    for (const a of ['error', 500, 503]) {
+      const r = await otaScenario({ answers: { [O1]: a } });
+      assert.equal(r.result.status, 'ready', `repli après ${a}`);
+      sameJSON(r.calls.slice(0, 2), [['fetch', O1 + 'manifest.json'], ['fetch', O2 + 'manifest.json']]);
+      assert.equal(r.calls[2][3], O2 + 'bundles/2026.10.20-abc1234.zip', 'paquet sur l\'origine de repli');
+    }
+    const net = await otaScenario({ answers: { [O1]: 404 } });
+    assert.equal(net.result.status, 'error', '404 : pas de repli');
+    sameJSON(net.calls, [['fetch', O1 + 'manifest.json']]);
+    const none = await otaScenario({ answers: { [O1]: 'error', [O2]: 502 } });
+    sameJSON(none.result, { status: 'error', reason: 'serveur de mise à jour injoignable' });
+    // Repli sûr : le manifeste du repli passe par la même décision (paquet hors des origines refusé)
+    const evil = await otaScenario({ answers: { [O1]: 'error' }, manifest: otaManifest({ url: 'https://evil.example/bundles/x.zip' }) });
+    assert.equal(evil.result.status, 'none'); assert.equal(evil.calls.filter(c => c[0] === 'download').length, 0);
+  } finally { ctx.__fetchLog = false; }
+});
 
 test('mise à jour à chaud : téléchargée (empreinte vérifiée), installée après 5 min en arrière-plan', async () => {
   const { result, calls } = await otaScenario();
@@ -2378,14 +2432,19 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./coach-web.mjs')).default({ test, assert, ROOT });
 (await import('./coach-web-bilans.mjs')).default({ test, assert, ROOT });
 (await import('./coach-web-v4.mjs')).default({ test, assert, ROOT });
+(await import('./coach-web-sante.mjs')).default({ test, assert, ROOT });
 // ── Photos de bilan sur ordinateur, vague 5 (protocole « Relier un ordinateur », QR code) ──
 (await import('./photo-link.mjs')).default({ test, app, assert, ROOT });
 // ── Bilans configurables : contrat partagé app / web / serveur (tests dans bilans-contrat.mjs) ──
 (await import('./bilans-contrat.mjs')).default({ test, run, assert, sameJSON });
 // ── Bilans configurables, app de l'élève (tests dans checkins-eleve.mjs) ──
 (await import('./checkins-eleve.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Pas, sommeil et cardio de Santé, côté élève (tests dans sante-eleve.mjs) ──
+(await import('./sante-eleve.mjs')).default({ test, run, reset, assert, sameJSON, nativeContext });
 // ── Visite de l'accueil : état, étapes, place de la bulle, défilement (tests dans tour.mjs) ──
 (await import('./tour.mjs')).default({ test, run, app, assert, ROOT });
+// ── Mode coach grand écran sur iPad, 25/11 (tests dans coach-ipad.mjs, contextes à part) ──
+(await import('./coach-ipad.mjs')).default({ test, assert, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

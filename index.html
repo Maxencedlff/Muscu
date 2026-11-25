@@ -5,8 +5,9 @@
   <!-- Content-Security-Policy (audit du 12/11, m1) : défense en profondeur contre une injection. Seuls les
        scripts du dépôt et le script en ligne ci-dessous (empreinte sha256, vérifiée par tests/unit/csp.mjs) s'exécutent ;
        réseau limité à Supabase, au manifeste OTA et à Open Food Facts. Strava et les pages juridiques s'ouvrent
-       dans le navigateur, pas dans la page. Styles en ligne permis (attributs style="", variables CSS). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-X4D9tcQJN+wcAZ4ayB8tYO65w0mZHuEL3uQmpECu1og='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://yopptmdjtnezmccdvaxf.supabase.co; media-src 'self' https://yopptmdjtnezmccdvaxf.supabase.co; font-src 'self'; connect-src 'self' https://yopptmdjtnezmccdvaxf.supabase.co https://mdlf-ota.vercel.app https://world.openfoodfacts.org; manifest-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'">
+       dans le navigateur, pas dans la page. Styles en ligne permis (attributs style="", variables CSS). Cadres : les
+       fichiers de l'app seulement (mode coach grand écran, coach/index.html embarqué, docs/COACH_IPAD.md). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-X4D9tcQJN+wcAZ4ayB8tYO65w0mZHuEL3uQmpECu1og='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://yopptmdjtnezmccdvaxf.supabase.co; media-src 'self' https://yopptmdjtnezmccdvaxf.supabase.co; font-src 'self'; connect-src 'self' https://yopptmdjtnezmccdvaxf.supabase.co https://ota.mdlf.app https://mdlf-ota.vercel.app https://world.openfoodfacts.org; manifest-src 'self'; worker-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -49,6 +50,7 @@
   <link rel="stylesheet" href="css/theme-sobre-progres.css">
   <link rel="stylesheet" href="css/theme-sobre-nutrition.css">
   <link rel="stylesheet" href="css/theme-sobre-coach.css">
+  <link rel="stylesheet" href="css/coach-desk.css">
   <link rel="stylesheet" href="css/theme-sobre-reglages.css">
   <link rel="stylesheet" href="css/programme.css">
   <link rel="stylesheet" href="css/tour.css">
@@ -254,6 +256,7 @@
   <script src="js/data/progress-photos.js"></script>
   <script src="js/data/photo-vault.js"></script>
   <script src="js/data/coach-photos.js"></script>
+  <script src="js/data/coach-desk.js"></script>
   <script src="js/data/photo-link.js"></script>
   <script src="js/data/photo-link-phone.js"></script>
   <script src="js/data/profile-photo.js"></script>
@@ -261,6 +264,7 @@
   <script src="js/data/health-workouts.js"></script>
   <script src="js/data/health-export.js"></script>
   <script src="js/data/health-sleep.js"></script>
+  <script src="js/data/health-days.js"></script>
   <script src="js/data/effort-clock.js"></script>
   <script src="js/data/exercise-moves.js"></script>
   <script src="js/data/exercise-howto.js"></script>
@@ -356,6 +360,7 @@
   <script src="js/features/body-measures-ui.js"></script>
   <script src="js/features/photo-vault-ui.js"></script>
   <script src="js/features/coach-photos-ui.js"></script>
+  <script src="js/features/coach-desk-ui.js"></script>
   <script src="js/features/photo-link-ui.js"></script>
   <script src="js/features/checkin-ui.js"></script>
   <script src="js/features/profile-photo-ui.js"></script>

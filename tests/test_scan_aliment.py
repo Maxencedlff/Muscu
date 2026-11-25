@@ -86,7 +86,7 @@ class Off:
 def open_plan(page, theme, shell=True):
     if shell:
         page.add_init_script(FAKE_SHELL)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     off = Off(page)
     seed(page, theme, plan_json(), extra={'ppl_welcome_seen': '1'})
     settle(page)

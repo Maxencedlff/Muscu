@@ -34,7 +34,7 @@ def open_app(page, theme, ppl_v2=None, extra=None, opts=None):
     """App iOS simulée : coquille et Supabase factices, stockage vidé puis rempli."""
     page.add_init_script('window.__fakeOpts = %s;' % json.dumps(opts or {}))
     page.add_init_script(FAKE_ACCOUNT)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra=extra)
     settle(page)
 
@@ -982,7 +982,7 @@ def t_pwa(bench, eng, dev, theme):
     """Navigateur (PWA) : rien du compte n'apparaît."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
         seed(page, theme, None)
         settle(page)
         R.check(page.locator('.auth').count() == 0 and page.locator('.account-card').count() == 0, f'{t} PWA : ni Bienvenue ni carte')

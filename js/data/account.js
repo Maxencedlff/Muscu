@@ -555,6 +555,8 @@ const CROSS_USER_CACHE_KEYS = [PROFILE_CACHE_KEY, 'mdlf_social', 'mdlf_coach', '
   'mdlf_coach_sent', 'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft', 'mdlf_access', 'mdlf_strava',
   // Planification (notes du coach sur ses élèves) et dernier envoi des mensurations (docs/COACH_SUIVI.md)
   'mdlf_coach_plan', 'mdlf_coach_share_m',
+  // Empreinte du dernier envoi des pas, du sommeil et du cardio (docs/SANTE_COACH.md)
+  'mdlf_coach_share_h',
   // Photos de bilan : photos du coffre envoyées à mon coach (docs/PHOTOS_BILAN.md). Pas les clés retenues
   // (mdlf_coach_photo_pin, mdlf_coach_photo_mykey) : des clés publiques rangées par compte, lues pour ce compte
   // seulement, qui doivent survivre à une déconnexion pour qu'un changement de clé se voie encore

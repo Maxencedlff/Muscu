@@ -8,7 +8,8 @@
 //    private.checkin_item_ok de supabase/migrations/20261125010000_bilans_coach.sql : tout ce qui est refusé ici
 //    l'est aussi là-bas, testé des deux côtés).
 //  - checkinValueClean : une réponse valide pour un suivi (mêmes règles que private.checkin_value_ok).
-//  - checkinPrefill : ce que l'app sait déjà (dernière pesée, mensurations, jours de diète cochés, séances, pas).
+//  - checkinPrefill : ce que l'app sait déjà (dernière pesée, mensurations, jours de diète cochés, séances, et
+//    pas, sommeil et cardio lus dans Santé, docs/SANTE_COACH.md).
 //  - Textes : checkinValueText (fiche du coach), checkinScheduleText (« Chaque semaine · dimanche 18 h »),
 //    checkinMinutes (« environ 3 minutes »).
 // ═══════════════════════════════════════════════════════════
@@ -30,8 +31,9 @@ const CHECKIN_CYCLE_PHASES = [['menses', 'Règles'], ['follicular', 'Après les 
 const CHECKIN_KEY_RE = /^(?:[a-z_]{3,20}|q[a-z0-9]{8})$/;
 const CHECKIN_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-// Bornes d'un nombre selon son unité (kg, cm, pas par jour, minutes par semaine) ; question libre : large
-const CHECKIN_NUMBER_RANGE = { kg: [25, 300], cm: [10, 250], steps: [0, 100000], min: [0, 10080], custom: [-1000000, 1000000] };
+// Bornes d'un nombre selon son unité (kg, cm, pas par jour, minutes par semaine, heures de sommeil par nuit) ;
+// question libre : large
+const CHECKIN_NUMBER_RANGE = { kg: [25, 300], cm: [10, 250], steps: [0, 100000], min: [0, 10080], h: [0, 24], custom: [-1000000, 1000000] };
 
 // Catalogue fermé. group : rubrique de l'éditeur et de l'écran de l'élève (Corps, Activité et plan, Ressenti).
 // types : types permis (le premier par défaut). sensitive : jamais obligatoire, « Passer » toujours possible.
@@ -44,7 +46,9 @@ const CHECKIN_KINDS = Object.freeze([
   { kind: 'steps', group: 'activity', label: 'Pas par jour', types: ['number'], unit: 'steps', icon: 'steps', help: 'Moyenne de la période' },
   { kind: 'cardio', group: 'activity', label: 'Cardio', types: ['number'], unit: 'min', icon: 'heart', help: 'Minutes sur la période' },
   { kind: 'pain', group: 'activity', label: 'Douleurs ou blessures', types: ['yesno', 'text'], icon: 'bandage', help: 'Où, depuis quand', sensitive: true },
-  { kind: 'sleep', group: 'feel', label: 'Sommeil', types: ['scale'], scale: 5, lo: 'Mal', hi: 'Très bien', icon: 'moon' },
+  // Sommeil : ressenti (échelle, par défaut) ou heures par nuit en moyenne (nombre, prérempli depuis Santé ; migration
+  // 20261127050000_sante_coach.sql, qui ouvre ce type côté serveur)
+  { kind: 'sleep', group: 'feel', label: 'Sommeil', types: ['scale', 'number'], scale: 5, lo: 'Mal', hi: 'Très bien', unit: 'h', icon: 'moon' },
   { kind: 'energy', group: 'feel', label: 'Énergie', types: ['scale'], scale: 5, lo: 'À plat', hi: 'Au top', icon: 'bolt' },
   { kind: 'hunger', group: 'feel', label: 'Faim', types: ['scale'], scale: 5, lo: 'Aucune', hi: 'Tout le temps', icon: 'diet' },
   { kind: 'stress', group: 'feel', label: 'Stress', types: ['scale'], scale: 5, lo: 'Aucun', hi: 'Très fort', icon: 'brain' },
@@ -58,7 +62,7 @@ const CHECKIN_KIND_IDS = CHECKIN_KINDS.map(k => k.kind);
 const CHECKIN_GROUPS = [['body', 'Corps'], ['activity', 'Activité et plan'], ['feel', 'Ressenti'], ['custom', 'Tes questions']];
 const CHECKIN_CUSTOM_TYPES = ['scale', 'yesno', 'number', 'text'];
 const CHECKIN_TYPE_LABELS = { scale: 'Échelle', yesno: 'Oui/non', number: 'Nombre', text: 'Texte', photo: 'Photo', auto: 'Auto', choice: 'Choix' };
-const CHECKIN_UNIT_LABELS = { kg: 'kg', cm: 'cm', steps: 'pas/jour', min: 'min' };
+const CHECKIN_UNIT_LABELS = { kg: 'kg', cm: 'cm', steps: 'pas/jour', min: 'min', h: 'h/nuit' };
 const CHECKIN_FREQS = [['week', 'Chaque semaine'], ['2weeks', 'Toutes les 2 semaines'], ['month', 'Chaque mois'], ['manual', 'À la demande']];
 const CHECKIN_WEEKDAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];   // 0 = dimanche (getDay, extract(dow))
 
@@ -206,11 +210,18 @@ function checkinValueText(item, v) {
   if (item.type === 'number' && item.kind === 'measures') {
     return Object.entries(v).map(([k, cm]) => `${CHECKIN_MEASURE_LABELS[k] || k} ${CHECKIN_NF1.format(cm)} cm`).join(', ');
   }
+  if (item.type === 'number' && item.unit === 'h' && item.kind !== 'custom') return `${checkinHoursText(v)} par nuit`;
   if (item.type === 'number') { const u = checkinUnitText(item); return `${item.unit === 'kg' ? CHECKIN_NF1.format(v) : CHECKIN_NF.format(v)}${u ? ` ${u}` : ''}`; }
   if (item.type === 'photo') return v.ids.length === 1 ? '1 photo' : `${v.ids.length} photos`;
   if (item.type === 'auto') return item.kind === 'diet_adherence' ? `${v.done} jours sur ${v.of}` : `${v.done} sur ${v.of}`;
   if (item.type === 'choice') return CHECKIN_CYCLE_PHASES.find(([k]) => k === v)?.[1] || '—';
   return '—';
+}
+// Heures décimales → « 7 h 15 », « 8 h », « 45 min »
+function checkinHoursText(h) {
+  const m = Math.round(h * 60), hh = Math.floor(m / 60), mm = m % 60;
+  if (!hh) return `${mm} min`;
+  return mm ? `${hh} h ${String(mm).padStart(2, '0')}` : `${hh} h`;
 }
 const CHECKIN_MEASURE_LABELS = { chest: 'Poitrine', waist: 'Taille', hips: 'Hanches', shoulders: 'Épaules', neck: 'Cou', armL: 'Bras gauche', armR: 'Bras droit', thighL: 'Cuisse gauche', thighR: 'Cuisse droite', calf: 'Mollet' };
 // Nombre comparable d'une réponse (colonnes de la fiche Semaines, écarts entre deux bilans) ; null sinon
@@ -250,6 +261,8 @@ function checkinScheduleText(s) {
 //   dietDays : [{ day, status }] (statut dietShareStatus des jours de la période, 'none' s'il n'y a rien de noté),
 //   sessions : nombre de séances faites dans la période, planned : séances prévues (programme) dans la période,
 //   steps : moyenne des pas par jour lue dans Santé, ou null (build sans la lecture des pas)
+//   sleepH : heures endormi par nuit en moyenne (Santé), ou null ; cardioMin : minutes de cardio sur la période, ou null
+// Seul un sommeil de type « nombre » (heures) est prérempli : une échelle est un ressenti, jamais devinée.
 // → { values: { clé: valeur }, from: { clé: 'weight' | 'measures' | 'diet' | 'sessions' | 'health' } }
 function checkinPrefill(items, ctx = {}) {
   const values = {}, from = {};
@@ -269,6 +282,8 @@ function checkinPrefill(items, ctx = {}) {
       values[it.key] = { done: Math.min(of, ctx.sessions), of }; from[it.key] = 'sessions';
     }
     if (it.kind === 'steps' && Number.isFinite(ctx.steps)) { const n = checkinNumber(ctx.steps, 'steps'); if (n !== null) { values[it.key] = n; from[it.key] = 'health'; } }
+    if (it.kind === 'sleep' && it.type === 'number' && Number.isFinite(ctx.sleepH)) { const n = checkinNumber(ctx.sleepH, 'h'); if (n !== null) { values[it.key] = n; from[it.key] = 'health'; } }
+    if (it.kind === 'cardio' && Number.isFinite(ctx.cardioMin)) { const n = checkinNumber(ctx.cardioMin, 'min'); if (n !== null) { values[it.key] = n; from[it.key] = 'health'; } }
   }
   return { values, from };
 }

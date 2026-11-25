@@ -50,7 +50,7 @@ def tag(device, theme):
 
 def open_settings(page, theme, platform, available='true'):
     page.add_init_script(FAKE_SHELL % (available, platform))
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())   # jamais de réseau
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())   # jamais de réseau
     seed(page, theme, ppl_v2_today_json())
     page.click('[data-action="go-settings"]')
     page.wait_for_selector('.settings-view')

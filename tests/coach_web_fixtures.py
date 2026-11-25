@@ -11,6 +11,7 @@
 - faux serveur des bilans (tests/fake_checkins.py) toujours chargé, vide ; COACH_WEB_CHECKINS_SEED (checkins=True) :
   trois modèles, un groupe, des plannings, quatre bilans répondus de Léa (le dernier pas encore répondu par le coach),
   un de Tom déjà répondu, un en attente chez Karim ;
+- COACH_WEB_HEALTH_SEED (health=True) : pas, sommeil et cardio partagés par Léa (vague 3) ;
 - open_desk() : contexte, horloge, thème, seed, faux Apple JS (apple='blocked' : script injoignable), connexion par code.
 """
 import contextlib
@@ -269,6 +270,20 @@ COACH_WEB_V4_SEED = r"""
 """
 
 
+# Vague 3 (health=True) : Léa partage ses pas, son sommeil et son cardio de Santé (__sb.shareHealth, tests/fake_account.py),
+# 56 jours en arrière depuis aujourd'hui, un jour sur 9 sans rien, des jours sans pas, cardio un jour sur 3. Les autres
+# élèves ne partagent pas. Valeurs exactes attendues (semaine en cours S48, S47) : tests/test_coach_web_sante.py.
+COACH_WEB_HEALTH_SEED = r"""
+(() => {
+  const sb = window.__sb, now = Date.now();
+  const iso = k => { const d = new Date(now); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - k); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const days = Array.from({ length: 56 }, (_, i) => i).filter(i => i % 9 !== 4).map(i => ({ day: iso(i),
+    steps: i % 6 === 5 ? null : 7000 + (i % 5) * 400, sleep: 400 + (i % 4) * 15, cardio: i % 3 === 0 ? 20 + (i % 4) * 5 : null }));
+  sb.shareHealth(window.__lea, days);
+})();
+"""
+
+
 class _Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -298,7 +313,7 @@ def launch(pw, engine):
     return getattr(pw, engine).launch(headless=True, args=args)
 
 
-def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake', checkins=False, v4=False, host=False, pre=None):
+def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake', checkins=False, v4=False, health=False, host=False, pre=None):
     """Page de l'appli web du coach, horloge figée, faux serveur injecté, coach connecté (sauf login=False)."""
     ctx = browser.new_context(viewport={'width': width, 'height': height}, color_scheme=theme, locale='fr-FR',
                               timezone_id='Europe/Paris', has_touch=touch, device_scale_factor=1)
@@ -320,6 +335,8 @@ def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, see
         page.add_init_script(COACH_WEB_CHECKINS_SEED)
     if seed and v4:
         page.add_init_script(COACH_WEB_V4_SEED)
+    if seed and health:
+        page.add_init_script(COACH_WEB_HEALTH_SEED)
     if pre:
         page.add_init_script(pre)   # état du faux serveur posé après les données (pannes, renommages)
     if host:

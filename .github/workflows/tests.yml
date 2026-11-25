@@ -5,7 +5,8 @@ name: Tests
 #  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
 #     Playwright en thème sombre, répartie sur 4 machines (e2e 1/4 à 4/4) ;
 #  2 bis. coach-web : l'appli web du coach (coach-web/, docs/COACH_WEB.md) dans Chromium, Firefox et WebKit, à 1440,
-#     1180 et 820 px, sombre et clair, plus sa version construite (dist-coach/) avec le vrai supabase-js ;
+#     1180 et 820 px, sombre et clair, plus sa version construite (dist-coach/) avec le vrai supabase-js, et le mode coach
+#     grand écran de l'app sur iPad (Chromium et WebKit, docs/COACH_IPAD.md) ;
 #  3. edge : les 12 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
 #     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
 #  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
@@ -44,7 +45,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Syntaxe des scripts
-        run: for f in $(find js coach-web/js -name '*.js') sw.js; do node --check "$f"; done
+        run: for f in $(find js coach-web/js coach-embed -name '*.js') sw.js; do node --check "$f"; done
       - name: Tests unitaires
         run: node tests/unit/run.mjs
       # Postgres local jetable (préinstallé sur ubuntu-latest) : RLS, GRANT et déclencheurs des migrations
@@ -79,6 +80,8 @@ jobs:
         run: bash tests/sql/blocage_coupe_coach_rollback_test.sh
       - name: Retour arrière de l'accord daté des bilans et des questions réservées aux 18 ans
         run: bash tests/sql/bilans_accord_majeur_rollback_test.sh
+      - name: Retour arrière de la santé partagée avec le coach
+        run: bash tests/sql/sante_coach_rollback_test.sh
       - name: Retour arrière de « Relier cet ordinateur » (photos de bilan sur ordinateur, vague 5)
         run: bash tests/sql/photos_web_appairage_rollback_test.sh
       - name: Contenu web de l'app iOS
@@ -185,6 +188,19 @@ jobs:
           PPL_ENGINES: ${{ matrix.engine }}
           HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_v4.py
+      - name: Pas, sommeil, cardio (vague 3), ${{ matrix.engine }}
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          HOME: /root
+        run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_sante.py
+      # Mode coach grand écran sur iPad (docs/COACH_IPAD.md) : l'app construite (dist/ avec dist/coach/), 1024 × 1366 et
+      # 1366 × 1024, Chromium et WebKit (Firefox n'est pas un moteur d'iPad)
+      - name: Mode coach grand écran sur iPad, ${{ matrix.engine }}
+        if: matrix.engine != 'firefox'
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          HOME: /root
+        run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_ipad.py
       # OpenCV relit le QR code affiché (version figée, seulement pour ce test)
       - name: "Photos de bilan sur ordinateur (vague 5, relier un ordinateur, photos, app iPhone simulée), ${{ matrix.engine }}"
         env:

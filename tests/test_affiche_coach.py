@@ -70,7 +70,7 @@ def open_app(page, theme, store=None):
     page.add_init_script(FAKE_ACCOUNT)
     if store is not None:
         page.add_init_script(FAKE_STORE)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
     settle(page)
 
@@ -700,7 +700,7 @@ def t_sans_migration(bench, eng, dev, theme):
         cons = []
         # Erreurs de console, et requêtes en échec hors celle des mises à jour à chaud (coupée exprès par open_app)
         page.on('console', lambda m: cons.append(m.text) if m.type == 'error' and not m.text.startswith('Failed to load resource') else None)
-        page.on('requestfailed', lambda q: cons.append(q.url) if 'mdlf-ota' not in q.url else None)
+        page.on('requestfailed', lambda q: cons.append(q.url) if 'mdlf-ota' not in q.url and 'ota.mdlf.app' not in q.url else None)
         open_app(page, theme)
         signin(page, 'camille_coach')
         page.evaluate(FAKE_SHARE)
@@ -746,7 +746,7 @@ def t_sans_migration(bench, eng, dev, theme):
         cons = []
         # Erreurs de console, et requêtes en échec hors celle des mises à jour à chaud (coupée exprès par open_app)
         page.on('console', lambda m: cons.append(m.text) if m.type == 'error' and not m.text.startswith('Failed to load resource') else None)
-        page.on('requestfailed', lambda q: cons.append(q.url) if 'mdlf-ota' not in q.url else None)
+        page.on('requestfailed', lambda q: cons.append(q.url) if 'mdlf-ota' not in q.url and 'ota.mdlf.app' not in q.url else None)
         open_app(page, theme)
         signin(page, 'lea')
         page.evaluate("""async () => { __sb.fail.posterName = 'missing'; const c = __sb.addPerson({ username: 'camille_coach', avatar: '🦁', social: false }); __sb.makeCoach(c);

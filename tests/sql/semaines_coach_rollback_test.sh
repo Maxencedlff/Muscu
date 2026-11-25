@@ -19,7 +19,9 @@ psql() { db=$1; shift; command psql -X -q -v ON_ERROR_STOP=1 -h "$tmp" -p "$port
 dump() { "$bin/pg_dump" -h "$tmp" -p "$port" -U postgres --schema-only --no-owner "$1" | grep -v -e '^--' -e '^$' -e '^\\'; }
 command psql -X -q -h "$tmp" -p "$port" -U postgres -d postgres -c "create database avant"
 psql avant -f "$here/supabase_stub.sql"
-for m in "$root"/supabase/migrations/*.sql; do [ "$m" = "$mine" ] || psql avant -f "$m"; done
+# Les migrations d'AVANT elle seulement : une plus récente peut réécrire ses fonctions (20261127050000_sante_coach.sql
+# reprend coach_student_weeks et les briques des bilans) et se défait avant elle (supabase/rollback/ORDRE.md)
+for m in "$root"/supabase/migrations/*.sql; do if [[ "$(basename "$m")" < "$(basename "$mine")" ]]; then psql avant -f "$m"; fi; done
 command psql -X -q -h "$tmp" -p "$port" -U postgres -d postgres -c "create database apres template avant"
 psql apres -f "$mine"
 psql apres -f "$down"

@@ -42,12 +42,12 @@ function renderPushSettings() {
         <div class="group">
           <button class="cell cell--action" data-action="push-reactivate"${push.busy ? ' aria-disabled="true"' : ''}${push.busy === 'reactivate' ? ' aria-busy="true"' : ''}>
             <span class="cell__body"><span class="cell__title">Réactiver sur cet iPhone</span>
-              <span class="cell__sub">Tes réglages restent sur ton compte. L'iPhone te demandera ton accord.</span></span>
+              <span class="cell__sub">Tes réglages restent sur ton compte. ${ThePhone()} te demandera ton accord.</span></span>
           </button>
         </div>` : denied ? `
         <div class="group">
           <button class="cell cell--nav" data-action="push-open-ios-settings">
-            <span class="cell__body"><span class="cell__title">Notifications coupées sur l'iPhone</span>
+            <span class="cell__body"><span class="cell__title">Notifications coupées sur ${thePhone()}</span>
               <span class="cell__sub">Rallume-les dans Réglages › Notifications › MDLF Training</span></span>
             ${icon('chevron.right', 16)}
           </button>
@@ -109,7 +109,7 @@ Native.push.onReceive(() => { if (account.user) { socialRefresh({ minAge: 0 }); 
 async function pushExplainFailure(reason) {
   if (reason === 'denied') {
     const v = await dialog({ title: 'Notifications refusées',
-      message: 'Pour les recevoir, autorise MDLF Training dans Réglages › Notifications de l’iPhone.',
+      message: `Pour les recevoir, autorise MDLF Training dans Réglages › Notifications ${ofThePhone()}.`,
       actions: [{ label: 'Plus tard', style: 'cancel' }, { label: 'Ouvrir Réglages', value: 'open', style: 'preferred' }] });
     if (v === 'open') Native.push.openSettings();
     return;
@@ -136,8 +136,8 @@ registerActions({
   },
   'push-toggle': async (e, el) => {
     if (el.getAttribute('aria-disabled') === 'true') {
-      if (push.permission === 'denied') showToast('Rallume les notifications dans les Réglages de l’iPhone');
-      else if (pushNeedsReactivate()) showToast('Touche d’abord « Réactiver sur cet iPhone »');
+      if (push.permission === 'denied') showToast(`Rallume les notifications dans les Réglages ${ofThePhone()}`);
+      else if (pushNeedsReactivate()) showToast(`Touche d’abord « Réactiver sur ${thisPhone()} »`);
       return;
     }
     const id = el.dataset.kind;

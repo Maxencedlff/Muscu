@@ -174,7 +174,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 
 /* ── Fiche Semaines ── */
 .cols.wkc { grid-template-columns: minmax(0, 1fr) 300px; }
-.tscroll { overflow-x: auto; }
+.tscroll { overflow-x: auto; position: relative; }   /* position : les textes .sr (absolus) restent dans le cadre qui défile, jamais la page */
 table.wk { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.wk th[scope="col"] { text-align: right; color: var(--label2); font-weight: 500; font-size: 12.5px; padding: 11px 9px 9px; white-space: nowrap; border-bottom: .5px solid var(--sep); }
 table.wk td, table.wk th[scope="row"] { text-align: right; padding: 9px 9px; border-bottom: .5px solid var(--sep); white-space: nowrap; font-weight: 400; vertical-align: top; }

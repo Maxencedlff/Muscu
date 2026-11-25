@@ -128,7 +128,7 @@ def open_app(page, theme, vault=True):
     if not vault:
         page.add_init_script('window.__noVault = true;')
     page.add_init_script(VAULT)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
     settle(page)
 

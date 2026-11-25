@@ -284,7 +284,6 @@ sont effacées avec les données de l'appareil (`accountForgetDevice`).
 
 ### Natif
 
-- Pas de Santé : `Native.health.steps({ days })` n'existe pas encore dans js/platform/native.js (il faut la lecture
-  `HKQuantityTypeIdentifierStepCount` dans la coquille iOS, donc une build). L'app l'appelle déjà s'il existe (moyenne
-  par jour, nombre ou `{ average }`) ; sinon le champ reste à remplir à la main.
+- Pas, cardio et sommeil (en heures) de Santé : docs/SANTE_COACH.md (`checkinReadHealth`, build du 25/11/2026) ; sans
+  cette build, les champs restent à remplir à la main.
 - Tout le reste (écran, données, notifications, photos) est en JS et CSS.

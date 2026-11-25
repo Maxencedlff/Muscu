@@ -32,7 +32,7 @@ def strava_on(page):
 def open_app(page, theme, ppl_v2=None, opts=None):
     page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True, **(opts or {})}))
     page.add_init_script(FAKE_ACCOUNT)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
     settle(page)
     strava_on(page)
@@ -270,7 +270,7 @@ def t_bilan(bench, eng, dev, theme):
         page.add_init_script(OPENED)
         page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
         page.add_init_script(FAKE_ACCOUNT)
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
         seed(page, theme, ppl_v2_today_json(), active=old_active_session(), extra={'ppl_welcome_seen': '1'})
         settle(page)
         strava_on(page)
@@ -297,7 +297,7 @@ def t_eteint(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
         page.add_init_script(FAKE_ACCOUNT)
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
         seed(page, theme, ppl_v2_today_json(), active=old_active_session(), extra={'ppl_welcome_seen': '1'})
         settle(page)
         R.check(page.evaluate('stravaEnabled()') is False, f'{t} éteint : interrupteur livré à faux')

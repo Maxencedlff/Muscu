@@ -1,0 +1,31 @@
+/* ── Mode coach grand écran (iPad, tablettes ; docs/COACH_IPAD.md, js/features/coach-desk-ui.js) ──
+   Écran hôte par-dessus l'app : barre « Revenir à l'appli » (quand l'appli web du coach n'affiche pas la sienne),
+   puis le cadre. Le cadre ne reçoit pas les marges de sécurité (env(safe-area-inset-*) vaut 0 dans un iframe) :
+   c'est l'hôte qui les laisse, sur les quatre bords. Couleurs : celles de l'appli web du coach, qui suit le
+   réglage clair / sombre du système (pas le réglage de l'app), pour que la bande de la barre d'état s'y raccorde
+   (mêmes valeurs que --bg, --label, --accent-text et --sep de coach-web/css/desk.css).
+   Sous les feuilles (900) et les alertes (1000) de l'app, sous l'écran qui masque les photos (10000). */
+.coach-desk {
+  --cd-bg: #000000; --cd-label: #FFFFFF; --cd-accent: #FF8A33; --cd-sep: rgba(84,84,88,.6);
+  position: fixed; inset: 0; z-index: 800;
+  display: flex; flex-direction: column;   /* colonne flexible : en grille, WebKit faisait déborder le cadre sous la barre d'accueil */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  background: var(--cd-bg); color: var(--cd-label);
+}
+@media (prefers-color-scheme: light) {
+  .coach-desk { --cd-bg: #F2F2F7; --cd-label: #000000; --cd-accent: #A85400; --cd-sep: rgba(60,60,67,.2); }
+}
+.coach-desk__bar { display: flex; align-items: center; min-height: 44px; padding: 0 8px; border-bottom: .5px solid var(--cd-sep); }
+.coach-desk__bar[hidden] { display: none; }
+.coach-desk__back {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; min-width: 44px; padding: 0 8px;
+  background: none; border: 0; color: var(--cd-accent); font: inherit; font-size: 17px;
+}
+.coach-desk__frame { display: block; flex: 1 1 0; width: 100%; height: auto; min-height: 0; border: 0; background: var(--cd-bg); }
+/* L'app reste dessous, figée et cachée aux lecteurs d'écran (inert). Jamais overflow: hidden sur body (marges de
+   sécurité d'iOS) : l'écran hôte, fixe et opaque, la couvre entièrement. */
+
+/* Carte de l'onglet Coach */
+.coach-desk-card .cell > .icon:first-child { color: var(--accent); flex-shrink: 0; }
+.coach-desk-card__intro { align-items: flex-start; }
+.coach-desk-card__hide .cell__title { color: var(--label2); }

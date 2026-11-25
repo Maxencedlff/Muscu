@@ -60,7 +60,7 @@ def open_app(page, theme, ppl_v2=None, account=False):
     if account:
         page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
         page.add_init_script(FAKE_ACCOUNT)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
     settle(page)
 
@@ -695,7 +695,7 @@ def t_invitation(bench):
         with bench.frozen_page(NOW, 'webkit', 'iPhone 13', theme) as page:
             page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True, 'dietServerless': True}))
             page.add_init_script(FAKE_ACCOUNT)
-            page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+            page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
             seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
             settle(page)
             signin(page, 'lea')

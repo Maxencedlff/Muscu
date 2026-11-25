@@ -56,7 +56,7 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>MDLF Training utilise Face ID pour ouvrir ton coffre à photos de progression.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>MDLF Training lit ton poids dans Santé pour suivre ta prise de masse à côté de tes charges, tes courses et sorties vélo (Apple Watch, Strava…) pour les afficher dans ton historique et tenir compte de la fatigue de tes jambes, et ton sommeil pour afficher ta nuit à côté de ta récupération. Ces données restent sur ton iPhone.</string>
+	<string>MDLF Training lit ton poids dans Santé pour suivre ta prise de masse à côté de tes charges, tes courses et sorties vélo (Apple Watch, Strava…) pour les afficher dans ton historique et tenir compte de la fatigue de tes jambes, et ton sommeil pour afficher ta nuit à côté de ta récupération. Ces données restent sur ton iPhone. Seule exception, si tu l'actives toi-même dans « Partager avec mon coach » : l'app lit aussi tes pas et tes entraînements cardio, et envoie à ton coach, à lui seul, un résumé de chaque jour (nombre de pas, durée de sommeil, minutes de cardio), qui sert aussi à préremplir les bilans qu'il te demande. Rien d'autre de Santé ne quitte ton iPhone.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>MDLF Training enregistre tes séances terminées dans Santé : la musculation comme entraînement « Musculation », le cardio fait sur une machine (tapis, vélo, elliptique, rameur, escaliers) dans son type, avec sa durée, l'énergie estimée et la distance.</string>
 	<key>NSSupportsLiveActivities</key>
@@ -93,6 +93,13 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>

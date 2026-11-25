@@ -151,8 +151,9 @@ Arrêt : `select cron.unschedule('push-send');`.
    - Notifications : Réglages › Social et coach › Notifications, allumer « Bravos » (fenêtre d'iOS),
      depuis un 2e compte dire bravo → notification en moins d'une minute, toucher → la séance ;
      tout éteindre → plus rien ; se déconnecter → plus rien.
-4. App Store Connect › Confidentialité de l'app : rien de neuf pour la santé (aucune donnée de Santé ne
-   quitte l'iPhone). Le jeton de notification n'est pas un « identifiant de l'appareil » au sens d'Apple
+4. App Store Connect › Confidentialité de l'app : depuis le partage des pas, du sommeil et du cardio avec le coach
+   (docs/SANTE_COACH.md), Santé et forme › Santé et Forme physique cochées (données HealthKit envoyées au coach avec
+   l'accord de l'élève). Le jeton de notification n'est pas un « identifiant de l'appareil » au sens d'Apple
    (il ne sert qu'à l'envoi) ; à confirmer par Maxence au moment de remplir la fiche.
 
 ## Retour arrière
@@ -183,7 +184,8 @@ Aucun changement natif : pas de build. Retour arrière : `supabase/rollback/2026
 ## Mises à jour à chaud : garde, environnement `ota` et signature (audit du 12/11/2026, M1 et M6)
 
 Déjà en place sur la branche `audit-ota` (aucune action) :
-- `js/app/live-update.js` n'accepte un paquet que sous `https://mdlf-ota.vercel.app/bundles/<nom>.zip`
+- `js/app/live-update.js` n'accepte un paquet que sous `https://ota.mdlf.app/bundles/<nom>.zip` ou
+  `https://mdlf-ota.vercel.app/bundles/<nom>.zip` (notre domaine d'abord, repli sur Vercel : IOS.md, 25/11/2026)
   (texte brut : pas de `%`, `@`, `//`, `?`, `#`, `\`, port ni autre casse) ; l'adresse du manifeste est figée.
 - `ota.yml` : job `gate` qui attend le workflow Tests vert sur le commit publié (comme ios.yml), puis
   construit depuis ce SHA exact ; aucun droit par défaut ; étape renommée « empreinte SHA-256 » (ce

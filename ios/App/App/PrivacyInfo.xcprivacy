@@ -5,8 +5,10 @@
 	<!-- Manifeste de confidentialité exigé par Apple : aucun suivi. Données collectées seulement avec le compte
 	     facultatif (js/data/account.js), pour synchroniser les appareils (et, sur inscription, pour la lettre d'information) : identifiant (dont le pseudo), adresse
 	     e-mail (comptes e-mail et Google seulement), nom (comptes Google seulement), séances, notes et avatar (un emoji).
-	     Jamais de donnée d'Apple Santé. Poids du corps : seulement les pesées saisies dans l'app, si l'élève
-	     choisit de les partager avec son coach (js/data/coach-share.js), d'où le type Health ci-dessous.
+	     Apple Santé : seulement le résumé par jour des pas, du sommeil et des minutes de cardio, si l'élève coche
+	     « Pas, sommeil et cardio » pour son coach (docs/SANTE_COACH.md). Poids du corps : seulement les pesées saisies
+	     dans l'app, si l'élève choisit de les partager avec son coach (js/data/coach-share.js). D'où le type Health
+	     ci-dessous.
 	     Même déclaration dans App Store Connect et privacy.html. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
@@ -65,7 +67,9 @@
 			<!-- Santé : pesées (date et poids) et mensurations saisies dans l'app, envoyées seulement si l'élève coche
 			     « Poids du corps » ou « Mensurations » dans Réglages › Partager avec mon coach, vues seulement par ce
 			     coach, effacées au retrait (supabase/migrations/20261031300000_partage_coach.sql,
-			     20261105010000_partage_mensurations.sql). Jamais une donnée lue dans Apple Santé -->
+			     20261105010000_partage_mensurations.sql) ; et le résumé par jour lu dans Apple Santé (pas, durée de
+			     sommeil, minutes de cardio), seulement si l'élève coche « Pas, sommeil et cardio », vu seulement par ce
+			     coach, 90 jours au plus, effacé au retrait (20261127050000_sante_coach.sql). Rien d'autre de Santé -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeHealth</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>

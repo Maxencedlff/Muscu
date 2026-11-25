@@ -21,12 +21,18 @@
 //    (student_shares().kinds, migration 20261105010000_partage_mensurations.sql). Jamais les photos.
 //  - Suivi de la diète (18/11/2026, js/data/diet-share.js) : même modèle, un résumé par jour (student_share_diet_days),
 //    montré seulement si le serveur l'accepte (migration 20261118010000_suivi_diete_coach.sql).
+//  - Pas, sommeil et cardio lus dans Santé (25/11/2026, docs/SANTE_COACH.md, js/data/health-days.js) : même modèle,
+//    un résumé par jour (student_share_health_days), seulement dans la coquille iOS qui sait les lire (native : la
+//    case est cachée ailleurs) et sur un serveur qui l'accepte (migration 20261127050000_sante_coach.sql). C'est la
+//    seule donnée de Santé qui quitte l'iPhone, et seulement vers ce coach, avec cet accord ; jamais dans data
+//    (copie iCloud, règle Apple 5.1.3(ii)).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 const COACH_SHARE_KEY = 'mdlf_coach_share';   // { userId, coachId, hash } : dernier envoi des pesées de cet appareil (hash null : en attente)
 const COACH_SHARE_M_KEY = 'mdlf_coach_share_m';   // même chose pour les mensurations
 const COACH_SHARE_D_KEY = 'mdlf_coach_share_d';   // même chose pour le suivi de la diète
+const COACH_SHARE_H_KEY = 'mdlf_coach_share_h';   // même chose pour les pas, le sommeil et le cardio de Santé
 const COACH_SHARE_MAX = 400;                  // pesées envoyées au plus (comme le serveur et BODY_LOG_MAX)
 // Données que l'élève peut partager ; open : affichée et acceptée par le serveur (private.share_kind_open)
 const COACH_SHARE_KINDS = [
@@ -40,6 +46,9 @@ const COACH_SHARE_KINDS = [
   { kind: 'diet', label: 'Plans de nutrition', open: false, own: true },
   // Suivi de la diète (migration 20261118010000) : repas cochés, eau, sel, écart avec l'objectif, un résumé par jour
   { kind: 'diet_log', label: 'Suivi de ma diète', open: true },
+  // Pas, sommeil et cardio de Santé (migration 20261127050000) : un résumé par jour ; native : seulement si la coquille
+  // sait les lire (healthDaysSupported, js/data/health-days.js). Remplace sleep et steps, jamais ouverts.
+  { kind: 'health', label: 'Pas, sommeil et cardio', open: true, native: true },
 ];
 const COACH_SHARE_KIND_IDS = COACH_SHARE_KINDS.map(k => k.kind);
 // Bornes de date du serveur (student_share_weights, student_share_measures) : après le 1er janvier 2000,
@@ -62,7 +71,8 @@ const coachMeasures = {};
 // serveur d'avant les mensurations ne l'envoie pas : le poids seul)
 function coachShareKindsShown() {
   const server = coachShare.state?.kinds || ['weight'];
-  return COACH_SHARE_KINDS.filter(k => k.open && server.includes(k.kind));
+  const native = typeof healthDaysSupported === 'function' && healthDaysSupported();
+  return COACH_SHARE_KINDS.filter(k => k.open && server.includes(k.kind) && (!k.native || native));
 }
 
 // student_shares() nettoyé : { coach, shares: { [kind]: { grantedAt, n, lastAt } } }, kinds connus seulement
@@ -131,6 +141,22 @@ function cleanCoachWeights(raw) {
   return { shared, since: shared ? coachTime(r.since) : null, weights };
 }
 
+// coach_student_health() nettoyé : { shared, since, days: [{ day, steps, sleep, cardio }] } du plus récent ; chaque
+// valeur entière dans ses bornes (pas 0 à 100 000, minutes 0 à 1 440) ou null ; un jour sans aucune valeur est écarté
+const HEALTH_SHARE_DAYS_MAX = 92;
+function cleanCoachHealth(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const shared = r.shared === true;
+  const int = (v, hi) => (Number.isInteger(v) && v >= 0 && v <= hi ? v : null);
+  const seen = new Set();
+  const days = shared && Array.isArray(r.days) ? r.days.slice(0, HEALTH_SHARE_DAYS_MAX)
+    .map(d => ({ day: typeof d?.day === 'string' && /^\d{4}-\d\d-\d\d$/.test(d.day) ? d.day : null,
+      steps: int(d?.steps, 100000), sleep: int(d?.sleep, 1440), cardio: int(d?.cardio, 1440) }))
+    .filter(d => d.day && (d.steps !== null || d.sleep !== null || d.cardio !== null) && !seen.has(d.day) && seen.add(d.day))
+    .sort((a, b) => (a.day < b.day ? 1 : -1)) : [];
+  return { shared, since: shared ? coachTime(r.since) : null, days };
+}
+
 // Poids du corps d'une séance d'un élève, reçu du serveur (dernière pesée partagée à sa date), ou null
 function cleanSessionBodyKg(v) {
   const n = typeof v === 'number' ? v : NaN;
@@ -153,6 +179,7 @@ function coachShareReset(userId) {
   Object.assign(coachShare, { userId, state: null, loading: false, error: null, busy: null, uploads: {}, again: {} });
   Object.keys(coachWeights).forEach(k => delete coachWeights[k]);
   Object.keys(coachMeasures).forEach(k => delete coachMeasures[k]);
+  if (typeof healthDaysReset === 'function') healthDaysReset();
 }
 
 // Ce qui part pour chaque donnée envoyée depuis l'appareil : clé de l'empreinte locale, fonction du
@@ -163,6 +190,9 @@ const SHARE_UPLOADS = {
   measures: { key: COACH_SHARE_M_KEY, rpc: 'student_share_measures', arg: 'measures', payload: () => sharedMeasuresPayload(),
     count: measuresCount, lastAt: measuresLast },
   diet_log: { key: COACH_SHARE_D_KEY, rpc: 'student_share_diet_days', arg: 'days', payload: () => dietSharePayload(),
+    count: p => p.length, lastAt: p => (p[0] ? new Date(`${p[0].day}T00:00:00`).getTime() : null) },
+  // Pas, sommeil, cardio : la dernière lecture de Santé (js/data/health-days.js), null tant que rien n'est lu
+  health: { key: COACH_SHARE_H_KEY, rpc: 'student_share_health_days', arg: 'days', payload: () => (typeof healthDays === 'object' ? healthDays.list : null),
     count: p => p.length, lastAt: p => (p[0] ? new Date(`${p[0].day}T00:00:00`).getTime() : null) },
 };
 
@@ -178,7 +208,7 @@ function writeShareSent(v, key = COACH_SHARE_KEY) {
 // Relit ce que je partage (élève seulement), puis renvoie les pesées si elles ont changé
 async function coachShareRefresh() {
   if (!account.user || !coachRole().hasCoach) {
-    if (coachShare.state) { coachShare.state = null; writeShareSent(null); writeShareSent(null, COACH_SHARE_M_KEY); writeShareSent(null, COACH_SHARE_D_KEY); notifyCoach(); }
+    if (coachShare.state) { coachShare.state = null; writeShareSent(null); writeShareSent(null, COACH_SHARE_M_KEY); writeShareSent(null, COACH_SHARE_D_KEY); writeShareSent(null, COACH_SHARE_H_KEY); notifyCoach(); }
     return false;
   }
   if (coachShare.loading) return false;
@@ -191,8 +221,17 @@ async function coachShareRefresh() {
   coachShare.state = cleanShareState(r.data);
   coachShare.error = null;
   notifyCoach();
-  await Promise.all([coachShareUpload(), coachShareUploadKind('measures'), coachShareUploadKind('diet_log'), dietCoachCarryOver()]);
+  await Promise.all([coachShareUpload(), coachShareUploadKind('measures'), coachShareUploadKind('diet_log'), coachShareHealthSync(), dietCoachCarryOver()]);
   return true;
+}
+
+// Pas, sommeil, cardio : relus dans Santé (au plus toutes les 10 minutes), puis envoyés s'ils ont changé. force :
+// geste ici (case cochée sur cet appareil). Sans la coquille qui sait les lire : rien.
+async function coachShareHealthSync({ force = false } = {}) {
+  if (!coachShareOn('health') || typeof healthDaysRead !== 'function') return { ok: true, skipped: true };
+  const list = await healthDaysRead({ force });
+  if (!list) return { ok: true, skipped: true };
+  return coachShareUploadKind('health', { force });
 }
 
 // Cocher ou décocher une donnée. Cocher le poids (ou les mensurations) envoie aussitôt la liste de l'appareil
@@ -203,6 +242,10 @@ async function coachShareSet(kind, on) {
   coachShare.busy = kind;
   notifyCoach();
   const seq = coachShareSeq;
+  // Santé : la fenêtre d'iOS (lecture des pas, du sommeil et des entraînements) s'ouvre à ce geste seulement,
+  // avant l'accord côté serveur. iOS ne dit pas si la lecture est accordée : rien n'est bloqué ici.
+  if (kind === 'health' && on) await Native.health.authorizeDays();
+  if (seq !== coachShareSeq) return { ok: false, kind: 'signed_out' };
   const r = await coachRpc('student_set_share', { kind, enabled: !!on });
   if (seq !== coachShareSeq) return { ok: false, kind: 'signed_out' };
   coachShare.busy = null;
@@ -212,7 +255,7 @@ async function coachShareSet(kind, on) {
   }
   notifyCoach();
   if (r.ok && on && SHARE_UPLOADS[kind]) {
-    const u = await coachShareUploadKind(kind, { force: true });
+    const u = kind === 'health' ? await coachShareHealthSync({ force: true }) : await coachShareUploadKind(kind, { force: true });
     if (!u.ok) return { ok: true, uploadFailed: u.kind };
   }
   return r;
@@ -237,6 +280,7 @@ async function coachShareUploadKind(kind, { force = false, ifChanged = false } =
   }
   const coachId = myCoach()?.user_id || null;
   const list = u.payload();
+  if (list === null) return { ok: true, skipped: true };   // Santé pas encore lue : rien à envoyer
   const hash = syncHash(list);
   const last = readShareSent(u.key);
   const mine = last && last.coachId === coachId;

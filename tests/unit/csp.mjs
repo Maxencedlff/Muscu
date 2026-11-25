@@ -51,7 +51,8 @@ export default function ({ test, assert, ROOT }) {
     const origin = u => new URL(u).origin;
     const used = [
       read('js/data/account.js').match(/url: '(https:\/\/[^']+)'/)[1],
-      read('js/app/live-update.js').match(/OTA_MANIFEST_URL\s*=\s*'([^']+)'/)[1],
+      // Mises à jour à chaud : chaque origine de OTA_ORIGINS (notre domaine, puis le repli)
+      ...[...read('js/app/live-update.js').match(/OTA_ORIGINS = Object\.freeze\(\[([^\]]+)\]\)/)[1].matchAll(/'([^']+)'/g)].map(m => m[1]),
       read('js/data/food-scan.js').match(/`(https:\/\/world\.openfoodfacts\.org)[^`]*`/)[1],
     ].map(origin);
     assert.deepEqual([...p['connect-src']].sort(), ["'self'", ...used].sort());
