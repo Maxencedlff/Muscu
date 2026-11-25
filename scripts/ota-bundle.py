@@ -1,4 +1,5 @@
-"""Paquet de mise à jour à chaud : dist/ → ota-site/ (publié sur https://mdlf-ota.vercel.app).
+"""Paquet de mise à jour à chaud : dist/ → ota-site/ (publié sur https://ota.mdlf.app, Cloudflare Pages, et sur
+https://mdlf-ota.vercel.app que lit encore la build 133 : docs/HEBERGEMENT.md).
 
     npm run web:build && python3 scripts/ota-bundle.py
 
@@ -6,7 +7,7 @@ ota-site/
   manifest.json           { version, seq, runtime, [runtimeSeq], url, checksum, [sessionKey], fileSha256, size, publishedAt }
                           (jamais mis en cache)
   bundles/<version>.zip   contenu de dist/ avec index.html à la racine (immuable)
-  vercel.json             en-têtes de cache, réveil quotidien du serveur des comptes
+  vercel.json             en-têtes de cache (source du _headers de Pages), réveil quotidien du serveur des comptes
   api/ping.js             ce réveil (copié depuis ota-api/)
 
 Format attendu par @capgo/capacitor-updater : zip du dossier web, index.html à la racine, sans
@@ -137,7 +138,11 @@ def main():
     json.dump(manifest, open(os.path.join(OUT, 'manifest.json'), 'w'), indent=2)
     os.makedirs(os.path.join(OUT, 'api'))
     shutil.copy(os.path.join(ROOT, 'ota-api', 'ping.js'), os.path.join(OUT, 'api', 'ping.js'))
+    # En-têtes : publiés tels quels sur Vercel, et traduits en _headers pour Cloudflare Pages par
+    # scripts/pages-headers.mjs (ota.yml, docs/HEBERGEMENT.md). HSTS écrit ici : Vercel l'ajoutait de lui-même
+    # (max-age=63072000 sur ota.mdlf.app), Pages non.
     json.dump({'crons': [{'path': '/api/ping', 'schedule': '17 6 * * *'}], 'headers': [
+        {'source': '/(.*)', 'headers': [{'key': 'Strict-Transport-Security', 'value': 'max-age=63072000'}]},
         {'source': '/manifest.json', 'headers': [{'key': 'Cache-Control', 'value': 'no-store'}]},
         {'source': '/bundles/(.*)', 'headers': [{'key': 'Cache-Control', 'value': 'public, max-age=31536000, immutable'}]},
     ]}, open(os.path.join(OUT, 'vercel.json'), 'w'), indent=2)

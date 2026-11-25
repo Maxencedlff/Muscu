@@ -7,7 +7,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['dist/**', 'dist-coach/**', 'ios/**', 'android/**', 'node_modules/**', 'tests/shots/**', 'ota-site/**'] },
+  { ignores: ['dist/**', 'dist-coach/**', 'dist-web/**', 'ota-pages/**', 'ios/**', 'android/**', 'node_modules/**', 'tests/shots/**', 'ota-site/**'] },
   js.configs.recommended,
   // Espaces insécables voulus dans les textes (typographie française : « 57 min », « 12 % »)
   { rules: { 'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipRegExps: true }] } },

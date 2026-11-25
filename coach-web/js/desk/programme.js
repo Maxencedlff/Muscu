@@ -95,7 +95,7 @@ function deskPgRowHtml(e, i, n, rows, name) {
     : deskPgIn(`pg-ld-${k}`, 'load', k, deskPgKg(ld.load), `Charge prescrite en kilos, ${e.name}`, { mode: 'decimal', cls: 'w' });
   const last = deskPgLast(rows, e);
   const lastCell = last ? `<span class="tnum">${esc(last.text)}</span>${last.word ? `<span class="${last.status === 'under' ? 'warn' : 'green'} blk">${esc(last.word)}</span>` : ''}<small class="blk faint">${esc(fmtDate(last.doneAt, 'short'))}</small>`
-    : `<span class="faint">${reps ? 'Pas encore fait' : '—'}</span>`;
+    : `<span class="${reps ? 'muted' : 'faint'}">${reps ? 'Pas encore fait' : '—'}</span>`;
   const open = pg.open === k;
   return `<li class="pg-row${open ? ' open' : ''}" data-k="${k}">
     ${exCell}

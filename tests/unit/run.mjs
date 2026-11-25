@@ -2226,6 +2226,9 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
 (await import('./coach-card.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Juridique : lettre d'information, pages juridiques, prix des CGV (tests dans juridique.mjs) ──
 (await import('./juridique.mjs')).default({ test, run, assert, sameJSON, ROOT });
+
+// ── Hébergement Cloudflare Pages : traduction des vercel.json, sites construits (tests dans hebergement.mjs) ──
+(await import('./hebergement.mjs')).default({ test, assert, ROOT });
 // ── Payant : signature d'Apple, achats et notifications (tests dans payant.mjs) ──
 (await import('./payant.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Fonctions Edge : garde de l'appelant (verify_jwt = false) (auth-guard.mjs) ──

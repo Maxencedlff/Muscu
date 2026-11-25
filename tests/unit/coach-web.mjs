@@ -27,9 +27,9 @@ export default function ({ test, assert, ROOT }) {
   const appOrder = [...fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]);
 
   // Contexte : les scripts de la page, dans son ordre, main.js excepté
-  const storage = new MemoryStorage();
+  const storage = new MemoryStorage(), session = new MemoryStorage();
   const sandbox = { console, setTimeout, clearTimeout, Intl, atob, btoa, TextEncoder, TextDecoder, crypto: globalThis.crypto,
-    localStorage: storage, navigator: {}, addEventListener() {},
+    localStorage: storage, sessionStorage: session, navigator: {}, addEventListener() {},
     document: { querySelector: () => null, getElementById: () => null, addEventListener() {} } };
   sandbox.window = sandbox;
   const ctx = vm.createContext(sandbox);
@@ -66,6 +66,7 @@ export default function ({ test, assert, ROOT }) {
 
   test('coach web : chargement sans rien écrire sur l\'appareil, écouteurs de l\'app inertes', () => {
     assert.equal(storage.length, 0);
+    assert.equal(session.length, 0);
     assert.equal(run('account.user'), null);
     assert.ok(run('Object.isFrozen(account)'));
     // Les relectures de l'app (coachRefresh, coachShareRefresh) ne partent jamais : pas de compte au sens de l'app

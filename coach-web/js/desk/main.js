@@ -8,11 +8,15 @@
 //  Quitter un écran avec des changements pas enregistrés (bilan en cours d'édition, réponse en cours, programme
 //  modifié pas envoyé, plan diète pas enregistré) demande confirmation : le lien revient en arrière tant que le coach n'a pas dit oui.
 //  Connexion avec Apple (js/desk/apple.js) ou par code e-mail ; seul un compte coach validé (coach_state().is_coach) entre, et chaque RPC le revérifie
-//  sur le serveur. 30 min sans geste : déconnexion. Données relues au retour sur l'onglet (60 s au moins d'écart).
+//  sur le serveur. 28 min sans geste : bandeau « Toujours là ? » ; 30 min : la réponse en cours part en brouillon, l'écran
+//  est vidé, puis déconnexion. Données relues au retour sur l'onglet (60 s au moins d'écart), et toutes les 90 s sur le
+//  tableau de bord et Bilans reçus quand l'onglet est visible (rien n'est redessiné si rien n'a changé).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 const DESK_REFRESH_MS = 60_000;
+const DESK_POLL_MS = 90_000;
+const DESK_IDLE_WARN_MS = DESK_IDLE_MS - 2 * 60_000;
 const ui = { filter: 'todo', query: '', weeks: DESK_WEEKS_SHOWN, login: { step: 'email', email: '', busy: false, error: '' } };
 const view = { dash: null, dashAt: 0, dashError: null, student: null, notCoach: false, appleNew: false };
 
@@ -50,14 +54,18 @@ function deskRoute() {
 // Verrou contre les rendus en cascade : remplacer #app fait perdre le focus au champ en cours (blur, change), dont le
 // geste peut demander un rendu PENDANT celui-ci (innerHTML réentrant : NotFoundError). Ce rendu-là est refait juste
 // après, avec l'état à jour (queueMicrotask)
+let deskPainted = '';
 let deskPainting = false, deskPaintAgain = null;
 function deskPaint(html, opts = {}) {
   if (deskPainting) { if (!deskPaintAgain) { deskPaintAgain = opts; queueMicrotask(() => { const o = deskPaintAgain; deskPaintAgain = null; deskRender(o); }); } return; }
   deskPainting = true;
   try { deskPaint0(html, opts); } finally { deskPainting = false; }
 }
-function deskPaint0(html, { focusMain = false } = {}) {
+function deskPaint0(html, { focusMain = false, quiet = false } = {}) {
   const root = document.getElementById('app');
+  // Relecture régulière (quiet) qui ne change rien à l'écran : rien n'est redessiné (focus, sélection, défilement intacts)
+  if (quiet && html === deskPainted) return;
+  deskPainted = html;
   const active = document.activeElement?.id;
   const ae = document.activeElement;
   const caret = active && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') && ae.type !== 'email' ? ae.selectionStart : null;
@@ -66,6 +74,7 @@ function deskPaint0(html, { focusMain = false } = {}) {
   const keep = [...root.querySelectorAll('[data-keep-scroll]')].map(el => ({ key: el.dataset.keepScroll, top: el.scrollTop, gap: el.scrollHeight - el.scrollTop - el.clientHeight }));
   root.innerHTML = html;
   frTypoNode(root);
+  deskRoving(root);
   root.querySelectorAll('[data-keep-scroll]').forEach(el => {
     const k = keep.find(x => x.key === el.dataset.keepScroll);
     if (!k || k.gap < 40 || ms.stick) el.scrollTop = el.scrollHeight;
@@ -154,7 +163,7 @@ function deskRender(opts = {}) {
 
 // ── Données ─────────────────────────────────────────────────
 
-async function deskRefresh({ force = false } = {}) {
+async function deskRefresh({ force = false, quiet = false } = {}) {
   if (!desk.user || (!force && Date.now() - view.dashAt < DESK_REFRESH_MS)) return;
   view.dashAt = Date.now();
   const r = await deskLoadDashboard(Date.now());
@@ -168,43 +177,110 @@ async function deskRefresh({ force = false } = {}) {
   // Résumés des conversations partagés avec js/data/coach-chat.js (non-lus remis à zéro par chatMarkRead)
   chat.threads = view.dash.threads;
   if (view.dash.threads) chat.available = true;
-  deskRender();
+  deskRender({ quiet });
   const route = deskRoute();
   if (route.name === 'student') deskOpenStudent(route.id);
   // Onglets de la vague 4 : à l'ouverture seulement (ensuite, chacun relit ses données lui-même)
   if (force) deskOpenTab(route);
   // Nombre de modèles (barre latérale) et écran Mes bilans : relus avec le tableau de bord
-  deskOpenBilans({ keep: true });
+  deskOpenBilans({ keep: true, quiet });
 }
 async function deskOpenStudent(id, { force = false } = {}) {
+  // Même élève déjà affiché : relu en arrière-plan, sans « Chargement… » ni perte de la réponse en cours d'écriture
+  const same = view.student?.id === id && !view.student.error && !view.student.loading;
   if (!force && view.student?.id === id && !view.student.error && Date.now() - view.student.at < DESK_REFRESH_MS) return;
   if (!view.dash?.rows.some(r => r.id === id)) { deskRender(); return; }
-  view.student = { id, loading: true, at: Date.now() };
-  rv.drafts = {};
-  rv.sel = deskRoute().request;
-  deskRender();
+  if (same) view.student.at = Date.now();
+  else {
+    view.student = { id, loading: true, at: Date.now() };
+    rv.drafts = {};
+    rv.sel = deskRoute().request;
+    deskRender();
+  }
   const now = Date.now();
   const [r, ck] = await Promise.all([deskLoadWeeks(id, DESK_WEEKS_MAX, now), deskLoadStudentCheckins(id)]);
-  if (deskRoute().id !== id) return;
+  if (deskRoute().id !== id || view.student?.id !== id) return;
   if (!r.ok) {
     if (r.kind === 'signed_out') return deskEndSession();
+    // Relecture de fond qui échoue (réseau) : la fiche affichée reste ; l'élève parti, lui, s'affiche
+    if (same && r.kind !== 'not_found') return;
     view.student = { id, error: r.kind, at: Date.now() }; deskRender(); return;
   }
+  const prev = same ? view.student : null;
   const phases = view.dash.plans ? view.dash.plans[id] || [] : null;
   const weeks = deskWeeks({ ...r.data, phases, now, count: DESK_WEEKS_MAX });
   view.student = { id, at: Date.now(), now, weeks, weights: r.data.weights, measures: r.data.measures, diet: r.data.diet, sessions: r.data.sessions,
     chart: deskWeightChart(r.data.weights, now),
     // Bilans de l'élève (null : serveur sans les bilans ou lecture refusée ; ckKind dit pourquoi)
-    checkins: ck.ok ? ck.data : null, ckKind: ck.ok ? null : ck.kind };
+    checkins: ck.ok ? ck.data : prev?.checkins || null, ckKind: ck.ok || prev?.checkins ? null : ck.kind };
   deskRender();
 }
-async function deskEndSession() {
+async function deskEndSession({ expired = false } = {}) {
   // Embarquée dans l'app : la session appartient à l'hôte, on lui rend la main
   if (deskHosted()) { deskHost.exit?.(); return; }
+  deskWipe();
   await deskSignOut();
+  if (expired) deskMarkExpired();
   Object.assign(view, { dash: null, student: null, notCoach: false, dashAt: 0 });
   location.hash = '#/';
   location.reload();
+}
+
+// Écran vidé avant la déconnexion et le rechargement : aucune donnée d'élève ne reste affichée, même sous la fenêtre
+// « Quitter le site ? » du navigateur (changements pas enregistrés ailleurs que dans la réponse)
+function deskWipe() {
+  document.querySelectorAll('dialog[open]').forEach(d => d.close());
+  deskIdleBanner(false);
+  const t = document.getElementById('toast'); if (t) { t.hidden = true; t.textContent = ''; }
+  deskPainted = '';
+  document.getElementById('app').innerHTML = '<main class="login" id="main" tabindex="-1"><div class="login-card"><div class="brand lg">MDLF <span>Coach</span></div><p class="sub" role="status">Session fermée.</p></div></main>';
+}
+
+// ── Fin de session après 30 min sans geste ──────────────────
+
+let deskIdleEnding = false, deskIdleBack = null;
+// Bandeau « Toujours là ? » (hors de #app : un rendu ne l'efface pas) ; le focus revient où il était quand il part
+function deskIdleBanner(show) {
+  const el = document.getElementById('idle');
+  if (!show) {
+    if (!el) return;
+    const back = deskIdleBack; deskIdleBack = null;
+    const had = el.contains(document.activeElement);
+    el.remove();
+    if (had && back?.isConnected) back.focus({ preventScroll: true });
+    return;
+  }
+  if (el) return;
+  deskIdleBack = document.activeElement;
+  const b = document.createElement('div');
+  b.id = 'idle'; b.className = 'idle'; b.setAttribute('role', 'alertdialog');
+  b.setAttribute('aria-labelledby', 'idle-t'); b.setAttribute('aria-describedby', 'idle-d');
+  b.innerHTML = `<div class="grow"><b id="idle-t">Toujours là ?</b><span class="t2 blk" id="idle-d">Sans geste de ta part, la session se ferme dans 2 minutes. Une réponse en cours sera gardée en brouillon.</span></div>
+    <button type="button" class="btn tint" data-action="idle-stay">Rester connecté</button>`;
+  frTypoNode(b);
+  document.body.appendChild(b);
+  b.querySelector('button').focus({ preventScroll: true });
+}
+// Geste du coach : la session continue, le bandeau part
+function deskActivity() {
+  if (deskIdleEnding) return;
+  deskTouch();
+  deskIdleBanner(false);
+}
+async function deskIdleEnd() {
+  if (deskIdleEnding) return;
+  deskIdleEnding = true;
+  // Écran vidé tout de suite ; la réponse en cours part en brouillon (8 s au plus : un serveur qui ne répond pas ne
+  // retarde pas la fermeture), puis déconnexion et rechargement
+  deskWipe();
+  await Promise.race([deskRvSaveDrafts(), new Promise(r => setTimeout(r, 8000))]);
+  await deskEndSession({ expired: true });
+}
+function deskIdleTick() {
+  if (!desk.user || deskIdleEnding || deskHosted()) return;
+  const idle = deskIdleFor();
+  if (idle > DESK_IDLE_MS) { deskIdleEnd(); return; }
+  if (idle > DESK_IDLE_WARN_MS) deskIdleBanner(true);
 }
 
 // ── Gestes ──────────────────────────────────────────────────
@@ -217,14 +293,14 @@ document.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const a = el.dataset.action;
-  if (a === 'soon') { e.preventDefault(); deskToast(`${el.dataset.what} : arrive dans une prochaine version`); }
-  else if (a === 'filter') { ui.filter = el.dataset.filter; deskRender(); }
+  if (a === 'filter') { ui.filter = el.dataset.filter; deskRender(); }
   else if (a === 'copy-code') deskCopy(el.dataset.code);
   else if (a === 'invite') document.getElementById('invite-dialog')?.showModal();
   else if (a === 'new-invite') { const r = await deskNewInvite(); if (r.ok) { view.dash.code = r.code; view.dash.codeExpires = Date.now() + 7 * 86_400_000; deskRender(); } else deskToast(deskErrorText(r.kind)); }
   else if (a === 'more-weeks') { ui.weeks = DESK_WEEKS_MAX; deskRender(); }
   else if (a === 'reload') { if (deskRoute().name === 'student') deskOpenStudent(deskRoute().id, { force: true }); else deskRefresh({ force: true }); }
   else if (a === 'signout') deskEndSession();
+  else if (a === 'idle-stay') deskActivity();
   else if (a === 'host-exit') { if (await deskLeaveAllOk()) deskHost?.exit?.(); }
   else if (a === 'apple') deskAppleClick();
   else if (a === 'login-back') { Object.assign(ui.login, { step: 'email', error: '' }); deskRender(); document.getElementById('login-email')?.focus(); }
@@ -272,7 +348,7 @@ async function deskAppleClick() {
 }
 // Clavier : / recherche, J / K élève suivant ou précédent (Entrée ouvre : c'est un lien), Échap vide la recherche
 document.addEventListener('keydown', e => {
-  deskTouch();
+  deskActivity();
   const t = e.target, typing = t.matches?.('input, textarea, select, [contenteditable]');
   if (e.key === 'Escape' && t.id === 'q' && t.value) { ui.query = ''; deskRender(); return; }
   if (typing || e.metaKey || e.ctrlKey || e.altKey || !desk.user || deskRoute().name !== 'dash') return;
@@ -285,7 +361,14 @@ document.addEventListener('keydown', e => {
     e.preventDefault(); rows[next].focus(); rows[next].scrollIntoView({ block: 'nearest' });
   }
 });
-document.addEventListener('pointerdown', () => deskTouch(), { passive: true });
+// Dans le bandeau : seulement compté ; « Rester connecté » le ferme au clic (l'enlever ici perdrait le clic et le focus)
+document.addEventListener('pointerdown', e => { if (e.target.closest?.('#idle')) deskTouch(); else deskActivity(); }, { passive: true });
+// Lire en faisant défiler compte aussi comme activité (molette, doigt), une fois toutes les 5 s au plus. L'événement
+// « scroll » n'est pas écouté : les rendus et le fil des messages défilent seuls et garderaient la session ouverte.
+let deskScrollAt = 0;
+const deskOnScroll = () => { const n = Date.now(); if (n - deskScrollAt < 5000) return; deskScrollAt = n; deskActivity(); };
+window.addEventListener('wheel', deskOnScroll, { passive: true });
+window.addEventListener('touchmove', deskOnScroll, { passive: true });
 // Changement d'écran : avec des changements pas enregistrés, le lien revient en arrière et le coach confirme
 let deskHash = location.hash || '#/', deskHashBack = false;
 window.addEventListener('hashchange', async () => {
@@ -336,8 +419,17 @@ function deskOpenTab(route) {
   if (route.name === 'student' && route.tab === 'nutrition') { if (route.part) deskDtOpenStudent(route.id, route.part); else deskNtOpen(route.id); }
   if (route.name === 'diets') deskDtOpenLib(route);
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && desk.user) { if (deskIdleFor() > DESK_IDLE_MS) deskEndSession(); else deskRefresh(); } });
-setInterval(() => { if (desk.user && deskIdleFor() > DESK_IDLE_MS) deskEndSession(); }, 60_000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !desk.user || deskIdleEnding) return;
+  if (deskIdleFor() > DESK_IDLE_MS) deskIdleEnd(); else { deskIdleTick(); deskRefresh(); }
+});
+setInterval(deskIdleTick, 15_000);
+// Tableau de bord et Bilans reçus relus régulièrement, onglet visible seulement
+setInterval(() => {
+  if (!desk.user || deskIdleEnding || document.visibilityState !== 'visible') return;
+  const n = deskRoute().name;
+  if (n === 'dash' || n === 'received') deskRefresh({ quiet: true });
+}, DESK_POLL_MS);
 
 // ── Démarrage ───────────────────────────────────────────────
 
@@ -347,7 +439,7 @@ async function deskStart() {
   // Embarquée : session de l'hôte refusée (expirée, autre compte) → l'hôte reprend la main
   if (!r.ok && deskHosted()) { deskHost.exit?.(); return; }
   if (!r.ok) { ui.login.error = deskAuthText(r.kind); }
-  else if (r.expired) ui.login.error = 'Session fermée après 30 minutes sans activité : reconnecte-toi.';
+  else if (r.expired || deskTakeExpired()) ui.login.error = 'Session fermée après 30 minutes sans activité : reconnecte-toi.';
   deskRender();
   if (desk.user) deskRefresh({ force: true });
   else deskAppleLoad();
