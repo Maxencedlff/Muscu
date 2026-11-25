@@ -476,7 +476,7 @@ limite) ; retour arrière `supabase/rollback/20261126010000_programmes_envoyes_c
 `tests/sql/programmes_envoyes_coach_rollback_test.sh` ; ajoutée à `tests/sql/prod_order_test.sh` et à
 `supabase/rollback/ORDRE.md` (n° 18).
 
-### Changements dans le code partagé de l'app (sw.js en ppl-v238)
+### Changements dans le code partagé de l'app (sw.js en ppl-v239)
 
 Sans changement de comportement de l'app : paramètre `{ rpc }` (et `reportAlert`) des fonctions de `js/data/coach-chat.js` ;
 `coachSentPayload` (de `coachSendProgramme`), `coachSendQueue` (de `coachSendMany`) et `coachSendableProgrammes(d)` (de
