@@ -594,7 +594,7 @@ window.addEventListener('beforeunload', e => { if (deskDtDirty()) { e.preventDef
 
 // ── Glisser-déposer des repas (poignée : souris, doigt, stylet ; flèches, Début, Fin au clavier) ──
 // Même geste que l'ordre des suivis des bilans (js/desk/templates.js) : la ligne suit le pointeur, un trait montre où
-// elle tombe, l'ordre est validé au relâchement et annoncé ; Échap remet l'ordre d'avant.
+// elle tombe (deskCkDropIndex, js/desk/templates.js), l'ordre est validé au relâchement et annoncé ; Échap remet l'ordre d'avant.
 let deskDtDrag = null;
 document.addEventListener('pointerdown', e => {
   const g = e.target.closest?.('[data-dt-grip]');
@@ -605,11 +605,6 @@ document.addEventListener('pointerdown', e => {
   try { g.setPointerCapture(e.pointerId); } catch { /* pointeur synthétique */ }
   li.classList.add('drag');
 });
-function deskDtDropIndex(dr, y) {
-  const sibs = [...dr.ul.children].filter(x => x !== dr.li);
-  const i = sibs.findIndex(x => { const r = x.getBoundingClientRect(); return y < r.top + r.height / 2; });
-  return { to: i < 0 ? sibs.length : i, mark: i < 0 ? null : sibs[i] };
-}
 window.addEventListener('pointermove', e => {
   const dr = deskDtDrag;
   if (!dr || e.pointerId !== dr.id) return;
@@ -617,7 +612,7 @@ window.addEventListener('pointermove', e => {
   const dy = e.clientY - dr.y;
   if (Math.abs(dy) > 3) dr.moved = true;
   dr.li.style.transform = `translateY(${dy}px)`;
-  const { to, mark } = deskDtDropIndex(dr, e.clientY);
+  const { to, mark } = deskCkDropIndex(dr, e.clientY);
   dr.to = to;
   dr.ul.querySelectorAll('.drop-before, .drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after'));
   if (mark) mark.classList.add('drop-before'); else [...dr.ul.children].filter(x => x !== dr.li).at(-1)?.classList.add('drop-after');
@@ -634,7 +629,7 @@ function deskDtDragEnd(e, cancel) {
   if (!dr || (e && e.pointerId !== dr.id)) return;
   deskDtDrag = null;
   if (cancel || !dr.moved) { deskRender(); return; }
-  if (e) dr.to = deskDtDropIndex(dr, e.clientY).to;
+  if (e) dr.to = deskCkDropIndex(dr, e.clientY).to;
   deskDtMoveSay(dr.meal, dr.to);
 }
 window.addEventListener('pointerup', e => deskDtDragEnd(e, false));
