@@ -182,7 +182,7 @@ jobs:
           HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_v4.py
       # OpenCV relit le QR code affiché (version figée, seulement pour ce test)
-      - name: Photos de bilan sur ordinateur (vague 5 : relier un ordinateur, photos, app iPhone simulée), ${{ matrix.engine }}
+      - name: "Photos de bilan sur ordinateur (vague 5, relier un ordinateur, photos, app iPhone simulée), ${{ matrix.engine }}"
         env:
           PPL_ENGINES: ${{ matrix.engine }}
           HOME: /root
