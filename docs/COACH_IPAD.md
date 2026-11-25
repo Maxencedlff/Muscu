@@ -128,7 +128,10 @@ le test E2E, pas par Chromium).
 
 ## Photos de bilan : rien pour l'instant
 
-Les écrans de photos de coach-web n'existent pas encore (vague 5) : le cadre n'a **aucun** accès aux photos (audit m3).
+Les écrans de photos de coach-web existent (vague 5, docs/PHOTOS_WEB.md), mais le cadre n'a toujours **aucun** accès aux
+photos (audit m3) : sans `MDLF_COACH_HOST.photos`, la page embarquée le sait (`deskPhEmbeddedOff`) et l'onglet Bilans dit
+« Photos : ouvre coach.mdlf.app sur un ordinateur », sans proposer de relier cet « ordinateur » (le cadre isolé n'a ni
+IndexedDB ni clé d'appareil). Testé : tests/unit/photo-link.mjs et `embedded_journey` de tests/test_photos_web.py.
 Le jour venu : une demande par message (`mdlf-coach-photo`), le déverrouillage (Face ID) et le déchiffrement dans l'app
 (`cphCoachUnlock`, `cphCoachFetch`, clé du trousseau, docs/PHOTOS_BILAN.md), puis les octets de l'image transférés au
 cadre (`postMessage` avec transfert d'un `ArrayBuffer`), qui en fait une adresse `blob:` à lui (`img-src blob:` de sa

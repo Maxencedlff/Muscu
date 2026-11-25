@@ -38,6 +38,11 @@ function deskPhHost() {
   } catch { return null; }
 }
 
+// Page embarquée SANS accès aux photos (mode grand écran iPad : cadre isolé, origine opaque, ni IndexedDB, ni clé
+// d'appareil, et l'app ne prête pas encore ses photos au cadre, docs/COACH_IPAD.md) : ni appairage, ni photos ; l'écran
+// renvoie vers coach.mdlf.app sur un ordinateur
+function deskPhEmbeddedOff() { return deskHosted() && !deskPhHost(); }
+
 // ── IndexedDB (une entrée par compte, la clé d'enveloppe non extractible) ──
 
 function deskPhDb() {
@@ -65,7 +70,7 @@ const deskPhValid = e => !!(e && typeof e === 'object' && PLINK_UUID_RE.test(e.c
 
 async function deskPhEntry() {
   const me = desk.user?.id;
-  if (!me) return null;
+  if (!me || deskPhEmbeddedOff()) return null;
   if (ph.entry !== undefined && (ph.entry === null || ph.entry.coach === me)) return ph.entry;
   let e = null;
   try { e = await deskPhTx('readonly', s => s.get(me)); } catch { e = ph.mem; }
@@ -122,6 +127,7 @@ async function deskPhOpen() {
     deskPhArm(); deskPhTouch(); deskPhNotify();
     return { ok: true };
   }
+  if (deskPhEmbeddedOff()) return { ok: false, kind: 'embedded' };
   const me = desk.user?.id, e = await deskPhEntry();
   if (!me || !e) return { ok: false, kind: 'unlinked' };
   const epoch = ph.epoch;
@@ -213,6 +219,7 @@ async function deskPhImage(uid, p) {
 // state : 'waiting' (QR affiché), 'offered' (code de vérification), 'done', 'expired', 'error' (kind)
 async function deskPhPairStart() {
   deskPhPairStop();
+  if (deskPhEmbeddedOff()) return { ok: false, kind: 'embedded' };
   const me = desk.user?.id;
   if (!me) return { ok: false, kind: 'signed_out' };
   let d, pub, secret;
@@ -343,5 +350,6 @@ const DESK_PH_ERRORS = {
   crypto: 'Ce navigateur ne sait pas ouvrir les photos chiffrées. Prends une version récente de Chrome, Edge, Firefox ou Safari.',
   host: 'Les photos n\'ont pas pu s\'ouvrir dans l\'app.',
   canceled: 'Ouverture annulée.',
+  embedded: 'Photos : ouvre coach.mdlf.app sur un ordinateur.',
 };
 function deskPhErrorText(kind) { return DESK_PH_ERRORS[kind] || deskErrorText(kind); }

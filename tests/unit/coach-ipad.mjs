@@ -102,7 +102,10 @@ export default function ({ test, assert, ROOT }) {
     assert.deepEqual(p['script-src'], ["'self'", 'capacitor://localhost'], 'ni Apple JS ni aucun hôte : rien ne vient du site distant');
     for (const k of Object.keys(s)) if (s[k].includes("'self'")) assert.ok(p[k].includes('capacitor://localhost'), `${k} : origine du paquet nommée (cadre isolé sous capacitor://)`);
     assert.ok(s['script-src'].includes('https://appleid.cdn-apple.com'), 'le site garde Apple JS');
-    assert.deepEqual(p['img-src'], [...s['img-src'].flatMap(v => (v === "'self'" ? [v, 'capacitor://localhost'] : [v])), 'blob:']);
+    // blob: (images déchiffrées) : déjà dans la CSP du site depuis les photos sur ordinateur (vague 5), ajouté sinon, jamais deux fois
+    const img = s['img-src'].flatMap(v => (v === "'self'" ? [v, 'capacitor://localhost'] : [v]));
+    assert.deepEqual(p['img-src'], img.includes('blob:') ? img : [...img, 'blob:']);
+    assert.equal(p['img-src'].filter(v => v === 'blob:').length, 1);
     assert.deepEqual(p['frame-src'], ["'none'"]);
     const withApp = v => v.flatMap(x => (x === "'self'" ? [x, 'capacitor://localhost'] : [x]));
     assert.deepEqual(p['connect-src'], withApp(s['connect-src']), 'mêmes connexions que le site (Supabase seulement)');

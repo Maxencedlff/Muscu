@@ -35,6 +35,8 @@ function deskPhColumns(uid, reqs) {
 }
 
 function deskPhBodyHtml(uid, cols, nTotal) {
+  if (deskPhEmbeddedOff()) return `<div class="row ph-intro">${deskIcon('photo', 'sm')}<span class="grow">${esc(plural(nTotal, 'photo envoyée', 'photos envoyées'))}
+      <span class="t2 blk">Photos : ouvre coach.mdlf.app sur un ordinateur.</span></span></div>`;
   const host = deskPhHost();
   if (!host && ph.entry === undefined) return '<div class="row"><span class="grow muted">Chargement…</span></div>';
   if (!host && !ph.entry) return `<div class="row ph-intro">${deskIcon('photo', 'sm')}<span class="grow">${esc(plural(nTotal, 'photo envoyée', 'photos envoyées'))}
@@ -69,7 +71,7 @@ function deskPhSectionHtml(uid, cur, prev) {
   const cols = deskPhColumns(uid, [cur, prev]);
   deskPhShown = { uid, cols };
   if (ph.session) { deskPhWant = { uid, photos: cols.flatMap(c => Object.values(c.byPose)) }; queueMicrotask(deskPhWork); }
-  if (!deskPhHost() && ph.entry === undefined) deskPhEntry().then(() => deskPhNotify());
+  if (!deskPhHost() && !deskPhEmbeddedOff() && ph.entry === undefined) deskPhEntry().then(() => deskPhNotify());
   const foot = ph.session ? `<div class="gfoot ph-foot"><span class="grow">Touche une photo pour l'agrandir. Déchiffrées sur cet ordinateur, jamais enregistrées ; une capture d'écran reste possible.</span>
       <button type="button" class="btn link" data-ph="hide">Masquer les photos</button></div>` : '';
   return `<section class="gblock ph-sec" aria-labelledby="h-ph"><h2 class="gh" id="h-ph">Photos</h2><div class="group pad-s">${deskPhBodyHtml(uid, cols, nTotal)}</div>${foot}</section>`;
@@ -138,7 +140,7 @@ function deskPhPairPaint() {
   deskAnnounce(dlg.querySelector('.dlg-t')?.textContent || '');
 }
 function deskPhPairOpen() {
-  if (deskPhHost() || deskPhNeedsCleanPage('link')) return;
+  if (deskPhHost() || deskPhEmbeddedOff() || deskPhNeedsCleanPage('link')) return;
   deskPhPairDlg?.close();
   const dlg = document.createElement('dialog');
   dlg.className = 'confirm phl';
@@ -252,7 +254,7 @@ function deskPhZoomOpen(uid, cols, pose) {
 // ── Réglages ────────────────────────────────────────────────
 
 function deskPhSettingsHtml() {
-  if (deskPhHost()) return '';
+  if (deskPhHost() || deskPhEmbeddedOff()) return '';
   if (ph.entry === undefined) deskPhEntry().then(() => deskPhNotify());
   const e = ph.entry;
   return `<section class="narrow gap-t" aria-labelledby="h-ph-set"><h2 class="gh" id="h-ph-set">Photos de bilan sur cet ordinateur</h2><div class="group">

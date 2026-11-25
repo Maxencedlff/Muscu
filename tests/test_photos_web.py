@@ -375,6 +375,26 @@ def google_journey(browser, url, engine):
         ctx.close()
 
 
+def embedded_journey(browser, url, engine):
+    """Page embarquée dans l'app (mode grand écran iPad, faux hôte SANS photos) : renvoi vers un ordinateur, ni
+    « Relier », ni « Afficher », rien dans Réglages, aucune requête d'appairage."""
+    ctx, page = open_desk(browser, url, width=1180, height=820, touch=True, login=False, checkins=True, host=True, pre=FAKE_PHOTO_LINK + PHOTOS_SEED)
+    try:
+        until(page, 'window.__phReady')
+        page.wait_for_selector('.lst a.row', timeout=30000)
+        go_bilans(page)
+        sec = page.locator('.ph-sec').inner_text()
+        check('Photos : ouvre coach.mdlf.app sur un ordinateur.' in sec, f'{engine} iPad : renvoi vers un ordinateur ({sec!r})')
+        check(page.locator('.ph-sec [data-ph]').count() == 0 and page.locator('.ph-sec img').count() == 0, f'{engine} iPad : ni bouton, ni image')
+        page.evaluate("location.hash = '#/reglages'")
+        page.wait_for_selector('h1.title')
+        check(page.locator('[data-ph]').count() == 0, f'{engine} iPad : rien des photos dans Réglages')
+        check(page.evaluate("__sb.calls.filter(c => String(c[1]).startsWith('coach_photo_pair') || c[1] === 'coach_photo_device_key').length") == 0, f'{engine} iPad : aucune requête d\'appairage')
+        check(not page.errors, f'{engine} iPad : erreurs {page.errors}')
+    finally:
+        ctx.close()
+
+
 def web_attacks(browser, url, engine):
     """Serveur compromis, clé changée, oublier, déconnexion, serveur d'avant (un moteur à la fois, 1440 px)."""
     ctx, page = open_desk(browser, url, width=1440, checkins=True, pre=FAKE_PHOTO_LINK + PHOTOS_SEED)
@@ -610,7 +630,7 @@ def main():
         for engine in ENGINES:
             browser = launch(pw, engine)
             try:
-                for fn in [google_journey, third_party_reload, web_journey, web_attacks] + ([] if os.environ.get('PPL_NO_APP') or engine == 'firefox' else [app_journey]):
+                for fn in [embedded_journey, google_journey, third_party_reload, web_journey, web_attacks] + ([] if os.environ.get('PPL_NO_APP') or engine == 'firefox' else [app_journey]):
                     fn(browser, url, engine)
                     print(f'OK : {fn.__name__} {engine}', flush=True)
             except Exception:

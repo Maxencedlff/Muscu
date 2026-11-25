@@ -201,6 +201,33 @@ export default function ({ test, app, assert, ROOT }) {
     for (const k of ['already_used', 'not_found', 'too_many', 'rate_limited', 'disabled', 'key_changed']) assert.ok(app.plinkErrorText(k === 'already_used' ? 'used' : k === 'not_found' ? 'expired' : k), k);
   });
 
+  test('photos sur ordinateur : page embarquée dans l\'app iPad sans accès aux photos (cadre isolé) : renvoi vers un ordinateur, jamais d\'appairage', async () => {
+    const html = fs.readFileSync(path.join(ROOT, 'coach-web/index.html'), 'utf8');
+    const files = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => path.normalize(path.join('coach-web', m[1])));
+    // Cadre isolé : IndexedDB et sessionStorage refusés (origine opaque), hôte sans « photos »
+    const deny = { get() { throw new Error('SecurityError'); } };
+    const sb = { console, setTimeout, clearTimeout, setInterval, clearInterval, Intl, atob, btoa, TextEncoder, TextDecoder, crypto: globalThis.crypto, queueMicrotask,
+      navigator: { userAgent: 'iPad' }, addEventListener() {}, document: { querySelector: () => null, getElementById: () => null, addEventListener() {} },
+      MDLF_COACH_HOST: { session: { access_token: 'a.b.c', refresh_token: 'r' }, exit() {} } };
+    Object.defineProperty(sb, 'indexedDB', deny); Object.defineProperty(sb, 'sessionStorage', deny); Object.defineProperty(sb, 'localStorage', deny);
+    sb.window = sb;
+    const c = vm.createContext(sb);
+    for (const f of files.filter(f => !f.endsWith('main.js'))) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), c, { filename: f });
+    const r = code => vm.runInContext(code, c);
+    assert.equal(r('deskHosted() && deskPhEmbeddedOff()'), true);
+    r(`desk.user = { id: '${COACH}' }`);
+    const id = '0d9c3f0e-6a52-4bfb-9a51-6b1f6d9e2a10';
+    const req = `{ items: [{ key: 'photos', type: 'photo' }], answers: { photos: { ids: ['${id}'] } } }`;
+    const h = r(`deskPhSectionHtml('${OTHER}', { req: ${req}, title: 'Semaine 47' }, null)`);
+    assert.match(h, /1 photo envoyée/);
+    assert.match(h, /Photos : ouvre coach\.mdlf\.app sur un ordinateur\./);
+    assert.doesNotMatch(h, /data-ph="(link|show)"|<img /, 'ni « Relier », ni « Afficher », ni image');
+    assert.equal(r('deskPhSettingsHtml()'), '', 'rien dans Réglages');
+    assert.equal(JSON.stringify(await r('deskPhPairStart()')), JSON.stringify({ ok: false, kind: 'embedded' }), 'aucun appairage lancé');
+    assert.equal(JSON.stringify(await r('deskPhOpen()')), JSON.stringify({ ok: false, kind: 'embedded' }));
+    assert.equal(await r('deskPhEntry()'), null, 'IndexedDB jamais touchée');
+  });
+
   // ── QR code (coach-web/js/desk/qr.js) ──
   const qctx = vm.createContext({ TextEncoder, esc: s => String(s) });
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'coach-web/js/desk/qr.js'), 'utf8'), qctx);
