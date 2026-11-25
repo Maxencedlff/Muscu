@@ -525,7 +525,7 @@ async function ckHealthOffer() {
   const who = coachName() || myCoachWord('ton');
   const ok = await dialog({ type: 'sheet', title: 'Accord pour tes bilans',
     // Texte de la version CK_HEALTH_VERSION : le changer, c'est passer à la version suivante (serveur compris)
-    message: `J'accepte d'envoyer à ${who} mes réponses de bilan (données de santé). Tes réponses (sommeil, stress, douleurs, poids…) sont des données de santé : ${who} les voit dès que tu envoies un bilan, et personne d'autre. Tu peux retirer ton accord dans ${myCoachWord('Mon')} : plus rien ne part ensuite.`,
+    message: `Tu acceptes d'envoyer à ${who} tes réponses de bilan (données de santé) : sommeil, stress, douleurs, poids… Seul ${who} les voit, dès que tu envoies un bilan ; elles sont hébergées chez Supabase (Union européenne). Tu peux retirer ton accord dans ${myCoachWord('Mon')} : plus rien ne part ensuite.`,
     actions: [{ label: 'J\'accepte', value: true, style: 'preferred' }, { label: 'Annuler', style: 'cancel' }] });
   if (ok !== true) return false;
   const r = await checkinHealthSet(true);
@@ -534,7 +534,7 @@ async function ckHealthOffer() {
 }
 async function ckHealthWithdraw() {
   const who = coachName() || myCoachWord('ton');
-  if (!(await confirmSheet('Retirer ton accord ?', `Tes prochains bilans ne partiront plus chez ${who}. Ceux déjà envoyés restent chez ${who} jusqu'à la fin du suivi.`, 'Retirer mon accord'))) return;
+  if (!(await confirmSheet('Retirer ton accord ?', `Tes prochains bilans ne partiront plus chez ${who}. Ceux déjà envoyés restent chez ${who} jusqu'à la fin du suivi, et au plus 24 mois : ils sont ensuite effacés automatiquement.`, 'Retirer mon accord'))) return;
   const r = await checkinHealthSet(false);
   showToast(r.ok ? 'Accord retiré' : ckErrorText(r.kind), r.ok ? undefined : { error: true });
   if (['checkin', 'coach-mine'].includes(currentView())) render();

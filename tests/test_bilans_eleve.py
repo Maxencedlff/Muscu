@@ -408,7 +408,7 @@ def t_majeur_accord(bench, eng, dev, theme):
         page.click('.ck-view button.ck-send')
         page.wait_for_selector('.ios-dialog')
         txt = page.inner_text('.ios-dialog')
-        R.check("J'accepte d'envoyer à alex mes réponses de bilan (données de santé)." in txt and 'retirer' in txt, f'{t} texte de l\'accord ({txt!r})')
+        R.check("Tu acceptes d'envoyer à alex tes réponses de bilan (données de santé)" in txt and 'Supabase' in txt and 'retirer' in txt, f'{t} texte de l\'accord ({txt!r})')
         layout(page, t, 'Accord des bilans', '.ios-dialog')
         capture(page, f'accord-bilans-{t}', full=False)
         tap_dialog(page, 'Annuler')

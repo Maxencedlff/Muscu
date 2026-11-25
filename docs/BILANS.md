@@ -267,8 +267,8 @@ sont effacées avec les données de l'appareil (`accountForgetDevice`).
 
 ### Accord daté et questions réservées aux 18 ans (`20261127030000_bilans_accord_majeur.sql`, PAS appliquée)
 
-- **Accord daté** (RGPD art. 9.2.a) : au premier envoi, une feuille « Accord pour tes bilans » : « J'accepte d'envoyer
-  à <coach> mes réponses de bilan (données de santé) », « J'accepte » ou « Annuler » (rien ne part).
+- **Accord daté** (RGPD art. 9.2.a) : au premier envoi, une feuille « Accord pour tes bilans » : « Tu acceptes d'envoyer
+  à <coach> tes réponses de bilan (données de santé) », hébergées chez Supabase (UE), « J'accepte » ou « Annuler » (rien ne part).
   `student_checkin_consent(accept, version)` garde la date et la version du texte (`CK_HEALTH_VERSION`, côté serveur
   `private.checkin_health_version()`, 1) dans `checkin_health_consents`, pour le coach actuel (effacé avec le lien).
   `student_checkin_answer` refuse sans lui (`no_health_consent`). Mon coach : « Accord pour mes bilans », donné le…,

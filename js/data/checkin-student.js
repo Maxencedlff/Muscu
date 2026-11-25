@@ -16,8 +16,8 @@
 //    CROSS_USER_CACHE_KEYS de js/data/account.js : rien ne reste en clair sur un iPhone partagé).
 //  - Cycle menstruel : jamais proposé si la tranche d'âge d'Apple est connue et autre que « 18 ans ou plus »
 //    (currentAgeBand, js/data/age-range.js) ; ailleurs, accord explicite (student_checkin_cycle) et retrait.
-//  - Accord daté (20261127030000_bilans_accord_majeur.sql) : avant le premier envoi, « J'accepte d'envoyer à mon coach
-//    mes réponses de bilan (données de santé) » (student_checkin_consent, version CK_HEALTH_VERSION du texte) ; sans
+//  - Accord daté (20261127030000_bilans_accord_majeur.sql) : avant le premier envoi, « Tu acceptes d'envoyer à ton coach
+//    tes réponses de bilan (données de santé) » (student_checkin_consent, version CK_HEALTH_VERSION du texte) ; sans
 //    lui, aucun envoi ; retrait possible dans Mon coach. Serveur d'avant (health absent) : rien n'est demandé.
 //  - Libido et cycle réservés aux 18 ans et plus : le serveur ne les rend qu'après la déclaration (student_photo_adult,
 //    celle des photos de bilan ; adult_asked : un bilan ouvert en contient) ; jamais proposés si la tranche d'âge
@@ -415,7 +415,7 @@ async function checkinCycleSet(accept, adult = false) {
 
 // ── Accord daté pour les bilans, déclaration des 18 ans ─────
 
-// accept : « J'accepte d'envoyer à <coach> mes réponses de bilan » (texte de ckHealthOffer, version CK_HEALTH_VERSION) ;
+// accept : « Tu acceptes d'envoyer à <coach> tes réponses de bilan » (texte de ckHealthOffer, version CK_HEALTH_VERSION) ;
 // false : retrait (plus aucun envoi ; les bilans déjà envoyés restent chez le coach). → { ok } ou { ok: false, kind }
 async function checkinHealthSet(accept) {
   const r = await ckRpc('student_checkin_consent', { accept: !!accept, version: CK_HEALTH_VERSION });

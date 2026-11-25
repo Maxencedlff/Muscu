@@ -697,7 +697,7 @@ async function blockCoachFlow(uid, key) {
   const name = blockCoachName(uid, key);
   const choice = await dialog({ type: 'sheet', title: `Bloquer ${name} ?`,
     message: `Bloquer efface votre conversation et coupe le suivi. Programmes, bilans et partages avec ${name} sont retirés. Pour garder une trace d'un problème, signale d'abord : les derniers messages sont joints au signalement. Personne n'est averti.`,
-    actions: [{ label: 'Signaler d\'abord', value: 'report', style: 'destructive' }, { label: 'Bloquer', value: 'block', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
+    actions: [{ label: 'Signaler d\'abord', value: 'report' }, { label: 'Bloquer', value: 'block', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
   if (choice === 'report') {
     const reason = await dialog({ type: 'sheet', title: `Signaler ${name}`,
       message: `Pourquoi ? ${name} ne saura pas que c'est toi. Les 50 derniers messages sont joints pour l'équipe de modération, puis ${name} est bloqué.`,
