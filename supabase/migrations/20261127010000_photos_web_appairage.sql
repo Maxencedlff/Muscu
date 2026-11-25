@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
---  Photos de bilan sur ordinateur : « Relier cet ordinateur » (27/11/2026, vague 5 de l'appli web du coach).
+--  Photos de bilan sur ordinateur : « Relier cet ordinateur » (25/11/2026, vague 5 de l'appli web du coach).
 --  Protocole, modèle de menace et décisions : docs/PHOTOS_WEB.md ; protocole en code : js/data/photo-link.js.
 --
 --  Le serveur ne fait que RELAYER, sans pouvoir lire : la clé privée des photos du coach n'y passe que chiffrée pour
@@ -19,7 +19,8 @@
 --  Accès : tables en RLS sans politique, aucun GRANT ; RPC security definer, search_path vide, utilisateur pris dans
 --  auth.uid(), coach validé (private.is_coach), photos allumées (private.coach_photos_on). Une ligne d'un autre coach
 --  répond exactement comme une ligne absente (not_found) : rien à deviner. anon n'exécute rien.
---  Bornes : 10 appairages commencés par heure, 600 ouvertures par heure, 5 ordinateurs.
+--  Bornes : 10 appairages commencés par heure, 30 lectures du téléphone et 200 relectures du navigateur par 10 minutes,
+--  600 ouvertures par heure, 5 ordinateurs.
 --
 --  Dépend de 20261107000000_photos_bilan.sql (en production). Réversible :
 --  supabase/rollback/20261127010000_photos_web_appairage_down.sql. Tests : tests/sql/photos_web_appairage_test.sql.
@@ -55,6 +56,7 @@ create table public.coach_photo_devices (
   expires_at   timestamptz not null default now() + interval '90 days'
 );
 create index coach_photo_devices_coach on public.coach_photo_devices (coach_id);
+create index coach_photo_devices_expiry on public.coach_photo_devices (expires_at, last_used_at);
 alter table public.coach_photo_devices add foreign key (coach_id) references auth.users(id) on delete cascade;
 
 -- Clé du coach effacée (remplacée, republiée, compte supprimé) : les ordinateurs qui l'avaient perdent tout
@@ -88,13 +90,13 @@ begin
 end
 $$;
 
--- Ménage : appairages finis depuis plus d'une heure (tous), ordinateurs expirés de ce coach
+-- Ménage : appairages finis depuis plus d'une heure, ordinateurs expirés, de TOUS les coachs (un coach qui ne revient
+-- plus ne garde pas d'enveloppes pour rien : minimisation, RGPD 5.1.c). me : gardé pour l'appel, l'index suffit.
 create function private.coach_photo_link_purge(me uuid) returns void
   language sql security definer set search_path = '' as
 $$
   delete from public.coach_photo_pairings p where p.expires_at < now() - interval '1 hour';
-  delete from public.coach_photo_devices d
-    where d.coach_id = me and (d.expires_at <= now() or d.last_used_at <= now() - interval '30 days');
+  delete from public.coach_photo_devices d where d.expires_at <= now() or d.last_used_at <= now() - interval '30 days';
 $$;
 
 -- Nom de l'appareil : texte simple (marques de direction retirées, caractères de contrôle changés en espaces), 60 au plus, « Ordinateur » à défaut
@@ -133,15 +135,17 @@ end
 $$;
 
 -- Téléphone : ce que dit le serveur de l'appairage lu dans le QR (le téléphone vérifie que device_pub est bien
--- celle du QR). Pas le mien, inconnu ou expiré : not_found. → { device_pub, label, state, expires_at }
+-- celle du QR). Pas le mien, inconnu ou expiré : not_found. 30 lectures du téléphone (peek + offer) par 10 minutes.
+-- → { device_pub, label, state, created_at, expires_at } (created_at : l'heure de la demande, montrée sur l'iPhone)
 create function public.coach_photo_pair_peek(pair uuid) returns jsonb
-  language plpgsql stable security definer set search_path = '' as
+  language plpgsql security definer set search_path = '' as
 $$
 declare me uuid := private.coach_photo_link_me(); p public.coach_photo_pairings%rowtype;
 begin
+  perform private.rate_limit_window(me, 'coach_photo_pair_phone', 30, interval '10 minutes');
   select * into p from public.coach_photo_pairings x where x.id = pair and x.coach_id = me and x.expires_at > now();
   if p.id is null then raise exception 'not_found' using errcode = 'P0001'; end if;
-  return jsonb_build_object('device_pub', p.device_pub, 'label', p.label, 'state', p.state, 'expires_at', p.expires_at);
+  return jsonb_build_object('device_pub', p.device_pub, 'label', p.label, 'state', p.state, 'created_at', p.created_at, 'expires_at', p.expires_at);
 end
 $$;
 
@@ -153,6 +157,7 @@ $$
 declare me uuid := private.coach_photo_link_me(); p public.coach_photo_pairings%rowtype;
 begin
   if epk is null or epk !~ '^B[A-P][A-Za-z0-9+/]{84}[AEIMQUYcgkosw048]=$' then raise exception 'invalid_device' using errcode = 'P0001'; end if;
+  perform private.rate_limit_window(me, 'coach_photo_pair_phone', 30, interval '10 minutes');
   select * into p from public.coach_photo_pairings x where x.id = pair and x.coach_id = me and x.expires_at > now() for update;
   if p.id is null or p.verifier is distinct from coach_photo_pair_offer.verifier then raise exception 'not_found' using errcode = 'P0001'; end if;
   if p.state <> 'waiting' then raise exception 'already_used' using errcode = 'P0001'; end if;
@@ -191,12 +196,14 @@ begin
 end
 $$;
 
--- Navigateur : où en est l'appairage. → { state, epk (offered, done), device (done) } ; not_found sinon.
+-- Navigateur : où en est l'appairage (relu toutes les 1,5 s : 200 lectures par 10 minutes, deux appairages).
+-- → { state, epk (offered, done), device (done) } ; not_found sinon.
 create function public.coach_photo_pair_status(pair uuid) returns jsonb
-  language plpgsql stable security definer set search_path = '' as
+  language plpgsql security definer set search_path = '' as
 $$
 declare me uuid := private.coach_photo_link_me(); p public.coach_photo_pairings%rowtype;
 begin
+  perform private.rate_limit_window(me, 'coach_photo_pair_poll', 200, interval '10 minutes');
   select * into p from public.coach_photo_pairings x where x.id = pair and x.coach_id = me and x.expires_at > now();
   if p.id is null then raise exception 'not_found' using errcode = 'P0001'; end if;
   return jsonb_build_object('state', p.state, 'epk', p.epk, 'device', p.device_id);

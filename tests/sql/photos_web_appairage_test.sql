@@ -85,6 +85,7 @@ begin
   r := public.coach_photo_pair_peek(pair);
   if r ->> 'device_pub' <> pg_temp.qpk() or r ->> 'state' <> 'waiting' or r ->> 'label' <> 'Chrome sur Windows' then raise 'peek : %', r; end if;
   if r ? 'verifier' then raise 'peek ne doit pas rendre la preuve'; end if;
+  if (r ->> 'created_at')::timestamptz not between now() - interval '1 minute' and now() then raise 'peek : heure de la demande %', r; end if;
   perform pg_temp.qlogin('l');
   if pg_temp.qerr(format('select public.coach_photo_pair_peek(%L)', pair)) <> 'not_found' then raise 'autre coach : peek'; end if;
   if pg_temp.qerr(format('select public.coach_photo_pair_status(%L)', pair)) <> 'not_found' then raise 'autre coach : status'; end if;
@@ -188,6 +189,29 @@ do $$ begin
   if pg_temp.qerr(format('select public.coach_photo_pair_start(%L, %L, %L)', pg_temp.qpk(), pg_temp.qver(), 'Essai')) <> 'rate_limited' then raise '11e appairage dans l''heure accepté'; end if;
 end $$;
 reset role;
+
+-- ── Téléphone : 30 lectures par 10 minutes (N a encore son dernier appairage) ──
+create temp table qn as select id from public.coach_photo_pairings where coach_id = pg_temp.qu('n');
+grant select on qn to authenticated;
+set role authenticated;
+do $$
+declare pair uuid := (select id from qn);
+begin
+  perform pg_temp.qlogin('n');
+  for i in 1..30 loop perform public.coach_photo_pair_peek(pair); end loop;
+  if pg_temp.qerr(format('select public.coach_photo_pair_peek(%L)', pair)) <> 'rate_limited' then raise '31e lecture du téléphone acceptée'; end if;
+end $$;
+reset role;
+drop table qn;
+
+-- ── Purge : les ordinateurs expirés de TOUS les coachs (pas seulement de celui qui appelle) ──
+insert into public.coach_photo_devices (id, coach_id, key_id, label, wrapped, iv, last_used_at)
+  values ('00000000-0000-4000-8000-00000007c905', pg_temp.qu('n'), pg_temp.qkid('n'), 'Oublié', repeat('A', 80), repeat('A', 16), now() - interval '40 days');
+set role authenticated;
+select pg_temp.qlogin('l');
+select public.coach_photo_devices();
+reset role;
+do $$ begin if exists (select 1 from public.coach_photo_devices where id = '00000000-0000-4000-8000-00000007c905') then raise 'ordinateur expiré d''un autre coach gardé'; end if; end $$;
 
 -- ── 30 jours sans usage, 90 jours au plus ────────────────
 update public.coach_photo_devices set last_used_at = now() - interval '31 days' where id = (select v::uuid from qt where k = 'pair');

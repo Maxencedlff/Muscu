@@ -397,8 +397,6 @@ table.wk .wn { font-weight: 600; }
 .rv-bar .sel { flex: 0 1 280px; min-width: 0; }
 .rv-bar .sel select { width: 100%; background: var(--cell); }
 .cols.rvc { grid-template-columns: minmax(0, 1fr) 340px; }
-.rv-ph { margin-bottom: 16px; }
-.rv-ph .row { align-items: flex-start; }
 .rv-figs .stat { flex: 1 1 130px; }
 .rv-a { align-items: baseline; flex-wrap: wrap; }
 .rv-l { flex: 0 0 150px; color: var(--label2); }

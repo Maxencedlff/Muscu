@@ -135,6 +135,22 @@ async function plinkUnwrap(wrapKey, { wrapped, iv }, { device, coach, keyId, coa
   } catch { return null; }
 }
 
+// Navigateur : la clé privée rouverte (non extractible) est-elle bien celle de coachPub ? Sans rien exporter : une paire
+// éphémère T, deux secrets ECDH qui doivent être égaux (priv × T.pub et T.priv × coachPub). Un appairage terminé par un
+// tiers avec SA clé (QR et session volés) est ainsi refusé au lieu de laisser des photos illisibles.
+async function plinkKeyMatches(priv, coachPub) {
+  try {
+    const t = await crypto.subtle.generateKey(PLINK_P256, false, ['deriveBits']);
+    const pub = await crypto.subtle.importKey('raw', Uint8Array.from(atob(coachPub), ch => ch.charCodeAt(0)), PLINK_P256, false, []);
+    const a = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: t.publicKey }, priv, 256));
+    const b = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: pub }, t.privateKey, 256));
+    let diff = a.length ^ b.length;
+    for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+    a.fill(0); b.fill(0);
+    return diff === 0;
+  } catch { return false; }
+}
+
 // ── Nettoyage de ce que rend le serveur ─────────────────────
 
 const plinkTime = v => { const t = Date.parse(v || ''); return Number.isFinite(t) ? t : null; };
@@ -155,7 +171,7 @@ function plinkLabel(ua) {
 function cleanPlinkPeek(raw) {
   const r = raw && typeof raw === 'object' ? raw : null;
   if (!r || !PLINK_PUB_RE.test(r.device_pub || '') || !['waiting', 'offered', 'done'].includes(r.state)) return null;
-  return { devicePub: r.device_pub, label: plinkLabelClean(r.label), state: r.state, expiresAt: plinkTime(r.expires_at) };
+  return { devicePub: r.device_pub, label: plinkLabelClean(r.label), state: r.state, expiresAt: plinkTime(r.expires_at), createdAt: plinkTime(r.created_at) };
 }
 // coach_photo_pair_status → { state: 'waiting' | 'offered' | 'done', epk?, device? } (navigateur)
 function cleanPlinkStatus(raw) {

@@ -188,7 +188,7 @@ def apple_journeys(browser, url, engine):
     check(btn['y'] < form['y'], 'Apple : bouton au-dessus de l\'e-mail')
     check(btn['height'] >= 44, 'Apple : bouton de 44 px au moins')
     check(page.locator('#apple-signin').inner_text().strip() == 'Se connecter avec Apple', 'Apple : libellé')
-    check('Choisis « Se connecter avec Apple »' in page.inner_text('.login-card'), 'Apple : texte sous le formulaire')
+    check('Choisis le même bouton que dans' in page.inner_text('.login-card'), 'Apple : texte sous le formulaire')
     give_coach_apple(page)
     init = page.evaluate('window.__appleInit')
     origin = url.split('/coach-web/')[0]

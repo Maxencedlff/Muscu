@@ -65,7 +65,7 @@ async function plinkPhoneStart(text) {
     q.secret.fill(0);
     let done = false;
     const link = {
-      pair: q.pair, label: pk.label, sas, keyId: key.key_id,
+      pair: q.pair, label: pk.label, sas, keyId: key.key_id, askedAt: pk.createdAt,
       // Étape 2 : le coach a vu le même code sur l'ordinateur et touche « Relier » : Face ID, clé chiffrée, envoyée
       async finish() {
         if (done) return { ok: false, kind: 'used' };
@@ -92,9 +92,10 @@ async function plinkPhoneFinish(ctx, wrapKey, key) {
   if (!pkcs8) { await coachRpc('coach_photo_pair_cancel', { pair: ctx.pair }); return { ok: false, mismatch: true }; }
   let sealed;
   try { sealed = await plinkWrap(wrapKey, pkcs8, { device: ctx.pair, coach: me, keyId: key.key_id, coachPub: key.public_key }); }
-  catch { return { ok: false, kind: 'server' }; }
+  catch { await coachRpc('coach_photo_pair_cancel', { pair: ctx.pair }); return { ok: false, kind: 'server' }; }
   finally { pkcs8.fill(0); }
   const r = await coachRpc('coach_photo_pair_complete', { pair: ctx.pair, key_id: key.key_id, wrapped: sealed.wrapped, iv: sealed.iv });
+  if (!r.ok) await coachRpc('coach_photo_pair_cancel', { pair: ctx.pair });   // l'ordinateur ne reste pas à attendre
   if (!r.ok) return { ok: false, kind: r.kind === 'not_found' ? 'expired' : r.kind === 'already_used' ? 'used' : r.kind };
   cphTouchedIds.add(key.key_id);
   await plinkDevicesRefresh();

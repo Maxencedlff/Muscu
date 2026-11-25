@@ -34,13 +34,13 @@ FAKE_PHOTO_LINK = r"""
       if (pl.devices.filter(d => d.coach === me).length >= 5) return err('too_many');
       pl.pairs = pl.pairs.filter(p => p.coach !== me);
       const p = { id: crypto.randomUUID(), coach: me, device_pub: a.device_pub, verifier: a.verifier, label: String(a.label || 'Ordinateur').slice(0, 60),
-        state: 'waiting', epk: null, device: null, expires: Date.now() + 120e3 };
+        state: 'waiting', epk: null, device: null, created: Date.now(), expires: Date.now() + 120e3 };
       pl.pairs.push(p);
       return { pair: p.id, expires_at: iso(p.expires) };
     },
     coach_photo_pair_peek: (me, { pair }) => {
       const p = pl.pairs.find(x => x.id === pair && x.coach === me && live(x));
-      return p ? { device_pub: pl.evil.peekPub || p.device_pub, label: p.label, state: p.state, expires_at: iso(p.expires) } : err('not_found');
+      return p ? { device_pub: pl.evil.peekPub || p.device_pub, label: p.label, state: p.state, created_at: iso(p.created || Date.now()), expires_at: iso(p.expires) } : err('not_found');
     },
     coach_photo_pair_offer: (me, { pair, verifier, epk }) => {
       if (!PUB.test(epk || '')) return err('invalid_device');

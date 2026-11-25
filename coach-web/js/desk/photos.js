@@ -41,7 +41,7 @@ function deskPhBodyHtml(uid, cols, nTotal) {
       <span class="t2 blk">Chiffrées de bout en bout : pour les voir ici, relie une fois cet ordinateur à ton iPhone (QR code, 30 secondes).</span></span>
       <button type="button" class="btn tint" data-ph="link">Relier cet ordinateur</button></div>`;
   if (!ph.session) return `<div class="row ph-intro">${deskIcon('photo', 'sm')}<span class="grow">${esc(plural(nTotal, 'photo envoyée', 'photos envoyées'))}
-      <span class="t2 blk">${ph.error ? esc(deskPhErrorText(ph.error)) : ph.lockReason === 'idle' ? 'Masquées après 5 minutes sans activité.' : 'Elles ne s\'affichent pas d\'elles-mêmes : un écran d\'ordinateur se voit de loin.'}</span></span>
+      <span class="t2 blk">${ph.error ? esc(deskPhErrorText(ph.error)) : ph.lockReason === 'idle' ? 'Masquées après 5 minutes sans activité.' : ph.lockReason === 'max' ? 'Masquées après 15 minutes : affiche-les de nouveau.' : 'Elles ne s\'affichent pas d\'elles-mêmes : un écran d\'ordinateur se voit de loin.'}</span></span>
       <button type="button" class="btn tint" data-ph="show" ${ph.opening ? 'disabled aria-busy="true"' : ''}>Afficher les photos</button></div>`;
   const st = ph.students[uid];
   if (!st) return '<div class="row"><span class="grow muted">Ouverture des photos…</span></div>';
@@ -53,7 +53,7 @@ function deskPhBodyHtml(uid, cols, nTotal) {
     if (!p) return `<div class="ph-cell none"><span class="faint">${c.n ? 'Pas de photo' : 'Aucune photo dans ce bilan'}</span></div>`;
     const url = ph.urls.get(p.id);
     const label = `${photoPoseLabel(k)}, ${c.title}`;
-    return url ? `<button type="button" class="ph-cell" data-ph="zoom" data-pose="${k}" aria-label="${esc(label)} : agrandir"><img src="${esc(url)}" alt="${esc(label)}" draggable="false"></button>`
+    return url ? `<button type="button" class="ph-cell" id="ph-z-${k}-${cols.indexOf(c)}" data-ph="zoom" data-pose="${k}" aria-label="${esc(label)} : agrandir"><img src="${esc(url)}" alt="${esc(label)}" draggable="false"></button>`
       : `<div class="ph-cell none" role="status"><span class="faint">Déchiffrement…</span></div>`;
   };
   return `<div class="ph-grid c${cols.length}" role="table" aria-label="Photos, ${esc(cols.map(c => c.title).join(' face à '))}">
@@ -118,7 +118,7 @@ function deskPhPairHtml() {
   if (p.state === 'done') return `<h2 class="dlg-t" id="phl-t">Cet ordinateur est relié</h2>
     <p class="dlg-p">${p.persisted === false ? 'Ce navigateur ne garde pas la clé (navigation privée) : il faudra le relier de nouveau à la prochaine ouverture.' : 'Tu verras les photos de tes élèves dans l\'onglet Bilans de leur fiche.'}</p>
     <div class="dlg-f"><button type="button" class="btn tint" data-phl="close">Voir les photos</button></div>`;
-  const why = p.state === 'expired' ? 'Le code a expiré.' : deskPhErrorText(p.kind);
+  const why = p.state === 'expired' ? 'Le code a expiré ou a été annulé sur l\'iPhone.' : deskPhErrorText(p.kind);
   return `<h2 class="dlg-t" id="phl-t">Pas relié</h2><p class="dlg-p" role="alert">${esc(why)}</p>
     <div class="dlg-f"><button type="button" class="btn" data-phl="close">Fermer</button><button type="button" class="btn tint" data-phl="start">Nouveau code</button></div>`;
 }
@@ -243,7 +243,7 @@ function deskPhZoomOpen(uid, cols, pose) {
   d.addEventListener('pointermove', e => { if (pz.drag && e.pointerId === pz.drag.id) { pz.tx = e.clientX - pz.drag.x; pz.ty = e.clientY - pz.drag.y; deskPhZoomApply(); } });
   ['pointerup', 'pointercancel'].forEach(t => d.addEventListener(t, () => { pz.drag = null; }));
   d.addEventListener('contextmenu', e => { if (e.target.closest('.phz-view')) e.preventDefault(); });
-  d.addEventListener('close', () => { d.remove(); if (pz.dlg === d) pz.dlg = null; document.querySelector(`[data-ph="zoom"][data-pose="${pose}"]`)?.focus(); });
+  d.addEventListener('close', () => { d.remove(); if (pz.dlg === d) pz.dlg = null; document.querySelector(`[data-ph="zoom"][data-pose="${pz.pose}"]`)?.focus(); });
   deskPhZoomPaint();
   d.showModal();
   d.querySelector('[data-pz="close"]')?.focus();

@@ -99,7 +99,7 @@ function deskLoginHtml() {
 }
 // Apple puis Google, puis « ou » et l'e-mail (chaque bouton disparaît si son script n'a pas pu se charger)
 function deskLoginButtonsHtml(busy) {
-  const apple = deskAppleButtonHtml(busy).replace(/<div class="or"[\s\S]*$/, '');
+  const apple = deskAppleButtonHtml(busy, { separator: false });
   return `${apple}${deskGoogleButtonHtml(busy)}<div class="or" role="separator" aria-label="ou"><span aria-hidden="true">ou</span></div>`;
 }
 function deskNotCoachHtml() {

@@ -20,6 +20,7 @@
 const DESK_PH_DB = 'mdlf-coach-web';
 const DESK_PH_STORE = 'link';
 const DESK_PH_IDLE_MS = 5 * 60_000;
+const DESK_PH_MAX_MS = 15 * 60_000;                // durée maximale d'une ouverture, même avec des gestes
 const DESK_PH_RESUME = 'mdlf_coach_web_resume';   // sessionStorage : action reprise après le rechargement
 
 // entry : undefined (pas lue), null (pas relié), { coach, device, wrapKey, keyId, coachPub, label, linkedAt } ;
@@ -83,8 +84,9 @@ async function deskPhDrop(coach) {
 // ── Session des photos ──────────────────────────────────────
 
 function deskPhNotify() { try { ph.onChange(); } catch { /* écran absent */ } }
-function deskPhTouch() {
+function deskPhTouch(now = Date.now()) {
   if (!ph.session) return;
+  if (now - (ph.session.openedAt || now) > DESK_PH_MAX_MS) { deskPhLock('max'); return; }
   clearTimeout(deskPhTimer);
   deskPhTimer = setTimeout(() => deskPhLock('idle'), DESK_PH_IDLE_MS);
 }
@@ -112,7 +114,7 @@ async function deskPhOpen() {
   const host = deskPhHost();
   if (host) {
     try { const r = await host.unlock(); if (!r?.ok) return { ok: false, kind: r?.refused ? 'canceled' : 'host' }; } catch { return { ok: false, kind: 'host' }; }
-    ph.session = { host: true };
+    ph.session = { host: true, openedAt: Date.now() };
     deskPhTouch(); deskPhNotify();
     return { ok: true };
   }
@@ -133,7 +135,7 @@ async function deskPhOpen() {
   const priv = await plinkUnwrap(e.wrapKey, dev, { device: e.device, coach: me, keyId: e.keyId, coachPub: e.coachPub });
   if (epoch !== ph.epoch) return { ok: false, kind: 'stale' };
   if (!priv) { await deskPhForget({ server: true }); return { ok: false, kind: 'broken' }; }
-  ph.session = { priv, pub: e.coachPub, keyId: e.keyId };
+  ph.session = { priv, pub: e.coachPub, keyId: e.keyId, device: e.device, openedAt: Date.now() };
   deskPhTouch(); deskPhNotify();
   return { ok: true };
 }
@@ -165,6 +167,14 @@ async function deskPhLoad(uid) {
         .map(p => ({ id: p.id, takenOn: p.takenOn, pose: p.pose }));
     } catch { return { ok: false, kind: 'host' }; }
   } else {
+    // Ordinateur retiré depuis l'iPhone pendant que les photos sont ouvertes : coupé dès l'élève suivant (l'enveloppe est
+    // relue, pas seulement à l'ouverture)
+    const still = await deskRpc('coach_photo_device_key', { device: ph.session.device });
+    if (epoch !== ph.epoch) return { ok: false, kind: 'stale' };
+    if (!still.ok) {
+      if (still.kind === 'not_found') { await deskPhForget({ server: false }); ph.error = 'revoked'; deskPhNotify(); return { ok: false, kind: 'revoked' }; }
+      if (['not_coach', 'disabled', 'signed_out'].includes(still.kind)) { deskPhLock('server'); ph.error = still.kind; deskPhNotify(); return still; }
+    }
     const r = await deskRpc('coach_student_photos', { student: uid });
     if (!r.ok) { if (epoch === ph.epoch) { ph.students[uid] = { photos: [], error: r.kind }; deskPhNotify(); } return r; }
     photos = cleanCoachPhotos(r.data, uid).filter(p => p.keyId === ph.session?.keyId);
@@ -278,12 +288,13 @@ async function deskPhPairFinish(p, device) {
   // une autre clé ici ferait échouer l'ouverture.
   const priv = await plinkUnwrap(p.wrapKey, dev, { device, coach: me, keyId: dev.keyId, coachPub: key.public_key });
   if (ph.pair !== p) return;
-  if (!priv) { deskRpc('coach_photo_device_revoke', { device }); deskPhPairFail(p, 'error', 'tampered'); return; }
+  if (!priv || !(await plinkKeyMatches(priv, key.public_key))) { deskRpc('coach_photo_device_revoke', { device }); deskPhPairFail(p, 'error', 'tampered'); return; }
+  if (ph.pair !== p) return;
   const entry = { coach: me, device, wrapKey: p.wrapKey, keyId: dev.keyId, coachPub: key.public_key, label: plinkLabel(navigator.userAgent), linkedAt: Date.now() };
   p.persisted = await deskPhSave(entry);
   ph.entry = entry;
   deskPhLock('relink');
-  ph.session = { priv, pub: key.public_key, keyId: dev.keyId };
+  ph.session = { priv, pub: key.public_key, keyId: dev.keyId, device, openedAt: Date.now() };
   deskPhTouch();
   p.state = 'done';
   deskPhPairWipe(p);
@@ -296,7 +307,8 @@ function deskPhMarkThirdParty() { deskThirdParty = true; }
 // Vrai si la page doit d'abord se recharger (l'action reprend ensuite, deskPhResumeTake)
 function deskPhNeedsCleanPage(action) {
   if (!deskThirdParty || deskPhHost()) return false;
-  try { sessionStorage.setItem(DESK_PH_RESUME, JSON.stringify({ action, hash: location.hash, at: Date.now() })); } catch { return false; }
+  // Sans sessionStorage (bloqué) : rechargée quand même, le coach refait son geste ; jamais de photos avec un script tiers
+  try { sessionStorage.setItem(DESK_PH_RESUME, JSON.stringify({ action, hash: location.hash, at: Date.now() })); } catch { /* pas de reprise */ }
   location.reload();
   return true;
 }
@@ -310,7 +322,8 @@ const DESK_PH_ERRORS = {
   revoked: 'Cet ordinateur n\'est plus relié (retiré depuis ton iPhone, ou 30 jours sans usage). Relie-le de nouveau pour voir les photos.',
   key_changed: 'Ta clé des photos a changé sur ton iPhone : relie de nouveau cet ordinateur.',
   broken: 'La clé de cet ordinateur ne s\'ouvre plus : relie-le de nouveau.',
-  tampered: 'La réponse du serveur ne correspond pas au code : rien n\'a été gardé. Recommence avec un nouveau code.',
+  tampered: 'La réponse ne correspond pas au code ni à ta clé : rien n\'a été gardé. Recommence avec un nouveau code.',
+  max: 'Masquées après 15 minutes : affiche-les de nouveau.',
   no_key: 'Active d\'abord la réception des photos de bilan dans l\'app iPhone (Coach › Mes élèves).',
   too_many: 'Tu as déjà 5 ordinateurs reliés. Retires-en un dans l\'app : Coach › Mes élèves › Ordinateurs reliés.',
   disabled: 'Les photos de bilan sont suspendues pour l\'instant.',

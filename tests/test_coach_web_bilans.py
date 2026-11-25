@@ -129,7 +129,9 @@ def review_flow(page, tag, theme, touch, w):
     check(page.locator('#tab-checkins[aria-selected=true]').count() == 1, f'{tag} : onglet Bilans')
     figs = page.inner_text('.rv-figs')
     check('62,2' in figs and 'depuis S46' in figs, f'{tag} : chiffres face à S46 {figs!r}')
-    check('3 photos envoyées, à ouvrir dans l\'app iPhone' in page.inner_text('.rv-ph'), f'{tag} : photos')
+    # Photos (vague 5, docs/PHOTOS_WEB.md) : ordinateur pas relié, le nombre et « Relier cet ordinateur », aucune image
+    wait_js(page, "document.querySelector('.ph-sec')?.innerText.includes('photos envoyées')")
+    check('3 photos envoyées' in page.inner_text('.ph-sec') and page.locator('.ph-sec [data-ph=link]').count() == 1 and page.locator('.ph-sec img').count() == 0, f'{tag} : photos')
     check('La collation de 16 h' in page.inner_text('section[aria-labelledby=h-ans]'), f'{tag} : réponse écrite')
     page.select_option('#rv-cmp', page.evaluate("[...document.querySelectorAll('#rv-cmp option')].at(-1).value"))
     figs = page.inner_text('.rv-figs')

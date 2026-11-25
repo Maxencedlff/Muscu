@@ -176,7 +176,7 @@ encore ouverte sur ce site ». L'app iPhone n'est pas touchée (`com.mdlf.traini
 
 **Méthode : flux OAuth de Supabase avec PKCE, par redirection** (`signInWithOAuth`, puis `exchangeCodeForSession` au
 retour, `coach-web/js/desk/google.js`). Google Identity Services (le modèle d'Apple : script de Google, puis
-`signInWithIdToken`) a été essayé le 27/11/2026 : son script pose des styles en ligne refusés par la CSP du site, demande un
+`signInWithIdToken`) a été essayé le 25/11/2026 : son script pose des styles en ligne refusés par la CSP du site, demande un
 cadre et des connexions vers Google, et serait un script tiers de plus dans la page qui tient la clé des photos. La
 redirection ne charge rien de Google : CSP inchangée (`script-src 'self'` + Apple, `frame-src 'none'`). Le code de retour ne
 sert qu'une fois et seulement avec le vérificateur PKCE tiré par supabase-js dans ce navigateur ; l'adresse est nettoyée
@@ -184,7 +184,7 @@ aussitôt. Seul un coach validé entre (`coach_state`) ; un identifiant Google i
 coachs »), une adresse Google déjà vérifiée sur un compte MDLF y est rattachée par Supabase. Bouton dessiné par la page
 selon les règles de Google (logo « G » en couleurs ; blanc à bord gris en clair, #131314 à bord #8E918F en sombre).
 
-**Configuration Supabase lue le 27/11/2026, sans rien modifier** : fournisseur Google activé, `external_google_client_id` =
+**Configuration Supabase lue le 25/11/2026, sans rien modifier** : fournisseur Google activé, `external_google_client_id` =
 client Web (`374163315572-ebbe…`) puis client iOS, secret du client Web réglé, contrôle du nonce actif ; `site_url` =
 `https://mdlf.app`, **`uri_allow_list` vide**.
 

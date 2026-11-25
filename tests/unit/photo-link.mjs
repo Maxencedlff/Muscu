@@ -154,6 +154,20 @@ export default function ({ test, app, assert, ROOT }) {
     assert.notEqual(y.phone.sas === x.phone.sas && y.browser.sas === x.browser.sas && y.epk === x.epk, true);
   });
 
+  test('photos sur ordinateur : attaque, appairage terminé par un tiers avec SA clé (QR et session volés) : refusé', async () => {
+    const x = await pairing();
+    const priv = await app.plinkUnwrap(x.browser.wrapKey, x.sealed, { device: PAIR, coach: COACH, keyId: KEY_ID, coachPub: x.rec.public_key });
+    assert.equal(await app.plinkKeyMatches(priv, x.rec.public_key), true, 'la vraie clé du coach');
+    // Le tiers connaît s, D.pub, et a fait l'offre : il enveloppe une clé à lui avec les bonnes données liées
+    const evil = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+    const pk = new Uint8Array(await subtle.exportKey('pkcs8', evil.privateKey));
+    const sealed = await app.plinkWrap(x.phone.wrapKey, pk, { device: PAIR, coach: COACH, keyId: KEY_ID, coachPub: x.rec.public_key });
+    const bad = await app.plinkUnwrap(x.browser.wrapKey, sealed, { device: PAIR, coach: COACH, keyId: KEY_ID, coachPub: x.rec.public_key });
+    assert.ok(bad, 'elle s\'ouvre (mêmes données liées)…');
+    assert.equal(await app.plinkKeyMatches(bad, x.rec.public_key), false, '… mais ne correspond pas à la clé publique du coach : refusée');
+    assert.equal(await app.plinkKeyMatches(priv, 'pas une clé'), false);
+  });
+
   test('photos sur ordinateur : réponses du serveur nettoyées, nom de l\'appareil', () => {
     const pub = 'B' + 'A'.repeat(85) + 'A=';
     assert.equal(app.cleanPlinkPeek({ device_pub: pub, label: 'Chrome\u0007 sur\nWindows', state: 'waiting', expires_at: '2026-11-27T10:00:00Z' }).label, 'Chrome sur Windows');

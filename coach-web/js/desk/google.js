@@ -3,12 +3,12 @@
 //
 //  Méthode : flux OAuth de Supabase avec PKCE, par redirection (supabase.auth.signInWithOAuth, puis
 //  exchangeCodeForSession au retour). Pourquoi pas Google Identity Services (script de Google + signInWithIdToken,
-//  comme Apple) : essayé le 27/11/2026, son script pose des styles en ligne que la CSP du site refuse (style-src 'self'),
+//  comme Apple) : essayé le 25/11/2026, son script pose des styles en ligne que la CSP du site refuse (style-src 'self'),
 //  demande un cadre de Google (frame-src) et des connexions vers Google ; et ce serait un script tiers de plus dans la
 //  page qui tient la clé des photos. La redirection ne charge rien de Google dans la page : la CSP ne change pas.
 //  - PKCE : supabase-js tire le vérificateur (gardé le temps de l'aller-retour dans le stockage de la session, effacé à
 //    l'échange) ; le code rendu dans l'adresse ne sert qu'une fois et seulement avec ce vérificateur.
-//  - Côté Supabase : le secret du client Web Google est déjà réglé (external_google_secret, vérifié le 27/11/2026, sans
+//  - Côté Supabase : le secret du client Web Google est déjà réglé (external_google_secret, vérifié le 25/11/2026, sans
 //    rien modifier) ; il manque l'adresse de retour du site dans « Redirect URLs » (uri_allow_list, vide aujourd'hui) :
 //    sans elle, Supabase renvoie sur site_url (https://mdlf.app) et le site dit « pas encore ouverte ».
 //  - Seul un coach validé entre ensuite (coach_state), comme pour l'e-mail et Apple. Identifiant Google inconnu :

@@ -42,7 +42,7 @@ function renderPlink() {
         </div>
         <div class="group-foot">${full ? 'Tu as 5 ordinateurs reliés : retires-en un pour en relier un autre.' : 'Sur l\'ordinateur, ouvre coach.mdlf.app, connecte-toi, puis « Relier cet ordinateur » : vise le QR code affiché. Ne relie pas un ordinateur partagé.'}</div>
         <div class="group-title">Reliés</div>
-        <div class="group">${list ? rows || '<div class="cell"><span class="cell__sub">Aucun ordinateur relié.</span></div>' : `<div class="cell"><span class="cell__sub">${plink.error ? esc(plinkErrorText(plink.error)) : 'Chargement…'}</span></span></div>`}</div>
+        <div class="group">${list ? rows || '<div class="cell"><span class="cell__sub">Aucun ordinateur relié.</span></div>' : `<div class="cell"><span class="cell__sub">${plink.error ? esc(plinkErrorText(plink.error)) : 'Chargement…'}</span></div>`}</div>
         <div class="group-foot">Un ordinateur relié ouvre les photos de tes élèves sans ton iPhone. Il est retiré tout seul après 30 jours sans usage, et au plus tard 90 jours après. Créer une nouvelle clé de photos les retire tous.</div>`);
 }
 SCREENS.set('coach-devices', { render: () => renderPlink(), enter: () => { plinkDevicesRefresh(); } });
@@ -58,7 +58,9 @@ async function plinkScanFlow() {
   try {
     const r = await plinkPhoneStart(scan.code);
     if (!r.ok) { showToast(plinkErrorText(r.kind), { error: true }); return; }
-    const ok = await dialog({ title: `Code de vérification : ${r.link.sas}`, message: `Le même code est-il affiché sur l'ordinateur (${r.link.label}) ? Sinon, n'accepte pas : rien ne sera envoyé.`,
+    const asked = r.link.askedAt ? ` à ${fmtTime(r.link.askedAt)}` : '';
+    const ok = await dialog({ title: `Code de vérification : ${r.link.sas}`,
+      message: `Code demandé${asked} par « ${r.link.label} ». Relie seulement un ordinateur devant toi, où tu as ouvert toi-même coach.mdlf.app : même code à l'écran, et l'adresse coach.mdlf.app dans la barre du navigateur. Sinon, Annuler : rien ne sera envoyé.`,
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Relier', value: true, style: 'preferred' }] });
     if (ok !== true) { await r.link.cancel(); announce('Rien n\'a été envoyé'); return; }
     const f = await r.link.finish();
@@ -78,7 +80,7 @@ registerActions({
   'plink-scan': () => plinkScanFlow(),
   'plink-revoke': async (e, el) => {
     const d = plink.devices?.find(x => x.id === el.dataset.id);
-    if (!d || !(await confirmSheet(`Retirer ${d.label} ?`, 'Cet ordinateur ne pourra plus ouvrir les photos de tes élèves. Tu pourras le relier de nouveau.', 'Retirer'))) return;
+    if (!d || !(await confirmSheet(`Retirer ${d.label} ?`, 'Cet ordinateur ne pourra plus ouvrir les photos de tes élèves. Ordinateur perdu ou volé ? Crée aussi une nouvelle clé de photos (Coach › un élève › Photos de bilan) : une copie de son disque ne servira plus.', 'Retirer'))) return;
     const r = await plinkRevoke(d.id);
     if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return; }
     showToast('Ordinateur retiré');
