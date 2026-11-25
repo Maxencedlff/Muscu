@@ -9,11 +9,15 @@
 // ne confirme pas son démarrage (Native.ota.ready) sous 10 s.
 // Règle Apple 2.5.2 : réservé aux corrections ; une nouvelle fonctionnalité passe par l'App Store.
 
-// Adresses figées : le manifeste vient toujours de cette adresse, et le paquet qu'il désigne doit
-// être sous OTA_BUNDLE_PREFIX (audit du 12/11/2026, M1). Un manifeste qui pointerait ailleurs
-// (autre domaine, autre chemin, http) est refusé, même avec une empreinte valide.
-const OTA_MANIFEST_URL  = 'https://mdlf-ota.vercel.app/manifest.json';
-const OTA_BUNDLE_PREFIX = 'https://mdlf-ota.vercel.app/bundles/';
+// Adresses figées (audit du 12/11/2026, M1) : le manifeste vient toujours de l'une de ces origines, dans
+// cet ordre, et le paquet qu'il désigne doit être sous « <origine>/bundles/ » de l'une d'elles. Un manifeste qui
+// pointerait ailleurs (autre domaine, autre chemin, http) est refusé, même avec une empreinte valide.
+// Notre domaine d'abord (ota.mdlf.app, 25/11/2026) : un changement d'hébergeur ne sera qu'un changement de DNS.
+// Repli sur l'adresse Vercel si notre domaine ne répond pas (réseau, DNS, délai, erreur 5xx), pas sur un refus
+// net (4xx). Le paquet est téléchargé sur l'origine dont le manifeste a répondu (otaBundleFrom). Le repli est
+// sûr : la vérification ne change pas (empreinte ou signature contrôlées par le module natif avec la clé publique
+// compilée dans l'app), quelle que soit l'origine.
+const OTA_ORIGINS = Object.freeze(['https://ota.mdlf.app/', 'https://mdlf-ota.vercel.app/']);
 const SHELL_RUNTIME_KEY = 'mdlf_shell_runtime';
 const OTA_CHECK_EVERY   = 6 * 3_600_000;   // au retour au premier plan, au plus toutes les 6 h
 const OTA_TIMEOUT       = 8_000;
@@ -43,9 +47,22 @@ function currentBuild() {
 // « @ » (identifiants), « / » ou « \ » (autre dossier, « // »), « ? » et « # » sont refusés d'office,
 // et un nom qui commence par « . » aussi (« .. »). Le nom de domaine est en minuscules dans le
 // préfixe : « MDLF-OTA… » ou un port (« :443 ») ne passent pas non plus.
-function otaBundleUrlAllowed(url) {
-  if (typeof url !== 'string' || !url.startsWith(OTA_BUNDLE_PREFIX)) return false;
-  return /^[0-9A-Za-z][0-9A-Za-z._-]*\.zip$/.test(url.slice(OTA_BUNDLE_PREFIX.length));
+const OTA_BUNDLE_NAME = /^[0-9A-Za-z][0-9A-Za-z._-]*\.zip$/;
+function otaBundleName(url) {
+  if (typeof url !== 'string') return null;
+  const prefix = OTA_ORIGINS.map(o => o + 'bundles/').find(p => url.startsWith(p));
+  const name = prefix ? url.slice(prefix.length) : '';
+  return OTA_BUNDLE_NAME.test(name) ? name : null;
+}
+function otaBundleUrlAllowed(url) { return otaBundleName(url) !== null; }
+// Adresse du paquet sur l'origine dont le manifeste a répondu (le manifeste publié par ota.yml peut nommer l'autre)
+function otaBundleFrom(url, origin) {
+  const name = otaBundleName(url);
+  return name && OTA_ORIGINS.includes(origin) ? origin + 'bundles/' + name : null;
+}
+// Repli sur l'origine suivante : réseau, DNS ou délai dépassé (error), ou erreur du serveur (5xx)
+function otaShouldFallback({ error = false, status = 0 } = {}) {
+  return !!error || (Number.isInteger(status) && status >= 500);
 }
 
 // Empreinte du paquet, sous l'une des deux formes publiées par scripts/ota-bundle.py :
@@ -99,14 +116,20 @@ async function shellRuntime() {
   try { return localStorage.getItem(SHELL_RUNTIME_KEY) || build?.runtime || null; } catch { return build?.runtime || null; }
 }
 
+// Manifeste de la première origine qui répond : { manifest, origin }, ou null (aucune ne répond, ou refus net)
 async function fetchManifest() {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), OTA_TIMEOUT);
-  try {
-    const res = await fetch(OTA_MANIFEST_URL, { cache: 'no-store', signal: ctrl.signal });
-    return res.ok ? await res.json() : null;
-  } catch { return null; }
-  finally { clearTimeout(timer); }
+  for (const origin of OTA_ORIGINS) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), OTA_TIMEOUT);
+    let res = null;
+    try { res = await fetch(origin + 'manifest.json', { cache: 'no-store', signal: ctrl.signal }); }
+    catch { res = null; }
+    finally { clearTimeout(timer); }
+    if (otaShouldFallback({ error: !res, status: res?.status })) continue;
+    if (!res.ok) return null;
+    try { return { manifest: await res.json(), origin }; } catch { return null; }
+  }
+  return null;
 }
 
 // Vérifie, télécharge et programme la mise à jour.
@@ -117,8 +140,9 @@ async function checkLiveUpdate({ now = false } = {}) {
   otaBusy = true;
   otaLastCheck = Date.now();
   try {
-    const manifest = await fetchManifest();
-    if (!manifest) return { status: 'error', reason: 'serveur de mise à jour injoignable' };
+    const got = await fetchManifest();
+    if (!got) return { status: 'error', reason: 'serveur de mise à jour injoignable' };
+    const manifest = got.manifest;
     const bundles = await Native.ota.list();
     const decision = liveUpdateDecision(manifest, {
       build: currentBuild(),
@@ -128,7 +152,7 @@ async function checkLiveUpdate({ now = false } = {}) {
     if (!decision.download) return { status: 'none', reason: decision.reason };
 
     const bundle = bundles.find(b => b.version === manifest.version && b.status === 'success')
-      || await Native.ota.download({ url: manifest.url, version: manifest.version, checksum: manifest.checksum,
+      || await Native.ota.download({ url: otaBundleFrom(manifest.url, got.origin), version: manifest.version, checksum: manifest.checksum,
         sessionKey: manifest.sessionKey });
     if (!bundle?.id) return { status: 'error', reason: 'téléchargement impossible' };
 

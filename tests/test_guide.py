@@ -35,7 +35,7 @@ def tag(device, theme):
 
 
 def open_guide(page, theme):
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())   # mises à jour à chaud : jamais de réseau
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())   # mises à jour à chaud : jamais de réseau
     seed(page, theme, ppl_v2_today_json())
     page.click('[data-action="go-settings"]')
     page.wait_for_selector('.settings-view')

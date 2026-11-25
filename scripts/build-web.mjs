@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runtimeSince, runtimeVersion } from './runtime-version.mjs';
+import { embedCoachWeb } from './embed-coach-web.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT  = path.join(ROOT, 'dist');
@@ -73,9 +74,12 @@ if (!index.includes(NATIVE_TAG)) throw new Error('index.html ne charge plus js/p
 index = index.replace(NATIVE_TAG, '<script src="js/vendor/capacitor.js"></script>\n  <script src="js/vendor/supabase.js"></script>\n  <script src="js/platform/build-info.js"></script>\n  ' + NATIVE_TAG);
 fs.writeFileSync(path.join(OUT, 'index.html'), index);
 
+// Mode coach grand écran (iPad, tablettes) : l'appli web du coach embarquée dans dist/coach/ (docs/COACH_IPAD.md)
+const coachScripts = embedCoachWeb(OUT);
+
 // Chaque script chargé par index.html doit être présent dans dist/
 const html = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
 const refs = [...html.matchAll(/(?:src|href)="([^"#:]+\.(?:js|css))"/g)].map(m => m[1]);
 const missing = refs.filter(r => !fs.existsSync(path.join(OUT, r)));
 if (missing.length) throw new Error(`Références absentes de dist/ : ${missing.join(', ')}`);
-console.log(`dist/ prêt (${PLATFORM}) : ${refs.length} scripts et feuilles de style · contenu ${BUILD.version} · runtime ${BUILD.runtime}`);
+console.log(`dist/ prêt (${PLATFORM}) : ${refs.length} scripts et feuilles de style, coach grand écran (${coachScripts} scripts partagés) · contenu ${BUILD.version} · runtime ${BUILD.runtime}`);

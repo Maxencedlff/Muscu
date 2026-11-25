@@ -34,7 +34,7 @@ def tag(device, theme):
 
 
 def open_app(page, theme):
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, json.dumps(ppl_v2_today(now_ms=NOW), ensure_ascii=False))
     settle(page)
     # Calques des 18 muscles chargés d'avance au repos (bodyPreload) : hors de la mesure de la fiche
@@ -871,7 +871,7 @@ def t_catalogue(bench):
 def t_hors_ligne(bench):
     """Service worker : 1× en cache d'installation, 3× mis en cache au premier zoom, puis servi hors ligne."""
     with bench.page('chromium', 'Pixel 7', 'dark', service_workers='allow') as page:
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
         seed(page, 'dark', json.dumps(ppl_v2_today(now_ms=NOW), ensure_ascii=False))
         page.wait_for_function("() => navigator.serviceWorker.ready.then(() => true)", timeout=30000)
         page.reload()

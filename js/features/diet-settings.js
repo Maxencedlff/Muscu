@@ -42,8 +42,8 @@ async function dietAskConsent() {
   const coachText = coachRole().isCoach ? 'Tes plans de nutrition, y compris ceux de tes élèves, peuvent renseigner sur la santé.'
     : 'Tes plans de nutrition et tes objectifs peuvent renseigner sur ta santé.';
   const v = await dietAskShort('Copier tes plans sur ton compte ?',
-    `${coachText} Sans accord, ils restent sur cet iPhone.`,
-    'Copier sur mon compte', 'Garder sur cet iPhone');
+    `${coachText} Sans accord, ils restent sur ${thisPhone()}.`,
+    'Copier sur mon compte', `Garder sur ${thisPhone()}`);
   if (v === null) return false;
   dietSetConsent(data, v);
   save();
@@ -88,7 +88,7 @@ function renderDietSettings() {
             ${switchHtml(on)}
           </button>`;
   const c = data.dietConsent;
-  const since = c?.on ? `Accord donné le ${esc(fmtDate(Date.parse(c.at), 'short'))}.` : c ? 'Tes plans restent sur cet iPhone.' : '';
+  const since = c?.on ? `Accord donné le ${esc(fmtDate(Date.parse(c.at), 'short'))}.` : c ? `Tes plans restent sur ${thisPhone()}.` : '';
   const hasCoach = account.user && !!myCoach();
   return `
     <div class="view view--grouped diet-settings-view">
@@ -131,7 +131,7 @@ function renderDietSettings() {
           ${sw('diet-coach-toggle', dietCoachAccepted(), `Recevoir les plans de nutrition ${elide('de', nameBreakHtml(coachName()))}`)}
         </div>
         <div class="group-foot">Ses plans restent sur le serveur jusqu'au retrait de l'accord ou la fin du coaching. ${myCoachWord('Ton')} voit seulement si tu les as ouverts.</div>` : ''}
-        <div class="group-foot diet-foot">Les plans sont sur cet iPhone, dans la copie iCloud de l'app et dans les exports. Les repas cochés et les aliments remplacés restent seulement sur cet iPhone et dans les exports.</div>
+        <div class="group-foot diet-foot">Les plans sont sur ${thisPhone()}, dans la copie iCloud de l'app et dans les exports. Les repas cochés et les aliments remplacés restent seulement sur ${thisPhone()} et dans les exports.</div>
         <div class="group group--gap"><button class="cell cell--nav" data-action="diet-privacy">
           <span class="cell__body"><span class="cell__title">Confidentialité de la nutrition</span></span>${icon('chevron.right', 16)}</button></div>
       </div>
@@ -205,11 +205,11 @@ registerActions({
   },
   'diet-consent': async () => {
     if (dietConsentOn(data)) {
-      if (!(await confirmSheet('Retirer ton accord ?', 'Tes plans sont supprimés du serveur et restent sur cet iPhone.', 'Retirer'))) return;
+      if (!(await confirmSheet('Retirer ton accord ?', `Tes plans sont supprimés du serveur et restent sur ${thisPhone()}.`, 'Retirer'))) return;
       dietSetConsent(data, false);
       save();
       dietSyncSoon();
-      showToast('Plans gardés sur cet iPhone seulement');
+      showToast(`Plans gardés sur ${thisPhone()} seulement`);
     } else if (await dietAskConsent()) showToast('Plans copiés sur ton compte');
     render();
   },

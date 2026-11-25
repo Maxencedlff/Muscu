@@ -34,6 +34,8 @@ files = sorted(glob.glob(os.path.join(here, 'test_lot*.py')), key=lambda f: int(
 files += sorted(f for f in glob.glob(os.path.join(here, 'test_*.py')) if not re.search(r'test_lot\d', f))
 # Appli web du coach (test_coach_web*.py) : pas de run_main, son propre job (coach-web de tests.yml, trois moteurs)
 files = [f for f in files if not os.path.basename(f).startswith('test_coach_web')]
+# Mode coach grand écran sur iPad (test_coach_ipad.py) : l'app construite (node, dist/), son étape dans le job coach-web
+files = [f for f in files if os.path.basename(f) != 'test_coach_ipad.py']
 # Filtres refusés s'ils ne désignent rien : une faute de frappe ne doit jamais donner « 0/0 OK »
 def pick(asked, known, what):
     unknown = [a for a in asked if a not in known]

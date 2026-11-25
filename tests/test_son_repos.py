@@ -56,7 +56,7 @@ window.Capacitor = {
 
 def open_app(page):
     page.add_init_script(FAKE_SHELL)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, THEME, ppl_v2_today_json())
     settle(page)
 
@@ -199,7 +199,7 @@ def t_diagnostic_mesure(bench):
     for theme in ('dark', 'light'):
         with bench.page(ENGINE, DEVICE, theme) as page:
             page.add_init_script(SELF_TEST_SHELL)
-            page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+            page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
             seed(page, theme, ppl_v2_today_json())
             settle(page)
             page.evaluate("routeTo('settings')")
@@ -250,7 +250,7 @@ def t_diagnostic_mesure(bench):
 
 def t_web_sans_diagnostic(bench):
     with bench.page(ENGINE, DEVICE, THEME) as page:
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
         seed(page, THEME, ppl_v2_today_json())
         settle(page)
         page.evaluate("routeTo('settings')")

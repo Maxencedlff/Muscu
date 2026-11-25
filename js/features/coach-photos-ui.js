@@ -310,18 +310,18 @@ function renderCphCoach(uid) {
   if (ph !== 'open') {
     const txt = {
       loading: 'Ouverture…',
-      locked: cphView.msg || 'Ouvre-les avec Face ID ou le code de ton iPhone.',
-      missing: 'La clé de tes photos n\'est pas encore sur cet iPhone. Elle arrive par le trousseau iCloud, parfois avec du retard. Réessaie plus tard.',
-      nopasscode: 'Les photos s\'ouvrent avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code.',
+      locked: cphView.msg || `Ouvre-les avec Face ID ou le code de ton ${phoneName()}.`,
+      missing: `La clé de tes photos n'est pas encore sur ${thisPhone()}. Elle arrive par le trousseau iCloud, parfois avec du retard. Réessaie plus tard.`,
+      nopasscode: `Les photos s'ouvrent avec Face ID ou le code de ton ${phoneName()}. Active un code dans Réglages › Face ID et code.`,
       mismatch: cphCoach.own
         ? 'Tes élèves reçoivent une autre clé que la tienne : leurs photos ne seraient plus visibles par toi uniquement. Touche Republier ma clé, puis compare avec eux le code de ta clé affiché ici. Les photos reçues avec l\'autre clé seront supprimées.'
-        : 'Le serveur donne à tes élèves une autre clé que la tienne, et la tienne n\'est pas sur cet iPhone. Crée une nouvelle clé, puis vérifiez le code ensemble.',
+        : `Le serveur donne à tes élèves une autre clé que la tienne, et la tienne n'est pas sur ${thisPhone()}. Crée une nouvelle clé, puis vérifiez le code ensemble.`,
     }[ph] || '';
     const myCode = ph === 'mismatch' && cphCoach.myCode ? `<p class="pv-sub">Code de ta clé : <span class="num cph-code">${esc(cphCoach.myCode)}</span></p>` : '';
     return view(`
         <div class="pv-center">
           <div class="pv-glyph pv-glyph--sm" aria-hidden="true">${icon('lock', 26)}</div>
-          <h1 class="pv-title" id="cphTitle" tabindex="-1">${ph === 'missing' ? 'Clé absente de cet iPhone' : ph === 'mismatch' ? esc(CPH_MISMATCH_TITLE) : `Photos ${elide('de', who)}`}</h1>
+          <h1 class="pv-title" id="cphTitle" tabindex="-1">${ph === 'missing' ? `Clé absente de ${thisPhone()}` : ph === 'mismatch' ? esc(CPH_MISMATCH_TITLE) : `Photos ${elide('de', who)}`}</h1>
           <p class="pv-sub" role="status">${esc(txt)}</p>
           ${myCode}
           ${ph === 'locked' ? `<button class="btn btn--primary pv-cta pv-open" data-action="cph-unlock">${icon('faceid', 20)}<span>Ouvrir</span></button>` : ''}
@@ -389,7 +389,7 @@ async function cphCoachEnter() {
   if (cphIsOpen()) { cphLoadImages(uid); return; }
   cphView.phase = 'locked';
   // Clé du serveur autre que celle retenue ici : dit avant Face ID (qui la vérifie : levé si elle est bien la mienne)
-  if (cphCoach.mismatch) cphView.msg = 'La clé du serveur diffère de celle de cet iPhone. Face ID vérifie si elle est bien la tienne.';
+  if (cphCoach.mismatch) cphView.msg = `La clé du serveur diffère de celle de ${thisPhone()}. Face ID vérifie si elle est bien la tienne.`;
   cphPaint();
   cphUnlockFlow();
 }
@@ -495,7 +495,7 @@ registerActions({
   'cph-view': (e, el) => cphViewSheet(el.dataset.id),
   'cph-hide': async (e, el) => {
     const id = el.dataset.id, uid = cphView.uid;
-    if (!(await confirmSheet('Ne plus voir cette photo ?', 'Elle sera supprimée de ton iPhone et du serveur. Ton élève pourra te la renvoyer.', 'Supprimer'))) return;
+    if (!(await confirmSheet('Ne plus voir cette photo ?', `Elle sera supprimée de ton ${phoneName()} et du serveur. Ton élève pourra te la renvoyer.`, 'Supprimer'))) return;
     const r = await cphCoachHide(uid, id);
     if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return; }
     document.querySelectorAll('.sheet-root').forEach(x => { if (x.querySelector('.cph-big')) x._close?.(null); });
@@ -506,7 +506,7 @@ registerActions({
   'cph-setup': async () => {
     const r = await cphCoachSetup();
     if (r.ok) { haptic('success'); announce('Réception des photos activée'); render(); return; }   // l'état reste écrit dans la liste
-    if (!r.canceled) showToast(r.nopasscode ? 'Active d\'abord le code de verrouillage de ton iPhone' : coachErrorText(r.kind), { error: true });
+    if (!r.canceled) showToast(r.nopasscode ? `Active d'abord le code de verrouillage de ton ${phoneName()}` : coachErrorText(r.kind), { error: true });
     render();
   },
   'cph-republish': async () => {
@@ -516,8 +516,8 @@ registerActions({
     const r = await cphCoachRepublish();
     if (!r.ok) {
       if (r.mismatch) showToast('Le serveur donne encore une autre clé. Réessaie.', { error: true });
-      else if (r.missing) showToast('Ta clé n\'est pas sur cet iPhone : crée une nouvelle clé.', { error: true });
-      else if (!r.canceled) showToast(r.nopasscode ? 'Active d\'abord le code de verrouillage de ton iPhone' : coachErrorText(r.kind), { error: true });
+      else if (r.missing) showToast(`Ta clé n'est pas sur ${thisPhone()} : crée une nouvelle clé.`, { error: true });
+      else if (!r.canceled) showToast(r.nopasscode ? `Active d'abord le code de verrouillage de ton ${phoneName()}` : coachErrorText(r.kind), { error: true });
       cphPaint();
       return;
     }

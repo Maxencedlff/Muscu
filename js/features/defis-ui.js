@@ -485,7 +485,7 @@ registerActions({
   'defi-delete': async (e, el) => {
     const c = defiGet(data, el.dataset.id);
     if (!c) return;
-    const v = await dialog({ type: 'sheet', title: `Supprimer « ${c.name} » ?`, message: 'Ses jours notés sont effacés de cet iPhone et de ton compte.',
+    const v = await dialog({ type: 'sheet', title: `Supprimer « ${c.name} » ?`, message: `Ses jours notés sont effacés de ${thisPhone()} et de ton compte.`,
       actions: [{ label: 'Supprimer le défi', value: 'del', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
     if (v !== 'del') return;
     const before = defiDelete(data, c.id);

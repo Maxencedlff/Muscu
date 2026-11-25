@@ -34,7 +34,7 @@ def open_app(page, theme, store=None):
     page.add_init_script('window.__fakeOpts = %s; window.__stOpts = %s;' % (json.dumps({'oldAccounts': True}), json.dumps(st_opts)))
     page.add_init_script(FAKE_ACCOUNT)
     page.add_init_script(FAKE_STORE)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
     settle(page)
     page.evaluate("""async () => {

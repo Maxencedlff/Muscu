@@ -184,7 +184,8 @@ Aucun changement natif : pas de build. Retour arrière : `supabase/rollback/2026
 ## Mises à jour à chaud : garde, environnement `ota` et signature (audit du 12/11/2026, M1 et M6)
 
 Déjà en place sur la branche `audit-ota` (aucune action) :
-- `js/app/live-update.js` n'accepte un paquet que sous `https://mdlf-ota.vercel.app/bundles/<nom>.zip`
+- `js/app/live-update.js` n'accepte un paquet que sous `https://ota.mdlf.app/bundles/<nom>.zip` ou
+  `https://mdlf-ota.vercel.app/bundles/<nom>.zip` (notre domaine d'abord, repli sur Vercel : IOS.md, 25/11/2026)
   (texte brut : pas de `%`, `@`, `//`, `?`, `#`, `\`, port ni autre casse) ; l'adresse du manifeste est figée.
 - `ota.yml` : job `gate` qui attend le workflow Tests vert sur le commit publié (comme ios.yml), puis
   construit depuis ce SHA exact ; aucun droit par défaut ; étape renommée « empreinte SHA-256 » (ce

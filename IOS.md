@@ -374,7 +374,7 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
 | `scripts/build-web.mjs` | Embarque `window.MDLF_BUILD = { version, seq, runtime }` dans dist/ |
 | `scripts/runtime-version.mjs` | Calcule l'empreinte native `runtime`, une par plateforme (testée dans `tests/unit/companions.mjs` et `tests/unit/android.mjs`) |
 | `scripts/ota-bundle.py` | dist/ → `ota-site/` : `bundles/<version>.zip` (immuable), `manifest.json` (jamais en cache) ; chiffrement et signature Capgo si `OTA_CAPGO_PRIVATE_KEY` et `publicKey` sont posées (docs/BUILD.md) |
-| `.github/workflows/ota.yml` | Job `gate` (workflow Tests vert sur le commit publié, construit depuis ce SHA), environnement GitHub `ota` à relecture obligatoire, tests, pages juridiques complètes et en ligne (`check-legal-online.mjs`, docs/JURIDIQUE.md), paquet, publication sur **https://mdlf-ota.vercel.app**, vérification en ligne du SHA-256 |
+| `.github/workflows/ota.yml` | Job `gate` (workflow Tests vert sur le commit publié, construit depuis ce SHA), environnement GitHub `ota` à relecture obligatoire, tests, pages juridiques complètes et en ligne (`check-legal-online.mjs`, docs/JURIDIQUE.md), paquet, publication sur **https://mdlf-ota.vercel.app** (aussi servi sur **https://ota.mdlf.app**, adresse lue en premier par l'app), vérification en ligne du SHA-256 |
 
 **Règles de sûreté**
 - **Empreinte native (`runtime`)** : SHA-256 des fichiers Swift compilés (référencés dans une phase
@@ -399,8 +399,16 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
   (`next` + délai `kill`). Réglages › « Rechercher une mise à jour » l'applique tout de suite hors séance.
 - Nouvelle version de l'app installée : retour au contenu d'origine (`resetWhenUpdate`).
 - Seul du code commité est publiable (version « -local » refusée).
-- **Adresse du paquet figée** : `manifest.url` doit être sous `https://mdlf-ota.vercel.app/bundles/`
-  (`otaBundleUrlAllowed`), sinon le manifeste est refusé.
+- **Adresses figées, notre domaine d'abord** (25/11/2026) : le manifeste est lu sur
+  `https://ota.mdlf.app/manifest.json`, puis, seulement si notre domaine ne répond pas (réseau, DNS, délai de 8 s,
+  erreur 5xx ; `otaShouldFallback`), sur `https://mdlf-ota.vercel.app/manifest.json`. Un refus net (404, 403…)
+  n'appelle pas le repli. Les deux adresses servent le même projet Vercel aujourd'hui ; quand l'hébergement quittera
+  Vercel (plan Hobby non commercial), il suffira de faire pointer `ota.mdlf.app` ailleurs (DNS), sans build.
+- **Adresse du paquet figée** : `manifest.url` doit être sous `/bundles/` de l'une des deux origines
+  (`otaBundleUrlAllowed`), sinon le manifeste est refusé. Le paquet est téléchargé sur l'origine dont le manifeste
+  a répondu (`otaBundleFrom` : seul le nom du fichier est repris du manifeste, qu'ota.yml continue d'écrire avec
+  l'adresse Vercel). Le repli est sûr : empreinte SHA-256 ou signature Capgo vérifiées par le module natif avec la
+  clé publique compilée dans l'app, quelle que soit l'origine. CSP `connect-src` : les deux origines.
 
 **Règle Apple (2.5.2, 2.3.1(a), 2.5.19)** : une app ne doit pas « download, install, or execute code
 which introduces or changes features or functionality of the app » (2.5.2) ; toute fonction nouvelle

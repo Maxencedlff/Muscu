@@ -11,7 +11,7 @@
 // l'écran Progrès lui-même (l'app s'ouvre en salle), seulement une ligne qui mène ici.
 'use strict';
 
-const BM_PRIVATE = 'Elles restent sur ton iPhone et dans sa sauvegarde, jamais sur nos serveurs';
+const BM_PRIVATE = `Elles restent sur ton ${phoneName()} et dans sa sauvegarde, jamais sur nos serveurs`;
 // Élève d'un coach : « rien n'est montré à ton coach » ne serait pas sûr pour l'écran, qui mène au coffre d'où partent
 // les photos de bilan, même avant que leur état soit relu du serveur (panels de la vague 3 : texte faux à l'arrivée)
 const bmPhotosToCoach = () => !!(account.user && coachRole().hasCoach) && !cphAgeBlocked() && !cphDisabled();

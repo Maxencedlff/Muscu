@@ -30,8 +30,8 @@ let photoAddPose = 'face';     // pose proposée par la case touchée (coffre vi
 const pvIos = () => Native.platform === 'ios';
 // Nom de ce qui ouvre le coffre : « Face ID », « Touch ID », « Optic ID », ou le code de l'iPhone seul
 const bioLabel = () => (pvIos() ? ({ faceID: 'Face ID', touchID: 'Touch ID', opticID: 'Optic ID' })[pv.bioType] || '' : '');
-const pvOpenLabel = () => (bioLabel() ? `Ouvrir avec ${bioLabel()}` : pvIos() ? 'Ouvrir avec le code de l\'iPhone' : 'Ouvrir le coffre');
-const pvHowText = () => (bioLabel() ? `${bioLabel()} ou le code de ton iPhone` : pvIos() ? 'le code de ton iPhone' : 'le verrouillage de ton appareil');
+const pvOpenLabel = () => (bioLabel() ? `Ouvrir avec ${bioLabel()}` : pvIos() ? `Ouvrir avec le code ${ofThePhone()}` : 'Ouvrir le coffre');
+const pvHowText = () => (bioLabel() ? `${bioLabel()} ou le code de ton ${phoneName()}` : pvIos() ? `le code de ton ${phoneName()}` : 'le verrouillage de ton appareil');
 
 function photoUrl(p) {
   if (!photoUrls.has(p.id)) photoUrls.set(p.id, URL.createObjectURL(p.blob));
@@ -78,8 +78,8 @@ function pvCenterHtml() {
       : Native.isNative ? 'Le coffre n\'existe pour l\'instant que dans l\'app iPhone. Tes photos déjà prises restent sur ce téléphone.'
       : 'Le coffre n\'existe que dans l\'app iPhone.' },
     error: { title: 'Coffre à photos', text: 'Le coffre ne s\'ouvre pas.', retry: 'Réessayer' },
-    nopasscode: { title: 'Code de l\'iPhone requis', text: 'Le coffre s\'ouvre avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code, puis reviens ici.', retry: 'Réessayer' },
-    missing: { title: 'Coffre illisible pour l\'instant', text: `La clé du coffre n'est pas encore sur cet iPhone${pv.count ? ` (${plural(pv.count, 'photo', 'photos')})` : ''}. Elle arrive par le trousseau iCloud, parfois avec du retard. Si le trousseau était coupé sur l'ancien iPhone, la clé y est restée.`, retry: 'Réessayer', reset: true },
+    nopasscode: { title: `Code ${ofThePhone()} requis`, text: `Le coffre s'ouvre avec Face ID ou le code de ton ${phoneName()}. Active un code dans Réglages › Face ID et code, puis reviens ici.`, retry: 'Réessayer' },
+    missing: { title: 'Coffre illisible pour l\'instant', text: `La clé du coffre n'est pas encore sur ${thisPhone()}${pv.count ? ` (${plural(pv.count, 'photo', 'photos')})` : ''}. Elle arrive par le trousseau iCloud, parfois avec du retard. Si le trousseau était coupé sur l'ancien iPhone, la clé y est restée.`, retry: 'Réessayer', reset: true },
   }[ph] || { title: 'Coffre à photos', text: '' };
   return `
         <div class="pv-center">
@@ -100,13 +100,13 @@ function pvIntroHtml() {
           <h1 class="pv-title" id="pvTitle" tabindex="-1">Coffre à photos</h1>
           <p class="pv-lead">Photos de progression visibles seulement par toi.</p>
           <ul class="pv-feats">
-            ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, pvIos() ? 'Aucun code en plus. Chiffrées sur ton iPhone et dans ses sauvegardes.'
+            ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, pvIos() ? `Aucun code en plus. Chiffrées sur ton ${phoneName()} et dans ses sauvegardes.`
               : 'Aucun code en plus. Chiffrées sur cet appareil.')}
             ${feat('timer', 'Verrouillage automatique', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
             ${feat('eye.slash', 'Privées', cphStudentShown() && cph.state?.ready
               ? `Ni dans la ${pvIos() ? 'pellicule' : 'galerie'} ni dans l'export. ${myCoachWord('Ton')} ne reçoit que les photos que tu choisis d'envoyer.`
               : `Ni dans la ${pvIos() ? 'pellicule' : 'galerie'} ni dans l'export.`)}
-            ${pvIos() ? feat('info.circle', 'Sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour rouvrir le coffre sur un autre iPhone.') : ''}
+            ${pvIos() ? feat('info.circle', `Sur un ${newPhone()}`, 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour rouvrir le coffre sur un autre iPhone.') : ''}
           </ul>
           ${pv.legacy ? `<p class="pv-note">${plural(pv.legacy, 'photo déjà prise y sera rangée', 'photos déjà prises y seront rangées')}.</p>` : ''}
           ${pv.err ? `<p class="pv-sub pv-sub--err" id="pvMsg" role="alert">${esc(pv.msg)}</p>` : ''}
@@ -151,7 +151,7 @@ function pvOpenHtml() {
             <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
             <p class="cell__sub">Prends une photo de face, de profil ou de dos pour comparer plus tard.</p></div>`}
         </div>
-        <div class="group-foot">Les photos restent sur ${pvIos() ? 'ton iPhone' : 'cet appareil'}, chiffrées. ${cphVaultFoot()}</div>
+        <div class="group-foot">Les photos restent sur ${pvIos() ? `ton ${phoneName()}` : 'cet appareil'}, chiffrées. ${cphVaultFoot()}</div>
         <div class="group-foot">${pvIos() ? 'Elles ne sont ni dans l\'export ni dans la sauvegarde iCloud de l\'app. Seule la clé passe par le trousseau iCloud, pour les rouvrir sur un nouvel iPhone.'
           : 'Elles ne sont pas dans l\'export.'}</div>`;
 }
@@ -346,7 +346,7 @@ async function pvOpenVault() {
 async function pvReset() {
   const n = pv.count || await photoRowsCount().catch(() => 0);
   const ok1 = await dialog({ title: n ? `Supprimer ${plural(n, 'photo', 'photos')} ?` : 'Vider le coffre ?',
-    message: 'Ces photos seront supprimées de cet iPhone. Si la clé arrive ensuite, elles ne pourront plus s\'ouvrir. Tu pourras créer un nouveau coffre.',
+    message: `Ces photos seront supprimées de ${thisPhone()}. Si la clé arrive ensuite, elles ne pourront plus s'ouvrir. Tu pourras créer un nouveau coffre.`,
     actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Supprimer', value: true, style: 'destructive' }] });
   if (!ok1) return;
   const ok = await vaultReset({ keep: true });

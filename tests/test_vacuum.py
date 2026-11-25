@@ -40,7 +40,7 @@ def vacuum_data(now):
 
 
 def open_app(page, theme):
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, vacuum_data(NOW))
     settle(page)
 

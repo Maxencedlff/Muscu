@@ -50,7 +50,7 @@ def data_json(now_ms, plan=True, water=True, **extra):
 
 
 def open_app(page, theme, ppl_v2):
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
     settle(page)
 

@@ -78,7 +78,7 @@ def serve_videos(page, offline=False):
 
 def open_app(page, theme, man='repo', cellular=False, coach=False):
     """man : 'repo' (fichier du dépôt, vide), None (absent : 404), ou un manifeste à servir."""
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     if man is None:
         page.route('**/data/exercise-videos.json', lambda route: route.fulfill(status=404, body='absent'))
     elif man != 'repo':
