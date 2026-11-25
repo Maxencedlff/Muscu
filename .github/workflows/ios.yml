@@ -231,6 +231,39 @@ jobs:
           xcrun simctl spawn "$DEVICE" launchctl list > shots/launchctl.txt
           grep -q "$BUNDLE" shots/launchctl.txt && echo "L'app tourne"
 
+      # iPad (docs/COACH_IPAD.md) : la même build sur un iPad Pro 13 pouces virtuel, en portrait puis en paysage. Ses
+      # captures font 2064 × 2752 (ou 2752 × 2064), la taille des captures « iPad 13 pouces » d'App Store Connect.
+      - name: Lancement sur un iPad virtuel et captures
+        if: ${{ !inputs.testflight }}
+        run: |
+          set -e
+          IPAD=$(xcrun simctl list devices available | grep -m1 -E 'iPad Pro 13-inch' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          if [ -z "$IPAD" ]; then echo "::warning::Aucun iPad Pro 13 pouces dans les simulateurs"; exit 0; fi
+          echo "Simulateur : $IPAD"
+          xcrun simctl boot "$IPAD"
+          xcrun simctl bootstatus "$IPAD" -b
+          APP="$RUNNER_TEMP/signed/App.app"; [ -d "$APP" ] || APP=$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+          /usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily' "$APP/Info.plist"
+          xcrun simctl install "$IPAD" "$APP"
+          BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          mkdir -p shots/ipad
+          xcrun simctl ui "$IPAD" appearance dark
+          xcrun simctl launch "$IPAD" "$BUNDLE"
+          sleep 14; xcrun simctl io "$IPAD" screenshot shots/ipad/1-portrait-sombre.png
+          xcrun simctl ui "$IPAD" appearance light
+          sleep 3; xcrun simctl io "$IPAD" screenshot shots/ipad/2-portrait-clair.png
+          # Paysage : commande « Rotate Left » de Simulator.app (⌘←)
+          open -a Simulator --args -CurrentDeviceUDID "$IPAD" || true
+          sleep 5
+          osascript -e 'tell application "Simulator" to activate' \
+            -e 'tell application "System Events" to key code 123 using command down' || true
+          sleep 4; xcrun simctl io "$IPAD" screenshot shots/ipad/3-paysage-clair.png
+          xcrun simctl ui "$IPAD" appearance dark
+          sleep 3; xcrun simctl io "$IPAD" screenshot shots/ipad/4-paysage-sombre.png
+          for f in shots/ipad/*.png; do echo "$f : $(sips -g pixelWidth -g pixelHeight "$f" | awk '/pixel/ {printf "%s ", $2}')"; done
+          xcrun simctl spawn "$IPAD" launchctl list > shots/ipad/launchctl.txt
+          grep -q "$BUNDLE" shots/ipad/launchctl.txt && echo "L'app tourne sur iPad"
+
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: ${{ always() && !inputs.testflight }}
         with:

@@ -204,7 +204,7 @@ function renderCoachSettings() {
             <span class="cell__body"><span class="cell__title">Mes élèves</span>${st ? `<span class="cell__sub">${st.students.length ? plural(st.students.length, 'élève', 'élèves') : 'Aucun élève pour l\'instant'}</span>` : ''}</span>
             ${coachBadgeHtml(coachBadgeCoach(), plural(coachBadgeCoach(), 'nouvelle séance', 'nouvelles séances'))}
             ${icon('chevron.right', 16)}
-          </button>
+          </button>${coachDeskSettingsCell()}
         </div>` : '';
   // Rôle coach (js/features/coach-pro-ui.js) : code permanent et palier sous Mes élèves, ou la demande
   // « Devenir coach » en bas pour qui n'est pas coach
@@ -774,6 +774,7 @@ function coachTeamHtml() {
   return `
         ${coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : liste pas à jour.' : coachErrorText(coach.error))}</p>` : ''}
         ${coachTierBannerHtml()}
+        ${coachDeskCardHtml()}
         ${coachTeamWeekHtml(st.students)}
         ${compact ? '' : coachPlanningCellHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>

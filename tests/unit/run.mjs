@@ -2382,6 +2382,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./checkins-eleve.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Visite de l'accueil : état, étapes, place de la bulle, défilement (tests dans tour.mjs) ──
 (await import('./tour.mjs')).default({ test, run, app, assert, ROOT });
+// ── Mode coach grand écran sur iPad, 25/11 (tests dans coach-ipad.mjs, contextes à part) ──
+(await import('./coach-ipad.mjs')).default({ test, assert, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 
