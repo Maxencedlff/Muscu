@@ -86,6 +86,14 @@ function checkinMineCellHtml() {
               <span class="cell__sub">${ck.cycle ? 'Partagé dans tes bilans' : 'Pas partagé'}</span></span>
             ${icon('chevron.right', 16)}
           </button>` : '';
+  // Accord daté pour l'envoi des bilans (serveur qui le connaît) : donné (avec sa date) ou à donner, retrait ici
+  const health = ck.health ? `
+          <button class="cell cell--nav" data-action="${ck.health.consented ? 'ck-health-withdraw' : 'ck-health-offer'}">
+            ${icon('checkmark.seal', 20)}
+            <span class="cell__body"><span class="cell__title">Accord pour mes bilans</span>
+              <span class="cell__sub">${ck.health.consented ? esc(ck.health.at ? `Donné le ${fmtDate(ck.health.at, 'short')}` : 'Donné') : 'Pas donné : tes bilans ne partent pas'}</span></span>
+            ${icon('chevron.right', 16)}
+          </button>` : '';
   return `
         <div class="group-title">Bilans</div>
         <div class="group">
@@ -94,14 +102,14 @@ function checkinMineCellHtml() {
             <span class="cell__body"><span class="cell__title">${esc((open[0] || list[0]).name)}</span>
               <span class="cell__sub">${open.length ? esc(checkinDueText(open[0]) || 'À remplir') : 'Envoyé'}</span></span>
             ${icon('chevron.right', 16)}
-          </button>${cycle}
+          </button>${health}${cycle}
         </div>`;
 }
 
 // ── Écran du bilan ──────────────────────────────────────────
 
 function ckStateKey(req) {
-  return req ? `${req.id}|${checkinState(req)}|${req.review?.reply || ''}|${ck.cycle}|${ck.cycleAsked}|${checkinItemsShown(req).map(i => i.key).join(',')}` : `none|${ck.loading}|${ck.available}|${ck.error}`;
+  return req ? `${req.id}|${checkinState(req)}|${req.review?.reply || ''}|${ck.cycle}|${ck.cycleAsked}|${ck.adult}|${ck.adultAsked}|${ck.health?.consented}|${checkinItemsShown(req).map(i => i.key).join(',')}` : `none|${ck.loading}|${ck.available}|${ck.error}`;
 }
 function ckFormFor(req) {
   if (ckForm.id === req.id) return ckForm;
@@ -131,7 +139,7 @@ function renderCheckin(id) {
   const meta = [checkinPeriodText(req), `environ ${plural(checkinMinutes(items), 'minute', 'minutes')}`, due].filter(Boolean).join(', ');
   const sections = CK_SECTIONS.map(([sec, title]) => {
     const list = items.filter(it => ckSection(it) === sec);
-    const offer = sec === 'feel' ? ckCycleOfferHtml(req) : '';
+    const offer = sec === 'feel' ? ckAdultOfferHtml() + ckCycleOfferHtml(req) : '';
     if (!list.length && !offer) return '';
     if (sec === 'photos') return list.map(it => ckPhotoHtml(req, it)).join('');
     const head = sec === 'custom' ? `${list.length > 1 ? 'Questions' : 'Question'} ${elide('de', who)}` : title;
@@ -313,6 +321,16 @@ function ckCycleHtml(it, f) {
     <div class="ck-foot ck-foot--cycle"><p class="ck-help">${ckWho()} voit seulement la phase choisie, dans ce bilan.</p>
       <button class="ck-skip" data-action="ck-cycle-withdraw">Retirer mon accord</button></div>`;
 }
+// Le bilan a des questions réservées aux 18 ans et plus (libido, cycle), pas montrées tant que rien n'est déclaré
+function ckAdultOfferHtml() {
+  if (!checkinAdultOffer()) return '';
+  return `
+        <div class="group ck-group ck-offer ck-offer--adult">
+          <div class="ck-row">${icon('shield', 20)}<span class="ck-label">Questions réservées aux 18 ans et plus</span>
+            <button class="ck-skip" data-action="ck-adult">J'ai 18 ans ou plus</button></div>
+          <div class="ck-foot"><p class="ck-help">${ckWho()} a mis dans ce bilan des questions plus intimes (libido, cycle). Elles ne sont posées qu'après 18 ans, et restent facultatives.</p></div>
+        </div>`;
+}
 // Le coach suit le cycle et l'élève n'a pas encore répondu : proposé, jamais imposé (jamais si l'âge l'interdit)
 function ckCycleOfferHtml(req) {
   if (ck.cycle || !ck.cycleAsked || checkinCycleBlocked()) return '';
@@ -440,7 +458,9 @@ const CK_ERROR_TEXT = {
   invalid_answer: 'Une réponse n\'est pas acceptée : vérifie les chiffres, puis renvoie.',
   no_consent: 'Ton accord pour le cycle n\'est plus actif : la question du cycle est retirée. Renvoie le bilan.',
   not_found: 'Ce bilan n\'est plus disponible.',
-  get not_adult() { return 'Le suivi du cycle est réservé aux 18 ans et plus.'; },
+  get not_adult() { return 'Ces questions (libido, cycle) sont réservées aux 18 ans et plus.'; },
+  no_health_consent: 'Ton accord pour envoyer tes bilans n\'est pas donné : accepte-le, puis renvoie le bilan.',
+  invalid_version: 'Le texte de l\'accord a changé : relis-le, puis accepte-le de nouveau.',
 };
 function ckErrorText(kind) { return CK_ERROR_TEXT[kind] || coachErrorText(kind); }
 
@@ -478,6 +498,8 @@ async function ckSendFlow(id) {
     showToast(`Réponds à « ${it.label} » : ${who} en a besoin.`, { error: true });
     return;
   }
+  // Premier envoi : accord daté pour les données de santé, demandé une fois (sans lui, rien ne part)
+  if (checkinHealthNeeded() && !(await ckHealthOffer())) return;
   const empty = items.filter(it => !Object.hasOwn(answers, it.key)).length;
   const msg = `${empty ? `${plural(empty, 'suivi passé', 'suivis passés')} : ${who} ne ${empty > 1 ? 'les' : 'le'} verra pas. ` : ''}Une fois envoyé, ton bilan ne se modifie plus.`;
   if (!(await confirmSheet(`Envoyer ton bilan à ${who} ?`, msg, `Envoyer à ${who}`, false))) return;
@@ -487,7 +509,7 @@ async function ckSendFlow(id) {
   if (r.ok && !r.queued) { haptic('success'); announce(`Bilan envoyé à ${who}`); }
   else if (r.ok) announce('Pas d\'Internet : ton bilan partira dès que tu seras connecté.');
   else {
-    if (r.kind === 'no_consent') await checkinRefresh();
+    if (r.kind === 'no_consent' || r.kind === 'not_adult') await checkinRefresh();
     showToast(ckErrorText(r.kind), { error: true });
   }
   if (currentView() === 'checkin') { window.scrollTo(0, 0); render(); ckFocusTitle(); }
@@ -496,6 +518,34 @@ async function ckSendFlow(id) {
 function ckFocusTitle() {
   const go = () => { if (currentView() === 'checkin') document.getElementById('ckTitle')?.focus({ preventScroll: true }); };
   go(); setTimeout(go, 260);
+}
+
+// Accord daté pour les bilans (données de santé) : texte court, « J'accepte » ; rend true si l'accord est enregistré
+async function ckHealthOffer() {
+  const who = coachName() || myCoachWord('ton');
+  const ok = await dialog({ type: 'sheet', title: 'Accord pour tes bilans',
+    // Texte de la version CK_HEALTH_VERSION : le changer, c'est passer à la version suivante (serveur compris)
+    message: `J'accepte d'envoyer à ${who} mes réponses de bilan (données de santé). Tes réponses (sommeil, stress, douleurs, poids…) sont des données de santé : ${who} les voit dès que tu envoies un bilan, et personne d'autre. Tu peux retirer ton accord dans ${myCoachWord('Mon')} : plus rien ne part ensuite.`,
+    actions: [{ label: 'J\'accepte', value: true, style: 'preferred' }, { label: 'Annuler', style: 'cancel' }] });
+  if (ok !== true) return false;
+  const r = await checkinHealthSet(true);
+  if (!r.ok) { showToast(ckErrorText(r.kind), { error: true }); if (r.kind === 'invalid_version') await checkinRefresh(); return false; }
+  return true;
+}
+async function ckHealthWithdraw() {
+  const who = coachName() || myCoachWord('ton');
+  if (!(await confirmSheet('Retirer ton accord ?', `Tes prochains bilans ne partiront plus chez ${who}. Ceux déjà envoyés restent chez ${who} jusqu'à la fin du suivi.`, 'Retirer mon accord'))) return;
+  const r = await checkinHealthSet(false);
+  showToast(r.ok ? 'Accord retiré' : ckErrorText(r.kind), r.ok ? undefined : { error: true });
+  if (['checkin', 'coach-mine'].includes(currentView())) render();
+}
+async function ckAdultDeclare() {
+  const who = ckWho();
+  if (!(await confirmSheet('As-tu 18 ans ou plus ?', `Les questions sur la libido et le cycle ne sont posées qu'aux élèves de 18 ans et plus. ${who} ne voit que tes réponses, jamais ta déclaration.`, 'J\'ai 18 ans ou plus', false))) return;
+  const r = await checkinAdultDeclare();
+  if (!r.ok) { showToast(ckErrorText(r.kind), { error: true }); return; }
+  showToast('Déclaration enregistrée');
+  if (currentView() === 'checkin') { render(); ckFocusTitle(); }
 }
 
 // Accord pour le cycle : case « J'ai 18 ans ou plus » à cocher, puis le bouton s'active
@@ -636,6 +686,9 @@ registerActions({
   // Photo d'une pose : le coffre s'ouvre (Face ID) sur la feuille d'envoi au coach ; au retour, la rubrique la montre
   'ck-photo': () => { ckSaveDraft(); if (cphStudentShown() && cph.state?.ready) pvSendToCoach(); },
   'ck-cycle-offer': async () => { await ckCycleOffer(); },
+  'ck-health-offer': async () => { if (await ckHealthOffer()) { showToast('Accord enregistré'); render(); } },
+  'ck-health-withdraw': async () => { await ckHealthWithdraw(); },
+  'ck-adult': async () => { await ckAdultDeclare(); },
   'ck-cycle-withdraw': async () => { await ckCycleWithdraw(); },
   'ck-retry': async () => { await checkinRefresh(); render(); },
 });

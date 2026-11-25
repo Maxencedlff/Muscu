@@ -39,6 +39,14 @@ insert into public.user_profiles (user_id, username, avatar_emoji, coach_at)
 insert into public.coach_links (student_id, coach_id)
   select pg_temp.bu(c), pg_temp.bu('k') from unnest(array['s', 't', 'u', 'v']) c;
 insert into public.coach_links (student_id, coach_id) values (pg_temp.bu('w'), pg_temp.bu('l')), (pg_temp.bu('y'), pg_temp.bu('x'));
+-- Accord daté pour les bilans (20261127030000_bilans_accord_majeur, s'il est là) : donné par chaque élève lié, et
+-- S déclare ses 18 ans (libido et cycle) ; l'accord lui-même est vérifié par bilans_accord_majeur_test.sql
+do $$ begin
+  if to_regclass('public.checkin_health_consents') is not null then
+    execute 'insert into public.checkin_health_consents (student_id, coach_id, version) select student_id, coach_id, private.checkin_health_version() from public.coach_links on conflict do nothing';
+    insert into public.coach_photo_adults (user_id) select pg_temp.bu(c) from unnest(array['s', 't', 'u', 'v', 'w', 'y']) c on conflict do nothing;
+  end if;
+end $$;
 -- S : appareil et « Mon coach » allumé ; T : appareil, « Mon coach » éteint
 insert into public.push_devices (token, user_id, env) values
   (repeat('b', 64), pg_temp.bu('s'), 'production'), (repeat('c', 64), pg_temp.bu('t'), 'production');
@@ -490,7 +498,7 @@ begin
   if r -> 'requests' -> 0 ->> 'answered_at' <> at1 then raise 'répondue : %', r; end if;
   -- A (personne) : rien ; sans accord, sans coach : not_found
   perform pg_temp.blogin('a');
-  if public.student_checkins() <> '{"requests": [], "cycle": {"consented": false, "asked": false}}' then raise 'A voit des bilans'; end if;
+  if (public.student_checkins() - 'adult' - 'adult_asked' - 'health') <> '{"requests": [], "cycle": {"consented": false, "asked": false}}' then raise 'A voit des bilans'; end if;
   if pg_temp.berr('select public.student_checkin_cycle(true, true)') <> 'not_found' then raise 'accord sans coach'; end if;
   perform set_config('request.jwt.claim.sub', '', false);
   if pg_temp.berr('select public.student_checkins()') <> 'not_signed_in' then raise 'sans compte'; end if;
@@ -746,7 +754,7 @@ begin
   if private.push_valid('checkin', pg_temp.bu('s'), pg_temp.bu('k'), (select v from pg_temp.bk where k = 'req_s2')::text) then raise 'notification après le départ'; end if;
   -- De retour chez le même coach : rien ne revient
   insert into public.coach_links (student_id, coach_id) values (pg_temp.bu('s'), pg_temp.bu('k'));
-  if public.student_checkins() <> '{"requests": [], "cycle": {"consented": false, "asked": false}}' then raise 'bilans revenus avec le lien'; end if;
+  if (public.student_checkins() - 'adult' - 'adult_asked' - 'health') <> '{"requests": [], "cycle": {"consented": false, "asked": false}}' then raise 'bilans revenus avec le lien'; end if;
   -- T : compte supprimé
   delete from auth.users where id = pg_temp.bu('t');
   if exists (select 1 from public.coach_checkin_requests r where r.student_id = pg_temp.bu('t'))

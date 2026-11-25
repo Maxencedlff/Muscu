@@ -544,6 +544,7 @@ function renderSocialManage() {
       <div class="scr">
         ${section('Demandes envoyées', st.requested, p => pill('social-cancel', p.user_id, 'Annuler', { aria: `Annuler la demande à ${personName(p)}` }), 'Aucune')}
         ${section('Bloqués', st.blocked, p => pill('social-unblock', p.user_id, 'Débloquer', { aria: `Débloquer ${personName(p)}` }), 'Personne')}
+        ${st.blocked.length ? `<div class="group-foot">${unblockCoachText()}</div>` : ''}
         <div class="group group--gap">
           <button class="cell cell--action" data-action="social-rules"><span class="cell__title">Règles de la communauté</span></button>
         </div>
@@ -679,11 +680,46 @@ async function reportFlow(uid, ref) {
   if (block === true) await blockFlow(uid, { confirm: false });
 }
 
+// Lien coach avec cette personne (mon coach, ou un de mes élèves) : clé de la conversation à signaler, sinon null
+function blockCoachKey(uid) {
+  if (typeof myCoach === 'function' && myCoach()?.user_id === uid) return CHAT_COACH;
+  if (typeof coach === 'object' && coach.state?.students?.some(s => s.user_id === uid)) return uid;
+  return null;
+}
+// Bloquer son coach (ou son élève) coupe le suivi et efface la conversation (20261127010000_blocage_coupe_coach.sql) :
+// on le dit, et on propose de signaler d'abord (report_chat joint les 50 derniers messages, gardés même après)
+async function blockCoachFlow(uid, key) {
+  const name = personName(socialPerson(uid));
+  const choice = await dialog({ type: 'sheet', title: `Bloquer ${name} ?`,
+    message: `Bloquer efface votre conversation et coupe le suivi. Programmes, bilans et partages avec ${name} sont retirés. Pour garder une trace d'un problème, signale d'abord : les derniers messages sont joints au signalement. Personne n'est averti.`,
+    actions: [{ label: 'Signaler d\'abord', value: 'report', style: 'destructive' }, { label: 'Bloquer', value: 'block', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
+  if (choice === 'report') {
+    const reason = await dialog({ type: 'sheet', title: `Signaler ${name}`,
+      message: `Pourquoi ? ${name} ne saura pas que c'est toi. Les 50 derniers messages sont joints pour l'équipe de modération, puis ${name} est bloqué.`,
+      actions: [...REPORT_REASONS.map(x => ({ label: x.label, value: x.reason })), { label: 'Annuler', style: 'cancel' }] });
+    if (!reason) return false;
+    const r = await chatReport(key, reason);
+    if (!r.ok) { showToast(r.kind === 'report_rate' ? socialErrorText(r.kind) : coachErrorText(r.kind), { error: true }); return false; }
+    haptic();
+    return true;
+  }
+  return choice === 'block';
+}
+
+// Débloquer ne rétablit pas un suivi coupé par le blocage (dit sous la liste des bloqués et après le déblocage) ;
+// form : forme de ce coach si on la connaît (accord du texte)
+function unblockCoachText(form = null) {
+  return `Débloquer ne reprend pas un suivi. Pour reprendre avec ${coachWord('ce', form)}, rejoins-${coachWord('pron', form)} avec son code d'invitation. Ce qui a été effacé au blocage ne revient pas.`;
+}
 async function blockFlow(uid, { confirm = true } = {}) {
   const name = personName(socialPerson(uid));
-  if (confirm && !(await confirmSheet(`Bloquer ${name} ?`, `${name} ne pourra plus te trouver ni voir tes séances, et tu ne verras plus les siennes. Vous ne vous suivez plus. Personne n'en est averti.`, 'Bloquer'))) return;
+  const key = blockCoachKey(uid);
+  if (key) { if (!(await blockCoachFlow(uid, key))) return; }
+  else if (confirm && !(await confirmSheet(`Bloquer ${name} ?`, `${name} ne pourra plus te trouver ni voir tes séances, et tu ne verras plus les siennes. Vous ne vous suivez plus. Personne n'en est averti.`, 'Bloquer'))) return;
   const r = await socialBlock(uid);
-  if (!socialToast(r, `${name} bloqué`)) return;
+  if (!socialToast(r, key ? `${name} bloqué, suivi arrêté` : `${name} bloqué`)) return;
+  // Lien coupé côté serveur : Mon coach (ou la liste des élèves) relu tout de suite
+  if (key && typeof coachRefresh === 'function') coachRefresh();
   if (currentView() === 'social-session') goBack();
   render();
 }
@@ -784,7 +820,10 @@ registerActions({
   'social-block': async (e, el) => { await blockFlow(el.dataset.uid); },
   'social-unblock': async (e, el) => {
     const r = await socialUnblock(el.dataset.uid);
-    socialToast(r, `${personName(socialPerson(el.dataset.uid))} débloqué`);
+    if (socialToast(r)) {
+      // Débloquer ne rétablit aucun suivi : on le dit
+      await dialog({ title: `${personName(socialPerson(el.dataset.uid))} débloqué`, message: unblockCoachText(typeof coachFormOf === 'function' ? coachFormOf(el.dataset.uid) : null), actions: [{ label: 'OK', style: 'preferred' }] });
+    }
     render();
   },
   'social-report': async (e, el) => { await reportFlow(el.dataset.uid, el.dataset.ref || null); },
