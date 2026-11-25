@@ -1,6 +1,8 @@
 name: Mise à jour à chaud
 
-# Publie le contenu web de main comme mise à jour à chaud de l'app iOS (https://mdlf-ota.vercel.app).
+# Publie le contenu web de main comme mise à jour à chaud de l'app iOS, aux DEUX adresses que lisent les builds :
+# https://ota.mdlf.app (Cloudflare Pages, projet mdlf-ota) et https://mdlf-ota.vercel.app (lue en dur par la
+# build 133 et les précédentes). Manifeste et paquet identiques octet pour octet aux deux endroits (docs/HEBERGEMENT.md).
 # Lancement manuel uniquement :  gh workflow run ota.yml -R Maxencedlff/Muscu -f motif="…"
 # Règle Apple 2.5.2 : à réserver aux corrections et petits ajustements ; une nouvelle fonctionnalité
 # passe par une version TestFlight / App Store (ios.yml). Voir IOS.md.
@@ -122,6 +124,20 @@ jobs:
           npm run web:build
           python3 scripts/ota-bundle.py
 
+      # Pages d'abord : la build qui lit ota.mdlf.app. Seuls manifest.json et bundles/ y vont (ni vercel.json ni la
+      # fonction de réveil, qui reste chez Vercel) ; _headers est traduit de ota-site/vercel.json.
+      - name: Publication sur ota.mdlf.app (Cloudflare Pages)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHA: ${{ needs.gate.outputs.sha }}
+        run: |
+          rm -rf ota-pages && mkdir ota-pages
+          cp -r ota-site/manifest.json ota-site/bundles ota-pages/
+          node scripts/pages-headers.mjs ota-site/vercel.json ota-pages
+          npx --yes wrangler@4.157.0 pages deploy ota-pages --project-name mdlf-ota --branch main \
+            --commit-hash "$SHA" --commit-message "ota.yml $SHA" --commit-dirty=true
+
       - name: Publication sur mdlf-ota.vercel.app
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -138,17 +154,21 @@ jobs:
           MOTIF: ${{ inputs.motif }}
         run: |
           # fileSha256 : SHA-256 du fichier servi (chiffré si le paquet est signé)
+          # Aux deux adresses : manifeste identique OCTET POUR OCTET à celui construit, paquet conforme à fileSha256
           EXPECTED=$(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['fileSha256'])")
-          for i in 1 2 3 4 5 6; do
-            ONLINE=$(curl -fsS https://mdlf-ota.vercel.app/manifest.json | python3 -c "import json,sys; print(json.load(sys.stdin)['fileSha256'])" || true)
-            [ "$ONLINE" = "$EXPECTED" ] && break
-            sleep 5
+          ZIP=$(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['url'].rsplit('/', 1)[1])")
+          for HOST in ota.mdlf.app mdlf-ota.vercel.app; do
+            OK=
+            for i in 1 2 3 4 5 6; do
+              curl -fsS -H 'Cache-Control: no-cache' "https://$HOST/manifest.json" -o /tmp/m.json && cmp -s /tmp/m.json ota-site/manifest.json && { OK=1; break; }
+              sleep 5
+            done
+            [ -n "$OK" ] || { echo "Manifeste de $HOST différent de celui publié"; exit 1; }
+            # Le manifeste peut être servi quelques secondes avant le paquet (constaté le 18/10) : on réessaie
+            for i in 1 2 3 4 5 6; do curl -fsS "https://$HOST/bundles/$ZIP" -o /tmp/b.zip && break; sleep 5; done
+            echo "$EXPECTED  /tmp/b.zip" | sha256sum -c -
+            echo "$HOST : manifeste et paquet conformes."
           done
-          [ "$ONLINE" = "$EXPECTED" ] || { echo "Manifeste en ligne différent de celui publié"; exit 1; }
-          URL=$(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['url'])")
-          # Le manifeste peut être servi quelques secondes avant le paquet (constaté le 18/10) : on réessaie
-          for i in 1 2 3 4 5 6; do curl -fsS "$URL" -o /tmp/b.zip && break; sleep 5; done
-          echo "$EXPECTED  /tmp/b.zip" | sha256sum -c -
           {
             echo "### Mise à jour publiée"
             echo "- Motif : $MOTIF"

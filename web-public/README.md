@@ -1,4 +1,4 @@
-# Site public muscu-eta.vercel.app
+# Site public mdlf.app
 
 Depuis le 22/10/2026, la version web (PWA) est arrêtée : seule l'app iOS reste. Ce dossier est tout
 ce que publie le site :
@@ -13,4 +13,8 @@ ce que publie le site :
 - `strava.html` (Strava en sommeil, liée nulle part : docs/STRAVA.md) : retour de la page d'autorisation de Strava (fonction `strava-connect`),
   résultat en ancre (`#ok`, `#refuse`, `#droits`, `#expire`, `#erreur`) affiché sans script.
 
-Publication : job `deploy` de `.github/workflows/tests.yml`.
+- `404.html` : page des adresses inconnues (sans elle, Cloudflare Pages répondrait index.html en 200).
+
+Publication : job `deploy` de `.github/workflows/tests.yml`, sur Cloudflare Pages (projet `mdlf-web`, construit par
+`scripts/build-web-public.mjs` : ni ce README ni `vercel.json` ne sont servis), puis copie de secours sur le projet
+Vercel `muscu` (muscu-eta.vercel.app). `vercel.json` reste la seule source des en-têtes : docs/HEBERGEMENT.md.

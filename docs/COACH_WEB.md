@@ -30,7 +30,9 @@ coach-web/js/desk/chat-model.js, messages.js   vague 4 : Messages (#/messages, o
 coach-web/js/desk/prog-model.js, programme.js  vague 4 : onglet Programme (éditeur des séances, envoi à un ou plusieurs)
 coach-web/js/desk/diet-model.js, nutrition.js  vague 4 : onglet Nutrition (plan envoyé, semaine cochée, envoi d'un plan)
 coach-web/js/desk/main.js   routes, gestes, clavier, inactivité, confirmation avant de quitter, démarrage (deskStart)
-coach-web/vercel.json       en-têtes et redirection de mdlf-coach.vercel.app (copié dans dist-coach/ par la construction)
+coach-web/vercel.json       seule source des en-têtes : traduits en _headers (Cloudflare Pages) par la construction ;
+                            garde aussi la redirection 308 de mdlf-coach.vercel.app vers coach.mdlf.app (copie de secours)
+coach-web/404.html          page des adresses inconnues (sans elle, Pages répondrait index.html en 200)
 scripts/build-coach-web.mjs construction : dist-coach/ (npm run coach-web:build)
 ```
 
@@ -267,17 +269,24 @@ mêmes lectures une par une (séances par pages de 30 jusqu'au début de la fen�
 - CI : job `coach-web` de `tests.yml` (un par moteur, conteneur officiel de Playwright), syntaxe de `coach-web/js`,
   tests SQL et retour arrière dans `unit`. Le job `deploy` l'attend.
 
-## Déploiement (fait : https://coach.mdlf.app)
+## Déploiement
 
-1. `npm ci && npm run coach-web:build` : `dist-coach/` (page, styles, les 35 scripts partagés exacts, supabase-js,
-   `vercel.json`).
-2. Projet Vercel à part (`mdlf-coach`, domaine `coach.mdlf.app`), sans build côté Vercel (dossier
-   statique) : `npx vercel@62.0.0 deploy dist-coach --prod --yes --token "$VERCEL_TOKEN"`, avec
-   `VERCEL_PROJECT_ID` de ce projet. `git.deploymentEnabled: false` : rien ne part tout seul.
-3. Supabase Auth : rien à changer pour le code e-mail (aucun lien de retour). Pour Apple : Services ID dans
-   `external_apple_client_id` (« Connexion avec Apple »), aucune URL de retour Supabase.
-4. Après la publication : `curl -sI https://coach.mdlf.app` doit rendre 200 et les en-têtes de `vercel.json`, et
-   `curl -sI https://mdlf-coach.vercel.app/x` un 308 vers `https://coach.mdlf.app/x`.
+Hébergement : **Cloudflare Pages**, projet `mdlf-coach`, domaine `coach.mdlf.app` (depuis le 25/11/2026 ; avant :
+Vercel, gardé en secours). Détail, retour arrière et ménage chez Vercel : docs/HEBERGEMENT.md.
+
+1. **Automatique** : job `coach-web-deploy` de `tests.yml`, sur main, seulement quand `unit`, `e2e`, `coach-web` et
+   `edge` sont verts. Il construit `dist-coach/`, le publie par wrangler (version figée), vérifie que coach.mdlf.app
+   sert la page construite et écrit le commit publié dans le résumé du job.
+2. À la main (dépannage seulement) : `npm ci && npm run coach-web:build` (`dist-coach/` : page, styles, scripts
+   partagés exacts, supabase-js, `404.html`, `_headers` traduit de `coach-web/vercel.json`), puis
+   `npx --yes wrangler@4.157.0 pages deploy dist-coach --project-name mdlf-coach --branch main` avec
+   `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID` dans l'environnement.
+3. Secours Vercel (projet `mdlf-coach`, plus publié depuis le 25/11) : `node scripts/build-coach-web.mjs --vercel`
+   (copie `vercel.json` au lieu de `_headers`), puis `npx vercel@62.0.0 deploy dist-coach --prod --yes`.
+4. Supabase Auth : rien à changer pour le code e-mail (aucun lien de retour). Pour Apple : Services ID dans
+   `external_apple_client_id` (« Connexion avec Apple »), aucune URL de retour Supabase. Le domaine coach.mdlf.app n'a
+   pas changé avec l'hébergeur : le Services ID reste bon.
+5. Vérifier : `curl -sI https://coach.mdlf.app` rend 200 et les en-têtes de `coach-web/vercel.json`.
 
 ## Vague 2 : bilans configurables (partie web du coach)
 
