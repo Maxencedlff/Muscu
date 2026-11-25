@@ -24,6 +24,15 @@ SIZES = [(1440, 900, False), (1180, 820, True), (820, 1180, True)]
 FAILS = os.path.join(os.environ.get('PPL_SCRATCH', '/tmp/ppl-tests'), 'shots', 'coach-web-v4-echecs')
 
 
+def wait_js(page, expr, timeout=15_000):
+    """Attend qu'une expression soit vraie, par page.evaluate (WebKit refuse wait_for_function sous la CSP de la page)."""
+    for _ in range(timeout // 100):
+        if page.evaluate(expr):
+            return
+        page.wait_for_timeout(100)
+    raise AssertionError(f'jamais vrai : {expr}')
+
+
 def go(page, hash_, wait):
     page.evaluate(f"location.hash = {hash_!r}.replace('LEA', window.__lea)")
     page.wait_for_selector(wait)
@@ -54,7 +63,7 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         common(page, f'{tag} messages', theme)
         tap(page, '.msg-row:has-text("lea")', touch)
         page.wait_for_selector('.bub')
-        page.wait_for_function("!document.querySelector('.msg-row.on .badge')")
+        wait_js(page, "!document.querySelector('.msg-row.on .badge')")
         check(page.locator('.bub').count() == 7, f'{tag} : {page.locator(".bub").count()} messages')
         check(page.locator('.ref').count() >= 2, f'{tag} : séances et bilan dans le fil')
         check('Ton commentaire' in page.locator('.chat-b').inner_text(), f'{tag} : commentaire de séance dans le fil')
@@ -66,7 +75,7 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         check(gap < 4, f'{tag} : fil en bas à l\'ouverture ({gap})')
         page.fill('#chat-in', 'Oui, des pâtes complètes, même poids cru.')
         page.keyboard.press('Enter') if not touch else tap(page, '[data-ms=send]', touch)
-        page.wait_for_function("[...document.querySelectorAll('.bub.tx')].some(b => b.innerText.includes('pâtes complètes'))")
+        wait_js(page, "[...document.querySelectorAll('.bub.tx')].some(b => b.innerText.includes('pâtes complètes'))")
         check(page.input_value('#chat-in') == '', f'{tag} : saisie vidée')
         sent = page.evaluate("window.__sb.co.msgs.filter(m => m.student === window.__lea && m.fromCoach).at(-1).body")
         check(sent == 'Oui, des pâtes complètes, même poids cru.', f'{tag} : message envoyé {sent!r}')
@@ -80,11 +89,10 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         check('45 × 7' in first.inner_text() or '55 × 8' in first.inner_text() or 'Pas encore fait' in first.inner_text(), f'{tag} : la dernière fois')
         common(page, f'{tag} programme', theme)
         k = first.get_attribute('data-k')
+        # Taper puis toucher « Envoyer » directement (le champ quitté par le clic ne perd pas le clic)
         page.fill(f'#pg-sets-{k}', '5')
-        page.keyboard.press('Tab')
-        page.wait_for_selector('.savebar.stick')
         tap(page, '[data-pg=send]', touch)
-        page.wait_for_function("!document.querySelector('.savebar.stick')")
+        wait_js(page, "!document.querySelector('.savebar.stick')")
         data = page.evaluate("window.__sb.co.progs.find(p => p.student === window.__lea && p.id === 'seche4').data")
         ex = data['sessions'][0]['exercises'][0]
         check(ex['sets'] == 5 and ex['loads'][:2] == [45, 40] and ex['intens'] == 'topback' and '_k' not in ex, f'{tag} : programme envoyé {ex}')
@@ -122,8 +130,8 @@ def journeys(browser, url, engine):
         go(page, '#/messages/LEA', '.bub')
         page.evaluate("window.__sb.msg(window.__lea, false, 'Message arrivé pendant la lecture')")
         page.clock.run_for(16_000)
-        page.wait_for_function("document.querySelector('.chat-b').innerText.includes('arrivé pendant la lecture')")
-        page.wait_for_function("(window.__sb.co.reads[window.__lea] || {}).coach === Math.max(...window.__sb.co.msgs.filter(m => m.student === window.__lea).map(m => m.id))")
+        wait_js(page, "document.querySelector('.chat-b').innerText.includes('arrivé pendant la lecture')")
+        wait_js(page, "(window.__sb.co.reads[window.__lea] || {}).coach === Math.max(...window.__sb.co.msgs.filter(m => m.student === window.__lea).map(m => m.id))")
         # Maj + Entrée : à la ligne, pas d'envoi
         page.fill('#chat-in', 'ligne 1')
         page.keyboard.press('Shift+Enter')
@@ -168,7 +176,7 @@ def journeys(browser, url, engine):
         page.click('[data-pg=send-many]')
         page.click('dialog .ch-o:has-text("tom")')
         page.click('dialog [data-cf=yes]')
-        page.wait_for_function("window.__sb.co.progs.filter(p => p.id === 'seche4' && p.data.sessions.length === 4).length >= 2")
+        wait_js(page, "window.__sb.co.progs.filter(p => p.id === 'seche4' && p.data.sessions.length === 4).length >= 2")
         progs = page.evaluate("window.__sb.co.progs.filter(p => p.id === 'seche4')")
         lea, tom = page.evaluate('[window.__lea, window.__students[1]]')
         pl = next(p for p in progs if p['student'] == lea)['data']['sessions'][0]['exercises'][0]
@@ -184,18 +192,16 @@ def journeys(browser, url, engine):
         page.click('dialog [data-cf=yes]')
         page.wait_for_selector('.pg-row:has-text("Squat")')
         page.click('[data-pg=send]')
-        page.wait_for_function(f"window.__sb.co.progs.some(p => p.student === '{hugo}' && p.id === 'u_force3')")
+        wait_js(page, f"window.__sb.co.progs.some(p => p.student === '{hugo}' && p.id === 'u_force3')")
         check(not page.errors, f'parcours : erreurs {page.errors}')
         ctx.close()
 
         # Serveur sans coach_student_programmes : la version gardée sur le compte du coach
-        ctx, page = open_desk(browser, url, width=1180, height=820, touch=True, v4=True, fake_opts={})
-        page.evaluate("window.__sb.fail.progs = 'missing'; window.__sb.co.progs.find(p => p.id === 'seche4' && p.student === window.__lea).id = 'u_seche4'")
-        page.evaluate("window.__sb.co.progs.find(p => p.id === 'u_seche4').sent_at = new Date().toISOString()")
-        page.evaluate("location.reload()")
-        page.wait_for_selector('.lst, .empty:not([role="status"])')
+        ctx, page = open_desk(browser, url, width=1180, height=820, touch=True, v4=True,
+                              pre="window.__sb.fail.progs = 'missing'; window.__sb.co.progs.find(p => p.id === 'seche4' && p.student === window.__lea).id = 'u_seche4';")
         go(page, '#/eleve/LEA/programme', '.pg-row[data-k]')
         check('Version de ce programme gardée sur ton compte' in page.locator('.pg-note').inner_text(), 'repli : version du compte annoncée')
+        check(page.locator('[data-pg=send]').is_disabled() and page.locator('[data-pg=send-many]').is_disabled(), 'repli : lecture seule, jamais de charges effacées')
         go(page, '#/eleve/LEA/nutrition', '.nt-day')
         check('Plan lu sur ton compte' in page.inner_text('main'), 'repli : plan du compte')
         # Jade ne partage pas sa diète : rien d'autre que l'endroit où l'activer
@@ -221,7 +227,7 @@ def main():
         for engine in ENGINES:
             browser = launch(pw, engine)
             try:
-                for theme in ('dark', 'light'):
+                for theme in ('dark', 'light') if os.environ.get('PPL_V4_PARTS', 'all') != 'journeys' else ():
                     for w, h, touch in SIZES:
                         matrix_case(browser, url, engine, w, h, touch, theme)
                         print(f'ok  {engine} {w}px {theme}')

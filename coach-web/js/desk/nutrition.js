@@ -17,8 +17,8 @@ const nt = { id: null, loading: false, kind: null, via: null, diets: [], back: 0
 
 async function deskNtOpen(id, { force = false } = {}) {
   if (!force && nt.id === id && (nt.loading || Date.now() - nt.at < DESK_REFRESH_MS)) return;
-  Object.assign(nt, { id, loading: true, kind: null, diets: [], at: Date.now() });
   if (nt.id !== id) Object.assign(nt, { back: 0, sel: null });
+  Object.assign(nt, { id, loading: true, kind: null, diets: [], at: Date.now() });
   deskRender();
   const [sent, doc] = await Promise.all([deskLoadSentProgs(id), deskDoc()]);
   if (nt.id !== id) return;
@@ -47,7 +47,7 @@ function deskNtBar(pct) {
 
 function deskNtPlanHtml(r) {
   const p = nt.diets[0] || null;
-  const btn = '<button type="button" class="btn" data-nt="send">' + deskIcon('send', 'sm') + 'Envoyer un plan</button>';
+  const btn = `<button type="button" class="btn" data-nt="send" ${nt.busy ? 'disabled aria-busy="true"' : ''}>${deskIcon('send', 'sm')}Envoyer un plan</button>`;
   if (!p) {
     return `<div class="head nt-head"><div class="grow"><h2 class="ed-t">Plan diète</h2><div class="sub">${esc(`Aucun plan envoyé à ${r.name} pour l'instant.`)}</div></div>${btn}</div>`;
   }
@@ -113,6 +113,7 @@ function deskNtHtml(r, d) {
 // ── Gestes ──────────────────────────────────────────────────
 
 async function deskNtSend(id) {
+  if (nt.busy) return;
   const name = deskChatRow(id)?.name || 'ton élève';
   const doc = await deskDoc();
   const ids = doc.data ? coachSendableDiets(doc.data) : [];

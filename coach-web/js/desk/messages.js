@@ -54,7 +54,8 @@ async function deskChatOpen(id) {
   const c = chatConv(id);
   const first = !c.loadedAt;
   const r = first ? await chatLoad(id, deskChatOpts) : await chatPoll(id, deskChatOpts);
-  if (r.ok && deskChatKey() === id) { await chatMarkRead(id, { force: true, ...deskChatOpts }); deskChatSetThreads(chat.threads); }
+  // Lu jusqu'au dernier reçu, seulement s'il y a du nouveau (non-lus du résumé, ou messages de l'élève arrivés)
+  if (r.ok && deskChatKey() === id && (first || r.theirs || chatUnreadOf(id))) { await chatMarkRead(id, { force: true, ...deskChatOpts }); deskChatSetThreads(chat.threads); }
   if (r.kind === 'signed_out') return deskEndSession();
   deskRender();
   deskChatExtra(id);
@@ -87,13 +88,20 @@ async function deskChatTick({ now = false } = {}) {
   if (!desk.user || (route.name !== 'messages' && !id)) { deskChatStop(); return; }
   if (document.visibilityState !== 'visible') return;
   ms.ticks++;
+  // Redessiné seulement si quelque chose a changé : un lecteur d'écran ne relit pas le fil, une saisie n'est pas coupée
+  const before = deskChatSig();
   if (now || ms.ticks % Math.round(DESK_CHAT_THREADS_MS / CHAT_POLL_MS) === 0) await deskChatThreadsRefresh();
   if (id) {
     const r = await chatPoll(id, deskChatOpts);
     if (r.ok && r.theirs && deskChatKey() === id) { await chatMarkRead(id, { force: true, ...deskChatOpts }); deskChatSetThreads(chat.threads); }
     if (now) deskChatExtra(id);
   }
-  deskRender();
+  if (now || deskChatSig() !== before) deskRender();
+}
+// Empreinte de ce qu'affiche l'écran Messages : non-lus et dernier message de chaque conversation, messages chargés
+function deskChatSig() {
+  const t = view.dash?.threads?.students || {}, id = deskChatKey();
+  return JSON.stringify([Object.entries(t).map(([k, v]) => [k, v.unread, v.last?.id]), id ? chatConv(id).rows.map(m => m.id).join() : '']);
 }
 
 // ── Gabarits ────────────────────────────────────────────────

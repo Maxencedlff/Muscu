@@ -27,7 +27,9 @@ const desk = { user: null, email: null, sentAt: 0 };
 // Hôte qui embarque l'appli (docs/COACH_WEB.md, « Embarquer dans l'app ») : l'app iPhone sur iPad ou tablette pourra
 // ouvrir cette même interface dans sa vue web et lui donner, AVANT le chargement des scripts, window.MDLF_COACH_HOST =
 // { session: { access_token, refresh_token }, exit() }. Session fournie : ni écran de connexion, ni copie de la session
-// dans le navigateur (la vue web la reçoit à chaque ouverture), ni fermeture après 30 min (l'app garde sa propre règle) ;
+// dans le navigateur (la vue web la reçoit à chaque ouverture), ni fermeture après 30 min (l'app garde sa propre règle),
+// ni renouvellement d'ici (un jeton de rafraîchissement ne sert qu'une fois chez Supabase : le renouveler dans la vue
+// web révoquerait la session de l'app ; l'app renouvelle et rouvre la page avec la nouvelle session) ;
 // exit : bouton « Revenir à l'appli ». Sans hôte (le site), rien ne change. Jamais window.top ni window.parent.
 const deskHost = (() => {
   try {
@@ -53,7 +55,7 @@ function deskClient() {
   if (sb) return sb;
   if (typeof supabase === 'undefined') return null;
   sb = supabase.createClient(DESK_CONFIG.url, DESK_CONFIG.publishableKey, {
-    auth: { storage: deskHosted() ? undefined : deskStore() || undefined, storageKey: DESK_AUTH_KEY, persistSession: !deskHosted(), autoRefreshToken: true, detectSessionInUrl: false },
+    auth: { storage: deskHosted() ? undefined : deskStore() || undefined, storageKey: DESK_AUTH_KEY, persistSession: !deskHosted(), autoRefreshToken: !deskHosted(), detectSessionInUrl: false },
   });
   return sb;
 }

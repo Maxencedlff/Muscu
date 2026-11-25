@@ -158,7 +158,8 @@ async function deskRefresh({ force = false } = {}) {
   deskRender();
   const route = deskRoute();
   if (route.name === 'student') deskOpenStudent(route.id);
-  deskOpenTab(route);
+  // Onglets de la vague 4 : à l'ouverture seulement (ensuite, chacun relit ses données lui-même)
+  if (force) deskOpenTab(route);
   // Nombre de modèles (barre latérale) et écran Mes bilans : relus avec le tableau de bord
   deskOpenBilans({ keep: true });
 }
@@ -211,7 +212,7 @@ document.addEventListener('click', async e => {
   else if (a === 'more-weeks') { ui.weeks = DESK_WEEKS_MAX; deskRender(); }
   else if (a === 'reload') { if (deskRoute().name === 'student') deskOpenStudent(deskRoute().id, { force: true }); else deskRefresh({ force: true }); }
   else if (a === 'signout') deskEndSession();
-  else if (a === 'host-exit') deskHost?.exit?.();
+  else if (a === 'host-exit') { if (await deskLeaveAllOk()) deskHost?.exit?.(); }
   else if (a === 'apple') deskAppleClick();
   else if (a === 'login-back') { Object.assign(ui.login, { step: 'email', error: '' }); deskRender(); document.getElementById('login-email')?.focus(); }
 });
@@ -286,7 +287,8 @@ window.addEventListener('hashchange', async () => {
     deskHashBack = true;
     history.replaceState(null, '', from);
     deskHashBack = false;
-    const ok = leavingEditor ? await deskCkLeaveOk() : leavingReply ? await deskRvLeaveOk() : await deskPgLeaveOk();
+    // Plusieurs changements en cours (réponse ET programme) : chacun demandé, aucun perdu sans le dire
+    const ok = (!leavingEditor || await deskCkLeaveOk()) && (!leavingReply || await deskRvLeaveOk()) && (!leavingProg || await deskPgLeaveOk());
     if (!ok) return;
     if (leavingEditor) deskCkSelect(bl.draft?.id || bl.sel);
     if (leavingReply) rv.drafts = {};
@@ -303,6 +305,10 @@ window.addEventListener('hashchange', async () => {
   if (route.name === 'bilans' && desk.user) deskOpenBilans({ keep: true });
   if (desk.user) deskOpenTab(route);
 });
+// Rendre la main à l'app hôte : chaque changement pas enregistré est confirmé d'abord
+async function deskLeaveAllOk() {
+  return (!deskCkDirty() || await deskCkLeaveOk()) && (!deskRvDirty() || await deskRvLeaveOk()) && (!deskPgDirty() || await deskPgLeaveOk());
+}
 // Onglets de la vague 4 : Messages (relecture régulière), Programme et Nutrition (lectures propres)
 function deskOpenTab(route) {
   if (!view.dash) return;

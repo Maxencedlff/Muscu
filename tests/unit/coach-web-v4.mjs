@@ -104,6 +104,9 @@ export default function ({ test, assert, ROOT }) {
     run(`deskPgPatch(__e, 'sets', '2')`);
     assert.equal(J(run('__e.loads')), J([45, 40]), 'charges série par série ramenées aux séries');
     assert.equal(run('deskPgLoads(__e).mode'), 'sets');
+    const mix = run(`(() => { const e = { name: 'Squat', sets: 3, load: 60, loads: [70] }; deskPgPatch(e, 'sets', '5'); const a = [0, 1, 2, 3, 4].map(i => prescKgAt(e, i));
+      deskPgPatch(e, 'loads.2', '65'); return [a, [0, 1, 2, 3, 4].map(i => prescKgAt(e, i))]; })()`);
+    assert.equal(J(mix), J([[70, 60, 60, 60, 60], [70, 60, 65, 60, 60]]), 'charge commune gardée en repli : une série ajoutée la reprend');
     run(`deskPgPatch(__e, 'repMin', '9')`);
     assert.equal(run('__e.repMin'), 6, 'bas au-dessus du haut : refusé, celui d\'avant reste');
     run(`deskPgPatch(__e, 'repMin', '5')`);

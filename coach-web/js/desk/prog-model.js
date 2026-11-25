@@ -79,7 +79,10 @@ function deskPgPatch(e, field, value) {
     const n = deskPgInt(value, 1, DESK_PG_SETS_MAX);
     if (n === null) return false;
     e.sets = n;
-    deskPgSetLoads(e, loads.mode, loads.load, loads.loads.slice(0, n));
+    // Charge commune gardée en repli (prescKgAt : loads[i], sinon load) : une série ajoutée la reprend
+    const f = prescLoadFields(e, n);
+    delete e.load; delete e.loads;
+    Object.assign(e, f);
     deskPgSetTech(e, tech.tech, Array.isArray(tech.where) ? tech.where.filter(x => x <= n) : tech.where);
   } else if (field === 'repMax' || field === 'repMin') {
     const hi = field === 'repMax' ? deskPgInt(value, 1, 100) : reps.hi;
@@ -100,13 +103,22 @@ function deskPgPatch(e, field, value) {
   } else if (field === 'load') {
     deskPgSetLoads(e, 'one', cleanPrescKg(String(value).replace(',', '.')), []);
   } else if (field.startsWith('loads.')) {
-    const i = parseInt(field.slice(6), 10), list = loads.loads.slice();
-    if (!(i >= 0 && i < (e.sets || 3))) return false;
-    list[i] = cleanPrescKg(String(value).replace(',', '.'));
-    deskPgSetLoads(e, 'sets', null, list);
+    const n = e.sets || 3, i = parseInt(field.slice(6), 10);
+    if (!(i >= 0 && i < n)) return false;
+    const own = Array.from({ length: n }, (_, j) => (Array.isArray(e.loads) ? cleanPrescKg(e.loads[j]) : null));
+    own[i] = cleanPrescKg(String(value).replace(',', '.'));
+    const f = prescLoadFields({ load: e.load, loads: own }, n);
+    delete e.load; delete e.loads;
+    Object.assign(e, f);
+    if (!e.loads && e.load === undefined && own.some(x => x !== null)) e.loads = own;
   } else if (field === 'loadMode') {
-    deskPgSetLoads(e, value === 'sets' ? 'sets' : 'one', loads.load ?? loads.loads.find(x => x !== null) ?? null,
-      value === 'sets' ? loads.loads.map(x => x ?? loads.load) : []);
+    const common = loads.load ?? loads.loads.find(x => x !== null) ?? null;
+    if (value === 'sets') {
+      // Série par série : chaque série écrite (la charge commune gardée en repli)
+      delete e.load; delete e.loads;
+      Object.assign(e, prescLoadFields({ load: common, loads: loads.loads }, e.sets || 3));
+      if (!Array.isArray(e.loads) && common !== null) e.loads = Array.from({ length: e.sets || 3 }, () => common);
+    } else deskPgSetLoads(e, 'one', common, []);
   } else if (field === 'rest') {
     const v = String(value) === '' ? null : deskPgInt(value, 10, 600);
     if (v === null) delete e.rest; else e.rest = v;

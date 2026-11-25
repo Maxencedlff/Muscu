@@ -75,7 +75,7 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         check(page.locator('table.wk tbody tr').count() == 8, f'{tag} : 8 semaines')
         check(page.locator('table.wk tbody tr.cur').inner_text().startswith('S48'), f'{tag} : semaine en cours')
         check(page.locator('.chart svg polyline').count() == 1, f'{tag} : courbe du poids')
-        check(page.locator('[role=tab][aria-disabled=true]').count() == 3, f'{tag} : onglets bientôt (Bilans ouvert en vague 2)')
+        check(page.locator('[role=tab]').count() == 5 and page.locator('[role=tab][aria-disabled=true]').count() == 0, f'{tag} : les cinq onglets de la fiche (vague 4)')
         no_hscroll(page, f'{tag} fiche')
         small = small_targets(page)
         check(not small, f'{tag} : fiche, cibles de moins de 44 px {small[:5]}')

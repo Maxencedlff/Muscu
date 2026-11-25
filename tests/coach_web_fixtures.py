@@ -269,7 +269,7 @@ def launch(pw, engine):
     return getattr(pw, engine).launch(headless=True, args=args)
 
 
-def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake', checkins=False, v4=False, host=False):
+def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake', checkins=False, v4=False, host=False, pre=None):
     """Page de l'appli web du coach, horloge figée, faux serveur injecté, coach connecté (sauf login=False)."""
     ctx = browser.new_context(viewport={'width': width, 'height': height}, color_scheme=theme, locale='fr-FR',
                               timezone_id='Europe/Paris', has_touch=touch, device_scale_factor=1)
@@ -290,6 +290,8 @@ def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, see
         page.add_init_script(COACH_WEB_CHECKINS_SEED)
     if seed and v4:
         page.add_init_script(COACH_WEB_V4_SEED)
+    if pre:
+        page.add_init_script(pre)   # état du faux serveur posé après les données (pannes, renommages)
     if host:
         # App hôte (docs/COACH_WEB.md, « Embarquer dans l'app ») : session du faux serveur, bouton « Revenir à l'appli »
         page.add_init_script("window.MDLF_COACH_HOST = { session: { access_token: 'h.' + btoa(JSON.stringify({ sub: window.__coachId })) + '.s', refresh_token: 'r' }, exit() { window.__exited = true; } };")

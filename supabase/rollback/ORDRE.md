@@ -123,8 +123,10 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
 
 18. `20261126010000_programmes_envoyes_coach.sql` (appli web du coach, vague 4, docs/COACH_WEB.md « Serveur de la vague 4 ») :
     indépendante (une fonction de lecture, `coach_student_programmes`, aucune table, aucune fonction existante réécrite),
-    aucune fonction Edge. Avant ou après le site : sans elle, l'onglet Programme lit la version gardée sur le compte du
-    coach. Retour arrière : `20261126010000_programmes_envoyes_coach_down.sql`.
+    aucune fonction Edge. **Avant le site de la vague 4** (conseillé) : sans elle, l'onglet Programme ne fait que lire la
+    version gardée sur le compte du coach (un programme déjà envoyé n'est pas renvoyable d'ici, « Envoyer à plusieurs »
+    est coupé : jamais de charges prescrites effacées chez un élève). Retour arrière : le site d'avant si voulu, puis
+    `20261126010000_programmes_envoyes_coach_down.sql`.
 
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 

@@ -401,7 +401,8 @@ et Plans diète restent « bientôt » dans la barre latérale.
 - **Dans le fil** (`deskThreadEvents`, `deskThreadItems`) : les séances de l'élève (`coach_student_sessions`, première page)
   avec « Commenter la séance » / « Modifier le commentaire » sur place (`coach_set_note`, 1000 caractères, vide = supprimé :
   l'élève le voit sous sa séance), et ses bilans répondus (« Répondre au bilan » ouvre l'onglet Bilans, dont la réponse part
-  aussi dans la conversation, vague 2). Événements plus anciens que le plus ancien message chargé : avec « Afficher les
+  aussi dans la conversation, vague 2). Le fil n'est redessiné que s'il a changé (un lecteur d'écran ne le relit pas
+  toutes les 15 s, une saisie en cours n'est pas coupée). Événements plus anciens que le plus ancien message chargé : avec « Afficher les
   messages précédents » ; trois semaines au plus avant le premier message.
 - Clavier : Entrée envoie, Maj + Entrée passe à la ligne (jamais pendant une composition d'accent). Fil en `role="log"`
   `aria-live="polite"`, chaque bulle dit « Toi, 14:02 : … » ou « Message reçu, … » aux lecteurs d'écran.
@@ -411,12 +412,15 @@ et Plans diète restent « bientôt » dans la barre latérale.
 
 - **Source** : ce que l'élève a reçu (`coach_student_programmes`, nouvelle lecture) ; plusieurs programmes envoyés : un
   choix. Sans la migration : la version de mon programme gardée sur mon compte (`profiles.doc`, lecture de mon propre
-  profil, jamais écrit d'ici), pour les programmes que `coach_state` dit envoyés, annoncée à l'écran (les charges
-  prescrites depuis l'iPhone, gardées sur l'iPhone, n'y sont pas).
+  profil, jamais écrit d'ici), pour les programmes que `coach_state` dit envoyés, **en lecture seule** et annoncée à
+  l'écran : les charges prescrites depuis l'iPhone, gardées sur l'iPhone, n'y sont pas, et la renvoyer les effacerait
+  chez l'élève (« Envoyer à plusieurs » est coupé aussi). Un de mes programmes pas encore envoyé part normalement.
+  D'où l'ordre conseillé : la migration avant le site.
 - **Format identique à l'app** : le brouillon est un programme `cleanSentProgramme` ; chaque champ suit les règles de
   l'app (`deskPgPatch`) : séries 1 à 10, fourchette (le bas reste écrit, sinon un haut seul hors 12 se lirait en reps
   fixes) ou reps fixes (`repFixed`), charge prescrite pour toutes les séries (`load`) ou série par série (`loads` : top set
-  et back-off, étiquetés par `prescSetTag`), repos 10 à 600 s ou celui de l'élève, technique et « sur quelle série »
+  et back-off, étiquetés par `prescSetTag` ; la charge commune reste en repli, comme `prescKgAt` de l'app : une série
+  ajoutée la reprend), repos 10 à 600 s ou celui de l'élève, technique et « sur quelle série »
   (`intensFieldsFor` : Dernière, Toutes, ou des numéros, publiée le 24/11 ; une seule série visée garde la forme
   d'avant), consigne 500 caractères. Envoi par `coachSentPayload` (extrait de `coachSendProgramme` de l'app : même
   nettoyage, même limite de 200 Ko) et `coach_send_programme`. Test unitaire : brouillon inchangé = exactement ce que
@@ -430,7 +434,8 @@ et Plans diète restent « bientôt » dans la barre latérale.
   24 h, `coachSendLimit`), file de l'app (`coachSendQueue`, extraite de `coachSendMany` : 4 envois à la fois, arrêt au
   refus de la limite). **Chacun garde SES charges** (`deskPgForOther`) : reprises de ce qu'il a reçu (même séance, même
   exercice, nom comparé comme l'app), aucune pour un exercice qu'il n'avait pas ; séries, reps et techniques sont celles
-  du coach. Le résultat dit qui n'a rien reçu.
+  du coach. Ce qu'un élève a reçu ne se lit pas (réseau, limite) : rien ne part pour lui, jamais ses charges effacées.
+  Le résultat dit qui n'a rien reçu.
 - « Envoyer un programme » (en-tête de la fiche) : un de mes programmes (`coachSendableProgrammes`, passée de l'écran de
   l'app à `js/data/coach.js`) mis dans l'éditeur, envoyé ensuite. Rien n'est modifié sur l'iPhone du coach : ses
   programmes restent les siens, l'élève reçoit une mise à jour comme depuis l'écran Envoyer (renvoyer depuis l'iPhone
@@ -506,7 +511,9 @@ dans l'app (fichiers livrés avec l'app, pas le site distant), avec un bouton «
   (`auth.setSession`) sans écran de connexion, ne la copie pas dans le stockage du navigateur (`persistSession: false`),
   ne ferme pas après 30 minutes (l'app garde sa règle) ; une session refusée ou terminée rend la main à l'hôte (`exit`).
   `exit` ajoute « Revenir à l'appli » (barre latérale, barre d'onglets, Réglages) à la place de « Se déconnecter de cet
-  ordinateur ». Sans `MDLF_COACH_HOST` (le site), rien ne change. Test : `tests/test_coach_web_v4.py` (faux hôte).
+  ordinateur », après confirmation s'il reste des changements pas enregistrés. **Aucun renouvellement de jeton dans la
+  vue web** (`autoRefreshToken: false`) : chez Supabase un jeton de rafraîchissement ne sert qu'une fois, le renouveler
+  ici révoquerait la session de l'app ; l'app renouvelle et rouvre la page (ou lui repasse la session) avant l'heure. Sans `MDLF_COACH_HOST` (le site), rien ne change. Test : `tests/test_coach_web_v4.py` (faux hôte).
 - **Aucune supposition sur `window.top` ni `window.parent`** (aucun appel), ni sur un cadre : la page tourne seule.
 - **Zones sûres** : `viewport-fit=cover` et `env(safe-area-inset-*)` sur la barre latérale, le contenu, la barre d'onglets
   et le bandeau (encoche, barre d'accueil, coins arrondis).

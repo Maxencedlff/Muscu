@@ -16,6 +16,9 @@ const pg = { id: null, loading: false, kind: null, via: null, list: [], progId: 
 const deskDocCache = { data: undefined, kind: null, at: 0 };
 
 const deskPgDirty = () => !!pg.draft && (pg.fresh || deskPgSnapshot(pg.draft, pg.progId) !== pg.saved);
+// Serveur sans coach_student_programmes : un programme déjà envoyé se lit seulement (sa version du compte n'a pas les
+// charges prescrites depuis l'iPhone : la renvoyer les effacerait chez l'élève) ; un programme pas encore envoyé part
+const deskPgReadOnly = () => pg.via === 'doc' && !pg.fresh;
 function deskPgReset() { Object.assign(pg, { id: null, draft: null, saved: '', list: [], progId: null, fresh: false, open: null, at: 0 }); }
 async function deskPgLeaveOk() {
   if (!deskPgDirty()) return true;
@@ -145,7 +148,7 @@ function deskPgHtml(r) {
   const progSel = pg.list.length + (pg.fresh ? 1 : 0) > 1
     ? deskCkSelectHtml('pg-prog', 'Programme', [...(pg.fresh ? [[pg.progId, `${d.name} (pas encore envoyé)`]] : []), ...pg.list.map(p => [p.id, p.data.name])], pg.progId, 'data-pg-f="prog"') : '';
   const info = pg.fresh ? `« ${d.name} » · pas encore envoyé à ${name}` : `« ${d.name} » · ${deskPgSentText(cur, name)}`;
-  const note = pg.via === 'doc' && !pg.fresh ? `<p class="gfoot pg-note">${esc(`Version de ce programme gardée sur ton compte : le serveur ne rend pas encore la version reçue par ${name} (mise à jour à venir). Les charges prescrites depuis l'iPhone n'y sont pas.`)}</p>` : '';
+  const note = deskPgReadOnly() ? `<p class="gfoot pg-note">${esc(`Version de ce programme gardée sur ton compte, en lecture seule : le serveur ne rend pas encore la version reçue par ${name} (mise à jour à venir). Les charges prescrites depuis l'iPhone n'y sont pas ; pour modifier ce programme, passe par l'app en attendant.`)}</p>` : '';
   const list = s && s.exercises.length ? `<ul class="group pg-list" aria-label="${esc(`Exercices de la séance ${s.label}`)}">
       <li class="pg-row pg-hdr" aria-hidden="true"><span>Exercice</span><span>Séries</span><span>Reps</span><span>Charge (kg)</span><span class="pg-rest">Repos</span><span>La dernière fois</span><span></span></li>
       ${s.exercises.map((e, i) => deskPgRowHtml(e, i, s.exercises.length, rows, name)).join('')}</ul>`
@@ -161,16 +164,25 @@ function deskPgHtml(r) {
     <div class="savebar${dirty ? ' stick' : ''}" role="region" aria-label="Envoi du programme">
       <span class="grow muted">${dirty ? `${deskIcon('pen', 'sm')}${esc(pg.fresh ? `Pas encore envoyé à ${name}.` : `Changements pas encore envoyés à ${name}.`)}` : esc(`Charges prescrites par toi ; ${name} les voit dans sa séance avec la fourchette.`)}</span>
       ${dirty && !pg.fresh ? '<button type="button" class="btn" data-pg="reset">Annuler les changements</button>' : ''}
-      <button type="button" class="btn" data-pg="send-many" ${pg.busy ? 'disabled' : ''}>Envoyer à plusieurs élèves</button>
-      <button type="button" class="btn tint" data-pg="send" ${pg.busy ? 'disabled aria-busy="true"' : ''}>${deskIcon('send', 'sm')}${esc(pg.fresh ? `Envoyer à ${name}` : 'Envoyer la mise à jour')}</button>
+      <button type="button" class="btn" data-pg="send-many" ${pg.busy || pg.via === 'doc' ? 'disabled' : ''}>Envoyer à plusieurs élèves</button>
+      <button type="button" class="btn tint" data-pg="send" ${pg.busy ? 'disabled aria-busy="true"' : deskPgReadOnly() ? 'disabled' : ''}>${deskIcon('send', 'sm')}${esc(pg.fresh ? `Envoyer à ${name}` : 'Envoyer la mise à jour')}</button>
     </div>`;
 }
 
 // ── Gestes ──────────────────────────────────────────────────
 
+// Champ encore en cours de saisie (au doigt, le champ ne perd le focus qu'après le toucher sur « Envoyer ») : pris
+// en compte avant l'envoi, comme si le coach l'avait quitté
+function deskPgCommitFocused() {
+  const t = document.activeElement, f = t?.dataset?.pgF;
+  if (!f || f === 'prog' || !t.dataset.k) return;
+  const x = deskPgEx(t.dataset.k);
+  if (x) deskPgPatch(x.e, f, t.value);
+}
 async function deskPgSend() {
   const id = pg.id, name = deskChatRow(id)?.name || 'ton élève';
   if (!pg.draft || pg.busy) return;
+  deskPgCommitFocused();
   const v = deskPgPayload(pg.draft, pg.progId);
   if (!v.ok) { deskToast(coachErrorText(v.kind)); return; }
   pg.busy = true; deskRender();
@@ -231,6 +243,7 @@ function deskPickStudents({ title, text, preset }) {
 async function deskPgSendMany() {
   const id = pg.id, progId = pg.progId;
   if (!pg.draft || pg.busy) return;
+  deskPgCommitFocused();
   const v = deskPgPayload(pg.draft, progId);
   if (!v.ok) { deskToast(coachErrorText(v.kind)); return; }
   const ids = await deskPickStudents({ title: `Envoyer « ${pg.draft.name} »`,
@@ -241,8 +254,10 @@ async function deskPgSendMany() {
   pg.busy = true; deskRender();
   const res = await coachSendQueue(ids, async uid => {
     if (uid === id) return deskSendProg(uid, progId, v.data);
+    // Ses charges : lues de ce qu'il a reçu ; lecture impossible → rien ne part pour lui (jamais ses charges effacées)
     const theirs = await deskLoadSentProgs(uid);
-    const t = theirs.ok ? theirs.data.programmes.find(p => p.id === progId)?.data || null : null;
+    if (!theirs.ok) return theirs;
+    const t = theirs.data.programmes.find(p => p.id === progId)?.data || null;
     const o = deskPgPayload(deskPgForOther(pg.draft, t), progId);
     return o.ok ? deskSendProg(uid, progId, o.data) : o;
   });
@@ -324,8 +339,21 @@ document.addEventListener('change', e => {
   const x = deskPgEx(t.dataset.k);
   if (!x) return;
   deskPgPatch(x.e, f, t.value);
-  deskRender();
+  deskPgRenderSafe();
 });
+// Un champ quitté par un clic ou un toucher (taper une charge puis toucher « Envoyer ») : le rendu attend la fin du clic,
+// sinon le bouton serait remplacé entre l'appui et le clic, et le clic perdu. Au doigt, le navigateur envoie mousedown
+// (qui fait quitter le champ) puis click APRÈS pointerup : on attend donc le click (600 ms au plus).
+let deskPgPtrAt = 0, deskPgLater = 0;
+function deskPgFlush() { clearTimeout(deskPgLater); deskPgLater = 0; deskRender(); }
+function deskPgRenderSafe() {
+  if (Date.now() - deskPgPtrAt > 1000) { deskRender(); return; }
+  clearTimeout(deskPgLater);
+  deskPgLater = setTimeout(deskPgFlush, 600);
+}
+document.addEventListener('pointerdown', () => { deskPgPtrAt = Date.now(); }, true);
+document.addEventListener('mousedown', () => { deskPgPtrAt = Date.now(); }, true);
+document.addEventListener('click', () => { if (deskPgLater) setTimeout(deskPgFlush, 0); }, true);
 document.addEventListener('submit', e => {
   const f = e.target.closest('form[data-pg-form="add"]');
   if (!f) return;
