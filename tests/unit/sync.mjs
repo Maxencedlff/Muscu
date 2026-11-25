@@ -328,21 +328,32 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   // Faux client supabase pour finishSignIn, syncNow et discardNewAccount : requêtes chaînées, séances du
   // compte dans srv.rows, lignes envoyées dans srv.sent, pseudo du compte dans srv.username
   const fakeSb = `
-    globalThis.srv = { rows: [], sent: [], username: null, deleted: 0 };
+    // prof : ligne de profiles (null : aucune) ; profUpdates : updates conditionnels reçus ; race(op) : écriture d'un autre
+    // appareil simulée au moment d'une requête
+    globalThis.srv = { rows: [], sent: [], username: null, deleted: 0, prof: null, profUpdates: 0, profTick: 0, race: null };
     syncHoldUntil = 0;   // délai d'un import laissé par un test précédent
     sb = {
       auth: { signOut: async () => ({ error: null }) },
       functions: { invoke: async () => { srv.deleted++; return { data: { deleted: true }, error: null }; } },
       from: table => {
-        const q = { table, op: 'select' };
+        const q = { table, op: 'select', eq: {} };
+        const stamp = () => '2026-11-25T10:' + String(10 + srv.profTick++).padStart(2, '0') + ':00.123456+00:00';
         const chain = new Proxy({}, { get: (_, m) => {
           if (m === 'then') return (ok, ko) => Promise.resolve((() => {
+            if (table === 'profiles' && q.op === 'select') return { data: srv.prof ? JSON.parse(JSON.stringify(srv.prof)) : null, error: null };
+            if (table === 'profiles' && q.op === 'update') {
+              srv.profUpdates++; srv.race?.('update');
+              if (!srv.prof || srv.prof.updated_at !== q.eq.updated_at) return { data: [], error: null };
+              srv.prof = { doc: JSON.parse(JSON.stringify(q.patch.doc)), updated_at: stamp() };
+              return { data: [{ updated_at: srv.prof.updated_at }], error: null };
+            }
+            if (table === 'profiles' && q.op === 'upsert') { srv.prof = { doc: JSON.parse(JSON.stringify(q.patch.doc)), updated_at: stamp() }; return { data: { updated_at: srv.prof.updated_at }, error: null }; }
             if (q.op === 'upsert') { if (table === 'sessions') srv.sent.push(...q.patch); return { data: { updated_at: new Date().toISOString() }, error: null }; }
             if (table === 'sessions') return { data: srv.rows, error: null };
             if (table === 'user_profiles') return { data: srv.username ? { username: srv.username } : null, error: null };
             return { data: null, error: null };
           })()).then(ok, ko);
-          return (...args) => { if (m === 'upsert') { q.op = 'upsert'; q.patch = args[0]; } return chain; };
+          return (...args) => { if (m === 'upsert' || m === 'update') { q.op = m; q.patch = args[0]; } if (m === 'eq') q.eq[args[0]] = args[1]; return chain; };
         } });
         return chain;
       },
@@ -357,6 +368,49 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     srv.rows = data.history.map(h => ({ id: h.id, data: JSON.parse(JSON.stringify(sessionPayload(h))), deleted_at: null, updated_at: '2026-10-20T10:00:00Z' }));
     localStorage.setItem('mdlf_sync_A', JSON.stringify({ userId: 'A', cursor: '2026-10-20T10:00:00Z', profileHash: null,
       pushed: Object.fromEntries(data.history.map(h => [h.id, syncHash(sessionPayload(h))])) }));`;
+
+  // Boucle réelle de syncNow : envoi du profil conditionné par updated_at. Un autre appareil (iPhone, appli web du coach)
+  // écrit pendant la synchro : relu, refusionné, renvoyé ; 3 conflits de suite : abandon propre (rien d'écrasé, nouvel
+  // essai à la synchro suivante), jamais une séance renvoyée deux fois
+  for (const conflicts of [1, 2, 3, 10]) {
+    test(`synchro : ${conflicts} écriture(s) d'un autre appareil pendant l'envoi du profil, boucle de syncNow`, async () => {
+      const r = await run(`(async () => {
+        localStorage.clear();
+        ${fakeSb}
+        localStorage.setItem('mdlf_sync_owner', 'U');
+        account.user = { id: 'U', created_at: '2026-01-01T00:00:00Z', identities: [] };
+        const plan = (name, at) => ({ name, meals: [{ id: 'm1', name: 'Déjeuner', items: [] }], updatedAt: at });
+        data.history = [{ id: 'h1', date: 1, category: 'push', exercises: [] }];
+        data.dietConsent = { on: true, at: '2026-11-01T00:00:00.000Z' };
+        data.dietPlans = { d_a: plan('A', 1000) };
+        const first = await syncNow();
+        const sentFirst = srv.sent.length;
+        data.dietPlans.d_new = plan('Nouveau ici', 2000);
+        let n = 0;
+        srv.race = op => { if (op === 'update' && n < ${conflicts}) { n++; srv.prof.doc.dietPlans = { ...srv.prof.doc.dietPlans, ['d_b' + n]: plan('B' + n, 3000) }; srv.prof.updated_at = '2026-11-25T11:0' + n + ':00.000000+00:00'; } };
+        const second = await syncNow();
+        const err = account.error, updates = srv.profUpdates;
+        srv.race = null;
+        const third = await syncNow();
+        return { first, sentFirst, second, err, updates, third, sentAll: srv.sent.map(x => x.id), plans: Object.keys(srv.prof.doc.dietPlans).sort(),
+          local: Object.keys(data.dietPlans).sort() };
+      })()`);
+      assert.equal(r.first, true);
+      sameJSON(r.sentAll, ['h1'], 'la séance n\'est envoyée qu\'une fois, conflits ou pas');
+      if (conflicts <= 2) {
+        assert.equal(r.second, true, 'conflit fusionné puis envoyé');
+        assert.equal(r.updates, 1 + conflicts, 'un essai de plus par conflit');
+      } else {
+        assert.equal(r.second, false, 'abandon après 3 essais');
+        assert.equal(r.err, 'conflict', 'dit comme un conflit, pas une panne du serveur');
+        assert.equal(r.updates, 3, '3 essais d\'envoi au plus');
+        assert.equal(r.third, true, 'la synchro suivante passe');
+      }
+      const bs = Array.from({ length: Math.min(conflicts, 3) }, (_, i) => 'd_b' + (i + 1));
+      sameJSON(r.plans, ['d_a', ...bs, 'd_new'].sort(), 'rien d\'écrasé : les plans de l\'autre appareil et le nouveau d\'ici');
+      sameJSON(r.local, r.plans, 'l\'iPhone a fusionné ce qu\'il a relu');
+    });
+  }
 
   test('compte : session finie hors de l\'app puis reconnexion au MÊME compte : corrections et suppressions de l\'iPhone gardées et envoyées', async () => {
     const r = await run(`(async () => {

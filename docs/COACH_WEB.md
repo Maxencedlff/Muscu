@@ -572,7 +572,16 @@ d'un plan existant seulement ; l'éditeur n'existait que dans l'app). Rien n'est
   règle d'avant.
 - **Envoi du profil par l'iPhone** (js/data/account.js, `syncNow`) : lui aussi conditionné par `updated_at` (lu au début
   de la synchro) ; si le compte a changé entre sa lecture et son envoi (le site vient d'enregistrer), l'iPhone relit,
-  refusionne (`applyRemoteProfile`) et renvoie, 3 essais. Rien ne s'écrase plus dans un sens ni dans l'autre.
+  refusionne (`applyRemoteProfile`) et renvoie, 3 essais ; au-delà, la synchro s'arrête sans rien écrire et le dit
+  (« Synchro en conflit avec un autre appareil, nouvel essai à la prochaine synchro », `account.error = 'conflict'`).
+  Test : la vraie boucle de `syncNow` dans `tests/unit/sync.mjs` (1, 2, 3 et 10 conflits, séance jamais renvoyée).
+  Ce que ça protège : les plans diète (fusion à trois voies). Les autres réglages du profil gardent leur règle d'avant :
+  avec plusieurs appareils, un réglage changé sur l'un pendant la synchro de l'autre peut encore être remplacé (c'était
+  déjà le cas avant ce chantier, hors de son périmètre).
+- **Trou restant, accepté** : un 2e appareil resté sur une ancienne build (sans la fusion à trois voies) peut encore
+  remettre son ancienne version d'un plan modifié ailleurs, avant que le site ne voie le profil sans `dietSyncV` et
+  bloque l'enregistrement. Rare (deux appareils, l'un pas à jour), et le trou disparaît une fois tous les appareils à
+  jour.
 - **iPhone pas à jour** : l'app à jour écrit `dietSyncV: 1` (`DIET_SYNC_V`) dans le profil avec les plans. Sans elle, le
   site n'écrit pas les plans (« Mets l'app à jour sur ton iPhone avant de modifier tes plans ici ») : une version d'avant
   remettrait son ancienne version d'un plan modifié ici. Composer et envoyer restent possibles. **Ordre de mise en

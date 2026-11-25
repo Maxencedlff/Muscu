@@ -52,7 +52,7 @@ const SYNC_DEBOUNCE_MS = 4000;
 const SYNC_BATCH = 200;
 
 let sb = null;   // client supabase unique (deux clients se voleraient le jeton de rafraîchissement)
-// error : null | 'offline' (réseau) | 'server' (refus du serveur ou stockage plein)
+// error : null | 'offline' (réseau) | 'conflict' (profil écrit ailleurs pendant 3 essais) | 'server' (refus du serveur ou stockage plein)
 // profile : { username, avatar, changedAt, stored } | null (pas encore de profil) ; google : connexion
 // Google proposée (module natif présent et client Google configuré dans Info.plist)
 // locked : séances que le compte refuse tant que l'abonnement manque (verrou allumé) ; ce n'est pas
@@ -818,6 +818,7 @@ async function pushSessionRows(rows, rowOf) {
 
 // Erreur de réseau (hors ligne) ou refus du serveur : l'écran ne dit pas la même chose
 function syncErrorKind(e) {
+  if (e?.message === 'profile_conflict') return 'conflict';   // 3 écritures d'un autre appareil de suite : rien d'écrasé
   if (!navigator.onLine || e instanceof TypeError || /fetch|network|load failed/i.test(e?.message || '')) return 'offline';
   return 'server';
 }

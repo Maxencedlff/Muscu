@@ -87,6 +87,7 @@ function savedAtText(ts) {
 function syncStatusText() {
   if (account.syncing) return 'Sauvegarde…';
   if (account.error === 'offline') return 'Pas d\'Internet : sauvegarde dès que le réseau revient';
+  if (account.error === 'conflict') return 'Synchro en conflit avec un autre appareil, nouvel essai à la prochaine synchro';
   if (account.error) return `Sauvegarde impossible pour le moment. Les séances restent sur ${thisPhone()}, l'app réessaiera toute seule`;
   // Heure fixe plutôt que « il y a N min » : la ligne n'est redessinée qu'à la sauvegarde suivante
   if (account.lastSync) return `Sauvegardé ${savedAtText(account.lastSync)} · ${plural((data.history || []).length, 'séance', 'séances')}`;
