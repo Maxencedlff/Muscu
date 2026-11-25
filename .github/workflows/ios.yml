@@ -275,7 +275,7 @@ jobs:
           xcrun simctl ui "$IPAD" appearance dark
           sleep 3; xcrun simctl io "$IPAD" screenshot shots/ipad/4-paysage-sombre.png
           # simctl capture l'écran dans son sens natif (portrait) : les captures paysage sont redressées (2752 × 2064)
-          for f in shots/ipad/3-paysage-clair.png shots/ipad/4-paysage-sombre.png; do sips -r 90 "$f" > /dev/null; done
+          for f in shots/ipad/3-paysage-clair.png shots/ipad/4-paysage-sombre.png; do sips -r 270 "$f" > /dev/null; done   # 270 : 90 les retournait tête en bas (25/11)
           for f in shots/ipad/*.png; do echo "$f : $(sips -g pixelWidth -g pixelHeight "$f" | awk '/pixel/ {printf "%s ", $2}')"; done
           xcrun simctl spawn "$IPAD" launchctl list > shots/ipad/launchctl.txt
           grep -q "$BUNDLE" shots/ipad/launchctl.txt && echo "L'app tourne sur iPad"
