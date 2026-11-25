@@ -230,7 +230,7 @@ def t_confidentialite(bench, eng, dev, theme):
         page.goto(BASE_URL + 'privacy.html')
         page.wait_for_selector('h1')
         body = page.inner_text('body')
-        R.check('mise à jour le 23 novembre 2026' in body and 'updated November 23, 2026' in body, f'{t} date du 23/11 (FR et EN)')
+        R.check('mise à jour le 25 novembre 2026' in body and 'updated November 25, 2026' in body, f'{t} date du 25/11 (FR et EN : photos de bilan sur l\'ordinateur du coach)')
         fr, en = body.split('Data stored on your device')[0], body.split('Data stored on your device')[-1]
         R.check('Sauvegardes de la base' in fr and '90 jours' in fr and 'GitHub' in fr and '30 dernières copies' in fr,
                 f'{t} FR : sauvegardes chiffrées, durée, GitHub, copies locales')
