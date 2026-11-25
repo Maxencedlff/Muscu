@@ -860,14 +860,24 @@ const Native = (() => {
   };
 })();
 
-// Nom de l'appareil dans les textes : « iPhone » dans l'app iOS et dans Safari d'un iPhone, « téléphone » ailleurs
-// (app Android, navigateur d'un autre téléphone ou d'un ordinateur). Regard neuf du 16/11 : « ton nouvel iPhone » lu
-// sur un Pixel. iPad : « iPhone » aussi, l'app n'existe qu'en version iPhone.
-function phoneName() {
-  if (Native.platform === 'ios') return 'iPhone';
-  if (Native.platform === 'android') return 'téléphone';
-  return /iPhone|iPad|iPod/.test(navigator.userAgent || '') ? 'iPhone' : 'téléphone';
+// Nom de l'appareil dans les textes : « iPhone » dans l'app iOS et dans Safari d'un iPhone, « iPad » sur un iPad (mode
+// coach grand écran, audit m5 du 25/11 : « cet iPhone » lu sur un iPad), « téléphone » ailleurs (app Android, navigateur
+// d'un autre téléphone ou d'un ordinateur). Regard neuf du 16/11 : « ton nouvel iPhone » lu sur un Pixel. Les textes
+// vrais seulement d'un iPhone (montre, écouteur du haut) gardent « iPhone » en dur.
+function phoneIsIpad() {
+  const ua = navigator.userAgent || '';
+  return /iPad/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
 }
-// Avec l'élision : « cet iPhone » / « ce téléphone », « nouvel iPhone » / « nouveau téléphone »
-function thisPhone() { return phoneName() === 'iPhone' ? 'cet iPhone' : 'ce téléphone'; }
-function newPhone() { return phoneName() === 'iPhone' ? 'nouvel iPhone' : 'nouveau téléphone'; }
+function phoneName() {
+  if (Native.platform === 'ios') return phoneIsIpad() ? 'iPad' : 'iPhone';
+  if (Native.platform === 'android') return 'téléphone';
+  return /iPhone|iPod/.test(navigator.userAgent || '') ? 'iPhone' : /iPad/.test(navigator.userAgent || '') ? 'iPad' : 'téléphone';
+}
+// Avec l'élision : « cet iPhone » / « cet iPad » / « ce téléphone », « l'iPhone » / « le téléphone »,
+// « de l'iPhone » / « du téléphone », « nouvel iPhone » / « nouveau téléphone »
+function thisPhone() { return phoneName() === 'téléphone' ? 'ce téléphone' : `cet ${phoneName()}`; }
+function ThisPhone() { const t = thisPhone(); return t[0].toUpperCase() + t.slice(1); }
+function ThePhone() { const t = thePhone(); return t[0].toUpperCase() + t.slice(1); }
+function thePhone() { return phoneName() === 'téléphone' ? 'le téléphone' : `l'${phoneName()}`; }
+function ofThePhone() { return phoneName() === 'téléphone' ? 'du téléphone' : `de l'${phoneName()}`; }
+function newPhone() { return phoneName() === 'téléphone' ? 'nouveau téléphone' : `nouvel ${phoneName()}`; }

@@ -77,7 +77,7 @@ jobs:
     needs: gate
     if: ${{ always() && (needs.gate.result == 'success' || (needs.gate.result == 'skipped' && !inputs.testflight)) }}
     runs-on: macos-26
-    timeout-minutes: 40   # 30 avant les captures iPad (25/11)
+    timeout-minutes: 60   # 30 avant les captures et le test d'interface iPad (25/11)
     permissions:
       contents: read
     steps:
@@ -97,6 +97,12 @@ jobs:
 
       - name: Contenu web et synchronisation iOS
         run: npm run web:build && npx cap sync ios
+
+      # Test d'interface iPad (docs/COACH_IPAD.md) : faux serveurs injectés par la build Debug lancée avec « -mdlfE2E 1 ».
+      # Mode contrôle seulement : jamais dans le contenu d'une build TestFlight (vérifié après l'archive)
+      - name: Faux serveurs du test d'interface (contrôle seulement)
+        if: ${{ !inputs.testflight }}
+        run: python3 tests/ios_e2e_fixtures.py dist/e2e && npx cap copy ios
 
       # Apple refuse les envois compilés avec un SDK antérieur à iOS 26 : Xcode 26 au minimum
       - name: Xcode 26
@@ -268,9 +274,47 @@ jobs:
           sleep 4; xcrun simctl io "$IPAD" screenshot shots/ipad/3-paysage-clair.png
           xcrun simctl ui "$IPAD" appearance dark
           sleep 3; xcrun simctl io "$IPAD" screenshot shots/ipad/4-paysage-sombre.png
+          # simctl capture l'écran dans son sens natif (portrait) : les captures paysage sont redressées (2752 × 2064)
+          for f in shots/ipad/3-paysage-clair.png shots/ipad/4-paysage-sombre.png; do sips -r 90 "$f" > /dev/null; done
           for f in shots/ipad/*.png; do echo "$f : $(sips -g pixelWidth -g pixelHeight "$f" | awk '/pixel/ {printf "%s ", $2}')"; done
           xcrun simctl spawn "$IPAD" launchctl list > shots/ipad/launchctl.txt
           grep -q "$BUNDLE" shots/ipad/launchctl.txt && echo "L'app tourne sur iPad"
+
+      # Parcours du mode coach grand écran dans la VRAIE vue web (XCUITest, ios/App/UITests/) sur l'iPad Pro 13 pouces :
+      # onglet Coach, ouverture, fiche, onglets, rotation, arrière-plan, retour à l'app, déconnexion ; cadre isolé sous
+      # capacitor://, session par postMessage, parent.Capacitor inaccessible, aucune violation de CSP. BLOQUANT : un parcours
+      # cassé rend le contrôle rouge. Cible ajoutée au projet le temps du test (scripts/ios/add-ui-tests.rb).
+      - name: Test d'interface iPad (XCUITest)
+        if: ${{ !inputs.testflight }}
+        timeout-minutes: 20
+        run: |
+          set -e
+          gem list -i xcodeproj > /dev/null || gem install --user-install xcodeproj
+          ruby scripts/ios/add-ui-tests.rb || { export GEM_HOME="$(ruby -e 'print Gem.user_dir')"; ruby scripts/ios/add-ui-tests.rb; }
+          osascript -e 'tell application "Simulator" to quit' || true
+          xcrun simctl shutdown all || true
+          IPAD=$(xcrun simctl list devices available | grep -m1 -E 'iPad Pro 13-inch' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          test -n "$IPAD" || { echo "Aucun iPad Pro 13 pouces dans les simulateurs"; exit 1; }
+          xcrun simctl boot "$IPAD" || true
+          xcrun simctl bootstatus "$IPAD" -b
+          xcrun simctl ui "$IPAD" appearance dark
+          mkdir -p shots/uitests
+          # Journal de la vue web pendant le test : erreurs JavaScript et CSP relayées par Capacitor (build Debug)
+          xcrun simctl spawn "$IPAD" log stream --style compact --predicate 'process == "App"' > shots/uitests/journal-app.txt 2>&1 &
+          LOGPID=$!
+          set +e
+          xcodebuild test -project "$PROJECT" -scheme MDLFUITests -configuration Debug \
+            -destination "platform=iOS Simulator,id=$IPAD" -derivedDataPath build $SPM_FLAGS \
+            -resultBundlePath build/uitests.xcresult CODE_SIGNING_ALLOWED=NO > shots/uitests/xcodebuild.txt 2>&1
+          CODE=$?
+          set -e
+          kill $LOGPID || true
+          grep -E 'Test Case|error:|failed|XCTAssert|passed' shots/uitests/xcodebuild.txt | tail -40 || true
+          xcrun xcresulttool export attachments --path build/uitests.xcresult --output-path shots/uitests/captures || true
+          ls shots/uitests/captures | head -30 || true
+          # Violations de CSP vues par WebKit dans le journal : le test les compte déjà, le journal le confirme
+          grep -iE 'Content Security Policy|Refused to' shots/uitests/journal-app.txt | head -20 || true
+          exit $CODE
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: ${{ always() && !inputs.testflight }}
@@ -349,6 +393,13 @@ jobs:
             CURRENT_PROJECT_VERSION=${{ github.run_number }} > archive.log 2>&1 \
             || { grep -E -A4 'error:|ARCHIVE FAILED' archive.log | head -120; exit 1; }
           tail -40 archive.log
+
+      # Jamais de faux serveurs dans une build envoyée à Apple (test d'interface iPad : mode contrôle seulement)
+      - name: Aucun faux serveur dans l'archive
+        if: ${{ inputs.testflight }}
+        run: |
+          test ! -e build/App.xcarchive/Products/Applications/App.app/public/e2e || { echo "public/e2e dans l'archive"; exit 1; }
+          echo "Archive sans public/e2e"
 
       # Même contrôle sur la version signée : rien n'est envoyé à Apple si le lien n'est pas faible
       - name: Frameworks récents liés en faible (archive)

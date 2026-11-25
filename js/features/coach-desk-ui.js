@@ -5,18 +5,21 @@
 //  (dist/coach/, scripts/embed-coach-web.mjs) et s'ouvre ici, par-dessus l'app, dans un cadre (iframe) de MÊME
 //  ORIGINE : jamais chargée depuis le site, l'app reste vivante dessous (séance, repos, minuteries), et le retour
 //  est immédiat. Choix et alternatives : docs/COACH_IPAD.md, « Iframe plutôt que navigation ».
-//  - Session : celle de l'app (js/data/account.js), passée au cadre par window.MDLF_COACH_PARENT, lu par le
-//    premier script de la page (coach-embed/bridge-start.js) ; aucun écran de connexion, aucune copie.
-//  - Un seul rafraîchisseur des jetons (l'app) : ses jetons neufs sont posés dans le cadre, ceux que le cadre a dû
+//  - Session : celle de l'app (js/data/account.js), envoyée au cadre par message quand il est prêt ; aucun écran de
+//    connexion, aucune copie.
+//  - Un seul rafraîchisseur des jetons (l'app) : ses jetons neufs partent au cadre, ceux que le cadre a dû
 //    renouveler (sortie de veille) reviennent à l'app (coach-embed/bridge-end.js explique pourquoi).
 //  - « Revenir à l'appli » toujours visible : celui de l'appli web du coach (barre latérale, barre d'onglets) dès
-//    qu'il est à l'écran ; sinon (chargement, page en erreur, version sans ce bouton) la barre de l'hôte, en haut.
-//  - Photos de bilan : point d'accroche `photos` (déchiffrées ici, la clé privée ne quitte jamais l'app).
+//    que le cadre dit l'afficher ; sinon (chargement, page en erreur) la barre de l'hôte, en haut.
+//  - Sous 678 points (Slide Over, Split View au tiers), le mode ouvert se referme.
+//  - Cadre ISOLÉ (sandbox sans allow-same-origin, audit M1) : aucun accès à la fenêtre de l'app ; session et retour
+//    par postMessage (coach-embed/bridge-start.js), messages lus seulement s'ils viennent de la fenêtre du cadre.
+//  - Photos de bilan : rien pour l'instant (vague 5).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 const COACH_DESK_SRC = 'coach/index.html';
-const coachDesk = { open: false, root: null, frame: null, observer: null, unsub: null, opener: null, urls: new Set() };
+const coachDesk = { open: false, root: null, frame: null, unsub: null, opener: null, tokens: null };
 
 function coachDeskShown() {
   return !!(account.user && coachRole().isCoach) && coachDeskEligible({
@@ -63,6 +66,33 @@ function coachDeskSettingsCell() {
 
 // ── Écran hôte ──────────────────────────────────────────────
 
+// Messages du cadre : seulement de SA fenêtre (event.source). Un cadre isolé a l'origine « null » : la source est la
+// seule preuve ; l'origine n'est pas lue.
+function coachDeskPost(msg) {
+  // « * » : un cadre isolé n'a pas d'origine nommable. Il ne peut contenir que nos fichiers : la CSP de l'app
+  // (frame-src 'self') refuse toute navigation du cadre vers un autre site.
+  try { coachDesk.frame?.contentWindow?.postMessage(msg, '*'); } catch { /* cadre en cours de fermeture */ }
+}
+function coachDeskMessage(e) {
+  if (!coachDesk.open || !coachDesk.frame || e.source !== coachDesk.frame.contentWindow) return;
+  const d = e.data;
+  if (!d || typeof d !== 'object') return;
+  if (d.type === 'mdlf-coach-ready') coachDeskPost({ type: 'mdlf-coach-session', session: { ...coachDesk.tokens } });
+  else if (d.type === 'mdlf-coach-exit') coachDeskClose(d.reason === 'session' ? 'Connexion perdue, réessaie.' : '');
+  else if (d.type === 'mdlf-coach-exit-shown') coachDeskBar(d.shown !== true);
+  else if (d.type === 'mdlf-coach-tokens') coachDeskFrameTokens(d.tokens);
+}
+// Jetons renouvelés dans le cadre : l'app les reprend (gardés dans le Trousseau par supabase-js), et ne les retient
+// que si supabase-js les a acceptés
+async function coachDeskFrameTokens(t) {
+  const next = coachDeskTokens(t);
+  if (!next || !coachDesk.open || next.refresh_token === coachDesk.tokens?.refresh_token) return;
+  try {
+    const { error } = await sb.auth.setSession(next);
+    if (!error && coachDesk.open) coachDesk.tokens = next;
+  } catch { /* hors ligne : l'app réessaiera au prochain renouvellement */ }
+}
+
 async function coachDeskOpen(opener = null) {
   if (coachDesk.open || !coachDeskShown() || !sb) return;
   if (navigator.onLine === false) { showToast('Pas d\'Internet : le mode grand écran a besoin du réseau.'); return; }
@@ -78,27 +108,16 @@ async function coachDeskOpen(opener = null) {
 
   coachDesk.open = true;
   coachDesk.opener = opener;
-  let current = tokens;
-  window.MDLF_COACH_PARENT = Object.freeze({
-    session: () => ({ ...current }),
-    exit: () => coachDeskClose(),
-    // Jetons renouvelés par le cadre : l'app les reprend (gardés dans le Trousseau par supabase-js)
-    onSession: t => {
-      const next = coachDeskTokens(t);
-      if (!next || !coachDesk.open || next.refresh_token === current.refresh_token) return;
-      current = next;
-      sb.auth.setSession(next).catch(() => { /* hors ligne : l'app réessaiera au prochain renouvellement */ });
-    },
-    photos: coachDeskPhotos,
-  });
-  // Jetons renouvelés par l'app : posés dans le cadre
+  coachDesk.tokens = tokens;
+  window.addEventListener('message', coachDeskMessage);
+  // Jetons renouvelés par l'app : envoyés au cadre
   const sub = sb.auth.onAuthStateChange((event, session) => {
     if (!coachDesk.open) return;
     if (event === 'SIGNED_OUT') { coachDeskClose(); return; }
     const next = coachDeskTokens(session);
-    if (!next || next.refresh_token === current.refresh_token) return;
-    current = next;
-    try { coachDesk.frame?.contentWindow?.MDLF_COACH_EMBED?.setSession(next); } catch { /* cadre en cours de fermeture */ }
+    if (!next || next.refresh_token === coachDesk.tokens?.refresh_token) return;
+    coachDesk.tokens = next;
+    coachDeskPost({ type: 'mdlf-coach-tokens', tokens: next });
   });
   coachDesk.unsub = () => { try { sub?.data?.subscription?.unsubscribe(); } catch { /* rien */ } };
 
@@ -107,11 +126,13 @@ async function coachDeskOpen(opener = null) {
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
   root.setAttribute('aria-label', 'MDLF Coach, mode grand écran');
+  // Cadre isolé (audit M1) : scripts et formulaires seulement, SANS allow-same-origin (origine opaque : ni la fenêtre
+  // de l'app, ni Capacitor, ni le coffre des photos, ni son stockage) ; ni fenêtres surgissantes, ni navigation de l'app
   root.innerHTML = `
     <div class="coach-desk__bar" id="coachDeskBar">
       <button type="button" class="coach-desk__back" data-action="coach-desk-close">${icon('chevron.left', 20)}<span>Revenir à l'appli</span></button>
     </div>
-    <iframe class="coach-desk__frame" title="MDLF Coach" src="${COACH_DESK_SRC}" referrerpolicy="no-referrer"></iframe>`;
+    <iframe class="coach-desk__frame" title="MDLF Coach" sandbox="allow-scripts allow-forms" src="${COACH_DESK_SRC}" referrerpolicy="no-referrer"></iframe>`;
   document.body.appendChild(root);
   coachDesk.root = root;
   coachDesk.frame = root.querySelector('iframe');
@@ -120,47 +141,23 @@ async function coachDeskOpen(opener = null) {
   document.body.classList.add('coach-desk-on');
   // Barre d'état : celle du thème de l'appli web du coach (elle suit le réglage du système)
   Native.statusBar(window.matchMedia?.('(prefers-color-scheme: dark)').matches !== false);
-  coachDesk.frame.addEventListener('load', coachDeskWatch);
   coachDesk.frame.focus();
 }
 
-// Barre de l'hôte montrée tant que l'appli web n'affiche pas son propre « Revenir à l'appli »
-function coachDeskWatch() {
-  coachDesk.observer?.disconnect();
-  coachDesk.observer = null;
-  let doc = null;
-  try { doc = coachDesk.frame?.contentDocument; } catch { doc = null; }
-  const update = () => coachDeskBar(!coachDeskOwnExit(doc));
-  update();
-  if (!doc?.body || typeof MutationObserver !== 'function') return;
-  coachDesk.observer = new MutationObserver(update);
-  coachDesk.observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'style'] });
-  coachDesk.frame.contentWindow?.addEventListener('resize', update);
-}
-// Bouton « Revenir à l'appli » de l'appli web du coach (data-action="host-exit", docs/COACH_WEB.md) visible à l'écran
-function coachDeskOwnExit(doc) {
-  if (!doc) return false;
-  const win = doc.defaultView;
-  return [...doc.querySelectorAll('[data-action="host-exit"]')].some(el => {
-    const r = el.getBoundingClientRect();
-    return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < (win?.innerHeight || 0) && r.left < (win?.innerWidth || 0)
-      && win?.getComputedStyle(el).visibility !== 'hidden';
-  });
-}
+// Barre de l'hôte : montrée tant que le cadre ne dit pas afficher son propre « Revenir à l'appli »
+// (message 'mdlf-coach-exit-shown' de js/embed/bridge-end.js ; page en erreur ou qui ne répond pas : barre montrée)
 function coachDeskBar(show) {
   const bar = coachDesk.root?.querySelector('#coachDeskBar');
   if (bar) bar.hidden = !show;
 }
 
-function coachDeskClose() {
+function coachDeskClose(message = '') {
   if (!coachDesk.open) return;
   coachDesk.open = false;
-  coachDesk.observer?.disconnect();
-  coachDesk.observer = null;
+  window.removeEventListener('message', coachDeskMessage);
   coachDesk.unsub?.();
   coachDesk.unsub = null;
-  coachDeskPhotosRelease();
-  try { delete window.MDLF_COACH_PARENT; } catch { window.MDLF_COACH_PARENT = undefined; }
+  coachDesk.tokens = null;
   // Le cadre est vidé avant d'être retiré : ses minuteries et ses requêtes s'arrêtent avec lui
   try { coachDesk.frame?.setAttribute('src', 'about:blank'); } catch { /* rien */ }
   coachDesk.root?.remove();
@@ -174,47 +171,12 @@ function coachDeskClose() {
   const back = coachDesk.opener?.isConnected ? coachDesk.opener : $('[data-action="coach-desk-open"]');
   coachDesk.opener = null;
   back?.focus?.();
+  if (message) showToast(message);
 }
 
-// ── Photos de bilan : point d'accroche (docs/COACH_IPAD.md, « Photos de bilan ») ──
-// Les écrans de photos de l'appli web n'existent pas encore (vague 5). Le jour venu, ils passeront par
-// window.MDLF_COACH_HOST.photos : la clé privée du coach reste dans l'app (secret du trousseau après Face ID,
-// js/data/coach-photos.js) ; le cadre ne reçoit que des adresses blob: d'images déjà déchiffrées, libérées à la
-// fermeture des photos (une minute sans toucher, cphLock) ou du mode grand écran.
-const coachDeskPhotos = Object.freeze({
-  available: () => cphCoachShown() && !!cphCoach.key,
-  isOpen: () => cphIsOpen(),
-  // Face ID (dans l'app) ; { ok } ou { missing } / { mismatch } / { refused }
-  unlock: async () => {
-    const r = await cphCoachUnlock();
-    return { ok: !!r?.ok, missing: !!r?.missing, mismatch: !!r?.mismatch, refused: !r?.ok && !r?.missing && !r?.mismatch };
-  },
-  // Photos d'un élève : métadonnées seulement (rien de déchiffré)
-  list: async student => {
-    const r = await cphCoachLoad(student);
-    if (!r?.ok) return { ok: false, kind: r?.kind || 'server' };
-    return { ok: true, photos: cphStudentOf(student).photos.map(p => ({ id: p.id, takenOn: p.takenOn, pose: p.pose })) };
-  },
-  // Une photo déchiffrée : adresse blob: (null si fermé ou illisible)
-  open: async (student, id) => {
-    if (!coachDesk.open || !cphIsOpen()) return null;
-    cphTouch();
-    const p = cphStudentOf(student).photos.find(x => x.id === id);
-    const blob = p ? await cphCoachFetch(student, p) : null;
-    if (!blob || !coachDesk.open) return null;
-    const url = URL.createObjectURL(blob);
-    coachDesk.urls.add(url);
-    return url;
-  },
-  release: url => { if (coachDesk.urls.delete(url)) URL.revokeObjectURL(url); },
-  touch: () => cphTouch(),
-  lock: () => { cphLock('manual'); },
-});
-function coachDeskPhotosRelease() {
-  coachDesk.urls.forEach(u => URL.revokeObjectURL(u));
-  coachDesk.urls.clear();
-}
-onCphLock(() => coachDeskPhotosRelease());
+// Photos de bilan : pas d'accès depuis le cadre tant que les écrans de photos de coach-web n'existent pas (vague 5,
+// audit m3). Le jour venu : demande par message, déchiffrement ici (clé du trousseau après Face ID), octets de l'image
+// transférés au cadre (docs/COACH_IPAD.md, « Photos de bilan »).
 
 registerActions({
   'coach-desk-open': (e, el) => coachDeskOpen(el),
@@ -229,6 +191,8 @@ registerActions({
 // Fenêtre redimensionnée (Split View, rotation) : la carte suit la largeur ; le mode ouvert reste ouvert
 let coachDeskWide = null;
 window.addEventListener('resize', () => {
+  // Slide Over, Split View au tiers : trop étroit pour l'appli web du coach, le mode se referme
+  if (coachDesk.open && (window.innerWidth || 0) < COACH_DESK_MIN_OPEN) coachDeskClose('Agrandis la fenêtre pour le mode grand écran.');
   const now = coachDeskShown();
   if (now === coachDeskWide) return;
   coachDeskWide = now;

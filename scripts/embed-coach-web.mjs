@@ -7,7 +7,8 @@
 //  - CSP resserrée : script-src 'self' seul (le script de Sign in with Apple JS n'est jamais chargé, la session
 //    vient de l'app : rien ne vient du site distant), img-src avec blob: (photos de bilan déchiffrées par l'app,
 //    point d'accroche « photos » de docs/COACH_IPAD.md) ;
-//  - deux scripts de liaison avec l'app (coach-embed/), avant tous les autres et après main.js.
+//  - deux scripts de liaison avec l'app (coach-embed/) : bridge-start.js seul au chargement, qui charge les scripts de
+//    la page (gardés dans un <template>) puis bridge-end.js, une fois la session reçue par postMessage.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,19 +34,24 @@ export function embedPolicy(policy) {
   return dirs.map(d => d.join(' ')).join('; ');
 }
 
-// Page embarquée, à partir de la page construite pour le site
+// Page embarquée, à partir de la page construite pour le site : CSP resserrée, puis tous les scripts de la page
+// (et bridge-end.js à la fin) rangés inertes dans <template id="mdlf-embed-scripts"> ; seul bridge-start.js s'exécute
+// au chargement et les charge, dans le même ordre, une fois la session reçue de l'app (cadre isolé : postMessage)
 export function embedHtml(html) {
   const meta = /(<meta http-equiv="Content-Security-Policy" content=")([^"]+)(">)/;
   if (!meta.test(html)) throw new Error('coach-web : balise CSP introuvable');
-  let out = html.replace(meta, (_, a, p, b) => a + embedPolicy(p) + b);
-  const first = out.indexOf('<script ');
-  const last = out.lastIndexOf('</script>');
-  if (first < 0 || last < 0 || !out.slice(0, last).endsWith('<script src="js/desk/main.js">')) {
+  const out = html.replace(meta, (_, a, p, b) => a + embedPolicy(p) + b);
+  const tag = /[ \t]*<script src="[^"]+"><\/script>\n?/g;
+  const tags = out.match(tag) || [];
+  if (!tags.length || !/src="js\/desk\/main\.js"/.test(tags.at(-1))) {
     throw new Error('coach-web : js/desk/main.js doit être le dernier script de la page');
   }
-  out = out.slice(0, first) + '<script src="js/embed/bridge-start.js"></script>\n  ' + out.slice(first);
-  const end = out.lastIndexOf('</script>') + '</script>'.length;
-  return out.slice(0, end) + '\n  <script src="js/embed/bridge-end.js"></script>' + out.slice(end);
+  if (/<script(?![^>]*\ssrc=)/.test(out.replace(tag, ''))) throw new Error('coach-web : script en ligne inattendu');
+  const first = out.search(tag);
+  const rest = out.replace(tag, '');
+  const scripts = tags.map(t => '    ' + t.trim()).join('\n') + '\n    <script src="js/embed/bridge-end.js"></script>';
+  const block = `<template id="mdlf-embed-scripts">\n${scripts}\n  </template>\n  <script src="js/embed/bridge-start.js"></script>\n`;
+  return rest.slice(0, first) + '  ' + block + rest.slice(first);
 }
 
 export function embedCoachWeb(dist) {

@@ -4,10 +4,11 @@
 //  Sur un grand écran, l'onglet Coach propose d'ouvrir l'appli web du coach (la même que coach.mdlf.app),
 //  embarquée dans l'app (dist/coach/, scripts/embed-coach-web.mjs), avec la session déjà ouverte. Écran et
 //  liaison : js/features/coach-desk-ui.js.
-//  - Proposé seulement dans l'app (iOS ou Android : la page n'est embarquée que là), jamais sur un iPhone, et
-//    seulement si la fenêtre est assez large pour la mise en page tablette du site : 768 points sur iPad (portrait,
-//    Split View à moitié sur un 13 pouces), 900 ailleurs (tablettes Android ; la vue web d'iPadOS en mode
-//    « ordinateur » se dit Macintosh, reconnue au toucher).
+//  - Proposé seulement dans l'app iOS (pas les tablettes Android tant qu'aucun test ne les couvre, audit M2), jamais
+//    sur un iPhone, et seulement si la fenêtre est assez large pour la mise en page tablette du site : 768 points sur
+//    iPad (iPad Air en portrait), 900 sinon (la vue web d'iPadOS en mode « ordinateur » se dit Macintosh, reconnue
+//    au toucher). Mode ouvert : il reste ouvert jusqu'à 678 points (Split View à moitié sur un 13 pouces) et se
+//    referme en dessous (Slide Over, Split View au tiers ; audit M3).
 //  - Jamais ouvert d'office : le coach choisit. Choix retenu sur l'appareil (COACH_DESK_KEY) : '' (jamais ouvert :
 //    carte qui explique), 'used' (déjà ouvert : simple ligne), 'hidden' (« Masquer » : plus rien dans l'onglet,
 //    la ligne reste dans Réglages › Coach).
@@ -18,10 +19,11 @@ const COACH_DESK_KEY = 'mdlf_coach_desk';
 const COACH_DESK_PREFS = ['', 'used', 'hidden'];
 const COACH_DESK_MIN_IPAD = 768;
 const COACH_DESK_MIN = 900;
+const COACH_DESK_MIN_OPEN = 678;
 
-// { native, platform ('ios' | 'android' | 'web'), ua, touchPoints, width } → bool
+// { native, platform ('ios' | 'android' | 'web'), ua, touchPoints, width } → bool (iOS seulement)
 function coachDeskEligible({ native, platform, ua = '', touchPoints = 0, width = 0 }) {
-  if (!native || (platform !== 'ios' && platform !== 'android')) return false;
+  if (!native || platform !== 'ios') return false;
   if (/iPhone|iPod/.test(ua)) return false;
   const ipad = /iPad/.test(ua) || (/Macintosh/.test(ua) && touchPoints > 1);
   return width >= (ipad ? COACH_DESK_MIN_IPAD : COACH_DESK_MIN);

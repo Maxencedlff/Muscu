@@ -175,7 +175,7 @@ function renderCheckinMissing() {
   const body = loading ? '<div class="empty-note">Chargement…</div>' : `
         <div class="ck-empty">
           <h1 class="ck-empty__title" id="ckTitle" tabindex="-1">${offline ? 'Pas d\'Internet' : 'Bilan introuvable'}</h1>
-          <p class="ck-empty__text">${offline ? 'Ce bilan s\'affichera quand ton iPhone sera connecté.' : `${ckWho()} l'a peut-être fermé, ou en a envoyé un nouveau.`}</p>
+          <p class="ck-empty__text">${offline ? `Ce bilan s'affichera quand ton ${phoneName()} sera connecté.` : `${ckWho()} l'a peut-être fermé, ou en a envoyé un nouveau.`}</p>
           <button class="btn btn--secondary ck-empty__btn" data-action="${offline ? 'ck-retry' : 'go-home'}">${offline ? 'Réessayer' : 'Revenir à l\'accueil'}</button>
         </div>`;
   return `<div class="view view--grouped ck-view">${head}<div class="scr">${body}</div></div>`;
@@ -187,7 +187,7 @@ function renderCheckinDone(req, state) {
   const head = navBar({ title: '', large: false });
   const title = state === 'sent' ? `Envoyé à ${who}` : state === 'queued' ? 'En attente du réseau' : 'Bilan fermé';
   const sub = state === 'sent' ? `Le ${esc(fmtDate(req.answeredAt, 'day'))} à ${esc(fmtTime(req.answeredAt))}. ${who} voit tes réponses.`
-    : state === 'queued' ? 'Ton bilan est gardé sur l\'iPhone. Il partira tout seul dès que tu seras connecté.'
+    : state === 'queued' ? `Ton bilan est gardé sur ${thePhone()}. Il partira tout seul dès que tu seras connecté.`
     : `${who} a fermé ce bilan. Tu recevras le prochain ici.`;
   const items = checkinItemsShown(req);
   const local = state === 'queued' ? checkinOutbox()[req.id]?.answers || {} : req.answers || {};

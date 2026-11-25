@@ -457,7 +457,7 @@ function renderCoachMine() {
   // Nom de son affiche (s'il l'a partagée) et sa photo de profil : l'élève reconnaît la coach qui l'a fait venir,
   // @pseudo dessous (5e panel)
   const posterNm = coachPosterNameOf(p.user_id), shownName = posterNm || personName(p);
-  const stale = !coach.state && coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : dernières nouvelles gardées sur l\'iPhone.' : coachErrorText(coach.error))}</p>` : '';
+  const stale = !coach.state && coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : dernières nouvelles gardées sur ${thePhone()}.' : coachErrorText(coach.error))}</p>` : '';
   const progs = inbox ? (inbox.programmes.length ? inbox.programmes.map(coachProgCardHtml).join('')
     : '<div class="empty-note coach-empty">Aucun programme reçu.</div>') : '<div class="empty-note coach-empty">Chargement…</div>';
   const notes = inbox?.notes.length ? `<div class="group-title">Commentaires</div>${coachNotesHtml(inbox.notes)}` : '';

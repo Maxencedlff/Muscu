@@ -5,8 +5,8 @@ dans dist/coach/) dans Chromium et WebKit, viewport d'iPad 13 pouces en portrait
     python3 tests/test_coach_ipad.py                     # construit dist/, puis Chromium et WebKit
     PPL_ENGINES=webkit PPL_NO_BUILD=1 python3 tests/test_coach_ipad.py
 
-Parcours : carte de l'onglet Coach (jamais ouverte d'office), ouverture, session de l'app reprise dans le cadre (aucun
-écran de connexion, rien dans le stockage), « Revenir à l'appli » visible et dans les marges, rotation, retour à l'app,
+Parcours : carte de l'onglet Coach (jamais ouverte d'office), ouverture, cadre isolé (sandbox : origine opaque, pas de
+stockage, parent.Capacitor inaccessible), session de l'app reçue par message (aucun écran de connexion), « Revenir à l'appli » visible et dans les marges, rotation, retour à l'app,
 choix retenu, jetons renouvelés dans les deux sens, « Se déconnecter » qui ne ferme pas la session de l'app, Masquer,
 puis l'iPhone inchangé et l'iPad en Split View étroit. Faux iPhone et faux Supabase de tests/fake_account.py (le cadre
 parle au même faux serveur que l'app, comme les deux clients supabase-js au même projet) ; supabase-js et capacitor.js
@@ -39,46 +39,44 @@ IPAD_UA = ('Mozilla/5.0 (iPad; CPU OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (
 IPAD_SAFE = (24, 0, 20, 0)
 PORTRAIT, LANDSCAPE = (1024, 1366), (1366, 1024)
 
-# Cadre de l'appli web du coach (init script, toutes les fenêtres ; ne fait rien dans la fenêtre de l'app) :
-# - pas de pont natif dans un cadre (Capacitor ne l'injecte que dans la fenêtre principale) ;
-# - marges de sécurité à 0, comme env(safe-area-inset-*) dans un iframe sur iPad ;
-# - client supabase-js : même faux serveur que l'app (même compte), session propre au cadre, posée par setSession
-#   avec les jetons de l'app (refusée sinon), rafraîchissement et déconnexion journalisés dans __sb.calls.
+# Séances de Léa (une par jour, les 12 derniers jours), les mêmes dans l'app et dans le cadre
+LEA = [{'id': f'l{i:02d}', 'date': days_back_ms(NOW, i + 1, 10, tz=PARIS), 'duration': 50 * 60_000, 'programme': 'ppl', 'category': 'push',
+        'label': 'Push', 'exercises': [{'name': 'Développé couché', 'sets': [{'weight': '40', 'reps': '8'}]}]} for i in range(12)]
+
+# Cadre de l'appli web du coach (init script de toutes les fenêtres, ne fait rien dans celle de l'app). Le cadre est
+# ISOLÉ (sandbox sans allow-same-origin) : il ne voit rien de la fenêtre de l'app, son faux serveur est le sien. Il
+# reçoit les mêmes comptes, créés dans le même ordre (mêmes identifiants : coach max, puis Léa, puis Tom), comme le
+# vrai serveur sert les mêmes données aux deux clients supabase-js. setSession n'accepte que le jeton du coach.
+# Journal du client du cadre dans window.__frameLog ; __frameRefresh(jetons) simule un renouvellement dans le cadre.
 FRAME_SHIM = r"""(() => {
-  if (window.parent === window) return;
-  let P;
-  try { P = window.parent; if (!P.__sb) return; } catch { return; }
+  if (window.parent === window || !window.__sb) return;
+  // Comme dans un cadre isolé (sandbox) : pas de pont natif (Capacitor n'est injecté que dans la fenêtre principale)
   try { delete window.Capacitor; } catch { window.Capacitor = undefined; }
   const zero = () => { document.documentElement.style.cssText += ';--sim-sai-top:0px;--sim-sai-right:0px;--sim-sai-bottom:0px;--sim-sai-left:0px'; };
   if (document.documentElement) zero(); else addEventListener('DOMContentLoaded', zero);
-  const real = P.__sb;
-  window.__sb = real;
-  const log = (...a) => real.calls.push(['frame', ...a]);
+  const sb = window.__sb;
+  const me = sb.addPerson({ username: 'max' });
+  sb.makeCoach(me);
+  const lea = sb.addPerson({ username: 'lea', avatar: '🦊', social: false, sessions: %LEA% });
+  const tom = sb.addPerson({ username: 'tom' });
+  sb.link(me, lea, Date.now() - 20 * 86400000);
+  sb.link(me, tom);
+  const log = window.__frameLog = [];
+  const create = window.supabase.createClient;
   window.supabase = { createClient: (url, key, o) => {
-    log('createClient', !!o?.auth?.persistSession, o?.auth?.storage === undefined);
-    const keep = [real.storage, real.storageKey];
-    const c = P.supabase.createClient(url, key, { auth: { storage: real.storage, storageKey: real.storageKey } });
-    [real.storage, real.storageKey] = keep;
+    log.push(['createClient', !!o?.auth?.persistSession, o?.auth?.storage === undefined]);
+    const c = create(url, key, o);
     const listeners = [];
-    let mine = null;
     const auth = { ...c.auth,
-      onAuthStateChange: fn => { listeners.push(fn); return { data: { subscription: { unsubscribe() {} } } }; },
-      setSession: async ({ access_token, refresh_token } = {}) => {
-        log('setSession', refresh_token);
-        if (!real.session || access_token !== real.session.access_token) return { data: { session: null, user: null }, error: { name: 'AuthApiError', code: 'session_not_found', message: 'Session not found', status: 403 } };
-        mine = { access_token, refresh_token, user: JSON.parse(JSON.stringify(real.session.user)) };
-        listeners.forEach(fn => fn('SIGNED_IN', mine));
-        return { data: { session: mine, user: mine.user }, error: null };
-      },
-      getSession: async () => ({ data: { session: mine }, error: null }),
-      stopAutoRefresh: async () => { log('stopAutoRefresh'); },
-      startAutoRefresh: async () => { log('startAutoRefresh'); },
-      signOut: async () => { log('signOut'); return { error: null }; },
+      onAuthStateChange: fn => { listeners.push(fn); return c.auth.onAuthStateChange(fn); },
+      setSession: async t => { log.push(['setSession', t?.refresh_token, t?.access_token]); return c.auth.setSession(t); },
+      stopAutoRefresh: async () => { log.push(['stopAutoRefresh']); },
+      signOut: async () => { log.push(['signOut']); return { error: null }; },
     };
-    window.__frameRefresh = t => { mine = { ...mine, ...t }; listeners.forEach(fn => fn('TOKEN_REFRESHED', mine)); };
+    window.__frameRefresh = t => listeners.forEach(fn => fn('TOKEN_REFRESHED', { ...t, user: { id: me } }));
     return { ...c, auth };
   } };
-})();"""
+})();""".replace('%LEA%', json.dumps(LEA, ensure_ascii=False))
 CSP_WATCH = ("window.__csp = []; document.addEventListener('securitypolicyviolation', "
              "e => window.__csp.push(e.effectiveDirective + ' ' + e.blockedURI));")
 
@@ -115,13 +113,16 @@ def app_page(browser, url, *, size=PORTRAIT, theme='dark', ua=IPAD_UA, safe=IPAD
     w, h = size
     ctx = browser.new_context(viewport={'width': w, 'height': h}, screen={'width': w, 'height': h}, device_scale_factor=2,
                               has_touch=True, is_mobile=browser.browser_type.name != 'firefox', user_agent=ua,
-                              color_scheme=theme, locale='fr-FR', timezone_id=PARIS, service_workers='block')
+                              color_scheme=theme, locale='fr-FR', timezone_id=PARIS)
+    # Sans service_workers='block' : son script de Playwright lit navigator.serviceWorker dans chaque cadre, ce qu'un
+    # cadre isolé refuse (WebKit arrête alors les scripts de test du cadre). L'app n'enregistre aucun service worker
+    # dans la coquille native (faux Capacitor)
     track_idle(ctx)
     simulate_safe_area(ctx, safe)
     # supabase-js et capacitor.js de dist/ remplacés par les faux (posés avant par FAKE_ACCOUNT)
     ctx.route('**/js/vendor/supabase.js', lambda r: r.fulfill(body='', content_type='text/javascript'))
     ctx.route('**/js/vendor/capacitor.js', lambda r: r.fulfill(body='', content_type='text/javascript'))
-    ctx.route('https://mdlf-ota.vercel.app/**', lambda r: r.abort())
+    ctx.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda r: r.abort())
     page = ctx.new_page()
     page.errors = []
     page.on('pageerror', lambda e: page.errors.append(str(e)))
@@ -130,6 +131,9 @@ def app_page(browser, url, *, size=PORTRAIT, theme='dark', ua=IPAD_UA, safe=IPAD
     freeze_clock(page, NOW)
     page.add_init_script(CSP_WATCH)
     page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
+    # Cadre : identifiants décalés comme dans l'app (où la connexion crée le coach en 2e position), pour que les mêmes
+    # comptes aient les mêmes identifiants des deux côtés (FRAME_SHIM)
+    page.add_init_script("if (window.parent !== window) window.__fakeOpts = { ...window.__fakeOpts, uidStart: 1 };")
     page.add_init_script(FAKE_ACCOUNT)
     page.add_init_script(FRAME_SHIM)
     try:
@@ -142,8 +146,7 @@ def app_page(browser, url, *, size=PORTRAIT, theme='dark', ua=IPAD_UA, safe=IPAD
 
 def signin_coach(page):
     """Connexion Apple, pseudo max, rôle coach validé, deux élèves (Léa avec des séances, Tom sans)."""
-    lea = [{'id': f'l{i:02d}', 'date': days_back_ms(NOW, i + 1, 10, tz=PARIS), 'duration': 50 * 60_000, 'programme': 'ppl', 'category': 'push',
-            'label': 'Push', 'exercises': [{'name': 'Développé couché', 'sets': [{'weight': '40', 'reps': '8'}]}]} for i in range(12)]
+    lea = LEA
     page.evaluate("""async (s) => {
         await accountSignInWith('apple', async () => 'add');
         await accountSaveProfile({ username: 'max' });
@@ -170,7 +173,9 @@ def frame_obj(page):
 
 
 def frame_calls(page, what=None):
-    return page.evaluate("w => __sb.calls.filter(c => c[0] === 'frame' && (!w || c[1] === w)).map(c => c.slice(1))", what)
+    """Journal du client supabase-js du cadre (lu dans le cadre : Playwright y a accès, l'app non)."""
+    fo = frame_obj(page)
+    return fo.evaluate("w => (window.__frameLog || []).filter(c => !w || c[0] === w)", what) if fo else []
 
 
 def rect(page, sel):
@@ -196,18 +201,23 @@ def check_open(page, t, w, h):
     rows = fr.locator('.lst a.row')
     R.check(rows.count() == 2, f'{t} : les 2 élèves de l\'app dans l\'appli web ({rows.count()})')
     R.check(any('lea' in x for x in rows.all_inner_texts()), f'{t} : Léa listée')
-    # Session de l'app : ses jetons, posés dans le cadre, gardés en mémoire seulement
-    app_rt = page.evaluate('__sb.session.refresh_token')
+    # Session de l'app : ses jetons, reçus par message, posés dans le cadre, gardés en mémoire seulement
+    app_t = page.evaluate('[__sb.session.refresh_token, __sb.session.access_token]')
     sets = frame_calls(page, 'setSession')
-    R.check(sets and sets[0][1] == app_rt, f'{t} : session de l\'app reprise ({sets})')
+    R.check(sets and sets[0][1:] == app_t, f'{t} : session de l\'app reprise par message ({sets[:1]})')
     R.check(['createClient', False, True] in frame_calls(page, 'createClient'), f'{t} : session du cadre en mémoire seulement')
-    until(page, "() => __sb.calls.some(c => c[0] === 'frame' && c[1] === 'stopAutoRefresh')", 3000)
-    R.check(bool(frame_calls(page, 'stopAutoRefresh')), f'{t} : rafraîchissement laissé à l\'app')
     fo = frame_obj(page)
-    keys = fo.evaluate("Object.keys(localStorage).filter(k => k.startsWith('mdlf-coach-web') || k.startsWith('mdlf_coach_web'))")
-    R.check(keys == [], f'{t} : rien de l\'appli web dans le stockage ({keys})')
-    R.check(fo.evaluate('typeof window.Capacitor') == 'undefined', f'{t} : pas de pont natif dans le cadre')
-    R.check(fo.evaluate('!!window.MDLF_COACH_HOST && !!window.MDLF_COACH_HOST.photos'), f'{t} : contrat d\'hôte et point d\'accroche des photos')
+    until(fo, "() => (window.__frameLog || []).some(c => c[0] === 'stopAutoRefresh')", 3000)
+    R.check(bool(frame_calls(page, 'stopAutoRefresh')), f'{t} : rafraîchissement laissé à l\'app')
+    # Cadre isolé : origine opaque, ni stockage, ni accès à la fenêtre de l'app (Capacitor, coffre des photos)
+    R.check(fo.evaluate('origin') == 'null', f'{t} : origine opaque du cadre ({fo.evaluate("origin")})')
+    R.check(fo.evaluate("(() => { try { localStorage.length; return 'ouvert'; } catch { return 'fermé'; } })()") == 'fermé', f'{t} : pas de stockage dans le cadre')
+    for name in ('Capacitor', 'cphCoachUnlock', 'sb', 'document'):
+        r = fo.evaluate(f"(() => {{ try {{ return typeof parent.{name}; }} catch (e) {{ return 'bloqué'; }} }})()")
+        R.check(r == 'bloqué', f'{t} : parent.{name} inaccessible depuis le cadre ({r})')
+    R.check(page.get_attribute('.coach-desk__frame', 'sandbox') == 'allow-scripts allow-forms', f'{t} : cadre isolé')
+    R.check(fo.evaluate('!!window.MDLF_COACH_HOST && window.MDLF_COACH_HOST.photos === undefined'), f'{t} : contrat d\'hôte, pas de photos avant la vague 5')
+    R.check(frame_of(page).locator('[data-action="soon"]').count() == 0, f'{t} : aucune entrée « bientôt » dans l\'app (audit B3)')
     # Écran hôte : plein écran, marges de sécurité laissées, « Revenir à l'appli » visible, 44 points au moins
     box = rect(page, '.coach-desk')
     R.check(box and abs(box['w'] - w) < 1 and abs(box['h'] - h) < 1, f'{t} : écran hôte plein écran ({box})')
@@ -285,14 +295,24 @@ def t_session(browser, url, engine):
         open_desk(page, t)
         settle(page)
         fo = frame_obj(page)
-        # Cadre sorti de veille : jetons renouvelés là-bas → l'app les reprend
-        fo.evaluate("__frameRefresh({ access_token: __sb.session.access_token, refresh_token: 'faux-rafraichi-par-le-cadre' })")
+        # Cadre sorti de veille : jetons renouvelés là-bas → l'app les reprend (par message)
+        fo.evaluate("__frameRefresh({ access_token: 'faux.acces.cadre', refresh_token: 'faux-rafraichi-par-le-cadre' })")
         until(page, '() => __appSet.length > 0', 3000)
         R.check(page.evaluate('__appSet') == ['faux-rafraichi-par-le-cadre'], f'{t} : jetons du cadre rendus à l\'app ({page.evaluate("__appSet")})')
-        # L'app renouvelle : posés dans le cadre
-        fo.evaluate("MDLF_COACH_EMBED.setSession({ access_token: __sb.session.access_token, refresh_token: 'faux-rafraichi-par-l-app' })")
+        # L'app renouvelle : envoyés au cadre, posés là-bas
+        page.evaluate("coachDeskPost({ type: 'mdlf-coach-tokens', tokens: { access_token: __sb.session.access_token, refresh_token: 'faux-rafraichi-par-l-app' } })")
+        until(fo, "() => __frameLog.some(c => c[0] === 'setSession' && c[1] === 'faux-rafraichi-par-l-app')", 3000)
         R.check(frame_calls(page, 'setSession')[-1][1] == 'faux-rafraichi-par-l-app', f'{t} : jetons de l\'app posés dans le cadre')
+        # Message d'une autre fenêtre : ignoré par l'app
+        page.evaluate("window.postMessage({ type: 'mdlf-coach-exit' }, '*')")
+        settle(page)
+        R.check(page.locator('.coach-desk').count() == 1, f'{t} : message qui ne vient pas du cadre ignoré')
         # « Se déconnecter » dans l'appli web : retour à l'app, sa session n'est pas fermée
+        fo.evaluate("deskSignOut()")
+        settle(page)
+        R.check(page.locator('.coach-desk').count() == 0, f'{t} : déconnexion demandée dans le cadre → retour à l\'app')
+        open_desk(page, t)
+        fo = frame_obj(page)
         fo.evaluate("location.hash = '#/reglages'")
         fr = frame_of(page)
         btn = fr.locator('[data-action="signout"]')
@@ -303,7 +323,6 @@ def t_session(browser, url, engine):
         else:
             fr.locator('[data-action="host-exit"]').first.tap()
             settle(page)
-        R.check(not frame_calls(page, 'signOut'), f'{t} : aucune déconnexion depuis le cadre')
         R.check(not any(c[0] == 'signOut' for c in page.evaluate('__sb.calls')), f'{t} : session de l\'app gardée')
         R.check(page.evaluate('!!account.user'), f'{t} : toujours connecté dans l\'app')
         # Session de l'app finie pendant le mode ouvert : il se ferme
@@ -350,6 +369,30 @@ def t_unchanged(browser, url, engine):
         R.check(page.locator('.coach-desk-card').count() == 1, f'{t} : fenêtre élargie, la carte revient')
 
 
+def t_narrow(browser, url, engine):
+    """Mode ouvert puis fenêtre rétrécie (Split View, Slide Over ; XCUITest ne les pilote pas) : reste ouvert à 678
+    points (Split View à moitié sur un 13 pouces), se referme avec un message à 375 et à 320 (audit M3)."""
+    t = f'{engine} fenêtre étroite'
+    with app_page(browser, url) as page:
+        signin_coach(page)
+        for width, stays in ((678, True), (375, False), (320, False)):
+            page.set_viewport_size({'width': 1024, 'height': 1366})
+            settle(page)
+            open_desk(page, t)
+            page.set_viewport_size({'width': width, 'height': 1366})
+            settle(page)
+            R.check((page.locator('.coach-desk').count() == 1) == stays, f'{t} : {width} points, mode {"ouvert" if stays else "refermé"}')
+            if stays:
+                shot(page, f'{engine}-ouvert-{width}')
+                page.locator('.coach-desk__back').tap() if page.locator('#coachDeskBar').is_visible() else frame_of(page).locator('[data-action="host-exit"]:visible').first.tap()
+                settle(page)
+            else:
+                toast = page.locator('.toast').last.inner_text() if page.locator('.toast').count() else ''
+                R.check('Agrandis la fenêtre pour le mode grand écran' in toast, f'{t} : {width} points, message ({toast!r})')
+                R.check(page.evaluate("!document.querySelector('#app').inert"), f'{t} : {width} points, app de nouveau active')
+        R.check(not page.errors, f'{t} : erreurs {page.errors[:3]}')
+
+
 def main():
     if not os.environ.get('PPL_NO_BUILD'):
         subprocess.run(['node', 'scripts/build-web.mjs'], cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
@@ -367,6 +410,8 @@ def main():
                 t_session(browser, url, engine)
                 print(f'· {engine} iPhone et Split View', flush=True)
                 t_unchanged(browser, url, engine)
+                print(f'· {engine} fenêtre étroite (678, 375, 320)', flush=True)
+                t_narrow(browser, url, engine)
             finally:
                 browser.close()
     print(f'\n{R.count - len(R.fails)}/{R.count} vérifications OK')
