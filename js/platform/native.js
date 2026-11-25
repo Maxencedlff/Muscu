@@ -729,6 +729,18 @@ const Native = (() => {
           return e?.code === 'CANCELED' ? { canceled: true } : e?.code === 'DENIED' ? { denied: true } : { failed: true };
         }
       },
+      // QR code affiché par coach.mdlf.app (« Relier cet ordinateur », js/features/photo-link-ui.js) : même lecteur
+      // plein écran, en mode QR. { code } (texte lu, 512 caractères au plus) ; { outdated } : build d'avant le mode QR
+      // (méthode absente, UNIMPLEMENTED) ; { unavailable } hors app ; sinon comme scan().
+      async scanQr() {
+        if (!hasScanner) return { unavailable: true };
+        try {
+          const r = await Scanner.scanQr();
+          return typeof r?.code === 'string' && r.code.length <= 512 ? { code: r.code } : { failed: true };
+        } catch (e) {
+          return e?.code === 'CANCELED' ? { canceled: true } : e?.code === 'DENIED' ? { denied: true } : e?.code === 'UNIMPLEMENTED' ? { outdated: true } : { failed: true };
+        }
+      },
     },
     // Version de l'app installée (CFBundleShortVersionString, ex. « 1.0 ») ; null hors app ou illisible
     async appVersion() {

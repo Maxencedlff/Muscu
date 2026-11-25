@@ -51,8 +51,13 @@ export default function ({ test, assert, ROOT }) {
     assert.ok(srcs.indexOf('js/desk/env.js') < srcs.indexOf('../js/data/social.js'), 'env.js avant le premier onAccountChange');
     for (const f of files) assert.ok(fs.existsSync(path.join(ROOT, f)), `${f} absent`);
     assert.doesNotMatch(html, /<script>(?!<\/script>)/, 'aucun script en ligne (CSP script-src self)');
-    assert.match(html, /script-src 'self' https:\/\/appleid\.cdn-apple\.com;/, 'seul ajout : le script de Sign in with Apple JS');
+    // Seul ajout : Sign in with Apple JS (Google passe par une redirection, sans script ni cadre : docs/COACH_WEB.md)
+    assert.match(html, /script-src 'self' https:\/\/appleid\.cdn-apple\.com;/);
     assert.match(html, /frame-src 'none'/);
+    assert.match(html, /img-src 'self' data: blob:;/, 'photos déchiffrées en blob:');
+    const vj = JSON.parse(fs.readFileSync(path.join(ROOT, 'coach-web/vercel.json'), 'utf8'));
+    const hcsp = vj.headers[0].headers.find(h => h.key === 'Content-Security-Policy').value;
+    assert.equal(hcsp, /content="(default-src[^"]+)"/.exec(html)[1] + "; frame-ancestors 'none'", 'même CSP dans la page et dans les en-têtes');
     assert.match(html, /connect-src 'self' https:\/\/yopptmdjtnezmccdvaxf\.supabase\.co;/);
   });
 

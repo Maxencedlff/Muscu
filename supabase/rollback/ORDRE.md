@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −24 | `20261127010000_photos_web_appairage_down.sql` (« Relier cet ordinateur » : appairages en cours et ordinateurs reliés EFFACÉS, chaque ordinateur perd l'accès aux photos ; photos, clés des coachs et app intactes) | rien | oui (vérifié par `tests/sql/photos_web_appairage_rollback_test.sh`, aussi après −7) |
 | −23 | `20261126010000_programmes_envoyes_coach_down.sql` (programmes envoyés relus par l'appli web du coach ; ne touche à aucune donnée, l'appli web revient à la version gardée sur le compte du coach) | rien | oui (vérifié par `tests/sql/programmes_envoyes_coach_rollback_test.sh`) |
 | −22 | `20261125010000_bilans_coach_down.sql` (bilans configurables : modèles, groupes, plannings, demandes, réponses, retours et accords du cycle EFFACÉS ; notifications `checkin` et `checkin_reminder` en file retirées ; `push_wanted`, `push_valid` et la contrainte de la file reprennent le texte de −15 ; tâches pg_cron `bilans-coach-envoi` et `bilans-coach-purge` retirées ; `push-send` peut rester) | rien | oui (vérifié par `tests/sql/bilans_coach_rollback_test.sh`, données comprises) ; à défaire avant −15, −9 (il réécrit leurs `push_wanted` et `push_valid`) et −7 (ses réponses citent `coach_photos`) |
 | −21 | `20261124010000_semaines_coach_down.sql` (fiche Semaines du web en un appel ; ne touche à aucune donnée, l'appli web revient aux lectures une par une) | rien | oui (vérifié par `tests/sql/semaines_coach_rollback_test.sh`) |
@@ -127,6 +128,12 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
     version gardée sur le compte du coach (un programme déjà envoyé n'est pas renvoyable d'ici, « Envoyer à plusieurs »
     est coupé : jamais de charges prescrites effacées chez un élève). Retour arrière : le site d'avant si voulu, puis
     `20261126010000_programmes_envoyes_coach_down.sql`.
+
+19. `20261127010000_photos_web_appairage.sql` (photos de bilan sur ordinateur, docs/PHOTOS_WEB.md) : APRÈS
+    `20261107000000_photos_bilan.sql` (en production) ; deux tables, des RPC, un déclencheur sur `coach_photo_keys`, aucune
+    fonction existante réécrite, aucune fonction Edge. Avant le site de la vague 5 (sans elle, « Relier cet ordinateur »
+    dit que le serveur n'a pas encore la fonction). Retour arrière : le site d'avant si voulu, puis
+    `20261127010000_photos_web_appairage_down.sql`.
 
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 

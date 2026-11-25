@@ -269,7 +269,7 @@ function cphTeamSetupHtml(students) {
   return `
         <div class="group-title">Photos de bilan</div>
         <div class="group">
-          <div class="cell">${icon('lock', 20)}<span class="cell__body"><span class="cell__title">Réception des photos</span></span><span class="cell__value">Activée</span></div>
+          <div class="cell">${icon('lock', 20)}<span class="cell__body"><span class="cell__title">Réception des photos</span></span><span class="cell__value">Activée</span></div>${plinkCellHtml()}
         </div>
         <div class="group-foot">Chaque élève choisit les photos qu'il t'envoie. Tu les ouvres avec Face ID depuis sa fiche.</div>`;
 }

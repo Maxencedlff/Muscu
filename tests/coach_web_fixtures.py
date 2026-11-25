@@ -124,6 +124,35 @@ window.AppleID = { auth: {
 """
 
 
+# Connexion avec Google par redirection (js/desk/google.js) : signInWithOAuth enregistre la demande et « revient » sur
+# l'adresse demandée avec ?code=… (aucun réseau, code factice), exchangeCodeForSession ouvre la session du compte qui
+# porte l'identité Google __googleSub (sessionStorage, comme le vérificateur PKCE gardé par supabase-js) ;
+# window.__googleFail : 'access_denied' (refus chez Google) ou 'flow_state_not_found' (vérificateur perdu).
+FAKE_GOOGLE = r"""
+(() => {
+  const sb = window.__sb, cc = window.supabase.createClient, KEY = '__fakeGoogle';
+  window.supabase.createClient = (u, k, o) => {
+    const c = cc(u, k, o);
+    c.auth.signInWithOAuth = async ({ provider, options }) => {
+      sessionStorage.setItem(KEY, JSON.stringify({ provider, redirectTo: options?.redirectTo, flow: o?.auth?.flowType, code: 'codefactice' + Date.now() }));
+      const g = JSON.parse(sessionStorage.getItem(KEY));
+      const back = window.__googleFail === 'access_denied' ? '?error=access_denied&error_description=refus' : `?code=${g.code}`;
+      setTimeout(() => { location.href = options.redirectTo.replace(/\/$/, '/') + back + location.hash; }, 0);
+      return { data: { provider, url: 'https://yopptmdjtnezmccdvaxf.supabase.co/auth/v1/authorize?provider=google' }, error: null };
+    };
+    c.auth.exchangeCodeForSession = async code => {
+      const g = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+      sessionStorage.removeItem(KEY);
+      if (!g || g.code !== code || window.__googleFail === 'flow_state_not_found') return { data: { session: null, user: null }, error: { code: 'flow_state_not_found', message: 'invalid flow state, no valid flow state found', status: 404 } };
+      const b64 = x => btoa(JSON.stringify(x)).replace(/=+$/, '');
+      return c.auth.signInWithIdToken({ provider: 'google', token: 'g.' + b64({ sub: window.__googleSub || 'google-inconnu' }) + '.s' });
+    };
+    return c;
+  };
+})();
+"""
+
+
 def route_apple(ctx, mode='fake'):
     """Script d'Apple : faux (mode 'fake') ou injoignable ('blocked'), jamais le vrai."""
     if mode == 'blocked':
@@ -283,6 +312,7 @@ def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, see
     page.add_init_script('window.__fakeOpts = ' + __import__('json').dumps(opts) + ';')
     page.add_init_script("window.__csp = []; document.addEventListener('securitypolicyviolation', e => window.__csp.push(e.effectiveDirective + ' ' + e.blockedURI));")
     page.add_init_script(FAKE_ACCOUNT)
+    page.add_init_script(FAKE_GOOGLE)
     page.add_init_script(FAKE_CHECKINS)
     if seed:
         page.add_init_script(COACH_WEB_SEED)

@@ -56,6 +56,7 @@ async function deskApplePrepare() {
 function deskAppleLoad() {
   if (!window.crypto?.subtle || !window.TextEncoder) { deskAppleSet('off'); return; }
   if (window.AppleID?.auth) { deskApplePrepare(); return; }
+  deskPhMarkThirdParty();   // script tiers dans la page : les photos la rechargeront d'abord (js/desk/photo-device.js)
   const s = document.createElement('script');
   const timer = setTimeout(() => { if (deskApple.state === 'loading') deskAppleSet('off'); }, DESK_APPLE.loadMs);
   s.src = DESK_APPLE.script;

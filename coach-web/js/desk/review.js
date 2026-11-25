@@ -3,8 +3,8 @@
 //
 //  - Onglet « Bilans » de la fiche élève (#/eleve/<id>/bilans[/<bilan>]) : bilan reçu, navigation d'un bilan à
 //    l'autre, comparaison « face à » un bilan précédent (écarts du poids, des mensurations, des nombres, des
-//    échelles), réponses lisibles (checkinValueText), photos annoncées honnêtement (le web ne les déchiffre pas encore :
-//    vague 5), réponse du coach (2000 caractères au plus) et note de la semaine, « Brouillon » ou « Envoyer » (la
+//    échelles), réponses lisibles (checkinValueText), photos face, profil, dos des deux bilans côte à côte (vague 5,
+//    js/desk/photos.js), réponse du coach (2000 caractères au plus) et note de la semaine, « Brouillon » ou « Envoyer » (la
 //    réponse part aussi dans la conversation, chat_send). Bilans en attente et pas remplis listés aussi.
 //  - Liste « Bilans reçus » (#/bilans-recus) : bilans à répondre, puis ceux qu'on attend des élèves.
 //  Une réponse en cours d'écriture reste en mémoire d'un bilan à l'autre ; quitter la fiche avec une réponse pas
@@ -67,7 +67,8 @@ function deskRvPanelHtml(d, r) {
     <span class="muted rv-vs" id="l-cmp">face à</span>
     ${deskCkSelectHtml('rv-cmp', 'Comparer avec', [['', 'Aucun bilan'], ...older.map(o => [o.id, `${deskCkTitle(o, now).title} · ${o.name}`])], cmpId, 'aria-labelledby="l-cmp" data-rv-sel="cmp"')}
   </div>`;
-  const photos = cmp.photos ? `<div class="group rv-ph"><div class="row">${deskIcon('photo', 'sm')}<span class="grow">${esc(plural(cmp.photos, 'photo envoyée', 'photos envoyées'))}, à ouvrir dans l'app iPhone<span class="t2 blk">Elles sont chiffrées de bout en bout : l'appli web ne sait pas encore les ouvrir.</span></span></div></div>` : '';
+  // Photos de bilan (vague 5, js/desk/photos.js) : ce bilan et celui « face à », côte à côte
+  const photos = deskPhSectionHtml(r.id, { req: cur, title: t.title }, prev ? { req: prev, title: pt.title } : null);
   const figures = cmp.figures.length ? `<div class="stats rv-figs" aria-label="Chiffres du bilan">${cmp.figures.map(f => deskRvFigureHtml(f, cmpWeek)).join('')}</div>` : '';
   const answers = `<section aria-labelledby="h-ans"><h2 class="gh" id="h-ans">Réponses</h2><ul class="group" aria-labelledby="h-ans">${cmp.answers.map(a => `<li><div class="row rv-a">
     <span class="rv-l">${esc(a.label)}</span><span class="grow${a.none ? ' faint' : ''} rv-t">${esc(a.text)}</span>${a.delta !== null && a.delta !== undefined ? `<span class="v">${esc(a.delta === 0 ? `= S${cmpWeek}` : `${a.delta > 0 ? '+' : '−'}${Math.abs(a.delta)} depuis S${cmpWeek}`)}</span>` : ''}

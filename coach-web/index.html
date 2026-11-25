@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <!-- MDLF Coach sur ordinateur (docs/COACH_WEB.md). CSP : scripts et styles du site seulement (plus le script de Sign in with Apple JS), aucun script en ligne,
+  <!-- MDLF Coach sur ordinateur (docs/COACH_WEB.md). CSP : scripts et styles du site seulement (plus le script de Sign in with Apple JS, sur l'écran de connexion seulement ; Google passe par une redirection, sans script), aucun script en ligne, images déchiffrées en blob:,
        connexions vers le projet Supabase seulement. Les en-têtes du déploiement (coach-web/vercel.json) ajoutent
        frame-ancestors 'none', HSTS, Referrer-Policy et Permissions-Policy. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://appleid.cdn-apple.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://yopptmdjtnezmccdvaxf.supabase.co; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://appleid.cdn-apple.com; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://yopptmdjtnezmccdvaxf.supabase.co; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="color-scheme" content="light dark">
   <meta name="robots" content="noindex">
@@ -61,6 +61,10 @@
   <script src="../js/data/muscles.js"></script>
   <script src="../js/data/exercise-catalogue.js"></script>
   <script src="../js/data/measures.js"></script>
+  <script src="../js/data/progress-photos.js"></script>
+  <script src="../js/data/photo-vault.js"></script>
+  <script src="../js/data/coach-photos.js"></script>
+  <script src="../js/data/photo-link.js"></script>
   <script src="../js/data/session-review.js"></script>
   <!-- Appli web du coach -->
   <script src="js/desk/model.js"></script>
@@ -69,12 +73,16 @@
   <script src="js/desk/prog-model.js"></script>
   <script src="js/desk/diet-model.js"></script>
   <script src="js/desk/api.js"></script>
+  <script src="js/desk/qr.js"></script>
+  <script src="js/desk/photo-device.js"></script>
   <script src="js/desk/apple.js"></script>
+  <script src="js/desk/google.js"></script>
   <script src="js/desk/shell.js"></script>
   <script src="js/desk/dashboard.js"></script>
   <script src="js/desk/student.js"></script>
   <script src="js/desk/templates.js"></script>
   <script src="js/desk/review.js"></script>
+  <script src="js/desk/photos.js"></script>
   <script src="js/desk/messages.js"></script>
   <script src="js/desk/programme.js"></script>
   <script src="js/desk/nutrition.js"></script>
