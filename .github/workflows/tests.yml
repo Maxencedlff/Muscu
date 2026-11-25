@@ -79,7 +79,7 @@ jobs:
       # Règles d'ARCHITECTURE.md vérifiées sur le code (tools/archi/check.mjs, exceptions datées dans exceptions.mjs),
       # puis les tests de l'outil ; après npm ci : acorn et eslint-scope viennent d'ESLint
       - name: Architecture (couches, taille, ordre de chargement, doublons app / site, docs)
-        run: node tools/archi/check.mjs && node --test tools/archi/
+        run: node tools/archi/check.mjs && node --test tools/archi/check.test.mjs
 
   e2e:
     # Conteneur officiel de Playwright (navigateurs et dépendances système déjà dedans) : plus d'installation

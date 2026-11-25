@@ -1,5 +1,5 @@
 // Tests du contrôle d'architecture (tools/archi/check.mjs) : chaque règle sur de petits projets écrits ici.
-// Lancer depuis la racine du dépôt : node --test tools/archi/
+// Lancer depuis la racine du dépôt : node --test tools/archi/check.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
