@@ -58,7 +58,9 @@ MAIN = r"""(() => {
       `parentCapacitor=${f.parentCapacitor ?? '-'}`, `parentCoffre=${f.parentUnlock ?? '-'}`, `élèves=${f.students ?? 0}`,
       `fiche=${f.fiche ? 1 : 0}`, `onglet=${f.tab ?? '-'}`, `paysage=${innerWidth > innerHeight ? 1 : 0}`,
       `connecté=${typeof account !== 'undefined' && account.user ? 1 : 0}`, `cspApp=${st.csp.length}`, `cspCadre=${f.csp ?? 0}`,
-      `erreursApp=${st.errors.length}`, `erreursCadre=${f.errors ?? 0}`].join(' ');
+      `erreursApp=${st.errors.length}`, `erreursCadre=${f.errors ?? 0}`,
+      // Première violation de CSP du cadre et de l'app, pour comprendre un échec sur le simulateur
+      `cspCadreQuoi=${(f.cspFirst || '-').replace(/\s+/g, '_')}`, `cspAppQuoi=${(st.csp[0] || '-').replace(/\s+/g, '_')}`].join(' ');
   };
   setInterval(() => {
     if (!document.body) return;
@@ -120,7 +122,7 @@ FRAME = r"""(() => {
       parentCapacitor: probe('Capacitor'), parentUnlock: probe('cphCoachUnlock'),
       students: document.querySelectorAll('.lst a.row').length, fiche: !!document.querySelector('table.wk'),
       tab: (location.hash.match(/\/(semaines|bilans|programme|nutrition|messages)\b/) || [, location.hash ? 'accueil' : '-'])[1],
-      csp: st.csp.length, errors: st.errors.length };
+      csp: st.csp.length, cspFirst: st.csp[0] || '', errors: st.errors.length };
     window.parent.postMessage(report, '*');
   }, 500);
 })();"""

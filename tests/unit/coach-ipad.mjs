@@ -81,12 +81,14 @@ export default function ({ test, assert, ROOT }) {
   test('coach iPad : CSP de la page embarquée, scripts du paquet seulement, images blob:, aucun cadre', () => {
     const p = policyOf(embedHtml(site));
     const s = policyOf(site);
-    assert.deepEqual(p['script-src'], ["'self'"], 'ni Apple JS ni aucun hôte : rien ne vient du site distant');
+    assert.deepEqual(p['script-src'], ["'self'", 'capacitor://localhost'], 'ni Apple JS ni aucun hôte : rien ne vient du site distant');
+    for (const k of Object.keys(s)) if (s[k].includes("'self'")) assert.ok(p[k].includes('capacitor://localhost'), `${k} : origine du paquet nommée (cadre isolé sous capacitor://)`);
     assert.ok(s['script-src'].includes('https://appleid.cdn-apple.com'), 'le site garde Apple JS');
-    assert.deepEqual(p['img-src'], [...s['img-src'], 'blob:']);
+    assert.deepEqual(p['img-src'], [...s['img-src'].flatMap(v => (v === "'self'" ? [v, 'capacitor://localhost'] : [v])), 'blob:']);
     assert.deepEqual(p['frame-src'], ["'none'"]);
-    assert.deepEqual(p['connect-src'], s['connect-src'], 'mêmes connexions que le site (Supabase seulement)');
-    for (const k of Object.keys(s)) if (!['script-src', 'img-src'].includes(k)) assert.deepEqual(p[k], s[k], k);
+    const withApp = v => v.flatMap(x => (x === "'self'" ? [x, 'capacitor://localhost'] : [x]));
+    assert.deepEqual(p['connect-src'], withApp(s['connect-src']), 'mêmes connexions que le site (Supabase seulement)');
+    for (const k of Object.keys(s)) if (!['script-src', 'img-src'].includes(k)) assert.deepEqual(p[k], withApp(s[k]), k);
     assert.throws(() => embedPolicy("default-src 'none'; img-src 'self'; frame-src 'self'"), /script-src/);
     assert.throws(() => embedPolicy("script-src 'self'; img-src 'self'; frame-src *"), /frame-src/);
   });

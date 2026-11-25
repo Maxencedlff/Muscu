@@ -4,7 +4,7 @@
 // Même sortie que le site (scripts/build-coach-web.mjs : page, styles, scripts partagés exacts, supabase-js), puis
 // trois changements, et seulement ceux-là, pour la copie embarquée :
 //  - sans en-têtes ni 404.html (headers: 'none' : la vue web de l'app sert les fichiers elle-même) ;
-//  - CSP resserrée : script-src 'self' seul (le script de Sign in with Apple JS n'est jamais chargé, la session
+//  - CSP resserrée : script-src 'self' (et l'origine du paquet, capacitor://localhost) seul (le script de Sign in with Apple JS n'est jamais chargé, la session
 //    vient de l'app : rien ne vient du site distant), img-src avec blob: (photos de bilan déchiffrées par l'app,
 //    point d'accroche « photos » de docs/COACH_IPAD.md) ;
 //  - deux scripts de liaison avec l'app (coach-embed/) : bridge-start.js seul au chargement, qui charge les scripts de
@@ -17,6 +17,8 @@ import { buildCoachWeb } from './build-coach-web.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const EMBED_DIR = 'coach';
 export const BRIDGES = ['bridge-start.js', 'bridge-end.js'];
+// Origine des fichiers de l'app dans la vue web (schéma de Capacitor sur iOS)
+export const APP_ORIGIN = 'capacitor://localhost';
 
 // CSP de la copie embarquée, à partir de celle du site : rend la politique modifiée (chaîne)
 export function embedPolicy(policy) {
@@ -31,6 +33,10 @@ export function embedPolicy(policy) {
   const img = get('img-src');
   if (!img.includes('blob:')) img.push('blob:');
   if (get('frame-src')[1] !== "'none'") throw new Error('CSP de coach-web : frame-src doit rester fermé');
+  // Cadre isolé (sandbox sans allow-same-origin) : son origine est opaque, et sous capacitor:// WebKit ne fait plus
+  // correspondre 'self' aux fichiers du paquet (page vide, feuille de style et scripts refusés : vu par le test
+  // XCUITest sur le simulateur iPad, 25/11/2026). L'origine du paquet est donc nommée à côté de 'self'
+  for (const d of dirs) if (d.includes("'self'") && !d.includes(APP_ORIGIN)) d.splice(d.indexOf("'self'") + 1, 0, APP_ORIGIN);
   return dirs.map(d => d.join(' ')).join('; ');
 }
 
