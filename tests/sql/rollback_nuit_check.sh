@@ -155,7 +155,7 @@ for pair in "20261127010000:blocage_coupe_coach_test.sql push_messages_test.sql"
             "20261031620000:strava_test.sql" \
             "20261031230000:newsletter_test.sql" \
             "20261031100000:records_test.sql coach_progress_test.sql intensif_prise_test.sql charge_prescrite_test.sql charge_coach_test.sql par_bras_test.sql" \
-            "20261105000000:coach_planning_test.sql coach_planning_concurrence_test.sql" \
+            "20261105000000:coach_planning_test.sql coach_planning_concurrence_test.sql blocage_coupe_coach_test.sql" \
             "20261105010000:partage_mensurations_test.sql plans_diete_test.sql suivi_diete_test.sql semaines_coach_test.sql programmes_envoyes_coach_test.sql" \
             "20261106000000:coach_progress_test.sql charge_coach_test.sql" \
             "20261101000000:parrainage_payant_test.sql" \
