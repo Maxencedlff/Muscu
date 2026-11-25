@@ -76,7 +76,7 @@ def cardio_data(now, health=True):
 def open_app(page, theme, now, native=True, active=None, health=True):
     if native:
         page.add_init_script(FAKE_SHELL % json.dumps(workouts(now)))
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, cardio_data(now, health), active=active)
     settle(page)
 

@@ -35,7 +35,7 @@ def open_app(page, theme, store=None, active=None):
     page.add_init_script(FAKE_ACCOUNT)
     page.add_init_script(FAKE_STORE)
     page.add_init_script("window.__opened = []; window.open = u => { window.__opened.push(u); return null; };")
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(), active=active, extra={'ppl_welcome_seen': '1'})
     settle(page)
 
@@ -174,7 +174,7 @@ def t_navigateur(bench):
     with bench.page('chromium', 'Pixel 7', 'dark') as page:
         asked = []
         page.route('**/*supabase.co/**', lambda route: (asked.append(route.request.url), route.abort()))
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
         seed(page, 'dark', ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
         settle(page)
         R.check(page.evaluate('checkMinBuild()') is False, 'navigateur : checkMinBuild ne bloque pas')

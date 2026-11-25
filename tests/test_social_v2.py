@@ -35,7 +35,7 @@ def open_app(page, theme, opts=None):
     page.add_init_script(FAKE_ACCOUNT)
     # Feuille de partage du navigateur : le texte partagé est gardé pour le test
     page.add_init_script('window.__shared = []; navigator.share = async o => { window.__shared.push(o); };')
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
     settle(page)
 

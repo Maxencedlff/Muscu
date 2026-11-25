@@ -90,14 +90,14 @@ def t_hostile(bench):
                 label = f'{eng} {prog} {"séance en cours" if with_active else "sans séance"}'
                 with bench.page(eng, dev, 'dark') as page:
                     page.add_init_script(HOOK)
-                    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+                    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
                     seed(page, 'dark', json.dumps(d), active(now, prog, cat) if with_active else None)
                     sweep(page, label, cat, hid)
 
         # Même donnée passée par l'import (et donc par sanitizeData)
         with bench.page(eng, dev, 'dark') as page:
             page.add_init_script(HOOK)
-            page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+            page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
             seed(page, 'dark', None)
             skip_questions(page)
             res = page.evaluate('t => importText(t)', json.dumps(hostile(now)))

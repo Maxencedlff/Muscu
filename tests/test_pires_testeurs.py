@@ -92,7 +92,7 @@ def open_app(page, theme, account=False, ppl=None):
     if account:
         page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
         page.add_init_script(FAKE_ACCOUNT)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     page.route('https://world.openfoodfacts.org/**', lambda route: route.abort())
     if ppl is None:   # plan de diète minimal : la feuille du sel et les repas existent
         d = ppl_v2_today()

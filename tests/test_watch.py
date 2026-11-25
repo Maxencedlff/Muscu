@@ -61,7 +61,7 @@ def shell(retained=(), inbox=None, fire=False):
 
 def open_app(page, data, active=None, **kw):
     page.add_init_script(shell(**kw))
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, THEME, data, active=active)
     settle(page)
 

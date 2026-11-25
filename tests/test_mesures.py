@@ -213,7 +213,7 @@ def t_natif_avec_photos(bench, eng, dev, theme):
     now = NOW
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         page.add_init_script(FAKE_SHELL)
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
         seed(page, theme, measures_data(now))
         R.check(page.evaluate('Native.isNative') is True and page.evaluate('photosAllowedHere()') is True, f'{t} natif : photos permises')
         page.click('.tabbar [data-action="go-stats"]')

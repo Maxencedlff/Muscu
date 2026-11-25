@@ -102,7 +102,7 @@ def measure(bench, eng, dev, n, shots):
     with bench.page(eng, dev, 'dark') as page:
         page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
         page.add_init_script(FAKE_ACCOUNT)
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
         seed(page, 'dark', ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
         page.evaluate("""async () => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: 'max' }); }""")
         t0 = time.perf_counter()
