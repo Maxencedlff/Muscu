@@ -9,7 +9,10 @@ name: Tests
 #  3. edge : les 12 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
 #     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
 #  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
-#     https://muscu-eta.vercel.app (la version web est arrêtée : seule l'app iOS reste). Vercel ne publie plus seul (vercel.json : git.deploymentEnabled).
+#     https://mdlf.app (Cloudflare Pages, projet mdlf-web), puis copie de secours sur le projet Vercel « muscu »
+#     (muscu-eta.vercel.app), gardé tant que docs/HEBERGEMENT.md le dit. Vercel ne publie plus seul (vercel.json : git.deploymentEnabled) ;
+#  5. coach-web-deploy : mêmes conditions, publication de dist-coach/ sur https://coach.mdlf.app (Pages, projet mdlf-coach),
+#     avec le commit publié dans le résumé du job (avant le 25/11/2026, publication à la main sans trace).
 # Tout tourne sur Linux : aucun quota macOS.
 on:
   push:
@@ -230,7 +233,31 @@ jobs:
           else
             echo "::warning::Pages juridiques incomplètes : acceptable sur TestFlight, bloquant dès MDLF_SORTIE=true."
           fi
-      - name: Publication sur muscu-eta.vercel.app
+      # Wrangler (CLI de Cloudflare) demande Node 22 ou plus
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      # dist-web/ : web-public/ sans README ni vercel.json, pages juridiques, _headers et _redirects traduits de
+      # web-public/vercel.json (scripts/build-web-public.mjs, docs/HEBERGEMENT.md). Version de wrangler figée.
+      - name: Publication sur mdlf.app (Cloudflare Pages)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHA: ${{ github.sha }}
+        run: |
+          node scripts/build-web-public.mjs
+          npx --yes wrangler@4.157.0 pages deploy dist-web --project-name mdlf-web --branch main \
+            --commit-hash "$SHA" --commit-message "tests.yml $SHA" --commit-dirty=true
+      - name: mdlf.app sert la version publiée
+        run: |
+          for i in $(seq 1 12); do
+            curl -fsS -H 'Cache-Control: no-cache' https://mdlf.app/privacy.html | cmp -s - dist-web/privacy.html && { echo "mdlf.app à jour."; exit 0; }
+            sleep 5
+          done
+          echo "mdlf.app ne sert pas dist-web/privacy.html après 60 s"; exit 1
+      # Copie de secours (retour arrière par le DNS, docs/HEBERGEMENT.md) : son échec ne bloque pas le site principal
+      - name: Copie de secours sur muscu-eta.vercel.app
+        continue-on-error: true
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -239,3 +266,44 @@ jobs:
         run: |
           cp privacy.html mentions-legales.html cgu.html cgv.html legal.css web-public/
           npx --yes vercel@62.0.0 deploy web-public --prod --yes --token "$VERCEL_TOKEN"
+
+  # Appli web du coach : publiée seulement si tous les tests du commit sont verts, avec le commit dans le résumé
+  coach-web-deploy:
+    name: Publication de coach.mdlf.app
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [unit, e2e, coach-web, edge]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      # supabase-js (version figée du package-lock), servi par le site
+      - name: Construction (dist-coach/, en-têtes traduits de coach-web/vercel.json)
+        run: |
+          npm ci --ignore-scripts
+          npm run coach-web:build
+      - name: Publication sur coach.mdlf.app (Cloudflare Pages)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHA: ${{ github.sha }}
+        run: |
+          npx --yes wrangler@4.157.0 pages deploy dist-coach --project-name mdlf-coach --branch main \
+            --commit-hash "$SHA" --commit-message "tests.yml $SHA" --commit-dirty=true
+      - name: coach.mdlf.app sert la version publiée
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          for i in $(seq 1 12); do
+            if curl -fsS -H 'Cache-Control: no-cache' https://coach.mdlf.app/ | cmp -s - dist-coach/index.html; then
+              echo "coach.mdlf.app à jour."
+              echo "### coach.mdlf.app publié depuis $SHA" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "coach.mdlf.app ne sert pas dist-coach/index.html après 60 s"; exit 1
