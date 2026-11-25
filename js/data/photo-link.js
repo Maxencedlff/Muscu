@@ -21,6 +21,7 @@
 //     le serveur (iPhone, « Oublier cet ordinateur », clé changée, 30 jours sans usage, 90 jours) suffit à couper.
 // ═══════════════════════════════════════════════════════════
 'use strict';
+// Briques reprises de js/data/photo-vault.js (bytesToB64) et js/data/coach-photos.js (cphConcat), chargés avant lui
 
 const PLINK_V          = 'mdlf-photo-link-v1';
 const PLINK_QR_PREFIX  = 'MDLF1';
@@ -32,7 +33,6 @@ const PLINK_P256       = { name: 'ECDH', namedCurve: 'P-256' };
 const PLINK_UUID_RE    = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PLINK_PUB_RE     = /^B[A-P][A-Za-z0-9+/]{84}[AEIMQUYcgkosw048]=$/;   // point P-256 non compressé (65 octets) en base64
 const PLINK_IV_RE      = /^[A-Za-z0-9+/]{16}$/;
-const PLINK_VERIF_RE   = /^[A-Za-z0-9+/]{43}=$/;                          // SHA-256 en base64
 const PLINK_B64U_RE    = /^[A-Za-z0-9_-]+$/;
 const plinkEnc = new TextEncoder();
 
@@ -54,7 +54,6 @@ function plinkFromB64u(s, len) {
     return plinkB64u(out) === s ? out : null;   // forme canonique seulement (pas de bits de bourrage changés)
   } catch { return null; }
 }
-const plinkB64 = bytes => btoa(String.fromCharCode(...bytes));
 function plinkUuidBytes(id) {
   if (!PLINK_UUID_RE.test(id || '')) return null;
   const hex = id.replace(/-/g, '');
@@ -63,12 +62,6 @@ function plinkUuidBytes(id) {
 function plinkBytesUuid(b) {
   const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
-}
-function plinkConcat(...parts) {
-  const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
-  let i = 0;
-  parts.forEach(p => { out.set(p, i); i += p.length; });
-  return out;
 }
 
 // ── QR code ─────────────────────────────────────────────────
@@ -88,13 +81,13 @@ function plinkQrParse(text) {
   if (parts.length !== 5 || parts[0] !== PLINK_QR_PREFIX) return null;
   const p = plinkFromB64u(parts[1], 16), c = plinkFromB64u(parts[2], 16), raw = plinkFromB64u(parts[3], 65), s = plinkFromB64u(parts[4], 16);
   if (!p || !c || !raw || !s || raw[0] !== 4) return null;
-  const pub = plinkB64(raw);
+  const pub = bytesToB64(raw);
   return PLINK_PUB_RE.test(pub) ? { pair: plinkBytesUuid(p), coach: plinkBytesUuid(c), pub, secret: s } : null;
 }
 // Preuve que le téléphone a lu le QR : le serveur garde H(s), le téléphone le lui redonne (jamais s lui-même)
 async function plinkVerifier(secret) {
-  const h = await crypto.subtle.digest('SHA-256', plinkConcat(plinkEnc.encode(`${PLINK_V}|verifier|`), secret));
-  return plinkB64(new Uint8Array(h));
+  const h = await crypto.subtle.digest('SHA-256', cphConcat(plinkEnc.encode(`${PLINK_V}|verifier|`), secret));
+  return bytesToB64(new Uint8Array(h));
 }
 
 // ── Dérivation : clé d'enveloppe et code de vérification ────
@@ -102,9 +95,10 @@ async function plinkVerifier(secret) {
 const plinkInfo = (purpose, c) => plinkEnc.encode([PLINK_V, purpose, c.pair, c.coach, c.devicePub, c.epk].join('|'));
 // Code à 6 chiffres « 482 913 » depuis 64 bits
 function plinkSasText(bytes) {
-  let n = 0n;
-  for (const b of bytes) n = (n << 8n) | BigInt(b);
-  const s = String(n % 1_000_000n).padStart(6, '0');
+  // 64 bits lus comme deux moitiés de 32 bits, réduits modulo 10^6 sans dépasser 2^53 (pas de BigInt)
+  const hi = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+  const lo = ((bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]) >>> 0;
+  const s = String(((hi % 1e6) * (2 ** 32 % 1e6) + lo) % 1e6).padStart(6, '0');
   return `${s.slice(0, 3)} ${s.slice(3)}`;
 }
 // priv : ma clé privée éphémère (E côté téléphone, D côté navigateur) ; peer : la clé publique de l'autre (base64) ;
@@ -129,7 +123,7 @@ const plinkAad = (device, coach, keyId, coachPub) => plinkEnc.encode([PLINK_V, '
 async function plinkWrap(wrapKey, pkcs8, { device, coach, keyId, coachPub }) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: plinkAad(device, coach, keyId, coachPub) }, wrapKey, pkcs8));
-  return { wrapped: plinkB64(ct), iv: plinkB64(iv) };
+  return { wrapped: bytesToB64(ct), iv: bytesToB64(iv) };
 }
 // Navigateur : enveloppe → clé privée du coach, NON extractible (la clé en clair ne passe jamais par le JavaScript),
 // ou null (autre clé d'enveloppe, enveloppe ou données liées modifiées)

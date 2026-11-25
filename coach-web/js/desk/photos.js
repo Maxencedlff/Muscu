@@ -172,7 +172,14 @@ function deskPhZoomApply() {
   if (!d) return;
   const s = DESK_PH_ZOOM[pz.z];
   if (s === 1) { pz.tx = 0; pz.ty = 0; }
-  d.querySelectorAll('.phz-view img').forEach(img => { img.style.transform = `translate(${pz.tx}px, ${pz.ty}px) scale(${s})`; });
+  // Animation figée (Web Animations, durée 0, fill forwards) plutôt qu'un attribut style : aucun style en ligne dans la
+  // page, rien à ouvrir dans la CSP (style-src 'self') ; data-zoom garde la valeur lisible pour les tests
+  const t = `translate(${pz.tx}px, ${pz.ty}px) scale(${s})`;
+  d.querySelectorAll('.phz-view img').forEach(img => {
+    img.getAnimations?.().forEach(a => a.cancel());
+    if (img.animate) img.animate([{ transform: t }], { duration: 0, fill: 'forwards' });
+    img.dataset.zoom = t;
+  });
   const out = d.querySelector('.phz-z');
   if (out) out.textContent = `${Math.round(s * 100)} %`;
   d.querySelector('[data-pz="out"]')?.toggleAttribute('disabled', pz.z === 0);

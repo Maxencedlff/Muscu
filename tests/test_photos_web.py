@@ -47,15 +47,28 @@ def check(cond, msg):
         raise AssertionError(msg)
 
 
-def shot(page, name):
-    os.makedirs(SHOTS, exist_ok=True)
-    page.screenshot(path=os.path.join(SHOTS, name + '.png'))
+def shot(page, name, locator=None):
+    """Capture (page entière, ou un élément). Playwright pose un style le temps d'une capture dans WebKit : les seules
+    violations de CSP nées pendant la capture sont retirées de window.__csp (celles de la page restent comptées)."""
+    n = page.evaluate('(window.__csp || []).length')
+    errs = len(getattr(page, 'errors', []))
+    if locator is not None:
+        png = locator.screenshot(caret='initial')
+    else:
+        os.makedirs(SHOTS, exist_ok=True)
+        png = page.screenshot(path=os.path.join(SHOTS, name + '.png'), caret='initial')
+    page.wait_for_timeout(100)   # événements de la capture arrivés
+    if hasattr(page, 'errors'):
+        del page.errors[errs:]
+    page.evaluate('n => { if (window.__csp) window.__csp.length = Math.min(window.__csp.length, n); if (window.__cspd) window.__cspd.length = Math.min(window.__cspd.length, n); }', n)
+    return png
 
 
 # Données des photos du site seul : clé du coach (secret de trousseau factice), photos face, profil, dos des bilans S46
 # et S47 de Léa, chiffrées pour cette clé ; gardées dans sessionStorage d'un rechargement à l'autre (avec l'état du faux
 # serveur de l'appairage), comme le serait le vrai serveur. Le « téléphone » (window.__phone) joue l'iPhone du coach.
 PHOTOS_SEED = r"""
+document.addEventListener('securitypolicyviolation', e => (window.__cspd ||= []).push([e.sourceFile, e.lineNumber, e.columnNumber, e.sample, document.querySelector('dialog[open]')?.className || '', location.hash.slice(-8)]));
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.__sb, co = sb.co, coach = window.__coachId, lea = window.__students[0], KEEP = '__fakePh';
   const keyId = 'ab'.repeat(16);
@@ -147,7 +160,7 @@ def decode_qr(page):
     if cv2 is None:
         return None
     import numpy as np
-    png = page.locator('svg.qr').screenshot()
+    png = shot(page, 'qr', page.locator('svg.qr'))
     img = cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_GRAYSCALE)
     txt, _, _ = cv2.QRCodeDetector().detectAndDecode(img)
     return txt or None
@@ -172,6 +185,7 @@ def go_bilans(page):
     lea = page.evaluate('window.__students[0]')
     page.evaluate(f"location.hash = '#/eleve/{lea}/bilans'")
     page.wait_for_selector('.ph-sec')
+    until(page, "!document.querySelector('.ph-sec').innerText.includes('Chargement')")
 
 
 def run_poll(page, ms=1600):
@@ -212,6 +226,7 @@ def web_journey(browser, url, engine):
             until(page, 'window.__phReady')
             page.evaluate('deskThirdParty = false')   # rechargement après les scripts tiers : third_party_reload
             go_bilans(page)
+            until(page, "document.querySelector('.ph-sec')?.innerText.includes('photos envoyées')")   # IndexedDB lue
             sec = page.locator('.ph-sec').inner_text()
             check('3 photos envoyées' in sec or '6 photos envoyées' in sec, f'{tag} : section des photos {sec!r}')
             check(page.locator('.ph-sec img').count() == 0, f'{tag} : aucune image avant de relier')
@@ -258,14 +273,14 @@ def web_journey(browser, url, engine):
             check(page.locator('dialog.phz .phz-view img').count() == 2, f'{tag} : zoom, deux photos côte à côte')
             click('dialog.phz [data-pz="in"]')
             check(page.locator('dialog.phz .phz-z').inner_text().replace(' ', ' ').replace('\xa0', ' ') == '150 %', f'{tag} : zoom à 150 %')
-            tr = page.evaluate("[...document.querySelectorAll('dialog.phz .phz-view img')].map(i => i.style.transform)")
-            check(len(set(tr)) == 1 and 'scale(1.5)' in tr[0], f'{tag} : zoom commun {tr}')
+            tr = page.evaluate("[...document.querySelectorAll('dialog.phz .phz-view img')].map(i => getComputedStyle(i).transform + '|' + i.dataset.zoom)")
+            check(len(set(tr)) == 1 and 'scale(1.5)' in tr[0] and tr[0].startswith('matrix(1.5'), f'{tag} : zoom commun {tr}')
             if not touch:
                 page.keyboard.press('ArrowRight')
                 check(page.locator('#phz-t').inner_text() == 'Profil', f'{tag} : flèche, pose suivante')
             shot(page, f'5-zoom-{engine}-{w}-{theme}')
             click('dialog.phz [data-pz="close"]')
-            check(not page.evaluate('window.__csp'), f'{tag} : CSP {page.evaluate("window.__csp")}')
+            check(not page.evaluate('window.__csp'), f'{tag} : CSP {page.evaluate("window.__csp")} {page.evaluate("window.__cspd")}')
             # Onglet caché : masquées, images libérées
             page.evaluate("Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange'))")
             check(page.locator('.ph-sec img').count() == 0 and page.locator('[data-ph="show"]').count() == 1, f'{tag} : onglet caché, photos masquées')
@@ -443,6 +458,7 @@ def app_journey(browser, url, engine):
     root = url.replace('coach-web/', '')
     actx = browser.new_context(viewport={'width': 390, 'height': 844}, color_scheme='dark', locale='fr-FR', timezone_id='Europe/Paris', has_touch=True,
                                device_scale_factor=2, is_mobile=engine == 'chromium')
+    fixtures.track_idle(actx)
     app = actx.new_page()
     app.errors = []
     app.on('pageerror', lambda e: app.errors.append(str(e)))

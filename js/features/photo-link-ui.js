@@ -58,7 +58,7 @@ async function plinkScanFlow() {
   try {
     const r = await plinkPhoneStart(scan.code);
     if (!r.ok) { showToast(plinkErrorText(r.kind), { error: true }); return; }
-    const ok = await dialog({ title: 'Code de vérification', message: `${r.link.sas}\n\nLe même code est-il affiché sur l'ordinateur (${r.link.label}) ? Sinon, n'accepte pas.`,
+    const ok = await dialog({ title: `Code de vérification : ${r.link.sas}`, message: `Le même code est-il affiché sur l'ordinateur (${r.link.label}) ? Sinon, n'accepte pas : rien ne sera envoyé.`,
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Relier', value: true, style: 'preferred' }] });
     if (ok !== true) { await r.link.cancel(); announce('Rien n\'a été envoyé'); return; }
     const f = await r.link.finish();

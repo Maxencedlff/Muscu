@@ -25,19 +25,14 @@ const DESK_APPLE = Object.freeze({
 // state : 'loading' (script ou nonce en préparation), 'ready', 'off' (indisponible : e-mail seulement)
 const deskApple = { state: 'loading', pending: null, onChange: () => {} };
 
-function deskB64url(bytes) {
-  let s = '';
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
 async function deskSha256Hex(text) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 // { raw (pour Supabase), hashed (pour Apple), state } ; neufs à chaque appel
 async function deskAppleNonce() {
-  const raw = deskB64url(crypto.getRandomValues(new Uint8Array(32)));
-  return { raw, hashed: await deskSha256Hex(raw), state: deskB64url(crypto.getRandomValues(new Uint8Array(16))) };
+  const raw = plinkB64u(crypto.getRandomValues(new Uint8Array(32)));
+  return { raw, hashed: await deskSha256Hex(raw), state: plinkB64u(crypto.getRandomValues(new Uint8Array(16))) };
 }
 
 function deskAppleSet(state) { deskApple.state = state; deskApple.onChange(); }
