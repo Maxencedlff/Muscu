@@ -137,7 +137,7 @@ FAKE_GOOGLE = r"""
       sessionStorage.setItem(KEY, JSON.stringify({ provider, redirectTo: options?.redirectTo, flow: o?.auth?.flowType, code: 'codefactice' + Date.now() }));
       const g = JSON.parse(sessionStorage.getItem(KEY));
       const back = window.__googleFail === 'access_denied' ? '?error=access_denied&error_description=refus' : `?code=${g.code}`;
-      setTimeout(() => { location.href = options.redirectTo.replace(/\/$/, '/') + back + location.hash; }, 0);
+      setTimeout(() => { location.href = options.redirectTo + back + location.hash; }, 0);
       return { data: { provider, url: 'https://yopptmdjtnezmccdvaxf.supabase.co/auth/v1/authorize?provider=google' }, error: null };
     };
     c.auth.exchangeCodeForSession = async code => {

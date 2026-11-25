@@ -201,6 +201,14 @@ begin
   for i in 1..30 loop perform public.coach_photo_pair_peek(pair); end loop;
   if pg_temp.qerr(format('select public.coach_photo_pair_peek(%L)', pair)) <> 'rate_limited' then raise '31e lecture du téléphone acceptée'; end if;
 end $$;
+-- Navigateur : 600 relectures par 10 minutes (une relecture toutes les 1,5 s pendant 7 essais ne bute jamais dessus)
+do $$
+declare pair uuid := (select id from qn);
+begin
+  perform pg_temp.qlogin('n');
+  for i in 1..600 loop perform public.coach_photo_pair_status(pair); end loop;
+  if pg_temp.qerr(format('select public.coach_photo_pair_status(%L)', pair)) <> 'rate_limited' then raise '601e relecture acceptée'; end if;
+end $$;
 reset role;
 drop table qn;
 
@@ -208,8 +216,7 @@ drop table qn;
 insert into public.coach_photo_devices (id, coach_id, key_id, label, wrapped, iv, last_used_at)
   values ('00000000-0000-4000-8000-00000007c905', pg_temp.qu('n'), pg_temp.qkid('n'), 'Oublié', repeat('A', 80), repeat('A', 16), now() - interval '40 days');
 set role authenticated;
-select pg_temp.qlogin('l');
-select public.coach_photo_devices();
+do $$ begin perform pg_temp.qlogin('l'); perform public.coach_photo_devices(); end $$;
 reset role;
 do $$ begin if exists (select 1 from public.coach_photo_devices where id = '00000000-0000-4000-8000-00000007c905') then raise 'ordinateur expiré d''un autre coach gardé'; end if; end $$;
 
@@ -237,8 +244,7 @@ end $$;
 reset role;
 update public.coach_photo_devices set last_used_at = now() - interval '2 hours' where id = '00000000-0000-4000-8000-00000007c902';
 set role authenticated;
-select pg_temp.qlogin('k');
-select public.coach_photo_device_key('00000000-0000-4000-8000-00000007c902');
+do $$ begin perform pg_temp.qlogin('k'); perform public.coach_photo_device_key('00000000-0000-4000-8000-00000007c902'); end $$;
 reset role;
 do $$ begin
   if (select last_used_at from public.coach_photo_devices where id = '00000000-0000-4000-8000-00000007c902') < now() - interval '1 minute' then raise 'dernier usage pas repoussé'; end if;
@@ -288,8 +294,7 @@ do $$ begin if exists (select 1 from public.coach_photo_devices where coach_id =
 insert into public.coach_photo_devices (id, coach_id, key_id, label, wrapped, iv)
   values ('00000000-0000-4000-8000-00000007c904', pg_temp.qu('k'), pg_temp.qkid('k'), 'Mac', repeat('A', 80), repeat('A', 16));
 set role authenticated;
-select pg_temp.qlogin('k');
-select public.coach_photo_pair_start(pg_temp.qpk(), pg_temp.qver(), 'PC');
+do $$ begin perform pg_temp.qlogin('k'); perform public.coach_photo_pair_start(pg_temp.qpk(), pg_temp.qver(), 'PC'); end $$;
 reset role;
 delete from auth.users where id = pg_temp.qu('k');
 do $$ begin

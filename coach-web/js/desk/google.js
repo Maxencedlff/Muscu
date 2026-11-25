@@ -20,13 +20,14 @@
 
 const deskGoogle = { busy: false };
 
-// Aller : Supabase, puis Google, puis retour sur cette page avec ?code=…
+// Aller : Supabase, puis Google, puis retour sur CETTE page avec ?code=… (son adresse sans le #, soit https://coach.mdlf.app/
+// en production : celle à déclarer telle quelle dans les Redirect URLs de Supabase)
 async function deskGoogleStart() {
   const c = deskClient();
   if (!c || deskGoogle.busy) return { ok: false, kind: 'server' };
   deskGoogle.busy = true;
   try {
-    const { error } = await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${location.origin}/`, queryParams: { prompt: 'select_account' } } });
+    const { error } = await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${location.origin}${location.pathname}`, queryParams: { prompt: 'select_account' } } });
     if (error) { deskGoogle.busy = false; return { ok: false, kind: deskGoogleErrorKind(error) }; }
     return { ok: true };   // la page part chez Google
   } catch (e) { deskGoogle.busy = false; return { ok: false, kind: deskGoogleErrorKind(e) }; }

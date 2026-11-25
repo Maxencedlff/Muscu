@@ -90,10 +90,14 @@ function deskPhTouch(now = Date.now()) {
   clearTimeout(deskPhTimer);
   deskPhTimer = setTimeout(() => deskPhLock('idle'), DESK_PH_IDLE_MS);
 }
+// Durée maximale d'une ouverture, même sans geste (le minuteur de 5 minutes ne part qu'au geste)
+let deskPhMaxTimer = 0;
+function deskPhArm() { clearTimeout(deskPhMaxTimer); deskPhMaxTimer = setTimeout(() => deskPhLock('max'), DESK_PH_MAX_MS); }
 // Referme : clé privée oubliée, images libérées
 function deskPhLock(reason = 'manual') {
   ph.epoch++;
   clearTimeout(deskPhTimer);
+  clearTimeout(deskPhMaxTimer);
   const was = !!ph.session || ph.urls.size > 0;
   ph.session = null;
   ph.students = {};
@@ -115,7 +119,7 @@ async function deskPhOpen() {
   if (host) {
     try { const r = await host.unlock(); if (!r?.ok) return { ok: false, kind: r?.refused ? 'canceled' : 'host' }; } catch { return { ok: false, kind: 'host' }; }
     ph.session = { host: true, openedAt: Date.now() };
-    deskPhTouch(); deskPhNotify();
+    deskPhArm(); deskPhTouch(); deskPhNotify();
     return { ok: true };
   }
   const me = desk.user?.id, e = await deskPhEntry();
@@ -136,7 +140,7 @@ async function deskPhOpen() {
   if (epoch !== ph.epoch) return { ok: false, kind: 'stale' };
   if (!priv) { await deskPhForget({ server: true }); return { ok: false, kind: 'broken' }; }
   ph.session = { priv, pub: e.coachPub, keyId: e.keyId, device: e.device, openedAt: Date.now() };
-  deskPhTouch(); deskPhNotify();
+  deskPhArm(); deskPhTouch(); deskPhNotify();
   return { ok: true };
 }
 
@@ -173,7 +177,8 @@ async function deskPhLoad(uid) {
     if (epoch !== ph.epoch) return { ok: false, kind: 'stale' };
     if (!still.ok) {
       if (still.kind === 'not_found') { await deskPhForget({ server: false }); ph.error = 'revoked'; deskPhNotify(); return { ok: false, kind: 'revoked' }; }
-      if (['not_coach', 'disabled', 'signed_out'].includes(still.kind)) { deskPhLock('server'); ph.error = still.kind; deskPhNotify(); return still; }
+      // Toute autre réponse (limite, hors ligne, serveur) : rien de chargé, photos refermées
+      deskPhLock('server'); ph.error = still.kind; deskPhNotify(); return still;
     }
     const r = await deskRpc('coach_student_photos', { student: uid });
     if (!r.ok) { if (epoch === ph.epoch) { ph.students[uid] = { photos: [], error: r.kind }; deskPhNotify(); } return r; }
@@ -259,7 +264,13 @@ async function deskPhPairPoll(now = Date.now()) {
   try {
     const r = await deskRpc('coach_photo_pair_status', { pair: p.id });
     if (ph.pair !== p || !['waiting', 'offered'].includes(p.state)) return;
-    if (!r.ok) { if (r.kind === 'not_found') deskPhPairFail(p, 'expired'); else if (r.kind === 'signed_out') deskPhPairFail(p, 'error', 'signed_out'); return; }
+    // Expiré ou annulé : fini. Refus du serveur (limite, session, rôle, photos éteintes) : arrêté et dit, jamais une relecture
+    // muette ; hors ligne ou serveur lent : on relit au tour suivant
+    if (!r.ok) {
+      if (r.kind === 'not_found') deskPhPairFail(p, 'expired');
+      else if (!['offline', 'server'].includes(r.kind)) deskPhPairFail(p, 'error', r.kind);
+      return;
+    }
     const st = cleanPlinkStatus(r.data);
     if (!st) { deskPhPairFail(p, 'error', 'server'); return; }
     if (st.state === 'waiting') return;
@@ -295,7 +306,7 @@ async function deskPhPairFinish(p, device) {
   ph.entry = entry;
   deskPhLock('relink');
   ph.session = { priv, pub: key.public_key, keyId: dev.keyId, device, openedAt: Date.now() };
-  deskPhTouch();
+  deskPhArm(); deskPhTouch();
   p.state = 'done';
   deskPhPairWipe(p);
   deskPhNotify();
@@ -324,6 +335,7 @@ const DESK_PH_ERRORS = {
   broken: 'La clé de cet ordinateur ne s\'ouvre plus : relie-le de nouveau.',
   tampered: 'La réponse ne correspond pas au code ni à ta clé : rien n\'a été gardé. Recommence avec un nouveau code.',
   max: 'Masquées après 15 minutes : affiche-les de nouveau.',
+  rate_limited: 'Trop d\'essais en peu de temps : attends quelques minutes, puis réessaie.',
   no_key: 'Active d\'abord la réception des photos de bilan dans l\'app iPhone (Coach › Mes élèves).',
   too_many: 'Tu as déjà 5 ordinateurs reliés. Retires-en un dans l\'app : Coach › Mes élèves › Ordinateurs reliés.',
   disabled: 'Les photos de bilan sont suspendues pour l\'instant.',

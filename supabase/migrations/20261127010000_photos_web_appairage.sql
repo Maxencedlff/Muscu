@@ -19,8 +19,9 @@
 --  Accès : tables en RLS sans politique, aucun GRANT ; RPC security definer, search_path vide, utilisateur pris dans
 --  auth.uid(), coach validé (private.is_coach), photos allumées (private.coach_photos_on). Une ligne d'un autre coach
 --  répond exactement comme une ligne absente (not_found) : rien à deviner. anon n'exécute rien.
---  Bornes : 10 appairages commencés par heure, 30 lectures du téléphone et 200 relectures du navigateur par 10 minutes,
---  600 ouvertures par heure, 5 ordinateurs.
+--  Bornes : 10 appairages commencés par heure, 30 lectures du téléphone et 600 relectures du navigateur par 10 minutes,
+--  600 ouvertures par heure, 5 ordinateurs. Elles bornent le volume des appels qui RÉUSSISSENT (un refus annule sa
+--  transaction, compteur compris) : contre les appels ratés, la protection est ailleurs (preuve du QR, uuid, auth.uid()).
 --
 --  Dépend de 20261107000000_photos_bilan.sql (en production). Réversible :
 --  supabase/rollback/20261127010000_photos_web_appairage_down.sql. Tests : tests/sql/photos_web_appairage_test.sql.
@@ -196,14 +197,15 @@ begin
 end
 $$;
 
--- Navigateur : où en est l'appairage (relu toutes les 1,5 s : 200 lectures par 10 minutes, deux appairages).
+-- Navigateur : où en est l'appairage (relu toutes les 1,5 s, ~80 lectures par essai : 600 par 10 minutes, soit les
+-- 7 essais possibles sur 10 minutes sans jamais buter sur la limite).
 -- → { state, epk (offered, done), device (done) } ; not_found sinon.
 create function public.coach_photo_pair_status(pair uuid) returns jsonb
   language plpgsql security definer set search_path = '' as
 $$
 declare me uuid := private.coach_photo_link_me(); p public.coach_photo_pairings%rowtype;
 begin
-  perform private.rate_limit_window(me, 'coach_photo_pair_poll', 200, interval '10 minutes');
+  perform private.rate_limit_window(me, 'coach_photo_pair_poll', 600, interval '10 minutes');
   select * into p from public.coach_photo_pairings x where x.id = pair and x.coach_id = me and x.expires_at > now();
   if p.id is null then raise exception 'not_found' using errcode = 'P0001'; end if;
   return jsonb_build_object('state', p.state, 'epk', p.epk, 'device', p.device_id);

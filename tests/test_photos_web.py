@@ -342,6 +342,33 @@ def third_party_reload(browser, url, engine):
         ctx.close()
 
 
+def google_journey(browser, url, engine):
+    """Se connecter avec Google : aller chez Google (simulé), retour avec ?code=…, session, adresse nettoyée ; refus."""
+    # Identité Google posée sur le coach dès l'injection (le retour de Google est traité avant DOMContentLoaded)
+    pre = ("window.__googleSub = 'google-sub-coach'; (() => { const u = __sb.users[window.__coachId]; "
+           "u.identities.push({ identity_id: 'idt-google', provider: 'google', id: 'google-sub-coach', identity_data: { sub: 'google-sub-coach' }, created_at: u.created_at }); })();")
+    ctx, page = open_desk(browser, url, width=1440, login=False, pre=pre)
+    try:
+        page.wait_for_selector('#google-signin')
+        g, a, e = (page.locator(x).bounding_box() for x in ('#google-signin', '#apple-signin', '#login-email'))
+        check(a['y'] < g['y'] < e['y'] and g['height'] >= 44, f'{engine} Google : sous Apple, au-dessus de l\'e-mail, 44 px')
+        page.locator('#google-signin').click()
+        page.wait_for_selector('.lst a.row', timeout=30000)
+        check(page.evaluate('location.search') == '', f'{engine} Google : code retiré de l\'adresse ({page.evaluate("location.search")!r})')
+        check(page.evaluate("JSON.parse(sessionStorage.getItem('__fakeGoogle') || 'null')") is None, f'{engine} Google : code consommé')
+        check(page.locator('.lst a.row').count() == 10, f'{engine} Google : tableau de bord du coach')
+        check(not page.evaluate('window.__csp'), f'{engine} Google : CSP {page.evaluate("window.__csp")}')
+    finally:
+        ctx.close()
+    ctx, page = open_desk(browser, url, width=1440, login=False, pre="window.__googleFail = 'access_denied';")
+    try:
+        page.locator('#google-signin').click()
+        until(page, "document.getElementById('login-err')?.innerText.includes('annulée')", timeout=30000)
+        check(page.evaluate('location.search') == '' and page.locator('#login-email').count() == 1, f'{engine} Google refusé : retour à la connexion')
+    finally:
+        ctx.close()
+
+
 def web_attacks(browser, url, engine):
     """Serveur compromis, clé changée, oublier, déconnexion, serveur d'avant (un moteur à la fois, 1440 px)."""
     ctx, page = open_desk(browser, url, width=1440, checkins=True, pre=FAKE_PHOTO_LINK + PHOTOS_SEED)
@@ -577,7 +604,7 @@ def main():
         for engine in ENGINES:
             browser = launch(pw, engine)
             try:
-                for fn in [third_party_reload, web_journey, web_attacks] + ([] if os.environ.get('PPL_NO_APP') or engine == 'firefox' else [app_journey]):
+                for fn in [google_journey, third_party_reload, web_journey, web_attacks] + ([] if os.environ.get('PPL_NO_APP') or engine == 'firefox' else [app_journey]):
                     fn(browser, url, engine)
                     print(f'OK : {fn.__name__} {engine}', flush=True)
             except Exception:

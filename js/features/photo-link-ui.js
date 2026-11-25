@@ -43,7 +43,11 @@ function renderPlink() {
         <div class="group-foot">${full ? 'Tu as 5 ordinateurs reliés : retires-en un pour en relier un autre.' : 'Sur l\'ordinateur, ouvre coach.mdlf.app, connecte-toi, puis « Relier cet ordinateur » : vise le QR code affiché. Ne relie pas un ordinateur partagé.'}</div>
         <div class="group-title">Reliés</div>
         <div class="group">${list ? rows || '<div class="cell"><span class="cell__sub">Aucun ordinateur relié.</span></div>' : `<div class="cell"><span class="cell__sub">${plink.error ? esc(plinkErrorText(plink.error)) : 'Chargement…'}</span></div>`}</div>
-        <div class="group-foot">Un ordinateur relié ouvre les photos de tes élèves sans ton iPhone. Il est retiré tout seul après 30 jours sans usage, et au plus tard 90 jours après. Créer une nouvelle clé de photos les retire tous.</div>`);
+        <div class="group-foot">Un ordinateur relié ouvre les photos de tes élèves sans ton iPhone. Il est retiré tout seul après 30 jours sans usage, et au plus tard 90 jours après.</div>
+        <div class="group">
+          <button class="cell cell--destructive" data-action="cph-rekey" ${plink.busy || cphCoach.busy ? 'disabled' : ''}>Créer une nouvelle clé de photos…</button>
+        </div>
+        <div class="group-foot">Ordinateur perdu ou volé : retire-le, puis crée une nouvelle clé. Une copie de son disque ne servira plus. Les photos déjà reçues sont supprimées (elles s'ouvrent seulement avec l'ancienne clé) et tous les ordinateurs sont retirés ; tes élèves pourront te renvoyer leurs photos.</div>`);
 }
 SCREENS.set('coach-devices', { render: () => renderPlink(), enter: () => { plinkDevicesRefresh(); } });
 
@@ -80,7 +84,7 @@ registerActions({
   'plink-scan': () => plinkScanFlow(),
   'plink-revoke': async (e, el) => {
     const d = plink.devices?.find(x => x.id === el.dataset.id);
-    if (!d || !(await confirmSheet(`Retirer ${d.label} ?`, 'Cet ordinateur ne pourra plus ouvrir les photos de tes élèves. Ordinateur perdu ou volé ? Crée aussi une nouvelle clé de photos (Coach › un élève › Photos de bilan) : une copie de son disque ne servira plus.', 'Retirer'))) return;
+    if (!d || !(await confirmSheet(`Retirer ${d.label} ?`, 'Cet ordinateur ne pourra plus ouvrir les photos de tes élèves. Ordinateur perdu ou volé ? Crée aussi une nouvelle clé de photos (plus bas sur cet écran) : une copie de son disque ne servira plus.', 'Retirer'))) return;
     const r = await plinkRevoke(d.id);
     if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return; }
     showToast('Ordinateur retiré');

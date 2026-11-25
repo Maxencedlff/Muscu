@@ -532,6 +532,7 @@ registerActions({
     const r = await cphCoachSetup({ replace: true });
     if (!r.ok) { if (!r.canceled) showToast(coachErrorText(r.kind), { error: true }); return; }
     showToast('Nouvelle clé créée');
+    plinkDevicesRefresh();   // les ordinateurs reliés sont retirés avec l'ancienne clé
     if (cphView.uid) { await cphCoachLoad(cphView.uid); cphLoadImages(cphView.uid); }
   },
 });
