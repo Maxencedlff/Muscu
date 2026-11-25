@@ -1,7 +1,7 @@
 name: Tests
 
 # À chaque envoi :
-#  1. unit : syntaxe de tous les scripts, tests unitaires (dont le pont natif), contenu de l'app iOS ;
+#  1. unit : syntaxe de tous les scripts, tests unitaires (dont le pont natif), contenu de l'app iOS, lint, architecture ;
 #  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
 #     Playwright en thème sombre, répartie sur 4 machines (e2e 1/4 à 4/4) ;
 #  2 bis. coach-web : l'appli web du coach (coach-web/, docs/COACH_WEB.md) dans Chromium, Firefox et WebKit, à 1440,
@@ -80,6 +80,10 @@ jobs:
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
         run: npm run lint
+      # Règles d'ARCHITECTURE.md vérifiées sur le code (tools/archi/check.mjs, exceptions datées dans exceptions.mjs),
+      # puis les tests de l'outil ; après npm ci : acorn et eslint-scope viennent d'ESLint
+      - name: Architecture (couches, taille, ordre de chargement, doublons app / site, docs)
+        run: node tools/archi/check.mjs && node --test tools/archi/check.test.mjs
 
   e2e:
     # Conteneur officiel de Playwright (navigateurs et dépendances système déjà dedans) : plus d'installation

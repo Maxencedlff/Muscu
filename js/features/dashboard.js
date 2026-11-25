@@ -250,10 +250,7 @@ function weekStats(now = Date.now()) {
   return { days, count, today: dayIndexInWeek(now) };
 }
 
-// Objectif de séances par semaine : réglé par l'utilisateur, sinon le nombre de séances du programme
-function weeklyGoal() {
-  return data.weeklyGoal || Math.min(7, Math.max(1, sessionKeys().length)) || 3;
-}
+// Objectif de séances par semaine : weeklyGoal (js/data/goals.js)
 
 // Cette semaine, en une carte : le compte face à l'objectif (« 2 sur 3 »), une pastille par jour, puis
 // les séances du mois et de l'année en une ligne. Toute la carte mène aux progrès.
