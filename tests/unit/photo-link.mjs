@@ -192,6 +192,15 @@ export default function ({ test, app, assert, ROOT }) {
     for (const [want, s] of Object.entries(ua)) assert.equal(app.plinkLabel(s), want);
   });
 
+  test('photos sur ordinateur : chaque erreur levée par la migration est reconnue par l\'app et le site', () => {
+    const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261127010000_photos_web_appairage.sql'), 'utf8');
+    const kinds = [...new Set([...sql.matchAll(/raise exception '([a-z_]+)'/g)].map(m => m[1]))];
+    assert.ok(kinds.includes('already_used') && kinds.includes('no_key') && kinds.length >= 7, kinds.join(', '));
+    for (const k of kinds) assert.equal(app.coachErrorKind({ message: k, code: 'P0001' }), k, `${k} reconnu`);
+    // Chaque cas a son texte, sur l'iPhone et (pour ceux qu'il peut voir) sur le site
+    for (const k of ['already_used', 'not_found', 'too_many', 'rate_limited', 'disabled', 'key_changed']) assert.ok(app.plinkErrorText(k === 'already_used' ? 'used' : k === 'not_found' ? 'expired' : k), k);
+  });
+
   // ── QR code (coach-web/js/desk/qr.js) ──
   const qctx = vm.createContext({ TextEncoder, esc: s => String(s) });
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'coach-web/js/desk/qr.js'), 'utf8'), qctx);

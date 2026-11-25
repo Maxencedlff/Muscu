@@ -27,7 +27,7 @@ async function deskGoogleStart() {
   if (!c || deskGoogle.busy) return { ok: false, kind: 'server' };
   deskGoogle.busy = true;
   try {
-    const { error } = await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${location.origin}${location.pathname}`, queryParams: { prompt: 'select_account' } } });
+    const { error } = await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${location.origin}${location.pathname.replace(/\/index(\.html)?$/, '/')}`, queryParams: { prompt: 'select_account' } } });
     if (error) { deskGoogle.busy = false; return { ok: false, kind: deskGoogleErrorKind(error) }; }
     return { ok: true };   // la page part chez Google
   } catch (e) { deskGoogle.busy = false; return { ok: false, kind: deskGoogleErrorKind(e) }; }
