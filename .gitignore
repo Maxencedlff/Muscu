@@ -15,3 +15,4 @@ supabase/.temp/
 # Appli web du coach, construite par scripts/build-coach-web.mjs (docs/COACH_WEB.md)
 dist-coach/
 dist-web/
+ota-pages/
