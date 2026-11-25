@@ -69,13 +69,11 @@ function deskNavItem(n, on, { badge = 0, count = null } = {}) {
 // Cadre : barre latérale (900 px et plus) ou barre d'onglets en bas (tablette en portrait), puis le contenu
 // counts : { checkins (bilans à répondre), templates (modèles), unread (messages non lus) }, null quand le serveur ne les donne pas
 function deskFrame({ active, main, students = null, counts = null }) {
-  // Embarquée dans l'app (iPad) : pas d'entrées « bientôt » (audit du mode iPad, B3 : un écran qui ne mène à rien)
-  const nav = deskHosted() ? DESK_NAV.filter(n => !n.soon) : DESK_NAV;
   const cnt = { students, checkins: counts?.checkins ?? null, templates: counts?.templates ?? null };
   const badges = { messages: counts?.unread || 0 };
-  const items = nav.map(n => deskNavItem(n, n.id === active, { count: cnt[n.id] ?? null, badge: badges[n.id] || 0 })).join('');
+  const items = DESK_NAV.map(n => deskNavItem(n, n.id === active, { count: cnt[n.id] ?? null, badge: badges[n.id] || 0 })).join('');
   const barItems = (deskHost?.exit ? `<button type="button" class="nav-i" data-action="host-exit">${deskIcon('back')}<span class="lbl">L'appli</span></button>` : '')
-    + nav.map(n => deskNavItem(n, n.id === active, { badge: badges[n.id] || 0 })).join('')
+    + DESK_NAV.map(n => deskNavItem(n, n.id === active, { badge: badges[n.id] || 0 })).join('')
     + `<a class="nav-i${active === 'settings' ? ' on' : ''}" href="#/reglages"${active === 'settings' ? ' aria-current="page"' : ''}>${deskIcon('settings')}<span class="lbl">Réglages</span></a>`;
   return `<div class="app">
   <aside class="side" aria-label="Navigation">

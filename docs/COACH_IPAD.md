@@ -26,8 +26,8 @@ Branche `coach-ipad`. **Rien n'est publié** : ni mise à jour à chaud, ni buil
 - Mode ouvert puis fenêtre rétrécie (audit M3) : il reste ouvert jusqu'à **678 points** (Split View à moitié sur un
   13 pouces) et se referme en dessous (Slide Over 320, Split View au tiers 375…) avec « Agrandis la fenêtre pour le mode
   grand écran. ».
-- Dans l'app, l'appli web du coach n'affiche pas les rubriques « bientôt » (Planning, Mes programmes, Plans diète ;
-  audit B3) : rien qui ne mène nulle part.
+- Aucune rubrique « bientôt » (Planning, Mes programmes, Plans diète ; audit B3) : coach-web ne les affiche plus du
+  tout depuis la correction de son propre audit (coach-web/js/desk/shell.js), sur le site comme dans l'app.
 - Session refusée dans le cadre (expirée, révoquée) : retour à l'app avec « Connexion perdue, réessaie. » (audit m1).
 - Mode ouvert : l'appli web du coach en plein écran. « Revenir à l'appli » est toujours à l'écran : celui de l'appli
   web (barre latérale et barre d'onglets) dès que le cadre dit l'afficher (message `mdlf-coach-exit-shown`), sinon la
