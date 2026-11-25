@@ -330,6 +330,8 @@ function sanitizeData(d) {
   if (d.plates !== undefined) { const p = cleanPlates(d.plates); if (p) d.plates = p; else delete d.plates; }
   // Carte « Ta semaine » de l'accueil coupée (js/features/recap.js) : true ou absent
   if (d.recapCardOff !== undefined && d.recapCardOff !== true) delete d.recapCardOff;
+  // Visite de l'accueil (js/data/tour.js) : 'due' ou 'seen', sur l'appareil seulement (TOUR_STATES, chargé après ce fichier)
+  if (d.tour !== undefined && !['due', 'seen'].includes(d.tour)) delete d.tour;
   // Séances visibles par défaut (Réglages › Social et coach, js/data/social.js) : booléen ou absent (= oui)
   if (d.sessionVisibleDefault !== undefined && typeof d.sessionVisibleDefault !== 'boolean') delete d.sessionVisibleDefault;
   // Version de l'app et date où elle a été vue (noteAppVersion, js/data/sync.js) : envoyées au profil, bornées

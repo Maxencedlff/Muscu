@@ -100,6 +100,7 @@ const SCRIPTS = [
   'js/data/app-icons.js',
   'js/data/guide.js',
   'js/data/onboarding.js',
+  'js/data/tour.js',
   'js/data/my-programmes.js',
   'js/data/program-generator.js',
   'js/data/food-swap.js',
@@ -2371,6 +2372,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./bilans-contrat.mjs')).default({ test, run, assert, sameJSON });
 // ── Bilans configurables, app de l'élève (tests dans checkins-eleve.mjs) ──
 (await import('./checkins-eleve.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Visite de l'accueil : état, étapes, place de la bulle, défilement (tests dans tour.mjs) ──
+(await import('./tour.mjs')).default({ test, run, app, assert, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

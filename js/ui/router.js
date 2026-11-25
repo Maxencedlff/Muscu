@@ -264,7 +264,7 @@ function renderIfChanged() {
 //   enter({ dir })    : à chaque affichage par la navigation ; leave() : quand on le quitte
 //   shown()           : juste après le dessin de la navigation (défilement voulu, au lieu du haut de page)
 const SCREENS = new Map([
-  ['dashboard',      { render: () => renderDashboard(), mount: () => { mountHealthWorkouts('dashboard', render); mountSleep(); } }],   // Santé : récupération, sommeil
+  ['dashboard',      { render: () => renderDashboard(), mount: () => { mountHealthWorkouts('dashboard', render); mountSleep(); maybeStartTour(); }, leave: () => tourLeave() }],   // Santé : récupération, sommeil ; visite de l'accueil (js/features/tour.js)
   ['programmes',     { render: () => renderProgrammes(), leave: () => leaveProgrammes() }],   // Programmes › page du programme actif ; leave : mode ordre refermé
   ['session',        { render: () => activeSession ? renderSession() : renderDashboard(),
                        mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante

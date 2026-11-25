@@ -40,6 +40,10 @@
   --flash: #FFFFFF;
   --shadow-seg: 0 3px 8px rgba(0,0,0,.12);
   --shadow-float: 0 8px 24px rgba(0,0,0,.4);
+  /* Visite de l'accueil (css/tour.css) : voile gris très sombre à 60 % (pas un noir total), bulle = carte de l'app,
+     contour et bouton neutres (blanc en sombre) : aucun orange, jamais le duo noir et orange (retour de Maxence du 25/11) */
+  --tour-veil: rgba(20,20,22,.6); --tour-bubble: #1C1C1E; --tour-edge: rgba(235,235,245,.18);
+  --tour-ring: #E5E5EA; --tour-btn: #FFFFFF; --tour-on-btn: #000000;
   --shadow-thumb: 0 3px 8px rgba(0,0,0,.15), 0 3px 1px rgba(0,0,0,.06);
   /* Texte coloré à partir d'une couleur de séance (--cat-color) : éclairci en sombre, assombri en clair */
   --cat-text-mix: 72%; --cat-text-base: #FFFFFF;
@@ -112,6 +116,8 @@ body.light {
   --toast-bg: #FFFFFF; --toast-shadow: 0 0 0 .5px rgba(0,0,0,.14), 0 8px 28px rgba(0,0,0,.2);
   --dlg-sep: rgba(60,60,67,.29); --dlg-press: rgba(0,0,0,.06);
   --shadow-float: 0 8px 24px rgba(0,0,0,.12);
+  --tour-veil: rgba(28,28,30,.45); --tour-bubble: #FFFFFF; --tour-edge: rgba(60,60,67,.12);
+  --tour-ring: #3A3A3C; --tour-btn: #000000; --tour-on-btn: #FFFFFF;
   --cat-text-mix: 55%; --cat-text-base: #000000;
   --body-skin: #E5E5EA; --body-zone: #C7C7CC; --body-base-bright: 1; --body-heat: #A31B19; --body-heat-max: #A31B19; --body-tier-dot-0: #C7C7CC; --body-tier-1: #FFA898; --body-tier-2: #A31B19; --body-tier-dot-1: #FAAB9C; --body-tier-dot-2: #711715; --body-heat-sec: #C37367;  --body-main-ol: #E0392C; --body-ol: #8A8A8E; --body-sec-o: 1; --body-sec-o-faint: 0; --body-sec-tint: #AB6B85; --body-sec-blend: normal; --body-sec-bright: 1; --body-atlas-bright: 1; --tip-bg: #FFFFFF; --tip-link: var(--tint);
   --body-hl-glow: rgba(0,102,204,.7);

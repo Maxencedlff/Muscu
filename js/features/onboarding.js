@@ -153,7 +153,7 @@ function applyOnboarding() {
   if (onb.perWeek) data.weeklyGoal = onb.perWeek;
   const level = onb.level === 'reprise' ? 'debutant' : onb.level;   // repère de séries d'un débutant
   if (TRAINING_LEVELS.includes(level)) data.level = level;
-  data.onboarded = true;
+  data.onboarded = true; tourMarkDue(data);
   save();
 }
 
@@ -177,7 +177,7 @@ registerActions({
   },
   'onb-back': () => onbBack(),
   // Comme l'ancien « Plus tard » : aucun choix imposé, la question ne revient plus
-  'onb-later': () => { data.onboarded = true; save(); closeOnboarding(); render(); },
+  'onb-later': () => { data.onboarded = true; tourMarkDue(data); save(); closeOnboarding(); render(); },
   'onb-silhouette': (e, el) => {
     if (!SILHOUETTES.some(([v]) => v === el.dataset.val)) return;
     data.silhouette = el.dataset.val;
@@ -197,10 +197,10 @@ registerActions({
   // prérempli avec les trois réponses ; le quitter laisse le programme conseillé
   'onb-custom': () => onbOpenGenerator(),
   // Déjà un programme : rien n'est imposé, Ajouter un programme (le créer, ou le prendre dans le catalogue)
-  'onb-have': () => { data.onboarded = true; save(); haptic(); closeOnboarding(); navigate('prog-add'); },
+  'onb-have': () => { data.onboarded = true; tourMarkDue(data); save(); haptic(); closeOnboarding(); navigate('prog-add'); },
   // Coach : la demande du rôle (connexion d'abord si besoin) ; ses séances à lui se règlent plus tard
   'onb-coach': async () => {
-    data.onboarded = true; save(); haptic(); closeOnboarding(); render();
+    data.onboarded = true; tourMarkDue(data); save(); haptic(); closeOnboarding(); render();
     if (!account.user && (await openAuthFlow()) !== 'signed-in') return;
     navigate('coach-request');
   },

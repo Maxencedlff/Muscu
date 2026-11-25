@@ -194,6 +194,7 @@ ${renderConnectionsGroup()}
         <div class="group-title">Aide</div>
         <div class="group">
           <button class="cell cell--nav" data-action="go-guide">${cellIco('questionmark.circle', 'blue')}<span class="cell__body"><span class="cell__title">Guide de l'app</span></span>${icon('chevron.right', 16)}</button>
+          <button class="cell cell--action" data-action="tour-replay">${cellIco('hand.tap', 'blue')}<span class="cell__body"><span class="cell__title">Revoir la visite</span></span></button>
           <div class="cell">
             ${cellIco('info.circle', 'gray')}
             <span class="cell__body"><span class="cell__title">MDLF Training<span id="appVersion"></span></span>

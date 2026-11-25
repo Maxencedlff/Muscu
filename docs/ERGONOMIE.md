@@ -88,6 +88,7 @@ Toujours le même mot pour la même chose, en français courant, au tutoiement, 
 | Supprimer de l'historique | effacer une séance faite (corbeille 30 jours) | |
 | Terminer | finir la séance en cours | pour arrêter un chrono : « Arrêter » |
 | Terminé | fermer le bilan | |
+| Visite ; Revoir la visite | le tuto fléché de l'accueil au premier lancement (voile, élément découpé, bulle « Étape 2 sur 5 », Passer, Suivant, C'est parti) ; Réglages › Aide › Revoir la visite | tuto, tutoriel, onboarding |
 
 Un nouveau mot ou un mot qui change : mettre à jour ce lexique, le guide (js/data/guide.js) et les tests
 qui citent le libellé (le test du guide échoue si un libellé cité n'existe plus).

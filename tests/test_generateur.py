@@ -152,6 +152,7 @@ def t_premier_lancement(bench, eng, dev, theme):
         seed(page, theme, None)
         page.wait_for_selector('.onb__page--place')
         tap(page, '.onb [data-action="onb-later"]')
+        no_tour(page)
         page.reload()
         page.wait_for_selector('#app > *')
         settle(page)

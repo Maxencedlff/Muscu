@@ -658,11 +658,18 @@ def open_active_programme(page):
 
 
 def skip_questions(page):
-    """Premier lancement (aucune séance) : « Plus tard » sur les questions, comme l'ancienne carte."""
+    """Premier lancement (aucune séance) : « Plus tard » sur les questions, comme l'ancienne carte, puis pas de visite."""
     btn = page.locator('.onb [data-action="onb-later"]')
     if btn.count():
         btn.click()
         settle(page)
+        no_tour(page)
+
+
+def no_tour(page):
+    """Visite de l'accueil qui suit les questions (js/features/tour.js) : notée vue et fermée, pour les tests qui ne
+    la vérifient pas (tests/test_tuto.py la vérifie)."""
+    page.evaluate("data.tour = 'seen'; save(true); tourClose()")
 
 
 def shot(page, lot, name):

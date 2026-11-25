@@ -22,7 +22,7 @@ const GUIDE_SECTIONS = [
     topics: [
       {
         id: 'accueil', title: 'L\'écran Entraînement', icon: 'dumbbell', color: 'blue',
-        lead: 'L\'onglet [Entraînement] s\'ouvre au lancement. Il te propose la prochaine séance de ton programme.',
+        lead: 'L\'onglet [Entraînement] s\'ouvre au lancement. Il te propose la prochaine séance de ton programme. La visite du premier lancement se revoit dans [Réglages] › [Revoir la visite].',
         steps: [
           'La carte du haut montre la séance du jour. Touche [Démarrer] pour la lancer.',
           '[À battre aujourd\'hui] rappelle ta dernière performance sur les premiers exercices, avec un petit objectif en plus.',
@@ -31,7 +31,7 @@ const GUIDE_SECTIONS = [
           'La roue en haut à droite ouvre les [Réglages], ton compte compris.',
         ],
         related: ['lancer-seance', 'recuperation', 'objectif'],
-        actions: ['start-session', 'session-actions', 'go-settings'],
+        actions: ['start-session', 'session-actions', 'go-settings', 'tour-replay'],
       },
       {
         id: 'choisir-programme', title: 'Choisir un programme', icon: 'list.bullet', color: 'indigo',

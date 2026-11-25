@@ -1,9 +1,9 @@
-const CACHE = 'ppl-v237';
+const CACHE = 'ppl-v238';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/data/exercise-videos.json', '/data/foods.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
   '/css/navigation.css', '/css/home.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/atlas-zoom.css', '/css/progress-atlas.css', '/css/atlas-info.css', '/css/share.css', '/fonts/anton.woff2', '/css/recap.css', '/css/strength-levels.css', '/css/account.css',
-  '/css/social.css', '/css/coach.css', '/css/coach-plan.css', '/css/checkin.css', '/css/paywall.css', '/css/strava.css', '/css/nutrition.css', '/css/water.css', '/css/defis.css', '/css/theme-sobre.css', '/css/theme-sobre-seance.css', '/css/theme-sobre-progres.css', '/css/theme-sobre-nutrition.css', '/css/theme-sobre-coach.css', '/css/theme-sobre-reglages.css', '/css/programme.css',
+  '/css/social.css', '/css/coach.css', '/css/coach-plan.css', '/css/checkin.css', '/css/paywall.css', '/css/strava.css', '/css/nutrition.css', '/css/water.css', '/css/defis.css', '/css/theme-sobre.css', '/css/theme-sobre-seance.css', '/css/theme-sobre-progres.css', '/css/theme-sobre-nutrition.css', '/css/theme-sobre-coach.css', '/css/theme-sobre-reglages.css', '/css/programme.css', '/css/tour.css',
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
   '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/goals.js', '/js/data/active-session.js',
@@ -13,7 +13,7 @@ const ASSETS = [
   '/js/data/health-workouts.js', '/js/data/health-export.js', '/js/data/health-sleep.js', '/js/data/push.js', '/js/data/effort-clock.js', '/js/data/machine-track.js', '/js/data/body-measures.js',
   '/js/data/progress-photos.js', '/js/data/photo-vault.js', '/js/data/coach-photos.js', '/js/data/profile-photo.js', '/js/data/plates.js', '/js/data/warmup.js', '/js/data/intensif.js', '/js/data/unilateral.js', '/js/data/coach-presc.js', '/js/data/rir.js', '/js/data/notes.js', '/js/data/strength-standards.js', '/js/data/strength-levels.js',
   '/js/data/tempo.js', '/js/data/grips.js', '/js/data/session-order.js', '/js/data/supersets.js', '/js/data/exercise-moves.js', '/js/data/exercise-howto.js', '/js/data/muscle-load.js', '/js/data/recap.js', '/js/data/app-icons.js',
-  '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/my-programmes.js', '/js/data/program-generator.js',
+  '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/tour.js', '/js/data/my-programmes.js', '/js/data/program-generator.js',
   '/js/data/import-measures.js',
   '/js/data/exercise-videos.js', '/js/data/exercise-anims.js',
   '/js/data/food-portions.js', '/js/data/nutrition.js', '/js/data/diet-estimate.js', '/js/data/water.js', '/js/data/defis.js', '/js/data/food-swap.js', '/js/data/food-scan.js', '/js/data/coach-diet.js', '/js/data/diet-share.js', '/js/data/checkins.js', '/js/data/checkin-student.js',
@@ -27,7 +27,7 @@ const ASSETS = [
   '/js/features/push-ui.js', '/js/features/strava-ui.js', '/js/features/coach-pro-ui.js', '/js/features/paywall-ui.js', '/js/features/coach-share-ui.js', '/js/features/coach-diet-ui.js', '/js/features/coach-chat-ui.js', '/js/features/coach-plan-ui.js', '/js/features/coach-progress-ui.js',
   '/js/features/apple-services.js', '/js/features/app-icon.js', '/js/features/progress.js', '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/progress-muscles.js', '/js/features/body-measures-ui.js',
   '/js/features/photo-vault-ui.js', '/js/features/coach-photos-ui.js', '/js/features/checkin-ui.js', '/js/features/profile-photo-ui.js', '/js/features/muscles.js', '/js/features/muscle-tip.js', '/js/features/progress-atlas.js', '/js/features/library.js', '/js/features/history.js', '/js/features/history-calendar.js', '/js/features/trash.js', '/js/features/guide.js',
-  '/js/features/onboarding.js', '/js/features/program-generator-ui.js', '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/coach-poster-art.js', '/js/features/share.js', '/js/features/coach-poster-ui.js', '/js/features/recap-canvas.js', '/js/features/recap.js',
+  '/js/features/onboarding.js', '/js/features/tour.js', '/js/features/program-generator-ui.js', '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/coach-poster-art.js', '/js/features/share.js', '/js/features/coach-poster-ui.js', '/js/features/recap-canvas.js', '/js/features/recap.js',
   '/js/features/strength-levels-ui.js', '/js/features/nutrition-ui.js', '/js/features/diet-qty.js', '/js/features/diet-editor.js', '/js/features/diet-week.js', '/js/features/food-scan-ui.js', '/js/features/diet-settings.js', '/js/features/water-ui.js', '/js/features/defis-ui.js', '/img/strava/connect-with-strava.svg',
   // Personnage 3D de la carte des muscles (js/ui/body-map.js, BODY_IMG) : base et calques par muscle
   '/img/body/male/front/base.webp', '/img/body/male/front/chest.webp', '/img/body/male/front/front_delts.webp', '/img/body/male/front/side_delts.webp',
