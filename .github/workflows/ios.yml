@@ -77,7 +77,7 @@ jobs:
     needs: gate
     if: ${{ always() && (needs.gate.result == 'success' || (needs.gate.result == 'skipped' && !inputs.testflight)) }}
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 40   # 30 avant les captures iPad (25/11)
     permissions:
       contents: read
     steps:
@@ -233,22 +233,30 @@ jobs:
 
       # iPad (docs/COACH_IPAD.md) : la même build sur un iPad Pro 13 pouces virtuel, en portrait puis en paysage. Ses
       # captures font 2064 × 2752 (ou 2752 × 2064), la taille des captures « iPad 13 pouces » d'App Store Connect.
+      # Ne fait jamais échouer le contrôle (la compilation est vérifiée avant) ; 12 min au plus. Le 25/11, l'installation
+      # sur l'iPad attendait sans fin avec l'iPhone virtuel encore démarré et Simulator.app verrouillé (⌘L ci-dessus).
       - name: Lancement sur un iPad virtuel et captures
         if: ${{ !inputs.testflight }}
+        continue-on-error: true
+        timeout-minutes: 12
         run: |
           set -e
+          # Chaque commande simctl bornée (macOS n'a pas « timeout ») : perl -e 'alarm…'
+          bound() { local s=$1; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
+          osascript -e 'tell application "Simulator" to quit' || true
+          xcrun simctl shutdown all || true
           IPAD=$(xcrun simctl list devices available | grep -m1 -E 'iPad Pro 13-inch' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
           if [ -z "$IPAD" ]; then echo "::warning::Aucun iPad Pro 13 pouces dans les simulateurs"; exit 0; fi
           echo "Simulateur : $IPAD"
-          xcrun simctl boot "$IPAD"
-          xcrun simctl bootstatus "$IPAD" -b
+          bound 240 xcrun simctl boot "$IPAD"
+          bound 300 xcrun simctl bootstatus "$IPAD" -b
           APP="$RUNNER_TEMP/signed/App.app"; [ -d "$APP" ] || APP=$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
           /usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily' "$APP/Info.plist"
-          xcrun simctl install "$IPAD" "$APP"
+          bound 180 xcrun simctl install "$IPAD" "$APP"
           BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
           mkdir -p shots/ipad
           xcrun simctl ui "$IPAD" appearance dark
-          xcrun simctl launch "$IPAD" "$BUNDLE"
+          bound 60 xcrun simctl launch "$IPAD" "$BUNDLE"
           sleep 14; xcrun simctl io "$IPAD" screenshot shots/ipad/1-portrait-sombre.png
           xcrun simctl ui "$IPAD" appearance light
           sleep 3; xcrun simctl io "$IPAD" screenshot shots/ipad/2-portrait-clair.png

@@ -135,7 +135,7 @@ grand écran se ferme : l'écran du cadre doit alors redemander `unlock()`.
 
 - **Captures iPad 13 pouces** (obligatoires dès que l'app tourne sur iPad) : 2064 × 2752 ou 2048 × 2732 en portrait
   (ou l'inverse en paysage), de 1 à 10. Le simulateur « iPad Pro 13-inch » les donne à la bonne taille : le workflow
-  iOS (mode contrôle) en joint quatre (portrait et paysage, sombre et clair) dans l'artefact `captures-simulateur`,
+  iOS (mode contrôle) en joint quatre (portrait et paysage, sombre et clair ; étape bornée à 12 min, qui ne fait jamais échouer le contrôle) dans l'artefact `captures-simulateur`,
   dossier `ipad/`. Pour de vraies captures de vente (onglet Coach, mode grand écran ouvert), les refaire sur ce
   simulateur une fois connecté à un compte coach de démonstration.
 - Page de l'app : vérifier que la description ne parle pas que d'iPhone ; la catégorie et l'âge ne changent pas.
