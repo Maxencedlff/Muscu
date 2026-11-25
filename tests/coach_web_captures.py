@@ -1,6 +1,7 @@
 """Captures de l'appli web du coach (docs/COACH_WEB.md) : chaque écran, sombre et clair, à 1440, 1180 et 820 px.
 Vague 2 : Mes bilans (et un suivi ouvert), onglet Bilans de la fiche, Bilans reçus.
 Vague 4 : Messages, onglet Messages de la fiche, Programme (et un exercice déplié), Nutrition.
+Vague 3 : fiche Semaines avec les colonnes Pas, Sommeil, Cardio (Léa partage), aussi embarquée par le faux hôte iPad.
 
     python3 tests/coach_web_captures.py [dossier] [moteur]
 
@@ -81,6 +82,24 @@ def main():
                     if page.errors:
                         print(tag, 'erreurs (vague 4) :', page.errors)
                     ctx.close()
+            # Vague 3 : colonnes Pas, Sommeil, Cardio (COACH_WEB_HEALTH_SEED), puis embarquée (faux hôte iPad, 1180 et 820)
+            for theme in ('dark', 'light'):
+                for w, h in SIZES:
+                    ctx, page = open_desk(browser, url, width=w, height=h, theme=theme, touch=w < 1200, health=True)
+                    page.evaluate("location.hash = '#/eleve/' + window.__lea")
+                    page.wait_for_selector('table.wk')
+                    page.mouse.move(0, 0)
+                    page.screenshot(path=os.path.join(OUT, f'9-fiche-sante_{w}_{theme}.png'), full_page=w >= 900)
+                    if page.errors:
+                        print(w, theme, 'erreurs (vague 3) :', page.errors)
+                    ctx.close()
+            for w, h in ((1180, 820), (820, 1180)):
+                ctx, page = open_desk(browser, url, width=w, height=h, touch=True, login=False, host=True, health=True)
+                page.wait_for_selector('.lst')
+                page.evaluate("location.hash = '#/eleve/' + window.__lea")
+                page.wait_for_selector('table.wk')
+                page.screenshot(path=os.path.join(OUT, f'9b-fiche-sante-ipad_{w}_dark.png'))
+                ctx.close()
         finally:
             browser.close()
     print('Captures dans', OUT)

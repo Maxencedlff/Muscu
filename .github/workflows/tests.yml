@@ -80,6 +80,8 @@ jobs:
         run: bash tests/sql/blocage_coupe_coach_rollback_test.sh
       - name: Retour arrière de l'accord daté des bilans et des questions réservées aux 18 ans
         run: bash tests/sql/bilans_accord_majeur_rollback_test.sh
+      - name: Retour arrière de la santé partagée avec le coach
+        run: bash tests/sql/sante_coach_rollback_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
@@ -189,6 +191,11 @@ jobs:
           PPL_ENGINES: ${{ matrix.engine }}
           HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_diete.py
+      - name: Pas, sommeil, cardio (vague 3), ${{ matrix.engine }}
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          HOME: /root
+        run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_sante.py
       # Mode coach grand écran sur iPad (docs/COACH_IPAD.md) : l'app construite (dist/ avec dist/coach/), 1024 × 1366 et
       # 1366 × 1024, Chromium et WebKit (Firefox n'est pas un moteur d'iPad)
       - name: Mode coach grand écran sur iPad, ${{ matrix.engine }}

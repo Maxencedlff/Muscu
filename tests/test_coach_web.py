@@ -148,7 +148,7 @@ def journeys(browser, url, engine):
     page.evaluate("location.hash = '#/eleve/' + window.__lea")
     page.wait_for_selector('table.wk tbody tr')
     calls = page.evaluate("[...new Set(__sb.calls.filter(c => c[0] === 'coach' && c[1].startsWith('coach_student') && c[1] !== 'coach_student_checkins').map(c => c[1]))].sort()")
-    check(calls == ['coach_student_diet', 'coach_student_measures', 'coach_student_sessions', 'coach_student_weeks', 'coach_student_weights'], f'repli : {calls}')
+    check(calls == ['coach_student_diet', 'coach_student_health', 'coach_student_measures', 'coach_student_sessions', 'coach_student_weeks', 'coach_student_weights'], f'repli : {calls}')
     check(page.locator('table.wk tbody tr.cur').inner_text().startswith('S48'), 'repli : semaine en cours')
     ctx.close()
 

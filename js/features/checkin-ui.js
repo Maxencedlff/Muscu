@@ -22,7 +22,7 @@ let ckShown = '';   // empreinte de l'état dessiné (redessin seulement s'il ch
 
 const CK_ICONS = { weight: 'bathroom.scale', measures: 'ruler', photos: 'camera', diet_adherence: 'fork.knife', training_adherence: 'dumbbell',
   steps: 'figure.run', cardio: 'heart', cycle: 'calendar' };
-const CK_UNITS = { kg: 'kg', cm: 'cm', steps: 'pas', min: 'min' };
+const CK_UNITS = { kg: 'kg', cm: 'cm', steps: 'pas', min: 'min', h: 'h' };
 // Rubriques de l'écran (maquette 8) : clé, titre
 const CK_SECTIONS = [['body', 'Corps'], ['photos', 'Photos'], ['feel', 'Ta semaine'], ['activity', 'Plan et activité'], ['custom', '']];
 const ckWho = () => esc(coachName() || myCoachWord('ton'));
@@ -242,7 +242,7 @@ function ckFmtNum(v) { return typeof v === 'number' ? String(v).replace('.', ','
 function ckNumField(id, it, value, unit, label, describedBy) {
   const int = it.unit === 'steps' || it.unit === 'min';
   return `<span class="ck-field"><input id="${id}" class="ck-input num" type="text" inputmode="${int ? 'numeric' : 'decimal'}" autocomplete="off" enterkeyhint="done"
-      data-ck="num" data-key="${esc(it.key)}" value="${esc(ckFmtNum(value))}" aria-label="${esc(label)}${unit ? `, en ${esc(unit === 'pas' ? 'pas par jour' : unit === 'min' ? 'minutes' : unit)}` : ''}"${describedBy ? ` aria-describedby="${describedBy}"` : ''}>${unit ? `<span class="ck-unit" aria-hidden="true">${esc(unit)}</span>` : ''}</span>`;
+      data-ck="num" data-key="${esc(it.key)}" value="${esc(ckFmtNum(value))}" aria-label="${esc(label)}${unit ? `, en ${esc(unit === 'pas' ? 'pas par jour' : unit === 'min' ? 'minutes' : unit === 'h' && it.kind === 'sleep' ? 'heures par nuit' : unit)}` : ''}"${describedBy ? ` aria-describedby="${describedBy}"` : ''}>${unit ? `<span class="ck-unit" aria-hidden="true">${esc(unit)}</span>` : ''}</span>`;
 }
 function ckHelpWeight(f, it) {
   if (f.from[it.key] !== 'weight') return '';
@@ -254,12 +254,20 @@ function ckHelpWeight(f, it) {
 function ckNumberHtml(it, f) {
   const k = ckDomKey(it.key);
   const unit = it.kind === 'custom' ? it.unit || '' : CK_UNITS[it.unit] || '';
-  const help = it.kind === 'weight' ? ckHelpWeight(f, it) : it.kind === 'steps' ? (f.from[it.key] === 'health' ? 'Moyenne lue dans Santé. Touche pour corriger.' : 'Moyenne de tes pas par jour sur la période.')
-    : it.kind === 'cardio' ? 'Minutes de cardio sur la période.' : '';
+  const fromHealth = f.from[it.key] === 'health';
+  const help = it.kind === 'weight' ? ckHelpWeight(f, it) : it.kind === 'steps' ? (fromHealth ? 'Moyenne lue dans Santé. Touche pour corriger.' : 'Moyenne de tes pas par jour sur la période.')
+    : it.kind === 'cardio' ? (fromHealth ? 'Minutes de cardio lues dans Santé sur la période. Touche pour corriger.' : 'Minutes de cardio sur la période.')
+    : it.kind === 'sleep' ? (fromHealth ? `${ckSleepHealthText() || 'Moyenne lue dans Santé'}. Touche pour corriger.` : 'Heures de sommeil par nuit, en moyenne (7,5 pour 7 h 30).') : '';
   const bad = f.bad.has(it.key) ? ckNumberError(it) : '';
   return `<div class="ck-row ck-row--num">${ckIcon(it)}<label class="ck-label" for="ck-in-${k}" id="ck-l-${k}">${esc(it.label)}</label>
       ${ckNumField(`ck-in-${k}`, it, f.answers[it.key], unit, it.label, help || bad ? `ck-h-${k}` : '')}</div>
     <div class="ck-foot"><p class="ck-help${bad ? ' ck-help--bad' : ''}" id="ck-h-${k}">${esc(bad || help)}</p>${ckSkipHtml(it)}</div>`;
+}
+// « 7 h 05 par nuit en moyenne sur 6 nuits, d'après Santé » : sommeil lu pour CE bilan, ou ''
+function ckSleepHealthText() {
+  const h = ck.hk?.id === ckForm.id && checkinHealthAllowed() ? ck.hk : null;
+  if (!h || !Number.isFinite(h.sleepMin) || !h.nights) return '';
+  return `${checkinHoursText(h.sleepMin / 60)} par nuit en moyenne sur ${plural(h.nights, 'nuit', 'nuits')}, d'après Santé`;
 }
 function ckNumberError(it) {
   const [lo, hi] = CHECKIN_NUMBER_RANGE[it.kind === 'custom' ? 'custom' : it.unit] || CHECKIN_NUMBER_RANGE.custom;
@@ -285,7 +293,8 @@ function ckScaleHtml(it, f) {
   }).join('');
   return `<div class="ck-row ck-row--head">${ckIcon(it)}<span class="ck-label" id="ck-l-${k}">${esc(it.label)}</span>${ckSkipHtml(it)}</div>
     <div class="ck-scale ck-scale--${n}" role="radiogroup" aria-labelledby="ck-l-${k}">${segs}</div>
-    ${it.lo || it.hi ? `<div class="ck-bounds" aria-hidden="true"><span><span class="ck-bound-n">1\u00a0: </span>${esc(it.lo)}</span><span><span class="ck-bound-n">${n}\u00a0: </span>${esc(it.hi)}</span></div>` : ''}`;
+    ${it.lo || it.hi ? `<div class="ck-bounds" aria-hidden="true"><span><span class="ck-bound-n">1\u00a0: </span>${esc(it.lo)}</span><span><span class="ck-bound-n">${n}\u00a0: </span>${esc(it.hi)}</span></div>` : ''}
+    ${it.kind === 'sleep' && ckSleepHealthText() ? `<p class="ck-help ck-help--health">${esc(ckSleepHealthText())}. À toi de dire comment tu as dormi.</p>` : ''}`;
 }
 function ckYesNoHtml(it, f) {
   const k = ckDomKey(it.key), v = f.answers[it.key], yes = v?.yes === true, no = v?.yes === false;
@@ -606,14 +615,19 @@ SCREENS.set('checkin', {
     const req = checkinById(id);
     if (req && checkinState(req) === 'sent') checkinMarkSeen(req);
     if (req?.items.some(it => it.kind === 'photos')) cphRefresh({ minAge: 30_000 });
-    // Pas lus dans Santé (si la coquille le sait) : posés s'ils ne sont ni touchés ni passés
-    const st = req?.items.find(it => it.kind === 'steps');
-    if (st && typeof Native === 'object' && typeof Native.health?.steps === 'function') {
-      checkinReadSteps(checkinPeriod(req).days).then(n => {
-        if (n === null || ckForm.id !== req.id || ckForm.touched.has(st.key) || ckForm.skipped.has(st.key)) return;
-        ckForm.answers[st.key] = n; ckForm.from[st.key] = 'health';
-        if (currentView() === 'checkin') ckRepaint(st.key);
-      });
+    // Pas, sommeil et cardio lus dans Santé (si la coquille le sait) : posés s'ils ne sont ni touchés ni passés ; un
+    // sommeil en échelle reçoit seulement l'indication de Santé (un ressenti ne se devine pas)
+    const hk = req?.items.filter(it => it.kind === 'steps' || it.kind === 'cardio' || it.kind === 'sleep') || [];
+    if (hk.length && checkinState(req) !== 'sent' && checkinHealthAllowed()) {
+      checkinReadHealth(req).then(h => {
+        if (!h || ckForm.id !== req.id || currentView() !== 'checkin') return;
+        const pre = checkinPrefill(hk, checkinContext(req)).values;
+        hk.forEach(it => {
+          if (Object.hasOwn(pre, it.key) && !ckForm.touched.has(it.key) && !ckForm.skipped.has(it.key)) { ckForm.answers[it.key] = pre[it.key]; ckForm.from[it.key] = 'health'; }
+          const el = document.querySelector(`.ck-view .ck-item[data-key="${CSS.escape(it.key)}"]`);
+          if (el && !el.contains(document.activeElement)) ckRepaint(it.key);   // jamais sous le doigt d'une saisie
+        });
+      }).catch(() => {});
     }
   },
   leave: () => { ckSaveDraft(); ckForm = { id: null, answers: {}, skipped: new Set(), from: {}, touched: new Set(), bad: new Set() }; },

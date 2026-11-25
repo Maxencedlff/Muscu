@@ -62,6 +62,11 @@ begin
   if r -> 'weights' <> public.coach_student_weights(pg_temp.wu('s')) then raise 'pesées différentes'; end if;
   if r -> 'measures' <> public.coach_student_measures(pg_temp.wu('s')) then raise 'mensurations différentes'; end if;
   if to_regprocedure('public.coach_student_diet(uuid)') is not null and r -> 'diet' <> public.coach_student_diet(pg_temp.wu('s')) then raise 'diète différente'; end if;
+  -- Santé (20261127050000_sante_coach.sql) : appel dynamique, ce test passe aussi sans elle (clé health à null)
+  if to_regprocedure('public.coach_student_health(uuid)') is not null then
+    execute 'select public.coach_student_health($1)' into ref using pg_temp.wu('s');
+    if r -> 'health' <> ref then raise 'santé différente'; end if;
+  elsif r -> 'health' is not null and r -> 'health' <> 'null'::jsonb then raise 'santé sans la migration : %', r -> 'health'; end if;
   -- Bornes de la fenêtre : 1 à 26 semaines
   if (public.coach_student_weeks(pg_temp.wu('s'), 0) ->> 'weeks')::int <> 1 then raise 'borne basse'; end if;
   if (public.coach_student_weeks(pg_temp.wu('s'), 500) ->> 'weeks')::int <> 26 then raise 'borne haute'; end if;

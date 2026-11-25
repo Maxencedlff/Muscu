@@ -210,12 +210,18 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
     // iOS seulement (build unique du 31/10) : le pont les attrape en UNIMPLEMENTED et se replie (une
     // séance en un seul entraînement « Musculation » par saveWorkout ; aucun sommeil lu)
     const IOS_ONLY = ['saveWorkouts', 'sleep'];
-    assert.deepEqual(health, swiftMethods('HealthPlugin.swift').filter(m => !IOS_ONLY.includes(m)));
+    // Partage des pas, du sommeil et du cardio avec le coach (25/11/2026, docs/SANTE_COACH.md) : jamais appelés sur
+    // Android (le pont rend « non » avant l'appel : isAndroid), la case reste cachée
+    const IOS_NEVER_ANDROID = ['requestDaysAuthorization', 'activityDays'];
+    assert.deepEqual(health, swiftMethods('HealthPlugin.swift').filter(m => !IOS_ONLY.includes(m) && !IOS_NEVER_ANDROID.includes(m)));
     const bridge = read('js/platform/native.js');
     for (const m of IOS_ONLY) {
       assert.match(bridge, new RegExp(`await Health\\.${m}\\([^]{0,200}?catch \\(e\\) \\{ return e\\?\\.code === 'UNIMPLEMENTED'`), `Health.${m} : pas de repli UNIMPLEMENTED dans le pont`);
     }
-    for (const m of bridgeCalls('Health')) assert.ok(health.includes(m) || IOS_ONLY.includes(m), `MdlfHealth.${m} manque sur Android`);
+    for (const m of IOS_NEVER_ANDROID) {
+      assert.match(bridge, new RegExp(`if \\(!isNative \\|\\| isAndroid\\) return [^;]+;[^]{0,200}?await Health\\.${m}\\(`), `Health.${m} : appelé sur Android`);
+    }
+    for (const m of bridgeCalls('Health')) assert.ok(health.includes(m) || IOS_ONLY.includes(m) || IOS_NEVER_ANDROID.includes(m), `MdlfHealth.${m} manque sur Android`);
     const rest = kotlinMethods(kotlin('LiveActivityPlugin.kt'));
     assert.deepEqual(rest, swiftMethods('LiveActivityPlugin.swift'));
     for (const m of bridgeCalls('LiveActivity')) assert.ok(rest.includes(m), `MdlfLiveActivity.${m} manque sur Android`);

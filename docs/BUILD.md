@@ -151,8 +151,9 @@ Arrêt : `select cron.unschedule('push-send');`.
    - Notifications : Réglages › Social et coach › Notifications, allumer « Bravos » (fenêtre d'iOS),
      depuis un 2e compte dire bravo → notification en moins d'une minute, toucher → la séance ;
      tout éteindre → plus rien ; se déconnecter → plus rien.
-4. App Store Connect › Confidentialité de l'app : rien de neuf pour la santé (aucune donnée de Santé ne
-   quitte l'iPhone). Le jeton de notification n'est pas un « identifiant de l'appareil » au sens d'Apple
+4. App Store Connect › Confidentialité de l'app : depuis le partage des pas, du sommeil et du cardio avec le coach
+   (docs/SANTE_COACH.md), Santé et forme › Santé et Forme physique cochées (données HealthKit envoyées au coach avec
+   l'accord de l'élève). Le jeton de notification n'est pas un « identifiant de l'appareil » au sens d'Apple
    (il ne sert qu'à l'envoi) ; à confirmer par Maxence au moment de remplir la fiche.
 
 ## Retour arrière

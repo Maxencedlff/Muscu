@@ -209,7 +209,7 @@ async function deskOpenStudent(id, { force = false } = {}) {
   const prev = same ? view.student : null;
   const phases = view.dash.plans ? view.dash.plans[id] || [] : null;
   const weeks = deskWeeks({ ...r.data, phases, now, count: DESK_WEEKS_MAX });
-  view.student = { id, at: Date.now(), now, weeks, weights: r.data.weights, measures: r.data.measures, diet: r.data.diet, sessions: r.data.sessions,
+  view.student = { id, at: Date.now(), now, weeks, weights: r.data.weights, measures: r.data.measures, diet: r.data.diet, health: r.data.health ?? null, sessions: r.data.sessions,
     chart: deskWeightChart(r.data.weights, now),
     // Bilans de l'élève (null : serveur sans les bilans ou lecture refusée ; ckKind dit pourquoi)
     checkins: ck.ok ? ck.data : prev?.checkins || null, ckKind: ck.ok || prev?.checkins ? null : ck.kind };
