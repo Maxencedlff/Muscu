@@ -72,6 +72,11 @@ def t_design(bench, eng, dev, theme):
         opts = page.locator('.design-opt')
         R.check(opts.count() == 2 and [opts.nth(i).get_attribute('data-val') for i in range(2)] == ['orange', 'bleu'], f'{t} deux choix, Orange puis Bleu')
         R.check(page.locator('.design-opts').get_attribute('aria-labelledby') == 'designColorTitle', f'{t} groupe nommé pour VoiceOver')
+        # Vignettes chargées (machine de CI lente : settle n'attend pas les images)
+        try:
+            page.wait_for_function("[...document.querySelectorAll('.design-opt img')].every(i => i.complete && i.naturalWidth > 0)", timeout=10_000)
+        except Exception:
+            pass   # constaté juste en dessous
         imgs = page.evaluate("""() => [...document.querySelectorAll('.design-opt img')].map(i => ({ src: i.getAttribute('src'), ok: i.complete && i.naturalWidth > 0, alt: i.alt }))""")
         want = 'light' if light else 'dark'
         R.check(all(i['ok'] for i in imgs) and [i['src'] for i in imgs] == [f'img/design/orange-{want}.webp', f'img/design/bleu-{want}.webp'],
