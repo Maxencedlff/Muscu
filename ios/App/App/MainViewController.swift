@@ -72,7 +72,13 @@ final class MainFrameOnlyMessageHandler: NSObject, WKScriptMessageHandler {
     private weak var inner: WKScriptMessageHandler?
     init(inner: WKScriptMessageHandler) { self.inner = inner }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.frameInfo.isMainFrame else { return }
+        guard message.frameInfo.isMainFrame else {
+            #if DEBUG
+            // Repère lu par ios.yml dans le journal du simulateur (test d'interface iPad, docs/COACH_IPAD.md)
+            NSLog("MDLF cadre : message du canal natif ignoré (fenêtre secondaire)")
+            #endif
+            return
+        }
         inner?.userContentController(userContentController, didReceive: message)
     }
 }

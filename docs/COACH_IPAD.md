@@ -105,6 +105,10 @@ Environ 1,2 Mo de plus dans `dist/` (et dans le paquet des mises à jour à chau
      renouvelle à la première requête, et les jetons neufs repartent aussitôt à l'app (`sb.auth.setSession`, gardés
      dans le Trousseau comme d'habitude) ;
    - **un jeton n'est retenu que si `setSession` l'a accepté**, des deux côtés (audit m2) ;
+   - **jetons venus du cadre : même compte seulement** (contre-audit du 25/11) : avant `sb.auth.setSession`, l'app
+     lit le `sub` du jeton d'accès (`coachDeskSameAccount`, js/data/coach-desk.js) et le compare à `account.user.id`.
+     Un autre compte (script injecté dans le cadre qui voudrait faire basculer l'app sur le compte de l'attaquant) :
+     rien n'est posé, le cadre se ferme avec « Connexion perdue, réessaie. » ;
    - **jamais de déconnexion depuis le cadre** : `signOut` du client du cadre ramène à l'app. Une déconnexion là-bas
      fermerait la session de l'app sur le serveur.
 5. Déconnexion de l'app pendant le mode ouvert (session révoquée ailleurs) : le mode se ferme.
@@ -199,7 +203,10 @@ projet le temps du test par `scripts/ios/add-ui-tests.rb` (gemme xcodeproj ; jam
   Se déconnecter).
 - Vérifié dans la vraie vue web, par une ligne d'état « E2E … » lue dans l'arbre d'accessibilité : le cadre isolé
   charge coach-web (élèves affichés), origine « null », session reçue par `postMessage`, `parent.Capacitor` et
-  `parent.cphCoachUnlock` inaccessibles depuis le cadre, aucune violation de CSP dans l'app ni dans le cadre (comptées
+  `parent.cphCoachUnlock` inaccessibles depuis le cadre, **appel de plugin tenté depuis le cadre par
+  `window.webkit.messageHandlers.bridge` (StatusBar.getInfo) sans aucune réponse du natif** (la fenêtre de l'app
+  compte les réponses à ce `callbackId` ; ios.yml exige en plus dans le journal du simulateur le repère « message du
+  canal natif ignoré » écrit par `MainFrameOnlyMessageHandler` en Debug), aucune violation de CSP dans l'app ni dans le cadre (comptées
   par `securitypolicyviolation`, et journal du simulateur `log stream` joint à l'artefact).
 - Une capture à chaque étape (`XCTAttachment`), exportées dans l'artefact `captures-simulateur`, dossier
   `uitests/captures/`.
@@ -208,6 +215,16 @@ projet le temps du test par `scripts/ios/add-ui-tests.rb` (gemme xcodeproj ; jam
   fidèle aux réponses de supabase-js) et par supabase-js lui-même.
 
 ## Limites connues
+
+- **Risque accepté : le cadre reçoit le jeton de rafraîchissement.** coach-web doit pouvoir appeler le serveur et
+  renouveler sa session après une veille : il reçoit donc les deux jetons de la session de l'app, en mémoire. Une
+  faille XSS dans coach-web (texte reçu mal échappé) pourrait les lire et ouvrir la session du coach ailleurs, jusqu'à
+  sa révocation, **exactement comme sur le site coach.mdlf.app**, où la même page détient la même session. Le cadre
+  isolé limite ce que la faille atteint (ni Trousseau, ni Capacitor, ni coffre des photos, ni données de l'app sur
+  l'appareil, ni bascule de l'app sur un autre compte), pas la session elle-même. Défenses en place : CSP `script-src
+  'self'` sans `unsafe-inline` ni hôte extérieur, tout texte reçu passé par `esc()` dans coach-web. Une session volée
+  resterait valable jusqu'à sa révocation côté serveur (Supabase, tableau de bord ou API d'administration) : l'app n'a
+  pas aujourd'hui de bouton « Se déconnecter de tous les appareils ».
 
 - Clavier externe : Échap et les raccourcis de coach-web marchent dans le cadre (il a le focus à l'ouverture) ; aucun
   raccourci pour revenir à l'app.

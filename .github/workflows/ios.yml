@@ -314,6 +314,13 @@ jobs:
           ls shots/uitests/captures | head -30 || true
           # Violations de CSP vues par WebKit dans le journal : le test les compte déjà, le journal le confirme
           grep -iE 'Content Security Policy|Refused to' shots/uitests/journal-app.txt | head -20 || true
+          # Canal natif : l'appel de plugin tenté depuis le cadre a bien été ignoré par MainFrameOnlyMessageHandler
+          grep -m1 'E2E-STATUT-CANAL' shots/uitests/xcodebuild.txt || true
+          if [ "$CODE" = 0 ] && grep -q 'E2E-STATUT-CANAL.*appelCadre=envoyé' shots/uitests/xcodebuild.txt \
+             && ! grep -q 'MDLF cadre : message du canal natif ignoré' shots/uitests/journal-app.txt; then
+            echo "Le natif n'a pas signalé l'appel ignoré venu du cadre"; CODE=1
+          fi
+          grep -m3 'MDLF cadre' shots/uitests/journal-app.txt || true
           exit $CODE
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

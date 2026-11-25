@@ -43,6 +43,10 @@ MAIN = r"""(() => {
 %FAKE%
 %LOCK%
   lock('supabase', window.supabase);
+  // Réponse du natif à l'appel de plugin tenté depuis le cadre (callbackId « e2e-cadre ») : il ne doit jamais y en avoir
+  const nativeAnswers = [];
+  const fakeFromNative = window.Capacitor.fromNative;
+  window.Capacitor.fromNative = r => { if (r && r.callbackId === 'e2e-cadre') nativeAnswers.push(r); return fakeFromNative ? fakeFromNative(r) : undefined; };
   const cap = new Proxy(window.Capacitor, { set: () => true, defineProperty: () => true, deleteProperty: () => true });
   lock('Capacitor', cap);
   const st = { ready: 0, csp: [], errors: [], frame: {} };
@@ -56,7 +60,7 @@ MAIN = r"""(() => {
     const f = st.frame, desk = document.querySelector('.coach-desk');
     return ['E2E', `prêt=${st.ready}`, `mode=${desk ? 1 : 0}`, `cadre=${f.origin ?? '-'}`, `session=${f.session ? 1 : 0}`,
       `parentCapacitor=${f.parentCapacitor ?? '-'}`, `parentCoffre=${f.parentUnlock ?? '-'}`, `élèves=${f.students ?? 0}`,
-      `fiche=${f.fiche ? 1 : 0}`, `onglet=${f.tab ?? '-'}`, `paysage=${innerWidth > innerHeight ? 1 : 0}`,
+      `fiche=${f.fiche ? 1 : 0}`, `canalCadre=${f.channel ?? '-'}`, `appelCadre=${f.call ?? '-'}`, `réponseNative=${nativeAnswers.length}`, `onglet=${f.tab ?? '-'}`, `paysage=${innerWidth > innerHeight ? 1 : 0}`,
       `connecté=${typeof account !== 'undefined' && account.user ? 1 : 0}`, `cspApp=${st.csp.length}`, `cspCadre=${f.csp ?? 0}`,
       `erreursApp=${st.errors.length}`, `erreursCadre=${f.errors ?? 0}`,
       // Première violation de CSP du cadre et de l'app, pour comprendre un échec sur le simulateur
@@ -118,12 +122,22 @@ FRAME = r"""(() => {
   addEventListener('securitypolicyviolation', e => st.csp.push([e.effectiveDirective, e.blockedURI, e.sample, e.sourceFile + ':' + e.lineNumber].join(' ')));
   addEventListener('error', e => st.errors.push(String(e.message)));
   const probe = name => { try { return typeof window.parent[name]; } catch { return 'bloqué'; } };
+  // Canal natif de Capacitor depuis le cadre : un vrai appel de plugin (StatusBar.getInfo répond toujours) que le
+  // natif doit ignorer (MainFrameOnlyMessageHandler) ; la fenêtre de l'app compte les réponses (réponseNative)
+  const tryChannel = () => {
+    const ch = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bridge;
+    st.channel = ch ? 'joignable' : 'absent';
+    if (!ch) { st.call = 'aucun'; return; }
+    try { ch.postMessage({ type: 'message', pluginId: 'StatusBar', methodName: 'getInfo', callbackId: 'e2e-cadre', options: {} }); st.call = 'envoyé'; }
+    catch { st.call = 'refusé'; }
+  };
+  setTimeout(tryChannel, 1500);
   setInterval(() => {
     const report = { type: 'mdlf-e2e-frame', origin: String(self.origin), session: st.session && !!window.MDLF_COACH_HOST,
       parentCapacitor: probe('Capacitor'), parentUnlock: probe('cphCoachUnlock'),
       students: document.querySelectorAll('.lst a.row').length, fiche: !!document.querySelector('table.wk'),
       tab: (location.hash.match(/\/(semaines|bilans|programme|nutrition|messages)\b/) || [, location.hash ? 'accueil' : '-'])[1],
-      csp: st.csp.length, cspFirst: st.csp[0] || '', errors: st.errors.length };
+      channel: st.channel, call: st.call, csp: st.csp.length, cspFirst: st.csp[0] || '', errors: st.errors.length };
     window.parent.postMessage(report, '*');
   }, 500);
 })();"""

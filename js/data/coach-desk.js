@@ -45,3 +45,13 @@ function coachDeskTokens(session) {
   const a = session?.access_token, r = session?.refresh_token;
   return typeof a === 'string' && a && typeof r === 'string' && r ? { access_token: a, refresh_token: r } : null;
 }
+
+// Jetons venus du cadre : acceptés seulement s'ils sont ceux du compte connecté dans l'app (claim sub du jeton
+// d'accès, jwtPayload de js/data/account-auth.js). Sans ce contrôle, un script injecté dans le cadre pourrait faire
+// basculer l'app sur un autre compte (contre-audit du 25/11). La signature n'est pas vérifiée ici : supabase-js et le
+// serveur la vérifient ; ce contrôle refuse seulement un AUTRE compte.
+function coachDeskSameAccount(tokens, userId) {
+  if (!tokens || typeof userId !== 'string' || !userId) return false;
+  const sub = jwtPayload(tokens.access_token)?.sub;
+  return typeof sub === 'string' && sub === userId;
+}

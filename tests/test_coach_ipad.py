@@ -296,13 +296,25 @@ def t_session(browser, url, engine):
         settle(page)
         fo = frame_obj(page)
         # Cadre sorti de veille : jetons renouvelés là-bas → l'app les reprend (par message)
-        fo.evaluate("__frameRefresh({ access_token: 'faux.acces.cadre', refresh_token: 'faux-rafraichi-par-le-cadre' })")
+        app_at = page.evaluate('__sb.session.access_token')
+        fo.evaluate("t => __frameRefresh({ access_token: t, refresh_token: 'faux-rafraichi-par-le-cadre' })", app_at)
         until(page, '() => __appSet.length > 0', 3000)
         R.check(page.evaluate('__appSet') == ['faux-rafraichi-par-le-cadre'], f'{t} : jetons du cadre rendus à l\'app ({page.evaluate("__appSet")})')
         # L'app renouvelle : envoyés au cadre, posés là-bas
         page.evaluate("coachDeskPost({ type: 'mdlf-coach-tokens', tokens: { access_token: __sb.session.access_token, refresh_token: 'faux-rafraichi-par-l-app' } })")
         until(fo, "() => __frameLog.some(c => c[0] === 'setSession' && c[1] === 'faux-rafraichi-par-l-app')", 3000)
         R.check(frame_calls(page, 'setSession')[-1][1] == 'faux-rafraichi-par-l-app', f'{t} : jetons de l\'app posés dans le cadre')
+        # Jetons d'un AUTRE compte venus du cadre (script injecté) : jamais posés dans l'app, cadre fermé
+        other = page.evaluate("() => 'h.' + btoa(JSON.stringify({ sub: '00000000-0000-0000-0000-000000000666' })).replace(/=+$/, '') + '.s'")
+        n_set = len(page.evaluate('__appSet'))
+        fo.evaluate("t => __frameRefresh({ access_token: t, refresh_token: 'faux-autre-compte' })", other)
+        settle(page)
+        R.check(page.locator('.coach-desk').count() == 0, f'{t} : jetons d\'un autre compte : mode grand écran fermé')
+        R.check(len(page.evaluate('__appSet')) == n_set, f'{t} : jetons d\'un autre compte jamais posés dans l\'app')
+        toast = page.locator('.toast').last.inner_text() if page.locator('.toast').count() else ''
+        R.check('Connexion perdue, réessaie' in toast, f'{t} : message « Connexion perdue » ({toast!r})')
+        open_desk(page, t)
+        fo = frame_obj(page)
         # Message d'une autre fenêtre : ignoré par l'app
         page.evaluate("window.postMessage({ type: 'mdlf-coach-exit' }, '*')")
         settle(page)

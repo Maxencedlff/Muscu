@@ -82,11 +82,13 @@ function coachDeskMessage(e) {
   else if (d.type === 'mdlf-coach-exit-shown') coachDeskBar(d.shown !== true);
   else if (d.type === 'mdlf-coach-tokens') coachDeskFrameTokens(d.tokens);
 }
-// Jetons renouvelés dans le cadre : l'app les reprend (gardés dans le Trousseau par supabase-js), et ne les retient
-// que si supabase-js les a acceptés
+// Jetons renouvelés dans le cadre : l'app les reprend (gardés dans le Trousseau par supabase-js) seulement s'ils sont
+// ceux du même compte (coachDeskSameAccount), et ne les retient que si supabase-js les a acceptés
 async function coachDeskFrameTokens(t) {
   const next = coachDeskTokens(t);
   if (!next || !coachDesk.open || next.refresh_token === coachDesk.tokens?.refresh_token) return;
+  // Autre compte que celui de l'app : jamais posé ; le cadre est fermé, rien ne change dans l'app
+  if (!coachDeskSameAccount(next, account.user?.id)) { coachDeskClose('Connexion perdue, réessaie.'); return; }
   try {
     const { error } = await sb.auth.setSession(next);
     if (!error && coachDesk.open) coachDesk.tokens = next;

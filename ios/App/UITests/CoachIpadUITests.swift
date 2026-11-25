@@ -74,6 +74,13 @@ final class CoachIpadUITests: XCTestCase {
         expect("cadre=null", "origine opaque du cadre (sandbox sans allow-same-origin)")
         expect("parentCapacitor=bloqué", "parent.Capacitor inaccessible depuis le cadre")
         expect("parentCoffre=bloqué", "parent.cphCoachUnlock inaccessible depuis le cadre")
+        // Canal natif de Capacitor depuis le cadre : appel de plugin envoyé (ou canal absent), aucune réponse du natif
+        let ch = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'appelCadre=envoyé' OR label CONTAINS 'appelCadre=aucun' OR label CONTAINS 'appelCadre=refusé'")).firstMatch
+        XCTAssertTrue(ch.waitForExistence(timeout: 15), "appel de plugin tenté depuis le cadre : \(status.label)")
+        sleep(3)
+        expect("réponseNative=0", "aucun plugin ne répond à un appel venu du cadre")
+        // Pour ios.yml : si l'appel est parti, le natif doit l'avoir signalé ignoré dans le journal du simulateur
+        print("E2E-STATUT-CANAL: \(status.label)")
         shot("3 mode grand écran")
 
         // Fiche d'un élève, puis un autre onglet de la fiche

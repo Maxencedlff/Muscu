@@ -30,8 +30,8 @@ export default function ({ test, assert, ROOT }) {
 
   // ── Règles (js/data/coach-desk.js) ──
   const storage = new MemoryStorage();
-  const app = vm.createContext({ localStorage: storage });
-  vm.runInContext(read('js/data/coach-desk.js'), app, { filename: 'js/data/coach-desk.js' });
+  const app = vm.createContext({ localStorage: storage, atob, btoa });
+  for (const f of ['js/data/account-auth.js', 'js/data/coach-desk.js']) vm.runInContext(read(f), app, { filename: f });
   const run = c => vm.runInContext(c, app);
   const eligible = o => run(`coachDeskEligible(${JSON.stringify(o)})`);
 
@@ -71,6 +71,24 @@ export default function ({ test, assert, ROOT }) {
     assert.equal(run('coachDeskTokens(null)'), null);
     assert.equal(run("coachDeskTokens({ access_token: 'a', refresh_token: '' })"), null);
     assert.equal(run("coachDeskTokens({ access_token: 1, refresh_token: 'r' })"), null);
+  });
+
+  test('coach iPad : jetons venus du cadre acceptés seulement pour le compte connecté dans l\'app (contre-audit)', () => {
+    // Faux jetons (jamais signés) : seule la charge utile compte ici
+    const jwt = o => 'e30.' + Buffer.from(JSON.stringify(o)).toString('base64url') + '.faux';
+    const same = (t, id) => run(`coachDeskSameAccount(${JSON.stringify(t)}, ${JSON.stringify(id)})`);
+    const me = '00000000-0000-0000-0000-000000000002';
+    assert.equal(same({ access_token: jwt({ sub: me }), refresh_token: 'r' }), false, 'sans compte connecté : refusé');
+    assert.equal(same({ access_token: jwt({ sub: me }), refresh_token: 'r' }, me), true, 'même compte');
+    assert.equal(same({ access_token: jwt({ sub: '00000000-0000-0000-0000-000000000666' }), refresh_token: 'r' }, me), false, 'autre compte');
+    assert.equal(same({ access_token: jwt({}), refresh_token: 'r' }, me), false, 'sans sub');
+    assert.equal(same({ access_token: 'pas.un-jwt', refresh_token: 'r' }, me), false, 'illisible');
+    assert.equal(same(null, me), false);
+    // Contrôlé AVANT setSession, et un autre compte ferme le cadre sans rien poser
+    const ui = read('js/features/coach-desk-ui.js');
+    const fn = ui.slice(ui.indexOf('async function coachDeskFrameTokens'), ui.indexOf('async function coachDeskOpen'));
+    assert.ok(fn.indexOf('coachDeskSameAccount(next, account.user?.id)') > 0 && fn.indexOf('coachDeskSameAccount') < fn.indexOf('sb.auth.setSession'), 'compte vérifié avant setSession');
+    assert.match(fn, /coachDeskClose\('Connexion perdue, réessaie\.'\); return;/);
   });
 
   // ── Page embarquée (scripts/embed-coach-web.mjs) ──
@@ -260,7 +278,7 @@ export default function ({ test, assert, ROOT }) {
 
   test('coach iPad : canal natif de Capacitor réservé à la fenêtre principale (audit M1)', () => {
     const swift = read('ios/App/App/MainViewController.swift');
-    assert.match(swift, /guard message\.frameInfo\.isMainFrame else \{ return \}/);
+    assert.match(swift, /guard message\.frameInfo\.isMainFrame else \{[\s\S]{0,300}?return\s*\}/);
     assert.match(swift, /removeScriptMessageHandler\(forName: "bridge"\)/);
     assert.match(swift, /add\(MainFrameOnlyMessageHandler\(inner: handler\), name: "bridge"\)/);
     assert.match(swift, /override open func capacitorDidLoad\(\) \{\s*mainFrameOnlyBridge\(\)/, 'avant tout module');
