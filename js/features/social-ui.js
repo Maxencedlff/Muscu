@@ -688,8 +688,13 @@ function blockCoachKey(uid) {
 }
 // Bloquer son coach (ou son élève) coupe le suivi et efface la conversation (20261127010000_blocage_coupe_coach.sql) :
 // on le dit, et on propose de signaler d'abord (report_chat joint les 50 derniers messages, gardés même après)
+// Nom de la personne : celui du lien coach (le profil social peut être masqué)
+function blockCoachName(uid, key) {
+  const p = key === CHAT_COACH ? myCoach() : coach.state?.students?.find(s => s.user_id === uid);
+  return p ? personName(p) : personName(socialPerson(uid));
+}
 async function blockCoachFlow(uid, key) {
-  const name = personName(socialPerson(uid));
+  const name = blockCoachName(uid, key);
   const choice = await dialog({ type: 'sheet', title: `Bloquer ${name} ?`,
     message: `Bloquer efface votre conversation et coupe le suivi. Programmes, bilans et partages avec ${name} sont retirés. Pour garder une trace d'un problème, signale d'abord : les derniers messages sont joints au signalement. Personne n'est averti.`,
     actions: [{ label: 'Signaler d\'abord', value: 'report', style: 'destructive' }, { label: 'Bloquer', value: 'block', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
@@ -712,8 +717,8 @@ function unblockCoachText(form = null) {
   return `Débloquer ne reprend pas un suivi. Pour reprendre avec ${coachWord('ce', form)}, rejoins-${coachWord('pron', form)} avec son code d'invitation. Ce qui a été effacé au blocage ne revient pas.`;
 }
 async function blockFlow(uid, { confirm = true } = {}) {
-  const name = personName(socialPerson(uid));
   const key = blockCoachKey(uid);
+  const name = key ? blockCoachName(uid, key) : personName(socialPerson(uid));
   if (key) { if (!(await blockCoachFlow(uid, key))) return; }
   else if (confirm && !(await confirmSheet(`Bloquer ${name} ?`, `${name} ne pourra plus te trouver ni voir tes séances, et tu ne verras plus les siennes. Vous ne vous suivez plus. Personne n'en est averti.`, 'Bloquer'))) return;
   const r = await socialBlock(uid);

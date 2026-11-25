@@ -159,7 +159,7 @@ for pair in "20261127030000:bilans_accord_majeur_test.sql" \
             "20261105000000:coach_planning_test.sql coach_planning_concurrence_test.sql blocage_coupe_coach_test.sql" \
             "20261105010000:partage_mensurations_test.sql plans_diete_test.sql suivi_diete_test.sql semaines_coach_test.sql programmes_envoyes_coach_test.sql" \
             "20261106000000:coach_progress_test.sql charge_coach_test.sql" \
-            "20261101000000:parrainage_payant_test.sql" \
+            "20261101000000:parrainage_payant_test.sql blocage_coupe_coach_test.sql bilans_accord_majeur_test.sql" \
             "20261106200000:plans_diete_test.sql charge_coach_test.sql suivi_diete_test.sql programmes_envoyes_coach_test.sql" \
             "20261107000000:photos_bilan_test.sql bilans_coach_test.sql bilans_accord_majeur_test.sql" \
             "20261116010000:charge_prescrite_test.sql charge_coach_test.sql par_bras_test.sql" \

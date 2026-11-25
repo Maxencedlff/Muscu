@@ -326,9 +326,9 @@ function ckAdultOfferHtml() {
   if (!checkinAdultOffer()) return '';
   return `
         <div class="group ck-group ck-offer ck-offer--adult">
-          <div class="ck-row">${icon('shield', 20)}<span class="ck-label">Questions réservées aux 18 ans et plus</span>
+          <div class="ck-row">${icon('shield', 20)}<span class="ck-label">Questions intimes</span>
             <button class="ck-skip" data-action="ck-adult">J'ai 18 ans ou plus</button></div>
-          <div class="ck-foot"><p class="ck-help">${ckWho()} a mis dans ce bilan des questions plus intimes (libido, cycle). Elles ne sont posées qu'après 18 ans, et restent facultatives.</p></div>
+          <div class="ck-foot"><p class="ck-help">${ckWho()} a mis dans ce bilan des questions plus intimes (libido, cycle), réservées aux 18 ans et plus. Elles restent facultatives.</p></div>
         </div>`;
 }
 // Le coach suit le cycle et l'élève n'a pas encore répondu : proposé, jamais imposé (jamais si l'âge l'interdit)

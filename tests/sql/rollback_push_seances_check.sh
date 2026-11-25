@@ -25,7 +25,7 @@ dump() {
 psql -f "$here/supabase_stub.sql"
 # Sans le résumé des séances (20261117050000) ni J'aime (20261117060000), qui s'appuient sur elle et se démontent avant
 for m in "$root"/supabase/migrations/*.sql; do
-  case "$(basename "$m" .sql)" in "$M"|20261117050000_*|20261117060000_*|20261125010000_*) ;; *) psql -f "$m" ;; esac
+  case "$(basename "$m" .sql)" in "$M"|20261117050000_*|20261117060000_*|20261125010000_*|20261127030000_*) ;; *) psql -f "$m" ;; esac
 done
 # Avant : K coach, E son élève, un appareil (faux jeton), messages allumés, un message en file
 U1=00000000-0000-0000-0000-0000000008d1; U2=00000000-0000-0000-0000-0000000008d2
