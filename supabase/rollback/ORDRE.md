@@ -8,7 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −24 | `20261127010000_sante_coach_down.sql` (santé partagée avec le coach : consentements `health` et jours de pas, sommeil et cardio EFFACÉS ; `student_shares`, `private.share_kind_open` et la contrainte de `coach_shares.kind` reprennent le texte de 20261118010000, `coach_student_weeks` celui de −21, `private.checkin_kinds` et `private.checkin_number` celui de −22 ; tâche pg_cron `purge-sante-coach-90-jours` retirée ; refusé tant qu'un modèle de bilan a un suivi Sommeil en heures) | rien | oui (vérifié par `tests/sql/sante_coach_rollback_test.sh`) ; à défaire avant −22, −21 et le suivi de la diète (il réécrit leurs fonctions) |
+| −24 | `20261127020000_sante_coach_down.sql` (santé partagée avec le coach : consentements `health` et jours de pas, sommeil et cardio EFFACÉS ; `student_shares`, `private.share_kind_open` et la contrainte de `coach_shares.kind` reprennent le texte de 20261118010000, `coach_student_weeks` celui de −21, `private.checkin_kinds` et `private.checkin_number` celui de −22 ; tâche pg_cron `purge-sante-coach-90-jours` retirée ; refusé tant qu'un modèle de bilan a un suivi Sommeil en heures) | rien | oui (vérifié par `tests/sql/sante_coach_rollback_test.sh`) ; à défaire avant −22, −21 et le suivi de la diète (il réécrit leurs fonctions) |
 | −23 | `20261126010000_programmes_envoyes_coach_down.sql` (programmes envoyés relus par l'appli web du coach ; ne touche à aucune donnée, l'appli web revient à la version gardée sur le compte du coach) | rien | oui (vérifié par `tests/sql/programmes_envoyes_coach_rollback_test.sh`) |
 | −22 | `20261125010000_bilans_coach_down.sql` (bilans configurables : modèles, groupes, plannings, demandes, réponses, retours et accords du cycle EFFACÉS ; notifications `checkin` et `checkin_reminder` en file retirées ; `push_wanted`, `push_valid` et la contrainte de la file reprennent le texte de −15 ; tâches pg_cron `bilans-coach-envoi` et `bilans-coach-purge` retirées ; `push-send` peut rester) | rien | oui (vérifié par `tests/sql/bilans_coach_rollback_test.sh`, données comprises) ; à défaire avant −15, −9 (il réécrit leurs `push_wanted` et `push_valid`) et −7 (ses réponses citent `coach_photos`) |
 | −21 | `20261124010000_semaines_coach_down.sql` (fiche Semaines du web en un appel ; ne touche à aucune donnée, l'appli web revient aux lectures une par une) | rien | oui (vérifié par `tests/sql/semaines_coach_rollback_test.sh`) |
@@ -129,15 +129,17 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
     est coupé : jamais de charges prescrites effacées chez un élève). Retour arrière : le site d'avant si voulu, puis
     `20261126010000_programmes_envoyes_coach_down.sql`.
 
-19. `20261127010000_sante_coach.sql` (pas, sommeil et cardio partagés avec le coach, vague 3 de la santé : consentement
+19. `20261127020000_sante_coach.sql` (pas, sommeil et cardio partagés avec le coach, vague 3 de la santé : consentement
     `health`, table `coach_shared_health_days`, 90 jours glissants, purge pg_cron `purge-sante-coach-90-jours`) : APRÈS
     `20261118010000_suivi_diete_coach.sql` (`student_shares`, `private.share_kind_open`), 17 (`private.checkin_kinds`,
     `private.checkin_number` : Sommeil aussi en heures par nuit) et `20261124010000_semaines_coach.sql`
     (`coach_student_weeks` rend `health`), dont elle reprend les fonctions. Aucune fonction Edge. Avant ou après l'OTA :
     une app d'avant ignore `health`, une app à jour sur un serveur d'avant ne montre pas la case. Contrôle après :
     `select jobname, schedule from cron.job where jobname = 'purge-sante-coach-90-jours';` (une ligne). Retour arrière :
-    OTA d'avant si voulu, puis `20261127010000_sante_coach_down.sql`, AVANT tout retour arrière de 17, de la fiche
-    Semaines ou du suivi de la diète.
+    OTA d'avant si voulu, puis `20261127020000_sante_coach_down.sql`, AVANT tout retour arrière de 17, de la fiche
+    Semaines ou du suivi de la diète. Numérotée 20261127020000 pour passer APRÈS `20261127010000_blocage_coupe_coach.sql`
+    (branche audit-coach-fix : un blocage coupe le lien coach, donc efface aussi l'accord et les jours de santé) ; elle
+    garde sa propre vérification du blocage (défense en profondeur) et marche avec ou sans elle (tests/sql/sante_coach_test.sql).
 
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 

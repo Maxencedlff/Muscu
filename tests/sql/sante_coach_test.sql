@@ -1,4 +1,4 @@
--- Vérifications de supabase/migrations/20261127010000_sante_coach.sql (lancées par tests/sql/run.sh) :
+-- Vérifications de supabase/migrations/20261127020000_sante_coach.sql (lancées par tests/sql/run.sh) :
 -- consentement « health » par élève et par coach, un résumé par jour borné (pas, sommeil, cardio), fusion jour par
 -- jour, 90 jours glissants, lecture par le seul coach consenti, effacement au retrait, limites, clé health de
 -- coach_student_weeks, et le suivi Sommeil des bilans en heures. Chaque bloc échoue (raise) si la règle n'est pas
@@ -149,35 +149,12 @@ begin
 end $$;
 reset role;
 
--- ── Blocage entre l'élève et son coach (audit du 25/11, B1) : le coach ne lit plus rien, l'élève n'envoie plus rien ──
+-- ── Version de l'accord santé (audit m5) ──
 do $$ begin
   if (select c.consent_version from public.coach_shares c where c.student_id = pg_temp.hu('s') and c.kind = 'health') is distinct from 'sante-2026-11-25' then
     raise 'version de l''accord santé absente'; end if;
+  if exists (select 1 from public.coach_shares c where c.kind <> 'health' and c.consent_version is not null) then raise 'version posée sur un autre accord'; end if;
 end $$;
-insert into public.blocks (blocker_id, blocked_id) values (pg_temp.hu('s'), pg_temp.hu('k'));
-set role authenticated;
-do $$
-begin
-  perform pg_temp.hlogin('k');
-  if public.coach_student_health(pg_temp.hu('s')) is distinct from '{"shared": false, "since": null, "days": []}'::jsonb then raise 'coach bloqué : santé lue'; end if;
-  if (public.coach_student_weeks(pg_temp.hu('s')) -> 'health' ->> 'shared')::boolean then raise 'coach bloqué : santé dans la fiche Semaines'; end if;
-  perform pg_temp.hlogin('s');
-  if pg_temp.hsend(jsonb_build_array(pg_temp.hday(0))) <> 'not_shared' then raise 'élève qui bloque : envoi accepté'; end if;
-end $$;
-reset role;
-delete from public.blocks where blocker_id = pg_temp.hu('s') and blocked_id = pg_temp.hu('k');
--- Blocage dans l'autre sens (le coach bloque l'élève) : même règle
-insert into public.blocks (blocker_id, blocked_id) values (pg_temp.hu('k'), pg_temp.hu('s'));
-set role authenticated;
-do $$
-begin
-  perform pg_temp.hlogin('k');
-  if (public.coach_student_health(pg_temp.hu('s')) ->> 'shared')::boolean then raise 'coach qui bloque : santé lue'; end if;
-  perform pg_temp.hlogin('s');
-  if pg_temp.hsend(jsonb_build_array(pg_temp.hday(0))) <> 'not_shared' then raise 'élève bloqué : envoi accepté'; end if;
-end $$;
-reset role;
-delete from public.blocks where blocker_id = pg_temp.hu('k') and blocked_id = pg_temp.hu('s');
 
 -- ── Fusion jour par jour, et un jour trop vieux resté en base (appareil hors ligne) supprimé à l'envoi ──
 insert into public.coach_shared_health_days (student_id, day, steps) values (pg_temp.hu('s'), (now() at time zone 'utc')::date - 120, 5000);
@@ -314,6 +291,58 @@ do $$ begin
     then raise 'cascade élève'; end if;
 end $$;
 reset role;
+
+-- ── Blocage entre l'élève et son coach (audit du 25/11, B1) : le coach ne lit plus rien, l'élève n'envoie plus rien.
+-- Couple à part (X élève de Y) : avec 20261127010000_blocage_coupe_coach.sql, le blocage coupe aussi le lien (le coach
+-- reçoit alors not_found, et tout est effacé) ; sans elle, la vérification locale suffit. Les deux sont acceptés.
+create function pg_temp.bx(c text) returns uuid language sql immutable as
+$$ select case c when 'x' then '00000000-0000-0000-0000-000000005a16'::uuid else '00000000-0000-0000-0000-000000005a17'::uuid end $$;
+grant execute on function pg_temp.bx(text) to authenticated;
+create function pg_temp.bcheck(tag text) returns void language plpgsql as
+$$
+declare r text;
+begin
+  perform set_config('request.jwt.claim.sub', pg_temp.bx('y')::text, false);
+  r := pg_temp.herr(format('select public.coach_student_health(%L)', pg_temp.bx('x')));
+  if r <> 'ok' and r <> 'not_found' then raise '% : lecture du coach : %', tag, r; end if;
+  if r = 'ok' and (public.coach_student_health(pg_temp.bx('x')) ->> 'shared')::boolean then raise '% : coach bloqué, santé lue', tag; end if;
+  if r = 'ok' and (public.coach_student_weeks(pg_temp.bx('x')) -> 'health' ->> 'shared')::boolean then raise '% : santé dans la fiche Semaines', tag; end if;
+  perform set_config('request.jwt.claim.sub', pg_temp.bx('x')::text, false);
+  if pg_temp.hsend(jsonb_build_array(pg_temp.hday(0))) <> 'not_shared' then raise '% : envoi accepté', tag; end if;
+end
+$$;
+grant execute on function pg_temp.bcheck(text) to authenticated;
+create function pg_temp.bsetup() returns void language plpgsql as
+$$
+begin
+  delete from public.blocks where blocker_id in (pg_temp.bx('x'), pg_temp.bx('y'));
+  delete from public.coach_links where student_id = pg_temp.bx('x');
+  insert into public.coach_links (student_id, coach_id) values (pg_temp.bx('x'), pg_temp.bx('y'));
+  insert into public.coach_shares (student_id, coach_id, kind) values (pg_temp.bx('x'), pg_temp.bx('y'), 'health');
+  insert into public.coach_shared_health_days (student_id, day, steps) values (pg_temp.bx('x'), (now() at time zone 'utc')::date, 6000);
+end
+$$;
+insert into auth.users (id) values (pg_temp.bx('x')), (pg_temp.bx('y'));
+insert into public.user_profiles (user_id, username, avatar_emoji) values (pg_temp.bx('x'), 'xav.hs', '🐯'), (pg_temp.bx('y'), 'yan.hs', '🐻');
+update public.user_profiles set coach_at = now() where user_id = pg_temp.bx('y');
+select pg_temp.bsetup();
+set role authenticated;
+do $$ begin
+  perform set_config('request.jwt.claim.sub', pg_temp.bx('y')::text, false);
+  if not (public.coach_student_health(pg_temp.bx('x')) ->> 'shared')::boolean then raise 'avant le blocage : santé non lue'; end if;
+end $$;
+reset role;
+insert into public.blocks (blocker_id, blocked_id) values (pg_temp.bx('x'), pg_temp.bx('y'));
+set role authenticated;
+select pg_temp.bcheck('élève qui bloque son coach');
+reset role;
+select pg_temp.bsetup();
+insert into public.blocks (blocker_id, blocked_id) values (pg_temp.bx('y'), pg_temp.bx('x'));
+set role authenticated;
+select pg_temp.bcheck('coach qui bloque son élève');
+reset role;
+delete from public.blocks where blocker_id in (pg_temp.bx('x'), pg_temp.bx('y'));
+delete from auth.users where id in (pg_temp.bx('x'), pg_temp.bx('y'));
 
 -- ── Bilans : le suivi Sommeil en heures par nuit (mêmes règles que js/data/checkins.js) ──
 do $$

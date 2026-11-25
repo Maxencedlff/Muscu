@@ -172,7 +172,7 @@ async function deskLoadWeeks(student, weeks = DESK_WEEKS_MAX, now = Date.now()) 
       sessions: d.sessions.map(cleanCoachSessionRow).filter(Boolean).filter(r => r.doneAt >= from),
       weights: cleanCoachWeights(d.weights), measures: cleanCoachMeasures(d.measures),
       diet: d.diet && typeof d.diet === 'object' ? cleanCoachDiet(d.diet) : null,
-      // Pas, sommeil, cardio (migration 20261127010000_sante_coach.sql) : null sur un serveur d'avant
+      // Pas, sommeil, cardio (migration 20261127020000_sante_coach.sql) : null sur un serveur d'avant
       health: d.health && typeof d.health === 'object' ? cleanCoachHealth(d.health) : null } };
   }
   if (!one.ok && one.kind !== 'missing') return one;

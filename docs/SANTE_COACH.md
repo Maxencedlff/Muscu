@@ -50,11 +50,12 @@ l'empreinte du dernier envoi est gardée (`mdlf_coach_share_h`, effacée à la d
   à la main. Répondre au bilan vaut partage de ces réponses (docs/BILANS.md).
 - **Blocage** (audit B1) : si l'élève et son coach se bloquent (dans un sens ou l'autre), `coach_student_health` rend
   `shared: false` et `student_share_health_days` refuse (`not_shared`). Défense en profondeur, en plus du traitement
-  général du blocage (branche `audit-coach-fix`).
+  général du blocage (branche `audit-coach-fix`, migration `20261127010000_blocage_coupe_coach.sql`, qui coupe le lien et
+  efface donc aussi l'accord et les jours ; la migration santé est numérotée `20261127020000` pour passer après elle).
 - **Version de l'accord** (m5) : `coach_shares.consent_version` = `sante-2026-11-25` pour chaque accord `health`
   (déclencheur), pour savoir sur quel texte l'élève a dit oui.
 
-## Serveur : `supabase/migrations/20261127010000_sante_coach.sql` (écrite, PAS appliquée)
+## Serveur : `supabase/migrations/20261127020000_sante_coach.sql` (écrite, PAS appliquée)
 
 - `coach_shares.kind` : + `health` ; `private.share_kind_open` : + `health`.
 - Table `public.coach_shared_health_days (student_id, kind, day, steps, sleep_min, cardio_min)`, un jour par ligne,
@@ -66,7 +67,7 @@ l'empreinte du dernier envoi est gardée (`mdlf_coach_share_h`, effacée à la d
   (`purge-sante-coach-90-jours`, 03:43 UTC).
 - Bilans : le suivi « Sommeil » accepte aussi le type nombre en heures (`unit: 'h'`, 0 à 24) : `private.checkin_kinds`
   et `private.checkin_number` redéfinies. L'échelle reste le type par défaut : les modèles existants ne changent pas.
-- Retour arrière : `supabase/rollback/20261127010000_sante_coach_down.sql` (efface jours et accords `health`, remet les
+- Retour arrière : `supabase/rollback/20261127020000_sante_coach_down.sql` (efface jours et accords `health`, remet les
   textes d'avant) ; ordre dans `supabase/rollback/ORDRE.md`. Dépend de `20261118010000` (diète), `20261124010000`
   (semaines) et `20261125010000` (bilans) : à appliquer après elles.
 

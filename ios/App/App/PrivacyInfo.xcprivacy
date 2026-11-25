@@ -69,7 +69,7 @@
 			     coach, effacées au retrait (supabase/migrations/20261031300000_partage_coach.sql,
 			     20261105010000_partage_mensurations.sql) ; et le résumé par jour lu dans Apple Santé (pas, durée de
 			     sommeil, minutes de cardio), seulement si l'élève coche « Pas, sommeil et cardio », vu seulement par ce
-			     coach, 90 jours au plus, effacé au retrait (20261127010000_sante_coach.sql). Rien d'autre de Santé -->
+			     coach, 90 jours au plus, effacé au retrait (20261127020000_sante_coach.sql). Rien d'autre de Santé -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeHealth</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
