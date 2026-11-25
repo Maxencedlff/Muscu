@@ -19,11 +19,13 @@ if (Native.isNative) {
   });
 }
 
-// Icône retirée du catalogue (APP_ICONS_RETIRED, « Inversée ») encore en place : retour à l'icône par défaut, une seule
-// fois (iOS montre sa petite alerte habituelle) ; un échec n'est pas retenté à chaque lancement
+// Icône retirée du catalogue (APP_ICONS_RETIRED : « Inversée », « Signature ») encore en place : retour à l'icône par
+// défaut, une seule fois par icône retirée (iOS montre sa petite alerte habituelle) ; un échec n'est pas retenté à chaque
+// lancement
 async function resetRetiredAppIcon() {
   if (!APP_ICONS_RETIRED.includes(appIconState.name)) return;
-  try { if (localStorage.getItem('ppl_icon_retired_reset') === '1') return; localStorage.setItem('ppl_icon_retired_reset', '1'); } catch {}
+  const key = `ppl_icon_reset_${appIconState.name}`;
+  try { if (localStorage.getItem(key) === '1') return; localStorage.setItem(key, '1'); } catch {}
   if (await Native.appIcon.set(null)) appIconState = { ...appIconState, name: null };
 }
 

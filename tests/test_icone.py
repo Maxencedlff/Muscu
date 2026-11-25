@@ -15,9 +15,9 @@ from fixtures import *  # noqa
 LOT = 'icone'
 R = Results(LOT)
 # Coquille d'avant le 25/11 (ne dit pas quels jeux d'icônes elle a) : pas les icônes qui demandent la build
-LABELS = ['Orange', 'Fonte rouillée', 'Craie', 'Signature']
-# Coquille à jour : Bleue et Noël en plus ; « Inversée », retirée, jamais proposée même si son jeu est encore là
-LABELS_BUILD = ['Orange', 'Fonte rouillée', 'Craie', 'Signature', 'Bleue', 'Noël']
+LABELS = ['Orange', 'Fonte rouillée', 'Craie']
+# Coquille à jour : Bleue et Noël en plus ; « Inversée » et « Signature », retirées, jamais proposées même si leur jeu est encore là
+LABELS_BUILD = ['Orange', 'Fonte rouillée', 'Craie', 'Bleue', 'Noël']
 AVAILABLE_BUILD = "['AppIcon-Bleue', 'AppIcon-Craie', 'AppIcon-Inversee', 'AppIcon-Noel', 'AppIcon-Rouille', 'AppIcon-Signature']"
 
 # Coquille iOS factice. Les autres modules natifs répondent {} sans rien faire.
@@ -111,7 +111,7 @@ def t_natif(bench, eng, dev, theme):
         R.check(len(page.evaluate('__icon.calls')) == 1, f'{t} icône déjà active : aucun appel')
 
         page.evaluate('__icon.fail = true')
-        page.locator('.app-icon[data-id="signature"]').click()
+        page.locator('.app-icon[data-id="rouille"]').click()
         settle(page)
         R.check(pressed(page) == ['Craie'], f'{t} refus d\'iOS : coche inchangée')
         R.check("n'a pas pu être changée" in page.inner_text('body'), f'{t} refus d\'iOS : message affiché')
@@ -125,8 +125,9 @@ def t_natif(bench, eng, dev, theme):
 
     # Icône alternative déjà choisie au lancement : cochée dès l'ouverture des Réglages
     with bench.page(eng, dev, theme) as page:
-        open_settings(page, theme, native_name="'AppIcon-Signature'")
-        R.check(pressed(page) == ['Signature'], f'{t} icône courante relue au lancement : {pressed(page)}')
+        open_settings(page, theme, native_name="'AppIcon-Rouille'")
+        R.check(pressed(page) == ['Fonte rouillée'], f'{t} icône courante relue au lancement : {pressed(page)}')
+        R.check(page.evaluate('__icon.calls') == [], f'{t} icône gardée : aucun changement au lancement')
 
     # Coquille à jour : Bleue et Noël proposées, Inversée jamais ; choisir Noël envoie son jeu
     with bench.page(eng, dev, theme) as page:
@@ -141,13 +142,20 @@ def t_natif(bench, eng, dev, theme):
         shot(page, LOT, f'design-icones-build-{t}')
         R.check(not page.errors, f'{t} build à jour : aucune erreur JS {page.errors}')
 
-    # « Inversée » (retirée) encore en place au lancement : remise sur l'icône par défaut, une seule fois
-    with bench.page(eng, dev, theme) as page:
-        open_settings(page, theme, native_name="'AppIcon-Inversee'")
-        R.check(page.evaluate('__icon.calls') == [None], f'{t} Inversée : retour au défaut {page.evaluate("__icon.calls")}')
-        R.check(pressed(page) == ['Orange'], f'{t} Inversée : Orange cochée ({pressed(page)})')
-        R.check(page.evaluate("localStorage.getItem('ppl_icon_retired_reset')") == '1', f'{t} Inversée : fait une seule fois')
-        R.check(not page.errors, f'{t} Inversée : aucune erreur JS {page.errors}')
+    # « Inversée » ou « Signature » (retirées) encore en place au lancement : remise sur l'icône par défaut, une seule fois
+    for asset in ('AppIcon-Inversee', 'AppIcon-Signature'):
+        with bench.page(eng, dev, theme) as page:
+            open_settings(page, theme, native_name=f"'{asset}'")
+            R.check(page.evaluate('__icon.calls') == [None], f'{t} {asset} : retour au défaut {page.evaluate("__icon.calls")}')
+            R.check(pressed(page) == ['Orange'], f'{t} {asset} : Orange cochée ({pressed(page)})')
+            R.check(page.evaluate(f"localStorage.getItem('ppl_icon_reset_{asset}')") == '1', f'{t} {asset} : noté, fait une seule fois')
+            # Relance avec l'icône toujours là (changement refusé ou annulé) : pas de nouvelle alerte d'iOS
+            page.evaluate(f"__icon.name = '{asset}'; __icon.calls = []")
+            page.reload()
+            page.wait_for_selector('#app > *')
+            settle(page)
+            R.check(page.evaluate('__icon.calls') == [], f'{t} {asset} : pas retenté au lancement suivant')
+            R.check(not page.errors, f'{t} {asset} : aucune erreur JS {page.errors}')
 
     # iOS sans icônes alternatives : section masquée
     if dev == 'iPhone 13':

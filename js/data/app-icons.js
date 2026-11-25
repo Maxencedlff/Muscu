@@ -23,15 +23,15 @@ const APP_ICONS = Object.freeze([
   { id: 'orange',    label: 'Orange',         asset: 'AppIcon',           bg: '#111111', fg: '#FF6A1A', sag: 360, stroke: 70 },
   { id: 'rouille',   label: 'Fonte rouillée', asset: 'AppIcon-Rouille',   bg: '#1B1815', fg: '#D9542B', sag: 360, stroke: 70 },
   { id: 'craie',     label: 'Craie',          asset: 'AppIcon-Craie',     bg: '#F1ECE3', fg: '#C9461F', sag: 360, stroke: 70 },
-  { id: 'signature', label: 'Signature',      asset: 'AppIcon-Signature', bg: '#E0582A', fg: '#15120F', sag: 430, stroke: 58 },
   // Ajoutées le 25/11 : dans le paquet natif à partir de la build qui les embarque (sinon masquées, js/features/app-icon.js)
   { id: 'bleue',     label: 'Bleue',          asset: 'AppIcon-Bleue',     bg: '#111111', fg: '#0A84FF', sag: 360, stroke: 70, needsBuild: true },
   // Noël : signe blanc cassé sur vert sapin, les petits disques extérieurs en rouge Noël (seule touche de troisième couleur)
   { id: 'noel',      label: 'Noël',           asset: 'AppIcon-Noel',      bg: '#0E3B2C', fg: '#F4EFE6', plates: '#C8102E', sag: 360, stroke: 70, needsBuild: true },
 ].map(Object.freeze));
-// Retirée le 25/11 (fond orange vif, signe noir : la charte d'une autre marque) : qui l'avait revient à l'icône par
-// défaut au lancement suivant (js/features/app-icon.js) ; le jeu d'icônes quitte le paquet natif à la build suivante
-const APP_ICONS_RETIRED = Object.freeze(['AppIcon-Inversee']);
+// Retirées le 25/11 (fond orange, signe noir : la charte d'une autre marque) : « Inversée » (#FF5A1F / #111111) et
+// « Signature » (#E0582A / #15120F). Qui en avait une revient à l'icône par défaut au lancement suivant, une seule fois
+// (js/features/app-icon.js) ; leurs jeux d'icônes quittent le paquet natif à la build suivante
+const APP_ICONS_RETIRED = Object.freeze(['AppIcon-Inversee', 'AppIcon-Signature']);
 
 const DEFAULT_APP_ICON = APP_ICONS.find(i => i.asset === APP_ICON_DEFAULT_ASSET);
 
