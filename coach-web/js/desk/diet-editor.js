@@ -11,23 +11,32 @@
 //    d'entraînement et de repos ou semaine. Macros recalculées à chaque frappe. Annuler / Rétablir (Ctrl ou ⌘ + Z).
 //  - Logique et format : js/desk/diet-edit-model.js, sur les fonctions de js/data/ (aucune copie) ; envoi au format
 //    exact de l'app (coachDietPayload), à un ou plusieurs élèves (coachSendQueue).
+//  - Liste « Plans diète » et Mes aliments : js/desk/diet-lib.js ; dialogues (ajouter un aliment, équivalents, jours) :
+//    js/desk/diet-pick.js.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 // Base Ciqual vue de la page (le site construit la sert à côté, le dépôt un dossier plus haut : balise de index.html)
 const DESK_FOODS_URL = document.querySelector?.('meta[name="mdlf-foods"]')?.content || 'data/foods.json';
 const dt = { acc: null, accAt: 0, accKind: null, accLoading: false,
-  key: null, ctx: null, id: null, draft: null, saved: '', fresh: false, src: null, sentAt: 0,
+  key: null, ctx: null, id: null, draft: null, saved: '', fresh: false, src: null, sentAt: 0, baseAt: null, copyId: null,
   day: 0, hist: deskDtHistory(), open: null, busy: false, foods: 'idle', err: null };
 
 const deskDtDirty = () => !!dt.draft && (dt.fresh || deskDtSnap(dt.draft) !== dt.saved);
 const deskDtDayObj = () => dietDayObj(dt.draft, dt.day);
 const deskDtErr = kind => DESK_DT_ERRORS[kind] || (COACH_ERROR_TEXT[kind] ? coachErrorText(kind) : deskErrorText(kind));
-function deskDtReset() { Object.assign(dt, { key: null, ctx: null, id: null, draft: null, saved: '', fresh: false, src: null, day: 0, hist: deskDtHistory(), open: null, err: null }); }
+function deskDtReset() { Object.assign(dt, { key: null, ctx: null, id: null, draft: null, saved: '', fresh: false, src: null, sentAt: 0, baseAt: null, copyId: null, day: 0, hist: deskDtHistory(), open: null, err: null, tgErr: '' }); }
 async function deskDtLeaveOk() {
   if (!deskDtDirty()) return true;
+  if (dt.src === 'sent') return deskConfirm({ title: 'Quitter sans envoyer ?', text: 'Tes changements pour cet élève seront perdus. Touche « Envoyer » pour qu\'il les reçoive.', ok: 'Quitter sans envoyer', danger: true });
   return deskConfirm({ title: 'Quitter sans enregistrer le plan ?', text: 'Tes changements seront perdus. Touche « Enregistrer » pour les garder dans tes plans.', ok: 'Quitter sans enregistrer', danger: true });
 }
+// L'éditeur est-il à l'écran ? (raccourcis clavier seulement là)
+const deskDtOnScreen = () => !!dt.draft && deskDtRouteKey(location.hash) === dt.key;
+// iPhone resté sur une version d'avant la fusion des plans (js/data/sync.js) : il pourrait remettre son ancienne
+// version d'un plan modifié ici. Le profil du compte le dit (dietSyncV, posé par l'app à jour avec l'accord)
+const deskDtOldPhone = () => !!dt.acc?.consent && !dt.acc.syncOk;
+const deskDtCanSave = () => !!dt.acc?.consent && !deskDtOldPhone();
 // Écran de l'éditeur dans une adresse (changement d'écran avec des changements : confirmation, js/desk/main.js)
 function deskDtRouteKey(h) {
   const a = /^#\/plans-diete\/([A-Za-z0-9_-]{1,64})$/.exec(h || '');
@@ -53,8 +62,10 @@ function deskDtFoods() {
   loadFoods(DESK_FOODS_URL).then(db => { dt.foods = db ? 'ready' : 'error'; deskRender(); });
 }
 // Brouillon mis dans l'éditeur
+// baseAt : date du plan du compte à l'ouverture (brouillon périmé si elle a changé à l'enregistrement)
 function deskDtUse({ key, ctx, id, plan, fresh = false, src, sentAt = 0 }) {
-  Object.assign(dt, { key, ctx, id, draft: deskDtDraft(plan), fresh, src, sentAt, day: 0, hist: deskDtHistory(), open: null, err: null });
+  Object.assign(dt, { key, ctx, id, draft: deskDtDraft(plan), fresh, src, sentAt, day: 0, hist: deskDtHistory(), open: null, err: null, tgErr: '', copyId: null,
+    baseAt: src === 'account' ? Number(plan.updatedAt) || 0 : null });
   dt.saved = fresh ? '' : deskDtSnap(dt.draft);
 }
 
@@ -92,9 +103,9 @@ async function deskDtOpenStudent(sid, part) {
     const sent = nt.diets[0];
     const id = sent && deskDtPlanIdOfSent(sent.id);
     if (!sent || !id) { dt.err = 'gone'; deskRender(); return; }
+    // Version reçue par l'élève : l'envoi ne change que SON plan ; mon plan modèle (même identifiant) n'est jamais
+    // remplacé par elle. Elle se garde, si le coach le veut, comme un nouveau plan (« Sèche (lea) »)
     deskDtUse({ key, ctx, id, plan: sent.data, src: 'sent', sentAt: sent.sentAt });
-    // Version reçue par l'élève, pas encore dans mes plans : à enregistrer (ou à envoyer, ce qui l'enregistre aussi)
-    if (!acc?.dietPlans?.[id] || acc.dietPlans[id].archived) dt.fresh = true;
   } else {
     const plan = acc?.dietPlans?.[part];
     if (!plan || plan.archived || plan.fromCoach) { dt.err = acc ? 'gone' : dt.accKind; deskRender(); return; }
@@ -114,37 +125,6 @@ const dtIdPart = s => String(s).replace(/[^A-Za-z0-9_-]/g, '');
 const DESK_DT_SOURCES = 'Valeurs : table Ciqual 2025 de l\'Anses (version du 03/11/2025), doi.org/10.57745/RDMHWY, Licence Ouverte Etalab 2.0 ; valeurs arrondies, énergie de quelques aliments calculée. L\'Anses ne valide pas ces plans. Produits trouvés par leur code-barres : Open Food Facts (openfoodfacts.org), © les contributeurs d\'Open Food Facts, base libre sous licence ODbL ; valeurs à vérifier sur l\'étiquette.';
 const DESK_DT_OFF = 'Source : Open Food Facts (openfoodfacts.org), © les contributeurs d\'Open Food Facts, base libre sous licence ODbL. Vérifie avec l\'étiquette.';
 
-// Écran « Plans diète » : mes plans et Mes aliments
-function deskDtLibHtml(route) {
-  if (route.id) return deskDtFrameHtml(null);
-  const acc = dt.acc;
-  const head = `<div class="head"><div class="grow"><h1 class="title">Plans diète</h1><div class="sub">Tes plans, gardés sur ton compte : les mêmes que dans l'app (Nutrition › Mes diètes).</div></div>
-    <button type="button" class="btn fill" data-dt="new" ${!acc || dt.busy ? 'disabled' : ''}>${deskIcon('plus', 'sm')}Créer un plan</button></div>`;
-  if (!acc) {
-    return head + (dt.accKind ? `<div class="empty" role="alert">${esc(deskErrorText(dt.accKind))}<br><button type="button" class="btn tint" data-dt="reload">Réessayer</button></div>`
-      : '<div class="empty" role="status">Chargement de tes plans…</div>');
-  }
-  const ids = deskDtPlanIds(acc);
-  const consent = acc.consent ? '' : `<p class="dt-note" role="note">${deskIcon('phone', 'sm')}<span>${esc(acc.synced ? DESK_DT_ERRORS.no_consent : DESK_DT_ERRORS.no_doc)}</span></p>`;
-  const row = id => {
-    const p = acc.dietPlans[id], t = dietPlanMacros(p);
-    const sub = [deskDtDaysWord(p), plural(dietShownMeals(p).length, 'repas', 'repas'), `${dtN(t.kcal)} kcal${p.days ? ' le 1er jour' : ''}`, p.updatedAt ? `modifié le ${fmtDate(p.updatedAt, 'short')}` : ''].filter(Boolean).join(' · ');
-    return `<li><div class="row dt-pl"><a class="grow dt-pl-a" href="#/plans-diete/${encodeURIComponent(id)}"><b>${esc(p.name)}</b><span class="t2 blk">${esc(sub)}</span></a>
-      <button type="button" class="btn link" data-dt="dup" data-id="${esc(id)}" ${acc.consent ? '' : 'disabled'}>${deskIcon('copy', 'sm')}Dupliquer<span class="sr">${esc(` ${p.name}`)}</span></button>
-      <a class="btn link ic" href="#/plans-diete/${encodeURIComponent(id)}" aria-hidden="true" tabindex="-1">${deskIcon('chevron', 'sm')}</a></div></li>`;
-  };
-  const plans = `<section aria-labelledby="h-dt-plans"><h2 class="gh" id="h-dt-plans">Mes plans <span class="r">${esc(`${ids.length} sur ${DIET_PLAN_MAX_COACH}`)}</span></h2>
-    ${ids.length ? `<ul class="group" aria-labelledby="h-dt-plans">${ids.map(row).join('')}</ul>` : `<div class="empty">Aucun plan pour l'instant. « Créer un plan » en prépare un avec 4 repas, que tu remplis avec la table Ciqual.</div>`}
-    <div class="gfoot">Un plan s'envoie depuis l'éditeur, à un ou plusieurs élèves, ou depuis l'onglet Nutrition d'un élève.</div></section>`;
-  const foods = acc.dietFoods;
-  const frow = f => `<li><div class="row"><span class="grow"><b>${esc(foodName(f.name))}</b><span class="t2 blk num">${esc(`${f.src === 'off' ? 'Code-barres' : 'Créé'} · 100 g : ${f.per.k} kcal · ${dtMacros(f.per)}`)}</span></span>
-    <button type="button" class="btn link danger" data-dt="food-rm" data-id="${esc(f.id)}" ${acc.consent ? '' : 'disabled'}>Retirer<span class="sr">${esc(` ${f.name}`)}</span></button></div></li>`;
-  const mine = `<section aria-labelledby="h-dt-foods"><h2 class="gh" id="h-dt-foods">Mes aliments <span class="r">${esc(`${foods.length} sur ${DIET_FOODS_MAX}`)}</span></h2>
-    ${foods.length ? `<ul class="group dt-foods" aria-labelledby="h-dt-foods">${foods.map(frow).join('')}</ul>` : '<div class="empty">Aucun aliment perso. Tu en crées un depuis la recherche d\'un aliment (« Créer un aliment »), ou avec son code-barres.</div>'}
-    <div class="gfoot">Les aliments absents de la table Ciqual (skyr, whey, produits de marque). Les retirer ne change aucun plan.</div></section>`;
-  return `${head}${consent}<div class="cols dtl">${plans}${mine}</div><p class="gfoot dt-src">${esc(DESK_DT_SOURCES)}</p>`;
-}
-
 // Éditeur (r : la ligne de l'élève dans l'onglet Nutrition, null dans « Plans diète »)
 function deskDtFrameHtml(r) {
   const back = r ? `<p class="crumb"><a href="#/eleve/${encodeURIComponent(r.id)}/nutrition">${deskIcon('back', 'sm')}Nutrition de ${esc(r.name)}</a></p>`
@@ -157,7 +137,7 @@ function deskDtFrameHtml(r) {
 function deskDtStatusText(r) {
   const dirty = deskDtDirty(), consent = dt.acc?.consent;
   if (dt.src === 'new' && dt.fresh) return 'Nouveau plan, pas encore enregistré.';
-  if (dt.src === 'sent') return dirty ? `Version reçue par ${r?.name || 'ton élève'}, modifiée : pas encore envoyée.` : `Version reçue par ${r?.name || 'ton élève'} le ${fmtDate(dt.sentAt, 'short')}`;
+  if (dt.src === 'sent') return `${dirty ? `Version de ${r?.name || 'ton élève'}, modifiée : pas encore envoyée.` : `Version reçue par ${r?.name || 'ton élève'} le ${fmtDate(dt.sentAt, 'short')}.`} L'envoi ne change que son plan, pas ton plan « ${dt.acc?.dietPlans?.[dt.id]?.name || dt.draft.name} ».`;
   if (dirty) return consent ? 'Changements pas encore enregistrés.' : 'Changements gardés dans cet onglet seulement.';
   const p = dt.acc?.dietPlans?.[dt.id];
   return p?.updatedAt ? `Enregistré dans tes plans, modifié le ${fmtDate(p.updatedAt, 'short')}` : 'Enregistré dans tes plans.';
@@ -185,11 +165,12 @@ function deskDtEditorHtml(r) {
   const s = deskDtDaySummary(plan, di);
   const dayName = plan.days ? dietDayName(plan, di) : 'Chaque jour';
   const dirty = deskDtDirty(), student = r?.name;
-  const canSave = !!dt.acc?.consent;
+  const canSave = deskDtCanSave(), sent = dt.src === 'sent';
   return `<div class="head dt-head"><div class="grow">
       <label class="sr" for="dt-name">Nom du plan</label>
       <input id="dt-name" class="in wide dt-name" data-dt-f="name" maxlength="${DIET_NAME_MAX}" autocomplete="off" value="${esc(plan.name)}">
       <div class="sub" id="dt-status">${esc(deskDtStatusText(r))}</div></div></div>
+    ${deskDtOldPhone() ? `<p class="dt-note" role="note">${deskIcon('phone', 'sm')}<span>${esc(DESK_DT_ERRORS.old_phone)}</span></p>` : ''}
     <div class="dt-modes"><span class="dt-lab" id="dt-mode-l">Jours</span><div class="seg" role="radiogroup" aria-labelledby="dt-mode-l">${modes}</div></div>
     ${dayTabs}${dayTools}
     <div class="cols dt">
@@ -212,12 +193,13 @@ function deskDtEditorHtml(r) {
     </div>
     <p class="gfoot dt-src">${esc(DESK_DT_SOURCES)}</p>
     <div class="savebar stick" role="region" aria-label="Enregistrement et envoi du plan">
-      <span class="grow muted">${dirty ? deskIcon('pen', 'sm') : ''}${esc(canSave ? (dirty ? 'Pas encore enregistré.' : 'Tout est enregistré.') : 'Copie des plans sur ton compte désactivée : rien n\'est gardé après l\'envoi.')}</span>
+      <span class="grow muted">${dirty ? deskIcon('pen', 'sm') : ''}${esc(sent ? (dirty ? 'Pas encore envoyé.' : 'Envoyé.') : !dt.acc?.consent ? 'Copie des plans sur ton compte désactivée : rien n\'est gardé après l\'envoi.' : deskDtOldPhone() ? 'Mets l\'app à jour sur ton iPhone pour enregistrer ici.' : dirty ? 'Pas encore enregistré.' : 'Tout est enregistré.')}</span>
       <button type="button" class="btn" data-dt="undo" ${dt.hist.past.length ? '' : 'disabled'} aria-keyshortcuts="Control+Z Meta+Z" aria-label="Annuler le dernier changement">Annuler</button>
       <button type="button" class="btn" data-dt="redo" ${dt.hist.future.length ? '' : 'disabled'} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Rétablir</button>
       <button type="button" class="btn" data-dt="send-many" ${dt.busy ? 'disabled' : ''}>${esc(student ? 'Envoyer à plusieurs élèves' : 'Envoyer à des élèves')}</button>
-      ${student ? `<button type="button" class="btn ${canSave ? 'tint' : 'fill'}" data-dt="send" ${dt.busy ? 'disabled aria-busy="true"' : ''}>${deskIcon('send', 'sm')}${esc(`Envoyer à ${student}`)}</button>` : ''}
-      ${canSave ? `<button type="button" class="btn fill" data-dt="save" ${dt.busy || !dirty ? 'disabled' : ''} aria-keyshortcuts="Control+S Meta+S">Enregistrer</button>` : ''}
+      ${sent && canSave ? `<button type="button" class="btn" data-dt="save-copy" ${dt.busy ? 'disabled' : ''}>${esc(dt.copyId ? 'Mettre à jour la copie' : 'Garder comme nouveau plan')}</button>` : ''}
+      ${student ? `<button type="button" class="btn ${canSave && !sent ? 'tint' : 'fill'}" data-dt="send" ${dt.busy ? 'disabled aria-busy="true"' : ''}>${deskIcon('send', 'sm')}${esc(`Envoyer à ${student}`)}</button>` : ''}
+      ${canSave && !sent ? `<button type="button" class="btn fill" data-dt="save" ${dt.busy || !dirty ? 'disabled' : ''} aria-keyshortcuts="Control+S Meta+S">Enregistrer</button>` : ''}
     </div>`;
 }
 
@@ -322,22 +304,35 @@ function deskDtCommitFocused() {
   if (t?.dataset?.dtF) deskDtField(t, true);
 }
 
-async function deskDtSave({ quiet = false } = {}) {
-  if (!dt.draft || dt.busy) return { ok: false };
+// Enregistrer dans mes plans. Le plan a changé ailleurs (iPhone) depuis son ouverture : « Recharger » (sa version) ou
+// « Garder ma version » (la mienne remplace la sienne), jamais en silence. force : sans ce contrôle
+async function deskDtSave({ quiet = false, force = false } = {}) {
+  if (!dt.draft || dt.busy || dt.src === 'sent' || !deskDtCanSave()) return { ok: false, kind: deskDtOldPhone() ? 'old_phone' : 'no_consent' };
   deskDtCommitFocused();
   dt.busy = true; deskRender();
-  const r = await deskWriteDiet(deskDtOpSave(dt.id, dt.draft));
+  const r = await deskWriteDiet(deskDtOpSave(dt.id, dt.draft, Date.now(), { expectAt: force ? undefined : dt.baseAt }));
   dt.busy = false;
   if (!r.ok) {
     if (r.kind === 'signed_out') { deskEndSession(); return r; }
+    if (r.kind === 'stale') {
+      deskRender();
+      const c = await deskDtAsk3({ title: 'Ce plan a changé ailleurs', text: `« ${r.current?.name || dt.draft.name} » a été modifié depuis un autre appareil (l'app iPhone) après son ouverture ici. Recharger prend sa version et perd tes changements d'ici ; Garder ma version remplace la sienne.`,
+        a: ['reload', 'Recharger'], b: ['keep', 'Garder ma version'] });
+      if (c === 'keep') return deskDtSave({ quiet, force: true });
+      if (c === 'reload') {
+        await deskDtLoadAcc({ force: true });
+        const plan = dt.acc?.dietPlans?.[dt.id];
+        if (plan) { deskDtUse({ key: dt.key, ctx: dt.ctx, id: dt.id, plan, src: 'account' }); deskRender(); deskToast('Version du compte rechargée'); }
+      }
+      return r;
+    }
     if (!quiet) deskToast(deskDtErr(r.kind));
     deskRender();
     return r;
   }
-  Object.assign(dt, { acc: r.acc, accAt: Date.now() });
+  Object.assign(dt, { acc: r.acc, accAt: Date.now(), baseAt: r.result.plan.updatedAt });
   deskDocCache.at = 0;   // « Envoyer un plan » de l'onglet Nutrition relit mon compte
-  dt.saved = deskDtSnap(dt.draft); dt.fresh = false;
-  if (dt.src !== 'sent') dt.src = 'account';
+  dt.saved = deskDtSnap(dt.draft); dt.fresh = false; dt.src = 'account';
   // Plan neuf de l'onglet Nutrition : l'adresse prend son identifiant (sans nouvel écran)
   if (dt.ctx?.kind === 'student' && /\/nutrition\/new$/.test(location.hash)) {
     const h = `#/eleve/${encodeURIComponent(dt.ctx.sid)}/nutrition/${dt.id}`;
@@ -347,8 +342,38 @@ async function deskDtSave({ quiet = false } = {}) {
   if (!quiet) deskToast(`Plan « ${dt.draft.name} » enregistré`);
   return r;
 }
+// Version d'un élève gardée comme un NOUVEAU plan (« Sèche (lea) ») : mon plan modèle n'est jamais remplacé par elle
+async function deskDtSaveCopy() {
+  if (!dt.draft || dt.busy || dt.src !== 'sent' || !deskDtCanSave()) return;
+  deskDtCommitFocused();
+  const who = deskChatRow(dt.ctx?.sid)?.name || 'élève';
+  if (!dt.copyId) {
+    const n = deskDtNew(dt.acc, 'x');
+    if (n.kind) { deskToast(deskDtErr(n.kind)); return; }
+    dt.copyId = n.id;
+  }
+  const copy = { ...deskDtClone(dt.draft), name: dietText(`${dt.draft.name.slice(0, DIET_NAME_MAX - who.length - 3)} (${who})`, DIET_NAME_MAX) };
+  dt.busy = true; deskRender();
+  const r = await deskWriteDiet(deskDtOpSave(dt.copyId, copy));
+  dt.busy = false;
+  if (!r.ok) { if (r.kind === 'signed_out') { deskEndSession(); return; } deskToast(deskDtErr(r.kind)); deskRender(); return; }
+  Object.assign(dt, { acc: r.acc, accAt: Date.now() });
+  deskDocCache.at = 0;
+  deskRender();
+  deskToast(`Gardé dans tes plans : « ${copy.name} ». Ton plan « ${dt.acc.dietPlans[dt.id]?.name || dt.draft.name} » ne change pas.`);
+}
 
-// Envoi : enregistré d'abord dans mes plans (avec l'accord), puis au format de l'app à chacun (file de l'app)
+// Échecs d'un envoi groupé, par raison : « Ton élève doit d'abord accepter… : karim, ines. Hors ligne : tom. »
+function deskDtFailText(res, ids) {
+  const nameOf = u => deskChatRow(u)?.name || 'élève';
+  const groups = new Map();
+  for (const f of res.failed) { const t = coachErrorText(f.kind); groups.set(t, [...(groups.get(t) || []), f.uid]); }
+  const left = ids.filter(u => !res.sent.includes(u) && !res.failed.some(f => f.uid === u));
+  if (left.length) { const t = res.rate ? coachErrorText('send_rate') : 'Pas envoyé :'; groups.set(t, [...(groups.get(t) || []), ...left]); }
+  return [...groups].map(([why, us]) => `${why.replace(/\.$/, '')} : ${us.map(nameOf).join(', ')}.`).join(' ');
+}
+// Envoi au format de l'app à chacun (file de l'app). Un de mes plans est d'abord enregistré (avec l'accord) ; la version
+// d'un élève ne l'est jamais (elle ne remplace pas mon plan modèle)
 async function deskDtSend(ids) {
   deskDtCommitFocused();
   const v = deskDtPayload(dt.id, dt.draft);
@@ -356,25 +381,27 @@ async function deskDtSend(ids) {
   const limit = coachSendLimit(view.dash?.rows.length || 0);
   if (ids.length > limit) { deskToast(`La limite est de ${limit} envois sur 24 heures (30, plus 2 par élève) : décoche ${plural(ids.length - limit, 'élève', 'élèves')}.`); return; }
   let saved = null;
-  if (dt.acc?.consent && deskDtDirty()) saved = await deskDtSave({ quiet: true });
+  if (dt.src !== 'sent' && deskDtCanSave() && deskDtDirty()) {
+    saved = await deskDtSave({ quiet: true });
+    if (saved.kind === 'stale') return;   // le coach a choisi : rien ne part tant qu'il n'a pas tranché
+  }
   dt.busy = true; deskRender();
   const res = await coachSendQueue(ids, uid => deskSendProg(uid, v.progId, v.data));
   dt.busy = false;
   if (res.failed.some(f => f.kind === 'signed_out')) { deskEndSession(); return; }
   const sid = dt.ctx?.kind === 'student' ? dt.ctx.sid : null;
   if (sid && res.sent.includes(sid)) {
-    if (dt.src === 'sent') { dt.sentAt = Date.now(); if (!dt.acc?.consent) dt.saved = deskDtSnap(dt.draft); }
+    if (dt.src === 'sent') { dt.sentAt = Date.now(); dt.saved = deskDtSnap(dt.draft); }
     nt.at = 0;
   }
+  if (!deskDtCanSave() && dt.src !== 'sent' && res.sent.length) dt.saved = deskDtSnap(dt.draft);
   deskRender();
   const nameOf = u => deskChatRow(u)?.name || 'élève';
   const keep = saved && !saved.ok ? ` (pas enregistré dans tes plans : ${deskDtErr(saved.kind)})` : '';
   if (!res.failed.length && !res.left) deskToast(`« ${v.data.diet.name} » envoyé à ${res.sent.length === 1 ? nameOf(res.sent[0]) : plural(res.sent.length, 'élève', 'élèves')}${keep}`);
   else {
-    const why = res.rate ? coachErrorText('send_rate') : coachErrorText(res.failed[0]?.kind);
-    const missed = [...res.failed.map(f => f.uid), ...ids.filter(u => !res.sent.includes(u) && !res.failed.some(f => f.uid === u))];
     await deskConfirm({ title: res.sent.length ? `Envoyé à ${res.sent.length} sur ${ids.length}` : 'Rien n\'a été envoyé',
-      text: `${why} Pas reçu : ${missed.map(nameOf).join(', ')}.${keep}`, ok: 'OK', cancel: false });
+      text: `${deskDtFailText(res, ids)}${keep}`, ok: 'OK', cancel: false });
   }
   deskRefresh({ force: true });
 }
@@ -386,28 +413,6 @@ async function deskDtSendMany() {
   const ids = await deskPickStudents({ title: `Envoyer « ${dt.draft.name} »`,
     text: `Les élèves cochés reçoivent ce plan ; un plan déjà envoyé sous ce nom est remplacé chez eux. Il leur faut avoir accepté les plans de leur coach dans l'app.${far.length ? ` Loin de l'objectif : ${far.join(' ; ')}` : ''}`, preset: sid ? [sid] : [] });
   if (ids?.length) await deskDtSend(ids);
-}
-
-async function deskDtNewPlan() {
-  const acc = dt.acc || await deskDtLoadAcc();
-  const n = deskDtNew(acc || { dietPlans: {} }, 'Plan de nutrition');
-  if (n.kind) { deskToast(deskDtErr(n.kind)); return; }
-  deskDtUse({ key: `lib:${n.id}`, ctx: { kind: 'lib' }, id: n.id, plan: n.plan, fresh: true, src: 'new' });
-  location.hash = `#/plans-diete/${n.id}`;
-  setTimeout(() => { const i = document.getElementById('dt-name'); if (i) { i.focus(); i.select(); } }, 0);
-}
-async function deskDtDuplicateFrom(id) {
-  const acc = dt.acc;
-  const c = deskDtDuplicate(acc, id);
-  if (c.kind) { deskToast(deskDtErr(c.kind)); return; }
-  dt.busy = true; deskRender();
-  const r = await deskWriteDiet(deskDtOpSave(c.id, c.plan));
-  dt.busy = false;
-  if (!r.ok) { deskToast(deskDtErr(r.kind)); deskRender(); return; }
-  Object.assign(dt, { acc: r.acc, accAt: Date.now() });
-  deskDocCache.at = 0;
-  deskToast(`Copie enregistrée : « ${c.plan.name} »`);
-  location.hash = `#/plans-diete/${c.id}`;
 }
 
 // Champs (data-dt-f) : la frappe change le brouillon aussitôt (macros en direct) ; commit : le champ est quitté
@@ -476,11 +481,12 @@ document.addEventListener('change', e => {
 document.addEventListener('keydown', e => {
   const t = e.target;
   if (e.key === 'Enter' && t.dataset?.dtF && t.tagName === 'INPUT') { e.preventDefault(); deskDtField(t, true); deskPgRenderSafe(); return; }
-  if (!dt.draft || !(e.ctrlKey || e.metaKey) || e.altKey || document.querySelector('dialog[open]')) return;
+  if (!deskDtOnScreen() || !(e.ctrlKey || e.metaKey) || e.altKey || document.querySelector('dialog[open]')) return;
   const k = e.key.toLowerCase();
-  if (k === 's') { e.preventDefault(); if (dt.acc?.consent && deskDtDirty()) deskDtSave(); return; }
-  // Annuler du navigateur dans un champ ; ailleurs, celui du plan
-  if (t.matches?.('input, textarea, select')) return;
+  if (k === 's') { e.preventDefault(); if (deskDtCanSave() && dt.src !== 'sent' && deskDtDirty()) deskDtSave(); return; }
+  // Dans un champ de l'éditeur aussi : chaque frappe change déjà le plan (et le rendu efface l'historique du
+  // navigateur) ; l'annulation du plan remet le champ comme avant la saisie. Champs hors éditeur : le navigateur
+  if (t.matches?.('input, textarea, select') && !t.dataset?.dtF) return;
   if (k === 'z') { e.preventDefault(); deskDtUndoRedo(e.shiftKey); }
   else if (k === 'y') { e.preventDefault(); deskDtUndoRedo(true); }
 });
@@ -504,23 +510,12 @@ document.addEventListener('click', async e => {
   if (!el) return;
   if (el.getAttribute('aria-disabled') === 'true') { e.preventDefault(); return; }
   const a = el.dataset.dt, mealId = el.dataset.meal, itemId = el.dataset.item;
-  if (a === 'reload') { deskDtLoadAcc({ force: true }).then(() => deskRender()); return; }
-  if (a === 'new') { deskDtNewPlan(); return; }
-  if (a === 'dup') { deskDtDuplicateFrom(el.dataset.id); return; }
-  if (a === 'food-rm') {
-    const f = dt.acc?.dietFoods.find(x => x.id === el.dataset.id);
-    if (!f || !(await deskConfirm({ title: `Retirer ${foodName(f.name)} de Mes aliments ?`, text: 'Les plans qui l\'utilisent gardent ses valeurs.', ok: 'Retirer', danger: true }))) return;
-    const r = await deskWriteDiet(deskDtOpRemoveFood(f.id));
-    if (!r.ok) { deskToast(deskDtErr(r.kind)); return; }
-    Object.assign(dt, { acc: r.acc, accAt: Date.now() });
-    deskRender(); deskToast(`${foodName(f.name)} retiré de Mes aliments`);
-    return;
-  }
   if (a === 'edit-sent' || a === 'new-for') return;   // liens (href) de l'onglet Nutrition
   if (!dt.draft) return;
   const day = deskDtDayObj();
   if (a === 'undo' || a === 'redo') { deskDtUndoRedo(a === 'redo'); return; }
   if (a === 'save') { deskDtSave(); return; }
+  if (a === 'save-copy') { deskDtSaveCopy(); return; }
   if (a === 'send') { if (dt.ctx?.kind === 'student') deskDtSend([dt.ctx.sid]); return; }
   if (a === 'send-many') { deskDtSendMany(); return; }
   if (a === 'delete') {
@@ -656,295 +651,3 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
   deskDtMoveSay(g.dataset.dtGrip, to);
 });
-
-// ── Dialogues ───────────────────────────────────────────────
-
-// Dialogue modal hors de #app (jamais effacé par un rendu) ; onClick(bouton data-p), onClose
-function deskDtDialog(cls, label) {
-  const dlg = document.createElement('dialog');
-  dlg.className = `confirm ${cls}`;
-  dlg.setAttribute('aria-label', label);
-  document.body.appendChild(dlg);
-  dlg.addEventListener('close', () => dlg.remove());
-  return dlg;
-}
-
-// Jours à cocher (copier un repas ou un jour) → [index] ou null
-function deskDtPickDays(plan, except, title, text) {
-  return new Promise(resolve => {
-    const dlg = deskDtDialog('choose', title);
-    const days = dietPlanDays(plan).map((_, i) => i).filter(i => i !== except);
-    const on = new Set(days.length === 1 ? days : []);
-    const paint = () => {
-      dlg.querySelector('.ch-list').innerHTML = days.map(i => `<button type="button" role="checkbox" class="row ch-o" id="pd-${i}" data-v="${i}" aria-checked="${on.has(i)}">
-        <span class="circ" aria-hidden="true">${deskIcon('check', 'xs')}</span><span class="grow">${esc(dietDayName(plan, i))}<span class="t2 blk num">${esc(`${dtN(dietPlanMacros(dietDayObj(plan, i)).kcal)} kcal`)}</span></span></button>`).join('');
-      const go = dlg.querySelector('[data-cf="yes"]');
-      go.disabled = !on.size;
-      go.textContent = on.size ? `Copier vers ${plural(on.size, 'jour', 'jours')}` : 'Copier';
-      frTypoNode(dlg);
-    };
-    dlg.innerHTML = `<h2 class="dlg-t">${esc(title)}</h2><p class="dlg-p">${esc(text)}</p><div class="group ch-list" role="group" aria-label="Jours"></div>
-      <div class="dlg-f"><button type="button" class="btn" data-cf="no">Annuler</button><button type="button" class="btn fill" data-cf="yes">Copier</button></div>`;
-    paint();
-    let answer = null;
-    dlg.addEventListener('click', e => {
-      const o = e.target.closest('.ch-o');
-      if (o) { const v = Number(o.dataset.v); if (on.has(v)) on.delete(v); else on.add(v); paint(); dlg.querySelector(`#pd-${v}`)?.focus(); return; }
-      const b = e.target.closest('[data-cf]');
-      if (!b) return;
-      answer = b.dataset.cf === 'yes' ? [...on] : null;
-      dlg.close();
-    });
-    dlg.addEventListener('close', () => resolve(answer));
-    dlg.showModal();
-    dlg.querySelector('.ch-o')?.focus();
-  });
-}
-
-// Équivalents d'un aliment (même règle et même liste que l'app : swapCandidates), quantité déjà calculée
-async function deskDtSwapDialog(mealId, itemId) {
-  const it = deskDtItem(deskDtDayObj(), mealId, itemId);
-  if (!it) return;
-  await loadFoods(DESK_FOODS_URL);
-  const cands = swapCandidates(it, { own: dt.acc?.dietFoods || [] }), ref = dietItemMacros(it);
-  const dlg = deskDtDialog('dt-dlg', `Équivalents de ${foodName(it.name)}`);
-  const rows = cands.map((c, i) => {
-    const d = Math.round(c.macros.kcal) - Math.round(ref.kcal), tag = foodCookTag(c.food);
-    return `<button type="button" class="row ch-o dt-cand" data-c="${i}"><span class="grow"><b>${esc(foodName(c.food.name))}</b>
-      <span class="t2 blk num"><b>${esc(`${c.g} g${tag ? ` ${tag}` : ''}`)}</b>${esc(` · ${dtN(c.macros.kcal)} kcal · ${dtMacros(c.macros)}`)}</span></span><span class="v num">${esc(swapDeltaText(d, 'kcal'))}</span></button>`;
-  }).join('');
-  dlg.innerHTML = `<h2 class="dlg-t">Équivalents</h2>
-    <p class="dlg-p"><b>${esc(foodName(it.name))}</b> · ${esc(`${dietQtyText(it)} · ${dtN(ref.kcal)} kcal · ${dtMacros(ref)}`)}</p>
-    <p class="dlg-p">${esc(`${swapRuleText(it)}, quantité déjà calculée. Remplace l'aliment dans ce repas du plan.`)}</p>
-    ${cands.length ? `<div class="group dt-list" role="group" aria-label="Équivalents proposés">${rows}</div>` : `<p class="empty">${esc(foodDb ? 'Aucun équivalent assez proche dans la base pour cet aliment.' : 'Base d\'aliments indisponible pour l\'instant.')}</p>`}
-    <p class="gfoot">P protéines · G glucides · L lipides</p>
-    <div class="dlg-f"><button type="button" class="btn" data-cf="no">Fermer</button></div>`;
-  frTypoNode(dlg);
-  dlg.addEventListener('click', e => {
-    const b = e.target.closest('[data-c]');
-    if (b) {
-      const c = cands[Number(b.dataset.c)];
-      const nu = deskDtChange(() => deskDtSwap(deskDtDayObj(), mealId, itemId, c), { say: `Remplacé par ${foodName(c.food.name)}, ${c.g} grammes. Ctrl + Z pour annuler`, render: false });
-      dlg.close(); deskRender();
-      if (nu) deskToast(`Remplacé par ${foodName(c.food.name)}`);
-      document.getElementById(`dt-q-${dtIdPart(mealId)}-${dtIdPart(itemId)}`)?.focus();
-      return;
-    }
-    if (e.target.closest('[data-cf]')) dlg.close();
-  });
-  dlg.showModal();
-  (dlg.querySelector('[data-c]') || dlg.querySelector('[data-cf]')).focus();
-}
-
-// Ajouter un aliment à un repas : recherche (Ciqual et Mes aliments), quantité, création d'un aliment perso, code-barres
-// saisi (Open Food Facts). « Ajouter et continuer » garde le dialogue ouvert pour l'aliment suivant.
-function deskDtPick(mealId) {
-  const meal = deskDtMeal(deskDtDayObj(), mealId);
-  if (!meal) return;
-  deskDtFoods();
-  const dlg = deskDtDialog('dt-dlg dt-pick', `Ajouter un aliment à ${meal.name}`);
-  const st = { step: 'search', q: '', results: [], active: 0, food: null, units: [], mode: -1, query: '', code: '', off: null, kept: true };
-  const own = () => dt.acc?.dietFoods || [];
-  const foot = btns => `<div class="dlg-f">${btns}</div>`;
-  const header = `<h2 class="dlg-t">${esc(`Ajouter à ${meal.name}`)}</h2>`;
-  const go = (step, focus) => { st.step = step; paint(); const f = focus && dlg.querySelector(focus); if (f) { f.focus(); f.select?.(); } };
-  const list = () => {
-    if (dt.foods !== 'ready' && !own().length) return `<p class="dlg-p">${dt.foods === 'error' ? 'Base d\'aliments indisponible. Tu peux créer ton aliment.' : 'Chargement de la table Ciqual…'}</p>`;
-    if (!st.q.trim()) return `<p class="dlg-p">${esc(`Tape un aliment : « riz », « poulet », « crème de riz ».${foodDb ? ` ${fmtNum(foodDb.byCode.size)} aliments de la table Ciqual, accents et majuscules ignorés.` : ''}`)}</p>`;
-    const create = foodSearchExact(st.q, st.results) ? '' : `<li role="option" id="dtp-create" class="row ch-o dt-cand" data-p="create-typed" aria-selected="false">${deskIcon('plus', 'sm')}<span class="grow"><b>${esc(`Créer « ${dietCutName(st.q)} »`)}</b><span class="t2 blk">Valeurs de l'étiquette pour 100 g</span></span></li>`;
-    if (!st.results.length) return `<ul class="group dt-list" role="listbox" id="dtp-list" aria-label="Résultats">${create}</ul><p class="dlg-p">${esc(`Rien pour « ${st.q} » dans la table Ciqual.`)}</p>`;
-    return `<ul class="group dt-list" role="listbox" id="dtp-list" aria-label="Résultats">${st.results.map((x, i) => {
-      const tag = foodCookTag(x.food);
-      return `<li role="option" id="dtp-o-${i}" class="row ch-o dt-cand${i === st.active ? ' on' : ''}" data-p="pick" data-i="${i}" aria-selected="${i === st.active}"><span class="grow"><b>${esc(foodName(x.food.name))}</b>
-        <span class="t2 blk num">${esc([tag, x.own ? 'Mon aliment' : '', x.food.of ? `Valeurs Ciqual : ${foodName(x.food.of)}` : '', `100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · ${dtMacros(x.food.per)}`].filter(Boolean).join(' · '))}</span></span></li>`;
-    }).join('')}${create}</ul>`;
-  };
-  const qtyHtml = () => {
-    const f = st.food, units = st.units, v = st.mode < 0 ? (st.g ?? 100) : (st.n ?? 1);
-    const q = dietQtyValue(units, st.mode, String(v)), m = q.err ? null : dietItemMacros({ g: q.g, per: f.per });
-    const twin = st.twin ? `<p class="dt-note" role="note"><span>${esc(`Pesé ${foodCookTag(st.twin) === 'cuit' ? 'cuit' : 'cru'} ? Les valeurs ne sont pas les mêmes.`)}</span> <button type="button" class="btn link" data-p="twin">${esc(`Prendre ${foodName(st.twin.name)}`)}</button></p>` : '';
-    return `${header}<p class="dlg-p"><b>${esc(foodName(f.name))}</b><br><span class="num">${esc(`100 g · ${f.per.k} kcal · ${dtMacros(f.per)}`)}</span></p>
-      ${units.length ? `<div class="seg" role="radiogroup" aria-label="Quantité en"><button type="button" role="radio" aria-checked="${st.mode < 0}" class="${st.mode < 0 ? 'on' : ''}" data-p="mode" data-v="-1">Grammes</button>${units.map((u, i) => `<button type="button" role="radio" aria-checked="${st.mode === i}" class="${st.mode === i ? 'on' : ''}" data-p="mode" data-v="${i}">${esc(dietQtyLabel(u))}</button>`).join('')}</div>` : ''}
-      <div class="dt-qrow"><button type="button" class="btn ic" data-p="step" data-v="-1" aria-label="Moins">−</button>
-        <label class="sr" for="dtp-qty">${esc(st.mode < 0 ? 'Quantité en grammes' : `Nombre de ${units[st.mode].pl}`)}</label>
-        <input id="dtp-qty" class="in w dt-qin" inputmode="decimal" autocomplete="off" value="${esc(fmtNum(v, 1))}"><span class="muted">${esc(st.mode < 0 ? 'g' : (v >= 2 ? units[st.mode].pl : units[st.mode].u))}</span>
-        <button type="button" class="btn ic" data-p="step" data-v="1" aria-label="Plus">+</button></div>
-      <p class="dlg-p num" id="dtp-eq" aria-live="polite">${esc(q.err ? q.err : `${q.por ? `${portionText(q.por.n, q.por)} · ` : ''}${q.g} g · ${dtN(m.kcal)} kcal · ${dtMacros(m)}`)}</p>
-      ${st.mode >= 0 && units[st.mode].about ? `<p class="gfoot">${esc(`1 ${units[st.mode].u} : environ ${fmtNum(units[st.mode].g)} g, poids moyen.`)}</p>` : ''}
-      ${twin}${st.off ? `<p class="gfoot">${esc(DESK_DT_OFF)}${st.kept ? '' : ` ${DESK_DT_ERRORS.foods_full}`}</p>` : ''}
-      ${foot(`<button type="button" class="btn" data-p="back">Retour</button><span class="grow"></span><button type="button" class="btn" data-p="add-more">Ajouter et continuer</button><button type="button" class="btn fill" data-p="add">Ajouter</button>`)}`;
-  };
-  const createHtml = () => {
-    const fld = (id, label, unit, ph = '0') => `<label class="dt-tf"><span>${esc(label)}</span><input class="in w" id="dtp-${id}" inputmode="decimal" autocomplete="off" placeholder="${ph}"><span class="muted">${unit}</span></label>`;
-    return `<h2 class="dlg-t">Nouvel aliment</h2>
-      <div class="fld sm"><label for="dtp-name">Nom</label><input id="dtp-name" maxlength="${DIET_FOOD_NAME_MAX}" autocomplete="off" value="${esc(st.newName || '')}" placeholder="Skyr nature"></div>
-      ${st.code ? `<p class="gfoot num">${esc(`Code-barres ${barcodeShown(st.code)}, gardé avec l'aliment.`)}</p>` : ''}
-      <p class="dlg-p">Recopie les valeurs de l'étiquette pour 100 g. Sans énergie, elle est calculée : 4 kcal par gramme de protéines ou de glucides, 9 de lipides.</p>
-      <div class="group dt-tg">${fld('k', 'Énergie', 'kcal')}${fld('p', 'Protéines', 'g')}${fld('c', 'Glucides', 'g')}${fld('f', 'Lipides', 'g')}${fld('portion', 'Une portion', 'g', 'Facultatif')}</div>
-      <div class="fld sm"><label for="dtp-fam">Famille, pour les équivalences</label>${deskCkSelectHtml('dtp-fam', 'Famille', [['', 'Selon ses macros'], ...DIET_FAMS.filter(x => x !== 'a').map(x => [x, FOOD_FAM_LABEL[x]])], '')}</div>
-      <p class="gfoot">L'énergie de l'étiquette compte aussi les fibres et l'alcool : elle peut dépasser ce calcul. L'aliment est gardé dans Mes aliments, ici et dans l'app.</p>
-      <p class="err" id="dtp-err" role="alert"></p>
-      ${foot('<button type="button" class="btn" data-p="back">Retour</button><span class="grow"></span><button type="button" class="btn fill" data-p="create-ok">Créer</button>')}`;
-  };
-  const OFF_TEXT = { unknown: 'Ce code-barres n\'est pas dans Open Food Facts. Crée l\'aliment avec les valeurs de l\'étiquette.', incomplete: 'Il manque des valeurs pour 100 g dans Open Food Facts. Recopie-les depuis l\'étiquette.',
-    offline: 'La recherche demande une connexion. Réessaie, ou crée l\'aliment avec l\'étiquette.', slow: 'Open Food Facts ne répond pas pour ce produit. Réessaie, ou crée l\'aliment avec l\'étiquette.',
-    error: 'Open Food Facts ne répond pas. Réessaie dans un moment, ou crée l\'aliment avec l\'étiquette.', bad: 'Ce code ne tient pas. Un code-barres a 13 chiffres, parfois 8 ou 12.' };
-  const barcodeHtml = () => `<h2 class="dlg-t">Code-barres</h2>
-      <p class="dlg-p">Le scan se fait dans l'app iPhone. Ici, tape les chiffres écrits sous les barres du paquet : le produit est cherché sur Open Food Facts.</p>
-      <form class="pg-add" data-p-form="code"><label class="sr" for="dtp-code">Code-barres</label><input id="dtp-code" class="in wide num" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="3017620422003" value="${esc(st.codeRaw || '')}">
-        <button class="btn tint" ${st.busy ? 'disabled aria-busy="true"' : ''}>Rechercher</button></form>
-      <p class="dlg-p" role="status">${esc(st.busy ? 'Recherche du produit…' : st.offKind ? OFF_TEXT[st.offKind] || OFF_TEXT.error : '')}</p>
-      ${st.offKind && st.offKind !== 'bad' ? '<button type="button" class="btn" data-p="create-code">Créer l\'aliment</button>' : ''}
-      <p class="gfoot">${esc(DESK_DT_OFF)}</p>
-      ${foot('<button type="button" class="btn" data-p="back">Retour</button>')}`;
-  const paint = () => {
-    if (st.step === 'search') {
-      dlg.innerHTML = `${header}<div class="search"><span aria-hidden="true">${deskIcon('search', 'sm')}</span><input id="dtp-q" type="search" maxlength="${SEARCH_MAX}" role="combobox" aria-autocomplete="list" aria-expanded="${st.results.length > 0}" aria-controls="dtp-list" ${st.results.length ? `aria-activedescendant="dtp-o-${st.active}"` : ''} placeholder="Rechercher un aliment" aria-label="Rechercher un aliment" autocomplete="off" value="${esc(st.q)}"></div>
-        <div class="dt-res" id="dtp-res">${list()}</div>
-        <p class="sr" id="dtp-count" aria-live="polite"></p>
-        <div class="ck-acts dt-pick-alt"><button type="button" class="btn link" data-p="barcode">Produit de marque ? Saisir le code-barres</button><button type="button" class="btn link" data-p="create">${deskIcon('plus', 'sm')}Créer un aliment</button></div>
-        ${foot('<button type="button" class="btn" data-p="close">Fermer</button>')}`;
-    } else if (st.step === 'qty') dlg.innerHTML = qtyHtml();
-    else if (st.step === 'create') dlg.innerHTML = createHtml();
-    else dlg.innerHTML = barcodeHtml();
-    frTypoNode(dlg);
-  };
-  const repaintList = () => {
-    const res = dlg.querySelector('#dtp-res');
-    if (!res) return;
-    res.innerHTML = list();
-    frTypoNode(res);
-    const q = dlg.querySelector('#dtp-q');
-    q.setAttribute('aria-expanded', String(st.results.length > 0));
-    if (st.results.length) q.setAttribute('aria-activedescendant', `dtp-o-${st.active}`); else q.removeAttribute('aria-activedescendant');
-    dlg.querySelector(`#dtp-o-${st.active}`)?.scrollIntoView({ block: 'nearest' });
-  };
-  const choose = (food, query = '', { twin = true } = {}) => {
-    st.food = food; st.units = dietQtyUnits(food); st.mode = st.units.length ? 0 : -1; st.g = 100; st.n = 1; st.query = query;
-    st.twin = twin && !foodQuerySaysCook(query) && food.code ? foodCookTwin(food) : null;
-    go('qty', '#dtp-qty');
-  };
-  const qtyRead = () => {
-    const raw = dlg.querySelector('#dtp-qty')?.value ?? '';
-    return dietQtyValue(st.units, st.mode, raw);
-  };
-  const add = more => {
-    const q = qtyRead();
-    if (q.err) { dlg.querySelector('#dtp-eq').textContent = q.err; dlg.querySelector('#dtp-qty').focus(); return; }
-    const r = deskDtChange(() => deskDtAddItem(deskDtDayObj(), mealId, st.food, q.g, q.por), { render: false });
-    if (r && !r.ok) { deskToast(DESK_DT_ERRORS[r.kind] || deskErrorText(r.kind)); return; }
-    deskRender();
-    deskAnnounce(`Ajouté à ${meal.name} : ${foodName(st.food.name)}, ${q.g} grammes`);
-    if (more && deskDtMeal(deskDtDayObj(), mealId)?.items.length < DIET_ITEM_MAX) { st.q = ''; st.results = []; st.off = null; go('search', '#dtp-q'); deskToast(`Ajouté : ${foodName(st.food.name)}`); }
-    else dlg.close();
-  };
-  // Aliment perso : gardé dans Mes aliments (avec l'accord), le plan le reçoit dans tous les cas
-  const keep = async (op, food) => {
-    if (!dt.acc?.consent) { deskToast('Aliment ajouté au plan, pas gardé dans Mes aliments (copie des plans sur ton compte désactivée).'); return food; }
-    const r = await deskWriteDiet(op);
-    if (r.ok) { Object.assign(dt, { acc: r.acc, accAt: Date.now() }); return r.result.food; }
-    deskToast(deskDtErr(r.kind));
-    return food;
-  };
-  const lookup = async () => {
-    const raw = dlg.querySelector('#dtp-code')?.value || '';
-    st.codeRaw = raw;
-    const code = normBarcode(raw);
-    if (!code) { st.offKind = 'bad'; paint(); dlg.querySelector('#dtp-code').focus(); return; }
-    st.code = code;
-    const local = dietFoodByCode(own(), code);
-    if (local) { st.off = local.src === 'off'; st.kept = true; choose(dietOwnPick(local), '', { twin: false }); return; }
-    st.busy = true; st.offKind = null; paint();
-    const r = await offLookup(code, { userAgent: offUserAgent(null, 'web') });
-    st.busy = false;
-    if (!dlg.isConnected) return;
-    if (r.status === 'found') {
-      const full = dietScanFull({ dietFoods: own() }, r.food);
-      st.kept = !full && !!dt.acc?.consent;
-      const saved = full ? r.food : await keep(deskDtOpKeepScanned(r.food), r.food);
-      st.off = true;
-      choose(dietOwnPick(saved), '', { twin: false });
-      return;
-    }
-    st.offKind = OFF_TEXT[r.status] ? r.status : 'error';
-    st.newName = r.status === 'incomplete' ? r.name || '' : '';
-    paint();
-    dlg.querySelector('[data-p="create-code"]')?.focus();
-  };
-  dlg.addEventListener('input', e => {
-    if (e.target.id === 'dtp-q') {
-      st.q = e.target.value; st.active = 0;
-      st.results = searchFoods(st.q, { own: own(), limit: 40 });
-      repaintList();
-      clearTimeout(st.countT);
-      st.countT = setTimeout(() => { const c = dlg.querySelector('#dtp-count'); if (c) c.textContent = !st.q.trim() ? '' : st.results.length ? plural(st.results.length, 'résultat', 'résultats') : 'Aucun résultat'; }, 400);
-    } else if (e.target.id === 'dtp-qty') {
-      const q = qtyRead(), el = dlg.querySelector('#dtp-eq');
-      if (st.mode < 0) st.g = q.g ?? st.g; else st.n = q.por?.n ?? st.n;
-      const m = q.err ? null : dietItemMacros({ g: q.g, per: st.food.per });
-      el.textContent = q.err ? q.err : `${q.por ? `${portionText(q.por.n, q.por)} · ` : ''}${q.g} g · ${dtN(m.kcal)} kcal · ${dtMacros(m)}`;
-      frTypoNode(el);
-    }
-  });
-  dlg.addEventListener('keydown', e => {
-    if (e.target.id === 'dtp-q') {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        if (!st.results.length) return;
-        e.preventDefault();
-        st.active = Math.max(0, Math.min(st.results.length - 1, st.active + (e.key === 'ArrowDown' ? 1 : -1)));
-        repaintList();
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        const hit = st.results[st.active];
-        if (hit) choose(hit.food, st.q);
-        else if (st.q.trim()) { st.newName = dietCutName(st.q).replace(/^./, c => c.toUpperCase()); st.code = ''; go('create', '#dtp-k'); }
-      }
-    } else if (e.target.id === 'dtp-qty' && e.key === 'Enter') { e.preventDefault(); add(e.shiftKey); }
-    else if (e.key === 'Enter' && st.step === 'create' && e.target.tagName === 'INPUT') { e.preventDefault(); dlg.querySelector('[data-p="create-ok"]').click(); }
-  });
-  dlg.addEventListener('submit', e => { if (e.target.closest('[data-p-form="code"]')) { e.preventDefault(); lookup(); } });
-  dlg.addEventListener('click', async e => {
-    const b = e.target.closest('[data-p]');
-    if (!b) return;
-    const p = b.dataset.p;
-    if (p === 'close') dlg.close();
-    else if (p === 'pick') { const hit = st.results[Number(b.dataset.i)]; if (hit) choose(hit.food, st.q); }
-    else if (p === 'create' || p === 'create-typed') { st.newName = p === 'create-typed' ? dietCutName(st.q).replace(/^./, c => c.toUpperCase()) : ''; st.code = ''; go('create', p === 'create-typed' ? '#dtp-k' : '#dtp-name'); }
-    else if (p === 'create-code') { go('create', '#dtp-name'); }
-    else if (p === 'barcode') { st.offKind = null; st.code = ''; go('barcode', '#dtp-code'); }
-    else if (p === 'back') { st.offKind = null; go('search', '#dtp-q'); repaintList(); }
-    else if (p === 'twin' && st.twin) choose(st.twin, '', { twin: false });
-    else if (p === 'mode') {
-      const v = Number(b.dataset.v), q = qtyRead(), g = q.g ?? (st.mode < 0 ? st.g : 100);
-      st.mode = v;
-      if (v < 0) st.g = g; else st.n = portionClampN(g / st.units[v].g, st.units[v]);
-      paint(); dlg.querySelector(`[data-p="mode"][data-v="${v}"]`)?.focus();
-    } else if (p === 'step') {
-      const inp = dlg.querySelector('#dtp-qty'), cur = num(inp.value, 0, 100000) ?? 0, d = Number(b.dataset.v);
-      if (st.mode < 0) st.g = Math.max(1, Math.min(DIET_G_MAX, Math.round(cur / 10) * 10 + d * 10));
-      else st.n = portionClampN(cur + d * portionStep(st.units[st.mode]), st.units[st.mode]);
-      paint(); dlg.querySelector(`[data-p="step"][data-v="${b.dataset.v}"]`)?.focus();
-    } else if (p === 'add' || p === 'add-more') add(p === 'add-more');
-    else if (p === 'create-ok') {
-      const v = id => dlg.querySelector(`#dtp-${id}`)?.value ?? '';
-      const r = dietFoodFromForm({ name: v('name'), k: v('k'), p: v('p'), c: v('c'), f: v('f'), portion: v('portion'), fam: v('fam') }, { code: st.code || null });
-      const err = dlg.querySelector('#dtp-err');
-      dlg.querySelectorAll('[aria-invalid]').forEach(x => x.removeAttribute('aria-invalid'));
-      if (r.err) {
-        err.textContent = r.err;
-        const field = dlg.querySelector(`#dtp-${{ name: 'name', k: 'k', portion: 'portion' }[r.field] || 'p'}`);
-        field?.setAttribute('aria-invalid', 'true'); field?.focus();
-        return;
-      }
-      const full = dietFoodsFull(own(), r.food);
-      st.kept = !full;
-      const saved = full ? (deskToast(DESK_DT_ERRORS.foods_full), r.food) : await keep(deskDtOpKeepFood(r.food), r.food);
-      st.off = null;
-      choose(dietOwnPick(saved), '', { twin: false });
-    }
-  });
-  paint();
-  dlg.showModal();
-  dlg.querySelector('#dtp-q')?.focus();
-  if (dt.foods !== 'ready') loadFoods(DESK_FOODS_URL).then(() => { if (dlg.isConnected && st.step === 'search') { st.results = searchFoods(st.q, { own: own(), limit: 40 }); repaintList(); } });
-}

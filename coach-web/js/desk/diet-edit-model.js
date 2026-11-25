@@ -14,14 +14,18 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const DESK_DT_UNDO_MAX = 80;                  // gestes qu'on peut annuler
-const DESK_DT_DOC_MAX = 900 * 1024;           // profil au-delà duquel l'iPhone n'enverrait plus ses plans (SYNC_PROFILE_MAX_BYTES, js/data/sync.js)
+const DESK_DT_UNDO_MAX = 80;
+const DESK_DT_SYNC_V = 1;                     // version de la fusion des plans que l'iPhone doit connaître (DIET_SYNC_V)                  // gestes qu'on peut annuler
+// Profil au-delà duquel le site n'écrit plus : 800 Ko, une marge sous les 900 Ko où l'iPhone n'enverrait plus aucun de
+// ses plans (SYNC_PROFILE_MAX_BYTES, js/data/sync.js) : il lui reste la place d'y ajouter les siens
+const DESK_DT_DOC_MAX = 800 * 1024;
 const DESK_DT_MODES = [['one', 'Tous les jours pareils'], ['session', 'Entraînement et repos'], ['week', 'Semaine']];
 
 // Partie diète de mon compte : { consent, dietPlans, dietFoods, dietFoodsGone } (nettoyée comme l'app la lit)
 function deskDtAcc(doc) {
   const d = doc && typeof doc === 'object' && !Array.isArray(doc) ? doc : {};
-  return { consent: d.dietConsent?.on === true, dietPlans: cleanDietPlans(d.dietPlans), dietFoods: cleanDietFoods(d.dietFoods),
+  // syncOk : l'iPhone qui a écrit le profil connaît la fusion à trois voies des plans (dietSyncV, js/data/sync.js)
+  return { consent: d.dietConsent?.on === true, syncOk: Number(d.dietSyncV) >= DESK_DT_SYNC_V, dietPlans: cleanDietPlans(d.dietPlans), dietFoods: cleanDietFoods(d.dietFoods),
     dietFoodsGone: cleanDietFoodsGone(d.dietFoodsGone) };
 }
 // Mes plans listés (archivés et plans reçus d'un coach exclus), du plus récemment modifié
@@ -250,15 +254,20 @@ function deskDtFarDays(plan) {
 // ── Écritures sur mon compte : opérations rejouées sur le document relu (deskDtApply) ──
 // Chaque opération reçoit d = { dietPlans, dietFoods, dietFoodsGone } (comme data de l'app) et rend { ok, … } ou { kind }
 
-function deskDtOpSave(id, plan, now = Date.now()) {
+// expectAt : date du plan à l'ouverture du brouillon ; si le plan du compte en a une autre, il a été modifié ailleurs
+// entre-temps (brouillon périmé) : { kind: 'stale', current } et rien n'est écrit
+function deskDtOpSave(id, plan, now = Date.now(), { expectAt } = {}) {
   return d => {
     if (!DIET_ID_RE.test(id)) return { kind: 'server' };
+    const cur = d.dietPlans[id];
+    if (expectAt !== undefined && expectAt !== null && (Number(cur?.updatedAt) || 0) !== expectAt) return { kind: 'stale', current: cur || null };
     const alive = Object.keys(d.dietPlans).filter(k => k !== id && d.dietPlans[k] && d.dietPlans[k].archived !== true);
     if (!d.dietPlans[id] || d.dietPlans[id].archived) { if (alive.length >= DIET_PLAN_MAX_COACH) return { kind: 'plans_full' }; }
     const p = cleanDietPlan(deskDtClone(plan));
     if (!p) return { kind: 'server' };
     delete p.fromCoach; delete p.archived; delete p.dropped;
-    p.updatedAt = now;
+    // Toujours au-delà de la date d'avant (horloge du PC en retard sur l'iPhone) : comme dietTouch de l'app
+    p.updatedAt = Math.max(now, (Number(d.dietPlans[id]?.updatedAt) || 0) + 1);
     d.dietPlans[id] = p;
     return { ok: true, plan: p };
   };
@@ -269,7 +278,7 @@ function deskDtOpArchive(id, now = Date.now()) {
     if (!d.dietPlans[id]) return { kind: 'server' };
     d.dietPlans[id] = deskDtClone(d.dietPlans[id]);
     dietArchivePlan(d, id);
-    d.dietPlans[id].updatedAt = now;
+    dietTouch(d.dietPlans[id], now);
     return { ok: true };
   };
 }
@@ -285,11 +294,12 @@ function deskDtOpRemoveFood(id) { return d => (dietRemoveFood(d, id) ? { ok: tru
 function deskDtApply(rawDoc, op) {
   if (!rawDoc || typeof rawDoc !== 'object' || Array.isArray(rawDoc)) return { ok: false, kind: 'no_doc' };
   if (rawDoc.dietConsent?.on !== true) return { ok: false, kind: 'no_consent' };
+  if (!(Number(rawDoc.dietSyncV) >= DESK_DT_SYNC_V)) return { ok: false, kind: 'old_phone' };
   const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
   const d = { dietPlans: { ...obj(rawDoc.dietPlans) }, dietFoods: Array.isArray(rawDoc.dietFoods) ? rawDoc.dietFoods.slice() : [],
     dietFoodsGone: Array.isArray(rawDoc.dietFoodsGone) ? rawDoc.dietFoodsGone.slice() : [] };
   const result = op(d);
-  if (!result?.ok) return { ok: false, kind: result?.kind || 'server' };
+  if (!result?.ok) return { ok: false, kind: result?.kind || 'server', ...(result?.current !== undefined ? { current: result.current } : {}) };
   const doc = { ...rawDoc, dietPlans: d.dietPlans };
   if (Array.isArray(d.dietFoods) && d.dietFoods.length) doc.dietFoods = d.dietFoods; else delete doc.dietFoods;
   if (Array.isArray(d.dietFoodsGone) && d.dietFoodsGone.length) doc.dietFoodsGone = d.dietFoodsGone; else delete doc.dietFoodsGone;
@@ -304,7 +314,9 @@ const DESK_DT_ERRORS = {
   conflict: 'Ton compte vient d\'être modifié depuis un autre appareil : réessaie dans un instant.',
   plans_full: `${DIET_PLAN_MAX_COACH} plans au plus : supprimes-en un d'abord.`,
   foods_full: `Mes aliments est plein (${DIET_FOODS_MAX}) : l'aliment va au repas sans y être gardé.`,
-  doc_too_big: 'Ton compte est trop lourd pour garder ce plan : supprime des plans dont tu ne te sers plus.',
+  doc_too_big: 'Ton compte approche de sa taille limite : supprime des plans dont tu ne te sers plus avant d\'en garder un nouveau (sinon l\'iPhone ne pourrait plus y copier les siens).',
+  old_phone: 'Mets l\'app à jour sur ton iPhone (et ouvre-la une fois) avant de modifier tes plans ici : une version plus ancienne pourrait remettre ses anciens plans. Tu peux déjà composer et envoyer un plan.',
+  stale: 'Ce plan a été modifié depuis un autre appareil.',
   empty: 'Entre un nom.',
   taken: 'Un repas porte déjà ce nom.',
   full: `${DIET_ITEM_MAX} aliments au plus par repas.`,

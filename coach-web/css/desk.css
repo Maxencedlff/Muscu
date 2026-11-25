@@ -601,7 +601,7 @@ svg.bar { display: block; width: 100%; height: 6px; margin-top: 7px; }
 .dt-src { margin-top: 22px; max-width: 980px; }
 .dt-head { margin-bottom: 10px; }
 .dt-name { font: 700 24px/1.2 var(--font-d); min-height: 48px; max-width: 640px; width: 100%; background: transparent; border-color: transparent; padding: 0 10px; margin-left: -10px; }
-.dt-name:hover { background: var(--fill); }
+@media (hover: hover) { .dt-name:hover { background: var(--fill); } }
 .dt-name:focus { background: var(--cell); }
 .dt-modes { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 12px; }
 .dt-lab { color: var(--label2); font-size: 14px; }

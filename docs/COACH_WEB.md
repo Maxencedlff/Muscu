@@ -26,7 +26,8 @@ coach-web/js/desk/review.js          vague 2 : onglet Bilans de la fiche, liste 
 coach-web/js/desk/chat-model.js, messages.js   vague 4 : Messages (#/messages, onglet Messages de la fiche)
 coach-web/js/desk/prog-model.js, programme.js  vague 4 : onglet Programme (éditeur des séances, envoi à un ou plusieurs)
 coach-web/js/desk/diet-model.js, nutrition.js  vague 4 : onglet Nutrition (plan envoyé, semaine cochée, envoi d'un plan)
-coach-web/js/desk/diet-edit-model.js, diet-editor.js  plans diète : liste (#/plans-diete), éditeur, recherche Ciqual, envoi
+coach-web/js/desk/diet-edit-model.js, diet-editor.js  plans diète : logique pure, éditeur et envoi
+coach-web/js/desk/diet-lib.js, diet-pick.js           plans diète : liste (#/plans-diete) et Mes aliments ; dialogues (recherche Ciqual, code-barres, équivalents)
 coach-web/js/desk/main.js   routes, gestes, clavier, inactivité, confirmation avant de quitter, démarrage (deskStart)
 coach-web/vercel.json       en-têtes du futur déploiement (copié dans dist-coach/ par la construction)
 scripts/build-coach-web.mjs construction : dist-coach/ (npm run coach-web:build)
@@ -511,7 +512,7 @@ d'un plan existant seulement ; l'éditeur n'existait que dans l'app). Rien n'est
 
 « Plans diète » est ouvert dans la barre latérale (nombre de plans) et dans la barre d'onglets (« Diète »).
 
-### Éditeur (js/desk/diet-editor.js ; logique : js/desk/diet-edit-model.js)
+### Éditeur (js/desk/diet-editor.js ; liste : diet-lib.js ; dialogues : diet-pick.js ; logique : diet-edit-model.js)
 - **Repas** : ajouter (nom en double refusé, sans casse ni accents ; 8 au plus), Options (renommer, consigne, Monter,
   Descendre, Dupliquer, Copier vers d'autres jours, Masquer pour un repas de base ou Supprimer), **ordre par
   glisser-déposer** à la poignée (Pointer Events : souris, doigt, stylet ; Échap annule) ou au clavier (flèches, Début,
@@ -539,8 +540,9 @@ d'un plan existant seulement ; l'éditeur n'existait que dans l'app). Rien n'est
 - **Jours** : Tous les jours pareils, Entraînement et repos, Semaine (`dietSetDayMode`, copies du jour 1 aux mêmes
   identifiants) ; jour choisi en tête, type de chaque jour de la semaine, « Copier ce jour vers… », « Mettre pareil sur
   les 7 jours », « Copier vers d'autres jours… » d'un repas.
-- **Annuler / Rétablir** (boutons, Ctrl ou ⌘ + Z, Maj + Z ou Ctrl + Y ; dans un champ, l'annulation du navigateur) :
-  80 gestes, la frappe dans un même champ n'en fait qu'un. Ctrl ou ⌘ + S enregistre.
+- **Annuler / Rétablir** (boutons, Ctrl ou ⌘ + Z, Maj + Z ou Ctrl + Y, aussi dans un champ de l'éditeur : chaque frappe
+  change déjà le plan) : 80 gestes, la frappe dans un même champ n'en fait qu'un. Ctrl ou ⌘ + S enregistre. Raccourcis
+  actifs seulement sur l'écran de l'éditeur ; le brouillon est oublié dès qu'on quitte l'éditeur.
 - Barre collée en bas : état, Annuler, Rétablir, Envoyer à plusieurs élèves, Envoyer à <élève> (onglet de l'élève),
   Enregistrer. Quitter l'éditeur ou fermer l'onglet avec des changements : confirmation.
 - Tactile : cibles de 44 px, rien au survol ; mise en page 2 colonnes à partir de 1240 px (repas | bilan, objectifs,
@@ -554,18 +556,32 @@ d'un plan existant seulement ; l'éditeur n'existait que dans l'app). Rien n'est
 - **Écriture** (`deskWriteDiet`, js/desk/api.js) : une opération (`deskDtOpSave`, `deskDtOpArchive`, `deskDtOpKeepFood`,
   `deskDtOpKeepScanned`, `deskDtOpRemoveFood`) rejouée sur le document relu ; seules les trois clés de la diète changent ;
   mise à jour **conditionnée par `updated_at`** (posé par le serveur) : si l'iPhone a écrit entre-temps, rien n'est
-  écrasé, on relit et on rejoue (3 essais, sinon « réessaie »). Plafonds de l'app : 100 plans vivants, 200 aliments,
-  900 Ko de profil (au-delà l'iPhone n'enverrait plus ses plans).
-- **Fusion côté iPhone** (js/data/sync.js, `mergeDietProfile`) : même plan des deux côtés et daté des deux côtés, le
-  plus récemment modifié (`updatedAt`) gagne. Sans cela, un iPhone qui avait changé autre chose remettait son ancienne
-  version d'un plan modifié sur le site. À égalité ou sans date : la règle d'avant.
-- Limite connue : une écriture du site faite exactement pendant la synchro de l'iPhone (entre sa lecture et son envoi
-  du profil, une fraction de seconde) peut être remplacée par l'envoi de l'iPhone, comme entre deux iPhone.
+  écrasé, on relit et on rejoue (3 essais, sinon « réessaie »). Plafonds de l'app : 100 plans vivants, 200 aliments ;
+  le site s'arrête à **800 Ko** de profil (marge sous les 900 Ko au-delà desquels l'iPhone n'enverrait plus ses plans).
+- **Brouillon périmé** : la date du plan à son ouverture est retenue ; si le plan du compte a changé ailleurs avant
+  « Enregistrer », le site le dit : « Recharger » (sa version) ou « Garder ma version » (la mienne remplace la sienne),
+  Annuler ne change rien.
+- **Version d'un élève** (« Modifier ce plan » dans son onglet) : l'envoi ne change que SON plan (même `diet_<plan>`),
+  **jamais mon plan modèle**. « Garder comme nouveau plan » l'ajoute à mes plans sous un nouvel identifiant, nommé
+  « Sèche (lea) » ; l'écran le dit en tête.
+- **Fusion côté iPhone** (js/data/sync.js, `mergeDietProfile`) : **à trois voies**. L'iPhone retient l'empreinte de
+  chaque plan au dernier échange avec le compte (`meta.dietPlans`, comme `meta.pushed` pour les séances). Plan modifié
+  d'un seul côté : ce côté gagne, sans regarder l'horloge. Modifié des deux côtés (vrai conflit) : le plus récemment
+  modifié (`updatedAt`) gagne ; les dates ne reculent jamais (`dietTouch` et le site : au moins l'ancienne + 1 ms, même
+  avec une horloge en retard), une suppression est datée. Sans empreinte (premier échange après la mise à jour) : la
+  règle d'avant.
+- **Envoi du profil par l'iPhone** (js/data/account.js, `syncNow`) : lui aussi conditionné par `updated_at` (lu au début
+  de la synchro) ; si le compte a changé entre sa lecture et son envoi (le site vient d'enregistrer), l'iPhone relit,
+  refusionne (`applyRemoteProfile`) et renvoie, 3 essais. Rien ne s'écrase plus dans un sens ni dans l'autre.
+- **iPhone pas à jour** : l'app à jour écrit `dietSyncV: 1` (`DIET_SYNC_V`) dans le profil avec les plans. Sans elle, le
+  site n'écrit pas les plans (« Mets l'app à jour sur ton iPhone avant de modifier tes plans ici ») : une version d'avant
+  remettrait son ancienne version d'un plan modifié ici. Composer et envoyer restent possibles. **Ordre de mise en
+  production : l'OTA de l'app d'abord, puis le site.**
 
 ### Envoi
 - Format **exact** de l'app : `coachDietPayload` sur le plan du brouillon (même nettoyage, `dietToSent`, même limite de
   200 Ko, même `prog_id` `diet_<plan>`) ; test unitaire : octets identiques à l'envoi de l'app. Un plan envoyé est
-  d'abord enregistré dans mes plans (avec l'accord).
+  d'abord enregistré dans mes plans (avec l'accord ; jamais la version d'un élève).
 - À un élève (onglet Nutrition) ou à plusieurs (cases à cocher, limite des 24 h de l'app, `coachSendQueue`) ; la
   confirmation nomme les jours loin de leur objectif. Élève qui n'accepte pas les plans de son coach : refus du
   serveur, nommé dans le résultat.
@@ -576,19 +592,22 @@ Vérifié : `coach_send_programme` (plans diète déjà acceptés, accord `diet`
 de `profiles` (chacun lit et met à jour sa propre ligne, `updated_at` posé par le déclencheur `profiles_touch`)
 suffisent. **Aucune migration.**
 
-### Changements dans le code partagé de l'app (sw.js en ppl-v241)
-Sans changement de comportement de l'app, sauf la fusion des plans datés : `dietQtyUnits`, `dietQtyLabel`, `dietQtyInit`,
+### Changements dans le code partagé de l'app (sw.js en ppl-v242)
+Sans changement de comportement de l'app, sauf la fusion des plans (à trois voies) et l'envoi conditionnel du profil : `dietQtyUnits`, `dietQtyLabel`, `dietQtyInit`,
 `dietQtyValue` passés de `js/features/diet-qty.js` à `js/data/food-portions.js` ; `foodName` de `nutrition-ui.js` à
 `js/data/food-swap.js` ; `dietSwapItem` (food-swap.js), `dietFoodFromForm`, `dietKeepOwnFood`, `dietTargetsFromForm`
 (nutrition.js) extraits des feuilles de l'éditeur de l'app, qui les appelle ; `loadFoods(url)` (adresse de la base vue
-de la page) ; `mergeDietProfile` (plan le plus récent). Le site charge en plus `diet-estimate.js`, `food-swap.js`,
+de la page) ; `mergeDietProfile` (trois voies), `dietPlanHashes`, `DIET_SYNC_V` (sync.js), envoi conditionnel du
+profil (account.js), `dietTouch` qui ne recule jamais et suppression datée (nutrition.js). Le site charge en plus `diet-estimate.js`, `food-swap.js`,
 `food-scan.js`, tels quels. La construction (`npm run coach-web:build`) copie `data/foods.json` dans `dist-coach/data/`.
 
 ### Tests
 - `tests/unit/coach-web-diete.mjs` : recherche (accents, vitesse), quantités et unités, format identique à l'app, repas,
   ordre, annuler / rétablir, équivalences (pomme de terre → riz, 175 g), jours, objectifs et aliment perso (mêmes
-  messages), opérations sur le compte (accord, autres clés intactes, plafonds), écriture concurrente, fusion de
-  l'iPhone, échappement.
+  messages), opérations sur le compte (accord, autres clés intactes, plafonds, brouillon périmé), écriture concurrente,
+  échappement ; `tests/unit/coach-web-diete-sync.mjs` : scénarios de l'audit du 25/11 joués par `applyRemoteProfile`
+  (horloge du PC en retard, suppression sur l'iPhone, autre changement sur l'iPhone, conflit, course de la synchro,
+  brouillon périmé, version d'un élève, taille).
 - `python3 tests/test_coach_web_diete.py` (`PPL_ENGINES=chromium` pour un moteur ; job `coach-web` de tests.yml) :
   3 moteurs × 1440, 1180, 820 px × sombre, clair, puis les parcours (voir l'en-tête du fichier).
 - `python3 tests/coach_web_captures_diete.py <dossier>` : 9 écrans, planches sombre et clair côte à côte.

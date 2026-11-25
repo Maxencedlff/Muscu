@@ -187,10 +187,15 @@ function profilePayloadForServer(d) {
 }
 
 // Profil partagé : seulement les clés autorisées
+// Version de la fusion des plans diète que connaît cet appareil (fusion à trois voies, mergeDietProfile) : écrite dans
+// le profil avec les plans (jamais gardée dans data). L'appli web du coach ne modifie les plans du compte que si le
+// profil la porte : un iPhone d'avant remettrait sinon son ancienne version d'un plan modifié sur le site
+const DIET_SYNC_V = 1;
 function profilePayload(d) {
   const out = {};
   const diet = d.dietConsent?.on === true;
   for (const k of SYNC_PROFILE_KEYS) if (d[k] !== undefined && (diet || !SYNC_DIET_CONSENT_KEYS.includes(k))) out[k] = d[k];
+  if (diet) out.dietSyncV = DIET_SYNC_V;
   return out;
 }
 
@@ -352,7 +357,7 @@ function dietConsentTime(c) {
   const t = c && typeof c === 'object' && typeof c.on === 'boolean' && typeof c.at === 'string' ? Date.parse(c.at) : NaN;
   return Number.isFinite(t) ? t : null;
 }
-function mergeDietProfile(d, local, remoteDoc, remoteFirst) {
+function mergeDietProfile(d, local, remoteDoc, remoteFirst, base = null) {
   const isObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
   const lt = dietConsentTime(local.dietConsent), rt = dietConsentTime(remoteDoc.dietConsent);
   const consent = rt != null && (lt == null || rt > lt) ? { on: remoteDoc.dietConsent.on, at: remoteDoc.dietConsent.at }
@@ -363,13 +368,22 @@ function mergeDietProfile(d, local, remoteDoc, remoteFirst) {
   const lp = isObj(local.dietPlans) ? local.dietPlans : null;
   const rp = take && isObj(remoteDoc.dietPlans) ? cleanDietPlans(remoteDoc.dietPlans) : null;
   const plans = lp && rp ? (remoteFirst ? { ...lp, ...rp } : { ...rp, ...lp }) : lp || rp || undefined;
-  // Même plan des deux côtés, daté des deux côtés : le plus récemment modifié gagne (updatedAt, posé à chaque
-  // modification). Un plan modifié sur l'appli web du coach (docs/COACH_WEB.md, « Plans diète ») n'est donc pas écrasé
-  // par l'ancienne version d'un iPhone qui a changé autre chose entre-temps ; à égalité ou sans date, la règle d'avant
-  if (lp && rp && plans) {
+  // Même plan des deux côtés, différent : fusion à trois voies avec l'empreinte du plan au dernier échange (base,
+  // meta.dietPlans, comme meta.pushed pour les séances). Modifié d'un seul côté : ce côté gagne, sans regarder
+  // l'horloge (l'appli web du coach, docs/COACH_WEB.md « Plans diète », est un appareil comme un autre). Modifié des deux
+  // côtés : vrai conflit, le plus récemment modifié (updatedAt) gagne. Sans empreinte (premier échange depuis cette
+  // version) : la règle d'avant
+  if (lp && rp && plans && base) {
     for (const id of Object.keys(rp)) {
-      const a = Number(lp[id]?.updatedAt), b = Number(rp[id]?.updatedAt);
-      if (Number.isFinite(a) && Number.isFinite(b) && a !== b) plans[id] = b > a ? rp[id] : lp[id];
+      if (!lp[id] || !Object.hasOwn(base, id)) continue;
+      const lh = dietPlanHash(lp[id]), rh = dietPlanHash(rp[id]);
+      if (lh === rh) continue;
+      if (lh === base[id]) plans[id] = rp[id];
+      else if (rh === base[id]) plans[id] = lp[id];
+      else {
+        const a = Number(lp[id].updatedAt), b = Number(rp[id].updatedAt);
+        if (Number.isFinite(a) && Number.isFinite(b) && a !== b) plans[id] = b > a ? rp[id] : lp[id];
+      }
     }
   }
   // Appareil resté sur une version d'avant les jours du plan : il renvoie le plan sans days. Le plan reçu sans days
@@ -387,6 +401,13 @@ function mergeDietProfile(d, local, remoteDoc, remoteFirst) {
   set('dietActive', alive(local.dietActive) ? local.dietActive : take && alive(remoteDoc.dietActive) ? remoteDoc.dietActive : undefined);
 }
 const SYNC_DIET_ALL_KEYS = [...SYNC_DIET_CONSENT_KEYS, 'dietConsent'];
+// Empreinte d'un plan (forme nettoyée : la même des deux côtés) et empreintes de tous les plans d'un profil
+function dietPlanHash(p) { const c = cleanDietPlan(p); return c ? syncHash(c) : null; }
+function dietPlanHashes(plans) {
+  const out = {};
+  if (plans && typeof plans === 'object' && !Array.isArray(plans)) for (const id of Object.keys(plans)) { const h = dietPlanHash(plans[id]); if (h) out[id] = h; }
+  return out;
+}
 // Défis : la version de l'appareil et celle du compte réunies (rien de perdu d'un côté ni de l'autre)
 // Défis 30 ou 60 jours finis entre-temps : fermés aussitôt (defiCloseFinished)
 function mergeDefisProfile(d, local, remoteDoc, now = Date.now()) {
@@ -408,7 +429,7 @@ function applyRemoteProfile(d, remote, meta) {
   meta.profileAt = remote.updated_at || meta.profileAt;
   const doc = profilePayload(remote.doc);
   const remoteHash = syncHash(doc), localHash = syncHash(profilePayload(d));
-  if (localHash === remoteHash) { meta.profileHash = localHash; meta.profileCore = profileCoreHash(doc); return false; }
+  if (localHash === remoteHash) { meta.profileHash = localHash; meta.profileCore = profileCoreHash(doc); meta.dietPlans = dietPlanHashes(doc.dietPlans); return false; }
   const localDiet = Object.fromEntries(SYNC_DIET_ALL_KEYS.map(k => [k, d[k]]));
   const localDefis = { defis: d.defis, defisRecap: d.defisRecap };
   const localChoice = { design: d.design };
@@ -432,10 +453,10 @@ function applyRemoteProfile(d, remote, meta) {
     }
     Object.assign(d, ownVersion);
     keepLocalOrders(d, before);
-    mergeDietProfile(d, localDiet, remote.doc, true);
+    mergeDietProfile(d, localDiet, remote.doc, true, meta.dietPlans || null);
     mergeDefisProfile(d, localDefis, remote.doc);
     mergeChoiceProfile(d, localChoice, remote.doc);
-    meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
+    meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc); meta.dietPlans = dietPlanHashes(doc.dietPlans);
     return true;
   }
   const remoteWins = meta.profileHash == null;
@@ -446,10 +467,10 @@ function applyRemoteProfile(d, remote, meta) {
     else if (remoteWins || d[k] === undefined) d[k] = v;
   }
   keepLocalOrders(d, before);
-  mergeDietProfile(d, localDiet, remote.doc, remoteWins);
+  mergeDietProfile(d, localDiet, remote.doc, remoteWins, meta.dietPlans || null);
   mergeDefisProfile(d, localDefis, remote.doc);
   mergeChoiceProfile(d, localChoice, remote.doc);
   // Empreinte du compte : le résultat de la fusion, différent, partira au prochain envoi
-  meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
+  meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc); meta.dietPlans = dietPlanHashes(doc.dietPlans);
   return true;
 }

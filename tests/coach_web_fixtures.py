@@ -247,6 +247,7 @@ COACH_WEB_DIETE_SEED = r"""
   const sb = window.__sb, co = sb.co, coach = window.__coachId, [lea, tom] = window.__students;
   const doc = sb.docs[coach];
   doc.dietConsent = { on: true, at: Date.parse('2026-11-10T10:00:00Z') };
+  doc.dietSyncV = 1;   // iPhone à jour (fusion à trois voies des plans)
   doc.dietFoods = [{ id: 'wh1', name: 'Whey vanille', fam: 'v', per: { k: 380, p: 78, c: 6, f: 5 }, portion: { u: 'dose', pl: 'doses', g: 30 } }];
   doc.dietPlans.d_seche.updatedAt = Date.parse('2026-11-12T10:00:00Z');
   doc.dietPlans.d_masse.updatedAt = Date.parse('2026-11-02T10:00:00Z');

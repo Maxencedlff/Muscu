@@ -343,8 +343,8 @@ consentement explicite). Deux accords séparés, chacun daté et retirable :
   conflit) ; accord retenu refusé : rien n'est pris du compte et aucune clé diète ne repart ; accord donné :
   union des plans (aucun plan de l'iPhone perdu, même sur un appareil sans séance ou quand l'accord arrive
   d'ailleurs ; même plan des deux côtés : le compte gagne si rien n'a changé ici, d'où une suppression
-  propagée) ; même plan daté des deux côtés : le plus récemment modifié (`updatedAt`) gagne (25/11, plans modifiés sur
-  l'appli web du coach, docs/COACH_WEB.md « Plans diète ») ; plan suivi de l'iPhone gardé s'il existe encore. Un profil renvoyé par une ancienne app (sans
+  propagée) ; même plan différent des deux côtés : fusion à trois voies avec l'empreinte du plan au dernier échange
+  (modifié d'un seul côté : ce côté gagne ; vrai conflit : le plus récent, `updatedAt`), 25/11, docs/COACH_WEB.md « Plans diète » ; plan suivi de l'iPhone gardé s'il existe encore. Un profil renvoyé par une ancienne app (sans
   nutrition) n'efface rien ici.
 - **Taille** : au-delà de 900 Ko, les plans ne partent pas (le reste du profil part) et Réglages de la
   nutrition le dit (`profilePayloadForServer`) : la synchro n'est jamais bloquée.

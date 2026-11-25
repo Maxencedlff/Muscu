@@ -105,6 +105,9 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         wait_js(page, "window.__sb.co.progs.find(p => p.student === window.__lea && p.id === 'diet_seche').data.diet.meals[0].items[0].g === 70")
         same = page.evaluate("JSON.stringify(window.__sb.co.progs.find(p => p.student === window.__lea && p.id === 'diet_seche').data) === JSON.stringify(deskDtPayload('d_seche', dt.draft).data)")
         check(same, f'{tag} : envoyé au format exact de l\'app (coachDietPayload)')
+        tpl = page.evaluate("window.__sb.docs[window.__coachId].dietPlans.d_seche")
+        check(tpl['meals'][0]['items'][0]['g'] == 120 and len(page.evaluate('window.__sb.docWrites')) == 1, f'{tag} : la version de Léa ne remplace pas le plan modèle')
+        check('ne change que son plan' in page.locator('#dt-status').inner_text(), f'{tag} : le coach est prévenu')
         check(not page.evaluate('window.__csp || []'), f'{tag} : CSP {page.evaluate("window.__csp")}')
         check(not page.errors, f'{tag} : erreurs {page.errors}')
         keys = page.evaluate("Object.keys(localStorage).filter(k => !['mdlf_push_ask', 'mdlf_push_remind'].includes(k)).sort()")
@@ -258,6 +261,15 @@ def journeys(browser, url, engine):
         doc = page.evaluate("window.__sb.docs[window.__coachId]")
         pid = page.evaluate('dt.id')
         check(doc['unit'] == 'lbs' and doc['dietPlans'][pid]['days']['mode'] == 'week', f'{tag} : plan enregistré après une écriture concurrente')
+        # Brouillon périmé : le plan change sur l'iPhone (date du compte différente), puis le site enregistre
+        page.evaluate("const p = window.__sb.docs[window.__coachId].dietPlans[dt.id]; p.updatedAt += 5000; p.name = 'Modifié sur l\\'iPhone'")
+        page.fill('#dt-t-p', '170')
+        page.press('#dt-t-p', 'Enter')
+        page.click('[data-dt="save"]')
+        page.wait_for_selector('dialog[open] [data-cf="keep"]')
+        check('changé ailleurs' in page.locator('dialog[open]').inner_text(), f'{tag} : brouillon périmé signalé')
+        page.click('dialog[open] [data-cf="keep"]')
+        wait_js(page, "window.__sb.docs[window.__coachId].dietPlans[dt.id].name === 'Prise de masse Tom' && dietDayObj(window.__sb.docs[window.__coachId].dietPlans[dt.id], dt.day).targets.p === 170")
         # Envoi à plusieurs : Léa et Tom reçoivent, Karim n'accepte pas les plans
         page.click('[data-dt="send-many"]')
         page.wait_for_selector('dialog[open] .ch-o')
@@ -282,6 +294,22 @@ def journeys(browser, url, engine):
         check(not page.errors, f'{tag} : erreurs {page.errors}')
     except Exception:
         shot_fail(page, tag)
+        raise
+    finally:
+        ctx.close()
+
+    # iPhone pas à jour (profil sans dietSyncV) : le site n'enregistre pas, il le dit ; l'envoi reste possible
+    ctx, page = open_desk(browser, url, width=1440, height=900, theme='dark', v4=True, diete=True,
+                          pre="document.addEventListener('DOMContentLoaded', () => { delete window.__sb.docs[window.__coachId].dietSyncV; });")
+    try:
+        go(page, '#/plans-diete', '.dt-pl')
+        check('Mets l\'app à jour' in page.locator('.dt-note').inner_text(), f'{engine} iPhone pas à jour : expliqué')
+        page.click('.dt-pl-a >> nth=0')
+        page.wait_for_selector('.dt-it')
+        check(page.locator('[data-dt="save"]').count() == 0, f'{engine} iPhone pas à jour : pas d\'« Enregistrer »')
+        check(not page.errors, f'{engine} iPhone pas à jour : erreurs {page.errors}')
+    except Exception:
+        shot_fail(page, f'{engine} iphone ancien')
         raise
     finally:
         ctx.close()

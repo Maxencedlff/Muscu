@@ -1112,8 +1112,11 @@ function dietArchivePlan(d, id) {
   delete p.targets;
   delete p.days;
   if (d.dietActive === id) delete d.dietActive;
+  dietTouch(p);   // suppression datée : en conflit avec une modification faite ailleurs, la plus récente gagne
 }
-function dietTouch(plan) { plan.updatedAt = Date.now(); }
+// Date de modification : toujours au-delà de la précédente, même si l'horloge de l'appareil retarde sur celle de
+// l'appareil qui a écrit avant (elle ne départage qu'un vrai conflit, mergeDietProfile de js/data/sync.js)
+function dietTouch(plan, now = Date.now()) { plan.updatedAt = Math.max(now, (Number(plan.updatedAt) || 0) + 1); }
 
 // ── Plan envoyé par un coach (canal des programmes : coach_send_programme) ──
 // data = { kind: 'diet', v: 1, diet: { name, consigne?, targets?, meals } }, sans « name » au premier niveau :

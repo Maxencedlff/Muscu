@@ -47,7 +47,16 @@ function deskRoute() {
   return { name: 'dash' };
 }
 
-function deskPaint(html, { focusMain = false } = {}) {
+// Verrou contre les rendus en cascade : remplacer #app fait perdre le focus au champ en cours (blur, change), dont le
+// geste peut demander un rendu PENDANT celui-ci (innerHTML réentrant : NotFoundError). Ce rendu-là est refait juste
+// après, avec l'état à jour (queueMicrotask)
+let deskPainting = false, deskPaintAgain = null;
+function deskPaint(html, opts = {}) {
+  if (deskPainting) { if (!deskPaintAgain) { deskPaintAgain = opts; queueMicrotask(() => { const o = deskPaintAgain; deskPaintAgain = null; deskRender(o); }); } return; }
+  deskPainting = true;
+  try { deskPaint0(html, opts); } finally { deskPainting = false; }
+}
+function deskPaint0(html, { focusMain = false } = {}) {
   const root = document.getElementById('app');
   const active = document.activeElement?.id;
   const ae = document.activeElement;
@@ -298,9 +307,11 @@ window.addEventListener('hashchange', async () => {
     if (leavingEditor) deskCkSelect(bl.draft?.id || bl.sel);
     if (leavingReply) rv.drafts = {};
     if (leavingProg) deskPgReset();
-    if (leavingDiet) deskDtReset();
+
     history.replaceState(null, '', to);
   }
+  // Sortie de l'éditeur des plans diète (changements confirmés ou aucun) : brouillon oublié, raccourcis coupés
+  if (deskDtRouteKey(from) && deskDtRouteKey(from) !== deskDtRouteKey(to)) deskDtReset();
   deskHash = location.hash || '#/';
   ui.weeks = DESK_WEEKS_SHOWN;
   const route = deskRoute();

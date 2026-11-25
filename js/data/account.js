@@ -893,14 +893,44 @@ async function syncNow() {
       sent.forEach(id => notePushed(meta, id, 'deleted'));
       keepMeta();
     }
-    // Garde de taille (js/data/sync.js) : des plans diète trop lourds ne bloquent jamais le reste du profil
-    const sized = profilePayloadForServer(data), doc = sized.doc, docHash = syncHash(doc);
-    account.dietTooBig = sized.dietDropped;
-    account.defisTooBig = sized.defisDropped;   // défis restés sur l'iPhone (garde de taille, js/data/sync.js)
-    if (docHash !== meta.profileHash) {
-      const { data: up, error } = await sb.from('profiles').upsert({ user_id: userId, doc }, { onConflict: 'user_id' }).select('updated_at').single();
-      if (error) throw error;
-      meta.profileHash = docHash; meta.profileCore = profileCoreHash(doc); meta.profileAt = up.updated_at;
+    // Envoi du profil CONDITIONNÉ par updated_at (posé par le serveur) : si un autre appareil (autre iPhone, appli web du
+    // coach qui modifie un plan diète, docs/COACH_WEB.md) a écrit depuis la lecture du point 1, rien n'est écrasé : le
+    // profil est relu, refusionné (applyRemoteProfile) et renvoyé, 3 essais au plus. Sans profil sur le compte : créé.
+    let serverAt = prof?.updated_at || null;
+    for (let attempt = 0; ; attempt++) {
+      // Garde de taille (js/data/sync.js) : des plans diète trop lourds ne bloquent jamais le reste du profil
+      const sized = profilePayloadForServer(data), doc = sized.doc, docHash = syncHash(doc);
+      account.dietTooBig = sized.dietDropped;
+      account.defisTooBig = sized.defisDropped;   // défis restés sur l'iPhone (garde de taille, js/data/sync.js)
+      if (docHash === meta.profileHash) break;
+      let up;
+      if (serverAt) {
+        const { data: rowsUp, error } = await sb.from('profiles').update({ doc }).eq('user_id', userId).eq('updated_at', serverAt).select('updated_at');
+        if (error) throw error;
+        up = Array.isArray(rowsUp) ? rowsUp[0] : rowsUp;
+      } else {
+        const { data: row, error } = await sb.from('profiles').upsert({ user_id: userId, doc }, { onConflict: 'user_id' }).select('updated_at').single();
+        if (error) throw error;
+        up = row;
+      }
+      alive();
+      if (up?.updated_at) {
+        meta.profileHash = docHash; meta.profileCore = profileCoreHash(doc); meta.profileAt = up.updated_at; meta.dietPlans = dietPlanHashes(doc.dietPlans);
+        keepMeta();
+        break;
+      }
+      if (attempt >= 2) throw new Error('profile_conflict');
+      const { data: again, error: againErr } = await sb.from('profiles').select('doc,updated_at').maybeSingle();
+      if (againErr) throw againErr;
+      alive();
+      serverAt = again?.updated_at || null;
+      if (applyRemoteProfile(data, again, meta)) {
+        let saved;
+        applyingRemote = true;
+        try { sanitizeData(data); saved = save(true); } finally { applyingRemote = false; }
+        if (!saved) throw new Error('storage');
+        notifyAccount('merged');
+      }
       keepMeta();
     }
     alive();

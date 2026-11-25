@@ -34,8 +34,10 @@ export default function ({ test, assert, ROOT }) {
     assert.match(html, /<meta name="mdlf-foods" content="\.\.\/data\/foods\.json">/, 'base servie un dossier plus haut dans le dépôt');
     assert.match(fs.readFileSync(path.join(ROOT, 'scripts/build-coach-web.mjs'), 'utf8'), /foods\.json/, 'la construction copie la base');
     assert.equal(store.size, 0, 'rien écrit sur l\'appareil');
-    assert.equal(run('DESK_DT_DOC_MAX'), 900 * 1024);
-    assert.match(fs.readFileSync(path.join(ROOT, 'js/data/sync.js'), 'utf8'), /SYNC_PROFILE_MAX_BYTES = 900 \* 1024/, 'même plafond que la synchro de l\'iPhone');
+    assert.equal(run('DESK_DT_DOC_MAX'), 800 * 1024, 'marge sous les 900 Ko de la synchro de l\'iPhone');
+    assert.match(fs.readFileSync(path.join(ROOT, 'js/data/sync.js'), 'utf8'), /SYNC_PROFILE_MAX_BYTES = 900 \* 1024/);
+    assert.match(fs.readFileSync(path.join(ROOT, 'js/data/sync.js'), 'utf8'), /const DIET_SYNC_V = 1;/, 'même version de fusion que l\'app');
+    assert.equal(run('DESK_DT_SYNC_V'), 1);
   });
 
   test('coach web diète : recherche Ciqual rapide, accents et majuscules ignorés, aliments perso d\'abord', () => {
@@ -175,20 +177,20 @@ export default function ({ test, assert, ROOT }) {
   });
 
   test('coach web diète : écritures sur le compte (opération rejouée, accord exigé, autres clés intactes, plafonds)', () => {
-    const doc = { unit: 'kg', userProgrammes: { u_a: { name: 'A' } }, dietConsent: { on: true, at: 5 },
+    const doc = { unit: 'kg', userProgrammes: { u_a: { name: 'A' } }, dietConsent: { on: true, at: 5 }, dietSyncV: 1,
       dietPlans: { d_old: { name: 'Ancien', meals: [], updatedAt: 1 } }, dietFoods: [{ id: 'sk1', name: 'Skyr', fam: 'l', per: { k: 60, p: 11, c: 4, f: 0 } }] };
     ctx.__doc = doc;
     const r = run(`deskDtApply(__doc, deskDtOpSave(__n.id, __p, 1234))`);
     assert.ok(r.ok);
     assert.equal(J(r.doc.userProgrammes), J(doc.userProgrammes), 'programmes jamais touchés');
     assert.equal(r.doc.unit, 'kg');
-    assert.equal(r.doc.dietPlans[run('__n.id')].updatedAt, 1234, 'daté : la fusion de l\'iPhone garde le plus récent');
+    assert.equal(r.doc.dietPlans[run('__n.id')].updatedAt, 1234, 'daté (départage un vrai conflit)');
     assert.ok(r.doc.dietPlans.d_old, 'les autres plans restent');
     assert.equal(doc.dietPlans[run('__n.id')], undefined, 'document relu non modifié');
     assert.equal(run(`deskDtApply({ ...__doc, dietConsent: { on: false, at: 9 } }, deskDtOpSave('d_x', __p)).kind`), 'no_consent');
     assert.equal(run(`deskDtApply(null, deskDtOpSave('d_x', __p)).kind`), 'no_doc');
     const arch = run(`deskDtApply(__doc, deskDtOpArchive('d_old', 99))`);
-    assert.equal(J([arch.doc.dietPlans.d_old.archived, arch.doc.dietPlans.d_old.updatedAt]), J([true, 99]));
+    assert.ok(arch.doc.dietPlans.d_old.archived && arch.doc.dietPlans.d_old.updatedAt > 1, 'archivé, daté au-delà de la date d\'avant');
     assert.equal(doc.dietPlans.d_old.archived, undefined);
     const f = run(`dietFoodFromForm({ name: 'Whey', p: '78', c: '6', f: '5' }).food`);
     ctx.__f = f;
@@ -201,12 +203,18 @@ export default function ({ test, assert, ROOT }) {
     run(`window.__many = { ...__doc, dietPlans: Object.fromEntries(Array.from({ length: 100 }, (_, i) => ['d_p' + i, { name: 'P' + i, meals: [] }])) }`);
     assert.equal(run(`deskDtApply(__many, deskDtOpSave('d_neuf', __p)).kind`), 'plans_full');
     assert.ok(run(`deskDtApply(__many, deskDtOpSave('d_p3', __p)).ok`), 'un plan existant se met à jour même au plafond');
-    run(`window.__fat = { ...__doc, notes: 'x'.repeat(930000) }`);
+    assert.equal(run(`deskDtApply({ ...__doc, dietSyncV: undefined }, deskDtOpSave('d_x', __p)).kind`), 'old_phone', 'iPhone d\'avant la fusion à trois voies : rien n\'est écrit');
+    // Brouillon périmé : le plan a changé ailleurs depuis l'ouverture (date différente)
+    assert.equal(run(`deskDtApply(__doc, deskDtOpSave('d_old', __p, 50, { expectAt: 0 })).kind`), 'stale');
+    assert.equal(run(`deskDtApply(__doc, deskDtOpSave('d_old', __p, 50, { expectAt: 0 })).current.name`), 'Ancien');
+    assert.ok(run(`deskDtApply(__doc, deskDtOpSave('d_old', __p, 50, { expectAt: 1 })).ok`), 'même date : enregistré');
+    assert.equal(run(`deskDtApply(__doc, deskDtOpSave('d_old', __p, 0)).doc.dietPlans.d_old.updatedAt`), 2, 'horloge en retard : la date passe quand même au-delà de l\'ancienne');
+    run(`window.__fat = { ...__doc, notes: 'x'.repeat(830000) }`);
     assert.equal(run(`deskDtApply(__fat, deskDtOpSave('d_x', __p)).kind`), 'doc_too_big');
   });
 
   test('coach web diète : deskWriteDiet conditionné par updated_at, relit et rejoue après une écriture de l\'iPhone', async () => {
-    run(`window.__srv = { doc: { dietConsent: { on: true, at: 1 }, dietPlans: {}, unit: 'kg' }, at: 'A', writes: 0, races: 1 };
+    run(`window.__srv = { doc: { dietConsent: { on: true, at: 1 }, dietSyncV: 1, dietPlans: {}, unit: 'kg' }, at: 'A', writes: 0, races: 1 };
       desk.user = { id: 'coach' };
       const q = () => { const st = { op: 'select', eqs: {} }; const c = {
         select() { return c; }, eq(k, v) { st.eqs[k] = v; return c; }, update(p) { st.op = 'update'; st.patch = p; return c; },
@@ -223,23 +231,6 @@ export default function ({ test, assert, ROOT }) {
     assert.ok(run('__srv.doc.dietPlans[__n.id]'));
     run(`__srv.races = 5`);
     assert.equal((await run(`deskWriteDiet(deskDtOpSave(__n.id, __p))`)).kind, 'conflict', 'trois essais au plus');
-  });
-
-  test('coach web diète : fusion de l\'iPhone, le plan modifié le plus récemment gagne (sync.js)', () => {
-    // Contexte de l'app (sync.js n'est pas chargé sur le site) : mergeDietProfile seul, dans un contexte minimal
-    const c2 = vm.createContext({ console, Intl, TextEncoder, crypto: globalThis.crypto });
-    for (const f of ['js/core/util.js', 'js/data/food-portions.js', 'js/data/nutrition.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), c2);
-    vm.runInContext('function cleanConsigne(v) { return typeof v === "string" ? v.slice(0, 500) : ""; }', c2);
-    const src = fs.readFileSync(path.join(ROOT, 'js/data/sync.js'), 'utf8');
-    const fn = src.slice(src.indexOf('function mergeDietProfile'), src.indexOf('const SYNC_DIET_ALL_KEYS'));
-    vm.runInContext(`function dietConsentTime(c) { return c && Number.isFinite(c.at) ? c.at : null; }\n${fn}`, c2);
-    const plan = (name, at) => ({ name, meals: [{ id: 'm1', name: 'Déjeuner', items: [] }], updatedAt: at });
-    const consent = { on: true, at: 10 };
-    const merge = (local, remote, remoteFirst) => { const d = { ...local }; c2.mergeDietProfile(d, local, remote, remoteFirst); return d.dietPlans.d_a.name; };
-    const loc = { dietConsent: consent, dietPlans: { d_a: plan('iPhone', 100) } };
-    assert.equal(merge(loc, { dietConsent: consent, dietPlans: { d_a: plan('Web', 200) } }, false), 'Web', 'modifié sur le site après : il gagne même si l\'iPhone a changé autre chose');
-    assert.equal(merge({ dietConsent: consent, dietPlans: { d_a: plan('iPhone', 300) } }, { dietConsent: consent, dietPlans: { d_a: plan('Web', 200) } }, true), 'iPhone', 'modifié sur l\'iPhone après : il gagne');
-    assert.equal(merge({ dietConsent: consent, dietPlans: { d_a: { ...plan('iPhone'), updatedAt: undefined } } }, { dietConsent: consent, dietPlans: { d_a: plan('Web', 200) } }, false), 'iPhone', 'sans date : la règle d\'avant');
   });
 
   test('coach web diète : textes reçus échappés, routes de l\'éditeur', () => {
