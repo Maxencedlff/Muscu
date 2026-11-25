@@ -744,11 +744,13 @@ const Native = (() => {
 
     appIcon: {
       async get() {
-        if (!isNative) return { supported: false, name: null };
+        if (!isNative) return { supported: false, name: null, available: null };
         try {
           const r = await AppIcon.getName();
-          return { supported: r?.supported !== false, name: r?.name ?? null };
-        } catch { return { supported: false, name: null }; }
+          // available : jeux d'icônes du paquet (null : coquille d'avant le 25/11, qui ne le dit pas)
+          const available = Array.isArray(r?.available) ? r.available.filter(n => typeof n === 'string') : null;
+          return { supported: r?.supported !== false, name: r?.name ?? null, available };
+        } catch { return { supported: false, name: null, available: null }; }
       },
       async set(name) {
         if (!isNative) return false;

@@ -219,7 +219,7 @@ function routeTitle(route, isRoot) {
   if (name === 'prog-gen') return { toi: 'Sur mesure', objectif: 'Objectif', niveau: 'Niveau', jours: 'Jours', duree: 'Temps', materiel: 'Matériel', options: 'Priorités' }[routeParams(route)[0]] || 'Sur mesure';
   return {
     dashboard: 'Entraînement', history: 'Historique', stats: 'Progrès',
-    programmes: 'Programme', settings: 'Réglages', guide: 'Guide', account: 'Compte', session: 'Séance', summary: 'Bilan',
+    programmes: 'Programme', settings: 'Réglages', 'settings-design': 'Design', guide: 'Guide', account: 'Compte', session: 'Séance', summary: 'Bilan',
     'history-detail': 'Séance', 'stats-ex': 'Exercice', 'stats-overview': 'Vue d\'ensemble', recaps: 'Récaps', recap: 'Récap',
     'body-measures': 'Mensurations', 'photo-vault': 'Coffre', 'body-measure': bodyMeasureLabel(routeParams(route)[0]) || 'Mesure',
     'prog-add': 'Ajouter', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',

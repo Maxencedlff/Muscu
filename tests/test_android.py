@@ -72,7 +72,7 @@ def t_android(bench, eng, dev, theme):
         R.check('Health Connect' in text, f'{t} Health Connect proposé')
         R.check('Apple Music' not in text and 'Apple Santé' not in text, f'{t} rien d\'Apple')
         R.check(page.locator('[data-action="setting-music"]').count() == 0, f'{t} pas de cellule Apple Music')
-        R.check(page.locator('.app-icons').count() == 0, f'{t} pas d\'icône de l\'app (module absent)')
+        R.check(page.evaluate('renderAppIconGroup()') == '', f'{t} pas d\'icône de l\'app (module absent, écran Design)')
         R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} pas de défilement horizontal')
         cell = page.locator('[data-action="setting-health"]')
         R.check(cell.get_attribute('role') == 'switch' and cell.get_attribute('aria-checked') == 'false', f'{t} interrupteur accessible, éteint')
@@ -107,7 +107,7 @@ def t_ios(bench, eng, dev, theme):
         R.check('Services Apple' in group_titles(page), f'{t} iOS : groupe Services Apple')
         text = page.inner_text('.settings-view')
         R.check('Apple Santé' in text and 'Apple Music' in text, f'{t} iOS : Apple Santé et Apple Music')
-        R.check(page.locator('.app-icons').count() == 1, f'{t} iOS : icône de l\'app')
+        R.check('app-icons' in page.evaluate('renderAppIconGroup()'), f'{t} iOS : icône de l\'app (écran Design)')
         R.check(not page.errors, f'{t} iOS : aucune erreur JS {page.errors}')
 
 

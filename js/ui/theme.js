@@ -21,6 +21,7 @@ function applyTheme(theme) {
   Native.statusBar(!light);
 }
 applyTheme(themePref());
+applyDesign();   // Réglages › Apparence › Design (js/data/design.js), avant le premier dessin
 
 // Dynamic Type : au-delà de 1,3 × la taille par défaut (17 px), les séries passent sur 2 lignes
 // L'accueil se redessine quand la classe change : Démarrer y passe avant les cibles dans le HTML (heroBtnSpot)

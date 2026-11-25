@@ -34,7 +34,7 @@
      et barres : la couleur vue sur le personnage */
   --body-tier-0: #6A6A6E; --body-tier-dot-0: #737377; --body-tier-1: #FFB8AC; --body-tier-2: #FF453A;
   --body-tier-dot-1: #FAB4A8; --body-tier-dot-2: #F95C51;
-  --sp-chart-line: #FF7A1A;
+  --sp-chart-line: #F27A45;   /* l'orange des liens (--tint) : 6,2:1 sur la carte */
 }
 body.light {
   /* Muscle principal d'un exercice : le rouge des images 3D (7,7:1 sur blanc) ; secondaires plus clairs (3,5:1) */
@@ -53,6 +53,9 @@ body.light {
      l'orange d'action de l'app (5,9:1 sur la carte blanche) */
   --sp-chart-line: #E57000;
 }
+/* Design « Bleu » : la courbe dans l'accent (#0092FF × 0,7 = #0066B2 en clair, 6,3:1 sur blanc) */
+body.design-bleu { --sp-chart-line: #0A84FF; }
+body.light.design-bleu { --sp-chart-line: #0092FF; }
 /* Muscle principal et secondaires d'un exercice : pastilles neutres, une puce de la couleur du personnage les relie */
 .mpill { display: inline-flex; align-items: center; gap: 6px; }
 .mpill::before { content: ''; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Réglages › Icône de l'app (app iOS uniquement)
+//  Réglages › Apparence › Design › Icône de l'app (app iOS uniquement)
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -8,20 +8,29 @@
 // son icône. iOS confirme lui-même chaque changement par une alerte : elle n'est pas masquée.
 
 // Lu une fois au démarrage : seule l'app change l'icône, l'état reste donc juste ensuite
-let appIconState = { supported: false, name: null };
+let appIconState = { supported: false, name: null, available: null };
 let appIconBusy  = false;
 
 if (Native.isNative) {
-  Native.appIcon.get().then(s => {
+  Native.appIcon.get().then(async s => {
     appIconState = s;
-    if (s.supported && $('.settings-view')) render();   // Réglages déjà affichés
+    await resetRetiredAppIcon();
+    if (s.supported && $('.settings-design')) render();   // écran Design déjà affiché
   });
+}
+
+// Icône retirée du catalogue (APP_ICONS_RETIRED, « Inversée ») encore en place : retour à l'icône par défaut, une seule
+// fois (iOS montre sa petite alerte habituelle) ; un échec n'est pas retenté à chaque lancement
+async function resetRetiredAppIcon() {
+  if (!APP_ICONS_RETIRED.includes(appIconState.name)) return;
+  try { if (localStorage.getItem('ppl_icon_retired_reset') === '1') return; localStorage.setItem('ppl_icon_retired_reset', '1'); } catch {}
+  if (await Native.appIcon.set(null)) appIconState = { ...appIconState, name: null };
 }
 
 function renderAppIconGroup() {
   if (!Native.isNative || !appIconState.supported) return '';
   const current = appIconFromNative(appIconState.name);
-  const tiles = APP_ICONS.map(i => {
+  const tiles = appIconsOffered(appIconState.available).map(i => {
     const on = i === current;
     return `<button class="app-icon" data-action="set-app-icon" data-id="${i.id}" aria-pressed="${on}">
               <span class="app-icon__img">${appIconSvg(i, { attrs: 'aria-hidden="true" focusable="false"' })}
@@ -47,7 +56,7 @@ registerActions({
     appIconBusy = false;
     if (!ok) { showToast('L\'icône n\'a pas pu être changée', { error: true }); return; }
     appIconState = { ...appIconState, name };
-    if (currentView() !== 'settings') return;
+    if (currentView() !== 'settings-design') return;
     render();
     // Le rendu remplace les boutons : le focus revient sur la vignette choisie (VoiceOver annonce « sélectionné »)
     $(`.app-icon[data-id="${chosen.id}"]`)?.focus({ preventScroll: true });

@@ -7,18 +7,22 @@
 // chiffre géant, puis les blocs de l'écran (tuiles, avant → après, courbe, frise, personnage…), et la signature
 // « MDLF Training » au même endroit sur toutes les stories : c'est elle qui fait connaître l'app à chaque
 // partage. Direction « sobre » : deux aplats seulement, l'orange MDLF (accent) et le noir (night), aucun violet
-// ni citron vert ; l'orange suit le thème de l'app (#FF7A1A et texte noir en sombre, #A85400 et texte blanc en
-// clair), le noir est le même partout. Zones d'Instagram (STORY.TOP, STORY.BOTTOM, share-canvas.js) laissées
+// ni citron vert ; l'aplat suit le bouton plein de l'app (css/recap.css, --rc-accent) : orange brique #B8460F à texte
+// blanc dans les deux thèmes, ou le bleu du design « Bleu » (js/data/design.js) ; jamais de texte noir sur l'orange.
+// Le noir est le même partout. Zones d'Instagram (STORY.TOP, STORY.BOTTOM, share-canvas.js) laissées
 // vides ; rien sous 36 px (lisible en vignette). Jamais de poids du corps ni de mensuration dans l'image.
 const RECAP_TONE_COLORS = {
-  accent: { bg: '#FF7A1A', fg: '#000000', heat: '#000000', box: '#000000', boxText: '#FFFFFF' },
+  accent: { bg: '#B8460F', fg: '#FFFFFF', heat: '#000000', box: '#000000', boxText: '#FFFFFF' },
   night:  { bg: '#000000', fg: '#FFFFFF', heat: '#C94A3F', box: '#1C1C1E', boxText: '#FFFFFF' },
 };
-const RECAP_TONE_LIGHT = { accent: { bg: '#A85400', fg: '#FFFFFF', heat: '#000000', box: '#FFFFFF', boxText: '#000000' } };
-// Couleurs d'un écran dans le thème de l'app (light : thème clair) ; ton inconnu : l'orange
-function recapToneColors(tone, light) {
+const RECAP_TONE_LIGHT = { accent: { bg: '#B8460F', fg: '#FFFFFF', heat: '#000000', box: '#FFFFFF', boxText: '#000000' } };
+// Design « Bleu » : seul le fond de l'aplat change (mêmes valeurs que css/recap.css)
+const RECAP_ACCENT_BLEU = { dark: '#0A6CDB', light: '#0066CC' };
+// Couleurs d'un écran dans le thème de l'app (light : thème clair) et le design choisi ; ton inconnu : l'aplat d'accent
+function recapToneColors(tone, light, accent = 'orange') {
   const t = Object.hasOwn(RECAP_TONE_COLORS, tone) ? tone : 'accent';
-  return (light && RECAP_TONE_LIGHT[t]) || RECAP_TONE_COLORS[t];
+  const c = (light && RECAP_TONE_LIGHT[t]) || RECAP_TONE_COLORS[t];
+  return t === 'accent' && accent === 'bleu' ? { ...c, bg: RECAP_ACCENT_BLEU[light ? 'light' : 'dark'] } : c;
 }
 // Personnage du profil (écran noir) : les paliers de Progrès en sombre, mêmes couleurs que l'écran (css/recap.css,
 // .tone-night) : « Sous l'objectif » en rouge pâle, « Objectif atteint » en rouge plein (tests/unit/recap.mjs)
@@ -367,7 +371,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
   canvas.width = STORY.W; canvas.height = STORY.H;
   const ctx = canvas.getContext('2d');
   const { W, H, TOP, BOTTOM, SIDE } = STORY, R = RECAP_STORY, maxW = W - 2 * SIDE;
-  const c = { ...recapToneColors(page.tone, palette.light), p: palette };
+  const c = { ...recapToneColors(page.tone, palette.light, currentDesignAccent()), p: palette };
   const f = (w, s) => storyFont(w, s, false, palette);
   ctx.fillStyle = c.bg; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
@@ -425,7 +429,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
 // Image d'un écran de récap dans un canvas (personnage : silhouette des réglages, muscles de la période)
 async function renderRecapStory(page, st, canvas = document.createElement('canvas')) {
   const palette = storyPalette('var(--green)');
-  const tone = recapToneColors(page.tone, palette.light);
+  const tone = recapToneColors(page.tone, palette.light, currentDesignAccent());
   const wantBody = page.body && Object.keys(page.body).length && ['profile', 'sessions'].includes(page.id);
   const [icon, body] = await Promise.all([
     loadImage('icon-192.png'),

@@ -249,6 +249,7 @@ function render() { paint(); }
 // (chartState, js/features/coach-ui.js).
 function renderIfChanged() {
   if (navPaintPending) return false;
+  applyDesign();
   const route = currentRoute(), name = routeName(route);
   const html = screenOf(name).render(...routeParams(route));
   if (renderedView === name && route === paintedRoute && html === paintedHtml) return false;
@@ -289,6 +290,7 @@ const SCREENS = new Map([
   ['prog-info',      { render: id => renderProgInfo(id) }],      // fiche d'un programme de « Tous les programmes »
   ['ex-edit',        { render: () => renderExEdit() }],
   ['cs-edit',        { render: () => renderCsEdit() }],
+  ['settings-design', { render: () => renderDesign() }],      // Réglages › Apparence › Design (js/features/design-ui.js)
   ['trash',          { render: () => renderTrash() }],          // Réglages › Supprimés récemment
   ['backup',         { render: () => renderBackup() }],         // Réglages › Données › Sauvegarde (export, import)
 ]);
@@ -323,6 +325,7 @@ function paint(scrollY = window.scrollY, html = null) {
   const route = currentRoute();
   const name  = routeName(route);
   const screen = screenOf(name);
+  applyDesign();   // couleur d'accent (js/data/design.js) : un choix reçu d'un autre appareil s'applique ici
   const focusSels = renderedView === name ? focusedActionSelectors() : null;   // même écran redessiné seulement
   paintedHtml = html ?? screen.render(...routeParams(route));
   paintedRoute = route;

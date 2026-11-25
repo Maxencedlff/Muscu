@@ -36,7 +36,7 @@ function wipeLocalData() {
 function wipedExtras() { return photosAllowedHere() ? 'mensurations et photos' : 'mensurations'; }
 
 // Écran Réglages, sur le modèle des Réglages d'iOS : Compte, Entraînement, Sons et vibrations, Apparence,
-// Social et coach, Connexions (Strava, js/features/strava-ui.js), Données, Aide. Les groupes propres à l'app iOS (Services Apple, Icône de l'app) suivent
+// Social et coach, Connexions (Strava, js/features/strava-ui.js), Données, Aide. Apparence › Design (couleur et icône de l'app) : js/features/design-ui.js. Les groupes propres à l'app iOS (Services Apple) suivent
 // la section la plus proche ; absents dans le navigateur. Une icône par ligne dans un carré de couleur (cellIco,
 // js/ui/forms.js) : chaque symbole a un seul sens dans tout l'écran ; la Silhouette montre le personnage choisi.
 function renderSettings() {
@@ -144,6 +144,13 @@ ${renderAppleServicesGroup(switchHtml)}
                 `<button class="segmented__btn ${themePref() === v ? 'segmented__btn--active' : ''}" aria-pressed="${themePref() === v}" data-action="set-theme" data-val="${v}">${l}</button>`).join('')}
             </div>
           </div>
+          <button class="cell cell--nav" data-action="go-design">
+            ${cellIco('paintpalette', 'blue')}
+            <span class="cell__body"><span class="cell__title">Design</span>
+              <span class="cell__sub">${Native.isNative && appIconState.supported ? 'Couleur et icône de l\'app' : 'Couleur de l\'app'}</span></span>
+            <span class="cell__value">${designLabel(designAccent(data))}</span>
+            ${icon('chevron.right', 16)}
+          </button>
           <div class="cell cell--ctl">
             ${silhouetteIcoHtml()}
             <span class="cell__body"><span class="cell__title">Silhouette</span>
@@ -163,7 +170,6 @@ ${renderAppleServicesGroup(switchHtml)}
             ${switchHtml(defisRecapOn(data))}
           </button>` : ''}
         </div>
-${renderAppIconGroup()}
 ${renderCoachSettingsGroup()}
 ${renderConnectionsGroup()}
 

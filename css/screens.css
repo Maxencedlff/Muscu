@@ -147,6 +147,29 @@ html.type-xl .sound-diag__help { order: 3; }
 .app-icon__name { font-size: 0.765rem; line-height: 1.059rem; text-align: center; overflow-wrap: anywhere; }
 .app-icon[aria-pressed="true"] .app-icon__name { font-weight: 600; }
 
+/* ── Réglages › Apparence › Design : deux vignettes de l'accueil côte à côte, une coche sur le choix ── */
+.design-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.design-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 44px; min-height: 44px;
+  padding: 4px 0; background: none; border: none; color: var(--label); font: inherit; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.design-opt__img { position: relative; display: block; width: 100%; max-width: 160px; margin-bottom: 8px; }
+.design-opt__img > img {
+  display: block; width: 100%; height: auto; aspect-ratio: 150 / 260; object-fit: cover; object-position: top;
+  border-radius: 14px; box-shadow: 0 0 0 .5px var(--sep);
+}
+.design-opt[aria-pressed="true"] .design-opt__img > img { box-shadow: 0 0 0 2.5px var(--cell), 0 0 0 4.5px var(--tint); }
+.design-opt__check {
+  position: absolute; right: -8px; bottom: -8px; width: 28px; height: 28px; border-radius: var(--r-pill);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tint-fill); color: var(--on-tint); box-shadow: 0 0 0 2px var(--cell);
+}
+.design-opt__name { font-size: var(--fs-subhead); line-height: 1.3; }
+.design-opt[aria-pressed="true"] .design-opt__name { font-weight: 600; }
+.design-opt__sub { font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); text-align: center; }
+.design-opt:active .design-opt__img { opacity: .7; }
+
 /* Champs */
 .field {
   width: 100%; min-height: 44px; border: none; background: none; color: var(--label);

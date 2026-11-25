@@ -1,4 +1,4 @@
-"""Réglages › Icône de l'app : absente de la PWA, présente et fonctionnelle dans l'app iOS.
+"""Réglages › Apparence › Design › Icône de l'app : absente de la PWA, présente et fonctionnelle dans l'app iOS.
 
 L'app iOS est simulée par une coquille Capacitor factice (window.Capacitor, injecté avant le
 chargement) : native.js voit alors Native.isNative = true et parle au faux module MdlfAppIcon,
@@ -14,16 +14,20 @@ from fixtures import *  # noqa
 
 LOT = 'icone'
 R = Results(LOT)
-LABELS = ['Orange', 'Fonte rouillée', 'Inversée', 'Craie', 'Signature']
+# Coquille d'avant le 25/11 (ne dit pas quels jeux d'icônes elle a) : pas les icônes qui demandent la build
+LABELS = ['Orange', 'Fonte rouillée', 'Craie', 'Signature']
+# Coquille à jour : Bleue et Noël en plus ; « Inversée », retirée, jamais proposée même si son jeu est encore là
+LABELS_BUILD = ['Orange', 'Fonte rouillée', 'Craie', 'Signature', 'Bleue', 'Noël']
+AVAILABLE_BUILD = "['AppIcon-Bleue', 'AppIcon-Craie', 'AppIcon-Inversee', 'AppIcon-Noel', 'AppIcon-Rouille', 'AppIcon-Signature']"
 
 # Coquille iOS factice. Les autres modules natifs répondent {} sans rien faire.
 FAKE_SHELL = """
-window.__icon = { name: %s, supported: %s, calls: [], fail: false };
+window.__icon = { name: %s, supported: %s, available: %s, calls: [], fail: false };
 window.Capacitor = {
   isNativePlatform: () => true,
   registerPlugin: (pluginName) => {
     if (pluginName === 'MdlfAppIcon') return {
-      getName: async () => (__icon.name ? { supported: __icon.supported, name: __icon.name } : { supported: __icon.supported }),
+      getName: async () => ({ supported: __icon.supported, ...(__icon.name ? { name: __icon.name } : {}), ...(__icon.available ? { available: __icon.available } : {}) }),
       change: async ({ name }) => {
         __icon.calls.push(name);
         if (__icon.fail) throw new Error('refusé');
@@ -40,14 +44,17 @@ def tag(device, theme):
     return f'{device}-{theme}'.replace(' ', '_').replace('+', 'plus')
 
 
-def open_settings(page, theme, native_name='null', supported='true'):
+def open_settings(page, theme, native_name='null', supported='true', available='null'):
     if native_name is not None:
-        page.add_init_script(FAKE_SHELL % (native_name, supported))
+        page.add_init_script(FAKE_SHELL % (native_name, supported, available))
     # Mises à jour à chaud : jamais de réseau pendant les tests
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json())
     page.click('[data-action="go-settings"]')
     page.wait_for_selector('.settings-view')
+    settle(page)
+    page.click('[data-action="go-design"]')
+    page.wait_for_selector('.settings-design')
     settle(page)
 
 
@@ -63,7 +70,7 @@ def t_pwa(bench, eng, dev, theme):
         open_settings(page, theme, native_name=None)
         R.check(page.evaluate('Native.isNative') is False, f'{t} PWA : pas natif')
         R.check(page.locator('.app-icons, [data-action="set-app-icon"]').count() == 0, f'{t} PWA : section absente')
-        R.check("Icône de l'app" not in page.inner_text('.settings-view'), f'{t} PWA : titre absent')
+        R.check("Icône de l'app" not in page.inner_text('.settings-design'), f'{t} PWA : titre absent')
         R.check(not page.errors, f'{t} PWA : aucune erreur JS {page.errors}')
 
 
@@ -80,7 +87,7 @@ def t_natif(bench, eng, dev, theme):
         R.check([tiles.nth(i).inner_text().strip() for i in range(tiles.count())] == LABELS, f'{t} noms des icônes')
         R.check(pressed(page) == ['Orange'], f'{t} défaut coché : {pressed(page)}')
         R.check(page.locator('.app-icon[aria-pressed="true"] .app-icon__check').count() == 1, f'{t} coche sur l\'icône active')
-        R.check(page.locator('.app-icon__img > svg[aria-hidden="true"]').count() == 5, f'{t} vignettes masquées à VoiceOver')
+        R.check(page.locator('.app-icon__img > svg[aria-hidden="true"]').count() == len(LABELS), f'{t} vignettes masquées à VoiceOver')
         sizes = page.evaluate("[...document.querySelectorAll('.app-icon')].map(b => { const r = b.getBoundingClientRect(); return [r.width, r.height]; })")
         R.check(all(w >= 44 and h >= 44 for w, h in sizes), f'{t} cibles d\'au moins 44 pt {sizes}')
         R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} pas de défilement horizontal')
@@ -120,6 +127,27 @@ def t_natif(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_settings(page, theme, native_name="'AppIcon-Signature'")
         R.check(pressed(page) == ['Signature'], f'{t} icône courante relue au lancement : {pressed(page)}')
+
+    # Coquille à jour : Bleue et Noël proposées, Inversée jamais ; choisir Noël envoie son jeu
+    with bench.page(eng, dev, theme) as page:
+        open_settings(page, theme, available=AVAILABLE_BUILD)
+        tiles = page.locator('.app-icon')
+        names = [tiles.nth(i).inner_text().strip() for i in range(tiles.count())]
+        R.check(names == LABELS_BUILD, f'{t} build à jour : {names}')
+        page.locator('.app-icon[data-id="noel"]').click()
+        settle(page)
+        R.check(page.evaluate('__icon.calls') == ['AppIcon-Noel'] and pressed(page) == ['Noël'], f'{t} Noël choisie {page.evaluate("__icon.calls")}')
+        page.evaluate("document.querySelector('.app-icons').closest('.group').scrollIntoView({ block: 'center' })")
+        shot(page, LOT, f'design-icones-build-{t}')
+        R.check(not page.errors, f'{t} build à jour : aucune erreur JS {page.errors}')
+
+    # « Inversée » (retirée) encore en place au lancement : remise sur l'icône par défaut, une seule fois
+    with bench.page(eng, dev, theme) as page:
+        open_settings(page, theme, native_name="'AppIcon-Inversee'")
+        R.check(page.evaluate('__icon.calls') == [None], f'{t} Inversée : retour au défaut {page.evaluate("__icon.calls")}')
+        R.check(pressed(page) == ['Orange'], f'{t} Inversée : Orange cochée ({pressed(page)})')
+        R.check(page.evaluate("localStorage.getItem('ppl_icon_retired_reset')") == '1', f'{t} Inversée : fait une seule fois')
+        R.check(not page.errors, f'{t} Inversée : aucune erreur JS {page.errors}')
 
     # iOS sans icônes alternatives : section masquée
     if dev == 'iPhone 13':

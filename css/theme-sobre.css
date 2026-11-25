@@ -11,10 +11,13 @@
 
 /* ── Jetons ── */
 :root {
-  --tint: #FF8A3D;              /* liens et onglet actif : 8:1 sur noir, 6,6:1 sur cellule */
-  --tint-fill: #FF7A1A;         /* bouton plein, texte noir : 8,4:1 */
-  --on-tint: #000000;
-  --tint-on-fill: #FF9A57;      /* texte orange sur --fill : 6,9:1 */
+  /* Design « Orange » (par défaut, panel du 25/11) : l'aplat orange vif #FF7A1A à texte noir sur fond noir rappelait la
+     charte d'une autre marque (pas celle d'une app de sport et de santé). Bouton plein en orange brique, texte blanc ;
+     liens d'action dans un orange brique éclairci, lisible ; onglet actif en blanc (--tab-on). Mesures (WCAG 2.2) : */
+  --tint: #F27A45;              /* liens, anneaux, série en cours : 7,7:1 sur noir, 6,2:1 sur cellule, 5,1:1 sur --cell2 */
+  --tint-fill: #B8460F;         /* bouton plein, texte blanc : 5,4:1 ; bouton sur cellule 3,2:1 (contour non textuel) */
+  --on-tint: #FFFFFF;           /* jamais de texte noir sur un aplat orange */
+  --tint-on-fill: #F5874F;      /* texte orange sur --fill : 5,5:1 */
   --cat-color: var(--tint);
   /* Couleurs de séance et pastilles du guide : plus de violet ni d'indigo (bleu système et sable) */
   --indigo: #0A84FF; --purple: #AC8E68;
@@ -31,8 +34,10 @@ body.light {
   /* Orange d'action en clair (panel vague 4) : #BA3B00 (teinte 19°) tirait sur le rouge destructif #D70015 (354°),
      « Remplacer » et « Retirer » se confondaient. Teinte 29-30°, nettement orange, AA partout :
      5,9:1 sur blanc, 5,3:1 sur #F2F2F7, 5,2:1 sur les feuilles et dialogues assombris */
-  --tint: #A04E00;
-  --tint-fill: #A85400;         /* bouton plein, texte blanc 5,3:1 */
+  /* Design « Orange » en clair (panel du 25/11) : bouton dans la même brique que le sombre ; liens inchangés (#A04E00,
+     teinte 29° : une teinte plus rouge se confondait avec « Retirer » en rouge destructif, panel vague 4) */
+  --tint: #A04E00;              /* 5,9:1 sur blanc, 5,3:1 sur #F2F2F7 */
+  --tint-fill: #B8460F;         /* bouton plein, texte blanc 5,4:1 */
   --on-tint: #FFFFFF;
   --tint-on-fill: #8F4600;      /* sur --fill clair : 5,4:1 sur cellule, 5,0:1 sur fond gris */
   --indigo: #0066CC; --purple: #8A6A45;
@@ -40,8 +45,25 @@ body.light {
 }
 :root, body.light { --macro-p: var(--sb-macro-p); --macro-c: var(--sb-macro-c); --macro-f: var(--sb-macro-f); }
 /* Jetons tirés d'un autre jeton : redéclarés sous body.light, sinon ils gardent la valeur du sombre (une variable se
-   résout là où elle est déclarée ; l'anneau du repos restait #FF8A3D en clair, à côté du bouton orange foncé) */
-:root, body.light { --sb-ring: var(--tint); --sb-burst: var(--medal); --cat-color: var(--tint); }
+   résout là où elle est déclarée ; l'anneau du repos restait #FF8A3D en clair, à côté du bouton orange foncé). Sur body
+   aussi (pas seulement body.light) : le design « Bleu » (body.design-bleu) change --tint sur body, en sombre comme en clair */
+:root, body { --sb-ring: var(--tint); --sb-burst: var(--medal); --cat-color: var(--tint); --tip-link: var(--tint); --tab-on: var(--label); }
+
+/* Design « Bleu » (Réglages › Apparence › Design, js/data/design.js) : l'accent bleu système d'iOS, texte blanc sur l'aplat ;
+   l'orange ne reste qu'à la marque (icône, affiche du coach). Onglet actif dans l'accent, comme les apps d'Apple */
+body.design-bleu {
+  --tint: #0A84FF;              /* 5,8:1 sur noir, 4,7:1 sur cellule */
+  --tint-fill: #0A6CDB;         /* bouton plein, texte blanc 5,0:1 ; bouton sur cellule 3,4:1 */
+  --on-tint: #FFFFFF;
+  --tint-on-fill: #409CFF;      /* texte bleu sur --fill : 5,0:1 */
+  --tab-on: var(--tint);
+}
+body.light.design-bleu {
+  --tint: #0066CC;              /* 5,6:1 sur blanc, 5,0:1 sur #F2F2F7 */
+  --tint-fill: #0066CC;         /* texte blanc 5,6:1 */
+  --tint-on-fill: #0060C0;
+}
+.tabbar__btn--active { color: var(--tab-on); }
 
 /* La couleur de séance ne colore plus rien : une seule teinte, l'orange de l'action (style en ligne compris) */
 [style*="--cat-color"], .livebar, .session, .rest-mini, .summary { --cat-color: var(--tint) !important; }
@@ -54,6 +76,7 @@ body.light {
 /* Mini-barre de repos : elle flotte, elle garde son matériau ; filet net plutôt que l'ombre en plus */
 .rest-mini { box-shadow: none; border: .5px solid var(--sep); }
 body:not(.light) .rest-mini .rest-mini__skip { color: #FFB27D; }   /* sur --fill de --cell2 : 5,2:1 (--tint y tombait à 3,9:1) */
+body.design-bleu:not(.light) .rest-mini .rest-mini__skip { color: #8CC4FF; }   /* même place, design « Bleu » : 6,0:1 */
 
 /* ── Typographie : casse de phrase, semi-gras gris, chiffres à chasse fixe ── */
 .group-title, .sum-section-title, .hero__eyebrow, .targets__title, .home-card__title, .home-list__title {

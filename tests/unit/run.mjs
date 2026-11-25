@@ -41,6 +41,7 @@ const SCRIPTS = [
   'js/data/diet-estimate.js',
   'js/data/water.js',
   'js/data/defis.js',
+  'js/data/design.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -117,6 +118,7 @@ const SCRIPTS = [
   'js/app/live-update.js',
   'js/features/share-stats.js',
   'js/features/share-canvas.js',
+  'js/features/recap-canvas.js',
   'js/features/coach-poster-art.js',
   'js/features/dashboard.js',
   'js/features/session.js',
@@ -2331,6 +2333,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // Eau : objectif en litres, ajouts, journal, plan du coach (docs/EAU.md)
 (await import('./water.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 (await import('./defis.mjs')).default({ test, run, reset, assert, sameJSON });
+// Réglages › Apparence › Design : couleur d'accent datée, synchro, jetons (tests dans design.mjs)
+(await import('./design.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Scanner un aliment : codes-barres, réponse d'Open Food Facts, Mes aliments (tests dans food-scan.mjs)
 (await import('./food-scan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Quantités à l'unité : portions courantes, conversions, unité du paquet (tests dans food-portions.mjs)

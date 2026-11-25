@@ -86,7 +86,7 @@ private struct SetView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(WatchTint.color(state.tint))
+                        .tint(WatchTint.fill)
                         .disabled(model.pending || !model.reachable)
                         .accessibilityHint("Valide la série avec la charge et les répétitions prévues")
                     } else if let blocked = state.blocked, !blocked.isEmpty {
@@ -137,7 +137,7 @@ private struct RestView: View {
                 .disabled(model.pending || !model.reachable)
                 Button("Passer", action: model.skipRest)
                     .buttonStyle(.borderedProminent)
-                    .tint(WatchTint.color(state.tint))
+                    .tint(WatchTint.fill)
                     .disabled(model.pending || !model.reachable)
                     .accessibilityHint("Arrête le repos")
                 if let exercise = state.exercise, !exercise.isEmpty {

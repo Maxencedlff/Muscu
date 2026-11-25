@@ -369,6 +369,8 @@ function sanitizeData(d) {
   sanitizeWater(d);
   // Défis (js/data/defis.js, chargé avant) : défis, ajouts du jour, réglage des récaps
   sanitizeDefis(d);
+  // Design (js/data/design.js, chargé avant) : couleur d'accent choisie, datée
+  sanitizeDesign(d);
   return d;
 }
 

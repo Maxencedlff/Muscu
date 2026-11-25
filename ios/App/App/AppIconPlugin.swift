@@ -18,12 +18,17 @@ public class AppIconPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "change", returnType: CAPPluginReturnPromise),
     ]
 
-    /// { supported, name? } : name absent pour l'icône par défaut
+    /// { supported, name?, available } : name absent pour l'icône par défaut ; available, les jeux d'icônes alternatifs
+    /// présents dans ce paquet (CFBundleAlternateIcons, écrit par Xcode d'après ASSETCATALOG_COMPILER_ALTERNATE_APP_ICON_NAMES) :
+    /// le web n'affiche que ceux-là (une icône ajoutée au catalogue n'existe qu'à partir de la build qui l'embarque)
     @objc func getName(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             let app = UIApplication.shared
             var out: [String: Any] = ["supported": app.supportsAlternateIcons]
             if let name = app.alternateIconName { out["name"] = name }
+            let icons = Bundle.main.object(forInfoDictionaryKey: "CFBundleIcons") as? [String: Any]
+            let alternates = icons?["CFBundleAlternateIcons"] as? [String: Any] ?? [:]
+            out["available"] = alternates.keys.sorted()
             call.resolve(out)
         }
     }

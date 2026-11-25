@@ -34,13 +34,17 @@
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'exerciseEquip', 'sideFirst', 'silhouette', 'myProgrammes',
   'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods', 'dietFoodsGone', 'dietConsent',
-  'defis', 'defisRecap'];
+  'defis', 'defisRecap', 'design'];
 // defis (js/data/defis.js, docs/DEFIS.md) : toujours fusionnés (mergeDefis : réglages au plus récent, ajouts réunis
 // moins ceux retirés), jamais recopiés tels quels, dans toutes les branches de applyRemoteProfile ; defisRecap
 // (« Défis dans les récaps », { on, at }) : le choix le plus récent gagne, absent du compte il reste tel quel ici.
 // Les deux sont hors de l'empreinte « modifié ici » (profileCoreHash) : un « +10 » ne fait pas gagner cet appareil
 // sur l'objectif de la semaine ou le programme changés ailleurs (audit du 24/11, B1)
 const SYNC_DEFIS_KEYS = ['defis', 'defisRecap'];
+// design (Réglages › Apparence › Design, { accent, at }, js/data/design.js) : même règle que defisRecap, le choix le plus
+// récent gagne (mergeDesign) ; absent du compte (appareil resté sur une version d'avant), il reste tel quel ici. Hors de
+// l'empreinte « modifié ici » : changer de couleur ne fait pas gagner cet appareil sur le reste du profil
+const SYNC_CHOICE_KEYS = ['design'];
 // Clés de nutrition copiées seulement avec l'accord de la personne (dietConsent.on, js/data/nutrition.js) :
 // sans accord, ou accord retiré, elles ne partent pas et le profil envoyé les efface du serveur. L'accord
 // lui-même ({ on, at }) part toujours : un refus fait sur un appareil vaut pour les autres.
@@ -213,7 +217,7 @@ const SYNC_PROFILE_VOLATILE = ['appVersion', 'appSeenAt'];
 // appVersion) est égale à celle-ci tant que rien d'autre n'a changé
 function profileCoreHash(doc) {
   const out = { ...(doc || {}) };
-  for (const k of [...SYNC_PROFILE_VOLATILE, ...SYNC_DEFIS_KEYS]) delete out[k];
+  for (const k of [...SYNC_PROFILE_VOLATILE, ...SYNC_DEFIS_KEYS, ...SYNC_CHOICE_KEYS]) delete out[k];
   return syncHash(out);
 }
 // Ordres locaux des séances, gardés quand le profil reçu n'en a pas encore (compte rempli par une version
@@ -383,6 +387,11 @@ function mergeDefisProfile(d, local, remoteDoc, now = Date.now()) {
   const r = mergeDefisRecap(local.defisRecap, remoteDoc.defisRecap);
   if (r) d.defisRecap = r; else delete d.defisRecap;
 }
+// Choix datés (SYNC_CHOICE_KEYS) : le plus récent des deux, jamais effacé par un compte qui ne l'a pas
+function mergeChoiceProfile(d, local, remoteDoc) {
+  const v = mergeDesign(local.design, remoteDoc.design);
+  if (v) d.design = v; else delete d.design;
+}
 
 function applyRemoteProfile(d, remote, meta) {
   if (!remote?.doc || typeof remote.doc !== 'object') return false;
@@ -393,6 +402,7 @@ function applyRemoteProfile(d, remote, meta) {
   if (localHash === remoteHash) { meta.profileHash = localHash; meta.profileCore = profileCoreHash(doc); return false; }
   const localDiet = Object.fromEntries(SYNC_DIET_ALL_KEYS.map(k => [k, d[k]]));
   const localDefis = { defis: d.defis, defisRecap: d.defisRecap };
+  const localChoice = { design: d.design };
   const blank = isBlankData(d);
   const before = Object.fromEntries(Object.entries(d.userProgrammes || {}).filter(([, up]) => Array.isArray(up?.order)).map(([k, up]) => [k, up.order.slice()]));
   // Inchangé ici : empreinte égale, ou égale sans l'ordre des séances ajouté par une version précédente,
@@ -408,19 +418,20 @@ function applyRemoteProfile(d, remote, meta) {
     const ownVersion = Object.fromEntries(SYNC_PROFILE_VOLATILE.filter(k => d[k] !== undefined).map(k => [k, d[k]]));
     // Nutrition : jamais recopiée telle quelle (ni effacée parce que le compte ne l'a pas) : mergeDietProfile
     for (const k of SYNC_PROFILE_KEYS) {
-      if (SYNC_DIET_ALL_KEYS.includes(k) || SYNC_DEFIS_KEYS.includes(k)) continue;
+      if (SYNC_DIET_ALL_KEYS.includes(k) || SYNC_DEFIS_KEYS.includes(k) || SYNC_CHOICE_KEYS.includes(k)) continue;
       if (k in doc) d[k] = doc[k]; else if (blank || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k];
     }
     Object.assign(d, ownVersion);
     keepLocalOrders(d, before);
     mergeDietProfile(d, localDiet, remote.doc, true);
     mergeDefisProfile(d, localDefis, remote.doc);
+    mergeChoiceProfile(d, localChoice, remote.doc);
     meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
     return true;
   }
   const remoteWins = meta.profileHash == null;
   for (const [k, v] of Object.entries(doc)) {
-    if (SYNC_DIET_ALL_KEYS.includes(k) || SYNC_DEFIS_KEYS.includes(k)) continue;
+    if (SYNC_DIET_ALL_KEYS.includes(k) || SYNC_DEFIS_KEYS.includes(k) || SYNC_CHOICE_KEYS.includes(k)) continue;
     const both = SYNC_UNION_KEYS.includes(k) && v && typeof v === 'object' && d[k] && typeof d[k] === 'object';
     if (both) d[k] = remoteWins ? { ...d[k], ...v } : { ...v, ...d[k] };
     else if (remoteWins || d[k] === undefined) d[k] = v;
@@ -428,6 +439,7 @@ function applyRemoteProfile(d, remote, meta) {
   keepLocalOrders(d, before);
   mergeDietProfile(d, localDiet, remote.doc, remoteWins);
   mergeDefisProfile(d, localDefis, remote.doc);
+  mergeChoiceProfile(d, localChoice, remote.doc);
   // Empreinte du compte : le résultat de la fusion, différent, partira au prochain envoi
   meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
   return true;

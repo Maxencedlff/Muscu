@@ -17,7 +17,12 @@ export default function appIconTests({ test, app, run, sameJSON, assert, nativeC
 
   test('icône : catalogue (défaut « Orange » en tête, identifiants et jeux uniques, couleurs #RRGGBB)', () => {
     const all = icons();
-    sameJSON(all.map(i => i.label), ['Orange', 'Fonte rouillée', 'Inversée', 'Craie', 'Signature']);
+    sameJSON(all.map(i => i.label), ['Orange', 'Fonte rouillée', 'Craie', 'Signature', 'Bleue', 'Noël']);
+    // Icône par défaut inchangée (choix de Maxence du 25/11, même avec l'accent orange brique de l'app)
+    assert.equal(all[0].bg, '#111111'); assert.equal(all[0].fg, '#FF6A1A');
+    // « Inversée » (fond orange vif, signe noir) retirée ; jamais de signe noir sur un fond orange
+    sameJSON([...run('APP_ICONS_RETIRED')], ['AppIcon-Inversee']);
+    assert.ok(!all.some(i => i.id === 'inversee'));
     assert.equal(all[0].asset, 'AppIcon');
     assert.equal(run('DEFAULT_APP_ICON').id, 'orange');
     assert.equal(new Set(all.map(i => i.id)).size, all.length, 'identifiant en double');
@@ -40,7 +45,8 @@ export default function appIconTests({ test, app, run, sameJSON, assert, nativeC
     assert.equal(app.nativeAppIconName('signature'), 'AppIcon-Signature');
     assert.equal(app.nativeAppIconName('inconnue'), undefined);
     icons().forEach(i => assert.equal(app.appIconFromNative(app.nativeAppIconName(i.id)).id, i.id, `aller-retour ${i.id}`));
-    sameJSON([...app.alternateAppIconNames()], ['AppIcon-Rouille', 'AppIcon-Inversee', 'AppIcon-Craie', 'AppIcon-Signature']);
+    sameJSON([...app.alternateAppIconNames()], ['AppIcon-Rouille', 'AppIcon-Craie', 'AppIcon-Signature', 'AppIcon-Bleue', 'AppIcon-Noel']);
+    assert.equal(app.appIconFromNative('AppIcon-Inversee').id, 'orange', 'icône retirée encore en place : défaut');
   });
 
   test('icône : dessin du signe (géométrie validée, fond facultatif, aplat sans dégradé)', () => {
@@ -56,6 +62,26 @@ export default function appIconTests({ test, app, run, sameJSON, assert, nativeC
     const bare = run("appIconSvg(APP_ICONS[0], { background: false, color: '#FFFFFF', attrs: 'aria-hidden=\"true\"' })");
     assert.ok(!bare.includes('width="1024"'), 'sans fond');
     assert.ok(bare.includes('fill="#FFFFFF"') && bare.includes(' aria-hidden="true">'));
+  });
+
+  test('icône : proposées selon les jeux du paquet natif (Bleue et Noël demandent la build)', () => {
+    const ids = av => run(`appIconsOffered(${JSON.stringify(av)}).map(i => i.id)`);
+    sameJSON(ids(null), ['orange', 'rouille', 'craie', 'signature'], 'coquille d\'avant : pas les nouvelles');
+    sameJSON(ids(['AppIcon-Rouille', 'AppIcon-Inversee', 'AppIcon-Craie', 'AppIcon-Signature']), ['orange', 'rouille', 'craie', 'signature'], 'paquet d\'avant, Inversée encore dedans : jamais proposée');
+    sameJSON(ids(['AppIcon-Bleue', 'AppIcon-Craie', 'AppIcon-Noel', 'AppIcon-Rouille', 'AppIcon-Signature']), ['orange', 'rouille', 'craie', 'signature', 'bleue', 'noel']);
+    sameJSON(ids([]), ['orange'], 'aucun jeu alternatif : le défaut seul');
+    assert.ok(run("APP_ICONS.filter(i => i.needsBuild).map(i => i.id).join()") === 'bleue,noel');
+  });
+
+  test('icône : Noël, trois couleurs (petits disques rouges), et Bleue sur le fond de l\'icône par défaut', () => {
+    const noel = run("appIconSvg(APP_ICONS.find(i => i.id === 'noel'))");
+    assert.ok(noel.includes('fill="#0E3B2C"') && noel.includes('stroke="#F4EFE6"'));
+    assert.equal((noel.match(/fill="#C8102E"/g) || []).length, 2, 'deux petits disques rouges');
+    assert.equal((noel.match(/fill="#F4EFE6"/g) || []).length, 2, 'deux grands disques blanc cassé');
+    const tinted = run("appIconSvg(APP_ICONS.find(i => i.id === 'noel'), { background: false, color: '#FFFFFF' })");
+    assert.ok(!tinted.includes('#C8102E'), 'couleur imposée (icône teintée) : les disques la suivent');
+    const bleue = run("APP_ICONS.find(i => i.id === 'bleue')");
+    assert.equal(bleue.bg, '#111111'); assert.equal(bleue.fg, '#0A84FF');
   });
 
   test('icône : projet Xcode cohérent avec le catalogue (jeux, réglages, module enregistré)', () => {
@@ -84,21 +110,21 @@ export default function appIconTests({ test, app, run, sameJSON, assert, nativeC
 
   test('icône : pont natif hors app → sans effet ; dans l\'app → module MdlfAppIcon', async () => {
     const web = nativeContext({ native: false });
-    sameJSON(await web.Native.appIcon.get(), { supported: false, name: null });
+    sameJSON(await web.Native.appIcon.get(), { supported: false, name: null, available: null });
     assert.equal(await web.Native.appIcon.set('AppIcon-Craie'), false);
     assert.equal(web.calls.length, 0);
 
     let current = 'AppIcon-Craie';
     const n = nativeContext({ plugins: { MdlfAppIcon: {
-      getName: async () => (current ? { supported: true, name: current } : { supported: true }),
+      getName: async () => (current ? { supported: true, name: current } : { supported: true, available: ['AppIcon-Craie', 7] }),
       change:  async ({ name }) => { if (name === 'AppIcon-Inconnue') throw new Error('No such icon'); current = name; return {}; },
     } } });
-    sameJSON(await n.Native.appIcon.get(), { supported: true, name: 'AppIcon-Craie' });
+    sameJSON(await n.Native.appIcon.get(), { supported: true, name: 'AppIcon-Craie', available: null }, 'coquille d\'avant : available inconnu');
     assert.equal(await n.Native.appIcon.set(null), true);
-    sameJSON(await n.Native.appIcon.get(), { supported: true, name: null }, 'défaut : nom absent → null');
+    sameJSON(await n.Native.appIcon.get(), { supported: true, name: null, available: ['AppIcon-Craie'] }, 'défaut : nom absent → null ; jeux du paquet, chaînes seulement');
     assert.equal(await n.Native.appIcon.set('AppIcon-Inconnue'), false, 'refus d\'iOS → false');
 
     const unsupported = nativeContext({ plugins: { MdlfAppIcon: { getName: async () => { throw new Error('UNAVAILABLE'); } } } });
-    sameJSON(await unsupported.Native.appIcon.get(), { supported: false, name: null });
+    sameJSON(await unsupported.Native.appIcon.get(), { supported: false, name: null, available: null });
   });
 }
