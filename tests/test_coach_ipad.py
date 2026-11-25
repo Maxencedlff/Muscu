@@ -413,6 +413,8 @@ def t_diete(browser, url, engine):
         open_desk(page, t)
         fo = frame_obj(page)
         R.check(fo.evaluate("fetch('data/foods.json').then(() => 'lu', () => 'refusé')") == 'refusé', f'{t} : le cadre isolé ne lit pas la base lui-même')
+        page.wait_for_timeout(300)
+        page.errors.clear()   # le refus de cette lecture voulue (CORS) est journalisé par WebKit : pas une erreur de la page
         fr = frame_of(page)
         fo.evaluate("location.hash = '#/plans-diete'")
         fr.locator('[data-dt="new"]:not([disabled])').first.wait_for(timeout=15_000)
