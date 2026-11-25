@@ -25,7 +25,7 @@ const dt = { acc: null, accAt: 0, accKind: null, accLoading: false,
 const deskDtDirty = () => !!dt.draft && (dt.fresh || deskDtSnap(dt.draft) !== dt.saved);
 const deskDtDayObj = () => dietDayObj(dt.draft, dt.day);
 const deskDtErr = kind => DESK_DT_ERRORS[kind] || (COACH_ERROR_TEXT[kind] ? coachErrorText(kind) : deskErrorText(kind));
-function deskDtReset() { Object.assign(dt, { key: null, ctx: null, id: null, draft: null, saved: '', fresh: false, src: null, sentAt: 0, baseAt: null, copyId: null, day: 0, hist: deskDtHistory(), open: null, err: null, tgErr: '' }); }
+function deskDtReset() { Object.assign(dt, { key: null, ctx: null, id: null, draft: null, saved: '', fresh: false, src: null, sentAt: 0, baseAt: null, copyId: null, day: 0, hist: deskDtHistory(), open: null, err: null, tgErr: '', newMeal: '' }); }
 async function deskDtLeaveOk() {
   if (!deskDtDirty()) return true;
   if (dt.src === 'sent') return deskConfirm({ title: 'Quitter sans envoyer ?', text: 'Tes changements pour cet élève seront perdus. Touche « Envoyer » pour qu\'il les reçoive.', ok: 'Quitter sans envoyer', danger: true });
@@ -179,7 +179,7 @@ function deskDtEditorHtml(r) {
         ${shown.length ? `<ul class="dt-meals" aria-label="${esc(`Repas, ${dayName}`)}">${meals}</ul>` : '<div class="empty">Aucun repas affiché. Ajoute un repas ci-dessous.</div>'}
         <p id="dt-grip-help" class="sr">Glisse la poignée pour changer l'ordre des repas, ou utilise les flèches haut et bas.</p>
         ${day.meals.length < DIET_MEAL_MAX ? `<form class="pg-add dt-addmeal" data-dt-form="meal"><label class="sr" for="dt-newmeal">Nom du nouveau repas</label>
-          <input id="dt-newmeal" class="in wide" placeholder="Nouveau repas, par exemple « Avant la séance »" maxlength="${DIET_NAME_MAX}" autocomplete="off">
+          <input id="dt-newmeal" class="in wide" placeholder="Nouveau repas, par exemple « Avant la séance »" maxlength="${DIET_NAME_MAX}" autocomplete="off" value="${esc(dt.newMeal || '')}">
           <button class="btn link">${deskIcon('plus', 'sm')}Ajouter un repas</button></form>` : `<p class="gfoot">${esc(`${DIET_MEAL_MAX} repas au plus par jour.`)}</p>`}
         ${hidden.length ? `<h3 class="gh gap">Repas masqués</h3><div class="group">${hidden.map(m => `<button type="button" class="row act" data-dt="show-meal" data-meal="${esc(m.id)}">${esc(`Réafficher ${m.name}`)}</button>`).join('')}</div>
           <div class="gfoot">Un repas masqué n'est pas envoyé à l'élève ; ses aliments sont gardés.</div>` : ''}
@@ -470,6 +470,8 @@ function deskDtField(t, commit = false) {
 
 document.addEventListener('input', e => {
   const t = e.target;
+  // Nom du nouveau repas : gardé dans l'état, un rendu (champ voisin quitté, rendu différé) ne le vide pas
+  if (t.id === 'dt-newmeal') { dt.newMeal = t.value; return; }
   if (!t.dataset?.dtF || !dt.draft || ['move', 'unit', 'tg', 'mealname'].includes(t.dataset.dtF)) return;
   deskDtField(t, false);
 });
@@ -499,7 +501,7 @@ document.addEventListener('submit', e => {
   if (!test.ok) { deskToast(DESK_DT_ERRORS[test.kind] || `${DIET_MEAL_MAX} repas au plus.`); input?.focus(); return; }
   const name = input.value.trim();
   deskDtChange(() => deskDtAddMeal(deskDtDayObj(), name), { say: `Repas ${name} ajouté`, render: false });
-  input.value = '';
+  input.value = ''; dt.newMeal = '';
   deskRender();
   const m = deskDtDayObj().meals.at(-1);
   document.getElementById(`dt-add-${dtIdPart(m.id)}`)?.focus();
