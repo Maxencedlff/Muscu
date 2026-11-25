@@ -25,7 +25,8 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const teardown = () => run('sb = null; account.user = null; coach.state = null; coachShareReset(null); delete globalThis.__calls; delete globalThis.__answers;');
   // Seulement les appels du partage : un autre module peut lire le serveur au même moment (my_access du
   // payant, déclenché par un minuteur), ce n'est pas l'objet de ces tests
-  const shareLog = () => run('__calls').filter(c => c[0].startsWith('student_'));
+  // student_checkins (bilans, js/data/checkin-student.js, relus quand l'état du coach change) n'est pas du partage
+  const shareLog = () => run('__calls').filter(c => c[0].startsWith('student_') && c[0] !== 'student_checkins');
   const calls = () => shareLog().map(c => c[0]);
 
   test('partage coach : données prévues dans le modèle, seul le poids affiché ; mêmes données que le serveur', () => {
