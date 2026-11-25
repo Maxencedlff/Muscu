@@ -140,8 +140,17 @@ def journeys(browser, url, engine):
         page.press('#dt-newmeal', 'Enter')
         wait_js(page, "document.querySelectorAll('.dt-meal').length === 5")
         # Glisser-déposer à la souris : « Avant la séance » en 2e position
-        grip = page.locator('.dt-grip').nth(4).bounding_box()
-        target = page.locator('.dt-meal').nth(1).bounding_box()
+        def box(loc):
+            # Rendu différé possible (champ quitté, rendu suivant par queueMicrotask) : la boîte se relit jusqu'à être là
+            for _ in range(50):
+                b = loc.bounding_box()
+                if b:
+                    return b
+                page.wait_for_timeout(100)
+            raise AssertionError('élément jamais affiché')
+        page.wait_for_timeout(700)
+        grip = box(page.locator('.dt-grip').nth(4))
+        target = box(page.locator('.dt-meal').nth(1))
         page.mouse.move(grip['x'] + grip['width'] / 2, grip['y'] + grip['height'] / 2)
         page.mouse.down()
         for i in range(1, 11):
