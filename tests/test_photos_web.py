@@ -264,8 +264,11 @@ def web_journey(browser, url, engine):
             check(set(dump[0]) == {'coach', 'device', 'wrapKey', 'keyId', 'coachPub', 'label', 'linkedAt'}, f'{tag} : champs gardés {sorted(dump[0])}')
             check(page.evaluate("(async () => { try { await crypto.subtle.exportKey('raw', ph.entry.wrapKey); return 'exportée'; } catch { return 'refusée'; } })()") == 'refusée', f'{tag} : clé exportable')
             check(page.evaluate("(async () => { try { await crypto.subtle.exportKey('pkcs8', ph.session.priv); return 'exportée'; } catch { return 'refusée'; } })()") == 'refusée', f'{tag} : clé du coach exportable')
+            # Session de l'onglet seulement (sessionStorage, audit du site coach M2) ; rien de durable dans localStorage
             keys = page.evaluate("Object.keys(localStorage).filter(k => !k.startsWith('mdlf_push_')).sort()")
-            check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : localStorage {keys}')
+            check(keys == [], f'{tag} : localStorage {keys}')
+            keys = page.evaluate("Object.keys(sessionStorage).filter(k => !k.startsWith('__')).sort()")
+            check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : sessionStorage {keys}')
             check(page.evaluate("(async () => (await caches.keys()).length + (navigator.serviceWorker ? (await navigator.serviceWorker.getRegistrations()).length : 0))()") == 0, f'{tag} : cache ou service worker')
             # Zoom : les deux bilans pour la même pose, zoom commun
             click('.ph-cell[data-pose="face"]')
@@ -357,6 +360,9 @@ def google_journey(browser, url, engine):
         check(page.evaluate('location.search') == '', f'{engine} Google : code retiré de l\'adresse ({page.evaluate("location.search")!r})')
         check(page.evaluate("JSON.parse(sessionStorage.getItem('__fakeGoogle') || 'null')") is None, f'{engine} Google : code consommé')
         check(page.locator('.lst a.row').count() == 10, f'{engine} Google : tableau de bord du coach')
+        # Session (et vérificateur PKCE, même stockage) dans l'onglet seulement, jamais dans localStorage
+        check(page.evaluate("Object.keys(localStorage).filter(k => k.startsWith('mdlf-coach-web-auth'))") == [], f'{engine} Google : rien dans localStorage')
+        check(page.evaluate("!!sessionStorage.getItem('mdlf-coach-web-auth')"), f'{engine} Google : session dans sessionStorage')
         check(not page.evaluate('window.__csp'), f'{engine} Google : CSP {page.evaluate("window.__csp")}')
     finally:
         ctx.close()

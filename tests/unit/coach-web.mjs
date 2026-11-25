@@ -61,6 +61,16 @@ export default function ({ test, assert, ROOT }) {
     assert.match(html, /connect-src 'self' https:\/\/yopptmdjtnezmccdvaxf\.supabase\.co;/);
   });
 
+  test('coach web : session et vérificateur PKCE de Google dans sessionStorage, jamais dans localStorage', () => {
+    // Durée de session illimitée en prod (Supabase) : la session ne doit pas survivre à l'onglet. supabase-js range le
+    // vérificateur PKCE du flux Google sous la même clé de stockage (« <storageKey>-code-verifier ») : même endroit.
+    const got = run(`(() => { const keep = sb; let opts = null; window.supabase = { createClient: (u, k, o) => { opts = o; return { auth: {} }; } };
+      sb = null; deskClient(); const r = { session: opts.auth.storage === window.sessionStorage, local: opts.auth.storage === window.localStorage,
+        persist: opts.auth.persistSession, pkce: opts.auth.flowType, key: opts.auth.storageKey, detect: opts.auth.detectSessionInUrl };
+      sb = keep; delete window.supabase; return r; })()`);
+    assert.equal(J(got), J({ session: true, local: false, persist: true, pkce: 'pkce', key: 'mdlf-coach-web-auth', detect: false }));
+  });
+
   test('coach web : même projet Supabase et même clé publique que l\'app', () => {
     const acc = fs.readFileSync(path.join(ROOT, 'js/data/account.js'), 'utf8');
     const url = /url: '([^']+)'/.exec(acc)[1], key = /publishableKey: '([^']+)'/.exec(acc)[1];
