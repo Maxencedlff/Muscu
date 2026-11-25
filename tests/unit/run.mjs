@@ -91,6 +91,7 @@ const SCRIPTS = [
   'js/data/health-workouts.js',
   'js/data/health-export.js',
   'js/data/health-sleep.js',
+  'js/data/health-days.js',
   'js/data/effort-clock.js',
   'js/data/exercise-moves.js',
   'js/data/exercise-howto.js',
@@ -2373,10 +2374,13 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./coach-web.mjs')).default({ test, assert, ROOT });
 (await import('./coach-web-bilans.mjs')).default({ test, assert, ROOT });
 (await import('./coach-web-v4.mjs')).default({ test, assert, ROOT });
+(await import('./coach-web-sante.mjs')).default({ test, assert, ROOT });
 // ── Bilans configurables : contrat partagé app / web / serveur (tests dans bilans-contrat.mjs) ──
 (await import('./bilans-contrat.mjs')).default({ test, run, assert, sameJSON });
 // ── Bilans configurables, app de l'élève (tests dans checkins-eleve.mjs) ──
 (await import('./checkins-eleve.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Pas, sommeil et cardio de Santé, côté élève (tests dans sante-eleve.mjs) ──
+(await import('./sante-eleve.mjs')).default({ test, run, reset, assert, sameJSON, nativeContext });
 // ── Visite de l'accueil : état, étapes, place de la bulle, défilement (tests dans tour.mjs) ──
 (await import('./tour.mjs')).default({ test, run, app, assert, ROOT });
 

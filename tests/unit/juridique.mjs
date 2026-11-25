@@ -35,7 +35,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(!/quelques jours la ligne d'une photo|for a few days \(its day/.test(page), 'plus de « quelques jours » pour les sauvegardes');
     assert.ok(page.includes('id="sauvegardes"') && page.includes('id="backups"'), 'ancres FR et EN');
     // Date de mise à jour, FR et EN, identiques
-    assert.ok(fr.includes('mise à jour le 23 novembre 2026') && en.includes('updated November 23, 2026'), 'date du 23/11/2026 (accord du mot coach)');
+    assert.ok(fr.includes('mise à jour le 25 novembre 2026') && en.includes('updated November 25, 2026'), 'date du 25/11/2026 (pas, sommeil et cardio partagés avec le coach)');
     assert.ok(fr.includes('id="accord-coach"') && fr.includes('Ma coach') && en.includes('Coach wording'), 'accord du mot coach dit (FR et EN)');
   });
 

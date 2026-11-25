@@ -17,7 +17,8 @@
 #     payant, notifications, Strava, lettre, records, planification du coach, mensurations partagées, progression des
 #     élèves ; le partage du poids n'est plus seul depuis les mensurations, qui s'y appuient ; les mensurations seules :
 #     tests des plans diète écartés, ils s'y appuient ; programmes envoyés (vague 4 du web) : son test lit l'accord « diet »
-#     des plans diète, écarté avec eux)
+#     des plans diète, écarté avec eux ; santé partagée : son test lit student_shares de la diète et les bilans, écarté
+#     avec les retours arrière de la diète, des plans diète, des mensurations et des bilans)
 #     lancés SEULS sur la pile complète :
 #     les tests des autres lots (*_test.sql) passent encore.
 #  6. Démontage complet AVEC des données (comptes, coach, codes, achats, parrainage, pesées), contrôles
@@ -139,12 +140,13 @@ fi
 echo "OK : tarifs, modèle B et parrainage refusent tant que la migration du dessus est en place"
 
 # ── 5. Retours arrière indépendants, seuls sur la pile complète ──
-for pair in "20261126010000:programmes_envoyes_coach_test.sql" \
-            "20261125010000:bilans_coach_test.sql" \
+for pair in "20261127010000:sante_coach_test.sql" \
+            "20261126010000:programmes_envoyes_coach_test.sql" \
+            "20261125010000:bilans_coach_test.sql sante_coach_test.sql" \
             "20261122010000:forme_coach_test.sql" \
             "20261120020000:nom_affiche_coach_test.sql" \
             "20261120010000:par_bras_test.sql" \
-            "20261118010000:suivi_diete_test.sql semaines_coach_test.sql" \
+            "20261118010000:suivi_diete_test.sql semaines_coach_test.sql sante_coach_test.sql" \
             "20261117060000:reaction_jaime_test.sql" \
             "20261117050000:messages_coach_test.sql reaction_jaime_test.sql bilans_coach_test.sql" \
             "20261117020000:charge_coach_test.sql par_bras_test.sql" \
@@ -155,10 +157,10 @@ for pair in "20261126010000:programmes_envoyes_coach_test.sql" \
             "20261031230000:newsletter_test.sql" \
             "20261031100000:records_test.sql coach_progress_test.sql intensif_prise_test.sql charge_prescrite_test.sql charge_coach_test.sql par_bras_test.sql" \
             "20261105000000:coach_planning_test.sql coach_planning_concurrence_test.sql" \
-            "20261105010000:partage_mensurations_test.sql plans_diete_test.sql suivi_diete_test.sql semaines_coach_test.sql programmes_envoyes_coach_test.sql" \
+            "20261105010000:partage_mensurations_test.sql plans_diete_test.sql suivi_diete_test.sql semaines_coach_test.sql programmes_envoyes_coach_test.sql sante_coach_test.sql" \
             "20261106000000:coach_progress_test.sql charge_coach_test.sql" \
             "20261101000000:parrainage_payant_test.sql" \
-            "20261106200000:plans_diete_test.sql charge_coach_test.sql suivi_diete_test.sql programmes_envoyes_coach_test.sql" \
+            "20261106200000:plans_diete_test.sql charge_coach_test.sql suivi_diete_test.sql programmes_envoyes_coach_test.sql sante_coach_test.sql" \
             "20261107000000:photos_bilan_test.sql bilans_coach_test.sql" \
             "20261116010000:charge_prescrite_test.sql charge_coach_test.sql par_bras_test.sql" \
             "20261117010000:photo_profil_test.sql" \

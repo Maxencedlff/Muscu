@@ -22,7 +22,9 @@ psql() { db=$1; shift; command psql -X -q -v ON_ERROR_STOP=1 -h "$tmp" -p "$port
 dump() { "$bin/pg_dump" -h "$tmp" -p "$port" -U postgres --no-owner "$1" | grep -v -e '^--' -e '^$' -e '^\\' -e '^SELECT pg_catalog.setval'; }
 command psql -X -q -h "$tmp" -p "$port" -U postgres -d postgres -c "create database avant"
 psql avant -f "$here/supabase_stub.sql"
-for m in "$root"/supabase/migrations/*.sql; do [ "$m" = "$mine" ] || psql avant -f "$m"; done
+# Les migrations d'AVANT elle seulement : une plus récente peut réécrire ses fonctions (20261127010000_sante_coach.sql
+# reprend coach_student_weeks et les briques des bilans) et se défait avant elle (supabase/rollback/ORDRE.md)
+for m in "$root"/supabase/migrations/*.sql; do if [[ "$(basename "$m")" < "$(basename "$mine")" ]]; then psql avant -f "$m"; fi; done
 # Comptes de départ (identifiants factices) : coach K, élève S avec un appareil et « Mon coach » allumé
 psql avant <<'SQL'
 insert into auth.users (id) values ('00000000-0000-0000-0000-0000000bd001'), ('00000000-0000-0000-0000-0000000bd002');

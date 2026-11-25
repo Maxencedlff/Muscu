@@ -424,6 +424,29 @@ const Native = (() => {
         try { return (await Health.workouts({ days })).workouts || []; }
         catch (e) { return e?.code === 'UNIMPLEMENTED' ? [] : null; }
       },
+      // ── Partage avec le coach : pas, sommeil, cardio (build iOS du 25/11/2026, docs/SANTE_COACH.md) ──
+      // La coquille sait-elle les lire ? true seulement si authorizationStatus rend la clé days (build qui
+      // l'apporte) ; false dans le navigateur, sur Android et sur une build antérieure. Ne montre rien.
+      async daysSupported() {
+        if (!isNative || isAndroid) return false;
+        try { const r = await Health.authorizationStatus(); return r?.available === true && typeof r.days === 'string'; }
+        catch { return false; }
+      },
+      // Fenêtre d'iOS pour lire les pas, le sommeil et les entraînements (rien en écriture), seulement au geste qui
+      // coche le partage. → true si la demande a pu être faite (iOS ne dit jamais si la lecture est accordée).
+      async authorizeDays() {
+        if (!isNative || isAndroid) return false;
+        try { return (await Health.requestDaysAuthorization())?.available === true; } catch { return false; }
+      },
+      // Pas par jour et entraînements cardio des `days` derniers jours : { steps: [{ day, steps }],
+      // workouts: [{ start, end, duration, activity }] } ; null si la lecture a échoué ou si la méthode manque.
+      async activityDays(days = 7) {
+        if (!isNative || isAndroid) return null;
+        try {
+          const r = await Health.activityDays({ days });
+          return { steps: Array.isArray(r?.steps) ? r.steps : [], workouts: Array.isArray(r?.workouts) ? r.workouts : [] };
+        } catch { return null; }
+      },
     },
 
     // Notifications push (APNs). Hors app, sur Android (pas de module) ou build antérieure sans le module :

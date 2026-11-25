@@ -161,7 +161,8 @@ async function deskNewInvite() {
 }
 
 // Fiche « Semaines » d'un élève : un appel (coach_student_weeks, migration 20261124010000_semaines_coach.sql) ;
-// serveur d'avant : les lectures existantes en parallèle, séances page par page jusqu'au début de la fenêtre
+// serveur d'avant : les lectures existantes en parallèle, séances page par page jusqu'au début de la fenêtre.
+// health (pas, sommeil, cardio, vague 3) : cleanCoachHealth, ou null si le serveur n'a pas coach_student_health.
 async function deskLoadWeeks(student, weeks = DESK_WEEKS_MAX, now = Date.now()) {
   const from = deskDayStart(deskWeekStart(now), -7 * (weeks - 1));
   const one = await deskRpc('coach_student_weeks', { student, weeks });
@@ -170,15 +171,18 @@ async function deskLoadWeeks(student, weeks = DESK_WEEKS_MAX, now = Date.now()) 
     return { ok: true, data: { via: 'weeks', from,
       sessions: d.sessions.map(cleanCoachSessionRow).filter(Boolean).filter(r => r.doneAt >= from),
       weights: cleanCoachWeights(d.weights), measures: cleanCoachMeasures(d.measures),
-      diet: d.diet && typeof d.diet === 'object' ? cleanCoachDiet(d.diet) : null } };
+      diet: d.diet && typeof d.diet === 'object' ? cleanCoachDiet(d.diet) : null,
+      // Pas, sommeil, cardio (migration 20261127010000_sante_coach.sql) : null sur un serveur d'avant
+      health: d.health && typeof d.health === 'object' ? cleanCoachHealth(d.health) : null } };
   }
   if (!one.ok && one.kind !== 'missing') return one;
-  const [w, m, dt, rows] = await Promise.all([deskRpc('coach_student_weights', { student }), deskRpc('coach_student_measures', { student }),
-    deskRpc('coach_student_diet', { student }), deskLoadSessionsSince(student, from)]);
+  const [w, m, dt, hl, rows] = await Promise.all([deskRpc('coach_student_weights', { student }), deskRpc('coach_student_measures', { student }),
+    deskRpc('coach_student_diet', { student }), deskRpc('coach_student_health', { student }), deskLoadSessionsSince(student, from)]);
   if (!w.ok && w.kind !== 'missing') return w;
   if (!rows.ok) return rows;
   return { ok: true, data: { via: 'pages', from, sessions: rows.data,
-    weights: cleanCoachWeights(deskOpt(w)), measures: cleanCoachMeasures(deskOpt(m)), diet: dt.ok ? cleanCoachDiet(dt.data) : null } };
+    weights: cleanCoachWeights(deskOpt(w)), measures: cleanCoachMeasures(deskOpt(m)), diet: dt.ok ? cleanCoachDiet(dt.data) : null,
+    health: hl.ok && hl.data && typeof hl.data === 'object' ? cleanCoachHealth(hl.data) : null } };
 }
 async function deskLoadSessionsSince(student, from) {
   const out = [];

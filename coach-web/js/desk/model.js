@@ -185,13 +185,45 @@ function deskRecordCount(rows) {
 }
 const deskAvg = list => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
 
+// ── Pas, sommeil et cardio de Santé (vague 3, docs/COACH_WEB.md) ──
+
+// Moyennes d'une semaine (jours AAAA-MM-JJ du lundi au dimanche) sur les jours partagés (cleanCoachHealth) :
+// { steps, sleep, cardio }, chacune { avg, n } (n : jours qui ont une valeur, seuls comptés) ou null sans aucune valeur.
+// Pas arrondis à l'unité, sommeil et cardio en minutes entières. null si l'élève ne partage pas.
+function deskHealthWeek(health, days) {
+  if (!health?.shared) return null;
+  const set = new Set(days), inWeek = health.days.filter(d => set.has(d.day));
+  const avg = k => { const l = inWeek.map(d => d[k]).filter(v => Number.isInteger(v)); return l.length ? { avg: Math.round(deskAvg(l)), n: l.length } : null; };
+  return { steps: avg('steps'), sleep: avg('sleep'), cardio: avg('cardio') };
+}
+// Minutes de sommeil → « 7 h 05 », « 8 h 00 », « 45 min »
+function deskSleepText(min) {
+  if (!Number.isFinite(min)) return '';
+  const m = Math.round(min), h = Math.floor(m / 60);
+  return h ? `${h} h ${String(m % 60).padStart(2, '0')}` : `${m} min`;
+}
+// Textes d'une case : { text, sr (pour les lecteurs d'écran), title } ; null sans valeur
+function deskHealthCell(kind, v) {
+  if (!v) return null;
+  const over = kind === 'sleep' ? plural(v.n, 'nuit', 'nuits') : plural(v.n, 'jour', 'jours');
+  const title = `Moyenne sur ${over}`;
+  if (kind === 'steps') return { text: fmtNum(v.avg), sr: `pas par jour, moyenne sur ${over}`, title };
+  if (kind === 'sleep') return { text: deskSleepText(v.avg), sr: `de sommeil par nuit, moyenne sur ${over}`, title };
+  return { text: `${v.avg} min/j`, sr: `de cardio par jour, moyenne sur ${over}`, title };
+}
+// [clé, intitulé, précision sous l'intitulé (deux lignes : le tableau reste étroit)]
+const DESK_HEALTH_COLS = Object.freeze([['steps', 'Pas', 'par jour'], ['sleep', 'Sommeil', 'par nuit'], ['cardio', 'Cardio', 'par jour']]);
+// Colonnes Pas, Sommeil, Cardio : seulement si l'élève partage (health.shared === true)
+function deskHealthColumns(health) { return health?.shared === true ? DESK_HEALTH_COLS : []; }
+
 // Semaines de la fiche, de la semaine en cours vers le passé.
 // src : { sessions: [cleanCoachSessionRow], weights (cleanCoachWeights), measures (cleanCoachMeasures),
-//         diet (cleanCoachDiet | null : serveur sans le suivi), phases (cleanCoachPlans[élève] | null), now, count }
+//         diet (cleanCoachDiet | null : serveur sans le suivi), health (cleanCoachHealth | null : serveur sans la
+//         vague 3), phases (cleanCoachPlans[élève] | null), now, count }
 // Une semaine : { start, end, week (numéro ISO), range, current, phase, sessions, volume, records,
 //   weight: { avg, n, delta } | null, diet: { ok, noted, kcal } | null, water (L par jour noté) | null,
-//   measures: { clé: cm } (dernière mesure de la semaine) }
-function deskWeeks({ sessions = [], weights = null, measures = null, diet = null, phases = null, now, count = DESK_WEEKS_SHOWN }) {
+//   measures: { clé: cm } (dernière mesure de la semaine), health: deskHealthWeek | null }
+function deskWeeks({ sessions = [], weights = null, measures = null, diet = null, health = null, phases = null, now, count = DESK_WEEKS_SHOWN }) {
   const cur = deskWeekStart(now), out = [];
   for (let i = 0; i < count; i++) {
     const start = deskDayStart(cur, -7 * i), end = deskDayStart(cur, -7 * i + 7);
@@ -220,7 +252,7 @@ function deskWeeks({ sessions = [], weights = null, measures = null, diet = null
     out.push({ start, end, week: deskIsoWeek(start), range: deskWeekRange(start), current: i === 0, phase,
       sessions: ws.length, volume: Math.round(volume), records: deskRecordCount(ws),
       weight: wk.length ? { avg: Math.round(deskAvg(wk) * 10) / 10, n: wk.length, delta: null } : null,
-      diet: dietW, water, measures: m });
+      diet: dietW, water, measures: m, health: deskHealthWeek(health, days) });
   }
   // Écart de poids avec la semaine pesée d'avant (la plus proche dans le passé)
   out.forEach((w, i) => {

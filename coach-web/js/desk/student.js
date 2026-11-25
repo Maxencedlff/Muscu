@@ -6,6 +6,8 @@
 //  sont pas partagés avec le coach (docs/DEFIS.md) : le pied du tableau le dit. Courbe du poids sur 90 jours.
 //  Colonnes en plus (vague 2) : les suivis échelle, nombre ou automatiques du bilan le plus récent de l'élève, avec
 //  la valeur du bilan dont la période tombe dans la semaine (deskCkWeekColumns, deskCkWeekValues).
+//  Pas, sommeil et cardio (vague 3) : trois colonnes seulement si l'élève les partage (health.shared), moyennes de la
+//  semaine sur les jours relevés (deskHealthWeek) ; sinon une phrase dans le pied du tableau ; serveur d'avant : rien.
 //  Onglet « Bilans » : js/desk/review.js ; vague 4 : « Programme » (js/desk/programme.js), « Nutrition »
 //  (js/desk/nutrition.js), « Messages » (js/desk/messages.js).
 // ═══════════════════════════════════════════════════════════
@@ -20,7 +22,13 @@ const deskSigned = (v, unit = '') => (v === null || v === undefined ? '' : `${v 
 // Couleur d'un écart de poids : neutre (le sens voulu dépend de la phase, l'app ne le devine pas)
 const deskNa = '<span class="faint" aria-label="Pas de donnée">—</span>';
 
-function deskWeekRowHtml(w, cols, ctx, ckCols = [], ckReq = null) {
+// Case Pas, Sommeil ou Cardio : valeur, nombre de jours comptés (title et lecteurs d'écran), « — » sans valeur
+function deskHealthTd(kind, w) {
+  const c = deskHealthCell(kind, w.health?.[kind] || null);
+  return c ? `<td title="${esc(c.title)}">${esc(c.text)}<span class="sr"> ${esc(c.sr)}</span></td>` : `<td>${deskNa}</td>`;
+}
+
+function deskWeekRowHtml(w, cols, ctx, ckCols = [], ckReq = null, hCols = []) {
   const name = `<b class="wn">S${w.week}</b>${w.current ? ' <span class="tag">en cours</span>' : ''}<small>${esc(w.range)}${w.phase ? ` · ${esc(w.phase)}` : ''}</small>`;
   const weight = !ctx.weightShared ? deskNa : w.weight ? `${deskKg(w.weight.avg)}${w.weight.delta !== null ? `<small>${esc(deskSigned(w.weight.delta))}</small>` : ''}` : deskNa;
   const vol = w.volume ? `${fmtNum(Math.round(w.volume / 10) / 100, 2)} t` : deskNa;
@@ -30,7 +38,8 @@ function deskWeekRowHtml(w, cols, ctx, ckCols = [], ckReq = null) {
   const ms = cols.map(k => `<td>${w.measures[k] !== undefined ? esc(deskKg(w.measures[k])) : deskNa}</td>`).join('');
   const ckv = ckCols.length ? deskCkWeekValues(w, ckReq, ckCols) : {};
   const ck = ckCols.map(c => `<td>${ckv[c.key] ? esc(ckv[c.key].text) : deskNa}</td>`).join('');
-  return `<tr class="${w.current ? 'cur' : ''}"><th scope="row">${name}</th><td>${weight}</td><td>${w.sessions || '<span class="faint">0</span>'}</td><td>${vol}</td><td>${rec}</td><td>${diet}</td><td>${water}</td>${ms}${ck}</tr>`;
+  const hl = hCols.map(([k]) => deskHealthTd(k, w)).join('');
+  return `<tr class="${w.current ? 'cur' : ''}"><th scope="row">${name}</th><td>${weight}</td><td>${w.sessions || '<span class="faint">0</span>'}</td><td>${vol}</td><td>${rec}</td><td>${diet}</td><td>${water}</td>${hl}${ms}${ck}</tr>`;
 }
 
 function deskChartHtml(chart, weights) {
@@ -75,6 +84,7 @@ function deskStudentHtml(d, ui, tab = 'weeks') {
   const cols = deskMeasureColumns(d.measures);
   const ctx = { weightShared: !!d.weights?.shared, dietShared: !!d.diet?.shared };
   const ckCols = d.checkins ? deskCkWeekColumns(d.checkins) : [];
+  const hCols = deskHealthColumns(d.health);
   const s = deskStudentStats(d.weeks, d.weights, d.now);
   const waist = deskMeasureSummary(d.measures).find(m => m.key === 'waist') || deskMeasureSummary(d.measures)[0] || null;
   const stats = `<div class="stats" aria-label="En bref">
@@ -87,10 +97,10 @@ function deskStudentHtml(d, ui, tab = 'weeks') {
   </div>`;
   const table = `<div class="group tscroll" tabindex="0" role="region" aria-label="Semaine par semaine"><table class="wk">
     <caption class="sr">Semaine par semaine, de la semaine en cours vers le passé</caption>
-    <thead><tr><th scope="col">Semaine</th><th scope="col">Poids (kg)</th><th scope="col">Séances</th><th scope="col">Volume</th><th scope="col">Records</th><th scope="col">Diète (jours)</th><th scope="col">Eau</th>${cols.map(k => `<th scope="col">${esc(bodyMeasureLabel(k))} (cm)</th>`).join('')}${ckCols.map(c => `<th scope="col" class="ckh">${esc(c.head)}</th>`).join('')}</tr></thead>
-    <tbody>${w.map(x => deskWeekRowHtml(x, cols, ctx, ckCols, d.checkins)).join('')}</tbody></table></div>
+    <thead><tr><th scope="col">Semaine</th><th scope="col">Poids (kg)</th><th scope="col">Séances</th><th scope="col">Volume</th><th scope="col">Records</th><th scope="col">Diète (jours)</th><th scope="col">Eau</th>${hCols.map(([, l, u]) => `<th scope="col">${esc(l)}<small>${esc(u)}</small></th>`).join('')}${cols.map(k => `<th scope="col">${esc(bodyMeasureLabel(k))} (cm)</th>`).join('')}${ckCols.map(c => `<th scope="col" class="ckh">${esc(c.head)}</th>`).join('')}</tr></thead>
+    <tbody>${w.map(x => deskWeekRowHtml(x, cols, ctx, ckCols, d.checkins, hCols)).join('')}</tbody></table></div>
     ${ui.weeks < d.weeks.length ? `<button type="button" class="btn link more" data-action="more-weeks">Afficher les semaines précédentes</button>` : ''}
-    <div class="gfoot">Tout se remplit seul avec ce que ${esc(r.name)} partage : pesées, séances, repas cochés, eau, mensurations. Poids : moyenne des pesées de la semaine et écart avec la semaine pesée d'avant. Diète : jours suivis sur les jours notés. Défis : pas encore partagés avec le coach.${ckCols.length ? ' Dernières colonnes : réponses à ses bilans, semaine où commence la période du bilan.' : ''}</div>`;
+    <div class="gfoot">Tout se remplit seul avec ce que ${esc(r.name)} partage : pesées, séances, repas cochés, eau, mensurations${hCols.length ? ', pas, sommeil et cardio' : ''}. Poids : moyenne des pesées de la semaine et écart avec la semaine pesée d'avant. Diète : jours suivis sur les jours notés.${hCols.length ? ' Pas, sommeil et cardio : moyenne des jours relevés par son iPhone dans la semaine.' : ''} Défis : pas encore partagés avec le coach.${d.health && d.health.shared === false ? ` <span class="h-off">${esc(r.name)} ne partage pas ses pas, son sommeil ni son cardio (réglage dans l'app iPhone : Partager avec mon coach).</span>` : ''}${ckCols.length ? ' Dernières colonnes : réponses à ses bilans, semaine où commence la période du bilan.' : ''}</div>`;
   const panel = `<div class="side-panel">
     <section class="gblock" aria-labelledby="h-chart"><h2 class="gh" id="h-chart">Poids au quotidien <span class="r muted">90 jours</span></h2>${deskChartHtml(d.chart, d.weights)}</section>
     <section class="gblock" aria-labelledby="h-meas"><h2 class="gh" id="h-meas">Mensurations</h2>${d.measures?.shared && deskMeasureSummary(d.measures).length

@@ -100,7 +100,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     sameJSON(pre.values.diet_adherence, { done: 5, of: 7 });
     run('dietShareDay = __savedDsd');
     // Pas lus dans Santé (coquille qui sait les lire)
-    pre = run(`checkinPrefill(checkinItemsShown(${req}), checkinContext(${req}, { goal: 4, now: ${NOW}, steps: 8900.4 }))`);
+    pre = run(`checkinPrefill(checkinItemsShown(${req}), checkinContext(${req}, { goal: 4, now: ${NOW}, health: { steps: 8900.4 } }))`);
     assert.equal(pre.values.steps, 8900);
     assert.equal(pre.from.steps, 'health');
   });

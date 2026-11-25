@@ -4,7 +4,8 @@ import HealthKit
 
 /// Apple Santé : enregistre une séance terminée comme entraînement « Musculation » (et son cardio de
 /// machines dans son propre type : course, marche, vélo, elliptique, rameur, escaliers), lit le poids
-/// corporel, les courses et sorties vélo (Apple Watch, Strava…) et le sommeil.
+/// corporel, les courses et sorties vélo (Apple Watch, Strava…) et le sommeil ; et, pour le partage avec le coach que
+/// l'élève active lui-même (docs/SANTE_COACH.md), les pas par jour et les entraînements cardio (activityDays).
 /// Côté web : Capacitor.registerPlugin('MdlfHealth').
 @objc(HealthPlugin)
 public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -19,6 +20,8 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "sleep", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "bodyMass", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "workouts", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestDaysAuthorization", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "activityDays", returnType: CAPPluginReturnPromise),
     ]
 
     private let store = HKHealthStore()
@@ -28,6 +31,7 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
     private var runDistanceType: HKQuantityType { HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)! }
     private var cycleDistanceType: HKQuantityType { HKObjectType.quantityType(forIdentifier: .distanceCycling)! }
     private var sleepType: HKCategoryType { HKObjectType.categoryType(forIdentifier: .sleepAnalysis)! }
+    private var stepType: HKQuantityType { HKObjectType.quantityType(forIdentifier: .stepCount)! }
     /// Distance du rameur : type apparu avec iOS 18 (l'app vise iOS 16.4) ; absent avant, rien n'est écrit
     private var rowDistanceType: HKQuantityType? {
         if #available(iOS 18.0, *) { return HKObjectType.quantityType(forIdentifier: .distanceRowing) }
@@ -51,6 +55,8 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
     private var weightReadTypes: Set<HKObjectType> { [bodyMassType] }
     private var workoutReadTypes: Set<HKObjectType> { [workoutType, runDistanceType, cycleDistanceType] }
     private var sleepReadTypes: Set<HKObjectType> { [sleepType] }
+    /// Partage avec le coach : pas, sommeil et entraînements (pour le cardio), en lecture seulement
+    private var daysReadTypes: Set<HKObjectType> { [stepType, sleepType, workoutType] }
 
     /// Demande l'autorisation d'écrire les entraînements (et leur énergie) et de lire le poids ; avec
     /// workouts (vrai par défaut), aussi celle de lire les entraînements et leurs distances (course, vélo) et
@@ -93,7 +99,11 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
         store.getRequestStatusForAuthorization(toShare: shareTypes, read: weightReadTypes.union(workoutReadTypes)) { status, error in
             let request = name(status, error)
             self.store.getRequestStatusForAuthorization(toShare: self.distanceShareTypes, read: self.sleepReadTypes) { status2, error2 in
-                call.resolve(["available": true, "request": request, "extra": name(status2, error2)])
+                // days : pas, sommeil et entraînements du partage avec le coach (build du 25/11/2026). Sa présence
+                // dit au web que la coquille sait les lire (absente d'une build antérieure : case cachée).
+                self.store.getRequestStatusForAuthorization(toShare: [], read: self.daysReadTypes) { status3, error3 in
+                    call.resolve(["available": true, "request": request, "extra": name(status2, error2), "days": name(status3, error3)])
+                }
             }
         }
     }
@@ -281,15 +291,16 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // ── Sommeil ──────────────────────────────────────────────────────────────────────
 
-    /// Échantillons de sommeil des `days` dernières nuits (8 par défaut, 31 au plus), du plus ancien au plus
+    /// Échantillons de sommeil des `days` dernières nuits (8 par défaut, 92 au plus : 90 jours du partage avec le
+    /// coach), du plus ancien au plus
     /// récent : start / end en millisecondes depuis 1970, stage : inBed, asleep (sans phase), core, deep,
     /// rem, awake. iOS ne dit pas si la lecture est refusée : liste vide dans ce cas.
     @objc func sleep(_ call: CAPPluginCall) {
-        let days = min(31, max(1, call.getInt("days") ?? 8))
+        let days = min(92, max(1, call.getInt("days") ?? 8))
         let since = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: since, end: nil, options: [])
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-        let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: 2000, sortDescriptors: [sort]) { _, samples, error in
+        let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: 12000, sortDescriptors: [sort]) { _, samples, error in
             if let error = error { call.reject(error.localizedDescription); return }
             let list: [[String: Any]] = (samples as? [HKCategorySample] ?? []).compactMap { x in
                 guard let stage = Self.sleepStage(x.value) else { return nil }
@@ -372,6 +383,93 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 ]
             }
             call.resolve(["workouts": list])
+        }
+        store.execute(query)
+    }
+
+    // ── Partage avec le coach : pas et cardio par jour (build du 25/11/2026) ───────────
+
+    /// Fenêtre d'autorisation de Santé pour le partage avec le coach : lecture des pas, du sommeil et des
+    /// entraînements, rien en écriture. Appelée seulement quand l'élève coche « Pas, sommeil et cardio »
+    /// (jamais au lancement). iOS ne montre la fenêtre que pour les types jamais demandés et ne dit jamais si la
+    /// lecture est accordée : → { available, asked }.
+    @objc func requestDaysAuthorization(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else { call.resolve(["available": false, "asked": false]); return }
+        store.requestAuthorization(toShare: [], read: daysReadTypes) { ok, error in
+            if let error = error { call.reject(error.localizedDescription); return }
+            call.resolve(["available": true, "asked": ok])
+        }
+    }
+
+    /// Activités cardio comptées pour le coach (le web fait l'union des intervalles : une même sortie enregistrée
+    /// par l'Apple Watch et par Strava ne compte qu'une fois). La musculation n'en fait pas partie.
+    private static let cardioActivities: [HKWorkoutActivityType: String] = [
+        .running: "running", .walking: "walking", .cycling: "cycling", .elliptical: "elliptical",
+        .rowing: "rowing", .stairClimbing: "stairClimbing", .stairs: "stairs", .stepTraining: "stepTraining",
+        .swimming: "swimming", .hiking: "hiking", .highIntensityIntervalTraining: "hiit", .jumpRope: "jumpRope",
+        .mixedCardio: "mixedCardio", .cardioDance: "cardioDance", .socialDance: "socialDance", .boxing: "boxing",
+        .kickboxing: "kickboxing", .crossCountrySkiing: "crossCountrySkiing", .handCycling: "handCycling",
+    ]
+
+    /// Jour local « AAAA-MM-JJ » (calendrier grégorien, fuseau de l'iPhone)
+    private static func dayKey(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone.current
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: date)
+    }
+
+    /// Les `days` derniers jours (aujourd'hui compris ; 92 au plus) :
+    ///   steps : [{ day, steps }] : total du jour, sources fusionnées par Santé (iPhone et Apple Watch ne
+    ///           comptent pas deux fois : HKStatisticsCollectionQuery, cumulativeSum) ; jours sans pas absents ;
+    ///   workouts : [{ start, end (ms), duration (s), activity }] : entraînements cardio de toutes les sources.
+    /// Rien d'autre (ni fréquence cardiaque, ni lieu, ni appareil). iOS ne dit pas si la lecture est refusée :
+    /// listes vides dans ce cas.
+    @objc func activityDays(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else { call.resolve(["steps": [], "workouts": []]); return }
+        let days = min(92, max(1, call.getInt("days") ?? 7))
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let start = cal.date(byAdding: .day, value: -(days - 1), to: today) ?? today
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: nil, options: [])
+        let stepsQuery = HKStatisticsCollectionQuery(quantityType: stepType, quantitySamplePredicate: predicate,
+                                                     options: .cumulativeSum, anchorDate: today,
+                                                     intervalComponents: DateComponents(day: 1))
+        stepsQuery.initialResultsHandler = { _, collection, error in
+            var steps: [[String: Any]] = []
+            if error == nil, let collection = collection {
+                collection.enumerateStatistics(from: start, to: Date()) { stats, _ in
+                    guard let sum = stats.sumQuantity() else { return }
+                    let n = Int(sum.doubleValue(for: .count()).rounded())
+                    if n > 0 { steps.append(["day": Self.dayKey(stats.startDate), "steps": n]) }
+                }
+            }
+            self.cardioWorkouts(since: start) { workouts in
+                call.resolve(["steps": steps, "workouts": workouts])
+            }
+        }
+        store.execute(stepsQuery)
+    }
+
+    private func cardioWorkouts(since start: Date, completion: @escaping ([[String: Any]]) -> Void) {
+        let types = Array(Self.cardioActivities.keys)
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: start, end: nil, options: []),
+            NSCompoundPredicate(orPredicateWithSubpredicates: types.map { HKQuery.predicateForWorkouts(with: $0) }),
+        ])
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+        let query = HKSampleQuery(sampleType: workoutType, predicate: predicate, limit: 2000, sortDescriptors: [sort]) { _, samples, error in
+            guard error == nil else { completion([]); return }
+            let list: [[String: Any]] = (samples as? [HKWorkout] ?? []).compactMap { w in
+                guard let name = Self.cardioActivities[w.workoutActivityType] else { return nil }
+                return ["start": w.startDate.timeIntervalSince1970 * 1000,
+                        "end": w.endDate.timeIntervalSince1970 * 1000,
+                        "duration": w.duration,
+                        "activity": name]
+            }
+            completion(list)
         }
         store.execute(query)
     }

@@ -33,7 +33,7 @@ const CK_ERRORS = ['invalid_answer', 'already_answered', 'closed', 'no_consent',
 // available : null tant que rien n'est lu, false si le serveur n'a pas les bilans. cycle : accord donné ;
 // cycleAsked : un bilan ouvert du coach contient le suivi du cycle (champ facultatif du serveur, voir docs/BILANS.md)
 const ck = { userId: null, coachId: null, available: null, requests: [], cycle: false, cycleAsked: false, loading: false, again: false,
-  error: null, loadedAt: 0, triedAt: 0, coachSeenAt: 0, sending: new Set(), steps: null };
+  error: null, loadedAt: 0, triedAt: 0, coachSeenAt: 0, sending: new Set(), health: null };
 let ckSeq = 0;   // +1 au changement de compte : une réponse arrivée après n'écrit plus rien
 const ckListeners = [];
 function onCheckinChange(fn) { ckListeners.push(fn); }
@@ -103,8 +103,8 @@ function checkinPlanned(days, goal) {
 }
 
 // Ce que l'app sait déjà pour un bilan (contexte de checkinPrefill, js/data/checkins.js). goal : séances par semaine
-// (weeklyGoal de l'accueil) ; steps : moyenne lue dans Santé ou null
-function checkinContext(req, { d = data, list = ck.requests, goal = typeof weeklyGoal === 'function' ? weeklyGoal() : 3, steps = ck.steps, now = Date.now() } = {}) {
+// (weeklyGoal de l'accueil) ; health : résumé de Santé pour la période de CE bilan (checkinReadHealth), ou null
+function checkinContext(req, { d = data, list = ck.requests, goal = typeof weeklyGoal === 'function' ? weeklyGoal() : 3, health = ck.health?.id === req?.id ? ck.health : null, now = Date.now() } = {}) {
   const p = checkinPeriod(req, list);
   const today = localISO(now);
   const diet = p.keys.filter(k => k <= today).map(day => {
@@ -118,7 +118,9 @@ function checkinContext(req, { d = data, list = ck.requests, goal = typeof weekl
     dietDays: diet.some(x => x.status !== 'none') ? diet : [],
     sessions: (d?.history || []).filter(h => Number.isFinite(h?.date) && h.date >= p.from && h.date < p.to).length,
     planned: checkinPlanned(p.days, goal),
-    steps: Number.isFinite(steps) ? steps : null,
+    steps: Number.isFinite(health?.steps) ? health.steps : null,
+    sleepH: Number.isFinite(health?.sleepH) ? health.sleepH : null,
+    cardioMin: Number.isFinite(health?.cardioMin) ? health.cardioMin : null,
   };
 }
 
@@ -195,7 +197,7 @@ function ckReset(userId) {
   ck.userId = userId || null;
   if (st) ckMergeSent(st.requests);
   Object.assign(ck, { userId: userId || null, coachId: c?.coachId || null, available: st ? true : null, requests: st?.requests || [], cycle: !!st?.cycle,
-    cycleAsked: !!st?.cycleAsked, loading: false, again: false, error: null, loadedAt: 0, triedAt: 0, coachSeenAt: 0, sending: new Set(), steps: null });
+    cycleAsked: !!st?.cycleAsked, loading: false, again: false, error: null, loadedAt: 0, triedAt: 0, coachSeenAt: 0, sending: new Set(), health: null });
 }
 // Plus de coach (quitté, retiré) : la liste et les brouillons partent
 function ckForgetCoach() {
@@ -276,17 +278,18 @@ async function checkinRefresh({ minAge = 0, now = Date.now() } = {}) {
   return r.ok;
 }
 
-// Pas de Santé dans les builds actuelles : lue seulement si la coquille sait lire les pas (Native.health.steps,
-// moyenne par jour des `days` derniers jours, ou null). Sinon le champ reste à remplir à la main.
-async function checkinReadSteps(days = 7) {
-  const fn = typeof Native === 'object' ? Native.health?.steps : null;
-  if (typeof fn !== 'function') return null;
-  try {
-    const r = await fn.call(Native.health, { days });
-    const avg = typeof r === 'number' ? r : r?.average;
-    ck.steps = Number.isFinite(avg) && avg >= 0 ? Math.round(avg) : null;
-  } catch { ck.steps = null; }
-  return ck.steps;
+// Pas, sommeil et cardio de la période du bilan, lus dans Santé (js/data/health-days.js), seulement si la coquille
+// sait les lire (build du 25/11/2026). Ne demande jamais l'autorisation : sans elle (ou refusée), Santé ne rend rien
+// et les champs restent à remplir à la main. Gardé en mémoire pour CE bilan (ck.health), jamais sur l'appareil.
+// → { id, steps, sleepH, sleepMin, cardioMin, stepDays, nights } ou null
+async function checkinReadHealth(req, { now = Date.now() } = {}) {
+  if (!req || typeof healthDaysRead !== 'function') return null;
+  const list = await healthDaysRead({ now });
+  if (!list) return null;
+  const today = localISO(now);
+  const sum = healthPeriodSummary(list, checkinPeriod(req).keys.filter(k => k <= today));
+  ck.health = { id: req.id, ...sum };
+  return ck.health;
 }
 
 // ── Envoi ───────────────────────────────────────────────────

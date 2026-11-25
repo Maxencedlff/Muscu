@@ -1,4 +1,4 @@
-# MDLF Coach sur ordinateur (appli web du coach) : vagues 1, 2 et 4
+# MDLF Coach sur ordinateur (appli web du coach) : vagues 1, 2, 3 et 4
 
 Demande d'un coach partenaire (24/11/2026) : faire ses retours sur un iPhone 12 est « horrible », il travaille sur PC ou
 tablette. Décision de Maxence : une **application web dans le navigateur** (Linux, Mac, Windows, iPad, tablettes
@@ -202,7 +202,8 @@ les semaines précédentes » ; la diète partagée est gardée 90 jours). Colon
 | Mensurations (2 colonnes, toutes dans le panneau) | `coach_student_measures` | « non partagées » |
 
 Les **défis ne sont pas partagés** avec le coach (docs/DEFIS.md, « Coach : rien en V1 ») : le pied du tableau le dit.
-Le sommeil, les pas, le stress… viendront des bilans configurables (vague 2) et du partage des données Santé (vague 3).
+Le stress, le ressenti… viennent des bilans configurables (vague 2) ; les pas, le sommeil et le cardio du partage des
+données Santé (vague 3, ci-dessous).
 Courbe du poids sur 90 jours (SVG décrit pour les lecteurs d'écran), mensurations avec leur écart. Les onglets
 Bilans, Programme, Nutrition et Messages sont présents, désactivés et annoncés « bientôt ».
 
@@ -497,6 +498,32 @@ charge en plus `accessors.js`, `goals.js` et `coach-diet.js`, tels quels.
   Signaler, brouillon depuis Nutrition, confirmation avant de quitter, envoi groupé (Tom sans les charges de Léa), envoi
   d'un de mes programmes, repli sans la migration, diète non partagée, hôte qui embarque la page.
 - `python3 tests/coach_web_captures.py <dossier>` capture aussi Messages, Programme (et un exercice déplié) et Nutrition.
+
+## Vague 3 : pas, sommeil, cardio
+
+Contrat serveur et app : docs/SANTE_COACH.md (migration `20261127010000_sante_coach.sql`, écrite, PAS appliquée).
+
+- **Colonnes** de la fiche Semaines, après Eau : « Pas », « Sommeil », « Cardio » (« par jour », « par nuit » en dessous), **seulement si
+  l'élève partage** (case « Pas, sommeil et cardio » de l'app, `health.shared === true`). Moyenne de la semaine (lundi
+  au dimanche, comme les autres colonnes) sur les seuls jours qui ont une valeur : pas arrondis (« 7 880 »), sommeil en
+  minutes (« 7 h 08 »), cardio en minutes par jour (« 33 min/j ») ; semaine en cours : les jours déjà relevés. Le nombre
+  de jours comptés est dans le `title` de la case et dans le texte lu par les lecteurs d'écran (« pas par jour, moyenne
+  sur 5 jours ») ; « — » pour une semaine sans valeur. Logique pure : `deskHealthWeek`, `deskHealthCell`,
+  `deskSleepText`, `deskHealthColumns` (`js/desk/model.js`). Le tableau défile dans son cadre, jamais la page.
+- **Source** : `coach_student_weeks` rend `health` (= `coach_student_health(student)`), nettoyé par `cleanCoachHealth`
+  (`js/data/coach-share.js`, chargé tel quel) ; toujours un seul appel pour la fiche. Repli sans `coach_student_weeks` :
+  `coach_student_health` lu avec les autres lectures.
+- **Sans partage** (`shared: false`) : aucune colonne, et dans le pied du tableau « <élève> ne partage pas ses pas, son
+  sommeil ni son cardio (réglage dans l'app iPhone : Partager avec mon coach) ».
+- **Sans la migration** (`PGRST202`, ou `coach_student_weeks` d'avant sans clé `health`) : `health` vaut null, ni
+  colonne ni phrase, rien ne casse.
+- Grand écran (iPad, page embarquée avec `MDLF_COACH_HOST`) : mêmes colonnes (testé avec le faux hôte).
+- Tests : `tests/unit/coach-web-sante.mjs` (moyennes, jours sans valeur, bornes de la semaine, semaine en cours, textes,
+  `cleanCoachHealth` des scripts de la page, colonnes absentes sans partage, phrase, serveur d'avant, un appel ou repli,
+  échappement) ; `python3 tests/test_coach_web_sante.py` (`PPL_ENGINES=chromium` pour un moteur ; job `coach-web`) :
+  3 moteurs × 1440, 1180, 820 × sombre, clair, valeurs exactes de Léa (`COACH_WEB_HEALTH_SEED`, `health=True` de
+  `open_desk`), Tom sans partage, un appel, repli, serveur sans la migration, faux hôte iPad, pas de défilement en
+  largeur, cibles de 44 px, CSP, aucune erreur, localStorage. Captures : `9-fiche-sante*` de `tests/coach_web_captures.py`.
 
 ## Embarquer dans l'app (iPad et tablettes)
 

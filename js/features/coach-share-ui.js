@@ -35,13 +35,14 @@ function coachShareStatusText(st, kind = 'weight') {
   if (!st) return '';
   const since = st.grantedAt ? ` depuis le ${fmtDate(st.grantedAt, 'short')}` : '';
   const [one, many, none] = kind === 'measures' ? ['mesure partagée', 'mesures partagées', 'aucune mensuration']
-    : kind === 'diet_log' ? ['jour partagé', 'jours partagés', 'aucun jour'] : ['pesée partagée', 'pesées partagées', 'aucune pesée'];
+    : kind === 'diet_log' || kind === 'health' ? ['jour partagé', 'jours partagés', 'aucun jour'] : ['pesée partagée', 'pesées partagées', 'aucune pesée'];
   // Diète : la date dit quand le partage a commencé, le nombre ce que le coach voit (jours d'avant compris, panel nutri-final t1)
-  if (kind === 'diet_log') return st.n ? `Partagé${since} · ${plural(st.n, 'jour visible', 'jours visibles')}` : `Partagé${since}, ${none} pour l'instant`;
+  if (kind === 'diet_log' || kind === 'health') return st.n ? `Partagé${since} · ${plural(st.n, 'jour visible', 'jours visibles')}` : `Partagé${since}, ${none} pour l'instant`;
   return st.n ? `${plural(st.n, one, many)}${since}` : `Partagé${since}, ${none} pour l'instant`;
 }
 const SHARE_OFF_SUB = { weight: 'Tes pesées saisies dans l\'app', measures: 'Taille, bras, cuisses… notés dans Progrès › Mensurations',
-  diet_log: 'Repas cochés, calories et macros, eau, sel. Tes 90 derniers jours partent aussi' };
+  diet_log: 'Repas cochés, calories et macros, eau, sel. Tes 90 derniers jours partent aussi',
+  health: 'Lus dans Santé : pas, heures de sommeil et minutes de cardio de chaque jour. Tes 90 derniers jours partent aussi' };
 
 function renderCoachShare() {
   const head = navBar({ title: 'Partager', large: false });
@@ -53,7 +54,7 @@ function renderCoachShare() {
   if (!st) {
     return view(coachShare.error ? coachOfflineNote(coachShare.error, 'Pas d\'Internet. Le partage demande du réseau.') : '<div class="empty-note">Chargement…</div>');
   }
-  const kinds = coachShareKindsShown(), withM = kinds.some(k => k.kind === 'measures'), withD = kinds.some(k => k.kind === 'diet_log');
+  const kinds = coachShareKindsShown(), withM = kinds.some(k => k.kind === 'measures'), withD = kinds.some(k => k.kind === 'diet_log'), withH = kinds.some(k => k.kind === 'health');
   const cells = kinds.map(k => {
     const on = coachShareOn(k.kind), busy = coachShare.busy === k.kind;
     const sub = on ? coachShareStatusText(st.shares[k.kind], k.kind) : SHARE_OFF_SUB[k.kind] || '';
@@ -68,8 +69,11 @@ function renderCoachShare() {
   const empty = coachShareOn('weight') && !sharedWeightsPayload().length;
   const emptyM = coachShareOn('measures') && !Object.keys(sharedMeasuresPayload()).length;
   const emptyD = coachShareOn('diet_log') && !dietActivePlan(data);
-  const hint = fromHealth || empty || emptyM || emptyD ? `<div class="group-foot">${[
+  // Santé n'a rien rendu (lecture refusée dans Réglages, ou rien d'enregistré) : iOS ne dit pas laquelle
+  const emptyH = coachShareOn('health') && Array.isArray(healthDays.list) && !healthDays.list.length;
+  const hint = fromHealth || empty || emptyM || emptyD || emptyH ? `<div class="group-foot">${[
     fromHealth ? 'Les pesées lues dans Santé ne sont jamais partagées.' : '',
+    emptyH ? 'Rien de lu dans Santé pour l\'instant. Vérifie Réglages › Santé › Accès aux données et appareils › MDLF Training : Pas, Sommeil et Entraînements doivent être activés.' : '',
     empty ? 'Aucune pesée saisie dans l\'app. Ajoute ton poids dans Réglages › Entraînement › Poids du corps.' : '',
     emptyM ? 'Aucune mensuration. Ajoute-les dans Progrès › Mensurations.' : '',
     emptyD ? `Aucun plan de nutrition suivi. ${myCoachWord('Ton')} verra ta diète dès que tu en suis un (Entraînement › Nutrition).` : '',
@@ -77,9 +81,9 @@ function renderCoachShare() {
   // Serveur à jour (mensurations annoncées) : trois paragraphes courts, ce que le coach voit, ce qui ne part jamais,
   // comment arrêter (panel du 18/11 : le bloc d'un seul tenant n'était pas lu), puis « En savoir plus »
   const foot = withM ? `
-        <div class="group-foot"><b>${name} voit</b> seulement ce que tu actives : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration${withD ? ', et chaque jour de ta diète : repas cochés, calories, macros, eau, sel et écart avec l\'objectif' : ''}. Avec les pesées, le volume des exercices au poids du corps inclut ton poids.</div>
-        <div class="group-foot"><b>Jamais</b> : tes données Santé${withD ? ', le détail de tes aliments, les heures' : ''}. Tes photos ne partent que si tu les envoies. Tes amis ne voient rien.</div>
-        <div class="group-foot"><b>Retirer</b> : tu peux arrêter à tout moment, donnée par donnée. Ce que tu désactives est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ${myCoachWord('ton')} arrête aussi le partage.${withD ? ' Ta diète est gardée 90 jours au plus.' : ''}</div>
+        <div class="group-foot"><b>${name} voit</b> seulement ce que tu actives : la date et le poids de chaque pesée saisie dans l'app, la date et la valeur de chaque mensuration${withD ? ', et chaque jour de ta diète : repas cochés, calories, macros, eau, sel et écart avec l\'objectif' : ''}${withH ? ', et pour chaque jour lu dans Santé : le nombre de pas, la durée de sommeil et les minutes de cardio' : ''}. Avec les pesées, le volume des exercices au poids du corps inclut ton poids.</div>
+        <div class="group-foot"><b>Jamais</b> : ${withH ? 'le reste de Santé (fréquence cardiaque, phases et heures de tes nuits, lieux, appareils), tes pesées lues dans Santé' : 'tes données Santé'}${withD ? ', le détail de tes aliments, les heures' : ''}. Tes photos ne partent que si tu les envoies. Tes amis ne voient rien.</div>
+        <div class="group-foot"><b>Retirer</b> : tu peux arrêter à tout moment, donnée par donnée. Ce que tu désactives est supprimé du serveur et ${name} ne le voit plus, même les anciennes valeurs. Quitter ${myCoachWord('ton')} arrête aussi le partage.${withD || withH ? ` ${withD && withH ? 'Ta diète, tes pas, ton sommeil et ton cardio sont gardés' : withD ? 'Ta diète est gardée' : 'Tes pas, ton sommeil et ton cardio sont gardés'} 90 jours au plus.` : ''}</div>
         <div class="group coach-share-more"><button class="cell cell--action" data-action="open-legal" data-page="coachShare"><span>En savoir plus sur le partage</span></button></div>`
     : `
         <div class="group-foot">${name} verra la date et le poids de chaque pesée saisie dans l'app. Le volume des exercices au poids du corps sera calculé avec ton poids. Jamais tes données Santé. Tes amis ne voient rien.</div>
@@ -259,14 +263,25 @@ registerActions({
       const n = coachShare.state?.shares?.diet_log?.n || 0;
       if (!(await confirmSheet('Arrêter le partage de ta diète ?', `${coachName()} ne verra plus ${n ? plural(n, 'jour partagé', 'jours partagés') : 'tes jours partagés'}. ${n === 1 ? 'Il est supprimé' : 'Ils sont supprimés'} du serveur.`, 'Arrêter'))) return;
     }
+    // Pas, sommeil, cardio : données de santé (RGPD art. 9) : accord explicite, ce qui part dit avant, et la fenêtre
+    // d'iOS annoncée ; arrêter supprime jusqu'à 90 jours chez le coach : confirmation aussi
+    if (kind === 'health') {
+      const who = coachName() || myCoachWord('ton');
+      const n = coachShare.state?.shares?.health?.n || 0;
+      const ok = on
+        ? await confirmSheet(`Partager tes pas, ton sommeil et ton cardio avec ${who} ?`,
+          `Chaque jour, ${who} verra ton nombre de pas, ta durée de sommeil et tes minutes de cardio, lus dans Santé, sur tes 90 derniers jours. Rien d'autre de Santé. Santé va te demander l'accès : active Pas, Sommeil et Entraînements. Tu peux arrêter à tout moment.`, 'Partager', false)
+        : await confirmSheet('Arrêter le partage de Santé ?', `${who} ne verra plus ${n ? plural(n, 'jour partagé', 'jours partagés') : 'tes jours partagés'}. ${n === 1 ? 'Il est supprimé' : 'Ils sont supprimés'} du serveur.`, 'Arrêter');
+      if (!ok) return;
+    }
     haptic();
     const r = await coachShareSet(kind, on);
     if (!r.ok) { if (r.kind !== 'busy') showToast(coachErrorText(r.kind), { error: true }); return; }
-    const m = kind === 'measures', dl = kind === 'diet_log';
-    const what = m ? 'mensurations' : dl ? 'journées' : 'pesées';
+    const m = kind === 'measures', dl = kind === 'diet_log', hk = kind === 'health';
+    const what = m ? 'mensurations' : dl || hk ? 'journées' : 'pesées';
     if (r.uploadFailed) showToast(r.uploadFailed === 'offline' ? `Partage activé. Tes ${what} partiront avec du réseau.` : coachErrorText(m && r.uploadFailed === 'invalid_data' ? 'invalid_measures' : r.uploadFailed), { error: r.uploadFailed !== 'offline' });
     // Partage donné : Annuler d'un toucher (panel du 18/11 : une donnée sensible se reprend aussi vite qu'elle se donne)
-    else if (on) showToast(`${m ? 'Mensurations partagées' : dl ? 'Diète partagée' : 'Poids partagé'} avec ${myCoachWord('ton')}`,
+    else if (on) showToast(`${m ? 'Mensurations partagées' : dl ? 'Diète partagée' : hk ? 'Pas, sommeil et cardio partagés' : 'Poids partagé'} avec ${myCoachWord('ton')}`,
       { action: 'Annuler', onAction: () => coachShareSet(kind, false).then(u => { if (!u.ok && u.kind !== 'busy') showToast(coachErrorText(u.kind), { error: true }); }) });
     else showToast(`Partage arrêté, ${what} supprimées du serveur`);
   },
