@@ -84,7 +84,7 @@ def open_app(page, theme, ppl_v2=None, clock=None):
     page.add_init_script(HOOK)
     page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
     page.add_init_script(FAKE_ACCOUNT)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2 if ppl_v2 is not None else ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
     settle(page)
 
@@ -331,7 +331,7 @@ def t_off(bench, eng, dev, theme):
     with bench.frozen_page(NOW_OFF, eng, dev, theme) as page:
         page.add_init_script(HOOK)
         page.add_init_script(FAKE_SCANNER)
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
         page.route('https://world.openfoodfacts.org/**', off_route)
         seed(page, theme, json.dumps(d, ensure_ascii=False), extra={'ppl_welcome_seen': '1'})
         settle(page)

@@ -357,7 +357,7 @@ function payPlansHtml(tab = 'pro', pre = null) {
           <p>Séances et progrès restent accessibles ici.</p></div>`;
   }
   if (access.canPay === false) {
-    return `<div class="pay-note" role="status"><p>Les achats sont bloqués sur cet iPhone.</p>
+    return `<div class="pay-note" role="status"><p>Les achats sont bloqués sur ${thisPhone()}.</p>
           <p>Regarde dans Réglages, Temps d'écran, Restrictions, Achats intégrés.</p></div>`;
   }
   const list = access.products;
@@ -564,7 +564,7 @@ async function accessGate() {
 // réussie suffit, on ne parle ni de compte ni d'abonnement
 function accessOfflinePrompt() {
   dialog({ title: 'Connexion à Internet nécessaire',
-    message: 'L\'app doit vérifier ses réglages en ligne une fois. Connecte-toi à Internet, puis réessaie. Les séances restent sur cet iPhone.',
+    message: `L'app doit vérifier ses réglages en ligne une fois. Connecte-toi à Internet, puis réessaie. Les séances restent sur ${thisPhone()}.`,
     actions: [{ label: 'OK', style: 'preferred' }] });
 }
 

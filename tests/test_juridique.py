@@ -30,7 +30,7 @@ def open_app(page, theme):
     page.add_init_script(FAKE_ACCOUNT)
     # window.open noté au lieu d'ouvrir Safari
     page.add_init_script('window.__opened = []; window.open = u => { window.__opened.push(String(u)); return null; };')
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
     settle(page)
 

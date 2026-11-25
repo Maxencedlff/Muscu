@@ -48,7 +48,7 @@ def open_settings(page, theme, native_name='null', supported='true', available='
     if native_name is not None:
         page.add_init_script(FAKE_SHELL % (native_name, supported, available))
     # Mises à jour à chaud : jamais de réseau pendant les tests
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json())
     page.click('[data-action="go-settings"]')
     page.wait_for_selector('.settings-view')

@@ -630,7 +630,10 @@ Sans changement de comportement de l'app, sauf la fusion des plans (à trois voi
 (nutrition.js) extraits des feuilles de l'éditeur de l'app, qui les appelle ; `loadFoods(url)` (adresse de la base vue
 de la page) ; `mergeDietProfile` (trois voies), `dietPlanHashes`, `DIET_SYNC_V` (sync.js), envoi conditionnel du
 profil (account.js), `dietTouch` qui ne recule jamais et suppression datée (nutrition.js). Le site charge en plus `diet-estimate.js`, `food-swap.js`,
-`food-scan.js`, tels quels. La construction (`npm run coach-web:build`) copie `data/foods.json` dans `dist-coach/data/`.
+`food-scan.js`, tels quels. La construction (`buildCoachWeb`, scripts/build-coach-web.mjs) copie `data/foods.json` à côté de la page : `dist-coach/data/` pour le
+site, `dist/coach/data/` dans la copie embarquée de l'app (mode grand écran iPad). Embarquée, la page (cadre isolé,
+origine opaque) ne peut pas lire ce fichier elle-même : elle le demande à l'app (`MDLF_COACH_HOST.foods()`, message
+`mdlf-coach-foods`, docs/COACH_IPAD.md), qui le lit et le lui passe ; test : `t_diete` de tests/test_coach_ipad.py.
 
 ### Tests
 - `tests/unit/coach-web-diete.mjs` : recherche (accents, vitesse), quantités et unités, format identique à l'app, repas,

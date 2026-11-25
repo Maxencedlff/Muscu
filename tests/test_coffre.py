@@ -106,7 +106,7 @@ def data_json(now):
 def shell(page, script=FAKE_SHELL):
     """Coquille iOS factice (et pas de mise à jour à chaud depuis le réseau)."""
     page.add_init_script(script)
-    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
 
 
 def open_vault(page, theme, legacy=False):

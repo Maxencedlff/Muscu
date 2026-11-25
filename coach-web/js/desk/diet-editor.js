@@ -56,10 +56,18 @@ async function deskDtLoadAcc({ force = false } = {}) {
   Object.assign(dt, { acc: r.data, accAt: Date.now(), accKind: null });
   return dt.acc;
 }
+// Base Ciqual : lue à côté de la page (loadFoods de js/data/food-swap.js) ; embarquée dans l'app (mode grand écran
+// iPad, cadre isolé à origine opaque qui ne peut pas la lire), demandée à l'app (MDLF_COACH_HOST.foods)
+function deskDtLoadFoods() {
+  if (foodDb) return Promise.resolve(foodDb);
+  const host = window.MDLF_COACH_HOST;
+  if (typeof host?.foods === 'function') return host.foods().then(raw => (raw ? setFoodDb(raw) : null)).catch(() => null);
+  return loadFoods(DESK_FOODS_URL);
+}
 function deskDtFoods() {
   if (dt.foods === 'ready' || dt.foods === 'loading') return;
   dt.foods = 'loading';
-  loadFoods(DESK_FOODS_URL).then(db => { dt.foods = db ? 'ready' : 'error'; deskRender(); });
+  deskDtLoadFoods().then(db => { dt.foods = db ? 'ready' : 'error'; deskRender(); });
 }
 // Brouillon mis dans l'éditeur
 // baseAt : date du plan du compte à l'ouverture (brouillon périmé si elle a changé à l'enregistrement)

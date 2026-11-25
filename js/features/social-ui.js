@@ -235,7 +235,7 @@ function friendsBodyHtml(st = friendsState()) {
 // Social masqué par la tranche d'âge : explication sobre, sans bouton (le coach reste au-dessus)
 function ageHiddenHtml() {
   const why = currentAgeBand() === 'limited'
-    ? 'Le contrôle parental de cet iPhone limite les échanges : le social n\'est pas disponible.'
+    ? `Le contrôle parental de ${thisPhone()} limite les échanges : le social n'est pas disponible.`
     : 'Le social est réservé aux 15 ans et plus, d\'après la tranche d\'âge partagée avec Apple.';
   return `
         <div class="social-hero">
@@ -243,7 +243,7 @@ function ageHiddenHtml() {
           <h2 class="social-hero__title">Social indisponible</h2>
           <p class="social-hero__sub">${why} Le reste de l'app fonctionne normalement.</p>
         </div>
-        <div class="group-foot">Si ta tranche d'âge a changé, mets-la à jour dans les Réglages de l'iPhone, à ton nom.</div>`;
+        <div class="group-foot">Si ta tranche d'âge a changé, mets-la à jour dans les Réglages ${ofThePhone()}, à ton nom.</div>`;
 }
 
 // Carte d'activation : pseudo obligatoire, âge déclaré, règles, puis « Activer ». Élève d'un coach : les amis

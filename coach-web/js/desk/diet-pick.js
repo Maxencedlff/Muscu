@@ -53,7 +53,7 @@ function deskDtPickDays(plan, except, title, text) {
 async function deskDtSwapDialog(mealId, itemId) {
   const it = deskDtItem(deskDtDayObj(), mealId, itemId);
   if (!it) return;
-  await loadFoods(DESK_FOODS_URL);
+  await deskDtLoadFoods();
   const cands = swapCandidates(it, { own: dt.acc?.dietFoods || [] }), ref = dietItemMacros(it);
   const dlg = deskDtDialog('dt-dlg', `Équivalents de ${foodName(it.name)}`);
   const rows = cands.map((c, i) => {
@@ -294,7 +294,7 @@ function deskDtPick(mealId) {
   paint();
   dlg.showModal();
   dlg.querySelector('#dtp-q')?.focus();
-  if (dt.foods !== 'ready') loadFoods(DESK_FOODS_URL).then(() => { if (dlg.isConnected && st.step === 'search') { st.results = searchFoods(st.q, { own: own(), limit: 40 }); repaintList(); } });
+  if (dt.foods !== 'ready') deskDtLoadFoods().then(() => { if (dlg.isConnected && st.step === 'search') { st.results = searchFoods(st.q, { own: own(), limit: 40 }); repaintList(); } });
 }
 
 // Trois choix (brouillon périmé) : rend 'reload', 'keep' ou null (Échap, Annuler : rien ne change)

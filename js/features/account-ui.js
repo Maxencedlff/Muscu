@@ -141,7 +141,7 @@ function renderAccount() {
           ${info ? '' : '<p class="account-hero__sub">Déjà un compte ? Utilise le même moyen qu\'avant.</p>'}
         </div>
         <div class="auth-buttons">${signInButtonsHtml()}</div>
-        <p class="account-foot">Avec Apple, tu peux masquer ton e‑mail. Poids du corps et données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
+        <p class="account-foot">Avec Apple, tu peux masquer ton e‑mail. Poids du corps et données Santé restent sur ${thePhone()}. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
       </div>
     </div>`;
   }
@@ -188,7 +188,7 @@ ${referralGroupHtml()}
           </div>
           <button class="cell cell--action" data-action="account-sync" ${account.syncing ? 'disabled' : ''}><span class="cell__title">Sauvegarder maintenant</span></button>
         </div>
-        <div class="group-foot">Après chaque séance. Poids du corps et données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></div>
+        <div class="group-foot">Après chaque séance. Poids du corps et données Santé restent sur ${thePhone()}. <button class="link-inline" data-action="account-privacy">Confidentialité</button></div>
 ${renderNewsletterGroup()}
 
         <div class="group group--gap">
@@ -388,11 +388,11 @@ async function askMergeOtherAccount(n, pending, previous = null) {
   const where = previous ? `${n > 1 ? 'Ces séances viennent' : 'Cette séance vient'} de ton compte précédent${from ? ` (${from})` : ''}. ${n > 1 ? 'Les ajouter' : 'L\'ajouter'} à ce compte ?`
     : !pending ? `${n > 1 ? 'Elles restent' : 'Elle reste'} sur l'autre compte.`
     : `${pending === n ? (n > 1 ? 'Elles' : 'Elle') : `${pending} d'entre elles`} ne ${pending > 1 ? 'sont' : 'est'} enregistrée${s} nulle part ailleurs : les retirer les supprimerait.`;
-  const choice = await dialog({ type: 'sheet', title: 'Des séances sont déjà sur cet iPhone',
-    message: previous ? `Cet iPhone contient ${plural(n, 'séance', 'séances')}. ${where}` : `Cet iPhone contient ${plural(n, 'séance', 'séances')} d'un autre compte. ${where}`,
+  const choice = await dialog({ type: 'sheet', title: `Des séances sont déjà sur ${thisPhone()}`,
+    message: previous ? `${ThisPhone()} contient ${plural(n, 'séance', 'séances')}. ${where}` : `${ThisPhone()} contient ${plural(n, 'séance', 'séances')} d'un autre compte. ${where}`,
     actions: [
       { label: 'Les ajouter à ce compte', value: 'add', style: 'preferred' },
-      { label: 'Les retirer de cet iPhone', value: 'replace', style: 'destructive' },
+      { label: `Les retirer de ${thisPhone()}`, value: 'replace', style: 'destructive' },
       { label: 'Annuler', value: null, style: 'cancel' },
     ] });
   if (choice === 'replace') keepOnlyDeviceSettings();
@@ -452,9 +452,9 @@ async function deleteAccountFlow() {
     return;
   }
   const wipe = await dialog({ type: 'sheet', title: 'Compte supprimé',
-    message: 'Que faire des données de cet iPhone ?',
+    message: `Que faire des données de ${thisPhone()} ?`,
     actions: [
-      { label: 'Les garder sur cet iPhone', value: 'keep', style: 'preferred' },
+      { label: `Les garder sur ${thisPhone()}`, value: 'keep', style: 'preferred' },
       { label: 'Les supprimer aussi', value: 'wipe', style: 'destructive' },
     ] });
   if (wipe === 'wipe') wipeLocalData();

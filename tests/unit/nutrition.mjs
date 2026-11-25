@@ -691,7 +691,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const ui = ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js', 'js/features/food-scan-ui.js'].map(read).join('\n');
     assert.ok(!/diab|obésit|plus sain|brûle|détox|detox|maigrir vite/i.test(ui), 'pas de finalité médicale ni de promesse');
     for (const t of ['table Ciqual 2025 de l\'Anses (version du 03/11/2025)', 'doi.org/10.57745/RDMHWY', 'Licence Ouverte Etalab 2.0', 'L\'Anses ne valide pas ces plans',
-      '0810 037 037', 'réservent les régimes sous 1 200 kcal', 'Garder sur cet iPhone']) assert.ok(ui.includes(t), `texte : ${t}`);
+      '0810 037 037', 'réservent les régimes sous 1 200 kcal', 'Garder sur ${thisPhone()}']) assert.ok(ui.includes(t), `texte : ${t}`);
     for (const t of ['Copier sur mon compte', 'En savoir plus', 'Recevoir les plans de nutrition', 'envoyer un plan de nutrition']) assert.ok(ui.includes(t), `texte : ${t}`);
     const privacy = read('privacy.html');
     assert.ok(privacy.includes('id="nutrition"') && privacy.includes('href="#nutrition"') && privacy.includes('Your diet plans'), 'privacy.html : Nutrition FR et EN');

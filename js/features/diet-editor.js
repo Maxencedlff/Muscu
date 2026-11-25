@@ -454,7 +454,7 @@ function dietTargetsAskHtml(pre) {
       <p class="diet-tg__q">Toi</p>
       ${seg('sex', [['male', 'Homme'], ['female', 'Femme']], pre.sex, 'Sexe')}
       <div class="diet-fields">${field('dietEAge', 'Âge', 'ans', pre.age ?? '', 'numeric')}${field('dietECm', 'Taille', 'cm', pre.cm ?? '', 'numeric')}${field('dietEKg', 'Poids', 'kg', pre.kg ? fmtNum(pre.kg, 1) : '', 'decimal')}</div>
-      ${pre.auto ? '<p class="diet-form__hint">Gardés dans Réglages, sur cet iPhone seulement.</p>' : ''}
+      ${pre.auto ? `<p class="diet-form__hint">Gardés dans Réglages, sur ${thisPhone()} seulement.</p>` : ''}
       <p class="diet-form__err" id="dietEErr" role="alert"></p>
       <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tcalc>${pre.auto ? 'Enregistrer' : 'Calculer'}</button>
       <button type="button" class="diet-tg__link diet-tg__back" data-tback>Retour</button>
