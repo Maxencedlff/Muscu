@@ -70,7 +70,7 @@ le même code que l'app.
 | **XSS dans le site** | CSP stricte (`script-src 'self'` + Apple sur l'écran de connexion seulement), page rechargée sans script tiers avant les photos, tout texte reçu échappé (`esc`), clés gardées non extractibles. | Un script injecté peut déchiffrer tant qu'il est là ; et s'il est là au moment d'un appairage, il peut le mener lui-même avec une paire extractible, afficher SON QR et SON code : le coach voit le même code, relie, et la clé du coach part en clair. Une faille XSS sur ce site = clé à long terme compromise (nouvelle clé de photos). Trusted Types (`require-trusted-types-for 'script'`) ne s'ajoute pas sans revoir tout le rendu par `innerHTML` : piste suivante. |
 | **Rejeu** | Appairage à usage unique (états waiting → offered → done une fois), enveloppe liée à l'appareil, au coach et à la clé. | — |
 
-## Serveur : `20261127010000_photos_web_appairage.sql` (écrite, PAS appliquée)
+## Serveur : `20261127040000_photos_web_appairage.sql` (écrite, PAS appliquée)
 
 | Fonction | Qui | Règles |
 |---|---|---|
@@ -87,7 +87,7 @@ le même code que l'app.
 Tables `coach_photo_pairings` et `coach_photo_devices` : RLS activée sans politique, aucun GRANT ; RPC `security definer`,
 `search_path = ''`, `auth.uid()`. Déclencheur sur `coach_photo_keys` (clé remplacée ou effacée → ordinateurs effacés) plutôt
 qu'une clé étrangère : le retour arrière des photos de bilan reste lançable seul. Tests : `tests/sql/photos_web_appairage_test.sql`.
-Retour arrière : `supabase/rollback/20261127010000_photos_web_appairage_down.sql`, vérifié par
+Retour arrière : `supabase/rollback/20261127040000_photos_web_appairage_down.sql`, vérifié par
 `tests/sql/photos_web_appairage_rollback_test.sh` ; dans `prod_order_test.sh` et `rollback_nuit_check.sh`.
 
 ## Ce qui demande quoi

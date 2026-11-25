@@ -2,7 +2,7 @@
 //  « Relier un ordinateur » : protocole qui donne à un navigateur la clé des photos de bilan du coach, sans que
 //  le serveur puisse la lire (docs/PHOTOS_WEB.md, modèle de menace compris). Logique pure + WebCrypto, sans DOM :
 //  chargée telle quelle par l'app iPhone (côté téléphone : js/data/photo-link-phone.js) et par l'appli web du coach
-//  (côté navigateur : coach-web/js/desk/photo-device.js). Serveur : 20261127010000_photos_web_appairage.sql.
+//  (côté navigateur : coach-web/js/desk/photo-device.js). Serveur : 20261127040000_photos_web_appairage.sql.
 //
 //  1. Navigateur : paire ECDH P-256 éphémère D (privée non extractible), secret s de 128 bits, ligne d'appairage
 //     (coach_photo_pair_start : D.pub et H(s) seulement, 2 minutes, une à la fois). QR code affiché :

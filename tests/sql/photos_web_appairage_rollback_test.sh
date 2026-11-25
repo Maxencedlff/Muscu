@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Retour arrière de « Relier cet ordinateur » (supabase/rollback/20261127010000_photos_web_appairage_down.sql) : après
+# Retour arrière de « Relier cet ordinateur » (supabase/rollback/20261127040000_photos_web_appairage_down.sql) : après
 # toutes les migrations, le retour arrière rend un schéma identique (pg_dump --schema-only) à celui où la migration n'a
 # jamais été appliquée, puis la migration repasse ; il passe aussi après le retour arrière des photos de bilan (déclencheur
 # déjà parti avec coach_photo_keys). Postgres local jetable, rien n'est envoyé au projet Supabase.
@@ -7,8 +7,8 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
-mine="$root/supabase/migrations/20261127010000_photos_web_appairage.sql"
-down="$root/supabase/rollback/20261127010000_photos_web_appairage_down.sql"
+mine="$root/supabase/migrations/20261127040000_photos_web_appairage.sql"
+down="$root/supabase/rollback/20261127040000_photos_web_appairage_down.sql"
 bin=$(dirname "$(command -v initdb 2>/dev/null || ls -d /usr/lib/postgresql/*/bin/initdb | sort -V | tail -1)")
 tmp=$(mktemp -d)
 port=$(( 20000 + RANDOM % 20000 ))

@@ -24,7 +24,7 @@
 --  transaction, compteur compris) : contre les appels ratés, la protection est ailleurs (preuve du QR, uuid, auth.uid()).
 --
 --  Dépend de 20261107000000_photos_bilan.sql (en production). Réversible :
---  supabase/rollback/20261127010000_photos_web_appairage_down.sql. Tests : tests/sql/photos_web_appairage_test.sql.
+--  supabase/rollback/20261127040000_photos_web_appairage_down.sql. Tests : tests/sql/photos_web_appairage_test.sql.
 -- ═══════════════════════════════════════════════════════════
 
 create table public.coach_photo_pairings (

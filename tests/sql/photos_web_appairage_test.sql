@@ -1,4 +1,4 @@
--- Vérifications de supabase/migrations/20261127010000_photos_web_appairage.sql (lancées par tests/sql/run.sh) :
+-- Vérifications de supabase/migrations/20261127040000_photos_web_appairage.sql (lancées par tests/sql/run.sh) :
 -- droits (anon rien, tables fermées), appairage à usage unique (waiting → offered → done, chaque étape une fois),
 -- preuve du QR (verifier), expiration de 2 minutes, un seul appairage à la fois, ordinateurs reliés (5 au plus),
 -- enveloppe rendue au seul coach, révocation, clé changée sur l'iPhone, 30 jours sans usage, 90 jours, rôle retiré,

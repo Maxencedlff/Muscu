@@ -1,4 +1,4 @@
--- Retour arrière de supabase/migrations/20261127010000_photos_web_appairage.sql (à lancer à la main, rôle postgres).
+-- Retour arrière de supabase/migrations/20261127040000_photos_web_appairage.sql (à lancer à la main, rôle postgres).
 -- Efface les appairages en cours et les ordinateurs reliés (leurs enveloppes) : chaque ordinateur perd l'accès aux
 -- photos à sa prochaine ouverture (« Cet ordinateur n'est plus relié »). Les photos, les clés des coachs et l'app
 -- iPhone ne sont pas touchées. Le site d'avant (sans « Relier cet ordinateur ») d'abord, si possible. Les lignes

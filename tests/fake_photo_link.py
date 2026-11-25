@@ -1,4 +1,4 @@
-"""Faux serveur de « Relier un ordinateur » (supabase/migrations/20261127010000_photos_web_appairage.sql, docs/PHOTOS_WEB.md).
+"""Faux serveur de « Relier un ordinateur » (supabase/migrations/20261127040000_photos_web_appairage.sql, docs/PHOTOS_WEB.md).
 
 FAKE_PHOTO_LINK est injecté APRÈS FAKE_ACCOUNT (et FAKE_CHECKINS s'il est là) : il ajoute ses RPC à __sb.extraRpc avec
 les règles de la migration (coach validé, clé de photos, un appairage à la fois, 2 minutes, waiting → offered → done une

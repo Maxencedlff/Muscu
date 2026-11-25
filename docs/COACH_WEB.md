@@ -211,7 +211,7 @@ tableau de bord. Les adresses de prévisualisation de Vercel ne marchent pas (pa
 Contrat complet, protocole et modèle de menace : **docs/PHOTOS_WEB.md**. L'onglet Bilans montre les photos face, profil,
 dos du bilan affiché et du bilan « face à », côte à côte, après « Relier cet ordinateur » une fois (QR code lu par l'app
 iPhone, code de vérification, Face ID). Agrandir : les deux bilans côte à côte, zoom commun. Réglages : « Oublier cet
-ordinateur ». CSP : `img-src blob:` en plus (photos déchiffrées). Migration `20261127010000_photos_web_appairage.sql`
+ordinateur ». CSP : `img-src blob:` en plus (photos déchiffrées). Migration `20261127040000_photos_web_appairage.sql`
 écrite, pas appliquée ; sans elle, « Relier » dit que le serveur n'a pas encore la fonction.
 
 ## Tableau de bord « Élèves »

@@ -193,7 +193,7 @@ export default function ({ test, app, assert, ROOT }) {
   });
 
   test('photos sur ordinateur : chaque erreur levée par la migration est reconnue par l\'app et le site', () => {
-    const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261127010000_photos_web_appairage.sql'), 'utf8');
+    const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261127040000_photos_web_appairage.sql'), 'utf8');
     const kinds = [...new Set([...sql.matchAll(/raise exception '([a-z_]+)'/g)].map(m => m[1]))];
     assert.ok(kinds.includes('already_used') && kinds.includes('no_key') && kinds.length >= 7, kinds.join(', '));
     for (const k of kinds) assert.equal(app.coachErrorKind({ message: k, code: 'P0001' }), k, `${k} reconnu`);
