@@ -33,7 +33,7 @@
 --  private.checkin_kinds et private.checkin_number sont redéfinies (mêmes règles que js/data/checkins.js) ; un suivi
 --  Sommeil en échelle reste accepté tel quel.
 --
---  Réversible : supabase/rollback/20261127040000_sante_coach_down.sql (efface les jours partagés et leurs
+--  Réversible : supabase/rollback/20261127050000_sante_coach_down.sql (efface les jours partagés et leurs
 --  consentements, remet les textes d'avant). Tests : tests/sql/sante_coach_test.sql,
 --  tests/sql/sante_coach_rollback_test.sh.
 -- ═══════════════════════════════════════════════════════════

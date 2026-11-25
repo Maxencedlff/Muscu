@@ -189,7 +189,7 @@ do $$ begin
                                      'student_share_diet_days', 'coach_student_diet', 'coach_diet_overview',
                                      -- fiche Semaines du web (20261124010000_semaines_coach.sql) : coach_session_body, même consentement
                                      'coach_student_weeks',
-                                     -- santé partagée (20261127040000_sante_coach.sql), même consentement
+                                     -- santé partagée (20261127050000_sante_coach.sql), même consentement
                                      'student_share_health_days', 'coach_student_health')) then
     raise 'une autre fonction lit le partage : %', (select string_agg(p.proname, ', ') from pg_proc p
       where p.prosrc ilike '%coach_shared_weights%' or p.prosrc ilike '%coach_shares%' or p.prosrc ilike '%coach_session_body%');

@@ -23,7 +23,7 @@
 //    montré seulement si le serveur l'accepte (migration 20261118010000_suivi_diete_coach.sql).
 //  - Pas, sommeil et cardio lus dans Santé (25/11/2026, docs/SANTE_COACH.md, js/data/health-days.js) : même modèle,
 //    un résumé par jour (student_share_health_days), seulement dans la coquille iOS qui sait les lire (native : la
-//    case est cachée ailleurs) et sur un serveur qui l'accepte (migration 20261127040000_sante_coach.sql). C'est la
+//    case est cachée ailleurs) et sur un serveur qui l'accepte (migration 20261127050000_sante_coach.sql). C'est la
 //    seule donnée de Santé qui quitte l'iPhone, et seulement vers ce coach, avec cet accord ; jamais dans data
 //    (copie iCloud, règle Apple 5.1.3(ii)).
 // ═══════════════════════════════════════════════════════════
@@ -46,7 +46,7 @@ const COACH_SHARE_KINDS = [
   { kind: 'diet', label: 'Plans de nutrition', open: false, own: true },
   // Suivi de la diète (migration 20261118010000) : repas cochés, eau, sel, écart avec l'objectif, un résumé par jour
   { kind: 'diet_log', label: 'Suivi de ma diète', open: true },
-  // Pas, sommeil et cardio de Santé (migration 20261127040000) : un résumé par jour ; native : seulement si la coquille
+  // Pas, sommeil et cardio de Santé (migration 20261127050000) : un résumé par jour ; native : seulement si la coquille
   // sait les lire (healthDaysSupported, js/data/health-days.js). Remplace sleep et steps, jamais ouverts.
   { kind: 'health', label: 'Pas, sommeil et cardio', open: true, native: true },
 ];

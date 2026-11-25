@@ -1,4 +1,4 @@
--- Vérifications de supabase/migrations/20261127040000_sante_coach.sql (lancées par tests/sql/run.sh) :
+-- Vérifications de supabase/migrations/20261127050000_sante_coach.sql (lancées par tests/sql/run.sh) :
 -- consentement « health » par élève et par coach, un résumé par jour borné (pas, sommeil, cardio), fusion jour par
 -- jour, 90 jours glissants, lecture par le seul coach consenti, effacement au retrait, limites, clé health de
 -- coach_student_weeks, et le suivi Sommeil des bilans en heures. Chaque bloc échoue (raise) si la règle n'est pas

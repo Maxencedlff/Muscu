@@ -77,7 +77,7 @@ Suivi de la diète (supabase/migrations/20261118010000_suivi_diete_coach.sql) : 
 __sb.fail.dietLog = 'missing' : serveur d'avant, invalid_kind, PGRST202), student_share_diet_days (not_shared sans
 consentement, remplace tout, 92 jours au plus), coach_student_diet, coach_diet_overview ; état dans __sb.co.dietDays ;
 __sb.shareDiet(élève, [jours]) coche et dépose.
-Pas, sommeil et cardio de Santé (supabase/migrations/20261127040000_sante_coach.sql) : kinds annonce 'health' (sauf
+Pas, sommeil et cardio de Santé (supabase/migrations/20261127050000_sante_coach.sql) : kinds annonce 'health' (sauf
 __sb.fail.health = 'missing' : serveur d'avant, invalid_kind, PGRST202), student_share_health_days (not_shared sans
 consentement, FUSION jour par jour, 92 jours au plus, 90 jours gardés), coach_student_health, et coach_student_weeks
 rend health ; état dans __sb.co.healthDays ; __sb.shareHealth(élève, [{ day, steps, sleep, cardio }]) coche et dépose.

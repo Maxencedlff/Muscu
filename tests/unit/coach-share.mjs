@@ -38,7 +38,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const sqlM = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261105010000_partage_mensurations.sql'), 'utf8');
     assert.match(sqlM, /kind in \('weight', 'sleep', 'steps', 'resting_hr', 'measures'\)/, 'liste du serveur = COACH_SHARE_KINDS');
     assert.match(sqlM, /\$\$ select kind in \('weight', 'measures'\) \$\$/, 'ouvertes côté serveur = ouvertes dans l\'app');
-    sameJSON(run('COACH_SHARE_KINDS.filter(k => k.open).map(k => k.kind)'), ['weight', 'measures', 'diet_log', 'health'], 'suivi de la diète : 20261118010000 ; Santé : 20261127040000');
+    sameJSON(run('COACH_SHARE_KINDS.filter(k => k.open).map(k => k.kind)'), ['weight', 'measures', 'diet_log', 'health'], 'suivi de la diète : 20261118010000 ; Santé : 20261127050000');
     // Serveur à jour : il annonce ce qu'il accepte (kinds) ; inconnu de l'app : ignoré ; 'diet' jamais dans l'écran du partage
     run(`coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'measures', 'diet', 'photos'], shares: {} })`);
     sameJSON(run('coachShareKindsShown().map(k => k.kind)'), ['weight', 'measures']);

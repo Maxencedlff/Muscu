@@ -523,7 +523,7 @@ charge en plus `accessors.js`, `goals.js` et `coach-diet.js`, tels quels.
 
 ## Vague 3 : pas, sommeil, cardio
 
-Contrat serveur et app : docs/SANTE_COACH.md (migration `20261127040000_sante_coach.sql`, écrite, PAS appliquée).
+Contrat serveur et app : docs/SANTE_COACH.md (migration `20261127050000_sante_coach.sql`, écrite, PAS appliquée).
 
 - **Colonnes** de la fiche Semaines, après Eau : « Pas », « Sommeil », « Cardio » (« par jour », « par nuit » en dessous), **seulement si
   l'élève partage** (case « Pas, sommeil et cardio » de l'app, `health.shared === true`). Moyenne de la semaine (lundi

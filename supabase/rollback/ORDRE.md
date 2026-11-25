@@ -8,7 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −26 | `20261127040000_sante_coach_down.sql` (santé partagée avec le coach : consentements `health` et jours de pas, sommeil et cardio EFFACÉS ; `student_shares`, `private.share_kind_open` et la contrainte de `coach_shares.kind` reprennent le texte de 20261118010000, `coach_student_weeks` celui de −21, `private.checkin_kinds` et `private.checkin_number` celui de −22 ; tâche pg_cron `purge-sante-coach-90-jours` retirée ; refusé tant qu'un modèle de bilan a un suivi Sommeil en heures) | rien | oui (vérifié par `tests/sql/sante_coach_rollback_test.sh`) ; à défaire avant −22, −21 et le suivi de la diète (il réécrit leurs fonctions) |
+| −27 | `20261127050000_sante_coach_down.sql` (santé partagée avec le coach : consentements `health` et jours de pas, sommeil et cardio EFFACÉS ; `student_shares`, `private.share_kind_open` et la contrainte de `coach_shares.kind` reprennent le texte de 20261118010000, `coach_student_weeks` celui de −21, `private.checkin_kinds` et `private.checkin_number` celui de −22 ; tâche pg_cron `purge-sante-coach-90-jours` retirée ; refusé tant qu'un modèle de bilan a un suivi Sommeil en heures) | rien | oui (vérifié par `tests/sql/sante_coach_rollback_test.sh`) ; à défaire avant −22, −21 et le suivi de la diète (il réécrit leurs fonctions) |
 | −25 | `20261127030000_bilans_accord_majeur_down.sql` (accords datés pour les bilans EFFACÉS ; plus d'accord exigé avant l'envoi ; libido et cycle de nouveau rendus sans la déclaration des 18 ans ; les déclarations « 18 ans ou plus » faites par l'accord du cycle restent dans `coach_photo_adults`) | rien | oui (vérifié par `tests/sql/bilans_accord_majeur_rollback_test.sh`, données comprises) ; à défaire avant −22 (bilans) et −7 (photos : `coach_photo_adults`) |
 | −24 | `20261127010000_blocage_coupe_coach_down.sql` (un blocage ne coupe plus le lien coach et deux comptes bloqués peuvent se relier ; les liens déjà coupés et ce que leur cascade a effacé NE REVIENNENT PAS) | rien | oui (vérifié par `tests/sql/blocage_coupe_coach_rollback_test.sh`, données comprises) |
 | −23 | `20261126010000_programmes_envoyes_coach_down.sql` (programmes envoyés relus par l'appli web du coach ; ne touche à aucune donnée, l'appli web revient à la version gardée sur le compte du coach) | rien | oui (vérifié par `tests/sql/programmes_envoyes_coach_rollback_test.sh`) |
@@ -131,17 +131,19 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
     est coupé : jamais de charges prescrites effacées chez un élève). Retour arrière : le site d'avant si voulu, puis
     `20261126010000_programmes_envoyes_coach_down.sql`.
 
-19. `20261127040000_sante_coach.sql` (pas, sommeil et cardio partagés avec le coach, vague 3 de la santé : consentement
+19. `20261127050000_sante_coach.sql` (pas, sommeil et cardio partagés avec le coach, vague 3 de la santé : consentement
     `health`, table `coach_shared_health_days`, 90 jours glissants, purge pg_cron `purge-sante-coach-90-jours`) : APRÈS
     `20261118010000_suivi_diete_coach.sql` (`student_shares`, `private.share_kind_open`), 17 (`private.checkin_kinds`,
     `private.checkin_number` : Sommeil aussi en heures par nuit) et `20261124010000_semaines_coach.sql`
     (`coach_student_weeks` rend `health`), dont elle reprend les fonctions. Aucune fonction Edge. Avant ou après l'OTA :
     une app d'avant ignore `health`, une app à jour sur un serveur d'avant ne montre pas la case. Contrôle après :
     `select jobname, schedule from cron.job where jobname = 'purge-sante-coach-90-jours';` (une ligne). Retour arrière :
-    OTA d'avant si voulu, puis `20261127040000_sante_coach_down.sql`, AVANT tout retour arrière de 17, de la fiche
-    Semaines ou du suivi de la diète. Numérotée 20261127040000 pour passer APRÈS `20261127010000_blocage_coupe_coach.sql`
+    OTA d'avant si voulu, puis `20261127050000_sante_coach_down.sql`, AVANT tout retour arrière de 17, de la fiche
+    Semaines ou du suivi de la diète. Numérotée 20261127050000 pour passer APRÈS `20261127010000_blocage_coupe_coach.sql`
     (un blocage coupe le lien coach, donc efface aussi l'accord et les jours de santé) et APRÈS
-    `20261127030000_bilans_accord_majeur.sql` (toutes deux déjà en production le 25/11), dans l'ordre réel d'application.
+    `20261127030000_bilans_accord_majeur.sql` (toutes deux déjà en production le 25/11), puis de
+    `20261127040000_photos_web_appairage.sql` (−26, autre branche), dans l'ordre réel d'application. APPLIQUÉE en
+    production le 25/11/2026 (table `coach_shared_health_days` et tâche pg_cron présentes).
     Elle ne redéfinit aucune fonction de la 030000 (`private.checkin_kinds` et `private.checkin_number` viennent de 17) ;
     elle garde sa propre vérification du blocage (défense en profondeur) et marche avec ou sans la 010000
     (tests/sql/sante_coach_test.sql). À défaire AVANT la 030000 et la 010000 si l'on devait les défaire aussi.
