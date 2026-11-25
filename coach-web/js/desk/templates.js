@@ -42,7 +42,7 @@ function deskCkSelect(id) {
   bl.saved = bl.draft ? deskCkSnapshot(bl.draft) : '';
   Object.assign(bl, { open: null, recip: false, group: null, own: null, tried: false, addQ: false, list: false });
 }
-async function deskOpenBilans({ force = false, keep = false } = {}) {
+async function deskOpenBilans({ force = false, keep = false, quiet = false } = {}) {
   if (!desk.user) return;
   if (!force && bl.setup && Date.now() - bl.at < DESK_REFRESH_MS) return;
   bl.loading = !bl.setup;
@@ -59,7 +59,7 @@ async function deskOpenBilans({ force = false, keep = false } = {}) {
   bl.kind = null;
   bl.setup = r.data;
   if (!keep || !bl.draft) deskCkSelect(bl.sel);
-  deskRender();   // aussi ailleurs : compteur « Mes bilans » de la barre latérale
+  deskRender({ quiet });   // aussi ailleurs : compteur « Mes bilans » de la barre latérale
 }
 
 // ── Rendu ───────────────────────────────────────────────────
@@ -151,6 +151,8 @@ function deskCkNewHtml() {
     </ul>${bl.setup.templates.length ? '<button type="button" class="btn link" data-ck="cancel-new">Annuler</button>' : ''}`;
 }
 
+// Suivis réservés aux 18 ans et plus (private.checkin_adult_kinds du serveur, CK_ADULT_KINDS de l'app)
+const DESK_CK_ADULT = ['libido', 'cycle'];
 // Aperçu de ce que verra l'élève dans l'app iPhone : lecture seule, aucun champ actif
 function deskCkPreviewHtml() {
   const d = bl.draft, items = deskCkItems(d.rows), form = view.dash?.form || null;
@@ -168,14 +170,19 @@ function deskCkPreviewHtml() {
   const groups = CHECKIN_GROUPS.map(([g, l]) => {
     const its = items.filter(it => (it.kind === 'custom' ? 'custom' : checkinKind(it.kind)?.group) === g);
     if (!its.length) return '';
-    return `<h3 class="gh">${esc(g === 'custom' ? 'Questions' : l)}</h3><div class="group pv-g">${its.map(it => `<div class="pv-i"><b>${esc(it.label)}</b>${checkinKind(it.kind)?.sensitive ? ' <span class="tag">Facultatif</span>' : it.required ? '' : ''}${field(it)}</div>`).join('')}</div>`;
+    return `<h3 class="gh">${esc(g === 'custom' ? 'Questions' : l)}</h3><div class="group pv-g">${its.map(it => `<div class="pv-i"><b>${esc(it.label)}</b>${DESK_CK_ADULT.includes(it.kind) ? ' <span class="tag">18 ans et plus</span>' : checkinKind(it.kind)?.sensitive ? ' <span class="tag">Facultatif</span>' : ''}${field(it)}</div>`).join('')}</div>`;
   }).join('');
+  // Libido et cycle : posés seulement aux élèves qui ont déclaré avoir 18 ans ou plus (le serveur les saute pour les
+  // autres ; le coach ne sait pas qui est mineur)
+  const adult = items.filter(it => DESK_CK_ADULT.includes(it.kind));
+  const adultNote = adult.length ? `<p class="gfoot pv-adult">${esc(`${adult.map(it => it.label).join(' et ')} : ${adult.length > 1 ? 'posés' : 'posé'} seulement aux élèves de 18 ans et plus. Pour un élève plus jeune, ${adult.length > 1 ? 'ces questions sont sautées' : 'cette question est sautée'} : le reste du bilan part normalement.`)}</p>` : '';
   return `<div class="pv-head"><div class="grow"><h2 class="ed-t">Aperçu élève</h2><p class="sub">Lecture seule : c'est ce que ton élève verra dans l'app iPhone.</p></div>
     <button type="button" class="btn" id="pv-close" data-ck="preview">Fermer l'aperçu</button></div>
     <section class="pv" aria-label="Aperçu du bilan">
       <h3 class="pv-t">${esc(checkinLine(d.name, CHECKIN_NAME_MAX) || 'Bilan')}</h3>
       <p class="sub">${esc(coachWord('Ton', form))} te demande ce bilan · environ ${esc(plural(checkinMinutes(items), 'minute', 'minutes'))}</p>
       ${items.length ? groups : '<div class="empty">Aucun suivi coché pour l\'instant.</div>'}
+      ${adultNote}
       <p class="gfoot">Tes réponses sont partagées avec ${esc(coachWord('ton', form))}. Les photos sont chiffrées de bout en bout.</p>
     </section>`;
 }

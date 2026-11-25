@@ -1,6 +1,9 @@
 {
   "git": { "deploymentEnabled": false },
   "cleanUrls": true,
+  "redirects": [
+    { "source": "/:path*", "has": [{ "type": "host", "value": "mdlf-coach.vercel.app" }], "destination": "https://coach.mdlf.app/:path*", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/(.*)",

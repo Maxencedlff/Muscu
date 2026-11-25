@@ -78,6 +78,8 @@ begin
 end $$;
 reset role;
 delete from public.blocks where blocker_id = pg_temp.u('k');
+-- Le blocage a coupé le lien de e (20261127010000_blocage_coupe_coach.sql) : e rejoint K de nouveau
+insert into public.coach_links (student_id, coach_id, created_at) values (pg_temp.u('e'), pg_temp.u('k'), now() - interval '30 days') on conflict do nothing;
 
 -- ── Un résumé par heure : le suivant attend l'heure du précédent ──
 update private.push_outbox set sent_at = now() where kind = 'student_digest';

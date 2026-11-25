@@ -16,6 +16,12 @@
 //    CROSS_USER_CACHE_KEYS de js/data/account.js : rien ne reste en clair sur un iPhone partagé).
 //  - Cycle menstruel : jamais proposé si la tranche d'âge d'Apple est connue et autre que « 18 ans ou plus »
 //    (currentAgeBand, js/data/age-range.js) ; ailleurs, accord explicite (student_checkin_cycle) et retrait.
+//  - Accord daté (20261127030000_bilans_accord_majeur.sql) : avant le premier envoi, « Tu acceptes d'envoyer à ton coach
+//    tes réponses de bilan (données de santé) » (student_checkin_consent, version CK_HEALTH_VERSION du texte) ; sans
+//    lui, aucun envoi ; retrait possible dans Mon coach. Serveur d'avant (health absent) : rien n'est demandé.
+//  - Libido et cycle réservés aux 18 ans et plus : le serveur ne les rend qu'après la déclaration (student_photo_adult,
+//    celle des photos de bilan ; adult_asked : un bilan ouvert en contient) ; jamais proposés si la tranche d'âge
+//    d'Apple dit moins de 18 ans.
 //  - Serveur sans les bilans (PGRST202) : ck.available = false, rien ne s'affiche, nouvel essai après 10 min.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -28,11 +34,15 @@ const CK_REFRESH_MS = 60_000;                  // relecture au plus toutes les m
 const CK_RETRY_MS   = 10 * 60_000;             // serveur sans les bilans : nouvel essai après 10 min
 const CK_DRAFT_MAX  = 10;                      // brouillons gardés (les plus récents)
 const CK_PERIOD_MIN = 7, CK_PERIOD_MAX = 31;   // jours couverts par un bilan (auto : of ≤ 31)
-const CK_ERRORS = ['invalid_answer', 'already_answered', 'closed', 'no_consent', 'not_adult', 'not_found', 'rate_limited', 'too_long'];
+const CK_ERRORS = ['invalid_answer', 'already_answered', 'closed', 'no_consent', 'no_health_consent', 'invalid_version', 'not_adult', 'not_found', 'rate_limited', 'too_long'];
+const CK_HEALTH_VERSION = 1;                   // version du texte de l'accord (private.checkin_health_version du serveur)
+const CK_ADULT_KINDS = ['libido', 'cycle'];    // suivis réservés aux 18 ans et plus (private.checkin_adult_kinds)
 
 // available : null tant que rien n'est lu, false si le serveur n'a pas les bilans. cycle : accord donné ;
-// cycleAsked : un bilan ouvert du coach contient le suivi du cycle (champ facultatif du serveur, voir docs/BILANS.md)
-const ck = { userId: null, coachId: null, available: null, requests: [], cycle: false, cycleAsked: false, loading: false, again: false,
+// cycleAsked : un bilan ouvert du coach contient le suivi du cycle (champ facultatif du serveur, voir docs/BILANS.md) ;
+// adult : « 18 ans ou plus » déclaré (null : serveur d'avant) ; adultAsked : un bilan ouvert a des suivis réservés aux
+// 18 ans ; health : accord daté { consented, version, at } (null : serveur d'avant, rien à demander)
+const ck = { userId: null, coachId: null, available: null, requests: [], cycle: false, cycleAsked: false, adult: null, adultAsked: false, health: null, loading: false, again: false,
   error: null, loadedAt: 0, triedAt: 0, coachSeenAt: 0, sending: new Set(), steps: null };
 let ckSeq = 0;   // +1 au changement de compte : une réponse arrivée après n'écrit plus rien
 const ckListeners = [];
@@ -41,20 +51,32 @@ function notifyCheckins() { for (const fn of ckListeners) { try { fn(); } catch 
 
 // ── Logique pure ────────────────────────────────────────────
 
-// student_checkins() → { requests, cycle, cycleAsked }
+// student_checkins() → { requests, cycle, cycleAsked, adult, adultAsked, health }
 function cleanStudentCheckins(raw) {
   const r = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const requests = (Array.isArray(r.requests) ? r.requests : []).slice(0, 50).map(cleanCheckinRequest).filter(Boolean);
-  return { requests, cycle: r.cycle?.consented === true, cycleAsked: r.cycle?.asked === true };
+  return { requests, cycle: r.cycle?.consented === true, cycleAsked: r.cycle?.asked === true,
+    adult: typeof r.adult === 'boolean' ? r.adult : null, adultAsked: r.adult_asked === true, health: cleanCheckinHealth(r.health) };
+}
+// Accord daté : { consented, version, at (ms) } ; null si le serveur ne le connaît pas
+function cleanCheckinHealth(h) {
+  if (!h || typeof h !== 'object' || Array.isArray(h)) return null;
+  return { consented: h.consented === true, version: Number.isInteger(h.version) ? h.version : null, at: checkinTs(h.at) || null };
 }
 
 // Tranche d'âge d'Apple connue et autre que « 18 ans ou plus » : le cycle n'est jamais proposé (comme les photos)
 function checkinCycleBlocked() { return typeof currentAgeBand === 'function' && currentAgeBand() !== null && currentAgeBand() !== 'adult'; }
 
-// Suivis montrés à l'élève : ceux du bilan, sans le cycle tant qu'il n'y a pas d'accord (ou si l'âge l'interdit)
+// Suivis montrés à l'élève : ceux du bilan, sans le cycle tant qu'il n'y a pas d'accord, sans libido ni cycle si
+// l'âge l'interdit ou si « 18 ans ou plus » n'est pas déclaré (le serveur les retire déjà : défense en plus)
 function checkinItemsShown(req, consent = ck.cycle) {
-  return (req?.items || []).filter(it => it.kind !== 'cycle' || (consent && !checkinCycleBlocked()));
+  const adultOk = !checkinCycleBlocked() && ck.adult !== false;
+  return (req?.items || []).filter(it => (!CK_ADULT_KINDS.includes(it.kind) || adultOk) && (it.kind !== 'cycle' || consent));
 }
+// Accord daté à demander avant l'envoi (serveur qui le connaît, accord pas donné à la version en vigueur)
+function checkinHealthNeeded() { return !!ck.health && !ck.health.consented; }
+// Proposer « J'ai 18 ans ou plus » : un bilan ouvert a des suivis réservés, rien n'est déclaré, l'âge ne l'interdit pas
+function checkinAdultOffer() { return ck.adultAsked && ck.adult === false && !checkinCycleBlocked(); }
 
 // Jours couverts : les N jours qui finissent le jour de l'envoi (inclus). N : l'écart avec le bilan précédent du même
 // nom (7 à 31 jours), 7 sans bilan précédent. → { from, to (ms, début du jour suivant), days, keys: ['AAAA-MM-JJ'] }
@@ -195,12 +217,12 @@ function ckReset(userId) {
   ck.userId = userId || null;
   if (st) ckMergeSent(st.requests);
   Object.assign(ck, { userId: userId || null, coachId: c?.coachId || null, available: st ? true : null, requests: st?.requests || [], cycle: !!st?.cycle,
-    cycleAsked: !!st?.cycleAsked, loading: false, again: false, error: null, loadedAt: 0, triedAt: 0, coachSeenAt: 0, sending: new Set(), steps: null });
+    cycleAsked: !!st?.cycleAsked, adult: st?.adult ?? null, adultAsked: !!st?.adultAsked, health: st?.health || null, loading: false, again: false, error: null, loadedAt: 0, triedAt: 0, coachSeenAt: 0, sending: new Set(), steps: null });
 }
 // Plus de coach (quitté, retiré) : la liste et les brouillons partent
 function ckForgetCoach() {
   if (!ck.requests.length && !ckReadCache(ck.userId)) return;
-  ck.requests = []; ck.cycle = false; ck.cycleAsked = false; ck.coachId = null;
+  ck.requests = []; ck.cycle = false; ck.cycleAsked = false; ck.adultAsked = false; ck.health = null; ck.coachId = null;
   ckWriteCache(null);
   ckWrite(CK_DRAFT_KEY, 'drafts', null);
   ckWrite(CK_OUTBOX_KEY, 'items', null);
@@ -265,7 +287,7 @@ async function checkinRefresh({ minAge = 0, now = Date.now() } = {}) {
     const st = cleanStudentCheckins(r.data);
     ckMergeSent(st.requests);
     Object.assign(ck, { available: true, error: null, loadedAt: Date.now(), requests: st.requests, cycle: st.cycle, cycleAsked: st.cycleAsked,
-      coachId: myCoach()?.user_id || null });
+      adult: st.adult, adultAsked: st.adultAsked, health: st.health, coachId: myCoach()?.user_id || null });
     ckWriteCache(r.data);
     checkinDraftPrune();
     // Envoyée ici puis répondue sur le serveur : plus rien en attente pour elle
@@ -313,6 +335,7 @@ async function ckSendNow(id, answers) {
     return { ok: true, at };
   }
   if (r.kind === 'offline' || r.kind === 'signed_out') return { ok: true, queued: true, kind: r.kind };
+  if (r.kind === 'no_health_consent') ck.health = { ...(ck.health || {}), consented: false };
   ckOutboxDrop(id);   // refus du serveur (fermée, réponse refusée, pas d'accord) : l'élève corrige, le brouillon reste
   return { ok: false, kind: r.kind };
 }
@@ -388,6 +411,29 @@ async function checkinCycleSet(accept, adult = false) {
   }
   notifyCheckins();
   return { ok: true, consented: ck.cycle };
+}
+
+// ── Accord daté pour les bilans, déclaration des 18 ans ─────
+
+// accept : « Tu acceptes d'envoyer à <coach> tes réponses de bilan » (texte de ckHealthOffer, version CK_HEALTH_VERSION) ;
+// false : retrait (plus aucun envoi ; les bilans déjà envoyés restent chez le coach). → { ok } ou { ok: false, kind }
+async function checkinHealthSet(accept) {
+  const r = await ckRpc('student_checkin_consent', { accept: !!accept, version: CK_HEALTH_VERSION });
+  if (!r.ok) return r;
+  ck.health = cleanCheckinHealth(r.data) || { consented: !!accept, version: CK_HEALTH_VERSION, at: accept ? Date.now() : null };
+  notifyCheckins();
+  return { ok: true, consented: ck.health.consented };
+}
+// « J'ai 18 ans ou plus » (déclaration des photos de bilan, student_photo_adult) : libido et cycle arrivent ensuite
+async function checkinAdultDeclare() {
+  if (checkinCycleBlocked()) return { ok: false, kind: 'not_adult' };
+  const r = await ckRpc('student_photo_adult');
+  if (!r.ok) return r;
+  ck.adult = true; ck.adultAsked = false;
+  if (typeof cph === 'object' && cph?.state) cph.state.adult = true;
+  await checkinRefresh();
+  notifyCheckins();
+  return { ok: true };
 }
 
 // ── Déclencheurs ────────────────────────────────────────────

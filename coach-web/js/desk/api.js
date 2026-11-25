@@ -5,9 +5,10 @@
 //    security definer et de la RLS, chacune vérifie auth.uid() et le lien coach ↔ élève). Adresse et clé identiques à
 //    ACCOUNT_CONFIG de js/data/account.js (vérifié par tests/unit/coach-web.mjs).
 //  - Connexion par code à 6 chiffres reçu par e-mail (signInWithOtp sans création de compte, puis verifyOtp).
-//  - Ordinateur parfois partagé : session fermée après 30 min sans geste (aussi au rechargement), « Se déconnecter de
-//    cet ordinateur ». Seuls la session de Supabase et l'heure du dernier geste sont gardées dans le navigateur ;
-//    les données des élèves restent en mémoire, jamais dans localStorage ni IndexedDB.
+//  - Ordinateur parfois partagé : session fermée après 30 min sans geste (aussi au rechargement) et à la fermeture
+//    de l'onglet (sessionStorage, propre à l'onglet), « Se déconnecter de cet ordinateur ». Seuls la session de
+//    Supabase et l'heure du dernier geste sont gardées dans l'onglet ; les données des élèves restent en mémoire,
+//    jamais dans sessionStorage, localStorage ni IndexedDB.
 //  - Chaque appel rend { ok: true, data } ou { ok: false, kind } (kinds de coachErrorKind ; 'missing' : fonction
 //    absente du serveur, migration pas encore appliquée).
 // ═══════════════════════════════════════════════════════════
@@ -19,6 +20,7 @@ const DESK_CONFIG = Object.freeze({
 });
 const DESK_AUTH_KEY = 'mdlf-coach-web-auth';     // session de supabase-js
 const DESK_ACTIVE_KEY = 'mdlf_coach_web_active'; // heure du dernier geste (ms), rien d'autre
+const DESK_EXPIRED_KEY = 'mdlf_coach_web_expired'; // « fermée pour inactivité », lu une fois après le rechargement
 const DESK_IDLE_MS = 30 * 60_000;
 const DESK_SESSIONS_PAGES = 6;                   // repli sans coach_student_weeks : 6 pages de 30 séances au plus
 
@@ -42,7 +44,14 @@ const deskHost = (() => {
 })();
 const deskHosted = () => !!deskHost?.session;
 
-function deskStore() { try { return window.localStorage; } catch { return null; } }
+// sessionStorage : fermer l'onglet ferme la session (un autre onglet se connecte de son côté)
+function deskStore() { try { return window.sessionStorage; } catch { return null; } }
+// Session gardée par une version d'avant dans localStorage (elle survivait à la fermeture du navigateur) : effacée
+try { window.localStorage.removeItem(DESK_AUTH_KEY); window.localStorage.removeItem(DESK_ACTIVE_KEY); } catch { /* stockage bloqué */ }
+function deskMarkExpired() { try { deskStore()?.setItem(DESK_EXPIRED_KEY, '1'); } catch { /* stockage bloqué */ } }
+function deskTakeExpired() {
+  try { const v = deskStore()?.getItem(DESK_EXPIRED_KEY); deskStore()?.removeItem(DESK_EXPIRED_KEY); return v === '1'; } catch { return false; }
+}
 function deskTouch(now = Date.now()) { try { deskStore()?.setItem(DESK_ACTIVE_KEY, String(now)); } catch { /* stockage bloqué */ } }
 function deskIdleFor(now = Date.now()) {
   if (deskHosted()) return 0;   // embarquée : l'app hôte décide de la fin de session

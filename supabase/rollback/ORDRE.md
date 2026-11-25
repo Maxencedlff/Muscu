@@ -8,7 +8,9 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −24 | `20261127040000_photos_web_appairage_down.sql` (« Relier cet ordinateur » : appairages en cours et ordinateurs reliés EFFACÉS, chaque ordinateur perd l'accès aux photos ; photos, clés des coachs et app intactes) | rien | oui (vérifié par `tests/sql/photos_web_appairage_rollback_test.sh`, aussi après −7) |
+| −26 | `20261127040000_photos_web_appairage_down.sql` (« Relier cet ordinateur » : appairages en cours et ordinateurs reliés EFFACÉS, chaque ordinateur perd l'accès aux photos ; photos, clés des coachs et app intactes) | rien | oui (vérifié par `tests/sql/photos_web_appairage_rollback_test.sh`, aussi après −7) |
+| −25 | `20261127030000_bilans_accord_majeur_down.sql` (accords datés pour les bilans EFFACÉS ; plus d'accord exigé avant l'envoi ; libido et cycle de nouveau rendus sans la déclaration des 18 ans ; les déclarations « 18 ans ou plus » faites par l'accord du cycle restent dans `coach_photo_adults`) | rien | oui (vérifié par `tests/sql/bilans_accord_majeur_rollback_test.sh`, données comprises) ; à défaire avant −22 (bilans) et −7 (photos : `coach_photo_adults`) |
+| −24 | `20261127010000_blocage_coupe_coach_down.sql` (un blocage ne coupe plus le lien coach et deux comptes bloqués peuvent se relier ; les liens déjà coupés et ce que leur cascade a effacé NE REVIENNENT PAS) | rien | oui (vérifié par `tests/sql/blocage_coupe_coach_rollback_test.sh`, données comprises) |
 | −23 | `20261126010000_programmes_envoyes_coach_down.sql` (programmes envoyés relus par l'appli web du coach ; ne touche à aucune donnée, l'appli web revient à la version gardée sur le compte du coach) | rien | oui (vérifié par `tests/sql/programmes_envoyes_coach_rollback_test.sh`) |
 | −22 | `20261125010000_bilans_coach_down.sql` (bilans configurables : modèles, groupes, plannings, demandes, réponses, retours et accords du cycle EFFACÉS ; notifications `checkin` et `checkin_reminder` en file retirées ; `push_wanted`, `push_valid` et la contrainte de la file reprennent le texte de −15 ; tâches pg_cron `bilans-coach-envoi` et `bilans-coach-purge` retirées ; `push-send` peut rester) | rien | oui (vérifié par `tests/sql/bilans_coach_rollback_test.sh`, données comprises) ; à défaire avant −15, −9 (il réécrit leurs `push_wanted` et `push_valid`) et −7 (ses réponses citent `coach_photos`) |
 | −21 | `20261124010000_semaines_coach_down.sql` (fiche Semaines du web en un appel ; ne touche à aucune donnée, l'appli web revient aux lectures une par une) | rien | oui (vérifié par `tests/sql/semaines_coach_rollback_test.sh`) |
@@ -174,6 +176,8 @@ bash tests/sql/rollback_push_check.sh     # notifications push
 bash tests/sql/rollback_reaction_jaime_check.sh   # J'aime : ❤️ redevenu 👏, base identique
 bash tests/sql/photos_bilan_rollback_test.sh   # photos de bilan : planification et secret de la purge retirés
 bash tests/sql/bilans_coach_rollback_test.sh   # bilans configurables : schéma, droits et données d'avant
+bash tests/sql/blocage_coupe_coach_rollback_test.sh   # blocage qui coupe le lien coach
+bash tests/sql/bilans_accord_majeur_rollback_test.sh   # accord daté des bilans, questions réservées aux 18 ans
 ```
 
 Postgres local jetable, rien n'est envoyé au projet Supabase.

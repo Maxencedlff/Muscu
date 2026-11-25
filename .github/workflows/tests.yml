@@ -33,7 +33,7 @@ concurrency:
 jobs:
   unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -75,6 +75,10 @@ jobs:
         run: bash tests/sql/bilans_coach_rollback_test.sh
       - name: Retour arrière des programmes envoyés (appli web du coach, vague 4)
         run: bash tests/sql/programmes_envoyes_coach_rollback_test.sh
+      - name: Retour arrière du blocage qui coupe le lien coach
+        run: bash tests/sql/blocage_coupe_coach_rollback_test.sh
+      - name: Retour arrière de l'accord daté des bilans et des questions réservées aux 18 ans
+        run: bash tests/sql/bilans_accord_majeur_rollback_test.sh
       - name: Retour arrière de « Relier cet ordinateur » (photos de bilan sur ordinateur, vague 5)
         run: bash tests/sql/photos_web_appairage_rollback_test.sh
       - name: Contenu web de l'app iOS

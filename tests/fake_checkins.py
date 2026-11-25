@@ -7,11 +7,13 @@ js/data/checkins.js (checkinItemsClean, checkinValueClean, résolues à l'appel 
 réel applique les mêmes, vérifiées par tests/sql/bilans_coach_test.sql.
 
 État dans __sb.ck : templates, groups, schedules, requests, answers ({ requête: { clé: valeur } }), reviews
-({ requête: { reply, score, reviewed_at, sent_at } }), cycle ({ élève: { coach, at } }), sends (envois « À la
+({ requête: { reply, score, reviewed_at, sent_at } }), cycle ({ élève: { coach, at } }), health (accord daté des bilans,
+20261127030000_bilans_accord_majeur.sql : { élève: { coach, version, at } } ; sans lui, aucun envoi ; libido et cycle
+rendus seulement après « 18 ans ou plus », __sb.co.adults ou accord du cycle), sends (envois « À la
 demande », 30 par 24 h), push (notifications mises en file : { recipient, kind, ref }).
 Aides : __sb.ckTemplate(coach, { name, items }) crée un modèle ; __sb.ckRequest(coach, student, { name, items,
 sentAt, dueAt, periodStart, template }) une demande ; __sb.ckAnswer(id, answers, at) y répond ;
-__sb.ckReview(id, { reply, score, sent }) pose le retour du coach.
+__sb.ckReview(id, { reply, score, sent }) pose le retour du coach ; __sb.ckHealth(élève) donne l'accord daté.
 """
 
 FAKE_CHECKINS = r"""
@@ -22,7 +24,13 @@ FAKE_CHECKINS = r"""
   const iso = t => new Date(t).toISOString();
   const uuid = () => crypto.randomUUID();
   const err = message => ({ data: null, error: { code: 'P0001', message, details: null, hint: null } });
-  const ck = sb.ck = { templates: [], groups: [], members: [], schedules: [], requests: [], answers: {}, reviews: {}, cycle: {}, sends: [], push: [] };
+  const ck = sb.ck = { templates: [], groups: [], members: [], schedules: [], requests: [], answers: {}, reviews: {}, cycle: {}, health: {}, sends: [], push: [] };
+  const HEALTH_VERSION = 1, ADULT_KINDS = ['libido', 'cycle'];
+  const isAdult = me => !!sb.co.adults?.[me] || !!ck.cycle[me];
+  const shown = (it, me) => (!ADULT_KINDS.includes(it.kind) || isAdult(me)) && (it.kind !== 'cycle' || !!ck.cycle[me]);
+  const healthOk = (me, coach) => ck.health[me]?.coach === coach && ck.health[me].version >= HEALTH_VERSION;
+  const healthJson = me => { const h = ck.health[me]; return { consented: !!h && h.version >= HEALTH_VERSION, version: h?.version ?? null, current: HEALTH_VERSION, at: h ? iso(h.at) : null }; };
+  sb.ckHealth = student => { ck.health[student] = { coach: sb.linkOf(student)?.coach, version: HEALTH_VERSION, at: now() }; };
   const isCoach = id => !!sb.co.coachAt[id];
   const myStudent = (me, s) => { const l = sb.linkOf(s); return !!(l && l.coach === me) && !sb.blockedBetween(me, s); };
   const linked = (coach, s) => { const l = sb.linkOf(s); return !!(l && l.coach === coach); };
@@ -36,7 +44,7 @@ FAKE_CHECKINS = r"""
     return { reply: v.reply, score: v.score, reviewed_at: iso(v.reviewed_at), sent: !!v.sent_at };
   };
   const reqJson = (r, forStudent) => {
-    const items = forStudent && !ck.cycle[r.student] ? r.items.filter(i => i.kind !== 'cycle') : r.items;
+    const items = forStudent ? r.items.filter(i => shown(i, r.student)) : r.items;
     const base = { id: r.id, name: r.name, items, period_start: r.period_start, sent_at: iso(r.sent_at), due_at: r.due_at ? iso(r.due_at) : null,
       answered_at: r.answered_at ? iso(r.answered_at) : null, review: reviewOf(r.id, forStudent) };
     if (forStudent) return { ...base, coach_id: r.coach };
@@ -62,6 +70,7 @@ FAKE_CHECKINS = r"""
     ck.requests = ck.requests.filter(r => !gone.has(r.id));
     gone.forEach(id => { delete ck.answers[id]; delete ck.reviews[id]; });
     delete ck.cycle[student];
+    delete ck.health[student];
     ck.members = ck.members.filter(m => m.student !== student);
     ck.schedules = ck.schedules.filter(s => s.student !== student);
   });
@@ -192,14 +201,16 @@ FAKE_CHECKINS = r"""
     },
     student_checkins: me => {
       const l = sb.linkOf(me);
-      if (!l || sb.blockedBetween(me, l.coach)) return { requests: [], cycle: { consented: !!ck.cycle[me] } };
+      if (!l || sb.blockedBetween(me, l.coach)) return { requests: [], cycle: { consented: !!ck.cycle[me] }, adult: isAdult(me), adult_asked: false, health: healthJson(me) };
       const mine = ck.requests.filter(r => r.student === me && r.coach === l.coach).sort((a, b) => b.sent_at - a.sent_at);
       const list = [...mine.filter(open), ...mine.filter(r => r.answered_at).slice(0, 5)];
       // asked (proposition de l'app de l'élève, docs/BILANS.md « App iPhone (élève) ») : un bilan ouvert suit le cycle,
       // sans dire lequel ni rien montrer de plus ; l'app peut ainsi proposer l'accord dans le bilan. Faux tant que le
       // serveur ne le rend pas
-      const asked = !ck.cycle[me] && sb.ckCycleAsked !== false && mine.some(r => open(r) && r.items.some(i => i.kind === 'cycle'));
-      return { requests: list.map(r => reqJson(r, true)), cycle: { consented: !!ck.cycle[me], ...(sb.ckCycleAsked === false ? {} : { asked }) } };
+      const asked = !ck.cycle[me] && isAdult(me) && sb.ckCycleAsked !== false && mine.some(r => open(r) && r.items.some(i => i.kind === 'cycle'));
+      const adultAsked = !isAdult(me) && mine.some(r => open(r) && r.items.some(i => ADULT_KINDS.includes(i.kind)));
+      return { requests: list.map(r => reqJson(r, true)), cycle: { consented: !!ck.cycle[me], ...(sb.ckCycleAsked === false ? {} : { asked }) },
+        adult: isAdult(me), adult_asked: adultAsked, health: healthJson(me) };
     },
     student_checkin_answer: (me, { request, answers }) => {
       const r = ck.requests.find(x => x.id === request && x.student === me);
@@ -207,14 +218,16 @@ FAKE_CHECKINS = r"""
       if (!r || !l || l.coach !== r.coach || sb.blockedBetween(me, r.coach)) return err('not_found');
       if (r.answered_at) return { answered_at: iso(r.answered_at) };
       if (r.cancelled_at) return err('closed');
+      if (!healthOk(me, r.coach)) return err('no_health_consent');
       if (!answers || typeof answers !== 'object' || Array.isArray(answers)) return err('invalid_answer');
       for (const [k, v] of Object.entries(answers)) {
         const it = r.items.find(i => i.key === k);
         if (!it || checkinValueClean(it, v) === undefined) return err('invalid_answer');
+        if (ADULT_KINDS.includes(it.kind) && !isAdult(me)) return err('not_adult');
         if (it.kind === 'cycle' && !ck.cycle[me]) return err('no_consent');
         if (it.type === 'photo' && !v.ids.every(id => sb.co.photos.some(p => p.id === id && p.student === me && p.coach === r.coach && p.state === 'ready'))) return err('invalid_answer');
       }
-      const { answers: clean, missing } = checkinAnswersClean(r.items.filter(i => i.kind !== 'cycle' || ck.cycle[me]), answers);
+      const { answers: clean, missing } = checkinAnswersClean(r.items.filter(i => shown(i, me)), answers);
       if (missing.length) return err('invalid_answer');
       ck.answers[r.id] = clean; r.answered_at = now();
       return { answered_at: iso(r.answered_at) };
@@ -222,13 +235,21 @@ FAKE_CHECKINS = r"""
     student_checkin_cycle: (me, { accept, adult = false }) => {
       const l = sb.linkOf(me);
       if (!l) return err('not_found');
-      if (accept) { if (adult !== true) return err('not_adult'); ck.cycle[me] = { coach: l.coach, at: now() }; return { consented: true }; }
+      if (accept) { if (adult !== true) return err('not_adult'); if (sb.co.adults) sb.co.adults[me] ||= iso(now()); ck.cycle[me] = { coach: l.coach, at: now() }; return { consented: true }; }
       delete ck.cycle[me];
       for (const r of ck.requests.filter(x => x.student === me)) {
         const cyc = r.items.filter(i => i.kind === 'cycle').map(i => i.key);
         if (ck.answers[r.id]) cyc.forEach(k => delete ck.answers[r.id][k]);
       }
       return { consented: false };
+    },
+    // Accord daté pour les bilans (version du texte en vigueur exigée) ; retrait : plus d'envoi
+    student_checkin_consent: (me, { accept, version = null }) => {
+      const l = sb.linkOf(me);
+      if (!l || sb.blockedBetween(me, l.coach)) return err('not_found');
+      if (accept) { if (version !== HEALTH_VERSION) return err('invalid_version'); ck.health[me] = { coach: l.coach, version, at: now() }; }
+      else delete ck.health[me];
+      return healthJson(me);
     },
   };
 })();

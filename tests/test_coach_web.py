@@ -87,7 +87,9 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         # Rien des élèves sur l'appareil : seules la session et l'heure du dernier geste
         # (mdlf_push_ask et mdlf_push_remind : posées par le faux serveur lui-même, tests/fake_account.py)
         keys = page.evaluate("Object.keys(localStorage).filter(k => !['mdlf_push_ask', 'mdlf_push_remind'].includes(k)).sort()")
-        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : localStorage {keys}')
+        check(keys == [], f'{tag} : localStorage {keys}')
+        keys = page.evaluate("Object.keys(sessionStorage).sort()")
+        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : sessionStorage {keys}')
     except Exception:
         os.makedirs(FAILS, exist_ok=True)
         page.screenshot(path=os.path.join(FAILS, tag.replace(' ', '_') + '.png'), full_page=True)
@@ -135,7 +137,7 @@ def journeys(browser, url, engine):
     page.evaluate("location.hash = '#/reglages'")
     page.click('[data-action=signout]')
     page.wait_for_selector('#login-email')
-    left = page.evaluate("Object.keys(localStorage).filter(k => !k.startsWith('mdlf_push_'))")
+    left = page.evaluate("Object.keys(localStorage).filter(k => !k.startsWith('mdlf_push_')).concat(Object.keys(sessionStorage))")
     check(left == [], f'déconnexion : il reste {left}')
     check(not page.errors, f'parcours : erreurs {page.errors}')
     ctx.close()

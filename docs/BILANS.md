@@ -265,6 +265,23 @@ bilan. Mon coach a aussi sa cellule « Bilans » (`checkinMineCellHtml`) avec «
 l'accord. Les clés de l'appareil (`mdlf_checkins`, `mdlf_checkin_drafts`, `mdlf_checkin_outbox`, `mdlf_checkin_sent`)
 sont effacées avec les données de l'appareil (`accountForgetDevice`).
 
+### Accord daté et questions réservées aux 18 ans (`20261127030000_bilans_accord_majeur.sql`, PAS appliquée)
+
+- **Accord daté** (RGPD art. 9.2.a) : au premier envoi, une feuille « Accord pour tes bilans » : « Tu acceptes d'envoyer
+  à <coach> tes réponses de bilan (données de santé) », hébergées chez Supabase (UE), « J'accepte » ou « Annuler » (rien ne part).
+  `student_checkin_consent(accept, version)` garde la date et la version du texte (`CK_HEALTH_VERSION`, côté serveur
+  `private.checkin_health_version()`, 1) dans `checkin_health_consents`, pour le coach actuel (effacé avec le lien).
+  `student_checkin_answer` refuse sans lui (`no_health_consent`). Mon coach : « Accord pour mes bilans », donné le…,
+  retrait (plus d'envoi ; les bilans déjà envoyés restent chez le coach). Changer le texte = version + 1, des deux côtés.
+- **Libido et cycle** (`CK_ADULT_KINDS`, `private.checkin_adult_kinds()`) : rendus seulement après « J'ai 18 ans ou
+  plus » (`coach_photo_adults`, la déclaration des photos de bilan, ou un accord du cycle, qui l'enregistre aussi).
+  Sinon `student_checkins` les retire et dit `adult_asked` ; l'app propose « J'ai 18 ans ou plus » dans le bilan
+  (`student_photo_adult`), jamais si la tranche d'âge d'Apple dit moins de 18 ans. Réponse sans déclaration :
+  `not_adult`. Le coach peut les mettre dans un modèle (aperçu : « 18 ans et plus », sautés pour les autres) et ne sait
+  pas qui est mineur.
+- Tests : `tests/sql/bilans_accord_majeur_test.sql`, `tests/sql/bilans_accord_majeur_rollback_test.sh`,
+  `tests/test_bilans_eleve.py` (`t_majeur_accord`), faux serveur `tests/fake_checkins.py`.
+
 ### Natif
 
 - Pas de Santé : `Native.health.steps({ days })` n'existe pas encore dans js/platform/native.js (il faut la lecture

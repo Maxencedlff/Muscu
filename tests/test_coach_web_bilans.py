@@ -10,7 +10,7 @@ Chaque combinaison : signal « Bilan reçu, à répondre » du tableau de bord, 
 type et échelle, réordonner au glisser et au bouton, question perso, fréquence, jour, rappel, date limite,
 destinataires élève et groupe, fréquence propre d'un élève, enregistrer, aperçu, confirmation avant de quitter,
 dupliquer, supprimer, envoyer maintenant) ; cibles de 44 px, pas de défilement en largeur, fond noir pur en sombre,
-aucune erreur, CSP, rien d'élève dans localStorage. Puis, par moteur : serveur sans la migration.
+aucune erreur, CSP, rien d'élève dans le navigateur (session dans sessionStorage). Puis, par moteur : serveur sans la migration.
 Faux serveur : tests/fake_account.py + tests/fake_checkins.py ; données : tests/coach_web_fixtures.py (aucun réseau,
 code factice). Un navigateur à la fois, sans fenêtre. Captures des échecs dans $PPL_SCRATCH/shots/coach-web-echecs/.
 """
@@ -308,7 +308,9 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         review_flow(page, tag, theme, touch, w)
         editor_flow(page, tag, theme, touch, w)
         keys = page.evaluate("Object.keys(localStorage).filter(k => !['mdlf_push_ask', 'mdlf_push_remind'].includes(k)).sort()")
-        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : localStorage {keys}')
+        check(keys == [], f'{tag} : localStorage {keys}')
+        keys = page.evaluate("Object.keys(sessionStorage).sort()")
+        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : sessionStorage {keys}')
     except Exception:
         os.makedirs(FAILS, exist_ok=True)
         page.screenshot(path=os.path.join(FAILS, 'bilans_' + tag.replace(' ', '_') + '.png'), full_page=True)
@@ -342,6 +344,116 @@ def missing_server(browser, url, engine):
     ctx.close()
 
 
+DRAFT = 'Super semaine, on garde les calories et on monte le squat de 2,5 kg.'
+
+
+def draft_kept(browser, url, engine):
+    """Réponse en cours gardée au retour sur l'onglet après plus de 60 s (la fiche est relue en arrière-plan, sans
+    « Chargement… » ni perte du texte) ; flèches dans la note de la semaine (un seul arrêt de tabulation)."""
+    ctx, page = open_desk(browser, url, width=1440, checkins=True)
+    try:
+        go(page, '#/eleve/' + page.evaluate('window.__lea') + '/bilans')
+        page.wait_for_selector('#rv-reply')
+        page.click('#rv-reply')
+        page.keyboard.type(DRAFT)
+        calls0 = page.evaluate("__sb.calls.filter(c => c[1] === 'coach_student_checkins').length")
+        # Le coach va sur un autre onglet 61 s, sans geste, puis revient
+        page.clock.run_for(61_000)
+        page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+        wait_js(page, f"__sb.calls.filter(c => c[1] === 'coach_student_checkins').length > {calls0}")
+        page.wait_for_timeout(300)
+        check(page.locator('#rv-reply').input_value() == DRAFT, f'{engine} : réponse perdue au retour {page.locator("#rv-reply").input_value()!r}')
+        check(page.evaluate('deskRvDirty()'), f'{engine} : réponse plus marquée « pas enregistrée »')
+        check(page.locator('text=Chargement des bilans').count() == 0, f'{engine} : « Chargement… » au retour')
+        check(page.evaluate("document.activeElement.id") == 'rv-reply', f'{engine} : focus perdu au retour')
+        # Note de la semaine : Tab entre dans le groupe une fois, les flèches choisissent
+        tap(page, '#score-3', False)
+        check(page.evaluate("[...document.querySelectorAll('.scores [role=radio]')].filter(b => b.tabIndex === 0).map(b => b.id)") == ['score-3'], f'{engine} : un seul arrêt de tabulation')
+        page.keyboard.press('ArrowRight')
+        check(page.locator('#score-4[aria-checked=true]').count() == 1 and page.evaluate('document.activeElement.id') == 'score-4', f'{engine} : flèche droite')
+        page.keyboard.press('Home')
+        check(page.locator('#score-1[aria-checked=true]').count() == 1, f'{engine} : Début')
+        check(page.locator('#rv-reply').input_value() == DRAFT, f'{engine} : réponse gardée après la note')
+        # Onglets de la fiche : la flèche déplace le focus, sans changer d'onglet
+        page.focus('#tab-checkins')
+        page.keyboard.press('ArrowRight')
+        check(page.evaluate('document.activeElement.id') != 'tab-checkins' and page.locator('#tab-checkins[aria-selected=true]').count() == 1, f'{engine} : flèche dans les onglets')
+        # Envoi : le bilan part, la copie dans les messages dépasse la limite de chat_send → « Réessayer »
+        page.evaluate("__sb.so.day[window.__coachId + 'chat'] = 500")
+        tap(page, '#rv-send', False)
+        page.wait_for_selector('.rv-fail[role=alert] >> text=Réessayer')
+        page.evaluate("__sb.so.day[window.__coachId + 'chat'] = 0")
+        msgs0 = page.evaluate('__sb.co.msgs.length')
+        tap(page, '[data-rv=chat-retry]', False)
+        page.wait_for_selector('.rv-sent ~ .gfoot.green, .gfoot.green')
+        check(page.evaluate(f'__sb.co.msgs.slice({msgs0}).map(m => m.body)') == [DRAFT], f'{engine} : réponse renvoyée dans les messages')
+        check(not page.errors, f'{engine} brouillon : erreurs {page.errors}')
+    finally:
+        ctx.close()
+
+
+def idle_end(browser, url, engine):
+    """28 min sans geste : « Toujours là ? », « Rester connecté » garde la session. 30 min : la réponse en cours part en
+    brouillon sur le serveur, l'écran est vidé avant le rechargement, puis l'écran de connexion le dit."""
+    ctx, page = open_desk(browser, url, width=1440, checkins=True)
+    try:
+        last = page.evaluate('window.__leaLast')
+        go(page, '#/eleve/' + page.evaluate('window.__lea') + '/bilans')
+        page.wait_for_selector('#rv-reply')
+        page.click('#rv-reply')
+        page.keyboard.type(DRAFT)
+        page.clock.run_for(28 * 60_000 + 20_000)
+        page.wait_for_selector('#idle[role=alertdialog]')
+        check('Toujours là' in page.inner_text('#idle'), f'{engine} : bandeau')
+        page.click('#idle button')
+        check(page.locator('#idle').count() == 0 and page.evaluate('!!desk.user'), f'{engine} : rester connecté')
+        check(page.evaluate("document.activeElement.id") == 'rv-reply', f'{engine} : focus rendu au champ')
+        # Ce que voit la page juste avant le rechargement (sessionStorage survit au rechargement de l'onglet)
+        page.evaluate("""addEventListener('pagehide', () => sessionStorage.setItem('__t', JSON.stringify({
+          reviews: __sb.ck.reviews, screen: document.getElementById('app').innerText })))""")
+        dialogs = []
+        page.on('dialog', lambda d: (dialogs.append(d.type), d.accept()))
+        page.clock.run_for(31 * 60_000)
+        page.wait_for_selector('#login-email', timeout=15000)
+        t = json.loads(page.evaluate("sessionStorage.getItem('__t')") or '{}')
+        rv = (t.get('reviews') or {}).get(last) or {}
+        check(rv.get('reply') == DRAFT and not rv.get('sent_at'), f'{engine} : brouillon pas gardé sur le serveur {rv}')
+        check('Semaine 47' not in (t.get('screen') or '') and 'lea' not in (t.get('screen') or ''), f'{engine} : écran pas vidé avant le rechargement {t.get("screen", "")[:80]!r}')
+        check(not dialogs, f'{engine} : fenêtre « Quitter le site ? » {dialogs}')
+        check('30 minutes sans activité' in page.inner_text('#login-err'), f'{engine} : message {page.inner_text("#login-err")!r}')
+        left = page.evaluate("Object.keys(sessionStorage).filter(k => k !== '__t').concat(Object.keys(localStorage).filter(k => !k.startsWith('mdlf_push_')))")
+        check(left == [], f'{engine} : il reste {left}')
+    finally:
+        ctx.close()
+
+
+def dash_poll(browser, url, engine):
+    """Tableau de bord relu toutes les 90 s, onglet visible seulement ; rien n'est redessiné si rien n'a changé, un
+    nouveau message de l'élève s'affiche sans geste."""
+    ctx, page = open_desk(browser, url, width=1440, checkins=True)
+    try:
+        n = "__sb.calls.filter(c => c[1] === 'coach_state').length"
+        page.evaluate("document.querySelector('.lst').__same = true")
+        c0 = page.evaluate(n)
+        page.clock.run_for(91_000)
+        wait_js(page, f'{n} > {c0}')
+        page.wait_for_timeout(300)
+        check(page.evaluate("!!document.querySelector('.lst').__same"), f'{engine} : tableau redessiné sans changement')
+        page.evaluate("__sb.msg(window.__lea, false, 'Coucou coach')")
+        page.clock.run_for(91_000)
+        wait_js(page, "!document.querySelector('.lst').__same")
+        check(page.locator('.side a[href="#/messages"] .badge').count() == 1, f'{engine} : non-lu pas affiché')
+        # Onglet caché : aucune relecture
+        page.evaluate("Object.defineProperty(document, 'visibilityState', { get: () => 'hidden', configurable: true })")
+        c1 = page.evaluate(n)
+        page.clock.run_for(181_000)
+        page.wait_for_timeout(300)
+        check(page.evaluate(n) == c1, f'{engine} : relu onglet caché')
+        check(not page.errors, f'{engine} relecture : erreurs {page.errors}')
+    finally:
+        ctx.close()
+
+
 def main():
     done = 0
     with sync_playwright() as pw, static_server() as url:
@@ -355,9 +467,15 @@ def main():
                         print(f'  ok    {engine} {w}px {theme}', flush=True)
                 missing_server(browser, url, engine)
                 print(f'  ok    {engine} : serveur sans la migration', flush=True)
+                draft_kept(browser, url, engine)
+                print(f'  ok    {engine} : réponse gardée au retour sur l\'onglet, flèches', flush=True)
+                dash_poll(browser, url, engine)
+                print(f'  ok    {engine} : tableau de bord relu toutes les 90 s', flush=True)
+                idle_end(browser, url, engine)
+                print(f'  ok    {engine} : 30 min sans geste (bandeau, brouillon, écran vidé)', flush=True)
             finally:
                 browser.close()
-    print(f'\nBilans de l\'appli web du coach : {done} combinaisons et {len(ENGINES)} parcours OK')
+    print(f'\nBilans de l\'appli web du coach : {done} combinaisons et {4 * len(ENGINES)} parcours OK')
 
 
 if __name__ == '__main__':

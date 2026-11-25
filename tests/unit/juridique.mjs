@@ -35,7 +35,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(!/quelques jours la ligne d'une photo|for a few days \(its day/.test(page), 'plus de « quelques jours » pour les sauvegardes');
     assert.ok(page.includes('id="sauvegardes"') && page.includes('id="backups"'), 'ancres FR et EN');
     // Date de mise à jour, FR et EN, identiques
-    assert.ok(fr.includes('mise à jour le 25 novembre 2026') && en.includes('updated November 25, 2026'), 'date du 25/11/2026 (photos de bilan sur l\'ordinateur du coach)');
+    assert.ok(fr.includes('mise à jour le 25 novembre 2026') && en.includes('updated November 25, 2026'), 'date du 25/11/2026 (bilans)');
+    // Bilans (audit du site coach, B2) : section FR et EN, données de santé, art. 9, cycle et 18 ans, conservation
+    assert.ok(page.includes('id="bilans"') && page.includes('id="bilans-en"'), 'section Bilans, FR et EN');
+    assert.ok(/9[^<]{0,12}2[^<]{0,6}a/.test(fr) && /18 ans/.test(fr) && /24 mois/.test(fr) && /24 months/.test(en), 'bilans : art. 9, 18 ans, 24 mois');
     assert.ok(fr.includes('id="accord-coach"') && fr.includes('Ma coach') && en.includes('Coach wording'), 'accord du mot coach dit (FR et EN)');
   });
 

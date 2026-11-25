@@ -12,7 +12,8 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const rv = { sel: null, cmp: {}, drafts: {}, busy: false };
+// chatFail : réponse envoyée dans le bilan mais pas dans les messages (limite de chat_send, réseau) : { request, student, body }
+const rv = { sel: null, cmp: {}, drafts: {}, busy: false, chatFail: null };
 
 const deskRvSaved = r => ({ reply: r.review?.reply || '', score: r.review?.score ?? null });
 const deskRvDraft = r => rv.drafts[r.id] || deskRvSaved(r);
@@ -45,7 +46,7 @@ function deskRvPanelHtml(d, r) {
   const h = deskCkHistory(c);
   const waitHtml = (h.pending.length || h.missed.length) ? `<section class="gblock" aria-labelledby="h-wait"><h2 class="gh" id="h-wait">En attente de ${esc(r.name)}</h2><ul class="group" aria-labelledby="h-wait">
     ${h.pending.map(p => `<li><div class="row"><span class="grow">${esc(deskCkTitle(p, now).title)}<span class="t2 blk">${esc(p.name)}, envoyé ${esc(deskAgo(p.sentAt, now) || '')}</span></span><span class="v">${p.dueAt ? esc(`à rendre ${p.dueAt < now ? 'depuis' : 'avant'} le ${fmtDate(p.dueAt, 'short')}`) : 'pas encore rempli'}</span></div></li>`).join('')}
-    ${h.missed.map(p => `<li><div class="row"><span class="grow">${esc(deskCkTitle(p, now).title)}<span class="t2 blk">${esc(p.name)}</span></span><span class="v faint">pas rempli à temps</span></div></li>`).join('')}
+    ${h.missed.map(p => `<li><div class="row"><span class="grow">${esc(deskCkTitle(p, now).title)}<span class="t2 blk">${esc(p.name)}</span></span><span class="v muted">pas rempli à temps</span></div></li>`).join('')}
   </ul></section>` : '';
   if (!h.answered.length) {
     return `<div class="empty"><b>Pas encore de bilan reçu de ${esc(r.name)}.</b><br>Envoie-lui un bilan depuis Mes bilans : ses réponses arriveront ici.<br><a class="btn tint" href="#/bilans">Mes bilans</a></div>${waitHtml ? `<div class="gap-t">${waitHtml}</div>` : ''}`;
@@ -71,14 +72,16 @@ function deskRvPanelHtml(d, r) {
   const photos = deskPhSectionHtml(r.id, { req: cur, title: t.title }, prev ? { req: prev, title: pt.title } : null);
   const figures = cmp.figures.length ? `<div class="stats rv-figs" aria-label="Chiffres du bilan">${cmp.figures.map(f => deskRvFigureHtml(f, cmpWeek)).join('')}</div>` : '';
   const answers = `<section aria-labelledby="h-ans"><h2 class="gh" id="h-ans">Réponses</h2><ul class="group" aria-labelledby="h-ans">${cmp.answers.map(a => `<li><div class="row rv-a">
-    <span class="rv-l">${esc(a.label)}</span><span class="grow${a.none ? ' faint' : ''} rv-t">${esc(a.text)}</span>${a.delta !== null && a.delta !== undefined ? `<span class="v">${esc(a.delta === 0 ? `= S${cmpWeek}` : `${a.delta > 0 ? '+' : '−'}${Math.abs(a.delta)} depuis S${cmpWeek}`)}</span>` : ''}
+    <span class="rv-l">${esc(a.label)}</span><span class="grow${a.none ? ' muted' : ''} rv-t">${esc(a.text)}</span>${a.delta !== null && a.delta !== undefined ? `<span class="v">${esc(a.delta === 0 ? `= S${cmpWeek}` : `${a.delta > 0 ? '+' : '−'}${Math.abs(a.delta)} depuis S${cmpWeek}`)}</span>` : ''}
   </div></li>`).join('') || '<li><div class="row"><span class="grow muted">Aucune autre réponse.</span></div></li>'}</ul>
     <div class="gfoot">${prev ? esc(`Écarts entre ${t.title.toLowerCase()} et ${pt.title.toLowerCase()}.`) : 'Choisis un bilan précédent pour voir les écarts.'}${cmp.answers.some(a => a.none) ? ` « Pas de réponse » : ${esc(r.name)} a passé ce suivi.` : ''}</div></section>`;
   const dr = deskRvDraft(cur), sent = !!cur.review?.sent;
   const len = Array.from(dr.reply).length;
   const reply = sent
     ? `<section class="gblock" aria-labelledby="h-rep"><h2 class="gh" id="h-rep">Ta réponse à ${esc(r.name)}</h2><div class="group pad"><p class="rv-sent">${esc(cur.review.reply)}</p></div>
-      <div class="gfoot green">${deskIcon('check', 'xs')} Envoyée${cur.review.at ? ` le ${esc(fmtDate(cur.review.at, 'short'))}` : ''}, aussi dans vos messages${cur.review.score ? ` · note ${cur.review.score} sur 10` : ''}.</div></section>`
+      ${rv.chatFail?.request === cur.id
+    ? `<div class="gfoot rv-fail" role="alert"><span class="grow">Envoyée dans le bilan, mais pas encore dans vos messages.</span><button type="button" class="btn link" data-rv="chat-retry" ${rv.busy ? 'disabled' : ''}>Réessayer</button></div>`
+    : `<div class="gfoot green">${deskIcon('check', 'xs')} Envoyée${cur.review.at ? ` le ${esc(fmtDate(cur.review.at, 'short'))}` : ''}, aussi dans vos messages${cur.review.score ? ` · note ${cur.review.score} sur 10` : ''}.</div>`}</section>`
     : `<section class="gblock" aria-labelledby="h-rep"><h2 class="gh" id="h-rep"><label for="rv-reply">Ta réponse à ${esc(r.name)}</label></h2>
       <div class="group pad"><textarea id="rv-reply" rows="6" maxlength="${CHECKIN_REPLY_MAX}" placeholder="Ce qui va bien, ce qu'on ajuste cette semaine…" aria-describedby="rv-count">${esc(dr.reply)}</textarea></div>
       <div class="gfoot" id="rv-count">${len} sur ${CHECKIN_REPLY_MAX} caractères${cur.review && !sent ? ' · brouillon enregistré' : ''}</div>
@@ -130,10 +133,36 @@ async function deskRvSave(send) {
   let chatOk = true;
   const name = view.dash?.rows.find(x => x.id === route.id)?.name || 'ton élève';
   if (send) chatOk = (await deskRpc('chat_send', { body: reply, student: route.id })).ok;
+  rv.chatFail = send && !chatOk ? { request: cur.id, student: route.id, body: reply } : null;
   rv.busy = false;
   deskRender();
-  deskToast(!send ? 'Brouillon enregistré' : chatOk ? `Réponse envoyée à ${name}` : `Réponse envoyée dans le bilan de ${name}, mais pas dans vos messages : réessaie depuis l'app.`);
+  deskToast(!send ? 'Brouillon enregistré' : chatOk ? `Réponse envoyée à ${name}` : `Réponse envoyée dans le bilan de ${name}, mais pas dans vos messages : touche Réessayer.`);
   if (send) deskRefresh({ force: true });
+}
+
+// Réponse partie dans le bilan, pas dans les messages : renvoyée dans la conversation seulement
+async function deskRvChatRetry() {
+  const f = rv.chatFail;
+  if (!f || rv.busy) return;
+  rv.busy = true; deskRender();
+  const r = await deskRpc('chat_send', { body: f.body, student: f.student });
+  rv.busy = false;
+  if (r.ok) rv.chatFail = null;
+  deskRender();
+  if (!r.ok && r.kind === 'signed_out') return deskEndSession();
+  deskToast(r.ok ? 'Réponse envoyée dans vos messages' : r.kind === 'rate_limited' ? 'Trop de messages d\'un coup : réessaie dans un moment.' : deskErrorText(r.kind));
+}
+
+// Fin de session pour inactivité (main.js) : chaque réponse écrite et pas enregistrée part en brouillon sur le serveur
+async function deskRvSaveDrafts() {
+  const list = view.student?.checkins || [];
+  const jobs = Object.entries(rv.drafts).flatMap(([id, d]) => {
+    const r = list.find(x => x.id === id);
+    if (!r || r.review?.sent || JSON.stringify(d) === JSON.stringify(deskRvSaved(r))) return [];
+    return [deskRpc('coach_checkin_review', { request: id, reply: checkinText(d.reply, CHECKIN_REPLY_MAX), score: d.score, send: false })];
+  });
+  rv.drafts = {};
+  await Promise.allSettled(jobs);
 }
 
 document.addEventListener('click', e => {
@@ -148,6 +177,7 @@ document.addEventListener('click', e => {
     return;
   }
   if (a === 'score' && cur) { const v = Number(el.dataset.v), dr = deskRvDraft(cur); rv.drafts[cur.id] = { ...dr, score: dr.score === v ? null : v }; deskRender(); return; }
+  if (a === 'chat-retry') { deskRvChatRetry(); return; }
   if (a === 'draft') deskRvSave(false);
   if (a === 'send') deskRvSave(true);
 });

@@ -6,8 +6,11 @@ Android), et des bilans entièrement configurables par chaque coach (vague 2). N
 `~/.local/share/mdlf/coach-web/NOTE.md` ; maquette validée le 24/11 : `~/.local/share/mdlf/coach-web/maquette/`.
 
 **Vague 1 (ce document)** : connexion par code e-mail, tableau de bord « Élèves », fiche élève « Semaines ».
-Rien n'est déployé : ni Vercel, ni mise à jour à chaud. La migration `20261124010000_semaines_coach.sql` est écrite,
-pas appliquée ; l'appli marche sans elle.
+**État au 25/11/2026** : le site est en ligne sur **https://coach.mdlf.app** (projet Vercel `mdlf-coach`) ; l'ancienne
+adresse `https://mdlf-coach.vercel.app` renvoie vers lui par une redirection 308 (`coach-web/vercel.json`, règle sur
+l'hôte), car Apple n'accepte la connexion que sur `coach.mdlf.app`. Les migrations des vagues 1, 2 et 4
+(`20261124010000_semaines_coach.sql`, `20261125010000_bilans_coach.sql`, `20261126010000_programmes_envoyes_coach.sql`)
+sont appliquées ; l'appli garde ses replis pour un serveur d'avant.
 
 ## Où, et pourquoi sans framework
 
@@ -29,7 +32,8 @@ coach-web/js/desk/chat-model.js, messages.js   vague 4 : Messages (#/messages, o
 coach-web/js/desk/prog-model.js, programme.js  vague 4 : onglet Programme (éditeur des séances, envoi à un ou plusieurs)
 coach-web/js/desk/diet-model.js, nutrition.js  vague 4 : onglet Nutrition (plan envoyé, semaine cochée, envoi d'un plan)
 coach-web/js/desk/main.js   routes, gestes, clavier, inactivité, confirmation avant de quitter, démarrage (deskStart)
-coach-web/vercel.json       seule source des en-têtes : traduits en _headers (Cloudflare Pages) par la construction
+coach-web/vercel.json       seule source des en-têtes : traduits en _headers (Cloudflare Pages) par la construction ;
+                            garde aussi la redirection 308 de mdlf-coach.vercel.app vers coach.mdlf.app (copie de secours)
 coach-web/404.html          page des adresses inconnues (sans elle, Pages répondrait index.html en 200)
 scripts/build-coach-web.mjs construction : dist-coach/ (npm run coach-web:build)
 ```
@@ -75,10 +79,16 @@ clé publique et l'adresse du projet sont identiques à `ACCOUNT_CONFIG` (vérif
   `coach_diet_overview`, `coach_student_sessions`, `coach_student_weights`, `coach_student_measures`,
   `coach_student_diet`, `coach_my_code`, `coach_tier_state`, `coach_form` suffisent ; une seule fonction ajoutée
   (`coach_student_weeks`, ci-dessous) pour lire la fiche en un appel, qui n'expose rien de plus.
-- Ordinateur parfois partagé : fermeture après **30 minutes sans geste** (vérifiée au rechargement, au retour sur
-  l'onglet et chaque minute), « Se déconnecter de cet ordinateur » (Réglages ; `signOut({ scope: 'local' })` :
-  l'iPhone reste connecté). Dans le navigateur, seules la session de supabase-js (`mdlf-coach-web-auth`) et l'heure du
-  dernier geste (`mdlf_coach_web_active`) sont gardées ; aucune donnée d'élève (test E2E).
+- Ordinateur parfois partagé : fermeture après **30 minutes sans geste** (clic, touche, molette ou doigt qui fait
+  défiler, compté une fois toutes les 5 s au plus ; vérifiée au rechargement, au retour sur l'onglet et toutes les 15 s).
+  À 28 minutes, bandeau « Toujours là ? » avec « Rester connecté ». À 30 minutes : l'écran est vidé tout de suite, la
+  réponse à un bilan en cours d'écriture part en brouillon sur le serveur (`coach_checkin_review`, `send: false`, 8 s au
+  plus), puis déconnexion et rechargement (« Session fermée après 30 minutes sans activité »). Écran vidé avant : rien
+  d'un élève ne reste visible sous la fenêtre « Quitter le site ? » du navigateur. « Se déconnecter de cet ordinateur »
+  (Réglages ; `signOut({ scope: 'local' })` : l'iPhone reste connecté). La session est dans **sessionStorage** : fermer
+  l'onglet la ferme (une session laissée dans localStorage par une version d'avant est effacée au chargement). Seules la
+  session de supabase-js (`mdlf-coach-web-auth`) et l'heure du dernier geste (`mdlf_coach_web_active`) y sont gardées ;
+  aucune donnée d'élève, rien dans localStorage (test E2E).
 - CSP de la page : scripts et styles du site seulement, plus le seul script `https://appleid.cdn-apple.com`
   (Sign in with Apple JS), aucun script en ligne, `connect-src` vers le projet Supabase seulement, `frame-src 'none'`
   (le script d'Apple n'ouvre aucun cadre ni aucune connexion : il ouvre une fenêtre surgissante sur appleid.apple.com,
@@ -122,9 +132,9 @@ liste, dans n'importe quel ordre ; le premier ne compte que pour `signInWithOAut
   site » ; hors ligne.
 - **Sans le script** (bloqueur, réseau, 10 s sans réponse, navigateur sans Web Crypto) : le bouton et le « ou »
   disparaissent, le texte sous le formulaire dit de recharger ou d'ajouter une adresse dans l'app ; l'e-mail marche.
-- **Adresse de retour** : `location.origin + '/'`. Chaque adresse du site (aujourd'hui `https://mdlf-coach.vercel.app/`,
-  demain peut-être `https://coach.mdlf.app/`) doit être déclarée sur le Services ID, sinon Apple répond
-  « invalid_request ». Les adresses de prévisualisation de Vercel ne marchent donc pas avec Apple (e-mail seulement).
+- **Adresse de retour** : `location.origin + '/'`. Chaque adresse du site (`https://coach.mdlf.app/`) doit être
+  déclarée sur le Services ID, sinon Apple répond « invalid_request » ; l'ancienne `https://mdlf-coach.vercel.app/` est
+  refusée par Apple, d'où sa redirection 308 vers `coach.mdlf.app`. Les adresses de prévisualisation de Vercel ne marchent donc pas avec Apple (e-mail seulement).
 
 ### À faire par Maxence dans developer.apple.com (une fois)
 
@@ -251,7 +261,7 @@ Le sommeil, les pas, le stress… viendront des bilans configurables (vague 2) e
 Courbe du poids sur 90 jours (SVG décrit pour les lecteurs d'écran), mensurations avec leur écart. Les onglets
 Bilans, Programme, Nutrition et Messages sont présents, désactivés et annoncés « bientôt ».
 
-## Serveur : `coach_student_weeks` (migration écrite, PAS appliquée)
+## Serveur : `coach_student_weeks` (migration appliquée)
 
 `supabase/migrations/20261124010000_semaines_coach.sql` : `coach_student_weeks(student uuid, weeks int default 12)`
 rend en un appel `{ weeks, from, sessions, weights, measures, diet }`, chaque partie identique à la fonction existante
@@ -265,7 +275,7 @@ mêmes lectures une par une (séances par pages de 30 jusqu'au début de la fen�
   l'ajoute à la liste des fonctions qui lisent le consentement.
 - Retour arrière : `supabase/rollback/20261124010000_semaines_coach_down.sql`, vérifié par
   `tests/sql/semaines_coach_rollback_test.sh` (schéma identique à celui d'avant, puis la migration repasse).
-- Ordre de mise en production : la migration quand Maxence le dit, puis le site. Le site d'avant la migration marche.
+- Ordre de mise en production suivi : la migration, puis le site. Le site d'avant la migration marche.
 
 ## Plateformes, ergonomie, accessibilité
 
@@ -325,7 +335,7 @@ Vercel, gardé en secours). Détail, retour arrière et ménage chez Vercel : do
 ## Vague 2 : bilans configurables (partie web du coach)
 
 Contrat serveur et logique partagée : docs/BILANS.md (`js/data/checkins.js`, chargé tel quel après `diet-share.js`).
-Rien n'est déployé ; la migration des bilans n'est pas appliquée et **l'appli web marche sans elle** : chaque écran des
+En ligne ; la migration des bilans est appliquée. Sur un serveur sans elle, **l'appli web marche quand même** : chaque écran des
 bilans dit « Les bilans ne sont pas encore ouverts » (titre, explication, Réessayer ou Voir mes élèves), le tableau de
 bord et la fiche Semaines restent entiers, aucun compteur n'est inventé.
 
@@ -418,8 +428,8 @@ barre d'onglets du bas les garde aussi (« Reçus », « Mes bilans »).
 
 ## Vague 4 : Messages, Programme, Nutrition (maquettes 6-messages, 4-programme, 5-nutrition)
 
-Rien n'est déployé ; la migration `20261126010000_programmes_envoyes_coach.sql` est écrite, pas appliquée, et l'appli
-marche sans elle (voir « Serveur de la vague 4 »). Les cinq onglets de la fiche sont ouverts ; Planning, Mes programmes
+En ligne ; la migration `20261126010000_programmes_envoyes_coach.sql` est appliquée, et l'appli marcherait sans elle
+(voir « Serveur de la vague 4 »). Les cinq onglets de la fiche sont ouverts ; Planning, Mes programmes
 et Plans diète restent « bientôt » dans la barre latérale.
 
 ### Routes
@@ -439,8 +449,11 @@ et Plans diète restent « bientôt » dans la barre latérale.
   relu), la même marque de lecture (`chat_mark_read` jusqu'au dernier reçu ; écrire ne vaut pas lecture), le même
   nettoyage et la même limite (2000 caractères, `chatClean`, `chatProblem`, compteur à partir de 1800), les mêmes textes
   d'erreur (`coachErrorText`). Limites du serveur : 60 messages par heure, 500 par 24 h (« Trop de messages d'un coup »).
-- **Blocage** : la messagerie du coach ne regarde pas le blocage du social (migration du chat : l'élève a choisi son
-  coach, il le quitte ou le coach le retire, ce qui efface la conversation). Le site propose « Signaler »
+- **Blocage** : avec la migration `20261127010000_blocage_coupe_coach.sql` (écrite, PAS appliquée), un blocage
+  entre l'élève et son coach, dans un sens ou dans l'autre, supprime leur lien : même effacement que « Quitter mon
+  coach » (conversation, programmes, notes, partages, phases, photos, bilans), et ils ne peuvent plus se relier tant que
+  le blocage dure. Le site dit alors « Cet élève ne te suit plus ». Avant elle, la messagerie du coach ne regardait pas
+  le blocage du social (seuls les bilans et les notifications le faisaient). Le site propose « Signaler »
   (`report_chat`, 50 derniers messages copiés, alerte par la fonction Edge `report`) et dit quand l'élève ne reçoit pas
   les notifications (`coach_push_off`). Le contrôle parental d'Apple (`chatHiddenByAge`) est propre à un iPhone d'enfant :
   `env.js` le fixe à faux sur un ordinateur.
@@ -515,7 +528,7 @@ et Plans diète restent « bientôt » dans la barre latérale.
   (Nutrition › Mes plans), puis on l'envoie d'ici. Les plans ne se lisent sur le compte qu'avec la synchro de la nutrition
   acceptée dans l'app.
 
-### Serveur de la vague 4 : `coach_student_programmes` (migration écrite, PAS appliquée)
+### Serveur de la vague 4 : `coach_student_programmes` (migration appliquée)
 
 Vérifié : les RPC et la RLS existantes suffisent pour Messages (`chat_*`, `report_chat`, `coach_push_off`,
 `coach_set_note`, `coach_student_sessions`, `coach_student_checkins`) et pour la semaine de Nutrition

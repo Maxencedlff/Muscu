@@ -26,7 +26,7 @@ dump() {
 psql -f "$here/supabase_stub.sql"
 # Sans J'aime (20261117060000), qui reprend son push_claim et se démonte avant
 for m in "$root"/supabase/migrations/*.sql; do
-  case "$(basename "$m" .sql)" in "$M"|20261117060000_*|20261125010000_*) ;; *) psql -f "$m" ;; esac
+  case "$(basename "$m" .sql)" in "$M"|20261117060000_*|20261125010000_*|20261127030000_*) ;; *) psql -f "$m" ;; esac
 done
 # Avant : K coach, élèves E1 à E4, un appareil (faux jeton), séances des élèves allumées, une notification en file
 K=00000000-0000-0000-0000-000000000ae0
