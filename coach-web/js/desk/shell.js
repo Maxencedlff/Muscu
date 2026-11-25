@@ -46,14 +46,15 @@ const DESK_ICONS = {
   calendar: '<rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
   photo: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 4.5-4 3.5 3 3-2.5 5 4"/>',
   steps: '<path d="M8 4c1.8 0 2.5 2.5 2.2 5S8.5 12.5 7 12 5 9.5 5.3 7.5 6.5 4 8 4zM16 9c1.5 0 2.7 2.5 2.4 4.6s-1.6 3.4-3 3-2-2.6-1.7-4.6S14.5 9 16 9zM6.5 14.5l3.2.6-.4 2.6a1.6 1.6 0 0 1-3.2-.6zM14.3 19l3.1.5-.3 1.4a1.6 1.6 0 0 1-3.1-.5z"/>',
+  flag: '<path d="M6 21V4M6 4h11l-2 4 2 4H6"/>',
   bandage: '<rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-45 12 12)"/><path d="M11 11h.01M13 13h.01M13 11h.01M11 13h.01"/>',
 };
 function deskIcon(name, cls = '') { return `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${DESK_ICONS[name] || ''}</svg>`; }
 
-// Navigation : Élèves, Bilans reçus, Mes bilans et Réglages sont ouverts (vagues 1 et 2), le reste est annoncé « bientôt »
+// Navigation : Élèves, Messages, Bilans reçus, Mes bilans et Réglages sont ouverts (vagues 1, 2 et 4), le reste est annoncé « bientôt »
 const DESK_NAV = [
   { id: 'students', label: 'Élèves', icon: 'students', href: '#/' },
-  { id: 'messages', label: 'Messages', icon: 'messages', soon: true },
+  { id: 'messages', label: 'Messages', icon: 'messages', href: '#/messages' },
   { id: 'checkins', label: 'Bilans reçus', short: 'Reçus', icon: 'checkins', href: '#/bilans-recus' },
   { id: 'templates', label: 'Mes bilans', icon: 'templates', href: '#/bilans' },
   { id: 'planning', label: 'Planning', icon: 'planning', soon: true, wide: true },
@@ -69,17 +70,20 @@ function deskNavItem(n, on, { badge = 0, count = null, bar = false } = {}) {
 }
 
 // Cadre : barre latérale (900 px et plus) ou barre d'onglets en bas (tablette en portrait), puis le contenu
-// counts : { checkins (bilans à répondre), templates (modèles) }, null quand le serveur ne les donne pas
+// counts : { checkins (bilans à répondre), templates (modèles), unread (messages non lus) }, null quand le serveur ne les donne pas
 function deskFrame({ active, main, students = null, counts = null }) {
   const cnt = { students, checkins: counts?.checkins ?? null, templates: counts?.templates ?? null };
-  const items = DESK_NAV.map(n => deskNavItem(n, n.id === active, { count: cnt[n.id] ?? null })).join('');
-  const barItems = DESK_NAV.filter(n => !n.wide).map(n => deskNavItem(n, n.id === active, { bar: true })).join('')
+  const badges = { messages: counts?.unread || 0 };
+  const items = DESK_NAV.map(n => deskNavItem(n, n.id === active, { count: cnt[n.id] ?? null, badge: badges[n.id] || 0 })).join('');
+  const barItems = (deskHost?.exit ? `<button type="button" class="nav-i" data-action="host-exit">${deskIcon('back')}<span class="lbl">L'appli</span></button>` : '')
+    + DESK_NAV.filter(n => !n.wide).map(n => deskNavItem(n, n.id === active, { bar: true, badge: badges[n.id] || 0 })).join('')
     + `<a class="nav-i${active === 'settings' ? ' on' : ''}" href="#/reglages"${active === 'settings' ? ' aria-current="page"' : ''}>${deskIcon('settings')}<span class="lbl">Réglages</span></a>`;
   return `<div class="app">
   <aside class="side" aria-label="Navigation">
     <div class="brand">MDLF <span>Coach</span></div>
     <nav class="nav" aria-label="Rubriques">${items}</nav>
     <nav class="nav foot" aria-label="Compte">
+      ${deskHost?.exit ? `<button type="button" class="nav-i" data-action="host-exit">${deskIcon('back')}<span class="lbl">Revenir à l'appli</span></button>` : ''}
       <a class="nav-i${active === 'settings' ? ' on' : ''}" href="#/reglages"${active === 'settings' ? ' aria-current="page"' : ''}>${deskIcon('settings')}<span class="lbl">Réglages</span></a>
     </nav>
   </aside>
@@ -101,20 +105,52 @@ function deskToast(text) {
 
 // Confirmation (supprimer, quitter avec des changements) : dialogue modal hors de #app (jamais effacé par un rendu),
 // focus sur « Annuler », Échap annule. Rend une promesse : true si confirmé.
-function deskConfirm({ title, text = '', ok = 'Confirmer', danger = false }) {
+function deskConfirm({ title, text = '', ok = 'Confirmer', danger = false, cancel = true }) {
   return new Promise(resolve => {
     const dlg = document.createElement('dialog');
     dlg.className = 'confirm';
     dlg.setAttribute('aria-labelledby', 'cf-title');
     dlg.innerHTML = `<h2 id="cf-title" class="dlg-t">${esc(title)}</h2>${text ? `<p class="dlg-p">${esc(text)}</p>` : ''}
-      <div class="dlg-f"><button type="button" class="btn" data-cf="no">Annuler</button><button type="button" class="btn ${danger ? 'danger' : 'tint'}" data-cf="yes">${esc(ok)}</button></div>`;
+      <div class="dlg-f">${cancel ? '<button type="button" class="btn" data-cf="no">Annuler</button>' : ''}<button type="button" class="btn ${danger ? 'danger' : 'tint'}" data-cf="yes">${esc(ok)}</button></div>`;
     frTypoNode(dlg);
     document.body.appendChild(dlg);
     let answer = false;
     dlg.addEventListener('click', e => { const b = e.target.closest('[data-cf]'); if (b) { answer = b.dataset.cf === 'yes'; dlg.close(); } });
     dlg.addEventListener('close', () => { dlg.remove(); resolve(answer); });
     dlg.showModal();
-    dlg.querySelector('[data-cf="no"]').focus();
+    (dlg.querySelector('[data-cf="no"]') || dlg.querySelector('[data-cf="yes"]')).focus();
+  });
+}
+// Choix dans une liste (Signaler : la raison ; Envoyer un programme : lequel) : dialogue modal, boutons radio, « Annuler »
+// et Échap rendent null. options : [[valeur, libellé, détail?]]. Rend une promesse : la valeur choisie, ou null.
+function deskChoose({ title, text = '', options, ok = 'Choisir', danger = false }) {
+  return new Promise(resolve => {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'confirm choose';
+    dlg.setAttribute('aria-labelledby', 'ch-title');
+    let sel = null;
+    const opts = () => options.map(([v, l, d], i) => `<button type="button" role="radio" class="row ch-o" id="ch-${i}" data-v="${esc(v)}" aria-checked="${sel === v}">
+        <span class="circ" aria-hidden="true">${deskIcon('check', 'xs')}</span><span class="grow">${esc(l)}${d ? `<span class="t2 blk">${esc(d)}</span>` : ''}</span></button>`).join('');
+    dlg.innerHTML = `<h2 id="ch-title" class="dlg-t">${esc(title)}</h2>${text ? `<p class="dlg-p">${esc(text)}</p>` : ''}
+      <div class="group ch-list" role="radiogroup" aria-labelledby="ch-title">${opts()}</div>
+      <div class="dlg-f"><button type="button" class="btn" data-cf="no">Annuler</button><button type="button" class="btn ${danger ? 'danger' : 'tint'}" data-cf="yes" disabled>${esc(ok)}</button></div>`;
+    frTypoNode(dlg);
+    document.body.appendChild(dlg);
+    let answer = null;
+    dlg.addEventListener('click', e => {
+      const o = e.target.closest('.ch-o');
+      if (o) {
+        sel = o.dataset.v;
+        dlg.querySelectorAll('.ch-o').forEach(b => b.setAttribute('aria-checked', String(b.dataset.v === sel)));
+        dlg.querySelector('[data-cf="yes"]').disabled = false;
+        return;
+      }
+      const b = e.target.closest('[data-cf]');
+      if (b) { answer = b.dataset.cf === 'yes' ? sel : null; dlg.close(); }
+    });
+    dlg.addEventListener('close', () => { dlg.remove(); resolve(answer); });
+    dlg.showModal();
+    dlg.querySelector('.ch-o')?.focus();
   });
 }
 // Annonce aux lecteurs d'écran seulement (zone aria-live d'index.html), sans bandeau

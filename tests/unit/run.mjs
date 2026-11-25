@@ -2368,6 +2368,7 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // ── Appli web du coach, 24/11 (tests dans coach-web.mjs, contexte à part : scripts de coach-web/index.html) ──
 (await import('./coach-web.mjs')).default({ test, assert, ROOT });
 (await import('./coach-web-bilans.mjs')).default({ test, assert, ROOT });
+(await import('./coach-web-v4.mjs')).default({ test, assert, ROOT });
 // ── Bilans configurables : contrat partagé app / web / serveur (tests dans bilans-contrat.mjs) ──
 (await import('./bilans-contrat.mjs')).default({ test, run, assert, sameJSON });
 // ── Bilans configurables, app de l'élève (tests dans checkins-eleve.mjs) ──

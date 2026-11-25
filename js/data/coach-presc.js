@@ -51,6 +51,12 @@ function cleanPrescInPlace(ex) {
 function hasPrescLoad(ex) {
   return !!ex && (cleanPrescKg(ex.load) !== null || (Array.isArray(ex.loads) && ex.loads.some(x => cleanPrescKg(x) !== null)));
 }
+// Étiquette d'une série d'après la technique prescrite (« Top set », « Back-off », « Cluster » sur la série choisie),
+// '' sinon (intensPlanTechs, js/data/intensif.js) : écran de prescription de l'app et éditeur de l'appli web du coach
+function prescSetTag(e, i) {
+  const t = intensPlanTechs(e?.intens, e?.intensOn, e?.sets || 3)[i];
+  return t ? TECHS[t].label : '';
+}
 // kg prescrits pour la i-ème série de travail (0 : la première), null sans charge prescrite
 function prescKgAt(ex, i) {
   const own = Array.isArray(ex?.loads) ? cleanPrescKg(ex.loads[i]) : null;

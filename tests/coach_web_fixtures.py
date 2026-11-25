@@ -178,6 +178,68 @@ document.addEventListener('DOMContentLoaded', () => {
 """
 
 
+# Vague 4 (v4=True) : programme complet envoyé à Léa (top set et back-off, drop set, consignes), compte du coach
+# (profiles.doc : ses programmes et ses plans diète), plan diète envoyé à Léa (elle accepte les plans), une conversation
+# suivie avec Léa (messages du coach et de l'élève, du plus ancien au plus récent ; les 2 derniers restent non lus) et
+# un commentaire de séance. Après COACH_WEB_SEED (mêmes élèves, même horloge).
+COACH_WEB_V4_SEED = r"""
+(() => {
+  const sb = window.__sb, co = sb.co, now = Date.now(), coach = window.__coachId, [lea, tom] = window.__students;
+  const at = (k, h = 18, m = 0) => { const d = new Date(now); d.setHours(h, m, 0, 0); d.setDate(d.getDate() - k); return d.getTime(); };
+  const ex = (name, sets, lo, hi, o = {}) => ({ name, sets, repMin: lo, repMax: hi, ...o });
+  const seche = { name: 'Sèche 4 jours', consigne: 'Garde 1 à 2 reps en réserve, sauf sur le top set.', sessions: [
+    { key: 'haut-a', label: 'Haut A', color: '#FF9F0A', exercises: [
+      ex('Développé couché', 4, 6, 8, { loads: [45, 40, 40, 40], intens: 'topback', rest: 150, consigne: '2 reps en réserve sur le top set' }),
+      ex('Rowing barre', 4, 8, 10, { load: 50, rest: 120, consigne: 'Dos gainé, tirer vers le nombril' }),
+      ex('Développé militaire haltères', 3, 8, 10, { load: 12, rest: 120 }),
+      ex('Élévations latérales', 3, 12, 15, { load: 6, rest: 60, intens: 'drop-last', consigne: 'Descendre à 4 kg sur la dernière' }),
+      ex('Curl incliné haltères', 3, 10, 12, { load: 8, rest: 90 }) ] },
+    { key: 'bas-a', label: 'Bas A', color: '#30D158', exercises: [
+      ex('Squat', 4, 6, 8, { load: 80, rest: 180 }), ex('Hip thrust', 3, 8, 12, { load: 90, rest: 120, intens: 'cluster-last', intensOn: { plan: 'cluster-last', sets: [1] } }),
+      ex('Leg curl allongé', 3, 10, 12, { load: 30, rest: 90 }) ] },
+    { key: 'haut-b', label: 'Haut B', color: '#FF9F0A', exercises: [ex('Tirage vertical', 3, 10, 12, { load: 40 }), ex('Dips', 3, 8, 12)] },
+    { key: 'bas-b', label: 'Bas B', color: '#30D158', exercises: [ex('Soulevé de terre roumain', 3, 8, 10, { load: 60 }), ex('Fentes bulgares', 3, 10, 12)] } ] };
+  const p = co.progs.find(x => x.student === lea && x.id === 'seche4');
+  p.data = JSON.parse(JSON.stringify(seche)); p.sent_at = new Date(at(30, 9)).toISOString(); p.seen = true;
+  // Compte du coach : le programme « seche4 » (sans les charges de Léa) et « force3 », deux plans diète
+  const item = (id, name, g, per) => ({ id, name, food: null, fam: 'autre', g, per, src: 'perso' });
+  const meal = (id, name, items) => ({ id, name, items });
+  const plan = { name: 'Sèche', targets: { kcal: 1800, p: 120, c: 180, f: 60, water: 2.5 }, meals: [
+    meal('m1', 'Petit-déjeuner', [item('a1', 'Flocons d\'avoine', 60, { k: 370, p: 13, c: 60, f: 7 }), item('a2', 'Skyr', 150, { k: 60, p: 11, c: 4, f: 0 })]),
+    meal('m2', 'Déjeuner', [item('a3', 'Riz basmati cru', 80, { k: 350, p: 8, c: 77, f: 1 }), item('a4', 'Poulet', 150, { k: 120, p: 23, c: 0, f: 2 })]),
+    meal('m3', 'Collation', [item('a5', 'Fromage blanc 0 %', 200, { k: 45, p: 8, c: 4, f: 0 }), item('a6', 'Amandes', 15, { k: 600, p: 21, c: 8, f: 52 })]),
+    meal('m4', 'Dîner', [item('a7', 'Saumon', 120, { k: 200, p: 20, c: 0, f: 13 }), item('a8', 'Patate douce', 200, { k: 86, p: 2, c: 20, f: 0 })]) ] };
+  const strip = s => ({ ...s, exercises: s.exercises.map(({ load, loads, ...e }) => ({ ...e, id: e.name.toLowerCase().replace(/[^a-z]/g, '').slice(0, 10) })) });
+  sb.docs = { [coach]: {
+    myProgrammes: ['u_seche4', 'u_force3'],
+    userProgrammes: { u_seche4: { name: 'Sèche 4 jours', sessions: Object.fromEntries(seche.sessions.map(s => [s.key, { label: s.label, color: s.color }])), order: seche.sessions.map(s => s.key) },
+      u_force3: { name: 'Force 3 jours', sessions: { a: { label: 'Jour A', color: '#FF9F0A' }, b: { label: 'Jour B', color: '#30D158' } }, order: ['a', 'b'] } },
+    programmes: { u_seche4: { exercises: Object.fromEntries(seche.sessions.map(s => [s.key, strip(s).exercises])) },
+      u_force3: { exercises: { a: [{ id: 'sq', name: 'Squat', sets: 5, repMax: 5, repFixed: true }], b: [{ id: 'dc', name: 'Développé couché', sets: 5, repMax: 5, repFixed: true }] } } },
+    dietPlans: { d_seche: plan, d_masse: { ...plan, name: 'Masse', targets: { kcal: 2900, p: 160, c: 380, f: 80, water: 3 } } },
+  } };
+  // Plan diète envoyé à Léa (elle accepte les plans de son coach)
+  co.shares.push({ student: lea, coach, kind: 'diet', granted_at: new Date(at(40)).toISOString() });
+  co.progs.push({ coach, student: lea, id: 'diet_seche', data: { kind: 'diet', v: 1, diet: plan }, sent_at: new Date(at(30, 10)).toISOString(), seen: true });
+  // Conversation suivie avec Léa, dans l'ordre ; tout lu sauf les 2 derniers messages de Léa
+  co.msgs = co.msgs.filter(m => m.student !== lea);
+  [[9, 19, 14, false, 'Bilan envoyé ! Grosse semaine, j\'ai eu du mal à tenir la collation mercredi et vendredi.'],
+   [8, 13, 40, true, 'Très beau bilan Léa, les charges tiennent en sèche. On garde les calories.'],
+   [8, 13, 41, true, 'Ajoute la collation de 16 h les jours de séance, c\'est elle qui manque le plus souvent.'],
+   [8, 14, 1, false, 'Ok pour la collation, je la prépare la veille alors'],
+   [2, 9, 5, true, 'Comment s\'est passé le développé couché hier ?']].forEach(([k, h, m, fromCoach, body]) => sb.msg(lea, fromCoach, body, at(k, h, m)));
+  const lastRead = co.msgs.filter(m => m.student === lea).at(-1).id;
+  co.reads[lea] = { coach: lastRead, student: lastRead };
+  sb.msg(lea, false, 'Je peux remplacer le riz par des pâtes ce soir ?', at(0, 11, 2));
+  sb.msg(lea, false, 'Et pour le militaire je suis restée à 12 kg, je n\'arrivais pas à 8 reps', at(0, 11, 4));
+  // Commentaire du coach sur l'avant-dernière séance de Léa
+  // (séances de Léa : s1 il y a 1 jour, s2 il y a 2 jours, créées en premier par COACH_WEB_SEED)
+  co.notes.push({ coach, student: lea, sid: 's2', text: 'Belle séance, garde ce tempo sur le squat.', updated_at: new Date(at(2, 20)).toISOString(), seen: true });
+  window.__v4 = { lastRead };
+})();
+"""
+
+
 class _Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -207,7 +269,7 @@ def launch(pw, engine):
     return getattr(pw, engine).launch(headless=True, args=args)
 
 
-def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake', checkins=False):
+def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake', checkins=False, v4=False, host=False):
     """Page de l'appli web du coach, horloge figée, faux serveur injecté, coach connecté (sauf login=False)."""
     ctx = browser.new_context(viewport={'width': width, 'height': height}, color_scheme=theme, locale='fr-FR',
                               timezone_id='Europe/Paris', has_touch=touch, device_scale_factor=1)
@@ -226,6 +288,11 @@ def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, see
         page.add_init_script(COACH_WEB_SEED)
     if seed and checkins:
         page.add_init_script(COACH_WEB_CHECKINS_SEED)
+    if seed and v4:
+        page.add_init_script(COACH_WEB_V4_SEED)
+    if host:
+        # App hôte (docs/COACH_WEB.md, « Embarquer dans l'app ») : session du faux serveur, bouton « Revenir à l'appli »
+        page.add_init_script("window.MDLF_COACH_HOST = { session: { access_token: 'h.' + btoa(JSON.stringify({ sub: window.__coachId })) + '.s', refresh_token: 'r' }, exit() { window.__exited = true; } };")
     page.goto(url)
     page.wait_for_selector('#app > *')
     if login:

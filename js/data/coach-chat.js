@@ -23,6 +23,8 @@
 //  - Serveur sans messagerie (migration pas encore appliquée) : chat.available = false, l'écran cache
 //    la cellule « Messages ».
 //  - L'écran (js/features/coach-chat-ui.js) s'abonne par onCoachChange : chaque changement appelle notifyCoach.
+//  - Appels : coachRpc par défaut ; l'appli web du coach (coach-web/, docs/COACH_WEB.md) passe son propre appel
+//    ({ rpc: deskRpc }, même forme de réponse) pour reprendre exactement ces règles (curseur, lecture, limites).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -232,7 +234,7 @@ async function chatRefresh() {
 }
 
 // Première page (les plus récents) ou les plus anciens (more). Renvoie { ok } ou { ok: false, kind }.
-async function chatLoad(key, { more = false } = {}) {
+async function chatLoad(key, { more = false, rpc = coachRpc } = {}) {
   if (chatHiddenByAge()) return { ok: false, kind: 'age_limited' };
   const c = chatConv(key);
   if (c.loading || (more && c.end)) return { ok: true };
@@ -241,7 +243,7 @@ async function chatLoad(key, { more = false } = {}) {
   notifyCoach();
   const args = chatArgs(key);
   if (more && c.rows.length) args.before_id = c.rows[0].id;
-  const r = await coachRpc('chat_messages', args);
+  const r = await rpc('chat_messages', args);
   if (seq !== chatSeq) return { ok: false, kind: 'signed_out' };
   c.loading = false;
   if (!r.ok) {
@@ -266,7 +268,7 @@ async function chatLoad(key, { more = false } = {}) {
 // Relecture d'une conversation ouverte : seulement les messages plus récents que le dernier reçu du
 // serveur (curseur ; trois pages au plus d'un coup). Jamais chargée, ou vide : première page. Renvoie
 // { ok, added, theirs } (theirs : messages de l'autre arrivés, à marquer lus si la conversation est à l'écran).
-async function chatPoll(key) {
+async function chatPoll(key, { rpc = coachRpc } = {}) {
   if (chatHiddenByAge()) return { ok: false, kind: 'age_limited' };
   const c = chatConv(key);
   if (c.loading) return { ok: true };
@@ -274,7 +276,7 @@ async function chatPoll(key) {
     // Même réponse que la relecture par curseur : sans theirs, le premier message de l'autre dans une
     // conversation vide resterait compté non lu alors qu'il est à l'écran
     const known = new Set(c.rows.map(m => m.id));
-    const r = await chatLoad(key);
+    const r = await chatLoad(key, { rpc });
     if (!r.ok) return r;
     const fresh = c.rows.filter(m => !known.has(m.id));
     return { ok: true, added: fresh.length, theirs: fresh.filter(m => !m.mine).length };
@@ -283,7 +285,7 @@ async function chatPoll(key) {
   const seq = chatSeq;
   let added = 0, theirs = 0;
   for (let i = 0; i < 3; i++) {
-    const r = await coachRpc('chat_messages', { ...chatArgs(key), after_id: c.cursor });
+    const r = await rpc('chat_messages', { ...chatArgs(key), after_id: c.cursor });
     if (seq !== chatSeq) return { ok: false, kind: 'signed_out' };
     if (!r.ok) { c.loading = false; c.error = r.kind; notifyCoach(); return r; }
     const page = (Array.isArray(r.data) ? r.data : []).map(cleanChatMessage).filter(Boolean);
@@ -303,7 +305,7 @@ async function chatPoll(key) {
 }
 
 // Envoyer. Renvoie { ok, data: message } ou { ok: false, kind } (le brouillon reste à l'écran).
-async function chatSend(key, text) {
+async function chatSend(key, text, { rpc = coachRpc } = {}) {
   if (chatHiddenByAge()) return { ok: false, kind: 'age_limited' };
   const problem = chatProblem(text);
   if (problem) return { ok: false, kind: problem === 'empty' ? 'empty_message' : 'too_long' };
@@ -312,7 +314,7 @@ async function chatSend(key, text) {
   c.sending = true;
   notifyCoach();
   const seq = chatSeq;
-  const r = await coachRpc('chat_send', { body: chatClean(text), ...chatArgs(key) });
+  const r = await rpc('chat_send', { body: chatClean(text), ...chatArgs(key) });
   if (seq !== chatSeq) return { ok: false, kind: 'signed_out' };
   c.sending = false;
   if (!r.ok) { notifyCoach(); return r; }
@@ -330,7 +332,7 @@ async function chatSend(key, text) {
 // non-lus remis à zéro ici tout de suite (le serveur garde non lu ce qui est arrivé après ; la
 // relecture suivante de chat_threads le remontera). force : des messages de l'autre viennent d'arriver
 // à l'écran (relecture), même si le dernier résumé lu n'en comptait pas encore
-async function chatMarkRead(key, { force = false } = {}) {
+async function chatMarkRead(key, { force = false, rpc = coachRpc } = {}) {
   const th = chatThreadOf(key), c = chatConv(key);
   if (!th?.unread && !force) return;
   if (!c.cursor) return;   // rien reçu : rien à marquer
@@ -340,17 +342,17 @@ async function chatMarkRead(key, { force = false } = {}) {
     writeChatCache();
     notifyCoach();
   }
-  await coachRpc('chat_mark_read', { ...chatArgs(key), up_to: c.cursor });
+  await rpc('chat_mark_read', { ...chatArgs(key), up_to: c.cursor });
 }
 
 // Signaler la conversation : le serveur copie les derniers messages (preuve gardée si le suivi s'arrête),
 // puis l'alerte par e-mail part au mieux. Renvoie { ok } ou { ok: false, kind } (clé de COACH_ERROR_TEXT,
 // ou report_rate : 10 signalements par 24 h, texte de SOCIAL_ERROR_TEXT).
-async function chatReport(key, reason) {
+async function chatReport(key, reason, { rpc = coachRpc, reportAlert = socialReportAlert } = {}) {
   if (!REPORT_REASONS.some(x => x.reason === reason)) return { ok: false, kind: 'server' };
-  const r = await coachRpc('report_chat', { reason, ...chatArgs(key) });
+  const r = await rpc('report_chat', { reason, ...chatArgs(key) });
   if (!r.ok) return r.kind === 'rate_limited' ? { ok: false, kind: 'report_rate' } : r;
-  if (Number.isSafeInteger(r.data)) socialReportAlert(r.data);
+  if (Number.isSafeInteger(r.data)) reportAlert(r.data);
   return { ok: true };
 }
 

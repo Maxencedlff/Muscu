@@ -1,5 +1,6 @@
 """Captures de l'appli web du coach (docs/COACH_WEB.md) : chaque écran, sombre et clair, à 1440, 1180 et 820 px.
 Vague 2 : Mes bilans (et un suivi ouvert), onglet Bilans de la fiche, Bilans reçus.
+Vague 4 : Messages, onglet Messages de la fiche, Programme (et un exercice déplié), Nutrition.
 
     python3 tests/coach_web_captures.py [dossier] [moteur]
 
@@ -59,6 +60,26 @@ def main():
                     page.screenshot(path=os.path.join(OUT, f'5-bilans-recus_{tag}.png'), full_page=full)
                     if page.errors:
                         print(tag, 'erreurs (bilans) :', page.errors)
+                    ctx.close()
+                    # Vague 4 : Messages, Programme, Nutrition (données de COACH_WEB_V4_SEED)
+                    ctx, page = open_desk(browser, url, width=w, height=h, theme=theme, touch=w < 1200, checkins=True, v4=True)
+                    shots = [('6-messages', '#/messages/LEA', '.bub', None), ('6b-fiche-messages', '#/eleve/LEA/messages', '.bub', None),
+                             ('7-programme', '#/eleve/LEA/programme', '.pg-row[data-k]', None),
+                             ('7b-programme-reglages', '#/eleve/LEA/programme', '.pg-row[data-k]', '[data-pg=open]'),
+                             ('8-nutrition', '#/eleve/LEA/nutrition', '.nt-day', None)]
+                    for name, hash_, wait, click in shots:
+                        page.evaluate(f"location.hash = {hash_!r}.replace('LEA', window.__lea)")
+                        page.wait_for_selector(wait)
+                        if click:
+                            page.click(click)
+                        page.wait_for_timeout(300)
+                        page.mouse.move(0, 0)
+                        page.screenshot(path=os.path.join(OUT, f'{name}_{tag}.png'), full_page=full and not name.startswith('6'))
+                    page.evaluate("location.hash = '#/messages'")
+                    page.wait_for_selector('.msg-lst')
+                    page.screenshot(path=os.path.join(OUT, f'6c-messages-liste_{tag}.png'))
+                    if page.errors:
+                        print(tag, 'erreurs (vague 4) :', page.errors)
                     ctx.close()
         finally:
             browser.close()

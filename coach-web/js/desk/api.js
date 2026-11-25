@@ -24,9 +24,26 @@ const DESK_SESSIONS_PAGES = 6;                   // repli sans coach_student_wee
 
 const desk = { user: null, email: null, sentAt: 0 };
 
+// Hôte qui embarque l'appli (docs/COACH_WEB.md, « Embarquer dans l'app ») : l'app iPhone sur iPad ou tablette pourra
+// ouvrir cette même interface dans sa vue web et lui donner, AVANT le chargement des scripts, window.MDLF_COACH_HOST =
+// { session: { access_token, refresh_token }, exit() }. Session fournie : ni écran de connexion, ni copie de la session
+// dans le navigateur (la vue web la reçoit à chaque ouverture), ni fermeture après 30 min (l'app garde sa propre règle) ;
+// exit : bouton « Revenir à l'appli ». Sans hôte (le site), rien ne change. Jamais window.top ni window.parent.
+const deskHost = (() => {
+  try {
+    const h = window.MDLF_COACH_HOST;
+    if (!h || typeof h !== 'object') return null;
+    const s = h.session && typeof h.session === 'object' && typeof h.session.access_token === 'string' && typeof h.session.refresh_token === 'string'
+      ? { access_token: h.session.access_token, refresh_token: h.session.refresh_token } : null;
+    return { session: s, exit: typeof h.exit === 'function' ? () => h.exit() : null };
+  } catch { return null; }
+})();
+const deskHosted = () => !!deskHost?.session;
+
 function deskStore() { try { return window.localStorage; } catch { return null; } }
 function deskTouch(now = Date.now()) { try { deskStore()?.setItem(DESK_ACTIVE_KEY, String(now)); } catch { /* stockage bloqué */ } }
 function deskIdleFor(now = Date.now()) {
+  if (deskHosted()) return 0;   // embarquée : l'app hôte décide de la fin de session
   let t = NaN;
   try { t = Number(deskStore()?.getItem(DESK_ACTIVE_KEY)); } catch { /* stockage bloqué */ }
   return Number.isFinite(t) && t > 0 ? now - t : Infinity;
@@ -36,7 +53,7 @@ function deskClient() {
   if (sb) return sb;
   if (typeof supabase === 'undefined') return null;
   sb = supabase.createClient(DESK_CONFIG.url, DESK_CONFIG.publishableKey, {
-    auth: { storage: deskStore() || undefined, storageKey: DESK_AUTH_KEY, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+    auth: { storage: deskHosted() ? undefined : deskStore() || undefined, storageKey: DESK_AUTH_KEY, persistSession: !deskHosted(), autoRefreshToken: true, detectSessionInUrl: false },
   });
   return sb;
 }
@@ -46,6 +63,13 @@ async function deskResume(now = Date.now()) {
   const c = deskClient();
   if (!c) return { ok: false, kind: 'server' };
   try {
+    // Session donnée par l'hôte (app iPhone) : ouverte telle quelle, sans écran de connexion
+    if (deskHosted()) {
+      const { data, error } = await c.auth.setSession(deskHost.session);
+      if (error || !data?.session?.user) return { ok: false, kind: authErrorKind(error) || 'signed_out' };
+      desk.user = data.session.user;
+      return { ok: true, user: desk.user };
+    }
     const { data } = await c.auth.getSession();
     const user = data?.session?.user || null;
     if (!user) return { ok: true, user: null };
@@ -207,3 +231,43 @@ async function deskSaveTemplate(plan, timezone) {
 }
 // Fuseau de l'ordinateur (heure d'envoi locale du coach), Europe/Paris s'il est illisible
 function deskTimezone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris'; } catch { return 'Europe/Paris'; } }
+
+// ── Vague 4 : Messages, Programme, Nutrition (docs/COACH_WEB.md) ──
+
+// Séances d'un élève avec le commentaire du coach (coach_student_sessions, première page de 30) : commentaires de
+// séance dans le fil des messages (coach_student_weeks ne rend pas le commentaire)
+async function deskLoadSessionsPage(student) {
+  const r = await deskRpc('coach_student_sessions', { student });
+  if (!r.ok) return r;
+  return { ok: true, data: (Array.isArray(r.data) ? r.data : []).map(cleanCoachSessionRow).filter(Boolean) };
+}
+// Ce que j'ai envoyé à cet élève (coach_student_programmes, migration 20261126010000_programmes_envoyes_coach.sql) :
+// { programmes: [{ id, data, sentAt, seen }], diets: [{ id, data, sentAt, seen }] }, du plus récent. Chaque envoi passe
+// par le nettoyage de l'app de l'élève (cleanSentProgramme, cleanSentDiet) : l'éditeur part de ce qu'il a reçu.
+// kind 'missing' : serveur sans la migration (l'écran lit alors la version gardée sur mon compte, deskLoadDoc).
+async function deskLoadSentProgs(student) {
+  const r = await deskRpc('coach_student_programmes', { student });
+  if (!r.ok) return r;
+  const rows = (Array.isArray(r.data) ? r.data : []).filter(x => x && typeof x.id === 'string' && COACH_PROG_ID_RE.test(x.id));
+  const meta = x => ({ id: x.id, sentAt: coachTime(x.sent_at) ?? 0, seen: x.seen === true });
+  const programmes = rows.filter(x => !isDietSentId(x.id)).map(x => ({ ...meta(x), data: cleanSentProgramme(x.data) })).filter(x => x.data);
+  const diets = rows.filter(x => isDietSentId(x.id)).map(x => ({ ...meta(x), data: cleanSentDiet(x.data) })).filter(x => x.data);
+  const by = (a, b) => b.sentAt - a.sentAt;
+  return { ok: true, data: { programmes: programmes.sort(by), diets: diets.sort(by) } };
+}
+// Mon compte (profiles.doc, lecture de mon propre profil seulement, comme la synchro de l'app) : mes programmes et
+// mes plans diète, pour en envoyer un. Jamais écrit d'ici : l'iPhone reste le seul à modifier mes programmes.
+// → { ok: true, data: doc | null } ; doc nettoyé au strict nécessaire (deskDocClean, js/desk/prog-model.js)
+async function deskLoadDoc() {
+  const c = deskClient();
+  if (!c || !desk.user) return { ok: false, kind: 'signed_out' };
+  try {
+    const { data, error } = await c.from('profiles').select('doc').eq('user_id', desk.user.id).maybeSingle();
+    if (error) return { ok: false, kind: coachErrorKind(error) };
+    return { ok: true, data: deskDocClean(data?.doc) };
+  } catch (e) { return { ok: false, kind: coachErrorKind(e) || 'server' }; }
+}
+// Envoi d'un programme ou d'un plan diète (coach_send_programme, comme l'app) : refus de la limite des 24 h → send_rate
+async function deskSendProg(student, progId, payload) {
+  return coachSendRate(await deskRpc('coach_send_programme', { student, prog_id: progId, data: payload }));
+}

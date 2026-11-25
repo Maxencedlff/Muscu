@@ -213,6 +213,11 @@ FAKE_ACCOUNT = r"""
   const auth = {
     onAuthStateChange: fn => { listeners.push(fn); return { data: { subscription: { unsubscribe() {} } } }; },
     getSession: async () => ({ data: { session: sb.session }, error: null }),
+    // Session donnée par un hôte (app qui embarque l'appli web du coach) : jeton de ce faux serveur, sinon refus
+    setSession: async ({ access_token } = {}) => {
+      const u = sb.users[tokenSub(access_token || '')];
+      return u ? startSession(u, 'otp') : { data: { session: null, user: null }, error: err('session_not_found') };
+    },
     getUser: async () => (sb.session ? { data: { user: JSON.parse(JSON.stringify(me())) }, error: null } : { data: { user: null }, error: err('session_not_found') }),
     startAutoRefresh() {}, stopAutoRefresh() {},
     signOut: async () => { log('signOut'); sb.session = null; if (sb.storage) sb.storage.removeItem(sb.storageKey); emit('SIGNED_OUT', null); return { error: null }; },
@@ -296,7 +301,9 @@ FAKE_ACCOUNT = r"""
       if (q.op === 'upsert') { log('upsert', q.patch.length); (sb.upserted ||= []).push(...q.patch); }
       return { data: q.op === 'select' ? (sb.remoteRows || []) : null, error: null };
     }
-    if (q.table === 'profiles') return q.op === 'select' ? { data: null, error: null } : { data: { updated_at: new Date().toISOString() }, error: null };
+    // __sb.docs[id] : document de profil synchronisé (programmes, plans diète) lu par l'appli web du coach
+    if (q.table === 'profiles') return q.op === 'select' ? { data: sb.docs?.[id] ? { doc: JSON.parse(JSON.stringify(sb.docs[id])), updated_at: new Date().toISOString() } : null, error: null }
+      : { data: { updated_at: new Date().toISOString() }, error: null };
     if (q.table === 'user_profiles') {
       const row = sb.profiles[id];
       if (q.op === 'select') return { data: row || null, error: null };
@@ -1273,6 +1280,14 @@ FAKE_ACCOUNT = r"""
       co.progs = co.progs.filter(p => !(p.student === student && p.id === prog_id));
       co.progs.push({ coach: me, student, id: prog_id, data: JSON.parse(JSON.stringify(data)), sent_at: new Date(now()).toISOString(), seen: false });
       return null;
+    },
+    // Ce que CE coach a envoyé à CET élève (supabase/migrations/20261126010000_programmes_envoyes_coach.sql) ;
+    // __sb.fail.progs = 'missing' : serveur sans la migration
+    coach_student_programmes: (me, { student }) => {
+      if (sb.fail.progs === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.coach_student_programmes' } };
+      if (!co.coachAt[me] || !coachOf(me, student)) return pgErr('not_found');
+      return co.progs.filter(p => p.student === student && p.coach === me).sort((a, b) => (b.sent_at < a.sent_at ? -1 : b.sent_at > a.sent_at ? 1 : 0)).slice(0, 40)
+        .map(p => ({ id: p.id, data: JSON.parse(JSON.stringify(p.data)), sent_at: p.sent_at, seen: !!p.seen }));
     },
     coach_set_note: (me, { student, session_id, text }) => {
       if (!co.coachAt[me]) return pgErr('not_coach');

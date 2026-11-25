@@ -12,18 +12,25 @@
 
 // Coach : envoie un de mes plans à un élève (nouvel envoi du même plan = mise à jour chez lui)
 async function coachSendDiet(student, planId) {
-  const plan = data.dietPlans?.[planId];
+  const v = coachDietPayload(data, planId);
+  if (!v.ok) return v;
+  const r = await coachRpc('coach_send_programme', { student, prog_id: v.progId, data: v.data });
+  // Nom envoyé gardé sur l'appareil (coach_state ne renvoie que l'identifiant) : la ligne de l'envoi garde ce nom
+  // même si je supprime ou renomme mon plan ensuite
+  if (r?.ok) coachRecordSent(student, v.progId, Date.now(), v.data.diet.name);
+  return coachSendRate(r);
+}
+// Plan de d prêt à partir (app et appli web du coach, qui lit les plans du compte) : un des miens, avec au moins un
+// aliment, 200 Ko au plus. → { ok: true, progId, data } ou { ok: false, kind }
+function coachDietPayload(d, planId) {
+  const plan = d?.dietPlans?.[planId];
   if (!plan || plan.archived || plan.fromCoach) return { ok: false, kind: 'server' };
   const payload = dietToSent(plan);
   if (!payload || !dietPlanHasItems(payload.diet)) return { ok: false, kind: 'empty_diet' };
   if (sentProgrammeBytes(payload) > COACH_PROG_BYTES) return { ok: false, kind: 'too_big' };
   const progId = dietSentId(planId);
   if (!COACH_PROG_ID_RE.test(progId)) return { ok: false, kind: 'server' };
-  const r = await coachRpc('coach_send_programme', { student, prog_id: progId, data: payload });
-  // Nom envoyé gardé sur l'appareil (coach_state ne renvoie que l'identifiant) : la ligne de l'envoi garde ce nom
-  // même si je supprime ou renomme mon plan ensuite
-  if (r?.ok) coachRecordSent(student, progId, Date.now(), payload.diet.name);
-  return coachSendRate(r);
+  return { ok: true, progId, data: payload };
 }
 
 // Mes plans que je peux envoyer : les miens (pas ceux reçus d'un coach), non archivés, avec au moins un aliment

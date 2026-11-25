@@ -361,6 +361,13 @@ function programmeToSent(d, progId, over = null) {
   return out;
 }
 
+// Programmes que je peux envoyer : Mes programmes, sans les programmes reçus d'un coach (d : ma donnée, ou le document
+// de mon compte lu par l'appli web du coach)
+function coachSendableProgrammes(d = data) {
+  return (Array.isArray(d?.myProgrammes) ? d.myProgrammes : []).filter(id => id !== 'custom' && COACH_PROG_ID_RE.test(id) && !d.userProgrammes?.[id]?.fromCoach
+    && (PROGRAMMES[id] || (d.userProgrammes?.[id] && !d.userProgrammes[id].archived)));
+}
+
 // Taille du programme envoyé (octets du JSON), pour la limite de 200 Ko
 function sentProgrammeBytes(p) { return unescape(encodeURIComponent(JSON.stringify(p))).length; }
 
@@ -676,18 +683,44 @@ async function coachSetNote(student, sessionId, text) {
 
 // Envoi d'un de mes programmes, avec les consignes saisies (over, voir programmeToSent)
 async function coachSendProgramme(student, progId, over = null) {
-  const p = cleanSentProgramme(programmeToSent(data, progId, over));
-  if (!p || !COACH_PROG_ID_RE.test(progId)) return { ok: false, kind: 'server' };
-  if (sentProgrammeBytes(p) > COACH_PROG_BYTES) return { ok: false, kind: 'too_big' };
-  const r = await coachRpc('coach_send_programme', { student, prog_id: progId, data: p });
-  if (r.ok) coachRecordSent(student, progId, Date.now(), p.name);
+  const v = coachSentPayload(programmeToSent(data, progId, over), progId);
+  if (!v.ok) return v;
+  const r = await coachRpc('coach_send_programme', { student, prog_id: progId, data: v.data });
+  if (r.ok) coachRecordSent(student, progId, Date.now(), v.data.name);
   return coachSendRate(r);
+}
+// Programme prêt à partir (app et appli web du coach) : tel que l'app de l'élève l'accepte (cleanSentProgramme),
+// identifiant permis, 200 Ko au plus. → { ok: true, data } ou { ok: false, kind }
+function coachSentPayload(raw, progId) {
+  const p = cleanSentProgramme(raw);
+  if (!p || typeof progId !== 'string' || !COACH_PROG_ID_RE.test(progId)) return { ok: false, kind: 'server' };
+  if (sentProgrammeBytes(p) > COACH_PROG_BYTES) return { ok: false, kind: 'too_big' };
+  return { ok: true, data: p };
 }
 
 // Refus de coach_send_programme pour la limite d'envoi : sa vraie durée (24 h), pas « une heure » (test de charge du 17/11)
 function coachSendRate(r) { return !r.ok && r.kind === 'rate_limited' ? { ...r, kind: 'send_rate' } : r; }
 // Nombre d'envois permis sur 24 h (même règle que le serveur : 30 + 2 par élève suivi)
 function coachSendLimit(team = coach.state?.students.length || 0) { return 30 + 2 * team; }
+
+// Envoi à plusieurs élèves (app : Envoyer à plusieurs ; appli web du coach) : 4 envois à la fois, arrêt au premier refus
+// pour la limite des 24 h (send_rate : les suivants seraient refusés aussi). sendOne(uid) rend { ok } ou { ok: false, kind } ;
+// onStep(n) après chaque réponse. → { sent: [uid], failed: [{ uid, kind }], rate, left : élèves pas encore tentés }
+async function coachSendQueue(uids, sendOne, { workers = 4, onStep = null } = {}) {
+  const queue = uids.slice(), sent = [], failed = [];
+  let rate = false;
+  const worker = async () => {
+    while (queue.length && !rate) {
+      const uid = queue.shift();
+      const r = await sendOne(uid);
+      if (r.ok) sent.push(uid);
+      else { if (r.kind === 'send_rate') rate = true; failed.push({ uid, kind: r.kind }); }
+      if (onStep) onStep(sent.length + failed.length);
+    }
+  };
+  await Promise.all(Array.from({ length: workers }, worker));
+  return { sent, failed, rate, left: queue.length };
+}
 
 // Élève : programme ou commentaire vu (badge)
 async function coachMarkInboxSeen(kind, ref) {

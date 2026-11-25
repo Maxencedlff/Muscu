@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −23 | `20261126010000_programmes_envoyes_coach_down.sql` (programmes envoyés relus par l'appli web du coach ; ne touche à aucune donnée, l'appli web revient à la version gardée sur le compte du coach) | rien | oui (vérifié par `tests/sql/programmes_envoyes_coach_rollback_test.sh`) |
 | −22 | `20261125010000_bilans_coach_down.sql` (bilans configurables : modèles, groupes, plannings, demandes, réponses, retours et accords du cycle EFFACÉS ; notifications `checkin` et `checkin_reminder` en file retirées ; `push_wanted`, `push_valid` et la contrainte de la file reprennent le texte de −15 ; tâches pg_cron `bilans-coach-envoi` et `bilans-coach-purge` retirées ; `push-send` peut rester) | rien | oui (vérifié par `tests/sql/bilans_coach_rollback_test.sh`, données comprises) ; à défaire avant −15, −9 (il réécrit leurs `push_wanted` et `push_valid`) et −7 (ses réponses citent `coach_photos`) |
 | −21 | `20261124010000_semaines_coach_down.sql` (fiche Semaines du web en un appel ; ne touche à aucune donnée, l'appli web revient aux lectures une par une) | rien | oui (vérifié par `tests/sql/semaines_coach_rollback_test.sh`) |
 | −20 | `20261122010000_forme_coach_down.sql` (efface les formes choisies par les coachs ; l'app revient à « ton coach », push-send à « Commentaire du coach ») | rien | oui ; à défaire avant les notifications push (0) : `push_actor_forms` lit leur file |
@@ -119,6 +120,11 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
     `push-send` redéployée AVANT (elle doit connaître `checkin` et `checkin_reminder`), puis la migration, puis
     contrôle `select jobname, schedule from cron.job where jobname like 'bilans-coach-%';` (deux lignes), puis
     l'appli web du coach et l'OTA. Retour arrière : OTA et web d'avant, puis `20261125010000_bilans_coach_down.sql`.
+
+18. `20261126010000_programmes_envoyes_coach.sql` (appli web du coach, vague 4, docs/COACH_WEB.md « Serveur de la vague 4 ») :
+    indépendante (une fonction de lecture, `coach_student_programmes`, aucune table, aucune fonction existante réécrite),
+    aucune fonction Edge. Avant ou après le site : sans elle, l'onglet Programme lit la version gardée sur le compte du
+    coach. Retour arrière : `20261126010000_programmes_envoyes_coach_down.sql`.
 
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 

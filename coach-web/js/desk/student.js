@@ -6,7 +6,8 @@
 //  sont pas partagés avec le coach (docs/DEFIS.md) : le pied du tableau le dit. Courbe du poids sur 90 jours.
 //  Colonnes en plus (vague 2) : les suivis échelle, nombre ou automatiques du bilan le plus récent de l'élève, avec
 //  la valeur du bilan dont la période tombe dans la semaine (deskCkWeekColumns, deskCkWeekValues).
-//  Onglet « Bilans » : js/desk/review.js. Les autres (Programme, Nutrition, Messages) sont annoncés « bientôt ».
+//  Onglet « Bilans » : js/desk/review.js ; vague 4 : « Programme » (js/desk/programme.js), « Nutrition »
+//  (js/desk/nutrition.js), « Messages » (js/desk/messages.js).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -44,19 +45,26 @@ function deskChartHtml(chart, weights) {
   </svg></figure><div class="gfoot">${esc(plural(chart.n, 'pesée', 'pesées'))} · ${esc(deskSigned(chart.delta, ' kg'))} depuis le ${esc(fmtDate(chart.first.date, 'short'))}</div>`;
 }
 
-// tab : 'weeks' (Semaines) ou 'checkins' (Bilans, js/desk/review.js)
+const DESK_TAB_PATH = { weeks: '', checkins: '/bilans', programme: '/programme', nutrition: '/nutrition', messages: '/messages' };
+
+// tab : 'weeks' (Semaines), 'checkins' (Bilans), 'programme', 'nutrition' ou 'messages'
 function deskStudentHtml(d, ui, tab = 'weeks') {
   const r = d.row;
   if (!r) return `<div class="crumb"><a href="#/">${deskIcon('back', 'xs')}Élèves</a></div><div class="empty">Cet élève ne te suit plus, ou le lien est faux.</div>`;
   const base = `#/eleve/${encodeURIComponent(r.id)}`;
-  const tabs = DESK_TABS.map(([k, l]) => (k === 'weeks' || k === 'checkins')
-    ? `<a role="tab" href="${k === 'weeks' ? base : `${base}/bilans`}" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" id="tab-${k}"${tab === k ? ` aria-controls="panel-${k}"` : ''}>${esc(l)}${k === 'checkins' && r.ckToAnswer ? ` <span class="badge" aria-label="${esc(plural(r.ckToAnswer, 'bilan à répondre', 'bilans à répondre'))}">${r.ckToAnswer}</span>` : ''}</a>`
-    : `<button type="button" role="tab" aria-selected="false" aria-disabled="true" data-action="soon" data-what="${esc(l)}">${esc(l)}<span class="soon">bientôt</span></button>`).join('');
+  const badge = (k) => k === 'checkins' && r.ckToAnswer ? ` <span class="badge" aria-label="${esc(plural(r.ckToAnswer, 'bilan à répondre', 'bilans à répondre'))}">${r.ckToAnswer}</span>`
+    : k === 'messages' && r.unread ? ` <span class="badge" aria-label="${esc(plural(r.unread, 'message non lu', 'messages non lus'))}">${r.unread}</span>` : '';
+  const tabs = DESK_TABS.map(([k, l]) => `<a role="tab" href="${base}${DESK_TAB_PATH[k]}" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" id="tab-${k}"${tab === k ? ` aria-controls="panel-${k}"` : ''}>${esc(l)}${badge(k)}</a>`).join('');
   const sinceTxt = r.st.since ? `suivi depuis le ${fmtDate(Date.parse(r.st.since), 'short')}` : '';
   const sub = [r.phase?.text, sinceTxt].filter(Boolean).join(' · ');
   const head = `<div class="crumb"><a href="#/">${deskIcon('back', 'xs')}Élèves</a></div>
-  <div class="head st-head">${deskAvatar(r.name, 'lg')}<div class="grow"><h1>${esc(r.name)}</h1><div class="sub">${esc(sub)}</div></div></div>
+  <div class="head st-head">${deskAvatar(r.name, 'lg')}<div class="grow"><h1>${esc(r.name)}</h1><div class="sub">${esc(sub)}</div></div>
+    <div class="head-btns">${tab === 'messages' ? '' : `<a class="btn" href="${base}/messages">${deskIcon('messages', 'sm')}Écrire</a>`}
+      <button type="button" class="btn tint" data-pg="send-mine">${deskIcon('send', 'sm')}Envoyer un programme</button></div></div>
   <div class="tabs"><div class="seg" role="tablist" aria-label="Fiche de ${esc(r.name)}">${tabs}</div></div>`;
+  if (tab === 'messages') return `${head}<div role="tabpanel" id="panel-messages" aria-labelledby="tab-messages">${deskStudentMessagesHtml(r.id)}</div>`;
+  if (tab === 'programme') return `${head}<div role="tabpanel" id="panel-programme" aria-labelledby="tab-programme">${deskPgHtml(r)}</div>`;
+  if (tab === 'nutrition') return `${head}<div role="tabpanel" id="panel-nutrition" aria-labelledby="tab-nutrition">${deskNtHtml(r, d)}</div>`;
   if (tab === 'checkins') {
     const body = d.loading ? '<div class="empty" role="status">Chargement des bilans…</div>' : d.error ? `<div class="empty" role="alert">${esc(deskErrorText(d.error))}<br><button type="button" class="btn tint" data-action="reload">Réessayer</button></div>` : deskRvPanelHtml(d, r);
     return `${head}<div role="tabpanel" id="panel-checkins" aria-labelledby="tab-checkins">${body}</div>`;

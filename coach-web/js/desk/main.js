@@ -2,9 +2,10 @@
 //  MDLF Coach sur ordinateur : démarrage, routes, connexion, gestes (docs/COACH_WEB.md)
 //
 //  Routes (hash, aucune configuration de serveur) : #/ tableau de bord, #/eleve/<id> fiche Semaines,
-//  #/eleve/<id>/bilans[/<bilan>] onglet Bilans, #/bilans Mes bilans, #/bilans-recus Bilans reçus, #/reglages.
-//  Quitter un écran avec des changements pas enregistrés (bilan en cours d'édition, réponse en cours) demande
-//  confirmation : le lien revient en arrière tant que le coach n'a pas dit oui.
+//  #/eleve/<id>/bilans[/<bilan>] onglet Bilans, #/eleve/<id>/programme[/<séance>], #/eleve/<id>/nutrition,
+//  #/eleve/<id>/messages, #/messages[/<élève>] Messages, #/bilans Mes bilans, #/bilans-recus Bilans reçus, #/reglages.
+//  Quitter un écran avec des changements pas enregistrés (bilan en cours d'édition, réponse en cours, programme
+//  modifié pas envoyé) demande confirmation : le lien revient en arrière tant que le coach n'a pas dit oui.
 //  Connexion avec Apple (js/desk/apple.js) ou par code e-mail ; seul un compte coach validé (coach_state().is_coach) entre, et chaque RPC le revérifie
 //  sur le serveur. 30 min sans geste : déconnexion. Données relues au retour sur l'onglet (60 s au moins d'écart).
 // ═══════════════════════════════════════════════════════════
@@ -30,8 +31,13 @@ function deskAuthText(kind) {
 
 function deskRoute() {
   const h = location.hash || '#/';
-  const m = /^#\/eleve\/([0-9a-f-]{1,64})(?:\/(bilans)(?:\/([0-9a-f-]{1,64}))?)?$/i.exec(h);
-  if (m) return { name: 'student', id: decodeURIComponent(m[1]), tab: m[2] ? 'checkins' : 'weeks', request: m[3] || null };
+  const m = /^#\/eleve\/([0-9a-f-]{1,64})(?:\/(bilans|programme|nutrition|messages)(?:\/([0-9a-z_-]{1,64}))?)?$/i.exec(h);
+  if (m) {
+    const tab = { bilans: 'checkins', programme: 'programme', nutrition: 'nutrition', messages: 'messages' }[m[2]] || 'weeks';
+    return { name: 'student', id: decodeURIComponent(m[1]), tab, request: tab === 'checkins' ? m[3] || null : null, part: tab === 'programme' ? m[3] || null : null };
+  }
+  const mm = /^#\/messages(?:\/([0-9a-f-]{1,64}))?$/i.exec(h);
+  if (mm) return { name: 'messages', id: mm[1] ? decodeURIComponent(mm[1]) : null };
   if (h === '#/reglages') return { name: 'settings' };
   if (h === '#/bilans') return { name: 'bilans' };
   if (h === '#/bilans-recus') return { name: 'received' };
@@ -44,8 +50,17 @@ function deskPaint(html, { focusMain = false } = {}) {
   const ae = document.activeElement;
   const caret = active && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') && ae.type !== 'email' ? ae.selectionStart : null;
   const sy = window.scrollY;
+  // Cadres qui défilent seuls (fil des messages) : position gardée d'un rendu à l'autre, en bas s'ils y étaient
+  const keep = [...root.querySelectorAll('[data-keep-scroll]')].map(el => ({ key: el.dataset.keepScroll, top: el.scrollTop, gap: el.scrollHeight - el.scrollTop - el.clientHeight }));
   root.innerHTML = html;
   frTypoNode(root);
+  root.querySelectorAll('[data-keep-scroll]').forEach(el => {
+    const k = keep.find(x => x.key === el.dataset.keepScroll);
+    if (!k || k.gap < 40 || ms.stick) el.scrollTop = el.scrollHeight;
+    else if (ms.prepend) el.scrollTop = el.scrollHeight - el.clientHeight - k.gap;
+    else el.scrollTop = k.top;
+  });
+  ms.stick = false; ms.prepend = false;
   if (active && document.getElementById(active)) {
     const el = document.getElementById(active); el.focus({ preventScroll: true });
     if (caret !== null && el.setSelectionRange) el.setSelectionRange(caret, caret);
@@ -54,7 +69,8 @@ function deskPaint(html, { focusMain = false } = {}) {
 }
 // Compteurs de la barre latérale : bilans à répondre, modèles de bilan
 function deskCounts() {
-  return { checkins: view.dash?.ckOv ? deskCkToAnswer(view.dash.ckOv, view.dash.rows.map(r => r.id)).length : null, templates: bl.setup ? bl.setup.templates.length : null };
+  return { checkins: view.dash?.ckOv ? deskCkToAnswer(view.dash.ckOv, view.dash.rows.map(r => r.id)).length : null, templates: bl.setup ? bl.setup.templates.length : null,
+    unread: view.dash?.threads ? view.dash.rows.reduce((a, r) => a + (r.unread || 0), 0) : 0 };
 }
 
 // ── Écrans ──────────────────────────────────────────────────
@@ -94,7 +110,8 @@ function deskSettingsHtml() {
   return deskFrame({ active: 'settings', students: view.dash?.rows.length ?? null, counts: deskCounts(), main: `<div class="head"><div class="grow"><h1 class="title">Réglages</h1></div></div>
     <section class="narrow" aria-labelledby="h-acc"><h2 class="gh" id="h-acc">Compte</h2><div class="group">
       <div class="row"><div class="grow">Connecté${email ? ` avec ${esc(email)}` : ''}</div></div>
-      <button type="button" class="row act" data-action="signout">${deskIcon('signout', 'sm')}<span class="grow">Se déconnecter de cet ordinateur</span></button>
+      ${deskHosted() ? (deskHost.exit ? `<button type="button" class="row act" data-action="host-exit">${deskIcon('back', 'sm')}<span class="grow">Revenir à l'appli</span></button>` : '')
+    : `<button type="button" class="row act" data-action="signout">${deskIcon('signout', 'sm')}<span class="grow">Se déconnecter de cet ordinateur</span></button>`}
     </div><div class="gfoot">Ton iPhone reste connecté. Sur cet ordinateur, la session se ferme aussi après 30 minutes sans activité, et rien de tes élèves n'y est gardé.</div></section>` });
 }
 
@@ -116,6 +133,7 @@ function deskRender(opts = {}) {
     deskPaint(frame('students', deskStudentHtml(d, ui, route.tab)), opts);
     return;
   }
+  if (route.name === 'messages') { deskPaint(frame('messages', deskMessagesHtml(route)), opts); return; }
   if (route.name === 'bilans') { deskPaint(frame('templates', deskBilansHtml()), opts); return; }
   if (route.name === 'received') { deskPaint(frame('checkins', deskReceivedHtml(view.dash)), opts); return; }
   deskPaint(frame('students', deskDashboardHtml(view.dash, ui)), opts);
@@ -134,9 +152,13 @@ async function deskRefresh({ force = false } = {}) {
   if (!r.data.state.is_coach) { view.notCoach = true; deskRender(); return; }
   view.dashError = null;
   view.dash = { ...r.data, rows: deskStudentRows(r.data) };
+  // Résumés des conversations partagés avec js/data/coach-chat.js (non-lus remis à zéro par chatMarkRead)
+  chat.threads = view.dash.threads;
+  if (view.dash.threads) chat.available = true;
   deskRender();
   const route = deskRoute();
   if (route.name === 'student') deskOpenStudent(route.id);
+  deskOpenTab(route);
   // Nombre de modèles (barre latérale) et écran Mes bilans : relus avec le tableau de bord
   deskOpenBilans({ keep: true });
 }
@@ -156,13 +178,15 @@ async function deskOpenStudent(id, { force = false } = {}) {
   }
   const phases = view.dash.plans ? view.dash.plans[id] || [] : null;
   const weeks = deskWeeks({ ...r.data, phases, now, count: DESK_WEEKS_MAX });
-  view.student = { id, at: Date.now(), now, weeks, weights: r.data.weights, measures: r.data.measures, diet: r.data.diet,
+  view.student = { id, at: Date.now(), now, weeks, weights: r.data.weights, measures: r.data.measures, diet: r.data.diet, sessions: r.data.sessions,
     chart: deskWeightChart(r.data.weights, now),
     // Bilans de l'élève (null : serveur sans les bilans ou lecture refusée ; ckKind dit pourquoi)
     checkins: ck.ok ? ck.data : null, ckKind: ck.ok ? null : ck.kind };
   deskRender();
 }
 async function deskEndSession() {
+  // Embarquée dans l'app : la session appartient à l'hôte, on lui rend la main
+  if (deskHosted()) { deskHost.exit?.(); return; }
   await deskSignOut();
   Object.assign(view, { dash: null, student: null, notCoach: false, dashAt: 0 });
   location.hash = '#/';
@@ -187,6 +211,7 @@ document.addEventListener('click', async e => {
   else if (a === 'more-weeks') { ui.weeks = DESK_WEEKS_MAX; deskRender(); }
   else if (a === 'reload') { if (deskRoute().name === 'student') deskOpenStudent(deskRoute().id, { force: true }); else deskRefresh({ force: true }); }
   else if (a === 'signout') deskEndSession();
+  else if (a === 'host-exit') deskHost?.exit?.();
   else if (a === 'apple') deskAppleClick();
   else if (a === 'login-back') { Object.assign(ui.login, { step: 'email', error: '' }); deskRender(); document.getElementById('login-email')?.focus(); }
 });
@@ -255,14 +280,17 @@ window.addEventListener('hashchange', async () => {
   const leavingEditor = from === '#/bilans' && to !== '#/bilans' && deskCkDirty();
   const sameStudent = (h) => (/^#\/eleve\/([0-9a-f-]+)/i.exec(h) || [])[1];
   const leavingReply = sameStudent(from) && sameStudent(from) !== sameStudent(to) && deskRvDirty();
-  if (desk.user && (leavingEditor || leavingReply)) {
+  const progOf = h => (/^#\/eleve\/([0-9a-f-]+)\/programme/i.exec(h) || [])[1];
+  const leavingProg = progOf(from) && progOf(from) !== progOf(to) && deskPgDirty();
+  if (desk.user && (leavingEditor || leavingReply || leavingProg)) {
     deskHashBack = true;
     history.replaceState(null, '', from);
     deskHashBack = false;
-    const ok = leavingEditor ? await deskCkLeaveOk() : await deskRvLeaveOk();
+    const ok = leavingEditor ? await deskCkLeaveOk() : leavingReply ? await deskRvLeaveOk() : await deskPgLeaveOk();
     if (!ok) return;
     if (leavingEditor) deskCkSelect(bl.draft?.id || bl.sel);
     if (leavingReply) rv.drafts = {};
+    if (leavingProg) deskPgReset();
     history.replaceState(null, '', to);
   }
   deskHash = location.hash || '#/';
@@ -273,18 +301,32 @@ window.addEventListener('hashchange', async () => {
   window.scrollTo(0, 0);
   if (route.name === 'student' && desk.user) deskOpenStudent(route.id);
   if (route.name === 'bilans' && desk.user) deskOpenBilans({ keep: true });
+  if (desk.user) deskOpenTab(route);
 });
+// Onglets de la vague 4 : Messages (relecture régulière), Programme et Nutrition (lectures propres)
+function deskOpenTab(route) {
+  if (!view.dash) return;
+  const chatId = deskChatKey(route);
+  if (route.name === 'messages' || chatId) { deskChatStart(); if (chatId) deskChatOpen(chatId); else deskChatTick({ now: true }); }
+  else deskChatStop();
+  if (route.name === 'student' && route.tab === 'programme') deskPgOpen(route.id);
+  if (route.name === 'student' && route.tab === 'nutrition') deskNtOpen(route.id);
+}
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && desk.user) { if (deskIdleFor() > DESK_IDLE_MS) deskEndSession(); else deskRefresh(); } });
 setInterval(() => { if (desk.user && deskIdleFor() > DESK_IDLE_MS) deskEndSession(); }, 60_000);
 
 // ── Démarrage ───────────────────────────────────────────────
 
-deskApple.onChange = () => { if (!desk.user) deskRender(); };
-(async () => {
+// Point d'entrée unique du démarrage (le site, ou l'app iPhone qui embarque la page : window.MDLF_COACH_HOST)
+async function deskStart() {
   const r = await deskResume();
+  // Embarquée : session de l'hôte refusée (expirée, autre compte) → l'hôte reprend la main
+  if (!r.ok && deskHosted()) { deskHost.exit?.(); return; }
   if (!r.ok) { ui.login.error = deskAuthText(r.kind); }
   else if (r.expired) ui.login.error = 'Session fermée après 30 minutes sans activité : reconnecte-toi.';
   deskRender();
   if (desk.user) deskRefresh({ force: true });
   else deskAppleLoad();
-})();
+}
+deskApple.onChange = () => { if (!desk.user) deskRender(); };
+deskStart();

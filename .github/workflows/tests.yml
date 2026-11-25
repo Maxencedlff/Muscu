@@ -70,6 +70,8 @@ jobs:
         run: bash tests/sql/semaines_coach_rollback_test.sh
       - name: Retour arrière des bilans configurables
         run: bash tests/sql/bilans_coach_rollback_test.sh
+      - name: Retour arrière des programmes envoyés (appli web du coach, vague 4)
+        run: bash tests/sql/programmes_envoyes_coach_rollback_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
@@ -165,6 +167,11 @@ jobs:
           PPL_ENGINES: ${{ matrix.engine }}
           HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_bilans.py
+      - name: Messages, Programme, Nutrition (vague 4), ${{ matrix.engine }}
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          HOME: /root
+        run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_v4.py
       - name: Captures en cas d'échec
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

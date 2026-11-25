@@ -1289,21 +1289,12 @@ function coachKeepConsignes(prog, dr) {
 }
 // Envoi à chacun, 4 à la fois ; arrêté au premier refus de limite. → { sent: [uid], failed: [{ uid, kind }], rate }
 async function coachSendMany(uids, progId, dr, origin) {
-  const queue = uids.slice(), sent = [], failed = [];
-  let rate = false;
-  const worker = async () => {
-    while (queue.length && !rate) {
-      const uid = queue.shift();
-      const presc = uid === origin ? dr.presc || {} : coachPrescFor(uid, progId);
-      const r = await coachSendProgramme(uid, progId, { prog: dr.prog, ex: dr.ex, presc });
-      if (r.ok) { sent.push(uid); coachPrescRemember(uid, progId, presc); }
-      else if (r.kind === 'send_rate') { rate = true; failed.push({ uid, kind: r.kind }); }
-      else failed.push({ uid, kind: r.kind });
-      if (coachMany) { coachMany.done = sent.length + failed.length; const b = $('#coachManyGo'); if (b) b.textContent = coachManyBtnText(coachMany); }
-    }
-  };
-  await Promise.all([1, 2, 3, 4].map(worker));
-  return { sent, failed, rate, left: queue.length };
+  return coachSendQueue(uids, async uid => {
+    const presc = uid === origin ? dr.presc || {} : coachPrescFor(uid, progId);
+    const r = await coachSendProgramme(uid, progId, { prog: dr.prog, ex: dr.ex, presc });
+    if (r.ok) coachPrescRemember(uid, progId, presc);
+    return r;
+  }, { onStep: n => { if (coachMany) { coachMany.done = n; const b = $('#coachManyGo'); if (b) b.textContent = coachManyBtnText(coachMany); } } });
 }
 
 // Charge et reps prescrites d'un exercice (écran coach-presc, js/features/coach-presc-ui.js) : « Charge : 60 kg × 8 ·
@@ -1315,11 +1306,6 @@ function coachPrescBtnHtml(uid, progId, cat, e) {
     aria-label="${txt ? `Charge prescrite à ${esc(e.name)} : ${esc(prescSpoken(e))}. Modifier` : `Prescrire une charge et des reps pour ${esc(e.name)}`}">${txt ? `<span class="coach-presc-btn__val">Charge : ${esc(txt)}</span><span class="coach-presc-btn__act" aria-hidden="true">Modifier</span>` : 'Prescrire une charge'}</button>`;
 }
 
-// Programmes que je peux envoyer : Mes programmes, sans les programmes reçus d'un coach
-function coachSendableProgrammes() {
-  return (data.myProgrammes || []).filter(id => id !== 'custom' && COACH_PROG_ID_RE.test(id) && !coachProgOf(id)
-    && (PROGRAMMES[id] || (data.userProgrammes[id] && !data.userProgrammes[id].archived)));
-}
 
 // ── Partage d'un code d'invitation ──────────────────────────
 

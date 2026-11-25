@@ -1,4 +1,4 @@
-# MDLF Coach sur ordinateur (appli web du coach) : vagues 1 et 2
+# MDLF Coach sur ordinateur (appli web du coach) : vagues 1, 2 et 4
 
 Demande d'un coach partenaire (24/11/2026) : faire ses retours sur un iPhone 12 est « horrible », il travaille sur PC ou
 tablette. Décision de Maxence : une **application web dans le navigateur** (Linux, Mac, Windows, iPad, tablettes
@@ -23,7 +23,10 @@ coach-web/js/desk/dashboard.js, student.js   les deux écrans (gabarits HTML, to
 coach-web/js/desk/checkins-model.js  vague 2 : logique pure des bilans (éditeur, comparaison, colonnes, signal)
 coach-web/js/desk/templates.js       vague 2 : écran « Mes bilans » (#/bilans), éditeur, glisser-déposer
 coach-web/js/desk/review.js          vague 2 : onglet Bilans de la fiche, liste « Bilans reçus » (#/bilans-recus)
-coach-web/js/desk/main.js   routes, gestes, clavier, inactivité, confirmation avant de quitter, démarrage
+coach-web/js/desk/chat-model.js, messages.js   vague 4 : Messages (#/messages, onglet Messages de la fiche)
+coach-web/js/desk/prog-model.js, programme.js  vague 4 : onglet Programme (éditeur des séances, envoi à un ou plusieurs)
+coach-web/js/desk/diet-model.js, nutrition.js  vague 4 : onglet Nutrition (plan envoyé, semaine cochée, envoi d'un plan)
+coach-web/js/desk/main.js   routes, gestes, clavier, inactivité, confirmation avant de quitter, démarrage (deskStart)
 coach-web/vercel.json       en-têtes du futur déploiement (copié dans dist-coach/ par la construction)
 scripts/build-coach-web.mjs construction : dist-coach/ (npm run coach-web:build)
 ```
@@ -359,3 +362,156 @@ barre d'onglets du bas les garde aussi (« Reçus », « Mes bilans »).
   Faux serveur `tests/fake_checkins.py`, données `COACH_WEB_CHECKINS_SEED` de `tests/coach_web_fixtures.py`.
 - `python3 tests/coach_web_captures.py <dossier>` capture aussi Mes bilans (et un suivi ouvert), l'onglet Bilans et
   Bilans reçus.
+
+## Vague 4 : Messages, Programme, Nutrition (maquettes 6-messages, 4-programme, 5-nutrition)
+
+Rien n'est déployé ; la migration `20261126010000_programmes_envoyes_coach.sql` est écrite, pas appliquée, et l'appli
+marche sans elle (voir « Serveur de la vague 4 »). Les cinq onglets de la fiche sont ouverts ; Planning, Mes programmes
+et Plans diète restent « bientôt » dans la barre latérale.
+
+### Routes
+
+| Route | Écran |
+|---|---|
+| `#/messages[/<élève>]` | Messages : conversations, fil, « <élève> en bref » (à partir de 1240 px) |
+| `#/eleve/<id>/messages` | le même fil dans la fiche (bouton « Écrire » de l'en-tête) |
+| `#/eleve/<id>/programme[/<séance>]` | éditeur des séances envoyées à l'élève |
+| `#/eleve/<id>/nutrition` | plan diète envoyé, semaine cochée |
+
+### Messages
+
+- **Mêmes RPC et mêmes règles que l'app** : les fonctions de `js/data/coach-chat.js` sont appelées telles quelles, avec
+  l'appel du site (`{ rpc: deskRpc }`, paramètre ajouté pour cela ; l'app garde `coachRpc` par défaut). Donc le même
+  curseur (seuls les messages REÇUS du serveur l'avancent : un message de l'élève arrivé juste avant ma réponse est
+  relu), la même marque de lecture (`chat_mark_read` jusqu'au dernier reçu ; écrire ne vaut pas lecture), le même
+  nettoyage et la même limite (2000 caractères, `chatClean`, `chatProblem`, compteur à partir de 1800), les mêmes textes
+  d'erreur (`coachErrorText`). Limites du serveur : 60 messages par heure, 500 par 24 h (« Trop de messages d'un coup »).
+- **Blocage** : la messagerie du coach ne regarde pas le blocage du social (migration du chat : l'élève a choisi son
+  coach, il le quitte ou le coach le retire, ce qui efface la conversation). Le site propose « Signaler »
+  (`report_chat`, 50 derniers messages copiés, alerte par la fonction Edge `report`) et dit quand l'élève ne reçoit pas
+  les notifications (`coach_push_off`). Le contrôle parental d'Apple (`chatHiddenByAge`) est propre à un iPhone d'enfant :
+  `env.js` le fixe à faux sur un ordinateur.
+- **Rafraîchissement, comme l'app** : pas de temps réel (l'app non plus). Conversation à l'écran relue toutes les 15 s
+  (`CHAT_POLL_MS`, seulement les messages après le dernier reçu, `after_id`), résumés (`chat_threads`, non-lus de la barre
+  latérale) toutes les 60 s, seulement onglet visible ; au retour sur l'onglet, tout de suite. Un message envoyé est suivi
+  d'une relecture immédiate.
+- Liste : `chatInboxRows` de l'app (non lues en tête, puis la plus récente ; la recherche montre aussi les élèves sans
+  message). Fil : séparateurs de jour de l'app (`chatDayLabel`), mes messages à droite (gris plus soutenu, jamais orange),
+  les siens à gauche ; position gardée d'un rendu à l'autre, en bas s'il y était.
+- **Dans le fil** (`deskThreadEvents`, `deskThreadItems`) : les séances de l'élève (`coach_student_sessions`, première page)
+  avec « Commenter la séance » / « Modifier le commentaire » sur place (`coach_set_note`, 1000 caractères, vide = supprimé :
+  l'élève le voit sous sa séance), et ses bilans répondus (« Répondre au bilan » ouvre l'onglet Bilans, dont la réponse part
+  aussi dans la conversation, vague 2). Événements plus anciens que le plus ancien message chargé : avec « Afficher les
+  messages précédents » ; trois semaines au plus avant le premier message.
+- Clavier : Entrée envoie, Maj + Entrée passe à la ligne (jamais pendant une composition d'accent). Fil en `role="log"`
+  `aria-live="polite"`, chaque bulle dit « Toi, 14:02 : … » ou « Message reçu, … » aux lecteurs d'écran.
+- Nutrition › « Écrire à <élève> à propos de mercredi » ouvre l'onglet Messages avec ce début de message (rien ne part).
+
+### Programme
+
+- **Source** : ce que l'élève a reçu (`coach_student_programmes`, nouvelle lecture) ; plusieurs programmes envoyés : un
+  choix. Sans la migration : la version de mon programme gardée sur mon compte (`profiles.doc`, lecture de mon propre
+  profil, jamais écrit d'ici), pour les programmes que `coach_state` dit envoyés, annoncée à l'écran (les charges
+  prescrites depuis l'iPhone, gardées sur l'iPhone, n'y sont pas).
+- **Format identique à l'app** : le brouillon est un programme `cleanSentProgramme` ; chaque champ suit les règles de
+  l'app (`deskPgPatch`) : séries 1 à 10, fourchette (le bas reste écrit, sinon un haut seul hors 12 se lirait en reps
+  fixes) ou reps fixes (`repFixed`), charge prescrite pour toutes les séries (`load`) ou série par série (`loads` : top set
+  et back-off, étiquetés par `prescSetTag`), repos 10 à 600 s ou celui de l'élève, technique et « sur quelle série »
+  (`intensFieldsFor` : Dernière, Toutes, ou des numéros, publiée le 24/11 ; une seule série visée garde la forme
+  d'avant), consigne 500 caractères. Envoi par `coachSentPayload` (extrait de `coachSendProgramme` de l'app : même
+  nettoyage, même limite de 200 Ko) et `coach_send_programme`. Test unitaire : brouillon inchangé = exactement ce que
+  l'élève a reçu ; programme de mon compte = `programmeToSent` de l'app.
+- **Ajouter un exercice** (liste du catalogue, `catalogueNames`) : 3 séries de 8 à 12 reps, comme l'app ; Monter,
+  Descendre, Retirer (confirmation), réglages d'un exercice dépliés sur place (« Réglages »).
+- **La dernière fois** : `studentLastLoads` de l'app sur les séances reçues (12 semaines), « 45 × 7 · 40 × 9, 9, 8 »,
+  puis « Dans la fourchette », « Sous la fourchette » ou « Haut de fourchette : monter » (reps fixes : « Reps atteintes :
+  monter »), avec la date.
+- **Envoyer à plusieurs élèves** : cases à cocher (l'élève de la fiche coché), limite de l'app (30 + 2 par élève sur
+  24 h, `coachSendLimit`), file de l'app (`coachSendQueue`, extraite de `coachSendMany` : 4 envois à la fois, arrêt au
+  refus de la limite). **Chacun garde SES charges** (`deskPgForOther`) : reprises de ce qu'il a reçu (même séance, même
+  exercice, nom comparé comme l'app), aucune pour un exercice qu'il n'avait pas ; séries, reps et techniques sont celles
+  du coach. Le résultat dit qui n'a rien reçu.
+- « Envoyer un programme » (en-tête de la fiche) : un de mes programmes (`coachSendableProgrammes`, passée de l'écran de
+  l'app à `js/data/coach.js`) mis dans l'éditeur, envoyé ensuite. Rien n'est modifié sur l'iPhone du coach : ses
+  programmes restent les siens, l'élève reçoit une mise à jour comme depuis l'écran Envoyer (renvoyer depuis l'iPhone
+  remplace la version du site).
+- Changements pas envoyés : barre collée en bas, « Annuler les changements », confirmation avant de quitter la fiche,
+  de changer de programme ou de fermer l'onglet.
+
+### Nutrition
+
+- **Plan envoyé** (`coach_student_programmes`, lignes `diet_…` ; sans la migration : mon plan du compte dont l'envoi est
+  dans `coach_state`) : nom, objectifs (« Entraînement 1 850 kcal · repos 1 650 kcal · eau 2,5 L »), date, vu ou non.
+- **Semaine cochée, seulement avec le consentement « Suivi de ma diète »** (`coach_student_diet`, `shared`) : semaine du
+  lundi au dimanche, 12 en arrière ; pastilles et statut d'un jour de l'app (`dietShareStatus` : suivi, partiel, pas suivi,
+  rien de noté, en cours) ; détail d'un jour : repas cochés ou non, avec les aliments du plan envoyé quand le nom du repas
+  correspond (jamais les aliments remplacés ni les heures : l'élève ne les partage pas) ; calories, protéines, glucides,
+  lipides face à l'objectif du jour (barres neutres en SVG, la CSP refusant les styles en ligne), eau, sel ; moyennes de
+  la semaine et les seuils de l'app. Sans partage : « <élève> ne partage pas le suivi de sa diète » et où l'activer, aucun
+  chiffre. Serveur sans le suivi de la diète : le plan seul.
+- **Envoi d'un plan** : un de mes plans du compte (`coachSendableDiets`, `coachDietPayload` extrait de `coachSendDiet` de
+  l'app) ; refus du serveur si l'élève n'accepte pas les plans de son coach (« Ton élève doit d'abord accepter… »).
+- **Modifier un plan, recherche Ciqual : pas sur le web dans cette vague.** L'éditeur de plans de l'app
+  (`js/features/diet-editor.js`, jours entraînement / repos, portions, équivalences, base `data/foods.json`) est un écran
+  entier ; le refaire au clavier et à la souris est une vague à lui seul. Pour l'instant : on le modifie dans l'app
+  (Nutrition › Mes plans), puis on l'envoie d'ici. Les plans ne se lisent sur le compte qu'avec la synchro de la nutrition
+  acceptée dans l'app.
+
+### Serveur de la vague 4 : `coach_student_programmes` (migration écrite, PAS appliquée)
+
+Vérifié : les RPC et la RLS existantes suffisent pour Messages (`chat_*`, `report_chat`, `coach_push_off`,
+`coach_set_note`, `coach_student_sessions`, `coach_student_checkins`) et pour la semaine de Nutrition
+(`coach_student_diet`). Manquait seulement la relecture de ce que le coach a envoyé : `coach_state` ne rend que l'id, la
+date et « vu ». `supabase/migrations/20261126010000_programmes_envoyes_coach.sql` : `coach_student_programmes(student)` →
+`[{ id, data, sent_at, seen }]`, du plus récent, 40 au plus, seulement les lignes de CE coach pour CET élève
+(`private.coach_require_student`), 600 lectures par heure ; un plan diète retiré par l'élève est déjà effacé par le
+déclencheur existant. Aucune table, aucun droit de table. Tests : `tests/sql/programmes_envoyes_coach_test.sql` (droits,
+anon, autre coach, ancien coach de l'élève, ex-coach, élève, non-élève, données exactes, « vu », retrait de l'accord diète,
+limite) ; retour arrière `supabase/rollback/20261126010000_programmes_envoyes_coach_down.sql`, vérifié par
+`tests/sql/programmes_envoyes_coach_rollback_test.sh` ; ajoutée à `tests/sql/prod_order_test.sh` et à
+`supabase/rollback/ORDRE.md` (n° 18).
+
+### Changements dans le code partagé de l'app (sw.js en ppl-v238)
+
+Sans changement de comportement de l'app : paramètre `{ rpc }` (et `reportAlert`) des fonctions de `js/data/coach-chat.js` ;
+`coachSentPayload` (de `coachSendProgramme`), `coachSendQueue` (de `coachSendMany`) et `coachSendableProgrammes(d)` (de
+l'écran du coach) dans `js/data/coach.js` ; `coachDietPayload` (de `coachSendDiet`) dans `js/data/coach-diet.js`. Le site
+charge en plus `accessors.js`, `goals.js` et `coach-diet.js`, tels quels.
+
+### Tests de la vague 4
+
+- `tests/unit/coach-web-v4.mjs` (dans `node tests/unit/run.mjs`) : fonctions du chat avec l'appel du site (curseur, envoi
+  qui n'avance pas le curseur, lecture, nettoyage, Signaler), liste et compteur, fil mêlé, chaque règle de l'éditeur,
+  format identique à l'app, charges de chacun à l'envoi groupé, file d'envoi, « La dernière fois », semaine et statuts,
+  repas du plan, chiffres et moyennes, envoi d'un plan, échappement des textes reçus, site sans hôte.
+- `python3 tests/test_coach_web_v4.py` (`PPL_ENGINES=chromium` pour un moteur) : Chromium, Firefox, WebKit × 1440, 1180,
+  820 px × sombre, clair : non-lus, conversation (effacés à l'ouverture, fil en bas, séances et bilans dans le fil,
+  envoi), Programme (top set et back-off, modification et envoi au format de l'app, cluster sur la 1re série), Nutrition
+  (7 jours, repas du plan, macros), fond noir pur, cibles de 44 px, pas de défilement en largeur, CSP, aucune erreur,
+  localStorage ; puis par moteur : relecture à 15 s et marque de lecture, Maj + Entrée, trop long, commentaire de séance,
+  Signaler, brouillon depuis Nutrition, confirmation avant de quitter, envoi groupé (Tom sans les charges de Léa), envoi
+  d'un de mes programmes, repli sans la migration, diète non partagée, hôte qui embarque la page.
+- `python3 tests/coach_web_captures.py <dossier>` capture aussi Messages, Programme (et un exercice déplié) et Nutrition.
+
+## Embarquer dans l'app (iPad et tablettes)
+
+Prévu ensuite (demande de Maxence) : sur iPad et tablette, l'onglet Coach de l'app ouvrira CETTE interface, embarquée
+dans l'app (fichiers livrés avec l'app, pas le site distant), avec un bouton « Revenir à l'appli ». Ce qui est déjà prêt :
+
+- **Chemins relatifs, aucune dépendance à la racine** : la page charge `css/…`, `js/desk/…` et les scripts partagés en
+  relatif (`../js/…` dans le dépôt, `js/…` dans `dist-coach/`) ; les routes sont dans le `#`. Seule exception : l'adresse
+  de retour de Sign in with Apple (`location.origin`), inutile embarquée puisque la session vient de l'app.
+- **Session fournie par l'hôte** (`js/desk/api.js`, `deskHost`) : l'app pose, avant les scripts de la page,
+  `window.MDLF_COACH_HOST = { session: { access_token, refresh_token }, exit() }`. La page ouvre alors cette session
+  (`auth.setSession`) sans écran de connexion, ne la copie pas dans le stockage du navigateur (`persistSession: false`),
+  ne ferme pas après 30 minutes (l'app garde sa règle) ; une session refusée ou terminée rend la main à l'hôte (`exit`).
+  `exit` ajoute « Revenir à l'appli » (barre latérale, barre d'onglets, Réglages) à la place de « Se déconnecter de cet
+  ordinateur ». Sans `MDLF_COACH_HOST` (le site), rien ne change. Test : `tests/test_coach_web_v4.py` (faux hôte).
+- **Aucune supposition sur `window.top` ni `window.parent`** (aucun appel), ni sur un cadre : la page tourne seule.
+- **Zones sûres** : `viewport-fit=cover` et `env(safe-area-inset-*)` sur la barre latérale, le contenu, la barre d'onglets
+  et le bandeau (encoche, barre d'accueil, coins arrondis).
+- **Un seul point d'entrée** : `deskStart()` en fin de `js/desk/main.js`.
+- À faire côté app le moment venu : livrer `dist-coach/` dans le paquet, l'ouvrir dans une vue web (WKWebView) avec la
+  session du compte, recevoir `exit()` par un pont natif, revoir la CSP (`connect-src` vers Supabase seulement, schéma
+  `capacitor://` ou fichier local), et la build iOS (TARGETED_DEVICE_FAMILY passe à iPhone + iPad) soumise à Apple.
+

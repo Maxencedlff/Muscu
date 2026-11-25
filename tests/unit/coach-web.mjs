@@ -243,7 +243,7 @@ export default function ({ test, assert, ROOT }) {
     assert.equal((await run('deskRpc("coach_state")')).kind, 'signed_out');
   });
 
-  test('coach web : textes reçus échappés, onglets « bientôt » annoncés aux lecteurs d\'écran', () => {
+  test('coach web : textes reçus échappés, onglets de la fiche', () => {
     const rows = run(`deskStudentRows({ state: cleanCoachState({ is_coach: true, students: [${J(student('lea'))}] }), now: ${NOW} })`);
     rows[0].name = '<img src=x onerror=alert(1)>';
     const h = run(`deskDashboardHtml({ rows: ${J(rows)}, now: ${NOW}, code: 'K7MP4QXR', codeExpires: null, tier: null, form: 'elle', plans: null }, { filter: 'all', query: '' })`);
@@ -254,8 +254,9 @@ export default function ({ test, assert, ROOT }) {
     assert.doesNotMatch(q, /<b>x/);
     assert.match(h, /Rejoindre une coach/, 'accord de la forme du coach (coachWord)');
     const s = run(`deskStudentHtml({ row: ${J(rows[0])}, loading: true }, { weeks: 8 })`);
-    assert.equal((s.match(/aria-disabled="true"/g) || []).length, 3, 'Programme, Nutrition, Messages (Bilans ouvert en vague 2)');
-    assert.equal((s.match(/bientôt/g) || []).length, 3);
+    assert.equal((s.match(/aria-disabled="true"/g) || []).length, 0, 'vague 4 : les cinq onglets sont ouverts');
+    assert.equal((s.match(/role="tab"/g) || []).length, 5);
+    assert.doesNotMatch(s, /bientôt/);
     assert.match(s, /role="status"/);
   });
 

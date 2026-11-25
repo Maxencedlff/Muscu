@@ -10,6 +10,9 @@
 //    aucune donnée d'élève n'est copiée sur un ordinateur parfois partagé. L'appli web lit le serveur par ses
 //    propres appels (deskRpc) et ne garde rien hors de la mémoire de l'onglet ;
 //  - `onAccountChange` : sans effet (une connexion ou une déconnexion recharge la page, la mémoire repart de zéro).
+//  Et un nom de js/data/age-range.js (pas chargé non plus) : `chatHiddenByAge`, toujours faux. Le contrôle parental
+//  « Limites de communication » est une réponse d'Apple propre à un iPhone d'enfant ; un compte coach validé sur un
+//  ordinateur n'en a pas (les règles de la messagerie, js/data/coach-chat.js, restent sinon les mêmes).
 //  Test : tests/unit/coach-web.mjs (chargement de cette liste exacte, aucune écriture dans localStorage).
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -17,3 +20,4 @@
 let sb = null;
 const account = Object.freeze({ user: null });
 function onAccountChange() { /* voir l'en-tête : la page se recharge à chaque changement de compte */ }
+function chatHiddenByAge() { return false; }

@@ -32,12 +32,6 @@ function coachPrescDraftFor(route) {
   return coachPrescDraft;
 }
 
-// Étiquette d'une série d'après la technique prescrite (« Top set », « Back-off », « Cluster » sur la série choisie),
-// '' sinon (intensPlanTechs, js/data/intensif.js)
-function prescSetTag(e, i) {
-  const t = intensPlanTechs(e?.intens, e?.intensOn, e?.sets || 3)[i];
-  return t ? TECHS[t].label : '';
-}
 
 function renderCoachPresc(uid) {
   const route = currentRoute();
