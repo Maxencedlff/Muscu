@@ -8,8 +8,8 @@
 //    partiel, pas suivi, rien de noté), le détail d'un jour (repas cochés, avec les aliments du plan), calories et
 //    macros face à l'objectif, eau, sel, moyennes de la semaine. Sans partage : rien d'autre que l'endroit où l'activer.
 //  - Envoi : un de mes plans (coachDietPayload, comme l'app ; l'élève doit avoir accepté les plans de son coach).
-//    Modifier un plan, avec la recherche Ciqual, se fait dans l'app iPhone (Nutrition › Mes plans) : l'éditeur de
-//    plans et sa base d'aliments restent là-bas pour cette vague ; le plan modifié se renvoie ensuite d'ici.
+//  - Modifier le plan reçu par l'élève, ou en créer un : l'éditeur des plans diète (js/desk/diet-editor.js), dans
+//    l'onglet (#/eleve/<id>/nutrition/edit, …/new, …/<plan>), avec la recherche Ciqual.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -47,7 +47,10 @@ function deskNtBar(pct) {
 
 function deskNtPlanHtml(r) {
   const p = nt.diets[0] || null;
-  const btn = `<button type="button" class="btn" data-nt="send" ${nt.busy ? 'disabled aria-busy="true"' : ''}>${deskIcon('send', 'sm')}Envoyer un plan</button>`;
+  const base = `#/eleve/${encodeURIComponent(r.id)}/nutrition`;
+  const btn = `<div class="ck-acts nt-acts">${p ? `<a class="btn tint" href="${base}/edit" data-dt="edit-sent">${deskIcon('pen', 'sm')}Modifier ce plan</a>` : ''}
+    <a class="btn" href="${base}/new" data-dt="new-for">${deskIcon('plus', 'sm')}Créer un plan</a>
+    <button type="button" class="btn" data-nt="send" ${nt.busy ? 'disabled aria-busy="true"' : ''}>${deskIcon('send', 'sm')}Envoyer un de mes plans</button></div>`;
   if (!p) {
     return `<div class="head nt-head"><div class="grow"><h2 class="ed-t">Plan diète</h2><div class="sub">${esc(`Aucun plan envoyé à ${r.name} pour l'instant.`)}</div></div>${btn}</div>`;
   }
@@ -58,6 +61,8 @@ function deskNtPlanHtml(r) {
 }
 
 function deskNtHtml(r, d) {
+  // …/nutrition/<edit | new | plan> : l'éditeur des plans diète, dans l'onglet (js/desk/diet-editor.js)
+  if (deskRoute().part) return deskDtFrameHtml(r);
   if (nt.id !== r.id || nt.loading) return '<div class="empty" role="status">Chargement de la nutrition…</div>';
   if (nt.kind) return `<div class="empty" role="alert">${esc(deskErrorText(nt.kind))}<br><button type="button" class="btn tint" data-nt="retry">Réessayer</button></div>`;
   const plan = deskNtPlanHtml(r);
@@ -118,7 +123,7 @@ async function deskNtSend(id) {
   const doc = await deskDoc();
   const ids = doc.data ? coachSendableDiets(doc.data) : [];
   if (!ids.length) {
-    deskToast(doc.kind ? deskErrorText(doc.kind) : 'Aucun plan sur ton compte : crée-le dans l\'app iPhone (Nutrition › Mes plans), avec la synchro de la nutrition activée.');
+    deskToast(doc.kind ? deskErrorText(doc.kind) : 'Aucun plan sur ton compte : « Créer un plan » en prépare un ici, ou dans l\'app iPhone (Nutrition › Mes diètes).');
     return;
   }
   const plans = doc.data.dietPlans;

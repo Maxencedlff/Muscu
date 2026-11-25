@@ -53,7 +53,7 @@ export default function ({ test, assert, ROOT }) {
     assert.doesNotMatch(html, /<script>(?!<\/script>)/, 'aucun script en ligne (CSP script-src self)');
     assert.match(html, /script-src 'self' https:\/\/appleid\.cdn-apple\.com;/, 'seul ajout : le script de Sign in with Apple JS');
     assert.match(html, /frame-src 'none'/);
-    assert.match(html, /connect-src 'self' https:\/\/yopptmdjtnezmccdvaxf\.supabase\.co;/);
+    assert.match(html, /connect-src 'self' https:\/\/yopptmdjtnezmccdvaxf\.supabase\.co https:\/\/world\.openfoodfacts\.org;/, 'plus Open Food Facts, pour un code-barres saisi (plans diète)');
   });
 
   test('coach web : même projet Supabase et même clé publique que l\'app', () => {

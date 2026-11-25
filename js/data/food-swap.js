@@ -64,6 +64,9 @@ const FOOD_FAM_LABEL = { v: 'Viandes, poissons, œufs', f: 'Féculents', l: 'Pro
 let foodDb = null;          // { meta, foods: [{ code, name, fam, per, key }], byCode }
 let foodDbPromise = null;
 
+// Nom d'aliment à l'écran : « Oeuf dur » (Ciqual) → « Œuf dur », « boeuf » → « bœuf ». Affichage seulement,
+// les données gardent le nom d'origine (recherche, synchro)
+const foodName = n => String(n ?? '').replace(/\b([OoBb]?)([Oo])e(ufs?)\b/g, (m, b, o, r) => b + (o === 'O' ? 'Œ' : 'œ') + r);
 const foodKey = name => normName(String(name ?? '').replace(/œ/gi, 'oe').replace(/æ/gi, 'ae')).replace(/[^a-z0-9%]+/g, ' ').trim();
 
 // Fichier de la base nettoyé : chaque ligne invalide est ignorée seule
@@ -93,10 +96,11 @@ function cleanFoodDb(raw) {
   return { meta: { source: s(raw.source), version: s(raw.version), licence: s(raw.licence), url: /^https:\/\//.test(raw.url || '') ? s(raw.url) : '' }, foods, byCode };
 }
 function setFoodDb(raw) { foodDb = cleanFoodDb(raw); return foodDb; }
-// Chargée une fois ; renvoie la base, ou null si le fichier manque (l'écran le dit, les plans restent lisibles)
-function loadFoods() {
+// Chargée une fois ; renvoie la base, ou null si le fichier manque (l'écran le dit, les plans restent lisibles).
+// url : adresse du fichier vue de la page (l'appli web du coach est servie un dossier plus bas dans le dépôt)
+function loadFoods(url = FOODS_URL) {
   if (foodDb) return Promise.resolve(foodDb);
-  foodDbPromise ||= fetch(FOODS_URL).then(r => (r.ok ? r.json() : null)).then(setFoodDb)
+  foodDbPromise ||= fetch(url).then(r => (r.ok ? r.json() : null)).then(setFoodDb)
     .catch(() => null).finally(() => { foodDbPromise = null; });
   return foodDbPromise;
 }
@@ -230,6 +234,11 @@ function swapCandidates(item, { limit = SWAP_LIMIT, own = [] } = {}) {
     perWord.set(w, n + 1);
     return n < SWAP_PER_WORD;
   }).slice(0, limit);
+}
+// Aliment du plan remplacé par un équivalent choisi (c : un swapCandidates), dans le plan lui-même (éditeur du plan de
+// l'app, éditeur de l'appli web du coach) : même identifiant, valeurs et quantité du remplaçant ; null s'il est illisible
+function dietSwapItem(it, c) {
+  return cleanDietItem({ name: c.food.name, food: c.food.code, fam: c.food.fam, g: c.g, per: c.food.per, src: c.food.code ? 'ciqual-2025' : 'perso', id: it.id });
 }
 // Texte d'un écart : « +12 kcal », « −3 g » (signe moins typographique), « mêmes kcal » à l'arrondi près (« = » seul ne se lisait pas, panel nutri-final t1)
 function swapDeltaText(v, unit) {

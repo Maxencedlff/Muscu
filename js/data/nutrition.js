@@ -177,6 +177,44 @@ function cleanDietTargets(t) {
   if (sMin !== null && (sMax === null || dietR1(sMin) < out.saltMax)) out.saltMin = dietR1(sMin);
   return Object.keys(out).length ? out : null;
 }
+// Objectifs du jour saisis (feuille « Objectifs du jour » de l'app, éditeur de l'appli web du coach), tels que tapés :
+// v = { kcal, p, c, f, waterMin, waterMax, saltMin, saltMax } (chaînes ; eau absente : pas de champ d'eau, plan perso).
+// Un champ vide ne fixe rien. Protéines en g/kg (perKg, poids kg : dietProteinGrams de js/data/diet-estimate.js) ;
+// pExact : grammes exacts derrière un champ g/kg pas retouché. Eau et sel en « de … à … » : un seul champ rempli vaut
+// objectif simple (eau) ou plafond / plancher (sel).
+// → { targets } (null : aucun objectif) ou { err, field } (field : le champ à corriger, kcal, p, waterMin, saltMax…)
+const DIET_TARGET_LABEL = { kcal: 'Calories', p: 'Protéines', c: 'Glucides', f: 'Lipides' };
+function dietTargetsFromForm(v, { perKg = false, kg = null, pExact = null } = {}) {
+  const out = {};
+  for (const k of DIET_TARGET_KEYS) {
+    const raw = String(v?.[k] ?? '').replace(/[\s\u202f\u00a0]/g, '');   // « 2 900 » : espace des milliers
+    if (!raw) continue;
+    const x = k === 'p' && pExact != null ? pExact : k === 'p' && perKg ? dietProteinGrams(raw, kg) : num(raw, 1, DIET_TARGET_MAX[k]);
+    if (x === null || x > DIET_TARGET_MAX[k]) {
+      return { field: k, err: k === 'p' && perKg ? `Protéines : de ${fmtNum(DIET_PKG_BOUNDS[0], 1)} à ${fmtNum(DIET_PKG_BOUNDS[1], 1)} g/kg.`
+        : `${DIET_TARGET_LABEL[k]} : de 1 à ${fmtNum(DIET_TARGET_MAX[k])}.` };
+    }
+    out[k] = Math.round(x);
+  }
+  const pair = (k, lo, hi, digits) => {
+    const ra = v?.[`${k}Min`], rb = v?.[`${k}Max`];
+    if (ra === undefined || rb === undefined) return { ok: true, va: null, vb: null };
+    const ta = String(ra).trim(), tb = String(rb).trim(), va = ta ? num(ta, lo, hi) : null, vb = tb ? num(tb, lo, hi) : null;
+    const name = k === 'water' ? 'Eau' : 'Sel', unit = k === 'water' ? 'L' : 'g';
+    if ((ta && va === null) || (tb && vb === null)) return { field: ta && va === null ? `${k}Min` : `${k}Max`, err: `${name} : de ${fmtNum(lo, digits)} à ${fmtNum(hi, digits)} ${unit}.` };
+    if (va !== null && vb !== null && va >= vb) return { field: `${k}Min`, err: `${name} : la première valeur doit être plus petite que la seconde.` };
+    return { ok: true, va, vb };
+  };
+  const w = pair('water', 0.5, 6, 1);
+  if (!w.ok) return w;
+  const sl = pair('salt', DIET_SALT_T[0], DIET_SALT_T[1], 1);
+  if (!sl.ok) return sl;
+  if (w.vb !== null) { out.water = w.vb; if (w.va !== null) out.waterMin = w.va; }
+  else if (w.va !== null) out.water = w.va;
+  if (sl.vb !== null) out.saltMax = sl.vb;
+  if (sl.va !== null) out.saltMin = sl.va;
+  return { targets: cleanDietTargets(out) };
+}
 // Plan : { name, meals, targets?, consigne?, archived?, fromCoach? }, null s'il est inutilisable
 function cleanDietPlan(p) {
   if (!dietIsObj(p)) return null;
@@ -387,6 +425,33 @@ function cleanDietFoods(list) {
       ...(code ? { code } : {}), ...(code && x.src === 'off' ? { src: 'off' } : {}), ...(x.ecalc === true ? { ecalc: true } : {}),
       ...(salt !== null && typeof x.salt === 'number' ? { salt: Math.round(salt * 100) / 100 } : {}), ...(portion ? { portion } : {}) };
   }).filter(Boolean);
+}
+// Aliment perso saisi (feuille « Nouvel aliment » de l'app, éditeur de l'appli web du coach) : valeurs de l'étiquette
+// pour 100 g, telles que tapées. Énergie vide : calculée comme sur une étiquette (4, 4 et 9 kcal par gramme) ; macros
+// vides : 0 ; portion facultative (on compte ensuite en portions) ; famille choisie, sinon tirée des macros.
+// → { food } ou { err, field } (field 'name' : le nom manque ; sinon le message va sous le formulaire)
+function dietFoodFromForm(v, { code = null } = {}) {
+  const raw = k => String(v?.[k] ?? '');
+  const nm = dietCutName(raw('name'));
+  if (!nm || !hasVisible(nm)) return { err: 'Entre un nom', field: 'name' };
+  const k0 = num(raw('k'), 0, 900), p = num(raw('p') || '0', 0, 100), c = num(raw('c') || '0', 0, 100), f = num(raw('f') || '0', 0, 100);
+  if (p === null || c === null || f === null) return { err: 'Protéines, glucides et lipides : de 0 à 100 g.', field: 'macros' };
+  const k = k0 ?? (raw('k').trim() ? null : Math.round(4 * p + 4 * c + 9 * f));
+  if (k === null) return { err: 'Énergie : de 0 à 900 kcal.', field: 'k' };
+  const per = cleanDietPer({ k, p, c, f });
+  if (!per) return { err: 'Plus de 100 g de macros pour 100 g : vérifie les valeurs.', field: 'macros' };
+  const pRaw = raw('portion').trim(), pg = pRaw ? num(pRaw, 1, DIET_G_MAX) : null;
+  if (pRaw && pg === null) return { err: `Une portion : de 1 à ${fmtNum(DIET_G_MAX)} g.`, field: 'portion' };
+  const fam = v?.fam;
+  return { food: { id: uid(), name: nm, fam: DIET_FAMS.includes(fam) && fam !== 'a' ? fam : dietFamOf(per), per,
+    ...(typeof code === 'string' && /^\d{8}$|^\d{13}$/.test(code) ? { code } : {}), ...(pg ? { portion: { u: 'portion', pl: 'portions', g: pg } } : {}) } };
+}
+// Garde un aliment créé dans Mes aliments (en tête) ; un aliment du même nom ou du même code-barres est remplacé sur
+// place. false (rien de changé) si Mes aliments est plein : jamais le plus ancien retiré en silence (dietFoodsFull)
+function dietKeepOwnFood(d, food) {
+  if (dietFoodsFull(d.dietFoods, food)) return false;
+  d.dietFoods = cleanDietFoods([food, ...(Array.isArray(d.dietFoods) ? d.dietFoods : []).filter(x => normName(x.name) !== normName(food.name) && !(food.code && x.code === food.code))]);
+  return true;
 }
 // Ajouter cet aliment à Mes aliments ferait-il partir le plus ancien ? Faux s'il en remplace un (même nom ou même
 // code-barres : mis à jour sur place)

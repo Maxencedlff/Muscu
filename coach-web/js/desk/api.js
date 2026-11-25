@@ -258,7 +258,8 @@ async function deskLoadSentProgs(student) {
   return { ok: true, data: { programmes: programmes.sort(by), diets: diets.sort(by) } };
 }
 // Mon compte (profiles.doc, lecture de mon propre profil seulement, comme la synchro de l'app) : mes programmes et
-// mes plans diète, pour en envoyer un. Jamais écrit d'ici : l'iPhone reste le seul à modifier mes programmes.
+// mes plans diète, pour en envoyer un. Les programmes n'y sont jamais écrits d'ici (l'iPhone reste le seul à les
+// modifier) ; les plans diète et Mes aliments, seulement par deskWriteDiet (éditeur des plans diète).
 // → { ok: true, data: doc | null } ; doc nettoyé au strict nécessaire (deskDocClean, js/desk/prog-model.js)
 async function deskLoadDoc() {
   const c = deskClient();
@@ -272,4 +273,39 @@ async function deskLoadDoc() {
 // Envoi d'un programme ou d'un plan diète (coach_send_programme, comme l'app) : refus de la limite des 24 h → send_rate
 async function deskSendProg(student, progId, payload) {
   return coachSendRate(await deskRpc('coach_send_programme', { student, prog_id: progId, data: payload }));
+}
+
+// ── Plans diète (docs/COACH_WEB.md, « Plans diète ») ──
+
+// Partie diète de mon compte (accord, plans, aliments perso) : → { ok, data: deskDtAcc(doc) } ; sans profil : tout vide
+async function deskLoadDietAcc() {
+  const c = deskClient();
+  if (!c || !desk.user) return { ok: false, kind: 'signed_out' };
+  try {
+    const { data, error } = await c.from('profiles').select('doc').eq('user_id', desk.user.id).maybeSingle();
+    if (error) return { ok: false, kind: coachErrorKind(error) };
+    return { ok: true, data: { ...deskDtAcc(data?.doc), synced: !!data } };
+  } catch (e) { return { ok: false, kind: coachErrorKind(e) || 'server' }; }
+}
+// Écrit une opération de l'éditeur (deskDtOpSave, deskDtOpKeepFood… de js/desk/diet-edit-model.js) sur mon compte :
+// document relu, opération rejouée dessus (seules les clés de la diète changent), puis mise à jour CONDITIONNÉE par
+// updated_at (posé par le serveur à chaque écriture) : si l'iPhone a écrit entre-temps, rien n'est écrasé, on relit et
+// on rejoue (3 essais). Aucune fonction serveur nouvelle : la RLS de profiles laisse chacun écrire sa propre ligne.
+// → { ok, result, acc } ou { ok: false, kind } (no_consent, no_doc, conflict, plans_full, foods_full, doc_too_big…)
+async function deskWriteDiet(op) {
+  const c = deskClient();
+  if (!c || !desk.user) return { ok: false, kind: 'signed_out' };
+  try {
+    for (let i = 0; i < 3; i++) {
+      const { data: row, error } = await c.from('profiles').select('doc,updated_at').eq('user_id', desk.user.id).maybeSingle();
+      if (error) return { ok: false, kind: coachErrorKind(error) };
+      if (!row) return { ok: false, kind: 'no_doc' };
+      const r = deskDtApply(row.doc, op);
+      if (!r.ok) return r;
+      const { data: up, error: e2 } = await c.from('profiles').update({ doc: r.doc }).eq('user_id', desk.user.id).eq('updated_at', row.updated_at).select('updated_at');
+      if (e2) return { ok: false, kind: coachErrorKind(e2) };
+      if (Array.isArray(up) && up.length === 1) return { ok: true, result: r.result, acc: { ...deskDtAcc(r.doc), synced: true } };
+    }
+    return { ok: false, kind: 'conflict' };
+  } catch (e) { return { ok: false, kind: coachErrorKind(e) || 'server' }; }
 }

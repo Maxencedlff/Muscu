@@ -3,9 +3,10 @@
 //
 //  Routes (hash, aucune configuration de serveur) : #/ tableau de bord, #/eleve/<id> fiche Semaines,
 //  #/eleve/<id>/bilans[/<bilan>] onglet Bilans, #/eleve/<id>/programme[/<séance>], #/eleve/<id>/nutrition,
-//  #/eleve/<id>/messages, #/messages[/<élève>] Messages, #/bilans Mes bilans, #/bilans-recus Bilans reçus, #/reglages.
+//  #/eleve/<id>/messages, #/messages[/<élève>] Messages, #/bilans Mes bilans, #/bilans-recus Bilans reçus, #/reglages,
+//  #/plans-diete[/<plan>] Plans diète, #/eleve/<id>/nutrition/<edit | new | plan> éditeur d'un plan diète.
 //  Quitter un écran avec des changements pas enregistrés (bilan en cours d'édition, réponse en cours, programme
-//  modifié pas envoyé) demande confirmation : le lien revient en arrière tant que le coach n'a pas dit oui.
+//  modifié pas envoyé, plan diète pas enregistré) demande confirmation : le lien revient en arrière tant que le coach n'a pas dit oui.
 //  Connexion avec Apple (js/desk/apple.js) ou par code e-mail ; seul un compte coach validé (coach_state().is_coach) entre, et chaque RPC le revérifie
 //  sur le serveur. 30 min sans geste : déconnexion. Données relues au retour sur l'onglet (60 s au moins d'écart).
 // ═══════════════════════════════════════════════════════════
@@ -34,10 +35,12 @@ function deskRoute() {
   const m = /^#\/eleve\/([0-9a-f-]{1,64})(?:\/(bilans|programme|nutrition|messages)(?:\/([0-9a-z_-]{1,64}))?)?$/i.exec(h);
   if (m) {
     const tab = { bilans: 'checkins', programme: 'programme', nutrition: 'nutrition', messages: 'messages' }[m[2]] || 'weeks';
-    return { name: 'student', id: decodeURIComponent(m[1]), tab, request: tab === 'checkins' ? m[3] || null : null, part: tab === 'programme' ? m[3] || null : null };
+    return { name: 'student', id: decodeURIComponent(m[1]), tab, request: tab === 'checkins' ? m[3] || null : null, part: tab === 'programme' || tab === 'nutrition' ? m[3] || null : null };
   }
   const mm = /^#\/messages(?:\/([0-9a-f-]{1,64}))?$/i.exec(h);
   if (mm) return { name: 'messages', id: mm[1] ? decodeURIComponent(mm[1]) : null };
+  const dd = /^#\/plans-diete(?:\/([A-Za-z0-9_-]{1,64}))?$/.exec(h);
+  if (dd) return { name: 'diets', id: dd[1] || null };
   if (h === '#/reglages') return { name: 'settings' };
   if (h === '#/bilans') return { name: 'bilans' };
   if (h === '#/bilans-recus') return { name: 'received' };
@@ -70,7 +73,7 @@ function deskPaint(html, { focusMain = false } = {}) {
 // Compteurs de la barre latérale : bilans à répondre, modèles de bilan
 function deskCounts() {
   return { checkins: view.dash?.ckOv ? deskCkToAnswer(view.dash.ckOv, view.dash.rows.map(r => r.id)).length : null, templates: bl.setup ? bl.setup.templates.length : null,
-    unread: view.dash?.threads ? view.dash.rows.reduce((a, r) => a + (r.unread || 0), 0) : 0 };
+    unread: view.dash?.threads ? view.dash.rows.reduce((a, r) => a + (r.unread || 0), 0) : 0, diets: dt.acc ? deskDtPlanIds(dt.acc).length : null };
 }
 
 // ── Écrans ──────────────────────────────────────────────────
@@ -136,6 +139,7 @@ function deskRender(opts = {}) {
   if (route.name === 'messages') { deskPaint(frame('messages', deskMessagesHtml(route)), opts); return; }
   if (route.name === 'bilans') { deskPaint(frame('templates', deskBilansHtml()), opts); return; }
   if (route.name === 'received') { deskPaint(frame('checkins', deskReceivedHtml(view.dash)), opts); return; }
+  if (route.name === 'diets') { deskPaint(frame('diet', deskDtLibHtml(route)), opts); return; }
   deskPaint(frame('students', deskDashboardHtml(view.dash, ui)), opts);
 }
 
@@ -283,16 +287,18 @@ window.addEventListener('hashchange', async () => {
   const leavingReply = sameStudent(from) && sameStudent(from) !== sameStudent(to) && deskRvDirty();
   const progOf = h => (/^#\/eleve\/([0-9a-f-]+)\/programme/i.exec(h) || [])[1];
   const leavingProg = progOf(from) && progOf(from) !== progOf(to) && deskPgDirty();
-  if (desk.user && (leavingEditor || leavingReply || leavingProg)) {
+  const leavingDiet = deskDtRouteKey(from) && deskDtRouteKey(from) !== deskDtRouteKey(to) && deskDtDirty();
+  if (desk.user && (leavingEditor || leavingReply || leavingProg || leavingDiet)) {
     deskHashBack = true;
     history.replaceState(null, '', from);
     deskHashBack = false;
     // Plusieurs changements en cours (réponse ET programme) : chacun demandé, aucun perdu sans le dire
-    const ok = (!leavingEditor || await deskCkLeaveOk()) && (!leavingReply || await deskRvLeaveOk()) && (!leavingProg || await deskPgLeaveOk());
+    const ok = (!leavingEditor || await deskCkLeaveOk()) && (!leavingReply || await deskRvLeaveOk()) && (!leavingProg || await deskPgLeaveOk()) && (!leavingDiet || await deskDtLeaveOk());
     if (!ok) return;
     if (leavingEditor) deskCkSelect(bl.draft?.id || bl.sel);
     if (leavingReply) rv.drafts = {};
     if (leavingProg) deskPgReset();
+    if (leavingDiet) deskDtReset();
     history.replaceState(null, '', to);
   }
   deskHash = location.hash || '#/';
@@ -307,7 +313,7 @@ window.addEventListener('hashchange', async () => {
 });
 // Rendre la main à l'app hôte : chaque changement pas enregistré est confirmé d'abord
 async function deskLeaveAllOk() {
-  return (!deskCkDirty() || await deskCkLeaveOk()) && (!deskRvDirty() || await deskRvLeaveOk()) && (!deskPgDirty() || await deskPgLeaveOk());
+  return (!deskCkDirty() || await deskCkLeaveOk()) && (!deskRvDirty() || await deskRvLeaveOk()) && (!deskPgDirty() || await deskPgLeaveOk()) && (!deskDtDirty() || await deskDtLeaveOk());
 }
 // Onglets de la vague 4 : Messages (relecture régulière), Programme et Nutrition (lectures propres)
 function deskOpenTab(route) {
@@ -316,7 +322,8 @@ function deskOpenTab(route) {
   if (route.name === 'messages' || chatId) { deskChatStart(); if (chatId) deskChatOpen(chatId); else deskChatTick({ now: true }); }
   else deskChatStop();
   if (route.name === 'student' && route.tab === 'programme') deskPgOpen(route.id);
-  if (route.name === 'student' && route.tab === 'nutrition') deskNtOpen(route.id);
+  if (route.name === 'student' && route.tab === 'nutrition') { if (route.part) deskDtOpenStudent(route.id, route.part); else deskNtOpen(route.id); }
+  if (route.name === 'diets') deskDtOpenLib(route);
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && desk.user) { if (deskIdleFor() > DESK_IDLE_MS) deskEndSession(); else deskRefresh(); } });
 setInterval(() => { if (desk.user && deskIdleFor() > DESK_IDLE_MS) deskEndSession(); }, 60_000);

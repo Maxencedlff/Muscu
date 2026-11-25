@@ -240,6 +240,26 @@ COACH_WEB_V4_SEED = r"""
 """
 
 
+# Plans diète (docs/COACH_WEB.md, « Plans diète ») : après COACH_WEB_V4_SEED. Accord « Copier mes plans sur mon compte »
+# donné, un aliment perso (whey), Tom accepte aussi les plans de son coach (Karim non : envoi refusé pour lui).
+COACH_WEB_DIETE_SEED = r"""
+(() => {
+  const sb = window.__sb, co = sb.co, coach = window.__coachId, [lea, tom] = window.__students;
+  const doc = sb.docs[coach];
+  doc.dietConsent = { on: true, at: Date.parse('2026-11-10T10:00:00Z') };
+  doc.dietFoods = [{ id: 'wh1', name: 'Whey vanille', fam: 'v', per: { k: 380, p: 78, c: 6, f: 5 }, portion: { u: 'dose', pl: 'doses', g: 30 } }];
+  doc.dietPlans.d_seche.updatedAt = Date.parse('2026-11-12T10:00:00Z');
+  doc.dietPlans.d_masse.updatedAt = Date.parse('2026-11-02T10:00:00Z');
+  co.shares.push({ student: tom, coach, kind: 'diet', granted_at: new Date(Date.now() - 20 * 86400e3).toISOString() });
+})();
+"""
+
+# Réponse d'Open Food Facts pour un code-barres saisi (aucun réseau : route Playwright)
+OFF_PRODUCT = {'status': 1, 'product': {'product_name_fr': 'Skyr nature', 'brands': 'Exemple', 'quantity': '4 x 150 g',
+               'serving_size': '1 pot (150 g)', 'serving_quantity': 150,
+               'nutriments': {'energy-kcal_100g': 63, 'proteins_100g': 11, 'carbohydrates_100g': 4, 'fat_100g': 0.2, 'salt_100g': 0.1}}}
+
+
 class _Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -269,7 +289,7 @@ def launch(pw, engine):
     return getattr(pw, engine).launch(headless=True, args=args)
 
 
-def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake', checkins=False, v4=False, host=False, pre=None):
+def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, seed=True, login=True, fake_opts=None, apple='fake', checkins=False, v4=False, diete=False, host=False, pre=None):
     """Page de l'appli web du coach, horloge figée, faux serveur injecté, coach connecté (sauf login=False)."""
     ctx = browser.new_context(viewport={'width': width, 'height': height}, color_scheme=theme, locale='fr-FR',
                               timezone_id='Europe/Paris', has_touch=touch, device_scale_factor=1)
@@ -290,6 +310,8 @@ def open_desk(browser, url, *, width, height=900, theme='dark', touch=False, see
         page.add_init_script(COACH_WEB_CHECKINS_SEED)
     if seed and v4:
         page.add_init_script(COACH_WEB_V4_SEED)
+    if seed and diete:
+        page.add_init_script(COACH_WEB_DIETE_SEED)
     if pre:
         page.add_init_script(pre)   # état du faux serveur posé après les données (pannes, renommages)
     if host:

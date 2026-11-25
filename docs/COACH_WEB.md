@@ -26,6 +26,7 @@ coach-web/js/desk/review.js          vague 2 : onglet Bilans de la fiche, liste 
 coach-web/js/desk/chat-model.js, messages.js   vague 4 : Messages (#/messages, onglet Messages de la fiche)
 coach-web/js/desk/prog-model.js, programme.js  vague 4 : onglet Programme (éditeur des séances, envoi à un ou plusieurs)
 coach-web/js/desk/diet-model.js, nutrition.js  vague 4 : onglet Nutrition (plan envoyé, semaine cochée, envoi d'un plan)
+coach-web/js/desk/diet-edit-model.js, diet-editor.js  plans diète : liste (#/plans-diete), éditeur, recherche Ciqual, envoi
 coach-web/js/desk/main.js   routes, gestes, clavier, inactivité, confirmation avant de quitter, démarrage (deskStart)
 coach-web/vercel.json       en-têtes du futur déploiement (copié dans dist-coach/ par la construction)
 scripts/build-coach-web.mjs construction : dist-coach/ (npm run coach-web:build)
@@ -366,8 +367,8 @@ barre d'onglets du bas les garde aussi (« Reçus », « Mes bilans »).
 ## Vague 4 : Messages, Programme, Nutrition (maquettes 6-messages, 4-programme, 5-nutrition)
 
 Rien n'est déployé ; la migration `20261126010000_programmes_envoyes_coach.sql` est écrite, pas appliquée, et l'appli
-marche sans elle (voir « Serveur de la vague 4 »). Les cinq onglets de la fiche sont ouverts ; Planning, Mes programmes
-et Plans diète restent « bientôt » dans la barre latérale.
+marche sans elle (voir « Serveur de la vague 4 »). Les cinq onglets de la fiche sont ouverts ; Planning et Mes programmes
+restent « bientôt » dans la barre latérale (Plans diète ouvert le 25/11).
 
 ### Routes
 
@@ -456,11 +457,8 @@ et Plans diète restent « bientôt » dans la barre latérale.
   chiffre. Serveur sans le suivi de la diète : le plan seul.
 - **Envoi d'un plan** : un de mes plans du compte (`coachSendableDiets`, `coachDietPayload` extrait de `coachSendDiet` de
   l'app) ; refus du serveur si l'élève n'accepte pas les plans de son coach (« Ton élève doit d'abord accepter… »).
-- **Modifier un plan, recherche Ciqual : pas sur le web dans cette vague.** L'éditeur de plans de l'app
-  (`js/features/diet-editor.js`, jours entraînement / repos, portions, équivalences, base `data/foods.json`) est un écran
-  entier ; le refaire au clavier et à la souris est une vague à lui seul. Pour l'instant : on le modifie dans l'app
-  (Nutrition › Mes plans), puis on l'envoie d'ici. Les plans ne se lisent sur le compte qu'avec la synchro de la nutrition
-  acceptée dans l'app.
+- **Modifier un plan, recherche Ciqual** : depuis le 25/11, dans l'onglet (« Modifier ce plan », « Créer un plan ») et dans
+  « Plans diète » : voir la section « Plans diète » plus bas.
 
 ### Serveur de la vague 4 : `coach_student_programmes` (migration écrite, PAS appliquée)
 
@@ -497,6 +495,103 @@ charge en plus `accessors.js`, `goals.js` et `coach-diet.js`, tels quels.
   Signaler, brouillon depuis Nutrition, confirmation avant de quitter, envoi groupé (Tom sans les charges de Léa), envoi
   d'un de mes programmes, repli sans la migration, diète non partagée, hôte qui embarque la page.
 - `python3 tests/coach_web_captures.py <dossier>` capture aussi Messages, Programme (et un exercice déplié) et Nutrition.
+
+## Plans diète en grand écran (25/11, branche diete-web)
+
+Demande de Maxence : créer et modifier un plan diète sur le site, avec la recherche Ciqual (avant : lecture et envoi
+d'un plan existant seulement ; l'éditeur n'existait que dans l'app). Rien n'est publié.
+
+### Où
+| Route | Écran |
+|---|---|
+| `#/plans-diete` | Mes plans (du plus récemment modifié), « Créer un plan », « Dupliquer » ; Mes aliments (« 37 sur 200 », Retirer) |
+| `#/plans-diete/<plan>` | éditeur d'un de mes plans |
+| `#/eleve/<id>/nutrition/edit` | le plan reçu par l'élève (version de `coach_student_programmes`), dans l'éditeur |
+| `#/eleve/<id>/nutrition/new`, `…/nutrition/<plan>` | plan neuf, ou un de mes plans, pour cet élève |
+
+« Plans diète » est ouvert dans la barre latérale (nombre de plans) et dans la barre d'onglets (« Diète »).
+
+### Éditeur (js/desk/diet-editor.js ; logique : js/desk/diet-edit-model.js)
+- **Repas** : ajouter (nom en double refusé, sans casse ni accents ; 8 au plus), Options (renommer, consigne, Monter,
+  Descendre, Dupliquer, Copier vers d'autres jours, Masquer pour un repas de base ou Supprimer), **ordre par
+  glisser-déposer** à la poignée (Pointer Events : souris, doigt, stylet ; Échap annule) ou au clavier (flèches, Début,
+  Fin), annoncé (« Dîner déplacé en position 1 »). Repas masqués : « Réafficher ».
+- **Aliments** : quantité tapée dans la ligne, **en grammes ou à l'unité** (choix de l'unité dans la ligne : « œufs »,
+  « pots », passer de l'un à l'autre convertit, `dietQtyUnits`, `dietQtyValue`), **kcal et macros recalculées à chaque
+  frappe** (ligne, repas, total du jour face aux objectifs). « Équivalents » (`swapCandidates`, même règle et même liste
+  que l'app, quantité déjà calculée, écart de kcal), « Déplacer… » vers un autre repas, Retirer.
+- **Ajouter un aliment** (dialogue) : recherche dans la table Ciqual (`data/foods.json`, 266 Ko, **chargé à la première
+  ouverture d'un éditeur**, `loadFoods`) et Mes aliments, accents et majuscules ignorés (`searchFoods`), flèches haut et
+  bas puis Entrée ; étiquettes cru / cuit, alias (« Valeurs Ciqual : … ») ; quantité (Grammes | unité, − et +, total en
+  direct, rappel « Pesé cuit ? » de l'app, `foodCookTwin`) ; « Ajouter », ou « Ajouter et continuer » (Maj + Entrée)
+  pour enchaîner. « Créer « whey » » quand rien ne correspond pile (`foodSearchExact`).
+- **Aliment perso** : mêmes champs et mêmes règles que la feuille de l'app (`dietFoodFromForm`, extrait de
+  `js/features/diet-editor.js`), gardé dans Mes aliments (`dietKeepOwnFood` ; plein : ajouté au plan sans être gardé,
+  jamais le plus ancien retiré).
+- **Code-barres** : le scan reste sur l'iPhone ; ici on **tape les chiffres** (`normBarcode`, chiffre de contrôle). Code
+  déjà gardé : retrouvé sans réseau ; sinon Open Food Facts à la demande (`offLookup`, User-Agent « MDLF Training/1.0
+  (Web) », jamais d'extrait embarqué), attribution « © les contributeurs d'Open Food Facts, licence ODbL » sur la fiche
+  et au pied de l'éditeur, produit gardé comme un produit scanné (`dietSaveScanned`). Introuvable : « Créer
+  l'aliment » (code gardé). CSP : `connect-src` ajoute `https://world.openfoodfacts.org`, seul ajout.
+- **Objectifs du jour** : kcal, protéines, glucides, lipides, eau et sel en fourchette ; mêmes bornes et mêmes messages
+  que l'app (`dietTargetsFromForm`, extrait de la feuille de l'app ; pas de g/kg : le poids du coach ne vaut pas pour
+  ses élèves). Écart dit en clair (`dietTargetGap`), repère très bas (`dietLowKcal`), repère de l'OMS au-dessus de 5 g.
+- **Jours** : Tous les jours pareils, Entraînement et repos, Semaine (`dietSetDayMode`, copies du jour 1 aux mêmes
+  identifiants) ; jour choisi en tête, type de chaque jour de la semaine, « Copier ce jour vers… », « Mettre pareil sur
+  les 7 jours », « Copier vers d'autres jours… » d'un repas.
+- **Annuler / Rétablir** (boutons, Ctrl ou ⌘ + Z, Maj + Z ou Ctrl + Y ; dans un champ, l'annulation du navigateur) :
+  80 gestes, la frappe dans un même champ n'en fait qu'un. Ctrl ou ⌘ + S enregistre.
+- Barre collée en bas : état, Annuler, Rétablir, Envoyer à plusieurs élèves, Envoyer à <élève> (onglet de l'élève),
+  Enregistrer. Quitter l'éditeur ou fermer l'onglet avec des changements : confirmation.
+- Tactile : cibles de 44 px, rien au survol ; mise en page 2 colonnes à partir de 1240 px (repas | bilan, objectifs,
+  consigne), une colonne en dessous, lignes d'aliments sur deux rangées sous 900 px.
+
+### Où vivent les plans : sur le compte, avec l'accord
+- Mes plans et Mes aliments sont ceux que l'iPhone copie sur le compte (`profiles.doc` : `dietPlans`, `dietFoods`,
+  `dietFoodsGone`), **seulement avec l'accord « Copier mes plans sur mon compte »** (`dietConsent`, docs/NUTRITION_V1.md,
+  « Accords »). Sans lui : l'écran le dit, rien n'est écrit, « Enregistrer » disparaît ; on peut encore composer et
+  envoyer (le plan envoyé vit côté élève, avec SON accord). L'accord se donne dans l'app, jamais d'ici.
+- **Écriture** (`deskWriteDiet`, js/desk/api.js) : une opération (`deskDtOpSave`, `deskDtOpArchive`, `deskDtOpKeepFood`,
+  `deskDtOpKeepScanned`, `deskDtOpRemoveFood`) rejouée sur le document relu ; seules les trois clés de la diète changent ;
+  mise à jour **conditionnée par `updated_at`** (posé par le serveur) : si l'iPhone a écrit entre-temps, rien n'est
+  écrasé, on relit et on rejoue (3 essais, sinon « réessaie »). Plafonds de l'app : 100 plans vivants, 200 aliments,
+  900 Ko de profil (au-delà l'iPhone n'enverrait plus ses plans).
+- **Fusion côté iPhone** (js/data/sync.js, `mergeDietProfile`) : même plan des deux côtés et daté des deux côtés, le
+  plus récemment modifié (`updatedAt`) gagne. Sans cela, un iPhone qui avait changé autre chose remettait son ancienne
+  version d'un plan modifié sur le site. À égalité ou sans date : la règle d'avant.
+- Limite connue : une écriture du site faite exactement pendant la synchro de l'iPhone (entre sa lecture et son envoi
+  du profil, une fraction de seconde) peut être remplacée par l'envoi de l'iPhone, comme entre deux iPhone.
+
+### Envoi
+- Format **exact** de l'app : `coachDietPayload` sur le plan du brouillon (même nettoyage, `dietToSent`, même limite de
+  200 Ko, même `prog_id` `diet_<plan>`) ; test unitaire : octets identiques à l'envoi de l'app. Un plan envoyé est
+  d'abord enregistré dans mes plans (avec l'accord).
+- À un élève (onglet Nutrition) ou à plusieurs (cases à cocher, limite des 24 h de l'app, `coachSendQueue`) ; la
+  confirmation nomme les jours loin de leur objectif. Élève qui n'accepte pas les plans de son coach : refus du
+  serveur, nommé dans le résultat.
+
+### Serveur : rien à changer
+Vérifié : `coach_send_programme` (plans diète déjà acceptés, accord `diet` de l'élève vérifié), `coach_student_programmes`
+(migration de la vague 4, pas encore appliquée ; sans elle, « Modifier ce plan » part de mon plan du compte) et la RLS
+de `profiles` (chacun lit et met à jour sa propre ligne, `updated_at` posé par le déclencheur `profiles_touch`)
+suffisent. **Aucune migration.**
+
+### Changements dans le code partagé de l'app (sw.js en ppl-v241)
+Sans changement de comportement de l'app, sauf la fusion des plans datés : `dietQtyUnits`, `dietQtyLabel`, `dietQtyInit`,
+`dietQtyValue` passés de `js/features/diet-qty.js` à `js/data/food-portions.js` ; `foodName` de `nutrition-ui.js` à
+`js/data/food-swap.js` ; `dietSwapItem` (food-swap.js), `dietFoodFromForm`, `dietKeepOwnFood`, `dietTargetsFromForm`
+(nutrition.js) extraits des feuilles de l'éditeur de l'app, qui les appelle ; `loadFoods(url)` (adresse de la base vue
+de la page) ; `mergeDietProfile` (plan le plus récent). Le site charge en plus `diet-estimate.js`, `food-swap.js`,
+`food-scan.js`, tels quels. La construction (`npm run coach-web:build`) copie `data/foods.json` dans `dist-coach/data/`.
+
+### Tests
+- `tests/unit/coach-web-diete.mjs` : recherche (accents, vitesse), quantités et unités, format identique à l'app, repas,
+  ordre, annuler / rétablir, équivalences (pomme de terre → riz, 175 g), jours, objectifs et aliment perso (mêmes
+  messages), opérations sur le compte (accord, autres clés intactes, plafonds), écriture concurrente, fusion de
+  l'iPhone, échappement.
+- `python3 tests/test_coach_web_diete.py` (`PPL_ENGINES=chromium` pour un moteur ; job `coach-web` de tests.yml) :
+  3 moteurs × 1440, 1180, 820 px × sombre, clair, puis les parcours (voir l'en-tête du fichier).
+- `python3 tests/coach_web_captures_diete.py <dossier>` : 9 écrans, planches sombre et clair côte à côte.
 
 ## Embarquer dans l'app (iPad et tablettes)
 

@@ -51,7 +51,7 @@ const DESK_ICONS = {
 };
 function deskIcon(name, cls = '') { return `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${DESK_ICONS[name] || ''}</svg>`; }
 
-// Navigation : Élèves, Messages, Bilans reçus, Mes bilans et Réglages sont ouverts (vagues 1, 2 et 4), le reste est annoncé « bientôt »
+// Navigation : Élèves, Messages, Bilans reçus, Mes bilans, Plans diète et Réglages sont ouverts, le reste est annoncé « bientôt »
 const DESK_NAV = [
   { id: 'students', label: 'Élèves', icon: 'students', href: '#/' },
   { id: 'messages', label: 'Messages', icon: 'messages', href: '#/messages' },
@@ -59,7 +59,7 @@ const DESK_NAV = [
   { id: 'templates', label: 'Mes bilans', icon: 'templates', href: '#/bilans' },
   { id: 'planning', label: 'Planning', icon: 'planning', soon: true, wide: true },
   { id: 'programmes', label: 'Mes programmes', short: 'Programmes', icon: 'programmes', soon: true },
-  { id: 'diet', label: 'Plans diète', icon: 'diet', soon: true, wide: true },
+  { id: 'diet', label: 'Plans diète', short: 'Diète', icon: 'diet', href: '#/plans-diete' },
 ];
 
 function deskNavItem(n, on, { badge = 0, count = null, bar = false } = {}) {
@@ -72,7 +72,7 @@ function deskNavItem(n, on, { badge = 0, count = null, bar = false } = {}) {
 // Cadre : barre latérale (900 px et plus) ou barre d'onglets en bas (tablette en portrait), puis le contenu
 // counts : { checkins (bilans à répondre), templates (modèles), unread (messages non lus) }, null quand le serveur ne les donne pas
 function deskFrame({ active, main, students = null, counts = null }) {
-  const cnt = { students, checkins: counts?.checkins ?? null, templates: counts?.templates ?? null };
+  const cnt = { students, checkins: counts?.checkins ?? null, templates: counts?.templates ?? null, diet: counts?.diets ?? null };
   const badges = { messages: counts?.unread || 0 };
   const items = DESK_NAV.map(n => deskNavItem(n, n.id === active, { count: cnt[n.id] ?? null, badge: badges[n.id] || 0 })).join('');
   const barItems = (deskHost?.exit ? `<button type="button" class="nav-i" data-action="host-exit">${deskIcon('back')}<span class="lbl">L'appli</span></button>` : '')

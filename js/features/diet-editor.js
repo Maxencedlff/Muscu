@@ -335,24 +335,14 @@ async function dietNewFood(name = '', { code = null } = {}) {
     </div>`;
   return sheet({ title: 'Nouvel aliment', confirm: 'OK', body, focus: '#dietFoodName', onConfirm: panel => {
     const v = id => $(id, panel).value;
-    const nm = dietCutName(v('#dietFoodName'));
-    const k0 = num(v('#dietFoodK'), 0, 900), p = num(v('#dietFoodP') || '0', 0, 100), c = num(v('#dietFoodC') || '0', 0, 100), f = num(v('#dietFoodF') || '0', 0, 100);
-    // Message au bas d'une longue feuille : amené à l'écran (sur iPhone SE il restait sous le pli)
-    const err = msg => { const e = $('#dietFoodErr', panel); e.textContent = msg; e.scrollIntoView({ block: 'nearest' }); return false; };
+    // Règles de l'aliment perso : js/data/nutrition.js (dietFoodFromForm), partagées avec l'appli web du coach
+    const r = dietFoodFromForm({ name: v('#dietFoodName'), k: v('#dietFoodK'), p: v('#dietFoodP'), c: v('#dietFoodC'), f: v('#dietFoodF'),
+      portion: v('#dietFoodPortion'), fam: $('#dietFoodFam', panel)?.value }, { code });
     // Sans nom (invisibles seuls compris) : le champ Nom revient à l'écran, entouré de rouge, « Entre un nom » dessous
-    if (!nm || !hasVisible(nm)) { flagInvalid($('#dietFoodName', panel), 'Entre un nom'); return false; }
-    if (p === null || c === null || f === null) return err('Protéines, glucides et lipides : de 0 à 100 g.');
-    // Énergie vide : calculée comme sur une étiquette (4, 4 et 9 kcal par gramme)
-    const k = k0 ?? (v('#dietFoodK').trim() ? null : Math.round(4 * p + 4 * c + 9 * f));
-    if (k === null) return err('Énergie : de 0 à 900 kcal.');
-    const per = cleanDietPer({ k, p, c, f });
-    if (!per) return err('Plus de 100 g de macros pour 100 g : vérifie les valeurs.');
-    const pRaw = v('#dietFoodPortion').trim(), pg = pRaw ? num(pRaw, 1, DIET_G_MAX) : null;
-    if (pRaw && pg === null) return err(`Une portion : de 1 à ${fmtNum(DIET_G_MAX)} g.`);
-    const famPick = $('#dietFoodFam', panel)?.value;
-    const food = { id: uid(), name: nm, fam: DIET_FAMS.includes(famPick) ? famPick : dietFamOf(per), per, ...(code ? { code } : {}),
-      ...(pg ? { portion: { u: 'portion', pl: 'portions', g: pg } } : {}) };
-    return { made: food };
+    if (r.field === 'name') { flagInvalid($('#dietFoodName', panel), r.err); return false; }
+    // Message au bas d'une longue feuille : amené à l'écran (sur iPhone SE il restait sous le pli)
+    if (r.err) { const e = $('#dietFoodErr', panel); e.textContent = r.err; e.scrollIntoView({ block: 'nearest' }); return false; }
+    return { made: r.food };
   } }).then(r => (r?.made ? dietKeepFood(r.made) : null));
 }
 // Garde un aliment créé dans Mes aliments. Plein (200) : jamais le plus ancien retiré en silence (vague 4) ; la
@@ -364,7 +354,7 @@ async function dietKeepFood(food) {
     if (v === 'manage') dietOpenFoods();
     return v === 'once' ? { food: dietOwnPick(food) } : null;
   }
-  data.dietFoods = cleanDietFoods([food, ...(data.dietFoods || []).filter(x => normName(x.name) !== normName(food.name) && !(food.code && x.code === food.code))]);
+  dietKeepOwnFood(data, food);
   return { food: dietOwnPick(food) };
 }
 
@@ -502,37 +492,17 @@ async function dietTargetsSheet(plan) {
   // 144 g, pas 142 : l'arrondi du ratio ne change jamais un objectif en silence)
   let perKg = !!kg && data.dietProteinPerKg === true, proposal = null, pExact = t.p ?? null;
   const p = sheet({ title: 'Objectifs du jour', confirm: 'OK', body, onConfirm: panel => {
-    const out = {};
-    for (const k of DIET_TARGET_KEYS) {
-      const raw = $(`#dietT_${k}`, panel).value.replace(/[\s\u202f\u00a0]/g, '');   // « 2 900 » : espace des milliers
-      if (!raw) continue;
-      const v = k === 'p' && pExact != null ? pExact : k === 'p' && perKg ? dietProteinGrams(raw, kg) : num(raw, 1, DIET_TARGET_MAX[k]);
-      if (v === null || v > DIET_TARGET_MAX[k]) {
-        $('#dietTErr', panel).textContent = k === 'p' && perKg ? `Protéines : de ${fmtNum(DIET_PKG_BOUNDS[0], 1)} à ${fmtNum(DIET_PKG_BOUNDS[1], 1)} g/kg.`
-          : `${DIET_T_ROWS.find(r => r[0] === k)[1]} : de 1 à ${fmtNum(DIET_TARGET_MAX[k])}.`;
-        $(`#dietT_${k}`, panel).focus();
-        return false;
-      }
-      out[k] = Math.round(v);
+    // Règles de saisie : js/data/nutrition.js (dietTargetsFromForm), partagées avec l'appli web du coach
+    const val = q => { const x = $(q, panel); return x ? x.value : undefined; };
+    const r = dietTargetsFromForm({ kcal: val('#dietT_kcal'), p: val('#dietT_p'), c: val('#dietT_c'), f: val('#dietT_f'),
+      waterMin: val('#dietT_waterMin'), waterMax: val('#dietT_waterMax'), saltMin: val('#dietT_saltMin'), saltMax: val('#dietT_saltMax') }, { perKg, kg, pExact });
+    if (r.err) {
+      $('#dietTErr', panel).textContent = r.err;
+      $(`#dietT_${r.field}`, panel)?.focus();
+      return false;
     }
-    // Eau et sel : « de … à … » ; un seul champ rempli vaut objectif simple (eau) ou plafond / plancher (sel)
-    const pair = (k, lo, hi, digits) => {
-      const a = $(`#dietT_${k}Min`, panel), b = $(`#dietT_${k}Max`, panel);
-      if (!a || !b) return { ok: true };
-      const ra = a.value.trim(), rb = b.value.trim(), va = ra ? num(ra, lo, hi) : null, vb = rb ? num(rb, lo, hi) : null;
-      const name = k === 'water' ? 'Eau' : 'Sel', unit = k === 'water' ? 'L' : 'g';
-      if ((ra && va === null) || (rb && vb === null)) { $('#dietTErr', panel).textContent = `${name} : de ${fmtNum(lo, digits)} à ${fmtNum(hi, digits)} ${unit}.`; (ra && va === null ? a : b).focus(); return { ok: false }; }
-      if (va !== null && vb !== null && va >= vb) { $('#dietTErr', panel).textContent = `${name} : la première valeur doit être plus petite que la seconde.`; a.focus(); return { ok: false }; }
-      return { ok: true, va, vb };
-    };
-    const w = pair('water', 0.5, 6, 1), sl = pair('salt', DIET_SALT_T[0], DIET_SALT_T[1], 1);
-    if (!w.ok || !sl.ok) return false;
-    if (w.vb !== null && w.vb !== undefined) { out.water = w.vb; if (w.va !== null) out.waterMin = w.va; }
-    else if (w.va !== null && w.va !== undefined) out.water = w.va;
-    if (sl.vb != null) out.saltMax = sl.vb;
-    if (sl.va != null) out.saltMin = sl.va;
     if (kg) { if (perKg) data.dietProteinPerKg = true; else delete data.dietProteinPerKg; }
-    return { targets: cleanDietTargets(out) };
+    return { targets: r.targets };
   } });
   const root = [...document.querySelectorAll('.sheet-root')].pop();
   if (!root) return p;
@@ -869,7 +839,7 @@ registerActions({
       // Équivalent dans le plan lui-même (le coach change l'aliment pour tous les jours où il est) ; Annuler le remet
       const c = await dietPickSwap(it);
       if (!c) return;
-      const nu = cleanDietItem({ name: c.food.name, food: c.food.code, fam: c.food.fam, g: c.g, per: c.food.per, src: c.food.code ? 'ciqual-2025' : 'perso', id: it.id });
+      const nu = dietSwapItem(it, c);
       const j = meal.items.indexOf(it);
       if (!nu || j < 0) return;
       meal.items[j] = nu;

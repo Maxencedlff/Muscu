@@ -17,22 +17,8 @@ const QTY_G_STEP = 10;   // pas des boutons − et + en grammes
 // Unités proposées pour cet aliment : celles de la table ou du paquet, plus l'unité déjà choisie (aliment du plan)
 // Sous 10 g, une décimale (« 2,9 g » comme sur le paquet, pas « 2 g ») ; au-delà, l'entier
 const qtyN = v => (v < 10 ? fmtNum(Math.round(v * 10) / 10, 1) : dietN(v));
-function dietQtyUnits(food, por = null) {
-  const units = foodPortions(food);
-  if (por && !units.some(u => u.u === por.u)) units.unshift({ u: por.u, pl: por.pl, g: por.g });
-  return units.slice(0, 2);
-}
-const dietQtyLabel = u => { const s = u.s || u.u; return s.charAt(0).toUpperCase() + s.slice(1); };
-
-// État de départ : unité déjà choisie, sinon grammes si une quantité est donnée, sinon 1 unité
-function dietQtyInit(units, init) {
-  if (init?.por) {
-    const i = units.findIndex(u => u.u === init.por.u);
-    if (i >= 0) return { mode: i, v: init.por.n };
-  }
-  if (init?.g != null || !units.length) return { mode: -1, v: init?.g ?? 100 };
-  return { mode: 0, v: 1 };
-}
+// dietQtyUnits, dietQtyLabel, dietQtyInit et dietQtyValue (logique pure, partagée avec l'appli web du coach) :
+// js/data/food-portions.js
 
 // HTML du contrôle. units : dietQtyUnits ; st : dietQtyInit
 function dietQtyHtml(units, st) {
@@ -55,19 +41,6 @@ function dietQtyHtml(units, st) {
       <p class="qty__hint" id="qtyHint"></p>
       <p class="diet-form__err" id="qtyErr" role="alert"></p>
     </div>`;
-}
-
-// Lecture du champ : { g, por } ou { err } (message)
-function dietQtyValue(units, mode, raw) {
-  if (mode < 0) {
-    const g = num(raw, 1, DIET_G_MAX);
-    return g === null ? { err: `Quantité : de 1 à ${fmtNum(DIET_G_MAX)} g.` } : { g: Math.round(g), por: null };
-  }
-  const u = units[mode], n0 = num(raw, 0.5, PORTION_N_MAX);
-  if (n0 === null) return { err: `De ${u.half ? '½' : '1'} à ${PORTION_N_MAX} ${u.pl}.` };
-  const n = portionClampN(n0, u), g = portionGrams(n, u);
-  if (g > DIET_G_MAX) return { err: `${fmtNum(DIET_G_MAX)} g au plus.` };
-  return { g, por: { n, u: u.u, pl: u.pl, g: u.g } };
 }
 
 // Branche le contrôle placé dans root. per : valeurs pour 100 g. onChange(valeur) à chaque changement.

@@ -134,7 +134,7 @@ jobs:
     # Appli web du coach (docs/COACH_WEB.md) : trois moteurs, trois largeurs, deux thèmes, parcours au clavier, serveur
     # d'avant la migration 20261124010000 (repli), refus, déconnexion. Même conteneur officiel que e2e ; ~4 min.
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 28
     container:
       image: mcr.microsoft.com/playwright/python:v1.62.0-noble@sha256:aa81288e738725378becba5b3e06cb0f3a7f012a610e87e8d767a090ea3f740d
       options: --ipc=host
@@ -176,6 +176,11 @@ jobs:
           PPL_ENGINES: ${{ matrix.engine }}
           HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_v4.py
+      - name: Plans diète (éditeur, recherche Ciqual, envoi), ${{ matrix.engine }}
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          HOME: /root
+        run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_diete.py
       - name: Captures en cas d'échec
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

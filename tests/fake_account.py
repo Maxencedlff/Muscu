@@ -279,13 +279,14 @@ FAKE_ACCOUNT = r"""
 
   // Requêtes PostgREST : enchaînement libre, résultat calculé à l'await
   const from = table => {
-    const q = { table, op: 'select', patch: null, single: false };
+    const q = { table, op: 'select', patch: null, single: false, eqs: {} };
     const chain = new Proxy({}, {
       get: (_, m) => {
         if (m === 'then') return (res, rej) => Promise.resolve(execute(q)).then(res, rej);
         return (...args) => {
           if (m === 'insert' || m === 'update' || m === 'upsert') { q.op = m; q.patch = args[0]; }
           if (m === 'maybeSingle' || m === 'single') q.single = m;
+          if (m === 'eq') q.eqs[args[0]] = args[1];
           return chain;
         };
       },
@@ -302,8 +303,23 @@ FAKE_ACCOUNT = r"""
       return { data: q.op === 'select' ? (sb.remoteRows || []) : null, error: null };
     }
     // __sb.docs[id] : document de profil synchronisé (programmes, plans diète) lu par l'appli web du coach
-    if (q.table === 'profiles') return q.op === 'select' ? { data: sb.docs?.[id] ? { doc: JSON.parse(JSON.stringify(sb.docs[id])), updated_at: new Date().toISOString() } : null, error: null }
-      : { data: { updated_at: new Date().toISOString() }, error: null };
+    // updated_at : estampille du document (sb.docAt), changée à chaque écriture ; update conditionné par .eq('updated_at') :
+    // aucune ligne rendue si l'estampille a changé (écriture concurrente simulée : sb.fail.docConflict, nombre d'échecs)
+    if (q.table === 'profiles') {
+      sb.docAt ||= {}; sb.docSeq ||= 0;
+      const stamp = () => sb.docAt[id] || (sb.docAt[id] = '2026-11-20T10:00:00.000000+00:00');
+      if (q.op === 'select') return { data: sb.docs?.[id] ? { doc: JSON.parse(JSON.stringify(sb.docs[id])), updated_at: stamp() } : null, error: null };
+      if (q.op === 'update') {
+        const cur = stamp();
+        if (sb.fail.docConflict > 0) { sb.fail.docConflict--; sb.docAt[id] = `2026-11-20T10:00:${String(++sb.docSeq).padStart(2, '0')}.000000+00:00`; return { data: [], error: null }; }
+        if (q.eqs.updated_at !== undefined && q.eqs.updated_at !== cur) return { data: [], error: null };
+        (sb.docs ||= {})[id] = JSON.parse(JSON.stringify(q.patch.doc));
+        (sb.docWrites ||= []).push(JSON.parse(JSON.stringify(q.patch.doc)));
+        sb.docAt[id] = `2026-11-21T10:00:${String(++sb.docSeq).padStart(2, '0')}.000000+00:00`;
+        return { data: [{ updated_at: sb.docAt[id] }], error: null };
+      }
+      return { data: { updated_at: new Date().toISOString() }, error: null };
+    }
     if (q.table === 'user_profiles') {
       const row = sb.profiles[id];
       if (q.op === 'select') return { data: row || null, error: null };

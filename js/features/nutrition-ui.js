@@ -20,9 +20,7 @@ const DIET_MACROS = [
 ];
 
 const dietN = v => fmtNum(Math.round(v));
-// Nom d'aliment à l'écran : « Oeuf dur » (Ciqual) → « Œuf dur », « boeuf » → « bœuf ». Affichage seulement,
-// les données gardent le nom d'origine (recherche, synchro)
-const foodName = n => String(n ?? '').replace(/\b([OoBb]?)([Oo])e(ufs?)\b/g, (m, b, o, r) => b + (o === 'O' ? 'Œ' : 'œ') + r);
+// foodName (« Oeuf dur » → « Œuf dur » à l'écran) : js/data/food-swap.js, partagé avec l'appli web du coach
 const elideName = n => (n.length > 60 ? n.slice(0, 58) + '…' : n);
 // Macros abrégées des petits espaces : « Prot. 45 · Gluc. 70 · Lip. 15 » (avant le 17/11, « P 45 · G 70 · L 15 » : des
 // lettres seules qu'un débutant ne lisait pas, regard neuf du 16/11). Abréviation et chiffre insécables (le « 1 » ne

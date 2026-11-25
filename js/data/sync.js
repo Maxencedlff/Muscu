@@ -363,6 +363,15 @@ function mergeDietProfile(d, local, remoteDoc, remoteFirst) {
   const lp = isObj(local.dietPlans) ? local.dietPlans : null;
   const rp = take && isObj(remoteDoc.dietPlans) ? cleanDietPlans(remoteDoc.dietPlans) : null;
   const plans = lp && rp ? (remoteFirst ? { ...lp, ...rp } : { ...rp, ...lp }) : lp || rp || undefined;
+  // Même plan des deux côtés, daté des deux côtés : le plus récemment modifié gagne (updatedAt, posé à chaque
+  // modification). Un plan modifié sur l'appli web du coach (docs/COACH_WEB.md, « Plans diète ») n'est donc pas écrasé
+  // par l'ancienne version d'un iPhone qui a changé autre chose entre-temps ; à égalité ou sans date, la règle d'avant
+  if (lp && rp && plans) {
+    for (const id of Object.keys(rp)) {
+      const a = Number(lp[id]?.updatedAt), b = Number(rp[id]?.updatedAt);
+      if (Number.isFinite(a) && Number.isFinite(b) && a !== b) plans[id] = b > a ? rp[id] : lp[id];
+    }
+  }
   // Appareil resté sur une version d'avant les jours du plan : il renvoie le plan sans days. Le plan reçu sans days
   // garde ceux du plan local au même identifiant (audit du 19/11 : sinon un vieil appareil efface la semaine)
   if (lp && rp && plans) for (const id of Object.keys(rp)) if (plans[id] === rp[id] && !rp[id].days && lp[id]?.days) plans[id] = { ...rp[id], days: lp[id].days };

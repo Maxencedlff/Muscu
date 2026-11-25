@@ -1,6 +1,8 @@
 /* MDLF Coach sur ordinateur (docs/COACH_WEB.md), d'après la maquette du 24/11.
    Règles de Maxence : SF Pro ou la pile système ; listes groupées façon iOS ; noir pur en sombre ; un seul orange en
-   accent (#FF7A1A), jamais en aplat sous un texte noir ; muscles en rouge ; aucun dégradé, aucune lueur, aucun verre,
+   accent, l'« orange brique » de l'app (css/theme-sobre.css, js/data/design.js, publié le 25/11) : aplat #B8460F à
+   texte blanc (5,4:1), liens et anneaux #F27A45 en sombre, #A04E00 en clair ; jamais de texte noir sur un aplat
+   orange ; muscles en rouge ; aucun dégradé, aucune lueur, aucun verre,
    aucune ombre de carte, pas de majuscules espacées. Thème du système (prefers-color-scheme).
    Cibles de 44 px au moins, rien au survol seul (le survol ne fait qu'éclaircir), focus toujours visible. */
 
@@ -9,7 +11,7 @@
   --bg: #F2F2F7; --cell: #FFFFFF; --cell2: #F2F2F7; --cell3: #E5E5EA;
   --label: #000000; --label2: rgba(60,60,67,.78); --label3: rgba(60,60,67,.55);
   --sep: rgba(60,60,67,.2); --fill: rgba(120,120,128,.12); --fill2: rgba(120,120,128,.2); --seg-on: #FFFFFF;
-  --accent: #FF7A1A; --accent-text: #A85400; --accent-tint: rgba(255,122,26,.14);
+  --accent: #B8460F; --accent-text: #A04E00; --accent-tint: rgba(184,70,15,.12); --accent-fill: #B8460F; --on-accent: #FFFFFF;
   --green: #34C759; --green-text: #1F7A35; --badge: #D70015; --gold: #A86F00;
   --heat: #FF453A;
   --font: "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -23,7 +25,7 @@
     --bg: #000000; --cell: #1C1C1E; --cell2: #2C2C2E; --cell3: #3A3A3C;
     --label: #FFFFFF; --label2: rgba(235,235,245,.66); --label3: rgba(235,235,245,.45);
     --sep: rgba(84,84,88,.6); --fill: rgba(120,120,128,.24); --fill2: rgba(120,120,128,.36); --seg-on: #636366;
-    --accent-text: #FF8A33; --accent-tint: rgba(255,122,26,.18);
+    --accent: #F27A45; --accent-text: #F27A45; --accent-tint: rgba(242,122,69,.16);
     --green: #30D158; --green-text: #30D158; --gold: #FFD60A;
   }
 }
@@ -79,6 +81,7 @@ svg.i.xs { width: 14px; height: 14px; }
 /* ── Boutons ── */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; border-radius: 10px; padding: 10px 16px; font-weight: 600; font-size: 15px; background: var(--fill); white-space: nowrap; }
 .btn.tint { background: var(--accent-tint); color: var(--accent-text); }
+.btn.fill { background: var(--accent-fill); color: var(--on-accent); }
 .btn.link { background: none; color: var(--accent-text); padding: 10px 14px; font-weight: 500; }
 .btn.lg { min-height: 50px; font-size: 16px; }
 .btn.wide { width: 100%; }
@@ -586,3 +589,102 @@ svg.bar { display: block; width: 100%; height: 6px; margin-top: 7px; }
 .pg-set { grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
 .pg-set .seg { flex-wrap: nowrap; }
 .pg-set .sel, .pg-set .sel select { width: 100%; }
+
+/* ── Plans diète : liste, éditeur (repas | bilan et objectifs), dialogues de recherche et d'équivalents ── */
+.cols.dtl { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+.dt-pl { gap: 6px; }
+.dt-pl-a { display: block; min-height: 44px; padding: 2px 0; }
+.dt-pl-a b, .dt-foods b { font-weight: 600; }
+.dt-note { display: flex; gap: 8px; align-items: flex-start; background: var(--cell); border-radius: 12px; padding: 12px 14px; color: var(--label2); font-size: 14px; line-height: 1.45; margin: 0 0 16px; }
+.dt-note svg { margin-top: 1px; color: var(--label2); }
+.gblock .dt-note { margin: 10px 0 0; }
+.dt-src { margin-top: 22px; max-width: 980px; }
+.dt-head { margin-bottom: 10px; }
+.dt-name { font: 700 24px/1.2 var(--font-d); min-height: 48px; max-width: 640px; width: 100%; background: transparent; border-color: transparent; padding: 0 10px; margin-left: -10px; }
+.dt-name:hover { background: var(--fill); }
+.dt-name:focus { background: var(--cell); }
+.dt-modes { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.dt-lab { color: var(--label2); font-size: 14px; }
+.dt-days { display: flex; width: 100%; margin-bottom: 10px; flex-wrap: nowrap; overflow-x: auto; }
+.dt-days button { flex: 1 1 0; flex-direction: column; gap: 0; min-width: 72px; padding: 6px 8px; line-height: 1.25; }
+.dt-days button em { font-style: normal; color: var(--label2); font-size: 12.5px; font-weight: 500; }
+.dt-days .tag { margin-top: 2px; font-size: 11px; }
+.dt-daytools { margin-bottom: 14px; }
+.cols.dt { grid-template-columns: minmax(0, 1fr) 340px; }
+.dt-meals { display: flex; flex-direction: column; gap: 18px; }
+.dt-meal { position: relative; }
+.dt-meal.drag { z-index: 2; opacity: .92; }
+.dt-meal.drag .dt-mh { background: var(--cell3); border-radius: 12px; }
+.dt-meals > li.drop-before::after, .dt-meals > li.drop-after::after { content: ""; position: absolute; left: 14px; right: 14px; height: 3px; border-radius: 2px; background: var(--accent); z-index: 3; }
+.dt-meals > li.drop-before::after { top: -10px; }
+.dt-meals > li.drop-after::after { bottom: -10px; }
+.dt-mh { display: flex; align-items: center; gap: 6px; padding: 0 0 6px; }
+.dt-grip { margin-left: -10px; }
+.dt-meal.drag .dt-grip { cursor: grabbing; }
+.dt-mt { font: 600 17px/1.25 var(--font-d); }
+.dt-mh .t2 { color: var(--label2); font-size: 13.5px; }
+.dt-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 18px; background: var(--cell); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+.dt-opts .ck-acts { grid-column: 1 / -1; }
+.dt-ta, .fld.sm textarea { width: 100%; min-height: 64px; border: 1.5px solid transparent; border-radius: 10px; background: var(--fill); font: inherit; font-size: 16px; color: var(--label); padding: 10px 12px; resize: vertical; }
+.dt-ta:focus, .fld.sm textarea:focus { border-color: var(--accent); outline: none; }
+.dt-side .dt-ta { background: var(--cell); }
+.dt-it { position: relative; display: grid; grid-template-columns: minmax(150px, 1fr) 156px 104px 262px; gap: 8px 14px; align-items: center; padding: 8px 14px; min-height: 56px; }
+li + li > .dt-it::before, .dt-items > li + li::before { content: ""; position: absolute; top: 0; right: 0; left: 14px; border-top: .5px solid var(--sep); }
+.dt-items > li { position: relative; }
+.dt-in { min-width: 0; }
+.dt-in b { font-weight: 600; overflow-wrap: anywhere; }
+.dt-in small, .dt-k small { display: block; color: var(--label2); font-size: 12.5px; }
+.dt-q { display: flex; align-items: center; gap: 6px; }
+.dt-k { text-align: right; }
+.dt-k b { font-weight: 600; }
+.dt-a { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
+.dt-a .btn.link { padding: 10px 8px; }
+.dt-a .sel select { width: 128px; text-overflow: ellipsis; background: transparent; color: var(--accent-text); font-size: 15px; padding-right: 26px; }
+.dt-a .sel svg { color: var(--accent-text); }
+.btn.link.danger { background: none; color: var(--badge); }
+.dt-add { min-height: 48px; }
+.dt-addmeal { margin-top: 18px; }
+.dt-tg { padding: 4px 0; }
+.dt-tf { display: flex; align-items: center; gap: 8px; padding: 6px 14px; min-height: 52px; position: relative; }
+.dt-tf + .dt-tf::before { content: ""; position: absolute; top: 0; right: 0; left: 14px; border-top: .5px solid var(--sep); }
+.dt-tf > span:first-child { flex: 1; color: var(--label); }
+.dt-tf .in { width: 84px; }
+.dt-range .in { width: 64px; }
+.dt-tf .muted { min-width: 26px; }
+.dt-side .gblock .btn.link { margin-top: 4px; padding-left: 14px; }
+.in[aria-invalid="true"] { border-color: var(--badge); }
+
+/* Dialogues de l'éditeur : plus larges, liste qui défile seule */
+dialog.dt-dlg { width: min(640px, calc(100vw - 32px)); }
+.dt-dlg .search { width: 100%; max-width: none; flex: none; margin-bottom: 10px; }
+.dt-dlg .dlg-p { margin-bottom: 10px; }
+.dt-res .dt-list, .dt-dlg > .dt-list { max-height: min(46vh, 440px); overflow-y: auto; }
+.dt-list { list-style: none; }
+.dt-cand { cursor: pointer; --inset: 14px; min-height: 52px; }
+.dt-cand b { font-weight: 600; }
+.dt-cand.on, .dt-cand[aria-selected="true"] { background: var(--fill); }
+.dt-cand .v { flex: none; }
+.dt-pick-alt { margin-top: 6px; }
+.dt-qrow { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; }
+.dt-qin { width: 96px; font-size: 20px; }
+.dt-dlg .seg { margin-bottom: 4px; }
+.dt-dlg .fld.sm { margin-bottom: 10px; }
+.dt-dlg .fld.sm input { background: var(--cell); }
+.dt-dlg .dt-tg { margin-bottom: 10px; }
+
+@media (max-width: 1239px) {
+  .cols.dt { grid-template-columns: minmax(0, 1fr); }
+  .dt-side { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gut); align-items: start; }
+  .dt-side .gblock + .gblock { margin-top: 0; }
+  .cols.dtl { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 899px) {
+  .dt-side { grid-template-columns: minmax(0, 1fr); }
+  .dt-it { grid-template-columns: minmax(0, 1fr) auto; }
+  .dt-q, .dt-a { justify-content: flex-start; }
+  .dt-q { grid-column: 1; }
+  .dt-k { grid-column: 2; grid-row: 1; }
+  .dt-a { grid-column: 2; grid-row: 2; }
+  .dt-modes .seg { width: 100%; }
+  .dt-modes .seg button { flex: 1 1 auto; }
+}

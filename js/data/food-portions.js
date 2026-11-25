@@ -179,3 +179,36 @@ function offPortion(pr, name = '') {
   if (sqOk) return ok({ u: 'portion', pl: 'portions', g: sq });
   return null;
 }
+
+// ── Quantité d'un aliment (feuille de quantité de l'app, js/features/diet-qty.js ; éditeur de l'appli web du coach) ──
+
+// Unités proposées pour cet aliment : celles de la table ou du paquet, plus l'unité déjà choisie (aliment du plan)
+function dietQtyUnits(food, por = null) {
+  const units = foodPortions(food);
+  if (por && !units.some(u => u.u === por.u)) units.unshift({ u: por.u, pl: por.pl, g: por.g });
+  return units.slice(0, 2);
+}
+const dietQtyLabel = u => { const s = u.s || u.u; return s.charAt(0).toUpperCase() + s.slice(1); };
+
+// État de départ : unité déjà choisie, sinon grammes si une quantité est donnée, sinon 1 unité
+function dietQtyInit(units, init) {
+  if (init?.por) {
+    const i = units.findIndex(u => u.u === init.por.u);
+    if (i >= 0) return { mode: i, v: init.por.n };
+  }
+  if (init?.g != null || !units.length) return { mode: -1, v: init?.g ?? 100 };
+  return { mode: 0, v: 1 };
+}
+
+// Lecture du champ : { g, por } ou { err } (message). mode : -1 en grammes, sinon l'index de l'unité
+function dietQtyValue(units, mode, raw) {
+  if (mode < 0) {
+    const g = num(raw, 1, DIET_G_MAX);
+    return g === null ? { err: `Quantité : de 1 à ${fmtNum(DIET_G_MAX)} g.` } : { g: Math.round(g), por: null };
+  }
+  const u = units[mode], n0 = num(raw, 0.5, PORTION_N_MAX);
+  if (n0 === null) return { err: `De ${u.half ? '½' : '1'} à ${PORTION_N_MAX} ${u.pl}.` };
+  const n = portionClampN(n0, u), g = portionGrams(n, u);
+  if (g > DIET_G_MAX) return { err: `${fmtNum(DIET_G_MAX)} g au plus.` };
+  return { g, por: { n, u: u.u, pl: u.pl, g: u.g } };
+}

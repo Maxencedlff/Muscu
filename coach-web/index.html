@@ -4,12 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- MDLF Coach sur ordinateur (docs/COACH_WEB.md). CSP : scripts et styles du site seulement (plus le script de Sign in with Apple JS), aucun script en ligne,
-       connexions vers le projet Supabase seulement. Les en-têtes du déploiement (coach-web/vercel.json) ajoutent
+       connexions vers le projet Supabase, et vers Open Food Facts pour un code-barres saisi (plans diète). Les en-têtes du déploiement (coach-web/vercel.json) ajoutent
        frame-ancestors 'none', HSTS, Referrer-Policy et Permissions-Policy. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://appleid.cdn-apple.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://yopptmdjtnezmccdvaxf.supabase.co; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://appleid.cdn-apple.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://yopptmdjtnezmccdvaxf.supabase.co https://world.openfoodfacts.org; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="color-scheme" content="light dark">
   <meta name="robots" content="noindex">
+  <meta name="mdlf-foods" content="../data/foods.json">
   <title>MDLF Coach</title>
   <link rel="stylesheet" href="css/desk.css">
 </head>
@@ -39,6 +40,7 @@
   <script src="../js/data/body-measures.js"></script>
   <script src="../js/data/food-portions.js"></script>
   <script src="../js/data/nutrition.js"></script>
+  <script src="../js/data/diet-estimate.js"></script>
   <script src="../js/data/water.js"></script>
   <script src="../js/data/defis.js"></script>
   <script src="../js/data/design.js"></script>
@@ -62,12 +64,15 @@
   <script src="../js/data/exercise-catalogue.js"></script>
   <script src="../js/data/measures.js"></script>
   <script src="../js/data/session-review.js"></script>
+  <script src="../js/data/food-swap.js"></script>
+  <script src="../js/data/food-scan.js"></script>
   <!-- Appli web du coach -->
   <script src="js/desk/model.js"></script>
   <script src="js/desk/checkins-model.js"></script>
   <script src="js/desk/chat-model.js"></script>
   <script src="js/desk/prog-model.js"></script>
   <script src="js/desk/diet-model.js"></script>
+  <script src="js/desk/diet-edit-model.js"></script>
   <script src="js/desk/api.js"></script>
   <script src="js/desk/apple.js"></script>
   <script src="js/desk/shell.js"></script>
@@ -78,6 +83,7 @@
   <script src="js/desk/messages.js"></script>
   <script src="js/desk/programme.js"></script>
   <script src="js/desk/nutrition.js"></script>
+  <script src="js/desk/diet-editor.js"></script>
   <script src="js/desk/main.js"></script>
 </body>
 </html>
