@@ -31,6 +31,8 @@ export default function ({ test, assert, ROOT }) {
     assert.throws(() => vercelToPages({ rewrites: [] }), /non traduite/);
     assert.throws(() => vercelToPages({ redirects: [{ source: '/a/:x', destination: '/b/:x' }] }), /à motif/);
     assert.equal(vercelToPages({ git: { deploymentEnabled: false }, crons: [], cleanUrls: true }).redirects, '');
+    // Redirection liée à l'hôte *.vercel.app : utile seulement chez Vercel, ignorée pour Pages (même à motif)
+    assert.equal(vercelToPages({ cleanUrls: true, redirects: [{ source: '/:path*', has: [{ type: 'host', value: 'mdlf-coach.vercel.app' }], destination: 'https://coach.mdlf.app/:path*', permanent: true }] }).redirects, '');
     assert.equal(vercelToPages({ cleanUrls: true, redirects: [{ source: '/vieux', destination: 'https://coach.mdlf.app/', permanent: true }] }).redirects,
       '/vieux https://coach.mdlf.app/ 308\n');
   });

@@ -62,7 +62,10 @@ export function vercelToPages(config, htmlFiles = []) {
     if (dup) throw new Error(`En-tête ${dup[0]} posé par ${a.pattern} et ${b.pattern} : Pages joindrait les deux valeurs`);
   }
   const headers = rules.map(r => [r.pattern, ...r.headers.map(([k, v]) => `  ${k}: ${v}`)].join('\n')).join('\n\n') + '\n';
-  const redirects = (config.redirects || []).map(r => {
+  // Une redirection liée à un hôte *.vercel.app (« has: host ») ne concerne que la copie de secours chez Vercel :
+  // Pages ne sert jamais cet hôte, elle est donc ignorée ici.
+  const vercelOnly = r => (r.has || []).some(h => h.type === 'host' && /\.vercel\.app$/.test(h.value || ''));
+  const redirects = (config.redirects || []).filter(r => !vercelOnly(r)).map(r => {
     // Adresses fixes seulement : les captures de Vercel (:chemin*) n'ont pas la même syntaxe que celles de Pages
     if (/\/:|[(*]/.test(r.source + r.destination)) throw new Error(`Redirection à motif non traduite : ${r.source}`);
     const code = r.statusCode || (r.permanent === false ? 307 : 308);
