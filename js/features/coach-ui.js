@@ -1575,13 +1575,19 @@ function coachTyping() { return !!document.activeElement?.matches?.('input, text
 // coachShown n'avance QUE lorsque l'écran a été redessiné (ou n'avait rien à redessiner) : un changement
 // arrivé pendant une saisie reste « non affiché » et sera repris au focusout, pas marqué « déjà vu »
 const COACH_WATCH_VIEWS = ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary', 'nutrition', 'diet-plans'];
+// Écran du coach après une donnée relue : redessiné seulement s'il change (renderIfChanged, js/ui/router.js). Sans
+// redessin, la courbe affichée garde son état (chartState, posé par le gabarit, complété par drawCharts au montage)
+function coachRepaint() {
+  const chart = chartState;
+  if (!renderIfChanged()) chartState = chart;
+}
 function coachApplyChange() {
   const v = currentView(), key = coachShownKey();
   // Onglet Social : cellules redessinées si ce qu'elles montrent a changé ; segment Élèves (compte coach) à chaque
   // nouveauté du coach (progression, planning, palier : hors de la signature), sans champ de saisie à préserver
   if (v === 'friends') { if (key !== coachShown || friendsSeg() === 'students') { refreshCoachCell(); coachShown = key; } return; }
   if (coachTyping()) return;   // champ en cours de saisie : rendu reporté au focusout (coachShown gardé)
-  if (COACH_VIEWS.includes(v)) { render(); coachShown = key; return; }
+  if (COACH_VIEWS.includes(v)) { coachRepaint(); coachShown = key; return; }
   if (key !== coachShown && COACH_WATCH_VIEWS.includes(v)) { render(); coachShown = key; return; }
   coachShown = key;   // écran sans rapport : à jour sans redessin
 }

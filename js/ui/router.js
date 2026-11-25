@@ -4,6 +4,8 @@
 'use strict';
 
 let renderedView = null;   // nom du dernier écran dessiné par paint()
+let paintedRoute = null, paintedHtml = null;   // route et gabarit de ce dessin (renderIfChanged)
+let navPaintPending = false;   // show() a lancé enter() et n'a pas encore dessiné l'écran (renderIfChanged)
 
 // Racine de chaque onglet : les fonctions renderXxx gardent leur nom de vue historique
 const TABS = {
@@ -238,6 +240,21 @@ function saveScroll() { scrollMem[navKey()] = window.scrollY; }
 // Réaffiche l'écran courant en gardant le défilement (après une modification de la donnée).
 // Pour changer d'écran : navigate(route), goBack(), routeTo(route) ou switchTab(tab).
 function render() { paint(); }
+// Redessin pour une donnée relue en fond (pas pour un geste) : rien n'est touché si l'écran dessiné serait le même.
+// Le retour sur la fiche d'un élève relit séances, pesées, mensurations et diète : cinq redessins complets à
+// l'identique, chacun avec ~400 calques d'images des personnages, bloquaient WebKit plusieurs secondes sur petit
+// iPhone (le toucher suivant restait sans effet). Donnée arrivée pendant enter() : rien non plus, le dessin de la
+// navigation, juste après, la montre (et la transition part bien de l'écran quitté). Vrai si l'écran a été redessiné.
+// screen.render est appelé même sans redessin : l'appelant remet ce qu'il pose à côté du gabarit s'il en dépend
+// (chartState, js/features/coach-ui.js).
+function renderIfChanged() {
+  if (navPaintPending) return false;
+  const route = currentRoute(), name = routeName(route);
+  const html = screenOf(name).render(...routeParams(route));
+  if (renderedView === name && route === paintedRoute && html === paintedHtml) return false;
+  paint(window.scrollY, html);
+  return true;
+}
 
 // Écrans, par nom de route (route inconnue : l'accueil). Les fonctions sont définies par les
 // fichiers chargés après celui-ci : elles ne sont résolues qu'à l'appel.
@@ -300,13 +317,17 @@ function restoreFocus(sels) {
   } catch { /* focus non restauré, rendu intact */ }
 }
 
-function paint(scrollY = window.scrollY) {
+// html : gabarit déjà calculé pour la route courante (renderIfChanged), sinon screen.render
+function paint(scrollY = window.scrollY, html = null) {
   if (typeof closeBodyTip === 'function') closeBodyTip();   // bulle d'un muscle (js/ui/body-tip.js) : jamais d'un écran à l'autre
   const route = currentRoute();
   const name  = routeName(route);
   const screen = screenOf(name);
   const focusSels = renderedView === name ? focusedActionSelectors() : null;   // même écran redessiné seulement
-  $('#app').innerHTML = screen.render(...routeParams(route));
+  paintedHtml = html ?? screen.render(...routeParams(route));
+  paintedRoute = route;
+  navPaintPending = false;
+  $('#app').innerHTML = paintedHtml;
   // Typographie appliquée tout de suite, pas par l'observateur après coup : les espaces insécables changent les retours à la
   // ligne, et la position rendue plus bas (retour arrière) glissait de quelques dizaines de pixels (panel t5)
   frTypoNode($('#app'));
@@ -331,6 +352,7 @@ function show(dir = 'none') {
 
   if (shownName && shownName !== name) { screenOf(shownName).leave?.(); dropScreenToast(); }
   shownName = name;
+  navPaintPending = true;
   screenOf(name).enter?.({ dir });
 
   // shown() : après le dessin de la navigation (pas après un redessin lancé par enter), ex. défiler jusqu'à une partie

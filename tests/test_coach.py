@@ -651,6 +651,13 @@ def t_coach(bench, eng, dev, theme):
         page.click('[data-action="back"]')
         page.wait_for_selector('.coach-sess')
         R.check(page.locator('.coach-sess[data-id="l00"] .coach-tag--note').count() == 1, f'{t} séance « Commentée »')
+        # 25/11 : chaque retour sur la fiche relit pesées, mensurations et diète ; inchangées, la fiche n'est plus
+        # redessinée (cinq redessins de ~400 calques d'images bloquaient WebKit sur iPhone SE, coachRepaint)
+        settle(page)
+        page.evaluate("""lea => { window.__row = document.querySelector('.coach-sess');
+            return Promise.all([coachLoadWeights(lea), coachLoadMeasures(lea), coachLoadDiet(lea)]); }""", ids['lea'])
+        settle(page)
+        R.check(page.evaluate('window.__row.isConnected'), f'{t} fiche relue sans changement : pas redessinée')
         # Séance masquée aux abonnés : visible du coach, et dit
         page.click('.coach-sess[data-id="l01"]')
         page.wait_for_selector('.coach-session-view')
