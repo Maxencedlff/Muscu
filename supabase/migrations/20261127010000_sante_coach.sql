@@ -56,6 +56,20 @@ create table public.coach_shared_health_days (
   primary key (student_id, day),
   foreign key (student_id, kind) references public.coach_shares (student_id, kind) on delete cascade
 );
+-- Version du texte d'accord montré à l'élève (audit du 25/11, m5) : posée par le serveur à chaque accord 'health'
+-- (la feuille d'accord de l'app, js/features/coach-share-ui.js, texte du 25/11/2026) ; null pour les autres sortes
+alter table public.coach_shares add column consent_version text check (char_length(consent_version) <= 40);
+create function private.coach_share_consent_version() returns trigger
+  language plpgsql set search_path = '' as
+$$
+begin
+  new.consent_version := case when new.kind = 'health' then 'sante-2026-11-25' else new.consent_version end;
+  return new;
+end
+$$;
+create trigger coach_shares_consent_version before insert on public.coach_shares
+  for each row execute function private.coach_share_consent_version();
+
 -- Purge quotidienne : tous les élèves d'un coup, par date
 create index coach_shared_health_days_day on public.coach_shared_health_days (day);
 
@@ -146,7 +160,10 @@ declare
   n int;
 begin
   if me is not null then perform pg_advisory_xact_lock(hashtextextended('coach_share_health:' || me::text, 0)); end if;
-  if me is null or not exists (select 1 from public.coach_shares c where c.student_id = me and c.kind = 'health') then
+  -- Blocage entre l'élève et son coach (audit du 25/11, B1) : plus rien ne part, comme sans consentement. Défense en
+  -- profondeur : la branche du blocage général peut aussi couper le lien.
+  if me is null or not exists (select 1 from public.coach_shares c where c.student_id = me and c.kind = 'health'
+                                 and not private.blocked_between(me, c.coach_id)) then
     raise exception 'not_shared' using errcode = 'P0001';
   end if;
   if days is null or jsonb_typeof(days) <> 'array' then
@@ -193,7 +210,8 @@ begin
   perform private.coach_require_student(me, student);
   select c.granted_at into since from public.coach_shares c
     where c.student_id = student and c.coach_id = me and c.kind = 'health';
-  if since is null then
+  -- Blocage entre les deux (audit du 25/11, B1) : rien n'est lu, comme sans partage
+  if since is null or private.blocked_between(me, student) then
     return jsonb_build_object('shared', false, 'since', null, 'days', '[]'::jsonb);
   end if;
   return jsonb_build_object('shared', true, 'since', since, 'days', coalesce((
@@ -295,6 +313,7 @@ $$;
 -- ── Droits des fonctions ─────────────────────────────────
 
 revoke all on function private.share_kind_open(text) from public, anon, authenticated, service_role;
+revoke all on function private.coach_share_consent_version() from public, anon, authenticated, service_role;
 revoke all on function private.health_share_first_day() from public, anon, authenticated, service_role;
 revoke all on function private.health_int_ok(jsonb, int) from public, anon, authenticated, service_role;
 revoke all on function private.health_day_ok(jsonb) from public, anon, authenticated, service_role;

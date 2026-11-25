@@ -83,7 +83,7 @@ def layout(page, t, name, scope='#app'):
     R.check(not page.errors, f'{t} {name} : aucune erreur JS {page.errors[:2]}')
 
 
-def open_student(page, theme, health=True, days_key=True, items=None):
+def open_student(page, theme, health=True, days_key=True, items=None, shared=False):
     """Je suis lea, élève d'alex. health : fausse coquille Santé ; days_key : build qui sait lire les pas.
     items : bilan envoyé par alex il y a une heure. → { alex, lea, req }"""
     page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True, 'uidStart': 1}))
@@ -99,9 +99,10 @@ def open_student(page, theme, health=True, days_key=True, items=None):
     ax = page.evaluate("() => __sb.addPerson({ username: 'alex', avatar: '🦁', social: false })")
     page.evaluate("async u => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u }); }", 'lea')
     settle(page)
-    ids = page.evaluate("""([ax, items]) => { const me = __sb.meId(); __sb.makeCoach(ax); __sb.link(ax, me, Date.now() - 40 * 86400000);
+    ids = page.evaluate("""([ax, items, shared]) => { const me = __sb.meId(); __sb.makeCoach(ax); __sb.link(ax, me, Date.now() - 40 * 86400000);
+        if (shared) __sb.shareHealth(me, []);
         const req = items ? __sb.ckRequest(ax, me, { name: 'Bilan de la semaine', items, sentAt: Date.now() - 3600000, dueAt: Date.now() + 86400000 }) : null;
-        return { alex: ax, lea: me, req }; }""", [ax, items])
+        return { alex: ax, lea: me, req }; }""", [ax, items, shared])
     page.evaluate('coachRefresh()')
     settle(page)
     return ids
@@ -231,13 +232,13 @@ def t_bilan(bench, eng, dev, theme):
         return
     t = tag(dev, theme)
     with bench.frozen_page(NOW, eng, dev, theme) as page:
-        ids = open_student(page, theme, items=ITEMS_H)
+        ids = open_student(page, theme, items=ITEMS_H, shared=True)
         open_bilan(page)
         val = lambda k: page.locator(f'.ck-item[data-key="{k}"] input').input_value()
         # Période : les 7 jours qui finissent aujourd'hui ; Santé : 6200, 11800, 9400, 12500, 7300, 8800, 10100 → 9443
         R.check(val('steps') == '9443', f'{t} pas : moyenne de la période ({val("steps")})')
         R.check(val('cardio') == '80', f'{t} cardio : 35 + 45 min ({val("cardio")})')
-        R.check(val('sleep') == '7,3', f'{t} sommeil : 7,3 h par nuit ({val("sleep")})')
+        R.check(val('sleep') == '7,27', f'{t} sommeil : 7,27 h par nuit, comme « 7 h 16 » de l\'aide ({val("sleep")})')
         helps = page.inner_text('.ck-view')
         R.check('Moyenne lue dans Santé' in helps and 'Minutes de cardio lues dans Santé' in helps and 'par nuit en moyenne sur 7 nuits, d\'après Santé' in helps,
                 f'{t} d\'où viennent les chiffres')
@@ -255,10 +256,10 @@ def t_bilan(bench, eng, dev, theme):
         tap_dialog(page, 'Envoyer à alex')
         page.wait_for_selector('.ck-view--done')
         ans = page.evaluate("id => __sb.ck.answers[id]", ids['req'])
-        R.check(ans.get('steps') == 9443 and ans.get('cardio') == 95 and ans.get('sleep') == 7.3, f'{t} envoyé : corrigé gardé ({ans})')
+        R.check(ans.get('steps') == 9443 and ans.get('cardio') == 95 and ans.get('sleep') == 7.27, f'{t} envoyé : corrigé gardé ({ans})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
     with bench.frozen_page(NOW, eng, dev, theme) as page:
-        open_student(page, theme, items=ITEMS_SCALE)
+        open_student(page, theme, items=ITEMS_SCALE, shared=True)
         open_bilan(page)
         sl = page.locator('.ck-item[data-key="sleep"]')
         R.check(sl.locator('[aria-checked="true"]').count() == 0, f'{t} échelle : aucun ressenti deviné')
@@ -266,6 +267,20 @@ def t_bilan(bench, eng, dev, theme):
         layout(page, t, 'Bilan échelle', '.ck-view')
         sl.scroll_into_view_if_needed()
         capture(page, f'bilan-echelle-{t}')
+    # Case « Pas, sommeil et cardio » décochée (audit B2) : Santé jamais lue pour le bilan, saisie à la main
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_student(page, theme, items=ITEMS_H)
+        page.evaluate('checkinRefresh()')
+        settle(page)
+        page.evaluate('render()')
+        settle(page)
+        page.click('.ck-home [data-action="ck-open"]')
+        page.wait_for_selector('.ck-view .ck-head')
+        settle(page)
+        page.wait_for_timeout(500)
+        R.check(page.locator('.ck-item[data-key="steps"] input').input_value() == '', f'{t} case décochée : pas à la main')
+        R.check(page.evaluate('__hk.calls') == [], f'{t} case décochée : Santé jamais lue ({page.evaluate("__hk.calls")})')
+        R.check('d\'après Santé' not in page.inner_text('.ck-view'), f'{t} case décochée : aucune indication de Santé')
     # Sans la coquille Santé : à la main, aucune indication
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_student(page, theme, health=False, items=ITEMS_H)

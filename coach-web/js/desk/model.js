@@ -189,12 +189,23 @@ const deskAvg = list => (list.length ? list.reduce((a, b) => a + b, 0) / list.le
 
 // Moyennes d'une semaine (jours AAAA-MM-JJ du lundi au dimanche) sur les jours partagés (cleanCoachHealth) :
 // { steps, sleep, cardio }, chacune { avg, n } (n : jours qui ont une valeur, seuls comptés) ou null sans aucune valeur.
-// Pas arrondis à l'unité, sommeil et cardio en minutes entières. null si l'élève ne partage pas.
+// Pas arrondis à l'unité, sommeil et cardio en minutes entières ; cardio : aussi le total de la semaine (sum, audit m4).
+// null si l'élève ne partage pas.
 function deskHealthWeek(health, days) {
   if (!health?.shared) return null;
   const set = new Set(days), inWeek = health.days.filter(d => set.has(d.day));
   const avg = k => { const l = inWeek.map(d => d[k]).filter(v => Number.isInteger(v)); return l.length ? { avg: Math.round(deskAvg(l)), n: l.length } : null; };
-  return { steps: avg('steps'), sleep: avg('sleep'), cardio: avg('cardio') };
+  const cardio = avg('cardio');
+  if (cardio) cardio.sum = inWeek.reduce((a, d) => a + (Number.isInteger(d.cardio) ? d.cardio : 0), 0);
+  return { steps: avg('steps'), sleep: avg('sleep'), cardio };
+}
+// Dernier jour reçu de Santé s'il date de plus de 2 jours (l'élève n'a plus ouvert l'app, ou Santé ne rend plus rien) :
+// son instant (midi local), sinon null (audit m7). Rien sans partage ni sans aucun jour.
+function deskHealthStale(health, now = Date.now()) {
+  const last = health?.shared && health.days?.[0]?.day;
+  if (!last) return null;
+  const at = new Date(`${last}T12:00:00`).getTime();
+  return localISO(now) > localISO(at + 2 * 86_400_000) ? at : null;
 }
 // Minutes de sommeil → « 7 h 05 », « 8 h 00 », « 45 min »
 function deskSleepText(min) {
@@ -202,14 +213,15 @@ function deskSleepText(min) {
   const m = Math.round(min), h = Math.floor(m / 60);
   return h ? `${h} h ${String(m % 60).padStart(2, '0')}` : `${m} min`;
 }
-// Textes d'une case : { text, sr (pour les lecteurs d'écran), title } ; null sans valeur
+// Textes d'une case : { text, sr (pour les lecteurs d'écran), title, small? (cardio : total de la semaine) } ; null sans valeur
 function deskHealthCell(kind, v) {
   if (!v) return null;
   const over = kind === 'sleep' ? plural(v.n, 'nuit', 'nuits') : plural(v.n, 'jour', 'jours');
   const title = `Moyenne sur ${over}`;
   if (kind === 'steps') return { text: fmtNum(v.avg), sr: `pas par jour, moyenne sur ${over}`, title };
   if (kind === 'sleep') return { text: deskSleepText(v.avg), sr: `de sommeil par nuit, moyenne sur ${over}`, title };
-  return { text: `${v.avg} min/j`, sr: `de cardio par jour, moyenne sur ${over}`, title };
+  const total = Number.isInteger(v.sum) ? `${fmtNum(v.sum)} min en tout` : '';
+  return { text: `${v.avg} min/j`, sr: `de cardio par jour, moyenne sur ${over}${total ? `, ${total}` : ''}`, title, ...(total ? { small: total } : {}) };
 }
 // [clé, intitulé, précision sous l'intitulé (deux lignes : le tableau reste étroit)]
 const DESK_HEALTH_COLS = Object.freeze([['steps', 'Pas', 'par jour'], ['sleep', 'Sommeil', 'par nuit'], ['cardio', 'Cardio', 'par jour']]);

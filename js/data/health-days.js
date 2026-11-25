@@ -87,7 +87,7 @@ function healthDaysBuild(raw, { days = HEALTH_DAYS_MAX, now = Date.now() } = {})
 }
 
 // Sur une période (jours 'AAAA-MM-JJ') : moyenne des pas par jour (jours qui en ont), heures endormi par nuit
-// (nuits qui en ont, au dixième), minutes de cardio de la période (somme ; null si aucun jour n'a de cardio lu).
+// (nuits qui en ont, au centième : « 7,27 » s'accorde avec « 7 h 16 » de l'aide, audit m1), minutes de cardio de la période (somme ; null si aucun jour n'a de cardio lu).
 // → { steps, sleepH, sleepMin, cardioMin, stepDays, nights } (null pour chaque mesure absente)
 function healthPeriodSummary(list, keys) {
   const set = new Set(keys || []);
@@ -97,7 +97,7 @@ function healthPeriodSummary(list, keys) {
   const sleepMin = sl.length ? Math.round(avg(sl.map(d => d.sleep))) : null;
   return {
     steps: st.length ? Math.round(avg(st.map(d => d.steps))) : null,
-    sleepMin, sleepH: sleepMin === null ? null : Math.round(sleepMin / 6) / 10,
+    sleepMin, sleepH: sleepMin === null ? null : Math.round(sleepMin / 0.6) / 100,
     cardioMin: ca.length ? ca.reduce((a, d) => a + d.cardio, 0) : null,
     stepDays: st.length, nights: sl.length,
   };

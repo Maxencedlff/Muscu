@@ -52,9 +52,17 @@ def cells(page, week):
     return page.evaluate("""([week, names]) => {
       const hs = [...document.querySelectorAll('table.wk thead th')].map(t => t.innerText.trim().split(/\s+/).join(' '));
       const row = [...document.querySelectorAll('table.wk tbody tr')].find(r => r.querySelector('th .wn').textContent === week);
-      return names.map(n => { const c = row.children[hs.indexOf(n)]; const k = c.cloneNode(true); k.querySelectorAll('.sr').forEach(x => x.remove());
+      return names.map(n => { const c = row.children[hs.indexOf(n)]; const k = c.cloneNode(true); k.querySelectorAll('.sr, small').forEach(x => x.remove());
         return [k.textContent.trim(), c.getAttribute('title'), (c.querySelector('.sr') || {}).textContent || null]; });
     }""", [week, HEADS])
+
+
+def check_cardio_total(page, tag):
+    """Total de cardio de la semaine sous la moyenne (audit m4)."""
+    got = page.evaluate("""week => { const hs = [...document.querySelectorAll('table.wk thead th')].map(t => t.innerText.trim().split(/\\s+/).join(' '));
+      const row = [...document.querySelectorAll('table.wk tbody tr')].find(r => r.querySelector('th .wn').textContent === week);
+      return (row.children[hs.indexOf('Cardio par jour')].querySelector('small') || {}).textContent || null; }""", 'S47')
+    check(sp(got or '') == '65 min en tout', f'{tag} : total de cardio de S47 {got!r}')
 
 
 def check_lea(page, tag):
@@ -64,6 +72,7 @@ def check_lea(page, tag):
         for (text, title), (gtext, gtitle, gsr) in zip(want, got):
             check(sp(gtext) == text and gtitle == title, f'{tag} : {week} {gtext!r} {gtitle!r}, attendu {text!r} {title!r}')
             check(gsr and title.lower() in sp(gsr), f'{tag} : {week} texte lu {gsr!r}')
+    check_cardio_total(page, tag)
 
 
 def common(page, tag, theme):

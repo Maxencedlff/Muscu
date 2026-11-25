@@ -47,7 +47,7 @@ export default function ({ test, assert, ROOT }) {
     const r = run(`deskHealthWeek(${J(h)}, ${J(w)})`);
     assert.equal(J(r.steps), J({ avg: 8501, n: 2 }), '(8000 + 9001) / 2 = 8500,5 → 8501, jours sans pas pas comptés');
     assert.equal(J(r.sleep), J({ avg: 425, n: 3 }));
-    assert.equal(J(r.cardio), J({ avg: 23, n: 2 }), '22,5 → 23');
+    assert.equal(J(r.cardio), J({ avg: 23, n: 2, sum: 45 }), '22,5 → 23, total de la semaine 45 (audit m4)');
     // Bornes : dimanche de la semaine d'avant et lundi suivant jamais comptés
     assert.equal(J(run(`deskHealthWeek(${J(H([{ day: week(2)[6], steps: 5 }, { day: week(0)[0], steps: 7 }]))}, ${J(w)})`)), J({ steps: null, sleep: null, cardio: null }));
     // Sans partage, serveur d'avant : null
@@ -59,7 +59,7 @@ export default function ({ test, assert, ROOT }) {
     const h = H([{ day: iso(0), steps: 4000, sleep: 380 }, { day: iso(1), steps: 10000, sleep: 455, cardio: 40 }, { day: iso(2), steps: 7000 }]);
     const ws = run(`deskWeeks({ health: ${J(h)}, now: ${NOW}, count: 12 })`);
     assert.equal(ws[0].current, true);
-    assert.equal(J(ws[0].health), J({ steps: { avg: 7000, n: 2 }, sleep: { avg: 418, n: 2 }, cardio: { avg: 40, n: 1 } }), 'lundi et mardi seulement');
+    assert.equal(J(ws[0].health), J({ steps: { avg: 7000, n: 2 }, sleep: { avg: 418, n: 2 }, cardio: { avg: 40, n: 1, sum: 40 } }), 'lundi et mardi seulement');
     assert.equal(J(ws[1].health), J({ steps: { avg: 7000, n: 1 }, sleep: null, cardio: null }), 'dimanche 22 : semaine d\'avant');
     assert.equal(J(ws[5].health), J({ steps: null, sleep: null, cardio: null }));
     assert.equal(run(`deskWeeks({ now: ${NOW}, count: 2 })`)[0].health, null, 'serveur sans la vague 3 : null');
@@ -76,6 +76,15 @@ export default function ({ test, assert, ROOT }) {
     assert.equal(s.sr, 'pas par jour, moyenne sur 5 jours');
     assert.equal(J(run('deskHealthCell("sleep", { avg: 425, n: 1 })')), J({ text: '7 h 05', sr: 'de sommeil par nuit, moyenne sur 1 nuit', title: 'Moyenne sur 1 nuit' }));
     assert.equal(run('deskHealthCell("cardio", { avg: 25, n: 3 })').text, '25 min/j');
+    // Dernier jour reçu depuis plus de 2 jours (audit m7)
+    const NOWT = new Date(2026, 10, 25, 10).getTime();
+    assert.equal(run(`deskHealthStale({ shared: true, days: [{ day: '2026-11-23', steps: 1 }] }, ${NOWT})`), null, 'avant-hier : rien');
+    assert.equal(run(`deskHealthStale({ shared: true, days: [{ day: '2026-11-22', steps: 1 }] }, ${NOWT})`), new Date(2026, 10, 22, 12).getTime());
+    assert.equal(run(`deskHealthStale({ shared: false, days: [] }, ${NOWT})`), null);
+    assert.equal(run(`deskHealthStale({ shared: true, days: [] }, ${NOWT})`), null);
+    const ct = run('deskHealthCell("cardio", { avg: 25, n: 3, sum: 75 })');
+    assert.equal(ct.small, '75 min en tout');
+    assert.ok(ct.sr.endsWith('75 min en tout'), 'total lu par les lecteurs d\'écran');
     assert.equal(run('deskHealthCell("cardio", null)'), null);
   });
 

@@ -70,7 +70,7 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
       { day: '2026-11-23', sleep: 465, cardio: 20 }, { day: '2026-11-10', steps: 99999 }];
     const keys = ['2026-11-19', '2026-11-20', '2026-11-21', '2026-11-22', '2026-11-23', '2026-11-24', '2026-11-25'];
     sameJSON(run(`healthPeriodSummary(${JSON.stringify(list)}, ${JSON.stringify(keys)})`),
-      { steps: 7000, sleepMin: 443, sleepH: 7.4, cardioMin: 50, stepDays: 2, nights: 2 });
+      { steps: 7000, sleepMin: 443, sleepH: 7.38, cardioMin: 50, stepDays: 2, nights: 2 });
     sameJSON(run(`healthPeriodSummary([], ${JSON.stringify(keys)})`), { steps: null, sleepMin: null, sleepH: null, cardioMin: null, stepDays: 0, nights: 0 });
   });
 
@@ -96,11 +96,33 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
     reset();
     const req = { id: '11111111-1111-4111-8111-111111111111', name: 'Hebdo', sentAt: NOW, items: [] };
     run(`ck.health = { id: '${req.id}', steps: 9000, sleepH: 7.5, cardioMin: 60 }`);
+    // Case décochée (audit du 25/11, B2) : jamais de Santé dans le bilan, même déjà lue
+    run(`coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'health'], shares: {} })`);
+    const off = run(`checkinContext(${JSON.stringify(req)}, { now: ${NOW} })`);
+    sameJSON([off.steps, off.sleepH, off.cardioMin], [null, null, null], 'case décochée : à la main');
+    run(`coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'health'], shares: { health: { granted_at: '2026-11-25T10:00:00Z', n: 3, last_at: null } } })`);
     const ctx = run(`checkinContext(${JSON.stringify(req)}, { now: ${NOW} })`);
     sameJSON([ctx.steps, ctx.sleepH, ctx.cardioMin], [9000, 7.5, 60]);
     const other = run(`checkinContext(${JSON.stringify({ ...req, id: '22222222-2222-4222-8222-222222222222' })}, { now: ${NOW} })`);
     sameJSON([other.steps, other.sleepH, other.cardioMin], [null, null, null], 'résumé d\'un autre bilan jamais repris');
-    run('ck.health = null');
+    run('ck.health = null; coachShare.state = null');
+  });
+
+  test('santé coach : bilan sans la case cochée : Santé n\'est jamais lue (audit B2)', async () => {
+    reset();
+    run(`(() => { globalThis.__hk = []; healthDays.supported = true; globalThis.__native = { ...Native.health };
+      Object.assign(Native.health, { activityDays: async () => { __hk.push('activity'); return { steps: [], workouts: [] }; }, sleep: async () => { __hk.push('sleep'); return []; } });
+      coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'health'], shares: {} }); })()`);
+    try {
+      const req = { id: '33333333-3333-4333-8333-333333333333', name: 'Hebdo', sentAt: NOW, items: [] };
+      assert.equal(await run(`checkinReadHealth(${JSON.stringify(req)}, { now: ${NOW} })`), null);
+      sameJSON(run('__hk'), [], 'aucune lecture de Santé');
+      run(`coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'health'], shares: { health: { granted_at: '2026-11-25T10:00:00Z', n: 0, last_at: null } } })`);
+      assert.ok(await run(`checkinReadHealth(${JSON.stringify(req)}, { now: ${NOW} })`), 'case cochée : lu');
+      sameJSON(run('__hk'), ['activity', 'sleep']);
+    } finally {
+      run('Object.assign(Native.health, __native); healthDays.supported = null; healthDaysReset(); coachShare.state = null; ck.health = null; delete globalThis.__hk; delete globalThis.__native;');
+    }
   });
 
   test('santé coach : case cachée sans la coquille qui sait lire Santé (navigateur, build antérieure)', () => {

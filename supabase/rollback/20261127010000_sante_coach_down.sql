@@ -42,6 +42,9 @@ drop table public.coach_shared_health_days;
 drop function private.health_day_ok(jsonb);
 drop function private.health_int_ok(jsonb, int);
 drop function private.health_share_first_day();
+drop trigger coach_shares_consent_version on public.coach_shares;
+drop function private.coach_share_consent_version();
+alter table public.coach_shares drop column consent_version;
 
 alter table public.coach_shares drop constraint coach_shares_kind_check;
 alter table public.coach_shares add constraint coach_shares_kind_check

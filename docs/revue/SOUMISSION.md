@@ -126,7 +126,7 @@ Finalité : **Fonctionnalité de l'app** (App Functionality), sauf mention contr
 
 | Type | Raison | Justification |
 |---|---|---|
-| Données Apple Santé lues (poids, courses, vélo, sommeil) | Restent sur l'iPhone, jamais dans l'historique synchronisé | `js/data/health-workouts.js:7-10`, `js/data/sync.js:44-45` (`bodyWeightKg`, `bodyWeightLog`, `healthOn` locaux), `privacy.html:148` |
+| Données Apple Santé lues (poids, courses, vélo, sommeil) | Restent sur l'iPhone, jamais dans l'historique synchronisé. **Seule exception** : le résumé par jour (pas, durée de sommeil, minutes de cardio) envoyé au coach si l'élève coche « Pas, sommeil et cardio » ; déclaré en Santé et forme › Santé (ligne plus haut, docs/SANTE_COACH.md) | `js/data/health-workouts.js:7-10`, `js/data/sync.js:44-45` (`bodyWeightKg`, `bodyWeightLog`, `healthOn` locaux), `privacy.html:148` |
 | Photos ou vidéos (photos de progression, « coffre ») | **Oui, elles restent sur l'appareil** : IndexedDB chiffrée (AES-GCM), ni serveur, ni pellicule, ni copie iCloud de l'app ; seule la sauvegarde iPhone d'Apple les contient, chiffrées | `js/data/progress-photos.js:5-24`, `js/data/photo-vault.js:7`, `privacy.html:33` |
 | Informations sensibles (sexe), mensurations, poids saisi non partagé | Jamais envoyés | `js/data/sync.js:38-45` (`strengthSex`, `bodyMeasures`) |
 | Infos financières (moyen de paiement) | Apple encaisse, le développeur ne voit rien (exclu par la définition d'Apple) | `privacy.html:109` |

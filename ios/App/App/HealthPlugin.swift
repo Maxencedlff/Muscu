@@ -292,14 +292,16 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
     // ── Sommeil ──────────────────────────────────────────────────────────────────────
 
     /// Échantillons de sommeil des `days` dernières nuits (8 par défaut, 92 au plus : 90 jours du partage avec le
-    /// coach), du plus ancien au plus
+    /// coach), du plus RÉCENT au plus
     /// récent : start / end en millisecondes depuis 1970, stage : inBed, asleep (sans phase), core, deep,
     /// rem, awake. iOS ne dit pas si la lecture est refusée : liste vide dans ce cas.
     @objc func sleep(_ call: CAPPluginCall) {
         let days = min(92, max(1, call.getInt("days") ?? 8))
         let since = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: since, end: nil, options: [])
-        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+        // Du plus récent : si la limite coupe (montre et app de sommeil sur 92 nuits), ce sont les nuits les plus
+        // anciennes qui manquent, jamais celles de la semaine (audit du 25/11, m2). Le web ne dépend pas de l'ordre.
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
         let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: 12000, sortDescriptors: [sort]) { _, samples, error in
             if let error = error { call.reject(error.localizedDescription); return }
             let list: [[String: Any]] = (samples as? [HKCategorySample] ?? []).compactMap { x in
@@ -438,22 +440,28 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
                                                      options: .cumulativeSum, anchorDate: today,
                                                      intervalComponents: DateComponents(day: 1))
         stepsQuery.initialResultsHandler = { _, collection, error in
+            // Échec de lecture : rejet (le web garde sa lecture d'avant et réessaie), jamais une liste vide qui
+            // passerait pour « aucun pas » (audit du 25/11, m3). « Aucune donnée » n'est pas un échec.
+            if let error = error, (error as? HKError)?.code != .errorNoData {
+                call.reject(error.localizedDescription); return
+            }
             var steps: [[String: Any]] = []
-            if error == nil, let collection = collection {
+            if let collection = collection {
                 collection.enumerateStatistics(from: start, to: Date()) { stats, _ in
                     guard let sum = stats.sumQuantity() else { return }
                     let n = Int(sum.doubleValue(for: .count()).rounded())
                     if n > 0 { steps.append(["day": Self.dayKey(stats.startDate), "steps": n]) }
                 }
             }
-            self.cardioWorkouts(since: start) { workouts in
+            self.cardioWorkouts(since: start) { workouts, failure in
+                if let failure = failure { call.reject(failure); return }
                 call.resolve(["steps": steps, "workouts": workouts])
             }
         }
         store.execute(stepsQuery)
     }
 
-    private func cardioWorkouts(since start: Date, completion: @escaping ([[String: Any]]) -> Void) {
+    private func cardioWorkouts(since start: Date, completion: @escaping ([[String: Any]], String?) -> Void) {
         let types = Array(Self.cardioActivities.keys)
         let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
             HKQuery.predicateForSamples(withStart: start, end: nil, options: []),
@@ -461,7 +469,9 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
         ])
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
         let query = HKSampleQuery(sampleType: workoutType, predicate: predicate, limit: 2000, sortDescriptors: [sort]) { _, samples, error in
-            guard error == nil else { completion([]); return }
+            if let error = error, (error as? HKError)?.code != .errorNoData {
+                completion([], error.localizedDescription); return
+            }
             let list: [[String: Any]] = (samples as? [HKWorkout] ?? []).compactMap { w in
                 guard let name = Self.cardioActivities[w.workoutActivityType] else { return nil }
                 return ["start": w.startDate.timeIntervalSince1970 * 1000,
@@ -469,7 +479,7 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
                         "duration": w.duration,
                         "activity": name]
             }
-            completion(list)
+            completion(list, nil)
         }
         store.execute(query)
     }

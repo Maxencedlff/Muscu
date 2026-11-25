@@ -257,7 +257,7 @@ function ckNumberHtml(it, f) {
 }
 // « 7 h 05 par nuit en moyenne sur 6 nuits, d'après Santé » : sommeil lu pour CE bilan, ou ''
 function ckSleepHealthText() {
-  const h = ck.health?.id === ckForm.id ? ck.health : null;
+  const h = ck.health?.id === ckForm.id && checkinHealthAllowed() ? ck.health : null;
   if (!h || !Number.isFinite(h.sleepMin) || !h.nights) return '';
   return `${checkinHoursText(h.sleepMin / 60)} par nuit en moyenne sur ${plural(h.nights, 'nuit', 'nuits')}, d'après Santé`;
 }
@@ -568,7 +568,7 @@ SCREENS.set('checkin', {
     // Pas, sommeil et cardio lus dans Santé (si la coquille le sait) : posés s'ils ne sont ni touchés ni passés ; un
     // sommeil en échelle reçoit seulement l'indication de Santé (un ressenti ne se devine pas)
     const hk = req?.items.filter(it => it.kind === 'steps' || it.kind === 'cardio' || it.kind === 'sleep') || [];
-    if (hk.length && checkinState(req) !== 'sent') {
+    if (hk.length && checkinState(req) !== 'sent' && checkinHealthAllowed()) {
       checkinReadHealth(req).then(h => {
         if (!h || ckForm.id !== req.id || currentView() !== 'checkin') return;
         const pre = checkinPrefill(hk, checkinContext(req)).values;

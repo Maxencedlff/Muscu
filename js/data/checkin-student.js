@@ -104,7 +104,7 @@ function checkinPlanned(days, goal) {
 
 // Ce que l'app sait déjà pour un bilan (contexte de checkinPrefill, js/data/checkins.js). goal : séances par semaine
 // (weeklyGoal de l'accueil) ; health : résumé de Santé pour la période de CE bilan (checkinReadHealth), ou null
-function checkinContext(req, { d = data, list = ck.requests, goal = typeof weeklyGoal === 'function' ? weeklyGoal() : 3, health = ck.health?.id === req?.id ? ck.health : null, now = Date.now() } = {}) {
+function checkinContext(req, { d = data, list = ck.requests, goal = typeof weeklyGoal === 'function' ? weeklyGoal() : 3, health = ck.health?.id === req?.id && checkinHealthAllowed() ? ck.health : null, now = Date.now() } = {}) {
   const p = checkinPeriod(req, list);
   const today = localISO(now);
   const diet = p.keys.filter(k => k <= today).map(day => {
@@ -278,12 +278,14 @@ async function checkinRefresh({ minAge = 0, now = Date.now() } = {}) {
   return r.ok;
 }
 
-// Pas, sommeil et cardio de la période du bilan, lus dans Santé (js/data/health-days.js), seulement si la coquille
-// sait les lire (build du 25/11/2026). Ne demande jamais l'autorisation : sans elle (ou refusée), Santé ne rend rien
-// et les champs restent à remplir à la main. Gardé en mémoire pour CE bilan (ck.health), jamais sur l'appareil.
+// Pas, sommeil et cardio de la période du bilan, lus dans Santé (js/data/health-days.js), seulement si l'élève a coché
+// « Pas, sommeil et cardio » pour son coach (audit du 25/11, B2 : c'est l'accord qu'il a donné, et le texte d'accès à
+// Santé de la build ne promet rien d'autre) et si la coquille sait les lire (build du 25/11/2026). Ne demande jamais
+// l'autorisation. Sans la case : à la main. Gardé en mémoire pour CE bilan (ck.health), jamais sur l'appareil.
+const checkinHealthAllowed = () => typeof coachShareOn === 'function' && coachShareOn('health');
 // → { id, steps, sleepH, sleepMin, cardioMin, stepDays, nights } ou null
 async function checkinReadHealth(req, { now = Date.now() } = {}) {
-  if (!req || typeof healthDaysRead !== 'function') return null;
+  if (!req || typeof healthDaysRead !== 'function' || !checkinHealthAllowed()) { ck.health = null; return null; }
   const list = await healthDaysRead({ now });
   if (!list) return null;
   const today = localISO(now);

@@ -45,8 +45,14 @@ l'empreinte du dernier envoi est gardée (`mdlf_coach_share_h`, effacée à la d
   rien).
 - Décocher : confirmation, puis tout est effacé du serveur (clé étrangère `on delete cascade`). Quitter le coach, être
   retiré, supprimer un compte : effacé aussi.
-- Bilans : le préremplissage lit Santé **sans jamais demander l'autorisation** (si elle n'a jamais été donnée, Santé
-  ne rend rien et les champs restent à la main) ; répondre au bilan vaut partage de ces réponses (docs/BILANS.md).
+- Bilans : le préremplissage lit Santé **seulement si la case est cochée** (audit du 25/11, B2 : c'est l'accord donné,
+  et le texte d'accès figé dans la build ne promet rien d'autre), sans jamais demander l'autorisation ; case décochée :
+  à la main. Répondre au bilan vaut partage de ces réponses (docs/BILANS.md).
+- **Blocage** (audit B1) : si l'élève et son coach se bloquent (dans un sens ou l'autre), `coach_student_health` rend
+  `shared: false` et `student_share_health_days` refuse (`not_shared`). Défense en profondeur, en plus du traitement
+  général du blocage (branche `audit-coach-fix`).
+- **Version de l'accord** (m5) : `coach_shares.consent_version` = `sante-2026-11-25` pour chaque accord `health`
+  (déclencheur), pour savoir sur quel texte l'élève a dit oui.
 
 ## Serveur : `supabase/migrations/20261127010000_sante_coach.sql` (écrite, PAS appliquée)
 
@@ -64,11 +70,19 @@ l'empreinte du dernier envoi est gardée (`mdlf_coach_share_h`, effacée à la d
   textes d'avant) ; ordre dans `supabase/rollback/ORDRE.md`. Dépend de `20261118010000` (diète), `20261124010000`
   (semaines) et `20261125010000` (bilans) : à appliquer après elles.
 
+## Corrections de l'audit RSSI du 25/11
+
+B1 blocage, B2 bilans sans la case, M1 commentaires de `PrivacyInfo.xcprivacy` et `SOUMISSION.md` ; m1 sommeil
+prérempli au centième (« 7,27 » comme « 7 h 16 » de l'aide) ; m2 sommeil lu du plus récent (une limite coupe les nuits
+anciennes) ; m3 `activityDays` rejette en cas d'erreur de lecture (le web garde sa lecture d'avant) ; m4 total du
+cardio de la semaine sous la moyenne dans la fiche ; m5 `consent_version` ; m7 « dernier jour reçu le … » dans le pied
+de la fiche quand il date de plus de 2 jours.
+
 ## Bilans
 
 - `js/data/checkins.js` : `sleep` types `['scale', 'number']`, unité `h` (« h/nuit », réponse « 7 h 15 par nuit ») ;
   `checkinPrefill` remplit `steps` (moyenne par jour), `cardio` (minutes de la période) et `sleep` **en nombre
-  seulement** (heures par nuit, au dixième). Un sommeil en échelle est un ressenti : jamais deviné ; l'écran montre
+  seulement** (heures par nuit, au centième). Un sommeil en échelle est un ressenti : jamais deviné ; l'écran montre
   seulement « 7 h 05 par nuit en moyenne sur 6 nuits, d'après Santé ».
 - `js/data/checkin-student.js` : `checkinReadHealth(req)` (période du bilan, jusqu'à aujourd'hui), gardé en mémoire
   pour CE bilan. Une valeur touchée ou passée par l'élève n'est jamais remplacée ; texte « lu dans Santé. Touche pour

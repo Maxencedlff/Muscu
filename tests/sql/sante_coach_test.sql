@@ -149,6 +149,36 @@ begin
 end $$;
 reset role;
 
+-- ── Blocage entre l'élève et son coach (audit du 25/11, B1) : le coach ne lit plus rien, l'élève n'envoie plus rien ──
+do $$ begin
+  if (select c.consent_version from public.coach_shares c where c.student_id = pg_temp.hu('s') and c.kind = 'health') is distinct from 'sante-2026-11-25' then
+    raise 'version de l''accord santé absente'; end if;
+end $$;
+insert into public.blocks (blocker_id, blocked_id) values (pg_temp.hu('s'), pg_temp.hu('k'));
+set role authenticated;
+do $$
+begin
+  perform pg_temp.hlogin('k');
+  if public.coach_student_health(pg_temp.hu('s')) is distinct from '{"shared": false, "since": null, "days": []}'::jsonb then raise 'coach bloqué : santé lue'; end if;
+  if (public.coach_student_weeks(pg_temp.hu('s')) -> 'health' ->> 'shared')::boolean then raise 'coach bloqué : santé dans la fiche Semaines'; end if;
+  perform pg_temp.hlogin('s');
+  if pg_temp.hsend(jsonb_build_array(pg_temp.hday(0))) <> 'not_shared' then raise 'élève qui bloque : envoi accepté'; end if;
+end $$;
+reset role;
+delete from public.blocks where blocker_id = pg_temp.hu('s') and blocked_id = pg_temp.hu('k');
+-- Blocage dans l'autre sens (le coach bloque l'élève) : même règle
+insert into public.blocks (blocker_id, blocked_id) values (pg_temp.hu('k'), pg_temp.hu('s'));
+set role authenticated;
+do $$
+begin
+  perform pg_temp.hlogin('k');
+  if (public.coach_student_health(pg_temp.hu('s')) ->> 'shared')::boolean then raise 'coach qui bloque : santé lue'; end if;
+  perform pg_temp.hlogin('s');
+  if pg_temp.hsend(jsonb_build_array(pg_temp.hday(0))) <> 'not_shared' then raise 'élève bloqué : envoi accepté'; end if;
+end $$;
+reset role;
+delete from public.blocks where blocker_id = pg_temp.hu('k') and blocked_id = pg_temp.hu('s');
+
 -- ── Fusion jour par jour, et un jour trop vieux resté en base (appareil hors ligne) supprimé à l'envoi ──
 insert into public.coach_shared_health_days (student_id, day, steps) values (pg_temp.hu('s'), (now() at time zone 'utc')::date - 120, 5000);
 set role authenticated;
