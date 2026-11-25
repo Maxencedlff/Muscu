@@ -181,3 +181,9 @@ function exerciseTarget(cat, ex) {
   const { text, gain, before, coach, spoken } = exerciseGoal(cat, ex);
   return { text, gain, before, ...(coach ? { coach: true, spoken } : {}) };
 }
+
+// Objectif de séances par semaine : réglé par l'utilisateur, sinon le nombre de séances du programme (carte « Cette semaine »
+// de l'accueil, bilans de l'élève : js/data/checkin-student.js)
+function weeklyGoal() {
+  return data.weeklyGoal || Math.min(7, Math.max(1, sessionKeys().length)) || 3;
+}

@@ -22,16 +22,7 @@ const FIELD_HOST_SEL = '.cell, .diet-field, .coach-req-field, .date-row, .ios-di
 // Zone de texte hors ligne de formulaire (notes du bilan, séance ajoutée) : le message va juste sous elle
 function fieldHost(input) { return input?.closest?.(FIELD_HOST_SEL) || (input?.matches?.('textarea') ? input : null); }
 // Message sous le champ (cls : field-err rouge, field-hint gris), réutilisé s'il est déjà là ; retiré à la frappe
-// aria-describedby : une liste d'identifiants (aide d'origine : #coachCardHelp, #payCodeHelp…) ; on ajoute ou on retire le
-// sien sans jamais écraser les autres
-function describedAdd(el, id) {
-  const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
-  if (!ids.includes(id)) el.setAttribute('aria-describedby', [...ids, id].join(' '));
-}
-function describedRemove(el, id) {
-  const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(x => x && x !== id);
-  if (ids.length) el.setAttribute('aria-describedby', ids.join(' ')); else el.removeAttribute('aria-describedby');
-}
+// aria-describedby : describedAdd / describedRemove (js/core/util.js, partagés avec les dialogues de js/core/dialogs.js)
 // detail : seconde ligne en texte secondaire (texte gardé d'un collage coupé, en texte très grand).
 // live : le message est lu par VoiceOver dès qu'il paraît (seul canal : jamais en plus d'announce ni d'un focus)
 function fieldNote(input, msg, cls = 'field-err', detail = '', live = true) {

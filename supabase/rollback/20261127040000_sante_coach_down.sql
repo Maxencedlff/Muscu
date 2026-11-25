@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
---  Retour arrière de supabase/migrations/20261127020000_sante_coach.sql (à lancer à la main, dans l'éditeur SQL,
+--  Retour arrière de supabase/migrations/20261127040000_sante_coach.sql (à lancer à la main, dans l'éditeur SQL,
 --  seulement si Maxence décide de retirer la santé partagée avec le coach). Pas dans migrations/ : Supabase ne
 --  l'applique jamais de lui-même.
 --

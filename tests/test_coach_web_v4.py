@@ -113,7 +113,9 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         check(not page.evaluate('window.__csp || []'), f'{tag} : CSP {page.evaluate("window.__csp")}')
         check(not page.errors, f'{tag} : erreurs {page.errors}')
         keys = page.evaluate("Object.keys(localStorage).filter(k => !['mdlf_push_ask', 'mdlf_push_remind'].includes(k)).sort()")
-        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : localStorage {keys}')
+        check(keys == [], f'{tag} : localStorage {keys}')
+        keys = page.evaluate("Object.keys(sessionStorage).sort()")
+        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : sessionStorage {keys}')
     except Exception:
         os.makedirs(FAILS, exist_ok=True)
         page.screenshot(path=os.path.join(FAILS, tag.replace(' ', '_') + '.png'), full_page=True)
@@ -141,6 +143,16 @@ def journeys(browser, url, engine):
         page.fill('#chat-in', 'a' * 2003)
         check(page.locator('#chat-count').inner_text().startswith('3 caractères en trop') and page.locator('[data-ms=send]').is_disabled(), 'trop long')
         page.fill('#chat-in', '')
+        # Limite de chat_send dépassée : le message reste dans le champ, « Réessayer » le renvoie une fois la limite passée
+        page.evaluate("__sb.so.day[window.__coachId + 'chat'] = 500")
+        page.fill('#chat-in', 'Message refusé puis renvoyé')
+        page.click('[data-ms=send]')
+        page.wait_for_selector('.chat-fail[role=alert] >> text=Réessayer')
+        check(page.input_value('#chat-in') == 'Message refusé puis renvoyé', 'limite : message gardé dans le champ')
+        page.evaluate("__sb.so.day[window.__coachId + 'chat'] = 0")
+        page.click('.chat-fail [data-ms=send]')
+        wait_js(page, "document.querySelector('.chat-b').innerText.includes('Message refusé puis renvoyé') && !document.querySelector('.chat-fail')")
+        check(page.input_value('#chat-in') == '', 'limite : champ vidé après le nouvel essai')
         # Commentaire de séance depuis le fil
         page.locator('[data-ms=note-open]').last.click()
         page.fill('#note-in', 'Super régularité cette semaine.')
@@ -217,7 +229,7 @@ def journeys(browser, url, engine):
         check(page.locator('#login-email').count() == 0, 'embarquée : pas d\'écran de connexion')
         page.click('[data-action=host-exit]')
         check(page.evaluate('window.__exited') is True, 'embarquée : Revenir à l\'appli appelle l\'hôte')
-        check('mdlf-coach-web-auth' not in page.evaluate('Object.keys(localStorage)'), 'embarquée : session jamais copiée dans le navigateur')
+        check('mdlf-coach-web-auth' not in page.evaluate('Object.keys(localStorage).concat(Object.keys(sessionStorage))'), 'embarquée : session jamais copiée dans le navigateur')
     finally:
         ctx.close()
 

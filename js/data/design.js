@@ -34,9 +34,4 @@ function sanitizeDesign(d) {
 }
 // Design de l'app en cours (data de js/data/store.js ; absent, dans un outil qui ne charge pas la donnée : l'orange)
 function currentDesignAccent() { return typeof data === 'undefined' ? DESIGN_DEFAULT : designAccent(data); }
-// Classe du design sur body (css/theme-sobre.css) ; appelée au démarrage et à chaque dessin d'écran (js/ui/router.js) :
-// un choix reçu d'un autre appareil s'applique au premier redessin
-function applyDesign() {
-  if (typeof document === 'undefined' || !document.body) return;
-  document.body.classList.toggle('design-bleu', currentDesignAccent() === 'bleu');
-}
+// Classe du design sur body : applyDesign (js/ui/theme.js, l'écran ; la donnée ne touche pas au DOM)

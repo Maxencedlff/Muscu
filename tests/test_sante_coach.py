@@ -101,6 +101,7 @@ def open_student(page, theme, health=True, days_key=True, items=None, shared=Fal
     settle(page)
     ids = page.evaluate("""([ax, items, shared]) => { const me = __sb.meId(); __sb.makeCoach(ax); __sb.link(ax, me, Date.now() - 40 * 86400000);
         if (shared) __sb.shareHealth(me, []);
+        if (items && __sb.ckHealth) __sb.ckHealth(me);   // accord daté des bilans (20261127030000), donné une fois
         const req = items ? __sb.ckRequest(ax, me, { name: 'Bilan de la semaine', items, sentAt: Date.now() - 3600000, dueAt: Date.now() + 86400000 }) : null;
         return { alex: ax, lea: me, req }; }""", [ax, items, shared])
     page.evaluate('coachRefresh()')

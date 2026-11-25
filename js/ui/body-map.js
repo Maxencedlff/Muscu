@@ -265,12 +265,7 @@ async function bodyOutlineMask(kind, view, id, r = BODY_OL_PX, inner = false) {
   });
 }
 
-// Vues de la carte de la fiche : celles où un sous-muscle est coloré (abducteurs : le dos seul, en grand ; panel
-// affichage-e t3), les deux sinon
-function bodyAtlasViews(kind, levels) {
-  const used = ['front', 'back'].filter(v => BODY_PARTS.parts.some(p => levels[p.id] > 0 && BODY_PARTS.boxes[kind]?.[v]?.[p.id]));
-  return used.length === 1 ? used : ['front', 'back'];
-}
+// Vues de la carte de la fiche : bodyAtlasViews (js/data/atlas.js, logique pure partagée avec les lignes de la fiche)
 
 // Carte de l'atlas, face et dos côte à côte, en texte HTML (même gabarit que bodyMapHtml : .body-map__row,
 // .body-map__fig, d'où les mêmes places de bulle). levels : exercisePartLevels(…).levels (js/data/atlas.js).

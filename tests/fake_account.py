@@ -77,7 +77,7 @@ Suivi de la diète (supabase/migrations/20261118010000_suivi_diete_coach.sql) : 
 __sb.fail.dietLog = 'missing' : serveur d'avant, invalid_kind, PGRST202), student_share_diet_days (not_shared sans
 consentement, remplace tout, 92 jours au plus), coach_student_diet, coach_diet_overview ; état dans __sb.co.dietDays ;
 __sb.shareDiet(élève, [jours]) coche et dépose.
-Pas, sommeil et cardio de Santé (supabase/migrations/20261127020000_sante_coach.sql) : kinds annonce 'health' (sauf
+Pas, sommeil et cardio de Santé (supabase/migrations/20261127040000_sante_coach.sql) : kinds annonce 'health' (sauf
 __sb.fail.health = 'missing' : serveur d'avant, invalid_kind, PGRST202), student_share_health_days (not_shared sans
 consentement, FUSION jour par jour, 92 jours au plus, 90 jours gardés), coach_student_health, et coach_student_weeks
 rend health ; état dans __sb.co.healthDays ; __sb.shareHealth(élève, [{ day, steps, sleep, cardio }]) coche et dépose.
@@ -486,6 +486,8 @@ FAKE_ACCOUNT = r"""
       so.follows = so.follows.filter(f => !((f.follower === me && f.followee === target) || (f.follower === target && f.followee === me && f.status === 'accepted')));
       so.follows.forEach(f => { if (f.follower === target && f.followee === me) f.status = 'ghost'; });
       so.bravos = so.bravos.filter(b => !((b.user === me && b.owner === target) || (b.user === target && b.owner === me)));
+      // Lien coach entre nous, dans un sens ou dans l'autre : coupé (20261127010000_blocage_coupe_coach.sql)
+      [[me, target], [target, me]].forEach(([st, c]) => { if (sb.linkOf?.(st)?.coach === c) sb.cutLink(st); });
       return null;
     },
     unblock_user: (me, { target }) => {
@@ -706,6 +708,8 @@ FAKE_ACCOUNT = r"""
   sb.link = (coachId, student, at = now()) => { co.links.push({ coach: coachId, student, at, seen: null }); };
   const linkOf = student => co.links.find(l => l.student === student);
   sb.linkOf = linkOf;
+  // Lien rompu (quitter, bloquer) : tout ce qui n'existe que sous lui part (cascades de coach_links)
+  sb.cutLink = me => { (sb.onUnlink || []).forEach(f => f(me)); dropShares(me); dropChat(me); dropPhases(me); dropPhotos(p => p.student === me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); };
   // L'élève de ce coach, et je suis encore coach (private.coach_require_student)
   const coachOf = (me, student) => { const l = linkOf(student); return l && l.coach === me && co.coachAt[me] ? l : null; };
   // ── Photos de bilan (supabase/migrations/20261107000000_photos_bilan.sql) ──
@@ -1263,10 +1267,12 @@ FAKE_ACCOUNT = r"""
     coach_preview: (me, { code }) => { const r = joinCheck(me, code); return typeof r === 'string' ? pgErr(r) : cperson(r.coach, null); },
     coach_join: (me, { code }) => {
       const r = joinCheck(me, code); if (typeof r === 'string') return pgErr(r);
+      // Deux comptes bloqués ne se relient pas (réponse d'un code faux, 20261127010000_blocage_coupe_coach.sql)
+      if (!linkOf(me) && sb.blockedBetween?.(me, r.coach)) return pgErr('invalid_code');
       if (!linkOf(me)) sb.link(r.coach, me);
       return cperson(r.coach, linkOf(me).at);
     },
-    coach_leave: me => { (sb.onUnlink || []).forEach(f => f(me)); dropShares(me); dropChat(me); dropPhases(me); dropPhotos(p => p.student === me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
+    coach_leave: me => { sb.cutLink(me); return null; },
     // Retirer un accès est toujours permis, même si mon rôle de coach a été retiré
     coach_remove_student: (me, { student }) => {
       const l = linkOf(student);

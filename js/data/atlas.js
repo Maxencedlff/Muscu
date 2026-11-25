@@ -253,3 +253,10 @@ function atlasMuscleZones(pl, muscleId, kind = bodyKind(bodySilhouette())) {
   }
   return zones.size > 1 ? [...zones].map(([l, n]) => ({ label: l, n })) : [];
 }
+
+// Vues de la carte de la fiche : celles où un sous-muscle est coloré (abducteurs : le dos seul, en grand ; panel
+// affichage-e t3), les deux sinon
+function bodyAtlasViews(kind, levels) {
+  const used = ['front', 'back'].filter(v => BODY_PARTS.parts.some(p => levels[p.id] > 0 && BODY_PARTS.boxes[kind]?.[v]?.[p.id]));
+  return used.length === 1 ? used : ['front', 'back'];
+}

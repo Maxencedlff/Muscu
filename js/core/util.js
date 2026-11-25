@@ -338,3 +338,14 @@ function elide(word, next) {
   const n = String(next ?? '');
   return /^[aeiouàâäéèêëîïôöùûüœæh]/i.test(n) ? `${word.slice(0, -1)}'${n}` : `${word} ${n}`;
 }
+
+// aria-describedby : une liste d'identifiants (aide d'origine : #coachCardHelp, #payCodeHelp…) ; on ajoute ou on retire le
+// sien sans jamais écraser les autres. Ici et non dans js/ui/forms.js : les dialogues (js/core/dialogs.js) s'en servent aussi
+function describedAdd(el, id) {
+  const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+  if (!ids.includes(id)) el.setAttribute('aria-describedby', [...ids, id].join(' '));
+}
+function describedRemove(el, id) {
+  const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(x => x && x !== id);
+  if (ids.length) el.setAttribute('aria-describedby', ids.join(' ')); else el.removeAttribute('aria-describedby');
+}

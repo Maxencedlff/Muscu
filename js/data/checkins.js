@@ -47,7 +47,7 @@ const CHECKIN_KINDS = Object.freeze([
   { kind: 'cardio', group: 'activity', label: 'Cardio', types: ['number'], unit: 'min', icon: 'heart', help: 'Minutes sur la période' },
   { kind: 'pain', group: 'activity', label: 'Douleurs ou blessures', types: ['yesno', 'text'], icon: 'bandage', help: 'Où, depuis quand', sensitive: true },
   // Sommeil : ressenti (échelle, par défaut) ou heures par nuit en moyenne (nombre, prérempli depuis Santé ; migration
-  // 20261127020000_sante_coach.sql, qui ouvre ce type côté serveur)
+  // 20261127040000_sante_coach.sql, qui ouvre ce type côté serveur)
   { kind: 'sleep', group: 'feel', label: 'Sommeil', types: ['scale', 'number'], scale: 5, lo: 'Mal', hi: 'Très bien', unit: 'h', icon: 'moon' },
   { kind: 'energy', group: 'feel', label: 'Énergie', types: ['scale'], scale: 5, lo: 'À plat', hi: 'Au top', icon: 'bolt' },
   { kind: 'hunger', group: 'feel', label: 'Faim', types: ['scale'], scale: 5, lo: 'Aucune', hi: 'Tout le temps', icon: 'diet' },

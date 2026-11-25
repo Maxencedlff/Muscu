@@ -221,6 +221,12 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(st.requests.length, 1);
     assert.equal(st.cycle, true); assert.equal(st.cycleAsked, true);
     assert.equal(st.requests[0].coach, COACH);
-    sameJSON(run(`cleanStudentCheckins(null)`), { requests: [], cycle: false, cycleAsked: false });
+    sameJSON(run(`cleanStudentCheckins(null)`), { requests: [], cycle: false, cycleAsked: false, adult: null, adultAsked: false, health: null });
+    // Accord daté et majorité (20261127030000_bilans_accord_majeur.sql)
+    const h = run(`cleanStudentCheckins({ requests: [], adult: false, adult_asked: true, health: { consented: true, version: 1, current: 1, at: '2026-11-25T10:00:00Z' } })`);
+    assert.equal(h.adult, false); assert.equal(h.adultAsked, true);
+    sameJSON(h.health, { consented: true, version: 1, at: Date.parse('2026-11-25T10:00:00Z') });
+    assert.equal(run(`cleanStudentCheckins({ adult: 'oui', health: [] }).adult`), null);
+    assert.equal(run(`cleanStudentCheckins({ health: [] }).health`), null);
   });
 }

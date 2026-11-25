@@ -20,6 +20,12 @@ function applyTheme(theme) {
   if (bar) bar.content = light ? 'default' : 'black-translucent';
   Native.statusBar(!light);
 }
+// Classe du design sur body (css/theme-sobre.css ; design choisi : currentDesignAccent, js/data/design.js) ; appelée au
+// démarrage et à chaque dessin d'écran (js/ui/router.js) : un choix reçu d'un autre appareil s'applique au premier redessin
+function applyDesign() {
+  if (typeof document === 'undefined' || !document.body) return;
+  document.body.classList.toggle('design-bleu', currentDesignAccent() === 'bleu');
+}
 applyTheme(themePref());
 applyDesign();   // Réglages › Apparence › Design (js/data/design.js), avant le premier dessin
 

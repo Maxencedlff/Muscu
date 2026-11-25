@@ -1,4 +1,4 @@
--- Vérifications de supabase/migrations/20261127020000_sante_coach.sql (lancées par tests/sql/run.sh) :
+-- Vérifications de supabase/migrations/20261127040000_sante_coach.sql (lancées par tests/sql/run.sh) :
 -- consentement « health » par élève et par coach, un résumé par jour borné (pas, sommeil, cardio), fusion jour par
 -- jour, 90 jours glissants, lecture par le seul coach consenti, effacement au retrait, limites, clé health de
 -- coach_student_weeks, et le suivi Sommeil des bilans en heures. Chaque bloc échoue (raise) si la règle n'est pas
@@ -349,6 +349,7 @@ do $$
 declare
   h jsonb := '{"key": "sleep", "kind": "sleep", "label": "Sommeil", "type": "number", "required": false, "unit": "h"}';
   sc jsonb := '{"key": "sleep", "kind": "sleep", "label": "Sommeil", "type": "scale", "required": false, "scale": 5, "lo": "Mal", "hi": "Très bien"}';
+  r boolean;
 begin
   if not private.checkin_item_ok(h) then raise 'suivi Sommeil en heures refusé'; end if;
   if not private.checkin_item_ok(sc) then raise 'suivi Sommeil en échelle refusé'; end if;
@@ -364,6 +365,14 @@ begin
   if private.checkin_value_ok(h, '"7"') then raise '7 en texte accepté'; end if;
   if private.checkin_value_ok(h, '7.255') then raise '7.255 (non arrondi) accepté'; end if;
   if not private.checkin_value_ok(sc, '4') or private.checkin_value_ok(sc, '7.25') then raise 'échelle du sommeil changée'; end if;
+  -- Avec l'accord daté des bilans (20261127030000) : le Sommeil, en heures ou en échelle, n'est pas réservé aux 18 ans
+  if to_regprocedure('private.checkin_item_shown(jsonb, boolean, boolean)') is not null then
+    execute 'select private.checkin_item_shown($1, false, false) and private.checkin_item_shown($2, false, false)' into strict r using h, sc;
+    if not r then raise 'Sommeil caché à un élève sans la déclaration des 18 ans'; end if;
+    execute 'select private.checkin_item_shown($1, false, false)' into strict r
+      using '{"key": "libido", "kind": "libido", "label": "Libido", "type": "scale", "required": false, "scale": 5, "lo": "Très basse", "hi": "Très haute"}'::jsonb;
+    if r then raise 'règle des 18 ans défaite : libido montrée'; end if;
+  end if;
   -- Les autres unités ne bougent pas
   if private.checkin_number('301', 'kg') is not null or private.checkin_number('8900.6', 'steps') <> 8901 then raise 'autres unités changées'; end if;
 end $$;

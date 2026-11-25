@@ -133,17 +133,19 @@ def open_app(page, theme, vault=True):
     settle(page)
 
 
-def student_page(page, theme, items=ITEMS, cycle_asked=True, **kw):
+def student_page(page, theme, items=ITEMS, cycle_asked=True, adult=True, **kw):
     """Je suis lea, élève d'alex (coach) ; alex m'a envoyé « Bilan de la semaine » il y a une heure, à rendre demain.
-    Pesées, mensurations et diète connues de l'app. → { alex, lea, req }"""
+    Pesées, mensurations et diète connues de l'app ; adult : « 18 ans ou plus » déjà déclaré (photos de bilan) ; accord
+    daté des bilans PAS encore donné (demandé au premier envoi). → { alex, lea, req }"""
     open_app(page, theme, **kw)
     ax = page.evaluate("() => __sb.addPerson({ username: 'alex', avatar: '🦁', social: false })")
     page.evaluate("""async u => { await accountSignInWith('apple', async () => 'add'); await accountSaveProfile({ username: u }); }""", 'lea')
     settle(page)
-    ids = page.evaluate("""([ax, items, asked]) => { const me = __sb.meId(); __sb.makeCoach(ax); __sb.link(ax, me, Date.now() - 40 * 86400000);
+    ids = page.evaluate("""([ax, items, asked, adult]) => { const me = __sb.meId(); __sb.makeCoach(ax); __sb.link(ax, me, Date.now() - 40 * 86400000);
         if (!asked) __sb.ckCycleAsked = false;
+        if (adult) __sb.co.adults[me] = new Date().toISOString();
         const req = __sb.ckRequest(ax, me, { name: 'Bilan de la semaine', items, sentAt: Date.now() - 3600000, dueAt: Date.now() + 86400000 });
-        return { alex: ax, lea: me, req }; }""", [ax, items, cycle_asked])
+        return { alex: ax, lea: me, req }; }""", [ax, items, cycle_asked, adult])
     # Ce que l'app sait : pesée de ce matin, mensurations, cinq jours de diète suivis sur sept (résumés du jour factices)
     page.evaluate("""now => { data.bodyWeightLog = [{ date: now - 2 * 3600000, kg: 62.2 }, { date: now - 3 * 86400000, kg: 62.9 }];
         data.bodyMeasures = { waist: [{ date: now - 2 * 86400000, cm: 68.5 }], hips: [{ date: now - 2 * 86400000, cm: 94.5 }] };
@@ -168,6 +170,10 @@ def open_bilan(page):
 def confirm_send(page, ax_name='alex'):
     page.click('.ck-view button.ck-send')
     page.wait_for_selector('.ios-dialog')
+    # Premier envoi : accord daté pour les données de santé, puis la confirmation
+    if 'Accord pour tes bilans' in page.inner_text('.ios-dialog'):
+        tap_dialog(page, "J'accepte")
+        page.wait_for_selector(f'.ios-dialog__btn:has-text("Envoyer à {ax_name}")')
     tap_dialog(page, f'Envoyer à {ax_name}')
     page.wait_for_selector('.ck-view--done')
     settle(page)
@@ -270,6 +276,8 @@ def t_remplir(bench, eng, dev, theme):
                 and ans.get('diet_adherence') == {'done': 5, 'of': 7} and 'collation' in ans.get('qdiffic01', ''), f'{t} réponses reçues par le serveur ({ans})')
         n = page.evaluate("() => __sb.calls.filter(c => c[1] === 'student_checkin_answer').length")
         R.check(n == 1, f'{t} un seul envoi ({n})')
+        h = page.evaluate("() => __sb.ck.health[__sb.meId()]")
+        R.check(h and h.get('version') == 1 and h.get('at'), f'{t} accord daté enregistré au premier envoi ({h})')
         layout(page, t, 'Envoyé')
         capture(page, f'bilan-envoye-{t}', full=False)
         # Réponse du coach
@@ -319,6 +327,7 @@ def t_cycle(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         ids = student_page(page, theme)
+        page.evaluate("() => __sb.ckHealth(__sb.meId())")
         # Serveur : une phase envoyée sans accord est refusée
         r = page.evaluate("async id => (await sb.rpc('student_checkin_answer', { request: id, answers: { weight: 62, cycle: 'luteal' } })).error?.message", ids['req'])
         R.check(r == 'no_consent', f'{t} serveur : no_consent sans accord ({r})')
@@ -369,6 +378,80 @@ def t_cycle(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_majeur_accord(bench, eng, dev, theme):
+    """Libido et cycle réservés aux 18 ans et plus (déclaration demandée dans le bilan, refus du serveur sans elle) ;
+    accord daté au premier envoi (annuler : rien ne part ; texte, version, date) ; retrait dans Mon coach."""
+    if dev not in DEVS:
+        R.skip(f'{dev} : bilans vérifiés sur iPhone SE et iPhone 13')
+        return
+    t = tag(dev, theme)
+    items = [{'kind': 'sleep', 'type': 'scale'}, {'kind': 'libido', 'type': 'scale'}, {'kind': 'cycle', 'type': 'choice'}]
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        ids = student_page(page, theme, items=items, adult=False)
+        open_bilan(page)
+        R.check(page.locator('#ck-i-libido').count() == 0 and page.locator('[data-action="ck-cycle-offer"]').count() == 0, f'{t} sans déclaration : ni libido ni cycle')
+        R.check(page.locator('.ck-offer--adult [data-action="ck-adult"]').count() == 1, f'{t} déclaration des 18 ans proposée')
+        r = page.evaluate("async id => { await sb.rpc('student_checkin_consent', { accept: true, version: 1 }); const e = (await sb.rpc('student_checkin_answer', { request: id, answers: { libido: 3 } })).error?.message; await sb.rpc('student_checkin_consent', { accept: false }); return e; }", ids['req'])
+        R.check(r == 'not_adult', f'{t} serveur : libido refusée sans déclaration ({r})')
+        page.evaluate('checkinRefresh()')
+        settle(page)
+        layout(page, t, 'Bilan sans déclaration')
+        capture(page, f'majeur-propose-{t}')
+        page.click('[data-action="ck-adult"]')
+        page.wait_for_selector('.ios-dialog')
+        tap_dialog(page, "J'ai 18 ans ou plus")
+        page.wait_for_selector('#ck-i-libido')
+        settle(page)
+        R.check(page.locator('.ck-offer--adult').count() == 0 and page.locator('[data-action="ck-cycle-offer"]').count() == 1, f'{t} déclaré : libido montrée, cycle proposé')
+        page.click('#ck-i-libido [data-v="3"]')
+        # Premier envoi : l'accord daté ; Annuler → rien ne part
+        page.click('.ck-view button.ck-send')
+        page.wait_for_selector('.ios-dialog')
+        txt = page.inner_text('.ios-dialog')
+        R.check("Tu acceptes d'envoyer à alex tes réponses de bilan (données de santé)" in txt and 'Supabase' in txt and 'retirer' in txt, f'{t} texte de l\'accord ({txt!r})')
+        layout(page, t, 'Accord des bilans', '.ios-dialog')
+        capture(page, f'accord-bilans-{t}', full=False)
+        tap_dialog(page, 'Annuler')
+        R.check(not page.evaluate("() => __sb.calls.some(c => c[1] === 'student_checkin_answer' && c[2]?.answers?.libido)") and page.locator('.ck-view--done').count() == 0, f'{t} accord refusé : rien ne part')
+        confirm_send(page)
+        ans = page.evaluate("id => __sb.ck.answers[id]", ids['req'])
+        R.check(ans.get('libido') == 3, f'{t} libido envoyée après la déclaration ({ans})')
+        # Mon coach : accord daté, retrait
+        page.evaluate("() => navigate('coach-mine')")
+        page.wait_for_selector('[data-action="ck-health-withdraw"]')
+        R.check('Donné le' in page.inner_text('[data-action="ck-health-withdraw"]'), f'{t} Mon coach : accord avec sa date')
+        page.click('[data-action="ck-health-withdraw"]')
+        tap_dialog(page, 'Retirer mon accord')
+        settle(page)
+        R.check(not page.evaluate("() => __sb.ck.health[__sb.meId()]") and page.locator('[data-action="ck-health-offer"]').count() == 1, f'{t} accord retiré')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_bloquer_coach(bench, eng, dev, theme):
+    """Bloquer son coach : la feuille dit que la conversation est effacée et le suivi coupé, propose « Signaler d'abord »
+    (les messages sont joints), puis bloque ; Gérer dit que débloquer ne reprend pas le suivi."""
+    if dev != 'iPhone 13':
+        R.skip(f'{dev} : blocage du coach vérifié sur iPhone 13')
+        return
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        ids = student_page(page, theme)
+        page.evaluate("ax => { __sb.msg(__sb.meId(), true, 'Salut, on fait le point ?'); blockFlow(ax); }", ids['alex'])
+        page.wait_for_selector('.ios-dialog')
+        txt = page.inner_text('.ios-dialog')
+        R.check('Bloquer efface votre conversation et coupe le suivi.' in txt and 'Bloquer alex ?' in txt, f'{t} feuille : effet dit, nom du coach ({txt!r})')
+        layout(page, t, 'Bloquer son coach', '.ios-dialog')
+        capture(page, f'bloquer-coach-{t}', full=False)
+        tap_dialog(page, "Signaler d'abord")
+        page.wait_for_selector('.ios-dialog__btn:has-text("Harcèlement")')
+        tap_dialog(page, 'Harcèlement')
+        settle(page)
+        R.check(page.evaluate("() => __sb.calls.some(c => c[1] === 'report_chat')"), f'{t} signalement envoyé avant le blocage')
+        R.check(page.evaluate("ax => __sb.so.blocks.some(k => k.blocker === __sb.meId() && k.blocked === ax)", ids['alex']), f'{t} bloqué ensuite')
+        R.check(not page.evaluate("() => __sb.linkOf(__sb.meId())"), f'{t} lien coach coupé')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_photos_hors_ligne(bench, eng, dev, theme):
     """Photos déjà envoyées par le circuit chiffré : jointes au bilan. Hors ligne : gardé, envoyé au retour du réseau,
     une seule fois. Ouverture par notification (bilan, rappel)."""
@@ -395,7 +478,10 @@ def t_photos_hors_ligne(bench, eng, dev, theme):
         layout(page, t, 'Bilan photos')
         page.locator('.ck-tiles').scroll_into_view_if_needed()
         capture(page, f'bilan-photos-{t}', full=False)
-        # Hors ligne : gardé
+        # Hors ligne : gardé (accord des bilans donné avant : il ne se donne qu'en ligne)
+        page.evaluate("() => { __sb.ckHealth(__sb.meId()); }")
+        page.evaluate('checkinRefresh()')
+        settle(page)
         page.evaluate("() => { __sb.fail.checkins = 'offline'; }")
         confirm_send(page)
         done = page.inner_text('.ck-done')
@@ -416,4 +502,4 @@ def t_photos_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_remplir, t_ax33, t_cycle, t_photos_hors_ligne])
+run_main(R, [t_remplir, t_ax33, t_cycle, t_majeur_accord, t_bloquer_coach, t_photos_hors_ligne])

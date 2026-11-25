@@ -95,7 +95,7 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
   test('santé coach : contexte d\'un bilan : seulement le résumé lu pour CE bilan', () => {
     reset();
     const req = { id: '11111111-1111-4111-8111-111111111111', name: 'Hebdo', sentAt: NOW, items: [] };
-    run(`ck.health = { id: '${req.id}', steps: 9000, sleepH: 7.5, cardioMin: 60 }`);
+    run(`ck.hk = { id: '${req.id}', steps: 9000, sleepH: 7.5, cardioMin: 60 }`);
     // Case décochée (audit du 25/11, B2) : jamais de Santé dans le bilan, même déjà lue
     run(`coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'health'], shares: {} })`);
     const off = run(`checkinContext(${JSON.stringify(req)}, { now: ${NOW} })`);
@@ -105,7 +105,7 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
     sameJSON([ctx.steps, ctx.sleepH, ctx.cardioMin], [9000, 7.5, 60]);
     const other = run(`checkinContext(${JSON.stringify({ ...req, id: '22222222-2222-4222-8222-222222222222' })}, { now: ${NOW} })`);
     sameJSON([other.steps, other.sleepH, other.cardioMin], [null, null, null], 'résumé d\'un autre bilan jamais repris');
-    run('ck.health = null; coachShare.state = null');
+    run('ck.hk = null; coachShare.state = null');
   });
 
   test('santé coach : bilan sans la case cochée : Santé n\'est jamais lue (audit B2)', async () => {
@@ -121,7 +121,7 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
       assert.ok(await run(`checkinReadHealth(${JSON.stringify(req)}, { now: ${NOW} })`), 'case cochée : lu');
       sameJSON(run('__hk'), ['activity', 'sleep']);
     } finally {
-      run('Object.assign(Native.health, __native); healthDays.supported = null; healthDaysReset(); coachShare.state = null; ck.health = null; delete globalThis.__hk; delete globalThis.__native;');
+      run('Object.assign(Native.health, __native); healthDays.supported = null; healthDaysReset(); coachShare.state = null; ck.hk = null; delete globalThis.__hk; delete globalThis.__native;');
     }
   });
 

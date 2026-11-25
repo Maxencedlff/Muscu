@@ -292,8 +292,7 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
     // ── Sommeil ──────────────────────────────────────────────────────────────────────
 
     /// Échantillons de sommeil des `days` dernières nuits (8 par défaut, 92 au plus : 90 jours du partage avec le
-    /// coach), du plus RÉCENT au plus
-    /// récent : start / end en millisecondes depuis 1970, stage : inBed, asleep (sans phase), core, deep,
+    /// coach), du plus récent au plus ancien : start / end en millisecondes depuis 1970, stage : inBed, asleep (sans phase), core, deep,
     /// rem, awake. iOS ne dit pas si la lecture est refusée : liste vide dans ce cas.
     @objc func sleep(_ call: CAPPluginCall) {
         let days = min(92, max(1, call.getInt("days") ?? 8))

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Retour arrière de la santé partagée avec le coach (supabase/rollback/20261127020000_sante_coach_down.sql) : après
+# Retour arrière de la santé partagée avec le coach (supabase/rollback/20261127040000_sante_coach_down.sql) : après
 # les migrations d'avant elle, la migration, des jours de santé partagés et un suivi Sommeil en heures, le retour
 # arrière est d'abord refusé sans rien changer (modèle de bilan en heures), puis, le modèle repassé en échelle, il
 # efface les jours et les consentements « health » (le poids partagé reste) et rend un schéma identique
@@ -9,8 +9,8 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
-mine="$root/supabase/migrations/20261127020000_sante_coach.sql"
-down="$root/supabase/rollback/20261127020000_sante_coach_down.sql"
+mine="$root/supabase/migrations/20261127040000_sante_coach.sql"
+down="$root/supabase/rollback/20261127040000_sante_coach_down.sql"
 bin=$(dirname "$(command -v initdb 2>/dev/null || ls -d /usr/lib/postgresql/*/bin/initdb | sort -V | tail -1)")
 tmp=$(mktemp -d)
 port=$(( 20000 + RANDOM % 20000 ))
