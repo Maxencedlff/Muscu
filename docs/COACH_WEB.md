@@ -90,7 +90,45 @@ clé publique et l'adresse du projet sont identiques à `ACCOUNT_CONFIG` (vérif
   (Réglages ; `signOut({ scope: 'local' })` : l'iPhone reste connecté). La session est dans **sessionStorage** : fermer
   l'onglet la ferme (une session laissée dans localStorage par une version d'avant est effacée au chargement). Seules la
   session de supabase-js (`mdlf-coach-web-auth`) et l'heure du dernier geste (`mdlf_coach_web_active`) y sont gardées ;
-  aucune donnée d'élève, rien dans localStorage (test E2E).
+  aucune donnée d'élève, rien dans localStorage (test E2E). C'est le comportement par défaut ; l'exception, choisie par
+  le coach, est la case suivante.
+- L'information « Session fermée après 30 minutes sans activité » (ou « après 90 jours sans visite ») s'affiche en haut
+  du formulaire, en texte neutre (`#login-info`, `role="status"`) : ce n'est pas une erreur de saisie, le champ e-mail
+  n'est ni rouge ni `aria-invalid`. Seules les erreurs du formulaire (adresse ou code invalide, envoi refusé) marquent
+  le champ (`ui.login.errField`).
+
+### Rester connecté sur cet ordinateur (27/11/2026)
+
+Demande de Maxence : sur son PC à lui, se reconnecter toutes les 30 minutes est pénible. Interrupteur **« Rester connecté
+sur cet ordinateur »**, avec la ligne d'aide « Seulement sur ton ordinateur personnel », sous le formulaire de connexion
+et dans Réglages › Compte (où on peut le couper). **Décoché par défaut.** Le choix est gardé sur l'ordinateur
+(localStorage, `mdlf_coach_web_keep` = `1`) ; jamais dans l'app qui embarque la page (la session y appartient à l'hôte).
+
+Coché :
+- la session de supabase-js, son **vérificateur PKCE** (connexion Google) et l'heure du dernier geste vont dans
+  **localStorage** : supabase-js reçoit un stockage (`deskAuthStorage`, `js/desk/api.js`) qui relit le choix à chaque
+  lecture et écriture ; cocher ou décocher pendant une session la déplace aussitôt (`deskSetKeep`), rien ne reste dans
+  l'autre stockage ;
+- **fenêtre glissante de 90 jours, sans durée maximale**, comme l'app iPhone : chaque ouverture et chaque geste repoussent
+  la fin ; la session ne se ferme qu'après **90 jours sans aucune ouverture du site**, ou avec « Se déconnecter » ;
+- pas de bandeau « Toujours là ? », pas de fin après 30 minutes ;
+- « Se déconnecter de cet ordinateur » efface tout (session, heure, choix compris) ; une fin après 90 jours garde le
+  choix (c'est le même ordinateur qui revient) et le dit en haut du formulaire.
+
+Côté serveur : `sessions_timebox` et `sessions_inactivity_timeout` valent 0 (lus le 27/11/2026, sans rien modifier), le jeton
+de rafraîchissement ne périme donc pas et la limite de 90 jours est tenue par la page. Si un jour une durée de session est
+réglée dans Supabase (Auth › Sessions, conseillée dans docs/PHOTOS_WEB.md), elle s'applique aussi ici et l'emporte :
+la garder au-dessus de 90 jours d'inactivité pour que la case tienne sa promesse, sinon mettre à jour ce texte.
+
+**Risque accepté** : sur un ordinateur où la case est cochée, quiconque ouvre le navigateur entre dans le site du coach, avec
+la liste des élèves, leurs séances, bilans et messages, sans rien taper ; un logiciel malveillant du poste peut aussi lire le
+jeton dans localStorage (comme pour toute application web qui garde sa session). D'où : décochée par défaut, réservée à
+l'ordinateur personnel (dit à côté de la case), coupable dans Réglages, et « Se déconnecter » qui efface tout. Les
+**photos de bilan** gardent leurs propres protections, inchangées : affichage à la demande, masquées après 5 minutes sans
+activité et dès que l'onglet est caché, clé de l'ordinateur relié dans IndexedDB comme aujourd'hui (docs/PHOTOS_WEB.md).
+Mais sur un ordinateur relié, la case cochée laisse aussi « Afficher les photos » à qui ouvre le navigateur, sans
+nouvelle preuve (comme pendant les 30 minutes d'une session ordinaire, désormais sans limite) : ne relier et ne cocher
+que sur son ordinateur personnel ; « Oublier cet ordinateur » retire l'accès aux photos.
 - CSP de la page : scripts et styles du site seulement, plus le seul script `https://appleid.cdn-apple.com`
   (Sign in with Apple JS), aucun script en ligne, `connect-src` vers le projet Supabase seulement, `frame-src 'none'`
   (le script d'Apple n'ouvre aucun cadre ni aucune connexion : il ouvre une fenêtre surgissante sur appleid.apple.com,

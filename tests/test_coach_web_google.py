@@ -14,6 +14,9 @@
    error_description jamais affiché.
 7. mdlf.app (web-public/, servi sous son vrai nom par une route) : ?error=… renvoyé vers coach.mdlf.app avec error et
    error_code seuls ; sans erreur, la page reste.
+8. « Rester connecté sur cet ordinateur » : décoché par défaut (session dans l'onglet) ; coché, session dans
+   localStorage, reprise au rechargement, ni bandeau ni fin après 30 min ; décoché dans Réglages, retour dans l'onglet ;
+   « Se déconnecter » efface tout, choix compris ; 90 jours sans visite : fermée, information neutre (pas une erreur).
 Faux réseau, aucun appel à Supabase ni à Google ; un navigateur à la fois, sans fenêtre.
 """
 import os
@@ -24,7 +27,7 @@ import traceback
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from playwright.sync_api import sync_playwright  # noqa: E402
 import fixtures  # noqa: E402,F401
-from coach_web_fixtures import static_server, launch, open_desk, ROOT  # noqa: E402
+from coach_web_fixtures import static_server, launch, open_desk, ROOT, COACH_EMAIL, FAKE_CODE  # noqa: E402
 
 ENGINES = [e for e in os.environ.get('PPL_ENGINES', 'chromium,firefox,webkit').split(',') if e]
 UNLINKED_G = "Ce compte Google n'est relié à aucun compte MDLF. Dans l'app : Réglages › Compte › Google › Ajouter, puis réessaie."
@@ -211,12 +214,101 @@ def mdlf_app_forward(browser, engine):
         ctx.close()
 
 
+def email_login(page):
+    page.fill('#login-email', COACH_EMAIL)
+    page.click('form[data-form="email"] button')
+    page.wait_for_selector('#login-code')
+    page.fill('#login-code', FAKE_CODE)
+    page.click('form[data-form="code"] button')
+    page.wait_for_selector('.lst a.row', timeout=30000)
+
+
+AUTH_KEYS = "k => Object.keys(k).filter(x => x.startsWith('mdlf-coach-web-auth') || x === 'mdlf_coach_web_active')"
+
+
+def stored(page):
+    return page.evaluate(f"({{ local: ({AUTH_KEYS})(localStorage), tab: ({AUTH_KEYS})(sessionStorage), keep: localStorage.getItem('mdlf_coach_web_keep') }})")
+
+
+def keep_signed_in(browser, url, engine):
+    tag = f'{engine} rester connecté'
+    ctx, page = open_desk(browser, url, width=1440, login=False, fake_opts={'restore': True})
+    try:
+        sw = page.locator('#keep-login')
+        check(sw.get_attribute('aria-checked') == 'false', f'{tag} : coché par défaut')
+        check('Seulement sur ton ordinateur personnel' in page.inner_text('.login-keep'), f'{tag} : ligne d\'aide')
+        box = sw.bounding_box()
+        check(box['height'] >= 44 and box['width'] >= 44, f'{tag} : cible {box}')
+        sw.click()
+        check(sw.get_attribute('aria-checked') == 'true' and stored(page)['keep'] == '1', f'{tag} : choix pas gardé')
+        email_login(page)
+        st = stored(page)
+        check('mdlf-coach-web-auth' in st['local'] and 'mdlf_coach_web_active' in st['local'] and st['tab'] == [], f'{tag} : stockage {st}')
+        # Rechargement (ou navigateur rouvert) : toujours connecté
+        page.reload()
+        page.wait_for_selector('.lst a.row', timeout=30000)
+        # Ni bandeau ni fin après 30 minutes, ni après 2 h
+        page.clock.run_for(2 * 3600_000)
+        check(page.locator('#idle').count() == 0 and page.evaluate('!!desk.user'), f'{tag} : bandeau ou fin de session')
+        # Réglages : la ligne, décochable ; décochée, la session revient dans l'onglet
+        page.evaluate("location.hash = '#/reglages'")
+        page.wait_for_selector('#keep-settings')
+        check(page.get_attribute('#keep-settings', 'aria-checked') == 'true' and '90 jours' in page.inner_text('main'), f'{tag} : Réglages')
+        page.click('#keep-settings')
+        until(page, "document.getElementById('keep-settings')?.getAttribute('aria-checked') === 'false'")
+        st = stored(page)
+        check(st['local'] == [] and st['keep'] is None and 'mdlf-coach-web-auth' in st['tab'], f'{tag} : décoché, stockage {st}')
+        check('30 minutes' in page.inner_text('main'), f'{tag} : texte des 30 minutes')
+        check(page.evaluate("document.activeElement.id") == 'keep-settings', f'{tag} : focus')
+        # Recoché, puis « Se déconnecter » : plus rien, choix compris
+        page.click('#keep-settings')
+        until(page, "localStorage.getItem('mdlf_coach_web_keep') === '1'")
+        page.click('[data-action="signout"]')
+        page.wait_for_selector('#login-email', timeout=20000)
+        st = stored(page)
+        check(st == {'local': [], 'tab': [], 'keep': None}, f'{tag} : après « Se déconnecter » {st}')
+        check(page.get_attribute('#keep-login', 'aria-checked') == 'false', f'{tag} : case recochée après la déconnexion')
+        check(not page.errors, f'{tag} : erreurs {page.errors}')
+    finally:
+        ctx.close()
+    # 90 jours sans visite : fermée au chargement, information neutre, choix gardé
+    tag = f'{engine} rester connecté, 90 jours'
+    ctx, page = open_desk(browser, url, width=1440, login=False, fake_opts={'restore': True})
+    try:
+        page.click('#keep-login')
+        email_login(page)
+        page.evaluate("localStorage.setItem('mdlf_coach_web_active', String(Date.now() - 91 * 86_400_000))")
+        page.reload()
+        page.wait_for_selector('#login-email', timeout=20000)
+        check('90 jours sans visite' in page.inner_text('#login-info'), f'{tag} : information {page.inner_text("body")[:200]!r}')
+        check(page.inner_text('#login-err') == '' and page.get_attribute('#login-email', 'aria-invalid') is None, f'{tag} : affiché comme une erreur')
+        st = stored(page)
+        check(st['local'] == [] and st['tab'] == [] and st['keep'] == '1', f'{tag} : stockage {st}')
+        # 89 jours : toujours ouverte (fenêtre glissante, chaque visite la repousse)
+        email_login(page)
+        page.evaluate("localStorage.setItem('mdlf_coach_web_active', String(Date.now() - 89 * 86_400_000))")
+        page.reload()
+        page.wait_for_selector('.lst a.row', timeout=30000)
+        check(int(page.evaluate("Number(localStorage.getItem('mdlf_coach_web_active'))")) > page.evaluate('Date.now()') - 60_000, f'{tag} : visite pas notée')
+        check(not page.errors, f'{tag} : erreurs {page.errors}')
+    finally:
+        ctx.close()
+    # Par défaut : session dans l'onglet seulement
+    tag = f'{engine} par défaut'
+    ctx, page = open_desk(browser, url, width=1440)
+    try:
+        st = stored(page)
+        check(st['local'] == [] and st['keep'] is None and 'mdlf-coach-web-auth' in st['tab'], f'{tag} : stockage {st}')
+    finally:
+        ctx.close()
+
+
 def main():
     with static_server() as url, sync_playwright() as pw:
         for engine in ENGINES:
             browser = launch(pw, engine)
             try:
-                for fn in (google_unknown, apple_unknown, google_linked_coach, google_errors):
+                for fn in (google_unknown, apple_unknown, google_linked_coach, google_errors, keep_signed_in):
                     fn(browser, url, engine)
                     print(f'OK : {fn.__name__} {engine}', flush=True)
                 mdlf_app_forward(browser, engine)

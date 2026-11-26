@@ -216,7 +216,14 @@ FAKE_ACCOUNT = r"""
 
   const auth = {
     onAuthStateChange: fn => { listeners.push(fn); return { data: { subscription: { unsubscribe() {} } } }; },
-    getSession: async () => ({ data: { session: sb.session }, error: null }),
+    // __fakeOpts.restore : comme supabase-js, la session gardée dans le stockage donné à createClient est reprise au
+    // chargement (même compte du faux serveur, recréé à l'identique par les données de test)
+    getSession: async () => {
+      if (!sb.session && opts.restore && sb.storage) {
+        try { const s = JSON.parse(sb.storage.getItem(sb.storageKey) || 'null'); if (s?.user?.id && sb.users[s.user.id]) sb.session = s; } catch { /* illisible */ }
+      }
+      return { data: { session: sb.session }, error: null };
+    },
     // Session donnée par un hôte (app qui embarque l'appli web du coach) : jeton de ce faux serveur, sinon refus
     setSession: async ({ access_token } = {}) => {
       const u = sb.users[tokenSub(access_token || '')];

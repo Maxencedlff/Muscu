@@ -5,10 +5,15 @@
 //    security definer et de la RLS, chacune vérifie auth.uid() et le lien coach ↔ élève). Adresse et clé identiques à
 //    ACCOUNT_CONFIG de js/data/account.js (vérifié par tests/unit/coach-web.mjs).
 //  - Connexion par code à 6 chiffres reçu par e-mail (signInWithOtp sans création de compte, puis verifyOtp).
-//  - Ordinateur parfois partagé : session fermée après 30 min sans geste (aussi au rechargement) et à la fermeture
-//    de l'onglet (sessionStorage, propre à l'onglet), « Se déconnecter de cet ordinateur ». Seuls la session de
-//    Supabase et l'heure du dernier geste sont gardées dans l'onglet ; les données des élèves restent en mémoire,
-//    jamais dans sessionStorage, localStorage ni IndexedDB.
+//  - Ordinateur parfois partagé (par défaut) : session fermée après 30 min sans geste (aussi au rechargement) et à la
+//    fermeture de l'onglet (sessionStorage, propre à l'onglet), « Se déconnecter de cet ordinateur ».
+//  - « Rester connecté sur cet ordinateur » (case de l'écran de connexion et des Réglages, décochée par défaut, choix
+//    gardé dans localStorage sous DESK_KEEP_KEY) : session, vérificateur PKCE et heure du dernier geste dans
+//    localStorage ; fermée seulement après 90 jours sans aucune ouverture du site (fenêtre glissante, sans durée
+//    maximale, comme l'app iPhone) ou à « Se déconnecter », qui efface tout, choix compris. Pas de bandeau
+//    « Toujours là ? ». docs/COACH_WEB.md, « Rester connecté sur cet ordinateur ».
+//  - Seuls la session de Supabase, l'heure du dernier geste et ce choix sont gardés ; les données des élèves restent
+//    en mémoire, jamais dans sessionStorage, localStorage ni IndexedDB.
 //  - Chaque appel rend { ok: true, data } ou { ok: false, kind } (kinds de coachErrorKind ; 'missing' : fonction
 //    absente du serveur, migration pas encore appliquée).
 // ═══════════════════════════════════════════════════════════
@@ -21,7 +26,11 @@ const DESK_CONFIG = Object.freeze({
 const DESK_AUTH_KEY = 'mdlf-coach-web-auth';     // session de supabase-js
 const DESK_ACTIVE_KEY = 'mdlf_coach_web_active'; // heure du dernier geste (ms), rien d'autre
 const DESK_EXPIRED_KEY = 'mdlf_coach_web_expired'; // « fermée pour inactivité », lu une fois après le rechargement
+const DESK_KEEP_KEY = 'mdlf_coach_web_keep';     // localStorage : '1' = « Rester connecté sur cet ordinateur »
 const DESK_IDLE_MS = 30 * 60_000;
+const DESK_KEEP_IDLE_MS = 90 * 86_400_000;        // avec « Rester connecté » : 90 jours sans aucune ouverture
+// Clés de supabase-js sous DESK_AUTH_KEY (session, vérificateur PKCE, utilisateur) et la nôtre : elles suivent le choix
+const DESK_STORED_KEYS = [DESK_AUTH_KEY, `${DESK_AUTH_KEY}-code-verifier`, `${DESK_AUTH_KEY}-user`, DESK_ACTIVE_KEY, DESK_EXPIRED_KEY];
 const DESK_SESSIONS_PAGES = 6;                   // repli sans coach_student_weeks : 6 pages de 30 séances au plus
 
 const desk = { user: null, email: null, sentAt: 0 };
@@ -44,10 +53,35 @@ const deskHost = (() => {
 })();
 const deskHosted = () => !!deskHost?.session;
 
-// sessionStorage : fermer l'onglet ferme la session (un autre onglet se connecte de son côté)
-function deskStore() { try { return window.sessionStorage; } catch { return null; } }
-// Session gardée par une version d'avant dans localStorage (elle survivait à la fermeture du navigateur) : effacée
-try { window.localStorage.removeItem(DESK_AUTH_KEY); window.localStorage.removeItem(DESK_ACTIVE_KEY); } catch { /* stockage bloqué */ }
+// « Rester connecté sur cet ordinateur » : jamais embarquée dans l'app (la session appartient à l'hôte)
+function deskKeep() {
+  if (deskHosted()) return false;
+  try { return window.localStorage.getItem(DESK_KEEP_KEY) === '1'; } catch { return false; }
+}
+// Par défaut sessionStorage : fermer l'onglet ferme la session (un autre onglet se connecte de son côté) ;
+// avec « Rester connecté », localStorage
+function deskStore() { try { return deskKeep() ? window.localStorage : window.sessionStorage; } catch { return null; } }
+function deskIdleLimit() { return deskKeep() ? DESK_KEEP_IDLE_MS : DESK_IDLE_MS; }
+// Stockage donné à supabase-js : relit le choix à chaque lecture et écriture (session et vérificateur PKCE suivent)
+const deskAuthStorage = Object.freeze({
+  getItem: k => { try { return deskStore()?.getItem(k) ?? null; } catch { return null; } },
+  setItem: (k, v) => { try { deskStore()?.setItem(k, v); } catch { /* stockage bloqué */ } },
+  removeItem: k => { try { deskStore()?.removeItem(k); } catch { /* stockage bloqué */ } },
+});
+// Change le choix, et déplace aussitôt la session en cours (et le vérificateur PKCE) vers le bon stockage : rien ne
+// reste dans l'autre. false si le navigateur bloque le stockage (le choix ne change pas).
+function deskSetKeep(on) {
+  if (deskHosted()) return false;
+  try {
+    const from = on ? window.sessionStorage : window.localStorage, to = on ? window.localStorage : window.sessionStorage;
+    for (const k of DESK_STORED_KEYS) { const v = from.getItem(k); if (v !== null) to.setItem(k, v); from.removeItem(k); }
+    if (on) window.localStorage.setItem(DESK_KEEP_KEY, '1'); else window.localStorage.removeItem(DESK_KEEP_KEY);
+    return true;
+  } catch { return false; }
+}
+// Sans « Rester connecté » : session gardée dans localStorage par une version d'avant (ou un choix retiré dans un autre
+// onglet) effacée
+if (!deskKeep()) try { for (const k of DESK_STORED_KEYS) window.localStorage.removeItem(k); } catch { /* stockage bloqué */ }
 function deskMarkExpired() { try { deskStore()?.setItem(DESK_EXPIRED_KEY, '1'); } catch { /* stockage bloqué */ } }
 function deskTakeExpired() {
   try { const v = deskStore()?.getItem(DESK_EXPIRED_KEY); deskStore()?.removeItem(DESK_EXPIRED_KEY); return v === '1'; } catch { return false; }
@@ -65,12 +99,13 @@ function deskClient() {
   if (typeof supabase === 'undefined') return null;
   sb = supabase.createClient(DESK_CONFIG.url, DESK_CONFIG.publishableKey, {
     // flowType pkce : connexion avec Google par redirection (js/desk/google.js) ; le code de retour est échangé à la main
-    auth: { storage: deskHosted() ? undefined : deskStore() || undefined, storageKey: DESK_AUTH_KEY, persistSession: !deskHosted(), autoRefreshToken: !deskHosted(), detectSessionInUrl: false, flowType: 'pkce' },
+    auth: { storage: deskHosted() ? undefined : deskAuthStorage, storageKey: DESK_AUTH_KEY, persistSession: !deskHosted(), autoRefreshToken: !deskHosted(), detectSessionInUrl: false, flowType: 'pkce' },
   });
   return sb;
 }
 
-// Session reprise au chargement, sauf après 30 min sans geste (fermée ici, sur le serveur aussi)
+// Session reprise au chargement, sauf après 30 min sans geste, ou 90 jours sans ouverture avec « Rester connecté »
+// (fermée ici, sur le serveur aussi)
 async function deskResume(now = Date.now()) {
   const c = deskClient();
   if (!c) return { ok: false, kind: 'server' };
@@ -85,7 +120,7 @@ async function deskResume(now = Date.now()) {
     const { data } = await c.auth.getSession();
     const user = data?.session?.user || null;
     if (!user) return { ok: true, user: null };
-    if (deskIdleFor(now) > DESK_IDLE_MS) { await deskSignOut(); return { ok: true, user: null, expired: true }; }
+    if (deskIdleFor(now) > deskIdleLimit()) { await deskSignOut(); return { ok: true, user: null, expired: true }; }
     desk.user = user;
     deskTouch(now);
     return { ok: true, user };
@@ -115,9 +150,14 @@ async function deskVerifyCode(code) {
   } catch (e) { return { ok: false, kind: authErrorKind(e) || 'server' }; }
 }
 // Déconnexion de cet ordinateur : session effacée ici (scope local : l'iPhone reste connecté)
-async function deskSignOut() {
+// forgetKeep : « Se déconnecter » efface aussi le choix « Rester connecté » (une fin pour inactivité ou un compte
+// inconnu le gardent : c'est le même ordinateur qui revient). Les deux stockages sont vidés, quel que soit le choix.
+async function deskSignOut({ forgetKeep = false } = {}) {
   try { await deskClient()?.auth.signOut({ scope: 'local' }); } catch { /* hors ligne : la session locale part quand même */ }
-  try { deskStore()?.removeItem(DESK_AUTH_KEY); deskStore()?.removeItem(DESK_ACTIVE_KEY); } catch { /* rien */ }
+  for (const st of ['sessionStorage', 'localStorage']) {
+    try { for (const k of DESK_STORED_KEYS) if (k !== DESK_EXPIRED_KEY) window[st].removeItem(k); } catch { /* rien */ }
+  }
+  if (forgetKeep) try { window.localStorage.removeItem(DESK_KEEP_KEY); } catch { /* rien */ }
   desk.user = null;
 }
 // Compte tout neuf après « Se connecter avec Google » ou Apple (identifiant inconnu de MDLF) : la fonction serveur

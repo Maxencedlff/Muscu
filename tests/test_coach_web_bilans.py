@@ -420,7 +420,12 @@ def idle_end(browser, url, engine):
         check(rv.get('reply') == DRAFT and not rv.get('sent_at'), f'{engine} : brouillon pas gardé sur le serveur {rv}')
         check('Semaine 47' not in (t.get('screen') or '') and 'lea' not in (t.get('screen') or ''), f'{engine} : écran pas vidé avant le rechargement {t.get("screen", "")[:80]!r}')
         check(not dialogs, f'{engine} : fenêtre « Quitter le site ? » {dialogs}')
-        check('30 minutes sans activité' in page.inner_text('#login-err'), f'{engine} : message {page.inner_text("#login-err")!r}')
+        # Information neutre en haut du formulaire, pas une erreur de saisie : rien en rouge, aucune bordure sur le champ
+        check('30 minutes sans activité' in page.inner_text('#login-info'), f'{engine} : message {page.inner_text("#login-info")!r}')
+        check(page.get_attribute('#login-info', 'role') == 'status' and page.inner_text('#login-err') == '', f'{engine} : message affiché comme une erreur')
+        check(page.get_attribute('#login-email', 'aria-invalid') is None, f'{engine} : champ e-mail marqué invalide')
+        b = page.locator('#login-info').bounding_box(); f = page.locator('#login-email').bounding_box()
+        check(b['y'] < f['y'], f'{engine} : information pas en haut du formulaire')
         left = page.evaluate("Object.keys(sessionStorage).filter(k => k !== '__t').concat(Object.keys(localStorage).filter(k => !k.startsWith('mdlf_push_')))")
         check(left == [], f'{engine} : il reste {left}')
     finally:

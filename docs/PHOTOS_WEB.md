@@ -100,7 +100,7 @@ Retour arrière : `supabase/rollback/20261127040000_photos_web_appairage_down.sq
 | iPhone : lecteur de QR (`ScannerPlugin.swift`, `scanQr`) | **build iOS**, soumise à Apple, décrite dans la note d'examen |
 | Connexion Google sur le site | réglages Supabase et Google (docs/COACH_WEB.md), **avant** le déploiement du site : sans l'adresse de retour dans Supabase, Google renvoie sur https://mdlf.app |
 | Google ou Apple inconnu sur le site : aucun compte laissé | migration `20261128010000_compte_vide_site_coach.sql`, puis fonction Edge `coach-web-orphan`, puis le site ; renvoi des erreurs de Supabase par mdlf.app (`web-public/auth-retour.js`, job `deploy`) : docs/COACH_WEB.md, « Identifiant inconnu : aucun compte laissé » |
-| Durée de session côté serveur | réglage Supabase (Auth › Sessions : durée et inactivité maximales), conseillé avant d'ouvrir les photos sur ordinateur |
+| Durée de session côté serveur | réglage Supabase (Auth › Sessions : durée et inactivité maximales), conseillé avant d'ouvrir les photos sur ordinateur ; à garder au-dessus de 90 jours d'inactivité si « Rester connecté sur cet ordinateur » doit tenir ses 90 jours (docs/COACH_WEB.md) |
 
 ## Tests
 

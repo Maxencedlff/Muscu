@@ -208,6 +208,10 @@ table.wk .wn { font-weight: 600; }
 .fld input[aria-invalid="true"] { border-color: var(--badge); }
 .err { color: var(--badge); font-size: 14px; min-height: 1.4em; }
 .note { color: var(--label2); font-size: 13.5px; margin-top: 16px; line-height: 1.45; }
+/* Information neutre en haut du formulaire (session fermée pour inactivité) : ni rouge ni bordure sur le champ */
+.login-card .info { background: var(--cell); color: var(--label); border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.4; margin-bottom: 14px; }
+/* « Rester connecté sur cet ordinateur » sous le formulaire */
+.login-keep { margin-top: 16px; }
 /* Bandeau « Toujours là ? » (28 min sans geste) : en haut, hors de #app, au-dessus du contenu */
 .idle { position: fixed; top: calc(16px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: 16px; width: min(560px, calc(100vw - 32px)); background: var(--cell); color: var(--label); border: .5px solid var(--sep); border-radius: 14px; padding: 14px 16px; }
 .idle .t2 { color: var(--label2); font-size: 13.5px; margin-top: 2px; }
