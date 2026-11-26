@@ -2104,9 +2104,9 @@ test('Diagnostic du son, cas de la build 91 : « Pas joué » quand iOS ne confi
   r.steps[3] = { ...r.steps[3], played: false, via: 'moteur' };              // niveau mesuré −11,6 dB, sortie muette
   r.steps[2] = { ...r.steps[2], peakDb: -160, buffers: 0, played: true, via: 'repli' };   // moteur à l'arrêt, repli entendu
   const rep = c.soundDiagReport(r);
-  sameJSON(Array.from(rep.rows.find(x => x[0] === 'GO')), ['GO', 'Pas joué', false]);
+  sameJSON(Array.from(rep.rows.find(x => x[0] === 'Bip de départ')), ['Bip de départ', 'Pas joué', false]);
   sameJSON(Array.from(rep.rows.find(x => x[0] === 'Décompte 1')), ['Décompte 1', 'Joué', true]);
-  assert.equal(rep.title, 'L\'app n\'a pas joué le GO');
+  assert.equal(rep.title, 'L\'app n\'a pas joué le bip de départ');
   assert.ok(rep.text.includes('GO : pas joué') && rep.text.includes('confirmé non') && rep.text.includes('par repli'), rep.text);
 });
 
@@ -2159,7 +2159,7 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
   assert.equal(row('Volume')[1], '80 %');
   sameJSON(Array.from(row('Mode silencieux')), ['Mode silencieux', 'Sans effet sur les sons de l\'app'], 'état estimé : copie seulement');
   sameJSON(Array.from(row('Son enregistré')), ['Son enregistré', 'Joué', true]);
-  sameJSON(Array.from(row('GO')), ['GO', 'Joué', true]);
+  sameJSON(Array.from(row('Bip de départ')), ['Bip de départ', 'Joué', true]);
   assert.equal(row('Pendant ce test')[1], 'Tous les sons joués');
   assert.equal(row('Avant ce test')[1], 'Aucun incident');
   const vue = r.rows.map(x => `${x[0]} ${x[1]}`).join(' | ') + r.title + r.detail + r.action + r.help;
@@ -2176,15 +2176,15 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
   mute.before.lastIncident = { kind: 'interruption', detail: 'Interruption (appel, Siri, alarme…)', at: '2026-11-21T10:02:00Z' };
   const m = c.soundDiagReport(mute);
   assert.equal(m.ok, false);
-  assert.equal(m.title, 'L\'app n\'a pas joué le GO');
+  assert.equal(m.title, 'L\'app n\'a pas joué le bip de départ');
   assert.equal(m.detail, 'Le problème vient de l\'app, pas de ton iPhone.');
   assert.equal(m.action, 'Ferme l\'app, rouvre‑la, puis refais le test.');
   assert.ok(m.help.includes('sélecteur d\'apps') && m.help.endsWith('envoie le diagnostic au support.'), m.help);
-  sameJSON(Array.from(m.rows.find(x => x[0] === 'GO')), ['GO', 'Pas joué', false]);
-  sameJSON(Array.from(m.rows.find(x => x[0] === 'Pendant ce test')), ['Pendant ce test', 'Le GO pas joué', false]);
+  sameJSON(Array.from(m.rows.find(x => x[0] === 'Bip de départ')), ['Bip de départ', 'Pas joué', false]);
+  sameJSON(Array.from(m.rows.find(x => x[0] === 'Pendant ce test')), ['Pendant ce test', 'Le bip de départ pas joué', false]);
   assert.ok(m.rows.find(x => x[0] === 'Avant ce test')[1].startsWith('Interruption (appel'));
   assert.equal(m.rows.find(x => x[0] === 'Sortie')[1], 'Bluetooth (AirPods de Max)');
-  assert.ok(m.text.includes('GO : pas joué, pic −160') && m.text.includes('moteur non') && m.text.includes('Pendant ce test : Le GO pas joué'));
+  assert.ok(m.text.includes('GO : pas joué, pic −160') && m.text.includes('moteur non') && m.text.includes('Pendant ce test : Le bip de départ pas joué'));
   // Tout joué vers des AirPods : l'aide nomme l'appareil qui prend le son
   const bt = JSON.parse(JSON.stringify(SELF_OK)); bt.before.outputs = [{ type: 'BluetoothA2DPOutput', name: 'AirPods de Max' }];
   assert.ok(c.soundDiagReport(bt).help.startsWith('Le son part vers AirPods de Max. Débranche‑le'), c.soundDiagReport(bt).help);
@@ -2194,8 +2194,8 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
   const two = JSON.parse(JSON.stringify(SELF_OK));
   two.steps[2].peakDb = -90; two.steps[3].peakDb = -90;
   const t2 = c.soundDiagReport(two);
-  assert.equal(t2.title, 'L\'app n\'a pas joué le décompte 1 et le GO');
-  assert.equal(t2.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le décompte 1 et le GO pas joués');
+  assert.equal(t2.title, 'L\'app n\'a pas joué le décompte 1 et le bip de départ');
+  assert.equal(t2.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le décompte 1 et le bip de départ pas joués');
   two.steps.forEach(s => { s.peakDb = -90; });
   assert.equal(c.soundDiagReport(two).title, 'L\'app n\'a pas joué la fin de repos', 'fichier seul');
   two.file = { played: false, error: 'lecture refusée par iOS' };

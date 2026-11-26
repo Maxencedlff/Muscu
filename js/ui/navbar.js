@@ -81,7 +81,9 @@ function updateChrome() {
   const inSession = route === 'session' && !!activeSession;
   // Séance, bilan et récap (story) en plein écran, sans tab bar ; fiche Exercice du programme (Annuler / OK) : tâche
   // modale, sans onglet qui la quitterait en perdant les changements (HIG Modality, panel vague 4)
-  const full = inSession || route === 'summary' || ['recap', 'ex-edit'].includes(routeName(route));
+  // Questions du Sur mesure : sans onglet non plus (panel du 26/11 : un toucher sur un onglet quittait le questionnaire)
+  const full = inSession || route === 'summary' || ['recap', 'ex-edit'].includes(routeName(route))
+    || (routeName(route) === 'prog-gen' && routeParams(route)[0] !== 'apercu');
   const bar = $('.tabbar');
   bar.hidden = full;
   bar.querySelectorAll('.tabbar__btn').forEach(b => {

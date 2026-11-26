@@ -53,7 +53,7 @@ function histCalHtml() {
     const key = localISO(new Date(y, m, d));
     const names = hs.map(h => (isHealthEntry(h) ? h.health.title : historyEntryLabel(h))).join(', ');
     cells += `<button class="${cls} cal__d--has" data-action="hcal-day" data-day="${key}" aria-pressed="${histCalDay === key}"
-      aria-label="${d} ${esc(fmtDate(new Date(y, m, d), 'month'))}, ${esc(names)}"><span class="num">${d}</span>${dots}</button>`;
+      aria-label="${d} ${esc(fmtDate(new Date(y, m, d), 'month'))}, ${plural(hs.length, 'séance', 'séances')} : ${esc(names)}"><span class="num">${d}</span>${dots}</button>`;
   }
   return `<div id="histCalBox">
       <section class="group group--pad cal hcal" id="histCal" aria-label="Calendrier">

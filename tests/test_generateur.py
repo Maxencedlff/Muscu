@@ -106,7 +106,8 @@ def t_generateur(bench, eng, dev, theme):
         R.check('Développé militaire' not in txt and 'Dips' not in txt.replace('Dips assistés', ''), f'{t} épaule : ni développé militaire ni dips')
         R.check(page.locator('.view.prog-gen .gen-sess-title').count() == 4, f'{t} 4 séances')
         R.check(page.locator('.view.prog-gen .body-map[role="img"]').count() == 1
-                and page.evaluate("document.querySelectorAll('.view.prog-gen [data-muscle][data-heat]').length") > 5, f'{t} personnage, muscles en rouge')
+                and page.evaluate("[...new Set([...document.querySelectorAll('.view.prog-gen [data-muscle][data-heat]')].map(e => e.dataset.muscle))]") == ['glutes']
+                and 'En rouge : ta priorité, les fessiers' in txt, f'{t} personnage : seule la priorité (fessiers) en rouge, le reste en gris, et dit dessous')
         mins = page.evaluate("[...document.querySelectorAll('.gen-sess-title .num')].map(e => parseInt(e.textContent.replace(/\\D+/g, '')))")
         R.check(len(mins) == 4 and max(mins) <= 75, f'{t} séances ≤ 75 min {mins}')
         R.check(page.evaluate('data.activeProgramme') == before[0], f'{t} aperçu : rien de changé')
@@ -131,7 +132,7 @@ def t_generateur(bench, eng, dev, theme):
         got = page.evaluate("""(() => { const id = data.activeProgramme, up = data.userProgrammes[id];
             return { id, name: up?.name, mine: data.myProgrammes, keys: sessionKeys(id), view,
                      ex: data.programmes[id]?.exercises?.[sessionKeys(id)[0]]?.[0] }; })()""")
-        R.check(got['id'].startswith('u_') and got['name'] == 'Sur mesure', f'{t} programme créé et actif {got["name"]}')
+        R.check(got['id'].startswith('u_') and got['name'] == 'Haut / Bas 4 jours, fessiers', f'{t} programme créé et actif, nommé d\'après les réponses {got["name"]}')
         R.check(before[0] in got['mine'] and got['mine'][-1] == got['id'], f'{t} l\'ancien reste dans Mes programmes {got["mine"]}')
         R.check(got['keys'] == ['haut_a', 'bas_a', 'haut_b', 'bas_b'] and got['view'] == 'programmes', f'{t} séances, retour à Programme {got["keys"]}')
         R.check(got['ex'] and got['ex']['repMin'] and got['ex']['repMax'] and got['ex']['rest'], f'{t} exercice avec fourchette et repos {got["ex"]}')
@@ -139,7 +140,7 @@ def t_generateur(bench, eng, dev, theme):
         shot(page, LOT, f'6-programme-{t}')
         page.reload()
         page.wait_for_selector('#app > *')
-        R.check(page.evaluate('data.userProgrammes[data.activeProgramme]?.name') == 'Sur mesure', f'{t} gardé après rechargement')
+        R.check(page.evaluate('data.userProgrammes[data.activeProgramme]?.name') == 'Haut / Bas 4 jours, fessiers', f'{t} gardé après rechargement')
         stored = json.loads(ls(page, 'mdlf_gen_answers') or '{}')
         R.check(stored.get('limits') == ['epaule'] and 'mdlf_gen_answers' not in (ls(page, 'ppl_v2') or ''), f'{t} réponses sur l\'appareil seulement')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')

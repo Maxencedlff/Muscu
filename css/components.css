@@ -221,8 +221,9 @@ html.type-xl .review-rec__val { flex: 1 0 100%; padding-left: 34px; white-space:
 .field-err, .field-hint, .field-warn, .field-note-ok, .ios-dialog__err { margin: 6px 16px 8px; font-size: var(--fs-footnote); line-height: 1.35; text-align: left; overflow-wrap: anywhere; }
 .field-err, .ios-dialog__err { color: var(--red-text); }
 .field-hint { color: var(--label2); }
-/* Collage coupé : un avertissement, pas une aide (lisible en clair comme en sombre, panel du 20/11 t2) */
-.field-warn { color: var(--warn-text); font-weight: 600; }
+/* Collage coupé : une information en gris secondaire, en gras pour se distinguer de l'aide (panel du 26/11 : l'orange-jaune
+   d'avant faisait un deuxième orange à côté de celui d'Annuler et OK ; une couleur = un sens) */
+.field-warn { color: var(--label2); font-weight: 600; }
 .field-note__detail { display: block; margin-top: 2px; font-weight: 400; color: var(--label2); }
 /* Bulle d'un commentaire ou d'un message trop long : contour rouge, comme un champ refusé */
 .comment-compose.comment-compose--over { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }

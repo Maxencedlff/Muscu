@@ -422,6 +422,11 @@ function genSessionSlots(type, a) {
 const GEN_MAIN_PATTERNS = new Set(['squat', 'lunge', 'hinge', 'h_push', 'incline', 'v_push', 'v_pull', 'h_pull']);
 function genOrderGroup(move) { return GEN_MAIN_PATTERNS.has(move.pattern) ? 0 : move.pattern === 'glute' ? 1 : 2; }
 
+// Mouvement de base d'un exercice : deux variantes dont l'une prolonge le nom de l'autre (« Hip thrust » et « Hip thrust
+// machine ») sont le même mouvement. Jamais deux fois dans une séance (panel du 26/11 : Hip thrust machine puis Hip thrust,
+// même prescription, « on dirait une erreur du générateur ») ; la place va au motif de repli (GEN_FALLBACK)
+const genSameMove = (x, y) => { const p = normName(x), q = normName(y); return p === q || p.startsWith(q + ' ') || q.startsWith(p + ' '); };
+
 // Choix des exercices de toutes les séances : préférence, puis rotation entre les séances (A / B)
 function genPickExercises(types, a, equip) {
   const used = {};          // motif → nombre de fois choisi dans la semaine
@@ -430,7 +435,7 @@ function genPickExercises(types, a, equip) {
     const names = new Set();
     for (const slot of genSessionSlots(type, a)) {
       const tryPattern = p => {
-        const list = genCandidates(p, a, equip).filter(m => !names.has(m.name));
+        const list = genCandidates(p, a, equip).filter(m => ![...names].some(n => genSameMove(n, m.name)));
         if (!list.length) return null;
         // Alternance A / B entre les deux premiers, seulement s'ils sont du même rang (pas une version au rabais)
         const top = genRank(list[0], a);
@@ -564,10 +569,15 @@ function genWhy(a, sessions, weekly, targets) {
   lines.push(vol + '.');
   const longest = Math.max(...sessions.map(s => s.minutes));
   const short = GEN_TRACKED.filter(k => !GEN_SMALL.has(k) && weekly[k] < targets[k] - 2 && weekly[k] > 0);
-  let third = `Séances de ${longest} min au plus pour ${a.minutes} min disponibles`;
-  if (short.length) third += ` : le temps limite ${short.slice(0, 2).map(genMuscleWord).join(' et ')}`;
-  if (a.limits.length) third += `. ${a.limits.map(l => `${GEN_LIMITS[l].label} : ${GEN_LIMITS[l].why}`).join('. ')}`;
-  lines.push(third + '.');
+  let third = `Séances de ${longest} min au plus pour ${a.minutes} min disponibles.`;
+  // Muscle que le temps prive de séries : chiffré (panel du 26/11 : « le temps limite les triceps » ne disait ni combien ni pourquoi)
+  if (short.length) {
+    const cut = short.slice(0, 2).map(k => { const w = genMuscleWord(k);
+      return `${w} ${w.startsWith('les ') ? 'ont' : 'a'} ${Math.round(weekly[k])} séries par semaine au lieu de ${Math.round(targets[k])}`; });
+    third += ` Avec ${a.minutes} min, ${cut.join(', et ')}.`;
+  }
+  if (a.limits.length) third += ` ${a.limits.map(l => `${GEN_LIMITS[l].label} : ${GEN_LIMITS[l].why}`).join('. ')}.`;
+  lines.push(third);
   return lines;
 }
 function genMuscleWord(k) {
@@ -614,9 +624,18 @@ function genProgrammeData(result, name) {
   return { up: { name, sessions, order: result.sessions.map(s => s.key), archived: false }, pd: { exercises, timers, cooldowns } };
 }
 
-// Nom libre parmi les programmes de la personne : « Sur mesure », puis « Sur mesure 2 »…
-function genProgrammeName(d = data) {
+// Nom tiré des réponses, libre parmi les programmes de la personne : « Haut / Bas 4 jours », « Corps entier 3 jours,
+// fessiers », puis « … 2 » s'il existe déjà (panel du 26/11 : deux « Sur mesure » ne se distinguaient pas dans la liste).
+// Sans réponse lisible : « Sur mesure ». 40 caractères au plus (nom d'un programme)
+const GEN_SPLIT_NAME = { full: 'Corps entier', upper_lower: 'Haut / Bas', ul_ppl: 'Haut / Bas + Pousser, Tirer, Jambes', ppl: 'Pousser, Tirer, Jambes' };
+function genProgrammeName(d = data, answers = null) {
+  const a = answers ? genCleanAnswers(answers) : null;
+  const split = a && GEN_SPLITS[a.days] ? GEN_SPLIT_NAME[GEN_SPLITS[a.days].id] : '';
+  let base = split ? `${split} ${a.days} jours` : 'Sur mesure';
+  const zones = (a?.zones || []).map(z => GEN_ZONES[z]?.label.toLowerCase()).filter(Boolean);
+  if (split && zones.length && `${base}, ${zones.join(', ')}`.length <= 36) base = `${base}, ${zones.join(', ')}`;
+  if (base.length > 36) base = split.length <= 36 ? split : 'Sur mesure';
   const taken = new Set(Object.values(d?.userProgrammes || {}).filter(p => !p.archived).map(p => p.name));
-  if (!taken.has('Sur mesure')) return 'Sur mesure';
-  for (let i = 2; ; i++) if (!taken.has(`Sur mesure ${i}`)) return `Sur mesure ${i}`;
+  if (!taken.has(base)) return base;
+  for (let i = 2; ; i++) if (!taken.has(`${base} ${i}`)) return `${base} ${i}`;
 }

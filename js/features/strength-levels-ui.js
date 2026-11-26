@@ -83,7 +83,7 @@ function strengthSexSettingHtml() {
   return `<button class="cell cell--nav" data-action="set-strength-sex">
             ${cellIco('sex', 'gray')}
             <span class="cell__body"><span class="cell__title">Sexe</span>
-              <span class="cell__sub">Niveau de force, facultatif</span></span>
+              <span class="cell__sub">Sert à comparer ta force, facultatif</span></span>
             <span class="cell__value"${v ? '' : ' aria-label="Non renseigné"'}>${v ? STRENGTH_SEX_LABELS[v] : '—'}</span>
             ${icon('chevron.right', 16)}
           </button>`;
