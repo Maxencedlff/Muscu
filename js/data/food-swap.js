@@ -119,13 +119,22 @@ function foodMatchScore(key, words) {
   }
   return score * 100 - key.length;
 }
+const SEARCH_COOKED_BONUS = 40;
+const SEARCH_STAPLE_BONUS = 20;
 // [{ food, own }] : mes aliments perso (own) puis ceux de la base, les meilleurs d'abord
 function searchFoods(query, { limit = 40, own = [] } = {}) {
   const words = foodKey(query).split(' ').filter(Boolean);
   if (!words.length) return [];
   // Mes aliments d'abord, seulement s'ils correspondent (avant : tous listés à chaque recherche, « Skyr » pour « riz »)
   const mine = own.map(x => { const m = foodMatchScore(foodKey(x.name), words); return { food: dietOwnPick(x), own: true, score: m > 0 ? m + 100000 : 0 }; });
-  const base = (foodDb?.foods || []).map(f => ({ food: f, own: false, score: foodMatchScore(f.key, words) }));
+  // Départage entre noms aussi proches (le score ne différait que de la longueur du nom) : la version cuite, ce qu'on
+  // mange et pèse dans l'assiette, puis les aliments courants, passent devant les crus, les variantes (bio) et les morceaux
+  // rares. Retour de Gérard (26/11) : pour « poulet », 13 versions crues avant le filet grillé. Une recherche qui nomme la
+  // cuisson (« poulet cru ») garde son ordre. Bonus plus petits que l'écart d'un mot mieux trouvé (100) : la pertinence d'abord
+  const cookAsked = foodQuerySaysCook(query);
+  const tie = f => (cookAsked ? 0 : foodCookTag(f) === 'cuit' ? SEARCH_COOKED_BONUS : 0) + (SWAP_STAPLES.has(f.code) ? SEARCH_STAPLE_BONUS : 0)
+    - (SWAP_VARIANT.test(f.key) ? SWAP_VARIANT_PENALTY : 0) - (SWAP_RARE.test(f.key) ? SWAP_RARE_PENALTY : 0);
+  const base = (foodDb?.foods || []).map(f => { const m = foodMatchScore(f.key, words); return { food: f, own: false, score: m > 0 ? m + tie(f) : 0 }; });
   return [...mine, ...base].filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.food.name.localeCompare(b.food.name, 'fr')).slice(0, limit);
 }
 // Aliment choisi → aliment du plan (valeurs pour 100 g recopiées)
@@ -165,6 +174,13 @@ function foodCookTag(food) {
   const st = foodState(food?.name);
   if (st !== 'cru') return st;
   return /\ba cuire\b|\b(cru|crue|crus|crues)\b/.test(foodKey(food.name)) || food.fam === 'f' ? 'cru' : null;
+}
+// Nom affiché à côté de l'étiquette « cru » ou « cuit » : sans ce même mot (« Poulet, pilon cru » + « cru » le disait deux
+// fois, retour de Gérard du 26/11). Seul le mot de l'étiquette part (« grillé/poêlé » reste, il dit comment c'est cuit)
+function foodNameBesideTag(name, tag) {
+  const re = tag === 'cru' ? /(,\s*|\s+)(cru|crue|crus|crues)\b/i : tag === 'cuit' ? /(,\s*|\s+)(cuit|cuite|cuits|cuites)\b/i : null;
+  const out = re ? String(name).replace(re, '').replace(/\s*,\s*,/g, ',').replace(/[\s,]+$/, '') : String(name);
+  return out || String(name);
 }
 // Nom sans les mots de la cuisson : « Riz blanc, cru » et « Riz blanc, cuit, sans sel ajouté » donnent « riz blanc »
 const FOOD_COOK_WORDS = /\b(sans sel ajoute|a l eau|au four|a cuire|cuit|cuite|cuits|cuites|bouilli|bouillie|roti|rotie|grille|grillee|poele|poelee|vapeur|braise|cru|crue|crus|crues|sec|seche|secs|seches)\b/g;

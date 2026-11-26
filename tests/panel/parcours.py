@@ -2039,11 +2039,11 @@ def p_nutri_coach_plan(r):
           __sb.co.shares.push({ student: id, coach: me, kind: 'diet', granted_at: new Date().toISOString() }); }
         return coachRefresh(); }""", 'rôle coach validé, élèves Léa et Tom, qui acceptent les plans de nutrition')
     cle = 'Coach : passer un plan sur 7 jours'
-    with r.etape('mes-dietes', 'Programme › Plans de nutrition : « Mes diètes »', cle=cle):
+    with r.etape('mes-dietes', 'Programme › Plans de nutrition', cle=cle):
         r.onglet('program', 'Programme')
         r.defiler('[data-action="go-diet-plans"]', 'liste sous les cartes')
         r.toucher('[data-action="go-diet-plans"]', 'Plans de nutrition')
-        r.attendre('.diet-plans-view', 'Mes diètes')
+        r.attendre('.diet-plans-view', 'Plans de nutrition')
     with r.etape('plan', 'Plan « Sèche semaine 1 » : Jours, Consigne, objectifs, repas', cle=cle):
         r.toucher('[data-action="diet-open-plan"][data-id="d_seche001"]', 'Sèche semaine 1')
         r.attendre('[data-action="diet-days-mode"]', 'cellule Jours')
@@ -2132,7 +2132,7 @@ def p_nutri_coach_plan(r):
     with r.etape('confirmation', 'Envoyer : élèves nommés, jours loin de l\'objectif dits, « Revoir les jours »', cle=cle):
         r.toucher('#dietSendGo', 'Envoyer à 2 élèves')
         r.attendre('.ios-dialog', 'confirmation')
-    with r.etape('envoye', 'Plan envoyé aux deux élèves, gardé dans Mes diètes', cle=cle):
+    with r.etape('envoye', 'Plan envoyé aux deux élèves, gardé dans Plans de nutrition', cle=cle):
         r.choisir('Envoyer')
 
 

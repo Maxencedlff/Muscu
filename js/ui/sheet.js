@@ -24,8 +24,13 @@ function sheet({ title = '', cancel = 'Annuler', confirm = 'OK', body = '', onCo
         <div class="sheet__body">${body}</div>
       </div>`;
     const panel = $('.sheet', root);
-    if (!cancel) $('.sheet__btn--cancel', root).style.visibility = 'hidden';
-    if (!confirm) $('.sheet__btn--confirm', root).style.visibility = 'hidden';
+    // Bouton sans libellé : il garde sa place (titre centré) mais n'existe plus pour VoiceOver ni le clavier (un bouton
+    // invisible sans nom restait dans l'arbre d'accessibilité, relevé le 26/11)
+    for (const [sel, on] of [['.sheet__btn--cancel', cancel], ['.sheet__btn--confirm', confirm]]) {
+      if (on) continue;
+      const b = $(sel, root);
+      b.style.visibility = 'hidden'; b.disabled = true; b.setAttribute('aria-hidden', 'true'); b.tabIndex = -1;
+    }
     const prevFocus = document.activeElement;
     let done = false;
     const close = (val) => {

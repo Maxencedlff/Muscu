@@ -986,13 +986,16 @@ function dietDayProgress(d, planId, day = dietDayKey()) {
   const e = dietDay(d, planId, day);
   // Ajouts du jour : comptés dans le repas (mangé une fois coché), jamais dans le prévu ni le repère
   const blank = e.blank === true;
+  // Coché : un repas qui a quelque chose à manger (aliments prévus ou ajoutés) et que l'on a coché. Un repas noté à la
+  // main (ajouts seuls) se coche aussi (retour de Gérard, 26/11 : le rond de l'accueil ne changeait rien) ; ses ajouts
+  // comptent déjà dans le mangé, la coche le replie et ne change ni les totaux ni « Journée complète »
   const meals = dietShownMeals(plan).map(m => {
     const extras = e.extras[m.id] || [], live = dietMealLive(m, e);
     const base = live.length ? dietMealMacros(m, e.swaps, e.removed) : DIET_ZERO(), added = extras.reduce((a, it) => dietAdd(a, dietItemMacros(it)), DIET_ZERO());
     // Repère : le plan du jour, remplaçants compris ; jamais baissé par un aliment retiré ou une quantité changée
     const plannedSwaps = Object.fromEntries(m.items.filter(it => e.swaps[it.id] && !dietIsQtyChange(it, e.swaps[it.id])).map(it => [it.id, e.swaps[it.id]]));
     const off = e.off.includes(m.id), copyable = blank && !off && m.items.length > 0 && !e.copied.includes(m.id);
-    return { meal: m, live, extras, base, added, off, copyable, plan: dietMealMacros(m, plannedSwaps), macros: dietAdd(base, added), done: live.length > 0 && e.done.includes(m.id) };
+    return { meal: m, live, extras, base, added, off, copyable, plan: dietMealMacros(m, plannedSwaps), macros: dietAdd(base, added), done: (live.length > 0 || extras.length > 0) && e.done.includes(m.id) };
   });
   const toEat = meals.filter(x => x.live.length);
   // Mangé : un repas coché (aliments prévus et ajouts) ; les ajouts seuls tout de suite dans un jour vide (on note ce

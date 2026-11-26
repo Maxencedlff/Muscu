@@ -1,6 +1,6 @@
 """Visite de l'accueil (js/features/tour.js, logique dans js/data/tour.js ; tests unitaires : tests/unit/tour.mjs).
 
-Première arrivée sur l'accueil après les questions : voile, trou sur le vrai élément, bulle « Étape 1 sur 4 » ;
+Première arrivée sur l'accueil après les questions : voile, trou sur le vrai élément, bulle « Étape 1 sur 7 » ;
 « Passer », « Suivant » jusqu'à « C'est parti », ne revient pas au lancement suivant, « Revoir la visite » dans
 Réglages › Aide, étape sautée quand son élément manque, rotation, réduire les animations, utilisateur existant
 (aucune visite), texte agrandi AX33 sur iPhone SE. Sombre et clair.
@@ -18,7 +18,7 @@ SHOT_DIR = os.environ.get('PPL_TUTO_SHOTS', os.path.expanduser('~/.local/share/m
 SHOT_DEVICES = ('iPhone 13', 'iPhone SE')
 AX33 = """(() => { const st = document.createElement('style'); st.textContent = 'html { font: 33px -apple-system, system-ui, sans-serif !important; }';
     document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st)); })()"""
-TITLES = ['Démarrer', 'Au programme', 'Programme', 'Progrès']
+TITLES = ['Démarrer', 'Au programme', 'Nutrition', 'Défis', 'Historique', 'Progrès', 'Programme']
 
 
 def tag(device, theme):
@@ -188,8 +188,8 @@ def t_passer_et_existant(bench, eng, dev, theme):
         page.evaluate("document.querySelector('.hero .targets')?.remove()")
         page.click('.tour [data-action="tour-next"]')
         settle(page)
-        R.check(page.locator('.tour__title').inner_text() == 'Programme', f'{t} élément absent : étape sautée')
-        page.evaluate("document.querySelectorAll('.tabbar [data-tab]').forEach(b => b.remove())")
+        R.check(page.locator('.tour__title').inner_text() == 'Nutrition', f'{t} élément absent : étape sautée')
+        page.evaluate("document.querySelectorAll('.tabbar [data-tab], .defis-home').forEach(b => b.remove())")
         page.click('.tour [data-action="tour-next"]')
         settle(page)
         R.check(page.locator('.tour').count() == 0 and page.evaluate("document.getElementById('app').inert") is False,
@@ -204,7 +204,7 @@ def t_passer_et_existant(bench, eng, dev, theme):
         page.wait_for_selector('.onb__page--place')
         page.click('.onb [data-action="onb-later"]')
         page.wait_for_selector('.tour .tour__head', timeout=8000)
-        R.check(page.locator('.tour__count').inner_text() == 'Étape 1 sur 4', f'{t} Plus tard : visite à l\'accueil')
+        R.check(page.locator('.tour__count').inner_text() == 'Étape 1 sur 7', f'{t} Plus tard : visite à l\'accueil')
         page.keyboard.press('Escape')
         settle(page)
         R.check(page.locator('.tour').count() == 0, f'{t} Échap : fermée')

@@ -2,7 +2,7 @@
 //  MDLF Coach sur ordinateur : plans diète en grand écran (docs/COACH_WEB.md, « Plans diète »)
 //
 //  - « Plans diète » (#/plans-diete) : mes plans et Mes aliments, gardés sur mon compte (les mêmes que dans l'app,
-//    Nutrition › Mes diètes) ; créer, dupliquer, ouvrir un plan (#/plans-diete/<plan>).
+//    Programme › Plans de nutrition) ; créer, dupliquer, ouvrir un plan (#/plans-diete/<plan>).
 //  - Onglet Nutrition d'un élève : modifier le plan qu'il a reçu (#/eleve/<id>/nutrition/edit), en créer un
 //    (…/nutrition/new) ou ouvrir un des miens (…/nutrition/<plan>), puis l'envoyer.
 //  - Éditeur : repas (renommer, consigne, dupliquer, copier vers d'autres jours, masquer ou supprimer, ordre par

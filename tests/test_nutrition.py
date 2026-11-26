@@ -1060,7 +1060,8 @@ def t_vague4(bench, eng, dev, theme):
         tags = page.evaluate("""[...document.querySelectorAll('#dietFoodList .diet-cand')].map(b => [b.querySelector('.diet-cand__name')?.textContent, b.querySelector('.diet-tag')?.textContent || ''])""")
         crus = [n for n, tg in tags if tg == 'cru']
         cuits = [n for n, tg in tags if tg == 'cuit']
-        R.check('Riz blanc, cru' in crus and 'Riz blanc, cuit, sans sel ajouté' in cuits, f'{t} v4 recherche : étiquettes cru et cuit ({len(crus)} cru, {len(cuits)} cuit)')
+        # Le mot de l'étiquette n'est plus répété dans le nom (« Riz blanc, cru » + « cru », retour de Gérard du 26/11)
+        R.check('Riz blanc' in crus and 'Riz blanc, sans sel ajouté' in cuits, f'{t} v4 recherche : étiquettes cru et cuit ({len(crus)} cru, {len(cuits)} cuit)')
         R.check(page.locator('#dietFoodList .diet-legend').count() == 1 and page.locator('#dietFoodList .diet-legend .diet-dot').count() == 3,
                 f'{t} v4 recherche : légende des macros, pastilles de couleur')
         # Barre de la feuille mesurée après son animation d'ouverture (en CI, mesurée pendant : « Annuler » à 40 pt)
@@ -1074,7 +1075,7 @@ def t_vague4(bench, eng, dev, theme):
         R.check(not ct, f'{t} v4 recherche : aucun texte coupé {ct}')
         shot(page, LOT, f'v4-4-cru-cuit-{t}')
         # Riz blanc cru choisi : « Pesé cuit ? Choisis la version cuite. », un toucher prend le riz cuit
-        pick_food(page, 'riz blanc', 'Riz blanc, cru')
+        pick_food(page, 'riz blanc', 'Riz blanc')   # « Riz blanc, cru » affiché « Riz blanc » + étiquette « cru »
         page.wait_for_selector(f'{LIVE_SHEET} .qty__twin')
         tw = nb(page.inner_text(f'{LIVE_SHEET} .qty__twin'))
         R.check('Pesé cuit ? Choisis la version cuite.' in tw and 'Prendre la version cuite' in tw
@@ -1334,8 +1335,8 @@ def t_objectifs(bench, eng, dev, theme):
         # 1. Modifier : calories tapées, protéines passées en g/kg (160 g restent 160 g)
         page.click('[data-action="diet-targets"]')
         page.wait_for_selector(f'{sh} #dietT_kcal')
-        R.check(page.get_attribute(f'{sh} #dietT_c', 'placeholder') == 'Aucun' and page.input_value(f'{sh} #dietT_c') == '',
-                f'{t} champ vide : « Aucun », jamais le total des repas en gris')
+        R.check(page.get_attribute(f'{sh} #dietT_c', 'placeholder') == '—' and page.input_value(f'{sh} #dietT_c') == '',
+                f'{t} champ vide : un tiret, jamais le total des repas en gris')
         R.check('Repas types' in page.inner_text(f'{sh} .diet-form__hint'), f'{t} total des repas types écrit à part')
         R.check(nb(page.inner_text(f'{sh} .diet-field__label >> nth=0')) == 'Calories', f'{t} libellé « Calories »')
         settle(page)   # feuille posée (mise en page finale) avant de mesurer les cibles
@@ -1403,7 +1404,8 @@ def t_objectifs(bench, eng, dev, theme):
         R.check(page.evaluate('[data.birthYear, data.heightCm, data.strengthSex, data.dietEstGoal, data.dietEstActivity]') == [year - 25, 180, 'male', 'gain', 'mid'],
                 f'{t} infos gardées dans Réglages, objectif et activité retenus')
         card = nb(page.inner_text(f'{sh} #dietTCard'))
-        R.check('2 980 kcal · Prot. 134 · Gluc. 460 · Lip. 67' in card and 'besoins estimés' in card and 'pas un avis médical' in card and 'Mifflin' in card,
+        R.check('2 980 kcal · Prot. 134 · Gluc. 460 · Lip. 67' in card and 'besoins estimés' in card and 'pas un avis médical' in card and 'D\'où viennent ces chiffres' in card
+                and 'Mifflin' in page.text_content(f'{sh} #dietTCard .diet-tg__src'),
                 f'{t} carte : proposition expliquée ({card[:160]!r})')
         R.check(page.evaluate(plan_t) is None, f'{t} jamais appliquée sans « Appliquer »')
         layout(page, t, 'carte proposition', scope=f'{sh} .diet-tg')
@@ -1485,7 +1487,7 @@ def t_repas_types(bench, eng, dev, theme):
         R.check(page.evaluate(meals_js) == '[[],[],[],[]]', f'{t} ajout du journal : plan inchangé')
         R.check(page.evaluate("Object.keys(dietDay(data, 'd_prot01', dietDayKey(Date.now() + 86400000)).extras).length") == 0, f'{t} lendemain : rien de repris')
         # « Fini » sur un plan perso : seulement l'objectif de calories atteint (95 %), jamais sur un repas noté
-        R.check(page.locator('.diet-sum--complete, .diet-week__dot--done').count() == 0 and 'Objectif' not in page.inner_text('.diet-sum'),
+        R.check(page.locator('.diet-sum--complete, .diet-week__dot--done').count() == 0 and 'atteint' not in page.inner_text('.diet-sum'),
                 f'{t} un repas noté, sans objectif de calories : rien de « fini »')
         page.evaluate("data.dietPlans.d_prot01.targets = { kcal: 370, p: 144 }; save(); render()")
         settle(page)

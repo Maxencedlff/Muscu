@@ -30,22 +30,22 @@ export default function ({ test, run, app, assert, ROOT }) {
     assert.equal(app.sanitizeData({ ...base, tour: true }).tour, undefined);
   });
 
-  test('visite : 4 étapes, 5 avec un coach ; titres = libellés de l\'écran', () => {
-    assert.equal(J(steps({}).map(s => s.title)), J(['Démarrer', 'Au programme', 'Programme', 'Progrès']));
-    assert.equal(J(steps({ beat: true }).map(s => s.title)), J(['Démarrer', 'À battre aujourd\'hui', 'Programme', 'Progrès']));
+  test('visite : 7 étapes, 8 avec un coach ; titres = libellés de l\'écran', () => {
+    assert.equal(J(steps({}).map(s => s.title)), J(['Démarrer', 'Au programme', 'Nutrition', 'Défis', 'Historique', 'Progrès', 'Programme']));
+    assert.equal(J(steps({ beat: true }).map(s => s.title)), J(['Démarrer', 'À battre aujourd\'hui', 'Nutrition', 'Défis', 'Historique', 'Progrès', 'Programme']));
     // Coach au féminin (myCoachWord, js/data/coach-form.js) : remplacé le temps du test
     run("globalThis.__mcw = myCoachWord; myCoachWord = k => ({ Mon: 'Ma coach', ton: 'ta coach' })[k]");
     const st = steps({ coach: 'student' });
     run('myCoachWord = globalThis.__mcw');
-    assert.equal(st.length, 5);
-    assert.equal(st[4].title, 'Social');
-    assert.ok(st[4].text.includes('« Ma coach »') && st[4].text.endsWith('de ta coach.'), st[4].text);
-    assert.ok(!/\bson coach|\bil\b/.test(st[4].text), 'accordé au coach');
-    assert.equal(steps({ coach: 'coach' })[4].title, 'Coach');
+    assert.equal(st.length, 8);
+    assert.equal(st[7].title, 'Social');
+    assert.ok(st[7].text.includes('« Ma coach »') && st[7].text.endsWith('de ta coach.'), st[7].text);
+    assert.ok(!/\bson coach|\bil\b/.test(st[7].text), 'accordé au coach');
+    assert.equal(steps({ coach: 'coach' })[7].title, 'Coach');
     assert.equal(steps({ live: true })[0].title, 'Reprendre', 'séance en cours : le bouton affiché');
     // Libellés vérifiés dans le code de l'écran (un renommage fait échouer ce test)
-    const src = ['js/features/dashboard.js', 'js/ui/router.js'].map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n').replace(/\\'/g, '\'');
-    for (const t of ['Démarrer', 'Reprendre', 'Au programme', 'À battre aujourd\'hui', 'Programme', 'Progrès', 'Social']) assert.ok(src.includes(t), t);
+    const src = ['js/features/dashboard.js', 'js/ui/router.js', 'js/features/nutrition-ui.js', 'js/features/defis-ui.js'].map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n').replace(/\\'/g, '\'');
+    for (const t of ['Démarrer', 'Reprendre', 'Au programme', 'À battre aujourd\'hui', 'Programme', 'Progrès', 'Social', 'Nutrition', 'Défis', 'Historique']) assert.ok(src.includes(t), t);
     // Sélecteurs : barre d'onglets (fixe, sans défilement) ou carte de la prochaine séance
     steps({ coach: 'student' }).forEach(s => assert.equal(!!s.fixed, s.sel.startsWith('.tabbar'), s.id));
   });

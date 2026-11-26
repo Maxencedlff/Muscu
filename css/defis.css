@@ -14,12 +14,16 @@
 /* Section à part de la liste des séances (.home-list : les tests et l'ordre des séances la lisent seule), même mise en page */
 .defis-home { margin-top: 20px; }
 .defis-home .home-card { margin-top: 0; padding: 0 16px; }
-.defis-home__card { padding: 0 16px; }
-.defi-card { position: relative; padding: 10px 0 2px; border-radius: var(--r-md); transition: background-color .6s ease, box-shadow .6s ease; }
-/* Défi qui vient d'être lancé : fond et contour sobres un instant (pas de lueur) */
-.defi-card--new { background: var(--fill2); box-shadow: 0 0 0 8px var(--fill2); }
+/* Carte rognée à ses coins : le fond d'un défi qui vient d'être lancé reste dans la carte */
+.defis-home__card { padding: 0 16px; overflow: hidden; }
+/* Pleine largeur de la carte (marges intérieures dans le défi) : le fond du défi lancé la remplit d'un bord à l'autre */
+.defi-card { position: relative; margin: 0 -16px; padding: 10px 16px 2px; transition: background-color .6s ease; }
+/* Défi qui vient d'être lancé : fond sobre un instant (pas de lueur). Avant le 26/11, un contour de 8 px débordait de la
+   carte arrondie : on croyait voir la carte en double, décalée (retour de Gérard) */
+.defi-card--new { background: var(--fill2); }
 @media (prefers-reduced-motion: reduce) { .defi-card { transition: none; } }
-.defi-card + .defi-card::before, .defis-home__card .defi-ended-row::before {
+.defi-card + .defi-card::before { content: ''; position: absolute; top: 0; right: 16px; left: 16px; height: .5px; background: var(--sep); }
+.defis-home__card .defi-ended-row::before {
   content: ''; position: absolute; top: 0; right: 0; left: 0; height: .5px; background: var(--sep);
 }
 .defi-card__open {
@@ -152,7 +156,11 @@ html.type-xl .defi-form .cell { flex-wrap: wrap; }
 html.type-xl .defi-form .cell__body { flex: 1 1 100%; }
 html.type-xl .defi-form .cell__title, html.type-xl .defi-form .segmented__btn { overflow-wrap: normal; word-break: normal; hyphens: none; }
 html.type-xl .defi-form__len { flex-direction: column; }
-html.type-xl .defi-form__len .segmented__btn { width: 100%; }
+/* En colonne, chaque segment garde sa zone de 44 px sans déborder sur son voisin (le débordement de 8 px du segmenté
+   en ligne faisait se chevaucher les zones de toucher : 53 px de haut pour 37 px d'écart, retour de Gérard du 26/11) */
+html.type-xl .defi-form__len .segmented__btn { width: 100%; margin: 0; min-height: 44px; }
+html.type-xl .defi-form__len .segmented__btn::after { inset: 2px 0; }
+html.type-xl .defi-form__len .segmented__btn::before { display: none; }
 
 /* Texte agrandi, carte de l'accueil : le nom sur toute la largeur (jamais coupé dans un mot), puis l'anneau plus petit
    à gauche du compteur */

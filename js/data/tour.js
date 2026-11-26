@@ -2,7 +2,9 @@
 //  Visite de l'accueil, logique pure (l'écran est dans js/features/tour.js)
 //
 //  Demande d'un coach partenaire (25/11) : au premier lancement, l'app s'assombrit et une bulle montre un vrai
-//  élément de l'accueil avec une flèche : « si tu appuies là, ça fait ça ». Quatre ou cinq étapes au plus.
+//  élément de l'accueil avec une flèche : « si tu appuies là, ça fait ça ». Une phrase par étape. Sept étapes (huit
+//  avec un coach) depuis le 26/11 : Nutrition, Défis et Historique ajoutés, trop mal trouvés seuls (retours d'Inès,
+//  Karim et Gérard).
 //
 //  État sur l'appareil seulement (data.tour, SYNC_LOCAL_ONLY de js/data/sync.js) :
 //    absent  : rien à montrer (utilisateur d'avant la visite, compte retrouvé sur un nouvel iPhone) ;
@@ -39,10 +41,17 @@ function tourSteps(ctx = {}) {
         text: 'Ta dernière performance sur chaque exercice. Fais un peu mieux : une rep ou un peu plus de charge.' }
       : { id: 'targets', sel: '.hero .targets', title: 'Au programme',
         text: 'Les exercices du jour. Après ta première séance, tu verras ici ce qu\'il faut battre.' },
-    { id: 'program', fixed: true, sel: '.tabbar [data-tab="program"]', title: 'Programme',
-      text: 'Tes séances et leurs exercices. Tu peux tout modifier ou changer de programme.' },
+    // Carte Nutrition de l'accueil (plan suivi) ou ligne « Noter ce que je mange » (sans plan) : titre « Nutrition » dans les deux
+    { id: 'nutrition', sel: '.diet-home .diet-home__open, .diet-start', title: 'Nutrition',
+      text: 'Note ce que tu manges et suis tes calories du jour.' },
+    { id: 'defis', sel: '.defis-home', title: 'Défis',
+      text: 'Un petit objectif chaque jour, par exemple 100 pompes.' },
+    { id: 'history', fixed: true, sel: '.tabbar [data-tab="history"]', title: 'Historique',
+      text: 'Toutes tes séances passées, avec le détail de chaque série.' },
     { id: 'progress', fixed: true, sel: '.tabbar [data-tab="progress"]', title: 'Progrès',
       text: 'Tes records et le personnage qui montre les muscles travaillés cette semaine.' },
+    { id: 'program', fixed: true, sel: '.tabbar [data-tab="program"]', title: 'Programme',
+      text: 'Tes séances et leurs exercices. Tu peux tout modifier ou changer de programme.' },
   ];
   if (ctx.coach === 'student') {
     steps.push({ id: 'coach', fixed: true, sel: '.tabbar [data-tab="friends"]', title: 'Social',

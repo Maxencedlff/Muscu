@@ -25,6 +25,9 @@ function waterState(day = localISO()) {
 }
 // « 1,2 sur 2,8 L », lu « 1,2 litre sur 2,8 »
 function waterValText(st, sep = 'sur') { return `${waterLitres(st.ml)} ${sep} ${waterGoalText(st.goal)}`; }
+// Toast d'un verre : « + 1 L d'eau · 1 L bu sur 3 à 5 L ». Avant le 26/11, « + 1 L · 1 sur 3 à 5 L » : on ne voyait ni que
+// c'était de l'eau, ni ce que voulait dire « 1 sur 3 à 5 » (juges sur captures)
+function waterToastText(prefix, ml, st) { return `${prefix}${waterQtyText(ml)} d'eau · ${waterLitres(st.ml)}\u00a0L bu sur ${waterGoalText(st.goal)}`; }
 function waterValSpoken(st) {
   const l = `${waterLitres(st.ml)} litre${st.ml >= 2000 ? 's' : ''}`;
   return st.goal.min != null ? `${l}, objectif ${waterGoalSpoken(st.goal)}` : `${l} sur ${fmtNum(st.goal.l, 2)}${st.goal.plus ? ', dont 0,5 litre pour la séance' : ''}`;
@@ -229,7 +232,7 @@ function waterAddNow(ml, day) {
   const st = waterState(day), reached = st.reached && !before.reached;
   haptic(reached ? 'success' : 'light');
   render();
-  showToast(`+ ${waterQtyText(ml)} · ${waterValText(st)}`, { action: 'Annuler', duration: 5000, onAction: () => {
+  showToast(waterToastText('+ ', ml, st), { action: 'Annuler', duration: 5000, onAction: () => {
     if (waterRemove(data, day, e.id)) { save(); render(); announce(`Annulé. Eau : ${waterValSpoken(waterState(day))}`); }
   } });
   if (reached) announce('Objectif d\'eau atteint');
@@ -314,7 +317,7 @@ registerActions({
     const list = waterDay(data, day), last = [...list].reverse().find(x => x.ml === ml) || list[list.length - 1];
     if (!last || !waterRemove(data, day, last.id)) return;
     save(); haptic('light'); render();
-    showToast(`Retiré : ${waterQtyText(last.ml)} · ${waterValText(waterState(day))}`, { action: 'Annuler', duration: 5000, onAction: () => {
+    showToast(waterToastText('Retiré : ', last.ml, waterState(day)), { action: 'Annuler', duration: 5000, onAction: () => {
       waterAdd(data, last.ml, day, last.at || Date.now()); save(); render();
     } });
   },

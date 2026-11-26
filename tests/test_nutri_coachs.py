@@ -110,7 +110,7 @@ def t_editeur(bench):
                 settle(page)
                 page.evaluate("switchTab('program', { reset: true }); navigate('diet-plans')")
                 page.wait_for_selector('.diet-plans-view')
-                R.check('Mes diètes' in page.inner_text('.diet-plans-view'), f'{t} coach : « Mes diètes »')
+                R.check('Plans de nutrition' in page.inner_text('.diet-plans-view') and 'diète' not in page.inner_text('.diet-plans-view'), f'{t} coach : « Plans de nutrition », le même mot que l\'élève')
                 page.evaluate("navigate(makeRoute('diet-plan', 'd_seche001'))")
                 page.wait_for_selector('[data-action="diet-days-mode"]')
                 settle(page)
@@ -226,7 +226,7 @@ def t_editeur(bench):
                 settle(page)
                 sent = page.evaluate("__sb.co.progs.filter(p => p.id === dietSentId('d_seche001')).map(p => [p.student, p.data.v, p.data.diet.days.mode, p.data.diet.meals.length])")
                 R.check(len(sent) == 2 and all(s[1] == 1 and s[2] == 'week' and s[3] == 4 for s in sent), f'{t} envoyé à 2 élèves, format v1 + jours ({sent})')
-                R.check(page.evaluate("!!data.dietPlans.d_seche001"), f'{t} le plan reste dans Mes diètes')
+                R.check(page.evaluate("!!data.dietPlans.d_seche001"), f'{t} le plan reste dans Plans de nutrition')
                 R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 

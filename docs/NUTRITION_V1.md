@@ -431,7 +431,7 @@ Vocaux WhatsApp de deux coachs, puis demande de Maxence sur l'éditeur du coach.
 ### Envoi
 - « Aperçu et envoi » (`diet-send:ID[:ÉLÈVE]`, `js/features/diet-week.js`) : une ligne par jour (repas, kcal, macros,
   objectifs dont eau et sel, écart court « Prévu : 1 569 kcal sous l'objectif »), élèves à cocher (« Tous »), un envoi par
-  élève (3 à la fois, limite de 24 h), le plan reste dans **Mes diètes** (titre de la liste pour un coach). Depuis la fiche
+  élève (3 à la fois, limite de 24 h), le plan reste dans **Plans de nutrition** (même titre que pour un pratiquant depuis le 26/11). Depuis la fiche
   d'un élève, l'élève est coché d'office (remplace l'alerte de relecture).
 - **Format** : `{ kind: 'diet', v: 1, diet: { …, days? } }`. `v` reste 1 : une app d'avant lit `meals` et `targets` et affiche
   le jour 1 tous les jours, sans planter (elle ignore `days`) ; un plan v1 sans `days` s'affiche comme avant. **Aucune

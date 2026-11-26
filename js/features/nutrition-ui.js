@@ -66,7 +66,8 @@ function dietMacroWords(m, fmt = dietN) { return `${fmt(m.p)} g de protéines, $
 function dietMacroLegendHtml(extra = '', { dots = true } = {}) {
   if (data.dietHideNumbers === true) return '';
   const dot = k => (dots ? '<i class="diet-dot diet-dot--' + k + '"></i>' : '');
-  return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k">${dot(m.k)}${m.label}</span>`).join(' · ')}</p>`;
+  // « · » collé au mot d'avant par une espace insécable : jamais seul en début de ligne (« Glucides ·Lipides », 26/11)
+  return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k">${dot(m.k)}${m.label}</span>`).join('\u00a0· ')}</p>`;
 }
 function dietDayTitle(day) {
   const today = dietDayKey();
@@ -101,6 +102,14 @@ document.addEventListener?.('visibilitychange', () => { if (document.visibilityS
 window.addEventListener?.('pageshow', e => { if (e.persisted) dietRefreshDay({ resumed: true }); });
 // Passage de minuit écran ouvert : vérifié chaque minute (un minuteur jusqu'à minuit s'endort avec l'app)
 setInterval(() => { if (dietDayKey() !== dietShownDay) dietRefreshDay(); }, 60000);
+// Bandeau « … · Annuler » d'une action de la Nutrition (aliment remplacé, verre d'eau, sel) : retiré dès le geste suivant
+// sur l'écran ou dans une de ses feuilles (juges du 26/11 : « Remplacé par Riz blanc » restait affiché pendant l'ajout de
+// l'eau et cachait « Bouteille », « 1 L » et la ligne Protéines). Capture : retiré avant l'action, qui peut poser le sien
+document.addEventListener?.('click', e => {
+  const b = e.target.closest?.('button, [data-action]');
+  if (!b || b.closest('.toast') || typeof currentView !== 'function' || currentView() !== 'nutrition') return;
+  document.querySelectorAll('.toast--action').forEach(removeToast);
+}, true);
 // Toast d'un ajout sur un jour passé : « Ajouté à hier · Dîner »
 function dietPastWord(day) { const t = dietDayTitle(day); return t === 'Hier' ? 'à hier' : `au ${t.charAt(0).toLowerCase()}${t.slice(1)}`; }
 // Part remplie d'une jauge : sur les nombres affichés (arrondis au gramme ou à la kcal), pour que « 4 / 4 g »
@@ -162,7 +171,9 @@ function dietSummaryHtml(pr) {
   const ratio = dietRatio(eaten.kcal, goal.kcal);
   // Calories fixées mais pas cette macro : son total tiré du plan ne colle pas forcément aux calories fixées
   // (2 000 kcal pour des macros qui en font 1 535) : mangé seul, sans repère ni jauge
-  const free = k => own.kcal && !own[k];
+  // Sans repère (plan neuf, aucun objectif ni aliment prévu) : pas de « 0 sur 0 » (26/11), le mangé seul
+  const noGoal = !(goal.kcal > 0);
+  const free = k => (own.kcal && !own[k]) || !(goal[k] > 0);
   const bars = DIET_MACROS.map(({ k, label }) => free(k) ? `
           <div class="diet-bar diet-bar--${k} diet-bar--free" role="img" aria-label="${label} : ${dietN(eaten[k])} grammes, pas d'objectif">
             <div class="diet-bar__head"><span class="diet-bar__label"><i class="diet-dot diet-dot--${k}"></i>${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> g</span></div>
@@ -183,13 +194,14 @@ function dietSummaryHtml(pr) {
   return `
       <section class="diet-sum${fin ? ' diet-sum--complete' : ''}" aria-label="Bilan de la journée">
         <div class="diet-sum__main">
-          <div class="diet-sum__ring" role="img" aria-label="${dietN(eaten.kcal)} kilocalories sur ${dietN(goal.kcal)}">
-            ${dietRingSvg(ratio)}
-            <span class="diet-sum__kcal" aria-hidden="true"><b class="num">${dietN(eaten.kcal)}</b><span class="num">sur ${dietN(goal.kcal)} kcal</span></span>
+          <div class="diet-sum__ring" role="img" aria-label="${dietN(eaten.kcal)} kilocalories${noGoal ? ', pas d\'objectif' : ` sur ${dietN(goal.kcal)}`}">
+            ${dietRingSvg(noGoal ? 0 : ratio)}
+            <span class="diet-sum__kcal" aria-hidden="true"><b class="num">${dietN(eaten.kcal)}</b><span class="num">${noGoal ? 'kcal' : `sur ${dietN(goal.kcal)} kcal`}</span></span>
           </div>
           <div class="diet-sum__bars">${bars}</div>
         </div>
         ${line}
+        ${noGoal && !own.p && !own.c && !own.f && !dietHasMealItems(pr.plan) ? '<p class="diet-sum__hint">Pas encore d\'objectif : touche « Mon plan » en haut, puis « Objectifs du jour ».</p>' : ''}
         ${own.kcal || own.p || own.c || own.f || !dietHasMealItems(pr.plan) ? '' : `<p class="diet-sum__hint">Repère : ${dietPersonal(pr.plan) ? 'le total de tes repas types' : 'le total prévu par ton plan'}${Object.keys(pr.swaps).length ? ', remplacements du jour compris' : ''}.</p>`}
         ${dietLowKcal(pr.plan) ? dietLowNoteHtml(!!pr.plan.targets?.kcal) : ''}
         ${dietSaltRowHtml(pr)}
@@ -203,8 +215,9 @@ function dietSummaryHtml(pr) {
 function dietWeekHtml(day) {
   const today = dietDayKey();
   return `<div class="diet-week" role="group" aria-label="7 derniers jours">${dietWeek(data).map(w => {
-    // Lettre comme le Calendrier d'iOS, Ma / Me pour mardi et mercredi (panel nutri-final t1 : deux « M » de suite)
-    const d = new Date(w.ts), letter = ['D', 'L', 'Ma', 'Me', 'J', 'V', 'S'][d.getDay()];
+    // Une lettre comme le Calendrier d'iOS et « Cette semaine » de l'accueil (L M M J V S D) : « Ma » et « Me » d'ici
+    // faisaient deux notations dans l'app (juges du 26/11). Le jour entier est dit par VoiceOver (aria-label)
+    const d = new Date(w.ts), letter = ['D', 'L', 'M', 'M', 'J', 'V', 'S'][d.getDay()];
     const label = `${w.day === today ? 'Aujourd\'hui' : fmtDate(w.ts, 'day')}${w.finished ? (dietActivePlan(data)?.fromCoach ? ', journée complète' : ', objectif atteint') : w.some ? ', en partie' : ''}`;
     return `<button class="diet-week__day${w.day === day ? ' diet-week__day--on' : ''}" data-action="diet-day" data-day="${w.day}" aria-pressed="${w.day === day}" aria-label="${esc(label)}">
         <span class="diet-week__letter" aria-hidden="true">${letter}</span>
@@ -334,7 +347,7 @@ function dietMealHtml(x, pr, day) {
           <div class="diet-meal__head">
             ${done ? `<button class="diet-meal__title" data-action="diet-meal-open" data-meal="${esc(meal.id)}" aria-expanded="${open}">${title}</button>`
               : `<div class="diet-meal__title">${title}</div>`}
-            ${menu}${live.length ? dietCheckBtn(meal, done, day) : ''}
+            ${menu}${live.length || extras.length ? dietCheckBtn(meal, done, day) : ''}
           </div>
           ${(cleared || !meal.items.length) && !extras.length ? '' : dietMixHtml(macros, 'diet-meal__mix')}
           ${meal.note && open ? `<p class="diet-meal__note">${icon('info.circle', 14)}<span>${esc(meal.note)}</span></p>` : ''}
@@ -594,18 +607,22 @@ function nutritionHomeCard() {
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
     </section>` : '';
   const plan = dietActivePlan(data);
-  // Sans carte Nutrition, l'eau suivie a sa petite carte (js/features/water-ui.js)
-  if (!plan) return card + waterHomeCard();
+  // Sans plan : une ligne « Noter ce que je mange » (retour de Gérard, 26/11 : rien sur l'accueil ne menait à la
+  // Nutrition, trouvée par hasard dans Programme au 13e toucher). Un toucher crée le plan perso et ouvre la journée ;
+  // l'eau suivie garde sa petite carte (js/features/water-ui.js)
+  if (!plan) return card + dietHomeStartHtml() + waterHomeCard();
   const day = dietDayKey(), pr = dietDayProgress(data, data.dietActive, day);
-  // Plan sans aucun aliment et rien de noté : la carte seulement avec un objectif de calories (« 0 sur 2 800 kcal » :
-  // repas qui changent chaque jour, on suit ses calories, demande de Maxence du 17/11) ; sans objectif, rien à suivre
-  // (pas de « 0 sur 0 kcal »). Jour vide ou repas retirés : la carte reste (le repère du plan, ce qu'on a noté)
-  if (!pr.meals.some(x => x.meal.items.length || x.extras.length) && !(pr.goal.kcal > 0)) return card + waterHomeCard();
+  // Plan sans aucun aliment, sans objectif de calories et rien de noté : la carte reste, avec l'invite « Rien de noté
+  // aujourd'hui · Ajouter » et jamais « 0 sur 0 kcal » (avant le 26/11 elle disparaissait : le plan créé, l'accueil
+  // n'affichait toujours rien, alors que Plans de nutrition promettait la carte)
+  const noGoal = !(pr.goal.kcal > 0);
   // Aucun aliment prévu dans le plan : ses repas se remplissent au fil du jour, comme un jour vide
   const noFood = !pr.meals.some(x => x.meal.items.length);
   const next = pr.next;
   const hide = data.dietHideNumbers === true;
-  const head = hide ? (pr.nMeals ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : esc(dietStatusText(pr))) : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
+  // Sans objectif de calories : ce qui est mangé seul (« 620 kcal ») ; rien de noté : le compte des repas ou l'état
+  const head = hide || (noGoal && !(pr.eaten.kcal > 0)) ? (pr.nMeals ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : esc(dietStatusText(pr)))
+    : noGoal ? `<b>${dietN(pr.eaten.kcal)}</b> kcal` : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
   // Tous les repas du jour (vague 4) : nom, kcal, coché ou non ; chacun se coche d'un toucher, le prochain en gras
   // (panel nutri-final t1 : « je ne sais pas où cocher le petit-déjeuner déjà mangé »).
   // Plus de 4 repas : 3 autour du prochain et « et 2 autres ». Le reste de la carte ouvre Nutrition
@@ -630,11 +647,11 @@ function nutritionHomeCard() {
   // VoiceOver : le bouton du haut dit tout (plan, calories, chaque repas) ; les lignes sont cachées, sauf le bouton à cocher
   const spokenMeals = pr.meals.filter(x => x.meal.items.length || x.extras.length)
     .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide || (!x.live.length && !x.extras.length) ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
-  const spoken = `Nutrition, ${plan.name} : ${hide ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${dietProgressFinished(pr) ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${blankNothing ? `${dietStatusText(pr) || 'Rien de noté aujourd\'hui'}. Ajouter` : `${spokenMeals}. Ouvrir`}`;
+  const spoken = `Nutrition, ${plan.name} : ${hide || (noGoal && !(pr.eaten.kcal > 0)) ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : noGoal ? `${dietN(pr.eaten.kcal)} kilocalories` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${dietProgressFinished(pr) ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${blankNothing ? `${dietStatusText(pr) || 'Rien de noté aujourd\'hui'}. Ajouter` : `${spokenMeals}. Ouvrir`}`;
   return `${card}
     <section class="home-card diet-home${dietProgressFinished(pr) ? ' diet-home--complete' : ''}">
       <button class="diet-home__open" data-action="go-nutrition" aria-label="${esc(spoken)}">
-        <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(hide ? pr.nDone / Math.max(1, pr.nMeals) : dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
+        <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(hide ? pr.nDone / Math.max(1, pr.nMeals) : noGoal ? 0 : dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
         <span class="diet-home__text" aria-hidden="true">
           <span class="diet-home__title"><span class="home-card__title">Nutrition</span><span class="diet-home__plan">${esc(plan.name)}</span></span>
           <span class="diet-home__kcal num">${head}</span>
@@ -646,6 +663,16 @@ function nutritionHomeCard() {
         ${moreText ? `<div class="diet-home__more" aria-hidden="true">${moreText}</div>` : ''}
       </div>${waterHomeRowHtml()}
     </section>`;
+}
+
+// Accueil sans plan : la même ligne que « Lancer un défi » (titre de section, cellule avec chevron)
+function dietHomeStartHtml() {
+  return `<section class="diet-start" aria-labelledby="homeNutrition"><h2 class="home-list__title" id="homeNutrition">Nutrition</h2>
+      <div class="home-card">
+        <button class="home-cell" data-action="diet-home-start">
+          <span class="home-cell__text"><span class="home-cell__name">Noter ce que je mange</span><span class="home-cell__sub">Repas et calories du jour</span></span>
+          ${icon('chevron.right', 14)}</button>
+      </div></section>`;
 }
 
 // ── Programme : entrée des plans ────────────────────────────
@@ -843,6 +870,17 @@ async function dietSaltSheet(day) {
 
 registerActions({
   'go-nutrition': () => navigate('nutrition'),
+  // « Noter ce que je mange » (accueil sans plan) : plan perso créé d'office (4 repas vides, aucun objectif), journée
+  // ouverte. Un coach prépare des plans pour ses élèves : écran Nutrition (« Créer mon plan »), rien de créé en silence
+  'diet-home-start': () => {
+    if (!dietActivePlan(data) && !coachRole().isCoach && dietCanCreate(data)) {
+      dietNewPlan(data, 'Mon plan');
+      save();
+      haptic();
+      dietMaybeAskConsent();
+    }
+    navigate('nutrition');
+  },
   'diet-salt': (e, el) => dietSaltSheet(el.dataset.day || dietDayKey()),
   // « + Pincée 0,4 g » : ajoutée d'un toucher, comme « + Verre 25 cl » (panel du 18/11, tour 4) ; la ligne ouvre le détail
   'diet-salt-pinch': (e, el) => {

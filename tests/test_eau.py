@@ -117,7 +117,7 @@ def t_parcours(bench, eng, dev, theme):
         settle(page)
         R.check(total(page) == 250, f'{t} « + Verre » : 25 cl ajoutés d\'un toucher ({total(page)})')
         toast = nb(page.inner_text('.toast')) if page.locator('.toast').count() else ''
-        R.check(toast.startswith('+ 25 cl · 0,25 sur 2 L') and 'Annuler' in toast, f'{t} toast : {toast!r}')
+        R.check(toast.startswith("+ 25 cl d'eau · 0,25 L bu sur 2 L") and 'Annuler' in toast, f'{t} toast : {toast!r}')
         R.check('0,25' in nb(page.inner_text('.water-home__val')), f'{t} accueil : ligne mise à jour')
         shot(page, LOT, f'1-accueil-{t}')
         page.locator('.toast__action').click()

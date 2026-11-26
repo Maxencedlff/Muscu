@@ -405,9 +405,18 @@ html.type-xl .cell > .diet-ico { display: none; }
 
 /* Objectifs du jour (js/features/diet-editor.js, dietTargetsSheet) : saisie, « Me proposer des objectifs », proposition.
    Un seul orange (--tint) pour les actions ; pastilles des macros devant leur nom ; rien de rouge */
-.diet-field__unitbtn { flex-shrink: 0; box-sizing: content-box; min-width: 2.4em; min-height: 44px; border: none; background: none;
-  padding: 0 max(0px, calc(45px - 2.4em)) 0 0; margin: 0 min(0px, calc(2.4em - 45px)) 0 0;   /* 44 pt touchables, texte aligné sur « g » et « kcal » */
-  font: inherit; font-size: var(--fs-callout); font-weight: 600; color: var(--tint); cursor: pointer; text-align: left; }
+/* Choix de l'unité des protéines : un bouton visible (aplat gris, flèches de menu), 44 pt, texte en couleur d'action
+   (--tint-on-fill, comme « Changer » et « + Sel ») ; avant le 26/11, un « g » orange seul qu'on ne prenait pas pour un bouton */
+.diet-field__unitbtn { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 44px; min-height: 44px;
+  margin: 0 -6px 0 0; padding: 0 8px; border: none; border-radius: var(--r-md); background: var(--fill);
+  font: inherit; font-size: var(--fs-callout); font-weight: 600; color: var(--tint-on-fill); cursor: pointer; white-space: nowrap; }
+.diet-field__unitbtn .icon { width: .75em; height: .75em; flex-shrink: 0; }
+/* Champ et unité : un seul bloc (au grand texte, il passe sous le nom d'un tenant, jamais l'unité seule à la ligne) */
+.diet-field__val { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.diet-tg__src { margin-top: 2px; }
+.diet-tg__src > summary { display: flex; align-items: center; list-style: none; font-size: var(--fs-footnote); }
+.diet-tg__src > summary::-webkit-details-marker { display: none; }
+.diet-tg__src > .diet-form__hint { margin-top: 0; }
 .diet-field__unitbtn:active { opacity: .6; }
 .diet-tg__pkg { margin: 6px 0 0; min-height: 1.3em; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
 .diet-tg__pkg:empty { min-height: 0; margin: 0; }
@@ -436,6 +445,8 @@ html.type-xl .diet-tg__seg .segmented__btn::after { inset: 0; }
 html.type-xl .diet-tg .diet-field { flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; }
 /* Champ jamais écrasé (« 290 » pour 2 900) : il passe sous le nom quand la ligne est trop étroite */
 html.type-xl .diet-tg .diet-field__input { flex: 1 0 4.5em; }
+html.type-xl .diet-tg .diet-field__val { flex: 1 0 8em; }
+html.type-xl .diet-tg .diet-field__val .diet-field__input { flex: 1 1 auto; }
 html.type-xl .diet-tg .diet-field__label { flex: 1 1 auto; }
 html.type-xl .diet-tg .diet-tg__select { flex-basis: 0; }
 /* Nouvel aliment en texte agrandi : la valeur passe sous son libellé, comme les objectifs (« 12( » pour 120 sur SE AX33) */
@@ -571,3 +582,18 @@ html.type-xl .diet-daypick .diet-week__day { flex: 0 0 auto; min-width: 3.4em; p
 .diet-week__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; margin: 2px 0 8px; font-size: var(--fs-footnote); color: var(--label2); }
 .diet-week__legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .diet-week__legend .icon { width: 1em; height: 1em; }
+
+/* ═══ 26/11 : retours de Gérard (explorateur, texte très grand) et des juges sur captures ═══ */
+/* Frise des jours au grand texte : numéros plafonnés pour garder un écart entre « 30 » et « 31 » et le jour choisi dans
+   l'écran (iPhone SE en AX33 : dates collées, rond du jour hors de l'écran) */
+html.type-xl .diet-week__letter { font-size: min(var(--fs-caption2), 16px); }
+html.type-xl .diet-week__num { font-size: min(var(--fs-callout, 1rem), 20px); min-width: 0; min-height: 28px; padding: 2px 4px; }
+/* Bilan au grand texte : le chiffre sous le nom de la macro (« Protéine5 / 134 g », nom coupé contre le chiffre) */
+html.type-xl .diet-bar__head { flex-direction: column; align-items: flex-start; gap: 0; }
+html.type-xl .diet-bar__label { white-space: normal; overflow: visible; }
+/* En-tête d'un repas au grand texte : le nom et le rond à cocher sur la première ligne, « ⋯ » dessous, plus grand (trois
+   signes serrés à côté du nom, « Petit- / déjeuner ») */
+html.type-xl .diet-meal__head { flex-wrap: wrap; row-gap: 0; }
+html.type-xl .diet-meal__title { flex: 1 1 calc(100% - 64px); }
+html.type-xl .diet-meal__menu { order: 3; margin: -6px 0 2px 6px; }
+html.type-xl .diet-meal__menu .icon { width: 1.2em; height: 1.2em; }
