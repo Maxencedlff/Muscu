@@ -181,7 +181,8 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   test('eau : accueil, ligne sous la carte Nutrition ou petite carte seule ; rien tant que le suivi est éteint', () => {
     reset();
     assert.equal(run('waterHomeRowHtml()'), '');
-    assert.equal(run('nutritionHomeCard()'), '', 'sans plan ni eau : rien sur l\'accueil');
+    // Sans plan ni eau : la seule ligne « Noter ce que je mange » (retour de Gérard, 26/11)
+    assert.doesNotMatch(run('nutritionHomeCard()'), /water-home|class="home-card diet-home/, 'sans plan ni eau : ni eau ni carte de plan');
     run(`data.waterOn = true; data.strengthSex = 'male'; waterAdd(data, 1200)`);
     const card = run('nutritionHomeCard()');
     assert.match(card, /water-home-card/, 'sans plan : petite carte Eau seule');

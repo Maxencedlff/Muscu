@@ -55,7 +55,7 @@ function renderDietPlans() {
           <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>${isCoach ? 'Créer une diète' : 'Créer un plan'}</span></button>
         </div>
         ${dietSettingsCellHtml()}
-        <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Coach › Élèves). ' : ''}Le plan en cours s'affiche chaque jour dans Entraînement › Nutrition.</div>
+        <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Coach › Élèves). ' : ''}Le plan en cours s'affiche chaque jour sur l'accueil, carte Nutrition.</div>
       </div>
     </div>`;
 }
@@ -131,7 +131,7 @@ function renderDietPlan(id, dayParam) {
       ${navBar({ title: esc(dayScreen ? dietDayName(root, di) : plan.name), right, large: true })}
       <div class="scr${dayScreen ? ' diet-dayswipe' : ''}"${dayScreen ? ` data-plan="${esc(id)}" data-dayi="${di}"` : ''}>
         ${dayScreen ? dietDayHeadHtml(id, root, di, ro) : `<div class="group">
-          ${on ? `<div class="cell"><span class="cell__body"><span class="cell__title">Plan en cours</span><span class="cell__sub">Il s'affiche chaque jour dans Entraînement › Nutrition</span></span><span class="diet-on-mark" aria-hidden="true">${icon('checkmark', 18)}</span></div>`
+          ${on ? `<div class="cell"><span class="cell__body"><span class="cell__title">Plan en cours</span><span class="cell__sub">Il s'affiche chaque jour sur l'accueil, carte Nutrition</span></span><span class="diet-on-mark" aria-hidden="true">${icon('checkmark', 18)}</span></div>`
             : `<button class="cell cell--action" data-action="diet-follow" data-id="${esc(id)}">${icon('checkmark', 20)}<span>Utiliser ce plan</span></button>`}
         </div>
         <div class="group-foot diet-plan-lead">Le plan donne chaque jour ${personal ? 'tes objectifs et tes repas types' : 'les objectifs et les repas prévus'}. Ce que tu manges se note dans Nutrition, sans changer le plan.</div>

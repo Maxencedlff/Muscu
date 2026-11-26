@@ -334,7 +334,7 @@ function dietMealHtml(x, pr, day) {
           <div class="diet-meal__head">
             ${done ? `<button class="diet-meal__title" data-action="diet-meal-open" data-meal="${esc(meal.id)}" aria-expanded="${open}">${title}</button>`
               : `<div class="diet-meal__title">${title}</div>`}
-            ${menu}${live.length ? dietCheckBtn(meal, done, day) : ''}
+            ${menu}${live.length || extras.length ? dietCheckBtn(meal, done, day) : ''}
           </div>
           ${(cleared || !meal.items.length) && !extras.length ? '' : dietMixHtml(macros, 'diet-meal__mix')}
           ${meal.note && open ? `<p class="diet-meal__note">${icon('info.circle', 14)}<span>${esc(meal.note)}</span></p>` : ''}
@@ -594,18 +594,22 @@ function nutritionHomeCard() {
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
     </section>` : '';
   const plan = dietActivePlan(data);
-  // Sans carte Nutrition, l'eau suivie a sa petite carte (js/features/water-ui.js)
-  if (!plan) return card + waterHomeCard();
+  // Sans plan : une ligne « Noter ce que je mange » (retour de Gérard, 26/11 : rien sur l'accueil ne menait à la
+  // Nutrition, trouvée par hasard dans Programme au 13e toucher). Un toucher crée le plan perso et ouvre la journée ;
+  // l'eau suivie garde sa petite carte (js/features/water-ui.js)
+  if (!plan) return card + dietHomeStartHtml() + waterHomeCard();
   const day = dietDayKey(), pr = dietDayProgress(data, data.dietActive, day);
-  // Plan sans aucun aliment et rien de noté : la carte seulement avec un objectif de calories (« 0 sur 2 800 kcal » :
-  // repas qui changent chaque jour, on suit ses calories, demande de Maxence du 17/11) ; sans objectif, rien à suivre
-  // (pas de « 0 sur 0 kcal »). Jour vide ou repas retirés : la carte reste (le repère du plan, ce qu'on a noté)
-  if (!pr.meals.some(x => x.meal.items.length || x.extras.length) && !(pr.goal.kcal > 0)) return card + waterHomeCard();
+  // Plan sans aucun aliment, sans objectif de calories et rien de noté : la carte reste, avec l'invite « Rien de noté
+  // aujourd'hui · Ajouter » et jamais « 0 sur 0 kcal » (avant le 26/11 elle disparaissait : le plan créé, l'accueil
+  // n'affichait toujours rien, alors que Plans de nutrition promettait la carte)
+  const noGoal = !(pr.goal.kcal > 0);
   // Aucun aliment prévu dans le plan : ses repas se remplissent au fil du jour, comme un jour vide
   const noFood = !pr.meals.some(x => x.meal.items.length);
   const next = pr.next;
   const hide = data.dietHideNumbers === true;
-  const head = hide ? (pr.nMeals ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : esc(dietStatusText(pr))) : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
+  // Sans objectif de calories : ce qui est mangé seul (« 620 kcal ») ; rien de noté : le compte des repas ou l'état
+  const head = hide || (noGoal && !(pr.eaten.kcal > 0)) ? (pr.nMeals ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : esc(dietStatusText(pr)))
+    : noGoal ? `<b>${dietN(pr.eaten.kcal)}</b> kcal` : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
   // Tous les repas du jour (vague 4) : nom, kcal, coché ou non ; chacun se coche d'un toucher, le prochain en gras
   // (panel nutri-final t1 : « je ne sais pas où cocher le petit-déjeuner déjà mangé »).
   // Plus de 4 repas : 3 autour du prochain et « et 2 autres ». Le reste de la carte ouvre Nutrition
@@ -630,11 +634,11 @@ function nutritionHomeCard() {
   // VoiceOver : le bouton du haut dit tout (plan, calories, chaque repas) ; les lignes sont cachées, sauf le bouton à cocher
   const spokenMeals = pr.meals.filter(x => x.meal.items.length || x.extras.length)
     .map(x => `${x.meal.name}${x.done ? ' coché' : next?.meal.id === x.meal.id ? ' ensuite' : ''}${hide || (!x.live.length && !x.extras.length) ? '' : `, ${dietN(x.macros.kcal)} kilocalories`}`).join(' ; ');
-  const spoken = `Nutrition, ${plan.name} : ${hide ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${dietProgressFinished(pr) ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${blankNothing ? `${dietStatusText(pr) || 'Rien de noté aujourd\'hui'}. Ajouter` : `${spokenMeals}. Ouvrir`}`;
+  const spoken = `Nutrition, ${plan.name} : ${hide || (noGoal && !(pr.eaten.kcal > 0)) ? (pr.nMeals ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : dietStatusText(pr)) : noGoal ? `${dietN(pr.eaten.kcal)} kilocalories` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${dietProgressFinished(pr) ? `, ${dietStatusText(pr).toLowerCase()}` : ''}. ${blankNothing ? `${dietStatusText(pr) || 'Rien de noté aujourd\'hui'}. Ajouter` : `${spokenMeals}. Ouvrir`}`;
   return `${card}
     <section class="home-card diet-home${dietProgressFinished(pr) ? ' diet-home--complete' : ''}">
       <button class="diet-home__open" data-action="go-nutrition" aria-label="${esc(spoken)}">
-        <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(hide ? pr.nDone / Math.max(1, pr.nMeals) : dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
+        <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(hide ? pr.nDone / Math.max(1, pr.nMeals) : noGoal ? 0 : dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
         <span class="diet-home__text" aria-hidden="true">
           <span class="diet-home__title"><span class="home-card__title">Nutrition</span><span class="diet-home__plan">${esc(plan.name)}</span></span>
           <span class="diet-home__kcal num">${head}</span>
@@ -646,6 +650,16 @@ function nutritionHomeCard() {
         ${moreText ? `<div class="diet-home__more" aria-hidden="true">${moreText}</div>` : ''}
       </div>${waterHomeRowHtml()}
     </section>`;
+}
+
+// Accueil sans plan : la même ligne que « Lancer un défi » (titre de section, cellule avec chevron)
+function dietHomeStartHtml() {
+  return `<section class="diet-start" aria-labelledby="homeNutrition"><h2 class="home-list__title" id="homeNutrition">Nutrition</h2>
+      <div class="home-card">
+        <button class="home-cell" data-action="diet-home-start">
+          <span class="home-cell__text"><span class="home-cell__name">Noter ce que je mange</span><span class="home-cell__sub">Repas et calories du jour</span></span>
+          ${icon('chevron.right', 14)}</button>
+      </div></section>`;
 }
 
 // ── Programme : entrée des plans ────────────────────────────
@@ -843,6 +857,17 @@ async function dietSaltSheet(day) {
 
 registerActions({
   'go-nutrition': () => navigate('nutrition'),
+  // « Noter ce que je mange » (accueil sans plan) : plan perso créé d'office (4 repas vides, aucun objectif), journée
+  // ouverte. Un coach prépare des plans pour ses élèves : écran Nutrition (« Créer mon plan »), rien de créé en silence
+  'diet-home-start': () => {
+    if (!dietActivePlan(data) && !coachRole().isCoach && dietCanCreate(data)) {
+      dietNewPlan(data, 'Mon plan');
+      save();
+      haptic();
+      dietMaybeAskConsent();
+    }
+    navigate('nutrition');
+  },
   'diet-salt': (e, el) => dietSaltSheet(el.dataset.day || dietDayKey()),
   // « + Pincée 0,4 g » : ajoutée d'un toucher, comme « + Verre 25 cl » (panel du 18/11, tour 4) ; la ligne ouvre le détail
   'diet-salt-pinch': (e, el) => {

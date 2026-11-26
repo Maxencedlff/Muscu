@@ -1081,9 +1081,29 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.match(h2, /<b>155<\/b> sur 2(\u202f|\u00a0| )?800 kcal/, 'haut de carte : le mangé');
     assert.doesNotMatch(h2, /diet-home__empty|>0\u00a0kcal</, 'ni invite ni « 0 kcal »');
     assert.match(h2, /Midi<\/span><span class="diet-home__mkcal num">155\u00a0kcal/, 'repas noté : ses calories');
-    // Sans objectif : pas de carte (pas de « 0 sur 0 kcal »)
+    // Sans objectif ni aliment : la carte reste (retour de Gérard, 26/11 : le plan créé, l'accueil n'affichait rien),
+    // avec l'invite, jamais « 0 sur 0 kcal »
     run(`data.dietPlans.d_g.targets = {}; delete data.dietLog;`);
-    assert.doesNotMatch(run('nutritionHomeCard()'), /diet-home/, 'sans objectif ni aliment : pas de carte');
+    const h3 = run('nutritionHomeCard()');
+    assert.match(h3, /class="home-card diet-home/, 'sans objectif ni aliment : la carte reste');
+    assert.match(h3, /diet-home__empty[\s\S]*Rien de noté[\s\S]*Ajouter/, 'sans objectif : l\'invite');
+    assert.doesNotMatch(h3, /sur 0|0 kilocalories sur/, 'jamais « 0 sur 0 kcal »');
+    // Sans objectif, un aliment noté : le mangé seul (« 155 kcal »)
+    run(`dietAddExtra(data, 'd_g', 'm2', ${JSON.stringify(item(RIZ_CUIT, 100))}, dietDayKey())`);
+    assert.match(run('nutritionHomeCard()'), /<b>155<\/b> kcal/, 'sans objectif : le mangé seul');
+    // Repas noté à la main puis coché (accueil) : coché à l'écran, mangé inchangé (bug du 26/11 : aria-pressed restait false)
+    run(`dietToggleMeal(data, 'd_g', 'm2', dietDayKey())`);
+    const pr = run(`dietDayProgress(data, 'd_g', dietDayKey())`);
+    assert.equal(pr.meals.find(x => x.meal.id === 'm2').done, true, 'repas d\'ajouts seuls : coché');
+    assert.equal(Math.round(pr.eaten.kcal), 155, 'coché : le mangé ne change pas');
+    assert.match(run('nutritionHomeCard()'), /diet-home__meal--done/, 'accueil : la coche verte');
+  });
+
+  test('accueil sans plan : « Noter ce que je mange » crée le plan et ouvre la journée', () => {
+    run('delete data.dietPlans; delete data.dietActive; delete data.dietLog;');
+    const h = run('nutritionHomeCard()');
+    assert.match(h, /data-action="diet-home-start"[\s\S]*Noter ce que je mange/, 'la ligne de l\'accueil');
+    assert.doesNotMatch(h, /class="home-card diet-home/, 'pas de carte de plan');
   });
 
 }
