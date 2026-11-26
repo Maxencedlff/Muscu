@@ -70,7 +70,7 @@ def o_android(bench):
                     f'{t} achats coupés tant que Google Play n\'est pas branché')
 
             # Bienvenue et Compte : « téléphone », Google d'abord, jamais « Continuer avec Apple »
-            page.evaluate("openAuthFlow({ step: 'welcome', closable: true })")
+            page.evaluate("() => { openAuthFlow({ step: 'welcome', closable: true }); }")
             settle(page)
             text = page.inner_text('body')
             R.check('nouveau téléphone' in text, f'{t} Bienvenue : « nouveau téléphone »')
@@ -117,7 +117,7 @@ def o_android(bench):
 
             # Bouton retour du système (historique de la vue web, comportement par défaut de Capacitor) :
             # il ferme d'abord la feuille ouverte, puis revient à l'écran précédent
-            page.evaluate("dialog({ title: 'Essai', message: 'Retour', actions: [{ label: 'OK', style: 'preferred' }] })")
+            page.evaluate("() => { dialog({ title: 'Essai', message: 'Retour', actions: [{ label: 'OK', style: 'preferred' }] }); }")   # sans attendre la réponse
             page.wait_for_selector('.ios-dialog')
             settle(page)
             page.go_back()
@@ -135,7 +135,7 @@ def o_ios(bench):
     t = 'iPhone_13-dark'
     with bench.page('webkit', 'iPhone 13', 'dark') as page:
         open_app(page, 'dark', 'ios')
-        page.evaluate("openAuthFlow({ step: 'welcome', closable: true })")
+        page.evaluate("() => { openAuthFlow({ step: 'welcome', closable: true }); }")
         settle(page)
         R.check('Apple' in page.locator('.auth-buttons .auth-btn').first.inner_text(), f'{t} Bienvenue : Apple en premier')
         R.check('nouvel iPhone' in page.inner_text('body'), f'{t} Bienvenue : « nouvel iPhone »')
