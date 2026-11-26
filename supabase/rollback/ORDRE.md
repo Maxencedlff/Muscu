@@ -8,7 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −29 | `20261129010000_seance_publique_blocs_down.sql` (séance publique : rôle et rang des blocs plus transmis aux amis et au coach ; `private.session_public` reprend le texte de 20261120010000 ; rien n'est effacé, les champs restent dans `sessions.data`) | rien | oui (vérifié par `tests/sql/seance_publique_blocs_rollback_test.sh`) ; à défaire avant −19 (il réécrit `private.session_public`) |
+| −29 | `20261129020000_seance_publique_blocs_down.sql` (séance publique : rôle et rang des blocs plus transmis aux amis et au coach ; `private.session_public` reprend le texte de 20261120010000 ; rien n'est effacé, les champs restent dans `sessions.data`) | rien | oui (vérifié par `tests/sql/seance_publique_blocs_rollback_test.sh`) ; à défaire avant −19 (il réécrit `private.session_public`) |
 | −28 | `20261128010000_compte_vide_site_coach_down.sql` (site du coach : plus aucun compte Google ou Apple tout neuf et vide effacé après la connexion ; journal des comptes effacés (fournisseur, heure, empreinte de l'identité) EFFACÉ, avec les fonctions `coach_web_orphan_claim`, `coach_web_orphan_release` et `private.coach_web_account_empty` ; aucun compte touché) | rien | oui (vérifié par `tests/sql/compte_vide_site_coach_rollback_test.sh`) ; la fonction Edge `coach-web-orphan` peut rester (elle ne supprime plus rien) |
 | −27 | `20261127050000_sante_coach_down.sql` (santé partagée avec le coach : consentements `health` et jours de pas, sommeil et cardio EFFACÉS ; `student_shares`, `private.share_kind_open` et la contrainte de `coach_shares.kind` reprennent le texte de 20261118010000, `coach_student_weeks` celui de −21, `private.checkin_kinds` et `private.checkin_number` celui de −22 ; tâche pg_cron `purge-sante-coach-90-jours` retirée ; refusé tant qu'un modèle de bilan a un suivi Sommeil en heures) | rien | oui (vérifié par `tests/sql/sante_coach_rollback_test.sh`) ; à défaire avant −22, −21 et le suivi de la diète (il réécrit leurs fonctions) |
 | −26 | `20261127040000_photos_web_appairage_down.sql` (« Relier cet ordinateur » : appairages en cours et ordinateurs reliés EFFACÉS, chaque ordinateur perd l'accès aux photos ; photos, clés des coachs et app intactes) | rien | oui (vérifié par `tests/sql/photos_web_appairage_rollback_test.sh`, aussi après −7) |
@@ -168,10 +168,10 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
     compte vide reste alors, comme avant). Retour arrière : le site d'avant si voulu, puis
     `20261128010000_compte_vide_site_coach_down.sql`.
 
-22. `20261129010000_seance_publique_blocs.sql` (le même exercice deux fois, js/data/blocks.js) : PRÉPARÉE, PAS APPLIQUÉE,
+22. `20261129020000_seance_publique_blocs.sql` (le même exercice deux fois, js/data/blocks.js) : PRÉPARÉE, PAS APPLIQUÉE,
     en attente du feu vert de Maxence. Réécrit `private.session_public` (texte de 20261120010000 plus `role` et `occ` en
     liste blanche). Indépendante de l'app : l'app d'aujourd'hui lit les deux champs s'ils arrivent, une version d'avant
-    les ignore. Retour arrière : `20261129010000_seance_publique_blocs_down.sql`.
+    les ignore. Retour arrière : `20261129020000_seance_publique_blocs_down.sql`.
 
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 

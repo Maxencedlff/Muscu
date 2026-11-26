@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Retour arrière de la séance publique avec rôle et rang des blocs (supabase/rollback/20261129010000_seance_publique_blocs_down.sql) :
+# Retour arrière de la séance publique avec rôle et rang des blocs (supabase/rollback/20261129020000_seance_publique_blocs_down.sql) :
 # après toutes les migrations, le retour arrière rend un schéma identique (pg_dump --schema-only) à celui où la migration
 # n'a jamais été appliquée, puis la migration repasse et ses vérifications aussi. Postgres local jetable, rien n'est envoyé
 # au projet Supabase.
@@ -7,8 +7,8 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
-mine="$root/supabase/migrations/20261129010000_seance_publique_blocs.sql"
-down="$root/supabase/rollback/20261129010000_seance_publique_blocs_down.sql"
+mine="$root/supabase/migrations/20261129020000_seance_publique_blocs.sql"
+down="$root/supabase/rollback/20261129020000_seance_publique_blocs_down.sql"
 bin=$(dirname "$(command -v initdb 2>/dev/null || ls -d /usr/lib/postgresql/*/bin/initdb | sort -V | tail -1)")
 tmp=$(mktemp -d)
 port=$(( 20000 + RANDOM % 20000 ))

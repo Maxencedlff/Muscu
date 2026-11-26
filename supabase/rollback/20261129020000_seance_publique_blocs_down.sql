@@ -1,18 +1,8 @@
 -- ═══════════════════════════════════════════════════════════
---  Séance publique : rôle et rang d'un bloc (le même exercice deux fois dans une séance, js/data/blocks.js,
---  docs/SEANCE_OUTILS.md). PRÉPARÉE, PAS APPLIQUÉE : en attente du feu vert de Maxence (26/11/2026).
---
---  L'app range sur l'exercice d'une séance son rôle (role : 'prefat' Pré-fatigue, 'warmup' Échauffement, absent =
---  Normal) et le rang de son bloc (occ : 2 à 20, absent = 1). private.session_public (amis : feed ; coach :
---  session_for_coach, coach_student_sessions) les laissait de côté : l'ami et le coach voient le bloc sous son nom, ses
---  séries en échauffement (warmup, déjà transmis), sans « Pré-fatigue » ni son rang. Ils passent maintenant, en liste
---  blanche : role seulement 'prefat' ou 'warmup', occ seulement un entier de 2 à 20. Le reste de la fonction est celui
---  de 20261120010000_seance_publique_par_bras.sql, à l'octet près : une séance sans ces champs sort comme avant.
---  L'app d'aujourd'hui lit déjà les deux champs reçus (cleanBlockFields) ; une version d'avant les ignore.
---
---  Retour arrière : supabase/rollback/20261129010000_seance_publique_blocs_down.sql
+--  Retour arrière de supabase/migrations/20261129020000_seance_publique_blocs.sql : private.session_public redevient
+--  celle de 20261120010000_seance_publique_par_bras.sql (sans rôle ni rang de bloc). Rien n'est effacé : rôle et rang
+--  restent dans les séances (sessions.data), seulement plus montrés aux amis et au coach.
 -- ═══════════════════════════════════════════════════════════
-
 create or replace function private.session_public(data jsonb) returns jsonb
   language sql immutable set search_path = '' as
 $$
@@ -33,8 +23,6 @@ $$
                                                   when 'number' then e.v -> 'ss' when 'boolean' then e.v -> 'ss' end,
         'grip',    case when jsonb_typeof(e.v -> 'grip') = 'object' then private.exercise_grip(e.v -> 'grip') end,
         'sideFirst', case when e.v -> 'sideFirst' = '"droit"'::jsonb then e.v -> 'sideFirst' end,
-        'role',    case when e.v -> 'role' in ('"prefat"', '"warmup"') then e.v -> 'role' end,
-        'occ',     case when jsonb_typeof(e.v -> 'occ') = 'number' and (e.v ->> 'occ') ~ '^([2-9]|1[0-9]|20)$' then e.v -> 'occ' end,
         'sets',    coalesce((
           select jsonb_agg(jsonb_build_object(
             'weight', case jsonb_typeof(st.v -> 'weight') when 'string' then to_jsonb(left(st.v ->> 'weight', 200))

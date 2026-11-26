@@ -1,4 +1,4 @@
--- Vérifications de supabase/migrations/20261129010000_seance_publique_blocs.sql (lancées par tests/sql/run.sh) :
+-- Vérifications de supabase/migrations/20261129020000_seance_publique_blocs.sql (lancées par tests/sql/run.sh) :
 -- rôle et rang d'un bloc passent en liste blanche ; une séance sans eux sort comme avant.
 do $$
 declare s jsonb; x jsonb;
