@@ -110,7 +110,8 @@ def t_hevy(bench, eng, dev, theme):
         titles = page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)")
         R.check(len(titles) == 7 and 'Push Day' in titles and 'Cardio' in titles, f'{t} historique : {titles}')
         subs = page.evaluate("[...document.querySelectorAll('.hcell__prog')].map(e => e.textContent)")
-        R.check(any('Hevy' in s for s in subs), f'{t} historique : mention du programme après le titre {subs[:2]}')
+        # Programme Hevy devenu l'actif (app neuve) : pas de mention du programme après le titre, comme pour toute séance de l'actif
+        R.check(not any(subs), f'{t} historique : séances du programme actif, sans mention {subs[:2]}')
         page.locator('.hcell', has_text='Push Day').first.click()
         page.wait_for_selector('.view.history-detail, .hdetail, .view')
         settle(page)

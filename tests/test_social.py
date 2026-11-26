@@ -265,7 +265,7 @@ def t_fil(bench, eng, dev, theme):
         R.check('note privée' not in txt and '81' not in txt, f'{t} ni notes ni poids du corps')
         first = cards.first
         ft = first.inner_text().replace('\u202f', ' ').replace('\u00a0', ' ')
-        R.check('lea' in ft and 'Push' in ft and 'Durée' in ft and 'Volume' in ft and '1\u202f560 kg' in ft and 'Séries' in ft, f'{t} carte : pseudo, nom, durée, volume, séries ({ft!r})')
+        R.check('lea' in ft and 'Push' in ft and 'Durée' in ft and 'Volume' in ft and re.search('1[\u202f\xa0 ]560 kg', ft) and 'Séries' in ft, f'{t} carte : pseudo, nom, durée, volume, séries ({ft!r})')
         R.check(first.locator('.feed-card__chip').all_inner_texts()[:1] == ['Pectoraux'], f'{t} carte : muscles travaillés ({first.locator(".feed-card__chip").all_inner_texts()})')
         R.check(first.locator('[data-action="social-open-comments"]').count() == 1, f'{t} carte : « Commenter »')
         R.check(first.locator('.avatar').inner_text() == '🦊', f'{t} carte : avatar emoji')
@@ -302,7 +302,7 @@ def t_fil(bench, eng, dev, theme):
         R.check('80 kg × 8, 7' in d and 'Dips' in d and 'note privée' not in d, f'{t} détail des séries ({d[:120]!r})')
         # Volume : charge notée × reps, poids du corps non compté (Dips, Pompes) ; ni flèches ni notes
         vol = page.locator('.social-session-view .tile').nth(1).inner_text()   # Durée, Volume, Séries (même ordre que le fil)
-        R.check('1\u202f560 kg' in vol and 'Volume' in vol, f'{t} volume de la séance d\'un ami : 1 560 kg, jamais en tonnes ({vol!r})')
+        R.check(re.search('1[\u202f\xa0 ]560 kg', vol) and 'Volume' in vol, f'{t} volume de la séance d\'un ami : 1 560 kg, jamais en tonnes ({vol!r})')
         R.check(page.locator('.social-session-view .review-trend, .social-session-view .review-notes').count() == 0, f'{t} séance d\'un ami : ni flèches ni notes')
         R.check(any(c.get('only_user') == ids['lea'] for c in calls(page, 'feed')), f'{t} séances visibles de l\'ami chargées pour les records')
         R.check(page.locator('.social-session-view .review-rec').count() == 0, f'{t} plus de 20 séances visibles : aucun record annoncé sur une partie seulement')
