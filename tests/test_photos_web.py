@@ -612,6 +612,9 @@ def app_journey(browser, url, engine):
                 app.wait_for_selector('.ios-dialog__btn:has-text("Retirer")', timeout=5000)
                 break
             except Exception:
+                if essai == 2:
+                    shot(app, f'echec-retirer-{engine}')
+                    print('DIAG', app.evaluate("JSON.stringify({ devices: plink.devices, busy: plink.busy, view: currentView(), btn: !!document.querySelector('[data-action=plink-revoke]') })"), flush=True)
                 check(essai < 2, f'{engine} app : le dialogue « Retirer » ne s\'ouvre pas')
         fixtures.tap_dialog(app, 'Retirer')
         fixtures.settle(app)

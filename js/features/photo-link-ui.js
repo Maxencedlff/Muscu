@@ -83,7 +83,9 @@ registerActions({
   'plink-open': () => navigate('coach-devices'),
   'plink-scan': () => plinkScanFlow(),
   'plink-revoke': async (e, el) => {
-    const d = plink.devices?.find(x => x.id === el.dataset.id);
+    // Liste relue entre-temps : l'ordinateur est retrouvé par son identifiant, le nom affiché sert de repli
+    const id = el.dataset.id;
+    const d = plink.devices?.find(x => x.id === id) || (PLINK_UUID_RE.test(id || '') ? { id, label: el.getAttribute('aria-label')?.replace(/^Retirer /, '') || 'cet ordinateur' } : null);
     if (!d || !(await confirmSheet(`Retirer ${d.label} ?`, 'Cet ordinateur ne pourra plus ouvrir les photos de tes élèves. Ordinateur perdu ou volé ? Crée aussi une nouvelle clé de photos (plus bas sur cet écran) : une copie de son disque ne servira plus.', 'Retirer'))) return;
     const r = await plinkRevoke(d.id);
     if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return; }

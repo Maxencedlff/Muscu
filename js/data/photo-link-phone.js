@@ -117,4 +117,13 @@ const PLINK_ERRORS = {
 };
 function plinkErrorText(kind) { return PLINK_ERRORS[kind] || coachErrorText(kind); }
 
-onAccountChange(() => { Object.assign(plink, { devices: null, loading: false, error: null, missing: false, busy: false }); });
+// Changement de COMPTE seulement (un renouvellement de session du même compte ne vide rien : sinon la liste affichée
+// perdait ses données et « Retirer » ne faisait plus rien)
+let plinkUser = null;
+onAccountChange(() => {
+  const id = account.user?.id || null;
+  if (id === plinkUser) return;
+  plinkUser = id;
+  Object.assign(plink, { devices: null, loading: false, error: null, missing: false, busy: false });
+  notifyCoach();
+});
