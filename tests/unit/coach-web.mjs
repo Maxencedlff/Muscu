@@ -108,7 +108,7 @@ export default function ({ test, assert, ROOT }) {
     assert.equal(storage.length + session.length, 0, '« Se déconnecter » : plus rien');
     run('sb = null'); delete ctx.supabase;
     // Embarquée dans l'app : jamais (la session appartient à l'hôte)
-    assert.match(fs.readFileSync(path.join(ROOT, 'coach-web/js/desk/api.js'), 'utf8'), /function deskKeep\(\) \{\n  if \(deskHosted\(\)\) return false;/);
+    assert.match(fs.readFileSync(path.join(ROOT, 'coach-web/js/desk/api.js'), 'utf8'), /function deskKeep\(\) \{\n {2}if \(deskHosted\(\)\) return false;/);
   });
 
   test('coach web : même projet Supabase et même clé publique que l\'app', () => {
