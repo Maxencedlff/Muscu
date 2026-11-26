@@ -52,9 +52,12 @@ function soundIncidentTime(iso) {
   return Number.isFinite(t) ? new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
 }
 
-// « le décompte 1 et le GO » : sons nommés dans une phrase
+// Nom d'un son à l'écran : « GO » (nom interne du dernier bip de la fin de repos) devient « Bip de départ » (panel du
+// 26/11 : « L'app n'a pas joué le GO », un mot anglais interne). Le texte copié pour le support garde le nom interne
+const soundStepName = n => (n === 'GO' ? 'Bip de départ' : n);
+// « le décompte 1 et le bip de départ » : sons nommés dans une phrase
 function soundNames(steps) {
-  const names = steps.map(s => `le ${s.name === 'GO' ? 'GO' : s.name.charAt(0).toLowerCase() + s.name.slice(1)}`);
+  const names = steps.map(s => { const n = soundStepName(s.name); return `le ${n.charAt(0).toLowerCase() + n.slice(1)}`; });
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names.at(-1)}` : names[0] || '';
 }
 
@@ -123,7 +126,7 @@ function soundDiagReport(res, ctx = {}) {
     // l'état estimé (gardé dans la copie)
     ['Mode silencieux', 'Sans effet sur les sons de l\'app'],
     ['Son enregistré', fileHeard ? 'Joué' : 'Pas joué', fileHeard],
-    ...steps.map(s => [s.name, s.heard ? 'Joué' : 'Pas joué', s.heard]),
+    ...steps.map(s => [soundStepName(s.name), s.heard ? 'Joué' : 'Pas joué', s.heard]),
     ['Autre app qui joue', st.otherAudioPlaying ? 'Oui' : 'Non'],
     // Ce test (sons perdus) d'un côté, ce qu'iOS a signalé avant lui de l'autre : « Aucun » à côté d'un GO raté
     // se lisait comme « rien ne cloche »
@@ -222,7 +225,7 @@ async function showSoundDiagnostics() {
     return;
   }
   soundDiagRunning = true;
-  box.innerHTML = '<p class="sound-diag__status" role="status">Test en cours, monte le son : un premier son, puis la fin de repos (3, 2, 1, GO).</p>';
+  box.innerHTML = '<p class="sound-diag__status" role="status">Test en cours, monte le son : un premier son, puis la fin de repos (3, 2, 1, puis le bip de départ).</p>';
   try {
     const res = await runSoundSelfTest();
     if (!res) {

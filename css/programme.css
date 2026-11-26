@@ -123,3 +123,8 @@ html.type-xl #exTempoIn { width: 100%; text-align: left; }
 html.type-xl .ex-edit label.cell--ctl:has(.field-suffix) { flex-wrap: wrap; row-gap: 4px; }
 html.type-xl .ex-edit label.cell--ctl:has(.field-suffix) > .cell__body { flex: 1 1 100%; }
 html.type-xl .ex-edit label.cell--ctl .cell__title { overflow-wrap: normal; hyphens: none; }
+
+/* Rangée de pastilles posée dans une cellule (Programme › Exercice : matériel, tempo) : elle va jusqu'aux bords de la
+   carte, la première pastille alignée sur les textes (16 px), la suivante dépasse et se coupe au bord arrondi de la carte
+   (panel du 26/11 : coupée net 16 px avant le bord, et le matériel décalé de 32 px) */
+.view--grouped .cell > .ax__equip { flex: 1 1 100%; min-width: 0; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }

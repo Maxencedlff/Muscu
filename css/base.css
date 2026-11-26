@@ -26,7 +26,6 @@
   --medal: #FFD60A;              /* médaille d'un record : or ; en clair assombri pour tenir 3:1 (1.4.11, panel t6) */
   --yellow: #FFD60A; --indigo: #5E5CE6; --teal: #40C8E0; --purple: #BF5AF2; --brown: #AC8E68;
   --green-text: #30D158; --red-text: #FF453A; --orange-text: #FF9F0A; --gold-text: #FFD60A;
-  --warn-text: #FF9F0A;   /* avertissement (collage coupé) : orange, nettement distinct du rouge des erreurs */
   --white: #FFFFFF; --black: #000000;
   --scrim: rgba(0,0,0,.55);      /* pastille de texte blanc posée sur une photo */
   --segment-on: #737378;      /* segment choisi nettement plus clair que le fond (texte blanc 4,7:1) */
@@ -107,7 +106,6 @@ body.light {
   --medal: #AD7F00;
   --yellow: #FFCC00; --indigo: #5856D6; --teal: #30B0C7; --purple: #AF52DE; --brown: #A2845E;
   --green-text: #1F7A35; --red-text: #D70015; --orange-text: #C93400; --gold-text: #A05A00;
-  --warn-text: #A85400;   /* l'orange d'action (« Démarrer ») : --orange-text (#C93400) se confondait avec le rouge */
   --segment-on: #FFFFFF;
   --dimmer: rgba(0,0,0,.25);
   --sheet-under: #8E8E93; --sheet-under-full: #8E8E93;

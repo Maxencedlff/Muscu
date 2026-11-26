@@ -185,4 +185,48 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(pd.exercises.bas_b.length, r.sessions[3].exercises.length);
     assert.equal(run('genProgrammeName()'), 'Sur mesure 2', 'deuxième programme : autre nom');
   });
+
+  test('générateur : jamais deux variantes du même mouvement dans une séance (Hip thrust et Hip thrust machine, panel du 26/11)', () => {
+    const same = (x, y) => run(`genSameMove(${JSON.stringify(x)}, ${JSON.stringify(y)})`);
+    assert.ok(same('Hip thrust', 'Hip thrust machine') && same('Hip thrust haltère', 'Hip thrust') && same('Pont fessier', 'Pont fessier unilatéral'));
+    assert.ok(!same('Squat barre', 'Squat gobelet') && !same('Développé couché barre', 'Développé incliné barre') && !same('Curl biceps barre', 'Curl marteau'));
+    // Profils où la priorité « fessiers » double le motif fessier, du cas du panel (4 jours, salle) aux autres
+    for (const days of [2, 3, 4, 5, 6]) for (const minutes of [45, 60, 90]) for (const level of ['debutant', 'intermediaire', 'avance']) {
+      const r = gen({ goal: 'muscle', level, days, minutes, gym: true, zones: ['fessiers', 'epaules', 'bras'] });
+      for (const s of r.sessions) {
+        const names = s.exercises.map(e => e.name);
+        for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
+          assert.ok(!same(names[i], names[j]), `${days} j, ${minutes} min, ${level}, ${s.label} : « ${names[i]} » et « ${names[j]} »`);
+        }
+      }
+    }
+    // La priorité reste servie : le fessier garde un exercice à lui dans chaque séance du bas
+    const r = gen({ goal: 'muscle', level: 'intermediaire', days: 4, minutes: 60, gym: true, zones: ['fessiers'] });
+    const m = moves();
+    for (const s of r.sessions.filter(x => x.key.startsWith('bas'))) assert.ok(s.exercises.some(e => m.get(e.name).pattern === 'glute'), `${s.label} : un exercice des fessiers`);
+  });
+
+  test('générateur : nom tiré des réponses, unique, 40 caractères au plus (panel du 26/11)', () => {
+    reset();
+    const name = a => run(`genProgrammeName(data, ${JSON.stringify(a)})`);
+    assert.equal(name({ days: 4, zones: [] }), 'Haut / Bas 4 jours');
+    assert.equal(name({ days: 3, zones: ['fessiers'] }), 'Corps entier 3 jours, fessiers');
+    assert.equal(name({ days: 6, zones: [] }), 'Pousser, Tirer, Jambes 6 jours');
+    for (const days of [2, 3, 4, 5, 6]) assert.ok(name({ days, zones: ['pectoraux', 'epaules', 'fessiers', 'abdos'] }).length <= 40, `${days} jours`);
+    run(`data.userProgrammes.u_gen00002 = { name: 'Haut / Bas 4 jours', sessions: {}, archived: false }`);
+    assert.equal(name({ days: 4, zones: [] }), 'Haut / Bas 4 jours 2', 'déjà pris : numéroté');
+    assert.equal(run('genProgrammeName()'), 'Sur mesure', 'sans réponse : « Sur mesure »');
+  });
+
+  test('générateur : le temps qui prive un muscle de séries est chiffré, jamais « le temps limite les triceps »', () => {
+    let found = false;
+    for (const days of [2, 3, 4, 5, 6]) for (const minutes of [30, 40, 45]) for (const level of ['intermediaire', 'avance']) {
+      const r = gen({ goal: 'muscle', level, days, minutes, gym: true });
+      const t = r.why.join(' ');
+      assert.ok(!/le temps limite/.test(t), t);
+      const m = t.match(/Avec (\d+) min, (.+?) (?:ont|a) (\d+) séries par semaine au lieu de (\d+)/);
+      if (m) { found = true; assert.ok(+m[3] < +m[4], t); }
+    }
+    assert.ok(found, 'au moins un profil court dit le manque chiffré');
+  });
 }

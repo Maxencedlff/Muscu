@@ -97,8 +97,10 @@ function genScreen(step, title, body, { lead = '' } = {}) {
       </div>
     </div>`;
 }
+// Bouton pour continuer collé au bas de l'écran (pas de barre d'onglets pendant les questions, updateChrome) : à la question 7,
+// sous deux longues listes, il était hors de l'écran (panel du 26/11)
 function genNextBtn(step, label = 'Suivant') {
-  return `<div class="prog-info__actions"><button class="btn btn--primary prog-info__btn" data-action="gen-next" data-step="${step}">${label}</button></div>`;
+  return `<div class="prog-info__actions gen-next-bar"><button class="btn btn--primary prog-info__btn" data-action="gen-next" data-step="${step}">${label}</button></div>`;
 }
 
 const GEN_SCREENS = {
@@ -114,7 +116,7 @@ const GEN_SCREENS = {
     const sex = p.sex === 'male' ? 'Homme' : p.sex === 'female' ? 'Femme' : '';
     return genScreen('toi', 'Sur mesure', `
       <div class="group">
-        ${cell('set-profile-age', 'clock.history', 'Âge', p.age ? `${p.age} ans` : '')}
+        ${cell('set-profile-age', 'birthday', 'Âge', p.age ? `${p.age} ans` : '')}
         ${cell('set-profile-height', 'ruler', 'Taille', p.heightCm ? `${fmtNum(p.heightCm)} cm` : '')}
         ${cell('set-body-weight', 'bathroom.scale', 'Poids', p.kg ? `${fmtW(p.kg)} ${unitLbl()}` : '')}
         ${cell('set-strength-sex', 'sex', 'Sexe', sex)}
@@ -160,10 +162,16 @@ const GEN_SCREENS = {
 // Aperçu : pourquoi, muscles en rouge sur le personnage, séries par muscle et par semaine, séances
 function renderGenPreview() {
   const r = generateProgramme(genInputs());
-  const name = genProgrammeName();
+  const name = genProgrammeName(data, genInputs());
   const max = Math.max(1, ...GEN_TRACKED.map(k => r.weekly[k]));
+  // Avec des priorités : seuls leurs muscles en rouge, le reste du corps au gris neutre (panel du 26/11 : tout en rouge,
+  // la priorité à peine plus foncée, le rouge ne disait plus rien) ; sans priorité, les muscles travaillés, selon leurs séries
+  const prio = [...new Set(r.answers.zones.flatMap(z => GEN_ZONES[z]?.muscles || []))];
   const levels = {};
-  MUSCLES.forEach(m => { if (r.weekly[m.id] > 0) levels[m.id] = Math.max(0.25, Math.min(1, r.weekly[m.id] / max)); });
+  if (prio.length) prio.forEach(k => { levels[k] = 1; });
+  else MUSCLES.forEach(m => { if (r.weekly[m.id] > 0) levels[m.id] = Math.max(0.25, Math.min(1, r.weekly[m.id] / max)); });
+  const prioWords = prio.map(genMuscleWord);
+  const mapLabel = prio.length ? `En rouge : ${prioWords.length > 1 ? 'tes priorités' : 'ta priorité'}, ${prioWords.join(' et ')}` : `Muscles travaillés par ${name}`;
   const vol = GEN_TRACKED.filter(k => r.weekly[k] > 0).map(k => {
     const n = Math.round(r.weekly[k]);
     return `<div class="cell"><span class="cell__body"><span class="cell__title">${esc(muscleLabel(k))}</span></span>
@@ -185,7 +193,8 @@ function renderGenPreview() {
       <div class="scr">
         <div class="gen-why">${r.why.map(l => `<p>${esc(l)}</p>`).join('')}</div>
         <div class="group group--pad prog-info__map">
-          ${bodyMapHtml(levels, { captions: true, label: `Muscles travaillés par ${name}` })}
+          ${bodyMapHtml(levels, { captions: true, label: mapLabel })}
+          ${prio.length ? `<p class="gen-map-cap" aria-hidden="true">${esc(mapLabel)}</p>` : ''}
         </div>
         <div class="group-title">Séries par muscle et par semaine</div>
         <div class="group">${vol}</div>
@@ -251,7 +260,7 @@ registerActions({
   // Jamais de remplacement sans confirmation : le nouveau programme s'ajoute, l'ancien reste dans Mes programmes
   'gen-use': async () => {
     const r = generateProgramme(genInputs());
-    const name = genProgrammeName();
+    const name = genProgrammeName(data, genInputs());
     const cur = progMeta(data.activeProgramme).name;
     if (!(await confirmSheet(`Utiliser « ${name} » ?`,
       `Il devient le programme actif. ${cur} reste dans tes programmes, avec son historique.`, 'Utiliser ce programme', false))) return;
@@ -265,6 +274,8 @@ registerActions({
     save();
     haptic();
     showActiveProgramme();   // sa page, sous la liste Programmes (js/features/programme.js)
-    showToast(`Programme : ${name}`);
+    // Pas de toast : la page du programme dit déjà son nom et « Programme actif », et le toast cachait « Envoyer ce
+    // programme » (panel du 26/11) ; VoiceOver l'entend quand même
+    announce(`Programme actif : ${name}`);
   },
 });

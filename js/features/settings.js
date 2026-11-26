@@ -114,14 +114,18 @@ ${renderAccessSettingsGroup()}
             <span class="cell__body"><span class="cell__title">Vibrations</span></span>
             ${switchHtml(data.vibrateOn !== false)}
           </button>
+        </div>
+        <div class="group-foot">Les sons de l'app jouent même en mode silencieux.</div>
+        ${soundOn || Native.sound.canDuck ? `<div class="group-title">Tester le son</div>
+        <div class="group">` : ''}
           ${soundOn ? `<button class="cell cell--action" data-action="sound-test-rest">
             ${cellIco('play', 'sable')}
             <span class="cell__body"><span class="cell__title">Tester la fin de repos</span></span>
           </button>` : ''}
           ${soundOn ? `<button class="cell cell--action" data-action="sound-test-pitch">
             ${cellIco('music', 'sable')}
-            <span class="cell__body"><span class="cell__title">Tester les hauteurs</span>
-              <span class="cell__sub">Note le dernier bip que tu entends</span></span>
+            <span class="cell__body"><span class="cell__title">Tester les aigus</span>
+              <span class="cell__sub">Retiens le numéro du dernier bip entendu</span></span>
             <span class="cell__value pitch-steps" aria-hidden="true">${PITCH_TEST.map((_, i) => `<span class="pitch-steps__n">${i + 1}</span>`).join(' · ')}</span>
           </button>` : ''}
           ${Native.sound.canDuck ? `<button class="cell cell--action" data-action="sound-diagnostics" aria-expanded="false" aria-controls="sound-diag">
@@ -130,8 +134,8 @@ ${renderAccessSettingsGroup()}
               ${Native.sound.canSelfTest ? '<span class="cell__sub">Joue un son et la fin de repos, puis dit ce qui sort</span>' : ''}</span>
           </button>
           <div class="sound-diag" id="sound-diag" hidden></div>` : ''}
-        </div>
-        <div class="group-foot">Les sons de l'app jouent même en mode silencieux.</div>
+        ${soundOn || Native.sound.canDuck ? '</div>' : ''}
+        ${soundOn ? `<div class="group-foot">Si un son manque, commence par « Tester la fin de repos »${Native.sound.canDuck ? '. Le diagnostic dit ensuite d\'où vient le problème' : ''}.</div>` : ''}
 ${renderAppleServicesGroup(switchHtml)}
 
         <div class="group-title">Apparence</div>
@@ -211,7 +215,7 @@ ${renderConnectionsGroup()}
                  <span class="cell__sub">${esc(liveUpdateLabel())}</span></span></button>`
             : `<button class="cell cell--action" data-action="force-update">${cellIco('arrow.down.circle', 'gray')}<span class="cell__body"><span class="cell__title">Rechercher une mise à jour</span></span></button>`}
         </div>
-        <div class="group-foot credit-foot">${BODY_PARTS_CREDIT}</div>
+        <div class="group-foot credit-foot">${BODY_PARTS_CREDIT.replace(/\//g, '/<wbr>')}</div>
 
         <div class="group-title">Informations légales</div>
         <div class="group">
@@ -242,7 +246,7 @@ function profileAgeHeightHtml() {
             <span class="cell__value num"${value ? '' : ' aria-label="Non renseigné"'}>${value ? esc(value) : '—'}</span>
             ${icon('chevron.right', 16)}
           </button>`;
-  return cell('set-profile-age', 'clock.history', 'Âge', age ? `${age} ans` : '') + cell('set-profile-height', 'ruler', 'Taille', cm ? `${fmtNum(cm)} cm` : '');
+  return cell('set-profile-age', 'birthday', 'Âge', age ? `${age} ans` : '') + cell('set-profile-height', 'ruler', 'Taille', cm ? `${fmtNum(cm)} cm` : '');
 }
 // Saisie d'un nombre du profil ; champ vidé : effacé (facultatif)
 // Refus dit sous le champ, fenêtre ouverte avec la valeur tapée (panel du 20/11). round : « 175,5 » accepté et arrondi
@@ -303,18 +307,22 @@ function exportStale(d = data, hasAccount = !!account.user, now = Date.now()) {
   return !d.lastExport || now - d.lastExport > 14 * 86400000;
 }
 
-// Valeur de la cellule « Sauvegarde » des Réglages : date du dernier export (orange si en retard, sans compte)
+// En rouge seulement s'il y a de quoi perdre : sauvegarde en retard ET au moins 3 séances (même seuil que la carte de
+// l'accueil, BACKUP_CARD_MIN_SESSIONS). Avant, « Jamais » s'affichait en rouge dès l'installation et faisait croire à une
+// erreur alors que la sauvegarde est facultative (panel du 26/11) ; sinon, gris secondaire
+function exportAlarm(d = data) { return exportStale(d) && (d.history || []).length >= BACKUP_CARD_MIN_SESSIONS; }
+// Valeur de la cellule « Sauvegarde » des Réglages : date du dernier export (rouge si en retard avec des séances, sans compte)
 function backupCellValue() {
   const last = data.lastExport;
   if (account.user && !last) return '';
   const txt = last ? agoText(last) : 'Jamais';
-  return `<span class="cell__value ${exportStale() ? 'txt-warn' : ''}">${txt.charAt(0).toUpperCase()}${txt.slice(1)}</span>`;
+  return `<span class="cell__value ${exportAlarm() ? 'txt-warn' : ''}">${txt.charAt(0).toUpperCase()}${txt.slice(1)}</span>`;
 }
 
 // Réglages › Données › Sauvegarde : où sont les données, export et import
 function renderBackup() {
   const last = data.lastExport;
-  const stale = exportStale();
+  const stale = exportAlarm();
   const lead = account.user
     ? `Séances et programmes sont enregistrés sur ton compte. Le poids du corps et les données Santé restent sur ${thisPhone()}.`
     : `Sans compte, les données sont seulement sur ${thisPhone()}. Exporte-les toutes les 2 semaines ou connecte-toi.`;

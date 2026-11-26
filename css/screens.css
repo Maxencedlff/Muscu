@@ -455,6 +455,10 @@ button.cal__d { border: 0; background: none; color: var(--label); font: inherit;
 button.cal__d:active { background: var(--fill2); }
 button.cal__d[aria-pressed="true"] { background: var(--fill); }
 .cal__d--has > .num { font-weight: 600; }
+/* Jour avec séance (Historique) : un anneau vert autour du chiffre, la couleur de « fait » (série validée, semaine à
+   l'objectif) ; avant, un point gris presque invisible (panel du 26/11). Aujourd'hui reste le disque plein neutre */
+.hcal .cal__d--has > .num { box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: min(1.85em, 100%);
+  height: auto; aspect-ratio: 1; line-height: 1; margin-top: -3px; border: 2px solid var(--green-text); border-radius: 50%; }
 .cal__d--empty, span.cal__d:not(.cal__d--has) { color: var(--label2); }
 .hcal-day { margin-bottom: 12px; }
 html.type-xl .hcal .cal__d { font-size: 1rem; min-height: 48px; }
@@ -841,6 +845,10 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 .gen-ex .cell__sub { font-size: var(--fs-subhead); line-height: 1.25; margin-top: 2px; }
 .gen-notes p { margin: 0; }
 .gen-notes p + p { margin-top: 6px; }
+.gen-next-bar { position: sticky; bottom: 0; z-index: 2; margin: 24px -16px 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg); box-shadow: 0 -.5px 0 var(--sep); }   /* questions du Sur mesure : « Suivant » toujours à l'écran */
+.gen-map-cap { margin: 8px 0 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+.prog-info__map:has(.gen-map-cap) { flex-direction: column; align-items: center; }
 
 /* ── Importer depuis une autre app (Hevy, Strong) : feuille d'aperçu et feuille de lien ── */
 .imp { color: var(--label); }

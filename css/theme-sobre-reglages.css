@@ -53,6 +53,10 @@ html:not(.type-xl) .settings-view .cell:has(> .set-ico) .cell__title { white-spa
 html:not(.type-xl) .settings-view .cell:has(> .set-ico) > .cell__body { min-width: auto; }
 .settings-view .cell:has(> .set-ico) > .cell__value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
+/* Texte agrandi : un titre trop long se coupe entre deux syllabes, avec un trait d'union (« Confidentia-lité »), jamais au
+   milieu d'une lettre près de la fin (« Confidentialit / é », panel du 26/11) ; l'adresse du crédit se coupe à ses « / » */
+html.type-xl .settings-view .cell__title { overflow-wrap: break-word; word-break: normal; -webkit-hyphens: auto; hyphens: auto; }
+html.type-xl .settings-view .credit-foot { overflow-wrap: break-word; }
 /* Sauvegarde jamais faite (sans compte) : rouge d'alerte système, plus l'orange ambré trop proche des actions */
 .settings-view .txt-warn, .backup-view .txt-warn { color: var(--red-text); }
 
