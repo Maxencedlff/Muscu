@@ -218,7 +218,9 @@ function bodyOutlineHtml(kind, view, ids, res = 1, cls = '', inner = false) {
   return ids.filter(id => boxes[id]).map(id => {
     const b = boxes[id][0], key = `${kind}/${view}/${inner ? 'in' : ''}${ri}/${id}`, url = bodyOutlineMasks.get(key);
     if (!url) bodyOutlineMask(kind, view, id, ri, inner);
-    const mask = url ? `-webkit-mask-image:url(${url});mask-image:url(${url})` : '';
+    // Anneau pas encore dessiné : contour caché (sans masque, l'aplat gris couvrait le ventre et le dos pendant environ une
+    // seconde au premier affichage, Karim le 26/11) ; il apparaît quand bodyOutlineMask pose son masque
+    const mask = url ? `-webkit-mask-image:url(${url});mask-image:url(${url})` : 'visibility:hidden';
     return `<span class="body-map__ol${cls ? ` ${cls}` : ''}" data-ol="${id}" data-olkey="${key}" style="left:${pct((b[0] - r) / W)};top:${pct((b[1] - r) / H)};width:${pct((b[2] - b[0] + 2 * r) / W)};height:${pct((b[3] - b[1] + 2 * r) / H)};${mask}"></span>`;
   }).join('');
 }
@@ -261,7 +263,7 @@ async function bodyOutlineMask(kind, view, id, r = BODY_OL_PX, inner = false) {
   const url = URL.createObjectURL(blob);
   bodyOutlineMasks.set(key, url);
   document.querySelectorAll(`.body-map__ol[data-olkey="${key}"]`).forEach(el => {
-    el.style.webkitMaskImage = `url(${url})`; el.style.maskImage = `url(${url})`;
+    el.style.webkitMaskImage = `url(${url})`; el.style.maskImage = `url(${url})`; el.style.visibility = '';
   });
 }
 

@@ -2,18 +2,21 @@
 //  Regard neuf du 16/11, chantier « mots et accès » (yn2) : noms des séances en clair, export CSV des séances, carte « Sauvegarde tes séances », nom de l'appareil
 // ═══════════════════════════════════════════════════════════
 export default function ({ test, run, reset, assert, sameJSON }) {
-  test('sessionTitle : « Pousser (Push) » pour les noms anglais, les noms français et perso inchangés', () => {
+  test('sessionTitle : le nom en français seul pour les séances intégrées, les noms tapés inchangés (26/11)', () => {
     reset();
-    assert.equal(run("sessionTitle('push', 'ppl')"), 'Pousser (Push)');
-    assert.equal(run("sessionTitle('pull', 'ppl')"), 'Tirer (Pull)');
-    assert.equal(run("sessionTitle('legs', 'ppl')"), 'Jambes (Legs)');
-    assert.equal(run("sessionTitle('upper', 'upper_lower')"), 'Haut du corps (Upper)');
-    assert.equal(run("sessionTitle('legs', 'bro')"), 'Jambes', 'déjà en français : pas de « Jambes (Jambes) »');
+    assert.equal(run("sessionTitle('push', 'ppl')"), 'Pousser');
+    assert.equal(run("sessionTitle('pull', 'ppl')"), 'Tirer');
+    assert.equal(run("sessionTitle('legs', 'ppl')"), 'Jambes', 'plus de « Jambes (Legs) »');
+    assert.equal(run("sessionTitle('upper', 'upper_lower')"), 'Haut du corps');
+    assert.equal(run("sessionTitle('fullbody', 'fullbody')"), 'Corps entier');
+    assert.equal(run("sessionTitle('legs', 'bro')"), 'Jambes');
     assert.equal(run("sessionTitle('haut', 'maison')"), 'Haut du corps');
     assert.equal(run("sessionTitle(FREE, FREE)"), 'Séance libre');
-    // Copie d'un programme intégré (Mes programmes, programme d'un coach) : même libellé, même traduction
-    run("data.userProgrammes.u_copie = { name: 'Copie', sessions: { a1: { label: 'Push', icon: '', desc: '', color: '#8E8E93' }, a2: { label: 'Dos <b>', icon: '', desc: '', color: '#8E8E93' } }, order: ['a1', 'a2'] }");
-    assert.equal(run("sessionTitle('a1', 'u_copie')"), 'Pousser (Push)');
+    // Copie d'un programme intégré (même clé de séance) : même traduction ; séance créée et nommée « Push » à la main
+    // (clé tirée au hasard) : le nom tapé, jamais « Pousser » (Karim le 26/11)
+    run("data.userProgrammes.u_copie = { name: 'Copie', sessions: { push: { label: 'Push', icon: '', desc: '', color: '#8E8E93' }, s1a: { label: 'Push', icon: '', desc: '', color: '#8E8E93' }, a2: { label: 'Dos <b>', icon: '', desc: '', color: '#8E8E93' } }, order: ['push', 's1a', 'a2'] }");
+    assert.equal(run("sessionTitle('push', 'u_copie')"), 'Pousser');
+    assert.equal(run("sessionTitle('s1a', 'u_copie')"), 'Push');
     assert.equal(run("sessionTitle('a2', 'u_copie')"), 'Dos <b>', 'texte brut : l\'appelant échappe');
     assert.equal(run("sessionPlainName('Pecs')"), '');
     // Les données gardent leurs libellés (historique, synchro)

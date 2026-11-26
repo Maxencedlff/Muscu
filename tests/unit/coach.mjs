@@ -314,7 +314,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     const stB = run(`coachProgrammeStatus(data, ${JSON.stringify(itemB)}, 'bbbbbbbb-2222')`);
     sameJSON([stB.status, stB.id], ['new', 'u_cbbbbbbbb_ppl'], 'nouveau programme, autre identifiant');
     assert.equal(run(`importCoachProgramme(data, ${JSON.stringify(itemB)}, { user_id: 'bbbbbbbb-2222', username: 'bob' })`), 'u_cbbbbbbbb_ppl');
-    sameJSON(run(`[data.userProgrammes.u_caaaaaaaa_ppl.name, data.userProgrammes.u_caaaaaaaa_ppl.fromCoach.name, data.userProgrammes.u_cbbbbbbbb_ppl.name]`), ['PPL', 'alice', 'Programme B']);
+    sameJSON(run(`[data.userProgrammes.u_caaaaaaaa_ppl.name, data.userProgrammes.u_caaaaaaaa_ppl.fromCoach.name, data.userProgrammes.u_cbbbbbbbb_ppl.name]`), ['Pousser, tirer, jambes', 'alice', 'Programme B']);
     assert.equal(run(`coachProgrammeStatus(data, ${JSON.stringify({ ...itemB, sentAt: 6000 })}, 'bbbbbbbb-2222').status`), 'update');
     // Compatibilité : un programme importé avant sous u_c<prog_id> par ce même coach garde sa place
     run(`data.userProgrammes.u_cppl = { ...data.userProgrammes.u_caaaaaaaa_ppl, fromCoach: { ...data.userProgrammes.u_caaaaaaaa_ppl.fromCoach } }`);

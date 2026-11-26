@@ -18,7 +18,7 @@ from fixtures import *  # noqa
 
 LOT = 'mots_yn2'
 R = Results(LOT)
-PLAIN = {'Pousser (Push)', 'Tirer (Pull)', 'Jambes (Legs)'}
+PLAIN = {'Pousser', 'Tirer', 'Jambes'}   # nom en français seul depuis le 26/11 (plus de « Jambes (Legs) »)
 
 
 def tag(device, theme):

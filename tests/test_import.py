@@ -96,8 +96,9 @@ def t_hevy(bench, eng, dev, theme):
         txt = toast_text(page)
         R.check(txt.startswith('Import réussi : 7 séances') and 'Annuler' in txt, f'{t} import : toast « {txt} »')
         d = json.loads(ls(page, 'ppl_v2'))
-        R.check(len(d['history']) == 7 and d['userProgrammes'].get('u_hevy', {}).get('name') == 'Hevy' and 'u_hevy' in d['myProgrammes'] and d['activeProgramme'] == 'ppl',
-                f'{t} import : 7 séances, programme Hevy créé, actif inchangé')
+        R.check(len(d['history']) == 7 and d['userProgrammes'].get('u_hevy', {}).get('name') == 'Hevy' and 'u_hevy' in d['myProgrammes'] and d['activeProgramme'] == 'u_hevy',
+                f'{t} import : 7 séances, programme Hevy créé et choisi (le PPL d\'office n\'avait aucune séance, Karim le 26/11)')
+        R.check('programme Hevy choisi' in txt, f'{t} import : le toast dit que le programme Hevy est choisi « {txt} »')
         labels = sorted(s['label'] for s in d['userProgrammes']['u_hevy']['sessions'].values())
         R.check(labels == ['Cardio', 'Leg Day', 'Pull Day', 'Push Day'], f'{t} import : séances du programme {labels}')
         R.check(all(any(e['name'] == 'Rotations russes' for e in h['exercises']) for h in d['history'] if h['date'] == max(x['date'] for x in d['history'] if any(e['name'] in ('Rotations russes', 'Svend Press (Plate)') for e in x['exercises']))),

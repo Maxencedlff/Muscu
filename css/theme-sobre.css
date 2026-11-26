@@ -112,6 +112,10 @@ body.design-bleu:not(.light) .rest-mini .rest-mini__skip { color: #8CC4FF; }   /
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0;
   padding: 14px 0; border-top: .5px solid var(--sep); border-bottom: .5px solid var(--sep); margin-top: 4px;
 }
+/* Volume en kg entiers depuis le 26/11 (« 5 253 kg », plus « 5,3 t ») : la colonne du milieu un peu plus large, celle des
+   séries (deux chiffres) plus étroite, l'unité en plus petit, pour que « kg » reste sur la ligne du nombre */
+.sum-tiles:has(.sum-tile:nth-child(3)) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, .75fr); }
+html:not(.type-xl) .sum-tile__value .sum-tile__unit { font-size: .7em; }
 .sum-tile { background: none; border-radius: 0; padding: 0 12px; gap: 2px; }
 .sum-tile:first-child { padding-left: 4px; }
 .sum-tile + .sum-tile { border-left: .5px solid var(--sep); }

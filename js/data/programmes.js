@@ -3,9 +3,11 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
+// Noms en français (juges du 26/11 : « PPL », « Full Body », « Bro Split », du jargon de salle pour une débutante) ;
+// alias : le nom courant en salle et dans Hevy ou Strong, écrit en petit sous le nom (catalogue, fiche, premier lancement)
 const PROGRAMMES = {
   ppl: {
-    name: 'PPL', desc: 'Pousser · Tirer · Jambes', icon: icon('dumbbell'),
+    name: 'Pousser, tirer, jambes', alias: 'PPL', desc: 'Pousser · Tirer · Jambes', icon: icon('dumbbell'),
     sessions: {
       push: { label: 'Push', desc: 'Pectoraux · Épaules · Triceps', color: 'var(--orange)' },
       pull: { label: 'Pull', desc: 'Dos · Biceps · Trapèzes',       color: 'var(--indigo)' },
@@ -18,7 +20,7 @@ const PROGRAMMES = {
     },
   },
   upper_lower: {
-    name: 'Upper / Lower', desc: 'Haut · Bas du corps', icon: icon('dumbbell'),
+    name: 'Haut et bas du corps', alias: 'Upper / Lower', desc: 'Haut · Bas du corps', icon: icon('dumbbell'),
     sessions: {
       upper: { label: 'Upper', desc: 'Pecs · Dos · Épaules · Bras',              color: 'var(--orange)' },
       lower: { label: 'Lower', desc: 'Quadriceps · Ischio · Mollets · Fessiers', color: 'var(--indigo)' },
@@ -29,9 +31,9 @@ const PROGRAMMES = {
     },
   },
   fullbody: {
-    name: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: icon('dumbbell'),
+    name: 'Corps entier', alias: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: icon('dumbbell'),
     sessions: {
-      fullbody: { label: 'Full Body', desc: 'Corps entier', color: 'var(--teal)' },
+      fullbody: { label: 'Full Body', desc: 'Jambes · Pectoraux · Dos · Épaules · Bras', color: 'var(--teal)' },
     },
     defaults: {
       // Conseillé à qui débute ou reprend (js/data/onboarding.js) : machines et haltères, pas de barre libre,
@@ -41,7 +43,7 @@ const PROGRAMMES = {
     },
   },
   bro: {
-    name: 'Bro Split', desc: 'Un muscle par jour : pecs, dos, épaules, bras, jambes', icon: icon('dumbbell'),
+    name: 'Un muscle par jour', alias: 'Bro Split', desc: 'Un muscle par jour : pecs, dos, épaules, bras, jambes', icon: icon('dumbbell'),
     sessions: {
       chest:     { label: 'Pecs',      desc: 'Pectoraux',           color: 'var(--orange)' },
       back:      { label: 'Dos',       desc: 'Dos · Trapèzes',       color: 'var(--indigo)' },
@@ -58,7 +60,7 @@ const PROGRAMMES = {
     },
   },
   arnold: {
-    name: 'Arnold Split', desc: 'Pecs+Dos · Épaules+Bras · Jambes', icon: icon('dumbbell'),
+    name: 'Muscles par deux', alias: 'Arnold Split', desc: 'Pecs+Dos · Épaules+Bras · Jambes', icon: icon('dumbbell'),
     sessions: {
       chest_back:     { label: 'Pecs & Dos',       desc: 'Pectoraux · Dos',              color: 'var(--orange)' },
       shoulders_arms: { label: 'Épaules & Bras',   desc: 'Épaules · Biceps · Triceps',   color: 'var(--yellow)' },
@@ -105,7 +107,7 @@ const PROGRAMMES = {
 // (« Push »), l'historique et la synchro en dépendent. Premier lancement (programmePreview, js/data/onboarding.js)
 // et partout où la place le permet (sessionTitle, js/data/accessors.js : « Pousser (Push) »)
 const SESSION_PLAIN = {
-  push: 'Pousser', pull: 'Tirer', legs: 'Jambes', upper: 'Haut du corps', lower: 'Bas du corps',
+  push: 'Pousser', pull: 'Tirer', legs: 'Jambes', upper: 'Haut du corps', lower: 'Bas du corps', fullbody: 'Corps entier',
 };
 
 // Bibliothèque : exercices déjà faits (les plus récents d'abord), puis ceux des programmes et du

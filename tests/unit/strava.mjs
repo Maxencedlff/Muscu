@@ -103,7 +103,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     reset();
     const d = call('stravaDescription', session());
     const lines = d.split('\n');
-    assert.equal(lines[0], '52 min · 3 séries · 1,2 t', 'volume sans le poids du corps (Dips : rien)');
+    assert.equal(lines[0], '52 min · 3 séries · 1\u202f200 kg', 'volume sans le poids du corps (Dips : rien)');
     assert.equal(lines[2], 'Développé couché : 80 kg × 8 · 7');
     assert.equal(lines[3], 'Dips : 12 reps');
     assert.equal(lines.length, 6, 'exercice sans série faite absent');

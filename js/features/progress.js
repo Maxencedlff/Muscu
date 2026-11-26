@@ -71,10 +71,16 @@ function exerciseIndex() {
   return map;
 }
 
-// Section d'un exercice : séance du programme actif, d'un autre programme, ou « Autres »
+// Section d'un exercice : la séance où il a été fait la dernière fois (si elle existe encore et le contient), sinon une
+// séance du programme actif, d'un autre programme, ou « Autres ». Karim le 26/11 : après l'import de Hevy, Squat ou Curl
+// étaient rangés sous le PPL d'office jamais fait (même identifiant d'exercice), le reste sous le programme Hevy
 function exSection(it) {
   const match = (list) => (list || []).some(x => x.id === it.exId || (String(it.exId).startsWith('n:') && sameExerciseName(x.name, it.name)));
   const pid = data.activeProgramme;
+  const live = (p, cat) => (isUserProg(p) ? !!userSessions(p)?.[cat] && !userSessions(p)[cat].retired : !!PROGRAMMES[p]?.sessions?.[cat]);
+  if (it.prog && it.cat && it.prog !== FREE && live(it.prog, it.cat) && match(data.programmes[it.prog]?.exercises?.[it.cat])) {
+    return { key: it.prog + ':' + it.cat, cat: it.cat, prog: it.prog };
+  }
   for (const cat of sessionKeys(pid)) if (match(data.programmes[pid]?.exercises?.[cat])) return { key: pid + ':' + cat, cat, prog: pid };
   for (const [p, pd] of Object.entries(data.programmes)) {
     if (p === pid) continue;
@@ -160,7 +166,20 @@ function statsSections(idx) {
     if (!sections.has(s.key)) sections.set(s.key, { cat: s.cat, prog: s.prog, items: [] });
     sections.get(s.key).items.push(it);
   });
-  if (sections.has('other')) { const o = sections.get('other'); sections.delete('other'); sections.set('other', o); }
+  // Hors programme : rangés par muscle principal (« Pectoraux », « Épaules », « Abdominaux »), plus un « Autres » fourre-tout
+  // où Dips, Face pull et Crunch câble se côtoyaient (juges du 26/11) ; sans muscle reconnu : « Autres exercices »
+  if (sections.has('other')) {
+    const o = sections.get('other'), mIdx = chosenMusclesIndex(), byMuscle = new Map();
+    sections.delete('other');
+    for (const it of o.items) {
+      const m = MUSCLES.find(x => x.id === exerciseMuscles({ exId: it.exId, name: it.name }, mIdx).primary?.[0]);
+      const title = m ? (m.short || m.label) : '';
+      const k = 'other:' + title;
+      if (!byMuscle.has(k)) byMuscle.set(k, { cat: null, prog: null, title, items: [] });
+      byMuscle.get(k).items.push(it);
+    }
+    [...byMuscle.entries()].sort(([a], [b]) => (a === 'other:') - (b === 'other:') || a.localeCompare(b, 'fr')).forEach(([k, v]) => sections.set(k, v));
+  }
   sections.forEach(sec => {
     if (!sec.cat) return;
     const order = (data.programmes[sec.prog]?.exercises?.[sec.cat] || []).map(x => x.id);
@@ -210,9 +229,10 @@ function statsRow(it, { recent = false } = {}) {
 }
 
 function statsSectionTitle(sec, key) {
-  if (key === 'other') return 'Autres';
+  if (key.startsWith('other')) return sec.title ? `${esc(sec.title)}, hors programme` : 'Autres exercices';
   const label = sessionMeta(sec.cat, sec.prog).label;
-  return sec.prog === data.activeProgramme || sec.prog === FREE ? label : `${label} · ${esc(progMeta(sec.prog).name)}`;
+  // Autre programme : « Bras, programme Bras & épaules » (avant « Bras · Bras & épaules », lu comme un titre en double)
+  return sec.prog === data.activeProgramme || sec.prog === FREE ? label : `${label}, programme ${esc(progMeta(sec.prog).name)}`;
 }
 
 // Carte « Derniers records » en tête de Progrès : les 3 plus récents (lignes : recordRowsHtml, js/ui/medal.js)

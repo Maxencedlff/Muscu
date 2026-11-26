@@ -80,8 +80,8 @@ def t_home(bench, eng, dev, theme):
         R.check(page.locator('.tabbar [aria-selected="true"]').inner_text().strip() == 'Entraînement', f'{t} onglet actif = Entraînement')
         R.check(page.locator('.header-actions').count() == 0, f'{t} plus de .header-actions')
         btn = page.locator('.hero__btn')
-        R.check(btn.inner_text().strip() == 'Démarrer' and btn.get_attribute('aria-label') == 'Démarrer Pousser (Push)', f'{t} carte « Démarrer » ({btn.inner_text()})')
-        R.check(page.locator('.hero__name').inner_text().strip() == 'Pousser (Push)', f'{t} grand titre en clair « Pousser (Push) »')
+        R.check(btn.inner_text().strip() == 'Démarrer' and btn.get_attribute('aria-label') == 'Démarrer Pousser', f'{t} carte « Démarrer » ({btn.inner_text()})')
+        R.check(page.locator('.hero__name').inner_text().strip() == 'Pousser', f'{t} grand titre en clair « Pousser »')
         box = btn.bounding_box()
         R.check(box['y'] + box['height'] <= tabbar_top(page), f'{t} « Démarrer » visible sans défiler')
         info = page.locator('.hero__info').inner_text()
@@ -98,7 +98,7 @@ def t_home(bench, eng, dev, theme):
         R.check(len(art) == 3 and all(a['src'].startswith('img/muscles/') and a['alt'] == '' and a['hidden'] == 'true' and a['shown'] for a in art), f'{t} séances illustrées, images décoratives {art}')
         R.check(page.get_attribute('.hero .hero__thumb', 'src') == 'img/muscles/pectoraux.webp', f'{t} Push : vignette des pectoraux')
         cards = [{'name': cells.nth(i).locator('.home-cell__name').inner_text(), 'text': ' '.join(cells.nth(i).inner_text().split()), 'aria': cells.nth(i).get_attribute('aria-label')} for i in range(cells.count())]
-        R.check(sorted(c['name'] for c in cards) == ['Jambes (Legs)', 'Tirer (Pull)'] and all(c['aria'] is None and 'exercices' in c['text'] and ('Prête' in c['text'] or 'En cours' in c['text']) for c in cards),
+        R.check(sorted(c['name'] for c in cards) == ['Jambes', 'Tirer'] and all(c['aria'] is None and 'exercices' in c['text'] and ('Prête' in c['text'] or 'En cours' in c['text']) for c in cards),
                 f'{t} cartes Pull et Legs : nom, infos et « Prête » ou « Prête dans… » lus par VoiceOver {cards}')
         week = page.locator('.week')
         R.check(page.locator('.rings').count() == 0 and week.count() == 1, f'{t} une seule carte « Cette semaine », plus d\'anneaux')

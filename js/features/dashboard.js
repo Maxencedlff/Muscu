@@ -196,13 +196,16 @@ function cellStatusHtml(cat) {
 
 // Durée habituelle d'une séance (minutes, arrondies à 5) : médiane de ses 5 dernières,
 // sinon estimation à 2,5 min par série prévue
-function sessionMinutes(cat) {
-  const p = data.activeProgramme;
+// progId : programme de la séance (fiche d'un autre programme : avant le 26/11, la durée était lue dans le programme
+// actif, « Pecs ≈ 55 min » et « Dos ≈ 30 min » pour deux séances de 12 séries)
+function sessionMinutes(cat, progId = data.activeProgramme) {
+  const p = progId;
   const durs = (data.history || [])
     .filter(h => h.category === cat && entryProg(h) === p && h.duration > 5 * 60000)
     .slice(0, 5).map(h => h.duration).sort((a, b) => a - b);
+  const exs = data.programmes[p]?.exercises?.[cat] || (PROGRAMMES[p]?.defaults?.[cat] || []).map(([, sets]) => ({ sets }));
   const ms = durs.length ? durs[Math.floor(durs.length / 2)]
-    : (prog().exercises[cat] || []).reduce((a, ex) => a + (ex.sets || 0), 0) * 150_000;
+    : exs.reduce((a, ex) => a + (ex.sets || 0), 0) * 150_000;
   return ms ? Math.max(5, Math.round(ms / 300_000) * 5) : 0;
 }
 

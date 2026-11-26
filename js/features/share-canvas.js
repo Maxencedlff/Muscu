@@ -188,13 +188,15 @@ function drawRecordsChip(ctx, p, st, y, h = STORY.CHIP, x = STORY.SIDE) {
   const medal = Math.round(60 * k);
   ctx.font = storyFont(700, Math.max(28, Math.round(40 * Math.min(1, k * 1.1))), false, p);   // rien sous 28 px
   drawMedal(ctx, p, x - 6, y + (h - medal) / 2, medal);
-  ctx.fillStyle = rgbaCss(p.goldText); ctx.textBaseline = 'middle';
+  // Texte du record dans la couleur du texte, seule la médaille en or (juges du 26/11 : l'ocre se lisait en clair comme un
+  // troisième orange à côté du bouton Partager)
+  ctx.fillStyle = rgbaCss(p.label); ctx.textBaseline = 'middle';
   ctx.fillText(text, x + medal + 8, y + h / 2 + 2);
   ctx.textBaseline = 'alphabetic';
 }
 
 function storyTiles(st) {
-  return [['Durée', st.duration || '—'], ['Volume', st.volume || '—'], ['Séries', String(st.sets)]];
+  return [['Durée', st.duration || '—'], ['Soulevé', st.volume || '—'], ['Séries', String(st.sets)]];
 }
 
 // Valeur en grand (SF Rounded, taille ajustée à la largeur), libellé gris en casse de phrase dessous
@@ -288,7 +290,7 @@ function drawSolo(ctx, p, r, ry, rowH, nameSize = null, air = 1) {
   ctx.fillStyle = rgbaCss(p.label);
   ctx.fillText(fitText(ctx, r.name, maxW), x, ry + pad + g.nameBase);
   fitSize(ctx, r.sets, maxW, g.detail + 4, Math.max(STORY.DETAIL_MIN, g.detail - 4), s => storyFont(700, s, true, p));
-  ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label2);
+  ctx.fillStyle = rgbaCss(r.record ? p.label : p.label2);
   ctx.fillText(fitText(ctx, r.sets, maxW), x, ry + pad + g.detailBase + 4);
 }
 
@@ -327,7 +329,7 @@ function drawGroup(ctx, p, u, ry, rowH, nameSize = null, air = 1) {
     ctx.fillStyle = rgbaCss(p.label);
     ctx.fillText(fitText(ctx, r.name, maxW), tx, my + g.nameBase);
     fitSize(ctx, r.sets, maxW, g.detail, Math.max(STORY.DETAIL_MIN, g.detail - 4), s => storyFont(600, s, true, p));
-    ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label2);
+    ctx.fillStyle = rgbaCss(r.record ? p.label : p.label2);
     ctx.fillText(fitText(ctx, r.sets, maxW), tx, my + g.detailBase);
   });
 }
@@ -368,7 +370,7 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
       const valMax = w - 2 * padX - 140;
       fitSize(ctx, r.value, valMax, size, Math.max(22, size - 14), s2 => storyFont(700, s2, true, p));
       const vw = Math.min(ctx.measureText(r.value).width, valMax);
-      ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
+      ctx.fillStyle = rgbaCss(p.label);
       ctx.textAlign = 'right'; ctx.fillText(fitText(ctx, r.value, valMax), SIDE + w - padX, ry + base); ctx.textAlign = 'left';
       const nameW = w - 2 * padX - vw - 28;
       ctx.font = storyFont(600, nameSize, false, p);
@@ -380,7 +382,7 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
       const valMax = w - 2 * padX - 170;
       fitSize(ctx, r.value, valMax, 46, 26, s2 => storyFont(700, s2, true, p));
       const vw = Math.min(ctx.measureText(r.value).width, valMax);
-      ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
+      ctx.fillStyle = rgbaCss(p.label);
       ctx.textAlign = 'right'; ctx.fillText(fitText(ctx, r.value, valMax), SIDE + w - padX, ry + 72); ctx.textAlign = 'left';
 
       // Le nom est l'information principale : la police est réduite (40 → 32 px) avant de tronquer
@@ -391,7 +393,7 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
       ctx.font = storyFont(500, 30, false, p);
       if (r.record) {
         drawMedal(ctx, p, SIDE + padX - 4, ry + 65, 36);
-        ctx.fillStyle = rgbaCss(p.goldText);
+        ctx.fillStyle = rgbaCss(p.label);
         ctx.fillText(fitText(ctx, r.record, nameW - 40), SIDE + padX + 38, ry + 93);
       } else {
         ctx.fillStyle = rgbaCss(p.label2);
@@ -611,7 +613,7 @@ function drawSquareList(ctx, p, st, y, rows, more, h) {
     const valMax = Math.round((w - 2 * padX) * .45);
     fitSize(ctx, r.value, valMax, 34, 24, s => storyFont(700, s, true, p));
     const vw = Math.min(ctx.measureText(r.value).width, valMax);
-    ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
+    ctx.fillStyle = rgbaCss(p.label);
     ctx.textAlign = 'right'; ctx.fillText(fitText(ctx, r.value, valMax), SIDE + w - padX, base); ctx.textAlign = 'left';
     const nameW = w - 2 * padX - vw - 28 - (r.record ? 42 : 0);
     ctx.font = storyFont(600, 34, false, p);

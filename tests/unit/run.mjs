@@ -275,15 +275,18 @@ test('storeW : saisie dans l\'unité affichée → kg stocké, aller-retour exac
   }
 });
 
-test('fmtVolume : kg, tonnes, lbs, milliers de lbs', () => {
+test('fmtVolume : toujours en kg ou en lbs, jamais en tonnes (retour du 26/11)', () => {
+  const sp = v => v.replace(/[\u00a0\u202f]/g, ' ');
   reset();
-  assert.equal(app.fmtVolume(0), '0 kg');
-  assert.equal(app.fmtVolume(850.4), '850 kg');
-  assert.equal(app.fmtVolume(12400), '12,4 t');
+  assert.equal(sp(app.fmtVolume(0)), '0 kg');
+  assert.equal(sp(app.fmtVolume(850.4)), '850 kg');
+  assert.equal(sp(app.fmtVolume(4200)), '4 200 kg');
+  assert.equal(sp(app.fmtVolume(12400)), '12 400 kg');
+  assert.ok(app.fmtVolume(4200).includes('\u00a0kg'), 'espace insécable avant l\'unité');
   reset({ unit: 'lbs' });
-  assert.equal(app.fmtVolume(0), '0 lbs');
-  assert.equal(app.fmtVolume(100), '220 lbs');
-  assert.equal(app.fmtVolume(10000), '22,0 k lbs');
+  assert.equal(sp(app.fmtVolume(0)), '0 lbs');
+  assert.equal(sp(app.fmtVolume(100)), '220 lbs');
+  assert.equal(sp(app.fmtVolume(10000)), '22 046 lbs');
 });
 
 test('setTxt / bestSet : meilleure série affichée', () => {
@@ -835,7 +838,7 @@ test('userProgrammes : accès (isUserProg, sessionKeys, progMeta, sessionMeta, r
   assert.equal(app.userSessions('ppl'), null);
   assert.equal(app.userSessions('u_fb').b.label, 'Bas');
   sameJSON(app.userSessions('custom'), {}, 'Perso créé à la demande');
-  assert.equal(app.progMeta('inconnu').name, 'PPL', 'programme inconnu : PPL');
+  assert.equal(app.progMeta('inconnu').name, 'Pousser, tirer, jambes', 'programme inconnu : le PPL');
 });
 
 // ── Utilitaires ─────────────────────────────────────────────

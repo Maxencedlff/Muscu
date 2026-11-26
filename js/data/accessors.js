@@ -117,11 +117,16 @@ function sessionPlainName(label) {
   }
   return sessionPlainByLabel.get(String(label ?? '').trim()) || '';
 }
-// Nom d'une séance là où la place le permet (titres, accueil, programme) : « Pousser (Push) ». Texte brut, à échapper.
+// Nom d'une séance là où la place le permet (titres, accueil, programme) : le nom en français, « Pousser », « Jambes ».
+// Avant le 26/11 : « Pousser (Push) », « Jambes (Legs) », un titre bilingue relevé par les juges. Texte brut, à échapper.
+// Seulement pour une séance des programmes intégrés ou de leurs copies (clé push, pull…) : une séance créée et nommée
+// « Push » à la main garde le nom tapé (Karim le 26/11 : « Pousser (Push) » au lieu de son « Push »).
 // Les pastilles, la mini-barre et les petits espaces gardent le nom court (rawLabel, sessionMeta().label).
 function sessionTitle(cat, progId) {
-  const raw = rawLabel(cat, progId), plain = sessionPlainName(raw);
-  return plain ? `${plain} (${raw})` : raw;
+  progId = progId || data.activeProgramme;
+  const raw = rawLabel(cat, progId);
+  const builtIn = progId !== FREE && (!isUserProg(progId) || Object.prototype.hasOwnProperty.call(SESSION_PLAIN, cat));
+  return (builtIn && sessionPlainName(raw)) || raw;
 }
 
 function firstSession() {
@@ -197,17 +202,12 @@ function storeW(val) {
 function bumpLabel() { return data.unit === 'lbs' ? '5 lb' : '2,5 kg'; }
 function bumpStepKg() { return data.unit === 'lbs' ? 5 / KG_TO_LBS : 2.5; }
 
-// Volume (kg) : « 850 kg », « 12,4 t », « 1 874 lbs », « 27,3 k lbs »
-// Tonnes (milliers de lbs) toujours au dixième, partout la même précision : « 5,0 t » au bilan comme « 4,6 t » dans
-// l'historique (« 5 t » arrondi à la tonne cachait un écart de 32 kg, panel t5)
+// Volume (kg) : « 850 kg », « 4 200 kg », « 1 874 lbs », toujours en entier dans l'unité de l'app. Plus de « 4,2 t » ni de
+// « 27,3 k lbs » : une débutante ne lisait pas « t » (tonnes), retour d'Inès du 26/11 et grille avant panel (règle 11).
+// Espace insécable avant l'unité : jamais « kg » seul en début de ligne
 function fmtVolume(kg) {
-  if (kg === 0) return `0 ${unitLbl()}`;
-  const tenth = v => v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  if (data.unit === 'lbs') {
-    const lbs = kg * KG_TO_LBS;
-    return lbs >= 1000 ? tenth(lbs / 1000) + ' k lbs' : fmtNum(Math.round(lbs)) + ' lbs';
-  }
-  return kg >= 1000 ? tenth(kg / 1000) + ' t' : fmtNum(Math.round(kg)) + ' kg';
+  if (data.unit === 'lbs') return `${fmtNum(Math.round(kg * KG_TO_LBS))}\u00a0lbs`;
+  return `${fmtNum(Math.round(kg))}\u00a0kg`;
 }
 
 // Texte posé sur une couleur de séance : blanc, ou noir quand le blanc n'atteindrait pas 4,5:1

@@ -43,7 +43,7 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     reset();
     run(`const e = data.programmes.ppl.exercises.push[0]; e.tempo = '3-1-1-0'; e.rest = 120; e.target = 80`);
     const text = app.programmeShareText(app.programmeSharePayload('ppl'));
-    assert.match(text, /^Mon programme « PPL » sur MDLF Training\n\nPush\n• Développé couché haltères : 4 séries, tempo 3-1-1, repos 2:00\n/);
+    assert.match(text, /^Mon programme « Pousser, tirer, jambes » sur MDLF Training\n\nPush\n• Développé couché haltères : 4 séries, tempo 3-1-1, repos 2:00\n/);
     assert.match(text, /\n\nLegs\n• Squat barre : 4 séries/);
     assert.doesNotMatch(text, /80|MDLF-PROG|Importer/, 'ni charge, ni code, ni mode d\'emploi');
   });
@@ -73,11 +73,11 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     reset();
     const { latest, history } = pushHistory();
     const st = app.shareStoryStats(latest, { history });
-    assert.equal(st.title, 'Push');
+    assert.equal(st.title, 'Pousser');   // même nom que le bilan (sessionTitle)
     assert.equal(st.color, 'var(--orange)');
     assert.equal(st.duration, '1 h 02');
     assert.equal(st.sets, 9);
-    assert.equal(st.volume, '1,8 t');   // 915 + 176 + 0 + 300 + 144 + 240 = 1 775 kg
+    assert.equal(st.volume, '1\u202f775\u00a0kg');   // 915 + 176 + 0 + 300 + 144 + 240 = 1 775 kg
     assert.equal(st.records, 1);
     assert.equal(st.highlights.length, 6, 'tous les exercices de la séance figurent');
     assert.equal(st.others, 0);
@@ -131,7 +131,7 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     reset();
     const { latest, history } = pushHistory();
     const st = app.shareStoryStats(latest, { history });
-    assert.match(app.shareStoryAlt(st), /^Push, .+\. 1 h 02, .+ t, 9 séries, Nouveau record\. Muscles travaillés : pectoraux, .+ et .+\.$/);
+    assert.match(app.shareStoryAlt(st), /^Pousser, .+\. 1 h 02, .+\u00a0kg, 9 séries, Nouveau record\. Muscles travaillés : pectoraux, .+ et .+\.$/);
     assert.equal(st.muscles.length, 3, 'trois muscles les plus travaillés');
     assert.match(app.shareStoryAlt({ ...st, muscles: [] }), /Nouveau record\.$/, 'sans muscle reconnu : pas de phrase');
     assert.equal(app.shareRecordsText(3), '3 records battus');

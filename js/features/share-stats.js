@@ -96,7 +96,7 @@ function shareStoryStats(entry, { history = data.history, max = SHARE_MAX_HIGHLI
   const sameYear  = new Date(entry.date).getFullYear() === new Date().getFullYear();
   const highlights = shareHighlights(rows, max);
   return {
-    title:    rawLabel(entry.category, prog),
+    title:    sessionTitle(entry.category, prog),   // même nom que le bilan (« Tirer », pas « Pull » : juges du 26/11)
     color:    sessionMeta(entry.category, prog).color || 'var(--label2)',
     day:      fmtDate(entry.date, sameYear ? 'day' : 'long'),      // « samedi 17 octobre »
     time:     entry.duration ? fmtTime(entry.date) : '',          // une séance passée n'a pas d'heure

@@ -489,6 +489,7 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 .sum-tile__value:has(.sum-tile__unit) { white-space: normal; }
 .sum-tile__delta { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); font-weight: 600; }
 .sum-tile__delta-n { white-space: nowrap; }
+.sum-tile__delta-why { display: block; font-weight: 400; color: var(--label2); }   /* « par rapport à la dernière fois » sous l'écart */
 .sum-tile__delta--up { color: var(--green-text); }
 .sum-section-title { font-size: 0.765rem; color: var(--label2); text-transform: uppercase; padding: 24px 16px 6px; }
 .sum-list { background: var(--cell); border-radius: var(--r-md); overflow: hidden; }

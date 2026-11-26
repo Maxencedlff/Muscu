@@ -77,7 +77,7 @@ def t_parcours(bench, eng, dev, theme):
         tap(page, '[data-action="onb-freq"][data-val="3"]')
         tap(page, '[data-action="onb-level"][data-val="confirme"]')
         R.check(step(page) == 'result', f'{t} résultat')
-        R.check(page.locator('#onbTitle').inner_text().strip() == 'PPL', f'{t} salle, 3 fois, déjà entraîné : PPL')
+        R.check(page.locator('#onbTitle').inner_text().strip() == 'Pousser, tirer, jambes', f'{t} salle, 3 fois, déjà entraîné : PPL, en français')
         rows = page.locator('.onb .prog-sess').all_inner_texts()
         R.check(len(rows) == 3 and 'Pousser (Push)' in rows[0] and 'pectoraux' in rows[0], f'{t} séances en clair {rows[:1]}')
         R.check(page.locator('.onb [data-action="onb-later"]').count() == 0, f'{t} résultat : pas de « Plus tard »')
@@ -85,7 +85,7 @@ def t_parcours(bench, eng, dev, theme):
         # Niveau débutant : Full Body, phrase explicative
         tap(page, '[data-action="onb-back"]')
         tap(page, '[data-action="onb-level"][data-val="debutant"]')
-        R.check(page.locator('#onbTitle').inner_text().strip() == 'Full Body', f'{t} débutant, 3 fois : Full Body')
+        R.check(page.locator('#onbTitle').inner_text().strip() == 'Corps entier', f'{t} débutant, 3 fois : Full Body, en français')
         R.check(page.locator('.onb__reason').inner_text().strip() == '3 séances par semaine, tout le corps à chaque fois. Pour débuter : machines et haltères, environ 45 min.',
                 f'{t} phrase du Full Body')
 
@@ -175,7 +175,7 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         tap(page, '[data-action="onb-place"][data-val="salle"]')
         tap(page, '[data-action="onb-freq"][data-val="5"]')
         tap(page, '[data-action="onb-level"][data-val="debutant"]')
-        R.check(page.locator('#onbTitle').inner_text().strip() == 'Full Body', f'{t} débutant, 5 fois : Full Body')
+        R.check(page.locator('#onbTitle').inner_text().strip() == 'Corps entier', f'{t} débutant, 5 fois : Full Body, en français')
         tap(page, '[data-action="onb-others"]')
         page.wait_for_selector('.view.prog-add')
         row = page.locator('.prog-add [data-action="open-prog-info"][data-id="fullbody"]')

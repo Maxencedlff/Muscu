@@ -42,7 +42,8 @@ function historyFilterKeys() {
     const st = stats[i];
     st.n++; if (h.date >= since) st.recent++; if (h.date > st.last) st.last = h.date;
   });
-  return out.map(([key, label], i) => ({ key, label, ...stats[i] }));
+  // Séances jamais faites : pas de filtre (Karim le 26/11 : « Push » du PPL vide à côté de « Push Day » importé de Hevy)
+  return out.map(([key, label], i) => ({ key, label, ...stats[i] })).filter(f => f.n > 0);
 }
 
 // ── Barre de filtres : « Toutes » + au plus HIST_VISIBLE séances, puis « Plus » (retour de Maxence du 15/11 : avec

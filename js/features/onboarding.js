@@ -117,6 +117,7 @@ const ONB_STEPS = {
     return `
       <p class="onb__eyebrow">Ton programme</p>
       <h1 class="auth__title auth__title--left" id="onbTitle" tabindex="-1">${esc(PROGRAMMES[id].name)}</h1>
+      ${progAliasHtml(id, 'onb__alias')}
       <p class="auth__lead auth__lead--left onb__reason">${recommendReason(id, onb)}</p>
       <p class="onb__label" id="onbBodies">Quelle silhouette te ressemble&nbsp;?</p>
       <div class="onb__bodies" role="group" aria-labelledby="onbBodies">${onbBodiesHtml(programmeMuscleLevels(id))}</div>

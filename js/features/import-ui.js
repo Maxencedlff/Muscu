@@ -107,6 +107,9 @@ async function openImportPreview() {
 function runImport() {
   if (!imp) return;
   const previous = JSON.stringify(data);
+  // Programme actif jamais fait (le PPL d'office, celui conseillé au premier lancement) : le programme importé le remplace,
+  // ses séances et ses records se rangent dessous dans Progrès (Karim le 26/11 : exercices de Hevy éparpillés sous un PPL vide)
+  const untouched = !(data.history || []).some(h => h.programme === data.activeProgramme);
   const r = applyImport(imp.plan, imp);
   imp = null;
   if (!r.added) {
@@ -118,9 +121,11 @@ function runImport() {
   accountHoldSync(IMPORT_UNDO_MS);
   recomputePRFromHistory();
   if (!save()) { data = JSON.parse(previous); showToast('Stockage plein : rien n\'a été importé', { error: true }); return; }
+  const switched = untouched && r.programme && data.activeProgramme !== r.programme && data.userProgrammes?.[r.programme];
+  if (switched) { addMyProgramme(r.programme); activateProgramme(r.programme); save(); }
   syncTimersFromHistory();
   render();
-  const extra = [r.duplicates ? `${r.duplicates} déjà présente${r.duplicates > 1 ? 's' : ''}` : '', r.created ? `${plural(r.created, 'exercice créé', 'exercices créés')}` : ''].filter(Boolean);
+  const extra = [switched ? `programme ${data.userProgrammes[r.programme].name} choisi` : '', r.duplicates ? `${r.duplicates} déjà présente${r.duplicates > 1 ? 's' : ''}` : '', r.created ? `${plural(r.created, 'exercice créé', 'exercices créés')}` : ''].filter(Boolean);
   showToast(`Import réussi : ${plural(r.added, 'séance', 'séances')}${extra.length ? ` (${extra.join(', ')})` : ''}`, {
     action: 'Annuler', duration: IMPORT_UNDO_MS,
     onAction: () => { undoImport(previous); render(); showToast('Import annulé'); },

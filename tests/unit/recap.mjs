@@ -173,7 +173,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(app.recapDeltaText('year', 'sessions', 0), 'comme l\'année d\'avant');
     assert.equal(app.recapDeltaText('week', 'duration', 42 * 60_000), '+42 min par rapport à la semaine d\'avant');
     assert.equal(app.recapDeltaText('week', 'duration', -30_000), 'comme la semaine d\'avant', 'moins d\'une minute : rien');
-    assert.equal(app.recapDeltaText('week', 'volume', 1240), '+1,2 t par rapport à la semaine d\'avant');
+    assert.equal(app.recapDeltaText('week', 'volume', 1240), '+1\u202f240\u00a0kg par rapport à la semaine d\'avant');
     assert.equal(app.recapDeltaText('week', 'volume', -0.4), 'comme la semaine d\'avant');
     assert.equal(app.recapDeltaText('week', 'sets', 12), '+12 séries par rapport à la semaine d\'avant');
   });

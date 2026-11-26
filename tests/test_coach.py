@@ -782,14 +782,14 @@ def t_recap(bench, eng, dev, theme):
         R.check(page.evaluate("document.querySelector('.review-notes').compareDocumentPosition(document.querySelector('.tiles')) & Node.DOCUMENT_POSITION_FOLLOWING") > 0, f'{t} notes au-dessus des cases')
         tiles = [x.replace('\u202f', ' ').replace('\n', ' ') for x in page.locator('.coach-session-view .tile').all_inner_texts()]
         R.check(len(tiles) == 4, f'{t} 4 cases ({tiles})')
-        R.check(tiles[1].startswith('2,9 t') and '+6 %' in tiles[1] and page.locator('.tile__delta--up').count() == 1, f'{t} volume (2e case, après la durée) sans poids du corps, +6 % en vert ({tiles[1]!r})')
+        R.check(re.match('2\u202f\\d{3} kg', tiles[1]) and '+6 %' in tiles[1] and page.locator('.tile__delta--up').count() == 1, f'{t} volume (2e case, après la durée) sans poids du corps, +6 % en vert ({tiles[1]!r})')
         R.check('+23 %' in tiles[0], f'{t} durée (1re case) : écart de plus de 20 % dit ({tiles[0]!r})')
         R.check('15' in tiles[2] and '4' in tiles[3], f'{t} séries et exercices ({tiles[2:]!r})')
         recs = page.locator('.coach-session-view .review-rec').all_inner_texts()
         R.check(len(recs) == 2 and 'Squat haltère' in recs[0] and 'avant 20 kg' in recs[0] and '22,5 kg' in recs[0], f'{t} record de charge nommé avec l\'ancienne valeur ({recs})')
         R.check(len(recs) == 2 and 'Squat poids du corps' in recs[1] and 'Record de reps' in recs[1], f'{t} record de reps au poids du corps ({recs})')
         rows = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .review-ex').all_inner_texts()]
-        R.check('↑ +2,5 kg' in rows[0] and 'avant 20 kg × 12, 12, 12, 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
+        R.check('↑ +2,5 kg' in rows[0] and 'avant 20 kg × 12, 12, 12, 10' in rows[0] and '1\u202f080 kg' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
         R.check('36 reps' in rows[1] and '↑ +6 reps' in rows[1], f'{t} poids du corps : « 36 reps » et +6 ({rows[1]!r})')
         R.check('↑ +2 kg' in rows[2] and 'avant 14 kg × 12' in rows[2], f'{t} référence par exercice : la Push du jour 4 ({rows[2]!r})')
         eq = page.locator('.coach-session-view .review-ex').nth(3).text_content()

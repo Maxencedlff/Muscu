@@ -337,7 +337,9 @@ def t_progress(bench, eng, dev, theme):
         subs = page.locator('[data-action="go-stats-overview"] .cell__sub').all_inner_texts()
         R.check(n == 4 and subs == ['4 records cette semaine'], f'{t} progrès : {n} records de la semaine sous « Vue d\'ensemble » {subs}')
         R.check(page.locator('[data-action="go-stats-overview"]').count() == 1, f'{t} progrès : ligne Vue d\'ensemble')
-        R.check(page.locator('.group-title', has_text='Autres').count() == 1, f'{t} progrès : section Autres (Dips)')
+        # Hors programme : rangé par muscle principal (juges du 26/11), plus de « Autres » fourre-tout
+        R.check(page.locator('.group-title', has_text='Pectoraux, hors programme').count() == 1 and page.locator('.group-title', has_text='Autres').count() == 0,
+                f'{t} progrès : Dips sous « Pectoraux, hors programme »')
         R.check(no_dot_decimal(page, '.view.stats'), f'{t} progrès : aucun point décimal')
         shot(page, LOT, f'progress_{dev}_{theme}')
         page.click('[data-action="open-stats-ex"][data-ex="p1dcouch"]')
@@ -482,7 +484,7 @@ def t_programme(bench, eng, dev, theme):
                 f'{t} cartes : vignette du groupe principal {[c["src"] for c in cards]}')
         R.check(all(c['hidden'] for c in cards) and all(c['apart'] for c in cards), f'{t} cartes : vignette décorative, à côté du texte {cards}')
         R.check([c['src'] for c in cards][2:] == ['img/muscles/quads.webp'], f'{t} carte Legs : vignette des quadriceps, cités en premier')
-        R.check(cards and cards[0]['name'] == 'Pousser (Push)' and cards[0]['muscles'] == 'Pectoraux · Épaules · Triceps', f'{t} carte Push : nom et muscles {cards[:1]}')
+        R.check(cards and cards[0]['name'] == 'Pousser' and cards[0]['muscles'] == 'Pectoraux · Épaules · Triceps', f'{t} carte Push : nom et muscles {cards[:1]}')
         # Intitulé VoiceOver = le texte affiché (WCAG 2.5.3), « ≈ 55 min » lu « environ 55 minutes » (texte masqué)
         spoken = page.evaluate("""() => [...document.querySelectorAll('.ps-list .pcard')].map(c => ({ aria: c.getAttribute('aria-label'),
             sr: (c.querySelector('.sr-text') || {}).textContent || '', shown: (c.querySelector('[aria-hidden="true"]:not(img)') || {}).textContent || '' }))""")
@@ -530,9 +532,9 @@ def t_programme(bench, eng, dev, theme):
         tap_dialog(page, 'Supprimer l\'exercice')
         R.check(page.evaluate("!data.programmes.ppl.exercises.push.some(e => e.id === 'p6extric')"), f'{t} éditeur : exercice supprimé')
         go(page, 'stats')
-        autres = page.evaluate("""() => { const t = [...document.querySelectorAll('.group-title')].find(e => e.textContent === 'Autres');
-            return t ? t.nextElementSibling.innerText : ''; }""")
-        R.check('Extension triceps poulie' in autres, f'{t} progrès : exercice supprimé visible dans Autres')
+        autres = page.evaluate("""() => [...document.querySelectorAll('.group-title')].filter(e => / hors programme$|^Autres exercices$/.test(e.textContent))
+            .map(t => t.nextElementSibling.innerText).join(' ')""")
+        R.check('Extension triceps poulie' in autres, f'{t} progrès : exercice supprimé visible hors programme')
         # Exercice : écran de réglage
         go(page, 'programmes')
         page.click('[data-action="open-prog-session"][data-cat="pull"]')
@@ -561,7 +563,7 @@ def t_programme(bench, eng, dev, theme):
         shot(page, LOT, f'picker_{dev}_{theme}')
         page.click('[data-action="open-my-prog"][data-id="upper_lower"]')
         settle(page)
-        R.check(page.evaluate('view') == 'prog-info' and 'Upper / Lower' in page.locator('.navbar__large').inner_text(), f'{t} programme : sa fiche')
+        R.check(page.evaluate('view') == 'prog-info' and 'Haut et bas du corps' in page.locator('.navbar__large').inner_text(), f'{t} programme : sa fiche')
         page.click('[data-action="prog-info-use"]')
         settle(page)
         R.check(page.evaluate('data.activeProgramme') == 'upper_lower' and page.evaluate('view') == 'programmes', f'{t} programme : changé, sa page')

@@ -35,7 +35,7 @@ const GUIDE_SECTIONS = [
       },
       {
         id: 'choisir-programme', title: 'Choisir un programme', icon: 'list.bullet', color: 'indigo',
-        lead: 'Tes programmes sont dans l\'onglet [Programme], dans l\'ordre que tu choisis. L\'app en propose 7 : PPL, Upper / Lower, Full Body, Bro Split, Arnold Split, Maison et Maison haltères.',
+        lead: 'Tes programmes sont dans l\'onglet [Programme], dans l\'ordre que tu choisis. L\'app en propose 7, de Corps entier (Full Body) à Un muscle par jour (Bro Split).',
         steps: [
           'Va dans [Programme] et touche celui que tu veux, puis [Utiliser ce programme]. Le programme actif porte la mention « Programme actif ».',
           '[Ajouter un programme] › [Tous les programmes] : chaque fiche décrit le programme et ses muscles. [Ajouter à mes programmes] le range dans ta liste. [Utiliser ce programme] l\'active tout de suite.',

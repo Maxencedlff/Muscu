@@ -110,10 +110,17 @@ function sumTileValueHtml(txt) {
 // « ↑ 32 kg sur la dernière fois » : l'écart dit par rapport à quoi (panel t5 : « ↑ 32 kg » seul se lisait comme une
 // charge ou un record ; panel t6 : pas d'anglicisme « vs ») ; VoiceOver entend la phrase entière. Écart sous 1 % du
 // volume : rien (panel t6 : + 0,6 % mis en avant en vert gras comme un progrès)
+// Durée sous la minute : « < 1 min », dit « moins d'une minute » (juges du 26/11 : « 0 min » après une séance courte)
+function sumDurationHtml(ms) {
+  if ((ms || 0) >= 60000) return sumTileValueHtml(fmtDuration(ms));
+  return `<span aria-hidden="true">&lt;\u00a01<span class="sum-tile__unit">\u00a0min</span></span><span class="visually-hidden">moins d'une minute</span>`;
+}
+
 function summaryDeltaHtml(delta, volume = 0) {
   if (delta === null || Math.round(delta) === 0 || Math.abs(delta) < volume * 0.01) return '';
   const v = fmtVolume(Math.abs(delta)), up = delta > 0;
-  return `<span class="sum-tile__delta ${up ? 'sum-tile__delta--up' : ''}"><span aria-hidden="true"><span class="sum-tile__delta-n">${up ? '↑' : '↓'}\u00a0${v}</span> sur la dernière fois</span><span class="visually-hidden">, ${v} ${up ? 'de plus' : 'de moins'} que la dernière fois</span></span>`;
+  // Juges du 26/11 : « ↑ 124 kg sur la dernière fois » mal dit, sur 3 lignes : « +124 kg », puis « par rapport à la dernière fois »
+  return `<span class="sum-tile__delta ${up ? 'sum-tile__delta--up' : ''}"><span aria-hidden="true"><span class="sum-tile__delta-n">${up ? '+' : '−'}${v}</span> <span class="sum-tile__delta-why">par rapport à la dernière fois</span></span><span class="visually-hidden">, ${v} ${up ? 'de plus' : 'de moins'} que la dernière fois</span></span>`;
 }
 
 function summaryRecordsHtml(records) {
@@ -200,7 +207,7 @@ function renderSummary() {
           <p class="sum-line">${sm.recordCount ? medalSvg(18) : ''}<span>${esc(summaryLine(sm))}</span></p>
         </div>
         <div class="sum-tiles">
-          <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${sumTileValueHtml(fmtDuration(sm.duration))}</div></div>
+          <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${sumDurationHtml(sm.duration)}</div></div>
           ${sm.volume > 0 || !sm.reps
             ? `<div class="sum-tile"><div class="sum-tile__label">Soulevé</div><div class="sum-tile__value num">${sumTileValueHtml(fmtVolume(sm.volume))}</div>${summaryDeltaHtml(sm.delta, sm.volume)}</div>`
             : `<div class="sum-tile"><div class="sum-tile__label">Reps</div><div class="sum-tile__value num">${sm.reps}</div></div>`}

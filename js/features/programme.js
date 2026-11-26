@@ -79,7 +79,7 @@ function progSquareHtml(id, pm) {
 // durée habituelle à gauche, vignette du groupe principal à droite (sessionThumbHtml, js/features/dashboard.js).
 // VoiceOver lit le texte affiché, « environ 55 minutes » à la place de « ≈ 55 min » ; l'image est décorative.
 function progSessionCardHtml(cat, progId) {
-  const meta = sessionMeta(cat, progId), c = exSetsCount(cat, progId), mins = sessionMinutes(cat);
+  const meta = sessionMeta(cat, progId), c = exSetsCount(cat, progId), mins = sessionMinutes(cat, progId);
   const muscles = meta.desc || sessionMusclesSummary(progId, cat);
   const facts = c.n ? [plural(c.n, 'exercice', 'exercices'), plural(c.sets, 'série', 'séries')] : ['Aucun exercice'];
   // « ≈ 55 min » à l'écran, « environ 55 minutes » pour VoiceOver : l'intitulé reste le texte affiché (WCAG 2.5.3)
@@ -259,7 +259,7 @@ function renderProgAdd() {
       <button class="cell cell--nav" data-action="open-prog-info" data-id="${esc(id)}">
         ${adv ? `<span class="psq psq--freq" aria-hidden="true"><b>${adv.perWeek}</b>/ sem</span>` : progSquareHtml(id, pm)}
         <span class="cell__body">
-          <span class="cell__title">${esc(pm.name)}</span>
+          <span class="cell__title">${esc(pm.name)}${pm.alias ? ` <span class="prog-sess__plain">(${esc(pm.alias)})</span>` : ''}</span>
           ${state ? `<span class="cell__sub prog-add__state">${state}</span>` : ''}
           <span class="cell__sub">${adv ? `<span class="psq-freq-txt">${adv.perWeek} séances par semaine\u00a0· </span><span class="sr-text psq-freq-sr">${adv.perWeek} séances par semaine, </span>` : ''}${Object.values(pm.sessions).map(x => esc(sessionPlainName(x.label) || x.label)).join(' · ')}</span>
         </span>
@@ -278,20 +278,29 @@ function renderProgAdd() {
             ${icon('chevron.right', 16)}
           </button>
           <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
+          <button class="cell cell--action prog-add__import" data-action="import-other-app">${icon('square.and.arrow.down', 20)}<span>Importer depuis Hevy ou Strong</span></button>
         </div>
-        <div class="group-foot">« Créer un programme » part de zéro ou d'un programme existant.</div>
+        <div class="group-foot">« Créer un programme » part de zéro ou d'un programme existant. L'import reprend tes séances et en fait un programme.</div>
         <div class="group-title">Tous les programmes</div>
         <div class="group">${catalogueProgrammeIds().map(row).join('')}</div>
       </div>
     </div>`;
 }
 
+// Nom courant en salle d'un programme intégré (« PPL », « Full Body ») sous son nom en français : qui vient de Hevy ou de
+// Strong le reconnaît, la débutante lit le français d'abord (juges du 26/11)
+function progAliasHtml(id, cls = '') {
+  const a = PROGRAMMES[id]?.alias;
+  return a ? `<p class="prog-alias${cls ? ` ${cls}` : ''}">Appelé aussi ${esc(a)}</p>` : '';
+}
+
 // Séances d'un programme intégré expliquées en français (« Pousser (Push) », muscles en dessous) :
 // écran de résultat du premier lancement et fiche du catalogue
+// Sans pastille de couleur devant : en gris (design sobre), elle passait pour un bouton radio pas coché, « il reste un choix
+// à faire » (Inès le 26/11)
 function programmeSessionsHtml(id) {
   return programmePreview(id).map(s => `
     <div class="cell prog-sess">
-      ${catBadge(s.color)}
       <span class="cell__body">
         <span class="cell__title">${s.plain ? `${esc(s.plain)} <span class="prog-sess__plain">(${esc(s.label)})</span>` : esc(s.label)}</span>
         <span class="cell__sub">${esc(s.muscles)}</span>
@@ -310,6 +319,7 @@ function renderProgInfo(id) {
     <div class="view prog-info view--grouped">
       ${navBar({ title: pm.name, large: true })}
       <div class="scr">
+        ${progAliasHtml(id, 'prog-info__alias')}
         ${mine && !active ? '<p class="prog-info__note">Déjà dans tes programmes</p>' : ''}
         <div class="prog-info__actions prog-info__actions--top">
           ${active

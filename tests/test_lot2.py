@@ -234,7 +234,7 @@ def once_static(bench):
         R.check(f['d1'].replace('\xa0', ' ') == '42 min' and f['d2'].replace('\xa0', ' ') == '1 h 09', f'fmtDuration {f["d1"]!r} {f["d2"]!r}')
         R.check(f['c'] == '2:05', f'fmtClock m:ss sans zéro devant ({f["c"]})')
         R.check(f['t'] == "Aujourd'hui" and f['y'] == 'Hier' and '2024' in f['o'], f'fmtDate {f["t"]} / {f["y"]} / {f["o"]}')
-        R.check(f['v'] == '12,3 t', f'fmtVolume ({f["v"]})')
+        R.check(f['v'].replace('\u202f', ' ').replace('\xa0', ' ') == '12 345 kg', f'fmtVolume, jamais en tonnes ({f["v"]!r})')
         R.check('aria-hidden="true"' in f['ic'] and '#i-trash' in f['ic'], f'icon() ({f["ic"]})')
         R.check(page.evaluate("document.querySelector('#i-trash') !== null"), 'sprite chargé dans la page')
 

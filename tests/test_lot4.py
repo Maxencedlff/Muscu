@@ -255,13 +255,13 @@ def t_flow(bench, eng, dev, theme):
         page.click('[data-action="finish-session"]'); settle(page)
         tap_dialog(page, 'Enregistrer la séance')
         page.wait_for_selector('.view.summary')
-        R.check(page.locator('.sum-title').inner_text() == 'Pousser (Push)', f'{t} bilan : titre en clair')
+        R.check(page.locator('.sum-title').inner_text() == 'Pousser', f'{t} bilan : titre en clair')
         recs = page.locator('.sum-record').all_inner_texts()
         R.check(len(recs) == 1 and 'Développé couché haltères' in recs[0] and 'Record charge' in recs[0], f'{t} bilan : records attendus {recs}')
         R.check(page.locator('.sum-tile').count() == 3, f'{t} bilan : 3 tuiles')
         # Panel du 07/11 (iPhone SE) : « 52 min » débordait de sa tuile ; pires valeurs courantes, unité en petit
         over = page.evaluate("""(() => { const v = [...document.querySelectorAll('.sum-tile__value')], bad = [];
-            for (const [i, txt] of [[0, '52\u00a0min'], [0, '1\u00a0h\u00a005'], [1, '12,5 t'], [1, '999 kg'], [1, '19,6 k lbs']]) {
+            for (const [i, txt] of [[0, '52\u00a0min'], [0, '1\u00a0h\u00a005'], [1, '12\u202f500\u00a0kg'], [1, '99\u202f999\u00a0kg'], [1, '27\u202f558\u00a0lbs']]) {
               const keep = v[i].innerHTML; v[i].innerHTML = sumTileValueHtml(txt);
               const tile = v[i].closest('.sum-tile'), cs = getComputedStyle(tile);
               const room = tile.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);

@@ -811,6 +811,9 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 /* ── Séances d'un programme expliquées (premier lancement, fiche du catalogue) ── */
 .view--grouped .cell.prog-sess, .onb .cell.prog-sess { min-height: 56px; }
 .prog-sess__plain { color: var(--label2); }
+/* Nom courant en salle d'un programme intégré (« Appelé aussi PPL ») sous son nom en français (progAliasHtml) */
+.prog-alias { margin: 2px 0 0; color: var(--label2); font-size: var(--fs-subhead); }
+.prog-info__alias { margin: 0 16px 12px; }
 .prog-sess .cell__sub { font-size: var(--fs-subhead); line-height: 1.25; margin-top: 2px; }
 
 /* ── Mes programmes (mode Modifier) et fiche d'un programme du catalogue ── */
