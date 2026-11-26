@@ -24,10 +24,12 @@ export function orphanCandidate({ user, claims, nowS }) {
   return { sid, provider: ids[0].provider };
 }
 
-// Réponse de la base (texte) → réponse de la fonction { status, body }. Seul 'orphan' autorise la suppression.
+// Réponse de la base ({ result, ticket }) → { status, body, remove, ticket }. Seul 'orphan' avec un ticket (ligne du
+// journal, rendue par coach_web_orphan_release si la suppression échoue) autorise la suppression.
 export function claimOutcome(data, error) {
-  if (error) return { status: 503, body: { error: 'claim' }, remove: false };
-  if (data === 'orphan') return { status: 200, body: { deleted: true }, remove: true };
-  if (data === 'limit') return { status: 429, body: { error: 'rate_limited' }, remove: false };
-  return { status: 200, body: { deleted: false }, remove: false };
+  if (error) return { status: 503, body: { error: 'claim' }, remove: false, ticket: null };
+  const result = data && typeof data === 'object' ? data.result : null;
+  if (result === 'orphan' && Number.isSafeInteger(data.ticket) && data.ticket > 0) return { status: 200, body: { deleted: true }, remove: true, ticket: data.ticket };
+  if (result === 'limit') return { status: 429, body: { error: 'rate_limited' }, remove: false, ticket: null };
+  return { status: 200, body: { deleted: false }, remove: false, ticket: null };
 }

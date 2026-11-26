@@ -242,17 +242,57 @@ appelle la fonction serveur **`coach-web-orphan`** (`deskDiscardNewAccount`, `co
 envoyer. Elle relit le jeton (`caller`), fait un tri sans base (`orphan-policy.js` : une seule identité Google ou Apple,
 compte de moins de 10 minutes, `session_id` du jeton), puis demande à la base, avec la clé serveur,
 **`public.coach_web_orphan_claim(uid, sid)`** (migration `20261128010000_compte_vide_site_coach.sql`, exécutable par
-`service_role` seulement). Le compte n'est effacé (`auth.admin.deleteUser`) que si TOUT est vrai :
+`service_role` seulement).
+
+**Ce qui protège un compte créé dans l'app** : seul son titulaire peut le faire effacer (le compte et la session viennent
+de SON jeton, vérifié par la fonction serveur ; aucun paramètre ; la RPC n'est exécutable que par `service_role`), et seul
+le site appelle la fonction. Les règles suivantes bornent ce que ce titulaire peut effacer : le compte n'est effacé
+(`auth.admin.deleteUser`) que si TOUT est vrai :
 1. créé il y a moins de 10 minutes ; une seule identité, Google ou Apple ;
-2. **une seule session au total, celle de l'appelant**, ouverte dans la minute de la création : le compte est né de CETTE
-   connexion du site. Un compte créé dans l'app a la session de l'app, donc au moins deux dès que le site s'y connecte ;
-3. **aucune donnée** : aucune ligne, hors schéma `auth`, dans une table qui pointe vers `auth.users` (toutes les clés
-   étrangères, relues à chaque appel : une table ajoutée plus tard est comptée sans rien changer ; seul
-   `private.identity_events`, écrit par la création elle-même, est ignoré), ni dans les colonnes connues sans clé étrangère
-   (`chat_reports`, `tarifs_ex_coach_team`), ni aucun fichier Storage (propriétaire ou dossier du compte) ;
-4. moins de 30 comptes effacés dans l'heure pour tout le projet (verrou consultatif : deux appels simultanés ne la
-   dépassent pas). Elle borne l'effet d'une erreur de logique. Journal `private.coach_web_orphans` : fournisseur et heure
-   seulement, 30 jours.
+2. une seule session au total, celle de l'appelant, ouverte dans la minute de la création ;
+3. **aucune donnée** (`private.coach_web_account_empty`) : aucune ligne, hors schéma `auth`, dans une table qui pointe vers
+   `auth.users` (toutes les clés étrangères, relues à chaque appel : une table ajoutée plus tard est comptée sans rien
+   changer ; seul `private.identity_events`, écrit par la création elle-même, est ignoré), ni dans les colonnes connues sans
+   clé étrangère (`chat_reports`, `tarifs_ex_coach_team`), ni aucun fichier Storage (propriétaire ou dossier du compte) ;
+4. limites de fréquence, sous un verrou consultatif (deux appels simultanés ne les dépassent pas) : **3 par heure pour une
+   même identité** (empreinte SHA-256 de « fournisseur:identifiant chez le fournisseur » ; chaque suppression libère
+   l'identité et la connexion suivante recrée un compte, sans cette sous-limite un seul compte Google épuiserait celle du
+   projet) et **30 par heure pour tout le projet** (borne l'effet d'une erreur de logique).
+
+Journal `private.coach_web_orphans` : fournisseur, heure et empreinte (jamais l'identifiant ; empreinte effacée après 24 h,
+ligne après 30 jours). Chaque ligne est un ticket : écrite par la décision, sous le verrou, et rendue
+(`public.coach_web_orphan_release`, ticket de moins de 5 minutes seulement) si `deleteUser` échoue : le quota n'est
+consommé que par les suppressions faites.
+
+**Cas limite accepté** : un élève qui s'inscrit dans l'app avec Google ou Apple, s'y déconnecte (sa session part), puis
+ouvre le site avec le même identifiant dans la minute voit ce compte effacé. Il n'y perd rien : la règle 3 garantit que le
+compte était vide ; il se réinscrit dans l'app.
+
+**Apple : pas de révocation chez Apple.** `revoke-apple` (et `_shared/apple.ts`) échange un code d'autorisation avec un
+secret client signé pour `com.mdlf.training` (l'app) ; le code rendu par la fenêtre d'Apple du site est émis pour le
+Services ID `com.mdlf.training.coach` : Apple refuserait l'échange (client différent), et le faire demanderait un second
+secret client et l'envoi du code par la page. Effet de l'absence : MDLF reste dans la liste « Se connecter avec Apple » de
+l'identifiant Apple de la personne ; l'identifiant Apple reste le même (même équipe), et le relier dans l'app marche,
+puisque l'identité a quitté Supabase avec le compte. Aucun compte MDLF de cette personne n'a existé au-delà de quelques
+secondes. À reprendre si Apple le demande, avec un secret pour le Services ID.
+
+**Comptes vides restés en place** (limite atteinte, panne, fonction pas encore déployée) : dans l'éditeur SQL (rôle
+postgres), lecture seule :
+
+```sql
+select u.id, u.created_at, i.provider,
+       (select string_agg(distinct s.user_agent, ' | ') from auth.sessions s where s.user_id = u.id) as appareils
+from auth.users u
+join auth.identities i on i.user_id = u.id
+where i.provider in ('google', 'apple')
+  and (select count(*) from auth.identities j where j.user_id = u.id) = 1
+  and private.coach_web_account_empty(u.id)
+order by u.created_at desc;
+```
+
+Elle liste les comptes Google ou Apple seuls et sans aucune donnée. Rien ne dit dans Supabase qu'un compte vient du site :
+un élève inscrit dans l'app qui n'a encore rien enregistré y figure aussi. La colonne `appareils` (navigateur d'ordinateur
+ou app) aide à trier ; à supprimer à la main (Authentication › Users), seulement après vérification.
 
 Pas d'IDOR : le compte et la session viennent du jeton vérifié, jamais d'un paramètre ; le corps de la requête n'est pas lu.
 Puis la session est fermée sur cet ordinateur et la page dit : « Ce compte Google n'est relié à aucun compte MDLF. Dans

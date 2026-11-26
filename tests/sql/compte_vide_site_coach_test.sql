@@ -25,7 +25,9 @@ $$;
 create function pg_temp.sid(n int) returns uuid language sql as
 $$ select ('00000000-0000-0000-00ee-' || lpad(n::text, 12, '0'))::uuid $$;
 create function pg_temp.claim(n int) returns text language sql as
-$$ select public.coach_web_orphan_claim(('00000000-0000-0000-00ff-' || lpad(n::text, 12, '0'))::uuid, pg_temp.sid(n)) $$;
+$$ select public.coach_web_orphan_claim(('00000000-0000-0000-00ff-' || lpad(n::text, 12, '0'))::uuid, pg_temp.sid(n)) ->> 'result' $$;
+create function pg_temp.ticket(n int) returns bigint language sql as
+$$ select (public.coach_web_orphan_claim(('00000000-0000-0000-00ff-' || lpad(n::text, 12, '0'))::uuid, pg_temp.sid(n)) ->> 'ticket')::bigint $$;
 
 -- ── Droits : seule la clé serveur appelle la fonction ; personne ne lit le journal ──
 do $$ begin
@@ -36,6 +38,11 @@ end $$;
 do $$ declare r text; begin
   foreach r in array array['anon', 'authenticated', 'service_role'] loop
     if has_table_privilege(r, 'private.coach_web_orphans', 'select') or has_table_privilege(r, 'private.coach_web_orphans', 'insert') then raise '% lit ou écrit le journal', r; end if;
+  end loop;
+  if has_function_privilege('anon', 'public.coach_web_orphan_release(bigint)', 'execute') or has_function_privilege('authenticated', 'public.coach_web_orphan_release(bigint)', 'execute') then raise 'release ouverte à l''API'; end if;
+  if not has_function_privilege('service_role', 'public.coach_web_orphan_release(bigint)', 'execute') then raise 'service_role sans release'; end if;
+  foreach r in array array['anon', 'authenticated', 'service_role'] loop
+    if has_function_privilege(r, 'private.coach_web_account_empty(uuid)', 'execute') then raise '% peut appeler coach_web_account_empty', r; end if;
   end loop;
   if (select prosecdef from pg_proc where oid = 'public.coach_web_orphan_claim(uuid, uuid)'::regprocedure) is not true then raise 'pas security definer'; end if;
   if not exists (select 1 from pg_proc where oid = 'public.coach_web_orphan_claim(uuid, uuid)'::regprocedure and proconfig @> array['search_path=""']) then raise 'search_path non vidé'; end if;
@@ -99,18 +106,75 @@ do $$ declare n int; r text; begin
   end loop;
   -- Pas d'IDOR : la session d'un autre compte, ou une session inconnue, ne vaut rien
   perform pg_temp.mk(30, 'google');
-  if public.coach_web_orphan_claim('00000000-0000-0000-00ff-000000000030', pg_temp.sid(1)) <> 'kept' then raise 'session d''un autre compte'; end if;
-  if public.coach_web_orphan_claim('00000000-0000-0000-00ff-000000000030', gen_random_uuid()) <> 'kept' then raise 'session inconnue'; end if;
-  if public.coach_web_orphan_claim('00000000-0000-0000-00ff-000000000030', null) <> 'kept' then raise 'session absente'; end if;
-  if public.coach_web_orphan_claim(null, pg_temp.sid(30)) <> 'kept' then raise 'compte absent'; end if;
-  if public.coach_web_orphan_claim(gen_random_uuid(), pg_temp.sid(30)) <> 'kept' then raise 'compte inconnu'; end if;
+  if public.coach_web_orphan_claim('00000000-0000-0000-00ff-000000000030', pg_temp.sid(1)) ->> 'result' <> 'kept' then raise 'session d''un autre compte'; end if;
+  if public.coach_web_orphan_claim('00000000-0000-0000-00ff-000000000030', gen_random_uuid()) ->> 'result' <> 'kept' then raise 'session inconnue'; end if;
+  if public.coach_web_orphan_claim('00000000-0000-0000-00ff-000000000030', null) ->> 'result' <> 'kept' then raise 'session absente'; end if;
+  if public.coach_web_orphan_claim(null, pg_temp.sid(30)) ->> 'result' <> 'kept' then raise 'compte absent'; end if;
+  if public.coach_web_orphan_claim(gen_random_uuid(), pg_temp.sid(30)) ->> 'result' <> 'kept' then raise 'compte inconnu'; end if;
   if (select count(*) from private.coach_web_orphans) <> 2 then raise 'un refus a écrit au journal'; end if;
   -- Et le compte 30 lui-même, avec sa session : orphelin
   if pg_temp.claim(30) <> 'orphan' then raise 'compte 30 avec sa session'; end if;
 end $$;
 
+-- ── Empreinte de l'identité (jamais l'identifiant), compte vide vu par la requête d'administration ──
+do $$ begin
+  if (select identity_hash from private.coach_web_orphans order by id limit 1) <> encode(sha256(convert_to('google:google-1', 'UTF8')), 'hex') then raise 'empreinte de l''identité'; end if;
+  if exists (select 1 from private.coach_web_orphans where identity_hash like '%google-1%') then raise 'identifiant en clair'; end if;
+  if not private.coach_web_account_empty('00000000-0000-0000-00ff-000000000001') then raise 'compte 1 vu non vide'; end if;
+  if private.coach_web_account_empty('00000000-0000-0000-00ff-000000000016') then raise 'compte 16 (profil) vu vide'; end if;
+end $$;
+
+-- ── Même identité : 3 par heure (chaque suppression la libère, la connexion suivante recrée un compte) ──
+create function pg_temp.again(n int, pid text) returns void language plpgsql as
+$$
+declare u uuid := ('00000000-0000-0000-00ff-' || lpad(n::text, 12, '0'))::uuid;
+begin
+  delete from auth.identities where provider = 'google' and provider_id = pid;
+  insert into auth.users (id, created_at) values (u, now() - interval '1 minute');
+  insert into auth.identities (provider_id, user_id, provider) values (pid, u, 'google');
+  insert into auth.sessions (id, user_id, created_at) values (pg_temp.sid(n), u, now() - interval '1 minute' + interval '2 seconds');
+end
+$$;
+do $$ begin
+  perform pg_temp.again(50, 'google-meme');
+  if pg_temp.claim(50) <> 'orphan' then raise 'même identité, 1re fois'; end if;
+  perform pg_temp.again(51, 'google-meme');
+  if pg_temp.claim(51) <> 'orphan' then raise 'même identité, 2e fois'; end if;
+  perform pg_temp.again(52, 'google-meme');
+  if pg_temp.claim(52) <> 'orphan' then raise 'même identité, 3e fois'; end if;
+  perform pg_temp.again(53, 'google-meme');
+  if pg_temp.claim(53) <> 'limit' then raise 'même identité, 4e fois : %', pg_temp.claim(53); end if;
+  -- Une autre identité passe toujours
+  perform pg_temp.mk(54, 'google');
+  if pg_temp.claim(54) <> 'orphan' then raise 'autre identité bloquée'; end if;
+  -- Empreinte de plus de 24 h effacée à la décision suivante (la ligne reste, pour la limite du projet et le journal)
+  update private.coach_web_orphans set at = now() - interval '25 hours' where identity_hash = encode(sha256(convert_to('google:google-meme', 'UTF8')), 'hex');
+  perform pg_temp.mk(55, 'google');
+  if pg_temp.claim(55) <> 'orphan' then raise 'compte 55'; end if;
+  if exists (select 1 from private.coach_web_orphans where at < now() - interval '24 hours' and identity_hash is not null) then raise 'empreinte gardée plus de 24 h'; end if;
+  if (select count(*) from private.coach_web_orphans where at < now() - interval '24 hours') <> 3 then raise 'lignes de 25 h effacées'; end if;
+end $$;
+
+-- ── Ticket rendu si la suppression échoue : le quota n'est pas consommé ──
+do $$ declare t bigint; n0 int; begin
+  perform pg_temp.mk(60, 'google');
+  n0 := (select count(*) from private.coach_web_orphans);
+  t := pg_temp.ticket(60);
+  if t is null or (select count(*) from private.coach_web_orphans) <> n0 + 1 then raise 'ticket : %', t; end if;
+  if not public.coach_web_orphan_release(t) then raise 'ticket pas rendu'; end if;
+  if (select count(*) from private.coach_web_orphans) <> n0 then raise 'ligne restée'; end if;
+  if public.coach_web_orphan_release(t) then raise 'ticket rendu deux fois'; end if;
+  -- Un ticket de plus de 5 minutes (ou une autre ligne du journal) ne peut pas être effacé par cette voie
+  -- (now() est fixe dans la transaction du test : la ligne est vieillie à la main)
+  update private.coach_web_orphans set at = now() - interval '6 minutes' where id = (select min(id) from private.coach_web_orphans);
+  if public.coach_web_orphan_release((select min(id) from private.coach_web_orphans)) then raise 'ancienne ligne effacée'; end if;
+  if public.coach_web_orphan_release(null) then raise 'ticket nul'; end if;
+end $$;
+
 -- ── Limite : 30 par heure pour tout le projet ; les lignes de plus de 30 jours partent ──
-insert into private.coach_web_orphans (provider, at) select 'google', now() - interval '10 minutes' from generate_series(1, 27);
+insert into private.coach_web_orphans (provider, at)
+  select 'google', now() - interval '10 minutes'
+  from generate_series(1, 30 - (select count(*)::int from private.coach_web_orphans where at > now() - interval '1 hour'));
 insert into private.coach_web_orphans (provider, at) values ('google', now() - interval '31 days'), ('google', now() - interval '2 hours');
 select null from pg_temp.mk(40, 'google');
 do $$ begin

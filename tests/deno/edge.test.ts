@@ -445,7 +445,7 @@ Deno.test('coach-web-orphan : compte neuf et vide → base consultée avec l\'ui
   const jwt = orphanJwt();
   // Corps forgé (autre compte, autre session) : ignoré
   const { res, body, calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt), body: { uid: '00000000-0000-4000-8000-000000000002', sid: '00000000-0000-4000-8000-000000000003' } }), {
-    users: { [jwt]: googleNew() }, routes: orphanRoutes(() => jsonResponse('orphan')),
+    users: { [jwt]: googleNew() }, routes: orphanRoutes(() => jsonResponse({ result: 'orphan', ticket: 7 })),
   });
   assert.equal(res.status, 200, JSON.stringify(body));
   assert.deepEqual(body, { deleted: true });
@@ -461,8 +461,10 @@ Deno.test('coach-web-orphan : compte neuf et vide → base consultée avec l\'ui
 Deno.test('coach-web-orphan : base qui garde le compte, limite atteinte ou injoignable → rien de supprimé', async () => {
   const jwt = orphanJwt();
   for (const [why, claim, status, expect] of [
-    ['gardé (données, autre session…)', () => jsonResponse('kept'), 200, { deleted: false }],
-    ['limite des 30 par heure', () => jsonResponse('limit'), 429, { error: 'rate_limited' }],
+    ['gardé (données, autre session…)', () => jsonResponse({ result: 'kept' }), 200, { deleted: false }],
+    ['limite (identité ou projet)', () => jsonResponse({ result: 'limit' }), 429, { error: 'rate_limited' }],
+    ['orphelin sans ticket', () => jsonResponse({ result: 'orphan' }), 200, { deleted: false }],
+    ['ancienne réponse texte', () => jsonResponse('orphan'), 200, { deleted: false }],
     ['migration absente', () => jsonResponse({ code: 'PGRST202', message: 'Could not find the function' }, 404), 503, { error: 'claim' }],
     ['réponse inattendue', () => jsonResponse(true), 200, { deleted: false }],
   ] as [string, () => Response, number, unknown][]) {
@@ -489,19 +491,34 @@ Deno.test('coach-web-orphan : compte ancien, e-mail, deux identités, sans sessi
   ];
   for (const [why, user, extra] of cases) {
     const jwt = orphanJwt(extra);
-    const { res, body, calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt), body: {} }), { users: { [jwt]: user }, routes: orphanRoutes(() => jsonResponse('orphan')) });
+    const { res, body, calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt), body: {} }), { users: { [jwt]: user }, routes: orphanRoutes(() => jsonResponse({ result: 'orphan', ticket: 7 })) });
     assert.equal(res.status, 200, why);
     assert.deepEqual(body, { deleted: false }, why);
     onlyAuthServer(calls);
   }
 });
 
-Deno.test('coach-web-orphan : suppression refusée par l\'API → 500 delete', async () => {
+Deno.test('coach-web-orphan : suppression refusée par l\'API → 500 delete, et le ticket du journal est rendu', async () => {
   const jwt = orphanJwt();
-  const { res, body } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt) }), {
+  const { res, body, calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt) }), {
     users: { [jwt]: googleNew() },
-    routes: { 'POST /rest/v1/rpc/coach_web_orphan_claim': () => jsonResponse('orphan'), [`DELETE /auth/v1/admin/users/${USER_ID}`]: () => jsonResponse({ code: 500, msg: 'panne' }, 500) },
+    routes: {
+      'POST /rest/v1/rpc/coach_web_orphan_claim': () => jsonResponse({ result: 'orphan', ticket: 42 }),
+      [`DELETE /auth/v1/admin/users/${USER_ID}`]: () => jsonResponse({ code: 500, msg: 'panne' }, 500),
+      'POST /rest/v1/rpc/coach_web_orphan_release': () => jsonResponse(true),
+    },
   });
   assert.equal(res.status, 500);
   assert.deepEqual(body, { error: 'delete' });
+  const rel = calls.find((c) => c.path === '/rest/v1/rpc/coach_web_orphan_release');
+  assert.deepEqual(JSON.parse(rel?.body ?? '{}'), { ticket: 42 }, 'ticket rendu');
+  assert.equal(rel?.auth, 'Bearer faux-service-role-de-test');
+});
+
+Deno.test('coach-web-orphan : suppression réussie → ticket gardé (jamais rendu)', async () => {
+  const jwt = orphanJwt();
+  const { calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt) }), {
+    users: { [jwt]: googleNew() }, routes: orphanRoutes(() => jsonResponse({ result: 'orphan', ticket: 42 })),
+  });
+  assert.ok(!calls.some((c) => c.path === '/rest/v1/rpc/coach_web_orphan_release'));
 });

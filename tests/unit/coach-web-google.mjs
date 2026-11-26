@@ -36,12 +36,12 @@ export default function ({ test, assert, ROOT }) {
       ['date illisible', { ...user(20, 'google'), created_at: 'n/a' }, claims()],
       ['sans utilisateur', null, claims()],
     ]) assert.equal(orphanCandidate({ user: u, claims: c, nowS }), null, why);
-    // Seul 'orphan' supprime
-    assert.equal(J(claimOutcome('orphan', null)), J({ status: 200, body: { deleted: true }, remove: true }));
-    assert.equal(J(claimOutcome('kept', null)), J({ status: 200, body: { deleted: false }, remove: false }));
-    assert.equal(J(claimOutcome('limit', null)), J({ status: 429, body: { error: 'rate_limited' }, remove: false }));
-    assert.equal(J(claimOutcome('orphan', { message: 'panne' })), J({ status: 503, body: { error: 'claim' }, remove: false }), 'erreur : jamais de suppression');
-    for (const d of [true, 'ORPHAN', null, undefined, { orphan: true }]) assert.equal(claimOutcome(d, null).remove, false, J(d));
+    // Seul 'orphan' avec un ticket supprime
+    assert.equal(J(claimOutcome({ result: 'orphan', ticket: 7 }, null)), J({ status: 200, body: { deleted: true }, remove: true, ticket: 7 }));
+    assert.equal(J(claimOutcome({ result: 'kept' }, null)), J({ status: 200, body: { deleted: false }, remove: false, ticket: null }));
+    assert.equal(J(claimOutcome({ result: 'limit' }, null)), J({ status: 429, body: { error: 'rate_limited' }, remove: false, ticket: null }));
+    assert.equal(J(claimOutcome({ result: 'orphan', ticket: 7 }, { message: 'panne' })), J({ status: 503, body: { error: 'claim' }, remove: false, ticket: null }), 'erreur : jamais de suppression');
+    for (const d of ['orphan', true, null, undefined, { result: 'orphan' }, { result: 'orphan', ticket: 0 }, { result: 'orphan', ticket: '7' }, { result: 'ORPHAN', ticket: 7 }]) assert.equal(claimOutcome(d, null).remove, false, J(d));
   });
 
   test('coach-web-orphan : migration, retour arrière, test de retour arrière en CI et verify_jwt déclaré', () => {
@@ -51,6 +51,8 @@ export default function ({ test, assert, ROOT }) {
     const sql = read(`supabase/migrations/${mig}`);
     assert.match(sql, /revoke all on function public\.coach_web_orphan_claim\(uuid, uuid\) from public, anon, authenticated;/);
     assert.match(sql, /grant execute on function public\.coach_web_orphan_claim\(uuid, uuid\) to service_role;/);
+    assert.match(sql, /revoke all on function public\.coach_web_orphan_release\(bigint\) from public, anon, authenticated;/);
+    assert.match(sql, /revoke all on function private\.coach_web_account_empty\(uuid\) from public, anon, authenticated, service_role;/);
     assert.match(sql, /security definer set search_path = ''/);
     assert.match(read('.github/workflows/tests.yml'), /bash tests\/sql\/compte_vide_site_coach_rollback_test\.sh/);
     assert.match(read('supabase/config.toml'), /\[functions\.coach-web-orphan\]\n(#[^\n]*\n)*verify_jwt = false/);
