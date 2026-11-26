@@ -21,7 +21,11 @@ const DESK_IDLE_WARN_MS = DESK_IDLE_MS - 2 * 60_000;
 // login.error : message d'erreur (rouge, role=alert) ; errField : il porte sur le champ (bordure rouge, aria-invalid) ;
 // login.info : information neutre en haut du formulaire (session fermée pour inactivité), jamais une erreur de saisie
 const ui = { filter: 'todo', query: '', weeks: DESK_WEEKS_SHOWN, login: { step: 'email', email: '', busy: false, error: '', errField: false, info: '' } };
-const DESK_EXPIRED_TEXT = { idle: 'Session fermée après 30 minutes sans activité : reconnecte-toi.', keep: 'Session fermée après 90 jours sans visite : reconnecte-toi.' };
+const DESK_EXPIRED_TEXT = {
+  idle: 'Session fermée après 30 minutes sans activité : reconnecte-toi.',
+  keep: 'Session fermée après 90 jours sans visite : reconnecte-toi.',
+  moved: '« Rester connecté sur cet ordinateur » a changé dans un autre onglet : reconnecte-toi ici.',
+};
 // Interrupteur « Rester connecté sur cet ordinateur » (écran de connexion et Réglages)
 function deskKeepRowHtml(where) {
   const on = deskKeep();
@@ -113,7 +117,7 @@ function deskLoginHtml() {
     <div class="brand lg">MDLF <span>Coach</span></div>
     <h1 class="title">${email ? 'Connexion' : 'Code reçu par e-mail'}</h1>
     <p class="sub">${email ? 'Avec le compte coach de ton app MDLF Training : Apple, Google, ou un code à 6 chiffres reçu par e-mail.' : `Code envoyé à ${esc(l.email)}. Il est valable 10 minutes.`}</p>
-    ${l.info ? `<p class="info" id="login-info" role="status">${esc(l.info)}</p>` : ''}
+    <p class="info" id="login-info" role="status">${esc(l.info)}</p>
     ${email ? deskLoginButtonsHtml(l.busy) : ''}
     <form class="login-f" data-form="${email ? 'email' : 'code'}" novalidate>
       ${email
@@ -280,7 +284,7 @@ function deskIdleBanner(show) {
   b.id = 'idle'; b.className = 'idle'; b.setAttribute('role', 'alertdialog');
   b.setAttribute('aria-labelledby', 'idle-t'); b.setAttribute('aria-describedby', 'idle-d');
   b.innerHTML = `<div class="grow"><b id="idle-t">Toujours là ?</b><span class="t2 blk" id="idle-d">Sans geste de ta part, la session se ferme dans 2 minutes. Une réponse en cours sera gardée en brouillon.</span></div>
-    <button type="button" class="btn tint" data-action="idle-stay">Rester connecté</button>`;
+    <button type="button" class="btn tint" data-action="idle-stay">Continuer</button>`;
   frTypoNode(b);
   document.body.appendChild(b);
   b.querySelector('button').focus({ preventScroll: true });
@@ -308,14 +312,30 @@ function deskIdleTick() {
 }
 // « Rester connecté sur cet ordinateur » : choix changé, session déplacée (js/desk/api.js, deskSetKeep) ; décoché
 // pendant la session, les 30 minutes repartent de maintenant
+// Écran de connexion : seul l'interrupteur change (pas de nouveau rendu : l'adresse ou le code déjà tapés restent)
 function deskKeepToggle(where) {
   const on = !deskKeep();
   if (!deskSetKeep(on)) { deskToast('Ton navigateur bloque le stockage : impossible de garder la session.'); return; }
-  if (desk.user) { deskTouch(); deskIdleBanner(false); }
-  deskRender();
+  if (!desk.user) {
+    const row = document.getElementById(`keep-${where}`)?.closest('.row');
+    if (row) row.outerHTML = deskKeepRowHtml(where);
+    deskPainted = '';
+  } else { deskTouch(); deskIdleBanner(false); deskRender(); }
   document.getElementById(`keep-${where}`)?.focus();
   if (desk.user) deskToast(on ? 'Session gardée sur cet ordinateur' : 'La session se fermera après 30 minutes sans activité');
 }
+// Choix changé dans un autre onglet (la session y a été déplacée) : la réponse en cours part en brouillon tant que la
+// session est encore en mémoire, l'écran est vidé, puis la page se recharge et le dit. Écran de connexion : l'interrupteur
+// est redessiné. Jamais embarquée (pas de choix).
+window.addEventListener('storage', async e => {
+  if ((e.key !== DESK_KEEP_KEY && e.key !== null) || deskHosted() || deskIdleEnding) return;
+  if (!desk.user) { deskPainted = ''; deskRender(); return; }
+  deskIdleEnding = true;
+  deskWipe();
+  await Promise.race([deskRvSaveDrafts(), new Promise(r => setTimeout(r, 8000))]);
+  try { window.sessionStorage.setItem(DESK_MOVED_KEY, '1'); } catch { /* message perdu */ }
+  location.reload();
+});
 
 // ── Gestes ──────────────────────────────────────────────────
 
@@ -500,8 +520,12 @@ async function deskStart() {
   // Embarquée : session de l'hôte refusée (expirée, autre compte) → l'hôte reprend la main
   if (!r.ok && deskHosted()) { deskHost.exit?.(); return; }
   if (!r.ok) { ui.login.error = deskAuthText(r.kind); }
-  else if (r.expired || deskTakeExpired()) ui.login.info = DESK_EXPIRED_TEXT[deskKeep() ? 'keep' : 'idle'];
+  let info = '';
+  if (r.ok && (r.expired || deskTakeExpired())) info = DESK_EXPIRED_TEXT[deskKeep() ? 'keep' : 'idle'];
+  try { if (window.sessionStorage.getItem(DESK_MOVED_KEY)) { window.sessionStorage.removeItem(DESK_MOVED_KEY); if (r.ok && !desk.user) info = DESK_EXPIRED_TEXT.moved; } } catch { /* rien */ }
   deskRender();
+  // Information écrite APRÈS le premier rendu : une zone role=status n'est annoncée que si son contenu change
+  if (info && !desk.user) setTimeout(() => { ui.login.info = info; const el = document.getElementById('login-info'); if (el) el.textContent = info; deskPainted = ''; }, 150);
   if (desk.user) {
     await deskRefresh({ force: true });
     // Action sur les photos demandée avant le rechargement qui a retiré les scripts de connexion tiers

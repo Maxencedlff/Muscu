@@ -393,7 +393,7 @@ def draft_kept(browser, url, engine):
 
 
 def idle_end(browser, url, engine):
-    """28 min sans geste : « Toujours là ? », « Rester connecté » garde la session. 30 min : la réponse en cours part en
+    """28 min sans geste : « Toujours là ? », « Continuer » garde la session. 30 min : la réponse en cours part en
     brouillon sur le serveur, l'écran est vidé avant le rechargement, puis l'écran de connexion le dit."""
     ctx, page = open_desk(browser, url, width=1440, checkins=True)
     try:
@@ -420,7 +420,12 @@ def idle_end(browser, url, engine):
         check(rv.get('reply') == DRAFT and not rv.get('sent_at'), f'{engine} : brouillon pas gardé sur le serveur {rv}')
         check('Semaine 47' not in (t.get('screen') or '') and 'lea' not in (t.get('screen') or ''), f'{engine} : écran pas vidé avant le rechargement {t.get("screen", "")[:80]!r}')
         check(not dialogs, f'{engine} : fenêtre « Quitter le site ? » {dialogs}')
-        # Information neutre en haut du formulaire, pas une erreur de saisie : rien en rouge, aucune bordure sur le champ
+        # Information neutre en haut du formulaire, pas une erreur de saisie : rien en rouge, aucune bordure sur le champ.
+        # Écrite juste après le premier rendu (zone role=status annoncée quand son contenu change)
+        for _ in range(50):
+            if page.inner_text('#login-info'):
+                break
+            page.wait_for_timeout(100)
         check('30 minutes sans activité' in page.inner_text('#login-info'), f'{engine} : message {page.inner_text("#login-info")!r}')
         check(page.get_attribute('#login-info', 'role') == 'status' and page.inner_text('#login-err') == '', f'{engine} : message affiché comme une erreur')
         check(page.get_attribute('#login-email', 'aria-invalid') is None, f'{engine} : champ e-mail marqué invalide')

@@ -210,6 +210,8 @@ table.wk .wn { font-weight: 600; }
 .note { color: var(--label2); font-size: 13.5px; margin-top: 16px; line-height: 1.45; }
 /* Information neutre en haut du formulaire (session fermée pour inactivité) : ni rouge ni bordure sur le champ */
 .login-card .info { background: var(--cell); color: var(--label); border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.4; margin-bottom: 14px; }
+/* Vide : aucune place prise, mais la zone reste dans l'arbre d'accessibilité (annoncée quand le texte arrive) */
+.login-card .info:empty { padding: 0; margin: 0; background: none; }
 /* « Rester connecté sur cet ordinateur » sous le formulaire */
 .login-keep { margin-top: 16px; }
 /* Bandeau « Toujours là ? » (28 min sans geste) : en haut, hors de #app, au-dessus du contenu */

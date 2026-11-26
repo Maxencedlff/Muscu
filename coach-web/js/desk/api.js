@@ -29,8 +29,19 @@ const DESK_EXPIRED_KEY = 'mdlf_coach_web_expired'; // « fermée pour inactivit�
 const DESK_KEEP_KEY = 'mdlf_coach_web_keep';     // localStorage : '1' = « Rester connecté sur cet ordinateur »
 const DESK_IDLE_MS = 30 * 60_000;
 const DESK_KEEP_IDLE_MS = 90 * 86_400_000;        // avec « Rester connecté » : 90 jours sans aucune ouverture
-// Clés de supabase-js sous DESK_AUTH_KEY (session, vérificateur PKCE, utilisateur) et la nôtre : elles suivent le choix
-const DESK_STORED_KEYS = [DESK_AUTH_KEY, `${DESK_AUTH_KEY}-code-verifier`, `${DESK_AUTH_KEY}-user`, DESK_ACTIVE_KEY, DESK_EXPIRED_KEY];
+const DESK_MOVED_KEY = 'mdlf_coach_web_moved';  // sessionStorage : choix changé dans un autre onglet, dit après le rechargement
+// Clés qui suivent le choix : toutes celles de supabase-js, qui commencent par DESK_AUTH_KEY (session, utilisateur,
+// vérificateurs PKCE : « -code-verifier », « -flows-code-verifier », « -flow-<id>-code-verifier » en 2.118, et ce
+// qu'une version suivante ajouterait), plus l'heure du dernier geste et la marque « fermée pour inactivité ». Par
+// préfixe, jamais par liste : une clé oubliée resterait dans l'autre stockage.
+function deskOwnKeys(st, { expired = true } = {}) {
+  const out = [];
+  for (let i = 0; i < st.length; i++) {
+    const k = st.key(i);
+    if (k && (k.startsWith(DESK_AUTH_KEY) || k === DESK_ACTIVE_KEY || (expired && k === DESK_EXPIRED_KEY))) out.push(k);
+  }
+  return out;
+}
 const DESK_SESSIONS_PAGES = 6;                   // repli sans coach_student_weeks : 6 pages de 30 séances au plus
 
 const desk = { user: null, email: null, sentAt: 0 };
@@ -68,20 +79,29 @@ const deskAuthStorage = Object.freeze({
   setItem: (k, v) => { try { deskStore()?.setItem(k, v); } catch { /* stockage bloqué */ } },
   removeItem: k => { try { deskStore()?.removeItem(k); } catch { /* stockage bloqué */ } },
 });
-// Change le choix, et déplace aussitôt la session en cours (et le vérificateur PKCE) vers le bon stockage : rien ne
-// reste dans l'autre. false si le navigateur bloque le stockage (le choix ne change pas).
+// Change le choix, et déplace aussitôt la session en cours (et les vérificateurs PKCE) vers le bon stockage : rien ne
+// reste dans l'autre. Coché : le choix est écrit AVANT la copie (un onglet qui se charge entre les deux ne prend pas
+// la session copiée pour un reste à effacer). Les autres onglets le voient (événement storage, main.js) et se
+// rechargent. false si le navigateur bloque le stockage (le choix ne change pas).
 function deskSetKeep(on) {
   if (deskHosted()) return false;
   try {
     const from = on ? window.sessionStorage : window.localStorage, to = on ? window.localStorage : window.sessionStorage;
-    for (const k of DESK_STORED_KEYS) { const v = from.getItem(k); if (v !== null) to.setItem(k, v); from.removeItem(k); }
-    if (on) window.localStorage.setItem(DESK_KEEP_KEY, '1'); else window.localStorage.removeItem(DESK_KEEP_KEY);
+    if (on) window.localStorage.setItem(DESK_KEEP_KEY, '1');
+    for (const k of deskOwnKeys(from)) { const v = from.getItem(k); if (v !== null) to.setItem(k, v); from.removeItem(k); }
+    if (!on) window.localStorage.removeItem(DESK_KEEP_KEY);
     return true;
   } catch { return false; }
 }
-// Sans « Rester connecté » : session gardée dans localStorage par une version d'avant (ou un choix retiré dans un autre
-// onglet) effacée
-if (!deskKeep()) try { for (const k of DESK_STORED_KEYS) window.localStorage.removeItem(k); } catch { /* stockage bloqué */ }
+// Au chargement, l'autre stockage est vidé : sans « Rester connecté », une session laissée dans localStorage par une
+// version d'avant (ou un choix retiré dans un autre onglet) ; avec, la session propre à cet onglet d'avant le choix
+// (cochée dans un autre onglet : c'est la session gardée sur l'ordinateur qui sert)
+if (!deskHosted()) {
+  try {
+    const other = deskKeep() ? window.sessionStorage : window.localStorage;
+    for (const k of deskOwnKeys(other, { expired: false })) other.removeItem(k);
+  } catch { /* stockage bloqué */ }
+}
 function deskMarkExpired() { try { deskStore()?.setItem(DESK_EXPIRED_KEY, '1'); } catch { /* stockage bloqué */ } }
 function deskTakeExpired() {
   try { const v = deskStore()?.getItem(DESK_EXPIRED_KEY); deskStore()?.removeItem(DESK_EXPIRED_KEY); return v === '1'; } catch { return false; }
@@ -155,7 +175,7 @@ async function deskVerifyCode(code) {
 async function deskSignOut({ forgetKeep = false } = {}) {
   try { await deskClient()?.auth.signOut({ scope: 'local' }); } catch { /* hors ligne : la session locale part quand même */ }
   for (const st of ['sessionStorage', 'localStorage']) {
-    try { for (const k of DESK_STORED_KEYS) if (k !== DESK_EXPIRED_KEY) window[st].removeItem(k); } catch { /* rien */ }
+    try { for (const k of deskOwnKeys(window[st], { expired: false })) window[st].removeItem(k); } catch { /* rien */ }
   }
   if (forgetKeep) try { window.localStorage.removeItem(DESK_KEEP_KEY); } catch { /* rien */ }
   desk.user = null;

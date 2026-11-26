@@ -239,8 +239,13 @@ def keep_signed_in(browser, url, engine):
         check('Seulement sur ton ordinateur personnel' in page.inner_text('.login-keep'), f'{tag} : ligne d\'aide')
         box = sw.bounding_box()
         check(box['height'] >= 44 and box['width'] >= 44, f'{tag} : cible {box}')
+        # Adresse tapée d'abord, puis l'interrupteur : l'adresse reste (aucun nouveau rendu du formulaire)
+        page.fill('#login-email', 'adresse-en-cours@exemple.test')
         sw.click()
         check(sw.get_attribute('aria-checked') == 'true' and stored(page)['keep'] == '1', f'{tag} : choix pas gardé')
+        check(page.input_value('#login-email') == 'adresse-en-cours@exemple.test', f'{tag} : adresse effacée par l\'interrupteur')
+        check(page.evaluate("document.activeElement.id") == 'keep-login', f'{tag} : focus perdu')
+        check('90 jours' in page.inner_text('.login-keep'), f'{tag} : aide pas mise à jour')
         email_login(page)
         st = stored(page)
         check('mdlf-coach-web-auth' in st['local'] and 'mdlf_coach_web_active' in st['local'] and st['tab'] == [], f'{tag} : stockage {st}')
@@ -250,6 +255,18 @@ def keep_signed_in(browser, url, engine):
         # Ni bandeau ni fin après 30 minutes, ni après 2 h
         page.clock.run_for(2 * 3600_000)
         check(page.locator('#idle').count() == 0 and page.evaluate('!!desk.user'), f'{tag} : bandeau ou fin de session')
+        # Autre onglet qui décoche (simulé : ce qu'il écrit, puis l'événement storage que le navigateur envoie aux autres
+        # onglets ; un second onglet réel n'aurait pas le faux serveur) : celui-ci garde le brouillon, se recharge et le dit,
+        # sans « 30 minutes » ni session gardée chez lui
+        page.evaluate("""() => { for (const k of Object.keys(localStorage)) if (k.startsWith('mdlf-coach-web-auth') || k === 'mdlf_coach_web_active') localStorage.removeItem(k);
+          localStorage.removeItem('mdlf_coach_web_keep');
+          dispatchEvent(new StorageEvent('storage', { key: 'mdlf_coach_web_keep', oldValue: '1', newValue: null, storageArea: localStorage })); }""")
+        page.wait_for_selector('#login-email', timeout=20000)
+        until(page, "document.getElementById('login-info')?.innerText.includes('autre onglet')")
+        check(page.inner_text('#login-err') == '' and stored(page) == {'local': [], 'tab': [], 'keep': None}, f'{tag} : autre onglet {stored(page)}')
+        # Retour au premier onglet : on recoche et on se reconnecte
+        page.click('#keep-login')
+        email_login(page)
         # Réglages : la ligne, décochable ; décochée, la session revient dans l'onglet
         page.evaluate("location.hash = '#/reglages'")
         page.wait_for_selector('#keep-settings')
@@ -280,6 +297,8 @@ def keep_signed_in(browser, url, engine):
         page.evaluate("localStorage.setItem('mdlf_coach_web_active', String(Date.now() - 91 * 86_400_000))")
         page.reload()
         page.wait_for_selector('#login-email', timeout=20000)
+        # (texte passé par la typographie française : espace insécable après « 90 », d'où « jours sans visite »)
+        until(page, "document.getElementById('login-info')?.innerText.includes('jours sans visite')")
         check('90 jours sans visite' in page.inner_text('#login-info'), f'{tag} : information {page.inner_text("body")[:200]!r}')
         check(page.inner_text('#login-err') == '' and page.get_attribute('#login-email', 'aria-invalid') is None, f'{tag} : affiché comme une erreur')
         st = stored(page)

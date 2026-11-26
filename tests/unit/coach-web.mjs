@@ -81,7 +81,11 @@ export default function ({ test, assert, ROOT }) {
     assert.equal(run('deskIdleLimit()'), 30 * 60_000);
     // Session en cours dans l'onglet, puis case cochée : tout passe dans localStorage, rien ne reste dans l'onglet
     session.setItem('mdlf-coach-web-auth', 'jeton'); session.setItem('mdlf-coach-web-auth-code-verifier', 'v'); session.setItem('mdlf_coach_web_active', '1000');
+    session.setItem('mdlf-coach-web-auth-flow-abc-code-verifier', 'f'); session.setItem('mdlf-coach-web-auth-flows-code-verifier', '["abc"]');
+    session.setItem('autre-site', 'x');   // clé d'un autre script : jamais touchée
     assert.equal(run('deskSetKeep(true)'), true);
+    assert.equal(storage.getItem('mdlf-coach-web-auth-flow-abc-code-verifier') + storage.getItem('mdlf-coach-web-auth-flows-code-verifier'), 'f["abc"]', 'vérificateurs par flux déplacés aussi');
+    assert.equal(session.getItem('autre-site'), 'x'); session.removeItem('autre-site');
     assert.equal(J([storage.getItem('mdlf_coach_web_keep'), storage.getItem('mdlf-coach-web-auth'), storage.getItem('mdlf-coach-web-auth-code-verifier'), storage.getItem('mdlf_coach_web_active')]), J(['1', 'jeton', 'v', '1000']));
     assert.equal(session.length, 0, 'rien ne reste dans l\'onglet');
     assert.equal(run('deskKeep()'), true);
@@ -107,8 +111,49 @@ export default function ({ test, assert, ROOT }) {
     await run('deskSignOut({ forgetKeep: true })');
     assert.equal(storage.length + session.length, 0, '« Se déconnecter » : plus rien');
     run('sb = null'); delete ctx.supabase;
-    // Embarquée dans l'app : jamais (la session appartient à l'hôte)
-    assert.match(fs.readFileSync(path.join(ROOT, 'coach-web/js/desk/api.js'), 'utf8'), /function deskKeep\(\) \{\n {2}if \(deskHosted\(\)\) return false;/);
+    // Embarquée dans l'app : test « embarquée dans l'app, jamais Rester connecté »
+  });
+
+  test('coach web : vrai auth-js (connexion Google en PKCE) : toutes ses clés suivent le choix, rien ne reste après « Se déconnecter »', async () => {
+    const { createRequire } = await import('node:module');
+    const req = createRequire(path.join(ROOT, 'package.json'));
+    const { GoTrueClient } = req('@supabase/auth-js');
+    storage.clear(); session.clear();
+    const st = run('deskAuthStorage');
+    const c = new GoTrueClient({ url: 'https://exemple.invalid/auth/v1', storageKey: 'mdlf-coach-web-auth', storage: st, flowType: 'pkce', persistSession: true,
+      autoRefreshToken: false, detectSessionInUrl: false, fetch: async () => new Response('{}', { status: 400 }) });
+    await c.signInWithOAuth({ provider: 'google', options: { redirectTo: 'https://coach.mdlf.app/', skipBrowserRedirect: true } });
+    const written = [];
+    for (let i = 0; i < session.length; i++) written.push(session.key(i));
+    assert.ok(written.length >= 1 && written.every(k => k.startsWith('mdlf-coach-web-auth')), `clés écrites : ${written}`);
+    assert.equal(storage.length, 0, 'décoché : rien dans localStorage');
+    run('deskSetKeep(true)');
+    assert.equal(session.length, 0, `cochée : il reste dans l'onglet ${written}`);
+    run('deskSetKeep(false)');
+    assert.equal(storage.length, 0, 'décochée : localStorage vidé');
+    run('deskSetKeep(true)');
+    ctx.supabase = { createClient: () => ({ auth: { signOut: async () => ({ error: null }) } }) };
+    run('sb = null');
+    await run('deskSignOut({ forgetKeep: true })');
+    assert.equal(storage.length + session.length, 0, 'après « Se déconnecter » : plus rien');
+    run('sb = null'); delete ctx.supabase;
+  });
+
+  test('coach web : embarquée dans l\'app, jamais « Rester connecté » (ni lu ni écrit)', () => {
+    const mem = new MemoryStorage(), tab = new MemoryStorage();
+    mem.setItem('mdlf_coach_web_keep', '1');
+    const box = { console, setTimeout, clearTimeout, Intl, atob, btoa, TextEncoder, TextDecoder, crypto: globalThis.crypto, localStorage: mem, sessionStorage: tab,
+      navigator: {}, addEventListener() {}, document: { querySelector: () => null, getElementById: () => null, addEventListener() {} },
+      MDLF_COACH_HOST: { session: { access_token: 'a', refresh_token: 'r' }, exit() {} } };
+    box.window = box;
+    const hctx = vm.createContext(box);
+    for (const f of files.filter(f => !f.endsWith('main.js'))) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), hctx, { filename: f });
+    const h = code => vm.runInContext(code, hctx);
+    assert.equal(h('deskHosted()'), true);
+    assert.equal(h('deskKeep()'), false, 'choix ignoré');
+    assert.equal(h('deskSetKeep(true)'), false, 'choix refusé');
+    assert.equal(h('deskIdleLimit()'), 30 * 60_000);
+    assert.equal(J([mem.length, mem.getItem('mdlf_coach_web_keep'), tab.length]), J([1, '1', 0]), 'stockage pas touché');
   });
 
   test('coach web : même projet Supabase et même clé publique que l\'app', () => {

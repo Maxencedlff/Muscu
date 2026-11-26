@@ -83,7 +83,7 @@ clé publique et l'adresse du projet sont identiques à `ACCOUNT_CONFIG` (vérif
   (`coach_student_weeks`, ci-dessous) pour lire la fiche en un appel, qui n'expose rien de plus.
 - Ordinateur parfois partagé : fermeture après **30 minutes sans geste** (clic, touche, molette ou doigt qui fait
   défiler, compté une fois toutes les 5 s au plus ; vérifiée au rechargement, au retour sur l'onglet et toutes les 15 s).
-  À 28 minutes, bandeau « Toujours là ? » avec « Rester connecté ». À 30 minutes : l'écran est vidé tout de suite, la
+  À 28 minutes, bandeau « Toujours là ? » avec « Continuer » (pas « Rester connecté » : ces mots sont ceux de la case ci-dessous). À 30 minutes : l'écran est vidé tout de suite, la
   réponse à un bilan en cours d'écriture part en brouillon sur le serveur (`coach_checkin_review`, `send: false`, 8 s au
   plus), puis déconnexion et rechargement (« Session fermée après 30 minutes sans activité »). Écran vidé avant : rien
   d'un élève ne reste visible sous la fenêtre « Quitter le site ? » du navigateur. « Se déconnecter de cet ordinateur »
@@ -97,7 +97,7 @@ clé publique et l'adresse du projet sont identiques à `ACCOUNT_CONFIG` (vérif
   n'est ni rouge ni `aria-invalid`. Seules les erreurs du formulaire (adresse ou code invalide, envoi refusé) marquent
   le champ (`ui.login.errField`).
 
-### Rester connecté sur cet ordinateur (27/11/2026)
+### Rester connecté sur cet ordinateur (26/11/2026)
 
 Demande de Maxence : sur son PC à lui, se reconnecter toutes les 30 minutes est pénible. Interrupteur **« Rester connecté
 sur cet ordinateur »**, avec la ligne d'aide « Seulement sur ton ordinateur personnel », sous le formulaire de connexion
@@ -108,17 +108,37 @@ Coché :
 - la session de supabase-js, son **vérificateur PKCE** (connexion Google) et l'heure du dernier geste vont dans
   **localStorage** : supabase-js reçoit un stockage (`deskAuthStorage`, `js/desk/api.js`) qui relit le choix à chaque
   lecture et écriture ; cocher ou décocher pendant une session la déplace aussitôt (`deskSetKeep`), rien ne reste dans
-  l'autre stockage ;
+  l'autre stockage. Les clés sont prises **par préfixe** (`deskOwnKeys` : tout ce qui commence par `mdlf-coach-web-auth`,
+  plus l'heure du dernier geste) : auth-js 2.118 écrit aussi `-flows-code-verifier` et `-flow-<id>-code-verifier` à chaque
+  connexion Google, qu'une liste fixe oubliait (relecture du 26/11, prouvé avec le vrai auth-js par
+  `tests/unit/coach-web.mjs`). Coché, le choix est écrit avant la copie (un onglet qui se charge entre les deux ne prend
+  pas la session copiée pour un reste à effacer) ;
+- **autres onglets** : changer le choix dans un onglet y déplace la session ; les autres le voient (événement `storage` sur
+  `mdlf_coach_web_keep`), gardent la réponse en cours en brouillon tant que leur session est en mémoire, vident l'écran et
+  se rechargent avec « « Rester connecté sur cet ordinateur » a changé dans un autre onglet » (plus de fermeture
+  injustifiée « 30 minutes » avec un brouillon perdu) ; sur l'écran de connexion, l'interrupteur est seulement redessiné.
+  Les autres changements pas enregistrés de cet onglet (programme, plan diète) sont perdus, comme à la fin pour inactivité ;
 - **fenêtre glissante de 90 jours, sans durée maximale**, comme l'app iPhone : chaque ouverture et chaque geste repoussent
   la fin ; la session ne se ferme qu'après **90 jours sans aucune ouverture du site**, ou avec « Se déconnecter » ;
 - pas de bandeau « Toujours là ? », pas de fin après 30 minutes ;
 - « Se déconnecter de cet ordinateur » efface tout (session, heure, choix compris) ; une fin après 90 jours garde le
   choix (c'est le même ordinateur qui revient) et le dit en haut du formulaire.
 
-Côté serveur : `sessions_timebox` et `sessions_inactivity_timeout` valent 0 (lus le 27/11/2026, sans rien modifier), le jeton
+Côté serveur : `sessions_timebox` et `sessions_inactivity_timeout` valent 0 (lus le 26/11/2026, sans rien modifier), le jeton
 de rafraîchissement ne périme donc pas et la limite de 90 jours est tenue par la page. Si un jour une durée de session est
 réglée dans Supabase (Auth › Sessions, conseillée dans docs/PHOTOS_WEB.md), elle s'applique aussi ici et l'emporte :
 la garder au-dessus de 90 jours d'inactivité pour que la case tienne sa promesse, sinon mettre à jour ce texte.
+
+Toucher l'interrupteur de l'écran de connexion ne redessine que lui : l'adresse ou le code déjà tapés restent. L'information
+« Session fermée… » est écrite juste après le premier rendu, pour être annoncée par les lecteurs d'écran (une zone
+`role="status"` ne l'est que si son contenu change).
+
+**Écart avec l'OWASP ASVS** (relecture du 26/11) : ASVS 4.0.3, V3.3.2, demande avec « rester connecté » une nouvelle
+connexion au plus tous les 30 jours (niveau 1), 12 h ou 30 min d'inactivité au niveau 2. Les 90 jours glissants sans durée
+maximale sont la demande explicite de Maxence (comme l'app iPhone) et sortent de ce cadre ; la limite n'est tenue que par la
+page (rien côté serveur, réglages à 0) : un jeton de rafraîchissement volé sur le poste reste valable sans limite. Pistes
+possibles, pas faites : demander une nouvelle preuve (code e-mail) avant les photos et les bilans quand la dernière vraie
+connexion a plus de 12 h ; régler une inactivité maximale côté Supabase (≥ 90 jours, offre Pro).
 
 **Risque accepté** : sur un ordinateur où la case est cochée, quiconque ouvre le navigateur entre dans le site du coach, avec
 la liste des élèves, leurs séances, bilans et messages, sans rien taper ; un logiciel malveillant du poste peut aussi lire le
@@ -256,7 +276,7 @@ Google Cloud (console.cloud.google.com › projet « MDLF Training » › API et
 Vérification : sur le site, « Se connecter avec Google » avec l'adresse Google du compte coach : retour sur le site,
 tableau de bord. Les adresses de prévisualisation de Vercel ne marchent pas (pas dans la liste de Supabase).
 
-### Identifiant inconnu : aucun compte laissé (27/11/2026)
+### Identifiant inconnu : aucun compte laissé (26/11/2026)
 
 **Le problème (26/11/2026)** : « Continuer avec Google » sur coach.mdlf.app avec un Google pas encore relié au compte
 MDLF (un compte Apple) : Supabase a créé un compte neuf et vide, propriétaire de cette identité Google ; relier ensuite
