@@ -71,6 +71,17 @@ def row_text(page, who):
     return sp(page.locator(f'.lst a.row[data-student="{page.evaluate(who)}"]').first.inner_text())
 
 
+SHOTS = os.path.join(os.environ.get('PPL_SCRATCH', '/tmp/ppl-tests'), 'shots', 'coach-web-retours')
+
+
+def snap(page, engine, w, theme, name):
+    """Capture de relecture (sombre et clair), Chromium à 1440 px seulement."""
+    if engine != 'chromium' or w != 1440:
+        return
+    os.makedirs(SHOTS, exist_ok=True)
+    page.screenshot(path=os.path.join(SHOTS, f'{name}-{theme}.png'))
+
+
 def matrix_case(browser, url, engine, w, h, touch, theme):
     tag = f'{engine} {w}px {theme}'
     ctx, page = open_desk(browser, url, width=w, height=h, theme=theme, touch=touch, v4=True, checkins=True, health=True, pre=EXTRA)
@@ -96,12 +107,14 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         tap(page, '[data-action=filter][data-filter=todo]', touch)
         common(page, f'{tag} élèves', theme)
 
+        snap(page, engine, w, theme, '1-eleves')
         # ── 8 : « plan de nutrition » partout ──
         nav = page.locator('.nav-i[href="#/plans-diete"]:visible').first.inner_text()
         check('Plans de nutrition' in nav, f'{tag} : navigation {nav!r}')
         go(page, '#/plans-diete', '.dt-pl')
         check(page.locator('h1.title').inner_text() == 'Plans de nutrition', f'{tag} : titre {page.locator("h1.title").inner_text()!r}')
 
+        snap(page, engine, w, theme, '2-plans')
         # ── 1 : Nutrition de Léa, objectif et prévu nommés ──
         go(page, '#/eleve/LEA/nutrition', '.nt-day')
         line = sp(page.locator('#nt-plan-line').inner_text())
@@ -118,6 +131,7 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
             check(bad not in text, f'{tag} : « {bad} » encore affiché')
         common(page, f'{tag} nutrition', theme)
 
+        snap(page, engine, w, theme, '3-nutrition')
         # ── 3 : Programme, écart de charge et vocabulaire ──
         go(page, '#/eleve/LEA/programme', '.pg-row[data-k]')
         first = page.locator('.pg-row[data-k]').first
@@ -126,16 +140,19 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         check('Top set' not in ft and 'Back-off' not in ft and 'Lourde' in ft, f'{tag} : séries en français {ft!r}')
         common(page, f'{tag} programme', theme)
 
+        snap(page, engine, w, theme, '4-programme')
         # ── 4 : Bilans, photos sur l'ordinateur relié ──
         go(page, '#/eleve/LEA/bilans', '.rv-cur')
         bt = sp(page.inner_text('main'))
         check('ne sait pas encore' not in bt and 'Relier cet ordinateur' in bt, f'{tag} : photos de bilan {bt[:300]!r}')
 
+        snap(page, engine, w, theme, '5-bilans')
         # ── 5 : Messages, notifications coupées ──
         go(page, '#/eleve/LEA/messages', '.bub')
         off = sp(page.locator('.chat-off').inner_text())
         check(off == 'Notifications coupées chez lea : ton message sera là dès que lea ouvrira l\'app.', f'{tag} : notifications {off!r}')
 
+        snap(page, engine, w, theme, '6-messages')
         # ── 6 : Semaines, tableau large ──
         go(page, '#/eleve/LEA', 'table.wk')
         info = page.evaluate("""(() => { const s = document.querySelector('.tscroll'), th = s.querySelector('tbody th[scope=row]');
@@ -153,6 +170,7 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
             check(not info['hint'], f'{tag} : tout tient, pas d\'indice {info}')
         check(w > 1300 or info['over'] > 1, f'{tag} : à {w} px, Léa (santé, mensurations, bilans) déborde {info}')
         common(page, f'{tag} semaines', theme)
+        snap(page, engine, w, theme, '7-semaines')
         check(not page.evaluate('window.__csp || []'), f'{tag} : CSP {page.evaluate("window.__csp")}')
         check(not page.errors, f'{tag} : erreurs {page.errors}')
     except Exception:
