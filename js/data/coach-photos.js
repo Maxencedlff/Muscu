@@ -170,6 +170,20 @@ async function coachKeyInspect(secret, coachId, rec) {
     return { priv: await crypto.subtle.importKey('pkcs8', pkcs8, CPH_P256, false, ['deriveBits']), pub };
   } catch { return null; } finally { pkcs8?.fill(0); }
 }
+// Coach : clé privée en PKCS#8 (octets), seulement si elle s'ouvre avec le secret du trousseau ET correspond à la clé
+// publique du serveur : sert à la confier à un ordinateur relié (js/data/photo-link-phone.js), chiffrée pour lui.
+// L'appelant efface les octets (fill(0)) dès qu'ils sont chiffrés. → Uint8Array ou null
+async function coachKeyPkcs8(secret, coachId, rec) {
+  let pkcs8 = null;
+  try {
+    pkcs8 = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToBytes(rec.wrap_iv), additionalData: cphKeyAad(coachId, rec.key_id) },
+      secret, b64ToBytes(rec.wrapped_key)));
+    const jwk = await crypto.subtle.exportKey('jwk', await crypto.subtle.importKey('pkcs8', pkcs8, CPH_P256, true, ['deriveBits']));
+    const pub = bytesToB64(cphConcat(new Uint8Array([4]), b64urlToBytes(jwk.x), b64urlToBytes(jwk.y)));
+    if (pub !== rec.public_key) { pkcs8.fill(0); return null; }
+    return pkcs8;
+  } catch { pkcs8?.fill(0); return null; }
+}
 // Coach : clé privée, seulement si la clé publique du serveur est bien la sienne (un serveur qui l'aurait changée est
 // repéré ici). null sinon.
 async function coachKeyOpen(secret, coachId, rec) {
@@ -640,16 +654,22 @@ async function cphCoachLoad(uid) {
 // Une photo déchiffrée (Blob JPEG) : URL signée de CPH_URL_TTL_S secondes, lue aussitôt, jamais montrée ;
 // null si illisible. Session refermée pendant la lecture : rien ne sort.
 async function cphCoachFetch(uid, p) {
-  const session = cphCoach.session, me = account.user?.id;
-  if (!session || !me || !sb?.storage) return null;
+  const session = cphCoach.session;
+  return cphFetchWith({ client: sb, session, me: account.user?.id, uid, p, alive: () => cphCoach.session === session });
+}
+// Lecture et déchiffrement d'une photo, partagés par l'app et l'appli web du coach (coach-web/js/desk/photo-device.js) :
+// client supabase-js, session { priv, pub }, mon identifiant ; alive() faux (session refermée pendant la lecture) : rien
+// ne sort. Le chiffré n'est jamais gardé (cache: 'no-store'), le clair n'existe qu'en Blob en mémoire.
+async function cphFetchWith({ client, session, me, uid, p, alive = () => true }) {
+  if (!session || !me || !client?.storage) return null;
   try {
-    const { data, error } = await sb.storage.from(CPH_BUCKET).createSignedUrl(p.path, CPH_URL_TTL_S);
+    const { data, error } = await client.storage.from(CPH_BUCKET).createSignedUrl(p.path, CPH_URL_TTL_S);
     if (error || !data?.signedUrl) return null;
     const res = await fetch(data.signedUrl, { cache: 'no-store', credentials: 'omit' });
     if (!res.ok) return null;
     const ct = new Uint8Array(await res.arrayBuffer());
     const plain = await coachPhotoOpen(session, p, ct, { id: p.id, student: uid, coach: me, keyId: p.keyId, takenOn: p.takenOn, pose: p.pose });
-    if (!plain || cphCoach.session !== session || !jpegMetaFree(plain)) return null;
+    if (!plain || !alive() || !jpegMetaFree(plain)) return null;
     return new Blob([plain], { type: 'image/jpeg' });
   } catch { return null; }
 }

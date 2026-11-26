@@ -190,7 +190,7 @@ def apple_journeys(browser, url, engine):
     check(btn['y'] < form['y'], 'Apple : bouton au-dessus de l\'e-mail')
     check(btn['height'] >= 44, 'Apple : bouton de 44 px au moins')
     check(page.locator('#apple-signin').inner_text().strip() == 'Se connecter avec Apple', 'Apple : libellé')
-    check('Choisis « Se connecter avec Apple »' in page.inner_text('.login-card'), 'Apple : texte sous le formulaire')
+    check('Choisis le même bouton que dans' in page.inner_text('.login-card'), 'Apple : texte sous le formulaire')
     give_coach_apple(page)
     init = page.evaluate('window.__appleInit')
     origin = url.split('/coach-web/')[0]
@@ -235,7 +235,7 @@ def apple_journeys(browser, url, engine):
     # Script d'Apple injoignable (bloqueur, réseau) : pas de bouton, l'e-mail marche
     ctx, page = open_desk(browser, url, width=1440, login=False, apple='blocked')
     page.wait_for_function("!document.getElementById('apple-signin') && document.querySelector('.note').innerText.includes('pas pu se charger')")
-    check(page.locator('.or').count() == 0, 'sans Apple : séparateur caché')
+    check(page.locator('.or').count() == 1 and page.locator('#google-signin').count() == 1, 'sans Apple : Google, puis « ou » et l\'e-mail')
     page.fill('#login-email', COACH_EMAIL)
     page.click('form[data-form=email] button')
     page.fill('#login-code', FAKE_CODE)

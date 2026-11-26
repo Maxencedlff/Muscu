@@ -1,4 +1,4 @@
-# MDLF Coach sur ordinateur (appli web du coach) : vagues 1, 2, 3 et 4
+# MDLF Coach sur ordinateur (appli web du coach) : vagues 1, 2, 3, 4 et 5
 
 Demande d'un coach partenaire (24/11/2026) : faire ses retours sur un iPhone 12 est « horrible », il travaille sur PC ou
 tablette. Décision de Maxence : une **application web dans le navigateur** (Linux, Mac, Windows, iPad, tablettes
@@ -21,6 +21,8 @@ coach-web/js/desk/env.js    remplace js/data/account.js pour les scripts partag�
 coach-web/js/desk/model.js  logique pure : lignes du tableau de bord, semaines, courbe, chiffres
 coach-web/js/desk/api.js    connexion (code e-mail), appels RPC, lectures du tableau de bord et de la fiche
 coach-web/js/desk/apple.js  Se connecter avec Apple (Sign in with Apple JS, nonce, bouton)
+coach-web/js/desk/google.js Se connecter avec Google (flux OAuth de Supabase avec PKCE, par redirection, bouton)
+coach-web/js/desk/qr.js, photo-device.js, photos.js   vague 5 : photos de bilan sur ordinateur (docs/PHOTOS_WEB.md)
 coach-web/js/desk/shell.js  cadre : barre latérale, barre d'onglets en bas, icônes, annonces
 coach-web/js/desk/dashboard.js, student.js   les deux écrans (gabarits HTML, tout texte reçu passe par esc())
 coach-web/js/desk/checkins-model.js  vague 2 : logique pure des bilans (éditeur, comparaison, colonnes, signal)
@@ -71,7 +73,7 @@ clé publique et l'adresse du projet sont identiques à `ACCOUNT_CONFIG` (vérif
 
 - **Se connecter avec Apple** (en haut, avant l'e-mail ; section « Connexion avec Apple » ci-dessous), ou code à 6
   chiffres par e-mail (`signInWithOtp` avec `shouldCreateUser: false` : jamais de compte créé par l'e-mail, puis
-  `verifyOtp`). Même compte que l'iPhone, même `auth.uid()`. Google sur le web : plus tard.
+  `verifyOtp`), ou **Google** (section « Connexion avec Google »). Même compte que l'iPhone, même `auth.uid()`.
 - **Seul un coach validé entre** : `coach_state().is_coach`, sinon l'écran « Réservé aux coachs ». Le vrai verrou
   reste le serveur : chaque RPC lue ici est `security definer`, `search_path = ''`, prend l'utilisateur dans
   `auth.uid()` et vérifie le lien (`private.coach_require_student` : mon élève, et je suis encore coach), tables
@@ -181,6 +183,48 @@ PATCH https://api.supabase.com/v1/projects/yopptmdjtnezmccdvaxf/config/auth
 Vérification : relire la config (`GET …/config/auth`), puis sur le site, « Se connecter avec Apple » avec le compte
 Apple de l'app. Avant ce changement, Apple marche mais Supabase répond « Unacceptable audience » : la page dit « pas
 encore ouverte sur ce site ». L'app iPhone n'est pas touchée (`com.mdlf.training` reste dans la liste).
+
+## Connexion avec Google (vague 5)
+
+**Méthode : flux OAuth de Supabase avec PKCE, par redirection** (`signInWithOAuth`, puis `exchangeCodeForSession` au
+retour, `coach-web/js/desk/google.js`). Google Identity Services (le modèle d'Apple : script de Google, puis
+`signInWithIdToken`) a été essayé le 25/11/2026 : son script pose des styles en ligne refusés par la CSP du site, demande un
+cadre et des connexions vers Google, et serait un script tiers de plus dans la page qui tient la clé des photos. La
+redirection ne charge rien de Google : CSP inchangée (`script-src 'self'` + Apple, `frame-src 'none'`). Le code de retour ne
+sert qu'une fois et seulement avec le vérificateur PKCE tiré par supabase-js dans ce navigateur ; l'adresse est nettoyée
+aussitôt. Seul un coach validé entre (`coach_state`) ; un identifiant Google inconnu crée un compte vide (« Réservé aux
+coachs »), une adresse Google déjà vérifiée sur un compte MDLF y est rattachée par Supabase. Bouton dessiné par la page
+selon les règles de Google (logo « G » en couleurs ; blanc à bord gris en clair, #131314 à bord #8E918F en sombre).
+
+**Configuration Supabase lue le 25/11/2026, sans rien modifier** : fournisseur Google activé, `external_google_client_id` =
+client Web (`374163315572-ebbe…`) puis client iOS, secret du client Web réglé, contrôle du nonce actif ; `site_url` =
+`https://mdlf.app`, **`uri_allow_list` vide**.
+
+### À faire par Maxence (une fois)
+
+Supabase (tableau de bord du projet `mdlf-training` › Authentication › URL Configuration › Redirect URLs › Add URL) :
+1. ajouter `https://coach.mdlf.app/` (et `https://mdlf-coach.vercel.app/` tant que le site y est) ; ne pas toucher au
+   Site URL. Sans cette ligne, Supabase renvoie sur `https://mdlf.app` après Google, et le site dit « pas encore ouverte ».
+
+Google Cloud (console.cloud.google.com › projet « MDLF Training » › API et services › Identifiants › client OAuth
+« Web » `374163315572-ebbeq4okiit3f5pdq8hm2jkb5vhqrleq`) :
+2. **URI de redirection autorisés** : vérifier que `https://yopptmdjtnezmccdvaxf.supabase.co/auth/v1/callback` y est
+   (l'ajouter sinon). C'est l'adresse où Google renvoie dans ce flux, pas le site.
+3. **Origines JavaScript autorisées** : ajouter `https://coach.mdlf.app` (sans barre finale). Le flux par redirection
+   n'en a pas besoin, mais c'est l'origine du site, utile si un jour le bouton de Google y est chargé.
+4. Écran de consentement OAuth › Domaines autorisés : `mdlf.app` y est déjà (couvre `coach.mdlf.app`) ; rien d'autre.
+5. Enregistrer. Les changements de Google peuvent prendre de 5 minutes à quelques heures.
+
+Vérification : sur le site, « Se connecter avec Google » avec l'adresse Google du compte coach : retour sur le site,
+tableau de bord. Les adresses de prévisualisation de Vercel ne marchent pas (pas dans la liste de Supabase).
+
+## Photos de bilan (vague 5)
+
+Contrat complet, protocole et modèle de menace : **docs/PHOTOS_WEB.md**. L'onglet Bilans montre les photos face, profil,
+dos du bilan affiché et du bilan « face à », côte à côte, après « Relier cet ordinateur » une fois (QR code lu par l'app
+iPhone, code de vérification, Face ID). Agrandir : les deux bilans côte à côte, zoom commun. Réglages : « Oublier cet
+ordinateur ». CSP : `img-src blob:` en plus (photos déchiffrées). Migration `20261127040000_photos_web_appairage.sql`
+écrite, pas appliquée ; sans elle, « Relier » dit que le serveur n'a pas encore la fonction.
 
 ## Tableau de bord « Élèves »
 
@@ -349,8 +393,8 @@ barre d'onglets du bas les garde aussi (« Reçus », « Mes bilans »).
   au choix (le précédent par défaut, ou aucun) : chiffres (poids, chaque mensuration, nombres) avec leur écart
   (« −0,7 kg depuis S44 »), réponses lisibles (`checkinValueText`) avec l'écart des échelles et des suivis
   automatiques, « Pas de réponse » pour un suivi passé.
-- **Photos** : le web ne déchiffre pas encore les photos chiffrées (vague 5) ; l'écran dit seulement « 3 photos
-  envoyées, à ouvrir dans l'app iPhone », sans rien promettre de plus.
+- **Photos** (vague 5, docs/PHOTOS_WEB.md) : nombre de photos et « Relier cet ordinateur », puis « Afficher les photos » :
+  face, profil, dos des deux bilans côte à côte.
 - Réponse du coach (2000 caractères au plus, compteur) et note de la semaine 1 à 10 (`radiogroup`, jamais montrée à
   l'élève). « Brouillon » (`coach_checkin_review`, `send: false`) ; « Envoyer à <élève> » (`send: true`, puis la même
   réponse dans la conversation par `chat_send { body, student }` ; si ce second envoi échoue, l'écran le dit). Une

@@ -51,9 +51,24 @@ export default function ({ test, assert, ROOT }) {
     assert.ok(srcs.indexOf('js/desk/env.js') < srcs.indexOf('../js/data/social.js'), 'env.js avant le premier onAccountChange');
     for (const f of files) assert.ok(fs.existsSync(path.join(ROOT, f)), `${f} absent`);
     assert.doesNotMatch(html, /<script>(?!<\/script>)/, 'aucun script en ligne (CSP script-src self)');
-    assert.match(html, /script-src 'self' https:\/\/appleid\.cdn-apple\.com;/, 'seul ajout : le script de Sign in with Apple JS');
+    // Seul ajout : Sign in with Apple JS (Google passe par une redirection, sans script ni cadre : docs/COACH_WEB.md)
+    assert.match(html, /script-src 'self' https:\/\/appleid\.cdn-apple\.com;/);
     assert.match(html, /frame-src 'none'/);
+    assert.match(html, /img-src 'self' data: blob:;/, 'photos déchiffrées en blob:');
+    const vj = JSON.parse(fs.readFileSync(path.join(ROOT, 'coach-web/vercel.json'), 'utf8'));
+    const hcsp = vj.headers[0].headers.find(h => h.key === 'Content-Security-Policy').value;
+    assert.equal(hcsp, /content="(default-src[^"]+)"/.exec(html)[1] + "; frame-ancestors 'none'", 'même CSP dans la page et dans les en-têtes');
     assert.match(html, /connect-src 'self' https:\/\/yopptmdjtnezmccdvaxf\.supabase\.co https:\/\/world\.openfoodfacts\.org;/, 'plus Open Food Facts, pour un code-barres saisi (plans diète)');
+  });
+
+  test('coach web : session et vérificateur PKCE de Google dans sessionStorage, jamais dans localStorage', () => {
+    // Durée de session illimitée en prod (Supabase) : la session ne doit pas survivre à l'onglet. supabase-js range le
+    // vérificateur PKCE du flux Google sous la même clé de stockage (« <storageKey>-code-verifier ») : même endroit.
+    const got = run(`(() => { const keep = sb; let opts = null; window.supabase = { createClient: (u, k, o) => { opts = o; return { auth: {} }; } };
+      sb = null; deskClient(); const r = { session: opts.auth.storage === window.sessionStorage, local: opts.auth.storage === window.localStorage,
+        persist: opts.auth.persistSession, pkce: opts.auth.flowType, key: opts.auth.storageKey, detect: opts.auth.detectSessionInUrl };
+      sb = keep; delete window.supabase; return r; })()`);
+    assert.equal(J(got), J({ session: true, local: false, persist: true, pkce: 'pkce', key: 'mdlf-coach-web-auth', detect: false }));
   });
 
   test('coach web : même projet Supabase et même clé publique que l\'app', () => {

@@ -7,7 +7,7 @@
 //  #/plans-diete[/<plan>] Plans diète, #/eleve/<id>/nutrition/<edit | new | plan> éditeur d'un plan diète.
 //  Quitter un écran avec des changements pas enregistrés (bilan en cours d'édition, réponse en cours, programme
 //  modifié pas envoyé, plan diète pas enregistré) demande confirmation : le lien revient en arrière tant que le coach n'a pas dit oui.
-//  Connexion avec Apple (js/desk/apple.js) ou par code e-mail ; seul un compte coach validé (coach_state().is_coach) entre, et chaque RPC le revérifie
+//  Connexion avec Apple (js/desk/apple.js), Google (js/desk/google.js) ou par code e-mail ; seul un compte coach validé (coach_state().is_coach) entre, et chaque RPC le revérifie
 //  sur le serveur. 28 min sans geste : bandeau « Toujours là ? » ; 30 min : la réponse en cours part en brouillon, l'écran
 //  est vidé, puis déconnexion. Données relues au retour sur l'onglet (60 s au moins d'écart), et toutes les 90 s sur le
 //  tableau de bord et Bilans reçus quand l'onglet est visible (rien n'est redessiné si rien n'a changé).
@@ -102,8 +102,8 @@ function deskLoginHtml() {
   return `<main class="login" id="main" tabindex="-1"><div class="login-card">
     <div class="brand lg">MDLF <span>Coach</span></div>
     <h1 class="title">${email ? 'Connexion' : 'Code reçu par e-mail'}</h1>
-    <p class="sub">${email ? 'Avec le compte coach de ton app MDLF Training : Apple, ou un code à 6 chiffres reçu par e-mail.' : `Code envoyé à ${esc(l.email)}. Il est valable 10 minutes.`}</p>
-    ${email ? deskAppleButtonHtml(l.busy) : ''}
+    <p class="sub">${email ? 'Avec le compte coach de ton app MDLF Training : Apple, Google, ou un code à 6 chiffres reçu par e-mail.' : `Code envoyé à ${esc(l.email)}. Il est valable 10 minutes.`}</p>
+    ${email ? deskLoginButtonsHtml(l.busy) : ''}
     <form class="login-f" data-form="${email ? 'email' : 'code'}" novalidate>
       ${email
     ? `<label class="fld"><span>Adresse e-mail</span><input id="login-email" type="email" name="email" autocomplete="email" inputmode="email" required value="${esc(l.email)}" ${l.error ? 'aria-invalid="true" aria-describedby="login-err"' : ''}></label>`
@@ -114,15 +114,20 @@ function deskLoginHtml() {
     </form>
     <p class="note">${deskApple.state === 'off'
     ? 'Ton compte utilise seulement Apple ? La connexion avec Apple n\'a pas pu se charger (réseau, bloqueur de contenu) : recharge la page, ou ajoute ton adresse e-mail dans l\'app, Réglages › Compte › Moyens de connexion.'
-    : 'Ton compte utilise seulement Apple ? Choisis « Se connecter avec Apple », avec le même identifiant Apple que dans l\'app. La connexion avec Google arrive ensuite.'}</p>
+    : 'Ton compte utilise seulement Apple ou Google ? Choisis le même bouton que dans l\'app, avec le même identifiant.'}</p>
     <p class="note">Sur un ordinateur partagé, la session se ferme après 30 minutes sans activité.</p>
   </div></main>`;
+}
+// Apple puis Google, puis « ou » et l'e-mail (chaque bouton disparaît si son script n'a pas pu se charger)
+function deskLoginButtonsHtml(busy) {
+  const apple = deskAppleButtonHtml(busy, { separator: false });
+  return `${apple}${deskGoogleButtonHtml(busy)}<div class="or" role="separator" aria-label="ou"><span aria-hidden="true">ou</span></div>`;
 }
 function deskNotCoachHtml() {
   return `<main class="login" id="main" tabindex="-1"><div class="login-card"><div class="brand lg">MDLF <span>Coach</span></div>
     <h1 class="title">Réservé aux coachs</h1>
     <p class="sub">${view.appleNew
-    ? 'Cet identifiant Apple n\'avait pas encore de compte MDLF. Déconnecte-toi, puis reconnecte-toi avec le même identifiant Apple que dans l\'app.'
+    ? 'Cet identifiant n\'avait pas encore de compte MDLF. Déconnecte-toi, puis reconnecte-toi avec le même identifiant Apple ou Google que dans l\'app.'
     : 'Ce compte n\'est pas un compte coach validé. La demande se fait dans l\'app : Réglages › Coach › Devenir coach.'}</p>
     <button type="button" class="btn lg wide" data-action="signout">${deskIcon('signout', 'sm')}Se déconnecter</button></div></main>`;
 }
@@ -133,7 +138,8 @@ function deskSettingsHtml() {
       <div class="row"><div class="grow">Connecté${email ? ` avec ${esc(email)}` : ''}</div></div>
       ${deskHosted() ? (deskHost.exit ? `<button type="button" class="row act" data-action="host-exit">${deskIcon('back', 'sm')}<span class="grow">Revenir à l'appli</span></button>` : '')
     : `<button type="button" class="row act" data-action="signout">${deskIcon('signout', 'sm')}<span class="grow">Se déconnecter de cet ordinateur</span></button>`}
-    </div><div class="gfoot">Ton iPhone reste connecté. Sur cet ordinateur, la session se ferme aussi après 30 minutes sans activité, et rien de tes élèves n'y est gardé.</div></section>` });
+    </div><div class="gfoot">Ton iPhone reste connecté. Sur cet ordinateur, la session se ferme aussi après 30 minutes sans activité, et rien de tes élèves n'y est gardé.</div></section>
+    ${deskPhSettingsHtml()}` });
 }
 
 function deskRender(opts = {}) {
@@ -215,9 +221,13 @@ async function deskOpenStudent(id, { force = false } = {}) {
     checkins: ck.ok ? ck.data : prev?.checkins || null, ckKind: ck.ok || prev?.checkins ? null : ck.kind };
   deskRender();
 }
-async function deskEndSession({ expired = false } = {}) {
+// forget : « Se déconnecter de cet ordinateur » oublie aussi le lien des photos (ordinateur partagé) ; une session
+// fermée après 30 minutes sans geste le garde (c'est l'ordinateur du coach qui revient)
+async function deskEndSession({ expired = false, forget = false } = {}) {
+  deskPhLock('signout');
   // Embarquée dans l'app : la session appartient à l'hôte, on lui rend la main
   if (deskHosted()) { deskHost.exit?.(); return; }
+  if (forget) await deskPhForget({ server: true });
   deskWipe();
   await deskSignOut();
   if (expired) deskMarkExpired();
@@ -299,10 +309,11 @@ document.addEventListener('click', async e => {
   else if (a === 'new-invite') { const r = await deskNewInvite(); if (r.ok) { view.dash.code = r.code; view.dash.codeExpires = Date.now() + 7 * 86_400_000; deskRender(); } else deskToast(deskErrorText(r.kind)); }
   else if (a === 'more-weeks') { ui.weeks = DESK_WEEKS_MAX; deskRender(); }
   else if (a === 'reload') { if (deskRoute().name === 'student') deskOpenStudent(deskRoute().id, { force: true }); else deskRefresh({ force: true }); }
-  else if (a === 'signout') deskEndSession();
+  else if (a === 'signout') deskEndSession({ forget: true });
   else if (a === 'idle-stay') deskActivity();
   else if (a === 'host-exit') { if (await deskLeaveAllOk()) deskHost?.exit?.(); }
   else if (a === 'apple') deskAppleClick();
+  else if (a === 'google') deskGoogleClick();
   else if (a === 'login-back') { Object.assign(ui.login, { step: 'email', error: '' }); deskRender(); document.getElementById('login-email')?.focus(); }
 });
 document.addEventListener('input', e => {
@@ -396,6 +407,8 @@ window.addEventListener('hashchange', async () => {
   // Sortie de l'éditeur des plans diète (changements confirmés ou aucun) : brouillon oublié, raccourcis coupés
   if (deskDtRouteKey(from) && deskDtRouteKey(from) !== deskDtRouteKey(to)) deskDtReset();
   deskHash = location.hash || '#/';
+  // Photos de bilan : masquées dès qu'on quitte l'onglet Bilans d'un élève
+  if (!(/^#\/eleve\/[0-9a-f-]+\/bilans/i.test(deskHash))) deskPhLock('leave');
   ui.weeks = DESK_WEEKS_SHOWN;
   const route = deskRoute();
   if (route.name === 'student' && route.request) rv.sel = route.request;
@@ -435,14 +448,33 @@ setInterval(() => {
 
 // Point d'entrée unique du démarrage (le site, ou l'app iPhone qui embarque la page : window.MDLF_COACH_HOST)
 async function deskStart() {
+  // Retour de Google (?code=…) : la session vient de l'échange du code, avant tout le reste
+  const g = deskHosted() ? null : await deskGoogleReturn();
+  if (g && !g.ok && g.kind) ui.login.error = DESK_GOOGLE_TEXT[g.kind] || deskAuthText(g.kind);
+  if (g?.ok) view.appleNew = !!g.isNew;
   const r = await deskResume();
   // Embarquée : session de l'hôte refusée (expirée, autre compte) → l'hôte reprend la main
   if (!r.ok && deskHosted()) { deskHost.exit?.(); return; }
   if (!r.ok) { ui.login.error = deskAuthText(r.kind); }
   else if (r.expired || deskTakeExpired()) ui.login.error = 'Session fermée après 30 minutes sans activité : reconnecte-toi.';
   deskRender();
-  if (desk.user) deskRefresh({ force: true });
-  else deskAppleLoad();
+  if (desk.user) {
+    await deskRefresh({ force: true });
+    // Action sur les photos demandée avant le rechargement qui a retiré les scripts de connexion tiers
+    const resume = deskPhResumeTake();
+    if (resume === 'link') deskPhPairOpen();
+    else if (resume === 'show') deskPhShow();
+  } else deskAppleLoad();
 }
 deskApple.onChange = () => { if (!desk.user) deskRender(); };
+// Google : la page part chez Google (redirection), puis revient avec un code (deskStart)
+async function deskGoogleClick() {
+  const l = ui.login;
+  if (l.busy) return;
+  Object.assign(l, { busy: true, error: '' }); deskRender();
+  const r = await deskGoogleStart();
+  if (r.ok) return;
+  Object.assign(l, { busy: false, error: DESK_GOOGLE_TEXT[r.kind] || deskAuthText(r.kind) });
+  deskRender(); document.getElementById('google-signin')?.focus();
+}
 deskStart();

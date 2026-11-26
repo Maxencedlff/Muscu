@@ -269,7 +269,7 @@ function cphTeamSetupHtml(students) {
   return `
         <div class="group-title">Photos de bilan</div>
         <div class="group">
-          <div class="cell">${icon('lock', 20)}<span class="cell__body"><span class="cell__title">Réception des photos</span></span><span class="cell__value">Activée</span></div>
+          <div class="cell">${icon('lock', 20)}<span class="cell__body"><span class="cell__title">Réception des photos</span></span><span class="cell__value">Activée</span></div>${plinkCellHtml()}
         </div>
         <div class="group-foot">Chaque élève choisit les photos qu'il t'envoie. Tu les ouvres avec Face ID depuis sa fiche.</div>`;
 }
@@ -532,6 +532,7 @@ registerActions({
     const r = await cphCoachSetup({ replace: true });
     if (!r.ok) { if (!r.canceled) showToast(coachErrorText(r.kind), { error: true }); return; }
     showToast('Nouvelle clé créée');
+    plinkDevicesRefresh();   // les ordinateurs reliés sont retirés avec l'ancienne clé
     if (cphView.uid) { await cphCoachLoad(cphView.uid); cphLoadImages(cphView.uid); }
   },
 });

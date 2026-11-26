@@ -86,6 +86,8 @@ const SCRIPTS = [
   'js/data/progress-photos.js',
   'js/data/photo-vault.js',
   'js/data/coach-photos.js',
+  'js/data/photo-link.js',
+  'js/data/photo-link-phone.js',
   'js/data/profile-photo.js',
   'js/data/session-review.js',
   'js/data/health-workouts.js',
@@ -2433,6 +2435,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./coach-web-diete.mjs')).default({ test, assert, ROOT });
 (await import('./coach-web-diete-sync.mjs')).default({ test, assert, ROOT });
 (await import('./coach-web-sante.mjs')).default({ test, assert, ROOT });
+// ── Photos de bilan sur ordinateur, vague 5 (protocole « Relier un ordinateur », QR code) ──
+(await import('./photo-link.mjs')).default({ test, app, assert, ROOT });
 // ── Bilans configurables : contrat partagé app / web / serveur (tests dans bilans-contrat.mjs) ──
 (await import('./bilans-contrat.mjs')).default({ test, run, assert, sameJSON });
 // ── Bilans configurables, app de l'élève (tests dans checkins-eleve.mjs) ──

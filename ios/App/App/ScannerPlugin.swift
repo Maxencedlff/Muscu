@@ -15,28 +15,35 @@ import Capacitor
 ///
 /// scan() → { code, type: "ean13" | "ean8" | "upce" } ; rejet avec le code CANCELED (fermé sans lire),
 /// DENIED (accès à la caméra refusé), UNAVAILABLE (pas de caméra, simulateur) ou FAILED.
+/// scanQr() → { code, type: "qr" } : même lecteur, QR code seulement (« Relier cet ordinateur » de coach.mdlf.app,
+/// js/features/photo-link-ui.js, docs/PHOTOS_WEB.md) ; texte de 512 caractères au plus, mêmes rejets. Une build
+/// d'avant ne connaît pas scanQr : Capacitor rejette avec UNIMPLEMENTED, le JS demande la mise à jour.
 @objc(ScannerPlugin)
 public class ScannerPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "ScannerPlugin"
     public let jsName = "MdlfScanner"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "scanQr", returnType: CAPPluginReturnPromise),
     ]
 
     private weak var current: ScannerViewController?
 
-    @objc func scan(_ call: CAPPluginCall) {
+    @objc func scan(_ call: CAPPluginCall) { start(call, mode: .barcode) }
+    @objc func scanQr(_ call: CAPPluginCall) { start(call, mode: .qr) }
+
+    private func start(_ call: CAPPluginCall, mode: ScannerViewController.Mode) {
         guard AVCaptureDevice.default(for: .video) != nil else {
             call.reject("Pas de caméra", "UNAVAILABLE")
             return
         }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            presentScanner(call)
+            presentScanner(call, mode: mode)
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { ok in
                 DispatchQueue.main.async {
-                    if ok { self.presentScanner(call) } else { call.reject("Caméra refusée", "DENIED") }
+                    if ok { self.presentScanner(call, mode: mode) } else { call.reject("Caméra refusée", "DENIED") }
                 }
             }
         default:
@@ -44,13 +51,13 @@ public class ScannerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func presentScanner(_ call: CAPPluginCall) {
+    private func presentScanner(_ call: CAPPluginCall, mode: ScannerViewController.Mode) {
         DispatchQueue.main.async {
             guard self.current == nil, let host = self.bridge?.viewController else {
                 call.reject("Lecteur déjà ouvert", "FAILED")
                 return
             }
-            let vc = ScannerViewController { result in
+            let vc = ScannerViewController(mode: mode) { result in
                 switch result {
                 case .found(let code, let type): call.resolve(["code": code, "type": type])
                 case .canceled: call.reject("Annulé", "CANCELED")
@@ -71,6 +78,8 @@ public class ScannerPlugin: CAPPlugin, CAPBridgedPlugin {
 /// Un code lu une fois ferme le lecteur (vibration de succès) ; VoiceOver annonce l'ouverture.
 final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     enum Result { case found(String, String), canceled, failed }
+    enum Mode { case barcode, qr }
+    private let mode: Mode
 
     private let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "mdlf.scanner", qos: .userInitiated)
@@ -80,7 +89,8 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
     private var configured = false
     private let finish: (Result) -> Void
 
-    init(finish: @escaping (Result) -> Void) {
+    init(mode: Mode = .barcode, finish: @escaping (Result) -> Void) {
+        self.mode = mode
         self.finish = finish
         super.init(nibName: nil, bundle: nil)
     }
@@ -106,7 +116,7 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         view.addSubview(frameView)
 
         let hint = UILabel()
-        hint.text = "Vise le code-barres, à une vingtaine de centimètres"
+        hint.text = mode == .qr ? "Vise le QR code affiché sur l'ordinateur" : "Vise le code-barres, à une vingtaine de centimètres"
         hint.textColor = .white
         hint.font = UIFont.preferredFont(forTextStyle: .headline)
         hint.adjustsFontForContentSizeCategory = true
@@ -144,15 +154,16 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         preview?.frame = view.bounds
-        let w = min(view.bounds.width - 48, 360)
-        frameView.frame = CGRect(x: (view.bounds.width - w) / 2, y: view.bounds.midY - w * 0.3, width: w, height: w * 0.6)
+        let w = min(view.bounds.width - 48, mode == .qr ? 300 : 360)
+        let h = mode == .qr ? w : w * 0.6
+        frameView.frame = CGRect(x: (view.bounds.width - w) / 2, y: view.bounds.midY - h / 2, width: w, height: h)
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         guard configured else { close(.failed); return }
         sessionQueue.async { if !self.session.isRunning { self.session.startRunning() } }
-        UIAccessibility.post(notification: .screenChanged, argument: "Lecteur de code-barres. Vise le code-barres, à une vingtaine de centimètres.")
+        UIAccessibility.post(notification: .screenChanged, argument: mode == .qr ? "Lecteur de QR code. Vise le QR code affiché sur l'ordinateur." : "Lecteur de code-barres. Vise le code-barres, à une vingtaine de centimètres.")
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -174,7 +185,7 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         guard session.canAddOutput(output) else { session.commitConfiguration(); return false }
         session.addOutput(output)
         output.setMetadataObjectsDelegate(self, queue: .main)
-        let wanted: [AVMetadataObject.ObjectType] = [.ean13, .ean8, .upce]
+        let wanted: [AVMetadataObject.ObjectType] = mode == .qr ? [.qr] : [.ean13, .ean8, .upce]
         output.metadataObjectTypes = wanted.filter { output.availableMetadataObjectTypes.contains($0) }
         session.commitConfiguration()
         // Mise au point rapprochée (un paquet tenu à 10 cm)
@@ -185,7 +196,8 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
             // code-barres tenu près reste flou et n'est jamais lu (vu sur un pot de whey, 10/11/2026). Méthode
             // d'Apple (exemple AVCamBarcode, WWDC21) : zoomer juste assez pour qu'un code de 20 mm remplisse la
             // moitié de la largeur de l'image à la distance minimale de mise au point.
-            device.videoZoomFactor = Self.zoomForMinimumFocus(device)
+            // QR code sur un écran, tenu à 30 cm : pas de zoom
+            device.videoZoomFactor = mode == .qr ? 1 : Self.zoomForMinimumFocus(device)
             device.unlockForConfiguration()
         }
         return true
@@ -205,8 +217,14 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
     }
 
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput objects: [AVMetadataObject], from connection: AVCaptureConnection) {
-        guard !done, let obj = objects.first as? AVMetadataMachineReadableCodeObject, let value = obj.stringValue,
-              value.allSatisfy(\.isNumber), (6...14).contains(value.count) else { return }
+        guard !done, let obj = objects.first as? AVMetadataMachineReadableCodeObject, let value = obj.stringValue else { return }
+        if mode == .qr {
+            guard obj.type == .qr, !value.isEmpty, value.count <= 512 else { return }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            close(.found(value, "qr"))
+            return
+        }
+        guard value.allSatisfy(\.isNumber), (6...14).contains(value.count) else { return }
         let type: String
         switch obj.type {
         case .ean8: type = "ean8"

@@ -9,6 +9,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
 | −27 | `20261127050000_sante_coach_down.sql` (santé partagée avec le coach : consentements `health` et jours de pas, sommeil et cardio EFFACÉS ; `student_shares`, `private.share_kind_open` et la contrainte de `coach_shares.kind` reprennent le texte de 20261118010000, `coach_student_weeks` celui de −21, `private.checkin_kinds` et `private.checkin_number` celui de −22 ; tâche pg_cron `purge-sante-coach-90-jours` retirée ; refusé tant qu'un modèle de bilan a un suivi Sommeil en heures) | rien | oui (vérifié par `tests/sql/sante_coach_rollback_test.sh`) ; à défaire avant −22, −21 et le suivi de la diète (il réécrit leurs fonctions) |
+| −26 | `20261127040000_photos_web_appairage_down.sql` (« Relier cet ordinateur » : appairages en cours et ordinateurs reliés EFFACÉS, chaque ordinateur perd l'accès aux photos ; photos, clés des coachs et app intactes) | rien | oui (vérifié par `tests/sql/photos_web_appairage_rollback_test.sh`, aussi après −7) |
 | −25 | `20261127030000_bilans_accord_majeur_down.sql` (accords datés pour les bilans EFFACÉS ; plus d'accord exigé avant l'envoi ; libido et cycle de nouveau rendus sans la déclaration des 18 ans ; les déclarations « 18 ans ou plus » faites par l'accord du cycle restent dans `coach_photo_adults`) | rien | oui (vérifié par `tests/sql/bilans_accord_majeur_rollback_test.sh`, données comprises) ; à défaire avant −22 (bilans) et −7 (photos : `coach_photo_adults`) |
 | −24 | `20261127010000_blocage_coupe_coach_down.sql` (un blocage ne coupe plus le lien coach et deux comptes bloqués peuvent se relier ; les liens déjà coupés et ce que leur cascade a effacé NE REVIENNENT PAS) | rien | oui (vérifié par `tests/sql/blocage_coupe_coach_rollback_test.sh`, données comprises) |
 | −23 | `20261126010000_programmes_envoyes_coach_down.sql` (programmes envoyés relus par l'appli web du coach ; ne touche à aucune donnée, l'appli web revient à la version gardée sur le compte du coach) | rien | oui (vérifié par `tests/sql/programmes_envoyes_coach_rollback_test.sh`) |
@@ -147,6 +148,14 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
     Elle ne redéfinit aucune fonction de la 030000 (`private.checkin_kinds` et `private.checkin_number` viennent de 17) ;
     elle garde sa propre vérification du blocage (défense en profondeur) et marche avec ou sans la 010000
     (tests/sql/sante_coach_test.sql). À défaire AVANT la 030000 et la 010000 si l'on devait les défaire aussi.
+
+20. `20261127040000_photos_web_appairage.sql` (photos de bilan sur ordinateur, docs/PHOTOS_WEB.md) : APRÈS
+    `20261107000000_photos_bilan.sql` (en production), et après `20261127010000` (blocage, en production),
+    `20261127020000` (Santé) et `20261127030000` (accord des bilans) quand leurs branches passent avant ; indépendante
+    d'elles (suite SQL verte avec 010000, 030000 puis celle-ci, vérifié le 25/11/2026) ; deux tables, des RPC, un déclencheur sur `coach_photo_keys`, aucune
+    fonction existante réécrite, aucune fonction Edge. Avant le site de la vague 5 (sans elle, « Relier cet ordinateur »
+    dit que le serveur n'a pas encore la fonction). Retour arrière : le site d'avant si voulu, puis
+    `20261127040000_photos_web_appairage_down.sql`. APPLIQUÉE en production après le contre-audit (feu vert de Maxence).
 
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 

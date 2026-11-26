@@ -64,7 +64,8 @@ function deskClient() {
   if (sb) return sb;
   if (typeof supabase === 'undefined') return null;
   sb = supabase.createClient(DESK_CONFIG.url, DESK_CONFIG.publishableKey, {
-    auth: { storage: deskHosted() ? undefined : deskStore() || undefined, storageKey: DESK_AUTH_KEY, persistSession: !deskHosted(), autoRefreshToken: !deskHosted(), detectSessionInUrl: false },
+    // flowType pkce : connexion avec Google par redirection (js/desk/google.js) ; le code de retour est échangé à la main
+    auth: { storage: deskHosted() ? undefined : deskStore() || undefined, storageKey: DESK_AUTH_KEY, persistSession: !deskHosted(), autoRefreshToken: !deskHosted(), detectSessionInUrl: false, flowType: 'pkce' },
   });
   return sb;
 }

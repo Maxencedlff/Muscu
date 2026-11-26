@@ -239,7 +239,8 @@ function coachErrorKind(error) {
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
   for (const k of ['diet_not_accepted', 'not_coach', 'already_coached', 'invalid_code', 'tier_full', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
-    'empty_message', 'invalid_phase', 'overlap', 'too_many', 'not_ready', 'key_changed', 'key_exists', 'invalid_photo', 'not_uploaded', 'invalid_key', 'not_adult', 'disabled']) if (msg.includes(k)) return k;
+    'empty_message', 'invalid_phase', 'overlap', 'too_many', 'not_ready', 'key_changed', 'key_exists', 'invalid_photo', 'not_uploaded', 'invalid_key', 'not_adult', 'disabled',
+    'already_used', 'no_key', 'invalid_device']) if (msg.includes(k)) return k;   // les trois derniers : « Relier un ordinateur » (docs/PHOTOS_WEB.md)
   // Fonction absente du serveur (migration pas encore appliquée) : PostgREST répond PGRST202
   if (error.code === 'PGRST202' || /could not find the function/i.test(msg)) return 'missing';
   return 'server';

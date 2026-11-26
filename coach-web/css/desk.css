@@ -399,8 +399,6 @@ table.wk .wn { font-weight: 600; }
 .rv-bar .sel { flex: 0 1 280px; min-width: 0; }
 .rv-bar .sel select { width: 100%; background: var(--cell); }
 .cols.rvc { grid-template-columns: minmax(0, 1fr) 340px; }
-.rv-ph { margin-bottom: 16px; }
-.rv-ph .row { align-items: flex-start; }
 .rv-figs .stat { flex: 1 1 130px; }
 .rv-a { align-items: baseline; flex-wrap: wrap; }
 .rv-l { flex: 0 0 150px; color: var(--label2); }
@@ -690,3 +688,51 @@ dialog.dt-dlg { width: min(640px, calc(100vw - 32px)); }
   .dt-modes .seg { width: 100%; }
   .dt-modes .seg button { flex: 1 1 auto; }
 }
+/* ── Connexion avec Google (js/desk/google.js) : règles de Google (fond blanc et bord gris en clair, #131314 et bord
+   #8E918F en sombre, logo « G » en couleurs, Roboto ou la police du système) ── */
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 50px; margin-top: 10px; border-radius: 12px;
+  background: #FFFFFF; color: #1F1F1F; border: 1px solid #747775; font: 500 16px/1 var(--font); }
+.google-btn .google-logo { width: 20px; height: 20px; flex: none; }
+.google-btn[disabled] { opacity: .55; cursor: default; }
+@media (prefers-color-scheme: dark) { .google-btn { background: #131314; color: #E3E3E3; border-color: #8E918F; } }
+
+/* ── Photos de bilan (vague 5, js/desk/photos.js) ── */
+.ph-sec { margin-bottom: 18px; }
+.group.pad-s { padding: 4px 0; }
+.ph-intro { gap: 12px; flex-wrap: wrap; }
+.ph-intro .btn { margin-left: auto; }
+.ph-grid { display: grid; gap: 10px; padding: 12px; }
+.ph-grid .ph-h, .ph-grid .ph-r { display: grid; gap: 10px; align-items: center; grid-template-columns: 64px repeat(var(--n, 1), minmax(0, 200px)); }
+.ph-grid.c1 { --n: 1; } .ph-grid.c2 { --n: 2; }
+.ph-h { color: var(--label2); font-size: 13.5px; font-weight: 600; }
+.ph-pose { color: var(--label2); font-size: 13.5px; }
+.ph-cell { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 3 / 4; border-radius: 10px; background: var(--cell2); overflow: hidden; min-height: 44px; }
+.ph-cell img { width: 100%; height: 100%; object-fit: contain; -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
+.ph-cell.none { font-size: 13.5px; text-align: center; padding: 8px; }
+.ph-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ph-foot .grow { flex: 1 1 260px; }
+
+/* Relier cet ordinateur : QR code toujours noir sur blanc (lisible en sombre), code de vérification en grand */
+dialog.phl { width: min(460px, calc(100vw - 32px)); }
+.phl-qr { display: flex; justify-content: center; margin: 14px 0; }
+svg.qr { width: min(300px, 70vw); height: auto; border-radius: 10px; }
+.qr-bg { fill: #FFFFFF; }
+.qr-fg { fill: #000000; }
+.phl-steps { margin: 0 0 8px 20px; list-style: decimal; color: var(--label2); line-height: 1.6; }
+.phl-sas { font: 700 44px/1.1 var(--font-num); letter-spacing: .04em; text-align: center; margin: 18px 0; font-variant-numeric: tabular-nums; }
+
+/* Agrandir : plein écran, deux bilans côte à côte, zoom commun */
+dialog.phz { width: calc(100vw - 24px); max-width: none; height: calc(100vh - 24px); max-height: none; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+dialog.phz:not([open]) { display: none; }
+.phz-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.phz-head .dlg-t { margin: 0 8px 0 4px; }
+.phz-tools { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.phz-z { min-width: 56px; text-align: center; color: var(--label2); font-variant-numeric: tabular-nums; }
+.phz-panes { flex: 1; display: grid; gap: 10px; min-height: 0; }
+.phz-panes.c2 { grid-template-columns: 1fr 1fr; }
+.phz-pane { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.phz-pane figcaption { color: var(--label2); font-size: 13.5px; font-weight: 600; }
+.phz-view { flex: 1; min-height: 0; overflow: hidden; border-radius: 10px; background: var(--cell2); display: flex; align-items: center; justify-content: center; touch-action: none; cursor: zoom-in; }
+dialog.phz.zoomed .phz-view { cursor: grab; }
+.phz-view img { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center; user-select: none; -webkit-user-drag: none; }
+@media (max-width: 899px) { .phz-panes.c2 { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }

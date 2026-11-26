@@ -200,7 +200,12 @@ export default function ({ test, assert, ROOT }) {
     const p = run(`deskRvPanelHtml({ checkins: ${J(list())}, now: ${NOW} }, ${J(rows[0])})`);
     assert.doesNotMatch(p, /<b>Le soir<\/b>|<img src=x/);
     assert.match(p, /&lt;b&gt;Le soir/);
-    assert.match(p, /2 photos envoyées, à ouvrir dans l'app iPhone/, 'photos : rien de promis que le web ne sait faire');
+    // Photos (vague 5) : ordinateur pas encore relié (aucune entrée) : le nombre et « Relier cet ordinateur », rien d'affiché
+    run('ph.entry = null');
+    const p2 = run(`deskRvPanelHtml({ checkins: ${J(list())}, now: ${NOW} }, ${J(rows[0])})`);
+    assert.match(p2, /2 photos envoyées/);
+    assert.match(p2, /data-ph="link"/);
+    assert.doesNotMatch(p2, /<img /, 'aucune image sans ordinateur relié');
     assert.match(p, /role="radiogroup"/);
   });
 }
