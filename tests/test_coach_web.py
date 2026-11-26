@@ -87,9 +87,9 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         # Rien des élèves sur l'appareil : seules la session et l'heure du dernier geste
         # (mdlf_push_ask et mdlf_push_remind : posées par le faux serveur lui-même, tests/fake_account.py)
         keys = page.evaluate("Object.keys(localStorage).filter(k => !['mdlf_push_ask', 'mdlf_push_remind'].includes(k)).sort()")
-        check(keys == [], f'{tag} : localStorage {keys}')
+        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : localStorage {keys}')  # « Rester connecté », coché par défaut
         keys = page.evaluate("Object.keys(sessionStorage).sort()")
-        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : sessionStorage {keys}')
+        check(keys == [], f'{tag} : sessionStorage {keys}')
     except Exception:
         os.makedirs(FAILS, exist_ok=True)
         page.screenshot(path=os.path.join(FAILS, tag.replace(' ', '_') + '.png'), full_page=True)

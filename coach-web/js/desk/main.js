@@ -25,6 +25,7 @@ const DESK_EXPIRED_TEXT = {
   idle: 'Session fermée après 30 minutes sans activité : reconnecte-toi.',
   keep: 'Session fermée après 90 jours sans visite : reconnecte-toi.',
   moved: '« Rester connecté sur cet ordinateur » a changé dans un autre onglet : reconnecte-toi ici.',
+  out: 'Tu t’es déconnecté dans un autre onglet : reconnecte-toi ici.',
 };
 // Interrupteur « Rester connecté sur cet ordinateur » (écran de connexion et Réglages)
 function deskKeepRowHtml(where) {
@@ -326,14 +327,17 @@ function deskKeepToggle(where) {
 }
 // Choix changé dans un autre onglet (la session y a été déplacée) : la réponse en cours part en brouillon tant que la
 // session est encore en mémoire, l'écran est vidé, puis la page se recharge et le dit. Écran de connexion : l'interrupteur
-// est redessiné. Jamais embarquée (pas de choix).
+// est redessiné. Avec « Rester connecté », la session est partagée par les onglets : effacée dans un autre (« Se
+// déconnecter », alors que le choix, coché par défaut, n'était peut-être écrit nulle part), même fermeture ici.
+// Jamais embarquée (pas de choix).
 window.addEventListener('storage', async e => {
-  if ((e.key !== DESK_KEEP_KEY && e.key !== null) || deskHosted() || deskIdleEnding) return;
+  const out = e.key === DESK_AUTH_KEY && e.newValue === null && deskKeep();
+  if ((e.key !== DESK_KEEP_KEY && e.key !== null && !out) || deskHosted() || deskIdleEnding) return;
   if (!desk.user) { deskPainted = ''; deskRender(); return; }
   deskIdleEnding = true;
   deskWipe();
   await Promise.race([deskRvSaveDrafts(), new Promise(r => setTimeout(r, 8000))]);
-  try { window.sessionStorage.setItem(DESK_MOVED_KEY, '1'); } catch { /* message perdu */ }
+  try { window.sessionStorage.setItem(DESK_MOVED_KEY, out ? 'out' : '1'); } catch { /* message perdu */ }
   location.reload();
 });
 
@@ -522,7 +526,10 @@ async function deskStart() {
   if (!r.ok) { ui.login.error = deskAuthText(r.kind); }
   let info = '';
   if (r.ok && (r.expired || deskTakeExpired())) info = DESK_EXPIRED_TEXT[deskKeep() ? 'keep' : 'idle'];
-  try { if (window.sessionStorage.getItem(DESK_MOVED_KEY)) { window.sessionStorage.removeItem(DESK_MOVED_KEY); if (r.ok && !desk.user) info = DESK_EXPIRED_TEXT.moved; } } catch { /* rien */ }
+  try {
+    const mv = window.sessionStorage.getItem(DESK_MOVED_KEY);
+    if (mv) { window.sessionStorage.removeItem(DESK_MOVED_KEY); if (r.ok && !desk.user) info = DESK_EXPIRED_TEXT[mv === 'out' ? 'out' : 'moved']; }
+  } catch { /* rien */ }
   deskRender();
   // Information écrite APRÈS le premier rendu : une zone role=status n'est annoncée que si son contenu change
   if (info && !desk.user) setTimeout(() => { ui.login.info = info; const el = document.getElementById('login-info'); if (el) el.textContent = info; deskPainted = ''; }, 150);

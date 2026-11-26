@@ -61,23 +61,34 @@ export default function ({ test, assert, ROOT }) {
     assert.match(html, /connect-src 'self' https:\/\/yopptmdjtnezmccdvaxf\.supabase\.co https:\/\/world\.openfoodfacts\.org;/, 'plus Open Food Facts, pour un code-barres saisi (plans diète)');
   });
 
-  test('coach web : session et vérificateur PKCE dans sessionStorage par défaut, jamais dans localStorage', () => {
-    // Durée de session illimitée en prod (Supabase) : sans « Rester connecté », la session ne doit pas survivre à
-    // l'onglet. supabase-js range le vérificateur PKCE du flux Google sous la même clé (« <storageKey>-code-verifier ») :
-    // il passe par le même stockage (deskAuthStorage), qui suit le choix.
-    storage.clear(); session.clear();
-    const got = run(`(() => { const keep = sb; let opts = null; window.supabase = { createClient: (u, k, o) => { opts = o; return { auth: {} }; } };
+  test('coach web : session et vérificateur PKCE dans localStorage par défaut (case cochée), dans l\'onglet seulement une fois décochée', () => {
+    // « Rester connecté » coché par défaut (26/11/2026) : sans choix écrit, la session est gardée sur l'ordinateur.
+    // Décochée ('0', ordinateur partagé), elle ne survit pas à l'onglet. supabase-js range le vérificateur PKCE du flux
+    // Google sous la même clé (« <storageKey>-code-verifier ») : il passe par le même stockage (deskAuthStorage), qui suit le choix.
+    const probe = () => run(`(() => { const keep = sb; let opts = null; window.supabase = { createClient: (u, k, o) => { opts = o; return { auth: {} }; } };
       sb = null; deskClient(); opts.auth.storage.setItem('mdlf-coach-web-auth-code-verifier', 'v'); opts.auth.storage.setItem('mdlf-coach-web-auth', 's');
       const r = { adapter: opts.auth.storage === deskAuthStorage, persist: opts.auth.persistSession, pkce: opts.auth.flowType, key: opts.auth.storageKey, detect: opts.auth.detectSessionInUrl,
-        tab: window.sessionStorage.getItem('mdlf-coach-web-auth-code-verifier') + window.sessionStorage.getItem('mdlf-coach-web-auth'), local: window.localStorage.length };
+        tab: [window.sessionStorage.getItem('mdlf-coach-web-auth-code-verifier'), window.sessionStorage.getItem('mdlf-coach-web-auth')].join('|'),
+        local: [window.localStorage.getItem('mdlf-coach-web-auth-code-verifier'), window.localStorage.getItem('mdlf-coach-web-auth')].join('|') };
       sb = keep; delete window.supabase; return r; })()`);
-    assert.equal(J(got), J({ adapter: true, persist: true, pkce: 'pkce', key: 'mdlf-coach-web-auth', detect: false, tab: 'vs', local: 0 }));
-    session.clear();
+    const base = { adapter: true, persist: true, pkce: 'pkce', key: 'mdlf-coach-web-auth', detect: false };
+    storage.clear(); session.clear();
+    assert.equal(J(probe()), J({ ...base, tab: '|', local: 'v|s' }), 'cochée par défaut : localStorage');
+    storage.clear(); session.clear();
+    storage.setItem('mdlf_coach_web_keep', '0');
+    assert.equal(J(probe()), J({ ...base, tab: 'v|s', local: '|' }), 'décochée : onglet seulement');
+    storage.clear(); session.clear();
   });
 
   test('coach web : « Rester connecté » range session, vérificateur et dernier geste dans localStorage, 90 jours glissants', async () => {
     storage.clear(); session.clear();
-    assert.equal(run('deskKeep()'), false, 'décoché par défaut');
+    assert.equal(run('deskKeep()'), true, 'coché par défaut, sans rien écrire');
+    assert.equal(run('deskIdleLimit()'), 90 * 86_400_000);
+    assert.equal(storage.length, 0);
+    // Décochée (ordinateur partagé) : seul ce choix est écrit, 30 minutes
+    assert.equal(run('deskSetKeep(false)'), true);
+    assert.equal(J([storage.getItem('mdlf_coach_web_keep'), storage.length]), J(['0', 1]));
+    assert.equal(run('deskKeep()'), false);
     assert.equal(run('deskIdleLimit()'), 30 * 60_000);
     // Session en cours dans l'onglet, puis case cochée : tout passe dans localStorage, rien ne reste dans l'onglet
     session.setItem('mdlf-coach-web-auth', 'jeton'); session.setItem('mdlf-coach-web-auth-code-verifier', 'v'); session.setItem('mdlf_coach_web_active', '1000');
@@ -98,7 +109,7 @@ export default function ({ test, assert, ROOT }) {
     assert.ok(run('deskIdleFor(1_000_000 + 91 * 86_400_000) > deskIdleLimit()'));
     // Décochée : retour dans l'onglet, plus rien dans localStorage
     assert.equal(run('deskSetKeep(false)'), true);
-    assert.equal(storage.length, 0, 'localStorage vidé');
+    assert.equal(J([storage.length, storage.getItem('mdlf_coach_web_keep')]), J([1, '0']), 'localStorage vidé, sauf la décoche');
     assert.equal(session.getItem('mdlf-coach-web-auth'), 'jeton');
     assert.equal(run('deskIdleLimit()'), 30 * 60_000);
     // « Se déconnecter » (forgetKeep) efface tout, choix compris ; une fin pour inactivité garde le choix
@@ -110,6 +121,11 @@ export default function ({ test, assert, ROOT }) {
     storage.setItem('mdlf-coach-web-auth', 'jeton');
     await run('deskSignOut({ forgetKeep: true })');
     assert.equal(storage.length + session.length, 0, '« Se déconnecter » : plus rien');
+    assert.equal(run('deskKeep()'), true, 'après « Se déconnecter », retour au défaut coché');
+    // Une décoche est aussi oubliée par « Se déconnecter »
+    run('deskSetKeep(false)');
+    await run('deskSignOut({ forgetKeep: true })');
+    assert.equal(J([storage.length + session.length, run('deskKeep()')]), J([0, true]));
     run('sb = null'); delete ctx.supabase;
     // Embarquée dans l'app : test « embarquée dans l'app, jamais Rester connecté »
   });
@@ -119,6 +135,7 @@ export default function ({ test, assert, ROOT }) {
     const req = createRequire(path.join(ROOT, 'package.json'));
     const { GoTrueClient } = req('@supabase/auth-js');
     storage.clear(); session.clear();
+    storage.setItem('mdlf_coach_web_keep', '0');   // décochée : la connexion commence dans l'onglet
     const st = run('deskAuthStorage');
     const c = new GoTrueClient({ url: 'https://exemple.invalid/auth/v1', storageKey: 'mdlf-coach-web-auth', storage: st, flowType: 'pkce', persistSession: true,
       autoRefreshToken: false, detectSessionInUrl: false, fetch: async () => new Response('{}', { status: 400 }) });
@@ -126,11 +143,11 @@ export default function ({ test, assert, ROOT }) {
     const written = [];
     for (let i = 0; i < session.length; i++) written.push(session.key(i));
     assert.ok(written.length >= 1 && written.every(k => k.startsWith('mdlf-coach-web-auth')), `clés écrites : ${written}`);
-    assert.equal(storage.length, 0, 'décoché : rien dans localStorage');
+    assert.equal(storage.length, 1, 'décochée : rien dans localStorage que la décoche');
     run('deskSetKeep(true)');
     assert.equal(session.length, 0, `cochée : il reste dans l'onglet ${written}`);
     run('deskSetKeep(false)');
-    assert.equal(storage.length, 0, 'décochée : localStorage vidé');
+    assert.equal(storage.length, 1, 'décochée : localStorage vidé, sauf la décoche');
     run('deskSetKeep(true)');
     ctx.supabase = { createClient: () => ({ auth: { signOut: async () => ({ error: null }) } }) };
     run('sb = null');
@@ -154,6 +171,30 @@ export default function ({ test, assert, ROOT }) {
     assert.equal(h('deskSetKeep(true)'), false, 'choix refusé');
     assert.equal(h('deskIdleLimit()'), 30 * 60_000);
     assert.equal(J([mem.length, mem.getItem('mdlf_coach_web_keep'), tab.length]), J([1, '1', 0]), 'stockage pas touché');
+    mem.clear();
+    assert.equal(h('deskKeep()'), false, 'ni le défaut coché');
+  });
+
+  test('coach web : onglet ouvert avant le défaut coché, sa session passe sur l\'ordinateur au rechargement (sauf session déjà gardée)', () => {
+    const load = (mem, tab) => {
+      const box = { console, setTimeout, clearTimeout, Intl, atob, btoa, TextEncoder, TextDecoder, crypto: globalThis.crypto, localStorage: mem, sessionStorage: tab,
+        navigator: {}, addEventListener() {}, document: { querySelector: () => null, getElementById: () => null, addEventListener() {} } };
+      box.window = box;
+      const c = vm.createContext(box);
+      for (const f of files.filter(f => !f.endsWith('main.js'))) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), c, { filename: f });
+    };
+    let mem = new MemoryStorage(), tab = new MemoryStorage();
+    tab.setItem('mdlf-coach-web-auth', 'onglet'); tab.setItem('mdlf_coach_web_active', '5'); tab.setItem('autre-site', 'x');
+    load(mem, tab);
+    assert.equal(J([mem.getItem('mdlf-coach-web-auth'), mem.getItem('mdlf_coach_web_active'), tab.getItem('mdlf-coach-web-auth'), tab.getItem('autre-site')]), J(['onglet', '5', null, 'x']));
+    mem = new MemoryStorage(); tab = new MemoryStorage();
+    mem.setItem('mdlf-coach-web-auth', 'gardée'); tab.setItem('mdlf-coach-web-auth', 'onglet');
+    load(mem, tab);
+    assert.equal(J([mem.getItem('mdlf-coach-web-auth'), tab.length]), J(['gardée', 0]), 'la session gardée sur l\'ordinateur sert');
+    mem = new MemoryStorage(); tab = new MemoryStorage();
+    mem.setItem('mdlf_coach_web_keep', '0'); mem.setItem('mdlf-coach-web-auth', 'ancienne'); tab.setItem('mdlf-coach-web-auth', 'onglet');
+    load(mem, tab);
+    assert.equal(J([mem.getItem('mdlf-coach-web-auth'), tab.getItem('mdlf-coach-web-auth')]), J([null, 'onglet']), 'décochée : rien sur l\'ordinateur');
   });
 
   test('coach web : même projet Supabase et même clé publique que l\'app', () => {

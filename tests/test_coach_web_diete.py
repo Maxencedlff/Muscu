@@ -111,9 +111,9 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         check(not page.evaluate('window.__csp || []'), f'{tag} : CSP {page.evaluate("window.__csp")}')
         check(not page.errors, f'{tag} : erreurs {page.errors}')
         keys = page.evaluate("Object.keys(localStorage).filter(k => !['mdlf_push_ask', 'mdlf_push_remind'].includes(k)).sort()")
-        check(keys == [], f'{tag} : localStorage {keys}')
+        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : localStorage {keys}')  # « Rester connecté », coché par défaut
         keys = page.evaluate("Object.keys(sessionStorage).sort()")
-        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : sessionStorage {keys}')
+        check(keys == [], f'{tag} : sessionStorage {keys}')
     except Exception:
         shot_fail(page, tag)
         raise

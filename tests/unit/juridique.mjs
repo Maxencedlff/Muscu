@@ -36,10 +36,13 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(page.includes('id="sauvegardes"') && page.includes('id="backups"'), 'ancres FR et EN');
     // Date de mise à jour, FR et EN, identiques
     assert.ok(fr.includes('mise à jour le 26 novembre 2026') && en.includes('updated November 26, 2026'), 'date du 26/11/2026 (session du site du coach)');
-    // Site du coach : session gardée dans le navigateur, « Rester connecté » décochée par défaut, 90 jours (FR et EN)
+    // Site du coach : session gardée dans le navigateur, « Rester connecté » cochée par défaut (26/11/2026), 90 jours,
+    // à décocher sur un ordinateur partagé (FR et EN)
     assert.ok(fr.includes('id="session-site-coach"') && en.includes('id="coach-site-session"'), 'session du site du coach, FR et EN');
-    assert.ok(/Rester connecté sur cet ordinateur[^<]*décochée par défaut[^<]*localStorage[^<]*90 jours/.test(fr.replace(/&nbsp;/g, ' ')), 'FR : rester connecté');
-    assert.ok(/Stay signed in on this computer; unticked by default[^<]*localStorage[^<]*90 days/.test(en), 'EN : stay signed in');
+    const plain = t => t.replace(/&nbsp;/g, ' ').replace(/<[^>]+>/g, '');
+    assert.ok(/Rester connecté sur cet ordinateur » est cochée par défaut[^.]*localStorage[^.]*90 jours[^]*?Sur un ordinateur partagé, décoche-la/.test(plain(fr)), 'FR : rester connecté');
+    assert.ok(/Stay signed in on this computer\) box is ticked by default[^.]*localStorage[^.]*90 days[^]*?On a shared computer, untick it/.test(plain(en)), 'EN : stay signed in');
+    assert.ok(!/décochée par défaut, à réserver|unticked by default, for your/.test(page), 'plus de « décochée par défaut » pour le site du coach');
     // Bilans (audit du site coach, B2) : section FR et EN, données de santé, art. 9, cycle et 18 ans, conservation
     assert.ok(page.includes('id="bilans"') && page.includes('id="bilans-en"'), 'section Bilans, FR et EN');
     assert.ok(/9[^<]{0,12}2[^<]{0,6}a/.test(fr) && /18 ans/.test(fr) && /24 mois/.test(fr) && /24 months/.test(en), 'bilans : art. 9, 18 ans, 24 mois');

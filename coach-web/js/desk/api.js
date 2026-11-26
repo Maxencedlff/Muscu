@@ -5,13 +5,13 @@
 //    security definer et de la RLS, chacune vérifie auth.uid() et le lien coach ↔ élève). Adresse et clé identiques à
 //    ACCOUNT_CONFIG de js/data/account.js (vérifié par tests/unit/coach-web.mjs).
 //  - Connexion par code à 6 chiffres reçu par e-mail (signInWithOtp sans création de compte, puis verifyOtp).
-//  - Ordinateur parfois partagé (par défaut) : session fermée après 30 min sans geste (aussi au rechargement) et à la
+//  - « Rester connecté sur cet ordinateur » (case de l'écran de connexion et des Réglages, cochée par défaut depuis le
+//    26/11/2026 ; seule une décoche est écrite, '0' dans localStorage sous DESK_KEEP_KEY) : session, vérificateur PKCE
+//    et heure du dernier geste dans localStorage ; fermée seulement après 90 jours sans aucune ouverture du site
+//    (fenêtre glissante, sans durée maximale, comme l'app iPhone) ou à « Se déconnecter », qui efface tout, choix
+//    compris (il revient donc au défaut coché). Pas de bandeau « Toujours là ? ». docs/COACH_WEB.md.
+//  - Case décochée (ordinateur partagé) : session fermée après 30 min sans geste (aussi au rechargement) et à la
 //    fermeture de l'onglet (sessionStorage, propre à l'onglet), « Se déconnecter de cet ordinateur ».
-//  - « Rester connecté sur cet ordinateur » (case de l'écran de connexion et des Réglages, décochée par défaut, choix
-//    gardé dans localStorage sous DESK_KEEP_KEY) : session, vérificateur PKCE et heure du dernier geste dans
-//    localStorage ; fermée seulement après 90 jours sans aucune ouverture du site (fenêtre glissante, sans durée
-//    maximale, comme l'app iPhone) ou à « Se déconnecter », qui efface tout, choix compris. Pas de bandeau
-//    « Toujours là ? ». docs/COACH_WEB.md, « Rester connecté sur cet ordinateur ».
 //  - Seuls la session de Supabase, l'heure du dernier geste et ce choix sont gardés ; les données des élèves restent
 //    en mémoire, jamais dans sessionStorage, localStorage ni IndexedDB.
 //  - Chaque appel rend { ok: true, data } ou { ok: false, kind } (kinds de coachErrorKind ; 'missing' : fonction
@@ -26,10 +26,10 @@ const DESK_CONFIG = Object.freeze({
 const DESK_AUTH_KEY = 'mdlf-coach-web-auth';     // session de supabase-js
 const DESK_ACTIVE_KEY = 'mdlf_coach_web_active'; // heure du dernier geste (ms), rien d'autre
 const DESK_EXPIRED_KEY = 'mdlf_coach_web_expired'; // « fermée pour inactivité », lu une fois après le rechargement
-const DESK_KEEP_KEY = 'mdlf_coach_web_keep';     // localStorage : '1' = « Rester connecté sur cet ordinateur »
+const DESK_KEEP_KEY = 'mdlf_coach_web_keep';     // localStorage : '0' = décochée ; absente ou '1' = « Rester connecté » (défaut)
 const DESK_IDLE_MS = 30 * 60_000;
 const DESK_KEEP_IDLE_MS = 90 * 86_400_000;        // avec « Rester connecté » : 90 jours sans aucune ouverture
-const DESK_MOVED_KEY = 'mdlf_coach_web_moved';  // sessionStorage : choix changé dans un autre onglet, dit après le rechargement
+const DESK_MOVED_KEY = 'mdlf_coach_web_moved';  // sessionStorage : choix changé ('1') ou déconnexion ('out') dans un autre onglet, dit après le rechargement
 // Clés qui suivent le choix : toutes celles de supabase-js, qui commencent par DESK_AUTH_KEY (session, utilisateur,
 // vérificateurs PKCE : « -code-verifier », « -flows-code-verifier », « -flow-<id>-code-verifier » en 2.118, et ce
 // qu'une version suivante ajouterait), plus l'heure du dernier geste et la marque « fermée pour inactivité ». Par
@@ -67,7 +67,8 @@ const deskHosted = () => !!deskHost?.session;
 // « Rester connecté sur cet ordinateur » : jamais embarquée dans l'app (la session appartient à l'hôte)
 function deskKeep() {
   if (deskHosted()) return false;
-  try { return window.localStorage.getItem(DESK_KEEP_KEY) === '1'; } catch { return false; }
+  // Cochée par défaut (choix de Maxence du 26/11/2026) : seule une décoche explicite ('0') revient à la session d'onglet
+  try { return window.localStorage.getItem(DESK_KEEP_KEY) !== '0'; } catch { return false; }
 }
 // Par défaut sessionStorage : fermer l'onglet ferme la session (un autre onglet se connecte de son côté) ;
 // avec « Rester connecté », localStorage
@@ -87,19 +88,25 @@ function deskSetKeep(on) {
   if (deskHosted()) return false;
   try {
     const from = on ? window.sessionStorage : window.localStorage, to = on ? window.localStorage : window.sessionStorage;
-    if (on) window.localStorage.setItem(DESK_KEEP_KEY, '1');
+    window.localStorage.setItem(DESK_KEEP_KEY, on ? '1' : '0');
     for (const k of deskOwnKeys(from)) { const v = from.getItem(k); if (v !== null) to.setItem(k, v); from.removeItem(k); }
-    if (!on) window.localStorage.removeItem(DESK_KEEP_KEY);
     return true;
   } catch { return false; }
 }
 // Au chargement, l'autre stockage est vidé : sans « Rester connecté », une session laissée dans localStorage par une
 // version d'avant (ou un choix retiré dans un autre onglet) ; avec, la session propre à cet onglet d'avant le choix
-// (cochée dans un autre onglet : c'est la session gardée sur l'ordinateur qui sert)
+// (cochée dans un autre onglet : c'est la session gardée sur l'ordinateur qui sert). Sans session gardée sur
+// l'ordinateur, celle de l'onglet y passe : onglet ouvert avant que la case soit cochée par défaut (26/11/2026), qui
+// reste connecté au rechargement.
 if (!deskHosted()) {
   try {
-    const other = deskKeep() ? window.sessionStorage : window.localStorage;
-    for (const k of deskOwnKeys(other, { expired: false })) other.removeItem(k);
+    const keep = deskKeep(), other = keep ? window.sessionStorage : window.localStorage;
+    const adopt = keep && window.localStorage.getItem(DESK_AUTH_KEY) === null;
+    for (const k of deskOwnKeys(other, { expired: false })) {
+      const v = other.getItem(k);
+      if (adopt && v !== null) window.localStorage.setItem(k, v);
+      other.removeItem(k);
+    }
   } catch { /* stockage bloqué */ }
 }
 function deskMarkExpired() { try { deskStore()?.setItem(DESK_EXPIRED_KEY, '1'); } catch { /* stockage bloqué */ } }

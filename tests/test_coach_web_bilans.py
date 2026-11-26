@@ -10,7 +10,7 @@ Chaque combinaison : signal « Bilan reçu, à répondre » du tableau de bord, 
 type et échelle, réordonner au glisser et au bouton, question perso, fréquence, jour, rappel, date limite,
 destinataires élève et groupe, fréquence propre d'un élève, enregistrer, aperçu, confirmation avant de quitter,
 dupliquer, supprimer, envoyer maintenant) ; cibles de 44 px, pas de défilement en largeur, fond noir pur en sombre,
-aucune erreur, CSP, rien d'élève dans le navigateur (session dans sessionStorage). Puis, par moteur : serveur sans la migration.
+aucune erreur, CSP, rien d'élève dans le navigateur (seulement la session, « Rester connecté » étant coché par défaut). Puis, par moteur : serveur sans la migration.
 Faux serveur : tests/fake_account.py + tests/fake_checkins.py ; données : tests/coach_web_fixtures.py (aucun réseau,
 code factice). Un navigateur à la fois, sans fenêtre. Captures des échecs dans $PPL_SCRATCH/shots/coach-web-echecs/.
 """
@@ -308,9 +308,9 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         review_flow(page, tag, theme, touch, w)
         editor_flow(page, tag, theme, touch, w)
         keys = page.evaluate("Object.keys(localStorage).filter(k => !['mdlf_push_ask', 'mdlf_push_remind'].includes(k)).sort()")
-        check(keys == [], f'{tag} : localStorage {keys}')
+        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : localStorage {keys}')  # « Rester connecté », coché par défaut
         keys = page.evaluate("Object.keys(sessionStorage).sort()")
-        check(keys == ['mdlf-coach-web-auth', 'mdlf_coach_web_active'], f'{tag} : sessionStorage {keys}')
+        check(keys == [], f'{tag} : sessionStorage {keys}')
     except Exception:
         os.makedirs(FAILS, exist_ok=True)
         page.screenshot(path=os.path.join(FAILS, 'bilans_' + tag.replace(' ', '_') + '.png'), full_page=True)
@@ -393,10 +393,21 @@ def draft_kept(browser, url, engine):
 
 
 def idle_end(browser, url, engine):
-    """28 min sans geste : « Toujours là ? », « Continuer » garde la session. 30 min : la réponse en cours part en
-    brouillon sur le serveur, l'écran est vidé avant le rechargement, puis l'écran de connexion le dit."""
-    ctx, page = open_desk(browser, url, width=1440, checkins=True)
+    """Case « Rester connecté » décochée (ordinateur partagé ; cochée par défaut) : 28 min sans geste, « Toujours là ? »,
+    « Continuer » garde la session. 30 min : la réponse en cours part en brouillon sur le serveur, l'écran est vidé
+    avant le rechargement, puis l'écran de connexion le dit."""
+    ctx, page = open_desk(browser, url, width=1440, checkins=True, login=False)
     try:
+        check(page.get_attribute('#keep-login', 'aria-checked') == 'true', f'{engine} : case pas cochée par défaut')
+        page.click('#keep-login')
+        check(page.get_attribute('#keep-login', 'aria-checked') == 'false', f'{engine} : case pas décochée')
+        page.fill('#login-email', COACH_EMAIL)
+        page.click('form[data-form="email"] button')
+        page.wait_for_selector('#login-code')
+        page.fill('#login-code', FAKE_CODE)
+        page.click('form[data-form="code"] button')
+        page.wait_for_selector('.lst, .empty:not([role="status"])')
+        check(page.evaluate("Object.keys(sessionStorage).includes('mdlf-coach-web-auth') && !localStorage.getItem('mdlf-coach-web-auth')"), f'{engine} : session pas dans l\'onglet')
         last = page.evaluate('window.__leaLast')
         go(page, '#/eleve/' + page.evaluate('window.__lea') + '/bilans')
         page.wait_for_selector('#rv-reply')
@@ -432,7 +443,8 @@ def idle_end(browser, url, engine):
         b = page.locator('#login-info').bounding_box(); f = page.locator('#login-email').bounding_box()
         check(b['y'] < f['y'], f'{engine} : information pas en haut du formulaire')
         left = page.evaluate("Object.keys(sessionStorage).filter(k => k !== '__t').concat(Object.keys(localStorage).filter(k => !k.startsWith('mdlf_push_')))")
-        check(left == [], f'{engine} : il reste {left}')
+        check(left == ['mdlf_coach_web_keep'] and page.evaluate("localStorage.getItem('mdlf_coach_web_keep')") == '0', f'{engine} : il reste {left}')
+        check(page.get_attribute('#keep-login', 'aria-checked') == 'false', f'{engine} : décoche oubliée après la fin pour inactivité')
     finally:
         ctx.close()
 
