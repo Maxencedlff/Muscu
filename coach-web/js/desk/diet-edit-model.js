@@ -40,7 +40,7 @@ function deskDtDaysWord(plan) { return (DESK_DT_MODES.find(([m]) => m === (plan?
 // ── Brouillon ──
 
 const deskDtClone = o => JSON.parse(JSON.stringify(o));
-// Plan neuf (4 repas de base, comme « Créer une diète » de l'app pour un coach : jamais suivi par lui) → { id, plan }
+// Plan neuf (4 repas de base, comme « Créer un plan » de l'app pour un coach : jamais suivi par lui) → { id, plan }
 // ou { kind: 'plans_full' } (100 plans vivants au plus)
 function deskDtNew(acc, name) {
   const d = { dietPlans: { ...(acc?.dietPlans || {}) } };

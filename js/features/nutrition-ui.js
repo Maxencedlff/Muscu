@@ -66,7 +66,8 @@ function dietMacroWords(m, fmt = dietN) { return `${fmt(m.p)} g de protéines, $
 function dietMacroLegendHtml(extra = '', { dots = true } = {}) {
   if (data.dietHideNumbers === true) return '';
   const dot = k => (dots ? '<i class="diet-dot diet-dot--' + k + '"></i>' : '');
-  return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k">${dot(m.k)}${m.label}</span>`).join(' · ')}</p>`;
+  // « · » collé au mot d'avant par une espace insécable : jamais seul en début de ligne (« Glucides ·Lipides », 26/11)
+  return `<p class="diet-legend${extra ? ` ${extra}` : ''}" aria-hidden="true">${DIET_MACROS.map(m => `<span class="diet-legend__k">${dot(m.k)}${m.label}</span>`).join('\u00a0· ')}</p>`;
 }
 function dietDayTitle(day) {
   const today = dietDayKey();
@@ -101,6 +102,14 @@ document.addEventListener?.('visibilitychange', () => { if (document.visibilityS
 window.addEventListener?.('pageshow', e => { if (e.persisted) dietRefreshDay({ resumed: true }); });
 // Passage de minuit écran ouvert : vérifié chaque minute (un minuteur jusqu'à minuit s'endort avec l'app)
 setInterval(() => { if (dietDayKey() !== dietShownDay) dietRefreshDay(); }, 60000);
+// Bandeau « … · Annuler » d'une action de la Nutrition (aliment remplacé, verre d'eau, sel) : retiré dès le geste suivant
+// sur l'écran ou dans une de ses feuilles (juges du 26/11 : « Remplacé par Riz blanc » restait affiché pendant l'ajout de
+// l'eau et cachait « Bouteille », « 1 L » et la ligne Protéines). Capture : retiré avant l'action, qui peut poser le sien
+document.addEventListener?.('click', e => {
+  const b = e.target.closest?.('button, [data-action]');
+  if (!b || b.closest('.toast') || typeof currentView !== 'function' || currentView() !== 'nutrition') return;
+  document.querySelectorAll('.toast--action').forEach(removeToast);
+}, true);
 // Toast d'un ajout sur un jour passé : « Ajouté à hier · Dîner »
 function dietPastWord(day) { const t = dietDayTitle(day); return t === 'Hier' ? 'à hier' : `au ${t.charAt(0).toLowerCase()}${t.slice(1)}`; }
 // Part remplie d'une jauge : sur les nombres affichés (arrondis au gramme ou à la kcal), pour que « 4 / 4 g »
@@ -203,8 +212,9 @@ function dietSummaryHtml(pr) {
 function dietWeekHtml(day) {
   const today = dietDayKey();
   return `<div class="diet-week" role="group" aria-label="7 derniers jours">${dietWeek(data).map(w => {
-    // Lettre comme le Calendrier d'iOS, Ma / Me pour mardi et mercredi (panel nutri-final t1 : deux « M » de suite)
-    const d = new Date(w.ts), letter = ['D', 'L', 'Ma', 'Me', 'J', 'V', 'S'][d.getDay()];
+    // Une lettre comme le Calendrier d'iOS et « Cette semaine » de l'accueil (L M M J V S D) : « Ma » et « Me » d'ici
+    // faisaient deux notations dans l'app (juges du 26/11). Le jour entier est dit par VoiceOver (aria-label)
+    const d = new Date(w.ts), letter = ['D', 'L', 'M', 'M', 'J', 'V', 'S'][d.getDay()];
     const label = `${w.day === today ? 'Aujourd\'hui' : fmtDate(w.ts, 'day')}${w.finished ? (dietActivePlan(data)?.fromCoach ? ', journée complète' : ', objectif atteint') : w.some ? ', en partie' : ''}`;
     return `<button class="diet-week__day${w.day === day ? ' diet-week__day--on' : ''}" data-action="diet-day" data-day="${w.day}" aria-pressed="${w.day === day}" aria-label="${esc(label)}">
         <span class="diet-week__letter" aria-hidden="true">${letter}</span>

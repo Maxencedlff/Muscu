@@ -21,9 +21,12 @@
   --cat-color: var(--tint);
   /* Couleurs de séance et pastilles du guide : plus de violet ni d'indigo (bleu système et sable) */
   --indigo: #0A84FF; --purple: #AC8E68;
-  /* Macros : bleu, or, sable ; kcal en vert (avancée vers l'objectif). Trois teintes nettement à part (panel nutri-v2 :
-     le bleu-vert des protéines et le bleu des glucides se confondaient), jamais l'orange des actions ni le rouge des muscles */
-  --sb-macro-p: #409CFF; --sb-macro-c: #E8B400; --sb-macro-f: #C9A27A;
+  /* Macros : bleu, or, framboise ; kcal en vert (avancée vers l'objectif). Trois teintes nettement à part (panel nutri-v2 :
+     le bleu-vert des protéines et le bleu des glucides se confondaient), jamais l'orange des actions ni le rouge des muscles.
+     26/11 : le sable des lipides se confondait avec l'or des glucides et l'orange des liens (juges sur captures) : framboise.
+     Écart vérifié (CIELAB, simulations Machado 2009) : au moins 33 entre deux macros en protanopie, deutéranopie et
+     tritanopie, dans les deux thèmes ; chaque teinte à 3:1 au moins sur son fond */
+  --sb-macro-p: #409CFF; --sb-macro-c: #E8B400; --sb-macro-f: #F0609A;
   --sb-ring: var(--tint);
   --sb-burst: var(--medal);
   --sb-badge: #D70015;          /* pastille de non-lu : texte blanc 5,5:1 */
@@ -41,7 +44,7 @@ body.light {
   --on-tint: #FFFFFF;
   --tint-on-fill: #8F4600;      /* sur --fill clair : 5,4:1 sur cellule, 5,0:1 sur fond gris */
   --indigo: #0066CC; --purple: #8A6A45;
-  --sb-macro-p: #0066CC; --sb-macro-c: #9C7700; --sb-macro-f: #8A6A45;   /* repères graphiques à 3:1 au moins sur blanc */
+  --sb-macro-p: #0066CC; --sb-macro-c: #9C7700; --sb-macro-f: #B0306A;   /* repères graphiques à 3:1 au moins sur blanc (5,6, 4,2 et 6,0:1) */
 }
 :root, body.light { --macro-p: var(--sb-macro-p); --macro-c: var(--sb-macro-c); --macro-f: var(--sb-macro-f); }
 /* Jetons tirés d'un autre jeton : redéclarés sous body.light, sinon ils gardent la valeur du sombre (une variable se

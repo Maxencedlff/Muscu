@@ -123,7 +123,7 @@ async function deskNtSend(id) {
   const doc = await deskDoc();
   const ids = doc.data ? coachSendableDiets(doc.data) : [];
   if (!ids.length) {
-    deskToast(doc.kind ? deskErrorText(doc.kind) : 'Aucun plan sur ton compte : « Créer un plan » en prépare un ici, ou dans l\'app iPhone (Nutrition › Mes diètes).');
+    deskToast(doc.kind ? deskErrorText(doc.kind) : 'Aucun plan sur ton compte : « Créer un plan » en prépare un ici, ou dans l\'app iPhone (Programme › Plans de nutrition).');
     return;
   }
   const plans = doc.data.dietPlans;

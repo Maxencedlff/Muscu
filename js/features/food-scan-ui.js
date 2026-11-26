@@ -119,10 +119,11 @@ function fscanFoundHtml(food, units = [], { kept = true } = {}) {
       : `<div class="fscan__full" role="note"><p>Mes aliments est plein (${DIET_FOODS_MAX}). Ce produit s'ajoute au repas sans y être gardé.</p>
       <button class="btn btn--secondary btn--full" data-fscan="foods">Gérer Mes aliments</button></div>`}`;
 }
+// Même notation que partout (« Prot. 5 · Gluc. 50 »), plus « P 5 · G 50 » : des lettres seules (juges du 26/11)
 function fscanTotalText(food, g) {
   if (g === null) return '';
   const m = dietItemMacros({ g, per: food.per });
-  return dietSrPair(`${fmtNum(g)} g : ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`,
+  return dietSrPair(`${fmtNum(g)} g : ${dietN(m.kcal)} kcal · ${dietMacroAbbr(m)}`,
     `${fmtNum(g)} grammes : ${dietN(m.kcal)} kilocalories, ${dietMacroGramsSpoken(m)}`);
 }
 

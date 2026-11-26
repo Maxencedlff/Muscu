@@ -31,7 +31,8 @@ function dietMealsNoun(plan) { return dietPersonal(plan) ? 'Tes repas types' : '
 const dietComposing = new Set();
 
 // Titre de la liste : « Mes diètes » pour un coach (ses modèles, envoyés à ses élèves), sinon « Plans de nutrition »
-function dietPlansTitle() { return coachRole().isCoach ? 'Mes diètes' : 'Plans de nutrition'; }
+// Un seul nom pour la même chose, coach ou pratiquant (« Mes diètes » côté coach, « Plans de nutrition » ailleurs : juges du 26/11)
+function dietPlansTitle() { return 'Plans de nutrition'; }
 // Organisation des jours en deux mots (liste des plans, cellule Jours)
 function dietDaysWord(plan) { return plan?.days?.mode === 'week' ? 'Semaine' : plan?.days?.mode === 'session' ? 'Entraînement et repos' : 'Tous les jours pareils'; }
 function renderDietPlans() {
@@ -52,7 +53,7 @@ function renderDietPlans() {
       <div class="scr">
         <div class="group">
           ${ids.map(row).join('')}
-          <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>${isCoach ? 'Créer une diète' : 'Créer un plan'}</span></button>
+          <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>Créer un plan</span></button>
         </div>
         ${dietSettingsCellHtml()}
         <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Coach › Élèves). ' : ''}Le plan en cours s'affiche chaque jour sur l'accueil, carte Nutrition.</div>
@@ -213,7 +214,7 @@ function dietFoodRowHtml(x, i) {
   return `
         <button class="diet-cand" data-pick="${i}">
           ${dietFoodIconHtml(x.food)}
-          <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(x.food.name))}</span>
+          <span class="diet-cand__body"><span class="diet-cand__name">${esc(foodName(foodNameBesideTag(x.food.name, tag)))}</span>
             ${x.food.of ? `<span class="diet-cand__of">Valeurs Ciqual : ${esc(foodName(x.food.of))}</span>` : ''}
             <span class="diet-cand__sub num">${tag ? `<span class="diet-tag" aria-hidden="true">${tag}</span>` : ''}${x.own ? 'Mon aliment · ' : ''}${dietSrPair(`100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · ${dietMacroAbbr(x.food.per, { fmt: fmtNum })}`,
               `pour 100 grammes, ${x.food.per.k} kilocalories${x.food.ecalc ? ' calculées' : ''}, ${dietMacroWords(x.food.per, fmtNum).replace(/ g /g, ' grammes ')}`)}</span></span>
@@ -250,7 +251,7 @@ async function dietPickFood() {
   const body = `
     <div class="diet-pick">
       <div class="social-search diet-pick__search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
-        <input type="search" id="dietFoodSearch" maxlength="${SEARCH_MAX}" class="search social-search__input" placeholder="Rechercher un aliment" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment"></div>
+        <input type="search" id="dietFoodSearch" maxlength="${SEARCH_MAX}" class="search social-search__input" placeholder="Rechercher" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment"></div>
       ${foodScanButtonHtml()}
       <div class="diet-pick__list" id="dietFoodList">${dietFoodResultsHtml('')}</div>
       <p class="sr-text" id="dietFoodCount" aria-live="polite"></p>
@@ -392,15 +393,19 @@ function dietTargetsEditHtml(t, total, kg, plan, auto) {
   const row = (k, label, unit) => {
     const dot = k === 'kcal' ? '' : `<i class="diet-dot diet-dot--${k}" aria-hidden="true"></i>`;
     const unitHtml = k === 'p' && kg
-      ? `<button type="button" class="diet-field__unitbtn" data-tunit aria-label="g : grammes. Toucher pour passer en g/kg">g</button>`
+      // Choix de l'unité : un vrai bouton (fond gris, flèches haut et bas comme un menu iOS). Avant le 26/11, un « g » orange
+      // seul que personne ne prenait pour un bouton (retours de Gérard et des juges)
+      ? `<button type="button" class="diet-field__unitbtn" data-tunit aria-label="g : grammes. Toucher pour passer en g/kg"><span class="diet-field__unittxt">g</span>${icon('chevron.up.chevron.down', 12)}</button>`
       : `<span class="diet-field__unit" aria-hidden="true">${unit}</span>`;
+    // Champ et unité ensemble : au grand texte ils passent sous le nom d'un bloc, jamais l'unité seule à la ligne
     return `<label class="diet-field"><span class="diet-field__label">${dot}${label}</span>
-        <input id="dietT_${k}" class="diet-field__input num" type="text" inputmode="${k === 'p' ? 'decimal' : 'numeric'}" autocomplete="off"
-          value="${t[k] == null ? '' : k === 'kcal' ? fmtNum(t[k]) : t[k]}" placeholder="Aucun" aria-label="${label} par jour${k === 'kcal' ? ', en kilocalories' : ', en grammes'}, vide pour aucun objectif">
-        ${unitHtml}</label>`;
+        <span class="diet-field__val"><input id="dietT_${k}" class="diet-field__input num" type="text" inputmode="${k === 'p' ? 'decimal' : 'numeric'}" autocomplete="off"
+          value="${t[k] == null ? '' : k === 'kcal' ? fmtNum(t[k]) : t[k]}" placeholder="Pas d'objectif" aria-label="${label} par jour${k === 'kcal' ? ', en kilocalories' : ', en grammes'}, vide pour aucun objectif">
+        ${unitHtml}</span></label>`;
   };
   const word = dietPersonal(plan) ? 'Repas types' : 'Repas prévus';
-  const planned = `${word} : ${dietN(total.kcal)} kcal · P ${dietN(total.p)} g · G ${dietN(total.c)} g · L ${dietN(total.f)} g`;
+  // Macros en toutes lettres (« P 116 g · G 164 g » : des lettres seules, une troisième notation relevée le 26/11)
+  const planned = `${word}\u00a0: ${dietN(total.kcal)}\u00a0kcal, ${dietMacroWords(total)}`;
   const plannedSpoken = word + ' : ' + dietN(total.kcal) + ' kilocalories, ' + dietMacroGramsSpoken(total);
   // Sans repas types, pas de « Repas types : 0 kcal » : seulement ce que veut dire un champ vide
   const hint = dietHasMealItems(plan) ? `${dietSrPair(esc(planned), esc(plannedSpoken))}. Un champ laissé vide prend ce total pour repère.` : 'Un champ laissé vide ne fixe aucun objectif.';
@@ -411,10 +416,10 @@ function dietTargetsEditHtml(t, total, kg, plan, auto) {
   // Fourchette (18/11, « entre 3 et 5 L ») : deux champs, « de » et « à » ; un seul rempli : un objectif simple
   const range = (k, label, unit, lo, hi, digits, what) => `<div class="diet-field diet-field--range"><span class="diet-field__label">${label}</span>
         <input id="dietT_${k}Min" class="diet-field__input diet-field__input--lo num" type="text" inputmode="decimal" autocomplete="off"
-          value="${lo == null ? '' : fmtNum(lo, digits)}" placeholder="de" aria-label="${what}, au moins, en ${unit === 'L' ? 'litres' : 'grammes'}. Facultatif">
+          value="${lo == null ? '' : fmtNum(lo, digits)}" placeholder="min" aria-label="${what}, au moins, en ${unit === 'L' ? 'litres' : 'grammes'}. Facultatif">
         <span class="diet-field__to" aria-hidden="true">à</span>
         <input id="dietT_${k}Max" class="diet-field__input num" type="text" inputmode="decimal" autocomplete="off"
-          value="${hi == null ? '' : fmtNum(hi, digits)}" placeholder="Aucun" aria-label="${what}, au plus, en ${unit === 'L' ? 'litres' : 'grammes'}. Vide : aucun objectif">
+          value="${hi == null ? '' : fmtNum(hi, digits)}" placeholder="max" aria-label="${what}, au plus, en ${unit === 'L' ? 'litres' : 'grammes'}. Vide : aucun objectif">
         <span class="diet-field__unit" aria-hidden="true">${unit}</span></div>`;
   const water = dietPersonal(plan) ? '' : range('water', 'Eau', 'L', t.waterMin, t.water, 2, 'Eau par jour');
   const salt = range('salt', 'Sel', 'g', t.saltMin, t.saltMax, 1, 'Sel par jour');
@@ -432,6 +437,13 @@ function dietTargetsEditHtml(t, total, kg, plan, auto) {
     </div>`;
 }
 
+// Segment court (« Masse », « Maintien », « Sèche ») : « Prise de masse » passait sur deux lignes et serrait son segment
+const DIET_SOURCES_TEXT = 'Calories\u00a0: formule de Mifflin-St Jeor (1990). Protéines\u00a0: Morton et al. (2018). Prise de masse\u00a0: Iraki et al. (2019).';
+const dietGoalShort = g => (g.label === 'Prise de masse' ? 'Masse' : g.label);
+// Sources de la proposition derrière un lien (des références savantes en plein milieu de la feuille, juges du 26/11)
+function dietSourcesHtml(text) {
+  return `<details class="diet-tg__src"><summary class="diet-tg__link">D'où viennent ces chiffres\u00a0?</summary><p class="diet-form__hint">${text}</p></details>`;
+}
 function dietTargetsAskHtml(pre) {
   // Gabarits sans gabarit imbriqué (le contrôle des tirets de tests/unit/nutrition.mjs lit les chaînes à plat)
   const segBtn = (name, cur) => ([v, l]) => '<button type="button" class="segmented__btn' + (v === cur ? ' segmented__btn--active' : '')
@@ -445,7 +457,7 @@ function dietTargetsAskHtml(pre) {
   return `<div data-tstep="ask" hidden>
       <h3 class="diet-tg__title" tabindex="-1">${pre.auto ? 'Compléter mes infos' : 'Me proposer des objectifs'}</h3>
       <p class="diet-tg__q">Ton objectif</p>
-      ${seg('goal', Object.entries(DIET_EST_GOALS).map(([k, g]) => [k, g.label]), pre.goal, 'Ton objectif')}
+      ${seg('goal', Object.entries(DIET_EST_GOALS).map(([k, g]) => [k, dietGoalShort(g)]), pre.goal, 'Ton objectif')}
       <p class="diet-tg__q">Ton activité</p>
       <label class="diet-field">
         <select id="dietEAct" class="diet-field__input diet-field__select diet-tg__select" aria-label="Ton activité">
@@ -456,8 +468,10 @@ function dietTargetsAskHtml(pre) {
       <div class="diet-fields">${field('dietEAge', 'Âge', 'ans', pre.age ?? '', 'numeric')}${field('dietECm', 'Taille', 'cm', pre.cm ?? '', 'numeric')}${field('dietEKg', 'Poids', 'kg', pre.kg ? fmtNum(pre.kg, 1) : '', 'decimal')}</div>
       ${pre.auto ? `<p class="diet-form__hint">Gardés dans Réglages, sur ${thisPhone()} seulement.</p>` : ''}
       <p class="diet-form__err" id="dietEErr" role="alert"></p>
-      <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tcalc>${pre.auto ? 'Enregistrer' : 'Calculer'}</button>
-      <button type="button" class="diet-tg__link diet-tg__back" data-tback>Retour</button>
+      <div class="diet-tg__acts">
+        <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tcalc>${pre.auto ? 'Enregistrer' : 'Calculer'}</button>
+        <button type="button" class="diet-tg__link diet-tg__back" data-tback>Retour</button>
+      </div>
     </div>`;
 }
 
@@ -467,7 +481,8 @@ function dietTargetsResultHtml() {
       <div class="diet-fields" id="dietEOut"></div>
       <p class="diet-tg__why num" id="dietEWhy"></p>
       <p class="diet-tg__why diet-tg__why--macros num" id="dietEWhyM"></p>
-      <p class="diet-form__hint">Estimation, pas un avis médical. Pèse-toi chaque semaine, ajuste après 2 ou 3 semaines. Méthode : Mifflin-St Jeor (1990), protéines selon Morton et al. (2018), prise de masse selon Iraki et al. (2019).</p>
+      <p class="diet-form__hint">Estimation, pas un avis médical. Pèse-toi chaque semaine, ajuste après 2 ou 3 semaines.</p>
+      ${dietSourcesHtml(DIET_SOURCES_TEXT)}
       <div class="diet-tg__acts">
         <button type="button" class="btn btn--primary btn--full diet-tg__go" data-tuse>Utiliser ces objectifs</button>
         <button type="button" class="diet-tg__link diet-tg__back" data-tadjust>Ajuster</button>
@@ -516,7 +531,7 @@ async function dietTargetsSheet(plan) {
   // Protéines : unité, et l'autre écriture dessous (« = 142 g pour 74,5 kg », « 1,9 g/kg pour 74,5 kg »)
   const paintP = () => {
     if (!unitBtn) return;
-    unitBtn.textContent = perKg ? 'g/kg' : 'g';
+    $('.diet-field__unittxt', unitBtn).textContent = perKg ? 'g/kg' : 'g';
     // Intitulé qui commence par le texte affiché (« g », « g/kg ») : Contrôle vocal et axe (label-content-name-mismatch)
     unitBtn.setAttribute('aria-label', perKg ? 'g/kg : grammes par kilo. Toucher pour passer en g' : 'g : grammes. Toucher pour passer en g/kg');
     pIn.setAttribute('aria-label', `Protéines par jour, en ${perKg ? 'grammes par kilo de poids du corps' : 'grammes'}, vide pour aucun objectif`);
@@ -549,12 +564,12 @@ async function dietTargetsSheet(plan) {
     const line = fmtNum(cardProp.kcal) + '\u00a0kcal · ' + dietMacroAbbr(cardProp, { fmt: String });
     const spoken = fmtNum(cardProp.kcal) + ' kilocalories, ' + cardProp.p + ' grammes de protéines, ' + cardProp.c + ' de glucides, ' + cardProp.f + ' de lipides';
     box.innerHTML = head
-      + '<div class="segmented seg-full diet-tg__seg" role="group" aria-label="Ton objectif">' + Object.entries(DIET_EST_GOALS).map(([k, g]) => [k, g.label]).map(segBtn).join('') + '</div>'
+      + '<div class="segmented seg-full diet-tg__seg" role="group" aria-label="Ton objectif">' + Object.entries(DIET_EST_GOALS).map(([k, g]) => [k, dietGoalShort(g)]).map(segBtn).join('') + '</div>'
       + '<label class="diet-field diet-tg__actfield"><select id="dietCAct" class="diet-field__input diet-field__select diet-tg__select" aria-label="Ton activité">' + options + '</select>' + icon('chevron.up.chevron.down', 14) + '</label>'
       + '<p class="diet-tg__prop num" id="dietCProp">' + dietSrPair(esc(line), esc(spoken)) + '</p>'
       + '<p class="diet-tg__why num">' + esc(cardProp.why) + '</p>'
       + '<p class="diet-tg__why diet-tg__why--macros num">' + esc(cardProp.whyMacros) + '</p>'
-      + '<p class="diet-form__hint">Estimation, pas un avis médical. Méthode : Mifflin-St Jeor (1990), Morton et al. (2018), Iraki et al. (2019).</p>'
+      + '<p class="diet-form__hint">Estimation, pas un avis médical.</p>' + dietSourcesHtml(DIET_SOURCES_TEXT)
       + '<div class="diet-tg__cardacts"><button type="button" class="btn btn--primary diet-tg__apply" data-tapply>Appliquer</button>'
       + '<button type="button" class="diet-tg__link" data-tcadjust>Ajuster</button></div>';
   };

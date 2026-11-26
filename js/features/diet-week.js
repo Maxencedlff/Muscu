@@ -267,7 +267,7 @@ function renderDietSend(planId, uid) {
             <span class="coach-pick__box" aria-hidden="true">${allOn ? icon('checkmark', 14) : ''}</span><span class="cell__body"><span class="cell__title">Tous</span></span><span class="cell__value num">${all.length}</span></button>
         </div>
         <div class="group">${rows}</div>`}
-        <div class="group-foot">Le plan reste dans Mes diètes. Un nouvel envoi le met à jour chez l'élève, qui doit avoir accepté les plans de nutrition.</div>
+        <div class="group-foot">Le plan reste dans Plans de nutrition. Un nouvel envoi le met à jour chez l'élève, qui doit avoir accepté les plans de nutrition.</div>
         <button class="btn btn--primary btn--full coach-send-btn" id="dietSendGo" data-action="diet-send-go" data-id="${esc(planId)}" ${m.busy || !m.ids.size ? 'disabled' : ''}>${esc(dietSendBtnText(m))}</button>
       </div>
     </div>`;
