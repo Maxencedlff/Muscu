@@ -46,6 +46,15 @@ const ECCENTRIC_FIRST_RE = /developpe|press|bench|pompe|push ?up|\bdips?\b|squat
 const OVERHEAD_RE = /militaire|epaule|overhead|shoulder|arnold|\bdm\b/;
 function concentricFirst(name) { const k = ruleKey(name || ''); return OVERHEAD_RE.test(k) || !ECCENTRIC_FIRST_RE.test(k); }
 
+// Pause en position étirée d'un exercice qui commence par tirer : le membre de l'exercice, plus « bras ou jambes tendus »
+// (16 juges du 26/11 : texte générique sous un rowing à un bras). Jambes (leg curl, extensions, mollets), un bras
+// (« un bras », bûcheron, unilatéral), sinon les deux bras
+const TEMPO_LEGS_RE = /jambe|leg|ischio|mollet|calf|quadri|adducteur|abducteur|hip thrust|fessier/;
+const TEMPO_ONE_ARM_RE = /un bras|1 bras|bucheron|unilat|concentration/;
+function tempoStretchWord(name = '') {
+  const k = ruleKey(name);
+  return TEMPO_LEGS_RE.test(k) ? 'jambes tendues' : TEMPO_ONE_ARM_RE.test(k) ? 'bras tendu' : 'bras tendus';
+}
 // Phrase d'aide : « 3 s pour descendre, 1 s en bas, 1 s pour remonter »
 function tempoSentence(t, name = '') {
   if (!t) return '';
@@ -53,7 +62,7 @@ function tempoSentence(t, name = '') {
   const sec = v => v === 'X' ? 'le plus vite possible' : `${v} s`;
   const parts = [
     `${sec(t[0])} pour ${pull ? 'revenir' : 'descendre'}`,
-    t[1] ? `${t[1]} s ${pull ? 'bras ou jambes tendus' : 'en bas'}` : '',
+    t[1] ? `${t[1]} s ${pull ? tempoStretchWord(name) : 'en bas'}` : '',
     `${sec(t[2])} pour ${pull ? 'tirer' : 'remonter'}`,
     t[3] ? `${t[3]} s ${pull ? 'contracté' : 'en haut'}` : '',
   ].filter(Boolean);

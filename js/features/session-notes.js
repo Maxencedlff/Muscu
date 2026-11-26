@@ -1,13 +1,13 @@
 // ═══════════════════════════════════════════════════════════
 //  Notes : saisie en séance et relecture (carte d'exercice, série, haut de la séance, Historique, fiche)
 //  Logique et données : js/data/notes.js. Discrètes par principe : rien ne s'affiche tant qu'il n'y a pas
-//  de note, sauf la petite icône « note » de la case « Avant » et le lien « Note » au bout d'un exercice.
+//  de note, sauf le lien « Note » au bout d'un exercice (la case « Avant » d'une série ouvre sa note, sans icône).
 //
 //  - Exercice : menu ⋯ › Plus d'options… › « Ajouter une note », ou l'icône au bout de la carte repliée. La note la plus
 //    récente de l'exercice (même fiche de la bibliothèque) se lit sous son nom à la séance suivante,
 //    en gris : « Dernière note : siège cran 4 » ; un toucher la modifie ou l'efface.
-//  - Série : la case « Avant » de chaque série (à faire ou validée) ouvre sa note ; l'icône y est pleine quand la série
-//    en a une, et la note se lit sous la ligne (ou celle de la même série la dernière fois, sur une série à faire).
+//  - Série : la case « Avant » de chaque série (à faire ou validée) ouvre sa note ; une icône pleine y paraît quand la
+//    série en a une, et la note se lit sous la ligne (ou celle de la même série la dernière fois, sur une série à faire).
 //    Jamais au toucher de validation, jamais par un appui long (règle iOS « un seul tap »).
 //  - Fin d'exercice : lien « Note » au pied de la carte, et « Note » sous le résumé de la carte repliée.
 //  - Séance : la note du bilan revient en haut de la même séance du programme, la fois suivante, et se ferme.
@@ -93,10 +93,10 @@ async function editExerciseNote(ei) {
 // ── Série ───────────────────────────────────────────────────
 
 // Toute série (à faire, validée, rouverte) : la case « Avant » est le bouton de sa note (demande du 16/11 : « une petite
-// partie dans chaque série, on clique dessus pour écrire et/ou voir la note »). Aucune colonne de plus sur iPhone SE :
-// sous la valeur d'avant, l'icône « note » au trait (pas de note) ou remplie avec ses lignes (note écrite). Loin du champ
-// Reps et du ✓. Texte agrandi : le mot « Note » à côté de l'icône d'une série sans note (panel des 40 juges : l'icône
-// seule ne disait pas qu'elle sert à écrire) ; en taille normale, icône seule, pour rester discret (demande de Maxence)
+// partie dans chaque série, on clique dessus pour écrire et/ou voir la note »). Aucune colonne de plus sur iPhone SE.
+// Sans note, la case ne montre que la valeur d'avant : l'icône au trait sous chaque série faisait deux icônes « note »
+// avec le lien « Note » du pied de la carte, sous un titre « Avant » qui parle d'autre chose (retour d'Inès du 26/11) ;
+// le lien « Note » reste la seule entrée visible. Note écrite : l'icône remplie dit qu'il y en a une. Loin du champ Reps et du ✓
 // prevHtml : contenu de la case (« 32 × 9 », ou « — »), prevSpoken : la même valeur pour VoiceOver (WCAG 2.5.3)
 // who : « de la série 3, bras droit » sur une série notée par bras (deux lignes, une même note : VoiceOver dit laquelle)
 function setNoteBtnHtml(ex, ei, s, si, prevHtml, prevSpoken, who = '') {
@@ -105,7 +105,7 @@ function setNoteBtnHtml(ex, ei, s, si, prevHtml, prevSpoken, who = '') {
   const of = who ? ` ${who}` : '';
   const what = own ? `Note${of} : ${esc(own)}. Modifier la note`
     : `Ajouter une note${of}${last ? `. La dernière fois : ${esc(last)}` : ''}`;
-  return `<button class="set-prev set-note-btn num${own ? ' set-note-btn--on' : ''}" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-label="${prevSpoken ? `Avant ${prevSpoken}. ` : ''}${what}"><span class="set-note-btn__val">${prevHtml}</span><span class="set-note-btn__ico">${icon(own ? 'note.fill' : 'note', 14)}${own ? '' : '<span class="set-note-btn__word" aria-hidden="true">Note</span>'}</span></button>`;
+  return `<button class="set-prev set-note-btn num${own ? ' set-note-btn--on' : ''}" data-action="set-note" data-ei="${ei}" data-si="${si}" aria-label="${prevSpoken ? `Avant ${prevSpoken}. ` : ''}${what}"><span class="set-note-btn__val">${prevHtml}</span>${own ? `<span class="set-note-btn__ico">${icon('note.fill', 14)}</span>` : ''}</button>`;
 }
 // Sous la ligne, seulement quand il y a quoi lire : la note de la série, sinon (série à faire) celle de la même série la
 // dernière fois. Lue par VoiceOver dans le bouton ci-dessus et la phrase de la série validée ; ici, un toucher l'ouvre

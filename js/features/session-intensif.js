@@ -62,13 +62,14 @@ function techPillHtml(s, { spoken = true } = {}) {
 // Sous la série (drop set, rest-pause, cluster) : titre de la technique (+ une sous-série, retirer), puis une ligne par
 // sous-série, remplie comme une série (charge proposée, objectif de la dernière fois en gris, ✓). Top set et back-off :
 // pastille dans la ligne de la série (techPillHtml)
-// « + drop » et × d'une série (sans × sur une technique prescrite par le coach)
+// « + drop » et « Retirer » d'une série (rien à retirer sur une technique prescrite par le coach). Un mot plutôt qu'un × rond
+// sans légende, et « + drop (2 bras) » quand la série est notée par bras (16 juges du 26/11 : quoi retirer, à quel bras ajouter)
 function techBtnsHtml(ex, ei, s, si) {
   const T = TECHS[setTech(s)], name = setSpokenName(ex, si).toLowerCase(), two = hasSide2(s) ? `, pour les 2 ${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}` : '';
   const add = (s.sub || []).length < TECH_SUB_MAX
-    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${two}">${icon('plus', 14)}${T.subName}</button>` : '';
+    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${two}">${icon('plus', 14)}${T.subName}${two ? '<span class="tech__both" aria-hidden="true">\u00a0(2\u00a0' + (unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras') + ')</span>' : ''}</button>` : '';
   return `<span class="tech__btns">${add}
-        ${techPrescribed(ex) ? '' : `<button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}${two}">${icon('xmark', 14)}</button>`}</span>`;
+        ${techPrescribed(ex) ? '' : `<button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}${two}"><span aria-hidden="true">Retirer</span></button>`}</span>`;
 }
 // Série notée par bras (js/features/session-unilateral.js) : le même titre sur les deux blocs, « Drop set · bras gauche »
 // et « Drop set · bras droit », et un seul « + drop » et × après la dernière ligne de drop, « pour les 2 bras » (panel du
@@ -78,6 +79,16 @@ function techCapHtml(ex, s, side = 1) {
   // Texte agrandi : le côté passe sous « Drop set », sans « · » (css/session.css, tech__side)
   const name = hasSide2(s) ? `${T.label}<span class="tech__side"><span class="tech__dot">&nbsp;· </span>${sideWord(ex, side).replace(' ', '&nbsp;')}</span>` : T.label;
   return `<span class="tech__label"><span class="tech__name">${name}</span><span class="tech__hint">${T.hint}</span></span>`;
+}
+// Toutes les sous-séries de la série validées (drop set, cluster, rest-pause fini) : c'est là que l'effort se note
+function techSubsDone(s) { return !!s?.done && (s.sub || []).length > 0 && s.sub.every(x => x.done); }
+// « Reps en réserve » après le dernier bloc ou drop validé de la dernière série faite (retour de Karim du 26/11 : la série
+// la plus dure n'avait jamais de sélecteur). Jamais entre la série et ses blocs (pause de 15 s, panel vague 4). Série notée
+// par bras : son second côté a son propre sélecteur (js/features/session-unilateral.js)
+function techRirHtml(ex, ei, s, si) {
+  const ld = activeSession.lastDone;
+  if (ld?.ei !== ei || ld.si !== si || hasSide2(s) || !techSubsDone(s) || measureOf(ex) !== 'reps' || !rirShown()) return '';
+  return rirPickerHtml(ei, si, s, ex);
 }
 function techBlockHtml(ex, ei, s, si) {
   const t = setTech(s);
@@ -92,7 +103,7 @@ function techBlockHtml(ex, ei, s, si) {
         ${sides ? '' : techBtnsHtml(ex, ei, s, si)}
       </div>
       ${rows}
-    </div>`;
+    </div>${techRirHtml(ex, ei, s, si)}`;
 }
 
 // side 2 : sous-série du second côté d'une série notée par bras (js/features/session-unilateral.js), pré-remplie avec
@@ -115,11 +126,11 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
       <div class="session-set session-set--done session-set--sub" data-action="sub-reopen" ${at} ${u ? '' : 'role="button" tabindex="0"'}>
         <span class="sr-text">${capitalize(spoken)} validé${T.fem ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}. Modifier</span>
         ${withSideTag(`<span class="set-n tech-tag" aria-hidden="true">${tag}</span>`, ex, s, side)}
-        ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}
-        <span class="set-val set-val--w num" aria-hidden="true">${w || '—'}</span>
-        <span class="set-val set-val--r num" aria-hidden="true">${esc(x.reps)}</span>
+        <span class="set-prev num" aria-hidden="true">${prev}</span>
+        <span class="set-val set-val--w num" aria-hidden="true" data-lbl="${unitLbl()}">${w || '—'}</span>
+        <span class="set-val set-val--r num" aria-hidden="true" data-lbl="Reps">${esc(x.reps)}</span>
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
-      </div>`;
+      </div>${setUndoHtml(u)}`;
   }
   // Mise en avant : seulement la sous-série qui suit la dernière série validée (une sautée reste à remplir, en gris)
   const first = (host.sub || []).findIndex(y => !y.done);
@@ -137,7 +148,7 @@ function subRowHtml(ex, ei, s, si, x, k, side = 1) {
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" data-action="sub-weight" ${at}
                value="${esc(fmtW(kg, { plain: true }))}" placeholder="—" aria-label="${loadSpoken(ex)}, ${spoken}, en ${unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="set-input set-input--required num" data-action="sub-reps" ${at}
-               value="${esc(goal)}" placeholder="max" aria-label="Répétitions, ${spoken}">
+               value="${esc(goal)}" placeholder="reps" aria-label="Répétitions, ${spoken}">
         <button class="set-check-zone ${wait ? 'set-check-zone--wait' : ''}" data-action="sub-validate" ${at} ${wait ? 'aria-disabled="true"' : ''} aria-label="Valider ${T.fem ? 'la' : 'le'} ${spoken}"><span class="set-check"></span></button>
       </div>`;
 }
@@ -165,9 +176,8 @@ async function openTechSheetAll(ei, idx) {
   const ex = activeSession?.exercises[ei];
   if (!ex || !canTech(ex)) return;
   const ts = idx.map(i => setTech(ex.sets[i])), same = ts.every(t => t && t === ts[0]) ? ts[0] : null;
-  const t = await dialog({ type: 'sheet', title: `Toutes les séries · ${ex.name}`,
-    message: 'Drop set : charge baissée, sans repos. Rest-pause, cluster : même charge après 15 à 20 s de repos.', actions: [
-      ...TECH_IDS.filter(id => TECHS[id].sub).map(id => ({ label: `${id === same ? '✓ ' : ''}${TECHS[id].label}`, value: id })),
+  const t = await dialog({ type: 'sheet', title: `Toutes les séries · ${ex.name}`, actions: [
+      ...TECH_IDS.filter(id => TECHS[id].sub).map(id => ({ label: `${id === same ? '✓ ' : ''}${TECHS[id].label}`, sub: TECHS[id].desc, value: id })),
       ...(ts.some(Boolean) && !techPrescribed(ex) ? [{ label: 'Retirer les techniques', value: 'none', style: 'destructive' }] : []),
       { label: 'Annuler', style: 'cancel' },
     ] });
@@ -179,9 +189,8 @@ async function openTechSheet(ei, si) {
   const ex = activeSession?.exercises[ei], s = ex?.sets[si];
   if (!s || isWarmupSet(s) || !canTech(ex)) return;
   const cur = setTech(s);
-  const t = await dialog({ type: 'sheet', title: `${setSpokenName(ex, si)} · ${ex.name}`,
-    message: 'Drop set : charge baissée, sans repos. Rest-pause, cluster : même charge après 15 à 20 s de repos. Top set : la série la plus lourde. Back-off : une série allégée ensuite.', actions: [
-      ...TECH_IDS.map(id => ({ label: `${id === cur ? '✓ ' : ''}${TECHS[id].label}`, value: id })),
+  const t = await dialog({ type: 'sheet', title: `${setSpokenName(ex, si)} · ${ex.name}`, actions: [
+      ...TECH_IDS.map(id => ({ label: `${id === cur ? '✓ ' : ''}${TECHS[id].label}`, sub: TECHS[id].desc, value: id })),
       ...(cur && !techPrescribed(ex) ? [{ label: 'Retirer la technique', value: 'none', style: 'destructive' }] : []),
       { label: 'Annuler', style: 'cancel' },
     ] });

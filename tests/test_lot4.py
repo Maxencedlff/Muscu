@@ -375,8 +375,8 @@ def t_keyboard(bench):
 
 
 def t_toast_place(bench, eng, dev, theme):
-    """Vague 3 : plus de toast en séance. « Annuler » en ligne dans la série validée, à la même place à chaque fois
-    (colonne « Avant »), sans rien recouvrir."""
+    """Vague 3 : plus de toast en séance. « Annuler » en ligne, à la même place à chaque fois : depuis le 26/11 (16 juges),
+    sur une ligne juste sous la série validée, plus dans la colonne « Avant » collée au rond vert ; rien n'est recouvert."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
@@ -385,10 +385,12 @@ def t_toast_place(bench, eng, dev, theme):
         for si in range(n - 1):
             page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); settle(page)
             where = page.evaluate("""() => { const b = document.querySelector('[data-action="sess-undo"]'); if (!b) return null;
-                const row = b.closest('.session-set'), prev = row.querySelector('.set-val'); return { si: row.closest('.set-swipe') ? [...document.querySelectorAll('.ex-card[data-ei="0"] .set-swipe')].indexOf(row.closest('.set-swipe')) : -1,
-                  left: b.getBoundingClientRect().right <= prev.getBoundingClientRect().left + 1 }; }""")
-            R.check(page.locator('.toast').count() == 0 and where and where['si'] == si and where['left'],
-                    f'{t} série {si + 1} validée : « Annuler » dans sa ligne, colonne « Avant » ({where})')
+                const sw = b.closest('.set-swipe'), row = sw?.querySelector('.session-set'), line = b.closest('.ex-undo--set');
+                return { si: sw ? [...document.querySelectorAll('.ex-card[data-ei="0"] .set-swipe')].indexOf(sw) : -1,
+                  below: !!(row && line && line.getBoundingClientRect().top >= row.getBoundingClientRect().bottom - 1),
+                  prev: !!row?.querySelector('.set-note-btn__val') }; }""")
+            R.check(page.locator('.toast').count() == 0 and where and where['si'] == si and where['below'] and where['prev'],
+                    f'{t} série {si + 1} validée : « Annuler » sur la ligne sous la série, « Avant » gardé ({where})')
         shot(page, LOT, f'annuler-en-ligne-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

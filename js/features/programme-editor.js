@@ -168,7 +168,7 @@ function renderEditor() {
           <button class="cell cell--action" data-action="add-ex">${icon('plus', 20)}<span>Ajouter un exercice</span></button>
           ${list.length >= 2 ? `<button class="cell cell--action" data-action="ed-superset">${icon('link', 20)}<span>Créer un superset</span></button>` : ''}
         </div>
-        ${list.length >= 2 ? '<div class="group-foot">Superset : 2 ou 3 exercices enchaînés sans repos.</div>' : ''}
+        ${list.length >= 2 ? `<div class="group-foot">Superset : de 2 à ${SS_MAX} exercices enchaînés sans repos.</div>` : ''}
         <div class="group-title">Réglages de la séance</div>
         <div class="group">
           <div class="cell cell--ctl cell--flow">

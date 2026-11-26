@@ -58,16 +58,17 @@ def t_outils(bench, eng, dev, theme):
         R.check(page.locator('.ex-card[data-ei="0"] .set-plates').count() == 1, f'{t} bouton Disques sur la série courante du Squat barre')
         R.check(page.locator('.ex-card[data-ei="1"] .set-plates').count() == 0, f'{t} pas de Disques sur la presse à cuisses')
         R.check(not rects_ok(page, '.set-plates'), f'{t} bouton Disques ≥ 44 px')
-        # Panels de la vague 3 : le numéro de la série reste, le petit disque à côté
-        R.check(page.locator('.ex-card[data-ei="0"] .set-plates .num').inner_text().strip() == '1' and page.locator('.ex-card[data-ei="0"] .set-plates .icon--plate').count() == 1,
-                f'{t} Disques : numéro de la série gardé, disque à côté')
+        # Panels de la vague 3 : le numéro de la série reste ; retour de Karim du 26/11 : le mot « Disques » dessous (le
+        # petit disque dessiné passait pour une cible)
+        R.check(page.locator('.ex-card[data-ei="0"] .set-plates .num').inner_text().strip() == '1' and page.locator('.ex-card[data-ei="0"] .set-plates__lbl').inner_text().strip() == 'Disques'
+                and page.locator('.ex-card[data-ei="0"] .set-plates .icon').count() == 0, f'{t} Disques : numéro de la série gardé, le mot « Disques » dessous')
         shot(page, LOT, f'{t}-disques-numero')
         page.click('.ex-card[data-ei="0"] .set-plates')
         page.wait_for_selector('.sess-sheet--plates')
         settle(page)
         R.check(page.locator('#plTarget').inner_text() == '60', f'{t} cible = charge de la série (60)')
-        res = page.locator('.pl__result').inner_text()
-        R.check('Par côté : 20' in res and '60 kg' in res, f'{t} 60 kg = barre 20 + un disque de 20 par côté ({res})')
+        res = page.locator('.pl__result').inner_text().replace('\xa0', ' ')
+        R.check('20 kg de chaque côté' in res and 'Total : 60 kg' in res, f'{t} 60 kg = barre 20 + un disque de 20 par côté, avec les unités ({res})')
         R.check(page.locator('.pl__plate').count() == 1, f'{t} un disque dessiné')
         R.check(not rects_ok(page, '.sess-sheet--plates button'), f'{t} boutons de la feuille ≥ 44 px {rects_ok(page, ".sess-sheet--plates button")}')
         shot(page, LOT, f'{t}-01-disques')
@@ -78,13 +79,13 @@ def t_outils(bench, eng, dev, theme):
         R.check('20 + 2,5 + 1,25' in page.locator('.pl__result').inner_text(), f'{t} barre de 15 : 20 + 2,5 + 1,25')
         R.check(page.evaluate("JSON.parse(localStorage.getItem('ppl_v2')).plates?.bar?.kg") == 15, f'{t} barre mémorisée')
         page.click('[data-action="pl-plate"][data-plate="1.25"]'); settle(page)
-        res = page.locator('.pl__result').inner_text()
+        res = page.locator('.pl__result').inner_text().replace('\xa0', ' ')
         # 62,5 inatteignable : 60 au plus proche, déjà la charge de la série → pas de bouton « Mettre 60 kg »
         R.check('au plus proche' in res and '60 kg' in res and page.locator('.pl__apply').count() == 0, f'{t} sans 1,25 : charge atteignable proposée, déjà dans la série ({res})')
         # Sans 1,25, le pas est de 5 kg (2 × 2,5) : 67,5 inatteignable, 65 au plus proche (15 + 2 × 25),
         # différent de la série → un toucher la reporte
         page.click('[data-action="pl-adj"][data-d="1"]'); settle(page)
-        res = page.locator('.pl__result').inner_text()
+        res = page.locator('.pl__result').inner_text().replace('\xa0', ' ')
         R.check('65 kg au plus proche' in res and page.locator('.pl__apply').count() == 1, f'{t} 67,5 : 65 proposé, bouton pour le reporter ({res})')
         page.click('[data-action="pl-apply"]'); settle(page)
         R.check(page.evaluate("activeSession.exercises[0].sets[0].weight") == '65', f'{t} charge atteignable reportée dans la série')

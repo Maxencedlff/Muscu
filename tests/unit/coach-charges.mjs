@@ -97,7 +97,8 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     reset();
     const id = coachProg({ name: 'Squat barre', sets: 3, repMin: 8, repMax: 12 }, [done('60', '10'), done('60', '10'), done('60', '9')]);
     run(`startSession('sB')`);
-    assert.equal(run(`exGoalHtml(${ex})`), '', 'ni « Coach », ni ligne « Objectif » en séance (17/11)');
+    // Ni « Coach » ; depuis le 26/11 (retour d'Inès), l'objectif de l'accueil sous le nom, le même texte
+    assert.ok(!/Coach/.test(run(`exGoalHtml(${ex})`)) && /À battre : 60 kg × 11/.test(run(`exGoalHtml(${ex})`)), 'pas de « Coach », l\'objectif de l\'accueil (26/11)');
     assert.equal(run(`exerciseGoal('sB', data.programmes['${id}'].exercises.sB[0], '${id}').text`), '60 kg × 11', 'objectif de l\'accueil comme avant');
     run(`${ex}.sets.forEach(s => { s.done = true; })`);
     assert.equal(run(`sessionHistoryEntry('${id}', 'sB')`).exercises[0].presc, undefined);

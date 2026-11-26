@@ -89,7 +89,8 @@ function dialogInputLabel(input, title = '') {
   return u ? `${name}, en ${DIALOG_UNIT_SPOKEN[u] || u}` : name;
 }
 
-// actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred', section, apart }]
+// actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred', section, apart, sub }]
+// sub : une ligne grise sous le libellé, qui explique ce choix (feuille des techniques d'intensification)
 // input : { value, placeholder, text | digits | decimal, max (longueur d'un texte, 40 par défaut), unit, label }
 // type 'sheet' = feuille d'actions en bas, 'alert' = alerte centrée
 // Feuille seulement : section = titre du groupe de choix qui commence là (long menu rangé en sections) ; group = groupe
@@ -113,7 +114,7 @@ function dialog({ type = 'alert', title = '', message = '', messageXl = '', acti
     const main   = actions.filter(a => a.style !== 'cancel' && !(type === 'sheet' && a.apart));
     const apart  = type === 'sheet' ? actions.filter(a => a.apart && a.style !== 'cancel') : [];
     const cancel = actions.find(a => a.style === 'cancel');
-    const btn = a => `<button class="ios-dialog__btn ios-dialog__btn--${a.style || 'default'}" data-i="${actions.indexOf(a)}">${esc(a.label)}</button>`;
+    const btn = a => `<button class="ios-dialog__btn ios-dialog__btn--${a.style || 'default'}" data-i="${actions.indexOf(a)}">${esc(a.label)}${a.sub ? `<span class="ios-dialog__btn-sub">${esc(a.sub)}</span>` : ''}</button>`;
     // Titre de section avant le premier choix de chaque section (feuille), annoncé comme un en-tête
     const sectioned = list => list.map((a, i) => (a.section && a.section !== list[i - 1]?.section
       ? `<div class="ios-dialog__sect" role="heading" aria-level="3">${esc(a.section)}</div>`

@@ -41,13 +41,14 @@ function plDrawHtml(perSide, plates) {
     </svg>`;
 }
 
-// Texte du résultat : « Par côté : 20 + 10 · 80 kg » ; cible inatteignable : la charge la plus proche
+// Texte du résultat : « 20 + 10 kg de chaque côté · Total : 80 kg » (avant le 26/11 : « Par côté : 20 + 10 · 80 kg », le
+// côté sans unité et le total sans nom, lus « 10, 40 kg ») ; cible inatteignable : la charge la plus proche
 function plResultHtml(r, target, unit) {
   const u = unit === 'lb' ? 'lb' : 'kg';
-  if (r.belowBar) return `<span class="pl__warn">Sous le poids de la barre (${fmtNum(r.total)} ${u})</span>`;
-  const side = `Par côté : <b>${platesText(r.perSide)}</b>`;
-  if (r.exact) return `${side} · ${fmtNum(r.total)} ${u}`;
-  return `${side} · <span class="pl__warn">${fmtNum(r.total)} ${u} au plus proche</span> (cible ${fmtNum(target)} ${u})`;
+  if (r.belowBar) return `<span class="pl__warn">Sous le poids de la barre (${fmtNum(r.total)}\u00a0${u})</span>`;
+  const side = r.perSide.length ? `<b>${platesText(r.perSide)}\u00a0${u}</b> de chaque côté` : '<b>Barre seule</b>';
+  if (r.exact) return `${side} · Total\u00a0: ${fmtNum(r.total)}\u00a0${u}`;
+  return `${side} · <span class="pl__warn">Total\u00a0: ${fmtNum(r.total)}\u00a0${u} au plus proche</span> (cible ${fmtNum(target)}\u00a0${u})`;
 }
 
 // Jeu de disques proposé : les disques standard de l'unité et ceux ajoutés par la personne, du plus lourd au plus léger

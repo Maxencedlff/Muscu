@@ -114,7 +114,7 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(cur is True and page.locator('[aria-current="step"]').count() == 1, f'{t} bras droit seul en cours')
         # Compteur : la série 3 n'est pas finie tant que le bras droit et son drop attendent (panel du 20/11)
         cnt = page.locator('.ex-card[data-ei="0"] .ex-card__count [aria-hidden="true"]').inner_text()
-        R.check(cnt == '2/3' and page.locator('#session-count').inner_text().startswith('2/'), f'{t} compteur à 2/3 tant que le bras droit attend ({cnt})')
+        R.check(cnt == '2/3' and page.locator('#session-count').text_content().startswith('2/'), f'{t} compteur à 2/3 tant que le bras droit attend ({cnt})')
         R.check(page.locator(SIDE2 % 'weight').input_value() == '14' and page.locator(SIDE2 % 'reps').input_value() == '9',
                 f'{t} bras droit pré-rempli 14 × 9 ({page.locator(SIDE2 % "weight").input_value()} × {page.locator(SIDE2 % "reps").input_value()})')
         settle(page)
@@ -171,23 +171,28 @@ def t_drop_deux_bras(bench, eng, dev, theme):
 
 
 def t_lien_par_bras(bench, eng, dev, theme):
-    """Avant la 1re série d'un exercice à un bras : « Noter chaque bras à part » sur la carte, à côté de « Commencer par
-    le bras droit » (séance du 22/11 : Maxence ne trouvait pas comment noter un bras puis l'autre), un seul toucher ;
-    l'entrée de ⋯ reste ; un exercice à deux bras n'a aucun lien."""
+    """Avant la 1re série d'un exercice à un bras : l'interrupteur « Noter chaque bras à part » sur la carte (séance du
+    22/11 : Maxence ne trouvait pas comment noter un bras puis l'autre), un seul toucher ; « Premier bras : Gauche | Droit »
+    seulement bras notés à part (16 juges du 26/11) ; l'entrée de ⋯ reste ; un exercice à deux bras n'a aucun réglage."""
     t = f'{dev}-{theme} lien'
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, uni_data())
         start(page)
-        links = page.locator('.ex-card[data-ei="0"] .side-links .side-first-link').all_inner_texts()
-        R.check(links == ['Commencer par le bras droit', 'Noter chaque bras à part'], f'{t} deux liens sur la carte ({links})')
-        g = page.evaluate("""() => { const [a, b] = [...document.querySelectorAll('.ex-card[data-ei="0"] .side-first-link')].map(e => e.getBoundingClientRect());
-            return { gap: Math.round(b.top - a.bottom), sameLine: Math.abs(a.top - b.top) < 2, h: Math.round(Math.min(a.height, b.height)), right: Math.round(Math.max(a.right, b.right)), vw: innerWidth }; }""")
-        R.check((g['sameLine'] or 0 <= g['gap'] <= 8) and g['h'] >= 44 and g['right'] <= g['vw'], f'{t} même ligne ou juste en dessous, 44 px, dans l\'écran {g}')
+        sw = page.locator('.ex-card[data-ei="0"] .side-links [data-action="side-toggle"]')
+        R.check(sw.count() == 1 and sw.get_attribute('role') == 'switch' and sw.get_attribute('aria-checked') == 'false'
+                and 'Noter chaque bras à part' in sw.inner_text(), f'{t} interrupteur « Noter chaque bras à part », éteint')
+        R.check(page.locator('.ex-card[data-ei="0"] [data-action="side-first"]').count() == 0, f'{t} bras notés ensemble : pas de premier bras')
+        g = page.evaluate("""() => { const r = document.querySelector('.ex-card[data-ei="0"] [data-action="side-toggle"]').getBoundingClientRect();
+            return { h: Math.round(r.height), right: Math.round(r.right), vw: innerWidth }; }""")
+        R.check(g['h'] >= 44 and g['right'] <= g['vw'], f'{t} 44 px, dans l\'écran {g}')
         i_two = page.evaluate("activeSession.exercises.findIndex(e => e.name === 'Curl biceps haltères')")
         R.check(page.locator(f'.ex-card[data-ei="{i_two}"] .side-links').count() == 0, f'{t} exercice à deux bras : aucun lien')
         page.click('.ex-card[data-ei="0"] [data-action="side-toggle"]'); settle(page)
         R.check(page.locator('.ex-card[data-ei="0"] .session-set--side').count() == 3, f'{t} un toucher : les trois séries par bras')
-        R.check(page.locator('.ex-card[data-ei="0"] [data-action="side-toggle"]').inner_text() == 'Noter les deux bras ensemble', f'{t} le lien propose le retour')
+        R.check(page.locator('.ex-card[data-ei="0"] [data-action="side-toggle"]').get_attribute('aria-checked') == 'true', f'{t} l\'interrupteur montre l\'état')
+        seg = page.locator('.ex-card[data-ei="0"] .side-set__first .segmented__btn').all_inner_texts()
+        R.check(seg == ['Gauche', 'Droit'] and page.locator('.ex-card[data-ei="0"] .side-set__first [aria-pressed="true"]').inner_text() == 'Gauche',
+                f'{t} « Premier bras : Gauche | Droit », gauche choisi ({seg})')
         R.check('Chaque bras noté à part' in sess_undo_text(page), f'{t} « Chaque bras noté à part · Annuler » ({sess_undo_text(page)!r})')
         # L'entrée de ⋯ › Plus d'options reste
         page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); settle(page)
@@ -246,8 +251,8 @@ def t_par_bras(bench, eng, dev, theme):
         R.check('14 × 8' in prev, f'{t} « Avant » du bras droit : 14 × 8 ({prev!r})')
         # Avant de valider quoi que ce soit : « +X kg de volume » absent (rien de plus que la dernière fois)
         R.check(page.locator('.ex-card[data-ei="0"] .ex-vol__delta').count() == 0, f'{t} pas de hausse de volume affichée au départ')
-        # Premier bras : lien « Commencer par le bras droit » au-dessus des séries (panel du 20/11 : introuvable dans ⋯)
-        R.check(page.locator('.ex-card[data-ei="0"] [data-action="side-first"]').inner_text() == 'Commencer par le bras droit', f'{t} lien « Commencer par le bras droit » visible')
+        # Premier bras : « Gauche | Droit » au-dessus des séries (panel du 20/11 : introuvable dans ⋯ ; 26/11 : l'état se voit)
+        R.check(page.locator('.ex-card[data-ei="0"] [data-action="side-first"]').inner_text() == 'Droit', f'{t} « Droit » à choisir comme premier bras')
         page.click('.ex-card[data-ei="0"] [data-action="side-first"]'); settle(page)
         caps = page.locator('.ex-card[data-ei="0"] .set-n__side').all_inner_texts()[:2]
         R.check(caps == ['Droit', 'Gauche'] and page.evaluate("sideFirstPref('Curl concentration')") == 'droit', f'{t} commence par le bras droit ({caps})')

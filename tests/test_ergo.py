@@ -174,8 +174,9 @@ def t_superset(bench):
     with bench.page('webkit', 'iPhone 13', 'light') as page:
         seed(page, 'light', json.dumps(d, ensure_ascii=False))
         page.click('[data-action="start-session"][data-cat="push"]'); page.wait_for_selector('.ss-card')
+        # 26/11 (Inès) : l'objectif de l'accueil revient sous chaque exercice, « À battre », jamais « Objectif »
         goals = page.locator('.ss-card .ex-goal--member').all_inner_texts()
-        R.check(goals == [], f'superset : pas de ligne « Objectif » {goals}')
+        R.check(goals and all(g.startswith('À battre : ') for g in goals) and not any('Objectif' in g for g in goals), f'superset : « À battre » sous chaque exercice {goals}')
         R.check(page.locator('.ss-card .ss-exname').count() == 0, 'superset : pas de nom répété dans les tours')
 
 

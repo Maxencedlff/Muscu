@@ -34,14 +34,24 @@ function sideStepText(ex, s, si, k, side, nx) {
 function sideNoteWho(ex, si, s, side) {
   return hasSide2(s) ? `de la ${setSpokenName(ex, si).toLowerCase()}, ${sideWord(ex, side)}` : '';
 }
-// Liens au-dessus des séries, tant qu'aucune série n'est validée : « Commencer par le bras droit » (panel du 20/11 : le
-// réglage, rangé dans ⋯ › Plus d'options, était introuvable) et « Noter chaque bras à part » (séance du 22/11 :
-// Maxence ne trouvait pas comment noter un bras puis l'autre). Un seul toucher chacun ; les deux restent dans ⋯.
+// Réglages au-dessus des séries, tant qu'aucune série n'est validée (panel du 20/11 : rangés dans ⋯, introuvables ;
+// séance du 22/11 : Maxence ne trouvait pas comment noter un bras puis l'autre). Depuis le 26/11 (16 juges : deux liens
+// orange pris pour des consignes, « Commencer par le bras droit » alors que la liste commençait par le gauche, et affiché
+// même bras notés ensemble) : un interrupteur « Noter chaque bras à part » qui montre l'état, puis, seulement bras notés
+// à part, « Premier bras : Gauche | Droit » qui montre le bras choisi. Un seul toucher chacun ; les deux restent dans ⋯.
 function sideFirstLinkHtml(ex, ei) {
-  const acts = sideMenuActions(ex), first = acts.find(a => a.value === 'side-first'), sides = acts.find(a => a.value === 'sides');
-  if (!first) return '';
-  const btn = (a, action) => `<button class="side-first-link" data-action="${action}" data-ei="${ei}">${esc(a.label)}</button>`;
-  return `<div class="side-links">${btn(first, 'side-first')}${sides ? btn(sides, 'side-toggle') : ''}</div>`;
+  const limb = unilateralLimb(ex), work = workSets(ex?.sets);
+  if (!limb || !work.length || work.some(s => s.done)) return '';
+  const all = work.every(hasSide2), first = sideFirstOf(ex);
+  const sw = `<button class="side-set__row" data-action="side-toggle" data-ei="${ei}" role="switch" aria-checked="${all}">
+          <span class="side-set__title">Noter chaque ${limb} à part</span>${switchHtml(all)}</button>`;
+  const seg = !all ? '' : `<div class="side-set__row side-set__first">
+          <span class="side-set__title" id="sideFirst${ei}">Premier ${limb}</span>
+          <div class="segmented" role="group" aria-labelledby="sideFirst${ei}">${['gauche', 'droit'].map((k, i) => {
+            const on = first === k, lbl = SIDE_NAMES[limb][i].split(' ')[1];
+            return `<button class="segmented__btn${on ? ' segmented__btn--active' : ''}"${on ? '' : ` data-action="side-first" data-ei="${ei}"`} aria-pressed="${on}">${capitalize(lbl)}</button>`;
+          }).join('')}</div></div>`;
+  return `<div class="side-links">${sw}${seg}</div>`;
 }
 // « le bras droit », « la jambe droite »
 function sideRef(ex, side) {
@@ -91,12 +101,12 @@ function side2RowHtml(ex, ei, s, si, tag) {
       <div class="session-set session-set--done session-set--side" data-action="side-reopen" ${at} ${u ? '' : 'role="button" tabindex="0"'}>
         <span class="sr-text">${name} validé${sideFem(ex) ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}${exOf}${record ? `, ${esc(record)}` : ''}. Modifier</span>
         ${no}
-        ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevTxt(x), sideNoteWho(ex, si, s, 2))}
+        ${setNoteBtnHtml(ex, ei, s, si, prev, prevTxt(x), sideNoteWho(ex, si, s, 2))}
         <span class="set-val set-val--w num" aria-hidden="true" data-lbl="${unitLbl()}">${hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '—'}</span>
         <span class="set-val set-val--r num" aria-hidden="true" data-lbl="Reps">${esc(x.reps)}</span>
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
         ${record ? `<span class="set-badge" aria-hidden="true"><span class="pr-badge">${medalSvg(13)}${esc(record)}</span></span>` : ''}
-      </div>`;
+      </div>${setUndoHtml(u)}`;
   }
   // Mise en avant comme une sous-série : seulement quand c'est l'étape qui suit (js/data/unilateral.js, setNextStep)
   const c = techCurrentSub(activeSession.exercises, activeSession.lastDone);

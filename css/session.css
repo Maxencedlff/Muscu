@@ -119,6 +119,11 @@ html.type-xl .ss-thumbs { display: none; }
 /* Exercice jamais fait (exFirstTimeHtml) : à la place de l'objectif, en gris, sur plusieurs lignes s'il le faut */
 .ex-first { margin: -2px 0 4px; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); }
 .ex-first.ex-goal--member { margin: -8px 0 4px calc(28px + 8px); }
+/* « À battre : 42,5 kg × 8 » (exBeatHtml) : l'objectif de l'accueil sous le nom, sa raison en gris, et « Mettre 42,5 kg »
+   quand la charge monte (action : couleur d'action, comme l'ancienne puce ↑) */
+.ex-beat { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: -2px 0 6px; }
+.ex-beat__txt { margin: 0; flex: 1 1 12rem; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); }
+.ex-beat__txt b { font-weight: 600; color: var(--label); }
 .ex-rest-link {
   background: none; border: 0; color: var(--tint); font: inherit; cursor: pointer;
   padding: 13px 2px; margin: -13px -2px;
@@ -208,7 +213,9 @@ html.type-xl .ss-thumbs { display: none; }
 .set-check-zone--wait .set-check { box-shadow: inset 0 0 0 2px var(--set-ring-wait); }
 .set-check-zone--wait:active .set-check { transform: none; }
 .set-check--done { background: var(--green); box-shadow: none; }
-.set-check--edit { background: var(--tint); box-shadow: none; }
+/* Série rouverte (« Corriger ») : la même coche verte que « validée » (une couleur, un sens, 16 juges du 26/11) ; c'est la
+   ligne, teintée, qui dit qu'elle est en correction */
+.set-check--edit { background: var(--green); box-shadow: none; }
 
 .set-badge { grid-column: 2 / -1; justify-self: start; padding: 0 0 4px; }
 .session-set .pr-badge {
@@ -257,6 +264,7 @@ html.type-xl .ss-thumbs { display: none; }
   background: var(--cell); color: var(--tint); font-size: 1rem; font-weight: 400;
 }
 .view.session .session-add-ex-btn:active { opacity: .6; }
+.view.session .session-finish-btn { margin: 4px 0 8px; }
 
 /* ── Barre de repos non bloquante ────────────────── */
 .rest-mini {
@@ -364,14 +372,8 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
    sous l'anneau (screens.css) sans que les deux lignes, placées au même endroit, se recouvrent */
 .rs__resume--pair { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .rs--effort .rs__resume { max-width: 140px; }   /* reste dans la partie large du cercle, sans toucher l'anneau */
-/* Annuler en ligne (sessionUndo, js/features/session.js) : dans la colonne « Avant » de la série, ou en ligne au-dessus de
-   la carte de l'exercice ; prend sa place, ne recouvre rien */
-.set-undo {
-  min-height: 44px; min-width: 44px; padding: 0 2px; border: 0; background: none; cursor: pointer;
-  font: inherit; font-size: 0.765rem; font-weight: 700; color: var(--tint); white-space: nowrap; position: relative; z-index: 1;
-}
-.set-undo:active { opacity: .5; }
-.set-undo--state { color: var(--green-text); font-weight: 600; }
+/* Annuler en ligne (sessionUndo, js/features/session.js) : sur une ligne sous la série (ex-undo--set), ou au-dessus de la
+   carte de l'exercice ; prend sa place, ne recouvre rien */
 /* Texte agrandi : « Annuler » passe dessous quand la place manque, jamais de mot coupé en deux (panel t7) */
 .ex-undo {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 12px; min-height: 44px;
@@ -380,6 +382,8 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 }
 /* Série supprimée : la ligne prend sa place dans le tableau (delUndoRows), à la hauteur d'une série */
 .ex-undo--row { min-height: 56px; margin: 0 -6px 2px; padding-left: 6px; border-radius: var(--r-sm); }
+/* Sous la série qui vient de changer : plus basse qu'une série, en retrait comme les sous-séries */
+.ex-undo--set { min-height: 44px; margin: 0 0 4px; padding-left: calc(28px + var(--set-gap, 8px)); background: none; font-size: var(--fs-footnote); }
 .ex-undo__text { flex: 1 1 8em; min-width: 0; padding: 10px 0; overflow-wrap: break-word; }
 .ex-undo__btn { flex-shrink: 0; margin-left: auto; min-height: 44px; padding: 0 12px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--tint); cursor: pointer; }
 .ex-undo__btn:active { opacity: .5; }
@@ -564,6 +568,9 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 }
 .ax__equip::-webkit-scrollbar { display: none; }
 .ax__equip .ax__chip { flex-shrink: 0; white-space: nowrap; }
+/* Texte agrandi : les pastilles passent à la ligne, toutes visibles (16 juges du 26/11 : « Sans matériel » et « P… » coupés
+   au bord, rien ne disait que la ligne défile) */
+html.type-xl .ax__equip, html.type-xl .ax .mf__row { flex-wrap: wrap; overflow-x: visible; }
 .ax__chip {
   min-height: 44px; padding: 0 14px; border: 0; border-radius: 22px; cursor: pointer;
   background: var(--fill); color: var(--label); font: inherit; font-size: var(--fs-footnote); font-weight: 600;
@@ -592,11 +599,12 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 .mf__row--sub .ax__chip:not([aria-pressed="true"]) { background: transparent; box-shadow: inset 0 0 0 1px var(--sep); }
 .hist-tools .mf { margin: 0; }
 
-/* Chrono d'effort (js/features/effort.js) : ▶ à la place du numéro de la série en cours */
+/* Chrono d'effort (js/features/effort.js) : le numéro de la série en cours et ▶ à côté, comme « Disques » (16 juges du
+   26/11 : le ▶ seul faisait perdre le numéro, dans un orange plus foncé que celui de l'app) */
 .set-play {
-  width: 32px; height: 32px; justify-self: center; border: 0; border-radius: 50%; cursor: pointer;
-  background: var(--cat-color, var(--tint)); color: var(--white);
-  display: inline-flex; align-items: center; justify-content: center; padding: 0 0 0 2px;
+  min-width: 0; height: 32px; justify-self: center; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: var(--fill); color: var(--tint-on-fill); font: inherit; font-size: 0.882rem; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 2px; padding: 0 6px;
 }
 .set-play:active { transform: scale(.92); }
 /* Zone de toucher de 44 px autour du rond de 32 px */
@@ -683,10 +691,12 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 .session-set--warmup .set-check--done { background: var(--label2); }
 /* Bouton « Disques » à la place du numéro de la série à faire (exercice à barre) : 44 px de zone de toucher */
 .set-plates {
-  position: relative; min-width: 0; height: 44px; justify-self: center; border: 0; border-radius: var(--r-pill); cursor: pointer; padding: 0 6px;
-  background: var(--fill); color: var(--tint-on-fill); display: inline-flex; align-items: center; justify-content: center; gap: 2px;
-  font: inherit; font-size: 0.882rem; font-weight: 600;
+  position: relative; min-width: 0; min-height: 44px; justify-self: center; border: 0; border-radius: var(--r-sm); cursor: pointer; padding: 2px 6px;
+  background: var(--fill); color: var(--tint-on-fill); display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  font: inherit; font-size: 0.882rem; font-weight: 600; line-height: 1.1;
 }
+/* « Disques » sous le numéro, en petit : un mot plutôt qu'un dessin de disque pris pour une cible (26/11) */
+.set-plates__lbl { font-size: 0.588rem; font-weight: 600; white-space: nowrap; }
 .set-plates::after { content: ''; position: absolute; inset: -6px; }
 .set-plates:active { opacity: .6; }
 /* Reps en réserve (js/data/rir.js) : sélecteur 0 à 4+ sous la dernière série validée, badge « 2 en réserve »
@@ -697,6 +707,7 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
   padding: 0 6px 8px calc(34px + var(--set-gap) + 6px); background: var(--cell); border-radius: 0 0 var(--r-sm) var(--r-sm);
 }
 /* Dernière série d'un exercice : le même sélecteur sous le résumé replié de la carte (foldedRirHtml) */
+.ex-fold-rir .ex-undo--set { padding-left: 12px; }
 .ex-fold-rir .rir { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; padding: 0 12px 12px; }
 .rir__lbl, .rir__rpe { font-size: 0.765rem; font-weight: 600; color: var(--label2); white-space: nowrap; }
 .rir__btns { order: 2; flex-basis: 100%; display: flex; gap: 8px; }
@@ -753,7 +764,8 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 .tech__add { padding: 0 10px 0 8px; }
 /* Boutons ensemble, à droite, même sans le texte d'aide (petit écran) ; passés sous le libellé, ils y restent calés à droite */
 .tech__btns { display: flex; align-items: center; gap: 16px; flex: none; margin-left: auto; }
-.tech__x { width: 44px; color: var(--label2); }
+.tech__x { min-width: 44px; padding: 0 12px; color: var(--tint-on-fill); }
+html.type-xl .tech__both { display: none; }   /* « (2 bras) » : chaque bloc dit déjà son bras ; en AX33 il recouvrait le texte (21/11) */
 .tech__add::after, .tech__x::after { content: ''; position: absolute; inset: -4px; }   /* 44 px dessinés (panel du 20/11), 52 touchables, 8 px libres entre les deux */
 .tech__add:active, .tech__x:active { opacity: .6; }
 .session-set--sub { min-height: 52px; margin-bottom: 2px; border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: inset 2px 0 0 var(--sep); }
@@ -891,7 +903,7 @@ html.type-xl .order-link { white-space: normal; text-align: left; min-width: 0; 
 }
 .ex-note-link:active { opacity: .5; }
 /* Série : la case « Avant » est le bouton de sa note (toute la hauteur de la ligne, 44 pt au moins) : la valeur d'avant,
-   l'icône dessous (au trait sans note, pleine avec). Gris comme la valeur : discret, l'orange reste aux actions de la ligne */
+   et, seulement avec une note, l'icône pleine dessous. Gris comme la valeur : discret, l'orange reste aux actions de la ligne */
 .session-set .set-note-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   align-self: stretch; min-width: 0; min-height: 48px; margin: -4px 0; padding: 4px 0;
@@ -903,7 +915,6 @@ html.type-xl .order-link { white-space: normal; text-align: left; min-width: 0; 
 .set-note-btn__ico { display: flex; align-items: center; gap: 4px; }
 .set-note-btn__ico > .icon { flex-shrink: 0; width: 1.3em; height: 1.3em; color: var(--label2); }
 .set-note-btn--on .set-note-btn__ico > .icon { color: var(--label); }
-.set-note-btn__word { display: none; color: var(--tint); font-weight: 600; }
 /* Note de la série (ou celle de la même série la dernière fois) sous la ligne, seulement s'il y en a une */
 .session-set .set-note-prev {
   grid-column: 2 / -1; justify-self: start; padding: 0 0 6px; cursor: pointer;
@@ -913,7 +924,6 @@ html.type-xl .order-link { white-space: normal; text-align: left; min-width: 0; 
 html.type-xl .session-set .set-note-btn { align-items: flex-start; gap: 4px; margin: 0; padding: 0; text-align: left; white-space: normal; }
 html.type-xl .set-note-btn__val { overflow: visible; }
 html.type-xl .set-note-btn__ico { flex-wrap: wrap; }
-html.type-xl .set-note-btn__word { display: inline; overflow-wrap: anywhere; }
 html.type-xl .session-set .set-note-prev { grid-column: 1 / -1; }
 /* Haut de la séance : note du bilan de la dernière fois, qu'on ferme */
 .sess-lastnote {
@@ -957,9 +967,19 @@ html.type-xl .sets__head { column-gap: 12px; }   /* même écart que les lignes 
 html.type-xl .set-n__side { display: inline; margin-left: .35em; font-size: 0.765rem; }
 html.type-xl .sets--sides .set-n { flex-direction: row; align-items: baseline; }
 /* « Commencer par le bras droit » : au-dessus des séries tant qu'aucune n'est validée */
-.side-links { display: flex; flex-wrap: wrap; column-gap: 24px; margin: 0 0 2px; }
-.side-first-link { display: block; min-height: 44px; margin: 0; padding: 0; border: 0; background: none; color: var(--tint); font: inherit; font-size: 0.882rem; text-align: left; cursor: pointer; }
-.side-first-link:active { opacity: .6; }
+/* Exercice à un bras : « Noter chaque bras à part » (interrupteur) et « Premier bras : Gauche | Droit », une liste groupée
+   iOS sur le fond de la carte (des réglages, pas des consignes en orange) */
+.side-links { margin: 0 0 8px; border-radius: var(--r-sm); background: var(--fill); overflow: hidden; }
+.side-set__row {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 6px 12px; position: relative;
+  border: 0; background: none; color: var(--label); font: inherit; font-size: 0.882rem; text-align: left;
+}
+button.side-set__row { cursor: pointer; }
+button.side-set__row:active { background: var(--cell2); }
+.side-set__row + .side-set__row::before { content: ''; position: absolute; top: 0; left: 12px; right: 0; height: .5px; background: var(--sep); }
+.side-set__title { flex: 1; min-width: 0; }
+.side-set__first .segmented { flex-shrink: 0; }
+html.type-xl .side-set__first { flex-wrap: wrap; row-gap: 6px; }
 /* Barre de repos d'un exercice noté par bras : « Série 2 · bras gauche · 14 kg × 10 » toujours entier (la série et le
    bras même sur écran étroit), et la série passe à la ligne plutôt que de sortir de la barre */
 .rest-mini__next--side .rest-mini__tail { white-space: normal; flex-shrink: 1; min-width: 0; max-width: 100%; }
@@ -973,10 +993,10 @@ html.type-xl .sets--sides .set-n { flex-wrap: wrap; width: auto; min-width: 44px
    deux colonnes, puis « Avant » (ou « Annuler ») sur la même largeur (« 14 × 10 » ne se coupe plus en « 14 × 1 / 0 »),
    puis les cases */
 html.type-xl .sets--sides .session-set, html.type-xl .session-set.session-set--sub { grid-template-areas: "n n check" "prev prev check" "w r check"; }
-html.type-xl .sets--sides .session-set .set-undo, html.type-xl .session-set.session-set--sub .set-undo { grid-area: prev; justify-self: start; }
 /* Ligne de sous-série d'une série par bras : « Drop 1 » puis le côté (« Drop 1 · Droit » en texte agrandi) */
 html.type-xl .tech-tag .set-n__side { margin-left: 0; }
-html.type-xl .tech-tag .set-n__side::before { content: '\00a0· '; }   /* « · » collé à « Drop 1 » */
+/* « Drop 1 » puis le côté dessous, sans « · » : collé à « Drop 1 », il restait seul en bout de ligne (16 juges du 26/11) */
+html.type-xl .tech-tag .set-n__side { display: block; }
 html.type-xl .session-set.session-set--sub .set-n { flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-self: start; }
 /* Texte agrandi : « 14 × 10 » ne se coupe jamais (espaces insécables respectées) */
 html.type-xl .sets--sides .session-set .set-prev, html.type-xl .sets--sides .session-set .set-note-btn__val { overflow-wrap: normal; word-break: normal; }
@@ -985,7 +1005,7 @@ html.type-xl .sets--sides .session-set .set-prev, html.type-xl .sets--sides .ses
 .sets__caption--pair { margin-top: 10px; text-transform: none; letter-spacing: 0; font-size: 0.765rem; }
 /* Texte agrandi, lignes empilées : « kg » et « Reps » au-dessus des valeurs d'une ligne validée (data-lbl) */
 html.type-xl .set-val[data-lbl]::before { content: attr(data-lbl); display: block; font-size: 0.647rem; font-weight: 600; color: var(--label2); }
-/* Reps d'un drop jamais fait : « max » en indication, plus pâle que les valeurs */
+/* Reps d'un drop ou d'un bloc jamais fait : « reps » en indication, plus pâle que les valeurs */
 .session-set--sub .set-input::placeholder { color: var(--label3, var(--label2)); opacity: .7; }
 /* Boutons « + drop » et × sous le dernier drop d'une série par bras, calés à droite */
 .tech__cap--foot { min-height: 52px; justify-content: flex-end; }
