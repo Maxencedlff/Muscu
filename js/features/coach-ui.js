@@ -311,8 +311,7 @@ function renderCoachJoin(code) {
             <span class="cell__body"><span class="cell__title" id="coachAgeHint">J'ai 15 ans ou plus</span></span>
             <span class="switch ${ok ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
           </button>
-          <button class="btn ${ok ? 'btn--primary' : 'btn--secondary'} btn--full coach-accept" data-action="coach-accept" data-code="${esc(code)}" ${ok ? '' : 'disabled aria-describedby="coachAgeHint"'}>Accepter</button>
-          ${ok ? '' : '<p class="coach-accept__why">Confirme ton âge juste au-dessus pour accepter.</p>'}
+          <button class="btn ${ok ? 'btn--primary' : 'btn--secondary'} btn--full coach-accept" data-action="coach-accept" data-code="${esc(code)}" ${ok ? '' : 'disabled aria-describedby="coachAgeHint"'}>${ok ? 'Accepter' : 'Confirme ton âge pour accepter'}</button>
         </div>
       </div>
     </div>`;

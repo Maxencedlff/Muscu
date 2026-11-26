@@ -169,7 +169,7 @@ function startSession(cat) {
   persistWarned = false;
   editingSet    = null;
   const progKey = cat === FREE ? FREE : data.activeProgramme;   // séance libre en direct : vide, hors programme (startFreeSession)
-  const exList  = (progKey === FREE ? null : data.programmes[progKey]?.exercises?.[cat]) || [];
+  const exList  = (progKey === FREE ? null : onActiveProgramme(prog).exercises[cat]) || [];   // l'actif, même pendant le réglage d'un autre programme
   activeSession = {
     category:  cat,
     programme: progKey,

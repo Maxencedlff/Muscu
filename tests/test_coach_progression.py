@@ -145,7 +145,8 @@ def t_liste(bench, eng, dev, theme):
         R.check(names == ['zoe', 'tom', 'nina', 'lea', 'hugo', 'paul'], f'{t} tri : nouveautés, à relancer, records, les autres ({names})')
         sig = lambda n: page.locator('.coach-student-row', has_text=n).locator('.progress-sig')
         # Panel v4 t1 : médaille au trait (comme la fiche et le bilan), plus la flèche verte des progressions
-        R.check(sig('lea').inner_text().replace(' ', '').replace('\u00a0', '') == '2recordsen7jours' and sig('lea').locator('.medal').count() == 1,
+        # Retours de Sophie (26/11) : tous les records comptés, comme les cartes de ses séances (Squat deux fois + Tractions)
+        R.check(sig('lea').inner_text().replace(' ', '').replace('\u00a0', '') == '3recordsen7jours' and sig('lea').locator('.medal').count() == 1,
                 f'{t} Léa : records, médaille ({sig("lea").inner_text()!r})')
         R.check('progress-sig--up' in (sig('lea').get_attribute('class') or ''), f'{t} Léa : signal record')
         R.check(sig('tom').inner_text() == '9 jours sans séance' and 'progress-sig--warn' in sig('tom').get_attribute('class'), f'{t} Tom : inactif en orange ({sig("tom").inner_text()!r})')
@@ -188,14 +189,10 @@ def t_fiche(bench, eng, dev, theme):
         wk = page.inner_text('.coach-student-view .progress-week')
         R.check('3 sur 4' in wk and 'Prévues : Sèche 4 jours' in wk, f'{t} fiche : séances faites sur prévues ({wk!r})')
         R.check('Squat' in wk and 'Tractions' in wk and '105 kg' in wk and 'avant 100 kg' in wk, f'{t} fiche : records avec l\'exercice')
-        R.check(page.locator('.progress-week .review-rec').count() == 2, f'{t} fiche : un record par exercice')
-        # Panel coach t1 : un seul sens de « semaine », les 7 jours glissants partout (signal de la liste, barres de la fiche)
-        bars = page.locator('.progress-week .wkbars')
-        if bars.count():
-            nums = page.locator('.progress-week .wkbars__n').all_inner_texts()
-            R.check(page.inner_text('.progress-week .wkbars__lbl') == 'par 7 jours' and bars.get_attribute('aria-label').startswith('Séances par tranches de 7 jours')
-                    and nums[-1] == page.inner_text('.progress-week .progress-week__row .cell__value').split()[0], f'{t} fiche : barres par tranches de 7 jours, la dernière = le chiffre affiché ({nums})')
-        R.check('par tranches de 7 jours' in page.inner_text('.coach-student-view .group-foot'), f'{t} fiche : pied « par tranches de 7 jours »')
+        R.check(page.locator('.progress-week .review-rec').count() == 3, f'{t} fiche : les 3 records, comme les cartes des séances')
+        # Retours de Sophie (26/11) : plus de mini-barres « 0 0 6 6 par 7 jours », la semaine d'avant dite en mots
+        R.check(page.locator('.progress-week .wkbars').count() == 0 and 'par 7 jours' not in wk, f'{t} fiche : plus de mini-barres ({wk!r})')
+        R.check(page.inner_text('.coach-student-view .progress-week + .group-foot') == "Aujourd'hui et les 6 jours d'avant.", f'{t} fiche : pied sans « barres »')
         # Coach v2 : la dernière séance passe dans la carte de tête, illustrée (vignette décorative), au-dessus des
         # « 7 derniers jours », avec ses jours d'entraînement en pastilles (aujourd'hui à droite)
         hero = page.locator('.coach-student-view .cstu-hero')

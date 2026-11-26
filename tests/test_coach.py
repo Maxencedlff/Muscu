@@ -795,7 +795,7 @@ def t_recap(bench, eng, dev, theme):
         eq = page.locator('.coach-session-view .review-ex').nth(3).text_content()
         R.check('=' not in rows[3] and '↑' not in rows[3] and '↓' not in d and 'identique à la dernière fois' in eq, f'{t} égalité : rien à l\'écran, « identique » dit à VoiceOver ({rows[3]!r})')
         R.check(page.locator('.review-trend--up').count() == 3 and page.locator('.review-trend--same').count() == 0, f'{t} hausses en vert, égalité sans signe')
-        R.check('poids du corps non compté' in page.inner_text('.review-rule'), f'{t} règle du volume affichée')
+        R.check('Le poids du corps ne compte pas' in page.inner_text('.review-rule'), f'{t} règle du volume affichée')
         layout(page, t, 'relecture d\'une séance')
         shot(page, LOT, f'14b-relecture-{t}')
         # Plus ancienne séance : rien à comparer, aucune flèche ni record

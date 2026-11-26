@@ -62,7 +62,6 @@
 
 /* ── Aperçu avant d'accepter ── */
 .coach-accept { margin-top: 24px; }
-.coach-accept__why { margin: 8px 4px 0; font-size: 15px; color: var(--label2); text-align: center; }   /* pourquoi « Accepter » est grisé (juges du 26/11) */
 .coach-cancel { margin-top: 10px; }
 
 /* ── Programmes reçus (Mon coach) ── */

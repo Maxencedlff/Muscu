@@ -325,7 +325,7 @@ function payCoachHtml(list, pre) {
   const count = `<p class="pay-benefits">${payCoachBenefits()} Tu suis ${plural(students, 'élève', 'élèves')}.</p>`;
   const planOne = p => {
     const t = planOf(p.id).tier, on = t === wanted && current !== p.id;
-    return payPlanHtml(p, { label: t.label, current: current === p.id, tag: on ? (pre ? `Conseillé pour ${plural(students, 'élève', 'élèves')}` : 'Conseillé') : '',
+    return payPlanHtml(p, { label: t.label, current: current === p.id, tag: on ? (pre && tier?.uncovered > 0 ? `Conseillé pour ${plural(students, 'élève', 'élèves')}` : 'Conseillé') : '',
       months: payYearMonths(list, p), wanted: on && !!pre });
   };
   // Venu du bandeau « élèves au-delà de ton palier » (pre) : le palier conseillé en tête, mis en avant, sans défiler

@@ -56,6 +56,8 @@ def open_app(page, theme, checkins=True):
     page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
     settle(page)
+    # Coquille iOS simulée : la feuille de partage d'iOS (Native.shareText) garde le texte partagé
+    page.evaluate("Native.shareText = async t => { window.__shared.push(t); return 'shared'; }")
 
 
 def signin(page, username):
@@ -227,12 +229,12 @@ def t_envoyer_partager(bench, eng, dev, theme):
         page.click('[data-action="share-programme"]')
         settle(page)
         R.check(page.evaluate('window.__shared.length') == 1 and 'Force' in page.evaluate('window.__shared[0]'), f'{t} Partager une copie : feuille de partage')
-        # Feuille refusée par le navigateur : copié, et on le dit
-        page.evaluate("window.__shareFail = 'NotAllowedError'")
+        # Navigateur (hors app) dont la feuille est refusée (geste expiré) : copié, et on le dit
+        page.evaluate("Native.isNative = false; window.__shareFail = 'NotAllowedError'")
         page.click('[data-action="share-programme"]')
         settle(page)
         R.check(page.evaluate('window.__copied.length') == 1 and 'Copié' in page.inner_text('.toast'), f'{t} partage refusé : copié avec un toast')
-        page.evaluate("window.__shareFail = null")
+        page.evaluate("Native.isNative = true; window.__shareFail = null")
         # Envoyer à un élève : choix de l'élève, puis Envoyer
         page.click('[data-action="prog-send-student"]')
         page.wait_for_selector('.ios-dialog__btn:has-text("camille")')

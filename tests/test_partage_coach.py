@@ -261,7 +261,7 @@ def t_coach(bench, eng, dev, theme):
         page.locator('.coach-sess').first.click()
         page.wait_for_selector('.coach-session-view')
         st = page.inner_text('.coach-session-view')
-        R.check('poids du corps non compté' in st and page.evaluate("fmtVolume(500)") in st, f'{t} sans partage : volume d\'avant (lest seul)')
+        R.check('Le poids du corps ne compte pas' in st and page.evaluate("fmtVolume(500)") in st, f'{t} sans partage : volume d\'avant (lest seul)')
         # Léa coupe le partage : la fiche relue n'a plus rien
         page.evaluate(f"__sb.co.shares = []; delete __sb.co.weights['{ids['lea']}']")
         page.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
