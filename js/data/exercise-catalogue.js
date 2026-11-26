@@ -144,6 +144,7 @@ const EXERCISE_CATALOGUE = [
   ['Squat haltères',                    'quads glutes',           'adductors hamstrings', 'halteres', 'squat haltère|squat aux haltères|squat avec haltères|dumbbell squat|squat 2 haltères'],
   ['Hack squat',                       'quads',                  'glutes', 'salle', 'squat machine|hack squats'],
   ['Presse à cuisses',                 'quads glutes',           'adductors', 'salle', 'leg press|presse|presse cuisses|presse jambes|presse à jambes|presse 45'],
+  ['Presse à cuisses sumo',            'quads glutes',           'adductors', 'salle', 'presse sumo|leg press sumo|sumo leg press|wide stance leg press|presse pieds écartés|presse cuisses sumo'],
   ['Fentes marchées haltères',         'quads glutes',           'hamstrings adductors', 'halteres', 'walking lunges|fentes marchées'],
   ['Fentes bulgares',                  'quads glutes',           'hamstrings adductors', 'halteres', 'squat bulgare|bulgarian split squat|split squat|bulgarian squat|bulgare'],
   ['Extension quadriceps',             'quads',                  '', 'salle', 'leg extension|legs extension|extension jambes|extension des jambes|quad extension'],

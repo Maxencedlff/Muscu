@@ -308,6 +308,8 @@ const EXERCISE_HOWTO = {
   'Presse à cuisses': [['Dos et fesses bien plaqués au dossier', 'Pieds largeur d\'épaules au milieu de la plateforme',
     'Descends jusqu\'à 90° aux genoux, sans décoller le bas du dos', 'Pousse sans verrouiller les genoux en haut',
     'Genoux dans l\'axe des pieds pendant toute la descente'], 'Bas du dos qui décolle en bas du mouvement'],
+  'Presse à cuisses sumo': [['Dos et fesses bien plaqués au dossier', 'Pieds plus larges que les épaules, en haut de la plateforme, pointes vers l\'extérieur',
+    'Descends en ouvrant les genoux dans l\'axe des pieds, sans décoller le bas du dos', 'Pousse avec les talons, sans verrouiller les genoux en haut'], 'Genoux qui rentrent vers l\'intérieur'],
   'Pistol squat assisté': [['Debout sur une jambe, l\'autre tendue devant', 'Tiens-toi à un poteau ou au cadre d\'une porte',
     'Descends le plus bas possible sur la jambe d\'appui', 'Remonte en t\'aidant des bras le moins possible'], 'Genou d\'appui qui rentre vers l\'intérieur'],
   'Pistol squat': [['Debout sur une jambe, l\'autre tendue devant', 'Bras tendus devant pour l\'équilibre',

@@ -80,6 +80,7 @@ const EXERCISE_PARTS = {
   "Squat haltères": {"p":{"vastus_lateralis":2,"vastus_medialis":2,"rectus_femoris":2,"glute_max":2},"s":{"adductor_magnus":1,"semitendinosus":1,"semimembranosus":1,"adductor_longus":1,"gracilis":1,"biceps_femoris_long":1},"src":[26,27,28]},
   "Hack squat": {"p":{"vastus_lateralis":2,"vastus_medialis":2,"rectus_femoris":2},"s":{"glute_max":1},"src":[26,27,28]},
   "Presse à cuisses": {"p":{"vastus_lateralis":2,"vastus_medialis":2,"rectus_femoris":2,"glute_max":2},"s":{"adductor_magnus":1,"adductor_longus":1,"gracilis":1},"src":[26,27,28]},
+  "Presse à cuisses sumo": {"p":{"vastus_lateralis":2,"vastus_medialis":2,"rectus_femoris":2,"glute_max":2},"s":{"adductor_magnus":1,"adductor_longus":1,"gracilis":1},"src":[26,27,28,71]},
   "Fentes marchées haltères": {"p":{"vastus_lateralis":2,"vastus_medialis":2,"rectus_femoris":2,"glute_max":2,"glute_med":1},"s":{"semitendinosus":1,"semimembranosus":1,"adductor_magnus":1,"adductor_longus":1,"gracilis":1,"biceps_femoris_long":1},"src":[26,27,30]},
   "Fentes bulgares": {"p":{"vastus_lateralis":2,"vastus_medialis":2,"rectus_femoris":2,"glute_max":2,"glute_med":1},"s":{"semitendinosus":1,"semimembranosus":1,"adductor_magnus":1,"adductor_longus":1,"gracilis":1,"biceps_femoris_long":1},"src":[26,27,30]},
   "Extension quadriceps": {"p":{"rectus_femoris":2,"vastus_lateralis":2,"vastus_medialis":2},"s":{},"src":[27,31]},
@@ -275,4 +276,5 @@ const EXERCISE_PART_SOURCES = [
   "ExRx, Lever Seated Row (synergistes : brachial, brachio-radial)",
   "Youdas et al. 2010, J Strength Cond Res 24(12):3404-3414 (EMG pull-up / chin-up)",
   "Ekstrom, Donatelli, Soderberg 2003, JOSPT 33(5):247-258 (élévation du bras dans l'axe des fibres du trapèze inférieur, à plat ventre)",
+  "Martín-Fuentes et al. 2020, Int J Environ Res Public Health 17(13):4626, revue systématique : à la presse, l'écart et la rotation des pieds changent peu l'activité des cuisses ; pieds hauts = plus de grand fessier (https://pmc.ncbi.nlm.nih.gov/articles/PMC7369968/) ; au squat, écart large = plus de grand fessier et de long adducteur (Paoli et al. 2009, J Strength Cond Res 23(1):246)",
 ];
