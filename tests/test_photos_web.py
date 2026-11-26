@@ -602,7 +602,17 @@ def app_journey(browser, url, engine):
         fixtures.settle(app)
         txt = app.inner_text('.plink-view')
         check('sur Linux' in txt or 'sur Mac' in txt or 'sur Windows' in txt or 'Navigateur' in txt or 'Chrome' in txt, f'{engine} app : ordinateur listé ({txt!r})')
-        app.tap('[data-action="plink-revoke"]')
+        # La liste peut se redessiner au moment du toucher (relecture des ordinateurs) : le dialogue est attendu, nouvel
+        # essai sinon (vu une fois sur la CI, Chromium)
+        for essai in range(3):
+            app.wait_for_selector('[data-action="plink-revoke"]')
+            fixtures.settle(app)
+            app.tap('[data-action="plink-revoke"]')
+            try:
+                app.wait_for_selector('.ios-dialog__btn:has-text("Retirer")', timeout=5000)
+                break
+            except Exception:
+                check(essai < 2, f'{engine} app : le dialogue « Retirer » ne s\'ouvre pas')
         fixtures.tap_dialog(app, 'Retirer')
         fixtures.settle(app)
         check(app.evaluate('__sb.pl.devices.length') == 0, f'{engine} app : retiré')
