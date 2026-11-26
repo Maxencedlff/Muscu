@@ -25,8 +25,14 @@ create table auth.identities (
   unique (provider_id, provider)
 );
 alter table auth.users add column created_at timestamptz default now();
+-- Sessions (une ligne par connexion, id = claim session_id du jeton) : lues par public.coach_web_orphan_claim
+create table auth.sessions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz default now()
+);
 grant usage on schema auth to supabase_auth_admin;
-grant select, insert, update, delete on auth.users, auth.identities to supabase_auth_admin;
+grant select, insert, update, delete on auth.users, auth.identities, auth.sessions to supabase_auth_admin;
 -- Droits par défaut de Supabase sur ce que postgres crée dans public : sans eux, un oubli de REVOKE
 -- dans une migration passerait inaperçu ici (les tests « anon n'a rien » seraient vrais par hasard)
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;

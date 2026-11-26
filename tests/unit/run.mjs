@@ -2435,6 +2435,7 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./coach-web-diete.mjs')).default({ test, assert, ROOT });
 (await import('./coach-web-diete-sync.mjs')).default({ test, assert, ROOT });
 (await import('./coach-web-sante.mjs')).default({ test, assert, ROOT });
+(await import('./coach-web-google.mjs')).default({ test, assert, ROOT });
 // ── Photos de bilan sur ordinateur, vague 5 (protocole « Relier un ordinateur », QR code) ──
 (await import('./photo-link.mjs')).default({ test, app, assert, ROOT });
 // ── Bilans configurables : contrat partagé app / web / serveur (tests dans bilans-contrat.mjs) ──
@@ -2447,6 +2448,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./tour.mjs')).default({ test, run, app, assert, ROOT });
 // ── Mode coach grand écran sur iPad, 25/11 (tests dans coach-ipad.mjs, contextes à part) ──
 (await import('./coach-ipad.mjs')).default({ test, assert, ROOT });
+// ── Mise en page tablette, 26/11 (tests dans tablet.mjs, contextes à part) ──
+(await import('./tablet.mjs')).default({ test, assert, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

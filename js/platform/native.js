@@ -899,12 +899,17 @@ const Native = (() => {
 // coach grand écran, audit m5 du 25/11 : « cet iPhone » lu sur un iPad), « téléphone » ailleurs (app Android, navigateur
 // d'un autre téléphone ou d'un ordinateur). Regard neuf du 16/11 : « ton nouvel iPhone » lu sur un Pixel. Les textes
 // vrais seulement d'un iPhone (montre, écouteur du haut) gardent « iPhone » en dur.
-function phoneIsIpad() {
-  const ua = navigator.userAgent || '';
-  return /iPad/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+// Seule règle « est-ce un iPad » de l'app (audit iPad, 26/11) : nom de l'appareil (phoneName), mise en page tablette
+// (tabletDevice, js/ui/tablet.js), mode coach grand écran (coachDeskEligible, js/data/coach-desk.js). Un iPhone (Duo
+// compris) n'en est jamais un ; un iPad se dit « iPad » (vue web en mode « mobile », MainViewController), ou « Macintosh »
+// avec un écran tactile (iPadOS en mode ordinateur).
+function isIPad(ua = typeof navigator === 'undefined' ? '' : navigator.userAgent || '',
+  touchPoints = typeof navigator === 'undefined' ? 0 : navigator.maxTouchPoints || 0) {
+  if (/iPhone|iPod/.test(ua)) return false;
+  return /iPad/.test(ua) || (/Macintosh/.test(ua) && touchPoints > 1);
 }
 function phoneName() {
-  if (Native.platform === 'ios') return phoneIsIpad() ? 'iPad' : 'iPhone';
+  if (Native.platform === 'ios') return isIPad() ? 'iPad' : 'iPhone';
   if (Native.platform === 'android') return 'téléphone';
   return /iPhone|iPod/.test(navigator.userAgent || '') ? 'iPhone' : /iPad/.test(navigator.userAgent || '') ? 'iPad' : 'téléphone';
 }

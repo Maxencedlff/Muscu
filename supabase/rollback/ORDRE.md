@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −28 | `20261128010000_compte_vide_site_coach_down.sql` (site du coach : plus aucun compte Google ou Apple tout neuf et vide effacé après la connexion ; journal des comptes effacés (fournisseur, heure, empreinte de l'identité) EFFACÉ, avec les fonctions `coach_web_orphan_claim`, `coach_web_orphan_release` et `private.coach_web_account_empty` ; aucun compte touché) | rien | oui (vérifié par `tests/sql/compte_vide_site_coach_rollback_test.sh`) ; la fonction Edge `coach-web-orphan` peut rester (elle ne supprime plus rien) |
 | −27 | `20261127050000_sante_coach_down.sql` (santé partagée avec le coach : consentements `health` et jours de pas, sommeil et cardio EFFACÉS ; `student_shares`, `private.share_kind_open` et la contrainte de `coach_shares.kind` reprennent le texte de 20261118010000, `coach_student_weeks` celui de −21, `private.checkin_kinds` et `private.checkin_number` celui de −22 ; tâche pg_cron `purge-sante-coach-90-jours` retirée ; refusé tant qu'un modèle de bilan a un suivi Sommeil en heures) | rien | oui (vérifié par `tests/sql/sante_coach_rollback_test.sh`) ; à défaire avant −22, −21 et le suivi de la diète (il réécrit leurs fonctions) |
 | −26 | `20261127040000_photos_web_appairage_down.sql` (« Relier cet ordinateur » : appairages en cours et ordinateurs reliés EFFACÉS, chaque ordinateur perd l'accès aux photos ; photos, clés des coachs et app intactes) | rien | oui (vérifié par `tests/sql/photos_web_appairage_rollback_test.sh`, aussi après −7) |
 | −25 | `20261127030000_bilans_accord_majeur_down.sql` (accords datés pour les bilans EFFACÉS ; plus d'accord exigé avant l'envoi ; libido et cycle de nouveau rendus sans la déclaration des 18 ans ; les déclarations « 18 ans ou plus » faites par l'accord du cycle restent dans `coach_photo_adults`) | rien | oui (vérifié par `tests/sql/bilans_accord_majeur_rollback_test.sh`, données comprises) ; à défaire avant −22 (bilans) et −7 (photos : `coach_photo_adults`) |
@@ -157,6 +158,15 @@ Production simulée avec des données dans l'ordre ci-dessus, puis cette liste ;
     dit que le serveur n'a pas encore la fonction). Retour arrière : le site d'avant si voulu, puis
     `20261127040000_photos_web_appairage_down.sql`. APPLIQUÉE en production après le contre-audit (feu vert de Maxence).
 
+21. `20261128010000_compte_vide_site_coach.sql` (site du coach : compte vide créé par « Se connecter avec Google » ou
+    Apple effacé aussitôt, docs/COACH_WEB.md « Identifiant inconnu : aucun compte laissé ») : indépendante (une table
+    dans private, les fonctions `coach_web_orphan_claim` et `coach_web_orphan_release` exécutables par service_role seulement et `private.coach_web_account_empty` (requête d'administration), aucune fonction existante
+    réécrite). Ordre : cette migration, PUIS la fonction Edge `coach-web-orphan` (`supabase functions deploy
+    coach-web-orphan`, verify_jwt = false dans config.toml), PUIS le site. Sans la migration, la fonction répond
+    { deleted: false } ; sans la fonction, le site déconnecte quand même le compte neuf et affiche le message (le
+    compte vide reste alors, comme avant). Retour arrière : le site d'avant si voulu, puis
+    `20261128010000_compte_vide_site_coach_down.sql`.
+
 Mise en production de la vague 3 : `push-send` d'abord (une seule fonction Edge : `index.ts` et `push-policy.js` partent ensemble), puis 11, 12 et 13 dans cet ordre, puis l'OTA. Retour arrière : OTA d'avant, puis 13, 12, 11 défaits dans cet ordre (`push-send` peut rester).
 
 Les fonctions Edge du payant (`verify-purchase`, `appstore-notify`, puis `coach-request-alert`) se déploient juste APRÈS 1 à 3 : elles envoient `p_intro` et `p_environment`, que la base du 28/10 ne connaît pas (docs/PAYANT_V1.md, « Mise en production »).
@@ -165,7 +175,7 @@ Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.
 
 Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque (et Strava).
 
-Pour défaire en production : l'ordre inverse de cette liste (19 → 1), avant tout retour arrière plus ancien (tableau du haut).
+Pour défaire en production : l'ordre inverse de cette liste (21 → 1), avant tout retour arrière plus ancien (tableau du haut).
 
 ## Ce qui est mis de côté, pas effacé
 

@@ -19,6 +19,21 @@ function syncTabMeta() {
   if (badge) btn.append(badge);
 }
 
+// Haut de la barre d'onglets quand elle est en bas de l'écran ; innerHeight sinon (cachée en séance, ou barre latérale
+// de l'iPad en paysage, css/tablet.css). Seule mesure de « ce qui cache le bas de l'écran » : carte d'info du muscle,
+// bulle du personnage, visite, réaction (audit iPad B1 : la barre latérale, en haut à 0, faisait défiler de 648 px)
+function bottomBarTop() {
+  const r = document.querySelector('.tabbar:not([hidden])')?.getBoundingClientRect();
+  return r && r.height > 0 && r.height < innerHeight / 2 && r.bottom >= innerHeight - 1 ? r.top : innerHeight;
+}
+
+// Bord droit de la barre latérale de l'iPad quand elle est affichée (paysage, css/tablet.css), 0 sinon : le geste de
+// retour part du bord gauche du contenu, juste à sa droite (js/ui/edge-swipe.js)
+function sideBarRight() {
+  const r = document.querySelector('.tabbar:not([hidden])')?.getBoundingClientRect();
+  return r && r.height >= innerHeight / 2 && r.left <= 0.5 ? r.right : 0;
+}
+
 function ensureChrome() {
   if ($('.tabbar')) return;
   const bar = document.createElement('nav');
