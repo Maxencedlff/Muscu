@@ -120,6 +120,18 @@ async function deskSignOut() {
   try { deskStore()?.removeItem(DESK_AUTH_KEY); deskStore()?.removeItem(DESK_ACTIVE_KEY); } catch { /* rien */ }
   desk.user = null;
 }
+// Compte tout neuf après « Se connecter avec Google » ou Apple (identifiant inconnu de MDLF) : la fonction serveur
+// coach-web-orphan l'efface s'il est vide et né de cette connexion (rien n'est envoyé : le serveur lit le jeton).
+// 'deleted', 'kept' (compte gardé : il a des données ou une autre session) ou 'failed' (réseau, fonction absente, limite)
+async function deskDiscardNewAccount() {
+  const c = deskClient();
+  if (!c) return 'failed';
+  try {
+    const { data, error } = await c.functions.invoke('coach-web-orphan', { body: {} });
+    if (error) return 'failed';
+    return data?.deleted === true ? 'deleted' : data?.deleted === false ? 'kept' : 'failed';
+  } catch { return 'failed'; }
+}
 
 async function deskRpc(fn, args) {
   const c = deskClient();

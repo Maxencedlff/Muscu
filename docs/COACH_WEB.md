@@ -192,8 +192,8 @@ retour, `coach-web/js/desk/google.js`). Google Identity Services (le modèle d'A
 cadre et des connexions vers Google, et serait un script tiers de plus dans la page qui tient la clé des photos. La
 redirection ne charge rien de Google : CSP inchangée (`script-src 'self'` + Apple, `frame-src 'none'`). Le code de retour ne
 sert qu'une fois et seulement avec le vérificateur PKCE tiré par supabase-js dans ce navigateur ; l'adresse est nettoyée
-aussitôt. Seul un coach validé entre (`coach_state`) ; un identifiant Google inconnu crée un compte vide (« Réservé aux
-coachs »), une adresse Google déjà vérifiée sur un compte MDLF y est rattachée par Supabase. Bouton dessiné par la page
+aussitôt. Seul un coach validé entre (`coach_state`) ; un identifiant Google inconnu fait créer un compte par Supabase,
+aussitôt effacé (section suivante) ; une adresse Google déjà vérifiée sur un compte MDLF y est rattachée par Supabase. Bouton dessiné par la page
 selon les règles de Google (logo « G » en couleurs ; blanc à bord gris en clair, #131314 à bord #8E918F en sombre).
 
 **Configuration Supabase lue le 25/11/2026, sans rien modifier** : fournisseur Google activé, `external_google_client_id` =
@@ -217,6 +217,89 @@ Google Cloud (console.cloud.google.com › projet « MDLF Training » › API et
 
 Vérification : sur le site, « Se connecter avec Google » avec l'adresse Google du compte coach : retour sur le site,
 tableau de bord. Les adresses de prévisualisation de Vercel ne marchent pas (pas dans la liste de Supabase).
+
+### Identifiant inconnu : aucun compte laissé (27/11/2026)
+
+**Le problème (26/11/2026)** : « Continuer avec Google » sur coach.mdlf.app avec un Google pas encore relié au compte
+MDLF (un compte Apple) : Supabase a créé un compte neuf et vide, propriétaire de cette identité Google ; relier ensuite
+Google dans l'app (`linkIdentity`) échouait, l'identité appartenant déjà au compte vide. Même chose avec Apple sur le site
+(`signInWithIdToken` crée aussi le compte).
+
+**Pistes écartées** :
+- Auth Hook « Before User Created » : sa charge utile (`metadata` : uuid, time, ip_address, name ; `user` :
+  `app_metadata.provider`, `identities`…, [doc](https://supabase.com/docs/guides/auth/auth-hooks/before-user-created-hook))
+  ne dit pas par quel flux arrive la connexion : une inscription Google du site (OAuth par redirection) et une de l'app
+  (`signInWithIdToken`, `js/data/account.js`, la voie normale des nouveaux élèves) y sont identiques. Le refuser selon le
+  fournisseur casserait les inscriptions de l'app. `disable_signup` aussi (global).
+- `signInWithOAuth` n'a pas d'équivalent de `shouldCreateUser` (seulement `signInWithOtp`).
+- Suppression en SQL (RPC `security definer` qui ferait `delete from auth.users`) : la voie documentée est l'API
+  d'administration, `auth.admin.deleteUser` ([doc](https://supabase.com/docs/reference/javascript/auth-admin-deleteuser)),
+  qui ferme aussi les sessions ; `auth.users` appartient à `supabase_auth_admin`.
+
+**Ce qui est fait** : juste après une connexion Google ou Apple dont le compte n'a que cet identifiant (un compte qui a
+un autre moyen de connexion n'est jamais concerné ; l'âge est jugé par le serveur, pas par l'horloge de l'ordinateur), le site
+appelle la fonction serveur **`coach-web-orphan`** (`deskDiscardNewAccount`, `coach-web/js/desk/api.js`), sans rien lui
+envoyer. Elle relit le jeton (`caller`), fait un tri sans base (`orphan-policy.js` : une seule identité Google ou Apple,
+compte de moins de 10 minutes, `session_id` du jeton), puis demande à la base, avec la clé serveur,
+**`public.coach_web_orphan_claim(uid, sid)`** (migration `20261128010000_compte_vide_site_coach.sql`, exécutable par
+`service_role` seulement). Le compte n'est effacé (`auth.admin.deleteUser`) que si TOUT est vrai :
+1. créé il y a moins de 10 minutes ; une seule identité, Google ou Apple ;
+2. **une seule session au total, celle de l'appelant**, ouverte dans la minute de la création : le compte est né de CETTE
+   connexion du site. Un compte créé dans l'app a la session de l'app, donc au moins deux dès que le site s'y connecte ;
+3. **aucune donnée** : aucune ligne, hors schéma `auth`, dans une table qui pointe vers `auth.users` (toutes les clés
+   étrangères, relues à chaque appel : une table ajoutée plus tard est comptée sans rien changer ; seul
+   `private.identity_events`, écrit par la création elle-même, est ignoré), ni dans les colonnes connues sans clé étrangère
+   (`chat_reports`, `tarifs_ex_coach_team`), ni aucun fichier Storage (propriétaire ou dossier du compte) ;
+4. moins de 30 comptes effacés dans l'heure pour tout le projet (verrou consultatif : deux appels simultanés ne la
+   dépassent pas). Elle borne l'effet d'une erreur de logique. Journal `private.coach_web_orphans` : fournisseur et heure
+   seulement, 30 jours.
+
+Pas d'IDOR : le compte et la session viennent du jeton vérifié, jamais d'un paramètre ; le corps de la requête n'est pas lu.
+Puis la session est fermée sur cet ordinateur et la page dit : « Ce compte Google n'est relié à aucun compte MDLF. Dans
+l'app : Réglages › Compte › Google › Ajouter, puis réessaie. » (Apple : « Cet identifiant Apple… › Apple › Ajouter… »).
+L'identité redevient libre : la relier dans l'app marche. Si le serveur garde le compte (données, autre session), la
+connexion continue comme avant (« Réservé aux coachs »). Si l'appel échoue (réseau, fonction pas déployée, limite) et
+que le compte a moins de 5 minutes (`isNew`), la session est fermée quand même, même message : personne ne reste dans un
+compte vide (le compte reste alors sur le serveur, à effacer à la main comme le 26/11) ; un compte si neuf ne peut pas
+être un coach validé, rien n'est perdu. Un compte plus ancien continue : une panne ne bloque jamais un coach.
+Seul écart connu : si la personne écrit des données entre la décision de la base et la suppression (quelques
+millisecondes, avec la session de ce compte seulement), elles partent avec lui ; c'est son propre compte tout neuf.
+
+### Retour de Google en erreur, et renvoi de mdlf.app
+
+Quand Supabase échoue au retour de Google, il renvoie `?error=…&error_code=…&error_description=…` (et la même chose dans
+l'ancre, `#error=…&sb`) vers l'adresse de la demande si elle est retrouvée, sinon vers `site_url`
+([`redirectErrors` et `getExternalRedirectURL`, internal/api/external.go](https://github.com/supabase/auth/blob/master/internal/api/external.go)).
+`bad_oauth_state` « OAuth state not found or expired » : la ligne `flow_state` de la demande n'existe plus. Elle est
+effacée à l'échange du code (`tx.Destroy(flowState)` dans internal/api/token.go) et par le ménage des demandes de plus de
+24 h (internal/models/cleanup.go) ; une demande de plus de 5 minutes encore là donne « OAuth state has expired ». Cause
+probable du 26/11 : le bouton **Retour** du navigateur vers la page de Google (choix du compte) après une connexion
+réussie, qui renvoie à Supabase un `state` déjà consommé ; aussi un ancien onglet ou une page de Google restée ouverte.
+Le site n'y peut rien : l'entrée de Google dans l'historique n'est pas la sienne. Le vérificateur PKCE n'y est pour rien
+(son absence donne `flow_state_not_found` à l'échange, déjà traduit) : supabase-js le garde dans le sessionStorage de
+l'onglet, qui survit à l'aller-retour dans le même onglet.
+
+- Site du coach : `deskGoogleReturnKind` traduit `error_code` (`bad_oauth_state`, `bad_oauth_callback`,
+  `flow_state_*` : « La connexion avec Google a expiré ou a déjà servi (bouton Retour, autre onglet ou autre
+  navigateur). Réessaie depuis ce navigateur. » ; `access_denied` sans code : annulée ; `signup_disabled` : pas relié ;
+  `provider_disabled` : pas ouverte ; le reste : « n'a pas abouti »). Requête et ancre de Supabase sont retirées de
+  l'adresse ; `error_description` (texte libre) n'est jamais affiché.
+- mdlf.app (`web-public/auth-retour.js`, chargé dans la tête de `index.html`, même site : aucune empreinte CSP à changer) :
+  avec `error` dans l'adresse, renvoi (`location.replace`) vers **`https://coach.mdlf.app/`**, destination fixe, avec
+  `error` et `error_code` seuls, et seulement s'ils ne contiennent que `[a-z0-9_]` (64 caractères au plus). Pas de
+  redirection ouverte ; au pire, quelqu'un peut faire afficher un des messages fixes du site. Changer `site_url` a été
+  écarté : il sert de destination par défaut à toutes les redirections d'Auth du projet et à la liste des adresses
+  autorisées, pour un gain nul (la seule connexion par redirection du projet est celle du site du coach).
+
+### Mise en production (rien n'est appliqué par la branche google-site)
+
+1. Migration `20261128010000_compte_vide_site_coach.sql` dans l'éditeur SQL (supabase/rollback/ORDRE.md, n° 21).
+2. `supabase functions deploy coach-web-orphan` (`verify_jwt = false` dans config.toml : le jeton est vérifié dans le code).
+3. Site du coach (job `coach-web-deploy`), puis mdlf.app (job `deploy`) pour `auth-retour.js`.
+4. Vérifier : Google jamais relié sur le site → message, et dans le tableau de bord Supabase › Authentication, aucun compte
+   neuf ; `select provider, at from private.coach_web_orphans order by at desc limit 5;` montre la ligne.
+Retour arrière : le site d'avant, puis `20261128010000_compte_vide_site_coach_down.sql` (la fonction peut rester : sans la
+RPC elle répond 503, le site déconnecte et affiche le message).
 
 ## Photos de bilan (vague 5)
 
@@ -313,6 +396,11 @@ mêmes lectures une par une (séances par pages de 30 jusqu'au début de la fen�
   version construite avec le vrai supabase-js. Coach et élèves factices de `tests/coach_web_fixtures.py` sur le faux serveur de
   `tests/fake_account.py` (aucun réseau, code factice).
 - `python3 tests/coach_web_captures.py <dossier> [moteur]` : captures de chaque écran, sombre et clair, 1440, 1180, 820.
+- `python3 tests/test_coach_web_google.py` : identifiant Google ou Apple inconnu (compte effacé, déconnecté, message ;
+  fonction serveur absente ou réseau coupé ; compte gardé par le serveur ; coach ancien jamais concerné), erreurs du retour
+  de Google (requête et ancre, `error_description` jamais affiché), renvoi de mdlf.app servi sous son vrai nom. Unitaires :
+  `tests/unit/coach-web-google.mjs` ; fonction serveur : `tests/deno/edge.test.ts` ; base :
+  `tests/sql/compte_vide_site_coach_test.sql` et `compte_vide_site_coach_rollback_test.sh`.
 - CI : job `coach-web` de `tests.yml` (un par moteur, conteneur officiel de Playwright), syntaxe de `coach-web/js`,
   tests SQL et retour arrière dans `unit`. Le job `deploy` l'attend.
 

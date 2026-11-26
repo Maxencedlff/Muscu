@@ -353,9 +353,27 @@ async function deskAppleClick() {
   const r = await run;
   Object.assign(l, { busy: false, error: r.ok || !r.kind ? '' : DESK_APPLE_TEXT[r.kind] || deskAuthText(r.kind) });
   if (!r.ok) { deskRender(); document.getElementById('apple-signin')?.focus(); return; }
+  if (!(await deskUnknownIdentity('apple', r))) { deskRender(); document.getElementById('apple-signin')?.focus(); return; }
   view.appleNew = !!r.isNew;
   deskRender({ focusMain: true });
   deskRefresh({ force: true });
+}
+// Identifiant Apple ou Google peut-être tout neuf pour MDLF (compte créé par cette connexion) : le serveur efface le
+// compte s'il est vide et né de cette connexion, la session est fermée ici et la page explique comment relier
+// l'identifiant dans l'app. Rien ne reste (docs/COACH_WEB.md, « Identifiant inconnu : aucun compte laissé »).
+// Demandé pour tout compte qui n'a que cet identifiant (le serveur décide, sans dépendre de l'horloge de l'ordinateur) ;
+// un compte qui a un autre moyen de connexion n'est jamais concerné. true : la connexion continue (compte gardé par le
+// serveur : données ou autre session ; un compte si neuf n'est pas un coach validé, « Réservé aux coachs »).
+// Échec de l'appel (réseau, fonction pas déployée, limite) : déconnecté si le compte a moins de 5 minutes (isNew),
+// personne ne reste dans un compte vide ; un compte plus ancien continue (jamais un coach bloqué par une panne).
+async function deskUnknownIdentity(provider, { user, isNew }) {
+  const ids = Array.isArray(user?.identities) ? user.identities : [];
+  if (ids.length !== 1 || ids[0]?.provider !== provider) return true;
+  const out = await deskDiscardNewAccount();
+  if (out === 'kept' || (out === 'failed' && !isNew)) return true;
+  await deskSignOut();
+  ui.login.error = DESK_UNLINKED_TEXT[provider];
+  return false;
 }
 // Clavier : / recherche, J / K élève suivant ou précédent (Entrée ouvre : c'est un lien), Échap vide la recherche
 document.addEventListener('keydown', e => {
@@ -451,6 +469,7 @@ async function deskStart() {
   // Retour de Google (?code=…) : la session vient de l'échange du code, avant tout le reste
   const g = deskHosted() ? null : await deskGoogleReturn();
   if (g && !g.ok && g.kind) ui.login.error = DESK_GOOGLE_TEXT[g.kind] || deskAuthText(g.kind);
+  if (g?.ok && !(await deskUnknownIdentity('google', g))) { deskRender(); deskAppleLoad(); return; }
   if (g?.ok) view.appleNew = !!g.isNew;
   const r = await deskResume();
   // Embarquée : session de l'hôte refusée (expirée, autre compte) → l'hôte reprend la main

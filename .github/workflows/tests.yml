@@ -7,7 +7,7 @@ name: Tests
 #  2 bis. coach-web : l'appli web du coach (coach-web/, docs/COACH_WEB.md) dans Chromium, Firefox et WebKit, à 1440,
 #     1180 et 820 px, sombre et clair, plus sa version construite (dist-coach/) avec le vrai supabase-js, et le mode coach
 #     grand écran de l'app sur iPad (Chromium et WebKit, docs/COACH_IPAD.md) ;
-#  3. edge : les 12 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
+#  3. edge : les 13 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
 #     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
 #  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
 #     https://mdlf.app (Cloudflare Pages, projet mdlf-web), puis copie de secours sur le projet Vercel « muscu »
@@ -84,6 +84,8 @@ jobs:
         run: bash tests/sql/sante_coach_rollback_test.sh
       - name: Retour arrière de « Relier cet ordinateur » (photos de bilan sur ordinateur, vague 5)
         run: bash tests/sql/photos_web_appairage_rollback_test.sh
+      - name: Retour arrière du compte vide effacé par le site du coach (connexion Google ou Apple inconnue)
+        run: bash tests/sql/compte_vide_site_coach_rollback_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
@@ -198,6 +200,11 @@ jobs:
           PPL_ENGINES: ${{ matrix.engine }}
           HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_sante.py
+      - name: Identifiant Google ou Apple inconnu (aucun compte laissé), erreurs du retour de Google, renvoi de mdlf.app, ${{ matrix.engine }}
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          HOME: /root
+        run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_google.py
       # Mode coach grand écran sur iPad (docs/COACH_IPAD.md) : l'app construite (dist/ avec dist/coach/), 1024 × 1366 et
       # 1366 × 1024, Chromium et WebKit (Firefox n'est pas un moteur d'iPad)
       - name: Mode coach grand écran sur iPad, ${{ matrix.engine }}
