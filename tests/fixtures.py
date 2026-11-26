@@ -132,8 +132,8 @@ RECENT_DEVICES = [('webkit', n) for n in RECENT_PROFILES]
 # La vue web de l'app est en mode « mobile » (MainViewController : preferredContentMode = .mobile), donc un user agent
 # d'iPad (sans « Version/ » ni « Safari », comme WKWebView). Tailles en points, @2x, marges 24 haut / 20 bas (iPad sans
 # bouton principal) ; Split View et Slide Over : la fenêtre de l'app, à la hauteur de l'écran en paysage.
-#   iPad 13 pouces : 1024 × 1366 ; iPad mini : 744 × 1133 ; Split View à moitié sur un 13 pouces : 678 ; aux deux tiers
-#   d'un 11 pouces en portrait / Split View étroit : 507.
+#   iPad 13 pouces : 1024 × 1366 ; iPad 11 pouces : 834 × 1194 ; iPad mini : 744 × 1133 (paysage : la plus petite
+#   barre latérale, 1133 × 744) ; Split View à moitié sur un 13 pouces : 678 ; Split View étroit : 507.
 # ─────────────────────────────────────────────────────────────
 IPAD_UA = 'Mozilla/5.0 (iPad; CPU OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
 
@@ -147,6 +147,8 @@ IPAD_PROFILES = {
     'iPad 13 portrait': _ipad(1024, 1366),
     'iPad 13 paysage': _ipad(1366, 1024),
     'iPad mini': _ipad(744, 1133),
+    'iPad mini paysage': _ipad(1133, 744),
+    'iPad 11 paysage': _ipad(1194, 834),
     'iPad Split View 678': _ipad(678, 1024),
     'iPad Split View 507': _ipad(507, 1024),
 }

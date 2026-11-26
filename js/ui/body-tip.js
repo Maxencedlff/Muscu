@@ -230,9 +230,7 @@ function bodyTipBounds(anchor) {
     top = probe.offsetHeight;
     probe.remove();
   }
-  const bar = document.querySelector('.tabbar');
-  const r = bar?.getBoundingClientRect();   // barre fixe : offsetParent toujours nul, on mesure sa boîte
-  const barTop = r && r.height > 0 ? r.top : innerHeight;
+  const barTop = bottomBarTop();   // barre d'onglets en bas (js/ui/navbar.js), pas la barre latérale de l'iPad
   return { minTop: top + 8, maxBottom: Math.min(innerHeight, barTop) - 8 };
 }
 

@@ -260,7 +260,7 @@ function likeBurst(zone, r) {
   el.textContent = r.emoji;
   // Centre de la partie visible du résumé (sous la barre du haut, au-dessus de la barre d'onglets)
   const top = Math.max(b.top, $('.navbar')?.getBoundingClientRect().bottom || 0);
-  const bottom = Math.min(b.bottom, $('.tabbar')?.getBoundingClientRect().top || innerHeight);
+  const bottom = Math.min(b.bottom, bottomBarTop());
   el.style.left = `${Math.round(b.left + b.width / 2)}px`;
   el.style.top = `${Math.round(bottom > top ? (top + bottom) / 2 : b.top + b.height / 2)}px`;
   document.body.append(el);

@@ -2,66 +2,83 @@
    Tablette (iPad) : mise en page des grands écrans (docs/IPAD.md)
 
    Tout est derrière html.tablet (js/ui/tablet.js) : un iPhone, même l'iPhone Duo ouvert, ne prend jamais ces
-   règles. Trois largeurs, comme les classes de taille d'iPadOS (Apple HIG, Layout) :
-   - étroite, sous 744 points (Split View, Slide Over) : la mise en page de l'iPhone, rien ne change ;
-   - moyenne, 744 à 1099 (iPad mini et 11 pouces en portrait, 13 pouces en portrait) : barre d'onglets en bas,
-     colonne de lecture élargie à 720 ; dès 900, les écrans de survol (Accueil, Progrès, Réglages, Nutrition,
-     page d'un programme) passent en deux colonnes (Historique reste une liste, en une colonne) ;
-   - large, 1100 et plus (paysage) : barre latérale à gauche à la place de la barre d'onglets (onglet actif
-     sur fond gris, comme la barre latérale d'iPadOS), contenu à sa droite.
-   Deux colonnes : colonnes CSS (column-count) plutôt qu'une grille : l'ordre de lecture et le HTML restent ceux de
-   l'iPhone (aucun gabarit dupliqué), un bloc n'est jamais coupé entre deux colonnes et un titre de groupe reste
-   avec son groupe. Écrans de saisie (séance, bilan, fiche exercice, feuilles) : une seule colonne de 720 au
-   plus, centrée : le pouce et l'œil n'ont pas à traverser l'écran.
+   règles. Quatre paliers de largeur de fenêtre, d'après les classes de taille d'iPadOS (Apple HIG, Layout) :
+   - sous 744 points (Split View, Slide Over) : la mise en page de l'iPhone, rien ne change ;
+   - 744 à 899 (iPad mini et 11 pouces en portrait) : barre d'onglets en bas, colonne de lecture élargie à 720,
+     feuilles au centre de l'écran ;
+   - 900 à 1099 (13 pouces en portrait) : en plus, les écrans de survol (Accueil, Progrès, Réglages, Nutrition, page
+     d'un programme) passent en deux colonnes ; Historique reste une liste, en une colonne ;
+   - 1100 et plus (paysage) : en plus, barre latérale à gauche à la place de la barre d'onglets (onglet actif sur
+     fond gris, comme la barre latérale d'iPadOS), contenu à sa droite.
+   Deux colonnes : l'Accueil en grille à deux colonnes fixes (.tablet-col, tabletColsHtml : un bloc ne change jamais
+   de côté selon l'état) ; Progrès, Réglages, Nutrition et page d'un programme en colonnes CSS (column-count : le HTML
+   et l'ordre de lecture restent ceux de l'iPhone, un bloc n'est jamais coupé, un titre de groupe reste avec son
+   groupe). Écrans de saisie (séance, bilan, fiche exercice, feuilles) : une seule colonne de 720 au plus, centrée.
 ═══════════════════════════════════════════════ */
 
-/* ── Largeur moyenne : colonne de lecture élargie (était 640 depuis navigation.css) ── */
-html.tablet .tablet-keep { display: contents; }   /* bloc des deux colonnes (plus bas), sans effet en une colonne */
+/* Enveloppes posées seulement sur une tablette (js/ui/tablet.js) : sans effet tant qu'il n'y a pas deux colonnes */
+html.tablet .tablet-keep, html.tablet .tablet-col { display: contents; }
 
+/* ── 744 points et plus : colonne de lecture élargie (était 640 depuis navigation.css), feuilles au centre ── */
 @media (min-width: 744px) {
   html.tablet { --col-max: 720px; --wide-max: 720px; --side-w: 0px; }
-  /* Feuilles : au milieu de l'écran, coins arrondis partout (feuille de formulaire d'iPadOS), pas collées en bas */
+  /* Feuille de formulaire d'iPadOS : au milieu de l'écran, coins arrondis partout, sans poignée (elle ne se tire
+     plus depuis le bas de l'écran ; « Annuler » et le voile la ferment) */
   html.tablet .sheet-root { align-items: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 24px calc(24px + env(safe-area-inset-bottom, 0px)); }
   html.tablet .sheet { border-radius: 16px; max-height: 100%; padding-bottom: 0; }
-  html.tablet .kb-open .sheet-root { padding-top: 12px; padding-bottom: 12px; }
+  html.tablet .sheet__grabber { display: none; }
+  /* Clavier ouvert (classe posée sur <html> par js/ui/sheet.js) : la feuille garde la zone visible au-dessus de lui */
+  html.tablet.kb-open .sheet-root { padding-top: 12px; padding-bottom: 12px; }
 }
 
-/* ── Deux colonnes dès 900 points ── */
+/* ── 900 points et plus : deux colonnes ── */
 @media (min-width: 900px) {
   html.tablet { --wide-max: 1040px; }
   html.tablet #app > .view:is(.dashboard, .stats, .settings-view, .nutrition-view, .programmes),
   html.tablet .edge-layer > .view:is(.dashboard, .stats, .settings-view, .nutrition-view, .programmes) {
     max-width: var(--wide-max);
   }
-  html.tablet .view.dashboard > .home,
+
+  /* Accueil : grille à deux colonnes fixes ; à gauche la séance du jour, les autres séances et la séance libre, à
+     droite Nutrition, les cartes, la semaine et les défis. Chaque colonne est le conteneur « home » des cartes
+     (container queries de account.css et home.css : la largeur de la colonne, pas celle de l'écran) */
+  html.tablet .view.dashboard > .home {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; align-items: start;
+    padding-left: 24px; padding-right: 24px;
+  }
+  html.tablet .view.dashboard > .home > .tablet-col { display: block; min-width: 0; container: home / inline-size; }
+  html.tablet .view.dashboard > .home > .tablet-col > :first-child { margin-top: 0; }
+
+  /* Progrès, Réglages, Nutrition, page d'un programme : colonnes CSS, aucun bloc coupé entre deux colonnes */
   html.tablet .view:is(.stats, .settings-view, .nutrition-view, .programmes) > .scr {
     column-count: 2; column-gap: 24px; column-fill: balance;
   }
-  /* Accueil : « Ensuite » et la séance libre restent sous la carte de la séance (colonne de gauche) */
-  html.tablet .view.dashboard > .home { padding-left: 24px; padding-right: 24px; }
-  html.tablet :is(.view.dashboard > .home, .view:is(.stats, .settings-view, .nutrition-view, .programmes) > .scr) > * {
+  html.tablet .view:is(.stats, .settings-view, .nutrition-view, .programmes) > .scr > * {
     break-inside: avoid; -webkit-column-break-inside: avoid;
   }
   /* Le premier bloc d'une colonne n'y apporte pas sa marge du haut (les deux colonnes partent à la même hauteur) */
-  html.tablet :is(.view.dashboard > .home, .view:is(.stats, .settings-view, .nutrition-view, .programmes) > .scr) > :first-child { margin-top: 0; }
+  html.tablet .view:is(.stats, .settings-view, .nutrition-view, .programmes) > .scr > :first-child { margin-top: 0; }
   /* Un titre de groupe ne finit jamais seul en bas d'une colonne : il part avec le groupe qui le suit, dans un
      .tablet-keep posé par tabletAfterRender (js/ui/tablet.js) ; break-after en plus pour Chromium */
   html.tablet .tablet-keep { display: block; }
   html.tablet .tablet-keep > :first-child { margin-top: 0; }
-  html.tablet :is(.view:is(.stats, .settings-view, .programmes) > .scr) > :is(.group-title, h2, h3) {
+  html.tablet .view:is(.stats, .settings-view, .programmes) > .scr > :is(.group-title, h2, h3) {
     break-after: avoid; -webkit-column-break-after: avoid;
   }
   /* Nutrition : à gauche la journée (frise, anneau, macros), à droite les repas ; les repas ne sont jamais coupés */
   html.tablet .nutrition-view > .scr > h2.group-title { break-before: column; -webkit-column-break-before: always; }
   html.tablet .nutrition-view > .scr > .diet-meals { break-inside: auto; -webkit-column-break-inside: auto; }
   html.tablet .nutrition-view .diet-meals > * { break-inside: avoid; -webkit-column-break-inside: avoid; }
+
+  /* Ligne sous le grand titre (« Programme actif ») : largeur de lecture, même dans un écran en deux colonnes */
+  html.tablet :is(.navbar, .navbar__largewrap) p { max-width: var(--col-max); }
 }
 
-/* ── Largeur régulière : barre latérale ── */
+/* ── 1100 points et plus : barre latérale ── */
 @media (min-width: 1100px) {
   html.tablet { --side-w: 260px; }
   /* Sans barre d'onglets en bas : tout ce qui se calait au-dessus d'elle (fin des écrans, toast, mini-barre, bannière,
-     saisie des messages) se cale sur le bas de l'écran */
+     saisie des messages) se cale sur le bas de l'écran. Mesures en JS : bottomBarTop (js/ui/navbar.js) */
   html.tablet body.has-tabbar { --tabbar-h: 0px; }
   html.tablet body.has-tabbar #app,
   html.tablet body.has-tabbar .edge-layer { padding-left: calc(var(--side-w) + env(safe-area-inset-left, 0px)); }
@@ -74,25 +91,21 @@ html.tablet .tablet-keep { display: contents; }   /* bloc des deux colonnes (plu
 
   html.tablet .tabbar {
     top: 0; bottom: 0; right: auto; width: var(--side-w); height: auto;
-    flex-direction: column; justify-content: flex-start; gap: 2px;
+    flex-direction: column; justify-content: flex-start; gap: 2px; overflow-y: auto;
     padding: calc(20px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
     box-shadow: inset -0.5px 0 0 var(--sep);
   }
   html.tablet .tabbar__btn {
-    flex: none; min-height: 48px; padding: 0 12px; border-radius: 10px;
-    flex-direction: row; justify-content: flex-start; gap: 14px;
+    flex: none; min-height: 48px; padding: 6px 12px; border-radius: 10px;
+    flex-direction: row; justify-content: flex-start; gap: 14px; text-align: left;
   }
   html.tablet .tabbar__btn .icon { width: 24px; height: 24px; flex: none; }
-  /* Nom en taille de liste (17 pt) : la barre latérale se lit comme une liste, pas comme des icônes */
-  html.tablet .tabbar__label { font-size: 17px; line-height: 22px; font-weight: 500; letter-spacing: 0; }
+  /* Nom en taille de liste : la barre latérale se lit comme une liste et suit le texte agrandi (Dynamic Type), comme
+     celle d'iPadOS ; plafonné à 26 pt, il passe sur deux lignes plutôt que d'être coupé */
+  html.tablet .tabbar__label { font-size: min(1rem, 26px); line-height: 1.25; font-weight: 500; letter-spacing: 0; min-width: 0; }
   html.tablet .tabbar__btn--active { background: var(--fill); color: var(--label); }
   html.tablet .tabbar__btn--active .icon { color: var(--tab-on); }
   html.tablet .tabbar__btn:not(.tabbar__btn--active):active { background: var(--fill); }
   /* Badge des demandes reçues : au bout de la ligne, comme un compteur de liste */
-  html.tablet .tabbar__badge { top: 50%; left: auto; right: 12px; transform: translateY(-50%); }
-}
-
-/* Ligne sous le grand titre (« Programme actif ») : largeur de lecture, même dans un écran en deux colonnes */
-@media (min-width: 900px) {
-  html.tablet :is(.navbar, .navbar__largewrap) p { max-width: var(--col-max); }
+  html.tablet .tabbar__badge { position: static; margin-left: auto; flex: none; transform: none; }
 }

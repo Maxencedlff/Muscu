@@ -25,8 +25,7 @@ const COACH_DESK_MIN_OPEN = 678;
 function coachDeskEligible({ native, platform, ua = '', touchPoints = 0, width = 0 }) {
   if (!native || platform !== 'ios') return false;
   if (/iPhone|iPod/.test(ua)) return false;
-  const ipad = /iPad/.test(ua) || (/Macintosh/.test(ua) && touchPoints > 1);
-  return width >= (ipad ? COACH_DESK_MIN_IPAD : COACH_DESK_MIN);
+  return width >= (isIPad(ua, touchPoints) ? COACH_DESK_MIN_IPAD : COACH_DESK_MIN);   // js/platform/native.js
 }
 
 function coachDeskPref() {

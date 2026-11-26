@@ -15,8 +15,8 @@ const ANDROID_PHONE = 'Mozilla/5.0 (Linux; Android 15; Pixel 7) AppleWebKit/537.
 
 export default function ({ test, assert, ROOT }) {
   const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
-  const ctx = vm.createContext({});
-  vm.runInContext(read('js/ui/tablet.js'), ctx, { filename: 'js/ui/tablet.js' });   // sans document : rien n'est posé
+  const ctx = vm.createContext({ window: {}, navigator: {} });
+  for (const f of ['js/platform/native.js', 'js/ui/tablet.js']) vm.runInContext(read(f), ctx, { filename: f });   // sans document : rien n'est posé
   const tablet = o => vm.runInContext(`tabletDevice(${JSON.stringify(o)})`, ctx);
 
   test('tablette : iPad (y compris en mode ordinateur, tactile) et tablette Android oui ; iPhone, Android téléphone, ordinateur non', () => {
@@ -28,6 +28,17 @@ export default function ({ test, assert, ROOT }) {
     assert.equal(tablet({ ua: IPHONE, touchPoints: 5 }), false, 'iPhone (Duo compris : même user agent)');
     assert.equal(tablet({ ua: `${IPHONE} iPad`, touchPoints: 5 }), false, 'un iPhone ne devient jamais tablette');
     assert.equal(tablet({}), false, 'rien de connu');
+  });
+
+  test('tablette : une seule règle « iPad » dans l\'app, isIPad() de js/platform/native.js (mise en page, nom de l\'appareil, mode coach)', () => {
+    const files = d => fs.readdirSync(path.join(ROOT, d), { recursive: true }).filter(f => f.endsWith('.js')).map(f => path.join(d, f));
+    // photo-link.js nomme le navigateur d'un AUTRE appareil (l'ordinateur relié, d'après son user agent reçu) : pas
+    // l'appareil qui fait tourner l'app, hors de cette règle
+    const apart = [path.join('js', 'platform', 'native.js'), path.join('js', 'data', 'photo-link.js')];
+    const others = ['js', 'coach-web/js'].flatMap(files).filter(f => !apart.includes(f))
+      .filter(f => /\/(iPad|Macintosh)\//.test(read(f)));   // une expression régulière /iPad/ ou /Macintosh/ dans le code
+    assert.deepEqual(others, [], 'aucune autre détection de l\'iPad');
+    for (const f of ['js/ui/tablet.js', 'js/data/coach-desk.js']) assert.match(read(f), /isIPad\(/, `${f} passe par isIPad()`);
   });
 
   test('tablette : css/tablet.css chargée après toutes les autres feuilles, dans le cache hors ligne, chaque règle derrière html.tablet', () => {
@@ -65,9 +76,9 @@ export default function ({ test, assert, ROOT }) {
       return scr;
     };
     const run = (isTablet, scr) => {
-      const c = vm.createContext({ document: { documentElement: { classList: { contains: k => k === 'tablet' && isTablet, toggle() {} } },
+      const c = vm.createContext({ window: {}, navigator: {}, document: { documentElement: { classList: { contains: k => k === 'tablet' && isTablet, toggle() {} } },
         createElement: tag => new El(tag) } });
-      vm.runInContext(read('js/ui/tablet.js'), c);
+      for (const f of ['js/platform/native.js', 'js/ui/tablet.js']) vm.runInContext(read(f), c);
       c.root = { querySelectorAll: () => [scr] };
       vm.runInContext('tabletAfterRender(root)', c);
       return scr.children.map(e => e.className === 'tablet-keep' ? `[${e.children.map(x => x.className).join(' + ')}]` : e.className);

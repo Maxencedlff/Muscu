@@ -141,8 +141,7 @@ function tourSafe() {
 // Zone de l'accueil qui défile, entre la barre de navigation collée en haut et la barre d'onglets
 function tourContentView() {
   const nb = document.querySelector('#app .navbar')?.getBoundingClientRect();
-  const tb = document.querySelector('.tabbar:not([hidden])')?.getBoundingClientRect();
-  return { width: innerWidth, height: innerHeight, top: nb ? Math.max(0, nb.bottom) : 0, bottom: tb ? Math.max(0, innerHeight - tb.top) : 0 };
+  return { width: innerWidth, height: innerHeight, top: nb ? Math.max(0, nb.bottom) : 0, bottom: Math.max(0, innerHeight - bottomBarTop()) };
 }
 
 function tourLayout() {

@@ -4,8 +4,7 @@
 //  Toute la mise en page tablette est derrière cette classe : un iPhone ne la prend jamais, même l'iPhone Duo ouvert
 //  (plus large qu'un iPad mini en paysage), et rien ne change pour lui. La largeur (portrait, paysage, Split View) est
 //  ensuite lue par les media queries de css/tablet.css, qui suivent la rotation et le redimensionnement sans script.
-//  - iPad : user agent « iPad » (vue web en mode « mobile », MainViewController), ou « Macintosh » avec un écran
-//    tactile (iPadOS en mode ordinateur, comme coachDeskEligible de js/data/coach-desk.js) ;
+//  - iPad : isIPad() de js/platform/native.js (la même règle que le nom de l'appareil et le mode coach grand écran) ;
 //  - tablette Android : « Android » sans « Mobile » (les téléphones Android le disent tous) ;
 //  - jamais un iPhone ni un iPod, jamais un ordinateur sans écran tactile.
 // ═══════════════════════════════════════════════════════════
@@ -14,9 +13,7 @@
 // { ua, touchPoints } → bool (sans DOM : testé par tests/unit/tablet.mjs)
 function tabletDevice({ ua = '', touchPoints = 0 } = {}) {
   if (/iPhone|iPod/.test(ua)) return false;
-  if (/iPad/.test(ua)) return true;
-  if (/Macintosh/.test(ua)) return touchPoints > 1;
-  return /Android/.test(ua) && !/Mobile/.test(ua);
+  return isIPad(ua, touchPoints) || (/Android/.test(ua) && !/Mobile/.test(ua));   // isIPad : js/platform/native.js
 }
 
 function applyTabletClass() {
@@ -25,6 +22,14 @@ function applyTabletClass() {
   document.documentElement.classList.toggle('tablet', tabletDevice({ ua: nav.userAgent || '', touchPoints: nav.maxTouchPoints || 0 }));
 }
 applyTabletClass();   // avant le premier dessin (scripts chargés en fin de <body>, avant js/app/init.js)
+
+// Accueil en deux colonnes fixes (css/tablet.css, grille) : à gauche l'entraînement du jour (séance, autres séances,
+// séance libre), à droite le reste. Fixes plutôt que des colonnes CSS : un bloc ne change jamais de côté selon l'état
+// (séance en cours, défi lancé, carte fermée ; audit iPad M1). Sur un iPhone, le HTML tel quel, sans enveloppe.
+function tabletColsHtml(main, side) {
+  if (typeof document === 'undefined' || !document.documentElement.classList.contains('tablet')) return main + side;
+  return `<div class="tablet-col tablet-col--main">${main}</div><div class="tablet-col tablet-col--side">${side}</div>`;
+}
 
 // Écrans en deux colonnes (css/tablet.css) : un titre de groupe et le bloc qu'il annonce (avec la note de pied qui suit)
 // sont posés ensemble dans un .tablet-keep, jamais coupé entre deux colonnes. CSS seul ne suffit pas : WebKit ignore
