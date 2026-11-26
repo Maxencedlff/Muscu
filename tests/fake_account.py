@@ -216,7 +216,14 @@ FAKE_ACCOUNT = r"""
 
   const auth = {
     onAuthStateChange: fn => { listeners.push(fn); return { data: { subscription: { unsubscribe() {} } } }; },
-    getSession: async () => ({ data: { session: sb.session }, error: null }),
+    // __fakeOpts.restore : comme supabase-js, la session gardée dans le stockage donné à createClient est reprise au
+    // chargement (même compte du faux serveur, recréé à l'identique par les données de test)
+    getSession: async () => {
+      if (!sb.session && opts.restore && sb.storage) {
+        try { const s = JSON.parse(sb.storage.getItem(sb.storageKey) || 'null'); if (s?.user?.id && sb.users[s.user.id]) sb.session = s; } catch { /* illisible */ }
+      }
+      return { data: { session: sb.session }, error: null };
+    },
     // Session donnée par un hôte (app qui embarque l'appli web du coach) : jeton de ce faux serveur, sinon refus
     setSession: async ({ access_token } = {}) => {
       const u = sb.users[tokenSub(access_token || '')];
@@ -1498,6 +1505,20 @@ FAKE_ACCOUNT = r"""
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
+          // coach-web-orphan (site du coach) : compte tout neuf (Google ou Apple seul, moins de 10 min), sans profil ni rôle
+          // de coach, effacé ; sinon gardé. sb.fail.orphan : 'offline' (réseau), 'missing' (fonction pas déployée), 'kept'
+          if (fn === 'coach-web-orphan') {
+            if (sb.fail.orphan === 'offline') throw new TypeError('Failed to fetch');
+            if (sb.fail.orphan === 'missing') return fail(404, { code: 'NOT_FOUND', message: 'Requested function was not found' });
+            if (!sb.session) return fail(401, { error: 'auth' });
+            const u = me(), ids = u?.identities || [];
+            const fresh = u && now() - Date.parse(u.created_at) < 600_000;
+            const orphan = sb.fail.orphan !== 'kept' && fresh && ids.length === 1 && ['google', 'apple'].includes(ids[0].provider) && !sb.profiles[u.id] && !co.coachAt[u.id];
+            if (!orphan) return { data: { deleted: false }, error: null };
+            delete sb.users[u.id];
+            sb.orphans = (sb.orphans || 0) + 1;
+            return { data: { deleted: true }, error: null };
+          }
           if (fn === 'coach-request-alert') {
             if (!sb.session) return fail(401, { error: 'auth' });
             co.alerts++;

@@ -9,7 +9,8 @@
 //  modifié pas envoyé, plan diète pas enregistré) demande confirmation : le lien revient en arrière tant que le coach n'a pas dit oui.
 //  Connexion avec Apple (js/desk/apple.js), Google (js/desk/google.js) ou par code e-mail ; seul un compte coach validé (coach_state().is_coach) entre, et chaque RPC le revérifie
 //  sur le serveur. 28 min sans geste : bandeau « Toujours là ? » ; 30 min : la réponse en cours part en brouillon, l'écran
-//  est vidé, puis déconnexion. Données relues au retour sur l'onglet (60 s au moins d'écart), et toutes les 90 s sur le
+//  est vidé, puis déconnexion. Avec « Rester connecté sur cet ordinateur » (js/desk/api.js, deskKeep) : ni bandeau ni
+//  fin après 30 min, la session ne se ferme qu'après 90 jours sans aucune ouverture. Données relues au retour sur l'onglet (60 s au moins d'écart), et toutes les 90 s sur le
 //  tableau de bord et Bilans reçus quand l'onglet est visible (rien n'est redessiné si rien n'a changé).
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -17,7 +18,20 @@
 const DESK_REFRESH_MS = 60_000;
 const DESK_POLL_MS = 90_000;
 const DESK_IDLE_WARN_MS = DESK_IDLE_MS - 2 * 60_000;
-const ui = { filter: 'todo', query: '', weeks: DESK_WEEKS_SHOWN, login: { step: 'email', email: '', busy: false, error: '' } };
+// login.error : message d'erreur (rouge, role=alert) ; errField : il porte sur le champ (bordure rouge, aria-invalid) ;
+// login.info : information neutre en haut du formulaire (session fermée pour inactivité), jamais une erreur de saisie
+const ui = { filter: 'todo', query: '', weeks: DESK_WEEKS_SHOWN, login: { step: 'email', email: '', busy: false, error: '', errField: false, info: '' } };
+const DESK_EXPIRED_TEXT = {
+  idle: 'Session fermée après 30 minutes sans activité : reconnecte-toi.',
+  keep: 'Session fermée après 90 jours sans visite : reconnecte-toi.',
+  moved: '« Rester connecté sur cet ordinateur » a changé dans un autre onglet : reconnecte-toi ici.',
+};
+// Interrupteur « Rester connecté sur cet ordinateur » (écran de connexion et Réglages)
+function deskKeepRowHtml(where) {
+  const on = deskKeep();
+  return `<div class="row keep"><div class="grow"><span id="keep-l-${where}">Rester connecté sur cet ordinateur</span><span class="t2 blk" id="keep-d-${where}">Seulement sur ton ordinateur personnel${on ? ' : la session reste ouverte tant que tu reviens au moins une fois tous les 90 jours.' : '.'}</span></div>
+    <button type="button" class="switch" role="switch" id="keep-${where}" aria-checked="${on}" aria-labelledby="keep-l-${where}" aria-describedby="keep-d-${where}" data-action="keep"><span></span></button></div>`;
+}
 const view = { dash: null, dashAt: 0, dashError: null, student: null, notCoach: false, appleNew: false };
 
 const DESK_ERRORS = {
@@ -103,15 +117,17 @@ function deskLoginHtml() {
     <div class="brand lg">MDLF <span>Coach</span></div>
     <h1 class="title">${email ? 'Connexion' : 'Code reçu par e-mail'}</h1>
     <p class="sub">${email ? 'Avec le compte coach de ton app MDLF Training : Apple, Google, ou un code à 6 chiffres reçu par e-mail.' : `Code envoyé à ${esc(l.email)}. Il est valable 10 minutes.`}</p>
+    <p class="info" id="login-info" role="status">${esc(l.info)}</p>
     ${email ? deskLoginButtonsHtml(l.busy) : ''}
     <form class="login-f" data-form="${email ? 'email' : 'code'}" novalidate>
       ${email
-    ? `<label class="fld"><span>Adresse e-mail</span><input id="login-email" type="email" name="email" autocomplete="email" inputmode="email" required value="${esc(l.email)}" ${l.error ? 'aria-invalid="true" aria-describedby="login-err"' : ''}></label>`
-    : `<label class="fld"><span>Code à 6 chiffres</span><input id="login-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required ${l.error ? 'aria-invalid="true" aria-describedby="login-err"' : ''}></label>`}
+    ? `<label class="fld"><span>Adresse e-mail</span><input id="login-email" type="email" name="email" autocomplete="email" inputmode="email" required value="${esc(l.email)}" ${l.error && l.errField ? 'aria-invalid="true" aria-describedby="login-err"' : ''}></label>`
+    : `<label class="fld"><span>Code à 6 chiffres</span><input id="login-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required ${l.error && l.errField ? 'aria-invalid="true" aria-describedby="login-err"' : ''}></label>`}
       <p class="err" id="login-err" role="alert">${esc(l.error)}</p>
       <button class="btn tint lg wide" ${l.busy ? 'disabled aria-busy="true"' : ''}>${email ? 'Recevoir un code' : 'Se connecter'}</button>
       ${email ? '' : '<button type="button" class="btn link" data-action="login-back">Changer d\'adresse ou renvoyer un code</button>'}
     </form>
+    <div class="group login-keep">${deskKeepRowHtml('login')}</div>
     <p class="note">${deskApple.state === 'off'
     ? 'Ton compte utilise seulement Apple ? La connexion avec Apple n\'a pas pu se charger (réseau, bloqueur de contenu) : recharge la page, ou ajoute ton adresse e-mail dans l\'app, Réglages › Compte › Moyens de connexion.'
     : 'Ton compte utilise seulement Apple ou Google ? Choisis le même bouton que dans l\'app, avec le même identifiant.'}</p>
@@ -137,8 +153,10 @@ function deskSettingsHtml() {
     <section class="narrow" aria-labelledby="h-acc"><h2 class="gh" id="h-acc">Compte</h2><div class="group">
       <div class="row"><div class="grow">Connecté${email ? ` avec ${esc(email)}` : ''}</div></div>
       ${deskHosted() ? (deskHost.exit ? `<button type="button" class="row act" data-action="host-exit">${deskIcon('back', 'sm')}<span class="grow">Revenir à l'appli</span></button>` : '')
-    : `<button type="button" class="row act" data-action="signout">${deskIcon('signout', 'sm')}<span class="grow">Se déconnecter de cet ordinateur</span></button>`}
-    </div><div class="gfoot">Ton iPhone reste connecté. Sur cet ordinateur, la session se ferme aussi après 30 minutes sans activité, et rien de tes élèves n'y est gardé.</div></section>
+    : `${deskKeepRowHtml('settings')}<button type="button" class="row act" data-action="signout">${deskIcon('signout', 'sm')}<span class="grow">Se déconnecter de cet ordinateur</span></button>`}
+    </div><div class="gfoot">Ton iPhone reste connecté. ${deskKeep()
+    ? 'Sur cet ordinateur, la session reste ouverte : elle se ferme après 90 jours sans visite, ou avec « Se déconnecter ». Rien de tes élèves n\'y est gardé.'
+    : 'Sur cet ordinateur, la session se ferme aussi après 30 minutes sans activité, et rien de tes élèves n\'y est gardé.'}</div></section>
     ${deskPhSettingsHtml()}` });
 }
 
@@ -229,7 +247,7 @@ async function deskEndSession({ expired = false, forget = false } = {}) {
   if (deskHosted()) { deskHost.exit?.(); return; }
   if (forget) await deskPhForget({ server: true });
   deskWipe();
-  await deskSignOut();
+  await deskSignOut({ forgetKeep: forget });
   if (expired) deskMarkExpired();
   Object.assign(view, { dash: null, student: null, notCoach: false, dashAt: 0 });
   location.hash = '#/';
@@ -266,7 +284,7 @@ function deskIdleBanner(show) {
   b.id = 'idle'; b.className = 'idle'; b.setAttribute('role', 'alertdialog');
   b.setAttribute('aria-labelledby', 'idle-t'); b.setAttribute('aria-describedby', 'idle-d');
   b.innerHTML = `<div class="grow"><b id="idle-t">Toujours là ?</b><span class="t2 blk" id="idle-d">Sans geste de ta part, la session se ferme dans 2 minutes. Une réponse en cours sera gardée en brouillon.</span></div>
-    <button type="button" class="btn tint" data-action="idle-stay">Rester connecté</button>`;
+    <button type="button" class="btn tint" data-action="idle-stay">Continuer</button>`;
   frTypoNode(b);
   document.body.appendChild(b);
   b.querySelector('button').focus({ preventScroll: true });
@@ -289,9 +307,35 @@ async function deskIdleEnd() {
 function deskIdleTick() {
   if (!desk.user || deskIdleEnding || deskHosted()) return;
   const idle = deskIdleFor();
-  if (idle > DESK_IDLE_MS) { deskIdleEnd(); return; }
-  if (idle > DESK_IDLE_WARN_MS) deskIdleBanner(true);
+  if (idle > deskIdleLimit()) { deskIdleEnd(); return; }
+  if (!deskKeep() && idle > DESK_IDLE_WARN_MS) deskIdleBanner(true);
 }
+// « Rester connecté sur cet ordinateur » : choix changé, session déplacée (js/desk/api.js, deskSetKeep) ; décoché
+// pendant la session, les 30 minutes repartent de maintenant
+// Écran de connexion : seul l'interrupteur change (pas de nouveau rendu : l'adresse ou le code déjà tapés restent)
+function deskKeepToggle(where) {
+  const on = !deskKeep();
+  if (!deskSetKeep(on)) { deskToast('Ton navigateur bloque le stockage : impossible de garder la session.'); return; }
+  if (!desk.user) {
+    const row = document.getElementById(`keep-${where}`)?.closest('.row');
+    if (row) row.outerHTML = deskKeepRowHtml(where);
+    deskPainted = '';
+  } else { deskTouch(); deskIdleBanner(false); deskRender(); }
+  document.getElementById(`keep-${where}`)?.focus();
+  if (desk.user) deskToast(on ? 'Session gardée sur cet ordinateur' : 'La session se fermera après 30 minutes sans activité');
+}
+// Choix changé dans un autre onglet (la session y a été déplacée) : la réponse en cours part en brouillon tant que la
+// session est encore en mémoire, l'écran est vidé, puis la page se recharge et le dit. Écran de connexion : l'interrupteur
+// est redessiné. Jamais embarquée (pas de choix).
+window.addEventListener('storage', async e => {
+  if ((e.key !== DESK_KEEP_KEY && e.key !== null) || deskHosted() || deskIdleEnding) return;
+  if (!desk.user) { deskPainted = ''; deskRender(); return; }
+  deskIdleEnding = true;
+  deskWipe();
+  await Promise.race([deskRvSaveDrafts(), new Promise(r => setTimeout(r, 8000))]);
+  try { window.sessionStorage.setItem(DESK_MOVED_KEY, '1'); } catch { /* message perdu */ }
+  location.reload();
+});
 
 // ── Gestes ──────────────────────────────────────────────────
 
@@ -311,10 +355,11 @@ document.addEventListener('click', async e => {
   else if (a === 'reload') { if (deskRoute().name === 'student') deskOpenStudent(deskRoute().id, { force: true }); else deskRefresh({ force: true }); }
   else if (a === 'signout') deskEndSession({ forget: true });
   else if (a === 'idle-stay') deskActivity();
+  else if (a === 'keep') deskKeepToggle(el.id === 'keep-settings' ? 'settings' : 'login');
   else if (a === 'host-exit') { if (await deskLeaveAllOk()) deskHost?.exit?.(); }
   else if (a === 'apple') deskAppleClick();
   else if (a === 'google') deskGoogleClick();
-  else if (a === 'login-back') { Object.assign(ui.login, { step: 'email', error: '' }); deskRender(); document.getElementById('login-email')?.focus(); }
+  else if (a === 'login-back') { Object.assign(ui.login, { step: 'email', error: '', info: '' }); deskRender(); document.getElementById('login-email')?.focus(); }
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'q') { ui.query = e.target.value.slice(0, SEARCH_MAX); deskRender(); }
@@ -327,18 +372,18 @@ document.addEventListener('submit', async e => {
   if (l.busy) return;
   if (f.dataset.form === 'email') {
     const email = normalizeEmail(f.email.value);
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { l.error = AUTH_ERROR_TEXT.email; l.email = f.email.value; deskRender(); document.getElementById('login-email')?.focus(); return; }
-    Object.assign(l, { busy: true, error: '', email }); deskRender();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { Object.assign(l, { error: AUTH_ERROR_TEXT.email, errField: true, info: '' }); l.email = f.email.value; deskRender(); document.getElementById('login-email')?.focus(); return; }
+    Object.assign(l, { busy: true, error: '', info: '', email }); deskRender();
     const r = await deskSendCode(email);
-    Object.assign(l, { busy: false, step: r.ok ? 'code' : 'email', error: r.ok ? '' : deskAuthText(r.kind) });
+    Object.assign(l, { busy: false, step: r.ok ? 'code' : 'email', error: r.ok ? '' : deskAuthText(r.kind), errField: !r.ok });
     deskRender();
     document.getElementById(r.ok ? 'login-code' : 'login-email')?.focus();
   } else {
     const code = String(f.code.value || '').replace(/\D/g, '');
-    if (code.length !== 6) { l.error = AUTH_ERROR_TEXT.invalid; deskRender(); document.getElementById('login-code')?.focus(); return; }
+    if (code.length !== 6) { Object.assign(l, { error: AUTH_ERROR_TEXT.invalid, errField: true }); deskRender(); document.getElementById('login-code')?.focus(); return; }
     Object.assign(l, { busy: true, error: '' }); deskRender();
     const r = await deskVerifyCode(code);
-    Object.assign(l, { busy: false, error: r.ok ? '' : deskAuthText(r.kind) });
+    Object.assign(l, { busy: false, error: r.ok ? '' : deskAuthText(r.kind), errField: !r.ok });
     if (!r.ok) { deskRender(); document.getElementById('login-code')?.focus(); return; }
     deskRender({ focusMain: true });
     deskRefresh({ force: true });
@@ -349,13 +394,31 @@ async function deskAppleClick() {
   const l = ui.login;
   if (l.busy) return;
   const run = deskAppleSignIn();
-  Object.assign(l, { busy: true, error: '' }); deskRender();
+  Object.assign(l, { busy: true, error: '', errField: false, info: '' }); deskRender();
   const r = await run;
   Object.assign(l, { busy: false, error: r.ok || !r.kind ? '' : DESK_APPLE_TEXT[r.kind] || deskAuthText(r.kind) });
   if (!r.ok) { deskRender(); document.getElementById('apple-signin')?.focus(); return; }
+  if (!(await deskUnknownIdentity('apple', r))) { deskRender(); document.getElementById('apple-signin')?.focus(); return; }
   view.appleNew = !!r.isNew;
   deskRender({ focusMain: true });
   deskRefresh({ force: true });
+}
+// Identifiant Apple ou Google peut-être tout neuf pour MDLF (compte créé par cette connexion) : le serveur efface le
+// compte s'il est vide et né de cette connexion, la session est fermée ici et la page explique comment relier
+// l'identifiant dans l'app. Rien ne reste (docs/COACH_WEB.md, « Identifiant inconnu : aucun compte laissé »).
+// Demandé pour tout compte qui n'a que cet identifiant (le serveur décide, sans dépendre de l'horloge de l'ordinateur) ;
+// un compte qui a un autre moyen de connexion n'est jamais concerné. true : la connexion continue (compte gardé par le
+// serveur : données ou autre session ; un compte si neuf n'est pas un coach validé, « Réservé aux coachs »).
+// Échec de l'appel (réseau, fonction pas déployée, limite) : déconnecté si le compte a moins de 5 minutes (isNew),
+// personne ne reste dans un compte vide ; un compte plus ancien continue (jamais un coach bloqué par une panne).
+async function deskUnknownIdentity(provider, { user, isNew }) {
+  const ids = Array.isArray(user?.identities) ? user.identities : [];
+  if (ids.length !== 1 || ids[0]?.provider !== provider) return true;
+  const out = await deskDiscardNewAccount();
+  if (out === 'kept' || (out === 'failed' && !isNew)) return true;
+  await deskSignOut();
+  Object.assign(ui.login, { error: DESK_UNLINKED_TEXT[provider], errField: false, info: '' });
+  return false;
 }
 // Clavier : / recherche, J / K élève suivant ou précédent (Entrée ouvre : c'est un lien), Échap vide la recherche
 document.addEventListener('keydown', e => {
@@ -434,7 +497,7 @@ function deskOpenTab(route) {
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !desk.user || deskIdleEnding) return;
-  if (deskIdleFor() > DESK_IDLE_MS) deskIdleEnd(); else { deskIdleTick(); deskRefresh(); }
+  if (deskIdleFor() > deskIdleLimit()) deskIdleEnd(); else { deskIdleTick(); deskRefresh(); }
 });
 setInterval(deskIdleTick, 15_000);
 // Tableau de bord et Bilans reçus relus régulièrement, onglet visible seulement
@@ -451,13 +514,18 @@ async function deskStart() {
   // Retour de Google (?code=…) : la session vient de l'échange du code, avant tout le reste
   const g = deskHosted() ? null : await deskGoogleReturn();
   if (g && !g.ok && g.kind) ui.login.error = DESK_GOOGLE_TEXT[g.kind] || deskAuthText(g.kind);
+  if (g?.ok && !(await deskUnknownIdentity('google', g))) { deskRender(); deskAppleLoad(); return; }
   if (g?.ok) view.appleNew = !!g.isNew;
   const r = await deskResume();
   // Embarquée : session de l'hôte refusée (expirée, autre compte) → l'hôte reprend la main
   if (!r.ok && deskHosted()) { deskHost.exit?.(); return; }
   if (!r.ok) { ui.login.error = deskAuthText(r.kind); }
-  else if (r.expired || deskTakeExpired()) ui.login.error = 'Session fermée après 30 minutes sans activité : reconnecte-toi.';
+  let info = '';
+  if (r.ok && (r.expired || deskTakeExpired())) info = DESK_EXPIRED_TEXT[deskKeep() ? 'keep' : 'idle'];
+  try { if (window.sessionStorage.getItem(DESK_MOVED_KEY)) { window.sessionStorage.removeItem(DESK_MOVED_KEY); if (r.ok && !desk.user) info = DESK_EXPIRED_TEXT.moved; } } catch { /* rien */ }
   deskRender();
+  // Information écrite APRÈS le premier rendu : une zone role=status n'est annoncée que si son contenu change
+  if (info && !desk.user) setTimeout(() => { ui.login.info = info; const el = document.getElementById('login-info'); if (el) el.textContent = info; deskPainted = ''; }, 150);
   if (desk.user) {
     await deskRefresh({ force: true });
     // Action sur les photos demandée avant le rechargement qui a retiré les scripts de connexion tiers
@@ -471,7 +539,7 @@ deskApple.onChange = () => { if (!desk.user) deskRender(); };
 async function deskGoogleClick() {
   const l = ui.login;
   if (l.busy) return;
-  Object.assign(l, { busy: true, error: '' }); deskRender();
+  Object.assign(l, { busy: true, error: '', errField: false, info: '' }); deskRender();
   const r = await deskGoogleStart();
   if (r.ok) return;
   Object.assign(l, { busy: false, error: DESK_GOOGLE_TEXT[r.kind] || deskAuthText(r.kind) });
