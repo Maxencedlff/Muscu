@@ -77,7 +77,8 @@ function setNotesOf(ex) {
   const sets = ex?.sets || [];
   return sets.map((s, si) => ({ s, si })).filter(({ s }) => cleanNote(s?.note)).map(({ s, si }) => ({
     si, text: cleanNote(s.note),
-    label: s.warmup === true ? `Échauffement ${sets.slice(0, si + 1).filter(x => x?.warmup === true).length}` : `Série ${setDisplayNo(sets, si)}`,
+    // Bloc de pré-fatigue (js/data/blocks.js) : ses séries gardent leur numéro
+    label: warmLook(ex, s) ? `Échauffement ${sets.slice(0, si + 1).filter(x => x?.warmup === true).length}` : `Série ${blockSetNo(ex, si)}`,
   }));
 }
 

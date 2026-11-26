@@ -28,7 +28,8 @@ function libEntries() {
   }
   return libEntriesMemo.list;
 }
-// Déjà dans la séance visée : la ligne le dit, le toucher ne l'ajoute pas une deuxième fois
+// Déjà dans la séance visée : la ligne le dit ; le toucher l'ajoute quand même, en bloc de plus (le même exercice deux
+// fois, pré-fatigue au début et vraies séries à la fin : js/data/blocks.js)
 function libPickHas(name) {
   return (prog().exercises[libPick.cat] || []).some(e => sameExerciseName(e.name, name));
 }
@@ -100,12 +101,12 @@ function libRowHtml(e) {
     </button>`;
 }
 // Ligne du mode choix : même ligne illustrée ; en sélection multiple, une case ronde à gauche (comme Photos d'iOS),
-// lue « case à cocher » par VoiceOver. Déjà dans la séance : dit en sous-titre, grisé, jamais ajouté deux fois.
+// lue « case à cocher » par VoiceOver. Déjà dans la séance : dit en sous-titre, et ajouté en bloc de plus si on le choisit.
 function libPickRowHtml(e, sub, id) {
-  const has = libPickHas(e.name), on = libPick.sel.includes(e.name), multi = libPick.multi && !has;
+  const has = libPickHas(e.name), on = libPick.sel.includes(e.name), multi = libPick.multi;
   const state = multi ? ` role="checkbox" aria-checked="${on}"` : '';
   // Intitulé VoiceOver = le texte affiché (WCAG 2.5.3, panel du 19/11) : nom, puis muscles et matériel ou « Déjà dans la séance »
-  return `<button class="cell mgc mgc--ex${libPick.multi ? ' mgc--pick' : ''}${has ? ' mgc--has' : ''}" data-action="lib-pick" data-name="${esc(e.name)}"${state}${has ? ' aria-disabled="true"' : ''}>
+  return `<button class="cell mgc mgc--ex${libPick.multi ? ' mgc--pick' : ''}" data-action="lib-pick" data-name="${esc(e.name)}"${state}>
       ${libPick.multi ? `<span class="mgc__check" aria-hidden="true">${icon('checkmark', 14)}</span>` : ''}
       <span class="mgc__text"><span class="mgc__title">${esc(e.name)}</span>
         <span class="mgc__sub">${has ? '<span class="mgc__mus">Déjà dans la séance</span>' : sub}</span></span>
@@ -458,7 +459,6 @@ registerActions({
   'lib-equip': (e, el) => { setLibEquip(el.dataset.equip); haptic(); },
   'lib-pick': (e, el) => {
     const name = el.dataset.name;
-    if (libPickHas(name)) { showToast('Déjà dans cette séance'); return; }
     if (!libPick.multi) { progPickExercises(libPick.cat, [name]); return; }
     const i = libPick.sel.indexOf(name);
     if (i >= 0) libPick.sel.splice(i, 1); else libPick.sel.push(name);

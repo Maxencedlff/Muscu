@@ -96,7 +96,7 @@ function side2RowHtml(ex, ei, s, si, tag) {
   const no = withSideTag(`<span class="set-n${tag ? '' : ' num'}" aria-hidden="true">${tag ? `<span class="ss-tag">${tag}</span>` : setDisplayNo(ex.sets, si)}</span>`, ex, s, 2);
   if (x.done) {
     const u = undoForSet(ex, si, -1, 2);
-    const record = recordSet(s).side === 2 ? liveSetBadge(ex, s, livePrior(ex)) : '';
+    const record = recordSet(s).side === 2 ? (exBadges(ex).get(s) || '') : '';
     return `
       <div class="session-set session-set--done session-set--side" data-action="side-reopen" ${at} ${u ? '' : 'role="button" tabindex="0"'}>
         <span class="sr-text">${name} validé${sideFem(ex) ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}${exOf}${record ? `, ${esc(record)}` : ''}. Modifier</span>

@@ -229,8 +229,10 @@ function coachPrescRemember(student, progId, presc) {
 function studentLastLoads(rows, name) {
   const n = normName(name);
   for (const r of [...(rows || [])].sort((a, b) => b.doneAt - a.doneAt)) {
-    const e = (r.s?.exercises || []).find(x => normName(x.name) === n);
-    const work = workSets(e?.sets).filter(s => (parseFloat(s.weight) || 0) > 0);
+    // Le même exercice deux fois (blocs, js/data/blocks.js) : le bloc de pré-fatigue n'a que des séries marquées, c'est
+    // le bloc de travail qui compte
+    const work = (r.s?.exercises || []).filter(x => normName(x.name) === n)
+      .map(x => workSets(x.sets).filter(s => (parseFloat(s.weight) || 0) > 0)).find(w => w.length) || [];
     if (work.length) return { kg: work.map(s => parseFloat(s.weight)), reps: work.map(s => parseInt(s.reps) || 0), doneAt: r.doneAt };
   }
   return null;

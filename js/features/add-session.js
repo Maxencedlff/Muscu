@@ -74,14 +74,14 @@ function switchAddProg(id) {
   (addProgData().exercises[addCat] || []).forEach(ex => {
     const sets = addSets[ex.id] || [];
     if (sets.some(st => String(st.reps ?? '').trim() !== '' || String(st.weight ?? '').trim() !== '')) {
-      kept.push({ key: 'x_' + uid(), name: ex.name, exId: ex.id, sets });
+      kept.push({ key: 'x_' + uid(), name: ex.name, exId: exIdOf(ex), ...blockFields(ex), sets });
     }
   });
   addExtras.forEach(x => kept.push({ ...x, sets: addSets[x.key] }));
   addProg = id;
   addCat  = id === FREE ? FREE : sessionKeys(id)[0] || '';
   initAddSets(addCat);
-  kept.forEach(({ key, name, exId, sets }) => { addExtras.push({ key, name, exId }); addSets[key] = sets; });
+  kept.forEach(({ key, sets, ...x }) => { addExtras.push({ key, ...x }); addSets[key] = sets; });
   haptic();
   render();
 }
@@ -183,8 +183,8 @@ function renderAddSession() {
       </div>
       <div class="add-session-content">
         ${hasPrev ? `<button class="btn btn--secondary btn--full add-copy-prev" data-action="add-copy-prev">Reprendre la dernière séance</button>` : ''}
-        ${exercises.map(ex => addExerciseBlock(ex.id, ex.name, addPrev[ex.id] || [], false, ex)).join('')}
-        ${addExtras.map(({ key, name, measure }) => addExerciseBlock(key, name, [], true, { name, measure })).join('')}
+        ${exercises.map(ex => addExerciseBlock(ex.id, addBlockTitle(ex, exercises), addPrev[ex.id] || [], false, ex)).join('')}
+        ${addExtras.map(x => addExerciseBlock(x.key, addBlockTitle(x, [...exercises, ...addExtras]), [], true, x)).join('')}
         ${addProg === FREE && !addExtras.length ? `<p class="add-free-hint">Ajoute les exercices faits. Ils comptent dans les progrès, le programme ne change pas.</p>` : ''}
         <button class="session-add-ex-btn" data-action="add-past-ex">
           + Ajouter un exercice
@@ -218,7 +218,13 @@ function addSessionInputsValid(dateEl) {
   return true;
 }
 
-// Exercices saisis (séries avec des reps) : ceux du programme dans leur ordre, puis les ajouts
+// Titre d'un bloc de la séance passée : « Extension quadriceps (2e) », rôle en clair (« · Pré-fatigue », js/data/blocks.js)
+function addBlockTitle(ex, xs) {
+  return `${blockName(ex, xs)}${blockRole(ex) ? ` · ${blockRoleLabel(ex)}` : ''}`;
+}
+
+// Exercices saisis (séries avec des reps) : ceux du programme dans leur ordre, puis les ajouts. Bloc du même exercice
+// (js/data/blocks.js) : le suivi commun, son rang, et son rôle (séries marquées)
 function pastSessionExercises() {
   // warmup, rir et note de série : gardés tels quels d'une séance modifiée (le formulaire ne les saisit pas)
   const clean = sets => (sets || []).filter(s => String(s.reps ?? '').trim() !== '')
@@ -227,13 +233,14 @@ function pastSessionExercises() {
   const exercises = (addProgData().exercises[addCat] || [])
     .map(ex => {
       const sets = clean(addSets[ex.id]);
-      return sets.length ? { exId: ex.id, name: ex.name, ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}), sets } : null;
+      return sets.length ? setBlockRole({ exId: exIdOf(ex), name: ex.name, ...blockFields(ex), ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}), sets }, blockRole(ex)) : null;
     })
     .filter(Boolean);
-  addExtras.forEach(({ key, name, exId, measure }) => {
+  addExtras.forEach(x => {
+    const { key, name, exId, measure } = x;
     const sets = clean(addSets[key]);
     const m = storedMeasure({ name, measure });
-    if (sets.length) exercises.push({ exId: exId || resolveExId(addProg, addCat, name), name, ...(m ? { measure: m } : {}), sets });
+    if (sets.length) exercises.push(setBlockRole({ exId: exId || resolveExId(addProg, addCat, name), name, ...blockFields(x), ...(m ? { measure: m } : {}), sets }, blockRole(x)));
   });
   return exercises;
 }
@@ -252,7 +259,7 @@ function storePastSession(exercises) {
     if (idx !== -1) {
       old = data.history[idx];
       // Superset, tempo, prise et note de la séance d'origine : repris par exercice (exId, sinon nom)
-      const was = e => (old.exercises || []).find(o => (o.exId && o.exId === e.exId)) || (old.exercises || []).find(o => normName(o.name) === normName(e.name));
+      const was = e => (old.exercises || []).find(o => (o.exId && o.exId === e.exId && occOf(o) === occOf(e))) || (old.exercises || []).find(o => normName(o.name) === normName(e.name));
       exercises.forEach(e => {
         const o = was(e);
         if (ssId(o)) e.ss = o.ss;
@@ -294,7 +301,11 @@ function storePastSession(exercises) {
 // Exercice choisi dans la feuille d'ajout : il rejoint les ajouts de la séance passée
 function addPastExercise(name, sets) {
   const key = 'x_' + uid();
-  addExtras.push({ key, name, exId: null });
+  // Déjà dans la séance : un bloc de plus du même exercice (suivi commun, rang suivant : js/data/blocks.js)
+  const xs = [...(addProgData().exercises[addCat] || []), ...addExtras];
+  const same = xs.find(e => sameExerciseName(e.name, name));
+  const occ = same ? nextOcc(xs, same) : 1;
+  addExtras.push({ key, name: same ? same.name : name, exId: same ? exIdOf(same) || null : null, ...(occ > 1 ? { occ } : {}) });
   addSets[key] = Array.from({ length: sets }, () => ({ weight: '', reps: '' }));
   closeSessSheets();
   haptic();
@@ -327,14 +338,16 @@ registerActions({
     addCat  = session.category;
     addDate = localISO(session.date);
     initAddSets(addCat);
+    const taken = {};
     session.exercises.forEach(ex => {
-      const exData = (addProgData().exercises[addCat] || []).find(e => sameEx(e, ex));
+      // Même bloc du programme (même exercice, même rang : js/data/blocks.js), une seule fois
+      const exData = (addProgData().exercises[addCat] || []).find(e => sameBlock(e, ex) && !(e.id in taken));
       // Réglage de la machine noté au chrono : gardé (la durée modifiée à la main reprend le pas, setMinutes)
       const sets   = ex.sets.map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}),
         ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}), ...(cleanNote(s.note) ? { note: cleanNote(s.note) } : {}), ...techFields(s), ...sideFields(s) }));
-      if (exData) { addSets[exData.id] = sets; return; }
+      if (exData) { addSets[exData.id] = sets; taken[exData.id] = true; return; }
       const key = 'x_' + uid();
-      addExtras.push({ key, name: ex.name, exId: ex.exId || null, ...(ex.measure ? { measure: ex.measure } : {}) });
+      addExtras.push({ key, name: ex.name, exId: ex.exId || null, ...blockFields(ex), ...(ex.measure ? { measure: ex.measure } : {}) });
       addSets[key] = sets.length ? sets : [{ weight: '', reps: '' }];
     });
     addNotes = session.notes || '';
@@ -412,9 +425,10 @@ registerActions({
     histFilter = 'all';   // une séance d'un autre programme ou libre resterait masquée par le filtre
     routeTo('history');
   },
-  // Même feuille de recherche que la séance en cours ; les exercices déjà saisis n'y figurent pas
+  // Même feuille de recherche que la séance en cours ; un exercice déjà saisi peut revenir (un bloc de plus,
+  // js/data/blocks.js), il est signalé « Déjà dans la séance »
   'add-past-ex': () => {
     const names = [...(addProgData().exercises[addCat] || []).map(ex => ex.name), ...addExtras.map(x => x.name)];
-    openAddExSheet({ target: 'past', exclude: names, onPick: addPastExercise });
+    openAddExSheet({ target: 'past', exclude: [], has: names, onPick: addPastExercise });
   },
 });

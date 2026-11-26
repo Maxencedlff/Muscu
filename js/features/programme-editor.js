@@ -25,8 +25,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, repFixed: fixedReps(ex) !== null, ...intensDraftOf(ex), measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false, grip: cleanGrip(ex.grip), equip: customEquipOf(ex.name) }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, repFixed: false, ...intensDraftOf(null), measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false, grip: null, equip: null };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, repFixed: fixedReps(ex) !== null, ...intensDraftOf(ex), measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false, grip: cleanGrip(ex.grip), equip: customEquipOf(ex.name), role: blockRole(ex) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, repFixed: false, ...intensDraftOf(null), measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false, grip: null, equip: null, role: null };
   exDraft._init = exDraftSnapshot(exDraft);
   return exDraft;
 }
@@ -44,14 +44,14 @@ function progPickExercises(cat, names) {
   const list = prog().exercises[cat] || (prog().exercises[cat] = []);
   const ids = [];
   names.forEach(name => {
-    if (list.some(e => sameExerciseName(e.name, name))) return;
     const ex = makeExercise(name, 3);
     const known = resolveExId(data.activeProgramme, cat, name);   // supprimé puis repris : même suivi (comme save-ex)
     if (!list.some(e => e.id === known)) ex.id = known;
+    linkBlock(list, ex);   // déjà dans la séance : un bloc de plus, même suivi (js/data/blocks.js)
     list.push(ex);
     ids.push(ex.id);
   });
-  if (!ids.length) { showToast('Déjà dans cette séance'); return; }
+  if (!ids.length) return;
   recomputePRFromHistory();
   save();
   haptic();
@@ -121,23 +121,24 @@ function renderEditor() {
     const best = last ? bestSet(last.ex.sets, ex) : null;
     const plan = canTech(ex) ? intensText(ex, { short: true }) : '';   // technique prescrite (« 1re en cluster »)
     // Morceaux insécables suivis de leur « · » : la ligne se coupe après le point, jamais devant
-    const parts = [setsRangeHtml(ex), plan, best ? `<span class="ed-last">dernier ${setTxt(best, ex)}</span>` : ''].filter(Boolean);
+    // Rôle du bloc en premier (« Pré-fatigue · 2 séries… », js/data/blocks.js)
+    const parts = [blockRole(ex) ? blockRoleLabel(ex) : '', setsRangeHtml(ex), plan, best ? `<span class="ed-last">dernier ${setTxt(best, ex)}</span>` : ''].filter(Boolean);
     // Le « · » est un séparateur visuel : caché à VoiceOver, qui lit « 4 séries de 8 à 12 reps, dernier … »
     const sub  = parts.map((x, k) => k < parts.length - 1 ? `<span class="ed-seg">${x}<span aria-hidden="true">\u00a0·</span></span>` : x).join(' ');
-    const tag  = ssTagHtml(list, i);
+    const tag  = ssTagHtml(list, i), name = blockName(ex, list);   // « Extension quadriceps (2e) » (js/data/blocks.js)
     if (editorEditing) {
       return `
         <div class="cell ed-row ed-row--edit" data-i="${i}">
-          <button class="ed-minus" data-action="ed-reveal" data-i="${i}" aria-label="Supprimer ${esc(ex.name)}">${icon('minus', 14)}</button>
+          <button class="ed-minus" data-action="ed-reveal" data-i="${i}" aria-label="Supprimer ${esc(name)}">${icon('minus', 14)}</button>
           <span class="cell__body">
-            <span class="cell__title ed-name">${tag}${esc(ex.name)}</span>
+            <span class="cell__title ed-name">${tag}${esc(name)}</span>
             ${exMusclesSubHtml(ex)}
             ${gripSubHtml(ex)}
             <span class="cell__sub">${sub}</span>
             ${coachExConsigneSub(data.activeProgramme, ex)}
           </span>
           <button class="ed-del" data-action="del-ex" data-i="${i}">Supprimer</button>
-          <button class="ed-handle" data-action="reorder-menu" aria-label="Déplacer ${esc(ex.name)}">${icon('line.3.horizontal', 22)}</button>
+          <button class="ed-handle" data-action="reorder-menu" aria-label="Déplacer ${esc(name)}">${icon('line.3.horizontal', 22)}</button>
         </div>`;
     }
     // Vignette du muscle principal, comme la liste de Progrès ; pas en mode Modifier, où ⊖ et ≡ prennent sa place
@@ -146,7 +147,7 @@ function renderEditor() {
       <button class="cell cell--nav ed-row" data-action="edit-ex" data-i="${i}">
         ${progRowThumbHtml(isMuscleId(main) ? main : null)}
         <span class="cell__body">
-          <span class="cell__title ed-name">${tag}${esc(ex.name)}</span>
+          <span class="cell__title ed-name">${tag}${esc(name)}</span>
           ${exMusclesSubHtml(ex)}
           ${gripSubHtml(ex)}
           <span class="cell__sub">${sub}</span>
@@ -242,9 +243,9 @@ function applyDraftMeasure(ex, draft) {
   // Guidage au son : stocké seulement quand il est choisi (le rappel seul est le défaut), avec sa préparation
   const guide = !!(tempo && draft?.tempoGuide === true);
   applyTempo(ex, tempo, guide, draft);
-  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) applyTempo(e, tempo, guide, draft); });
+  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === exIdOf(ex) && occOf(e) === occOf(ex)) applyTempo(e, tempo, guide, draft); });
   // Séance en cours : l'exercice suit le nouveau choix tout de suite
-  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) e.measure = measureOf(ex); });
+  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === exIdOf(ex) && occOf(e) === occOf(ex)) e.measure = measureOf(ex); });
 }
 
 // Progression selon la mesure. Répétitions : objectif de charge (courbe de Progrès), puis Fourchette
@@ -397,6 +398,7 @@ function renderExEdit() {
             </div>
           </div>
         </div>
+        ${exRoleHtml(d)}
         <div class="group-title">Mesure</div>
         <div class="group">
           <div class="cell cell--ctl cell--wrap">
@@ -671,7 +673,9 @@ registerActions({
             `${n} séance${n > 1 ? 's contiennent' : ' contient'} cet exercice.`, 'Renommer partout', false);
           if (all) touched.forEach(h => h.exercises.forEach(e => { if (sameEx(e, ex)) e.name = name; }));
         }
-        if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) e.name = name; });
+        // Tous les blocs de l'exercice (js/data/blocks.js) : un seul nom, au programme comme dans la séance en cours
+        if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === exIdOf(ex)) e.name = name; });
+        list.forEach(e => { if (e !== ex && exIdOf(e) === exIdOf(ex)) e.name = name; });
         ex.name = name;
       }
       ex.sets   = sets;
@@ -686,12 +690,14 @@ registerActions({
       applyDraftIntens(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
       applyDraftGrip(ex, exDraft);
+      applyDraftRole(ex, exDraft);   // Normal, Pré-fatigue, Échauffement (js/features/blocks-ui.js)
       if (exDraft?.ssLeave) editorSupersetLeave(editorCat, editExIdx);
     } else {
       const ex = makeExercise(name, sets);
       // Un exercice déjà présent dans l'historique (supprimé puis recréé) retrouve son identifiant
       const known = resolveExId(data.activeProgramme, editorCat, name);
       if (!list.some(e => e.id === known)) ex.id = known;
+      linkBlock(list, ex);   // déjà dans la séance : un bloc de plus, même suivi, rang suivant (js/data/blocks.js)
       ex.target = target;
       ex.rest   = rest;
       ex.repMax = repMax;
@@ -703,6 +709,7 @@ registerActions({
       applyDraftIntens(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
       applyDraftGrip(ex, exDraft);
+      applyDraftRole(ex, exDraft);
       list.push(ex);
       recomputePRFromHistory();
     }

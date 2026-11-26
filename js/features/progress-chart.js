@@ -96,7 +96,7 @@ function exStatsParts(it, { fiche = false } = {}) {
   const prBest = bestSet(pts.flatMap(p => p.sets), { name: it.name });
   const rec1RM = Math.max(0, ...pts.map(p => p.best1RM));
   const last   = pts[pts.length - 1];
-  const progEx = Object.values(data.programmes).flatMap(p => Object.values(p.exercises || {}).flat()).find(x => x.id === it.exId);
+  const progEx = Object.values(data.programmes).flatMap(p => Object.values(p.exercises || {}).flat()).find(x => exIdOf(x) === it.exId);
   const target = progEx?.target;
   const tp     = effort ? null : trendPct(vals);   // un effort qui monte n'est ni un progrès ni un recul
   const better = tp === null ? null : lowerBetter ? -tp : tp;

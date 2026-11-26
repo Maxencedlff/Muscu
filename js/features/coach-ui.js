@@ -631,7 +631,7 @@ function coachExConsigneSub(progId, ex) {
 function coachTipOf(ex) {
   const s = activeSession;
   if (!s || !coachProgOf(s.programme)) return null;
-  const pe = (data.programmes[s.programme]?.exercises?.[s.category] || []).find(e => e.id === ex.exId);
+  const pe = (data.programmes[s.programme]?.exercises?.[s.category] || []).find(e => exIdOf(e) === ex.exId && occOf(e) === occOf(ex));   // le même bloc (js/data/blocks.js)
   return pe?.consigne || null;
 }
 function coachTipHtml(key, title, text) {
@@ -1188,11 +1188,11 @@ function renderCoachSend(uid, progId) {
           return `
           <div class="cell coach-send-ex">
             <span class="cell__body">
-              <span class="cell__title">${ssTagHtml(xs, i)}${esc(e.name)}</span>
-              <span class="cell__sub num">${[setsRepsHtml(e), ...[...coachExPlanParts(e), ...(e.rest ? [`repos ${fmtRest(e.rest)}`] : []), ...(e.tempo ? [`tempo ${shortTempo(e.tempo)}`] : [])].map(esc)].join(' · ')}</span>
+              <span class="cell__title">${ssTagHtml(xs, i)}${esc(blockName(e0, xs))}</span>
+              <span class="cell__sub num">${[...(blockRole(e) ? [blockRoleLabel(e)] : []), setsRepsHtml(e), ...[...coachExPlanParts(e), ...(e.rest ? [`repos ${fmtRest(e.rest)}`] : []), ...(e.tempo ? [`tempo ${shortTempo(e.tempo)}`] : [])].map(esc)].join(' · ')}</span>
               ${gripSubHtml(e)}
               ${coachPrescBtnHtml(uid, progId, s.key, e)}
-              ${ta(`data-cat="${esc(s.key)}" data-ex="${esc(e.id)}"`, dr.ex[s.key]?.[e.id] || '', `Consigne pour ${e.name}`, 'Consigne (facultative)')}
+              ${ta(`data-cat="${esc(s.key)}" data-ex="${esc(e.id)}"`, dr.ex[s.key]?.[e.id] || '', `Consigne pour ${blockName(e0, xs)}`, 'Consigne (facultative)')}
             </span>
           </div>`;
         }).join('') : '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}

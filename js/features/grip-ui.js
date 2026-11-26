@@ -114,7 +114,7 @@ function applyDraftGrip(ex, draft) {
   if (!draft || !('grip' in draft)) return;
   const g = cleanGrip(draft.grip, ex);
   if (g) ex.grip = g; else delete ex.grip;
-  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) e.grip = g; });
+  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === exIdOf(ex) && occOf(e) === occOf(ex)) e.grip = g; });   // le même bloc (js/data/blocks.js)
 }
 
 // Programme › Séance et écrans du coach : « Prise serrée neutre » sous le nom, '' sans prise

@@ -75,14 +75,16 @@ def t_seance(bench, eng, dev, theme):
         small = page.evaluate("[...document.querySelectorAll('.sets__head')].map(e => parseFloat(getComputedStyle(e).fontSize)).filter(s => s < 12)")
         R.check(not small, f'{t} en-têtes de colonnes ≥ 12 px {small}')
 
-        # B. Feuille « Ajouter un exercice » : Récents en tête, sans les exercices de la séance
+        # B. Feuille « Ajouter un exercice » : Récents en tête, les exercices de la séance signalés
         page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); settle(page)
         hints = page.locator('#axList .ax__hint').all_inner_texts()
         R.check(hints == ['Récents', 'Déjà faits', 'Mêmes muscles que ta séance', 'Tous les exercices'], f'{t} sections {hints}')
         first = page.locator('#axList .ax__item').first.get_attribute('data-name')
         R.check(first == 'Squat barre', f'{t} 1er récent : le dernier exercice fait ({first})')
         push = page.evaluate("activeSession.exercises.map(e => e.name)")
-        R.check(not any(page.locator(f'#axList [data-name="{n}"]').count() for n in push), f'{t} exercices de la séance absents')
+        # Le même exercice deux fois (26/11, js/data/blocks.js) : ceux de la séance restent proposés, signalés « Déjà dans la séance »
+        R.check(all('Déjà dans la séance' in page.locator(f'#axList [data-name="{n}"]').first.inner_text() for n in push if page.locator(f'#axList [data-name="{n}"]').count()),
+                f'{t} exercices de la séance : « Déjà dans la séance »')
         hs = page.evaluate("[document.querySelector('#axSearch'), ...document.querySelectorAll('.ax__chip, .ax-stepper button')].map(e => Math.round(e.getBoundingClientRect().height)).filter(h => h < 44)")
         R.check(not hs, f'{t} recherche, puces et ± à 44 px {hs}')
         rows = page.evaluate("[...document.querySelectorAll('.sess-sheet--addex .ax__equip, .sess-sheet--addex .mf__row')].map(r => r.scrollHeight <= 50)")

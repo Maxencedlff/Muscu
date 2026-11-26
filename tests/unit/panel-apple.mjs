@@ -113,7 +113,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
   });
 
   test('Disques : le numéro et le mot « Disques » (le dessin passait pour une cible, 26/11), l\'haltère reste à l\'onglet Entraînement', () => {
-    assert.match(src('js/features/session.js'), /data-action="open-plates"[^\n]*setDisplayNo\(ex\.sets, si\)[^\n]*>Disques</, 'le numéro reste, « Disques » dessous');
+    assert.match(src('js/features/session.js'), /data-action="open-plates"[^\n]*(?:setDisplayNo\(ex\.sets, si\)|blockSetNo\(ex, si\))[^\n]*>Disques</, 'le numéro reste, « Disques » dessous');
     assert.match(src('index.html'), /<symbol id="i-plate"/);
   });
 
