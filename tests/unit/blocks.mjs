@@ -172,6 +172,10 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       localStorage.setItem(KEY, JSON.stringify(data)); data = loadData();`);
     const x = run('data.history[0].exercises[0]');
     assert.equal(x.exId, 'ext1', 'suivi commun');
+    assert.ok(!('occ' in x), `vraies séries rangées au 1er bloc, le bloc normal (contre-audit) ${J(x)}`);
+    // « Avant » du bloc normal : ces séries ; la pré-fatigue n'en hérite pas
+    sameJSON(run('lastPerf("u_t", "legs", data.programmes.u_t.exercises.legs[1]).ex.sets.map(s => s.weight)'), ['60', '60', '60']);
+    assert.equal(run('lastPerf("u_t", "legs", data.programmes.u_t.exercises.legs[0])'), null);
     assert.ok(!('role' in x) && x.sets.every(st => !('warmup' in st)), `vraies séries gardées en séries de travail ${J(x)}`);
     sameJSON(run('data.programmes.u_t.exercises.legs[1].pr'), { weight: '60', reps: '10' }, 'record gardé');
     assert.equal(run(`exVolume(data.history[0].exercises[0])`), 60 * 27);
@@ -250,6 +254,23 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     run(`importCoachProgramme(data, ${J({ id: 'p1', data: swapped, sentAt: 2 })}, { user_id: 'c1', username: 'c' })`);
     const after = run(`data.programmes[${J(id)}].exercises.legs.map(e => [e.id, e.role || null])`);
     sameJSON(after, [...before].reverse(), 'mêmes blocs, chacun avec son rôle');
+  });
+
+  test('blocs : le coach ajoute une pré-fatigue en tête, le bloc de travail garde son bloc et son « Avant » (contre-audit)', () => {
+    reset();
+    const one = { name: 'J', sessions: [{ key: 'legs', label: 'J', color: '#ff9500', exercises: [{ name: 'Extension quadriceps', sets: 3 }] }] };
+    const id = run(`importCoachProgramme(data, ${J({ id: 'p1', data: one, sentAt: 1 })}, { user_id: 'c1', username: 'c' })`);
+    const work = run(`data.programmes[${J(id)}].exercises.legs[0].id`);
+    run(`data.history = [${J({ id: 'h1', programme: 'PROG', category: 'legs', date: 1000, notes: '', exercises: [{ exId: 'WORK', name: 'Extension quadriceps', sets: [S(60, 10)] }] })}]`
+      .replace('PROG', id).replace('WORK', work));
+    const two = { ...one, sessions: [{ ...one.sessions[0], exercises: [{ name: 'Extension quadriceps', sets: 2, role: 'prefat' }, { name: 'Extension quadriceps', sets: 3 }] }] };
+    run(`importCoachProgramme(data, ${J({ id: 'p1', data: two, sentAt: 2 })}, { user_id: 'c1', username: 'c' })`);
+    const xs = run(`data.programmes[${J(id)}].exercises.legs`);
+    assert.equal(xs[1].id, work, 'bloc de travail repris');
+    assert.ok(!xs[1].exId && !xs[1].occ, `bloc de travail : suivi et rang d'avant ${J(xs[1])}`);
+    assert.equal(xs[0].role, 'prefat'); assert.equal(xs[0].exId, work); assert.equal(xs[0].occ, 2);
+    assert.equal(run(`lastPerf(${J(id)}, 'legs', data.programmes[${J(id)}].exercises.legs[1]).ex.sets[0].weight`), '60');
+    assert.equal(run(`lastPerf(${J(id)}, 'legs', data.programmes[${J(id)}].exercises.legs[0])`), null, 'la pré-fatigue n\'hérite pas des séries de travail');
   });
 
   test('blocs : coach, bloc repris sans suivi qui n\'est pas le premier de son nom rattaché (mineur 3)', () => {

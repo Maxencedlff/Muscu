@@ -414,11 +414,12 @@ function importCoachProgramme(d, item, coachPerson) {
   pd.exercises ||= {}; pd.timers ||= {}; pd.cooldowns ||= {};
   const old = Object.entries(pd.exercises).flatMap(([cat, xs]) => (Array.isArray(xs) ? xs : []).map(ex => ({ cat, ex })));
   const used = new Set();
-  // Même nom et même rôle d'abord (pré-fatigue reprise par la pré-fatigue : audit M1), sinon même nom
-  const take = (cat, name, role = null) => {
+  // Bloc d'avant repris : même nom et même rôle (exact), sinon même nom seul. Tous les blocs d'une séance passent par
+  // l'exact AVANT tout repli (contre-audit du 26/11 : une pré-fatigue ajoutée en tête prenait le bloc de travail)
+  const take = (cat, name, role, exact) => {
     const n = normName(name);
     const free = o => o.cat === cat && !used.has(o.ex) && normName(o.ex.name) === n;
-    const hit = old.find(o => free(o) && blockRole(o.ex) === role) || old.find(free);
+    const hit = exact ? old.find(o => free(o) && blockRole(o.ex) === role) : old.find(free);
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
@@ -426,21 +427,21 @@ function importCoachProgramme(d, item, coachPerson) {
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };
-    const list = exercises[s.key] = [];
-    s.exercises.forEach(e => {
-      const kept = take(s.key, e.name, blockRole(e));
+    const list = exercises[s.key] = [], keptSet = new Set();
+    const keptOf = s.exercises.map(e => take(s.key, e.name, blockRole(e), true));
+    s.exercises.forEach((e, i) => { if (!keptOf[i]) keptOf[i] = take(s.key, e.name, blockRole(e), false); });
+    s.exercises.forEach((e, i) => {
+      const kept = keptOf[i];
+      if (kept) keptSet.add(kept);
       const ex = kept || makeExercise(e.name, e.sets);
       ex.name = e.name; ex.sets = e.sets;
       COACH_FIELDS.forEach(k => { if (e[k] !== undefined) ex[k] = e[k]; else if (k === 'rest') ex.rest = null; else delete ex[k]; });
       // Guidage du tempo : seulement s'il y a encore un tempo
       if (!ex.tempo) { delete ex.tempoGuide; delete ex.tempoPrep; }
-      // Bloc de plus du même exercice : suivi du premier bloc et rang suivant ; un bloc repris garde les siens. Bloc repris
-      // sans suivi qui n'est pas le premier de son nom (deux exercices du même nom d'avant les blocs) : rattaché aussi,
-      // sauf s'il EST le suivi du premier (ordre des blocs inversé par le coach) (audit, mineur 3)
-      const first = list.find(x => sameExerciseName(x.name, ex.name));
-      if (!kept || (!ex.exId && first && exIdOf(first) !== ex.id)) linkBlock(list, ex);
       list.push(ex);
     });
+    // Blocs du même exercice : suivi du premier bloc repris, rang libre suivant pour les autres (linkListBlocks)
+    linkListBlocks(list, keptSet);
     if (!(s.key in pd.timers)) pd.timers[s.key] = null;
     if (!(s.key in pd.cooldowns)) pd.cooldowns[s.key] = 72;
   });

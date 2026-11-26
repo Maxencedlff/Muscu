@@ -79,6 +79,28 @@ function linkBlock(xs, ex) {
   return ex;
 }
 
+// Blocs d'une séance du programme reçue d'un coach, une fois repris (kept : blocs d'avant, avec leur suivi et leur
+// historique) : par nom, le suivi est celui du premier bloc REPRIS (sinon du premier bloc) ; tout autre bloc de ce nom
+// (nouveau, ou exercice séparé du même nom d'avant les blocs) le rejoint au rang libre suivant. Un bloc repris garde
+// son rang : le coach qui ajoute une pré-fatigue en tête ne change rien au bloc de travail ni à son « Avant ».
+function linkListBlocks(list, kept) {
+  const groups = new Map();
+  list.forEach(e => { const k = exerciseNameKey(e.name); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); });
+  groups.forEach(xs => {
+    if (xs.length < 2) return;
+    const holder = xs.find(e => kept.has(e)) || xs[0];
+    const track = exIdOf(holder);
+    xs.forEach(e => {
+      if (exIdOf(e) === track) return;
+      delete e.occ;
+      if (e.id !== track) e.exId = track; else delete e.exId;
+      const o = nextOcc(xs.filter(x => x !== e && exIdOf(x) === track), holder);
+      if (o > 1) e.occ = o;
+    });
+  });
+  return list;
+}
+
 // Rôle d'un bloc de la séance (ou d'une séance passée) : Pré-fatigue et Échauffement marquent toutes ses séries
 // warmup: true, Normal les rend toutes de travail (une série d'échauffement ajoutée par la feuille redevient de travail)
 function setBlockRole(ex, role) {
@@ -124,7 +146,7 @@ function exerciseGroups(xs) {
 }
 
 // Séances notées par une version d'avant les blocs depuis un programme qui en a : leur exercice porte l'id du bloc
-// (exId = id). Rattaché au suivi commun et au rang du bloc, RIEN d'autre : ni rôle ni série marquée. Une version d'avant
+// (exId = id). Rattaché au suivi commun (et au 1er bloc, ou au rang du bloc si la séance a déjà le 1er), RIEN d'autre : ni rôle ni série marquée. Une version d'avant
 // qui fait « Modifier » sur une séance à deux blocs les ramène au même exercice du programme (sameEx) et peut y
 // enregistrer les vraies séries sous l'id du bloc de pré-fatigue : les marquer ferait disparaître le record (audit du
 // 26/11, B1). Idempotent ; renvoie le nombre d'exercices corrigés (0 : rien n'a changé). lists : listes d'exercices à
@@ -139,7 +161,11 @@ function relinkBlockHistory(d, lists = null) {
     const b = x && map.get(x.exId);
     if (!b) return;
     x.exId = b.exId;
-    if (occOf(b) > 1 && x.occ === undefined) x.occ = occOf(b);
+    // Ses séries vont au 1er bloc (le bloc normal : « Modifier » d'une version d'avant y range les vraies séries,
+    // contre-audit du 26/11), sauf si la séance a déjà ce 1er bloc (séance démarrée par une version d'avant : une entrée
+    // par bloc) : alors le rang du bloc
+    const firstHere = xs.some(y => y !== x && y && y.exId === b.exId && occOf(y) === 1);
+    if (firstHere && occOf(b) > 1 && x.occ === undefined) x.occ = occOf(b);
     n++;
   }));
   return n;
