@@ -73,8 +73,15 @@ select null from pg_temp.mk(17, 'google');                                      
 insert into private.social_rate (user_id, action) values ('00000000-0000-0000-00ff-000000000017', 'test');
 select null from pg_temp.mk(18, 'google');                                            -- colonne sans clé étrangère
 select null from pg_temp.mk(19, 'google');
-insert into public.chat_reports (reporter_id, target_user, student_id, coach_id, reason, messages)
-  values ('00000000-0000-0000-00ff-000000000019', '00000000-0000-0000-00ff-000000000018', '00000000-0000-0000-00ff-000000000019', '00000000-0000-0000-00ff-000000000018', 'spam', '[]');
+-- Sans le chat (tests/sql/rollback_social_check.sh le démonte) : deux profils à la place, les comptes restent gardés
+do $$ begin
+  if to_regclass('public.chat_reports') is not null then
+    insert into public.chat_reports (reporter_id, target_user, student_id, coach_id, reason, messages)
+      values ('00000000-0000-0000-00ff-000000000019', '00000000-0000-0000-00ff-000000000018', '00000000-0000-0000-00ff-000000000019', '00000000-0000-0000-00ff-000000000018', 'spam', '[]');
+  else
+    insert into public.profiles (user_id) values ('00000000-0000-0000-00ff-000000000018'), ('00000000-0000-0000-00ff-000000000019');
+  end if;
+end $$;
 select null from pg_temp.mk(20, 'google');                                            -- fichier dans Storage (dossier du compte)
 insert into storage.buckets (id, name) values ('test-bucket', 'test-bucket');
 insert into storage.objects (bucket_id, name) values ('test-bucket', '00000000-0000-0000-00ff-000000000020/photo.jpg');
