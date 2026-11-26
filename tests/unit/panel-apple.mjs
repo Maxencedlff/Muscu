@@ -112,8 +112,8 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.ok(!/Reprise à/.test(src('js/features/rest.js')) && /Fin du repos à/.test(src('js/features/rest.js')), 'minuteur : « Fin du repos à »');
   });
 
-  test('Disques : icône du disque, l\'haltère reste à l\'onglet Entraînement', () => {
-    assert.match(src('js/features/session.js'), /data-action="open-plates"[^\n]*setDisplayNo\(ex\.sets, si\)[^\n]*icon\('plate'/, 'le numéro reste, le disque à côté');
+  test('Disques : le numéro et le mot « Disques » (le dessin passait pour une cible, 26/11), l\'haltère reste à l\'onglet Entraînement', () => {
+    assert.match(src('js/features/session.js'), /data-action="open-plates"[^\n]*setDisplayNo\(ex\.sets, si\)[^\n]*>Disques</, 'le numéro reste, « Disques » dessous');
     assert.match(src('index.html'), /<symbol id="i-plate"/);
   });
 

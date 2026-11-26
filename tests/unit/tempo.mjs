@@ -137,10 +137,13 @@ export default function ({ test, run, assert, app, sameJSON }) {
     assert.equal(run('tempoSentence(null)'), '');
     assert.equal(s([3, 1, 1, 0], 'Développé couché'), '3 s pour descendre, 1 s en bas, 1 s pour remonter');
     assert.equal(s([4, 0, 1, 2], 'Squat barre'), '4 s pour descendre, 1 s pour remonter, 2 s en haut');
-    assert.equal(s([3, 2, 1, 0], 'Rowing barre'), '3 s pour revenir, 2 s bras ou jambes tendus, 1 s pour tirer');
+    assert.equal(s([3, 2, 1, 0], 'Rowing barre'), '3 s pour revenir, 2 s bras tendus, 1 s pour tirer');
+    // Le membre de l'exercice (16 juges du 26/11 : « bras ou jambes tendus » sous un rowing à un bras)
+    assert.equal(s([3, 1, 1, 0], 'Rowing bûcheron un bras'), '3 s pour revenir, 1 s bras tendu, 1 s pour tirer');
+    assert.equal(s([3, 1, 1, 0], 'Leg curl assis'), '3 s pour revenir, 1 s jambes tendues, 1 s pour tirer');
     assert.equal(s([2, 0, 'X', 1], 'Tractions'), '2 s pour revenir, le plus vite possible pour tirer, 1 s contracté');
     assert.equal(s(['X', 0, 2, 0], 'Pompes'), 'Le plus vite possible pour descendre, 2 s pour remonter', 'majuscule en tête');
-    assert.equal(run('tempoSentence([3, 1, 1, 0])'), '3 s pour revenir, 1 s bras ou jambes tendus, 1 s pour tirer', 'sans nom : montée d\'abord');
+    assert.equal(run('tempoSentence([3, 1, 1, 0])'), '3 s pour revenir, 1 s bras tendus, 1 s pour tirer', 'sans nom : montée d\'abord');
   });
 
   test('tempoClock : X guidé comme 1 s, phases à 0 s sautées, comptes à rebours arrondis au-dessus', () => {

@@ -71,10 +71,12 @@ function collapseExUndo(done) {
 function clearSessionUndo() { clearTimeout(sessUndo?.timer); sessUndo = null; }
 // side : 2 pour le second côté d'une série notée par bras (js/features/session-unilateral.js), k : -1 pour sa ligne
 const undoForSet = (ex, si, k, side = 1) => (sessUndo && sessUndo.ex === ex && sessUndo.si === si && sessUndo.k === k && (sessUndo.side || 1) === side ? sessUndo : null);
-// Colonne « Avant » d'une série qui vient de changer : « Annuler » (ou l'état, « Modifiée »), à la même place à chaque fois
+// Série qui vient de changer : « Série 2 validée · Annuler » (ou l'état, « Série 2 modifiée ») sur une ligne juste sous la
+// sienne, là où le regard est déjà. Avant le 26/11, « Annuler » et « Modifiée » prenaient la place de la valeur d'avant,
+// collés au rond vert (16 juges : un toucher entre deux séries annulait la série, la colonne mêlait historique, action et
+// état). '' sans rien à dire pour cette série
 function setUndoHtml(u) {
-  return u.onAction ? `<button class="set-undo" data-action="sess-undo" aria-label="${esc(u.text)}, annuler">Annuler</button>`
-    : `<span class="set-prev set-undo--state" aria-hidden="true">${esc(u.state || '')}</span>`;
+  return u ? exUndoHtml(u).replace('class="ex-undo"', 'class="ex-undo ex-undo--row ex-undo--set"') : '';
 }
 // Ligne au-dessus de la carte d'un exercice (ou à la place d'une carte retirée)
 function exUndoHtml(u) {
@@ -410,10 +412,19 @@ function renderSession() {
         ${coachSessionProgTipHtml()}
         ${lastSessionNoteHtml()}
         ${exHtml}
+        ${sessionFinishBtnHtml(total, done)}
         <button class="session-add-ex-btn" data-action="add-session-ex">${icon('plus', 20)} Ajouter un exercice</button>
       </div>
     </div>
     ${renderRestOverlay()}`;
+}
+
+// Toutes les séries validées (sous-séries comprises) : un grand « Terminer la séance » en bas de la liste, la même action que
+// « Terminer » en haut à droite (retour d'Inès du 26/11 : rien n'invitait à finir, seul le petit lien du haut)
+function sessionFinishBtnHtml(total, done) {
+  const xs = activeSession.exercises;
+  if (!total || done < total || xs.some((x, ei) => techPending(xs, activeSession.lastDone, ei))) return '';
+  return '<button class="btn btn--primary btn--full session-finish-btn" data-action="finish-session">Terminer la séance</button>';
 }
 
 // Exercice terminé : une ligne de résumé qui se déplie au tap
@@ -442,7 +453,7 @@ function foldedRirHtml(block) {
   const ld = activeSession.lastDone;
   if (!ld || !block.includes(ld.ei) || !rirShown()) return '';
   const ex = activeSession.exercises[ld.ei], s = ex?.sets[ld.si];
-  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps' || TECHS[setTech(s)]?.sub || (hasSide2(s) && !setComplete(s))) return '';
+  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps' || (TECHS[setTech(s)]?.sub && !techSubsDone(s)) || (hasSide2(s) && !setComplete(s))) return '';
   const tags = block.length > 1 ? ssTags(activeSession.exercises) : null;
   return `<div class="ex-fold-rir">${rirPickerHtml(ld.ei, ld.si, s, ex, tags ? tags[ld.ei] : '')}</div>`;
 }
@@ -468,8 +479,29 @@ function exVolumeHtml(ex, allDone) {
 function exGoalHtml(ex, cls = '') {
   const d = sessExData(ex);
   const t = d && measureOf(d) === 'reps' && hasPrescLoad(d) ? exerciseGoal(activeSession.category, d, activeSession.programme) : null;
-  if (!t?.coach) return '';
+  if (!t?.coach) return exBeatHtml(ex, cls);
   return `<div class="ex-goal ex-goal--coach num ${cls}"><span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ${myCoachWord('ton')} : ${esc(t.spoken)}</span></div>`;
+}
+
+// « À battre : 42,5 kg × 8 » : l'objectif de l'accueil (exerciseGoal, même calcul), sous le nom, avec sa raison en une
+// phrase (retour d'Inès du 26/11 : l'accueil disait 42,5 × 8, la séance 40 × 12, elle ne savait pas quoi taper). Les cases
+// gardent « Avant » (règle du 17/11) ; la hausse de charge se met d'un toucher dans les cases (« Mettre 42,5 kg », qui
+// remplace la puce ↑ de l'en-tête : une seule place pour l'objectif). Rien une fois l'exercice fini, ni sans objectif
+// (jamais fait, durée, cardio, aide)
+function exBeatHtml(ex, cls = '') {
+  const d = sessExData(ex);
+  if (!d || measureOf(ex) !== 'reps' || ex.sets.every(s => s.done)) return '';
+  const t = exerciseGoal(activeSession.category, d, activeSession.programme);
+  if (!t?.goal) return '';
+  const lp = lastPerf(activeSession.programme, activeSession.category, d);
+  const best = lp ? bestSet(weakSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0)) : null;
+  const heavier = best && t.goal.w > best.w, fewer = heavier && t.goal.r < best.r;
+  const why = fewer ? 'Plus lourd, donc moins de reps : c\'est normal.' : heavier ? 'Un peu plus lourd que la dernière fois.'
+    : best && t.goal.r > best.r ? 'Une rep de plus que la dernière fois.' : 'Refais au moins aussi bien que la dernière fois.';
+  const ei = activeSession.exercises.indexOf(ex);
+  const kg = `${fmtW(t.goal.w, { plain: true })} ${unitLbl()}`;
+  const btn = heavier && bumpReady(ex) ? `<button class="bump-chip ex-beat__btn" data-action="bump-weight" data-ei="${ei}" aria-label="Mettre ${kg} dans les cases, ${esc(ex.name)}">Mettre ${kg}</button>` : '';
+  return `<div class="ex-beat ${cls}"><p class="ex-beat__txt"><b class="num">À battre : ${esc(t.text)}</b> <span>${why}</span></p>${btn}</div>`;
 }
 
 // Exercice jamais fait (aucune dernière fois, aucune charge prévue) et rien de validé : une ligne grise dit quelle
@@ -480,7 +512,9 @@ const FIRST_TIME_NO_LOAD = new Set(['aucun', 'elastique', 'cardio']);
 function exFirstTimeHtml(ex, cls = '') {
   if (measureOf(ex) !== 'reps' || loadKind(ex) !== 'charge' || FIRST_TIME_NO_LOAD.has(equipmentOf(ex.name))) return '';
   if (ex.sets.some(s => s.done || s.prev || hasLoad(s.weight))) return '';
-  return `<div class="ex-first ${cls}">Première fois : prends une charge que tu soulèves 15 fois facilement</div>`;
+  // Le nombre de la case Reps (12 par défaut) : la consigne disait « 15 fois » face à une case à 12 (retour d'Inès du 26/11)
+  const reps = parseInt(workSets(ex.sets).find(s => !s.done)?.reps) || 12;
+  return `<div class="ex-first ${cls}">Première fois : prends une charge que tu pourrais soulever ${reps + 3} fois, et fais-en ${reps}</div>`;
 }
 
 // Sous-titre de la carte : record, repos de l'exercice (modifiable), hausse de volume
@@ -515,7 +549,6 @@ function renderExerciseCard(ex, ei, cur) {
   }
 
   const howTo = !allDone && hasHowTo(ex);
-  const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${loadStepLabel(sessExData(ex) || ex)}">↑ ${loadStepLabel(sessExData(ex) || ex)}</button>` : '';
   // Séries d'échauffement (js/data/warmup.js) : en tête, sous un titre gris ; technique d'intensification
   // et ses sous-séries sous la série (js/features/session-intensif.js)
   // et ses sous-séries sous la série (js/features/session-intensif.js), puis le second côté d'une série notée par bras
@@ -535,7 +568,6 @@ function renderExerciseCard(ex, ei, cur) {
           : howTo
             ? `<h2 class="ex-card__name ex-card__name--howto"><button class="ex-howto" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${howToNameHtml(ex.name)}</span></button></h2>`
             : `<h2 class="ex-card__name">${esc(ex.name)}</h2>`}
-        ${chip}
         <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${ex.sets.length}</span><span class="visually-hidden">${doneN} sur ${ex.sets.length} ${setNoun(ex, ex.sets.length)} ${holdGuide(ex) ? (ex.sets.length > 1 ? 'validés' : 'validé') : (ex.sets.length > 1 ? 'validées' : 'validée')}</span></span>
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
       </div>
@@ -551,7 +583,7 @@ function renderExerciseCard(ex, ei, cur) {
       <div class="sets${ex.sets.some(isWarmupSet) ? ' sets--warm' : ''}${exBySide(ex) ? ' sets--sides' : ex.sets.some(st => TECHS[setTech(st)]?.sub) ? ' sets--tech' : ''}${holdGuide(ex) ? ' sets--noload' : ''}" role="group" aria-label="${holdGuide(ex) ? 'Maintiens' : 'Séries'} de ${esc(ex.name)}">
         <div class="sets__head" aria-hidden="true">
           <span>${holdGuide(ex) ? 'N°' : 'Série'}</span><span>Avant</span>
-          <span>${loadHeader(ex)}</span><span>${MEASURES[measureOf(ex)].count}</span>
+          <span>${loadHeader(ex)}</span><span>${countHeader(ex)}</span>
           <span>${icon('checkmark', 14)}</span>
         </div>
         ${rows}
@@ -597,14 +629,12 @@ function renderGroupCard(members, cur, tags) {
   const legend = members.map(ei => {
     const ex = xs[ei], n = ex.sets.filter(setComplete).length;
     const howTo = !allDone && hasHowTo(ex);
-    const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${loadStepLabel(sessExData(ex) || ex)}, ${esc(ex.name)}">↑ ${loadStepLabel(sessExData(ex) || ex)}</button>` : '';
     return `
         <div class="ss-member">
           <span class="ss-tag" aria-hidden="true">${tags[ei]}</span>
           ${howTo
             ? `<button class="ex-howto ss-member__name" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${howToNameHtml(ex.name)}</span></button>`
             : `<span class="ss-member__name">${esc(ex.name)}</span>`}
-          ${chip}
           <span class="ex-card__count num"><span aria-hidden="true">${n}/${ex.sets.length}</span><span class="visually-hidden">${n} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
           <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
         </div>${exGoalHtml(ex, 'ex-goal--member')}${exFirstTimeHtml(ex, 'ex-goal--member')}`;
@@ -638,7 +668,7 @@ function renderGroupCard(members, cur, tags) {
       <div class="sets${exs.some(ex => ex.sets.some(isWarmupSet)) ? ' sets--warm' : ''}" role="group" aria-label="Séries du ${kind.toLowerCase()}">
         <div class="sets__head" aria-hidden="true">
           <span>Exo</span><span>Avant</span>
-          <span>${loadHeader(m0, exs.every(isDumbbellExercise))}</span><span>${MEASURES[measureOf(m0)].count}</span>
+          <span>${loadHeader(m0, exs.every(isDumbbellExercise))}</span><span>${countHeader(m0)}</span>
           <span>${icon('checkmark', 14)}</span>
         </div>
         ${rounds}
@@ -684,13 +714,14 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}">
           <span class="sr-text" ${u ? '' : 'role="button" tabindex="0"'}>${setSpokenName(ex, si)} validé${warm || holdGuide(ex) ? '' : 'e'}, ${side ? `${sideName(ex, 1).toLowerCase()}, ` : ''}${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}${noteSpoken}${techPillHtml(s) ? `, ${TECHS[setTech(s)].label}` : ''}${tag ? `, ${esc(ex.name)}` : ''}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${withSideTag(setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" '), ex, s, 1)}
-          ${u ? setUndoHtml(u) : setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m), sideNoteWho(ex, si, s, 1))}
+          ${setNoteBtnHtml(ex, ei, s, si, prev, prevSpoken(s, m), sideNoteWho(ex, si, s, 1))}
           <span class="set-val set-val--w num" aria-hidden="true"${hasSide2(s) ? ` data-lbl="${unitLbl()}"` : ''}>${first || '—'}</span>
           <span class="set-val set-val--r num" aria-hidden="true"${hasSide2(s) ? ' data-lbl="Reps"' : ''}>${esc(s.reps)}</span>
           <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
           ${record || pace || mach || techPillHtml(s) ? `<span class="set-badge" aria-hidden="true">${techPillHtml(s, { spoken: false })}${record ? `<span class="pr-badge">${medalSvg(13)}${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
           ${setNotePreviewHtml(ei, s, si)}
         </div>
+        ${setUndoHtml(u)}
         ${rir}
       </div>`;
 }
@@ -757,6 +788,12 @@ function loadHeader(ex, perDb = isDumbbellExercise(ex)) {
   if (perDb) return `<span class="sets__unit">${unitLbl()}<small>par haltère</small></span>`;
   return { charge: unitLbl(), lest: `+${unitLbl()}`, aide: 'Aide' }[loadKind(ex)];
 }
+// En-tête de la colonne des reps ou de la durée : « Durée » avec son unité dessous (« en s », « en min »), comme « kg par
+// haltère » (16 juges du 26/11 : « Durée 15 » sans unité, à côté d'un repos en « 0:15 » et d'un chrono en « 15 s »)
+function countHeader(ex) {
+  const M = MEASURES[measureOf(ex)];
+  return M.unit === 'reps' ? M.count : `<span class="sets__unit">${M.count}<small>en ${M.unit}</small></span>`;
+}
 // Même colonne, en toutes lettres pour VoiceOver (en-tête et champs) : « Charge ajoutée » plutôt que « Lest »
 function loadSpoken(ex) {
   const m = measureOf(ex);
@@ -788,13 +825,13 @@ function setNumHtml(ex, si, tag) {
 }
 
 // Disques (js/data/plates.js) : sur la série à faire d'un exercice à barre, le numéro laisse place à un
-// bouton qui ouvre la feuille « Disques » pour la charge de la série (ou celle de la dernière fois). Le numéro reste, un petit
-// disque (vu de face, avec ses trous de prise) à côté dit ce que le bouton ouvre : seul, il passait pour une cible ou un
-// « top set » (panels de la vague 3) ; l'haltère reste à l'onglet Entraînement
+// bouton qui ouvre la feuille « Disques » pour la charge de la série (ou celle de la dernière fois). Le numéro reste, le mot
+// « Disques » dessous dit ce que le bouton ouvre : le petit disque dessiné passait encore pour une cible (retour de Karim
+// du 26/11, après les panels de la vague 3) ; l'haltère reste à l'onglet Entraînement
 function setPlatesHtml(ex, ei, s, si) {
   const kg = s.weight !== '' ? s.weight : s.prev?.weight;
   const load = kg !== '' && kg != null ? `${fmtW(kg, { plain: true })} ${unitLbl()}` : '';
-  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}"><span class="num">${isWarmupSet(s) ? 'É' : setDisplayNo(ex.sets, si)}</span>${icon('plate', 16)}</button>`;   // échauffement : « É », comme sa ligne validée (jamais « 0 »)
+  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}"><span class="num">${isWarmupSet(s) ? 'É' : setDisplayNo(ex.sets, si)}</span><span class="set-plates__lbl" aria-hidden="true">Disques</span></button>`;   // échauffement : « É », comme sa ligne validée (jamais « 0 »)
 }
 
 // ▶ de la série à faire : chrono d'un maintien, série guidée au tempo, ou chrono d'une machine de cardio
@@ -805,7 +842,7 @@ function setPlayHtml(ex, ei, s, si) {
   const what = m === 'cardio' ? (live ? 'Rouvrir le chrono en cours' : 'Lancer le chrono et noter le réglage de la machine')
     : m === 'time' ? 'Lancer le chrono' : `Lancer la série guidée au tempo ${esc(ex.tempo)}`;
   const goal = s.reps && m !== 'cardio' ? `, ${esc(s.reps)} ${m === 'time' ? 'secondes' : 'répétitions'}` : '';
-  return `<button class="set-n set-play${live ? ' set-play--live' : ''}" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${what}, ${setSpokenName(ex, si).toLowerCase()}, ${esc(ex.name)}${goal}">${icon(live ? 'timer' : 'play', 16)}</button>`;
+  return `<button class="set-n set-play${live ? ' set-play--live' : ''}" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${what}, ${setSpokenName(ex, si).toLowerCase()}, ${esc(ex.name)}${goal}"><span class="num" aria-hidden="true">${isWarmupSet(s) ? 'É' : setDisplayNo(ex.sets, si)}</span>${icon(live ? 'timer' : 'play', 14)}</button>`;
 }
 
 // « Avant » dit à VoiceOver (« 32 × 9 ») : la valeur affichée dans la case, sans espace insécable
@@ -870,7 +907,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''} ${warm ? 'session-set--warmup' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
         ${firstCol}
-        ${undoForSet(ex, si) ? setUndoHtml(undoForSet(ex, si)) : setNoteBtnHtml(ex, ei, s, si, `${s.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}`, prevSpoken(s, m), sideNoteWho(ex, si, s, 1))}
+        ${setNoteBtnHtml(ex, ei, s, si, `${s.prev ? '<span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}`, prevSpoken(s, m), sideNoteWho(ex, si, s, 1))}
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
                value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${sideOf ? sideFieldName(ex, 1, 'w') : `${loadSpoken(ex)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}`}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
@@ -879,6 +916,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
         ${techPillHtml(s) ? `<span class="set-badge">${techPillHtml(s)}</span>` : ''}
         ${setNotePreviewHtml(ei, s, si)}
       </div>
+      ${setUndoHtml(undoForSet(ex, si))}
       ${rir}
     </div>`;
 }
@@ -1143,6 +1181,9 @@ function observeCurrentExName() {
   bar?.classList.remove('navbar--ex');
   if (!slot || !name || !ex || !('IntersectionObserver' in window)) return;
   slot.textContent = ex.name;   // superset : l'exercice de la série à faire, pas « Superset »
+  // Trop long pour une ligne : sur deux, à la place du compteur (css/navigation.css, navbar--ex2), jamais coupé à 8 lettres
+  bar.classList.remove('navbar--ex2');
+  bar.classList.toggle('navbar--ex2', slot.scrollWidth > slot.clientWidth + 1);
   const top = bar.getBoundingClientRect().height;
   // Repris dès que le nom COMMENCE à passer sous la barre (un nom coupé par le bas de l'écran ne compte pas), tant
   // que la carte couvre encore le haut de l'écran : sa fin qui passe sous la barre (ratio 0) relance le calcul

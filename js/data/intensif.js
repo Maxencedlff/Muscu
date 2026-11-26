@@ -18,13 +18,15 @@
 //    séance : la série seule. Une sous-série n'est jamais un effort séparé (pas de repos complet avant) ;
 //  - top set et back-off ne changent aucun calcul : ce sont des séries de travail ordinaires.
 const TECHS = {
-  drop:    { label: 'Drop set',   short: 'D',  sub: true,  subName: 'drop',   ratio: 0.8, pause: 0,  hint: 'sans repos' },
+  // desc : une phrase sous le choix, dans la feuille des techniques (16 juges du 26/11 : cinq noms anglais expliqués dans
+  // un seul paragraphe dense) ; les noms restent ceux du coach (programme, prescription), la phrase dit ce qu'on fait
+  drop:    { label: 'Drop set',   short: 'D',  sub: true,  subName: 'drop',   ratio: 0.8, pause: 0,  hint: 'sans repos', desc: 'Baisse la charge et continue, sans repos' },
   // « mini-série » : un seul mot pour la sous-série du rest-pause (plus de « reprise » ni de « RP1 », panels de la vague 3) ;
   // « Reprise » garde un seul sens, la phase du coach. Hint : la pause, en entier à côté du nom (« Rest-pause 15 s »)
-  rp:      { label: 'Rest-pause', short: 'RP', sub: true,  subName: 'mini-série', fem: true, ratio: 1,  pause: 15, hint: '15 s' },
-  cluster: { label: 'Cluster',    short: 'C',  sub: true,  subName: 'bloc',   ratio: 1,  pause: 20, hint: '20 s' },
-  top:     { label: 'Top set',    short: 'T',  sub: false, hint: 'la plus lourde' },
-  backoff: { label: 'Back-off',   short: 'B',  sub: false, hint: 'allégée' },
+  rp:      { label: 'Rest-pause', short: 'RP', sub: true,  subName: 'mini-série', fem: true, ratio: 1,  pause: 15, hint: '15 s', desc: 'Même charge : 15 s de pause, puis encore quelques reps' },
+  cluster: { label: 'Cluster',    short: 'C',  sub: true,  subName: 'bloc',   ratio: 1,  pause: 20, hint: '20 s', desc: 'Même charge, en petits blocs avec 20 s de pause' },
+  top:     { label: 'Top set',    short: 'T',  sub: false, hint: 'la plus lourde', desc: 'La série la plus lourde de l\'exercice' },
+  backoff: { label: 'Back-off',   short: 'B',  sub: false, hint: 'allégée', desc: 'Une série plus légère, après la plus lourde' },
 };
 const TECH_IDS = Object.keys(TECHS);
 const TECH_SUB_MAX = 6;   // sous-séries d'une série

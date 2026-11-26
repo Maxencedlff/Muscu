@@ -595,9 +595,6 @@ html.type-xl .session-set .set-val--w, html.type-xl .session-set .set-input:not(
 html.type-xl .session-set .set-val--r, html.type-xl .session-set .set-input--required { grid-area: r; }
 html.type-xl .session-set .set-check-zone { grid-area: check; }
 html.type-xl .session-set .set-badge { grid-column: 1 / -1; }
-/* « Annuler » en ligne à la place d'« Avant » ; plus large qu'une colonne en AX33 sur SE (il passait sous le ✓, puis
-   se coupait en « Annul / er », panel du 20/11) : sur les deux premières colonnes, calé à droite, jamais coupé */
-html.type-xl .session-set .set-undo { grid-column: 1 / 3; grid-row: 1; justify-self: end; white-space: nowrap; }
 /* Très grand texte (Dynamic Type AX, vague 3) : noms d'exercice sur 4 lignes au plus au lieu de 2, « Ensuite » du repos
    qui revient à la ligne */
 html.type-xl .ex-card__name, html.type-xl .ex-howto__text, html.type-xl .ss-member__name, html.type-xl .ss-member__name .ex-howto__text { -webkit-line-clamp: 4; line-clamp: 4; }
@@ -651,6 +648,12 @@ html.type-xl .rest-mini .rest-mini__btn[data-d="15"] { grid-area: p15; }
 html.type-xl .rest-mini .rest-mini__skip { grid-area: skip; justify-self: end; box-sizing: border-box; max-width: 100%; }
 html.type-xl .tech-tag { white-space: nowrap; }   /* « Drop 1 » sur une ligne : la colonne du numéro est large en texte agrandi */
 html.type-xl .rest-mini .rest-mini__next { grid-area: next; }
+/* iPhone SE en texte agrandi (16 juges du 26/11) : la barre cachait les cases de la série en cours et la suivante ; sans
+   « Ensuite » (la série à faire est en évidence juste au-dessus, et dans la feuille Repos), elle tient en deux rangées */
+@media (max-width: 374px) {
+  html.type-xl .rest-mini { grid-template-areas: "main main main" "m15 p15 skip"; }
+  html.type-xl .rest-mini .rest-mini__next { display: none; }
+}
 html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 44px; padding: 0 8px; white-space: nowrap; font-size: min(0.882rem, 24px); }   /* plafonnée à 24 px : −15, +15 et Passer tiennent sur une rangée de SE, toutes polices */
 /* Feuille Repos : titre et « Réduire » l'un sous l'autre, durées sur deux rangées de trois */
 html.type-xl .rs__top { flex-wrap: wrap; justify-content: space-between; }
@@ -690,8 +693,6 @@ html.type-xl .ss-member__name { flex: 1 1 60%; min-width: 0; }   /* le nom (et s
 html.type-xl .ex-card__head { flex-wrap: wrap; }
 html.type-xl .ex-card__head > .ex-card__name { flex-basis: 100%; }
 /* Dernier mot et ⓘ insécables à toutes les tailles : le nom a toute la largeur (ⓘ seul sur sa ligne en AX2, panel t5) */
-/* « Modifiée » sur la largeur des deux premières colonnes, entier */
-html.type-xl .session-set .set-undo--state { grid-column: 1 / 3; grid-row: 1; justify-self: end; overflow: visible; text-overflow: clip; }
 /* Reps en réserve : pastilles à la taille de leur texte (« 4+ » passait sur deux lignes) */
 html.type-xl .rir__btns { flex-wrap: wrap; }
 html.type-xl .rir__btn { width: auto; min-width: 44px; height: auto; min-height: 44px; padding: 0 10px; border-radius: 22px; white-space: nowrap; }
