@@ -100,7 +100,8 @@ function orderProgrammeLike(list, ids) {
   if (!Array.isArray(list) || list.length < 2) return null;
   const rank = new Map();
   (ids || []).forEach((id, k) => { if (id && !rank.has(id)) rank.set(id, k); });
-  const blocks = ssBlocks(list).map(b => ({ b, r: Math.min(...b.map(i => rank.get(list[i].id) ?? Infinity)) }));
+  // ids : clés de bloc (blockKey, js/data/blocks.js : le même exercice deux fois) ou, d'une version d'avant, id du programme
+  const blocks = ssBlocks(list).map(b => ({ b, r: Math.min(...b.map(i => rank.get(blockKey(list[i])) ?? rank.get(list[i].id) ?? Infinity)) }));
   const done = blocks.filter(x => x.r !== Infinity), sorted = [...done].sort((a, c) => a.r - c.r);
   let k = 0;
   const next = blocks.map(x => (x.r === Infinity ? x : sorted[k++])).flatMap(x => x.b.map(i => list[i]));

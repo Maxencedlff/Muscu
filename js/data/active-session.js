@@ -48,6 +48,8 @@ function restoreSession() {
     // Séance commencée avec une version précédente : on complète ce qui manque
     if (!activeSession.programme) activeSession.programme = 'ppl';
     if (!activeSession.startedAt) activeSession.startedAt = Date.now();
+    // Commencée avec une version d'avant les blocs (js/data/blocks.js) : exercice rattaché au suivi commun
+    relinkBlockHistory(data, [activeSession.exercises]);
     activeSession.exercises.forEach(ex => {
       if (!Array.isArray(ex.sets)) ex.sets = [];
       // Notes d'exercice et de série (js/data/notes.js) : bornées comme dans l'historique

@@ -55,7 +55,8 @@ function cardioPoint(e, sets) {
 function exerciseIndex() {
   const map = new Map();
   const hist = (data.history || []).slice().sort((a, b) => a.date - b.date);
-  hist.forEach(h => (h.exercises || []).forEach(e => {
+  // Le même exercice plusieurs fois dans une séance (blocs, js/data/blocks.js) : un seul point, avec toutes ses séries
+  hist.forEach(h => exerciseGroups(h.exercises).forEach(({ ex: e }) => {
     const key = exKey(e);
     const p = exPoint(h, e);
     if (!p) return;
@@ -75,7 +76,7 @@ function exerciseIndex() {
 // séance du programme actif, d'un autre programme, ou « Autres ». Karim le 26/11 : après l'import de Hevy, Squat ou Curl
 // étaient rangés sous le PPL d'office jamais fait (même identifiant d'exercice), le reste sous le programme Hevy
 function exSection(it) {
-  const match = (list) => (list || []).some(x => x.id === it.exId || (String(it.exId).startsWith('n:') && sameExerciseName(x.name, it.name)));
+  const match = (list) => (list || []).some(x => exIdOf(x) === it.exId || (String(it.exId).startsWith('n:') && sameExerciseName(x.name, it.name)));
   const pid = data.activeProgramme;
   const live = (p, cat) => (isUserProg(p) ? !!userSessions(p)?.[cat] && !userSessions(p)[cat].retired : !!PROGRAMMES[p]?.sessions?.[cat]);
   if (it.prog && it.cat && it.prog !== FREE && live(it.prog, it.cat) && match(data.programmes[it.prog]?.exercises?.[it.cat])) {

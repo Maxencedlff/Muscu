@@ -181,7 +181,8 @@ Points que le tableau ne disait pas, tranchés côté serveur ; l'app doit les c
 
 ## Programme envoyé (`data`)
 Format de js/data/prog-share.js étendu, validé par l'app à la réception :
-`{ name, consigne?, sessions: [{ key, label, color, exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, load?, loads?, intens?, intensOn?, ss?, grip?, consigne? }] }] }`.
+`{ name, consigne?, sessions: [{ key, label, color, exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, load?, loads?, intens?, intensOn?, ss?, grip?, consigne?, role? }] }] }`.
+- Le même exercice peut revenir dans une séance (26/11/2026, js/data/blocks.js) : pré-fatigue au début, vraies séries à la fin. Chez l'élève, les blocs d'un même nom se reprennent dans l'ordre à chaque envoi (même `id`, même rang) ; un bloc de plus rejoint le suivi du premier (un seul historique, mêmes records). `role` : `'prefat'` (Pré-fatigue) ou `'warmup'` (Échauffement), absent = Normal ; ses séries sont marquées échauffement (hors records, volume, séries par muscle). Une appli d'avant voit deux fois l'exercice et ignore `role`.
 - Charge prescrite (16/11/2026) : `load` (kg pour toutes les séries) et `loads` (série par série), voir « Charge prescrite » plus bas.
 - Reps : fourchette `repMin` à `repMax` (« 8 à 12 »), ou reps fixes `repFixed: true` avec le nombre dans `repMax` (« 4 × 12 », jamais avec `repMin`). Une appli d'avant `repFixed` ignore le champ et lit le seul haut : même hausse de charge quand toutes les séries l'atteignent ; seul l'objectif après la hausse diffère (4 sous le haut au lieu du même nombre).
 - `consigne` (programme ou exercice) : texte du coach, 500 caractères au plus.

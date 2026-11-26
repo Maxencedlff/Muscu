@@ -60,9 +60,13 @@ function prevSameSession(row, rows) {
   return rowsBefore(row, rows).find(r => r.s.category === s.category && entryProg(r.s) === entryProg(s)) || null;
 }
 // Dernière fois que la personne a fait cet exercice, dans n'importe quelle séance : { ex, doneAt } ou null
+// Le même exercice deux fois dans la séance (blocs, js/data/blocks.js ; le serveur ne transmet pas leur rang) : le bloc de
+// même rang parmi ceux du même exercice, comme l'envoi groupé du site du coach (deskPgForOther) (audit M2)
 function prevExercise(ex, row, rows) {
+  const rank = Math.max(0, (row?.s?.exercises || []).filter(e => sameEx(e, ex)).indexOf(ex));
   for (const r of rowsBefore(row, rows)) {
-    const pe = (r.s.exercises || []).find(e => sameEx(e, ex) && doneSets(e).length);
+    const pe = (r.s.exercises || []).filter(e => sameEx(e, ex))[rank];
+    if (pe && !doneSets(pe).length) continue;
     if (pe) return { ex: pe, doneAt: r.doneAt };
   }
   return null;

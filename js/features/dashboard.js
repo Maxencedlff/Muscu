@@ -217,12 +217,15 @@ function sessionMinutes(cat, progId = data.activeProgramme) {
 // gauche (deux lignes au plus, puis « … » ; VoiceOver le lit en entier), la cible en gras à droite ; dessous, en gris,
 // la dernière fois (« avant … ») et le gain avec une flèche ↑ (jamais la couleur seule : « ↑ 1 rep », sans « + »).
 // Jamais fait : « Au programme » et la cible seule.
-function targetRowHtml(cat, ex) {
+// Bloc de pré-fatigue ou d'échauffement (js/data/blocks.js) : rien à battre, son rôle seul sous le nom
+function targetRowHtml(cat, ex, xs = [ex]) {
+  const name = blockName(ex, xs);
+  if (blockRole(ex)) return `<li class="targets__row"><span class="targets__main"><span class="targets__name">${esc(name)}</span></span><span class="targets__sub"><span class="targets__before">${blockRoleLabel(ex)}</span></span></li>`;
   const t = exerciseTarget(cat, ex);
   const gain = t.gain
     ? `<span class="targets__gain num">${icon('arrow.up', 11)}${esc(t.gain)}<span class="sr-text"> de plus</span></span>` : '';
   const before = t.gain && t.before ? `<span class="targets__before num">avant ${esc(t.before)}</span>` : '';
-  return `<li class="targets__row"><span class="targets__main"><span class="targets__name">${esc(ex.name)}</span>`
+  return `<li class="targets__row"><span class="targets__main"><span class="targets__name">${esc(name)}</span>`
     // Charge prescrite par le coach : « Coach : 60 kg × 8 », comme en séance
     + `<span class="targets__target num">${t.coach ? `<span aria-hidden="true">Coach : ${esc(t.text)}</span><span class="visually-hidden">Prescrit par ${myCoachWord('ton')} : ${esc(t.spoken)}</span>` : esc(t.text)}</span></span>`
     + `${before || gain ? `<span class="targets__sub">${before}${gain}</span>` : ''}</li>`;
@@ -237,7 +240,7 @@ function targetsHtml(cat) {
         <h3 class="targets__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}</h3>
         <button class="targets__edit" data-action="go-editor" data-cat="${esc(cat)}" aria-label="Modifier la séance : ses exercices et ses objectifs">Modifier la séance</button>
       </div>
-      <ul class="targets__list">${exs.map(ex => targetRowHtml(cat, ex)).join('')}</ul>
+      <ul class="targets__list">${exs.map(ex => targetRowHtml(cat, ex, exs)).join('')}</ul>
     </div>`;
 }
 

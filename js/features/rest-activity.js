@@ -34,12 +34,15 @@ function restActivityNext(session, cur) {
   const kind = loadKind(ex);
   const load = !reps ? (cur.label && w ? `${w} ${unitLbl()}` : '') : m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : w ? `${w} ${unitLbl()} × ${reps}` : `${reps} reps`;
   // Numéro affiché, échauffements à part : un échauffement se nomme et annonce la série de travail qui le suit
-  const warm = !cur.label && isWarmupSet(s), no = setDisplayNo(ex.sets, cur.si);
-  const name = cur.label ? `${ex.name} · ${cur.label}`
-    : warm ? `${ex.name} · Échauffement ${ex.sets.slice(0, cur.si + 1).filter(isWarmupSet).length}` : String(ex.name);
+  // Bloc du même exercice : « Extension quadriceps (2e) » ; bloc de pré-fatigue : « · Pré-fatigue », ses séries comptées
+  // comme des séries (js/data/blocks.js). Texte seulement : la Live Activity et la montre l'affichent tel quel
+  const label = blockName(ex, session.exercises), prefat = blockRole(ex) === 'prefat';
+  const warm = !cur.label && warmLook(ex, s), no = blockSetNo(ex, cur.si);
+  const name = cur.label ? `${label} · ${cur.label}`
+    : warm ? `${label} · Échauffement ${ex.sets.slice(0, cur.si + 1).filter(isWarmupSet).length}` : prefat ? `${label} · ${BLOCK_ROLES.prefat}` : label;
   // of : nombre de séries de travail (« série 3/4 » sur l'écran verrouillé, build 68 et suivantes ;
   // une build plus ancienne l'ignore et écrit « série 3 »)
-  return { exercise: name.slice(0, REST_ACTIVITY_MAX.exercise), set: warm ? no + 1 : Math.max(1, no), of: workSets(ex.sets).length, load };
+  return { exercise: name.slice(0, REST_ACTIVITY_MAX.exercise), set: warm ? no + 1 : Math.max(1, no), of: prefat ? ex.sets.length : workSets(ex.sets).length, load };
 }
 
 // Données envoyées au module natif (logique pure, testée dans tests/unit/run.mjs)
