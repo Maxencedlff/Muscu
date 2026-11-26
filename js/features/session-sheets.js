@@ -110,11 +110,12 @@ function setExRest(ei, secs) {
 // Une seule feuille pour deux cibles : la séance en cours ('session') et la séance passée ('past', qui reçoit
 // le choix par onPick(name, sets)). Programme › Séance passe par la Bibliothèque en mode choix (« lib-pick »,
 // js/features/library.js), suivie du réglage de l'exercice.
-let ax = { target: 'session', replaceEi: null, exclude: new Set(), around: [], onPick: null };
+let ax = { target: 'session', replaceEi: null, exclude: new Set(), has: new Set(), around: [], onPick: null };
 let axSets = 3;
 let axMuscle = NO_MUSCLE_FILTER;   // filtre par muscle de la feuille, remis à zéro à chaque ouverture
 
-const axItemHtml = n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`;
+// Exercice déjà dans la séance : proposé quand même (un bloc de plus, js/data/blocks.js), signalé en gris
+const axItemHtml = n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${ax.has.has(exerciseNameKey(n)) ? '<span class="ax__sub">Déjà dans la séance</span>' : exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`;
 const axHintHtml = txt => `<div class="ax__hint">${txt}</div>`;
 // Recherche approchée : au plus 3 exercices, pour que « Créer » reste à portée de pouce, juste dessous
 const AX_PARTIAL_MAX = 3;
@@ -277,16 +278,21 @@ function axPlaceWhere(spot, xs) {
 // Place dans la liste du programme qui correspond à « Ensuite » : à côté de l'exercice de référence (superset entier),
 // sinon à la fin (exercice de référence ajouté en séance, absent du programme)
 function progAddIndex(list, spot) {
-  const ri = spot?.ref?.exId ? list.findIndex(e => e.id === spot.ref.exId) : -1;
+  const ri = spot?.ref?.exId ? list.findIndex(e => exIdOf(e) === spot.ref.exId && occOf(e) === occOf(spot.ref)) : -1;
   if (ri < 0) return list.length;
   const b = ssBlocks(list).find(x => x.includes(ri));
   return spot.before ? b[0] : b.at(-1) + 1;
 }
 
-// exclude : noms à ne pas proposer (par défaut, les exercices de la séance en cours)
-function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick = null } = {}) {
-  const names = exclude ?? (activeSession?.exercises || []).map(e => e.name);
-  ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(exerciseNameKey)), around: names, onPick };
+// exclude : noms à ne pas proposer (par défaut : rien pour un ajout, l'exercice remplacé pour un remplacement) ;
+// has : noms déjà dans la séance, proposés avec « Déjà dans la séance » (le même exercice deux fois : js/data/blocks.js)
+function openAddExSheet({ target = 'session', replaceEi = null, exclude, has, onPick = null } = {}) {
+  const inSession = (activeSession?.exercises || []).map(e => e.name);
+  const repName = target === 'session' && replaceEi !== null ? activeSession?.exercises[replaceEi]?.name : null;
+  const names = exclude ?? (repName ? [repName] : []);
+  const here = has ?? (target === 'session' ? inSession : []);
+  ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(exerciseNameKey)), has: new Set(here.map(exerciseNameKey)),
+    around: target === 'session' ? inSession : here, onPick };
   const rep   = ax.replaceEi !== null ? activeSession.exercises[ax.replaceEi] : null;
   axMuscle    = NO_MUSCLE_FILTER;
   axSets      = rep ? Math.max(1, rep.sets.filter(s => !s.done).length) : 3;   // les séries qui restent à faire
@@ -346,20 +352,27 @@ function pickExercise(name) {
   if (!activeSession) return;
   const { programme: sp, category: sc } = activeSession;
   const list    = sessProg().exercises[sc] || (sessProg().exercises[sc] = []);
+  // Déjà dans la séance : un bloc de plus du même exercice (js/data/blocks.js), même suivi, rang suivant ; il reprend le
+  // bloc du programme de ce rang s'il existe (sa dernière fois, ses réglages)
+  const others  = activeSession.exercises.filter((e, i) => i !== ax.replaceEi);
+  const inSess  = others.find(e => sameExerciseName(e.name, name));
+  const occ     = inSess ? nextOcc(others, inSess) : 1;
   // Nom renommé de la bibliothèque : l'exercice du programme enregistré sous l'ancien nom est repris (même suivi)
-  let inProg    = list.find(e => sameExerciseName(e.name, name));
+  let inProg    = list.find(e => sameExerciseName(e.name, name) && occOf(e) === occ);
   const toProg  = $('#axToProg')?.checked;
   let addedToProg = null;   // ajouté aussi au programme : « Annuler » l'en retire aussi
   const spot = ax.replaceEi === null && axPlace === 'next' ? orderAddSpot(activeSession.exercises, currentSet()?.ei) : null;
   if (toProg && !inProg && ax.replaceEi === null) {
-    inProg = addedToProg = makeExercise(name, axSets);
+    inProg = addedToProg = linkBlock(list, makeExercise(name, axSets));
+    if (occOf(inProg) !== occ) { if (occ > 1) inProg.occ = occ; else delete inProg.occ; }
     list.splice(progAddIndex(list, spot), 0, inProg);   // même place que dans la séance : retenue la prochaine fois
     save();
   }
-  let exId = inProg ? inProg.id : resolveExId(sp, sc, name);
+  let exId = inProg ? exIdOf(inProg) : inSess?.exId || resolveExId(sp, sc, name);
   if (exId?.startsWith('n:')) exId = null; // résolu à l'enregistrement, comme avant
-  const exObj = { exId, name: inProg ? inProg.name : name, measure: measureOf(inProg || { name }), ...(inProg?.tempo ? { tempo: inProg.tempo } : {}), ...(inProg?.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(inProg) } : {}), ...(cleanGrip(inProg?.grip) ? { grip: cleanGrip(inProg.grip) } : {}), sets: buildSets(sp, sc, { exId, name }, axSets, inProg || {}) };
+  const exObj = { exId, name: inProg ? inProg.name : inSess ? inSess.name : name, ...(occ > 1 ? { occ } : {}), ...(blockRole(inProg) ? { role: blockRole(inProg) } : {}), measure: measureOf(inProg || { name }), ...(inProg?.tempo ? { tempo: inProg.tempo } : {}), ...(inProg?.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(inProg) } : {}), ...(cleanGrip(inProg?.grip) ? { grip: cleanGrip(inProg.grip) } : {}), sets: buildSets(sp, sc, { exId, name, ...blockFields(inProg || { occ }) }, axSets, inProg || {}) };
   applyIntensPlan(exObj, inProg?.intens, inProg?.intensOn);   // technique prescrite par le programme (js/data/intensif.js)
+  if (blockRole(exObj)) setBlockRole(exObj, blockRole(exObj));   // pré-fatigue, échauffement : séries marquées
   let target;
   if (ax.replaceEi !== null) {
     // Les séries déjà validées sont du travail fait : l'ancien exercice les garde (sans ses séries
@@ -446,7 +459,7 @@ async function chooseSessionTempo(ei) {
     guide = mode === 'guide';
   }
   applyTempo(ex, tempo, guide);
-  const inProg = ex.exId && (sessProg().exercises[activeSession.category] || []).find(e => e.id === ex.exId);
+  const inProg = sessExData(ex);   // le même bloc du programme (js/data/blocks.js)
   if (inProg) { applyTempo(inProg, tempo, guide); save(); }
   persistSession();
   render();
@@ -503,6 +516,8 @@ function exerciseMoreActions(xs, ei) {
     // Note d'exercice (js/features/session-notes.js), relue la prochaine fois. Ici plutôt que dans le menu ⋯ :
     // celui-ci doit tenir sans défiler sur iPhone SE ; le lien « Note » est aussi au bout de l'exercice terminé
     { label: exNoteMenuLabel(ex), value: 'note' },
+    // Rôle du bloc (js/features/blocks-ui.js) : Normal, Pré-fatigue, Échauffement
+    { label: `Rôle : ${blockRoleLabel(ex)}`, value: 'role' },
     ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
     ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
     ...(inGroup ? [{ label: 'Retirer du superset', value: 'ss-leave' }] : []),
@@ -525,8 +540,8 @@ function exerciseMoreActions(xs, ei) {
 async function exerciseMenu(ei) {
   const ex = activeSession.exercises[ei];
   if (!ex) return;
-  let choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(activeSession.exercises, ei, currentSet()?.ei) });
-  if (choice === 'more' && activeSession?.exercises[ei] === ex) choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMoreActions(activeSession.exercises, ei) });
+  let choice = await dialog({ type: 'sheet', title: exLabel(ex), actions: exerciseMenuActions(activeSession.exercises, ei, currentSet()?.ei) });
+  if (choice === 'more' && activeSession?.exercises[ei] === ex) choice = await dialog({ type: 'sheet', title: exLabel(ex), actions: exerciseMoreActions(activeSession.exercises, ei) });
   if (!choice || !activeSession || activeSession.exercises[ei] !== ex) return;
   if (choice === 'now') { sessionDoNow(ei); return; }
   if (choice === 'later') { sessionDoLater(ei); return; }
@@ -537,6 +552,9 @@ async function exerciseMenu(ei) {
     return;
   } else if (choice === 'note') {
     await editExerciseNote(ei);
+    return;
+  } else if (choice === 'role') {
+    await chooseSessionRole(ei);
     return;
   } else if (choice === 'up' || choice === 'down') {
     const moved = ssMove(xs, ei, choice === 'up' ? -1 : 1);

@@ -55,7 +55,8 @@ function cardioPoint(e, sets) {
 function exerciseIndex() {
   const map = new Map();
   const hist = (data.history || []).slice().sort((a, b) => a.date - b.date);
-  hist.forEach(h => (h.exercises || []).forEach(e => {
+  // Le même exercice plusieurs fois dans une séance (blocs, js/data/blocks.js) : un seul point, avec toutes ses séries
+  hist.forEach(h => exerciseGroups(h.exercises).forEach(({ ex: e }) => {
     const key = exKey(e);
     const p = exPoint(h, e);
     if (!p) return;
@@ -73,7 +74,7 @@ function exerciseIndex() {
 
 // Section d'un exercice : séance du programme actif, d'un autre programme, ou « Autres »
 function exSection(it) {
-  const match = (list) => (list || []).some(x => x.id === it.exId || (String(it.exId).startsWith('n:') && sameExerciseName(x.name, it.name)));
+  const match = (list) => (list || []).some(x => exIdOf(x) === it.exId || (String(it.exId).startsWith('n:') && sameExerciseName(x.name, it.name)));
   const pid = data.activeProgramme;
   for (const cat of sessionKeys(pid)) if (match(data.programmes[pid]?.exercises?.[cat])) return { key: pid + ':' + cat, cat, prog: pid };
   for (const [p, pd] of Object.entries(data.programmes)) {

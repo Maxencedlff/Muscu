@@ -81,11 +81,12 @@ function deskPgRestSel(e, id) {
   return deskCkSelectHtml(id, `Repos, ${e.name}`, opts, e.rest ? String(e.rest) : '', `data-pg-f="rest" data-k="${e._k}"`);
 }
 
-function deskPgRowHtml(e, i, n, rows, name) {
+function deskPgRowHtml(e, i, n, rows, name, xs = [e]) {
   const k = e._k, reps = measureOf(e) === 'reps', rp = deskPgReps(e), ld = deskPgLoads(e);
   const tag = intensText(e, { short: true });
+  const role = blockRole(e) ? ` <span class="tag">${esc(blockRoleLabel(e))}</span>` : '';   // js/data/blocks.js
   const muscles = (catalogueEntry(e.name)?.primary || []).slice(0, 3).map(muscleLabel).filter(Boolean).join(', ');
-  const exCell = `<div class="pg-ex"><b>${esc(e.name)}</b>${tag ? ` <span class="tag">${esc(tag.charAt(0).toUpperCase() + tag.slice(1))}</span>` : ''}${e.ss ? ' <span class="tag">Superset</span>' : ''}
+  const exCell = `<div class="pg-ex"><b>${esc(blockName(e, xs))}</b>${role}${tag ? ` <span class="tag">${esc(tag.charAt(0).toUpperCase() + tag.slice(1))}</span>` : ''}${e.ss ? ' <span class="tag">Superset</span>' : ''}
     ${muscles ? `<small>${esc(muscles)}</small>` : ''}${e.consigne ? `<span class="cons">${esc(`« ${e.consigne} »`)}</span>` : ''}</div>`;
   const repsCell = !reps ? `<span class="muted">${esc(measureOf(e) === 'time' ? 'Maintien' : 'Cardio')}</span>`
     : rp.fixed ? `${deskPgIn(`pg-hi-${k}`, 'repMax', k, rp.hi, `Reps fixes, ${e.name}`)}<span class="muted">reps</span>`
@@ -120,6 +121,8 @@ function deskPgSettingsHtml(e, i, n, name) {
       ${Array.from({ length: e.sets }, (_, j) => chip('set-n', j + 1, Array.isArray(where) ? where.includes(j + 1) : where === 'all' || j === e.sets - 1, `Série ${j + 1}`, 'checkbox')).join('')}
     </div><span class="t2">${esc(intensText(e) || '')}</span></div>` : '';
   return `<div class="pg-set" id="pg-set-${k}" role="group" aria-label="${esc(`Réglages de ${e.name}`)}">
+    <div class="fld sm"><span id="pg-ro-${k}">Rôle</span><div class="seg" role="radiogroup" aria-labelledby="pg-ro-${k}">${radio('role', 'normal', !blockRole(e), 'Normal')}${radio('role', 'prefat', blockRole(e) === 'prefat', BLOCK_ROLES.prefat)}${radio('role', 'warmup', blockRole(e) === 'warmup', BLOCK_ROLES.warmup)}</div>
+      <span class="t2">${esc(BLOCK_ROLE_HELP)}</span></div>
     ${reps ? `<div class="fld sm"><span id="pg-rm-${k}">Reps</span><div class="seg" role="radiogroup" aria-labelledby="pg-rm-${k}">${radio('reps-mode', 'range', !rp.fixed, 'Fourchette')}${radio('reps-mode', 'fixed', rp.fixed, 'Fixes')}</div></div>
     <div class="fld sm"><span id="pg-lm-${k}">Charge prescrite</span><div class="seg" role="radiogroup" aria-labelledby="pg-lm-${k}">${radio('load-mode', 'one', ld.mode === 'one', 'Même charge')}${radio('load-mode', 'sets', ld.mode === 'sets', 'Série par série')}</div>
       <span class="t2">${esc(`${name} la voit dans sa séance, avec la fourchette. Vide : pas de charge prescrite.`)}</span></div>
@@ -151,7 +154,7 @@ function deskPgHtml(r) {
   const note = deskPgReadOnly() ? `<p class="gfoot pg-note">${esc(`Version de ce programme gardée sur ton compte, en lecture seule : le serveur ne rend pas encore la version reçue par ${name} (mise à jour à venir). Les charges prescrites depuis l'iPhone n'y sont pas ; pour modifier ce programme, passe par l'app en attendant.`)}</p>` : '';
   const list = s && s.exercises.length ? `<ul class="group pg-list" aria-label="${esc(`Exercices de la séance ${s.label}`)}">
       <li class="pg-row pg-hdr" aria-hidden="true"><span>Exercice</span><span>Séries</span><span>Reps</span><span>Charge (kg)</span><span class="pg-rest">Repos</span><span>La dernière fois</span><span></span></li>
-      ${s.exercises.map((e, i) => deskPgRowHtml(e, i, s.exercises.length, rows, name)).join('')}</ul>`
+      ${s.exercises.map((e, i) => deskPgRowHtml(e, i, s.exercises.length, rows, name, s.exercises)).join('')}</ul>`
     : `<div class="empty">Aucun exercice dans cette séance.</div>`;
   const dirty = deskPgDirty();
   return `<div class="head pg-head"><div class="seg" role="radiogroup" aria-label="Séance">${sessTabs}</div>${progSel}
@@ -306,8 +309,8 @@ document.addEventListener('click', async e => {
   if (a === 'retry') { deskPgOpen(route.id, { force: true }); return; }
   if (a === 'session') { pg.sel = Number(el.dataset.v) || 0; pg.open = null; history.replaceState(null, '', `#/eleve/${encodeURIComponent(route.id)}/programme/${encodeURIComponent(pg.draft.sessions[pg.sel].key)}`); deskRender(); document.querySelector(`[data-pg="session"][data-v="${pg.sel}"]`)?.focus(); return; }
   if (a === 'open' && x) { pg.open = pg.open === x.e._k ? null : x.e._k; deskRender(); document.getElementById(`pg-open-${x.e._k}`)?.focus(); return; }
-  if ((a === 'reps-mode' || a === 'load-mode' || a === 'where') && x) {
-    deskPgPatch(x.e, { 'reps-mode': 'repsMode', 'load-mode': 'loadMode', where: 'where' }[a], el.dataset.v);
+  if ((a === 'reps-mode' || a === 'load-mode' || a === 'where' || a === 'role') && x) {
+    deskPgPatch(x.e, { 'reps-mode': 'repsMode', 'load-mode': 'loadMode', where: 'where', role: 'role' }[a], el.dataset.v);
     deskRender(); document.querySelector(`[data-pg="${a}"][data-k="${x.e._k}"][data-v="${el.dataset.v}"]`)?.focus(); return;
   }
   if (a === 'set-n' && x) {

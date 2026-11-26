@@ -72,7 +72,7 @@ function applySessionSuperset(ei, others) {
 
   // Programme : mêmes exercices regroupés (par identifiant), si tous en viennent
   const plist = sessProg().exercises[activeSession.category] || [];
-  const pIdx  = e => (e.exId ? plist.findIndex(p => p.id === e.exId) : -1);
+  const pIdx  = e => (e.exId ? plist.findIndex(p => exIdOf(p) === e.exId && occOf(p) === occOf(e)) : -1);   // le même bloc (js/data/blocks.js)
   const pi = pIdx(ex), pothers = chosen.map(pIdx);
   // Regrouper : tous les exercices viennent du programme, chacun une seule fois (un doublon ajouté en
   // séance a le même identifiant). Retirer : seulement si le programme avait ce même groupe.

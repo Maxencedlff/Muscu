@@ -270,6 +270,9 @@ function setsSpoken(sets, measure, kind) {
   if (ok.every(s => load(s) === load(ok[0]))) return `${n}${load(ok[0]) ? ` à ${load(ok[0])}` : ''} : ${and(ok.map(s => s.reps))} reps`;
   return `${n} : ${and(ok.map(s => `${load(s) || 'poids du corps'}, ${s.reps} reps`))}`;
 }
+// Séries montrées d'un exercice : celles d'un bloc de pré-fatigue ou d'échauffement (js/data/blocks.js) se lisent comme
+// des séries (le rôle est dit sur sa ligne), sans la mention « Échauffement » de chacune
+function blockShownSets(e) { return blockRole(e) ? (e.sets || []).map(({ warmup, ...st }) => st) : e.sets; }
 // Prise d'un exercice reçu d'un ami ou d'un élève (js/data/grips.js : libellés fixes, échappés quand même)
 function reviewGripHtml(e) {
   const t = gripText(e.grip, e);
@@ -344,10 +347,11 @@ function renderHistoryDetail(id) {
             <div class="cell hex hex--art">
               ${histExThumbHtml(e, index)}
               <span class="cell__body">
-                <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
+                <span class="hex__name">${ssTagHtml(xs, i)}${esc(blockName(e, xs))}</span>
+                ${blockRole(e) ? `<span class="hex__sets hex__sets--note">${blockRoleLabel(e)}</span>` : ''}
                 ${gripText(e.grip, e) ? `<span class="hex__sets hex__sets--note">${gripText(e.grip, e)}</span>` : ''}
-                <span class="hex__sets num">${esc(sidePrefix(e, e.sets))}${setsLine(e.sets, measureOf(e), setKind(e))}</span>
-                ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
+                <span class="hex__sets num">${esc(sidePrefix(e, e.sets))}${setsLine(blockShownSets(e), measureOf(e), setKind(e))}</span>
+                ${!blockRole(e) && warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}
                 ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
                 ${historyNotesHtml(e)}

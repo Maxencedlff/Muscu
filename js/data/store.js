@@ -25,6 +25,7 @@ function recomputePRFromHistory(d = data) {
         .sort((a, b) => a.date - b.date);
       sessions.forEach(session => {
         (session.exercises || []).forEach(histEx => {
+          // Le même exercice plusieurs fois (js/data/blocks.js) : le 1er bloc porte les records, recopiés sur les autres à la fin
           const exData = exercises.find(e => sameEx(e, histEx));
           // Records : répétitions seulement. Mesure lue sur l'entrée (toujours enregistrée hors répétitions) :
           // ce calcul tourne au chargement, avant js/data/measures.js
@@ -45,15 +46,23 @@ function recomputePRFromHistory(d = data) {
           });
         });
       });
+      // Blocs de plus : les records de leur exercice, une seule recherche par liste
+      // (celui qui les porte : le premier de la liste, exercises.find ci-dessus)
+      if (exercises.some(e => e.exId)) exercises.forEach(b => {
+        const first = exercises.find(e => sameEx(e, b));
+        if (first !== b) { b.pr = first.pr; b.est1RM = first.est1RM; b.lastWeight = first.lastWeight; b.lastReps = first.lastReps; }
+      });
     });
   });
 }
 
-// Dernière séance (programme + catégorie) qui contient cet exercice : { h, ex } ou null
+// Dernière séance (programme + catégorie) qui contient ce bloc de l'exercice : { h, ex } ou null. Même exercice et
+// même rang (occ, js/data/blocks.js) : le 2e bloc reprend son 2e bloc de la dernière fois, jamais le 1er
 function lastPerf(progKey, cat, exLike, d = data) {
+  const occ = occOf(exLike);
   for (const h of d.history || []) {
     if (entryProg(h) !== progKey || h.category !== cat) continue;
-    const ex = (h.exercises || []).find(e => sameEx(e, exLike));
+    const ex = (h.exercises || []).find(e => sameEx(e, exLike) && occOf(e) === occ);
     if (ex && ex.sets?.length) return { h, ex };
   }
   // Jamais fait dans cette séance : sa dernière fois ailleurs, par le nom (nouveau programme créé avec des
@@ -61,7 +70,7 @@ function lastPerf(progKey, cat, exLike, d = data) {
   const key = exerciseNameKey(exLike?.name);
   if (!key) return null;
   for (const h of d.history || []) {
-    const ex = (h.exercises || []).find(e => exerciseNameKey(e.name) === key);
+    const ex = (h.exercises || []).find(e => exerciseNameKey(e.name) === key && occOf(e) === occ);
     if (ex && ex.sets?.length) return { h, ex };
   }
   return null;
@@ -72,7 +81,7 @@ function resolveExId(progKey, cat, name, d = data) {
   if (progKey === FREE) return resolveFreeExId(name, d);
   // Par le nom, renommages de la bibliothèque compris (sameExerciseName, js/data/exercise-catalogue.js)
   const inProg = (d.programmes[progKey]?.exercises?.[cat] || []).find(e => sameExerciseName(e.name, name));
-  if (inProg) return inProg.id;
+  if (inProg) return exIdOf(inProg);   // bloc de plus (js/data/blocks.js) : le suivi commun
   for (const h of d.history || []) {
     if (entryProg(h) !== progKey || h.category !== cat) continue;
     const ex = (h.exercises || []).find(e => e.exId && sameExerciseName(e.name, name));
@@ -89,7 +98,7 @@ function resolveFreeExId(name, d = data) {
   for (const k of progs) {
     for (const list of Object.values(d.programmes[k]?.exercises || {})) {
       const ex = (list || []).find(e => exerciseNameKey(e.name) === n);
-      if (ex) return ex.id;
+      if (ex) return exIdOf(ex);
     }
   }
   const past = (d.history || []).flatMap(h => h.exercises || []).find(e => e.exId && exerciseNameKey(e.name) === n);
@@ -248,6 +257,8 @@ function sanitizeData(d) {
         if (ex.grip !== undefined) { const g = cleanGrip(ex.grip); if (g) ex.grip = g; else delete ex.grip; }
         // Consigne du coach (js/data/coach.js) : texte court, retirée si vide
         if (ex.consigne !== undefined) { const c = cleanConsigne(ex.consigne); if (c) ex.consigne = c; else delete ex.consigne; }
+        // Bloc de plus du même exercice (js/data/blocks.js) : suivi, rang et rôle valides ou absents
+        cleanBlockFields(ex, true);
         if (ex.musclesSecondary != null) {
           if (!Array.isArray(ex.musclesSecondary)) delete ex.musclesSecondary;
           else ex.musclesSecondary = [...new Set(ex.musclesSecondary.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES);
@@ -539,6 +550,8 @@ function cleanHistoryEntry(h) {
     if (ex.note !== undefined) { const n = cleanNote(ex.note); if (n) ex.note = n; else delete ex.note; }
     // Premier bras d'un exercice noté par bras (js/data/unilateral.js) : 'droit' ou absent
     if (ex.sideFirst !== undefined && ex.sideFirst !== 'droit') delete ex.sideFirst;
+    // Rang et rôle du bloc (js/data/blocks.js) : valides ou absents
+    cleanBlockFields(ex);
     ex.sets.forEach(st => {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
@@ -625,6 +638,9 @@ function normalizeData(d, rawJson = null) {
   if (from < CARDIO_WORDS_SCHEMA) {
     Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(ex => pinLegacyCardioWords(ex, from))));
   }
+  // Séances notées par une version d'avant les blocs depuis un programme qui en a (js/data/blocks.js) : rattachées
+  // au suivi commun, à chaque lancement (une séance peut arriver d'un appareil resté sur une version d'avant)
+  if (relinkBlockHistory(d)) { try { recomputePRFromHistory(d); } catch {} }
   d.schema = SCHEMA;
   d.history.sort((a, b) => b.date - a.date);
   return d;

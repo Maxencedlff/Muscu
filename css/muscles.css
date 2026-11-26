@@ -395,6 +395,5 @@ body.light .mpick__auto { background: var(--cell); }
 }
 .mgc__check .icon { width: 14px; height: 14px; }
 .mgc--pick[aria-checked="true"] .mgc__check { background: var(--tint-fill); border-color: var(--tint-fill); color: var(--on-tint); }
-.mgc--has .mgc__title, .mgc--has .mgc__img { opacity: .45; }
 .library--pick .lib-create { margin-top: 0; margin-bottom: 8px; }
 .type-xl .mgc--pick { padding-left: 48px !important; }

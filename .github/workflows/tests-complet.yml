@@ -82,15 +82,19 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          fetch-depth: 0 # app d'avant les blocs relue par git archive (tests/app_avant.sh)
       - name: Playwright et polices
         run: bash tests/ci_conteneur.sh
       - name: Serveur local de l'app
         run: |
           python -m http.server 8731 > /tmp/serveur.log 2>&1 &
           for i in $(seq 1 20); do python -c "import urllib.request as u; u.urlopen('http://localhost:8731/')" 2>/dev/null && break; sleep 0.5; done
+      - name: App d'avant les blocs, servie à part (test_blocs.py, once_version_avant)
+        run: bash tests/app_avant.sh 8732
       - name: Suite Playwright, part ${{ matrix.part }}/${{ needs.plan.outputs.total }}
         env:
           PPL_URL: http://localhost:8731/
+          PPL_OLD_URL: http://localhost:8732/
           PPL_DEVICES: ${{ needs.plan.outputs.appareils }}
           PPL_JOBS: '3'
           PPL_SHARD: ${{ matrix.part }}/${{ needs.plan.outputs.total }}

@@ -28,6 +28,7 @@ const SCRIPTS = [
   'js/data/machine-track.js',
   'js/data/plates.js',
   'js/data/warmup.js',
+  'js/data/blocks.js',
   'js/data/intensif.js',
   'js/data/unilateral.js',
   'js/data/coach-presc.js',
@@ -126,6 +127,7 @@ const SCRIPTS = [
   'js/features/dashboard.js',
   'js/features/session.js',
   'js/features/session-sheets.js',
+  'js/features/blocks-ui.js',
   'js/features/grip-ui.js',
   'js/features/session-notes.js',
   'js/features/session-order-ui.js',
@@ -2448,6 +2450,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./tour.mjs')).default({ test, run, app, assert, ROOT });
 // ── Mode coach grand écran sur iPad, 25/11 (tests dans coach-ipad.mjs, contextes à part) ──
 (await import('./coach-ipad.mjs')).default({ test, assert, ROOT });
+// ── Le même exercice deux fois, rôle d'un bloc, 26/11 (tests dans blocks.mjs) ──
+(await import('./blocks.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Mise en page tablette, 26/11 (tests dans tablet.mjs, contextes à part) ──
 (await import('./tablet.mjs')).default({ test, assert, ROOT });
 

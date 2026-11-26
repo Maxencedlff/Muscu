@@ -210,10 +210,12 @@ function columnIndex(header, ...variants) {
 function importDate(t) { return t !== null && t <= Date.now() + IMPORT_FUTURE_MS ? t : null; }
 // Exercice d'une séance en cours de lecture (index par nom brut : pas de recherche à chaque ligne),
 // créé au besoin ; null au-delà de IMPORT_MAX_EXERCISES dans la séance ou de IMPORT_MAX_NAMES noms
-// distincts dans le fichier (names : noms déjà vus)
-function importExercise(s, raw, names, make) {
+// distincts dans le fichier (names : noms déjà vus). restart : la ligne commence une série 1 ; le même exercice repris
+// après un autre (ses séries déjà là) devient un bloc de plus, comme dans l'app (le même exercice deux fois :
+// js/data/blocks.js) ; des séries entrelacées (superset : A1, B1, A2, B2) restent dans leur exercice
+function importExercise(s, raw, names, make, restart = false) {
   let ex = s.byRaw.get(raw);
-  if (ex) return ex;
+  if (ex && !(restart && s.exercises.at(-1) !== ex && ex.sets.length)) return ex;
   if (s.exercises.length >= IMPORT_MAX_EXERCISES || (!names.has(raw) && names.size >= IMPORT_MAX_NAMES)) return null;
   names.add(raw);
   ex = make();
@@ -225,7 +227,7 @@ function readHevyRows(header, rows) {
   const c = {
     title: columnIndex(header, 'title'), start: columnIndex(header, 'start_time'), end: columnIndex(header, 'end_time'),
     desc: columnIndex(header, 'description'), ex: columnIndex(header, 'exercise_title'), ss: columnIndex(header, 'superset_id'),
-    exNotes: columnIndex(header, 'exercise_notes'), type: columnIndex(header, 'set_type'),
+    exNotes: columnIndex(header, 'exercise_notes'), type: columnIndex(header, 'set_type'), idx: columnIndex(header, 'set_index'),
     kg: columnIndex(header, 'weight_kg'), lbs: columnIndex(header, 'weight_lbs', 'weight_lb'), reps: columnIndex(header, 'reps'),
     km: columnIndex(header, 'distance_km'), miles: columnIndex(header, 'distance_miles'), sec: columnIndex(header, 'duration_seconds'),
     rpe: columnIndex(header, 'rpe'),
@@ -246,7 +248,7 @@ function readHevyRows(header, rows) {
       sessions.set(key, s);
     }
     const ss = cell(row, c.ss);
-    const ex = importExercise(s, raw, names, () => ({ raw, sets: [], ss: /^\d{1,6}$/.test(ss) ? ss : null }));
+    const ex = importExercise(s, raw, names, () => ({ raw, sets: [], ss: /^\d{1,6}$/.test(ss) ? ss : null }), cell(row, c.idx) === '0');
     if (!ex) { skippedRows++; continue; }
     const note = cleanText(cell(row, c.exNotes));
     if (note && !s.exNotes.has(raw)) s.exNotes.set(raw, note);
@@ -291,7 +293,7 @@ function readStrongRows(header, rows) {
         notes: cleanText(cell(row, c.wNotes)), exNotes: new Map(), exercises: [], byRaw: new Map() };
       sessions.set(key, s);
     }
-    const ex = importExercise(s, raw, names, () => ({ raw, sets: [], ss: null }));
+    const ex = importExercise(s, raw, names, () => ({ raw, sets: [], ss: null }), /^(1|w)$/i.test(order));
     if (!ex) { skippedRows++; continue; }
     const note = cleanText(cell(row, c.notes));
     if (note && !s.exNotes.has(raw)) s.exNotes.set(raw, note);
@@ -643,13 +645,15 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
   }
   // Exercices des séances créées : ceux de la dernière séance importée à ce nom (la routine telle qu'elle
   // est faite aujourd'hui), avec leur nombre de séries ; identifiant partagé avec l'historique
+  // Le même exercice deux fois dans la séance : un bloc de plus, même suivi (js/data/blocks.js)
   for (const cat of newCats) {
     const last = entries.filter(h => h.category === cat).at(-1);
-    pd.exercises[cat] = (last?.exercises || []).slice(0, 30).map(e => {
+    const list = pd.exercises[cat] = [];
+    (last?.exercises || []).slice(0, 30).forEach(e => {
       const pe = makeExercise(e.name, Math.min(10, Math.max(1, e.sets.length)));
-      pe.id = importExId(e.name, exIds);
+      if (list.some(x => sameExerciseName(x.name, e.name))) linkBlock(list, pe); else pe.id = importExId(e.name, exIds);
       if (e.measure && e.measure !== 'reps') pe.measure = e.measure;
-      return pe;
+      list.push(pe);
     });
     pd.timers[cat] = null; pd.cooldowns[cat] = 72;
   }
@@ -657,9 +661,14 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
   // Identifiant de chaque exercice : celui de la séance du programme (créée ci-dessus), sinon celui du même
   // nom ailleurs (programmes, historique : même courbe de progrès), sinon une clé de nom
   for (const h of entries) {
+    const rank = new Map();   // 2e fois le même nom dans la séance : bloc de rang 2 (« Avant » du même bloc)
     for (const e of h.exercises) {
-      const inProg = (pd.exercises[h.category] || []).find(x => sameExerciseName(x.name, e.name));
-      e.exId = inProg ? inProg.id : importExId(e.name, exIds);
+      const k = exerciseNameKey(e.name), n = (rank.get(k) || 0) + 1;
+      rank.set(k, n);
+      if (n > 1) e.occ = n;
+      const list = pd.exercises[h.category] || [];
+      const inProg = list.find(x => sameExerciseName(x.name, e.name) && occOf(x) === n) || list.find(x => sameExerciseName(x.name, e.name));
+      e.exId = inProg ? exIdOf(inProg) : importExId(e.name, exIds);
     }
     ssNormalize(h.exercises);
   }

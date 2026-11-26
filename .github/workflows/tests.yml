@@ -92,6 +92,8 @@ jobs:
         run: bash tests/sql/compte_vide_site_coach_rollback_test.sh
       - name: Retour arrière de la remontée des erreurs (docs/ERREURS_PROD.md)
         run: bash tests/sql/erreurs_prod_rollback_test.sh
+      - name: Retour arrière de la séance publique avec rôle et rang des blocs (préparée, pas appliquée)
+        run: bash tests/sql/seance_publique_blocs_rollback_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
@@ -127,15 +129,19 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          fetch-depth: 0 # app d'avant les blocs relue par git archive (tests/app_avant.sh)
       - name: Playwright et polices
         run: bash tests/ci_conteneur.sh
       - name: Serveur local de l'app
         run: |
           python -m http.server 8731 > /tmp/serveur.log 2>&1 &
           for i in $(seq 1 20); do python -c "import urllib.request as u; u.urlopen('http://localhost:8731/')" 2>/dev/null && break; sleep 0.5; done
+      - name: App d'avant les blocs, servie à part (test_blocs.py, once_version_avant)
+        run: bash tests/app_avant.sh 8732
       - name: Suite Playwright (iPhone 13 et Pixel 7, sombre), part ${{ matrix.part }}/4
         env:
           PPL_URL: http://localhost:8731/
+          PPL_OLD_URL: http://localhost:8732/
           PPL_DEVICES: iPhone 13,Pixel 7
           PPL_THEMES: dark
           PPL_JOBS: '3'
